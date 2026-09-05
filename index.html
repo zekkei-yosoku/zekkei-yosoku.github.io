@@ -313,8 +313,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260906040815"></script>
-<script src="sorami-core.js?v=20260906040815"></script>
+<script src="spots.js?v=20260906080449"></script>
+<script src="sorami-core.js?v=20260906080449"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -437,7 +437,8 @@ let selectedDay = {};    // phenomenon → dayMs
 // ---------------------------------------------------------------- 読み込み
 async function load(force) {
   $("status").hidden = false;
-  $("status").textContent = "4つの気象モデルから取得しています…";
+  // モデル数は増減する。文言に数字を焼き込むと、増やしたときに嘘になる（4→8で実際にずれていた）。
+  $("status").textContent = `${S.MODELS.length}つの気象モデルから取得しています…`;
   $("bestNote").hidden = true;
   try {
     // 光害はその地点の素質なので予報と並行に取得する。取れなくても致命的ではない。
@@ -766,7 +767,14 @@ function renderDetailPane(id, now) {
   const sel = entries.find((e) => e.dayMs === selectedDay[id]) || u;
   const ev = sel.evaluation;
   const meta = S.PHENOMENA[id];
-  const when = `${S.JstCal.relativeDay(sel.dayMs, now)}${ev.specificTime === false ? "" : " " + S.JstCal.hhmmRounded(ev.peak)}`;
+  // 星空は「その瞬間」ではなく「この時間帯に見に行く」話なので、詳細では幅で出す。
+  // 一覧のカードは場所が無いので開始時刻だけ。
+  const spanHours = (ev.window[1] - ev.window[0]) / 3600000;
+  const asRange = id === "starrySky" && spanHours >= 1.5;
+  const when = `${S.JstCal.relativeDay(sel.dayMs, now)}`
+    + (ev.specificTime === false ? ""
+       : asRange ? ` ${S.JstCal.hhmmRounded(ev.window[0])}〜${S.JstCal.hhmmRounded(ev.window[1])}`
+       : ` ${S.JstCal.hhmmRounded(ev.peak)}`);
 
   if (ev.unavailable) {
     return `<div data-id="${id}"><div class="card">

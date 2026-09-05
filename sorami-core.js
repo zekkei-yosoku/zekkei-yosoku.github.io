@@ -332,6 +332,22 @@
       base: 100, cloudPenalty: 60, precipThreshold: 0.1, precipPenalty: 40,
       moonlightPenalty: 25, humidityStart: 85, visPoor: 15000, atmospherePenalty: 10,
       elevStart: 1000, elevFull: 2500, elevBonus: 5,
+      // 夜通しの平均で採点していたが、それでは
+      // 「前半は快晴・後半は曇り」と「一晩じゅう半分曇り」が同じ点数になる。
+      // 星を見るのに一晩ずっと晴れている必要はない。まとまった時間があればいい。
+      // 夜のうち最も条件の良い連続 3 時間を探し、その時間帯で採点する。
+      // 3 時間は「見に行くだけの価値がある最短のまとまり」としての設定で、
+      // 文献値ではない。短くすると雲の切れ間を拾いすぎ、
+      // 長くすると短夜（夏至前後）や薄明の長い高緯度で窓が取れなくなる。
+      windowHours: 3,
+      // 雲と月を単純に足していたため、全天曇りでも月が無ければ 100-60=40点、
+      // ランクでいう「そこそこ」が付いていた。雲に覆われていれば月の有無に関係なく
+      // 星は見えない。虹で日光を上限として効かせたのと同じ形にする（第34節）。
+      //
+      // 全天が塞がるまでは切らない。5〜7割の雲なら晴れ間から見える。
+      // 8割から効かせ、10割で 3点。8割という区切りは、
+      // 航空気象の OVC（全天を覆う）が 8/8 であることに合わせた。
+      overcastFrom: 80, overcastCeiling: 3,
       // 光害。天頂の空の明るさ mpsas（等級/平方秒）で減点する。
       // 22.0 が自然の空、都心は 17 前後（対数尺度で約100倍明るい）。
       // 減点幅 45 は本アプリの見立て（文献値ではない）。都心では晴れて無月でも
@@ -967,21 +983,67 @@
       }
       return null;
     },
-    score(window, input) {
+    // 曇っているほど月明かりは関係なくなる。塞がった空の下では月の有無で見え方は変わらない。
+    moonWeight(cloud) { return 1 - Curve.ramp(cloud, 0, 100); },
+    // 全天が雲で塞がれば、条件が何であれ星は見えない。上限として効かせる。
+    overcastCeiling(cloud) {
+      const s = T.starry;
+      return s.base - (s.base - s.overcastCeiling) * Curve.ramp(cloud, s.overcastFrom, 100);
+    },
+    // 夜のうち、いちばん条件の良い連続 windowHours を探す。
+    // 選ぶ基準は採点そのものと同じ（雲と月の減点の合計が最小）。
+    // 別の基準で窓を選ぶと、選んだ窓と出す点数が食い違う。
+    bestWindow(window, input) {
       const s = T.starry, series = input.home, [ws, we] = window;
+      const span = s.windowHours * 3600000;
+      if (we - ws <= span) return [ws, we];
+      // 夜通しでも同じ良さなら絞らない。一様に晴れた夜に「19:00〜22:00が狙いめ」と
+      // 出すのは嘘で、実際は一晩じゅう見える。
+      const valueOf = (start, end) => {
+        const cloud = series.mean("cloud_cover", start, end);
+        if (cloud === null) return null;
+        const moon = Moon.peakBrightness(start, end, input.lat, input.lon);
+        return Math.min(starrySkyScorer.overcastCeiling(cloud),
+          s.base - Curve.ramp(cloud, 0, 100) * s.cloudPenalty
+                 - moon * starrySkyScorer.moonWeight(cloud) * s.moonlightPenalty);
+      };
+      const wholeValue = valueOf(ws, we);
+      let best = null;
+      for (let start = ws; start + span <= we; start += 3600000) {
+        // 採点と同じ式で比べる。別の基準で選ぶと、選んだ窓と出す点数が食い違う。
+        const value = valueOf(start, start + span);
+        if (value === null) continue;
+        if (!best || value > best.value) best = { start, end: start + span, value };
+      }
+      if (!best) return [ws, we];
+      // 1点にも満たない差で時間帯を絞らない。
+      if (wholeValue !== null && best.value - wholeValue < 1) return [ws, we];
+      return [best.start, best.end];
+    },
+    score(window, input) {
+      const s = T.starry, series = input.home;
+      const [ws, we] = starrySkyScorer.bestWindow(window, input);
       const cloud = series.mean("cloud_cover", ws, we);
       if (cloud === null) return unavailable("missingData", "雲量が得られませんでした");
       const factors = [];
+      const nightHours = (window[1] - window[0]) / 3600000;
+      const whole = we - ws >= window[1] - window[0] - 60000;
       factors.push(factor(`雲量 ${pct(cloud)}`, -Curve.ramp(cloud, 0, 100) * s.cloudPenalty,
-        cloud < 20 ? "ほとんど雲がありません" : cloud > 70 ? "厚い雲に覆われます" : "雲が出たり入ったりします"));
+        (cloud < 20 ? "ほとんど雲がありません" : cloud > 70 ? "厚い雲に覆われます" : "雲が出たり入ったりします")
+        + (whole ? `。夜のあいだ（約${Math.round(nightHours)}時間）ずっとの値です`
+                 : `。${Cal.hhmmRounded(ws)}〜${Cal.hhmmRounded(we)} の値です（この夜でいちばん条件の良い時間帯）`)));
       const precip = series.max("precipitation", ws, we);
       if (precip !== null && precip > s.precipThreshold) {
         factors.push(factor(`降水 ${f1(precip)}mm`, -s.precipPenalty, "雨では星は見えません"));
       }
       const moonPeak = Moon.peakBrightness(ws, we, input.lat, input.lon);
       const moonState = Moon.state(ws + (we - ws) / 2, input.lat, input.lon);
-      factors.push(factor(`月明かり 輝面比${pct(moonState.illuminatedFraction * 100)}`, -moonPeak * s.moonlightPenalty,
-        moonPeak < 0.05 ? "月明かりの影響はほぼありません" : `月齢${Math.round(moonState.age)}。夜のあいだで最も高いときで見ています`));
+      const moonWeight = starrySkyScorer.moonWeight(cloud);
+      factors.push(factor(`月明かり 輝面比${pct(moonState.illuminatedFraction * 100)}`,
+        -moonPeak * moonWeight * s.moonlightPenalty,
+        moonPeak < 0.05 ? "月明かりの影響はほぼありません"
+          : moonWeight < 0.3 ? `月齢${Math.round(moonState.age)}。ただし雲に覆われるので月の有無は効きません`
+          : `月齢${Math.round(moonState.age)}。この時間帯で月がいちばん高いときで見ています`));
       let atmospherePenalty = 0, atmosphereDetail = "";
       const humidity = series.mean("relative_humidity_2m", ws, we);
       if (humidity !== null && humidity > s.humidityStart) {
@@ -1009,7 +1071,16 @@
         factors.push(factor(`標高 ${Math.round(elevation)}m`,
           Curve.ramp(elevation, s.elevStart, s.elevFull) * s.elevBonus, "空気が薄く、空が暗くなります"));
       }
-      return buildScore(s.base, factors);
+      const result = buildScore(s.base, factors);
+      const ceiling = starrySkyScorer.overcastCeiling(cloud);
+      if (result.score > ceiling) {
+        result.factors.push(factor(`空が塞がる（雲量 ${pct(cloud)}）`, ceiling - result.score,
+          "全天が雲に覆われると、ほかの条件が揃っていても星は見えません"));
+        result.score = ceiling;
+      }
+      // 夜全体ではなくこの時間帯の話であることを、表示側へも伝える。
+      if (!whole) result.refinedWindow = [ws, we];
+      return result;
     },
   };
 

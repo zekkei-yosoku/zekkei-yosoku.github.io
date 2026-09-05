@@ -72,10 +72,20 @@ if (ev.factors.length !== expFactors.length) {
   });
 }
 
-console.log("== 星空評価 ==");
+// 星空は 2026-09-06 に Web 版だけ「夜のうち最も条件の良い連続3時間で採点する」へ変更した。
+// 夜通しの平均では「前半だけ快晴」と「一晩じゅう半分曇り」が同点になり、
+// 見に行くかの判断に使えなかったため。Swift 版は夜通し平均のまま止めている。
+//
+// ここを Swift の値へ合わせ直すと、意図した改善を「不一致」として毎回潰すことになる。
+// かといって黙って期待値を書き換えると、移植ミスと設計変更の区別がつかなくなる。
+// **意図的に分岐した項目として明示し、両方の値を出す**形にする。
+console.log("== 星空評価（Web版が先行。Swiftとは意図的に別物） ==");
 const starry = S.evaluate("starrySky", day, bundle, place);
-check("starryScore", starry.score, expected.starry_score, 0.001);
-for (const m of sharedModels) check(`starry.${m}`, starry.perModel[m], expected.starry_perModel[m], 0.001);
+console.log(`  Web版 ${starry.score.toFixed(2)} / Swift版 ${expected.starry_score.toFixed(2)}`
+  + `  ← 夜通し平均から「最も良い連続3時間」へ変更（2026-09-06）`);
+console.log(`  採点した時間帯: ${starry.refinedWindow
+  ? new Date(starry.refinedWindow[0]).toISOString() + " 〜 " + new Date(starry.refinedWindow[1]).toISOString()
+  : "夜通し"}`);
 
 console.log(failures === 0 ? "\nPARITY OK — Swift と一致" : `\nPARITY NG — ${failures} 件不一致`);
 process.exit(failures === 0 ? 0 : 1);
