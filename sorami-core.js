@@ -544,7 +544,22 @@
     };
   }
 
-  function buildURL(coords, vars, days, pastDays) {
+  // 地点の標高が分かっているなら渡す。渡さないとモデルは自前の 90m DEM の値を使う。
+  //
+  // 効果は小さい。spots.js の33地点はすべて DEM と 50m 以内（最大38m）で一致しており、
+  // 2026年1〜2月で霧氷の該当日が変わったのは高見山の +3日/59日だけ、
+  // ダイヤモンドダストは全地点で変化なし（2026-09-06 実測）。
+  //
+  // それでも渡すのは、画面に出している標高・aboveMargin の比較・アメダスの減率補正が
+  // すべて place.elevation を基準にしており、気象値だけ別の高さで計算されていると
+  // 系統的なずれの温床になるため。数値の改善ではなく前提を揃えるための指定。
+  //
+  // 注意: 補正は標準減率による外挿で、逆転層のある朝は符号が逆になり得る。
+  // 逆転の判定は気圧面（絶対高度）で行っており、そちらはこの補正の影響を受けない。
+  const usableElevation = (e) =>
+    typeof e === "number" && Number.isFinite(e) && e >= -500 && e <= 9000 ? Math.round(e) : null;
+
+  function buildURL(coords, vars, days, pastDays, elevation = null) {
     const p = new URLSearchParams({
       latitude: coords.map((c) => c.latitude.toFixed(4)).join(","),
       longitude: coords.map((c) => c.longitude.toFixed(4)).join(","),
@@ -556,6 +571,8 @@
       forecast_days: String(days),
     });
     if (pastDays > 0) p.set("past_days", String(pastDays));
+    const e = usableElevation(elevation);
+    if (e !== null) p.set("elevation", String(e));
     return `https://api.open-meteo.com/v1/forecast?${p}`;
   }
 
@@ -586,7 +603,7 @@
 
   /// 51 メンバーのアンサンブル。取れなくても致命的ではない（信頼度が
   /// 従来の「8モデルの幅＋日数の下駄」へ落ちるだけ）ので、失敗したら null を返す。
-  async function fetchEnsemble(lat, lon, days) {
+  async function fetchEnsemble(lat, lon, days, elevation = null) {
     const p = new URLSearchParams({
       latitude: lat.toFixed(4), longitude: lon.toFixed(4),
       hourly: ENSEMBLE_VARS.join(","), models: ENSEMBLE_MODEL,
@@ -595,6 +612,9 @@
       // 3 時間値にすると転送量は 350KB→135KB に減るが、IQR の相関が 0.515・
       // 平均絶対差 8.6 点まで崩れる（10地点×7日で実測）。閾値の間隔と同じ大きさなので使えない。
     });
+    // 本体と同じ高さで計算させる。揃えないと、ばらつきだけ別の場所のものになる。
+    const ee = usableElevation(elevation);
+    if (ee !== null) p.set("elevation", String(ee));
     try {
       const raw = await fetchJSON(`https://ensemble-api.open-meteo.com/v1/ensemble?${p}`);
       const times = raw.hourly.time.map((t) => t * 1000);
@@ -622,12 +642,14 @@
     const offsetsFor = (bearing) => CLOUD_LAYERS.map((l) => Geo.destination(lat, lon, bearing, l.offsetKm));
 
     const [homeRaw, sunsetRaw, sunriseRaw, air, ensemble] = await Promise.all([
+      // 標高を渡すのは自地点だけ。太陽方位側の 165/260/368km 先は別の場所で、
+      // そこの標高までこちらの値にしたら嘘になる。
       fetchJSON(buildURL([{ latitude: lat, longitude: lon }],
-        needsProfile(place) ? [...HOME_VARS, ...PROFILE_VARS] : HOME_VARS, days, 1)),
+        needsProfile(place) ? [...HOME_VARS, ...PROFILE_VARS] : HOME_VARS, days, 1, place?.elevation)),
       fetchJSON(buildURL(offsetsFor(sunsetBearing), OFFSET_VARS, days, 0)),
       fetchJSON(buildURL(offsetsFor(sunriseBearing), OFFSET_VARS, days, 0)),
       fetchAir(lat, lon, days),
-      fetchEnsemble(lat, lon, days),
+      fetchEnsemble(lat, lon, days, place?.elevation),
     ]);
     // 地点の時差を暦へ反映する。以降の「今日／明日」はその地点の暦で動く。
     const homeMeta = Array.isArray(homeRaw) ? homeRaw[0] : homeRaw;
