@@ -421,8 +421,12 @@
     // 15W/m² 程度）のときに 12W/m² で満点が付いていた。
     // 日没間際の「赤い虹」は実在するので一律に切らず、量に応じて弱める。
     directLo: 10, directHi: 100,
-    // 日が差していなければ虹は出ない。0W/m² で 75点「良好」が出ていた。
-    noSunDirect: 3, noSunCeiling: 25,
+    // 日が差していなければ虹は出ない。**確率ではなく定義**で出ない。
+    // 75点→25点→5点と2回下げている。25 でもまだ高すぎた:
+    // 雨の予報が無い日（2点）や雨が夜だけの日（2点）と並べたとき、
+    // 「土砂降りで日射0」の日がその10倍の点数になっていた。
+    // 必須条件が確かに欠けている日は、同じ低さに揃える。
+    noSunDirect: 3, noSunCeiling: 5,
     // 日射を返さないモデルがある（気象庁GSMは全時刻、MSM・英国気象局・ARPEGE は一部）。
     // その時間は必須条件を確かめられないので、良い方へは丸めない。
     unverifiedSunCeiling: 50,
@@ -1478,12 +1482,13 @@
         // 相対だけで見ていたため、太陽高度 1°（快晴でも 15W/m² 程度）のときに
         // 12W/m² が「比 0.76」で満点になっていた。両方を満たしたときだけ加点する。
         const direct = series.valueAtIndex("direct_radiation", i);
-        let ceiling = null, ceilingReason = "";
+        let ceiling = null, ceilingReason = "", sunlightFit = 0;
         if (direct !== null) {
           const potential = s.clearSkyDirectMax * Math.sin(sun.elevation * DEG);
           const relative = potential > 0 ? Curve.ramp(direct / potential, s.sunlightFitLo, s.sunlightFitHi) : 0;
           const absolute = Curve.ramp(direct, s.directLo, s.directHi);
           const fit = Math.min(relative, absolute);
+          sunlightFit = fit;
           factors.push(factor(`直射日光 ${Math.round(direct)}W/m²`, fit * s.sunlightBonus,
             fit > 0.5 ? "雨のあいだも日が差しそうです"
               : direct < s.noSunDirect ? "日が差していません。虹は日光が雨粒に当たって初めて見えます"
@@ -1503,7 +1508,15 @@
           ceilingReason = "日が差すか確かめられない";
         }
 
-        const candidate = buildScore(s.base, factors, ceiling, ceilingReason, [hourStart, hourStart + series.stepMs]);
+        // 時刻を出すのは、その1時間に虹が出うるときだけ。
+        // 日が差さないと分かっている時間に「5:00」と出すと、
+        // その時刻に出そうに見える（雨の予報がない日に日の出時刻を出さないのと同じ理由）。
+        //
+        // 判定は「日射の加点が少しでも立つか」に揃える。noSunDirect(3W/m²) で
+        // 切ると、3W/m² ちょうどの時間が時刻だけ出て点数は下限のまま、になる。
+        const hasSun = direct === null || sunlightFit > 0;
+        const candidate = buildScore(s.base, factors, ceiling, ceilingReason,
+          hasSun ? [hourStart, hourStart + series.stepMs] : null);
         if (!best || candidate.score > best.score) best = candidate;
       }
       if (best) return best;

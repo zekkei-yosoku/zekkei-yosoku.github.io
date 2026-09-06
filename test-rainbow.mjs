@@ -57,6 +57,28 @@ ok(trace !== null && plenty !== null && plenty > trace,
 ok(trace !== null && S.rankOf(trace).key !== "good" && S.rankOf(trace).key !== "spectacular",
   "12W/m² では「良好」に届かない", `${trace && S.rankOf(trace).label}`);
 
+// 日射ゼロは「確率が低い」ではなく【出ない】。雨が無い日と同じ低さに揃える。
+// 実際に踏んだ例: 2026-09-07 の東京、5.4mm/h の雨で日射 0W/m² のとき 25点。
+// 雨の予報がない日が 2点なので、出ない日が出ない日の10倍になっていた。
+console.log("== 日が差していない時間は、雨が降っていても低いまま ==");
+{
+  const full = (cols) => new S.Series(times, cols);
+  const scoreOf = (home) => {
+    const input = { home, offsets: {}, lat: place.latitude, lon: place.longitude,
+      terrain: null, elevation: place.elevation, lightPollution: null, air: null };
+    return S.SCORERS.rainbow.score(S.SCORERS.rainbow.window(day, input), input);
+  };
+  const pour = scoreOf(full({ precipitation: times.map(() => 5.4),
+    showers: times.map(() => 0.2), direct_radiation: times.map(() => 0) }));
+  const dry = scoreOf(full({ precipitation: times.map(() => 0),
+    showers: times.map(() => 0), direct_radiation: times.map(() => 600) }));
+  ok(pour.score <= 6, "日射ゼロなら5点前後にとどまる", `${pour.score.toFixed(0)}点`);
+  ok(Math.abs(pour.score - dry.score) < 6,
+    "「土砂降りで日射ゼロ」と「雨なし」がほぼ同じ低さ",
+    `日射ゼロ${pour.score.toFixed(0)} / 雨なし${dry.score.toFixed(0)}`);
+  ok(pour.refinedWindow === null, "日が差さない時間に時刻を出さない");
+}
+
 console.log("== 雨が無ければ虹は出ない（母数からは外さない） ==");
 const dry = (() => {
   const home = new S.Series(times, { precipitation: times.map(() => 0),
