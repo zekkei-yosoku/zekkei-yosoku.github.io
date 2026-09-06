@@ -114,7 +114,7 @@ export const CAMERA_SOURCES = Object.freeze([
     name: "一松海岸YouTubeライブ（周辺）",
     provider: "長生村",
     type: "youtube",
-    url: "https://www.vill.chosei.chiba.jp/",
+    url: "https://www.surfers-ocean.com/%E3%82%B5%E3%83%BC%E3%83%95%E3%82%A3%E3%83%B3%E6%B3%A2%E6%83%85%E5%A0%B1/%E7%89%87%E8%B2%9D/",
     coverage: "nearby",
     history: CAMERA_HISTORY.UNVERIFIED,
     cadence: "live",
