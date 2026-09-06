@@ -33,7 +33,33 @@ ok(/function renderPhenomenonCards/.test(html), "現象ごとのカードを描�
 ok(/id="cards"/.test(html), "#cards がある");
 // 色や数字を覚えなくても、どの日がいいかが棒の高さで分かる。
 ok(/30 \* ev\.score \/ 100/.test(html), "日の良し悪しを棒の高さで示す");
-ok(/class="day\$\{isNext\}\$\{isPast\}" data-cell=/.test(html), "日がボタンになっている");
+// 2026-09-06: 共通描画へ移し、一覧はdata-cell、詳細はdata-dayを使う。
+// ボタンであることは生成したHTMLで検証する。
+const { runInNewContext } = await import("node:vm");
+const daysSource = html.slice(html.indexOf("function renderDays("), html.indexOf("// その日の光の時間。"));
+const sampleNow = Date.UTC(2026, 8, 6, 3);
+const sampleDays = Array.from({ length: 14 }, (_, i) => ({
+  dayMs: sampleNow + i * 86400000,
+  evaluation: { score: 20 + i * 5, rank: coreMod.rankOf(20 + i * 5),
+    window: [sampleNow + i * 86400000 - 7200000, sampleNow + i * 86400000 - 3600000],
+    confidence: { key: "high" }, models: 8 }
+}));
+const drawDays = runInNewContext(daysSource + ";renderDays", {
+  S: coreMod, RANK_COLOR: {poor:"gray", fair:"yellow",good:"orange",spectacular:"red"},
+  upcoming: (entries) => entries[1], esc: (s) => String(s)
+});
+const listDays = drawDays("sunset", sampleDays, sampleNow);
+const detailDays = drawDays("sunset", sampleDays, sampleNow, sampleDays[13].dayMs);
+ok((listDays.match(/<button /g) || []).length === 14, "一覧の14日がボタン");
+ok((detailDays.match(/<button /g) || []).length === 14, "詳細の14日が同形式のボタン");
+ok((detailDays.match(/aria-pressed="true"/g) || []).length === 1 && detailDays.includes(`data-day="${sampleDays[13].dayMs}" aria-pressed="true"`), "最終日だけが選択済み");
+ok(!detailDays.includes(" next"), "直近枠と選択枠を混同しない");
+// 終了済みの薄表示より選択状態を優先する（PC実描画で発見）。
+ok(html.indexOf('.day[aria-pressed="true"] {') > html.lastIndexOf(".day.past {"), "過去日でも選択中は薄くならない");
+const bodies = (markup) => [...markup.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => m[1]);
+ok(JSON.stringify(bodies(listDays)) === JSON.stringify(bodies(detailDays)), "一覧と詳細の点数・棒・日付・信頼度が一致");
+const unavailableDays = [{...sampleDays[0], evaluation: { unavailable: { message: "取得不能" } }}];
+ok(!drawDays("sunset", unavailableDays, sampleNow, sampleDays[0].dayMs).includes("<button"), "取得不能の日は押せる見た目にしない");
 // 20時に「今日の夕焼け 79点」がいちばん高い棒として左端に出ていた。
 ok(/\.day\.past \{[^}]*opacity/.test(html), "終わった回は薄くする");
 ok(/isPast = ev\.window\[1\] <= now/.test(html), "終わったかどうかを窓の終わりで判定する");

@@ -178,6 +178,15 @@
   .day .d { font-size: 0.63rem; color: var(--tertiary); line-height: 1.12; text-align: center; }
   .day.next { border-color: var(--accent); }
 
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .day[aria-pressed="true"] {
+    opacity: 1; border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+    background: var(--card);
+  }
+  .day[aria-pressed="true"] .d { color: var(--text); font-weight: 700; }
+  .day:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+
   .highlight { border: 1px solid; }
   /* 数字ではなく評価の言葉を主役にする。
      スコアの実測誤差は ±9.5 点で、84 と 82 の差には意味がない。
@@ -206,16 +215,6 @@
   .pm .n { min-width: 86px; flex: none; white-space: nowrap; color: var(--secondary); }
   .pm .v { width: 26px; text-align: right; color: var(--secondary); }
   .pm .scorebar { flex: 1; height: 5px; }
-
-  /* 14日ぶん並ぶので、押し間違いが増える。行の高さを指の幅に足りるところまで上げる。
-     以前は 29px で、監査が毎回「タップ領域が小さい」と挙げていた。 */
-  .wk { display: flex; align-items: center; gap: 8px; padding: 5px 0; min-height: 34px;
-        font-size: 0.81rem; width: 100%; text-align: left; }
-  .wk .d { min-width: 62px; flex: none; white-space: nowrap; }
-  .wk .t { min-width: 40px; flex: none; white-space: nowrap; color: var(--secondary); font-variant-numeric: tabular-nums; }
-  .wk .scorebar { flex: 1; }
-  .wk .s { width: 26px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .wk.sel { background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 7px; }
 
   table.numbers { border-collapse: collapse; font-size: 0.75rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
   table.numbers th, table.numbers td { padding: 4px 7px; text-align: right; color: var(--secondary); }
@@ -347,8 +346,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260906110901"></script>
-<script src="sorami-core.js?v=20260906110901"></script>
+<script src="spots.js?v=20260906145727"></script>
+<script src="sorami-core.js?v=20260906145727"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -607,12 +606,24 @@ function render() {
   if (inDetail) {
     $("detailPane").innerHTML = renderDetailPane(picked, now);
     $("backBtn").onclick = goList;
-    // 週間の行で日を替える。詳細だけを見ている画面なので、表は出ていない。
-    for (const el of $("detailPane").querySelectorAll("[data-day]")) {
+    // 直接リンクで遠い日を開いても、選択したボタンを横スクロール内に出す。
+    const strip = $("detailWeek").querySelector(".days");
+    const active = strip.querySelector('[aria-pressed="true"]');
+    if (active) strip.scrollLeft = Math.max(0, active.offsetLeft - strip.offsetLeft - (strip.clientWidth - active.offsetWidth) / 2);
+    for (const el of strip.querySelectorAll("[data-day]")) {
       el.onclick = () => {
-        selectedDay[picked] = +el.dataset.day;
-        location.replace(`#/${picked}/${el.dataset.day}`);
-        render();
+        const dayMs = +el.dataset.day;
+        const sel = weeks[picked].find((e) => e.dayMs === dayMs);
+        if (!sel) return;
+        selectedDay[picked] = dayMs;
+        // hashchange で画面全体を再描画すると横位置・フォーカス・縦位置が戻る。
+        history.replaceState(null, "", `#/${picked}/${dayMs}`);
+        for (const day of strip.querySelectorAll("[data-day]")) {
+          day.setAttribute("aria-pressed", String(+day.dataset.day === dayMs));
+        }
+        $("dayDetail").innerHTML = renderDayDetail(picked, weeks[picked], sel, Date.now());
+        wireOutcomes($("dayDetail"));
+        $("dayAnnouncement").textContent = `${S.Cal.monthDay(dayMs)} ${S.Cal.weekday(dayMs)}の詳細に切り替えました。${sel.evaluation.unavailable ? sel.evaluation.unavailable.message : S.phrasing(picked, sel.evaluation.rank).label}`;
       };
     }
   } else {
@@ -630,9 +641,7 @@ function render() {
   if (inRecords) $("recordsBack").onclick = goList;
   // ホームと記録画面の「実際はどうでしたか？」も同じ配線に乗せるため、
   // 描画をすべて終えてから束ねる。
-  for (const el of document.querySelector("main").querySelectorAll("[data-outcome]")) {
-    el.onclick = () => recordOutcome(el.dataset.pid, +el.dataset.peak, el.dataset.outcome);
-  }
+  wireOutcomes(document.querySelector("main"));
   $("footer").innerHTML =
     `${bundle ? S.JstCal.hhmm(bundle.fetchedAt) : "—"} 時点の予測。`
     + `${S.MODELS.length}つの数値予報モデル（${S.MODELS.map((m) => S.MODEL_NAMES[m]).join("・")}）の`
@@ -652,6 +661,12 @@ function render() {
     + `このアプリが独自に点数を付けたものです。実際の空とは違うことがあります。`
     + `見に行くかどうかの目安としてお使いください。<br>`
     + `予報: Open-Meteo ／ 実況: 気象庁アメダス ／ 光害: <a href="https://djlorenz.github.io/astronomy/lp/">Lorenz Light Pollution Atlas 2025</a>（VIIRS） ／ 検索: OSM Nominatim ・ 国土地理院`;
+}
+
+function wireOutcomes(root) {
+  for (const el of root.querySelectorAll("[data-outcome]")) {
+    el.onclick = () => recordOutcome(el.dataset.pid, +el.dataset.peak, el.dataset.outcome);
+  }
 }
 
 // ---------------------------------------------------------------- 画面の行き来
@@ -775,35 +790,42 @@ function renderPhenomenonCards(order, now) {
          ・<span style="color:${RANK_COLOR[uev.rank.key]};font-weight:700">${esc(S.phrasing(id, uev.rank).label)}</span>`
       : "";
 
-    const days = entries.map((e) => {
-      const ev = e.evaluation;
-      // 全部の日を日付で書く。「今日」「明日」だけ1行になって、
-      // その下に置いた等級の位置が日ごとにずれていた。どの列が今日かは
-      // 左端であることと、次の回の枠（.next）で分かる。
-      const label = `${S.Cal.monthDay(e.dayMs)}<br>${S.Cal.weekday(e.dayMs)}`;
-      if (ev.unavailable) {
-        return `<div class="day" style="opacity:.45"><span class="v muted">—</span>
-          <span class="col"><i style="height:3px;background:var(--line)"></i></span>
-          <span class="d">${label}</span></div>`;
-      }
-      const color = RANK_COLOR[ev.rank.key];
-      const h = Math.max(3, Math.round(30 * ev.score / 100));
-      const isNext = u && e.dayMs === u.dayMs ? " next" : "";
-      // 終わった回は薄くする。押せるままにするのは、見えたかどうかを記録するため。
-      const isPast = ev.window[1] <= now ? " past" : "";
-      // 14日ぶん並ぶので、どこから先を鵜呑みにしないかを1文字で添える。
-      const grade = S.reliabilityGrade(ev.confidence, ev.models);
-      return `<button class="day${isNext}${isPast}" data-cell="${id}|${e.dayMs}"
-        title="${esc(meta.name)} ${S.JstCal.relativeDay(e.dayMs, now)} ${Math.round(ev.score)}点 ${esc(S.phrasing(id, ev.rank).label)} ・ 信頼度${grade.key}（${esc(grade.caption)}）${isPast ? "（終了）" : ""}">
-        <span class="v" style="color:${color}">${Math.round(ev.score)}</span>
-        <span class="col"><i style="height:${h}px;background:${color}"></i></span>
-        <span class="d">${label}</span>
-        <span class="g">${grade.key}</span></button>`;
-    }).join("");
+    const days = renderDays(id, entries, now);
 
     return `<div class="card">
       <div class="ph-head"><span class="ic">${meta.icon}</span><span class="nm">${meta.name}</span>${headRight}</div>
       <div class="days">${days}</div></div>`;
+  }).join("");
+}
+
+// 一覧と詳細で、点数・棒・日付・信頼度の読み方を揃える。
+function renderDays(id, entries, now, selected = null) {
+  const meta = S.PHENOMENA[id];
+  const u = upcoming(entries, now);
+  return entries.map((e) => {
+    const ev = e.evaluation;
+    // 全部の日を日付で書く。「今日」「明日」だけ1行になって、
+    // その下に置いた等級の位置が日ごとにずれていた。どの列が今日かは
+    // 左端であることと、次の回の枠（.next）で分かる。
+    const label = `${S.Cal.monthDay(e.dayMs)}<br>${S.Cal.weekday(e.dayMs)}`;
+    if (ev.unavailable) {
+      return `<div class="day" style="opacity:.45" title="${esc(ev.unavailable.message)}"><span class="v muted">—</span>
+        <span class="col"><i style="height:3px;background:var(--line)"></i></span>
+        <span class="d">${label}</span></div>`;
+    }
+    const color = RANK_COLOR[ev.rank.key];
+    const h = Math.max(3, Math.round(30 * ev.score / 100));
+    const isNext = selected === null && u && e.dayMs === u.dayMs ? " next" : "";
+    // 終わった回は薄くする。押せるままにするのは、見えたかどうかを記録するため。
+    const isPast = ev.window[1] <= now ? " past" : "";
+    // 14日ぶん並ぶので、どこから先を鵜呑みにしないかを1文字で添える。
+    const grade = S.reliabilityGrade(ev.confidence, ev.models);
+    return `<button class="day${isNext}${isPast}" ${selected === null ? `data-cell="${id}|${e.dayMs}"` : `data-day="${e.dayMs}" aria-pressed="${e.dayMs === selected}" aria-controls="dayDetail"`}
+      title="${esc(meta.name)} ${S.JstCal.relativeDay(e.dayMs, now)} ${Math.round(ev.score)}点 ${esc(S.phrasing(id, ev.rank).label)} ・ 信頼度${grade.key}（${esc(grade.caption)}）${isPast ? "（終了）" : ""}">
+      <span class="v" style="color:${color}">${Math.round(ev.score)}</span>
+      <span class="col"><i style="height:${h}px;background:${color}"></i></span>
+      <span class="d">${label}</span>
+      <span class="g">${grade.key}</span></button>`;
   }).join("");
 }
 
@@ -841,6 +863,12 @@ function renderDetailPane(id, now) {
   if (!entries || !entries.length) return "";
   const u = upcoming(entries, now);
   const sel = entries.find((e) => e.dayMs === selectedDay[id]) || u;
+  return `<div data-id="${id}">${renderWeek(id, entries, sel, now)}
+    <p id="dayAnnouncement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+    <div id="dayDetail">${renderDayDetail(id, entries, sel, now)}</div></div>`;
+}
+
+function renderDayDetail(id, entries, sel, now) {
   const ev = sel.evaluation;
   const meta = S.PHENOMENA[id];
   // 星空は「その瞬間」ではなく「この時間帯に見に行く」話なので、詳細では幅で出す。
@@ -853,10 +881,9 @@ function renderDetailPane(id, now) {
        : ` ${S.JstCal.hhmmRounded(ev.peak)}`);
 
   if (ev.unavailable) {
-    return `<div data-id="${id}"><div class="card">
+    return `<div class="card">
       <div class="ph-head"><span class="ic">${meta.icon}</span><span class="nm">${meta.name}</span></div>
-      <div class="ph-out">${esc(ev.unavailable.message)}</div></div>
-      <div class="card">${renderWeek(id, entries, sel, now)}</div></div>`;
+      <div class="ph-out">${esc(ev.unavailable.message)}</div></div>`;
   }
   const color = RANK_COLOR[ev.rank.key];
   const head = `<div class="card highlight" style="border-color:${color}">
@@ -868,13 +895,12 @@ function renderDetailPane(id, now) {
       ${renderScoreBar(ev)}
       <div style="margin-top:9px">${esc(S.phrasing(id, ev.rank).say)}</div>
       <div class="tiny" style="margin-top:4px">${CONF_ICON[ev.confidence.key]} ${esc(confidenceText(ev))}</div></div>`;
-  return `<div data-id="${id}">${head}
+  return `${head}
     ${renderLightTimes(sel.dayMs, now)}
     <div class="card">${renderDetail(id, sel, now)}</div>
-    <div class="card">${renderWeek(id, entries, sel, now)}</div>
     <details class="card more"><summary>もっと詳しく</summary>
       ${renderDetail(id, sel, now, { part: "how" })}${renderTable(id, entries)}</details>
-    <p class="tiny" style="padding:0 4px">📖 ${esc(ev.source)}</p></div>`;
+    <p class="tiny" style="padding:0 4px">📖 ${esc(ev.source)}</p>`;
 }
 
 // 評価の言葉を主役、点数を従にする。
@@ -984,21 +1010,12 @@ function renderDetail(id, sel, now, opts = {}) {
 }
 
 function renderWeek(id, entries, sel, now) {
-  return `<div style="padding:2px 0 6px"><div class="section-h"><h2>週間</h2>
-    <span class="tiny">押すとその日に切り替わります</span></div>` + entries.map((e) => {
-    const ev = e.evaluation;
-    if (ev.unavailable) {
-      return `<div class="wk"><span class="d">${S.JstCal.relativeDay(e.dayMs, now)}</span>
-        <span class="tiny" style="flex:1">${esc(ev.unavailable.message)}</span></div>`;
-    }
-    const color = RANK_COLOR[ev.rank.key];
-    return `<button class="wk ${e.dayMs === sel.dayMs ? "sel" : ""}" data-day="${e.dayMs}">
-      <span class="d">${S.JstCal.relativeDay(e.dayMs, now)}</span>
-      <span class="t">${ev.specificTime === false ? "" : S.JstCal.hhmmRounded(ev.peak)}</span>
-      <span class="scorebar"><div style="width:${ev.score}%;background:${color}"></div></span>
-      <span class="s" style="color:${color}">${Math.round(ev.score)}</span>
-      <span class="tiny">${CONF_ICON[ev.confidence.key]}</span></button>`;
-  }).join("") + `</div>`;
+  return `<div class="card" id="detailWeek">
+    <div class="ph-head"><span class="ic">${S.PHENOMENA[id].icon}</span>
+      <h2>${S.PHENOMENA[id].name}・週間</h2></div>
+    <p class="tiny">日付を押すと、下の詳細が切り替わります。横にスクロールできます。</p>
+    <div class="days" aria-label="詳細を見る日を選ぶ">${renderDays(id, entries, now, sel.dayMs)}</div>
+  </div>`;
 }
 
 function renderTable(id, entries) {
