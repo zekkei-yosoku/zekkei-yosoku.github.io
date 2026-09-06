@@ -134,13 +134,33 @@ ok(/id="favToggle"[^>]*class="[^"]*\btap\b/.test(html), "☆ に .tap が付い�
 ok(/#favToggle::after/.test(html), "☆ の当たり判定を右側へ寄せる指定がある");
 
 console.log("== 見どころの見出しがランクに追従する ==");
-ok(/HIGHLIGHT_HEAD\s*=\s*\{[\s\S]*?poor:/.test(html), "poor 用の見出しが定義されている");
+// もともとは poor にも見出しを持たせていた（「めぼしい空はなさそうです」）。
+// だが下に候補を並べていたため、見出しと中身が食い違っていた。
+// poor は表から外し、renderBestNote で「候補を出さない」形にしてある。
+ok(/HIGHLIGHT_HEAD\s*=\s*\{[\s\S]*?fair:/.test(html), "fair 用の見出しが定義されている");
+ok(!/HIGHLIGHT_HEAD\s*=\s*\{[\s\S]*?poor:\s*"/.test(html),
+  "poor は表に持たせない（候補を並べない扱いにするため）");
 
 console.log("== 「±0」を出さない ==");
 // 51通りが全部同じ値になることは珍しくない（上限や100点の頭打ちに張り付く）。
 // そのとき「±0」と出すと、点数が正確だという意味に読める。実測誤差は当日でも12.6点ある。
 ok(/const err = raw === 0 \? null : raw/.test(html), "誤差が0に丸まるときは付けない");
 ok(/e < 1[\s\S]{0,120}あまり動きません/.test(html), "説明文も「±0点」と言わない");
+
+console.log("== 言っていることと出しているものを合わせる ==");
+// 「めぼしい空はなさそうです」と書いた下に候補を並べていた。見出しと中身が食い違う。
+// 経緯はコメントに残してあるので、画面へ出る形（★ 付き）だけを見る。
+ok(!/★ めぼしい空/.test(html), "「空」ではなく「絶景」で言う（霧氷もDDも空の話ではない）");
+ok(/本日の絶景はなさそうです/.test(html), "見込みが無い日の文言がある");
+ok(!/poor: "めぼしい/.test(html), "poor を見出しの表に残していない");
+const bestNoteFn = html.slice(html.indexOf("function renderBestNote"),
+                              html.indexOf("function renderBestNote") + 900);
+ok(/ev\.rank\.key === "poor"/.test(bestNoteFn), "見込みが無い日を別扱いする");
+// 期待薄のものを並べても行き先にならない。現象ごとのカードに全部出ている。
+ok(!/highlightRow/.test(bestNoteFn.slice(0, bestNoteFn.indexOf("return;"))),
+  "見込みが無い日は候補を1件も出さない");
+ok(!/nextWorthwhile/.test(html), "代わりの候補を探す仕掛けも置かない");
+ok(!/onclick/.test(bestNoteFn), "いちばんの狙いめを押しても移動しない");
 
 console.log("== 14日ぶんを横に流す ==");
 // 7日では「来週の連休どうか」が見られない。14日に伸ばしたぶん、1画面には入らない。

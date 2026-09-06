@@ -343,8 +343,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260906104840"></script>
-<script src="sorami-core.js?v=20260906104840"></script>
+<script src="spots.js?v=20260906105513"></script>
+<script src="sorami-core.js?v=20260906105513"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -437,7 +437,9 @@ function renderEnsemble(ev) {
 // 見どころと呼べない日に見どころと書かない。
 const HIGHLIGHT_HEAD = {
   spectacular: "次の見どころ", good: "次の見どころ",
-  fair: "いちばん期待できるもの", poor: "めぼしい空はなさそうです",
+  fair: "いちばん期待できるもの",
+  // poor は見出しを出さない。「なさそうです」と言いながら候補を並べると矛盾する。
+  // renderBestNote で別の形にする。
 };
 const CONF_ICON = { high: "◎", medium: "△", low: "⚠︎" };
 
@@ -707,15 +709,30 @@ $("recordsLink").onclick = () => {
 //
 // 以前はカードごと押すとその現象へ飛んでいたが、見た目が情報カードなので
 // 押すつもりのない場所で画面が変わっていた。押せるのは日のボタンだけにする。
+// 1行で「この現象・この日・この評価」を出す。見どころにも、先の予定にも使う。
+function highlightRow(id, dayMs, ev, now) {
+  const color = RANK_COLOR[ev.rank.key];
+  return `<div style="margin-top:3px"><span style="font-size:1.19rem">${S.PHENOMENA[id].icon}</span>
+    <strong style="margin-left:4px">${S.PHENOMENA[id].name}</strong>
+    <span class="muted">${S.JstCal.relativeDay(dayMs, now)}${ev.specificTime === false ? "" : " " + S.JstCal.hhmmRounded(ev.peak)}</span>
+    ・<span style="color:${color};font-weight:700">${esc(S.phrasing(id, ev.rank).label)}</span></div>`;
+}
+
 function renderBestNote(best, now) {
-  if (!best) { $("bestNote").hidden = true; return; }
-  const ev = best.u.evaluation, color = RANK_COLOR[ev.rank.key];
+  const ev = best ? best.u.evaluation : null;
+  // 見に行く価値のあるものが無い日は、そう言って終わる。
+  // 以前は「めぼしい空はなさそうです」と書いた下に候補を並べていて、
+  // 見出しと中身が食い違っていた。期待薄のものを並べても行き先にならない。
+  // 現象ごとのカードに全部出ているので、ここで代わりを探す必要もない。
+  if (!best || ev.rank.key === "poor") {
+    $("bestNote").hidden = false;
+    $("bestNote").innerHTML =
+      `<div class="muted" style="font-size:0.72rem">★ 本日の絶景はなさそうです</div>`;
+    return;
+  }
   $("bestNote").hidden = false;
-  $("bestNote").innerHTML = `<div class="muted" style="font-size:0.72rem">★ ${HIGHLIGHT_HEAD[ev.rank.key]}</div>
-    <div style="margin-top:3px"><span style="font-size:1.19rem">${S.PHENOMENA[best.id].icon}</span>
-      <strong style="margin-left:4px">${S.PHENOMENA[best.id].name}</strong>
-      <span class="muted">${S.JstCal.relativeDay(best.u.dayMs, now)}${ev.specificTime === false ? "" : " " + S.JstCal.hhmmRounded(ev.peak)}</span>
-      ・<span style="color:${color};font-weight:700">${esc(S.phrasing(best.id, ev.rank).label)}</span></div>`;
+  $("bestNote").innerHTML = `<div class="muted" style="font-size:0.72rem">★ ${HIGHLIGHT_HEAD[ev.rank.key]}</div>`
+    + highlightRow(best.id, best.u.dayMs, ev, now);
 }
 
 // 現象ごとのカード。
