@@ -318,8 +318,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260906100650"></script>
-<script src="sorami-core.js?v=20260906100650"></script>
+<script src="spots.js?v=20260906101253"></script>
+<script src="sorami-core.js?v=20260906101253"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -813,8 +813,13 @@ function renderDetailPane(id, now) {
 // 以前は数字が 38.4px、誤差の但し書きが 11px で、いちばん不確かなものがいちばん大きかった。
 function renderVerdict(id, ev) {
   const color = RANK_COLOR[ev.rank.key];
-  const err = ev.uncertainty && ev.uncertainty.expectedError !== null
+  const raw = ev.uncertainty && ev.uncertainty.expectedError !== null
     ? Math.round(ev.uncertainty.expectedError) : null;
+  // 「±0」は点数が正確だという意味に読めるが、そうではない。
+  // これは51通りの計算どうしの散らばりで、全通りが一致しても実際の空とはずれる
+  // （星空の実測誤差は当日で 12.6点）。上限や 100点の頭打ちに全メンバーが
+  // 張り付くと 0 になるので、めずらしくもない。0 のときは何も付けない。
+  const err = raw === 0 ? null : raw;
   return `<span class="verdict-box">
     <span class="verdict" style="color:${color}">${esc(S.phrasing(id, ev.rank).label)}</span>
     <span class="big muted">${Math.round(ev.score)}${err !== null ? ` <span style="font-weight:400">±${err}</span>` : ""}</span></span>`;

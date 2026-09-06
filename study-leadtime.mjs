@@ -21,19 +21,36 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const S = require("./sorami-core.js");
 
-const VARS = ["cloud_cover", "precipitation", "relative_humidity_2m"];
+// 現象ごとに、採点に使う変数と、測れる地点が違う。
+// 夕焼け・朝焼けは層別の雲が要るが previous-runs に無いので測れない（視程も同様）。
+const CONFIG = {
+  starrySky:   { vars: ["cloud_cover", "precipitation", "relative_humidity_2m"] },
+  seaOfClouds: { vars: ["cloud_cover", "precipitation", "relative_humidity_2m",
+                        "temperature_2m", "wind_speed_10m"] },
+  rime:        { vars: ["cloud_cover", "relative_humidity_2m", "temperature_2m", "wind_speed_10m"] },
+  diamondDust: { vars: ["cloud_cover", "relative_humidity_2m", "temperature_2m", "wind_speed_10m"] },
+  rainbow:     { vars: ["cloud_cover", "precipitation", "showers", "direct_radiation"] },
+};
+const TARGET = process.argv[3] || "starrySky";
+if (!CONFIG[TARGET]) { console.log(`対象が不正: ${TARGET}（${Object.keys(CONFIG).join(" / ")}）`); process.exit(1); }
+const VARS = CONFIG[TARGET].vars;
 const LEADS = [0, 1, 2, 3, 4, 5];
 const MODELS = S.MODELS.filter((m) => m !== "jma_msm");   // MSM は過去実行が無い
-const SITES = [
-  { name: "陸別", lat: 43.46894, lon: 143.74718, elevation: 212 },
-  { name: "野辺山高原", lat: 35.9553, lon: 138.47465, elevation: 1346 },
-  { name: "美星天文台", lat: 34.67203, lon: 133.54539, elevation: 421 },
-  { name: "富士見台高原", lat: 35.48204, lon: 137.62919, elevation: 1718 },
-  { name: "南阿蘇村", lat: 32.84694, lon: 131.03258, elevation: 441 },
-  { name: "室戸岬", lat: 33.24358, lon: 134.17683, elevation: 3 },
-  { name: "東京", lat: 35.6812, lon: 139.7671, elevation: 10 },
-  { name: "札幌", lat: 43.0621, lon: 141.3544, elevation: 20 },
-];
+
+// 地点は spots.js（正本）から取る。記憶で座標を書いて存在しない欠陥を作ったことがある。
+require("./spots.js");
+const spotSites = globalThis.SORAMI_SPOTS.spots
+  .filter((x) => x.phenomena.includes(TARGET))
+  .map((x) => ({ name: x.name, lat: x.latitude, lon: x.longitude,
+                 elevation: x.elevation, terrain: x.terrain }));
+// 星空は光害の少ない地点だけだと都市部の癖が見えない。素の気象地点も混ぜる。
+const EXTRA = TARGET === "starrySky" ? [
+  { name: "東京", lat: 35.6812, lon: 139.7671, elevation: 10, terrain: null },
+  { name: "札幌", lat: 43.0621, lon: 141.3544, elevation: 20, terrain: null },
+] : [];
+const SITES = [...spotSites, ...EXTRA];
+if (!SITES.length) { console.log(`${TARGET} のスポットが無い`); process.exit(1); }
+
 const PAST_DAYS = Number(process.argv[2] || 60);
 
 async function getJSON(url, tries = 4) {
@@ -55,7 +72,7 @@ const hourlyNames = () => {
   return out;
 };
 
-console.log(`過去${PAST_DAYS}日 ／ ${SITES.length}地点 ／ ${MODELS.length}モデル`);
+console.log(`対象: ${S.PHENOMENA[TARGET].name} ／ 過去${PAST_DAYS}日 ／ ${SITES.length}地点 ／ ${MODELS.length}モデル`);
 console.log(`予測: previous-runs-api の N日前実行 ／ 実況: ERA5\n`);
 
 // --- 各モデルの、リードタイム別シリーズ
@@ -64,7 +81,7 @@ for (const m of MODELS) {
   const p = new URLSearchParams({
     latitude: SITES.map((s) => s.lat).join(","), longitude: SITES.map((s) => s.lon).join(","),
     hourly: hourlyNames().join(","), timezone: "auto", timeformat: "unixtime",
-    past_days: String(PAST_DAYS), forecast_days: "1", models: m,
+    past_days: String(PAST_DAYS + 1), forecast_days: "1", models: m,
   });
   try {
     const raw = asList(await getJSON(`https://previous-runs-api.open-meteo.com/v1/forecast?${p}`));
@@ -97,7 +114,7 @@ console.log(`使うモデル: ${available.map((m) => S.MODEL_NAMES[m]).join("・
 
 // --- 実況（ERA5）
 const end = new Date(Date.now() - 3 * 86400000);
-const start = new Date(end.getTime() - PAST_DAYS * 86400000);
+const start = new Date(end.getTime() - PAST_DAYS * 86400000);   // 実況側
 const iso = (d) => d.toISOString().slice(0, 10);
 const truthRaw = asList(await getJSON("https://archive-api.open-meteo.com/v1/archive?" + new URLSearchParams({
   latitude: SITES.map((s) => s.lat).join(","), longitude: SITES.map((s) => s.lon).join(","),
@@ -109,11 +126,12 @@ const truth = truthRaw.map((p) => new S.Series(p.hourly.time.map((t) => t * 1000
 
 // --- 星空のスコアを、実況と各リードタイムで計算する
 const scoreWith = (series, site, dayMs) => {
-  const input = { home: series, offsets: {}, lat: site.lat, lon: site.lon, terrain: null,
+  const input = { home: series, offsets: {}, lat: site.lat, lon: site.lon,
+                  terrain: site.terrain || null,
                   elevation: site.elevation, lightPollution: null, air: null };
-  const win = S.SCORERS.starrySky.window(dayMs, input);
+  const win = S.SCORERS[TARGET].window(dayMs, input);
   if (!win) return null;
-  const r = S.SCORERS.starrySky.score(win, input);
+  const r = S.SCORERS[TARGET].score(win, input);
   return r.unavailable ? null : r.score;
 };
 
@@ -158,6 +176,6 @@ for (const lead of LEADS) {
     + `${pad((bias >= 0 ? "+" : "") + bias.toFixed(1), 8)} `
     + `${pad(big.toFixed(0) + "%", 14)} ${pad(rankMiss.toFixed(0) + "%", 14)}`);
 }
-console.log(`\n読み方: 「評価が変わる」は圧巻/よく見える/そこそこ/期待薄 の区分がずれた割合。`);
+console.log(`\n読み方: 「評価が変わる」は4段階の区分がずれた割合。`);
 console.log(`ユーザーが見るのはこの区分なので、点数の誤差より直接効く。`);
 console.log(`注意: ERA5 は観測ではない。ここで測っているのは「再解析との差」。`);
