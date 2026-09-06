@@ -80,7 +80,7 @@ const byModelLead = {};   // [model][lead][siteIndex] = Series
 for (const m of MODELS) {
   const p = new URLSearchParams({
     latitude: SITES.map((s) => s.lat).join(","), longitude: SITES.map((s) => s.lon).join(","),
-    hourly: hourlyNames().join(","), timezone: "auto", timeformat: "unixtime",
+    hourly: hourlyNames().join(","), timezone: "auto", timeformat: "unixtime", wind_speed_unit: "ms",
     past_days: String(PAST_DAYS + 1), forecast_days: "1", models: m,
   });
   try {
@@ -119,7 +119,7 @@ const iso = (d) => d.toISOString().slice(0, 10);
 const truthRaw = asList(await getJSON("https://archive-api.open-meteo.com/v1/archive?" + new URLSearchParams({
   latitude: SITES.map((s) => s.lat).join(","), longitude: SITES.map((s) => s.lon).join(","),
   start_date: iso(start), end_date: iso(end),
-  hourly: VARS.join(","), timezone: "auto", timeformat: "unixtime", models: "era5",
+  hourly: VARS.join(","), timezone: "auto", timeformat: "unixtime", wind_speed_unit: "ms", models: "era5",
 })));
 const truth = truthRaw.map((p) => new S.Series(p.hourly.time.map((t) => t * 1000),
   Object.fromEntries(VARS.map((v) => [v, p.hourly[v]]))));

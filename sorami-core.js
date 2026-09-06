@@ -585,7 +585,7 @@
       models: MODELS.join(","),
       timezone: "auto",
       // unixtime は真の UTC エポックで返る（実測確認済み）。文字列時刻のローカル解釈を避ける。
-      timeformat: "unixtime",
+      timeformat: "unixtime", wind_speed_unit: "ms",
       forecast_days: String(days),
     });
     if (pastDays > 0) p.set("past_days", String(pastDays));
@@ -625,7 +625,7 @@
     const p = new URLSearchParams({
       latitude: lat.toFixed(4), longitude: lon.toFixed(4),
       hourly: ENSEMBLE_VARS.join(","), models: ENSEMBLE_MODEL,
-      timezone: "auto", timeformat: "unixtime", forecast_days: String(days),
+      timezone: "auto", timeformat: "unixtime", wind_speed_unit: "ms", forecast_days: String(days),
       past_days: "1",   // 雲海が前日の最高気温を読む。無いと当日ぶんが全メンバー欠測になる
       // 3 時間値にすると転送量は 350KB→135KB に減るが、IQR の相関が 0.515・
       // 平均絶対差 8.6 点まで崩れる（10地点×7日で実測）。閾値の間隔と同じ大きさなので使えない。

@@ -76,7 +76,7 @@ for (const m of S.MODELS) {
     // historical-forecast-api は models= と気圧面を併用できる。単一モデル指定時は
     // 変数名にモデル suffix が付かないため、下の読み出しは両方を受ける。
     hourly: [...S.HOME_VARS, ...S.PROFILE_VARS].join(","),
-    timezone: "auto", timeformat: "unixtime", models: m,
+    timezone: "auto", timeformat: "unixtime", wind_speed_unit: "ms", models: m,
   });
   try {
     const raw = await getJSON(`https://historical-forecast-api.open-meteo.com/v1/forecast?${p}`);

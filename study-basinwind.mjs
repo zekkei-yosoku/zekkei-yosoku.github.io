@@ -74,7 +74,7 @@ for (const spot of SPOTS) {
   const q = new URLSearchParams({
     latitude: `${spot.lat},${low[0].toFixed(4)}`, longitude: `${spot.lon},${low[1].toFixed(4)}`,
     start_date: START, end_date: END,
-    hourly: "temperature_2m,wind_speed_10m", timezone: "auto", timeformat: "unixtime",
+    hourly: "temperature_2m,wind_speed_10m", timezone: "auto", timeformat: "unixtime", wind_speed_unit: "ms",
     models: "jma_msm",
   });
   let data;

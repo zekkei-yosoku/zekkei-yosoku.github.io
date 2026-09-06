@@ -77,7 +77,7 @@ export function historicalURL(coords, variables, start, end, elevation) {
     latitude: coords.map((c) => c.latitude.toFixed(5)).join(","),
     longitude: coords.map((c) => c.longitude.toFixed(5)).join(","),
     start_date: start, end_date: end, hourly: variables.join(","), models: S.MODELS.join(","),
-    timezone: "Asia/Tokyo", timeformat: "unixtime",
+    timezone: "Asia/Tokyo", timeformat: "unixtime", wind_speed_unit: "ms",
   });
   if (Number.isFinite(elevation)) params.set("elevation", String(elevation));
   return `https://historical-forecast-api.open-meteo.com/v1/forecast?${params}`;
