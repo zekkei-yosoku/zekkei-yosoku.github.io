@@ -130,6 +130,28 @@ ok(/#favToggle::after/.test(html), "☆ の当たり判定を右側へ寄せる�
 console.log("== 見どころの見出しがランクに追従する ==");
 ok(/HIGHLIGHT_HEAD\s*=\s*\{[\s\S]*?poor:/.test(html), "poor 用の見出しが定義されている");
 
+console.log("== 絶景スポットは現象でまとめる ==");
+// 33件を素のまま並べても、何を探せばいいのか分からない。
+ok(/class="spot-cat"/.test(html), "カテゴリの見出しがある");
+ok(/S\.PHENOMENA\[a\]\.order - S\.PHENOMENA\[b\]\.order/.test(html), "カテゴリの順は一覧と同じ");
+// 陸別はダイヤモンドダストと星空の両方を持つ。全部の見出しに出すと件数が合わなくなる。
+ok(/s\.phenomena\[0\] === p/.test(html), "主カテゴリで1回だけ出す（重複しない）");
+ok(/const northToSouth = \(a, b\) => b\.latitude - a\.latitude/.test(html), "同じカテゴリの中は北から南へ");
+ok(/if \(filter\) \{[\s\S]{0,400}phenomena\.includes\(filter\)/.test(html),
+  "絞り込み中は副次的な用途のスポットも拾う");
+// 全スポットがどれかのカテゴリに入るか（主現象が PHENOMENA に無いと画面から消える）
+const { createRequire } = await import("node:module");
+const req = createRequire(import.meta.url);
+req("./spots.js");
+const coreMod = req("./sorami-core.js");
+const spots = globalThis.SORAMI_SPOTS.spots;
+const orphan = spots.filter((s) => !coreMod.PHENOMENA[s.phenomena[0]]);
+ok(orphan.length === 0, "全スポットの主現象が定義済み", orphan.map((s) => s.name).join(","));
+// 主カテゴリで1回だけ出すので、合計が全件と一致しなければどこかで消えている。
+const grouped = [...new Set(spots.map((s) => s.phenomena[0]))]
+  .reduce((n, p) => n + spots.filter((s) => s.phenomena[0] === p).length, 0);
+ok(grouped === spots.length, "カテゴリ分けで欠落も重複もない", `${grouped} / ${spots.length}`);
+
 console.log("== 行の並びが日をまたいでも動かない ==");
 // 「直近に起きる順」だと、7日ぶんを一度に見る表では意味が無いうえ、
 // 日をまたぐたびに行が入れ替わって目で追えなくなる。

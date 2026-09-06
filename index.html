@@ -211,6 +211,11 @@
   .chips button { flex: none; font-size: 0.75rem; font-weight: 500; padding: 5px 11px; border-radius: 999px; background: var(--line); }
   .chips button.on { background: var(--accent); color: #fff; }
   .list-item { display: block; width: 100%; text-align: left; padding: 9px 2px; border-top: 1px solid var(--line); }
+  /* スポットのカテゴリ見出し。「絶景スポット」の見出しと競わない程度の強さにする。 */
+  .spot-cat { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+              margin-top: 14px; padding-bottom: 2px; font-size: 0.81rem; font-weight: 700;
+              color: var(--secondary); }
+  .spot-cat:first-child { margin-top: 6px; }
   .warn { color: var(--red); font-size: 0.75rem; }
   .notice { color: var(--orange); font-size: 0.75rem; }
   .section-h { display: flex; align-items: baseline; justify-content: space-between;
@@ -313,8 +318,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260906080449"></script>
-<script src="sorami-core.js?v=20260906080449"></script>
+<script src="spots.js?v=20260906100650"></script>
+<script src="sorami-core.js?v=20260906100650"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1148,10 +1153,29 @@ function renderSheet() {
   for (const el of $("spotChips").querySelectorAll("[data-chip]")) {
     el.onclick = () => { window._spotFilter = el.dataset.chip || null; renderSheet(); };
   }
-  const spots = filter ? SORAMI_SPOTS.spots.filter((s) => s.phenomena.includes(filter)) : SORAMI_SPOTS.spots;
-  $("spotList").innerHTML = spots.map((s, i) => `<button class="list-item" data-spot="${s.id}">
+  // 33件を素のまま並べると、何を探せばいいのか分からない。現象で束ねる。
+  //
+  // スポットは複数の現象を持つ（陸別はダイヤモンドダストと星空）。
+  // 全部の見出しに出すと同じ地点が何度も現れて数が合わなくなるので、
+  // **先頭の現象を主カテゴリとして1回だけ出す**。
+  // 副次的な用途はアイコンで分かるし、チップで絞れば拾える。
+  const renderSpot = (s) => `<button class="list-item" data-spot="${s.id}">
       <strong>${esc(s.name)}</strong> <span class="tiny">${s.phenomena.map((p) => S.PHENOMENA[p].icon).join("")}</span>
-      <div class="tiny">${esc(s.prefecture)} ・ 標高${Math.round(s.elevation)}m ー ${esc(s.note)}</div></button>`).join("");
+      <div class="tiny">${esc(s.prefecture)} ・ 標高${Math.round(s.elevation)}m ー ${esc(s.note)}</div></button>`;
+  // 同じカテゴリの中は北から南へ。ファイルに書いた順は意味を持たない。
+  const northToSouth = (a, b) => b.latitude - a.latitude;
+  if (filter) {
+    // 絞り込み中は見出しが冗長。副次的な用途で該当するものも拾う。
+    $("spotList").innerHTML = SORAMI_SPOTS.spots
+      .filter((s) => s.phenomena.includes(filter)).sort(northToSouth).map(renderSpot).join("");
+  } else {
+    $("spotList").innerHTML = phenomenaWithSpots.map((p) => {
+      const list = SORAMI_SPOTS.spots.filter((s) => s.phenomena[0] === p).sort(northToSouth);
+      if (!list.length) return "";
+      return `<div class="spot-cat">${S.PHENOMENA[p].icon} ${S.PHENOMENA[p].name}`
+        + `<span class="tiny">${list.length}件</span></div>${list.map(renderSpot).join("")}`;
+    }).join("");
+  }
   for (const el of $("spotList").querySelectorAll("[data-spot]")) {
     el.onclick = () => {
       const s = SORAMI_SPOTS.spots.find((x) => x.id === el.dataset.spot);

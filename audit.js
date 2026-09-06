@@ -24,8 +24,15 @@ window.__audit = function () {
   }
 
   // 2) カード同士の実描画の重なり（elementFromPoint で最前面を見る）
-  const cards = [...document.querySelectorAll("main > .card, main > #listView > .card, #cards > .card, #detailPane .card")]
-    .filter((e) => e.getBoundingClientRect().height > 0);
+  //
+  // モーダルが開いていると背面のカードは当然すべて覆われる。それを毎回7件挙げると、
+  // 本物の重なりがその中に埋もれる（タップ領域の検査で同じことをやって実際に埋もれた）。
+  // 開いている間は「背面は検査していない」と明示して飛ばす。
+  const modal = document.querySelector("dialog[open]");
+  const cards = modal ? [] :
+    [...document.querySelectorAll("main > .card, main > #listView > .card, #cards > .card, #detailPane .card")]
+      .filter((e) => e.getBoundingClientRect().height > 0);
+  if (modal) add("モーダルが開いている", { 対象: modal.id || modal.className, 注: "背面の重なりは検査していない" });
   for (const card of cards) {
     const r = card.getBoundingClientRect();
     if (r.bottom < 0 || r.top > innerHeight) continue;
