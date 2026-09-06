@@ -212,7 +212,7 @@ ok(/rel="apple-touch-icon"/.test(html), "iOS 用のアイコンを指定して�
 ok(/rel="manifest"/.test(html), "マニフェストを読ませている");
 ok(/rel="icon"[^>]*32x32/.test(html), "タブ用のファビコンがある");
 const mani = JSON.parse(fs.readFileSync(new URL("./manifest.json", import.meta.url), "utf8"));
-ok(mani.name === "絶景予測" && mani.short_name === "絶景予測", "マニフェストの名前が現在の名称");
+ok(mani.name === "絶景予報" && mani.short_name === "絶景予報", "マニフェストの名前が現在の名称");
 ok(mani.icons.some((i) => i.sizes === "512x512" && i.purpose === "maskable"),
   "Android が円で抜く用（maskable）を持つ");
 for (const i of mani.icons) {

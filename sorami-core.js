@@ -1564,8 +1564,8 @@
 
   // ---------------------------------------------------------------- アンサンブル
   // 中央値を採るのは 2026-08-22 18:00 JST の実測（jma_msm 0.0mm vs icon 3.1mm）に基づく。
-  // 単一モデルに賭けない。表示スコアと内訳は中央値に最も近い 1 モデル由来で揃える
-  // （内訳を平均すると合計が表示スコアと一致せず「なぜこの点数か」が説明できない）。
+  // 単一モデルに賭けない。内訳は中央値に最も近い 1 モデルを基準にし、
+  // 表示する中央値との差を明示的な1行として加える（内訳の合計を保つため）。
   // 51 メンバーを、8 モデルと同じ窓・同じ採点器にかけ、スコアの四分位範囲を返す。
   // メンバー側は太陽方位オフセットを取っていないので、その加点減点は効かない。
   // ばらつきの尺度としてのみ使うので支障はない（全メンバーが同条件なため）。
@@ -1655,13 +1655,23 @@
     const ens = ensembleSpread(scorer, window, bundle, place, bundle.home.grid.elevation);
     const modelWidth = high - low;
     const effectiveWidth = modelWidth + leadTimePenalty(daysAhead);
-    const shown = representative[1].score;
+    const shown = median;
     const agreement = ens ? rankAgreement(ens.scores, ens.median, shown) : null;
     const expectedError = ens ? ens.p1090 * SPREAD_TO_EXPECTED_ERROR : null;
     const confidence = ens
       ? confidenceOfEnsemble(expectedError, agreement)
       : confidenceOf(effectiveWidth);
     const displayWindow = representative[1].refinedWindow || window;
+    const factors = [...representative[1].factors];
+    const medianAdjustment = median - representative[1].score;
+    if (Math.abs(medianAdjustment) > 0.005) {
+      factors.push({
+        label: "モデル中央値との差",
+        c: medianAdjustment,
+        detail: "内訳は中央値に最も近いモデルを基準にし、表示スコアをモデル中央値へ合わせています",
+      });
+      factors.sort((a, b) => Math.abs(b.c) - Math.abs(a.c));
+    }
     // 虹は「その1時間」を特定できたときだけ時刻に意味がある。
     // 雨の予報がない日に日の出時刻を出すと、いかにもその時刻に出そうに見えてしまう。
     const specificTime = scorerId !== "rainbow" || !!representative[1].refinedWindow;
@@ -1671,9 +1681,9 @@
       peak: peakOf(displayWindow),
       specificTime,
       unavailable: null,
-      score: representative[1].score,
+      score: median,
       base: representative[1].base,
-      factors: representative[1].factors,
+      factors,
       perModel: Object.fromEntries(evaluated.map(([m, r]) => [m, r.score])),
       // 何モデルの中央値かは日によって変わる。先の日ほどモデルが落ちるので
       // （気象庁MSMは4日、ARPEGEは5日、英国気象局は7日、ICONは8日で終わる）、
@@ -1698,7 +1708,7 @@
         fallbackWidth: effectiveWidth,
       },
       source: scorer.source,
-      rank: rankOf(representative[1].score),
+      rank: rankOf(median),
     };
   }
 

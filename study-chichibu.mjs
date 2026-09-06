@@ -1,5 +1,5 @@
 /*
- * 秩父の雲海予報（@chichibu_unkai）と、絶景予測の雲海スコアを突き合わせる。
+ * 秩父の雲海予報（@chichibu_unkai）と、絶景予報の雲海スコアを突き合わせる。
  *
  * **これは真値との比較ではない。** 相手も予報であって観測ではない。
  * 一致しても正しさの証明にはならないが、食い違えば調べる価値のある信号になる。
@@ -13,8 +13,9 @@
  *   相手の予報は「秩父地方」全体で、こちらは1点。粒度が違うことを踏まえて読む。
  *
  * 使い方:
- *   node study-chichibu.mjs chichibu-forecasts.json
- *   JSON は [{"date":"2026-09-06","p":33}, ...]（date は雲海が出る朝の日付）
+ *   node study-chichibu.mjs chichibu-unkai-forecast.csv
+ *   CSV は date と probability（または p）列を持つ（date は雲海が出る朝の日付）。
+ *   JSON の [{"date":"2026-09-06","p":33}, ...] も受け付ける。
  */
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -25,9 +26,24 @@ const SPOT = { name: "美の山公園", latitude: 36.05668, longitude: 139.11363
                terrain: "basinRim", elevation: 571 };
 
 const file = process.argv[2];
-if (!file) { console.log("使い方: node study-chichibu.mjs <相手の予報のJSON>"); process.exit(1); }
-const theirs = JSON.parse(readFileSync(file, "utf8"))
-  .filter((x) => x.date && typeof x.p === "number")
+if (!file) { console.log("使い方: node study-chichibu.mjs <相手の予報CSV/JSON>"); process.exit(1); }
+const rawInput = readFileSync(file, "utf8").trim();
+const theirs = (rawInput.startsWith("[")
+  ? JSON.parse(rawInput)
+  : (() => {
+      const lines = rawInput.split(/\r?\n/).filter(Boolean);
+      const header = lines.shift().split(",");
+      const ix = Object.fromEntries(header.map((name, i) => [name.trim(), i]));
+      const probability = ix.p ?? ix.probability;
+      if (ix.date === undefined || probability === undefined) {
+        throw new Error("CSVには date と p または probability 列が必要です");
+      }
+      return lines.map((line) => {
+        const cells = line.split(",");
+        return { date: cells[ix.date]?.trim(), p: Number(cells[probability]) };
+      });
+    })())
+  .filter((x) => x.date && Number.isFinite(x.p))
   .sort((a, b) => a.date.localeCompare(b.date));
 if (!theirs.length) { console.log("予報が読めなかった"); process.exit(1); }
 
@@ -55,14 +71,18 @@ const byModel = {};
 for (const m of S.MODELS) {
   const p = new URLSearchParams({
     latitude: String(SPOT.latitude), longitude: String(SPOT.longitude),
-    start_date: start, end_date: end, hourly: S.HOME_VARS.join(","),
+    start_date: start, end_date: end,
+    // 現行アプリと同じく、雲海の天井（逆転層）を判定する気圧面も取る。
+    // historical-forecast-api は models= と気圧面を併用できる。単一モデル指定時は
+    // 変数名にモデル suffix が付かないため、下の読み出しは両方を受ける。
+    hourly: [...S.HOME_VARS, ...S.PROFILE_VARS].join(","),
     timezone: "auto", timeformat: "unixtime", models: m,
   });
   try {
     const raw = await getJSON(`https://historical-forecast-api.open-meteo.com/v1/forecast?${p}`);
     const times = raw.hourly.time.map((t) => t * 1000);
     const columns = {};
-    for (const v of S.HOME_VARS) {
+    for (const v of [...S.HOME_VARS, ...S.PROFILE_VARS]) {
       const c = raw.hourly[`${v}_${m}`] ?? raw.hourly[v];
       if (c && c.some((x) => x !== null)) columns[v] = c;
     }
@@ -77,15 +97,13 @@ for (const m of S.MODELS) {
 const models = Object.keys(byModel);
 if (!models.length) { console.log("予報が取れなかった"); process.exit(1); }
 
-// 気圧面（逆転層）は historical-forecast-api で models= と併用できない。
-// 採点側は欠測を扱えるので、そのぶん「見下ろせるか」の加点は載らない。
 const bundle = { home: { grid: { latitude: SPOT.latitude, longitude: SPOT.longitude,
                                 elevation: SPOT.elevation }, byModel },
                  sunsetOffsets: null, sunriseOffsets: null, air: null, ensemble: null };
 
 const pad = (s, w) => String(s) + " ".repeat(Math.max(0, w -
   [...String(s)].reduce((a, c) => a + (c.charCodeAt(0) > 0x1100 ? 2 : 1), 0)));
-console.log(`\n${pad("朝", 12)} ${pad("相手", 8)} ${pad("絶景予測", 10)} ${pad("評価", 10)} 主な内訳`);
+console.log(`\n${pad("朝", 12)} ${pad("相手", 8)} ${pad("絶景予報", 10)} ${pad("評価", 10)} 主な内訳`);
 
 const rows = [];
 for (const t of theirs) {
