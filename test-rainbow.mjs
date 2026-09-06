@@ -72,10 +72,11 @@ console.log("== 日が差していない時間は、雨が降っていても低�
     showers: times.map(() => 0.2), direct_radiation: times.map(() => 0) }));
   const dry = scoreOf(full({ precipitation: times.map(() => 0),
     showers: times.map(() => 0), direct_radiation: times.map(() => 600) }));
-  ok(pour.score <= 6, "日射ゼロなら5点前後にとどまる", `${pour.score.toFixed(0)}点`);
-  ok(Math.abs(pour.score - dry.score) < 6,
-    "「土砂降りで日射ゼロ」と「雨なし」がほぼ同じ低さ",
-    `日射ゼロ${pour.score.toFixed(0)} / 雨なし${dry.score.toFixed(0)}`);
+  ok(pour.score === 0, "日射ゼロなら0点。出ないと分かっているものに点は付けない",
+    `${pour.score.toFixed(0)}点`);
+  ok(dry.score === 0, "雨が無ければ0点", `${dry.score.toFixed(0)}点`);
+  ok(pour.factors.some((f) => f.detail && f.detail.includes("日光")),
+    "0点でも理由の行は出す（点数ではなく文言が理由を持つ）");
   ok(pour.refinedWindow === null, "日が差さない時間に時刻を出さない");
 }
 
