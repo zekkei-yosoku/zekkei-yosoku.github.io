@@ -49,10 +49,17 @@
               gap: 12px; padding: 6px 2px 12px; }
   h1 { font-size: 0.94rem; font-weight: 700; letter-spacing: .18em;
        color: var(--secondary); text-align: left; }
-  #sortRow { display: flex; gap: 6px; padding: 0 2px 10px; overflow-x: auto; }
-  #sortRow button { flex: 0 0 auto; font-size: 0.72rem; color: var(--secondary);
-                    background: var(--card); border-radius: 999px; padding: 5px 12px; }
-  #sortRow button[aria-pressed="true"] { color: var(--bg); background: var(--accent); font-weight: 700; }
+  #sortRow { display: flex; align-items: center; gap: 8px; padding: 0 2px 10px; }
+  #sortRow label { font-size: 0.72rem; color: var(--tertiary); }
+  /* ネイティブの select を使う。OS の選択UIがそのまま出るほうが片手で速い。
+     appearance を消すと矢印まで消えるので、自前で1つだけ描く。 */
+  #sortSelect { appearance: none; -webkit-appearance: none;
+                font-size: 0.75rem; color: var(--text); background: var(--card);
+                border: none; border-radius: 8px; padding: 6px 26px 6px 10px;
+                background-image: linear-gradient(45deg, transparent 50%, var(--secondary) 50%),
+                                  linear-gradient(135deg, var(--secondary) 50%, transparent 50%);
+                background-position: right 12px center, right 7px center;
+                background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
   .card { background: var(--card); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
   .muted { color: var(--secondary); font-size: 0.75rem; }
   .tiny { color: var(--tertiary); font-size: 0.69rem; }
@@ -297,8 +304,12 @@
   <div id="listView">
     <div class="card" id="bestNote" hidden></div>
     <!-- 並び替え。既定は「標準」＝現象の固定順で、行の位置が動かない。
-         点数順・信頼度順は、その日だけ上位を知りたいときに明示的に選ぶもの。 -->
-    <div id="sortRow" role="group" aria-label="並び替え"></div>
+         点数順・信頼度順は、その日だけ上位を知りたいときに明示的に選ぶもの。
+         選択肢が4つあり、押すたびに全部を作り直す形はうるさいのでプルダウンにする。 -->
+    <div id="sortRow">
+      <label for="sortSelect">並び替え</label>
+      <select id="sortSelect"></select>
+    </div>
     <p id="listAnnouncement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
     <div id="cards"></div>
   </div>
@@ -483,14 +494,15 @@ let sightings = store.get("sorami.sightings", []);
 // 並べると、見出しが「平凡」のカードが先頭に来て、言っていることと
 // 出しているものが食い違う。
 const GRADE_ORDER = { A: 0, B: 1, C: 2 };
+// ラベルは、何の順かを言い切る。「近い順」では何に近いのか読めなかった。
 const SORTS = {
-  standard: { label: "標準", key: null },
-  score: { label: "点数", key: (u) => -u.evaluation.score },
+  standard: { label: "標準（現象の順）", key: null },
+  score: { label: "点数が高い順", key: (u) => -u.evaluation.score },
   // 信頼度が同じなら点数の高い順。1000 は点数（0〜100）を跨がない間隔。
-  grade: { label: "信頼度", key: (u) =>
+  grade: { label: "信頼度が高い順", key: (u) =>
     GRADE_ORDER[S.reliabilityGrade(u.evaluation.confidence, u.evaluation.models).key] * 1000
     - u.evaluation.score },
-  time: { label: "近い順", key: (u) => u.evaluation.peak || u.dayMs },
+  time: { label: "見られる時刻が早い順", key: (u) => u.evaluation.peak || u.dayMs },
 };
 let sortMode = SORTS[store.get("sorami.sort", "standard")] ? store.get("sorami.sort", "standard") : "standard";
 
@@ -673,8 +685,12 @@ function render() {
     }
   } else {
     renderBestNote(best, now);
-    $("sortRow").innerHTML = Object.entries(SORTS).map(([id, o]) =>
-      `<button class="tap" data-sort="${id}" aria-pressed="${id === sortMode}">${o.label}</button>`).join("");
+    const sel = $("sortSelect");
+    if (!sel.options.length) {
+      sel.innerHTML = Object.entries(SORTS).map(([id, o]) =>
+        `<option value="${id}">${o.label}</option>`).join("");
+    }
+    sel.value = sortMode;
     $("cards").innerHTML = renderPhenomenonCards(order, now);
     for (const el of $("cards").querySelectorAll("[data-cell]")) {
       el.onclick = () => {
@@ -682,18 +698,13 @@ function render() {
         pick(id, now, +dayMs);
       };
     }
-    for (const el of $("sortRow").querySelectorAll("[data-sort]")) {
-      el.onclick = () => {
-        sortMode = el.dataset.sort;
-        store.set("sorami.sort", sortMode);
-        render();
-        // render がボタンごと作り直すので、押した位置へフォーカスを戻す。
-        const again = $("sortRow").querySelector(`[data-sort="${sortMode}"]`);
-        if (again) again.focus();
-        // 何順になったかは、行が動いただけでは読み上げられない。
-        $("listAnnouncement").textContent = `${SORTS[sortMode].label}で並べ替えました`;
-      };
-    }
+    sel.onchange = () => {
+      sortMode = SORTS[sel.value] ? sel.value : "standard";
+      store.set("sorami.sort", sortMode);
+      render();
+      // 何順になったかは、行が動いただけでは読み上げられない。
+      $("listAnnouncement").textContent = `${SORTS[sortMode].label}で並べ替えました`;
+    };
   }
 
   renderRecords(now, inDetail || inRecords);
