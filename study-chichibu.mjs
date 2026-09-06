@@ -17,7 +17,7 @@
  *   CSV は date と probability（または p）列を持つ（date は雲海が出る朝の日付）。
  *   JSON の [{"date":"2026-09-06","p":33}, ...] も受け付ける。
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const S = require("./sorami-core.js");
@@ -65,6 +65,8 @@ async function getJSON(url, tries = 4) {
 const start = new Date(new Date(theirs[0].date + "T00:00:00Z") - 2 * 86400000)
   .toISOString().slice(0, 10);
 const end = theirs.at(-1).date;
+const CACHE = new URL("./data/chichibu-cache/", import.meta.url).pathname;
+mkdirSync(CACHE, { recursive: true });
 console.log(`地点 ${SPOT.name}（${SPOT.elevation}m）／ 期間 ${start} 〜 ${end} ／ ${theirs.length}日`);
 
 const byModel = {};
@@ -78,8 +80,14 @@ for (const m of S.MODELS) {
     hourly: [...S.HOME_VARS, ...S.PROFILE_VARS].join(","),
     timezone: "auto", timeformat: "unixtime", wind_speed_unit: "ms", models: m,
   });
+  const cachePath = `${CACHE}/${m}_${start}_${end}.json`;
   try {
-    const raw = await getJSON(`https://historical-forecast-api.open-meteo.com/v1/forecast?${p}`);
+    let raw;
+    if (existsSync(cachePath)) raw = JSON.parse(readFileSync(cachePath, "utf8"));
+    else {
+      raw = await getJSON(`https://historical-forecast-api.open-meteo.com/v1/forecast?${p}`);
+      writeFileSync(cachePath, JSON.stringify(raw));
+    }
     const times = raw.hourly.time.map((t) => t * 1000);
     const columns = {};
     for (const v of [...S.HOME_VARS, ...S.PROFILE_VARS]) {
@@ -90,9 +98,9 @@ for (const m of S.MODELS) {
       byModel[m] = new S.Series(times, columns);
       if (raw.utc_offset_seconds !== undefined) S.setTimezoneOffset(raw.utc_offset_seconds);
     }
-    process.stdout.write(`  ${S.MODEL_NAMES[m]}\n`);
+    process.stdout.write(`  ${S.MODEL_NAMES[m]}${existsSync(cachePath) ? "（保存済み）" : ""}\n`);
   } catch (e) { process.stdout.write(`  ${S.MODEL_NAMES[m]} 取得できず（${e.message}）\n`); }
-  await new Promise((r) => setTimeout(r, 1200));
+  if (!existsSync(cachePath)) await new Promise((r) => setTimeout(r, 1200));
 }
 const models = Object.keys(byModel);
 if (!models.length) { console.log("予報が取れなかった"); process.exit(1); }
@@ -107,7 +115,6 @@ console.log(`\n${pad("朝", 12)} ${pad("相手", 8)} ${pad("絶景予報", 10)} 
 
 const rows = [];
 for (const t of theirs) {
-  const dayMs = new Date(t.date + "T00:00:00Z").getTime() - (S.Cal.startOfDay(0) === 0 ? 0 : 0);
   const ev = S.evaluate("seaOfClouds", new Date(t.date + "T03:00:00Z").getTime(), bundle, SPOT);
   if (!ev || ev.unavailable) {
     console.log(`${pad(t.date, 12)} ${pad(t.p + "%", 8)} ${pad("—", 10)} ${ev ? ev.unavailable.message : "採点できず"}`);
@@ -117,7 +124,10 @@ for (const t of theirs) {
     .map((f) => `${f.label}${f.c >= 0 ? "+" : ""}${f.c.toFixed(0)}`).join(" / ");
   console.log(`${pad(t.date, 12)} ${pad(t.p + "%", 8)} ${pad(Math.round(ev.score), 10)} `
     + `${pad(S.phrasing("seaOfClouds", ev.rank).label, 10)} ${top}`);
-  rows.push({ date: t.date, theirs: t.p, ours: ev.score });
+  rows.push({ date: t.date, theirs: t.p, ours: ev.score, rank: ev.rank.key,
+              models: ev.models, spread: ev.spread,
+              factors: Object.fromEntries(ev.factors.map((f) => [f.label.replace(/ .*/, ""), f.c])),
+              labels: ev.factors.map((f) => f.label) });
 }
 
 if (rows.length >= 3) {
@@ -136,3 +146,6 @@ if (rows.length >= 3) {
   console.log(`\n注意: 相手も予報であって観測ではない。一致は正しさの証明にならない。`);
   console.log(`食い違う日を個別に見て、どちらの読みが物理的に妥当かを確かめるための材料。`);
 }
+
+const out = process.argv[3];
+if (out) { writeFileSync(out, JSON.stringify(rows, null, 1)); console.log(`\n内訳を ${out} に保存`); }

@@ -49,7 +49,10 @@
               gap: 12px; padding: 6px 2px 12px; }
   h1 { font-size: 0.94rem; font-weight: 700; letter-spacing: .18em;
        color: var(--secondary); text-align: left; }
-  #recordsLink { color: var(--secondary); font-size: 0.75rem; }
+  #sortRow { display: flex; gap: 6px; padding: 0 2px 10px; overflow-x: auto; }
+  #sortRow button { flex: 0 0 auto; font-size: 0.72rem; color: var(--secondary);
+                    background: var(--card); border-radius: 999px; padding: 5px 12px; }
+  #sortRow button[aria-pressed="true"] { color: var(--bg); background: var(--accent); font-weight: 700; }
   .card { background: var(--card); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
   .muted { color: var(--secondary); font-size: 0.75rem; }
   .tiny { color: var(--tertiary); font-size: 0.69rem; }
@@ -277,7 +280,6 @@
 <main>
   <div class="masthead">
     <h1>絶景予報</h1>
-    <button id="recordsLink" class="tap">記録</button>
   </div>
   <button class="place-row card" id="placeButton">
     <span class="pin">📍</span>
@@ -294,6 +296,10 @@
   <!-- 一覧画面: この地点の全現象を、7日ぶんまとめて見る -->
   <div id="listView">
     <div class="card" id="bestNote" hidden></div>
+    <!-- 並び替え。既定は「標準」＝現象の固定順で、行の位置が動かない。
+         点数順・信頼度順は、その日だけ上位を知りたいときに明示的に選ぶもの。 -->
+    <div id="sortRow" role="group" aria-label="並び替え"></div>
+    <p id="listAnnouncement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
     <div id="cards"></div>
   </div>
 
@@ -383,9 +389,22 @@ function confidenceText(ev) {
     const lo = Math.round(ev.spread[0]), hi = Math.round(ev.spread[1]);
     const n = Object.keys(ev.perModel).length;
     const spreadWide = hi - lo >= 30;
-    if (ev.confidence.key === "high") parts.push(`${n}つの予報モデルがほぼ同じ見立てです（${lo}〜${hi}点）`);
+    // アンサンブルが有るのに使わなかった日は、その理由を言う。
+    // 黙って別の根拠へ切り替えると、同じ画面の数字の意味が日によって変わる。
+    if (u && u.ensembleBlind) parts.push(u.ensembleBlind);
+    // 「ほぼ同じ」と言えるのは、評価の帯（20〜25点間隔）より明らかに狭いときだけ。
+    // 20点の幅を「ほぼ同じ」と書くと、A の説明として強すぎる。
+    if (ev.confidence.key === "high") parts.push(hi - lo <= 10
+      ? `${n}つの予報モデルがほぼ同じ見立てです（${lo}〜${hi}点）`
+      : `${n}つの予報モデルは ${lo}〜${hi}点 に収まっています`);
     else if (spreadWide) parts.push(`予報モデルの見立てが ${lo}〜${hi}点 と割れています`);
     else parts.push(`予報モデルは ${lo}〜${hi}点 でおおむね揃っています`);
+    // 幅が狭くても帯の境目をまたげば評価は割れる。数字だけ見て安心されるのを避ける。
+    if (ev.confidence.cappedByDisagreement && u && u.modelAgreement !== null
+        && u.modelAgreement !== undefined) {
+      const other = Math.round(n * (1 - u.modelAgreement));
+      parts.push(`ただし ${other}つのモデルは別の評価です`);
+    }
   }
 
   // モデルが落ちる日は、同じ「中央値」でも土台が違う。何本で出した値かを言う。
@@ -455,6 +474,25 @@ let place = store.get("sorami.place",
   { id: "default", name: "東京", subtitle: "東京都", latitude: 35.6812, longitude: 139.7671, terrain: null, elevation: null });
 let favorites = store.get("sorami.favorites", []);
 let sightings = store.get("sorami.sightings", []);
+
+// 一覧の並び。既定の「標準」は現象の固定順で、日をまたいでも行が動かない。
+// いつも同じ場所を見れば済むという利点があるので、これを既定から外さない。
+// 並び替えは「今日どれが上か」を知りたいときに、利用者が明示的に選ぶ。
+//
+// 並べる値は【カードの見出しに出ている回】から取る。14日間の最高点で
+// 並べると、見出しが「平凡」のカードが先頭に来て、言っていることと
+// 出しているものが食い違う。
+const GRADE_ORDER = { A: 0, B: 1, C: 2 };
+const SORTS = {
+  standard: { label: "標準", key: null },
+  score: { label: "点数", key: (u) => -u.evaluation.score },
+  // 信頼度が同じなら点数の高い順。1000 は点数（0〜100）を跨がない間隔。
+  grade: { label: "信頼度", key: (u) =>
+    GRADE_ORDER[S.reliabilityGrade(u.evaluation.confidence, u.evaluation.models).key] * 1000
+    - u.evaluation.score },
+  time: { label: "近い順", key: (u) => u.evaluation.peak || u.dayMs },
+};
+let sortMode = SORTS[store.get("sorami.sort", "standard")] ? store.get("sorami.sort", "standard") : "standard";
 
 const WIDE = window.matchMedia("(min-width: 900px)");
 
@@ -582,10 +620,18 @@ function render() {
   //
   // 対象外（標高が足りない・氷点下にならない等）だけ最後へ回す。
   // その行はセルが無く1本のメッセージになるので、間に挟まると表が分断される。
+  //
+  // 並び替えを選んでいるときも、この「対象外は最後」だけは変えない。
+  // 点数の付かない行を点数順の途中へ挟むと、並べた意味が消える。
+  const key = SORTS[sortMode] && SORTS[sortMode].key;
   const order = Object.keys(weeks).sort((a, b) => {
     const ua = upcoming(weeks[a], now), ub = upcoming(weeks[b], now);
     const aOk = ua && !ua.evaluation.unavailable, bOk = ub && !ub.evaluation.unavailable;
     if (aOk !== bOk) return aOk ? -1 : 1;
+    if (key && aOk) {
+      const d = key(ua) - key(ub);
+      if (d) return d;
+    }
     return S.PHENOMENA[a].order - S.PHENOMENA[b].order;
   });
   // 選択中の現象。未選択なら見どころ、それも無ければ評価できる最初のもの。
@@ -601,7 +647,6 @@ function render() {
   // 地点と実況は判断のための情報。記録を読んでいるときは要らない。
   $("placeButton").hidden = inRecords;
   $("nowcast").hidden = inRecords || !nowcastReady;
-  $("recordsLink").hidden = inDetail || inRecords;
 
   if (inDetail) {
     $("detailPane").innerHTML = renderDetailPane(picked, now);
@@ -628,11 +673,25 @@ function render() {
     }
   } else {
     renderBestNote(best, now);
+    $("sortRow").innerHTML = Object.entries(SORTS).map(([id, o]) =>
+      `<button class="tap" data-sort="${id}" aria-pressed="${id === sortMode}">${o.label}</button>`).join("");
     $("cards").innerHTML = renderPhenomenonCards(order, now);
     for (const el of $("cards").querySelectorAll("[data-cell]")) {
       el.onclick = () => {
         const [id, dayMs] = el.dataset.cell.split("|");
         pick(id, now, +dayMs);
+      };
+    }
+    for (const el of $("sortRow").querySelectorAll("[data-sort]")) {
+      el.onclick = () => {
+        sortMode = el.dataset.sort;
+        store.set("sorami.sort", sortMode);
+        render();
+        // render がボタンごと作り直すので、押した位置へフォーカスを戻す。
+        const again = $("sortRow").querySelector(`[data-sort="${sortMode}"]`);
+        if (again) again.focus();
+        // 何順になったかは、行が動いただけでは読み上げられない。
+        $("listAnnouncement").textContent = `${SORTS[sortMode].label}で並べ替えました`;
       };
     }
   }
@@ -718,11 +777,6 @@ function applyRoute() {
 window.addEventListener("hashchange", applyRoute);
 
 // 記録へ進む。一覧の位置を覚えておき、戻るで返す。
-$("recordsLink").onclick = () => {
-  listScrollY = window.scrollY;
-  pushedCount++;
-  location.hash = "#/records";
-};
 
 // いちばんの狙いめ。【押せない】ただの案内にしてある。
 //

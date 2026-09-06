@@ -80,5 +80,40 @@ function fs_read() { return require("node:fs").readFileSync(new URL("./sorami-co
 ok(!/satRH/.test(core), "気圧面の湿度で霧の有無を判定していない");
 ok(/function inversionBase/.test(core), "分布からは逆転層の高さだけを読む");
 
+// --- 51メンバーは雲海の天井を判定できない ---
+//
+// メンバーは気圧面を1面も持たないので、逆転層をまたいだ判定を一度もできない。
+// 判定できない集団が揃っているのは当たり前で、それを「揃っている」と読むと、
+// 8モデルが割れている日に「評価はほぼ動きません」（A）が出る。
+// 【実測】美の山公園 2026-09-09: 8モデルの幅43点・気象庁MSMは「中に入る」→ A だった。
+console.log("== アンサンブルを信頼度の根拠にしない ==");
+const scorer = S.SCORERS.seaOfClouds;
+const win = [day + 24 * 3600000 + 5 * 3600000, day + 24 * 3600000 + 7 * 3600000];
+// メンバーと同じ「気圧面を持たない」系列
+const flatMember = new S.Series(times, {
+  temperature_2m: times.map(() => 4), wind_speed_10m: times.map(() => 0.5),
+  relative_humidity_2m: times.map(() => 95), cloud_cover: times.map(() => 5),
+  precipitation: times.map(() => 0),
+});
+ok(typeof scorer.ensembleBlind === "function", "雲海は「見られない」を申告する");
+ok(scorer.ensembleBlind(flatMember, win) !== null, "気圧面を持たないメンバーは根拠にしない");
+ok(scorer.ensembleBlind(build(withInversion), win) === null,
+  "気圧面がそろっていれば使ってよい");
+ok(S.SCORERS.starrySky.ensembleBlind === undefined,
+  "気圧面を使わない現象は従来どおりアンサンブルを使う");
+
+// --- 幅が狭くても評価が割れていれば「高」と言わない ---
+//
+// ランクの帯は20〜25点間隔。幅10点でも境目をまたげば評価は割れる。
+// アンサンブル側は rankAgreement で塞いでいる。モデル側にも同じ確認が要る。
+console.log("== モデルの幅が狭くても評価が割れていれば下げる ==");
+const near = S.rankOf(41).key !== S.rankOf(39).key;
+ok(near, "40点付近にランクの境目がある（この確認の前提）", `${S.rankOf(39).label}/${S.rankOf(41).label}`);
+ok(S.confidenceOf(8, 1).key === "high", "全モデルが同じ評価なら高いまま");
+ok(S.confidenceOf(8, 0.5).key === "medium", "半数が別の評価なら1段下げる");
+ok(S.confidenceOf(8, 0.5).cappedByDisagreement === true, "下げた理由を持ち回す");
+ok(S.confidenceOf(8, 0.4).key === "low", "表示している評価が少数派なら低");
+ok(S.confidenceOf(8).key === "high", "一致率が無ければ従来どおり幅だけで決める");
+
 console.log(`\n${fail === 0 ? "CLOUDSEA OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

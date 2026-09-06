@@ -755,11 +755,25 @@
   // 当初は 15/30 としていたが、実測すると当日でさえ5地点中4つが「低」になり、
   // 警告として意味を失っていた（常に赤なら誰も見ない）。
   // 8モデルのばらつき幅は実際に 50〜70 程度あるのが普通なので、実態に合わせる。
-  const confidenceOf = (width) => (width < 30
-    ? { key: "high", label: "高", caption: "モデルの見解が揃っています" }
-    : width < 55
-      ? { key: "medium", label: "中", caption: "モデルの見解に幅があります" }
-      : { key: "low", label: "低", caption: "モデルの見解が割れています" });
+  // モデルの割れ方から出す信頼度。
+  //
+  // 幅だけでは足りない。ランクの帯は20〜25点間隔なので、幅が25点でも
+  // 全モデルが同じ帯に収まっていることもあれば、幅が10点でも境目をまたいで
+  // 評価が割れていることもある。アンサンブル側は rankAgreement で
+  // この取りこぼしを塞いでいる。同じ確認をこちらにも置く。
+  // （雲海はアンサンブルを使えないので、必ずこちらを通る）
+  const confidenceOf = (width, agreement) => {
+    let key = width < 30 ? "high" : width < 55 ? "medium" : "low";
+    let capped = false;
+    if (agreement !== null && agreement !== undefined) {
+      if (agreement < AGREE_LOW) { key = "low"; capped = true; }
+      else if (agreement < AGREE_HIGH && key === "high") { key = "medium"; capped = true; }
+    }
+    return { key, label: key === "high" ? "高" : key === "medium" ? "中" : "低",
+             caption: key === "high" ? "モデルの見解が揃っています"
+               : key === "medium" ? "モデルの見解に幅があります" : "モデルの見解が割れています",
+             cappedByDisagreement: capped };
+  };
 
   // --- アンサンブル（51メンバー）を使うときの信頼度 ---
   //
@@ -1177,6 +1191,16 @@
   ///
   /// 霧ができるかは地上の条件（放射冷却・弱風・湿度）で判断し、
   /// 分布からは【天井の高さ】だけを読む。役割を分ける。
+  // 逆転層を読むのに足りる気圧面がそろっているか。inversionBase と同じ条件で数える。
+  function profileLevelCount(series, ws, we) {
+    let n = 0;
+    for (const l of PROFILE_LEVELS) {
+      if (series.mean(`geopotential_height_${l}hPa`, ws, we) !== null
+          && series.mean(`temperature_${l}hPa`, ws, we) !== null) n++;
+    }
+    return n;
+  }
+
   function inversionBase(series, ws, we) {
     const rows = [];
     for (const l of PROFILE_LEVELS) {
@@ -1205,6 +1229,17 @@
       return sunrise === null ? null : [sunrise - 3600000, sunrise + 3600000];
     },
     peak(dayMs, window, input) { return Sun.eventTime("sunrise", dayMs, input.lat, input.lon) ?? window[0]; },
+    // 雲海だけは、逆転層（雲海の天井）が展望台より上か下かで答えが裏返る。
+    // 上なら他の条件がどれだけ揃っていても見下ろせない。
+    // 51メンバーは気圧面を1面も持たないので、この判定を一度もできない。
+    // 判定できない集団が揃っているのは当たり前で、それを「揃っている」と
+    // 読むと、8モデルが割れている日に「評価はほぼ動きません」と出る。
+    // 【実測】美の山公園・2026-09-09: 8モデルの幅 43点（気象庁MSMは
+    // 「雲海の中に入る」）に対し、51メンバーの幅 5点 → A。
+    ensembleBlind(member, window) {
+      return profileLevelCount(member, window[0], window[1]) >= 3
+        ? null : "51通りの計算は気圧面を持たず、雲海の天井を判定できません";
+    },
     score(window, input) {
       const s = T.seaOfClouds, series = input.home, [ws, we] = window;
       if (["basinFloor", "plain", "coast"].includes(input.terrain)) {
@@ -1652,15 +1687,23 @@
     // 8 モデルの「見解の割れ」は、モデルの作りの違いも混ざった量で、
     // 大気そのものの予測不確実性ではない。51 メンバーは後者を直接測ったもの。
     // 取れなかった場合は従来方式へ落ちる（機能を落として動き続ける）。
-    const ens = ensembleSpread(scorer, window, bundle, place, bundle.home.grid.elevation);
+    // メンバーがこの現象の決め手を持っていなければ、揃い具合は使わない。
+    // 分かることだけで判断する（モデルの割れ方へ落ちる）。
+    const ensembleBlind = scorer.ensembleBlind && bundle.ensemble && bundle.ensemble.members.length
+      ? scorer.ensembleBlind(bundle.ensemble.members[0], window) : null;
+    const ens = ensembleBlind
+      ? null : ensembleSpread(scorer, window, bundle, place, bundle.home.grid.elevation);
     const modelWidth = high - low;
     const effectiveWidth = modelWidth + leadTimePenalty(daysAhead);
     const shown = median;
     const agreement = ens ? rankAgreement(ens.scores, ens.median, shown) : null;
+    // モデル側の一致率。中央値をずらさずそのまま比べる（同じ採点式・同じ地点なので）。
+    const modelAgreement = scores.length
+      ? scores.filter((v) => rankOf(v).key === rankOf(shown).key).length / scores.length : null;
     const expectedError = ens ? ens.p1090 * SPREAD_TO_EXPECTED_ERROR : null;
     const confidence = ens
       ? confidenceOfEnsemble(expectedError, agreement)
-      : confidenceOf(effectiveWidth);
+      : confidenceOf(effectiveWidth, modelAgreement);
     const displayWindow = representative[1].refinedWindow || window;
     const factors = [...representative[1].factors];
     const medianAdjustment = median - representative[1].score;
@@ -1696,6 +1739,7 @@
       // 「モデルが割れている」と「51通りが割れている」は利用者にとって意味が違う。
       uncertainty: {
         basis: ens ? "ensemble" : "models",
+        ensembleBlind,                        // メンバーが決め手を見られない理由。無ければ null
         modelWidth,
         ensembleIqr: ens ? ens.iqr : null,
         ensembleMembers: ens ? ens.members : 0,
@@ -1705,6 +1749,7 @@
         ensembleScores: ens ? ens.scores : null,
         expectedError,                        // 何点ずれそうか。ens が無ければ null
         agreement,                            // 同じ評価になるメンバーの割合
+        modelAgreement,                       // 同じ評価になるモデルの割合
         fallbackWidth: effectiveWidth,
       },
       source: scorer.source,
@@ -1961,7 +2006,7 @@
     CLOUD_LAYERS, SCORERS, PHENOMENA, RANKS, RECORD_OUTCOMES, recordKind, outcomesFor,
     decodeLocation, buildURL, fetchForecast, evaluate, evaluateWeek, readingAt,
     setTimezoneOffset, rankOf, confidenceOf, confidenceOfEnsemble, reliabilityGrade, phrasing, leadTimePenalty,
-    ensembleSpread, fetchEnsemble, ENSEMBLE_VARS, ENSEMBLE_MEMBERS, ENSEMBLE_MODEL,
+    ensembleSpread, fetchEnsemble, profileLevelCount, ENSEMBLE_VARS, ENSEMBLE_MEMBERS, ENSEMBLE_MODEL,
     SPREAD_TO_EXPECTED_ERROR, rankAgreement,
     Amedas, LightPollution,
   };
