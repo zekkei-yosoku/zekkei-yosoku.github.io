@@ -22,12 +22,12 @@ console.log("== 時差で日の区切りが変わる ==");
 S.setTimezoneOffset(9 * 3600);
 const jp = S.Cal.startOfDay(t);
 ok(iso(jp) === "2026-08-27T15:00:00.000Z", "日本(+9)では 8/28 の始まり", iso(jp));
-ok(S.Cal.monthDay(t) === "8/28", "日本では 8/28", S.Cal.monthDay(t));
+ok(S.Cal.monthDay(t) === "08/28", "日本では 08/28（mm/dd で0埋め）", S.Cal.monthDay(t));
 
 S.setTimezoneOffset(-3 * 3600);
 const ar = S.Cal.startOfDay(t);
 ok(iso(ar) === "2026-08-27T03:00:00.000Z", "アルゼンチン(-3)では 8/27 の始まり", iso(ar));
-ok(S.Cal.monthDay(t) === "8/27", "同じ瞬間でも 8/27", S.Cal.monthDay(t));
+ok(S.Cal.monthDay(t) === "08/27", "同じ瞬間でも 08/27", S.Cal.monthDay(t));
 ok(jp !== ar, "同じ瞬間でも日の区切りが違う");
 
 console.log("== 時刻の表示も地点の時間 ==");

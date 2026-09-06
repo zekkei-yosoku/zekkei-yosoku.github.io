@@ -347,8 +347,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260906110315"></script>
-<script src="sorami-core.js?v=20260906110315"></script>
+<script src="spots.js?v=20260906110901"></script>
+<script src="sorami-core.js?v=20260906110901"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -752,8 +752,8 @@ function renderPhenomenonCards(order, now) {
   // 記号の意味は、初めて目に入る場所で1度だけ言う。
   // カードごとに繰り返すとうるさく、末尾の注記まで読む人は少ない。
   const legend = `<p class="tiny" style="margin:0 2px 8px">`
-    + `数字が点数、<span class="g-inline">A</span>・<span class="g-inline">B</span>・`
-    + `<span class="g-inline">C</span> は信頼度。A ほど評価が動きません。横に流すと14日先まで。</p>`;
+    + `数字は点数、<span class="g-inline">A</span>/<span class="g-inline">B</span>/`
+    + `<span class="g-inline">C</span> は信頼度です。</p>`;
   return legend + order.map((id) => {
     const entries = weeks[id];
     const meta = S.PHENOMENA[id];
@@ -777,7 +777,10 @@ function renderPhenomenonCards(order, now) {
 
     const days = entries.map((e) => {
       const ev = e.evaluation;
-      const label = S.JstCal.relativeDay(e.dayMs, now).replace(/^(\d+)\/(\d+)\((.)\)$/, "$1/$2<br>$3");
+      // 全部の日を日付で書く。「今日」「明日」だけ1行になって、
+      // その下に置いた等級の位置が日ごとにずれていた。どの列が今日かは
+      // 左端であることと、次の回の枠（.next）で分かる。
+      const label = `${S.Cal.monthDay(e.dayMs)}<br>${S.Cal.weekday(e.dayMs)}`;
       if (ev.unavailable) {
         return `<div class="day" style="opacity:.45"><span class="v muted">—</span>
           <span class="col"><i style="height:3px;background:var(--line)"></i></span>

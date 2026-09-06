@@ -189,10 +189,20 @@ const dayBtn = html.slice(html.indexOf('<button class="day${isNext}'),
 ok(dayBtn.indexOf('class="g"') > dayBtn.indexOf('class="d"'),
   "等級は点数と別の行に置く（日付より後ろ）");
 ok(/\.day \.g \{[^}]*border:/.test(html), "枠で囲んでラベルの見た目にする");
+// 「今日」「明日」だけ1行になって、その下の等級の位置が日ごとにずれていた。
+// 全部の日を日付で書けば、細工なしで揃う。
+ok(/S\.Cal\.monthDay\(e\.dayMs\)\}<br>\$\{S\.Cal\.weekday/.test(html),
+  "日のボタンは全部の日を日付で書く");
+ok(!/relativeDay\(e\.dayMs, now\)\.replace/.test(html), "今日／明日の書き分けは残っていない");
+// 表記は mm/dd。1桁も0を付けて桁を揃える（ユーザーの指定）。
+ok(coreMod.Cal.monthDay(Date.UTC(2026, 0, 3, 3)) === "01/03", "月日は0埋めの mm/dd",
+  coreMod.Cal.monthDay(Date.UTC(2026, 0, 3, 3)));
+ok(/padStart\(2, "0"\)\}\/\$\{String\(d\.getUTCDate\(\)\)\.padStart/.test(coreSrc),
+  "monthDay 側で0埋めしている（表示ごとに書かない）");
 // 記号の意味は、初めて目に入る場所で1度だけ言う。
-ok(/数字が点数、/.test(html), "一覧の先頭に凡例がある");
+ok(/数字は点数、/.test(html), "一覧の先頭に凡例がある");
 ok(/g-inline/.test(html), "凡例でも日のボタンと同じ見た目を見せる");
-ok((html.match(/数字が点数、/g) || []).length === 1, "凡例はカードごとに繰り返さない");
+ok((html.match(/数字は点数、/g) || []).length === 1, "凡例はカードごとに繰り返さない");
 ok(/class="grade"/.test(html), "詳細の見出しにも等級を出す");
 ok(/A・B・C<\/strong> は信頼度/.test(html), "等級の意味を画面で説明している");
 

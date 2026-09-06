@@ -56,9 +56,11 @@
     },
     // 表示は分に四捨五入。切り捨てると暦の表記と1分ずれる。
     hhmmRounded(ms) { return Cal.hhmm(Math.round(ms / 60000) * 60000); },
+    // mm/dd。1桁の月日も0を付けて桁を揃える（ユーザーの指定）。
+    // 桁が揃うと、14日ぶんを縦横に並べたとき数字の位置がぶれない。
     monthDay(ms) {
       const d = new Date(ms + tzOffset);
-      return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+      return `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCDate()).padStart(2, "0")}`;
     },
     weekday(ms) { return "日月火水木金土"[new Date(ms + tzOffset).getUTCDay()]; },
     relativeDay(ms, nowMs) {
