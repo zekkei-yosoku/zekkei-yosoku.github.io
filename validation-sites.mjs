@@ -38,13 +38,13 @@ const definitions = [
   { id: "katase", phenomenon: "sunset", region: "江ノ島周辺・湘南",
     displayName: "江ノ島（片瀬西浜）",
     locationRule: "撮影場所は片瀬西浜。江ノ島を写していても稲村ヶ崎など別地点からなら混ぜない。",
-    search: "(片瀬西浜 OR 西浜海岸 OR 江ノ島 OR 江の島) (夕焼け OR 夕日 OR 夕陽)",
+    search: "(片瀬西浜 OR 西浜海岸 OR 江ノ島 OR 江の島) (夕焼け OR 夕日 OR 夕陽 OR サンセット)",
     source: "https://www.fujisawa-kanko.jp/spot/katase_kugenuma/12.html" },
   { id: "inamuragasaki", phenomenon: "sunset", region: "鎌倉・湘南",
-    search: "(稲村ヶ崎 OR 稲村ガ崎 OR 稲村ケ崎) (夕焼け OR 夕日 OR 夕陽)",
+    search: "(稲村ヶ崎 OR 稲村ガ崎 OR 稲村ケ崎) (夕焼け OR 夕日 OR 夕陽 OR サンセット)",
     source: "https://www.trip-kamakura.com/kaiteki_kamakura/topics.php?id=24" },
   { id: "osanbashi", phenomenon: "sunset", region: "横浜・東京湾",
-    search: "(大さん橋 OR 大桟橋) (夕焼け OR 夕日 OR 夕陽)",
+    search: "(大さん橋 OR 大桟橋 OR 横浜港) (夕焼け OR 夕日 OR 夕陽 OR サンセット)",
     source: "https://osanbashi.jp/floorguide/rooftop" },
 ];
 export const VALIDATION_SITES = definitions.map((definition) => {
