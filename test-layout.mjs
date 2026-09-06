@@ -136,6 +136,22 @@ console.log("== 「±0」を出さない ==");
 ok(/const err = raw === 0 \? null : raw/.test(html), "誤差が0に丸まるときは付けない");
 ok(/e < 1[\s\S]{0,120}あまり動きません/.test(html), "説明文も「±0点」と言わない");
 
+console.log("== ホーム画面のアイコン ==");
+// これが無いと OS がアプリ名の先頭文字で代用し、「絶」の一文字が出る。
+ok(/rel="apple-touch-icon"/.test(html), "iOS 用のアイコンを指定している");
+ok(/rel="manifest"/.test(html), "マニフェストを読ませている");
+ok(/rel="icon"[^>]*32x32/.test(html), "タブ用のファビコンがある");
+const mani = JSON.parse(fs.readFileSync(new URL("./manifest.json", import.meta.url), "utf8"));
+ok(mani.name === "絶景予測" && mani.short_name === "絶景予測", "マニフェストの名前が現在の名称");
+ok(mani.icons.some((i) => i.sizes === "512x512" && i.purpose === "maskable"),
+  "Android が円で抜く用（maskable）を持つ");
+for (const i of mani.icons) {
+  ok(fs.existsSync(new URL("./" + i.src, import.meta.url)), `${i.src} が存在する`);
+}
+ok(fs.existsSync(new URL("./icon-180.png", import.meta.url)), "icon-180.png が存在する");
+// 画像は生成物。作り直せる形で残っているか。
+ok(fs.existsSync(new URL("./make-icon.mjs", import.meta.url)), "アイコンの生成元がある");
+
 console.log("== 絶景スポットは現象でまとめる ==");
 // 33件を素のまま並べても、何を探せばいいのか分からない。
 ok(/class="spot-cat"/.test(html), "カテゴリの見出しがある");

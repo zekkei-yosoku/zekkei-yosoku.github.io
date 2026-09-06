@@ -7,6 +7,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="絶景予測">
 <title>絶景予測</title>
+<!-- ホーム画面に置いたとき、これが無いとOSがアプリ名の先頭文字で代用する（「絶」が出ていた）。
+     iOS は apple-touch-icon、Android はマニフェストの icons を見る。
+     角丸はOS側が付けるので、画像は正方形いっぱいに描いてある。 -->
+<link rel="apple-touch-icon" href="icon-180.png?v=1">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png?v=1">
+<link rel="manifest" href="manifest.json?v=1">
+<meta name="theme-color" content="#0a0f24">
 <style>
   /* 配色はカード地に対するコントラストを実測して決めている。
      文字として使う色は 4.5:1 以上（WCAG AA の本文基準）。
@@ -318,8 +325,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260906101253"></script>
-<script src="sorami-core.js?v=20260906101253"></script>
+<script src="spots.js?v=20260906102948"></script>
+<script src="sorami-core.js?v=20260906102948"></script>
 <script>
 "use strict";
 const S = window.Sorami;
