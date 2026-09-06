@@ -24,7 +24,7 @@ const SITES = [
 ];
 // 現象を絞る。study-leadtime.mjs で実測誤差を出せたのが星空だけなので、
 // 並べて読めるのも星空だけ。
-const PHENOMENA = ["starrySky"];
+const PHENOMENA = ["starrySky", "sunset"];
 // 1プロセス1地点で回す。8日ぶんのアンサンブル（51メンバー）を複数地点ぶん抱えると
 // 4GB でも足りずに落ちる（実測）。呼び出し側で地点を回す。
 const ONLY = process.argv[2] ? Number(process.argv[2]) : null;
@@ -45,7 +45,13 @@ for (const [idx, site] of SITES.entries()) {
       const ev = entry.evaluation;
       if (ev.unavailable || !ev.uncertainty) continue;
       const d = ev.daysAhead;
-      (byLead[p][d] = byLead[p][d] || []).push(ev.uncertainty.expectedError);
+      // 幅が潰れるのが「見解が揃っている」からなのか「上限や頭打ちで
+      // 全メンバーが同じ値になった」からなのかを区別するため、
+      // 相異なるメンバー値の数も一緒に記録する。
+      const u = ev.uncertainty;
+      const distinct = u.scores ? new Set(u.scores).size : null;
+      (byLead[p][d] = byLead[p][d] || []).push(
+        `${u.expectedError.toFixed(1)}:${distinct}:${u.members}`);
     }
   }
   process.stdout.write(`  ${site.name}\n`);
@@ -56,9 +62,9 @@ const pad = (s, w) => String(s) + " ".repeat(Math.max(0, w -
   [...String(s)].reduce((a, c) => a + (c.charCodeAt(0) > 0x1100 ? 2 : 1), 0)));
 const median = (a) => S.Curve.median(a);
 
-for (let d = 0; d <= 7; d++) {
-  const a = byLead.starrySky[d];
-  if (a && a.length) console.log(`DATA\t${d}\t${a.join(",")}`);
+for (const p of PHENOMENA) for (let d = 0; d <= 7; d++) {
+  const a = byLead[p][d];
+  if (a && a.length) console.log(`DATA\t${p}\t${d}\t${a.join(",")}`);
 }
 console.log(`\n括弧内は標本数（地点数）。`);
 console.log(`study-leadtime.mjs の実測誤差と並べて読む。`);
