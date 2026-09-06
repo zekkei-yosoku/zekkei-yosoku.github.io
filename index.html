@@ -494,15 +494,18 @@ let sightings = store.get("sorami.sightings", []);
 // 並べると、見出しが「平凡」のカードが先頭に来て、言っていることと
 // 出しているものが食い違う。
 const GRADE_ORDER = { A: 0, B: 1, C: 2 };
-// ラベルは、何の順かを言い切る。「近い順」では何に近いのか読めなかった。
+// ラベルは「何で並べるか」だけ。
+// 「並び替え」と書いてある場所なので「〜順」は繰り返しになる。
+// 向きも書かない。点数と信頼度は高いほうが先、時刻は早いほうが先で、
+// どれも向きは一つしかない。迷わないものに注釈を足すと読みにくくなるだけ。
 const SORTS = {
   standard: { label: "標準", key: null },
-  score: { label: "点数が高い順", key: (u) => -u.evaluation.score },
+  score: { label: "点数", key: (u) => -u.evaluation.score },
   // 信頼度が同じなら点数の高い順。1000 は点数（0〜100）を跨がない間隔。
-  grade: { label: "信頼度が高い順", key: (u) =>
+  grade: { label: "信頼度", key: (u) =>
     GRADE_ORDER[S.reliabilityGrade(u.evaluation.confidence, u.evaluation.models).key] * 1000
     - u.evaluation.score },
-  time: { label: "見られる時刻が早い順", key: (u) => u.evaluation.peak || u.dayMs },
+  time: { label: "観測予定時刻", key: (u) => u.evaluation.peak || u.dayMs },
 };
 let sortMode = SORTS[store.get("sorami.sort", "standard")] ? store.get("sorami.sort", "standard") : "standard";
 
