@@ -496,7 +496,7 @@ let sightings = store.get("sorami.sightings", []);
 const GRADE_ORDER = { A: 0, B: 1, C: 2 };
 // ラベルは、何の順かを言い切る。「近い順」では何に近いのか読めなかった。
 const SORTS = {
-  standard: { label: "標準（現象の順）", key: null },
+  standard: { label: "標準", key: null },
   score: { label: "点数が高い順", key: (u) => -u.evaluation.score },
   // 信頼度が同じなら点数の高い順。1000 は点数（0〜100）を跨がない間隔。
   grade: { label: "信頼度が高い順", key: (u) =>
