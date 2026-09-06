@@ -132,13 +132,17 @@
   .day .col { width: 58%; max-width: 46px; height: 30px; display: flex; align-items: flex-end; }
   .day .col i { display: block; width: 100%; border-radius: 3px; min-height: 3px; }
   .day .d { font-size: 0.63rem; color: var(--tertiary); line-height: 1.1; text-align: center; }
-  /* 信頼度の等級。点数と競わないよう、色は付けず小さく添える。 */
-  .day .g { font-size: 0.6rem; font-weight: 700; color: var(--tertiary); letter-spacing: .04em; }
+  /* 信頼度の等級。
+     点数のすぐ横に置くと「78 C」が数字の続きに見えて、何の記号か分からなかった。
+     行を分け、枠で囲んでラベルの見た目にする。 */
+  .day .g { font-size: 0.58rem; font-weight: 700; color: var(--tertiary);
+            border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; line-height: 1.45; }
+  /* 凡例の中で、日のボタンに出るのと同じ見た目を見せる。 */
+  .g-inline { font-weight: 700; border: 1px solid var(--line); border-radius: 4px; padding: 0 3px; }
   /* 見出しの等級。点数のすぐ後ろに小さく。 */
   .grade { font-size: 0.69rem; font-weight: 700; color: var(--tertiary);
            border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px;
            vertical-align: middle; }
-  .day .v { display: flex; align-items: baseline; gap: 3px; }
   /* 次に来る回。どこから見ればいいかの起点を示す。 */
   .day.next { border-color: var(--accent); }
   /* もう終わった回。押せば記録できるので消しはしないが、目は引かせない。
@@ -343,8 +347,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260906105513"></script>
-<script src="sorami-core.js?v=20260906105513"></script>
+<script src="spots.js?v=20260906110315"></script>
+<script src="sorami-core.js?v=20260906110315"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -745,7 +749,12 @@ function renderBestNote(best, now) {
 // 押せるのは日のボタンだけ。カード全体を押せるようにすると、
 // 情報を読んでいるつもりの場所で画面が変わってしまう。
 function renderPhenomenonCards(order, now) {
-  return order.map((id) => {
+  // 記号の意味は、初めて目に入る場所で1度だけ言う。
+  // カードごとに繰り返すとうるさく、末尾の注記まで読む人は少ない。
+  const legend = `<p class="tiny" style="margin:0 2px 8px">`
+    + `数字が点数、<span class="g-inline">A</span>・<span class="g-inline">B</span>・`
+    + `<span class="g-inline">C</span> は信頼度。A ほど評価が動きません。横に流すと14日先まで。</p>`;
+  return legend + order.map((id) => {
     const entries = weeks[id];
     const meta = S.PHENOMENA[id];
     if (!entries || !entries.length) return "";
@@ -783,9 +792,10 @@ function renderPhenomenonCards(order, now) {
       const grade = S.reliabilityGrade(ev.confidence, ev.models);
       return `<button class="day${isNext}${isPast}" data-cell="${id}|${e.dayMs}"
         title="${esc(meta.name)} ${S.JstCal.relativeDay(e.dayMs, now)} ${Math.round(ev.score)}点 ${esc(S.phrasing(id, ev.rank).label)} ・ 信頼度${grade.key}（${esc(grade.caption)}）${isPast ? "（終了）" : ""}">
-        <span class="v"><b style="color:${color}">${Math.round(ev.score)}</b><span class="g">${grade.key}</span></span>
+        <span class="v" style="color:${color}">${Math.round(ev.score)}</span>
         <span class="col"><i style="height:${h}px;background:${color}"></i></span>
-        <span class="d">${label}</span></button>`;
+        <span class="d">${label}</span>
+        <span class="g">${grade.key}</span></button>`;
     }).join("");
 
     return `<div class="card">

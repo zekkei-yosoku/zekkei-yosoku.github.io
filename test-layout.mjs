@@ -183,6 +183,16 @@ for (const [err, models, want] of [[5, 8, "A"], [5, 4, "B"], [14, 8, "B"], [25, 
 }
 ok(grades.every((k) => coreMod.reliabilityGrade({ key: "high" }, 8).key !== undefined), "等級が返る");
 ok(/class="g"/.test(html), "日のボタンに等級を出す");
+// 「78 C」と横に並べると数字の続きに見えて、何の記号か分からなかった。
+const dayBtn = html.slice(html.indexOf('<button class="day${isNext}'),
+                          html.indexOf('<button class="day${isNext}') + 700);
+ok(dayBtn.indexOf('class="g"') > dayBtn.indexOf('class="d"'),
+  "等級は点数と別の行に置く（日付より後ろ）");
+ok(/\.day \.g \{[^}]*border:/.test(html), "枠で囲んでラベルの見た目にする");
+// 記号の意味は、初めて目に入る場所で1度だけ言う。
+ok(/数字が点数、/.test(html), "一覧の先頭に凡例がある");
+ok(/g-inline/.test(html), "凡例でも日のボタンと同じ見た目を見せる");
+ok((html.match(/数字が点数、/g) || []).length === 1, "凡例はカードごとに繰り返さない");
 ok(/class="grade"/.test(html), "詳細の見出しにも等級を出す");
 ok(/A・B・C<\/strong> は信頼度/.test(html), "等級の意味を画面で説明している");
 
