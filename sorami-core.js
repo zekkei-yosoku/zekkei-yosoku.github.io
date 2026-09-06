@@ -63,12 +63,14 @@
       return `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCDate()).padStart(2, "0")}`;
     },
     weekday(ms) { return "日月火水木金土"[new Date(ms + tzOffset).getUTCDay()]; },
-    relativeDay(ms, nowMs) {
-      const target = Cal.startOfDay(ms), today = Cal.startOfDay(nowMs);
-      if (target === today) return "今日";
-      if (target === today + 86400000) return "明日";
-      return `${Cal.monthDay(ms)}(${Cal.weekday(ms)})`;
-    },
+    // 日付で言い切る。「今日」「明日」は使わない。
+    //
+    // 週間の帯は 09/07 と日付で出しているのに、その下の詳細だけ「今日」と
+    // 出ていた。09/07 を押して「今日」が出ると、読む側が毎回translateすることになる。
+    // 近い2日だけ言い方が変わるので、揃っていないのがいちばん目立つ場所でもある。
+    // 今日がどれかは、帯の枠と曜日で分かる。
+    // 正本: [[システム/04_ユーザー設定#日付の表記]]
+    relativeDay(ms) { return `${Cal.monthDay(ms)}(${Cal.weekday(ms)})`; },
   };
 
   // ---------------------------------------------------------------- 太陽（NOAA/Meeus）
