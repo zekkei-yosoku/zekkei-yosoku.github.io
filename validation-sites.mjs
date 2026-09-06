@@ -22,7 +22,7 @@ const addedLocations = [
   { id: "osanbashi", name: "大さん橋", prefecture: "神奈川県横浜市",
     latitude: 35.4516796, longitude: 139.6477606, elevation: null, terrain: "coast",
     coordinateSource: "https://www.openstreetmap.org/way/504126759",
-    locationRule: "大さん橋屋上で撮影した空。地形DEMの1mを屋上の高さとして使わない。" },
+    locationRule: "本文・タグの大さん橋/大桟橋と、屋上形状・桟橋構造・周辺景観など画像の視覚根拠が整合する投稿を採用する。横浜港だけ、または一般的な夕焼け景だけなら候補に留める。地形DEMの1mを屋上の高さとして使わない。" },
 ].map((s) => ({ ...s, coordinateVerifiedOn: "2026-09-06",
   elevationSource: s.elevation === null ? "屋上標高未確認。気象モデルの地形標高を使用" : "Open-Meteo elevation API、2026-09-06に座標で取得" }));
 const definitions = [
