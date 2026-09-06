@@ -50,7 +50,15 @@
 iOS版は現在作っていないため、配信対象はこのWeb版だけ。過去のSwift実装は
 `parity-test.mjs` の参照用に残している。
 
-## Xの実景照合
+## 公開実景の照合
+
+公式ライブカメラの日時付き保存画像がある地点は、Xより先にカメラを使う。秩父雲海は
+[秩父雲海カメラ](https://navi.city.chichibu.lg.jp/cloudview/) が通常5分ごとの画像を過去20日程度保存している。
+`node study-cloudview.mjs 6 data/cloudview-sightings-YYYYMMDD.json` で6時頃の画像URLと撮影日時を台帳化し、
+目視で `none` / `weak` / `strong` を付ける。濃霧で判別できない画像は陰性にしない。画像は保存せず、
+出典ページと画像URLだけ記録する（公式サイトのCC BY-NC 4.0表示を守る）。
+
+### Xの補助照合
 
 検証地点は `validation-sites.mjs` に固定し、既存登録地点の座標・標高は `spots.js`、
 新規地点は設定内の `coordinateSource`・`elevationSource` を参照する。
