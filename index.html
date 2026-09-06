@@ -114,8 +114,13 @@
   .ph-out { color: var(--tertiary); font-size: 0.81rem; margin-top: 5px; }
 
   /* 日を押すと詳しい画面へ。押せることが分かるよう、地の色と枠を付ける。 */
-  .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 10px; }
-  .day { display: flex; flex-direction: column; align-items: center; gap: 3px;
+  /* 14日ぶんは1画面に入らないので横へ流す。
+     右端で列を半分だけ見せて、続きがあることを形で示す（矢印や影は足さない）。 */
+  .days { display: flex; gap: 5px; margin-top: 10px; overflow-x: auto;
+          scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin; padding-bottom: 2px; }
+  .day { flex: 0 0 46px; scroll-snap-align: start;
+         display: flex; flex-direction: column; align-items: center; gap: 3px;
          padding: 5px 2px; border-radius: 10px; min-height: 44px;
          background: color-mix(in srgb, var(--text) 6%, transparent);
          border: 1px solid color-mix(in srgb, var(--text) 9%, transparent); }
@@ -127,6 +132,13 @@
   .day .col { width: 58%; max-width: 46px; height: 30px; display: flex; align-items: flex-end; }
   .day .col i { display: block; width: 100%; border-radius: 3px; min-height: 3px; }
   .day .d { font-size: 0.63rem; color: var(--tertiary); line-height: 1.1; text-align: center; }
+  /* 信頼度の等級。点数と競わないよう、色は付けず小さく添える。 */
+  .day .g { font-size: 0.6rem; font-weight: 700; color: var(--tertiary); letter-spacing: .04em; }
+  /* 見出しの等級。点数のすぐ後ろに小さく。 */
+  .grade { font-size: 0.69rem; font-weight: 700; color: var(--tertiary);
+           border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px;
+           vertical-align: middle; }
+  .day .v { display: flex; align-items: baseline; gap: 3px; }
   /* 次に来る回。どこから見ればいいかの起点を示す。 */
   .day.next { border-color: var(--accent); }
   /* もう終わった回。押せば記録できるので消しはしないが、目は引かせない。
@@ -146,8 +158,11 @@
   .ph-out { color: var(--tertiary); font-size: 0.81rem; margin-top: 5px; }
 
   /* 日を押すと詳しい画面へ。押せることが分かるよう、地の色と枠を付ける。 */
-  .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 11px; }
-  .day { display: flex; flex-direction: column; align-items: center; gap: 4px;
+  .days { display: flex; gap: 5px; margin-top: 11px; overflow-x: auto;
+          scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin; padding-bottom: 2px; }
+  .day { flex: 0 0 52px; scroll-snap-align: start;
+         display: flex; flex-direction: column; align-items: center; gap: 4px;
          padding: 7px 2px 6px; border-radius: 10px; min-height: 44px;
          background: color-mix(in srgb, var(--text) 6%, transparent);
          border: 1px solid color-mix(in srgb, var(--text) 9%, transparent); }
@@ -188,7 +203,10 @@
   .pm .v { width: 26px; text-align: right; color: var(--secondary); }
   .pm .scorebar { flex: 1; height: 5px; }
 
-  .wk { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 0.81rem; width: 100%; text-align: left; }
+  /* 14日ぶん並ぶので、押し間違いが増える。行の高さを指の幅に足りるところまで上げる。
+     以前は 29px で、監査が毎回「タップ領域が小さい」と挙げていた。 */
+  .wk { display: flex; align-items: center; gap: 8px; padding: 5px 0; min-height: 34px;
+        font-size: 0.81rem; width: 100%; text-align: left; }
   .wk .d { min-width: 62px; flex: none; white-space: nowrap; }
   .wk .t { min-width: 40px; flex: none; white-space: nowrap; color: var(--secondary); font-variant-numeric: tabular-nums; }
   .wk .scorebar { flex: 1; }
@@ -325,8 +343,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260906102948"></script>
-<script src="sorami-core.js?v=20260906102948"></script>
+<script src="spots.js?v=20260906104840"></script>
+<script src="sorami-core.js?v=20260906104840"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -367,9 +385,14 @@ function confidenceText(ev) {
     else parts.push(`予報モデルは ${lo}〜${hi}点 でおおむね揃っています`);
   }
 
-  // 日数の注意は残す。アンサンブルのばらつきは日数とともに広がるが、
-  // 数日先のスコア誤差そのものは検証できていないため、言葉で補う。
-  if (d >= 5) parts.push(`${d}日先なので、日が近づいたら見直してください`);
+  // モデルが落ちる日は、同じ「中央値」でも土台が違う。何本で出した値かを言う。
+  if (typeof ev.models === "number" && ev.models > 0 && ev.models < S.MODELS.length) {
+    parts.push(`この日まで予報を出しているのは ${S.MODELS.length}モデル中 ${ev.models}つです`);
+  }
+  // 日数の注意は残す。1〜5日先はアンサンブルの見積もりが実測とよく一致することを
+  // 確認したが（星空・288標本）、6日先から先は同じ手段で確かめられていない。
+  if (d >= 6) parts.push(`${d}日先は、見積もりが実測と合うかを確かめられていません`);
+  else if (d >= 5) parts.push(`${d}日先なので、日が近づいたら見直してください`);
   else if (d >= 2) parts.push(`${d}日先の予測です`);
   return parts.join("。");
 }
@@ -456,7 +479,11 @@ async function load(force) {
     // 光害はその地点の素質なので予報と並行に取得する。取れなくても致命的ではない。
     const [fetched, lp] = await Promise.all([
       // 鉛直分布は雲海を見下ろせる地点でだけ取る。平地では丸ごと不要（+99KB）。
-      S.fetchForecast(place.latitude, place.longitude, 8, place),
+      // 14日ぶん出すので15日ぶん取る（最終日の窓が翌日へまたぐ）。
+      // 8日目以降はモデルが順に落ちる（MSM 4日 / ARPEGE 5日 / 英国気象局 7日 /
+      // ICON 8日 / GSM 12日 / ECMWF 15日）。落ちた分は null で返るだけで、
+      // 残ったモデルの中央値になる。何本で出した値かは信頼度の判定に使う。
+      S.fetchForecast(place.latitude, place.longitude, 15, place),
       S.LightPollution.lookup(place.latitude, place.longitude).catch(() => null),
     ]);
     bundle = fetched;
@@ -610,6 +637,11 @@ function render() {
         : `${bundle ? "アンサンブル予報が取れなかったため、" : ""}`
           + `点数の確からしさはモデル間の見解の差から出しています。<br>`)
     + `夕焼け・朝焼けは、頭上だけでなく日の入り方向 ${bundle ? Math.round(bundle.sunsetBearing) : "—"}° の空の雲も見ています。<br>`
+    + `点数の横の <strong>A・B・C</strong> は信頼度です。`
+    + `<strong>A</strong> は評価がほぼ動かない、<strong>B</strong> は1段変わり得る、`
+    + `<strong>C</strong> は評価そのものが当てにならない。`
+    + `評価の帯は20〜25点間隔なので、点数が何点ずれそうかをその幅と比べて決めています。`
+    + `先の日ほど予報を出すモデルが減り（14日先は${S.MODELS.length}つ中3つ）、A は出しません。<br>`
     + `<strong>これは予測です。</strong>気象庁や ECMWF が出している予報を材料に、`
     + `このアプリが独自に点数を付けたものです。実際の空とは違うことがあります。`
     + `見に行くかどうかの目安としてお使いください。<br>`
@@ -704,7 +736,7 @@ function renderPhenomenonCards(order, now) {
     const allOut = entries.every((e) => e.evaluation.unavailable);
 
     if (allOut) {
-      // 7日すべて対象外なら、見に行く日が無い。理由だけ書いて、押せる場所も作らない
+      // 全日が対象外なら、見に行く日が無い。理由だけ書いて、押せる場所も作らない
       //（開いても同じ文が出るだけの行き止まりになる）。
       return `<div class="card">
         <div class="ph-head"><span class="ic">${meta.icon}</span><span class="nm">${meta.name}</span></div>
@@ -730,9 +762,11 @@ function renderPhenomenonCards(order, now) {
       const isNext = u && e.dayMs === u.dayMs ? " next" : "";
       // 終わった回は薄くする。押せるままにするのは、見えたかどうかを記録するため。
       const isPast = ev.window[1] <= now ? " past" : "";
+      // 14日ぶん並ぶので、どこから先を鵜呑みにしないかを1文字で添える。
+      const grade = S.reliabilityGrade(ev.confidence, ev.models);
       return `<button class="day${isNext}${isPast}" data-cell="${id}|${e.dayMs}"
-        title="${esc(meta.name)} ${S.JstCal.relativeDay(e.dayMs, now)} ${Math.round(ev.score)}点 ${esc(S.phrasing(id, ev.rank).label)}${isPast ? "（終了）" : ""}">
-        <span class="v" style="color:${color}">${Math.round(ev.score)}</span>
+        title="${esc(meta.name)} ${S.JstCal.relativeDay(e.dayMs, now)} ${Math.round(ev.score)}点 ${esc(S.phrasing(id, ev.rank).label)} ・ 信頼度${grade.key}（${esc(grade.caption)}）${isPast ? "（終了）" : ""}">
+        <span class="v"><b style="color:${color}">${Math.round(ev.score)}</b><span class="g">${grade.key}</span></span>
         <span class="col"><i style="height:${h}px;background:${color}"></i></span>
         <span class="d">${label}</span></button>`;
     }).join("");
@@ -827,9 +861,11 @@ function renderVerdict(id, ev) {
   // （星空の実測誤差は当日で 12.6点）。上限や 100点の頭打ちに全メンバーが
   // 張り付くと 0 になるので、めずらしくもない。0 のときは何も付けない。
   const err = raw === 0 ? null : raw;
+  const grade = S.reliabilityGrade(ev.confidence, ev.models);
   return `<span class="verdict-box">
     <span class="verdict" style="color:${color}">${esc(S.phrasing(id, ev.rank).label)}</span>
-    <span class="big muted">${Math.round(ev.score)}${err !== null ? ` <span style="font-weight:400">±${err}</span>` : ""}</span></span>`;
+    <span class="big muted">${Math.round(ev.score)}${err !== null ? ` <span style="font-weight:400">±${err}</span>` : ""}`
+    + ` <span class="grade" title="${esc(grade.caption)}">${grade.key}</span></span></span>`;
 }
 
 // 点数のバーに、動きうる幅を薄い帯で重ねる。

@@ -41,7 +41,7 @@ for (const [idx, site] of SITES.entries()) {
   if (!bundle.ensemble) { console.log(`${site.name}: アンサンブルが取れなかった`); continue; }
   const now = Date.now();
   for (const p of PHENOMENA) {
-    for (const entry of S.evaluateWeek(p, bundle, site, now, 8)) {
+    for (const entry of S.evaluateWeek(p, bundle, site, 8, now)) {
       const ev = entry.evaluation;
       if (ev.unavailable || !ev.uncertainty) continue;
       const d = ev.daysAhead;

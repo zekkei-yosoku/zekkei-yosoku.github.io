@@ -11,6 +11,12 @@ const ok = (cond, label, detail = "") => {
   else { fail++; console.log(`  FAIL ${label}${detail ? "  " + detail : ""}`); }
 };
 
+// 判定に使う正本を先に読む。あとから宣言すると、上のほうの検査から見えない。
+const { createRequire } = await import("node:module");
+const req = createRequire(import.meta.url);
+const coreMod = req("./sorami-core.js");
+const coreSrc = fs.readFileSync(new URL("./sorami-core.js", import.meta.url), "utf8");
+
 // コメント内の文言を拾わないよう、判定前に /* */ を落とす。
 const code = html.replace(/\/\*[\s\S]*?\*\//g, "");
 
@@ -136,6 +142,30 @@ console.log("== 「±0」を出さない ==");
 ok(/const err = raw === 0 \? null : raw/.test(html), "誤差が0に丸まるときは付けない");
 ok(/e < 1[\s\S]{0,120}あまり動きません/.test(html), "説明文も「±0点」と言わない");
 
+console.log("== 14日ぶんを横に流す ==");
+// 7日では「来週の連休どうか」が見られない。14日に伸ばしたぶん、1画面には入らない。
+ok(/place\.longitude, 15, place\)/.test(html), "15日ぶん取る（最終日の窓が翌日へまたぐ）");
+ok(/days = 14/.test(coreSrc), "14日ぶん採点する");
+const daysCss = html.slice(html.indexOf(".days {"), html.indexOf(".days {") + 400);
+ok(/overflow-x: auto/.test(daysCss), "横スクロールにする");
+ok(/scroll-snap-type/.test(daysCss), "スクロールが列で止まる");
+ok(!/grid-template-columns: repeat\(7/.test(html), "7列固定のグリッドは残っていない");
+
+console.log("== 信頼度を1文字で出す ==");
+// 14日並べると、どこから先を鵜呑みにしないかが分からない。
+ok(/function reliabilityGrade/.test(coreSrc), "等級を出す関数がある");
+ok(/GRADE_MIN_MODELS = 5/.test(coreSrc), "モデル数による頭打ちがある");
+ok(/models: evaluated\.length/.test(coreSrc), "何モデルの中央値かを持ち回す");
+const grades = ["A", "B", "C"];
+for (const [err, models, want] of [[5, 8, "A"], [5, 4, "B"], [14, 8, "B"], [25, 8, "C"]]) {
+  const g = coreMod.reliabilityGrade(coreMod.confidenceOfEnsemble(err, 0.9), models);
+  ok(g.key === want, `誤差±${err}・${models}モデル → ${want}`, g.key);
+}
+ok(grades.every((k) => coreMod.reliabilityGrade({ key: "high" }, 8).key !== undefined), "等級が返る");
+ok(/class="g"/.test(html), "日のボタンに等級を出す");
+ok(/class="grade"/.test(html), "詳細の見出しにも等級を出す");
+ok(/A・B・C<\/strong> は信頼度/.test(html), "等級の意味を画面で説明している");
+
 console.log("== ホーム画面のアイコン ==");
 // これが無いと OS がアプリ名の先頭文字で代用し、「絶」の一文字が出る。
 ok(/rel="apple-touch-icon"/.test(html), "iOS 用のアイコンを指定している");
@@ -162,10 +192,7 @@ ok(/const northToSouth = \(a, b\) => b\.latitude - a\.latitude/.test(html), "同
 ok(/if \(filter\) \{[\s\S]{0,400}phenomena\.includes\(filter\)/.test(html),
   "絞り込み中は副次的な用途のスポットも拾う");
 // 全スポットがどれかのカテゴリに入るか（主現象が PHENOMENA に無いと画面から消える）
-const { createRequire } = await import("node:module");
-const req = createRequire(import.meta.url);
 req("./spots.js");
-const coreMod = req("./sorami-core.js");
 const spots = globalThis.SORAMI_SPOTS.spots;
 const orphan = spots.filter((s) => !coreMod.PHENOMENA[s.phenomena[0]]);
 ok(orphan.length === 0, "全スポットの主現象が定義済み", orphan.map((s) => s.name).join(","));
@@ -205,7 +232,6 @@ ok(orderOf("sunset") === orderOf("sunrise") + 1, "朝焼けの次が夕焼け");
 console.log("== 訊き方を現象に合わせる ==");
 // 点数の意味が現象で違う。日はほぼ毎日沈み多少は色づくので、
 // 夕焼けに「見えたか」を訊くと何点でもほぼ100%になり、点数の甘辛が測れない。
-const coreSrc = fs.readFileSync(new URL("./sorami-core.js", import.meta.url), "utf8");
 ok(/RECORD_OUTCOMES/.test(coreSrc), "訊き方を現象ごとに持つ");
 for (const id of ["sunrise", "sunset", "starrySky"]) {
   ok(new RegExp(id + ': \\{ name: "[^"]+", icon: "[^"]+", order: \\d+, record: "quality"').test(coreSrc),

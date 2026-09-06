@@ -823,6 +823,34 @@
              caption, cappedByDisagreement: capped };
   };
 
+  // 信頼度を1文字で出す。14日ぶん並べたとき、どこから先を鵜呑みにしないかが
+  // ひと目で分かるようにするため。
+  //
+  // **3段階にしてある。** 実測で区別がついたのが3つだからで、5段階にはしない。
+  //   - 評価の帯は20〜25点間隔。±10点未満なら評価は動かない（A）
+  //   - ±20点までなら評価が1段変わり得る（B）
+  //   - それ以上は評価そのものが当てにならない（C）
+  // 境目は 610標本の実測に基づく既存の閾値をそのまま使う。
+  // 段階を増やすと、根拠のない境目を2つ足すことになる。
+  //
+  // モデル数による頭打ちを別に置く。先の日ほどモデルが落ち、
+  // 9日目以降は4本以下（うち2本は ECMWF 系で互いに近い）。
+  // 51メンバーの散らばりは大気の不確かさを測れていても、
+  // 「8モデルの中央値」という土台のほうが崩れているので A とは言わない。
+  const GRADE_MIN_MODELS = 5;
+  function reliabilityGrade(confidence, models) {
+    const base = confidence.key === "high" ? "A" : confidence.key === "medium" ? "B" : "C";
+    const capped = typeof models === "number" && models > 0 && models < GRADE_MIN_MODELS
+      && base === "A" ? "B" : base;
+    return {
+      key: capped,
+      capped: capped !== base,
+      caption: capped === "A" ? "評価はほぼ動きません"
+        : capped === "B" ? "評価が1段変わり得ます"
+        : "評価そのものが当てになりません",
+    };
+  }
+
   function cloudDetail(raw, overcast, heavilyObscured, absent, present) {
     // 空一面かどうかを先に見る。覆い尽くしでも三角カーブは 0 を返すため、
     // 順序を逆にすると「一面の巻層雲」を「雲がない」と説明してしまう。
@@ -1602,7 +1630,7 @@
     if (!evaluated.length) {
       const reason = Object.values(results).find((r) => r.unavailable).unavailable;
       return { phenomenon: scorerId, window, peak: peakOf(window), unavailable: reason,
-               score: 0, base: 0, factors: [], perModel: {}, spread: [0, 0],
+               score: 0, base: 0, factors: [], perModel: {}, models: 0, spread: [0, 0],
                confidence: confidenceOf(999), uncertainty: null, source: scorer.source };
     }
     const scores = evaluated.map(([, r]) => r.score);
@@ -1645,6 +1673,10 @@
       base: representative[1].base,
       factors: representative[1].factors,
       perModel: Object.fromEntries(evaluated.map(([m, r]) => [m, r.score])),
+      // 何モデルの中央値かは日によって変わる。先の日ほどモデルが落ちるので
+      // （気象庁MSMは4日、ARPEGEは5日、英国気象局は7日、ICONは8日で終わる）、
+      // 同じ「中央値」でも中身が違う。表示側がそれを言えるように持ち回す。
+      models: evaluated.length,
       spread: [low, high],
       daysAhead,
       confidence,
@@ -1668,7 +1700,7 @@
     };
   }
 
-  function evaluateWeek(scorerId, bundle, place, days = 7, nowMs = Date.now()) {
+  function evaluateWeek(scorerId, bundle, place, days = 14, nowMs = Date.now()) {
     const out = [];
     for (let i = 0; i < days; i++) {
       const dayMs = Cal.addDays(Cal.startOfDay(nowMs), i);
@@ -1916,7 +1948,7 @@
     HOME_VARS, OFFSET_VARS, PROFILE_LEVELS, PROFILE_VARS, needsProfile,
     CLOUD_LAYERS, SCORERS, PHENOMENA, RANKS, RECORD_OUTCOMES, recordKind, outcomesFor,
     decodeLocation, buildURL, fetchForecast, evaluate, evaluateWeek, readingAt,
-    setTimezoneOffset, rankOf, confidenceOf, confidenceOfEnsemble, phrasing, leadTimePenalty,
+    setTimezoneOffset, rankOf, confidenceOf, confidenceOfEnsemble, reliabilityGrade, phrasing, leadTimePenalty,
     ensembleSpread, fetchEnsemble, ENSEMBLE_VARS, ENSEMBLE_MEMBERS, ENSEMBLE_MODEL,
     SPREAD_TO_EXPECTED_ERROR, rankAgreement,
     Amedas, LightPollution,

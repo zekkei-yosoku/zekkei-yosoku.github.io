@@ -63,7 +63,7 @@ for (const spot of SPOTS) {
   const rows = [];
   for (const id of Object.keys(S.SCORERS)) {
     const wk = (bundle) => {
-      const week = S.evaluateWeek(id, bundle, spot, now, 4);
+      const week = S.evaluateWeek(id, bundle, spot, 4, now);
       const e = week.find((x) => !x.evaluation.unavailable);
       return e ? Math.round(e.evaluation.score) : (week[0]?.evaluation.unavailable ? "対象外" : "—");
     };
