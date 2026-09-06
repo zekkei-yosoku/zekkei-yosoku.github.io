@@ -358,15 +358,33 @@
       source: "雲量・降水・月明かり（輝面比×高度）・視程・光害（Lorenz光害アトラス2025）から算出",
     },
     seaOfClouds: {
-      rangeThreshold: 10.2, rangeFull: 16,
-      // windCalm 0.85 は宙畑・秩父の決定木の第2分岐。ただしこれは
-      // 【秩父アメダス＝盆地底の観測値】で、アプリが読むのは
-      // 展望台（尾根）の予測値。同じ量ではない。
-      // 2025年11月の竹田城跡で 0.85 を下回った日は 30日中 0日（実測）。
-      // 30点ぶんの加点が事実上死んでいる。谷が静穏かどうかは、
-      // 逆転層の有無のほうが直接の証拠になる（aboveBonus）。
-      windCalm: 0.85, windFail: 2.5,
-      prevRainMm: 0.5, humidityThreshold: 90, nightCloudClear: 30, nightCloudFail: 80,
+      // --- 採点の閾値（2026-09-07 に実測で作り直した）---
+      //
+      // 正本: [[ドメイン/開発/絶景日和/02_検証結果]] 検証14。
+      // 正例は秩父市「秩父雲海カメラ」ベストショット 162日（2017-10〜2023-03、公式）。
+      // 対照は同じ月の他の日。学習は2020年まで、評価は2021年以降で、評価期間は
+      // 閾値決めに一切使っていない。**評価期間の分離（AUC）は 0.365 → 0.807。**
+      //
+      // 【外した項】
+      //  - 風速（旧30点）: 分離 0.353＝逆向き。強風の頭打ちを足しても +0.002 で誤差。
+      //    竹田城では30日中0日しか閾値を下回らず、美の山では毎日ほぼ満点だった。
+      //    どちらの向きでも判別に効いていない
+      //  - 前日最高と当日最低の差（旧35点）: 分離 0.377＝逆向き。
+      //    出典（宙畑・秩父の決定木、2017年3月の31日）は**盆地底のアメダス**で
+      //    測った量で、しかも雨上がりの朝は前日の最高気温が雨で下がるため、
+      //    実際には冷えていても差が小さく出る。冷え込みの代わりに露点差を見る
+      //
+      // 【入れた項】気温と露点の差。霧は気温が露点に達してできるので、
+      // これがいちばん直接の量。分離 0.603 で単独では最も強い。
+      dewDepFull: 1, dewDepZero: 5, dewDepBonus: 35,
+      humidityLo: 86, humidityHi: 94, humidityBonus: 5,
+      nightCloudClear: 50, nightCloudFail: 95, nightCloudBonus: 30,
+      prevRainFull: 6, prevRainBonus: 15,
+      base: 10,
+
+      // --- 型の名前づけにだけ使う（採点には入らない）---
+      rangeThreshold: 10.2, prevRainMm: 0.5, humidityThreshold: 90, cloudyNight: 80,
+
       minElevation: 250,
     // 展望台が雲頂よりこれだけ高ければ「見下ろせる」。
     // 面の間隔が 230m ほどあるので、余裕を持たせる。
@@ -376,14 +394,10 @@
     // これより上の逆転は雲海の天井ではない（境界層の外）。
     inversionMaxHeight: 2500,
     // 逆転層が展望台より下にあることは、雲海の直接の証拠。
-    // 谷が静穏で安定していなければ逆転層はできないので、
-    // 実質死んでいる風の条件（下記）を物理的に肩代わりする。
     aboveBonus: 25,
     // 見下ろせないときの上限。雲海の中に立つなら、条件が揃っていても見られない。
     insideCeiling: 20, aboveCeilingFull: 100,
- base: 10, rangeBonus: 35, windBonus: 30,
-      humidityBonus: 12, prevRainBonus: 8, nightCloudBonus: 15,
-      source: "宙畑・秩父の決定木（気温差>10.2℃ かつ 風速<0.85m/s）に基づく経験則。地形依存が大きい",
+      source: "秩父市「秩父雲海カメラ」ベストショット162日（2017-2023）で較正。露点差・夜間の雲量・前日の降水・湿度から算出",
     },
     diamondDust: {
       extremeCold: -15, extremeProb: 0.84, coldHumidTemp: -10, coldHumidHumidity: 90, coldHumidProb: 0.17,
@@ -1144,7 +1158,7 @@
     // 「できた雲海が崩れるか」の話であって「どの型ができるか」とは関係がない。
     const s = T.seaOfClouds;
     const radiative = range >= s.rangeThreshold
-      && (nightCloud === null || nightCloud < s.nightCloudFail);
+      && (nightCloud === null || nightCloud < s.cloudyNight);
     const rained = prevRain !== null && prevRain > s.prevRainMm;
     const damp = humidity !== null && humidity >= s.humidityThreshold;
 
@@ -1250,46 +1264,50 @@
       }
       const todayStart = Cal.startOfDay(ws);
       const prevStart = Cal.addDays(todayStart, -1);
-      const previousMax = series.max("temperature_2m", prevStart, todayStart);
-      if (previousMax === null) return unavailable("missingData", "前日の気温が得られませんでした（過去分の取得が必要）");
-      const todayMin = series.min("temperature_2m", todayStart, we);
-      if (todayMin === null) return unavailable("missingData", "当日の気温が得られませんでした");
+
+      // 霧は気温が露点に達してできる。その余裕がいちばん直接の量なので先頭に置く。
+      const temp = series.mean("temperature_2m", ws, we);
+      const dew = series.mean("dew_point_2m", ws, we);
+      if (temp === null || dew === null) {
+        return unavailable("missingData", "夜明けの気温か露点が得られませんでした");
+      }
 
       const factors = [];
-      const range = previousMax - todayMin;
-      const rangeFit = Curve.ramp(range, s.rangeThreshold - 3, s.rangeFull);
-      const nightCloudForText = series.mean("cloud_cover", todayStart, ws);
-      const cloudyNight = nightCloudForText !== null && nightCloudForText >= s.nightCloudFail;
-      factors.push(factor(`気温差 ${f1(range)}℃`, rangeFit * s.rangeBonus,
-        range > s.rangeThreshold
-          ? (cloudyNight
-              ? `前日最高 ${f1(previousMax)}℃ → 当日最低 ${f1(todayMin)}℃。ただし夜間は曇っており、放射冷却ではなく寒気の入れ替わりによる差です`
-              : `前日最高 ${f1(previousMax)}℃ → 当日最低 ${f1(todayMin)}℃。放射冷却の目安 10.2℃ を超える`)
-          : "放射冷却の目安 10.2℃ に届かない"));
-      const wind = series.mean("wind_speed_10m", ws, we);
-      if (wind !== null) {
-        const calm = 1 - Curve.ramp(wind, s.windCalm, s.windFail);
-        factors.push(factor(`風速 ${f1(wind)}m/s`, calm * s.windBonus,
-          wind < s.windCalm ? "ほぼ無風。雲海が崩れません"
-            : "風があると雲海は流されます（展望台の高さの風です。谷底はこれより弱いのが普通）"));
+      const dep = temp - dew;
+      factors.push(factor(`気温と露点の差 ${f1(dep)}℃`,
+        (1 - Curve.ramp(dep, s.dewDepFull, s.dewDepZero)) * s.dewDepBonus,
+        dep <= s.dewDepFull ? "飽和寸前。あとわずかの冷え込みで霧になります"
+          : dep < s.dewDepZero ? "もう少し冷えるか湿れば霧になります"
+          : "空気が乾いていて、冷えても霧になりません"));
+
+      const nightCloud = series.mean("cloud_cover", todayStart, ws);
+      if (nightCloud !== null) {
+        factors.push(factor(`夜間の雲量 ${pct(nightCloud)}`,
+          (1 - Curve.ramp(nightCloud, s.nightCloudClear, s.nightCloudFail)) * s.nightCloudBonus,
+          nightCloud < s.nightCloudClear ? "晴れて地面が冷え込みます"
+            : "雲が布団になって冷え込みません"));
       }
-      const humidity = series.mean("relative_humidity_2m", ws, we);
-      if (humidity !== null) {
-        factors.push(factor(`早朝の湿度 ${pct(humidity)}`,
-          Curve.ramp(humidity, s.humidityThreshold - 10, 100) * s.humidityBonus, "朝もやが立ちこめるだけの湿りがあります"));
-      }
+
+      // 降水は多いほど効くが、頭打ちが早い。対数で読む。
       const prevRain = series.sum("precipitation", prevStart, todayStart);
       if (prevRain !== null) {
         factors.push(factor(`前日の降水 ${f1(prevRain)}mm`,
-          Curve.ramp(prevRain, 0, s.prevRainMm * 6) * s.prevRainBonus,
-          prevRain > s.prevRainMm ? "前日の雨が水蒸気を残しています" : "もとになる水蒸気が足りません"));
+          Curve.ramp(Math.log1p(prevRain), 0, Math.log1p(s.prevRainFull)) * s.prevRainBonus,
+          prevRain > s.prevRainMm ? "前日の雨が水蒸気を残しています"
+            : "もとになる水蒸気が足りません"));
       }
-      const nightCloud = series.mean("cloud_cover", todayStart, ws);
-      if (nightCloud !== null) {
-        const clear = 1 - Curve.ramp(nightCloud, s.nightCloudClear, s.nightCloudFail);
-        factors.push(factor(`夜間の雲量 ${pct(nightCloud)}`, clear * s.nightCloudBonus,
-          nightCloud < s.nightCloudClear ? "晴れて地面が冷え込みます" : "雲が布団になって冷え込みません"));
+
+      const humidity = series.mean("relative_humidity_2m", ws, we);
+      if (humidity !== null) {
+        factors.push(factor(`早朝の湿度 ${pct(humidity)}`,
+          Curve.ramp(humidity, s.humidityLo, s.humidityHi) * s.humidityBonus,
+          "朝もやが立ちこめるだけの湿りがあります"));
       }
+
+      // 気温差は採点に入れない（実測で逆向きだった）。型の名前づけにだけ使う。
+      const previousMax = series.max("temperature_2m", prevStart, todayStart);
+      const todayMin = series.min("temperature_2m", todayStart, we);
+      const range = previousMax !== null && todayMin !== null ? previousMax - todayMin : null;
 
       // --- 雲海の天井（逆転層）と展望台の高さ（3条件の 2 と 3） ---
       //
@@ -1317,7 +1335,7 @@
 
       // 成因を名指しする。種類が見え方そのものになるので、点数だけより役に立つ。
       const kind = cloudSeaKind({
-        range, prevRain, nightCloud, humidity,
+        range: range ?? 0, prevRain, nightCloud, humidity,
         month: new Date(ws).getMonth() + 1,
         hasInversion: !!(inv && inv.height !== null),
       });

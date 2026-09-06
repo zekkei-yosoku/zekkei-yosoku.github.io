@@ -25,6 +25,9 @@ const build = (profile, surface = {}) => {
     temperature_2m: times.map((_, i) => (i % 24 >= 12 && i % 24 <= 15 ? 18 : 4)),
     wind_speed_10m: times.map(() => surface.wind ?? 0.5),
     relative_humidity_2m: times.map(() => surface.humidity ?? 95),
+    // 露点。既定は気温にほぼ張り付かせる（飽和寸前＝霧ができる側）。
+    dew_point_2m: times.map((_, i) =>
+      (i % 24 >= 12 && i % 24 <= 15 ? 18 : 4) - (surface.dewDep ?? 0.5)),
     cloud_cover: times.map(() => surface.cloud ?? 5),
     precipitation: times.map(() => surface.rain ?? 0),
   };
@@ -64,12 +67,40 @@ ok(flat.score > inside.score, "見つからないことを理由に下げない"
   `逆転なし${flat.score.toFixed(0)} / 中に入る${inside.score.toFixed(0)}`);
 
 console.log("== 成因を名指しする ==");
-const radiative = run(build(withInversion, { rain: 0, cloud: 5 }), 800);
+const radiative = run(build(withInversion, { rain: 0, cloud: 5 }), 800);   // 晴れた夜・雨なし
 ok(radiative.factors.some((f) => f.label.includes("放射霧")), "冷え込みが効いていれば放射霧",
   radiative.factors.filter((f) => f.label.startsWith("型:")).map((f) => f.label).join(""));
 const afterRain = run(build(withInversion, { rain: 3, cloud: 5 }), 800);
 ok(afterRain.factors.some((f) => f.label.includes("雨上がり")), "前日に雨があれば雨上がりの雲海",
   afterRain.factors.filter((f) => f.label.startsWith("型:")).map((f) => f.label).join(""));
+
+// --- 採点から外した項が、本当に採点へ入っていないこと ---
+//
+// 実測（秩父の公式ベストショット162日）で、風速も前日最高−当日最低も
+// 逆向きだった。逆向きの項を重い配点で残すと、出る日ほど低く出る。
+console.log("== 風速と気温差は採点に入れない ==");
+const calm = run(build(withInversion, { wind: 0.2 }), 800);
+const windy = run(build(withInversion, { wind: 6.0 }), 800);
+ok(calm.score === windy.score, "風速を変えても点数が動かない",
+  `無風${calm.score.toFixed(1)} / 強風${windy.score.toFixed(1)}`);
+ok(!calm.factors.some((f) => f.label.startsWith("風速")), "風速の行を出さない");
+ok(!calm.factors.some((f) => f.label.startsWith("気温差")), "気温差の行を出さない");
+
+console.log("== 露点差がいちばん効く ==");
+const wet = run(build(withInversion, { dewDep: 0.3 }), 800);
+const dry = run(build(withInversion, { dewDep: 6.0 }), 800);
+ok(wet.score > dry.score + 20, "飽和寸前のほうが大きく高い",
+  `露点差0.3℃で${wet.score.toFixed(0)} / 6℃で${dry.score.toFixed(0)}`);
+ok(wet.factors.some((f) => f.label.startsWith("気温と露点の差")), "露点差の行を出す");
+ok(S.SCORERS.seaOfClouds.score(
+  S.SCORERS.seaOfClouds.window(day + 24 * 3600000, {
+    home: new S.Series(times, { temperature_2m: times.map(() => 4) }),
+    offsets: {}, lat: 35.3, lon: 134.83, terrain: "basinRim", elevation: 800,
+    lightPollution: null, air: null }),
+  { home: new S.Series(times, { temperature_2m: times.map(() => 4) }),
+    offsets: {}, lat: 35.3, lon: 134.83, terrain: "basinRim", elevation: 800,
+    lightPollution: null, air: null }).unavailable !== null,
+  "露点が無ければ採点しない（0点に丸めない）");
 
 console.log("== モデルに霧そのものを予測させない ==");
 // 放射霧は 5km 格子・面の間隔 230m のモデルが解像できない。
