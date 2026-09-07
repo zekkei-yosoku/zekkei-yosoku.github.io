@@ -300,9 +300,13 @@
   /* 現象名の列は横スクロールしても残す。
      地は【角丸なし・行の隙間まで覆う】。角丸にすると角の外が透け、
      行と行の隙間（7px）ではスクロールしてきたセルが左へ抜けて見えていた。 */
+  /* 貼り付いた列は毎フレーム描き直される。下の層が小数ピクセル動くと、
+     文字だけサブピクセル位置がずれて揺れて見える（座標は1pxも動いていない）。
+     合成層へ載せて、描き直しでなく移動として扱わせる。 */
   .mxrail { position: sticky; left: 0; z-index: 2; background: var(--card);
             padding-left: 16px; display: flex; align-items: center; gap: 5px;
-            font-size: 0.78rem; font-weight: 700; }
+            font-size: 0.78rem; font-weight: 700;
+            will-change: transform; }
   .mxhead .mxrail { margin-bottom: -7px; }              /* 見出しと1行目の隙間 */
   .mxrow .mxrail { align-self: stretch; padding-left: 16px;
                    margin: -7px 0 -14px 0; }            /* 上: padding+線 / 下: padding+隙間 */
@@ -501,8 +505,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260907112316"></script>
-<script src="sorami-core.js?v=20260907112316"></script>
+<script src="spots.js?v=20260907112939"></script>
+<script src="sorami-core.js?v=20260907112939"></script>
 <script>
 "use strict";
 const S = window.Sorami;
