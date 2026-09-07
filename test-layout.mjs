@@ -132,7 +132,7 @@ ok(/location\.hash === "#\/records"/.test(html), "記録は自前のURLを持つ
 ok(/id="recordsView"/.test(html), "記録は別画面");
 ok(/id="recordsBack"/.test(html), "記録から戻るボタンがある");
 ok(/\$\("recordsView"\)\.hidden = !inRecords/.test(html), "3画面を出し分ける");
-ok(/\$\("placeButton"\)\.hidden = inRecords/.test(html), "記録を読むときは地点と実況を出さない");
+ok(/\$\("placeRow"\)\.hidden = inRecords/.test(html), "記録を読むときは地点と実況を出さない");
 // .place-row の display:flex が [hidden] の display:none に勝ち、地点カードが消えなかった。
 ok(/\[hidden\] \{ display: none !important; \}/.test(code), "hidden が display 指定に負けないようにする");
 ok(/listScrollY/.test(html), "一覧へ戻ったとき元の位置に戻す");
@@ -188,8 +188,14 @@ ok(/id="recEmpty"/.test(html) && /id="recBody"/.test(html), "空表示と本体�
 ok(/\$\("recBody"\)\.hidden = empty/.test(html), "0件なら本体を隠す");
 
 console.log("== 小さな操作に当たり判定がある ==");
-ok(/id="favToggle"[^>]*class="[^"]*\btap\b/.test(html), "☆ に .tap が付いている");
-ok(/#favToggle::after/.test(html), "☆ の当たり判定を右側へ寄せる指定がある");
+// 2026-09-07: ☆ を地点ボタンの中から出した（button の中の button は不正で、
+// 読み上げも click の伝播も壊れる）。兄弟になったので疑似要素で広げる必要がなくなり、
+// 実寸 44px を確保する形に変えた。期待値もそれに合わせる。
+ok(/#favToggle \{[^}]*min-width: 44px/.test(html) && /#favToggle \{[^}]*min-height: 44px/.test(html),
+  "☆ が実寸で 44px の当たり判定を持つ");
+ok(!/insertAdjacentHTML[\s\S]{0,80}favToggle/.test(html), "☆ を地点ボタンの中へ挿し込まない");
+ok(/id="favToggle"[\s\S]{0,40}<\/div>/.test(html), "☆ は地点ボタンの兄弟");
+ok(/setAttribute\("aria-label", isFav \? "お気に入りを編集"/.test(html), "★ が編集を開くことを読み上げで伝える");
 
 console.log("== 見どころの見出しがランクに追従する ==");
 // もともとは poor にも見出しを持たせていた（「めぼしい空はなさそうです」）。
@@ -222,7 +228,7 @@ ok(!/onclick/.test(bestNoteFn), "いちばんの狙いめを押しても移動�
 
 console.log("== 14日ぶんを横に流す ==");
 // 7日では「来週の連休どうか」が見られない。14日に伸ばしたぶん、1画面には入らない。
-ok(/place\.longitude, 15, place\)/.test(html), "15日ぶん取る（最終日の窓が翌日へまたぐ）");
+ok(/forPlace\.longitude, 15, forPlace\)/.test(html), "15日ぶん取る（最終日の窓が翌日へまたぐ）");
 ok(/days = 14/.test(coreSrc), "14日ぶん採点する");
 const daysCss = html.slice(html.indexOf(".days {"), html.indexOf(".days {") + 400);
 ok(/overflow-x: auto/.test(daysCss), "横スクロールにする");
@@ -286,24 +292,75 @@ ok(fs.existsSync(new URL("./icon-180.png", import.meta.url)), "icon-180.png が�
 // 画像は生成物。作り直せる形で残っているか。
 ok(fs.existsSync(new URL("./make-icon.mjs", import.meta.url)), "アイコンの生成元がある");
 
-console.log("== 絶景スポットは現象でまとめる ==");
-// 33件を素のまま並べても、何を探せばいいのか分からない。
-ok(/class="spot-cat"/.test(html), "カテゴリの見出しがある");
-ok(/S\.PHENOMENA\[a\]\.order - S\.PHENOMENA\[b\]\.order/.test(html), "カテゴリの順は一覧と同じ");
-// 陸別はダイヤモンドダストと星空の両方を持つ。全部の見出しに出すと件数が合わなくなる。
-ok(/s\.phenomena\[0\] === p/.test(html), "主カテゴリで1回だけ出す（重複しない）");
-ok(/const northToSouth = \(a, b\) => b\.latitude - a\.latitude/.test(html), "同じカテゴリの中は北から南へ");
-ok(/if \(filter\) \{[\s\S]{0,400}phenomena\.includes\(filter\)/.test(html),
-  "絞り込み中は副次的な用途のスポットも拾う");
-// 全スポットがどれかのカテゴリに入るか（主現象が PHENOMENA に無いと画面から消える）
+console.log("== お気に入りを絶景スポットと同じ形で登録する ==");
+// 2026-09-07: 内蔵の絶景スポット一覧（33件）を画面から外し、
+// 「お気に入りを自分で登録する」形へ置き換えた。ここの期待値もそれに合わせて書き直した。
+// 消したのは【一覧の表示】だけで、spots.js のデータは残している。
+// 元の期待値（spot-cat の見出し／主カテゴリで1回だけ／北から南へ）は、
+// 一覧そのものが無くなったので満たしようがない。データの健全性の検査だけ引き継ぐ。
+ok(!/id="spotList"|id="spotChips"|SORAMI_SPOTS/.test(html), "内蔵スポットの一覧を画面に出していない");
+ok(!/<script src="spots\.js/.test(html), "使わない spots.js を読み込まない");
+// データは消さない。戻すときに要るし、下の健全性検査もこれを読む。
+ok(fs.existsSync(new URL("./spots.js", import.meta.url)), "spots.js は残してある");
+
+// 登録できる項目が、内蔵スポットと同じであること。名前だけの★では一覧の意味がない。
+ok(/id="favSheet"/.test(html), "お気に入りの登録フォームがある");
+for (const [id, label] of [["favName", "名前"], ["favPhenomena", "現象"],
+                           ["favTerrain", "地形"], ["favNote", "メモ"]]) {
+  ok(new RegExp(`id="${id}"`).test(html), `${label}を登録できる`);
+}
+ok(/openFavSheet\(favorites\.findIndex/.test(html), "☆ からも登録フォームへ入れる");
+// 2026-09-07: 削除は「編集を開く→下まで行く→確認」の3タップだった。
+// 一覧から1タップで消し、取り消しで戻せる形へ変えた。確認を挟まないぶん速く、
+// 押し間違えても失わない。確認は「入力途中で閉じる」側へ移した（打った文字は戻せないため）。
+ok(/data-delfav="\$\{i\}"/.test(html), "一覧から直接消せる");
+ok(/function removeFavorite[\s\S]{0,200}favUndo\.push/.test(html), "消したものを控える");
+ok(/data-undo="\$\{i\}"/.test(html) && /元に戻す/.test(html), "取り消しを出す");
+ok(/const at = Math\.min\(u\.index, favorites\.length\);[\s\S]{0,60}favorites\.splice\(at, 0, u\.entry\)/.test(html),
+  "元の位置へ戻す");
+ok(!/setTimeout[\s\S]{0,120}favUndo/.test(html), "取り消しを時間で消さない（押す前に消えるため）");
+ok(/addEventListener\("close", \(\) => \{ favUndo = \[\]/.test(html), "シートを閉じたら取り消しを確定する");
+ok(/closeFavSheet[\s\S]{0,160}confirm\(/.test(html), "入力途中で閉じるときだけ確認する");
+// 一覧の見え方をスポットと揃える（現象アイコン・都道府県/標高・メモ）。
+ok(/const icons = \(f\.phenomena[\s\S]{0,120}PHENOMENA\[p\]\.icon/.test(html)
+  && /data-fav="\$\{i\}"[\s\S]{0,120}\$\{icons\}/.test(html), "お気に入りに現象アイコンを出す");
+ok(/標高\$\{Math\.round\(f\.elevation\)\}m/.test(html), "標高を出す");
+ok(/f\.note \? " ー " \+ esc\(f\.note\)/.test(html), "メモを出す");
+// 古い形（現象もメモも無い）のお気に入りが localStorage に残っていても壊れない。
+ok(/\(f\.phenomena \|\| \[\]\)/.test(html), "現象を持たない古いお気に入りでも落ちない");
+
 req("./spots.js");
 const spots = globalThis.SORAMI_SPOTS.spots;
+// 地形は飾りではない。sorami-core が雲海・霧氷の対象判定と鉛直分布の取得可否に使う。
+// フォームの選択肢が、コアとデータが知っている地形を網羅していなければ、
+// 表現できない地点が出る（山頂を選べなければ雲海が永遠に対象外になる）。
+const terrainBlock = html.slice(html.indexOf("const TERRAINS = ["), html.indexOf("];", html.indexOf("const TERRAINS = [")));
+const formTerrains = new Set([...terrainBlock.matchAll(/\["(\w*)",/g)].map((m) => m[1]));
+const coreExcluded = ["basinFloor", "plain", "coast"];
+ok(coreExcluded.every((t) => formTerrains.has(t)), "コアが除外に使う地形を全部選べる",
+  coreExcluded.filter((t) => !formTerrains.has(t)).join(","));
+// 説明文に閾値を写している。ずれると画面が嘘をつくので core と突き合わせる。
+const minElev = Object.fromEntries([...html.matchAll(/(seaOfClouds|rime): (\d+)/g)].map((m) => [m[1], +m[2]]));
+for (const [key, label] of [["seaOfClouds", "雲海"], ["rime", "霧氷"]]) {
+  const m = coreSrc.match(new RegExp(key + ":[\\s\\S]{0,3000}?minElevation: (\\d+)"));
+  ok(m && +m[1] === minElev[key], `${label}の標高しきい値が core と一致`, `画面 ${minElev[key]} / core ${m && m[1]}`);
+}
+// 霧氷の標高判定は地形に関係なく効く（core 1403）。「山頂なら霧氷も対象」は嘘になる。
+ok(/const rime = \["plain", "coast"\][\s\S]{0,200}MIN_ELEV\.rime/.test(html),
+  "霧氷の説明が地形だけで決まっていない");
+const dataTerrains = [...new Set(spots.map((s) => s.terrain))].filter(Boolean);
+ok(dataTerrains.every((t) => formTerrains.has(t)), "データにある地形を全部選べる",
+  dataTerrains.filter((t) => !formTerrains.has(t)).join(","));
+ok(formTerrains.has(""), "地形を選ばないという選択肢がある");
+// 地形を変えると取りに行くデータ（鉛直分布）ごと変わる。取り直さないと古い点数が残る。
+// 標高も needsProfile（鉛直分布を取るか）の判定に入る（core 532）。地形だけ見ていると
+// 「地形は未選択のまま標高が埋まった」ときに取得データが変わったことを見落とす。
+ok(/const refetch = \(place\.terrain[\s\S]{0,140}place\.elevation[\s\S]{0,300}if \(refetch\) \{[^}]*load\(true\)/.test(html),
+  "地形か標高が変わったら予報を取り直す");
+
+// spots.js は画面から外したが、戻すときに壊れていては困るのでデータの検査は続ける。
 const orphan = spots.filter((s) => !coreMod.PHENOMENA[s.phenomena[0]]);
 ok(orphan.length === 0, "全スポットの主現象が定義済み", orphan.map((s) => s.name).join(","));
-// 主カテゴリで1回だけ出すので、合計が全件と一致しなければどこかで消えている。
-const grouped = [...new Set(spots.map((s) => s.phenomena[0]))]
-  .reduce((n, p) => n + spots.filter((s) => s.phenomena[0] === p).length, 0);
-ok(grouped === spots.length, "カテゴリ分けで欠落も重複もない", `${grouped} / ${spots.length}`);
 
 console.log("== 行の並びが日をまたいでも動かない ==");
 // 「直近に起きる順」だと、7日ぶんを一度に見る表では意味が無いうえ、
@@ -315,9 +372,9 @@ ok(/PHENOMENA\[a\]\.order - S\.PHENOMENA\[b\]\.order/.test(sortBlock), "固定�
 ok(/unavailable/.test(sortBlock), "対象外は最後へ回す");
 
 console.log("== 画面をまたいで現象の並びが揃う ==");
-// spots.js の出現順のままだと、一覧のカードと地点シートのチップで順序が違った。
-ok(/phenomenaWithSpots[\s\S]{0,160}PHENOMENA\[a\]\.order/.test(html),
-  "スポットの絞り込みも同じ並び順");
+// 登録順のままだと、一覧のカードと地点シートのチップで現象の順序が食い違う。
+ok(/const tagged = \[\.\.\.new Set\(favorites[\s\S]{0,200}PHENOMENA\[a\]\.order/.test(html),
+  "お気に入りの絞り込みも同じ並び順");
 
 console.log("== 現象の並びが似たもの同士で隣り合う ==");
 const core = fs.readFileSync(new URL("./sorami-core.js", import.meta.url), "utf8");
@@ -384,6 +441,86 @@ ok(recCard.indexOf('id="exportBtn"') > recCard.indexOf('id="recBody"'),
   "書き出し・読み込みが記録画面の末尾にある");
 ok(!/exportBtn/.test(recCard.slice(0, headEnd)), "書き出しが見出しの隣に無い");
 ok(/端末に保存されます/.test(recCard), "保存先が端末であることを書く");
+
+console.log("== 登録の途中と失敗を落とさない ==");
+// localStorage は失敗する（プライベートブラウズ・容量超過）。黙って閉じると
+// 保存できたように見える。成否を返して呼び出し側で伝える。
+ok(/set\(key, value\) \{ try \{[\s\S]{0,90}return true; \} catch \{ return false; \} \}/.test(html),
+  "保存の成否を返す");
+ok(/function saveFavorites[\s\S]{0,220}querySelectorAll\("\.save-err"\)/.test(html), "保存できなければ画面で伝える");
+// 登録シートは地点シートの上に重なる。片方だけに置くと、前面に出ていない側では見えない。
+ok((html.match(/class="warn save-err"/g) || []).length === 2, "失敗の表示先が両方のシートにある");
+ok(/if \(!saveFavorites\(\)\) \{ favorites\.splice\(index, 0, entry\); return false; \}/.test(html),
+  "保存できなければ配列も戻す（表示だけ成功して見えるのを防ぐ）");
+ok(/if \(!saveFavorites\(\)\) \{[\s\S]{0,200}return;   \/\/ 入力はそのまま残す/.test(html), "保存できなければ閉じない");
+
+console.log("== 名前と記録の対応を切らない ==");
+// findSighting は地点名で照合する。改名できるようにした以上、過去の記録を置き去りにしない。
+ok(/s\.placeName === place\.name/.test(html), "記録の照合は地点名（前提の確認）");
+ok(/function renameSightings/.test(html), "改名時に記録を移す仕組みがある");
+ok(/near\(s\.latitude, lat\) && near\(s\.longitude, lon\)/.test(html),
+  "座標が一致する記録だけ移す（別地点の同名を巻き込まない）");
+ok(/placeName: place\.name, placeId: place\.id/.test(html), "新しい記録には地点IDも残す");
+
+console.log("== 同じ地点を二重に登録しない ==");
+// 現在地の id が "current" 固定だと、別の場所で ☆ を押したときに前の登録が開く。
+ok(!/id: "current"/.test(html), "現在地の id を固定にしない");
+ok(/id: `geo:\$\{pos\.coords\.latitude\.toFixed\(4\)\}/.test(html), "現在地は座標で識別する");
+
+console.log("== 予報の応答が追い越しても混ざらない ==");
+// 連続で地点や地形を変えると、応答の順序は要求の順序と一致しない。
+ok(/let loadSeq = 0/.test(html) && /const seq = \+\+loadSeq/.test(html), "取得に連番を振る");
+ok(/if \(seq !== loadSeq\) return;/.test(html), "追い越された応答を捨てる");
+ok(/const forPlace = place;/.test(html) && /evaluateWeek\(id, bundle, forPlace\)/.test(html),
+  "取得開始時の地点で評価する");
+
+console.log("== 現象タグの選択が色だけになっていない ==");
+ok(/aria-pressed="false">\$\{p\.icon\}/.test(html), "現象チップに aria-pressed がある");
+ok(/function syncFavPhenomena[\s\S]{0,260}setAttribute\("aria-pressed"/.test(html), "状態を書き換える");
+ok(!/\$\("favPhenomena"\)\.innerHTML = [\s\S]{0,200}onclick/.test(html),
+  "押すたびにチップを作り直さない（フォーカスが飛ぶ）");
+ok(/role="group" aria-labelledby="favPhLabel"/.test(html), "チップの集まりに名前がある");
+
+console.log("== 登録フォームの押せるものが指の的として足りる ==");
+// 実測（375px・ブラウザ）で 28px しかなく、7つ並ぶ現象チップは特に押しにくかった。
+// 疑似要素で広げると、折り返した上下の行と重なって隣を押す。実寸で取る。
+ok(/\.chips button \{[^}]*min-height: 36px/.test(html), "チップに最低の高さがある");
+ok(/#favPhenomena button \{[^}]*min-height: 44px/.test(html), "現象チップは 44px（フォームの主役の入力）");
+ok(/\.sheet-head button \{[^}]*min-height: 44px/.test(html), "シートの閉じるが 44px");
+ok(/\.fav-row \.fav-del \{[^}]*min-width: 44px[\s\S]{0,40}min-height: 44px/.test(html), "削除が 44px");
+ok(/\.fav-row \.fav-edit \{[^}]*min-height: 44px/.test(html), "編集が 44px");
+ok(/id="favAdd"[^>]*min-height:44px/.test(html), "いまの地点を登録が 44px");
+
+console.log("== ライトの塗りが点数の段として読める ==");
+// 2026-09-07 ユーザー指摘「ライトモードの時の色がなんか見辛くない？」。
+// 実測すると 24点(209,206,195) 39点(202,195,171) 62点(204,173,143) と、
+// 赤成分が7しか動かず明度差もほとんど無かった。原因は【文字色を塗りに流用していた】こと。
+// 文字色は「白地で 4.5:1」のために暗く濁らせてあり、薄めると全部ベージュになる。
+ok(/--t-poor:/.test(html) && /--t-fair:/.test(html) && /--t-good:/.test(html) && /--t-spectacular:/.test(html),
+  "塗りの色を文字色と別に持つ");
+ok(/CELL_RAMP = \[\s*\[0,\s*"--t-poor"\]/.test(html), "セルは塗り用の色を使う");
+ok(!/CELL_RAMP[\s\S]{0,200}"--poor"\]/.test(html), "セルに文字色を使っていない");
+// 濃さの上限はモードで違う。同じ数値だとライトが薄すぎる。
+ok(/--tint-span: 62/.test(html) && /--tint-span: 48/.test(html), "濃さの幅をモードごとに持つ");
+ok(/TINT\.span \* Math\.pow\(v \/ 100, TINT\.exp\)/.test(html), "式が設定を読む");
+ok(/matchMedia\("\(prefers-color-scheme: dark\)"\)\.addEventListener/.test(html),
+  "モードを切り替えたら読み直す");
+// 補助文の3段。tertiary を暗くしたときに secondary と同じ色になっていた。
+const tone = (block, name) => (block.match(new RegExp("--" + name + ": (#[0-9a-f]{6})", "i")) || [])[1];
+for (const [label, block] of [["ライト", html.slice(html.indexOf(":root {"), html.indexOf("@media (prefers-color-scheme: dark)"))],
+                              ["ダーク", html.slice(html.indexOf("@media (prefers-color-scheme: dark)"), html.indexOf("* { box-sizing"))]]) {
+  const [t, sec, ter] = ["text", "secondary", "tertiary"].map((n) => tone(block, n));
+  const grey = (h) => parseInt(h.slice(1, 3), 16);
+  ok(Math.abs(grey(sec) - grey(ter)) >= 20, `${label}の補助文と注記が別の色`, `${sec} / ${ter}`);
+  ok(grey(t) !== grey(sec), `${label}の本文と補助文が別の色`, `${t} / ${sec}`);
+}
+// 評価語は4段が見分けられること（ライトで オリーブと焦茶 が潰れていた）
+const lightBlock = html.slice(html.indexOf(":root {"), html.indexOf("@media (prefers-color-scheme: dark)"));
+const ranks = ["poor", "fair", "good", "spectacular"].map((n) => tone(lightBlock, n));
+ok(new Set(ranks).size === 4, "ライトの評価語4色が全部ちがう", ranks.join(" "));
+const hue = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return [r, g, b]; };
+const near = (a, b) => hue(a).every((v, i) => Math.abs(v - hue(b)[i]) < 24);
+ok(!near(ranks[1], ranks[2]), "ほんのり と 良好 が似た色になっていない", `${ranks[1]} / ${ranks[2]}`);
 
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

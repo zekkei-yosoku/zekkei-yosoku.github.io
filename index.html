@@ -20,19 +20,41 @@
      以前はライトモードで 良好 2.60・平凡 2.42・補助文 2.21 と、
      大きな文字の基準 3.0 すら下回っていた。 */
   :root {
-    --bg: #f4f4f6; --card: #ffffff; --text: #1c1c1e; --secondary: #6e6e73; --tertiary: #6b6b71;
+    /* secondary と tertiary が #6e6e73 / #6b6b71 で見分けが付かず、補助文の階層が
+       消えていた（コントラストを直したときに tertiary を暗くして寄せてしまった）。
+       secondary を本文寄りへ戻して 本文→補助→注記 の3段を作る。 */
+    --bg: #f4f4f6; --card: #ffffff; --text: #1c1c1e; --secondary: #4a4a4f; --tertiary: #6b6b71;
     --accent: #a04f09; --line: rgba(0,0,0,.08);
-    --spectacular: #c62c3c; --good: #a04f09; --fair: #7d6516; --poor: #6a6a6a;
+    /* 評価語の色。ライトでは「白地の上で 4.5:1」を満たす黄が存在せず、
+       #7d6516 のオリーブになる。しかも隣の --good #a04f09 と見分けが付かず、
+       灰→オリーブ→焦茶→赤 の中2つが同じ茶に潰れていた。
+       「ほんのり」は本文色にして、暖色の段はセルの塗りに任せる。
+       ダークは #d4b247 の金が成立するのでそのまま。 */
+    --spectacular: #c62c3c; --good: #a04f09; --fair: #1c1c1e; --poor: #6a6a6a;
     --red: #d0342c; --orange: #8f6410;
+    /* セルの地に使う色。文字色（--good など）とは別に持つ。
+       文字色は「白地の上で 4.5:1 を満たす」ために暗く濁らせてあり、
+       それを薄めて塗りにすると全部くすんだベージュになって点数が読み取れない。
+       実測: 24点(209,206,195) 39点(202,195,171) 62点(204,173,143) と、
+       赤成分がほぼ動かず、明度差もほとんど無かった。
+       塗りには彩度のある色を使い、薄い黄→橙→赤で段を作る。 */
+    --t-poor: #9aa0a6; --t-fair: #e8b21a; --t-good: #f2711c; --t-spectacular: #e0243a;
+    /* 濃さの幅と立ち上がり。ライトは載る文字が黒に近いので強く塗れる。 */
+    --tint-span: 62; --tint-exp: 1.05;
     /* 差し色を地にしたときに載せる文字。ライトは白で 5.81:1 だが、
        ダークの差し色は明るい橙なので、白だと 2.60:1 まで落ちる。 */
     --on-accent: #ffffff;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #000; --card: #1c1c1e; --text: #f2f2f7; --secondary: #98989f; --tertiary: #93939a;
+    :root { --bg: #000; --card: #1c1c1e; --text: #f2f2f7; --secondary: #c3c3ca; --tertiary: #93939a;
             --line: rgba(255,255,255,.1);
             --accent: #f08529; --spectacular: #e97180; --good: #f08529; --fair: #d4b247;
             --poor: #9a9a9a; --red: #db5b54; --orange: #d98a1f;
+            /* 暗い地の上では、色を足すほど明るくなるので明度が段の手がかりになる。
+               いまの文字色がそのまま塗りとしても働くので同じ値を使う。 */
+            --t-poor: #9a9a9a; --t-fair: #d4b247; --t-good: #f08529; --t-spectacular: #e97180;
+            /* ダークは明るい地に淡い文字が載るので 58%（=10+48）で頭打ち。実測値。 */
+            --tint-span: 48; --tint-exp: 0.75;
             --on-accent: #1b1206; }
   }
   * { box-sizing: border-box; margin: 0; }
@@ -71,10 +93,14 @@
   .tiny { color: var(--tertiary); font-size: 0.69rem; }
   button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 
-  .place-row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 4px 2px 10px; }
+  .place-row { display: flex; align-items: center; gap: 2px; width: 100%; padding: 4px 2px 10px; }
+  .place-pick { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-align: left; }
+  .place-txt { min-width: 0; }
   .place-row .pin { color: var(--accent); font-size: 1.25rem; }
   .place-row .name { font-size: 1.25rem; font-weight: 700; }
   .place-row .chev { margin-left: auto; color: var(--secondary); }
+  /* 兄弟になったので、疑似要素で当たり判定を作らず実寸で 44px を取れる。 */
+  #favToggle { flex: none; min-width: 44px; min-height: 44px; font-size: 1.15rem; }
 
   .ens { display: flex; align-items: flex-end; gap: 2px; height: 44px; margin: 4px 0 2px; }
   .ens-bar { flex: 1; display: flex; align-items: flex-end; height: 100%;
@@ -88,10 +114,6 @@
   .tap::after { content: ""; position: absolute; left: 50%; top: 50%;
                 transform: translate(-50%, -50%);
                 width: max(100%, 44px); height: 44px; }
-  /* ☆ は地点名のすぐ右にある。左右対称に広げると名前の末尾を奪うので、
-     空いている右側と上下だけへ伸ばす。 */
-  #favToggle::after { left: auto; right: -20px; transform: translateY(-50%);
-                      width: 40px; }
   .scorebar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
   .scorebar > div { height: 100%; border-radius: 4px; }
 
@@ -243,16 +265,22 @@
                     border-radius: 9px; background: var(--line); }
   .outcome button.on { background: var(--accent); color: var(--on-accent); }
 
+  /* margin: auto は既定でモーダルを中央に置くための指定。38行目の `* { margin: 0 }` に
+     消されていて、PCでは左上に貼り付いていた。 */
   dialog { border: none; border-radius: 16px; background: var(--card); color: var(--text);
-           width: min(92vw, 480px); max-height: 82vh; padding: 0; }
+           width: min(92vw, 480px); max-height: 82vh; padding: 0; margin: auto; }
   dialog::backdrop { background: rgba(0,0,0,.45); }
-  .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 8px; }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 8px; }
+  .sheet-head button { min-height: 44px; padding: 0 4px; }
   .sheet-body { overflow-y: auto; max-height: calc(82vh - 54px); padding: 0 16px 16px;
                 overscroll-behavior: contain; }
   .sheet input[type=search] { width: 100%; font: inherit; padding: 9px 12px; border-radius: 10px;
     border: 1px solid var(--line); background: var(--bg); color: var(--text); }
   .chips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0; }
-  .chips button { flex: none; font-size: 0.75rem; font-weight: 500; padding: 5px 11px; border-radius: 999px; background: var(--line); }
+  /* 実寸で指の的を取る。密集したチップに疑似要素で 44px を被せると、
+     折り返した上下の行と重なって隣を押してしまう。 */
+  .chips button { flex: none; min-height: 36px; font-size: 0.75rem; font-weight: 500;
+                  padding: 5px 12px; border-radius: 999px; background: var(--line); }
   .chips button.on { background: var(--accent); color: var(--on-accent); }
   .list-item { display: block; width: 100%; text-align: left; padding: 9px 2px; border-top: 1px solid var(--line); }
   /* スポットのカテゴリ見出し。「絶景スポット」の見出しと競わない程度の強さにする。 */
@@ -260,6 +288,44 @@
               margin-top: 14px; padding-bottom: 2px; font-size: 0.81rem; font-weight: 700;
               color: var(--secondary); }
   .spot-cat:first-child { margin-top: 6px; }
+  /* 消したものを戻す行。トーストにして数秒で消すと、押す前に消えて戻せない。
+     シートを閉じるまで残す。 */
+  .undo-row { display: flex; align-items: center; gap: 8px; margin-top: 8px;
+              padding: 9px 10px; border-radius: 10px; background: var(--line); font-size: 0.75rem; }
+  .undo-row strong { font-weight: 700; }
+  .undo-row button { margin-left: auto; flex: none; min-height: 36px; padding: 0 10px;
+                     font-weight: 700; color: var(--accent); }
+  /* お気に入りの登録フォーム。項目は内蔵の絶景スポットと同じ（現象・地形・メモ）。 */
+  .fav-l { display: block; margin: 14px 0 5px; font-size: 0.81rem; font-weight: 700; color: var(--secondary); }
+  .fav-l .tiny { font-weight: 400; margin-left: 5px; }
+  .fav-in { width: 100%; font: inherit; padding: 9px 12px; border-radius: 10px;
+            border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  textarea.fav-in { resize: vertical; line-height: 1.5; }
+  /* 矢印は OS のものをそのまま出す。appearance を消すと矢印まで消え、
+     入力欄と見分けが付かなくなる。高さだけ指の的として確保する。 */
+  select.fav-in { min-height: 44px; }
+  /* 現象は7つ全部を一度に見せて選ばせる。横スクロールだと隠れた選択肢に気づけない。 */
+  /* 登録フォームでは現象チップが主役の入力なので、実寸で 44px を確保する。
+     折り返しの間隔（gap 6px）より高いので、上下の行と重ならない。 */
+  #favPhenomena { flex-wrap: wrap; overflow: visible; }
+  #favPhenomena button { min-height: 44px; padding: 5px 14px; }
+  .fav-btn { display: block; width: 100%; padding: 12px 0; border-radius: 10px; font-weight: 700;
+             background: var(--line); color: var(--text); }
+  .fav-btn.primary { background: var(--accent); color: var(--on-accent); }
+  .fav-row { display: flex; align-items: flex-start; border-top: 1px solid var(--line); }
+  .fav-row .list-item { flex: 1; min-width: 0; border-top: none; }
+  /* メモが2行になると、上下中央では「編集」が文の途中に紛れて読めない。名前の行へ揃える。 */
+  .fav-row .fav-edit { flex: none; min-height: 44px; padding: 11px 2px 8px 10px;
+                       font-size: 0.75rem; color: var(--secondary); }
+  .fav-row .fav-del { flex: none; min-width: 44px; min-height: 44px; padding: 8px 4px;
+                      font-size: 0.94rem; color: var(--tertiary); }
+  .fav-req { font-weight: 400; color: var(--red); margin-left: 5px; }
+  .fav-opt { font-weight: 400; color: var(--tertiary); margin-left: 5px; }
+  .fav-where { margin-top: 2px; }
+  .fav-where summary { cursor: pointer; color: var(--secondary); }
+  /* 保存と並べると、削除が「もう片方の選択肢」に見える。離して弱く置く。 */
+  .fav-remove { display: block; width: 100%; min-height: 44px; margin-top: 20px; padding: 12px 0;
+                font-size: 0.75rem; color: var(--secondary); border-top: 1px solid var(--line); }
   .warn { color: var(--red); font-size: 0.75rem; }
   .notice { color: var(--orange); font-size: 0.75rem; }
   .section-h { display: flex; align-items: baseline; justify-content: space-between;
@@ -437,14 +503,19 @@
   <div class="masthead">
     <h1>絶景予報</h1>
   </div>
-  <button class="place-row card" id="placeButton">
-    <span class="pin">📍</span>
-    <span>
-      <span class="name" id="placeName">…</span>
-      <div class="muted" id="placeSub"></div>
-    </span>
-    <span class="chev">▾</span>
-  </button>
+  <!-- ☆ は地点ボタンの中へ挿入していたが、button の中の button は不正で、
+       読み上げも click の伝播も壊れる。並べて置く。 -->
+  <div class="place-row card" id="placeRow">
+    <button class="place-pick" id="placeButton">
+      <span class="pin">📍</span>
+      <span class="place-txt">
+        <span class="name" id="placeName">…</span>
+        <div class="muted" id="placeSub"></div>
+      </span>
+      <span class="chev">▾</span>
+    </button>
+    <button class="tap" id="favToggle"></button>
+  </div>
 
   <div class="card" id="nowcast" hidden></div>
   <div id="status" class="card muted" hidden></div>
@@ -504,16 +575,48 @@
     <div id="searchResults"></div>
     <button class="list-item" id="geoButton">📡 現在地を使う</button>
     <div id="geoStatus" class="warn"></div>
-    <div class="section-h" style="margin-top:10px"><h2>お気に入り</h2></div>
-    <div id="favList" class="muted">よく使う地点を ☆ で登録するとここに出ます</div>
-    <div class="section-h" style="margin-top:10px"><h2>絶景スポット</h2></div>
-    <div class="chips" id="spotChips"></div>
-    <div id="spotList"></div>
+    <div class="section-h" style="margin-top:10px"><h2>お気に入り</h2>
+      <button id="favAdd" style="color:var(--accent);font-size:0.81rem;font-weight:700;min-height:44px;padding:0 2px">＋ いまの地点を登録</button></div>
+    <p class="warn save-err" hidden>保存できませんでした。プライベートブラウズか、保存容量がいっぱいの可能性があります。</p>
+    <div id="favUndo"></div>
+    <div class="chips" id="favChips"></div>
+    <div id="favList"></div>
+    <p class="tiny" id="favNotice" role="status" aria-live="polite"></p>
   </div>
 </dialog>
 
-<script src="spots.js?v=20260907135445"></script>
-<script src="sorami-core.js?v=20260907135445"></script>
+<!-- お気に入りの登録。項目は内蔵スポット（spots.js）と同じ形にしてある。
+     地形は飾りではなく、雲海（盆地の底・平地・海岸を除外）と霧氷（平地・海岸を除外）の
+     判定と、鉛直分布を取りに行くかどうかに直接効く。選び方で点数が変わる。 -->
+<dialog class="sheet" id="favSheet" aria-labelledby="favSheetTitle">
+  <div class="sheet-head"><strong id="favSheetTitle">お気に入りに登録</strong><button id="favCancel">閉じる</button></div>
+  <div class="sheet-body">
+    <label class="fav-l" for="favName">名前<span class="fav-req">必須</span></label>
+    <input type="text" id="favName" class="fav-in" maxlength="40" autocomplete="off">
+    <p class="warn" id="favNameErr" style="margin-top:5px" hidden>名前を入れてください</p>
+    <div class="tiny" id="favWhere"></div>
+    <details class="tiny fav-where"><summary>座標</summary><span id="favCoord"></span></details>
+
+    <label class="fav-l" for="favTerrain">立って見る場所の地形<span class="fav-opt">雲海・霧氷の判定に使います</span></label>
+    <select id="favTerrain" class="fav-in" aria-describedby="favTerrainNote"></select>
+    <p class="tiny" id="favTerrainNote" style="margin-top:5px"></p>
+
+    <label class="fav-l" for="favNote">メモ<span class="fav-opt">任意</span></label>
+    <textarea id="favNote" class="fav-in" rows="2" maxlength="120"
+              placeholder="狙い目の時期、駐車場、注意点など"></textarea>
+
+    <div class="fav-l" id="favPhLabel">この地点で狙う現象<span class="fav-opt">任意・絞り込みに使います</span></div>
+    <div class="chips" id="favPhenomena" role="group" aria-labelledby="favPhLabel"></div>
+
+    <p class="warn save-err" style="margin-top:12px" hidden>保存できませんでした。プライベートブラウズか、保存容量がいっぱいの可能性があります。</p>
+    <button id="favSave" class="fav-btn primary" style="margin-top:20px">保存</button>
+    <button id="favDelete" class="fav-remove" hidden>お気に入りから外す</button>
+  </div>
+</dialog>
+
+<!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
+     spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
+<script src="sorami-core.js?v=20260907155627"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -533,8 +636,19 @@ const RANK_COLOR = { spectacular: "var(--spectacular)", good: "var(--good)", fai
 //
 // 濃さの上限34%は、上に載る点数と信頼度が本文基準（4.5:1）を保てる範囲として
 // 実DOMで測って決めた。ここを上げると先に文字が読めなくなる。
+// 濃さの設定は CSS 側に置く。モードで違ううえ、色そのものと同じ場所で管理したい。
+const TINT = { span: 48, exp: 0.75 };
+function readTint() {
+  const cs = getComputedStyle(document.documentElement);
+  TINT.span = parseFloat(cs.getPropertyValue("--tint-span")) || 48;
+  TINT.exp = parseFloat(cs.getPropertyValue("--tint-exp")) || 0.75;
+}
+readTint();
+// OS のライト・ダーク切り替えに追従する。値を読み直して描き直す。
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { readTint(); applyRoute(); });
+
 const CELL_RAMP = [
-  [0,  "--poor"], [40, "--fair"], [65, "--good"], [85, "--spectacular"], [100, "--spectacular"],
+  [0,  "--t-poor"], [40, "--t-fair"], [65, "--t-good"], [85, "--t-spectacular"], [100, "--t-spectacular"],
 ];
 // 点数の色（単色）。評価色の間を点数で補間し、濃さも上げる。
 function cellTint(score, past = false) {
@@ -545,11 +659,12 @@ function cellTint(score, past = false) {
   const t = s1 === s0 ? 0 : (v - s0) / (s1 - s0);
   const hue = c0 === c1 ? `var(${c0})`
     : `color-mix(in srgb, var(${c1}) ${(t * 100).toFixed(1)}%, var(${c0}))`;
-  // 10%〜58%。上限58%は、上に載る文字（var(--text)）がライト・ダークの両方で
-  // 4.5:1 を保てる限界として実測した値（ダークの橙が先に頭打ちになる）。
-  // 直線だと中盤（40〜70点）が沈むので、指数0.75で立ち上がりを速くする。
+  // 濃さの幅と立ち上がりはモードで違う（--tint-span / --tint-exp）。
+  // ライトは黒に近い文字が載るので 10〜72% まで塗れる。ダークは明るい地に
+  // 淡い文字が載るため 10〜58% が限界（実測）。同じ数値を両方に使うと、
+  // ライト側が薄すぎて 24点と62点が見分けられなかった。
   // 終わった回は色を薄くして下げる（文字を薄くすると、押せる要素の基準を割るため）。
-  const strength = ((10 + 48 * Math.pow(v / 100, 0.75)) * (past ? 0.42 : 1)).toFixed(1);
+  const strength = ((10 + TINT.span * Math.pow(v / 100, TINT.exp)) * (past ? 0.42 : 1)).toFixed(1);
   return `color-mix(in srgb, ${hue} ${strength}%, var(--sunk))`;
 }
 
@@ -669,7 +784,9 @@ const CONF_ICON = { high: "◎", medium: "△", low: "⚠︎" };
 // ---------------------------------------------------------------- 永続化（localStorage）
 const store = {
   get(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } },
-  set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private mode */ } },
+  // プライベートモードや容量超過で失敗する。黙って閉じると保存できたように見えるので、
+  // 成否を返して呼び出し側に判断させる。
+  set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } },
 };
 let place = store.get("sorami.place",
   { id: "default", name: "東京", subtitle: "東京都", latitude: 35.6812, longitude: 139.7671, terrain: null, elevation: null });
@@ -718,7 +835,10 @@ let weeks = {};          // phenomenon → [{dayMs, evaluation}]
 let selectedDay = {};    // phenomenon → dayMs
 
 // ---------------------------------------------------------------- 読み込み
+let loadSeq = 0;         // 連続で地点や地形を変えたとき、古い応答を捨てるための連番
 async function load(force) {
+  const seq = ++loadSeq;
+  const forPlace = place;   // 取得開始時の地点で最後まで一貫して評価する
   $("status").hidden = false;
   // モデル数は増減する。文言に数字を焼き込むと、増やしたときに嘘になる（4→8で実際にずれていた）。
   $("status").textContent = `${S.MODELS.length}つの気象モデルから取得しています…`;
@@ -731,14 +851,16 @@ async function load(force) {
       // 8日目以降はモデルが順に落ちる（MSM 4日 / ARPEGE 5日 / 英国気象局 7日 /
       // ICON 8日 / GSM 12日 / ECMWF 15日）。落ちた分は null で返るだけで、
       // 残ったモデルの中央値になる。何本で出した値かは信頼度の判定に使う。
-      S.fetchForecast(place.latitude, place.longitude, 15, place),
-      S.LightPollution.lookup(place.latitude, place.longitude).catch(() => null),
+      S.fetchForecast(forPlace.latitude, forPlace.longitude, 15, forPlace),
+      S.LightPollution.lookup(forPlace.latitude, forPlace.longitude).catch(() => null),
     ]);
+    // 追い越されていたら捨てる。応答の順序は要求の順序と一致しない。
+    if (seq !== loadSeq) return;
     bundle = fetched;
-    place.lightPollution = lp;
+    forPlace.lightPollution = lp;
     weeks = {};
     for (const id of Object.keys(S.SCORERS)) {
-      weeks[id] = S.evaluateWeek(id, bundle, place);
+      weeks[id] = S.evaluateWeek(id, bundle, forPlace);
     }
     $("status").hidden = true;
     // 予報が揃ってから URL の場所を反映する。詳細のURLを直接開いた場合も
@@ -746,6 +868,7 @@ async function load(force) {
     applyRoute();
     loadNowcast().catch(() => { nowcastReady = false; $("nowcast").hidden = true; });  // 実況は補助。失敗しても予報は出す
   } catch (e) {
+    if (seq !== loadSeq) return;
     $("status").hidden = false;
     $("status").innerHTML = `<span class="warn">予報を取得できませんでした（${esc(e.message)}）</span> <button id="retry" style="color:var(--accent)">再試行</button>`;
     $("retry").onclick = () => load(true);
@@ -863,7 +986,7 @@ function render() {
   $("detailView").hidden = !inDetail;
   $("recordsView").hidden = !inRecords;
   // 地点と実況は判断のための情報。記録を読んでいるときは要らない。
-  $("placeButton").hidden = inRecords;
+  $("placeRow").hidden = inRecords;
   $("nowcast").hidden = inRecords || !nowcastReady;
 
   if (inDetail) {
@@ -1499,7 +1622,9 @@ function recordOutcome(pid, peak, outcome) {
   const existing = findSighting(pid, peak);
   const record = {
     id: existing?.id || crypto.randomUUID(),
-    recordedAt: Date.now(), phenomenon: pid, placeName: place.name,
+    // 照合は placeName で行っている（findSighting）。名前は変えられるので、
+    // 将来 ID で照合し直せるよう、記録した時点の地点IDも残しておく。
+    recordedAt: Date.now(), phenomenon: pid, placeName: place.name, placeId: place.id,
     latitude: place.latitude, longitude: place.longitude,
     peak, score: ev.score, rank: ev.rank.key, confidence: ev.confidence.key,
     perModel: ev.perModel, factors: ev.factors, outcome,
@@ -1670,65 +1795,242 @@ function selectPlace(p) {
   selectedDay = {};
   load(true);
 }
+// お気に入りは、内蔵スポットと同じ項目を自分で付けられる。
+// terrain は表示用ではない。sorami-core の needsProfile（鉛直分布を取るか）と、
+// 雲海・霧氷の対象判定に使われる。ここで選び間違えると点数が変わる。
+const TERRAINS = [
+  ["",           "選ばない（標高で判定）"],
+  ["summit",     "山頂・尾根"],
+  ["basinRim",   "盆地や谷を見下ろす高台"],
+  ["basinFloor", "盆地・谷の底"],
+  ["plain",      "平地"],
+  ["coast",      "海岸"],
+];
+// sorami-core の閾値の写し。ずれると説明が嘘になるので test-layout.mjs で突き合わせている。
+//   雲海 T.seaOfClouds.minElevation = 250 ／ 霧氷 T.rime.minElevation = 500
+const MIN_ELEV = { seaOfClouds: 250, rime: 500 };
+// 地形を選んだ結果どうなるかを、その地点の標高込みで言う。
+// 「山頂なら霧氷も対象」は誤り。霧氷の標高判定は地形に関係なく効く（sorami-core:1403）。
+function terrainEffect(terrain, elevation) {
+  const el = elevation == null ? null : Math.round(elevation);
+  const shortfall = (min) => `標高 ${min}m 以上が必要（ここは ${el == null ? "不明" : el + "m"}）`;
+  const sea = ["basinFloor", "plain", "coast"].includes(terrain) ? "見下ろせる地形ではないので対象外"
+    : terrain ? "対象"
+    : (el == null || el < MIN_ELEV.seaOfClouds) ? shortfall(MIN_ELEV.seaOfClouds) : "対象";
+  const rime = ["plain", "coast"].includes(terrain) ? "山地ではないので対象外"
+    : (el == null || el < MIN_ELEV.rime) ? shortfall(MIN_ELEV.rime) : "対象";
+  return `🌫️ 雲海：${sea}　❄️ 霧氷：${rime}`;
+}
+const PHENOMENA_ORDER = Object.entries(S.PHENOMENA).sort((a, b) => a[1].order - b[1].order);
+
+let favDraft = null;   // 編集中のお気に入り。index が -1 なら新規。
+let favUndo = [];      // 消したものを戻すための控え。地点シートを閉じるまで持つ。
+
 function renderSheet() {
-  $("favList").innerHTML = favorites.length
-    ? favorites.map((f, i) => `<div style="display:flex;align-items:center">
-        <button class="list-item" style="flex:1" data-fav="${i}"><strong>${esc(f.name)}</strong>
-          <div class="tiny">${esc(f.subtitle || "")}</div></button>
-        <button data-unfav="${i}" style="padding:8px;color:var(--tertiary)">✕</button></div>`).join("")
-    : `<span class="tiny">よく使う地点は選択後、地点名の横の ☆ で登録できます</span>`;
-  for (const el of $("favList").querySelectorAll("[data-fav]")) el.onclick = () => selectPlace(favorites[+el.dataset.fav]);
-  for (const el of $("favList").querySelectorAll("[data-unfav]")) el.onclick = () => {
-    favorites.splice(+el.dataset.unfav, 1); store.set("sorami.favorites", favorites); renderSheet();
+  // 消した直後の取り消し。数秒で消えるトーストにすると、押す前に消えて戻せない。
+  $("favUndo").innerHTML = favUndo.map((u, i) =>
+    `<div class="undo-row"><span><strong>${esc(u.entry.name)}</strong> を消しました</span>
+      <button data-undo="${i}">元に戻す</button></div>`).join("");
+  for (const el of $("favUndo").querySelectorAll("[data-undo]")) el.onclick = () => {
+    const u = favUndo[+el.dataset.undo];
+    const at = Math.min(u.index, favorites.length);
+    favorites.splice(at, 0, u.entry);
+    if (!saveFavorites()) { favorites.splice(at, 1); return; }
+    favUndo.splice(+el.dataset.undo, 1);
+    renderFavToggle();
+    renderSheet();
   };
 
-  const filter = window._spotFilter || null;
-  // 並びは一覧のカードと揃える。spots.js に出てきた順のままだと、
-  // 画面ごとに現象の順序が違って探しにくい。
-  const phenomenaWithSpots = [...new Set(SORAMI_SPOTS.spots.flatMap((s) => s.phenomena))]
-    .sort((a, b) => S.PHENOMENA[a].order - S.PHENOMENA[b].order);
-  $("spotChips").innerHTML = `<button class="${!filter ? "on" : ""}" data-chip="">すべて</button>`
-    + phenomenaWithSpots.map((p) => `<button class="${filter === p ? "on" : ""}" data-chip="${p}">${S.PHENOMENA[p].name}</button>`).join("");
-  for (const el of $("spotChips").querySelectorAll("[data-chip]")) {
-    el.onclick = () => { window._spotFilter = el.dataset.chip || null; renderSheet(); };
+  const tagged = [...new Set(favorites.flatMap((f) => f.phenomena || []))]
+    .filter((p) => S.PHENOMENA[p]).sort((a, b) => S.PHENOMENA[a].order - S.PHENOMENA[b].order);
+  const filter = tagged.includes(window._favFilter) ? window._favFilter : (window._favFilter = null);
+  // 絞り込み中はチップを必ず出す。タグが1種類に減ったからと隠すと、
+  // 絞り込みだけ残ってタグ無しの地点が見えなくなる。
+  $("favChips").innerHTML = tagged.length > 1 || filter
+    ? `<button class="${!filter ? "on" : ""}" aria-pressed="${!filter}" data-chip="">すべて</button>`
+      + tagged.map((p) => `<button class="${filter === p ? "on" : ""}" aria-pressed="${filter === p}" data-chip="${p}">${S.PHENOMENA[p].name}</button>`).join("")
+    : "";
+  for (const el of $("favChips").querySelectorAll("[data-chip]")) {
+    el.onclick = () => { window._favFilter = el.dataset.chip || null; renderSheet(); };
   }
-  // 33件を素のまま並べると、何を探せばいいのか分からない。現象で束ねる。
-  //
-  // スポットは複数の現象を持つ（陸別はダイヤモンドダストと星空）。
-  // 全部の見出しに出すと同じ地点が何度も現れて数が合わなくなるので、
-  // **先頭の現象を主カテゴリとして1回だけ出す**。
-  // 副次的な用途はアイコンで分かるし、チップで絞れば拾える。
-  const renderSpot = (s) => `<button class="list-item" data-spot="${s.id}">
-      <strong>${esc(s.name)}</strong> <span class="tiny">${s.phenomena.map((p) => S.PHENOMENA[p].icon).join("")}</span>
-      <div class="tiny">${esc(s.prefecture)} ・ 標高${Math.round(s.elevation)}m ー ${esc(s.note)}</div></button>`;
-  // 同じカテゴリの中は北から南へ。ファイルに書いた順は意味を持たない。
-  const northToSouth = (a, b) => b.latitude - a.latitude;
-  if (filter) {
-    // 絞り込み中は見出しが冗長。副次的な用途で該当するものも拾う。
-    $("spotList").innerHTML = SORAMI_SPOTS.spots
-      .filter((s) => s.phenomena.includes(filter)).sort(northToSouth).map(renderSpot).join("");
-  } else {
-    $("spotList").innerHTML = phenomenaWithSpots.map((p) => {
-      const list = SORAMI_SPOTS.spots.filter((s) => s.phenomena[0] === p).sort(northToSouth);
-      if (!list.length) return "";
-      return `<div class="spot-cat">${S.PHENOMENA[p].icon} ${S.PHENOMENA[p].name}`
-        + `<span class="tiny">${list.length}件</span></div>${list.map(renderSpot).join("")}`;
-    }).join("");
-  }
-  for (const el of $("spotList").querySelectorAll("[data-spot]")) {
+
+  const shown = favorites.map((f, i) => ({ f, i }))
+    .filter(({ f }) => !filter || (f.phenomena || []).includes(filter));
+  $("favList").innerHTML = !favorites.length
+    ? `<p class="tiny">地点名の横の ☆、または「＋ いまの地点を登録」から追加できます。<br>
+        現象・地形・メモを付けておくと、自分だけの絶景スポット帳になります。</p>`
+    : !shown.length ? `<p class="tiny">この現象で登録した地点はありません</p>`
+    : shown.map(({ f, i }) => {
+        const icons = (f.phenomena || []).filter((p) => S.PHENOMENA[p]).map((p) => S.PHENOMENA[p].icon).join("");
+        const meta = [f.subtitle, f.elevation != null ? `標高${Math.round(f.elevation)}m` : ""].filter(Boolean).join(" ・ ");
+        return `<div class="fav-row">
+          <button class="list-item" data-fav="${i}"><strong>${esc(f.name)}</strong> <span class="tiny">${icons}</span>
+            <div class="tiny">${esc(meta)}${f.note ? " ー " + esc(f.note) : ""}</div></button>
+          <button class="tap fav-edit" data-editfav="${i}">編集</button>
+          <button class="fav-del" data-delfav="${i}" aria-label="${esc(f.name)} をお気に入りから外す">✕</button></div>`;
+      }).join("");
+  for (const el of $("favList").querySelectorAll("[data-fav]")) el.onclick = () => selectPlace(favorites[+el.dataset.fav]);
+  for (const el of $("favList").querySelectorAll("[data-editfav]")) el.onclick = () => openFavSheet(+el.dataset.editfav);
+  // 1タップで消して、取り消しで戻す。確認を挟まないぶん速く、押し間違えても失わない。
+  for (const el of $("favList").querySelectorAll("[data-delfav]")) el.onclick = () => removeFavorite(+el.dataset.delfav);
+}
+
+// 保存に失敗したら、画面の見た目とlocalStorageが食い違わないよう配列も戻す。
+// 表示だけ成功しているように見えるのが一番たちが悪い。
+function saveFavorites() {
+  const okay = store.set("sorami.favorites", favorites);
+  // 登録シートは地点シートの上に重なる。前面に出ていない側だけに書いても見えない。
+  for (const el of document.querySelectorAll(".save-err")) el.hidden = okay;
+  return okay;
+}
+function removeFavorite(index) {
+  const entry = favorites[index];
+  favorites.splice(index, 1);
+  if (!saveFavorites()) { favorites.splice(index, 0, entry); return false; }
+  favUndo.push({ entry, index });
+  renderFavToggle();
+  renderSheet();
+  return true;
+}
+
+function openFavSheet(index) {
+  // 新規は、いま見ている地点をそのまま雛形にする。標高は予報の格子から借りる
+  // （評価側も place.elevation が無ければ同じ値を使うので、点数は変わらない）。
+  const gridElev = bundle?.home.grid.elevation ?? null;
+  const base = index >= 0 ? favorites[index]
+    : { ...place, elevation: place.elevation ?? gridElev };
+  favDraft = { index, ...base, phenomena: [...(base.phenomena || [])] };
+  // 入力途中で閉じたときに「変えたかどうか」を判定するための元の値。
+  favDraft.origin = { name: base.name || "", note: base.note || "",
+    terrain: base.terrain || "", phenomena: [...(base.phenomena || [])].join(",") };
+  $("favSheetTitle").textContent = index >= 0 ? "お気に入りを編集" : "お気に入りに登録";
+  $("favName").value = favDraft.name || "";
+  $("favNote").value = favDraft.note || "";
+  $("favNameErr").hidden = true;
+  // 標高が予報の格子由来なら「推定」と断る。検索結果は町の代表点のことがあり、
+  // 実際に立つ場所の標高とはずれる。
+  const estimated = index < 0 && place.elevation == null && gridElev != null;
+  $("favWhere").textContent = [favDraft.subtitle,
+    favDraft.elevation != null ? `標高 ${Math.round(favDraft.elevation)}m${estimated ? "（推定）" : ""}` : ""]
+    .filter(Boolean).join(" ・ ");
+  $("favCoord").textContent = `${favDraft.latitude.toFixed(4)}, ${favDraft.longitude.toFixed(4)}`;
+  $("favTerrain").innerHTML = TERRAINS.map(([v, label]) =>
+    `<option value="${v}"${(favDraft.terrain || "") === v ? " selected" : ""}>${esc(label)}</option>`).join("");
+  $("favDelete").hidden = index < 0;
+  renderFavPhenomena();
+  renderTerrainNote();
+  $("favSheet").showModal();
+  $("favName").focus();
+}
+// チップは innerHTML で作り直すと、押した瞬間にボタンが消えてフォーカスが飛ぶ。
+// 一度だけ描いて、以後は状態だけ書き換える。
+function renderFavPhenomena() {
+  $("favPhenomena").innerHTML = PHENOMENA_ORDER.map(([id, p]) =>
+    `<button type="button" data-p="${id}" aria-pressed="false">${p.icon} ${p.name}</button>`).join("");
+  for (const el of $("favPhenomena").querySelectorAll("[data-p]")) {
     el.onclick = () => {
-      const s = SORAMI_SPOTS.spots.find((x) => x.id === el.dataset.spot);
-      selectPlace({ id: "spot:" + s.id, name: s.name, subtitle: s.prefecture,
-        latitude: s.latitude, longitude: s.longitude, terrain: s.terrain, elevation: s.elevation });
+      const i = favDraft.phenomena.indexOf(el.dataset.p);
+      if (i >= 0) favDraft.phenomena.splice(i, 1); else favDraft.phenomena.push(el.dataset.p);
+      favDraft.phenomena.sort((a, b) => S.PHENOMENA[a].order - S.PHENOMENA[b].order);
+      syncFavPhenomena();
     };
   }
+  syncFavPhenomena();
 }
-$("placeButton").onclick = () => { renderSheet(); $("placeSheet").showModal(); };
+function syncFavPhenomena() {
+  for (const el of $("favPhenomena").querySelectorAll("[data-p]")) {
+    const on = favDraft.phenomena.includes(el.dataset.p);
+    el.classList.toggle("on", on);
+    el.setAttribute("aria-pressed", String(on));
+  }
+}
+function renderTerrainNote() {
+  $("favTerrainNote").textContent = terrainEffect($("favTerrain").value || null, favDraft.elevation);
+}
+$("favTerrain").onchange = () => { favDraft.terrain = $("favTerrain").value || null; renderTerrainNote(); };
+
+// 入力途中で閉じたら黙って消える、を避ける。消した登録は戻せるが、打った文字は戻せない。
+function favDirty() {
+  const o = favDraft.origin;
+  return $("favName").value.trim() !== o.name || $("favNote").value.trim() !== o.note
+    || ($("favTerrain").value || "") !== o.terrain || favDraft.phenomena.join(",") !== o.phenomena;
+}
+function closeFavSheet() {
+  if (favDirty() && !confirm("入力した内容を破棄しますか？")) return false;
+  $("favSheet").close();
+  return true;
+}
+$("favCancel").onclick = () => closeFavSheet();
+$("favSheet").addEventListener("cancel", (e) => { e.preventDefault(); closeFavSheet(); });
+$("favAdd").onclick = () => openFavSheet(favorites.findIndex((f) => f.id === place.id));
+
+// 名前は記録の照合キー（findSighting）でもある。改名で過去の記録を見失わないよう、
+// 同じ座標で記録したものだけを新しい名前へ移す。別地点の同名記録は動かさない。
+function renameSightings(oldName, newName, lat, lon) {
+  if (!oldName || oldName === newName) return 0;
+  const near = (a, b) => Math.abs(a - b) < 0.0005;   // 約50m
+  let n = 0;
+  for (const s of sightings) {
+    if (s.placeName === oldName && near(s.latitude, lat) && near(s.longitude, lon)) { s.placeName = newName; n++; }
+  }
+  if (n) store.set("sorami.sightings", sightings);
+  return n;
+}
+
+$("favSave").onclick = () => {
+  const name = $("favName").value.trim();
+  $("favNameErr").hidden = !!name;
+  if (!name) { $("favName").focus(); return; }
+  const before = favDraft.index >= 0 ? favorites[favDraft.index] : null;
+  const entry = { id: favDraft.id, name, subtitle: favDraft.subtitle || "",
+    latitude: favDraft.latitude, longitude: favDraft.longitude,
+    terrain: favDraft.terrain || null, elevation: favDraft.elevation ?? null,
+    phenomena: favDraft.phenomena, note: $("favNote").value.trim() };
+  if (favDraft.index >= 0) favorites[favDraft.index] = entry; else favorites.push(entry);
+  if (!saveFavorites()) {
+    if (before) favorites[favDraft.index] = before; else favorites.pop();
+    return;   // 入力はそのまま残す。閉じてしまうと打ち直しになる。
+  }
+  const moved = before ? renameSightings(before.name, name, entry.latitude, entry.longitude) : 0;
+  $("favSheet").close();
+  // 表示中の地点そのものを編集したなら、画面にも反映する。
+  // 地形と標高は取りに行くデータ（鉛直分布）ごと変えるので、取り直さないと嘘の点数が残る。
+  if (place.id === entry.id) {
+    const refetch = (place.terrain || null) !== entry.terrain
+      || (place.elevation ?? null) !== entry.elevation;
+    place = { ...place, name: entry.name, subtitle: entry.subtitle,
+      terrain: entry.terrain, elevation: entry.elevation };
+    store.set("sorami.place", place);
+    if (refetch) { $("placeSheet").close(); load(true); renderFavToggle(); return; }
+    $("placeName").textContent = place.name;
+  }
+  renderFavToggle();
+  renderSheet();
+  if (moved) $("favNotice").textContent = `${moved}件の記録を新しい名前へ移しました`;
+};
+$("favDelete").onclick = () => {
+  if (!removeFavorite(favDraft.index)) return;
+  $("favSheet").close();
+  // 取り消しは一覧の上に出る。★ から開いていた場合も、そこへ着地させる。
+  if (!$("placeSheet").open) $("placeSheet").showModal();
+};
+$("placeButton").onclick = () => {
+  $("favNotice").textContent = "";
+  for (const el of document.querySelectorAll(".save-err")) el.hidden = true;
+  renderSheet();
+  $("placeSheet").showModal();
+};
 $("placeClose").onclick = () => $("placeSheet").close();
+// 取り消しはシートを開いている間だけ持つ。閉じたら確定させる（次に開いたときに
+// 前回消したものの「元に戻す」が残っていると、何を消したのか分からなくなる）。
+$("placeSheet").addEventListener("close", () => { favUndo = []; });
 $("geoButton").onclick = () => {
   $("geoStatus").textContent = "";
   navigator.geolocation.getCurrentPosition(
-    (pos) => selectPlace({ id: "current", name: "現在地", subtitle: "",
+    // id を "current" 固定にすると、別の場所で ☆ を押したときに前の登録が開く。
+    // 取得方法ではなく座標で識別する（約11m 単位）。
+    (pos) => selectPlace({ id: `geo:${pos.coords.latitude.toFixed(4)},${pos.coords.longitude.toFixed(4)}`,
+      name: "現在地", subtitle: "",
       latitude: pos.coords.latitude, longitude: pos.coords.longitude, terrain: null, elevation: null }),
     () => { $("geoStatus").textContent = "現在地を取得できませんでした（HTTPS でのみ利用できます）"; },
     { timeout: 10000 });
@@ -1757,20 +2059,18 @@ $("searchBox").addEventListener("keydown", async (e) => {
   } catch { $("searchResults").innerHTML = `<p class="warn">検索に失敗しました</p>`; }
 });
 
-// 選択中の地点をお気に入りへ（地点名タップ長押し代わりに ☆ を出す）
-$("placeName").insertAdjacentHTML("afterend",
-  ` <button id="favToggle" class="tap" style="font-size:1rem;vertical-align:2px"></button>`);
 function renderFavToggle() {
   const isFav = favorites.some((f) => f.id === place.id);
   $("favToggle").textContent = isFav ? "★" : "☆";
   $("favToggle").style.color = isFav ? "var(--accent)" : "var(--tertiary)";
+  // ★ は解除ではなく編集を開く。記号だけでは伝わらないので読み上げ名で言う。
+  $("favToggle").setAttribute("aria-label", isFav ? "お気に入りを編集" : "お気に入りに登録");
 }
+// ☆ は即登録ではなくフォームを開く。現象・地形・メモを付けてこそ一覧が使えるものになるし、
+// ★ からそのまま編集・削除へ入れる。
 $("favToggle").onclick = (e) => {
   e.stopPropagation();
-  const i = favorites.findIndex((f) => f.id === place.id);
-  if (i >= 0) favorites.splice(i, 1); else favorites.push(place);
-  store.set("sorami.favorites", favorites);
-  renderFavToggle();
+  openFavSheet(favorites.findIndex((f) => f.id === place.id));
 };
 new MutationObserver(renderFavToggle).observe($("placeName"), { childList: true });
 
