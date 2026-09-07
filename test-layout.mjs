@@ -49,7 +49,13 @@ ok(/function renderMatrix/.test(html), "1本の日付軸で描く");
 ok(!/function renderPhenomenonCards/.test(html), "現象ごとの独立した横スクロールは無い");
 ok(/id="cards"/.test(html), "#cards がある");
 ok((html.match(/class="mxhead"/g) || []).length === 1, "日付の見出しは1本だけ");
-ok(/class="mxrow"/.test(html), "現象ごとに枠を持つ（バラだけど、ひとまとまり）");
+// 2026-09-07: 行を枠で囲う形は一度やって外した。大枠の中に小さい箱が並んで見える。
+// 区切りは線1本で、現象名の列の下まで伸ばす（セルの側だけに線が出ると、
+// ラベルの列が切れ目のない帯に見えて行がどこで区切れるか読めない）。
+ok(/class="mxrow"/.test(html), "現象ごとに行を分ける");
+ok(/\.mxrow \{ border-top: 1px solid var\(--line\)/.test(html), "行の区切りは線1本");
+ok(/\.mxrow \.mxrail::before[\s\S]{0,220}border-top: 1px solid var\(--line\)/.test(html),
+  "その線を現象名の列の下まで伸ばす");
 // 色や数字を覚えなくても、どの日がいいかが地の色で分かる。
 ok(/function cellTint/.test(html), "日の良し悪しを地の色で示す");
 ok(/const CELL_RAMP/.test(html), "色は評価4段ではなく点数の連続で決める");

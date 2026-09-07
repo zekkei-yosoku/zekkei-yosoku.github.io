@@ -295,8 +295,8 @@
              width: max-content; min-width: 100%; padding-right: 16px; }
   .mxhead, .mxrow { display: grid; gap: 4px;
                     grid-template-columns: var(--rail) repeat(var(--days), var(--cell)); }
-  .mxrow { border: 1px solid var(--line); border-radius: 13px; padding: 6px 5px 7px 0;
-           align-items: center; }
+  /* 行の区切りは【線1本】。枠で囲うと大枠の中に小さい箱が並んで見える。 */
+  .mxrow { border-top: 1px solid var(--line); padding: 6px 5px 7px 0; align-items: center; }
   /* 現象名の列は横スクロールしても残す。
      地は【角丸なし・行の隙間まで覆う】。角丸にすると角の外が透け、
      行と行の隙間（7px）ではスクロールしてきたセルが左へ抜けて見えていた。 */
@@ -304,19 +304,14 @@
             padding-left: 16px; display: flex; align-items: center; gap: 5px;
             font-size: 0.78rem; font-weight: 700; }
   .mxhead .mxrail { margin-bottom: -7px; }              /* 見出しと1行目の隙間 */
-  .mxrow .mxrail { align-self: stretch; padding-left: 17px;
-                   margin: -7px 0 -15px -1px; }         /* 上: padding+枠線 / 下: それ＋隙間 */
-  /* 枠の線。地が枠の左側を覆っているので、地の側に線を引き直して枠を閉じる。
-     引くのは【左・上・下】の3辺。ラベルまで含めてひとつの枠にする。
-     ラベルとセルの間に縦線は引かない。境目は線ではなく、
-     下の ::after のグラデーションで示す（セルが潜り込んでいく形にする）。
-     線は【地の側】に置く（枠の側に置くと、横スクロールで地から離れていく）。
-     上下の位置は負のマージンぶんだけ戻して、枠の高さにぴったり合わせる。 */
-  .mxrow .mxrail::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; bottom: 15px;
-                           border: 1px solid var(--line); border-right: none;
-                           /* 右辺は枠の側（.mxrow）が持つ。左は線だけ丸め、
-                              角の外へはみ出す地はカードと同色なので見えない。 */
-                           border-radius: 13px 0 0 13px; }
+  .mxrow .mxrail { align-self: stretch; padding-left: 16px;
+                   margin: -7px 0 -14px 0; }            /* 上: padding+線 / 下: padding+隙間 */
+  /* 区切りの線を、現象名の列の下まで伸ばす。
+     地が行の上の線を覆ってしまうので、同じ位置に引き直しているだけ。
+     線は【地の側】に置く（行の側に置くと、横スクロールで地から離れていく）。
+     位置は負のマージンぶんだけ戻して、行の上端に合わせる。 */
+  .mxrow .mxrail::before { content: ""; position: absolute; left: 0; right: 0; top: 7px;
+                           border-top: 1px solid var(--line); }
   /* ラベルの右へ伸びるぼかし。セルが横スクロールでラベルの下へ潜り込んでいくのを、
      線ではなくこの濃度の変化で示す。 */
   .mxrail::after { content: ""; position: absolute; right: -18px; top: 0; bottom: 0; width: 18px;
@@ -498,8 +493,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260907111143"></script>
-<script src="sorami-core.js?v=20260907111143"></script>
+<script src="spots.js?v=20260907111611"></script>
+<script src="sorami-core.js?v=20260907111611"></script>
 <script>
 "use strict";
 const S = window.Sorami;
