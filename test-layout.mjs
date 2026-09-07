@@ -440,7 +440,11 @@ const headEnd = recCard.indexOf("</div>");
 ok(recCard.indexOf('id="exportBtn"') > recCard.indexOf('id="recBody"'),
   "書き出し・読み込みが記録画面の末尾にある");
 ok(!/exportBtn/.test(recCard.slice(0, headEnd)), "書き出しが見出しの隣に無い");
-ok(/端末に保存されます/.test(recCard), "保存先が端末であることを書く");
+// 2026-09-07: 「端末に保存されます」だけでは、端末をまたいで共有されないことが伝わらない。
+// お気に入りに手入力の内容を持たせたので、どこに保存され何が起きうるかを明示する形へ変えた。
+ok(/この端末のブラウザにだけ/.test(recCard) && /端末をまたいでは共有されません/.test(recCard),
+  "保存先が【この端末だけ】であることを書く");
+ok(/記録とお気に入り/.test(recCard), "お気に入りも対象だと書く");
 
 console.log("== 登録の途中と失敗を落とさない ==");
 // localStorage は失敗する（プライベートブラウズ・容量超過）。黙って閉じると
@@ -521,6 +525,29 @@ ok(new Set(ranks).size === 4, "ライトの評価語4色が全部ちがう", ran
 const hue = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return [r, g, b]; };
 const near = (a, b) => hue(a).every((v, i) => Math.abs(v - hue(b)[i]) < 24);
 ok(!near(ranks[1], ranks[2]), "ほんのり と 良好 が似た色になっていない", `${ranks[1]} / ${ranks[2]}`);
+
+console.log("== 手で入れたものを失わせない ==");
+// 2026-09-07 ユーザー指摘「今、お気に入り登録したのが消える状態ならそもそもその機能はいらない」。
+// 地形・メモ・現象タグを手入力させるようにした以上、消えたら打ち直しになる。
+// iOS Safari は7日間サイトに触れないとスクリプトの保存領域を消す。霧氷やダイヤモンドダストは
+// 冬しか出ないので、「冬に行く場所を秋のうちに登録する」というこの機能が想定した使い方でちょうど消える。
+ok(/const payload = \{ exportedAt: [\s\S]{0,40}favorites, sightings \}/.test(html),
+  "書き出しにお気に入りを含める");
+ok(/sightings \}/.test(html), "sightings のキー名を変えない（前のファイルも読める）");
+ok(/const incomingFav = Array\.isArray\(data\.favorites\)/.test(html), "読み込みでお気に入りを受ける");
+ok(/Array\.isArray\(data\) \? data : data\.sightings/.test(html), "配列だけのファイルも記録として読む");
+ok(/const merge = \(current, add\)[\s\S]{0,220}byId\.set/.test(html), "id で突き合わせて既存を失わせない");
+ok(/if \(!okay\) throw new Error/.test(html), "読み込みの保存失敗を黙って飲まない");
+// 保存領域の保護。申請しても承認されるとは限らないので、結果を画面に出す。
+ok(/navigator\.storage\.persist\(\)/.test(html), "保存領域の保護を申請する");
+ok(/navigator\.storage\.persisted\(\)/.test(html), "すでに保護されているかを先に見る");
+ok(/id="storageNote"/.test(html), "申請の結果を出す場所がある");
+ok(/ホーム画面に追加/.test(html), "iOS では消えにくくする方法を案内する");
+ok(/display-mode: standalone/.test(html), "すでにホーム画面のアプリなら案内しない");
+// 保存場所を隠さない
+ok(/この端末のブラウザにだけ/.test(html), "どこに保存されるかを画面で言う");
+ok((html.match(/この端末のブラウザにだけ|この端末のブラウザにだけ保存されます/g) || []).length >= 1,
+  "地点シートにも保存場所を書く");
 
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

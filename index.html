@@ -554,10 +554,11 @@
         <div id="recList"></div>
       </div>
       <p class="tiny" style="margin-top:10px">
-        記録は端末に保存されます。
+        記録とお気に入りは<strong>この端末のブラウザにだけ</strong>保存されます。端末をまたいでは共有されません。
         <button id="exportBtn" class="tap" style="color:var(--accent)">書き出し</button>・<button id="importBtn" class="tap" style="color:var(--accent)">読み込み</button>
         は、別の端末へ移すときや控えを取るときに使います。
         <input type="file" id="importFile" accept=".json" hidden></p>
+      <p class="tiny warn" id="storageNote" style="margin-top:6px"></p>
     </div>
   </div>
 
@@ -582,6 +583,7 @@
     <div class="chips" id="favChips"></div>
     <div id="favList"></div>
     <p class="tiny" id="favNotice" role="status" aria-live="polite"></p>
+    <p class="tiny" style="margin-top:10px">この端末のブラウザにだけ保存されます。控えは記録画面の「書き出し」から。</p>
   </div>
 </dialog>
 
@@ -616,7 +618,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260907155627"></script>
+<script src="sorami-core.js?v=20260907230612"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2074,14 +2076,18 @@ $("favToggle").onclick = (e) => {
 };
 new MutationObserver(renderFavToggle).observe($("placeName"), { childList: true });
 
-// 記録は localStorage にあり、ブラウザのデータ消去で消える。
-// 校正のために貯めるものなので、書き出して残せるようにしておく。
+// 記録とお気に入りは localStorage にあり、ブラウザのデータ消去で消える。
+// iOS Safari は、7日間サイトに触れないとスクリプトが書いた保存領域を消す。
+// 霧氷やダイヤモンドダストは冬しか出ないので、「冬に行く場所を秋のうちに登録する」という
+// この機能が想定した使い方でちょうど消える。しかも黙って消える。
+// 自動で消えなくするにはサーバーが要る（検討中）。それまでの控えの手段。
 $("exportBtn").onclick = () => {
-  const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), sightings }, null, 1)],
-    { type: "application/json" });
+  // sightings のキーは変えない。前に書き出したファイルもそのまま読める。
+  const payload = { exportedAt: new Date().toISOString(), favorites, sightings };
+  const blob = new Blob([JSON.stringify(payload, null, 1)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `sorami-sightings-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `sorami-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
@@ -2092,19 +2098,48 @@ $("importFile").onchange = async (e) => {
   try {
     const data = JSON.parse(await file.text());
     const incoming = Array.isArray(data) ? data : data.sightings;
+    const incomingFav = Array.isArray(data.favorites) ? data.favorites : [];
     if (!Array.isArray(incoming)) throw new Error("形式が違います");
-    // 同じ id は上書き、無いものは追加。取り込みで既存の記録を失わせない。
-    const byId = new Map(sightings.map((s) => [s.id, s]));
-    for (const rec of incoming) if (rec && rec.id) byId.set(rec.id, rec);
-    sightings = [...byId.values()];
-    store.set("sorami.sightings", sightings);
+    // 同じ id は上書き、無いものは追加。取り込みで既存のものを失わせない。
+    const merge = (current, add) => {
+      const byId = new Map(current.map((x) => [x.id, x]));
+      for (const rec of add) if (rec && rec.id) byId.set(rec.id, rec);
+      return [...byId.values()];
+    };
+    sightings = merge(sightings, incoming);
+    const okay = store.set("sorami.sightings", sightings);
+    if (incomingFav.length) {
+      favorites = merge(favorites, incomingFav);
+      store.set("sorami.favorites", favorites);
+    }
+    if (!okay) throw new Error("保存できませんでした（プライベートブラウズか容量超過）");
     render();   // 押下の配線と画面の出し分けごとやり直す
-    alert(`${incoming.length}件を読み込みました（合計 ${sightings.length}件）`);
+    alert(`記録 ${incoming.length}件・お気に入り ${incomingFav.length}件を読み込みました`
+      + `（合計 記録 ${sightings.length}件・お気に入り ${favorites.length}件）`);
   } catch (err) {
     alert("読み込めませんでした: " + err.message);
   }
   e.target.value = "";
 };
+
+// ブラウザに「この保存領域を勝手に消さないでほしい」と申請する。
+// 承認されるかはブラウザ次第（Chrome/Firefox は利用状況で判断、iOS Safari は
+// ホーム画面に追加したアプリを別扱いにする）。**申請しても保証にはならない**ので、
+// 結果をそのまま画面に出す。黙って消えるのがいちばん困る。
+(async () => {
+  const note = $("storageNote");
+  if (!navigator.storage?.persist) { note.textContent = "このブラウザは保存領域の保護に対応していません。控えを取ってください。"; return; }
+  const persisted = await navigator.storage.persisted().catch(() => false)
+    || await navigator.storage.persist().catch(() => false);
+  if (persisted) { note.className = "tiny"; note.textContent = "この端末では、保存領域はブラウザに保護されています。"; return; }
+  // iOS Safari は7日間サイトに触れないとスクリプトの保存領域を消す。
+  // ホーム画面に追加したアプリはその対象外になる。
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  note.textContent = ios && !standalone
+    ? "しばらく開かないと、この端末の保存内容は消えることがあります。共有ボタンから「ホーム画面に追加」しておくと消えにくくなります。"
+    : "しばらく開かないと、この端末の保存内容は消えることがあります。控えを取っておいてください。";
+})();
 
 // 幅が閾値をまたいだら描画し直す（ウィンドウのリサイズ・画面回転）
 WIDE.addEventListener("change", () => { if (bundle) render(); });
