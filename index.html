@@ -381,19 +381,21 @@
   .lt-band { position: relative; height: 40px; border-radius: 9px; overflow: hidden; margin-top: 6px; }
   .lt-now { position: absolute; top: 0; bottom: 0; width: 2px;
             background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
-  /* 月が地平線より上にいる時間。濃さは照らされている割合。
-     星空は月明かりで決まるので、時刻の数字より先に形で見せる。 */
-  .lt-moon { position: absolute; left: 0; right: 0; bottom: 0; height: 7px; }
-  .lt-moon i { position: absolute; top: 0; bottom: 0; background: #fff8e0; border-radius: 2px; }
-  .lt-moon b { position: absolute; bottom: 8px; transform: translateX(-50%);
-               font-size: 0.8rem; line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
-  .lt-marks { position: relative; height: 30px; margin-top: 2px; }
-  .lt-mk { position: absolute; top: 0; transform: translateX(-50%);
-           display: flex; flex-direction: column; align-items: center; gap: 1px;
-           font-size: 0.61rem; color: var(--secondary); white-space: nowrap;
-           font-variant-numeric: tabular-nums; }
-  .lt-mk .tick { width: 1px; height: 6px; background: var(--line); }
+  /* 印は【1行】にする。アイコンと文字を縦に積むと1つが高くなり、
+     段をずらしても隣の段の文字と重なる。 */
+  .lt-marks { position: relative; height: 48px; margin-top: 2px; }
+  .lt-mk { position: absolute; top: 0; width: 0; }
+  /* 目盛り。文字と帯の位置を結ぶ線なので、--line だと薄すぎて役に立たない。 */
+  .lt-mk .tick { position: absolute; top: 0; left: 0; width: 1px; height: 8px;
+                 background: color-mix(in srgb, var(--text) 35%, transparent); }
+  /* 目盛りは時刻の位置に立てたまま、文字だけ端で寄せる。
+     真ん中寄せのままだと、左端の印がカードの外へはみ出す。 */
+  .lt-mk .lbl { position: absolute; top: 9px; left: 0; white-space: nowrap;
+                display: inline-flex; align-items: center; gap: 4px;
+                font-size: 0.61rem; color: var(--secondary);
+                font-variant-numeric: tabular-nums; }
   .lt-mk .ic { font-size: 0.88rem; line-height: 1; }
+  .lt-mk b { font-weight: 600; color: var(--tertiary); }
   .lt-axis { display: flex; justify-content: space-between; font-size: 0.62rem;
              color: var(--tertiary); margin-top: 2px; }
   /* 凡例は【2段】に固定する。1段目が太陽と月の時刻、2段目がゴールデンとブルー。
@@ -505,8 +507,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260907114546"></script>
-<script src="sorami-core.js?v=20260907114546"></script>
+<script src="spots.js?v=20260907115627"></script>
+<script src="sorami-core.js?v=20260907115627"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1237,46 +1239,53 @@ function renderLightTimes(dayMs, now, phenomenonId) {
   const t = (x) => (x === null ? "—" : S.JstCal.hhmmRounded(x));
   const range = (x) => (x === null ? "—" : `${t(x[0])}–${t(x[1])}`);
 
-  // いま見ている現象の回だけ印を置く。詳細に現象の選択は置かない方針なので、
-  // ほかの現象は出さない（出すと押せそうに見えて、押せない案内になる）。
-  const e = (weeks[phenomenonId] || []).find((x) => x.dayMs === dayMs);
-  const ev = e && !e.evaluation.unavailable ? e.evaluation : null;
-  const mark = ev && ev.specificTime !== false && ev.peak >= d0 && ev.peak <= d1
-    ? `<span class="lt-mk" style="left:${pct(ev.peak)}%">
-         <span class="tick"></span><span class="ic">${S.PHENOMENA[phenomenonId].icon}</span>
-         <span style="color:${RANK_COLOR[ev.rank.key]};font-weight:700">${S.JstCal.hhmmRounded(ev.peak)}</span></span>`
-    : "";
-
+  // 帯の上の印。日の出・月の出・月の入り・日の入りを、その時刻の位置へ置く。
+  //
+  // 数字を帯の外の行だけに書いていたときは、帯のどこが 5:18 なのかを
+  // 目で探す必要があった。印にして位置と数字を結びつける。
+  // 現象そのものの時刻は、すぐ上の見出しに大きく出ているのでここには出さない
+  // （朝焼け・夕焼けは日の出・日の入りと同じ時刻で、二重に出るだけになる）。
   const moon = moonEvents(d0, TL_SPAN);
   const [, face, faceName] = moonFace(moon.age);
   const moonTitle = `${faceName}（月齢 ${moon.age.toFixed(1)}・照らされている割合 ${Math.round(moon.illuminated * 100)}%）`;
-  const moonStrip = moon.spans.map(([a, b]) => {
-    const x0 = pct(a), x1 = pct(b);
-    return `<i style="left:${x0}%;width:${Math.max(0.4, x1 - x0)}%;opacity:${(0.2 + 0.6 * moon.illuminated).toFixed(2)}"></i>`
-      + (x1 - x0 >= 8 ? `<b style="left:${((x0 + x1) / 2).toFixed(1)}%">${face}</b>` : "");
+  const events = [
+    [w.sunrise, "☀️", "日の出", ""],
+    [w.sunset, "☀️", "日の入", ""],
+    [moon.rise, face, "月の出", moonTitle],
+    [moon.set, face, "月の入", moonTitle],
+  ].filter(([t]) => t !== null && t >= d0 && t <= d1)
+   .map(([t, ic, name, title]) => ({ x: pct(t), ic, name, title, t }))
+   .sort((a, b) => a.x - b.x);
+  // 近すぎる印は段を分ける。重ねると読めない。
+  // 印1つの高さぶん（22px）ずらす。これより小さいと段を分けても重なる。
+  let lastX = -99, row = 0;
+  const marks = events.map((e) => {
+    row = e.x - lastX < 26 ? 1 - row : 0;
+    lastX = e.x;
+    // 端の印は文字がカードの外へ出るので、寄せ方を変える（目盛りは動かさない）
+    const align = e.x < 14 ? "none" : e.x > 86 ? "translateX(-100%)" : "translateX(-50%)";
+    return `<span class="lt-mk" style="left:${e.x.toFixed(1)}%;top:${row * 22}px"
+      ${e.title ? `title="${esc(e.title)}"` : ""}>
+      <span class="tick"></span>
+      <span class="lbl" style="transform:${align}"><span class="ic">${e.ic}</span><span><b>${e.name}</b> ${t(e.t)}</span></span></span>`;
   }).join("");
-  const moonText = moon.rise === null && moon.set === null
-    ? `<b>月</b> ${moon.spans.length ? "ずっと出ています" : "昇りません"}`
-    : `<b>月の出</b> ${t(moon.rise)}・<b>月の入</b> ${t(moon.set)}`;
 
   const isToday = S.JstCal.sameDay(dayMs, now);
   return `<div class="card">
     <div class="section-h"><h2>光の時間</h2>
       <span class="tiny">${esc(S.JstCal.relativeDay(dayMs, now))}</span></div>
     <div class="lt-band" style="background:${grad}">
-      <span class="lt-moon">${moonStrip}</span>
       ${isToday ? `<span class="lt-now" style="left:${pct(now)}%"></span>` : ""}</div>
-    <div class="lt-marks">${mark}</div>
+    <div class="lt-marks">${marks}</div>
     <div class="lt-axis"><span>0時</span><span>6時</span><span>12時</span><span>18時</span><span>24時</span><span>27時</span></div>
     <div class="lt-legend">
-      <div class="lt-row">
-        <span class="li"><span class="ic">☀️</span><span><b>日の出</b> ${t(w.sunrise)}・<b>日の入</b> ${t(w.sunset)}</span></span>
-        <span class="li" title="${esc(moonTitle)}"><span class="ic" role="img" aria-label="${esc(faceName)}">${face}</span><span>${moonText}</span></span>
-      </div>
       <div class="lt-row">
         <span class="li pair"><b>ゴールデンアワー</b><span class="v">${range(w.goldenMorning)} / ${range(w.goldenEvening)}</span></span>
         <span class="li pair"><b>ブルーアワー</b><span class="v">${range(w.blueMorning)} / ${range(w.blueEvening)}</span></span>
       </div>
+      ${moon.rise === null && moon.set === null
+        ? `<div class="lt-row"><span class="li" title="${esc(moonTitle)}"><span class="ic">${face}</span><span><b>月</b> ${moon.spans.length ? "ずっと出ています" : "昇りません"}</span></span></div>`
+        : ""}
     </div>
     <p class="tiny" style="margin-top:6px">ゴールデンアワーは太陽高度 −4°〜+6°、ブルーアワーは −6°〜−4°。
       軸は 0〜27時（夜の見ごろは暦の上では翌日になるため）。</p>
