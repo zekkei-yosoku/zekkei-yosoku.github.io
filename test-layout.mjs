@@ -549,5 +549,46 @@ ok(/この端末のブラウザにだけ/.test(html), "どこに保存される�
 ok((html.match(/この端末のブラウザにだけ|この端末のブラウザにだけ保存されます/g) || []).length >= 1,
   "地点シートにも保存場所を書く");
 
+console.log("== 外から来た文字をそのまま HTML へ入れない ==");
+// 2026-09-07 Codex の指摘で発覚し、実ブラウザで発火を確認した。
+// 記録画面の `${LABEL[s.outcome] ?? s.outcome}` が素だったため、細工した JSON を
+// 読み込ませると任意の HTML が動いた。記録は読み込みで外から入るし、
+// これから同期でサーバー越しにも入る。
+ok(!/\$\{LABEL\[s\.outcome\] \?\? s\.outcome\}/.test(html), "outcome を素で埋めていない");
+ok(/\$\{esc\(LABEL\[s\.outcome\] \?\? s\.outcome\)\}/.test(html), "outcome をエスケープする");
+// 知らない現象は `S.PHENOMENA[...]` が undefined になり、.icon で落ちる
+ok(/const meta = S\.PHENOMENA\[s\.phenomenon\];\s*\n\s*if \(!meta\) return "";/.test(html),
+  "知らない現象の記録は描かない");
+// 描画のエスケープと取り込みの検査は両方要る。片方だけだと、
+// 新しい描画箇所を足したときに素通りする。
+ok(/function cleanSighting/.test(html) && /function cleanFavorite/.test(html), "取り込んだものを検査する");
+ok(/if \(!S\.PHENOMENA\[r\.phenomenon\]\) return null/.test(html), "知らない現象の記録を受けない");
+ok(/Number\.isFinite\(f\.latitude\)/.test(html), "座標の無いお気に入りを受けない");
+ok(/phenomena: Array\.isArray\(f\.phenomena\) \? f\.phenomena\.filter\(\(p\) => S\.PHENOMENA\[p\]\)/.test(html),
+  "お気に入りの現象タグも知らないものを落とす");
+ok(/TERRAINS\.some\(\(\[v\]\) => v === f\.terrain\)/.test(html), "知らない地形を受けない");
+ok(/形式が合わない \$\{dropped\}件は取り込みませんでした/.test(html),
+  "落とした件数を黙って捨てない");
+
+console.log("== 壊れた保存内容で画面を落とさない ==");
+// localStorage は壊れる（取り込みの途中失敗、別タブとの競合、これから足す同期の不具合、
+// 手で書き換え）。null が混ざった配列で描画が3箇所落ちることを実測した（2026-09-07）。
+// 同期でサーバーの応答を書き込むようになると、ここは実際に踏む。
+ok(/const cleanList = \(key, fn\)[\s\S]{0,140}Array\.isArray\(raw\) \? raw\.map\(fn\)\.filter\(Boolean\) : \[\]/.test(html),
+  "読み込み時にも検査を通す");
+ok(/let favorites = cleanList\("sorami\.favorites", cleanFavorite\)/.test(html), "お気に入りを検査して読む");
+ok(/let sightings = cleanList\("sorami\.sightings", cleanSighting\)/.test(html), "記録を検査して読む");
+// 座標が壊れていると予報を取りに行けない。既定へ戻す。
+ok(/!Number\.isFinite\(p\.latitude\) \|\| !Number\.isFinite\(p\.longitude\)[\s\S]{0,60}DEFAULT_PLACE/.test(html),
+  "座標が壊れた地点は既定へ戻す");
+// 検査関数は使う場所より前に無ければならない（const の TERRAINS を参照するため）
+ok(html.indexOf("const TERRAINS = [") < html.indexOf("function cleanFavorite"), "TERRAINS が検査関数より前");
+ok(html.indexOf("function cleanFavorite") < html.indexOf("let favorites = cleanList"), "検査関数が読み込みより前");
+// esc はシングルクォートも落とす。属性をシングルクォートで囲む日が来ても破れないように。
+ok(/replace\(\/\[&<>"'\]\/g/.test(html), "esc がシングルクォートも対象にする");
+// コメント行（説明としてこの書き方に触れている）は除いて数える
+const codeLines = html.split("\n").filter((l) => !/^\s*(\/\/|\*|<!--)/.test(l)).join("\n");
+ok(!/='\$\{/.test(codeLines), "属性をシングルクォートで囲んでいない");
+
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

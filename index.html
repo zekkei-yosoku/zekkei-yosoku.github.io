@@ -618,12 +618,16 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260907230612"></script>
+<script src="sorami-core.js?v=20260907233848"></script>
 <script>
 "use strict";
 const S = window.Sorami;
 const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// シングルクォートも落とす。いまは属性を全部ダブルクォートで囲んでいるので
+// 実害は無いが、あとで `id='${...}'` と書いた誰か（自分）がそこで破る。
+// 1文字足すだけなので、覚えておく方式より確実。
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const RANK_COLOR = { spectacular: "var(--spectacular)", good: "var(--good)", fair: "var(--fair)", poor: "var(--poor)" };
 // 凡例に出す言葉。sorami-core の汎用ラベル（絶景／良好／平凡／不向き）は
 // 「事務的な語だと点数が何を意味するのか伝わらない」という理由で画面に出さない決まりで、
@@ -790,10 +794,62 @@ const store = {
   // 成否を返して呼び出し側に判断させる。
   set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } },
 };
-let place = store.get("sorami.place",
-  { id: "default", name: "東京", subtitle: "東京都", latitude: 35.6812, longitude: 139.7671, terrain: null, elevation: null });
-let favorites = store.get("sorami.favorites", []);
-let sightings = store.get("sorami.sightings", []);
+// お気に入りは、内蔵スポットと同じ項目を自分で付けられる。
+// terrain は表示用ではない。sorami-core の needsProfile（鉛直分布を取るか）と、
+// 雲海・霧氷の対象判定に使われる。ここで選び間違えると点数が変わる。
+const TERRAINS = [
+  ["",           "選ばない（標高で判定）"],
+  ["summit",     "山頂・尾根"],
+  ["basinRim",   "盆地や谷を見下ろす高台"],
+  ["basinFloor", "盆地・谷の底"],
+  ["plain",      "平地"],
+  ["coast",      "海岸"],
+];
+
+// 取り込んだものを信用しない。書き出しファイルは手で編集できるし、
+// これから同期でサーバー越しにも同じ形が入ってくる。
+// 描画側のエスケープと二重にするのは、どちらか一方だけだと
+// 新しい描画箇所を足したときに素通りするため。
+const isText = (v) => typeof v === "string" && v.length <= 2000;
+function cleanSighting(r) {
+  if (!r || typeof r !== "object" || !isText(r.id) || !r.id) return null;
+  if (!S.PHENOMENA[r.phenomenon]) return null;            // 知らない現象は描けない
+  if (!Number.isFinite(r.peak)) return null;              // 日付が無いと並べられない
+  return { ...r, placeName: isText(r.placeName) ? r.placeName : "",
+    outcome: isText(r.outcome) ? r.outcome : "unchecked",
+    score: Number.isFinite(r.score) ? r.score : 0 };
+}
+function cleanFavorite(f) {
+  if (!f || typeof f !== "object" || !isText(f.id) || !f.id) return null;
+  if (!Number.isFinite(f.latitude) || !Number.isFinite(f.longitude)) return null;
+  return { ...f, name: isText(f.name) && f.name ? f.name : "名称未設定",
+    subtitle: isText(f.subtitle) ? f.subtitle : "",
+    note: isText(f.note) ? f.note : "",
+    terrain: TERRAINS.some(([v]) => v === f.terrain) && f.terrain ? f.terrain : null,
+    elevation: Number.isFinite(f.elevation) ? f.elevation : null,
+    phenomena: Array.isArray(f.phenomena) ? f.phenomena.filter((p) => S.PHENOMENA[p]) : [] };
+}
+
+const DEFAULT_PLACE = { id: "default", name: "東京", subtitle: "東京都",
+  latitude: 35.6812, longitude: 139.7671, terrain: null, elevation: null };
+// 地点も壊れうる。座標が数値でなければ既定へ戻す（座標が無いと予報を取りに行けない）。
+let place = (() => {
+  const p = store.get("sorami.place", DEFAULT_PLACE);
+  if (!p || typeof p !== "object" || !Number.isFinite(p.latitude) || !Number.isFinite(p.longitude)) {
+    return { ...DEFAULT_PLACE };
+  }
+  return { ...p, name: typeof p.name === "string" && p.name ? p.name : DEFAULT_PLACE.name,
+    subtitle: typeof p.subtitle === "string" ? p.subtitle : "" };
+})();
+// 読み込み時にも同じ検査を通す。localStorage は壊れうる（取り込みの途中失敗、
+// 別タブとの競合、これから足す同期の不具合、手で書き換えられた場合）。
+// 実際、null が混ざった配列で描画が3箇所落ちることを確認した（2026-09-07）。
+const cleanList = (key, fn) => {
+  const raw = store.get(key, []);
+  return Array.isArray(raw) ? raw.map(fn).filter(Boolean) : [];
+};
+let favorites = cleanList("sorami.favorites", cleanFavorite);
+let sightings = cleanList("sorami.sightings", cleanSighting);
 
 // 一覧の並び。既定の「標準」は現象の固定順で、日をまたいでも行が動かない。
 // いつも同じ場所を見れば済むという利点があるので、これを既定から外さない。
@@ -1725,13 +1781,20 @@ function renderRecords(now, pendingHidden) {
 
   const LABEL = Object.fromEntries(
     [...S.RECORD_OUTCOMES.quality, ...S.RECORD_OUTCOMES.occurrence]);
+  // 記録は読み込みで外から入ってくる。**外から来た文字をそのまま HTML へ入れない。**
+  // `s.outcome` を素で埋めていたため、細工した JSON を読み込ませると任意の HTML が動いた
+  // （2026-09-07 に実際に発火することを確認）。知らない現象は描かない（描くと落ちる）。
   $("recList").innerHTML = `<div class="section-h" style="margin-top:14px"><h2>これまで</h2></div>`
-    + ([...sightings].sort((a, b) => b.peak - a.peak).slice(0, 30).map((s) => `
+    + ([...sightings].sort((a, b) => b.peak - a.peak).slice(0, 30).map((s) => {
+      const meta = S.PHENOMENA[s.phenomenon];
+      if (!meta) return "";
+      return `
     <div class="list-item" style="display:flex;gap:8px;align-items:center">
-      <span>${S.PHENOMENA[s.phenomenon].icon}</span>
+      <span>${meta.icon}</span>
       <span style="flex:1"><strong style="font-size:0.81rem">${S.JstCal.monthDay(s.peak)} ${esc(s.placeName)}</strong>
-        <div class="tiny">${S.PHENOMENA[s.phenomenon].name} ・ ${Math.round(s.score)}点</div></span>
-      <span class="badge" style="background:var(--line)">${LABEL[s.outcome] ?? s.outcome}</span></div>`).join("")
+        <div class="tiny">${meta.name} ・ ${Math.round(s.score) || 0}点</div></span>
+      <span class="badge" style="background:var(--line)">${esc(LABEL[s.outcome] ?? s.outcome)}</span></div>`;
+    }).join("")
     || `<p class="tiny" style="padding:8px 0">その回が終わると「実際はどうでしたか？」が出ます。</p>`);
 }
 
@@ -1797,17 +1860,6 @@ function selectPlace(p) {
   selectedDay = {};
   load(true);
 }
-// お気に入りは、内蔵スポットと同じ項目を自分で付けられる。
-// terrain は表示用ではない。sorami-core の needsProfile（鉛直分布を取るか）と、
-// 雲海・霧氷の対象判定に使われる。ここで選び間違えると点数が変わる。
-const TERRAINS = [
-  ["",           "選ばない（標高で判定）"],
-  ["summit",     "山頂・尾根"],
-  ["basinRim",   "盆地や谷を見下ろす高台"],
-  ["basinFloor", "盆地・谷の底"],
-  ["plain",      "平地"],
-  ["coast",      "海岸"],
-];
 // sorami-core の閾値の写し。ずれると説明が嘘になるので test-layout.mjs で突き合わせている。
 //   雲海 T.seaOfClouds.minElevation = 250 ／ 霧氷 T.rime.minElevation = 500
 const MIN_ELEV = { seaOfClouds: 250, rime: 500 };
@@ -2106,16 +2158,22 @@ $("importFile").onchange = async (e) => {
       for (const rec of add) if (rec && rec.id) byId.set(rec.id, rec);
       return [...byId.values()];
     };
-    sightings = merge(sightings, incoming);
+    const goodRecs = incoming.map(cleanSighting).filter(Boolean);
+    const goodFavs = incomingFav.map(cleanFavorite).filter(Boolean);
+    const dropped = (incoming.length - goodRecs.length) + (incomingFav.length - goodFavs.length);
+    sightings = merge(sightings, goodRecs);
     const okay = store.set("sorami.sightings", sightings);
-    if (incomingFav.length) {
-      favorites = merge(favorites, incomingFav);
+    if (goodFavs.length) {
+      favorites = merge(favorites, goodFavs);
       store.set("sorami.favorites", favorites);
     }
     if (!okay) throw new Error("保存できませんでした（プライベートブラウズか容量超過）");
     render();   // 押下の配線と画面の出し分けごとやり直す
-    alert(`記録 ${incoming.length}件・お気に入り ${incomingFav.length}件を読み込みました`
-      + `（合計 記録 ${sightings.length}件・お気に入り ${favorites.length}件）`);
+    // 落としたものは黙って捨てない。何件・なぜ捨てたか分からないと、
+    // 「読み込んだのに入っていない」が事故に見える。
+    alert(`記録 ${goodRecs.length}件・お気に入り ${goodFavs.length}件を読み込みました`
+      + `（合計 記録 ${sightings.length}件・お気に入り ${favorites.length}件）`
+      + (dropped ? `\n形式が合わない ${dropped}件は取り込みませんでした。` : ""));
   } catch (err) {
     alert("読み込めませんでした: " + err.message);
   }
