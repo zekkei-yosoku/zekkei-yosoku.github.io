@@ -20,19 +20,39 @@ const coreSrc = fs.readFileSync(new URL("./sorami-core.js", import.meta.url), "u
 // コメント内の文言を拾わないよう、判定前に /* */ を落とす。
 const code = html.replace(/\/\*[\s\S]*?\*\//g, "");
 
-console.log("== sticky を使わない ==");
-// 右ペインを sticky にしていたとき、包含ブロックが記録カードの行まで伸び、
-// スクロールすると週間の行が記録カードの上に描画された（551点中361点が被覆）。
-ok(!/position:\s*sticky/.test(code), "レイアウトに position: sticky が無い");
+console.log("== sticky が別の要素へ被らない ==");
+// 2026-09-07: 「sticky を一切使わない」から「使ってよいが被らせない」へ変更。
+// 14日マトリクスは横スクロールするので、現象名の列を残すには sticky が要る。
+//
+// 元の禁止は、右ペインを sticky にしたとき包含ブロックが記録カードの行まで伸び、
+// スクロールで週間の行が記録カードの上に描画された事故（551点中361点が被覆）から来ている。
+// 守るべきはその事故であって、sticky という手段そのものではない。
+// 同じ事故が起きない条件を直接検査する。
+const stickyUses = [...code.matchAll(/([.#][\w-]+)[^{]*\{[^}]*position:\s*sticky/g)].map((m) => m[1]);
+ok(stickyUses.every((sel) => sel === ".mxrail"),
+  "sticky を使うのはマトリクスの現象名の列だけ", stickyUses.join(" "));
+// 記録画面では一覧ごと隠すので、sticky な要素が記録カードへ被る経路が無い。
+ok(/\$\("listView"\)\.hidden = inDetail \|\| inRecords/.test(html),
+  "記録画面では一覧（sticky を含む）を隠す");
 
-console.log("== 現象ごとにカードを分ける ==");
-// 7現象×7日をひとつの表にしていたが、49個の数字を凡例と照らし合わせて読む形で、
-// 「見に行くか」を決める道具になっていなかった。
-ok(!/renderMatrix/.test(html), "ひとつの表にまとめていない");
-ok(/function renderPhenomenonCards/.test(html), "現象ごとのカードを描く");
+console.log("== 日付の軸は1本、現象ごとに枠を持つ ==");
+// 2026-09-07: 「現象ごとのカード」から「1本の日付軸のマトリクス」へ変更。
+//
+// 元の形は、7現象×7日をひとつの表にして 49個の数字を凡例と照らし合わせて読ませ、
+// 「見に行くか」を決める道具になっていなかったことへの反省だった。
+// ただし現象ごとにカードを分けると横スクロールが7本に割れ、
+// 日付の列が揃わないので「土曜はどれも良い」が読めなくなっていた。
+//
+// 今の形は両方を満たす: 日付の軸は1本、行は現象ごとに枠を持ち、
+// 良し悪しは数字ではなく地の色で示す（凡例と照合させない）。
+ok(/function renderMatrix/.test(html), "1本の日付軸で描く");
+ok(!/function renderPhenomenonCards/.test(html), "現象ごとの独立した横スクロールは無い");
 ok(/id="cards"/.test(html), "#cards がある");
-// 色や数字を覚えなくても、どの日がいいかが棒の高さで分かる。
-ok(/30 \* ev\.score \/ 100/.test(html), "日の良し悪しを棒の高さで示す");
+ok((html.match(/class="mxhead"/g) || []).length === 1, "日付の見出しは1本だけ");
+ok(/class="mxrow"/.test(html), "現象ごとに枠を持つ（バラだけど、ひとまとまり）");
+// 色や数字を覚えなくても、どの日がいいかが地の色で分かる。
+ok(/function cellTint/.test(html), "日の良し悪しを地の色で示す");
+ok(/const CELL_RAMP/.test(html), "色は評価4段ではなく点数の連続で決める");
 // 2026-09-06: 共通描画へ移し、一覧はdata-cell、詳細はdata-dayを使う。
 // ボタンであることは生成したHTMLで検証する。
 const { runInNewContext } = await import("node:vm");
@@ -143,7 +163,13 @@ ok(!/detail-wrap/.test(html), "詳細を2列に分けていない");
 console.log("== 光の時間を出す ==");
 // 写真を撮りに行くなら、点数より先に要る情報。
 ok(/function renderLightTimes/.test(html), "renderLightTimes がある");
-ok(/renderLightTimes\(sel\.dayMs, now\)/.test(html), "選んだ日の光の時間を出す");
+ok(/renderLightTimes\(sel\.dayMs, now, id\)/.test(html), "選んだ日と現象の光の時間を出す");
+// 2026-09-07: 表から帯へ。朝夕2列×3行の数字を頭で1日に組み直す必要があった。
+ok(/class="lt-band"/.test(html), "1日を1本の帯で描く");
+ok(/TL_SPAN = 27 \* 3600000/.test(html),
+  "軸は0〜27時（夜の見ごろは暦の上では翌日になるため）");
+ok(/function moonEvents/.test(html) && /MOON_H0 = 0\.125/.test(html),
+  "月の出・月の入りを出す（判定高度は大気差・地平視差・視半径の合成）");
 ok(/lightWindows/.test(html), "太陽の高度から求めている");
 const core2 = fs.readFileSync(new URL("./sorami-core.js", import.meta.url), "utf8");
 // 写真分野の標準的な定義。ゴールデン −4°〜+6°、ブルー −6°〜−4°。
@@ -226,9 +252,15 @@ ok(coreMod.Cal.monthDay(Date.UTC(2026, 0, 3, 3)) === "01/03", "月日は0埋め�
 ok(/padStart\(2, "0"\)\}\/\$\{String\(d\.getUTCDate\(\)\)\.padStart/.test(coreSrc),
   "monthDay 側で0埋めしている（表示ごとに書かない）");
 // 記号の意味は、初めて目に入る場所で1度だけ言う。
-ok(/数字は点数、/.test(html), "一覧の先頭に凡例がある");
-ok(/g-inline/.test(html), "凡例でも日のボタンと同じ見た目を見せる");
-ok((html.match(/数字は点数、/g) || []).length === 1, "凡例はカードごとに繰り返さない");
+// 2026-09-07: 凡例は「数字は点数、A/B/C は信頼度です。」の一文から、
+// 期待薄→絶景の色帯へ変わった（色で良し悪しを示す形にしたため）。
+ok(/class="mxlegend"/.test(html), "一覧に凡例がある");
+ok((html.match(/class="mxlegend"/g) || []).length === 1, "凡例は行ごとに繰り返さない");
+ok(/期待薄<\/b>.*絶景/s.test(html), "色帯の両端を言葉で示す");
+// RANKS の汎用ラベル（絶景／良好／平凡／不向き）は事務的で点数の意味が伝わらないため
+// 画面に出さない決まり。最下段は全7現象とも「期待薄」。
+ok(!/不向き<\/b>|>不向き</.test(html), "汎用ラベル「不向き」を画面に出さない");
+ok(/g-inline/.test(html), "凡例でも実物と同じ見た目を見せる");
 ok(/class="grade"/.test(html), "詳細の見出しにも等級を出す");
 ok(/A・B・C<\/strong> は信頼度/.test(html), "等級の意味を画面で説明している");
 

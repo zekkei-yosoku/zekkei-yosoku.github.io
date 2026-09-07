@@ -20,16 +20,20 @@
      以前はライトモードで 良好 2.60・平凡 2.42・補助文 2.21 と、
      大きな文字の基準 3.0 すら下回っていた。 */
   :root {
-    --bg: #f4f4f6; --card: #ffffff; --text: #1c1c1e; --secondary: #6e6e73; --tertiary: #76767c;
-    --accent: #ba5d0d; --line: rgba(0,0,0,.08);
-    --spectacular: #d83946; --good: #ba5d0d; --fair: #8d721b; --poor: #767676;
-    --red: #d0342c; --orange: #d98a1f;
+    --bg: #f4f4f6; --card: #ffffff; --text: #1c1c1e; --secondary: #6e6e73; --tertiary: #6b6b71;
+    --accent: #a04f09; --line: rgba(0,0,0,.08);
+    --spectacular: #c62c3c; --good: #a04f09; --fair: #7d6516; --poor: #6a6a6a;
+    --red: #d0342c; --orange: #8f6410;
+    /* 差し色を地にしたときに載せる文字。ライトは白で 5.81:1 だが、
+       ダークの差し色は明るい橙なので、白だと 2.60:1 まで落ちる。 */
+    --on-accent: #ffffff;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #000; --card: #1c1c1e; --text: #f2f2f7; --secondary: #98989f; --tertiary: #838386;
+    :root { --bg: #000; --card: #1c1c1e; --text: #f2f2f7; --secondary: #98989f; --tertiary: #93939a;
             --line: rgba(255,255,255,.1);
-            --accent: #f08529; --spectacular: #de5762; --good: #f08529; --fair: #d4b247;
-            --poor: #8c8c8c; --red: #db5b54; }
+            --accent: #f08529; --spectacular: #e97180; --good: #f08529; --fair: #d4b247;
+            --poor: #9a9a9a; --red: #db5b54; --orange: #d98a1f;
+            --on-accent: #1b1206; }
   }
   * { box-sizing: border-box; margin: 0; }
   body { font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
@@ -53,9 +57,11 @@
   #sortRow label { font-size: 0.72rem; color: var(--tertiary); }
   /* ネイティブの select を使う。OS の選択UIがそのまま出るほうが片手で速い。
      appearance を消すと矢印まで消えるので、自前で1つだけ描く。 */
-  #sortSelect { appearance: none; -webkit-appearance: none;
+  /* select は置換要素で ::after が描かれず、.tap（当たり判定を広げる仕組み）が効かない。
+     指の的として 44px を実寸で確保する。 */
+  #sortSelect { appearance: none; -webkit-appearance: none; min-height: 44px;
                 font-size: 0.75rem; color: var(--text); background: var(--card);
-                border: none; border-radius: 8px; padding: 6px 26px 6px 10px;
+                border: none; border-radius: 10px; padding: 6px 28px 6px 12px;
                 background-image: linear-gradient(45deg, transparent 50%, var(--secondary) 50%),
                                   linear-gradient(135deg, var(--secondary) 50%, transparent 50%);
                 background-position: right 12px center, right 7px center;
@@ -235,7 +241,7 @@
   .outcome { display: flex; gap: 8px; }
   .outcome button { flex: 1; text-align: center; font-size: 0.81rem; font-weight: 500; padding: 9px 0;
                     border-radius: 9px; background: var(--line); }
-  .outcome button.on { background: var(--accent); color: #fff; }
+  .outcome button.on { background: var(--accent); color: var(--on-accent); }
 
   dialog { border: none; border-radius: 16px; background: var(--card); color: var(--text);
            width: min(92vw, 480px); max-height: 82vh; padding: 0; }
@@ -247,7 +253,7 @@
     border: 1px solid var(--line); background: var(--bg); color: var(--text); }
   .chips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0; }
   .chips button { flex: none; font-size: 0.75rem; font-weight: 500; padding: 5px 11px; border-radius: 999px; background: var(--line); }
-  .chips button.on { background: var(--accent); color: #fff; }
+  .chips button.on { background: var(--accent); color: var(--on-accent); }
   .list-item { display: block; width: 100%; text-align: left; padding: 9px 2px; border-top: 1px solid var(--line); }
   /* スポットのカテゴリ見出し。「絶景スポット」の見出しと競わない程度の強さにする。 */
   .spot-cat { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
@@ -272,6 +278,123 @@
   .bins .bar .seg:only-child { border-radius: 5px; }
   a { color: var(--accent); }
 
+  /* ============================================================
+     移植1: 14日 × 現象のマトリクス
+     現象ごとのカードは横スクロールが7本に分かれ、日付の列が揃わない。
+     軸を1本にすると、良い日が【縦の列】として見える。
+     ============================================================ */
+  :root { --sunk: #f2f3f5; --rail: 84px; --cell: 40px; }
+  @media (prefers-color-scheme: dark) { :root { --sunk: #26262a; } }
+
+  .mxscroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin;
+              -webkit-overflow-scrolling: touch; padding-bottom: 4px; margin-top: 8px; }
+  /* 現象ごとに枠を持たせたうえで、外側の1枚のカードでくくる。
+     「バラだけど、ひとまとまり」を形で示す。
+     日付の軸は1本のままなので、縦に見れば同じ日を比べられる。 */
+  .mxstack { display: flex; flex-direction: column; gap: 7px;
+             width: max-content; min-width: 100%; padding-right: 16px; }
+  .mxhead, .mxrow { display: grid; gap: 4px;
+                    grid-template-columns: var(--rail) repeat(var(--days), var(--cell)); }
+  .mxrow { border: 1px solid var(--line); border-radius: 13px; padding: 6px 5px 7px 0;
+           align-items: center; }
+  /* 現象名の列は横スクロールしても残す。
+     地は【角丸なし・行の隙間まで覆う】。角丸にすると角の外が透け、
+     行と行の隙間（7px）ではスクロールしてきたセルが左へ抜けて見えていた。 */
+  .mxrail { position: sticky; left: 0; z-index: 2; background: var(--card);
+            padding-left: 16px; display: flex; align-items: center; gap: 5px;
+            font-size: 0.78rem; font-weight: 700; }
+  .mxhead .mxrail { margin-bottom: -7px; }              /* 見出しと1行目の隙間 */
+  .mxrow .mxrail { align-self: stretch; padding-left: 17px;
+                   margin: -7px 0 -15px -1px; }         /* 上: padding+枠線 / 下: それ＋隙間 */
+  /* 枠の左辺。地が枠の左側を覆っているので、地の右端に線を引いて枠を閉じる。
+     線は【地の側】に置く（枠の側に置くと、横スクロールで地から離れていく）。
+     上下の位置は負のマージンぶんだけ戻して、枠の高さにぴったり合わせる。 */
+  .mxrow .mxrail::before { content: ""; position: absolute; right: 0; top: 7px; bottom: 15px;
+                           border-right: 1px solid var(--line); }
+  .mxrail::after { content: ""; position: absolute; right: -10px; top: 0; bottom: 0; width: 10px;
+                   background: linear-gradient(90deg, var(--card), transparent); pointer-events: none; }
+  .mxrail .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dhead { display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+           font-size: 0.63rem; color: var(--tertiary); line-height: 1.25; padding-bottom: 3px; }
+  /* 14列だと mm/dd が隣とくっつく。字間だけ詰める（0埋めは崩さない） */
+  .dhead .d { font-weight: 700; font-size: 0.67rem; letter-spacing: -.03em;
+              color: var(--secondary); font-variant-numeric: tabular-nums; }
+  .dhead.sat .d { color: #2f6fb5; } .dhead.sun .d { color: var(--red); }
+  .dhead.today .d { color: var(--accent); }
+  @media (prefers-color-scheme: dark) { .dhead.sat .d { color: #6ba6e0; } }
+
+  /* 良し悪しは【セルの地の色】で示す。色は 期待薄→絶景 の連続グラデーション
+     （凡例の帯と同じ並び）なので、塗りの高さや棒で重ねて言う必要がない。
+     棒を置くとセルが縦に伸びるぶん、表全体が長くなる。
+     信頼度を線の長さで示すのは読み取れなかったので A/B/C の文字へ戻した。
+     地の濃さは、上に載る文字が本文基準（4.5:1）を保てる範囲で決めている。 */
+  .cell { position: relative; height: 42px; border-radius: 9px; overflow: hidden;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 2px; padding: 4px 3px; background: var(--sunk);
+          font-size: 0.72rem; font-weight: 700; }
+  .cell .v { line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
+  /* 「78 C」と横に並べると数字の続きに見えるので、行を分けて枠で囲む（現行と同じ扱い）。 */
+  /* 地に色が乗るので、上の文字は本文色で通す。補助色にすると濃い地で 2:1 まで落ちる。 */
+  .cell .g { font-size: 0.56rem; font-weight: 700; color: var(--text); line-height: 1.4;
+             border: 1px solid color-mix(in srgb, var(--text) 30%, transparent);
+             border-radius: 4px; padding: 0 3px; }
+  .cell.next { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .cell.void { background: transparent; border: 1px dashed var(--line); }
+  .cell:active { background: color-mix(in srgb, var(--text) 14%, transparent); }
+  @media (hover: hover) { .cell:hover { box-shadow: inset 0 0 0 1.5px var(--line); }
+                          .cell.next:hover { box-shadow: inset 0 0 0 1.5px var(--accent); } }
+  .cell:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+  .mxlegend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.66rem;
+              color: var(--tertiary); padding: 8px 2px 0; }
+  .mxlegend .ramp { display: inline-flex; align-items: center; gap: 5px; }
+  .mxlegend .ramp i { display: block; width: 76px; height: 12px; border-radius: 3px; }
+  .mxlegend .ramp b { font-weight: 600; color: var(--secondary); }
+  .g-inline { font-weight: 700; border: 1px solid var(--line); border-radius: 4px; padding: 0 3px;
+              color: var(--secondary); }
+  .mxout { padding: 8px 2px 0; }
+  .mxout summary { list-style: none; cursor: pointer; font-size: 0.7rem; color: var(--tertiary); }
+  .mxout summary::-webkit-details-marker { display: none; }
+  .mxout summary::before { content: "▸ "; }
+  .mxout[open] summary::before { content: "▾ "; }
+  .mxout li { font-size: 0.7rem; color: var(--tertiary); margin-top: 4px; list-style: none; }
+
+  /* ============================================================
+     移植2: 光の時間の帯（詳細の中）
+     朝夕2列×3行の表は、数字を読んで頭で1日に組み直す必要があった。
+     1日を1本の帯にして、実際の時刻で色を切り替える。
+     ============================================================ */
+  .lt-band { position: relative; height: 40px; border-radius: 9px; overflow: hidden; margin-top: 6px; }
+  .lt-now { position: absolute; top: 0; bottom: 0; width: 2px;
+            background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+  /* 月が地平線より上にいる時間。濃さは照らされている割合。
+     星空は月明かりで決まるので、時刻の数字より先に形で見せる。 */
+  .lt-moon { position: absolute; left: 0; right: 0; bottom: 0; height: 7px; }
+  .lt-moon i { position: absolute; top: 0; bottom: 0; background: #fff8e0; border-radius: 2px; }
+  .lt-moon b { position: absolute; bottom: 8px; transform: translateX(-50%);
+               font-size: 0.8rem; line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+  .lt-marks { position: relative; height: 30px; margin-top: 2px; }
+  .lt-mk { position: absolute; top: 0; transform: translateX(-50%);
+           display: flex; flex-direction: column; align-items: center; gap: 1px;
+           font-size: 0.61rem; color: var(--secondary); white-space: nowrap;
+           font-variant-numeric: tabular-nums; }
+  .lt-mk .tick { width: 1px; height: 6px; background: var(--line); }
+  .lt-mk .ic { font-size: 0.88rem; line-height: 1; }
+  .lt-axis { display: flex; justify-content: space-between; font-size: 0.62rem;
+             color: var(--tertiary); margin-top: 2px; }
+  /* 凡例は【2段】に固定する。1段目が太陽と月の時刻、2段目がゴールデンとブルー。
+     幅が広がってもゴールデンが1段目へ上がらないよう、段ごとに入れ物を分ける。
+     段の中は幅が足りなければ折り返す。 */
+  .lt-legend { display: flex; flex-direction: column; gap: 4px; margin-top: 8px;
+               font-size: 0.66rem; color: var(--tertiary); }
+  .lt-row { display: flex; flex-wrap: wrap; gap: 2px 14px; }
+  .lt-legend b { font-weight: 600; color: var(--secondary); }
+  .lt-legend .li { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .lt-legend .li .ic { font-size: 0.85rem; line-height: 1; }
+  /* ゴールデン／ブルーは長いので、狭い画面では見出しと時刻で改行させる。
+     時刻そのものは割らない。 */
+  .lt-legend .li.pair { flex-wrap: wrap; white-space: normal; row-gap: 0; }
+  .lt-legend .li.pair > b, .lt-legend .li.pair > .v { white-space: nowrap; }
+
   /* 広い画面。列を1本のまま少しだけ広げる。
      ここは【基本ルールより後ろに置く】。同じ詳細度なら後勝ちなので、
      前に置くと基本ルールに打ち消される（見出しの text-align が実際にそうなっていた）。 */
@@ -279,6 +402,10 @@
     main { max-width: 680px; }
     /* 680px あれば数値表（約539px）は収まるので横スクロールを出さない */
     .scrollx { overflow-x: visible; }
+    /* 14日ぶんも収まる（84 + 14列 + 隙間39 = 652px）。横スクロールを出さない。 */
+    .mxscroll { overflow-x: visible; }
+    .mxstack { width: auto; padding-right: 0; }
+    .mxhead, .mxrow { grid-template-columns: var(--rail) repeat(var(--days), minmax(0,1fr)); }
     table.numbers { width: 100%; }
   }
 </style>
@@ -363,14 +490,55 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260907012422"></script>
-<script src="sorami-core.js?v=20260907012422"></script>
+<script src="spots.js?v=20260907110353"></script>
+<script src="sorami-core.js?v=20260907110353"></script>
 <script>
 "use strict";
 const S = window.Sorami;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const RANK_COLOR = { spectacular: "var(--spectacular)", good: "var(--good)", fair: "var(--fair)", poor: "var(--poor)" };
+// 凡例に出す言葉。sorami-core の汎用ラベル（絶景／良好／平凡／不向き）は
+// 「事務的な語だと点数が何を意味するのか伝わらない」という理由で画面に出さない決まりで、
+// 全7現象の最下段は「期待薄」で統一されている。凡例もその語に合わせる。
+// 上端だけは現象ごとに違う（圧巻／満天／大雲海／好条件／見頃）ので、
+// 一つに束ねる語としてアプリ名と同じ「絶景」を使う。
+// マトリクスのセルの地。点数を【連続の色】にする。
+//
+// 評価は4段だが点数は連続なので、4色だけだと 41点と64点が同じ色になる。
+// 隣り合う評価色の間を点数で補間し、濃さも 8%→34% で上げる。
+// 色で「どれくらい期待できるか」、数字で正確な値、という役割分担。
+//
+// 濃さの上限34%は、上に載る点数と信頼度が本文基準（4.5:1）を保てる範囲として
+// 実DOMで測って決めた。ここを上げると先に文字が読めなくなる。
+const CELL_RAMP = [
+  [0,  "--poor"], [40, "--fair"], [65, "--good"], [85, "--spectacular"], [100, "--spectacular"],
+];
+// 点数の色（単色）。評価色の間を点数で補間し、濃さも上げる。
+function cellTint(score, past = false) {
+  const v = Math.max(0, Math.min(100, score));
+  let i = 0;
+  while (i < CELL_RAMP.length - 2 && v >= CELL_RAMP[i + 1][0]) i++;
+  const [s0, c0] = CELL_RAMP[i], [s1, c1] = CELL_RAMP[i + 1];
+  const t = s1 === s0 ? 0 : (v - s0) / (s1 - s0);
+  const hue = c0 === c1 ? `var(${c0})`
+    : `color-mix(in srgb, var(${c1}) ${(t * 100).toFixed(1)}%, var(${c0}))`;
+  // 10%〜58%。上限58%は、上に載る文字（var(--text)）がライト・ダークの両方で
+  // 4.5:1 を保てる限界として実測した値（ダークの橙が先に頭打ちになる）。
+  // 直線だと中盤（40〜70点）が沈むので、指数0.75で立ち上がりを速くする。
+  // 終わった回は色を薄くして下げる（文字を薄くすると、押せる要素の基準を割るため）。
+  const strength = ((10 + 48 * Math.pow(v / 100, 0.75)) * (past ? 0.42 : 1)).toFixed(1);
+  return `color-mix(in srgb, ${hue} ${strength}%, var(--sunk))`;
+}
+
+// セルの地は【単色】。
+// 色そのものが 期待薄→絶景 の連続グラデーションになっているので、
+// 塗りの高さでも同じことを言うと、同じ情報を2回描くことになる。
+// 色で「どれくらい期待できるか」、数字で正確な値、A/B/C でその確からしさ。
+const cellBg = (score, past = false) => cellTint(score, past);
+// 凡例。セルと同じ式から作る（凡例と実物が食い違わないように）。
+const rampGradient = () =>
+  `linear-gradient(90deg, ${[0, 20, 40, 52, 65, 75, 85, 100].map((v) => cellTint(v)).join(",")})`;
 
 // 「信頼度中 62–85」だけでは何のことか伝わらない。
 // 何が・どれだけ・なぜ不確かなのかを、そのまま言葉にする。
@@ -618,13 +786,26 @@ function render() {
   }
   $("placeSub").textContent = subParts.join(" ・ ");
 
-  // 次の見どころ: 36時間以内・評価済み・未来の回のうち最高スコア
+  // 次の見どころ。14日ぶん全部から探す。
+  //
+  // 36時間以内に絞っていた時期があるが、ほとんどの日は該当が無く
+  // 「本日の絶景はなさそうです」の1行で終わっていた。2日後に良好な日があっても
+  // 言わないので、見に行く日を決める役に立っていなかった。
+  //
+  // ただし点数だけで選ぶと、信頼度Cの7日先が最上位に出る。
+  // 先の予測ほど当たらないので、確からしさで割り引いてから比べる。
+  // 引く量は評価の帯の間隔（20〜25点）を目安にしている。
+  const LEAD_PENALTY = { A: 0, B: 6, C: 16 };
   let best = null;
   for (const [id, entries] of Object.entries(weeks)) {
-    const u = upcoming(entries, now);
-    if (!u || u.evaluation.unavailable) continue;
-    if (u.evaluation.window[1] <= now || u.evaluation.peak > now + 36 * 3600000) continue;
-    if (!best || u.evaluation.score > best.u.evaluation.score) best = { id, u };
+    for (const e of entries) {
+      const ev = e.evaluation;
+      if (!ev || ev.unavailable || ev.window[1] <= now) continue;
+      const merit = ev.score - LEAD_PENALTY[S.reliabilityGrade(ev.confidence, ev.models).key];
+      if (!best || merit > best.merit || (merit === best.merit && ev.peak < best.u.evaluation.peak)) {
+        best = { id, u: e, merit };
+      }
+    }
   }
   // 並び: 見られる見込みのあるものが先 → あとは PHENOMENA.order（似たものが隣）。
   //
@@ -694,7 +875,10 @@ function render() {
         `<option value="${id}">${o.label}</option>`).join("");
     }
     sel.value = sortMode;
-    $("cards").innerHTML = renderPhenomenonCards(order, now);
+    $("cards").innerHTML = renderMatrix(order, now);
+    for (const el of $("bestNote").querySelectorAll("[data-cell]")) {
+      el.onclick = () => { const [id, d] = el.dataset.cell.split("|"); pick(id, now, +d); };
+    }
     for (const el of $("cards").querySelectorAll("[data-cell]")) {
       el.onclick = () => {
         const [id, dayMs] = el.dataset.cell.split("|");
@@ -797,29 +981,39 @@ window.addEventListener("hashchange", applyRoute);
 // 以前はカードごと押すとその現象へ飛んでいたが、見た目が情報カードなので
 // 押すつもりのない場所で画面が変わっていた。押せるのは日のボタンだけにする。
 // 1行で「この現象・この日・この評価」を出す。見どころにも、先の予定にも使う。
+function renderBestNote(best, now) {
+  const el = $("bestNote");
+  const ev = best ? best.u.evaluation : null;
+  // 見に行く価値のあるものが無いなら、そう言って終える。
+  // 「なさそうです」と書いた下に期待薄の候補を並べると、見出しと中身が食い違う。
+  // 14日ぶんを見たうえでの結論なので、「本日の」ではなく期間で言う。
+  if (!best || ev.rank.key === "poor") {
+    el.hidden = false;
+    el.innerHTML = `<div class="muted" style="font-size:0.72rem">★ この2週間、見に行くほどの空はありません</div>`;
+    return;
+  }
+  const grade = S.reliabilityGrade(ev.confidence, ev.models);
+  const err = ev.uncertainty && ev.uncertainty.expectedError !== null
+    ? Math.round(ev.uncertainty.expectedError) : null;
+  el.hidden = false;
+  el.innerHTML = `<div class="muted" style="font-size:0.72rem">★ ${HIGHLIGHT_HEAD[ev.rank.key]}</div>`
+    + highlightRow(best.id, best.u.dayMs, ev, now)
+    + `<div style="display:flex;align-items:baseline;gap:10px;margin-top:6px">`
+      + `<span class="muted" style="font-variant-numeric:tabular-nums">${Math.round(ev.score)}`
+      + `${err ? ` <span style="font-weight:400">±${err}</span>` : ""}`
+      + ` <span class="grade" title="${esc(grade.caption)}">${grade.key}</span></span>`
+      // カード全体は押さない（情報カードの見た目で画面が変わるのを避ける現行の判断）。
+      // 代わりに行き先を明示したリンクを1つ置く。
+      + `<button class="tap" data-cell="${best.id}|${best.u.dayMs}" style="margin-left:auto;color:var(--accent);font-size:0.78rem;font-weight:700">詳細を見る →</button>`
+    + `</div>`;
+}
+
 function highlightRow(id, dayMs, ev, now) {
   const color = RANK_COLOR[ev.rank.key];
   return `<div style="margin-top:3px"><span style="font-size:1.19rem">${S.PHENOMENA[id].icon}</span>
     <strong style="margin-left:4px">${S.PHENOMENA[id].name}</strong>
     <span class="muted">${S.JstCal.relativeDay(dayMs, now)}${ev.specificTime === false ? "" : " " + S.JstCal.hhmmRounded(ev.peak)}</span>
     ・<span style="color:${color};font-weight:700">${esc(S.phrasing(id, ev.rank).label)}</span></div>`;
-}
-
-function renderBestNote(best, now) {
-  const ev = best ? best.u.evaluation : null;
-  // 見に行く価値のあるものが無い日は、そう言って終わる。
-  // 以前は「めぼしい空はなさそうです」と書いた下に候補を並べていて、
-  // 見出しと中身が食い違っていた。期待薄のものを並べても行き先にならない。
-  // 現象ごとのカードに全部出ているので、ここで代わりを探す必要もない。
-  if (!best || ev.rank.key === "poor") {
-    $("bestNote").hidden = false;
-    $("bestNote").innerHTML =
-      `<div class="muted" style="font-size:0.72rem">★ 本日の絶景はなさそうです</div>`;
-    return;
-  }
-  $("bestNote").hidden = false;
-  $("bestNote").innerHTML = `<div class="muted" style="font-size:0.72rem">★ ${HIGHLIGHT_HEAD[ev.rank.key]}</div>`
-    + highlightRow(best.id, best.u.dayMs, ev, now);
 }
 
 // 現象ごとのカード。
@@ -831,39 +1025,71 @@ function renderBestNote(best, now) {
 //
 // 押せるのは日のボタンだけ。カード全体を押せるようにすると、
 // 情報を読んでいるつもりの場所で画面が変わってしまう。
-function renderPhenomenonCards(order, now) {
-  // 記号の意味は、初めて目に入る場所で1度だけ言う。
-  // カードごとに繰り返すとうるさく、末尾の注記まで読む人は少ない。
-  const legend = `<p class="tiny" style="margin:0 2px 8px">`
-    + `数字は点数、<span class="g-inline">A</span>/<span class="g-inline">B</span>/`
-    + `<span class="g-inline">C</span> は信頼度です。</p>`;
-  return legend + order.map((id) => {
-    const entries = weeks[id];
+// 14日 × 現象のマトリクス（旧: 現象ごとのカード）。
+//
+// 現象ごとにカードを分けると、横スクロールが7本に分かれて日付の列が揃わない。
+// 「土曜はどれも良い」を読むには、7枚それぞれを土曜まで動かす必要があった。
+// 軸を1本にすると、良い日が【縦の列】として浮かぶ。
+//
+// 行の並びは呼び出し元から渡された order をそのまま使う。
+// 並び替えのプルダウンはカード時代と同じものが効く。
+function renderMatrix(order, now) {
+  const live = order.filter((id) => weeks[id] && weeks[id].length
+    && !weeks[id].every((e) => e.evaluation.unavailable));
+  const dead = order.filter((id) => weeks[id] && weeks[id].length
+    && weeks[id].every((e) => e.evaluation.unavailable));
+  if (!live.length) return "";
+  const dayList = weeks[live[0]].map((e) => e.dayMs);
+  const today = S.Cal.startOfDay(now);
+
+  let head = `<div class="mxrail"></div>`;
+  for (const dayMs of dayList) {
+    const wd = S.Cal.weekday(dayMs);
+    const cls = dayMs === today ? "today" : wd === "土" ? "sat" : wd === "日" ? "sun" : "";
+    head += `<div class="dhead ${cls}"><span class="d">${S.Cal.monthDay(dayMs)}</span><span>${wd}</span></div>`;
+  }
+  let rows = "";
+  for (const id of live) {
     const meta = S.PHENOMENA[id];
-    if (!entries || !entries.length) return "";
-    const u = upcoming(entries, now);
-    const allOut = entries.every((e) => e.evaluation.unavailable);
-
-    if (allOut) {
-      // 全日が対象外なら、見に行く日が無い。理由だけ書いて、押せる場所も作らない
-      //（開いても同じ文が出るだけの行き止まりになる）。
-      return `<div class="card">
-        <div class="ph-head"><span class="ic">${meta.icon}</span><span class="nm">${meta.name}</span></div>
-        <div class="ph-out">${esc(entries[0].evaluation.unavailable.message)}</div></div>`;
+    const u = upcoming(weeks[id], now);
+    let grid = `<div class="mxrail"><span>${meta.icon}</span><span class="nm">${esc(meta.name)}</span></div>`;
+    for (const dayMs of dayList) {
+      const e = weeks[id].find((x) => x.dayMs === dayMs);
+      if (!e || e.evaluation.unavailable) { grid += `<div class="cell void"></div>`; continue; }
+      const ev = e.evaluation;
+      // 点数と信頼度は【全部の日に出す】（2026-09-07 ユーザー指定）。
+      // 40点未満を伏せていたが、0点なのか39点なのかは判断に効くし、
+      // 「低いと分かっている」ことと「値が無い」ことは別。地の色は目安、数字が正本。
+      const grade = S.reliabilityGrade(ev.confidence, ev.models);
+      const past = ev.window[1] <= now ? " past" : "";
+      const next = u && e.dayMs === u.dayMs ? " next" : "";
+      grid += `<button class="cell${past}${next}" data-cell="${id}|${dayMs}"
+        style="background:${cellBg(ev.score, !!past)}"
+        title="${esc(meta.name)} ${S.JstCal.relativeDay(dayMs, now)} ${Math.round(ev.score)}点 ${esc(S.phrasing(id, ev.rank).label)} ・ 信頼度${grade.key}（${esc(grade.caption)}）${past ? "（終了）" : ""}">
+        <span class="v">${Math.round(ev.score)}</span>
+        <span class="g" title="${esc(grade.caption)}">${grade.key}</span></button>`;
     }
+    rows += `<div class="mxrow">${grid}</div>`;
+  }
 
-    const uev = u ? u.evaluation : null;
-    const headRight = uev && !uev.unavailable
-      ? `<span class="muted">${S.JstCal.relativeDay(u.dayMs, now)}${uev.specificTime === false ? "" : " " + S.JstCal.hhmmRounded(uev.peak)}</span>
-         ・<span style="color:${RANK_COLOR[uev.rank.key]};font-weight:700">${esc(S.phrasing(id, uev.rank).label)}</span>`
-      : "";
+  // 凡例はセルと同じ式から作る。凡例と実物が違う色だと照合できない。
+  const legend = `<div class="mxlegend">`
+    + `<span class="ramp"><i style="background:${rampGradient()}"></i>`
+      + `<b>期待薄</b><span>→</span><b>絶景</b></span>`
+    + `<span><span class="g-inline">A</span>/<span class="g-inline">B</span>/<span class="g-inline">C</span> は信頼度</span></div>`;
 
-    const days = renderDays(id, entries, now);
+  // 見られない現象は行を作らない。行があると「今日は0点」と読めてしまう。
+  const out = dead.length
+    ? `<details class="mxout"><summary>この地点で見られない現象 ${dead.length}件</summary>`
+      + `<ul style="padding:0;margin:4px 0 0">` + dead.map((id) =>
+          `<li>${S.PHENOMENA[id].icon} <strong>${esc(S.PHENOMENA[id].name)}</strong> — ${
+            esc(weeks[id][0].evaluation.unavailable.message)}</li>`).join("") + `</ul></details>`
+    : "";
 
-    return `<div class="card">
-      <div class="ph-head"><span class="ic">${meta.icon}</span><span class="nm">${meta.name}</span>${headRight}</div>
-      <div class="days">${days}</div></div>`;
-  }).join("");
+  return `<div class="card" style="padding:14px 0 12px">
+    <div class="mxscroll"><div class="mxstack" style="--days:${dayList.length}">
+      <div class="mxhead">${head}</div>${rows}</div></div>
+    <div style="padding:0 16px">${legend}${out}</div></div>`;
 }
 
 // 一覧と詳細で、点数・棒・日付・信頼度の読み方を揃える。
@@ -897,27 +1123,140 @@ function renderDays(id, entries, now, selected = null) {
   }).join("");
 }
 
-// その日の光の時間。写真を撮りに行くなら、点数より先に要る情報。
+// ---------------------------------------------------------------- 光の時間の帯
 //
-// ゴールデンアワー … 太陽高度 −4°〜+6°。低い日差しで色が乗る
-// ブルーアワー     … 太陽高度 −6°〜−4°。空が深い青に沈み、街明かりと釣り合う
-// どちらも写真分野の標準的な定義に合わせている。
-function renderLightTimes(dayMs, now) {
+// 1日を1本の帯にして、夜・薄明・ブルーアワー・ゴールデンアワーを
+// 【実際の時刻】で色分けする。飾りのグラデーションではなく、
+// 停止位置は Sun.eventTime が返す時刻そのもの。
+//
+// 軸は 0〜27時。夜の現象は暦をまたぐ（9/7の星空の見ごろは 9/8 0:28）。
+// 0〜24時で切ると星空が軸から落ちるので、テレビ欄と同じ27時制で描く。
+const PHASE_COLORS = [
+  ["夜", "#0a0f22"], ["天文薄明", "#141c3c"], ["航海薄明", "#1e2a55"],
+  ["ブルーアワー", "#2f3c86"], ["ゴールデンアワー", "#e08a3a"], ["昼", "#79b0e0"],
+];
+function phaseGradient(dayMs, a, b) {
+  const at = (n) => S.Sun.eventTime(n, dayMs, place.latitude, place.longitude);
+  const marks = [
+    [at("astronomicalDawn"), 1], [at("nauticalDawn"), 2], [at("civilDawn"), 3],
+    [at("lowSunDawn"), 4], [at("goldenDawn"), 5],
+    [at("goldenDusk"), 4], [at("lowSunDusk"), 3], [at("civilDusk"), 2],
+    [at("nauticalDusk"), 1], [at("astronomicalDusk"), 0],
+  ].filter(([t]) => t !== null);
+  if (!marks.length) return null;
+  const p = (ms) => ((ms - a) / (b - a)) * 100;
+  const stops = [`${PHASE_COLORS[0][1]} ${(p(marks[0][0]) - 6).toFixed(1)}%`];
+  for (const [t, ph] of marks) stops.push(`${PHASE_COLORS[ph][1]} ${p(t).toFixed(1)}%`);
+  return `linear-gradient(90deg, ${stops.join(",")})`;
+}
+
+const TL_SPAN = 27 * 3600000;
+
+// 月の出・月の入り。
+// sorami-core の Moon は高度しか返さないので、ここで高度の符号が変わる時刻を探す。
+// 判定高度は +0.125°（大気差 −34′、地平視差 +57′、視半径 −16′ の合成）。
+// 太陽と違って月は毎日約50分ずれるので、日をまたいで出ない日・入らない日がある。
+const MOON_H0 = 0.125;
+function moonEvents(startMs, spanMs) {
+  const alt = (t) => S.Moon.state(t, place.latitude, place.longitude).elevation - MOON_H0;
+  const cross = (a, b) => {          // 符号が変わる区間を二分法で詰める
+    for (let i = 0; i < 22; i++) {
+      const m = (a + b) / 2;
+      if (alt(a) * alt(m) <= 0) b = m; else a = m;
+    }
+    return (a + b) / 2;
+  };
+  const step = 600000;               // 10分刻み。月は最速でも1時間に約15°しか動かない
+  const spans = [];
+  let prev = alt(startMs), rise = prev > 0 ? startMs : null;
+  let firstRise = null, firstSet = null;
+  for (let t = startMs + step; t <= startMs + spanMs; t += step) {
+    const cur = alt(t);
+    if (prev < 0 && cur >= 0) { rise = cross(t - step, t); if (firstRise === null) firstRise = rise; }
+    if (prev > 0 && cur <= 0) {
+      const set = cross(t - step, t);
+      if (firstSet === null) firstSet = set;
+      if (rise !== null) spans.push([rise, set]);
+      rise = null;
+    }
+    prev = cur;
+  }
+  if (rise !== null) spans.push([rise, startMs + spanMs]);
+  const mid = S.Moon.state(startMs + spanMs / 2, place.latitude, place.longitude);
+  return { rise: firstRise, set: firstSet, spans,
+           illuminated: mid.illuminatedFraction, age: mid.age };
+}
+
+// 月齢を満ち欠けの絵文字にする。朔望月は 29.53 日。
+// 数値と呼び名は title に置いて、画面には形だけ出す。
+const MOON_FACES = [
+  [1.0, "🌑", "新月"], [6.4, "🌒", "三日月"], [8.4, "🌓", "上弦"], [13.2, "🌔", "十日夜"],
+  [16.3, "🌕", "満月"], [21.1, "🌖", "居待月"], [23.1, "🌗", "下弦"], [28.5, "🌘", "有明月"],
+  [29.6, "🌑", "新月"],
+];
+const moonFace = (age) => MOON_FACES.find(([m]) => age < m) || MOON_FACES[MOON_FACES.length - 1];
+
+// その日の光の時間。撮りに行くなら点数より先に要る情報なので、詳細では上のほうに置く。
+//
+// 表で出していたが、朝夕2列×3行の数字を読んで頭で1日に組み直す必要があった。
+// 1日を1本の帯にして、夜・薄明・ブルーアワー・ゴールデンアワーを
+// 【実際の時刻】で色分けする。停止位置は Sun.eventTime が返す時刻そのもの。
+//
+// 軸は 0〜27時。夜の現象は暦をまたぐ（9/7の星空の見ごろは 9/8 0:28）。
+// 0〜24時で切ると星空が軸から落ちるので、テレビ欄と同じ27時制で描く。
+function renderLightTimes(dayMs, now, phenomenonId) {
   const w = S.Sun.lightWindows(dayMs, place.latitude, place.longitude);
   if (w.sunrise === null && w.sunset === null) return "";
-  const t = (x) => (x === null ? "—" : S.Cal.hhmmRounded(x));
-  const range = (x) => (x === null ? "—" : `${S.Cal.hhmmRounded(x[0])}–${S.Cal.hhmmRounded(x[1])}`);
+  const d0 = S.Cal.startOfDay(dayMs), d1 = d0 + TL_SPAN;
+  const grad = phaseGradient(d0, d0, d1);
+  if (!grad) return "";
+  const pct = (ms) => Math.max(0, Math.min(100, ((ms - d0) / TL_SPAN) * 100));
+  const t = (x) => (x === null ? "—" : S.JstCal.hhmmRounded(x));
+  const range = (x) => (x === null ? "—" : `${t(x[0])}–${t(x[1])}`);
+
+  // いま見ている現象の回だけ印を置く。詳細に現象の選択は置かない方針なので、
+  // ほかの現象は出さない（出すと押せそうに見えて、押せない案内になる）。
+  const e = (weeks[phenomenonId] || []).find((x) => x.dayMs === dayMs);
+  const ev = e && !e.evaluation.unavailable ? e.evaluation : null;
+  const mark = ev && ev.specificTime !== false && ev.peak >= d0 && ev.peak <= d1
+    ? `<span class="lt-mk" style="left:${pct(ev.peak)}%">
+         <span class="tick"></span><span class="ic">${S.PHENOMENA[phenomenonId].icon}</span>
+         <span style="color:${RANK_COLOR[ev.rank.key]};font-weight:700">${S.JstCal.hhmmRounded(ev.peak)}</span></span>`
+    : "";
+
+  const moon = moonEvents(d0, TL_SPAN);
+  const [, face, faceName] = moonFace(moon.age);
+  const moonTitle = `${faceName}（月齢 ${moon.age.toFixed(1)}・照らされている割合 ${Math.round(moon.illuminated * 100)}%）`;
+  const moonStrip = moon.spans.map(([a, b]) => {
+    const x0 = pct(a), x1 = pct(b);
+    return `<i style="left:${x0}%;width:${Math.max(0.4, x1 - x0)}%;opacity:${(0.2 + 0.6 * moon.illuminated).toFixed(2)}"></i>`
+      + (x1 - x0 >= 8 ? `<b style="left:${((x0 + x1) / 2).toFixed(1)}%">${face}</b>` : "");
+  }).join("");
+  const moonText = moon.rise === null && moon.set === null
+    ? `<b>月</b> ${moon.spans.length ? "ずっと出ています" : "昇りません"}`
+    : `<b>月の出</b> ${t(moon.rise)}・<b>月の入</b> ${t(moon.set)}`;
+
+  const isToday = S.JstCal.sameDay(dayMs, now);
   return `<div class="card">
     <div class="section-h"><h2>光の時間</h2>
-      <span class="tiny">${esc(S.Cal.relativeDay(dayMs, now))}</span></div>
-    <div class="lt">
-      <span class="lt-h"></span><span class="lt-h">朝</span><span class="lt-h">夕</span>
-      <span class="lt-l">ブルーアワー</span><span>${range(w.blueMorning)}</span><span>${range(w.blueEvening)}</span>
-      <span class="lt-l">ゴールデンアワー</span><span>${range(w.goldenMorning)}</span><span>${range(w.goldenEvening)}</span>
-      <span class="lt-l">日の出・日の入り</span><span>${t(w.sunrise)}</span><span>${t(w.sunset)}</span>
+      <span class="tiny">${esc(S.JstCal.relativeDay(dayMs, now))}</span></div>
+    <div class="lt-band" style="background:${grad}">
+      <span class="lt-moon">${moonStrip}</span>
+      ${isToday ? `<span class="lt-now" style="left:${pct(now)}%"></span>` : ""}</div>
+    <div class="lt-marks">${mark}</div>
+    <div class="lt-axis"><span>0時</span><span>6時</span><span>12時</span><span>18時</span><span>24時</span><span>27時</span></div>
+    <div class="lt-legend">
+      <div class="lt-row">
+        <span class="li"><span class="ic">☀️</span><span><b>日の出</b> ${t(w.sunrise)}・<b>日の入</b> ${t(w.sunset)}</span></span>
+        <span class="li" title="${esc(moonTitle)}"><span class="ic" role="img" aria-label="${esc(faceName)}">${face}</span><span>${moonText}</span></span>
+      </div>
+      <div class="lt-row">
+        <span class="li pair"><b>ゴールデンアワー</b><span class="v">${range(w.goldenMorning)} / ${range(w.goldenEvening)}</span></span>
+        <span class="li pair"><b>ブルーアワー</b><span class="v">${range(w.blueMorning)} / ${range(w.blueEvening)}</span></span>
+      </div>
     </div>
     <p class="tiny" style="margin-top:6px">ゴールデンアワーは太陽高度 −4°〜+6°、ブルーアワーは −6°〜−4°。
-      日の出前・日の入り後は、空が明るいうちに街明かりと釣り合います。</p>
+      軸は 0〜27時（夜の見ごろは暦の上では翌日になるため）。</p>
   </div>`;
 }
 
@@ -964,7 +1303,7 @@ function renderDayDetail(id, entries, sel, now) {
       <div style="margin-top:9px">${esc(S.phrasing(id, ev.rank).say)}</div>
       <div class="tiny" style="margin-top:4px">${CONF_ICON[ev.confidence.key]} ${esc(confidenceText(ev))}</div></div>`;
   return `${head}
-    ${renderLightTimes(sel.dayMs, now)}
+    ${renderLightTimes(sel.dayMs, now, id)}
     <div class="card">${renderDetail(id, sel, now)}</div>
     <details class="card more"><summary>もっと詳しく</summary>
       ${renderDetail(id, sel, now, { part: "how" })}${renderTable(id, entries)}</details>
