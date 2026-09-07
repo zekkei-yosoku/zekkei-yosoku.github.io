@@ -316,7 +316,11 @@
   /* ラベルの右へ伸びるぼかし。セルが横スクロールでラベルの下へ潜り込んでいくのを、
      線ではなくこの濃度の変化で示す。 */
   .mxrail::after { content: ""; position: absolute; right: -18px; top: 0; bottom: 0; width: 18px;
-                   background: linear-gradient(90deg, var(--card), transparent); pointer-events: none; }
+                   background: linear-gradient(90deg, var(--card), transparent); pointer-events: none;
+                   opacity: 0; }
+  /* ぼかしは【横スクロールしている間だけ】出す。
+     常に出していると、いちばん左（未スクロール）でも先頭の日が18px削られる。 */
+  .mxscroll.scrolled .mxrail::after { opacity: 1; }
   /* ただし行の上端は塗り潰さない。ここを覆うと、ラベル側とセル側の線が
      18px ぶん途切れてつながらなくなる。 */
   .mxrow .mxrail::after { top: 1px; }
@@ -497,8 +501,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260907112038"></script>
-<script src="sorami-core.js?v=20260907112038"></script>
+<script src="spots.js?v=20260907112316"></script>
+<script src="sorami-core.js?v=20260907112316"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -885,6 +889,14 @@ function render() {
     $("cards").innerHTML = renderMatrix(order, now);
     for (const el of $("bestNote").querySelectorAll("[data-cell]")) {
       el.onclick = () => { const [id, d] = el.dataset.cell.split("|"); pick(id, now, +d); };
+    }
+    // 横スクロールしているかどうかで、現象名の右のぼかしを出し分ける。
+    // #cards は描き直すたびに中身が入れ替わるので、ここで毎回つなぐ。
+    const mxs = $("cards").querySelector(".mxscroll");
+    if (mxs) {
+      const syncFade = () => mxs.classList.toggle("scrolled", mxs.scrollLeft > 0);
+      mxs.addEventListener("scroll", syncFade, { passive: true });
+      syncFade();
     }
     for (const el of $("cards").querySelectorAll("[data-cell]")) {
       el.onclick = () => {
