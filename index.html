@@ -286,7 +286,11 @@
   :root { --sunk: #f2f3f5; --rail: 84px; --cell: 40px; }
   @media (prefers-color-scheme: dark) { :root { --sunk: #26262a; } }
 
-  .mxscroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin;
+  /* overscroll-behavior-x は【none】。contain は親への伝播を止めるだけで、
+     端での跳ね返り（ゴムバンド）は残る。跳ね返っている間は scrollLeft が 0 のまま
+     中身ごと平行移動されるので、貼り付けた現象名も一緒に動いて揺れて見える
+     （実測: 左端で最大27px 右へ動いて戻る。左へは一度も出ない）。 */
+  .mxscroll { overflow-x: auto; overscroll-behavior-x: none; scrollbar-width: thin;
               -webkit-overflow-scrolling: touch; padding-bottom: 4px; margin-top: 8px; }
   /* 現象ごとに枠を持たせたうえで、外側の1枚のカードでくくる。
      「バラだけど、ひとまとまり」を形で示す。
@@ -300,13 +304,9 @@
   /* 現象名の列は横スクロールしても残す。
      地は【角丸なし・行の隙間まで覆う】。角丸にすると角の外が透け、
      行と行の隙間（7px）ではスクロールしてきたセルが左へ抜けて見えていた。 */
-  /* 貼り付いた列は毎フレーム描き直される。下の層が小数ピクセル動くと、
-     文字だけサブピクセル位置がずれて揺れて見える（座標は1pxも動いていない）。
-     合成層へ載せて、描き直しでなく移動として扱わせる。 */
   .mxrail { position: sticky; left: 0; z-index: 2; background: var(--card);
             padding-left: 16px; display: flex; align-items: center; gap: 5px;
-            font-size: 0.78rem; font-weight: 700;
-            will-change: transform; }
+            font-size: 0.78rem; font-weight: 700; }
   .mxhead .mxrail { margin-bottom: -7px; }              /* 見出しと1行目の隙間 */
   .mxrow .mxrail { align-self: stretch; padding-left: 16px;
                    margin: -7px 0 -14px 0; }            /* 上: padding+線 / 下: padding+隙間 */
@@ -505,8 +505,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260907112939"></script>
-<script src="sorami-core.js?v=20260907112939"></script>
+<script src="spots.js?v=20260907114546"></script>
+<script src="sorami-core.js?v=20260907114546"></script>
 <script>
 "use strict";
 const S = window.Sorami;
