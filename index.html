@@ -306,12 +306,20 @@
   .mxhead .mxrail { margin-bottom: -7px; }              /* 見出しと1行目の隙間 */
   .mxrow .mxrail { align-self: stretch; padding-left: 17px;
                    margin: -7px 0 -15px -1px; }         /* 上: padding+枠線 / 下: それ＋隙間 */
-  /* 枠の左辺。地が枠の左側を覆っているので、地の右端に線を引いて枠を閉じる。
+  /* 枠の線。地が枠の左側を覆っているので、地の側に線を引き直して枠を閉じる。
+     引くのは【左・上・下】の3辺。ラベルまで含めてひとつの枠にする。
+     ラベルとセルの間に縦線は引かない。境目は線ではなく、
+     下の ::after のグラデーションで示す（セルが潜り込んでいく形にする）。
      線は【地の側】に置く（枠の側に置くと、横スクロールで地から離れていく）。
      上下の位置は負のマージンぶんだけ戻して、枠の高さにぴったり合わせる。 */
-  .mxrow .mxrail::before { content: ""; position: absolute; right: 0; top: 7px; bottom: 15px;
-                           border-right: 1px solid var(--line); }
-  .mxrail::after { content: ""; position: absolute; right: -10px; top: 0; bottom: 0; width: 10px;
+  .mxrow .mxrail::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; bottom: 15px;
+                           border: 1px solid var(--line); border-right: none;
+                           /* 右辺は枠の側（.mxrow）が持つ。左は線だけ丸め、
+                              角の外へはみ出す地はカードと同色なので見えない。 */
+                           border-radius: 13px 0 0 13px; }
+  /* ラベルの右へ伸びるぼかし。セルが横スクロールでラベルの下へ潜り込んでいくのを、
+     線ではなくこの濃度の変化で示す。 */
+  .mxrail::after { content: ""; position: absolute; right: -18px; top: 0; bottom: 0; width: 18px;
                    background: linear-gradient(90deg, var(--card), transparent); pointer-events: none; }
   .mxrail .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dhead { display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
@@ -490,8 +498,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260907110353"></script>
-<script src="sorami-core.js?v=20260907110353"></script>
+<script src="spots.js?v=20260907111143"></script>
+<script src="sorami-core.js?v=20260907111143"></script>
 <script>
 "use strict";
 const S = window.Sorami;
