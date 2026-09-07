@@ -290,7 +290,10 @@
      端での跳ね返り（ゴムバンド）は残る。跳ね返っている間は scrollLeft が 0 のまま
      中身ごと平行移動されるので、貼り付けた現象名も一緒に動いて揺れて見える
      （実測: 左端で最大27px 右へ動いて戻る。左へは一度も出ない）。 */
-  .mxscroll { overflow-x: auto; overscroll-behavior-x: none; scrollbar-width: thin;
+  /* overflow-y は【hidden】を明示する。overflow-x だけ指定すると、
+     CSS の規定で y も auto になり、地の負のマージンが下へ出た3pxのために
+     縦のスクロールバーが出ていた。はみ出すのはカードと同色の地だけなので切ってよい。 */
+  .mxscroll { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: none; scrollbar-width: thin;
               -webkit-overflow-scrolling: touch; padding-bottom: 4px; margin-top: 8px; }
   /* 現象ごとに枠を持たせたうえで、外側の1枚のカードでくくる。
      「バラだけど、ひとまとまり」を形で示す。
@@ -420,7 +423,9 @@
     /* 680px あれば数値表（約539px）は収まるので横スクロールを出さない */
     .scrollx { overflow-x: visible; }
     /* 14日ぶんも収まる（84 + 14列 + 隙間39 = 652px）。横スクロールを出さない。 */
-    .mxscroll { overflow-x: visible; }
+    /* 両方 visible にする。片方だけ visible にしても、
+       もう片方が hidden なら規定で auto へ戻り、切り抜きが残る。 */
+    .mxscroll { overflow: visible; }
     .mxstack { width: auto; padding-right: 0; }
     .mxhead, .mxrow { grid-template-columns: var(--rail) repeat(var(--days), minmax(0,1fr)); }
     table.numbers { width: 100%; }
@@ -507,8 +512,8 @@
   </div>
 </dialog>
 
-<script src="spots.js?v=20260907115627"></script>
-<script src="sorami-core.js?v=20260907115627"></script>
+<script src="spots.js?v=20260907135445"></script>
+<script src="sorami-core.js?v=20260907135445"></script>
 <script>
 "use strict";
 const S = window.Sorami;
