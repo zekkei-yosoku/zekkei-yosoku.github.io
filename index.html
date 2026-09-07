@@ -75,6 +75,8 @@
               gap: 12px; padding: 6px 2px 12px; }
   h1 { font-size: 0.94rem; font-weight: 700; letter-spacing: .18em;
        color: var(--secondary); text-align: left; }
+  #authButton { font-size: 0.75rem; font-weight: 700; color: var(--accent); min-height: 44px; padding: 0 2px; }
+  #authButton.warn { color: var(--red); }
   #sortRow { display: flex; align-items: center; gap: 8px; padding: 0 2px 10px; }
   #sortRow label { font-size: 0.72rem; color: var(--tertiary); }
   /* ネイティブの select を使う。OS の選択UIがそのまま出るほうが片手で速い。
@@ -502,6 +504,10 @@
 <main>
   <div class="masthead">
     <h1>絶景予報</h1>
+    <!-- ログインは任意。押さなくても予報は全部見られる。
+         同期が失敗しているときは、それをここに出す（黙って同期されていないのは
+         「黙って消える」と同じ種類の事故）。 -->
+    <button id="authButton" class="tap"></button>
   </div>
   <!-- ☆ は地点ボタンの中へ挿入していたが、button の中の button は不正で、
        読み上げも click の伝播も壊れる。並べて置く。 -->
@@ -584,6 +590,46 @@
     <div id="favList"></div>
     <p class="tiny" id="favNotice" role="status" aria-live="polite"></p>
     <p class="tiny" style="margin-top:10px">この端末のブラウザにだけ保存されます。控えは記録画面の「書き出し」から。</p>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="authSheet" aria-labelledby="authTitle">
+  <div class="sheet-head"><strong id="authTitle">ログイン</strong><button id="authClose">閉じる</button></div>
+  <div class="sheet-body">
+    <p class="tiny">ログインすると、お気に入りと記録が他の端末でも使えます。
+      ログインしなくても予報はこれまでどおり見られます。</p>
+    <button id="passkeyLogin" class="fav-btn primary" style="margin-top:14px" hidden>パスキーでログイン</button>
+    <p class="tiny" id="passkeyNote" style="margin-top:6px" hidden>Face ID / Touch ID で入れます。</p>
+
+    <details id="otherWays" style="margin-top:16px">
+      <summary class="tiny" style="cursor:pointer;color:var(--secondary)">別の方法でログイン</summary>
+      <label class="fav-l" for="authId">ID</label>
+      <input type="text" id="authId" class="fav-in" autocomplete="username" maxlength="32">
+      <label class="fav-l" for="authPw">パスワード</label>
+      <input type="password" id="authPw" class="fav-in" autocomplete="current-password">
+      <button id="pwLogin" class="fav-btn" style="margin-top:12px">パスワードでログイン</button>
+      <label class="fav-l" for="authCode">回復コード</label>
+      <input type="text" id="authCode" class="fav-in" placeholder="XXXXXXXX-XXXXXXXX-…" autocomplete="off">
+      <button id="codeLogin" class="fav-btn" style="margin-top:12px">回復コードでログイン</button>
+    </details>
+    <p class="warn" id="authErr" style="margin-top:12px" hidden></p>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="accountSheet" aria-labelledby="accountTitle">
+  <div class="sheet-head"><strong id="accountTitle">アカウント</strong><button id="accountClose">閉じる</button></div>
+  <div class="sheet-body">
+    <div id="accountBody" class="tiny"></div>
+    <p class="warn" id="accountErr" style="margin-top:10px" hidden></p>
+    <button id="addPasskey" class="fav-btn primary" style="margin-top:16px">この端末にパスキーを登録</button>
+    <button id="newRecovery" class="fav-btn" style="margin-top:8px">回復コードを発行する</button>
+    <button id="disablePw" class="fav-btn" style="margin-top:8px" hidden>パスワードでのログインをやめる</button>
+    <div id="recoveryShown" hidden style="margin-top:14px;padding:12px;border-radius:10px;background:var(--sunk)">
+      <div class="tiny" style="font-weight:700">この回復コードは一度しか表示されません</div>
+      <div id="recoveryCode" style="font-family:ui-monospace,monospace;font-size:0.94rem;font-weight:700;margin-top:6px;word-break:break-all"></div>
+      <div class="tiny" style="margin-top:6px">パスワードマネージャへ保存してください。端末を全部失くしたときと、URLが変わったときに使います。</div>
+    </div>
+    <button id="logout" class="fav-remove">ログアウト</button>
   </div>
 </dialog>
 
@@ -1691,6 +1737,7 @@ function recordOutcome(pid, peak, outcome) {
   if (existing) sightings = sightings.map((s) => (s.id === existing.id ? record : s));
   else sightings.push(record);
   store.set("sorami.sightings", sightings);
+  queuePush("sight", record.id);
   render();
 }
 // 生の気象値を残す。閾値を変えたときに過去の記録を再採点できなければ校正のデータにならない。
@@ -1890,6 +1937,7 @@ function renderSheet() {
     const at = Math.min(u.index, favorites.length);
     favorites.splice(at, 0, u.entry);
     if (!saveFavorites()) { favorites.splice(at, 1); return; }
+    queuePush("fav", u.entry.id);
     favUndo.splice(+el.dataset.undo, 1);
     renderFavToggle();
     renderSheet();
@@ -1941,6 +1989,7 @@ function removeFavorite(index) {
   const entry = favorites[index];
   favorites.splice(index, 1);
   if (!saveFavorites()) { favorites.splice(index, 0, entry); return false; }
+  queuePush("fav", entry.id);      // 消したことも同期する。しないと別端末から復活する
   favUndo.push({ entry, index });
   renderFavToggle();
   renderSheet();
@@ -2045,6 +2094,8 @@ $("favSave").onclick = () => {
     if (before) favorites[favDraft.index] = before; else favorites.pop();
     return;   // 入力はそのまま残す。閉じてしまうと打ち直しになる。
   }
+  queuePush("fav", entry.id);
+  maybeSuggestLogin(entry);
   const moved = before ? renameSightings(before.name, name, entry.latitude, entry.longitude) : 0;
   $("favSheet").close();
   // 表示中の地点そのものを編集したなら、画面にも反映する。
@@ -2127,6 +2178,276 @@ $("favToggle").onclick = (e) => {
   openFavSheet(favorites.findIndex((f) => f.id === place.id));
 };
 new MutationObserver(renderFavToggle).observe($("placeName"), { childList: true });
+
+// ---------------------------------------------------------------- 同期とログイン
+//
+// ログインは任意。押さなくても予報は全部見られる。ログインは「他の端末へ持ち越す」
+// ためのもので、機能の門ではない。
+//
+// トークンは **メモリにだけ** 置く。localStorage へ入れないので、
+//   * 盗まれて長期間悪用される経路が無い（閉じれば消える）
+//   * ITPで保存領域が消えてもログイン情報が壊れて残ることが無い
+// 代わりに開き直すたびに認証が要るが、パスキーなら2秒で済む。
+const API = location.hostname === "localhost" || location.hostname === "127.0.0.1"
+  ? "http://localhost:8787" : "https://zekkei-api.workers.dev";
+
+let auth = null;                                   // { token, loginId, role }。メモリのみ
+let syncInfo = store.get("sorami.sync", null);     // { loginId, rev }。端末に残す
+let syncError = null;                              // 直近の同期の失敗
+let pushQueue = store.get("sorami.queue", []);     // 送れていない変更 [{kind,id}]
+
+async function apiCall(method, path, body) {
+  const headers = {};
+  if (body !== undefined) headers["content-type"] = "application/json";
+  if (auth) headers.authorization = `Bearer ${auth.token}`;
+  const res = await fetch(API + path, { method, headers,
+    body: body === undefined ? undefined : JSON.stringify(body) });
+  let data = null;
+  try { data = await res.json(); } catch { /* 本文が無いこともある */ }
+  if (!res.ok) {
+    // 401 はセッション切れ。**データは消さない。** 入り直せば続きから使える。
+    if (res.status === 401 && auth) { auth = null; renderAuthButton(); }
+    throw new Error(data?.error || `通信できませんでした（${res.status}）`);
+  }
+  return data;
+}
+
+function renderAuthButton() {
+  const b = $("authButton");
+  if (!auth) { b.textContent = "ログイン"; b.classList.remove("warn"); b.setAttribute("aria-label", "ログイン"); return; }
+  const failing = !!syncError || pushQueue.length > 0;
+  b.textContent = failing ? `⚠ ${auth.loginId}` : auth.loginId;
+  b.classList.toggle("warn", failing);
+  b.setAttribute("aria-label", failing ? "同期できていません。アカウントを開く" : "アカウントを開く");
+}
+
+/// ローカルの1件をサーバーへ送る形にする。body に中身を丸ごと入れる。
+const toItem = (o, deleted = false) => ({ id: o.id, body: o, updated_at: Date.now(), deleted });
+
+/// 送れなかったものを覚えておく。次に繋がったときに送る。
+function queuePush(kind, id) {
+  if (!auth) return;
+  if (!pushQueue.some((q) => q.kind === kind && q.id === id)) pushQueue.push({ kind, id });
+  store.set("sorami.queue", pushQueue);
+  renderAuthButton();
+  syncNow().catch(() => {});
+}
+
+async function syncNow() {
+  if (!auth) return;
+  try {
+    // 送る（溜まっているものだけ）
+    if (pushQueue.length) {
+      const favs = pushQueue.filter((q) => q.kind === "fav")
+        .map((q) => { const f = favorites.find((x) => x.id === q.id); return f ? toItem(f) : { id: q.id, body: {}, updated_at: Date.now(), deleted: true }; });
+      const sights = pushQueue.filter((q) => q.kind === "sight")
+        .map((q) => { const x = sightings.find((y) => y.id === q.id); return x ? toItem(x) : { id: q.id, body: {}, updated_at: Date.now(), deleted: true }; });
+      await apiCall("POST", "/sync", { favorites: favs, sightings: sights });
+      pushQueue = []; store.set("sorami.queue", pushQueue);
+    }
+    // 受け取る（自分が持っている rev より新しいものだけ）
+    const since = syncInfo?.loginId === auth.loginId ? (syncInfo.rev || 0) : 0;
+    const got = await apiCall("GET", `/sync?since=${since}`);
+    applyIncoming(got);
+    syncInfo = { loginId: auth.loginId, rev: got.rev };
+    store.set("sorami.sync", syncInfo);
+    syncError = null;
+  } catch (e) {
+    syncError = e.message;
+  }
+  renderAuthButton();
+}
+
+/// サーバーから来たものをローカルへ入れる。**サーバー側も外部データとして検査する。**
+/// 通信相手を信用しないのは、取り込みファイルを信用しないのと同じ理由。
+function applyIncoming(got) {
+  const put = (list, incoming, clean) => {
+    const byId = new Map(list.map((x) => [x.id, x]));
+    for (const row of incoming || []) {
+      if (row.deleted) { byId.delete(row.id); continue; }
+      let body; try { body = JSON.parse(row.body); } catch { continue; }
+      const cleaned = clean({ ...body, id: row.id });
+      if (cleaned) byId.set(row.id, cleaned);
+    }
+    return [...byId.values()];
+  };
+  favorites = put(favorites, got.favorites, cleanFavorite);
+  sightings = put(sightings, got.sightings, cleanSighting);
+  store.set("sorami.favorites", favorites);
+  store.set("sorami.sightings", sightings);
+}
+
+/// ログインできたときの共通処理。初回は端末に残っているものを全部上げる。
+async function onLoggedIn(res) {
+  auth = { token: res.token, loginId: res.loginId, role: res.role };
+  $("authSheet").close();
+  const fresh = syncInfo?.loginId !== auth.loginId;
+  if (fresh && (favorites.length || sightings.length)) {
+    // 黙ってやらない。何件アカウントへ入れたのかを出す。
+    pushQueue = [...favorites.map((f) => ({ kind: "fav", id: f.id })),
+                 ...sightings.map((x) => ({ kind: "sight", id: x.id }))];
+    store.set("sorami.queue", pushQueue);
+  }
+  if (fresh) { syncInfo = null; store.set("sorami.sync", null); }
+  const before = favorites.length + sightings.length;
+  await syncNow();
+  renderAuthButton();
+  render();
+  if (fresh) {
+    alert(`${auth.loginId} でログインしました。\nこの端末の ${before}件 をアカウントへ入れ、` +
+      `アカウント側の内容と合わせて 記録${sightings.length}件・お気に入り${favorites.length}件 になりました。`);
+  }
+}
+
+const authFail = (el, msg) => { el.textContent = msg; el.hidden = false; };
+
+// 未ログインでお気に入りを登録したときに、一度だけログインを勧める。
+//   * 止めない。ログインしなくても使える
+//   * 名前だけの登録では出さない。作り直せるものでは煩わせない。
+//     地形・メモ・現象タグを手で入れたときだけ、失うと打ち直しになる
+//   * 「あとで」を押したら、そのセッションではもう出さない
+let loginSuggested = false;
+function maybeSuggestLogin(entry) {
+  if (auth || loginSuggested) return;
+  const handmade = entry.terrain || entry.note || (entry.phenomena || []).length;
+  if (!handmade) return;
+  loginSuggested = true;
+  if (confirm("この端末にだけ保存しました。\n"
+    + "ログインすると、他の端末でも同じお気に入りが使えます。\n\nいまログインしますか？")) {
+    $("authButton").click();
+  }
+}
+
+$("authButton").onclick = () => {
+  if (auth) { openAccountSheet(); return; }
+  $("authErr").hidden = true;
+  // パスキー非対応のブラウザでは、出しても押せないので隠す
+  const supported = !!window.PublicKeyCredential;
+  $("passkeyLogin").hidden = !supported;
+  $("passkeyNote").hidden = !supported;
+  $("otherWays").open = !supported;
+  $("authSheet").showModal();
+};
+$("authClose").onclick = () => $("authSheet").close();
+$("accountClose").onclick = () => $("accountSheet").close();
+
+// base64url ⇄ ArrayBuffer。WebAuthn の受け渡しで要る。
+const b64uToBuf = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+const bufToB64u = (b) => btoa(String.fromCharCode(...new Uint8Array(b)))
+  .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+$("passkeyLogin").onclick = async () => {
+  $("authErr").hidden = true;
+  try {
+    const { challengeId, options } = await apiCall("POST", "/passkey/login/begin", {});
+    const cred = await navigator.credentials.get({ publicKey: {
+      ...options, challenge: b64uToBuf(options.challenge),
+      allowCredentials: (options.allowCredentials || []).map((c) => ({ ...c, id: b64uToBuf(c.id) })) } });
+    const res = await apiCall("POST", "/passkey/login/finish", { challengeId, response: {
+      id: cred.id, rawId: bufToB64u(cred.rawId), type: cred.type,
+      response: {
+        clientDataJSON: bufToB64u(cred.response.clientDataJSON),
+        authenticatorData: bufToB64u(cred.response.authenticatorData),
+        signature: bufToB64u(cred.response.signature),
+        userHandle: cred.response.userHandle ? bufToB64u(cred.response.userHandle) : null,
+      },
+      clientExtensionResults: cred.getClientExtensionResults() } });
+    await onLoggedIn(res);
+  } catch (e) {
+    // 利用者が生体認証を取り消した場合はエラーにしない
+    if (e.name === "NotAllowedError") return;
+    authFail($("authErr"), e.message);
+  }
+};
+$("pwLogin").onclick = async () => {
+  $("authErr").hidden = true;
+  try { await onLoggedIn(await apiCall("POST", "/login",
+    { loginId: $("authId").value, password: $("authPw").value })); }
+  catch (e) { authFail($("authErr"), e.message); }
+  finally { $("authPw").value = ""; }
+};
+$("codeLogin").onclick = async () => {
+  $("authErr").hidden = true;
+  try { await onLoggedIn(await apiCall("POST", "/recovery/use",
+    { loginId: $("authId").value, code: $("authCode").value })); }
+  catch (e) { authFail($("authErr"), e.message); }
+  finally { $("authCode").value = ""; }
+};
+
+async function openAccountSheet() {
+  $("accountErr").hidden = true;
+  $("recoveryShown").hidden = true;
+  $("accountSheet").showModal();
+  try {
+    const me = await apiCall("GET", "/me");
+    $("disablePw").hidden = !me.hasPassword || !me.credentials.length;
+    const when = (t) => (t ? new Date(t).toLocaleDateString("ja-JP") : "未使用");
+    $("accountBody").innerHTML =
+      `<div><strong>${esc(me.loginId)}</strong>${me.role === "admin" ? " ・ 管理者" : ""}</div>`
+      + `<div style="margin-top:6px">${syncError ? `<span class="warn">同期できていません: ${esc(syncError)}</span>`
+          : pushQueue.length ? `<span class="warn">未送信の変更が ${pushQueue.length}件 あります</span>`
+          : "同期できています"}</div>`
+      + `<div style="margin-top:6px">パスワード: ${me.hasPassword ? "使える" : "無効にしてある"}`
+      + ` ／ 回復コード: ${me.recoveryCodes}件</div>`
+      + `<div class="fav-l">登録した端末</div>`
+      + (me.credentials.length
+        ? me.credentials.map((c) => `<div class="list-item">${esc(c.label || "名称なし")}
+            <div class="tiny">登録 ${when(c.created_at)} ・ 最終 ${when(c.last_used_at)}</div></div>`).join("")
+        : `<p class="tiny">まだありません。この端末を登録すると、次から Face ID で入れます。</p>`);
+  } catch (e) { authFail($("accountErr"), e.message); }
+}
+
+$("addPasskey").onclick = async () => {
+  $("accountErr").hidden = true;
+  try {
+    const { challengeId, options } = await apiCall("POST", "/passkey/register/begin", {});
+    const cred = await navigator.credentials.create({ publicKey: {
+      ...options,
+      challenge: b64uToBuf(options.challenge),
+      user: { ...options.user, id: b64uToBuf(options.user.id) },
+      excludeCredentials: (options.excludeCredentials || []).map((c) => ({ ...c, id: b64uToBuf(c.id) })) } });
+    const label = prompt("この端末の名前（例: iPhone）", "この端末") || "この端末";
+    await apiCall("POST", "/passkey/register/finish", { challengeId, label, response: {
+      id: cred.id, rawId: bufToB64u(cred.rawId), type: cred.type,
+      response: {
+        clientDataJSON: bufToB64u(cred.response.clientDataJSON),
+        attestationObject: bufToB64u(cred.response.attestationObject),
+      },
+      clientExtensionResults: cred.getClientExtensionResults() } });
+    openAccountSheet();
+  } catch (e) {
+    if (e.name === "NotAllowedError") return;
+    authFail($("accountErr"), e.message);
+  }
+};
+const showCode = (code) => { $("recoveryCode").textContent = code; $("recoveryShown").hidden = false; };
+$("newRecovery").onclick = async () => {
+  $("accountErr").hidden = true;
+  try { showCode((await apiCall("POST", "/recovery/issue", {})).code); openAccountSheet2(); }
+  catch (e) { authFail($("accountErr"), e.message); }
+};
+// 発行の表示を消さずに中身だけ更新する
+async function openAccountSheet2() {
+  const shown = !$("recoveryShown").hidden, code = $("recoveryCode").textContent;
+  await openAccountSheet();
+  if (shown) showCode(code);
+}
+$("disablePw").onclick = async () => {
+  if (!confirm("パスワードでのログインをやめます。\n代わりの回復コードを発行します。必ず保存してください。")) return;
+  try { const r = await apiCall("POST", "/password/disable", {}); showCode(r.code); openAccountSheet2(); }
+  catch (e) { authFail($("accountErr"), e.message); }
+};
+$("logout").onclick = () => {
+  // 同期済みのものはローカルから消す。残すと、別のアカウントで入ったときに混ざる。
+  if (pushQueue.length && !confirm(`まだ送っていない変更が ${pushQueue.length}件 あります。\n消えますが、ログアウトしますか？`)) return;
+  auth = null; syncInfo = null; pushQueue = [];
+  favorites = []; sightings = [];
+  store.set("sorami.sync", null); store.set("sorami.queue", []);
+  store.set("sorami.favorites", []); store.set("sorami.sightings", []);
+  $("accountSheet").close();
+  renderAuthButton();
+  render();
+};
 
 // 記録とお気に入りは localStorage にあり、ブラウザのデータ消去で消える。
 // iOS Safari は、7日間サイトに触れないとスクリプトが書いた保存領域を消す。
@@ -2222,6 +2543,7 @@ async function checkForUpdate() {
   } catch { /* 取れなければそのまま使う。更新確認は補助 */ }
 }
 
+renderAuthButton();
 load(false);
 checkForUpdate();
 </script>

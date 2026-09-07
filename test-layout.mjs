@@ -314,7 +314,7 @@ ok(/openFavSheet\(favorites\.findIndex/.test(html), "☆ からも登録フォ�
 // 一覧から1タップで消し、取り消しで戻せる形へ変えた。確認を挟まないぶん速く、
 // 押し間違えても失わない。確認は「入力途中で閉じる」側へ移した（打った文字は戻せないため）。
 ok(/data-delfav="\$\{i\}"/.test(html), "一覧から直接消せる");
-ok(/function removeFavorite[\s\S]{0,200}favUndo\.push/.test(html), "消したものを控える");
+ok(/function removeFavorite[\s\S]{0,320}favUndo\.push/.test(html), "消したものを控える");
 ok(/data-undo="\$\{i\}"/.test(html) && /元に戻す/.test(html), "取り消しを出す");
 ok(/const at = Math\.min\(u\.index, favorites\.length\);[\s\S]{0,60}favorites\.splice\(at, 0, u\.entry\)/.test(html),
   "元の位置へ戻す");
@@ -589,6 +589,39 @@ ok(/replace\(\/\[&<>"'\]\/g/.test(html), "esc がシングルクォートも対�
 // コメント行（説明としてこの書き方に触れている）は除いて数える
 const codeLines = html.split("\n").filter((l) => !/^\s*(\/\/|\*|<!--)/.test(l)).join("\n");
 ok(!/='\$\{/.test(codeLines), "属性をシングルクォートで囲んでいない");
+
+console.log("== ログインと同期 ==");
+// ログインは任意。押さなくても予報は全部見られる。機能の門にしない。
+ok(/id="authButton"/.test(html), "マストヘッドに入口がある");
+ok(/let auth = null;/.test(html) && !/store\.set\("sorami\.token/.test(html),
+  "トークンをメモリにだけ置く（保存しない）");
+ok(/headers\.authorization = `Bearer \$\{auth\.token\}`/.test(html), "ヘッダで送る（Cookie を使わない）");
+// 401 でデータを消さない。消すと、サーバーが一時的に落ちただけで手元が空になる。
+ok(/if \(res\.status === 401 && auth\) \{ auth = null; renderAuthButton\(\); \}/.test(html),
+  "401 ではログイン状態だけ落とす");
+ok(!/401[\s\S]{0,120}favorites = \[\]/.test(html), "401 でデータを消さない");
+// 同期の失敗を黙って飲まない
+ok(/renderAuthButton[\s\S]{0,400}classList\.toggle\("warn", failing\)/.test(html), "同期の失敗をボタンに出す");
+ok(/pushQueue/.test(html) && /store\.set\("sorami\.queue"/.test(html), "送れなかった変更を覚えておく");
+// サーバーから来たものも外部データとして検査する
+ok(/const cleaned = clean\(\{ \.\.\.body, id: row\.id \}\)/.test(html),
+  "サーバーの応答も検査してから取り込む");
+// 消したことも同期する。しないと別端末から復活する。
+ok(/queuePush\("fav", entry\.id\);\s*\/\/ 消したことも同期する/.test(html), "削除も同期する");
+ok(/queuePush\("sight", record\.id\)/.test(html), "記録も同期する");
+// 初回ログインのマージを黙ってやらない
+ok(/この端末の \$\{before\}件 をアカウントへ入れ/.test(html), "初回マージの件数を出す");
+// ログアウトで同期済みのローカルを消す（別アカウントで混ざるのを防ぐ）
+ok(/\$\("logout"\)\.onclick[\s\S]{0,400}favorites = \[\]; sightings = \[\]/.test(html),
+  "ログアウトでローカルを消す");
+ok(/まだ送っていない変更が \$\{pushQueue\.length\}件/.test(html), "未送信があれば警告してから消す");
+// 未ログインでの登録は止めない。手で入れた内容があるときだけ一度勧める。
+ok(/function maybeSuggestLogin[\s\S]{0,200}if \(auth \|\| loginSuggested\) return;/.test(html),
+  "一度だけ勧める");
+ok(/const handmade = entry\.terrain \|\| entry\.note \|\| \(entry\.phenomena \|\| \[\]\)\.length/.test(html),
+  "名前だけの登録では勧めない");
+// パスキー非対応のブラウザで、押せないボタンを出さない
+ok(/const supported = !!window\.PublicKeyCredential/.test(html), "パスキーの対応を見る");
 
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);
