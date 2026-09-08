@@ -309,6 +309,11 @@
   /* 現象は7つ全部を一度に見せて選ばせる。横スクロールだと隠れた選択肢に気づけない。 */
   /* 登録フォームでは現象チップが主役の入力なので、実寸で 44px を確保する。
      折り返しの間隔（gap 6px）より高いので、上下の行と重ならない。 */
+  .remember { display:flex; gap:10px; align-items:flex-start; margin-top:18px;
+    padding-top:14px; border-top:1px solid var(--line); cursor:pointer; }
+  .remember input { margin-top:2px; width:17px; height:17px; flex:none; accent-color: var(--accent, #2f6fed); }
+  .remember span { font-size:13px; color:var(--secondary); line-height:1.5; }
+  .remember em { display:block; font-style:normal; font-size:12px; color:var(--tertiary); margin-top:2px; }
   .auth-links { display: flex; flex-direction: column; gap: 2px; margin-top: 18px;
                 padding-top: 12px; border-top: 1px solid var(--line); }
   .auth-links button { text-align: left; min-height: 44px; font-size: 0.81rem;
@@ -696,6 +701,13 @@
     </div>
 
     <p class="warn" id="authErr" style="margin-top:12px" hidden></p>
+
+    <!-- パネルの外に置く。ログイン・新規登録・回復のどれから入っても同じ意味なので、
+         画面ごとに置くと3つ同時に存在してどれが効くのか分からなくなる。 -->
+    <label class="remember">
+      <input type="checkbox" id="rememberMe" checked>
+      <span>この端末でログインを保持する<em>30日。共用の端末では外してください</em></span>
+    </label>
   </div>
 </dialog>
 
@@ -730,6 +742,9 @@
         <strong>IDと一緒に</strong>パスワードマネージャへ保存してください。
         入るときは ID とコードの両方が要ります。</div>
     </div>
+    <button id="logoutAll" class="fav-btn" style="margin-top:16px">すべての端末からログアウト</button>
+    <p class="tiny" style="margin-top:6px;color:var(--tertiary)">端末を失くしたときに。
+      この端末は入ったままで、ほかの端末のログインだけが切れます。</p>
     <button id="logout" class="fav-remove">ログアウト</button>
     <button id="deleteAccount" class="fav-remove" style="color:var(--red)">アカウントを削除する</button>
   </div>
@@ -766,7 +781,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908132715"></script>
+<script src="sorami-core.js?v=20260908151234"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2306,14 +2321,53 @@ new MutationObserver(renderFavToggle).observe($("placeName"), { childList: true 
 // ログインは任意。押さなくても予報は全部見られる。ログインは「他の端末へ持ち越す」
 // ためのもので、機能の門ではない。
 //
-// トークンは **メモリにだけ** 置く。localStorage へ入れないので、
-//   * 盗まれて長期間悪用される経路が無い（閉じれば消える）
-//   * ITPで保存領域が消えてもログイン情報が壊れて残ることが無い
-// 代わりに開き直すたびに認証が要るが、パスキーなら2秒で済む。
+// トークンの置き場所。**2段階ある。**
+//
+//   sessionStorage — 常に置く。読み込み直しで消えないようにするだけで、
+//                    タブを閉じれば消える。メモリのみとの差はほぼ無い
+//                    （このページで動く攻撃者は、どのみちメモリの変数を読める）
+//   localStorage   — 「この端末でログインを保持する」を選んだときだけ。30日
+//
+// 元はメモリのみだった。しかし更新の自動読み直しが入ってからは、
+// **配信のたびに再ログインが要る**状態になっていた。それは使えない。
+//
+// 長く持たせるにあたって、サーバー側に**取り消しの仕組みを先に入れた**
+// （users.session_epoch）。トークンは署名だけで検証でき保存されないので、
+// それが無いと「漏れたら期限まで止められない」ことになる。
 const API = location.hostname === "localhost" || location.hostname === "127.0.0.1"
   ? "http://localhost:8787" : "https://zekkei-api.okayu-sorami.workers.dev";
+const TOKEN_KEY = "sorami.token";
 
-let auth = null;                                   // { token, loginId, role }。メモリのみ
+let auth = null;                                   // { token, loginId, role }
+
+// 置き場所は「保持する」を選んだかどうかで変わる。両方から消してから書く。
+function saveAuth(a, remember) {
+  const payload = JSON.stringify(a);
+  try { sessionStorage.setItem(TOKEN_KEY, payload); } catch { /* 使えなくても動く */ }
+  try {
+    if (remember) localStorage.setItem(TOKEN_KEY, payload);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch { /* 同上 */ }
+}
+function clearAuth() {
+  auth = null;
+  try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
+  try { localStorage.removeItem(TOKEN_KEY); } catch {}
+}
+// localStorage を先に見る。「保持する」を選んだ端末では、タブを閉じても続く。
+function storedAuth() {
+  for (const box of ["localStorage", "sessionStorage"]) {
+    try {
+      const raw = window[box].getItem(TOKEN_KEY);
+      if (!raw) continue;
+      const a = JSON.parse(raw);
+      if (a && typeof a.token === "string" && typeof a.loginId === "string") {
+        return { auth: a, remembered: box === "localStorage" };
+      }
+    } catch { /* 壊れていたら次を見る */ }
+  }
+  return null;
+}
 let syncInfo = store.get("sorami.sync", null);     // { loginId, rev }。端末に残す
 let syncError = null;                              // 直近の同期の失敗
 let pushQueue = store.get("sorami.queue", []);     // 送れていない変更 [{kind,id}]
@@ -2328,7 +2382,7 @@ async function apiCall(method, path, body) {
   try { data = await res.json(); } catch { /* 本文が無いこともある */ }
   if (!res.ok) {
     // 401 はセッション切れ。**データは消さない。** 入り直せば続きから使える。
-    if (res.status === 401 && auth) { auth = null; renderAuthButton(); }
+    if (res.status === 401 && auth) { clearAuth(); renderAuthButton(); }
     throw new Error(data?.error || `通信できませんでした（${res.status}）`);
   }
   return data;
@@ -2399,9 +2453,53 @@ function applyIncoming(got) {
   store.set("sorami.sightings", sightings);
 }
 
+// 「保持する」の希望。既定は入り。**選んだかどうかは端末に覚える**ので、
+// 一度外した端末で勝手に戻らない。
+const wantsRemember = () => {
+  const box = $("rememberMe");
+  return box ? box.checked : store.get("sorami.remember", true);
+};
+
+// 認証手段を変える操作は、他の端末を切ったうえで新しいトークンを返す。
+// **受け取らないと、操作した本人が自分の操作で締め出される。**
+function adoptToken(res) {
+  if (!res?.token || !auth) return res;
+  auth = { ...auth, token: res.token };
+  saveAuth(auth, !!localStorageHasToken());
+  return res;
+}
+const localStorageHasToken = () => {
+  try { return !!localStorage.getItem(TOKEN_KEY); } catch { return false; }
+};
+
+// 開いたときに、残っているトークンで入り直す。
+// **通るかどうかはサーバーに訊く。** 期限も、取り消されたかどうかも、手元では分からない。
+async function restoreSession() {
+  const found = storedAuth();
+  if (!found) return;
+  auth = found.auth;
+  try {
+    const me = await apiCall("GET", "/me");
+    auth = { ...auth, loginId: me.loginId ?? auth.loginId, role: me.role ?? auth.role };
+    saveAuth(auth, found.remembered);
+    // 折り返しを過ぎた長いセッションは、ここで出し直す。
+    // これをしないと、30日で持たせても30日目に必ず切れる。
+    if (found.remembered) {
+      try { adoptToken(await apiCall("POST", "/session/refresh")); } catch { /* 次の起動で試す */ }
+    }
+    renderAuthButton();
+    await syncNow();
+    render();
+  } catch {
+    // 401 は apiCall 側で片付いている。それ以外（圏外など）はトークンを捨てない
+    renderAuthButton();
+  }
+}
+
 /// ログインできたときの共通処理。初回は端末に残っているものを全部上げる。
-async function onLoggedIn(res) {
+async function onLoggedIn(res, remember = wantsRemember()) {
   auth = { token: res.token, loginId: res.loginId, role: res.role };
+  saveAuth(auth, remember);
   $("authSheet").close();
   const fresh = syncInfo?.loginId !== auth.loginId;
   if (fresh && (favorites.length || sightings.length)) {
@@ -2454,6 +2552,10 @@ const b64uToBuf = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g,
 const bufToB64u = (b) => btoa(String.fromCharCode(...new Uint8Array(b)))
   .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
+// 一度外した端末で、次に開いたときに勝手に入り直らないようにする
+$("rememberMe").checked = store.get("sorami.remember", true);
+$("rememberMe").onchange = (e) => store.set("sorami.remember", e.target.checked);
+
 $("passkeyLogin").onclick = async () => {
   $("authErr").hidden = true;
   try {
@@ -2461,7 +2563,7 @@ $("passkeyLogin").onclick = async () => {
     const cred = await navigator.credentials.get({ publicKey: {
       ...options, challenge: b64uToBuf(options.challenge),
       allowCredentials: (options.allowCredentials || []).map((c) => ({ ...c, id: b64uToBuf(c.id) })) } });
-    const res = await apiCall("POST", "/passkey/login/finish", { challengeId, response: {
+    const res = await apiCall("POST", "/passkey/login/finish", { challengeId, remember: wantsRemember(), response: {
       id: cred.id, rawId: bufToB64u(cred.rawId), type: cred.type,
       response: {
         clientDataJSON: bufToB64u(cred.response.clientDataJSON),
@@ -2480,7 +2582,7 @@ $("passkeyLogin").onclick = async () => {
 $("pwLogin").onclick = async () => {
   $("authErr").hidden = true;
   try { await onLoggedIn(await apiCall("POST", "/login",
-    { loginId: $("authId").value, password: $("authPw").value })); }
+    { loginId: $("authId").value, password: $("authPw").value, remember: wantsRemember() })); }
   catch (e) { authFail($("authErr"), e.message); }
   finally { $("authPw").value = ""; }
 };
@@ -2490,7 +2592,8 @@ $("doSignup").onclick = async () => {
   // 打ち間違えたパスワードで登録すると、本人が入れなくなる。送る前に確かめる。
   if (pw !== $("newPw2").value) { authFail($("authErr"), "パスワードが一致しません"); return; }
   if (pw.length < 10) { authFail($("authErr"), "パスワードは10文字以上にしてください"); return; }
-  try { await onLoggedIn(await apiCall("POST", "/signup", { loginId: $("newId").value, password: pw })); }
+  try { await onLoggedIn(await apiCall("POST", "/signup",
+    { loginId: $("newId").value, password: pw, remember: wantsRemember() })); }
   catch (e) { authFail($("authErr"), e.message); }
   finally { $("newPw").value = ""; $("newPw2").value = ""; }
 };
@@ -2501,7 +2604,8 @@ $("codeLogin").onclick = async () => {
   if (!who) { authFail($("authErr"), "IDを入れてください"); $("codeId").focus(); return; }
   if (!$("authCode").value.trim()) { authFail($("authErr"), "回復コードを入れてください"); return; }
   try {
-    const res = await apiCall("POST", "/recovery/use", { loginId: who, code: $("authCode").value });
+    const res = await apiCall("POST", "/recovery/use",
+      { loginId: who, code: $("authCode").value, remember: wantsRemember() });
     await onLoggedIn(res);
     // 1つ使い捨てた。残りが少なくなったら作り直すよう促す。
     if (typeof res.remaining === "number" && res.remaining <= 2) {
@@ -2552,7 +2656,7 @@ async function openAccountSheet() {
       // 消したパスキーは戻せない。作り直しになるので確認する。
       if (!confirm("この端末のパスキーを消します。\nその端末からは、パスワードか回復コードでしか入れなくなります。")) return;
       $("accountErr").hidden = true;
-      try { await apiCall("POST", "/passkey/delete", { credentialId: el.dataset.delkey }); openAccountSheet(); }
+      try { adoptToken(await apiCall("POST", "/passkey/delete", { credentialId: el.dataset.delkey })); openAccountSheet(); }
       catch (e) {
         authFail($("accountErr"), e.message);
         // 断って終わりにしない。**その場で直せる場所を開いて指を置く。**
@@ -2646,7 +2750,7 @@ $("deleteAccount").onclick = async () => {
   if (!confirm("最終確認です。すべて消えます。")) return;
   try {
     await apiCall("DELETE", "/me");
-    auth = null; syncInfo = null; pushQueue = [];
+    clearAuth(); syncInfo = null; pushQueue = [];
     favorites = []; sightings = [];
     for (const k of ["sorami.sync", "sorami.queue", "sorami.favorites", "sorami.sightings"]) store.set(k, k.endsWith("sync") ? null : []);
     $("accountSheet").close();
@@ -2657,20 +2761,30 @@ $("deleteAccount").onclick = async () => {
 $("enablePw").onclick = async () => {
   $("accountErr").hidden = true;
   try {
-    await apiCall("POST", "/password/enable", { password: $("newAccPw").value });
+    adoptToken(await apiCall("POST", "/password/enable", { password: $("newAccPw").value }));
     $("newAccPw").value = "";
     openAccountSheet();
   } catch (e) { authFail($("accountErr"), e.message); }
 };
 $("disablePw").onclick = async () => {
   if (!confirm("パスワードでのログインをやめます。\n代わりの回復コードを発行します。必ず保存してください。")) return;
-  try { const r = await apiCall("POST", "/password/disable", {}); showCodes(r.codes); openAccountSheet2(); }
+  try { const r = await apiCall("POST", "/password/disable", {}); adoptToken(r); showCodes(r.codes); openAccountSheet2(); }
   catch (e) { authFail($("accountErr"), e.message); }
 };
+// **取り消しの唯一の手段。** トークンは署名だけで検証でき、サーバーに残らないので、
+// 世代番号を進める以外に「あの端末を切る」方法が無い。
+$("logoutAll").onclick = async () => {
+  if (!confirm("ほかの端末のログインをすべて切ります。\nこの端末は入ったままです。\n\n続けますか？")) return;
+  try {
+    adoptToken(await apiCall("POST", "/me/logout-all"));
+    alert("ほかの端末のログインを切りました。");
+  } catch (e) { authFail($("accountErr"), e.message); }
+};
+
 $("logout").onclick = () => {
   // 同期済みのものはローカルから消す。残すと、別のアカウントで入ったときに混ざる。
   if (pushQueue.length && !confirm(`まだ送っていない変更が ${pushQueue.length}件 あります。\n消えますが、ログアウトしますか？`)) return;
-  auth = null; syncInfo = null; pushQueue = [];
+  clearAuth(); syncInfo = null; pushQueue = [];
   favorites = []; sightings = [];
   store.set("sorami.sync", null); store.set("sorami.queue", []);
   store.set("sorami.favorites", []); store.set("sorami.sightings", []);
@@ -2901,6 +3015,7 @@ async function checkForUpdate() {
 
 renderAuthButton();
 load(false);
+restoreSession();
 checkForUpdate();
 </script>
 </body>

@@ -593,11 +593,13 @@ ok(!/='\$\{/.test(codeLines), "属性をシングルクォートで囲んでい�
 console.log("== ログインと同期 ==");
 // ログインは任意。押さなくても予報は全部見られる。機能の門にしない。
 ok(/id="authButton"/.test(html), "マストヘッドに入口がある");
-ok(/let auth = null;/.test(html) && !/store\.set\("sorami\.token/.test(html),
-  "トークンをメモリにだけ置く（保存しない）");
+// 2026-09-08 まではメモリのみだった。読み込み直しで消えるので、
+// 自動更新のたびに再ログインが要る状態になり、保存する形へ変えた。
+// **Cookie は使わない。** 使うと CSRF を考えなければならなくなる。
 ok(/headers\.authorization = `Bearer \$\{auth\.token\}`/.test(html), "ヘッダで送る（Cookie を使わない）");
+ok(!/document\.cookie/.test(html), "Cookie に入れない");
 // 401 でデータを消さない。消すと、サーバーが一時的に落ちただけで手元が空になる。
-ok(/if \(res\.status === 401 && auth\) \{ auth = null; renderAuthButton\(\); \}/.test(html),
+ok(/if \(res\.status === 401 && auth\) \{ clearAuth\(\); renderAuthButton\(\); \}/.test(html),
   "401 ではログイン状態だけ落とす");
 ok(!/401[\s\S]{0,120}favorites = \[\]/.test(html), "401 でデータを消さない");
 // 同期の失敗を黙って飲まない
@@ -777,6 +779,47 @@ ok(/if \(!who\) \{ authFail\(\$\("authErr"\), "IDを入れてください"\)/.te
 ok(/\$\("authId"\)\.addEventListener\("input"[\s\S]{0,140}\["newId", "codeId"\]/.test(html),
   "IDを打ち直させない");
 ok(/\$\("authId"\)\.addEventListener\("input"/.test(html), "上で打ったIDを写す");
+
+console.log("== ログインの保持 ==");
+// 2026-09-08 ユーザー「更新するたびにログインはだるいよねって」。
+// それまでトークンはメモリのみで、**読み込み直すたびに消えていた。**
+// 自動更新の読み直しを入れたことで、配信のたびに再ログインが要る状態になっていた。
+ok(/sessionStorage\.setItem\(TOKEN_KEY/.test(html), "読み込み直しで消えないよう sessionStorage へ置く");
+ok(/localStorage\.setItem\(TOKEN_KEY/.test(html), "「保持する」を選んだら localStorage へ置く");
+ok(/localStorage\.removeItem\(TOKEN_KEY/.test(html), "選んでいなければ localStorage から消す");
+ok(/function clearAuth[\s\S]{0,220}sessionStorage\.removeItem[\s\S]{0,120}localStorage\.removeItem/.test(html),
+  "ログアウトでは両方から消す");
+// 片方だけ消すと、閉じて開き直したときに死んだトークンで入り直そうとする
+ok(/if \(res\.status === 401 && auth\) \{ clearAuth\(\)/.test(html), "401 を受けたらトークンを捨てる");
+
+ok(/<input type="checkbox" id="rememberMe"/.test(html), "保持するかを選べる");
+ok(/id="rememberMe" checked/.test(html), "既定は保持する");
+ok(/共用の端末では外してください/.test(html), "外すべき場面を書く");
+// チェックボックスは3画面共通。パネルの中に置くと3つ同時に存在する
+ok(html.indexOf('id="rememberMe"') > html.indexOf('id="panelRecovery"'),
+  "チェックボックスはパネルの外（ログイン・新規登録・回復のどれからでも効く）");
+ok((html.match(/id="rememberMe"/g) || []).length === 1, "チェックボックスは1つだけ");
+
+// サーバーへ伝えないと、選んでも12時間のトークンしか出ない
+ok((html.match(/remember: wantsRemember\(\)/g) || []).length === 4,
+  "ログインの4経路すべてでサーバーへ伝える",
+  String((html.match(/remember: wantsRemember\(\)/g) || []).length));
+
+ok(/restoreSession\(\)/.test(html), "開いたときに入り直す");
+ok(/async function restoreSession[\s\S]{0,400}apiCall\("GET", "\/me"\)/.test(html),
+  "通るかどうかはサーバーに訊く（手元で期限を判断しない）");
+ok(/session\/refresh/.test(html), "折り返しを過ぎたら出し直す（30日目に必ず切れるのを防ぐ）");
+
+console.log("== 取り消せること ==");
+// トークンは署名だけで検証でき、サーバーに残らない。**進める以外に切る手が無い。**
+ok(/id="logoutAll"/.test(html), "すべての端末からログアウトできる");
+ok(/me\/logout-all/.test(html), "取り消しの経路を叩く");
+ok(/この端末は入ったまま/.test(html), "押した人が締め出されないと書いてある");
+// 認証手段を変える操作は新しいトークンを返す。受け取らないと自分が締め出される
+ok(/adoptToken\(await apiCall\("POST", "\/passkey\/delete"/.test(html), "パスキー削除で新しいトークンを受け取る");
+ok(/adoptToken\(await apiCall\("POST", "\/password\/enable"/.test(html), "パスワード有効化で受け取る");
+ok(/const r = await apiCall\("POST", "\/password\/disable", \{\}\); adoptToken\(r\)/.test(html),
+  "パスワード無効化で受け取る");
 
 console.log("== 横スクロールの跳ね返りを止めてある ==");
 // 2026-09-07: 14日マトリクスの左端で、貼り付けた現象名の列だけが右へ最大27px
