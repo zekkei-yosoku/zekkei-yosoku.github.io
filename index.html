@@ -664,7 +664,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260907233848"></script>
+<script src="sorami-core.js?v=20260908102424"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2189,7 +2189,7 @@ new MutationObserver(renderFavToggle).observe($("placeName"), { childList: true 
 //   * ITPで保存領域が消えてもログイン情報が壊れて残ることが無い
 // 代わりに開き直すたびに認証が要るが、パスキーなら2秒で済む。
 const API = location.hostname === "localhost" || location.hostname === "127.0.0.1"
-  ? "http://localhost:8787" : "https://zekkei-api.workers.dev";
+  ? "http://localhost:8787" : "https://zekkei-api.okayu-sorami.workers.dev";
 
 let auth = null;                                   // { token, loginId, role }。メモリのみ
 let syncInfo = store.get("sorami.sync", null);     // { loginId, rev }。端末に残す
