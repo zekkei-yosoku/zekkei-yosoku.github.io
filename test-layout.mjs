@@ -693,11 +693,53 @@ console.log("== 回復コードはまとめて渡す ==");
 ok(/const showCodes = \(codes\)/.test(html) && !/const showCode = \(code\)/.test(html),
   "一覧で見せる");
 ok(/codes\.map\(\(c\) => esc\(c\)\)\.join\("<br>"\)/.test(html), "全部並べる");
-ok(/id="copyCodes"/.test(html) && /navigator\.clipboard\.writeText\(shownCodes\.join/.test(html),
+// コピーする中身は codeBlock（IDを含む）へ変えた
+ok(/id="copyCodes"/.test(html) && /navigator\.clipboard\.writeText\(codeBlock\(/.test(html),
   "まとめてコピーできる");
 ok(/1つずつ使い捨てです。期限はありません/.test(html), "使い方を書く");
 ok(/res\.remaining <= 2[\s\S]{0,160}発行し直して/.test(html), "残りが少なくなったら作り直しを促す");
 ok(/新規登録<\/summary>/.test(html), "ラベルは「新規登録」");
+
+console.log("== 管理者の画面 ==");
+ok(/id="adminView"/.test(html), "画面がある");
+ok(/location\.hash === "#\/admin"/.test(html), "URLで開ける");
+ok(/\$\("adminView"\)\.hidden = !inAdmin/.test(html), "他の画面と出し分ける");
+ok(/\$\("toAdmin"\)\.hidden = me\.role !== "admin"/.test(html), "管理者にだけ入口を出す");
+// 画面を隠すのは防御ではない。権限はサーバーが判定する。
+ok(/権限の判定は\*\*サーバーがやる\*\*/.test(html), "画面側の隠蔽を防御と考えないと明記する");
+// 他人のパスワードは扱わない
+ok(!/admin[\s\S]{0,400}password.*=.*\$\("[^"]*Pw"\)\.value/.test(html.slice(html.indexOf("renderAdmin"))),
+  "管理者画面でパスワードを入力させない");
+ok(/他人のパスワードは扱わない/.test(html), "扱わない理由を書く");
+// 一覧・許可リスト・記録
+ok(/id="adminUsers"/.test(html) && /id="adminAllowed"/.test(html) && /id="adminLog"/.test(html),
+  "利用者・許可リスト・操作の記録がある");
+ok(/入る手段が \$\{methods\} しかありません/.test(html), "締め出されそうな人を目立たせる");
+ok(/data-code=|data-role=|data-deluser=|data-disallow=/.test(html), "各操作の入口がある");
+// 取り消せない操作は二段で確かめる
+ok(/data-deluser[\s\S]{0,400}最終確認です。すべて消えます。/.test(html), "削除は二段で確かめる");
+ok(/その人がいま持っているコードは、すべて使えなくなります/.test(html), "回復コードの再発行の副作用を言う");
+ok(/本人が入り直すまで反映されません/.test(html), "権限がトークンに乗ることを言う");
+ok(/取り消しても既存のアカウントは消えません/.test(html), "許可の取り消しの意味を言う");
+ok(/気象業務法上の扱いが変わりえます/.test(html), "人を増やす前に法の話へ触れる");
+
+console.log("== 画面の文字にマークダウンを混ぜない ==");
+// 2026-09-08、許可リストの説明と confirm の文面に ** がそのまま出ていた。
+// コメントには書いてよいが、利用者が読む文字列には入れない。
+const visible = html.split("\n").filter((l) => !/^\s*(\/\/|\*|<!--)/.test(l))
+  .filter((l) => /confirm\(|alert\(|textContent =|>[^<]*\*\*/.test(l) && l.includes("**"));
+ok(visible.length === 0, "画面へ出る文字列に ** が無い", visible.slice(0, 2).join(" / ").slice(0, 120));
+
+console.log("== 回復コードはIDと一緒に保存させる ==");
+// 回復コードで入るには ID が要る（回数制限をアカウント単位でかけるため）。
+// コードだけ保存していると、IDを忘れたときに手詰まりになる。
+ok(/const codeBlock = \(loginId, codes\)[\s\S]{0,120}ID: \$\{loginId\}/.test(html),
+  "コピーする内容にIDを含める");
+ok(/writeText\(codeBlock\(auth\?\.loginId/.test(html), "自分の分に効く");
+ok(/writeText\(codeBlock\(adminCodesFor/.test(html), "管理者が他人へ出す分にも効く");
+ok(/上のID欄も埋めてください/.test(html), "入力時にIDが要ることを書く");
+ok(/<strong>IDと一緒に<\/strong>パスワードマネージャへ保存/.test(html), "保存時にIDのことを書く");
+ok(/絶景予報 \$\{location\.origin\}/.test(html), "どのサイトのものか分かるようにする");
 
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

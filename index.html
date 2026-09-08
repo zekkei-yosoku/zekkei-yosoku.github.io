@@ -551,6 +551,49 @@
   </div>
 
   <!-- 記録画面: 点数が実際とどれだけ合っているかを見る。判断には使わないので別画面。 -->
+  <!-- 管理者だけの画面。権限はサーバーが判定するので、ここを隠すのは見た目の話でしかない
+       （URLを直接開かれてもAPIが403で断る）。 -->
+  <div id="adminView" hidden>
+    <button id="adminBack" class="tap" style="color:var(--accent);font-weight:700;padding:6px 2px">← 一覧にもどる</button>
+    <div class="card" style="margin-top:8px">
+      <div class="section-h"><h2>利用者</h2><span class="muted" id="adminUserCount"></span></div>
+      <div id="adminUsers" class="tiny"></div>
+    </div>
+    <div class="card" style="margin-top:10px">
+      <div class="section-h"><h2>登録のしかた</h2></div>
+      <div id="signupMode" class="tiny"></div>
+      <button id="toggleSignup" class="fav-btn" style="margin-top:10px"></button>
+      <p class="tiny" style="margin-top:8px">誰でも登録できる状態は「他者への予報提供」に近づき、
+        気象業務法上の扱いに関わります。開けるかどうかは意識して決めてください。</p>
+    </div>
+
+    <div class="card" style="margin-top:10px" id="allowCard">
+      <div class="section-h"><h2>登録を許可するID</h2></div>
+      <p class="tiny">ここに載せたIDだけが新規登録できます。<strong>取り消しても既存のアカウントは消えません。</strong></p>
+      <div id="adminAllowed" class="tiny"></div>
+      <label class="fav-l" for="allowId">追加するID</label>
+      <input type="text" id="allowId" class="fav-in" maxlength="32" autocomplete="off">
+      <label class="fav-l" for="allowNote">メモ<span class="fav-opt">任意</span></label>
+      <input type="text" id="allowNote" class="fav-in" maxlength="60" placeholder="誰のためか">
+      <button id="allowAdd" class="fav-btn" style="margin-top:10px">許可する</button>
+      <p class="tiny" style="margin-top:8px">他の人にアカウントを配ると、気象業務法上の扱いが変わりえます。
+        開ける前に判断してください。</p>
+    </div>
+    <div class="card" style="margin-top:10px">
+      <div class="section-h"><h2>操作の記録</h2><span class="muted">直近50件</span></div>
+      <p class="tiny">自分でやった操作も残ります。取り消せないものを、あとから辿れるように。</p>
+      <div id="adminLog" class="tiny"></div>
+    </div>
+    <p class="warn" id="adminErr" style="margin-top:10px" hidden></p>
+    <div id="adminCodes" hidden style="margin-top:10px;padding:12px;border-radius:10px;background:var(--sunk)">
+      <div class="tiny" style="font-weight:700" id="adminCodesHead"></div>
+      <div id="adminCodesList" style="font-family:ui-monospace,monospace;font-size:0.81rem;font-weight:700;margin-top:6px;line-height:1.7;word-break:break-all"></div>
+      <button id="adminCodesCopy" class="fav-btn" style="margin-top:10px">すべてコピー</button>
+      <div class="tiny" style="margin-top:6px">一度しか表示されません。本人へ渡してください。
+        本人はこれで入り、自分でパスワードを決め直せます。</div>
+    </div>
+  </div>
+
   <div id="recordsView" hidden>
     <button class="back" id="recordsBack">← 一覧にもどる</button>
     <div class="card">
@@ -617,7 +660,7 @@
     <details id="otherWays" style="margin-top:16px">
       <summary class="tiny" style="cursor:pointer;color:var(--secondary)">回復コードで入る</summary>
       <p class="tiny" style="margin-top:8px">パスキーもパスワードも使えないときに。
-        使うと、その場で次のコードが出ます。</p>
+        <strong>上のID欄も埋めてください。</strong>10個あるうちの1つを使い捨てます。</p>
       <label class="fav-l" for="authCode">回復コード</label>
       <input type="text" id="authCode" class="fav-in" placeholder="XXXXXXXX-XXXXXXXX-…" autocomplete="off">
       <button id="codeLogin" class="fav-btn" style="margin-top:12px">回復コードでログイン</button>
@@ -625,7 +668,8 @@
 
     <details id="signupWay" style="margin-top:10px">
       <summary class="tiny" style="cursor:pointer;color:var(--secondary)">新規登録</summary>
-      <p class="tiny" style="margin-top:8px">登録できるIDはあらかじめ決まっています。
+      <p class="tiny" style="margin-top:8px">好きなIDを決めて登録できます（英数字3〜32文字）。
+        すでに使われているIDは選べません。
         パスワードはこの端末から送られ、サーバーには元に戻せない形でしか保存されません。</p>
       <label class="fav-l" for="newId">ID</label>
       <input type="text" id="newId" class="fav-in" autocomplete="username" maxlength="32">
@@ -646,6 +690,7 @@
   <div class="sheet-body">
     <div id="accountBody" class="tiny"></div>
     <p class="warn" id="accountErr" style="margin-top:10px" hidden></p>
+    <button id="toAdmin" class="fav-btn" style="margin-top:16px" hidden>管理者の画面をひらく</button>
     <button id="addPasskey" class="fav-btn primary" style="margin-top:16px">この端末にパスキーを登録</button>
     <button id="newRecovery" class="fav-btn" style="margin-top:8px">回復コードを発行する</button>
     <button id="disablePw" class="fav-btn" style="margin-top:8px" hidden>パスワードでのログインをやめる</button>
@@ -662,7 +707,8 @@
       <div id="recoveryCode" style="font-family:ui-monospace,monospace;font-size:0.81rem;font-weight:700;margin-top:6px;line-height:1.7;word-break:break-all"></div>
       <button id="copyCodes" class="fav-btn" style="margin-top:10px">すべてコピー</button>
       <div class="tiny" style="margin-top:6px">1つずつ使い捨てです。期限はありません。
-        パスワードマネージャへ保存してください。端末を全部失くしたときに使います。</div>
+        <strong>IDと一緒に</strong>パスワードマネージャへ保存してください。
+        入るときは ID とコードの両方が要ります。</div>
     </div>
     <button id="logout" class="fav-remove">ログアウト</button>
     <button id="deleteAccount" class="fav-remove" style="color:var(--red)">アカウントを削除する</button>
@@ -700,7 +746,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908120003"></script>
+<script src="sorami-core.js?v=20260908124231"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -966,6 +1012,7 @@ const WIDE = window.matchMedia("(min-width: 900px)");
 //   #/sunset/172… → 夕焼けの特定の日
 let picked = null;       // 詳細で見ている現象（一覧のときは null）
 let atRecords = false;   // 記録画面を見ているか
+let atAdmin = false;     // 管理者画面を見ているか
 let nowcastReady = false;  // 実況が取れたか。画面を切り替えても状態を保つ
 let pushedCount = 0;     // 自分で進めた回数。戻るボタンの挙動を決めるのに使う
 let listScrollY = 0;     // 一覧へ戻ったときに元の位置へ戻す
@@ -1121,13 +1168,15 @@ function render() {
     return u && !u.evaluation.unavailable;
   });
   const inDetail = !!(picked && weeks[picked]);
-  const inRecords = atRecords && !inDetail;
-  $("listView").hidden = inDetail || inRecords;
+  const inAdmin = atAdmin && !inDetail;
+  const inRecords = atRecords && !inDetail && !inAdmin;
+  $("listView").hidden = inDetail || inRecords || inAdmin;
   $("detailView").hidden = !inDetail;
   $("recordsView").hidden = !inRecords;
-  // 地点と実況は判断のための情報。記録を読んでいるときは要らない。
-  $("placeRow").hidden = inRecords;
-  $("nowcast").hidden = inRecords || !nowcastReady;
+  $("adminView").hidden = !inAdmin;
+  // 地点と実況は判断のための情報。記録や管理を読んでいるときは要らない。
+  $("placeRow").hidden = inRecords || inAdmin;
+  $("nowcast").hidden = inRecords || inAdmin || !nowcastReady;
 
   if (inDetail) {
     $("detailPane").innerHTML = renderDetailPane(picked, now);
@@ -1229,6 +1278,7 @@ function wireOutcomes(root) {
 //   #/sunset/1756… → 夕焼けの特定の日
 function routeFromHash() {
   if (location.hash === "#/records") return { records: true };
+  if (location.hash === "#/admin") return { admin: true };
   const m = /^#\/([A-Za-z]+)(?:\/(\d+))?$/.exec(location.hash);
   if (!m || !S.SCORERS[m[1]]) return null;
   return { id: m[1], dayMs: m[2] ? Number(m[2]) : null };
@@ -1254,6 +1304,8 @@ function applyRoute() {
   const route = routeFromHash();
   picked = route && route.id ? route.id : null;
   atRecords = !!(route && route.records);
+  atAdmin = !!(route && route.admin);
+  if (atAdmin) renderAdmin();
   if (route && route.id) {
     // 日を含まない URL は「直近の回」を指す。前に見ていた日を残すと、
     // #/sunset を開いたのに数日先が出るという食い違いになる。
@@ -2431,6 +2483,7 @@ async function openAccountSheet() {
     const me = await apiCall("GET", "/me");
     $("disablePw").hidden = !me.hasPassword || !me.credentials.length;
     $("enablePwWay").hidden = me.hasPassword;
+    $("toAdmin").hidden = me.role !== "admin";
     const when = (t) => (t ? new Date(t).toLocaleDateString("ja-JP") : "未使用");
     $("accountBody").innerHTML =
       `<div><strong>${esc(me.loginId)}</strong>${me.role === "admin" ? " ・ 管理者" : ""}</div>`
@@ -2499,14 +2552,21 @@ $("addPasskey").onclick = async () => {
 };
 // まとめて発行するので、表示も一覧にする。1個ずつだと使った瞬間に手持ちがゼロになる。
 let shownCodes = [];
+// **IDも一緒に見せて、コピーにも含める。** 回復コードで入るには ID が要るので、
+// コードだけ保存していると、IDを忘れたときに手詰まりになる。
+const codeBlock = (loginId, codes) =>
+  `絶景予報 ${location.origin}\nID: ${loginId}\n\n${codes.join("\n")}`;
 const showCodes = (codes) => {
   shownCodes = codes;
-  $("recoveryCode").innerHTML = codes.map((c) => esc(c)).join("<br>");
+  $("recoveryCode").innerHTML = `<div style="font-weight:400;margin-bottom:6px">ID: ${esc(auth?.loginId ?? "")}</div>`
+    + codes.map((c) => esc(c)).join("<br>");
   $("recoveryShown").hidden = false;
 };
 $("copyCodes").onclick = async () => {
-  try { await navigator.clipboard.writeText(shownCodes.join("\n")); $("copyCodes").textContent = "コピーしました"; }
-  catch { $("copyCodes").textContent = "コピーできませんでした。選んで写してください"; }
+  try {
+    await navigator.clipboard.writeText(codeBlock(auth?.loginId ?? "", shownCodes));
+    $("copyCodes").textContent = "コピーしました（IDも入っています）";
+  } catch { $("copyCodes").textContent = "コピーできませんでした。選んで写してください"; }
 };
 $("newRecovery").onclick = async () => {
   $("accountErr").hidden = true;
@@ -2557,6 +2617,130 @@ $("logout").onclick = () => {
   $("accountSheet").close();
   renderAuthButton();
   render();
+};
+
+// ---------------------------------------------------------------- 管理者の画面
+//
+// 権限の判定は**サーバーがやる**。ここで画面を隠すのは見た目の整理でしかなく、
+// URL を直接開かれてもAPIが 403 で断る。画面側の隠蔽を防御と考えない。
+//
+// **他人のパスワードは扱わない。** 一方向のハッシュなので見えないし、設定できるように
+// すると管理者がなりすませてしまい、本人の操作と区別が付かなくなる。
+// 困っている人には回復コードを渡し、本人が自分で決め直す。
+const adminFail = (msg) => { $("adminErr").textContent = msg; $("adminErr").hidden = false; };
+let adminCodes = [];
+const showAdminCodes = (who, codes) => {
+  adminCodes = codes; adminCodesFor = who;
+  $("adminCodesHead").textContent = `${who} の回復コード（10個）`;
+  $("adminCodesList").innerHTML = codes.map((c) => esc(c)).join("<br>");
+  $("adminCodes").hidden = false;
+};
+let adminCodesFor = "";
+$("adminCodesCopy").onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(codeBlock(adminCodesFor, adminCodes));
+    $("adminCodesCopy").textContent = "コピーしました（IDも入っています）";
+  } catch { $("adminCodesCopy").textContent = "コピーできませんでした。選んで写してください"; }
+};
+$("adminBack").onclick = () => { location.hash = ""; };
+$("toAdmin").onclick = () => { $("accountSheet").close(); location.hash = "#/admin"; };
+
+async function renderAdmin() {
+  if (!auth) { adminFail("ログインしてください"); return; }
+  $("adminErr").hidden = true;
+  try {
+    const me = await apiCall("GET", "/admin/users");
+    const day = (t) => (t ? new Date(t).toLocaleDateString("ja-JP") : "—");
+    $("adminUserCount").textContent = `${me.users.length}人`;
+    $("adminUsers").innerHTML = me.users.map((u) => {
+      // 入る手段がいくつ残っているか。1つだと、それを失った時点で締め出される。
+      const methods = (u.has_password ? 1 : 0) + u.passkeys + (u.codes > 0 ? 1 : 0);
+      const ways = [u.has_password ? "パスワード" : null,
+                    u.passkeys ? `パスキー${u.passkeys}` : null,
+                    u.codes ? `回復コード${u.codes}` : null].filter(Boolean).join(" ・ ") || "なし";
+      return `<div class="list-item">
+        <strong>${esc(u.login_id)}</strong>${u.role === "admin" ? ' <span class="tiny">管理者</span>' : ""}
+        <div class="tiny">${ways} ・ 登録 ${day(u.created_at)}</div>
+        ${methods <= 1 ? `<div class="warn tiny">入る手段が ${methods} しかありません</div>` : ""}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+          <button class="tap" data-code="${esc(u.login_id)}" style="color:var(--accent);font-size:0.72rem;min-height:36px">回復コードを出す</button>
+          <button class="tap" data-role="${esc(u.login_id)}" data-to="${u.role === "admin" ? "user" : "admin"}"
+            style="color:var(--secondary);font-size:0.72rem;min-height:36px">${u.role === "admin" ? "管理者をやめる" : "管理者にする"}</button>
+          <button class="tap" data-deluser="${esc(u.login_id)}" style="color:var(--red);font-size:0.72rem;min-height:36px">削除</button>
+        </div></div>`;
+    }).join("");
+
+    $("adminAllowed").innerHTML = me.allowed.length
+      ? me.allowed.map((a) => `<div class="fav-row">
+          <div class="list-item" style="border-top:none"><strong>${esc(a.login_id)}</strong>
+            <div class="tiny">${esc(a.note || "")}</div></div>
+          <button class="fav-del" data-disallow="${esc(a.login_id)}" aria-label="${esc(a.login_id)} の許可を取り消す">✕</button>
+        </div>`).join("")
+      : `<p class="tiny">誰も登録できません。</p>`;
+
+    const st = await apiCall("GET", "/admin/settings");
+    $("signupMode").innerHTML = st.openSignup
+      ? `<span class="warn">いまは<strong>誰でも</strong>好きなIDで登録できます。</span>`
+      : `いまは<strong>許可したIDだけ</strong>登録できます。`;
+    $("toggleSignup").textContent = st.openSignup ? "許可したIDだけにする" : "誰でも登録できるようにする";
+    // 許可リストは、閉じているときにしか意味がない
+    $("allowCard").hidden = st.openSignup;
+    $("toggleSignup").onclick = async () => {
+      if (!st.openSignup && !confirm("誰でも好きなIDで登録できるようにします。\n"
+        + "他の人があなたの予報を使える状態になります。\n\n続けますか？")) return;
+      try { await apiCall("POST", "/admin/settings", { openSignup: !st.openSignup }); renderAdmin(); }
+      catch (e) { adminFail(e.message); }
+    };
+
+    const log = await apiCall("GET", "/admin/log");
+    const LABEL = { add_passkey: "パスキーを登録", delete_passkey: "パスキーを削除",
+      enable_password: "パスワードを有効化", disable_password: "パスワードを無効化",
+      issue_recovery: "回復コードを発行", allow_signup: "登録を許可", disallow_signup: "許可を取り消し",
+      set_role: "権限を変更", revoke_credential: "パスキーを失効", delete_user: "アカウントを削除",
+      set_open_signup: "登録のしかたを変更" };
+    $("adminLog").innerHTML = log.entries.length
+      ? log.entries.slice(0, 50).map((e) => `<div class="list-item">
+          <span>${esc(LABEL[e.action] || e.action)}</span>
+          <div class="tiny">${new Date(e.created_at).toLocaleString("ja-JP")} ・
+            ${esc(e.actor_login || e.actor_id)}${e.target_login && e.target_login !== e.actor_login
+              ? ` → ${esc(e.target_login)}` : ""}</div></div>`).join("")
+      : `<p class="tiny">まだありません。</p>`;
+
+    // 押下の配線は描画のたびにやり直す
+    for (const el of $("adminUsers").querySelectorAll("[data-code]")) el.onclick = async () => {
+      const who = el.dataset.code;
+      if (!confirm(`${who} の回復コードを10個発行します。\n`
+        + "その人がいま持っているコードは、すべて使えなくなります。\n\n続けますか？")) return;
+      try { showAdminCodes(who, (await apiCall("POST", "/admin/recovery", { loginId: who })).codes); renderAdmin(); }
+      catch (e) { adminFail(e.message); }
+    };
+    for (const el of $("adminUsers").querySelectorAll("[data-role]")) el.onclick = async () => {
+      const to = el.dataset.to;
+      if (!confirm(`${el.dataset.role} を ${to === "admin" ? "管理者にします" : "管理者から外します"}。\n`
+        + "権限はログイン時に決まるので、本人が入り直すまで反映されません。")) return;
+      try { await apiCall("POST", "/admin/role", { loginId: el.dataset.role, role: to }); renderAdmin(); }
+      catch (e) { adminFail(e.message); }
+    };
+    for (const el of $("adminUsers").querySelectorAll("[data-deluser]")) el.onclick = async () => {
+      const who = el.dataset.deluser;
+      if (!confirm(`${who} のアカウントと、その人のお気に入り・記録をすべて消します。\n取り消せません。\n\n本当に削除しますか？`)) return;
+      if (!confirm("最終確認です。すべて消えます。")) return;
+      try { await apiCall("POST", "/admin/delete-user", { loginId: who }); renderAdmin(); }
+      catch (e) { adminFail(e.message); }
+    };
+    for (const el of $("adminAllowed").querySelectorAll("[data-disallow]")) el.onclick = async () => {
+      try { await apiCall("POST", "/admin/disallow", { loginId: el.dataset.disallow }); renderAdmin(); }
+      catch (e) { adminFail(e.message); }
+    };
+  } catch (e) { adminFail(e.message); }
+}
+$("allowAdd").onclick = async () => {
+  $("adminErr").hidden = true;
+  try {
+    await apiCall("POST", "/admin/allow", { loginId: $("allowId").value, note: $("allowNote").value });
+    $("allowId").value = ""; $("allowNote").value = "";
+    renderAdmin();
+  } catch (e) { adminFail(e.message); }
 };
 
 // 記録とお気に入りは localStorage にあり、ブラウザのデータ消去で消える。
