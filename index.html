@@ -819,7 +819,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908193424"></script>
+<script src="sorami-core.js?v=20260908194445"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2458,7 +2458,7 @@ async function apiCall(method, path, body) {
   try { data = await res.json(); } catch { /* 本文が無いこともある */ }
   if (!res.ok) {
     // 401 はセッション切れ。**データは消さない。** 入り直せば続きから使える。
-    if (res.status === 401 && auth) { clearAuth(); renderAuthButton(); }
+    if (res.status === 401 && auth) { clearAuth(); clearAdminView(); renderAuthButton(); }
     throw new Error(data?.error || `通信できませんでした（${res.status}）`);
   }
   return data;
@@ -2600,6 +2600,7 @@ async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } 
     store.set("sorami.queue", pushQueue);
   } else if (plan === "discard") {
     // **別の人のデータ。渡さないし、見せない。** 送信待ちも巻き添えで消す
+    clearAdminView();
     favorites = []; sightings = []; pushQueue = [];
     store.set("sorami.favorites", []); store.set("sorami.sightings", []);
     store.set("sorami.queue", []);
@@ -2922,7 +2923,7 @@ $("deleteAccount").onclick = async () => {
   if (!confirm("最終確認です。すべて消えます。")) return;
   try {
     await apiCall("DELETE", "/me");
-    clearAuth(); syncInfo = null; pushQueue = [];
+    clearAuth(); clearAdminView(); syncInfo = null; pushQueue = [];
     favorites = []; sightings = [];
     dataOwner = null; store.set("sorami.owner", null);
     for (const k of ["sorami.sync", "sorami.queue", "sorami.favorites", "sorami.sightings"]) store.set(k, k.endsWith("sync") ? null : []);
@@ -2959,7 +2960,7 @@ $("logoutAll").onclick = async () => {
 $("logout").onclick = () => {
   // 同期済みのものはローカルから消す。残すと、別のアカウントで入ったときに混ざる。
   if (pushQueue.length && !confirm(`まだ送っていない変更が ${pushQueue.length}件 あります。\n消えますが、ログアウトしますか？`)) return;
-  clearAuth(); syncInfo = null; pushQueue = [];
+  clearAuth(); clearAdminView(); syncInfo = null; pushQueue = [];
   favorites = []; sightings = [];
   dataOwner = null; store.set("sorami.owner", null);
   store.set("sorami.sync", null); store.set("sorami.queue", []);
@@ -2995,8 +2996,27 @@ $("adminCodesCopy").onclick = async () => {
 $("adminBack").onclick = () => { location.hash = ""; };
 $("toAdmin").onclick = () => { $("accountSheet").close(); location.hash = "#/admin"; };
 
+// 管理画面に出した中身を全部消す。**他人の回復コードが残るのが一番まずい。**
+// 画面の切り替えは URL のハッシュだけで決まるので、消さないと未ログインでも
+// `#/admin` を開いた人に見えてしまう（調査 E-2）。
+function clearAdminView() {
+  adminCodes = []; adminCodesFor = "";
+  $("adminCodes").hidden = true;
+  for (const id of ["adminCodesHead", "adminCodesList", "adminUsers", "adminAllowed",
+                    "adminLog", "adminUserCount", "signupMode"]) {
+    const el = $(id);
+    if (el) el.innerHTML = "";
+  }
+}
+
 async function renderAdmin() {
-  if (!auth) { adminFail("ログインしてください"); return; }
+  // **URLだけで中身を出さない。** 管理者と確認できたときだけ描く。
+  // 権限はサーバーが判定するが、画面に前の内容を残さないのは画面側の責任。
+  if (!auth || auth.role !== "admin") {
+    clearAdminView();
+    adminFail(auth ? "権限がありません" : "ログインしてください");
+    return;
+  }
   $("adminErr").hidden = true;
   try {
     const me = await apiCall("GET", "/admin/users");

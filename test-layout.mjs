@@ -602,8 +602,10 @@ ok(/id="authButton"/.test(html), "マストヘッドに入口がある");
 ok(/headers\.authorization = `Bearer \$\{auth\.token\}`/.test(html), "ヘッダで送る（Cookie を使わない）");
 ok(!/document\.cookie/.test(html), "Cookie に入れない");
 // 401 でデータを消さない。消すと、サーバーが一時的に落ちただけで手元が空になる。
-ok(/if \(res\.status === 401 && auth\) \{ clearAuth\(\); renderAuthButton\(\); \}/.test(html),
-  "401 ではログイン状態だけ落とす");
+// 401 で落とすのは「ログイン状態」と「管理画面に出ていた他人の情報」だけ。
+// **お気に入りと記録は残す**（サーバーが一時的に落ちただけで手元が空にならないように）
+ok(/if \(res\.status === 401 && auth\) \{ clearAuth\(\); clearAdminView\(\); renderAuthButton\(\); \}/.test(html),
+  "401 ではログイン状態と管理画面の中身だけ落とす");
 ok(!/401[\s\S]{0,120}favorites = \[\]/.test(html), "401 でデータを消さない");
 // 同期の失敗を黙って飲まない
 ok(/renderAuthButton[\s\S]{0,400}classList\.toggle\("warn", failing\)/.test(html), "同期の失敗をボタンに出す");
@@ -782,6 +784,27 @@ ok(/if \(!who\) \{ authFail\(\$\("authErr"\), "IDを入れてください"\)/.te
 ok(/\$\("authId"\)\.addEventListener\("input"[\s\S]{0,140}\["newId", "codeId"\]/.test(html),
   "IDを打ち直させない");
 ok(/\$\("authId"\)\.addEventListener\("input"/.test(html), "上で打ったIDを写す");
+
+console.log("== 管理画面の中身を、ログアウト後に残さない ==");
+// 2026-09-08 の調査 E-2。ログアウトはお気に入り・記録・送信待ちを消すが、
+// **管理画面に出した他人の回復コードを消していなかった。**
+// 画面の切り替えは URL のハッシュだけで決まるので、未ログインでも `#/admin` を
+// 開くと残った内容が見える。管理者発行分が無期限だったこと（E-1）と重なると、
+// そのまま他人のアカウントに入れる。
+ok(/function clearAdminView\(\)/.test(html), "管理画面を空にする処理がある");
+// 消す対象: 表示中のコード・その持ち主・一覧・許可リスト・操作の記録
+for (const id of ["adminCodes", "adminCodesList", "adminUsers", "adminAllowed", "adminLog"]) {
+  const body = html.slice(html.indexOf("function clearAdminView()"),
+                          html.indexOf("function clearAdminView()") + 600);
+  ok(body.includes(id), `${id} を空にする`);
+}
+ok(/adminCodes = \[\]/.test(html), "手元に持っているコードも捨てる");
+// 呼ぶ場所: ログアウト・退会・401・別の人のログイン
+ok((html.match(/clearAdminView\(\)/g) || []).length >= 4,
+  "ログアウト・退会・401・利用者の切替で呼ぶ",
+  String((html.match(/clearAdminView\(\)/g) || []).length));
+// **URLだけで中身を出さない。** 管理者と確認できたときだけ描く
+ok(/if \(!auth \|\| auth\.role !== "admin"\)/.test(html), "管理者でなければ描かない");
 
 console.log("== 手元のデータを、別のアカウントへ送らない ==");
 // 2026-09-08 の調査 C-1。401でセッションが切れても手元のデータは残す（意図的：
