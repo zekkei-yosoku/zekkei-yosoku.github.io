@@ -781,7 +781,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908151234"></script>
+<script src="sorami-core.js?v=20260908152842"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1271,7 +1271,10 @@ function render() {
     };
   }
 
-  renderRecords(now, inDetail || inRecords);
+  // 管理画面でも隠す。recPending は listView の外にある独立したカードなので、
+  // listView を隠しても消えない。ここに inAdmin を書き忘れると、
+  // 利用者の管理をしている画面に「実際はどうでしたか？」が出る。
+  renderRecords(now, inDetail || inRecords || inAdmin);
   if (inRecords) $("recordsBack").onclick = goList;
   // ホームと記録画面の「実際はどうでしたか？」も同じ配線に乗せるため、
   // 描画をすべて終えてから束ねる。

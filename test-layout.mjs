@@ -780,6 +780,21 @@ ok(/\$\("authId"\)\.addEventListener\("input"[\s\S]{0,140}\["newId", "codeId"\]/
   "IDを打ち直させない");
 ok(/\$\("authId"\)\.addEventListener\("input"/.test(html), "上で打ったIDを写す");
 
+console.log("== 管理画面に、ほかの画面のものを出さない ==");
+// 2026-09-08 ユーザー指摘「管理画面に実際はどうでしたか？がある」。
+// recPending は listView の**外**にある独立したカードなので、listView を
+// 隠しても消えない。切り替えの条件に inAdmin を書き忘れていた。
+ok(/renderRecords\(now, inDetail \|\| inRecords \|\| inAdmin\)/.test(html),
+  "記録の問いかけを管理画面で隠す");
+// main 直下で切り替えている要素は、画面が増えるたびに全部見直す必要がある
+for (const id of ["listView", "detailView", "recordsView", "adminView", "placeRow", "nowcast"]) {
+  ok(html.includes(`$("${id}").hidden`), `${id} の表示を切り替えている`);
+}
+ok(/\$\("recPending"\)\.hidden/.test(html), "recPending の表示を切り替えている");
+// 管理画面で隠すもの: 地点・実況・記録の問いかけ
+ok(/\$\("placeRow"\)\.hidden = inRecords \|\| inAdmin/.test(html), "地点を管理画面で隠す");
+ok(/\$\("nowcast"\)\.hidden = inRecords \|\| inAdmin/.test(html), "実況を管理画面で隠す");
+
 console.log("== ログインの保持 ==");
 // 2026-09-08 ユーザー「更新するたびにログインはだるいよねって」。
 // それまでトークンはメモリのみで、**読み込み直すたびに消えていた。**
