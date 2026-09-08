@@ -610,7 +610,11 @@ ok(/const cleaned = clean\(\{ \.\.\.body, id: row\.id \}\)/.test(html),
 ok(/queuePush\("fav", entry\.id\);\s*\/\/ 消したことも同期する/.test(html), "削除も同期する");
 ok(/queuePush\("sight", record\.id\)/.test(html), "記録も同期する");
 // 初回ログインのマージを黙ってやらない
-ok(/この端末の \$\{before\}件 をアカウントへ入れ/.test(html), "初回マージの件数を出す");
+// 2026-09-08 ユーザー指摘「0件のとき出す意味がない」。
+// 黙って混ぜないための知らせなので、動いたものが無いなら出さない。
+ok(/この端末の \$\{uploaded\}件 をアカウントへ入れました/.test(html), "上げた件数を出す");
+ok(/アカウントから \$\{arrived\}件 を取り込みました/.test(html), "取り込んだ件数を出す");
+ok(/if \(parts\.length\) alert\(parts\.join\("\\n"\)\);/.test(html), "動かなければ何も出さない");
 // ログアウトで同期済みのローカルを消す（別アカウントで混ざるのを防ぐ）
 ok(/\$\("logout"\)\.onclick[\s\S]{0,400}favorites = \[\]; sightings = \[\]/.test(html),
   "ログアウトでローカルを消す");

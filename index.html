@@ -679,7 +679,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908102926"></script>
+<script src="sorami-core.js?v=20260908103906"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2304,14 +2304,18 @@ async function onLoggedIn(res) {
     store.set("sorami.queue", pushQueue);
   }
   if (fresh) { syncInfo = null; store.set("sorami.sync", null); }
+  const uploaded = fresh ? pushQueue.length : 0;
   const before = favorites.length + sightings.length;
   await syncNow();
   renderAuthButton();
   render();
-  if (fresh) {
-    alert(`${auth.loginId} でログインしました。\nこの端末の ${before}件 をアカウントへ入れ、` +
-      `アカウント側の内容と合わせて 記録${sightings.length}件・お気に入り${favorites.length}件 になりました。`);
-  }
+  // 黙って混ぜないための知らせなので、**何も動かなかったときは出さない。**
+  // 「0件を入れ、0件になりました」は読む人にとって何の情報でもない。
+  const arrived = favorites.length + sightings.length - before;
+  const parts = [];
+  if (uploaded) parts.push(`この端末の ${uploaded}件 をアカウントへ入れました。`);
+  if (arrived > 0) parts.push(`アカウントから ${arrived}件 を取り込みました。`);
+  if (parts.length) alert(parts.join("\n"));
 }
 
 const authFail = (el, msg) => { el.textContent = msg; el.hidden = false; };
