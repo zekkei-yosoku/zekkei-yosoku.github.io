@@ -780,6 +780,53 @@ ok(/\$\("authId"\)\.addEventListener\("input"[\s\S]{0,140}\["newId", "codeId"\]/
   "IDを打ち直させない");
 ok(/\$\("authId"\)\.addEventListener\("input"/.test(html), "上で打ったIDを写す");
 
+console.log("== シートを開いている間、後ろが動かない ==");
+// 2026-09-08 ユーザー指摘「ログイン画面とかアカウント情報見てる時に後ろがスクロールできる」。
+// **<dialog> は背面の「操作」は止めるが「スクロール」は止めない。**
+// 指やホイールが背面に乗ると本文が流れ、閉じたときに別の場所を見ていることになる。
+ok(/const scrollLock/.test(html), "本文のスクロールを止める仕掛けがある");
+ok(/position: "fixed"/.test(html), "iOS でも止まるよう位置を固定する");
+ok(/top: `\$\{-y\}px`/.test(html), "固定しても見ている位置がずれない");
+ok(/window\.scrollTo\(0, y\)/.test(html), "閉じたら元の位置へ戻す");
+ok(/if \(depth\+\+\) return;/.test(html), "入れ子で開いても二重に固定しない");
+// 開閉の呼び出しは10か所以上ある。**書き足す形にすると必ず漏れる**
+ok(/querySelectorAll\("dialog"\)[\s\S]{0,200}MutationObserver/.test(html),
+  "個々の開閉ではなく dialog をまとめて見る");
+ok(/attributeFilter: \["open"\]/.test(html), "open 属性の変化で判断する");
+ok(/scrollbar-gutter: stable/.test(html), "止めた瞬間に横幅が変わらない");
+// 4つのシートすべてが対象。1つでも漏れると、そこだけ後ろが動く
+ok((html.match(/<dialog class="sheet"/g) || []).length === 4, "シートは4つ",
+  String((html.match(/<dialog class="sheet"/g) || []).length));
+
+console.log("== 登録した直後に、パスキーの登録へ進める ==");
+// 2026-09-08 ユーザー「案内じゃなくてパスキーの登録を促したらどう？」。
+// 「登録しておくと便利です」と書くだけでは、たいてい誰もやらない。
+ok(!/登録したら、この端末にパスキーを登録しておくと/.test(html), "案内文だけの形をやめた");
+ok(/id="panelPasskey"/.test(html), "登録のあとに出す画面がある");
+ok(/id="signupPasskey"/.test(html) && /id="skipPasskey"/.test(html), "登録と見送りの両方がある");
+// どちらも選べることが見えるように、両方ボタンで出す
+ok(/id="signupPasskey" class="fav-btn primary"/.test(html), "登録は主ボタン");
+ok(/id="skipPasskey" class="fav-btn"/.test(html), "見送りもボタン（小さなリンクにしない）");
+ok(/showAuthPanel\("passkey"\)/.test(html), "登録できたらその画面へ移る");
+ok(/keepOpen: !!window\.PublicKeyCredential/.test(html),
+  "パスキー非対応の端末では、出さずに閉じる");
+
+// **パスワードには触らない**（2026-09-08 ユーザー指定）。鍵が増えるだけで入り方は減らさない
+ok(/パスワードはこれまでどおり使えます。<b>無効にはしません。<\/b>/.test(html), "無効にしないと書いてある");
+{
+  const panel = html.slice(html.indexOf('id="panelPasskey"'), html.indexOf('id="panelPasskey"') + 900);
+  ok(!/disable/.test(panel), "画面にパスワード無効化の口が無い");
+}
+{
+  const fn = html.slice(html.indexOf('$("signupPasskey").onclick'), html.indexOf('$("skipPasskey").onclick'));
+  ok(!/password\/disable/.test(fn), "登録の処理がパスワードを無効化しない");
+  ok(/registerPasskey\("この端末"\)/.test(fn), "共通の登録処理を使う");
+}
+// 登録の中身は1か所。アカウント画面と新規登録で別々に書くとずれる
+ok(/async function registerPasskey\(label\)/.test(html), "登録の処理が共通化されている");
+ok((html.match(/registerPasskey\(/g) || []).length === 3, "定義1・利用2",
+  String((html.match(/registerPasskey\(/g) || []).length));
+
 console.log("== パスワードの規則が、サーバーと同じに動く ==");
 // 2026-09-08 ユーザー判断で、構成の強制と弱いパターンの排除を両方入れた。
 // **判定の正本はサーバー**（api/src/auth.js の checkPassword）。画面側の
@@ -791,7 +838,10 @@ console.log("== パスワードの規則が、サーバーと同じに動く =="
   const start = html.indexOf("const PW_MIN =");
   ok(start > 0, "パスワードの規則を取り出せる");
   const src = html.slice(start);
-  const end = src.indexOf("\n$(\"doSignup\")");
+  // 終わりは「最初に現れる `$(...)` の行」。特定のハンドラ名で切ると、
+  // その手前に別のハンドラを足した瞬間に巻き込んで壊れる（実際に壊した）
+  const end = src.indexOf("\n$(\"");
+  ok(end > 0, "規則の終わりを見つけられる");
   const block = src.slice(0, end);
   const checkPw = new Function(`${block}; return checkPw;`)();
 

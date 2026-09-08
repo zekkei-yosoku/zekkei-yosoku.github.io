@@ -274,6 +274,8 @@
   dialog::backdrop { background: rgba(0,0,0,.45); }
   .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 8px; }
   .sheet-head button { min-height: 44px; padding: 0 4px; }
+  /* シートを開くと本文のスクロールを止めるので、その瞬間に横幅が変わらないよう溝を常に確保する */
+  html { scrollbar-gutter: stable; }
   .sheet-body { overflow-y: auto; max-height: calc(82vh - 54px); padding: 0 16px 16px;
                 overscroll-behavior: contain; }
   .sheet input[type=search] { width: 100%; font: inherit; padding: 9px 12px; border-radius: 10px;
@@ -697,8 +699,19 @@
         大文字・小文字・記号を1つずつ以上。<br>
         IDと同じ文字・よくある言葉・連番は使えません。</p>
       <button id="doSignup" class="fav-btn primary" style="margin-top:14px">登録して始める</button>
-      <p class="tiny" style="margin-top:8px">登録したら、この端末にパスキーを登録しておくと
-        次から Face ID だけで入れます。</p>
+    </div>
+
+    <!-- 登録の直後に、その場で登録できるようにする。
+         「登録しておくと便利です」と書くだけでは、たいてい誰もやらない。 -->
+    <div id="panelPasskey" hidden>
+      <p class="tiny"><strong>アカウントを作りました。</strong>
+        この端末にパスキーを登録すると、次から Face ID / Touch ID だけで入れます。</p>
+      <!-- **どちらも選べることが見えるように、両方ボタンで出す。**
+           小さなリンクにすると「登録しろ」と迫っているように見える。 -->
+      <button id="signupPasskey" class="fav-btn primary" style="margin-top:14px">この端末にパスキーを登録</button>
+      <button id="skipPasskey" class="fav-btn" style="margin-top:8px">あとにする</button>
+      <p class="hint">パスワードはこれまでどおり使えます。<b>無効にはしません。</b><br>
+        あとからアカウント画面でも登録できます。</p>
     </div>
 
     <div id="panelRecovery" hidden>
@@ -797,7 +810,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908161721"></script>
+<script src="sorami-core.js?v=20260908162846"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2516,10 +2529,10 @@ async function restoreSession() {
 }
 
 /// ログインできたときの共通処理。初回は端末に残っているものを全部上げる。
-async function onLoggedIn(res, remember = wantsRemember()) {
+async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } = {}) {
   auth = { token: res.token, loginId: res.loginId, role: res.role };
   saveAuth(auth, remember);
-  $("authSheet").close();
+  if (!keepOpen) $("authSheet").close();
   const fresh = syncInfo?.loginId !== auth.loginId;
   if (fresh && (favorites.length || sightings.length)) {
     // 黙ってやらない。何件アカウントへ入れたのかを出す。
@@ -2540,7 +2553,8 @@ const authFail = (el, msg) => { el.textContent = msg; el.hidden = false; };
 
 
 // 同じダイアログの中で1画面ずつ出す。目的の違うフォームを同時に見せない。
-const AUTH_PANELS = { login: "ログイン", signup: "新規登録", recovery: "アカウントの回復" };
+const AUTH_PANELS = { login: "ログイン", signup: "新規登録", recovery: "アカウントの回復",
+  passkey: "パスキーの登録" };
 function showAuthPanel(which) {
   $("authErr").hidden = true;
   for (const k of Object.keys(AUTH_PANELS)) {
@@ -2549,7 +2563,7 @@ function showAuthPanel(which) {
   $("authTitle").textContent = AUTH_PANELS[which];
   // 開いた画面の最初の欄へ入れるようにする
   const first = { login: "authId", signup: "newId", recovery: "codeId" }[which];
-  if (which !== "login") $(first).focus();
+  if (first && which !== "login") $(first).focus();
 }
 $("authButton").onclick = () => {
   if (auth) { openAccountSheet(); return; }
@@ -2651,6 +2665,18 @@ function checkPw(pw, loginId = "") {
   return null;
 }
 
+$("signupPasskey").onclick = async () => {
+  $("authErr").hidden = true;
+  try {
+    await registerPasskey("この端末");
+    $("authSheet").close();
+  } catch (e) {
+    if (e.name === "NotAllowedError") return;    // 生体認証を取り消しただけ
+    authFail($("authErr"), e.message);
+  }
+};
+$("skipPasskey").onclick = () => $("authSheet").close();
+
 $("doSignup").onclick = async () => {
   $("authErr").hidden = true;
   const pw = $("newPw").value;
@@ -2660,8 +2686,13 @@ $("doSignup").onclick = async () => {
   if (pw !== $("newPw2").value) { authFail($("authErr"), "パスワードが一致しません"); return; }
   const weak = checkPw(pw, $("newId").value);
   if (weak) { authFail($("authErr"), weak); return; }
-  try { await onLoggedIn(await apiCall("POST", "/signup",
-    { loginId: $("newId").value, password: pw, remember: wantsRemember() })); }
+  try {
+    await onLoggedIn(await apiCall("POST", "/signup",
+      { loginId: $("newId").value, password: pw, remember: wantsRemember() }), undefined,
+      { keepOpen: !!window.PublicKeyCredential });
+    // 対応していない端末では出しても押せないので、そのまま閉じる
+    if (window.PublicKeyCredential) showAuthPanel("passkey");
+  }
   catch (e) { authFail($("authErr"), e.message); }
   finally { $("newPw").value = ""; $("newPw2").value = ""; }
 };
@@ -2759,23 +2790,29 @@ $("loginHistory").ontoggle = async () => {
   } catch (e) { authFail($("accountErr"), e.message); }
 };
 
+// 登録の中身は、アカウント画面からも新規登録の直後からも同じ。
+// **パスワードには触らない。** 鍵が増えるだけで、入り方は減らさない。
+async function registerPasskey(label) {
+  const { challengeId, options } = await apiCall("POST", "/passkey/register/begin", {});
+  const cred = await navigator.credentials.create({ publicKey: {
+    ...options,
+    challenge: b64uToBuf(options.challenge),
+    user: { ...options.user, id: b64uToBuf(options.user.id) },
+    excludeCredentials: (options.excludeCredentials || []).map((c) => ({ ...c, id: b64uToBuf(c.id) })) } });
+  await apiCall("POST", "/passkey/register/finish", { challengeId, label, response: {
+    id: cred.id, rawId: bufToB64u(cred.rawId), type: cred.type,
+    response: {
+      clientDataJSON: bufToB64u(cred.response.clientDataJSON),
+      attestationObject: bufToB64u(cred.response.attestationObject),
+    },
+    clientExtensionResults: cred.getClientExtensionResults() } });
+}
+
 $("addPasskey").onclick = async () => {
   $("accountErr").hidden = true;
   try {
-    const { challengeId, options } = await apiCall("POST", "/passkey/register/begin", {});
-    const cred = await navigator.credentials.create({ publicKey: {
-      ...options,
-      challenge: b64uToBuf(options.challenge),
-      user: { ...options.user, id: b64uToBuf(options.user.id) },
-      excludeCredentials: (options.excludeCredentials || []).map((c) => ({ ...c, id: b64uToBuf(c.id) })) } });
-    const label = prompt("この端末の名前（例: iPhone）", "この端末") || "この端末";
-    await apiCall("POST", "/passkey/register/finish", { challengeId, label, response: {
-      id: cred.id, rawId: bufToB64u(cred.rawId), type: cred.type,
-      response: {
-        clientDataJSON: bufToB64u(cred.response.clientDataJSON),
-        attestationObject: bufToB64u(cred.response.attestationObject),
-      },
-      clientExtensionResults: cred.getClientExtensionResults() } });
+    // 2台目以降は見分けが要るので名前を訊く
+    await registerPasskey(prompt("この端末の名前（例: iPhone）", "この端末") || "この端末");
     openAccountSheet();
   } catch (e) {
     if (e.name === "NotAllowedError") return;
@@ -3081,6 +3118,38 @@ async function checkForUpdate() {
     sessionStorage.setItem("sorami.reloaded", latest);
     location.reload();
   } catch { /* 取れなければそのまま使う。更新確認は補助 */ }
+}
+
+// シートを開いている間、後ろの本文を動かさない。
+// **`<dialog>` は背面の「操作」は止めるが、「スクロール」は止めない。**
+// 指やホイールが背面に乗ると本文が流れ、閉じたときに別の場所を見ていることになる。
+//
+// 開閉のたびに各所へ書き足すのではなく、dialog の open 属性を見て一括で扱う。
+// 呼び出し箇所は10か所以上あり、**書き忘れが必ず出る**（管理画面で同じ失敗をした）。
+const scrollLock = (() => {
+  let y = 0, depth = 0;
+  const props = ["position", "top", "left", "right", "width", "overflow"];
+  return {
+    on() {
+      if (depth++) return;                       // 入れ子で開いても1回だけ
+      y = window.scrollY;
+      // iOS は body の overflow:hidden だけでは止まらないので位置を固定する。
+      // その分ページが先頭へ飛ぶので、top で元の位置に見せておく。
+      Object.assign(document.body.style, {
+        position: "fixed", top: `${-y}px`, left: "0", right: "0", width: "100%", overflow: "hidden",
+      });
+    },
+    off() {
+      if (depth > 0 && --depth) return;
+      depth = 0;
+      for (const k of props) document.body.style.removeProperty(k);
+      window.scrollTo(0, y);                     // 見ていた位置へ戻す
+    },
+  };
+})();
+for (const d of document.querySelectorAll("dialog")) {
+  new MutationObserver(() => (d.open ? scrollLock.on() : scrollLock.off()))
+    .observe(d, { attributes: true, attributeFilter: ["open"] });
 }
 
 renderAuthButton();
