@@ -637,5 +637,34 @@ ok(/finally \{ \$\("newPw"\)\.value = ""; \$\("newPw2"\)\.value = ""; \}/.test(h
   "入力欄にパスワードを残さない");
 ok(/autocomplete="new-password"/.test(html), "パスワード管理アプリに新規だと伝える");
 
+console.log("== 端末とパスワードの出し入れ ==");
+ok(/data-delkey="\$\{esc\(c\.id\)\}"/.test(html), "登録した端末を消せる");
+ok(/confirm\("この端末のパスキーを消します/.test(html), "消す前に確かめる");
+// 断って終わりにしない。その場で直せる場所を開く。
+ok(/最後の認証手段\/\.test\(e\.message\)[\s\S]{0,140}\$\("newAccPw"\)\.focus\(\)/.test(html),
+  "締め出しを断ったら、パスワードの設定欄を開いて指を置く");
+// パスワードは片道にしない
+ok(/id="enablePwWay"/.test(html) && /id="enablePw"/.test(html), "パスワードを再び有効にできる");
+ok(/\$\("enablePwWay"\)\.hidden = me\.hasPassword;/.test(html), "有効なときは設定欄を出さない");
+ok(/\$\("disablePw"\)\.hidden = !me\.hasPassword \|\| !me\.credentials\.length;/.test(html),
+  "パスキーが無いうちは無効化を出さない");
+
+console.log("== 詰みうる状態に出口を用意する ==");
+// 回復コードは使い捨て。使った瞬間に手段がゼロになるので、その場で次を渡して見せる。
+ok(/if \(res\.newCode\) \{ openAccountSheet\(\); showCode\(res\.newCode\); \}/.test(html),
+  "回復コードで入ったら、次のコードをその場で見せる");
+// 手段が1つだけの状態は、起きてから言っても遅い
+ok(/me\.methods <= 1[\s\S]{0,120}入る手段がこれ1つだけです/.test(html), "手段が1つなら先に警告する");
+// 同期が止まったときに、押せる手を出す
+ok(/id="retrySync"/.test(html) && /retry\.onclick = async \(\) => \{ await syncNow\(\)/.test(html),
+  "同期が失敗していたら再試行を出す");
+// 消す前に控えを促す。取り消せない操作なので二段で確かめる
+ok(/id="deleteAccount"/.test(html), "アカウントを削除できる");
+ok(/書き出し」で控えを取ることをすすめます/.test(html), "消す前に控えを促す");
+ok((html.match(/if \(!confirm\([\s\S]{0,200}?\)\) return;/g) || []).length >= 2
+  && /最終確認です。すべて消えます。/.test(html), "取り消せない削除は二段で確かめる");
+ok(/await apiCall\("DELETE", "\/me"\)[\s\S]{0,200}favorites = \[\]; sightings = \[\]/.test(html),
+  "サーバーと手元の両方を消す");
+
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

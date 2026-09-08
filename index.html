@@ -639,12 +639,21 @@
     <button id="addPasskey" class="fav-btn primary" style="margin-top:16px">この端末にパスキーを登録</button>
     <button id="newRecovery" class="fav-btn" style="margin-top:8px">回復コードを発行する</button>
     <button id="disablePw" class="fav-btn" style="margin-top:8px" hidden>パスワードでのログインをやめる</button>
+    <details id="enablePwWay" style="margin-top:8px" hidden>
+      <summary class="tiny" style="cursor:pointer;color:var(--secondary)">パスワードでのログインを使う</summary>
+      <p class="tiny" style="margin-top:8px">パスキーを全部失くしたときの備えになります。
+        端末に依存しないので、URLが変わっても使えます。</p>
+      <label class="fav-l" for="newAccPw">パスワード<span class="fav-opt">10文字以上</span></label>
+      <input type="password" id="newAccPw" class="fav-in" autocomplete="new-password">
+      <button id="enablePw" class="fav-btn" style="margin-top:10px">このパスワードを使う</button>
+    </details>
     <div id="recoveryShown" hidden style="margin-top:14px;padding:12px;border-radius:10px;background:var(--sunk)">
       <div class="tiny" style="font-weight:700">この回復コードは一度しか表示されません</div>
       <div id="recoveryCode" style="font-family:ui-monospace,monospace;font-size:0.94rem;font-weight:700;margin-top:6px;word-break:break-all"></div>
       <div class="tiny" style="margin-top:6px">パスワードマネージャへ保存してください。端末を全部失くしたときと、URLが変わったときに使います。</div>
     </div>
     <button id="logout" class="fav-remove">ログアウト</button>
+    <button id="deleteAccount" class="fav-remove" style="color:var(--red)">アカウントを削除する</button>
   </div>
 </dialog>
 
@@ -679,7 +688,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908103951"></script>
+<script src="sorami-core.js?v=20260908105003"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2391,9 +2400,14 @@ $("doSignup").onclick = async () => {
 };
 $("codeLogin").onclick = async () => {
   $("authErr").hidden = true;
-  try { await onLoggedIn(await apiCall("POST", "/recovery/use",
-    { loginId: $("authId").value, code: $("authCode").value })); }
-  catch (e) { authFail($("authErr"), e.message); }
+  try {
+    const res = await apiCall("POST", "/recovery/use",
+      { loginId: $("authId").value, code: $("authCode").value });
+    await onLoggedIn(res);
+    // 使ったコードはもう使えない。**次のコードをその場で渡す。**
+    // 受け取らずに閉じると、次に困ったときに何も無い状態になる。
+    if (res.newCode) { openAccountSheet(); showCode(res.newCode); }
+  } catch (e) { authFail($("authErr"), e.message); }
   finally { $("authCode").value = ""; }
 };
 
@@ -2404,19 +2418,47 @@ async function openAccountSheet() {
   try {
     const me = await apiCall("GET", "/me");
     $("disablePw").hidden = !me.hasPassword || !me.credentials.length;
+    $("enablePwWay").hidden = me.hasPassword;
     const when = (t) => (t ? new Date(t).toLocaleDateString("ja-JP") : "未使用");
     $("accountBody").innerHTML =
       `<div><strong>${esc(me.loginId)}</strong>${me.role === "admin" ? " ・ 管理者" : ""}</div>`
       + `<div style="margin-top:6px">${syncError ? `<span class="warn">同期できていません: ${esc(syncError)}</span>`
           : pushQueue.length ? `<span class="warn">未送信の変更が ${pushQueue.length}件 あります</span>`
-          : "同期できています"}</div>`
+          : "同期できています"}${(syncError || pushQueue.length)
+          ? ` <button id="retrySync" style="color:var(--accent);font-weight:700">再試行</button>` : ""}</div>`
+      // 認証手段が1つだけだと、それを失った時点で自分のデータへ入れなくなる。
+      // 起きてから言っても遅いので、そうなる前に言う。
+      + (me.methods <= 1
+        ? `<p class="warn" style="margin-top:8px">入る手段がこれ1つだけです。
+             これを失うと、自分のデータに入れなくなります。
+             パスキーをもう1台に登録するか、回復コードを発行しておいてください。</p>` : "")
       + `<div style="margin-top:6px">パスワード: ${me.hasPassword ? "使える" : "無効にしてある"}`
       + ` ／ 回復コード: ${me.recoveryCodes}件</div>`
       + `<div class="fav-l">登録した端末</div>`
       + (me.credentials.length
-        ? me.credentials.map((c) => `<div class="list-item">${esc(c.label || "名称なし")}
-            <div class="tiny">登録 ${when(c.created_at)} ・ 最終 ${when(c.last_used_at)}</div></div>`).join("")
+        ? me.credentials.map((c) => `<div class="fav-row">
+            <div class="list-item" style="border-top:none">${esc(c.label || "名称なし")}
+              <div class="tiny">登録 ${when(c.created_at)} ・ 最終 ${when(c.last_used_at)}</div></div>
+            <button class="fav-del" data-delkey="${esc(c.id)}" aria-label="${esc(c.label || "この端末")}のパスキーを消す">✕</button>
+          </div>`).join("")
         : `<p class="tiny">まだありません。この端末を登録すると、次から Face ID で入れます。</p>`);
+    for (const el of $("accountBody").querySelectorAll("[data-delkey]")) el.onclick = async () => {
+      // 消したパスキーは戻せない。作り直しになるので確認する。
+      if (!confirm("この端末のパスキーを消します。\nその端末からは、パスワードか回復コードでしか入れなくなります。")) return;
+      $("accountErr").hidden = true;
+      try { await apiCall("POST", "/passkey/delete", { credentialId: el.dataset.delkey }); openAccountSheet(); }
+      catch (e) {
+        authFail($("accountErr"), e.message);
+        // 断って終わりにしない。**その場で直せる場所を開いて指を置く。**
+        // 「最後の1つだから消せません」と言われても、どうすればいいか分からなければ意味がない。
+        if (/最後の認証手段/.test(e.message) && !$("enablePwWay").hidden) {
+          $("enablePwWay").open = true;
+          $("newAccPw").focus();
+        }
+      }
+    };
+    const retry = $("retrySync");
+    if (retry) retry.onclick = async () => { await syncNow(); openAccountSheet(); };
   } catch (e) { authFail($("accountErr"), e.message); }
 }
 
@@ -2455,6 +2497,29 @@ async function openAccountSheet2() {
   await openAccountSheet();
   if (shown) showCode(code);
 }
+$("deleteAccount").onclick = async () => {
+  // 消えるのはサーバー側だけでなく、この端末のものも含めて全部。取り返しがつかない。
+  if (!confirm("アカウントと、同期しているお気に入り・記録をすべて消します。\n"
+    + "取り消せません。\n\n先に記録画面から「書き出し」で控えを取ることをすすめます。\n\n本当に削除しますか？")) return;
+  if (!confirm("最終確認です。すべて消えます。")) return;
+  try {
+    await apiCall("DELETE", "/me");
+    auth = null; syncInfo = null; pushQueue = [];
+    favorites = []; sightings = [];
+    for (const k of ["sorami.sync", "sorami.queue", "sorami.favorites", "sorami.sightings"]) store.set(k, k.endsWith("sync") ? null : []);
+    $("accountSheet").close();
+    renderAuthButton();
+    render();
+  } catch (e) { authFail($("accountErr"), e.message); }
+};
+$("enablePw").onclick = async () => {
+  $("accountErr").hidden = true;
+  try {
+    await apiCall("POST", "/password/enable", { password: $("newAccPw").value });
+    $("newAccPw").value = "";
+    openAccountSheet();
+  } catch (e) { authFail($("accountErr"), e.message); }
+};
 $("disablePw").onclick = async () => {
   if (!confirm("パスワードでのログインをやめます。\n代わりの回復コードを発行します。必ず保存してください。")) return;
   try { const r = await apiCall("POST", "/password/disable", {}); showCode(r.code); openAccountSheet2(); }
