@@ -309,6 +309,12 @@
   /* 現象は7つ全部を一度に見せて選ばせる。横スクロールだと隠れた選択肢に気づけない。 */
   /* 登録フォームでは現象チップが主役の入力なので、実寸で 44px を確保する。
      折り返しの間隔（gap 6px）より高いので、上下の行と重ならない。 */
+  .auth-links { display: flex; flex-direction: column; gap: 2px; margin-top: 18px;
+                padding-top: 12px; border-top: 1px solid var(--line); }
+  .auth-links button { text-align: left; min-height: 44px; font-size: 0.81rem;
+                       font-weight: 700; color: var(--accent); }
+  .auth-back { display: block; min-height: 44px; padding: 0 2px; margin-bottom: 6px;
+               font-size: 0.81rem; font-weight: 700; color: var(--accent); }
   .or-line { display: flex; align-items: center; gap: 10px; margin: 16px 0 4px;
              font-size: 0.72rem; color: var(--tertiary); }
   .or-line::before, .or-line::after { content: ""; flex: 1; height: 1px; background: var(--line); }
@@ -642,25 +648,29 @@
 <dialog class="sheet" id="authSheet" aria-labelledby="authTitle">
   <div class="sheet-head"><strong id="authTitle">ログイン</strong><button id="authClose">閉じる</button></div>
   <div class="sheet-body">
-    <p class="tiny">ログインすると、お気に入りと記録が他の端末でも使えます。
-      ログインしなくても予報はこれまでどおり見られます。</p>
-    <button id="passkeyLogin" class="fav-btn primary" style="margin-top:14px" hidden>パスキーでログイン</button>
-    <p class="tiny" id="passkeyNote" style="margin-top:6px" hidden>Face ID / Touch ID で入れます。</p>
+    <!-- **1画面に1つの目的だけ置く。** 以前は同じシートに ログイン／新規登録／回復コード を
+         畳んで並べていたが、開くと画面の下端まで伸び、ID欄が3つ同時に存在して
+         パスワード管理アプリの自動入力が狂った。同じダイアログの中で差し替える。 -->
+    <div id="panelLogin">
+      <p class="tiny">ログインすると、お気に入りと記録が他の端末でも使えます。
+        ログインしなくても予報はこれまでどおり見られます。</p>
+      <button id="passkeyLogin" class="fav-btn primary" style="margin-top:14px" hidden>パスキーでログイン</button>
+      <p class="tiny" id="passkeyNote" style="margin-top:6px" hidden>Face ID / Touch ID で入れます。</p>
+      <div class="or-line"><span>または</span></div>
+      <label class="fav-l" for="authId">ID</label>
+      <input type="text" id="authId" class="fav-in" autocomplete="username" maxlength="32">
+      <label class="fav-l" for="authPw">パスワード</label>
+      <input type="password" id="authPw" class="fav-in" autocomplete="current-password">
+      <button id="pwLogin" class="fav-btn" style="margin-top:12px">パスワードでログイン</button>
+      <div class="auth-links">
+        <button id="goSignup" class="tap">はじめての方は 新規登録</button>
+        <button id="goRecovery" class="tap">入れなくなったとき</button>
+      </div>
+    </div>
 
-    <!-- ID とパスワードを畳んではいけない。**パスキーをまだ登録していない人には、
-         これが唯一の入り口**で、畳むと入り方が見えなくなる（2026-09-08 に指摘を受けた）。
-         珍しい経路（回復コード・新規登録）だけを畳む。 -->
-    <div class="or-line"><span>または</span></div>
-    <label class="fav-l" for="authId">ID</label>
-    <input type="text" id="authId" class="fav-in" autocomplete="username" maxlength="32">
-    <label class="fav-l" for="authPw">パスワード</label>
-    <input type="password" id="authPw" class="fav-in" autocomplete="current-password">
-    <button id="pwLogin" class="fav-btn" style="margin-top:12px">パスワードでログイン</button>
-
-    <details id="signupWay" style="margin-top:16px">
-      <summary class="tiny" style="cursor:pointer;color:var(--secondary)">新規登録</summary>
-      <p class="tiny" style="margin-top:8px">好きなIDを決めて登録できます（英数字3〜32文字）。
-        すでに使われているIDは選べません。
+    <div id="panelSignup" hidden>
+      <button class="auth-back tap" data-back>← ログインにもどる</button>
+      <p class="tiny">好きなIDを決めて登録できます（英数字3〜32文字）。すでに使われているIDは選べません。
         パスワードはこの端末から送られ、サーバーには元に戻せない形でしか保存されません。</p>
       <label class="fav-l" for="newId">ID</label>
       <input type="text" id="newId" class="fav-in" autocomplete="username" maxlength="32">
@@ -668,23 +678,23 @@
       <input type="password" id="newPw" class="fav-in" autocomplete="new-password">
       <label class="fav-l" for="newPw2">もう一度</label>
       <input type="password" id="newPw2" class="fav-in" autocomplete="new-password">
-      <button id="doSignup" class="fav-btn" style="margin-top:12px">登録して始める</button>
+      <button id="doSignup" class="fav-btn primary" style="margin-top:14px">登録して始める</button>
       <p class="tiny" style="margin-top:8px">登録したら、この端末にパスキーを登録しておくと
         次から Face ID だけで入れます。</p>
-    </details>
+    </div>
 
-    <details id="otherWays" style="margin-top:10px">
-      <summary class="tiny" style="cursor:pointer;color:var(--secondary)">回復コードで入る</summary>
-      <p class="tiny" style="margin-top:8px">パスキーもパスワードも使えないときに。
+    <div id="panelRecovery" hidden>
+      <button class="auth-back tap" data-back>← ログインにもどる</button>
+      <p class="tiny">パスキーもパスワードも使えないときに。
         <strong>IDとコードの両方が要ります。</strong>10個あるうちの1つを使い捨てます。</p>
-      <!-- ID欄をこの枠の中にも置く。上のID欄を読ませる作りだと、
-           「コードだけ入れる画面」に見えて、埋めずに押した人が理由の分からない失敗をする。 -->
       <label class="fav-l" for="codeId">ID</label>
       <input type="text" id="codeId" class="fav-in" autocomplete="username" maxlength="32">
       <label class="fav-l" for="authCode">回復コード</label>
       <input type="text" id="authCode" class="fav-in" placeholder="XXXXXXXX-XXXXXXXX-…" autocomplete="off">
-      <button id="codeLogin" class="fav-btn" style="margin-top:12px">回復コードでログイン</button>
-    </details>
+      <button id="codeLogin" class="fav-btn primary" style="margin-top:14px">回復コードでログイン</button>
+      <p class="tiny" style="margin-top:8px">どれも使えないときは、管理者に回復コードの発行を頼んでください。</p>
+    </div>
+
     <p class="warn" id="authErr" style="margin-top:12px" hidden></p>
   </div>
 </dialog>
@@ -756,7 +766,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908130015"></script>
+<script src="sorami-core.js?v=20260908130511"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2412,16 +2422,30 @@ async function onLoggedIn(res) {
 const authFail = (el, msg) => { el.textContent = msg; el.hidden = false; };
 
 
+// 同じダイアログの中で1画面ずつ出す。目的の違うフォームを同時に見せない。
+const AUTH_PANELS = { login: "ログイン", signup: "新規登録", recovery: "入れなくなったとき" };
+function showAuthPanel(which) {
+  $("authErr").hidden = true;
+  for (const k of Object.keys(AUTH_PANELS)) {
+    $("panel" + k[0].toUpperCase() + k.slice(1)).hidden = k !== which;
+  }
+  $("authTitle").textContent = AUTH_PANELS[which];
+  // 開いた画面の最初の欄へ入れるようにする
+  const first = { login: "authId", signup: "newId", recovery: "codeId" }[which];
+  if (which !== "login") $(first).focus();
+}
 $("authButton").onclick = () => {
   if (auth) { openAccountSheet(); return; }
-  $("authErr").hidden = true;
   // パスキー非対応のブラウザでは、出しても押せないので隠す
   const supported = !!window.PublicKeyCredential;
   $("passkeyLogin").hidden = !supported;
   $("passkeyNote").hidden = !supported;
-  // 回復コードと新規登録は畳んだまま。IDとパスワードは常に見えている。
+  showAuthPanel("login");
   $("authSheet").showModal();
 };
+$("goSignup").onclick = () => showAuthPanel("signup");
+$("goRecovery").onclick = () => showAuthPanel("recovery");
+for (const el of document.querySelectorAll("[data-back]")) el.onclick = () => showAuthPanel("login");
 $("authClose").onclick = () => $("authSheet").close();
 $("accountClose").onclick = () => $("accountSheet").close();
 
@@ -2473,7 +2497,7 @@ $("doSignup").onclick = async () => {
 $("codeLogin").onclick = async () => {
   $("authErr").hidden = true;
   // 上のID欄に入っていればそれも使う（打ち直させない）
-  const who = $("codeId").value.trim() || $("authId").value.trim();
+  const who = $("codeId").value.trim();
   if (!who) { authFail($("authErr"), "IDを入れてください"); $("codeId").focus(); return; }
   if (!$("authCode").value.trim()) { authFail($("authErr"), "回復コードを入れてください"); return; }
   try {
@@ -2487,8 +2511,10 @@ $("codeLogin").onclick = async () => {
   } catch (e) { authFail($("authErr"), e.message); }
   finally { $("authCode").value = ""; }
 };
-// 上でIDを打っていたら、回復コードの欄にも写す。二度打たせない。
-$("authId").addEventListener("input", () => { if (!$("codeId").value) $("codeId").value = $("authId").value; });
+// 画面をまたいでもIDを打ち直させない
+$("authId").addEventListener("input", () => {
+  for (const id of ["newId", "codeId"]) if (!$(id).value) $(id).value = $("authId").value;
+});
 
 async function openAccountSheet() {
   $("accountErr").hidden = true;

@@ -637,7 +637,7 @@ ok(!/maybeSuggestLogin/.test(html), "登録できてしまう前提の促しは�
 ok(/const supported = !!window\.PublicKeyCredential/.test(html), "パスキーの対応を見る");
 
 console.log("== はじめて使うときの登録 ==");
-ok(/id="signupWay"/.test(html) && /id="doSignup"/.test(html), "新規登録の口がある");
+ok(/id="panelSignup"/.test(html) && /id="doSignup"/.test(html), "新規登録の口がある");
 // 打ち間違えたパスワードで登録すると本人が入れなくなる。送る前に確かめる。
 ok(/if \(pw !== \$\("newPw2"\)\.value\)/.test(html), "パスワードを2回確かめる");
 ok(/pw\.length < 10/.test(html), "短いパスワードは送る前に弾く");
@@ -675,20 +675,29 @@ ok((html.match(/if \(!confirm\([\s\S]{0,200}?\)\) return;/g) || []).length >= 2
 ok(/await apiCall\("DELETE", "\/me"\)[\s\S]{0,200}favorites = \[\]; sightings = \[\]/.test(html),
   "サーバーと手元の両方を消す");
 
-console.log("== ログインの入り口を隠さない ==");
-// 2026-09-08 ユーザー指摘「ログイン画面にIDとPWの入力欄がない」。
-// details の中に畳んでいた。**パスキーをまだ登録していない人には唯一の入り口**なのに、
-// それが見えない状態だった。珍しい経路（回復コード・新規登録）だけを畳む。
+console.log("== ログインは1画面に1つの目的 ==");
+// 2026-09-08 ユーザー指摘「たたむんじゃなくて別の画面のほうがいい」。
+// 同じシートに ログイン／新規登録／回復コード を畳んで並べていたが、
+//   * 開くと画面の下端まで伸びる
+//   * **ID欄が3つ同時に存在し**、パスワード管理アプリの自動入力が狂う
+//   * 目的の違う3つの旅程を全部読ませることになる
+// 同じダイアログの中で差し替える形へ。
 const authSheet = html.slice(html.indexOf('id="authSheet"'), html.indexOf('id="accountSheet"'));
-const collapsed = authSheet.split("<details").slice(1).join("<details");
-ok(/id="authId"/.test(authSheet) && !/id="authId"/.test(collapsed), "IDの欄が畳まれていない");
-ok(/id="authPw"/.test(authSheet) && !/id="authPw"/.test(collapsed), "パスワードの欄が畳まれていない");
-ok(/id="pwLogin"/.test(authSheet) && !/id="pwLogin"/.test(collapsed), "ログインボタンが畳まれていない");
-// 珍しい方は畳んでよい
-ok(/id="authCode"/.test(collapsed), "回復コードは畳む");
-ok(/id="doSignup"/.test(collapsed), "新規登録は畳む");
-// 頻度の高い順に並べる。新規登録は普通にあるが、回復コードは非常時だけ。
-ok(authSheet.indexOf('id="signupWay"') < authSheet.indexOf('id="otherWays"'),
+ok(!/<details/.test(authSheet), "ログインのシートに畳んだ枠が無い");
+for (const p of ["panelLogin", "panelSignup", "panelRecovery"]) {
+  ok(new RegExp(`id="${p}"`).test(authSheet), `${p} がある`);
+}
+ok(/function showAuthPanel[\s\S]{0,300}hidden = k !== which/.test(html), "一度に1つだけ出す");
+ok((authSheet.match(/data-back/g) || []).length >= 2, "どの画面からも戻れる");
+ok(/id="goSignup"/.test(authSheet) && /id="goRecovery"/.test(authSheet), "ログイン画面から入口がある");
+// 最初の画面はログイン。新規登録や回復から始めない
+ok(/showAuthPanel\("login"\);\s*\n\s*\$\("authSheet"\)\.showModal/.test(html), "開いたらログイン画面から");
+// 見出しが画面に追従する
+ok(/\$\("authTitle"\)\.textContent = AUTH_PANELS\[which\]/.test(html), "見出しが画面に追従する");
+// IDは打ち直させない
+ok(/for \(const id of \["newId", "codeId"\]\)/.test(html), "IDを画面をまたいで写す");
+// 頻度の高い順（新規登録が先）
+ok(authSheet.indexOf('id="goSignup"') < authSheet.indexOf('id="goRecovery"'),
   "新規登録を回復コードより先に置く");
 
 console.log("== 回復コードはまとめて渡す ==");
@@ -701,7 +710,7 @@ ok(/id="copyCodes"/.test(html) && /navigator\.clipboard\.writeText\(codeBlock\(/
   "まとめてコピーできる");
 ok(/1つずつ使い捨てです。期限はありません/.test(html), "使い方を書く");
 ok(/res\.remaining <= 2[\s\S]{0,160}発行し直して/.test(html), "残りが少なくなったら作り直しを促す");
-ok(/新規登録<\/summary>/.test(html), "ラベルは「新規登録」");
+ok(/はじめての方は 新規登録/.test(html), "入口のラベルが分かりやすい");
 
 console.log("== 管理者の画面 ==");
 ok(/id="adminView"/.test(html), "画面がある");
@@ -759,8 +768,9 @@ ok(/id="codeId"/.test(html), "回復コードの枠にID欄がある");
 ok(/IDとコードの両方が要ります/.test(html), "両方要ることを書く");
 ok(/if \(!who\) \{ authFail\(\$\("authErr"\), "IDを入れてください"\)/.test(html),
   "IDが空なら、送る前に理由を言う");
-ok(/\$\("codeId"\)\.value\.trim\(\) \|\| \$\("authId"\)\.value\.trim\(\)/.test(html),
-  "上のID欄に入っていれば使う（打ち直させない）");
+// 画面が分かれたので、ID は入力時に写す方式へ変えた
+ok(/\$\("authId"\)\.addEventListener\("input"[\s\S]{0,140}\["newId", "codeId"\]/.test(html),
+  "IDを打ち直させない");
 ok(/\$\("authId"\)\.addEventListener\("input"/.test(html), "上で打ったIDを写す");
 
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
