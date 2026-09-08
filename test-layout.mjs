@@ -623,5 +623,14 @@ ok(/const handmade = entry\.terrain \|\| entry\.note \|\| \(entry\.phenomena \|\
 // パスキー非対応のブラウザで、押せないボタンを出さない
 ok(/const supported = !!window\.PublicKeyCredential/.test(html), "パスキーの対応を見る");
 
+console.log("== はじめて使うときの登録 ==");
+ok(/id="signupWay"/.test(html) && /id="doSignup"/.test(html), "新規登録の口がある");
+// 打ち間違えたパスワードで登録すると本人が入れなくなる。送る前に確かめる。
+ok(/if \(pw !== \$\("newPw2"\)\.value\)/.test(html), "パスワードを2回確かめる");
+ok(/pw\.length < 10/.test(html), "短いパスワードは送る前に弾く");
+ok(/finally \{ \$\("newPw"\)\.value = ""; \$\("newPw2"\)\.value = ""; \}/.test(html),
+  "入力欄にパスワードを残さない");
+ok(/autocomplete="new-password"/.test(html), "パスワード管理アプリに新規だと伝える");
+
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

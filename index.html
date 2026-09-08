@@ -612,6 +612,21 @@
       <input type="text" id="authCode" class="fav-in" placeholder="XXXXXXXX-XXXXXXXX-…" autocomplete="off">
       <button id="codeLogin" class="fav-btn" style="margin-top:12px">回復コードでログイン</button>
     </details>
+
+    <details id="signupWay" style="margin-top:10px">
+      <summary class="tiny" style="cursor:pointer;color:var(--secondary)">はじめて使う（新規登録）</summary>
+      <p class="tiny" style="margin-top:8px">登録できるIDはあらかじめ決まっています。
+        パスワードはこの端末から送られ、サーバーには元に戻せない形でしか保存されません。</p>
+      <label class="fav-l" for="newId">ID</label>
+      <input type="text" id="newId" class="fav-in" autocomplete="username" maxlength="32">
+      <label class="fav-l" for="newPw">パスワード<span class="fav-opt">10文字以上</span></label>
+      <input type="password" id="newPw" class="fav-in" autocomplete="new-password">
+      <label class="fav-l" for="newPw2">もう一度</label>
+      <input type="password" id="newPw2" class="fav-in" autocomplete="new-password">
+      <button id="doSignup" class="fav-btn" style="margin-top:12px">登録して始める</button>
+      <p class="tiny" style="margin-top:8px">登録したら、この端末にパスキーを登録しておくと
+        次から Face ID だけで入れます。</p>
+    </details>
     <p class="warn" id="authErr" style="margin-top:12px" hidden></p>
   </div>
 </dialog>
@@ -664,7 +679,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908102424"></script>
+<script src="sorami-core.js?v=20260908102926"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2365,6 +2380,16 @@ $("pwLogin").onclick = async () => {
     { loginId: $("authId").value, password: $("authPw").value })); }
   catch (e) { authFail($("authErr"), e.message); }
   finally { $("authPw").value = ""; }
+};
+$("doSignup").onclick = async () => {
+  $("authErr").hidden = true;
+  const pw = $("newPw").value;
+  // 打ち間違えたパスワードで登録すると、本人が入れなくなる。送る前に確かめる。
+  if (pw !== $("newPw2").value) { authFail($("authErr"), "パスワードが一致しません"); return; }
+  if (pw.length < 10) { authFail($("authErr"), "パスワードは10文字以上にしてください"); return; }
+  try { await onLoggedIn(await apiCall("POST", "/signup", { loginId: $("newId").value, password: pw })); }
+  catch (e) { authFail($("authErr"), e.message); }
+  finally { $("newPw").value = ""; $("newPw2").value = ""; }
 };
 $("codeLogin").onclick = async () => {
   $("authErr").hidden = true;
