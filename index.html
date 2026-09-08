@@ -2,6 +2,13 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
+<!-- 2026-09-07 に動く XSS があった（記録一覧の s.outcome）。直したが、
+     **再発したときに何も止めるものが無い**状態だった。
+     インライン script を多用しているので script-src は緩めざるを得ないが、
+     connect-src を実際に使う相手だけに絞れば、盗んだトークンの持ち出し先を塞げる。
+     ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
+     frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://djlorenz.github.io https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -823,7 +830,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908202241"></script>
+<script src="sorami-core.js?v=20260908204908"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3309,6 +3316,16 @@ async function checkForUpdate() {
     sessionStorage.setItem("sorami.reloaded", latest);
     location.reload();
   } catch { /* 取れなければそのまま使う。更新確認は補助 */ }
+}
+
+// 枠の中で開かれていたら止める。**戻せない操作がある**（アカウントの削除、
+// すべての端末からログアウト）。GitHub Pages はヘッダを足せず、
+// frame-ancestors は meta では効かないので、ここで見るしかない。
+if (window.top !== window.self) {
+  document.body.innerHTML =
+    '<p style="padding:24px;font:16px/1.8 system-ui">この画面は枠の中では開けません。'
+    + '<br><a href="https://zekkei-yosoku.github.io/" target="_top">絶景予報をひらく</a></p>';
+  throw new Error("枠の中では開けません");
 }
 
 // 説明文の折り返し候補を、句読点の後ろだけに置く。

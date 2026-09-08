@@ -1027,6 +1027,52 @@ ok(/pushQueue = pushQueue\.filter\(/.test(html), "受理された分だけ外す
 // 1回の上限は500件。超える分を捨てずに次へ回す
 ok(/pushQueue\.slice\(0, 500\)/.test(html), "500件ずつ送る");
 
+console.log("== CSP で、漏れたときの持ち出し先を塞ぐ ==");
+// 2026-09-08 の調査 G-1。CSP が meta にも応答ヘッダにも無かった（実測）。
+// **2026-09-07 に実際に動く XSS があった**（記録一覧の s.outcome）。再発したとき、
+// いまは何も止めるものが無い。トークンは sessionStorage / localStorage にある。
+//
+// インライン script を多用しているので script-src は緩めざるを得ない。
+// **効くのは connect-src。** 持ち出し先を、実際に使う相手だけに絞る。
+{
+  const m = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)"/);
+  ok(!!m, "CSP の meta がある");
+  const csp = m ? m[1] : "";
+  const dir = Object.fromEntries(csp.split(";").map((x) => x.trim()).filter(Boolean)
+    .map((x) => { const [k, ...v] = x.split(/\s+/); return [k, v]; }));
+
+  // **通信先を全部数え上げる。1つ落とすと予報が壊れる。**
+  const needed = [
+    "https://api.open-meteo.com",            // 予報の本体
+    "https://ensemble-api.open-meteo.com",   // ばらつき
+    "https://air-quality-api.open-meteo.com", // 大気質
+    "https://www.jma.go.jp",                 // アメダス実況
+    "https://nominatim.openstreetmap.org",   // 地名の検索
+    "https://djlorenz.github.io",            // 光害
+    "https://zekkei-api.okayu-sorami.workers.dev", // 同期
+  ];
+  for (const host of needed) {
+    ok((dir["connect-src"] || []).includes(host), `${host} へ通信できる`);
+  }
+  ok((dir["connect-src"] || []).includes("'self'"), "自分自身へも通信できる（更新の確認）");
+  // 絞れていること。* だと意味が無い
+  ok(!(dir["connect-src"] || []).includes("*"), "connect-src を * にしていない");
+
+  ok((dir["object-src"] || []).includes("'none'"), "object-src を塞ぐ");
+  ok((dir["base-uri"] || []).includes("'none'"), "base-uri を塞ぐ（相対URLの行き先を変えられない）");
+  ok((dir["form-action"] || []).includes("'none'"), "form-action を塞ぐ");
+  // 画像は data: を使う（アイコン）
+  ok((dir["img-src"] || []).includes("data:"), "data: の画像は使える");
+  // frame-ancestors は meta では効かない。JSで止める
+  ok(!("frame-ancestors" in dir), "meta に frame-ancestors を書かない（効かないので）");
+}
+
+console.log("== 枠の中で開かれたら止める ==");
+// GitHub Pages はヘッダを足せず、frame-ancestors は meta では効かない。
+// 「アカウントを削除」「すべての端末からログアウト」など戻せない操作がある（調査 G-2）。
+ok(/window\.top !== window\.self/.test(html), "枠の中かどうかを見る");
+ok(/枠の中では開けません/.test(html), "理由を出す");
+
 console.log("== 説明文が変なところで折れない ==");
 // 2026-09-08 ユーザー「説明文は変なところで改行されないように綺麗にしてね」。
 // 「半角英数と記号 [記号] で8〜128桁。」は、狭い画面で「で8〜128桁。」の
