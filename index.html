@@ -823,7 +823,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908194632"></script>
+<script src="sorami-core.js?v=20260908194900"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3005,16 +3005,16 @@ $("toAdmin").onclick = () => { $("accountSheet").close(); location.hash = "#/adm
 // 一列に混ぜていたので「実際に何で入るのか」が読み取れなかった。
 function authWays(u) {
   const labels = [];
-  if (u.passkeys) labels.push("パスキー");
+  // 台数は印の中に入れる。1台なら数を出さない
+  if (u.passkeys) labels.push(u.passkeys > 1 ? `パスキー${u.passkeys}` : "パスキー");
   if (u.has_password) labels.push("PW");
   if (!labels.length) labels.push(u.codes ? "回復コードのみ" : "なし");
 
   // 締め出しの近さは数で見る。1つだと、それを失った時点で入れなくなる
   const methods = (u.has_password ? 1 : 0) + u.passkeys + (u.codes > 0 ? 1 : 0);
 
-  const detail = [u.passkeys ? `パスキー${u.passkeys}台` : null,
-                  u.has_password ? "パスワードあり" : null,
-                  `回復コード${u.codes ?? 0}`].filter(Boolean).join(" ・ ");
+  // **印で言ったことを繰り返さない。** 印に出ない回復コードの数だけ残す
+  const detail = `回復コード${u.codes ?? 0}`;
   return { labels, methods, detail };
 }
 

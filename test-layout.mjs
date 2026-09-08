@@ -797,8 +797,10 @@ console.log("== 利用者一覧で、何で入っているかが一目で分か�
 
   ok(authWays({ has_password: true, passkeys: 0, codes: 0 }).labels.join() === "PW",
     "パスワードだけなら PW");
-  ok(authWays({ has_password: false, passkeys: 2, codes: 0 }).labels.join() === "パスキー",
-    "パスキーだけならパスキー");
+  ok(authWays({ has_password: false, passkeys: 1, codes: 0 }).labels.join() === "パスキー",
+    "パスキー1台なら数を出さない");
+  ok(authWays({ has_password: false, passkeys: 2, codes: 0 }).labels.join() === "パスキー2",
+    "2台以上なら台数を印に入れる");
   ok(authWays({ has_password: true, passkeys: 1, codes: 0 }).labels.join() === "パスキー,PW",
     "両方あるなら両方");
   // 回復コードは「入る手段」だが、日常の入り方ではないので分けて数える
@@ -808,6 +810,12 @@ console.log("== 利用者一覧で、何で入っているかが一目で分か�
     "回復コードしか無いなら、そう言い切る");
   ok(authWays({ has_password: false, passkeys: 0, codes: 0 }).labels.join() === "なし",
     "何も無ければ「なし」");
+
+  // **印で言ったことを、下の行で繰り返さない**（2026-09-08 ユーザー指摘）
+  const d = authWays({ has_password: true, passkeys: 2, codes: 7 }).detail;
+  ok(!d.includes("パスワード"), "「パスワードあり」を繰り返さない", d);
+  ok(!d.includes("パスキー"), "パスキーの台数も印に入っているので繰り返さない", d);
+  ok(d === "回復コード7", "残すのは印に出ない回復コードの数だけ", d);
 
   // 締め出しの近さは、いまも数で見る
   ok(authWays({ has_password: true, passkeys: 1, codes: 10 }).methods === 3, "手段の数を数える");
