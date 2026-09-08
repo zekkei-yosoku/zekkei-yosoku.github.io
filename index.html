@@ -823,7 +823,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908194900"></script>
+<script src="sorami-core.js?v=20260908195309"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2809,10 +2809,11 @@ async function openAccountSheet() {
           ? ` <button id="retrySync" style="color:var(--accent);font-weight:700">再試行</button>` : ""}</div>`
       // 認証手段が1つだけだと、それを失った時点で自分のデータへ入れなくなる。
       // 起きてから言っても遅いので、そうなる前に言う。
-      + (me.methods <= 1
-        ? `<p class="warn" style="margin-top:8px">入る手段がこれ1つだけです。
-             これを失うと、自分のデータに入れなくなります。
-             パスキーをもう1台に登録するか、回復コードを発行しておいてください。</p>` : "")
+      + (() => {
+        const r = lockoutRisk({ passkeys: (me.credentials || []).length,
+                                has_password: me.hasPassword, codes: me.recoveryCodes });
+        return r.message ? `<p class="warn" style="margin-top:8px">${esc(r.message)}</p>` : "";
+      })()
       + `<div style="margin-top:6px">パスワード: ${me.hasPassword ? "使える" : "無効にしてある"}`
       + ` ／ 回復コード: ${me.recoveryCodes}件</div>`
       + `<div class="fav-l">登録した端末</div>`
@@ -3000,6 +3001,42 @@ $("adminCodesCopy").onclick = async () => {
 $("adminBack").onclick = () => { location.hash = ""; };
 $("toAdmin").onclick = () => { $("accountSheet").close(); location.hash = "#/admin"; };
 
+// **入れなくなる危なさを、数ではなく中身で判定する。**
+//
+// 以前は「パスワード1 + パスキーの台数 + 回復コードがあれば1」を足していたが、
+// 種類の違うものを足しても意味を持たない。パスキー2台は「2」だが、
+// どちらも同じキーチェーンなら実質1つ。逆にパスキー1台＋回復コードは、
+// 端末を失っても入れる。
+//
+// 見るべきは「**手元の端末を失っても入れるか**」。
+// パスキーは端末に紐づくので、台数を増やしても端末を失う話の答えにならない。
+// 端末に依存しない手段は、パスワードと回復コードの2つだけ。
+function lockoutRisk(u) {
+  const passkeys = u.passkeys ?? 0;
+  const codes = u.codes ?? 0;
+  const pw = !!u.has_password;
+  const offDevice = pw || codes > 0;          // 端末を失っても残る手段があるか
+
+  if (!passkeys && !pw && !codes) {
+    return { level: "danger", message: "入る手段がありません。回復コードを発行してください。" };
+  }
+  if (passkeys && offDevice) return { level: "ok", message: "" };
+
+  if (passkeys && !offDevice) {
+    return { level: "warn",
+      message: "端末を失うと入れなくなります。回復コードを発行しておいてください。" };
+  }
+  if (pw && !codes) {
+    return { level: "warn",
+      message: "パスワードを忘れると戻れません。回復コードを発行しておいてください。" };
+  }
+  if (!pw && !passkeys && codes) {
+    return { level: "warn",
+      message: `回復コードを使い切ると入れなくなります（残り${codes}）。パスキーを登録してください。` };
+  }
+  return { level: "ok", message: "" };
+}
+
 // 誰が何で入っているかを、印として出せる形にする。
 // **日常の入り方（パスキー・パスワード）と、非常用（回復コード）を分ける。**
 // 一列に混ぜていたので「実際に何で入るのか」が読み取れなかった。
@@ -3045,12 +3082,13 @@ async function renderAdmin() {
     const day = (t) => (t ? new Date(t).toLocaleDateString("ja-JP") : "—");
     $("adminUserCount").textContent = `${me.users.length}人`;
     $("adminUsers").innerHTML = me.users.map((u) => {
-      const { labels, methods, detail } = authWays(u);
+      const { labels, detail } = authWays(u);
+      const risk = lockoutRisk(u);
       return `<div class="list-item">
         <strong>${esc(u.login_id)}</strong>${u.role === "admin" ? ' <span class="tiny">管理者</span>' : ""}
         ${labels.map((w) => `<span class="way">${esc(w)}</span>`).join("")}
         <div class="tiny">${esc(detail)} ・ 登録 ${day(u.created_at)}</div>
-        ${methods <= 1 ? `<div class="warn tiny">入る手段が ${methods} しかありません</div>` : ""}
+        ${risk.message ? `<div class="warn tiny">${esc(risk.message)}</div>` : ""}
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
           <button class="tap" data-code="${esc(u.login_id)}" style="color:var(--accent);font-size:0.72rem;min-height:36px">回復コードを出す</button>
           <button class="tap" data-role="${esc(u.login_id)}" data-to="${u.role === "admin" ? "user" : "admin"}"

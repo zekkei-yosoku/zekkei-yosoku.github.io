@@ -669,8 +669,10 @@ console.log("== 詰みうる状態に出口を用意する ==");
 // まとめて10個発行する形にしたので、1つ使っても手持ちは残る。
 // 代わりに、残りが少なくなったら作り直しを促す。
 ok(/res\.remaining <= 2/.test(html), "回復コードの残りが少なくなったら知らせる");
-// 手段が1つだけの状態は、起きてから言っても遅い
-ok(/me\.methods <= 1[\s\S]{0,120}入る手段がこれ1つだけです/.test(html), "手段が1つなら先に警告する");
+// 入れなくなりそうな状態は、起きてから言っても遅い。**数ではなく中身で判定する**
+// （2026-09-08 に置き換え。上の「締め出しの危なさ」の節が本体）
+ok(/lockoutRisk\(\{ passkeys: \(me\.credentials \|\| \[\]\)\.length/.test(html),
+  "アカウント画面でも同じ判定を使う");
 // 同期が止まったときに、押せる手を出す
 ok(/id="retrySync"/.test(html) && /retry\.onclick = async \(\) => \{ await syncNow\(\)/.test(html),
   "同期が失敗していたら再試行を出す");
@@ -738,7 +740,7 @@ ok(/他人のパスワードは扱わない/.test(html), "扱わない理由を�
 // 一覧・許可リスト・記録
 ok(/id="adminUsers"/.test(html) && /id="adminAllowed"/.test(html) && /id="adminLog"/.test(html),
   "利用者・許可リスト・操作の記録がある");
-ok(/入る手段が \$\{methods\} しかありません/.test(html), "締め出されそうな人を目立たせる");
+ok(/risk\.message \? `<div class="warn tiny">/.test(html), "締め出されそうな人を目立たせる");
 ok(/data-code=|data-role=|data-deluser=|data-disallow=/.test(html), "各操作の入口がある");
 // 取り消せない操作は二段で確かめる
 ok(/data-deluser[\s\S]{0,400}最終確認です。すべて消えます。/.test(html), "削除は二段で確かめる");
@@ -823,6 +825,54 @@ console.log("== 利用者一覧で、何で入っているかが一目で分か�
 }
 // 一覧では、印として並べる
 ok(/class="way"/.test(html), "手段を印として出す");
+
+console.log("== 締め出しの危なさを、数ではなく中身で言う ==");
+// 2026-09-08 ユーザー「入る手段が一つしかありませんってどういうこと？
+// 基本パスキーのみにしたらそうなるよね。回復コードをちゃんと持ってれば平気」。
+//
+// それまでは `パスワード1 + パスキーの台数 + 回復コードがあれば1` を足した数で
+// 判定していた。**種類の違うものを足しているので、意味を持たない。**
+// パスキー2台は「2」だが、どちらも同じキーチェーンなら実質1つ。
+// 逆にパスキー1台＋回復コードは、端末を失っても入れる。
+//
+// 見るべきは「**手元の端末を失っても入れるか**」。
+{
+  const start = html.indexOf("function lockoutRisk(");
+  ok(start > 0, "危なさの判定が関数として取り出せる");
+  const src = html.slice(start);
+  const lockoutRisk = new Function(`${src.slice(0, src.indexOf("\n}\n") + 3)}; return lockoutRisk;`)();
+
+  const risk = (pk, pw, codes) => lockoutRisk({ passkeys: pk, has_password: pw, codes });
+
+  ok(risk(1, false, 10).level === "ok", "パスキー＋回復コードは平気");
+  ok(risk(2, false, 10).level === "ok", "パスキー2台＋回復コードも平気");
+  ok(risk(1, true, 0).level === "ok", "パスキー＋パスワードも平気");
+  ok(risk(3, true, 10).level === "ok", "全部あれば当然平気");
+
+  // **端末を失うと入れなくなる。** パスキーは端末に紐づくので、台数では解決しない
+  ok(risk(1, false, 0).level === "warn", "パスキーだけは危ない");
+  ok(risk(3, false, 0).level === "warn", "パスキーが3台でも、端末を失えば同じ");
+  ok(risk(3, false, 0).message.includes("端末"), "端末を失う話だと言う", risk(3, false, 0).message);
+
+  // パスワードだけは、忘れたら戻れない
+  ok(risk(0, true, 0).level === "warn", "パスワードだけも危ない");
+  ok(risk(0, true, 0).message.includes("忘れる"), "忘れたときの話だと言う", risk(0, true, 0).message);
+
+  // 回復コードだけは、使い切ると終わり
+  ok(risk(0, false, 3).level === "warn", "回復コードだけも危ない");
+  ok(risk(0, false, 3).message.includes("使い切る"), "使い切る話だと言う", risk(0, false, 3).message);
+
+  // 何も無い
+  ok(risk(0, false, 0).level === "danger", "手段がゼロは危険");
+
+  // **どうすればいいかを必ず言う。** 危ないとだけ言われても直せない
+  for (const r of [risk(1, false, 0), risk(0, true, 0), risk(0, false, 3), risk(0, false, 0)]) {
+    ok(/回復コード|パスキー|パスワード/.test(r.message), "直し方に触れている", r.message);
+  }
+  ok(risk(1, false, 10).message === "", "平気なときは何も言わない");
+}
+// 数だけの判定が残っていない
+ok(!/methods <= 1/.test(html), "「手段の数が1以下」という判定が残っていない");
 
 console.log("== 管理画面の中身を、ログアウト後に残さない ==");
 // 2026-09-08 の調査 E-2。ログアウトはお気に入り・記録・送信待ちを消すが、
