@@ -823,7 +823,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908200043"></script>
+<script src="sorami-core.js?v=20260908200939"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2779,7 +2779,7 @@ $("codeLogin").onclick = async () => {
       { loginId: who, code: $("authCode").value, remember: wantsRemember() });
     await onLoggedIn(res);
     // 1つ使い捨てた。残りが少なくなったら作り直すよう促す。
-    if (typeof res.remaining === "number" && res.remaining <= 2) {
+    if (typeof res.remaining === "number" && res.remaining <= RECOVERY_LOW) {
       alert(`回復コードを1つ使いました。残り ${res.remaining}個 です。\n`
         + "アカウント画面から発行し直しておいてください。");
     }
@@ -2829,14 +2829,14 @@ async function openAccountSheet() {
         : `<p class="tiny">まだありません。この端末を登録すると、次から Face ID で入れます。</p>`);
     for (const el of $("accountBody").querySelectorAll("[data-delkey]")) el.onclick = async () => {
       // 消したパスキーは戻せない。作り直しになるので確認する。
-      if (!confirm("この端末のパスキーを消します。\nその端末からは、パスワードか回復コードでしか入れなくなります。")) return;
+      if (!confirm("この端末のパスキーを消します。\nこの端末からは、パスワードか回復コードでしか入れなくなります。")) return;
       $("accountErr").hidden = true;
       try { adoptToken(await apiCall("POST", "/passkey/delete", { credentialId: el.dataset.delkey })); openAccountSheet(); }
       catch (e) {
         authFail($("accountErr"), e.message);
         // 断って終わりにしない。**その場で直せる場所を開いて指を置く。**
         // 「最後の1つだから消せません」と言われても、どうすればいいか分からなければ意味がない。
-        if (/最後の認証手段/.test(e.message) && !$("enablePwWay").hidden) {
+        if (/最後のパスキー/.test(e.message) && !$("enablePwWay").hidden) {
           $("enablePwWay").open = true;
           $("newAccPw").focus();
         }
@@ -3017,6 +3017,9 @@ $("toAdmin").onclick = () => { $("accountSheet").close(); location.hash = "#/adm
 // 数では判定しない。「パスワード1 + パスキーの台数 + 回復コードがあれば1」を
 // 足していたが、種類の違うものを足しても意味を持たない。パスキー2台は「2」だが
 // 同じキーチェーンなら実質1つで、**台数は端末を失う話の答えにならない。**
+// 残りがこれ以下になったら発行し直しを促す
+const RECOVERY_LOW = 3;
+
 function nextStep(u) {
   const passkeys = u.passkeys ?? 0;
   const codes = u.codes ?? 0;
@@ -3034,8 +3037,9 @@ function nextStep(u) {
     return { level: "warn",
       message: "パスワードだけです。忘れると戻れません。パスキーを登録してください。" };
   }
-  // 回復コードだけ。**起こりうる**（回復コードがあれば最後のパスキーも消せる仕様、
-  // および管理者による失効）。使い切ると終わりなので、日常の入り方を戻してもらう。
+  // 回復コードだけ。**自分では作れない**（最後のパスキーは消せないし、パスワードの
+  // 無効化にはパスキーが要る）。管理者が盗まれた鍵を失効させたときにだけ起こる。
+  // 使い切ると終わりなので、日常の入り方を戻してもらう。
   if (!passkeys && !pw && codes) {
     return { level: "warn",
       message: `回復コードしかありません（残り${codes}）。使い切ると入れなくなります。パスキーを登録してください。` };
@@ -3048,6 +3052,13 @@ function nextStep(u) {
   if (pw) {
     return { level: "suggest",
       message: "パスワードを無効にすると、パスワードが漏れる経路がなくなります。回復コードは自動で発行されます。" };
+  }
+  // ここまで来たのはパスキーのみの人。回復コードが**端末を失ったときの唯一の戻り道**なので、
+  // 残りが少なくなったら発行し直してもらう。10個渡るのはパスワードを無効にしたときで、
+  // そのあと使うたびに減る。ゼロになってから言っても、そのときはもう手遅れ。
+  if (codes <= RECOVERY_LOW) {
+    return { level: "warn",
+      message: `回復コードが残り${codes}です。端末を失ったときの唯一の戻り道なので、発行し直してください。` };
   }
   return { level: "ok", message: "" };
 }

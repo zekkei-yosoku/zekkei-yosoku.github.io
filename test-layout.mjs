@@ -656,7 +656,7 @@ console.log("== 端末とパスワードの出し入れ ==");
 ok(/data-delkey="\$\{esc\(c\.id\)\}"/.test(html), "登録した端末を消せる");
 ok(/confirm\("この端末のパスキーを消します/.test(html), "消す前に確かめる");
 // 断って終わりにしない。その場で直せる場所を開く。
-ok(/最後の認証手段\/\.test\(e\.message\)[\s\S]{0,140}\$\("newAccPw"\)\.focus\(\)/.test(html),
+ok(/最後のパスキー\/\.test\(e\.message\)[\s\S]{0,140}\$\("newAccPw"\)\.focus\(\)/.test(html),
   "締め出しを断ったら、パスワードの設定欄を開いて指を置く");
 // パスワードは片道にしない
 ok(/id="enablePwWay"/.test(html) && /id="enablePw"/.test(html), "パスワードを再び有効にできる");
@@ -668,7 +668,7 @@ console.log("== 詰みうる状態に出口を用意する ==");
 // 回復コードは使い捨て。使った瞬間に手段がゼロになるので、その場で次を渡して見せる。
 // まとめて10個発行する形にしたので、1つ使っても手持ちは残る。
 // 代わりに、残りが少なくなったら作り直しを促す。
-ok(/res\.remaining <= 2/.test(html), "回復コードの残りが少なくなったら知らせる");
+ok(/res\.remaining <= RECOVERY_LOW/.test(html), "回復コードの残りが少なくなったら知らせる");
 // 入れなくなりそうな状態は、起きてから言っても遅い。**数ではなく中身で判定する**
 // （2026-09-08 に置き換え。上の「締め出しの危なさ」の節が本体）
 ok(/nextStep\(\{ passkeys: \(me\.credentials \|\| \[\]\)\.length/.test(html),
@@ -723,7 +723,12 @@ ok(/codes\.map\(\(c\) => esc\(c\)\)\.join\("<br>"\)/.test(html), "全部並べ�
 ok(/id="copyCodes"/.test(html) && /navigator\.clipboard\.writeText\(codeBlock\(/.test(html),
   "まとめてコピーできる");
 ok(/1つずつ使い捨てです。期限はありません/.test(html), "使い方を書く");
-ok(/res\.remaining <= 2[\s\S]{0,160}発行し直して/.test(html), "残りが少なくなったら作り直しを促す");
+ok(/res\.remaining <= RECOVERY_LOW[\s\S]{0,160}発行し直して/.test(html), "残りが少なくなったら作り直しを促す");
+// 使ったときの通知と、アカウント画面の案内で**同じしきい値**を使う。
+// 別々の数だと「知らせは来たのに画面は何も言わない」という食い違いが起きる
+ok((html.match(/RECOVERY_LOW/g) || []).length >= 3, "しきい値は1か所で決める",
+  String((html.match(/RECOVERY_LOW/g) || []).length));
+ok(/const RECOVERY_LOW = 3;/.test(html), "3以下で促す（3・2・1・0）");
 ok(/>新規登録<\/button>/.test(html), "入口のラベルは「新規登録」");
 
 console.log("== 管理者の画面 ==");
@@ -826,6 +831,17 @@ console.log("== 利用者一覧で、何で入っているかが一目で分か�
 // 一覧では、印として並べる
 ok(/class="way"/.test(html), "手段を印として出す");
 
+console.log("== 日常の入り方を必ず1つ残す ==");
+// 2026-09-08 ユーザー判断で仕様変更。認められる状態は3つだけ。
+//   パスワードのみ / パスワードとパスキー / パスキーのみ
+// **回復コードは補助であって、代わりにはならない。**
+// 以前は「回復コードが残っていれば最後のパスキーも消せる」形で、
+// 使い切った時点で入れなくなる状態を自分で作れてしまった。
+ok(/最後のパスキー/.test(html), "断られたときの理由を見て、直せる場所を開く");
+ok(!/最後の認証手段/.test(html), "古い言い回しが残っていない");
+// 回復コードを逃げ道として案内しない
+ok(!/回復コードを発行してください」/.test(html), "回復コードで代替できると言わない");
+
 console.log("== 状態は短く言い切る ==");
 // 2026-09-08 ユーザー「パスワード：無効にしてある なんで パスワード：無効 とかってできないの」。
 // 状態の表示に説明を混ぜない。**何をしたかではなく、いまどうかを出す。**
@@ -844,7 +860,8 @@ console.log("== 次の一歩を示す ==");
 // 数で判定していた頃の問題も引き継いで直す: パスキー2台は「2」だが同じ
 // キーチェーンなら実質1つ。台数は端末を失う話の答えにならない。
 {
-  const start = html.indexOf("function nextStep(");
+  // しきい値の定数も含めて取り出す（値だけ変えたときに壊れないよう、名前で切る）
+  const start = html.indexOf("const RECOVERY_LOW =");
   ok(start > 0, "次の一歩の判定が関数として取り出せる");
   const src = html.slice(start);
   const nextStep = new Function(`${src.slice(0, src.indexOf("\n}\n") + 3)}; return nextStep;`)();
@@ -867,6 +884,17 @@ console.log("== 次の一歩を示す ==");
   ok(at(1, false, 10).level === "ok" && at(1, false, 10).message === "",
     "パスキー＋PW無効＋回復コードなら、何も言わない");
   ok(at(3, false, 10).level === "ok", "台数が多くても同じく完了");
+
+  // **残りが少なくなったら発行し直しを促す**（2026-09-08 ユーザー指定）。
+  // パスキーのみの人にとって、回復コードは端末を失ったときの唯一の戻り道。
+  // 10個渡るのはパスワードを無効にしたときで、そのあと使うたびに減る。
+  ok(at(1, false, 4).level === "ok", "残り4はまだ言わない");
+  ok(at(1, false, 3).level === "warn", "残り3で促す");
+  ok(at(1, false, 1).level === "warn", "残り1でも促す");
+  ok(at(1, false, 3).message.includes("残り3"), "残りの数を出す", at(1, false, 3).message);
+  ok(at(1, false, 3).message.includes("発行"), "発行し直すよう言う", at(1, false, 3).message);
+  // パスワードが生きている人には言わない。戻り道が別にある
+  ok(at(1, true, 1).level === "suggest", "パスワードがあれば、残りが少なくても急かさない");
 
   // 危ない側
   ok(at(0, true, 0).level === "warn", "PWだけで回復コード0は警告");
