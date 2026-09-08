@@ -657,20 +657,7 @@
     <input type="password" id="authPw" class="fav-in" autocomplete="current-password">
     <button id="pwLogin" class="fav-btn" style="margin-top:12px">パスワードでログイン</button>
 
-    <details id="otherWays" style="margin-top:16px">
-      <summary class="tiny" style="cursor:pointer;color:var(--secondary)">回復コードで入る</summary>
-      <p class="tiny" style="margin-top:8px">パスキーもパスワードも使えないときに。
-        <strong>IDとコードの両方が要ります。</strong>10個あるうちの1つを使い捨てます。</p>
-      <!-- ID欄をこの枠の中にも置く。上のID欄を読ませる作りだと、
-           「コードだけ入れる画面」に見えて、埋めずに押した人が理由の分からない失敗をする。 -->
-      <label class="fav-l" for="codeId">ID</label>
-      <input type="text" id="codeId" class="fav-in" autocomplete="username" maxlength="32">
-      <label class="fav-l" for="authCode">回復コード</label>
-      <input type="text" id="authCode" class="fav-in" placeholder="XXXXXXXX-XXXXXXXX-…" autocomplete="off">
-      <button id="codeLogin" class="fav-btn" style="margin-top:12px">回復コードでログイン</button>
-    </details>
-
-    <details id="signupWay" style="margin-top:10px">
+    <details id="signupWay" style="margin-top:16px">
       <summary class="tiny" style="cursor:pointer;color:var(--secondary)">新規登録</summary>
       <p class="tiny" style="margin-top:8px">好きなIDを決めて登録できます（英数字3〜32文字）。
         すでに使われているIDは選べません。
@@ -684,6 +671,19 @@
       <button id="doSignup" class="fav-btn" style="margin-top:12px">登録して始める</button>
       <p class="tiny" style="margin-top:8px">登録したら、この端末にパスキーを登録しておくと
         次から Face ID だけで入れます。</p>
+    </details>
+
+    <details id="otherWays" style="margin-top:10px">
+      <summary class="tiny" style="cursor:pointer;color:var(--secondary)">回復コードで入る</summary>
+      <p class="tiny" style="margin-top:8px">パスキーもパスワードも使えないときに。
+        <strong>IDとコードの両方が要ります。</strong>10個あるうちの1つを使い捨てます。</p>
+      <!-- ID欄をこの枠の中にも置く。上のID欄を読ませる作りだと、
+           「コードだけ入れる画面」に見えて、埋めずに押した人が理由の分からない失敗をする。 -->
+      <label class="fav-l" for="codeId">ID</label>
+      <input type="text" id="codeId" class="fav-in" autocomplete="username" maxlength="32">
+      <label class="fav-l" for="authCode">回復コード</label>
+      <input type="text" id="authCode" class="fav-in" placeholder="XXXXXXXX-XXXXXXXX-…" autocomplete="off">
+      <button id="codeLogin" class="fav-btn" style="margin-top:12px">回復コードでログイン</button>
     </details>
     <p class="warn" id="authErr" style="margin-top:12px" hidden></p>
   </div>
@@ -756,7 +756,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908125141"></script>
+<script src="sorami-core.js?v=20260908130015"></script>
 <script>
 "use strict";
 const S = window.Sorami;

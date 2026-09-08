@@ -687,6 +687,9 @@ ok(/id="pwLogin"/.test(authSheet) && !/id="pwLogin"/.test(collapsed), "ログイ
 // 珍しい方は畳んでよい
 ok(/id="authCode"/.test(collapsed), "回復コードは畳む");
 ok(/id="doSignup"/.test(collapsed), "新規登録は畳む");
+// 頻度の高い順に並べる。新規登録は普通にあるが、回復コードは非常時だけ。
+ok(authSheet.indexOf('id="signupWay"') < authSheet.indexOf('id="otherWays"'),
+  "新規登録を回復コードより先に置く");
 
 console.log("== 回復コードはまとめて渡す ==");
 // 1個ずつだと、使った瞬間に手持ちがゼロになる。まとめて発行して1つずつ使い捨てる。
