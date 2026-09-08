@@ -664,7 +664,7 @@
       <button id="pwLogin" class="fav-btn" style="margin-top:12px">パスワードでログイン</button>
       <div class="auth-links">
         <button id="goSignup" class="tap">新規登録</button>
-        <button id="goRecovery" class="tap">入れなくなったとき</button>
+        <button id="goRecovery" class="tap">アカウントの回復</button>
       </div>
     </div>
 
@@ -766,7 +766,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908130705"></script>
+<script src="sorami-core.js?v=20260908130929"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2423,7 +2423,7 @@ const authFail = (el, msg) => { el.textContent = msg; el.hidden = false; };
 
 
 // 同じダイアログの中で1画面ずつ出す。目的の違うフォームを同時に見せない。
-const AUTH_PANELS = { login: "ログイン", signup: "新規登録", recovery: "入れなくなったとき" };
+const AUTH_PANELS = { login: "ログイン", signup: "新規登録", recovery: "アカウントの回復" };
 function showAuthPanel(which) {
   $("authErr").hidden = true;
   for (const k of Object.keys(AUTH_PANELS)) {

@@ -690,6 +690,11 @@ for (const p of ["panelLogin", "panelSignup", "panelRecovery"]) {
 ok(/function showAuthPanel[\s\S]{0,300}hidden = k !== which/.test(html), "一度に1つだけ出す");
 ok((authSheet.match(/data-back/g) || []).length >= 2, "どの画面からも戻れる");
 ok(/id="goSignup"/.test(authSheet) && /id="goRecovery"/.test(authSheet), "ログイン画面から入口がある");
+// 「選択肢のラベルは名詞だけにする」（技術構成のUI方針）。
+// 「入れなくなったとき」は時を表す節で、隣の「新規登録」と形が揃っていなかった。
+ok(/>新規登録<\/button>/.test(authSheet) && /アカウントの回復<\/button>/.test(authSheet),
+  "入口のラベルが名詞で揃っている");
+ok(!/とき<\/button>/.test(authSheet), "ボタンのラベルに節を使わない");
 // 最初の画面はログイン。新規登録や回復から始めない
 ok(/showAuthPanel\("login"\);\s*\n\s*\$\("authSheet"\)\.showModal/.test(html), "開いたらログイン画面から");
 // 見出しが画面に追従する
