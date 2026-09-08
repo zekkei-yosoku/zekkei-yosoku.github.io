@@ -312,7 +312,11 @@
   /* 登録フォームでは現象チップが主役の入力なので、実寸で 44px を確保する。
      折り返しの間隔（gap 6px）より高いので、上下の行と重ならない。 */
   /* 入力の直下に置く規則の説明。ラベルより弱く、本文より小さく。 */
-  .hint { font-size:12px; line-height:1.6; color:var(--tertiary); margin:6px 0 0; }
+  /* 説明文は句点で折る。**語の途中や助詞の頭で折れると読めない。**
+     line-break:strict で 。、 が行頭に来るのを防ぎ、まとまりは .nb で割らせない。 */
+  .hint { font-size:12px; line-height:1.6; color:var(--tertiary); margin:6px 0 0;
+    line-break: strict; word-break: normal; overflow-wrap: normal; }
+  .nb { white-space: nowrap; }
   .hint b { font-weight:600; color:var(--secondary);
     background:var(--line); border-radius:3px; padding:0 4px; margin:0 1px;
     font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -587,11 +591,11 @@
 
     <div class="card" style="margin-top:10px" id="allowCard">
       <div class="section-h"><h2>登録を許可するID</h2></div>
-      <p class="tiny">ここに載せたIDだけが新規登録できます。<strong>取り消しても既存のアカウントは消えません。</strong></p>
+      <p class="tiny">ここに載せたIDだけが新規登録できます。<strong class="nb">取り消しても既存のアカウントは消えません。</strong></p>
       <div id="adminAllowed" class="tiny"></div>
       <label class="fav-l" for="allowId">追加するID</label>
       <input type="text" id="allowId" class="fav-in" maxlength="32" autocomplete="off">
-      <p class="hint">半角英数と記号 <b>.</b> <b>_</b> <b>-</b> で6〜32桁。<br>
+      <p class="hint">半角英数と記号で6〜32桁。<span class="nb">使える記号は <b>.</b> <b>_</b> <b>-</b></span><br>
         1文字目は英字か数字。大文字で入れても小文字になります。</p>
       <label class="fav-l" for="allowNote">メモ<span class="fav-opt">任意</span></label>
       <input type="text" id="allowNote" class="fav-in" maxlength="60" placeholder="誰のためか">
@@ -669,7 +673,7 @@
       <p class="tiny">ログインすると、お気に入りと記録が他の端末でも使えます。
         ログインしなくても予報はこれまでどおり見られます。</p>
       <button id="passkeyLogin" class="fav-btn primary" style="margin-top:14px" hidden>パスキーでログイン</button>
-      <p class="tiny" id="passkeyNote" style="margin-top:6px" hidden>Face ID / Touch ID で入れます。</p>
+      <p class="tiny" id="passkeyNote" style="margin-top:6px" hidden><span class="nb">Face ID</span> / <span class="nb">Touch ID</span> で入れます。</p>
       <div class="or-line"><span>または</span></div>
       <label class="fav-l" for="authId">ID</label>
       <input type="text" id="authId" class="fav-in" autocomplete="username" maxlength="32">
@@ -684,18 +688,18 @@
 
     <div id="panelSignup" hidden>
       <button class="auth-back tap" data-back>← ログインにもどる</button>
-      <p class="tiny">好きなIDを決めて登録できます。<strong>あとから変えられません。</strong></p>
+      <p class="tiny">好きなIDを決めて登録できます。<strong class="nb">あとから変えられません。</strong></p>
       <label class="fav-l" for="newId">ID</label>
       <input type="text" id="newId" class="fav-in" autocomplete="username" maxlength="32">
       <!-- 「英数字」とだけ書いていたが、実際は . _ - も使え、大文字は小文字になる。
            規則を全部言わないと、弾かれてから理由を探すことになる。 -->
-      <p class="hint">半角英数と記号 <b>.</b> <b>_</b> <b>-</b> で6〜32桁。<br>
+      <p class="hint">半角英数と記号で6〜32桁。<span class="nb">使える記号は <b>.</b> <b>_</b> <b>-</b></span><br>
         1文字目は英字か数字。<br>大文字で入れても小文字になります。</p>
       <label class="fav-l" for="newPw">パスワード</label>
       <input type="password" id="newPw" class="fav-in" autocomplete="new-password" maxlength="128">
       <label class="fav-l" for="newPw2">もう一度</label>
       <input type="password" id="newPw2" class="fav-in" autocomplete="new-password" maxlength="128">
-      <p class="hint">半角英数と記号 <b>! # $ % &amp; * + - . = ? @ _</b> で8〜128桁。<br>
+      <p class="hint">半角英数と記号で8〜128桁。<span class="nb">使える記号は <b>! # $ % &amp; * + - . = ? @ _</b></span><br>
         大文字・小文字・記号を1つずつ以上。<br>
         IDと同じ文字・よくある言葉・連番は使えません。</p>
       <button id="doSignup" class="fav-btn primary" style="margin-top:14px">登録して始める</button>
@@ -705,19 +709,19 @@
          「登録しておくと便利です」と書くだけでは、たいてい誰もやらない。 -->
     <div id="panelPasskey" hidden>
       <p class="tiny"><strong>アカウントを作りました。</strong>
-        この端末にパスキーを登録すると、次から Face ID / Touch ID だけで入れます。</p>
+        この端末にパスキーを登録すると、次から <span class="nb">Face ID</span> / <span class="nb">Touch ID</span> だけで入れます。</p>
       <!-- **どちらも選べることが見えるように、両方ボタンで出す。**
            小さなリンクにすると「登録しろ」と迫っているように見える。 -->
       <button id="signupPasskey" class="fav-btn primary" style="margin-top:14px">この端末にパスキーを登録</button>
       <button id="skipPasskey" class="fav-btn" style="margin-top:8px">あとにする</button>
-      <p class="hint">パスワードはこれまでどおり使えます。<b>無効にはしません。</b><br>
+      <p class="hint">パスワードはこれまでどおり使えます。<b class="nb">無効にはしません。</b><br>
         あとからアカウント画面でも登録できます。</p>
     </div>
 
     <div id="panelRecovery" hidden>
       <button class="auth-back tap" data-back>← ログインにもどる</button>
       <p class="tiny">パスキーもパスワードも使えないときに。
-        <strong>IDとコードの両方が要ります。</strong>10個あるうちの1つを使い捨てます。</p>
+        <strong class="nb">IDとコードの両方が要ります。</strong>10個あるうちの1つを使い捨てます。</p>
       <label class="fav-l" for="codeId">ID</label>
       <input type="text" id="codeId" class="fav-in" autocomplete="username" maxlength="32">
       <label class="fav-l" for="authCode">回復コード</label>
@@ -752,7 +756,7 @@
         端末に依存しないので、URLが変わっても使えます。</p>
       <label class="fav-l" for="newAccPw">パスワード</label>
       <input type="password" id="newAccPw" class="fav-in" autocomplete="new-password" maxlength="128">
-      <p class="hint">半角英数と記号 <b>! # $ % &amp; * + - . = ? @ _</b> で8〜128桁。<br>
+      <p class="hint">半角英数と記号で8〜128桁。<span class="nb">使える記号は <b>! # $ % &amp; * + - . = ? @ _</b></span><br>
         大文字・小文字・記号を1つずつ以上。<br>
         IDと同じ文字・よくある言葉・連番は使えません。</p>
       <button id="enablePw" class="fav-btn" style="margin-top:10px">このパスワードを使う</button>
@@ -810,7 +814,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908162846"></script>
+<script src="sorami-core.js?v=20260908163433"></script>
 <script>
 "use strict";
 const S = window.Sorami;

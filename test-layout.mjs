@@ -780,6 +780,25 @@ ok(/\$\("authId"\)\.addEventListener\("input"[\s\S]{0,140}\["newId", "codeId"\]/
   "IDを打ち直させない");
 ok(/\$\("authId"\)\.addEventListener\("input"/.test(html), "上で打ったIDを写す");
 
+console.log("== 説明文が変なところで折れない ==");
+// 2026-09-08 ユーザー「説明文は変なところで改行されないように綺麗にしてね」。
+// 「半角英数と記号 [記号] で8〜128桁。」は、狭い画面で「で8〜128桁。」の
+// 直前で折れ、**行頭が助詞で始まっていた。** 桁数を先に言い切る形へ変えた。
+ok(/半角英数と記号で6〜32桁。/.test(html), "IDは桁数を先に言い切る");
+ok(/半角英数と記号で8〜128桁。/.test(html), "PWも桁数を先に言い切る");
+// 記号の一覧は「使える記号は …」ごと1かたまりで動かす。途中で割れると読めない
+// ID側2つ（新規登録・管理画面の許可リスト）とPW側2つ（新規登録・アカウント画面）
+ok((html.match(/<span class="nb">使える記号は/g) || []).length === 4,
+  "記号の一覧を4か所すべてで割らせない",
+  String((html.match(/<span class="nb">使える記号は/g) || []).length));
+ok(/line-break: strict/.test(html), "。や、が行頭に来ないようにする");
+ok(/\.nb \{ white-space: nowrap; \}/.test(html), "割らせない指定がある");
+// 固有名詞と、強調している短い語句は割らない
+ok(/<span class="nb">Face ID<\/span> \/ <span class="nb">Touch ID<\/span>/.test(html),
+  "Face ID と Touch ID を割らない");
+ok(/<b class="nb">無効にはしません。<\/b>/.test(html), "強調した語句を割らない");
+ok(/<strong class="nb">あとから変えられません。<\/strong>/.test(html), "強調した語句を割らない（登録）");
+
 console.log("== シートを開いている間、後ろが動かない ==");
 // 2026-09-08 ユーザー指摘「ログイン画面とかアカウント情報見てる時に後ろがスクロールできる」。
 // **<dialog> は背面の「操作」は止めるが「スクロール」は止めない。**
@@ -812,7 +831,8 @@ ok(/keepOpen: !!window\.PublicKeyCredential/.test(html),
   "パスキー非対応の端末では、出さずに閉じる");
 
 // **パスワードには触らない**（2026-09-08 ユーザー指定）。鍵が増えるだけで入り方は減らさない
-ok(/パスワードはこれまでどおり使えます。<b>無効にはしません。<\/b>/.test(html), "無効にしないと書いてある");
+ok(/パスワードはこれまでどおり使えます。<b class="nb">無効にはしません。<\/b>/.test(html),
+  "無効にしないと書いてある");
 {
   const panel = html.slice(html.indexOf('id="panelPasskey"'), html.indexOf('id="panelPasskey"') + 900);
   ok(!/disable/.test(panel), "画面にパスワード無効化の口が無い");
@@ -884,7 +904,8 @@ console.log("== パスワードの規則が、サーバーと同じに動く =="
 
   // 使える記号は決め打ち（2026-09-08 ユーザー判断）。**画面の一覧と規則を一致させる。**
   // 一覧に載っているのに弾かれる、載っていないのに通る、のどちらも困る。
-  const shown = (html.match(/記号 <b>([! #$%&*+\-.=?@_a-z;]+)<\/b> で8〜128桁/) || [])[1] ?? "";
+  // PWの一覧だけを拾う（IDの一覧は3文字なので長さで分ける）
+  const shown = (html.match(/使える記号は <b>([! #$%&*+\-.=?@_a-z;]{20,})<\/b>/) || [])[1] ?? "";
   const symbols = shown.replace(/&amp;/g, "&").split(" ").filter(Boolean);
   ok(symbols.length === 13, "記号が13種ある", String(symbols.length));
   for (const c of symbols) ok(checkPw(`Ab1${c}cdxy`) === null, `一覧の記号 ${c} は実際に使える`);
@@ -908,8 +929,8 @@ ok(/const weakAcc = checkPw\(\$\("newAccPw"\)\.value/.test(html), "パスワー�
 ok(!/pw\.length < 10/.test(html), "古い10文字の判定が残っていない");
 
 // 画面にも規則を出す。弾かれてから理由を探させない
-ok(/半角英数と記号 <b>! # \$ % &amp; \* \+ - \. = \? @ _<\/b> で8〜128桁/.test(html),
-  "使える文字と長さを1行で書く");
+ok(/半角英数と記号で8〜128桁。<span class="nb">使える記号は <b>! # \$ % &amp; \* \+ - \. = \? @ _<\/b><\/span>/.test(html),
+  "使える文字と長さを書く");
 ok(/大文字・小文字・記号を1つずつ以上/.test(html), "要る文字種を書く");
 ok(/IDと同じ文字・よくある言葉・連番は使えません/.test(html), "弾かれる形も書く");
 // 例は出さない（2026-09-08 ユーザー判断）。出すと、そのまま使う人が出る
@@ -938,15 +959,15 @@ for (const c of ["@", "+", "!", "#"]) {
   ok(!signupPanel.includes(`<b>${c}</b>`), `使えない記号 ${c} を挙げていない`);
 }
 // 変えられないことは、決める前に言わないと意味が無い
-ok(/<strong>あとから変えられません。<\/strong>/.test(html), "IDを後から変えられないと書く");
+ok(/<strong class="nb">あとから変えられません。<\/strong>/.test(html), "IDを後から変えられないと書く");
 
 // 同じ規則が要る場所は2つ。管理者が許可リストへ入れるIDも同じ規則で弾かれる
-ok((html.match(/半角英数と記号 <b>\.<\/b>/g) || []).length === 2,
+ok((html.match(/半角英数と記号で6〜32桁。/g) || []).length === 2,
   "IDの規則を、新規登録と管理画面の許可リストの両方に書く",
-  String((html.match(/半角英数と記号 <b>\.<\/b>/g) || []).length));
-ok((html.match(/で8〜128桁/g) || []).length === 2,
+  String((html.match(/半角英数と記号で6〜32桁。/g) || []).length));
+ok((html.match(/半角英数と記号で8〜128桁。/g) || []).length === 2,
   "パスワードの規則を、新規登録とアカウント画面の両方に書く",
-  String((html.match(/で8〜128桁/g) || []).length));
+  String((html.match(/半角英数と記号で8〜128桁。/g) || []).length));
 
 console.log("== 管理画面に、ほかの画面のものを出さない ==");
 // 2026-09-08 ユーザー指摘「管理画面に実際はどうでしたか？がある」。
