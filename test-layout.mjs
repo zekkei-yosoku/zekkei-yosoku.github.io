@@ -796,7 +796,6 @@ ok(/\.nb \{ white-space: nowrap; \}/.test(html), "割らせない指定がある
 // 固有名詞と、強調している短い語句は割らない
 ok(/<span class="nb">Face ID<\/span> \/ <span class="nb">Touch ID<\/span>/.test(html),
   "Face ID と Touch ID を割らない");
-ok(/<b class="nb">無効にはしません。<\/b>/.test(html), "強調した語句を割らない");
 ok(/<strong class="nb">あとから変えられません。<\/strong>/.test(html), "強調した語句を割らない（登録）");
 
 console.log("== シートを開いている間、後ろが動かない ==");
@@ -831,11 +830,12 @@ ok(/keepOpen: !!window\.PublicKeyCredential/.test(html),
   "パスキー非対応の端末では、出さずに閉じる");
 
 // **パスワードには触らない**（2026-09-08 ユーザー指定）。鍵が増えるだけで入り方は減らさない
-ok(/パスワードはこれまでどおり使えます。<b class="nb">無効にはしません。<\/b>/.test(html),
-  "無効にしないと書いてある");
 {
   const panel = html.slice(html.indexOf('id="panelPasskey"'), html.indexOf('id="panelPasskey"') + 900);
   ok(!/disable/.test(panel), "画面にパスワード無効化の口が無い");
+  // 「無効にはしません」の一文は消した（2026-09-08 ユーザー判断）。
+  // **書かなくなったぶん、動きの側で守る。** 下の2件がその担保。
+  ok(!/無効にはしません/.test(html), "打ち消しの一文を残していない");
 }
 {
   const fn = html.slice(html.indexOf('$("signupPasskey").onclick'), html.indexOf('$("skipPasskey").onclick'));
