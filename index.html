@@ -309,6 +309,9 @@
   /* 現象は7つ全部を一度に見せて選ばせる。横スクロールだと隠れた選択肢に気づけない。 */
   /* 登録フォームでは現象チップが主役の入力なので、実寸で 44px を確保する。
      折り返しの間隔（gap 6px）より高いので、上下の行と重ならない。 */
+  .or-line { display: flex; align-items: center; gap: 10px; margin: 16px 0 4px;
+             font-size: 0.72rem; color: var(--tertiary); }
+  .or-line::before, .or-line::after { content: ""; flex: 1; height: 1px; background: var(--line); }
   #favPhenomena { flex-wrap: wrap; overflow: visible; }
   #favPhenomena button { min-height: 44px; padding: 5px 14px; }
   .fav-btn { display: block; width: 100%; padding: 12px 0; border-radius: 10px; font-weight: 700;
@@ -601,13 +604,20 @@
     <button id="passkeyLogin" class="fav-btn primary" style="margin-top:14px" hidden>パスキーでログイン</button>
     <p class="tiny" id="passkeyNote" style="margin-top:6px" hidden>Face ID / Touch ID で入れます。</p>
 
+    <!-- ID とパスワードを畳んではいけない。**パスキーをまだ登録していない人には、
+         これが唯一の入り口**で、畳むと入り方が見えなくなる（2026-09-08 に指摘を受けた）。
+         珍しい経路（回復コード・新規登録）だけを畳む。 -->
+    <div class="or-line"><span>または</span></div>
+    <label class="fav-l" for="authId">ID</label>
+    <input type="text" id="authId" class="fav-in" autocomplete="username" maxlength="32">
+    <label class="fav-l" for="authPw">パスワード</label>
+    <input type="password" id="authPw" class="fav-in" autocomplete="current-password">
+    <button id="pwLogin" class="fav-btn" style="margin-top:12px">パスワードでログイン</button>
+
     <details id="otherWays" style="margin-top:16px">
-      <summary class="tiny" style="cursor:pointer;color:var(--secondary)">別の方法でログイン</summary>
-      <label class="fav-l" for="authId">ID</label>
-      <input type="text" id="authId" class="fav-in" autocomplete="username" maxlength="32">
-      <label class="fav-l" for="authPw">パスワード</label>
-      <input type="password" id="authPw" class="fav-in" autocomplete="current-password">
-      <button id="pwLogin" class="fav-btn" style="margin-top:12px">パスワードでログイン</button>
+      <summary class="tiny" style="cursor:pointer;color:var(--secondary)">回復コードで入る</summary>
+      <p class="tiny" style="margin-top:8px">パスキーもパスワードも使えないときに。
+        使うと、その場で次のコードが出ます。</p>
       <label class="fav-l" for="authCode">回復コード</label>
       <input type="text" id="authCode" class="fav-in" placeholder="XXXXXXXX-XXXXXXXX-…" autocomplete="off">
       <button id="codeLogin" class="fav-btn" style="margin-top:12px">回復コードでログイン</button>
@@ -688,7 +698,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908105003"></script>
+<script src="sorami-core.js?v=20260908114745"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2347,7 +2357,7 @@ $("authButton").onclick = () => {
   const supported = !!window.PublicKeyCredential;
   $("passkeyLogin").hidden = !supported;
   $("passkeyNote").hidden = !supported;
-  $("otherWays").open = !supported;
+  // 回復コードと新規登録は畳んだまま。IDとパスワードは常に見えている。
   $("authSheet").showModal();
 };
 $("authClose").onclick = () => $("authSheet").close();

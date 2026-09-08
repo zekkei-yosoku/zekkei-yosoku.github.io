@@ -666,5 +666,18 @@ ok((html.match(/if \(!confirm\([\s\S]{0,200}?\)\) return;/g) || []).length >= 2
 ok(/await apiCall\("DELETE", "\/me"\)[\s\S]{0,200}favorites = \[\]; sightings = \[\]/.test(html),
   "サーバーと手元の両方を消す");
 
+console.log("== ログインの入り口を隠さない ==");
+// 2026-09-08 ユーザー指摘「ログイン画面にIDとPWの入力欄がない」。
+// details の中に畳んでいた。**パスキーをまだ登録していない人には唯一の入り口**なのに、
+// それが見えない状態だった。珍しい経路（回復コード・新規登録）だけを畳む。
+const authSheet = html.slice(html.indexOf('id="authSheet"'), html.indexOf('id="accountSheet"'));
+const collapsed = authSheet.split("<details").slice(1).join("<details");
+ok(/id="authId"/.test(authSheet) && !/id="authId"/.test(collapsed), "IDの欄が畳まれていない");
+ok(/id="authPw"/.test(authSheet) && !/id="authPw"/.test(collapsed), "パスワードの欄が畳まれていない");
+ok(/id="pwLogin"/.test(authSheet) && !/id="pwLogin"/.test(collapsed), "ログインボタンが畳まれていない");
+// 珍しい方は畳んでよい
+ok(/id="authCode"/.test(collapsed), "回復コードは畳む");
+ok(/id="doSignup"/.test(collapsed), "新規登録は畳む");
+
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);
