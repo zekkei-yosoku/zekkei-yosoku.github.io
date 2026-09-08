@@ -830,7 +830,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908204908"></script>
+<script src="sorami-core.js?v=20260908210226"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2475,6 +2475,34 @@ async function apiCall(method, path, body) {
   return data;
 }
 
+// 長いセッションで、直前2時間より古いまま認証手段を変えようとすると、
+// サーバーが「確認のため、もう一度ログインしてください」と断る（判断1）。
+// **断って終わりにしない。** その場で入り直せる画面を開き、IDを写しておく。
+// パスキーがあれば1回の Face ID で済む。
+// アカウント画面での失敗の出し方。**確認し直しを求められたときだけ扱いを変える。**
+// ほかの失敗は、そのまま理由を出す。
+function accountFail(message) {
+  if (/確認のため、もう一度ログイン/.test(message)) { askReauth(); return; }
+  authFail($("accountErr"), message);
+}
+
+// 401 を受けた時点で clearAuth() が走り auth が消える。**誰だったかは覚えておく。**
+// でないと、入り直す画面でIDを打ち直させることになる。
+let lastLoginId = null;
+
+function askReauth() {
+  $("accountSheet").close();
+  showAuthPanel("login");
+  $("authId").value = auth?.loginId ?? lastLoginId ?? "";
+  $("authPw").value = "";
+  const supported = !!window.PublicKeyCredential;
+  $("passkeyLogin").hidden = !supported;
+  $("passkeyNote").hidden = !supported;
+  if (!$("authSheet").open) $("authSheet").showModal();
+  authFail($("authErr"), "確認のため、もう一度ログインしてください");
+  if (!supported) $("authPw").focus();
+}
+
 function renderAuthButton() {
   const b = $("authButton");
   if (!auth) { b.textContent = "ログイン"; b.classList.remove("warn"); b.setAttribute("aria-label", "ログイン"); return; }
@@ -2582,6 +2610,7 @@ async function restoreSession() {
   try {
     const me = await apiCall("GET", "/me");
     auth = { ...auth, loginId: me.loginId ?? auth.loginId, role: me.role ?? auth.role };
+    lastLoginId = auth.loginId;
     saveAuth(auth, found.remembered);
     // 折り返しを過ぎた長いセッションは、ここで出し直す。
     // これをしないと、30日で持たせても30日目に必ず切れる。
@@ -2600,6 +2629,7 @@ async function restoreSession() {
 /// ログインできたときの共通処理。初回は端末に残っているものを全部上げる。
 async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } = {}) {
   auth = { token: res.token, loginId: res.loginId, role: res.role };
+  lastLoginId = auth.loginId;
   saveAuth(auth, remember);
   if (!keepOpen) $("authSheet").close();
 
@@ -2840,7 +2870,7 @@ async function openAccountSheet() {
       $("accountErr").hidden = true;
       try { adoptToken(await apiCall("POST", "/passkey/delete", { credentialId: el.dataset.delkey })); openAccountSheet(); }
       catch (e) {
-        authFail($("accountErr"), e.message);
+        accountFail(e.message);
         // 断って終わりにしない。**その場で直せる場所を開いて指を置く。**
         // 「最後の1つだから消せません」と言われても、どうすればいいか分からなければ意味がない。
         if (/最後のパスキー/.test(e.message) && !$("enablePwWay").hidden) {
@@ -2853,7 +2883,7 @@ async function openAccountSheet() {
     if (retry) retry.onclick = async () => { await syncNow(); openAccountSheet(); };
     const retry2 = $("retrySync");
     if (retry2) retry2.onclick = async () => { await syncNow(); openAccountSheet(); };
-  } catch (e) { authFail($("accountErr"), e.message); }
+  } catch (e) { accountFail(e.message); }
 }
 
 // 履歴は開いたときだけ取りに行く。毎回引くほどのものではない。
@@ -2870,7 +2900,7 @@ $("loginHistory").ontoggle = async () => {
           <div class="tiny">${new Date(e.created_at).toLocaleString("ja-JP")}${e.ip ? ` ・ ${esc(e.ip)}` : ""}</div>
         </div>`).join("")
       : `<p class="tiny">まだありません。</p>`;
-  } catch (e) { authFail($("accountErr"), e.message); }
+  } catch (e) { accountFail(e.message); }
 };
 
 // 登録の中身は、アカウント画面からも新規登録の直後からも同じ。
@@ -2899,7 +2929,7 @@ $("addPasskey").onclick = async () => {
     openAccountSheet();
   } catch (e) {
     if (e.name === "NotAllowedError") return;
-    authFail($("accountErr"), e.message);
+    accountFail(e.message);
   }
 };
 // まとめて発行するので、表示も一覧にする。1個ずつだと使った瞬間に手持ちがゼロになる。
@@ -2923,7 +2953,7 @@ $("copyCodes").onclick = async () => {
 $("newRecovery").onclick = async () => {
   $("accountErr").hidden = true;
   try { showCodes((await apiCall("POST", "/recovery/issue", {})).codes); openAccountSheet2(); }
-  catch (e) { authFail($("accountErr"), e.message); }
+  catch (e) { accountFail(e.message); }
 };
 // 発行の表示を消さずに中身だけ更新する
 async function openAccountSheet2() {
@@ -2945,7 +2975,7 @@ $("deleteAccount").onclick = async () => {
     $("accountSheet").close();
     renderAuthButton();
     render();
-  } catch (e) { authFail($("accountErr"), e.message); }
+  } catch (e) { accountFail(e.message); }
 };
 $("enablePw").onclick = async () => {
   $("accountErr").hidden = true;
@@ -2955,12 +2985,12 @@ $("enablePw").onclick = async () => {
     adoptToken(await apiCall("POST", "/password/enable", { password: $("newAccPw").value }));
     $("newAccPw").value = "";
     openAccountSheet();
-  } catch (e) { authFail($("accountErr"), e.message); }
+  } catch (e) { accountFail(e.message); }
 };
 $("disablePw").onclick = async () => {
   if (!confirm("パスワードでのログインをやめます。\n代わりの回復コードを発行します。必ず保存してください。")) return;
   try { const r = await apiCall("POST", "/password/disable", {}); adoptToken(r); showCodes(r.codes); openAccountSheet2(); }
-  catch (e) { authFail($("accountErr"), e.message); }
+  catch (e) { accountFail(e.message); }
 };
 // **取り消しの唯一の手段。** トークンは署名だけで検証でき、サーバーに残らないので、
 // 世代番号を進める以外に「あの端末を切る」方法が無い。
@@ -2969,7 +2999,7 @@ $("logoutAll").onclick = async () => {
   try {
     adoptToken(await apiCall("POST", "/me/logout-all"));
     alert("ほかの端末のログインを切りました。");
-  } catch (e) { authFail($("accountErr"), e.message); }
+  } catch (e) { accountFail(e.message); }
 };
 
 $("logout").onclick = () => {
@@ -2977,6 +3007,7 @@ $("logout").onclick = () => {
   if (pushQueue.length && !confirm(`まだ送っていない変更が ${pushQueue.length}件 あります。\n消えますが、ログアウトしますか？`)) return;
   clearAuth(); clearAdminView(); syncInfo = null; pushQueue = [];
   favorites = []; sightings = [];
+  lastLoginId = null;
   dataOwner = null; store.set("sorami.owner", null);
   store.set("sorami.sync", null); store.set("sorami.queue", []);
   store.set("sorami.favorites", []); store.set("sorami.sightings", []);

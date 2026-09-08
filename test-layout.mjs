@@ -1027,6 +1027,24 @@ ok(/pushQueue = pushQueue\.filter\(/.test(html), "受理された分だけ外す
 // 1回の上限は500件。超える分を捨てずに次へ回す
 ok(/pushQueue\.slice\(0, 500\)/.test(html), "500件ずつ送る");
 
+console.log("== 確認し直しを求められたら、その場で入り直せる ==");
+// 判断1（2026-09-08）。長いセッション（30日）で、直前2時間より古いまま
+// 認証手段を変えようとすると、サーバーが断る。
+// **断って終わりにしない。** どうすればいいか分からなければ意味がない。
+ok(/確認のため、もう一度ログイン/.test(html), "断られたことを見分ける");
+ok(/function askReauth\(\)/.test(html), "確認し直しの導線がある");
+// IDは分かっているので打ち直させない
+// 401 の時点で auth は消えているので、直前のIDを覚えておく必要がある
+ok(/askReauth[\s\S]{0,400}\$\("authId"\)\.value = auth\?\.loginId \?\? lastLoginId/.test(html),
+  "IDを写す（打ち直させない）");
+ok(/let lastLoginId = null;/.test(html), "誰だったかを覚えておく");
+ok(/lastLoginId = null;[\s\S]{0,80}dataOwner = null;/.test(html),
+  "明示ログアウトでは忘れる（別の人が使うかもしれない）");
+// パスキーがあれば、その場で1回のFace IDで済む
+ok(/askReauth[\s\S]{0,500}passkeyLogin/.test(html), "パスキーの口をその場に出す");
+// 断られた操作は、アカウント画面の中で起きる。そこにエラーを出す
+ok(/authFail\(\$\("accountErr"\)/.test(html), "アカウント画面にも理由を出す");
+
 console.log("== CSP で、漏れたときの持ち出し先を塞ぐ ==");
 // 2026-09-08 の調査 G-1。CSP が meta にも応答ヘッダにも無かった（実測）。
 // **2026-09-07 に実際に動く XSS があった**（記録一覧の s.outcome）。再発したとき、
