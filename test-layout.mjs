@@ -778,6 +778,18 @@ ok(/\$\("authId"\)\.addEventListener\("input"[\s\S]{0,140}\["newId", "codeId"\]/
   "IDを打ち直させない");
 ok(/\$\("authId"\)\.addEventListener\("input"/.test(html), "上で打ったIDを写す");
 
+console.log("== 横スクロールの跳ね返りを止めてある ==");
+// 2026-09-07: 14日マトリクスの左端で、貼り付けた現象名の列だけが右へ最大27px
+// ずれて戻る現象。原因はゴムバンド（オーバースクロール）で、跳ね返っている間
+// scrollLeft は 0 のままなので **JSでスクロール量を見ても検出できない**。
+// `contain` は親への伝播を止めるだけで跳ね返り自体は残る。**`none` が要る。**
+ok(/\.mxscroll\s*\{[^}]*overscroll-behavior-x:\s*none/.test(html),
+  ".mxscroll は overscroll-behavior-x: none");
+ok(!/\.mxscroll\s*\{[^}]*overscroll-behavior-x:\s*contain/.test(html),
+  "contain へ戻していない");
+ok(!/\.mxscroll\s*\{[^}]*will-change/.test(html),
+  "誤った見立てで入れた will-change を復活させていない");
+
 console.log("== 更新の自動確認が、読み直しの繰り返しにならない ==");
 // 2026-09-08 ユーザー指摘「配信されてないよ」。GitHub Pages は HTML に
 // max-age=600 を付けるので、push が通ってもブラウザは最大10分は古いHTMLを使う。
