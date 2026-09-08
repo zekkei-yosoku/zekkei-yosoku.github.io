@@ -823,7 +823,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908195814"></script>
+<script src="sorami-core.js?v=20260908200043"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2817,7 +2817,7 @@ async function openAccountSheet() {
         const cls = s.level === "suggest" ? "tiny" : "warn";
         return `<p class="${cls}" style="margin-top:8px">${esc(s.message)}</p>`;
       })()
-      + `<div style="margin-top:6px">パスワード: ${me.hasPassword ? "使える" : "無効にしてある"}`
+      + `<div style="margin-top:6px">パスワード: ${me.hasPassword ? "有効" : "無効"}`
       + ` ／ 回復コード: ${me.recoveryCodes}件</div>`
       + `<div class="fav-l">登録した端末</div>`
       + (me.credentials.length
