@@ -309,6 +309,11 @@
   /* 現象は7つ全部を一度に見せて選ばせる。横スクロールだと隠れた選択肢に気づけない。 */
   /* 登録フォームでは現象チップが主役の入力なので、実寸で 44px を確保する。
      折り返しの間隔（gap 6px）より高いので、上下の行と重ならない。 */
+  /* 入力の直下に置く規則の説明。ラベルより弱く、本文より小さく。 */
+  .hint { font-size:12px; line-height:1.6; color:var(--tertiary); margin:6px 0 0; }
+  .hint b { font-weight:600; color:var(--secondary);
+    background:var(--line); border-radius:3px; padding:0 4px; margin:0 1px;
+    font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
   .remember { display:flex; gap:10px; align-items:flex-start; margin-top:18px;
     padding-top:14px; border-top:1px solid var(--line); cursor:pointer; }
   .remember input { margin-top:2px; width:17px; height:17px; flex:none; accent-color: var(--accent, #2f6fed); }
@@ -584,6 +589,8 @@
       <div id="adminAllowed" class="tiny"></div>
       <label class="fav-l" for="allowId">追加するID</label>
       <input type="text" id="allowId" class="fav-in" maxlength="32" autocomplete="off">
+      <p class="hint">半角英数と記号 <b>.</b> <b>_</b> <b>-</b> で6〜32桁。<br>
+        1文字目は英字か数字。大文字で入れても小文字になります。</p>
       <label class="fav-l" for="allowNote">メモ<span class="fav-opt">任意</span></label>
       <input type="text" id="allowNote" class="fav-in" maxlength="60" placeholder="誰のためか">
       <button id="allowAdd" class="fav-btn" style="margin-top:10px">許可する</button>
@@ -675,14 +682,20 @@
 
     <div id="panelSignup" hidden>
       <button class="auth-back tap" data-back>← ログインにもどる</button>
-      <p class="tiny">好きなIDを決めて登録できます（英数字3〜32文字）。すでに使われているIDは選べません。
-        パスワードはこの端末から送られ、サーバーには元に戻せない形でしか保存されません。</p>
+      <p class="tiny">好きなIDを決めて登録できます。<strong>あとから変えられません。</strong></p>
       <label class="fav-l" for="newId">ID</label>
       <input type="text" id="newId" class="fav-in" autocomplete="username" maxlength="32">
-      <label class="fav-l" for="newPw">パスワード<span class="fav-opt">10文字以上</span></label>
-      <input type="password" id="newPw" class="fav-in" autocomplete="new-password">
+      <!-- 「英数字」とだけ書いていたが、実際は . _ - も使え、大文字は小文字になる。
+           規則を全部言わないと、弾かれてから理由を探すことになる。 -->
+      <p class="hint">半角英数と記号 <b>.</b> <b>_</b> <b>-</b> で6〜32桁。<br>
+        1文字目は英字か数字。<br>大文字で入れても小文字になります。</p>
+      <label class="fav-l" for="newPw">パスワード</label>
+      <input type="password" id="newPw" class="fav-in" autocomplete="new-password" maxlength="128">
       <label class="fav-l" for="newPw2">もう一度</label>
-      <input type="password" id="newPw2" class="fav-in" autocomplete="new-password">
+      <input type="password" id="newPw2" class="fav-in" autocomplete="new-password" maxlength="128">
+      <p class="hint">半角英数と記号 <b>! # $ % &amp; * + - . = ? @ _</b> で8〜128桁。<br>
+        大文字・小文字・記号を1つずつ以上。<br>
+        IDと同じ文字・よくある言葉・連番は使えません。</p>
       <button id="doSignup" class="fav-btn primary" style="margin-top:14px">登録して始める</button>
       <p class="tiny" style="margin-top:8px">登録したら、この端末にパスキーを登録しておくと
         次から Face ID だけで入れます。</p>
@@ -724,8 +737,11 @@
       <summary class="tiny" style="cursor:pointer;color:var(--secondary)">パスワードでのログインを使う</summary>
       <p class="tiny" style="margin-top:8px">パスキーを全部失くしたときの備えになります。
         端末に依存しないので、URLが変わっても使えます。</p>
-      <label class="fav-l" for="newAccPw">パスワード<span class="fav-opt">10文字以上</span></label>
-      <input type="password" id="newAccPw" class="fav-in" autocomplete="new-password">
+      <label class="fav-l" for="newAccPw">パスワード</label>
+      <input type="password" id="newAccPw" class="fav-in" autocomplete="new-password" maxlength="128">
+      <p class="hint">半角英数と記号 <b>! # $ % &amp; * + - . = ? @ _</b> で8〜128桁。<br>
+        大文字・小文字・記号を1つずつ以上。<br>
+        IDと同じ文字・よくある言葉・連番は使えません。</p>
       <button id="enablePw" class="fav-btn" style="margin-top:10px">このパスワードを使う</button>
     </details>
     <details id="loginHistory" style="margin-top:14px">
@@ -781,7 +797,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908152842"></script>
+<script src="sorami-core.js?v=20260908161721"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2589,12 +2605,61 @@ $("pwLogin").onclick = async () => {
   catch (e) { authFail($("authErr"), e.message); }
   finally { $("authPw").value = ""; }
 };
+// サーバー（api/src/auth.js の checkPassword）と同じ規則。**判定の正本はサーバー。**
+// ここで見るのは、往復させる前に理由を言うため。文言も揃えてある。
+// サーバー（api/src/auth.js の LOGIN_ID_RE）と同じ。判定の正本はサーバー。
+const ID_RE = /^[a-z0-9][a-z0-9._-]{5,31}$/;
+const ID_MSG = "IDは6〜32文字。英字・数字と . _ - が使えます（1文字目は英字か数字）";
+
+const PW_MIN = 8;
+const PW_MAX = 128;   // IDは32で止めているのに、PWだけ無制限だった
+// 使える記号は決め打ち。サーバー（api/src/auth.js の PASSWORD_SYMBOLS）と同じ並び。
+// 外したのは、貼り付けや表示で化けやすいもの（引用符・バックスラッシュ・山括弧）と、
+// URL・シェル・パスで意味を持つもの（/ : ; , | ^ ~ 括弧類）と空白。
+const PW_SYMBOLS = "!#$%&*+-.=?@_";
+const PW_SYMBOL_LIST = PW_SYMBOLS.split("").join(" ");
+const PW_OK_RE = /^[A-Za-z0-9!#$%&*+.=?@_-]*$/;
+const PW_COMMON = ["password", "passwd", "qwerty", "letmein", "welcome", "iloveyou",
+  "monkey", "dragon", "sunshine", "princess", "football", "baseball", "admin",
+  "abc123", "123456", "111111", "zekkei", "sorami", "yosoku"];
+const pwFlat = (t) => t.toLowerCase().replace(/[^a-z0-9]/g, "");
+function pwRun(t, len = 4) {
+  let up = 1, down = 1;
+  for (let i = 1; i < t.length; i++) {
+    const d = t.charCodeAt(i) - t.charCodeAt(i - 1);
+    up = d === 1 ? up + 1 : 1;
+    down = d === -1 ? down + 1 : 1;
+    if (up >= len || down >= len) return true;
+  }
+  return false;
+}
+function checkPw(pw, loginId = "") {
+  if (typeof pw !== "string") return "パスワードを入れてください";
+  // 使える文字の判定を先に。全角で打った人に「大文字を入れて」では直しようがない。
+  // 空文字は長さ側で言うので `*`
+  if (!PW_OK_RE.test(pw)) return `半角の英字・数字と、記号 ${PW_SYMBOL_LIST} だけが使えます`;
+  if (pw.length < PW_MIN) return `パスワードは${PW_MIN}文字以上にしてください`;
+  if (pw.length > PW_MAX) return `パスワードは${PW_MAX}文字までにしてください`;
+  if (!/[A-Z]/.test(pw)) return "大文字を1つ以上入れてください";
+  if (!/[a-z]/.test(pw)) return "小文字を1つ以上入れてください";
+  if (!/[^A-Za-z0-9]/.test(pw)) return `記号を1つ以上入れてください（${PW_SYMBOL_LIST}）`;
+  const flat = pwFlat(pw), id = pwFlat(loginId);
+  if (id.length >= 3 && flat.includes(id)) return "IDと同じ文字を含めないでください";
+  for (const w of PW_COMMON) if (flat.includes(w)) return `よくある言葉（${w}）を含めないでください`;
+  if (/(.)\1{3,}/.test(pw)) return "同じ文字を4つ以上続けないでください";
+  if (pwRun(pw.toLowerCase())) return "連番や並び順のままの4文字を含めないでください";
+  return null;
+}
+
 $("doSignup").onclick = async () => {
   $("authErr").hidden = true;
   const pw = $("newPw").value;
   // 打ち間違えたパスワードで登録すると、本人が入れなくなる。送る前に確かめる。
+  // IDも送る前に見る。大文字で打たれていても通す（サーバーが小文字にする）
+  if (!ID_RE.test($("newId").value.trim().toLowerCase())) { authFail($("authErr"), ID_MSG); return; }
   if (pw !== $("newPw2").value) { authFail($("authErr"), "パスワードが一致しません"); return; }
-  if (pw.length < 10) { authFail($("authErr"), "パスワードは10文字以上にしてください"); return; }
+  const weak = checkPw(pw, $("newId").value);
+  if (weak) { authFail($("authErr"), weak); return; }
   try { await onLoggedIn(await apiCall("POST", "/signup",
     { loginId: $("newId").value, password: pw, remember: wantsRemember() })); }
   catch (e) { authFail($("authErr"), e.message); }
@@ -2764,6 +2829,8 @@ $("deleteAccount").onclick = async () => {
 $("enablePw").onclick = async () => {
   $("accountErr").hidden = true;
   try {
+    const weakAcc = checkPw($("newAccPw").value, auth?.loginId ?? "");
+    if (weakAcc) { authFail($("accountErr"), weakAcc); return; }
     adoptToken(await apiCall("POST", "/password/enable", { password: $("newAccPw").value }));
     $("newAccPw").value = "";
     openAccountSheet();

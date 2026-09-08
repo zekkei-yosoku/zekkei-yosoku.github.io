@@ -642,7 +642,7 @@ console.log("== はじめて使うときの登録 ==");
 ok(/id="panelSignup"/.test(html) && /id="doSignup"/.test(html), "新規登録の口がある");
 // 打ち間違えたパスワードで登録すると本人が入れなくなる。送る前に確かめる。
 ok(/if \(pw !== \$\("newPw2"\)\.value\)/.test(html), "パスワードを2回確かめる");
-ok(/pw\.length < 10/.test(html), "短いパスワードは送る前に弾く");
+ok(/const weak = checkPw\(pw/.test(html), "弱いパスワードは送る前に弾く");
 ok(/finally \{ \$\("newPw"\)\.value = ""; \$\("newPw2"\)\.value = ""; \}/.test(html),
   "入力欄にパスワードを残さない");
 ok(/autocomplete="new-password"/.test(html), "パスワード管理アプリに新規だと伝える");
@@ -779,6 +779,124 @@ ok(/if \(!who\) \{ authFail\(\$\("authErr"\), "IDを入れてください"\)/.te
 ok(/\$\("authId"\)\.addEventListener\("input"[\s\S]{0,140}\["newId", "codeId"\]/.test(html),
   "IDを打ち直させない");
 ok(/\$\("authId"\)\.addEventListener\("input"/.test(html), "上で打ったIDを写す");
+
+console.log("== パスワードの規則が、サーバーと同じに動く ==");
+// 2026-09-08 ユーザー判断で、構成の強制と弱いパターンの排除を両方入れた。
+// **判定の正本はサーバー**（api/src/auth.js の checkPassword）。画面側の
+// 同じ規則は往復させる前に理由を言うためだけにある。
+// **ここが本体で、二重に書いていることが危ない。** 表を両方の検査に置いて、
+// どちらかがずれたら片方が落ちるようにしてある。
+{
+  // 目印に値を含めない。数字を変えた瞬間に抽出が壊れて、何も検査しなくなる
+  const start = html.indexOf("const PW_MIN =");
+  ok(start > 0, "パスワードの規則を取り出せる");
+  const src = html.slice(start);
+  const end = src.indexOf("\n$(\"doSignup\")");
+  const block = src.slice(0, end);
+  const checkPw = new Function(`${block}; return checkPw;`)();
+
+  const good = (p, id = "someone") =>
+    ok(checkPw(p, id) === null, `通る: ${p}`, checkPw(p, id) ?? "");
+  const bad = (p, part, id = "someone") => {
+    const m = checkPw(p, id);
+    ok(m !== null && m.includes(part), `弾く: ${p}`, m ?? "通ってしまった");
+  };
+
+  good("Tsukiyo-no-Kumo-Sagashi7");
+  good("Correct-Horse-Battery-Staple1");
+  good("Tsukiyo-135-Ab!");
+  good("Abc-Tsukiyo-Kumo9!", "ab");            // 3文字未満のIDは見ない
+
+  bad("Password1!", "password");        // 8文字許可でも、よくある言葉で弾く
+  bad("tsukiyo-no-kumo-sagashi7", "大文字");
+  bad("TSUKIYO-NO-KUMO-SAGASHI7", "小文字");
+  bad("TsukiyoNoKumoSagashi7", "記号");
+  bad("", "8文字以上");
+  bad(null, "入れてください");
+  bad("Okayu0321-Strong!", "IDと同じ", "okayu0321");
+  bad("xxOKAYU0321xx-Aa!", "IDと同じ", "okayu0321");
+  bad("Zekkei-Yosoku-2026!", "zekkei");
+  bad("MyPassword-2026!", "password");
+  // 画面で「半角英数と記号」と言い切っているので、全角や絵文字は通してはいけない
+  bad("Ab1!空を見た", "半角");
+  bad("Ab1!\u{1F305}abc", "半角");
+  bad("Ａｂ１！ｃｄｅｆ", "半角");
+  bad("ｏｋａｙｕ", "半角");          // 全角なら、長さより先に半角を言う
+  // 上限の境目。IDは32で止めているので、こちらも止める
+  const pw128 = "Ab1!" + "xyz".repeat(41) + "x";      // ちょうど128
+  ok(pw128.length === 128, "検査用の値が128文字", String(pw128.length));
+  ok(checkPw(pw128) === null, "128文字ちょうどは通る", checkPw(pw128) ?? "");
+  bad(pw128 + "y", "128文字まで");                     // 129で弾く
+  // 入力欄そのものにも上限を置く。**規則だけだと、打ち込めてから弾かれる**
+  ok((html.match(/type="password"[^>]*maxlength="128"/g) || []).length === 3,
+    "パスワードの入力欄3つに上限がある",
+    String((html.match(/type="password"[^>]*maxlength="128"/g) || []).length));
+
+  // 使える記号は決め打ち（2026-09-08 ユーザー判断）。**画面の一覧と規則を一致させる。**
+  // 一覧に載っているのに弾かれる、載っていないのに通る、のどちらも困る。
+  const shown = (html.match(/記号 <b>([! #$%&*+\-.=?@_a-z;]+)<\/b> で8〜128桁/) || [])[1] ?? "";
+  const symbols = shown.replace(/&amp;/g, "&").split(" ").filter(Boolean);
+  ok(symbols.length === 13, "記号が13種ある", String(symbols.length));
+  for (const c of symbols) ok(checkPw(`Ab1${c}cdxy`) === null, `一覧の記号 ${c} は実際に使える`);
+  for (const c of ['"', "'", "\\", "<", ">", "(", ")", "|", ";", " ", "`", "/", ":", "^", "~"]) {
+    ok(checkPw(`Ab1${c}cdxy`) !== null, `一覧に無い ${JSON.stringify(c)} は使えない`);
+  }
+
+  bad("Aaaa-bbbb-Cccc!", "同じ文字を4つ");
+  bad("Abcd-Tsukiyo-9!", "連番や並び順");
+  bad("Tsukiyo-9876-Ab!", "連番や並び順");
+}
+
+// 送る前に見る。往復してから「使えません」と言われるのは遅い
+ok(/const weak = checkPw\(pw, \$\("newId"\)\.value\)/.test(html), "登録は送る前に見る");
+ok(/if \(!ID_RE\.test\(\$\("newId"\)\.value\.trim\(\)\.toLowerCase\(\)\)\)/.test(html),
+  "IDの形も送る前に見る");
+// 画面とサーバーで規則がずれたら、片方だけ通って往復してから弾かれる
+ok(/const ID_RE = \/\^\[a-z0-9\]\[a-z0-9\._-\]\{5,31\}\$\//.test(html),
+  "IDの規則がサーバーと同じ形（6〜32文字）");
+ok(/const weakAcc = checkPw\(\$\("newAccPw"\)\.value/.test(html), "パスワードの設定も送る前に見る");
+ok(!/pw\.length < 10/.test(html), "古い10文字の判定が残っていない");
+
+// 画面にも規則を出す。弾かれてから理由を探させない
+ok(/半角英数と記号 <b>! # \$ % &amp; \* \+ - \. = \? @ _<\/b> で8〜128桁/.test(html),
+  "使える文字と長さを1行で書く");
+ok(/大文字・小文字・記号を1つずつ以上/.test(html), "要る文字種を書く");
+ok(/IDと同じ文字・よくある言葉・連番は使えません/.test(html), "弾かれる形も書く");
+// 例は出さない（2026-09-08 ユーザー判断）。出すと、そのまま使う人が出る
+ok(!/例: <b>/.test(html), "パスワードの例を画面に出していない");
+ok(!/10文字以上/.test(html) && !/12文字以上/.test(html) && !/8文字以上/.test(html),
+  "古い長さの案内が残っていない");
+
+console.log("== IDの規則を、実際の規則どおりに書く ==");
+// 2026-09-08 ユーザー指摘「この文言だと記号がわからないね」。
+// 「英数字3〜32文字」とだけ書いていたが、実際は . _ - も使え、大文字は
+// 小文字になり、1文字目は英字か数字に限られる。**弾かれてから理由を探すことになる。**
+// サーバー側の規則は /^[a-z0-9][a-z0-9._-]{2,31}$/。ここが食い違ったら直す。
+ok(!/英数字3〜32文字/.test(html), "古い不正確な言い方が残っていない");
+for (const [needle, why] of [
+  ["6〜32桁", "長さを書く"],
+  ["1文字目は英字か数字", "先頭の制限を書く"],
+  ["大文字で入れても小文字になります", "正規化されることを書く"],
+]) ok(html.includes(needle), why);
+// 使える記号を1つずつ挙げる。「記号」とまとめると、どれが使えるか分からない
+const signupPanel = html.slice(html.indexOf('id="panelSignup"'), html.indexOf('id="panelRecovery"'));
+for (const c of [".", "_", "-"]) {
+  ok(signupPanel.includes(`<b>${c}</b>`), `使える記号 ${c} を1つずつ挙げている`);
+}
+// 使えないものを挙げていないか。書いてあるのに弾かれるのが一番困る
+for (const c of ["@", "+", "!", "#"]) {
+  ok(!signupPanel.includes(`<b>${c}</b>`), `使えない記号 ${c} を挙げていない`);
+}
+// 変えられないことは、決める前に言わないと意味が無い
+ok(/<strong>あとから変えられません。<\/strong>/.test(html), "IDを後から変えられないと書く");
+
+// 同じ規則が要る場所は2つ。管理者が許可リストへ入れるIDも同じ規則で弾かれる
+ok((html.match(/半角英数と記号 <b>\.<\/b>/g) || []).length === 2,
+  "IDの規則を、新規登録と管理画面の許可リストの両方に書く",
+  String((html.match(/半角英数と記号 <b>\.<\/b>/g) || []).length));
+ok((html.match(/で8〜128桁/g) || []).length === 2,
+  "パスワードの規則を、新規登録とアカウント画面の両方に書く",
+  String((html.match(/で8〜128桁/g) || []).length));
 
 console.log("== 管理画面に、ほかの画面のものを出さない ==");
 // 2026-09-08 ユーザー指摘「管理画面に実際はどうでしたか？がある」。
