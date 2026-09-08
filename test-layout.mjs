@@ -737,9 +737,28 @@ ok(/const codeBlock = \(loginId, codes\)[\s\S]{0,120}ID: \$\{loginId\}/.test(htm
   "コピーする内容にIDを含める");
 ok(/writeText\(codeBlock\(auth\?\.loginId/.test(html), "自分の分に効く");
 ok(/writeText\(codeBlock\(adminCodesFor/.test(html), "管理者が他人へ出す分にも効く");
-ok(/上のID欄も埋めてください/.test(html), "入力時にIDが要ることを書く");
+ok(/IDとコードの両方が要ります/.test(html), "入力時にIDが要ることを書く");
 ok(/<strong>IDと一緒に<\/strong>パスワードマネージャへ保存/.test(html), "保存時にIDのことを書く");
 ok(/絶景予報 \$\{location\.origin\}/.test(html), "どのサイトのものか分かるようにする");
+
+console.log("== ログインの履歴 ==");
+ok(/id="loginHistory"/.test(html) && /\/me\/logins/.test(html), "自分の履歴を見られる");
+// 成功しか出さないと「知らない端末から入られた」に気づけない
+ok(/e\.success \? "入れた" : "失敗"/.test(html), "成功と失敗を両方出す");
+ok(/身に覚えのない成功があれば/.test(html), "何をすればいいか書く");
+ok(/ontoggle = async/.test(html), "開いたときだけ取りに行く");
+
+console.log("== 回復コードにはIDが要ることが見て分かる ==");
+// 2026-09-08 ユーザー指摘「回復コードだけでログインできる仕様になってるよね」。
+// APIはIDを要求していたが、**画面ではID欄が畳んだ枠の外にあり**、
+// 「コードだけ入れる画面」に見えていた。同じ枠の中にID欄を置く。
+ok(/id="codeId"/.test(html), "回復コードの枠にID欄がある");
+ok(/IDとコードの両方が要ります/.test(html), "両方要ることを書く");
+ok(/if \(!who\) \{ authFail\(\$\("authErr"\), "IDを入れてください"\)/.test(html),
+  "IDが空なら、送る前に理由を言う");
+ok(/\$\("codeId"\)\.value\.trim\(\) \|\| \$\("authId"\)\.value\.trim\(\)/.test(html),
+  "上のID欄に入っていれば使う（打ち直させない）");
+ok(/\$\("authId"\)\.addEventListener\("input"/.test(html), "上で打ったIDを写す");
 
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

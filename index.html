@@ -660,7 +660,11 @@
     <details id="otherWays" style="margin-top:16px">
       <summary class="tiny" style="cursor:pointer;color:var(--secondary)">回復コードで入る</summary>
       <p class="tiny" style="margin-top:8px">パスキーもパスワードも使えないときに。
-        <strong>上のID欄も埋めてください。</strong>10個あるうちの1つを使い捨てます。</p>
+        <strong>IDとコードの両方が要ります。</strong>10個あるうちの1つを使い捨てます。</p>
+      <!-- ID欄をこの枠の中にも置く。上のID欄を読ませる作りだと、
+           「コードだけ入れる画面」に見えて、埋めずに押した人が理由の分からない失敗をする。 -->
+      <label class="fav-l" for="codeId">ID</label>
+      <input type="text" id="codeId" class="fav-in" autocomplete="username" maxlength="32">
       <label class="fav-l" for="authCode">回復コード</label>
       <input type="text" id="authCode" class="fav-in" placeholder="XXXXXXXX-XXXXXXXX-…" autocomplete="off">
       <button id="codeLogin" class="fav-btn" style="margin-top:12px">回復コードでログイン</button>
@@ -701,6 +705,12 @@
       <label class="fav-l" for="newAccPw">パスワード<span class="fav-opt">10文字以上</span></label>
       <input type="password" id="newAccPw" class="fav-in" autocomplete="new-password">
       <button id="enablePw" class="fav-btn" style="margin-top:10px">このパスワードを使う</button>
+    </details>
+    <details id="loginHistory" style="margin-top:14px">
+      <summary class="tiny" style="cursor:pointer;color:var(--secondary)">ログインの履歴</summary>
+      <p class="tiny" style="margin-top:8px">成功も失敗も残ります。
+        <strong>身に覚えのない成功があれば、パスワードを変え、知らない端末のパスキーを消してください。</strong></p>
+      <div id="loginHistoryList" class="tiny"></div>
     </details>
     <div id="recoveryShown" hidden style="margin-top:14px;padding:12px;border-radius:10px;background:var(--sunk)">
       <div class="tiny" style="font-weight:700">この回復コードは一度しか表示されません</div>
@@ -746,7 +756,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908124231"></script>
+<script src="sorami-core.js?v=20260908125141"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2462,9 +2472,12 @@ $("doSignup").onclick = async () => {
 };
 $("codeLogin").onclick = async () => {
   $("authErr").hidden = true;
+  // 上のID欄に入っていればそれも使う（打ち直させない）
+  const who = $("codeId").value.trim() || $("authId").value.trim();
+  if (!who) { authFail($("authErr"), "IDを入れてください"); $("codeId").focus(); return; }
+  if (!$("authCode").value.trim()) { authFail($("authErr"), "回復コードを入れてください"); return; }
   try {
-    const res = await apiCall("POST", "/recovery/use",
-      { loginId: $("authId").value, code: $("authCode").value });
+    const res = await apiCall("POST", "/recovery/use", { loginId: who, code: $("authCode").value });
     await onLoggedIn(res);
     // 1つ使い捨てた。残りが少なくなったら作り直すよう促す。
     if (typeof res.remaining === "number" && res.remaining <= 2) {
@@ -2474,6 +2487,8 @@ $("codeLogin").onclick = async () => {
   } catch (e) { authFail($("authErr"), e.message); }
   finally { $("authCode").value = ""; }
 };
+// 上でIDを打っていたら、回復コードの欄にも写す。二度打たせない。
+$("authId").addEventListener("input", () => { if (!$("codeId").value) $("codeId").value = $("authId").value; });
 
 async function openAccountSheet() {
   $("accountErr").hidden = true;
@@ -2524,8 +2539,27 @@ async function openAccountSheet() {
     };
     const retry = $("retrySync");
     if (retry) retry.onclick = async () => { await syncNow(); openAccountSheet(); };
+    const retry2 = $("retrySync");
+    if (retry2) retry2.onclick = async () => { await syncNow(); openAccountSheet(); };
   } catch (e) { authFail($("accountErr"), e.message); }
 }
+
+// 履歴は開いたときだけ取りに行く。毎回引くほどのものではない。
+$("loginHistory").ontoggle = async () => {
+  if (!$("loginHistory").open) return;
+  try {
+    const { entries } = await apiCall("GET", "/me/logins");
+    const WAY = { password: "パスワード", passkey: "パスキー", recovery: "回復コード" };
+    $("loginHistoryList").innerHTML = entries.length
+      ? entries.map((e) => `<div class="list-item">
+          <span style="color:${e.success ? "var(--secondary)" : "var(--red)"}">
+            ${e.success ? "入れた" : "失敗"}</span> ・ ${esc(WAY[e.method] ?? e.method)}
+          ${e.note ? ` ・ ${esc(e.note)}` : ""}
+          <div class="tiny">${new Date(e.created_at).toLocaleString("ja-JP")}${e.ip ? ` ・ ${esc(e.ip)}` : ""}</div>
+        </div>`).join("")
+      : `<p class="tiny">まだありません。</p>`;
+  } catch (e) { authFail($("accountErr"), e.message); }
+};
 
 $("addPasskey").onclick = async () => {
   $("accountErr").hidden = true;
