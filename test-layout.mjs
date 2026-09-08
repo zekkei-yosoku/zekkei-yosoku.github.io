@@ -1011,7 +1011,11 @@ ok(/function clearAuth[\s\S]{0,220}sessionStorage\.removeItem[\s\S]{0,120}localS
 ok(/if \(res\.status === 401 && auth\) \{ clearAuth\(\)/.test(html), "401 を受けたらトークンを捨てる");
 
 ok(/<input type="checkbox" id="rememberMe"/.test(html), "保持するかを選べる");
-ok(/id="rememberMe" checked/.test(html), "既定は保持する");
+// **既定は外す**（2026-09-08 ユーザー判断）。30日残る鍵を、頼まれずに置かない。
+ok(!/id="rememberMe" checked/.test(html), "既定では保持しない");
+ok(/store\.get\("sorami\.remember", false\)/.test(html), "覚えていないときも保持しない");
+// 外していても読み込み直しでは切れない。**元の困りごとはこちらで解決している**
+ok(/sessionStorage\.setItem\(TOKEN_KEY/.test(html), "外していても読み込み直しでは保つ");
 ok(/共用の端末では外してください/.test(html), "外すべき場面を書く");
 // チェックボックスは3画面共通。パネルの中に置くと3つ同時に存在する
 ok(html.indexOf('id="rememberMe"') > html.indexOf('id="panelRecovery"'),

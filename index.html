@@ -740,7 +740,7 @@
     <!-- パネルの外に置く。ログイン・新規登録・回復のどれから入っても同じ意味なので、
          画面ごとに置くと3つ同時に存在してどれが効くのか分からなくなる。 -->
     <label class="remember">
-      <input type="checkbox" id="rememberMe" checked>
+      <input type="checkbox" id="rememberMe">
       <span>この端末でログインを保持する<em>30日。共用の端末では外してください</em></span>
     </label>
   </div>
@@ -819,7 +819,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908164203"></script>
+<script src="sorami-core.js?v=20260908164324"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2494,11 +2494,13 @@ function applyIncoming(got) {
   store.set("sorami.sightings", sightings);
 }
 
-// 「保持する」の希望。既定は入り。**選んだかどうかは端末に覚える**ので、
-// 一度外した端末で勝手に戻らない。
+// 「保持する」の希望。**既定は外す**（2026-09-08 ユーザー判断）。
+// 30日残る鍵を、頼まれてもいないのに置かない。外したままでも
+// sessionStorage には入るので、**読み込み直しで再ログインにはならない。**
+// 選んだかどうかは端末に覚えるので、一度入れた端末で勝手に外れない。
 const wantsRemember = () => {
   const box = $("rememberMe");
-  return box ? box.checked : store.get("sorami.remember", true);
+  return box ? box.checked : store.get("sorami.remember", false);
 };
 
 // 認証手段を変える操作は、他の端末を切ったうえで新しいトークンを返す。
@@ -2594,8 +2596,8 @@ const b64uToBuf = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g,
 const bufToB64u = (b) => btoa(String.fromCharCode(...new Uint8Array(b)))
   .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
-// 一度外した端末で、次に開いたときに勝手に入り直らないようにする
-$("rememberMe").checked = store.get("sorami.remember", true);
+// 一度入れた端末では、次に開いたときも入ったままにする
+$("rememberMe").checked = store.get("sorami.remember", false);
 $("rememberMe").onchange = (e) => store.set("sorami.remember", e.target.checked);
 
 $("passkeyLogin").onclick = async () => {
