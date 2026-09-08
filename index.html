@@ -823,7 +823,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908200939"></script>
+<script src="sorami-core.js?v=20260908202241"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3120,6 +3120,10 @@ async function renderAdmin() {
           <button class="tap" data-code="${esc(u.login_id)}" style="color:var(--accent);font-size:0.72rem;min-height:36px">回復コードを出す</button>
           <button class="tap" data-role="${esc(u.login_id)}" data-to="${u.role === "admin" ? "user" : "admin"}"
             style="color:var(--secondary);font-size:0.72rem;min-height:36px">${u.role === "admin" ? "管理者をやめる" : "管理者にする"}</button>
+          ${(me.credentials || []).filter((c) => c.user_id === u.user_id).map((c) => `
+            <button class="tap" data-revoke="${esc(c.id)}" data-who="${esc(u.login_id)}"
+              data-label="${esc(c.label || "この端末")}" data-last="${(u.passkeys === 1 && !u.has_password) ? "1" : ""}"
+              style="color:var(--red);font-size:0.72rem;min-height:36px">${esc(c.label || "端末")}を失効</button>`).join("")}
           <button class="tap" data-deluser="${esc(u.login_id)}" style="color:var(--red);font-size:0.72rem;min-height:36px">削除</button>
         </div></div>`;
     }).join("");
@@ -3166,6 +3170,20 @@ async function renderAdmin() {
       if (!confirm(`${who} の回復コードを10個発行します。\n`
         + "その人がいま持っているコードは、すべて使えなくなります。\n\n続けますか？")) return;
       try { showAdminCodes(who, (await apiCall("POST", "/admin/recovery", { loginId: who })).codes); renderAdmin(); }
+      catch (e) { adminFail(e.message); }
+    };
+    for (const el of $("adminUsers").querySelectorAll("[data-revoke]")) el.onclick = async () => {
+      // **盗まれた端末を切るための操作。** 押した瞬間に相手のセッションも全部切れる。
+      // 相手が入れなくなる場合は、そう言ってから訊く。黙って締め出さない。
+      const locksOut = el.dataset.last === "1";
+      if (!confirm(`${el.dataset.who} の「${el.dataset.label}」のパスキーを失効させます。\n`
+        + "その端末では入れなくなり、いま開いている画面もすべて切れます。\n"
+        + (locksOut
+          ? "\n⚠ これがこの人の唯一の入り方です。失効させると入れなくなります。\n"
+            + "先に回復コードを発行して渡してください。\n"
+          : "")
+        + "\n続けますか？")) return;
+      try { await apiCall("POST", "/admin/revoke-credential", { credentialId: el.dataset.revoke }); renderAdmin(); }
       catch (e) { adminFail(e.message); }
     };
     for (const el of $("adminUsers").querySelectorAll("[data-role]")) el.onclick = async () => {
