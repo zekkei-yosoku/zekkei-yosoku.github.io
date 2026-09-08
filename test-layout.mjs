@@ -792,10 +792,24 @@ ok((html.match(/<span class="nb">使える記号は/g) || []).length === 4,
   "記号の一覧を4か所すべてで割らせない",
   String((html.match(/<span class="nb">使える記号は/g) || []).length));
 ok(/line-break: strict/.test(html), "。や、が行頭に来ないようにする");
+// **改行は句読点だけ。** 日本語は既定でどこでも折れるので、両方そろって初めて効く
+ok(/word-break: keep-all/.test(html), "自前の折り返しを止める");
+ok(/createElement\("wbr"\)/.test(html), "句読点の後ろに折り返し候補を置く");
+ok(/split\(\/\(\[。、・\]\)\/\)/.test(html), "区切りは 。 、 ・ の3つ");
+ok(/overflow-wrap: anywhere/.test(html), "1文が幅に収まらないときの逃げ道がある");
+ok(/querySelectorAll\("\.sheet \.hint, \.sheet \.tiny"\)/.test(html),
+  "シートの中の説明文すべてに効かせる");
+ok(/\.sheet \.hint, \.sheet \.tiny \{ line-break: strict/.test(html),
+  "本文の .tiny には効かせない（シートの中だけ）");
 ok(/\.nb \{ white-space: nowrap; \}/.test(html), "割らせない指定がある");
 // 固有名詞と、強調している短い語句は割らない
-ok(/<span class="nb">Face ID<\/span> \/ <span class="nb">Touch ID<\/span>/.test(html),
-  "Face ID と Touch ID を割らない");
+// 「/」の前後の空白でも折れてしまうので、ひとまとまりで包む
+// 「次から」の直後の空白でも折れる。**助詞や副詞だけが行末に取り残される。**
+ok(/<span class="nb">次から Face ID \/ Touch ID<\/span>/.test(html),
+  "「次から Face ID / Touch ID」をひとまとまりにする");
+ok(/<span class="nb">Face ID \/ Touch ID<\/span> で入れます。/.test(html),
+  "ログイン画面の方も割らない");
+ok(!/<span class="nb">Face ID<\/span> \//.test(html), "「/」で割れる書き方が残っていない");
 ok(/<strong class="nb">あとから変えられません。<\/strong>/.test(html), "強調した語句を割らない（登録）");
 
 console.log("== シートを開いている間、後ろが動かない ==");

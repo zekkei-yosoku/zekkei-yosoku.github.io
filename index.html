@@ -314,8 +314,14 @@
   /* 入力の直下に置く規則の説明。ラベルより弱く、本文より小さく。 */
   /* 説明文は句点で折る。**語の途中や助詞の頭で折れると読めない。**
      line-break:strict で 。、 が行頭に来るのを防ぎ、まとまりは .nb で割らせない。 */
-  .hint { font-size:12px; line-height:1.6; color:var(--tertiary); margin:6px 0 0;
-    line-break: strict; word-break: normal; overflow-wrap: normal; }
+  /* 説明文は**句読点でだけ**折る。日本語は既定でどこでも折れるので、
+     keep-all で自前の折り返しを止め、句点・読点・中黒の後ろにだけ
+     折り返し候補（<wbr>）を置く。置く処理は起動時にまとめてやる。
+     anywhere は逃げ道。1文が幅に収まらないときだけ働き、はみ出させない。 */
+  .hint { font-size:12px; line-height:1.6; color:var(--tertiary); margin:6px 0 0; }
+  /* シートの中の説明文はすべて同じ扱いにする。`.tiny` は本文でも使うので
+     シートの中だけに効かせる。 */
+  .sheet .hint, .sheet .tiny { line-break: strict; word-break: keep-all; overflow-wrap: anywhere; }
   .nb { white-space: nowrap; }
   .hint b { font-weight:600; color:var(--secondary);
     background:var(--line); border-radius:3px; padding:0 4px; margin:0 1px;
@@ -673,7 +679,7 @@
       <p class="tiny">ログインすると、お気に入りと記録が他の端末でも使えます。
         ログインしなくても予報はこれまでどおり見られます。</p>
       <button id="passkeyLogin" class="fav-btn primary" style="margin-top:14px" hidden>パスキーでログイン</button>
-      <p class="tiny" id="passkeyNote" style="margin-top:6px" hidden><span class="nb">Face ID</span> / <span class="nb">Touch ID</span> で入れます。</p>
+      <p class="tiny" id="passkeyNote" style="margin-top:6px" hidden><span class="nb">Face ID / Touch ID</span> で入れます。</p>
       <div class="or-line"><span>または</span></div>
       <label class="fav-l" for="authId">ID</label>
       <input type="text" id="authId" class="fav-in" autocomplete="username" maxlength="32">
@@ -709,7 +715,7 @@
          「登録しておくと便利です」と書くだけでは、たいてい誰もやらない。 -->
     <div id="panelPasskey" hidden>
       <p class="tiny"><strong>アカウントを作りました。</strong>
-        この端末にパスキーを登録すると、次から <span class="nb">Face ID</span> / <span class="nb">Touch ID</span> だけで入れます。</p>
+        この端末にパスキーを登録すると、<span class="nb">次から Face ID / Touch ID</span> だけで入れます。</p>
       <!-- **どちらも選べることが見えるように、両方ボタンで出す。**
            小さなリンクにすると「登録しろ」と迫っているように見える。 -->
       <button id="signupPasskey" class="fav-btn primary" style="margin-top:14px">この端末にパスキーを登録</button>
@@ -813,7 +819,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908163619"></script>
+<script src="sorami-core.js?v=20260908164203"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3121,6 +3127,25 @@ async function checkForUpdate() {
     sessionStorage.setItem("sorami.reloaded", latest);
     location.reload();
   } catch { /* 取れなければそのまま使う。更新確認は補助 */ }
+}
+
+// 説明文の折り返し候補を、句読点の後ろだけに置く。
+// CSS の word-break:keep-all と対で効く。**片方だけでは意味が無い。**
+for (const el of document.querySelectorAll(".sheet .hint, .sheet .tiny")) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const texts = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) texts.push(n);
+  for (const t of texts) {
+    if (!/[。、・]/.test(t.data)) continue;
+    const frag = document.createDocumentFragment();
+    // 区切り文字を残したまま分ける
+    for (const part of t.data.split(/([。、・])/)) {
+      if (!part) continue;
+      frag.append(part);
+      if (/^[。、・]$/.test(part)) frag.append(document.createElement("wbr"));
+    }
+    t.replaceWith(frag);
+  }
 }
 
 // シートを開いている間、後ろの本文を動かさない。
