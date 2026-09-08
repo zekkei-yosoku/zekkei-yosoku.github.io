@@ -710,7 +710,7 @@ ok(/id="copyCodes"/.test(html) && /navigator\.clipboard\.writeText\(codeBlock\(/
   "まとめてコピーできる");
 ok(/1つずつ使い捨てです。期限はありません/.test(html), "使い方を書く");
 ok(/res\.remaining <= 2[\s\S]{0,160}発行し直して/.test(html), "残りが少なくなったら作り直しを促す");
-ok(/はじめての方は 新規登録/.test(html), "入口のラベルが分かりやすい");
+ok(/>新規登録<\/button>/.test(html), "入口のラベルは「新規登録」");
 
 console.log("== 管理者の画面 ==");
 ok(/id="adminView"/.test(html), "画面がある");
