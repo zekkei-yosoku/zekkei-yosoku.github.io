@@ -766,7 +766,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908130929"></script>
+<script src="sorami-core.js?v=20260908132403"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2886,14 +2886,16 @@ WIDE.addEventListener("change", () => { if (bundle) render(); });
 async function checkForUpdate() {
   const running = (document.querySelector('script[src*="sorami-core.js"]') || {}).src || "";
   const mine = (running.match(/[?&]v=(\d+)/) || [])[1];
-  if (!mine || sessionStorage.getItem("sorami.reloaded") === mine) return;
+  if (!mine) return;
   try {
     const html = await (await fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" })).text();
     const latest = (html.match(/sorami-core\.js\?v=(\d+)/) || [])[1];
-    if (latest && latest !== mine) {
-      sessionStorage.setItem("sorami.reloaded", latest);
-      location.reload();
-    }
+    if (!latest || latest === mine) return;
+    // 読み直し済みの印は「読み直した先の版」で持つ。走っている版で持つと、
+    // 同じセッション中の2回目の配信を拾えなくなる（1回で打ち止めになる）
+    if (sessionStorage.getItem("sorami.reloaded") === latest) return;
+    sessionStorage.setItem("sorami.reloaded", latest);
+    location.reload();
   } catch { /* 取れなければそのまま使う。更新確認は補助 */ }
 }
 

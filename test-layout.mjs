@@ -778,5 +778,64 @@ ok(/\$\("authId"\)\.addEventListener\("input"[\s\S]{0,140}\["newId", "codeId"\]/
   "IDを打ち直させない");
 ok(/\$\("authId"\)\.addEventListener\("input"/.test(html), "上で打ったIDを写す");
 
+console.log("== 更新の自動確認が、読み直しの繰り返しにならない ==");
+// 2026-09-08 ユーザー指摘「配信されてないよ」。GitHub Pages は HTML に
+// max-age=600 を付けるので、push が通ってもブラウザは最大10分は古いHTMLを使う。
+// checkForUpdate はそれを迂回して読み直させる仕掛け。
+//
+// 読み直し済みの印を「走っている版」で持っていたのが誤りだった。印が効くのは
+// 読み直しが成功して新しい版に入れ替わったときだけで、**この仕掛けが要る状況
+// （読み直してもまだ古いHTMLが返る）ではガードが一度も一致しない。**
+// 読み込みのたびに読み直しを繰り返すことになる。印は「読み直した先の版」で持つ。
+//
+// 文字列一致では順序の誤りを捕まえられないので、実際に動かして確かめる。
+{
+  const src = html.slice(html.indexOf("async function checkForUpdate()"));
+  let depth = 0, end = 0;
+  for (let i = src.indexOf("{"); i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}" && --depth === 0) { end = i + 1; break; }
+  }
+  const body = src.slice(0, end);
+
+  // 配信された版を served、走っている版を running として動かし、読み直したか見る
+  const run = async (running, served, store) => {
+    let reloaded = 0;
+    const sandbox = {
+      document: { querySelector: () => ({ src: `sorami-core.js?v=${running}` }) },
+      fetch: async () => ({ text: async () => `<script src="sorami-core.js?v=${served}">` }),
+      sessionStorage: {
+        getItem: (k) => (k in store ? store[k] : null),
+        setItem: (k, v) => { store[k] = String(v); },
+      },
+      location: { pathname: "/", reload: () => { reloaded++; } },
+    };
+    const fn = new Function("document", "fetch", "sessionStorage", "location",
+      `${body}; return checkForUpdate();`);
+    await fn(sandbox.document, sandbox.fetch, sandbox.sessionStorage, sandbox.location);
+    return reloaded;
+  };
+
+  const store = {};
+  ok(await run("100", "100", store) === 0, "同じ版なら読み直さない");
+  ok(await run("100", "200", store) === 1, "新しい版が出ていたら読み直す");
+  ok(store["sorami.reloaded"] === "200", "印は読み直した先の版で持つ");
+  // 読み直した直後。ブラウザがまだ古いHTMLを返してくることがある
+  ok(await run("100", "200", store) === 0, "同じ版へ二度は読み直さない（無限ループを作らない）");
+  // ここが壊れていた。同じセッション中に次の配信があったとき
+  ok(await run("100", "300", store) === 1, "同じセッション中の2回目の配信も拾う");
+  ok(await run("100", "", {}) === 0, "版が読めなければ何もしない");
+
+  let threw = false;
+  try {
+    const fn = new Function("document", "fetch", "sessionStorage", "location",
+      `${body}; return checkForUpdate();`);
+    await fn({ querySelector: () => ({ src: "sorami-core.js?v=1" }) },
+      async () => { throw new Error("網が無い"); },
+      { getItem: () => null, setItem: () => {} }, { pathname: "/", reload: () => {} });
+  } catch { threw = true; }
+  ok(!threw, "取りに行けなくても落ちない");
+}
+
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);
