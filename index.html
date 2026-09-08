@@ -624,7 +624,7 @@
     </details>
 
     <details id="signupWay" style="margin-top:10px">
-      <summary class="tiny" style="cursor:pointer;color:var(--secondary)">はじめて使う（新規登録）</summary>
+      <summary class="tiny" style="cursor:pointer;color:var(--secondary)">新規登録</summary>
       <p class="tiny" style="margin-top:8px">登録できるIDはあらかじめ決まっています。
         パスワードはこの端末から送られ、サーバーには元に戻せない形でしか保存されません。</p>
       <label class="fav-l" for="newId">ID</label>
@@ -659,8 +659,10 @@
     </details>
     <div id="recoveryShown" hidden style="margin-top:14px;padding:12px;border-radius:10px;background:var(--sunk)">
       <div class="tiny" style="font-weight:700">この回復コードは一度しか表示されません</div>
-      <div id="recoveryCode" style="font-family:ui-monospace,monospace;font-size:0.94rem;font-weight:700;margin-top:6px;word-break:break-all"></div>
-      <div class="tiny" style="margin-top:6px">パスワードマネージャへ保存してください。端末を全部失くしたときと、URLが変わったときに使います。</div>
+      <div id="recoveryCode" style="font-family:ui-monospace,monospace;font-size:0.81rem;font-weight:700;margin-top:6px;line-height:1.7;word-break:break-all"></div>
+      <button id="copyCodes" class="fav-btn" style="margin-top:10px">すべてコピー</button>
+      <div class="tiny" style="margin-top:6px">1つずつ使い捨てです。期限はありません。
+        パスワードマネージャへ保存してください。端末を全部失くしたときに使います。</div>
     </div>
     <button id="logout" class="fav-remove">ログアウト</button>
     <button id="deleteAccount" class="fav-remove" style="color:var(--red)">アカウントを削除する</button>
@@ -698,7 +700,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908114745"></script>
+<script src="sorami-core.js?v=20260908120003"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2030,7 +2032,20 @@ function removeFavorite(index) {
   return true;
 }
 
+// お気に入りはアカウントに紐づくもの。**未ログインでは増やさない。**
+// 端末にだけ溜めても、消えるか、あとで混ざるかのどちらかになる。
+// すでに端末にあるものは見えるし選べる（消さない）。
+function requireLoginForFavorites() {
+  if (auth) return true;
+  if (confirm("お気に入りの登録にはログインが要ります。\n"
+    + "ログインすると、他の端末でも同じお気に入りが使えます。\n\nいまログインしますか？")) {
+    $("placeSheet").close();
+    $("authButton").click();
+  }
+  return false;
+}
 function openFavSheet(index) {
+  if (!requireLoginForFavorites()) return;
   // 新規は、いま見ている地点をそのまま雛形にする。標高は予報の格子から借りる
   // （評価側も place.elevation が無ければ同じ値を使うので、点数は変わらない）。
   const gridElev = bundle?.home.grid.elevation ?? null;
@@ -2129,7 +2144,6 @@ $("favSave").onclick = () => {
     return;   // 入力はそのまま残す。閉じてしまうと打ち直しになる。
   }
   queuePush("fav", entry.id);
-  maybeSuggestLogin(entry);
   const moved = before ? renameSightings(before.name, name, entry.latitude, entry.longitude) : 0;
   $("favSheet").close();
   // 表示中の地点そのものを編集したなら、画面にも反映する。
@@ -2211,6 +2225,8 @@ $("favToggle").onclick = (e) => {
   e.stopPropagation();
   openFavSheet(favorites.findIndex((f) => f.id === place.id));
 };
+// 未ログインのときは、押せない見た目にはせず、押したらログインへ案内する。
+// 隠すと「なぜ無いのか」が分からない。
 new MutationObserver(renderFavToggle).observe($("placeName"), { childList: true });
 
 // ---------------------------------------------------------------- 同期とログイン
@@ -2333,22 +2349,6 @@ async function onLoggedIn(res) {
 
 const authFail = (el, msg) => { el.textContent = msg; el.hidden = false; };
 
-// 未ログインでお気に入りを登録したときに、一度だけログインを勧める。
-//   * 止めない。ログインしなくても使える
-//   * 名前だけの登録では出さない。作り直せるものでは煩わせない。
-//     地形・メモ・現象タグを手で入れたときだけ、失うと打ち直しになる
-//   * 「あとで」を押したら、そのセッションではもう出さない
-let loginSuggested = false;
-function maybeSuggestLogin(entry) {
-  if (auth || loginSuggested) return;
-  const handmade = entry.terrain || entry.note || (entry.phenomena || []).length;
-  if (!handmade) return;
-  loginSuggested = true;
-  if (confirm("この端末にだけ保存しました。\n"
-    + "ログインすると、他の端末でも同じお気に入りが使えます。\n\nいまログインしますか？")) {
-    $("authButton").click();
-  }
-}
 
 $("authButton").onclick = () => {
   if (auth) { openAccountSheet(); return; }
@@ -2414,9 +2414,11 @@ $("codeLogin").onclick = async () => {
     const res = await apiCall("POST", "/recovery/use",
       { loginId: $("authId").value, code: $("authCode").value });
     await onLoggedIn(res);
-    // 使ったコードはもう使えない。**次のコードをその場で渡す。**
-    // 受け取らずに閉じると、次に困ったときに何も無い状態になる。
-    if (res.newCode) { openAccountSheet(); showCode(res.newCode); }
+    // 1つ使い捨てた。残りが少なくなったら作り直すよう促す。
+    if (typeof res.remaining === "number" && res.remaining <= 2) {
+      alert(`回復コードを1つ使いました。残り ${res.remaining}個 です。\n`
+        + "アカウント画面から発行し直しておいてください。");
+    }
   } catch (e) { authFail($("authErr"), e.message); }
   finally { $("authCode").value = ""; }
 };
@@ -2495,17 +2497,27 @@ $("addPasskey").onclick = async () => {
     authFail($("accountErr"), e.message);
   }
 };
-const showCode = (code) => { $("recoveryCode").textContent = code; $("recoveryShown").hidden = false; };
+// まとめて発行するので、表示も一覧にする。1個ずつだと使った瞬間に手持ちがゼロになる。
+let shownCodes = [];
+const showCodes = (codes) => {
+  shownCodes = codes;
+  $("recoveryCode").innerHTML = codes.map((c) => esc(c)).join("<br>");
+  $("recoveryShown").hidden = false;
+};
+$("copyCodes").onclick = async () => {
+  try { await navigator.clipboard.writeText(shownCodes.join("\n")); $("copyCodes").textContent = "コピーしました"; }
+  catch { $("copyCodes").textContent = "コピーできませんでした。選んで写してください"; }
+};
 $("newRecovery").onclick = async () => {
   $("accountErr").hidden = true;
-  try { showCode((await apiCall("POST", "/recovery/issue", {})).code); openAccountSheet2(); }
+  try { showCodes((await apiCall("POST", "/recovery/issue", {})).codes); openAccountSheet2(); }
   catch (e) { authFail($("accountErr"), e.message); }
 };
 // 発行の表示を消さずに中身だけ更新する
 async function openAccountSheet2() {
-  const shown = !$("recoveryShown").hidden, code = $("recoveryCode").textContent;
+  const shown = !$("recoveryShown").hidden, codes = shownCodes;
   await openAccountSheet();
-  if (shown) showCode(code);
+  if (shown) showCodes(codes);
 }
 $("deleteAccount").onclick = async () => {
   // 消えるのはサーバー側だけでなく、この端末のものも含めて全部。取り返しがつかない。
@@ -2532,7 +2544,7 @@ $("enablePw").onclick = async () => {
 };
 $("disablePw").onclick = async () => {
   if (!confirm("パスワードでのログインをやめます。\n代わりの回復コードを発行します。必ず保存してください。")) return;
-  try { const r = await apiCall("POST", "/password/disable", {}); showCode(r.code); openAccountSheet2(); }
+  try { const r = await apiCall("POST", "/password/disable", {}); showCodes(r.codes); openAccountSheet2(); }
   catch (e) { authFail($("accountErr"), e.message); }
 };
 $("logout").onclick = () => {

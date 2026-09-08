@@ -614,17 +614,25 @@ ok(/queuePush\("sight", record\.id\)/.test(html), "記録も同期する");
 // 取り込んだ結果はそのまま画面に出るので、件数を数えて言い直すのは割り込みでしかない。
 // 状態はアカウント画面に常時出す（同期できています／未送信がN件／失敗しています）。
 ok(!/をアカウントへ入れました/.test(html), "ログイン直後に件数のアラートを出さない");
-ok(!/onLoggedIn[\s\S]{0,600}alert\(/.test(html), "ログインの経路で alert を使わない");
+// 禁じたいのは「件数の報告」であって、警告そのものではない。
+// 回復コードの残りが少ないことは、そのとき言わないと手遅れになる。
+ok(!/件 をアカウントへ入れました|記録\$\{sightings\.length\}件/.test(html),
+  "ログイン直後に件数を数えて知らせない");
 ok(/同期できていません|未送信の変更が|同期できています/.test(html), "同期の状態はアカウント画面に出す");
 // ログアウトで同期済みのローカルを消す（別アカウントで混ざるのを防ぐ）
 ok(/\$\("logout"\)\.onclick[\s\S]{0,400}favorites = \[\]; sightings = \[\]/.test(html),
   "ログアウトでローカルを消す");
 ok(/まだ送っていない変更が \$\{pushQueue\.length\}件/.test(html), "未送信があれば警告してから消す");
-// 未ログインでの登録は止めない。手で入れた内容があるときだけ一度勧める。
-ok(/function maybeSuggestLogin[\s\S]{0,200}if \(auth \|\| loginSuggested\) return;/.test(html),
-  "一度だけ勧める");
-ok(/const handmade = entry\.terrain \|\| entry\.note \|\| \(entry\.phenomena \|\| \[\]\)\.length/.test(html),
-  "名前だけの登録では勧めない");
+// 2026-09-08 ユーザー指摘「ログインしてないのにお気に入りの登録ができる」。
+// お気に入りはアカウントに紐づくもの。端末にだけ溜めても、消えるか、あとで混ざる。
+ok(/function requireLoginForFavorites[\s\S]{0,80}if \(auth\) return true;/.test(html),
+  "未ログインでは登録させない");
+ok(/function openFavSheet\(index\) \{\s*\n\s*if \(!requireLoginForFavorites\(\)\) return;/.test(html),
+  "登録フォームを開く前に確かめる");
+ok(/お気に入りの登録にはログインが要ります/.test(html), "理由を言ってログインへ案内する");
+// 既に端末にあるものは消さない。見えるし選べる。
+ok(/data-fav="\$\{i\}"/.test(html), "手元のお気に入りは引き続き選べる");
+ok(!/maybeSuggestLogin/.test(html), "登録できてしまう前提の促しは残っていない");
 // パスキー非対応のブラウザで、押せないボタンを出さない
 ok(/const supported = !!window\.PublicKeyCredential/.test(html), "パスキーの対応を見る");
 
@@ -651,8 +659,9 @@ ok(/\$\("disablePw"\)\.hidden = !me\.hasPassword \|\| !me\.credentials\.length;/
 
 console.log("== 詰みうる状態に出口を用意する ==");
 // 回復コードは使い捨て。使った瞬間に手段がゼロになるので、その場で次を渡して見せる。
-ok(/if \(res\.newCode\) \{ openAccountSheet\(\); showCode\(res\.newCode\); \}/.test(html),
-  "回復コードで入ったら、次のコードをその場で見せる");
+// まとめて10個発行する形にしたので、1つ使っても手持ちは残る。
+// 代わりに、残りが少なくなったら作り直しを促す。
+ok(/res\.remaining <= 2/.test(html), "回復コードの残りが少なくなったら知らせる");
 // 手段が1つだけの状態は、起きてから言っても遅い
 ok(/me\.methods <= 1[\s\S]{0,120}入る手段がこれ1つだけです/.test(html), "手段が1つなら先に警告する");
 // 同期が止まったときに、押せる手を出す
@@ -678,6 +687,17 @@ ok(/id="pwLogin"/.test(authSheet) && !/id="pwLogin"/.test(collapsed), "ログイ
 // 珍しい方は畳んでよい
 ok(/id="authCode"/.test(collapsed), "回復コードは畳む");
 ok(/id="doSignup"/.test(collapsed), "新規登録は畳む");
+
+console.log("== 回復コードはまとめて渡す ==");
+// 1個ずつだと、使った瞬間に手持ちがゼロになる。まとめて発行して1つずつ使い捨てる。
+ok(/const showCodes = \(codes\)/.test(html) && !/const showCode = \(code\)/.test(html),
+  "一覧で見せる");
+ok(/codes\.map\(\(c\) => esc\(c\)\)\.join\("<br>"\)/.test(html), "全部並べる");
+ok(/id="copyCodes"/.test(html) && /navigator\.clipboard\.writeText\(shownCodes\.join/.test(html),
+  "まとめてコピーできる");
+ok(/1つずつ使い捨てです。期限はありません/.test(html), "使い方を書く");
+ok(/res\.remaining <= 2[\s\S]{0,160}発行し直して/.test(html), "残りが少なくなったら作り直しを促す");
+ok(/新規登録<\/summary>/.test(html), "ラベルは「新規登録」");
 
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);
