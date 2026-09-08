@@ -819,7 +819,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908164324"></script>
+<script src="sorami-core.js?v=20260908193424"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1879,8 +1879,20 @@ function renderTable(id, entries) {
 }
 
 // ---------------------------------------------------------------- 記録・校正
+// 同じ地点かどうか。**名前では見分けられない。**「現在地」は移動先でも同じ名前になり、
+// 同名の別地点で同じ日・同じ現象を記録すると、前の記録が上書きされていた（調査 C-5）。
+// 記録した時点の座標は前から残してあるので、それを使う。
+// 0.005度 ≒ 550m。GPSの揺れより十分大きく、別の地点より十分小さい。
+function samePlaceAs(record, here) {
+  if (Number.isFinite(record?.latitude) && Number.isFinite(record?.longitude)
+      && Number.isFinite(here?.latitude) && Number.isFinite(here?.longitude)) {
+    return Math.abs(record.latitude - here.latitude) < 0.005
+        && Math.abs(record.longitude - here.longitude) < 0.005;
+  }
+  return record?.placeName === here?.name;   // 座標を持たない古い記録は名前で照合する
+}
 function findSighting(pid, peak) {
-  return sightings.find((s) => s.phenomenon === pid && s.placeName === place.name && S.JstCal.sameDay(s.peak, peak));
+  return sightings.find((s) => s.phenomenon === pid && samePlaceAs(s, place) && S.JstCal.sameDay(s.peak, peak));
 }
 function recordOutcome(pid, peak, outcome) {
   const entries = weeks[pid] || [];
@@ -2261,14 +2273,17 @@ $("favSave").onclick = () => {
   const name = $("favName").value.trim();
   $("favNameErr").hidden = !!name;
   if (!name) { $("favName").focus(); return; }
-  const before = favDraft.index >= 0 ? favorites[favDraft.index] : null;
+  // **位置ではなくIDで探す。** 編集している間に同期が走ると配列が組み直され、
+  // 覚えていた位置が別のお気に入りを指す（調査 C-4）。
+  const at = favDraft.index >= 0 ? favorites.findIndex((f) => f.id === favDraft.id) : -1;
+  const before = at >= 0 ? favorites[at] : null;
   const entry = { id: favDraft.id, name, subtitle: favDraft.subtitle || "",
     latitude: favDraft.latitude, longitude: favDraft.longitude,
     terrain: favDraft.terrain || null, elevation: favDraft.elevation ?? null,
     phenomena: favDraft.phenomena, note: $("favNote").value.trim() };
-  if (favDraft.index >= 0) favorites[favDraft.index] = entry; else favorites.push(entry);
+  if (at >= 0) favorites[at] = entry; else favorites.push(entry);
   if (!saveFavorites()) {
-    if (before) favorites[favDraft.index] = before; else favorites.pop();
+    if (before) favorites[at] = before; else favorites.pop();
     return;   // 入力はそのまま残す。閉じてしまうと打ち直しになる。
   }
   queuePush("fav", entry.id);
@@ -2290,7 +2305,8 @@ $("favSave").onclick = () => {
   if (moved) $("favNotice").textContent = `${moved}件の記録を新しい名前へ移しました`;
 };
 $("favDelete").onclick = () => {
-  if (!removeFavorite(favDraft.index)) return;
+  // ここもIDで引き直す。同期で位置がずれていると、隣を消してしまう
+  if (!removeFavorite(favorites.findIndex((f) => f.id === favDraft.id))) return;
   $("favSheet").close();
   // 取り消しは一覧の上に出る。★ から開いていた場合も、そこへ着地させる。
   if (!$("placeSheet").open) $("placeSheet").showModal();
@@ -2413,6 +2429,25 @@ let syncInfo = store.get("sorami.sync", null);     // { loginId, rev }。端末�
 let syncError = null;                              // 直近の同期の失敗
 let pushQueue = store.get("sorami.queue", []);     // 送れていない変更 [{kind,id}]
 
+// 手元のデータが誰のものか。null は「一度もログインしていない」。
+// **401でセッションが切れても、これは消さない。** 誰のデータかは分かったままにする。
+let dataOwner = store.get("sorami.owner", null);
+
+// ログインしたとき、手元に残っているデータをどうするか。
+//
+// 401ではデータを消さない（サーバーが一時的に落ちただけで手元が空になってはいけない）。
+// その結果、**別の人がログインしたときに前の人のデータが残っている**ことがある。
+// 以前はそれを「初回ログイン」と読んで、まるごと新しいアカウントへ上げていた。
+//
+// 判断（2026-09-08）: 引き継ぐのは**一度もログインしていない端末のときだけ**。
+// 「初めて入る人が、それまで手元に貯めた記録を持ち込む」は残す。
+function migrationPlan(owner, loginId, hasLocal) {
+  const same = (a, b) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
+  if (owner == null) return hasLocal ? "migrate" : "keep";   // 持ち主が居ない = 持ち込んでよい
+  if (same(owner, loginId)) return "keep";                   // 同じ人の続き
+  return "discard";                                          // 別の人。渡さない
+}
+
 async function apiCall(method, path, body) {
   const headers = {};
   if (body !== undefined) headers["content-type"] = "application/json";
@@ -2453,21 +2488,33 @@ function queuePush(kind, id) {
 async function syncNow() {
   if (!auth) return;
   try {
-    // 送る（溜まっているものだけ）
+    // 送る（溜まっているものだけ）。1回の上限は500件なので、超える分は次の回へ回す
     if (pushQueue.length) {
-      const favs = pushQueue.filter((q) => q.kind === "fav")
+      const batch = pushQueue.slice(0, 500);
+      const favs = batch.filter((q) => q.kind === "fav")
         .map((q) => { const f = favorites.find((x) => x.id === q.id); return f ? toItem(f) : { id: q.id, body: {}, updated_at: Date.now(), deleted: true }; });
-      const sights = pushQueue.filter((q) => q.kind === "sight")
+      const sights = batch.filter((q) => q.kind === "sight")
         .map((q) => { const x = sightings.find((y) => y.id === q.id); return x ? toItem(x) : { id: q.id, body: {}, updated_at: Date.now(), deleted: true }; });
-      await apiCall("POST", "/sync", { favorites: favs, sightings: sights });
-      pushQueue = []; store.set("sorami.queue", pushQueue);
+      const res = await apiCall("POST", "/sync", { favorites: favs, sightings: sights });
+      // **受理されたものだけ外す。** 送っただけで消すと、サーバーが弾いた分が黙って失われる
+      const okFav = new Set(res?.accepted?.favorites ?? []);
+      const okSight = new Set(res?.accepted?.sightings ?? []);
+      pushQueue = pushQueue.filter((q) =>
+        !(q.kind === "fav" ? okFav.has(q.id) : okSight.has(q.id)));
+      store.set("sorami.queue", pushQueue);
     }
-    // 受け取る（自分が持っている rev より新しいものだけ）
-    const since = syncInfo?.loginId === auth.loginId ? (syncInfo.rev || 0) : 0;
-    const got = await apiCall("GET", `/sync?since=${since}`);
-    applyIncoming(got);
-    syncInfo = { loginId: auth.loginId, rev: got.rev };
-    store.set("sorami.sync", syncInfo);
+    // 受け取る。**打ち切られたら続きを取りに行く。**
+    // サーバーは打ち切った位置をカーソルとして返し、まだ残っていれば more を立てる
+    let since = syncInfo?.loginId === auth.loginId ? (syncInfo.rev || 0) : 0;
+    for (let round = 0; round < 20; round++) {
+      const got = await apiCall("GET", `/sync?since=${since}`);
+      applyIncoming(got);
+      const next = got.rev ?? since;
+      syncInfo = { loginId: auth.loginId, rev: next };
+      store.set("sorami.sync", syncInfo);
+      if (!got.more || next <= since) break;   // 進まなくなったら止める（無限に回さない）
+      since = next;
+    }
     syncError = null;
   } catch (e) {
     syncError = e.message;
@@ -2544,14 +2591,23 @@ async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } 
   auth = { token: res.token, loginId: res.loginId, role: res.role };
   saveAuth(auth, remember);
   if (!keepOpen) $("authSheet").close();
-  const fresh = syncInfo?.loginId !== auth.loginId;
-  if (fresh && (favorites.length || sightings.length)) {
-    // 黙ってやらない。何件アカウントへ入れたのかを出す。
+
+  const plan = migrationPlan(dataOwner, auth.loginId, favorites.length || sightings.length);
+  if (plan === "migrate") {
+    // 一度もログインしていない端末。手元に貯めた記録を持ち込む
     pushQueue = [...favorites.map((f) => ({ kind: "fav", id: f.id })),
                  ...sightings.map((x) => ({ kind: "sight", id: x.id }))];
     store.set("sorami.queue", pushQueue);
+  } else if (plan === "discard") {
+    // **別の人のデータ。渡さないし、見せない。** 送信待ちも巻き添えで消す
+    favorites = []; sightings = []; pushQueue = [];
+    store.set("sorami.favorites", []); store.set("sorami.sightings", []);
+    store.set("sorami.queue", []);
   }
-  if (fresh) { syncInfo = null; store.set("sorami.sync", null); }
+  if (plan !== "keep" || syncInfo?.loginId !== auth.loginId) {
+    syncInfo = null; store.set("sorami.sync", null);
+  }
+  dataOwner = auth.loginId; store.set("sorami.owner", dataOwner);
   await syncNow();
   renderAuthButton();
   render();
@@ -2868,6 +2924,7 @@ $("deleteAccount").onclick = async () => {
     await apiCall("DELETE", "/me");
     clearAuth(); syncInfo = null; pushQueue = [];
     favorites = []; sightings = [];
+    dataOwner = null; store.set("sorami.owner", null);
     for (const k of ["sorami.sync", "sorami.queue", "sorami.favorites", "sorami.sightings"]) store.set(k, k.endsWith("sync") ? null : []);
     $("accountSheet").close();
     renderAuthButton();
@@ -2904,6 +2961,7 @@ $("logout").onclick = () => {
   if (pushQueue.length && !confirm(`まだ送っていない変更が ${pushQueue.length}件 あります。\n消えますが、ログアウトしますか？`)) return;
   clearAuth(); syncInfo = null; pushQueue = [];
   favorites = []; sightings = [];
+  dataOwner = null; store.set("sorami.owner", null);
   store.set("sorami.sync", null); store.set("sorami.queue", []);
   store.set("sorami.favorites", []); store.set("sorami.sightings", []);
   $("accountSheet").close();

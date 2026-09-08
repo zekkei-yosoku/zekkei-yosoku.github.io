@@ -459,8 +459,11 @@ ok(/if \(!saveFavorites\(\)\) \{ favorites\.splice\(index, 0, entry\); return fa
 ok(/if \(!saveFavorites\(\)\) \{[\s\S]{0,200}return;   \/\/ 入力はそのまま残す/.test(html), "保存できなければ閉じない");
 
 console.log("== 名前と記録の対応を切らない ==");
-// findSighting は地点名で照合する。改名できるようにした以上、過去の記録を置き去りにしない。
-ok(/s\.placeName === place\.name/.test(html), "記録の照合は地点名（前提の確認）");
+// 2026-09-08 まで地点名だけで照合していた。改名しても記録を置き去りにしないための形
+// だったが、**同名の別地点で上書きが起きた**（調査 C-5）ので座標での照合へ変えた。
+// 改名で記録を失わない、という元の目的は renameSightings が引き続き担う。
+ok(/samePlaceAs\(s, place\)/.test(html), "記録の照合は座標（同名の別地点を分ける）");
+ok(!/s\.placeName === place\.name/.test(html), "地点名だけの照合が残っていない");
 ok(/function renameSightings/.test(html), "改名時に記録を移す仕組みがある");
 ok(/near\(s\.latitude, lat\) && near\(s\.longitude, lon\)/.test(html),
   "座標が一致する記録だけ移す（別地点の同名を巻き込まない）");
@@ -779,6 +782,85 @@ ok(/if \(!who\) \{ authFail\(\$\("authErr"\), "IDを入れてください"\)/.te
 ok(/\$\("authId"\)\.addEventListener\("input"[\s\S]{0,140}\["newId", "codeId"\]/.test(html),
   "IDを打ち直させない");
 ok(/\$\("authId"\)\.addEventListener\("input"/.test(html), "上で打ったIDを写す");
+
+console.log("== 手元のデータを、別のアカウントへ送らない ==");
+// 2026-09-08 の調査 C-1。401でセッションが切れても手元のデータは残す（意図的：
+// サーバー障害で手元が空になってはいけない）。しかし次のログインで
+// `syncInfo?.loginId !== auth.loginId` を「初回」と読み、**残っていた全データを
+// 新しいアカウントへ上げていた。** 共用ブラウザでAが切れたあとBが入ると、
+// AのデータがBのアカウントへ複製される。
+//
+// 判断4（2026-09-08 ユーザー）: **一度もログインしていないときだけ**引き継ぐ。
+{
+  const start = html.indexOf("function migrationPlan(");
+  ok(start > 0, "引き継ぎの判断が関数として取り出せる");
+  const src = html.slice(start);
+  const end = src.indexOf("\n}\n") + 3;
+  const migrationPlan = new Function(`${src.slice(0, end)}; return migrationPlan;`)();
+
+  // 持ち主が居ない = 一度もログインしていない端末
+  ok(migrationPlan(null, "okayu0321", true) === "migrate", "初めて入る人は手元の記録を持ち込む");
+  ok(migrationPlan(null, "okayu0321", false) === "keep", "手元に何も無ければ何もしない");
+  // 同じ人が入り直しただけ
+  ok(migrationPlan("okayu0321", "okayu0321", true) === "keep", "同じ人なら、そのまま続き");
+  // **別の人。ここが本題**
+  ok(migrationPlan("okayu0321", "someone", true) === "discard", "別の人が入ったら、手元のデータは渡さない");
+  ok(migrationPlan("okayu0321", "someone", false) === "discard", "中身が無くても、持ち主が違えば捨てる");
+  // 大文字小文字はサーバー側で正規化済みだが、念のため同一視する
+  ok(migrationPlan("Okayu0321", "okayu0321", true) === "keep", "IDの大小差で別人にしない");
+}
+
+// 401では消さない。**サーバーが一時的に落ちただけで手元が空になってはいけない**
+ok(!/401[\s\S]{0,160}favorites = \[\]/.test(html), "401でデータを消さない");
+// 明示ログアウトでは消す
+ok(/\$\("logout"\)\.onclick[\s\S]{0,400}favorites = \[\]; sightings = \[\]/.test(html),
+  "ログアウトでは消す");
+// 持ち主を覚えておかないと、誰のデータか分からない
+ok(/sorami\.owner/.test(html), "手元のデータの持ち主を覚える");
+
+console.log("== 同名の別地点で、記録が上書きされない ==");
+// 2026-09-08 の調査 C-5。照合が「地点名・日付・現象」だけだった。
+// 「現在地」は移動先でも同じ名前になるので、**別の場所の記録が置き換わる。**
+{
+  const start = html.indexOf("function samePlaceAs(");
+  ok(start > 0, "地点の照合が関数として取り出せる");
+  const src = html.slice(start);
+  const samePlaceAs = new Function(`${src.slice(0, src.indexOf("\n}\n") + 3)}; return samePlaceAs;`)();
+
+  const here = { name: "現在地", latitude: 35.68, longitude: 139.77 };
+  ok(samePlaceAs({ placeName: "現在地", latitude: 35.68, longitude: 139.77 }, here), "同じ座標なら同じ地点");
+  ok(samePlaceAs({ placeName: "別の名前", latitude: 35.6803, longitude: 139.7702 }, here),
+    "名前が違っても、座標が同じなら同じ地点");
+  ok(!samePlaceAs({ placeName: "現在地", latitude: 36.20, longitude: 138.30 }, here),
+    "**同じ名前でも、座標が違えば別の地点**");
+  // GPSの揺れで別扱いにしない
+  ok(samePlaceAs({ placeName: "現在地", latitude: 35.6801, longitude: 139.7701 }, here),
+    "わずかなずれは同じ地点");
+  // 座標を持たない古い記録は、名前で照合する（移行で記録を失わない）
+  ok(samePlaceAs({ placeName: "高ボッチ" }, { name: "高ボッチ", latitude: 36.1, longitude: 138.1 }),
+    "座標の無い古い記録は名前で照合する");
+  ok(!samePlaceAs({ placeName: "高ボッチ" }, { name: "美ヶ原", latitude: 36.1, longitude: 138.1 }),
+    "古い記録でも、名前が違えば別");
+}
+// 位置ではなくIDで引く（同期で配列が組み直されると、位置は別のものを指す）
+ok(!/favorites\[favDraft\.index\]/.test(html), "編集・削除で位置を直接使っていない");
+ok(/favorites\.findIndex\(\(f\) => f\.id === favDraft\.id\)/.test(html), "IDで引き直す");
+
+console.log("== 同期が取りこぼさない・黙って捨てない ==");
+// C-2: サーバーは 500件で打ち切ったらカーソルもそこで返す。画面は続きを取りに行く
+ok(/if \(!got\.more \|\| next <= since\) break;/.test(html), "打ち切られたら続きを取りに行く");
+ok(/for \(let round = 0; round < 20; round\+\+\)/.test(html), "無限には回さない");
+// **進まなくなったら止める。** 止め方が無いと、サーバーの不具合で画面が固まる
+ok(/next <= since/.test(html), "カーソルが進まなければ止める");
+
+// C-3: 送っただけで消さない。サーバーが受理したIDだけ外す
+ok(/res\?\.accepted\?\.favorites/.test(html) && /res\?\.accepted\?\.sightings/.test(html),
+  "受理されたIDを見る");
+ok(!/await apiCall\("POST", "\/sync"[\s\S]{0,120}pushQueue = \[\];/.test(html),
+  "送信のあとに無条件でキューを空にしていない");
+ok(/pushQueue = pushQueue\.filter\(/.test(html), "受理された分だけ外す");
+// 1回の上限は500件。超える分を捨てずに次へ回す
+ok(/pushQueue\.slice\(0, 500\)/.test(html), "500件ずつ送る");
 
 console.log("== 説明文が変なところで折れない ==");
 // 2026-09-08 ユーザー「説明文は変なところで改行されないように綺麗にしてね」。
