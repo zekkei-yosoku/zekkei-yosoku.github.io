@@ -326,6 +326,10 @@
   .hint b { font-weight:600; color:var(--secondary);
     background:var(--line); border-radius:3px; padding:0 4px; margin:0 1px;
     font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
+  /* 利用者一覧の認証手段。名前のとなりに並べて、一目で見分ける */
+  .way { display:inline-block; font-size:11px; font-weight:600; line-height:1.6;
+    padding:0 7px; margin-left:5px; border-radius:9px;
+    background:var(--line); color:var(--secondary); vertical-align:middle; }
   .remember { display:flex; gap:10px; align-items:flex-start; margin-top:18px;
     padding-top:14px; border-top:1px solid var(--line); cursor:pointer; }
   .remember input { margin-top:2px; width:17px; height:17px; flex:none; accent-color: var(--accent, #2f6fed); }
@@ -819,7 +823,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260908194445"></script>
+<script src="sorami-core.js?v=20260908194632"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2996,6 +3000,24 @@ $("adminCodesCopy").onclick = async () => {
 $("adminBack").onclick = () => { location.hash = ""; };
 $("toAdmin").onclick = () => { $("accountSheet").close(); location.hash = "#/admin"; };
 
+// 誰が何で入っているかを、印として出せる形にする。
+// **日常の入り方（パスキー・パスワード）と、非常用（回復コード）を分ける。**
+// 一列に混ぜていたので「実際に何で入るのか」が読み取れなかった。
+function authWays(u) {
+  const labels = [];
+  if (u.passkeys) labels.push("パスキー");
+  if (u.has_password) labels.push("PW");
+  if (!labels.length) labels.push(u.codes ? "回復コードのみ" : "なし");
+
+  // 締め出しの近さは数で見る。1つだと、それを失った時点で入れなくなる
+  const methods = (u.has_password ? 1 : 0) + u.passkeys + (u.codes > 0 ? 1 : 0);
+
+  const detail = [u.passkeys ? `パスキー${u.passkeys}台` : null,
+                  u.has_password ? "パスワードあり" : null,
+                  `回復コード${u.codes ?? 0}`].filter(Boolean).join(" ・ ");
+  return { labels, methods, detail };
+}
+
 // 管理画面に出した中身を全部消す。**他人の回復コードが残るのが一番まずい。**
 // 画面の切り替えは URL のハッシュだけで決まるので、消さないと未ログインでも
 // `#/admin` を開いた人に見えてしまう（調査 E-2）。
@@ -3023,14 +3045,11 @@ async function renderAdmin() {
     const day = (t) => (t ? new Date(t).toLocaleDateString("ja-JP") : "—");
     $("adminUserCount").textContent = `${me.users.length}人`;
     $("adminUsers").innerHTML = me.users.map((u) => {
-      // 入る手段がいくつ残っているか。1つだと、それを失った時点で締め出される。
-      const methods = (u.has_password ? 1 : 0) + u.passkeys + (u.codes > 0 ? 1 : 0);
-      const ways = [u.has_password ? "パスワード" : null,
-                    u.passkeys ? `パスキー${u.passkeys}` : null,
-                    u.codes ? `回復コード${u.codes}` : null].filter(Boolean).join(" ・ ") || "なし";
+      const { labels, methods, detail } = authWays(u);
       return `<div class="list-item">
         <strong>${esc(u.login_id)}</strong>${u.role === "admin" ? ' <span class="tiny">管理者</span>' : ""}
-        <div class="tiny">${ways} ・ 登録 ${day(u.created_at)}</div>
+        ${labels.map((w) => `<span class="way">${esc(w)}</span>`).join("")}
+        <div class="tiny">${esc(detail)} ・ 登録 ${day(u.created_at)}</div>
         ${methods <= 1 ? `<div class="warn tiny">入る手段が ${methods} しかありません</div>` : ""}
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
           <button class="tap" data-code="${esc(u.login_id)}" style="color:var(--accent);font-size:0.72rem;min-height:36px">回復コードを出す</button>

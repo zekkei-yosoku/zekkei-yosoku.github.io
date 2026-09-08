@@ -785,6 +785,37 @@ ok(/\$\("authId"\)\.addEventListener\("input"[\s\S]{0,140}\["newId", "codeId"\]/
   "IDを打ち直させない");
 ok(/\$\("authId"\)\.addEventListener\("input"/.test(html), "上で打ったIDを写す");
 
+console.log("== 利用者一覧で、何で入っているかが一目で分かる ==");
+// 2026-09-08 ユーザー「誰がなんの認証方法か分かり易い方がいい」。
+// 手段は出ていたが「パスワード ・ パスキー2 ・ 回復コード10 ・ 登録 …」と
+// 一列に混ざっていて、**実際に何で入るのかが読み取りにくかった。**
+{
+  const start = html.indexOf("function authWays(");
+  ok(start > 0, "手段の見せ方が関数として取り出せる");
+  const src = html.slice(start);
+  const authWays = new Function(`${src.slice(0, src.indexOf("\n}\n") + 3)}; return authWays;`)();
+
+  ok(authWays({ has_password: true, passkeys: 0, codes: 0 }).labels.join() === "PW",
+    "パスワードだけなら PW");
+  ok(authWays({ has_password: false, passkeys: 2, codes: 0 }).labels.join() === "パスキー",
+    "パスキーだけならパスキー");
+  ok(authWays({ has_password: true, passkeys: 1, codes: 0 }).labels.join() === "パスキー,PW",
+    "両方あるなら両方");
+  // 回復コードは「入る手段」だが、日常の入り方ではないので分けて数える
+  ok(!authWays({ has_password: true, passkeys: 1, codes: 10 }).labels.includes("回復コード"),
+    "回復コードは日常の入り方に混ぜない");
+  ok(authWays({ has_password: false, passkeys: 0, codes: 5 }).labels.join() === "回復コードのみ",
+    "回復コードしか無いなら、そう言い切る");
+  ok(authWays({ has_password: false, passkeys: 0, codes: 0 }).labels.join() === "なし",
+    "何も無ければ「なし」");
+
+  // 締め出しの近さは、いまも数で見る
+  ok(authWays({ has_password: true, passkeys: 1, codes: 10 }).methods === 3, "手段の数を数える");
+  ok(authWays({ has_password: false, passkeys: 1, codes: 0 }).methods === 1, "1つだけなら1");
+}
+// 一覧では、印として並べる
+ok(/class="way"/.test(html), "手段を印として出す");
+
 console.log("== 管理画面の中身を、ログアウト後に残さない ==");
 // 2026-09-08 の調査 E-2。ログアウトはお気に入り・記録・送信待ちを消すが、
 // **管理画面に出した他人の回復コードを消していなかった。**
