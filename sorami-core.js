@@ -455,14 +455,35 @@
       return bestDelta <= 1800000 ? best : null;
     }
     valueAt(v, ms) { const i = this.indexNearest(ms); return i === null ? null : this.valueAtIndex(v, i); }
-    // 時別値は「その1時間を代表する値」。バケット [t, t+step) と窓の重なりで選ぶ。
-    // 点包含にすると、日の入り前後 20 分のような正時をまたがない窓が 1 件も拾えない。
-    indices(startMs, endMs) {
-      const step = this.stepMs, out = [];
-      this.times.forEach((t, i) => { if (t < endMs && t + step > startMs) out.push(i); });
+    // Open-Meteo hourly: 降水は直前1時間の合計、日射は直前1時間の平均。
+    // https://open-meteo.com/en/docs — Hourly Parameter Definition
+    // 雲量等の瞬時値は従来の前方バケットを維持する（補間は別変更）。
+    intervalAt(v, i) {
+      const t = this.times[i];
+      return ["precipitation", "showers", "direct_radiation"].includes(v)
+        ? [t - 3600000, t] : [t, t + this.stepMs];
+    }
+    indices(startMs, endMs, v = null) {
+      if (endMs <= startMs) return [];
+      const out = [];
+      this.times.forEach((t, i) => {
+        const [start, end] = this.intervalAt(v, i);
+        if (start < endMs && end > startMs) out.push(i);
+      });
       return out;
     }
-    values(v, s, e) { return this.indices(s, e).map((i) => this.valueAtIndex(v, i)).filter((x) => x !== null); }
+    // 一部欠測の窓が減点を免れて「最良」になるのを防ぐ。
+    covers(v, startMs, endMs) {
+      let coveredTo = startMs;
+      for (const i of this.indices(startMs, endMs, v)) {
+        const [start, end] = this.intervalAt(v, i);
+        if (!Number.isFinite(this.valueAtIndex(v, i))) continue;
+        if (start > coveredTo) return false;
+        coveredTo = Math.max(coveredTo, end);
+      }
+      return endMs > startMs && coveredTo >= endMs;
+    }
+    values(v, s, e) { return this.indices(s, e, v).map((i) => this.valueAtIndex(v, i)).filter((x) => x !== null); }
     mean(v, s, e) { const a = this.values(v, s, e); return a.length ? a.reduce((x, y) => x + y, 0) / a.length : null; }
     max(v, s, e) { const a = this.values(v, s, e); return a.length ? Math.max(...a) : null; }
     min(v, s, e) { const a = this.values(v, s, e); return a.length ? Math.min(...a) : null; }
@@ -1445,7 +1466,7 @@
     },
     score(window, input) {
       const s = T.rainbow, series = input.home, [ws, we] = window;
-      const indices = series.indices(ws, we);
+      const indices = series.indices(ws, we, "precipitation");
       if (!indices.length) return unavailable("missingData", "日中の予報が得られませんでした");
 
       // 「雨の予報がない」は評価不能ではなく、虹が出ないという**評価**。
@@ -1455,8 +1476,8 @@
       let sawRain = false, sawRainHighSun = false;
       let best = null;
       for (const i of indices) {
-        const hourStart = series.times[i];
-        const mid = hourStart + series.stepMs / 2;
+        const [hourStart, hourEnd] = series.intervalAt("precipitation", i);
+        const mid = (hourStart + hourEnd) / 2;
         const precip = series.valueAtIndex("precipitation", i);
         if (precip === null || precip <= s.precipThreshold) continue;
         sawRain = true;
@@ -1518,7 +1539,7 @@
         // 切ると、3W/m² ちょうどの時間が時刻だけ出て点数は下限のまま、になる。
         const hasSun = direct === null || sunlightFit > 0;
         const candidate = buildScore(s.base, factors, ceiling, ceilingReason,
-          hasSun ? [hourStart, hourStart + series.stepMs] : null);
+          hasSun ? [hourStart, hourEnd] : null);
         if (!best || candidate.score > best.score) best = candidate;
       }
       if (best) return best;

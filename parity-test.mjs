@@ -41,7 +41,16 @@ const bundle = {
   sunriseOffsets: null,
 };
 const place = { latitude: lat, longitude: lon, terrain: null, elevation: null };
-const ev = S.evaluate("sunset", day, bundle, place);
+// Swiftは期間量も前方バケットだった旧仕様。旧期待値を書き換えず、
+// その時間対応を明示して歴史的parityを残す。現行Webは下で別に検証する。
+class LegacySeries extends S.Series {
+  intervalAt(v, i) { return [this.times[i], this.times[i] + this.stepMs]; }
+}
+const legacyLocation = (location) => ({ ...location, byModel: Object.fromEntries(
+  Object.entries(location.byModel).map(([m, series]) => [m, new LegacySeries(series.times, series.columns)])) });
+const legacyBundle = { ...bundle, home: legacyLocation(home), sunsetOffsets: Object.fromEntries(
+  Object.entries(bundle.sunsetOffsets).map(([k, location]) => [k, legacyLocation(location)])) };
+const ev = S.evaluate("sunset", day, legacyBundle, place);
 check("score", ev.score, expected.sunset_score, 0.001);
 check("base", ev.base, expected.sunset_base);
 check("spread.low", ev.spread[0], expected.sunset_spread[0], 0.001);
@@ -72,6 +81,31 @@ if (ev.factors.length !== expFactors.length) {
   });
 }
 
+// 2026-09-10 B1: 期間量の時刻を正した意図的差分を、保存実データで検証。
+// この日の窓は18:02–18:42 JST。雨は18–19時を表す19時値1.8mmを使う。
+// 旧版の18時値2.2mmは17–18時の雨で、対象窓外。係数は従来のまま。
+console.log("== 現行Webの夕焼け（期間量の時刻修正） ==");
+const modern = S.evaluate("sunset", day, bundle, place);
+const window = S.SCORERS.sunset.window(day, {lat, lon});
+check("対象窓の降水", home.byModel.ecmwf_ifs025.max("precipitation", ...window), 1.8);
+const correctedPenalty = -(0.4 + 0.6 * ((1.8 - 0.1) / (2 - 0.1))) * 40;
+const modelDelta = correctedPenalty - (-40);
+check("Web.score", modern.score, expected.sunset_score + modelDelta / 2, 0.001);
+check("Web.base", modern.base, expected.sunset_base);
+check("Web.peak", modern.peak / 1000, expected.sunset_peak_epoch, 0.5);
+modern.spread.forEach((v,i)=>check(`Web.spread.${i}`,v,expected.sunset_spread[i],0.001));
+for (const m of sharedModels) check(`Web.perModel.${m}`, modern.perModel[m],
+  expected.sunset_perModel[m] + (m === "ecmwf_ifs025" ? modelDelta : 0), 0.001);
+check("Web.factor数",modern.factors.length,ev.factors.length);
+modern.factors.forEach((f,i)=>{
+  const old=ev.factors[i];
+  const isRain=old.label.startsWith("降水 ");
+  const isMedian=old.label === "モデル中央値との差";
+  const expectedLabel=isRain ? "降水 1.8mm" : old.label;
+  if(f.label!==expectedLabel){failures++;console.log(`  NG Web内訳名 ${f.label} / ${expectedLabel}`);}
+  check(`Web.寄与[${i}]`, f.c, old.c + (isRain ? modelDelta : isMedian ? -modelDelta/2 : 0), 0.001);
+});
+
 // 星空は 2026-09-06 に Web 版だけ「夜のうち最も条件の良い連続3時間で採点する」へ変更した。
 // 夜通しの平均では「前半だけ快晴」と「一晩じゅう半分曇り」が同点になり、
 // 見に行くかの判断に使えなかったため。Swift 版は夜通し平均のまま止めている。
@@ -87,5 +121,5 @@ console.log(`  採点した時間帯: ${starry.refinedWindow
   ? new Date(starry.refinedWindow[0]).toISOString() + " 〜 " + new Date(starry.refinedWindow[1]).toISOString()
   : "夜通し"}`);
 
-console.log(failures === 0 ? "\nPARITY OK — Swift と一致" : `\nPARITY NG — ${failures} 件不一致`);
+console.log(failures === 0 ? "\nPARITY OK — 旧時刻仕様はSwiftと一致、現行Webの意図的差分も検証済み" : `\nPARITY NG — ${failures} 件不一致`);
 process.exit(failures === 0 ? 0 : 1);
