@@ -37,3 +37,64 @@ test('虹は09時の雨と日射を08–09時・08:30の太陽で評価する', 
   assert.ok(r.score>0);
   assert.deepEqual(r.refinedWindow,[day+8*H,day+9*H]);
 });
+const night = () => {
+  const day=Date.UTC(2026,8,9)-9*H;
+  const times=Array.from({length:49},(_,i)=>day+i*H);
+  const input={lat:43.4689,lon:143.7472,elevation:300,lightPollution:{mpsas:21.8},home:new S.Series(times,{
+    cloud_cover:times.map((_,i)=>i<22?20:35),
+    precipitation:times.map((_,i)=>i<=22?2:0),
+    relative_humidity_2m:times.map(()=>70),visibility:times.map(()=>30000)
+  })};
+  return {input,window:S.SCORERS.starrySky.window(day,input)};
+};
+test('星空は雲が少なくても雨の時間帯を避け、最終得点で最良の3時間を選ぶ', () => {
+  const {input,window}=night(), scorer=S.SCORERS.starrySky;
+  const r=scorer.score(window,input);
+  assert.ok(r.refinedWindow);
+  assert.equal(r.refinedWindow[1]-r.refinedWindow[0],3*H);
+  assert.equal(input.home.max('precipitation',...r.refinedWindow),0);
+  assert.ok(r.score>70);
+  const candidates=[];
+  for(let t=window[0];t+3*H<=window[1];t+=H) candidates.push(scorer.scoreFixedWindow([t,t+3*H],input,window));
+  assert.equal(r.score,Math.max(...candidates.filter(x=>!x.unavailable).map(x=>x.score)));
+  assert.deepEqual(r,scorer.scoreFixedWindow(r.refinedWindow,input,window));
+  assert.ok(Math.abs(r.base+r.factors.reduce((n,f)=>n+f.c,0)-r.score)<1e-9);
+});
+test('星空の固定窓採点は再探索せず、雨・湿度・視程の欠測を高評価に変えない', () => {
+  const {input,window}=night(), scorer=S.SCORERS.starrySky;
+  const selected=[window[0],window[0]+3*H];
+  for(const v of ['cloud_cover','precipitation','relative_humidity_2m','visibility']) {
+    const cols=structuredClone(input.home.columns);
+    const indices=input.home.indices(...selected,v);
+    cols[v][indices[1]]=null;
+    const broken={...input,home:new S.Series(input.home.times,cols)};
+    assert.equal(scorer.scoreFixedWindow(selected,broken,window).unavailable?.kind,'missingData',v);
+    const r=scorer.score(window,broken);
+    assert.equal(r.unavailable,null);
+    assert.ok(r.refinedWindow);
+    assert.ok(broken.home.covers(v,...r.refinedWindow));
+  }
+  const r=scorer.scoreFixedWindow(selected,input,window);
+  assert.deepEqual(r.refinedWindow,selected);
+  assert.ok(r.score<50); // この固定窓には雨がある。勝手に後半へ移動しない。
+});
+test('全雲量欠測や予報の途中切れは利用不能。モデル非対応の視程は要求しない', () => {
+  const {input,window}=night(), scorer=S.SCORERS.starrySky;
+  const missing={...input,home:new S.Series(input.home.times,{cloud_cover:input.home.times.map(()=>null)})};
+  assert.equal(scorer.score(window,missing).unavailable?.kind,'missingData');
+  const edge={...input,home:new S.Series([window[0]],{cloud_cover:[0],precipitation:[0]})};
+  assert.equal(scorer.score(window,edge).unavailable?.kind,'missingData');
+  const cols=structuredClone(input.home.columns);delete cols.visibility;
+  assert.equal(scorer.score(window,{...input,home:new S.Series(input.home.times,cols)}).unavailable,null);
+});
+
+test('星空は降水全null・列なしを晴天と扱わず評価不能にする', () => {
+  const {input,window}=night();
+  for (const precipitation of [undefined,input.home.times.map(()=>null)]) {
+    const cols={cloud_cover:input.home.times.map(()=>0)};
+    if(precipitation) cols.precipitation=precipitation;
+    const r=S.SCORERS.starrySky.score(window,{...input,home:new S.Series(input.home.times,cols)});
+    assert.equal(r.unavailable?.kind,'missingData');
+    assert.equal(r.refinedWindow,null);
+  }
+});

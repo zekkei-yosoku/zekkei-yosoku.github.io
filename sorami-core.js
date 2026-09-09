@@ -1076,21 +1076,17 @@
       return s.base - (s.base - s.overcastCeiling) * Curve.ramp(cloud, s.overcastFrom, 100);
     },
     // 夜のうち、いちばん条件の良い連続 windowHours を探す。
-    // 選ぶ基準は採点そのものと同じ（雲と月の減点の合計が最小）。
+    // 選ぶ基準は採点そのものと同じ（降水・大気・光害・標高・上限も含む）。
     // 別の基準で窓を選ぶと、選んだ窓と出す点数が食い違う。
     bestWindow(window, input) {
-      const s = T.starry, series = input.home, [ws, we] = window;
+      const s = T.starry, [ws, we] = window;
       const span = s.windowHours * 3600000;
       if (we - ws <= span) return [ws, we];
       // 夜通しでも同じ良さなら絞らない。一様に晴れた夜に「19:00〜22:00が狙いめ」と
       // 出すのは嘘で、実際は一晩じゅう見える。
       const valueOf = (start, end) => {
-        const cloud = series.mean("cloud_cover", start, end);
-        if (cloud === null) return null;
-        const moon = Moon.peakBrightness(start, end, input.lat, input.lon);
-        return Math.min(starrySkyScorer.overcastCeiling(cloud),
-          s.base - Curve.ramp(cloud, 0, 100) * s.cloudPenalty
-                 - moon * starrySkyScorer.moonWeight(cloud) * s.moonlightPenalty);
+        const result = starrySkyScorer.scoreFixedWindow([start, end], input, window);
+        return result.unavailable ? null : result.score;
       };
       const wholeValue = valueOf(ws, we);
       let best = null;
@@ -1106,10 +1102,18 @@
       return [best.start, best.end];
     },
     score(window, input) {
+      return starrySkyScorer.scoreFixedWindow(starrySkyScorer.bestWindow(window, input), input, window);
+    },
+    // 時間帯の探索を行わない。同じ関数を候補比較と最終表示の両方で使う。
+    scoreFixedWindow(selectedWindow, input, window = selectedWindow) {
       const s = T.starry, series = input.home;
-      const [ws, we] = starrySkyScorer.bestWindow(window, input);
+      const [ws, we] = selectedWindow;
+      const required = ["cloud_cover", "precipitation", "relative_humidity_2m", "visibility"]
+        .filter((v) => v === "cloud_cover" || v === "precipitation" || series.isSupported(v));
+      if (required.some((v) => !series.covers(v, ws, we))) {
+        return unavailable("missingData", "この時間帯の予報が一部得られませんでした");
+      }
       const cloud = series.mean("cloud_cover", ws, we);
-      if (cloud === null) return unavailable("missingData", "雲量が得られませんでした");
       const factors = [];
       const nightHours = (window[1] - window[0]) / 3600000;
       const whole = we - ws >= window[1] - window[0] - 60000;
