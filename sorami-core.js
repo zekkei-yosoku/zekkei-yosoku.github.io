@@ -1731,14 +1731,10 @@
     const evaluated = Object.entries(results).filter(([, r]) => !r.unavailable);
     const peakOf = (win) => (scorer.peak ? scorer.peak(dayMs, win, reference) : win[0]);
 
-    // 虹の必須降水が欠けるモデルを捨てると、残ったモデルだけで中央値が上がる。
-    // 予報期間内の欠測は集約全体を保留。期間外のモデルとは区別する。
-    const missingRain = scorerId === "rainbow"
-      && Object.values(results).some((r) => r.unavailable?.kind === "missingData");
-    if (!evaluated.length || missingRain) {
-      const reason = missingRain
-        ? { kind: "missingData", message: "一部モデルの降水データが不足し、虹を判定できません" }
-        : Object.values(results).find((r) => r.unavailable).unavailable;
+    // 一部モデルの欠測で予測全体を止めない。有効なモデルを集約し、
+    // 既知の無降水0点は残す。全モデルが判定不能の場合だけ表示を保留する。
+    if (!evaluated.length) {
+      const reason = Object.values(results).find((r) => r.unavailable).unavailable;
       return { phenomenon: scorerId, window, peak: peakOf(window), unavailable: reason,
                score: 0, base: 0, factors: [], perModel: {}, models: 0, spread: [0, 0],
                confidence: confidenceOf(999), uncertainty: null, source: scorer.source };

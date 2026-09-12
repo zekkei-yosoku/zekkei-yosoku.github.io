@@ -57,15 +57,16 @@ test('固定asOfで再生すれば実行日の時計が違っても評価・信�
   assert.throws(()=>S.evaluate('sunset',day,bundle,place,{asOf:NaN}),TypeError);
  }finally{Date.now=before;}
 });
-test('虹の降水全欠測・部分欠測は雨なしと区別し、集約から除外して高評価にしない',()=>{
+test('虹の一部モデルが降水欠測でも有効モデルで予測を表示する',()=>{
  const rainy=series({precipitation:1.5,direct_radiation:400,cloud_cover:50});
  for(const rain of [times.map(()=>null),times.map((_,i)=>i===9?null:0)]){
   const missing=series({precipitation:rain,direct_radiation:400,cloud_cover:50});
   const single=S.SCORERS.rainbow.score(S.SCORERS.rainbow.window(day,input(missing)),input(missing));
   assert.equal(single.unavailable?.kind,'missingData');
   const r=S.evaluate('rainbow',day,makeBundle([rainy,missing]),place,{asOf:day});
-  assert.equal(r.unavailable?.kind,'missingData');assert.match(r.unavailable.message,/一部モデルの降水/);
-  assert.equal(r.models,0); // 有効な高い方だけで予測を出していない。
+  // 2026-09-13: ユーザー指定で全体保留を撤回。有効モデル単独の予測を維持する。
+  const expected=S.evaluate('rainbow',day,makeBundle([rainy]),place,{asOf:day});
+  assert.equal(r.unavailable,null);assert.equal(r.models,1);assert.equal(r.score,expected.score);
  }
 });
 test('虹の既知無降水は0点として母数に残り、期間外モデルは欠測による保留を起こさない',()=>{
@@ -99,11 +100,12 @@ test('雲海の上下判定に使う配点を保ち、気圧面の逆転を霧�
  assert.deepEqual(scores,[20,20,100]);
 });
 
-test('虹の時刻列内全面欠測は期限切れと決めつけず、集約を保留する',()=>{
+test('虹の全モデルが降水欠測の場合だけ判定を保留する',()=>{
  const rain=series({precipitation:1.5,direct_radiation:400});
  const blank=series({precipitation:null,direct_radiation:null,cloud_cover:null});
- const r=S.evaluate('rainbow',day,makeBundle([rain,blank]),place,{asOf:day});
+ const r=S.evaluate('rainbow',day,makeBundle([blank,blank]),place,{asOf:day});
  assert.equal(r.unavailable?.kind,'missingData');
+ assert.equal(r.models,0);
 });
 
  test('一覧の欠測日は0点と区別し、日付・理由付きで詳細へ進める',()=>{
