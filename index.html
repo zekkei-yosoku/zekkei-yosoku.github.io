@@ -830,7 +830,7 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260910010747"></script>
+<script src="sorami-core.js?v=20260912213746"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -909,7 +909,9 @@ function confidenceText(ev) {
     const e = Math.round(u.expectedError);
     // 「±0点」は精度の主張として強すぎる。1点未満はまとめて「ほぼ動きません」。
     parts.push(e < 1
-      ? `${u.ensembleMembers}通りの計算がほぼ一致していて、点数はあまり動きません`
+      ? (ev.confidence.cappedByModelDisagreement
+          ? `${u.ensembleMembers}通りの計算の内部では揃っています`
+          : `${u.ensembleMembers}通りの計算がほぼ一致していて、点数はあまり動きません`)
       : `${u.ensembleMembers}通りの計算から、点数は ±${e}点 ほど動く見込みです`);
     // 点数の幅が小さくても評価が割れていることがある（上限に張り付いた分布）。
     // そのときは幅ではなく「何通りが別の評価か」を言う。数字だけ見て
@@ -919,6 +921,10 @@ function confidenceText(ev) {
       parts.push(`ただし ${other}通りは別の評価です`);
     } else if (ev.confidence.key === "medium") parts.push("評価が1段変わり得ます");
     else if (ev.confidence.key === "low") parts.push("評価はあてになりません");
+    if (ev.confidence.cappedByModelDisagreement && u.modelAgreement != null) {
+      const other = Math.round(ev.models * (1 - u.modelAgreement));
+      parts.push(`ただし ${other}つの予報モデルは別の評価です。モデル間の不一致で信頼度を下げています`);
+    }
   } else {
     const lo = Math.round(ev.spread[0]), hi = Math.round(ev.spread[1]);
     const n = Object.keys(ev.perModel).length;
@@ -1337,7 +1343,7 @@ function render() {
           + `${bundle.ensemble.members.length}通り（アンサンブル予報）の散らばりから出しています。<br>`
         : `${bundle ? "アンサンブル予報が取れなかったため、" : ""}`
           + `点数の確からしさはモデル間の見解の差から出しています。<br>`)
-    + `夕焼け・朝焼けは、頭上だけでなく日の入り方向 ${bundle ? Math.round(bundle.sunsetBearing) : "—"}° の空の雲も見ています。<br>`
+    + `朝焼けは日の出方向 ${bundle ? Math.round(bundle.sunriseBearing) : "—"}°、夕焼けは日の入り方向 ${bundle ? Math.round(bundle.sunsetBearing) : "—"}° の空の雲も見ています（取得日の方位を使用）。<br>`
     + `点数の横の <strong>A・B・C</strong> は信頼度です。`
     + `<strong>A</strong> は評価がほぼ動かない、<strong>B</strong> は1段変わり得る、`
     + `<strong>C</strong> は評価そのものが当てにならない。`
@@ -1487,7 +1493,12 @@ function renderMatrix(order, now) {
     let grid = `<div class="mxrail"><span>${meta.icon}</span><span class="nm">${esc(meta.name)}</span></div>`;
     for (const dayMs of dayList) {
       const e = weeks[id].find((x) => x.dayMs === dayMs);
-      if (!e || e.evaluation.unavailable) { grid += `<div class="cell void"></div>`; continue; }
+      if (!e) { grid += `<div class="cell void" title="予報がありません">—</div>`; continue; }
+      if (e.evaluation.unavailable) {
+        const reason = `${meta.name} ${S.JstCal.relativeDay(dayMs, now)}：${e.evaluation.unavailable.message}`;
+        grid += `<button class="cell void" data-cell="${id}|${dayMs}" title="${esc(reason)}" aria-label="${esc(reason)}"><span class="v">—</span></button>`;
+        continue;
+      }
       const ev = e.evaluation;
       // 点数と信頼度は【全部の日に出す】（2026-09-07 ユーザー指定）。
       // 40点未満を伏せていたが、0点なのか39点なのかは判断に効くし、
@@ -1512,7 +1523,7 @@ function renderMatrix(order, now) {
 
   // 見られない現象は行を作らない。行があると「今日は0点」と読めてしまう。
   const out = dead.length
-    ? `<details class="mxout"><summary>この地点で見られない現象 ${dead.length}件</summary>`
+    ? `<details class="mxout"><summary>判定対象外・データ不足の現象 ${dead.length}件</summary>`
       + `<ul style="padding:0;margin:4px 0 0">` + dead.map((id) =>
           `<li>${S.PHENOMENA[id].icon} <strong>${esc(S.PHENOMENA[id].name)}</strong> — ${
             esc(weeks[id][0].evaluation.unavailable.message)}</li>`).join("") + `</ul></details>`

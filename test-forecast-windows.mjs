@@ -29,7 +29,7 @@ test('時刻列に穴があっても期間量の長さは1時間。欠測を乾�
 });
 test('虹は09時の雨と日射を08–09時・08:30の太陽で評価する', () => {
   const day = Date.UTC(2026,8,9)-9*H;
-  const input={lat:35.6812,lon:139.7671,home:new S.Series([day+9*H],{precipitation:[1.5],showers:[0.2],direct_radiation:[400]})};
+  const input={lat:35.6812,lon:139.7671,home:new S.Series(Array.from({length:25},(_,h)=>day+h*H),{precipitation:Array.from({length:25},(_,h)=>h===9?1.5:0),showers:Array(25).fill(0.2),direct_radiation:Array(25).fill(400)})};
   assert.ok(S.Sun.position(day+8.5*H,input.lat,input.lon).elevation < 42);
   assert.ok(S.Sun.position(day+9.5*H,input.lat,input.lon).elevation > 42);
   const r=S.SCORERS.rainbow.score(S.SCORERS.rainbow.window(day,input),input);

@@ -56,13 +56,13 @@ const inside = run(build(withInversion), 200);  // 逆転層より下＝霧の�
 ok(!above.unavailable && !inside.unavailable, "どちらも採点できる");
 ok(above.score > inside.score, "見下ろせるほうが高い", `上${above.score.toFixed(0)} / 中${inside.score.toFixed(0)}`);
 ok(S.rankOf(inside.score).key === "poor", "霧の中に入る日は「不向き」", S.rankOf(inside.score).label);
-ok(above.factors.some((f) => f.detail && f.detail.includes("見下ろせます")), "見下ろせると書く");
-ok(inside.factors.some((f) => f.detail && f.detail.includes("霧の中に入ります")), "中に入ると書く");
+ok(above.factors.some((f) => f.detail && f.detail.includes("実際の霧の上端は確認できません")), "見下ろせるとは断言しない");
+ok(inside.factors.some((f) => f.detail && f.detail.includes("霧の中に入る可能性")), "霧の中に入る可能性として伝える");
 
 console.log("== 逆転層が見つからないときは何もしない ==");
 // 「天井が無い」のか「モデルが捉えていない」のか区別できない。
 const flat = run(build(noInversion), 800);
-ok(!flat.factors.some((f) => f.label.startsWith("雲海の天井")), "天井の行を出さない");
+ok(!flat.factors.some((f) => f.label.startsWith("逆転層の下端目安")), "天井の行を出さない");
 ok(flat.score > inside.score, "見つからないことを理由に下げない",
   `逆転なし${flat.score.toFixed(0)} / 中に入る${inside.score.toFixed(0)}`);
 

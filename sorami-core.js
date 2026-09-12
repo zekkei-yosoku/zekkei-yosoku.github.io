@@ -62,6 +62,7 @@
       const d = new Date(ms + tzOffset);
       return `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCDate()).padStart(2, "0")}`;
     },
+    month(ms) { return new Date(ms + tzOffset).getUTCMonth() + 1; },
     weekday(ms) { return "日月火水木金土"[new Date(ms + tzOffset).getUTCDay()]; },
     // 日付で言い切る。「今日」「明日」は使わない。
     //
@@ -919,6 +920,8 @@
 
   function afterglowScorer(kind) {
     const eventName = kind === "sunset" ? "sunset" : "sunrise";
+    const sunlight = kind === "sunset" ? "夕日" : "朝日";
+    const direction = kind === "sunset" ? "日の入り方向" : "日の出方向";
     return {
       id: kind, source: T.sunset.source,
       window(dayMs, input) {
@@ -949,7 +952,7 @@
         factors.push(factor(`上層の雲 ${pct(high)}`, highBonus,
           cloudDetail(highRaw, highOvercast, heavilyObscured,
             high < s.highCloudPeak ? "光を受ける雲が空高くにない" : "雲が多すぎて光が抜けません",
-            "すじ雲が夕日を受ける面になります")));
+            `上層の雲が${sunlight}を受ける面になります`)));
 
         const midRaw = Curve.triangular(mid, s.midCloudLow, s.midCloudPeak, s.midCloudHigh);
         const midBonus = midRaw * s.midCloudBonus * visibleFraction;
@@ -971,13 +974,13 @@
         const sunwardLow = input.offsets?.low?.mean("cloud_cover_low", ws, we) ?? null;
         if (sunwardLow !== null) {
           const penalty = -Curve.ramp(sunwardLow, s.sunwardLowPenaltyStart, s.sunwardLowPenaltyFull) * s.sunwardLowPenalty;
-          factors.push(factor(`日の入り方向の下層雲 ${pct(sunwardLow)}`, penalty,
-            penalty < -1 ? "約165km先で夕日がさえぎられます" : "夕日の通り道は開けています"));
+          factors.push(factor(`${direction}の下層雲 ${pct(sunwardLow)}`, penalty,
+            penalty < -1 ? `約165km先に低い雲が多く、${sunlight}が届きにくい条件です` : `${sunlight}の方向は低い雲が少ない予報です`));
         }
         const sunwardHigh = input.offsets?.high?.mean("cloud_cover_high", ws, we) ?? null;
         if (sunwardHigh !== null) {
           const bonus = Curve.triangular(sunwardHigh, s.highCloudLow, s.highCloudPeak, s.highCloudHigh) * s.sunwardHighBonus;
-          factors.push(factor(`日の入り方向の上層雲 ${pct(sunwardHigh)}`, bonus, "約368km先で夕日を受ける雲があります"));
+          factors.push(factor(`${direction}の上層雲 ${pct(sunwardHigh)}`, bonus, `約368km先に${sunlight}を受ける上層の雲がある予報です`));
         }
 
         // 気圧面の相対湿度。モデルが返さない面がある（jma_msm の 200hPa は全 null）ので取れた面だけ平均する。
@@ -1222,10 +1225,9 @@
     return { key: "none", name: "条件が揃っていません", note: "" };
   }
 
-  /// 気圧面の気温分布から【逆転層の底】を読む。そこが雲海の天井になる。
+  /// 気圧面の気温分布から逆転層の下端の目安を読む。霧頂の実測値ではない。
   ///
-  /// エマグラムで雲海を読む手順そのもの。逆転層より上には雲が育たないので、
-  /// その高さより上に立てば見下ろせる（三菱自動車「雲海の仕組み」条件2・3）。
+  /// 逆転は鉛直混合を抑える手掛かりだが、粗い気圧面だけで霧頂や可視性は確定しない。
   ///
   /// 【モデルに霧そのものを予測させない】のが要点。
   /// 最初は「気圧面の湿度が90%以上の層＝雲」として雲頂を取ろうとしたが、
@@ -1260,8 +1262,8 @@
     for (let i = 1; i < rows.length; i++) {
       if (rows[i].h > s.inversionMaxHeight) break;
       if (rows[i].t > rows[i - 1].t + s.inversionMinK) {
-        // 逆転が始まる面の下端。ここが天井。
-        return { height: rows[i - 1].h, strength: rows[i].t - rows[i - 1].t, levels: rows.length };
+        // 平均プロファイルで逆転が検出された面の下端。霧頂の保証ではない。
+        return { height: rows[i - 1].h, upperHeight: rows[i].h, strength: rows[i].t - rows[i - 1].t, levels: rows.length };
       }
     }
     return { height: null, strength: 0, levels: rows.length };
@@ -1354,20 +1356,20 @@
       if (inv && inv.height !== null && elevation !== null && elevation !== undefined) {
         const margin = elevation - inv.height;
         if (margin >= s.aboveMargin) {
-          factors.push(factor(`雲海の天井 約${Math.round(inv.height)}m`, s.aboveBonus,
-            `逆転層がここにあり、雲はこれより上へ育ちません。展望台（${Math.round(elevation)}m）はその上なので見下ろせます`));
+          factors.push(factor(`逆転層の下端目安 約${Math.round(inv.height)}m`, s.aboveBonus,
+            `約${Math.round(inv.height)}〜${Math.round(inv.upperHeight)}mの気圧面間で気温の逆転を推定。展望台は${Math.round(elevation)}mです。雲海を見下ろせるかの参考条件で、実際の霧の上端は確認できません`));
         } else {
-          factors.push(factor(`雲海の天井 約${Math.round(inv.height)}m`, 0,
-            `逆転層がここにあり、展望台（${Math.round(elevation)}m）はその${margin >= 0 ? "すぐ上で縁になります" : "下。霧の中に入ります"}`));
+          factors.push(factor(`逆転層の下端目安 約${Math.round(inv.height)}m`, 0,
+            `約${Math.round(inv.height)}〜${Math.round(inv.upperHeight)}mの気圧面間で気温の逆転を推定。展望台（${Math.round(elevation)}m）は下端目安の${margin >= 0 ? "すぐ上" : "下"}です。霧の中に入る可能性があり、見下ろせるとは判断できません`));
           ceiling = s.insideCeiling;
-          ceilingReason = margin >= 0 ? "雲海の縁で見下ろせない" : "雲海の中に入ってしまう";
+          ceilingReason = "逆転層との標高差が小さく、見下ろせる条件を確認できない";
         }
       }
 
       // 成因を名指しする。種類が見え方そのものになるので、点数だけより役に立つ。
       const kind = cloudSeaKind({
         range: range ?? 0, prevRain, nightCloud, humidity,
-        month: new Date(ws).getMonth() + 1,
+        month: Cal.month(ws),
         hasInversion: !!(inv && inv.height !== null),
       });
       if (kind.note) factors.push(factor(`型: ${kind.name}`, 0, kind.note));
@@ -1471,7 +1473,12 @@
     score(window, input) {
       const s = T.rainbow, series = input.home, [ws, we] = window;
       const indices = series.indices(ws, we, "precipitation");
-      if (!indices.length) return unavailable("missingData", "日中の予報が得られませんでした");
+      if (!indices.length) return unavailable("outOfForecast", "この時間帯の予報がありません");
+
+      if (!series.covers("precipitation", ws, we)) {
+        // 時刻列内の全nullは、予報期間外の証拠ではない。欠測として保持する。
+        return unavailable("missingData", "降水データが不足し、虹を判定できません");
+      }
 
       // 「雨の予報がない」は評価不能ではなく、虹が出ないという**評価**。
       // unavailable にするとそのモデルがアンサンブルの母数から黙って抜け、
@@ -1696,7 +1703,8 @@
     };
   }
 
-  function evaluate(scorerId, dayMs, bundle, place) {
+  function evaluate(scorerId, dayMs, bundle, place, { asOf = Date.now() } = {}) {
+    if (!Number.isFinite(asOf)) throw new TypeError("asOf must be a finite UTC timestamp");
     const scorer = SCORERS[scorerId];
     const offsets = scorerId === "sunrise" ? bundle.sunriseOffsets : bundle.sunsetOffsets;
     const models = MODELS.filter((m) => bundle.home.byModel[m]);
@@ -1723,8 +1731,14 @@
     const evaluated = Object.entries(results).filter(([, r]) => !r.unavailable);
     const peakOf = (win) => (scorer.peak ? scorer.peak(dayMs, win, reference) : win[0]);
 
-    if (!evaluated.length) {
-      const reason = Object.values(results).find((r) => r.unavailable).unavailable;
+    // 虹の必須降水が欠けるモデルを捨てると、残ったモデルだけで中央値が上がる。
+    // 予報期間内の欠測は集約全体を保留。期間外のモデルとは区別する。
+    const missingRain = scorerId === "rainbow"
+      && Object.values(results).some((r) => r.unavailable?.kind === "missingData");
+    if (!evaluated.length || missingRain) {
+      const reason = missingRain
+        ? { kind: "missingData", message: "一部モデルの降水データが不足し、虹を判定できません" }
+        : Object.values(results).find((r) => r.unavailable).unavailable;
       return { phenomenon: scorerId, window, peak: peakOf(window), unavailable: reason,
                score: 0, base: 0, factors: [], perModel: {}, models: 0, spread: [0, 0],
                confidence: confidenceOf(999), uncertainty: null, source: scorer.source };
@@ -1734,7 +1748,7 @@
     const low = Math.min(...scores), high = Math.max(...scores);
     // 何日先か。先の日ほど、モデルが揃っていても当たらない。
     const daysAhead = Math.max(0, Math.round(
-      (Cal.startOfDay(dayMs) - Cal.startOfDay(Date.now())) / 86400000));
+      (Cal.startOfDay(dayMs) - Cal.startOfDay(asOf)) / 86400000));
 
     let representative = evaluated[0];
     for (const entry of evaluated) {
@@ -1760,9 +1774,19 @@
     const modelAgreement = scores.length
       ? scores.filter((v) => rankOf(v).key === rankOf(shown).key).length / scores.length : null;
     const expectedError = ens ? ens.p1090 * SPREAD_TO_EXPECTED_ERROR : null;
-    const confidence = ens
+    let confidence = ens
       ? confidenceOfEnsemble(expectedError, agreement)
       : confidenceOf(effectiveWidth, modelAgreement);
+    // ENS内部の一致と、異なる予報モデルの一致は別の根拠。
+    // 既存の一致率閾値だけで上限を設け、誤差の推定値へ未検証の値を足さない。
+    if (ens) {
+      const modelCap = confidenceOfEnsemble(0, modelAgreement);
+      const order = { high: 2, medium: 1, low: 0 };
+      if (order[modelCap.key] < order[confidence.key]) {
+        confidence = { ...confidence, key: modelCap.key, label: modelCap.label,
+          caption: "予報モデルの評価が割れています", cappedByModelDisagreement: true };
+      }
+    }
     const displayWindow = representative[1].refinedWindow || window;
     const factors = [...representative[1].factors];
     const medianAdjustment = median - representative[1].score;
@@ -1793,6 +1817,7 @@
       models: evaluated.length,
       spread: [low, high],
       daysAhead,
+      asOf,
       confidence,
       // 信頼度の根拠を画面へ出すために持ち回す。
       // 「モデルが割れている」と「51通りが割れている」は利用者にとって意味が違う。
@@ -1820,7 +1845,7 @@
     const out = [];
     for (let i = 0; i < days; i++) {
       const dayMs = Cal.addDays(Cal.startOfDay(nowMs), i);
-      const e = evaluate(scorerId, dayMs, bundle, place);
+      const e = evaluate(scorerId, dayMs, bundle, place, { asOf: nowMs });
       if (e) out.push({ dayMs, evaluation: e });
     }
     return out;

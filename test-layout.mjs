@@ -209,7 +209,10 @@ console.log("== 「±0」を出さない ==");
 // 51通りが全部同じ値になることは珍しくない（上限や100点の頭打ちに張り付く）。
 // そのとき「±0」と出すと、点数が正確だという意味に読める。実測誤差は当日でも12.6点ある。
 ok(/const err = raw === 0 \? null : raw/.test(html), "誤差が0に丸まるときは付けない");
-ok(/e < 1[\s\S]{0,120}あまり動きません/.test(html), "説明文も「±0点」と言わない");
+const explainConfidence = runInNewContext(html.slice(html.indexOf("function confidenceText(ev)"),
+  html.indexOf("// 51メンバーの散らばりを見せる。")) + ";confidenceText", { S: coreMod });
+const zeroErrorText = explainConfidence({uncertainty:{basis:"ensemble",expectedError:0,ensembleMembers:51},confidence:{key:"high"},models:8});
+ok(!zeroErrorText.includes("±0点") && zeroErrorText.includes("あまり動きません"), "説明文も「±0点」と言わない");
 
 console.log("== 言っていることと出しているものを合わせる ==");
 // 「めぼしい空はなさそうです」と書いた下に候補を並べていた。見出しと中身が食い違う。
