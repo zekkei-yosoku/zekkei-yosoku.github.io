@@ -9,6 +9,11 @@
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://djlorenz.github.io https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
+     URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
+     → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
+     「拾われない仕組みを何も入れていない」状態だけは解消しておく。 -->
+<meta name="robots" content="noindex, nofollow, noarchive">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
