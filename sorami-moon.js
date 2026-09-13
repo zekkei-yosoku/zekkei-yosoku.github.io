@@ -108,7 +108,12 @@
    */
   function extinction(reading, air, moon) {
     const alt = moon.apparentAltitude;
-    if (alt < -0.5) return { p: 0, why: "地平線の下" };
+    // 地平線の下でも**同じ形を返す**。片方だけ項目が欠けると、呼び手が落ちる
+    // （2026-09-14、地形の地平線が負の地点＝高い山の上で実際に落ちた）
+    if (alt < -0.5) {
+      return { p: 0, transmission: 0, dimmingMag: 99, why: "地平線の下",
+               airmass: Infinity, opticalDepth: Infinity };
+    }
     // 低高度対応の airmass（Kasten & Young 1989）。sec(z) は地平線付近で破綻する（§32）
     const z = 90 - Math.max(0, alt);
     const am = 1 / (Math.cos(z * Math.PI / 180) + 0.50572 * Math.pow(96.07995 - z, -1.6364));
