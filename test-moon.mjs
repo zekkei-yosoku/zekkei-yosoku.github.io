@@ -45,22 +45,32 @@ console.log("== 月の明るさは輝面比に比例しない（§30）==");
      `${Math.round(near.distanceKm)} 〜 ${Math.round(far.distanceKm)} km`);
 }
 
-console.log("== 昼の月（§36）==");
+console.log("== 昼の月は「離角」で決まる（§36・§37）==");
 {
-  const m = A.moon(Date.UTC(2026, 9, 26, 3), OBS);           // 満月・日中
-  const day = M.skyContrast(m, 40).value;
-  const night = M.skyContrast(m, -30).value;
-  ok(night > day, "同じ月でも昼のほうが目立たない", `昼 ${day.toFixed(2)} / 夜 ${night.toFixed(2)}`);
-  // 細い月は昼に見えない
-  let thin = null;
-  for (let d = 0; d < 30; d += 0.25) {
-    const x = A.moon(Date.UTC(2026, 8, 12) + d * 86400000, OBS);
-    if (x.illuminatedFraction > 0.03 && x.illuminatedFraction < 0.08) { thin = x; break; }
-  }
-  ok(!!thin, "細い月を見つけた", thin ? `輝面 ${(thin.illuminatedFraction*100).toFixed(0)}%` : "");
-  if (thin) ok(M.skyContrast(thin, 40).value < M.skyContrast(m, 40).value,
-               "細い月は昼、満月よりずっと目立たない",
-               `${M.skyContrast(thin, 40).value.toFixed(2)} < ${day.toFixed(2)}`);
+  // **月相ではなく太陽からの離角。** 最初これを「輝面比÷空の明るさ」でやったら、
+  // 午後2時に出る63%の月が「ほぼ見えない」になった（実際にはよく見える）
+  const pick = (want) => {
+    let best = null;
+    for (let d = 0; d < 30; d += 0.2) {
+      const x = A.moon(Date.UTC(2026, 8, 11) + d * 86400000, OBS);
+      if (!best || Math.abs(x.illuminatedFraction - want) < Math.abs(best.illuminatedFraction - want)) best = x;
+    }
+    return best;
+  };
+  const gibbous = pick(0.65), quarter = pick(0.5), thin = pick(0.04), full = pick(1);
+  ok(M.skyContrast(gibbous, 40).value > 0.8, "昼でも上弦過ぎの月ははっきり見える",
+     `輝面 ${(gibbous.illuminatedFraction*100).toFixed(0)}% 離角 ${M.skyContrast(gibbous,40).elongation.toFixed(0)}度 → ${M.skyContrast(gibbous,40).value.toFixed(2)}`);
+  ok(M.skyContrast(thin, 40).value < 0.15, "昼の細い月は見えない（太陽の近くで空が明るい）",
+     `輝面 ${(thin.illuminatedFraction*100).toFixed(0)}% 離角 ${M.skyContrast(thin,40).elongation.toFixed(0)}度 → ${M.skyContrast(thin,40).value.toFixed(2)}`);
+  ok(M.skyContrast(thin, -30).value > M.skyContrast(thin, 40).value,
+     "同じ細い月でも夜なら見える", `夜 ${M.skyContrast(thin,-30).value.toFixed(2)} > 昼 ${M.skyContrast(thin,40).value.toFixed(2)}`);
+  ok(M.skyContrast(full, -30).value >= 0.99 && M.skyContrast(quarter, -30).value >= 0.99,
+     "夜は満月も半月も同じくよく見える");
+  // 昼と夜のあいだで飛ばない
+  const smooth = [-20, -10, -6, 0, 6, 10, 20].map((a) => M.skyContrast(quarter, a).value);
+  let jump = 0;
+  for (let i = 1; i < smooth.length; i++) jump = Math.max(jump, Math.abs(smooth[i] - smooth[i - 1]));
+  ok(jump < 0.35, "薄明のあいだで段差にならない", `最大の変化 ${jump.toFixed(2)}`);
 }
 
 console.log("== 月の方向の雲（§22-28）==");
@@ -103,6 +113,57 @@ console.log("== 低い高度での減光（§31-32）==");
   let prev = 0;
   for (const alt of [0.5, 2, 5, 15, 45, 80]) { const v = e(alt).p; ok(v >= prev, `高度 ${alt}度 で単調に良くなる`, v.toFixed(3)); prev = v; }
   ok(e(5).p < e(45).p * 0.8, "低い月は明らかに減光する", `${e(5).p.toFixed(2)} vs ${e(45).p.toFixed(2)}`);
+}
+
+console.log("== 減光は等級で扱う（透過率＝確率にしない）==");
+{
+  const air = { aerosol_optical_depth: 0.15, dust: 0 };
+  const r = { relative_humidity_2m: 60 };
+  // 高度12度で 1.2等ほど暗くなるが、**月は明らかに見える**
+  const e12 = M.extinction(r, air, { apparentAltitude: 12 });
+  ok(e12.dimmingMag > 0.8 && e12.dimmingMag < 2.5, "高度12度の減光は1〜2等",
+     `${e12.dimmingMag.toFixed(2)} 等`);
+  // 満月は地平線でも見える。細い月は消える（実際そのとおり）
+  const pick = (want) => { let b = null;
+    for (let d = 0; d < 30; d += 0.2) { const x = A.moon(Date.UTC(2026, 8, 11) + d * 86400000, OBS);
+      if (!b || Math.abs(x.illuminatedFraction - want) < Math.abs(b.illuminatedFraction - want)) b = x; }
+    return b; };
+  const eHor = M.extinction(r, air, { apparentAltitude: 0.5 });
+  const fullMag = M.brightness(pick(1)).magnitude + eHor.dimmingMag;
+  const thinMag = M.brightness(pick(0.03)).magnitude + eHor.dimmingMag;
+  ok(fullMag < 0, "満月は地平線でもまだ明るい", `${fullMag.toFixed(1)} 等`);
+  ok(thinMag > fullMag + 4, "細い月は地平線で大きく不利", `${thinMag.toFixed(1)} 等`);
+}
+
+console.log("== 点は月の高度とともに上がる ==");
+{
+  const JST = 9 * 3600000, day = Date.UTC(2026, 8, 20) - JST;
+  const horizonAt = (az) => (az > 110 && az < 140 ? 2.0 : 0);
+  const ev = A.moonEvents(day, day + 86400000, OBS, { horizonAt });
+  const air = { aerosol_optical_depth: 0.15, dust: 0 };
+  const mk = (reading) => M.timeline(ev, OBS, { kind: "rise", horizonAt,
+    readingAt: () => reading, airAt: () => air });
+  const clear = mk({ cloud_cover_low: 0, cloud_cover_mid: 0, cloud_cover_high: 0, precipitation: 0, relative_humidity_2m: 50 });
+  const rows = clear.rows.filter((r) => r.visible);
+  ok(rows.length >= 5, "晴れの時系列が出る", `${rows.length} 行`);
+  // **横ばいにならない。** 雲の斜め効果を min(3,slant) で切っていたときは全部同じ点だった
+  ok(rows[rows.length - 1].score > rows[0].score + 10, "月が昇るほど点が上がる",
+     `${rows[0].score} → ${rows[rows.length - 1].score}`);
+  let mono = true;
+  for (let i = 1; i < rows.length; i++) if (rows[i].score < rows[i - 1].score - 1) mono = false;
+  ok(mono, "晴れなら単調に上がる");
+  ok(M.windows(clear.rows).length >= 1, "見える窓が切り出せる");
+  // 曇りなら窓が出ない
+  const cloudy = mk({ cloud_cover_low: 90, cloud_cover_mid: 90, cloud_cover_high: 60, precipitation: 0, relative_humidity_2m: 85 });
+  ok(M.windows(cloudy.rows).length === 0, "曇りなら見える窓は出ない");
+  ok(cloudy.rows.length > clear.rows.length, "見えないときは時系列を延ばす（§48「1時間で強制終了しない」）",
+     `晴れ ${clear.rows.length} 行 / 曇り ${cloudy.rows.length} 行`);
+  // 出来事は強弱をつける（§59）
+  const mk2 = M.markers(ev, clear.rows, "rise");
+  ok(mk2.some((x) => x.level === "primary") && mk2.some((x) => x.level === "secondary"),
+     "出来事に強弱がある（§59 全部を同じ強さで出さない）",
+     mk2.map((x) => x.key).join(","));
+  ok(mk2[0].at <= mk2[mk2.length - 1].at, "出来事は時刻順");
 }
 
 console.log("== 順序を崩さない（§18・§100）==");

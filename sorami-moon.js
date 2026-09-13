@@ -38,19 +38,33 @@
   /**
    * 空の明るさに対して月が目立つか（§37 Moon / Sky Contrast・§36 Daytime Moon）。
    *
-   * **昼の月も扱う**（§36 が明示的に要求している）。細い月は昼に見えない。
+   * **昼は「月相」ではなく「太陽からの離角」で決まる。**
+   * 昼の月が見えにくいのは月が暗いからではない。月面の明るさ自体は月相でほとんど
+   * 変わらず（同じ月面を見ている）、細い月が見えないのは
+   *   1. 光っている面積が小さい
+   *   2. 太陽の近くにあり、そこの空がいちばん明るい
+   * の2つのため。最初これを「輝面比 ÷ 空の明るさ」でやったら、午後2時に出る
+   * 63%の月が「コントラスト 0.09」＝ほぼ見えない、になった（2026-09-14）。
+   * 実際にはよく見える。
+   *
+   * 夜は逆に、地平線の上にあればたいてい見える。ごく細い月だけ薄明に負ける。
    */
   function skyContrast(moon, sunAltitude) {
     const b = brightness(moon);
-    // 空の明るさの目安。太陽高度で段階的に変わる
-    const sky = sunAltitude > 0 ? 1
-      : sunAltitude > -6 ? 0.35            // 市民薄明
-      : sunAltitude > -12 ? 0.10           // 航海薄明
-      : sunAltitude > -18 ? 0.03 : 0.01;   // 天文薄明・夜
-    // 昼間は明るい月しか見えない。夜はほとんどの月が見える
-    const ratio = b.relative / sky;
-    return { value: clamp01(Math.log10(Math.max(ratio, 1e-4) * 10) / 2),
-             relativeBrightness: b.relative, magnitude: b.magnitude, skyLevel: sky };
+    const elongation = 180 - moon.phaseAngle;      // 太陽からの離角
+    const illum = moon.illuminatedFraction;
+
+    // 夜の見やすさ。細い月は薄明に負けるが、それ以外はほぼ見える
+    const night = clamp01(0.55 + 0.45 * Math.min(1, illum * 8));
+    // 昼の見やすさ。離角と、光っている面積で決まる
+    const day = clamp01((elongation - 15) / 45) * clamp01(illum * 4);
+    // 太陽高度で混ぜる。-6度（市民薄明の終わり）より下は夜、+6度より上は昼
+    const dayWeight = clamp01((sunAltitude + 6) / 12);
+    const value = night * (1 - dayWeight) + day * dayWeight;
+
+    return { value: clamp01(value),
+             relativeBrightness: b.relative, magnitude: b.magnitude,
+             elongation, dayWeight, nightValue: night, dayValue: day };
   }
 
   /**
@@ -73,8 +87,11 @@
     ]) {
       const c = reading[band];
       if (!Number.isFinite(c)) continue;
-      // 斜めに見るほど雲に当たりやすい。ただし頭打ちにする（水平で無限にはならない）
-      const effective = clamp01((c / 100) * Math.min(3, slant) / 1.6);
+      // 斜めに見るほど雲に当たりやすい。**頭打ちを緩やかにする。**
+      // min(3, slant) で切ると高度19度より下が全部同じになり、月が昇っても
+      // 点が横ばいになった（2026-09-14）。飽和させつつ滑らかに効かせる
+      const reach = 1 + 1.6 * (1 - Math.exp(-(slant - 1) / 2.2));
+      const effective = clamp01((c / 100) * reach);
       // **月は明るいので薄い雲は透ける**（§28）。高い雲ほど透けやすい
       const thin = name === "high" ? 0.55 : name === "mid" ? 0.3 : 0.12;
       p *= clamp01((1 - effective) + effective * thin);
@@ -98,13 +115,20 @@
     const aod = air && Number.isFinite(air.aerosol_optical_depth) ? air.aerosol_optical_depth : 0.15;
     const rh = reading && Number.isFinite(reading.relative_humidity_2m) ? reading.relative_humidity_2m : 60;
     const growth = 1 + Math.max(0, (rh - 60) / 40) * 1.2;      // §34 RH × エアロゾル
-    const tau = (aod * growth + 0.12) * am;                    // 0.12 はレイリー＋オゾン
-    let p = Math.exp(-tau * 0.6);                              // 見えなくなるのは減光そのものより遅い
+    let tau = (aod * growth + 0.12) * am;                      // 0.12 はレイリー＋オゾン
     const notes = [`大気の厚み ${am.toFixed(1)}倍`];
     if (air && Number.isFinite(air.dust) && air.dust > 20) {   // §35 Dust
-      p *= clamp01(1 - air.dust / 250); notes.push(`ダスト ${Math.round(air.dust)}`);
+      tau += air.dust / 300 * am; notes.push(`ダスト ${Math.round(air.dust)}`);
     }
-    return { p: clamp01(p), why: notes.join(" / "), airmass: am, opticalDepth: tau };
+    // **透過率をそのまま「見える確率」にしない。**
+    // 大気で 1.2等 暗くなっても月は明らかに見える。最初これを透過率＝確率にしたら、
+    // 高度12度の月が「見える20%」になった（2026-09-14）。実際にははっきり見える。
+    // 等級で扱う。減光後の明るさが肉眼の限界より明るいかどうか。
+    const dimmingMag = 1.086 * tau;
+    return { transmission: Math.exp(-tau), dimmingMag, why: notes.join(" / "),
+             airmass: am, opticalDepth: tau,
+             // 明るさへの効き（くっきり度に使う）。0〜1
+             p: clamp01(Math.exp(-tau * 0.35)) };
   }
 
   /**
@@ -129,20 +153,31 @@
     const sunAlt = sunAltitude(ms, obs);
     const contrast = skyContrast(m, sunAlt);
 
-    const pVisible = clamp01((cloud.p ?? 0.6) * ext.p * clamp01(0.25 + 0.75 * contrast.value));
+    // 減光したあとの明るさが、肉眼の限界より明るいか。
+    // 満月なら地平線でも見えるが、細い月は消える（実際そのとおり）
+    const observedMag = brightness(m).magnitude + ext.dimmingMag;
+    const LIMIT_MAG = 1.0;
+    const brightEnough = clamp01((LIMIT_MAG - observedMag) / 2);
+
+    const pVisible = clamp01((cloud.p ?? 0.6) * brightEnough * contrast.value);
     // **写真に撮れるかは、見えるかとは別**（§9）。薄雲でも眼では見えるが写真は眠くなる
-    const pPhoto = clamp01(pVisible * (cloud.p ?? 0.6) * clamp01(0.15 + 0.85 * contrast.value));
+    const pPhoto = clamp01(pVisible * (cloud.p ?? 0.6) * ext.p);
     // 月の一部だけ地形から出ている間は割り引く
     const emerged = clamp01(aboveTerrain / Math.max(0.05, m.angularDiameter));
-    const score = Math.round(100 * pVisible * (0.4 + 0.6 * emerged));
+    // **点は確率そのものではない。** 見える確率に、くっきり度と「どれだけ出ているか」を掛ける。
+    // 見えるだけの月と、地平線を離れて澄んで見える月は、行く価値が違う
+    const clarity = clamp01(ext.p * (cloud.p ?? 0.6));
+    const score = Math.round(100 * pVisible * (0.45 + 0.55 * clarity) * (0.4 + 0.6 * emerged));
 
     return {
       ms, moon: m, visible: true, aboveTerrainDeg: aboveTerrain, emergedFraction: emerged,
       pVisible, pPhoto, score,
-      clarity: Math.round(100 * clamp01(ext.p * (cloud.p ?? 0.6))),
+      clarity: Math.round(100 * clarity),
+      observedMagnitude: observedMag, dimmingMag: ext.dimmingMag,
       parts: [
         { key: "cloud", label: "月の方向の雲", p: cloud.p, why: cloud.why },
-        { key: "air", label: "大気の澄み具合", p: ext.p, why: ext.why },
+        { key: "air", label: "大気の澄み具合", p: ext.p,
+          why: `${ext.why} / ${ext.dimmingMag.toFixed(1)}等 暗くなる` },
         { key: "contrast", label: "空に対する明るさ", p: contrast.value,
           why: `輝面 ${Math.round(m.illuminatedFraction * 100)}% / 太陽高度 ${sunAlt.toFixed(0)}度` },
       ],
@@ -162,8 +197,81 @@
     return A.toHorizontal(H, eq.dec, obs.latitude).altitude;
   }
 
+  // ------------------------------------------------------------------ 時系列
+  /**
+   * 月出（または月入）の前後を、時刻ごとに並べる（§48・§49）。
+   *
+   * **「1時間で強制終了」しない**（§48）。雲が長く残って最初に見える時刻が
+   * 60分を超えるなら、見えるところまで延ばす。
+   *
+   * @param {string} kind "rise" | "set"
+   */
+  function timeline(events, obs, {
+    kind = "rise", stepMs = 300000, spanMs = 3600000, maxSpanMs = 3 * 3600000,
+    horizonAt = () => 0, readingAt = () => null, airAt = () => null,
+  } = {}) {
+    const terrain = events.terrain.filter((e) => e.kind === kind);
+    const anchorEv = terrain.find((e) => e.event === (kind === "rise" ? "firstLimb" : "start"))
+      || events.astronomical.find((e) => e.kind === kind);
+    if (!anchorEv) return null;
+
+    const from = kind === "rise" ? anchorEv.at - stepMs * 3 : anchorEv.at - spanMs;
+    let to = kind === "rise" ? anchorEv.at + spanMs : anchorEv.at + stepMs * 3;
+    const rows = [];
+    for (let t = from; t <= to; t += stepMs) {
+      rows.push(evaluateAt(t, obs, { horizonAt, reading: readingAt(t), air: airAt(t) }));
+      // まだ一度も見えていないなら延ばす（§48）
+      if (t >= to - stepMs && kind === "rise" && to - anchorEv.at < maxSpanMs
+          && !rows.some((r) => r.pVisible >= 0.5)) to += spanMs;
+    }
+    return { kind, anchor: anchorEv, rows, stepMs };
+  }
+
+  /**
+   * 見える窓を切り出す（§70 複数の窓を許す・§71 1つに固定しない）。
+   * 雲が通り過ぎるときは、晴れ間が複数できる。
+   */
+  function windows(rows, { threshold = 0.5, minRows = 2 } = {}) {
+    const out = [];
+    let cur = null;
+    for (const r of rows) {
+      if (r.pVisible >= threshold) {
+        if (!cur) cur = { start: r.ms, end: r.ms, peak: r, rows: 0 };
+        cur.end = r.ms; cur.rows++;
+        if (r.score > cur.peak.score) cur.peak = r;
+      } else if (cur) { if (cur.rows >= minRows) out.push(cur); cur = null; }
+    }
+    if (cur && cur.rows >= minRows) out.push(cur);
+    return out.sort((a, b) => b.peak.score - a.peak.score);
+  }
+
+  /// 時刻ごとの主な出来事（§58-59）。**全部を同じ強さで出さない**
+  function markers(events, rows, kind = "rise") {
+    const out = [];
+    const push = (at, key, label, level) => { if (at) out.push({ at, key, label, level }); };
+    const t = (name) => events.terrain.find((e) => e.kind === kind && e.event === name)?.at;
+    const b = events.brightLimb.find((e) => e.kind === kind)?.at;
+    const a = events.astronomical.find((e) => e.kind === kind)?.at;
+    if (kind === "rise") {
+      push(t("firstLimb"), "terrainFirst", "地形から出はじめ", "primary");
+      push(b, "brightLimb", "光っている面が出る", "primary");
+      push(t("fullDisk"), "fullDisk", "まるごと出る", "secondary");
+      push(a, "astronomical", "天文上の月の出", "secondary");
+    } else {
+      push(t("start"), "terrainStart", "地形へ入りはじめ", "primary");
+      push(t("full"), "terrainFull", "完全に隠れる", "primary");
+      push(a, "astronomical", "天文上の月の入り", "secondary");
+    }
+    const first = rows.find((r) => r.pVisible >= 0.5);
+    if (first) push(first.ms, "firstVisible", kind === "rise" ? "見え始め" : "最後に見える", "primary");
+    const peak = rows.reduce((x, y) => (y.score > (x?.score ?? -1) ? y : x), null);
+    if (peak && peak.score > 0) push(peak.ms, "peak", "いちばん良い", "primary");
+    return out.sort((x, y) => x.at - y.at);
+  }
+
   const SoramiMoon = {
     brightness, skyContrast, cloudTransmission, extinction, evaluateAt, sunAltitude,
+    timeline, windows, markers,
   };
   global.SoramiMoon = SoramiMoon;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiMoon;
