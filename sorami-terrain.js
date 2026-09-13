@@ -85,6 +85,24 @@
   }
 
   /**
+   * 目の高さの目安（富士 §8「ObserverHeightAGLが不明な場合」）。
+   *
+   * **推測で決め打ちしない。** 利用者が選べる形にして、選ばなければ「立った目線」。
+   * 展望台やビルの上では地面の標高だけでは足りず、ここが数十〜数百m効く。
+   */
+  const EYE_HEIGHT_PRESETS = [
+    { key: "standing", label: "地面に立って", m: 1.5 },
+    { key: "car",      label: "車の中から", m: 1.2 },
+    { key: "roof2",    label: "2階・低い展望台", m: 5 },
+    { key: "roof5",    label: "5階建ての屋上", m: 15 },
+    { key: "tower50",  label: "50m ほどの展望台", m: 50 },
+    { key: "tower100", label: "100m ほどの展望台", m: 100 },
+    { key: "tower150", label: "150m ほどの展望台", m: 150 },
+    { key: "tower250", label: "250m ほどの展望台", m: 250 },
+    { key: "tower350", label: "350m 以上の展望台", m: 350 },
+  ];
+
+  /**
    * 観測者の目の高さを決める（富士 §7・§8）。
    *
    *   目の高さ = 地面の標高（DEM）+ 立っている高さ
@@ -177,6 +195,36 @@
   }
 
   /**
+   * 地平線を**種類ごとに持って、重ねる**（月 §19）。
+   *
+   * 初期版で見るのは地形だけ。だが「建物で隠れている」と「山で隠れている」は
+   * 利用者にとって別の話で、直し方も違う（前者は少し歩けば解決する）。
+   * 後から建物を足せるよう、最初から分けておく。
+   *
+   *   terrain … DEM から測った地形
+   *   urban   … 建物・鉄塔など（PLATEAU / OpenStreetMap。**未実装**）
+   *   user    … 利用者が現地で測って登録したもの（月 §20 UserHorizonProfile。**未実装**）
+   */
+  function combinedHorizon(layers) {
+    const fns = Object.entries(layers)
+      .filter(([, v]) => v && v.length)
+      .map(([name, prof]) => [name, horizonFunction(prof)]);
+    const f = (az) => {
+      let best = -90, by = null;
+      for (const [name, fn] of fns) { const v = fn(az); if (v > best) { best = v; by = name; } }
+      return best;
+    };
+    f.detail = (az) => {
+      const out = {};
+      let best = -90, by = null;
+      for (const [name, fn] of fns) { const v = fn(az); out[name] = v; if (v > best) { best = v; by = name; } }
+      return { angleDeg: best, blockedBy: by, layers: out };
+    };
+    f.layers = Object.keys(layers).filter((k) => layers[k] && layers[k].length);
+    return f;
+  }
+
+  /**
    * 測った地平線から「方位 → 高さ」の関数を作る。**間は線形で埋める。**
    * 月の方位は連続的に変わるので、測った方位に無い値も要る（月 §14）。
    */
@@ -223,7 +271,8 @@
   const SoramiTerrain = {
     MAX_POINTS, DEFAULT_STEPS,
     destination, bearing, distanceKm,
-    fetchElevations, resolveObserver, measureHorizon, horizonFunction, profileToward, stepsFor,
+    fetchElevations, resolveObserver, measureHorizon, horizonFunction, combinedHorizon,
+    profileToward, stepsFor, EYE_HEIGHT_PRESETS,
   };
   global.SoramiTerrain = SoramiTerrain;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiTerrain;

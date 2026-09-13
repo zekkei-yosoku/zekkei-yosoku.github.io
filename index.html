@@ -820,6 +820,10 @@
     <select id="favTerrain" class="fav-in" aria-describedby="favTerrainNote"></select>
     <p class="tiny" id="favTerrainNote" style="margin-top:5px"></p>
 
+    <label class="fav-l" for="favEye">立つ高さ<span class="fav-opt">展望台やビルの上ならここが効きます</span></label>
+    <select id="favEye" class="fav-in" aria-describedby="favEyeNote"></select>
+    <p class="tiny" id="favEyeNote" style="margin-top:5px"></p>
+
     <label class="fav-l" for="favNote">メモ<span class="fav-opt">任意</span></label>
     <textarea id="favNote" class="fav-in" rows="2" maxlength="120"
               placeholder="狙い目の時期、駐車場、注意点など"></textarea>
@@ -1050,6 +1054,9 @@ function cleanFavorite(f) {
     note: isText(f.note) ? f.note : "",
     terrain: TERRAINS.some(([v]) => v === f.terrain) && f.terrain ? f.terrain : null,
     elevation: Number.isFinite(f.elevation) ? f.elevation : null,
+    // 地面からの目の高さ。**地面の標高とは別物。** 展望台では数十〜数百m効く
+    eyeHeightAGL: Number.isFinite(f.eyeHeightAGL) && f.eyeHeightAGL >= 0 && f.eyeHeightAGL <= 700
+      ? f.eyeHeightAGL : null,
     phenomena: Array.isArray(f.phenomena) ? f.phenomena.filter((p) => S.PHENOMENA[p]) : [] };
 }
 
@@ -2218,10 +2225,12 @@ function openFavSheet(index) {
   const gridElev = bundle?.home.grid.elevation ?? null;
   const base = index >= 0 ? favorites[index]
     : { ...place, elevation: place.elevation ?? gridElev };
-  favDraft = { index, ...base, phenomena: [...(base.phenomena || [])] };
+  favDraft = { index, ...base, phenomena: [...(base.phenomena || [])],
+               eyeHeightAGL: base.eyeHeightAGL ?? 1.5 };
   // 入力途中で閉じたときに「変えたかどうか」を判定するための元の値。
   favDraft.origin = { name: base.name || "", note: base.note || "",
-    terrain: base.terrain || "", phenomena: [...(base.phenomena || [])].join(",") };
+    terrain: base.terrain || "", phenomena: [...(base.phenomena || [])].join(","),
+    eyeHeightAGL: base.eyeHeightAGL ?? 1.5 };
   $("favSheetTitle").textContent = index >= 0 ? "お気に入りを編集" : "お気に入りに登録";
   $("favName").value = favDraft.name || "";
   $("favNote").value = favDraft.note || "";
@@ -2233,11 +2242,14 @@ function openFavSheet(index) {
     favDraft.elevation != null ? `標高 ${Math.round(favDraft.elevation)}m${estimated ? "（推定）" : ""}` : ""]
     .filter(Boolean).join(" ・ ");
   $("favCoord").textContent = `${favDraft.latitude.toFixed(4)}, ${favDraft.longitude.toFixed(4)}`;
+  $("favEye").innerHTML = EYE_HEIGHTS.map(([v, label, m]) =>
+    `<option value="${v}"${(favDraft.eyeHeightAGL ?? 1.5) === m ? " selected" : ""}>${label}</option>`).join("");
   $("favTerrain").innerHTML = TERRAINS.map(([v, label]) =>
     `<option value="${v}"${(favDraft.terrain || "") === v ? " selected" : ""}>${esc(label)}</option>`).join("");
   $("favDelete").hidden = index < 0;
   renderFavPhenomena();
   renderTerrainNote();
+  renderEyeNote();
   $("favSheet").showModal();
   $("favName").focus();
 }
@@ -2268,11 +2280,43 @@ function renderTerrainNote() {
 }
 $("favTerrain").onchange = () => { favDraft.terrain = $("favTerrain").value || null; renderTerrainNote(); };
 
+// 地面からの目の高さ。**地面の標高とは別の話。**
+// 標高は座標から分かるが、その上に何m立っているかは分からない。
+// 東京タワーの地面は21mで、大展望台は+150m。ここを聞かないと、
+// 「山に隠れて見えない」と「展望台からなら見える」を取り違える。
+const EYE_HEIGHTS = [
+  ["", "地面に立って（既定）", 1.5],
+  ["car", "車の中から", 1.2],
+  ["roof2", "2階・低い展望台", 5],
+  ["roof5", "5階建ての屋上", 15],
+  ["tower50", "50m ほどの展望台", 50],
+  ["tower100", "100m ほどの展望台", 100],
+  ["tower150", "150m ほどの展望台", 150],
+  ["tower250", "250m ほどの展望台", 250],
+  ["tower350", "350m 以上の展望台", 350],
+];
+function eyeNote() {
+  const m = favDraft.eyeHeightAGL ?? 1.5;
+  const ground = favDraft.elevation;
+  if (!Number.isFinite(ground)) return "遠くの山や月の出が、手前の地形に隠れるかどうかの判定に使います。";
+  const eye = Math.round(ground + m);
+  const far = 3.57 * Math.sqrt(Math.max(0, eye)) * 1.15;   // 屈折込みの地平線までの距離
+  return `目の高さは 標高${Math.round(ground)}m + ${m}m = ${eye}m。`
+       + `遮るものが無ければ ${far.toFixed(0)}km 先まで見通せます。`;
+}
+function renderEyeNote() { $("favEyeNote").textContent = eyeNote(); }
+$("favEye").onchange = () => {
+  const found = EYE_HEIGHTS.find(([v]) => v === $("favEye").value);
+  favDraft.eyeHeightAGL = found ? found[2] : 1.5;
+  renderEyeNote();
+};
+
 // 入力途中で閉じたら黙って消える、を避ける。消した登録は戻せるが、打った文字は戻せない。
 function favDirty() {
   const o = favDraft.origin;
   return $("favName").value.trim() !== o.name || $("favNote").value.trim() !== o.note
-    || ($("favTerrain").value || "") !== o.terrain || favDraft.phenomena.join(",") !== o.phenomena;
+    || ($("favTerrain").value || "") !== o.terrain || favDraft.phenomena.join(",") !== o.phenomena
+    || (favDraft.eyeHeightAGL ?? 1.5) !== (o.eyeHeightAGL ?? 1.5);
 }
 function closeFavSheet() {
   if (favDirty() && !confirm("入力した内容を破棄しますか？")) return false;
@@ -2307,6 +2351,7 @@ $("favSave").onclick = () => {
   const entry = { id: favDraft.id, name, subtitle: favDraft.subtitle || "",
     latitude: favDraft.latitude, longitude: favDraft.longitude,
     terrain: favDraft.terrain || null, elevation: favDraft.elevation ?? null,
+    eyeHeightAGL: favDraft.eyeHeightAGL ?? null,
     phenomena: favDraft.phenomena, note: $("favNote").value.trim() };
   if (at >= 0) favorites[at] = entry; else favorites.push(entry);
   if (!saveFavorites()) {
