@@ -8,7 +8,7 @@
      connect-src を実際に使う相手だけに絞れば、盗んだトークンの持ち出し先を塞げる。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://djlorenz.github.io https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://djlorenz.github.io https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -570,12 +570,40 @@
     <button class="tap" id="favToggle"></button>
   </div>
 
+<style>
+/* 富士山カード。既存の現象カードと似すぎない程度に、でも浮かない範囲で */
+#fujiCard { padding: 14px 16px; }
+.fuji-head { display: flex; align-items: baseline; gap: 8px; }
+.fuji-icon { font-size: 20px; }
+.fuji-title { font-weight: 600; font-size: 16px; flex: 1; }
+.fuji-score { font-size: 30px; font-weight: 700; line-height: 1; }
+.fuji-unit { font-size: 13px; font-weight: 400; margin-left: 2px; }
+.fuji-band { margin-top: 4px; font-size: 14px; }
+.fuji-when { margin-top: 2px; font-size: 13px; }
+.fuji-parts { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.fuji-part { flex: 1 1 30%; min-width: 96px; display: flex; justify-content: space-between;
+             align-items: baseline; gap: 6px; padding: 6px 9px; border-radius: 8px;
+             background: var(--chip, rgba(127,127,127,.12)); font-size: 12px; }
+.fuji-part b { font-size: 14px; }
+.fuji-geo { margin-top: 10px; line-height: 1.6; }
+.fuji-more { margin-top: 8px; }
+.fuji-more summary { cursor: pointer; padding: 4px 0; min-height: 28px; }
+.fuji-hours { display: flex; gap: 6px; overflow-x: auto; padding: 6px 0 2px;
+              -webkit-overflow-scrolling: touch; }
+.fuji-hour { flex: 0 0 auto; text-align: center; padding: 6px 10px; border-radius: 8px;
+             background: var(--chip, rgba(127,127,127,.12)); font-size: 11px; white-space: nowrap; }
+.fuji-hour b { display: block; font-size: 15px; margin-top: 2px; }
+</style>
   <div class="card" id="nowcast" hidden></div>
   <div id="status" class="card muted" hidden></div>
 
   <!-- 一覧画面: この地点の全現象を、7日ぶんまとめて見る -->
   <div id="listView">
     <div class="card" id="bestNote" hidden></div>
+    <!-- 富士山が見えるか。**見える地点でだけ出す。**
+         見えない地点に「見えません」と出し続けても邪魔なだけ。
+         地形の判定には標高タイルの取得が要るので、地点ごとに一度測って憶える。 -->
+    <div class="card" id="fujiCard" hidden></div>
     <!-- 並び替え。既定は「標準」＝現象の固定順で、行の位置が動かない。
          点数順・信頼度順は、その日だけ上位を知りたいときに明示的に選ぶもの。
          選択肢が4つあり、押すたびに全部を作り直す形はうるさいのでプルダウンにする。 -->
@@ -840,6 +868,12 @@
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
 <script src="sorami-core.js?v=20260913003328"></script>
+<!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
+     星空の月明かりが依存している。触らずに足す）。 -->
+<script src="sorami-astro.js?v=20260914"></script>
+<script src="sorami-terrain.js?v=20260914"></script>
+<script src="sorami-mountain.js?v=20260914"></script>
+<script src="sorami-fuji.js?v=20260914"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1201,6 +1235,143 @@ function upcoming(entries, now) {
       || entries.find((e) => !e.evaluation.unavailable) || entries[0];
 }
 
+// ---------------------------------------------------------------- 富士山
+//
+// **見える地点でだけ出す。** 見えない地点に「見えません」と出し続けても邪魔なだけ。
+// 地形の判定には標高タイルの取得（数枚）が要るので、地点ごとに一度測って憶える。
+//
+// 既存の7現象とは器が違う。7現象は「その日のスコア」だが、富士山は
+// 地点の幾何に強く依存し、地形で見えない地点では天気を見る意味がない。
+// SCORERS へ混ぜず、別のカードにしてある。
+let fujiGeom = null;         // いま見ている地点の幾何（憶えたもの）
+let fujiWeather = null;      // 富士山と回廊の天気
+let fujiKey = null;          // どの地点のものか
+let fujiGrid = null;         // data/fuji-grid.json（一度だけ読む）
+
+// **地面の標高は DEM から取る。**
+// `bundle.home.grid.elevation` は「予報を取った地点」のもので、地点を切り替えた直後は
+// 前の地点の値が残る。山中湖で東京の 30m を使い、富士山が地形に隠れる判定になった
+// （2026-09-14）。手入力の標高も、座標がずれていれば嘘になる（富士 §7・§8）。
+let fujiGroundCache = new Map();
+async function fujiObserver() {
+  const key = `${place.latitude.toFixed(4)},${place.longitude.toFixed(4)}`;
+  if (!fujiGroundCache.has(key)) {
+    let g = null;
+    try { g = await SoramiTerrain.elevationFromTile(place.latitude, place.longitude, 13); } catch {}
+    if (g === null || g === undefined) g = place.elevation ?? bundle?.home.grid.elevation ?? 0;
+    fujiGroundCache.set(key, g);
+  }
+  return {
+    latitude: place.latitude, longitude: place.longitude,
+    groundM: fujiGroundCache.get(key),
+    elevation: fujiGroundCache.get(key) + (place.eyeHeightAGL ?? 1.5),
+  };
+}
+
+async function loadFujiGrid() {
+  if (fujiGrid) return fujiGrid;
+  try {
+    const r = await fetch("data/fuji-grid.json");
+    if (!r.ok) return null;
+    fujiGrid = await r.json();
+    return fujiGrid;
+  } catch { return null; }
+}
+
+async function updateFuji() {
+  const card = $("fujiCard");
+  const obs = await fujiObserver();
+  // 日本の外なら、そもそも富士山の話をしない
+  if (!SoramiTerrain.inJapan(obs.latitude, obs.longitude)) { card.hidden = true; return; }
+  const key = SoramiFuji.cacheKeyFor(obs);
+  if (key !== fujiKey) { fujiGeom = null; fujiWeather = null; fujiKey = key; }
+
+  const grid = await loadFujiGrid();
+  if (!grid) { card.hidden = true; return; }
+
+  if (!fujiGeom) {
+    // 測っている間は、そう見せる。黙って何も出ないと壊れて見える
+    card.hidden = false;
+    card.innerHTML = `<div class="muted">富士山が見えるか調べています…</div>`;
+    try {
+      fujiGeom = await SoramiFuji.resolveGeometry(obs, grid, { store: window.localStorage });
+    } catch (e) {
+      card.innerHTML = `<div class="muted">富士山の判定ができませんでした（${e.message}）</div>`;
+      return;
+    }
+  }
+  if (!fujiGeom.available) { card.hidden = true; return; }
+  // 地形で見えない地点では、天気を取りに行かない（§3 幾何が先）
+  if (fujiGeom.classification === "NONE") { card.hidden = true; return; }
+
+  if (!fujiWeather) {
+    try { fujiWeather = await SoramiFuji.fetchFujiWeather(obs, S, { days: 3 }); } catch { fujiWeather = null; }
+  }
+  fujiEyeM = obs.elevation;
+  renderFuji();
+}
+
+let fujiEyeM = 0;
+function renderFuji() {
+  const card = $("fujiCard");
+  if (!fujiGeom || !fujiGeom.available || !bundle) { card.hidden = true; return; }
+  const now = Date.now();
+  // 今からの3日ぶんを、日中の代表時刻で見る
+  const hours = [];
+  for (let h = 0; h < 72; h += 1) {
+    const t = Math.round((now + h * 3600000) / 3600000) * 3600000;
+    const local = new Date(t + (bundle.utcOffsetSeconds ?? 32400) * 1000);
+    const hh = local.getUTCHours();
+    if (hh < 6 || hh > 17) continue;
+    const e = SoramiFuji.evaluateFuji(fujiGeom, fujiWeather, bundle.home, t,
+      { air: bundle.air, observerEyeM: fujiEyeM });
+    if (e.available && !e.blockedByTerrain) hours.push({ t, local, e });
+  }
+  if (!hours.length) { card.hidden = true; return; }
+
+  const best = hours.reduce((a, b) => (b.e.score > a.e.score ? b : a));
+  const g = fujiGeom;
+  const km = Math.round(g.distanceKm);
+  const size = g.apparentSize;
+  const dayLabel = (d) => {
+    const t0 = new Date(now + (bundle.utcOffsetSeconds ?? 32400) * 1000);
+    const diff = Math.round((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+      - Date.UTC(t0.getUTCFullYear(), t0.getUTCMonth(), t0.getUTCDate())) / 86400000);
+    return diff === 0 ? "今日" : diff === 1 ? "明日" : diff === 2 ? "明後日" : `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+  };
+  const hhmm = (d) => `${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+
+  const parts = best.e.parts.filter((p) => p.pct !== null)
+    .map((p) => `<div class="fuji-part"><span>${p.label}</span><b>${p.pct}%</b></div>`).join("");
+  const geomLine = g.classification === "FULL"
+    ? "手前に遮るものはありません"
+    : `山体の <b>${Math.round(g.fraction * 100)}%</b> が地形の上に出ています`;
+
+  card.hidden = false;
+  card.innerHTML = `
+    <div class="fuji-head">
+      <span class="fuji-icon">🗻</span>
+      <span class="fuji-title">富士山</span>
+      <span class="fuji-score">${best.e.score}<span class="fuji-unit">点</span></span>
+    </div>
+    <div class="fuji-band">${best.e.band.label}・${best.e.band.says}</div>
+    <div class="muted fuji-when">いちばん良いのは ${dayLabel(best.local)} ${hhmm(best.local)} ごろ</div>
+    <div class="fuji-parts">${parts}</div>
+    <div class="tiny fuji-geo">
+      ここから <b>${km}km</b>。${geomLine}。
+      見かけの大きさは <b>${size.deg.toFixed(1)}度</b>（満月${size.moonDiameters.toFixed(0)}個ぶん・${size.label}）
+    </div>
+    <details class="tiny fuji-more">
+      <summary>この先3日</summary>
+      <div class="fuji-hours">${hours.map((h) =>
+        `<div class="fuji-hour"><span>${dayLabel(h.local)} ${hhmm(h.local)}</span><b>${h.e.score}</b></div>`).join("")}</div>
+      <p class="muted" style="margin-top:8px">
+        くっきり度は ${best.e.clarity === null ? "不明" : Math.round(best.e.clarity * 100)}（${best.e.clarityWhy}）。
+        信頼度 ${best.e.confidence}。
+      </p>
+    </details>`;
+}
+
 function render() {
   const now = Date.now();
   $("placeName").textContent = place.name;
@@ -1364,7 +1535,10 @@ function render() {
     + `<strong>これは予測です。</strong>気象庁や ECMWF が出している予報を材料に、`
     + `このアプリが独自に点数を付けたものです。実際の空とは違うことがあります。`
     + `見に行くかどうかの目安としてお使いください。<br>`
-    + `予報: Open-Meteo ／ 実況: 気象庁アメダス ／ 光害: <a href="https://djlorenz.github.io/astronomy/lp/">Lorenz Light Pollution Atlas 2025</a>（VIIRS） ／ 検索: OSM Nominatim ・ 国土地理院`;
+    + `予報: Open-Meteo ／ 実況: 気象庁アメダス ／ 光害: <a href="https://djlorenz.github.io/astronomy/lp/">Lorenz Light Pollution Atlas 2025</a>（VIIRS） ／ 検索: OSM Nominatim ・ 標高: 国土地理院`;
+
+  // 富士山は通信が要るので、予報の描画を待たせない。**失敗しても本体を巻き込まない**
+  updateFuji().catch((e) => { console.warn("富士山の判定に失敗:", e); $("fujiCard").hidden = true; });
 }
 
 function wireOutcomes(root) {

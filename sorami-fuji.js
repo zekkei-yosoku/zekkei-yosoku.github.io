@@ -340,11 +340,83 @@
     };
   }
 
+  // ------------------------------------------------------------------ 幾何の記憶
+  /*
+   * **幾何はその地点で二度と変わらない**（§28 Geometry Cache）。
+   * 地形も地球の丸みも動かない。一度測ったら憶えて使い回す。
+   *
+   * 測るのに通信が要る（標高タイル数枚）ので、毎回やると開くたびに待たされる。
+   */
+  const CACHE_KEY = "sorami.fuji.geometry";
+  const CACHE_VERSION = 2;          // 計算を変えたら上げる。古い記憶を使い続けない
+  const CACHE_MAX = 40;
+
+  /// 記憶の鍵。**目の高さも含める**（展望台に上がれば結果が変わる）
+  const cacheKeyFor = (obs) =>
+    `${obs.latitude.toFixed(4)},${obs.longitude.toFixed(4)},${Math.round(obs.elevation)}`;
+
+  function readCache(store) {
+    try {
+      const raw = store ? store.getItem(CACHE_KEY) : null;
+      const j = raw ? JSON.parse(raw) : null;
+      return j && j.v === CACHE_VERSION && j.items ? j : { v: CACHE_VERSION, items: {} };
+    } catch { return { v: CACHE_VERSION, items: {} }; }
+  }
+  function writeCache(store, cache) {
+    try {
+      const keys = Object.keys(cache.items);
+      if (keys.length > CACHE_MAX) {
+        // 古いものから捨てる
+        keys.sort((a, b) => (cache.items[a].at || 0) - (cache.items[b].at || 0))
+            .slice(0, keys.length - CACHE_MAX).forEach((k) => delete cache.items[k]);
+      }
+      if (store) store.setItem(CACHE_KEY, JSON.stringify(cache));
+    } catch { /* 容量いっぱい等。**憶えられなくても動く** */ }
+  }
+
+  /**
+   * その地点から富士山がどう見えるか（幾何だけ）。憶えていればそれを返す。
+   *
+   * @param {object} obs  { latitude, longitude, elevation }（elevation は目の高さ）
+   * @param {object} grid data/fuji-grid.json
+   */
+  async function resolveGeometry(obs, grid, { store = null, binDeg = 0.4, ...opts } = {}) {
+    const key = cacheKeyFor(obs);
+    const cache = readCache(store);
+    if (cache.items[key]) return { ...cache.items[key].geom, fromCache: true };
+
+    const sil = MT.silhouette(obs, grid, opts);
+    if (!sil) {
+      const geom = { available: false, reason: "山体に届く点が無い" };
+      cache.items[key] = { at: Date.now(), geom }; writeCache(store, cache);
+      return { ...geom, fromCache: false };
+    }
+    // **輪郭のある方位だけ測る。** 全周360度は要らない
+    const azs = sil.outline.map((o) => o.azimuth);
+    let lo = Math.min(...azs), hi = Math.max(...azs), shift = 0;
+    if (hi - lo > 180) {                       // 0/360 をまたぐとき
+      const w = azs.map((a) => (a > 180 ? a - 360 : a));
+      lo = Math.min(...w); hi = Math.max(...w); shift = 360;
+    }
+    const want = [];
+    for (let a = lo; a <= hi + 1e-9; a += binDeg) want.push(((a % 360) + 360) % 360);
+    // 山体の手前までで打ち切る。**富士山自身を遮蔽物として数えない**
+    const maxKm = Math.max(1, sil.nearestKm - 0.5);
+    const profile = await TR.measureHorizon(obs, want, { maxKm, ...opts });
+    const hz = TR.combinedHorizon({ terrain: profile });
+    const geom = { ...MT.geometry(obs, grid, hz, opts), horizonProfile: profile, measuredAt: Date.now() };
+    delete geom.silhouette;                     // 記憶が肥大するので輪郭そのものは持たない
+    cache.items[key] = { at: Date.now(), geom };
+    writeCache(store, cache);
+    return { ...geom, fromCache: false };
+  }
+
   const SoramiFuji = {
     FUJI, CLOUD_BANDS, FUJI_VARS, CORRIDOR_VARS,
     sightLineHeightM, corridorPoints, fetchFujiWeather,
     viewpointClear, corridorClear, summitClear, seeThrough,
     clarityOf, evaluateFuji, BANDS, bandOf, readAt, median,
+    resolveGeometry, cacheKeyFor, CACHE_KEY, CACHE_VERSION,
     FREE_AIR_EXTINCTION_PER_KM, CONTRAST_THRESHOLD, HOME_NEEDS, aerosolScaleHeightKm,
   };
   global.SoramiFuji = SoramiFuji;

@@ -84,6 +84,87 @@
     return out;
   }
 
+  // ---------------------------------------------------------------- 標高タイル
+  /*
+   * 国土地理院の標高タイル（dem_png）。**1リクエストで 256x256 = 65536点。**
+   * Open-Meteo の標高API（1回100点）より桁が3つ多い。CORS も開いている
+   * （`access-control-allow-origin: *` を実測確認）。
+   *
+   * **日本国内だけ。** 外はこれまでどおり Open-Meteo を使う。
+   * 出典表示が要る: 国土地理院「標高タイル」
+   */
+  const GSI_TILE = "https://cyberjapandata.gsi.go.jp/xyz/dem_png";
+  const JAPAN = { minLat: 20, maxLat: 46, minLon: 122, maxLon: 154 };
+  const inJapan = (lat, lon) =>
+    lat >= JAPAN.minLat && lat <= JAPAN.maxLat && lon >= JAPAN.minLon && lon <= JAPAN.maxLon;
+
+  const tileXf = (lon, z) => (lon + 180) / 360 * 2 ** z;
+  const tileYf = (lat, z) => {
+    const r = lat * DEG;
+    return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * 2 ** z;
+  };
+  /// 画素の RGB を標高[m]へ。(128,0,0) は「標高なし」（国土地理院の仕様）
+  function pixelToElevation(r, g, b) {
+    if (r === 128 && g === 0 && b === 0) return null;
+    const x = r * 65536 + g * 256 + b;
+    return x < 8388608 ? x * 0.01 : (x - 16777216) * 0.01;
+  }
+
+  const tiles = new Map();
+  /// タイルを1枚読む。**同じタイルは二度取りに行かない。**
+  function loadTile(z, x, y) {
+    const key = `${z}/${x}/${y}`;
+    if (tiles.has(key)) return tiles.get(key);
+    const p = new Promise((resolve) => {
+      if (typeof Image === "undefined" || typeof document === "undefined") { resolve(null); return; }
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const c = document.createElement("canvas");
+          c.width = img.width; c.height = img.height;
+          const ctx = c.getContext("2d", { willReadFrequently: true });
+          ctx.drawImage(img, 0, 0);
+          resolve(ctx.getImageData(0, 0, img.width, img.height));
+        } catch { resolve(null); }        // 汚染された canvas 等。**落とさない**
+      };
+      img.onerror = () => resolve(null);  // 海など、タイルの無い区画は 404
+      img.src = `${GSI_TILE}/${z}/${x}/${y}.png`;
+    });
+    tiles.set(key, p);
+    return p;
+  }
+
+  /// 標高タイルから1点。取れなければ null（呼び手が Open-Meteo へ落とす）
+  async function elevationFromTile(lat, lon, z = 11) {
+    if (!inJapan(lat, lon)) return null;
+    const fx = tileXf(lon, z), fy = tileYf(lat, z);
+    const img = await loadTile(z, Math.floor(fx), Math.floor(fy));
+    if (!img) return null;
+    const px = Math.min(img.width - 1, Math.floor((fx % 1) * img.width));
+    const py = Math.min(img.height - 1, Math.floor((fy % 1) * img.height));
+    const i = (py * img.width + px) * 4;
+    return pixelToElevation(img.data[i], img.data[i + 1], img.data[i + 2]);
+  }
+
+  /**
+   * 標高をまとめて引く。**日本国内なら標高タイル、外なら Open-Meteo。**
+   * タイルは1枚65536点ぶんなので、まとまった範囲を見るときに桁違いに速い。
+   */
+  async function elevations(points, opts = {}) {
+    if (!points.length) return [];
+    if (points.every((p) => inJapan(p.latitude, p.longitude)) && typeof Image !== "undefined") {
+      const out = await Promise.all(points.map((p) => elevationFromTile(p.latitude, p.longitude, opts.zoom ?? 11)));
+      if (out.every((v) => v !== null)) return out;
+      // 一部でも取れなければ、取れなかったぶんだけ Open-Meteo で埋める
+      const missing = points.filter((_, i) => out[i] === null);
+      const filled = await fetchElevations(missing, opts);
+      let k = 0;
+      return out.map((v) => (v === null ? filled[k++] : v));
+    }
+    return fetchElevations(points, opts);
+  }
+
   /**
    * 目の高さの目安（富士 §8「ObserverHeightAGLが不明な場合」）。
    *
@@ -117,7 +198,7 @@
    * @param {number} eyeHeightAGL 地面からの目の高さ[m]。展望台やビルならその高さ
    */
   async function resolveObserver(latitude, longitude, { eyeHeightAGL = 1.5, statedElevation = null, ...opts } = {}) {
-    const [ground] = await fetchElevations([{ latitude, longitude }], opts);
+    const [ground] = await elevations([{ latitude, longitude }], opts);
     if (ground === null || ground === undefined) {
       if (statedElevation === null) throw new Error("地面の標高が取れませんでした");
       return { latitude, longitude, groundM: statedElevation, eyeHeightAGL,
@@ -168,7 +249,7 @@
     for (const az of azimuths) {
       for (const d of dists) points.push(destination(observer.latitude, observer.longitude, az, d));
     }
-    const elevs = await fetchElevations(points, opts);
+    const elevs = await elevations(points, opts);
 
     const result = [];
     let i = 0;
@@ -258,7 +339,7 @@
     const step = opts.step ?? Math.max(0.09, total / (MAX_POINTS - 1));
     const dists = stepsFor({ maxKm: total * 0.999, step });
     const pts = dists.map((d) => destination(observer.latitude, observer.longitude, az, d));
-    const elevs = await fetchElevations(pts, opts);
+    const elevs = await elevations(pts, opts);
     return {
       azimuth: az,
       totalKm: total,
@@ -271,7 +352,8 @@
   const SoramiTerrain = {
     MAX_POINTS, DEFAULT_STEPS,
     destination, bearing, distanceKm,
-    fetchElevations, resolveObserver, measureHorizon, horizonFunction, combinedHorizon,
+    fetchElevations, elevations, elevationFromTile, inJapan, resolveObserver,
+    measureHorizon, horizonFunction, combinedHorizon,
     profileToward, stepsFor, EYE_HEIGHT_PRESETS,
   };
   global.SoramiTerrain = SoramiTerrain;
