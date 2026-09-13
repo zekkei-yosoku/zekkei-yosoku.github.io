@@ -85,6 +85,40 @@
   }
 
   /**
+   * 観測者の目の高さを決める（富士 §7・§8）。
+   *
+   *   目の高さ = 地面の標高（DEM）+ 立っている高さ
+   *
+   * **地面の標高は DEM から取る。手入力の数字を使わない。**
+   * 食い違うと、すぐ脇に幻の壁が立つか、逆に無い視界が開ける。
+   * 2026-09-14 に河口湖の座標で 172m ずれ、100m先に 50度の壁ができて
+   * 「富士山がまったく見えない」と出た。
+   *
+   * 手入力の値は「DEM と大きく違わないか」の確認にだけ使う。
+   *
+   * @param {number} eyeHeightAGL 地面からの目の高さ[m]。展望台やビルならその高さ
+   */
+  async function resolveObserver(latitude, longitude, { eyeHeightAGL = 1.5, statedElevation = null, ...opts } = {}) {
+    const [ground] = await fetchElevations([{ latitude, longitude }], opts);
+    if (ground === null || ground === undefined) {
+      if (statedElevation === null) throw new Error("地面の標高が取れませんでした");
+      return { latitude, longitude, groundM: statedElevation, eyeHeightAGL,
+               elevation: statedElevation + eyeHeightAGL, source: "手入力（DEMが取れず）", mismatchM: null };
+    }
+    const mismatch = statedElevation === null ? null : Math.round(statedElevation - ground);
+    return {
+      latitude, longitude, groundM: ground, eyeHeightAGL,
+      elevation: ground + eyeHeightAGL,
+      source: "DEM",
+      mismatchM: mismatch,
+      // 大きくずれていたら座標を疑う。**黙って進めない**
+      warning: mismatch !== null && Math.abs(mismatch) > 30
+        ? `手入力の標高 ${statedElevation}m と DEM の ${Math.round(ground)}m が ${Math.abs(mismatch)}m 違います。座標を確かめてください`
+        : null,
+    };
+  }
+
+  /**
    * 見る距離の刻み。
    *
    * **近いほど細かく。** 500m の丘でも 10km なら 2.8度で、100km 先の富士山（1.8度）を隠す。
@@ -189,7 +223,7 @@
   const SoramiTerrain = {
     MAX_POINTS, DEFAULT_STEPS,
     destination, bearing, distanceKm,
-    fetchElevations, measureHorizon, horizonFunction, profileToward, stepsFor,
+    fetchElevations, resolveObserver, measureHorizon, horizonFunction, profileToward, stepsFor,
   };
   global.SoramiTerrain = SoramiTerrain;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiTerrain;

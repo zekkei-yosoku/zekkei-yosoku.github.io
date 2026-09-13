@@ -31,10 +31,38 @@
    * @param {object} grid  build-fuji-grid.mjs が作ったもの
    * @param {number} binDeg 方位の刻み（既定 0.05度。満月の直径の1/10）
    */
-  function silhouette(observer, grid, { binDeg = 0.05, ...opts } = {}) {
+  /// 同梱の格子（Int16 を base64 にしたもの）を開く。**一度だけ開いて憶える。**
+  const opened = new WeakMap();
+  function openGrid(grid) {
+    if (grid.cells) return grid;                    // 既に配列で持っているもの
+    let g = opened.get(grid);
+    if (g) return g;
+    const bin = typeof atob === "function"
+      ? Uint8Array.from(atob(grid.data), (c) => c.charCodeAt(0))
+      : new Uint8Array(Buffer.from(grid.data, "base64"));
+    g = { ...grid, values: new Int16Array(bin.buffer, bin.byteOffset, bin.byteLength / 2) };
+    opened.set(grid, g);
+    return g;
+  }
+
+  /// 格子のマスを順に返す（欠測と、低すぎて山体でないものは飛ばす）
+  function* cellsOf(grid, minElevationM) {
+    const g = openGrid(grid);
+    if (g.cells) { for (const c of g.cells) if (c[2] >= minElevationM) yield c; return; }
+    for (let r = 0; r < g.rows; r++) {
+      const la = g.lat0 + r * g.dLat;
+      for (let c = 0; c < g.cols; c++) {
+        const v = g.values[r * g.cols + c];
+        if (v === g.noData || v < minElevationM) continue;
+        yield [la, g.lon0 + c * g.dLon, v];
+      }
+    }
+  }
+
+  function silhouette(observer, grid, { binDeg = 0.05, minElevationM = 1000, ...opts } = {}) {
     const bins = new Map();
     let nearestKm = Infinity, farthestKm = 0;
-    for (const [la, lo, el] of grid.cells) {
+    for (const [la, lo, el] of cellsOf(grid, minElevationM)) {
       const d = TR.distanceKm(observer.latitude, observer.longitude, la, lo);
       if (d < 0.05) continue;                       // 山の上に立っている場合
       const az = TR.bearing(observer.latitude, observer.longitude, la, lo);
@@ -146,7 +174,7 @@
   }
 
   const SoramiMountain = {
-    silhouette, visibleFraction, apparentSize, geometry, APPARENT_SIZE_BANDS,
+    silhouette, visibleFraction, apparentSize, geometry, APPARENT_SIZE_BANDS, openGrid, cellsOf,
   };
   global.SoramiMountain = SoramiMountain;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiMountain;
