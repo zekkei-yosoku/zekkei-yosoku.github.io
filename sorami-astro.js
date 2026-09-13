@@ -311,14 +311,39 @@
   }
 
   /**
+   * **対象の山そのものを「遮る地形」から外す。**
+   *
+   * 山頂へ向かう視線は、当然その山の斜面の上を通る。近くから見るほど、
+   * 山頂の少し手前の斜面のほうが「空では高い位置」に来る。素朴に判定すると
+   * **富士山が富士山に隠される**（2026-09-14、山中湖から15kmで実際に起きた）。
+   *
+   * 対象の側から遡り、標高が単調に下がっている間は「その山の斜面」とみなして外す。
+   *
+   * **既定では使わない**（`excludeTargetSlope: true` を渡したときだけ）。
+   * 富士山では火口で標高が窪むため、遡りが外輪の手前で止まってしまい、
+   * 近い外輪が「遮蔽物」として残る。**それは事実としては正しい**
+   * （剣ヶ峰そのものは北側の外輪に隠れうる）が、知りたいのは
+   * 「富士山が見えるか」であって「剣ヶ峰の一点が見えるか」ではない。
+   * 山体として扱う話は P1（Mountain Silhouette）で解く。ここでは点対象の
+   * 判定を歪めないよう、既定を素通しにしてある。
+   */
+  function withoutTargetSlope(profile) {
+    const p = [...profile].sort((a, b) => a.distanceKm - b.distanceKm);
+    let i = p.length - 1;
+    while (i > 0 && p[i - 1].elevationM <= p[i].elevationM) i--;
+    return p.slice(0, i);
+  }
+
+  /**
    * 対象が地形に遮られていないかを見る。
    * @param {Array} profile [{ distanceKm, elevationM }] 観測者から対象へ向かう線上の標高
    * @returns {object} { blocked, byDistanceKm, marginDeg }
    */
   function terrainBlocks(profile, observerHeightM, targetDistanceKm, targetHeightM, opts = {}) {
     const target = targetElevationAngle(targetDistanceKm, observerHeightM, targetHeightM, opts);
+    const use = opts.excludeTargetSlope ? withoutTargetSlope(profile) : profile;
     let worst = null;
-    for (const p of profile) {
+    for (const p of use) {
       if (!(p.distanceKm > 0) || p.distanceKm >= targetDistanceKm) continue;
       const a = targetElevationAngle(p.distanceKm, observerHeightM, p.elevationM, opts);
       if (worst === null || a > worst.angle) worst = { angle: a, distanceKm: p.distanceKm };
@@ -433,7 +458,7 @@
     findCrossing, moonCrossings, moonEvents,
     // 幾何
     EARTH_R_KM, REFRACTION_K,
-    targetElevationAngle, horizonDistanceKm, curvatureDropM, terrainBlocks,
+    targetElevationAngle, horizonDistanceKm, curvatureDropM, terrainBlocks, withoutTargetSlope,
   };
 
   global.SoramiAstro = SoramiAstro;

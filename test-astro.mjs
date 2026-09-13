@@ -107,6 +107,42 @@ console.log("== 幾何（地球の丸みと大気差）==");
      "標高800mに立てば 10km 500m の丘は越えられる");
 }
 
+console.log("== 地形の地平線で出没が遅れる／早まる ==");
+{
+  const obs = { latitude: 35.6581, longitude: 139.7414, elevation: 0 };
+  const JST = 9 * 3600000, day = Date.UTC(2026, 8, 20) - JST;
+  const flat = A.moonEvents(day, day + 86400000, obs, {});
+  const riseFlat = flat.astronomical.find((e) => e.kind === "rise");
+  ok(!!riseFlat, "平らな地平線での月の出が出る");
+
+  // 月が実際に出る方角（この日は東京で方位124度あたり）に 2度の尾根を置く
+  const ridge = A.moonEvents(day, day + 86400000, obs, {
+    horizonAt: (az) => (az > 110 && az < 140 ? 2.0 : 0) });
+  const first = ridge.terrain.find((e) => e.kind === "rise" && e.event === "firstLimb");
+  const center = ridge.terrain.find((e) => e.kind === "rise" && e.event === "center");
+  const full = ridge.terrain.find((e) => e.kind === "rise" && e.event === "fullDisk");
+  const bright = ridge.brightLimb.find((e) => e.kind === "rise");
+  ok(!!first && !!center && !!full, "地形からの3つの時刻が別々に出る");
+  ok(first.at > riseFlat.at, "尾根があると月の出は遅れる",
+     `${((first.at - riseFlat.at) / 60000).toFixed(1)} 分`);
+  ok((first.at - riseFlat.at) / 60000 > 10 && (first.at - riseFlat.at) / 60000 < 20,
+     "2度の尾根なら遅れは10〜20分", `${((first.at - riseFlat.at) / 60000).toFixed(1)} 分`);
+  ok(first.at < center.at && center.at < full.at, "上端→中心→全体の順に出てくる");
+  ok(!!bright && bright.at >= first.at, "明るい縁は円盤の上端より遅い（か同時）",
+     `${((bright.at - first.at) / 1000).toFixed(0)} 秒差`);
+  // 月の方位から外れたところの尾根は効かない（§14「固定の地平線高度を使わない」）。
+  // この日この場所では 出=方位124度 / 入=方位237度。西側だけに尾根を置く
+  const elsewhere = A.moonEvents(day, day + 86400000, obs, {
+    horizonAt: (az) => (az > 225 && az < 250 ? 5.0 : 0) });
+  const e1 = elsewhere.terrain.find((x) => x.kind === "rise" && x.event === "firstLimb");
+  ok(Math.abs(e1.at - riseFlat.at) < 1000, "月の通らない方角の尾根は月の出に効かない");
+  // ただし月の入りには効く（西の方角なので）
+  const s1 = elsewhere.terrain.find((x) => x.kind === "set" && x.event === "full");
+  const sFlat = flat.astronomical.find((e) => e.kind === "set");
+  ok(s1.at < sFlat.at, "西の尾根は月の入りを早める",
+     `${((sFlat.at - s1.at) / 60000).toFixed(1)} 分早い`);
+}
+
 console.log("== USNO の月出没と突き合わせる ==");
 {
   const PLACES = [
