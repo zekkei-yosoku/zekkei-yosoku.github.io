@@ -593,6 +593,12 @@
 .fuji-hour { flex: 0 0 auto; text-align: center; padding: 6px 10px; border-radius: 8px;
              background: var(--chip, rgba(127,127,127,.12)); font-size: 11px; white-space: nowrap; }
 .fuji-hour b { display: block; font-size: 15px; margin-top: 2px; }
+.fuji-comp { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(127,127,127,.22); }
+.fuji-comp-t { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.fuji-comp-r { display: flex; gap: 10px; align-items: baseline; padding: 3px 0; font-size: 12px; }
+.fuji-comp-r .n { font-weight: 600; flex: 0 0 auto; }
+.fuji-comp-r .d { font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+.fuji-comp-r .w { color: var(--muted, #999); }
 
 /* 月。時系列は**横スクロール**（§51）。**自動では動かさない**（§52 カルーセル禁止） */
 #moonCard { padding: 14px 16px; }
@@ -913,6 +919,7 @@
 <script src="sorami-mountain.js?v=20260914"></script>
 <script src="sorami-fuji.js?v=20260914"></script>
 <script src="sorami-moon.js?v=20260914"></script>
+<script src="sorami-composition.js?v=20260914"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1286,6 +1293,7 @@ let fujiGeom = null;         // いま見ている地点の幾何（憶えたも
 let fujiWeather = null;      // 富士山と回廊の天気
 let fujiKey = null;          // どの地点のものか
 let fujiGrid = null;         // data/fuji-grid.json（一度だけ読む）
+let fujiComposition = null;  // パール富士・ダイヤモンド富士（幾何だけ。天気と混ぜない）
 
 // **地面の標高は DEM から取る。**
 // `bundle.home.grid.elevation` は「予報を取った地点」のもので、地点を切り替えた直後は
@@ -1323,7 +1331,7 @@ async function updateFuji() {
   // 日本の外なら、そもそも富士山の話をしない
   if (!SoramiTerrain.inJapan(obs.latitude, obs.longitude)) { card.hidden = true; return; }
   const key = SoramiFuji.cacheKeyFor(obs);
-  if (key !== fujiKey) { fujiGeom = null; fujiWeather = null; fujiKey = key; }
+  if (key !== fujiKey) { fujiGeom = null; fujiWeather = null; fujiComposition = null; fujiKey = key; }
 
   const grid = await loadFujiGrid();
   if (!grid) { card.hidden = true; return; }
@@ -1347,6 +1355,19 @@ async function updateFuji() {
     try { fujiWeather = await SoramiFuji.fetchFujiWeather(obs, S, { days: 3 }); } catch { fujiWeather = null; }
   }
   fujiEyeM = obs.elevation;
+  // 構図は幾何だけなので、天気を待たずに計算できる。1年先まで探す
+  try {
+    const T = { latitude: SoramiFuji.FUJI.latitude, longitude: SoramiFuji.FUJI.longitude,
+                elevationM: SoramiFuji.FUJI.summitM, name: "富士山" };
+    const from = Date.now(), to = from + 366 * 86400000;
+    const all = [
+      ...SoramiComposition.findAlignments("sun", obs, T, from, to, { stepMs: 300000 })
+        .map((c) => ({ ...c, name: SoramiComposition.nameOf("sun", T) })),
+      ...SoramiComposition.findAlignments("moon", obs, T, from, to, { stepMs: 300000 })
+        .map((c) => ({ ...c, name: SoramiComposition.nameOf("moon", T) })),
+    ].sort((a, b) => a.at - b.at);
+    fujiComposition = all;
+  } catch (e) { console.warn("構図の計算に失敗:", e); fujiComposition = null; }
   renderFuji();
 }
 
@@ -1382,6 +1403,29 @@ function renderFuji() {
 
   const parts = best.e.parts.filter((p) => p.pct !== null)
     .map((p) => `<div class="fuji-part"><span>${p.label}</span><b>${p.pct}%</b></div>`).join("");
+  // 構図（パール富士・ダイヤモンド富士）。**天気と混ぜない**（§82）。
+  // 「重なる瞬間」は何年先でも計算できるが、晴れるかは予報の届く範囲でしか分からない
+  const compHtml = fujiComposition && fujiComposition.length ? `
+    <div class="fuji-comp">
+      <div class="fuji-comp-t">この地点で重なる日</div>
+      ${fujiComposition.slice(0, 4).map((c) => {
+        const d = moonLocal(c.at);
+        const ill = c.illuminatedFraction === null ? ""
+          : `・輝面 ${Math.round(c.illuminatedFraction * 100)}%`;
+        const where = c.kind === "on" ? "山頂に重なる"
+          : c.kind === "above" ? "山頂のすぐ上" : "山頂のすぐ下";
+        return `<div class="fuji-comp-r">
+          <span class="n">${c.name}</span>
+          <span class="d">${d.getUTCMonth() + 1}/${d.getUTCDate()} ${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, "0")}</span>
+          <span class="w">${where}${ill}</span></div>`;
+      }).join("")}
+      <p class="muted" style="margin-top:6px">
+        重なる時刻は地形と天文だけで決まります。<strong>そのとき晴れているかは別</strong>で、
+        予報が届くのは数日先までです。
+        <strong>立つ位置で日が変わります</strong>（田貫湖では湖の端から端で11日ずれます）。
+      </p>
+    </div>` : "";
+
   const geomLine = g.classification === "FULL"
     ? "手前に遮るものはありません"
     : `山体の <b>${Math.round(g.fraction * 100)}%</b> が地形の上に出ています`;
@@ -1400,6 +1444,7 @@ function renderFuji() {
       ここから <b>${km}km</b>。${geomLine}。
       見かけの大きさは <b>${size.deg.toFixed(1)}度</b>（満月${size.moonDiameters.toFixed(0)}個ぶん・${size.label}）
     </div>
+    ${compHtml}
     <details class="tiny fuji-more">
       <summary>この先3日</summary>
       <div class="fuji-hours">${hours.map((h) =>
