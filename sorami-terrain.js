@@ -275,6 +275,144 @@
     return result;
   }
 
+  // ---------------------------------------------------------------- 建物（urban 層）
+
+  // Overpass は**よく 504 を返す**（混んでいる時間帯は連発する。2026-09-14 実測）。
+  // 1本だけに頼ると市街地で建物層が入らない日ができるので、順に試す。
+  const OVERPASS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+  ];
+
+  /// タグから高さ[m]を出す。`height` が無ければ階数から見積もる
+  function buildingHeightM(tags) {
+    if (!tags) return null;
+    const h = parseFloat(String(tags.height ?? "").replace("m", "").trim());
+    if (Number.isFinite(h) && h > 0 && h < 700) return h;
+    const lv = parseFloat(tags["building:levels"]);
+    // 3.5m/階 ＋ 屋上構造物ぶん 2m。**推定値であることを呼び出し側へ返す**
+    if (Number.isFinite(lv) && lv > 0 && lv < 200) return lv * 3.5 + 2;
+    return null;
+  }
+
+  /**
+   * 建物が作る地平線（月 §19 の `urban` 層）。
+   *
+   * **輪郭の頂点ごとに距離を取る。** 重心＋固定幅で近似すると、20m先の1棟が
+   * 方位74度ぶんを塗りつぶす。最近傍距離の仰角を建物の方位幅すべてへ当てると、
+   * 中央値55度というあり得ない地平線になる（2026-09-14、どちらも実際に踏んだ）。
+   *
+   * **限界（呼び出し側で利用者へ伝えること）:**
+   * - OSM で高さを持つ建物は全体の13%（6地点4041棟の実測）。地域差が大きく
+   *   再開発地区は50〜60%、地方都市と郊外は2%。**欠けているぶんは低く出る**
+   * - 値そのものが誤っていることがある（東京都庁第一本庁舎は `height=133`、実際243.4m）
+   * - **建物の地面の高さを観測者と同じとみなしている。** 斜面では誤差になる
+   * - 欠落も誤りも「隠れにくい側」へ倒れるので、**この地平線は下限**
+   */
+  async function urbanHorizon(observer, {
+    radiusM = [1000, 400], step = 1, endpoint = OVERPASS, fetchImpl = null, signal = null,
+    timeoutMs = 25000,
+  } = {}) {
+    // 半径も段階で試す。混んでいる時間帯は 1km が通らず 300m は 4秒で通る（実測）。
+    // **近場だけでも入れたほうが、何も入らないよりずっと真値に近い**（建物は近いほど効く）。
+    const radii = Array.isArray(radiusM) ? radiusM : [radiusM];
+    if (radii.length > 1) {
+      for (const r of radii) {
+        const got = await urbanHorizon(observer,
+          { radiusM: r, step, endpoint, fetchImpl, signal, timeoutMs });
+        if (got) return got;
+      }
+      return null;
+    }
+    const R = radii[0];
+    const f = fetchImpl || (typeof fetch === "function" ? fetch : null);
+    if (!f) return null;
+    const { latitude: lat, longitude: lon } = observer;
+    const eyeAGL = Math.max(0, (observer.elevation ?? 0) - (observer.groundM ?? 0)) || 1.5;
+
+    // **高さを持つものだけをサーバ側で絞る。** 絞らずに半径2kmを引くと Overpass が 504 を返す。
+    // 実測（新宿中央公園・半径1km）: 4566件 / 転送 410KB（gzip）。
+    //
+    // **高さでさらに絞らない。** 転送量は減るが、住宅地の地平線が壊れる（2026-09-14 実測）。
+    //
+    // | 絞り | 新宿（高層街） | 世田谷（住宅地） |
+    // |---|---|---|
+    // | 12m超/4階以上 | 取りこぼし 0度・転送 146KB | **459/1440方位が低く出る・最大10.33度** |
+    // | 20m超/6階以上 | 6方位・最大2.20度 | 1059/1440方位・最大19.60度 |
+    //
+    // 高層街では小さい建物が一度も地平線を取らないので絞っても変わらない。
+    // 住宅地では2階建てが地平線そのもの。**新宿だけで測っていたら誤った判断をしていた。**
+    const q = `[out:json][timeout:120];(`
+      + `way["building"]["height"](around:${R},${lat},${lon});`
+      + `way["building"]["building:levels"](around:${R},${lat},${lon});`
+      + `way["man_made"="tower"]["height"](around:${R},${lat},${lon});`
+      + `);out tags geom;`;
+
+    const endpoints = Array.isArray(endpoint) ? endpoint : [endpoint];
+    let data = null;
+    for (const url of endpoints) {
+      try {
+        // **必ず打ち切る。** Overpass は 504 を返さず**そのまま返ってこない**ことがある
+        // （2026-09-14、50秒待っても応答なし）。待ち続けると月の行が永久に出ない。
+        const res = await f(url, {
+          method: "POST",
+          signal: signal || (typeof AbortSignal !== "undefined" && AbortSignal.timeout
+            ? AbortSignal.timeout(timeoutMs) : undefined),
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: "data=" + encodeURIComponent(q),
+        });
+        if (!res.ok) continue;                 // 504/429 は次のミラーへ
+        const d = await res.json();
+        // Overpass は打ち切っても 200 で返し、`remark` に理由を書く。**黙って使わない**
+        if (!d || d.remark || !Array.isArray(d.elements)) continue;
+        data = d; break;
+      } catch { /* 次のミラーへ */ }
+    }
+    if (!data) return null;
+
+    const N = Math.round(360 / step);
+    const prof = new Array(N).fill(-90);
+    let used = 0, estimated = 0, tallest = null;
+
+    for (const el of data.elements) {
+      const h = buildingHeightM(el.tags);
+      const g = el.geometry;
+      if (h === null || !g || g.length < 3) continue;
+      if (el.tags && el.tags.height === undefined) estimated++;
+      used++;
+
+      const pts = g.map((pt) => [bearing(lat, lon, pt.lat, pt.lon),
+                                 distanceKm(lat, lon, pt.lat, pt.lon) * 1000]);
+      if (Math.min(...pts.map((x) => x[1])) < 2) continue;   // 自分が建物の中
+
+      for (let i = 0; i < pts.length; i++) {
+        const [b1, d1] = pts[i], [b2, d2] = pts[(i + 1) % pts.length];
+        let db = ((b2 - b1 + 540) % 360) - 180;
+        if (Math.abs(db) > 90) continue;      // 観測者を囲む異常な形
+        const n = Math.max(1, Math.ceil(Math.abs(db) / step));
+        for (let k = 0; k <= n; k++) {
+          const t = k / n;
+          const b = ((b1 + db * t) % 360 + 360) % 360;
+          const d = d1 + (d2 - d1) * t;
+          if (d < 2) continue;
+          const a = Math.atan2(h - eyeAGL, d) / DEG;
+          const idx = Math.round(b / step) % N;
+          if (a > prof[idx]) {
+            prof[idx] = a;
+            if (!tallest || a > tallest.angleDeg) {
+              tallest = { angleDeg: a, name: el.tags?.name || null,
+                          heightM: h, distanceM: Math.round(d), azimuth: b };
+            }
+          }
+        }
+      }
+    }
+    if (!used) return null;
+    const profile = prof.map((v, i) => ({ azimuth: i * step, horizonAngleDeg: v }));
+    profile.meta = { buildings: used, estimatedHeights: estimated, radiusM: R, tallest };
+    return profile;
+  }
+
   /**
    * 地平線を**種類ごとに持って、重ねる**（月 §19）。
    *
@@ -354,6 +492,7 @@
     destination, bearing, distanceKm,
     fetchElevations, elevations, elevationFromTile, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
+    urbanHorizon, buildingHeightM, OVERPASS,
     profileToward, stepsFor, EYE_HEIGHT_PRESETS,
   };
   global.SoramiTerrain = SoramiTerrain;

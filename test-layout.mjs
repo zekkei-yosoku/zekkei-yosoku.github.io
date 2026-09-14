@@ -236,6 +236,37 @@ ok(/function moonEvents\(startMs, spanMs\)[\s\S]{0,900}SoramiAstro\.moonEvents/.
 ok(!/S\.Moon\.state\(/.test(html), "core の地心計算を月の出入りの表示に呼んでいない");
 ok(!/MOON_H0/.test(html), "旧実装の判定高度（MOON_H0）を残していない");
 
+console.log("== 建物の地平線（urban 層）==");
+// 新宿中央公園では月が地平線より上にいる時間の 31.3% が建物の裏（2026-09-14 実測）。
+// 地形だけだと市街地の地平線はほぼ 0度で、見えない時間を見えると言ってしまう。
+ok(/connect-src[^"]*https:\/\/overpass-api\.de/.test(html), "CSP に Overpass を通してある");
+ok(/SoramiTerrain\.urbanHorizon\(/.test(html), "建物の地平線を取りに行く");
+// 建物は非同期。まず地形だけで地平線を作り、届いたら重ねて作り直す。
+// 取れなければ地形だけのまま（`.catch(() => {})` で黙って落ちない）
+ok(/fn = SoramiTerrain\.combinedHorizon\(\{ terrain: prof \}\)/.test(html),
+  "まず地形だけで地平線を作る");
+ok(/moonHorizon = SoramiTerrain\.combinedHorizon\(\s*moonTerrainProfile \?/.test(html),
+  "建物が届いたら地平線を作り直す");
+ok(/loadUrbanHorizon\(obs\)[\s\S]{0,600}\.catch\(\(\) => \{\}\)/.test(html),
+  "建物が取れなくても地形だけで続ける");
+ok(/URBAN_CACHE_KEY/.test(html) && /URBAN_CACHE_VERSION/.test(html),
+  "地点ごとにキャッシュする（毎回 410KB 引かない）");
+ok(/radiusM: \[1000, 400\]/.test(html), "半径も段階で試す");
+ok(/地図に高さが登録されていない建物は入りません/.test(html),
+  "不完全なデータであることを画面に出す");
+ok(/半径\$\{moonUrbanMeta\.radiusM\}mの建物 \$\{moonUrbanMeta\.buildings\} 棟/.test(html), "どの半径で何棟入れたかを出す");
+// Overpass は混むと30秒返ってこない（実測）。待つと月の行がその間ずっと出ない。
+ok(/loadUrbanHorizon\(obs\)\.then\(/.test(html), "建物は待たずに、届いたら差し替える");
+ok(/moonUrbanTried = true;[\s\S]{0,200}loadUrbanHorizon/.test(html), "取得は地点ごとに1回だけ");
+// 地形の測定は標高APIが混むと429で落ちる。市街地の地平線を決めているのは建物なので、
+// 地形が取れないことを理由に建物まで諦めない
+ok(/if \(!moonUrbanTried\) \{/.test(html), "地形が取れなくても建物は取りに行く");
+ok(/moonTerrainProfile \? \{ terrain: moonTerrainProfile, urban \} : \{ urban \}/.test(html),
+  "地形が無ければ建物だけで地平線を作る");
+// 地点が変わったら建物も捨てる。残すと引っ越しても前の場所の地平線のままになる
+ok(/moonTerrainProfile = null; moonUrbanMeta = null; moonUrbanTried = false;/.test(html),
+  "地点が変わったら建物の状態も捨てる");
+
 console.log("== 地平線は全周を測る ==");
 // 「今日の月の方位 ±8度」だけ測っていたが、月の出の方位は14日で45度以上動く
 // （東京: 79.9〜125.3度）。測っていない方位は horizonFunction が線形補間で埋めるので、

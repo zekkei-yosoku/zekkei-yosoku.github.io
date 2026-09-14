@@ -8,7 +8,7 @@
      connect-src を実際に使う相手だけに絞れば、盗んだトークンの持ち出し先を塞げる。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://djlorenz.github.io https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://overpass-api.de https://overpass.kumi.systems https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://djlorenz.github.io https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -911,15 +911,15 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260914210200"></script>
+<script src="sorami-core.js?v=20260914234634"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260914210200"></script>
-<script src="sorami-terrain.js?v=20260914210200"></script>
-<script src="sorami-mountain.js?v=20260914210200"></script>
-<script src="sorami-fuji.js?v=20260914210200"></script>
-<script src="sorami-moon.js?v=20260914210200"></script>
-<script src="sorami-composition.js?v=20260914210200"></script>
+<script src="sorami-astro.js?v=20260914234634"></script>
+<script src="sorami-terrain.js?v=20260914234634"></script>
+<script src="sorami-mountain.js?v=20260914234634"></script>
+<script src="sorami-fuji.js?v=20260914234634"></script>
+<script src="sorami-moon.js?v=20260914234634"></script>
+<script src="sorami-composition.js?v=20260914234634"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1335,6 +1335,45 @@ function upcoming(entries, now) {
 let fujiGeom = null, fujiWeather = null, fujiComposition = null, fujiGrid = null;
 let moonHorizon = null;
 let moonObs = null;      // 地平線を測ったときの観測者。詳細の月の出入り計算が同じ前提を使う
+let moonUrbanMeta = null; // 建物層の内訳（何棟・推定が何棟・いちばん高いもの）
+let moonTerrainProfile = null; // 地形だけの地平線。建物が届いたら重ねて作り直す
+let moonUrbanTried = false;    // 建物の取得は地点ごとに1回だけ
+
+// 建物の地平線。地点ごとに localStorage へ置く。
+//
+// **毎回引かない。** 半径1kmで 410KB（新宿・gzip後）あり、建物はほぼ動かない。
+// 版を上げれば作り直す。地点は小数3桁（約100m）で丸めて同じ扱いにする。
+const URBAN_CACHE_KEY = "sorami.urbanHorizon";
+const URBAN_CACHE_VERSION = 1;
+const URBAN_MAX_AGE_MS = 180 * 86400000;   // 半年
+
+async function loadUrbanHorizon(obs) {
+  const key = `${obs.latitude.toFixed(3)},${obs.longitude.toFixed(3)},${Math.round(obs.elevation)}`;
+  const box = store.get(URBAN_CACHE_KEY, null);
+  if (box && box.v === URBAN_CACHE_VERSION && box.items && box.items[key]
+      && Date.now() - box.items[key].at < URBAN_MAX_AGE_MS) {
+    const hit = box.items[key];
+    const prof = hit.profile;
+    prof.meta = hit.meta;
+    return prof;
+  }
+  // 1km が通らない時間帯があるので段階で試す（内訳にどの半径を使ったか残る）
+  const prof = await SoramiTerrain.urbanHorizon(obs, { radiusM: [1000, 400] });
+  if (!prof) return null;
+  // 保存するのは方位と角度だけ（0.01度で丸める）。生の建物は持たない
+  const slim = prof.map((x) => ({ azimuth: x.azimuth,
+                                  horizonAngleDeg: Math.round(x.horizonAngleDeg * 100) / 100 }));
+  const next = (box && box.v === URBAN_CACHE_VERSION) ? box : { v: URBAN_CACHE_VERSION, items: {} };
+  next.items[key] = { at: Date.now(), profile: slim, meta: prof.meta };
+  // 地点を増やしすぎない。古いものから落とす
+  const keys = Object.keys(next.items);
+  if (keys.length > 12) {
+    keys.sort((a, b) => next.items[a].at - next.items[b].at);
+    for (const k of keys.slice(0, keys.length - 12)) delete next.items[k];
+  }
+  store.set(URBAN_CACHE_KEY, next);
+  return prof;
+}
 let extrasRunning = false;   // 再入を防ぐ（render は何度も呼ばれる）
 let extraKey = null;         // どの地点のものか
 let extraSeq = 0;            // 地点を切り替えたときに、遅れて来た結果を捨てる
@@ -1380,7 +1419,14 @@ async function loadExtras() {
   const obs = await observerHere();
   if (seq !== extraSeq) return;
   const key = SoramiFuji.cacheKeyFor(obs);
-  if (key !== extraKey) { fujiGeom = null; fujiWeather = null; fujiComposition = null; moonHorizon = null; extraKey = key; }
+  // 地点が変わったら**全部捨てる**。建物の取得フラグを残すと、引っ越しても
+  // 前の場所の地平線のままになる
+  if (key !== extraKey) {
+    fujiGeom = null; fujiWeather = null; fujiComposition = null;
+    moonHorizon = null; moonObs = null;
+    moonTerrainProfile = null; moonUrbanMeta = null; moonUrbanTried = false;
+    extraKey = key;
+  }
   const days = weeks[Object.keys(weeks)[0]]?.map((e) => e.dayMs) ?? [];
   if (!days.length) return;
 
@@ -1402,11 +1448,39 @@ async function loadExtras() {
       for (let a = 0; a < 360; a += 1) azs.push(a);
       const prof = await SoramiTerrain.measureHorizon(obs, azs, { maxKm: 40 });
       if (seq !== extraSeq) return;
+
       fn = SoramiTerrain.combinedHorizon({ terrain: prof });
+      moonTerrainProfile = prof;
     } catch { /* 測れなくても平らな地平線で出す。**黙って消さない** */ }
     moonHorizon = fn;
   }
   moonObs = obs;
+
+  // 建物は**待たない**。
+  //
+  // 新宿中央公園では月が地平線より上にいる時間の 31.3% が建物の裏で、
+  // 地形だけだと市街地の地平線はほぼ 0度。見えない時間を見えると言ってしまうので
+  // 建物は要る。だが Overpass は混むと 30秒返ってこない（実測）。
+  // 待ってから月の行を作ると、その間ずっと行が出ない。
+  // **先に地形だけで出して、建物が届いたら差し替える。**
+  //
+  // **地形が取れたかどうかと切り離す。** 地形の測定は標高APIが混むと 429 で落ちるが、
+  // 市街地の地平線を決めているのは地形ではなく建物。地形が無いことを理由に
+  // 建物まで諦めると、いちばん効く層を捨てることになる（2026-09-14 実際にそうなっていた）。
+  if (!moonUrbanTried) {
+    moonUrbanTried = true;
+    loadUrbanHorizon(obs).then((urban) => {
+      if (!urban || seq !== extraSeq) return;
+      moonHorizon = SoramiTerrain.combinedHorizon(
+        moonTerrainProfile ? { terrain: moonTerrainProfile, urban } : { urban });
+      moonUrbanMeta = urban.meta;
+      // 建物ぶん地平線が上がるので、月の点数も付け直す
+      weeks.moon = days.map((dayMs) => ({ dayMs,
+        evaluation: SoramiMoon.evaluateDay(obs, dayMs, S,
+          { horizonAt: moonHorizon, readingAt: readingFor, airAt: airFor }) }));
+      rerenderList();
+    }).catch(() => {});
+  }
   weeks.moon = days.map((dayMs) => ({ dayMs,
     evaluation: SoramiMoon.evaluateDay(obs, dayMs, S,
       { horizonAt: moonHorizon, readingAt: readingFor, airAt: airFor }) }));
@@ -1994,9 +2068,13 @@ function renderMoonTimes(dayMs) {
       <span></span><span class="lt-h">月の出</span><span class="lt-h">月の入り</span>
       ${rows.map(([l, a, b]) => `<span class="lt-l">${esc(l)}</span><span>${hm(a)}</span><span>${hm(b)}</span>`).join("")}
     </div>
-    <div class="tiny" style="margin-top:6px;color:var(--tertiary)">「この場所では」は${moonHorizon && moonHorizon.layers && moonHorizon.layers.length
-      ? esc(moonHorizon.layers.includes("urban") ? "地形と建物" : "まわりの地形")
-      : "まわりの地形"}を実測した地平線です。山があれば遅く、高い場所なら早くなります。</div>
+    <div class="tiny" style="margin-top:6px;color:var(--tertiary)">「この場所では」は${moonHorizon && moonHorizon.layers && moonHorizon.layers.includes("urban")
+      ? "まわりの地形と建物" : "まわりの地形"}を実測した地平線です。山や建物があれば遅く、高い場所なら早くなります。</div>
+    ${moonUrbanMeta ? `<div class="tiny" style="margin-top:4px;color:var(--tertiary)">半径${moonUrbanMeta.radiusM}mの建物 ${moonUrbanMeta.buildings} 棟を入れています${
+      moonUrbanMeta.estimatedHeights ? `（うち ${moonUrbanMeta.estimatedHeights} 棟は階数からの見積もり）` : ""}。${
+      moonUrbanMeta.tallest && moonUrbanMeta.tallest.name
+        ? `いちばん高く見えるのは ${esc(moonUrbanMeta.tallest.name)}（${Math.round(moonUrbanMeta.tallest.heightM)}m・${moonUrbanMeta.tallest.distanceM}m先）。` : ""
+      }<strong>地図に高さが登録されていない建物は入りません</strong>ので、実際はもう少し隠れます。</div>` : ""}
     ${noVisible ? `<div class="tiny" style="margin-top:4px;color:var(--tertiary)">出入りのころに見える見込みは最大 ${Math.round(peak * 100)}% で、「見え始め」の時刻は出ませんでした。</div>` : ""}
     ${note}</div>`;
 }
