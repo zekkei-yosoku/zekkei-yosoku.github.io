@@ -205,6 +205,66 @@ ok(/HIGHLIGHT_HEAD\s*=\s*\{[\s\S]*?fair:/.test(html), "fair 用の見出しが�
 ok(!/HIGHLIGHT_HEAD\s*=\s*\{[\s\S]*?poor:\s*"/.test(html),
   "poor は表に持たせない（候補を並べない扱いにするため）");
 
+console.log("== 月の詳細に月の出・月の入りを出す ==");
+// 月の行で知りたいのは点数より「何時に出て、そのとき見えるか」（2026-09-14 ユーザー）。
+// timeline / markers は sorami-moon.js に前からあったが、画面へ繋いでいなかった。
+ok(/function renderMoonTimes\(/.test(html), "renderMoonTimes がある");
+ok(/id === "moon" \? renderMoonTimes\(sel\.dayMs\) : ""/.test(html), "月の詳細から呼んでいる");
+ok(/SoramiAstro\.moonEvents\([\s\S]{0,120}horizonAt/.test(html),
+  "平らな地平線ではなく、測った地平線で月の出入りを出す");
+for (const label of ["空の上では", "地形から", "まるごと", "見え始め"]) {
+  ok(html.includes(`"${label}"`) || html.includes(`["${label}"`),
+    `「${label}」の段がある`);
+}
+ok(/class="lt"/.test(html.slice(html.indexOf("function renderMoonTimes"),
+                                html.indexOf("function renderLightTimes"))),
+  "既存の .lt を使い回す（新しい見た目を作らない）");
+ok(/月は毎日およそ50分おそくなる/.test(html), "出ない日・入らない日を黙って空欄にしない");
+
+console.log("== 地平線は全周を測る ==");
+// 「今日の月の方位 ±8度」だけ測っていたが、月の出の方位は14日で45度以上動く
+// （東京: 79.9〜125.3度）。測っていない方位は horizonFunction が線形補間で埋めるので、
+// 表の後ろの日は実測していない地平線で判定していた。
+ok(/for \(let a = 0; a < 360; a \+= 1\) azs\.push\(a\)/.test(html), "全周を1度刻みで測る");
+ok(!/for \(let d = -8; d <= 8; d \+= 2\) azs\.push/.test(html), "月の方位まわりだけを測る旧実装が残っていない");
+
+console.log("== 月と富士山を「次の見どころ」に出さない ==");
+// 晴れていればだいたい見えるので、放っておくと見どころの枠を占め続け、
+// 雲海や虹のような「その日だけ」の現象を押し出す（2026-09-14 ユーザー指摘）。
+// 表の行としては残すので、除外は見どころの選定だけに効かせる。
+const pickHighlight = runInNewContext(
+  html.slice(html.indexOf("const LEAD_PENALTY"), html.indexOf("function pickHighlight"))
+  + html.slice(html.indexOf("function pickHighlight"),
+               html.indexOf("\n}", html.indexOf("function pickHighlight")) + 2)
+  + ";pickHighlight", { S: coreMod });
+
+const mkEv = (score) => ({ score, peak: 1000, window: [0, 9e15], unavailable: false,
+  confidence: { key: "high" }, models: 8 });
+const weeksBoth = {
+  moon:        [{ evaluation: mkEv(98) }],
+  fuji:        [{ evaluation: mkEv(97) }],
+  seaOfClouds: [{ evaluation: mkEv(40) }],
+};
+const gotBoth = pickHighlight(weeksBoth, 0);
+ok(gotBoth && gotBoth.id === "seaOfClouds",
+  `98点の月と97点の富士山があっても40点の雲海が見どころになる（実際: ${gotBoth && gotBoth.id}）`);
+
+// 除外が効きすぎて何も出なくならないこと
+const gotOnlyMoon = pickHighlight({ moon: [{ evaluation: mkEv(98) }] }, 0);
+ok(gotOnlyMoon === null, "月しか無ければ見どころは出ない（月を見どころに昇格させない）");
+
+// 通常の現象どうしの選定は変えていない
+const gotNormal = pickHighlight({
+  sunset: [{ evaluation: mkEv(70) }], rainbow: [{ evaluation: mkEv(85) }],
+}, 0);
+ok(gotNormal && gotNormal.id === "rainbow", "月・富士山以外の選び方は変わっていない");
+
+// フラグは PHENOMENA 側に持つ（id のベタ書きにしない）
+ok(coreMod.PHENOMENA.moon.highlight === false, "PHENOMENA.moon.highlight が false");
+ok(coreMod.PHENOMENA.fuji.highlight === false, "PHENOMENA.fuji.highlight が false");
+ok(coreMod.PHENOMENA.seaOfClouds.highlight !== false, "雲海は見どころに出す");
+ok(!/id === "moon"[\s\S]{0,40}continue/.test(html), "除外を id のベタ書きで書いていない");
+
 console.log("== 「±0」を出さない ==");
 // 51通りが全部同じ値になることは珍しくない（上限や100点の頭打ちに張り付く）。
 // そのとき「±0」と出すと、点数が正確だという意味に読める。実測誤差は当日でも12.6点ある。

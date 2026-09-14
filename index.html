@@ -896,15 +896,15 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260914095115"></script>
+<script src="sorami-core.js?v=20260914200917"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260914095115"></script>
-<script src="sorami-terrain.js?v=20260914095115"></script>
-<script src="sorami-mountain.js?v=20260914095115"></script>
-<script src="sorami-fuji.js?v=20260914095115"></script>
-<script src="sorami-moon.js?v=20260914095115"></script>
-<script src="sorami-composition.js?v=20260914095115"></script>
+<script src="sorami-astro.js?v=20260914200917"></script>
+<script src="sorami-terrain.js?v=20260914200917"></script>
+<script src="sorami-mountain.js?v=20260914200917"></script>
+<script src="sorami-fuji.js?v=20260914200917"></script>
+<script src="sorami-moon.js?v=20260914200917"></script>
+<script src="sorami-composition.js?v=20260914200917"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1088,6 +1088,38 @@ const HIGHLIGHT_HEAD = {
   // renderBestNote で別の形にする。
 };
 const CONF_ICON = { high: "◎", medium: "△", low: "⚠︎" };
+
+// 「次の見どころ」を14日ぶん全部から選ぶ。
+//
+// 36時間以内に絞っていた時期があるが、ほとんどの日は該当が無く
+// 「本日の絶景はなさそうです」の1行で終わっていた。2日後に良好な日があっても
+// 言わないので、見に行く日を決める役に立っていなかった。
+//
+// ただし点数だけで選ぶと、信頼度Cの7日先が最上位に出る。
+// 先の予測ほど当たらないので、確からしさで割り引いてから比べる。
+// 引く量は評価の帯の間隔（20〜25点）を目安にしている。
+const LEAD_PENALTY = { A: 0, B: 6, C: 16 };
+
+// 月と富士山は見どころに出さない（`PHENOMENA[id].highlight === false`）。
+// 他の現象は起きるか起きないかで、起きれば出かける理由になる。
+// 月と富士山は**晴れていればだいたい見える**ので、条件の良い日は必ず上位へ来て
+// 見どころの枠を占め続け、雲海や虹のような「その日だけ」を押し出す。
+// 表の行としては同じ重みで残す（見どころに出さないだけ）。
+function pickHighlight(weeks, now) {
+  let best = null;
+  for (const [id, entries] of Object.entries(weeks)) {
+    if (S.PHENOMENA[id] && S.PHENOMENA[id].highlight === false) continue;
+    for (const e of entries) {
+      const ev = e.evaluation;
+      if (!ev || ev.unavailable || ev.window[1] <= now) continue;
+      const merit = ev.score - LEAD_PENALTY[S.reliabilityGrade(ev.confidence, ev.models).key];
+      if (!best || merit > best.merit || (merit === best.merit && ev.peak < best.u.evaluation.peak)) {
+        best = { id, u: e, merit };
+      }
+    }
+  }
+  return best;
+}
 
 // ---------------------------------------------------------------- 永続化（localStorage）
 const store = {
@@ -1287,6 +1319,7 @@ function upcoming(entries, now) {
 // 地形はその地点で二度と変わらないので、一度測って憶える（富士 §28）。
 let fujiGeom = null, fujiWeather = null, fujiComposition = null, fujiGrid = null;
 let moonHorizon = null;
+let moonObs = null;      // 地平線を測ったときの観測者。詳細の月の出入り計算が同じ前提を使う
 let extrasRunning = false;   // 再入を防ぐ（render は何度も呼ばれる）
 let extraKey = null;         // どの地点のものか
 let extraSeq = 0;            // 地点を切り替えたときに、遅れて来た結果を捨てる
@@ -1340,21 +1373,25 @@ async function loadExtras() {
   if (!moonHorizon) {
     let fn = () => 0;
     try {
-      const now = Date.now();
-      const ev0 = SoramiAstro.moonEvents(now - 6 * 3600000, now + 30 * 3600000, obs, {});
+      // 全周を1度刻みで測る。
+      //
+      // 以前は「今日の月の出入り方位 ±8度」だけを測っていたが、月の出の方位は
+      // 14日で 45度以上動く（東京: 79.9〜125.3度、月の入 234.6〜284.3度）。
+      // 測っていない方位は `horizonFunction` が**線形補間で埋める**ので、
+      // 表の後ろのほうの日は、実際には測っていない地平線で判定していた。
+      //
+      // 方位を増やしてもDEMタイルは共有される。実測（z11・maxKm 40）:
+      //   27方位 → 11枚 / 全周1度 360方位 → 24枚（全周2度も同じ24枚）
+      // 増えるのは13枚ぶんで、しかも遅延読み込み。補間をやめる価値のほうが大きい。
       const azs = [];
-      for (const e of ev0.astronomical) {
-        const m = SoramiAstro.moon(e.at, obs);
-        for (let d = -8; d <= 8; d += 2) azs.push(((m.azimuth + d) % 360 + 360) % 360);
-      }
-      if (azs.length) {
-        const prof = await SoramiTerrain.measureHorizon(obs, azs, { maxKm: 40 });
-        if (seq !== extraSeq) return;
-        fn = SoramiTerrain.combinedHorizon({ terrain: prof });
-      }
+      for (let a = 0; a < 360; a += 1) azs.push(a);
+      const prof = await SoramiTerrain.measureHorizon(obs, azs, { maxKm: 40 });
+      if (seq !== extraSeq) return;
+      fn = SoramiTerrain.combinedHorizon({ terrain: prof });
     } catch { /* 測れなくても平らな地平線で出す。**黙って消さない** */ }
     moonHorizon = fn;
   }
+  moonObs = obs;
   weeks.moon = days.map((dayMs) => ({ dayMs,
     evaluation: SoramiMoon.evaluateDay(obs, dayMs, S,
       { horizonAt: moonHorizon, readingAt: readingFor, airAt: airFor }) }));
@@ -1441,27 +1478,7 @@ function render() {
   }
   $("placeSub").textContent = subParts.join(" ・ ");
 
-  // 次の見どころ。14日ぶん全部から探す。
-  //
-  // 36時間以内に絞っていた時期があるが、ほとんどの日は該当が無く
-  // 「本日の絶景はなさそうです」の1行で終わっていた。2日後に良好な日があっても
-  // 言わないので、見に行く日を決める役に立っていなかった。
-  //
-  // ただし点数だけで選ぶと、信頼度Cの7日先が最上位に出る。
-  // 先の予測ほど当たらないので、確からしさで割り引いてから比べる。
-  // 引く量は評価の帯の間隔（20〜25点）を目安にしている。
-  const LEAD_PENALTY = { A: 0, B: 6, C: 16 };
-  let best = null;
-  for (const [id, entries] of Object.entries(weeks)) {
-    for (const e of entries) {
-      const ev = e.evaluation;
-      if (!ev || ev.unavailable || ev.window[1] <= now) continue;
-      const merit = ev.score - LEAD_PENALTY[S.reliabilityGrade(ev.confidence, ev.models).key];
-      if (!best || merit > best.merit || (merit === best.merit && ev.peak < best.u.evaluation.peak)) {
-        best = { id, u: e, merit };
-      }
-    }
-  }
+  const best = pickHighlight(weeks, now);
   // 並び: 見られる見込みのあるものが先 → あとは PHENOMENA.order（似たものが隣）。
   //
   // 以前は「直近に起きる順」で並べていたが、7日ぶんを一度に見る表では
@@ -1892,6 +1909,71 @@ const moonFace = (age) => MOON_FACES.find(([m]) => age < m) || MOON_FACES[MOON_F
 //
 // 軸は 0〜27時。夜の現象は暦をまたぐ（9/7の星空の見ごろは 9/8 0:28）。
 // 0〜24時で切ると星空が軸から落ちるので、テレビ欄と同じ27時制で描く。
+// 月の出・月の入りを時刻で出す。
+//
+// 月の行で知りたいのは点数より「何時に出て、そのとき見えるか」（2026-09-14 ユーザー）。
+// 必要な計算は sorami-moon.js の timeline / markers に既にあり、
+// 画面へ繋いでいなかっただけ。
+//
+// 4段に分けているのは、月の出が**一点ではない**ため。
+//   空の上では … 平らな地平線での理論値（暦や新聞に載る値）
+//   地形から   … 実際の山や尾根から上端が出る時刻。ここが本当の「見え始め」の下限
+//   まるごと   … 全体が出る時刻。写真に撮るならここから
+//   見え始め   … 雲と薄明を入れて、実際に視認できると見込まれる時刻
+// 平らな地平線の値だけを出すと、山に囲まれた土地では何十分も早く言うことになる。
+function renderMoonTimes(dayMs) {
+  if (typeof SoramiAstro === "undefined" || typeof SoramiMoon === "undefined") return "";
+  if (!moonObs) return "";
+  const horizonAt = moonHorizon || (() => 0);
+  let ev;
+  try {
+    ev = SoramiAstro.moonEvents(dayMs, dayMs + 86400000, moonObs, { horizonAt });
+  } catch { return ""; }
+
+  const hm = (t) => (t ? S.JstCal.hhmmRounded(t) : "—");
+  const pick = (kind, names) => {
+    for (const n of names) {
+      const hit = ev.terrain.find((e) => e.kind === kind && e.event === n);
+      if (hit) return hit.at;
+    }
+    return null;
+  };
+  const astro = (kind) => ev.astronomical.find((e) => e.kind === kind)?.at ?? null;
+
+  // 雲込みの「見え始め／最後に見える」
+  const firstVisible = (kind) => {
+    try {
+      const tl = SoramiMoon.timeline(ev, moonObs,
+        { kind, horizonAt, readingAt: readingFor, airAt: airFor });
+      if (!tl) return null;
+      const rows = kind === "rise" ? tl.rows : [...tl.rows].reverse();
+      return rows.find((r) => r.pVisible >= 0.5)?.ms ?? null;
+    } catch { return null; }
+  };
+
+  const rows = [
+    ["空の上では", astro("rise"), astro("set")],
+    ["地形から", pick("rise", ["firstLimb"]), pick("set", ["start"])],
+    ["まるごと", pick("rise", ["fullDisk"]), pick("set", ["full"])],
+    ["見え始め", firstVisible("rise"), firstVisible("set")],
+  ];
+  if (rows.every((r) => r[1] === null && r[2] === null)) return "";
+
+  // 月は毎日約50分ずれるので、出ない日・入らない日がある。黙って空欄にしない。
+  const note = (!astro("rise") || !astro("set"))
+    ? `<div class="tiny" style="margin-top:6px;color:var(--tertiary)">月は毎日およそ50分おそくなるので、この日は${!astro("rise") ? "月の出" : "月の入り"}が翌日へ回ります。</div>`
+    : "";
+  return `<div class="card">
+    <div class="lt">
+      <span></span><span class="lt-h">月の出</span><span class="lt-h">月の入り</span>
+      ${rows.map(([l, a, b]) => `<span class="lt-l">${esc(l)}</span><span>${hm(a)}</span><span>${hm(b)}</span>`).join("")}
+    </div>
+    <div class="tiny" style="margin-top:6px;color:var(--tertiary)">「地形から」は${moonHorizon && moonHorizon.layers && moonHorizon.layers.length
+      ? esc(moonHorizon.layers.includes("urban") ? "地形と建物" : "まわりの地形")
+      : "まわりの地形"}を実測した地平線で出しています。「見え始め」は雲と空の明るさを入れた見込みです。</div>
+    ${note}</div>`;
+}
+
 function renderLightTimes(dayMs, now, phenomenonId) {
   const w = S.Sun.lightWindows(dayMs, place.latitude, place.longitude);
   if (w.sunrise === null && w.sunset === null) return "";
@@ -1999,6 +2081,7 @@ function renderDayDetail(id, entries, sel, now) {
       <div style="margin-top:9px">${esc(S.phrasing(id, ev.rank).say)}</div>
       <div class="tiny" style="margin-top:4px">${CONF_ICON[ev.confidence.key]} ${esc(confidenceText(ev))}</div></div>`;
   return `${head}
+    ${id === "moon" ? renderMoonTimes(sel.dayMs) : ""}
     ${renderLightTimes(sel.dayMs, now, id)}
     <div class="card">${renderDetail(id, sel, now)}</div>
     <details class="card more"><summary>もっと詳しく</summary>
