@@ -371,6 +371,15 @@
     if (!data) return null;
 
     const N = Math.round(360 / step);
+    // **建物の無い方位は −90（この層は何も言わない）。**
+    //
+    // 0 にしてはいけない。高い場所では地平線が 0度より下がる（東京タワー150mで −0.4度）。
+    // 建物層に 0 を置くと `combinedHorizon` の max がそれを拾い、**下がった地平線を潰す**。
+    //
+    // ただし **この層だけで地平線を作ってはいけない。** −90 が大半を占めるので
+    // 月が常に地平線の上と判定される。実際そうなり、芝公園の月の出が
+    // 暦より 343分早い 2:38 と出た（2026-09-14）。
+    // 必ず地形（取れなければ平らな 0）と重ねて使う。
     const prof = new Array(N).fill(-90);
     let used = 0, estimated = 0, tallest = null;
 
@@ -424,6 +433,13 @@
    *   urban   … 建物・鉄塔など（PLATEAU / OpenStreetMap。**未実装**）
    *   user    … 利用者が現地で測って登録したもの（月 §20 UserHorizonProfile。**未実装**）
    */
+  /// 平らな地平線のプロファイル。地形が測れなかったときの下敷きに使う
+  function flatProfile(step = 1) {
+    const out = [];
+    for (let a = 0; a < 360; a += step) out.push({ azimuth: a, horizonAngleDeg: 0 });
+    return out;
+  }
+
   function combinedHorizon(layers) {
     const fns = Object.entries(layers)
       .filter(([, v]) => v && v.length)
@@ -492,7 +508,7 @@
     destination, bearing, distanceKm,
     fetchElevations, elevations, elevationFromTile, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
-    urbanHorizon, buildingHeightM, OVERPASS,
+    urbanHorizon, buildingHeightM, OVERPASS, flatProfile,
     profileToward, stepsFor, EYE_HEIGHT_PRESETS,
   };
   global.SoramiTerrain = SoramiTerrain;

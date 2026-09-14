@@ -911,15 +911,15 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260914234634"></script>
+<script src="sorami-core.js?v=20260915000525"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260914234634"></script>
-<script src="sorami-terrain.js?v=20260914234634"></script>
-<script src="sorami-mountain.js?v=20260914234634"></script>
-<script src="sorami-fuji.js?v=20260914234634"></script>
-<script src="sorami-moon.js?v=20260914234634"></script>
-<script src="sorami-composition.js?v=20260914234634"></script>
+<script src="sorami-astro.js?v=20260915000525"></script>
+<script src="sorami-terrain.js?v=20260915000525"></script>
+<script src="sorami-mountain.js?v=20260915000525"></script>
+<script src="sorami-fuji.js?v=20260915000525"></script>
+<script src="sorami-moon.js?v=20260915000525"></script>
+<script src="sorami-composition.js?v=20260915000525"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1471,10 +1471,18 @@ async function loadExtras() {
     moonUrbanTried = true;
     loadUrbanHorizon(obs).then((urban) => {
       if (!urban || seq !== extraSeq) return;
-      moonHorizon = SoramiTerrain.combinedHorizon(
-        moonTerrainProfile ? { terrain: moonTerrainProfile, urban } : { urban });
+      // **建物だけで地平線を作らない。** 建物の無い方位は −90（何も言わない）なので、
+      // 下敷きが無いと月が常に地平線の上になる。地形が測れていなければ平らな 0 を敷く。
+      moonHorizon = SoramiTerrain.combinedHorizon({
+        terrain: moonTerrainProfile || SoramiTerrain.flatProfile(), urban });
       moonUrbanMeta = urban.meta;
-      // 建物ぶん地平線が上がるので、月の点数も付け直す
+      // **効くのは主に時刻で、点数ではない。**
+      // `evaluateDay` は1日を走査して最良の時刻を採るので、低空が塞がれても
+      // 月が高く昇れば点数は変わらない。変わるのは月の出入りと「見え始め」の時刻。
+      // 実測（芝公園・西南西にザ・プリンス パークタワー 117.5m）:
+      //   月の出はほぼ動かず（0〜5分）、**月の入りが 80〜130分早まる**。
+      // 点数が動くのは「その日ずっと建物の裏」のときだけ。それでも付け直すのは、
+      // 代表時刻（peak）が変わるのと、その「ずっと裏」の日を拾うため。
       weeks.moon = days.map((dayMs) => ({ dayMs,
         evaluation: SoramiMoon.evaluateDay(obs, dayMs, S,
           { horizonAt: moonHorizon, readingAt: readingFor, airAt: airFor }) }));

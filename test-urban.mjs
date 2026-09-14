@@ -47,7 +47,9 @@ console.log("\n== 建物1棟から地平線を作る ==");
   const expect = Math.atan2(50 - 1.5, 90) * 180 / Math.PI;   // 約 28.3度
   ok(Math.abs(at(90) - expect) < 0.5, "真東の仰角が手前の面までの距離と合う",
      `${at(90).toFixed(2)}度 / 期待 ${expect.toFixed(2)}度`);
-  ok(at(270) < 0, "反対側は塞がっていない", `${at(270).toFixed(2)}度`);
+  // **建物の無い方位は −90（この層は何も言わない）。**
+  // 0 を置くと、高い場所で下がった地平線（東京タワー150mで −0.4度）を潰す。
+  ok(at(270) === -90, "建物の無い方位はこの層が何も言わない", `${at(270).toFixed(2)}度`);
   // 20m の建物が 100m 先 → 見込み角は約 11.4度ぶん。方位30度も覆っていたら塗りすぎ
   const wide = prof.filter((x) => x.horizonAngleDeg > 0).length;
   ok(wide >= 6 && wide <= 20, "塗る方位の幅が建物の見込み角に見合う", `${wide} 本`);
@@ -129,6 +131,57 @@ console.log("\n== ミラーへ切り替える ==");
   ok(got !== null, "1kmが通らなくても近場で取れる");
   ok(got && got.meta.radiusM < 1000, "使った半径を内訳に残す", got ? `${got.meta.radiusM}m` : "");
   ok(radii[0] > radii[radii.length - 1], "広いほうから順に試す", radii.join(" → "));
+}
+
+console.log("\n== 建物だけで地平線を作っても壊れない ==");
+{
+  // 地形の測定は標高APIが429で落ちることがある。そのとき建物だけで地平線を作るが、
+  // 建物の無い方位が負の値だと「月は常に地平線の上」になる
+  const urban = await T.urbanHorizon(OBS, { fetchImpl: stub({ elements: [mkBox(90, 100, 20, { height: "50" })] }) });
+  const only = T.combinedHorizon({ terrain: T.flatProfile(), urban });
+  ok(only(270) === 0, "建物の無い方位は平らな 0度", `${only(270).toFixed(2)}度`);
+  ok(only(90) > 20, "建物のある方位は上がる", `${only(90).toFixed(2)}度`);
+  // 建物層だけで作ると壊れる。**必ず下敷きを敷く**
+  const broken = T.combinedHorizon({ urban });
+  ok(broken(270) === -90, "建物層だけだと地平線が −90 になる（だから下敷きが要る）");
+  const A = require("./sorami-astro.js");
+  const obs = { latitude: 35.6556, longitude: 139.7476, elevation: 10 };
+  const day = Date.UTC(2026, 8, 14) - 9 * 3600000;
+  const flat = A.moonEvents(day, day + 86400000, obs, {});
+  const withU = A.moonEvents(day, day + 86400000, obs, { horizonAt: only });
+  const rf = flat.astronomical.find((e) => e.kind === "rise");
+  const ru = withU.terrain.find((e) => e.kind === "rise" && e.event === "firstLimb");
+  ok(!ru || ru.at >= rf.at - 60000, "月の出が暦より早くならない",
+     ru ? `${Math.round((ru.at - rf.at) / 60000)} 分` : "月の出なし");
+}
+
+console.log("\n== 建物は時刻を動かす（点数ではない）==");
+{
+  // 観測者の西に高い建物を置くと、月の入りだけが早まる。東の月の出は動かない。
+  // 実測（芝公園・西南西にザ・プリンス パークタワー 117.5m・24m先）:
+  //   月の出 0〜5分の遅れ / **月の入り 80〜130分の早まり**
+  const A = require("./sorami-astro.js");
+  // **建物を置いた座標と、月を計算する座標を揃える。**
+  // mkBox は OBS の周りに置くので、別の座標で月を出すと建物が効かない（実際に踏んだ）
+  const obs = OBS;
+  // 月の入りの方位を先に出して、そこへ建物を置く
+  const day0 = Date.UTC(2026, 8, 16) - 9 * 3600000;
+  const setEv = A.moonEvents(day0, day0 + 86400000, obs, {}).astronomical.find((e) => e.kind === "set");
+  const setAz = A.moon(setEv.at, obs).azimuth;
+  const west = await T.urbanHorizon(obs,
+    { fetchImpl: stub({ elements: [mkBox(setAz, 60, 40, { height: "120" })] }) });
+  const base = T.combinedHorizon({ terrain: T.flatProfile() });
+  const both = T.combinedHorizon({ terrain: T.flatProfile(), urban: west });
+  const day = day0;
+  const ev = (fn) => A.moonEvents(day, day + 86400000, obs, { horizonAt: fn });
+  const pick = (e, kind, name) => e.terrain.find((x) => x.kind === kind && x.event === name)?.at ?? null;
+  const f = ev(base), u = ev(both);
+  const riseShift = (pick(u, "rise", "firstLimb") ?? 0) - (pick(f, "rise", "firstLimb") ?? 0);
+  const setShift = (pick(f, "set", "start") ?? 0) - (pick(u, "set", "start") ?? 0);
+  ok(Math.abs(riseShift) < 2 * 60000, "月の出の方位に何も無ければ動かない",
+     `${Math.round(riseShift / 60000)} 分`);
+  ok(setShift > 20 * 60000, "月の入りの方位にある建物は、入りを早める",
+     `方位 ${setAz.toFixed(0)}度 / ${Math.round(setShift / 60000)} 分早まる`);
 }
 
 console.log("\n== 重ねると高いほうが勝つ ==");

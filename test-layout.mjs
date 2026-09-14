@@ -245,9 +245,9 @@ ok(/SoramiTerrain\.urbanHorizon\(/.test(html), "建物の地平線を取りに�
 // 取れなければ地形だけのまま（`.catch(() => {})` で黙って落ちない）
 ok(/fn = SoramiTerrain\.combinedHorizon\(\{ terrain: prof \}\)/.test(html),
   "まず地形だけで地平線を作る");
-ok(/moonHorizon = SoramiTerrain\.combinedHorizon\(\s*moonTerrainProfile \?/.test(html),
+ok(/moonHorizon = SoramiTerrain\.combinedHorizon\(\{[\s\S]{0,120}urban \}\)/.test(html),
   "建物が届いたら地平線を作り直す");
-ok(/loadUrbanHorizon\(obs\)[\s\S]{0,600}\.catch\(\(\) => \{\}\)/.test(html),
+ok(/loadUrbanHorizon\(obs\)[\s\S]{0,1400}\.catch\(\(\) => \{\}\)/.test(html),
   "建物が取れなくても地形だけで続ける");
 ok(/URBAN_CACHE_KEY/.test(html) && /URBAN_CACHE_VERSION/.test(html),
   "地点ごとにキャッシュする（毎回 410KB 引かない）");
@@ -261,8 +261,11 @@ ok(/moonUrbanTried = true;[\s\S]{0,200}loadUrbanHorizon/.test(html), "取得は�
 // 地形の測定は標高APIが混むと429で落ちる。市街地の地平線を決めているのは建物なので、
 // 地形が取れないことを理由に建物まで諦めない
 ok(/if \(!moonUrbanTried\) \{/.test(html), "地形が取れなくても建物は取りに行く");
-ok(/moonTerrainProfile \? \{ terrain: moonTerrainProfile, urban \} : \{ urban \}/.test(html),
-  "地形が無ければ建物だけで地平線を作る");
+// 建物層は「建物の無い方位＝−90（何も言わない）」なので、**単独で使うと壊れる**。
+// 地形が測れていなければ平らな 0 を下敷きにする（実際に単独で使って、
+// 芝公園の月の出が暦より343分早い 2:38 と出た）
+ok(/terrain: moonTerrainProfile \|\| SoramiTerrain\.flatProfile\(\), urban/.test(html),
+  "建物だけで地平線を作らず、平らな地形を下敷きにする");
 // 地点が変わったら建物も捨てる。残すと引っ越しても前の場所の地平線のままになる
 ok(/moonTerrainProfile = null; moonUrbanMeta = null; moonUrbanTried = false;/.test(html),
   "地点が変わったら建物の状態も捨てる");
