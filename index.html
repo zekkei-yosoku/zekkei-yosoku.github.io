@@ -917,16 +917,16 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260915004613"></script>
+<script src="sorami-core.js?v=20260915005921"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260915004613"></script>
-<script src="sorami-exif.js?v=20260915004613"></script>
-<script src="sorami-terrain.js?v=20260915004613"></script>
-<script src="sorami-mountain.js?v=20260915004613"></script>
-<script src="sorami-fuji.js?v=20260915004613"></script>
-<script src="sorami-moon.js?v=20260915004613"></script>
-<script src="sorami-composition.js?v=20260915004613"></script>
+<script src="sorami-astro.js?v=20260915005921"></script>
+<script src="sorami-exif.js?v=20260915005921"></script>
+<script src="sorami-terrain.js?v=20260915005921"></script>
+<script src="sorami-mountain.js?v=20260915005921"></script>
+<script src="sorami-fuji.js?v=20260915005921"></script>
+<script src="sorami-moon.js?v=20260915005921"></script>
+<script src="sorami-composition.js?v=20260915005921"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1181,6 +1181,7 @@ function cleanSighting(r) {
     photoLongitude: num(r.photoLongitude, -180, 180),
     photoAltitudeM: num(r.photoAltitudeM, -500, 9000),
     photoDistanceM: num(r.photoDistanceM, 0, 2e7),
+    photoAglM: num(r.photoAglM, -100, 1000),
     photoOutsideWindow: r.photoOutsideWindow === true };
 }
 function cleanFavorite(f) {
@@ -1766,11 +1767,27 @@ async function readShot(input, pid, peak) {
     alert("この写真には時差が入っておらず、いつの時刻か決められませんでした。");
     return;
   }
+  // 写真の標高から「地上何mで撮ったか」を出す。
+  //
+  // **写真の GPSAltitude は Geolocation API の高度とは別物。**
+  // 前者は標高（ジオイド補正済み）、後者は仕様どおり楕円体高で、
+  // 日本ではジオイドぶん 32〜38m ずれる。実測（iPhone・庄内）では
+  // 写真の標高 27.8m に対し DEM 29.2m で **1.4m** しか違わなかった
+  // （同じ端末のライブ高度は 31.8m ずれていた）。
+  // ただし**1枚での確認**なので、これだけで設定を書き換えず、食い違いを知らせるに留める。
+  let aglM = null;
+  if (Number.isFinite(r.altitudeM) && Number.isFinite(r.latitude)) {
+    try {
+      const g = await SoramiTerrain.elevationFromTile(r.latitude, r.longitude, 13);
+      if (Number.isFinite(g)) aglM = r.altitudeM - g;
+    } catch { /* 標高タイルが引けなくても記録は残す */ }
+  }
   attachShot(pid, peak, {
     observedAtMs: at,
     observedOffsetKnown: r.offsetKnown,
     photoLatitude: r.latitude, photoLongitude: r.longitude,
     photoAltitudeM: r.altitudeM,
+    photoAglM: aglM,
   });
 }
 
@@ -2616,15 +2633,54 @@ function renderPending(now, hidden) {
 
 // 押す場所は1箇所で作る。ホームと詳細で選択肢がずれると、
 // 同じ回に別々の答えが入る。
+/**
+ * 写真がどこで撮られたかを、**判断できる形で**言う。
+ *
+ * 距離を数字で出すだけだと、それが問題なのかどうかが読み手に伝わらない。
+ * この記録は「この地点のこの回」に紐づいているので、遠くで撮った写真を付けると
+ * **別の場所の空を、この地点の点数の証拠にしてしまう**。
+ *
+ * 目安（スマホの位置情報は水平で10m前後）:
+ *   〜300m   同じ場所とみなす。むしろ「その場所で撮られている」という裏付け
+ *   〜3km    同じ市街地。空の状態は近いが、地形の見え方は変わり得る
+ *   3km〜    別の場所。記録の地点が違う可能性が高い
+ */
+function shotPlaceNote(s) {
+  const d = s.photoDistanceM;
+  if (!Number.isFinite(d)) {
+    return `・<span style="color:var(--tertiary)">位置なし</span>`;
+  }
+  if (d <= 300) return "・この場所で撮影";
+  if (d <= 3000) return `・${Math.round(d / 100) / 10}km 離れた場所`;
+  return `・<strong style="color:var(--orange)">${d < 100000 ? Math.round(d / 1000) : Math.round(d / 1000)}km 離れた場所で撮影</strong>`;
+}
+
+/**
+ * 写真の標高から出した「地上何m」と、いま選んでいる「立つ高さ」が食い違ったら知らせる。
+ *
+ * **書き換えない。** 写真の標高が DEM と1.4mで合った実測は1枚だけで、
+ * これだけで設定を自動で変える根拠にはならない。気づける形にするところまで。
+ */
+function shotHeightNote(s) {
+  const agl = s.photoAglM;
+  if (!Number.isFinite(agl)) return "";
+  const chosen = place.eyeHeightAGL ?? 1.5;
+  // 20m は「5階建ての屋上」と「地面」を分ける線。写真の標高の誤差より十分大きい
+  if (Math.abs(agl - chosen) < 20) return "";
+  const near = SoramiTerrain.EYE_HEIGHT_PRESETS
+    .reduce((a, b) => (Math.abs(b.m - agl) < Math.abs(a.m - agl) ? b : a));
+  return `<div class="tiny shot-note">写真は<strong>地上 ${Math.round(agl)}m</strong>で撮られています`
+    + `（いまの設定は「${esc(SoramiTerrain.EYE_HEIGHT_PRESETS.find((x) => x.m === chosen)?.label
+        ?? chosen + "m")}」）。`
+    + `近いのは「${esc(near.label)}」です。</div>`;
+}
+
 function outcomeButtons(id, peak, current, sighting = null) {
   const shot = sighting && Number.isFinite(sighting.observedAtMs)
     ? `<div class="tiny shot-note">📷 ${S.JstCal.hhmmRounded(sighting.observedAtMs)} の写真`
-      + (Number.isFinite(sighting.photoDistanceM)
-          ? `・${sighting.photoDistanceM < 1000
-              ? Math.round(sighting.photoDistanceM) + "m"
-              : (sighting.photoDistanceM / 1000).toFixed(1) + "km"}離れた場所`
-          : "")
+      + shotPlaceNote(sighting)
       + `${sighting.photoOutsideWindow ? "・<strong>採点した時間帯の外</strong>" : ""}</div>`
+      + shotHeightNote(sighting)
     : "";
   // **写真は端末から出ない。** 撮影時刻と座標だけ読んで画像は捨てる。
   // 3択より「いつ・どこで撮ったか」のほうが照合に使える

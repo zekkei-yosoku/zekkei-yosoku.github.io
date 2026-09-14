@@ -253,6 +253,16 @@ ok(!/instantFrom\([^,]+, 540\)/.test(html), "JST を決め打ちしていない"
 ok(/photoOutsideWindow/.test(html), "採点の時間帯の外かどうかを持つ");
 ok(/採点した時間帯の外/.test(html), "外なら画面に出す");
 ok(/photoDistanceM/.test(html), "記録した地点からの距離を持つ");
+// 距離は数字を出すだけでは判断材料にならない。**スマホの写真前提**（水平10m前後）で
+// 300m以内は同じ場所、3km超は別の場所として言い方を変える
+ok(/if \(d <= 300\) return "・この場所で撮影"/.test(html), "近ければ裏付けとして言う");
+ok(/km 離れた場所で撮影<\/strong>/.test(html), "遠ければ強調して知らせる");
+// 写真の GPSAltitude は標高（ジオイド補正済み）で、Geolocation API の楕円体高とは別物。
+// 実測で DEM と 1.4m しか違わなかったので、地上高として使える
+ok(/photoAglM/.test(html), "写真から地上何mかを出す");
+ok(/function shotHeightNote/.test(html), "立つ高さと食い違ったら知らせる");
+// **1枚での確認なので自動で書き換えない**
+ok(!/place\.eyeHeightAGL = /.test(html), "写真から立つ高さを勝手に変えない");
 // 取り込んだ値を信用しない（同期でサーバー越しにも入る）
 ok(/photoLatitude: num\(r\.photoLatitude, -90, 90\)/.test(html), "緯度の範囲を検査する");
 ok(/photoOutsideWindow: r\.photoOutsideWindow === true/.test(html), "真偽値を素通りさせない");
