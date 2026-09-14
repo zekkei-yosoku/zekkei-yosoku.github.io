@@ -164,6 +164,12 @@
               font-size: 0.63rem; color: var(--tertiary); font-variant-numeric: tabular-nums; }
   .ft-ticks span { text-align: center; white-space: nowrap; }
 
+  /* 写真から時刻を読む。押す場所は他の選択肢と同じ高さに揃える。 */
+  .shot { display: inline-flex; align-items: center; min-height: 44px; margin-top: 6px;
+          color: var(--accent); font-size: 0.81rem; cursor: pointer; }
+  .shot input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .shot-note { color: var(--tertiary); margin-top: 2px; }
+
   /* まだ答えていない回。アプリを開いて1タップで済むようにする。 */
   .pending { padding: 2px 0 4px; }
   .pending-row { padding: 7px 0; border-top: 1px solid var(--line); }
@@ -911,15 +917,16 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260915001550"></script>
+<script src="sorami-core.js?v=20260915004613"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260915001550"></script>
-<script src="sorami-terrain.js?v=20260915001550"></script>
-<script src="sorami-mountain.js?v=20260915001550"></script>
-<script src="sorami-fuji.js?v=20260915001550"></script>
-<script src="sorami-moon.js?v=20260915001550"></script>
-<script src="sorami-composition.js?v=20260915001550"></script>
+<script src="sorami-astro.js?v=20260915004613"></script>
+<script src="sorami-exif.js?v=20260915004613"></script>
+<script src="sorami-terrain.js?v=20260915004613"></script>
+<script src="sorami-mountain.js?v=20260915004613"></script>
+<script src="sorami-fuji.js?v=20260915004613"></script>
+<script src="sorami-moon.js?v=20260915004613"></script>
+<script src="sorami-composition.js?v=20260915004613"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1164,9 +1171,17 @@ function cleanSighting(r) {
   if (!r || typeof r !== "object" || !isText(r.id) || !r.id) return null;
   if (!S.PHENOMENA[r.phenomenon]) return null;            // 知らない現象は描けない
   if (!Number.isFinite(r.peak)) return null;              // 日付が無いと並べられない
+  // 写真から読んだ値も信用しない。同期でサーバー越しにも入ってくる
+  const num = (v, lo, hi) => (Number.isFinite(v) && v >= lo && v <= hi ? v : null);
   return { ...r, placeName: isText(r.placeName) ? r.placeName : "",
     outcome: isText(r.outcome) ? r.outcome : "unchecked",
-    score: Number.isFinite(r.score) ? r.score : 0 };
+    score: Number.isFinite(r.score) ? r.score : 0,
+    observedAtMs: num(r.observedAtMs, 0, 4102444800000),      // 2100年まで
+    photoLatitude: num(r.photoLatitude, -90, 90),
+    photoLongitude: num(r.photoLongitude, -180, 180),
+    photoAltitudeM: num(r.photoAltitudeM, -500, 9000),
+    photoDistanceM: num(r.photoDistanceM, 0, 2e7),
+    photoOutsideWindow: r.photoOutsideWindow === true };
 }
 function cleanFavorite(f) {
   if (!f || typeof f !== "object" || !isText(f.id) || !f.id) return null;
@@ -1715,6 +1730,48 @@ function wireOutcomes(root) {
   for (const el of root.querySelectorAll("[data-outcome]")) {
     el.onclick = () => recordOutcome(el.dataset.pid, +el.dataset.peak, el.dataset.outcome);
   }
+  for (const el of root.querySelectorAll("[data-shot-pid]")) {
+    el.onchange = () => readShot(el, el.dataset.shotPid, +el.dataset.shotPeak);
+  }
+}
+
+/**
+ * 写真から撮影時刻と位置を読んで、その回の記録へ足す。
+ *
+ * **画像は端末から出ない。** 先頭 256KB だけ読んで時刻と座標を取り、あとは捨てる。
+ * 送るデータが増えないので保存先も費用も変わらない。
+ *
+ * 時刻が分かると何が良いか: いまの記録は「その日」でしか紐づいていないが、
+ * 採点は時間帯（朝焼けなら日の出前後、雲海なら日の出±1時間）に対して出している。
+ * **その時間帯の中で撮られたのかが分からないと、当たり外れを測れない。**
+ * 実際、雲海の正例162日のうち44日は採点の窓の外で撮られていた（02_検証結果）。
+ */
+async function readShot(input, pid, peak) {
+  const file = input.files && input.files[0];
+  input.value = "";                               // 同じ写真をもう一度選べるように
+  if (!file || typeof SoramiExif === "undefined") return;
+  let r = null;
+  try { r = await SoramiExif.readFile(file); } catch { r = null; }
+  if (!r || !r.takenLocal) {
+    alert("この写真からは撮影時刻を読み取れませんでした。");
+    return;
+  }
+  // 時差が無い写真（一眼はたいてい付けない）は、その地点の時差を当てる。
+  // **日本と決め打ちしない。** 取得済みの予報が持つ時差を使う
+  const offsetMin = Number.isFinite(bundle?.utcOffsetSeconds)
+    ? bundle.utcOffsetSeconds / 60 : null;
+  const at = r.takenAtMs !== null ? r.takenAtMs
+    : (offsetMin !== null ? SoramiExif.instantFrom(r.takenLocal, offsetMin) : null);
+  if (at === null) {
+    alert("この写真には時差が入っておらず、いつの時刻か決められませんでした。");
+    return;
+  }
+  attachShot(pid, peak, {
+    observedAtMs: at,
+    observedOffsetKnown: r.offsetKnown,
+    photoLatitude: r.latitude, photoLongitude: r.longitude,
+    photoAltitudeM: r.altitudeM,
+  });
 }
 
 // ---------------------------------------------------------------- 画面の行き来
@@ -2344,7 +2401,7 @@ function renderDetail(id, sel, now, opts = {}) {
   const current = findSighting(id, ev.peak);
   const record = finished
     ? `<div style="padding:8px 0"><div style="margin-bottom:6px">実際はどうでしたか？</div>
-       ${outcomeButtons(id, ev.peak, current?.outcome ?? null)}</div>`
+       ${outcomeButtons(id, ev.peak, current?.outcome ?? null, current)}</div>`
     : `<p class="tiny" style="padding:4px 0">${S.JstCal.hhmmRounded(ev.peak)} を過ぎたら記録できます</p>`;
   // 広い画面では「なぜこの点数か」と「どれくらい確かか」で列を分ける。
   // 1行を長くしないための分割で、片方だけを描けるように part で切り替える。
@@ -2457,6 +2514,43 @@ function recordOutcome(pid, peak, outcome) {
   queuePush("sight", record.id);
   render();
 }
+
+/**
+ * 写真から読んだ時刻と位置を、その回の記録へ足す。
+ *
+ * まだ答えを選んでいない回にも付けられるようにする（先に写真だけ、があり得る）。
+ * 採点の時間帯の外で撮られていたら印を付ける。**捨てずに印を付ける**——
+ * 窓の外の写真も「その日に出ていた」証拠ではあり、陰性にしてはいけない。
+ */
+function attachShot(pid, peak, shot) {
+  const entries = weeks[pid];
+  if (!entries) return;
+  const entry = entries.find((e) => Math.abs(e.evaluation.peak - peak) < 60000);
+  if (!entry) return;
+  const ev = entry.evaluation;
+  const existing = findSighting(pid, peak);
+  const far = (Number.isFinite(shot.photoLatitude) && Number.isFinite(shot.photoLongitude))
+    ? SoramiTerrain.distanceKm(place.latitude, place.longitude,
+                               shot.photoLatitude, shot.photoLongitude) * 1000
+    : null;
+  const outside = Array.isArray(ev.window)
+    && (shot.observedAtMs < ev.window[0] || shot.observedAtMs > ev.window[1]);
+  const base = existing || {
+    id: crypto.randomUUID(), recordedAt: Date.now(), phenomenon: pid,
+    placeName: place.name, placeId: place.id,
+    latitude: place.latitude, longitude: place.longitude,
+    peak, score: ev.score, rank: ev.rank.key, confidence: ev.confidence.key,
+    perModel: ev.perModel, factors: ev.factors, outcome: "unchecked",
+    observations: collectObservations(pid, peak),
+  };
+  const record = { ...base, ...shot,
+    photoDistanceM: far, photoOutsideWindow: outside };
+  if (existing) sightings = sightings.map((x) => (x.id === existing.id ? record : x));
+  else sightings.push(record);
+  store.set("sorami.sightings", sightings);
+  queuePush("sight", record.id);
+  render();
+}
 // 生の気象値を残す。閾値を変えたときに過去の記録を再採点できなければ校正のデータにならない。
 function collectObservations(pid, peak) {
   if (!bundle) return {};
@@ -2514,7 +2608,7 @@ function renderPending(now, hidden) {
           <strong>${meta.name}</strong>
           <span class="muted">${S.Cal.relativeDay(ev.peak, now)}${ev.specificTime === false ? "" : " " + S.Cal.hhmmRounded(ev.peak)}</span>
           ・<span style="color:${color}">${esc(S.phrasing(id, ev.rank).label)} ${Math.round(ev.score)}</span></div>
-        ${outcomeButtons(id, ev.peak, null)}
+        ${outcomeButtons(id, ev.peak, null, findSighting(id, ev.peak))}
       </div>`;
     }).join("")}
   </div>`;
@@ -2522,10 +2616,24 @@ function renderPending(now, hidden) {
 
 // 押す場所は1箇所で作る。ホームと詳細で選択肢がずれると、
 // 同じ回に別々の答えが入る。
-function outcomeButtons(id, peak, current) {
+function outcomeButtons(id, peak, current, sighting = null) {
+  const shot = sighting && Number.isFinite(sighting.observedAtMs)
+    ? `<div class="tiny shot-note">📷 ${S.JstCal.hhmmRounded(sighting.observedAtMs)} の写真`
+      + (Number.isFinite(sighting.photoDistanceM)
+          ? `・${sighting.photoDistanceM < 1000
+              ? Math.round(sighting.photoDistanceM) + "m"
+              : (sighting.photoDistanceM / 1000).toFixed(1) + "km"}離れた場所`
+          : "")
+      + `${sighting.photoOutsideWindow ? "・<strong>採点した時間帯の外</strong>" : ""}</div>`
+    : "";
+  // **写真は端末から出ない。** 撮影時刻と座標だけ読んで画像は捨てる。
+  // 3択より「いつ・どこで撮ったか」のほうが照合に使える
+  //（採点の時間帯の中で撮られたのかが分かる）。
   return `<div class="outcome">${S.outcomesFor(id).map(([k, l]) =>
     `<button data-outcome="${k}" data-pid="${id}" data-peak="${peak}"` +
-    `${current === k ? ' class="on"' : ""}>${l}</button>`).join("")}</div>`;
+    `${current === k ? ' class="on"' : ""}>${l}</button>`).join("")}</div>
+    <label class="shot"><input type="file" accept="image/*" data-shot-pid="${id}" data-shot-peak="${peak}">
+      <span>📷 撮った写真から時刻を読む</span></label>${shot}`;
 }
 
 function renderRecords(now, pendingHidden) {

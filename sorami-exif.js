@@ -178,7 +178,25 @@
     return Number.isFinite(t) ? t : null;
   }
 
-  const SoramiExif = { read, findExif, instantFrom, TAG };
+  /**
+   * File から読む。**先頭だけを読む。**
+   *
+   * EXIF は JPEG の先頭（APP1）にあるので、全部を載せる必要がない。
+   * iPhone の写真は 7MB あり、`file.arrayBuffer()` はそれを丸ごとメモリへ置く。
+   * 既定の 256KB で足りなければ 1MB まで伸ばす。
+   */
+  async function readFile(file, { headBytes = 262144, maxBytes = 1048576 } = {}) {
+    if (!file || typeof file.slice !== "function") return null;
+    for (const n of [headBytes, maxBytes]) {
+      const buf = await file.slice(0, Math.min(n, file.size)).arrayBuffer();
+      const r = read(buf);
+      if (r) return r;
+      if (n >= file.size) break;      // 全部読んでも無い
+    }
+    return null;
+  }
+
+  const SoramiExif = { read, readFile, findExif, instantFrom, TAG };
   global.SoramiExif = SoramiExif;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiExif;
 })(typeof globalThis !== "undefined" ? globalThis : window);

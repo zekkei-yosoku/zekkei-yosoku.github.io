@@ -158,6 +158,30 @@ console.log("\n== 分からないものを決め打ちしない ==");
   ok(r2.takenAtMs !== null, "位置が無くても時刻は使える（時差が分かっていれば）");
 }
 
+console.log("\n== File は先頭だけ読む ==");
+{
+  // iPhone の写真は 7MB。EXIF は先頭にあるので全部をメモリへ載せない
+  const b = new Uint8Array(buildJpeg({ dateTimeOriginal: "2026:08:15 09:54:43",
+    offsetTime: "+09:00", lat: 38.702358, lon: 139.743697, altM: 27.8 }));
+  // 後ろに 7MB の画像本体を足して、本物と同じ形にする
+  const big = new Uint8Array(b.length + 7 * 1024 * 1024);
+  big.set(b, 0);
+  let asked = 0;
+  const fakeFile = {
+    size: big.length,
+    slice(a, z) {
+      asked = Math.max(asked, z - a);
+      const part = big.slice(a, z);
+      return { arrayBuffer: async () => part.buffer };
+    },
+  };
+  const r = await E.readFile(fakeFile);
+  ok(r !== null && r.hasGps, "7MB のファイルから読める");
+  ok(asked <= 262144, "読んだのは先頭だけ", `${(asked / 1024).toFixed(0)} KB / 全体 ${(big.length / 1048576).toFixed(1)} MB`);
+  ok(Math.abs(r.latitude - 38.702358) < 1e-4, "座標も合っている", r.latitude?.toFixed(6));
+  ok(await E.readFile(null) === null, "File が無ければ null");
+}
+
 console.log("\n== 壊れた入力で落ちない ==");
 {
   ok(E.read(new ArrayBuffer(0)) === null, "空");

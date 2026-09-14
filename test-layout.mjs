@@ -236,6 +236,27 @@ ok(/function moonEvents\(startMs, spanMs\)[\s\S]{0,900}SoramiAstro\.moonEvents/.
 ok(!/S\.Moon\.state\(/.test(html), "core の地心計算を月の出入りの表示に呼んでいない");
 ok(!/MOON_H0/.test(html), "旧実装の判定高度（MOON_H0）を残していない");
 
+console.log("== 写真から時刻を読む ==");
+// 3択より「いつ・どこで撮ったか」のほうが照合に使える。
+// 採点は時間帯に対して出しているので、その中で撮られたかが分からないと測れない
+// （雲海の正例162日のうち44日は窓の外で撮られていた）。
+ok(/sorami-exif\.js/.test(html), "EXIF の読み取りを読み込んでいる");
+ok(/SoramiExif\.readFile\(file\)/.test(html), "File から読む（先頭だけ）");
+ok(/写真から時刻を読む/.test(html), "記録の画面に入口がある");
+// **画像を送らない。** 送る設計にすると保存先も費用も要る
+ok(!/FileReader\(\)[\s\S]{0,200}readAsDataURL/.test(html), "画像をデータURLにしていない");
+ok(!/photoDataUrl|photoBase64|imageBlob/.test(html), "画像そのものを記録へ入れていない");
+// 一眼は時差タグを付けない。**日本と決め打ちしない**
+ok(/bundle\?\.utcOffsetSeconds/.test(html), "時差は取得済みの予報から取る");
+ok(!/instantFrom\([^,]+, 540\)/.test(html), "JST を決め打ちしていない");
+// 窓の外の写真も陰性にしない
+ok(/photoOutsideWindow/.test(html), "採点の時間帯の外かどうかを持つ");
+ok(/採点した時間帯の外/.test(html), "外なら画面に出す");
+ok(/photoDistanceM/.test(html), "記録した地点からの距離を持つ");
+// 取り込んだ値を信用しない（同期でサーバー越しにも入る）
+ok(/photoLatitude: num\(r\.photoLatitude, -90, 90\)/.test(html), "緯度の範囲を検査する");
+ok(/photoOutsideWindow: r\.photoOutsideWindow === true/.test(html), "真偽値を素通りさせない");
+
 console.log("== 建物の地平線（urban 層）==");
 // 新宿中央公園では月が地平線より上にいる時間の 31.3% が建物の裏（2026-09-14 実測）。
 // 地形だけだと市街地の地平線はほぼ 0度で、見えない時間を見えると言ってしまう。
