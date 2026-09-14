@@ -1,0 +1,94 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>写真の情報の診断</title>
+<!-- 写真から撮影時刻と位置が取れるかを1回見るためだけのページ。
+     iOS は写真を渡すときに位置情報を落とすことがあるので、実機で確かめる。
+     判断が済んだら消してよい（2026-09-15 追加）。 -->
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+         margin: 0; padding: 18px; max-width: 560px; }
+  h1 { font-size: 1.1rem; margin: 0 0 4px; }
+  p.lead { margin: 0 0 16px; color: #666; font-size: 0.85rem; }
+  label.pick { display: block; padding: 14px 18px; border-radius: 10px; background: #a04f09;
+               color: #fff; text-align: center; min-height: 48px; box-sizing: border-box; }
+  input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  table { border-collapse: collapse; width: 100%; margin-top: 16px;
+          font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 7px 4px; border-bottom: 1px solid rgba(128,128,128,.25);
+           font-size: 0.88rem; vertical-align: baseline; }
+  th { width: 10em; font-weight: 400; color: #666; }
+  td.v { font-weight: 700; }
+  .na { color: #b00; font-weight: 700; }
+  .note { margin-top: 16px; font-size: 0.8rem; color: #666; }
+  #out { white-space: pre-wrap; word-break: break-all; font-size: 0.75rem;
+         background: rgba(128,128,128,.12); padding: 10px; border-radius: 8px; margin-top: 14px; }
+</style>
+
+<h1>写真の情報の診断</h1>
+<p class="lead">空の写真を1枚選ぶと、撮影時刻と位置が取れるかを見ます。
+<strong>写真はこの端末から出ません。</strong>読み取るのは時刻と座標だけで、画像は捨てます。</p>
+
+<label class="pick">写真を選ぶ<input type="file" id="f" accept="image/*"></label>
+<div id="res"></div>
+<div id="out" hidden></div>
+<p class="note">iOS は写真を渡すときに位置情報を落とすことがあります。
+落ちていれば「位置」が空になります。<br>
+HEIC のまま渡されると読めないことがあります（その場合は形式の欄に出ます）。</p>
+
+<script src="sorami-exif.js?v=1"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const row = (k, v) => `<tr><th>${k}</th><td class="v">${v}</td></tr>`;
+const NA = (s) => `<span class="na">${s}</span>`;
+
+$("f").onchange = async (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  $("res").innerHTML = `<p>読み取り中…</p>`;
+  const buf = await file.arrayBuffer();
+  const r = SoramiExif.read(buf);
+
+  let rows = "";
+  rows += row("ファイル形式", `${file.type || "不明"}`);
+  rows += row("大きさ", `${(file.size / 1048576).toFixed(1)} MB`);
+
+  if (!r) {
+    rows += row("EXIF", NA("読めなかった"));
+    $("res").innerHTML = `<table>${rows}</table>`;
+    $("out").hidden = false;
+    $("out").textContent = JSON.stringify({ type: file.type, size: file.size,
+      head: [...new Uint8Array(buf.slice(0, 12))].map(b => b.toString(16).padStart(2, "0")).join(" "),
+      ua: navigator.userAgent }, null, 1);
+    return;
+  }
+  rows += row("撮影時刻", r.takenAtText ? r.takenAtText : NA("無い"));
+  rows += row("時差", r.offsetKnown ? r.offsetText : NA("無い（どの国の時刻か不明）"));
+  rows += row("位置", r.hasGps
+    ? `${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}`
+    : NA("無い（iOS が落としたか、撮影時にオフ）"));
+  rows += row("写真の標高", r.altitudeM === null ? NA("無い") : `${r.altitudeM.toFixed(1)} m`);
+
+  if (r.takenLocal) {
+    // 時差が無い写真は、撮った地点の時差を当てるしかない。ここでは JST を当てて見せる
+    const ms = r.takenAtMs !== null ? r.takenAtMs : SoramiExif.instantFrom(r.takenLocal, 540);
+    rows += row(r.offsetKnown ? "JST に直すと" : "JST とみなすと",
+      new Date(ms + 9 * 3600000).toISOString().replace("T", " ").slice(0, 19));
+  }
+  const usable = r.takenLocal !== null && r.hasGps;
+  rows += row("記録に使えるか", usable
+    ? "使える（いつ・どこが分かる）"
+    : NA(r.takenLocal === null ? "時刻が無い" : "位置が無い（時刻だけなら使える）"));
+
+  $("res").innerHTML = `<table>${rows}</table>`;
+  $("out").hidden = false;
+  $("out").textContent = JSON.stringify({
+    type: file.type, size: file.size,
+    takenAtText: r.takenAtText, takenLocal: r.takenLocal,
+    offsetText: r.offsetText, offsetKnown: r.offsetKnown,
+    latitude: r.latitude, longitude: r.longitude, altitudeM: r.altitudeM,
+    ua: navigator.userAgent,
+  }, null, 1);
+};
+</script>
