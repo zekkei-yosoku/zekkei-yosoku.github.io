@@ -120,8 +120,10 @@
   .ens-bar { flex: 1; display: flex; align-items: flex-end; height: 100%;
              background: var(--line); border-radius: 2px; overflow: hidden; }
   .ens-bar > div { width: 100%; border-radius: 2px; min-height: 1px; }
+  /* --muted は定義されていなかった（注記なので --tertiary が正しい）。
+     フォールバックが無いので、ここは色が効かずに親の色を継いでいた。 */
   .ens-axis { display: flex; justify-content: space-between; font-size: 0.72rem;
-              color: var(--muted); margin-bottom: 4px; }
+              color: var(--tertiary); margin-bottom: 4px; }
   /* 小さな操作の当たり判定を広げる。見た目は変えず、押しやすさだけ上げる。
      ☆ は 16×24px しかなく、隣の地点ボタンを誤爆しやすかった。 */
   .tap { position: relative; }
@@ -571,69 +573,58 @@
   </div>
 
 <style>
-/* 富士山カード。既存の現象カードと似すぎない程度に、でも浮かない範囲で */
-#fujiCard { padding: 14px 16px; }
-.fuji-head { display: flex; align-items: baseline; gap: 8px; }
-.fuji-icon { font-size: 20px; }
-.fuji-title { font-weight: 600; font-size: 16px; flex: 1; }
-.fuji-score { font-size: 30px; font-weight: 700; line-height: 1; }
-.fuji-unit { font-size: 13px; font-weight: 400; margin-left: 2px; }
-.fuji-band { margin-top: 4px; font-size: 14px; }
-.fuji-when { margin-top: 2px; font-size: 13px; }
-.fuji-parts { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
-.fuji-part { flex: 1 1 30%; min-width: 96px; display: flex; justify-content: space-between;
-             align-items: baseline; gap: 6px; padding: 6px 9px; border-radius: 8px;
-             background: var(--chip, rgba(127,127,127,.12)); font-size: 12px; }
-.fuji-part b { font-size: 14px; }
-.fuji-geo { margin-top: 10px; line-height: 1.6; }
-.fuji-more { margin-top: 8px; }
-.fuji-more summary { cursor: pointer; padding: 4px 0; min-height: 28px; }
-.fuji-hours { display: flex; gap: 6px; overflow-x: auto; padding: 6px 0 2px;
-              -webkit-overflow-scrolling: touch; }
-.fuji-hour { flex: 0 0 auto; text-align: center; padding: 6px 10px; border-radius: 8px;
-             background: var(--chip, rgba(127,127,127,.12)); font-size: 11px; white-space: nowrap; }
-.fuji-hour b { display: block; font-size: 15px; margin-top: 2px; }
-.fuji-comp { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(127,127,127,.22); }
-.fuji-comp-t { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-.fuji-comp-r { display: flex; gap: 10px; align-items: baseline; padding: 3px 0; font-size: 12px; }
-.fuji-comp-r .n { font-weight: 600; flex: 0 0 auto; }
-.fuji-comp-r .d { font-variant-numeric: tabular-nums; flex: 0 0 auto; }
-.fuji-comp-r .w { color: var(--muted, #999); }
+/* 富士山と月。
+   **既存の一覧（14日×現象の表）と同じ作法で作る。**
+   → Vault ドメイン/開発/絶景日和/04_デザイン定義
 
-/* 月。時系列は**横スクロール**（§51）。**自動では動かさない**（§52 カルーセル禁止） */
-#moonCard { padding: 14px 16px; }
-.moon-head { display: flex; align-items: baseline; gap: 8px; }
-.moon-icon { font-size: 20px; }
-.moon-title { font-weight: 600; font-size: 16px; flex: 1; }
-.moon-score { font-size: 30px; font-weight: 700; line-height: 1; }
-.moon-unit { font-size: 13px; font-weight: 400; margin-left: 2px; }
-.moon-sub { margin-top: 4px; font-size: 13px; }
-.moon-events { margin-top: 10px; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px;
-               font-size: 13px; align-items: baseline; }
-.moon-events dt { color: var(--muted, #999); }
-.moon-events dd { margin: 0; font-variant-numeric: tabular-nums; }
-.moon-events .primary dt, .moon-events .primary dd { font-weight: 600; color: inherit; }
-/* 右端で次のカードを少し見せて、横に動くと分かるようにする（§53） */
-.moon-tl-wrap { position: relative; margin-top: 12px; }
-.moon-tl { display: flex; gap: 5px; overflow-x: auto; padding: 4px 28px 6px 0;
-           scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
-.moon-tl::after { content: ""; flex: 0 0 8px; }
-.moon-tl-wrap::after { content: ""; position: absolute; right: 0; top: 0; bottom: 6px; width: 26px;
-  pointer-events: none; background: linear-gradient(to right, transparent, var(--card, #1a1a1a)); }
-.moon-cell { flex: 0 0 auto; scroll-snap-align: center; min-width: 52px; text-align: center;
-             padding: 7px 6px; border-radius: 9px; background: var(--chip, rgba(127,127,127,.12));
-             border: 1.5px solid transparent; cursor: pointer; font-size: 11px; line-height: 1.35; }
-.moon-cell[aria-pressed="true"] { border-color: currentColor; }
-.moon-cell .s { display: block; font-size: 16px; font-weight: 700; }
-.moon-cell .a { display: block; opacity: .75; }
-/* 色だけに頼らない（§76）。印も付ける */
-.moon-cell .mk { display: block; font-size: 10px; margin-top: 2px; min-height: 12px; }
-.moon-detail { margin-top: 10px; padding: 10px 12px; border-radius: 9px;
-               background: var(--chip, rgba(127,127,127,.10)); font-size: 13px; }
-.moon-detail .row { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
-.moon-detail .row span:last-child { font-variant-numeric: tabular-nums; }
-.moon-nav { display: flex; gap: 6px; margin-top: 6px; }
-.moon-nav button { min-width: 44px; min-height: 32px; }
+   最初これを「カードの中に角丸のグレー箱を3つ並べる」形で作ったら、
+   「自分のいる場所」が4行に折れ、点数だけ 30px で浮いた。
+   箱を入れ子にせず、行で揃える形へ直した。 */
+
+/* 見出し。現象の行と同じ「絵文字＋名前」に、右端へ点数 */
+.pk-head { display: flex; align-items: baseline; gap: 7px; }
+.pk-head .ic { font-size: 1rem; }
+.pk-head .nm { font-weight: 700; font-size: 0.94rem; flex: 1; }
+.pk-head .sc { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pk-head .sc small { font-size: 0.69rem; font-weight: 400; margin-left: 1px; }
+.pk-says { margin-top: 2px; font-size: 0.81rem; }
+.pk-when { margin-top: 1px; font-size: 0.75rem; color: var(--secondary); }
+
+/* 内訳。**箱を作らず、行で揃える。** 左にラベル、右に数値 */
+.pk-rows { margin-top: 10px; border-top: 1px solid var(--line); }
+.pk-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+          padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 0.81rem; }
+.pk-row > span:first-child { color: var(--secondary); white-space: nowrap; }
+.pk-row > span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; }
+.pk-note { margin-top: 8px; font-size: 0.72rem; color: var(--tertiary); line-height: 1.55; }
+
+/* 重なる日 */
+.pk-sub { margin-top: 12px; font-size: 0.81rem; font-weight: 600; }
+.pk-comp { display: grid; grid-template-columns: auto auto 1fr; gap: 2px 10px;
+           margin-top: 4px; font-size: 0.75rem; align-items: baseline; }
+.pk-comp .d { font-variant-numeric: tabular-nums; }
+.pk-comp .w { color: var(--tertiary); }
+
+/* 時系列。横スクロール（月 §51）。**自動では動かさない**（§52） */
+.pk-tl-wrap { position: relative; margin-top: 10px; }
+.pk-tl { display: flex; gap: 4px; overflow-x: auto; padding: 2px 26px 4px 0;
+         scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+.pk-tl::after { content: ""; flex: 0 0 6px; }
+.pk-tl-wrap::after { content: ""; position: absolute; right: 0; top: 0; bottom: 4px; width: 24px;
+  pointer-events: none; background: linear-gradient(to right, transparent, var(--card)); }
+.pk-cell { flex: 0 0 auto; scroll-snap-align: center; min-width: 46px; min-height: 44px;
+           text-align: center; padding: 5px 5px; border-radius: 5px; background: var(--sunk);
+           border: 1.5px solid transparent; cursor: pointer; font-size: 0.63rem;
+           line-height: 1.4; color: var(--text); font-variant-numeric: tabular-nums; }
+.pk-cell[aria-pressed="true"] { border-color: var(--accent); }
+.pk-cell .s { display: block; font-size: 0.88rem; font-weight: 700; }
+.pk-cell .a { display: block; color: var(--tertiary); }
+/* 色だけに頼らない（月 §76） */
+.pk-cell .mk { display: block; font-size: 0.63rem; min-height: 0.9em; color: var(--accent); }
+.pk-nav { display: flex; gap: 6px; margin-top: 6px; }
+.pk-nav button { min-width: 44px; min-height: 32px; }
+.pk-more { margin-top: 8px; font-size: 0.72rem; }
+.pk-more summary { cursor: pointer; padding: 4px 0; min-height: 28px; }
 </style>
   <div class="card" id="nowcast" hidden></div>
   <div id="status" class="card muted" hidden></div>
@@ -911,15 +902,15 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260914024656"></script>
+<script src="sorami-core.js?v=20260914091015"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260914024656"></script>
-<script src="sorami-terrain.js?v=20260914024656"></script>
-<script src="sorami-mountain.js?v=20260914024656"></script>
-<script src="sorami-fuji.js?v=20260914024656"></script>
-<script src="sorami-moon.js?v=20260914024656"></script>
-<script src="sorami-composition.js?v=20260914024656"></script>
+<script src="sorami-astro.js?v=20260914091015"></script>
+<script src="sorami-terrain.js?v=20260914091015"></script>
+<script src="sorami-mountain.js?v=20260914091015"></script>
+<script src="sorami-fuji.js?v=20260914091015"></script>
+<script src="sorami-moon.js?v=20260914091015"></script>
+<script src="sorami-composition.js?v=20260914091015"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1401,58 +1392,45 @@ function renderFuji() {
   };
   const hhmm = (d) => `${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
 
-  const parts = best.e.parts.filter((p) => p.pct !== null)
-    .map((p) => `<div class="fuji-part"><span>${p.label}</span><b>${p.pct}%</b></div>`).join("");
-  // 構図（パール富士・ダイヤモンド富士）。**天気と混ぜない**（§82）。
-  // 「重なる瞬間」は何年先でも計算できるが、晴れるかは予報の届く範囲でしか分からない
-  const compHtml = fujiComposition && fujiComposition.length ? `
-    <div class="fuji-comp">
-      <div class="fuji-comp-t">この地点で重なる日</div>
-      ${fujiComposition.slice(0, 4).map((c) => {
-        const d = moonLocal(c.at);
-        const ill = c.illuminatedFraction === null ? ""
-          : `・輝面 ${Math.round(c.illuminatedFraction * 100)}%`;
-        const where = c.kind === "on" ? "山頂に重なる"
-          : c.kind === "above" ? "山頂のすぐ上" : "山頂のすぐ下";
-        return `<div class="fuji-comp-r">
-          <span class="n">${c.name}</span>
-          <span class="d">${d.getUTCMonth() + 1}/${d.getUTCDate()} ${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, "0")}</span>
-          <span class="w">${where}${ill}</span></div>`;
-      }).join("")}
-      <p class="muted" style="margin-top:6px">
-        重なる時刻は地形と天文だけで決まります。<strong>そのとき晴れているかは別</strong>で、
-        予報が届くのは数日先までです。
-        <strong>立つ位置で日が変わります</strong>（田貫湖では湖の端から端で11日ずれます）。
-      </p>
-    </div>` : "";
-
+  // **箱を作らず、行で揃える**（04_デザイン定義「箱の中に箱を作らない」）
+  const rows = best.e.parts.filter((p) => p.pct !== null)
+    .map((p) => `<div class="pk-row"><span>${p.label}</span><span>${p.pct}%</span></div>`).join("");
   const geomLine = g.classification === "FULL"
     ? "手前に遮るものはありません"
-    : `山体の <b>${Math.round(g.fraction * 100)}%</b> が地形の上に出ています`;
+    : `山体の ${Math.round(g.fraction * 100)}% が地形の上に出ています`;
+
+  // 構図（パール富士・ダイヤモンド富士）。天気と混ぜない（月 §82）
+  const comp = fujiComposition && fujiComposition.length ? `
+    <div class="pk-sub">この地点で重なる日</div>
+    <div class="pk-comp">
+      ${fujiComposition.slice(0, 4).map((c) => {
+        const d = moonLocal(c.at);
+        const where = c.kind === "on" ? "山頂に重なる" : c.kind === "above" ? "山頂のすぐ上" : "山頂のすぐ下";
+        const ill = c.illuminatedFraction === null ? "" : `・輝面 ${Math.round(c.illuminatedFraction * 100)}%`;
+        return `<span>${c.name}</span>
+                <span class="d">${d.getUTCMonth() + 1}/${d.getUTCDate()} ${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, "0")}</span>
+                <span class="w">${where}${ill}</span>`;
+      }).join("")}
+    </div>
+    <p class="pk-note">重なる時刻は地形と天文だけで決まります。晴れるかは別で、予報が届くのは数日先まで。
+      立つ位置でも日が変わります（田貫湖では湖の端から端で11日）。</p>` : "";
 
   card.hidden = false;
   card.innerHTML = `
-    <div class="fuji-head">
-      <span class="fuji-icon">🗻</span>
-      <span class="fuji-title">富士山</span>
-      <span class="fuji-score">${best.e.score}<span class="fuji-unit">点</span></span>
+    <div class="pk-head">
+      <span class="ic">🗻</span><span class="nm">富士山</span>
+      <span class="sc">${best.e.score}<small>点</small></span>
     </div>
-    <div class="fuji-band">${best.e.band.label}・${best.e.band.says}</div>
-    <div class="muted fuji-when">いちばん良いのは ${dayLabel(best.local)} ${hhmm(best.local)} ごろ</div>
-    <div class="fuji-parts">${parts}</div>
-    <div class="tiny fuji-geo">
-      ここから <b>${km}km</b>。${geomLine}。
-      見かけの大きさは <b>${size.deg.toFixed(1)}度</b>（満月${size.moonDiameters.toFixed(0)}個ぶん・${size.label}）
-    </div>
-    ${compHtml}
-    <details class="tiny fuji-more">
+    <div class="pk-says">${best.e.band.says}</div>
+    <div class="pk-when">いちばん良いのは ${dayLabel(best.local)} ${hhmm(best.local)} ごろ</div>
+    <div class="pk-rows">${rows}</div>
+    <p class="pk-note">ここから ${km}km。${geomLine}。見かけの高さは ${size.deg.toFixed(1)}度（満月${size.moonDiameters.toFixed(0)}個ぶん）。</p>
+    ${comp}
+    <details class="pk-more">
       <summary>この先3日</summary>
-      <div class="fuji-hours">${hours.map((h) =>
-        `<div class="fuji-hour"><span>${dayLabel(h.local)} ${hhmm(h.local)}</span><b>${h.e.score}</b></div>`).join("")}</div>
-      <p class="muted" style="margin-top:8px">
-        くっきり度は ${best.e.clarity === null ? "不明" : Math.round(best.e.clarity * 100)}（${best.e.clarityWhy}）。
-        信頼度 ${best.e.confidence}。
-      </p>
+      <div class="pk-tl-wrap"><div class="pk-tl">${hours.map((h) =>
+        `<div class="pk-cell"><span>${dayLabel(h.local)}</span><span class="s">${h.e.score}</span><span class="a">${hhmm(h.local)}</span></div>`).join("")}</div></div>
+      <p class="pk-note">くっきり度 ${best.e.clarity === null ? "不明" : Math.round(best.e.clarity * 100)}（${best.e.clarityWhy}）。信頼度 ${best.e.confidence}。</p>
     </details>`;
 }
 
@@ -1524,10 +1502,11 @@ function renderMoon() {
   const phase = sel.moon;
   const title = kind === "rise" ? "月の出" : "月の入り";
 
-  // 出来事。**強いものだけを一覧に出す**（§59）。天文上の時刻は控えめに
+  // 出来事。強弱をつける（§59）。天文上の時刻は注記の色で下げる
   const evRows = markers.map((m) =>
-    `<div class="${m.level}" style="display:contents">
-       <dt>${m.label}</dt><dd>${moonHHMM(m.at)}</dd></div>`).join("");
+    `<div class="pk-row"${m.level === "secondary" ? ' style="color:var(--tertiary)"' : ""}>
+       <span${m.level === "primary" ? ' style="color:var(--text);font-weight:600"' : ""}>${m.label}</span>
+       <span>${moonHHMM(m.at)}</span></div>`).join("");
 
   const markOf = (r) => {
     const near = markers.filter((m) => Math.abs(m.at - r.ms) <= tl.stepMs / 2 && m.level === "primary");
@@ -1537,50 +1516,42 @@ function renderMoon() {
       : near.some((m) => m.key === "brightLimb") ? "◐" : "▲";
   };
 
-  const cells = rows.map((r) => {
-    const on = r.ms === sel.ms;
-    return `<button class="moon-cell" data-ms="${r.ms}" aria-pressed="${on}"
+  const cells = rows.map((r) => `<button class="pk-cell moon-cell" data-ms="${r.ms}"
+      aria-pressed="${r.ms === sel.ms}"
       aria-label="${moonHHMM(r.ms)} ${r.visible ? r.score + "点" : "まだ出ていない"}">
       <span>${moonHHMM(r.ms)}</span>
       <span class="s">${r.visible ? r.score : "—"}</span>
       <span class="a">${r.moon.apparentAltitude.toFixed(1)}°</span>
-      <span class="mk">${markOf(r)}</span>
-    </button>`;
-  }).join("");
+      <span class="mk">${markOf(r)}</span></button>`).join("");
 
-  const detail = sel.visible ? `
-    <div class="row"><span>見える</span><span>${Math.round(sel.pVisible * 100)}%</span></div>
-    <div class="row"><span>写真に撮れる</span><span>${Math.round(sel.pPhoto * 100)}%</span></div>
-    <div class="row"><span>くっきり度</span><span>${sel.clarity}</span></div>
-    <div class="row"><span>高さ・方角</span><span>${sel.moon.apparentAltitude.toFixed(1)}° / ${Math.round(sel.moon.azimuth)}°</span></div>
-    ${sel.parts.map((p) => `<div class="row"><span>${p.label}</span><span>${p.p === null ? "—" : Math.round(p.p * 100) + "%"}</span></div>`).join("")}`
-    : `<div class="row"><span>${sel.reason || "まだ出ていません"}</span><span>${sel.moon.apparentAltitude.toFixed(1)}°</span></div>`;
+  const detail = sel.visible
+    ? [["見える", `${Math.round(sel.pVisible * 100)}%`],
+       ["写真に撮れる", `${Math.round(sel.pPhoto * 100)}%`],
+       ["くっきり度", String(sel.clarity)],
+       ["高さ・方角", `${sel.moon.apparentAltitude.toFixed(1)}° / ${Math.round(sel.moon.azimuth)}°`],
+       ...sel.parts.map((p) => [p.label, p.p === null ? "—" : Math.round(p.p * 100) + "%"])]
+      .map(([k, v]) => `<div class="pk-row"><span>${k}</span><span>${v}</span></div>`).join("")
+    : `<div class="pk-row"><span>${sel.reason || "まだ出ていません"}</span><span>${sel.moon.apparentAltitude.toFixed(1)}°</span></div>`;
 
   card.hidden = false;
   card.innerHTML = `
-    <div class="moon-head">
-      <span class="moon-icon">🌙</span>
-      <span class="moon-title">${title}</span>
-      <span class="moon-score">${best && best.score > 0 ? best.score : "—"}<span class="moon-unit">点</span></span>
+    <div class="pk-head">
+      <span class="ic">🌙</span><span class="nm">${title}</span>
+      <span class="sc">${best && best.score > 0 ? best.score : "—"}<small>点</small></span>
     </div>
-    <div class="moon-sub">月齢 ${phase.illuminatedFraction >= 0.995 ? "満月" : `輝面 ${Math.round(phase.illuminatedFraction * 100)}%`}
+    <div class="pk-when">${phase.illuminatedFraction >= 0.995 ? "満月" : `輝面 ${Math.round(phase.illuminatedFraction * 100)}%`}
       ・${moonState.horizonSource}</div>
-    <dl class="moon-events">${evRows}</dl>
-    <div class="moon-tl-wrap">
-      <div class="moon-tl" id="moonTl" role="group" aria-label="時刻ごとの見え方（横スクロール）">${cells}</div>
-    </div>
-    <div class="moon-nav">
+    <div class="pk-rows">${evRows}</div>
+    <div class="pk-tl-wrap"><div class="pk-tl" id="moonTl" role="group"
+      aria-label="時刻ごとの見え方（横スクロール）">${cells}</div></div>
+    <div class="pk-nav">
       <button class="tap" id="moonPrev" aria-label="前の時刻へ">←</button>
       <button class="tap" id="moonNext" aria-label="次の時刻へ">→</button>
     </div>
-    <div class="moon-detail">
-      <div class="row"><b>${moonHHMM(sel.ms)}</b><b>${sel.visible ? sel.score + " 点" : ""}</b></div>
-      ${detail}
-    </div>
-    <p class="tiny muted" style="margin-top:8px">
-      ★いちばん良い ◎見え始め ◐光っている面が出る ▲地形から出はじめ。
-      天気の予報は1時間ごとで、その間は補って表示しています。
-    </p>`;
+    <div class="pk-sub">${moonHHMM(sel.ms)}${sel.visible ? `　${sel.score}点` : ""}</div>
+    <div class="pk-rows">${detail}</div>
+    <p class="pk-note">★いちばん良い ◎見え始め ◐光っている面が出る ▲地形から出はじめ。
+      天気の予報は1時間ごとで、その間は補っています。</p>`;
 
   for (const b of card.querySelectorAll(".moon-cell")) {
     b.onclick = () => { moonState.selected = Number(b.dataset.ms); renderMoon(); };
