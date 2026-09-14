@@ -289,22 +289,33 @@
     });
     if (!upper) return shell({ kind: "forecast", message: "上空の予報がまだ届いていません" });
 
-    // 空が明るい時間帯。笠雲は見えてこそ意味がある
-    const start = dayMs + 5 * 3600000, end = dayMs + 18 * 3600000;
+    // **一日ぜんぶ見る。** 代表の点数は空が明るい時間帯から採るが、
+    // 時間帯（出はじめ・最盛・弱まる）は夜も含めて出す。
+    // 笠雲は朝に多く（Kusaka et al.）、明るくなる前からできていることがある。
+    const start = dayMs, end = dayMs + 86400000;
+    const lit = [dayMs + 5 * 3600000, dayMs + 18 * 3600000];
     let best = null;
     const hours = [];
-    for (let t = start; t <= end; t += stepMs) {
+    for (let t = start; t < end; t += stepMs) {
       const e = evaluateAt(upper, t);
       if (!e) continue;
       hours.push({ at: t, score: e.score, type: e.type });
-      if (!best || e.score > best.score) best = e;
+      // 代表は**見える時間帯**から。夜中が最盛でも「今日の笠雲」としては出せない
+      if (t >= lit[0] && t <= lit[1] && (!best || e.score > best.score)) best = e;
     }
-    if (!best) return shell({ kind: "forecast", message: "この日の上空の予報がまだ届いていません" });
+    if (!best) {
+      // 明るい時間に一つも評価できなくても、夜のぶんだけはある場合がある
+      const any = hours.length ? hours.reduce((a, b) => (b.score > a.score ? b : a)) : null;
+      if (!any) return shell({ kind: "forecast", message: "この日の上空の予報がまだ届いていません" });
+      best = evaluateAt(upper, any.at);
+      if (!best) return shell({ kind: "forecast", message: "この日の上空の予報がまだ届いていません" });
+    }
 
     const factors = best.parts.map((x) => ({
       label: x.label, c: 0, detail: `${Math.round(x.p * 100)}%　${x.why}`,
     }));
     factors.push({ label: "形", c: 0, detail: TYPE_LABEL[best.type] });
+    const timing = timingOf(hours, S);
 
     const width = 12 + S.leadTimePenalty(daysAhead);   // **未検証なので広めに持つ**
     return {
@@ -321,14 +332,52 @@
         expectedError: Math.round(width * 0.6), agreement: null,
         modelAgreement: null, fallbackWidth: width,
       },
-      detail: best, hours,
+      detail: best, hours, timing,
+    };
+  }
+
+  /**
+   * 出はじめ・最盛・弱まる の時刻。
+   *
+   * **閾値を勝手に作らない。** アプリのランク境界（40点＝「うっすら」以上）を使う。
+   * こうすると「うっすら 45点」と言っている日の時間帯が、
+   * ちょうど「うっすら以上でいられる時間」になって、言葉と時刻が食い違わない。
+   *
+   * **点数が未検証なので、時刻も未検証。** 幅で出して、分単位の精度があるように見せない。
+   */
+  function timingOf(hours, S) {
+    if (!hours || hours.length < 2) return null;
+    const TH = S.RANKS.find((r) => r.key === "fair").min;   // 40点＝うっすら以上
+    const on = hours.filter((h) => h.score >= TH);
+    if (!on.length) return null;
+
+    // 連続した区間に切る。雲は途切れることがあるので、**一つにまとめない**
+    const spans = [];
+    let cur = null;
+    for (const h of hours) {
+      if (h.score >= TH) {
+        if (!cur) cur = { from: h.at, to: h.at, peak: h };
+        cur.to = h.at;
+        if (h.score > cur.peak.score) cur.peak = h;
+      } else if (cur) { spans.push(cur); cur = null; }
+    }
+    if (cur) spans.push(cur);
+    if (!spans.length) return null;
+
+    const main = spans.reduce((a, b) => (b.peak.score > a.peak.score ? b : a));
+    return {
+      from: main.from, to: main.to, peakAt: main.peak.at, peakScore: main.peak.score,
+      thresholdScore: TH, spans: spans.length,
+      // 一日の端に張り付いているなら、前後の日へ続いている可能性がある
+      openStart: main.from === hours[0].at,
+      openEnd: main.to === hours[hours.length - 1].at,
     };
   }
 
   const SoramiCapCloud = {
     FUJI, LEVELS, VARS, SOURCE, TYPE_LABEL,
     samplePoints, buildURL, profileAt, interpolate, features, scoreOf,
-    fetchUpperAir, upwindIndexFor, evaluateAt, evaluateDay, dirName,
+    fetchUpperAir, upwindIndexFor, evaluateAt, evaluateDay, timingOf, dirName,
   };
   global.SoramiCapCloud = SoramiCapCloud;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiCapCloud;

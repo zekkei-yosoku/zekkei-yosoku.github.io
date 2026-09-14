@@ -923,17 +923,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260915023244"></script>
+<script src="sorami-core.js?v=20260915084342"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260915023244"></script>
-<script src="sorami-exif.js?v=20260915023244"></script>
-<script src="sorami-capcloud.js?v=20260915023244"></script>
-<script src="sorami-terrain.js?v=20260915023244"></script>
-<script src="sorami-mountain.js?v=20260915023244"></script>
-<script src="sorami-fuji.js?v=20260915023244"></script>
-<script src="sorami-moon.js?v=20260915023244"></script>
-<script src="sorami-composition.js?v=20260915023244"></script>
+<script src="sorami-astro.js?v=20260915084342"></script>
+<script src="sorami-exif.js?v=20260915084342"></script>
+<script src="sorami-capcloud.js?v=20260915084342"></script>
+<script src="sorami-terrain.js?v=20260915084342"></script>
+<script src="sorami-mountain.js?v=20260915084342"></script>
+<script src="sorami-fuji.js?v=20260915084342"></script>
+<script src="sorami-moon.js?v=20260915084342"></script>
+<script src="sorami-composition.js?v=20260915084342"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2265,6 +2265,42 @@ function renderCapLine(dayMs) {
     <span class="go">›</span></a>`;
 }
 
+// 笠雲がいつ出て、いつ最も濃く、いつ弱まるか。
+//
+// 仕様書 §0 が最終出力に「発生予想時間帯・最盛予想時間帯・消滅予想時間帯」を挙げている。
+// 時刻ごとの点数を既に持っているので、**ランク境界（40点＝うっすら以上）を
+// またぐ区間**として出す。閾値を別に作らないので、「うっすら」と言っている日の
+// 時間帯がそのまま「うっすら以上でいられる時間」になる。
+//
+// **点数が未検証なので時刻も未検証。** 1時間きざみのまま出して、
+// 分単位の精度があるように見せない。
+function renderCapTiming(ev) {
+  const t = ev.timing;
+  if (!t) {
+    return `<div class="card"><div class="tiny" style="color:var(--tertiary)">
+      この日は「うっすら」に届く時間帯がありません。</div></div>`;
+  }
+  const hm = (x) => S.JstCal.hhmmRounded(x);
+  const lit = SoramiCapCloud ? null : null;
+  const row = (label, value, note = "") =>
+    `<span class="lt-l">${esc(label)}</span><span>${value}</span><span class="tiny">${note}</span>`;
+  const hours = Math.round((t.to - t.from) / 3600000) + 1;
+  return `<div class="card">
+    <div class="lt" style="grid-template-columns:auto auto 1fr">
+      ${row("出はじめ", (t.openStart ? "〜" : "") + hm(t.from),
+            t.openStart ? "前の日から続いています" : "")}
+      ${row("いちばん濃い", hm(t.peakAt), `${Math.round(t.peakScore)}点`)}
+      ${row("弱まる", hm(t.to) + (t.openEnd ? "〜" : ""),
+            t.openEnd ? "翌日へ続きます" : "")}
+    </div>
+    <div class="tiny" style="margin-top:6px;color:var(--tertiary)">
+      「うっすら」（${t.thresholdScore}点）以上でいられる時間で、およそ ${hours} 時間。
+      1時間きざみの目安です${t.spans > 1 ? `。この日は途切れる時間帯が ${t.spans - 1} 回あります` : ""}。
+      <strong>点数が未検証なので、時刻も未検証です。</strong>
+    </div>
+  </div>`;
+}
+
 // 笠雲の詳細から富士山へ。**笠雲は見えてこそ**なので、
 // 「その日に富士山が見えるか」を隣に置く。材料が揃っていても霞んでいれば写らない。
 function renderFujiBackLine(dayMs) {
@@ -2389,7 +2425,7 @@ function renderDayDetail(id, entries, sel, now) {
   return `${head}
     ${id === "moon" ? renderMoonTimes(sel.dayMs) : ""}
     ${id === "fuji" ? renderFujiTimes(ev) + renderCapLine(sel.dayMs) : ""}
-    ${id === "capCloud" ? renderFujiBackLine(sel.dayMs) : ""}
+    ${id === "capCloud" ? renderCapTiming(ev) + renderFujiBackLine(sel.dayMs) : ""}
     ${renderLightTimes(sel.dayMs, now, id)}
     <div class="card">${renderDetail(id, sel, now)}</div>
     <details class="card more"><summary>もっと詳しく</summary>

@@ -106,6 +106,37 @@ console.log("\n== 取得日数 ==");
   ok(C.samplePoints().length === 9, "山頂＋8方位の9地点", `${C.samplePoints().length}地点`);
 }
 
+console.log("\n== 出はじめ・最盛・弱まる ==");
+{
+  const h = (n) => Date.UTC(2026, 8, 15, n - 9);   // JST n時
+  const mk = (pairs) => pairs.map(([hour, score]) => ({ at: h(hour), score, type: "cap" }));
+  // 閾値はアプリのランク境界（40点＝うっすら以上）。**別に作らない**
+  ok(S.RANKS.find((r) => r.key === "fair").min === 40, "うっすらの境界は40点");
+
+  const t = C.timingOf(mk([[3,10],[4,20],[5,45],[6,70],[7,88],[8,60],[9,30],[10,5]]), S);
+  ok(t !== null, "時間帯が出る");
+  ok(new Date(t.from + 9*3600000).getUTCHours() === 5, "出はじめは40点に届いた時刻", `${new Date(t.from+9*3600000).getUTCHours()}時`);
+  ok(new Date(t.peakAt + 9*3600000).getUTCHours() === 7, "最盛は最大の時刻");
+  ok(t.peakScore === 88, "最盛の点数");
+  ok(new Date(t.to + 9*3600000).getUTCHours() === 8, "弱まるのは40点を割る直前", `${new Date(t.to+9*3600000).getUTCHours()}時`);
+  ok(t.openStart === false && t.openEnd === false, "一日の中に収まっている");
+
+  // 一日の端に張り付く＝前後の日へ続いている可能性
+  const edge = C.timingOf(mk([[3,70],[4,80],[5,60],[6,50]]), S);
+  ok(edge.openStart === true, "先頭から始まっていれば前の日から続く扱い");
+  ok(edge.openEnd === true, "末尾まで続いていれば翌日へ続く扱い");
+
+  // **途切れる時間帯を一つにまとめない。** 雲は切れることがある
+  const gap = C.timingOf(mk([[3,10],[4,60],[5,20],[6,75],[7,30]]), S);
+  ok(gap.spans === 2, "途切れを数える", `${gap.spans}区間`);
+  ok(new Date(gap.peakAt + 9*3600000).getUTCHours() === 6, "最も濃い区間を代表にする");
+
+  // 届かない日
+  ok(C.timingOf(mk([[3,10],[4,20],[5,30]]), S) === null, "40点に届かなければ時間帯なし");
+  ok(C.timingOf([], S) === null, "空なら null");
+  ok(C.timingOf(null, S) === null, "null なら null");
+}
+
 console.log("\n== 壊れた入力で落ちない ==");
 {
   ok(C.features(null) === null, "null");

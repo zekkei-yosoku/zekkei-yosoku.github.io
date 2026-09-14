@@ -270,6 +270,13 @@ ok(/fetchUpperAir\(\{ days: Math\.min\(16, days\.length\) \}\)/.test(html),
 ok(!/fetchUpperAir\(\{ days: 3 \}\)/.test(html), "3日固定が残っていない");
 // 富士山の詳細からの導線
 ok(/function renderCapLine/.test(html), "富士山の詳細から笠雲へ1行");
+// 仕様書 §0 が最終出力に「発生予想時間帯・最盛予想時間帯・消滅予想時間帯」を挙げている。
+// 閾値は**アプリのランク境界**を使う（別に作らない）ので、言葉と時刻が食い違わない
+ok(/function renderCapTiming/.test(html), "出はじめ・いちばん濃い・弱まる を出す");
+ok(/出はじめ/.test(html) && /いちばん濃い/.test(html) && /弱まる/.test(html), "3つの時刻が揃っている");
+ok(/点数が未検証なので、時刻も未検証/.test(html), "時刻も未検証であることを画面に出す");
+ok(/前の日から続いています/.test(html) && /翌日へ続きます/.test(html),
+  "日をまたぐ場合を黙って切らない");
 ok(/href="#\/capCloud"/.test(html), "押すと笠雲の詳細へ行く");
 
 console.log("== 写真から時刻を読む ==");
