@@ -923,17 +923,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260915021956"></script>
+<script src="sorami-core.js?v=20260915022655"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260915021956"></script>
-<script src="sorami-exif.js?v=20260915021956"></script>
-<script src="sorami-capcloud.js?v=20260915021956"></script>
-<script src="sorami-terrain.js?v=20260915021956"></script>
-<script src="sorami-mountain.js?v=20260915021956"></script>
-<script src="sorami-fuji.js?v=20260915021956"></script>
-<script src="sorami-moon.js?v=20260915021956"></script>
-<script src="sorami-composition.js?v=20260915021956"></script>
+<script src="sorami-astro.js?v=20260915022655"></script>
+<script src="sorami-exif.js?v=20260915022655"></script>
+<script src="sorami-capcloud.js?v=20260915022655"></script>
+<script src="sorami-terrain.js?v=20260915022655"></script>
+<script src="sorami-mountain.js?v=20260915022655"></script>
+<script src="sorami-fuji.js?v=20260915022655"></script>
+<script src="sorami-moon.js?v=20260915022655"></script>
+<script src="sorami-composition.js?v=20260915022655"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1905,7 +1905,7 @@ function renderBestNote(best, now) {
 function highlightRow(id, dayMs, ev, now) {
   const color = RANK_COLOR[ev.rank.key];
   return `<div style="margin-top:3px"><span style="font-size:1.19rem">${S.PHENOMENA[id].icon}</span>
-    <strong style="margin-left:4px">${S.PHENOMENA[id].name}</strong>
+    <strong style="margin-left:4px">${S.longNameOf(id)}</strong>
     <span class="muted">${S.JstCal.relativeDay(dayMs, now)}${ev.specificTime === false ? "" : " " + S.JstCal.hhmmRounded(ev.peak)}</span>
     ・<span style="color:${color};font-weight:700">${esc(S.phrasing(id, ev.rank).label)}</span></div>`;
 }
@@ -2259,6 +2259,21 @@ function renderCapLine(dayMs) {
     <span class="go">›</span></a>`;
 }
 
+// 笠雲の詳細から富士山へ。**笠雲は見えてこそ**なので、
+// 「その日に富士山が見えるか」を隣に置く。材料が揃っていても霞んでいれば写らない。
+function renderFujiBackLine(dayMs) {
+  const rows = weeks.fuji;
+  if (!rows) return "";
+  const hit = rows.find((r) => S.JstCal.sameDay(r.dayMs, dayMs));
+  if (!hit || hit.evaluation.unavailable) return "";
+  const ev = hit.evaluation;
+  return `<a class="card cap-line" href="#/fuji">
+    <span class="ic">${S.PHENOMENA.fuji.icon}</span>
+    <span><strong>富士山そのもの</strong> ${esc(S.phrasing("fuji", ev.rank).label)} ${Math.round(ev.score)}
+      <span class="tiny" style="color:var(--tertiary)">笠雲は富士山が見えてこそ</span></span>
+    <span class="go">›</span></a>`;
+}
+
 function renderLightTimes(dayMs, now, phenomenonId) {
   const w = S.Sun.lightWindows(dayMs, place.latitude, place.longitude);
   if (w.sunrise === null && w.sunset === null) return "";
@@ -2351,12 +2366,12 @@ function renderDayDetail(id, entries, sel, now) {
 
   if (ev.unavailable) {
     return `<div class="card">
-      <div class="ph-head"><span class="ic">${iconFor(id, ev.peak)}</span><span class="nm">${meta.name}</span></div>
+      <div class="ph-head"><span class="ic">${iconFor(id, ev.peak)}</span><span class="nm">${S.longNameOf(id)}</span></div>
       <div class="ph-out">${esc(ev.unavailable.message)}</div></div>`;
   }
   const color = RANK_COLOR[ev.rank.key];
   const head = `<div class="card highlight" style="border-color:${color}">
-      <div class="ph-head"><span class="ic">${iconFor(id, ev.peak)}</span><span class="nm">${meta.name}</span>
+      <div class="ph-head"><span class="ic">${iconFor(id, ev.peak)}</span><span class="nm">${S.longNameOf(id)}</span>
         ${id === "moon" ? `<span class="tiny" style="color:var(--tertiary)">${esc(phaseNameFor(ev.peak))}</span>` : ""}</div>
       <div class="head-row">
         <span class="muted">${when}</span>
@@ -2368,6 +2383,7 @@ function renderDayDetail(id, entries, sel, now) {
   return `${head}
     ${id === "moon" ? renderMoonTimes(sel.dayMs) : ""}
     ${id === "fuji" ? renderFujiTimes(ev) + renderCapLine(sel.dayMs) : ""}
+    ${id === "capCloud" ? renderFujiBackLine(sel.dayMs) : ""}
     ${renderLightTimes(sel.dayMs, now, id)}
     <div class="card">${renderDetail(id, sel, now)}</div>
     <details class="card more"><summary>もっと詳しく</summary>
@@ -2666,7 +2682,7 @@ function renderPending(now, hidden) {
       const meta = S.PHENOMENA[id], color = RANK_COLOR[ev.rank.key];
       return `<div class="pending-row">
         <div><span style="font-size:1.06rem">${iconFor(id, ev.peak)}</span>
-          <strong>${meta.name}</strong>
+          <strong>${S.longNameOf(id)}</strong>
           <span class="muted">${S.Cal.relativeDay(ev.peak, now)}${ev.specificTime === false ? "" : " " + S.Cal.hhmmRounded(ev.peak)}</span>
           ・<span style="color:${color}">${esc(S.phrasing(id, ev.rank).label)} ${Math.round(ev.score)}</span></div>
         ${outcomeButtons(id, ev.peak, null, findSighting(id, ev.peak))}

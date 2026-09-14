@@ -240,6 +240,15 @@ console.log("== 笠雲 ==");
 // 起きるか起きないかの現象なので、富士山と違って見どころに出す
 //（晴れていればだいたい見える富士山と、材料が揃った日にだけ出る笠雲は別）。
 ok(coreMod.PHENOMENA.capCloud !== undefined, "現象として登録されている");
+// **「笠雲」だけでは何の笠雲か分からない。** だが一覧の列は実質48pxしかなく、
+// 「富士山の笠雲」は75pxで省略され「富士山の…」になる。すぐ上の「富士山」と
+// 見分けがつかず、かえって悪い（2026-09-15に実測）。場所で使い分ける
+ok(coreMod.PHENOMENA.capCloud.name === "笠雲", "一覧の列は短い名前");
+ok(coreMod.PHENOMENA.capCloud.longName === "富士山の笠雲", "幅のある場所は長い名前");
+ok(coreMod.longNameOf("capCloud") === "富士山の笠雲", "longNameOf が長いほうを返す");
+ok(coreMod.longNameOf("sunset") === "夕焼け", "longName の無い現象は name をそのまま返す");
+ok(/S\.longNameOf\(id\)/.test(html), "詳細の見出しと見どころで長い名前を使う");
+ok(/class="nm">\$\{esc\(meta\.name\)\}/.test(html), "一覧の列は短い名前のまま");
 ok(coreMod.PHENOMENA.capCloud.highlight !== false, "見どころに出す（富士山と違う）");
 ok(coreMod.PHENOMENA.capCloud.record === "occurrence", "「見えた/見えなかった」で記録する");
 ok(/sorami-capcloud\.js/.test(html), "採点を読み込んでいる");

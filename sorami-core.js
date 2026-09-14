@@ -1634,7 +1634,12 @@
     // 笠雲は**起きるか起きないかの現象**なので、富士山と違って見どころに出す
     //（晴れていればだいたい見える富士山と、材料が揃った日にだけ出る笠雲は別）。
     // 採点は sorami-capcloud.js。**実地精度は未検証**（2026-09-15 ユーザー判断で導入）。
-    capCloud: { name: "笠雲", icon: "🎩", order: 6, record: "occurrence",
+    // **「笠雲」だけでは何の笠雲か分からない。** だが一覧の列は 84px（アイコンを引いて
+    // 実質48px）しかなく、「富士山の笠雲」は75pxで省略されて **「富士山の…」** になる。
+    // すぐ上の「富士山」と見分けがつかず、かえって悪い（2026-09-15に実測）。
+    // **場所で使い分ける。** `name` は一覧の列（短い）、`longName` は詳細の見出しと
+    // 見どころ（幅がある）。`longName` が無い現象は `name` をそのまま使う。
+    capCloud: { name: "笠雲", longName: "富士山の笠雲", icon: "🎩", order: 5.5, record: "occurrence",
       ranks: ["みごとな笠", "かかりそう", "わずかに", "望み薄"],
       says: ["山頂にはっきりした笠雲がかかるかもしれません",
              "笠雲がかかる条件が揃っています",
@@ -1681,8 +1686,11 @@
     quality: [["better", "期待以上"], ["asExpected", "想定どおり"], ["worse", "期待外れ"],
               ["unchecked", "確認せず"]],
   };
+  /// 幅のある場所で出す名前。無ければ短いほうを使う
+  const longNameOf = (id) => PHENOMENA[id]?.longName ?? PHENOMENA[id]?.name ?? id;
   const recordKind = (id) => PHENOMENA[id]?.record ?? "occurrence";
   const outcomesFor = (id) => RECORD_OUTCOMES[recordKind(id)];
+  // `longNameOf` は下の公開オブジェクトから出す
 
 
   /// その現象での言い方を返す。汎用の RANKS より、こちらを画面に出す。
@@ -2112,7 +2120,7 @@
   const Sorami = {
     Geo, Cal, JstCal: Cal, Sun, Moon, Curve, T, Series, MODELS, MODEL_NAMES,
     HOME_VARS, OFFSET_VARS, PROFILE_LEVELS, PROFILE_VARS, needsProfile,
-    CLOUD_LAYERS, SCORERS, PHENOMENA, RANKS, RECORD_OUTCOMES, recordKind, outcomesFor,
+    CLOUD_LAYERS, SCORERS, PHENOMENA, RANKS, RECORD_OUTCOMES, recordKind, outcomesFor, longNameOf,
     decodeLocation, buildURL, fetchForecast, evaluate, evaluateWeek, readingAt,
     setTimezoneOffset, rankOf, confidenceOf, confidenceOfEnsemble, reliabilityGrade, phrasing, leadTimePenalty,
     ensembleSpread, fetchEnsemble, profileLevelCount, ENSEMBLE_VARS, ENSEMBLE_MEMBERS, ENSEMBLE_MODEL,
