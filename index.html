@@ -923,17 +923,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260915084342"></script>
+<script src="sorami-core.js?v=20260915085323"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260915084342"></script>
-<script src="sorami-exif.js?v=20260915084342"></script>
-<script src="sorami-capcloud.js?v=20260915084342"></script>
-<script src="sorami-terrain.js?v=20260915084342"></script>
-<script src="sorami-mountain.js?v=20260915084342"></script>
-<script src="sorami-fuji.js?v=20260915084342"></script>
-<script src="sorami-moon.js?v=20260915084342"></script>
-<script src="sorami-composition.js?v=20260915084342"></script>
+<script src="sorami-astro.js?v=20260915085323"></script>
+<script src="sorami-exif.js?v=20260915085323"></script>
+<script src="sorami-capcloud.js?v=20260915085323"></script>
+<script src="sorami-terrain.js?v=20260915085323"></script>
+<script src="sorami-mountain.js?v=20260915085323"></script>
+<script src="sorami-fuji.js?v=20260915085323"></script>
+<script src="sorami-moon.js?v=20260915085323"></script>
+<script src="sorami-composition.js?v=20260915085323"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2265,38 +2265,45 @@ function renderCapLine(dayMs) {
     <span class="go">›</span></a>`;
 }
 
-// 笠雲がいつ出て、いつ最も濃く、いつ弱まるか。
+// 笠雲の条件がいちばん整う時間帯。
 //
-// 仕様書 §0 が最終出力に「発生予想時間帯・最盛予想時間帯・消滅予想時間帯」を挙げている。
-// 時刻ごとの点数を既に持っているので、**ランク境界（40点＝うっすら以上）を
-// またぐ区間**として出す。閾値を別に作らないので、「うっすら」と言っている日の
-// 時間帯がそのまま「うっすら以上でいられる時間」になる。
+// **「できはじめる時刻」は出せない。** このスコアが測っているのは「材料が揃っているか」で、
+// 材料は総観規模（数時間〜一日）でしか動かない。雲そのものの発生・消滅より遅い。
+// 最初これを 40点の出入りで「出はじめ・弱まる」として出したら、条件の良い日は
+// **0:00〜23:00 の24時間**になって何も言っていなかった（2026-09-15 ユーザー指摘）。
 //
-// **点数が未検証なので時刻も未検証。** 1時間きざみのまま出して、
-// 分単位の精度があるように見せない。
+// 閾値はその日が到達したランクの境界。見出しが「みごとな笠 97」なら 85点以上でいられる時間。
+// 見出しの言葉と時間帯の意味が一致し、良い日ほど自動的に絞られる。
 function renderCapTiming(ev) {
   const t = ev.timing;
+  const label = (k) => S.phrasing("capCloud", S.RANKS.find((r) => r.key === k)).label;
   if (!t) {
     return `<div class="card"><div class="tiny" style="color:var(--tertiary)">
-      この日は「うっすら」に届く時間帯がありません。</div></div>`;
+      この日は「${esc(label("fair"))}」に届く時間帯がありません。</div></div>`;
   }
   const hm = (x) => S.JstCal.hhmmRounded(x);
-  const lit = SoramiCapCloud ? null : null;
-  const row = (label, value, note = "") =>
-    `<span class="lt-l">${esc(label)}</span><span>${value}</span><span class="tiny">${note}</span>`;
-  const hours = Math.round((t.to - t.from) / 3600000) + 1;
+  const name = label(t.rankLabel);
+  // **ほぼ一日なら「時間帯」と言わない。** 絞れていないことを絞れたように見せない
+  if (t.allDay) {
+    return `<div class="card">
+      <div><strong>${esc(name)}</strong>の条件が<strong>一日を通して</strong>続きます
+        <span class="tiny" style="color:var(--tertiary)">（いちばん整うのは ${hm(t.peakAt)} ごろ）</span></div>
+      <div class="tiny" style="margin-top:6px;color:var(--tertiary)">
+        材料が一日中そろっている日です。時間帯は絞れません。
+        <strong>点数が未検証なので、時刻も未検証です。</strong></div>
+    </div>`;
+  }
   return `<div class="card">
     <div class="lt" style="grid-template-columns:auto auto 1fr">
-      ${row("出はじめ", (t.openStart ? "〜" : "") + hm(t.from),
-            t.openStart ? "前の日から続いています" : "")}
-      ${row("いちばん濃い", hm(t.peakAt), `${Math.round(t.peakScore)}点`)}
-      ${row("弱まる", hm(t.to) + (t.openEnd ? "〜" : ""),
-            t.openEnd ? "翌日へ続きます" : "")}
+      <span class="lt-l">いちばん整う</span><span>${hm(t.peakAt)}</span><span class="tiny">${Math.round(t.peakScore)}点</span>
+      <span class="lt-l">その前後</span><span>${t.openStart ? "〜" : ""}${hm(t.from)}–${hm(t.to)}${t.openEnd ? "〜" : ""}</span><span class="tiny">${t.hours} 時間</span>
     </div>
     <div class="tiny" style="margin-top:6px;color:var(--tertiary)">
-      「うっすら」（${t.thresholdScore}点）以上でいられる時間で、およそ ${hours} 時間。
-      1時間きざみの目安です${t.spans > 1 ? `。この日は途切れる時間帯が ${t.spans - 1} 回あります` : ""}。
-      <strong>点数が未検証なので、時刻も未検証です。</strong>
+      「${esc(name)}」（${t.thresholdScore}点）の条件でいられる時間です。1時間きざみの目安${
+        t.spans > 1 ? `で、途切れる時間帯が ${t.spans - 1} 回あります` : ""}。
+      ${t.openStart || t.openEnd ? "前後の日へ続いている可能性があります。" : ""}
+      <strong>雲ができはじめる時刻ではありません</strong>——材料が揃う時間帯です。
+      点数が未検証なので、時刻も未検証です。
     </div>
   </div>`;
 }

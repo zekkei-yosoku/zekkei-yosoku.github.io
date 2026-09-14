@@ -337,17 +337,28 @@
   }
 
   /**
-   * 出はじめ・最盛・弱まる の時刻。
+   * 条件がいちばん整う時間帯。
    *
-   * **閾値を勝手に作らない。** アプリのランク境界（40点＝「うっすら」以上）を使う。
-   * こうすると「うっすら 45点」と言っている日の時間帯が、
-   * ちょうど「うっすら以上でいられる時間」になって、言葉と時刻が食い違わない。
+   * **「できはじめる時刻」は出せない。** このスコアが測っているのは「材料が揃っているか」で、
+   * 材料は総観規模（数時間〜一日）でしか動かない。雲そのものの発生・消滅より遅い。
+   * 最初これを 40点（うっすら）の出入りで「出はじめ・弱まる」として出したら、
+   * 条件の良い日は **0:00〜23:00 の24時間**になって何も言っていなかった
+   * （2026-09-15、実データで発覚）。
    *
-   * **点数が未検証なので、時刻も未検証。** 幅で出して、分単位の精度があるように見せない。
+   * 出せるのは「一日のうち、いつが最も整うか」。
+   * **閾値は、その日が到達したランクの境界にする。** 見出しが「みごとな笠 97」なら
+   * 85点以上でいられる時間、「かかりそう 66」なら65点以上でいられる時間。
+   * 見出しの言葉と時間帯の意味が一致し、良い日ほど自動的に絞られる。
+   *
+   * **点数が未検証なので、時刻も未検証。** 1時間きざみのまま出す。
    */
   function timingOf(hours, S) {
     if (!hours || hours.length < 2) return null;
-    const TH = S.RANKS.find((r) => r.key === "fair").min;   // 40点＝うっすら以上
+    const peakScore = Math.max(...hours.map((h) => h.score));
+    if (peakScore <= 0) return null;
+    // その日が届いたランクの下限。最低でも「うっすら」（40点）
+    const rank = S.rankOf(peakScore);
+    const TH = Math.max(S.RANKS.find((r) => r.key === "fair").min, rank.min);
     const on = hours.filter((h) => h.score >= TH);
     if (!on.length) return null;
 
@@ -365,12 +376,15 @@
     if (!spans.length) return null;
 
     const main = spans.reduce((a, b) => (b.peak.score > a.peak.score ? b : a));
+    const hoursLong = Math.round((main.to - main.from) / 3600000) + 1;
     return {
       from: main.from, to: main.to, peakAt: main.peak.at, peakScore: main.peak.score,
-      thresholdScore: TH, spans: spans.length,
+      thresholdScore: TH, rankLabel: rank.key, spans: spans.length, hours: hoursLong,
       // 一日の端に張り付いているなら、前後の日へ続いている可能性がある
       openStart: main.from === hours[0].at,
       openEnd: main.to === hours[hours.length - 1].at,
+      // **ほぼ一日なら「時間帯」と言わない。** 絞れていないことを絞れたように見せない
+      allDay: hoursLong >= 20,
     };
   }
 
