@@ -247,6 +247,12 @@ ok(coreMod.PHENOMENA.capCloud.name === "笠雲", "一覧の列は短い名前");
 ok(coreMod.PHENOMENA.capCloud.longName === "富士山の笠雲", "幅のある場所は長い名前");
 ok(coreMod.longNameOf("capCloud") === "富士山の笠雲", "longNameOf が長いほうを返す");
 ok(coreMod.longNameOf("sunset") === "夕焼け", "longName の無い現象は name をそのまま返す");
+// 絵文字は富士山と同じ 🗻。**同じ絵文字であること自体が「同じ山の話」を伝える**。
+// デザイン定義の「絵文字は現象の識別にだけ使う」の例外（名前が隣にあるので行は見分く）
+ok(coreMod.PHENOMENA.capCloud.icon === coreMod.PHENOMENA.fuji.icon,
+  "笠雲の絵文字は富士山と同じ");
+ok(coreMod.PHENOMENA.capCloud.name !== coreMod.PHENOMENA.fuji.name,
+  "名前は違う（絵文字が同じなので名前で見分ける）");
 ok(/S\.longNameOf\(id\)/.test(html), "詳細の見出しと見どころで長い名前を使う");
 ok(/class="nm">\$\{esc\(meta\.name\)\}/.test(html), "一覧の列は短い名前のまま");
 ok(coreMod.PHENOMENA.capCloud.highlight !== false, "見どころに出す（富士山と違う）");
