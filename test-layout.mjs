@@ -263,6 +263,11 @@ ok(/SoramiCapCloud\.evaluateDay/.test(html), "1日ぶんを評価している");
 ok(/delete weeks\.fuji; delete weeks\.capCloud/.test(html), "富士山が見えない地点では行ごと出さない");
 // 上空の予報は富士山の上の話なので地点で変わらない
 ok(/let capUpper = null;/.test(html), "上空の予報を地点ごとに取り直さない");
+// **一覧と同じ日数を取る。** 3日固定にしていたので、他の行が14日あるのに
+// 笠雲だけ3日で切れて「—」が並び、壊れて見えた（2026-09-15 ユーザー指摘）
+ok(/fetchUpperAir\(\{ days: Math\.min\(16, days\.length\) \}\)/.test(html),
+  "取得日数を一覧の日数に合わせる");
+ok(!/fetchUpperAir\(\{ days: 3 \}\)/.test(html), "3日固定が残っていない");
 // 富士山の詳細からの導線
 ok(/function renderCapLine/.test(html), "富士山の詳細から笠雲へ1行");
 ok(/href="#\/capCloud"/.test(html), "押すと笠雲の詳細へ行く");

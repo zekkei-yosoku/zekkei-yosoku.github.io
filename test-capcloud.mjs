@@ -96,6 +96,16 @@ console.log("\n== 湿度極大が平坦なとき ==");
   ok(r.score > 0 && r.type === "unknown", "それでも採点はする・型は不明", `${r.score}点 ${r.type}`);
 }
 
+console.log("\n== 取得日数 ==");
+{
+  // 3日固定にしていたので、他の行が14日あるのに笠雲だけ切れて壊れて見えた
+  const days = (n) => new URL(C.buildURL(C.samplePoints(), n)).searchParams.get("forecast_days");
+  ok(days(14) === "14", "14日を頼める", days(14));
+  ok(days(99) === "16", "上限16で頭打ち（APIの上限）", days(99));
+  ok(days(0) === "1", "0以下でも1にする", days(0));
+  ok(C.samplePoints().length === 9, "山頂＋8方位の9地点", `${C.samplePoints().length}地点`);
+}
+
 console.log("\n== 壊れた入力で落ちない ==");
 {
   ok(C.features(null) === null, "null");

@@ -59,7 +59,7 @@
       latitude: points.map((p) => p.latitude.toFixed(6)).join(","),
       longitude: points.map((p) => p.longitude.toFixed(6)).join(","),
       models: "gfs_global", hourly: VARS.join(","),
-      forecast_days: String(days), wind_speed_unit: "ms", temperature_unit: "celsius",
+      forecast_days: String(Math.max(1, Math.min(16, days))), wind_speed_unit: "ms", temperature_unit: "celsius",
       timezone: "Asia/Tokyo", timeformat: "unixtime",
       elevation: points.map(() => "nan").join(","), cell_selection: "nearest",
     });
@@ -220,8 +220,13 @@
 
   const TYPE_LABEL = { cap: "山頂にかぶる形", high: "やや高い笠", detached: "離れ笠", unknown: "形は不明" };
 
-  /// 上空の予報を取る。山頂＋8方位の1回のリクエスト
-  async function fetchUpperAir({ days = 3, fetchImpl = null, signal = null } = {}) {
+  /**
+   * 上空の予報を取る。山頂＋8方位の1回のリクエスト。
+   *
+   * `days` は**一覧と同じ日数**を呼び出し側から渡す。3日固定にしていたら、
+   * 他の行が14日あるのに笠雲だけ3日で切れて壊れて見えた（2026-09-15）。
+   */
+  async function fetchUpperAir({ days = 14, fetchImpl = null, signal = null } = {}) {
     const f = fetchImpl || (typeof fetch === "function" ? fetch : null);
     if (!f) return null;
     const points = samplePoints();
