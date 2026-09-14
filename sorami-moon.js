@@ -17,6 +17,10 @@
   const FJ = global.SoramiFuji || (typeof require !== "undefined" ? require("./sorami-fuji.js") : null);
   if (!A || !TR || !FJ) throw new Error("astro / terrain / fuji が先に要ります");
 
+  /// 出典
+  const SOURCE = "月の位置は Meeus『Astronomical Algorithms』第47章（観測地補正つき）。"
+    + "明るさは視等級の実測式。雲とエアロゾルは Open-Meteo（8モデルの中央値・CAMS）。";
+
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
   /**
@@ -274,9 +278,68 @@
     return out.sort((x, y) => x.at - y.at);
   }
 
+  /**
+   * 1日ぶんの評価。**既存の7現象と完全に同じ形で返す。**
+   * 14日×現象の表に、他の現象と同じ行として並べるため。
+   *
+   * 月は「その日いちばん良く見える時刻」を代表にする。
+   * 月の出だけを見ると、日中に出る細い月の日が常に低くなり、
+   * 夜に高く昇っている時間帯を捨ててしまう。
+   */
+  function evaluateDay(obs, dayMs, S, {
+    horizonAt = () => 0, readingAt = () => null, airAt = () => null,
+    asOf = Date.now(), stepMs = 1800000,
+  } = {}) {
+    const daysAhead = Math.max(0, Math.round((dayMs - S.Cal.startOfDay(asOf)) / 86400000));
+    const start = dayMs, end = dayMs + 86400000;
+    let best = null, above = 0, total = 0;
+    for (let t = start; t < end; t += stepMs) {
+      total++;
+      const e = evaluateAt(t, obs, { horizonAt, reading: readingAt(t), air: airAt(t) });
+      if (!e.visible) continue;
+      above++;
+      if (!best || e.score > best.score) best = e;
+    }
+    const shell = (unavailable) => ({
+      phenomenon: "moon", window: [start, end - 1], peak: dayMs + 21 * 3600000,
+      specificTime: false, unavailable, score: 0, base: 0, factors: [], perModel: {},
+      source: SOURCE, models: 0, spread: [0, 0], daysAhead, asOf, confidence: S.confidenceOf(40, null), rank: S.rankOf(0),
+      uncertainty: null,
+    });
+    if (!above) return shell({ kind: "geometry", message: "この日は地形の上に出ません" });
+    if (!best) return shell({ kind: "forecast", message: "この日の予報がまだ届いていません" });
+
+    const m = best.moon;
+    const factors = best.parts.map((x) => ({
+      label: x.label, c: 0, detail: `${x.p === null ? "—" : Math.round(x.p * 100) + "%"}　${x.why}`,
+    }));
+    factors.push({ label: "月の様子", c: 0, detail:
+      `輝面 ${Math.round(m.illuminatedFraction * 100)}%　最も高いとき ${m.apparentAltitude.toFixed(0)}度` });
+
+    const width = 8 + S.leadTimePenalty(daysAhead);
+    return {
+      phenomenon: "moon", window: [start, end - 1], peak: best.ms, specificTime: true,
+      unavailable: null, score: best.score, base: best.score, factors,
+      perModel: {}, models: 0, spread: [Math.max(0, best.score - width), Math.min(100, best.score + width)],
+      source: SOURCE,
+      // **confidence はオブジェクト**（既存 confidenceOf と同じ形）。
+      // 数値を入れたら詳細画面が undefined になった（2026-09-14）
+      daysAhead, asOf, confidence: S.confidenceOf(width, null), rank: S.rankOf(best.score),
+      // **既存の7現象と同じ項目を揃える。** 欠けると詳細画面が ±NaN になる
+      uncertainty: {
+        basis: "single", ensembleBlind: null, modelWidth: width, ensembleIqr: null,
+        ensembleMembers: null, ensembleMedian: null, ensembleBand: null,
+        ensembleHistogram: null, ensembleScores: null,
+        expectedError: Math.round(width * 0.6), agreement: null,
+        modelAgreement: null, fallbackWidth: width,
+      },
+      detail: best,
+    };
+  }
+
   const SoramiMoon = {
     brightness, skyContrast, cloudTransmission, extinction, evaluateAt, sunAltitude,
-    timeline, windows, markers,
+    timeline, windows, markers, evaluateDay,
   };
   global.SoramiMoon = SoramiMoon;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiMoon;

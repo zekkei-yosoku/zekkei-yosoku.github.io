@@ -3,9 +3,20 @@ import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {VALIDATION_TARGETS,freezeEvaluations} from './record-validation-forecast.mjs';
 const S=createRequire(import.meta.url)('./sorami-core.js');
-test('7現象と東京近郊の固定6地点を保存対象に含める',()=>{
- assert.deepEqual([...new Set(VALIDATION_TARGETS.flatMap(s=>s.targets))].sort(),Object.keys(S.PHENOMENA).sort());
+// **保存対象は `SCORERS` で決まる。`PHENOMENA` ではない。**
+// 富士山と月は sorami-fuji.js / sorami-moon.js が採点していて core の `evaluate` を
+// 通らないので、この仕組み（S.evaluate を呼んで凍結する）には乗らない。
+// PHENOMENA には表へ並べるための名前だけが入っている（2026-09-14 に足した）。
+test('core が採点する7現象と、東京近郊の固定6地点を保存対象に含める',()=>{
+ assert.deepEqual([...new Set(VALIDATION_TARGETS.flatMap(s=>s.targets))].sort(),Object.keys(S.SCORERS).sort());
  assert.equal(VALIDATION_TARGETS.length,10);
+});
+test('表に並ぶ現象のうち、core が採点しないものは保存対象に含めない',()=>{
+ const scored=new Set(Object.keys(S.SCORERS));
+ const listed=Object.keys(S.PHENOMENA).filter(id=>!scored.has(id));
+ assert.deepEqual(listed.sort(),['fuji','moon']);
+ const targets=new Set(VALIDATION_TARGETS.flatMap(s=>s.targets));
+ for(const id of listed) assert.ok(!targets.has(id),`${id} は保存対象に入れない`);
 });
 test('始まった回を事前予測と偽らず、取得不能と未観測も区別する',()=>{
  const original=S.evaluate,now=Date.parse('2026-09-06T12:00:00+09:00');

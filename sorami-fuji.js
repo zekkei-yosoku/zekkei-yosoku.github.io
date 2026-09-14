@@ -127,6 +127,10 @@
   //
   // 0〜100 の点は確率そのものではない（§108）。確率に「くっきり度」を掛けたもの。
 
+  /// 出典。既存の現象と同じく、点数の根拠を画面から辿れるようにする
+  const SOURCE = "地形は国土地理院の標高タイル、雲とエアロゾルは Open-Meteo（8モデルの中央値・CAMS）。"
+    + "見通しは Koschmieder の式と、境界層に溜まるエアロゾルの鉛直分布から。";
+
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
   /// 雲量[%] → その層を見通せる確率。**雲があれば見えない、ではない**（§50 半透明の雲）
   const seeThrough = (coverPct, { thin = 0.25 } = {}) => {
@@ -411,12 +415,81 @@
     return { ...geom, fromCache: false };
   }
 
+  /**
+   * 1日ぶんの評価。**既存の7現象と完全に同じ形で返す。**
+   *
+   * こうしておけば `weeks[id]` へそのまま入れられ、14日×現象の表に
+   * 他の現象と同じ行として並ぶ。器を分けない。
+   *
+   * 富士山は日中いつでも見えるので、窓は 6〜17時。
+   * その中でいちばん良い時刻を代表にする（朝焼け・夕焼けと同じ考え）。
+   *
+   * `confidence` は既存と同じ「点数が何点ずれうるか」の幅で渡す。
+   * 富士山はアンサンブルを使っていないので、日数の下駄だけを効かせる。
+   */
+  function evaluateDay(geom, weather, home, air, dayMs, S, {
+    observerEyeM = 0, asOf = Date.now(), ...opts
+  } = {}) {
+    const daysAhead = Math.max(0, Math.round((dayMs - S.Cal.startOfDay(asOf)) / 86400000));
+    const shell = (unavailable) => ({
+      phenomenon: "fuji", window: [dayMs + 6 * 3600000, dayMs + 17 * 3600000],
+      peak: dayMs + 10 * 3600000, specificTime: false, unavailable,
+      score: 0, base: 0, factors: [], perModel: {}, models: 0, spread: [0, 0],
+      source: SOURCE, daysAhead, asOf, confidence: S.confidenceOf(40, null),
+      rank: S.rankOf(0), uncertainty: null,
+    });
+    if (!geom || !geom.available) return shell({ kind: "geometry", message: "この地点の地形をまだ測っていません" });
+    if (geom.classification === "NONE") return shell({ kind: "terrain", message: "この地点からは地形に隠れて見えません" });
+
+    const start = dayMs + 6 * 3600000, end = dayMs + 17 * 3600000;
+    let best = null;
+    for (let t = start; t <= end; t += 3600000) {
+      const e = evaluateFuji(geom, weather, home, t, { air, observerEyeM, ...opts });
+      if (!e.available || e.blockedByTerrain) continue;
+      if (!best || e.score > best.e.score) best = { t, e };
+    }
+    if (!best) return shell({ kind: "forecast", message: "この日の予報がまだ届いていません" });
+
+    // 内訳。既存の factor と同じ形（label / c / detail）にして、詳細画面で同じに読める
+    const factors = best.e.parts.filter((x) => x.pct !== null).map((x) => ({
+      label: x.label, c: 0, detail: `${x.pct}%　${x.why}`,
+    }));
+    if (best.e.clarity !== null) {
+      factors.push({ label: "空の澄み具合", c: 0,
+                     detail: `${Math.round(best.e.clarity * 100)}　${best.e.clarityWhy}` });
+    }
+    factors.push({ label: "地形", c: 0, detail:
+      geom.classification === "FULL" ? "手前に遮るものはありません"
+        : `山体の ${Math.round(geom.fraction * 100)}% が地形の上に出ています` });
+
+    // 先の日ほど当たらない。既存と同じ下駄を使う
+    const width = 8 + S.leadTimePenalty(daysAhead);
+    return {
+      phenomenon: "fuji", window: [start, end], peak: best.t, specificTime: false,
+      unavailable: null, score: best.e.score, base: best.e.score, factors,
+      perModel: {}, models: 0, spread: [Math.max(0, best.e.score - width), Math.min(100, best.e.score + width)],
+      source: SOURCE,
+      // **confidence はオブジェクト**（既存 confidenceOf と同じ形）。
+      // 数値を入れたら詳細画面が undefined になった（2026-09-14）
+      daysAhead, asOf, confidence: S.confidenceOf(width, null), rank: S.rankOf(best.e.score),
+      // **既存の7現象と同じ項目を揃える。** 欠けると詳細画面が ±NaN になる
+      uncertainty: {
+        basis: "single", ensembleBlind: null, modelWidth: width, ensembleIqr: null,
+        ensembleMembers: null, ensembleMedian: null, ensembleBand: null,
+        ensembleHistogram: null, ensembleScores: null,
+        expectedError: Math.round(width * 0.6), agreement: null,
+        modelAgreement: null, fallbackWidth: width,
+      },
+      detail: best.e,
+    };
+  }
+
   const SoramiFuji = {
     FUJI, CLOUD_BANDS, FUJI_VARS, CORRIDOR_VARS,
     sightLineHeightM, corridorPoints, fetchFujiWeather,
     viewpointClear, corridorClear, summitClear, seeThrough,
     clarityOf, evaluateFuji, BANDS, bandOf, readAt, median,
-    resolveGeometry, cacheKeyFor, CACHE_KEY, CACHE_VERSION,
+    resolveGeometry, cacheKeyFor, CACHE_KEY, CACHE_VERSION, evaluateDay,
     FREE_AIR_EXTINCTION_PER_KM, CONTRAST_THRESHOLD, HOME_NEEDS, aerosolScaleHeightKm,
   };
   global.SoramiFuji = SoramiFuji;

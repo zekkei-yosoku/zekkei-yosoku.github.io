@@ -632,13 +632,7 @@
   <!-- 一覧画面: この地点の全現象を、7日ぶんまとめて見る -->
   <div id="listView">
     <div class="card" id="bestNote" hidden></div>
-    <!-- 富士山が見えるか。**見える地点でだけ出す。**
-         見えない地点に「見えません」と出し続けても邪魔なだけ。
-         地形の判定には標高タイルの取得が要るので、地点ごとに一度測って憶える。 -->
-    <div class="card" id="fujiCard" hidden></div>
-    <!-- 月の出・月の入り。**月出時刻を出す機能ではない**（指示書 §100）。
-         天文の月出 → 地形の月出 → 光っている面が出る → 雲を抜けて見える、を分けて出す。 -->
-    <div class="card" id="moonCard" hidden></div>
+
     <!-- 並び替え。既定は「標準」＝現象の固定順で、行の位置が動かない。
          点数順・信頼度順は、その日だけ上位を知りたいときに明示的に選ぶもの。
          選択肢が4つあり、押すたびに全部を作り直す形はうるさいのでプルダウンにする。 -->
@@ -902,15 +896,15 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260914091015"></script>
+<script src="sorami-core.js?v=20260914093050"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260914091015"></script>
-<script src="sorami-terrain.js?v=20260914091015"></script>
-<script src="sorami-mountain.js?v=20260914091015"></script>
-<script src="sorami-fuji.js?v=20260914091015"></script>
-<script src="sorami-moon.js?v=20260914091015"></script>
-<script src="sorami-composition.js?v=20260914091015"></script>
+<script src="sorami-astro.js?v=20260914093050"></script>
+<script src="sorami-terrain.js?v=20260914093050"></script>
+<script src="sorami-mountain.js?v=20260914093050"></script>
+<script src="sorami-fuji.js?v=20260914093050"></script>
+<script src="sorami-moon.js?v=20260914093050"></script>
+<script src="sorami-composition.js?v=20260914093050"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1005,6 +999,16 @@ function confidenceText(ev) {
       const other = Math.round(ev.models * (1 - u.modelAgreement));
       parts.push(`ただし ${other}つの予報モデルは別の評価です。モデル間の不一致で信頼度を下げています`);
     }
+  } else if (u && u.basis === "single") {
+    // **モデルを横断して採点していない現象**（富士山・月）。
+    // 「N つの予報モデルが…」と言うと嘘になる（実際 N=0 で「0つの」と出た）。
+    // 何を根拠に幅を出しているかを、そのまま言う。
+    const w = Math.round(u.modelWidth);
+    parts.push(d === 0
+      ? `点数は ±${w}点 ほど動く見込みです`
+      : `${d}日先なので、点数は ±${w}点 ほど動く見込みです`);
+    if (ev.confidence.key === "medium") parts.push("評価が1段変わり得ます");
+    else if (ev.confidence.key === "low") parts.push("評価はあてになりません");
   } else {
     const lo = Math.round(ev.spread[0]), hi = Math.round(ev.spread[1]);
     const n = Object.keys(ev.perModel).length;
@@ -1272,26 +1276,27 @@ function upcoming(entries, now) {
       || entries.find((e) => !e.evaluation.unavailable) || entries[0];
 }
 
-// ---------------------------------------------------------------- 富士山
+// ------------------------------------------------------- 富士山と月（表の行）
 //
-// **見える地点でだけ出す。** 見えない地点に「見えません」と出し続けても邪魔なだけ。
-// 地形の判定には標高タイルの取得（数枚）が要るので、地点ごとに一度測って憶える。
+// **既存の7現象と同じ行として一覧に並べる。** 器を分けない。
+// ただし採点に必要なものが違う:
+//   富士山 … 地形の測定（通信）＋ 富士山と回廊の予報（通信）
+//   月     … 地形の測定（通信）
+// どちらも予報の描画を待たせられないので、**あとから足して描き直す**。
 //
-// 既存の7現象とは器が違う。7現象は「その日のスコア」だが、富士山は
-// 地点の幾何に強く依存し、地形で見えない地点では天気を見る意味がない。
-// SCORERS へ混ぜず、別のカードにしてある。
-let fujiGeom = null;         // いま見ている地点の幾何（憶えたもの）
-let fujiWeather = null;      // 富士山と回廊の天気
-let fujiKey = null;          // どの地点のものか
-let fujiGrid = null;         // data/fuji-grid.json（一度だけ読む）
-let fujiComposition = null;  // パール富士・ダイヤモンド富士（幾何だけ。天気と混ぜない）
+// 地形はその地点で二度と変わらないので、一度測って憶える（富士 §28）。
+let fujiGeom = null, fujiWeather = null, fujiComposition = null, fujiGrid = null;
+let moonHorizon = null;
+let extrasRunning = false;   // 再入を防ぐ（render は何度も呼ばれる）
+let extraKey = null;         // どの地点のものか
+let extraSeq = 0;            // 地点を切り替えたときに、遅れて来た結果を捨てる
 
+const fujiGroundCache = new Map();
 // **地面の標高は DEM から取る。**
 // `bundle.home.grid.elevation` は「予報を取った地点」のもので、地点を切り替えた直後は
 // 前の地点の値が残る。山中湖で東京の 30m を使い、富士山が地形に隠れる判定になった
 // （2026-09-14）。手入力の標高も、座標がずれていれば嘘になる（富士 §7・§8）。
-let fujiGroundCache = new Map();
-async function fujiObserver() {
+async function observerHere() {
   const key = `${place.latitude.toFixed(4)},${place.longitude.toFixed(4)}`;
   if (!fujiGroundCache.has(key)) {
     let g = null;
@@ -1299,11 +1304,9 @@ async function fujiObserver() {
     if (g === null || g === undefined) g = place.elevation ?? bundle?.home.grid.elevation ?? 0;
     fujiGroundCache.set(key, g);
   }
-  return {
-    latitude: place.latitude, longitude: place.longitude,
-    groundM: fujiGroundCache.get(key),
-    elevation: fujiGroundCache.get(key) + (place.eyeHeightAGL ?? 1.5),
-  };
+  const ground = fujiGroundCache.get(key);
+  return { latitude: place.latitude, longitude: place.longitude, groundM: ground,
+           elevation: ground + (place.eyeHeightAGL ?? 1.5) };
 }
 
 async function loadFujiGrid() {
@@ -1312,265 +1315,90 @@ async function loadFujiGrid() {
     const r = await fetch("data/fuji-grid.json");
     if (!r.ok) return null;
     fujiGrid = await r.json();
-    return fujiGrid;
-  } catch { return null; }
+  } catch { fujiGrid = null; }
+  return fujiGrid;
 }
 
-async function updateFuji() {
-  const card = $("fujiCard");
-  const obs = await fujiObserver();
-  // 日本の外なら、そもそも富士山の話をしない
-  if (!SoramiTerrain.inJapan(obs.latitude, obs.longitude)) { card.hidden = true; return; }
+const readingFor = (t) => SoramiFuji.readAt(bundle.home, t, SoramiFuji.HOME_NEEDS);
+const airFor = (t) => (bundle.air
+  ? { aerosol_optical_depth: bundle.air.isSupported("aerosol_optical_depth") ? bundle.air.valueAt("aerosol_optical_depth", t) : null,
+      dust: bundle.air.isSupported("dust") ? bundle.air.valueAt("dust", t) : null }
+  : null);
+
+/// 富士山と月の行を作って `weeks` へ入れ、表を描き直す
+async function loadExtras() {
+  if (!bundle) return;
+  const seq = ++extraSeq;
+  const obs = await observerHere();
+  if (seq !== extraSeq) return;
   const key = SoramiFuji.cacheKeyFor(obs);
-  if (key !== fujiKey) { fujiGeom = null; fujiWeather = null; fujiComposition = null; fujiKey = key; }
+  if (key !== extraKey) { fujiGeom = null; fujiWeather = null; fujiComposition = null; moonHorizon = null; extraKey = key; }
+  const days = weeks[Object.keys(weeks)[0]]?.map((e) => e.dayMs) ?? [];
+  if (!days.length) return;
 
-  const grid = await loadFujiGrid();
-  if (!grid) { card.hidden = true; return; }
-
-  if (!fujiGeom) {
-    // 測っている間は、そう見せる。黙って何も出ないと壊れて見える
-    card.hidden = false;
-    card.innerHTML = `<div class="muted">富士山が見えるか調べています…</div>`;
+  // ---- 月。地形の地平線は、月が出入りする方角だけ測る
+  if (!moonHorizon) {
+    let fn = () => 0;
     try {
-      fujiGeom = await SoramiFuji.resolveGeometry(obs, grid, { store: window.localStorage });
-    } catch (e) {
-      card.innerHTML = `<div class="muted">富士山の判定ができませんでした（${e.message}）</div>`;
-      return;
-    }
+      const now = Date.now();
+      const ev0 = SoramiAstro.moonEvents(now - 6 * 3600000, now + 30 * 3600000, obs, {});
+      const azs = [];
+      for (const e of ev0.astronomical) {
+        const m = SoramiAstro.moon(e.at, obs);
+        for (let d = -8; d <= 8; d += 2) azs.push(((m.azimuth + d) % 360 + 360) % 360);
+      }
+      if (azs.length) {
+        const prof = await SoramiTerrain.measureHorizon(obs, azs, { maxKm: 40 });
+        if (seq !== extraSeq) return;
+        fn = SoramiTerrain.combinedHorizon({ terrain: prof });
+      }
+    } catch { /* 測れなくても平らな地平線で出す。**黙って消さない** */ }
+    moonHorizon = fn;
   }
-  if (!fujiGeom.available) { card.hidden = true; return; }
-  // 地形で見えない地点では、天気を取りに行かない（§3 幾何が先）
-  if (fujiGeom.classification === "NONE") { card.hidden = true; return; }
+  weeks.moon = days.map((dayMs) => ({ dayMs,
+    evaluation: SoramiMoon.evaluateDay(obs, dayMs, S,
+      { horizonAt: moonHorizon, readingAt: readingFor, airAt: airFor }) }));
+  if (seq === extraSeq) rerenderList();
 
-  if (!fujiWeather) {
-    try { fujiWeather = await SoramiFuji.fetchFujiWeather(obs, S, { days: 3 }); } catch { fujiWeather = null; }
+  // ---- 富士山。日本の外なら出さない
+  if (!SoramiTerrain.inJapan(obs.latitude, obs.longitude)) { delete weeks.fuji; return; }
+  const grid = await loadFujiGrid();
+  if (!grid || seq !== extraSeq) return;
+  if (!fujiGeom) {
+    try { fujiGeom = await SoramiFuji.resolveGeometry(obs, grid, { store: window.localStorage }); }
+    catch { fujiGeom = null; }
+    if (seq !== extraSeq) return;
   }
-  fujiEyeM = obs.elevation;
-  // 構図は幾何だけなので、天気を待たずに計算できる。1年先まで探す
+  // 地形で見えないなら行ごと出さない。「見えません」を14日ぶん並べても邪魔なだけ
+  if (!fujiGeom || !fujiGeom.available || fujiGeom.classification === "NONE") { delete weeks.fuji; return; }
+  if (!fujiWeather) {
+    try { fujiWeather = await SoramiFuji.fetchFujiWeather(obs, S, { days: 8 }); } catch { fujiWeather = null; }
+    if (seq !== extraSeq) return;
+  }
+  weeks.fuji = days.map((dayMs) => ({ dayMs,
+    evaluation: SoramiFuji.evaluateDay(fujiGeom, fujiWeather, bundle.home, bundle.air, dayMs, S,
+      { observerEyeM: obs.elevation }) }));
+  // 構図は幾何だけ。天気を待たずに計算できる（月 §82）
   try {
     const T = { latitude: SoramiFuji.FUJI.latitude, longitude: SoramiFuji.FUJI.longitude,
                 elevationM: SoramiFuji.FUJI.summitM, name: "富士山" };
     const from = Date.now(), to = from + 366 * 86400000;
-    const all = [
+    fujiComposition = [
       ...SoramiComposition.findAlignments("sun", obs, T, from, to, { stepMs: 300000 })
         .map((c) => ({ ...c, name: SoramiComposition.nameOf("sun", T) })),
       ...SoramiComposition.findAlignments("moon", obs, T, from, to, { stepMs: 300000 })
         .map((c) => ({ ...c, name: SoramiComposition.nameOf("moon", T) })),
     ].sort((a, b) => a.at - b.at);
-    fujiComposition = all;
-  } catch (e) { console.warn("構図の計算に失敗:", e); fujiComposition = null; }
-  renderFuji();
+  } catch { fujiComposition = null; }
+  if (seq === extraSeq) rerenderList();
 }
 
-let fujiEyeM = 0;
-function renderFuji() {
-  const card = $("fujiCard");
-  if (!fujiGeom || !fujiGeom.available || !bundle) { card.hidden = true; return; }
-  const now = Date.now();
-  // 今からの3日ぶんを、日中の代表時刻で見る
-  const hours = [];
-  for (let h = 0; h < 72; h += 1) {
-    const t = Math.round((now + h * 3600000) / 3600000) * 3600000;
-    const local = new Date(t + (bundle.utcOffsetSeconds ?? 32400) * 1000);
-    const hh = local.getUTCHours();
-    if (hh < 6 || hh > 17) continue;
-    const e = SoramiFuji.evaluateFuji(fujiGeom, fujiWeather, bundle.home, t,
-      { air: bundle.air, observerEyeM: fujiEyeM });
-    if (e.available && !e.blockedByTerrain) hours.push({ t, local, e });
-  }
-  if (!hours.length) { card.hidden = true; return; }
-
-  const best = hours.reduce((a, b) => (b.e.score > a.e.score ? b : a));
-  const g = fujiGeom;
-  const km = Math.round(g.distanceKm);
-  const size = g.apparentSize;
-  const dayLabel = (d) => {
-    const t0 = new Date(now + (bundle.utcOffsetSeconds ?? 32400) * 1000);
-    const diff = Math.round((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
-      - Date.UTC(t0.getUTCFullYear(), t0.getUTCMonth(), t0.getUTCDate())) / 86400000);
-    return diff === 0 ? "今日" : diff === 1 ? "明日" : diff === 2 ? "明後日" : `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
-  };
-  const hhmm = (d) => `${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
-
-  // **箱を作らず、行で揃える**（04_デザイン定義「箱の中に箱を作らない」）
-  const rows = best.e.parts.filter((p) => p.pct !== null)
-    .map((p) => `<div class="pk-row"><span>${p.label}</span><span>${p.pct}%</span></div>`).join("");
-  const geomLine = g.classification === "FULL"
-    ? "手前に遮るものはありません"
-    : `山体の ${Math.round(g.fraction * 100)}% が地形の上に出ています`;
-
-  // 構図（パール富士・ダイヤモンド富士）。天気と混ぜない（月 §82）
-  const comp = fujiComposition && fujiComposition.length ? `
-    <div class="pk-sub">この地点で重なる日</div>
-    <div class="pk-comp">
-      ${fujiComposition.slice(0, 4).map((c) => {
-        const d = moonLocal(c.at);
-        const where = c.kind === "on" ? "山頂に重なる" : c.kind === "above" ? "山頂のすぐ上" : "山頂のすぐ下";
-        const ill = c.illuminatedFraction === null ? "" : `・輝面 ${Math.round(c.illuminatedFraction * 100)}%`;
-        return `<span>${c.name}</span>
-                <span class="d">${d.getUTCMonth() + 1}/${d.getUTCDate()} ${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, "0")}</span>
-                <span class="w">${where}${ill}</span>`;
-      }).join("")}
-    </div>
-    <p class="pk-note">重なる時刻は地形と天文だけで決まります。晴れるかは別で、予報が届くのは数日先まで。
-      立つ位置でも日が変わります（田貫湖では湖の端から端で11日）。</p>` : "";
-
-  card.hidden = false;
-  card.innerHTML = `
-    <div class="pk-head">
-      <span class="ic">🗻</span><span class="nm">富士山</span>
-      <span class="sc">${best.e.score}<small>点</small></span>
-    </div>
-    <div class="pk-says">${best.e.band.says}</div>
-    <div class="pk-when">いちばん良いのは ${dayLabel(best.local)} ${hhmm(best.local)} ごろ</div>
-    <div class="pk-rows">${rows}</div>
-    <p class="pk-note">ここから ${km}km。${geomLine}。見かけの高さは ${size.deg.toFixed(1)}度（満月${size.moonDiameters.toFixed(0)}個ぶん）。</p>
-    ${comp}
-    <details class="pk-more">
-      <summary>この先3日</summary>
-      <div class="pk-tl-wrap"><div class="pk-tl">${hours.map((h) =>
-        `<div class="pk-cell"><span>${dayLabel(h.local)}</span><span class="s">${h.e.score}</span><span class="a">${hhmm(h.local)}</span></div>`).join("")}</div></div>
-      <p class="pk-note">くっきり度 ${best.e.clarity === null ? "不明" : Math.round(best.e.clarity * 100)}（${best.e.clarityWhy}）。信頼度 ${best.e.confidence}。</p>
-    </details>`;
-}
-
-// ---------------------------------------------------------------- 月
-//
-// **月出時刻を出す機能ではない**（月の指示書 §100）。
-//   天文の月出 → 地形の月出 → 光っている面が出る → 雲を抜けて見える
-// を別の時刻として出す。
-//
-// 時系列は横スクロール（§51）。**自動では動かさない**（§52 カルーセル禁止）。
-// 中央寄せは開いたときの一度だけ（§64「ユーザー操作を尊重する」）。
-let moonState = null;      // { kind, tl, markers, events, selected, centered }
-
-async function updateMoon() {
-  const card = $("moonCard");
-  if (!bundle) { card.hidden = true; return; }
-  const obs = await fujiObserver();          // 地面の標高＋目の高さ。富士山と同じ
-  const now = Date.now();
-
-  // 地形の地平線。月が出入りする方角だけ測る（全周は要らない）
-  let horizonAt = () => 0;
-  let horizonSource = "平らな地平線として計算";
-  try {
-    const ev0 = SoramiAstro.moonEvents(now - 6 * 3600000, now + 30 * 3600000, obs, {});
-    const azs = [];
-    for (const e of ev0.astronomical) {
-      const m = SoramiAstro.moon(e.at, obs);
-      for (let d = -8; d <= 8; d += 2) azs.push(((m.azimuth + d) % 360 + 360) % 360);
-    }
-    if (azs.length) {
-      const prof = await SoramiTerrain.measureHorizon(obs, azs, { maxKm: 40 });
-      horizonAt = SoramiTerrain.combinedHorizon({ terrain: prof });
-      horizonSource = "地形を測って計算";
-    }
-  } catch { /* 測れなくても平らな地平線で出す。**黙って消さない** */ }
-
-  const events = SoramiAstro.moonEvents(now - 6 * 3600000, now + 30 * 3600000, obs, { horizonAt });
-  // 次に来る出入りを選ぶ
-  const upcoming = [...events.terrain, ...events.astronomical]
-    .filter((e) => e.at > now - 3600000).sort((a, b) => a.at - b.at)[0];
-  if (!upcoming) { card.hidden = true; return; }
-  const kind = upcoming.kind;
-
-  const readingAt = (t) => SoramiFuji.readAt(bundle.home, t, SoramiFuji.HOME_NEEDS);
-  const airAt = (t) => (bundle.air
-    ? { aerosol_optical_depth: bundle.air.isSupported("aerosol_optical_depth") ? bundle.air.valueAt("aerosol_optical_depth", t) : null,
-        dust: bundle.air.isSupported("dust") ? bundle.air.valueAt("dust", t) : null }
-    : null);
-
-  const tl = SoramiMoon.timeline(events, obs, { kind, horizonAt, readingAt, airAt });
-  if (!tl || !tl.rows.length) { card.hidden = true; return; }
-  moonState = { kind, tl, events, obs, horizonSource,
-                markers: SoramiMoon.markers(events, tl.rows, kind),
-                selected: null, centered: false };
-  renderMoon();
-}
-
-function moonLocal(ms) { return new Date(ms + (bundle?.utcOffsetSeconds ?? 32400) * 1000); }
-function moonHHMM(ms) { const d = moonLocal(ms); return `${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, "0")}`; }
-
-function renderMoon() {
-  const card = $("moonCard");
-  if (!moonState) { card.hidden = true; return; }
-  const { kind, tl, markers } = moonState;
-  const rows = tl.rows;
-  const best = rows.reduce((a, b) => (b.score > (a?.score ?? -1) ? b : a), null);
-  const sel = moonState.selected !== null
-    ? rows.find((r) => r.ms === moonState.selected) : (best && best.score > 0 ? best : rows[0]);
-  const phase = sel.moon;
-  const title = kind === "rise" ? "月の出" : "月の入り";
-
-  // 出来事。強弱をつける（§59）。天文上の時刻は注記の色で下げる
-  const evRows = markers.map((m) =>
-    `<div class="pk-row"${m.level === "secondary" ? ' style="color:var(--tertiary)"' : ""}>
-       <span${m.level === "primary" ? ' style="color:var(--text);font-weight:600"' : ""}>${m.label}</span>
-       <span>${moonHHMM(m.at)}</span></div>`).join("");
-
-  const markOf = (r) => {
-    const near = markers.filter((m) => Math.abs(m.at - r.ms) <= tl.stepMs / 2 && m.level === "primary");
-    if (!near.length) return "";
-    return near.some((m) => m.key === "peak") ? "★"
-      : near.some((m) => m.key === "firstVisible") ? "◎"
-      : near.some((m) => m.key === "brightLimb") ? "◐" : "▲";
-  };
-
-  const cells = rows.map((r) => `<button class="pk-cell moon-cell" data-ms="${r.ms}"
-      aria-pressed="${r.ms === sel.ms}"
-      aria-label="${moonHHMM(r.ms)} ${r.visible ? r.score + "点" : "まだ出ていない"}">
-      <span>${moonHHMM(r.ms)}</span>
-      <span class="s">${r.visible ? r.score : "—"}</span>
-      <span class="a">${r.moon.apparentAltitude.toFixed(1)}°</span>
-      <span class="mk">${markOf(r)}</span></button>`).join("");
-
-  const detail = sel.visible
-    ? [["見える", `${Math.round(sel.pVisible * 100)}%`],
-       ["写真に撮れる", `${Math.round(sel.pPhoto * 100)}%`],
-       ["くっきり度", String(sel.clarity)],
-       ["高さ・方角", `${sel.moon.apparentAltitude.toFixed(1)}° / ${Math.round(sel.moon.azimuth)}°`],
-       ...sel.parts.map((p) => [p.label, p.p === null ? "—" : Math.round(p.p * 100) + "%"])]
-      .map(([k, v]) => `<div class="pk-row"><span>${k}</span><span>${v}</span></div>`).join("")
-    : `<div class="pk-row"><span>${sel.reason || "まだ出ていません"}</span><span>${sel.moon.apparentAltitude.toFixed(1)}°</span></div>`;
-
-  card.hidden = false;
-  card.innerHTML = `
-    <div class="pk-head">
-      <span class="ic">🌙</span><span class="nm">${title}</span>
-      <span class="sc">${best && best.score > 0 ? best.score : "—"}<small>点</small></span>
-    </div>
-    <div class="pk-when">${phase.illuminatedFraction >= 0.995 ? "満月" : `輝面 ${Math.round(phase.illuminatedFraction * 100)}%`}
-      ・${moonState.horizonSource}</div>
-    <div class="pk-rows">${evRows}</div>
-    <div class="pk-tl-wrap"><div class="pk-tl" id="moonTl" role="group"
-      aria-label="時刻ごとの見え方（横スクロール）">${cells}</div></div>
-    <div class="pk-nav">
-      <button class="tap" id="moonPrev" aria-label="前の時刻へ">←</button>
-      <button class="tap" id="moonNext" aria-label="次の時刻へ">→</button>
-    </div>
-    <div class="pk-sub">${moonHHMM(sel.ms)}${sel.visible ? `　${sel.score}点` : ""}</div>
-    <div class="pk-rows">${detail}</div>
-    <p class="pk-note">★いちばん良い ◎見え始め ◐光っている面が出る ▲地形から出はじめ。
-      天気の予報は1時間ごとで、その間は補っています。</p>`;
-
-  for (const b of card.querySelectorAll(".moon-cell")) {
-    b.onclick = () => { moonState.selected = Number(b.dataset.ms); renderMoon(); };
-  }
-  const step = (dir) => {
-    const i = rows.findIndex((r) => r.ms === sel.ms);
-    const n = Math.max(0, Math.min(rows.length - 1, i + dir));
-    moonState.selected = rows[n].ms; renderMoon();
-    card.querySelector(`[data-ms="${rows[n].ms}"]`)?.scrollIntoView({ block: "nearest", inline: "center" });
-  };
-  $("moonPrev").onclick = () => step(-1);
-  $("moonNext").onclick = () => step(1);
-
-  // **中央寄せは開いたときの一度だけ**（§64）。
-  // 手で動かしたあとに勝手に戻すのは、操作を奪うこと
-  if (!moonState.centered) {
-    moonState.centered = true;
-    card.querySelector(`[data-ms="${sel.ms}"]`)?.scrollIntoView({ block: "nearest", inline: "center" });
-  }
+/// 一覧の表だけ描き直す。**詳細を開いている最中は触らない**（読んでいる画面を奪わない）
+function rerenderList() {
+  if (!bundle) return;
+  const inDetail = !!document.querySelector("#detailView:not([hidden])");
+  if (inDetail) return;
+  render();
 }
 
 function render() {
@@ -1739,8 +1567,13 @@ function render() {
     + `予報: Open-Meteo ／ 実況: 気象庁アメダス ／ 光害: <a href="https://djlorenz.github.io/astronomy/lp/">Lorenz Light Pollution Atlas 2025</a>（VIIRS） ／ 検索: OSM Nominatim ・ 標高: 国土地理院`;
 
   // 富士山は通信が要るので、予報の描画を待たせない。**失敗しても本体を巻き込まない**
-  updateFuji().catch((e) => { console.warn("富士山の判定に失敗:", e); $("fujiCard").hidden = true; });
-  updateMoon().catch((e) => { console.warn("月の判定に失敗:", e); $("moonCard").hidden = true; });
+  // 富士山と月は通信が要るので、予報の描画を待たせない。
+  // 用意ができたら `weeks` へ足して、一覧だけ描き直す
+  if (!extrasRunning) {
+    extrasRunning = true;
+    loadExtras().catch((e) => console.warn("富士山・月の判定に失敗:", e))
+                .finally(() => { extrasRunning = false; });
+  }
 }
 
 function wireOutcomes(root) {
@@ -1761,7 +1594,10 @@ function routeFromHash() {
   if (location.hash === "#/records") return { records: true };
   if (location.hash === "#/admin") return { admin: true };
   const m = /^#\/([A-Za-z]+)(?:\/(\d+))?$/.exec(location.hash);
-  if (!m || !S.SCORERS[m[1]]) return null;
+  // **`SCORERS` ではなく `PHENOMENA` で見る。**
+  // 富士山と月は core が採点しない（sorami-fuji / sorami-moon が採点して
+  // `weeks` へ入れる）ので、`SCORERS` に無い。ここで弾くと詳細が開かない。
+  if (!m || !S.PHENOMENA[m[1]]) return null;
   return { id: m[1], dayMs: m[2] ? Number(m[2]) : null };
 }
 
@@ -2242,7 +2078,26 @@ function renderDetail(id, sel, now, opts = {}) {
   if (opts.part === "how") {
     return `<div style="padding:4px 0 6px">
       ${renderEnsemble(ev)}
-      <div class="section-h" style="margin-top:8px"><h2>予報モデルごとの見立て</h2></div>${perModel}
+      ${ev.uncertainty && ev.uncertainty.basis === "single" ? ""
+        : `<div class="section-h" style="margin-top:8px"><h2>予報モデルごとの見立て</h2></div>${perModel}`}
+    </div>`;
+  }
+  // **掛け算で採点する現象は、加減点の言い方が合わない。**
+  // 富士山と月は「見える確率 = A × B × C」で、基準からの増減ではない。
+  // 「基準 98 → 98／効かなかった要素: 全部」と出てしまうので、状態として並べる
+  // （2026-09-14。既存の器に載せたときに露見した）。
+  if (ev.uncertainty && ev.uncertainty.basis === "single") {
+    const listed = ev.factors.map((f) => {
+      const [head, ...rest] = String(f.detail || "").split("　");
+      return `<div class="pk-row"><span>${esc(f.label)}</span>`
+           + `<span>${esc(head)}</span></div>`
+           + (rest.length ? `<p class="tiny" style="margin:-2px 0 4px;color:var(--tertiary)">${esc(rest.join("　"))}</p>` : "");
+    }).join("");
+    return `<div style="padding:4px 0 6px">
+      <div class="section-h"><h2>この点数のわけ</h2>
+        <span class="tiny">かけ合わせで決まります</span></div>
+      <div class="pk-rows">${listed}</div>
+      ${record}
     </div>`;
   }
   return `<div style="padding:4px 0 6px">
