@@ -236,6 +236,22 @@ ok(/function moonEvents\(startMs, spanMs\)[\s\S]{0,900}SoramiAstro\.moonEvents/.
 ok(!/S\.Moon\.state\(/.test(html), "core の地心計算を月の出入りの表示に呼んでいない");
 ok(!/MOON_H0/.test(html), "旧実装の判定高度（MOON_H0）を残していない");
 
+console.log("== 笠雲 ==");
+// 起きるか起きないかの現象なので、富士山と違って見どころに出す
+//（晴れていればだいたい見える富士山と、材料が揃った日にだけ出る笠雲は別）。
+ok(coreMod.PHENOMENA.capCloud !== undefined, "現象として登録されている");
+ok(coreMod.PHENOMENA.capCloud.highlight !== false, "見どころに出す（富士山と違う）");
+ok(coreMod.PHENOMENA.capCloud.record === "occurrence", "「見えた/見えなかった」で記録する");
+ok(/sorami-capcloud\.js/.test(html), "採点を読み込んでいる");
+ok(/SoramiCapCloud\.evaluateDay/.test(html), "1日ぶんを評価している");
+// 富士山が地形で見えない地点では笠雲も出さない
+ok(/delete weeks\.fuji; delete weeks\.capCloud/.test(html), "富士山が見えない地点では行ごと出さない");
+// 上空の予報は富士山の上の話なので地点で変わらない
+ok(/let capUpper = null;/.test(html), "上空の予報を地点ごとに取り直さない");
+// 富士山の詳細からの導線
+ok(/function renderCapLine/.test(html), "富士山の詳細から笠雲へ1行");
+ok(/href="#\/capCloud"/.test(html), "押すと笠雲の詳細へ行く");
+
 console.log("== 写真から時刻を読む ==");
 // 3択より「いつ・どこで撮ったか」のほうが照合に使える。
 // 採点は時間帯に対して出しているので、その中で撮られたかが分からないと測れない

@@ -149,6 +149,12 @@
   .lt .lt-h { font-size: 0.72rem; color: var(--tertiary); }
   .lt .lt-l { color: var(--secondary); white-space: nowrap; }
 
+  /* 富士山の詳細から笠雲へ。押せることが分かる形にする。 */
+  .cap-line { display: flex; align-items: center; gap: 8px; min-height: 44px;
+              color: var(--text); text-decoration: none; }
+  .cap-line .ic { font-size: 1.06rem; }
+  .cap-line .go { margin-left: auto; color: var(--secondary); }
+
   /* 富士山の時刻帯。一覧のセルと同じ塗りを、横一列に並べるだけ。 */
   .ft-band { display: grid; gap: 1px; margin-top: 8px; }
   .ft-c { height: 26px; display: flex; align-items: center; justify-content: center;
@@ -917,16 +923,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260915005921"></script>
+<script src="sorami-core.js?v=20260915021956"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260915005921"></script>
-<script src="sorami-exif.js?v=20260915005921"></script>
-<script src="sorami-terrain.js?v=20260915005921"></script>
-<script src="sorami-mountain.js?v=20260915005921"></script>
-<script src="sorami-fuji.js?v=20260915005921"></script>
-<script src="sorami-moon.js?v=20260915005921"></script>
-<script src="sorami-composition.js?v=20260915005921"></script>
+<script src="sorami-astro.js?v=20260915021956"></script>
+<script src="sorami-exif.js?v=20260915021956"></script>
+<script src="sorami-capcloud.js?v=20260915021956"></script>
+<script src="sorami-terrain.js?v=20260915021956"></script>
+<script src="sorami-mountain.js?v=20260915021956"></script>
+<script src="sorami-fuji.js?v=20260915021956"></script>
+<script src="sorami-moon.js?v=20260915021956"></script>
+<script src="sorami-composition.js?v=20260915021956"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1354,6 +1361,7 @@ let moonObs = null;      // 地平線を測ったときの観測者。詳細の�
 let moonUrbanMeta = null; // 建物層の内訳（何棟・推定が何棟・いちばん高いもの）
 let moonTerrainProfile = null; // 地形だけの地平線。建物が届いたら重ねて作り直す
 let moonUrbanTried = false;    // 建物の取得は地点ごとに1回だけ
+let capUpper = null;           // 笠雲の上空予報。富士山の上の話なので地点で変わらない
 
 // 建物の地平線。地点ごとに localStorage へ置く。
 //
@@ -1510,8 +1518,23 @@ async function loadExtras() {
       { horizonAt: moonHorizon, readingAt: readingFor, airAt: airFor }) }));
   if (seq === extraSeq) rerenderList();
 
+  // ---- 笠雲。**富士山の上の現象**なので、上空の予報は地点で変わらない（取り直さない）。
+  //
+  // 富士山が地形で見えない地点では下で行ごと消す。見えない山の笠を並べても意味がない。
+  if (SoramiTerrain.inJapan(obs.latitude, obs.longitude) && typeof SoramiCapCloud !== "undefined") {
+    if (!capUpper) {
+      try { capUpper = await SoramiCapCloud.fetchUpperAir({ days: 3 }); } catch { capUpper = null; }
+      if (seq !== extraSeq) return;
+    }
+    if (capUpper) {
+      weeks.capCloud = days.map((dayMs) => ({ dayMs,
+        evaluation: SoramiCapCloud.evaluateDay(capUpper, dayMs, S) }));
+      if (seq === extraSeq) rerenderList();
+    }
+  }
+
   // ---- 富士山。日本の外なら出さない
-  if (!SoramiTerrain.inJapan(obs.latitude, obs.longitude)) { delete weeks.fuji; return; }
+  if (!SoramiTerrain.inJapan(obs.latitude, obs.longitude)) { delete weeks.fuji; delete weeks.capCloud; return; }
   const grid = await loadFujiGrid();
   if (!grid || seq !== extraSeq) return;
   if (!fujiGeom) {
@@ -1520,7 +1543,7 @@ async function loadExtras() {
     if (seq !== extraSeq) return;
   }
   // 地形で見えないなら行ごと出さない。「見えません」を14日ぶん並べても邪魔なだけ
-  if (!fujiGeom || !fujiGeom.available || fujiGeom.classification === "NONE") { delete weeks.fuji; return; }
+  if (!fujiGeom || !fujiGeom.available || fujiGeom.classification === "NONE") { delete weeks.fuji; delete weeks.capCloud; return; }
   if (!fujiWeather) {
     try { fujiWeather = await SoramiFuji.fetchFujiWeather(obs, S, { days: 8 }); } catch { fujiWeather = null; }
     if (seq !== extraSeq) return;
@@ -2215,6 +2238,27 @@ function renderFujiTimes(ev) {
   </div>`;
 }
 
+// 富士山の詳細から笠雲へ1行。**同じ山の話**なので隣に置く。
+// 笠雲は独立した行としても並ぶ（起きるか起きないかの現象なので見どころにも出る）。
+//
+// 2026-09-15 まで、ここには「笠雲の気象条件」という湿度と風の表を開く
+// `<details>` を置いていた（確率は出さない内部版）。点数を出すようになったので、
+// 条件は詳細の「この点数のわけ」に内訳として出る。表を二重に持たない。
+function renderCapLine(dayMs) {
+  const rows = weeks.capCloud;
+  if (!rows || typeof SoramiCapCloud === "undefined") return "";
+  const hit = rows.find((r) => S.JstCal.sameDay(r.dayMs, dayMs));
+  if (!hit || hit.evaluation.unavailable) return "";
+  const ev = hit.evaluation;
+  const label = S.phrasing("capCloud", ev.rank).label;
+  const type = ev.detail ? SoramiCapCloud.TYPE_LABEL[ev.detail.type] : "";
+  return `<a class="card cap-line" href="#/capCloud">
+    <span class="ic">${S.PHENOMENA.capCloud.icon}</span>
+    <span><strong>笠雲</strong> ${esc(label)} ${Math.round(ev.score)}
+      <span class="tiny" style="color:var(--tertiary)">${esc(type)}・${S.JstCal.hhmmRounded(ev.peak)}ごろ</span></span>
+    <span class="go">›</span></a>`;
+}
+
 function renderLightTimes(dayMs, now, phenomenonId) {
   const w = S.Sun.lightWindows(dayMs, place.latitude, place.longitude);
   if (w.sunrise === null && w.sunset === null) return "";
@@ -2323,7 +2367,7 @@ function renderDayDetail(id, entries, sel, now) {
       <div class="tiny" style="margin-top:4px">${CONF_ICON[ev.confidence.key]} ${esc(confidenceText(ev))}</div></div>`;
   return `${head}
     ${id === "moon" ? renderMoonTimes(sel.dayMs) : ""}
-    ${id === "fuji" ? renderFujiTimes(ev) : ""}
+    ${id === "fuji" ? renderFujiTimes(ev) + renderCapLine(sel.dayMs) : ""}
     ${renderLightTimes(sel.dayMs, now, id)}
     <div class="card">${renderDetail(id, sel, now)}</div>
     <details class="card more"><summary>もっと詳しく</summary>
