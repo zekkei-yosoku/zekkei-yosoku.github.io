@@ -428,7 +428,7 @@
    * 富士山はアンサンブルを使っていないので、日数の下駄だけを効かせる。
    */
   function evaluateDay(geom, weather, home, air, dayMs, S, {
-    observerEyeM = 0, asOf = Date.now(), ...opts
+    observerEyeM = 0, asOf = Date.now(), observer = null, ...opts
   } = {}) {
     const daysAhead = Math.max(0, Math.round((dayMs - S.Cal.startOfDay(asOf)) / 86400000));
     const shell = (unavailable) => ({
@@ -441,14 +441,38 @@
     if (!geom || !geom.available) return shell({ kind: "geometry", message: "この地点の地形をまだ測っていません" });
     if (geom.classification === "NONE") return shell({ kind: "terrain", message: "この地点からは地形に隠れて見えません" });
 
-    const start = dayMs + 6 * 3600000, end = dayMs + 17 * 3600000;
+    // 評価する時間帯は**太陽から決める**。
+    //
+    // 以前は 6:00〜17:00 の固定だった。だが東京の夕方の黄金の時間は
+    // 6月で 18:22〜19:18、朝の黄金は 4:07〜5:03 で、**12か月中11か月は窓の外**。
+    // 「朝焼け・夕焼けのときに見えるか」がいちばん見たい情報なのに、
+    // その時間帯を一度も評価していなかった（2026-09-14 ユーザー指摘で発覚）。
+    //
+    // 市民薄明のあいだ（空が明るい時間）を端から端まで見る。
+    const lw = observer ? S.Sun.lightWindows(dayMs, observer.latitude, observer.longitude) : null;
+    const start = (lw && lw.blueMorning ? lw.blueMorning[0] : dayMs + 6 * 3600000);
+    const end   = (lw && lw.blueEvening ? lw.blueEvening[1] : dayMs + 17 * 3600000);
+
+    // 黄金の時間は 50分ほどしかない。1時間刻みだと丸ごと飛ばし得るので 30分刻み。
+    const STEP = 1800000;
     let best = null;
-    for (let t = start; t <= end; t += 3600000) {
+    const hours = [];
+    for (let t = start; t <= end; t += STEP) {
       const e = evaluateFuji(geom, weather, home, t, { air, observerEyeM, ...opts });
       if (!e.available || e.blockedByTerrain) continue;
+      hours.push({ at: t, score: e.score, band: e.band, why: e.why });
       if (!best || e.score > best.e.score) best = { t, e };
     }
     if (!best) return shell({ kind: "forecast", message: "この日の予報がまだ届いていません" });
+
+    // 朝焼け・夕焼けのときの見え方（§ユーザーの主用途）。その帯のなかの最良を採る。
+    const inBand = (band) => {
+      if (!band) return null;
+      const rows = hours.filter((h) => h.at >= band[0] && h.at <= band[1]);
+      if (!rows.length) return null;
+      return rows.reduce((x, y) => (y.score > x.score ? y : x));
+    };
+    const golden = lw ? { morning: inBand(lw.goldenMorning), evening: inBand(lw.goldenEvening) } : null;
 
     // 内訳。既存の factor と同じ形（label / c / detail）にして、詳細画面で同じに読める
     const factors = best.e.parts.filter((x) => x.pct !== null).map((x) => ({
@@ -481,6 +505,8 @@
         modelAgreement: null, fallbackWidth: width,
       },
       detail: best.e,
+      // 時刻ごとの見え方。詳細画面が「何時なら見えるか」を出すために使う
+      hours, golden,
     };
   }
 

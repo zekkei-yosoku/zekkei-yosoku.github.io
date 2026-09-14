@@ -174,8 +174,10 @@ ok(/renderLightTimes\(sel\.dayMs, now, id\)/.test(html), "選んだ日と現象�
 ok(/class="lt-band"/.test(html), "1日を1本の帯で描く");
 ok(/TL_SPAN = 27 \* 3600000/.test(html),
   "軸は0〜27時（夜の見ごろは暦の上では翌日になるため）");
-ok(/function moonEvents/.test(html) && /MOON_H0 = 0\.125/.test(html),
-  "月の出・月の入りを出す（判定高度は大気差・地平視差・視半径の合成）");
+// 判定高度は以前 `MOON_H0 = 0.125` として index.html に直書きしていたが、
+// 2026-09-14 に SoramiAstro へ寄せた。上端・大気差・地平視差は moonCrossings が持つ。
+ok(/function moonEvents/.test(html) && /SoramiAstro\.moonEvents/.test(html),
+  "月の出・月の入りを出す（補正は SoramiAstro が上端・大気差・地平視差で行う）");
 ok(/lightWindows/.test(html), "太陽の高度から求めている");
 const core2 = fs.readFileSync(new URL("./sorami-core.js", import.meta.url), "utf8");
 // 写真分野の標準的な定義。ゴールデン −4°〜+6°、ブルー −6°〜−4°。
@@ -212,7 +214,7 @@ ok(/function renderMoonTimes\(/.test(html), "renderMoonTimes がある");
 ok(/id === "moon" \? renderMoonTimes\(sel\.dayMs\) : ""/.test(html), "月の詳細から呼んでいる");
 ok(/SoramiAstro\.moonEvents\([\s\S]{0,120}horizonAt/.test(html),
   "平らな地平線ではなく、測った地平線で月の出入りを出す");
-for (const label of ["空の上では", "地形から", "まるごと", "見え始め"]) {
+for (const label of ["暦の上では", "この場所では", "まるごと", "見え始め"]) {
   ok(html.includes(`"${label}"`) || html.includes(`["${label}"`),
     `「${label}」の段がある`);
 }
@@ -220,6 +222,19 @@ ok(/class="lt"/.test(html.slice(html.indexOf("function renderMoonTimes"),
                                 html.indexOf("function renderLightTimes"))),
   "既存の .lt を使い回す（新しい見た目を作らない）");
 ok(/月は毎日およそ50分おそくなる/.test(html), "出ない日・入らない日を黙って空欄にしない");
+// 高い場所では地平線が下がり、暦より**早く**出る（東京タワー150mで2分早い）。
+// 「地形から」だと遮る意味にしか読めないので、上下どちらへも動く言い方にする。
+ok(!/"地形から"/.test(html), "「地形から」という片方向の言い方を使っていない");
+ok(/見え始め」の時刻は出ませんでした/.test(html), "見え始めが出ないとき、ダッシュだけで終わらせない");
+
+console.log("== 同じ画面で月の出の時刻が食い違わない ==");
+// 光の時間の帯は core の地心計算、詳細の表は SoramiAstro（地平視差・大気差・視半径）で
+// 出していたため、同じ画面に 8:22 と 8:21 が並んでいた。表示は精密なほうへ揃える。
+// core の Moon は星空の採点と Swift 版パリティで固定なので触らない。
+ok(/function moonEvents\(startMs, spanMs\)[\s\S]{0,900}SoramiAstro\.moonEvents/.test(html),
+  "光の時間の帯も SoramiAstro から時刻を取る");
+ok(!/S\.Moon\.state\(/.test(html), "core の地心計算を月の出入りの表示に呼んでいない");
+ok(!/MOON_H0/.test(html), "旧実装の判定高度（MOON_H0）を残していない");
 
 console.log("== 地平線は全周を測る ==");
 // 「今日の月の方位 ±8度」だけ測っていたが、月の出の方位は14日で45度以上動く

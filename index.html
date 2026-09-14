@@ -149,6 +149,21 @@
   .lt .lt-h { font-size: 0.72rem; color: var(--tertiary); }
   .lt .lt-l { color: var(--secondary); white-space: nowrap; }
 
+  /* 富士山の時刻帯。一覧のセルと同じ塗りを、横一列に並べるだけ。 */
+  .ft-band { display: grid; gap: 1px; margin-top: 8px; }
+  .ft-c { height: 26px; display: flex; align-items: center; justify-content: center;
+          font-size: 0.63rem; font-variant-numeric: tabular-nums; color: var(--text);
+          overflow: hidden; }
+  /* 狭い画面では数字が入らない。色だけにして、はみ出させない。
+     375px で14セルだと1セル約24px。2桁は入るが3桁（100点）は入らないので
+     小さめの字にしてある。 */
+  .ft-c > span { line-height: 1; }
+  .ft-c:first-child { border-radius: 4px 0 0 4px; }
+  .ft-c:last-child { border-radius: 0 4px 4px 0; }
+  .ft-ticks { display: grid; gap: 1px; margin-top: 2px;
+              font-size: 0.63rem; color: var(--tertiary); font-variant-numeric: tabular-nums; }
+  .ft-ticks span { text-align: center; white-space: nowrap; }
+
   /* まだ答えていない回。アプリを開いて1タップで済むようにする。 */
   .pending { padding: 2px 0 4px; }
   .pending-row { padding: 7px 0; border-top: 1px solid var(--line); }
@@ -896,15 +911,15 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260914200917"></script>
+<script src="sorami-core.js?v=20260914210200"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260914200917"></script>
-<script src="sorami-terrain.js?v=20260914200917"></script>
-<script src="sorami-mountain.js?v=20260914200917"></script>
-<script src="sorami-fuji.js?v=20260914200917"></script>
-<script src="sorami-moon.js?v=20260914200917"></script>
-<script src="sorami-composition.js?v=20260914200917"></script>
+<script src="sorami-astro.js?v=20260914210200"></script>
+<script src="sorami-terrain.js?v=20260914210200"></script>
+<script src="sorami-mountain.js?v=20260914210200"></script>
+<script src="sorami-fuji.js?v=20260914210200"></script>
+<script src="sorami-moon.js?v=20260914210200"></script>
+<script src="sorami-composition.js?v=20260914210200"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1414,7 +1429,7 @@ async function loadExtras() {
   }
   weeks.fuji = days.map((dayMs) => ({ dayMs,
     evaluation: SoramiFuji.evaluateDay(fujiGeom, fujiWeather, bundle.home, bundle.air, dayMs, S,
-      { observerEyeM: obs.elevation }) }));
+      { observerEyeM: obs.elevation, observer: obs }) }));
   // 構図は幾何だけ。天気を待たずに計算できる（月 §82）
   try {
     const T = { latitude: SoramiFuji.FUJI.latitude, longitude: SoramiFuji.FUJI.longitude,
@@ -1858,38 +1873,38 @@ function phaseGradient(dayMs, a, b) {
 const TL_SPAN = 27 * 3600000;
 
 // 月の出・月の入り。
-// sorami-core の Moon は高度しか返さないので、ここで高度の符号が変わる時刻を探す。
-// 判定高度は +0.125°（大気差 −34′、地平視差 +57′、視半径 −16′ の合成）。
 // 太陽と違って月は毎日約50分ずれるので、日をまたいで出ない日・入らない日がある。
-const MOON_H0 = 0.125;
 function moonEvents(startMs, spanMs) {
-  const alt = (t) => S.Moon.state(t, place.latitude, place.longitude).elevation - MOON_H0;
-  const cross = (a, b) => {          // 符号が変わる区間を二分法で詰める
-    for (let i = 0; i < 22; i++) {
-      const m = (a + b) / 2;
-      if (alt(a) * alt(m) <= 0) b = m; else a = m;
-    }
-    return (a + b) / 2;
-  };
-  const step = 600000;               // 10分刻み。月は最速でも1時間に約15°しか動かない
-  const spans = [];
-  let prev = alt(startMs), rise = prev > 0 ? startMs : null;
-  let firstRise = null, firstSet = null;
-  for (let t = startMs + step; t <= startMs + spanMs; t += step) {
-    const cur = alt(t);
-    if (prev < 0 && cur >= 0) { rise = cross(t - step, t); if (firstRise === null) firstRise = rise; }
-    if (prev > 0 && cur <= 0) {
-      const set = cross(t - step, t);
-      if (firstSet === null) firstSet = set;
-      if (rise !== null) spans.push([rise, set]);
-      rise = null;
-    }
-    prev = cur;
+  // **`SoramiAstro` を使う。** 以前は `S.Moon.state`（core の地心計算）で高度の符号が
+  // 変わる時刻を探していたが、詳細の「月の出・月の入り」表は `SoramiAstro`（地平視差・
+  // 大気差・視半径つき）で出しているため、同じ画面に 8:21 と 8:22 が並んでいた。
+  // core の Moon は星空の採点と Swift 版とのパリティで固定されているので触らず、
+  // **表示に使う時刻だけ精密なほうへ揃える**。
+  const obs = moonObs || { latitude: place.latitude, longitude: place.longitude,
+                           elevation: place.elevation ?? 0 };
+  let ev;
+  try {
+    ev = SoramiAstro.moonEvents(startMs, startMs + spanMs, obs, {});
+  } catch {
+    return { rise: null, set: null, spans: [], illuminated: 0, age: 0 };
   }
-  if (rise !== null) spans.push([rise, startMs + spanMs]);
-  const mid = S.Moon.state(startMs + spanMs / 2, place.latitude, place.longitude);
-  return { rise: firstRise, set: firstSet, spans,
-           illuminated: mid.illuminatedFraction, age: mid.age };
+  const rises = ev.astronomical.filter((e) => e.kind === "rise").map((e) => e.at);
+  const sets  = ev.astronomical.filter((e) => e.kind === "set").map((e) => e.at);
+
+  // 帯を塗るための「出ている区間」。開始時点で既に出ていれば startMs から
+  const spans = [];
+  let open = null;
+  const marks = [...ev.astronomical].sort((a, b) => a.at - b.at);
+  if (marks.length && marks[0].kind === "set") open = startMs;
+  for (const m of marks) {
+    if (m.kind === "rise") open = m.at;
+    else if (open !== null) { spans.push([open, m.at]); open = null; }
+  }
+  if (open !== null) spans.push([open, startMs + spanMs]);
+
+  const mid = SoramiAstro.moon(startMs + spanMs / 2, obs);
+  return { rise: rises[0] ?? null, set: sets[0] ?? null, spans,
+           illuminated: mid.illuminatedFraction, age: mid.synodicAge };
 }
 
 // 月齢を満ち欠けの絵文字にする。朔望月は 29.53 日。
@@ -1940,24 +1955,35 @@ function renderMoonTimes(dayMs) {
   };
   const astro = (kind) => ev.astronomical.find((e) => e.kind === kind)?.at ?? null;
 
-  // 雲込みの「見え始め／最後に見える」
+  // 雲込みの「見え始め／最後に見える」。見つからなければ、その日の最良の見込みを返す
+  const best = { rise: null, set: null };
   const firstVisible = (kind) => {
     try {
       const tl = SoramiMoon.timeline(ev, moonObs,
         { kind, horizonAt, readingAt: readingFor, airAt: airFor });
       if (!tl) return null;
+      best[kind] = tl.rows.reduce((m, r) => Math.max(m, r.pVisible ?? 0), 0);
       const rows = kind === "rise" ? tl.rows : [...tl.rows].reverse();
       return rows.find((r) => r.pVisible >= 0.5)?.ms ?? null;
     } catch { return null; }
   };
+  const vis = { rise: firstVisible("rise"), set: firstVisible("set") };
 
   const rows = [
-    ["空の上では", astro("rise"), astro("set")],
-    ["地形から", pick("rise", ["firstLimb"]), pick("set", ["start"])],
+    // 「地形から」だと、遮るものがある方向にしか意味が無いように読める。
+    // 高い場所では地平線が**下がる**ので暦より早く出る（東京タワー150mで2分早い）。
+    // 上下どちらへも動くので、場所で決まるという言い方にする。
+    ["暦の上では", astro("rise"), astro("set")],
+    ["この場所では", pick("rise", ["firstLimb"]), pick("set", ["start"])],
     ["まるごと", pick("rise", ["fullDisk"]), pick("set", ["full"])],
-    ["見え始め", firstVisible("rise"), firstVisible("set")],
+    ["見え始め", vis.rise, vis.set],
   ];
   if (rows.every((r) => r[1] === null && r[2] === null)) return "";
+
+  // 「見え始め」が両方とも出ないとき、ダッシュ2つだけだと壊れて見える。
+  // 見込みが何%までしか上がらなかったのかを言う。
+  const noVisible = vis.rise === null && vis.set === null;
+  const peak = Math.max(best.rise ?? 0, best.set ?? 0);
 
   // 月は毎日約50分ずれるので、出ない日・入らない日がある。黙って空欄にしない。
   const note = (!astro("rise") || !astro("set"))
@@ -1968,10 +1994,65 @@ function renderMoonTimes(dayMs) {
       <span></span><span class="lt-h">月の出</span><span class="lt-h">月の入り</span>
       ${rows.map(([l, a, b]) => `<span class="lt-l">${esc(l)}</span><span>${hm(a)}</span><span>${hm(b)}</span>`).join("")}
     </div>
-    <div class="tiny" style="margin-top:6px;color:var(--tertiary)">「地形から」は${moonHorizon && moonHorizon.layers && moonHorizon.layers.length
+    <div class="tiny" style="margin-top:6px;color:var(--tertiary)">「この場所では」は${moonHorizon && moonHorizon.layers && moonHorizon.layers.length
       ? esc(moonHorizon.layers.includes("urban") ? "地形と建物" : "まわりの地形")
-      : "まわりの地形"}を実測した地平線で出しています。「見え始め」は雲と空の明るさを入れた見込みです。</div>
+      : "まわりの地形"}を実測した地平線です。山があれば遅く、高い場所なら早くなります。</div>
+    ${noVisible ? `<div class="tiny" style="margin-top:4px;color:var(--tertiary)">出入りのころに見える見込みは最大 ${Math.round(peak * 100)}% で、「見え始め」の時刻は出ませんでした。</div>` : ""}
     ${note}</div>`;
+}
+
+// 富士山：時刻ごとの見え方。
+//
+// 知りたいのは日の代表点ではなく「朝焼け・夕焼けのときに見えるか」と
+// 「一日のどこなら見えるか」（2026-09-14 ユーザー）。
+// evaluateDay が時刻ごとの結果（hours）と黄金の時間の最良（golden）を返すので、
+// それをそのまま並べる。
+//
+// 帯は一覧のセルと同じ `cellTint` で塗る。同じ点数が同じ色で出るようにするため、
+// ここで別の配色を作らない。
+function renderFujiTimes(ev) {
+  if (!ev || !ev.hours || !ev.hours.length) return "";
+  const hm = (t) => S.JstCal.hhmmRounded(t);
+  const g = ev.golden || {};
+  // 計算は30分きざみだが、**並べるのは1時間ごと**。
+  // 27個に数字を入れると 375px 幅で読めない（1セル 13px）。
+  // その1時間でいちばん良い値を採る（日の代表値が最良なのと同じ扱い）。
+  const byHour = new Map();
+  for (const h of ev.hours) {
+    const k = Math.floor((h.at + 9 * 3600000) / 3600000);
+    const cur = byHour.get(k);
+    if (!cur || h.score > cur.score) byHour.set(k, h);
+  }
+  const cells = [...byHour.entries()].sort((a, b) => a[0] - b[0]).map(([k, h]) => ({ ...h, hourKey: k }));
+  const cell = (h) => `<div class="ft-c" style="background:${cellBg(h.score)}" `
+    + `title="${esc(hm(h.at))}　${Math.round(h.score)}点　${esc(h.why || "")}">`
+    + `<span>${Math.round(h.score)}</span></div>`;
+
+  // 時刻は3時間ごと。窓は市民薄明の始まり（例 4:58）なので、
+  // 「毎時0分」で拾おうとすると一度も当たらない（実際そうなって目盛りが消えた）。
+  // セルの並び順を基準に、3つおきで振る。
+  const HOUR = (h) => new Date(h.at + 9 * 3600000).getUTCHours();
+
+  const goldenRow = (label, pick) => {
+    if (!pick) return `<span class="lt-l">${esc(label)}</span><span>—</span><span class="tiny">この日は評価できません</span>`;
+    return `<span class="lt-l">${esc(label)}</span><span>${hm(pick.at)}</span>`
+      + `<span><strong>${Math.round(pick.score)}</strong> <span class="tiny">${esc(S.phrasing("fuji", S.rankOf(pick.score)).label)}</span></span>`;
+  };
+
+  return `<div class="card">
+    <div class="lt" style="grid-template-columns:auto auto 1fr">
+      <span></span><span class="lt-h">時刻</span><span class="lt-h">見え方</span>
+      ${goldenRow("朝焼けのころ", g.morning)}
+      ${goldenRow("夕焼けのころ", g.evening)}
+    </div>
+    <div class="ft-band" style="grid-template-columns:repeat(${cells.length},minmax(0,1fr))">
+      ${cells.map(cell).join("")}
+    </div>
+    <div class="ft-ticks" style="grid-template-columns:repeat(${cells.length},minmax(0,1fr))">
+      ${cells.map((h, i) => `<span>${i % 3 === 0 ? HOUR(h) + "時" : ""}</span>`).join("")}
+    </div>
+    <div class="tiny" style="margin-top:6px;color:var(--tertiary)">空が明るいあいだ（${hm(ev.window[0])}〜${hm(ev.window[1])}）を30分きざみで計算し、1時間ごとにいちばん良い値を並べています。</div>
+  </div>`;
 }
 
 function renderLightTimes(dayMs, now, phenomenonId) {
@@ -2082,6 +2163,7 @@ function renderDayDetail(id, entries, sel, now) {
       <div class="tiny" style="margin-top:4px">${CONF_ICON[ev.confidence.key]} ${esc(confidenceText(ev))}</div></div>`;
   return `${head}
     ${id === "moon" ? renderMoonTimes(sel.dayMs) : ""}
+    ${id === "fuji" ? renderFujiTimes(ev) : ""}
     ${renderLightTimes(sel.dayMs, now, id)}
     <div class="card">${renderDetail(id, sel, now)}</div>
     <details class="card more"><summary>もっと詳しく</summary>
