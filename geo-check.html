@@ -1,0 +1,89 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>高度の診断</title>
+<!-- スマホの GPS が高度を返すか、返すならどれくらいの精度かを1回見るためだけのページ。
+     「立つ高さ」を自動で当てられるかの判断材料にする。
+     判断が済んだら消してよい（2026-09-15 追加）。 -->
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+         margin: 0; padding: 18px; max-width: 560px; }
+  h1 { font-size: 1.1rem; margin: 0 0 4px; }
+  p.lead { margin: 0 0 16px; color: #666; font-size: 0.85rem; }
+  button { font: inherit; padding: 12px 18px; border-radius: 10px; border: 0;
+           background: #a04f09; color: #fff; min-height: 48px; width: 100%; }
+  table { border-collapse: collapse; width: 100%; margin-top: 16px;
+          font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 7px 4px; border-bottom: 1px solid rgba(128,128,128,.25);
+           font-size: 0.88rem; vertical-align: baseline; }
+  th { width: 11em; font-weight: 400; color: #666; }
+  td.v { font-weight: 700; }
+  .na { color: #b00; font-weight: 700; }
+  .note { margin-top: 16px; font-size: 0.8rem; color: #666; }
+  #out { white-space: pre-wrap; word-break: break-all; font-size: 0.75rem;
+         background: rgba(128,128,128,.12); padding: 10px; border-radius: 8px; margin-top: 14px; }
+</style>
+
+<h1>高度の診断</h1>
+<p class="lead">この端末の GPS が高度を返すか、どれくらいの精度かを1回だけ見ます。
+位置情報はこの画面に表示するだけで、どこにも送りません。</p>
+
+<button id="go">現在地を取る</button>
+<div id="res"></div>
+<div id="out" hidden></div>
+<p class="note">「地面の標高」は国土地理院の標高タイルから引いた値です（GPS ではありません）。<br>
+GPS の高度は<strong>楕円体高</strong>で、日本では地図の標高より約 32〜38m 高く出ます。
+その差（ジオイド高）を引かないと比べられません。</p>
+
+<!-- terrain は astro を先に要求する（順序を逆にすると読み込みで落ちる） -->
+<script src="sorami-astro.js?v=1"></script>
+<script src="sorami-terrain.js?v=1"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const row = (k, v, cls = "") => `<tr><th>${k}</th><td class="v ${cls}">${v}</td></tr>`;
+const m = (x, d = 1) => (x === null || x === undefined || Number.isNaN(x)) ? null : x.toFixed(d);
+
+$("go").onclick = () => {
+  $("res").innerHTML = `<p>取得中…</p>`;
+  if (!navigator.geolocation) { $("res").innerHTML = `<p class="na">この端末は位置情報に対応していません</p>`; return; }
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const c = pos.coords;
+    // 地面の標高は DEM から（GPS ではない）
+    let ground = null;
+    try { ground = await SoramiTerrain.elevationFromTile(c.latitude, c.longitude, 13); } catch {}
+
+    const alt = Number.isFinite(c.altitude) ? c.altitude : null;
+    const aAcc = Number.isFinite(c.altitudeAccuracy) ? c.altitudeAccuracy : null;
+
+    let rows = "";
+    rows += row("緯度・経度", `${c.latitude.toFixed(6)}, ${c.longitude.toFixed(6)}`);
+    rows += row("水平の誤差", `${m(c.accuracy)} m`);
+    rows += row("GPS の高度", alt === null ? `<span class="na">返ってこない</span>` : `${m(alt)} m（楕円体高）`);
+    rows += row("高度の誤差", aAcc === null ? `<span class="na">返ってこない</span>` : `± ${m(aAcc)} m`);
+    rows += row("地面の標高（DEM）", ground === null ? `<span class="na">取れない</span>` : `${m(ground)} m`);
+
+    if (alt !== null && ground !== null) {
+      // ジオイド高はブラウザから引けない（国土地理院のAPIが自ドメイン限定）。
+      // 日本のおおよその範囲を当てて、幅で示す。
+      const lo = alt - 38 - ground, hi = alt - 32 - ground;
+      rows += row("地上からの高さ",
+        `${m(lo)} 〜 ${m(hi)} m<br><span style="font-weight:400;font-size:.8rem;color:#666">
+         （GPS高度 − ジオイド高32〜38m − 地面）</span>`);
+      if (aAcc !== null) {
+        const usable = Math.abs((lo + hi) / 2) > 3 * aAcc;
+        rows += row("誤差より大きいか",
+          usable ? "大きい（意味のある差）" : `<span class="na">小さい（判別できない）</span>`);
+      }
+    }
+    $("res").innerHTML = `<table>${rows}</table>`;
+    $("out").hidden = false;
+    $("out").textContent = JSON.stringify({
+      accuracy: c.accuracy, altitude: c.altitude, altitudeAccuracy: c.altitudeAccuracy,
+      demGroundM: ground, ua: navigator.userAgent,
+    }, null, 1);
+  }, (e) => {
+    $("res").innerHTML = `<p class="na">取得できませんでした（${e.code}: ${e.message}）</p>`;
+  }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+};
+</script>
