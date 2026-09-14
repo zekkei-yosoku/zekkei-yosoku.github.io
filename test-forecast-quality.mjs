@@ -111,7 +111,10 @@ test('虹の全モデルが降水欠測の場合だけ判定を保留する',()=
  test('一覧の欠測日は0点と区別し、日付・理由付きで詳細へ進める',()=>{
  const render=runInNewContext(html.slice(html.indexOf('function renderMatrix(order, now)'),html.indexOf('// 一覧と詳細で、点数'))+';renderMatrix',{
  S,weeks:{rainbow:[{dayMs:day,evaluation:{unavailable:{kind:'missingData',message:'降水データが不足し、虹を判定できません'}}},{dayMs:day+24*H,evaluation:{score:0,rank:0,models:1,confidence:{key:'low'},window:[day+24*H,day+25*H]}}]},
- upcoming:()=>null,esc:s=>String(s),cellBg:()=>'',rampGradient:()=>''
+ upcoming:()=>null,esc:s=>String(s),cellBg:()=>'',rampGradient:()=>'',
+ // 月だけ行のアイコンが満ち欠けで変わる（2026-09-14）。ここは切り出して動かすので
+ // 本体の iconFor が見えない。素の絵文字を返す代役を置く
+ iconFor:(id)=>S.PHENOMENA[id].icon
  });
  const output=render(['rainbow'],day);
  assert.match(output,new RegExp(`class="cell void" data-cell="rainbow\\|${day}"`));

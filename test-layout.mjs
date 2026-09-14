@@ -285,7 +285,11 @@ ok(/rel="apple-touch-icon"/.test(html), "iOS 用のアイコンを指定して�
 ok(/rel="manifest"/.test(html), "マニフェストを読ませている");
 ok(/rel="icon"[^>]*32x32/.test(html), "タブ用のファビコンがある");
 const mani = JSON.parse(fs.readFileSync(new URL("./manifest.json", import.meta.url), "utf8"));
-ok(mani.name === "絶景予報" && mani.short_name === "絶景予報", "マニフェストの名前が現在の名称");
+// 2026-09-14 にユーザー判断で「絶景予報」→「絶景予測」へ戻した。
+// 2026-09-06 に一度「絶景予測」にしてから「絶景予報」へ変えた経緯があるので、
+// **どちらが現行かは記録を見る**（Vault ドメイン/開発/絶景日和/00_はじめに）。
+// 気象業務法が定義している語は「予報」で、その語をそのまま名乗る利点が無い。
+ok(mani.name === "絶景予測" && mani.short_name === "絶景予測", "マニフェストの名前が現在の名称");
 ok(mani.icons.some((i) => i.sizes === "512x512" && i.purpose === "maskable"),
   "Android が円で抜く用（maskable）を持つ");
 for (const i of mani.icons) {
@@ -773,7 +777,7 @@ ok(/writeText\(codeBlock\(auth\?\.loginId/.test(html), "自分の分に効く");
 ok(/writeText\(codeBlock\(adminCodesFor/.test(html), "管理者が他人へ出す分にも効く");
 ok(/IDとコードの両方が要ります/.test(html), "入力時にIDが要ることを書く");
 ok(/<strong>IDと一緒に<\/strong>パスワードマネージャへ保存/.test(html), "保存時にIDのことを書く");
-ok(/絶景予報 \$\{location\.origin\}/.test(html), "どのサイトのものか分かるようにする");
+ok(/絶景予測 \$\{location\.origin\}/.test(html), "どのサイトのものか分かるようにする");
 
 console.log("== ログインの履歴 ==");
 ok(/id="loginHistory"/.test(html) && /\/me\/logins/.test(html), "自分の履歴を見られる");

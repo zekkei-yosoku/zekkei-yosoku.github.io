@@ -166,6 +166,49 @@ console.log("== 点は月の高度とともに上がる ==");
   ok(mk2[0].at <= mk2[mk2.length - 1].at, "出来事は時刻順");
 }
 
+console.log("== 月相の絵文字 ==");
+{
+  // **上弦と下弦は輝面比が同じ 50%。** 満ち欠けの向きが無いと区別できない
+  const pick = (want, waxing) => {
+    let b = null;
+    for (let d = 0; d < 30; d += 0.1) {
+      const x = A.moon(Date.UTC(2026, 8, 11) + d * 86400000, OBS);
+      if (!!x.waxing !== waxing) continue;
+      if (!b || Math.abs(x.illuminatedFraction - want) < Math.abs(b.illuminatedFraction - want)) b = x;
+    }
+    return b;
+  };
+  const up = pick(0.5, true), down = pick(0.5, false);
+  ok(Math.abs(up.illuminatedFraction - 0.5) < 0.03 && Math.abs(down.illuminatedFraction - 0.5) < 0.03,
+     "輝面50%の月を2つ見つけた（上弦と下弦）");
+  ok(M.glyphOf(up) !== M.glyphOf(down), "同じ50%でも上弦と下弦で絵文字が違う",
+     `${M.glyphOf(up)} vs ${M.glyphOf(down)}`);
+  ok(M.glyphOf(up) === "🌓" && M.glyphOf(down) === "🌗", "北半球向きの向き", `${M.glyphOf(up)} / ${M.glyphOf(down)}`);
+  ok(M.phaseOf(up).name === "上弦" && M.phaseOf(down).name === "下弦", "呼び名も分かれる");
+
+  // 一巡すると 8種類すべて出る
+  const seen = new Set();
+  for (let d = 0; d < 30; d += 0.25) seen.add(M.glyphOf(A.moon(Date.UTC(2026, 8, 11) + d * 86400000, OBS)));
+  ok(seen.size === 8, "一巡で8種類そろう", [...seen].join(""));
+
+  // 新月と満月は向きに依らない
+  const nm = pick(0, true), fm = pick(1, true);
+  ok(M.glyphOf(nm) === "🌑", "新月", M.glyphOf(nm));
+  ok(M.glyphOf(fm) === "🌕", "満月", M.glyphOf(fm));
+
+  // 満ちる側と欠ける側で、絵文字の集合が重ならない（新月・満月を除く）
+  const wax = new Set(), wane = new Set();
+  for (let d = 0; d < 30; d += 0.1) {
+    const m = A.moon(Date.UTC(2026, 8, 11) + d * 86400000, OBS);
+    const g = M.glyphOf(m);
+    if (g === "🌑" || g === "🌕") continue;
+    (m.waxing ? wax : wane).add(g);
+  }
+  const overlap = [...wax].filter((g) => wane.has(g));
+  ok(overlap.length === 0, "満ちる側と欠ける側で絵文字が重ならない",
+     `満 ${[...wax].join("")} / 欠 ${[...wane].join("")}`);
+}
+
 console.log("== 順序を崩さない（§18・§100）==");
 {
   const ms = Date.UTC(2026, 9, 26, 12);

@@ -39,7 +39,7 @@ export function compareCloudview(input, raw) {
     const row={date:r.date,observedAt:new Date(observedAt).toISOString(),status:r.status,
       observedQuality:r.observedQuality,reviewReason:r.reviewReason,source:r.source,imageUrl:r.imageUrl,
       externalForecastProbability:r.forecastProbability ?? null,
-      externalForecastNote:'他者の秩父雲海予報。絶景予報の点数・観測結果ではない。',
+      externalForecastNote:'他者の秩父雲海予報。絶景予測の点数・観測結果ではない。',
       observationCoverage:'single-frame',forecastIssuedAt:null,
       comparisonMode:'historical-forecast-reconstruction',score:null};
     try {

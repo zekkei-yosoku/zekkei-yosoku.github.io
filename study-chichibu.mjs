@@ -1,5 +1,5 @@
 /*
- * 秩父の雲海予報（@chichibu_unkai）と、絶景予報の雲海スコアを突き合わせる。
+ * 秩父の雲海予報（@chichibu_unkai）と、絶景予測の雲海スコアを突き合わせる。
  *
  * **これは真値との比較ではない。** 相手も予報であって観測ではない。
  * 一致しても正しさの証明にはならないが、食い違えば調べる価値のある信号になる。
@@ -111,7 +111,7 @@ const bundle = { home: { grid: { latitude: SPOT.latitude, longitude: SPOT.longit
 
 const pad = (s, w) => String(s) + " ".repeat(Math.max(0, w -
   [...String(s)].reduce((a, c) => a + (c.charCodeAt(0) > 0x1100 ? 2 : 1), 0)));
-console.log(`\n${pad("朝", 12)} ${pad("相手", 8)} ${pad("絶景予報", 10)} ${pad("評価", 10)} 主な内訳`);
+console.log(`\n${pad("朝", 12)} ${pad("相手", 8)} ${pad("絶景予測", 10)} ${pad("評価", 10)} 主な内訳`);
 
 const rows = [];
 for (const t of theirs) {

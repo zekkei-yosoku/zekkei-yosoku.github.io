@@ -17,8 +17,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="絶景予報">
-<title>絶景予報</title>
+<meta name="apple-mobile-web-app-title" content="絶景予測">
+<title>絶景予測</title>
 <!-- ホーム画面に置いたとき、これが無いとOSがアプリ名の先頭文字で代用する（「絶」が出ていた）。
      iOS は apple-touch-icon、Android はマニフェストの icons を見る。
      角丸はOS側が付けるので、画像は正方形いっぱいに描いてある。 -->
@@ -552,7 +552,7 @@
 <body>
 <main>
   <div class="masthead">
-    <h1>絶景予報</h1>
+    <h1>絶景予測</h1>
     <!-- ログインは任意。押さなくても予報は全部見られる。
          同期が失敗しているときは、それをここに出す（黙って同期されていないのは
          「黙って消える」と同じ種類の事故）。 -->
@@ -896,15 +896,15 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260914093050"></script>
+<script src="sorami-core.js?v=20260914095115"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260914093050"></script>
-<script src="sorami-terrain.js?v=20260914093050"></script>
-<script src="sorami-mountain.js?v=20260914093050"></script>
-<script src="sorami-fuji.js?v=20260914093050"></script>
-<script src="sorami-moon.js?v=20260914093050"></script>
-<script src="sorami-composition.js?v=20260914093050"></script>
+<script src="sorami-astro.js?v=20260914095115"></script>
+<script src="sorami-terrain.js?v=20260914095115"></script>
+<script src="sorami-mountain.js?v=20260914095115"></script>
+<script src="sorami-fuji.js?v=20260914095115"></script>
+<script src="sorami-moon.js?v=20260914095115"></script>
+<script src="sorami-composition.js?v=20260914095115"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1394,6 +1394,27 @@ async function loadExtras() {
 }
 
 /// 一覧の表だけ描き直す。**詳細を開いている最中は触らない**（読んでいる画面を奪わない）
+/// 現象のアイコン。**月だけはその日の満ち欠けを出す。**
+/// 満月か細い月かは「行くかどうか」を左右するので、装飾ではなく識別の一部
+/// （04_デザイン定義「絵文字は現象の識別にだけ使う」）。
+/// 名前が隣にあるので、絵文字が日によって変わっても行は見分けられる。
+function iconFor(id, atMs) {
+  const meta = S.PHENOMENA[id];
+  if (id !== "moon" || typeof SoramiMoon === "undefined") return meta.icon;
+  try {
+    const obs = { latitude: place.latitude, longitude: place.longitude, elevation: 0 };
+    return SoramiMoon.glyphOf(SoramiAstro.moon(atMs ?? Date.now(), obs));
+  } catch { return meta.icon; }
+}
+/// 月相の呼び名（詳細で添える）
+function phaseNameFor(atMs) {
+  try {
+    const obs = { latitude: place.latitude, longitude: place.longitude, elevation: 0 };
+    const m = SoramiAstro.moon(atMs, obs);
+    return `${SoramiMoon.phaseOf(m).name}・輝面 ${Math.round(m.illuminatedFraction * 100)}%`;
+  } catch { return ""; }
+}
+
 function rerenderList() {
   if (!bundle) return;
   const inDetail = !!document.querySelector("#detailView:not([hidden])");
@@ -1714,7 +1735,7 @@ function renderMatrix(order, now) {
   for (const id of live) {
     const meta = S.PHENOMENA[id];
     const u = upcoming(weeks[id], now);
-    let grid = `<div class="mxrail"><span>${meta.icon}</span><span class="nm">${esc(meta.name)}</span></div>`;
+    let grid = `<div class="mxrail"><span>${iconFor(id, now)}</span><span class="nm">${esc(meta.name)}</span></div>`;
     for (const dayMs of dayList) {
       const e = weeks[id].find((x) => x.dayMs === dayMs);
       if (!e) { grid += `<div class="cell void" title="予報がありません">—</div>`; continue; }
@@ -1963,12 +1984,13 @@ function renderDayDetail(id, entries, sel, now) {
 
   if (ev.unavailable) {
     return `<div class="card">
-      <div class="ph-head"><span class="ic">${meta.icon}</span><span class="nm">${meta.name}</span></div>
+      <div class="ph-head"><span class="ic">${iconFor(id, ev.peak)}</span><span class="nm">${meta.name}</span></div>
       <div class="ph-out">${esc(ev.unavailable.message)}</div></div>`;
   }
   const color = RANK_COLOR[ev.rank.key];
   const head = `<div class="card highlight" style="border-color:${color}">
-      <div class="ph-head"><span class="ic">${meta.icon}</span><span class="nm">${meta.name}</span></div>
+      <div class="ph-head"><span class="ic">${iconFor(id, ev.peak)}</span><span class="nm">${meta.name}</span>
+        ${id === "moon" ? `<span class="tiny" style="color:var(--tertiary)">${esc(phaseNameFor(ev.peak))}</span>` : ""}</div>
       <div class="head-row">
         <span class="muted">${when}</span>
         ${renderVerdict(id, ev)}
@@ -2111,7 +2133,10 @@ function renderDetail(id, sel, now, opts = {}) {
 
 function renderWeek(id, entries, sel, now) {
   return `<div class="card" id="detailWeek">
-    <div class="ph-head"><span class="ic">${S.PHENOMENA[id].icon}</span>
+    <!-- 週間の見出しは**今日**の月相。日を切り替えても \$("dayDetail") しか
+         差し替わらないので、選んだ日に合わせると食い違ったまま残る。
+         選んだ日の月相は、すぐ下の詳細の見出しに出る。 -->
+    <div class="ph-head"><span class="ic">${iconFor(id, now)}</span>
       <h2>${S.PHENOMENA[id].name}・週間</h2></div>
     <p class="tiny">日付を押すと、下の詳細が切り替わります。横にスクロールできます。</p>
     <div class="days" aria-label="詳細を見る日を選ぶ">${renderDays(id, entries, now, sel.dayMs)}</div>
@@ -2234,7 +2259,7 @@ function renderPending(now, hidden) {
     ${out.slice(0, 4).map(({ id, ev }) => {
       const meta = S.PHENOMENA[id], color = RANK_COLOR[ev.rank.key];
       return `<div class="pending-row">
-        <div><span style="font-size:1.06rem">${meta.icon}</span>
+        <div><span style="font-size:1.06rem">${iconFor(id, ev.peak)}</span>
           <strong>${meta.name}</strong>
           <span class="muted">${S.Cal.relativeDay(ev.peak, now)}${ev.specificTime === false ? "" : " " + S.Cal.hhmmRounded(ev.peak)}</span>
           ・<span style="color:${color}">${esc(S.phrasing(id, ev.rank).label)} ${Math.round(ev.score)}</span></div>
@@ -2278,7 +2303,7 @@ function renderRecords(now, pendingHidden) {
       if (!meta) return "";
       return `
     <div class="list-item" style="display:flex;gap:8px;align-items:center">
-      <span>${meta.icon}</span>
+      <span>${iconFor(s.phenomenon, s.peak)}</span>
       <span style="flex:1"><strong style="font-size:0.81rem">${S.JstCal.monthDay(s.peak)} ${esc(s.placeName)}</strong>
         <div class="tiny">${meta.name} ・ ${Math.round(s.score) || 0}点</div></span>
       <span class="badge" style="background:var(--line)">${esc(LABEL[s.outcome] ?? s.outcome)}</span></div>`;
@@ -3229,7 +3254,7 @@ let shownCodes = [];
 // **IDも一緒に見せて、コピーにも含める。** 回復コードで入るには ID が要るので、
 // コードだけ保存していると、IDを忘れたときに手詰まりになる。
 const codeBlock = (loginId, codes) =>
-  `絶景予報 ${location.origin}\nID: ${loginId}\n\n${codes.join("\n")}`;
+  `絶景予測 ${location.origin}\nID: ${loginId}\n\n${codes.join("\n")}`;
 const showCodes = (codes) => {
   shownCodes = codes;
   $("recoveryCode").innerHTML = `<div style="font-weight:400;margin-bottom:6px">ID: ${esc(auth?.loginId ?? "")}</div>`
@@ -3647,7 +3672,7 @@ async function checkForUpdate() {
 if (window.top !== window.self) {
   document.body.innerHTML =
     '<p style="padding:24px;font:16px/1.8 system-ui">この画面は枠の中では開けません。'
-    + '<br><a href="https://zekkei-yosoku.github.io/" target="_top">絶景予報をひらく</a></p>';
+    + '<br><a href="https://zekkei-yosoku.github.io/" target="_top">絶景予測をひらく</a></p>';
   throw new Error("枠の中では開けません");
 }
 

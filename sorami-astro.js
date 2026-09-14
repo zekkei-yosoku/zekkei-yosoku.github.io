@@ -236,6 +236,12 @@
     const refr = refraction(hor.altitude, air);
     const semi = moonAngularRadius(g.distanceKm);
 
+    // 満ちているか欠けているか。太陽から見て月がどちら側にいるか（黄経の差）。
+    // 0〜180度なら満ちていく、180〜360度なら欠けていく。
+    // 輝面比だけでは区別できない（上弦と下弦はどちらも 50%）。
+    const elongLon = norm(g.longitude - s.longitude);
+    const waxing = elongLon < 180;
+
     // 位相角と照らされている割合。AA 48.2, 48.3
     const psi = Math.acos(Math.max(-1, Math.min(1,
       sin(sEq.dec) * sin(topo.dec) + cos(sEq.dec) * cos(topo.dec) * cos(sEq.ra - topo.ra)))) / DEG;
@@ -268,6 +274,8 @@
       // 月相
       phaseAngle: i,
       illuminatedFraction: illuminated,
+      waxing,                                   // true=満ちていく / false=欠けていく
+      synodicAge: elongLon / 360 * 29.530588,   // 月齢（新月からの日数）
       brightLimbPositionAngle: chi,
       brightLimbZenithAngle: norm(chi - q),
       parallacticAngle: q,
