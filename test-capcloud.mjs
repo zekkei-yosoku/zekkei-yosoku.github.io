@@ -34,6 +34,9 @@ const scoreFor = (opts) => C.scoreOf(C.features(profile(opts)));
 const CAP  = { 850: 55, 800: 60, 700: 92, 600: 88, 500: 40, 400: 30 };  // 山頂付近が湿る
 const DRY  = { 850: 30, 800: 25, 700: 22, 600: 20, 500: 18, 400: 15 };
 const HIGH = { 850: 40, 800: 35, 700: 45, 600: 55, 500: 95, 400: 50 };  // 500hPa が極大
+// **一様な曇天と雨。** ここを笠雲より高く出したのが 2026-09-15 の欠陥
+const OVER = { 850: 95, 800: 96, 700: 97, 600: 96, 500: 94, 400: 90 };
+const RAIN = { 850: 99, 800: 98, 700: 97, 600: 95, 500: 92, 400: 85 };
 
 console.log("== 材料が揃えば高く、欠ければ落ちる ==");
 const base = scoreFor({ rhAt: CAP });
@@ -49,6 +52,52 @@ ok(calm.score < 15, "風が弱ければ低い（持ち上がらない）", `${ca
 const unstable = scoreFor({ rhAt: CAP, lapse: 9.9 });
 ok(unstable.score < base.score * 0.5, "不安定なら大きく落ちる（対流の雲になる）",
    `${unstable.score}点 / 安定時 ${base.score}点`);
+
+console.log("\n== 一様な曇天を笠雲にしない ==");
+{
+  // ユーザー指摘「これって普通の曇り空なんじゃないの」（2026-09-15）。
+  // 当時: 笠雲むき81点に対し **曇天96点・雨95点** で順位が逆だった。
+  // 原因は2つ。「露点差が小さいほど高得点」＝すでに雲の状態を最高点にしていたことと、
+  // 湿潤層の厚さを見ていなかったこと。笠雲はレンズで、全層が湿っていればただの曇天。
+  const cap = scoreFor({ rhAt: CAP });
+  const over = scoreFor({ rhAt: OVER });
+  const rain = scoreFor({ rhAt: RAIN });
+  ok(over.score < cap.score, "曇天は笠雲むきより低い", `曇天${over.score} < 笠雲${cap.score}`);
+  ok(rain.score < cap.score, "雨は笠雲むきより低い", `雨${rain.score} < 笠雲${cap.score}`);
+  ok(over.score <= 10, "曇天はほぼ0", `${over.score}点`);
+  ok(rain.score <= 10, "雨はほぼ0", `${rain.score}点`);
+  // **0にはしない。** 厚い雲に埋もれて見えないだけで、笠雲自体は起こり得る
+  ok(over.score >= 0, "0未満にはならない");
+
+  const f = C.features(profile({ rhAt: OVER }));
+  ok(f.moistDepthM > 4000, "全層が湿っていることを厚さで捉える", `${Math.round(f.moistDepthM)}m`);
+  ok(C.features(profile({ rhAt: CAP })).moistDepthM <= 2000, "笠雲むきは薄い層",
+     `${Math.round(C.features(profile({ rhAt: CAP })).moistDepthM)}m`);
+}
+
+console.log("\n== すでに飽和している空気を最高点にしない ==");
+{
+  // 笠雲は「風上では飽和していない空気が、山で持ち上げられて凝結する」現象
+  const parts = (rhAt) => Object.fromEntries(scoreFor({ rhAt }).parts.map((x) => [x.key, x.p]));
+  ok(parts(OVER).saturate < parts(CAP).saturate,
+     "すでに雲の中なら「持ち上げで雲になるか」は下がる",
+     `曇天${parts(OVER).saturate.toFixed(2)} < 笠雲${parts(CAP).saturate.toFixed(2)}`);
+  // 乾きすぎても届かない
+  const farDry = { 850: 50, 800: 45, 700: 55, 600: 50, 500: 30, 400: 25 };
+  ok(parts(farDry).saturate < 1, "乾きすぎれば持ち上げても届かない");
+}
+
+console.log("\n== 離れ笠は雲になる高さで測る ==");
+{
+  // 山頂の露点差だけで測っていたら、離れ笠が7点まで落ちた（山頂は乾いていてよい）
+  const det = scoreFor({ rhAt: HIGH });
+  ok(det.type === "detached", "離れ笠と判定される");
+  ok(det.score >= 30, "山頂が乾いていても落としすぎない", `${det.score}点`);
+  const f = C.features(profile({ rhAt: HIGH }));
+  ok(f.dewpointDepressionAtPeak < f.dewpointDepression,
+     "湿度極大の高さのほうが飽和に近い",
+     `極大${f.dewpointDepressionAtPeak.toFixed(1)}℃ < 山頂${f.dewpointDepression.toFixed(1)}℃`);
+}
 
 console.log("\n== 掛け算になっている（1つ欠ければ埋め合わせられない）==");
 {

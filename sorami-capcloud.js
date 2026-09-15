@@ -112,16 +112,23 @@
     if (![t, rh, u, v, n2].every(finite)) return null;
 
     // 露点差。飽和にどれだけ近いか
-    const g = Math.log(rh / 100) + 17.625 * t / (243.04 + t);
-    const td = 243.04 * g / (17.625 - g);
+    const dep = (tc, rhp) => {
+      const g = Math.log(rhp / 100) + 17.625 * tc / (243.04 + tc);
+      return tc - 243.04 * g / (17.625 - g);
+    };
 
     const peak = Math.max(...levels.map((l) => l.rh_pct));
     const peaks = levels.filter((l) => l.rh_pct === peak);
+    // **離れ笠は山頂より上にできる。** その高さの露点差も持つ
+    const peakLevel = peaks[0];
     const speed = Math.hypot(u, v);
     const dir = speed > 1e-8 ? ((Math.atan2(-u, -v) / DEG) + 360) % 360 : null;
 
     return {
-      rhSummit: rh, temperatureSummitC: t, dewpointDepression: t - td,
+      rhSummit: rh, temperatureSummitC: t,
+      dewpointDepression: dep(t, rh),
+      // 湿度極大の高さでの露点差。離れ笠の判定に使う
+      dewpointDepressionAtPeak: dep(peakLevel.temperature_c, peakLevel.rh_pct),
       rhMax: peak,
       // 湿度極大が平坦なら高度を一点に決めない（§20・平坦を単一高度にしない）
       zRhMaxMinusSummit: peaks.length === 1 ? peaks[0].z_m - SUMMIT_M : null,
@@ -129,7 +136,28 @@
       moistPeakBaseM: Math.min(...peaks.map((l) => l.z_m)),
       moistPeakTopM: Math.max(...peaks.map((l) => l.z_m)),
       windSpeed: speed, windDirectionDeg: dir, n2,
+      // **湿った層の厚さ。** 笠雲はレンズなので層が薄い。
+      // 全層が湿っていれば、それは笠雲ではなく一様な曇天や雨。
+      moistDepthM: moistDepth(levels, 85),
+      columnTopM: levels[levels.length - 1].z_m, columnBaseM: levels[0].z_m,
     };
+  }
+
+  /// RH が `th`% 以上の層のうち、極大を含む連続部分の厚さ[m]
+  function moistDepth(levels, th) {
+    const peak = Math.max(...levels.map((l) => l.rh_pct));
+    if (peak < th) return 0;
+    const i = levels.findIndex((l) => l.rh_pct === peak);
+    let lo = i, hi = i;
+    while (lo > 0 && levels[lo - 1].rh_pct >= th) lo--;
+    while (hi < levels.length - 1 && levels[hi + 1].rh_pct >= th) hi++;
+    if (lo === hi) {
+      // 1層だけ。前後の半分ずつを厚さとみなす
+      const a = lo > 0 ? (levels[lo].z_m - levels[lo - 1].z_m) / 2 : 0;
+      const b = hi < levels.length - 1 ? (levels[hi + 1].z_m - levels[hi].z_m) / 2 : 0;
+      return a + b;
+    }
+    return levels[hi].z_m - levels[lo].z_m;
   }
 
   /**
@@ -180,10 +208,35 @@
     // ③ 成層安定（§25）。安定でないと波が立たず、対流雲になる
     const stable = f.n2 <= 0 ? 0.15 : ramp(f.n2, 0.00002, 0.00012);
 
-    // ④ 山頂で飽和に届くか（§24 持ち上げ・飽和）
-    const saturate = clamp01(1 - f.dewpointDepression / 12);
+    // ④ **持ち上げて飽和するか**（§24）。**すでに飽和していたら笠雲ではない。**
+    //
+    // 最初これを「露点差が小さいほど高得点」にしていたら、
+    // **一様な曇天（96点）や雨（95点）が笠雲むきの日（81点）より高く出た**
+    // （2026-09-15 ユーザー指摘「これって普通の曇り空なんじゃないの」）。
+    // すでに雲になっている空気を最高点にしていたのが誤り。
+    //
+    // 笠雲は「風上では飽和していない空気が、山で持ち上げられてその場で凝結する」現象。
+    // 数百mの持ち上げで閉じる差（乾燥断熱9.8℃/km と露点減率1.8℃/km の差 ≒ 8℃/km）が要る。
+    // 露点差 0℃ = すでに雲 / 1〜5℃ = 持ち上げで閉じる / 8℃超 = 持ち上げても届かない。
+    // **どの高さで雲になるかは型で違う。** 山頂被覆型は山頂、離れ笠は湿度極大の高さ。
+    // 山頂の露点差だけで測っていたら、離れ笠が7点まで落ちた（2026-09-15）。
+    const detachedWins = dz !== null && detachedTerm > capTerm;
+    const dd = detachedWins ? f.dewpointDepressionAtPeak : f.dewpointDepression;
+    const saturate = dd < 0.3 ? 0.25                      // すでに飽和＝ただの雲
+      : dd <= 1 ? 0.25 + 0.75 * (dd - 0.3) / 0.7          // 立ち上がり
+      : dd <= 5 ? 1                                        // 持ち上げで閉じる
+      : clamp01(1 - (dd - 5) / 4);                         // 9℃で届かない
 
-    const value = layer * wind * cross * stable * saturate;
+    // ⑤ **レンズの薄さ。** 笠雲は限られた厚さの湿潤層にできる。
+    // 全層が湿っていれば一様な曇天か雨で、山の形に沿った雲にはならない。
+    const depth = f.moistDepthM;
+    // **0にしない。** 厚い雲の中に笠雲が埋もれることはある（見分けられないだけ）。
+    // 段差で切らないのはこの採点器の他の項と同じ方針
+    const lens = depth <= 0 ? 0.5                          // 85%に届く層が無い
+      : depth <= 1800 ? 1                                  // レンズらしい厚さ
+      : Math.max(0.05, 1 - (depth - 1800) / 2600);         // 4,400mで一様な曇天
+
+    const value = layer * wind * cross * stable * saturate * lens;
     const score = Math.round(100 * value);
 
     // 型。湿度極大の高度で分ける（§21）
@@ -207,8 +260,14 @@
             + (f.windDirectionDeg === null ? "" : ` ${dirName(f.windDirectionDeg)}`) },
         { key: "stable", label: "大気の安定", p: stable,
           why: f.n2 <= 0 ? "不安定（対流の雲になりやすい）" : `N² ${(f.n2 * 1e5).toFixed(1)}×10⁻⁵` },
-        { key: "saturate", label: "山頂で飽和するか", p: saturate,
-          why: `露点差 ${f.dewpointDepression.toFixed(1)}℃` },
+        { key: "saturate", label: "持ち上げで雲になるか", p: saturate,
+          why: dd < 0.3 ? `露点差 ${dd.toFixed(1)}℃（すでに雲の中）`
+            : dd > 5 ? `露点差 ${dd.toFixed(1)}℃（持ち上げても届きにくい）`
+            : `露点差 ${dd.toFixed(1)}℃` },
+        { key: "lens", label: "湿った層の薄さ", p: lens,
+          why: depth <= 0 ? "湿った層がはっきりしない"
+            : depth > 3000 ? `厚さ ${Math.round(depth / 100) / 10}km（一様な曇天に近い）`
+            : `厚さ ${Math.round(depth / 100) / 10}km` },
       ],
       why: why[0] || "",
     };
