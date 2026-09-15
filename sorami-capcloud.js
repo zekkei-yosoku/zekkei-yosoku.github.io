@@ -166,7 +166,7 @@
    * 足し算だと「風が全く無い」と「山頂が乾ききっている」が他の項で埋め合わされる。
    * 笠雲はどれか一つでも欠ければ出ないので、掛ける。
    */
-  function scoreOf(f, atMs) {
+  function scoreOf(f, { ring = [] } = {}) {
     if (!f) return null;
     const why = [];
 
@@ -236,7 +236,22 @@
       : depth <= 1800 ? 1                                  // レンズらしい厚さ
       : Math.max(0.05, 1 - (depth - 1800) / 2600);         // 4,400mで一様な曇天
 
-    const value = layer * wind * cross * stable * saturate * lens;
+    // ⑥ **周りが晴れているか**（水平方向の対比）。
+    //
+    // 笠雲は「一帯は晴れているのに山の上だけ雲」。30km 離れた8方位が軒並み
+    // 湿っていれば、それは広がった雲の系であって笠雲ではない。
+    // 鉛直（⑤ レンズの薄さ）だけでは足りない——薄い層が一面に広がることもある。
+    //
+    // **1点でも湿っていたらダメ、にはしない。** 笠雲の日でも風上側は湿っている
+    // （そこから空気が来るので当然）。見るのは**全体がどれだけ湿っているか**の中央値。
+    let surround = 1;
+    if (ring.length >= 4) {
+      const depths = ring.map((r) => r.moistDepthM).sort((a, b) => a - b);
+      const median = depths[Math.floor(depths.length / 2)];
+      surround = median <= 1500 ? 1 : Math.max(0.08, 1 - (median - 1500) / 2500);
+    }
+
+    const value = layer * wind * cross * stable * saturate * lens * surround;
     const score = Math.round(100 * value);
 
     // 型。湿度極大の高度で分ける（§21）
@@ -264,6 +279,10 @@
           why: dd < 0.3 ? `露点差 ${dd.toFixed(1)}℃（すでに雲の中）`
             : dd > 5 ? `露点差 ${dd.toFixed(1)}℃（持ち上げても届きにくい）`
             : `露点差 ${dd.toFixed(1)}℃` },
+        { key: "surround", label: "周りが晴れているか", p: surround,
+          why: ring.length < 4 ? "周囲の予報が足りません"
+            : surround >= 0.9 ? "まわり30kmは湿っていません"
+            : "まわり30kmも湿っています（一帯の雲の可能性）" },
         { key: "lens", label: "湿った層の薄さ", p: lens,
           why: depth <= 0 ? "湿った層がはっきりしない"
             : depth > 3000 ? `厚さ ${Math.round(depth / 100) / 10}km（一様な曇天に近い）`
@@ -326,9 +345,22 @@
         if (uf) { f = uf; fromUpwind = true; }
       }
     }
-    const s = scoreOf(f, atMs);
+    // **周りが晴れているか。** 笠雲は「一帯は晴れているのに山の上だけ雲」という
+    // 対比そのもの。一帯が曇っていれば、山頂に雲があってもそれは笠雲ではない
+    // （2026-09-15 ユーザー指摘）。30km 8方位を取っているのに風上1点しか
+    // 使っていなかった。
+    const ring = [];
+    for (let k = 1; k <= 8; k++) {
+      const w = upper.list[k];
+      if (!w) continue;
+      const kk = w.hourly.time.indexOf(Math.round(atMs / 1000));
+      if (kk < 0) continue;
+      const rf = features(profileAt(w, kk));
+      if (rf) ring.push(rf);
+    }
+    const s = scoreOf(f, { ring });
     if (!s) return null;
-    return { ms: atMs, ...s, features: f, fromUpwind };
+    return { ms: atMs, ...s, features: f, fromUpwind, ringCount: ring.length };
   }
 
   /**

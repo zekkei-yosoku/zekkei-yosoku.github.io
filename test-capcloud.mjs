@@ -29,6 +29,8 @@ function profile({ rhAt, windMs = 20, windDeg = 247.5, lapse = 5.5, t850 = 10 })
   }).sort((a, b) => a.z_m - b.z_m);
 }
 const scoreFor = (opts) => C.scoreOf(C.features(profile(opts)));
+/// 周囲8方位を同じプロファイルで埋める
+const ringOf = (rhAt) => Array.from({ length: 8 }, () => C.features(profile({ rhAt })));
 
 // 山頂 3776m は 700hPa(3000m) と 600hPa(4200m) の間
 const CAP  = { 850: 55, 800: 60, 700: 92, 600: 88, 500: 40, 400: 30 };  // 山頂付近が湿る
@@ -73,6 +75,37 @@ console.log("\n== 一様な曇天を笠雲にしない ==");
   ok(f.moistDepthM > 4000, "全層が湿っていることを厚さで捉える", `${Math.round(f.moistDepthM)}m`);
   ok(C.features(profile({ rhAt: CAP })).moistDepthM <= 2000, "笠雲むきは薄い層",
      `${Math.round(C.features(profile({ rhAt: CAP })).moistDepthM)}m`);
+}
+
+console.log("\n== 周りが晴れていなければ笠雲ではない ==");
+{
+  // ユーザー指摘（2026-09-15）「周りは晴れてて富士山の上だけに雲ができるのが笠雲」
+  // 「富士山頂に雲があったとしても周りも雲だから笠雲ではない」。
+  // 鉛直（レンズの薄さ）だけでは足りない——薄い層が一面に広がることもある。
+  // 30km 8方位は取っていたのに、風上1点しか使っていなかった。
+  const f = C.features(profile({ rhAt: CAP }));
+  const dryRing = ringOf({ 850: 45, 800: 40, 700: 50, 600: 45, 500: 30, 400: 25 });
+  const wetRing = ringOf(OVER);
+
+  const clear = C.scoreOf(f, { ring: dryRing });
+  const cloudy = C.scoreOf(f, { ring: wetRing });
+  ok(clear.score > 60, "まわりが乾いていれば高い", `${clear.score}点`);
+  ok(cloudy.score < clear.score * 0.3, "**同じ鉛直構造でも、まわりが湿っていれば落ちる**",
+     `${cloudy.score}点 vs ${clear.score}点`);
+
+  // **分からないときは下げない。** 周囲の予報が足りないことを減点の理由にしない
+  ok(C.scoreOf(f, { ring: [] }).score === clear.score, "周囲が取れなければ下げない");
+  ok(C.scoreOf(f, { ring: dryRing.slice(0, 3) }).score === clear.score,
+     "3点しか無ければ判断しない（中央値が当てにならない）");
+
+  // **1点でも湿っていたらダメ、にはしない。** 風上側が湿っているのは笠雲の日でも当然
+  const oneWet = [...dryRing.slice(0, 7), C.features(profile({ rhAt: OVER }))];
+  ok(C.scoreOf(f, { ring: oneWet }).score > clear.score * 0.8,
+     "1方位だけ湿っていても大きく落とさない", `${C.scoreOf(f, { ring: oneWet }).score}点`);
+
+  // 内訳に出る
+  const part = cloudy.parts.find((x) => x.key === "surround");
+  ok(part && part.why.includes("まわり30km"), "まわりの状態を内訳に出す", part && part.why);
 }
 
 console.log("\n== すでに飽和している空気を最高点にしない ==");
