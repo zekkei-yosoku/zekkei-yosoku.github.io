@@ -133,31 +133,55 @@
       // 湿度極大が平坦なら高度を一点に決めない（§20・平坦を単一高度にしない）
       zRhMaxMinusSummit: peaks.length === 1 ? peaks[0].z_m - SUMMIT_M : null,
       moistPeakAmbiguous: peaks.length > 1,
+      // **採点に使うのはこちら。** 湿り具合で重みを付けた高さの重心。
+      // 「どの気圧面が最大か」で決めると、2つが同値になった瞬間に飛ぶ
+      // （実データで点数が18点跳んだ。2026-09-15）。重心なら連続に動く。
+      zMoistCenterMinusSummit: moistCenter(levels) - SUMMIT_M,
       moistPeakBaseM: Math.min(...peaks.map((l) => l.z_m)),
       moistPeakTopM: Math.max(...peaks.map((l) => l.z_m)),
       windSpeed: speed, windDirectionDeg: dir, n2,
       // **湿った層の厚さ。** 笠雲はレンズなので層が薄い。
       // 全層が湿っていれば、それは笠雲ではなく一様な曇天や雨。
-      moistDepthM: moistDepth(levels, 85),
+      moistDepthM: moistDepth(levels),
       columnTopM: levels[levels.length - 1].z_m, columnBaseM: levels[0].z_m,
     };
   }
 
-  /// RH が `th`% 以上の層のうち、極大を含む連続部分の厚さ[m]
-  function moistDepth(levels, th) {
-    const peak = Math.max(...levels.map((l) => l.rh_pct));
-    if (peak < th) return 0;
-    const i = levels.findIndex((l) => l.rh_pct === peak);
-    let lo = i, hi = i;
-    while (lo > 0 && levels[lo - 1].rh_pct >= th) lo--;
-    while (hi < levels.length - 1 && levels[hi + 1].rh_pct >= th) hi++;
-    if (lo === hi) {
-      // 1層だけ。前後の半分ずつを厚さとみなす
-      const a = lo > 0 ? (levels[lo].z_m - levels[lo - 1].z_m) / 2 : 0;
-      const b = hi < levels.length - 1 ? (levels[hi + 1].z_m - levels[hi].z_m) / 2 : 0;
-      return a + b;
+  /**
+   * 湿った層の厚さ[m]。**連続な量にする。**
+   *
+   * 最初は「RH 85%以上の連続部分の厚さ」にしていたが、気圧面は 6枚しかないので
+   * **RH が1%動いて85%線をまたぐだけで厚さが1,400m飛んだ。**
+   * 実データで 09時6060m → 10時2896m → 11時1636m → 16時4348m と跳ね、
+   * 点数が 0→14→92→…→0→78 という物理的にあり得ない並びになった
+   * （2026-09-15）。雲海で記録済みの「天井の量子化による点数の跳び」と同じ型。
+   *
+   * 層ごとに「どれくらい湿っているか」で重みを付けて足す。
+   * RH 70%で0、95%で1。閾値をまたぐ瞬間が無いので跳ばない。
+   */
+  /// 湿り具合で重みを付けた高さの重心[m]。湿った層がどのあたりにあるか
+  function moistCenter(levels) {
+    let num = 0, den = 0;
+    for (const l of levels) {
+      const w = clamp01((l.rh_pct - 70) / 25);
+      num += l.z_m * w; den += w;
     }
-    return levels[hi].z_m - levels[lo].z_m;
+    // どこも湿っていなければ、いちばん湿った高さで代用する
+    if (den < 1e-6) {
+      const peak = Math.max(...levels.map((l) => l.rh_pct));
+      return levels.find((l) => l.rh_pct === peak).z_m;
+    }
+    return num / den;
+  }
+
+  function moistDepth(levels) {
+    let sum = 0;
+    for (let i = 0; i < levels.length - 1; i++) {
+      const dz = levels[i + 1].z_m - levels[i].z_m;
+      const rh = (levels[i].rh_pct + levels[i + 1].rh_pct) / 2;
+      sum += dz * clamp01((rh - 70) / 25);
+    }
+    return sum;
   }
 
   /**
@@ -180,23 +204,17 @@
     // 2つの型を別々に評価して、高いほうを採る（§21）。
     //   山頂被覆型 … 山頂そのものが湿っている
     //   離れ笠     … 山頂の上（500hPa付近）に湿った層があり、山頂は乾いていてよい
-    const dz = f.zRhMaxMinusSummit;
+    // **重心を使う。** 「どの気圧面が最大か」で決めると、2つが同値になった瞬間に
+    // 高度が `null` へ飛び、点数が18点跳んだ（2026-09-15 実データ）。
+    const dz = f.zMoistCenterMinusSummit;
     const capTerm = ramp(f.rhSummit, 55, 92);
-    // 離れ笠は山頂の 1,000〜3,000m 上に極大があるとき
-    const above = dz === null ? null : dz;
-    const detachedTerm = above === null ? 0
-      : 0.8 * ramp(f.rhMax, 60, 92)
-            * (above >= 800 ? clamp01(1 - Math.max(0, above - 2600) / 1800) : above / 800);
-    let layer = Math.max(capTerm, detachedTerm);
-    if (dz === null) {
-      // 極大が平坦（飽和が厚い）。高度は決められないが、厚い湿潤層は材料そのもの
-      layer = Math.max(layer, 0.8 * ramp(f.rhMax, 60, 90));
-      why.push("湿った層が厚い");
-    } else if (capTerm >= detachedTerm) {
-      why.push(f.rhSummit >= 85 ? "山頂が湿っている" : "山頂付近に湿った層");
-    } else {
-      why.push("山頂の上に湿った層");
-    }
+    // 離れ笠は山頂の 800〜2,600m 上に湿りの重心があるとき
+    const detachedTerm = 0.8 * ramp(f.rhMax, 60, 92)
+      * (dz >= 800 ? clamp01(1 - Math.max(0, dz - 2600) / 1800) : clamp01(dz / 800));
+    const layer = Math.max(capTerm, detachedTerm);
+    why.push(capTerm >= detachedTerm
+      ? (f.rhSummit >= 85 ? "山頂が湿っている" : "山頂付近に湿った層")
+      : "山頂の上に湿った層");
     if (layer < 0.05) why[0] = "山頂付近が乾いている";
 
     // ② 山体を横切る風（§22-23）。**強い風が要る**。弱いと持ち上がらない
@@ -220,20 +238,24 @@
     // 露点差 0℃ = すでに雲 / 1〜5℃ = 持ち上げで閉じる / 8℃超 = 持ち上げても届かない。
     // **どの高さで雲になるかは型で違う。** 山頂被覆型は山頂、離れ笠は湿度極大の高さ。
     // 山頂の露点差だけで測っていたら、離れ笠が7点まで落ちた（2026-09-15）。
-    const detachedWins = dz !== null && detachedTerm > capTerm;
+    const detachedWins = detachedTerm > capTerm;
     const dd = detachedWins ? f.dewpointDepressionAtPeak : f.dewpointDepression;
-    const saturate = dd < 0.3 ? 0.25                      // すでに飽和＝ただの雲
-      : dd <= 1 ? 0.25 + 0.75 * (dd - 0.3) / 0.7          // 立ち上がり
-      : dd <= 5 ? 1                                        // 持ち上げで閉じる
-      : clamp01(1 - (dd - 5) / 4);                         // 9℃で届かない
+    // **立ち上がりをなだらかにする。** 0.3〜1℃で0.75動かしていたら、
+    // 湿度1%で15点動いた（2026-09-15）。予報の精度に見合わない。
+    // 「すでに一面の雲」の判別は ⑤ 薄さ と ⑥ 周り が担う（実データで 0.05 / 0.08 と効いた）。
+    // ここは「持ち上げれば届く範囲か」だけを見る。
+    const saturate = dd <= 2 ? 0.6 + 0.4 * clamp01(dd / 2)   // 0℃でも0.6は残す
+      : dd <= 5 ? 1                                          // 持ち上げで閉じる
+      : clamp01(1 - (dd - 5) / 4);                           // 9℃で届かない
 
     // ⑤ **レンズの薄さ。** 笠雲は限られた厚さの湿潤層にできる。
     // 全層が湿っていれば一様な曇天か雨で、山の形に沿った雲にはならない。
     const depth = f.moistDepthM;
     // **0にしない。** 厚い雲の中に笠雲が埋もれることはある（見分けられないだけ）。
     // 段差で切らないのはこの採点器の他の項と同じ方針
-    const lens = depth <= 0 ? 0.5                          // 85%に届く層が無い
-      : depth <= 1800 ? 1                                  // レンズらしい厚さ
+    // 層厚0（どこも湿っていない）を特別扱いしない。乾いていることは ① が見ている。
+    // 分岐を残していたら 0.5→1 の段差になった（2026-09-15）
+    const lens = depth <= 1800 ? 1                         // レンズらしい厚さ
       : Math.max(0.05, 1 - (depth - 1800) / 2600);         // 4,400mで一様な曇天
 
     // ⑥ **周りが晴れているか**（水平方向の対比）。
@@ -258,25 +280,23 @@
     // 山頂は 3,776m。700hPa≈3,000m / 600hPa≈4,200m / 500hPa≈5,600m。
     // 論文の「山頂被覆型は700〜600hPa、離れ笠は500hPa付近」を高度差に直すと、
     // 離れ笠はおよそ山頂の 1,400m 上から。
-    const type = dz === null ? "unknown"
-      : dz <= 700 ? "cap"           // 山頂被覆型
-      : dz <= 1400 ? "high"         // 高めの笠
-      : "detached";                 // 離れ笠（500hPa付近）
+    const type = dz <= 700 ? "cap"    // 山頂被覆型
+      : dz <= 1400 ? "high"          // 高めの笠
+      : "detached";                  // 離れ笠（500hPa付近）
 
     return {
       score, value, type,
       parts: [
         { key: "layer", label: "湿った層の位置", p: layer,
-          why: `山頂 ${Math.round(f.rhSummit)}%`
-            + (dz === null ? ` / 極大 ${Math.round(f.rhMax)}%（高度は幅あり）`
-               : ` / 極大 ${Math.round(f.rhMax)}% は山頂の${dz >= 0 ? "上" : "下"} ${Math.abs(Math.round(dz))}m`) },
+          why: `山頂 ${Math.round(f.rhSummit)}% / 湿りの中心は山頂の`
+            + `${dz >= 0 ? "上" : "下"} ${Math.abs(Math.round(dz))}m（極大 ${Math.round(f.rhMax)}%）` },
         { key: "wind", label: "山を越える風", p: wind * cross,
           why: `${Math.round(f.windSpeed)}m/s`
             + (f.windDirectionDeg === null ? "" : ` ${dirName(f.windDirectionDeg)}`) },
         { key: "stable", label: "大気の安定", p: stable,
           why: f.n2 <= 0 ? "不安定（対流の雲になりやすい）" : `N² ${(f.n2 * 1e5).toFixed(1)}×10⁻⁵` },
         { key: "saturate", label: "持ち上げで雲になるか", p: saturate,
-          why: dd < 0.3 ? `露点差 ${dd.toFixed(1)}℃（すでに雲の中）`
+          why: dd < 0.5 ? `露点差 ${dd.toFixed(1)}℃（すでに雲の中）`
             : dd > 5 ? `露点差 ${dd.toFixed(1)}℃（持ち上げても届きにくい）`
             : `露点差 ${dd.toFixed(1)}℃` },
         { key: "surround", label: "周りが晴れているか", p: surround,
@@ -284,8 +304,7 @@
             : surround >= 0.9 ? "まわり30kmは湿っていません"
             : "まわり30kmも湿っています（一帯の雲の可能性）" },
         { key: "lens", label: "湿った層の薄さ", p: lens,
-          why: depth <= 0 ? "湿った層がはっきりしない"
-            : depth > 3000 ? `厚さ ${Math.round(depth / 100) / 10}km（一様な曇天に近い）`
+          why: depth > 3000 ? `厚さ ${Math.round(depth / 100) / 10}km（一様な曇天に近い）`
             : `厚さ ${Math.round(depth / 100) / 10}km` },
       ],
       why: why[0] || "",

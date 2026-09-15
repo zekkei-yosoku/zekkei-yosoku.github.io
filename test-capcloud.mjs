@@ -175,7 +175,10 @@ console.log("\n== 湿度極大が平坦なとき ==");
   ok(f.moistPeakAmbiguous === true, "極大が一点に決まらないことを持つ");
   ok(f.zRhMaxMinusSummit === null, "高度を勝手に一点に決めない");
   const r = C.scoreOf(f);
-  ok(r.score > 0 && r.type === "unknown", "それでも採点はする・型は不明", `${r.score}点 ${r.type}`);
+  // 極大が一点に決まらなくても**採点は続く**。重心を使うので型も決まる
+  ok(r.score > 0, "それでも採点はする", `${r.score}点`);
+  ok(Number.isFinite(f.zMoistCenterMinusSummit), "重心は常に決まる",
+     `${Math.round(f.zMoistCenterMinusSummit)}m`);
 }
 
 console.log("\n== 取得日数 ==");
@@ -231,6 +234,38 @@ console.log("\n== 出はじめ・最盛・弱まる ==");
   ok(C.timingOf(mk([[3,10],[4,20],[5,30]]), S) === null, "40点に届かなければ時間帯なし");
   ok(C.timingOf([], S) === null, "空なら null");
   ok(C.timingOf(null, S) === null, "null なら null");
+}
+
+console.log("\n== 点数が跳ばない（量子化しない）==");
+{
+  // 気圧面は6枚しかないので、**閾値で切ると1%の湿度差で厚さが1,400m飛ぶ**。
+  // 実データで 09時6060m → 11時1636m → 16時4348m と跳ね、
+  // 点数が 0→92→…→0→78 という物理的にあり得ない並びになった（2026-09-15）。
+  // 雲海の「天井の量子化による点数の跳び」と同じ型。
+  //
+  // 湿度をなめらかに動かして、厚さと点数が連続に動くことを見る。
+  const at = (rh700) => {
+    const rhAt = { 850: 60, 800: 70, 700: rh700, 600: rh700 - 6, 500: 45, 400: 35 };
+    const f = C.features(profile({ rhAt }));
+    return { depth: f.moistDepthM, score: C.scoreOf(f).score };
+  };
+  let maxDepthJump = 0, maxScoreJump = 0;
+  let prev = at(70);
+  for (let rh = 71; rh <= 100; rh++) {
+    const cur = at(rh);
+    maxDepthJump = Math.max(maxDepthJump, Math.abs(cur.depth - prev.depth));
+    maxScoreJump = Math.max(maxScoreJump, Math.abs(cur.score - prev.score));
+    prev = cur;
+  }
+  // 湿度1%で厚さが数百m飛ぶなら、それは閾値で切っている証拠
+  ok(maxDepthJump < 200, "湿度1%あたりの厚さの変化が小さい", `最大 ${Math.round(maxDepthJump)}m`);
+  ok(maxScoreJump <= 6, "湿度1%あたりの点数の変化が小さい", `最大 ${maxScoreJump}点`);
+  // 重心を使うのは、極大の高度だと2つの気圧面が同値になった瞬間に飛ぶため
+  ok(!/zRhMaxMinusSummit/.test(C.scoreOf.toString()), "採点に極大の高度を使わない");
+
+  // 厚さそのものは単調に増える（湿るほど厚い）
+  ok(at(100).depth > at(80).depth && at(80).depth > at(72).depth, "湿るほど厚くなる",
+     `${Math.round(at(72).depth)} → ${Math.round(at(80).depth)} → ${Math.round(at(100).depth)}m`);
 }
 
 console.log("\n== 壊れた入力で落ちない ==");
