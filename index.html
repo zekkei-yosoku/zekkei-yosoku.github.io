@@ -923,17 +923,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260915094052"></script>
+<script src="sorami-core.js?v=20260915103415"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260915094052"></script>
-<script src="sorami-exif.js?v=20260915094052"></script>
-<script src="sorami-capcloud.js?v=20260915094052"></script>
-<script src="sorami-terrain.js?v=20260915094052"></script>
-<script src="sorami-mountain.js?v=20260915094052"></script>
-<script src="sorami-fuji.js?v=20260915094052"></script>
-<script src="sorami-moon.js?v=20260915094052"></script>
-<script src="sorami-composition.js?v=20260915094052"></script>
+<script src="sorami-astro.js?v=20260915103415"></script>
+<script src="sorami-exif.js?v=20260915103415"></script>
+<script src="sorami-capcloud.js?v=20260915103415"></script>
+<script src="sorami-terrain.js?v=20260915103415"></script>
+<script src="sorami-mountain.js?v=20260915103415"></script>
+<script src="sorami-fuji.js?v=20260915103415"></script>
+<script src="sorami-moon.js?v=20260915103415"></script>
+<script src="sorami-composition.js?v=20260915103415"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1518,27 +1518,6 @@ async function loadExtras() {
       { horizonAt: moonHorizon, readingAt: readingFor, airAt: airFor }) }));
   if (seq === extraSeq) rerenderList();
 
-  // ---- 笠雲。**富士山の上の現象**なので、上空の予報は地点で変わらない（取り直さない）。
-  //
-  // 富士山が地形で見えない地点では下で行ごと消す。見えない山の笠を並べても意味がない。
-  if (SoramiTerrain.inJapan(obs.latitude, obs.longitude) && typeof SoramiCapCloud !== "undefined") {
-    if (!capUpper) {
-      // **一覧と同じ日数を取る。** 3日だけ取っていたので、他の行が14日あるのに
-      // 笠雲だけ3日で切れて「—」が並び、壊れて見えた（2026-09-15 ユーザー指摘）。
-      // 元にした研究用の収集器が「取得は1〜3日」と決め打ちしていたのを引き写していた。
-      // GFS が返さない先の日は「—」のままになる。それは埋めない
-      try {
-        capUpper = await SoramiCapCloud.fetchUpperAir({ days: Math.min(16, days.length) });
-      } catch { capUpper = null; }
-      if (seq !== extraSeq) return;
-    }
-    if (capUpper) {
-      weeks.capCloud = days.map((dayMs) => ({ dayMs,
-        evaluation: SoramiCapCloud.evaluateDay(capUpper, dayMs, S) }));
-      if (seq === extraSeq) rerenderList();
-    }
-  }
-
   // ---- 富士山。日本の外なら出さない
   if (!SoramiTerrain.inJapan(obs.latitude, obs.longitude)) { delete weeks.fuji; delete weeks.capCloud; return; }
   const grid = await loadFujiGrid();
@@ -1557,6 +1536,33 @@ async function loadExtras() {
   weeks.fuji = days.map((dayMs) => ({ dayMs,
     evaluation: SoramiFuji.evaluateDay(fujiGeom, fujiWeather, bundle.home, bundle.air, dayMs, S,
       { observerEyeM: obs.elevation, observer: obs }) }));
+  if (seq === extraSeq) rerenderList();
+
+  // ---- 笠雲。**富士山のあとに置く。**
+  //
+  // 上空の予報は富士山の上の話なので地点で変わらない（取り直さない）。
+  // ただし**その地点から見えるかは掛ける**——このアプリは見に行くための道具で、
+  // 見えないものを高得点で出さない（2026-09-15 ユーザー「絶景を見ることが前提」）。
+  // そのために富士山の評価が要るので、富士山より後に置く。
+  if (typeof SoramiCapCloud !== "undefined") {
+    if (!capUpper) {
+      // **一覧と同じ日数を取る。** 3日だけ取っていたので、他の行が14日あるのに
+      // 笠雲だけ3日で切れて「—」が並び、壊れて見えた（2026-09-15 ユーザー指摘）。
+      // GFS が返さない先の日は「—」のままになる。それは埋めない
+      try {
+        capUpper = await SoramiCapCloud.fetchUpperAir({ days: Math.min(16, days.length) });
+      } catch { capUpper = null; }
+      if (seq !== extraSeq) return;
+    }
+    if (capUpper) {
+      const fujiBy = new Map((weeks.fuji || []).map((e) => [e.dayMs, e.evaluation]));
+      weeks.capCloud = days.map((dayMs) => ({ dayMs,
+        evaluation: SoramiCapCloud.evaluateDay(capUpper, dayMs, S,
+          { fujiDay: fujiBy.get(dayMs) || null }) }));
+      if (seq === extraSeq) rerenderList();
+    }
+  }
+
   // 構図は幾何だけ。天気を待たずに計算できる（月 §82）
   try {
     const T = { latitude: SoramiFuji.FUJI.latitude, longitude: SoramiFuji.FUJI.longitude,

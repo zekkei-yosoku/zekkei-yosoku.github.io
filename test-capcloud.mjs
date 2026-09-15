@@ -277,6 +277,61 @@ console.log("\n== 壊れた入力で落ちない ==");
   ok(C.features(short) === null, "層が足りなければ null");
 }
 
+console.log("\n== 見えなければ点数を下げる ==");
+{
+  // ユーザー「絶景を見ることが前提だからね」（2026-09-15）。
+  // 見に行くための道具なので、見えないものを高得点で出さない。
+  // **発生と可視は別々に計算したうえで掛ける**——内訳から
+  // 「出るけれど見えない」のか「そもそも出ない」のかが読み取れるようにする。
+  const day = S.Cal.startOfDay(Date.now());
+  const times = [];
+  for (let t = day; t < day + 86400000; t += 3600000) times.push(Math.round(t / 1000));
+  const mk = (rhAt) => {
+    const h = { time: times };
+    for (const p of C.LEVELS) {
+      h[`geopotential_height_${p}hPa`] = times.map(() => Z[p]);
+      h[`temperature_${p}hPa`] = times.map(() => 10 - 5.5 * (Z[p] - Z[850]) / 1000);
+      h[`relative_humidity_${p}hPa`] = times.map(() => rhAt[p]);
+      h[`wind_speed_${p}hPa`] = times.map(() => 20);
+      h[`wind_direction_${p}hPa`] = times.map(() => 247.5);
+    }
+    return { latitude: 35.36, longitude: 138.73, hourly: h };
+  };
+  const upper = { points: C.samplePoints(), list: C.samplePoints().map(() => mk(CAP)),
+                  fetchedAt: Date.now() };
+  const fuji = (pVisible) => ({ unavailable: null, detail: { pVisible } });
+
+  const seen = C.evaluateDay(upper, day, S, { fujiDay: fuji(1) });
+  const hazy = C.evaluateDay(upper, day, S, { fujiDay: fuji(0.4) });
+  const hidden = C.evaluateDay(upper, day, S, { fujiDay: fuji(0.02) });
+  const unknown = C.evaluateDay(upper, day, S, { fujiDay: null });
+
+  ok(seen.score > 50, "見えるなら高い", `${seen.score}点`);
+  ok(Math.abs(hazy.score - seen.score * 0.4) <= 1, "見えにくければ比例して下がる",
+     `${hazy.score}点`);
+  ok(hidden.score <= 3, "山ごと見えなければほぼ0", `${hidden.score}点`);
+
+  // **分からないときは下げない。** 富士山の予報が届いていないことを減点の理由にしない
+  ok(unknown.score === seen.score, "富士山の評価が無ければ下げない");
+  ok(unknown.visibility === null, "可視が不明であることを持ち回る");
+
+  // **発生だけの点数を残す。** 「出るけれど見えない」を後から読み取れるように
+  ok(hidden.formationScore === seen.formationScore,
+     "発生の点数は可視で変わらない", `${hidden.formationScore}点`);
+  ok(hidden.formationScore > hidden.score, "出るけれど見えない日が区別できる",
+     `発生${hidden.formationScore} → 表示${hidden.score}`);
+
+  // 内訳に出る
+  const f = hidden.factors.find((x) => x.label === "ここから富士山が見えるか");
+  ok(f && f.detail.includes("山ごと見えにくい"), "内訳に理由を出す", f && f.detail);
+  const fu = unknown.factors.find((x) => x.label === "ここから富士山が見えるか");
+  ok(fu && fu.detail.includes("届いていません"), "不明なら不明と書く");
+
+  // 時間帯は**発生**で決まる（見えなくても材料が揃う時刻は同じ）
+  ok(hidden.timing && seen.timing && hidden.timing.peakAt === seen.timing.peakAt,
+     "時間帯は可視で動かさない");
+}
+
 console.log("\n== 1日ぶんの評価が他の現象と同じ形で返る ==");
 {
   // 上空の予報を合成する

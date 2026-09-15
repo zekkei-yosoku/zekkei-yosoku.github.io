@@ -273,6 +273,11 @@ ok(/function renderCapLine/.test(html), "富士山の詳細から笠雲へ1行")
 // 仕様書 §0 が最終出力に「発生予想時間帯・最盛予想時間帯・消滅予想時間帯」を挙げている。
 // 閾値は**アプリのランク境界**を使う（別に作らない）ので、言葉と時刻が食い違わない
 ok(/function renderCapTiming/.test(html), "出はじめ・いちばん濃い・弱まる を出す");
+// **見に行くための道具なので、見えないものを高得点で出さない。**
+// そのために富士山の評価が要るので、笠雲は富士山より後に置く
+ok(/fujiDay: fujiBy\.get\(dayMs\)/.test(html), "笠雲へ富士山の評価を渡す");
+ok(html.indexOf("SoramiFuji.evaluateDay") < html.indexOf("SoramiCapCloud.evaluateDay"),
+  "笠雲を富士山より後に評価する");
 // **「できはじめる時刻」を名乗らない。** スコアが測っているのは材料の有無で、
 // 材料は総観規模でしか動かない。40点の出入りで出したら24時間になった（実データで発覚）
 ok(/いちばん整う/.test(html), "いちばん整う時刻を出す");

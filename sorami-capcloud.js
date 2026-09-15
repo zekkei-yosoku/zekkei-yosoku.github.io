@@ -388,7 +388,15 @@
    * 笠雲は朝に多い（Kusaka et al.）が、**朝だけを見ない**。
    * 一日のうち最も材料が揃う時刻を代表にする。
    */
-  function evaluateDay(upper, dayMs, S, { asOf = Date.now(), stepMs = 3600000 } = {}) {
+  /**
+   * @param {object|null} fujiDay その日の富士山の評価（`SoramiFuji.evaluateDay` の返り）。
+   *   **見えなければ点数を下げる。** このアプリは見に行くための道具なので、
+   *   見えないものを高得点で出さない（2026-09-15 ユーザー「絶景を見ることが前提だからね」）。
+   *   発生と可視は**別々に計算**したうえで掛ける。富士山の行も同じ作り
+   *   （`P(見える) × くっきり度 × 幾何`）。内訳には分けて出すので、
+   *   「出るけれど見えない」のか「そもそも出ない」のかは読み取れる。
+   */
+  function evaluateDay(upper, dayMs, S, { asOf = Date.now(), stepMs = 3600000, fujiDay = null } = {}) {
     const daysAhead = Math.max(0, Math.round((dayMs - S.Cal.startOfDay(asOf)) / 86400000));
     const shell = (unavailable) => ({
       phenomenon: "capCloud", window: [dayMs + 5 * 3600000, dayMs + 18 * 3600000],
@@ -421,20 +429,32 @@
       if (!best) return shell({ kind: "forecast", message: "この日の上空の予報がまだ届いていません" });
     }
 
+    // **その地点から富士山が見えるか。**
+    // 使うのは `pVisible`（山が見えるか）で、富士山の点数そのものではない。
+    // 点数には「くっきり度」が入っていて、霞んでいても笠の形は分かるため。
+    const seen = fujiDay && !fujiDay.unavailable && fujiDay.detail
+      && Number.isFinite(fujiDay.detail.pVisible) ? fujiDay.detail.pVisible : null;
+    const visible = seen === null ? 1 : seen;
+    const shown = Math.round(best.score * visible);
+
     const factors = best.parts.map((x) => ({
       label: x.label, c: 0, detail: `${Math.round(x.p * 100)}%　${x.why}`,
     }));
     factors.push({ label: "形", c: 0, detail: TYPE_LABEL[best.type] });
+    factors.push({ label: "ここから富士山が見えるか", c: 0,
+      detail: seen === null ? "—　富士山の予報がまだ届いていません"
+        : `${Math.round(seen * 100)}%　${seen < 0.3 ? "雲か霞で山ごと見えにくい"
+            : seen < 0.7 ? "見えにくい時間帯がありそう" : "山は見えそう"}` });
     const timing = timingOf(hours, S);
 
     const width = 12 + S.leadTimePenalty(daysAhead);   // **未検証なので広めに持つ**
     return {
       phenomenon: "capCloud", window: [start, end], peak: best.ms, specificTime: false,
-      unavailable: null, score: best.score, base: best.score, factors,
+      unavailable: null, score: shown, base: shown, factors,
       perModel: {}, models: 0,
-      spread: [Math.max(0, best.score - width), Math.min(100, best.score + width)],
+      spread: [Math.max(0, shown - width), Math.min(100, shown + width)],
       source: SOURCE, daysAhead, asOf,
-      confidence: S.confidenceOf(width, null), rank: S.rankOf(best.score),
+      confidence: S.confidenceOf(width, null), rank: S.rankOf(shown),
       uncertainty: {
         basis: "single", ensembleBlind: null, modelWidth: width, ensembleIqr: null,
         ensembleMembers: null, ensembleMedian: null, ensembleBand: null,
@@ -442,7 +462,8 @@
         expectedError: Math.round(width * 0.6), agreement: null,
         modelAgreement: null, fallbackWidth: width,
       },
-      detail: best, hours, timing,
+      // 発生だけの点数も残す。「出るけれど見えない」を後から読み取れるように
+      detail: best, hours, timing, formationScore: best.score, visibility: seen,
     };
   }
 
