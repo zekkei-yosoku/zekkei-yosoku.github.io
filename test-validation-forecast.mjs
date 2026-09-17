@@ -4,9 +4,9 @@ import {createRequire} from 'node:module';
 import {VALIDATION_TARGETS,freezeEvaluations} from './record-validation-forecast.mjs';
 const S=createRequire(import.meta.url)('./sorami-core.js');
 // **保存対象は `SCORERS` で決まる。`PHENOMENA` ではない。**
-// 富士山と月は sorami-fuji.js / sorami-moon.js が採点していて core の `evaluate` を
+// 富士山・月・笠雲は sorami-fuji.js / sorami-moon.js / sorami-capcloud.js が採点していて core の `evaluate` を
 // 通らないので、この仕組み（S.evaluate を呼んで凍結する）には乗らない。
-// PHENOMENA には表へ並べるための名前だけが入っている（2026-09-14 に足した）。
+// PHENOMENA には表へ並べるための名前だけが入っている（富士山と月は 2026-09-14、笠雲は 2026-09-15 に足した）。
 test('core が採点する7現象と、東京近郊の固定6地点を保存対象に含める',()=>{
  assert.deepEqual([...new Set(VALIDATION_TARGETS.flatMap(s=>s.targets))].sort(),Object.keys(S.SCORERS).sort());
  assert.equal(VALIDATION_TARGETS.length,10);
@@ -14,7 +14,9 @@ test('core が採点する7現象と、東京近郊の固定6地点を保存対�
 test('表に並ぶ現象のうち、core が採点しないものは保存対象に含めない',()=>{
  const scored=new Set(Object.keys(S.SCORERS));
  const listed=Object.keys(S.PHENOMENA).filter(id=>!scored.has(id));
- assert.deepEqual(listed.sort(),['fuji','moon']);
+ // 笠雲を足した 2026-09-15 にこの期待値を直し忘れ、落ちたまま配信していた（2026-09-17 に発見して修正）。
+ // 保存対象から外す仕組み自体は正しく動いていた（下の assert は通っていた）。
+ assert.deepEqual(listed.sort(),['capCloud','fuji','moon']);
  const targets=new Set(VALIDATION_TARGETS.flatMap(s=>s.targets));
  for(const id of listed) assert.ok(!targets.has(id),`${id} は保存対象に入れない`);
 });
