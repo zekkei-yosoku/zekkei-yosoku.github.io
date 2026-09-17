@@ -923,17 +923,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260915150801"></script>
+<script src="sorami-core.js?v=20260917111955"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260915150801"></script>
-<script src="sorami-exif.js?v=20260915150801"></script>
-<script src="sorami-capcloud.js?v=20260915150801"></script>
-<script src="sorami-terrain.js?v=20260915150801"></script>
-<script src="sorami-mountain.js?v=20260915150801"></script>
-<script src="sorami-fuji.js?v=20260915150801"></script>
-<script src="sorami-moon.js?v=20260915150801"></script>
-<script src="sorami-composition.js?v=20260915150801"></script>
+<script src="sorami-astro.js?v=20260917111955"></script>
+<script src="sorami-exif.js?v=20260917111955"></script>
+<script src="sorami-capcloud.js?v=20260917111955"></script>
+<script src="sorami-terrain.js?v=20260917111955"></script>
+<script src="sorami-mountain.js?v=20260917111955"></script>
+<script src="sorami-fuji.js?v=20260917111955"></script>
+<script src="sorami-moon.js?v=20260917111955"></script>
+<script src="sorami-composition.js?v=20260917111955"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1129,11 +1129,12 @@ const CONF_ICON = { high: "◎", medium: "△", low: "⚠︎" };
 // 引く量は評価の帯の間隔（20〜25点）を目安にしている。
 const LEAD_PENALTY = { A: 0, B: 6, C: 16 };
 
-// 月と富士山は見どころに出さない（`PHENOMENA[id].highlight === false`）。
+// 月・富士山・笠雲は見どころに出さない（`PHENOMENA[id].highlight === false`）。
 // 他の現象は起きるか起きないかで、起きれば出かける理由になる。
 // 月と富士山は**晴れていればだいたい見える**ので、条件の良い日は必ず上位へ来て
 // 見どころの枠を占め続け、雲海や虹のような「その日だけ」を押し出す。
 // 表の行としては同じ重みで残す（見どころに出さないだけ）。
+// 笠雲は理由が違う。高い点でも実際に見えるのは十数回に1回なので、先頭に出すと誤誘導になる（2026-09-17）。
 function pickHighlight(weeks, now) {
   let best = null;
   for (const [id, entries] of Object.entries(weeks)) {
@@ -1362,6 +1363,7 @@ let moonUrbanMeta = null; // 建物層の内訳（何棟・推定が何棟・い
 let moonTerrainProfile = null; // 地形だけの地平線。建物が届いたら重ねて作り直す
 let moonUrbanTried = false;    // 建物の取得は地点ごとに1回だけ
 let capUpper = null;           // 笠雲の上空予報。富士山の上の話なので地点で変わらない
+let capUpperFailedAt = 0;      // 失敗した時刻。**一度の失敗でその日ずっと出ないのを防ぐ**
 
 // 建物の地平線。地点ごとに localStorage へ置く。
 //
@@ -1545,13 +1547,25 @@ async function loadExtras() {
   // 見えないものを高得点で出さない（2026-09-15 ユーザー「絶景を見ることが前提」）。
   // そのために富士山の評価が要るので、富士山より後に置く。
   if (typeof SoramiCapCloud !== "undefined") {
-    if (!capUpper) {
+    // **失敗しても取り直す。** 以前は一度 null になるとページを開き直すまで
+    // 笠雲の行が出なかった。Open-Meteo が一時的に 429 を返すだけで、その回の
+    // 表示から笠雲が丸ごと消える（2026-09-16 に実際に起きた）。30秒あければ再試行する
+    const canRetry = !capUpper && Date.now() - capUpperFailedAt > 30000;
+    if (canRetry) {
       // **一覧と同じ日数を取る。** 3日だけ取っていたので、他の行が14日あるのに
       // 笠雲だけ3日で切れて「—」が並び、壊れて見えた（2026-09-15 ユーザー指摘）。
       // GFS が返さない先の日は「—」のままになる。それは埋めない
       try {
         capUpper = await SoramiCapCloud.fetchUpperAir({ days: Math.min(16, days.length) });
       } catch { capUpper = null; }
+      if (!capUpper) {
+        capUpperFailedAt = Date.now();
+        // **取り直しの契機を自分で作る。** この関数はページ読み込み時に1回しか
+        // 走らないので、失敗を記録するだけでは永遠に再試行されない。
+        // 1分後にもう一度だけ呼ぶ（seq が変わっていたら無視される）
+        const mySeq = extraSeq;
+        setTimeout(() => { if (mySeq === extraSeq) loadExtras(); }, 60000);
+      }
       if (seq !== extraSeq) return;
     }
     if (capUpper) {
@@ -2278,7 +2292,7 @@ function renderCapLine(dayMs) {
 // 最初これを 40点の出入りで「出はじめ・弱まる」として出したら、条件の良い日は
 // **0:00〜23:00 の24時間**になって何も言っていなかった（2026-09-15 ユーザー指摘）。
 //
-// 閾値はその日が到達したランクの境界。見出しが「みごとな笠 97」なら 85点以上でいられる時間。
+// 閾値はその日が到達したランクの境界。見出しが「好条件 97」なら 85点以上でいられる時間。
 // 見出しの言葉と時間帯の意味が一致し、良い日ほど自動的に絞られる。
 function renderCapTiming(ev) {
   const t = ev.timing;
@@ -2296,7 +2310,7 @@ function renderCapTiming(ev) {
         <span class="tiny" style="color:var(--tertiary)">（いちばん整うのは ${hm(t.peakAt)} ごろ）</span></div>
       <div class="tiny" style="margin-top:6px;color:var(--tertiary)">
         材料が一日中そろっている日です。時間帯は絞れません。
-        <strong>点数が未検証なので、時刻も未検証です。</strong></div>
+        時間帯の出し方そのものは検証していません。</div>
     </div>`;
   }
   return `<div class="card">
@@ -2308,8 +2322,8 @@ function renderCapTiming(ev) {
       「${esc(name)}」（${t.thresholdScore}点）の条件でいられる時間です。1時間きざみの目安${
         t.spans > 1 ? `で、途切れる時間帯が ${t.spans - 1} 回あります` : ""}。
       ${t.openStart || t.openEnd ? "前後の日へ続いている可能性があります。" : ""}
-      <strong>雲ができはじめる時刻ではありません</strong>——材料が揃う時間帯です。
-      点数が未検証なので、時刻も未検証です。
+      <strong>雲ができはじめる時刻ではありません</strong>——笠雲が見えそうな時間帯です。
+      時間帯の出し方そのものは検証していません。
     </div>
   </div>`;
 }
@@ -2557,7 +2571,8 @@ function renderDetail(id, sel, now, opts = {}) {
     }).join("");
     return `<div style="padding:4px 0 6px">
       <div class="section-h"><h2>この点数のわけ</h2>
-        <span class="tiny">かけ合わせで決まります</span></div>
+        <span class="tiny">${ev.phenomenon === "capCloud"
+          ? "学習したモデルが重視した順（＋押し上げ／−押し下げ）" : "かけ合わせで決まります"}</span></div>
       <div class="pk-rows">${listed}</div>
       ${record}
     </div>`;

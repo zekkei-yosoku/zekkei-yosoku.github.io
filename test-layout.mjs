@@ -237,8 +237,8 @@ ok(!/S\.Moon\.state\(/.test(html), "core の地心計算を月の出入りの表
 ok(!/MOON_H0/.test(html), "旧実装の判定高度（MOON_H0）を残していない");
 
 console.log("== 笠雲 ==");
-// 起きるか起きないかの現象なので、富士山と違って見どころに出す
-//（晴れていればだいたい見える富士山と、材料が揃った日にだけ出る笠雲は別）。
+// 見どころには出さない（2026-09-17 ユーザー判断）。高い点でも実際に見えるのは十数回に1回で、
+//「次の見どころ」の先頭に出すと誤誘導になる。表の行としては残す。
 ok(coreMod.PHENOMENA.capCloud !== undefined, "現象として登録されている");
 // **「笠雲」だけでは何の笠雲か分からない。** だが一覧の列は実質48pxしかなく、
 // 「富士山の笠雲」は75pxで省略され「富士山の…」になる。すぐ上の「富士山」と
@@ -255,8 +255,13 @@ ok(coreMod.PHENOMENA.capCloud.name !== coreMod.PHENOMENA.fuji.name,
   "名前は違う（絵文字が同じなので名前で見分ける）");
 ok(/S\.longNameOf\(id\)/.test(html), "詳細の見出しと見どころで長い名前を使う");
 ok(/class="nm">\$\{esc\(meta\.name\)\}/.test(html), "一覧の列は短い名前のまま");
-ok(coreMod.PHENOMENA.capCloud.highlight !== false, "見どころに出す（富士山と違う）");
+ok(coreMod.PHENOMENA.capCloud.highlight === false, "見どころに出さない（当たる割合が低く、先頭に出すと誤誘導）");
 ok(coreMod.PHENOMENA.capCloud.record === "occurrence", "「見えた/見えなかった」で記録する");
+// 高い点でも実際に見えるのは十数回に1回（2026-09-17 日単位で測定）。ランク名も説明文も「かかる」と約束しない
+ok(JSON.stringify(coreMod.PHENOMENA.capCloud.ranks) === JSON.stringify(["好条件", "出やすい", "わずかに", "望み薄"]),
+  "笠雲のランク名は出やすさで言う（2026-09-17 ユーザー選択）");
+ok(![...coreMod.PHENOMENA.capCloud.ranks, ...coreMod.PHENOMENA.capCloud.says].some((t) => /かか[りるっ]|みごと/.test(t)),
+  "ランク名と説明文に「かかる」「みごと」を使わない");
 ok(/sorami-capcloud\.js/.test(html), "採点を読み込んでいる");
 ok(/SoramiCapCloud\.evaluateDay/.test(html), "1日ぶんを評価している");
 // 富士山が地形で見えない地点では笠雲も出さない
@@ -285,7 +290,9 @@ ok(/いちばん整う/.test(html), "いちばん整う時刻を出す");
 ok(!/lt-l">出はじめ/.test(html) && !/lt-l">弱まる/.test(html),
   "「出はじめ」「弱まる」をラベルに使わない（できはじめる時刻ではない）");
 ok(/雲ができはじめる時刻ではありません/.test(html), "何の時間帯かを画面に書く");
-ok(/点数が未検証なので、時刻も未検証/.test(html), "時刻も未検証であることを画面に出す");
+// 点数は人手ラベルで検証した（2026-09-16）。時間帯の出し方は検証していないので、それは書く
+ok(/時間帯の出し方そのものは検証していません/.test(html), "時間帯が未検証であることを画面に出す");
+ok(!/点数が未検証なので/.test(html), "点数は検証済みなので未検証と書かない");
 // ほぼ一日なら「時間帯」と言わない
 ok(/t\.allDay/.test(html), "ほぼ一日のときは別の言い方にする");
 ok(/一日を通して/.test(html), "絞れていないことを絞れたように見せない");
@@ -364,7 +371,7 @@ console.log("== 地平線は全周を測る ==");
 ok(/for \(let a = 0; a < 360; a \+= 1\) azs\.push\(a\)/.test(html), "全周を1度刻みで測る");
 ok(!/for \(let d = -8; d <= 8; d \+= 2\) azs\.push/.test(html), "月の方位まわりだけを測る旧実装が残っていない");
 
-console.log("== 月と富士山を「次の見どころ」に出さない ==");
+console.log("== 月・富士山・笠雲を「次の見どころ」に出さない ==");
 // 晴れていればだいたい見えるので、放っておくと見どころの枠を占め続け、
 // 雲海や虹のような「その日だけ」の現象を押し出す（2026-09-14 ユーザー指摘）。
 // 表の行としては残すので、除外は見どころの選定だけに効かせる。
@@ -395,9 +402,15 @@ const gotNormal = pickHighlight({
 }, 0);
 ok(gotNormal && gotNormal.id === "rainbow", "月・富士山以外の選び方は変わっていない");
 
+// 笠雲は理由が違う（高い点でも実際に見えるのは十数回に1回。2026-09-17 ユーザー判断）
+const gotCap = pickHighlight({ capCloud: [{ evaluation: mkEv(99) }], seaOfClouds: [{ evaluation: mkEv(40) }] }, 0);
+ok(gotCap && gotCap.id === "seaOfClouds",
+  `99点の笠雲があっても40点の雲海が見どころになる（実際: ${gotCap && gotCap.id}）`);
+
 // フラグは PHENOMENA 側に持つ（id のベタ書きにしない）
 ok(coreMod.PHENOMENA.moon.highlight === false, "PHENOMENA.moon.highlight が false");
 ok(coreMod.PHENOMENA.fuji.highlight === false, "PHENOMENA.fuji.highlight が false");
+ok(coreMod.PHENOMENA.capCloud.highlight === false, "PHENOMENA.capCloud.highlight が false");
 ok(coreMod.PHENOMENA.seaOfClouds.highlight !== false, "雲海は見どころに出す");
 ok(!/id === "moon"[\s\S]{0,40}continue/.test(html), "除外を id のベタ書きで書いていない");
 

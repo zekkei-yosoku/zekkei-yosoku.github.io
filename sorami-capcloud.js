@@ -5,7 +5,8 @@
  * 長期ライブカメラ画像で学習・校正した確率予測だが、正解ラベルが0件のため
  * 学習も校正もできていない。ここで出すのは、Kusaka et al. 2026 の知見を根拠に
  * 「材料が揃っているか」を測った**物理スコア**で、他の7現象と同じ0〜100点。
- * 実地精度は未検証（ユーザー判断で精度確認を飛ばして導入・2026-09-15）。
+ * 2026-09-16 に人手ラベル（富士市ライブカメラ 笠雲63枠/30日、確認した枠6,513）で
+ * 精度を測定し、手で組んだ6項の掛け算（AUC 0.643）を学習済みモデル（0.851）へ置き換えた。
  *
  * 出典: Kusaka et al., 2026, "Characteristics of unique cap, Tsurushi and Hata
  *       clouds around Mount Fuji", Weather 81, 182–190. DOI 10.1002/wea.7774
@@ -30,8 +31,14 @@
     ["geopotential_height", "temperature", "relative_humidity", "wind_speed", "wind_direction"]
       .map((v) => `${v}_${p}hPa`));
 
-  const SOURCE = "笠雲は Kusaka et al. 2026（Weather 81, 182–190）の知見を根拠にした物理スコア。"
-    + "上空の状態は Open-Meteo（GFS・約25km）。**実地精度は未検証です。**";
+  // **当たる割合を正しく書く。** 最初「『かかりそう』でも5回に1回は外れます」と書いたが誤り。
+  // 「笠雲の日の何割を拾えるか」と「出た日に当たる割合」を取り違えていた。
+  // 笠雲が見える日は確認した1,369日の2.2%しかなく、65点以上の日に実際に見えるのは約6%、
+  // 85点以上でも約8%（日単位・交差検証、2026-09-17）。ふだんの3〜4倍出やすい、が正確
+  const SOURCE = "笠雲は Kusaka et al. 2026（Weather 81, 182–190）の知見をもとに、"
+    + "富士市ライブカメラの人手ラベルで学習したモデル。上空の状態は Open-Meteo（GFS・約25km）。"
+    + "**笠雲が見える日はもともと50日に1日ほどです。** 点数が高い日はふだんの3〜4倍出やすい日で、"
+    + "それでも実際に見られるのは十数回に1回です。";
 
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
   const finite = (n) => typeof n === "number" && Number.isFinite(n);
@@ -195,7 +202,89 @@
    * 足し算だと「風が全く無い」と「山頂が乾ききっている」が他の項で埋め合わされる。
    * 笠雲はどれか一つでも欠ければ出ないので、掛ける。
    */
-  function scoreOf(f, { ring = [] } = {}) {
+
+  /**
+   * 人手ラベルで学習したロジスティック回帰（2026-09-16）。
+   *
+   * **手で組んだ6項の掛け算を置き換える。** 富士市ライブカメラの人手ラベル
+   * （笠雲63枠/30日、確認した枠6,513）で測ると、6項スコアは **AUC 0.643** で
+   * 当てずっぽう(0.5)に近かった。この回帰は **0.851**、2021年を除いても **0.710**、
+   * 年をまたいだ汎化は 0.805〜0.895。
+   *
+   * 予測対象は「笠雲が発生したか」ではなく **その地点からその時刻に見えたか**。
+   * 学習と検証は**日単位で分割**している（同じ日の枠は独立でないため）。
+   * 経緯は [[ドメイン/開発/絶景日和/笠雲/20260915_笠雲の内部導入と検証計画]]。
+   */
+  const MODEL = {"features": ["rhSummit", "rhMax", "dz", "wind", "n2", "dd", "ddPeak", "depth", "ringMed", "morning", "afternoon"], "mean": [41.81471913214135, 79.24159663865547, -545.384939162071, 16.364139130692376, 0.00016385896828677668, 14.024592908522283, 3.662418758066956, 726.774016806723, 716.4027151260507, 0.36764705882352944, 0.34663865546218486], "std": [27.59636192262617, 19.960634389261248, 1724.875026765259, 8.229486658989057, 3.373608161229169e-05, 9.818557479060964, 4.212914287334505, 1348.6123012144803, 1330.00742129572, 0.4821645983751467, 0.4758994630731903], "bias": -1.170166623256207, "weights": [1.0891762566184922, -1.1011722516679368, 0.5778828365849814, 0.9242080060854867, -0.1157855901321756, -0.1908295551247808, -0.438082792821081, 0.5108040446922362, -1.2825229951907233, 0.5198225793161121, -0.5341659658761263]};
+
+  /// 標準化してロジスティック関数へ。返すのは確率(0〜1)
+  /// 学習に使った時刻の範囲。カメラの枠が 05〜19時しかない
+  const HOUR_MIN = 5, HOUR_MAX = 19;
+
+  /**
+   * 時刻は**朝（5〜9時）・午後（14〜19時）の区分**で入れる。基準は昼（10〜13時）。
+   * 直線で入れたら「早いほど高い」が一方的に効き、どの日もピークが範囲の端の5時になった
+   * （2026-09-16 実機）。区分なら朝の中で時刻に差を付けないので端に張り付かない。
+   * 2021年を除いた AUC も 0.710 → 0.745 と良い。
+   */
+  function featureVector(f, ring, hour) {
+    return [f.rhSummit, f.rhMax, f.zMoistCenterMinusSummit, f.windSpeed, f.n2,
+            f.dewpointDepression, f.dewpointDepressionAtPeak, f.moistDepthM,
+            ringMedian(ring),
+            hour >= 5 && hour <= 9 ? 1 : 0,
+            hour >= 14 && hour <= 19 ? 1 : 0];
+  }
+
+  function modelProbability(f, ring, hour) {
+    // **学習範囲外の時刻は 0。** 時刻の係数は負（遅いほど低い）なので、
+    // 深夜0時を入れると外挿で大きく押し上げ、0:00 に70点が出た（2026-09-16 実機）。
+    // 予測対象は「その時刻に見えたか」で、夜は見えないので 0 が正しい
+    if (hour < HOUR_MIN || hour > HOUR_MAX) return 0;
+    const v = featureVector(f, ring, hour);
+    if (v.some((x) => x === null || x === undefined || !isFinite(x))) return null;
+    let z = MODEL.bias;
+    for (let i = 0; i < v.length; i++) z += MODEL.weights[i] * (v[i] - MODEL.mean[i]) / MODEL.std[i];
+    return 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, z))));
+  }
+
+  function ringMedian(ring) {
+    if (!ring || ring.length < 4) return null;
+    const d = ring.map((r) => r.moistDepthM).sort((a, b) => a - b);
+    return d[Math.floor(d.length / 2)];
+  }
+
+  /**
+   * **その点数になった理由をモデルから出す。**
+   *
+   * 点数はモデルが出すのに内訳は旧6項が出していたので、84点なのに
+   * 「湿った層の位置 19%」と並ぶ食い違いが起きた（2026-09-16 実機で発覚）。
+   * 利用者に「なぜこの点か」を説明できないので、寄与を直接出す。
+   *
+   * 各特徴量が標準化後にどれだけ点を押し上げ／押し下げたか（係数×標準化値）を返す。
+   */
+  const FEATURE_LABEL = {
+    rhSummit: "山頂の湿り", rhMax: "上空全体の湿り", dz: "湿りの高さ",
+    wind: "風の強さ", n2: "大気の安定", dd: "山頂で雲になるか",
+    ddPeak: "湿りの高さで雲になるか", depth: "湿った層の厚さ",
+    ringMed: "周り30kmの湿り", morning: "朝の時間帯", afternoon: "午後の時間帯",
+  };
+
+  function modelFactors(f, ring, hour) {
+    if (hour < HOUR_MIN || hour > HOUR_MAX) {
+      return [{ key: "hour", label: "時刻", push: 0, value: hour, note: "暗くて見えない時間帯" }];
+    }
+    const v = featureVector(f, ring, hour);
+    if (v.some((x) => x === null || x === undefined || !isFinite(x))) return null;
+    return MODEL.features.map((name, i) => ({
+      key: name,
+      label: FEATURE_LABEL[name] || name,
+      // 押し上げなら正、押し下げなら負。単位はロジット
+      push: MODEL.weights[i] * (v[i] - MODEL.mean[i]) / MODEL.std[i],
+      value: v[i],
+    })).sort((a, b) => Math.abs(b.push) - Math.abs(a.push));
+  }
+
+  function scoreOf(f, { ring = [], hour = null } = {}) {
     if (!f) return null;
     const why = [];
 
@@ -278,7 +367,12 @@
       surround = median <= 1500 ? 1 : Math.max(0.08, 1 - (median - 1500) / 2500);
     }
 
-    const value = layer * wind * cross * stable * saturate * lens * surround;
+    // **点数は学習済みモデルが出す。** 6項の掛け算は AUC 0.643（当てずっぽう0.5）で、
+    // 実質 wind しか信号を持っていなかった（2026-09-16 の人手ラベル63枠で測定）。
+    // 6項は画面に出す「理由」として残す——利用者が納得できる形で説明するために要る。
+    const prob = hour === null ? null : modelProbability(f, ring, hour);
+    const fallback = layer * wind * cross * stable * saturate * lens * surround;
+    const value = prob === null ? fallback : prob;
     const score = Math.round(100 * value);
 
     // 型。湿度極大の高度で分ける（§21）
@@ -291,6 +385,7 @@
 
     return {
       score, value, type,
+      modelParts: prob === null ? null : modelFactors(f, ring, hour),
       parts: [
         { key: "layer", label: "湿った層の位置", p: layer,
           why: `山頂 ${Math.round(f.rhSummit)}% / 湿りの中心は山頂の`
@@ -382,7 +477,7 @@
       const rf = features(profileAt(w, kk));
       if (rf) ring.push(rf);
     }
-    const s = scoreOf(f, { ring });
+    const s = scoreOf(f, { ring, hour: new Date(atMs + 9 * 3600e3).getUTCHours() });
     if (!s) return null;
     return { ms: atMs, ...s, features: f, fromUpwind, ringCount: ring.length };
   }
@@ -412,17 +507,24 @@
     });
     if (!upper) return shell({ kind: "forecast", message: "上空の予報がまだ届いていません" });
 
-    // **一日ぜんぶ見る。** 代表の点数は空が明るい時間帯から採るが、
-    // 時間帯（出はじめ・最盛・弱まる）は夜も含めて出す。
-    // 笠雲は朝に多く（Kusaka et al.）、明るくなる前からできていることがある。
+    // **一日ぜんぶ見る。** 代表の点数は空が明るい時間帯から採る。
+    // 夜の時刻はモデルが 0 を返す（学習範囲 05〜19時の外で、見えないため）。
+    // 以前は夜も材料で点を出していたが、予測対象を「見えたか」にしたので合わせた（2026-09-16）。
     const start = dayMs, end = dayMs + 86400000;
-    const lit = [dayMs + 5 * 3600000, dayMs + 18 * 3600000];
+    // **空が明るい時間は季節で変わる。** 5〜18時で固定していたので、冬の5時（真っ暗）にも
+    // 高い点が出た。学習データは暗い枠を除いてあるので、暗い時間の点は意味を持たない。
+    // 富士山の位置で市民薄明の始まり〜終わりを明るい時間とする（2026-09-16）
+    const lw = S.Sun && S.Sun.lightWindows ? S.Sun.lightWindows(dayMs, FUJI.latitude, FUJI.longitude) : null;
+    const lit = lw && lw.blueMorning && lw.blueEvening
+      ? [lw.blueMorning[0], lw.blueEvening[1]]
+      : [dayMs + 5 * 3600000, dayMs + 18 * 3600000];
     let best = null;
     const hours = [];
     for (let t = start; t < end; t += stepMs) {
       const e = evaluateAt(upper, t);
       if (!e) continue;
-      hours.push({ at: t, score: e.score, type: e.type });
+      const dark = t < lit[0] || t > lit[1];
+      hours.push({ at: t, score: dark ? 0 : e.score, type: e.type });
       // 代表は**見える時間帯**から。夜中が最盛でも「今日の笠雲」としては出せない
       if (t >= lit[0] && t <= lit[1] && (!best || e.score > best.score)) best = e;
     }
@@ -442,9 +544,20 @@
     const visible = seen === null ? 1 : seen;
     const shown = Math.round(best.score * visible);
 
-    const factors = best.parts.map((x) => ({
-      label: x.label, c: 0, detail: `${Math.round(x.p * 100)}%　${x.why}`,
-    }));
+    // **点数を出したモデルの寄与を出す。** 旧6項の割合を並べると、
+    // 84点なのに「湿った層の位置 19%」のような食い違いが起きる（2026-09-16）。
+    // モデルが使えないとき（時刻が無い等）だけ旧6項へ落ちる
+    const say = (p) => (p.push >= 0.6 ? "大きく押し上げ" : p.push >= 0.2 ? "押し上げ"
+      : p.push > -0.2 ? "ほぼ効いていない" : p.push > -0.6 ? "押し下げ" : "大きく押し下げ");
+    const factors = best.modelParts
+      ? best.modelParts.slice(0, 6).map((x) => ({
+          label: x.label, c: 0,
+          detail: x.note ? `—　${x.note}`
+            : `${x.push >= 0 ? "＋" : "−"}${Math.abs(x.push).toFixed(2)}　${say(x)}`,
+        }))
+      : best.parts.map((x) => ({
+          label: x.label, c: 0, detail: `${Math.round(x.p * 100)}%　${x.why}`,
+        }));
     factors.push({ label: "形", c: 0, detail: TYPE_LABEL[best.type] });
     factors.push({ label: "ここから富士山が見えるか", c: 0,
       detail: seen === null ? "—　富士山の予報がまだ届いていません"
@@ -452,7 +565,7 @@
             : seen < 0.7 ? "見えにくい時間帯がありそう" : "山は見えそう"}` });
     const timing = timingOf(hours, S);
 
-    const width = 12 + S.leadTimePenalty(daysAhead);   // **未検証なので広めに持つ**
+    const width = 12 + S.leadTimePenalty(daysAhead);   // 検証は63枠なので幅は広めのまま
     return {
       phenomenon: "capCloud", window: [start, end], peak: best.ms, specificTime: false,
       unavailable: null, score: shown, base: shown, factors,
@@ -482,11 +595,11 @@
    * （2026-09-15、実データで発覚）。
    *
    * 出せるのは「一日のうち、いつが最も整うか」。
-   * **閾値は、その日が到達したランクの境界にする。** 見出しが「みごとな笠 97」なら
-   * 85点以上でいられる時間、「かかりそう 66」なら65点以上でいられる時間。
+   * **閾値は、その日が到達したランクの境界にする。** 見出しが「好条件 97」なら
+   * 85点以上でいられる時間、「出やすい 66」なら65点以上でいられる時間。
    * 見出しの言葉と時間帯の意味が一致し、良い日ほど自動的に絞られる。
    *
-   * **点数が未検証なので、時刻も未検証。** 1時間きざみのまま出す。
+   * 点数は人手ラベルで検証したが、**時間帯の出し方そのものは検証していない。** 1時間きざみのまま出す。
    */
   function timingOf(hours, S) {
     if (!hours || hours.length < 2) return null;

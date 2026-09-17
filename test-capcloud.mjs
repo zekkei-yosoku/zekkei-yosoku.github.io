@@ -217,7 +217,7 @@ console.log("\n== 出はじめ・最盛・弱まる ==");
 
   // 中くらいの日は、その日のランクで絞る
   const mid = C.timingOf(mk(Array.from({ length: 24 }, (_, i) => [i, i >= 5 && i <= 8 ? 66 : 45])), S);
-  ok(mid.thresholdScore === 65, "ピーク66なら かかりそう（65点）の境界", `${mid.thresholdScore}点`);
+  ok(mid.thresholdScore === 65, "ピーク66なら 出やすい（65点）の境界", `${mid.thresholdScore}点`);
   ok(mid.hours === 4, "45点の時間帯は外れる", `${mid.hours}時間`);
 
   // 一日の端に張り付く＝前後の日へ続いている可能性
@@ -358,10 +358,123 @@ console.log("\n== 1日ぶんの評価が他の現象と同じ形で返る ==");
   ok(typeof ev.confidence === "object", "confidence はオブジェクト（数値だと詳細が undefined になる）");
   ok(ev.uncertainty.basis === "single", "モデル横断でないことを basis で示す");
   ok(ev.rank.key !== undefined, "rank がある");
-  ok(ev.source.includes("未検証"), "出典に未検証であることを書く");
+  // 2026-09-16 に人手ラベル63件で検証し、出典から「未検証」が外れた。
+  // 代わりに**外れる割合を明示しているか**を確かめる。数字を書かずに出さない
+  // 「5回に1回外れる」は誤りだった（当たる割合と拾える割合の取り違え）。
+  // もとの発生頻度と、高得点でも多くは見られないことを書く
+  ok(/50日に1日/.test(ev.source), "出典にもとの発生頻度を書く");
+  ok(/十数回に1回/.test(ev.source), "出典に高得点でも多くは見られないことを書く");
+  ok(!/5回に1回/.test(ev.source), "誤った割合を書かない");
+  ok(!ev.source.includes("未検証"), "検証済みなので未検証と書かない");
+  ok(ev.source.includes("人手ラベル"), "出典に学習データを書く");
   // 予報が無ければ黙って0にしない
   const none = C.evaluateDay(null, day, S);
   ok(none.unavailable && none.unavailable.kind === "forecast", "予報が無ければ unavailable");
+}
+
+
+// ---- 学習済みモデル（2026-09-16 導入） ----
+// **人手ラベルで確定した事例に対して、期待どおりの点が出るか。**
+// 手で組んだ6項では 2021-12-03（論文の確定事例）が0点、2026-01-05 が42〜64点だった。
+{
+  const f = {
+    rhSummit: 86, rhMax: 88, zMoistCenterMinusSummit: -58, windSpeed: 22,
+    n2: 0.00018, dewpointDepression: 1.9, dewpointDepressionAtPeak: 1.6,
+    moistDepthM: 880, windDirectionDeg: 247,
+  };
+  const dryRing = Array.from({ length: 8 }, () => ({ moistDepthM: 300 }));
+  const wetRing = Array.from({ length: 8 }, () => ({ moistDepthM: 4000 }));
+
+  const morning = C.scoreOf(f, { ring: dryRing, hour: 8 });
+  const evening = C.scoreOf(f, { ring: dryRing, hour: 19 });
+  ok(morning.score > evening.score, "同じ大気でも夜は低く出る（見えないので）");
+
+  const wet = C.scoreOf(f, { ring: wetRing, hour: 8 });
+  ok(morning.score > wet.score, "周りが湿っていれば低く出る");
+
+  const dry = C.scoreOf({ ...f, rhSummit: 20, dewpointDepression: 18 },
+                        { ring: dryRing, hour: 8 });
+  ok(morning.score > dry.score, "山頂が乾いていれば低く出る");
+
+  const calm = C.scoreOf({ ...f, windSpeed: 2 }, { ring: dryRing, hour: 8 });
+  ok(morning.score > calm.score, "風が弱ければ低く出る");
+
+  // hour を渡さなければ従来の6項へ落ちる（壊さないための保険）
+  const noHour = C.scoreOf(f, { ring: dryRing });
+  ok(Number.isFinite(noHour.score), "時刻が無くても点は出る");
+
+  // 6項の内訳は理由として残っている
+  ok(morning.parts.length === 6, "内訳は6項のまま残す");
+  ok(morning.parts.every((p) => p.label && p.why), "各項に説明がある");
+}
+
+
+// ---- 学習範囲外の時刻（2026-09-16） ----
+// 深夜0時を入れると時刻の係数が外挿され、0:00 に70点が出ていた
+{
+  const f = {
+    rhSummit: 86, rhMax: 88, zMoistCenterMinusSummit: -58, windSpeed: 22,
+    n2: 0.00018, dewpointDepression: 1.9, dewpointDepressionAtPeak: 1.6,
+    moistDepthM: 880, windDirectionDeg: 247,
+  };
+  const ring = Array.from({ length: 8 }, () => ({ moistDepthM: 300 }));
+  for (const h of [0, 3, 4, 20, 23]) {
+    const r = C.scoreOf(f, { ring, hour: h });
+    ok(r.score === 0, `${h}時は学習範囲外なので0点`);
+  }
+  const night = C.scoreOf(f, { ring, hour: 2 });
+  ok(night.modelParts && night.modelParts[0].note, "夜は理由に『見えない時間帯』を出す");
+  ok(C.scoreOf(f, { ring, hour: 5 }).score > 0, "5時は範囲内");
+  ok(C.scoreOf(f, { ring, hour: 19 }).score >= 0, "19時は範囲内");
+}
+
+
+console.log("\n== 時刻の区分と明るい時間（2026-09-16） ==");
+{
+  const f = {
+    rhSummit: 86, rhMax: 88, zMoistCenterMinusSummit: -58, windSpeed: 22,
+    n2: 0.00018, dewpointDepression: 1.9, dewpointDepressionAtPeak: 1.6,
+    moistDepthM: 880, windDirectionDeg: 247,
+  };
+  const ring = Array.from({ length: 8 }, () => ({ moistDepthM: 300 }));
+  const at = (h) => C.scoreOf(f, { ring, hour: h }).score;
+  // 直線で入れていたら、どの日もピークが範囲の端の5時になった
+  ok(at(5) === at(7) && at(7) === at(9), "朝（5〜9時）は時刻で差を付けない");
+  ok(at(7) > at(12) && at(12) > at(16), "朝 > 昼 > 午後");
+
+  // 大気を一日中同じにした合成データで、冬と夏の明るい時間を比べる
+  const Z = { 850: 1500, 800: 2000, 700: 3100, 600: 4300, 500: 5800, 400: 7500 };
+  const rh = { 850: 40, 800: 50, 700: 88, 600: 92, 500: 45, 400: 30 };
+  const upperOn = (dayMs) => {
+    const times = [];
+    for (let t = dayMs; t < dayMs + 86400000; t += 3600000) times.push(Math.round(t / 1000));
+    const mk = () => {
+      const h = { time: times };
+      for (const p of C.LEVELS) {
+        h[`geopotential_height_${p}hPa`] = times.map(() => Z[p]);
+        h[`temperature_${p}hPa`] = times.map(() => 10 - 5.5 * (Z[p] - Z[850]) / 1000);
+        h[`relative_humidity_${p}hPa`] = times.map(() => rh[p]);
+        h[`wind_speed_${p}hPa`] = times.map(() => 20);
+        h[`wind_direction_${p}hPa`] = times.map(() => 247.5);
+      }
+      return { latitude: 35.36, longitude: 138.73, hourly: h };
+    };
+    return { points: C.samplePoints(), list: C.samplePoints().map(mk), fetchedAt: Date.now() };
+  };
+  const winter = S.Cal.startOfDay(Date.parse("2026-01-10T12:00:00+09:00"));
+  const summer = S.Cal.startOfDay(Date.parse("2026-07-10T12:00:00+09:00"));
+  const scoresAt = (dayMs, hour) => {
+    const up = upperOn(dayMs);
+    const t = dayMs + hour * 3600000;
+    const lw = S.Sun.lightWindows(dayMs, C.FUJI.latitude, C.FUJI.longitude);
+    const dark = t < lw.blueMorning[0] || t > lw.blueEvening[1];
+    return { dark, raw: C.evaluateAt(up, t).score };
+  };
+  ok(scoresAt(winter, 5).dark, "冬の5時は暗い時間として扱う");
+  ok(!scoresAt(summer, 5).dark, "夏の5時は明るい時間として扱う");
+  const evW = C.evaluateDay(upperOn(winter), winter, S, { asOf: winter });
+  const peakHourW = new Date(evW.peak).getHours();
+  ok(peakHourW >= 6, `冬は暗い5時をピークにしない（ピーク ${peakHourW}時）`);
 }
 
 console.log(`\n${fail ? "FAILED" : "CAPCLOUD OK"} — ${pass} 件成功 / ${fail} 件失敗`);
