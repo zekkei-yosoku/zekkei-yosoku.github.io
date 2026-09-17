@@ -230,5 +230,26 @@ console.log("== 順序を崩さない（§18・§100）==");
      `${over.pPhoto.toFixed(2)} <= ${over.pVisible.toFixed(2)}`);
 }
 
+console.log("\n== 富士市の14日と遮るものの文言 ==");
+{
+  const S = require("./sorami-core.js");
+  const T = require("./sorami-terrain.js");
+  const obs = { latitude: 35.1614, longitude: 138.6764, groundM: 8.41, elevation: 9.91 };
+  const start = Date.parse("2026-09-17T00:00:00+09:00");
+  // ユーザーが測った地形の4方位。再現入力でありDEMの再測定ではない。
+  const terrain = [3.9, 1.2, -0.1, 2.1].map((h, i) => ({ azimuth: i * 90, horizonAngleDeg: h }));
+  const horizonAt = T.combinedHorizon({ terrain });
+  const readingAt = () => ({ cloud_cover_low: 0, cloud_cover_mid: 0, cloud_cover_high: 0, precipitation: 0 });
+  const days = Array.from({length:14}, (_,i) => M.evaluateDay(obs, start + i * 86400000, S, { horizonAt, readingAt, asOf:start }));
+  ok(days.every(e => !e.unavailable), "富士市の代表地点は14日とも建物で判定不能にならない");
+  const wall = T.flatProfile().map(p => ({...p, horizonAngleDeg:89}));
+  const blocked = M.evaluateDay(obs, start, S, { horizonAt:T.combinedHorizon({terrain,urban:wall}),readingAt,asOf:start });
+  ok(blocked.unavailable?.message === "この日は周囲の建物に遮られます", "建物が原因なら地形と呼ばない");
+  const mountain = M.evaluateDay(obs, start, S, { horizonAt:T.combinedHorizon({terrain:wall}),readingAt,asOf:start });
+  ok(mountain.unavailable?.message === "この日は地平線の上に出ません", "建物なしの遮蔽では建物と断定しない");
+  const behindMountain = M.evaluateDay(obs, start, S, { horizonAt:T.combinedHorizon({terrain:wall,urban:wall}),readingAt,asOf:start });
+  ok(!behindMountain.unavailable.message.includes("建物"), "建物層があるだけでは建物を原因にしない");
+}
+
 console.log(`\n${fail === 0 ? "MOON OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

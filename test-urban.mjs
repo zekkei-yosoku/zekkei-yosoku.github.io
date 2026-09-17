@@ -195,5 +195,41 @@ console.log("\n== 重ねると高いほうが勝つ ==");
   ok(both.detail(270).blockedBy === "terrain", "地形側も区別できる");
 }
 
+console.log("\n== 地域の代表地点と観測地点を分ける ==");
+{
+  const city = { id: "search:35.1614,138.6764", name: "富士市", latitude: 35.1614, longitude: 138.6764 };
+  ok(T.locationScope(city) === "area", "既存の富士市検索スポットを代表地点へ移行");
+  ok(T.locationScope({ ...city, name: "富士市役所" }) === "point", "市役所自体を選んだときは観測地点");
+  ok(T.locationScope({ ...city, locationScope: "point" }) === "point", "検索元の明示種別を名前より優先");
+  ok(T.locationScope({ id: "geo:35,139", name: "富士市" }) === "point", "現在地の名前を市名に変えても観測地点");
+  ok(T.locationScope({ id: "spot", name: "ドイツ村" }) === "point", "同梱施設の村という末尾では除外しない");
+  ok(T.locationScope({ id: "default" }) === "area", "既定の東京も代表地点");
+  for (const type of ["city", "town", "village", "suburb"]) {
+    ok(T.searchLocationScope({ category: "place", addresstype: type }) === "area", `検索の ${type} は地域`);
+  }
+  ok(T.searchLocationScope({ category: "boundary", type: "administrative" }) === "area", "行政界は地域");
+  ok(T.searchLocationScope({ category: "tourism", type: "viewpoint", name: "村" }) === "point", "展望地点は建物を維持");
+  ok(T.searchLocationScope({ category: "amenity", type: "townhall", addresstype: "amenity" }) === "point", "施設としての市役所も建物を維持");
+  let calls = 0;
+  ok(await T.urbanHorizon({ ...OBS, locationScope: "area" }, { fetchImpl: async () => { calls++; throw Error(); } }) === null,
+    "地域では建物層を作らない");
+  ok(calls === 0, "地域ではOverpassへ問い合わせない");
+  const point = await T.urbanHorizon({ ...OBS, locationScope: "point" },
+    { fetchImpl: stub({ elements: [mkBox(90, 22, 8, { height: "37" })] }) });
+  ok(point[90].horizonAngleDeg > 50, "具体地点では22m先の37m建物も除外しない");
+  // 富士市役所の再現: 観測点が輪郭の内側で、頂点までは22m以上ある（OSM way 565645878）
+  const inside = await T.urbanHorizon({ ...OBS, locationScope: "point" },
+    { fetchImpl: stub({ elements: [mkBox(0, 0, 60, { height: "37" })] }) });
+  ok(inside === null, "立っている建物（頂点から離れた内側）を全周の壁にしない");
+  const insideAndNext = await T.urbanHorizon({ ...OBS, locationScope: "point" },
+    { fetchImpl: stub({ elements: [mkBox(0, 0, 60, { height: "37" }), mkBox(90, 100, 20, { height: "50" })] }) });
+  ok(insideAndNext && insideAndNext.meta.buildings === 1 && insideAndNext[270].horizonAngleDeg === -90
+     && insideAndNext[90].horizonAngleDeg > 20, "隣の建物だけを数えて地平線にする",
+     insideAndNext ? `${insideAndNext.meta.buildings}棟 / 90°=${insideAndNext[90].horizonAngleDeg.toFixed(1)} 270°=${insideAndNext[270].horizonAngleDeg}` : "null");
+  ok(T.urbanCacheKey(OBS) !== T.urbanCacheKey({ ...OBS, latitude: OBS.latitude + 0.00001 }), "約1m離れた地点の建物キャッシュを共有しない");
+  ok(T.urbanCacheKey(OBS) !== T.urbanCacheKey({ ...OBS, groundM: 1 }), "同じ標高でも地面が異なれば別キャッシュ");
+  ok(T.urbanCacheKey(OBS) !== T.urbanCacheKey({ ...OBS, elevation: 1.6 }), "目の高さを丸めて共有しない");
+}
+
 console.log(`\n${fail ? "FAILED" : "URBAN OK"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail ? 1 : 0);

@@ -155,7 +155,7 @@
 
     if (aboveTerrain <= 0) {
       return { ms, moon: m, visible: false, aboveTerrainDeg: aboveTerrain,
-               pVisible: 0, pPhoto: 0, score: 0, reason: "まだ地形の下" };
+               pVisible: 0, pPhoto: 0, score: 0, reason: "まだ地平線の下" };
     }
     const cloud = cloudTransmission(reading, m);
     const ext = extinction(reading, air, m);
@@ -292,11 +292,17 @@
   } = {}) {
     const daysAhead = Math.max(0, Math.round((dayMs - S.Cal.startOfDay(asOf)) / 86400000));
     const start = dayMs, end = dayMs + 86400000;
-    let best = null, above = 0, total = 0;
+    let best = null, above = 0, total = 0, buildingBlocked = false;
     for (let t = start; t < end; t += stepMs) {
       total++;
       const e = evaluateAt(t, obs, { horizonAt, reading: readingAt(t), air: airAt(t) });
-      if (!e.visible) continue;
+      if (!e.visible) {
+        const detail = horizonAt.detail?.(e.moon.azimuth);
+        // 山の上には出るが建物で遮られる時間がある場合だけ、建物を理由に挙げる。
+        if (detail?.blockedBy === "urban" &&
+            e.moon.upperLimbAltitude > (detail.layers.terrain ?? 0)) buildingBlocked = true;
+        continue;
+      }
       above++;
       if (!best || e.score > best.score) best = e;
     }
@@ -306,7 +312,9 @@
       source: SOURCE, models: 0, spread: [0, 0], daysAhead, asOf, confidence: S.confidenceOf(40, null), rank: S.rankOf(0),
       uncertainty: null,
     });
-    if (!above) return shell({ kind: "geometry", message: "この日は地形の上に出ません" });
+    if (!above) return shell({ kind: "geometry", message: buildingBlocked
+      ? "この日は周囲の建物に遮られます"
+      : "この日は地平線の上に出ません" });
     if (!best) return shell({ kind: "forecast", message: "この日の予報がまだ届いていません" });
 
     const m = best.moon;

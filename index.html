@@ -923,17 +923,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260917111955"></script>
+<script src="sorami-core.js?v=20260917162023"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260917111955"></script>
-<script src="sorami-exif.js?v=20260917111955"></script>
-<script src="sorami-capcloud.js?v=20260917111955"></script>
-<script src="sorami-terrain.js?v=20260917111955"></script>
-<script src="sorami-mountain.js?v=20260917111955"></script>
-<script src="sorami-fuji.js?v=20260917111955"></script>
-<script src="sorami-moon.js?v=20260917111955"></script>
-<script src="sorami-composition.js?v=20260917111955"></script>
+<script src="sorami-astro.js?v=20260917162023"></script>
+<script src="sorami-exif.js?v=20260917162023"></script>
+<script src="sorami-capcloud.js?v=20260917162023"></script>
+<script src="sorami-terrain.js?v=20260917162023"></script>
+<script src="sorami-mountain.js?v=20260917162023"></script>
+<script src="sorami-fuji.js?v=20260917162023"></script>
+<script src="sorami-moon.js?v=20260917162023"></script>
+<script src="sorami-composition.js?v=20260917162023"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1195,7 +1195,7 @@ function cleanSighting(r) {
 function cleanFavorite(f) {
   if (!f || typeof f !== "object" || !isText(f.id) || !f.id) return null;
   if (!Number.isFinite(f.latitude) || !Number.isFinite(f.longitude)) return null;
-  return { ...f, name: isText(f.name) && f.name ? f.name : "名称未設定",
+  return { ...f, locationScope: SoramiTerrain.locationScope(f), name: isText(f.name) && f.name ? f.name : "名称未設定",
     subtitle: isText(f.subtitle) ? f.subtitle : "",
     note: isText(f.note) ? f.note : "",
     terrain: TERRAINS.some(([v]) => v === f.terrain) && f.terrain ? f.terrain : null,
@@ -1214,7 +1214,7 @@ let place = (() => {
   if (!p || typeof p !== "object" || !Number.isFinite(p.latitude) || !Number.isFinite(p.longitude)) {
     return { ...DEFAULT_PLACE };
   }
-  return { ...p, name: typeof p.name === "string" && p.name ? p.name : DEFAULT_PLACE.name,
+  return { ...p, locationScope: SoramiTerrain.locationScope(p), name: typeof p.name === "string" && p.name ? p.name : DEFAULT_PLACE.name,
     subtitle: typeof p.subtitle === "string" ? p.subtitle : "" };
 })();
 // 読み込み時にも同じ検査を通す。localStorage は壊れうる（取り込みの途中失敗、
@@ -1368,13 +1368,14 @@ let capUpperFailedAt = 0;      // 失敗した時刻。**一度の失敗でそ�
 // 建物の地平線。地点ごとに localStorage へ置く。
 //
 // **毎回引かない。** 半径1kmで 410KB（新宿・gzip後）あり、建物はほぼ動かない。
-// 版を上げれば作り直す。地点は小数3桁（約100m）で丸めて同じ扱いにする。
+// 版を上げれば作り直す。建物は数mで変わるため座標を丸めない。
 const URBAN_CACHE_KEY = "sorami.urbanHorizon";
-const URBAN_CACHE_VERSION = 1;
+const URBAN_CACHE_VERSION = 2;
 const URBAN_MAX_AGE_MS = 180 * 86400000;   // 半年
 
 async function loadUrbanHorizon(obs) {
-  const key = `${obs.latitude.toFixed(3)},${obs.longitude.toFixed(3)},${Math.round(obs.elevation)}`;
+  if (SoramiTerrain.locationScope(obs) === "area") return null; // 古いキャッシュも使わない
+  const key = SoramiTerrain.urbanCacheKey(obs);
   const box = store.get(URBAN_CACHE_KEY, null);
   if (box && box.v === URBAN_CACHE_VERSION && box.items && box.items[key]
       && Date.now() - box.items[key].at < URBAN_MAX_AGE_MS) {
@@ -1410,7 +1411,7 @@ const fujiGroundCache = new Map();
 // 前の地点の値が残る。山中湖で東京の 30m を使い、富士山が地形に隠れる判定になった
 // （2026-09-14）。手入力の標高も、座標がずれていれば嘘になる（富士 §7・§8）。
 async function observerHere() {
-  const key = `${place.latitude.toFixed(4)},${place.longitude.toFixed(4)}`;
+  const key = `${place.latitude},${place.longitude}`;
   if (!fujiGroundCache.has(key)) {
     let g = null;
     try { g = await SoramiTerrain.elevationFromTile(place.latitude, place.longitude, 13); } catch {}
@@ -1419,6 +1420,7 @@ async function observerHere() {
   }
   const ground = fujiGroundCache.get(key);
   return { latitude: place.latitude, longitude: place.longitude, groundM: ground,
+           locationScope: SoramiTerrain.locationScope(place),
            elevation: ground + (place.eyeHeightAGL ?? 1.5) };
 }
 
@@ -1444,7 +1446,7 @@ async function loadExtras() {
   const seq = ++extraSeq;
   const obs = await observerHere();
   if (seq !== extraSeq) return;
-  const key = SoramiFuji.cacheKeyFor(obs);
+  const key = `${SoramiTerrain.urbanCacheKey(obs)}:${obs.locationScope}`;
   // 地点が変わったら**全部捨てる**。建物の取得フラグを残すと、引っ越しても
   // 前の場所の地平線のままになる
   if (key !== extraKey) {
@@ -1493,7 +1495,7 @@ async function loadExtras() {
   // **地形が取れたかどうかと切り離す。** 地形の測定は標高APIが混むと 429 で落ちるが、
   // 市街地の地平線を決めているのは地形ではなく建物。地形が無いことを理由に
   // 建物まで諦めると、いちばん効く層を捨てることになる（2026-09-14 実際にそうなっていた）。
-  if (!moonUrbanTried) {
+  if (!moonUrbanTried && obs.locationScope !== "area") {
     moonUrbanTried = true;
     loadUrbanHorizon(obs).then((urban) => {
       if (!urban || seq !== extraSeq) return;
@@ -2200,7 +2202,8 @@ function renderMoonTimes(dayMs) {
       ${rows.map(([l, a, b]) => `<span class="lt-l">${esc(l)}</span><span>${hm(a)}</span><span>${hm(b)}</span>`).join("")}
     </div>
     <div class="tiny" style="margin-top:6px;color:var(--tertiary)">「この場所では」は${moonHorizon && moonHorizon.layers && moonHorizon.layers.includes("urban")
-      ? "まわりの地形と建物" : "まわりの地形"}を実測した地平線です。山や建物があれば遅く、高い場所なら早くなります。</div>
+      ? "まわりの地形と建物" : "まわりの地形"}から計算した地平線です。山や建物があれば遅く、高い場所なら早くなります。</div>
+    ${SoramiTerrain.locationScope(place) === "area" ? `<div class="tiny" style="margin-top:4px;color:var(--tertiary)">地域の代表地点のため、近くの建物は含めていません。現在地や施設を選ぶと反映します。</div>` : ""}
     ${moonUrbanMeta ? `<div class="tiny" style="margin-top:4px;color:var(--tertiary)">半径${moonUrbanMeta.radiusM}mの建物 ${moonUrbanMeta.buildings} 棟を入れています${
       moonUrbanMeta.estimatedHeights ? `（うち ${moonUrbanMeta.estimatedHeights} 棟は階数からの見積もり）` : ""}。${
       moonUrbanMeta.tallest && moonUrbanMeta.tallest.name
@@ -3026,7 +3029,7 @@ function openFavSheet(index) {
   const gridElev = bundle?.home.grid.elevation ?? null;
   const base = index >= 0 ? favorites[index]
     : { ...place, elevation: place.elevation ?? gridElev };
-  favDraft = { index, ...base, phenomena: [...(base.phenomena || [])],
+  favDraft = { index, ...base, locationScope: SoramiTerrain.locationScope(base), phenomena: [...(base.phenomena || [])],
                eyeHeightAGL: base.eyeHeightAGL ?? 1.5 };
   // 入力途中で閉じたときに「変えたかどうか」を判定するための元の値。
   favDraft.origin = { name: base.name || "", note: base.note || "",
@@ -3151,6 +3154,7 @@ $("favSave").onclick = () => {
   const before = at >= 0 ? favorites[at] : null;
   const entry = { id: favDraft.id, name, subtitle: favDraft.subtitle || "",
     latitude: favDraft.latitude, longitude: favDraft.longitude,
+    locationScope: favDraft.locationScope,
     terrain: favDraft.terrain || null, elevation: favDraft.elevation ?? null,
     eyeHeightAGL: favDraft.eyeHeightAGL ?? null,
     phenomena: favDraft.phenomena, note: $("favNote").value.trim() };
@@ -3166,9 +3170,11 @@ $("favSave").onclick = () => {
   // 地形と標高は取りに行くデータ（鉛直分布）ごと変えるので、取り直さないと嘘の点数が残る。
   if (place.id === entry.id) {
     const refetch = (place.terrain || null) !== entry.terrain
-      || (place.elevation ?? null) !== entry.elevation;
+      || (place.elevation ?? null) !== entry.elevation
+      || (place.eyeHeightAGL ?? 1.5) !== (entry.eyeHeightAGL ?? 1.5);
     place = { ...place, name: entry.name, subtitle: entry.subtitle,
-      terrain: entry.terrain, elevation: entry.elevation };
+      terrain: entry.terrain, elevation: entry.elevation,
+      locationScope: entry.locationScope, eyeHeightAGL: entry.eyeHeightAGL };
     store.set("sorami.place", place);
     if (refetch) { $("placeSheet").close(); load(true); renderFavToggle(); return; }
     $("placeName").textContent = place.name;
@@ -3223,7 +3229,8 @@ $("searchBox").addEventListener("keydown", async (e) => {
         const r = results[+el.dataset.sr];
         selectPlace({ id: `search:${r.lat},${r.lon}`, name: r.name || r.display_name.split(",")[0],
           subtitle: r.display_name.split(",").slice(1, 3).join("").trim(),
-          latitude: +r.lat, longitude: +r.lon, terrain: null, elevation: null });
+          latitude: +r.lat, longitude: +r.lon, terrain: null, elevation: null,
+          locationScope: SoramiTerrain.searchLocationScope(r) });
       };
     }
   } catch { $("searchResults").innerHTML = `<p class="warn">検索に失敗しました</p>`; }

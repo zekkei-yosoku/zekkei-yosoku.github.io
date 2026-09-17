@@ -284,6 +284,40 @@
     "https://overpass.kumi.systems/api/interpreter",
   ];
 
+  // 月の仕様「地平線」: 行き先の代表点を、建物脇の観測点と取り違えない。
+  // 新規検索は Nominatim の種別を保存。旧検索だけ自治体名の末尾で移行する。
+  function locationScope(place = {}) {
+    if (place.locationScope === "area" || place.locationScope === "point") return place.locationScope;
+    if (place.id === "default") return "area";
+    if (String(place.id || "").startsWith("search:") && /[市区町村]$/.test(place.name || "")) return "area";
+    return "point";
+  }
+
+  function searchLocationScope(result) {
+    const category = result.category || result.class;
+    const type = result.addresstype || result.type;
+    return category === "boundary" || (category === "place" &&
+      ["country", "state", "province", "region", "county", "municipality", "city", "town", "village",
+       "hamlet", "borough", "city_district", "suburb", "quarter", "neighbourhood", "island"].includes(type))
+      ? "area" : "point";
+  }
+
+  // 建物は数mの移動で変わる。地面と目の高さも別々にキーへ含める。
+  function urbanCacheKey(observer) {
+    return JSON.stringify([observer.latitude, observer.longitude, observer.groundM, observer.elevation]);
+  }
+
+  /// 輪郭（緯度経度の多角形）が点を含むか。建物の大きさなら平面近似で足りる
+  function containsPoint(geometry, lat, lon) {
+    let inside = false;
+    for (let i = 0, j = geometry.length - 1; i < geometry.length; j = i++) {
+      const a = geometry[i], b = geometry[j];
+      if ((a.lat > lat) !== (b.lat > lat)
+          && lon < (b.lon - a.lon) * (lat - a.lat) / (b.lat - a.lat) + a.lon) inside = !inside;
+    }
+    return inside;
+  }
+
   /// タグから高さ[m]を出す。`height` が無ければ階数から見積もる
   function buildingHeightM(tags) {
     if (!tags) return null;
@@ -313,6 +347,7 @@
     radiusM = [1000, 400], step = 1, endpoint = OVERPASS, fetchImpl = null, signal = null,
     timeoutMs = 25000,
   } = {}) {
+    if (locationScope(observer) === "area") return null;
     // 半径も段階で試す。混んでいる時間帯は 1km が通らず 300m は 4秒で通る（実測）。
     // **近場だけでも入れたほうが、何も入らないよりずっと真値に近い**（建物は近いほど効く）。
     const radii = Array.isArray(radiusM) ? radiusM : [radiusM];
@@ -387,12 +422,16 @@
       const h = buildingHeightM(el.tags);
       const g = el.geometry;
       if (h === null || !g || g.length < 3) continue;
-      if (el.tags && el.tags.height === undefined) estimated++;
-      used++;
 
       const pts = g.map((pt) => [bearing(lat, lon, pt.lat, pt.lon),
                                  distanceKm(lat, lon, pt.lat, pt.lon) * 1000]);
-      if (Math.min(...pts.map((x) => x[1])) < 2) continue;   // 自分が建物の中
+      // **自分が立っている建物は地平線にしない**（屋上や展望台は目の高さで表す）。
+      // 頂点との距離だけで判定すると、大きな建物の中では壁が全周を囲む。
+      // 富士市の代表点は富士市役所（37m）の輪郭の内側・頂点まで22mで、
+      // 全周が 38〜53度に塞がり、14日とも月が出ないと判定された（2026-09-17）。
+      if (Math.min(...pts.map((x) => x[1])) < 2 || containsPoint(g, lat, lon)) continue;
+      if (el.tags && el.tags.height === undefined) estimated++;
+      used++;
 
       for (let i = 0; i < pts.length; i++) {
         const [b1, d1] = pts[i], [b2, d2] = pts[(i + 1) % pts.length];
@@ -430,7 +469,7 @@
    * 後から建物を足せるよう、最初から分けておく。
    *
    *   terrain … DEM から測った地形
-   *   urban   … 建物・鉄塔など（PLATEAU / OpenStreetMap。**未実装**）
+   *   urban   … 建物・鉄塔など（OpenStreetMap。具体的な観測地点で使用）
    *   user    … 利用者が現地で測って登録したもの（月 §20 UserHorizonProfile。**未実装**）
    */
   /// 平らな地平線のプロファイル。地形が測れなかったときの下敷きに使う
@@ -508,7 +547,7 @@
     destination, bearing, distanceKm,
     fetchElevations, elevations, elevationFromTile, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
-    urbanHorizon, buildingHeightM, OVERPASS, flatProfile,
+    urbanHorizon, buildingHeightM, OVERPASS, flatProfile, locationScope, searchLocationScope, urbanCacheKey,
     profileToward, stepsFor, EYE_HEIGHT_PRESETS,
   };
   global.SoramiTerrain = SoramiTerrain;

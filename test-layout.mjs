@@ -354,7 +354,8 @@ ok(/loadUrbanHorizon\(obs\)\.then\(/.test(html), "建物は待たずに、届い
 ok(/moonUrbanTried = true;[\s\S]{0,200}loadUrbanHorizon/.test(html), "取得は地点ごとに1回だけ");
 // 地形の測定は標高APIが混むと429で落ちる。市街地の地平線を決めているのは建物なので、
 // 地形が取れないことを理由に建物まで諦めない
-ok(/if \(!moonUrbanTried\) \{/.test(html), "地形が取れなくても建物は取りに行く");
+// 2026-09-17: 地域代表点だけ除外。具体地点はDEM失敗時も建物を取る。
+ok(/if \(!moonUrbanTried && obs\.locationScope !== "area"\) \{/.test(html), "具体地点では地形が取れなくても建物は取りに行く");
 // 建物層は「建物の無い方位＝−90（何も言わない）」なので、**単独で使うと壊れる**。
 // 地形が測れていなければ平らな 0 を下敷きにする（実際に単独で使って、
 // 芝公園の月の出が暦より343分早い 2:38 と出た）
@@ -571,8 +572,8 @@ ok(formTerrains.has(""), "地形を選ばないという選択肢がある");
 // 地形を変えると取りに行くデータ（鉛直分布）ごと変わる。取り直さないと古い点数が残る。
 // 標高も needsProfile（鉛直分布を取るか）の判定に入る（core 532）。地形だけ見ていると
 // 「地形は未選択のまま標高が埋まった」ときに取得データが変わったことを見落とす。
-ok(/const refetch = \(place\.terrain[\s\S]{0,140}place\.elevation[\s\S]{0,300}if \(refetch\) \{[^}]*load\(true\)/.test(html),
-  "地形か標高が変わったら予報を取り直す");
+ok(/const refetch = \(place\.terrain[\s\S]{0,140}place\.elevation[\s\S]{0,500}if \(refetch\) \{[^}]*load\(true\)/.test(html),
+  "地形か標高が変わったら予報を取り直す"); // 目高と地点種別の保存を追加した分だけ探索幅を拡大
 
 // spots.js は画面から外したが、戻すときに壊れていては困るのでデータの検査は続ける。
 const orphan = spots.filter((s) => !coreMod.PHENOMENA[s.phenomena[0]]);
@@ -1639,6 +1640,23 @@ console.log("== 更新の自動確認が、読み直しの繰り返しになら�
       { getItem: () => null, setItem: () => {} }, { pathname: "/", reload: () => {} });
   } catch { threw = true; }
   ok(!threw, "取りに行けなくても落ちない");
+}
+
+console.log("== 月の代表地点・キャッシュ・保存経路 ==");
+{
+  const T = req("./sorami-terrain.js");
+  const body = html.match(/async function loadUrbanHorizon\(obs\) \{([\s\S]*?)\n\}/)[1];
+  let reads = 0;
+  const load = new Function("SoramiTerrain", "store", "URBAN_CACHE_KEY", "URBAN_CACHE_VERSION", "URBAN_MAX_AGE_MS",
+    `return async function(obs){${body}}`)(T, {get(){reads++;throw Error("must not read")}}, "test", 2, 1);
+  ok(await load({locationScope:"area"}) === null && reads === 0, "代表地点では旧建物キャッシュも読み込まない");
+  ok(html.includes('if (!moonUrbanTried && obs.locationScope !== "area")'), "代表地点は非同期の建物読込も開始しない");
+  ok(html.includes('${SoramiTerrain.urbanCacheKey(obs)}:${obs.locationScope}'), "同じ座標でも地点種別の変更で遮蔽をリセット");
+  ok(html.includes('locationScope: SoramiTerrain.searchLocationScope(r)'), "検索元の種別を保存");
+  ok(html.includes('locationScope: SoramiTerrain.locationScope(f)'), "既存のお気に入りは改名前に種別を確定");
+  ok(html.includes('locationScope: favDraft.locationScope'), "お気に入り再保存で種別を落とさない");
+  ok(html.includes('locationScope: entry.locationScope, eyeHeightAGL: entry.eyeHeightAGL'), "表示地点へ高さと種別を反映");
+  ok(html.includes('地域の代表地点のため、近くの建物は含めていません。'), "地域の詳細で建物を含まない前提を示す");
 }
 
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
