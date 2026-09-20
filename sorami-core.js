@@ -1692,7 +1692,7 @@
   //     ほぼ100%になり、点数の甘辛が測れない。期待に対してどうだったかを訊く。
   const RECORD_OUTCOMES = {
     occurrence: [["seen", "見えた"], ["missed", "見えなかった"], ["unchecked", "確認せず"]],
-    quality: [["better", "期待以上"], ["asExpected", "想定どおり"], ["worse", "期待外れ"],
+    quality: [["better", "期待以上"], ["asExpected", "予測通り"], ["worse", "期待外れ"],
               ["unchecked", "確認せず"]],
   };
   /// 幅のある場所で出す名前。無ければ短いほうを使う

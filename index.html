@@ -415,7 +415,7 @@
   .bins .bar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; }
   .bins .bar .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: color-mix(in srgb, var(--text) 40%, transparent); }
   .bins .pv { width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
-  /* 質の現象は割合ひとつでは表せない。期待外れ／想定どおり／期待以上を積む。 */
+  /* 質の現象は割合ひとつでは表せない。期待外れ／予測通り／期待以上を積む。 */
   .bins .bar .seg { display: inline-block; height: 100%; vertical-align: top; }
   .bins .bar .seg:first-child { border-radius: 5px 0 0 5px; }
   .bins .bar .seg:last-child { border-radius: 0 5px 5px 0; }
@@ -923,17 +923,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260917162023"></script>
+<script src="sorami-core.js?v=20260920223610"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260917162023"></script>
-<script src="sorami-exif.js?v=20260917162023"></script>
-<script src="sorami-capcloud.js?v=20260917162023"></script>
-<script src="sorami-terrain.js?v=20260917162023"></script>
-<script src="sorami-mountain.js?v=20260917162023"></script>
-<script src="sorami-fuji.js?v=20260917162023"></script>
-<script src="sorami-moon.js?v=20260917162023"></script>
-<script src="sorami-composition.js?v=20260917162023"></script>
+<script src="sorami-astro.js?v=20260920223610"></script>
+<script src="sorami-exif.js?v=20260920223610"></script>
+<script src="sorami-capcloud.js?v=20260920223610"></script>
+<script src="sorami-terrain.js?v=20260920223610"></script>
+<script src="sorami-mountain.js?v=20260920223610"></script>
+<script src="sorami-fuji.js?v=20260920223610"></script>
+<script src="sorami-moon.js?v=20260920223610"></script>
+<script src="sorami-composition.js?v=20260920223610"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2889,7 +2889,7 @@ function occurrenceCalibration(list) {
 function qualityCalibration(list) {
   if (!list.length) return "";
   const SEG = [["worse", "期待外れ", "var(--tertiary)"],
-               ["asExpected", "想定どおり", "var(--good)"],
+               ["asExpected", "予測通り", "var(--good)"],
                ["better", "期待以上", "var(--spectacular)"]];
   const rows = BANDS.map((lo) => {
     const bin = inBand(list, lo);
@@ -2907,7 +2907,7 @@ function qualityCalibration(list) {
     <p class="tiny" style="margin:-2px 0 6px">朝焼け・夕焼け・星空</p>
     <div class="bins">${rows}</div>
     <p class="tiny" style="margin-top:6px">
-      <span style="color:var(--good)">■</span> 想定どおり が多く、
+      <span style="color:var(--good)">■</span> 予測通り が多く、
       <span style="color:var(--tertiary)">■</span> 期待外れ と
       <span style="color:var(--spectacular)">■</span> 期待以上 が釣り合っていれば点数は合っています。
       期待外れ側に偏っていれば点数が甘く、期待以上側に偏っていれば辛いということ。</p>`;

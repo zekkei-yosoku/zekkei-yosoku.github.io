@@ -619,7 +619,8 @@ for (const id of ["seaOfClouds", "rainbow", "rime", "diamondDust"]) {
   ok(new RegExp(id + ': \\{ name: "[^"]+", icon: "[^"]+", order: \\d+, record: "occurrence"').test(coreSrc),
     `${id} は出たかを訊く`);
 }
-ok(/期待以上[\s\S]{0,40}想定どおり[\s\S]{0,40}期待外れ/.test(coreSrc), "質は3段階で訊く");
+// 2026-09-20 ユーザー指定で中央の選択肢を「予測通り」に変更。保存キーは維持。
+ok(/期待以上[\s\S]{0,40}予測通り[\s\S]{0,40}期待外れ/.test(coreSrc), "質は3段階で訊く");
 // 同じ回に別々の答えが入らないよう、押す場所は1箇所で作る。
 ok(/function outcomeButtons/.test(html), "選択肢を作る場所が1つ");
 ok(html.match(/data-outcome="\$\{k\}"/g).length === 1, "選択肢を組み立てる箇所が1つだけ");
