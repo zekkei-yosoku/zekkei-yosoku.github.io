@@ -908,6 +908,16 @@ ok(/const AUTH_ERRS = \["authErr", "newIdErr", "newPwErr"\]/.test(html)
   && /function showAuthPanel[\s\S]{0,80}clearAuthErrs\(\)/.test(html),
   "次に出すときは前の理由を全部消す");
 
+// 2026-09-22 ユーザー指摘「普通に再試行ボタンを大きく出せばいい。取れなかったって簡単に書いといて」。
+// 以前は API の英語の理由をそのまま括弧で出し、再試行は文末の小さな文字だった。
+console.log("== 予報が取れなかったとき ==");
+ok(!/予報を取得できませんでした（\$\{esc\(e\.message\)\}）/.test(html), "英語の理由をそのまま出さない");
+ok(/id="retry" class="fav-btn primary"/.test(html), "**再試行を主ボタンで大きく出す**");
+ok(/予報を取れませんでした/.test(html), "理由は短く1行");
+ok(/console\.warn\("予報の取得に失敗:"/.test(html), "理由は console に残す（追えなくしない）");
+ok(/navigator\.onLine === false \? "通信が切れているようです"/.test(html),
+  "通信が切れているときだけは言い方を変える（押しても直らないため）");
+
 console.log("== 端末とパスワードの出し入れ ==");
 ok(/data-delkey="\$\{esc\(c\.id\)\}"/.test(html), "登録した端末を消せる");
 ok(/confirm\("この端末のパスキーを消します/.test(html), "消す前に確かめる");

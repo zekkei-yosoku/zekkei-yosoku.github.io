@@ -943,17 +943,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260922000441"></script>
+<script src="sorami-core.js?v=20260922000902"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260922000441"></script>
-<script src="sorami-exif.js?v=20260922000441"></script>
-<script src="sorami-capcloud.js?v=20260922000441"></script>
-<script src="sorami-terrain.js?v=20260922000441"></script>
-<script src="sorami-mountain.js?v=20260922000441"></script>
-<script src="sorami-fuji.js?v=20260922000441"></script>
-<script src="sorami-moon.js?v=20260922000441"></script>
-<script src="sorami-composition.js?v=20260922000441"></script>
+<script src="sorami-astro.js?v=20260922000902"></script>
+<script src="sorami-exif.js?v=20260922000902"></script>
+<script src="sorami-capcloud.js?v=20260922000902"></script>
+<script src="sorami-terrain.js?v=20260922000902"></script>
+<script src="sorami-mountain.js?v=20260922000902"></script>
+<script src="sorami-fuji.js?v=20260922000902"></script>
+<script src="sorami-moon.js?v=20260922000902"></script>
+<script src="sorami-composition.js?v=20260922000902"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1325,7 +1325,15 @@ async function load(force) {
   } catch (e) {
     if (seq !== loadSeq) return;
     $("status").hidden = false;
-    $("status").innerHTML = `<span class="warn">予報を取得できませんでした（${esc(e.message)}）</span> <button id="retry" style="color:var(--accent)">再試行</button>`;
+    // **短く書いて、押すものを大きく出す。** 以前は API の英語の理由をそのまま
+    // 括弧に入れて出し（"Minutely API request limit exceeded..."）、再試行は
+    // 文末の小さな文字だった。読んでも直しようがなく、押すものが見つからない
+    // （2026-09-22 ユーザー指摘）。**できることは1つしかないので、それを主ボタンにする。**
+    // 理由は console に残す（画面に出しても利用者にできることは変わらない）。
+    console.warn("予報の取得に失敗:", e.message);
+    $("status").innerHTML = `<p class="warn" style="font-size:0.94rem;font-weight:700;margin-bottom:10px">`
+      + `${navigator.onLine === false ? "通信が切れているようです" : "予報を取れませんでした"}</p>`
+      + `<button id="retry" class="fav-btn primary">もう一度取得する</button>`;
     $("retry").onclick = () => load(true);
   }
 }
