@@ -943,17 +943,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260922000902"></script>
+<script src="sorami-core.js?v=20260922001013"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260922000902"></script>
-<script src="sorami-exif.js?v=20260922000902"></script>
-<script src="sorami-capcloud.js?v=20260922000902"></script>
-<script src="sorami-terrain.js?v=20260922000902"></script>
-<script src="sorami-mountain.js?v=20260922000902"></script>
-<script src="sorami-fuji.js?v=20260922000902"></script>
-<script src="sorami-moon.js?v=20260922000902"></script>
-<script src="sorami-composition.js?v=20260922000902"></script>
+<script src="sorami-astro.js?v=20260922001013"></script>
+<script src="sorami-exif.js?v=20260922001013"></script>
+<script src="sorami-capcloud.js?v=20260922001013"></script>
+<script src="sorami-terrain.js?v=20260922001013"></script>
+<script src="sorami-mountain.js?v=20260922001013"></script>
+<script src="sorami-fuji.js?v=20260922001013"></script>
+<script src="sorami-moon.js?v=20260922001013"></script>
+<script src="sorami-composition.js?v=20260922001013"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1330,10 +1330,12 @@ async function load(force) {
     // 文末の小さな文字だった。読んでも直しようがなく、押すものが見つからない
     // （2026-09-22 ユーザー指摘）。**できることは1つしかないので、それを主ボタンにする。**
     // 理由は console に残す（画面に出しても利用者にできることは変わらない）。
-    console.warn("予報の取得に失敗:", e.message);
+    console.warn("予測の取得に失敗:", e.message);
+    // **このアプリが出すものは「予測」。** 材料にしている気象庁やECMWFのものが「予報」で、
+    // 混ぜると、どちらの話をしているのか分からなくなる（2026-09-22 ユーザー指摘）。
     $("status").innerHTML = `<p class="warn" style="font-size:0.94rem;font-weight:700;margin-bottom:10px">`
-      + `${navigator.onLine === false ? "通信が切れているようです" : "予報を取れませんでした"}</p>`
-      + `<button id="retry" class="fav-btn primary">もう一度取得する</button>`;
+      + `${navigator.onLine === false ? "通信が切れているようです" : "予測に失敗しました"}</p>`
+      + `<button id="retry" class="fav-btn primary">再試行</button>`;
     $("retry").onclick = () => load(true);
   }
 }
@@ -2005,7 +2007,7 @@ function renderMatrix(order, now) {
     let grid = `<div class="mxrail"><span>${iconFor(id, now)}</span><span class="nm">${esc(meta.name)}</span></div>`;
     for (const dayMs of dayList) {
       const e = weeks[id].find((x) => x.dayMs === dayMs);
-      if (!e) { grid += `<div class="cell void" title="予報がありません">—</div>`; continue; }
+      if (!e) { grid += `<div class="cell void" title="予測がありません">—</div>`; continue; }
       if (e.evaluation.unavailable) {
         const reason = `${meta.name} ${S.JstCal.relativeDay(dayMs, now)}：${e.evaluation.unavailable.message}`;
         grid += `<button class="cell void" data-cell="${id}|${dayMs}" title="${esc(reason)}" aria-label="${esc(reason)}"><span class="v">—</span></button>`;
@@ -4133,7 +4135,7 @@ async function renderAdmin() {
     $("allowCard").hidden = st.openSignup;
     $("toggleSignup").onclick = async () => {
       if (!st.openSignup && !confirm("誰でも好きなIDで登録できるようにします。\n"
-        + "他の人があなたの予報を使える状態になります。\n\n続けますか？")) return;
+        + "他の人があなたの予測を使える状態になります。\n\n続けますか？")) return;
       try { await apiCall("POST", "/admin/settings", { openSignup: !st.openSignup }); renderAdmin(); }
       catch (e) { adminFail(e.message); }
     };

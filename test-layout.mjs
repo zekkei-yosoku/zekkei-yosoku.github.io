@@ -912,9 +912,11 @@ ok(/const AUTH_ERRS = \["authErr", "newIdErr", "newPwErr"\]/.test(html)
 // 以前は API の英語の理由をそのまま括弧で出し、再試行は文末の小さな文字だった。
 console.log("== 予報が取れなかったとき ==");
 ok(!/予報を取得できませんでした（\$\{esc\(e\.message\)\}）/.test(html), "英語の理由をそのまま出さない");
-ok(/id="retry" class="fav-btn primary"/.test(html), "**再試行を主ボタンで大きく出す**");
-ok(/予報を取れませんでした/.test(html), "理由は短く1行");
-ok(/console\.warn\("予報の取得に失敗:"/.test(html), "理由は console に残す（追えなくしない）");
+ok(/id="retry" class="fav-btn primary">再試行</.test(html), "**再試行を主ボタンで大きく出す**");
+ok(/予測に失敗しました/.test(html), "理由は短く1行");
+// このアプリが出すものは「予測」。材料にしている気象庁やECMWFのものが「予報」。
+ok(!/予報を取れませんでした|予報を取得できませんでした/.test(html), "自分の出力を「予報」と呼ばない");
+ok(/console\.warn\("予測の取得に失敗:"/.test(html), "理由は console に残す（追えなくしない）");
 ok(/navigator\.onLine === false \? "通信が切れているようです"/.test(html),
   "通信が切れているときだけは言い方を変える（押しても直らないため）");
 
