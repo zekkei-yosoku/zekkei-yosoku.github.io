@@ -300,13 +300,13 @@
     },
   };
 
-  // ---------------------------------------------------------------- 閾値（出典付き。Swift 版 Thresholds と同値）
+  // ---------------------------------------------------------------- 閾値（出典付き。ここが正本）
   const T = {
     sunset: {
       base: 50,
       highCloudLow: 10, highCloudPeak: 45, highCloudHigh: 85, highCloudBonus: 25,
       midCloudLow: 5, midCloudPeak: 30, midCloudHigh: 70, midCloudBonus: 10,
-      canvasVividMinimum: 20, canvasPresentMinimum: 8, noVividCeiling: 78, clearSkyCeiling: 62,
+      canvasVividMinimum: 20, canvasPresentMinimum: 8, noVividCeiling: 78, clearSkyCeiling: 84,
       midCloudCanvasWeight: 0.7,
       highCloudOvercastStart: 85, highCloudOvercastPenalty: 12,
       lowCloudClear: 20, lowCloudBonus: 10, lowCloudPenaltyStart: 40, lowCloudPenaltyFull: 85, lowCloudPenalty: 30,
@@ -1006,6 +1006,13 @@
 
         // 光を受ける面。特許は高層雲を vivid に必須とし、雲ひとつない夕空を "average" とする。
         // 単一の上限にすると全モデルが同じ値へ張り付き、モデル差が消えて誤った「信頼度高」になる。
+        //
+        // clearSkyCeiling は 62 から 84 へ（2026-09-21）。62 は「快晴は平凡」を意味したが、
+        // 定点カメラ737事象の実写と突き合わせると快晴側を押し下げすぎていた。84 なら
+        // 快晴でも良好(65)までは届き、絶景(85)には届かない＝特許の原則は保ったまま。
+        // 撤廃(100)と統計的に同値(Δρ +0.051 [0.032,0.072])なので、原則を残す 84 を採る。
+        // また 62 は「快晴60点＋エアロゾル加点」を天井で消し、澄み度の規則を無効化していた。
+        // 根拠: Vault ドメイン/開発/絶景日和/朝焼け・夕焼け/02_検証結果
         let ceiling = null, ceilingReason = "";
         const canvas = Math.max(high, mid * s.midCloudCanvasWeight);
         if (canvas < s.canvasPresentMinimum) {
