@@ -7,9 +7,11 @@ const S=createRequire(import.meta.url)('./sorami-core.js');
 // 富士山・月・笠雲は sorami-fuji.js / sorami-moon.js / sorami-capcloud.js が採点していて core の `evaluate` を
 // 通らないので、この仕組み（S.evaluate を呼んで凍結する）には乗らない。
 // PHENOMENA には表へ並べるための名前だけが入っている（富士山と月は 2026-09-14、笠雲は 2026-09-15 に足した）。
-test('core が採点する7現象と、東京近郊の固定6地点を保存対象に含める',()=>{
+// 2026-09-21: 朝夕焼けの定点カメラ4地点を追加して 10→14。再解析では視程・気圧面湿度・
+// エアロゾルが取れず採点規則の半分が発火しないので、同じ土俵で測れる発表時点の予報を貯める。
+test('core が採点する7現象と、固定10地点＋定点カメラ4地点を保存対象に含める',()=>{
  assert.deepEqual([...new Set(VALIDATION_TARGETS.flatMap(s=>s.targets))].sort(),Object.keys(S.SCORERS).sort());
- assert.equal(VALIDATION_TARGETS.length,10);
+ assert.equal(VALIDATION_TARGETS.length,14);
 });
 test('表に並ぶ現象のうち、core が採点しないものは保存対象に含めない',()=>{
  const scored=new Set(Object.keys(S.SCORERS));

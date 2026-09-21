@@ -5,12 +5,16 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { VALIDATION_SITES } from './validation-sites.mjs';
 import { CAMERA_SITE } from './study-cloudview-accuracy.mjs';
+import { AFTERGLOW_CAMERA_SITES } from './afterglow-camera-sites.mjs';
 const require=createRequire(import.meta.url), S=require('./sorami-core.js');
 require('./spots.js');
 const catalog=globalThis.SORAMI_SPOTS.spots;
 export const VALIDATION_TARGETS=[
  ...VALIDATION_SITES.map(s=>({...s,targets:s.id==='kasai-rinkai' ? [s.phenomenon,'rainbow'] : [s.phenomenon]})),
  {...CAMERA_SITE,targets:['seaOfClouds']},
+ // 朝夕焼けの定点カメラ。再解析では視程・気圧面湿度・エアロゾルが取れず採点規則の半分が
+ // 発火しないため、同じ土俵で測れるよう発表時点の予報を貯める（2026-09-21追加）。
+ ...AFTERGLOW_CAMERA_SITES.map(s=>({...s,targets:[s.phenomenon]})),
  ...['nobeyama','zao-jizo','asahikawa'].map(id=>{
    const s=catalog.find(s=>s.id===id);return {...s,targets:s.phenomena};
  }),
@@ -41,12 +45,20 @@ async function main(){
  const original=globalThis.fetch;
  for(const target of VALIDATION_TARGETS){
    const captures=[];
+   // 本文は1回だけ読み、呼び出し側へは読み直せる Response を作って返す。
+   // clone() で控えを取ると `Body is unusable: Body has already been read` が
+   // 実行ごとに別の地点で出ていた（2026-09-21にPi5で再現。14地点中1地点が毎回失敗）。
+   // 二重読みが起きない形にして原因ごと消す。content-encoding は復号済みなので渡さない。
    globalThis.fetch=async(url,options)=>{
      const res=await original(url,{...options,signal:AbortSignal.timeout(45000)});
-     if(String(url).includes('open-meteo.com/')) {
-       const raw=await res.clone().json();captures.push({url:String(url),receivedAt:new Date().toISOString(),status:res.status,raw});
-     }
-     return res;
+     if(!String(url).includes('open-meteo.com/')) return res;
+     const text=await res.text();
+     let raw=null,parseError=null;
+     try{ raw=JSON.parse(text); }catch(e){ parseError=e.message; }
+     captures.push({url:String(url),receivedAt:new Date().toISOString(),status:res.status,raw,
+       ...(parseError?{parseError}:{})});
+     return new Response(text,{status:res.status,statusText:res.statusText,
+       headers:{'content-type':res.headers.get('content-type')??'application/json'}});
    };
    const site={...target};
    try{
