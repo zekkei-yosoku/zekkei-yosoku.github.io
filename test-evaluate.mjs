@@ -13,10 +13,12 @@ const ok = (condition, label, detail = "") => {
   else { fail++; console.log(`  FAIL ${label}${detail ? `  ${detail}` : ""}`); }
 };
 
+// フィクスチャは web/fixtures/ の複製を読む。**リポジトリの外を参照しない**
+// （2026-09-22 に SoramiCore のテストディレクトリへの絶対パスから切り離した）。
 const home = S.decodeLocation(JSON.parse(readFileSync(
-  "/Users/okadayudai/Developer/Sorami/SoramiCore/Tests/SoramiCoreTests/Fixtures/nerima_2026-08-22_home.json")));
+  new URL("./fixtures/nerima_2026-08-22_home.json", import.meta.url))));
 const offsetsRaw = JSON.parse(readFileSync(
-  "/Users/okadayudai/Developer/Sorami/SoramiCore/Tests/SoramiCoreTests/Fixtures/nerima_2026-08-22_offsets.json"));
+  new URL("./fixtures/nerima_2026-08-22_offsets.json", import.meta.url)));
 const offsets = offsetsRaw.map(S.decodeLocation);
 const bundle = {
   home,

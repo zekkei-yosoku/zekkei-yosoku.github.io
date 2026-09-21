@@ -1,17 +1,24 @@
-// Swift 版（テスト108件で検証済み）と JS 移植の突き合わせ。
-// 固定フィクスチャ（2026-08-22 練馬・実際は大雨だった日）を両実装に通し、
-// スコア・内訳・天文計算が一致することを検証する。
+// 固定フィクスチャ（2026-08-22 練馬・実際は大雨だった日）を通して、採点が勝手に動いていないかを見る。
 // 「移植したつもり」を目視で済ませないための仕組み（8/22 のミスと同型の失敗の防止）。
+//
+// **何を何と突き合わせているか。**
+//   天文（日の出入り・方位・月）… Swift 版（テスト108件で検証済み）の値と一致すること
+//   朝夕焼け               … Swiftとは別物。**いまの実装を凍結した値**と一致すること
+//   星空                   … Swiftとは別物。値を並べて出すだけ（2026-09-06 に意図して分岐）
+//
+// 朝夕焼けが分岐したのは 2026-09-22。採点を規則から、実写に当てたモデルへ置き換えたため。
+// Swift の期待値は消さない。天文はいまも突き合わせているし、歴史的に正しい値でもある。
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const S = require("./sorami-core.js");
 
 const expected = JSON.parse(readFileSync(new URL("./parity-expected.json", import.meta.url)));
-const homeRaw = JSON.parse(readFileSync(
-  "/Users/okadayudai/Developer/Sorami/SoramiCore/Tests/SoramiCoreTests/Fixtures/nerima_2026-08-22_home.json"));
-const offsetsRaw = JSON.parse(readFileSync(
-  "/Users/okadayudai/Developer/Sorami/SoramiCore/Tests/SoramiCoreTests/Fixtures/nerima_2026-08-22_offsets.json"));
+// フィクスチャは web/fixtures/ に置いた複製を読む。**リポジトリの外を参照しない。**
+// 以前は SoramiCore のテストディレクトリを絶対パスで読んでいて、Swift版を消すと
+// web の検査まで動かなくなる状態だった（2026-09-22 に複製して切り離した）。
+const homeRaw = JSON.parse(readFileSync(new URL("./fixtures/nerima_2026-08-22_home.json", import.meta.url)));
+const offsetsRaw = JSON.parse(readFileSync(new URL("./fixtures/nerima_2026-08-22_offsets.json", import.meta.url)));
 
 let failures = 0;
 function check(name, actual, exp, tol = 1e-6) {
@@ -32,7 +39,14 @@ check("sunsetAzimuth", S.Sun.position(S.Sun.eventTime("sunset", day, lat, lon), 
 check("moonIllumEclipse", S.Moon.state(948429840000, lat, lon).illuminatedFraction,
       expected.moon_illum_eclipse, 1e-6);
 
-console.log("== 夕焼け評価（フィクスチャ） ==");
+// 2026-09-22: 朝夕焼けの採点を、実写（環境省の定点カメラ）から当てたモデルへ置き換えた。
+// **Swift 版の期待値とは、もう一致しない。**
+//
+// ここで期待値を黙って書き換えると、移植ミスと設計変更の区別がつかなくなる。
+// 星空のときと同じ形にする: **意図的に分岐した項目として両方の値を出し**、
+// いまの実装の出力は別に凍結して、そちらで回帰を捕まえる。
+// Swift の値（parity-expected.json）は消さない。天文の突き合わせには今も使っている。
+console.log("== 朝夕焼け（Web版がモデルへ移行。Swiftとは意図的に別物） ==");
 const home = S.decodeLocation(homeRaw);
 const offsetList = offsetsRaw.map(S.decodeLocation);
 const bundle = {
@@ -41,70 +55,47 @@ const bundle = {
   sunriseOffsets: null,
 };
 const place = { latitude: lat, longitude: lon, terrain: null, elevation: null };
-// Swiftは期間量も前方バケットだった旧仕様。旧期待値を書き換えず、
-// その時間対応を明示して歴史的parityを残す。現行Webは下で別に検証する。
-class LegacySeries extends S.Series {
-  intervalAt(v, i) { return [this.times[i], this.times[i] + this.stepMs]; }
-}
-const legacyLocation = (location) => ({ ...location, byModel: Object.fromEntries(
-  Object.entries(location.byModel).map(([m, series]) => [m, new LegacySeries(series.times, series.columns)])) });
-const legacyBundle = { ...bundle, home: legacyLocation(home), sunsetOffsets: Object.fromEntries(
-  Object.entries(bundle.sunsetOffsets).map(([k, location]) => [k, legacyLocation(location)])) };
-const ev = S.evaluate("sunset", day, legacyBundle, place);
-check("score", ev.score, expected.sunset_score, 0.001);
-check("base", ev.base, expected.sunset_base);
-check("spread.low", ev.spread[0], expected.sunset_spread[0], 0.001);
-check("spread.high", ev.spread[1], expected.sunset_spread[1], 0.001);
-check("peak", ev.peak / 1000, expected.sunset_peak_epoch, 0.5);
-// フィクスチャは4モデル時代のもの。以後モデルを増やしたので、
-// 両方に存在するモデルだけ比べる（増やした分は固定データに無いのが正しい）。
-const sharedModels = S.MODELS.filter((m) => expected.sunset_perModel[m] !== undefined
-                                         && ev.perModel[m] !== undefined);
-console.log(`  （フィクスチャと共通のモデル: ${sharedModels.length}本）`);
-for (const m of sharedModels) check(`perModel.${m}`, ev.perModel[m], expected.sunset_perModel[m], 0.001);
-
-console.log("== 内訳（寄与と観測値の一致） ==");
-// 文言は Web 版で平易化したため Swift と異なる（表示の問題）。
-// 検証したいのは計算なので、寄与の値と、ラベルに埋め込まれた観測値（数字）を比べる。
-// これで「順序が変わった」「値が変わった」は捕まえられる。
-const digits = (s) => (s.match(/-?\d+(?:\.\d+)?/g) || []).join(",");
-const expFactors = expected.sunset_factors;
-if (ev.factors.length !== expFactors.length) {
-  failures++; console.log(`  NG factor数: js=${ev.factors.length} swift=${expFactors.length}`);
-  console.log("  js:", ev.factors.map((f) => f.label));
-  console.log("  swift:", expFactors.map((f) => f.label));
-} else {
-  ev.factors.forEach((f, i) => {
-    const a = digits(f.label), b = digits(expFactors[i].label);
-    if (a !== b) { failures++; console.log(`  NG 観測値[${i}]: js='${f.label}'(${a}) swift='${expFactors[i].label}'(${b})`); }
-    else check(`寄与[${i}] ${f.label}`, f.c, expFactors[i].c, 0.001);
-  });
-}
-
-// 2026-09-10 B1: 期間量の時刻を正した意図的差分を、保存実データで検証。
-// この日の窓は18:02–18:42 JST。雨は18–19時を表す19時値1.8mmを使う。
-// 旧版の18時値2.2mmは17–18時の雨で、対象窓外。係数は従来のまま。
-console.log("== 現行Webの夕焼け（期間量の時刻修正） ==");
 const modern = S.evaluate("sunset", day, bundle, place);
-const window = S.SCORERS.sunset.window(day, {lat, lon});
+console.log(`  Web版 ${modern.score.toFixed(2)} / Swift版 ${expected.sunset_score.toFixed(2)}`
+  + "  ← 規則から、実写に当てた加法モデルへ（2026-09-22）");
+console.log(`  内訳: ${modern.factors.map((f) => `${f.label} ${f.c >= 0 ? "+" : ""}${f.c.toFixed(1)}`).join(" / ")}`);
+
+// 凍結値との突き合わせ。**作り直すのは採点を意図して変えたときだけ**
+// （`node freeze-afterglow-baseline.mjs`）。落ちたから作り直す、をやると何も守らなくなる。
+const frozen = JSON.parse(readFileSync(new URL("./fixtures/afterglow-baseline.json", import.meta.url)));
+function checkShot(name, ev, exp) {
+  check(`${name}.score`, ev.score, exp.score, 0.001);
+  check(`${name}.base`, ev.base, exp.base, 0.001);
+  check(`${name}.peak`, ev.peak / 1000, exp.peak / 1000, 0.5);
+  ev.spread.forEach((v, i) => check(`${name}.spread.${i}`, v, exp.spread[i], 0.001));
+  for (const m of Object.keys(exp.perModel)) {
+    if (ev.perModel[m] === undefined) { failures++; console.log(`  NG ${name}.perModel.${m} が消えた`); continue; }
+    check(`${name}.perModel.${m}`, ev.perModel[m], exp.perModel[m], 0.001);
+  }
+  if (ev.factors.length !== exp.factors.length) {
+    failures++; console.log(`  NG ${name}.factor数: いま=${ev.factors.length} 凍結=${exp.factors.length}`);
+    console.log("   いま:", ev.factors.map((f) => f.label));
+    console.log("   凍結:", exp.factors.map((f) => f.label));
+  } else {
+    ev.factors.forEach((f, i) => {
+      if (f.label !== exp.factors[i].label) {
+        failures++; console.log(`  NG ${name}.内訳名[${i}]: いま='${f.label}' 凍結='${exp.factors[i].label}'`);
+      } else check(`${name}.寄与[${i}] ${f.label}`, f.c, exp.factors[i].c, 0.001);
+    });
+  }
+}
+checkShot("モデル", modern, frozen.model);
+// 太陽方位側が取れなかった日は規則へ落ちる。**落とし先も固めておく。**
+// ここを見ていないと、落ちたときだけ静かに壊れていても気づけない。
+checkShot("落とし先", S.evaluate("sunset", day, { ...bundle, sunsetOffsets: null }, place), frozen.fallback);
+
+// 2026-09-10 B1: 期間量の時刻を正した意図的差分。**採点の作りを替えても、
+// 窓に入る値の取り方は変わっていない**ことを、系列そのもので確かめる。
+// この日の窓は18:02–18:42 JST。雨は18–19時を表す19時値1.8mmを使う。
+// 旧版の18時値2.2mmは17–18時の雨で、対象窓外。
+console.log("== 期間量の時刻（窓に入る値） ==");
+const window = S.SCORERS.sunset.window(day, { lat, lon });
 check("対象窓の降水", home.byModel.ecmwf_ifs025.max("precipitation", ...window), 1.8);
-const correctedPenalty = -(0.4 + 0.6 * ((1.8 - 0.1) / (2 - 0.1))) * 40;
-const modelDelta = correctedPenalty - (-40);
-check("Web.score", modern.score, expected.sunset_score + modelDelta / 2, 0.001);
-check("Web.base", modern.base, expected.sunset_base);
-check("Web.peak", modern.peak / 1000, expected.sunset_peak_epoch, 0.5);
-modern.spread.forEach((v,i)=>check(`Web.spread.${i}`,v,expected.sunset_spread[i],0.001));
-for (const m of sharedModels) check(`Web.perModel.${m}`, modern.perModel[m],
-  expected.sunset_perModel[m] + (m === "ecmwf_ifs025" ? modelDelta : 0), 0.001);
-check("Web.factor数",modern.factors.length,ev.factors.length);
-modern.factors.forEach((f,i)=>{
-  const old=ev.factors[i];
-  const isRain=old.label.startsWith("降水 ");
-  const isMedian=old.label === "モデル中央値との差";
-  const expectedLabel=isRain ? "降水 1.8mm" : old.label;
-  if(f.label!==expectedLabel){failures++;console.log(`  NG Web内訳名 ${f.label} / ${expectedLabel}`);}
-  check(`Web.寄与[${i}]`, f.c, old.c + (isRain ? modelDelta : isMedian ? -modelDelta/2 : 0), 0.001);
-});
 
 // 星空は 2026-09-06 に Web 版だけ「夜のうち最も条件の良い連続3時間で採点する」へ変更した。
 // 夜通しの平均では「前半だけ快晴」と「一晩じゅう半分曇り」が同点になり、
@@ -121,5 +112,7 @@ console.log(`  採点した時間帯: ${starry.refinedWindow
   ? new Date(starry.refinedWindow[0]).toISOString() + " 〜 " + new Date(starry.refinedWindow[1]).toISOString()
   : "夜通し"}`);
 
-console.log(failures === 0 ? "\nPARITY OK — 旧時刻仕様はSwiftと一致、現行Webの意図的差分も検証済み" : `\nPARITY NG — ${failures} 件不一致`);
+console.log(failures === 0
+  ? "\nPARITY OK — 天文はSwiftと一致、朝夕焼けと星空は意図的な分岐（凍結値で回帰を監視）"
+  : `\nPARITY NG — ${failures} 件不一致`);
 process.exit(failures === 0 ? 0 : 1);
