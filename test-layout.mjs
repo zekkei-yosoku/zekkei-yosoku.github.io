@@ -890,6 +890,24 @@ ok(/showCodes\(res\.codes\)/.test(html), "**回復コードをその場で見せ
 ok(/\/signup\/passkey\/begin[\s\S]{0,400}\/signup\/passkey\/finish/.test(html),
   "登録は2手（challenge を受けてから署名を返す）");
 
+// 2026-09-22 ユーザー指摘「ID入力欄の下に出した方がいいよね」。
+// エラーはシートの最下部に1つだけ置いていたので、IDを入れずにパスキーを押すと
+// 指の位置から遠い下端に理由が出ていた。**直す欄の下に出す。**
+ok(signupWays.indexOf('id="newIdErr"') > signupWays.indexOf('id="newId"')
+  && signupWays.indexOf('id="newIdErr"') < signupWays.indexOf('id="doSignupPasskey"'),
+  "**IDの理由はID欄とパスキーのボタンの間に出す**");
+ok(/id="newPwErr"[\s\S]{0,200}id="doSignup"/.test(signupWays), "パスワードの理由はその欄の下");
+ok(/authFail\(\$\("newIdErr"\), ID_MSG\)/.test(html), "IDの形が違うときはID欄の下");
+ok(/authFail\(\$\("newPwErr"\), "パスワードが一致しません"\)/.test(html),
+  "パスワードの話はパスワード欄の下");
+ok(/catch \(e\) \{[\s\S]{0,80}authFail\(\$\("newIdErr"\), e\.message\)/.test(html),
+  "パスキーは送るのがIDだけなので、サーバーの断りもID欄の下");
+ok(/\^\(このID\|IDは6\)/.test(html), "サーバーの断り文句も、直せる欄へ振り分ける");
+// 消し忘れると、直した欄の下に古い理由が残る
+ok(/const AUTH_ERRS = \["authErr", "newIdErr", "newPwErr"\]/.test(html)
+  && /function showAuthPanel[\s\S]{0,80}clearAuthErrs\(\)/.test(html),
+  "次に出すときは前の理由を全部消す");
+
 console.log("== 端末とパスワードの出し入れ ==");
 ok(/data-delkey="\$\{esc\(c\.id\)\}"/.test(html), "登録した端末を消せる");
 ok(/confirm\("この端末のパスキーを消します/.test(html), "消す前に確かめる");

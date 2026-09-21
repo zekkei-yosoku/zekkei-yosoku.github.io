@@ -801,6 +801,10 @@
            規則を全部言わないと、弾かれてから理由を探すことになる。 -->
       <p class="hint">半角英数と記号で6〜32桁。<span class="nb">使える記号は <b>.</b> <b>_</b> <b>-</b></span><br>
         1文字目は英字か数字。<br>大文字で入れても小文字になります。</p>
+      <!-- **直した欄の下に出す。** エラーはシートの最下部に1つだけ置いていたが、
+           ID を入れずにパスキーを押すと、指の位置から遠い下端に理由が出ていた
+           （2026-09-22 ユーザー指摘）。**押したボタンのそばに出す**ほうが直せる。 -->
+      <p class="warn" id="newIdErr" style="margin-top:8px" hidden></p>
 
       <!-- **パスキーを先に、主ボタンで出す。** パスワードを作らせてから
            「あとでパスキーも登録できます」にすると、結局パスワードが残る。
@@ -822,6 +826,7 @@
         <p class="hint">半角英数と記号で8〜128桁。<span class="nb">使える記号は <b>! # $ % &amp; * + - . = ? @ _</b></span><br>
           大文字・小文字・記号を1つずつ以上。<br>
           IDと同じ文字・よくある言葉・連番は使えません。</p>
+        <p class="warn" id="newPwErr" style="margin-top:8px" hidden></p>
         <button id="doSignup" class="fav-btn primary" style="margin-top:14px">登録して始める</button>
       </div>
     </div>
@@ -938,17 +943,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260921234805"></script>
+<script src="sorami-core.js?v=20260922000441"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260921234805"></script>
-<script src="sorami-exif.js?v=20260921234805"></script>
-<script src="sorami-capcloud.js?v=20260921234805"></script>
-<script src="sorami-terrain.js?v=20260921234805"></script>
-<script src="sorami-mountain.js?v=20260921234805"></script>
-<script src="sorami-fuji.js?v=20260921234805"></script>
-<script src="sorami-moon.js?v=20260921234805"></script>
-<script src="sorami-composition.js?v=20260921234805"></script>
+<script src="sorami-astro.js?v=20260922000441"></script>
+<script src="sorami-exif.js?v=20260922000441"></script>
+<script src="sorami-capcloud.js?v=20260922000441"></script>
+<script src="sorami-terrain.js?v=20260922000441"></script>
+<script src="sorami-mountain.js?v=20260922000441"></script>
+<script src="sorami-fuji.js?v=20260922000441"></script>
+<script src="sorami-moon.js?v=20260922000441"></script>
+<script src="sorami-composition.js?v=20260922000441"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3543,13 +3548,17 @@ async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } 
 }
 
 const authFail = (el, msg) => { el.textContent = msg; el.hidden = false; };
+// 新規登録は欄ごとにエラーを出すので、次に出すときは前の分を全部消す。
+// 消し忘れると、直した欄の下に古い理由が残る。
+const AUTH_ERRS = ["authErr", "newIdErr", "newPwErr"];
+const clearAuthErrs = () => { for (const id of AUTH_ERRS) $(id).hidden = true; };
 
 
 // 同じダイアログの中で1画面ずつ出す。目的の違うフォームを同時に見せない。
 const AUTH_PANELS = { login: "ログイン", signup: "新規登録", recovery: "アカウントの回復",
   passkey: "パスキーの登録" };
 function showAuthPanel(which) {
-  $("authErr").hidden = true;
+  clearAuthErrs();
   for (const k of Object.keys(AUTH_PANELS)) {
     $("panel" + k[0].toUpperCase() + k.slice(1)).hidden = k !== which;
   }
@@ -3582,8 +3591,9 @@ $("showSignupPw").onclick = () => {
   $("newPw").focus();
 };
 $("doSignupPasskey").onclick = async () => {
-  $("authErr").hidden = true;
-  if (!ID_RE.test($("newId").value.trim().toLowerCase())) { authFail($("authErr"), ID_MSG); return; }
+  clearAuthErrs();
+  // パスキーで送るのはIDだけなので、断られる理由もIDのこと。ID欄の下に出す。
+  if (!ID_RE.test($("newId").value.trim().toLowerCase())) { authFail($("newIdErr"), ID_MSG); $("newId").focus(); return; }
   try {
     const res = await signupWithPasskey($("newId").value, wantsRemember());
     // 回復コードを見せきるまで閉じない。ここで閉じると、二度と出せないものが消える。
@@ -3593,7 +3603,7 @@ $("doSignupPasskey").onclick = async () => {
     await openAccountSheet2();
   } catch (e) {
     if (e.name === "NotAllowedError") return;    // 生体認証を取り消しただけ
-    authFail($("authErr"), e.message);
+    authFail($("newIdErr"), e.message);
   }
 };
 $("goRecovery").onclick = () => showAuthPanel("recovery");
@@ -3699,14 +3709,15 @@ $("signupPasskey").onclick = async () => {
 $("skipPasskey").onclick = () => $("authSheet").close();
 
 $("doSignup").onclick = async () => {
-  $("authErr").hidden = true;
+  clearAuthErrs();
   const pw = $("newPw").value;
   // 打ち間違えたパスワードで登録すると、本人が入れなくなる。送る前に確かめる。
   // IDも送る前に見る。大文字で打たれていても通す（サーバーが小文字にする）
-  if (!ID_RE.test($("newId").value.trim().toLowerCase())) { authFail($("authErr"), ID_MSG); return; }
-  if (pw !== $("newPw2").value) { authFail($("authErr"), "パスワードが一致しません"); return; }
+  // **理由は直す欄の下に出す。** IDの話はID欄、パスワードの話はパスワード欄。
+  if (!ID_RE.test($("newId").value.trim().toLowerCase())) { authFail($("newIdErr"), ID_MSG); $("newId").focus(); return; }
+  if (pw !== $("newPw2").value) { authFail($("newPwErr"), "パスワードが一致しません"); return; }
   const weak = checkPw(pw, $("newId").value);
-  if (weak) { authFail($("authErr"), weak); return; }
+  if (weak) { authFail($("newPwErr"), weak); return; }
   try {
     await onLoggedIn(await apiCall("POST", "/signup",
       { loginId: $("newId").value, password: pw, remember: wantsRemember() }), undefined,
@@ -3714,7 +3725,10 @@ $("doSignup").onclick = async () => {
     // 対応していない端末では出しても押せないので、そのまま閉じる
     if (window.PublicKeyCredential) showAuthPanel("passkey");
   }
-  catch (e) { authFail($("authErr"), e.message); }
+  // サーバーの断り文句も、直せる欄の下へ振り分ける。IDが埋まっている・使えないは
+  // ID欄、それ以外（パスワードが弱い・回線が混んでいる）は押したボタンのそば。
+  // 「IDと同じ文字を含めないでください」はパスワードの話なので、頭で見分ける。
+  catch (e) { authFail($(/^(このID|IDは6)/.test(e.message) ? "newIdErr" : "newPwErr"), e.message); }
   finally { $("newPw").value = ""; $("newPw2").value = ""; }
 };
 $("codeLogin").onclick = async () => {
