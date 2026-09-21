@@ -870,6 +870,26 @@ ok(/finally \{ \$\("newPw"\)\.value = ""; \$\("newPw2"\)\.value = ""; \}/.test(h
   "入力欄にパスワードを残さない");
 ok(/autocomplete="new-password"/.test(html), "パスワード管理アプリに新規だと伝える");
 
+// 2026-09-21 ユーザー「新規登録からパスキーを選択できるように。IDは必須。
+// なるべくパスキーに誘導したい」。パスワードを作らせてから足す形だと、結局パスワードが残る。
+const signupWays = html.slice(html.indexOf('id="panelSignup"'), html.indexOf('id="panelPasskey"'));
+ok(/id="doSignupPasskey"/.test(signupWays), "新規登録の画面からパスキーを選べる");
+ok(/id="newId"/.test(signupWays), "**IDは必須のまま**（回復も管理も名乗る名前が要る）");
+ok(signupWays.indexOf('id="doSignupPasskey"') < signupWays.indexOf('id="newPw"'),
+  "パスキーを先に出す（誘導）");
+ok(/id="doSignupPasskey" class="fav-btn primary"/.test(signupWays), "パスキーが主ボタン");
+ok(/id="showSignupPw" class="tap"/.test(signupWays), "パスワードは選べるが主役にしない");
+ok(/function setSignupWays\(\)[\s\S]{0,300}\$\("signupPwWay"\)\.hidden = supported/.test(html),
+  "対応端末ではパスワードの欄を最初から出さない");
+ok(/\$\("signupPasskeyWay"\)\.hidden = !supported/.test(html),
+  "非対応の端末ではパスキーの口を丸ごと隠す");
+// パスキーだけのアカウントは、端末を失うと入る手段がゼロになる。
+// 回復コードは一度しか出せないので、見せきる前に閉じない。
+ok(/signupWithPasskey\([\s\S]{0,400}keepOpen: true/.test(html), "回復コードを見せる前に閉じない");
+ok(/showCodes\(res\.codes\)/.test(html), "**回復コードをその場で見せる**");
+ok(/\/signup\/passkey\/begin[\s\S]{0,400}\/signup\/passkey\/finish/.test(html),
+  "登録は2手（challenge を受けてから署名を返す）");
+
 console.log("== 端末とパスワードの出し入れ ==");
 ok(/data-delkey="\$\{esc\(c\.id\)\}"/.test(html), "登録した端末を消せる");
 ok(/confirm\("この端末のパスキーを消します/.test(html), "消す前に確かめる");
