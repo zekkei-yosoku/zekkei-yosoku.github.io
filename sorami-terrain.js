@@ -135,16 +135,22 @@
     return p;
   }
 
-  /// 標高タイルから1点。取れなければ null（呼び手が Open-Meteo へ落とす）
-  async function elevationFromTile(lat, lon, z = 11) {
-    if (!inJapan(lat, lon)) return null;
+  /// 標高タイルから1点。タイル自体が取れなければ undefined、「標高なし」画素なら null
+  async function sampleTile(lat, lon, z) {
+    if (!inJapan(lat, lon)) return undefined;
     const fx = tileXf(lon, z), fy = tileYf(lat, z);
     const img = await loadTile(z, Math.floor(fx), Math.floor(fy));
-    if (!img) return null;
+    if (!img) return undefined;
     const px = Math.min(img.width - 1, Math.floor((fx % 1) * img.width));
     const py = Math.min(img.height - 1, Math.floor((fy % 1) * img.height));
     const i = (py * img.width + px) * 4;
     return pixelToElevation(img.data[i], img.data[i + 1], img.data[i + 2]);
+  }
+
+  /// 標高タイルから1点。取れなければ null（呼び手が Open-Meteo へ落とす）
+  async function elevationFromTile(lat, lon, z = 11) {
+    const v = await sampleTile(lat, lon, z);
+    return v === undefined ? null : v;
   }
 
   /**
@@ -154,9 +160,13 @@
   async function elevations(points, opts = {}) {
     if (!points.length) return [];
     if (points.every((p) => inJapan(p.latitude, p.longitude)) && typeof Image !== "undefined") {
-      const out = await Promise.all(points.map((p) => elevationFromTile(p.latitude, p.longitude, opts.zoom ?? 11)));
+      const raw = await Promise.all(points.map((p) => sampleTile(p.latitude, p.longitude, opts.zoom ?? 11)));
+      // 読めたタイルの「標高なし」画素は海なので 0m（海面）とする。
+      // 以前は Open-Meteo で埋め直していて、富士市では全周 816点が海で 100点ずつ 9回叩き、
+      // 本番で 429 が続いて地形の地平線ごと失敗していた（2026-09-22）。
+      const out = raw.map((v) => (v === null ? 0 : v === undefined ? null : v));
       if (out.every((v) => v !== null)) return out;
-      // 一部でも取れなければ、取れなかったぶんだけ Open-Meteo で埋める
+      // タイルが取れなかった点だけ Open-Meteo で埋める（海だけの区画は 404）
       const missing = points.filter((_, i) => out[i] === null);
       const filled = await fetchElevations(missing, opts);
       let k = 0;
