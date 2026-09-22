@@ -270,8 +270,11 @@ ok(/delete weeks\.fuji; delete weeks\.capCloud/.test(html), "富士山が見え�
 ok(/let capUpper = null;/.test(html), "上空の予報を地点ごとに取り直さない");
 // **一覧と同じ日数を取る。** 3日固定にしていたので、他の行が14日あるのに
 // 笠雲だけ3日で切れて「—」が並び、壊れて見えた（2026-09-15 ユーザー指摘）
-ok(/fetchUpperAir\(\{ days: Math\.min\(16, days\.length\) \}\)/.test(html),
+// 2026-09-22: 取得を30分使い回すため fetchImpl を渡すようにした。日数の検査は引数が増えても通る形にする
+ok(/fetchUpperAir\(\{ days: Math\.min\(16, days\.length\)[,\s}]/.test(html),
   "取得日数を一覧の日数に合わせる");
+ok(/fetchUpperAir\(\{[^}]*fetchImpl: S\.cachedFetch/.test(html),
+  "上空の予報も使い回しを通す（Open-Meteo の回数上限）");
 ok(!/fetchUpperAir\(\{ days: 3 \}\)/.test(html), "3日固定が残っていない");
 // 富士山の詳細からの導線
 ok(/function renderCapLine/.test(html), "富士山の詳細から笠雲へ1行");

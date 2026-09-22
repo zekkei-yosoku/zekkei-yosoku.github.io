@@ -638,10 +638,69 @@
     return `https://api.open-meteo.com/v1/forecast?${p}`;
   }
 
+  // ---------------------------------------------------------------- Open-Meteo の応答を使い回す
+  // Open-Meteo の無料枠は回線ごとに 600回/分。1回開くだけで換算 約155回ぶん使う
+  // （8モデル×15日×地点数で重く数えられる）のに、起動・地点の切り替え・配信後の
+  // 読み直しのたびに全部を取り直していて、1分に3〜4回開き直すと
+  // "Minutely API request limit exceeded" で「予測に失敗しました」になっていた（2026-09-22）。
+  //
+  // **URL ごとに応答を30分とっておく。** モデルの更新は数時間おきなので、30分では古くならない。
+  // localStorage は約5MBで、アンサンブルだけで1MB前後あるため使わない（Cache Storage を使う）。
+  // Cache Storage の無い環境（node・古いブラウザ）では、これまでどおり毎回取りに行く。
+  const OM_CACHE = "sorami-open-meteo-v1";
+  const OM_CACHE_TTL_MS = 30 * 60 * 1000;
+  const OM_AT = "x-sorami-fetched-at";
+  const isOpenMeteo = (url) => /^https:\/\/([a-z-]+\.)?open-meteo\.com\//.test(String(url));
+  const cacheStore = () => (typeof caches !== "undefined" && caches && typeof caches.open === "function"
+    ? caches : null);
+
+  /// fetch と同じ形で返す。Open-Meteo の成功した応答だけを保存・再利用する。
+  /// 返す Response には取得時刻（ミリ秒）を `x-sorami-fetched-at` に付ける。
+  async function cachedFetch(url, init = {}) {
+    const store = isOpenMeteo(url) && !(init.method && init.method !== "GET") ? cacheStore() : null;
+    if (!store) return fetch(url, init);
+    let cache = null;
+    try {
+      cache = await store.open(OM_CACHE);
+      const hit = await cache.match(url);
+      const at = hit ? Number(hit.headers.get(OM_AT)) : NaN;
+      if (hit && Date.now() - at < OM_CACHE_TTL_MS && Date.now() >= at) return hit;
+    } catch { cache = null; }       // 保存領域が使えなくても、取得は止めない
+    const res = await fetch(url, init);
+    if (!res.ok || !cache) return res;
+    const text = await res.text();
+    const at = String(Date.now());
+    const headers = { "content-type": "application/json", [OM_AT]: at };
+    try {
+      await cache.put(url, new Response(text, { status: 200, headers }));
+      pruneOpenMeteoCache(cache);
+    } catch { /* 容量超過など。使い回せないだけで、今回の結果は返す */ }
+    return new Response(text, { status: 200, headers });
+  }
+
+  /// 期限切れを消す。放っておくと地点を変えるたびに増え続ける。
+  let pruning = false;
+  async function pruneOpenMeteoCache(cache) {
+    if (pruning) return;
+    pruning = true;
+    try {
+      for (const req of await cache.keys()) {
+        const r = await cache.match(req);
+        const at = r ? Number(r.headers.get(OM_AT)) : NaN;
+        if (!(Date.now() - at < OM_CACHE_TTL_MS)) await cache.delete(req);
+      }
+    } catch { /* 掃除は補助 */ } finally { pruning = false; }
+  }
+
+  /// 応答の取得時刻。使い回した応答なら、最初に取った時刻になる。
+  const fetchedAtOf = new WeakMap();
+
   async function fetchJSON(url) {
-    const res = await fetch(url);
+    const res = await cachedFetch(url);
     const body = await res.json();
     if (!res.ok || body.error) throw new Error(body.reason || `HTTP ${res.status}`);
+    const at = Number(res.headers?.get?.(OM_AT));
+    if (body && typeof body === "object" && Number.isFinite(at)) fetchedAtOf.set(body, at);
     return body;
   }
 
@@ -727,7 +786,9 @@
       sunsetBearing, sunriseBearing,
       utcOffsetSeconds: homeMeta ? homeMeta.utc_offset_seconds : null,
       timezone: homeMeta ? homeMeta.timezone : null,
-      fetchedAt: now,
+      // 使い回した応答があれば、その取得時刻（いちばん古いもの）。「◯時点の予測」に出す
+      fetchedAt: Math.min(now, ...[homeRaw, sunsetRaw, sunriseRaw]
+        .map((r) => fetchedAtOf.get(r)).filter(Number.isFinite)),
     };
   }
 
@@ -2323,7 +2384,7 @@
     Geo, Cal, JstCal: Cal, Sun, Moon, Curve, T, Series, MODELS, MODEL_NAMES,
     HOME_VARS, OFFSET_VARS, PROFILE_LEVELS, PROFILE_VARS, needsProfile,
     CLOUD_LAYERS, SCORERS, PHENOMENA, RANKS, RECORD_OUTCOMES, recordKind, outcomesFor, longNameOf,
-    decodeLocation, buildURL, fetchForecast, evaluate, evaluateWeek, readingAt,
+    decodeLocation, buildURL, fetchForecast, cachedFetch, OM_CACHE_TTL_MS, evaluate, evaluateWeek, readingAt,
     setTimezoneOffset, rankOf, confidenceOf, confidenceOfEnsemble, reliabilityGrade, phrasing, leadTimePenalty,
     ensembleSpread, fetchEnsemble, profileLevelCount, ENSEMBLE_VARS, ENSEMBLE_MEMBERS, ENSEMBLE_MODEL,
     SPREAD_TO_EXPECTED_ERROR, rankAgreement,

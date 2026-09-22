@@ -76,10 +76,12 @@
     const coords = [{ latitude: FUJI.latitude, longitude: FUJI.longitude },
                     ...corr.points.map((p) => ({ latitude: p.latitude, longitude: p.longitude }))];
     // 富士山は山頂の標高で計算させる。回廊は各点の地形に任せる（標高を渡さない）
+    // 取得は S.cachedFetch（30分使い回す）。無い古い core でも動くよう fetch へ落とす
+    const get = (url) => (S.cachedFetch || fetch)(url).then((r) => r.json());
     const [fujiRaw, corrRaw] = await Promise.all([
-      fetch(S.buildURL([coords[0]], FUJI_VARS, days, 0, FUJI.summitM)).then((r) => r.json()),
+      get(S.buildURL([coords[0]], FUJI_VARS, days, 0, FUJI.summitM)),
       coords.length > 1
-        ? fetch(S.buildURL(coords.slice(1), CORRIDOR_VARS, days, 0)).then((r) => r.json())
+        ? get(S.buildURL(coords.slice(1), CORRIDOR_VARS, days, 0))
         : Promise.resolve([]),
     ]);
     const asList = (raw) => (Array.isArray(raw) ? raw : [raw]).map(S.decodeLocation);
