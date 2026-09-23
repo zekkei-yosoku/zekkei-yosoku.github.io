@@ -511,20 +511,14 @@
   .cell .g { font-size: 0.56rem; font-weight: 700; color: var(--text); line-height: 1.4;
              border: 1px solid color-mix(in srgb, var(--text) 30%, transparent);
              border-radius: 4px; padding: 0 3px; }
-  /* 朝と夕を1つのセルの中で上下に分ける（富士山）。
-     **枠は増やさない。** 2枚の帯を隙間1pxで重ねて、1つのセルのまま上下だけ塗り分ける。
-     幅40pxに「朝 35」を収めるため、時間帯の字は数字より一段小さく、補助色で置く。 */
-  .cell.tier { display: grid; grid-template-rows: 1fr 1fr; gap: 1px; padding: 0;
-               background: transparent; }
-  .cell.tier .t { display: flex; align-items: center; justify-content: center; gap: 2px;
-                  background: var(--sunk); }
-  .cell.tier .t i { font-style: normal; font-size: 0.56rem; font-weight: 700; color: var(--secondary); }
-  .cell.tier .t b { font-size: 0.7rem; line-height: 1; color: var(--text);
-                    font-variant-numeric: tabular-nums; }
-  /* 信頼度は2段に共通（先の日ほど広がる、という同じ理由で決まる）。
-     どちらの段のものでもないので、セルの右下に小さく1つだけ置く。 */
-  .cell .g.tg { position: absolute; right: 2px; bottom: 1px; border: 0; padding: 0;
-                font-size: 0.5rem; color: var(--secondary); line-height: 1; }
+  /* 1つのラベルの中に、ふつうの大きさのセルを2段（富士山の朝／夕）。
+     **セルは他の行と同じ大きさのまま。** 行の高さが2倍になるかわりに、数字は同じ大きさで読める。
+     ラベルは2段にまたがって縦中央（生成側で grid-row を指定している）。 */
+  .mxrow.tiers { row-gap: 4px; }
+  .mxrow.tiers .mxrail { align-items: center; }
+  /* 段の名前（朝／夕）はセルの左上に小さく。数字の位置は他の行と変えない。 */
+  .cell .tl { position: absolute; left: 4px; top: 3px; font-size: 0.54rem; font-weight: 700;
+              line-height: 1; color: var(--secondary); }
   .cell.next { box-shadow: inset 0 0 0 1.5px var(--accent); }
   .cell.void { background: transparent; border: 1px dashed var(--line); }
   .cell:active { background: color-mix(in srgb, var(--text) 14%, transparent); }
@@ -968,17 +962,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260924021429"></script>
+<script src="sorami-core.js?v=20260924083532"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260924021429"></script>
-<script src="sorami-exif.js?v=20260924021429"></script>
-<script src="sorami-capcloud.js?v=20260924021429"></script>
-<script src="sorami-terrain.js?v=20260924021429"></script>
-<script src="sorami-mountain.js?v=20260924021429"></script>
-<script src="sorami-fuji.js?v=20260924021429"></script>
-<script src="sorami-moon.js?v=20260924021429"></script>
-<script src="sorami-composition.js?v=20260924021429"></script>
+<script src="sorami-astro.js?v=20260924083532"></script>
+<script src="sorami-exif.js?v=20260924083532"></script>
+<script src="sorami-capcloud.js?v=20260924083532"></script>
+<script src="sorami-terrain.js?v=20260924083532"></script>
+<script src="sorami-mountain.js?v=20260924083532"></script>
+<script src="sorami-fuji.js?v=20260924083532"></script>
+<script src="sorami-moon.js?v=20260924083532"></script>
+<script src="sorami-composition.js?v=20260924083532"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2031,7 +2025,11 @@ function renderMatrix(order, now) {
     const u = upcoming(weeks[id], now);
     // 行に時間帯を添える。**名前で時間帯が分かるのは朝焼け・夕焼けだけ**だった
     // （2026-09-24 ユーザー指摘）。幅は実質48pxなので、3〜4文字に収める語を core が持つ。
-    let grid = `<div class="mxrail"><span>${iconFor(id, now)}</span>`
+    // 朝と夕で意味が変わる現象（富士山）は、**1つのラベルの中に、ふつうの大きさのセルを2段**。
+    // セルを半分に割って2つ入れる形は字が小さくて読めなかった（2026-09-24 ユーザー指摘）。
+    const tiered = weeks[id].find((x) => Array.isArray(x.evaluation.tiers))?.evaluation.tiers ?? null;
+    let grid = `<div class="mxrail"${tiered ? ` style="grid-row:1/${tiered.length + 1}"` : ""}>`
+      + `<span>${iconFor(id, now)}</span>`
       + `<span class="nmw"><span class="nm">${esc(meta.name)}</span>`
       + (meta.timeOfDay ? `<span class="tod">${esc(meta.timeOfDay)}</span>` : "")
       + `</span></div>`;
@@ -2050,17 +2048,27 @@ function renderMatrix(order, now) {
       const grade = S.reliabilityGrade(ev.confidence, ev.models);
       const past = ev.window[1] <= now ? " past" : "";
       const next = u && e.dayMs === u.dayMs ? " next" : "";
-      // 朝と夕で意味が変わる現象（富士山）は、**行を増やさずセルの中で上下2段**にする。
-      // 一日の最良値だと真昼の値が出て、朝夕に見に行く人の判断に使えなかった
-      // （2026-09-24 ユーザー指摘・選択）。
-      if (Array.isArray(ev.tiers) && ev.tiers.length === 2) {
-        const tierTitle = ev.tiers.map((t) => `${t.label} ${t.score === null ? "—"
-          : `${Math.round(t.score)}点${t.at ? `（${S.JstCal.hhmmRounded(t.at)}）` : ""}`}`).join(" / ");
-        grid += `<button class="cell tier${past}${next}" data-cell="${id}|${dayMs}"
-          title="${esc(meta.name)} ${S.JstCal.relativeDay(dayMs, now)} ${esc(tierTitle)} ・ 信頼度${grade.key}（${esc(grade.caption)}）${past ? "（終了）" : ""}">
-          ${ev.tiers.map((t) => `<span class="t" style="background:${t.score === null ? "transparent" : cellBg(t.score, !!past)}">
-            <i>${esc(t.label)}</i><b>${t.score === null ? "—" : Math.round(t.score)}</b></span>`).join("")}
-          <span class="g tg" title="${esc(grade.caption)}">${grade.key}</span></button>`;
+      // 2段の行。**同じ大きさのセルを縦に2つ**置く。行と列の位置は明示する
+      // （暗黙の流し込みだと、2段目が次の日の列へ回り込む）。
+      if (Array.isArray(ev.tiers) && ev.tiers.length) {
+        const col = dayList.indexOf(dayMs) + 2;
+        grid += ev.tiers.map((t, i) => {
+          const label = `${meta.name}（${t.label}）`;
+          if (t.score === null) {
+            const why = `${label} ${S.JstCal.relativeDay(dayMs, now)}：この日は評価できません`;
+            return `<button class="cell void" style="grid-column:${col};grid-row:${i + 1}"
+              data-cell="${id}|${dayMs}" title="${esc(why)}" aria-label="${esc(why)}"><span class="v">—</span></button>`;
+          }
+          const title = `${label} ${S.JstCal.relativeDay(dayMs, now)} ${Math.round(t.score)}点 `
+            + `${S.phrasing(id, S.rankOf(t.score)).label}`
+            + `${t.at ? ` ・ ${S.JstCal.hhmmRounded(t.at)}ごろ` : ""}`
+            + ` ・ 信頼度${grade.key}（${grade.caption}）${past ? "（終了）" : ""}`;
+          return `<button class="cell${past}${next}" style="grid-column:${col};grid-row:${i + 1};background:${cellBg(t.score, !!past)}"
+            data-cell="${id}|${dayMs}" title="${esc(title)}" aria-label="${esc(title)}">
+            <span class="tl">${esc(t.label)}</span>
+            <span class="v">${Math.round(t.score)}</span>
+            <span class="g" title="${esc(grade.caption)}">${grade.key}</span></button>`;
+        }).join("");
         continue;
       }
       grid += `<button class="cell${past}${next}" data-cell="${id}|${dayMs}"
@@ -2069,7 +2077,8 @@ function renderMatrix(order, now) {
         <span class="v">${Math.round(ev.score)}</span>
         <span class="g" title="${esc(grade.caption)}">${grade.key}</span></button>`;
     }
-    rows += `<div class="mxrow">${grid}</div>`;
+    rows += `<div class="mxrow${tiered ? " tiers" : ""}"${tiered
+      ? ` style="grid-template-rows:repeat(${tiered.length}, auto)"` : ""}>${grid}</div>`;
   }
 
   // 凡例はセルと同じ式から作る。凡例と実物が違う色だと照合できない。

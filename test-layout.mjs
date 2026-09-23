@@ -52,7 +52,10 @@ ok((html.match(/class="mxhead"/g) || []).length === 1, "日付の見出しは1�
 // 2026-09-07: 行を枠で囲う形は一度やって外した。大枠の中に小さい箱が並んで見える。
 // 区切りは線1本で、現象名の列の下まで伸ばす（セルの側だけに線が出ると、
 // ラベルの列が切れ目のない帯に見えて行がどこで区切れるか読めない）。
-ok(/class="mxrow"/.test(html), "現象ごとに行を分ける");
+// 2026-09-24: 富士山だけ「1つのラベルに2段」にしたので、行のクラスは式で組み立てている
+ok(/class="mxrow\$\{/.test(html), "現象ごとに行を分ける");
+ok(/grid-template-rows:repeat\(\$\{tiered\.length\}/.test(html),
+  "2段の行は、段の数だけ行を持つ（セルは他の行と同じ大きさのまま）");
 ok(/\.mxrow \{ border-top: 1px solid var\(--line\)/.test(html), "行の区切りは線1本");
 ok(/\.mxrow \.mxrail::before[\s\S]{0,220}border-top: 1px solid var\(--line\)/.test(html),
   "その線を現象名の列の下まで伸ばす");
