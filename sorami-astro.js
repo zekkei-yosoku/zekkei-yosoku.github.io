@@ -215,6 +215,38 @@
   /// 月の見かけ半径。距離で変わる（指示書 §6「見かけ半径は固定値にしない」）
   const moonAngularRadius = (distanceKm) => Math.asin(MOON_RADIUS_KM / distanceKm) / DEG;
 
+  /// 太陽の見かけの半径[度]。距離で変わる（近日点 0.271 / 遠日点 0.262）。
+  /// ダイヤモンド富士は「山頂に太陽が重なるか」なので、この幅が判定そのものになる。
+  const sunAngularRadius = (distanceKm) => 0.266563 / (distanceKm / 149597870.7);
+
+  /**
+   * 観測地から見た太陽。月の `moon()` と同じ形で返す。
+   * 視差は最大 8.8 秒角（0.0024度）で、太陽の半径 0.27度に対して無視できるので geocentric のまま。
+   */
+  function sun(ms, obs, air = {}) {
+    const s = sunPosition(ms);
+    const { dPsi, dEps } = nutation(s.T);
+    const eps = meanObliquity(s.T) + dEps;
+    const eq = toEquatorial(s.longitude + dPsi, 0, eps);
+    const gast = apparentSiderealTime(ms, dPsi, eps);
+    const hourAngle = norm(gast + obs.longitude - eq.ra);
+    const hor = toHorizontal(hourAngle, eq.dec, obs.latitude);
+    const refr = refraction(hor.altitude, air);
+    const semi = sunAngularRadius(s.distanceKm);
+    return {
+      azimuth: hor.azimuth,
+      geometricAltitude: hor.altitude,
+      apparentAltitude: hor.altitude + refr,
+      refraction: refr,
+      angularRadius: semi,
+      angularDiameter: semi * 2,
+      upperLimbAltitude: hor.altitude + refr + semi,
+      lowerLimbAltitude: hor.altitude + refr - semi,
+      distanceKm: s.distanceKm,
+      declination: eq.dec,
+    };
+  }
+
   /**
    * 観測地から見た月。**topocentric**（指示書 §4-6）。
    * @param {number} ms   時刻（UNIXミリ秒）
@@ -460,7 +492,7 @@
   const SoramiAstro = {
     // 天文
     julianDay, centuries, nutation, meanObliquity,
-    sunPosition, moonGeocentric, moon,
+    sunPosition, sun, sunAngularRadius, moonGeocentric, moon,
     toEquatorial, toHorizontal, topocentric, apparentSiderealTime,
     refraction, moonAngularRadius,
     findCrossing, moonCrossings, moonEvents,

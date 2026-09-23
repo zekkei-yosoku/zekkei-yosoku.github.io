@@ -1846,20 +1846,23 @@
   // 「直近に起きる順」で並べ替えていた時期があるが、7日ぶんを一度に見る表では
   // どの行も同じ7日を持つので「直近」に意味がなく、開くたびに行が入れ替わって
   // 目で追えなくなる。位置が動かないほうが読みやすい。
+  // `timeOfDay` は一覧の行に出す時間帯。**名前で分かるのは朝焼け・夕焼けだけ**で、
+  // 星空が夜、雲海が明け方、虹が日中であることは画面のどこにも書いていなかった
+  // （2026-09-24 ユーザー指摘「それが朝なのか夜なのか分かりづらい」）。
   const PHENOMENA = {
-    sunset: { name: "夕焼け", icon: "🌇", order: 1, record: "quality",
+    sunset: { name: "夕焼け", icon: "🌇", order: 1, record: "quality", timeOfDay: "夕方",
       ranks: ["圧巻", "よく染まる", "ほんのり", "期待薄"],
       says: ["空一面が燃えるように染まるかもしれません",
              "きれいに色づきそうです",
              "淡く色づく程度になりそうです",
              "色づきは弱そうです"] },
-    starrySky: { name: "星空", icon: "✨", order: 2, record: "quality",
+    starrySky: { name: "星空", icon: "✨", order: 2, record: "quality", timeOfDay: "夜",
       ranks: ["満天", "よく見える", "そこそこ", "期待薄"],
       says: ["数えきれないほどの星が見えるかもしれません",
              "主な星座はよく見えそうです",
              "明るい星なら見えそうです",
              "星は見えにくそうです"] },
-    sunrise: { name: "朝焼け", icon: "🌅", order: 0, record: "quality",
+    sunrise: { name: "朝焼け", icon: "🌅", order: 0, record: "quality", timeOfDay: "明け方",
       ranks: ["圧巻", "よく染まる", "ほんのり", "期待薄"],
       says: ["朝の空が一面染まるかもしれません",
              "きれいに色づきそうです",
@@ -1873,13 +1876,13 @@
     // 月と富士山は**晴れていればだいたい見える**ので、条件の良い日は必ず上位へ来て
     // 見どころの枠を占め続ける。雲海や虹のような「その日だけ」を押し出してしまう。
     // 表の行としては同じ重みで並べたままにする（消すわけではない）。
-    fuji: { name: "富士山", icon: "🗻", order: 5, record: "occurrence", highlight: false,
+    fuji: { name: "富士山", icon: "🗻", order: 5, record: "occurrence", highlight: false, timeOfDay: "朝と夕",
       ranks: ["くっきり", "よく見える", "うっすら", "望み薄"],
       says: ["輪郭まではっきり見えそうです",
              "しっかり見えそうです",
              "霞んで見える程度かもしれません",
              "雲か霞で隠れていそうです"] },
-    moon: { name: "月", icon: "🌙", order: 3, record: "quality", highlight: false,
+    moon: { name: "月", icon: "🌙", order: 3, record: "quality", highlight: false, timeOfDay: "夜",
       ranks: ["よく見える", "見えそう", "薄ぼんやり", "期待薄"],
       says: ["澄んだ空にくっきり浮かびそうです",
              "普通に見えそうです",
@@ -1898,7 +1901,7 @@
     // 絵文字は **富士山と同じ 🗻**。デザイン定義の「絵文字は現象の識別にだけ使う」の例外で、
     // ここでは**同じ絵文字であること自体が「同じ山の話」を伝える**。
     // 名前（富士山 / 笠雲）が隣にあるので行は見分けられる。
-    capCloud: { name: "笠雲", longName: "富士山の笠雲", icon: "🗻", order: 5.5, record: "occurrence", highlight: false,
+    capCloud: { name: "笠雲", longName: "富士山の笠雲", icon: "🗻", order: 5.5, record: "occurrence", highlight: false, timeOfDay: "日中",
       // ランク名も「かかる」と約束しない（2026-09-17 ユーザー選択。旧「みごとな笠／かかりそう」）。
       // 「好条件」は虹・ダイヤモンドダストと同じ語で、条件が良いことまでしか言わない。
       ranks: ["好条件", "出やすい", "わずかに", "望み薄"],
@@ -1908,25 +1911,25 @@
              "笠雲が出やすい条件です（ふだんの3倍ほど）",
              "少し出やすい条件です",
              "笠雲は出にくそうです"] },
-    seaOfClouds: { name: "雲海", icon: "🌫️", order: 4, record: "occurrence",
+    seaOfClouds: { name: "雲海", icon: "🌫️", order: 4, record: "occurrence", timeOfDay: "明け方",
       ranks: ["大雲海", "出そう", "五分五分", "期待薄"],
       says: ["谷を埋めつくす雲海が期待できます",
              "雲海が出る条件が揃っています",
              "出るかどうかは五分五分です",
              "雲海は出にくそうです"] },
-    rainbow: { name: "虹", icon: "🌈", order: 3, record: "occurrence",
+    rainbow: { name: "虹", icon: "🌈", order: 3, record: "occurrence", timeOfDay: "日中",
       ranks: ["好条件", "出るかも", "わずかに", "期待薄"],
       says: ["日差しと雨が重なり、虹が架かるかもしれません",
              "日差しと雨が重なりそうです",
              "条件がわずかに揃っています",
              "虹は出にくそうです"] },
-    rime: { name: "霧氷", icon: "❄️", order: 5, record: "occurrence",
+    rime: { name: "霧氷", icon: "❄️", order: 5, record: "occurrence", timeOfDay: "早朝",
       ranks: ["見頃", "着きそう", "わずかに", "期待薄"],
       says: ["枝が白く覆われた霧氷が期待できます",
              "枝が白くなりそうです",
              "うっすら着く程度かもしれません",
              "霧氷は着きにくそうです"] },
-    diamondDust: { name: "ダイヤモンドダスト", icon: "💠", order: 6, record: "occurrence",
+    diamondDust: { name: "ダイヤモンドダスト", icon: "💠", order: 6, record: "occurrence", timeOfDay: "早朝",
       ranks: ["好条件", "期待できる", "わずかに", "期待薄"],
       says: ["空気中の氷がきらめくかもしれません",
              "条件はまずまず整っています",

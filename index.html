@@ -481,6 +481,12 @@
      18px ぶん途切れてつながらなくなる。 */
   .mxrow .mxrail::after { top: 1px; }
   .mxrail .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 名前の下に時間帯。名前より弱く、注記より強い（読み飛ばしてよいが、探せば必ずある）。 */
+  .mxrail .nmw { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  /* 表の中でいちばん使う行（月の「見え始め」）。**強調は1つだけ**にして、他の段と差をつける。 */
+  .lt-key { font-weight: 700; color: var(--text); }
+  .mxrail .tod { font-size: 0.58rem; font-weight: 600; color: var(--tertiary); line-height: 1.1;
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dhead { display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
            font-size: 0.63rem; color: var(--tertiary); line-height: 1.25; padding-bottom: 3px; }
   /* 14列だと mm/dd が隣とくっつく。字間だけ詰める（0埋めは崩さない） */
@@ -505,6 +511,20 @@
   .cell .g { font-size: 0.56rem; font-weight: 700; color: var(--text); line-height: 1.4;
              border: 1px solid color-mix(in srgb, var(--text) 30%, transparent);
              border-radius: 4px; padding: 0 3px; }
+  /* 朝と夕を1つのセルの中で上下に分ける（富士山）。
+     **枠は増やさない。** 2枚の帯を隙間1pxで重ねて、1つのセルのまま上下だけ塗り分ける。
+     幅40pxに「朝 35」を収めるため、時間帯の字は数字より一段小さく、補助色で置く。 */
+  .cell.tier { display: grid; grid-template-rows: 1fr 1fr; gap: 1px; padding: 0;
+               background: transparent; }
+  .cell.tier .t { display: flex; align-items: center; justify-content: center; gap: 2px;
+                  background: var(--sunk); }
+  .cell.tier .t i { font-style: normal; font-size: 0.56rem; font-weight: 700; color: var(--secondary); }
+  .cell.tier .t b { font-size: 0.7rem; line-height: 1; color: var(--text);
+                    font-variant-numeric: tabular-nums; }
+  /* 信頼度は2段に共通（先の日ほど広がる、という同じ理由で決まる）。
+     どちらの段のものでもないので、セルの右下に小さく1つだけ置く。 */
+  .cell .g.tg { position: absolute; right: 2px; bottom: 1px; border: 0; padding: 0;
+                font-size: 0.5rem; color: var(--secondary); line-height: 1; }
   .cell.next { box-shadow: inset 0 0 0 1.5px var(--accent); }
   .cell.void { background: transparent; border: 1px dashed var(--line); }
   .cell:active { background: color-mix(in srgb, var(--text) 14%, transparent); }
@@ -948,17 +968,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260924012611"></script>
+<script src="sorami-core.js?v=20260924021429"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260924012611"></script>
-<script src="sorami-exif.js?v=20260924012611"></script>
-<script src="sorami-capcloud.js?v=20260924012611"></script>
-<script src="sorami-terrain.js?v=20260924012611"></script>
-<script src="sorami-mountain.js?v=20260924012611"></script>
-<script src="sorami-fuji.js?v=20260924012611"></script>
-<script src="sorami-moon.js?v=20260924012611"></script>
-<script src="sorami-composition.js?v=20260924012611"></script>
+<script src="sorami-astro.js?v=20260924021429"></script>
+<script src="sorami-exif.js?v=20260924021429"></script>
+<script src="sorami-capcloud.js?v=20260924021429"></script>
+<script src="sorami-terrain.js?v=20260924021429"></script>
+<script src="sorami-mountain.js?v=20260924021429"></script>
+<script src="sorami-fuji.js?v=20260924021429"></script>
+<script src="sorami-moon.js?v=20260924021429"></script>
+<script src="sorami-composition.js?v=20260924021429"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2009,7 +2029,12 @@ function renderMatrix(order, now) {
   for (const id of live) {
     const meta = S.PHENOMENA[id];
     const u = upcoming(weeks[id], now);
-    let grid = `<div class="mxrail"><span>${iconFor(id, now)}</span><span class="nm">${esc(meta.name)}</span></div>`;
+    // 行に時間帯を添える。**名前で時間帯が分かるのは朝焼け・夕焼けだけ**だった
+    // （2026-09-24 ユーザー指摘）。幅は実質48pxなので、3〜4文字に収める語を core が持つ。
+    let grid = `<div class="mxrail"><span>${iconFor(id, now)}</span>`
+      + `<span class="nmw"><span class="nm">${esc(meta.name)}</span>`
+      + (meta.timeOfDay ? `<span class="tod">${esc(meta.timeOfDay)}</span>` : "")
+      + `</span></div>`;
     for (const dayMs of dayList) {
       const e = weeks[id].find((x) => x.dayMs === dayMs);
       if (!e) { grid += `<div class="cell void" title="予測がありません">—</div>`; continue; }
@@ -2025,6 +2050,19 @@ function renderMatrix(order, now) {
       const grade = S.reliabilityGrade(ev.confidence, ev.models);
       const past = ev.window[1] <= now ? " past" : "";
       const next = u && e.dayMs === u.dayMs ? " next" : "";
+      // 朝と夕で意味が変わる現象（富士山）は、**行を増やさずセルの中で上下2段**にする。
+      // 一日の最良値だと真昼の値が出て、朝夕に見に行く人の判断に使えなかった
+      // （2026-09-24 ユーザー指摘・選択）。
+      if (Array.isArray(ev.tiers) && ev.tiers.length === 2) {
+        const tierTitle = ev.tiers.map((t) => `${t.label} ${t.score === null ? "—"
+          : `${Math.round(t.score)}点${t.at ? `（${S.JstCal.hhmmRounded(t.at)}）` : ""}`}`).join(" / ");
+        grid += `<button class="cell tier${past}${next}" data-cell="${id}|${dayMs}"
+          title="${esc(meta.name)} ${S.JstCal.relativeDay(dayMs, now)} ${esc(tierTitle)} ・ 信頼度${grade.key}（${esc(grade.caption)}）${past ? "（終了）" : ""}">
+          ${ev.tiers.map((t) => `<span class="t" style="background:${t.score === null ? "transparent" : cellBg(t.score, !!past)}">
+            <i>${esc(t.label)}</i><b>${t.score === null ? "—" : Math.round(t.score)}</b></span>`).join("")}
+          <span class="g tg" title="${esc(grade.caption)}">${grade.key}</span></button>`;
+        continue;
+      }
       grid += `<button class="cell${past}${next}" data-cell="${id}|${dayMs}"
         style="background:${cellBg(ev.score, !!past)}"
         title="${esc(meta.name)} ${S.JstCal.relativeDay(dayMs, now)} ${Math.round(ev.score)}点 ${esc(S.phrasing(id, ev.rank).label)} ・ 信頼度${grade.key}（${esc(grade.caption)}）${past ? "（終了）" : ""}">
@@ -2234,7 +2272,12 @@ function renderMoonTimes(dayMs) {
   return `<div class="card">
     <div class="lt">
       <span></span><span class="lt-h">月の出</span><span class="lt-h">月の入り</span>
-      ${rows.map(([l, a, b]) => `<span class="lt-l">${esc(l)}</span><span>${hm(a)}</span><span>${hm(b)}</span>`).join("")}
+      ${rows.map(([l, a, b]) => {
+        // **「見え始め」がこの表でいちばん使う行。** 雲も山も建物も込みで、実際に見え出す時刻。
+        // 4段の最後に同じ太さで並べていたので埋もれていた（2026-09-24 ユーザー指摘）。
+        const key = l === "見え始め" ? ' class="lt-key"' : "";
+        return `<span class="lt-l"${key}>${esc(l)}</span><span${key}>${hm(a)}</span><span${key}>${hm(b)}</span>`;
+      }).join("")}
     </div>
     <div class="tiny" style="margin-top:6px;color:var(--tertiary)">「この場所では」は${moonHorizon && moonHorizon.layers && moonHorizon.layers.includes("urban")
       ? "まわりの地形と建物" : "まわりの地形"}から計算した地平線です。山や建物があれば遅く、高い場所なら早くなります。</div>
@@ -2466,8 +2509,13 @@ function renderDayDetail(id, entries, sel, now) {
   // 一覧のカードは場所が無いので開始時刻だけ。
   const spanHours = (ev.window[1] - ev.window[0]) / 3600000;
   const asRange = id === "starrySky" && spanHours >= 1.5;
+  // **見出しには必ず「いつ」を出す。** 富士山・笠雲・虹は日付だけで、朝の話か夕方の話か
+  // 分からなかった（2026-09-24 ユーザー指摘）。時刻が出せないものは時間帯の語で埋める。
+  const bestTier = Array.isArray(ev.tiers)
+    ? ev.tiers.reduce((x, t) => (t.score !== null && (!x || t.score > x.score) ? t : x), null) : null;
   const when = `${S.JstCal.relativeDay(sel.dayMs, now)}`
-    + (ev.specificTime === false ? ""
+    + (bestTier && bestTier.at ? ` ${bestTier.label} ${S.JstCal.hhmmRounded(bestTier.at)}`
+       : ev.specificTime === false ? (meta.timeOfDay ? ` ${meta.timeOfDay}` : "")
        : asRange ? ` ${S.JstCal.hhmmRounded(ev.window[0])}〜${S.JstCal.hhmmRounded(ev.window[1])}`
        : ` ${S.JstCal.hhmmRounded(ev.peak)}`);
 
