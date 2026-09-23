@@ -199,6 +199,18 @@ ok(!/insertAdjacentHTML[\s\S]{0,80}favToggle/.test(html), "☆ を地点ボタ�
 ok(/id="favToggle"[\s\S]{0,40}<\/div>/.test(html), "☆ は地点ボタンの兄弟");
 ok(/setAttribute\("aria-label", isFav \? "お気に入りを編集"/.test(html), "★ が編集を開くことを読み上げで伝える");
 
+console.log("== 入力欄は 16px（iOS の勝手な拡大を招かない）==");
+// 2026-09-24: 「更新すると少しだけ拡大された状態になる」。本文は 15px で、入力欄が
+// font: inherit で受け継いでいた。iOS は 16px 未満の入力欄に触れると画面を拡大し、
+// その拡大は読み直しても戻らない。触れる入力はすべて 16px 以上にしておく。
+for (const [sel, re] of [
+  [".fav-in", /\.fav-in \{[^}]*font-size: 16px/],
+  ["検索欄", /\.sheet input\[type=search\] \{[^}]*font-size: 16px/],
+]) ok(re.test(html), `${sel} が 16px`);
+const viewport = (html.match(/<meta name="viewport"[^>]*>/) || [""])[0];
+ok(!/user-scalable\s*=\s*no|maximum-scale/.test(viewport),
+  "viewport で拡大を禁止していない（自分で拡大したい人を止めない）", viewport);
+
 console.log("== 見どころの見出しがランクに追従する ==");
 // もともとは poor にも見出しを持たせていた（「めぼしい空はなさそうです」）。
 // だが下に候補を並べていたため、見出しと中身が食い違っていた。

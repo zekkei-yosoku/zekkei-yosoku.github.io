@@ -319,7 +319,7 @@
   html { scrollbar-gutter: stable; }
   .sheet-body { overflow-y: auto; max-height: calc(82vh - 54px); padding: 0 16px 16px;
                 overscroll-behavior: contain; }
-  .sheet input[type=search] { width: 100%; font: inherit; padding: 9px 12px; border-radius: 10px;
+  .sheet input[type=search] { width: 100%; font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 10px;
     border: 1px solid var(--line); background: var(--bg); color: var(--text); }
   .chips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0; }
   /* 実寸で指の的を取る。密集したチップに疑似要素で 44px を被せると、
@@ -343,7 +343,12 @@
   /* お気に入りの登録フォーム。項目は内蔵の絶景スポットと同じ（現象・地形・メモ）。 */
   .fav-l { display: block; margin: 14px 0 5px; font-size: 0.81rem; font-weight: 700; color: var(--secondary); }
   .fav-l .tiny { font-weight: 400; margin-left: 5px; }
-  .fav-in { width: 100%; font: inherit; padding: 9px 12px; border-radius: 10px;
+  /* **入力欄だけは 16px。** 本文は 0.94rem（15px）だが、iOS は 16px 未満の入力欄に触れると
+     画面を勝手に拡大し、**その拡大は指で戻すまで残る**。更新で読み直しても戻らないので
+     「更新したら少し拡大されている」になる（2026-09-24 ユーザー報告）。
+     拡大を禁止（user-scalable=no）する手は採らない。iOS は無視するうえ、
+     自分で拡大したい人まで止めることになる。 */
+  .fav-in { width: 100%; font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 10px;
             border: 1px solid var(--line); background: var(--bg); color: var(--text); }
   textarea.fav-in { resize: vertical; line-height: 1.5; }
   /* 矢印は OS のものをそのまま出す。appearance を消すと矢印まで消え、
@@ -943,17 +948,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260922230054"></script>
+<script src="sorami-core.js?v=20260924012611"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260922230054"></script>
-<script src="sorami-exif.js?v=20260922230054"></script>
-<script src="sorami-capcloud.js?v=20260922230054"></script>
-<script src="sorami-terrain.js?v=20260922230054"></script>
-<script src="sorami-mountain.js?v=20260922230054"></script>
-<script src="sorami-fuji.js?v=20260922230054"></script>
-<script src="sorami-moon.js?v=20260922230054"></script>
-<script src="sorami-composition.js?v=20260922230054"></script>
+<script src="sorami-astro.js?v=20260924012611"></script>
+<script src="sorami-exif.js?v=20260924012611"></script>
+<script src="sorami-capcloud.js?v=20260924012611"></script>
+<script src="sorami-terrain.js?v=20260924012611"></script>
+<script src="sorami-mountain.js?v=20260924012611"></script>
+<script src="sorami-fuji.js?v=20260924012611"></script>
+<script src="sorami-moon.js?v=20260924012611"></script>
+<script src="sorami-composition.js?v=20260924012611"></script>
 <script>
 "use strict";
 const S = window.Sorami;
