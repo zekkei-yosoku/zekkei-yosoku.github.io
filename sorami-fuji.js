@@ -476,19 +476,22 @@
     };
     const golden = lw ? { morning: inBand(lw.goldenMorning), evening: inBand(lw.goldenEvening) } : null;
 
-    // **一覧に出すのは朝と夕の2段。** 真昼を含む一日の最良値は、見に行く時間帯と
-    // 結びつかない数字だった（富士市 2026-09-24: 一覧46=11時ごろ / 朝35・夕40。
-    // ユーザー指摘「朝なのか夜なのか分かりづらい」）。
-    // 行を増やさず、1行の中で上下2段にする（2026-09-24 ユーザー選択）。
-    const tiers = golden && (golden.morning || golden.evening) ? [
-      { key: "morning", label: "朝", at: golden.morning?.at ?? null, score: golden.morning?.score ?? null },
-      { key: "evening", label: "夕", at: golden.evening?.at ?? null, score: golden.evening?.score ?? null },
-    ] : null;
-    // 並び替えや「いつが良いか」に使う代表値は、**画面に出ている2段の良いほう**にそろえる。
-    // 出ていない数字で並ぶと、表と並び順が食い違う。朝夕が取れない日だけ一日の最良に戻す。
-    const tierBest = tiers ? tiers.reduce((x, t) => (t.score !== null && (!x || t.score > x.score) ? t : x), null) : null;
-    const dayScore = tierBest ? tierBest.score : best.e.score;
-    const dayAt = tierBest ? tierBest.at : best.t;
+    // **日中の最良も別に出す。** 一覧はその日のトータル（＝空が明るい時間すべての最良）に戻し、
+    // 朝・日中・夕の内訳は詳細で出す（2026-09-24 ユーザー選択）。
+    // 「日中」は黄金の時間にはさまれた時間帯。朝夕とどちらが良いかを比べるために持つ。
+    const middayRows = hours.filter((h) => {
+      const am = lw && lw.goldenMorning ? lw.goldenMorning[1] : -Infinity;
+      const pm = lw && lw.goldenEvening ? lw.goldenEvening[0] : Infinity;
+      return h.at > am && h.at < pm;
+    });
+    const midday = middayRows.length
+      ? middayRows.reduce((x, y) => (y.score > x.score ? y : x)) : null;
+    // 詳細の表に出す3段。**一覧はこれを使わない**（一覧はトータル1つ）
+    const bands = [
+      { key: "morning", label: "朝焼けのころ", at: golden?.morning?.at ?? null, score: golden?.morning?.score ?? null },
+      { key: "midday", label: "日中いちばん", at: midday?.at ?? null, score: midday?.score ?? null },
+      { key: "evening", label: "夕焼けのころ", at: golden?.evening?.at ?? null, score: golden?.evening?.score ?? null },
+    ];
 
     // 内訳。既存の factor と同じ形（label / c / detail）にして、詳細画面で同じに読める
     const factors = best.e.parts.filter((x) => x.pct !== null).map((x) => ({
@@ -505,13 +508,13 @@
     // 先の日ほど当たらない。既存と同じ下駄を使う
     const width = 8 + S.leadTimePenalty(daysAhead);
     return {
-      phenomenon: "fuji", window: [start, end], peak: dayAt, specificTime: false,
-      unavailable: null, score: dayScore, base: dayScore, factors,
-      perModel: {}, models: 0, spread: [Math.max(0, dayScore - width), Math.min(100, dayScore + width)],
+      phenomenon: "fuji", window: [start, end], peak: best.t, specificTime: true,
+      unavailable: null, score: best.e.score, base: best.e.score, factors,
+      perModel: {}, models: 0, spread: [Math.max(0, best.e.score - width), Math.min(100, best.e.score + width)],
       source: SOURCE,
       // **confidence はオブジェクト**（既存 confidenceOf と同じ形）。
       // 数値を入れたら詳細画面が undefined になった（2026-09-14）
-      daysAhead, asOf, confidence: S.confidenceOf(width, null), rank: S.rankOf(dayScore),
+      daysAhead, asOf, confidence: S.confidenceOf(width, null), rank: S.rankOf(best.e.score),
       // **既存の7現象と同じ項目を揃える。** 欠けると詳細画面が ±NaN になる
       uncertainty: {
         basis: "single", ensembleBlind: null, modelWidth: width, ensembleIqr: null,
@@ -522,7 +525,7 @@
       },
       detail: best.e,
       // 時刻ごとの見え方。詳細画面が「何時なら見えるか」を出すために使う
-      hours, golden, tiers,
+      hours, golden, bands,
     };
   }
 

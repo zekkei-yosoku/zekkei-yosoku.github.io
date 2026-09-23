@@ -1876,7 +1876,7 @@
     // 月と富士山は**晴れていればだいたい見える**ので、条件の良い日は必ず上位へ来て
     // 見どころの枠を占め続ける。雲海や虹のような「その日だけ」を押し出してしまう。
     // 表の行としては同じ重みで並べたままにする（消すわけではない）。
-    fuji: { name: "富士山", icon: "🗻", order: 5, record: "occurrence", highlight: false, timeOfDay: "朝と夕",
+    fuji: { name: "富士山", icon: "🗻", order: 5, record: "occurrence", highlight: false, timeOfDay: "朝〜夕",
       ranks: ["くっきり", "よく見える", "うっすら", "望み薄"],
       says: ["輪郭まではっきり見えそうです",
              "しっかり見えそうです",
