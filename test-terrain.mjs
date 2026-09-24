@@ -106,5 +106,24 @@ console.log("== 緯度経度の文字列を読む ==");
   ok(T.parseLatLon("") === null && T.parseLatLon(null) === null, "空でも落ちない");
 }
 
+console.log("== 地図アプリのURLから座標を取る ==");
+{
+  const near = (r, lat, lon) => r && Math.abs(r.latitude - lat) < 1e-4 && Math.abs(r.longitude - lon) < 1e-4;
+  ok(near(T.parseLatLon("https://www.google.com/maps?q=35.7477414,139.9303575&entry=gps"), 35.7477, 139.9304),
+    "Googleマップ ?q=");
+  ok(near(T.parseLatLon("https://www.google.com/maps/@35.3606,138.7274,17z"), 35.3606, 138.7274),
+    "Googleマップ /@ の表示位置");
+  ok(near(T.parseLatLon("https://www.google.com/maps/place/x/@35.3606,138.7274,15z/data=!3m1!4b1!4m6!3d35.3606!4d138.7274"),
+    35.3606, 138.7274), "Googleマップの地物のURL");
+  ok(near(T.parseLatLon("https://maps.apple.com/?ll=35.6812,139.7671&q=Tokyo"), 35.6812, 139.7671), "Appleマップ");
+  ok(near(T.parseLatLon("https://maps.gsi.go.jp/#15/35.360000/138.727000/"), 35.36, 138.727), "地理院地図");
+  ok(near(T.parseLatLon("https://www.openstreetmap.org/#map=15/35.3600/138.7270"), 35.36, 138.727), "OpenStreetMap");
+  // **短縮リンクは読めない。** 転送先を読むには通信が要る（相手はCORSで読ませない）
+  ok(T.parseLatLon("https://maps.app.goo.gl/BS9w87GutEMdLHqe7?g_st=ic") === null, "短縮リンクは座標を持たない");
+  ok(T.isShortMapLink("https://maps.app.goo.gl/BS9w87GutEMdLHqe7?g_st=ic"), "短縮リンクだと見分ける");
+  ok(!T.isShortMapLink("https://www.google.com/maps/@35.3,138.7,17z"), "長いURLは短縮リンク扱いしない");
+  ok(T.parseLatLon("https://example.com/no-coords") === null, "座標の無いURLは読まない");
+}
+
 console.log(`\n${fail === 0 ? "TERRAIN OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

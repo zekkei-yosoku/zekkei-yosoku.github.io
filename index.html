@@ -1039,17 +1039,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260924225433"></script>
+<script src="sorami-core.js?v=20260924225859"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260924225433"></script>
-<script src="sorami-exif.js?v=20260924225433"></script>
-<script src="sorami-capcloud.js?v=20260924225433"></script>
-<script src="sorami-terrain.js?v=20260924225433"></script>
-<script src="sorami-mountain.js?v=20260924225433"></script>
-<script src="sorami-fuji.js?v=20260924225433"></script>
-<script src="sorami-moon.js?v=20260924225433"></script>
-<script src="sorami-composition.js?v=20260924225433"></script>
+<script src="sorami-astro.js?v=20260924225859"></script>
+<script src="sorami-exif.js?v=20260924225859"></script>
+<script src="sorami-capcloud.js?v=20260924225859"></script>
+<script src="sorami-terrain.js?v=20260924225859"></script>
+<script src="sorami-mountain.js?v=20260924225859"></script>
+<script src="sorami-fuji.js?v=20260924225859"></script>
+<script src="sorami-moon.js?v=20260924225859"></script>
+<script src="sorami-composition.js?v=20260924225859"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3772,6 +3772,15 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
     // 検索に投げても地名としては当たらないので、先にこちらで拾う（2026-09-24 ユーザー依頼）。
     const coord = SoramiTerrain.parseLatLon(q);
     if (coord) { $(resultsId).innerHTML = ""; onCoord(coord); return; }
+    // 短縮リンク（maps.app.goo.gl/…）は**ブラウザからは中身を読めない**。
+    // 転送先を読むには通信が要り、その相手は読ませてくれない（CORS）。
+    // 黙って「該当なし」にせず、どうすれば飛べるかを出す。
+    if (SoramiTerrain.isShortMapLink(q)) {
+      $(resultsId).innerHTML = `<p class="tiny">短縮リンクは開けません。リンクを一度開いて、
+        出てきたアドレス（<span class="nb">.../@35.36,138.72,17z</span> のような形）か、
+        緯度経度そのものを貼ってください。</p>`;
+      return;
+    }
     $(resultsId).innerHTML = `<p class="tiny">検索中…</p>`;
     try { renderSearchResults($(resultsId), await searchPlaces(q), onPick); }
     catch { $(resultsId).innerHTML = `<p class="warn">検索に失敗しました</p>`; }

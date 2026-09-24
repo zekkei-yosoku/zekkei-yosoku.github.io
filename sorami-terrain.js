@@ -319,7 +319,45 @@
    *   「N35.31176 E139.47653」
    * 読めなければ null。**日本の外でも読む**（判断は呼び手に任せる）。
    */
+  /**
+   * 地図アプリのURLから緯度経度を取り出す。**通信しない**ので、
+   * 短縮リンク（maps.app.goo.gl/…）は読めない（座標が本文に無く、転送先を読むには通信が要る）。
+   *   Googleマップ  /maps/@35.36,138.72,17z ／ ?q=35.36,138.72 ／ ?ll= ／ !3d35.36!4d138.72
+   *   Appleマップ   ?ll=35.36,138.72 ／ ?coordinate=
+   *   地理院地図    #15/35.360/138.727
+   *   OpenStreetMap #map=15/35.360/138.727
+   */
+  function parseMapLink(text) {
+    const t = String(text || "").trim();
+    if (!/^https?:\/\//i.test(t)) return null;
+    const num = "(-?\\d{1,3}(?:\\.\\d+)?)";
+    const patterns = [
+      new RegExp(`[?&](?:q|ll|sll|coordinate|daddr|center)=${num}%2C${num}`, "i"),
+      new RegExp(`[?&](?:q|ll|sll|coordinate|daddr|center)=${num},\\s*${num}`, "i"),
+      new RegExp(`/@${num},${num}`),                       // Googleマップの表示位置
+      new RegExp(`!3d${num}!4d${num}`),                    // Googleマップの地物の位置
+      new RegExp(`[#&]map=\\d+(?:\\.\\d+)?/${num}/${num}`),   // OpenStreetMap
+      new RegExp(`#\\d+(?:\\.\\d+)?/${num}/${num}`),          // 地理院地図
+      new RegExp(`[?&]lat=${num}[&#].*?[?&]lon(?:gitude)?=${num}`, "i"),
+    ];
+    for (const re of patterns) {
+      const m = t.match(re);
+      if (!m) continue;
+      const lat = Number(m[1]), lon = Number(m[2]);
+      if (Number.isFinite(lat) && Number.isFinite(lon)
+          && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) return { latitude: lat, longitude: lon };
+    }
+    return null;
+  }
+
+  /// 短縮リンクかどうか。**中身は読めない**（座標が本文に無く、転送先を読むには通信が要る）。
+  /// 画面で「一度開いて貼り直して」と案内するために見分ける。
+  const isShortMapLink = (text) =>
+    /^https?:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs|maps\.apple\.com\/p\/)/i.test(String(text || "").trim());
+
   function parseLatLon(text) {
+    const link = parseMapLink(text);
+    if (link) return link;
     const t = String(text || "").trim()
       .replace(/[，、]/g, ",")                     // 全角の区切り
       .replace(/[０-９．－]/g, (c) => "0123456789.-"["０１２３４５６７８９．－".indexOf(c)]);
@@ -609,7 +647,7 @@
     destination, bearing, distanceKm,
     fetchElevations, elevations, elevationFromTile, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
-    urbanHorizon, buildingHeightM, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, urbanCacheKey,
+    urbanHorizon, buildingHeightM, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
     profileToward, stepsFor, EYE_HEIGHT_PRESETS,
   };
   global.SoramiTerrain = SoramiTerrain;
