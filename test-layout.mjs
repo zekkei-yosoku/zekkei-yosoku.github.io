@@ -1728,6 +1728,11 @@ console.log("== 月の代表地点・キャッシュ・保存経路 ==");
   ok(await load({locationScope:"area"}) === null && reads === 0, "代表地点では旧建物キャッシュも読み込まない");
   ok(html.includes('if (!moonUrbanTried && obs.locationScope !== "area")'), "代表地点は非同期の建物読込も開始しない");
   ok(html.includes('${SoramiTerrain.urbanCacheKey(obs)}:${obs.locationScope}'), "同じ座標でも地点種別の変更で遮蔽をリセット");
+  // 2026-09-24: 地図の中でも検索できる（だいたいの場所へ飛んでからピンを寄せる）。
+  // **地点シートと同じ検索**を使う。別々に書くと片方だけ直す事故になる
+  ok(/wireSearchBox\("searchBox", "searchResults"/.test(html)
+    && /wireSearchBox\("mapSearch", "mapSearchResults"/.test(html), "地点シートと地図で同じ検索を使う");
+  ok(/MapPick\.setView\(r\.latitude, r\.longitude/.test(html), "地図の検索は地点を決めず、地図を動かすだけ");
   // 2026-09-24: 検索は国土地理院とOSMの2本立てになった。種別はそれぞれの判定を通して持つ
   ok(html.includes("scope: SoramiTerrain.searchLocationScope(r)")
     && html.includes("scope: SoramiTerrain.gsiLocationScope(f.properties?.title)")
