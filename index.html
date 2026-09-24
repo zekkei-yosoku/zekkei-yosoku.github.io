@@ -820,7 +820,7 @@
   <div class="sheet-body">
     <!-- 地図は国土地理院のタイル。**ライブラリは使わない**（このアプリは依存パッケージを持たない）。
          標高タイルを読むのと同じ配信元で、出典表示の条件も同じ。 -->
-    <input type="search" id="mapSearch" placeholder="地名・緯度経度で地図を動かす（Enter）">
+    <input type="search" id="mapSearch" enterkeyhint="search" placeholder="地名・緯度経度・地図のURLで動かす">
     <div id="mapSearchResults"></div>
     <div class="mapwrap">
       <div class="maplayer" role="group" aria-label="地図の種類">
@@ -849,7 +849,7 @@
 <dialog class="sheet" id="placeSheet">
   <div class="sheet-head"><strong>地点</strong><button id="placeClose">閉じる</button></div>
   <div class="sheet-body">
-    <input type="search" id="searchBox" placeholder="住所・地名・駅名・緯度経度（Enterで検索）">
+    <input type="search" id="searchBox" enterkeyhint="search" placeholder="住所・地名・駅名・緯度経度・地図のURL">
     <div id="searchResults"></div>
     <button class="list-item" id="geoButton">📡 現在地を使う</button>
     <button class="list-item" id="mapButton">🗺️ 地図で選ぶ（ピンを置く）</button>
@@ -1039,17 +1039,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260924225859"></script>
+<script src="sorami-core.js?v=20260924230405"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260924225859"></script>
-<script src="sorami-exif.js?v=20260924225859"></script>
-<script src="sorami-capcloud.js?v=20260924225859"></script>
-<script src="sorami-terrain.js?v=20260924225859"></script>
-<script src="sorami-mountain.js?v=20260924225859"></script>
-<script src="sorami-fuji.js?v=20260924225859"></script>
-<script src="sorami-moon.js?v=20260924225859"></script>
-<script src="sorami-composition.js?v=20260924225859"></script>
+<script src="sorami-astro.js?v=20260924230405"></script>
+<script src="sorami-exif.js?v=20260924230405"></script>
+<script src="sorami-capcloud.js?v=20260924230405"></script>
+<script src="sorami-terrain.js?v=20260924230405"></script>
+<script src="sorami-mountain.js?v=20260924230405"></script>
+<script src="sorami-fuji.js?v=20260924230405"></script>
+<script src="sorami-moon.js?v=20260924230405"></script>
+<script src="sorami-composition.js?v=20260924230405"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3764,10 +3764,15 @@ function renderSearchResults(host, results, onPick) {
 }
 
 function wireSearchBox(boxId, resultsId, onPick, onCoord) {
-  $(boxId).addEventListener("keydown", async (e) => {
-    if (e.key !== "Enter") return;
+  // **確定の拾い方は2通り持つ。** iOS のキーボードの「検索」では keydown の Enter が
+  // 届かないことがあり、`input[type=search]` の `search` イベントでしか拾えない。
+  // 同じ語で二重に走らないよう、直前の語を憶えておく。
+  let last = null;
+  const run = async () => {
     const q = $(boxId).value.trim();
-    if (!q) return;
+    if (!q || q === last) return;
+    last = q;
+    setTimeout(() => { last = null; }, 800);
     // **緯度経度を入れたらそこへ。** 地図アプリからの貼り付け（度分秒・全角）も読む。
     // 検索に投げても地名としては当たらないので、先にこちらで拾う（2026-09-24 ユーザー依頼）。
     const coord = SoramiTerrain.parseLatLon(q);
@@ -3784,7 +3789,10 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
     $(resultsId).innerHTML = `<p class="tiny">検索中…</p>`;
     try { renderSearchResults($(resultsId), await searchPlaces(q), onPick); }
     catch { $(resultsId).innerHTML = `<p class="warn">検索に失敗しました</p>`; }
-  });
+  };
+  $(boxId).addEventListener("keydown", (e) => { if (e.key === "Enter") run(); });
+  $(boxId).addEventListener("search", run);       // iOS のキーボードの「検索」
+  $(boxId).addEventListener("change", run);       // 予測変換からの確定など
 }
 
 wireSearchBox("searchBox", "searchResults", (r) => {

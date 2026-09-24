@@ -1733,6 +1733,9 @@ console.log("== 月の代表地点・キャッシュ・保存経路 ==");
   ok(/wireSearchBox\("searchBox", "searchResults"/.test(html)
     && /wireSearchBox\("mapSearch", "mapSearchResults"/.test(html), "地点シートと地図で同じ検索を使う");
   ok(/MapPick\.setView\(r\.latitude, r\.longitude/.test(html), "地図の検索は地点を決めず、地図を動かすだけ");
+  // iOS のキーボードの「検索」では keydown の Enter が届かないことがある（2026-09-24 ユーザー報告）
+  ok(/addEventListener\("search", run\)/.test(html) && /addEventListener\("keydown", \(e\) => \{ if \(e\.key === "Enter"\) run\(\); \}\)/.test(html),
+    "確定は Enter と search の両方で拾う");
   // 2026-09-24: 検索は国土地理院とOSMの2本立てになった。種別はそれぞれの判定を通して持つ
   ok(html.includes("scope: SoramiTerrain.searchLocationScope(r)")
     && html.includes("scope: SoramiTerrain.gsiLocationScope(f.properties?.title)")
