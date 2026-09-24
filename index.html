@@ -219,6 +219,15 @@
   .day .col { width: 58%; max-width: 46px; height: 30px; display: flex; align-items: flex-end; }
   .day .col i { display: block; width: 100%; border-radius: 3px; min-height: 3px; }
   .day .d { font-size: 0.63rem; color: var(--tertiary); line-height: 1.1; text-align: center; }
+  /* 日のカードを3段（朝・日中・夕）にする。棒のかわりにこの3行が入る。
+     幅46pxなので、時間帯の字は数字より一段小さく、右端をそろえて縦に読めるようにする。 */
+  .day.bands { padding: 5px 3px; }
+  .day .bd { display: grid; grid-template-columns: auto 1fr; gap: 1px 3px; width: 100%;
+             align-items: center; }
+  .day .bd i { font-style: normal; font-size: 0.55rem; font-weight: 700; color: var(--tertiary);
+               line-height: 1.2; }
+  .day .bd b { font-size: 0.68rem; font-weight: 700; text-align: right; line-height: 1.2;
+               font-variant-numeric: tabular-nums; }
   /* 信頼度の等級。
      点数のすぐ横に置くと「78 C」が数字の続きに見えて、何の記号か分からなかった。
      行を分け、枠で囲んでラベルの見た目にする。 */
@@ -961,17 +970,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260924115156"></script>
+<script src="sorami-core.js?v=20260924115358"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260924115156"></script>
-<script src="sorami-exif.js?v=20260924115156"></script>
-<script src="sorami-capcloud.js?v=20260924115156"></script>
-<script src="sorami-terrain.js?v=20260924115156"></script>
-<script src="sorami-mountain.js?v=20260924115156"></script>
-<script src="sorami-fuji.js?v=20260924115156"></script>
-<script src="sorami-moon.js?v=20260924115156"></script>
-<script src="sorami-composition.js?v=20260924115156"></script>
+<script src="sorami-astro.js?v=20260924115358"></script>
+<script src="sorami-exif.js?v=20260924115358"></script>
+<script src="sorami-capcloud.js?v=20260924115358"></script>
+<script src="sorami-terrain.js?v=20260924115358"></script>
+<script src="sorami-mountain.js?v=20260924115358"></script>
+<script src="sorami-fuji.js?v=20260924115358"></script>
+<script src="sorami-moon.js?v=20260924115358"></script>
+<script src="sorami-composition.js?v=20260924115358"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2094,10 +2103,31 @@ function renderDays(id, entries, now, selected = null) {
     const isPast = ev.window[1] <= now ? " past" : "";
     // 14日ぶん並ぶので、どこから先を鵜呑みにしないかを1文字で添える。
     const grade = S.reliabilityGrade(ev.confidence, ev.models);
-    return `<button class="day${isNext}${isPast}" ${selected === null ? `data-cell="${id}|${e.dayMs}"` : `data-day="${e.dayMs}" aria-pressed="${e.dayMs === selected}" aria-controls="dayDetail"`}
-      title="${esc(meta.name)} ${S.JstCal.relativeDay(e.dayMs, now)} ${Math.round(ev.score)}点 ${esc(S.phrasing(id, ev.rank).label)} ・ 信頼度${grade.key}（${esc(grade.caption)}）${isPast ? "（終了）" : ""}">
-      <span class="v" style="color:${color}">${Math.round(ev.score)}</span>
-      <span class="col"><i style="height:${h}px;background:${color}"></i></span>
+    // 朝・日中・夕を持つ現象（富士山）は、**日のカードも3段**にする。
+    // 1つの数字（一日のトータル）だけだと、どの時間帯の話か日ごとに比べられない
+    // （2026-09-24 ユーザー指摘）。棒はその場所を3段に譲る。
+    const bands = Array.isArray(ev.bands) && ev.bands.some((b) => b.score !== null) ? ev.bands : null;
+    const attrs = `${isNext}${isPast}${bands ? " bands" : ""}" ${selected === null
+      ? `data-cell="${id}|${e.dayMs}"`
+      : `data-day="${e.dayMs}" aria-pressed="${e.dayMs === selected}" aria-controls="dayDetail"`}`;
+    const title = bands
+      ? `${meta.name} ${S.JstCal.relativeDay(e.dayMs, now)} `
+        + bands.map((b) => `${b.label} ${b.score === null ? "—" : `${Math.round(b.score)}点`}`).join(" / ")
+        + ` ・ 信頼度${grade.key}（${grade.caption}）${isPast ? "（終了）" : ""}`
+      : `${meta.name} ${S.JstCal.relativeDay(e.dayMs, now)} ${Math.round(ev.score)}点 `
+        + `${S.phrasing(id, ev.rank).label} ・ 信頼度${grade.key}（${grade.caption}）${isPast ? "（終了）" : ""}`;
+    const body = bands
+      ? `<span class="bd">${bands.map((b) => {
+          const top = b.score !== null && bands.every((x) => x.score === null || x.score <= b.score);
+          return `<i>${esc(b.label)}</i><b style="color:${b.score === null ? "var(--tertiary)"
+            : RANK_COLOR[S.rankOf(b.score).key]}${top ? ";font-weight:800" : ""}">${
+            b.score === null ? "—" : Math.round(b.score)}</b>`;
+        }).join("")}</span>`
+      : `<span class="v" style="color:${color}">${Math.round(ev.score)}</span>
+         <span class="col"><i style="height:${h}px;background:${color}"></i></span>`;
+    return `<button class="day${attrs}
+      title="${esc(title)}">
+      ${body}
       <span class="d">${label}</span>
       <span class="g">${grade.key}</span></button>`;
   }).join("");

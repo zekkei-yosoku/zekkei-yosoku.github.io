@@ -480,11 +480,15 @@ for (const [err, models, want] of [[5, 8, "A"], [5, 4, "B"], [14, 8, "B"], [25, 
 ok(grades.every((k) => coreMod.reliabilityGrade({ key: "high" }, 8).key !== undefined), "等級が返る");
 ok(/class="g"/.test(html), "日のボタンに等級を出す");
 // 「78 C」と横に並べると数字の続きに見えて、何の記号か分からなかった。
-const dayBtn = html.slice(html.indexOf('<button class="day${isNext}'),
-                          html.indexOf('<button class="day${isNext}') + 700);
+// 2026-09-24: 富士山だけ日のカードを3段にしたので、クラスは式で組み立てている
+const dayBtn = html.slice(html.indexOf('<button class="day${attrs}'),
+                          html.indexOf('<button class="day${attrs}') + 700);
 ok(dayBtn.indexOf('class="g"') > dayBtn.indexOf('class="d"'),
   "等級は点数と別の行に置く（日付より後ろ）");
 ok(/\.day \.g \{[^}]*border:/.test(html), "枠で囲んでラベルの見た目にする");
+// 朝・日中・夕を持つ現象は、日のカードも3段にする（一日のトータル1つだと、
+// どの時間帯の話か日ごとに比べられない。2026-09-24 ユーザー指摘）
+ok(/class="bd"/.test(html) && /ev\.bands\.some/.test(html), "日のカードは bands があれば3段で出す");
 // 「今日」「明日」だけ1行になって、その下の等級の位置が日ごとにずれていた。
 // 全部の日を日付で書けば、細工なしで揃う。
 ok(/S\.Cal\.monthDay\(e\.dayMs\)\}<br>\$\{S\.Cal\.weekday/.test(html),
