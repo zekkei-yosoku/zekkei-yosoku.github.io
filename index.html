@@ -500,6 +500,16 @@
   .mxrail .nmw { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
   /* 表の中でいちばん使う行（月の「見え始め」）。**強調は1つだけ**にして、他の段と差をつける。 */
   .lt-key { font-weight: 700; color: var(--text); }
+  /* ダイヤモンド富士の行。左に名前、右に日時と重なり具合。押せる行は矢印を出す。 */
+  .al { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+  .al-row { display: block; padding: 8px 10px; border-radius: 10px; background: var(--sunk);
+            text-align: left; width: 100%; font: inherit; color: var(--text); }
+  .al-row.jump { cursor: pointer; }
+  .al-row.jump:active { background: color-mix(in srgb, var(--text) 12%, transparent); }
+  @media (hover: hover) { .al-row.jump:hover { box-shadow: inset 0 0 0 1.5px var(--line); } }
+  .al-l { font-size: 0.75rem; font-weight: 700; color: var(--secondary); }
+  .al-w { font-variant-numeric: tabular-nums; margin-top: 1px; }
+  .al-w .tiny { color: var(--secondary); }
   .mxrail .tod { font-size: 0.58rem; font-weight: 600; color: var(--tertiary); line-height: 1.1;
                  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dhead { display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
@@ -970,17 +980,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260924163557"></script>
+<script src="sorami-core.js?v=20260924222938"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260924163557"></script>
-<script src="sorami-exif.js?v=20260924163557"></script>
-<script src="sorami-capcloud.js?v=20260924163557"></script>
-<script src="sorami-terrain.js?v=20260924163557"></script>
-<script src="sorami-mountain.js?v=20260924163557"></script>
-<script src="sorami-fuji.js?v=20260924163557"></script>
-<script src="sorami-moon.js?v=20260924163557"></script>
-<script src="sorami-composition.js?v=20260924163557"></script>
+<script src="sorami-astro.js?v=20260924222938"></script>
+<script src="sorami-exif.js?v=20260924222938"></script>
+<script src="sorami-capcloud.js?v=20260924222938"></script>
+<script src="sorami-terrain.js?v=20260924222938"></script>
+<script src="sorami-mountain.js?v=20260924222938"></script>
+<script src="sorami-fuji.js?v=20260924222938"></script>
+<script src="sorami-moon.js?v=20260924222938"></script>
+<script src="sorami-composition.js?v=20260924222938"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1414,6 +1424,8 @@ function upcoming(entries, now) {
 //
 // 地形はその地点で二度と変わらないので、一度測って憶える（富士 §28）。
 let fujiGeom = null, fujiWeather = null, fujiComposition = null, fujiGrid = null;
+// ダイヤモンド富士・パール富士。地点ごとに1回だけ計算する（天気と無関係で、年単位で変わらない）
+let fujiAlign = null, fujiAlignKey = null;
 let moonHorizon = null;
 let moonObs = null;      // 地平線を測ったときの観測者。詳細の月の出入り計算が同じ前提を使う
 let moonUrbanMeta = null; // 建物層の内訳（何棟・推定が何棟・いちばん高いもの）
@@ -1508,6 +1520,7 @@ async function loadExtras() {
   // 前の場所の地平線のままになる
   if (key !== extraKey) {
     fujiGeom = null; fujiWeather = null; fujiComposition = null;
+    fujiAlign = null; fujiAlignKey = null;
     moonHorizon = null; moonObs = null;
     moonTerrainProfile = null; moonUrbanMeta = null; moonUrbanTried = false;
     extraKey = key;
@@ -1590,6 +1603,26 @@ async function loadExtras() {
   }
   // 地形で見えないなら行ごと出さない。「見えません」を14日ぶん並べても邪魔なだけ
   if (!fujiGeom || !fujiGeom.available || fujiGeom.classification === "NONE") { delete weeks.fuji; delete weeks.capCloud; return; }
+  // ---- ダイヤモンド富士・パール富士。**天気と無関係**なので、予報を待たずに始める。
+  // 地域の代表地点では出さない。**1km違うと日付が9日ずれる**ので、代表点では嘘になる
+  // （田貫湖で実測。→ test-diamond.mjs「立つ場所で日付が変わる」）。
+  if (fujiAlignKey !== extraKey) {
+    fujiAlignKey = extraKey;
+    if (SoramiTerrain.locationScope(place) === "area") {
+      fujiAlign = { area: true };
+      if (picked === "fuji") redrawDayDetail();
+    } else {
+      fujiAlign = { loading: true };
+      // 月まで入れると数百ms。描画を止めないよう、次の間合いへ回す
+      setTimeout(() => {
+        if (seq !== extraSeq) return;
+        try { fujiAlign = SoramiFuji.alignments(obs, fujiGeom, { from: Date.now(), days: 400, limit: 2 }); }
+        catch { fujiAlign = null; }
+        if (picked === "fuji") redrawDayDetail();
+      }, 0);
+    }
+  }
+
   if (!fujiWeather) {
     try { fujiWeather = await SoramiFuji.fetchFujiWeather(obs, S, { days: 8 }); } catch { fujiWeather = null; }
     if (seq !== extraSeq) return;
@@ -1671,6 +1704,20 @@ function phaseNameFor(atMs) {
     const m = SoramiAstro.moon(atMs, obs);
     return `${SoramiMoon.phaseOf(m).name}・輝面 ${Math.round(m.illuminatedFraction * 100)}%`;
   } catch { return ""; }
+}
+
+/// 詳細の下半分だけ描き直す。あとから届いた計算（ダイヤモンド富士など）を反映するため。
+/// 一覧を見ているときや、別の現象を見ているときは何もしない。
+function redrawDayDetail() {
+  if (!picked || !weeks[picked]) return;
+  const host = $("dayDetail");
+  if (!host || document.querySelector("#detailView[hidden]")) return;
+  const dayMs = selectedDay[picked];
+  const sel = weeks[picked].find((e) => e.dayMs === dayMs) || weeks[picked][0];
+  if (!sel) return;
+  host.innerHTML = renderDayDetail(picked, weeks[picked], sel, Date.now());
+  wireOutcomes(host);
+  wireAlignmentJump(host);
 }
 
 function rerenderList() {
@@ -1759,6 +1806,7 @@ function render() {
         }
         $("dayDetail").innerHTML = renderDayDetail(picked, weeks[picked], sel, Date.now());
         wireOutcomes($("dayDetail"));
+        wireAlignmentJump($("dayDetail"));
         $("dayAnnouncement").textContent = `${S.Cal.monthDay(dayMs)} ${S.Cal.weekday(dayMs)}の詳細に切り替えました。${sel.evaluation.unavailable ? sel.evaluation.unavailable.message : S.phrasing(picked, sel.evaluation.rank).label}`;
       };
     }
@@ -1832,6 +1880,19 @@ function render() {
     extrasRunning = true;
     loadExtras().catch((e) => console.warn("富士山・月の判定に失敗:", e))
                 .finally(() => { extrasRunning = false; });
+  }
+}
+
+/// ダイヤモンド富士の行から、その日の詳細へ飛ぶ
+function wireAlignmentJump(root) {
+  for (const el of (root || document).querySelectorAll("[data-jump]")) {
+    el.onclick = () => {
+      const dayMs = +el.dataset.jump;
+      const strip = $("detailWeek") && $("detailWeek").querySelector(`[data-day="${dayMs}"]`);
+      if (strip) { strip.click(); strip.scrollIntoView({ block: "nearest", inline: "center" }); return; }
+      const sel = (weeks.fuji || []).find((e) => e.dayMs === dayMs);
+      if (sel) { selectedDay.fuji = dayMs; redrawDayDetail(); }
+    };
   }
 }
 
@@ -2310,6 +2371,61 @@ function renderMoonTimes(dayMs) {
 //
 // 帯は一覧のセルと同じ `cellTint` で塗る。同じ点数が同じ色で出るようにするため、
 // ここで別の配色を作らない。
+// ダイヤモンド富士・パール富士。**天気ではなく幾何と天文の話**なので、天気の表とは別のカードにする。
+//
+// 年に2回しかない（太陽）ので「その日だけ出す」形にはしない。**いつ来るか**を常に出す。
+// 立つ場所が数百m違うと日付が数日ずれるため、地域の代表地点では出さない。
+function renderAlignments(now) {
+  const a = fujiAlign;
+  if (!a) return "";
+  const head = `<div class="section-h" style="margin-top:2px"><h2>ダイヤモンド富士・パール富士</h2></div>`;
+  const wrap = (inner) => `<div class="card">${head}${inner}</div>`;
+  if (a.area) {
+    return wrap(`<div class="tiny" style="color:var(--tertiary)">地域の代表地点では出せません。
+      <strong>立つ場所が1km違うと日付が9日ずれます。</strong>現在地・スポット・お気に入りを選ぶと出ます。</div>`);
+  }
+  if (a.loading) return wrap(`<div class="tiny" style="color:var(--tertiary)">計算しています…</div>`);
+  const sun = a.sun || [], moon = a.moon || [];
+  if (!sun.length && !moon.length) {
+    return wrap(`<div class="tiny" style="color:var(--tertiary)">この地点では、太陽も月も山頂に重なりません。</div>`);
+  }
+  const last = weeks.fuji && weeks.fuji.length ? weeks.fuji[weeks.fuji.length - 1].dayMs + 86400000 : 0;
+  const row = (e, label, icon) => {
+    const day = S.Cal.startOfDay(e.at);
+    const inRange = day >= S.Cal.startOfDay(now) && e.at < last;
+    const isMoon = e.illuminated !== null && e.illuminated !== undefined;
+    const when = `${S.Cal.monthDay(e.at)}(${S.Cal.weekday(e.at)}) ${S.JstCal.hhmm(e.at)}`;
+    const extra = [e.rankLabel,
+      isMoon ? `輝面 ${Math.round(e.illuminated * 100)}%` : null,
+      isMoon ? (e.side === "rise" ? "月の出側" : "月の入り側")
+             : (e.side === "rise" ? "日の出側" : "日の入り側")].filter(Boolean).join(" ・ ");
+    const span = e.dayCount > 1
+      ? `<div class="tiny" style="color:var(--tertiary)">前後 ${S.Cal.monthDay(e.from)}〜${S.Cal.monthDay(e.to)} も重なります</div>` : "";
+    const body = `<div class="al-l">${icon} ${esc(label)}</div>`
+      + `<div class="al-w"><strong>${when}</strong> <span class="tiny">${esc(extra)}</span></div>`
+      + span
+      + (inRange ? `<div class="tiny" style="color:var(--accent)">この日の見え方を見る →</div>` : "");
+    // 予報のある日なら、その日の富士山の見え方へ飛べる。**天気は別に計算しない**
+    return inRange
+      ? `<button class="al-row jump" data-jump="${day}" title="この日の富士山の見え方を見る">${body}</button>`
+      : `<div class="al-row">${body}</div>`;
+  };
+  const rows = [
+    ...sun.map((e, i) => row(e, i === 0 ? "ダイヤモンド富士" : "その次", "☀️")),
+    ...moon.map((e, i) => row(e, i === 0 ? "パール富士" : "その次", "🌙")),
+  ].join("");
+  // 片方しか無いことがある。**黙って消さない**（探して無いのか、そもそも出ないのか分からない）
+  const none = [
+    !sun.length ? "ダイヤモンド富士は今後1年でありません" : null,
+    !moon.length ? "パール富士は今後1年でありません（満ちた月が山頂に重なる回がない）" : null,
+  ].filter(Boolean);
+  return wrap(`<div class="al">${rows}</div>
+    ${none.length ? `<div class="tiny" style="margin-top:6px;color:var(--tertiary)">${none.map(esc).join("／")}</div>` : ""}
+    <div class="tiny" style="margin-top:8px;color:var(--tertiary)">
+      太陽・月が<strong>山頂の方角を横切る瞬間</strong>の高さで判定しています（見かけの半径の内側なら「重なる」）。
+      <strong>立つ場所が数百m違うと日付が数日ずれます。</strong>まわりの木や建物は含めていません。</div>`);
+}
+
 function renderFujiTimes(ev) {
   if (!ev || !ev.hours || !ev.hours.length) return "";
   const hm = (t) => S.JstCal.hhmmRounded(t);
@@ -2567,7 +2683,7 @@ function renderDayDetail(id, entries, sel, now) {
       <div class="tiny" style="margin-top:4px">${CONF_ICON[ev.confidence.key]} ${esc(confidenceText(ev))}</div></div>`;
   return `${head}
     ${id === "moon" ? renderMoonTimes(sel.dayMs) : ""}
-    ${id === "fuji" ? renderFujiTimes(ev) + renderCapLine(sel.dayMs) : ""}
+    ${id === "fuji" ? renderFujiTimes(ev) + renderAlignments(now) + renderCapLine(sel.dayMs) : ""}
     ${id === "capCloud" ? renderCapTiming(ev) + renderFujiBackLine(sel.dayMs) : ""}
     ${renderLightTimes(sel.dayMs, now, id)}
     <div class="card">${renderDetail(id, sel, now)}</div>

@@ -537,12 +537,113 @@
     };
   }
 
+  // ---------------------------------------------------------------- ダイヤモンド富士・パール富士
+  //
+  // 太陽（または月）が**山頂の方位を横切る瞬間**を求め、そのときの高さと
+  // 山頂を見上げる角度の差で判定する。方位と高さを別々に見ると、
+  // 「方位は合うが高い」「高さは合うが方位が違う」を取りこぼす。
+  //
+  // 判定の幅は**天体の見かけの半径**そのもの（太陽 約0.27度・月 約0.25度）。
+  // 太陽は1日に0.4度ほど動くので、**中心がぴったり重なる日が無い年もある**。
+  // いちばん近い日と、そのずれを出す（ど真ん中／重なる／縁がかすめる）。
+  //
+  // **立つ場所が効く。** 田貫湖で南北に1km動かすと日付が9日ずれる（実測）。
+  // 地域の代表地点（「◯◯市」）では出さないこと。呼び出し側で弾く。
+  const ALIGN_RANKS = [
+    { key: "center", label: "ど真ん中", within: 0.5 },
+    { key: "overlap", label: "重なる", within: 1 },
+    { key: "graze", label: "縁がかすめる", within: 2 },
+  ];
+  const alignRank = (gap, radius) =>
+    ALIGN_RANKS.find((r) => Math.abs(gap) <= r.within * radius) || null;
+
+  const bodyAt = (body, ms, obs) => (body === "moon" ? A.moon(ms, obs) : A.sun(ms, obs));
+  const azDiff = (a, b) => ((a - b + 540) % 360) - 180;
+
+  /// その日、天体が方位 az を横切る時刻（複数あり得る）。粗く走査して二分法で詰める
+  function azimuthCrossings(body, dayMs, obs, az, stepMs) {
+    const out = [];
+    let prev = null;
+    for (let t = dayMs; t <= dayMs + 86400000; t += stepMs) {
+      const diff = azDiff(bodyAt(body, t, obs).azimuth, az);
+      // 符号が変わったところが横切った瞬間。0/360 をまたぐ見かけの反転は幅で除く
+      if (prev && Math.sign(prev.diff) !== Math.sign(diff) && Math.abs(diff - prev.diff) < 90) {
+        let lo = prev.t, hi = t, loDiff = prev.diff;
+        for (let i = 0; i < 36; i++) {
+          const mid = (lo + hi) / 2;
+          const midDiff = azDiff(bodyAt(body, mid, obs).azimuth, az);
+          if (Math.sign(midDiff) === Math.sign(loDiff)) { lo = mid; loDiff = midDiff; } else hi = mid;
+        }
+        out.push((lo + hi) / 2);
+      }
+      prev = { t, diff };
+    }
+    return out;
+  }
+
+  /**
+   * ダイヤモンド富士・パール富士の次の回。
+   * @param {object} obs   { latitude, longitude, elevation }（elevation は目の高さを含む）
+   * @param {object} geom  resolveGeometry の結果（azimuthDeg / topVisibleAngleDeg / apexVisible）
+   */
+  function alignments(obs, geom, { from = Date.now(), days = 400, bodies = ["sun", "moon"],
+                                   limit = 2, stepMs = null } = {}) {
+    if (!geom || !geom.available) return null;
+    const az = geom.azimuthDeg;
+    // 山頂が手前の地形に隠れているなら、重なっても見えない。
+    // 見えている一番上の角度を使う（山頂が見えていれば山頂の角度と同じ）
+    const targetAngle = Number.isFinite(geom.topVisibleAngleDeg) ? geom.topVisibleAngleDeg : null;
+    if (!Number.isFinite(az) || targetAngle === null) return null;
+
+    const out = {};
+    for (const body of bodies) {
+      const step = stepMs ?? (body === "moon" ? 900000 : 600000);
+      const found = [];
+      let group = null;
+      for (let i = 0; i < days && found.length < limit; i++) {
+        const dayMs = from + i * 86400000;
+        for (const at of azimuthCrossings(body, dayMs, obs, az, step)) {
+          const st = bodyAt(body, at, obs);
+          const gap = st.apparentAltitude - targetAngle;      // ＋なら山頂の上を通る
+          const rank = alignRank(gap, st.angularRadius);
+          // 地平線の下、または山頂から外れすぎている回は落とす
+          if (!rank || st.apparentAltitude < -1) continue;
+          const later = bodyAt(body, at + 60000, obs).apparentAltitude;
+          // **昼の細い月は見えない。** パール富士は月が写ってこそなので、
+          // 空が明るい時間帯（太陽が −6度より上）の細い月は出さない。
+          const sunAlt = body === "moon" ? A.sun(at, obs).apparentAltitude : null;
+          if (body === "moon" && sunAlt > -6 && st.illuminatedFraction < 0.6) continue;
+          const row = { at, gap, radius: st.angularRadius, rank: rank.key, rankLabel: rank.label,
+                        side: later < st.apparentAltitude ? "set" : "rise",
+                        altitude: st.apparentAltitude, sunAltitude: sunAlt,
+                        illuminated: body === "moon" ? st.illuminatedFraction : null };
+          // 続きの日は同じ「回」。いちばん近い日を代表にする
+          if (group && at - group.last <= 40 * 3600000) {
+            group.days.push(row);
+            group.last = at;
+            if (Math.abs(row.gap) < Math.abs(group.best.gap)) group.best = row;
+          } else {
+            if (group) found.push(group);
+            group = { days: [row], best: row, last: at };
+            if (found.length >= limit) break;
+          }
+        }
+      }
+      if (group && found.length < limit) found.push(group);
+      out[body] = found.slice(0, limit).map((g) => ({
+        ...g.best, from: g.days[0].at, to: g.days[g.days.length - 1].at, dayCount: g.days.length,
+      }));
+    }
+    return out;
+  }
+
   const SoramiFuji = {
     FUJI, CLOUD_BANDS, FUJI_VARS, CORRIDOR_VARS,
     sightLineHeightM, corridorPoints, fetchFujiWeather,
     viewpointClear, corridorClear, summitClear, seeThrough,
     clarityOf, evaluateFuji, BANDS, bandOf, readAt, median,
     resolveGeometry, cacheKeyFor, CACHE_KEY, CACHE_VERSION, evaluateDay,
+    alignments, alignRank, ALIGN_RANKS, azimuthCrossings,
     FREE_AIR_EXTINCTION_PER_KM, CONTRAST_THRESHOLD, HOME_NEEDS, aerosolScaleHeightKm,
   };
   global.SoramiFuji = SoramiFuji;
