@@ -1,0 +1,30 @@
+[
+  {
+    "synthetic": true,
+    "observationId": "EXAMPLE-ONLY",
+    "eventId": "EXAMPLE-EVENT",
+    "weatherEpisodeId": "EXAMPLE-WEATHER",
+    "cameraEra": "UNREVIEWED",
+    "label": "UNKNOWN",
+    "quality": "UNKNOWN",
+    "validFrom": "2026-09-14T03:00:00+09:00",
+    "validTo": "2026-09-14T03:06:00+09:00",
+    "reviewedAt": "2026-09-15T00:00:00+09:00",
+    "cameraIds": [
+      "EXAMPLE-CAMERA"
+    ],
+    "reviewerIds": [
+      "EXAMPLE-REVIEWER"
+    ],
+    "evidence": [
+      {
+        "uri": "local:replace-with-evidence",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    ],
+    "capPresent": null,
+    "daylight": null,
+    "maxFrameGapSeconds": null,
+    "reviewMethod": "ai"
+  }
+]

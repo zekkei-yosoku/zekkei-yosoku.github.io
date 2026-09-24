@@ -13,13 +13,14 @@ const makeBundle=(homes,ensemble=null)=>({home:{grid:{elevation:300},byModel:Obj
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 const confidenceText=runInNewContext(html.slice(html.indexOf('function confidenceText(ev)'),html.indexOf('// 51メンバーの散らばりを見せる。'))+';confidenceText',{S});
 
-test('朝焼けは朝日・日の出方向、夕焼けは夕日・日の入り方向で説明する',()=>{
+// 2026-09-24: 画面の表記から送り仮名を落として統一した（月の入り→月の入・日の入り→日の入）
+test('朝焼けは朝日・日の出方向、夕焼けは夕日・日の入方向で説明する',()=>{
  const i=input(series({cloud_cover_high:40,cloud_cover_mid:30,cloud_cover_low:50,precipitation:0}));
  for(const kind of ['sunrise','sunset']){
   const r=S.SCORERS[kind].score(S.SCORERS[kind].window(day,i),i);
   const prose=r.factors.map(f=>f.label+f.detail).join('\n');
   assert.match(prose,kind==='sunrise'?/朝日/:/夕日/);
-  assert.match(prose,kind==='sunrise'?/日の出方向/:/日の入り方向/);
+  assert.match(prose,kind==='sunrise'?/日の出方向/:/日の入方向/);
   if(kind==='sunrise') assert.doesNotMatch(prose,/夕日|日の入り/);
   assert.doesNotMatch(prose,/すじ雲|さえぎられます/);
  }

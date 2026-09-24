@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import{compareImages}from'./cap-cloud/image-labels.mjs';
+const snapshot={capturedAt:'2026-09-14T11:57:00Z',rows:[{validAt:'2026-09-14T12:00:00Z'},{validAt:'2026-09-15T00:00:00Z'}]};
+const dataset=()=>({synthetic:false,purpose:'provisional_image_labels_not_ground_truth',trainingEligible:false,rows:[{imageId:'1',nominalAt:'2026-09-14T00:00:00Z',timePrecision:'approximate_hour',exactCapturedAt:null,reviewMethod:'ai',reviewedAt:'2026-09-14T16:00:00Z',humanVerified:false,label:'NO_VISIBLE_CAP',capPresent:null}]});
+const asOf='2026-09-14T16:45:00Z';
+test('past photos do not become forecast verification',()=>{const r=compareImages(snapshot,dataset(),asOf);assert.equal(r.nominalTimeOverlap,0);assert.equal(r.verifiedGroundTruthPairs,0);assert.equal(r.accuracy,null);assert.equal(r.elapsedForecastRows,1);assert.equal(r.pendingForecastRows,1);});
+test('AI review is not human ground truth',()=>{const d=dataset();d.rows[0].humanVerified=true;assert.throws(()=>compareImages(snapshot,d,asOf),/AI判定/);});
+test('single image cannot determine global cap presence',()=>{const d=dataset();d.rows[0].capPresent=false;assert.throws(()=>compareImages(snapshot,d,asOf),/単画像/);});
+test('nominal overlap is not exact overlap',()=>{const d=dataset();d.rows[0].nominalAt='2026-09-14T12:00:00Z';const r=compareImages(snapshot,d,asOf);assert.equal(r.nominalTimeOverlap,1);assert.equal(r.exactTimeOverlap,0);assert.equal(r.verifiedGroundTruthPairs,0);});
+test('future reviews are rejected',()=>{const d=dataset();d.rows[0].reviewedAt='2026-09-20T00:00:00Z';assert.throws(()=>compareImages(snapshot,d,asOf),/未到来/);});

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Disabled</key>
+	<true/>
+	<key>Label</key>
+	<string>jp.local.zekkei.cap-cloud-shadow</string>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/opt/homebrew/bin/node</string>
+		<string>/Users/okadayudai/Developer/Sorami/web/cap-cloud/ops/run.mjs</string>
+	</array>
+	<key>RunAtLoad</key>
+	<false/>
+	<key>StandardErrorPath</key>
+	<string>/Users/okadayudai/Developer/Sorami/web/data/cap-cloud-collector-error.log</string>
+	<key>StandardOutPath</key>
+	<string>/Users/okadayudai/Developer/Sorami/web/data/cap-cloud-collector.log</string>
+	<key>StartInterval</key>
+	<integer>21600</integer>
+	<key>WorkingDirectory</key>
+	<string>/Users/okadayudai/Developer/Sorami/web</string>
+</dict>
+</plist>
