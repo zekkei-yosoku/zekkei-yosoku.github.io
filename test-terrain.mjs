@@ -89,5 +89,22 @@ console.log("== 1点読み（観測点の地面）は従来どおり ==");
   ok(await T.elevationFromTile(10, 10) === null, "国外は null");
 }
 
+console.log("== 緯度経度の文字列を読む ==");
+// 地図アプリからの貼り付けをそのまま受ける（2026-09-24 ユーザー依頼）
+{
+  const near = (r, lat, lon) => r && Math.abs(r.latitude - lat) < 1e-4 && Math.abs(r.longitude - lon) < 1e-4;
+  ok(near(T.parseLatLon("35.31176, 139.47653"), 35.31176, 139.47653), "十進・カンマ区切り");
+  ok(near(T.parseLatLon("35.31176 139.47653"), 35.31176, 139.47653), "十進・空白区切り");
+  ok(near(T.parseLatLon("３５．３１１７６，１３９．４７６５３"), 35.31176, 139.47653), "全角でも読む");
+  ok(near(T.parseLatLon(`35°18'42.3"N 139°28'35.5"E`), 35.3117, 139.4765), "度分秒（Googleマップの表記）");
+  ok(near(T.parseLatLon("N35.31176 E139.47653"), 35.31176, 139.47653), "N/E 付き");
+  ok(near(T.parseLatLon("-35.3, -139.4"), -35.3, -139.4), "南半球・西経");
+  ok(T.parseLatLon("高尾山") === null, "地名は座標として読まない");
+  ok(T.parseLatLon("35.3") === null, "片方だけは読まない");
+  ok(T.parseLatLon("91.0, 139.4") === null, "緯度が範囲外なら読まない");
+  ok(T.parseLatLon("139.47653, 35.31176") === null, "経度が先の並びは受け付けない（緯度が範囲外）");
+  ok(T.parseLatLon("") === null && T.parseLatLon(null) === null, "空でも落ちない");
+}
+
 console.log(`\n${fail === 0 ? "TERRAIN OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

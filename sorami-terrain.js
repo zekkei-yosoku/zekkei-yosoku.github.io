@@ -312,6 +312,47 @@
       ? "area" : "point";
   }
 
+  /**
+   * 緯度経度らしき文字列を読む。地図アプリからの貼り付けをそのまま受ける。
+   *   「35.31176, 139.47653」「35.31176 139.47653」
+   *   「35°18'42.3"N 139°28'35.5"E」（Googleマップの表記）
+   *   「N35.31176 E139.47653」
+   * 読めなければ null。**日本の外でも読む**（判断は呼び手に任せる）。
+   */
+  function parseLatLon(text) {
+    const t = String(text || "").trim()
+      .replace(/[，、]/g, ",")                     // 全角の区切り
+      .replace(/[０-９．－]/g, (c) => "0123456789.-"["０１２３４５６７８９．－".indexOf(c)]);
+    if (!t) return null;
+    // 度分秒。N/S/E/W は前後どちらでもよい
+    const dms = /([NSEWnsew])?\s*(\d{1,3})[°度]\s*(?:(\d{1,2})[''′分]\s*(?:([\d.]+)[""″秒]?)?)?\s*([NSEWnsew])?/g;
+    const found = [];
+    let m;
+    while ((m = dms.exec(t)) !== null) {
+      if (!m[2]) continue;
+      const sign = /[SWsw]/.test(`${m[1] || ""}${m[5] || ""}`) ? -1 : 1;
+      const value = sign * (Number(m[2]) + Number(m[3] || 0) / 60 + Number(m[4] || 0) / 3600);
+      found.push({ value, hemi: (m[1] || m[5] || "").toUpperCase() });
+      if (found.length === 2) break;
+    }
+    if (found.length === 2) {
+      const [a, b] = found;
+      const latFirst = !(a.hemi === "E" || a.hemi === "W" || b.hemi === "N" || b.hemi === "S");
+      const lat = latFirst ? a.value : b.value, lon = latFirst ? b.value : a.value;
+      if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) return { latitude: lat, longitude: lon };
+      return null;
+    }
+    // 十進。「N35.3, E139.4」も読む
+    const dec = t.match(/^([NSns])?\s*(-?\d{1,3}(?:\.\d+)?)\s*[NSns]?\s*[,\s]\s*([EWew])?\s*(-?\d{1,3}(?:\.\d+)?)\s*[EWew]?$/);
+    if (!dec) return null;
+    let lat = Number(dec[2]), lon = Number(dec[4]);
+    if (/[Ss]/.test(dec[1] || "")) lat = -Math.abs(lat);
+    if (/[Ww]/.test(dec[3] || "")) lon = -Math.abs(lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+    return { latitude: lat, longitude: lon };
+  }
+
   /// 国土地理院の地名検索の結果が「地域の代表点」かどうか。
   /// 行政区画の名前（◯◯都・◯◯市・◯◯区…）だけのときは代表点、
   /// 施設や地物の名前なら点として扱う。**代表点ではダイヤモンド富士も建物の地平線も出せない。**
@@ -568,7 +609,7 @@
     destination, bearing, distanceKm,
     fetchElevations, elevations, elevationFromTile, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
-    urbanHorizon, buildingHeightM, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, urbanCacheKey,
+    urbanHorizon, buildingHeightM, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, urbanCacheKey,
     profileToward, stepsFor, EYE_HEIGHT_PRESETS,
   };
   global.SoramiTerrain = SoramiTerrain;

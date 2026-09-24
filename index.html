@@ -820,7 +820,7 @@
   <div class="sheet-body">
     <!-- 地図は国土地理院のタイル。**ライブラリは使わない**（このアプリは依存パッケージを持たない）。
          標高タイルを読むのと同じ配信元で、出典表示の条件も同じ。 -->
-    <input type="search" id="mapSearch" placeholder="地名で地図を動かす（Enterで検索）">
+    <input type="search" id="mapSearch" placeholder="地名・緯度経度で地図を動かす（Enter）">
     <div id="mapSearchResults"></div>
     <div class="mapwrap">
       <div class="maplayer" role="group" aria-label="地図の種類">
@@ -849,7 +849,7 @@
 <dialog class="sheet" id="placeSheet">
   <div class="sheet-head"><strong>地点</strong><button id="placeClose">閉じる</button></div>
   <div class="sheet-body">
-    <input type="search" id="searchBox" placeholder="住所・地名・駅名（Enterで検索）">
+    <input type="search" id="searchBox" placeholder="住所・地名・駅名・緯度経度（Enterで検索）">
     <div id="searchResults"></div>
     <button class="list-item" id="geoButton">📡 現在地を使う</button>
     <button class="list-item" id="mapButton">🗺️ 地図で選ぶ（ピンを置く）</button>
@@ -1039,17 +1039,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260924225141"></script>
+<script src="sorami-core.js?v=20260924225433"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260924225141"></script>
-<script src="sorami-exif.js?v=20260924225141"></script>
-<script src="sorami-capcloud.js?v=20260924225141"></script>
-<script src="sorami-terrain.js?v=20260924225141"></script>
-<script src="sorami-mountain.js?v=20260924225141"></script>
-<script src="sorami-fuji.js?v=20260924225141"></script>
-<script src="sorami-moon.js?v=20260924225141"></script>
-<script src="sorami-composition.js?v=20260924225141"></script>
+<script src="sorami-astro.js?v=20260924225433"></script>
+<script src="sorami-exif.js?v=20260924225433"></script>
+<script src="sorami-capcloud.js?v=20260924225433"></script>
+<script src="sorami-terrain.js?v=20260924225433"></script>
+<script src="sorami-mountain.js?v=20260924225433"></script>
+<script src="sorami-fuji.js?v=20260924225433"></script>
+<script src="sorami-moon.js?v=20260924225433"></script>
+<script src="sorami-composition.js?v=20260924225433"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3763,11 +3763,15 @@ function renderSearchResults(host, results, onPick) {
   }
 }
 
-function wireSearchBox(boxId, resultsId, onPick) {
+function wireSearchBox(boxId, resultsId, onPick, onCoord) {
   $(boxId).addEventListener("keydown", async (e) => {
     if (e.key !== "Enter") return;
     const q = $(boxId).value.trim();
     if (!q) return;
+    // **緯度経度を入れたらそこへ。** 地図アプリからの貼り付け（度分秒・全角）も読む。
+    // 検索に投げても地名としては当たらないので、先にこちらで拾う（2026-09-24 ユーザー依頼）。
+    const coord = SoramiTerrain.parseLatLon(q);
+    if (coord) { $(resultsId).innerHTML = ""; onCoord(coord); return; }
     $(resultsId).innerHTML = `<p class="tiny">検索中…</p>`;
     try { renderSearchResults($(resultsId), await searchPlaces(q), onPick); }
     catch { $(resultsId).innerHTML = `<p class="warn">検索に失敗しました</p>`; }
@@ -3779,6 +3783,9 @@ wireSearchBox("searchBox", "searchResults", (r) => {
     subtitle: r.source === "gsi" ? "" : r.detail.split(",").slice(1, 3).join("").trim(),
     latitude: r.latitude, longitude: r.longitude, terrain: null, elevation: null,
     locationScope: r.scope });
+}, (c) => {
+  // 座標を入れたときは**地図をそこで開く**。標高と名前は地図の「この場所にする」で付く
+  MapPick.open({ latitude: c.latitude, longitude: c.longitude });
 });
 
 // 地図の中の検索は**地点を決めない。地図を動かすだけ。**
@@ -3788,7 +3795,7 @@ wireSearchBox("mapSearch", "mapSearchResults", (r) => {
   MapPick.setView(r.latitude, r.longitude, r.scope === "area" ? 13 : 16);
   $("mapSearchResults").innerHTML = "";
   $("mapSearch").value = r.name;
-});
+}, (c) => { MapPick.setView(c.latitude, c.longitude, 16); });
 
 function renderFavToggle() {
   const isFav = favorites.some((f) => f.id === place.id);
