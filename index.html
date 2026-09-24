@@ -8,7 +8,7 @@
      connect-src を実際に使う相手だけに絞れば、盗んだトークンの持ち出し先を塞げる。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://overpass-api.de https://overpass.kumi.systems https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://djlorenz.github.io https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://msearch.gsi.go.jp https://overpass-api.de https://overpass.kumi.systems https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://djlorenz.github.io https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -500,6 +500,26 @@
   .mxrail .nmw { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
   /* 表の中でいちばん使う行（月の「見え始め」）。**強調は1つだけ**にして、他の段と差をつける。 */
   .lt-key { font-weight: 700; color: var(--text); }
+  /* 地図（国土地理院タイル）。canvas にタイルを描くだけで、ライブラリは使わない。 */
+  .mapwrap { position: relative; border-radius: 12px; overflow: hidden; background: var(--sunk);
+             touch-action: none; }
+  .mapwrap canvas { display: block; width: 100%; height: 320px; }
+  /* 中心のピン。**地図のほうを動かして、ピンは固定**（指で置く先が常に中心で分かる）。 */
+  .mappin { position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px;
+            border: 2px solid var(--accent); border-radius: 50%; pointer-events: none;
+            box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+  .mappin::after { content: ""; position: absolute; left: 50%; top: 50%; width: 2px; height: 2px;
+                   margin: -1px 0 0 -1px; background: var(--accent); }
+  .mapzoom { position: absolute; right: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .mapzoom button { width: 40px; height: 40px; border-radius: 10px; font-size: 1.1rem; font-weight: 700;
+                    background: var(--card); color: var(--text);
+                    border: 1px solid color-mix(in srgb, var(--text) 14%, transparent); }
+  .mapattr { position: absolute; left: 6px; bottom: 6px; font-size: 0.58rem; padding: 1px 5px;
+             border-radius: 4px; background: color-mix(in srgb, var(--card) 80%, transparent);
+             color: var(--secondary); }
+  .maprow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .maprow #mapCoord { flex: 1; font-variant-numeric: tabular-nums; color: var(--secondary); }
+  .maprow button { flex: none; width: auto; padding: 0 12px; }
   /* ダイヤモンド富士の行。左に名前、右に日時と重なり具合。押せる行は矢印を出す。 */
   .al { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
   .al-row { display: block; padding: 8px 10px; border-radius: 10px; background: var(--sunk);
@@ -788,12 +808,38 @@
   <p class="tiny" id="footer"></p>
 </main>
 
+<dialog class="sheet" id="mapSheet">
+  <div class="sheet-head"><strong>地図で選ぶ</strong><button id="mapClose">閉じる</button></div>
+  <div class="sheet-body">
+    <!-- 地図は国土地理院のタイル。**ライブラリは使わない**（このアプリは依存パッケージを持たない）。
+         標高タイルを読むのと同じ配信元で、出典表示の条件も同じ。 -->
+    <div class="mapwrap">
+      <canvas id="mapCanvas" aria-label="地図。指でずらして中心にピンを合わせます"></canvas>
+      <div class="mappin" aria-hidden="true"></div>
+      <div class="mapzoom">
+        <button id="mapIn" aria-label="拡大">＋</button>
+        <button id="mapOut" aria-label="縮小">−</button>
+      </div>
+      <div class="mapattr">国土地理院</div>
+    </div>
+    <div class="maprow">
+      <div id="mapCoord" class="tiny">—</div>
+      <button id="mapHere" class="fav-btn">現在地へ</button>
+    </div>
+    <button class="fav-btn primary" id="mapPick" style="width:100%;margin-top:8px">この場所にする</button>
+    <p class="tiny" style="margin-top:8px;color:var(--tertiary)">
+      中心のピンの場所を使います。<strong>ダイヤモンド富士は立つ場所が数百m違うと日付が変わります。</strong>
+      実際に立つ場所まで寄せてください。標高はその場所の値を国土地理院の標高タイルから読みます。</p>
+  </div>
+</dialog>
+
 <dialog class="sheet" id="placeSheet">
   <div class="sheet-head"><strong>地点</strong><button id="placeClose">閉じる</button></div>
   <div class="sheet-body">
     <input type="search" id="searchBox" placeholder="住所・地名・駅名（Enterで検索）">
     <div id="searchResults"></div>
     <button class="list-item" id="geoButton">📡 現在地を使う</button>
+    <button class="list-item" id="mapButton">🗺️ 地図で選ぶ（ピンを置く）</button>
     <div id="geoStatus" class="warn"></div>
     <div class="section-h" style="margin-top:10px"><h2>お気に入り</h2>
       <button id="favAdd" style="color:var(--accent);font-size:0.81rem;font-weight:700;min-height:44px;padding:0 2px">＋ いまの地点を登録</button></div>
@@ -980,17 +1026,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260924222938"></script>
+<script src="sorami-core.js?v=20260924224455"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260924222938"></script>
-<script src="sorami-exif.js?v=20260924222938"></script>
-<script src="sorami-capcloud.js?v=20260924222938"></script>
-<script src="sorami-terrain.js?v=20260924222938"></script>
-<script src="sorami-mountain.js?v=20260924222938"></script>
-<script src="sorami-fuji.js?v=20260924222938"></script>
-<script src="sorami-moon.js?v=20260924222938"></script>
-<script src="sorami-composition.js?v=20260924222938"></script>
+<script src="sorami-astro.js?v=20260924224455"></script>
+<script src="sorami-exif.js?v=20260924224455"></script>
+<script src="sorami-capcloud.js?v=20260924224455"></script>
+<script src="sorami-terrain.js?v=20260924224455"></script>
+<script src="sorami-mountain.js?v=20260924224455"></script>
+<script src="sorami-fuji.js?v=20260924224455"></script>
+<script src="sorami-moon.js?v=20260924224455"></script>
+<script src="sorami-composition.js?v=20260924224455"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3419,6 +3465,181 @@ $("favDelete").onclick = () => {
   // 取り消しは一覧の上に出る。★ から開いていた場合も、そこへ着地させる。
   if (!$("placeSheet").open) $("placeSheet").showModal();
 };
+// ---------------------------------------------------------------- 地図で選ぶ
+//
+// **ライブラリは使わない。** このアプリは依存パッケージを持たない方針で、
+// 地図に必要なのはタイルを並べることと、画面の座標と緯度経度の変換だけ。
+// タイルは国土地理院（標高タイルと同じ配信元。出典表示が条件）。
+//
+// ダイヤモンド富士は**立つ場所が数百m違うと日付が変わる**ので、
+// 文字の地点検索（市区町村の代表点）では精度が足りない。その穴を埋めるための画面。
+const MapPick = (() => {
+  const TILE = 256;
+  const URL = (z, x, y) => `https://cyberjapandata.gsi.go.jp/xyz/pale/${z}/${x}/${y}.png`;
+  const MIN_Z = 5, MAX_Z = 17;
+  const tiles = new Map();          // "z/x/y" → Image（読み込み済みだけ描く）
+  let cv = null, ctx = null, view = { lat: 35.36, lon: 138.73, zoom: 14 };
+  let drag = null, pinch = null, raf = 0;
+
+  // Web メルカトル。世界を 256×2^z ピクセルの正方形に写す
+  const lonToX = (lon, z) => (lon + 180) / 360 * TILE * 2 ** z;
+  const latToY = (lat, z) => {
+    const r = lat * Math.PI / 180;
+    return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * TILE * 2 ** z;
+  };
+  const xToLon = (x, z) => x / (TILE * 2 ** z) * 360 - 180;
+  const yToLat = (y, z) => {
+    const n = Math.PI - 2 * Math.PI * y / (TILE * 2 ** z);
+    return 180 / Math.PI * Math.atan(Math.sinh(n));
+  };
+
+  function tileImage(z, x, y) {
+    const key = `${z}/${x}/${y}`;
+    if (tiles.has(key)) return tiles.get(key);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => draw();
+    img.onerror = () => { img.failed = true; };     // 海など無い区画。黙って空けておく
+    img.src = URL(z, x, y);
+    tiles.set(key, img);
+    return img;
+  }
+
+  function draw() {
+    if (!cv || !ctx) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = cv.clientWidth, h = cv.clientHeight;
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    // 整数ズームのタイルを、端数ぶんだけ拡大して描く（拡大中もなめらかに見せる）
+    const z = Math.max(MIN_Z, Math.min(MAX_Z, Math.round(view.zoom)));
+    const scale = 2 ** (view.zoom - z);
+    const size = TILE * scale;
+    const cx = lonToX(view.lon, z) * scale, cy = latToY(view.lat, z) * scale;
+    const x0 = Math.floor((cx - w / 2) / size), x1 = Math.floor((cx + w / 2) / size);
+    const y0 = Math.floor((cy - h / 2) / size), y1 = Math.floor((cy + h / 2) / size);
+    const max = 2 ** z;
+    for (let ty = y0; ty <= y1; ty++) {
+      if (ty < 0 || ty >= max) continue;
+      for (let tx = x0; tx <= x1; tx++) {
+        const wrapped = ((tx % max) + max) % max;
+        const img = tileImage(z, wrapped, ty);
+        if (!img.complete || img.failed) continue;
+        ctx.drawImage(img, Math.round(tx * size - cx + w / 2), Math.round(ty * size - cy + h / 2),
+          Math.ceil(size), Math.ceil(size));
+      }
+    }
+    $("mapCoord").textContent = `${view.lat.toFixed(5)}, ${view.lon.toFixed(5)}`;
+  }
+  const schedule = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; draw(); }); };
+
+  function panBy(dx, dy) {
+    const z = Math.max(MIN_Z, Math.min(MAX_Z, Math.round(view.zoom)));
+    const scale = 2 ** (view.zoom - z);
+    view.lon = xToLon(lonToX(view.lon, z) - dx / scale, z);
+    view.lat = yToLat(latToY(view.lat, z) - dy / scale, z);
+    view.lat = Math.max(-85, Math.min(85, view.lat));
+    schedule();
+  }
+  const zoomBy = (d) => { view.zoom = Math.max(MIN_Z, Math.min(MAX_Z, view.zoom + d)); schedule(); };
+
+  function attach() {
+    cv = $("mapCanvas"); ctx = cv.getContext("2d");
+    cv.onpointerdown = (e) => {
+      cv.setPointerCapture(e.pointerId);
+      if (pinch) { pinch.points.set(e.pointerId, e); return; }
+      if (drag) {       // 2本目の指。つまむ操作へ切り替える
+        pinch = { points: new Map([[drag.id, drag.last], [e.pointerId, e]]), base: null };
+        drag = null;
+        return;
+      }
+      drag = { id: e.pointerId, last: e };
+    };
+    cv.onpointermove = (e) => {
+      if (pinch && pinch.points.has(e.pointerId)) {
+        pinch.points.set(e.pointerId, e);
+        const [a, b] = [...pinch.points.values()];
+        const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+        if (pinch.base === null) { pinch.base = dist; pinch.baseZoom = view.zoom; return; }
+        if (dist > 0 && pinch.base > 0) {
+          view.zoom = Math.max(MIN_Z, Math.min(MAX_Z, pinch.baseZoom + Math.log2(dist / pinch.base)));
+          schedule();
+        }
+        return;
+      }
+      if (!drag || e.pointerId !== drag.id) return;
+      panBy(e.clientX - drag.last.clientX, e.clientY - drag.last.clientY);
+      drag.last = e;
+    };
+    const release = (e) => {
+      if (pinch) { pinch.points.delete(e.pointerId); if (pinch.points.size < 2) pinch = null; }
+      if (drag && e.pointerId === drag.id) drag = null;
+    };
+    cv.onpointerup = release;
+    cv.onpointercancel = release;
+    cv.onwheel = (e) => { e.preventDefault(); zoomBy(e.deltaY > 0 ? -0.5 : 0.5); };
+    cv.ondblclick = (e) => { e.preventDefault(); zoomBy(1); };
+    $("mapIn").onclick = () => zoomBy(1);
+    $("mapOut").onclick = () => zoomBy(-1);
+    window.addEventListener("resize", schedule);
+  }
+
+  function open(from) {
+    if (!cv) attach();
+    view = { lat: from.latitude, lon: from.longitude, zoom: 15 };
+    $("mapSheet").showModal();
+    // dialog が開いてから測る（閉じている間は幅が 0）
+    requestAnimationFrame(() => { draw(); requestAnimationFrame(draw); });
+  }
+  return { open, center: () => ({ latitude: view.lat, longitude: view.lon }),
+           setCenter: (lat, lon) => { view.lat = lat; view.lon = lon; schedule(); } };
+})();
+
+$("mapButton").onclick = () => MapPick.open(place);
+$("mapClose").onclick = () => $("mapSheet").close();
+$("mapHere").onclick = () => {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    (pos) => MapPick.setCenter(pos.coords.latitude, pos.coords.longitude),
+    () => { $("mapCoord").textContent = "現在地を取得できませんでした"; },
+    { enableHighAccuracy: true, timeout: 10000 });
+};
+$("mapPick").onclick = async () => {
+  const c = MapPick.center();
+  $("mapPick").disabled = true;
+  $("mapPick").textContent = "標高を読んでいます…";
+  // 標高はその場所の値を読む（**地点検索の代表点と違い、ここが効く**）。
+  // 取れなければ標高なしで進める（採点側は標高が無くても動く）。
+  let elevation = null;
+  try { elevation = await SoramiTerrain.elevationFromTile(c.latitude, c.longitude, 13); } catch { elevation = null; }
+  // 名前は近くの地名を当てる。取れなければ座標そのものを名前にする。
+  let name = `${c.latitude.toFixed(4)}, ${c.longitude.toFixed(4)}`;
+  let subtitle = "地図で選んだ地点";
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&accept-language=ja`
+      + `&lat=${c.latitude.toFixed(6)}&lon=${c.longitude.toFixed(6)}`;
+    const r = await fetch(url, { headers: { accept: "application/json" } });
+    if (r.ok) {
+      const j = await r.json();
+      const a = j.address || {};
+      const near = a.tourism || a.leisure || a.natural || a.building || a.road
+        || a.hamlet || a.neighbourhood || a.suburb || a.village || a.town || a.city;
+      if (near) { name = String(near).slice(0, 24); subtitle = "地図で選んだ地点"; }
+    }
+  } catch { /* 名前が取れなくても座標で進める */ }
+  $("mapPick").disabled = false;
+  $("mapPick").textContent = "この場所にする";
+  $("mapSheet").close();
+  selectPlace({ id: `map:${c.latitude.toFixed(5)},${c.longitude.toFixed(5)}`,
+    name, subtitle, latitude: c.latitude, longitude: c.longitude,
+    elevation: elevation === null || elevation === undefined ? null : Math.round(elevation * 10) / 10,
+    // **地図で置いた点は代表点ではない。** ダイヤモンド富士や建物の地平線が出せる
+    locationScope: "point" });
+};
+
 $("placeButton").onclick = () => {
   $("favNotice").textContent = "";
   for (const el of document.querySelectorAll(".save-err")) el.hidden = true;
@@ -3446,20 +3667,72 @@ $("searchBox").addEventListener("keydown", async (e) => {
   if (!q) return;
   $("searchResults").innerHTML = `<p class="tiny">検索中…</p>`;
   try {
-    const url = "https://nominatim.openstreetmap.org/search?" + new URLSearchParams(
-      { q, format: "jsonv2", limit: "6", countrycodes: "jp", "accept-language": "ja" });
-    const results = await (await fetch(url)).json();
+    // **2つの検索を併せて引く。**
+    //   国土地理院の地名検索: 日本の公式データ。施設名・地名に強い
+    //   Nominatim（OSM）    : 店・観光地など、地理院に無いものを拾う
+    // 地理院だけ／OSMだけでは落ちるものがある。2026-09-24 に「練馬区役所」で実測:
+    //   OSM は本庁を返さず「練馬区役所 中村北分館」などを上位に出す。地理院は本庁を返す。
+    const gsiUrl = "https://msearch.gsi.go.jp/address-search/AddressSearch?q=" + encodeURIComponent(q);
+    const osmUrl = "https://nominatim.openstreetmap.org/search?" + new URLSearchParams(
+      { q, format: "jsonv2", limit: "8", countrycodes: "jp", "accept-language": "ja" });
+    const [gsiRes, osmRes] = await Promise.allSettled([
+      fetch(gsiUrl).then((r) => (r.ok ? r.json() : [])),
+      fetch(osmUrl).then((r) => (r.ok ? r.json() : [])),
+    ]);
+    const gsi = (gsiRes.status === "fulfilled" && Array.isArray(gsiRes.value) ? gsiRes.value : [])
+      .filter((f) => f && f.geometry && Array.isArray(f.geometry.coordinates))
+      .map((f) => ({
+        name: String(f.properties?.title || "").trim(),
+        detail: "国土地理院の地名情報",
+        latitude: +f.geometry.coordinates[1], longitude: +f.geometry.coordinates[0],
+        scope: SoramiTerrain.gsiLocationScope(f.properties?.title),
+        source: "gsi",
+      }));
+    const osm = (osmRes.status === "fulfilled" && Array.isArray(osmRes.value) ? osmRes.value : [])
+      .map((r) => ({
+        name: r.name || r.display_name.split(",")[0],
+        detail: r.display_name,
+        latitude: +r.lat, longitude: +r.lon,
+        scope: SoramiTerrain.searchLocationScope(r),
+        source: "osm",
+      }));
+    // **名前が一致するものを上に。** 「練馬区役所」で分館が先頭に来るのを直す。
+    // 同じ場所が両方から返ることがあるので、200m以内の同名は1つにまとめる。
+    const score = (r) => (r.name === q ? 0 : r.name.startsWith(q) ? 1 : r.name.includes(q) ? 2 : 3);
+    // **名前が同じものは全国にある。**（「高尾山」は地理院に8件）。
+    // 名前の一致で並べたうえで、**いま見ている地点から近い順**にする。
+    // 距離を見ないと、遠い同名ばかりが枠を埋めて、すぐ近くの本命が出ない（2026-09-24 実測）。
+    const away = (r) => SoramiTerrain.distanceKm(place.latitude, place.longitude, r.latitude, r.longitude);
+    const merged = [];
+    for (const r of [...gsi, ...osm].sort((a, b) => score(a) - score(b) || away(a) - away(b))) {
+      if (!r.name || !Number.isFinite(r.latitude) || !Number.isFinite(r.longitude)) continue;
+      // 検索語をまったく含まない候補（地理院は部分一致で遠い地名も返す）は、
+      // **1件も当たらなかったときだけ**出す。「東京スカイツリー」で北海道の地名が並ばないように
+      if (score(r) === 3 && merged.length >= 1) continue;
+      const dup = merged.find((m) => m.name === r.name
+        && SoramiTerrain.distanceKm(m.latitude, m.longitude, r.latitude, r.longitude) < 0.2);
+      // 同じ場所が両方から返ったら、**住所の書いてあるほう（OSM）の説明を採る**。
+      // 地理院の説明は「国土地理院の地名情報」だけで、同名の候補を見分けられない
+      if (dup) { if (dup.source === "gsi" && r.source === "osm") dup.detail = r.detail; continue; }
+      merged.push(r);
+      if (merged.length >= 8) break;
+    }
+    const results = merged;
+    // **同じ名前が全国にある。**（「高尾山」は地理院に8件）。いま見ている地点からの距離を添えて、
+    // どれのことか分かるようにする
+    const far = (r) => Math.round(away(r));
     $("searchResults").innerHTML = results.length
-      ? results.map((r, i) => `<button class="list-item" data-sr="${i}"><strong>${esc(r.name || r.display_name.split(",")[0])}</strong>
-          <div class="tiny">${esc(r.display_name)}</div></button>`).join("")
+      ? results.map((r, i) => `<button class="list-item" data-sr="${i}"><strong>${esc(r.name)}</strong>
+          <div class="tiny">${esc(r.detail)}${r.scope === "area" ? "（地域の代表地点）" : ""}
+          ・ ${esc(place.name)}から ${far(r)}km</div></button>`).join("")
       : `<p class="tiny">該当なし</p>`;
     for (const el of $("searchResults").querySelectorAll("[data-sr]")) {
       el.onclick = () => {
         const r = results[+el.dataset.sr];
-        selectPlace({ id: `search:${r.lat},${r.lon}`, name: r.name || r.display_name.split(",")[0],
-          subtitle: r.display_name.split(",").slice(1, 3).join("").trim(),
-          latitude: +r.lat, longitude: +r.lon, terrain: null, elevation: null,
-          locationScope: SoramiTerrain.searchLocationScope(r) });
+        selectPlace({ id: `search:${r.latitude},${r.longitude}`, name: r.name,
+          subtitle: r.source === "gsi" ? "" : r.detail.split(",").slice(1, 3).join("").trim(),
+          latitude: r.latitude, longitude: r.longitude, terrain: null, elevation: null,
+          locationScope: r.scope });
       };
     }
   } catch { $("searchResults").innerHTML = `<p class="warn">検索に失敗しました</p>`; }

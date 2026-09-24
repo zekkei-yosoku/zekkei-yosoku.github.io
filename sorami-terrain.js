@@ -312,6 +312,17 @@
       ? "area" : "point";
   }
 
+  /// 国土地理院の地名検索の結果が「地域の代表点」かどうか。
+  /// 行政区画の名前（◯◯都・◯◯市・◯◯区…）だけのときは代表点、
+  /// 施設や地物の名前なら点として扱う。**代表点ではダイヤモンド富士も建物の地平線も出せない。**
+  function gsiLocationScope(title) {
+    const t = String(title || "").trim();
+    if (!t) return "area";
+    // 「東京都練馬区」「静岡県富士宮市」のように行政区画だけで終わるもの
+    return /^[^\s]*?(都|道|府|県)?[^\s]*?(市|区|町|村|郡)$/.test(t) || /^[^\s]+(都|道|府|県)$/.test(t)
+      ? "area" : "point";
+  }
+
   // 建物は数mの移動で変わる。地面と目の高さも別々にキーへ含める。
   function urbanCacheKey(observer) {
     return JSON.stringify([observer.latitude, observer.longitude, observer.groundM, observer.elevation]);
@@ -557,7 +568,7 @@
     destination, bearing, distanceKm,
     fetchElevations, elevations, elevationFromTile, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
-    urbanHorizon, buildingHeightM, OVERPASS, flatProfile, locationScope, searchLocationScope, urbanCacheKey,
+    urbanHorizon, buildingHeightM, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, urbanCacheKey,
     profileToward, stepsFor, EYE_HEIGHT_PRESETS,
   };
   global.SoramiTerrain = SoramiTerrain;

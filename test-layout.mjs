@@ -1048,8 +1048,9 @@ ok(/気象業務法上の扱いが変わりえます/.test(html), "人を増や�
 console.log("== 画面の文字にマークダウンを混ぜない ==");
 // 2026-09-08、許可リストの説明と confirm の文面に ** がそのまま出ていた。
 // コメントには書いてよいが、利用者が読む文字列には入れない。
+// `=>` の直後の累乗（2 ** z）に反応しないよう、矢印は除いて見る
 const visible = html.split("\n").filter((l) => !/^\s*(\/\/|\*|<!--)/.test(l))
-  .filter((l) => /confirm\(|alert\(|textContent =|>[^<]*\*\*/.test(l) && l.includes("**"));
+  .filter((l) => /confirm\(|alert\(|textContent =|[^=]>[^<]*\*\*/.test(l) && l.includes("**"));
 ok(visible.length === 0, "画面へ出る文字列に ** が無い", visible.slice(0, 2).join(" / ").slice(0, 120));
 
 console.log("== 回復コードはIDと一緒に保存させる ==");
@@ -1429,7 +1430,8 @@ ok(/querySelectorAll\("dialog"\)[\s\S]{0,200}MutationObserver/.test(html),
 ok(/attributeFilter: \["open"\]/.test(html), "open 属性の変化で判断する");
 ok(/scrollbar-gutter: stable/.test(html), "止めた瞬間に横幅が変わらない");
 // 4つのシートすべてが対象。1つでも漏れると、そこだけ後ろが動く
-ok((html.match(/<dialog class="sheet"/g) || []).length === 4, "シートは4つ",
+// 2026-09-24: 地図で選ぶシートを足して5つ（地点・お気に入り・記録・認証・地図）
+ok((html.match(/<dialog class="sheet"/g) || []).length === 5, "シートは5つ",
   String((html.match(/<dialog class="sheet"/g) || []).length));
 
 console.log("== 登録した直後に、パスキーの登録へ進める ==");
@@ -1726,7 +1728,10 @@ console.log("== 月の代表地点・キャッシュ・保存経路 ==");
   ok(await load({locationScope:"area"}) === null && reads === 0, "代表地点では旧建物キャッシュも読み込まない");
   ok(html.includes('if (!moonUrbanTried && obs.locationScope !== "area")'), "代表地点は非同期の建物読込も開始しない");
   ok(html.includes('${SoramiTerrain.urbanCacheKey(obs)}:${obs.locationScope}'), "同じ座標でも地点種別の変更で遮蔽をリセット");
-  ok(html.includes('locationScope: SoramiTerrain.searchLocationScope(r)'), "検索元の種別を保存");
+  // 2026-09-24: 検索は国土地理院とOSMの2本立てになった。種別はそれぞれの判定を通して持つ
+  ok(html.includes("scope: SoramiTerrain.searchLocationScope(r)")
+    && html.includes("scope: SoramiTerrain.gsiLocationScope(f.properties?.title)")
+    && html.includes("locationScope: r.scope"), "検索元の種別を保存");
   ok(html.includes('locationScope: SoramiTerrain.locationScope(f)'), "既存のお気に入りは改名前に種別を確定");
   ok(html.includes('locationScope: favDraft.locationScope'), "お気に入り再保存で種別を落とさない");
   ok(html.includes('locationScope: entry.locationScope, eyeHeightAGL: entry.eyeHeightAGL'), "表示地点へ高さと種別を反映");
