@@ -1039,17 +1039,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260924230405"></script>
+<script src="sorami-core.js?v=20260924231009"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260924230405"></script>
-<script src="sorami-exif.js?v=20260924230405"></script>
-<script src="sorami-capcloud.js?v=20260924230405"></script>
-<script src="sorami-terrain.js?v=20260924230405"></script>
-<script src="sorami-mountain.js?v=20260924230405"></script>
-<script src="sorami-fuji.js?v=20260924230405"></script>
-<script src="sorami-moon.js?v=20260924230405"></script>
-<script src="sorami-composition.js?v=20260924230405"></script>
+<script src="sorami-astro.js?v=20260924231009"></script>
+<script src="sorami-exif.js?v=20260924231009"></script>
+<script src="sorami-capcloud.js?v=20260924231009"></script>
+<script src="sorami-terrain.js?v=20260924231009"></script>
+<script src="sorami-mountain.js?v=20260924231009"></script>
+<script src="sorami-fuji.js?v=20260924231009"></script>
+<script src="sorami-moon.js?v=20260924231009"></script>
+<script src="sorami-composition.js?v=20260924231009"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1921,7 +1921,7 @@ function render() {
           + `${bundle.ensemble.members.length}通り（アンサンブル予報）の散らばりから出しています。<br>`
         : `${bundle ? "アンサンブル予報が取れなかったため、" : ""}`
           + `点数の確からしさはモデル間の見解の差から出しています。<br>`)
-    + `朝焼けは日の出方向 ${bundle ? Math.round(bundle.sunriseBearing) : "—"}°、夕焼けは日の入り方向 ${bundle ? Math.round(bundle.sunsetBearing) : "—"}° の空の雲も見ています（取得日の方位を使用）。<br>`
+    + `朝焼けは日の出方向 ${bundle ? Math.round(bundle.sunriseBearing) : "—"}°、夕焼けは日の入方向 ${bundle ? Math.round(bundle.sunsetBearing) : "—"}° の空の雲も見ています（取得日の方位を使用）。<br>`
     + `点数の横の <strong>A・B・C</strong> は信頼度です。`
     + `<strong>A</strong> は評価がほぼ動かない、<strong>B</strong> は1段変わり得る、`
     + `<strong>C</strong> は評価そのものが当てにならない。`
@@ -2397,11 +2397,11 @@ function renderMoonTimes(dayMs) {
 
   // 月は毎日約50分ずれるので、出ない日・入らない日がある。黙って空欄にしない。
   const note = (!astro("rise") || !astro("set"))
-    ? `<div class="tiny" style="margin-top:6px;color:var(--tertiary)">月は毎日およそ50分おそくなるので、この日は${!astro("rise") ? "月の出" : "月の入り"}が翌日へ回ります。</div>`
+    ? `<div class="tiny" style="margin-top:6px;color:var(--tertiary)">月は毎日およそ50分おそくなるので、この日は${!astro("rise") ? "月の出" : "月の入"}が翌日へ回ります。</div>`
     : "";
   return `<div class="card">
     <div class="lt">
-      <span></span><span class="lt-h">月の出</span><span class="lt-h">月の入り</span>
+      <span></span><span class="lt-h">月の出</span><span class="lt-h">月の入</span>
       ${rows.map(([l, a, b]) => {
         // **「見え始め」がこの表でいちばん使う行。** 雲も山も建物も込みで、実際に見え出す時刻。
         // 4段の最後に同じ太さで並べていたので埋もれていた（2026-09-24 ユーザー指摘）。
@@ -2454,10 +2454,29 @@ function renderAlignments(now) {
     const inRange = day >= S.Cal.startOfDay(now) && e.at < last;
     const isMoon = e.illuminated !== null && e.illuminated !== undefined;
     const when = `${S.Cal.monthDay(e.at)}(${S.Cal.weekday(e.at)}) ${S.JstCal.hhmm(e.at)}`;
+    // **パール富士は、日の入・日の出からどれだけ離れているかが写真を決める。**
+    // 同じ「重なる」でも、日の入直後の薄明の空か、真夜中か、日中かでまるで別物
+    //（2026-09-24 ユーザー依頼）。近いほうの出入りからの差を分で出す。
+    const twilight = (() => {
+      if (!isMoon) return "";
+      const day = S.Cal.startOfDay(e.at);
+      const marks = [["日の入", S.Sun.eventTime("sunset", day, place.latitude, place.longitude)],
+                     ["日の出", S.Sun.eventTime("sunrise", day, place.latitude, place.longitude)]]
+        .filter(([, t]) => t !== null)
+        .map(([label, t]) => ({ label, min: Math.round((e.at - t) / 60000) }));
+      if (!marks.length) return "";
+      const near = marks.reduce((a, b) => (Math.abs(b.min) < Math.abs(a.min) ? b : a));
+      if (Math.abs(near.min) > 180) {
+        return e.sunAltitude !== null && e.sunAltitude !== undefined && e.sunAltitude > 0 ? "日中" : "夜のまんなか";
+      }
+      return near.min === 0 ? `${near.label}ちょうど`
+        : `${near.label}の${Math.abs(near.min)}分${near.min > 0 ? "後" : "前"}`;
+    })();
     const extra = [e.rankLabel,
       isMoon ? `輝面 ${Math.round(e.illuminated * 100)}%` : null,
-      isMoon ? (e.side === "rise" ? "月の出側" : "月の入り側")
-             : (e.side === "rise" ? "日の出側" : "日の入り側")].filter(Boolean).join(" ・ ");
+      isMoon ? twilight : null,
+      isMoon ? (e.side === "rise" ? "月の出側" : "月の入側")
+             : (e.side === "rise" ? "日の出側" : "日の入側")].filter(Boolean).join(" ・ ");
     const span = e.dayCount > 1
       ? `<div class="tiny" style="color:var(--tertiary)">前後 ${S.Cal.monthDay(e.from)}〜${S.Cal.monthDay(e.to)} も重なります</div>` : "";
     const body = `<div class="al-l">${icon} ${esc(label)}</div>`

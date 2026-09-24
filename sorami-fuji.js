@@ -630,9 +630,15 @@
         }
       }
       if (group && found.length < limit) found.push(group);
-      out[body] = found.slice(0, limit).map((g) => ({
-        ...g.best, from: g.days[0].at, to: g.days[g.days.length - 1].at, dayCount: g.days.length,
-      }));
+      // 「前後◯〜◯も」は、**中心が半径の内側に入る日だけ**を数える。
+      // 縁がかすめる日（半径の2倍まで）まで含めると、冬至まわりは3週間になって
+      // 「重なります」と言えなくなる（2026-09-24 高尾山で実測）。
+      out[body] = found.slice(0, limit).map((g) => {
+        const solid = g.days.filter((d) => d.rank !== "graze");
+        const span = solid.length ? solid : [g.best];
+        return { ...g.best, from: span[0].at, to: span[span.length - 1].at,
+                 dayCount: span.length, grazeDays: g.days.length };
+      });
     }
     return out;
   }

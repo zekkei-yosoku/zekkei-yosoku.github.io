@@ -269,7 +269,7 @@
     } else {
       push(t("start"), "terrainStart", "地形へ入りはじめ", "primary");
       push(t("full"), "terrainFull", "完全に隠れる", "primary");
-      push(a, "astronomical", "天文上の月の入り", "secondary");
+      push(a, "astronomical", "天文上の月の入", "secondary");
     }
     const first = rows.find((r) => r.pVisible >= 0.5);
     if (first) push(first.ms, "firstVisible", kind === "rise" ? "見え始め" : "最後に見える", "primary");

@@ -1130,7 +1130,7 @@
   function afterglowScorer(kind) {
     const eventName = kind === "sunset" ? "sunset" : "sunrise";
     const sunlight = kind === "sunset" ? "夕日" : "朝日";
-    const direction = kind === "sunset" ? "日の入り方向" : "日の出方向";
+    const direction = kind === "sunset" ? "日の入方向" : "日の出方向";
     return {
       id: kind, source: T.sunset.source,
       window(dayMs, input) {

@@ -51,12 +51,17 @@ console.log("== 重なり具合を言い分ける ==");
   const e = eno.sun[0];
   ok(Math.abs(e.gap) <= e.radius, "江ノ島は中心が半径の内側（重なる）", `ずれ${e.gap.toFixed(2)}°`);
   ok(["center", "overlap"].includes(e.rank), "ランクは ど真ん中 か 重なる", e.rankLabel);
-  ok(e.dayCount >= 2 && e.to > e.from, "前後の日もまとめて1回として返す", `${e.dayCount}日`);
+  // 2026-09-24: 「前後◯〜◯も」は**中心が半径の内側に入る日だけ**を数える。
+  // 縁がかすめる日まで含めると、冬至まわりは3週間になって「重なります」と言えない
+  ok(e.dayCount >= 1 && e.to >= e.from, "重なる日をまとめて1回として返す", `${e.dayCount}日`);
+  ok(e.grazeDays >= e.dayCount, "縁がかすめる日は別に数える", `${e.grazeDays}日`);
 
   // 高尾山の山頂は、中心が山頂の少し上を通る年がある。**言い切らない**
   const takao = next({ latitude: 35.6252, longitude: 139.2436, elevation: 599 }, { bodies: ["sun"], limit: 1 });
   ok(takao.sun[0].rank === "graze" && takao.sun[0].gap > 0,
     "中心が外れる年は「縁がかすめる」と言う", `ずれ${takao.sun[0].gap.toFixed(2)}°`);
+  ok(takao.sun[0].dayCount <= takao.sun[0].grazeDays && takao.sun[0].dayCount === 1,
+    "かすめるだけの回は「前後も」と言わない", `${takao.sun[0].dayCount}日 / かすめ${takao.sun[0].grazeDays}日`);
 }
 
 console.log("== 起きない場所 ==");
