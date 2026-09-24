@@ -156,7 +156,13 @@
   .cap-line .go { margin-left: auto; color: var(--secondary); }
 
   /* 富士山の時刻帯。一覧のセルと同じ塗りを、横一列に並べるだけ。 */
-  .ft-band { display: grid; gap: 1px; margin-top: 8px; }
+  .ft-band { display: grid; gap: 1px; }
+  /* 帯を朝・日中・夕で区切る。区切りは**隙間**で示す（線を足すと枠が増える）。
+     段の名前は帯の上に小さく、その段の幅の中央へ。 */
+  .ft-segs { display: grid; gap: 7px; margin-top: 8px; }
+  .ft-segs > span { font-size: 0.6rem; font-weight: 700; color: var(--secondary);
+                    text-align: center; }
+  .ft-bandwrap { margin-top: 2px; }
   .ft-c { height: 26px; display: flex; align-items: center; justify-content: center;
           font-size: 0.63rem; font-variant-numeric: tabular-nums; color: var(--text);
           overflow: hidden; }
@@ -164,8 +170,8 @@
      375px で14セルだと1セル約24px。2桁は入るが3桁（100点）は入らないので
      小さめの字にしてある。 */
   .ft-c > span { line-height: 1; }
-  .ft-c:first-child { border-radius: 4px 0 0 4px; }
-  .ft-c:last-child { border-radius: 0 4px 4px 0; }
+  .ft-band > .ft-c:first-child { border-radius: 4px 0 0 4px; }
+  .ft-band > .ft-c:last-child { border-radius: 0 4px 4px 0; }
   .ft-ticks { display: grid; gap: 1px; margin-top: 2px;
               font-size: 0.63rem; color: var(--tertiary); font-variant-numeric: tabular-nums; }
   .ft-ticks span { text-align: center; white-space: nowrap; }
@@ -955,17 +961,17 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260924084252"></script>
+<script src="sorami-core.js?v=20260924110401"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260924084252"></script>
-<script src="sorami-exif.js?v=20260924084252"></script>
-<script src="sorami-capcloud.js?v=20260924084252"></script>
-<script src="sorami-terrain.js?v=20260924084252"></script>
-<script src="sorami-mountain.js?v=20260924084252"></script>
-<script src="sorami-fuji.js?v=20260924084252"></script>
-<script src="sorami-moon.js?v=20260924084252"></script>
-<script src="sorami-composition.js?v=20260924084252"></script>
+<script src="sorami-astro.js?v=20260924110401"></script>
+<script src="sorami-exif.js?v=20260924110401"></script>
+<script src="sorami-capcloud.js?v=20260924110401"></script>
+<script src="sorami-terrain.js?v=20260924110401"></script>
+<script src="sorami-mountain.js?v=20260924110401"></script>
+<script src="sorami-fuji.js?v=20260924110401"></script>
+<script src="sorami-moon.js?v=20260924110401"></script>
+<script src="sorami-composition.js?v=20260924110401"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2287,8 +2293,22 @@ function renderFujiTimes(ev) {
     if (!cur || h.score > cur.score) byHour.set(k, h);
   }
   const cells = [...byHour.entries()].sort((a, b) => a[0] - b[0]).map(([k, h]) => ({ ...h, hourKey: k }));
+
+  // 帯も朝・日中・夕で区切る。**上の表と同じ切れ目**にする（別の切り方をすると
+  // 表の数字がどこから来たのか辿れない。2026-09-24 ユーザー指摘）。
+  // 切れ目は、上の3段が持っている時刻から決める。
+  const { amEnd = null, pmStart = null } = ev.bandBounds || {};
+  const segOf = (h) => (amEnd !== null && h.at <= amEnd ? "morning"
+    : pmStart !== null && h.at >= pmStart ? "evening" : "midday");
+  const SEG_LABEL = { morning: "朝", midday: "日中", evening: "夕" };
+  const segs = [];
+  for (const h of cells) {
+    const key = segOf(h);
+    if (!segs.length || segs[segs.length - 1].key !== key) segs.push({ key, cells: [] });
+    segs[segs.length - 1].cells.push(h);
+  }
   const cell = (h) => `<div class="ft-c" style="background:${cellBg(h.score)}" `
-    + `title="${esc(hm(h.at))}　${Math.round(h.score)}点　${esc(h.why || "")}">`
+    + `title="${esc(SEG_LABEL[segOf(h)])} ${esc(hm(h.at))}　${Math.round(h.score)}点　${esc(h.why || "")}">`
     + `<span>${Math.round(h.score)}</span></div>`;
 
   // 時刻は3時間ごと。窓は市民薄明の始まり（例 4:58）なので、
@@ -2311,13 +2331,20 @@ function renderFujiTimes(ev) {
       <span></span><span class="lt-h">時刻</span><span class="lt-h">見え方</span>
       ${bands.map(bandRow).join("")}
     </div>
-    <div class="ft-band" style="grid-template-columns:repeat(${cells.length},minmax(0,1fr))">
-      ${cells.map(cell).join("")}
+    <div class="ft-segs" style="grid-template-columns:${segs.map((g) => `${g.cells.length}fr`).join(" ")}">
+      ${segs.map((g) => `<span>${esc(SEG_LABEL[g.key])}</span>`).join("")}
     </div>
-    <div class="ft-ticks" style="grid-template-columns:repeat(${cells.length},minmax(0,1fr))">
-      ${cells.map((h, i) => `<span>${i % 3 === 0 ? HOUR(h) + "時" : ""}</span>`).join("")}
+    <div class="ft-segs ft-bandwrap" style="grid-template-columns:${segs.map((g) => `${g.cells.length}fr`).join(" ")}">
+      ${segs.map((g) => `<div class="ft-band" style="grid-template-columns:repeat(${g.cells.length},minmax(0,1fr))">`
+        + g.cells.map(cell).join("") + `</div>`).join("")}
     </div>
-    <div class="tiny" style="margin-top:6px;color:var(--tertiary)">空が明るいあいだ（${hm(ev.window[0])}〜${hm(ev.window[1])}）を30分きざみで計算し、1時間ごとにいちばん良い値を並べています。</div>
+    <div class="ft-segs" style="grid-template-columns:${segs.map((g) => `${g.cells.length}fr`).join(" ")}">
+      ${segs.map((g) => `<div class="ft-ticks" style="grid-template-columns:repeat(${g.cells.length},minmax(0,1fr))">`
+        + g.cells.map((h, i) => `<span>${i % 3 === 0 ? HOUR(h) + "時" : ""}</span>`).join("") + `</div>`).join("")}
+    </div>
+    <div class="tiny" style="margin-top:6px;color:var(--tertiary)">空が明るいあいだ（${hm(ev.window[0])}〜${hm(ev.window[1])}）を30分きざみで計算し、1時間ごとにいちばん良い値を並べています。${
+      amEnd !== null && pmStart !== null
+        ? `朝は${hm(ev.window[0])}〜${hm(amEnd)}、夕は${hm(pmStart)}〜${hm(ev.window[1])}（黄金の時間の終わり・始まりで区切っています）。上の3段はそれぞれの区間でいちばん良い値です。` : ""}</div>
   </div>`;
 }
 

@@ -476,22 +476,28 @@
     };
     const golden = lw ? { morning: inBand(lw.goldenMorning), evening: inBand(lw.goldenEvening) } : null;
 
-    // **日中の最良も別に出す。** 一覧はその日のトータル（＝空が明るい時間すべての最良）に戻し、
-    // 朝・日中・夕の内訳は詳細で出す（2026-09-24 ユーザー選択）。
-    // 「日中」は黄金の時間にはさまれた時間帯。朝夕とどちらが良いかを比べるために持つ。
-    const middayRows = hours.filter((h) => {
-      const am = lw && lw.goldenMorning ? lw.goldenMorning[1] : -Infinity;
-      const pm = lw && lw.goldenEvening ? lw.goldenEvening[0] : Infinity;
-      return h.at > am && h.at < pm;
-    });
-    const midday = middayRows.length
-      ? middayRows.reduce((x, y) => (y.score > x.score ? y : x)) : null;
-    // 詳細の表に出す3段。**一覧はこれを使わない**（一覧はトータル1つ）
+    // **朝・日中・夕の3つに区切って、それぞれの最良を出す**（詳細の表と帯の両方で使う。
+    // 一覧はこの3つを含む一日のトータル1つ。2026-09-24 ユーザー選択）。
+    //
+    // 区切りは**黄金の時間の端**。朝は空が明るくなってから朝の黄金の時間が終わるまで、
+    // 夕は夕の黄金の時間が始まってから暗くなるまで。**表と帯で同じ区切りにする**
+    // （別々にすると、表の数字が帯のどこから来たのか辿れない）。
+    const amEnd = lw?.goldenMorning?.[1] ?? null;
+    const pmStart = lw?.goldenEvening?.[0] ?? null;
+    const segmentOf = (ms) => (amEnd !== null && ms <= amEnd ? "morning"
+      : pmStart !== null && ms >= pmStart ? "evening" : "midday");
+    const bestIn = (key) => {
+      const rows = hours.filter((h) => segmentOf(h.at) === key);
+      return rows.length ? rows.reduce((x, y) => (y.score > x.score ? y : x)) : null;
+    };
     const bands = [
-      { key: "morning", label: "朝焼けのころ", at: golden?.morning?.at ?? null, score: golden?.morning?.score ?? null },
-      { key: "midday", label: "日中いちばん", at: midday?.at ?? null, score: midday?.score ?? null },
-      { key: "evening", label: "夕焼けのころ", at: golden?.evening?.at ?? null, score: golden?.evening?.score ?? null },
-    ];
+      { key: "morning", label: "朝" },
+      { key: "midday", label: "日中" },
+      { key: "evening", label: "夕" },
+    ].map((b) => {
+      const pick = bestIn(b.key);
+      return { ...b, at: pick?.at ?? null, score: pick?.score ?? null };
+    });
 
     // 内訳。既存の factor と同じ形（label / c / detail）にして、詳細画面で同じに読める
     const factors = best.e.parts.filter((x) => x.pct !== null).map((x) => ({
@@ -526,6 +532,8 @@
       detail: best.e,
       // 時刻ごとの見え方。詳細画面が「何時なら見えるか」を出すために使う
       hours, golden, bands,
+      // 帯を区切る位置。bands と同じ境目を使う（別に計算しない）
+      bandBounds: { amEnd, pmStart },
     };
   }
 
