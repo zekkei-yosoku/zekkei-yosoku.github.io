@@ -66,6 +66,17 @@ ok(!flat.factors.some((f) => f.label.startsWith("逆転層の下端目安")), "�
 ok(flat.score > inside.score, "見つからないことを理由に下げない",
   `逆転なし${flat.score.toFixed(0)} / 中に入る${inside.score.toFixed(0)}`);
 
+console.log("== 見るころに雨が降っていたら見下ろせない ==");
+// 2026-09-24: 雨10mm/h・全天曇りの朝が 65点（「出そう」）と出ていた。
+// 前日の雨（材料）と、見る時間に降っている雨（雲の中にいる）は意味が逆。
+{
+  const dry = run(build(withInversion, { rain: 0 }), 800);
+  const wet = run(build(withInversion, { rain: 3 }), 800);
+  ok(wet.score < dry.score, "雨の朝は下がる", `${Math.round(wet.score)} / ${Math.round(dry.score)}`);
+  ok(wet.score <= 25, "雨の朝は「出そう」まで行かない", `${Math.round(wet.score)}点`);
+  ok(wet.factors.some((f) => /見るころの降水/.test(f.label)), "理由を内訳に出す");
+}
+
 console.log("== 成因を名指しする ==");
 const radiative = run(build(withInversion, { rain: 0, cloud: 5 }), 800);   // 晴れた夜・雨なし
 ok(radiative.factors.some((f) => f.label.includes("放射霧")), "冷え込みが効いていれば放射霧",

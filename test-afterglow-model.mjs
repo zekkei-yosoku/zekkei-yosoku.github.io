@@ -109,5 +109,18 @@ console.log("== 朝も夕と同じモデルで採点する ==");
     dawn.factors.map((f) => f.label).join(" / "));
 }
 
+console.log("== 光を受ける雲が無い日は、絶景まで行かせない ==");
+// 規則のほうには前からある上限。実写モデルへ移したとき（2026-09-22）に掛け忘れ、
+// 雲ひとつない夕空が 91点「圧巻」と出ていた（2026-09-24 の点検で発見）
+{
+  const clear = scoreOf({ home_low: 0, home_mid: 0, home_high: 0, precip: 0, sun_low_low: 0, sun_high_high: 0 });
+  ok(clear.score <= 84, "快晴は 84点まで", `${Math.round(clear.score)}点`);
+  ok(S.rankOf(clear.score).key !== "spectacular", "快晴を「圧巻」と言わない", S.rankOf(clear.score).key);
+  ok(clear.factors.some((f) => /快晴の空/.test(f.label)), "上限の理由を内訳に出す",
+    clear.factors.map((f) => f.label).join(" / "));
+  const thin = scoreOf({ home_low: 0, home_mid: 0, home_high: 8, precip: 0, sun_low_low: 0, sun_high_high: 10 });
+  ok(thin.score <= 84, "光を受ける雲が薄い日も絶景には届かない", `${Math.round(thin.score)}点`);
+}
+
 console.log(`\n${fail === 0 ? "AFTERGLOW MODEL OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

@@ -565,6 +565,25 @@
             : seen < 0.7 ? "見えにくい時間帯がありそう" : "山は見えそう"}` });
     const timing = timingOf(hours, S);
 
+    // **朝・日中・夕に分ける。** 富士山と同じ区切り（黄金の時間の端）で、
+    // 一覧の日のカードと同じ形に並べるため（2026-09-24 ユーザー指摘「笠雲も分けたほうがいい」）。
+    // 点数は代表と同じで、発生の点に「山が見えるか」を掛けたもの。
+    const amEnd = lw && lw.goldenMorning ? lw.goldenMorning[1] : null;
+    const pmStart = lw && lw.goldenEvening ? lw.goldenEvening[0] : null;
+    const segmentOf = (ms) => (amEnd !== null && ms <= amEnd ? "morning"
+      : pmStart !== null && ms >= pmStart ? "evening" : "midday");
+    const bands = [
+      { key: "morning", label: "朝" },
+      { key: "midday", label: "日中" },
+      { key: "evening", label: "夕" },
+    ].map((b) => {
+      // 暗い時間は 0 を入れてあるので、明るい時間だけを見る
+      const rows = hours.filter((h) => h.at >= lit[0] && h.at <= lit[1] && segmentOf(h.at) === b.key);
+      const pick = rows.length ? rows.reduce((x, y) => (y.score > x.score ? y : x)) : null;
+      return { ...b, at: pick ? pick.at : null,
+               score: pick ? Math.round(pick.score * visible) : null };
+    });
+
     const width = 12 + S.leadTimePenalty(daysAhead);   // 検証は63枠なので幅は広めのまま
     return {
       phenomenon: "capCloud", window: [start, end], peak: best.ms, specificTime: false,
@@ -582,6 +601,7 @@
       },
       // 発生だけの点数も残す。「出るけれど見えない」を後から読み取れるように
       detail: best, hours, timing, formationScore: best.score, visibility: seen,
+      bands, bandBounds: { amEnd, pmStart },
     };
   }
 

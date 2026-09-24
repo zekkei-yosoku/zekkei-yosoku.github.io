@@ -385,6 +385,11 @@
       humidityLo: 86, humidityHi: 94, humidityBonus: 5,
       nightCloudClear: 50, nightCloudFail: 95, nightCloudBonus: 30,
       prevRainFull: 6, prevRainBonus: 15,
+      // **見る時間に雨が降っていたら見下ろせない。** 雨は「雲の中にいる」ことでもある。
+      // 秩父の較正（ベストショット162日）は晴れた朝ばかりなので、この事例は学習に入っていない。
+      // 出典からではなく設計判断。2026-09-24 の点検で、雨10mm/h・全天曇りの朝が
+      // 65点（「出そう」）と出ていたため入れた。
+      observingRainMm: 0.2, observingRainPenalty: 20, observingRainCeiling: 25,
       base: 10,
 
       // --- 型の名前づけにだけ使う（採点には入らない）---
@@ -1174,7 +1179,19 @@
           const c = k * per[f];
           return factor(name, c, `${why}。ふつうの日より${c >= 0 ? "良い" : "悪い"}条件です`);
         });
-        return buildScore(base, factors, null, "", null);
+        // **光を受ける雲が無い日は、絶景まで行かせない。** 規則のほうには前からある上限で、
+        // 実写モデルへ移したとき（2026-09-22）に掛け忘れていた。
+        // 雲ひとつない夕空が 91点「圧巻（空一面が燃えるように染まる）」と出ていた
+        // （2026-09-24 ユーザー依頼の点検で発見）。上限の値と理由は規則と同じものを使う。
+        const s = T.sunset;
+        const canvas = Math.max(home.high, home.mid * s.midCloudCanvasWeight);
+        let ceiling = null, ceilingReason = "";
+        if (canvas < s.canvasPresentMinimum) {
+          ceiling = s.clearSkyCeiling; ceilingReason = "頭上に光を受ける雲がない（快晴の空）";
+        } else if (canvas < s.canvasVividMinimum) {
+          ceiling = s.noVividCeiling; ceilingReason = "光を受ける雲が薄く、絶景までは届かない";
+        }
+        return buildScore(base, factors, ceiling, ceilingReason, null);
       },
       score(window, input) {
         const s = T.sunset, series = input.home, [ws, we] = window;
@@ -1406,7 +1423,8 @@
       if (atmospherePenalty > 0) factors.push(factor("空気の澄み", -atmospherePenalty, atmosphereDetail));
       // 光害はその地点の素質。天気と違い日ごとには変わらないが、
       // 同じ快晴・無月でも都心と山では見える星がまるで違う。それをスコアに反映する。
-      if (input.lightPollution) {
+      // 値が欠けた光害データで落ちない。採点そのものが消えるより、光害を見ないほうがまし
+      if (input.lightPollution && Number.isFinite(input.lightPollution.mpsas)) {
         const { mpsas } = input.lightPollution;
         const penalty = Curve.ramp(s.lpPristine - mpsas, 0, s.lpPristine - s.lpWorst) * s.lpMaxPenalty;
         factors.push(factor(`光害 ${LightPollution.zoneLabel(mpsas)}`, -penalty,
@@ -1620,6 +1638,15 @@
         }
       }
 
+      // 見る時間に降っている雨。**前日の雨（材料）とは意味が逆。**
+      const nowRain = series.max("precipitation", ws, we);
+      if (nowRain !== null && nowRain > s.observingRainMm) {
+        factors.push(factor(`見るころの降水 ${f1(nowRain)}mm`, -s.observingRainPenalty,
+          "その時間に雨が降っています。雲の中に入っている可能性が高く、見下ろせません"));
+        ceiling = Math.min(ceiling ?? Infinity, s.observingRainCeiling);
+        ceilingReason = "見るころに雨が降っている";
+      }
+
       // 成因を名指しする。種類が見え方そのものになるので、点数だけより役に立つ。
       const kind = cloudSeaKind({
         range: range ?? 0, prevRain, nightCloud, humidity,
@@ -1656,8 +1683,12 @@
           factors.push(factor(`湿度 ${pct(humidity)}`, 25, "論文は高湿度日の発生を確認（条件付き確率は未公表）"));
         }
       } else {
-        base = 3;
-        factors.push(factor(`最低気温 ${f1(minTemp)}℃`, 0, "発生条件の −10℃ に届かない"));
+        // **−10℃に届かない日は 0点。** 出典の観測でこの帯の発生例が無い。
+        // 2026-09-24 まで base 3 に雲量・風速の加点（最大 +15）が乗り、
+        // 国師ヶ岳の10月初めに 9〜18点（「わずかに」）が出ていた（ユーザー指摘）。
+        // 晴れて風が弱いことは、**氷点下10℃に届かない日には効かない**。
+        return buildScore(0, [factor(`最低気温 ${f1(minTemp)}℃`, 0,
+          "発生が観測されている −10℃ に届きません。晴れて風が弱くても、この気温では出ません")]);
       }
       const cloud = series.mean("cloud_cover", ws, we);
       if (cloud !== null) {
@@ -1686,7 +1717,15 @@
       }
       const temp = series.mean("temperature_2m", ws, we);
       if (temp === null) return unavailable("missingData", "気温が得られませんでした");
-      if (temp > 5) return unavailable("outOfSeason", `気温 ${f1(temp)}℃。霧氷の季節ではありません`);
+      // **氷点下は加点ではなく必須条件。** 過冷却の水滴が凍りつく現象なので、
+      // 0℃を超えていれば湿度と風がどれだけ整っても着かない。
+      // 2026-09-24 まで「平均 +5℃まで対象」で気温を加点項目にしていたため、
+      // 国師ヶ岳（2592m）で +4.9℃・湿度99%・微風の9月の日に **59点** が出ていた
+      // （ユーザー指摘）。窓のあいだ一度も氷点下にならない日は対象外にする。
+      const minTemp = series.min("temperature_2m", ws, we);
+      if (minTemp !== null && minTemp > 0) {
+        return unavailable("outOfSeason", `最低気温 ${f1(minTemp)}℃。氷点下にならず、霧氷は着きません`);
+      }
       const factors = [];
       factors.push(factor(`気温 ${f1(temp)}℃`, Curve.ramp(temp, s.tempThreshold, s.tempFull) * s.tempBonus,
         temp <= s.tempThreshold ? "−5℃以下。霧氷が育つ寒さです" : "−5℃に届かず、着きにくい寒さです"));
@@ -1713,7 +1752,13 @@
         factors.push(factor(`条件成立 ${qualifying}時間`,
           Curve.ramp(qualifying, 0, s.durationFull) * s.durationBonus, "霧氷は時間をかけて育ちます"));
       }
-      return buildScore(s.base, factors);
+      // 0℃ぎりぎりでは、着いてもごく薄い。湿度と風で満点近くまで上がらないよう、
+      // 寒さで頭を押さえる（0℃で上限25点 → −5℃以下で頭打ちなし）。
+      // **寒さが足りないことを「上限」として見せる**ので、内訳で理由が読める。
+      const coldness = Curve.ramp(temp, 0, s.tempThreshold);
+      const ceiling = temp > s.tempThreshold ? Math.round(25 + 75 * coldness) : null;
+      return buildScore(s.base, factors, ceiling,
+        ceiling !== null ? `気温 ${f1(temp)}℃では、ここまで` : undefined);
     },
   };
 
