@@ -53,6 +53,8 @@ ok((html.match(/class="mxhead"/g) || []).length === 1, "日付の見出しは1�
 // 区切りは線1本で、現象名の列の下まで伸ばす（セルの側だけに線が出ると、
 // ラベルの列が切れ目のない帯に見えて行がどこで区切れるか読めない）。
 ok(/class="mxrow"/.test(html), "現象ごとに行を分ける");
+// 「ねらう」は戻れるページ。ポップアップだと戻るで閉じられず、URLでも開けない
+ok(/id="aimView"/.test(html) && /location\.hash === "#\/aim"/.test(html), "ねらうはページ（#/aim）");
 // 2026-09-24: 富士山の朝／夕を一覧で2段にしたが、**一覧はその日のトータル1つに戻した**
 // （日中に見たい日が読めなくなるため。ユーザー選択）。朝・日中・夕は詳細の表で出す。
 ok(!/class="mxrow tiers"|grid-template-rows:repeat/.test(html), "一覧の行は1段だけ");
@@ -1430,7 +1432,8 @@ ok(/querySelectorAll\("dialog"\)[\s\S]{0,200}MutationObserver/.test(html),
 ok(/attributeFilter: \["open"\]/.test(html), "open 属性の変化で判断する");
 ok(/scrollbar-gutter: stable/.test(html), "止めた瞬間に横幅が変わらない");
 // 4つのシートすべてが対象。1つでも漏れると、そこだけ後ろが動く
-// 2026-09-24: 地図で選ぶシートを足して5つ（地点・お気に入り・記録・認証・地図）
+// 2026-09-24: 地図で選ぶシートを足して5つ（地点・お気に入り・記録・認証・地図）。
+// 「ねらう」はポップアップではなく**ページ**（#/aim）にした（2026-09-25 ユーザー指定）
 ok((html.match(/<dialog class="sheet"/g) || []).length === 5, "シートは5つ",
   String((html.match(/<dialog class="sheet"/g) || []).length));
 

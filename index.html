@@ -504,6 +504,8 @@
   .mapwrap { position: relative; border-radius: 12px; overflow: hidden; background: var(--sunk);
              touch-action: none; }
   .mapwrap canvas { display: block; width: 100%; height: 320px; }
+  /* 「ねらう」の地図は線を追うためのものなので、画面の高さを使って大きく出す */
+  #aimView .mapwrap canvas { height: min(52vh, 520px); min-height: 300px; }
   /* 中心のピン。**地図のほうを動かして、ピンは固定**（指で置く先が常に中心で分かる）。 */
   .mappin { position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px;
             border: 2px solid var(--accent); border-radius: 50%; pointer-events: none;
@@ -524,6 +526,26 @@
   .mapattr { position: absolute; left: 6px; bottom: 6px; font-size: 0.58rem; padding: 1px 5px;
              border-radius: 4px; background: color-mix(in srgb, var(--card) 80%, transparent);
              color: var(--secondary); }
+  /* 「ねらう」画面の選択欄。2つずつ横に並べる（幅が足りなければ縦に落ちる） */
+  .aim-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
+  .aim-row > * { flex: 1; min-width: 0; }
+  .aim-row > button { flex: 0 0 auto; width: auto; padding: 0 14px; }
+  /* 2択は押して選ぶ。選択肢が2つしかないものを select にすると、開かないと中身が見えない */
+  .aim-seg { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--sunk);
+             flex: 0 0 auto; }
+  .aim-seg button { min-height: 40px; padding: 0 12px; border-radius: 8px; font-size: 0.81rem;
+                    font-weight: 700; color: var(--secondary); white-space: nowrap; }
+  .aim-seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  /* 日付は**この画面の主語**。前後の送りと同じ行に置き、数字を大きく出す */
+  .aim-date #aimDate { font-size: 1rem; font-weight: 700; text-align: center; min-height: 44px; }
+  .aim-date button { min-width: 52px; font-size: 1rem; }
+  /* 線の凡例。地図のすぐ下に置き、色と線種の意味をその場で言う */
+  .aim-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px;
+                font-size: 0.72rem; font-weight: 700; color: var(--secondary); }
+  .aim-legend .tiny { font-weight: 400; color: var(--tertiary); }
+  .aim-k { display: inline-block; width: 22px; height: 0; margin-right: 5px; vertical-align: middle;
+           border-top: 3px solid var(--accent); border-radius: 2px; }
+  .aim-k.rise { border-top-style: dashed; }
   .maprow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .maprow #mapCoord { flex: 1; font-variant-numeric: tabular-nums; color: var(--secondary); }
   .maprow button { flex: none; width: auto; padding: 0 12px; }
@@ -788,6 +810,72 @@
     </div>
   </div>
 
+  <div id="aimView" hidden>
+    <button class="back" id="aimBack">← 一覧にもどる</button>
+    <div class="card">
+      <div class="section-h"><h2>ねらう</h2><span class="muted">ダイヤモンド・パール</span></div>
+
+    <p class="tiny" style="margin:0 0 8px">目標に太陽や月が重なる日と、<strong>その日に見える場所（線）</strong>を出します。</p>
+    <label class="fav-l" for="aimTarget">目標</label>
+    <div class="aim-row">
+      <select id="aimTarget" class="fav-in" aria-label="目標"></select>
+      <div class="aim-seg" role="group" aria-label="太陽か月">
+        <button id="aimSun" aria-pressed="true">☀️ 太陽</button>
+        <button id="aimMoon" aria-pressed="false">🌙 月</button>
+      </div>
+    </div>
+    <div class="aim-row" id="aimCustomRow" hidden>
+      <input type="number" id="aimCustomH" class="fav-in" inputmode="decimal" min="1" max="1000"
+             placeholder="高さ（地上から・m）" aria-label="目標の高さ（地上から・メートル）">
+      <button id="aimCustomSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">中心を目標に</button>
+    </div>
+    <label class="fav-l" for="aimPart">どこに重ねるか</label>
+    <div class="aim-row">
+      <select id="aimPart" class="fav-in" aria-label="高さ"></select>
+      <select id="aimLimb" class="fav-in" aria-label="合わせ方"></select>
+    </div>
+    <label class="fav-l" for="aimDate">日付</label>
+    <div class="aim-row aim-date">
+      <button id="aimPrev" class="fav-btn" aria-label="前の日">←</button>
+      <input type="date" id="aimDate" class="fav-in" aria-label="日付">
+      <button id="aimNext" class="fav-btn" aria-label="次の日">→</button>
+    </div>
+    <div class="aim-row" style="margin-bottom:2px">
+      <span id="aimWeekday" class="tiny" style="flex:1"></span>
+      <button id="aimToday" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">今日</button>
+    </div>
+    <div class="mapwrap" style="margin-top:8px">
+      <div class="maplayer" role="group" aria-label="地図の種類">
+        <button id="aimLayerMap" aria-pressed="true">地図</button>
+        <button id="aimLayerPhoto" aria-pressed="false">写真</button>
+      </div>
+      <canvas id="aimCanvas" aria-label="地図。線の上が、その日に重なって見える場所です"></canvas>
+      <div class="mappin" aria-hidden="true"></div>
+      <div class="mapzoom">
+        <button id="aimIn" aria-label="拡大">＋</button>
+        <button id="aimOut" aria-label="縮小">−</button>
+      </div>
+      <div class="mapattr">国土地理院</div>
+    </div>
+    <div class="maprow">
+      <div id="aimCoord" class="tiny">—</div>
+      <button id="aimPick" class="fav-btn">中心をこの地点にする</button>
+    </div>
+    <div class="aim-legend">
+      <span><i class="aim-k set"></i><span id="aimKeySet">日の入側</span></span>
+      <span><i class="aim-k rise"></i><span id="aimKeyRise">日の出側</span></span>
+      <span class="tiny">線の上が、その日に重なって見える場所</span>
+    </div>
+    <div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div>
+    <div class="section-h" style="margin-top:12px"><h2>次に重なる日</h2></div>
+    <p class="tiny" style="margin:0 0 6px">いま選んでいる地点（<span id="aimPlaceName"></span>）から見た場合。押すとその日の線を出します。</p>
+    <div id="aimList" class="al"></div>
+    <p class="tiny" style="margin-top:8px;color:var(--tertiary)">
+      線は<strong>目標の先端を見上げる角度と、天体の高さが一致する場所</strong>です。
+      標高はその場所の標高タイルから読んでいます。まわりの建物や木は見ていません。</p>
+      </div>
+  </div>
+
   <div id="recordsView" hidden>
     <button class="back" id="recordsBack">← 一覧にもどる</button>
     <div class="card">
@@ -1039,17 +1127,18 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260924231009"></script>
+<script src="sorami-core.js?v=20260925030022"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260924231009"></script>
-<script src="sorami-exif.js?v=20260924231009"></script>
-<script src="sorami-capcloud.js?v=20260924231009"></script>
-<script src="sorami-terrain.js?v=20260924231009"></script>
-<script src="sorami-mountain.js?v=20260924231009"></script>
-<script src="sorami-fuji.js?v=20260924231009"></script>
-<script src="sorami-moon.js?v=20260924231009"></script>
-<script src="sorami-composition.js?v=20260924231009"></script>
+<script src="sorami-astro.js?v=20260925030022"></script>
+<script src="sorami-exif.js?v=20260925030022"></script>
+<script src="sorami-capcloud.js?v=20260925030022"></script>
+<script src="sorami-terrain.js?v=20260925030022"></script>
+<script src="sorami-mountain.js?v=20260925030022"></script>
+<script src="sorami-fuji.js?v=20260925030022"></script>
+<script src="sorami-align.js?v=20260925030022"></script>
+<script src="sorami-moon.js?v=20260925030022"></script>
+<script src="sorami-composition.js?v=20260925030022"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1375,6 +1464,7 @@ const WIDE = window.matchMedia("(min-width: 900px)");
 //   #/sunset     → 夕焼けの直近の回
 //   #/sunset/172… → 夕焼けの特定の日
 let picked = null;       // 詳細で見ている現象（一覧のときは null）
+let atAim = false;       // 「ねらう」のページを見ているか
 let atRecords = false;   // 記録画面を見ているか
 let atAdmin = false;     // 管理者画面を見ているか
 let nowcastReady = false;  // 実況が取れたか。画面を切り替えても状態を保つ
@@ -1837,13 +1927,15 @@ function render() {
   const inDetail = !!(picked && weeks[picked]);
   const inAdmin = atAdmin && !inDetail;
   const inRecords = atRecords && !inDetail && !inAdmin;
-  $("listView").hidden = inDetail || inRecords || inAdmin;
+  const inAim = atAim && !inDetail && !inAdmin && !inRecords;
+  $("listView").hidden = inDetail || inRecords || inAdmin || inAim;
   $("detailView").hidden = !inDetail;
   $("recordsView").hidden = !inRecords;
   $("adminView").hidden = !inAdmin;
+  $("aimView").hidden = !inAim;
   // 地点と実況は判断のための情報。記録や管理を読んでいるときは要らない。
   $("placeRow").hidden = inRecords || inAdmin;
-  $("nowcast").hidden = inRecords || inAdmin || !nowcastReady;
+  $("nowcast").hidden = inRecords || inAdmin || inAim || !nowcastReady;
 
   if (inDetail) {
     $("detailPane").innerHTML = renderDetailPane(picked, now);
@@ -2029,6 +2121,7 @@ async function readShot(input, pid, peak) {
 //   #/sunset/1756… → 夕焼けの特定の日
 function routeFromHash() {
   if (location.hash === "#/records") return { records: true };
+  if (location.hash === "#/aim") return { aim: true };
   if (location.hash === "#/admin") return { admin: true };
   const m = /^#\/([A-Za-z]+)(?:\/(\d+))?$/.exec(location.hash);
   // **`SCORERS` ではなく `PHENOMENA` で見る。**
@@ -2059,6 +2152,8 @@ function applyRoute() {
   picked = route && route.id ? route.id : null;
   atRecords = !!(route && route.records);
   atAdmin = !!(route && route.admin);
+  atAim = !!(route && route.aim);
+  if (atAim) openAim();
   if (atAdmin) renderAdmin();
   if (route && route.id) {
     // 日を含まない URL は「直近の回」を指す。前に見ていた日を残すと、
@@ -3505,7 +3600,7 @@ $("favDelete").onclick = () => {
 //
 // ダイヤモンド富士は**立つ場所が数百m違うと日付が変わる**ので、
 // 文字の地点検索（市区町村の代表点）では精度が足りない。その穴を埋めるための画面。
-const MapPick = (() => {
+function createMapView(ids) {
   const TILE = 256;
   // 国土地理院のタイル。**淡色地図と航空写真**を切り替える。
   // 写真は拡張子が .jpg で、淡色より深い縮尺まである（ピンを置く用途では写真のほうが分かる）。
@@ -3523,6 +3618,16 @@ const MapPick = (() => {
   const tiles = new Map();          // "layer/z/x/y" → Image（読み込み済みだけ描く）
   let cv = null, ctx = null, view = { lat: 35.36, lon: 138.73, zoom: 14 };
   let drag = null, pinch = null, raf = 0;
+  // 重ね描き（ライン）と、動かしたときの通知。どちらも無くても地図は動く
+  let overlay = null, onChange = null;
+  /// 緯度経度 → 画面のピクセル。重ね描きから使う
+  function project(lat, lon) {
+    const z = Math.max(MIN_Z, Math.min(maxZoom(), Math.round(view.zoom)));
+    const scale = 2 ** (view.zoom - z);
+    const w = cv.clientWidth, h = cv.clientHeight;
+    return [lonToX(lon, z) * scale - lonToX(view.lon, z) * scale + w / 2,
+            latToY(lat, z) * scale - latToY(view.lat, z) * scale + h / 2];
+  }
 
   // Web メルカトル。世界を 256×2^z ピクセルの正方形に写す
   const lonToX = (lon, z) => (lon + 180) / 360 * TILE * 2 ** z;
@@ -3575,7 +3680,9 @@ const MapPick = (() => {
           Math.ceil(size), Math.ceil(size));
       }
     }
-    $("mapCoord").textContent = `${view.lat.toFixed(5)}, ${view.lon.toFixed(5)}`;
+    if (ids.coord) $(ids.coord).textContent = `${view.lat.toFixed(5)}, ${view.lon.toFixed(5)}`;
+    if (overlay) { try { overlay(ctx, { project, view, width: w, height: h }); } catch { /* 重ね描きで落とさない */ } }
+    if (onChange) onChange({ latitude: view.lat, longitude: view.lon, zoom: view.zoom });
   }
   const schedule = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; draw(); }); };
 
@@ -3590,7 +3697,7 @@ const MapPick = (() => {
   const zoomBy = (d) => { view.zoom = Math.max(MIN_Z, Math.min(maxZoom(), view.zoom + d)); schedule(); };
 
   function attach() {
-    cv = $("mapCanvas"); ctx = cv.getContext("2d");
+    cv = $(ids.canvas); ctx = cv.getContext("2d");
     cv.onpointerdown = (e) => {
       cv.setPointerCapture(e.pointerId);
       if (pinch) { pinch.points.set(e.pointerId, e); return; }
@@ -3625,40 +3732,264 @@ const MapPick = (() => {
     cv.onpointercancel = release;
     cv.onwheel = (e) => { e.preventDefault(); zoomBy(e.deltaY > 0 ? -0.5 : 0.5); };
     cv.ondblclick = (e) => { e.preventDefault(); zoomBy(1); };
-    $("mapIn").onclick = () => zoomBy(1);
-    $("mapOut").onclick = () => zoomBy(-1);
+    if (ids.zoomIn) $(ids.zoomIn).onclick = () => zoomBy(1);
+    if (ids.zoomOut) $(ids.zoomOut).onclick = () => zoomBy(-1);
     const setLayer = (next) => {
       if (!LAYERS[next] || layer === next) return;
       layer = next;
       store.set("sorami.mapLayer", next);
       view.zoom = Math.min(view.zoom, maxZoom());
-      $("mapLayerMap").setAttribute("aria-pressed", String(next === "map"));
-      $("mapLayerPhoto").setAttribute("aria-pressed", String(next === "photo"));
+      if (ids.layerMap) $(ids.layerMap).setAttribute("aria-pressed", String(next === "map"));
+      if (ids.layerPhoto) $(ids.layerPhoto).setAttribute("aria-pressed", String(next === "photo"));
       schedule();
     };
-    $("mapLayerMap").onclick = () => setLayer("map");
-    $("mapLayerPhoto").onclick = () => setLayer("photo");
+    if (ids.layerMap) $(ids.layerMap).onclick = () => setLayer("map");
+    if (ids.layerPhoto) $(ids.layerPhoto).onclick = () => setLayer("photo");
     // 前に選んだ種類を憶えておく（写真で置く人は次も写真で置く）
     const saved = store.get("sorami.mapLayer", "map");
     if (saved !== layer) setLayer(saved);
     window.addEventListener("resize", schedule);
   }
 
-  function open(from) {
+  function open(from, zoom = 15) {
     if (!cv) attach();
-    view = { lat: from.latitude, lon: from.longitude, zoom: 15 };
-    $("mapSheet").showModal();
+    view = { lat: from.latitude, lon: from.longitude, zoom };
+    if (ids.sheet) $(ids.sheet).showModal();
     // dialog が開いてから測る（閉じている間は幅が 0）
     requestAnimationFrame(() => { draw(); requestAnimationFrame(draw); });
   }
-  return { open, center: () => ({ latitude: view.lat, longitude: view.lon }),
+  return { open, attach, redraw: schedule, project,
+           center: () => ({ latitude: view.lat, longitude: view.lon }),
+           zoom: () => view.zoom,
+           setOverlay: (fn) => { overlay = fn; schedule(); },
+           onMove: (fn) => { onChange = fn; },
            setCenter: (lat, lon) => { view.lat = lat; view.lon = lon; schedule(); },
            setView: (lat, lon, zoom) => {
              view.lat = lat; view.lon = lon;
              if (Number.isFinite(zoom)) view.zoom = Math.max(MIN_Z, Math.min(maxZoom(), zoom));
              schedule();
            } };
-})();
+}
+
+const MapPick = createMapView({ canvas: "mapCanvas", coord: "mapCoord", sheet: "mapSheet",
+  zoomIn: "mapIn", zoomOut: "mapOut", layerMap: "mapLayerMap", layerPhoto: "mapLayerPhoto" });
+
+// ---------------------------------------------------------------- ねらう（ダイヤモンド／パール）
+//
+// 目標（富士山・塔・城…）に太陽や月が重なる日と、**その日に見える場所の線**を出す。
+// 計算は `sorami-align.js`。ここは画面だけ。
+//
+// 線の考え方: 目標までの距離が決まれば見上げ角が決まり、その高度を天体が通る時刻と方位が決まる。
+// 観測者は目標から見てその方位の反対側にいる。距離を変えながら解くと線になる。
+const AimMap = createMapView({ canvas: "aimCanvas", coord: "aimCoord",
+  zoomIn: "aimIn", zoomOut: "aimOut", layerMap: "aimLayerMap", layerPhoto: "aimLayerPhoto" });
+
+const aim = { target: null, body: "sun", partId: null, limb: "center", dayMs: null, lines: [], seq: 0 };
+
+/// その地点の標高（線を解くのに使う）。同じ点は読み直さない
+const aimElevCache = new Map();
+async function aimElevation(lat, lon) {
+  const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+  if (aimElevCache.has(key)) return aimElevCache.get(key);
+  let v = 0;
+  try { const e = await SoramiTerrain.elevationFromTile(lat, lon, 13); if (Number.isFinite(e)) v = e; } catch { v = 0; }
+  aimElevCache.set(key, v);
+  return v;
+}
+
+/// 自分で置いた目標（ティンカーベルのように、組み込みに無いもの）。端末に憶える
+function aimCustomTarget() {
+  const c = store.get("sorami.aimCustom", null);
+  if (!c || !Number.isFinite(c.latitude) || !Number.isFinite(c.longitude) || !Number.isFinite(c.topM)) return null;
+  return { id: "custom", name: c.name || "自分で置いた目標",
+    latitude: c.latitude, longitude: c.longitude,
+    note: `地上 ${Math.round(c.heightM)}m ＋ 地面の標高およそ${Math.round(c.groundM)}m`,
+    parts: [{ id: "tip", name: "てっぺん", m: c.topM }] };
+}
+function aimTargetList() {
+  const custom = aimCustomTarget();
+  return [...SoramiAlign.TARGETS, custom || { id: "custom", name: "自分で置く（地図の中心）", parts: [] }];
+}
+function aimFillSelects() {
+  $("aimTarget").innerHTML = aimTargetList()
+    .map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("");
+  $("aimLimb").innerHTML = SoramiAlign.LIMBS
+    .map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
+}
+/// 天体で言い方を変える。**月に「日の入側」と書かない**
+const aimSideLabel = (side) => (aim.body === "moon"
+  ? (side === "set" ? "月の入側" : "月の出側")
+  : (side === "set" ? "日の入側" : "日の出側"));
+
+function aimFillParts() {
+  const parts = aim.target.parts || [];
+  $("aimPart").innerHTML = parts.map((p) => `<option value="${p.id}">${esc(p.name)} ${p.m}m</option>`).join("");
+  $("aimPart").disabled = parts.length < 2;
+  if (!parts.some((p) => p.id === aim.partId)) aim.partId = parts[0] ? parts[0].id : null;
+  $("aimPart").value = aim.partId || "";
+}
+
+/// 線を引き直す。地図の重ね描きは、線の点を結ぶだけ
+async function aimRedrawLine() {
+  const seq = ++aim.seq;
+  $("aimLineInfo").textContent = "線を計算しています…";
+  let lines = [];
+  try {
+    lines = await SoramiAlign.line(aim.target, aim.body, aim.dayMs,
+      { partId: aim.partId, limb: aim.limb, elevationAt: aimElevation,
+        minKm: 3, maxKm: 120, stepKm: 4 });
+  } catch { lines = []; }
+  if (seq !== aim.seq) return;
+  aim.lines = lines;
+  AimMap.redraw();
+  if (!lines.length) {
+    $("aimLineInfo").textContent = "この日は、どこからも重なりません。";
+    return;
+  }
+  $("aimLineInfo").innerHTML = lines.map((l) => {
+    const first = l.points[0], last = l.points[l.points.length - 1];
+    const lit = first.illuminated !== null && first.illuminated !== undefined
+      ? `・輝面 ${Math.round(first.illuminated * 100)}%` : "";
+    // 近い側と遠い側で時刻の前後が入れ替わる。早い方から書く
+    const t0 = Math.min(first.at, last.at), t1 = Math.max(first.at, last.at);
+    return `${aimSideLabel(l.side)}：`
+      + `${S.JstCal.hhmm(t0)}〜${S.JstCal.hhmm(t1)}ごろ`
+      + `（目標から ${Math.round(first.distanceKm)}〜${Math.round(last.distanceKm)}km）${lit}`;
+  }).join("<br>");
+}
+
+AimMap.setOverlay((ctx, { project }) => {
+  for (const l of aim.lines || []) {
+    const pts = l.points.map((p) => project(p.latitude, p.longitude));
+    ctx.save();
+    ctx.lineWidth = 3;
+    ctx.lineJoin = "round";
+    // 日の入側と日の出側で色を分ける。地図の上なので、縁取りを付けて読めるようにする
+    ctx.strokeStyle = "rgba(0,0,0,.45)";
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.stroke();
+    // **色は :root のトークンから取る。** 生の16進を置かない（デザイン定義）
+    const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#f08529";
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = accent;
+    // 日の出側は破線。**同じ色のまま線種で分ける**ので、配色を増やさない
+    ctx.setLineDash(l.side === "set" ? [] : [7, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+});
+
+function aimApply({ redraw = true } = {}) {
+  const wanted = $("aimTarget").value;
+  aim.target = wanted === "custom"
+    ? (aimCustomTarget() || { id: "custom", name: "自分で置く（地図の中心）", parts: [] })
+    : (SoramiAlign.targetById(wanted) || SoramiAlign.TARGETS[0]);
+  // 自分で置く目標のときだけ、高さの入力を出す
+  $("aimCustomRow").hidden = wanted !== "custom";
+  $("aimSun").setAttribute("aria-pressed", String(aim.body === "sun"));
+  $("aimMoon").setAttribute("aria-pressed", String(aim.body === "moon"));
+  aim.limb = $("aimLimb").value;
+  aimFillParts();
+  aim.partId = $("aimPart").value || aim.partId;
+  const picked = $("aimDate").value ? Date.parse(`${$("aimDate").value}T00:00:00+09:00`) : null;
+  aim.dayMs = Number.isFinite(picked) ? picked : S.Cal.startOfDay(Date.now());
+  $("aimKeySet").textContent = aimSideLabel("set");
+  $("aimKeyRise").textContent = aimSideLabel("rise");
+  $("aimWeekday").textContent = `${S.Cal.monthDay(aim.dayMs)}（${S.Cal.weekday(aim.dayMs)}）`
+    + (S.JstCal.sameDay(aim.dayMs, Date.now()) ? " ・ 今日" : "");
+  // 目標が決まっていなければ線は引けない（高さが無い）
+  if (!(aim.target.parts || []).length) {
+    aim.lines = []; AimMap.redraw();
+    $("aimLineInfo").textContent = "地図の中心を目標にしてください（高さを入れて「中心を目標に」）。";
+    $("aimList").innerHTML = "";
+    return;
+  }
+  if (redraw) { aimRedrawLine(); aimRenderList(); }
+}
+
+/// いまの地点から見た「次に重なる日」
+function aimRenderList() {
+  const obs = { latitude: place.latitude, longitude: place.longitude,
+                elevation: place.elevation ?? 0 };
+  $("aimPlaceName").textContent = place.name;
+  let rows = [];
+  try {
+    rows = SoramiAlign.upcoming(obs, aim.target, aim.body,
+      { from: Date.now(), days: 400, limit: 6, partId: aim.partId, limb: aim.limb });
+  } catch { rows = []; }
+  if (!rows.length) {
+    $("aimList").innerHTML = `<p class="tiny">今後1年、この地点からは重なりません。地図の線の上へ動かすと見える場所が分かります。</p>`;
+    return;
+  }
+  $("aimList").innerHTML = rows.map((e, i) => {
+    const lit = e.illuminated !== null && e.illuminated !== undefined
+      ? ` ・ 輝面 ${Math.round(e.illuminated * 100)}%` : "";
+    return `<button class="al-row jump" data-aimday="${S.Cal.startOfDay(e.at)}">
+      <div class="al-w"><strong>${S.Cal.monthDay(e.at)}(${S.Cal.weekday(e.at)}) ${S.JstCal.hhmm(e.at)}</strong>
+        <span class="tiny">${esc(e.rank === "center" ? "ど真ん中" : e.rank === "overlap" ? "重なる" : "縁がかすめる")}${lit}
+        ・ ${esc(aimSideLabel(e.side))}</span></div>
+      <div class="tiny" style="color:var(--accent)">この日の線を見る →</div></button>`;
+  }).join("");
+  for (const el of $("aimList").querySelectorAll("[data-aimday]")) {
+    el.onclick = () => {
+      const day = +el.dataset.aimday;
+      $("aimDate").value = new Date(day + 9 * 3600000).toISOString().slice(0, 10);
+      aimApply();
+    };
+  }
+}
+
+let aimReady = false;
+function openAim() {
+  if (!aimReady) {
+    aimReady = true;
+    aimFillSelects();
+    for (const id of ["aimTarget", "aimPart", "aimLimb", "aimDate"]) {
+      $(id).onchange = () => aimApply();
+    }
+    $("aimSun").onclick = () => { aim.body = "sun"; aimApply(); };
+    $("aimMoon").onclick = () => { aim.body = "moon"; aimApply(); };
+    $("aimToday").onclick = () => {
+      $("aimDate").value = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+      aimApply();
+    };
+    $("aimCustomSet").onclick = async () => {
+      const h = Number($("aimCustomH").value);
+      if (!Number.isFinite(h) || h <= 0) { $("aimLineInfo").textContent = "高さ（地上から・m）を入れてください。"; return; }
+      const c = AimMap.center();
+      $("aimCustomSet").disabled = true;
+      let ground = 0;
+      try { const e = await SoramiTerrain.elevationFromTile(c.latitude, c.longitude, 13); if (Number.isFinite(e)) ground = e; } catch { ground = 0; }
+      $("aimCustomSet").disabled = false;
+      store.set("sorami.aimCustom", { latitude: c.latitude, longitude: c.longitude,
+        heightM: h, groundM: ground, topM: ground + h, name: "自分で置いた目標" });
+      aimFillSelects();
+      $("aimTarget").value = "custom";
+      aimApply();
+    };
+    $("aimPrev").onclick = () => { aim.dayMs -= 86400000; $("aimDate").value = new Date(aim.dayMs + 9 * 3600000).toISOString().slice(0, 10); aimApply(); };
+    $("aimNext").onclick = () => { aim.dayMs += 86400000; $("aimDate").value = new Date(aim.dayMs + 9 * 3600000).toISOString().slice(0, 10); aimApply(); };
+    $("aimBack").onclick = () => { location.hash = ""; };
+    $("aimPick").onclick = () => {
+      // 中心をそのまま地点にする。標高と名前は地図の画面で付ける
+      MapPick.open(AimMap.center(), Math.max(14, Math.round(AimMap.zoom())));
+    };
+    $("aimTarget").value = "fuji";
+    aim.target = SoramiAlign.targetById("fuji");
+    aimFillParts();
+  }
+  if (!$("aimDate").value) $("aimDate").value = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+  aimApply({ redraw: false });
+  // ページとして開くので、地図は表示されてから測る（隠れている間は幅が 0）
+  requestAnimationFrame(() => {
+    AimMap.open({ latitude: aim.target.latitude, longitude: aim.target.longitude }, 9);
+    requestAnimationFrame(() => AimMap.redraw());
+  });
+  aimRedrawLine();
+  aimRenderList();
+}
 
 $("mapButton").onclick = () => MapPick.open(place);
 $("mapClose").onclick = () => $("mapSheet").close();
@@ -3782,6 +4113,9 @@ function renderSearchResults(host, results, onPick) {
   }
 }
 
+// 隠し画面「ねらう」を開く合言葉。地名と衝突しない語だけにする
+const AIM_WORDS = ["!aim", "!ねらう", "ねらう", "!line", "!ライン"];
+
 function wireSearchBox(boxId, resultsId, onPick, onCoord) {
   // **確定の拾い方は2通り持つ。** iOS のキーボードの「検索」では keydown の Enter が
   // 届かないことがあり、`input[type=search]` の `search` イベントでしか拾えない。
@@ -3792,6 +4126,16 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
     if (!q || q === last) return;
     last = q;
     setTimeout(() => { last = null; }, 800);
+    // **合言葉で隠し画面を開く。** 地名として検索しても当たらない語を使う
+    // （地名と衝突しないよう `!` で始める。2026-09-24 ユーザー依頼）。
+    if (AIM_WORDS.includes(q.toLowerCase())) {
+      $(boxId).value = "";
+      $(resultsId).innerHTML = "";
+      if ($("placeSheet").open) $("placeSheet").close();
+      if ($("mapSheet").open) $("mapSheet").close();
+      location.hash = "#/aim";
+      return;
+    }
     // **緯度経度を入れたらそこへ。** 地図アプリからの貼り付け（度分秒・全角）も読む。
     // 検索に投げても地名としては当たらないので、先にこちらで拾う（2026-09-24 ユーザー依頼）。
     const coord = SoramiTerrain.parseLatLon(q);
