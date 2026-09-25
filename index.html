@@ -552,6 +552,20 @@
            border-top: 3px solid var(--ray-sun); border-radius: 2px; }
   #aimView.moon .aim-k { border-top-color: var(--ray-moon); }
   .aim-k.rise { border-top-style: dashed; }
+  /* 地図の中心が線からどれだけ離れているか。**動かしながら合わせるための数字** */
+  .aim-near { margin-top: 6px; font-size: 0.78rem; color: var(--secondary); font-weight: 700;
+              font-variant-numeric: tabular-nums; }
+  .aim-near.on { color: var(--accent); }
+  .aim-tab { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 0.78rem;
+             font-variant-numeric: tabular-nums; }
+  .aim-tab th, .aim-tab td { text-align: right; padding: 5px 0; border-top: 1px solid var(--line); }
+  .aim-tab th:first-child, .aim-tab td:first-child { text-align: left; }
+  .aim-tab thead th { border-top: 0; color: var(--tertiary); font-weight: 400; font-size: 0.72rem; }
+  .aim-tab tbody td:first-child { font-weight: 700; white-space: nowrap; }
+  .aim-tab .k { display: inline-block; width: 14px; height: 0; vertical-align: middle;
+                border-top: 3px solid var(--ray-sun); border-radius: 2px; margin-right: 6px; }
+  #aimView.moon .aim-tab .k { border-top-color: var(--ray-moon); }
+  .aim-tab .k.rise { border-top-style: dashed; }
   .maprow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .maprow #mapCoord { flex: 1; font-variant-numeric: tabular-nums; color: var(--secondary); }
   .maprow button { flex: none; width: auto; padding: 0 12px; }
@@ -873,12 +887,17 @@
       <div id="aimCoord" class="tiny">—</div>
       <button id="aimPick" class="fav-btn">中心をこの地点にする</button>
     </div>
+    <div id="aimNear" class="aim-near">—</div>
     <div class="aim-legend">
       <span><i class="aim-k set"></i><span id="aimKeySet">日の入側</span></span>
       <span><i class="aim-k rise"></i><span id="aimKeyRise">日の出側</span></span>
       <span class="tiny">線の上が、その日に重なって見える場所</span>
     </div>
     <div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div>
+    <table class="aim-tab" id="aimLineTable" hidden>
+      <thead><tr><th>側</th><th>目標から</th><th>時刻</th><th>天体の方位</th></tr></thead>
+      <tbody></tbody>
+    </table>
     <div class="section-h" style="margin-top:12px"><h2>次に重なる日</h2></div>
     <p class="tiny" style="margin:0 0 6px">いま選んでいる地点（<span id="aimPlaceName"></span>）から見た場合。押すとその日の線を出します。</p>
     <div id="aimList" class="al"></div>
@@ -1139,18 +1158,18 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260925094148"></script>
+<script src="sorami-core.js?v=20260925100400"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260925094148"></script>
-<script src="sorami-exif.js?v=20260925094148"></script>
-<script src="sorami-capcloud.js?v=20260925094148"></script>
-<script src="sorami-terrain.js?v=20260925094148"></script>
-<script src="sorami-mountain.js?v=20260925094148"></script>
-<script src="sorami-fuji.js?v=20260925094148"></script>
-<script src="sorami-align.js?v=20260925094148"></script>
-<script src="sorami-moon.js?v=20260925094148"></script>
-<script src="sorami-composition.js?v=20260925094148"></script>
+<script src="sorami-astro.js?v=20260925100400"></script>
+<script src="sorami-exif.js?v=20260925100400"></script>
+<script src="sorami-capcloud.js?v=20260925100400"></script>
+<script src="sorami-terrain.js?v=20260925100400"></script>
+<script src="sorami-mountain.js?v=20260925100400"></script>
+<script src="sorami-fuji.js?v=20260925100400"></script>
+<script src="sorami-align.js?v=20260925100400"></script>
+<script src="sorami-moon.js?v=20260925100400"></script>
+<script src="sorami-composition.js?v=20260925100400"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3878,23 +3897,34 @@ async function aimRedrawLine() {
   AimMap.redraw();
   if (!lines.length) {
     $("aimLineInfo").textContent = "この日は、どこからも重なりません。";
+    $("aimLineTable").hidden = true;
+    aimUpdateNear(AimMap.center());
     return;
   }
-  $("aimLineInfo").innerHTML = lines.map((l) => {
+  const lit = lines[0].points[0].illuminated;
+  // 線は弧になる。**近いほど高く見上げるので、そのぶん天体の方位も動く**
+  $("aimLineInfo").innerHTML = "線が弧を描くのは、近いほど高く見上げることになり、"
+    + `その高さを通る${aim.body === "moon" ? "月" : "太陽"}の方位がずれていくためです。`
+    + (Number.isFinite(lit) ? `　輝面 ${Math.round(lit * 100)}%。` : "");
+  $("aimLineTable").hidden = false;
+  $("aimLineTable").querySelector("tbody").innerHTML = lines.map((l) => {
     const first = l.points[0], last = l.points[l.points.length - 1];
-    const lit = first.illuminated !== null && first.illuminated !== undefined
-      ? `・輝面 ${Math.round(first.illuminated * 100)}%` : "";
     // 近い側と遠い側で時刻の前後が入れ替わる。早い方から書く
     const t0 = Math.min(first.at, last.at), t1 = Math.max(first.at, last.at);
-    return `${aimSideLabel(l.side)}：`
-      + `${S.JstCal.hhmm(t0)}〜${S.JstCal.hhmm(t1)}ごろ`
-      + `（目標から ${aimKm(first.distanceKm)}〜${aimKm(last.distanceKm)}km）${lit}`;
-  }).join("<br>");
+    const a0 = Math.round(Math.min(first.azimuth, last.azimuth));
+    const a1 = Math.round(Math.max(first.azimuth, last.azimuth));
+    return `<tr><td><i class="k ${l.side === "rise" ? "rise" : ""}"></i>${esc(aimSideLabel(l.side))}</td>
+      <td>${aimKm(first.distanceKm)}〜${aimKm(last.distanceKm)}km</td>
+      <td>${S.JstCal.hhmm(t0)}〜${S.JstCal.hhmm(t1)}</td>
+      <td>${a0}°〜${a1}°</td></tr>`;
+  }).join("");
+  aimUpdateNear(AimMap.center());
 }
 
 /// 地図の線。**中心（目標）から伸びる光線**として描く。
 /// 目標に印が無いと、どの線がどこを向いているのかが読めない。
-/// 解いた区間（観測点の並び）は太く、そこへ届くまでと反対側は細く薄く。
+/// 解いた区間（観測点の並び）は太く光らせ、そこへ届くまでと反対側は細く薄く。
+/// 距離の目盛りを打つのは、地図の上で「目標から何kmか」が読めないと場所を選べないため。
 AimMap.setOverlay((ctx, { project, width, height }) => {
   const t = aim.target;
   if (!t || !Number.isFinite(t.latitude)) return;
@@ -3904,39 +3934,58 @@ AimMap.setOverlay((ctx, { project, width, height }) => {
     || "#e8820e";
   const [cx, cy] = project(t.latitude, t.longitude);
   const ink = "rgba(0,0,0,.55)";
+  const mark = aim.body === "moon" ? "🌙" : "☀️";
 
   for (const l of aim.lines || []) {
     const pts = l.points.map((p) => project(p.latitude, p.longitude));
     const far = pts[pts.length - 1], near = pts[0];
+    const farPt = l.points[l.points.length - 1];
     // 日の出側は破線。**同じ色のまま線種で分ける**ので、配色を増やさない
-    const dash = l.side === "set" ? [] : [10, 7];
+    const dash = l.side === "set" ? [] : [11, 7];
     ctx.save();
     ctx.lineJoin = "round"; ctx.lineCap = "round";
 
-    // 目標を挟んだ反対側。観測点ではないので点線・薄め。線の向きを読むための補助
-    ctx.globalAlpha = 0.4;
-    ctx.setLineDash([2, 7]); ctx.lineWidth = 1.5; ctx.strokeStyle = color;
-    ctx.beginPath(); ctx.moveTo(cx, cy);
-    ctx.lineTo(cx - (far[0] - cx), cy - (far[1] - cy)); ctx.stroke();
-    // 目標から線の手前まで（近すぎて解かない区間）も細く
-    ctx.setLineDash([]); ctx.lineWidth = 1.5;
+    // 目標から線の手前まで（近すぎて解かない区間）は細く。
+    // **目標を挟んだ反対側には引かない。** 反対側はもう一方の線（出／入）が占めていて、
+    // 補助の点線を足すと、どちらが観測点の並びなのか読めなくなる。
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = 1.5; ctx.strokeStyle = color;
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(near[0], near[1]); ctx.stroke();
     ctx.globalAlpha = 1;
 
-    // 観測点の並び。地図の地から浮かせるため、暗い縁取りを敷いてから色を乗せる
+    // 観測点の並び。地図の地から浮かせるため、暗い縁取り → 光 → 芯 の順に重ねる
     const path = () => { ctx.beginPath();
       pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); };
     ctx.setLineDash(dash);
-    ctx.strokeStyle = ink; ctx.lineWidth = 5; path(); ctx.stroke();
-    ctx.strokeStyle = color; ctx.lineWidth = 2.5; path(); ctx.stroke();
+    ctx.strokeStyle = ink; ctx.lineWidth = 5.5; path(); ctx.stroke();
+    ctx.globalAlpha = 0.35; ctx.strokeStyle = color; ctx.lineWidth = 7; path(); ctx.stroke();
+    ctx.globalAlpha = 1; ctx.strokeStyle = color; ctx.lineWidth = 2.2; path(); ctx.stroke();
     ctx.setLineDash([]);
 
-    // 遠い端に印と時刻。**どちらの側がいつか**を地図の上で分かるようにする
+    // 距離の目盛り。線に直交する短い棒を、切りのよい距離に打つ
+    for (const km of aimTicks(l.points[0].distanceKm, farPt.distanceKm)) {
+      const i = l.points.findIndex((p) => p.distanceKm >= km);
+      if (i <= 0) continue;
+      const [x, y] = pts[i], [px, py] = pts[i - 1];
+      const dx = x - px, dy = y - py, n = Math.hypot(dx, dy) || 1;
+      ctx.strokeStyle = ink; ctx.lineWidth = 4.5;
+      ctx.beginPath();
+      ctx.moveTo(x - dy / n * 7, y + dx / n * 7); ctx.lineTo(x + dy / n * 7, y - dx / n * 7);
+      ctx.stroke();
+      ctx.strokeStyle = color; ctx.lineWidth = 2.2; ctx.stroke();
+    }
+
+    // 遠い端に天体の印と、時刻・方位。**どちらの側がいつ・どっち向きか**を地図の上で読む
     ctx.beginPath(); ctx.arc(far[0], far[1], 3.5, 0, Math.PI * 2);
     ctx.fillStyle = color; ctx.fill();
     ctx.lineWidth = 1.5; ctx.strokeStyle = ink; ctx.stroke();
-    aimMapLabel(ctx, far[0], far[1], S.JstCal.hhmm(l.points[l.points.length - 1].at),
-      color, width, height);
+    // 札は**目標と反対の外向き**に置く。内向きだと、左右の線の札が中心で重なる
+    const out = far[0] < cx ? "left" : "right";
+    aimMapLabel(ctx, far[0], far[1],
+      `${mark} ${S.JstCal.hhmm(farPt.at)} ${Math.round(farPt.azimuth)}°`, color, width, height, out);
+    // 近い端にも距離を置く。目盛りだけでは「どこから始まるか」が読めない
+    aimMapLabel(ctx, near[0], near[1], `${aimKm(l.points[0].distanceKm)}km`,
+      color, width, height, out);
     ctx.restore();
   }
 
@@ -3947,20 +3996,30 @@ AimMap.setOverlay((ctx, { project, width, height }) => {
   ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2);
   ctx.fillStyle = color; ctx.fill();
   ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
-  aimMapLabel(ctx, cx, cy + 15, t.name, "#fff", width, height, true);
+  aimMapLabel(ctx, cx, cy + 16, t.name, "#fff", width, height, "center");
   ctx.restore();
 });
 
+/// 目盛りを打つ距離。1・2・5 の刻みから、線の長さに合うものを選ぶ
+function aimTicks(nearKm, farKm) {
+  const steps = [0.5, 1, 2, 5, 10, 20, 50, 100];
+  const step = steps.find((v) => (farKm - nearKm) / v <= 6) || 100;
+  const out = [];
+  for (let km = Math.ceil(nearKm / step) * step; km <= farKm; km += step) out.push(km);
+  return out;
+}
+
 /// 地図に乗せる短い文字。地の色が分からないので、暗い座布団を敷く
-function aimMapLabel(ctx, x, y, text, color, width, height, center = false) {
+function aimMapLabel(ctx, x, y, text, color, width, height, place = "right") {
   if (!text) return;
   ctx.save();
   ctx.font = "700 11px -apple-system, 'Hiragino Sans', sans-serif";
-  const w = ctx.measureText(text).width + 10, h = 17;
-  let lx = center ? x - w / 2 : x + 8, ly = y - h / 2;
+  const w = ctx.measureText(text).width + 10, h = 18;
+  let lx = place === "center" ? x - w / 2 : place === "left" ? x - 8 - w : x + 8;
+  let ly = y - h / 2;
   lx = Math.max(2, Math.min(width - w - 2, lx));
   ly = Math.max(2, Math.min(height - h - 2, ly));
-  ctx.fillStyle = "rgba(0,0,0,.62)";
+  ctx.fillStyle = "rgba(0,0,0,.66)";
   ctx.beginPath();
   if (ctx.roundRect) ctx.roundRect(lx, ly, w, h, 5); else ctx.rect(lx, ly, w, h);
   ctx.fill();
@@ -3968,6 +4027,26 @@ function aimMapLabel(ctx, x, y, text, color, width, height, center = false) {
   ctx.textBaseline = "middle";
   ctx.fillText(text, lx + 5, ly + h / 2 + 0.5);
   ctx.restore();
+}
+
+/// 地図の中心が線からどれだけ離れているか。**動かしながら合わせる**ための数字
+function aimUpdateNear(center) {
+  const el = $("aimNear");
+  const lines = aim.lines || [];
+  if (!lines.length || !center) { el.textContent = "—"; el.classList.remove("on"); return; }
+  let best = null;
+  for (const l of lines) {
+    for (const p of l.points) {
+      const d = SoramiTerrain.distanceKm(center.latitude, center.longitude, p.latitude, p.longitude);
+      if (!best || d < best.d) best = { d, p, side: l.side };
+    }
+  }
+  if (!best) { el.textContent = "—"; return; }
+  const on = best.d < 0.5;
+  el.classList.toggle("on", on);
+  el.textContent = (on ? "この中心は線の上です。" : `中心から線まで ${aimKm(best.d)}km。`)
+    + `最寄りは ${aimSideLabel(best.side)} ${S.JstCal.hhmm(best.p.at)}`
+    + `（天体の方位 ${Math.round(best.p.azimuth)}°・目標から ${aimKm(best.p.distanceKm)}km）`;
 }
 
 function aimApply({ redraw = true, recenter = false } = {}) {
@@ -4084,6 +4163,8 @@ function openAim() {
       // 中心をそのまま地点にする。標高と名前は地図の画面で付ける
       MapPick.open(AimMap.center(), Math.max(14, Math.round(AimMap.zoom())));
     };
+    // 地図を動かすたび、中心が線からどれだけ離れているかを出す
+    AimMap.onMove((c) => aimUpdateNear(c));
     $("aimTarget").value = "fuji";
     aim.target = SoramiAlign.targetById("fuji");
     aimFillParts();

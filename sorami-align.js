@@ -137,14 +137,24 @@
 
   /**
    * 線を引く距離の範囲。**目標の高さで決まる。**
-   * 高さ h を見上げる角度は距離で決まるので、使える角度の帯（約25°〜1°）を距離に直す。
-   * 60mの避雷針を120km先から見上げても地平線の下で、3776mの富士山を3km先から
-   * 見上げるのは山の上。同じ距離を全部の目標に当てると、どちらかが無駄になる。
+   * 高さ h を見上げる角度は距離で決まるので、使える角度の帯（約20°〜1°）を距離に直す。
+   * 60mの避雷針を120km先から見上げても地平線の下で、3776mの富士山を8km先から
+   * 見上げるのは山の中腹。同じ距離を全部の目標に当てると、どちらかが無駄になる。
    */
   function lineRange(topM) {
-    const near = Math.max(0.3, (topM / 1000) / Math.tan(25 * Math.PI / 180));
+    const near = Math.max(0.3, (topM / 1000) / Math.tan(20 * Math.PI / 180));
     const far = Math.min(150, (topM / 1000) / Math.tan(1.0 * Math.PI / 180));
-    return { minKm: Math.round(near * 10) / 10, maxKm: Math.round(far), stepKm: Math.max(0.1, (far - near) / 30) };
+    return { minKm: Math.round(near * 10) / 10, maxKm: Math.round(far) };
+  }
+
+  /**
+   * 線を解く距離の並び。**等間隔ではなく、近いほど細かく取る。**
+   * 線は近いほど強く曲がる（見上げ角が急に変わるので、天体の方位も急に変わる）。
+   * 等間隔だと、その曲がる区間が数点しか無くて折れ線に見える。
+   */
+  function lineDistances(minKm, maxKm, count = 36) {
+    const r = (maxKm / minKm) ** (1 / (count - 1));
+    return Array.from({ length: count }, (_, i) => minKm * r ** i);
   }
 
   /**
@@ -154,11 +164,14 @@
    */
   async function line(target, body, dayMs, opts = {}) {
     const auto = lineRange(((partOf(target, opts.partId) || {}).m) || 0);
-    const { minKm = auto.minKm, maxKm = auto.maxKm, stepKm = auto.stepKm, sides = ["rise", "set"] } = opts;
+    const { minKm = auto.minKm, maxKm = auto.maxKm, stepKm = null, sides = ["rise", "set"] } = opts;
+    const dists = stepKm
+      ? Array.from({ length: Math.floor((maxKm - minKm) / stepKm) + 1 }, (_, i) => minKm + i * stepKm)
+      : lineDistances(minKm, maxKm);
     const out = [];
     for (const side of sides) {
       const points = [];
-      for (let d = minKm; d <= maxKm; d += stepKm) {
+      for (const d of dists) {
         const p = await solvePoint(target, body, dayMs, d, side, opts);
         // 地平線より下、または天体が出ていない側は線にならない
         if (p && p.altitude > -1) points.push({ ...p, side });
@@ -246,7 +259,7 @@
     }));
   }
 
-  const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, solvePoint,
+  const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;
