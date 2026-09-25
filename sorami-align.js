@@ -44,6 +44,11 @@
     { id: "cinderella", name: "シンデレラ城", latitude: 35.632896, longitude: 139.880394,
       note: "高さ51m ＋ 地面の標高およそ3m",
       parts: [{ id: "tip", name: "てっぺん", m: 54 }] },
+    // 東京ディズニーランドホテルの避雷針の先端。ティンカーベルの像が載る。
+    // **公表された高さが無い**ので推定（OpenStreetMap の建物高さ60m）。画面で直せる
+    { id: "tinkerbell", name: "ティンカーベル", latitude: 35.637031, longitude: 139.878077,
+      note: "東京ディズニーランドホテルの避雷針の先端。高さは推定なので、合わせながら直せます",
+      parts: [{ id: "tip", name: "避雷針の先端", m: 60, adjustable: true }] },
   ];
   const targetById = (id) => TARGETS.find((t) => t.id === id) || null;
   const partOf = (target, partId) =>
@@ -131,11 +136,25 @@
   }
 
   /**
+   * 線を引く距離の範囲。**目標の高さで決まる。**
+   * 高さ h を見上げる角度は距離で決まるので、使える角度の帯（約25°〜1°）を距離に直す。
+   * 60mの避雷針を120km先から見上げても地平線の下で、3776mの富士山を3km先から
+   * 見上げるのは山の上。同じ距離を全部の目標に当てると、どちらかが無駄になる。
+   */
+  function lineRange(topM) {
+    const near = Math.max(0.3, (topM / 1000) / Math.tan(25 * Math.PI / 180));
+    const far = Math.min(150, (topM / 1000) / Math.tan(1.0 * Math.PI / 180));
+    return { minKm: Math.round(near * 10) / 10, maxKm: Math.round(far), stepKm: Math.max(0.1, (far - near) / 30) };
+  }
+
+  /**
    * その日の線。距離を変えながら観測点を並べる。
+   * 距離を渡さなければ、目標の高さから決める（`lineRange`）。
    * @returns {Promise<{side:string, points:Array}>[]} 日の出側・日の入側それぞれ
    */
   async function line(target, body, dayMs, opts = {}) {
-    const { minKm = 5, maxKm = 120, stepKm = 5, sides = ["rise", "set"] } = opts;
+    const auto = lineRange(((partOf(target, opts.partId) || {}).m) || 0);
+    const { minKm = auto.minKm, maxKm = auto.maxKm, stepKm = auto.stepKm, sides = ["rise", "set"] } = opts;
     const out = [];
     for (const side of sides) {
       const points = [];
@@ -227,7 +246,7 @@
     }));
   }
 
-  const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, solvePoint,
+  const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;

@@ -74,6 +74,21 @@ console.log("== 一覧（この地点で次に重なる日）==");
     moon.map((m) => `${jst(m.at)} ${Math.round(m.illuminated * 100)}%`).join(" / "));
 }
 
+console.log("== 線の長さは目標の高さで決まる ==");
+{
+  // 60mの避雷針を120km先から見上げても地平線の下。距離の幅を高さから決める
+  const fuji = AL.lineRange(3776), tink = AL.lineRange(60);
+  ok(fuji.maxKm > 100 && fuji.minKm > 5, "富士山は数kmより外〜100km超", JSON.stringify(fuji));
+  ok(tink.maxKm <= 5 && tink.minKm < 1, "60mの目標は数km以内", JSON.stringify(tink));
+  const day = Date.parse("2026-10-06T00:00:00+09:00");
+  const tb = AL.targetById("tinkerbell");
+  const lines = await AL.line(tb, "moon", day, { partId: "tip", limb: "onTop" });
+  ok(lines.length === 2, "距離を渡さなくても線が引ける", `${lines.length}本`);
+  ok(lines.every((l) => l.points.every((p) => p.altitude > 0)), "どの点も地平線より上");
+  const set = lines.find((l) => l.side === "set");
+  ok(set.points.every((p) => p.longitude > tb.longitude), "月の入側は目標の東");
+}
+
 console.log("== 目標の高さが無ければ計算しない ==");
 {
   const day = Date.parse("2026-12-22T00:00:00+09:00");

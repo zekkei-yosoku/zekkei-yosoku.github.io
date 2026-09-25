@@ -56,6 +56,9 @@
     /* 差し色を地にしたときに載せる文字。ライトは白で 5.81:1 だが、
        ダークの差し色は明るい橙なので、白だと 2.60:1 まで落ちる。 */
     --on-accent: #ffffff;
+    /* 地図に引く線（ねらう）。太陽は金、月は青。地図の地の上に乗るので、
+       本文の評価語の色（白地で 4.5:1 を満たすために濁らせてある）とは別に持つ。 */
+    --ray-sun: #e8820e; --ray-moon: #2f7fd0;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #000; --card: #1c1c1e; --text: #f2f2f7; --secondary: #c3c3ca; --tertiary: #93939a;
@@ -67,7 +70,8 @@
             --t-poor: #9a9a9a; --t-fair: #d4b247; --t-good: #f08529; --t-spectacular: #e97180;
             /* ダークは明るい地に淡い文字が載るので 58%（=10+48）で頭打ち。実測値。 */
             --tint-span: 48; --tint-exp: 0.75;
-            --on-accent: #1b1206; }
+            --on-accent: #1b1206;
+            --ray-sun: #ffb340; --ray-moon: #6ba6e0; }
   }
   * { box-sizing: border-box; margin: 0; }
   body { font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
@@ -543,8 +547,10 @@
   .aim-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px;
                 font-size: 0.72rem; font-weight: 700; color: var(--secondary); }
   .aim-legend .tiny { font-weight: 400; color: var(--tertiary); }
+  /* 凡例の線は、地図に引く線と同じ色・同じ線種にする（太陽は金、月は青） */
   .aim-k { display: inline-block; width: 22px; height: 0; margin-right: 5px; vertical-align: middle;
-           border-top: 3px solid var(--accent); border-radius: 2px; }
+           border-top: 3px solid var(--ray-sun); border-radius: 2px; }
+  #aimView.moon .aim-k { border-top-color: var(--ray-moon); }
   .aim-k.rise { border-top-style: dashed; }
   .maprow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .maprow #mapCoord { flex: 1; font-variant-numeric: tabular-nums; color: var(--secondary); }
@@ -823,6 +829,12 @@
         <button id="aimSun" aria-pressed="true">☀️ 太陽</button>
         <button id="aimMoon" aria-pressed="false">🌙 月</button>
       </div>
+    </div>
+    <p class="tiny" id="aimTargetNote" style="margin:-2px 0 8px"></p>
+    <div class="aim-row" id="aimHeightRow" hidden>
+      <input type="number" id="aimHeightM" class="fav-in" inputmode="decimal" min="1" max="1000"
+             aria-label="先端の高さ（海面から・メートル）">
+      <button id="aimHeightSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">この高さで</button>
     </div>
     <div class="aim-row" id="aimCustomRow" hidden>
       <input type="number" id="aimCustomH" class="fav-in" inputmode="decimal" min="1" max="1000"
@@ -1127,18 +1139,18 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260925030022"></script>
+<script src="sorami-core.js?v=20260925094148"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260925030022"></script>
-<script src="sorami-exif.js?v=20260925030022"></script>
-<script src="sorami-capcloud.js?v=20260925030022"></script>
-<script src="sorami-terrain.js?v=20260925030022"></script>
-<script src="sorami-mountain.js?v=20260925030022"></script>
-<script src="sorami-fuji.js?v=20260925030022"></script>
-<script src="sorami-align.js?v=20260925030022"></script>
-<script src="sorami-moon.js?v=20260925030022"></script>
-<script src="sorami-composition.js?v=20260925030022"></script>
+<script src="sorami-astro.js?v=20260925094148"></script>
+<script src="sorami-exif.js?v=20260925094148"></script>
+<script src="sorami-capcloud.js?v=20260925094148"></script>
+<script src="sorami-terrain.js?v=20260925094148"></script>
+<script src="sorami-mountain.js?v=20260925094148"></script>
+<script src="sorami-fuji.js?v=20260925094148"></script>
+<script src="sorami-align.js?v=20260925094148"></script>
+<script src="sorami-moon.js?v=20260925094148"></script>
+<script src="sorami-composition.js?v=20260925094148"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3786,6 +3798,16 @@ const AimMap = createMapView({ canvas: "aimCanvas", coord: "aimCoord",
 
 const aim = { target: null, body: "sun", partId: null, limb: "center", dayMs: null, lines: [], seq: 0 };
 
+/// 目標の高さで線の長さが変わる（富士山は150km、避雷針は3km）ので、地図の倍率も合わせる
+function aimZoomFor(target, partId) {
+  const m = (SoramiAlign.partOf(target, partId) || {}).m;
+  if (!Number.isFinite(m)) return 9;
+  const farKm = SoramiAlign.lineRange(m).maxKm;
+  const w = $("aimCanvas").clientWidth || 360;
+  const mPerPx = 156543 * Math.cos(target.latitude * Math.PI / 180);
+  return Math.max(7, Math.min(16, Math.round(Math.log2(mPerPx * w / (1200 * farKm)))));
+}
+
 /// その地点の標高（線を解くのに使う）。同じ点は読み直さない
 const aimElevCache = new Map();
 async function aimElevation(lat, lon) {
@@ -3806,9 +3828,19 @@ function aimCustomTarget() {
     note: `地上 ${Math.round(c.heightM)}m ＋ 地面の標高およそ${Math.round(c.groundM)}m`,
     parts: [{ id: "tip", name: "てっぺん", m: c.topM }] };
 }
+/// 高さを直した目標。避雷針の先端のように**公表値が無いもの**は、端末に憶えた値を使う
+function aimWithHeights(t) {
+  const hs = store.get("sorami.aimHeights", {});
+  if (!(t.parts || []).some((p) => p.adjustable)) return t;
+  return { ...t, parts: t.parts.map((p) => {
+    const m = p.adjustable ? Number(hs[`${t.id}:${p.id}`]) : NaN;
+    return Number.isFinite(m) ? { ...p, m } : p;
+  }) };
+}
 function aimTargetList() {
   const custom = aimCustomTarget();
-  return [...SoramiAlign.TARGETS, custom || { id: "custom", name: "自分で置く（地図の中心）", parts: [] }];
+  return [...SoramiAlign.TARGETS.map(aimWithHeights),
+    custom || { id: "custom", name: "自分で置く（地図の中心）", parts: [] }];
 }
 function aimFillSelects() {
   $("aimTarget").innerHTML = aimTargetList()
@@ -3829,6 +3861,9 @@ function aimFillParts() {
   $("aimPart").value = aim.partId || "";
 }
 
+/// 近い目標は1km未満から始まるので、小さい値は小数で書く
+const aimKm = (km) => (km < 10 ? Math.round(km * 10) / 10 : Math.round(km));
+
 /// 線を引き直す。地図の重ね描きは、線の点を結ぶだけ
 async function aimRedrawLine() {
   const seq = ++aim.seq;
@@ -3836,8 +3871,7 @@ async function aimRedrawLine() {
   let lines = [];
   try {
     lines = await SoramiAlign.line(aim.target, aim.body, aim.dayMs,
-      { partId: aim.partId, limb: aim.limb, elevationAt: aimElevation,
-        minKm: 3, maxKm: 120, stepKm: 4 });
+      { partId: aim.partId, limb: aim.limb, elevationAt: aimElevation });
   } catch { lines = []; }
   if (seq !== aim.seq) return;
   aim.lines = lines;
@@ -3854,45 +3888,106 @@ async function aimRedrawLine() {
     const t0 = Math.min(first.at, last.at), t1 = Math.max(first.at, last.at);
     return `${aimSideLabel(l.side)}：`
       + `${S.JstCal.hhmm(t0)}〜${S.JstCal.hhmm(t1)}ごろ`
-      + `（目標から ${Math.round(first.distanceKm)}〜${Math.round(last.distanceKm)}km）${lit}`;
+      + `（目標から ${aimKm(first.distanceKm)}〜${aimKm(last.distanceKm)}km）${lit}`;
   }).join("<br>");
 }
 
-AimMap.setOverlay((ctx, { project }) => {
+/// 地図の線。**中心（目標）から伸びる光線**として描く。
+/// 目標に印が無いと、どの線がどこを向いているのかが読めない。
+/// 解いた区間（観測点の並び）は太く、そこへ届くまでと反対側は細く薄く。
+AimMap.setOverlay((ctx, { project, width, height }) => {
+  const t = aim.target;
+  if (!t || !Number.isFinite(t.latitude)) return;
+  const cs = getComputedStyle(document.documentElement);
+  // **色は :root のトークンから取る。** 生の16進を置かない（デザイン定義）
+  const color = (cs.getPropertyValue(aim.body === "moon" ? "--ray-moon" : "--ray-sun").trim())
+    || "#e8820e";
+  const [cx, cy] = project(t.latitude, t.longitude);
+  const ink = "rgba(0,0,0,.55)";
+
   for (const l of aim.lines || []) {
     const pts = l.points.map((p) => project(p.latitude, p.longitude));
-    ctx.save();
-    ctx.lineWidth = 3;
-    ctx.lineJoin = "round";
-    // 日の入側と日の出側で色を分ける。地図の上なので、縁取りを付けて読めるようにする
-    ctx.strokeStyle = "rgba(0,0,0,.45)";
-    ctx.beginPath();
-    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-    ctx.stroke();
-    // **色は :root のトークンから取る。** 生の16進を置かない（デザイン定義）
-    const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#f08529";
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = accent;
+    const far = pts[pts.length - 1], near = pts[0];
     // 日の出側は破線。**同じ色のまま線種で分ける**ので、配色を増やさない
-    ctx.setLineDash(l.side === "set" ? [] : [7, 5]);
-    ctx.stroke();
+    const dash = l.side === "set" ? [] : [10, 7];
+    ctx.save();
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+
+    // 目標を挟んだ反対側。観測点ではないので点線・薄め。線の向きを読むための補助
+    ctx.globalAlpha = 0.4;
+    ctx.setLineDash([2, 7]); ctx.lineWidth = 1.5; ctx.strokeStyle = color;
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx - (far[0] - cx), cy - (far[1] - cy)); ctx.stroke();
+    // 目標から線の手前まで（近すぎて解かない区間）も細く
+    ctx.setLineDash([]); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(near[0], near[1]); ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // 観測点の並び。地図の地から浮かせるため、暗い縁取りを敷いてから色を乗せる
+    const path = () => { ctx.beginPath();
+      pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); };
+    ctx.setLineDash(dash);
+    ctx.strokeStyle = ink; ctx.lineWidth = 5; path(); ctx.stroke();
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5; path(); ctx.stroke();
     ctx.setLineDash([]);
+
+    // 遠い端に印と時刻。**どちらの側がいつか**を地図の上で分かるようにする
+    ctx.beginPath(); ctx.arc(far[0], far[1], 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = ink; ctx.stroke();
+    aimMapLabel(ctx, far[0], far[1], S.JstCal.hhmm(l.points[l.points.length - 1].at),
+      color, width, height);
     ctx.restore();
   }
+
+  // 目標の印は線の上に置く。二重丸＋名前
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, 7.5, 0, Math.PI * 2);
+  ctx.fillStyle = ink; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+  ctx.fillStyle = color; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+  aimMapLabel(ctx, cx, cy + 15, t.name, "#fff", width, height, true);
+  ctx.restore();
 });
 
-function aimApply({ redraw = true } = {}) {
+/// 地図に乗せる短い文字。地の色が分からないので、暗い座布団を敷く
+function aimMapLabel(ctx, x, y, text, color, width, height, center = false) {
+  if (!text) return;
+  ctx.save();
+  ctx.font = "700 11px -apple-system, 'Hiragino Sans', sans-serif";
+  const w = ctx.measureText(text).width + 10, h = 17;
+  let lx = center ? x - w / 2 : x + 8, ly = y - h / 2;
+  lx = Math.max(2, Math.min(width - w - 2, lx));
+  ly = Math.max(2, Math.min(height - h - 2, ly));
+  ctx.fillStyle = "rgba(0,0,0,.62)";
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(lx, ly, w, h, 5); else ctx.rect(lx, ly, w, h);
+  ctx.fill();
+  ctx.fillStyle = color;
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, lx + 5, ly + h / 2 + 0.5);
+  ctx.restore();
+}
+
+function aimApply({ redraw = true, recenter = false } = {}) {
   const wanted = $("aimTarget").value;
   aim.target = wanted === "custom"
     ? (aimCustomTarget() || { id: "custom", name: "自分で置く（地図の中心）", parts: [] })
-    : (SoramiAlign.targetById(wanted) || SoramiAlign.TARGETS[0]);
+    : aimWithHeights(SoramiAlign.targetById(wanted) || SoramiAlign.TARGETS[0]);
   // 自分で置く目標のときだけ、高さの入力を出す
   $("aimCustomRow").hidden = wanted !== "custom";
+  $("aimTargetNote").textContent = aim.target.note || "";
+  $("aimView").classList.toggle("moon", aim.body === "moon");
   $("aimSun").setAttribute("aria-pressed", String(aim.body === "sun"));
   $("aimMoon").setAttribute("aria-pressed", String(aim.body === "moon"));
   aim.limb = $("aimLimb").value;
   aimFillParts();
   aim.partId = $("aimPart").value || aim.partId;
+  // 高さが推定の部位だけ、直せるようにする
+  const part = (aim.target.parts || []).find((p) => p.id === aim.partId);
+  $("aimHeightRow").hidden = !(part && part.adjustable);
+  if (part && part.adjustable) $("aimHeightM").value = String(part.m);
   const picked = $("aimDate").value ? Date.parse(`${$("aimDate").value}T00:00:00+09:00`) : null;
   aim.dayMs = Number.isFinite(picked) ? picked : S.Cal.startOfDay(Date.now());
   $("aimKeySet").textContent = aimSideLabel("set");
@@ -3905,6 +4000,11 @@ function aimApply({ redraw = true } = {}) {
     $("aimLineInfo").textContent = "地図の中心を目標にしてください（高さを入れて「中心を目標に」）。";
     $("aimList").innerHTML = "";
     return;
+  }
+  // 目標を替えたら、その目標の線が入る倍率で開き直す
+  if (recenter && Number.isFinite(aim.target.latitude)) {
+    AimMap.open({ latitude: aim.target.latitude, longitude: aim.target.longitude },
+      aimZoomFor(aim.target, aim.partId));
   }
   if (redraw) { aimRedrawLine(); aimRenderList(); }
 }
@@ -3947,12 +4047,20 @@ function openAim() {
     aimReady = true;
     aimFillSelects();
     for (const id of ["aimTarget", "aimPart", "aimLimb", "aimDate"]) {
-      $(id).onchange = () => aimApply();
+      $(id).onchange = () => aimApply({ recenter: id === "aimTarget" });
     }
     $("aimSun").onclick = () => { aim.body = "sun"; aimApply(); };
     $("aimMoon").onclick = () => { aim.body = "moon"; aimApply(); };
     $("aimToday").onclick = () => {
       $("aimDate").value = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+      aimApply();
+    };
+    $("aimHeightSet").onclick = () => {
+      const m = Number($("aimHeightM").value);
+      if (!Number.isFinite(m) || m < 1 || m > 1000) return;
+      const hs = store.get("sorami.aimHeights", {});
+      hs[`${aim.target.id}:${aim.partId}`] = m;
+      store.set("sorami.aimHeights", hs);
       aimApply();
     };
     $("aimCustomSet").onclick = async () => {
@@ -3984,7 +4092,8 @@ function openAim() {
   aimApply({ redraw: false });
   // ページとして開くので、地図は表示されてから測る（隠れている間は幅が 0）
   requestAnimationFrame(() => {
-    AimMap.open({ latitude: aim.target.latitude, longitude: aim.target.longitude }, 9);
+    AimMap.open({ latitude: aim.target.latitude, longitude: aim.target.longitude },
+      aimZoomFor(aim.target, aim.partId));
     requestAnimationFrame(() => AimMap.redraw());
   });
   aimRedrawLine();
