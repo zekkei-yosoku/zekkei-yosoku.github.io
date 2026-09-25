@@ -170,15 +170,38 @@
       : lineDistances(minKm, maxKm);
     const out = [];
     for (const side of sides) {
-      const points = [];
+      let points = [];
       for (const d of dists) {
         const p = await solvePoint(target, body, dayMs, d, side, opts);
         // 地平線より下、または天体が出ていない側は線にならない
         if (p && p.altitude > -1) points.push({ ...p, side });
       }
+      // **1点ごとの凹凸で線を蛇行させない。**
+      // 谷と尾根では立つ標高が 1500m 違い、そのぶん山頂の見上げ角も変わるので、
+      // 生の標高で1点ずつ解くと隣の点どうしで方位が行き来する（実測: ±1°＝50kmで約900m）。
+      // 標高をならしてから解き直す。**その方向のおおよその地面の高さ**で引いた線になる。
+      if (points.length >= 3 && opts.elevationAt && opts.smooth !== false) {
+        points = await smoothLine(target, body, dayMs, side, points, opts);
+      }
       if (points.length >= 2) out.push({ side, points });
     }
     return out;
+  }
+
+  /// 標高をならして解き直す。窓は前後 `smoothWindow` 点（両端は在るぶんだけ）
+  async function smoothLine(target, body, dayMs, side, points, opts) {
+    const w = Number.isFinite(opts.smoothWindow) ? opts.smoothWindow : 5;
+    const raw = points.map((p) => p.elevationM);
+    const out = [];
+    for (let i = 0; i < points.length; i++) {
+      const lo = Math.max(0, i - w), hi = Math.min(raw.length - 1, i + w);
+      const win = raw.slice(lo, hi + 1);
+      const m = win.reduce((a, b) => a + b, 0) / win.length;
+      const p = await solvePoint(target, body, dayMs, points[i].distanceKm, side,
+        { ...opts, elevationAt: () => m });
+      if (p && p.altitude > -1) out.push({ ...p, side, groundM: raw[i] });
+    }
+    return out.length >= 2 ? out : points;
   }
 
   /// 観測地点から見た目標の幾何（方位と見上げ角）。**地形は見ない**（線と一覧の両方で使う素の値）
@@ -259,7 +282,7 @@
     }));
   }
 
-  const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, solvePoint,
+  const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;

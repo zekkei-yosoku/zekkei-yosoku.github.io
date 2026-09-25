@@ -89,6 +89,35 @@ console.log("== 線の長さは目標の高さで決まる ==");
   ok(set.points.every((p) => p.longitude > tb.longitude), "月の入側は目標の東");
 }
 
+console.log("== 地形の凹凸で線を蛇行させない ==");
+{
+  // 富士山の西は谷と尾根で標高が 1500m 違う。生の標高で1点ずつ解くと方位が行き来する
+  const day = Date.parse("2026-09-25T00:00:00+09:00");
+  const profile = [900, 850, 830, 820, 790, 890, 790, 1350, 1500, 1190, 790, 490, 250, 560,
+    1050, 1270, 1270, 840, 1010, 1930, 1200, 2140, 1970, 820, 810, 1210, 690, 710, 830,
+    1070, 1230, 920, 530, 460, 220, 140];
+  let i = 0;
+  const fake = () => profile[Math.min(profile.length - 1, i++ % profile.length)];
+  const swings = (line) => {
+    const b = line.points.map((p) => TR.bearing(fuji.latitude, fuji.longitude, p.latitude, p.longitude));
+    let n = 0;
+    for (let k = 2; k < b.length; k++) if ((b[k] - b[k - 1]) * (b[k - 1] - b[k - 2]) < 0) n++;
+    return n;
+  };
+  i = 0;
+  const rough = await AL.line(fuji, "sun", day, { sides: ["rise"], partId: "summit",
+    elevationAt: fake, smooth: false });
+  i = 0;
+  const smooth = await AL.line(fuji, "sun", day, { sides: ["rise"], partId: "summit",
+    elevationAt: fake });
+  ok(rough.length === 1 && smooth.length === 1, "どちらも線になる");
+  ok(swings(rough[0]) >= 4, "ならさないと方位が何度も折り返す", `${swings(rough[0])}回`);
+  ok(swings(smooth[0]) < swings(rough[0]), "ならすと折り返しが減る",
+    `${swings(smooth[0])}回 ← ${swings(rough[0])}回`);
+  ok(smooth[0].points.every((p) => Number.isFinite(p.groundM)),
+    "ならしても、その場所の生の標高は持っている");
+}
+
 console.log("== 目標の高さが無ければ計算しない ==");
 {
   const day = Date.parse("2026-12-22T00:00:00+09:00");
