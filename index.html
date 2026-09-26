@@ -566,6 +566,17 @@
                 border-top: 3px solid var(--ray-sun); border-radius: 2px; margin-right: 6px; }
   #aimView.moon .aim-tab .k { border-top-color: var(--ray-moon); }
   .aim-tab .k.rise { border-top-style: dashed; }
+  /* 空の展開図。地図と同じ器（.mapwrap）を使うが、高さはこちらで決める */
+  #skyView .mapwrap canvas { height: min(46vh, 420px); min-height: 240px; }
+  .sky-time { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .sky-time input[type=range] { flex: 1; accent-color: var(--accent); height: 44px; }
+  .sky-time output { flex: 0 0 auto; font-weight: 700; font-size: 1rem;
+                     font-variant-numeric: tabular-nums; min-width: 4.2em; text-align: right; }
+  .sky-now { margin-top: 2px; font-size: 0.78rem; font-weight: 700; color: var(--secondary);
+             font-variant-numeric: tabular-nums; line-height: 1.7; }
+  .aim-k.sun { border-top-color: var(--ray-sun); }
+  /* 太陽と月は**色で分ける**。点線は「稜線の裏」の意味に取ってあるので、ここでは使わない */
+  .aim-k.moon { border-top-color: var(--ray-moon); }
   .maprow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .maprow #mapCoord { flex: 1; font-variant-numeric: tabular-nums; color: var(--secondary); }
   .maprow button { flex: none; width: auto; padding: 0 12px; }
@@ -831,6 +842,45 @@
       <button id="adminCodesCopy" class="fav-btn" style="margin-top:10px">すべてコピー</button>
       <div class="tiny" style="margin-top:6px">一度しか表示されません。本人へ渡してください。
         本人はこれで入り、自分でパスワードを決め直せます。</div>
+    </div>
+  </div>
+
+  <!-- 空の見え方: その地点で、稜線の上を太陽と月がどう通るか。
+       「ねらう」が地図の上で**どこに立つか**なら、こちらは**そこで空がどう見えるか**。 -->
+  <div id="skyView" hidden>
+    <button class="back" id="skyBack">← 一覧にもどる</button>
+    <div class="card">
+      <div class="section-h"><h2>空の見え方</h2><span class="muted" id="skyPlace"></span></div>
+      <p class="tiny" style="margin:0 0 8px">横が方位、縦が高さ。<strong>塗りつぶしは地形と建物</strong>で、
+        その下に入ると見えません。</p>
+      <label class="fav-l" for="skyDate">日付</label>
+      <div class="aim-row aim-date">
+        <button id="skyPrev" class="fav-btn" aria-label="前の日">←</button>
+        <input type="date" id="skyDate" class="fav-in" aria-label="日付">
+        <button id="skyNext" class="fav-btn" aria-label="次の日">→</button>
+      </div>
+      <div class="aim-row" style="margin-bottom:2px">
+        <span id="skyWeekday" class="tiny" style="flex:1"></span>
+        <button id="skyToday" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">今日</button>
+      </div>
+      <div class="mapwrap" style="margin-top:8px">
+        <canvas id="skyCanvas" aria-label="空の展開図。横が方位、縦が高さです"></canvas>
+      </div>
+      <div class="sky-time">
+        <input type="range" id="skyTime" min="0" max="1439" step="5" aria-label="時刻">
+        <output id="skyClock">--:--</output>
+      </div>
+      <div id="skyNow" class="sky-now"></div>
+      <div class="aim-legend">
+        <span><i class="aim-k sun"></i>太陽</span>
+        <span><i class="aim-k moon"></i>月</span>
+        <span class="tiny">点線は稜線の裏（見えない）</span>
+      </div>
+      <table class="aim-tab" id="skyTable">
+        <thead><tr><th>天体</th><th>見え始め</th><th>いちばん高い</th><th>見えなくなる</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="tiny" id="skyNote" style="margin-top:8px;color:var(--tertiary)"></p>
     </div>
   </div>
 
@@ -1166,18 +1216,19 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260926234132"></script>
+<script src="sorami-core.js?v=20260927001535"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260926234132"></script>
-<script src="sorami-exif.js?v=20260926234132"></script>
-<script src="sorami-capcloud.js?v=20260926234132"></script>
-<script src="sorami-terrain.js?v=20260926234132"></script>
-<script src="sorami-mountain.js?v=20260926234132"></script>
-<script src="sorami-fuji.js?v=20260926234132"></script>
-<script src="sorami-align.js?v=20260926234132"></script>
-<script src="sorami-moon.js?v=20260926234132"></script>
-<script src="sorami-composition.js?v=20260926234132"></script>
+<script src="sorami-astro.js?v=20260927001535"></script>
+<script src="sorami-exif.js?v=20260927001535"></script>
+<script src="sorami-capcloud.js?v=20260927001535"></script>
+<script src="sorami-terrain.js?v=20260927001535"></script>
+<script src="sorami-mountain.js?v=20260927001535"></script>
+<script src="sorami-fuji.js?v=20260927001535"></script>
+<script src="sorami-sky.js?v=20260927001535"></script>
+<script src="sorami-align.js?v=20260927001535"></script>
+<script src="sorami-moon.js?v=20260927001535"></script>
+<script src="sorami-composition.js?v=20260927001535"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1504,6 +1555,7 @@ const WIDE = window.matchMedia("(min-width: 900px)");
 //   #/sunset/172… → 夕焼けの特定の日
 let picked = null;       // 詳細で見ている現象（一覧のときは null）
 let atAim = false;       // 「ねらう」のページを見ているか
+let atSky = false;       // 「空の見え方」のページを見ているか
 let atRecords = false;   // 記録画面を見ているか
 let atAdmin = false;     // 管理者画面を見ているか
 let nowcastReady = false;  // 実況が取れたか。画面を切り替えても状態を保つ
@@ -1977,18 +2029,21 @@ function render() {
   const inAdmin = atAdmin && !inDetail;
   const inRecords = atRecords && !inDetail && !inAdmin;
   const inAim = atAim && !inDetail && !inAdmin && !inRecords;
-  $("listView").hidden = inDetail || inRecords || inAdmin || inAim;
+  const inSky = atSky && !inDetail && !inAdmin && !inRecords && !inAim;
+  $("skyView").hidden = !inSky;
+  $("listView").hidden = inDetail || inRecords || inAdmin || inAim || inSky;
   $("detailView").hidden = !inDetail;
   $("recordsView").hidden = !inRecords;
   $("adminView").hidden = !inAdmin;
   $("aimView").hidden = !inAim;
   // 地点と実況は判断のための情報。記録や管理を読んでいるときは要らない。
   $("placeRow").hidden = inRecords || inAdmin;
-  $("nowcast").hidden = inRecords || inAdmin || inAim || !nowcastReady;
+  $("nowcast").hidden = inRecords || inAdmin || inAim || inSky || !nowcastReady;
 
   if (inDetail) {
     $("detailPane").innerHTML = renderDetailPane(picked, now);
     $("backBtn").onclick = goList;
+    if ($("toSky")) $("toSky").onclick = () => { pushedCount++; location.hash = "#/sky"; };
     // 直接リンクで遠い日を開いても、選択したボタンを横スクロール内に出す。
     const strip = $("detailWeek").querySelector(".days");
     const active = strip.querySelector('[aria-pressed="true"]');
@@ -2171,6 +2226,7 @@ async function readShot(input, pid, peak) {
 function routeFromHash() {
   if (location.hash === "#/records") return { records: true };
   if (location.hash === "#/aim") return { aim: true };
+  if (location.hash === "#/sky") return { sky: true };
   if (location.hash === "#/admin") return { admin: true };
   const m = /^#\/([A-Za-z]+)(?:\/(\d+))?$/.exec(location.hash);
   // **`SCORERS` ではなく `PHENOMENA` で見る。**
@@ -2202,7 +2258,9 @@ function applyRoute() {
   atRecords = !!(route && route.records);
   atAdmin = !!(route && route.admin);
   atAim = !!(route && route.aim);
+  atSky = !!(route && route.sky);
   if (atAim) openAim();
+  if (atSky) openSky();
   if (atAdmin) renderAdmin();
   if (route && route.id) {
     // 日を含まない URL は「直近の回」を指す。前に見ていた日を残すと、
@@ -2589,6 +2647,8 @@ function renderMoonTimes(dayMs) {
     </div>
     <div class="tiny" style="margin-top:6px;color:var(--tertiary)">「この場所では」は${moonHorizon && moonHorizon.layers && moonHorizon.layers.includes("urban")
       ? "まわりの地形と建物" : "まわりの地形"}から計算した地平線です。山や建物があれば遅く、高い場所なら早くなります。</div>
+    <!-- 同じ稜線を絵で見せる画面。時刻ごとにどこを通るかは、数字より図のほうが早い -->
+    <button class="fav-btn" id="toSky" style="margin-top:8px">空の見え方を見る（稜線と通り道）→</button>
     ${SoramiTerrain.locationScope(place) === "area" ? `<div class="tiny" style="margin-top:4px;color:var(--tertiary)">地域の代表地点のため、近くの建物は含めていません。現在地や施設を選ぶと反映します。</div>` : ""}
     ${moonUrbanMeta ? `<div class="tiny" style="margin-top:4px;color:var(--tertiary)">半径${moonUrbanMeta.radiusM}mの建物 ${moonUrbanMeta.buildings} 棟を入れています${
       moonUrbanMeta.estimatedHeights ? `（うち ${moonUrbanMeta.estimatedHeights} 棟は階数からの見積もり）` : ""}。${
@@ -4094,6 +4154,304 @@ function aimUpdateNear(center) {
     + `（天体の方位 ${Math.round(best.p.azimuth)}°・目標から ${aimKm(best.p.distanceKm)}km）`;
 }
 
+// ---------------------------------------------------------------- 空の見え方
+//
+// 稜線は月の判定で**もう測ってある**（全周1度刻みの地形＋建物）。ここでは使うだけで、
+// 通信は増やさない。測れていなければ平らな 0度 で描き、その旨を注記に出す。
+const sky = { dayMs: null, minutes: 12 * 60, sun: [], moon: [], spans: {}, frame: null,
+              centerX: null, drag: null, wired: false };
+
+const skyHorizon = () => (moonHorizon || (() => 0));
+const skyObs = () => (moonObs || { latitude: place.latitude, longitude: place.longitude,
+                                   elevation: place.elevation ?? 0 });
+
+function skyRecompute() {
+  const obs = skyObs();
+  const h = skyHorizon();
+  sky.sun = SoramiSky.track("sun", sky.dayMs, obs, { stepMin: 5 });
+  sky.moon = SoramiSky.track("moon", sky.dayMs, obs, { stepMin: 5 });
+  sky.spans = {
+    sun: SoramiSky.visibleSpans(sky.sun, h, "sun", obs),
+    moon: SoramiSky.visibleSpans(sky.moon, h, "moon", obs),
+  };
+  // 枠は**太陽と月の両方が入る**ように取る。片方だけに合わせると、もう片方が画面の外へ出る
+  const both = [...sky.sun, ...sky.moon];
+  const spans = [...sky.spans.sun, ...sky.spans.moon];
+  sky.frame = SoramiSky.frame(both, spans, { maxSpanDeg: 120, minSpanDeg: 80 });
+  // **中心は「いま選んでいる時刻に見えているほう」に合わせる。**
+  // 太陽も月も1日で方位が200度以上動くので、全体の真ん中に寄せると
+  // どちらも画面の外という枠になる（実測でそうなった）。
+  if (sky.centerX === null) sky.centerX = skyCenterForTime();
+}
+
+/// いまの時刻に見えている天体の方位（太陽を優先。どちらも下なら太陽のいちばん高い所）
+function skyCenterForTime() {
+  const at = sky.dayMs + sky.minutes * 60000;
+  const obs = skyObs(), h = skyHorizon();
+  const near = (pts) => pts.reduce((a, b) => (Math.abs(b.at - at) < Math.abs(a.at - at) ? b : a), pts[0]);
+  for (const pts of [sky.sun, sky.moon]) {
+    if (!pts.length) continue;
+    const p = near(pts);
+    if (p.altitude > h(p.azimuth)) return p.x;
+  }
+  const pk = SoramiSky.peak(sky.sun.length ? sky.sun : sky.moon);
+  return pk ? pk.x : 180;
+}
+
+/// 天体の印。月は満ち欠けの形で描く（輝面の割合から、境目を楕円で作る）
+function skyBody(ctx, x, y, r, color, ink, illuminated, waxing) {
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, r + 1.5, 0, Math.PI * 2);
+  ctx.fillStyle = ink; ctx.fill();
+  if (illuminated === null || illuminated === undefined) {
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
+    ctx.restore(); return;
+  }
+  // 暗い側を地の色で塗ってから、明るい側だけ色を乗せる
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = ink; ctx.fill();
+  const k = Math.max(0, Math.min(1, illuminated));
+  const lit = Math.PI / 2 * (waxing ? 1 : -1);
+  ctx.beginPath();
+  ctx.arc(x, y, r, lit, lit + Math.PI);                       // 明るい側の半円
+  ctx.ellipse(x, y, r * Math.abs(1 - 2 * k), r, 0,            // 境目の楕円
+    lit + Math.PI, lit, k > 0.5 ? true : false);
+  ctx.closePath();
+  ctx.fillStyle = color; ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 0.75;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+
+function skyDraw() {
+  const cv = $("skyCanvas");
+  if (!cv || !sky.frame) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = cv.clientWidth, hgt = cv.clientHeight;
+  if (!w || !hgt) return;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(hgt * dpr)) {
+    cv.width = Math.round(w * dpr); cv.height = Math.round(hgt * dpr);
+  }
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, hgt);
+
+  const cs = getComputedStyle(document.documentElement);
+  const tok = (n, fb) => (cs.getPropertyValue(n).trim() || fb);
+  const sunC = tok("--ray-sun", "#e8820e"), moonC = tok("--ray-moon", "#2f7fd0");
+  const land = tok("--tertiary", "#93939a"), line = tok("--line", "rgba(0,0,0,.1)");
+  const text = tok("--secondary", "#c3c3ca"), ink = tok("--card", "#1c1c1e");
+
+  const f = sky.frame;
+  const x0 = sky.centerX - f.spanDeg / 2, x1 = sky.centerX + f.spanDeg / 2;
+  const px = (x) => (x - x0) / (x1 - x0) * w;
+  const py = (a) => hgt - (a - f.bottomDeg) / (f.topDeg - f.bottomDeg) * hgt;
+
+  // 高さの目盛り
+  ctx.save();
+  ctx.font = "10px -apple-system, 'Hiragino Sans', sans-serif";
+  ctx.strokeStyle = line; ctx.lineWidth = 1;
+  for (let a = 0; a <= f.topDeg; a += (f.topDeg > 50 ? 20 : 10)) {
+    const y = py(a);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    ctx.fillStyle = text; ctx.fillText(`${a}°`, 3, y - 3);
+  }
+  // 方位の目盛り
+  for (const t of SoramiSky.compassTicks(x0 - 45, x1 + 45)) {
+    const x = px(t.x);
+    if (x < -20 || x > w + 20) continue;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, hgt); ctx.stroke();
+    ctx.fillStyle = text;
+    ctx.font = "700 11px -apple-system, 'Hiragino Sans', sans-serif";
+    ctx.fillText(t.name, x + 4, hgt - 6);
+    ctx.font = "10px -apple-system, 'Hiragino Sans', sans-serif";
+  }
+  ctx.restore();
+
+  // 稜線。**下を塗りつぶす**（そこに入ると見えない、を面で見せる）
+  const prof = SoramiSky.skyline(skyHorizon(), x0 - 1, x1 + 1, 0.5);
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(px(prof[0].x), hgt);
+  for (const p of prof) ctx.lineTo(px(p.x), py(p.angle));
+  ctx.lineTo(px(prof[prof.length - 1].x), hgt);
+  ctx.closePath();
+  ctx.globalAlpha = 0.35; ctx.fillStyle = land; ctx.fill();
+  ctx.globalAlpha = 1; ctx.strokeStyle = land; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  prof.forEach((p, i) => (i ? ctx.lineTo(px(p.x), py(p.angle)) : ctx.moveTo(px(p.x), py(p.angle))));
+  ctx.stroke();
+  ctx.restore();
+
+  // 通り道。稜線の裏は点線
+  const h = skyHorizon();
+  const drawTrack = (pts, color) => {
+    ctx.save(); ctx.lineWidth = 2.5; ctx.lineJoin = "round"; ctx.lineCap = "round";
+    let prev = null;
+    for (const p of pts) {
+      if (p.altitude < f.bottomDeg - 2) { prev = null; continue; }
+      const cur = [px(p.x), py(p.altitude)], above = p.altitude > h(p.azimuth);
+      if (prev) {
+        ctx.setLineDash(above ? [] : [3, 4]);
+        ctx.globalAlpha = above ? 1 : 0.45;
+        ctx.strokeStyle = color;
+        ctx.beginPath(); ctx.moveTo(prev[0], prev[1]); ctx.lineTo(cur[0], cur[1]); ctx.stroke();
+      }
+      prev = cur;
+    }
+    ctx.setLineDash([]); ctx.restore();
+  };
+  drawTrack(sky.sun, sunC);
+  drawTrack(sky.moon, moonC);
+
+  // 1時間ごとの目印
+  ctx.save();
+  ctx.font = "700 9px -apple-system, 'Hiragino Sans', sans-serif";
+  for (const [pts, color] of [[sky.sun, sunC], [sky.moon, moonC]]) {
+    for (const p of pts) {
+      const d = new Date(p.at + 9 * 3600000);
+      if (d.getUTCMinutes() !== 0 || d.getUTCHours() % 2 !== 0) continue;
+      if (p.altitude < h(p.azimuth)) continue;
+      const x = px(p.x), y = py(p.altitude);
+      if (x < 0 || x > w) continue;
+      ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.fill();
+      // 太陽の札は上、月の札は下。2本が近づく日に数字が重ならないように
+      ctx.fillStyle = text;
+      ctx.fillText(`${d.getUTCHours()}`, x + 4, color === sunC ? y - 4 : y + 11);
+    }
+  }
+  ctx.restore();
+
+  // いま選んでいる時刻の位置
+  const at = sky.dayMs + sky.minutes * 60000;
+  const obs = skyObs();
+  for (const [body, color] of [["sun", sunC], ["moon", moonC]]) {
+    const st = body === "moon" ? SoramiAstro.moon(at, obs) : SoramiAstro.sun(at, obs);
+    if (st.apparentAltitude < f.bottomDeg) continue;
+    let x = st.azimuth;
+    while (x < x0 - 180) x += 360;
+    while (x > x1 + 180) x -= 360;
+    const sx = px(x), sy = py(st.apparentAltitude);
+    if (sx < -20 || sx > w + 20) continue;
+    const waxing = body === "moon"
+      ? SoramiAstro.moon(at + 3600000, obs).illuminatedFraction > st.illuminatedFraction : true;
+    skyBody(ctx, sx, sy, 8, color, ink,
+      body === "moon" ? st.illuminatedFraction : null, waxing);
+  }
+}
+
+function skyRenderText() {
+  const at = sky.dayMs + sky.minutes * 60000;
+  const obs = skyObs();
+  const h = skyHorizon();
+  $("skyClock").textContent = S.JstCal.hhmm(at);
+  const rows = [];
+  for (const [body, name] of [["sun", "太陽"], ["moon", "月"]]) {
+    const st = body === "moon" ? SoramiAstro.moon(at, obs) : SoramiAstro.sun(at, obs);
+    const hidden = st.apparentAltitude <= h(st.azimuth);
+    const lit = body === "moon" ? ` ・輝面 ${Math.round(st.illuminatedFraction * 100)}%` : "";
+    rows.push(`${name}：方位 ${Math.round(st.azimuth)}° ・高さ ${st.apparentAltitude.toFixed(1)}°`
+      + `${lit} ・${hidden ? "稜線の裏" : "見えます"}`);
+  }
+  $("skyNow").innerHTML = rows.map(esc).join("<br>");
+
+  // **区間ごとに1行。** 月は1日に2回（前日からの続きと、夜に昇る回）出ることがあり、
+  // 最初と最後だけ出すと「0:00に見え始めて0:00に見えなくなる」になる（実測）。
+  const body = (id, label, color) => {
+    const spans = sky.spans[id] || [];
+    if (!spans.length) return `<tr><td><i class="k ${color}"></i>${esc(label)}</td>`
+      + `<td colspan="3">この日は稜線の上に出ません</td></tr>`;
+    const pts = id === "moon" ? sky.moon : sky.sun;
+    const end = sky.dayMs + 86400000;
+    return spans.map((sp, i) => {
+      const inSpan = pts.filter((p) => p.at >= sp.from && p.at <= sp.to);
+      const pk = SoramiSky.peak(inSpan.length ? inSpan : pts);
+      const from = sp.from <= sky.dayMs + 60000 ? "前日から" : S.JstCal.hhmm(sp.from);
+      const to = sp.to >= end - 60000 ? "翌日へ" : S.JstCal.hhmm(sp.to);
+      return `<tr><td>${i === 0 ? `<i class="k ${color}"></i>${esc(label)}` : ""}</td>`
+        + `<td>${from}</td>`
+        + `<td>${S.JstCal.hhmm(pk.at)} ${pk.altitude.toFixed(0)}°</td>`
+        + `<td>${to}</td></tr>`;
+    }).join("");
+  };
+  $("skyTable").querySelector("tbody").innerHTML =
+    body("sun", "太陽", "sun") + body("moon", "月", "moon");
+
+  const layers = moonHorizon && moonHorizon.layers ? moonHorizon.layers : [];
+  $("skyNote").textContent = layers.includes("urban")
+    ? "稜線は標高タイルの地形と、OpenStreetMap の建物の高さから出しています。木や高さの入っていない建物は見ていません。"
+    : layers.includes("terrain")
+      ? "稜線は標高タイルの地形から出しています。建物は入っていません。"
+      : "稜線が測れていないので、平らな地平線で描いています。";
+}
+
+function skyApply() {
+  skyRecompute();
+  skyDraw();
+  skyRenderText();
+  $("skyWeekday").textContent = `${S.Cal.monthDay(sky.dayMs)}（${S.Cal.weekday(sky.dayMs)}）`
+    + (S.JstCal.sameDay(sky.dayMs, Date.now()) ? " ・ 今日" : "");
+}
+
+function openSky() {
+  $("skyPlace").textContent = place.name;
+  if (!sky.dayMs) {
+    sky.dayMs = S.Cal.startOfDay(Date.now());
+    const d = new Date(Date.now() + 9 * 3600000);
+    sky.minutes = d.getUTCHours() * 60 + Math.floor(d.getUTCMinutes() / 5) * 5;
+  }
+  $("skyDate").value = new Date(sky.dayMs + 9 * 3600000).toISOString().slice(0, 10);
+  $("skyTime").value = String(sky.minutes);
+  if (!sky.wired) {
+    sky.wired = true;
+    const setDay = (ms) => {
+      sky.dayMs = ms; sky.centerX = null;
+      $("skyDate").value = new Date(ms + 9 * 3600000).toISOString().slice(0, 10);
+      skyApply();
+    };
+    $("skyPrev").onclick = () => setDay(sky.dayMs - 86400000);
+    $("skyNext").onclick = () => setDay(sky.dayMs + 86400000);
+    $("skyToday").onclick = () => setDay(S.Cal.startOfDay(Date.now()));
+    $("skyDate").onchange = () => {
+      const v = Date.parse(`${$("skyDate").value}T00:00:00+09:00`);
+      if (Number.isFinite(v)) setDay(v);
+    };
+    $("skyTime").oninput = () => { sky.minutes = Number($("skyTime").value); skyDraw(); skyRenderText(); };
+    $("skyBack").onclick = () => { location.hash = ""; };
+    // 横に動かして、見たい方位へ回す
+    const cv = $("skyCanvas");
+    const xOf = (e) => (e.touches ? e.touches[0].clientX : e.clientX);
+    const start = (e) => { sky.drag = { x: xOf(e), from: sky.centerX }; };
+    const move = (e) => {
+      if (!sky.drag || !sky.frame) return;
+      const dx = xOf(e) - sky.drag.x;
+      sky.centerX = sky.drag.from - dx / cv.clientWidth * sky.frame.spanDeg;
+      skyDraw();
+      if (e.cancelable) e.preventDefault();
+    };
+    const end = () => { sky.drag = null; };
+    cv.addEventListener("pointerdown", start);
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", end);
+    window.addEventListener("resize", () => { if (atSky) skyDraw(); });
+  }
+  // ページとして開くので、描くのは表示されてから（隠れている間は幅が0）
+  skyRecompute();
+  skyRenderText();
+  requestAnimationFrame(() => { skyDraw(); requestAnimationFrame(skyDraw); });
+  // 稜線は月の判定が測る。**直接このURLを開くと、まだ無い。**
+  // 届いたら測り直して描き直す（平らな地平線のまま放置しない）
+  if (!moonHorizon && !sky.waiting) {
+    sky.waiting = true;
+    let tries = 0;
+    const t = setInterval(() => {
+      if (moonHorizon) { clearInterval(t); sky.waiting = false; sky.centerX = null; if (atSky) skyApply(); return; }
+      if (++tries > 60) { clearInterval(t); sky.waiting = false; }
+    }, 500);
+  }
+}
+
 function aimApply({ redraw = true, recenter = false } = {}) {
   const wanted = $("aimTarget").value;
   aim.target = wanted === "custom"
@@ -4350,6 +4708,7 @@ function renderSearchResults(host, results, onPick) {
 
 // 隠し画面「ねらう」を開く合言葉。地名と衝突しない語だけにする
 const AIM_WORDS = ["!aim", "!ねらう", "ねらう", "!line", "!ライン"];
+const SKY_WORDS = ["!sky", "!そら", "そら", "!パノラマ", "パノラマ"];
 
 function wireSearchBox(boxId, resultsId, onPick, onCoord) {
   // **確定の拾い方は2通り持つ。** iOS のキーボードの「検索」では keydown の Enter が
@@ -4363,12 +4722,13 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
     setTimeout(() => { last = null; }, 800);
     // **合言葉で隠し画面を開く。** 地名として検索しても当たらない語を使う
     // （地名と衝突しないよう `!` で始める。2026-09-24 ユーザー依頼）。
-    if (AIM_WORDS.includes(q.toLowerCase())) {
+    if (AIM_WORDS.includes(q.toLowerCase()) || SKY_WORDS.includes(q.toLowerCase())) {
+      const to = AIM_WORDS.includes(q.toLowerCase()) ? "#/aim" : "#/sky";
       $(boxId).value = "";
       $(resultsId).innerHTML = "";
       if ($("placeSheet").open) $("placeSheet").close();
       if ($("mapSheet").open) $("mapSheet").close();
-      location.hash = "#/aim";
+      location.hash = to;
       return;
     }
     // **緯度経度を入れたらそこへ。** 地図アプリからの貼り付け（度分秒・全角）も読む。

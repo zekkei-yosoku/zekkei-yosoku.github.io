@@ -52,6 +52,17 @@ ok(/id="cards"/.test(html), "#cards がある");
 // どちらも `#cards` を丸ごと差し替えるので、画面に同時には出ない。
 ok((html.match(/class="mxhead"/g) || []).length === 2, "日付の見出しを作るのは2箇所だけ");
 ok(/function renderSkeleton/.test(html), "予報待ちの骨組みがある");
+
+// ---- 空の見え方（#/sky）。**稜線は月の判定が測ったものを使い回す**（通信を増やさない）
+ok(/id="skyView"/.test(html), "空の見え方のページがある");
+ok(/location\.hash === "#\/sky"/.test(html), "#/sky のルートがある");
+ok(/const skyHorizon = \(\) => \(moonHorizon \|\| \(\(\) => 0\)\)/.test(html),
+  "稜線は月の判定のものを使う（測り直さない）");
+ok(!/measureHorizon/.test(html.split("function openSky")[1] || ""),
+  "空の画面からは地平線を測りに行かない");
+ok(/点線は稜線の裏/.test(html), "点線の意味を凡例に出す");
+ok(!/\.aim-k\.moon \{[^}]*dashed/.test(html),
+  "凡例の月は実線（点線は「稜線の裏」に取ってある）");
 ok(/if \(!bundle\) \$\("cards"\)\.innerHTML = renderSkeleton/.test(html),
   "骨組みは最初の1回だけ（地点を変えたときは前の表を残す）");
 // 2026-09-07: 行を枠で囲う形は一度やって外した。大枠の中に小さい箱が並んで見える。
