@@ -116,5 +116,36 @@ console.log("== Cache Storage が無い環境では毎回取りに行く ==");
 }
 
 Date.now = realNow;
+console.log("== 429 は待って取り直す ==");
+{
+  // 枠は時間で回復するので、待てば通る。待たずに諦める理由がない（2026-09-27）
+  const calls = [];
+  const fake = async (url) => {
+    calls.push(Date.now());
+    return calls.length <= 2
+      ? new Response("{}", { status: 429 })
+      : new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+  };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = fake;
+  const t0 = Date.now();
+  const res = await S.fetchWithRetry("https://api.open-meteo.com/v1/forecast?x=1");
+  const ms = Date.now() - t0;
+  globalThis.fetch = realFetch;
+  ok(res.status === 200, "3回目で通る", `${calls.length}回`);
+  ok(calls.length === 3, "取り直しは2回まで", `${calls.length}回`);
+  ok(ms >= S.RETRY_WAIT_MS[0] + S.RETRY_WAIT_MS[1] - 50, "待ってから取り直す", `${ms}ms`);
+}
+
+{
+  // 429 以外は取り直さない。待っても変わらない
+  let n = 0;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => { n++; return new Response("{}", { status: 500 }); };
+  const res = await S.fetchWithRetry("https://api.open-meteo.com/v1/forecast?x=2");
+  globalThis.fetch = realFetch;
+  ok(n === 1 && res.status === 500, "500 は1回だけ", `${n}回`);
+}
+
 console.log(`\n${fail === 0 ? "FORECAST CACHE OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

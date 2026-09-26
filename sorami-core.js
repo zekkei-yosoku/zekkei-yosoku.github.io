@@ -661,9 +661,31 @@
 
   /// fetch と同じ形で返す。Open-Meteo の成功した応答だけを保存・再利用する。
   /// 返す Response には取得時刻（ミリ秒）を `x-sorami-fetched-at` に付ける。
+  /**
+   * 429（呼びすぎ）のときだけ、少し待って取り直す。
+   *
+   * Open-Meteo の無料枠は回線ごとに 600/分・5,000/時・10,000/日で、
+   * 1回開くと換算155回ぶん使う（2026-09-22 実測）。家族が同時に開くと分あたりの枠に
+   * 当たり、その回の表示が丸ごと「取得エラー」になっていた。
+   * **枠は時間で回復する**ので、待てば通る。待たずに諦める理由がない。
+   *
+   * 待ちは 0.8秒 → 2秒 の2回だけ。それ以上ねばると、画面が固まったように見える。
+   * 429以外の失敗（通信断・500）は**取り直さない**（待っても変わらない）。
+   */
+  const RETRY_WAIT_MS = [800, 2000];
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  async function fetchWithRetry(url, init = {}) {
+    let res = await fetch(url, init);
+    for (let i = 0; res.status === 429 && i < RETRY_WAIT_MS.length; i++) {
+      await sleep(RETRY_WAIT_MS[i]);
+      res = await fetch(url, init);
+    }
+    return res;
+  }
+
   async function cachedFetch(url, init = {}) {
     const store = isOpenMeteo(url) && !(init.method && init.method !== "GET") ? cacheStore() : null;
-    if (!store) return fetch(url, init);
+    if (!store) return isOpenMeteo(url) ? fetchWithRetry(url, init) : fetch(url, init);
     let cache = null;
     try {
       cache = await store.open(OM_CACHE);
@@ -671,7 +693,7 @@
       const at = hit ? Number(hit.headers.get(OM_AT)) : NaN;
       if (hit && Date.now() - at < OM_CACHE_TTL_MS && Date.now() >= at) return hit;
     } catch { cache = null; }       // 保存領域が使えなくても、取得は止めない
-    const res = await fetch(url, init);
+    const res = await fetchWithRetry(url, init);
     if (!res.ok || !cache) return res;
     const text = await res.text();
     const at = String(Date.now());
@@ -2432,7 +2454,7 @@
     Geo, Cal, JstCal: Cal, Sun, Moon, Curve, T, Series, MODELS, MODEL_NAMES,
     HOME_VARS, OFFSET_VARS, PROFILE_LEVELS, PROFILE_VARS, needsProfile,
     CLOUD_LAYERS, SCORERS, PHENOMENA, RANKS, RECORD_OUTCOMES, recordKind, outcomesFor, longNameOf,
-    decodeLocation, buildURL, fetchForecast, cachedFetch, OM_CACHE_TTL_MS, evaluate, evaluateWeek, readingAt,
+    decodeLocation, buildURL, fetchForecast, cachedFetch, fetchWithRetry, RETRY_WAIT_MS, OM_CACHE_TTL_MS, evaluate, evaluateWeek, readingAt,
     setTimezoneOffset, rankOf, confidenceOf, confidenceOfEnsemble, reliabilityGrade, phrasing, leadTimePenalty,
     ensembleSpread, fetchEnsemble, profileLevelCount, ENSEMBLE_VARS, ENSEMBLE_MEMBERS, ENSEMBLE_MODEL,
     SPREAD_TO_EXPECTED_ERROR, rankAgreement,

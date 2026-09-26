@@ -61,6 +61,11 @@ ok(/const skyHorizon = \(\) => \(moonHorizon \|\| \(\(\) => 0\)\)/.test(html),
 ok(!/measureHorizon/.test(html.split("function openSky")[1] || ""),
   "空の画面からは地平線を測りに行かない");
 ok(/点線は稜線の裏/.test(html), "点線の意味を凡例に出す");
+
+// ---- 短縮リンク。**取り出しの規則は1か所**（サーバーは行き先を返すだけ）
+ok(/resolve-map-link\?u=\$\{encodeURIComponent\(q\)\}/.test(html), "短縮リンクは API に問い合わせる");
+ok(/SoramiTerrain\.parseMapLink\(body\.url\)/.test(html),
+  "座標の取り出しは画面側の parseMapLink（規則を2か所に置かない）");
 ok(!/\.aim-k\.moon \{[^}]*dashed/.test(html),
   "凡例の月は実線（点線は「稜線の裏」に取ってある）");
 ok(/if \(!bundle\) \$\("cards"\)\.innerHTML = renderSkeleton/.test(html),

@@ -904,6 +904,7 @@
              aria-label="先端の高さ（海面から・メートル）">
       <button id="aimHeightSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">この高さで</button>
     </div>
+    <p class="tiny" id="aimHeightNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
     <div class="aim-row" id="aimCustomRow" hidden>
       <input type="number" id="aimCustomH" class="fav-in" inputmode="decimal" min="1" max="1000"
              placeholder="高さ（地上から・m）" aria-label="目標の高さ（地上から・メートル）">
@@ -1216,19 +1217,19 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260927001535"></script>
+<script src="sorami-core.js?v=20260927011300"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260927001535"></script>
-<script src="sorami-exif.js?v=20260927001535"></script>
-<script src="sorami-capcloud.js?v=20260927001535"></script>
-<script src="sorami-terrain.js?v=20260927001535"></script>
-<script src="sorami-mountain.js?v=20260927001535"></script>
-<script src="sorami-fuji.js?v=20260927001535"></script>
-<script src="sorami-sky.js?v=20260927001535"></script>
-<script src="sorami-align.js?v=20260927001535"></script>
-<script src="sorami-moon.js?v=20260927001535"></script>
-<script src="sorami-composition.js?v=20260927001535"></script>
+<script src="sorami-astro.js?v=20260927011300"></script>
+<script src="sorami-exif.js?v=20260927011300"></script>
+<script src="sorami-capcloud.js?v=20260927011300"></script>
+<script src="sorami-terrain.js?v=20260927011300"></script>
+<script src="sorami-mountain.js?v=20260927011300"></script>
+<script src="sorami-fuji.js?v=20260927011300"></script>
+<script src="sorami-sky.js?v=20260927011300"></script>
+<script src="sorami-align.js?v=20260927011300"></script>
+<script src="sorami-moon.js?v=20260927011300"></script>
+<script src="sorami-composition.js?v=20260927011300"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4469,7 +4470,23 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   // 高さが推定の部位だけ、直せるようにする
   const part = (aim.target.parts || []).find((p) => p.id === aim.partId);
   $("aimHeightRow").hidden = !(part && part.adjustable);
-  if (part && part.adjustable) $("aimHeightM").value = String(part.m);
+  if (part && part.adjustable) {
+    $("aimHeightM").value = String(part.m);
+    // **合わせ込めるようにする。** 公表値が無いので、実際に見た角度から高さを決められる。
+    // 地図の中心から目標を見上げる角度を出しておけば、「あの日あそこから5度でてっぺんだった」を
+    // 手がかりに、この数字が合うまで高さを動かせる。
+    const c = AimMap.center();
+    if (c) {
+      const d = SoramiTerrain.distanceKm(c.latitude, c.longitude,
+        aim.target.latitude, aim.target.longitude);
+      const ang = SoramiAstro.targetElevationAngle(d, (place.elevation ?? 0) + 1.5, part.m);
+      $("aimHeightNote").textContent =
+        `いまの ${Math.round(part.m)}m だと、地図の中心（${aimKm(d)}km先）からは ${ang.toFixed(1)}° に見えます。`
+        + `実際に見た角度が分かれば、合うまで高さを動かせます。`;
+    } else {
+      $("aimHeightNote").textContent = "";
+    }
+  }
   const picked = $("aimDate").value ? Date.parse(`${$("aimDate").value}T00:00:00+09:00`) : null;
   aim.dayMs = Number.isFinite(picked) ? picked : S.Cal.startOfDay(Date.now());
   $("aimKeySet").textContent = aimSideLabel("set");
@@ -4735,12 +4752,26 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
     // 検索に投げても地名としては当たらないので、先にこちらで拾う（2026-09-24 ユーザー依頼）。
     const coord = SoramiTerrain.parseLatLon(q);
     if (coord) { $(resultsId).innerHTML = ""; onCoord(coord); return; }
-    // 短縮リンク（maps.app.goo.gl/…）は**ブラウザからは中身を読めない**。
-    // 転送先を読むには通信が要り、その相手は読ませてくれない（CORS）。
-    // 黙って「該当なし」にせず、どうすれば飛べるかを出す。
+    // 短縮リンク（maps.app.goo.gl/…）は**ブラウザからは行き先を読めない**（CORS）。
+    // 2026-09-27 から、行き先だけを調べる経路を API に置いた。
     if (SoramiTerrain.isShortMapLink(q)) {
-      $(resultsId).innerHTML = `<p class="tiny">短縮リンクは開けません。リンクを一度開いて、
-        出てきたアドレス（<span class="nb">.../@35.36,138.72,17z</span> のような形）か、
+      // 短縮リンクは CORS で読めないので、**行き先だけ**サーバーに調べてもらう。
+      // 座標の取り出しは、いつもと同じ `parseMapLink`（規則を2か所に置かない）。
+      $(resultsId).innerHTML = `<p class="tiny">リンクの行き先を調べています…</p>`;
+      let resolved = null;
+      try {
+        const r = await fetch(`${API}/resolve-map-link?u=${encodeURIComponent(q)}`);
+        const body = await r.json();
+        if (r.ok && body.url) resolved = SoramiTerrain.parseMapLink(body.url);
+      } catch { resolved = null; }
+      if (resolved && onCoord) {
+        $(boxId).value = "";
+        $(resultsId).innerHTML = "";
+        onCoord(resolved);
+        return;
+      }
+      $(resultsId).innerHTML = `<p class="tiny">このリンクからは座標が分かりませんでした。
+        一度開いて、出てきたアドレス（<span class="nb">.../@35.36,138.72,17z</span> のような形）か、
         緯度経度そのものを貼ってください。</p>`;
       return;
     }
