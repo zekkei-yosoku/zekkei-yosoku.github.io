@@ -96,18 +96,21 @@ console.log("== 地形の凹凸で線を蛇行させない ==");
   const profile = [900, 850, 830, 820, 790, 890, 790, 1350, 1500, 1190, 790, 490, 250, 560,
     1050, 1270, 1270, 840, 1010, 1930, 1200, 2140, 1970, 820, 810, 1210, 690, 710, 830,
     1070, 1230, 920, 530, 460, 220, 140];
-  let i = 0;
-  const fake = () => profile[Math.min(profile.length - 1, i++ % profile.length)];
+  // **呼ばれた順ではなく場所で決める。** 解くのは同時並行なので、順番に頼ると結果が揺れる
+  const fake = (lat, lon) => {
+    const d = TR.distanceKm(fuji.latitude, fuji.longitude, lat, lon);
+    const r = AL.lineRange(3776);
+    const t = (Math.log(d / r.minKm) / Math.log(r.maxKm / r.minKm)) * (profile.length - 1);
+    return profile[Math.max(0, Math.min(profile.length - 1, Math.round(t)))];
+  };
   const swings = (line) => {
     const b = line.points.map((p) => TR.bearing(fuji.latitude, fuji.longitude, p.latitude, p.longitude));
     let n = 0;
     for (let k = 2; k < b.length; k++) if ((b[k] - b[k - 1]) * (b[k - 1] - b[k - 2]) < 0) n++;
     return n;
   };
-  i = 0;
   const rough = await AL.line(fuji, "sun", day, { sides: ["rise"], partId: "summit",
     elevationAt: fake, smooth: false });
-  i = 0;
   const smooth = await AL.line(fuji, "sun", day, { sides: ["rise"], partId: "summit",
     elevationAt: fake });
   ok(rough.length === 1 && smooth.length === 1, "どちらも線になる");

@@ -8,7 +8,7 @@
      connect-src を実際に使う相手だけに絞れば、盗んだトークンの持ち出し先を塞げる。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://msearch.gsi.go.jp https://overpass-api.de https://overpass.kumi.systems https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://djlorenz.github.io https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://overpass.kumi.systems https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://djlorenz.github.io https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1162,18 +1162,18 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260925113237"></script>
+<script src="sorami-core.js?v=20260926233408"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260925113237"></script>
-<script src="sorami-exif.js?v=20260925113237"></script>
-<script src="sorami-capcloud.js?v=20260925113237"></script>
-<script src="sorami-terrain.js?v=20260925113237"></script>
-<script src="sorami-mountain.js?v=20260925113237"></script>
-<script src="sorami-fuji.js?v=20260925113237"></script>
-<script src="sorami-align.js?v=20260925113237"></script>
-<script src="sorami-moon.js?v=20260925113237"></script>
-<script src="sorami-composition.js?v=20260925113237"></script>
+<script src="sorami-astro.js?v=20260926233408"></script>
+<script src="sorami-exif.js?v=20260926233408"></script>
+<script src="sorami-capcloud.js?v=20260926233408"></script>
+<script src="sorami-terrain.js?v=20260926233408"></script>
+<script src="sorami-mountain.js?v=20260926233408"></script>
+<script src="sorami-fuji.js?v=20260926233408"></script>
+<script src="sorami-align.js?v=20260926233408"></script>
+<script src="sorami-moon.js?v=20260926233408"></script>
+<script src="sorami-composition.js?v=20260926233408"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1807,6 +1807,16 @@ async function loadExtras() {
     }
   }
 
+  // 笠雲の上空は、富士山の天気と**同時に**取りに行く。
+  // 笠雲の"評価"は富士山の結果が要るので後だが、"取得"は互いに待つ必要がない。
+  // 直列だと 2166→2662ms のあと 2714→3487ms と、そのぶん丸ごと足されていた（実測）。
+  const capCanRetry = typeof SoramiCapCloud !== "undefined"
+    && !capUpper && Date.now() - capUpperFailedAt > 30000;
+  const capUpperPromise = capCanRetry
+    ? SoramiCapCloud.fetchUpperAir({ days: Math.min(16, days.length), fetchImpl: S.cachedFetch })
+        .catch(() => null)
+    : null;
+
   if (!fujiWeather) {
     try { fujiWeather = await SoramiFuji.fetchFujiWeather(obs, S, { days: 8 }); } catch { fujiWeather = null; }
     if (seq !== extraSeq) return;
@@ -1826,14 +1836,12 @@ async function loadExtras() {
     // **失敗しても取り直す。** 以前は一度 null になるとページを開き直すまで
     // 笠雲の行が出なかった。Open-Meteo が一時的に 429 を返すだけで、その回の
     // 表示から笠雲が丸ごと消える（2026-09-16 に実際に起きた）。30秒あければ再試行する
-    const canRetry = !capUpper && Date.now() - capUpperFailedAt > 30000;
-    if (canRetry) {
+    if (capCanRetry) {
       // **一覧と同じ日数を取る。** 3日だけ取っていたので、他の行が14日あるのに
       // 笠雲だけ3日で切れて「—」が並び、壊れて見えた（2026-09-15 ユーザー指摘）。
       // GFS が返さない先の日は「—」のままになる。それは埋めない
-      try {
-        capUpper = await SoramiCapCloud.fetchUpperAir({ days: Math.min(16, days.length), fetchImpl: S.cachedFetch });
-      } catch { capUpper = null; }
+      // （取りに行くのは上で始めてある。ここでは結果を待つだけ）
+      capUpper = await capUpperPromise;
       if (!capUpper) {
         capUpperFailedAt = Date.now();
         // **取り直しの契機を自分で作る。** この関数はページ読み込み時に1回しか

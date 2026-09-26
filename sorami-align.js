@@ -148,6 +148,25 @@
   }
 
   /**
+   * 数をかぎって同時に走らせる。
+   * 1点ずつ順番に待つと、標高タイルの往復（1枚55ms・実測）がそのまま積み上がる
+   * （富士山の線で88枚＝4.2秒）。かといって全部いっぺんに投げると
+   * 国土地理院へ一度に88本の要求が飛ぶ。**6本ずつ**にして両方を避ける。
+   */
+  async function mapLimit(items, limit, fn) {
+    const out = new Array(items.length);
+    let next = 0;
+    const worker = async () => {
+      while (next < items.length) {
+        const i = next++;
+        out[i] = await fn(items[i], i);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+    return out;
+  }
+
+  /**
    * 線を解く距離の並び。**等間隔ではなく、近いほど細かく取る。**
    * 線は近いほど強く曲がる（見上げ角が急に変わるので、天体の方位も急に変わる）。
    * 等間隔だと、その曲がる区間が数点しか無くて折れ線に見える。
@@ -170,12 +189,10 @@
       : lineDistances(minKm, maxKm);
     const out = [];
     for (const side of sides) {
-      let points = [];
-      for (const d of dists) {
-        const p = await solvePoint(target, body, dayMs, d, side, opts);
-        // 地平線より下、または天体が出ていない側は線にならない
-        if (p && p.altitude > -1) points.push({ ...p, side });
-      }
+      const solved = await mapLimit(dists, 6,
+        (d) => solvePoint(target, body, dayMs, d, side, opts));
+      // 地平線より下、または天体が出ていない側は線にならない
+      let points = solved.filter((p) => p && p.altitude > -1).map((p) => ({ ...p, side }));
       // **1点ごとの凹凸で線を蛇行させない。**
       // 谷と尾根では立つ標高が 1500m 違い、そのぶん山頂の見上げ角も変わるので、
       // 生の標高で1点ずつ解くと隣の点どうしで方位が行き来する（実測: ±1°＝50kmで約900m）。
@@ -192,15 +209,15 @@
   async function smoothLine(target, body, dayMs, side, points, opts) {
     const w = Number.isFinite(opts.smoothWindow) ? opts.smoothWindow : 5;
     const raw = points.map((p) => p.elevationM);
-    const out = [];
-    for (let i = 0; i < points.length; i++) {
+    const solved = await mapLimit(points, 6, async (pt, i) => {
       const lo = Math.max(0, i - w), hi = Math.min(raw.length - 1, i + w);
       const win = raw.slice(lo, hi + 1);
       const m = win.reduce((a, b) => a + b, 0) / win.length;
-      const p = await solvePoint(target, body, dayMs, points[i].distanceKm, side,
+      const p = await solvePoint(target, body, dayMs, pt.distanceKm, side,
         { ...opts, elevationAt: () => m });
-      if (p && p.altitude > -1) out.push({ ...p, side, groundM: raw[i] });
-    }
+      return p && p.altitude > -1 ? { ...p, side, groundM: raw[i] } : null;
+    });
+    const out = solved.filter(Boolean);
     return out.length >= 2 ? out : points;
   }
 
@@ -282,7 +299,7 @@
     }));
   }
 
-  const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, solvePoint,
+  const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;

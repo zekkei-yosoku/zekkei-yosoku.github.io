@@ -110,12 +110,32 @@
     return x < 8388608 ? x * 0.01 : (x - 16777216) * 0.01;
   }
 
-  const tiles = new Map();
-  /// タイルを1枚読む。**同じタイルは二度取りに行かない。**
-  function loadTile(z, x, y) {
-    const key = `${z}/${x}/${y}`;
-    if (tiles.has(key)) return tiles.get(key);
-    const p = new Promise((resolve) => {
+  // 標高タイルの保存。**国土地理院は Cache-Control を返さない**（`last-modified` と
+  // `etag` だけ）。放っておくと読み直しのたびに再検証の往復が入る。地形は変わらないので
+  // こちらで持つ。1枚65536点ぶんで、線1本に88枚使う（実測）。
+  const DEM_CACHE = "sorami-dem-v1";
+  const DEM_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+  const DEM_MAX = 800;                       // 88枚×9通りぶん。20KB/枚として約16MB
+  const DEM_AT = "x-sorami-at";              // 使う場所より前に置く（後ろだと TDZ）
+  const demStore = () => (typeof caches !== "undefined" && caches && typeof caches.open === "function"
+    ? caches : null);
+
+  /// PNG のバイト列を画素へ。`createImageBitmap` が無ければ諦めて Image の道に落とす
+  async function decodeTile(blob) {
+    if (typeof createImageBitmap !== "function" || typeof document === "undefined") return null;
+    const bmp = await createImageBitmap(blob);
+    const c = document.createElement("canvas");
+    c.width = bmp.width; c.height = bmp.height;
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(bmp, 0, 0);
+    const data = ctx.getImageData(0, 0, bmp.width, bmp.height);
+    if (bmp.close) bmp.close();
+    return data;
+  }
+
+  /// Image で読む道。保存領域が使えない環境ぶんの受け皿
+  function loadTileByImage(url) {
+    return new Promise((resolve) => {
       if (typeof Image === "undefined" || typeof document === "undefined") { resolve(null); return; }
       const img = new Image();
       img.crossOrigin = "anonymous";
@@ -129,10 +149,64 @@
         } catch { resolve(null); }        // 汚染された canvas 等。**落とさない**
       };
       img.onerror = () => resolve(null);  // 海など、タイルの無い区画は 404
-      img.src = `${GSI_TILE}/${z}/${x}/${y}.png`;
+      img.src = url;
     });
+  }
+
+  const tiles = new Map();
+  /// タイルを1枚読む。**同じタイルは二度取りに行かない**（この画面でも、次に開いたときも）。
+  function loadTile(z, x, y) {
+    const key = `${z}/${x}/${y}`;
+    if (tiles.has(key)) return tiles.get(key);
+    const url = `${GSI_TILE}/${z}/${x}/${y}.png`;
+    const p = (async () => {
+      const store = demStore();
+      let cache = null;
+      if (store) {
+        try {
+          cache = await store.open(DEM_CACHE);
+          const hit = await cache.match(url);
+          const at = hit ? Number(hit.headers.get(DEM_AT)) : NaN;
+          if (hit && Date.now() - at < DEM_TTL_MS && Date.now() >= at) {
+            const img = await decodeTile(await hit.blob());
+            if (img) return img;
+          }
+        } catch { cache = null; }       // 保存領域が使えなくても、取得は止めない
+      }
+      if (!cache || typeof fetch !== "function") return loadTileByImage(url);
+      let res = null;
+      try { res = await fetch(url, { mode: "cors" }); } catch { return loadTileByImage(url); }
+      if (!res.ok) return null;         // 海など、タイルの無い区画は 404
+      const blob = await res.blob();
+      const img = await decodeTile(blob);
+      if (!img) return loadTileByImage(url);
+      try {
+        await cache.put(url, new Response(blob, { status: 200,
+          headers: { "content-type": "image/png", [DEM_AT]: String(Date.now()) } }));
+        pruneDemCache(cache);
+      } catch { /* 容量超過など。使い回せないだけで、今回の結果は返す */ }
+      return img;
+    })();
     tiles.set(key, p);
     return p;
+  }
+
+  /// 古いものから消す。放っておくと地点を変えるたびに増え続ける
+  let demPruning = false;
+  async function pruneDemCache(cache) {
+    if (demPruning) return;
+    demPruning = true;
+    try {
+      const keys = await cache.keys();
+      if (keys.length <= DEM_MAX) return;
+      const aged = [];
+      for (const req of keys) {
+        const r = await cache.match(req);
+        aged.push({ req, at: r ? Number(r.headers.get(DEM_AT)) || 0 : 0 });
+      }
+      aged.sort((a, b) => a.at - b.at);
+      for (const x of aged.slice(0, aged.length - DEM_MAX)) await cache.delete(x.req);
+    } catch { /* 掃除は補助 */ } finally { demPruning = false; }
   }
 
   /// 標高タイルから1点。タイル自体が取れなければ undefined、「標高なし」画素なら null
