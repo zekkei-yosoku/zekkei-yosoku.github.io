@@ -595,6 +595,10 @@
      棒を置くとセルが縦に伸びるぶん、表全体が長くなる。
      信頼度を線の長さで示すのは読み取れなかったので A/B/C の文字へ戻した。
      地の濃さは、上に載る文字が本文基準（4.5:1）を保てる範囲で決めている。 */
+  /* 予報を待っているあいだの空セル。**ちらつかせない**（明滅は待ち時間を長く感じさせる）。
+     地の色だけ薄く置いて、形が先に決まっていることを示す。 */
+  .cell.skel { background: var(--sunk); opacity: .5; }
+  .mxstack.skel .mxrail { opacity: .5; }
   .cell { position: relative; height: 42px; border-radius: 9px; overflow: hidden;
           display: flex; flex-direction: column; align-items: center; justify-content: center;
           gap: 2px; padding: 4px 3px; background: var(--sunk);
@@ -1162,18 +1166,18 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260926233408"></script>
+<script src="sorami-core.js?v=20260926234132"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260926233408"></script>
-<script src="sorami-exif.js?v=20260926233408"></script>
-<script src="sorami-capcloud.js?v=20260926233408"></script>
-<script src="sorami-terrain.js?v=20260926233408"></script>
-<script src="sorami-mountain.js?v=20260926233408"></script>
-<script src="sorami-fuji.js?v=20260926233408"></script>
-<script src="sorami-align.js?v=20260926233408"></script>
-<script src="sorami-moon.js?v=20260926233408"></script>
-<script src="sorami-composition.js?v=20260926233408"></script>
+<script src="sorami-astro.js?v=20260926234132"></script>
+<script src="sorami-exif.js?v=20260926234132"></script>
+<script src="sorami-capcloud.js?v=20260926234132"></script>
+<script src="sorami-terrain.js?v=20260926234132"></script>
+<script src="sorami-mountain.js?v=20260926234132"></script>
+<script src="sorami-fuji.js?v=20260926234132"></script>
+<script src="sorami-align.js?v=20260926234132"></script>
+<script src="sorami-moon.js?v=20260926234132"></script>
+<script src="sorami-composition.js?v=20260926234132"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1519,6 +1523,8 @@ async function load(force) {
   // モデル数は増減する。文言に数字を焼き込むと、増やしたときに嘘になる（4→8で実際にずれていた）。
   $("status").textContent = `${S.MODELS.length}つの気象モデルから取得しています…`;
   $("bestNote").hidden = true;
+  // 最初の1回だけ骨組みを出す。地点を変えたときは、前の表を残したほうが落ち着く
+  if (!bundle) $("cards").innerHTML = renderSkeleton(Date.now());
   try {
     // 光害はその地点の素質なので予報と並行に取得する。取れなくても致命的ではない。
     const [fetched, lp] = await Promise.all([
@@ -2337,6 +2343,40 @@ function renderMatrix(order, now) {
     <div class="mxscroll"><div class="mxstack" style="--days:${dayList.length}">
       <div class="mxhead">${head}</div>${rows}</div></div>
     <div style="padding:0 16px">${legend}${out}</div></div>`;
+}
+
+/**
+ * 予報を待っているあいだの骨組み。**空白のまま3秒待たせない。**
+ *
+ * 日付と行の名前は予報が無くても決まるので、先に出して**形を確定させる**。
+ * 中身が入っても行が動かないので、読み始めた場所がずれない。
+ * 実測（2026-09-26・本番・予報の保存を消した状態）: 予報が出そろうまで約3.2秒あり、
+ * その間は見出しと「8つの気象モデルから取得しています…」だけで、下は真っ白だった。
+ */
+function renderSkeleton(now) {
+  const today = S.Cal.startOfDay(now);
+  const days = Array.from({ length: 14 }, (_, i) => today + i * 86400000);
+  const order = Object.entries(S.PHENOMENA)
+    .sort((a, b) => (a[1].order ?? 99) - (b[1].order ?? 99));
+  let head = `<div class="mxrail"></div>`;
+  for (const dayMs of days) {
+    const wd = S.Cal.weekday(dayMs);
+    const cls = dayMs === today ? "today" : wd === "土" ? "sat" : wd === "日" ? "sun" : "";
+    head += `<div class="dhead ${cls}"><span class="d">${S.Cal.monthDay(dayMs)}</span><span>${wd}</span></div>`;
+  }
+  let rows = "";
+  for (const [id, meta] of order) {
+    // 記号は本物と同じ出し方にする（月は満ち欠けで変わる）。入れ替わりで印が動かない
+    let grid = `<div class="mxrail"><span>${iconFor(id, now)}</span>`
+      + `<span class="nmw"><span class="nm">${esc(meta.name)}</span>`
+      + (meta.timeOfDay ? `<span class="tod">${esc(meta.timeOfDay)}</span>` : "")
+      + `</span></div>`;
+    for (let i = 0; i < days.length; i++) grid += `<div class="cell skel"></div>`;
+    rows += `<div class="mxrow">${grid}</div>`;
+  }
+  return `<div class="card" style="padding:14px 0 12px" aria-hidden="true">
+    <div class="mxscroll"><div class="mxstack skel" style="--days:${days.length}">
+      <div class="mxhead">${head}</div>${rows}</div></div></div>`;
 }
 
 // 一覧と詳細で、点数・棒・日付・信頼度の読み方を揃える。

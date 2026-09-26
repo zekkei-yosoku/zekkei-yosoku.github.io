@@ -48,7 +48,12 @@ console.log("== 日付の軸は1本、現象ごとに枠を持つ ==");
 ok(/function renderMatrix/.test(html), "1本の日付軸で描く");
 ok(!/function renderPhenomenonCards/.test(html), "現象ごとの独立した横スクロールは無い");
 ok(/id="cards"/.test(html), "#cards がある");
-ok((html.match(/class="mxhead"/g) || []).length === 1, "日付の見出しは1本だけ");
+// 日付の軸は1本。**描く道は2つある**（本物と、予報待ちの骨組み）が、
+// どちらも `#cards` を丸ごと差し替えるので、画面に同時には出ない。
+ok((html.match(/class="mxhead"/g) || []).length === 2, "日付の見出しを作るのは2箇所だけ");
+ok(/function renderSkeleton/.test(html), "予報待ちの骨組みがある");
+ok(/if \(!bundle\) \$\("cards"\)\.innerHTML = renderSkeleton/.test(html),
+  "骨組みは最初の1回だけ（地点を変えたときは前の表を残す）");
 // 2026-09-07: 行を枠で囲う形は一度やって外した。大枠の中に小さい箱が並んで見える。
 // 区切りは線1本で、現象名の列の下まで伸ばす（セルの側だけに線が出ると、
 // ラベルの列が切れ目のない帯に見えて行がどこで区切れるか読めない）。
