@@ -568,6 +568,7 @@
   .aim-tab .k.rise { border-top-style: dashed; }
   /* 空の展開図。地図と同じ器（.mapwrap）を使うが、高さはこちらで決める */
   #skyView .mapwrap canvas { height: min(46vh, 420px); min-height: 240px; }
+  #skyView .mapwrap canvas[hidden] { display: none; }
   .sky-time { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
   .sky-time input[type=range] { flex: 1; accent-color: var(--accent); height: 44px; }
   .sky-time output { flex: 0 0 auto; font-weight: 700; font-size: 1rem;
@@ -863,8 +864,16 @@
         <span id="skyWeekday" class="tiny" style="flex:1"></span>
         <button id="skyToday" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">今日</button>
       </div>
+      <div class="aim-row" style="margin-top:6px">
+        <div class="aim-seg" role="group" aria-label="見せ方">
+          <button id="skyMode2d" aria-pressed="true">展開図</button>
+          <button id="skyMode3d" aria-pressed="false">3D</button>
+        </div>
+      </div>
       <div class="mapwrap" style="margin-top:8px">
         <canvas id="skyCanvas" aria-label="空の展開図。横が方位、縦が高さです"></canvas>
+        <canvas id="sky3dCanvas" hidden aria-label="3Dの空。地形の上を太陽と月が通ります"></canvas>
+        <div class="mapattr">国土地理院</div>
       </div>
       <div class="sky-time">
         <input type="range" id="skyTime" min="0" max="1439" step="5" aria-label="時刻">
@@ -1217,19 +1226,19 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260927011300"></script>
+<script src="sorami-core.js?v=20260927011719"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260927011300"></script>
-<script src="sorami-exif.js?v=20260927011300"></script>
-<script src="sorami-capcloud.js?v=20260927011300"></script>
-<script src="sorami-terrain.js?v=20260927011300"></script>
-<script src="sorami-mountain.js?v=20260927011300"></script>
-<script src="sorami-fuji.js?v=20260927011300"></script>
-<script src="sorami-sky.js?v=20260927011300"></script>
-<script src="sorami-align.js?v=20260927011300"></script>
-<script src="sorami-moon.js?v=20260927011300"></script>
-<script src="sorami-composition.js?v=20260927011300"></script>
+<script src="sorami-astro.js?v=20260927011719"></script>
+<script src="sorami-exif.js?v=20260927011719"></script>
+<script src="sorami-capcloud.js?v=20260927011719"></script>
+<script src="sorami-terrain.js?v=20260927011719"></script>
+<script src="sorami-mountain.js?v=20260927011719"></script>
+<script src="sorami-fuji.js?v=20260927011719"></script>
+<script src="sorami-sky.js?v=20260927011719"></script>
+<script src="sorami-align.js?v=20260927011719"></script>
+<script src="sorami-moon.js?v=20260927011719"></script>
+<script src="sorami-composition.js?v=20260927011719"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4160,7 +4169,8 @@ function aimUpdateNear(center) {
 // 稜線は月の判定で**もう測ってある**（全周1度刻みの地形＋建物）。ここでは使うだけで、
 // 通信は増やさない。測れていなければ平らな 0度 で描き、その旨を注記に出す。
 const sky = { dayMs: null, minutes: 12 * 60, sun: [], moon: [], spans: {}, frame: null,
-              centerX: null, drag: null, wired: false };
+              centerX: null, drag: null, wired: false,
+              mode: store.get("sorami.skyMode", "2d") };
 
 const skyHorizon = () => (moonHorizon || (() => 0));
 const skyObs = () => (moonObs || { latitude: place.latitude, longitude: place.longitude,
@@ -4387,9 +4397,173 @@ function skyRenderText() {
       : "稜線が測れていないので、平らな地平線で描いています。";
 }
 
+// ---------------------------------------------------------------- 3D の空
+//
+// 展開図と**同じ角度**で作る。地形の高さは標高そのものではなく見上げ角から置くので
+// （`SoramiSky.meshGrid`）、2Dの稜線と3Dの稜線がずれない。
+// three.js は `vendor/` に置いてあるファイルを読む（CDN を使わない＝CSP は self のまま）。
+// 読み込むのは**3Dを開いたときだけ**なので、他の画面は重くならない。
+const sky3d = { THREE: null, loading: false, ready: false, scene: null, camera: null,
+                renderer: null, look: { az: 180, alt: 8 }, drag: null, terrain: null,
+                bodies: {}, tracks: {}, key: null };
+
+/**
+ * three は色を**線形**として受け取る。見たままの値（sRGB）をそのまま渡すと
+ * 夜空が薄明の色になる（2026-09-27 実機で判明。0.03 → 0.19 相当まで明るくなる）。
+ */
+const srgbToLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+
+async function sky3dLoad() {
+  if (sky3d.THREE || sky3d.loading) return sky3d.THREE;
+  sky3d.loading = true;
+  try { sky3d.THREE = await import("./vendor/three/three.module.js"); }
+  catch { sky3d.THREE = null; }
+  sky3d.loading = false;
+  return sky3d.THREE;
+}
+
+/// 地形の格子を作る。標高は**すでに取ってあるタイル**から読む（新しい通信は増えない）
+async function sky3dTerrain() {
+  const T = sky3d.THREE, obs = skyObs();
+  const azs = Array.from({ length: 180 }, (_, i) => i * 2);
+  const dists = SoramiTerrain.DEFAULT_STEPS.filter((d) => d <= 40);
+  const pts = [];
+  for (const az of azs) for (const d of dists) pts.push(SoramiTerrain.destination(obs.latitude, obs.longitude, az, d));
+  let elevs = [];
+  try { elevs = await SoramiTerrain.elevations(pts, { zoom: 11 }); } catch { elevs = []; }
+  const eyeM = (obs.elevation ?? 0) + 1.5;
+  const at = (i, j) => {
+    const e = elevs[i * dists.length + j];
+    return Number.isFinite(e) ? SoramiAstro.targetElevationAngle(dists[j], eyeM, e) : -1;
+  };
+  const g = SoramiSky.meshGrid(azs, dists, at);
+
+  const geo = new T.BufferGeometry();
+  geo.setAttribute("position", new T.BufferAttribute(g.positions, 3));
+  geo.setIndex(new T.BufferAttribute(g.indices, 1));
+  // 標高で色を変える。低い所を暗く、高い所を明るく（陰影の代わり）
+  const col = new Float32Array(g.positions.length);
+  const hi = Math.max(100, ...elevs.filter(Number.isFinite));
+  for (let i = 0; i < azs.length; i++) {
+    for (let j = 0; j < dists.length; j++) {
+      const e = elevs[i * dists.length + j];
+      const t = Number.isFinite(e) ? Math.max(0, Math.min(1, e / hi)) : 0;
+      const k = (i * dists.length + j) * 3;
+      col[k] = 0.18 + 0.55 * t; col[k + 1] = 0.21 + 0.5 * t; col[k + 2] = 0.24 + 0.45 * t;
+    }
+  }
+  for (let i = 0; i < col.length; i++) col[i] = srgbToLinear(col[i]);
+  geo.setAttribute("color", new T.BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  return new T.Mesh(geo, new T.MeshBasicMaterial({ vertexColors: true, side: T.DoubleSide }));
+}
+
+/// 八方位の札。板に文字を描いて空に浮かべる
+function sky3dLabel(T, text, az) {
+  const c = document.createElement("canvas");
+  c.width = 128; c.height = 64;
+  const g = c.getContext("2d");
+  g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(0, 0, 128, 64);
+  g.fillStyle = "#fff"; g.font = "700 40px -apple-system, 'Hiragino Sans', sans-serif";
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText(text, 64, 34);
+  const sp = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(c), depthTest: false }));
+  const v = SoramiSky.direction(az, 1.5, 38);
+  sp.position.set(v.x, v.y, v.z);
+  sp.scale.set(4, 2, 1);
+  return sp;
+}
+
+async function sky3dBuild() {
+  const T = await sky3dLoad();
+  if (!T) return false;
+  const cv = $("sky3dCanvas");
+  if (!sky3d.renderer) {
+    sky3d.renderer = new T.WebGLRenderer({ canvas: cv, antialias: true });
+    sky3d.camera = new T.PerspectiveCamera(58, 1, 0.05, 200);
+    sky3d.scene = new T.Scene();
+  }
+  const key = `${skyObs().latitude.toFixed(4)},${skyObs().longitude.toFixed(4)}`;
+  if (sky3d.key !== key) {
+    if (sky3d.terrain) sky3d.scene.remove(sky3d.terrain);
+    sky3d.terrain = await sky3dTerrain();
+    sky3d.scene.add(sky3d.terrain);
+    for (const c of SoramiSky.COMPASS) sky3d.scene.add(sky3dLabel(T, c.name, c.deg));
+    sky3d.key = key;
+  }
+  sky3d.ready = true;
+  return true;
+}
+
+function sky3dDraw() {
+  const T = sky3d.THREE;
+  if (!T || !sky3d.ready) return;
+  const cv = $("sky3dCanvas");
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (!w || !h) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  sky3d.renderer.setPixelRatio(dpr);
+  sky3d.renderer.setSize(w, h, false);
+  sky3d.camera.aspect = w / h;
+  sky3d.camera.updateProjectionMatrix();
+
+  const at = sky.dayMs + sky.minutes * 60000;
+  const obs = skyObs();
+  const sunSt = SoramiAstro.sun(at, obs);
+  // 空の色は太陽の高さで決める。昼・薄明・夜で地の色が変わらないと、時刻が伝わらない
+  const a = sunSt.apparentAltitude;
+  const mix = (x, y, t) => x + (y - x) * Math.max(0, Math.min(1, t));
+  const night = [0.03, 0.04, 0.08], dusk = [0.22, 0.16, 0.20], day = [0.53, 0.68, 0.86];
+  const t = a > 0 ? 1 : a > -12 ? (a + 12) / 12 : 0;
+  const base = a > 0 ? day : [mix(night[0], dusk[0], t), mix(night[1], dusk[1], t), mix(night[2], dusk[2], t)];
+  sky3d.scene.background = new T.Color(
+    srgbToLinear(base[0]), srgbToLinear(base[1]), srgbToLinear(base[2]));
+
+  // 天体。見える大きさは0.5度ほどで点にしかならないので、**分かる大きさに描く**
+  for (const [id, color] of [["sun", 0xffb340], ["moon", 0xbcd7f5]]) {
+    const st = id === "moon" ? SoramiAstro.moon(at, obs) : sunSt;
+    if (!sky3d.bodies[id]) {
+      sky3d.bodies[id] = new T.Mesh(new T.SphereGeometry(1, 20, 16),
+        new T.MeshBasicMaterial({ color }));
+      sky3d.scene.add(sky3d.bodies[id]);
+    }
+    const v = SoramiSky.direction(st.azimuth, st.apparentAltitude, 60);
+    sky3d.bodies[id].position.set(v.x, v.y, v.z);
+    sky3d.bodies[id].scale.setScalar(1.4);
+    sky3d.bodies[id].visible = st.apparentAltitude > -3;
+  }
+
+  // 1日の通り道
+  for (const [id, pts, color] of [["sun", sky.sun, 0xffb340], ["moon", sky.moon, 0x6ba6e0]]) {
+    const on = pts.filter((p) => p.altitude > -2);
+    if (!on.length) { if (sky3d.tracks[id]) sky3d.tracks[id].visible = false; continue; }
+    const arr = new Float32Array(on.length * 3);
+    on.forEach((p, i) => {
+      const v = SoramiSky.direction(p.azimuth, p.altitude, 59);
+      arr[i * 3] = v.x; arr[i * 3 + 1] = v.y; arr[i * 3 + 2] = v.z;
+    });
+    if (!sky3d.tracks[id]) {
+      sky3d.tracks[id] = new T.Line(new T.BufferGeometry(),
+        new T.LineBasicMaterial({ color }));
+      sky3d.scene.add(sky3d.tracks[id]);
+    }
+    sky3d.tracks[id].geometry.dispose();
+    const g2 = new T.BufferGeometry();
+    g2.setAttribute("position", new T.BufferAttribute(arr, 3));
+    sky3d.tracks[id].geometry = g2;
+    sky3d.tracks[id].visible = true;
+  }
+
+  const look = SoramiSky.direction(sky3d.look.az, sky3d.look.alt, 10);
+  sky3d.camera.position.set(0, 0, 0);
+  sky3d.camera.up.set(0, 1, 0);
+  sky3d.camera.lookAt(look.x, look.y, look.z);
+  sky3d.renderer.render(sky3d.scene, sky3d.camera);
+}
+
 function skyApply() {
   skyRecompute();
-  skyDraw();
+  if (sky.mode === "3d") sky3dDraw(); else skyDraw();
   skyRenderText();
   $("skyWeekday").textContent = `${S.Cal.monthDay(sky.dayMs)}（${S.Cal.weekday(sky.dayMs)}）`
     + (S.JstCal.sameDay(sky.dayMs, Date.now()) ? " ・ 今日" : "");
@@ -4418,7 +4592,42 @@ function openSky() {
       const v = Date.parse(`${$("skyDate").value}T00:00:00+09:00`);
       if (Number.isFinite(v)) setDay(v);
     };
-    $("skyTime").oninput = () => { sky.minutes = Number($("skyTime").value); skyDraw(); skyRenderText(); };
+    $("skyTime").oninput = () => {
+      sky.minutes = Number($("skyTime").value);
+      if (sky.mode === "3d") sky3dDraw(); else skyDraw();
+      skyRenderText();
+    };
+    // 展開図と3Dの切替。3Dのときだけ three.js を読む
+    const setMode = async (mode) => {
+      sky.mode = mode;
+      $("skyMode2d").setAttribute("aria-pressed", String(mode === "2d"));
+      $("skyMode3d").setAttribute("aria-pressed", String(mode === "3d"));
+      $("skyCanvas").hidden = mode === "3d";
+      $("sky3dCanvas").hidden = mode !== "3d";
+      store.set("sorami.skyMode", mode);
+      if (mode === "3d") {
+        $("skyNote").textContent = "3Dを読み込んでいます…";
+        const okBuilt = await sky3dBuild();
+        if (!okBuilt) {
+          sky.mode = "2d";
+          $("skyMode2d").setAttribute("aria-pressed", "true");
+          $("skyMode3d").setAttribute("aria-pressed", "false");
+          $("skyCanvas").hidden = false; $("sky3dCanvas").hidden = true;
+          skyRenderText();
+          $("skyNote").textContent = "この端末では3Dを出せませんでした。展開図で見てください。";
+          return;
+        }
+        // **いま見えているほうを向いて開く。** 正面が空だと何も無い画面から始まる
+        sky3d.look.az = ((skyCenterForTime() % 360) + 360) % 360;
+        skyRenderText();
+        requestAnimationFrame(sky3dDraw);
+      } else {
+        skyRenderText();
+        requestAnimationFrame(skyDraw);
+      }
+    };
+    $("skyMode2d").onclick = () => setMode("2d");
+    $("skyMode3d").onclick = () => setMode("3d");
     $("skyBack").onclick = () => { location.hash = ""; };
     // 横に動かして、見たい方位へ回す
     const cv = $("skyCanvas");
@@ -4431,16 +4640,40 @@ function openSky() {
       skyDraw();
       if (e.cancelable) e.preventDefault();
     };
-    const end = () => { sky.drag = null; };
+    const end = () => { sky.drag = null; sky3d.drag = null; };
     cv.addEventListener("pointerdown", start);
     window.addEventListener("pointermove", move, { passive: false });
     window.addEventListener("pointerup", end);
-    window.addEventListener("resize", () => { if (atSky) skyDraw(); });
+    // 3D は見回す（横で方位、縦で見上げる角度）
+    const cv3 = $("sky3dCanvas");
+    const yOf = (e) => (e.touches ? e.touches[0].clientY : e.clientY);
+    cv3.addEventListener("pointerdown", (e) => {
+      sky3d.drag = { x: xOf(e), y: yOf(e), az: sky3d.look.az, alt: sky3d.look.alt };
+    });
+    window.addEventListener("pointermove", (e) => {
+      if (!sky3d.drag) return;
+      sky3d.look.az = sky3d.drag.az - (xOf(e) - sky3d.drag.x) * 0.25;
+      sky3d.look.alt = Math.max(-25, Math.min(80, sky3d.drag.alt + (yOf(e) - sky3d.drag.y) * 0.2));
+      sky3dDraw();
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+    window.addEventListener("resize", () => {
+      if (!atSky) return;
+      if (sky.mode === "3d") sky3dDraw(); else skyDraw();
+    });
   }
   // ページとして開くので、描くのは表示されてから（隠れている間は幅が0）
   skyRecompute();
   skyRenderText();
-  requestAnimationFrame(() => { skyDraw(); requestAnimationFrame(skyDraw); });
+  if (sky.mode === "3d") {
+    $("skyCanvas").hidden = true; $("sky3dCanvas").hidden = false;
+    $("skyMode2d").setAttribute("aria-pressed", "false");
+    $("skyMode3d").setAttribute("aria-pressed", "true");
+    sky3d.look.az = ((skyCenterForTime() % 360) + 360) % 360;
+    sky3dBuild().then((okBuilt) => { if (okBuilt) requestAnimationFrame(sky3dDraw); });
+  } else {
+    requestAnimationFrame(() => { skyDraw(); requestAnimationFrame(skyDraw); });
+  }
   // 稜線は月の判定が測る。**直接このURLを開くと、まだ無い。**
   // 届いたら測り直して描き直す（平らな地平線のまま放置しない）
   if (!moonHorizon && !sky.waiting) {

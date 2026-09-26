@@ -147,7 +147,53 @@
     return out;
   }
 
-  const SoramiSky = { track, unwrap, visibleSpans, peak, frame, skyline, compassTicks, COMPASS };
+  /**
+   * 方位と高度を、観測点を原点にした3Dの向きへ。
+   * three.js に合わせて **北が -Z・東が +X・上が +Y**（右手系）。
+   * @returns {{x:number,y:number,z:number}} 長さ `r` のベクトル
+   */
+  function direction(azimuthDeg, altitudeDeg, r = 1) {
+    const a = azimuthDeg * Math.PI / 180, h = altitudeDeg * Math.PI / 180;
+    const c = Math.cos(h) * r;
+    return { x: c * Math.sin(a), y: Math.sin(h) * r, z: -c * Math.cos(a) };
+  }
+
+  /**
+   * 地形のかたち（3D用の格子）。
+   *
+   * 高さは標高そのものではなく**見上げ角から**出す。角度には地球の丸みと大気差が
+   * 入っているので、こうすると**展開図と3Dが必ず同じ稜線になる**。
+   * 標高をそのまま y にすると、遠くの山が実際より高く見える（丸みのぶん）。
+   *
+   * @param {number[]} azimuths 方位（度）。一周ぶん渡すと端がつながる
+   * @param {number[]} distancesKm 近い順
+   * @param {function} angleAt (方位の番号, 距離の番号) → 見上げ角（度）
+   */
+  function meshGrid(azimuths, distancesKm, angleAt) {
+    const na = azimuths.length, nd = distancesKm.length;
+    const positions = new Float32Array(na * nd * 3);
+    let k = 0;
+    for (let i = 0; i < na; i++) {
+      for (let j = 0; j < nd; j++) {
+        const d = distancesKm[j];
+        const v = direction(azimuths[i], angleAt(i, j), d);
+        positions[k++] = v.x; positions[k++] = v.y; positions[k++] = v.z;
+      }
+    }
+    // 四角ごとに三角2枚。方位は一周して最初へ戻す（つなぎ目を作らない）
+    const indices = [];
+    for (let i = 0; i < na; i++) {
+      const i2 = (i + 1) % na;
+      for (let j = 0; j < nd - 1; j++) {
+        const a = i * nd + j, b = i * nd + j + 1, c = i2 * nd + j, e = i2 * nd + j + 1;
+        indices.push(a, b, c, c, b, e);
+      }
+    }
+    return { positions, indices: new Uint32Array(indices), na, nd };
+  }
+
+  const SoramiSky = { track, unwrap, visibleSpans, peak, frame, skyline, compassTicks, COMPASS,
+                      direction, meshGrid };
   global.SoramiSky = SoramiSky;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiSky;
 })(typeof globalThis !== "undefined" ? globalThis : this);

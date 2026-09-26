@@ -62,6 +62,15 @@ ok(!/measureHorizon/.test(html.split("function openSky")[1] || ""),
   "空の画面からは地平線を測りに行かない");
 ok(/点線は稜線の裏/.test(html), "点線の意味を凡例に出す");
 
+// ---- 3D。**three.js は vendor から読む**（CDN を足すと CSP に外部が要り、落ちた日に画面が死ぬ）
+ok(/import\("\.\/vendor\/three\/three\.module\.js"\)/.test(html), "three は同じ配信元から読む");
+ok(!/cdn\.|unpkg|jsdelivr|skypack/.test(html), "CDN からは読まない");
+ok(/script-src 'self'/.test(html), "CSP の script-src は self のまま");
+// 読むのは3Dを開いたときだけ。他の画面は重くならない
+ok(/async function sky3dLoad/.test(html) && /if \(mode === "3d"\)/.test(html),
+  "3Dを開いたときだけ読む");
+ok(/srgbToLinear/.test(html), "色は線形へ直してから渡す（そのままだと夜空が明るくなる）");
+
 // ---- 短縮リンク。**取り出しの規則は1か所**（サーバーは行き先を返すだけ）
 ok(/resolve-map-link\?u=\$\{encodeURIComponent\(q\)\}/.test(html), "短縮リンクは API に問い合わせる");
 ok(/SoramiTerrain\.parseMapLink\(body\.url\)/.test(html),
