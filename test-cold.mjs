@@ -67,6 +67,68 @@ console.log("== 霧氷: 山でなければ対象外（従来どおり）==");
   ok(!!low.unavailable, "標高500m未満は対象外");
 }
 
+console.log("== 霧氷: 氷点下でも、霧に包まれなければ着かない ==");
+{
+  // 2026-09-27 ユーザー指摘「国師ヶ岳で霧氷が出る。絶対にないよね」。
+  // 本番の実測: 10/07 湿度84%・風速0.6m/s・気温-0.6℃ で **28点**、
+  // 10/10 湿度48%・気温2.5℃（最低は氷点下）で **25点**。
+  // 上限25点が実質「下限25点」として働き、乾いた日にも点が並んでいた。
+  const dry = run("rime", { temp: -0.6, humidity: 84, wind: 0.6 });
+  ok(!!dry.unavailable, "−0.6℃でも湿度84%なら採点しない", JSON.stringify(dry.score));
+  ok(dry.unavailable && /霧/.test(dry.unavailable.message), "理由に霧と書く",
+    dry.unavailable && dry.unavailable.message);
+  ok(dry.unavailable && /84/.test(dry.unavailable.message), "いちばん湿ったときの値を出す",
+    dry.unavailable && dry.unavailable.message);
+
+  const veryDry = run("rime", { temp: -3, humidity: 48 });
+  ok(!!veryDry.unavailable, "湿度48%は論外");
+
+  // 霧の中（95%以上）で氷点下なら、これまでどおり採点する
+  const foggy = run("rime", { temp: -3, humidity: 97, wind: 2 });
+  ok(!foggy.unavailable && foggy.score > 0, "氷点下＋霧なら採点する", JSON.stringify(foggy.score));
+  ok((foggy.factors || []).some((f) => /氷点下の霧/.test(f.label)), "内訳に氷点下の霧の時間を出す",
+    (foggy.factors || []).map((f) => f.label).join(" / "));
+}
+
+console.log("== 霧氷: 霧の時間が短い日は頭打ち ==");
+{
+  // 窓は 0〜9時。そのうち氷点下＋霧が2時間だけの日を作る
+  const t = Array.from({ length: 72 }, (_, i) => day + i * 3600000);
+  const hourJst = (ms) => new Date(ms + 9 * 3600000).getUTCHours();
+  const input = {
+    home: new S.Series(t, {
+      temperature_2m: t.map(() => -3),
+      // 2時間だけ霧。あとは乾いている
+      relative_humidity_2m: t.map((ms) => ([3, 4].includes(hourJst(ms)) ? 98 : 70)),
+      wind_speed_10m: t.map(() => 2),
+      cloud_cover: t.map(() => 5),
+      precipitation: t.map(() => 0),
+    }),
+    offsets: {}, lat: 35.8967, lon: 138.7139,
+    terrain: "summit", elevation: 2592, lightPollution: null, air: null,
+  };
+  const w = S.SCORERS.rime.window(day + 24 * 3600000, input);
+  const short = S.SCORERS.rime.score(w, input);
+  ok(!short.unavailable, "2時間でも採点はする");
+  ok(short.score <= 63, "4時間に満たないぶん頭を押さえる", JSON.stringify(short.score));
+
+  // 霧の時間が長い日のほうが高い
+  const longer = { ...input, home: new S.Series(t, {
+    temperature_2m: t.map(() => -3),
+    relative_humidity_2m: t.map((ms) => (hourJst(ms) >= 1 && hourJst(ms) <= 8 ? 98 : 70)),
+    wind_speed_10m: t.map(() => 2),
+    cloud_cover: t.map(() => 5),
+    precipitation: t.map(() => 0),
+  }) };
+  const wide = S.SCORERS.rime.score(S.SCORERS.rime.window(day + 24 * 3600000, longer), longer);
+  ok(wide.score > short.score, "霧が長いほど高い",
+    `${Math.round(short.score)} → ${Math.round(wide.score)}`);
+  // 上限がかかるときは、理由を内訳に出す（かからない日は出さない）
+  const capped = (wide.factors || []).some((f) => /ここまで/.test(f.label || ""));
+  ok(wide.score <= 100 && (!capped || /霧|気温/.test((wide.factors || []).find((f) => /ここまで/.test(f.label || "")).label)),
+    "上限がかかるときは理由を書く", (wide.factors || []).map((f) => f.label).join(" / "));
+}
+
 console.log("== ダイヤモンドダスト: −10℃に届かなければ 0点 ==");
 {
   const mild = run("diamondDust", { temp: -3, cloud: 0, wind: 0.5 });

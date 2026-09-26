@@ -418,6 +418,8 @@
       tempThreshold: -5, tempFull: -12, windLo: 1, windHi: 5, windTolerance: 4,
       saturation: 95, humidityFloor: 85, minElevation: 500,
       base: 5, tempBonus: 35, windBonus: 25, humidityBonus: 30, durationFull: 8, durationBonus: 10,
+      // 氷点下で霧の中にいる時間。**これが霧氷の必要条件**で、4時間で頭打ちを外す
+      fogHoursFull: 4,
       source: "気温≤−5℃・風速1〜5m/s・過冷却水滴（湿度≥95%で代替）。蔵王の樹氷研究に基づく",
     },
     rainbow: {
@@ -1762,6 +1764,31 @@
           wind >= s.windLo && wind <= s.windHi ? "1〜5m/s。霧が運ばれて育ちます"
             : wind < s.windLo ? "弱すぎて霧が運ばれません" : "強すぎて、ごつごつした氷になります"));
       }
+      // **氷点下で霧の中にいる時間が、霧氷の必要条件。**
+      //
+      // 霧氷は過冷却の水滴が枝に当たって凍る現象なので、氷点下でも空気が乾いていれば
+      // 着氷する水滴そのものが無い。湿度と風は「育ち方」であって「着くかどうか」ではない。
+      //
+      // 2026-09-27 まで、この時間を数えずに湿度と風の加点だけで点が出ていた。
+      // 国師ヶ岳（2592m）の実測: 10/07 は湿度84%・風速0.6m/s で **28点**、
+      // 10/10 は湿度48%・気温2.5℃で **25点**（ユーザー指摘「絶対にないよね」）。
+      // 上限25点が、実質「下限25点」として働いていた。
+      let fogHours = 0, wettest = null;
+      for (const i of series.indices(ws, we)) {
+        const t = series.valueAtIndex("temperature_2m", i);
+        const h = series.valueAtIndex("relative_humidity_2m", i);
+        if (h !== null) wettest = wettest === null ? h : Math.max(wettest, h);
+        if (t !== null && h !== null && t < 0 && h >= s.saturation) fogHours++;
+      }
+      if (fogHours === 0) {
+        return unavailable("outOfSeason", wettest === null
+          ? "湿度が得られませんでした"
+          : `氷点下で霧に包まれる時間がありません（湿度は最大 ${pct(wettest)}）`);
+      }
+      factors.push(factor(`氷点下の霧 ${fogHours}時間`,
+        Curve.ramp(fogHours, 0, s.fogHoursFull) * s.durationBonus,
+        fogHours >= s.fogHoursFull ? "着氷する時間が十分あります" : "短いので、着いても薄くなります"));
+
       let qualifying = 0;
       for (const i of series.indices(ws, we)) {
         const t = series.valueAtIndex("temperature_2m", i);
@@ -1771,16 +1798,20 @@
             && t <= s.tempThreshold && h >= s.saturation && w >= s.windLo && w <= s.windHi) qualifying++;
       }
       if (qualifying > 0) {
-        factors.push(factor(`条件成立 ${qualifying}時間`,
+        factors.push(factor(`よく育つ条件 ${qualifying}時間`,
           Curve.ramp(qualifying, 0, s.durationFull) * s.durationBonus, "霧氷は時間をかけて育ちます"));
       }
-      // 0℃ぎりぎりでは、着いてもごく薄い。湿度と風で満点近くまで上がらないよう、
-      // 寒さで頭を押さえる（0℃で上限25点 → −5℃以下で頭打ちなし）。
-      // **寒さが足りないことを「上限」として見せる**ので、内訳で理由が読める。
+      // 上限は**寒さと、氷点下の霧の時間のうち厳しいほう**で決める。
+      // 寒さだけで押さえていたため、0℃ぎりぎりでも霧が1時間も無い日が
+      // 上限いっぱいの25点で並んでいた。
       const coldness = Curve.ramp(temp, 0, s.tempThreshold);
-      const ceiling = temp > s.tempThreshold ? Math.round(25 + 75 * coldness) : null;
-      return buildScore(s.base, factors, ceiling,
-        ceiling !== null ? `気温 ${f1(temp)}℃では、ここまで` : undefined);
+      const growth = Curve.ramp(fogHours, 0, s.fogHoursFull);
+      const cap = Math.min(coldness, growth);
+      const ceiling = cap < 1 ? Math.round(25 + 75 * cap) : null;
+      return buildScore(s.base, factors, ceiling, ceiling !== null
+        ? (growth < coldness ? `氷点下の霧が ${fogHours}時間では、ここまで`
+          : `気温 ${f1(temp)}℃では、ここまで`)
+        : undefined);
     },
   };
 
