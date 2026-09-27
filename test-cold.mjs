@@ -148,5 +148,44 @@ console.log("== ダイヤモンドダスト: 出典の帯はこれまでどお�
     `${Math.round(between.score)}点`);
 }
 
+console.log("== 「起きない」と言ったモデルも母数に入れる ==");
+{
+  // 2026-09-27 国師ヶ岳 10/05 の実測: ECMWF 2本が +3℃（＝着かない）、GFS/JMA が −5〜−6℃。
+  // 「着かない」の2本が母数から黙って抜け、残る2本だけで **64点・信頼度B** と出ていた。
+  const t = Array.from({ length: 72 }, (_, i) => day + i * 3600000);
+  const mk = (temp, humidity) => new S.Series(t, {
+    temperature_2m: t.map(() => temp),
+    relative_humidity_2m: t.map(() => humidity),
+    wind_speed_10m: t.map(() => 2),
+    cloud_cover: t.map(() => 5),
+    precipitation: t.map(() => 0),
+  });
+  const byModel = {};
+  const warm = ["ecmwf_ifs025", "ecmwf_aifs025_single"];
+  const cold = ["gfs_seamless", "jma_gsm"];
+  for (const m of warm) byModel[m] = mk(3, 97);
+  for (const m of cold) byModel[m] = mk(-6, 97);
+  const place = { latitude: 35.8967, longitude: 138.7139, elevation: 2592, terrain: "summit" };
+  const bundle = { home: { grid: { elevation: 2592 }, byModel }, sunsetOffsets: null,
+    sunriseOffsets: null, air: null, ensemble: null, utcOffsetSeconds: 32400 };
+  const ev = S.evaluate("rime", day + 24 * 3600000, bundle, place, { asOf: day });
+  ok(ev && !ev.unavailable, "採点する");
+  ok(ev.models === 4, "4モデルすべてを数える", `${ev.models}モデル`);
+  ok(Math.min(...ev.spread) === 0, "「着かない」は0点として入る", JSON.stringify(ev.spread.map(Math.round)));
+  // 全部が「着く」と言う日と比べて、はっきり下がる（中央値なので半分に近い）
+  const allCold = { ...bundle, home: { grid: { elevation: 2592 },
+    byModel: Object.fromEntries([...warm, ...cold].map((m) => [m, mk(-6, 97)])) } };
+  const unanimous = S.evaluate("rime", day + 24 * 3600000, allCold, place, { asOf: day });
+  ok(ev.score < unanimous.score * 0.6, "半分が着かないと言う日は、揃った日の6割未満",
+    `${Math.round(ev.score)}点 ← 全部が着くなら ${Math.round(unanimous.score)}点`);
+
+  // 全モデルが「着かない」なら、これまでどおり行ごと畳む（夏に霧氷の行を出さない）
+  const allWarm = { ...bundle, home: { grid: { elevation: 2592 },
+    byModel: Object.fromEntries([...warm, ...cold].map((m) => [m, mk(12, 60)])) } };
+  const summer = S.evaluate("rime", day + 24 * 3600000, allWarm, place, { asOf: day });
+  ok(!!summer.unavailable, "全モデルが着かないなら判定対象外のまま",
+    summer.unavailable && summer.unavailable.message);
+}
+
 console.log(`\n${fail === 0 ? "COLD OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

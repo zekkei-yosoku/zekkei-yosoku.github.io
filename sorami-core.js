@@ -2129,7 +2129,30 @@
 
     const results = {};
     for (const m of models) results[m] = scorer.score(window, makeInput(m));
-    const evaluated = Object.entries(results).filter(([, r]) => !r.unavailable);
+
+    // **「起きない」は判定不能ではない。**
+    //
+    // 「最低気温が氷点下にならない」「氷点下の霧が無い」といった判定は、
+    // そのモデルにとっての **0点という評価**であって「分からない」ではない。
+    // unavailable のまま母数から外すと、残った少数のモデルだけで中央値が作られる。
+    //
+    // 2026-09-27 国師ヶ岳 10/05 の実測: ECMWF AIFS +3.1℃ / ECMWF IFS +2.7℃ /
+    // GFS −5.0℃ / JMA GSM −6.4℃。**4モデル中2モデルが「着かない」**と言っているのに、
+    // 残る2本だけで中央値を取って 64点「平凡・信頼度B」と出ていた（ユーザー指摘）。
+    //
+    // 同じ事故は虹で先に起きていて、そちらはスコアラーの中で 0点にして直していた。
+    // 種類で見分けてここで一度に扱う。`outOfSeason` は「起きない」という判定、
+    // `missingData` / `outOfForecast` / `terrain` は本当に判定できない。
+    // **全モデルが「起きない」なら、これまでどおり行ごと畳む**（夏の霧氷の行を出さない）。
+    const scored = Object.entries(results).filter(([, r]) => !r.unavailable);
+    const verdicts = Object.entries(results)
+      .filter(([, r]) => r.unavailable && r.unavailable.kind === "outOfSeason");
+    const evaluated = scored.length
+      ? [...scored, ...verdicts.map(([m, r]) => [m, {
+          ...r, unavailable: null,
+          factors: [factor(r.unavailable.message, 0, "このモデルは起きないと見ています")],
+        }])]
+      : [];
     const peakOf = (win) => (scorer.peak ? scorer.peak(dayMs, win, reference) : win[0]);
 
     // 一部モデルの欠測で予測全体を止めない。有効なモデルを集約し、
