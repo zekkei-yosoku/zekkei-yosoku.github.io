@@ -1288,21 +1288,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928022812"></script>
+<script src="sorami-core.js?v=20260928023348"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928022812"></script>
-<script src="sorami-exif.js?v=20260928022812"></script>
-<script src="sorami-capcloud.js?v=20260928022812"></script>
-<script src="sorami-terrain.js?v=20260928022812"></script>
-<script src="sorami-mountain.js?v=20260928022812"></script>
-<script src="sorami-fuji.js?v=20260928022812"></script>
-<script src="sorami-sky.js?v=20260928022812"></script>
-<script src="sorami-routes.js?v=20260928022812"></script>
-<script src="sorami-plane.js?v=20260928022812"></script>
-<script src="sorami-align.js?v=20260928022812"></script>
-<script src="sorami-moon.js?v=20260928022812"></script>
-<script src="sorami-composition.js?v=20260928022812"></script>
+<script src="sorami-astro.js?v=20260928023348"></script>
+<script src="sorami-exif.js?v=20260928023348"></script>
+<script src="sorami-capcloud.js?v=20260928023348"></script>
+<script src="sorami-terrain.js?v=20260928023348"></script>
+<script src="sorami-mountain.js?v=20260928023348"></script>
+<script src="sorami-fuji.js?v=20260928023348"></script>
+<script src="sorami-sky.js?v=20260928023348"></script>
+<script src="sorami-routes.js?v=20260928023348"></script>
+<script src="sorami-plane.js?v=20260928023348"></script>
+<script src="sorami-align.js?v=20260928023348"></script>
+<script src="sorami-moon.js?v=20260928023348"></script>
+<script src="sorami-composition.js?v=20260928023348"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2063,7 +2063,9 @@ function render() {
   const agl = place.eyeHeightAGL;
   if (Number.isFinite(agl) && agl > 2) {
     const deck = (place.decks || []).find((d) => d.aglM === agl);
-    subParts.push(deck ? `${deck.name} 地上${agl}m` : `立つ高さ 地上${agl}m`);
+    subParts.push(deck
+      ? `${SoramiTerrain.deckLabel(deck.name, place.name)} 地上${agl}m`
+      : `立つ高さ 地上${agl}m`);
   }
   // 時刻はすべて【その地点の現地時間】。端末の時差と違うときは、そう書かないと
   // 「今日 18:44」を自分の時計の時刻だと読んでしまう。
@@ -3740,7 +3742,8 @@ const EYE_HEIGHTS = [
  */
 function eyeOptions(p) {
   const decks = (p && p.decks) || [];
-  const extra = decks.map((d, i) => [`deck${i}`, `${d.name} ${d.aglM}m`, d.aglM]);
+  const extra = decks.map((d, i) =>
+    [`deck${i}`, `${SoramiTerrain.deckLabel(d.name, p && p.name)} ${d.aglM}m`, d.aglM]);
   // 同じ高さが既定の一覧にもあれば、重複を避ける
   const base = EYE_HEIGHTS.filter(([, , m]) => !extra.some(([, , em]) => em === m));
   return [...extra, ...base];
@@ -5269,7 +5272,8 @@ function renderDeckRow() {
   row.hidden = decks.length < 1;
   if (row.hidden) return;
   const cur = place.eyeHeightAGL ?? 1.5;
-  const opts = [...decks.map((d) => [String(d.aglM), `${d.name} 地上${d.aglM}m`]),
+  const opts = [...decks.map((d) =>
+                  [String(d.aglM), `${SoramiTerrain.deckLabel(d.name, place.name)} 地上${d.aglM}m`]),
                 ["1.5", "地面に立って 1.5m"]];
   $("deckPick").innerHTML = opts.map(([v, label]) =>
     `<option value="${v}"${Number(v) === cur ? " selected" : ""}>${esc(label)}</option>`).join("");

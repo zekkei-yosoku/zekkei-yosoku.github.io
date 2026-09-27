@@ -95,6 +95,12 @@ ok(/eyeOptions\(favDraft\)\.find/.test(html), "選んだときも同じ一覧か
   ok(T.decksFor("東京都庁舎") !== null, "少し長い言い方は同じ施設として通す");
   ok(T.decksFor("東京スカイツリー 天望デッキ") !== null, "展望台の名前つきも通す");
   ok(T.decksFor("東京タワー メインデッキ") !== null, "メインデッキも通す");
+  // **地点の名前と同じ呼び名なら「展望台」と書く。** 名前が二度出ると読みにくい
+  ok(T.deckLabel("渋谷スカイ", "渋谷スカイ") === "展望台", "同じ名前なら展望台");
+  ok(T.deckLabel("メインデッキ", "東京タワー") === "メインデッキ", "固有の呼び名はそのまま");
+  ok(T.deckLabel("天望回廊", "東京スカイツリー") === "天望回廊", "天望回廊もそのまま");
+  ok(T.deckLabel("", "どこか") === "展望台", "呼び名が無ければ展望台");
+  ok(T.decksFor("渋谷スカイ")[0].name === "展望台", "渋谷スカイの中身も展望台");
   ok(T.isLookout({ type: "tower", extratags: { "tower:type": "observation" } }) === "observation",
     "展望塔を見分ける");
   ok(T.isLookout({ type: "peak", extratags: {} }) === null, "ただの山は展望台ではない");
@@ -106,6 +112,8 @@ ok(/id="deckRow"/.test(html), "展望台の選択が地点カードにある");
 ok(/function renderDeckRow/.test(html), "選択を描く");
 ok(/decks\.length < 1/.test(html), "展望台が無い場所では出さない");
 ok(/地面に立って 1\.5m/.test(html), "地面に戻す選択肢がある");
+ok(/SoramiTerrain\.deckLabel\(d\.name, place\.name\)/.test(html),
+  "呼び名は地点名と突き合わせて出す");
 ok(/\$\("deckPick"\)\.onchange/.test(html), "選ぶと地点に反映する");
 
 // ---- 月丼。**名前のある場所から選ぶ**（格子で探すと東京湾の真ん中が上位に来る）

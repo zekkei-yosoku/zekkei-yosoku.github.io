@@ -486,13 +486,13 @@
     { match: /あべのハルカス/, decks: [{ name: "ハルカス300", aglM: 300 }] },
     { match: /六本木ヒルズ|森タワー|東京シティビュー/, decks: [
       { name: "東京シティビュー", aglM: 250 }, { name: "スカイデッキ", aglM: 270 }] },
-    { match: /渋谷スカイ|渋谷スクランブルスクエア/, decks: [{ name: "渋谷スカイ", aglM: 229 }] },
+    { match: /渋谷スカイ|渋谷スクランブルスクエア/, decks: [{ name: "展望台", aglM: 229 }] },
     { match: /サンシャイン ?60/, decks: [{ name: "展望台", aglM: 251 }] },
     { match: /東京都庁/, decks: [{ name: "展望室", aglM: 202 }] },
     { match: /横浜ランドマークタワー|スカイガーデン/, decks: [{ name: "スカイガーデン", aglM: 273 }] },
     { match: /江の?島シーキャンドル/, decks: [{ name: "展望台", aglM: 42 }] },
     { match: /千葉ポートタワー/, decks: [{ name: "展望台", aglM: 113 }] },
-    { match: /東京ワールドゲート|虎ノ門ヒルズ/, decks: [{ name: "展望", aglM: 250 }] },
+    { match: /東京ワールドゲート|虎ノ門ヒルズ/, decks: [{ name: "展望台", aglM: 250 }] },
   ];
   // **施設名を含むだけの別物**を弾く。「東京タワー前交番」は展望台ではない
   const NOT_THE_PLACE = /(交番|派出所|駐在所|駅|バス停|停留所|郵便局|入口|出口|前|通り|商店|ストア|学校|病院|タウン|ホテル)/;
@@ -515,6 +515,18 @@
       if (rest === "" || rest.length <= 1 || SAME_PLACE_TAIL.test(rest)) return d.decks;
     }
     return null;
+  }
+
+  /**
+   * 展望台の呼び名。**地点の名前と同じなら「展望台」と書く。**
+   * 「渋谷スカイ」で「渋谷スカイ 地上229m」と出ると、名前が二度出て読みにくい
+   * （2026-09-28 ユーザー指摘）。固有の呼び名があるものだけ、その名前で出す。
+   */
+  function deckLabel(deckName, placeName) {
+    const d = String(deckName || "").trim(), p = String(placeName || "").trim();
+    if (!d) return "展望台";
+    if (!p) return d;
+    return (p.includes(d) || d.includes(p)) ? "展望台" : d;
   }
 
   /**
@@ -799,7 +811,7 @@
   }
 
   const SoramiTerrain = {
-    MAX_POINTS, DEFAULT_STEPS, OBSERVATION_DECKS, decksFor, structureHeight, isLookout,
+    MAX_POINTS, DEFAULT_STEPS, OBSERVATION_DECKS, decksFor, deckLabel, structureHeight, isLookout,
     destination, bearing, distanceKm,
     fetchElevations, elevations, elevationFromTile, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
