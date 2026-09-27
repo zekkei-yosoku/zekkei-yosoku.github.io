@@ -87,16 +87,18 @@
   /* [hidden] は display:none を弱い指定で当てるだけなので、display を持つクラスに負ける。
      .place-row の flex に負けて、記録画面で地点カードが消えなかった。 */
   [hidden] { display: none !important; }
-  .masthead { display: flex; align-items: center; gap: 8px; padding: 6px 2px 12px; }
+  .masthead { display: flex; align-items: center; gap: 6px; padding: 6px 2px 12px; }
   .masthead h1 { flex: 1; }
+  .masthead-mark { width: 20px; height: 20px; border-radius: 5px; display: block; }
   h1 { font-size: 0.94rem; font-weight: 700; letter-spacing: .18em;
        color: var(--secondary); text-align: left; }
   #authButton { font-size: 0.75rem; font-weight: 700; color: var(--accent); min-height: 44px; padding: 0 2px; }
   /* メニューの引き出し。**左上の ☰ から左に出す。** ページの中へ差し込まない
      （差し込むと下の内容が飛び、読んでいた場所を失う）。
      動かすのは transform と不透明度だけ。幅や位置を動かすと毎フレーム組み直しになる。 */
-  #toolsButton { font-size: 1.05rem; line-height: 1; color: var(--secondary);
-                 min-height: 44px; min-width: 40px; margin-left: -8px; text-align: left; }
+  /* 押せる大きさは `.tap::after` が 44px で作るので、箱は字の大きさのままでよい。
+     min-width を足すと、題名の印とのあいだに要らない隙間ができる（2026-09-28） */
+  #toolsButton { font-size: 1.05rem; line-height: 1; color: var(--secondary); padding: 0 2px; }
   #toolsButton[aria-expanded="true"] { color: var(--accent); }
   .drawer-scrim { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 40;
                   opacity: 0; transition: opacity .22s ease; }
@@ -747,6 +749,10 @@
          URL を直接開けば誰でも入れる。中身に秘密は無いのでそれでよい。 -->
     <button id="toolsButton" class="tap" hidden aria-haspopup="true" aria-expanded="false"
             aria-label="メニュー">☰</button>
+    <!-- ☰ と題名のあいだに印を置く（YouTube・Gmail と同じ並び）。
+         **飾りではなく、ここが入口だと分かるための印。** `alt` は空にする
+         （すぐ隣に「絶景予測」と書いてあるので、読み上げで二度言わせない） -->
+    <img src="icon-32.png?v=1" class="masthead-mark" alt="" width="20" height="20">
     <h1>絶景予測</h1>
     <!-- ログインは任意。押さなくても予報は全部見られる。
          同期が失敗しているときは、それをここに出す（黙って同期されていないのは
@@ -1346,21 +1352,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928025949"></script>
+<script src="sorami-core.js?v=20260928030435"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928025949"></script>
-<script src="sorami-exif.js?v=20260928025949"></script>
-<script src="sorami-capcloud.js?v=20260928025949"></script>
-<script src="sorami-terrain.js?v=20260928025949"></script>
-<script src="sorami-mountain.js?v=20260928025949"></script>
-<script src="sorami-fuji.js?v=20260928025949"></script>
-<script src="sorami-sky.js?v=20260928025949"></script>
-<script src="sorami-routes.js?v=20260928025949"></script>
-<script src="sorami-plane.js?v=20260928025949"></script>
-<script src="sorami-align.js?v=20260928025949"></script>
-<script src="sorami-moon.js?v=20260928025949"></script>
-<script src="sorami-composition.js?v=20260928025949"></script>
+<script src="sorami-astro.js?v=20260928030435"></script>
+<script src="sorami-exif.js?v=20260928030435"></script>
+<script src="sorami-capcloud.js?v=20260928030435"></script>
+<script src="sorami-terrain.js?v=20260928030435"></script>
+<script src="sorami-mountain.js?v=20260928030435"></script>
+<script src="sorami-fuji.js?v=20260928030435"></script>
+<script src="sorami-sky.js?v=20260928030435"></script>
+<script src="sorami-routes.js?v=20260928030435"></script>
+<script src="sorami-plane.js?v=20260928030435"></script>
+<script src="sorami-align.js?v=20260928030435"></script>
+<script src="sorami-moon.js?v=20260928030435"></script>
+<script src="sorami-composition.js?v=20260928030435"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2166,6 +2172,9 @@ function render() {
   }
   $("placeSub").textContent = subParts.join(" ・ ");
 
+  // **メニューはどの画面でも出す。** 描き直しのたびに見直しておけば、
+  // ログインの復帰がいつ終わっても、画面を移っても、取りこぼさない
+  renderTools();
   renderDeckRow();
   const best = pickHighlight(weeks, now);
   // 並び: 見られる見込みのあるものが先 → あとは PHENOMENA.order（似たものが隣）。
@@ -5788,6 +5797,9 @@ async function restoreSession() {
   const found = storedAuth();
   if (!found) return;
   auth = found.auth;
+  // **/me の返事を待たずに出す。** 待っていると、圏外や応答が遅いときに
+  // ログイン済みなのにメニューが出ないままになる（2026-09-28 ユーザー指摘）
+  renderAuthButton();
   try {
     const me = await apiCall("GET", "/me");
     auth = { ...auth, loginId: me.loginId ?? auth.loginId, role: me.role ?? auth.role };

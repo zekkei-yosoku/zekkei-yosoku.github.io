@@ -92,6 +92,9 @@ ok(/for \(const v of VIEWS\) \$\(v\.el\)\.hidden = v\.id !== view/.test(html), "
 // ---- メニュー。隠し合言葉だけだったものを、押して開けるようにした
 ok(/id="toolsButton"/.test(html) && /id="toolsMenu"/.test(html), "メニューがある");
 ok(/const TOOLS_FOR = \["okayu0321"\]/.test(html), "いまは作った本人だけに出す");
+// **どの画面でも出す。** 画面を移ったり、ログインの復帰が遅れたりしても消えない
+ok(/renderTools\(\);\s*\n\s*renderDeckRow\(\)/.test(html), "描き直しのたびに見直す");
+ok(/renderAuthButton\(\);\s*\n\s*try \{/.test(html), "/me を待たずに出す");
 ok(/aria-haspopup="true"/.test(html) && /role="dialog" aria-modal="true"/.test(html),
   "開閉を読み上げへ伝える");
 // 引き出しの作り（正本: 04_デザイン定義「4-4. 道具のメニュー（引き出し）」）
