@@ -122,5 +122,27 @@ console.log("== 光を受ける雲が無い日は、絶景まで行かせない 
   ok(thin.score <= 84, "光を受ける雲が薄い日も絶景には届かない", `${Math.round(thin.score)}点`);
 }
 
+console.log("== 霧の中からは空が見えない ==");
+{
+  // 2026-09-27 の点検。視程200m（濃霧）の夕方が **79点** で出ていた。
+  // 視程の減点が −10 の固定で、1km でも 200m でも同じだったため。
+  const at = (vis) => {
+    const cols = { cloud_cover_low: 10, cloud_cover_mid: 40, cloud_cover_high: 40,
+      precipitation: 0, visibility: vis, relative_humidity_2m: 70 };
+    const input = { lat: 34.2, lon: 134.1, home: series(cols),
+      offsets: { low: series(cols), mid: series(cols), high: series(cols) },
+      terrain: null, elevation: 100, lightPollution: null, air: null };
+    return S.SCORERS.sunset.score([WS, WE], input);
+  };
+  const fog = at(200), haze = at(8000), clear = at(25000);
+  ok(fog.score <= 15, "視程200mは「期待薄」", `${Math.round(fog.score)}点`);
+  ok(haze.score > fog.score * 2, "8kmのもやは霧ほど下げない",
+    `${Math.round(fog.score)} → ${Math.round(haze.score)}`);
+  ok(clear.score >= haze.score, "澄んだ日がいちばん高い",
+    `${Math.round(haze.score)} → ${Math.round(clear.score)}`);
+  ok((fog.factors || []).some((f) => /霧の中/.test(f.label)), "上限の理由を内訳に出す",
+    (fog.factors || []).map((f) => f.label).join(" / "));
+}
+
 console.log(`\n${fail === 0 ? "AFTERGLOW MODEL OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

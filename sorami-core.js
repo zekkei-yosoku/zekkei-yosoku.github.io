@@ -316,6 +316,9 @@
       obscuredStart: 40, obscuredFull: 90,
       precipThreshold: 0.1, precipFull: 2.0, precipPenalty: 40, precipCeiling: 30,
       visGood: 20000, visPoor: 10000, visBonus: 5, visPenalty: 10,
+      // **霧の中では空そのものが見えない。** 気象庁の定義で「霧」は視程1km未満。
+      // 1km以下は上限10点、3km以上は上限なし（ふつうの「もや」は従来どおり減点だけ）
+      visFog: 1000, visClearOfFog: 3000, visFogCeiling: 10,
 
       // エアロゾルとオゾン。夕焼けの色はレイリー散乱・オゾン吸収・エアロゾル消散で決まる。
       // JAMC 2026 の観測研究は、最も価値のある class 1（焼け雲）が
@@ -382,6 +385,8 @@
       // 【入れた項】気温と露点の差。霧は気温が露点に達してできるので、
       // これがいちばん直接の量。分離 0.603 で単独では最も強い。
       dewDepFull: 1, dewDepZero: 5, dewDepBonus: 35,
+      // 露点差が開いているほど上限を下げる（差5℃以上で 20点＝「期待薄」）
+      dewCeilingBase: 20,
       humidityLo: 86, humidityHi: 94, humidityBonus: 5,
       nightCloudClear: 50, nightCloudFail: 95, nightCloudBonus: 30,
       prevRainFull: 6, prevRainBonus: 15,
@@ -1215,6 +1220,12 @@
         } else if (canvas < s.canvasVividMinimum) {
           ceiling = s.noVividCeiling; ceilingReason = "光を受ける雲が薄く、絶景までは届かない";
         }
+        // **霧の中にいる日は、雲がどれだけ良くても空が見えない。**
+        // 実写モデルは視程を特徴量に持たない（写真の元データに無い）ので、
+        // ここで上限として掛ける。規則のほうと同じ値・同じ理由を使う。
+        // 2026-09-27 の点検で、視程200m（濃霧）の夕方が 79点で出ていた。
+        const fogCap = fogCeiling(input.home, window, s);
+        if (fogCap) { ceiling = Math.min(ceiling ?? Infinity, fogCap.ceiling); ceilingReason = fogCap.reason; }
         return buildScore(base, factors, ceiling, ceilingReason, null);
       },
       score(window, input) {
@@ -1320,8 +1331,17 @@
         if (series.isSupported("visibility")) {
           const vis = series.mean("visibility", ws, we);
           if (vis !== null) {
-            if (vis >= s.visGood) factors.push(factor(`視程 ${Math.round(vis / 1000)}km`, s.visBonus, "遠くまで見通せます"));
-            else if (vis <= s.visPoor) factors.push(factor(`視程 ${Math.round(vis / 1000)}km`, -s.visPenalty, "かすんで色が乗りにくい状態です"));
+            if (vis >= s.visGood) factors.push(factor(`視程 ${visLabel(vis)}`, s.visBonus, "遠くまで見通せます"));
+            else if (vis <= s.visPoor) factors.push(factor(`視程 ${visLabel(vis)}`, -s.visPenalty, "かすんで色が乗りにくい状態です"));
+            // **霧の中にいる日は、減点では足りない。**
+            // 2026-09-27 の点検で、視程200m（濃霧）の夕方が **79点** で出ていた。
+            // 減点が −10 の固定で、1km でも 200m でも同じだったため。
+            // 雲がどれだけ good でも、霧の中からは空が見えない。上限として掛ける。
+            const fogCap = fogCeiling(series, [ws, we], s);
+            if (fogCap) {
+              ceiling = Math.min(ceiling ?? Infinity, fogCap.ceiling);
+              ceilingReason = fogCap.reason;
+            }
           }
         }
 
@@ -1465,6 +1485,14 @@
         result.factors.push(factor(`空が塞がる（雲量 ${pct(cloud)}）`, ceiling - result.score,
           "全天が雲に覆われると、ほかの条件が揃っていても星は見えません"));
         result.score = ceiling;
+      }
+      // **霧の中からは星も見えない。** 雲量が低いまま視程だけ落ちる日があるので、
+      // 雲の上限とは別に掛ける（値と理由は朝夕焼けと同じものを使う）。
+      const fogCap = fogCeiling(series, [ws, we], T.sunset);
+      if (fogCap && result.score > fogCap.ceiling) {
+        result.factors.push(factor(fogCap.reason, fogCap.ceiling - result.score,
+          "霧に包まれていると、空が晴れていても星は見えません"));
+        result.score = fogCap.ceiling;
       }
       // 夜全体ではなくこの時間帯の話であることを、表示側へも伝える。
       if (!whole) result.refinedWindow = [ws, we];
@@ -1649,6 +1677,21 @@
       const elevation = input.elevation;
       const inv = inversionBase(series, ws, we);
       let ceiling = null, ceilingReason = "";
+
+      // **霧ができなければ雲海は無い。露点差は必要条件であって加点項目ではない。**
+      //
+      // 2026-09-27 の点検で見つけた。露点差10℃・湿度35%・快晴の朝が **40点**
+      // （＝「平凡」の下限）で出ていた。夜間の雲量0%（+30）と base だけで届いていた。
+      // 晴れた夜は放射冷却の**前提**であって、それだけでは霧にならない。
+      //
+      // 0点にはしない。ここの気温・露点は**展望台の高さ**の値で、霧ができるのは
+      // 下の盆地なので、外れる余地がある（それでも実測で最も強い単独項: AUC 0.612）。
+      // 「そこまでは行かない」という上限として掛ける。
+      const dewness = Curve.ramp(dep, s.dewDepZero, s.dewDepFull);
+      if (dewness < 1) {
+        ceiling = Math.round(s.dewCeilingBase + (100 - s.dewCeilingBase) * dewness);
+        ceilingReason = `気温と露点の差が ${f1(dep)}℃`;
+      }
       if (inv && inv.height !== null && elevation !== null && elevation !== undefined) {
         const margin = elevation - inv.height;
         if (margin >= s.aboveMargin) {
@@ -1657,7 +1700,7 @@
         } else {
           factors.push(factor(`逆転層の下端目安 約${Math.round(inv.height)}m`, 0,
             `約${Math.round(inv.height)}〜${Math.round(inv.upperHeight)}mの気圧面間で気温の逆転を推定。展望台（${Math.round(elevation)}m）は下端目安の${margin >= 0 ? "すぐ上" : "下"}です。霧の中に入る可能性があり、見下ろせるとは判断できません`));
-          ceiling = s.insideCeiling;
+          ceiling = Math.min(ceiling ?? Infinity, s.insideCeiling);
           ceilingReason = "逆転層との標高差が小さく、見下ろせる条件を確認できない";
         }
       }
@@ -1727,6 +1770,25 @@
     },
   };
 
+  /**
+   * 霧の中にいる日の上限。**規則の経路と実写モデルの経路で同じものを使う。**
+   * 気象庁の定義で「霧」は視程1km未満。1km以下は上限10点、3km以上は掛けない
+   * （ふつうの「もや」は従来どおり減点だけで扱う）。
+   */
+  /// 視程の書き方。**1km未満を「0km」と書かない**（濃霧が無害に見える）
+  const visLabel = (vis) => (vis < 1000 ? `${Math.round(vis)}m` : `${Math.round(vis / 1000)}km`);
+
+  function fogCeiling(series, [ws, we], s) {
+    if (!series || !series.isSupported || !series.isSupported("visibility")) return null;
+    const vis = series.mean("visibility", ws, we);
+    if (vis === null || vis >= s.visClearOfFog) return null;
+    const out = Curve.ramp(vis, s.visFog, s.visClearOfFog);
+    return {
+      ceiling: Math.round(s.visFogCeiling + (100 - s.visFogCeiling) * out),
+      reason: `視程 ${visLabel(vis)}の霧の中`,
+    };
+  }
+
   const rimeScorer = {
     id: "rime", source: T.rime.source,
     window(dayMs) {
@@ -1780,10 +1842,13 @@
         if (h !== null) wettest = wettest === null ? h : Math.max(wettest, h);
         if (t !== null && h !== null && t < 0 && h >= s.saturation) fogHours++;
       }
+      // **種類を混ぜない。** 湿度が無いのは「判定できない」、
+      // 霧が無いのは「起きないという判定」。混ぜると、欠測のモデルが 0点として
+      // 母数に入ってしまう（2026-09-27 の自分の変更で実際に混ざっていた）
+      if (wettest === null) return unavailable("missingData", "湿度が得られませんでした");
       if (fogHours === 0) {
-        return unavailable("outOfSeason", wettest === null
-          ? "湿度が得られませんでした"
-          : `氷点下で霧に包まれる時間がありません（湿度は最大 ${pct(wettest)}）`);
+        return unavailable("outOfSeason",
+          `氷点下で霧に包まれる時間がありません（湿度は最大 ${pct(wettest)}）`);
       }
       factors.push(factor(`氷点下の霧 ${fogHours}時間`,
         Curve.ramp(fogHours, 0, s.fogHoursFull) * s.durationBonus,

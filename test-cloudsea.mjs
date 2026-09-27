@@ -157,5 +157,28 @@ ok(S.confidenceOf(8, 0.5).cappedByDisagreement === true, "下げた理由を持�
 ok(S.confidenceOf(8, 0.4).key === "low", "表示している評価が少数派なら低");
 ok(S.confidenceOf(8).key === "high", "一致率が無ければ従来どおり幅だけで決める");
 
+console.log("== 霧ができない日は「平凡」まで上がらない ==");
+{
+  // 2026-09-27 の点検。露点差10℃・湿度35%・快晴の朝が **40点**（＝「平凡」の下限）
+  // で出ていた。夜間の雲量0%（+30）と base だけで届いていた。
+  // 晴れた夜は放射冷却の前提であって、それだけでは霧にならない。
+  const dry = run(build(withInversion, { dewDep: 10, humidity: 35, cloud: 0 }), 800);
+  ok(!dry.unavailable, "採点はする（欠測ではない）");
+  ok(dry.score <= 25, "露点差10℃なら「期待薄」まで", `${Math.round(dry.score)}点`);
+  ok((dry.factors || []).some((f) => /気温と露点の差が/.test(f.label)),
+    "上限の理由を内訳に出す", (dry.factors || []).map((f) => f.label).join(" / "));
+
+  // 湿って冷える朝は、これまでどおり高い
+  const wet2 = run(build(withInversion, { dewDep: 0.3, humidity: 98, cloud: 0 }), 800);
+  ok(wet2.score >= 70, "湿って冷える朝は高いまま", `${Math.round(wet2.score)}点`);
+  ok(wet2.score > dry.score * 2, "乾いた朝との差がはっきりつく",
+    `${Math.round(dry.score)} → ${Math.round(wet2.score)}`);
+
+  // 中くらい（露点差3℃）は、その間に入る
+  const mid = run(build(withInversion, { dewDep: 3, humidity: 80, cloud: 0 }), 800);
+  ok(mid.score > dry.score && mid.score < wet2.score, "露点差の順に並ぶ",
+    `${Math.round(dry.score)} / ${Math.round(mid.score)} / ${Math.round(wet2.score)}`);
+}
+
 console.log(`\n${fail === 0 ? "CLOUDSEA OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

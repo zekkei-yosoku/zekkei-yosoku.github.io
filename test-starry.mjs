@@ -45,9 +45,10 @@ function night(dayMs, clouds, opts = {}) {
     precip.push(opts.precip ?? 0);
     rh.push(opts.rh ?? 60);
   }
-  const series = new S.Series(times, {
-    cloud_cover: cloud, precipitation: precip, relative_humidity_2m: rh,
-  });
+  const cols = { cloud_cover: cloud, precipitation: precip, relative_humidity_2m: rh };
+  // 視程は渡したときだけ持たせる（既存の検査は視程を持たない系列のまま）
+  if (opts.visibility !== undefined) cols.visibility = times.map(() => opts.visibility);
+  const series = new S.Series(times, cols);
   const input = { home: series, offsets: {}, lat, lon, terrain: null,
                   elevation: opts.elevation ?? 200,
                   lightPollution: opts.lightPollution ?? null, air: null };
@@ -109,6 +110,24 @@ for (const [name, r] of [["快晴・新月", clearNew], ["曇天", overcastNew],
   const sum = r.base + r.factors.reduce((s, f) => s + f.c, 0);
   ok(Math.abs(sum - r.score) < 0.001, `${name}: 内訳の合計 = 点数`,
     `${sum.toFixed(3)} vs ${r.score.toFixed(3)}`);
+}
+
+console.log("== 霧の中からは星も見えない ==");
+{
+  // 2026-09-27 の点検。雲量が低いまま視程だけ落ちる日がある（放射霧の夜）。
+  // 雲の上限だけでは拾えないので、視程でも上限を掛ける。
+  const clear = scoreOf(NEW_MOON, flat(0), { visibility: 25000 });
+  const fog = scoreOf(NEW_MOON, flat(0), { visibility: 200 });
+  const mist = scoreOf(NEW_MOON, flat(0), { visibility: 1500 });
+  ok(clear.score > 60, "澄んだ新月の夜は高い", `${Math.round(clear.score)}点`);
+  ok(fog.score <= 15, "視程200mなら「期待薄」", `${Math.round(fog.score)}点`);
+  ok(mist.score > fog.score && mist.score < clear.score, "視程の順に並ぶ",
+    `${Math.round(fog.score)} / ${Math.round(mist.score)} / ${Math.round(clear.score)}`);
+  ok((fog.factors || []).some((f) => /霧の中/.test(f.label)), "理由を内訳に出す",
+    (fog.factors || []).map((f) => f.label).join(" / "));
+  // 視程を持たない系列（アンサンブルなど）では、これまでどおり何もしない
+  const noVis = scoreOf(NEW_MOON, flat(0));
+  ok(!(noVis.factors || []).some((f) => /霧の中/.test(f.label)), "視程が無ければ掛けない");
 }
 
 console.log(`\n${fail === 0 ? "STARRY OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
