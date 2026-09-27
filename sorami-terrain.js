@@ -468,6 +468,64 @@
   /// 国土地理院の地名検索の結果が「地域の代表点」かどうか。
   /// 行政区画の名前（◯◯都・◯◯市・◯◯区…）だけのときは代表点、
   /// 施設や地物の名前なら点として扱う。**代表点ではダイヤモンド富士も建物の地平線も出せない。**
+  /**
+   * 展望台の高さ。**塔の先端の高さと、展望台の床の高さは違う。**
+   *
+   * OSM の `height` は構造物の高さなので、東京タワーなら 333m（先端）で、
+   * 人が立つメインデッキ 150m とは別物。地平線も月の出も、立つ高さで変わる。
+   * **公表値のあるものは名前で持つ。**
+   *
+   * `aglM` は地上からの高さ。地面の標高は標高タイルから足す。
+   * 出典は各施設の公表値（2026-09-28 時点）。
+   */
+  const OBSERVATION_DECKS = [
+    { match: /東京スカイツリー|スカイツリー/, decks: [
+      { name: "天望デッキ", aglM: 350 }, { name: "天望回廊", aglM: 450 }] },
+    { match: /東京タワー/, decks: [
+      { name: "メインデッキ", aglM: 150 }, { name: "トップデッキ", aglM: 250 }] },
+    { match: /あべのハルカス/, decks: [{ name: "ハルカス300", aglM: 300 }] },
+    { match: /六本木ヒルズ|森タワー|東京シティビュー/, decks: [
+      { name: "東京シティビュー", aglM: 250 }, { name: "スカイデッキ", aglM: 270 }] },
+    { match: /渋谷スカイ|渋谷スクランブルスクエア/, decks: [{ name: "渋谷スカイ", aglM: 229 }] },
+    { match: /サンシャイン ?60/, decks: [{ name: "展望台", aglM: 251 }] },
+    { match: /東京都庁/, decks: [{ name: "展望室", aglM: 202 }] },
+    { match: /横浜ランドマークタワー|スカイガーデン/, decks: [{ name: "スカイガーデン", aglM: 273 }] },
+    { match: /江の?島シーキャンドル/, decks: [{ name: "展望台", aglM: 42 }] },
+    { match: /千葉ポートタワー/, decks: [{ name: "展望台", aglM: 113 }] },
+    { match: /東京ワールドゲート|虎ノ門ヒルズ/, decks: [{ name: "展望", aglM: 250 }] },
+  ];
+  /// 名前から展望台の高さを引く。無ければ null
+  function decksFor(name) {
+    if (!name) return null;
+    const hit = OBSERVATION_DECKS.find((d) => d.match.test(name));
+    return hit ? hit.decks : null;
+  }
+
+  /**
+   * OSM のタグから構造物の高さを読む。**展望台の高さではない。**
+   * `height` があればそれ、無ければ階数から（1階3.3m）。
+   * @returns {{m:number, from:string}|null}
+   */
+  function structureHeight(tags) {
+    if (!tags) return null;
+    const h = parseFloat(tags.height);
+    if (Number.isFinite(h) && h > 3 && h < 1000) return { m: h, from: "height" };
+    const lv = parseFloat(tags["building:levels"]);
+    if (Number.isFinite(lv) && lv >= 2 && lv < 200) return { m: Math.round(lv * 3.3), from: "levels" };
+    return null;
+  }
+
+  /// 展望台・塔・高い建物か（検索結果に印を付けるため）
+  function isLookout(r) {
+    const t = (r && r.extratags) || {};
+    if (r && (r.type === "viewpoint" || t.tourism === "viewpoint")) return "viewpoint";
+    if (t["tower:type"] === "observation") return "observation";
+    if ((r && r.type === "tower") || t.man_made === "tower") return "tower";
+    const h = structureHeight(t);
+    if (h && h.m >= 30) return "building";
+    return null;
+  }
+
   function gsiLocationScope(title) {
     const t = String(title || "").trim();
     if (!t) return "area";
@@ -717,7 +775,7 @@
   }
 
   const SoramiTerrain = {
-    MAX_POINTS, DEFAULT_STEPS,
+    MAX_POINTS, DEFAULT_STEPS, OBSERVATION_DECKS, decksFor, structureHeight, isLookout,
     destination, bearing, distanceKm,
     fetchElevations, elevations, elevationFromTile, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,

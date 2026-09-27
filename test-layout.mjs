@@ -71,6 +71,28 @@ ok(/async function sky3dLoad/.test(html) && /if \(mode === "3d"\)/.test(html),
   "3Dを開いたときだけ読む");
 ok(/srgbToLinear/.test(html), "色は線形へ直してから渡す（そのままだと夜空が明るくなる）");
 
+// ---- 展望台。**塔の先端の高さと、人が立つ展望台の高さは違う**
+ok(/extratags: "1"/.test(html), "検索で extratags を取る（height / levels / tower:type）");
+ok(/SoramiTerrain\.decksFor\(name\)/.test(html), "公表値の展望台を引く");
+ok(/function lookoutTag/.test(html), "検索結果に高さの印を出す");
+ok(/先端/.test(html) && /屋上/.test(html), "塔は先端・建物は屋上と書き分ける");
+ok(/function eyeOptions/.test(html), "立つ高さの選択肢に展望台を足す");
+ok(/eyeOptions\(favDraft\)\.find/.test(html), "選んだときも同じ一覧から読む");
+{
+  const T = req("./sorami-terrain.js");
+  const tower = T.decksFor("東京タワー");
+  ok(tower && tower.some((d) => d.aglM === 150) && tower.some((d) => d.aglM === 250),
+    "東京タワーはメインデッキ150m・トップデッキ250m", JSON.stringify(tower));
+  const st = T.structureHeight({ height: "333" });
+  ok(st && st.m === 333, "OSM の height は構造物の高さ（先端）", JSON.stringify(st));
+  ok(tower[0].aglM < st.m, "**展望台は先端より低い**", `${tower[0].aglM}m < ${st.m}m`);
+  ok(T.decksFor("高尾山") === null, "展望台でない場所は null");
+  ok(T.isLookout({ type: "tower", extratags: { "tower:type": "observation" } }) === "observation",
+    "展望塔を見分ける");
+  ok(T.isLookout({ type: "peak", extratags: {} }) === null, "ただの山は展望台ではない");
+  ok(T.structureHeight({ "building:levels": "70" }).m === 231, "階数からも出す（1階3.3m）");
+}
+
 // ---- 月丼。**名前のある場所から選ぶ**（格子で探すと東京湾の真ん中が上位に来る）
 ok(/id="planeView"/.test(html), "月丼のページがある");
 ok(/location\.hash === "#\/plane"/.test(html), "#/plane のルートがある");
