@@ -627,6 +627,22 @@
   .tool-pick label { display: flex; align-items: center; gap: 5px; min-height: 44px;
                      font-size: 0.78rem; font-weight: 700; }
   .tool-pick input { width: 18px; height: 18px; accent-color: var(--accent); }
+  /* 写真の記録。**原寸は持たない**ので、出すのは小さくした写しだけ */
+  .ph-add { margin-top: 10px; }
+  .ph-preview { width: 100%; max-height: 42vh; object-fit: contain; border-radius: 12px;
+                background: var(--sunk); margin-top: 8px; }
+  .ph-range { flex: 1; accent-color: var(--accent); height: 44px; }
+  .ph-score { flex: 0 0 auto; min-width: 2.6em; text-align: right;
+              font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ph-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+             gap: 8px; margin-top: 10px; }
+  .ph-card { position: relative; border-radius: 10px; overflow: hidden; background: var(--sunk); }
+  .ph-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+  .ph-card .ph-tag { position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 6px;
+                     background: rgba(0,0,0,.6); color: #fff; font-size: 0.68rem; font-weight: 700;
+                     display: flex; justify-content: space-between; gap: 4px; }
+  .ph-card .ph-del { position: absolute; top: 2px; right: 2px; min-height: 32px; min-width: 32px;
+                     color: #fff; text-shadow: 0 0 4px rgba(0,0,0,.8); }
   .maprow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .maprow #mapCoord { flex: 1; font-variant-numeric: tabular-nums; color: var(--secondary); }
   .maprow button { flex: none; width: auto; padding: 0 12px; }
@@ -1098,6 +1114,13 @@
       <div id="recEmpty" class="tiny" hidden>まだ記録がありません。
         その回が終わると、ホームと現象の詳細に「実際はどうでしたか？」が出ます。
         押すだけで、そのときの点数と気象の値が端末に残ります。</div>
+      <div class="ph-add">
+        <button id="photoPick" class="fav-btn primary">写真から記録する</button>
+        <input type="file" id="photoFile" accept="image/*" hidden>
+        <p class="tiny" style="margin:6px 0 0;color:var(--tertiary)">写真に入っていれば、
+          <strong>撮った時刻と場所</strong>を読み取って先に入れます。写真は小さくして残します。</p>
+      </div>
+      <div id="photoList" class="ph-list"></div>
       <div id="recBody" hidden>
         <div id="calibration"></div>
         <div id="recList"></div>
@@ -1183,6 +1206,27 @@
     <p class="tiny" id="favNotice" role="status" aria-live="polite"></p>
     <p class="tiny" style="margin-top:10px">アカウントに保存され、ログインした端末で共有されます。控えは記録画面の「書き出し」から。</p>
   </div>
+</dialog>
+
+<!-- 写真から記録する。**原寸は送らない**（小さくした写しと、EXIF の「いつ・どこ」だけ）。
+     採点基準を変えたときに付け直せるよう、そのときの現象と点数を一緒に残す。 -->
+<dialog class="sheet" id="photoSheet" aria-labelledby="photoTitle">
+  <form method="dialog"><button class="sheet-x" aria-label="閉じる">✕</button></form>
+  <h2 id="photoTitle">写真から記録する</h2>
+  <img id="photoPreview" alt="選んだ写真" class="ph-preview">
+  <p class="tiny" id="photoMeta" style="margin:6px 0 0;color:var(--tertiary)"></p>
+  <label class="fav-l" for="photoPhenom">何の写真ですか</label>
+  <select id="photoPhenom" class="fav-in"></select>
+  <label class="fav-l" for="photoScore">100点満点で何点でしたか</label>
+  <div class="aim-row">
+    <input type="range" id="photoScore" class="ph-range" min="0" max="100" step="1" value="70"
+           aria-label="点数">
+    <output id="photoScoreOut" class="ph-score">70</output>
+  </div>
+  <label class="fav-l" for="photoNote">メモ<span class="fav-opt">任意</span></label>
+  <input type="text" id="photoNote" class="fav-in" maxlength="120" placeholder="気づいたこと">
+  <p class="warn" id="photoErr" hidden></p>
+  <button id="photoSave" class="fav-btn primary" style="margin-top:16px">保存</button>
 </dialog>
 
 <dialog class="sheet" id="authSheet" aria-labelledby="authTitle">
@@ -1359,21 +1403,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928033550"></script>
+<script src="sorami-core.js?v=20260928034155"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928033550"></script>
-<script src="sorami-exif.js?v=20260928033550"></script>
-<script src="sorami-capcloud.js?v=20260928033550"></script>
-<script src="sorami-terrain.js?v=20260928033550"></script>
-<script src="sorami-mountain.js?v=20260928033550"></script>
-<script src="sorami-fuji.js?v=20260928033550"></script>
-<script src="sorami-sky.js?v=20260928033550"></script>
-<script src="sorami-routes.js?v=20260928033550"></script>
-<script src="sorami-plane.js?v=20260928033550"></script>
-<script src="sorami-align.js?v=20260928033550"></script>
-<script src="sorami-moon.js?v=20260928033550"></script>
-<script src="sorami-composition.js?v=20260928033550"></script>
+<script src="sorami-astro.js?v=20260928034155"></script>
+<script src="sorami-exif.js?v=20260928034155"></script>
+<script src="sorami-capcloud.js?v=20260928034155"></script>
+<script src="sorami-terrain.js?v=20260928034155"></script>
+<script src="sorami-mountain.js?v=20260928034155"></script>
+<script src="sorami-fuji.js?v=20260928034155"></script>
+<script src="sorami-sky.js?v=20260928034155"></script>
+<script src="sorami-routes.js?v=20260928034155"></script>
+<script src="sorami-plane.js?v=20260928034155"></script>
+<script src="sorami-align.js?v=20260928034155"></script>
+<script src="sorami-moon.js?v=20260928034155"></script>
+<script src="sorami-composition.js?v=20260928034155"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2337,6 +2381,144 @@ function wireAlignmentJump(root) {
   }
 }
 
+// ---------------------------------------------------------------- 写真から記録する
+//
+// **原寸は送らない。** 端末で小さくした写し（長辺384px）と、EXIF から読んだ
+// 「いつ・どこ」だけを送る。原寸を置くには保存場所（R2）が要る。
+//
+// 小さくても残す意味はある。**採点のしかたを変えたとき、付け直せるのは写真だけ**で、
+// 「あの日は何点だった」という記憶は残らない。
+const photoDraft = { file: null, thumb: null, exif: null, width: 0, height: 0 };
+
+/// 長辺 `max` px に縮めた JPEG を data URL で返す
+async function makeThumb(file, max = 384, quality = 0.72) {
+  const bmp = await createImageBitmap(file);
+  const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const w = Math.max(1, Math.round(bmp.width * scale));
+  const h = Math.max(1, Math.round(bmp.height * scale));
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  c.getContext("2d").drawImage(bmp, 0, 0, w, h);
+  const url = c.toDataURL("image/jpeg", quality);
+  const size = { width: bmp.width, height: bmp.height };
+  if (bmp.close) bmp.close();
+  return { url, ...size };
+}
+
+async function openPhotoSheet(file) {
+  if (!requireLogin("写真の記録")) return;
+  photoDraft.file = file;
+  photoDraft.exif = null;
+  try { photoDraft.exif = await SoramiExif.readFile(file); } catch { photoDraft.exif = null; }
+  try {
+    const t = await makeThumb(file);
+    photoDraft.thumb = t.url; photoDraft.width = t.width; photoDraft.height = t.height;
+  } catch {
+    photoDraft.thumb = null; photoDraft.width = 0; photoDraft.height = 0;
+  }
+  $("photoPreview").src = photoDraft.thumb || "";
+  $("photoPreview").hidden = !photoDraft.thumb;
+  $("photoErr").hidden = true;
+
+  // 現象の一覧。**この画面の順で出す**（一覧と同じ並びなら迷わない）
+  $("photoPhenom").innerHTML = Object.entries(S.PHENOMENA)
+    .sort((a, b) => (a[1].order ?? 99) - (b[1].order ?? 99))
+    .map(([id, m]) => `<option value="${id}">${esc(m.name)}</option>`).join("");
+  // いま見ている現象があれば、それを初期値に
+  if (picked && S.PHENOMENA[picked]) $("photoPhenom").value = picked;
+
+  $("photoScore").value = "70";
+  $("photoScoreOut").textContent = "70";
+  $("photoNote").value = "";
+  $("photoMeta").textContent = photoMetaText();
+  $("photoSheet").showModal();
+}
+
+/// 写真から分かったことを1行で。**分からないものは「分かりません」と書く**
+function photoMetaText() {
+  const r = photoDraft.exif;
+  const parts = [];
+  const at = photoAt();
+  parts.push(at ? `撮影 ${S.Cal.monthDay(at)} ${S.JstCal.hhmm(at)}` : "撮影時刻は分かりません");
+  if (r && Number.isFinite(r.latitude)) {
+    parts.push(`${r.latitude.toFixed(4)}, ${r.longitude.toFixed(4)}`);
+    if (Number.isFinite(r.altitudeM)) parts.push(`標高 ${Math.round(r.altitudeM)}m`);
+  } else {
+    parts.push("場所は分かりません");
+  }
+  if (photoDraft.width) parts.push(`${photoDraft.width}×${photoDraft.height}`);
+  return parts.join(" ・ ");
+}
+/// 撮影時刻。時差が入っていなければ、その地点の時差を当てる
+function photoAt() {
+  const r = photoDraft.exif;
+  if (!r || !r.takenLocal) return null;
+  if (r.takenAtMs !== null && r.takenAtMs !== undefined) return r.takenAtMs;
+  const offsetMin = Number.isFinite(bundle?.utcOffsetSeconds) ? bundle.utcOffsetSeconds / 60 : null;
+  return offsetMin !== null ? SoramiExif.instantFrom(r.takenLocal, offsetMin) : null;
+}
+
+$("photoPick").onclick = () => { if (requireLogin("写真の記録")) $("photoFile").click(); };
+$("photoFile").onchange = async () => {
+  const f = $("photoFile").files && $("photoFile").files[0];
+  $("photoFile").value = "";                 // 同じ写真をもう一度選べるように
+  if (f) await openPhotoSheet(f);
+};
+$("photoScore").oninput = () => { $("photoScoreOut").textContent = $("photoScore").value; };
+$("photoSave").onclick = async (e) => {
+  e.preventDefault();
+  const r = photoDraft.exif;
+  const body = {
+    phenomenon: $("photoPhenom").value,
+    score: Number($("photoScore").value),
+    takenAt: photoAt(),
+    latitude: r && Number.isFinite(r.latitude) ? r.latitude : null,
+    longitude: r && Number.isFinite(r.longitude) ? r.longitude : null,
+    altitude: r && Number.isFinite(r.altitudeM) ? r.altitudeM : null,
+    placeName: place?.name || null,
+    note: $("photoNote").value.trim() || null,
+    thumb: photoDraft.thumb, width: photoDraft.width, height: photoDraft.height,
+  };
+  $("photoSave").disabled = true;
+  try {
+    await apiCall("POST", "/photos", body);
+    $("photoSheet").close();
+    await loadPhotos();
+  } catch (err) {
+    $("photoErr").textContent = err.message || "保存できませんでした";
+    $("photoErr").hidden = false;
+  } finally { $("photoSave").disabled = false; }
+};
+
+let photos = [];
+async function loadPhotos() {
+  if (!auth) { photos = []; renderPhotos(); return; }
+  try { photos = (await apiCall("GET", "/photos")).photos || []; }
+  catch { photos = []; }
+  renderPhotos();
+}
+function renderPhotos() {
+  const host = $("photoList");
+  if (!host) return;
+  host.innerHTML = photos.map((p) => {
+    const when = p.taken_at ? `${S.Cal.monthDay(p.taken_at)}` : "";
+    const name = S.PHENOMENA[p.phenomenon] ? S.PHENOMENA[p.phenomenon].name : p.phenomenon;
+    return `<div class="ph-card">
+      ${p.thumb ? `<img src="${esc(p.thumb)}" alt="${esc(name)} ${p.score}点">` : ""}
+      <button class="tap ph-del" data-photo-del="${esc(p.id)}" aria-label="この写真を消す">✕</button>
+      <div class="ph-tag"><span>${esc(name)}</span><span>${p.score}点</span></div>
+      ${when ? `<div class="ph-tag" style="bottom:auto;top:0"><span>${esc(when)}</span></div>` : ""}
+    </div>`;
+  }).join("");
+  for (const el of host.querySelectorAll("[data-photo-del]")) {
+    el.onclick = async () => {
+      if (!confirm("この写真の記録を消します。よろしいですか？")) return;
+      try { await apiCall("POST", "/photos/delete", { id: el.dataset.photoDel }); await loadPhotos(); }
+      catch (err) { alert(err.message || "消せませんでした"); }
+    };
+  }
+}
+
 function wireOutcomes(root) {
   // **記録もログインして使う。** サーバーに持つものなので、
   // 端末にだけ貯めて消えるより、入口で止めて案内したほうがよい
@@ -2451,6 +2633,7 @@ function applyRoute() {
   const route = routeFromHash();
   picked = route && route.id ? route.id : null;
   atRecords = !!(route && route.records);
+  if (atRecords) loadPhotos();
   atAdmin = !!(route && route.admin);
   atAim = !!(route && route.aim);
   atSky = !!(route && route.sky);
@@ -5729,6 +5912,8 @@ document.addEventListener("keydown", (e) => {
 
 function renderAuthButton() {
   renderTools();
+  // 写真はアカウントのもの。ログインが変わったら出し直す
+  if (atRecords) loadPhotos();
   const b = $("authButton");
   if (!auth) { b.textContent = "ログイン"; b.classList.remove("warn"); b.setAttribute("aria-label", "ログイン"); return; }
   const failing = !!syncError || pushQueue.length > 0;

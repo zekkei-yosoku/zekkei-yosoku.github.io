@@ -1636,10 +1636,11 @@ ok(/querySelectorAll\("dialog"\)[\s\S]{0,200}MutationObserver/.test(html),
   "個々の開閉ではなく dialog をまとめて見る");
 ok(/attributeFilter: \["open"\]/.test(html), "open 属性の変化で判断する");
 ok(/scrollbar-gutter: stable/.test(html), "止めた瞬間に横幅が変わらない");
-// 4つのシートすべてが対象。1つでも漏れると、そこだけ後ろが動く
+// シートすべてが対象。1つでも漏れると、そこだけ後ろが動く
 // 2026-09-24: 地図で選ぶシートを足して5つ（地点・お気に入り・記録・認証・地図）。
-// 「ねらう」はポップアップではなく**ページ**（#/aim）にした（2026-09-25 ユーザー指定）
-ok((html.match(/<dialog class="sheet"/g) || []).length === 5, "シートは5つ",
+// 2026-09-28: 写真から記録するシートを足して6つ。
+// 「ねらう」「空の見え方」「月丼」はポップアップではなく**ページ**にした
+ok((html.match(/<dialog class="sheet"/g) || []).length === 6, "シートは6つ",
   String((html.match(/<dialog class="sheet"/g) || []).length));
 
 console.log("== 登録した直後に、パスキーの登録へ進める ==");
@@ -1957,6 +1958,24 @@ console.log("== 月の代表地点・キャッシュ・保存経路 ==");
   ok(html.includes('locationScope: entry.locationScope, eyeHeightAGL: entry.eyeHeightAGL'), "表示地点へ高さと種別を反映");
   ok(html.includes('地域の代表地点のため、近くの建物は含めていません。'), "地域の詳細で建物を含まない前提を示す");
 }
+
+console.log("== 写真から記録する ==");
+// **原寸は送らない。** 端末で小さくした写しと、EXIF の「いつ・どこ」だけ
+ok(/id="photoSheet"/.test(html), "写真のシートがある");
+ok(/async function makeThumb\(file, max = 384/.test(html), "長辺384pxに縮めてから送る");
+ok(/c\.toDataURL\("image\/jpeg", quality\)/.test(html), "JPEGにして送る");
+ok(/SoramiExif\.readFile\(file\)/.test(html), "EXIFを読む");
+ok(/takenAt: photoAt\(\)/.test(html), "撮影時刻を送る");
+ok(/latitude: r && Number\.isFinite\(r\.latitude\)/.test(html), "座標を送る");
+ok(/altitude: r && Number\.isFinite\(r\.altitudeM\)/.test(html), "標高を送る");
+ok(/100点満点で何点でしたか/.test(html), "点数を聞く");
+ok(/何の写真ですか/.test(html), "現象を聞く");
+ok(/requireLogin\("写真の記録"\)/.test(html), "ログインして使う");
+ok(/撮影時刻は分かりません/.test(html) && /場所は分かりません/.test(html),
+  "分からないものは分からないと書く");
+// 写真の現象は、一覧と同じ並びで出す（迷わせない）
+ok(/\.sort\(\(a, b\) => \(a\[1\]\.order \?\? 99\) - \(b\[1\]\.order \?\? 99\)\)/.test(html),
+  "現象は一覧と同じ並び");
 
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);
