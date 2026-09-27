@@ -92,7 +92,7 @@
   h1 { font-size: 0.94rem; font-weight: 700; letter-spacing: .18em;
        color: var(--secondary); text-align: left; }
   #authButton { font-size: 0.75rem; font-weight: 700; color: var(--accent); min-height: 44px; padding: 0 2px; }
-  /* 道具の引き出し。**左上の ☰ から左に出す。** ページの中へ差し込まない
+  /* メニューの引き出し。**左上の ☰ から左に出す。** ページの中へ差し込まない
      （差し込むと下の内容が飛び、読んでいた場所を失う）。
      動かすのは transform と不透明度だけ。幅や位置を動かすと毎フレーム組み直しになる。 */
   #toolsButton { font-size: 1.05rem; line-height: 1; color: var(--secondary);
@@ -743,11 +743,11 @@
 <body>
 <main>
   <div class="masthead">
-    <!-- 道具のメニュー。**題名の左**に置く（よくある位置。2026-09-28 ユーザー指定）。
+    <!-- メニュー。**題名の左**に置く（よくある位置。2026-09-28 ユーザー指定）。
          表示はログイン名で絞っているが、**これは見た目だけ**で、
          URL を直接開けば誰でも入れる。中身に秘密は無いのでそれでよい。 -->
     <button id="toolsButton" class="tap" hidden aria-haspopup="true" aria-expanded="false"
-            aria-label="道具のメニュー">☰</button>
+            aria-label="メニュー">☰</button>
     <h1>絶景予測</h1>
     <!-- ログインは任意。押さなくても予報は全部見られる。
          同期が失敗しているときは、それをここに出す（黙って同期されていないのは
@@ -1107,12 +1107,12 @@
   <p class="tiny" id="footer"></p>
 </main>
 
-<!-- 道具の引き出し。**左上の ☰ から左に出す**（押した場所と出る場所を合わせる）。
-     正本: Vault ドメイン/開発/絶景日和/04_デザイン定義「4-4. 道具のメニュー（引き出し）」 -->
+<!-- メニューの引き出し。**左上の ☰ から左に出す**（押した場所と出る場所を合わせる）。
+     正本: Vault ドメイン/開発/絶景日和/04_デザイン定義「4-4. メニュー（引き出し）」 -->
 <div id="toolsScrim" class="drawer-scrim" hidden></div>
-<aside id="toolsMenu" class="drawer" hidden role="dialog" aria-modal="true" aria-label="道具">
+<aside id="toolsMenu" class="drawer" hidden role="dialog" aria-modal="true" aria-label="メニュー">
   <div class="drawer-head">
-    <span>道具</span>
+    <span>メニュー</span>
     <button id="toolsClose" class="tap" aria-label="閉じる">✕</button>
   </div>
   <nav class="drawer-list">
@@ -1121,7 +1121,7 @@
     <button data-tool="#/plane"><b>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
     <button data-tool="#/records"><b>記録</b><span>点数が実際とどれだけ合っているか</span></button>
   </nav>
-  <p class="drawer-foot">まだ作りかけの道具です。</p>
+  <p class="drawer-foot">まだ作りかけの機能です。</p>
 </aside>
 
 <dialog class="sheet" id="mapSheet">
@@ -1348,21 +1348,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928025632"></script>
+<script src="sorami-core.js?v=20260928025830"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928025632"></script>
-<script src="sorami-exif.js?v=20260928025632"></script>
-<script src="sorami-capcloud.js?v=20260928025632"></script>
-<script src="sorami-terrain.js?v=20260928025632"></script>
-<script src="sorami-mountain.js?v=20260928025632"></script>
-<script src="sorami-fuji.js?v=20260928025632"></script>
-<script src="sorami-sky.js?v=20260928025632"></script>
-<script src="sorami-routes.js?v=20260928025632"></script>
-<script src="sorami-plane.js?v=20260928025632"></script>
-<script src="sorami-align.js?v=20260928025632"></script>
-<script src="sorami-moon.js?v=20260928025632"></script>
-<script src="sorami-composition.js?v=20260928025632"></script>
+<script src="sorami-astro.js?v=20260928025830"></script>
+<script src="sorami-exif.js?v=20260928025830"></script>
+<script src="sorami-capcloud.js?v=20260928025830"></script>
+<script src="sorami-terrain.js?v=20260928025830"></script>
+<script src="sorami-mountain.js?v=20260928025830"></script>
+<script src="sorami-fuji.js?v=20260928025830"></script>
+<script src="sorami-sky.js?v=20260928025830"></script>
+<script src="sorami-routes.js?v=20260928025830"></script>
+<script src="sorami-plane.js?v=20260928025830"></script>
+<script src="sorami-align.js?v=20260928025830"></script>
+<script src="sorami-moon.js?v=20260928025830"></script>
+<script src="sorami-composition.js?v=20260928025830"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5623,7 +5623,7 @@ function askReauth() {
 }
 
 /**
- * 道具のメニューを出すかどうか。**いまは作った本人だけ。**
+ * メニューを出すかどうか。**いまは作った本人だけ。**
  *
  * これは**見た目の話でしかない。** URL（`#/aim` など）を直接開けば誰でも入れる。
  * 中身に秘密は無く、隠したいのではなく「まだ人に見せる形になっていない」だけなので、

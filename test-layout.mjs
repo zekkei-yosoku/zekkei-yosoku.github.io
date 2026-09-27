@@ -89,8 +89,8 @@ ok(/for \(const v of VIEWS\) \$\(v\.el\)\.hidden = v\.id !== view/.test(html), "
     && /id: "list",\s+el: "listView",\s+on: \(\) => true/.test(views), "一覧が最後の受け皿");
 }
 
-// ---- 道具のメニュー。隠し合言葉だけだったものを、押して開けるようにした
-ok(/id="toolsButton"/.test(html) && /id="toolsMenu"/.test(html), "道具のメニューがある");
+// ---- メニュー。隠し合言葉だけだったものを、押して開けるようにした
+ok(/id="toolsButton"/.test(html) && /id="toolsMenu"/.test(html), "メニューがある");
 ok(/const TOOLS_FOR = \["okayu0321"\]/.test(html), "いまは作った本人だけに出す");
 ok(/aria-haspopup="true"/.test(html) && /role="dialog" aria-modal="true"/.test(html),
   "開閉を読み上げへ伝える");
@@ -112,7 +112,7 @@ ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待�
 {
   // **絵文字を使わない**（現象の識別にだけ使う）
   const drawer = html.slice(html.indexOf('id="toolsMenu"'), html.indexOf("</aside>"));
-  ok(!/[\u{1F300}-\u{1FAFF}]/u.test(drawer), "道具に絵文字を付けない");
+  ok(!/[\u{1F300}-\u{1FAFF}]/u.test(drawer), "メニューに絵文字を付けない");
 }
 {
   const menu = html.slice(html.indexOf('id="toolsMenu"'), html.indexOf("</aside>"));
