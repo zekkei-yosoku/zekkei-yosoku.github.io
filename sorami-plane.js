@@ -221,8 +221,10 @@
     const lanes = Math.max(1, paths.length);
     const out = [];
     for (const spot of spots) {
+      // **展望台の上なら、そのぶん目が高い。** 機体との高低差が縮むので、
+      // 同じ月の高さでも近くを通る機を狙える（低い月は地上だと街に隠れる）
       const obs = { latitude: spot.latitude, longitude: spot.longitude,
-                    elevation: spot.elevationM ?? 0 };
+                    elevation: (spot.elevationM ?? 0) + (spot.deckM ?? 0) };
       const hits = [];
       for (let i = 0; i * stepMin * 60000 <= hours * 3600000; i++) {
         const at = dayMs + i * stepMin * 60000;

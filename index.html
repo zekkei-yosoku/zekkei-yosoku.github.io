@@ -1288,21 +1288,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928023348"></script>
+<script src="sorami-core.js?v=20260928023934"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928023348"></script>
-<script src="sorami-exif.js?v=20260928023348"></script>
-<script src="sorami-capcloud.js?v=20260928023348"></script>
-<script src="sorami-terrain.js?v=20260928023348"></script>
-<script src="sorami-mountain.js?v=20260928023348"></script>
-<script src="sorami-fuji.js?v=20260928023348"></script>
-<script src="sorami-sky.js?v=20260928023348"></script>
-<script src="sorami-routes.js?v=20260928023348"></script>
-<script src="sorami-plane.js?v=20260928023348"></script>
-<script src="sorami-align.js?v=20260928023348"></script>
-<script src="sorami-moon.js?v=20260928023348"></script>
-<script src="sorami-composition.js?v=20260928023348"></script>
+<script src="sorami-astro.js?v=20260928023934"></script>
+<script src="sorami-exif.js?v=20260928023934"></script>
+<script src="sorami-capcloud.js?v=20260928023934"></script>
+<script src="sorami-terrain.js?v=20260928023934"></script>
+<script src="sorami-mountain.js?v=20260928023934"></script>
+<script src="sorami-fuji.js?v=20260928023934"></script>
+<script src="sorami-sky.js?v=20260928023934"></script>
+<script src="sorami-routes.js?v=20260928023934"></script>
+<script src="sorami-plane.js?v=20260928023934"></script>
+<script src="sorami-align.js?v=20260928023934"></script>
+<script src="sorami-moon.js?v=20260928023934"></script>
+<script src="sorami-composition.js?v=20260928023934"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2022,6 +2022,21 @@ function iconFor(id, atMs) {
     return SoramiMoon.glyphOf(SoramiAstro.moon(atMs ?? Date.now(), obs));
   } catch { return meta.icon; }
 }
+/**
+ * **いま選んでいる地点の「目の高さ」。** 展望台を選んでいればその高さを足す。
+ *
+ * 地面の標高は DEM（無ければ予報の格子）。**ここを1か所にまとめる。**
+ * 画面ごとに `place.elevation ?? 0` と書いていたため、富士山と月は展望台を見て、
+ * 「ねらう」と「空の見え方」は見ていない、という食い違いが起きていた
+ * （2026-09-28 ユーザー指摘で発覚）。
+ */
+function observerHere() {
+  const ground = place.elevation ?? bundle?.home.grid.elevation ?? 0;
+  return { latitude: place.latitude, longitude: place.longitude,
+           groundM: ground, eyeHeightAGL: place.eyeHeightAGL ?? 1.5,
+           elevation: ground + (place.eyeHeightAGL ?? 1.5) };
+}
+
 /// 月相の呼び名（詳細で添える）
 function phaseNameFor(atMs) {
   try {
@@ -2617,8 +2632,7 @@ function moonEvents(startMs, spanMs) {
   // 大気差・視半径つき）で出しているため、同じ画面に 8:21 と 8:22 が並んでいた。
   // core の Moon は星空の採点と Swift 版とのパリティで固定されているので触らず、
   // **表示に使う時刻だけ精密なほうへ揃える**。
-  const obs = moonObs || { latitude: place.latitude, longitude: place.longitude,
-                           elevation: place.elevation ?? 0 };
+  const obs = moonObs || observerHere();
   let ev;
   try {
     ev = SoramiAstro.moonEvents(startMs, startMs + spanMs, obs, {});
@@ -4290,7 +4304,17 @@ async function planeApply() {
     { landing: plane.kind === "landing", takeoff: plane.kind === "takeoff" });
   // **名前のある場所の中から選ぶ。** 格子で探すと上位が東京湾の真ん中になる
   // （進入は湾の上を通るため）。「今日はここ」と言うには立てる場所が要る。
-  const spots = SoramiPlane.rankSpots(plane.dayMs, paths, SoramiRoutes.SPOTS,
+  // **いま選んでいる地点も候補に入れる。** 展望台を選んでいればその高さで効く
+  const me = observerHere();
+  const ground = me.groundM, agl = me.eyeHeightAGL;
+  const here = {
+    id: "here", name: `いまの地点（${place.name}）`,
+    latitude: place.latitude, longitude: place.longitude,
+    elevationM: ground, deckM: agl,
+    note: agl > 2 ? `地上${Math.round(agl)}m。目の高さ ${Math.round(ground + agl)}m`
+      : `標高 ${Math.round(ground)}m`,
+  };
+  const spots = SoramiPlane.rankSpots(plane.dayMs, paths, [here, ...SoramiRoutes.SPOTS],
     { stepMin: 2, limit: 8 });
   if (seq !== plane.seq) return;
   const moon = SoramiAstro.moon(S.Cal.setHour(plane.dayMs, 21),
@@ -4328,7 +4352,9 @@ function planeRender() {
   const lit = r.illuminated !== null && r.illuminated !== undefined
     ? `月の輝面 ${Math.round(r.illuminated * 100)}%。` : "";
   $("planeInfo").innerHTML = `${lit}月が低い（2〜30°）あいだだけを見ています。`
-    + `<br>機体は<strong>4〜12kmが狙いめ</strong>です（全長60mの機体が月に収まるのは6.6kmより遠く）。`;
+    + `<br>機体は<strong>4〜12kmが狙いめ</strong>です（全長60mの機体が月に収まるのは6.6kmより遠く）。`
+    + `<br>展望台の上なら目が高いぶん機体との高低差が縮み、<strong>低い月でも街に隠れません</strong>。`
+    + `いま選んでいる地点も候補に入れています。`;
   $("planeList").innerHTML = r.spots.map((sp, i) => {
     const when = sp.windows.map((w) => (w.from === w.to
       ? S.JstCal.hhmm(w.from) : `${S.JstCal.hhmm(w.from)}〜${S.JstCal.hhmm(w.to)}`)).join("、");
@@ -4453,8 +4479,7 @@ const sky = { dayMs: null, minutes: 12 * 60, sun: [], moon: [], spans: {}, frame
               mode: store.get("sorami.skyMode", "2d") };
 
 const skyHorizon = () => (moonHorizon || (() => 0));
-const skyObs = () => (moonObs || { latitude: place.latitude, longitude: place.longitude,
-                                   elevation: place.elevation ?? 0 });
+const skyObs = () => (moonObs || observerHere());
 
 function skyRecompute() {
   const obs = skyObs();
@@ -4992,7 +5017,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
     if (c) {
       const d = SoramiTerrain.distanceKm(c.latitude, c.longitude,
         aim.target.latitude, aim.target.longitude);
-      const ang = SoramiAstro.targetElevationAngle(d, (place.elevation ?? 0) + 1.5, part.m);
+      const ang = SoramiAstro.targetElevationAngle(d, observerHere().elevation, part.m);
       $("aimHeightNote").textContent =
         `いまの ${Math.round(part.m)}m だと、地図の中心（${aimKm(d)}km先）からは ${ang.toFixed(1)}° に見えます。`
         + `実際に見た角度が分かれば、合うまで高さを動かせます。`;
@@ -5023,8 +5048,8 @@ function aimApply({ redraw = true, recenter = false } = {}) {
 
 /// いまの地点から見た「次に重なる日」
 function aimRenderList() {
-  const obs = { latitude: place.latitude, longitude: place.longitude,
-                elevation: place.elevation ?? 0 };
+  // **展望台の上ならその高さで。** 目が高いほど目標を見上げる角度は下がり、重なる日が変わる
+  const obs = observerHere();
   $("aimPlaceName").textContent = place.name;
   let rows = [];
   try {

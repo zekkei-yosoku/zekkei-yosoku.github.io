@@ -180,5 +180,34 @@ console.log("== 霧ができない日は「平凡」まで上がらない ==");
     `${Math.round(dry.score)} / ${Math.round(mid.score)} / ${Math.round(wet2.score)}`);
 }
 
+console.log("== 見下ろせるかは、目の高さで決まる ==");
+{
+  // 2026-09-28 ユーザー指摘「他の予測でも展望台を考慮しているか」→ していなかった。
+  // 雲海は**見下ろせるか**なので、展望台の上ならそのぶん高い。
+  // （霧氷は木に着く話、ダイヤモンドダストは地面付近の気温の話なので地面の標高のまま）
+  const home = build(withInversion, { dewDep: 0.3, humidity: 98, cloud: 0 });
+  const run2 = (ground, eyeAGL) => {
+    const input = { home, offsets: {}, lat: 35.3, lon: 134.83, terrain: null,
+      elevation: ground, eyeElevation: ground + eyeAGL, lightPollution: null, air: null };
+    const w = S.SCORERS.seaOfClouds.window(day + 24 * 3600000, input);
+    return S.SCORERS.seaOfClouds.score(w, input);
+  };
+  const ground = run2(100, 1.5);
+  ok(!!ground.unavailable, "標高100mの地面からは対象外", ground.unavailable && ground.unavailable.message);
+  ok(ground.unavailable && /目の高さ/.test(ground.unavailable.message), "理由に目の高さと書く");
+  const deck = run2(100, 250);
+  ok(!deck.unavailable, "同じ場所でも地上250mの展望台なら採点する", JSON.stringify(deck.score));
+  // 逆転層（下端250m）との関係も目の高さで見る
+  ok((deck.factors || []).some((f) => /逆転層/.test(f.label)), "逆転層の行が出る",
+    (deck.factors || []).map((f) => f.label).join(" / "));
+  // eyeElevation が無い呼び方でも落ちない（従来どおり標高で判定）
+  const legacy = (() => {
+    const input = { home, offsets: {}, lat: 35.3, lon: 134.83, terrain: null,
+      elevation: 800, lightPollution: null, air: null };
+    return S.SCORERS.seaOfClouds.score(S.SCORERS.seaOfClouds.window(day + 24 * 3600000, input), input);
+  })();
+  ok(!legacy.unavailable, "目の高さが無ければ標高で判定する");
+}
+
 console.log(`\n${fail === 0 ? "CLOUDSEA OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

@@ -1618,8 +1618,10 @@
       if (["basinFloor", "plain", "coast"].includes(input.terrain)) {
         return unavailable("terrain", "雲海を見下ろせる地形ではありません");
       }
-      if (!input.terrain && input.elevation < s.minElevation) {
-        return unavailable("terrain", `標高 ${Math.round(input.elevation)}m。雲海を見下ろすには低すぎます`);
+      // **見下ろせるかは、目の高さで決まる。** 展望台の上ならそのぶん高い
+      const eye = Number.isFinite(input.eyeElevation) ? input.eyeElevation : input.elevation;
+      if (!input.terrain && eye < s.minElevation) {
+        return unavailable("terrain", `目の高さ ${Math.round(eye)}m。雲海を見下ろすには低すぎます`);
       }
       const todayStart = Cal.startOfDay(ws);
       const prevStart = Cal.addDays(todayStart, -1);
@@ -1676,7 +1678,7 @@
       // 逆転層が見つかったときだけ効かせる。見つからないのは
       // 「天井が無い」のか「モデルが捉えていない」のか区別できないので、
       // その場合は何も足さない・引かない。分かることだけで判断する。
-      const elevation = input.elevation;
+      const elevation = eye;
       const inv = inversionBase(series, ws, we);
       let ceiling = null, ceilingReason = "";
 
@@ -2188,6 +2190,11 @@
       lat: place.latitude, lon: place.longitude,
       terrain: place.terrain || null,
       elevation: place.elevation ?? bundle.home.grid.elevation,
+      // **目の高さ（地面＋展望台）。使うのは雲海だけ。**
+      // 雲海は「見下ろせるか」なので、250mの展望台からなら標高200mの霧は下になる。
+      // 霧氷は木に着く話、ダイヤモンドダストは地面付近の気温の話なので、
+      // どちらも地面の標高で判定する（2026-09-28）。
+      eyeElevation: (place.elevation ?? bundle.home.grid.elevation) + (place.eyeHeightAGL ?? 1.5),
       lightPollution: place.lightPollution || null,
       air: bundle.air || null,
     });

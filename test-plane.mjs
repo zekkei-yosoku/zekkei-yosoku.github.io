@@ -108,5 +108,36 @@ console.log("== 海の上は落とす ==");
   ok(noFilter.length === 3, "判定できなければそのまま返す");
 }
 
+console.log("== 展望台の上は目が高い ==");
+{
+  // 2026-09-28 ユーザー「月丼は展望台からでも撮れるのでは」→ そのとおりで、
+  // 目が高いほど機体との高低差が縮み、同じ月の高さでも近くを通る機を狙える。
+  // 低い月は地上だと街に隠れるので、展望台のほうが有利なことも多い。
+  const day2 = day("2026-11-24");
+  const at = (deckM) => P.rankSpots(day2, P.pathsFor("north", { landing: true }),
+    [{ id: "x", name: "ためし", latitude: 35.3130, longitude: 139.8108, deckM }],
+    { stepMin: 2, limit: 1 })[0];
+  const low = at(0), high = at(150);
+  ok(low && high, "どちらも候補になる");
+  // 目が高いほど、**同じ機体に重ねるのに必要な距離が縮む**（高低差が減るため）
+  const path = [{ latitude: 35.45, longitude: 139.85, altitudeM: 1200 }];
+  const moon = { azimuth: 30, apparentAltitude: 7 };
+  const dGround = P.standLine(path, moon, 0, { eyeM: 1.5 })[0].planeKm;
+  const dDeck = P.standLine(path, moon, 0, { eyeM: 150 })[0].planeKm;
+  ok(dDeck < dGround, "目が高いほど、重ねるのに要る距離が縮む",
+    `地上1.5m で ${dGround.toFixed(1)}km → 150m で ${dDeck.toFixed(1)}km`);
+  // 重なる時刻もずれる（同じ場所でも、目の高さで合う瞬間が変わる）
+  ok(low.best.at !== high.best.at, "重なる時刻がずれる",
+    `${jst(low.best.at)} → ${jst(high.best.at)}`);
+  // 展望台の高さを渡さなければ、これまでどおり地面
+  const none = P.rankSpots(day2, P.pathsFor("north", { landing: true }),
+    [{ id: "x", name: "ためし", latitude: 35.3130, longitude: 139.8108 }], { stepMin: 2, limit: 1 })[0];
+  ok(none && Math.abs(none.best.planeKm - low.best.planeKm) < 0.01, "高さが無ければ地面と同じ");
+  // 定番の場所にも展望台の高さが入っている
+  const decks = RT.SPOTS.filter((x) => Number.isFinite(x.deckM));
+  ok(decks.length >= 5, "展望台の高さを持つ場所がある", `${decks.length}件`);
+  ok(RT.SPOTS.find((x) => x.id === "chibaport").deckM === 113, "千葉ポートタワーは地上113m");
+}
+
 console.log(`\n${fail === 0 ? "PLANE OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

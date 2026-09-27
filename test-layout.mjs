@@ -119,10 +119,33 @@ ok(/\$\("deckPick"\)\.onchange/.test(html), "選ぶと地点に反映する");
 // ---- 月丼。**名前のある場所から選ぶ**（格子で探すと東京湾の真ん中が上位に来る）
 ok(/id="planeView"/.test(html), "月丼のページがある");
 ok(/location\.hash === "#\/plane"/.test(html), "#/plane のルートがある");
-ok(/SoramiPlane\.rankSpots\(plane\.dayMs, paths, SoramiRoutes\.SPOTS/.test(html),
-  "定番の場所の中から選ぶ");
+ok(/SoramiPlane\.rankSpots\(plane\.dayMs, paths, \[here, \.\.\.SoramiRoutes\.SPOTS\]/.test(html),
+  "いまの地点＋定番の場所の中から選ぶ");
 ok(/planeOperationFromWind/.test(html), "運用の向きは風から決める");
 ok(/id="planePick"/.test(html), "「今日はここ」を先に出す");
+// 展望台からも狙える。いま選んでいる地点（展望台かもしれない）も候補に入れる
+ok(/id: "here", name: `いまの地点/.test(html), "いまの地点も候補に入れる");
+// **観測点の作り方は1か所にまとめる。** 画面ごとに書くと、展望台を見る画面と
+// 見ない画面ができる（2026-09-28 実際にそうなっていた）
+ok(/function observerHere/.test(html), "観測点をまとめる関数がある");
+ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高さを足す");
+{
+  const bad = (html.match(/elevation: place\.elevation \?\? 0/g) || []).length;
+  ok(bad === 0, "展望台を無視する書き方が残っていない", `${bad}件`);
+}
+ok(/const obs = observerHere\(\);/.test(html), "ねらうの一覧も観測点から取る");
+ok(/const skyObs = \(\) => \(moonObs \|\| observerHere\(\)\)/.test(html), "空の見え方も同じ");
+ok(/deckM: agl/.test(html), "その地点の立つ高さを渡す");
+// 雲海は**見下ろせるか**なので目の高さで判定する（霧氷・ダイヤは地面の標高のまま）
+ok(/eyeElevation:/.test(coreSrc), "目の高さを採点へ渡す");
+ok(/const eye = Number\.isFinite\(input\.eyeElevation\)/.test(coreSrc), "雲海は目の高さで見下ろす");
+{
+  // 霧氷の採点の中だけを見る（木に着く話なので、目の高さは関係ない）
+  const body = coreSrc.slice(coreSrc.indexOf("const rimeScorer"), coreSrc.indexOf("const rainbowScorer"));
+  ok(!/eyeElevation/.test(body), "霧氷は地面の標高のまま");
+  const dd = coreSrc.slice(coreSrc.indexOf("const diamondDustScorer"), coreSrc.indexOf("const rimeScorer"));
+  ok(!/eyeElevation/.test(dd), "ダイヤモンドダストも地面の標高のまま");
+}
 ok(coreMod.PHENOMENA && /wind_direction_10m/.test(coreSrc), "風向を取得している");
 {
   const R = req("./sorami-routes.js");
