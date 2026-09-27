@@ -94,8 +94,20 @@ ok(/id="toolsButton"/.test(html) && /id="toolsMenu"/.test(html), "メニュー�
 // **誰に何を見せるかはサーバーが決める**（/me の tools）。画面で名簿を持たない
 ok(!/TOOLS_FOR/.test(html), "画面側に名簿を持たない");
 ok(/Array\.isArray\(auth\?\.tools\)/.test(html), "サーバーが返した並びを使う");
-ok(/const ALWAYS_TOOLS = \["records"\]/.test(html), "記録は誰にでも出す");
-ok(/el\.dataset\.id === "records" && !auth/.test(html), "記録はログインして使う");
+ok(!/ALWAYS_TOOLS/.test(html), "既定で出すものを画面側に持たない");
+ok(/return Array\.isArray\(auth\?\.tools\) \? auth\.tools : \[\];/.test(html),
+  "サーバーが返した並びだけを出す");
+// **記録もお気に入りも、答える前にログインを求める。**
+// 端末にだけ貯めると、しばらく開かないと消える（iOS は7日）
+ok(/if \(!requireLogin\("記録"\)\) return;/.test(html), "答えるときにログインを求める");
+ok(/if \(!requireLogin\("記録"\)\) \{ el\.value = ""; return; \}/.test(html),
+  "写真を選んだときも求める（選択を戻す）");
+ok(/const requireLoginForFavorites = \(\) => requireLogin\("お気に入りの登録"\)/.test(html),
+  "お気に入りと同じ入口を使う");
+// 文言が実態と食い違っていた（ログインすれば端末をまたいで共有される）
+ok(!/この端末のブラウザにだけ/.test(html), "「この端末にだけ」と書かない");
+ok(/アカウントに保存され、ログインした端末で共有されます/.test(html), "共有されると書く");
+ok(/ログインし直せば戻ります/.test(html), "消えるのは端末の写しだけだと書く");
 ok(/function toolPicker/.test(html), "管理画面で選べる");
 ok(/"\/admin\/tools"/.test(html), "管理画面から決める経路を呼ぶ");
 ok(/管理者はすべて使えます/.test(html), "管理者は選ばせない（役割で全部）");
@@ -873,10 +885,12 @@ const headEnd = recCard.indexOf("</div>");
 ok(recCard.indexOf('id="exportBtn"') > recCard.indexOf('id="recBody"'),
   "書き出し・読み込みが記録画面の末尾にある");
 ok(!/exportBtn/.test(recCard.slice(0, headEnd)), "書き出しが見出しの隣に無い");
-// 2026-09-07: 「端末に保存されます」だけでは、端末をまたいで共有されないことが伝わらない。
-// お気に入りに手入力の内容を持たせたので、どこに保存され何が起きうるかを明示する形へ変えた。
-ok(/この端末のブラウザにだけ/.test(recCard) && /端末をまたいでは共有されません/.test(recCard),
-  "保存先が【この端末だけ】であることを書く");
+// 2026-09-07: 「端末に保存されます」だけでは、どこに保存され何が起きうるかが伝わらない。
+// 2026-09-28: **書いてあることが実態と違っていた。** 記録もお気に入りもログインして使い、
+// サーバーに保存されて端末をまたいで共有される。端末にあるのは写しのほう。
+ok(/アカウントに保存され、ログインした端末で共有されます/.test(recCard),
+  "保存先が【アカウント】であることを書く");
+ok(/端末のブラウザにも同じものを置いて/.test(recCard), "端末にあるのは写しだと書く");
 ok(/記録とお気に入り/.test(recCard), "お気に入りも対象だと書く");
 
 console.log("== 登録の途中と失敗を落とさない ==");
@@ -981,8 +995,8 @@ ok(/id="storageNote"/.test(html), "申請の結果を出す場所がある");
 ok(/ホーム画面に追加/.test(html), "iOS では消えにくくする方法を案内する");
 ok(/display-mode: standalone/.test(html), "すでにホーム画面のアプリなら案内しない");
 // 保存場所を隠さない
-ok(/この端末のブラウザにだけ/.test(html), "どこに保存されるかを画面で言う");
-ok((html.match(/この端末のブラウザにだけ|この端末のブラウザにだけ保存されます/g) || []).length >= 1,
+ok(/アカウントに保存され、ログインした端末で共有されます/.test(html), "どこに保存されるかを画面で言う");
+ok((html.match(/アカウントに保存され/g) || []).length >= 1,
   "地点シートにも保存場所を書く");
 
 console.log("== 外から来た文字をそのまま HTML へ入れない ==");
@@ -1065,11 +1079,12 @@ ok(/\$\("logout"\)\.onclick[\s\S]{0,400}favorites = \[\]; sightings = \[\]/.test
 ok(/まだ送っていない変更が \$\{pushQueue\.length\}件/.test(html), "未送信があれば警告してから消す");
 // 2026-09-08 ユーザー指摘「ログインしてないのにお気に入りの登録ができる」。
 // お気に入りはアカウントに紐づくもの。端末にだけ溜めても、消えるか、あとで混ざる。
-ok(/function requireLoginForFavorites[\s\S]{0,80}if \(auth\) return true;/.test(html),
+ok(/function requireLogin\(what\) \{\s*\n\s*if \(auth\) return true;/.test(html),
   "未ログインでは登録させない");
 ok(/function openFavSheet\(index\) \{\s*\n\s*if \(!requireLoginForFavorites\(\)\) return;/.test(html),
   "登録フォームを開く前に確かめる");
-ok(/お気に入りの登録にはログインが要ります/.test(html), "理由を言ってログインへ案内する");
+ok(/\$\{what\}にはログインが要ります/.test(html) && /お気に入りの登録/.test(html),
+  "理由を言ってログインへ案内する");
 // 既に端末にあるものは消さない。見えるし選べる。
 ok(/data-fav="\$\{i\}"/.test(html), "手元のお気に入りは引き続き選べる");
 ok(!/maybeSuggestLogin/.test(html), "登録できてしまう前提の促しは残っていない");
