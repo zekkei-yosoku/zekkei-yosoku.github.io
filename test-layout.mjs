@@ -91,7 +91,14 @@ ok(/for \(const v of VIEWS\) \$\(v\.el\)\.hidden = v\.id !== view/.test(html), "
 
 // ---- メニュー。隠し合言葉だけだったものを、押して開けるようにした
 ok(/id="toolsButton"/.test(html) && /id="toolsMenu"/.test(html), "メニューがある");
-ok(/const TOOLS_FOR = \["okayu0321"\]/.test(html), "いまは作った本人だけに出す");
+// **誰に何を見せるかはサーバーが決める**（/me の tools）。画面で名簿を持たない
+ok(!/TOOLS_FOR/.test(html), "画面側に名簿を持たない");
+ok(/Array\.isArray\(auth\?\.tools\)/.test(html), "サーバーが返した並びを使う");
+ok(/const ALWAYS_TOOLS = \["records"\]/.test(html), "記録は誰にでも出す");
+ok(/el\.dataset\.id === "records" && !auth/.test(html), "記録はログインして使う");
+ok(/function toolPicker/.test(html), "管理画面で選べる");
+ok(/"\/admin\/tools"/.test(html), "管理画面から決める経路を呼ぶ");
+ok(/管理者はすべて使えます/.test(html), "管理者は選ばせない（役割で全部）");
 // **どの画面でも出す。** 画面を移ったり、ログインの復帰が遅れたりしても消えない
 ok(/renderTools\(\);\s*\n\s*renderDeckRow\(\)/.test(html), "描き直しのたびに見直す");
 ok(/renderAuthButton\(\);\s*\n\s*try \{/.test(html), "/me を待たずに出す");

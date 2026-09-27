@@ -621,6 +621,12 @@
                  font-size: 0.68rem; font-weight: 700; vertical-align: middle;
                  background: var(--sunk); color: var(--secondary); }
   .deck-row { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  /* 管理画面の「使えるもの」。押しやすさ（44px）は行の高さで確保する */
+  .tool-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 6px; }
+  .tool-pick > .tiny { color: var(--tertiary); }
+  .tool-pick label { display: flex; align-items: center; gap: 5px; min-height: 44px;
+                     font-size: 0.78rem; font-weight: 700; }
+  .tool-pick input { width: 18px; height: 18px; accent-color: var(--accent); }
   .maprow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .maprow #mapCoord { flex: 1; font-variant-numeric: tabular-nums; color: var(--secondary); }
   .maprow button { flex: none; width: auto; padding: 0 12px; }
@@ -1121,10 +1127,10 @@
     <button id="toolsClose" class="tap" aria-label="閉じる">✕</button>
   </div>
   <nav class="drawer-list">
-    <button data-tool="#/aim"><b>ねらう</b><span>目標に太陽や月が重なる日と、見える場所</span></button>
-    <button data-tool="#/sky"><b>空の見え方</b><span>稜線の上を太陽と月がどう通るか</span></button>
-    <button data-tool="#/plane"><b>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
-    <button data-tool="#/records"><b>記録</b><span>点数が実際とどれだけ合っているか</span></button>
+    <button data-tool="#/aim" data-id="aim"><b>ねらう</b><span>目標に太陽や月が重なる日と、見える場所</span></button>
+    <button data-tool="#/sky" data-id="sky"><b>空の見え方</b><span>稜線の上を太陽と月がどう通るか</span></button>
+    <button data-tool="#/plane" data-id="plane"><b>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
+    <button data-tool="#/records" data-id="records"><b>記録</b><span>点数が実際とどれだけ合っているか</span></button>
   </nav>
 </aside>
 
@@ -1352,21 +1358,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928030435"></script>
+<script src="sorami-core.js?v=20260928032757"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928030435"></script>
-<script src="sorami-exif.js?v=20260928030435"></script>
-<script src="sorami-capcloud.js?v=20260928030435"></script>
-<script src="sorami-terrain.js?v=20260928030435"></script>
-<script src="sorami-mountain.js?v=20260928030435"></script>
-<script src="sorami-fuji.js?v=20260928030435"></script>
-<script src="sorami-sky.js?v=20260928030435"></script>
-<script src="sorami-routes.js?v=20260928030435"></script>
-<script src="sorami-plane.js?v=20260928030435"></script>
-<script src="sorami-align.js?v=20260928030435"></script>
-<script src="sorami-moon.js?v=20260928030435"></script>
-<script src="sorami-composition.js?v=20260928030435"></script>
+<script src="sorami-astro.js?v=20260928032757"></script>
+<script src="sorami-exif.js?v=20260928032757"></script>
+<script src="sorami-capcloud.js?v=20260928032757"></script>
+<script src="sorami-terrain.js?v=20260928032757"></script>
+<script src="sorami-mountain.js?v=20260928032757"></script>
+<script src="sorami-fuji.js?v=20260928032757"></script>
+<script src="sorami-sky.js?v=20260928032757"></script>
+<script src="sorami-routes.js?v=20260928032757"></script>
+<script src="sorami-plane.js?v=20260928032757"></script>
+<script src="sorami-align.js?v=20260928032757"></script>
+<script src="sorami-moon.js?v=20260928032757"></script>
+<script src="sorami-composition.js?v=20260928032757"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5630,17 +5636,29 @@ function askReauth() {
 }
 
 /**
- * メニューを出すかどうか。**いまは作った本人だけ。**
+ * メニューに何を出すか。**誰に何を見せるかはサーバーが決める**（`/me` の `tools`）。
  *
- * これは**見た目の話でしかない。** URL（`#/aim` など）を直接開けば誰でも入れる。
- * 中身に秘密は無く、隠したいのではなく「まだ人に見せる形になっていない」だけなので、
- * サーバーで止めるところまではやらない（管理画面とは性格が違う）。
+ * - 既定は記録だけ。管理者は役割で全部
+ * - **記録は、ログインしていなくても出す。** 押したらログインへ案内する
+ *   （記録そのものは端末に貯まるが、写真や同期を使うにはアカウントが要る）
+ * - これは**見た目の話**でしかない。URL を直接開けば画面は出る。
+ *   秘密を守るためではなく、まだ人に見せる形になっていないものを畳むための仕組み
  */
-const TOOLS_FOR = ["okayu0321"];
+const ALWAYS_TOOLS = ["records"];
+function allowedTools() {
+  const mine = Array.isArray(auth?.tools) ? auth.tools : [];
+  return [...new Set([...ALWAYS_TOOLS, ...mine])];
+}
 function renderTools() {
-  const allowed = !!auth && TOOLS_FOR.includes(auth.loginId);
-  $("toolsButton").hidden = !allowed;
-  if (!allowed) closeTools();
+  const allowed = allowedTools();
+  let shown = 0;
+  for (const el of $("toolsMenu").querySelectorAll("[data-id]")) {
+    const on = allowed.includes(el.dataset.id);
+    el.hidden = !on;
+    if (on) shown++;
+  }
+  $("toolsButton").hidden = shown === 0;
+  if (shown === 0) closeTools();
 }
 /**
  * 引き出しの開け閉め。
@@ -5686,7 +5704,14 @@ $("toolsButton").onclick = () => ($("toolsMenu").hidden ? openTools() : closeToo
 $("toolsClose").onclick = () => closeTools({ restoreFocus: true });
 $("toolsScrim").onclick = () => closeTools({ restoreFocus: true });
 for (const el of $("toolsMenu").querySelectorAll("[data-tool]")) {
-  el.onclick = () => { closeTools(); pushedCount++; location.hash = el.dataset.tool; };
+  el.onclick = () => {
+    closeTools();
+    // **記録はログインして使う。** 端末に貯めるだけなら要らないが、
+    // 写真や端末をまたいだ持ち出しにはアカウントが要る
+    if (el.dataset.id === "records" && !auth) { $("authButton").click(); return; }
+    pushedCount++;
+    location.hash = el.dataset.tool;
+  };
 }
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("toolsMenu").hidden) { e.preventDefault(); closeTools({ restoreFocus: true }); }
@@ -5802,7 +5827,8 @@ async function restoreSession() {
   renderAuthButton();
   try {
     const me = await apiCall("GET", "/me");
-    auth = { ...auth, loginId: me.loginId ?? auth.loginId, role: me.role ?? auth.role };
+    auth = { ...auth, loginId: me.loginId ?? auth.loginId, role: me.role ?? auth.role,
+             tools: Array.isArray(me.tools) ? me.tools : auth.tools };
     lastLoginId = auth.loginId;
     saveAuth(auth, found.remembered);
     // 折り返しを過ぎた長いセッションは、ここで出し直す。
@@ -5821,9 +5847,17 @@ async function restoreSession() {
 
 /// ログインできたときの共通処理。初回は端末に残っているものを全部上げる。
 async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } = {}) {
-  auth = { token: res.token, loginId: res.loginId, role: res.role };
+  auth = { token: res.token, loginId: res.loginId, role: res.role, tools: res.tools };
   lastLoginId = auth.loginId;
   saveAuth(auth, remember);
+  // **使えるメニューはサーバーが決める。** ログインの返りに入っていなければ聞きに行く
+  if (!Array.isArray(auth.tools)) {
+    try {
+      const me = await apiCall("GET", "/me");
+      auth = { ...auth, tools: me.tools, role: me.role ?? auth.role };
+      saveAuth(auth, remember);
+    } catch { /* 取れなければ既定（記録だけ）で出す */ }
+  }
   if (!keepOpen) $("authSheet").close();
 
   const plan = migrationPlan(dataOwner, auth.loginId, favorites.length || sightings.length);
@@ -6378,6 +6412,21 @@ function clearAdminView() {
   }
 }
 
+/// メニューで何を使えるか。管理者は役割で全部なので、選ばせない
+const TOOL_NAMES = { aim: "ねらう", sky: "空の見え方", plane: "月丼", records: "記録" };
+function toolPicker(u, me) {
+  if (u.role === "admin") {
+    return `<div class="tiny" style="margin-top:6px;color:var(--tertiary)">管理者はすべて使えます</div>`;
+  }
+  const all = me.allTools || Object.keys(TOOL_NAMES);
+  const mine = new Set(u.tools || []);
+  return `<div class="tool-pick" data-tools-for="${esc(u.login_id)}">
+    <span class="tiny">使えるもの</span>
+    ${all.map((t) => `<label><input type="checkbox" value="${esc(t)}"${mine.has(t) ? " checked" : ""}>
+      ${esc(TOOL_NAMES[t] || t)}</label>`).join("")}
+  </div>`;
+}
+
 async function renderAdmin() {
   // **URLだけで中身を出さない。** 管理者と確認できたときだけ描く。
   // 権限はサーバーが判定するが、画面に前の内容を残さないのは画面側の責任。
@@ -6400,6 +6449,7 @@ async function renderAdmin() {
         <div class="tiny">${esc(detail)} ・ 登録 ${day(u.created_at)}</div>
         ${(step.level === "warn" || step.level === "danger")
             ? `<div class="warn tiny">${esc(step.message)}</div>` : ""}
+        ${toolPicker(u, me)}
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
           <button class="tap" data-code="${esc(u.login_id)}" style="color:var(--accent);font-size:0.72rem;min-height:36px">回復コードを出す</button>
           <button class="tap" data-role="${esc(u.login_id)}" data-to="${u.role === "admin" ? "user" : "admin"}"
@@ -6477,6 +6527,17 @@ async function renderAdmin() {
       try { await apiCall("POST", "/admin/role", { loginId: el.dataset.role, role: to }); renderAdmin(); }
       catch (e) { adminFail(e.message); }
     };
+    // 使えるメニュー。押すたびにその人の並びをまとめて送る
+    for (const box of $("adminUsers").querySelectorAll("[data-tools-for]")) {
+      for (const cb of box.querySelectorAll("input[type=checkbox]")) {
+        cb.onchange = async () => {
+          const tools = [...box.querySelectorAll("input[type=checkbox]")]
+            .filter((x) => x.checked).map((x) => x.value);
+          try { await apiCall("POST", "/admin/tools", { loginId: box.dataset.toolsFor, tools }); }
+          catch (e) { adminFail(e.message); cb.checked = !cb.checked; }
+        };
+      }
+    }
     for (const el of $("adminUsers").querySelectorAll("[data-deluser]")) el.onclick = async () => {
       const who = el.dataset.deluser;
       if (!confirm(`${who} のアカウントと、その人のお気に入り・記録をすべて消します。\n取り消せません。\n\n本当に削除しますか？`)) return;
