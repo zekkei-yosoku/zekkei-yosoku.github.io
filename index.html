@@ -1405,21 +1405,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928035432"></script>
+<script src="sorami-core.js?v=20260928084732"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928035432"></script>
-<script src="sorami-exif.js?v=20260928035432"></script>
-<script src="sorami-capcloud.js?v=20260928035432"></script>
-<script src="sorami-terrain.js?v=20260928035432"></script>
-<script src="sorami-mountain.js?v=20260928035432"></script>
-<script src="sorami-fuji.js?v=20260928035432"></script>
-<script src="sorami-sky.js?v=20260928035432"></script>
-<script src="sorami-routes.js?v=20260928035432"></script>
-<script src="sorami-plane.js?v=20260928035432"></script>
-<script src="sorami-align.js?v=20260928035432"></script>
-<script src="sorami-moon.js?v=20260928035432"></script>
-<script src="sorami-composition.js?v=20260928035432"></script>
+<script src="sorami-astro.js?v=20260928084732"></script>
+<script src="sorami-exif.js?v=20260928084732"></script>
+<script src="sorami-capcloud.js?v=20260928084732"></script>
+<script src="sorami-terrain.js?v=20260928084732"></script>
+<script src="sorami-mountain.js?v=20260928084732"></script>
+<script src="sorami-fuji.js?v=20260928084732"></script>
+<script src="sorami-sky.js?v=20260928084732"></script>
+<script src="sorami-routes.js?v=20260928084732"></script>
+<script src="sorami-plane.js?v=20260928084732"></script>
+<script src="sorami-align.js?v=20260928084732"></script>
+<script src="sorami-moon.js?v=20260928084732"></script>
+<script src="sorami-composition.js?v=20260928084732"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2390,7 +2390,7 @@ function wireAlignmentJump(root) {
 //
 // 小さくても残す意味はある。**採点のしかたを変えたとき、付け直せるのは写真だけ**で、
 // 「あの日は何点だった」という記憶は残らない。
-const photoDraft = { file: null, thumb: null, exif: null, width: 0, height: 0 };
+const photoDraft = { file: null, thumb: null, tile: null, exif: null, width: 0, height: 0 };
 
 /**
  * 長辺 `max` px に縮めた JPEG を data URL で返す。
@@ -2420,11 +2420,15 @@ async function photoAttach(file) {
   photoDraft.file = file;
   photoDraft.exif = null;
   try { photoDraft.exif = await SoramiExif.readFile(file); } catch { photoDraft.exif = null; }
+  // 2枚作る。**一覧には小さいほうを出す**（大きいほうを60枚並べると数MBになる）
   try {
     const t = await makeThumb(file);
-    photoDraft.thumb = t.url; photoDraft.width = t.width; photoDraft.height = t.height;
+    const tile = await makeThumb(file, 192, 0.7);
+    photoDraft.thumb = t.url; photoDraft.tile = tile.url;
+    photoDraft.width = t.width; photoDraft.height = t.height;
   } catch {
-    photoDraft.thumb = null; photoDraft.width = 0; photoDraft.height = 0;
+    photoDraft.thumb = null; photoDraft.tile = null;
+    photoDraft.width = 0; photoDraft.height = 0;
   }
   $("photoPreview").src = photoDraft.thumb || "";
   $("photoPreview").hidden = !photoDraft.thumb;
@@ -2438,7 +2442,7 @@ async function photoAttach(file) {
  */
 async function openPhotoSheet(file) {
   if (!requireLogin("記録")) return;
-  photoDraft.file = null; photoDraft.exif = null; photoDraft.thumb = null;
+  photoDraft.file = null; photoDraft.exif = null; photoDraft.thumb = null; photoDraft.tile = null;
   photoDraft.width = 0; photoDraft.height = 0;
   $("photoPreview").hidden = true;
   $("photoChoose").textContent = "写真を選ぶ";
@@ -2537,7 +2541,8 @@ $("photoSave").onclick = async (e) => {
     altitude: r && Number.isFinite(r.altitudeM) ? r.altitudeM : null,
     placeName: place?.name || null,
     note: $("photoNote").value.trim() || null,
-    thumb: photoDraft.thumb, width: photoDraft.width, height: photoDraft.height,
+    thumb: photoDraft.thumb, tile: photoDraft.tile,
+    width: photoDraft.width, height: photoDraft.height,
   };
   $("photoSave").disabled = true;
   try {
@@ -2565,9 +2570,9 @@ function renderPhotos() {
     const name = S.PHENOMENA[p.phenomenon] ? S.PHENOMENA[p.phenomenon].name : p.phenomenon;
     // 写真の無い記録は空箱に見えるので、現象の印で埋める
     //（絵文字は現象の識別にだけ使う＝ここは識別なので使ってよい）
-    return `<div class="ph-card${p.thumb ? "" : " noimg"}">
-      ${p.thumb
-        ? `<img src="${esc(p.thumb)}" alt="${esc(name)} ${p.score}点">`
+    return `<div class="ph-card${p.tile ? "" : " noimg"}">
+      ${p.tile
+        ? `<img src="${esc(p.tile)}" alt="${esc(name)} ${p.score}点" loading="lazy">`
         : `<div class="ph-blank" aria-hidden="true">${S.PHENOMENA[p.phenomenon]?.icon || "・"}</div>`}
       <button class="tap ph-del" data-photo-del="${esc(p.id)}" aria-label="この写真を消す">✕</button>
       <div class="ph-tag"><span>${esc(name)}</span><span>${p.score}点</span></div>
