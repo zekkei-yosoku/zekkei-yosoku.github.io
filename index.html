@@ -128,7 +128,6 @@
   /* いまいる画面は帯で示す。戻ってきたときにどこから来たか分かる */
   .drawer-list button[aria-current="page"] { background: var(--sunk); }
   .drawer-list button[aria-current="page"] b { color: var(--accent); }
-  .drawer-foot { padding: 12px 20px 16px; font-size: 0.72rem; color: var(--tertiary); }
   #authButton.warn { color: var(--red); }
   #sortRow { display: flex; align-items: center; gap: 8px; padding: 0 2px 10px; }
   #sortRow label { font-size: 0.72rem; color: var(--tertiary); }
@@ -1121,7 +1120,6 @@
     <button data-tool="#/plane"><b>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
     <button data-tool="#/records"><b>記録</b><span>点数が実際とどれだけ合っているか</span></button>
   </nav>
-  <p class="drawer-foot">まだ作りかけの機能です。</p>
 </aside>
 
 <dialog class="sheet" id="mapSheet">
@@ -1348,21 +1346,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928025830"></script>
+<script src="sorami-core.js?v=20260928025949"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928025830"></script>
-<script src="sorami-exif.js?v=20260928025830"></script>
-<script src="sorami-capcloud.js?v=20260928025830"></script>
-<script src="sorami-terrain.js?v=20260928025830"></script>
-<script src="sorami-mountain.js?v=20260928025830"></script>
-<script src="sorami-fuji.js?v=20260928025830"></script>
-<script src="sorami-sky.js?v=20260928025830"></script>
-<script src="sorami-routes.js?v=20260928025830"></script>
-<script src="sorami-plane.js?v=20260928025830"></script>
-<script src="sorami-align.js?v=20260928025830"></script>
-<script src="sorami-moon.js?v=20260928025830"></script>
-<script src="sorami-composition.js?v=20260928025830"></script>
+<script src="sorami-astro.js?v=20260928025949"></script>
+<script src="sorami-exif.js?v=20260928025949"></script>
+<script src="sorami-capcloud.js?v=20260928025949"></script>
+<script src="sorami-terrain.js?v=20260928025949"></script>
+<script src="sorami-mountain.js?v=20260928025949"></script>
+<script src="sorami-fuji.js?v=20260928025949"></script>
+<script src="sorami-sky.js?v=20260928025949"></script>
+<script src="sorami-routes.js?v=20260928025949"></script>
+<script src="sorami-plane.js?v=20260928025949"></script>
+<script src="sorami-align.js?v=20260928025949"></script>
+<script src="sorami-moon.js?v=20260928025949"></script>
+<script src="sorami-composition.js?v=20260928025949"></script>
 <script>
 "use strict";
 const S = window.Sorami;
