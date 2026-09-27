@@ -92,10 +92,31 @@ ok(/for \(const v of VIEWS\) \$\(v\.el\)\.hidden = v\.id !== view/.test(html), "
 // ---- 道具のメニュー。隠し合言葉だけだったものを、押して開けるようにした
 ok(/id="toolsButton"/.test(html) && /id="toolsMenu"/.test(html), "道具のメニューがある");
 ok(/const TOOLS_FOR = \["okayu0321"\]/.test(html), "いまは作った本人だけに出す");
-ok(/aria-haspopup="true"/.test(html) && /role="menu"/.test(html), "開閉を読み上げへ伝える");
+ok(/aria-haspopup="true"/.test(html) && /role="dialog" aria-modal="true"/.test(html),
+  "開閉を読み上げへ伝える");
+// 引き出しの作り（正本: 04_デザイン定義「4-4. 道具のメニュー（引き出し）」）
+ok(/class="drawer-scrim"/.test(html), "暗幕を敷く");
+ok(/\.drawer \{[^}]*position: fixed/.test(html), "ページの中へ差し込まない（重ねる）");
+ok(/width: min\(320px, 86vw\)/.test(html), "幅は min(320px, 86vw)");
+ok(/transform: translateX\(-100%\)/.test(html), "左から出す");
+ok(/transition: transform \.22s/.test(html), "動かすのは transform だけ");
+ok(/@media \(prefers-reduced-motion: reduce\) \{\s*\.drawer/.test(html), "動きを止める設定に従う");
+ok(/min-height: 56px/.test(html), "行は56px以上");
+ok(/aria-current="page"/.test(html), "いまいる画面に帯を付ける");
+ok(/e\.key === "Escape"/.test(html), "Esc で閉じる");
+ok(/restoreFocus: true/.test(html), "閉じたら元の釦へ焦点を戻す");
+ok(/document\.body\.style\.overflow = "hidden"/.test(html), "開いているあいだ後ろを動かさない");
+ok(/env\(safe-area-inset-top\) 0 env\(safe-area-inset-bottom\)/.test(html), "安全域を空ける");
+// 画面が止まっていると requestAnimationFrame は呼ばれない。待たずにその場で開く
+ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待たずに開く");
 {
-  const menu = html.slice(html.indexOf('id="toolsMenu"'), html.indexOf("</div>", html.indexOf('id="toolsMenu"')));
-  for (const [href, name] of [["#/aim", "ねらう"], ["#/sky", "空の見え方"], ["#/plane", "月丼"]]) {
+  // **絵文字を使わない**（現象の識別にだけ使う）
+  const drawer = html.slice(html.indexOf('id="toolsMenu"'), html.indexOf("</aside>"));
+  ok(!/[\u{1F300}-\u{1FAFF}]/u.test(drawer), "道具に絵文字を付けない");
+}
+{
+  const menu = html.slice(html.indexOf('id="toolsMenu"'), html.indexOf("</aside>"));
+  for (const [href, name] of [["#/aim", "ねらう"], ["#/sky", "空の見え方"], ["#/plane", "月丼"], ["#/records", "記録"]]) {
     ok(menu.includes(`data-tool="${href}"`) && menu.includes(name), `${name} が入っている`);
   }
 }

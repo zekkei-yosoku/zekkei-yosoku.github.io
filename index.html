@@ -92,18 +92,43 @@
   h1 { font-size: 0.94rem; font-weight: 700; letter-spacing: .18em;
        color: var(--secondary); text-align: left; }
   #authButton { font-size: 0.75rem; font-weight: 700; color: var(--accent); min-height: 44px; padding: 0 2px; }
-  /* 道具のメニュー。押すものは 44px 以上（デザイン定義） */
+  /* 道具の引き出し。**左上の ☰ から左に出す。** ページの中へ差し込まない
+     （差し込むと下の内容が飛び、読んでいた場所を失う）。
+     動かすのは transform と不透明度だけ。幅や位置を動かすと毎フレーム組み直しになる。 */
   #toolsButton { font-size: 1.05rem; line-height: 1; color: var(--secondary);
                  min-height: 44px; min-width: 40px; margin-left: -8px; text-align: left; }
   #toolsButton[aria-expanded="true"] { color: var(--accent); }
-  .tools-menu { display: flex; flex-direction: column; gap: 2px; margin: 0 0 10px;
-                background: var(--card); border-radius: 12px; padding: 6px; }
-  .tools-menu button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-                       width: 100%; text-align: left; padding: 10px 12px; border-radius: 9px;
-                       min-height: 44px; }
-  .tools-menu button:hover, .tools-menu button:focus-visible { background: var(--sunk); }
-  .tools-menu strong { font-size: 0.9rem; }
-  .tools-menu span { font-size: 0.74rem; color: var(--tertiary); }
+  .drawer-scrim { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 40;
+                  opacity: 0; transition: opacity .22s ease; }
+  .drawer-scrim.on { opacity: 1; }
+  .drawer { position: fixed; top: 0; left: 0; bottom: 0; z-index: 41;
+            width: min(320px, 86vw); display: flex; flex-direction: column;
+            background: var(--card); border-radius: 0 16px 16px 0;
+            box-shadow: 0 0 40px rgba(0,0,0,.45);
+            padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+            transform: translateX(-100%); transition: transform .22s ease; }
+  .drawer.on { transform: translateX(0); }
+  @media (prefers-reduced-motion: reduce) {
+    .drawer, .drawer-scrim { transition: none; }
+  }
+  .drawer-head { display: flex; align-items: center; justify-content: space-between;
+                 padding: 14px 8px 10px 18px; font-size: 0.8rem; font-weight: 700;
+                 letter-spacing: .16em; color: var(--secondary); }
+  #toolsClose { min-height: 44px; min-width: 44px; color: var(--tertiary); font-size: 0.95rem; }
+  .drawer-list { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; overflow-y: auto; }
+  .drawer-list button { display: grid; grid-template-columns: 1fr auto; align-items: center;
+                        gap: 0 8px; width: 100%; text-align: left; min-height: 56px;
+                        padding: 9px 12px; border-radius: 12px; }
+  .drawer-list button b { grid-column: 1; font-size: 0.92rem; font-weight: 700; color: var(--text); }
+  .drawer-list button span { grid-column: 1; font-size: 0.73rem; color: var(--tertiary); line-height: 1.35; }
+  /* 押せることを右の「›」で示す。絵文字は使わない（現象の識別にだけ使う） */
+  .drawer-list button::after { content: "›"; grid-column: 2; grid-row: 1 / span 2;
+                               color: var(--tertiary); font-size: 1.1rem; }
+  .drawer-list button:hover, .drawer-list button:focus-visible { background: var(--sunk); }
+  /* いまいる画面は帯で示す。戻ってきたときにどこから来たか分かる */
+  .drawer-list button[aria-current="page"] { background: var(--sunk); }
+  .drawer-list button[aria-current="page"] b { color: var(--accent); }
+  .drawer-foot { padding: 12px 20px 16px; font-size: 0.72rem; color: var(--tertiary); }
   #authButton.warn { color: var(--red); }
   #sortRow { display: flex; align-items: center; gap: 8px; padding: 0 2px 10px; }
   #sortRow label { font-size: 0.72rem; color: var(--tertiary); }
@@ -729,17 +754,7 @@
          「黙って消える」と同じ種類の事故）。 -->
     <button id="authButton" class="tap"></button>
   </div>
-  <!-- 道具の一覧。隠し合言葉でしか入れなかったものを、ここから開けるようにした -->
-  <div id="toolsMenu" class="tools-menu" hidden role="menu" aria-label="道具">
-    <button role="menuitem" data-tool="#/aim"><strong>ねらう</strong>
-      <span>目標に太陽や月が重なる日と、その日に見える場所</span></button>
-    <button role="menuitem" data-tool="#/sky"><strong>空の見え方</strong>
-      <span>稜線の上を太陽と月がどう通るか</span></button>
-    <button role="menuitem" data-tool="#/plane"><strong>月丼</strong>
-      <span>月と飛行機が重なる場所（羽田）</span></button>
-    <button role="menuitem" data-tool="#/records"><strong>記録</strong>
-      <span>点数が実際とどれだけ合っているか</span></button>
-  </div>
+
   <!-- ☆ は地点ボタンの中へ挿入していたが、button の中の button は不正で、
        読み上げも click の伝播も壊れる。並べて置く。 -->
   <div class="place-row card" id="placeRow">
@@ -1092,6 +1107,23 @@
   <p class="tiny" id="footer"></p>
 </main>
 
+<!-- 道具の引き出し。**左上の ☰ から左に出す**（押した場所と出る場所を合わせる）。
+     正本: Vault ドメイン/開発/絶景日和/04_デザイン定義「4-4. 道具のメニュー（引き出し）」 -->
+<div id="toolsScrim" class="drawer-scrim" hidden></div>
+<aside id="toolsMenu" class="drawer" hidden role="dialog" aria-modal="true" aria-label="道具">
+  <div class="drawer-head">
+    <span>道具</span>
+    <button id="toolsClose" class="tap" aria-label="閉じる">✕</button>
+  </div>
+  <nav class="drawer-list">
+    <button data-tool="#/aim"><b>ねらう</b><span>目標に太陽や月が重なる日と、見える場所</span></button>
+    <button data-tool="#/sky"><b>空の見え方</b><span>稜線の上を太陽と月がどう通るか</span></button>
+    <button data-tool="#/plane"><b>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
+    <button data-tool="#/records"><b>記録</b><span>点数が実際とどれだけ合っているか</span></button>
+  </nav>
+  <p class="drawer-foot">まだ作りかけの道具です。</p>
+</aside>
+
 <dialog class="sheet" id="mapSheet">
   <div class="sheet-head"><strong>地図で選ぶ</strong><button id="mapClose">閉じる</button></div>
   <div class="sheet-body">
@@ -1316,21 +1348,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928025101"></script>
+<script src="sorami-core.js?v=20260928025632"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928025101"></script>
-<script src="sorami-exif.js?v=20260928025101"></script>
-<script src="sorami-capcloud.js?v=20260928025101"></script>
-<script src="sorami-terrain.js?v=20260928025101"></script>
-<script src="sorami-mountain.js?v=20260928025101"></script>
-<script src="sorami-fuji.js?v=20260928025101"></script>
-<script src="sorami-sky.js?v=20260928025101"></script>
-<script src="sorami-routes.js?v=20260928025101"></script>
-<script src="sorami-plane.js?v=20260928025101"></script>
-<script src="sorami-align.js?v=20260928025101"></script>
-<script src="sorami-moon.js?v=20260928025101"></script>
-<script src="sorami-composition.js?v=20260928025101"></script>
+<script src="sorami-astro.js?v=20260928025632"></script>
+<script src="sorami-exif.js?v=20260928025632"></script>
+<script src="sorami-capcloud.js?v=20260928025632"></script>
+<script src="sorami-terrain.js?v=20260928025632"></script>
+<script src="sorami-mountain.js?v=20260928025632"></script>
+<script src="sorami-fuji.js?v=20260928025632"></script>
+<script src="sorami-sky.js?v=20260928025632"></script>
+<script src="sorami-routes.js?v=20260928025632"></script>
+<script src="sorami-plane.js?v=20260928025632"></script>
+<script src="sorami-align.js?v=20260928025632"></script>
+<script src="sorami-moon.js?v=20260928025632"></script>
+<script src="sorami-composition.js?v=20260928025632"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5603,23 +5635,54 @@ function renderTools() {
   $("toolsButton").hidden = !allowed;
   if (!allowed) closeTools();
 }
-function closeTools() {
-  $("toolsMenu").hidden = true;
-  $("toolsButton").setAttribute("aria-expanded", "false");
+/**
+ * 引き出しの開け閉め。
+ * `hidden` を外してから次のフレームで `.on` を付ける（そうしないと動きが出ない）。
+ * 閉じるときは動きが終わってから `hidden` へ戻す。
+ */
+let toolsAnim = 0;
+function openTools() {
+  clearTimeout(toolsAnim);
+  markToolsCurrent();
+  $("toolsScrim").hidden = false;
+  $("toolsMenu").hidden = false;
+  // **次のフレームを待たない。** `requestAnimationFrame` は画面が止まっていると
+  // 呼ばれないことがあり、そのときは引き出しが画面の外に居たまま開いたことになる
+  // （2026-09-28 実測）。読み取りで組み直しを起こしてから、その場で class を付ける。
+  void $("toolsMenu").offsetWidth;
+  $("toolsScrim").classList.add("on");
+  $("toolsMenu").classList.add("on");
+  $("toolsButton").setAttribute("aria-expanded", "true");
+  // 開いているあいだ、後ろは動かさない（閉じたときに位置が変わらないように）
+  document.body.style.overflow = "hidden";
+  const first = $("toolsMenu").querySelector("[data-tool]");
+  if (first) first.focus();
 }
-$("toolsButton").onclick = () => {
-  const open = $("toolsMenu").hidden;
-  $("toolsMenu").hidden = !open;
-  $("toolsButton").setAttribute("aria-expanded", String(open));
-};
+function closeTools({ restoreFocus = false } = {}) {
+  if ($("toolsMenu").hidden) return;
+  $("toolsScrim").classList.remove("on");
+  $("toolsMenu").classList.remove("on");
+  $("toolsButton").setAttribute("aria-expanded", "false");
+  document.body.style.overflow = "";
+  clearTimeout(toolsAnim);
+  toolsAnim = setTimeout(() => { $("toolsScrim").hidden = true; $("toolsMenu").hidden = true; }, 220);
+  if (restoreFocus) $("toolsButton").focus();
+}
+/// いまいる画面に帯を付ける。戻ってきたときにどこから来たか分かる
+function markToolsCurrent() {
+  for (const el of $("toolsMenu").querySelectorAll("[data-tool]")) {
+    if (el.dataset.tool === location.hash) el.setAttribute("aria-current", "page");
+    else el.removeAttribute("aria-current");
+  }
+}
+$("toolsButton").onclick = () => ($("toolsMenu").hidden ? openTools() : closeTools());
+$("toolsClose").onclick = () => closeTools({ restoreFocus: true });
+$("toolsScrim").onclick = () => closeTools({ restoreFocus: true });
 for (const el of $("toolsMenu").querySelectorAll("[data-tool]")) {
   el.onclick = () => { closeTools(); pushedCount++; location.hash = el.dataset.tool; };
 }
-// 外を押したら閉じる。メニューの中と、開閉のボタンは除く
-document.addEventListener("click", (e) => {
-  if ($("toolsMenu").hidden) return;
-  if ($("toolsMenu").contains(e.target) || $("toolsButton").contains(e.target)) return;
-  closeTools();
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("toolsMenu").hidden) { e.preventDefault(); closeTools({ restoreFocus: true }); }
 });
 
 function renderAuthButton() {
