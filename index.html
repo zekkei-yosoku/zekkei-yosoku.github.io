@@ -638,6 +638,8 @@
              gap: 8px; margin-top: 10px; }
   .ph-card { position: relative; border-radius: 10px; overflow: hidden; background: var(--sunk); }
   .ph-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+  .ph-blank { aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center;
+              font-size: 1.6rem; opacity: .55; }
   .ph-card .ph-tag { position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 6px;
                      background: rgba(0,0,0,.6); color: #fff; font-size: 0.68rem; font-weight: 700;
                      display: flex; justify-content: space-between; gap: 4px; }
@@ -1115,10 +1117,8 @@
         その回が終わると、ホームと現象の詳細に「実際はどうでしたか？」が出ます。
         押すだけで、そのときの点数と気象の値が端末に残ります。</div>
       <div class="ph-add">
-        <button id="photoPick" class="fav-btn primary">写真から記録する</button>
+        <button id="photoPick" class="fav-btn primary">記録を足す</button>
         <input type="file" id="photoFile" accept="image/*" hidden>
-        <p class="tiny" style="margin:6px 0 0;color:var(--tertiary)">写真に入っていれば、
-          <strong>撮った時刻と場所</strong>を読み取って先に入れます。写真は小さくして残します。</p>
       </div>
       <div id="photoList" class="ph-list"></div>
       <div id="recBody" hidden>
@@ -1126,12 +1126,8 @@
         <div id="recList"></div>
       </div>
       <p class="tiny" style="margin-top:10px">
-        記録とお気に入りは<strong>アカウントに保存され、ログインした端末で共有されます</strong>。
-        端末のブラウザにも同じものを置いて、圏外でも読めるようにしています。
         <button id="exportBtn" class="tap" style="color:var(--accent)">書き出し</button>・<button id="importBtn" class="tap" style="color:var(--accent)">読み込み</button>
-        は、控えを取るときや、ほかの形で持ち出すときに使います。
         <input type="file" id="importFile" accept=".json" hidden></p>
-      <p class="tiny warn" id="storageNote" style="margin-top:6px"></p>
     </div>
   </div>
 
@@ -1212,9 +1208,15 @@
      採点基準を変えたときに付け直せるよう、そのときの現象と点数を一緒に残す。 -->
 <dialog class="sheet" id="photoSheet" aria-labelledby="photoTitle">
   <form method="dialog"><button class="sheet-x" aria-label="閉じる">✕</button></form>
-  <h2 id="photoTitle">写真から記録する</h2>
-  <img id="photoPreview" alt="選んだ写真" class="ph-preview">
+  <h2 id="photoTitle">記録を足す</h2>
+  <img id="photoPreview" alt="選んだ写真" class="ph-preview" hidden>
+  <button id="photoChoose" class="fav-btn" style="margin-top:8px">写真を選ぶ</button>
   <p class="tiny" id="photoMeta" style="margin:6px 0 0;color:var(--tertiary)"></p>
+  <label class="fav-l" for="photoWhen">撮影日時</label>
+  <input type="datetime-local" id="photoWhen" class="fav-in">
+  <label class="fav-l" for="photoWhere">撮影場所<span class="fav-opt">緯度経度・地図のURL</span></label>
+  <input type="text" id="photoWhere" class="fav-in" inputmode="decimal"
+         placeholder="35.6581, 139.7414">
   <label class="fav-l" for="photoPhenom">何の写真ですか</label>
   <select id="photoPhenom" class="fav-in"></select>
   <label class="fav-l" for="photoScore">100点満点で何点でしたか</label>
@@ -1403,21 +1405,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928034155"></script>
+<script src="sorami-core.js?v=20260928035054"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928034155"></script>
-<script src="sorami-exif.js?v=20260928034155"></script>
-<script src="sorami-capcloud.js?v=20260928034155"></script>
-<script src="sorami-terrain.js?v=20260928034155"></script>
-<script src="sorami-mountain.js?v=20260928034155"></script>
-<script src="sorami-fuji.js?v=20260928034155"></script>
-<script src="sorami-sky.js?v=20260928034155"></script>
-<script src="sorami-routes.js?v=20260928034155"></script>
-<script src="sorami-plane.js?v=20260928034155"></script>
-<script src="sorami-align.js?v=20260928034155"></script>
-<script src="sorami-moon.js?v=20260928034155"></script>
-<script src="sorami-composition.js?v=20260928034155"></script>
+<script src="sorami-astro.js?v=20260928035054"></script>
+<script src="sorami-exif.js?v=20260928035054"></script>
+<script src="sorami-capcloud.js?v=20260928035054"></script>
+<script src="sorami-terrain.js?v=20260928035054"></script>
+<script src="sorami-mountain.js?v=20260928035054"></script>
+<script src="sorami-fuji.js?v=20260928035054"></script>
+<script src="sorami-sky.js?v=20260928035054"></script>
+<script src="sorami-routes.js?v=20260928035054"></script>
+<script src="sorami-plane.js?v=20260928035054"></script>
+<script src="sorami-align.js?v=20260928035054"></script>
+<script src="sorami-moon.js?v=20260928035054"></script>
+<script src="sorami-composition.js?v=20260928035054"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2405,8 +2407,8 @@ async function makeThumb(file, max = 384, quality = 0.72) {
   return { url, ...size };
 }
 
-async function openPhotoSheet(file) {
-  if (!requireLogin("写真の記録")) return;
+/// 写真を読み込んで下書きへ入れる。**写真は任意**なので、無くても記録は作れる
+async function photoAttach(file) {
   photoDraft.file = file;
   photoDraft.exif = null;
   try { photoDraft.exif = await SoramiExif.readFile(file); } catch { photoDraft.exif = null; }
@@ -2418,6 +2420,21 @@ async function openPhotoSheet(file) {
   }
   $("photoPreview").src = photoDraft.thumb || "";
   $("photoPreview").hidden = !photoDraft.thumb;
+  $("photoChoose").textContent = photoDraft.thumb ? "写真を選び直す" : "写真を選ぶ";
+}
+
+/**
+ * 記録を足す。**過去に遡って入れられる。**
+ * その日の予測が手元に無くても、見たものは記録できる
+ * （予測との突き合わせは、予測があった回だけの話）。
+ */
+async function openPhotoSheet(file) {
+  if (!requireLogin("記録")) return;
+  photoDraft.file = null; photoDraft.exif = null; photoDraft.thumb = null;
+  photoDraft.width = 0; photoDraft.height = 0;
+  $("photoPreview").hidden = true;
+  $("photoChoose").textContent = "写真を選ぶ";
+  if (file) await photoAttach(file);
   $("photoErr").hidden = true;
 
   // 現象の一覧。**この画面の順で出す**（一覧と同じ並びなら迷わない）
@@ -2430,24 +2447,54 @@ async function openPhotoSheet(file) {
   $("photoScore").value = "70";
   $("photoScoreOut").textContent = "70";
   $("photoNote").value = "";
-  $("photoMeta").textContent = photoMetaText();
+
+  photoFillFromExif();
   $("photoSheet").showModal();
+}
+
+/// 写真から読めたものを入力欄へ。**読めなければ既定を入れて、手で直せるようにする**
+function photoFillFromExif() {
+  const at = photoAt();
+  const iso = (ms) => new Date(ms + tzOffsetMs()).toISOString().slice(0, 16);
+  // 写真から時刻が読めればそれ、無ければ「いま」。どちらも過去へ直せる
+  $("photoWhen").value = iso(at ?? Date.now());
+  const r = photoDraft.exif;
+  $("photoWhere").value = r && Number.isFinite(r.latitude)
+    ? `${r.latitude.toFixed(5)}, ${r.longitude.toFixed(5)}`
+    : (place ? `${place.latitude.toFixed(5)}, ${place.longitude.toFixed(5)}` : "");
+  $("photoMeta").textContent = photoMetaText();
+}
+
+/// 画面で使っている時差。予報が返した地点の時差を使い、無ければ端末の時差
+function tzOffsetMs() {
+  return Number.isFinite(bundle?.utcOffsetSeconds)
+    ? bundle.utcOffsetSeconds * 1000 : -new Date().getTimezoneOffset() * 60000;
+}
+/// 入力欄の日時 → 時刻。地点の時差で読む
+function photoWhenMs() {
+  const v = $("photoWhen").value;
+  if (!v) return null;
+  const naive = Date.parse(`${v}:00Z`);
+  return Number.isFinite(naive) ? naive - tzOffsetMs() : null;
+}
+/// 入力欄の場所 → 座標。緯度経度でも地図のURLでもよい
+function photoWhereAt() {
+  const v = $("photoWhere").value.trim();
+  if (!v) return null;
+  return SoramiTerrain.parseLatLon(v) || SoramiTerrain.parseMapLink(v);
 }
 
 /// 写真から分かったことを1行で。**分からないものは「分かりません」と書く**
 function photoMetaText() {
+  if (!photoDraft.file) return "";
   const r = photoDraft.exif;
-  const parts = [];
-  const at = photoAt();
-  parts.push(at ? `撮影 ${S.Cal.monthDay(at)} ${S.JstCal.hhmm(at)}` : "撮影時刻は分かりません");
-  if (r && Number.isFinite(r.latitude)) {
-    parts.push(`${r.latitude.toFixed(4)}, ${r.longitude.toFixed(4)}`);
-    if (Number.isFinite(r.altitudeM)) parts.push(`標高 ${Math.round(r.altitudeM)}m`);
-  } else {
-    parts.push("場所は分かりません");
-  }
-  if (photoDraft.width) parts.push(`${photoDraft.width}×${photoDraft.height}`);
-  return parts.join(" ・ ");
+  const got = [];
+  if (photoAt()) got.push("日時");
+  if (r && Number.isFinite(r.latitude)) got.push("場所");
+  if (r && Number.isFinite(r.altitudeM)) got.push(`標高 ${Math.round(r.altitudeM)}m`);
+  const size = photoDraft.width ? `${photoDraft.width}×${photoDraft.height}` : "";
+  return [got.length ? `写真から: ${got.join("・")}` : "写真に日時と場所は入っていません", size]
+    .filter(Boolean).join(" ・ ");
 }
 /// 撮影時刻。時差が入っていなければ、その地点の時差を当てる
 function photoAt() {
@@ -2458,22 +2505,27 @@ function photoAt() {
   return offsetMin !== null ? SoramiExif.instantFrom(r.takenLocal, offsetMin) : null;
 }
 
-$("photoPick").onclick = () => { if (requireLogin("写真の記録")) $("photoFile").click(); };
+$("photoPick").onclick = () => openPhotoSheet(null);
+$("photoChoose").onclick = (e) => { e.preventDefault(); $("photoFile").click(); };
 $("photoFile").onchange = async () => {
   const f = $("photoFile").files && $("photoFile").files[0];
   $("photoFile").value = "";                 // 同じ写真をもう一度選べるように
-  if (f) await openPhotoSheet(f);
+  if (!f) return;
+  await photoAttach(f);
+  photoFillFromExif();                       // 写真から読めたもので入力欄を入れ直す
 };
 $("photoScore").oninput = () => { $("photoScoreOut").textContent = $("photoScore").value; };
 $("photoSave").onclick = async (e) => {
   e.preventDefault();
   const r = photoDraft.exif;
+  const where = photoWhereAt();
+  // **入力欄が正本。** 写真から入れた値も、手で直したらそちらを使う
   const body = {
     phenomenon: $("photoPhenom").value,
     score: Number($("photoScore").value),
-    takenAt: photoAt(),
-    latitude: r && Number.isFinite(r.latitude) ? r.latitude : null,
-    longitude: r && Number.isFinite(r.longitude) ? r.longitude : null,
+    takenAt: photoWhenMs(),
+    latitude: where ? where.latitude : null,
+    longitude: where ? where.longitude : null,
     altitude: r && Number.isFinite(r.altitudeM) ? r.altitudeM : null,
     placeName: place?.name || null,
     note: $("photoNote").value.trim() || null,
@@ -2503,8 +2555,12 @@ function renderPhotos() {
   host.innerHTML = photos.map((p) => {
     const when = p.taken_at ? `${S.Cal.monthDay(p.taken_at)}` : "";
     const name = S.PHENOMENA[p.phenomenon] ? S.PHENOMENA[p.phenomenon].name : p.phenomenon;
-    return `<div class="ph-card">
-      ${p.thumb ? `<img src="${esc(p.thumb)}" alt="${esc(name)} ${p.score}点">` : ""}
+    // 写真の無い記録は空箱に見えるので、現象の印で埋める
+    //（絵文字は現象の識別にだけ使う＝ここは識別なので使ってよい）
+    return `<div class="ph-card${p.thumb ? "" : " noimg"}">
+      ${p.thumb
+        ? `<img src="${esc(p.thumb)}" alt="${esc(name)} ${p.score}点">`
+        : `<div class="ph-blank" aria-hidden="true">${S.PHENOMENA[p.phenomenon]?.icon || "・"}</div>`}
       <button class="tap ph-del" data-photo-del="${esc(p.id)}" aria-label="この写真を消す">✕</button>
       <div class="ph-tag"><span>${esc(name)}</span><span>${p.score}点</span></div>
       ${when ? `<div class="ph-tag" style="bottom:auto;top:0"><span>${esc(when)}</span></div>` : ""}
@@ -6808,25 +6864,9 @@ $("importFile").onchange = async (e) => {
 };
 
 // ブラウザに「この保存領域を勝手に消さないでほしい」と申請する。
-// 承認されるかはブラウザ次第（Chrome/Firefox は利用状況で判断、iOS Safari は
-// ホーム画面に追加したアプリを別扱いにする）。**申請しても保証にはならない**ので、
-// 結果をそのまま画面に出す。黙って消えるのがいちばん困る。
-(async () => {
-  const note = $("storageNote");
-  if (!navigator.storage?.persist) { note.textContent = "このブラウザは保存領域の保護に対応していません。控えを取ってください。"; return; }
-  const persisted = await navigator.storage.persisted().catch(() => false)
-    || await navigator.storage.persist().catch(() => false);
-  if (persisted) { note.className = "tiny"; note.textContent = "この端末では、保存領域はブラウザに保護されています。"; return; }
-  // iOS Safari は7日間サイトに触れないとスクリプトの保存領域を消す。
-  // ホーム画面に追加したアプリはその対象外になる。
-  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-  // **消えるのは端末の写しだけ。** 本体はアカウントにあるので、
-  // ログインし直せば戻る。ここで「控えを取れ」とだけ言うと、消えたら終わりに読める
-  note.textContent = ios && !standalone
-    ? "しばらく開かないと、この端末に置いた写しは消えることがあります（ログインし直せば戻ります）。共有ボタンから「ホーム画面に追加」しておくと消えにくくなります。"
-    : "しばらく開かないと、この端末に置いた写しは消えることがあります。ログインし直せば戻ります。";
-})();
+// **申請だけして、結果は画面に出さない。** 消えても本体はアカウントにあるので、
+// 利用者にできることが無い（2026-09-28 ユーザー指摘「この説明はいらない」）。
+navigator.storage?.persist?.().catch(() => {});
 
 // 幅が閾値をまたいだら描画し直す（ウィンドウのリサイズ・画面回転）
 WIDE.addEventListener("change", () => { if (bundle) render(); });

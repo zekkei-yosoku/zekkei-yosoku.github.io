@@ -106,8 +106,8 @@ ok(/const requireLoginForFavorites = \(\) => requireLogin\("お気に入りの�
   "お気に入りと同じ入口を使う");
 // 文言が実態と食い違っていた（ログインすれば端末をまたいで共有される）
 ok(!/この端末のブラウザにだけ/.test(html), "「この端末にだけ」と書かない");
+ok(!/ログインし直せば戻ります/.test(html), "消える話も書かない");
 ok(/アカウントに保存され、ログインした端末で共有されます/.test(html), "共有されると書く");
-ok(/ログインし直せば戻ります/.test(html), "消えるのは端末の写しだけだと書く");
 ok(/function toolPicker/.test(html), "管理画面で選べる");
 ok(/"\/admin\/tools"/.test(html), "管理画面から決める経路を呼ぶ");
 ok(/管理者はすべて使えます/.test(html), "管理者は選ばせない（役割で全部）");
@@ -885,13 +885,13 @@ const headEnd = recCard.indexOf("</div>");
 ok(recCard.indexOf('id="exportBtn"') > recCard.indexOf('id="recBody"'),
   "書き出し・読み込みが記録画面の末尾にある");
 ok(!/exportBtn/.test(recCard.slice(0, headEnd)), "書き出しが見出しの隣に無い");
-// 2026-09-07: 「端末に保存されます」だけでは、どこに保存され何が起きうるかが伝わらない。
-// 2026-09-28: **書いてあることが実態と違っていた。** 記録もお気に入りもログインして使い、
-// サーバーに保存されて端末をまたいで共有される。端末にあるのは写しのほう。
-ok(/アカウントに保存され、ログインした端末で共有されます/.test(recCard),
-  "保存先が【アカウント】であることを書く");
-ok(/端末のブラウザにも同じものを置いて/.test(recCard), "端末にあるのは写しだと書く");
-ok(/記録とお気に入り/.test(recCard), "お気に入りも対象だと書く");
+// 2026-09-28: **保存先の説明をやめた**（ユーザー「この説明はいらない。説明する必要が
+// ないものが多い」）。ログインして使うことは入口で分かるので、画面で言い直さない。
+ok(!/アカウントに保存され、ログインした端末で共有されます/.test(recCard),
+  "記録画面で保存先を説明しない");
+ok(!/storageNote/.test(html), "保存領域の注意も出さない");
+ok(/id="exportBtn"/.test(recCard) && /id="importBtn"/.test(recCard),
+  "書き出し・読み込みは残す");
 
 console.log("== 登録の途中と失敗を落とさない ==");
 // localStorage は失敗する（プライベートブラウズ・容量超過）。黙って閉じると
@@ -988,12 +988,11 @@ ok(/const incomingFav = Array\.isArray\(data\.favorites\)/.test(html), "読み�
 ok(/Array\.isArray\(data\) \? data : data\.sightings/.test(html), "配列だけのファイルも記録として読む");
 ok(/const merge = \(current, add\)[\s\S]{0,220}byId\.set/.test(html), "id で突き合わせて既存を失わせない");
 ok(/if \(!okay\) throw new Error/.test(html), "読み込みの保存失敗を黙って飲まない");
-// 保存領域の保護。申請しても承認されるとは限らないので、結果を画面に出す。
-ok(/navigator\.storage\.persist\(\)/.test(html), "保存領域の保護を申請する");
-ok(/navigator\.storage\.persisted\(\)/.test(html), "すでに保護されているかを先に見る");
-ok(/id="storageNote"/.test(html), "申請の結果を出す場所がある");
-ok(/ホーム画面に追加/.test(html), "iOS では消えにくくする方法を案内する");
-ok(/display-mode: standalone/.test(html), "すでにホーム画面のアプリなら案内しない");
+// 保存領域の保護。**申請だけして結果は出さない**（消えても本体はアカウントにあり、
+// 利用者にできることが無い。2026-09-28）
+ok(/navigator\.storage\?\.persist\?\.\(\)/.test(html), "保存領域の保護を申請する");
+// 結果は画面に出さない。**出しても利用者にできることが無い**（本体はアカウントにある）
+ok(!/id="storageNote"/.test(html), "申請の結果は画面に出さない");
 // 保存場所を隠さない
 ok(/アカウントに保存され、ログインした端末で共有されます/.test(html), "どこに保存されるかを画面で言う");
 ok((html.match(/アカウントに保存され/g) || []).length >= 1,
@@ -1965,14 +1964,23 @@ ok(/id="photoSheet"/.test(html), "写真のシートがある");
 ok(/async function makeThumb\(file, max = 384/.test(html), "長辺384pxに縮めてから送る");
 ok(/c\.toDataURL\("image\/jpeg", quality\)/.test(html), "JPEGにして送る");
 ok(/SoramiExif\.readFile\(file\)/.test(html), "EXIFを読む");
-ok(/takenAt: photoAt\(\)/.test(html), "撮影時刻を送る");
-ok(/latitude: r && Number\.isFinite\(r\.latitude\)/.test(html), "座標を送る");
+// **写真から読めたものは初期値。入力欄が正本**なので、手で直したらそちらを使う
+ok(/id="photoWhen"/.test(html) && /id="photoWhere"/.test(html), "日時と場所は手で入れられる");
+ok(/takenAt: photoWhenMs\(\)/.test(html), "入力欄の日時を送る");
+ok(/latitude: where \? where\.latitude : null/.test(html), "入力欄の座標を送る");
+ok(/SoramiTerrain\.parseLatLon\(v\) \|\| SoramiTerrain\.parseMapLink\(v\)/.test(html),
+  "緯度経度でも地図のURLでも受ける");
+ok(/\$\("photoWhen"\)\.value = iso\(at \?\? Date\.now\(\)\)/.test(html),
+  "写真から読めたら先に入れる（無ければ「いま」）");
+// **過去に遡って入れられる。** 写真は任意で、日時は手で直せる
+ok(/id="photoChoose"/.test(html), "写真はシートの中で選ぶ（任意）");
+ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html),
+  "写真なしでも記録を作れる");
+ok(/記録を足す/.test(html), "入口の名前は「記録を足す」");
 ok(/altitude: r && Number\.isFinite\(r\.altitudeM\)/.test(html), "標高を送る");
 ok(/100点満点で何点でしたか/.test(html), "点数を聞く");
 ok(/何の写真ですか/.test(html), "現象を聞く");
-ok(/requireLogin\("写真の記録"\)/.test(html), "ログインして使う");
-ok(/撮影時刻は分かりません/.test(html) && /場所は分かりません/.test(html),
-  "分からないものは分からないと書く");
+ok(/if \(!requireLogin\("記録"\)\) return;/.test(html), "ログインして使う");
 // 写真の現象は、一覧と同じ並びで出す（迷わせない）
 ok(/\.sort\(\(a, b\) => \(a\[1\]\.order \?\? 99\) - \(b\[1\]\.order \?\? 99\)\)/.test(html),
   "現象は一覧と同じ並び");
