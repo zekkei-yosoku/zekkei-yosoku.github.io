@@ -2086,13 +2086,15 @@
              "日差しと雨が重なりそうです",
              "条件がわずかに揃っています",
              "虹は出にくそうです"] },
-    rime: { name: "霧氷", icon: "❄️", order: 5, record: "occurrence", timeOfDay: "早朝",
+    // 寒さの2つ（霧氷・ダイヤモンドダスト）は**隣どうしで、いちばん下**。
+    // 季節が限られていて、ほとんどの日は対象外か0点になるため（2026-09-27 ユーザー指定）。
+    rime: { name: "霧氷", icon: "❄️", order: 7, record: "occurrence", timeOfDay: "早朝",
       ranks: ["見頃", "着きそう", "わずかに", "期待薄"],
       says: ["枝が白く覆われた霧氷が期待できます",
              "枝が白くなりそうです",
              "うっすら着く程度かもしれません",
              "霧氷は着きにくそうです"] },
-    diamondDust: { name: "ダイヤモンドダスト", icon: "💠", order: 6, record: "occurrence", timeOfDay: "早朝",
+    diamondDust: { name: "ダイヤモンドダスト", icon: "💠", order: 8, record: "occurrence", timeOfDay: "早朝",
       ranks: ["好条件", "期待できる", "わずかに", "期待薄"],
       says: ["空気中の氷がきらめくかもしれません",
              "条件はまずまず整っています",

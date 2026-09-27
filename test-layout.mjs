@@ -641,6 +641,13 @@ const sortBlock = html.slice(html.indexOf("const order = Object.keys(weeks).sort
                              html.indexOf("const order = Object.keys(weeks).sort") + 600);
 ok(!/\.peak/.test(sortBlock), "並びが発生時刻に依存していない");
 ok(/PHENOMENA\[a\]\.order - S\.PHENOMENA\[b\]\.order/.test(sortBlock), "固定順を使っている");
+// 寒さの2つは隣どうしで、いちばん下（2026-09-27 ユーザー指定）
+{
+  const byOrder = Object.entries(coreMod.PHENOMENA).sort((a, b) => a[1].order - b[1].order).map(([k]) => k);
+  const i = byOrder.indexOf("rime"), j = byOrder.indexOf("diamondDust");
+  ok(j === i + 1, "霧氷とダイヤモンドダストが隣", `${byOrder[i]} → ${byOrder[j]}`);
+  ok(j === byOrder.length - 1, "その2つがいちばん下", byOrder.join(" / "));
+}
 ok(/unavailable/.test(sortBlock), "対象外は最後へ回す");
 
 console.log("== 画面をまたいで現象の並びが揃う ==");
@@ -654,9 +661,12 @@ const orderOf = (key) => {
   const m = core.match(new RegExp(key + ': \\{ name: "[^"]+", icon: "[^"]+", order: (\\d+)'));
   return m ? Number(m[1]) : null;
 };
+// **連番であることは求めない。** 富士山(5)・笠雲(5.5) が雲海と霧氷のあいだに入り、
+// 霧氷とダイヤモンドダストは 7・8 でいちばん下（2026-09-27 ユーザー指定）。
+// 見るのは「この並びであること」。
 const seq = ["sunrise", "sunset", "starrySky", "rainbow", "seaOfClouds", "rime", "diamondDust"];
 const got = seq.map(orderOf);
-ok(got.every((v, i) => v === i),
+ok(got.every((v, i) => v !== null && (i === 0 || v > got[i - 1])),
   "朝焼け→夕焼け→星空→虹→雲海→霧氷→ダイヤモンドダスト の順",
   got.join(","));
 // 同じ判定（SunsetWx特許）で対になる2つ。離すと見比べられない。
