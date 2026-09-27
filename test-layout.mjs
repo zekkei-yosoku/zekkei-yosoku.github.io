@@ -1961,7 +1961,7 @@ console.log("== 月の代表地点・キャッシュ・保存経路 ==");
 console.log("== 写真から記録する ==");
 // **原寸は送らない。** 端末で小さくした写しと、EXIF の「いつ・どこ」だけ
 ok(/id="photoSheet"/.test(html), "写真のシートがある");
-ok(/async function makeThumb\(file, max = 384/.test(html), "長辺384pxに縮めてから送る");
+ok(/async function makeThumb\(file, max = 768/.test(html), "長辺768pxに縮めてから送る");
 ok(/c\.toDataURL\("image\/jpeg", quality\)/.test(html), "JPEGにして送る");
 ok(/SoramiExif\.readFile\(file\)/.test(html), "EXIFを読む");
 // **写真から読めたものは初期値。入力欄が正本**なので、手で直したらそちらを使う

@@ -1405,21 +1405,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928035054"></script>
+<script src="sorami-core.js?v=20260928035432"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928035054"></script>
-<script src="sorami-exif.js?v=20260928035054"></script>
-<script src="sorami-capcloud.js?v=20260928035054"></script>
-<script src="sorami-terrain.js?v=20260928035054"></script>
-<script src="sorami-mountain.js?v=20260928035054"></script>
-<script src="sorami-fuji.js?v=20260928035054"></script>
-<script src="sorami-sky.js?v=20260928035054"></script>
-<script src="sorami-routes.js?v=20260928035054"></script>
-<script src="sorami-plane.js?v=20260928035054"></script>
-<script src="sorami-align.js?v=20260928035054"></script>
-<script src="sorami-moon.js?v=20260928035054"></script>
-<script src="sorami-composition.js?v=20260928035054"></script>
+<script src="sorami-astro.js?v=20260928035432"></script>
+<script src="sorami-exif.js?v=20260928035432"></script>
+<script src="sorami-capcloud.js?v=20260928035432"></script>
+<script src="sorami-terrain.js?v=20260928035432"></script>
+<script src="sorami-mountain.js?v=20260928035432"></script>
+<script src="sorami-fuji.js?v=20260928035432"></script>
+<script src="sorami-sky.js?v=20260928035432"></script>
+<script src="sorami-routes.js?v=20260928035432"></script>
+<script src="sorami-plane.js?v=20260928035432"></script>
+<script src="sorami-align.js?v=20260928035432"></script>
+<script src="sorami-moon.js?v=20260928035432"></script>
+<script src="sorami-composition.js?v=20260928035432"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2392,8 +2392,16 @@ function wireAlignmentJump(root) {
 // 「あの日は何点だった」という記憶は残らない。
 const photoDraft = { file: null, thumb: null, exif: null, width: 0, height: 0 };
 
-/// 長辺 `max` px に縮めた JPEG を data URL で返す
-async function makeThumb(file, max = 384, quality = 0.72) {
+/**
+ * 長辺 `max` px に縮めた JPEG を data URL で返す。
+ *
+ * **768px にしている理由。** 保存先は D1（無料枠 5GB）で、超えたぶんは課金される。
+ * 1枚 約100KB（base64）なら **1万枚で約1GB**＝無料枠の2割で収まる。
+ * 384px では「あの日はこんな空だった」を見返すには足りても、
+ * あとで採点をやり直す材料には小さすぎた。
+ * 原寸を残すには R2 が要るが、そちらも超過分は課金されるため入れていない（2026-09-28）。
+ */
+async function makeThumb(file, max = 768, quality = 0.72) {
   const bmp = await createImageBitmap(file);
   const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
   const w = Math.max(1, Math.round(bmp.width * scale));
