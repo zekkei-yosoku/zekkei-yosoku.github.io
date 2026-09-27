@@ -677,7 +677,15 @@
       // 頂点との距離だけで判定すると、大きな建物の中では壁が全周を囲む。
       // 富士市の代表点は富士市役所（37m）の輪郭の内側・頂点まで22mで、
       // 全周が 38〜53度に塞がり、14日とも月が出ないと判定された（2026-09-17）。
-      if (Math.min(...pts.map((x) => x[1])) < 2 || containsPoint(g, lat, lon)) continue;
+      //
+      // **高い所に立つときは、輪郭の外側でも「その建物」のことがある。**
+      // 座標は建物の中心とは限らない。スカイツリーの天望回廊（地上450m）で、
+      // 輪郭まで29mのスカイツリー本体（634m）が方位0度を **81度** 塞いでいた
+      // （2026-09-28 実測）。地上450mに立っていて29m先に634mの構造物があるなら、
+      // それは自分が入っている建物。**目の高さに応じて近傍を広げる。**
+      const near = Math.min(...pts.map((x) => x[1]));
+      const ownStructure = near < Math.max(2, eyeAGL * 0.2) && h > eyeAGL;
+      if (near < 2 || ownStructure || containsPoint(g, lat, lon)) continue;
       if (el.tags && el.tags.height === undefined) estimated++;
       used++;
 

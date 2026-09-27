@@ -231,5 +231,35 @@ console.log("\n== 地域の代表地点と観測地点を分ける ==");
   ok(T.urbanCacheKey(OBS) !== T.urbanCacheKey({ ...OBS, elevation: 1.6 }), "目の高さを丸めて共有しない");
 }
 
+console.log("\n== 自分が立っている構造物は地平線にしない ==");
+{
+  // 2026-09-28 実測。スカイツリーの天望回廊（地上450m）で、輪郭まで29mの
+  // スカイツリー本体（634m）が方位0度を **81度** 塞いでいた。
+  // 座標は建物の中心とは限らないので、**輪郭の外側でも「その建物」のことがある**。
+  const els = [
+    mkBox(0, 29, 40, { building: "yes", height: "634", name: "東京スカイツリー" }),
+    mkBox(180, 300, 40, { building: "yes", height: "200", name: "よそのビル" }),
+  ];
+  const high = { latitude: 35.0, longitude: 139.0, groundM: 13, elevation: 463 };  // 地上450m
+  const prof = await T.urbanHorizon(high, { radiusM: 500, fetchImpl: stub({ elements: els }) });
+  ok(!!prof, "建物層は作れる");
+  const at = (az) => prof[Math.round(((az % 360) + 360) % 360)].horizonAngleDeg;
+  ok(at(0) < 45, "自分が入っている構造物で方位0度が塞がらない", `${at(0).toFixed(1)}°`);
+  ok(!prof.meta.tallest || !/スカイツリー/.test(prof.meta.tallest.name || ""),
+    "いちばん高い建物として数えない",
+    prof.meta.tallest ? prof.meta.tallest.name : "なし");
+
+  // 地面に立っているときは、これまでどおりその建物が地平線になる
+  const low = { latitude: 35.0, longitude: 139.0, groundM: 13, elevation: 14.5 };
+  const prof2 = await T.urbanHorizon(low, { radiusM: 500, fetchImpl: stub({ elements: els }) });
+  const at2 = (az) => prof2[Math.round(((az % 360) + 360) % 360)].horizonAngleDeg;
+  ok(at2(0) > 60, "地上からは、その建物が高く立ちはだかる", `${at2(0).toFixed(1)}°`);
+
+  // 別物（300m先の200mビル）は残る。ただし450mから見下ろす形なので**角度は負**
+  // （atan((200-450)/300) ＝ -39.8度）。「見えない」ではなく「下にある」
+  ok(at(180) > -90 && at(180) < 0, "離れた別の建物は残る（見下ろすので負の角度）",
+    `${at(180).toFixed(1)}°`);
+}
+
 console.log(`\n${fail ? "FAILED" : "URBAN OK"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail ? 1 : 0);

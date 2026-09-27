@@ -101,6 +101,13 @@ ok(/eyeOptions\(favDraft\)\.find/.test(html), "選んだときも同じ一覧か
   ok(T.structureHeight({ "building:levels": "70" }).m === 231, "階数からも出す（1階3.3m）");
 }
 
+// ---- 展望台が複数ある場所は、地点カードから選べる
+ok(/id="deckRow"/.test(html), "展望台の選択が地点カードにある");
+ok(/function renderDeckRow/.test(html), "選択を描く");
+ok(/decks\.length < 1/.test(html), "展望台が無い場所では出さない");
+ok(/地面に立って 1\.5m/.test(html), "地面に戻す選択肢がある");
+ok(/\$\("deckPick"\)\.onchange/.test(html), "選ぶと地点に反映する");
+
 // ---- 月丼。**名前のある場所から選ぶ**（格子で探すと東京湾の真ん中が上位に来る）
 ok(/id="planeView"/.test(html), "月丼のページがある");
 ok(/location\.hash === "#\/plane"/.test(html), "#/plane のルートがある");

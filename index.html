@@ -582,6 +582,7 @@
   .tag-lookout { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
                  font-size: 0.68rem; font-weight: 700; vertical-align: middle;
                  background: var(--sunk); color: var(--secondary); }
+  .deck-row { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
   .maprow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .maprow #mapCoord { flex: 1; font-variant-numeric: tabular-nums; color: var(--secondary); }
   .maprow button { flex: none; width: auto; padding: 0 12px; }
@@ -723,6 +724,13 @@
       <span class="chev">▾</span>
     </button>
     <button class="tap" id="favToggle"></button>
+  </div>
+  <!-- 展望台が複数ある場所（東京タワーのメイン/トップ、スカイツリーの天望デッキ/回廊）は、
+       **どの観測地点に立つかで見え方が変わる**。地点カードからそのまま選べるようにする。 -->
+  <div class="card deck-row" id="deckRow" hidden>
+    <label class="fav-l" for="deckPick" style="margin:0">観測地点</label>
+    <select id="deckPick" class="fav-in" aria-label="立つ展望台"></select>
+    <p class="tiny" id="deckNote" style="margin:0;color:var(--tertiary)"></p>
   </div>
 
 <style>
@@ -1280,21 +1288,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928013200"></script>
+<script src="sorami-core.js?v=20260928022812"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928013200"></script>
-<script src="sorami-exif.js?v=20260928013200"></script>
-<script src="sorami-capcloud.js?v=20260928013200"></script>
-<script src="sorami-terrain.js?v=20260928013200"></script>
-<script src="sorami-mountain.js?v=20260928013200"></script>
-<script src="sorami-fuji.js?v=20260928013200"></script>
-<script src="sorami-sky.js?v=20260928013200"></script>
-<script src="sorami-routes.js?v=20260928013200"></script>
-<script src="sorami-plane.js?v=20260928013200"></script>
-<script src="sorami-align.js?v=20260928013200"></script>
-<script src="sorami-moon.js?v=20260928013200"></script>
-<script src="sorami-composition.js?v=20260928013200"></script>
+<script src="sorami-astro.js?v=20260928022812"></script>
+<script src="sorami-exif.js?v=20260928022812"></script>
+<script src="sorami-capcloud.js?v=20260928022812"></script>
+<script src="sorami-terrain.js?v=20260928022812"></script>
+<script src="sorami-mountain.js?v=20260928022812"></script>
+<script src="sorami-fuji.js?v=20260928022812"></script>
+<script src="sorami-sky.js?v=20260928022812"></script>
+<script src="sorami-routes.js?v=20260928022812"></script>
+<script src="sorami-plane.js?v=20260928022812"></script>
+<script src="sorami-align.js?v=20260928022812"></script>
+<script src="sorami-moon.js?v=20260928022812"></script>
+<script src="sorami-composition.js?v=20260928022812"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2069,6 +2077,7 @@ function render() {
   }
   $("placeSub").textContent = subParts.join(" ・ ");
 
+  renderDeckRow();
   const best = pickHighlight(weeks, now);
   // 並び: 見られる見込みのあるものが先 → あとは PHENOMENA.order（似たものが隣）。
   //
@@ -2113,6 +2122,8 @@ function render() {
   $("aimView").hidden = !inAim;
   // 地点と実況は判断のための情報。記録や管理を読んでいるときは要らない。
   $("placeRow").hidden = inRecords || inAdmin;
+  // 展望台の選択は地点カードの続き。地点を出さない画面では一緒に隠す
+  if (inRecords || inAdmin) $("deckRow").hidden = true;
   $("nowcast").hidden = inRecords || inAdmin || inAim || inSky || inPlane || !nowcastReady;
 
   if (inDetail) {
@@ -5246,6 +5257,34 @@ function lookoutTag(r) {
   }
   return `<span class="tag-lookout">展望</span>`;
 }
+
+/**
+ * 展望台の選択。**複数あるときだけ出す。**
+ * 東京タワーの メインデッキ150m / トップデッキ250m、
+ * スカイツリーの 天望デッキ350m / 天望回廊450m は、立つ場所で地平線が変わる。
+ */
+function renderDeckRow() {
+  const decks = (place && place.decks) || [];
+  const row = $("deckRow");
+  row.hidden = decks.length < 1;
+  if (row.hidden) return;
+  const cur = place.eyeHeightAGL ?? 1.5;
+  const opts = [...decks.map((d) => [String(d.aglM), `${d.name} 地上${d.aglM}m`]),
+                ["1.5", "地面に立って 1.5m"]];
+  $("deckPick").innerHTML = opts.map(([v, label]) =>
+    `<option value="${v}"${Number(v) === cur ? " selected" : ""}>${esc(label)}</option>`).join("");
+  const ground = place.elevation ?? bundle?.home.grid.elevation;
+  $("deckNote").textContent = Number.isFinite(ground)
+    ? `目の高さは 標高${Math.round(ground)}m ＋ ${cur}m = ${Math.round(ground + cur)}m。`
+      + `月の出や富士山の見え方が、ここで変わります。`
+    : "立つ高さで、月の出や富士山の見え方が変わります。";
+}
+$("deckPick").onchange = () => {
+  const m = Number($("deckPick").value);
+  if (!Number.isFinite(m)) return;
+  // 取り直しは要らない（同じ座標の予報は使い回される）。地形と月だけ計算し直す
+  selectPlace({ ...place, eyeHeightAGL: m });
+};
 
 function renderSearchResults(host, results, onPick) {
   host.innerHTML = results.length
