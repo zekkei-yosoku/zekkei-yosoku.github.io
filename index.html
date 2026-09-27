@@ -87,11 +87,23 @@
   /* [hidden] は display:none を弱い指定で当てるだけなので、display を持つクラスに負ける。
      .place-row の flex に負けて、記録画面で地点カードが消えなかった。 */
   [hidden] { display: none !important; }
-  .masthead { display: flex; align-items: baseline; justify-content: space-between;
-              gap: 12px; padding: 6px 2px 12px; }
+  .masthead { display: flex; align-items: center; gap: 8px; padding: 6px 2px 12px; }
+  .masthead h1 { flex: 1; }
   h1 { font-size: 0.94rem; font-weight: 700; letter-spacing: .18em;
        color: var(--secondary); text-align: left; }
   #authButton { font-size: 0.75rem; font-weight: 700; color: var(--accent); min-height: 44px; padding: 0 2px; }
+  /* 道具のメニュー。押すものは 44px 以上（デザイン定義） */
+  #toolsButton { font-size: 1.05rem; line-height: 1; color: var(--secondary);
+                 min-height: 44px; min-width: 40px; margin-left: -8px; text-align: left; }
+  #toolsButton[aria-expanded="true"] { color: var(--accent); }
+  .tools-menu { display: flex; flex-direction: column; gap: 2px; margin: 0 0 10px;
+                background: var(--card); border-radius: 12px; padding: 6px; }
+  .tools-menu button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+                       width: 100%; text-align: left; padding: 10px 12px; border-radius: 9px;
+                       min-height: 44px; }
+  .tools-menu button:hover, .tools-menu button:focus-visible { background: var(--sunk); }
+  .tools-menu strong { font-size: 0.9rem; }
+  .tools-menu span { font-size: 0.74rem; color: var(--tertiary); }
   #authButton.warn { color: var(--red); }
   #sortRow { display: flex; align-items: center; gap: 8px; padding: 0 2px 10px; }
   #sortRow label { font-size: 0.72rem; color: var(--tertiary); }
@@ -706,11 +718,27 @@
 <body>
 <main>
   <div class="masthead">
+    <!-- 道具のメニュー。**題名の左**に置く（よくある位置。2026-09-28 ユーザー指定）。
+         表示はログイン名で絞っているが、**これは見た目だけ**で、
+         URL を直接開けば誰でも入れる。中身に秘密は無いのでそれでよい。 -->
+    <button id="toolsButton" class="tap" hidden aria-haspopup="true" aria-expanded="false"
+            aria-label="道具のメニュー">☰</button>
     <h1>絶景予測</h1>
     <!-- ログインは任意。押さなくても予報は全部見られる。
          同期が失敗しているときは、それをここに出す（黙って同期されていないのは
          「黙って消える」と同じ種類の事故）。 -->
     <button id="authButton" class="tap"></button>
+  </div>
+  <!-- 道具の一覧。隠し合言葉でしか入れなかったものを、ここから開けるようにした -->
+  <div id="toolsMenu" class="tools-menu" hidden role="menu" aria-label="道具">
+    <button role="menuitem" data-tool="#/aim"><strong>ねらう</strong>
+      <span>目標に太陽や月が重なる日と、その日に見える場所</span></button>
+    <button role="menuitem" data-tool="#/sky"><strong>空の見え方</strong>
+      <span>稜線の上を太陽と月がどう通るか</span></button>
+    <button role="menuitem" data-tool="#/plane"><strong>月丼</strong>
+      <span>月と飛行機が重なる場所（羽田）</span></button>
+    <button role="menuitem" data-tool="#/records"><strong>記録</strong>
+      <span>点数が実際とどれだけ合っているか</span></button>
   </div>
   <!-- ☆ は地点ボタンの中へ挿入していたが、button の中の button は不正で、
        読み上げも click の伝播も壊れる。並べて置く。 -->
@@ -1288,21 +1316,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928023934"></script>
+<script src="sorami-core.js?v=20260928025101"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928023934"></script>
-<script src="sorami-exif.js?v=20260928023934"></script>
-<script src="sorami-capcloud.js?v=20260928023934"></script>
-<script src="sorami-terrain.js?v=20260928023934"></script>
-<script src="sorami-mountain.js?v=20260928023934"></script>
-<script src="sorami-fuji.js?v=20260928023934"></script>
-<script src="sorami-sky.js?v=20260928023934"></script>
-<script src="sorami-routes.js?v=20260928023934"></script>
-<script src="sorami-plane.js?v=20260928023934"></script>
-<script src="sorami-align.js?v=20260928023934"></script>
-<script src="sorami-moon.js?v=20260928023934"></script>
-<script src="sorami-composition.js?v=20260928023934"></script>
+<script src="sorami-astro.js?v=20260928025101"></script>
+<script src="sorami-exif.js?v=20260928025101"></script>
+<script src="sorami-capcloud.js?v=20260928025101"></script>
+<script src="sorami-terrain.js?v=20260928025101"></script>
+<script src="sorami-mountain.js?v=20260928025101"></script>
+<script src="sorami-fuji.js?v=20260928025101"></script>
+<script src="sorami-sky.js?v=20260928025101"></script>
+<script src="sorami-routes.js?v=20260928025101"></script>
+<script src="sorami-plane.js?v=20260928025101"></script>
+<script src="sorami-align.js?v=20260928025101"></script>
+<script src="sorami-moon.js?v=20260928025101"></script>
+<script src="sorami-composition.js?v=20260928025101"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2067,6 +2095,20 @@ function rerenderList() {
   render();
 }
 
+/**
+ * 画面の一覧。**上から順に強い**（詳細を開いていれば、ほかの指定より詳細が勝つ）。
+ * 画面を足すときは、ここに1行足して `routeFromHash` に道を足すだけにする。
+ */
+const VIEWS = [
+  { id: "detail",  el: "detailView",  on: () => !!(picked && weeks[picked]) },
+  { id: "admin",   el: "adminView",   on: () => atAdmin },
+  { id: "records", el: "recordsView", on: () => atRecords },
+  { id: "aim",     el: "aimView",     on: () => atAim },
+  { id: "sky",     el: "skyView",     on: () => atSky },
+  { id: "plane",   el: "planeView",   on: () => atPlane },
+  { id: "list",    el: "listView",    on: () => true },
+];
+
 function render() {
   const now = Date.now();
   $("placeName").textContent = place.name;
@@ -2124,19 +2166,14 @@ function render() {
     const u = upcoming(weeks[id], now);
     return u && !u.evaluation.unavailable;
   });
-  const inDetail = !!(picked && weeks[picked]);
-  const inAdmin = atAdmin && !inDetail;
-  const inRecords = atRecords && !inDetail && !inAdmin;
-  const inAim = atAim && !inDetail && !inAdmin && !inRecords;
-  const inSky = atSky && !inDetail && !inAdmin && !inRecords && !inAim;
-  const inPlane = atPlane && !inDetail && !inAdmin && !inRecords && !inAim && !inSky;
-  $("skyView").hidden = !inSky;
-  $("planeView").hidden = !inPlane;
-  $("listView").hidden = inDetail || inRecords || inAdmin || inAim || inSky || inPlane;
-  $("detailView").hidden = !inDetail;
-  $("recordsView").hidden = !inRecords;
-  $("adminView").hidden = !inAdmin;
-  $("aimView").hidden = !inAim;
+  // **出す画面は1つ。上から順に強い。**
+  // 以前は画面ごとに「他の画面でないこと」を条件へ書き足しており、
+  // 6画面で15個の比較になっていた。画面を足すたびに既存の6行を直す必要があり、
+  // 順番を間違えても気づけない。**表に1行足すだけ**にする（2026-09-28）。
+  const view = VIEWS.find((v) => v.on()).id;
+  for (const v of VIEWS) $(v.el).hidden = v.id !== view;
+  const inDetail = view === "detail", inAdmin = view === "admin", inRecords = view === "records";
+  const inAim = view === "aim", inSky = view === "sky", inPlane = view === "plane";
   // 地点と実況は判断のための情報。記録や管理を読んでいるときは要らない。
   $("placeRow").hidden = inRecords || inAdmin;
   // 展望台の選択は地点カードの続き。地点を出さない画面では一緒に隠す
@@ -2379,7 +2416,7 @@ function applyRoute() {
   if (picked || atRecords) window.scrollTo(0, 0);
   else window.scrollTo(0, listScrollY);
 }
-window.addEventListener("hashchange", applyRoute);
+window.addEventListener("hashchange", () => { closeTools(); applyRoute(); });
 
 // 記録へ進む。一覧の位置を覚えておき、戻るで返す。
 
@@ -5553,7 +5590,40 @@ function askReauth() {
   if (!supported) $("authPw").focus();
 }
 
+/**
+ * 道具のメニューを出すかどうか。**いまは作った本人だけ。**
+ *
+ * これは**見た目の話でしかない。** URL（`#/aim` など）を直接開けば誰でも入れる。
+ * 中身に秘密は無く、隠したいのではなく「まだ人に見せる形になっていない」だけなので、
+ * サーバーで止めるところまではやらない（管理画面とは性格が違う）。
+ */
+const TOOLS_FOR = ["okayu0321"];
+function renderTools() {
+  const allowed = !!auth && TOOLS_FOR.includes(auth.loginId);
+  $("toolsButton").hidden = !allowed;
+  if (!allowed) closeTools();
+}
+function closeTools() {
+  $("toolsMenu").hidden = true;
+  $("toolsButton").setAttribute("aria-expanded", "false");
+}
+$("toolsButton").onclick = () => {
+  const open = $("toolsMenu").hidden;
+  $("toolsMenu").hidden = !open;
+  $("toolsButton").setAttribute("aria-expanded", String(open));
+};
+for (const el of $("toolsMenu").querySelectorAll("[data-tool]")) {
+  el.onclick = () => { closeTools(); pushedCount++; location.hash = el.dataset.tool; };
+}
+// 外を押したら閉じる。メニューの中と、開閉のボタンは除く
+document.addEventListener("click", (e) => {
+  if ($("toolsMenu").hidden) return;
+  if ($("toolsMenu").contains(e.target) || $("toolsButton").contains(e.target)) return;
+  closeTools();
+});
+
 function renderAuthButton() {
+  renderTools();
   const b = $("authButton");
   if (!auth) { b.textContent = "ログイン"; b.classList.remove("warn"); b.setAttribute("aria-label", "ログイン"); return; }
   const failing = !!syncError || pushQueue.length > 0;

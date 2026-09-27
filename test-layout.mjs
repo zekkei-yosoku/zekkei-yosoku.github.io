@@ -32,7 +32,8 @@ const stickyUses = [...code.matchAll(/([.#][\w-]+)[^{]*\{[^}]*position:\s*sticky
 ok(stickyUses.every((sel) => sel === ".mxrail"),
   "sticky を使うのはマトリクスの現象名の列だけ", stickyUses.join(" "));
 // 記録画面では一覧ごと隠すので、sticky な要素が記録カードへ被る経路が無い。
-ok(/\$\("listView"\)\.hidden = inDetail \|\| inRecords/.test(html),
+// **出す画面は1つ**なので、記録を出せば一覧は自動で隠れる（VIEWS の表）。
+ok(/for \(const v of VIEWS\) \$\(v\.el\)\.hidden = v\.id !== view/.test(html),
   "記録画面では一覧（sticky を含む）を隠す");
 
 console.log("== 日付の軸は1本、現象ごとに枠を持つ ==");
@@ -70,6 +71,38 @@ ok(/script-src 'self'/.test(html), "CSP の script-src は self のまま");
 ok(/async function sky3dLoad/.test(html) && /if \(mode === "3d"\)/.test(html),
   "3Dを開いたときだけ読む");
 ok(/srgbToLinear/.test(html), "色は線形へ直してから渡す（そのままだと夜空が明るくなる）");
+
+// ---- 画面の出し分け。**表に1行足すだけ**にする
+ok(/const VIEWS = \[/.test(html), "画面の一覧が表になっている");
+ok(/const view = VIEWS\.find\(\(v\) => v\.on\(\)\)\.id/.test(html), "出す画面は1つに決める");
+ok(/for \(const v of VIEWS\) \$\(v\.el\)\.hidden = v\.id !== view/.test(html), "ほかは全部隠す");
+{
+  // 以前の書き方（条件を書き足す形）が残っていないこと
+  const bad = /atSky && !inDetail && !inAdmin/.test(html) || /atPlane && !inDetail/.test(html);
+  ok(!bad, "条件を書き足す形が残っていない");
+  const views = html.slice(html.indexOf("const VIEWS = ["), html.indexOf("];", html.indexOf("const VIEWS = [")));
+  for (const id of ["detail", "admin", "records", "aim", "sky", "plane", "list"]) {
+    ok(views.includes(`id: "${id}"`), `${id} が表にある`);
+  }
+  ok(views.indexOf('id: "detail"') < views.indexOf('id: "list"'), "詳細のほうが一覧より強い");
+  ok(views.indexOf('id: "list"') === views.lastIndexOf('id: "list"')
+    && /id: "list",\s+el: "listView",\s+on: \(\) => true/.test(views), "一覧が最後の受け皿");
+}
+
+// ---- 道具のメニュー。隠し合言葉だけだったものを、押して開けるようにした
+ok(/id="toolsButton"/.test(html) && /id="toolsMenu"/.test(html), "道具のメニューがある");
+ok(/const TOOLS_FOR = \["okayu0321"\]/.test(html), "いまは作った本人だけに出す");
+ok(/aria-haspopup="true"/.test(html) && /role="menu"/.test(html), "開閉を読み上げへ伝える");
+{
+  const menu = html.slice(html.indexOf('id="toolsMenu"'), html.indexOf("</div>", html.indexOf('id="toolsMenu"')));
+  for (const [href, name] of [["#/aim", "ねらう"], ["#/sky", "空の見え方"], ["#/plane", "月丼"]]) {
+    ok(menu.includes(`data-tool="${href}"`) && menu.includes(name), `${name} が入っている`);
+  }
+}
+ok(/closeTools\(\); applyRoute\(\)/.test(html), "画面が変わったら閉じる");
+// 隠し合言葉は**残す**（近道として使える）。メニューができても消さない
+ok(/const AIM_WORDS/.test(html) && /const SKY_WORDS/.test(html) && /const PLANE_WORDS/.test(html),
+  "合言葉は近道として残す");
 
 // ---- 展望台。**塔の先端の高さと、人が立つ展望台の高さは違う**
 ok(/extratags: "1"/.test(html), "検索で extratags を取る（height / levels / tower:type）");
@@ -253,7 +286,7 @@ ok(/id="backBtn"[^>]*>← 一覧にもどる/.test(html), "戻り先は一覧だ
 ok(/location\.hash === "#\/records"/.test(html), "記録は自前のURLを持つ");
 ok(/id="recordsView"/.test(html), "記録は別画面");
 ok(/id="recordsBack"/.test(html), "記録から戻るボタンがある");
-ok(/\$\("recordsView"\)\.hidden = !inRecords/.test(html), "3画面を出し分ける");
+ok(/\{ id: "records",\s+el: "recordsView"/.test(html), "3画面を出し分ける");
 ok(/\$\("placeRow"\)\.hidden = inRecords/.test(html), "記録を読むときは地点と実況を出さない");
 // .place-row の display:flex が [hidden] の display:none に勝ち、地点カードが消えなかった。
 ok(/\[hidden\] \{ display: none !important; \}/.test(code), "hidden が display 指定に負けないようにする");
@@ -1153,7 +1186,7 @@ ok(/>新規登録<\/button>/.test(html), "入口のラベルは「新規登録�
 console.log("== 管理者の画面 ==");
 ok(/id="adminView"/.test(html), "画面がある");
 ok(/location\.hash === "#\/admin"/.test(html), "URLで開ける");
-ok(/\$\("adminView"\)\.hidden = !inAdmin/.test(html), "他の画面と出し分ける");
+ok(/\{ id: "admin",\s+el: "adminView"/.test(html), "他の画面と出し分ける");
 ok(/\$\("toAdmin"\)\.hidden = me\.role !== "admin"/.test(html), "管理者にだけ入口を出す");
 // 画面を隠すのは防御ではない。権限はサーバーが判定する。
 ok(/権限の判定は\*\*サーバーがやる\*\*/.test(html), "画面側の隠蔽を防御と考えないと明記する");
@@ -1722,8 +1755,12 @@ console.log("== 管理画面に、ほかの画面のものを出さない ==");
 // 隠しても消えない。切り替えの条件に inAdmin を書き忘れていた。
 ok(/renderRecords\(now, inDetail \|\| inRecords \|\| inAdmin\)/.test(html),
   "記録の問いかけを管理画面で隠す");
-// main 直下で切り替えている要素は、画面が増えるたびに全部見直す必要がある
-for (const id of ["listView", "detailView", "recordsView", "adminView", "placeRow", "nowcast"]) {
+// main 直下の画面は VIEWS の表で切り替える。画面ごとの条件は書かない
+for (const el of ["listView", "detailView", "recordsView", "adminView", "aimView", "skyView", "planeView"]) {
+  ok(new RegExp(`el: "${el}"`).test(html), `${el} が画面の表にある`);
+}
+// 画面ではないもの（地点カード・実況）は、これまでどおり個別に切り替える
+for (const id of ["placeRow", "nowcast"]) {
   ok(html.includes(`$("${id}").hidden`), `${id} の表示を切り替えている`);
 }
 ok(/\$\("recPending"\)\.hidden/.test(html), "recPending の表示を切り替えている");
