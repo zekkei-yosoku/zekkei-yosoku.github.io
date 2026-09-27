@@ -494,11 +494,27 @@
     { match: /千葉ポートタワー/, decks: [{ name: "展望台", aglM: 113 }] },
     { match: /東京ワールドゲート|虎ノ門ヒルズ/, decks: [{ name: "展望", aglM: 250 }] },
   ];
-  /// 名前から展望台の高さを引く。無ければ null
+  // **施設名を含むだけの別物**を弾く。「東京タワー前交番」は展望台ではない
+  const NOT_THE_PLACE = /(交番|派出所|駐在所|駅|バス停|停留所|郵便局|入口|出口|前|通り|商店|ストア|学校|病院|タウン|ホテル)/;
+  // 「東京都庁舎」のように、少しだけ長い言い方は同じ施設として通す
+  const SAME_PLACE_TAIL = /^[\s　]*(展望|天望|メイン|トップ|デッキ|回廊|スカイ|ガーデン|タワー|ビル|棟|本社)/;
+
+  /**
+   * 名前から展望台の高さを引く。無ければ null。
+   * **名前の頭から当たることを求める。** 部分一致だけだと
+   * 「愛宕警察署東京タワー前交番」が 150m の展望台になる（2026-09-28 実測）。
+   */
   function decksFor(name) {
     if (!name) return null;
-    const hit = OBSERVATION_DECKS.find((d) => d.match.test(name));
-    return hit ? hit.decks : null;
+    const n = String(name).trim();
+    for (const d of OBSERVATION_DECKS) {
+      const m = d.match.exec(n);
+      if (!m || m.index !== 0) continue;
+      const rest = n.slice(m[0].length);
+      if (NOT_THE_PLACE.test(rest)) continue;
+      if (rest === "" || rest.length <= 1 || SAME_PLACE_TAIL.test(rest)) return d.decks;
+    }
+    return null;
   }
 
   /**

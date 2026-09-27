@@ -87,6 +87,14 @@ ok(/eyeOptions\(favDraft\)\.find/.test(html), "選んだときも同じ一覧か
   ok(st && st.m === 333, "OSM の height は構造物の高さ（先端）", JSON.stringify(st));
   ok(tower[0].aglM < st.m, "**展望台は先端より低い**", `${tower[0].aglM}m < ${st.m}m`);
   ok(T.decksFor("高尾山") === null, "展望台でない場所は null");
+  // **施設名を含むだけの別物を弾く。** 部分一致だけだと交番が150mの展望台になる
+  ok(T.decksFor("愛宕警察署東京タワー前交番") === null, "交番は展望台ではない");
+  ok(T.decksFor("東京タワー前交番") === null, "頭から当たっても「前交番」なら別物");
+  ok(T.decksFor("横浜ランドマークタワー郵便局") === null, "郵便局も別物");
+  ok(T.decksFor("東京スカイツリータウン") === null, "足元の商業施設は展望台ではない");
+  ok(T.decksFor("東京都庁舎") !== null, "少し長い言い方は同じ施設として通す");
+  ok(T.decksFor("東京スカイツリー 天望デッキ") !== null, "展望台の名前つきも通す");
+  ok(T.decksFor("東京タワー メインデッキ") !== null, "メインデッキも通す");
   ok(T.isLookout({ type: "tower", extratags: { "tower:type": "observation" } }) === "observation",
     "展望塔を見分ける");
   ok(T.isLookout({ type: "peak", extratags: {} }) === null, "ただの山は展望台ではない");
