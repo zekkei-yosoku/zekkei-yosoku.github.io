@@ -893,6 +893,56 @@
     </div>
   </div>
 
+  <!-- 月丼: 月と飛行機を重ねる。航路は決まっているので、月の道と突き合わせれば
+       立ち位置が解ける（「ねらう」と同じ形。目標が航路の上を動く点になっただけ）。 -->
+  <div id="planeView" hidden>
+    <button class="back" id="planeBack">← 一覧にもどる</button>
+    <div class="card">
+      <div class="section-h"><h2>月丼</h2><span class="muted">月と飛行機を重ねる</span></div>
+      <p class="tiny" style="margin:0 0 8px">羽田の<strong>進入経路は決まっている</strong>ので、
+        その日の月の道と重なる<strong>立ち位置</strong>が出せます。</p>
+      <label class="fav-l" for="planeDate">日付</label>
+      <div class="aim-row aim-date">
+        <button id="planePrev" class="fav-btn" aria-label="前の日">←</button>
+        <input type="date" id="planeDate" class="fav-in" aria-label="日付">
+        <button id="planeNext" class="fav-btn" aria-label="次の日">→</button>
+      </div>
+      <div class="aim-row" style="margin-bottom:2px">
+        <span id="planeWeekday" class="tiny" style="flex:1"></span>
+        <button id="planeToday" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">今日</button>
+      </div>
+      <label class="fav-l" for="planeOp">運用</label>
+      <div class="aim-row">
+        <select id="planeOp" class="fav-in" aria-label="運用の向き"></select>
+        <div class="aim-seg" role="group" aria-label="着陸か離陸か">
+          <button id="planeLand" aria-pressed="true">着陸</button>
+          <button id="planeTake" aria-pressed="false">離陸</button>
+        </div>
+      </div>
+      <p class="tiny" id="planeOpNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
+      <div class="mapwrap" style="margin-top:8px">
+        <canvas id="planeCanvas" aria-label="地図。狙い目と進入経路です"></canvas>
+        <div class="mapzoom">
+          <button id="planeIn" aria-label="拡大">＋</button>
+          <button id="planeOut" aria-label="縮小">−</button>
+        </div>
+        <div class="mapattr">国土地理院</div>
+      </div>
+      <div class="aim-legend">
+        <span><i class="aim-k moon"></i>進入経路</span>
+        <span><i class="aim-k sun"></i>狙い目</span>
+        <span class="tiny">番号は下の一覧と同じ</span>
+      </div>
+      <div id="planePick" class="al" style="margin-top:8px"></div>
+      <div id="planeInfo" class="tiny" style="margin-top:6px;color:var(--secondary)">計算しています…</div>
+      <div id="planeList" class="al" style="margin-top:8px"></div>
+      <p class="tiny" style="margin-top:8px;color:var(--tertiary)">
+        経路は<strong>公表されている進入の形</strong>（滑走路の位置と真方位は OurAirports、降下角は3°）から
+        引いた代表線です。管制の指示で前後左右にずれます。便数は羽田の運用時間の目安で、実測ではありません。
+        <strong>出せるのは「条件が揃う場所と時間」まで</strong>で、写るかどうかは当日の運用と雲しだいです。</p>
+    </div>
+  </div>
+
   <div id="aimView" hidden>
     <button class="back" id="aimBack">← 一覧にもどる</button>
     <div class="card">
@@ -1226,19 +1276,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260927213026"></script>
+<script src="sorami-core.js?v=20260927215046"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260927213026"></script>
-<script src="sorami-exif.js?v=20260927213026"></script>
-<script src="sorami-capcloud.js?v=20260927213026"></script>
-<script src="sorami-terrain.js?v=20260927213026"></script>
-<script src="sorami-mountain.js?v=20260927213026"></script>
-<script src="sorami-fuji.js?v=20260927213026"></script>
-<script src="sorami-sky.js?v=20260927213026"></script>
-<script src="sorami-align.js?v=20260927213026"></script>
-<script src="sorami-moon.js?v=20260927213026"></script>
-<script src="sorami-composition.js?v=20260927213026"></script>
+<script src="sorami-astro.js?v=20260927215046"></script>
+<script src="sorami-exif.js?v=20260927215046"></script>
+<script src="sorami-capcloud.js?v=20260927215046"></script>
+<script src="sorami-terrain.js?v=20260927215046"></script>
+<script src="sorami-mountain.js?v=20260927215046"></script>
+<script src="sorami-fuji.js?v=20260927215046"></script>
+<script src="sorami-sky.js?v=20260927215046"></script>
+<script src="sorami-routes.js?v=20260927215046"></script>
+<script src="sorami-plane.js?v=20260927215046"></script>
+<script src="sorami-align.js?v=20260927215046"></script>
+<script src="sorami-moon.js?v=20260927215046"></script>
+<script src="sorami-composition.js?v=20260927215046"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1566,6 +1618,7 @@ const WIDE = window.matchMedia("(min-width: 900px)");
 let picked = null;       // 詳細で見ている現象（一覧のときは null）
 let atAim = false;       // 「ねらう」のページを見ているか
 let atSky = false;       // 「空の見え方」のページを見ているか
+let atPlane = false;     // 「月丼」のページを見ているか
 let atRecords = false;   // 記録画面を見ているか
 let atAdmin = false;     // 管理者画面を見ているか
 let nowcastReady = false;  // 実況が取れたか。画面を切り替えても状態を保つ
@@ -2040,15 +2093,17 @@ function render() {
   const inRecords = atRecords && !inDetail && !inAdmin;
   const inAim = atAim && !inDetail && !inAdmin && !inRecords;
   const inSky = atSky && !inDetail && !inAdmin && !inRecords && !inAim;
+  const inPlane = atPlane && !inDetail && !inAdmin && !inRecords && !inAim && !inSky;
   $("skyView").hidden = !inSky;
-  $("listView").hidden = inDetail || inRecords || inAdmin || inAim || inSky;
+  $("planeView").hidden = !inPlane;
+  $("listView").hidden = inDetail || inRecords || inAdmin || inAim || inSky || inPlane;
   $("detailView").hidden = !inDetail;
   $("recordsView").hidden = !inRecords;
   $("adminView").hidden = !inAdmin;
   $("aimView").hidden = !inAim;
   // 地点と実況は判断のための情報。記録や管理を読んでいるときは要らない。
   $("placeRow").hidden = inRecords || inAdmin;
-  $("nowcast").hidden = inRecords || inAdmin || inAim || inSky || !nowcastReady;
+  $("nowcast").hidden = inRecords || inAdmin || inAim || inSky || inPlane || !nowcastReady;
 
   if (inDetail) {
     $("detailPane").innerHTML = renderDetailPane(picked, now);
@@ -2237,6 +2292,7 @@ function routeFromHash() {
   if (location.hash === "#/records") return { records: true };
   if (location.hash === "#/aim") return { aim: true };
   if (location.hash === "#/sky") return { sky: true };
+  if (location.hash === "#/plane") return { plane: true };
   if (location.hash === "#/admin") return { admin: true };
   const m = /^#\/([A-Za-z]+)(?:\/(\d+))?$/.exec(location.hash);
   // **`SCORERS` ではなく `PHENOMENA` で見る。**
@@ -2269,8 +2325,10 @@ function applyRoute() {
   atAdmin = !!(route && route.admin);
   atAim = !!(route && route.aim);
   atSky = !!(route && route.sky);
+  atPlane = !!(route && route.plane);
   if (atAim) openAim();
   if (atSky) openSky();
+  if (atPlane) openPlane();
   if (atAdmin) renderAdmin();
   if (route && route.id) {
     // 日を含まない URL は「直近の回」を指す。前に見ていた日を残すと、
@@ -4164,6 +4222,191 @@ function aimUpdateNear(center) {
     + `（天体の方位 ${Math.round(best.p.azimuth)}°・目標から ${aimKm(best.p.distanceKm)}km）`;
 }
 
+// ---------------------------------------------------------------- 月丼
+//
+// 「ねらう」と同じ形。目標が**航路の上を動く点**になっただけ。
+// 航路は `sorami-routes.js` に形として持ってある（通信しない）。
+// 運用の向き（北風・南風）はその日の風の予報から決める。
+const plane = { dayMs: null, op: null, opAuto: null, kind: "landing",
+                result: null, seq: 0, wired: false, pick: 0 };
+
+const PlaneMap = createMapView({ canvas: "planeCanvas", zoomIn: "planeIn", zoomOut: "planeOut" });
+
+/// その日の風から運用を決める。取れなければ北風（羽田の基本）
+function planeOperationFromWind() {
+  try {
+    const home = bundle && bundle.home && bundle.home.byModel
+      ? Object.values(bundle.home.byModel)[0] : null;
+    if (!home || !home.isSupported("wind_direction_10m")) return null;
+    const ws = S.Cal.setHour(plane.dayMs, 12), we = S.Cal.setHour(plane.dayMs, 21);
+    const deg = home.mean("wind_direction_10m", ws, we);
+    return SoramiRoutes.operationFor(deg);
+  } catch { return null; }
+}
+
+async function planeApply() {
+  const seq = ++plane.seq;
+  $("planeInfo").textContent = "狙い目を探しています…";
+  $("planeList").innerHTML = "";
+  const op = plane.op || plane.opAuto || "north";
+  const paths = SoramiPlane.pathsFor(op,
+    { landing: plane.kind === "landing", takeoff: plane.kind === "takeoff" });
+  // **名前のある場所の中から選ぶ。** 格子で探すと上位が東京湾の真ん中になる
+  // （進入は湾の上を通るため）。「今日はここ」と言うには立てる場所が要る。
+  const spots = SoramiPlane.rankSpots(plane.dayMs, paths, SoramiRoutes.SPOTS,
+    { stepMin: 2, limit: 8 });
+  if (seq !== plane.seq) return;
+  const moon = SoramiAstro.moon(S.Cal.setHour(plane.dayMs, 21),
+    { latitude: SoramiRoutes.RJTT.latitude, longitude: SoramiRoutes.RJTT.longitude, elevation: 0 });
+  plane.result = { spots, paths, op, illuminated: moon.illuminatedFraction };
+  plane.pick = 0;
+  planeRender();
+  PlaneMap.redraw();
+}
+
+function planeRender() {
+  const r = plane.result;
+  const op = SoramiRoutes.OPERATIONS[r.op];
+  $("planeOpNote").textContent = (plane.op ? "手で選んでいます" : "風の予報から決めています")
+    + `。${op.name}：着陸 ${op.landing.join("・")} ／ 離陸 ${op.takeoff.join("・")}`
+    + (op.note ? `。${op.note}` : "");
+  $("planePick").innerHTML = "";
+  if (!r.spots.length) {
+    $("planeInfo").textContent = "この日は、定番の場所からは重なりません。"
+      + "日を変えるか、運用（北風・南風）を切り替えてみてください。";
+    return;
+  }
+  // **「今日はここ」を先に出す。** 一覧を上から読ませない
+  const top = r.spots[0];
+  const w0 = top.windows[0];
+  const sun0 = top.best.sunAltitude;
+  $("planePick").innerHTML = `<div class="al-row" style="cursor:default">
+    <div class="al-w"><strong>${esc(top.spot.name)}</strong>
+      <span class="muted">${S.JstCal.hhmm(w0.from)}〜${S.JstCal.hhmm(w0.to)}ごろ
+      ・${sun0 < -6 ? "夜" : sun0 < 0 ? "薄明" : "昼"}
+      ・${top.spot.note ? esc(top.spot.note) : ""}</span>
+      <span class="muted">月は 方位${Math.round(top.best.moonAz)}°・高さ${Math.round(top.best.moonAlt)}°。
+      その向きの ${top.best.planeKm.toFixed(1)}km 先、高度 ${Math.round(top.best.altitudeM)}m を通ります</span>
+    </div></div>`;
+  const lit = r.illuminated !== null && r.illuminated !== undefined
+    ? `月の輝面 ${Math.round(r.illuminated * 100)}%。` : "";
+  $("planeInfo").innerHTML = `${lit}月が低い（2〜30°）あいだだけを見ています。`
+    + `<br>機体は<strong>4〜12kmが狙いめ</strong>です（全長60mの機体が月に収まるのは6.6kmより遠く）。`;
+  $("planeList").innerHTML = r.spots.map((sp, i) => {
+    const when = sp.windows.map((w) => (w.from === w.to
+      ? S.JstCal.hhmm(w.from) : `${S.JstCal.hhmm(w.from)}〜${S.JstCal.hhmm(w.to)}`)).join("、");
+    const sun = sp.best.sunAltitude;
+    const light = sun < -6 ? "夜" : sun < 0 ? "薄明" : "昼";
+    return `<button class="al-row jump" data-spot="${i}">
+      <div class="al-w"><strong>${i + 1}. ${esc(sp.spot.name)}</strong>
+        <span class="muted">${when} ・ ${light} ・ 待つあいだに約${sp.planes}機</span>
+        <span class="muted">機まで ${sp.best.planeKm.toFixed(1)}km（高度 ${Math.round(sp.best.altitudeM)}m）
+        ・月 高さ${Math.round(sp.best.moonAlt)}° 方位${Math.round(sp.best.moonAz)}°
+        ・${esc(sp.paths.join("・"))}</span>
+        <span class="muted">${esc(sp.spot.note)}</span>
+      </div>
+      <span class="tiny">地図で見る →</span>
+    </button>`;
+  }).join("");
+  for (const el of $("planeList").querySelectorAll("[data-spot]")) {
+    el.onclick = () => {
+      plane.pick = Number(el.dataset.spot);
+      const sp = plane.result.spots[plane.pick];
+      PlaneMap.open({ latitude: sp.spot.latitude, longitude: sp.spot.longitude }, 12);
+      requestAnimationFrame(() => PlaneMap.redraw());
+    };
+  }
+}
+
+PlaneMap.setOverlay((ctx, { project, width, height }) => {
+  const r = plane.result;
+  if (!r) return;
+  const cs = getComputedStyle(document.documentElement);
+  const moonC = cs.getPropertyValue("--ray-moon").trim() || "#2f7fd0";
+  const sunC = cs.getPropertyValue("--ray-sun").trim() || "#e8820e";
+  const ink = "rgba(0,0,0,.55)";
+  // 進入経路
+  for (const path of r.paths) {
+    const pts = path.points.map((p) => project(p.latitude, p.longitude));
+    ctx.save();
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    ctx.strokeStyle = ink; ctx.lineWidth = 5.5;
+    ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+    ctx.strokeStyle = moonC; ctx.lineWidth = 2.2; ctx.stroke();
+    ctx.restore();
+  }
+  // 狙い目。番号は一覧と同じ
+  r.spots.forEach((sp, i) => {
+    const [x, y] = project(sp.spot.latitude, sp.spot.longitude);
+    const on = i === plane.pick;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, y, on ? 11 : 9, 0, Math.PI * 2);
+    ctx.fillStyle = ink; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, on ? 9 : 7, 0, Math.PI * 2);
+    ctx.fillStyle = sunC; ctx.fill();
+    if (on) { ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke(); }
+    ctx.fillStyle = "#1b1206";
+    ctx.font = `700 ${on ? 12 : 10}px -apple-system, 'Hiragino Sans', sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(String(i + 1), x, y + 0.5);
+    ctx.restore();
+  });
+  // 空港の位置
+  const [ax, ay] = project(SoramiRoutes.RJTT.latitude, SoramiRoutes.RJTT.longitude);
+  ctx.save();
+  ctx.beginPath(); ctx.arc(ax, ay, 5, 0, Math.PI * 2);
+  ctx.fillStyle = ink; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+  aimMapLabel(ctx, ax, ay + 14, SoramiRoutes.RJTT.name, "#fff", width, height, "center");
+  ctx.restore();
+});
+
+function openPlane() {
+  if (!plane.dayMs) plane.dayMs = S.Cal.startOfDay(Date.now());
+  $("planeDate").value = new Date(plane.dayMs + 9 * 3600000).toISOString().slice(0, 10);
+  $("planeWeekday").textContent = `${S.Cal.monthDay(plane.dayMs)}（${S.Cal.weekday(plane.dayMs)}）`
+    + (S.JstCal.sameDay(plane.dayMs, Date.now()) ? " ・ 今日" : "");
+  plane.opAuto = planeOperationFromWind();
+  if (!$("planeOp").options.length) {
+    $("planeOp").innerHTML = `<option value="">風から決める</option>`
+      + Object.entries(SoramiRoutes.OPERATIONS)
+        .map(([k, v]) => `<option value="${k}">${esc(v.name)}</option>`).join("");
+  }
+  if (!plane.wired) {
+    plane.wired = true;
+    const setDay = (ms) => {
+      plane.dayMs = ms;
+      $("planeDate").value = new Date(ms + 9 * 3600000).toISOString().slice(0, 10);
+      $("planeWeekday").textContent = `${S.Cal.monthDay(ms)}（${S.Cal.weekday(ms)}）`
+        + (S.JstCal.sameDay(ms, Date.now()) ? " ・ 今日" : "");
+      plane.opAuto = planeOperationFromWind();
+      planeApply();
+    };
+    $("planePrev").onclick = () => setDay(plane.dayMs - 86400000);
+    $("planeNext").onclick = () => setDay(plane.dayMs + 86400000);
+    $("planeToday").onclick = () => setDay(S.Cal.startOfDay(Date.now()));
+    $("planeDate").onchange = () => {
+      const v = Date.parse(`${$("planeDate").value}T00:00:00+09:00`);
+      if (Number.isFinite(v)) setDay(v);
+    };
+    $("planeOp").onchange = () => { plane.op = $("planeOp").value || null; planeApply(); };
+    const setKind = (k) => {
+      plane.kind = k;
+      $("planeLand").setAttribute("aria-pressed", String(k === "landing"));
+      $("planeTake").setAttribute("aria-pressed", String(k === "takeoff"));
+      planeApply();
+    };
+    $("planeLand").onclick = () => setKind("landing");
+    $("planeTake").onclick = () => setKind("takeoff");
+    $("planeBack").onclick = () => { location.hash = ""; };
+  }
+  requestAnimationFrame(() => {
+    PlaneMap.open({ latitude: SoramiRoutes.RJTT.latitude, longitude: SoramiRoutes.RJTT.longitude }, 10);
+    requestAnimationFrame(() => PlaneMap.redraw());
+  });
+  planeApply();
+}
+
 // ---------------------------------------------------------------- 空の見え方
 //
 // 稜線は月の判定で**もう測ってある**（全周1度刻みの地形＋建物）。ここでは使うだけで、
@@ -4959,6 +5202,7 @@ function renderSearchResults(host, results, onPick) {
 // 隠し画面「ねらう」を開く合言葉。地名と衝突しない語だけにする
 const AIM_WORDS = ["!aim", "!ねらう", "ねらう", "!line", "!ライン"];
 const SKY_WORDS = ["!sky", "!そら", "そら", "!パノラマ", "パノラマ"];
+const PLANE_WORDS = ["!plane", "月丼", "!月丼", "つきどん", "!つきどん"];
 
 function wireSearchBox(boxId, resultsId, onPick, onCoord) {
   // **確定の拾い方は2通り持つ。** iOS のキーボードの「検索」では keydown の Enter が
@@ -4972,8 +5216,10 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
     setTimeout(() => { last = null; }, 800);
     // **合言葉で隠し画面を開く。** 地名として検索しても当たらない語を使う
     // （地名と衝突しないよう `!` で始める。2026-09-24 ユーザー依頼）。
-    if (AIM_WORDS.includes(q.toLowerCase()) || SKY_WORDS.includes(q.toLowerCase())) {
-      const to = AIM_WORDS.includes(q.toLowerCase()) ? "#/aim" : "#/sky";
+    if (AIM_WORDS.includes(q.toLowerCase()) || SKY_WORDS.includes(q.toLowerCase())
+        || PLANE_WORDS.includes(q.toLowerCase())) {
+      const to = AIM_WORDS.includes(q.toLowerCase()) ? "#/aim"
+        : SKY_WORDS.includes(q.toLowerCase()) ? "#/sky" : "#/plane";
       $(boxId).value = "";
       $(resultsId).innerHTML = "";
       if ($("placeSheet").open) $("placeSheet").close();

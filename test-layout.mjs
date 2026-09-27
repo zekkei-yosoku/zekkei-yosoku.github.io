@@ -71,6 +71,24 @@ ok(/async function sky3dLoad/.test(html) && /if \(mode === "3d"\)/.test(html),
   "3Dを開いたときだけ読む");
 ok(/srgbToLinear/.test(html), "色は線形へ直してから渡す（そのままだと夜空が明るくなる）");
 
+// ---- 月丼。**名前のある場所から選ぶ**（格子で探すと東京湾の真ん中が上位に来る）
+ok(/id="planeView"/.test(html), "月丼のページがある");
+ok(/location\.hash === "#\/plane"/.test(html), "#/plane のルートがある");
+ok(/SoramiPlane\.rankSpots\(plane\.dayMs, paths, SoramiRoutes\.SPOTS/.test(html),
+  "定番の場所の中から選ぶ");
+ok(/planeOperationFromWind/.test(html), "運用の向きは風から決める");
+ok(/id="planePick"/.test(html), "「今日はここ」を先に出す");
+ok(coreMod.PHENOMENA && /wind_direction_10m/.test(coreSrc), "風向を取得している");
+{
+  const R = req("./sorami-routes.js");
+  ok(R.SPOTS.length >= 15, "定番の場所を持っている", `${R.SPOTS.length}件`);
+  ok(R.SPOTS.every((x) => x.name && Number.isFinite(x.latitude) && Number.isFinite(x.longitude)),
+    "すべて名前と座標を持つ");
+  ok(R.SPOTS.some((x) => /第1ターミナル/.test(x.name)) && R.SPOTS.some((x) => /多摩川/.test(x.name))
+    && R.SPOTS.some((x) => /扇島|マリエン/.test(x.name)),
+    "ターミナル・多摩川の橋・扇島が入っている");
+}
+
 // ---- 短縮リンク。**取り出しの規則は1か所**（サーバーは行き先を返すだけ）
 ok(/resolve-map-link\?u=\$\{encodeURIComponent\(q\)\}/.test(html), "短縮リンクは API に問い合わせる");
 ok(/SoramiTerrain\.parseMapLink\(body\.url\)/.test(html),
