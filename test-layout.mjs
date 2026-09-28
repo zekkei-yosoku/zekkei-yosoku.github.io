@@ -323,14 +323,17 @@ console.log("== 一覧と詳細は別画面 ==");
 ok(/id="listView"/.test(html) && /id="detailView"/.test(html), "2つの画面がある");
 ok(/function routeFromHash/.test(html), "URLのハッシュで場所を持つ（戻るが効く）");
 ok(/addEventListener\("hashchange"/.test(html), "hashchange を見ている");
-ok(/id="backBtn"/.test(html), "詳細に戻るボタンがある");
+// 画面ごとの「← 一覧にもどる」は帯として浮き、カードから離れて見えた。
+// 題名そのものを戻り道にして（YouTube・Gmail と同じ）、出口をひとつに絞る。
+ok(/id="homeLink"/.test(html), "題名が戻り道になっている");
+ok(/\$\("homeLink"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \}/.test(html),
+  "題名を押すと一覧へ戻る（引き出しも閉じる）");
+ok(!/一覧にもどる<\/button>/.test(html), "同じ意味の戻るボタンを画面ごとに置かない");
 ok(!/この先7日/.test(html), "戻り先を日数で呼ばない（詳細にも同じ7日間がある）");
-ok(/id="backBtn"[^>]*>← 一覧にもどる/.test(html), "戻り先は一覧だと書く");
 
 // 記録はホームに置いていた。判断に使わないものを、判断する画面に混ぜない。
 ok(/location\.hash === "#\/records"/.test(html), "記録は自前のURLを持つ");
 ok(/id="recordsView"/.test(html), "記録は別画面");
-ok(/id="recordsBack"/.test(html), "記録から戻るボタンがある");
 ok(/\{ id: "records",\s+el: "recordsView"/.test(html), "3画面を出し分ける");
 ok(/\$\("placeRow"\)\.hidden = inRecords/.test(html), "記録を読むときは地点と実況を出さない");
 // .place-row の display:flex が [hidden] の display:none に勝ち、地点カードが消えなかった。

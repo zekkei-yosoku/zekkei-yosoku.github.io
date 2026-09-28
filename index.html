@@ -90,6 +90,8 @@
   .masthead { display: flex; align-items: center; gap: 6px; padding: 6px 2px 12px; }
   .masthead h1 { flex: 1; }
   .masthead-mark { width: 20px; height: 20px; border-radius: 5px; display: block; }
+  /* 題名そのものが戻り道（YouTube・Gmail と同じ）。見た目は h1 のまま */
+  #homeLink { display: flex; align-items: center; gap: 6px; }
   h1 { font-size: 0.94rem; font-weight: 700; letter-spacing: .18em;
        color: var(--secondary); text-align: left; }
   #authButton { font-size: 0.75rem; font-weight: 700; color: var(--accent); min-height: 44px; padding: 0 2px; }
@@ -230,9 +232,6 @@
   .pending-row:first-of-type { border-top: none; }
   .pending-row .outcome { margin-top: 6px; }
 
-  .back { display: inline-flex; align-items: center; gap: 4px; min-height: 44px;
-          color: var(--accent); font-size: 0.88rem; padding: 0 2px; margin-bottom: 2px; }
-
   /* 現象ごとのカード。ひとつの表に全部を詰めると、49個の数字を
      凡例と照らし合わせながら読むことになり、決める道具にならなかった。
      現象ごとに分け、日の良し悪しは【棒の高さ】で示す。
@@ -286,9 +285,6 @@
   /* もう終わった回。押せば記録できるので消しはしないが、目は引かせない。
      20時に「今日の夕焼け」がいちばん高い棒として左端に出ていた。 */
   .day.past { opacity: .42; }
-
-  .back { display: inline-flex; align-items: center; gap: 4px; min-height: 44px;
-          color: var(--accent); font-size: 0.88rem; padding: 0 2px; margin-bottom: 2px; }
 
   /* 現象ごとのカード。ひとつの表に全部を詰めると、49個の数字を
      凡例と照らし合わせながら読むことになり、決める道具にならなかった。
@@ -774,10 +770,10 @@
     <button id="toolsButton" class="tap" hidden aria-haspopup="true" aria-expanded="false"
             aria-label="メニュー">☰</button>
     <!-- ☰ と題名のあいだに印を置く（YouTube・Gmail と同じ並び）。
-         **飾りではなく、ここが入口だと分かるための印。** `alt` は空にする
-         （すぐ隣に「絶景予測」と書いてあるので、読み上げで二度言わせない） -->
-    <img src="icon-32.png?v=1" class="masthead-mark" alt="" width="20" height="20">
-    <h1>絶景予測</h1>
+         **押したらホームへ戻る。** どの画面にも出ているので、ここが戻り道になる。
+         `alt` は空にする（すぐ隣に「絶景予測」と書いてあるので二度言わせない） -->
+    <h1><button id="homeLink" class="tap">
+      <img src="icon-32.png?v=1" class="masthead-mark" alt="" width="20" height="20">絶景予測</button></h1>
     <!-- ログインは任意。押さなくても予報は全部見られる。
          同期が失敗しているときは、それをここに出す（黙って同期されていないのは
          「黙って消える」と同じ種類の事故）。 -->
@@ -880,7 +876,6 @@
   <!-- 詳細画面: 1つの現象・1つの日を読む。別画面にして、
        スクロールで飛ばすのをやめた（表と詳細が混ざると読みにくい）。 -->
   <div id="detailView" hidden>
-    <button class="back" id="backBtn">← 一覧にもどる</button>
     <div id="detailPane"></div>
   </div>
 
@@ -888,8 +883,7 @@
   <!-- 管理者だけの画面。権限はサーバーが判定するので、ここを隠すのは見た目の話でしかない
        （URLを直接開かれてもAPIが403で断る）。 -->
   <div id="adminView" hidden>
-    <button id="adminBack" class="tap" style="color:var(--accent);font-weight:700;padding:6px 2px">← 一覧にもどる</button>
-    <div class="card" style="margin-top:8px">
+    <div class="card">
       <div class="section-h"><h2>利用者</h2><span class="muted" id="adminUserCount"></span></div>
       <div id="adminUsers" class="tiny"></div>
     </div>
@@ -933,7 +927,6 @@
   <!-- 空の見え方: その地点で、稜線の上を太陽と月がどう通るか。
        「ねらう」が地図の上で**どこに立つか**なら、こちらは**そこで空がどう見えるか**。 -->
   <div id="skyView" hidden>
-    <button class="back" id="skyBack">← 一覧にもどる</button>
     <div class="card">
       <div class="section-h"><h2>空の見え方</h2><span class="muted" id="skyPlace"></span></div>
       <p class="tiny" style="margin:0 0 8px">横が方位、縦が高さ。<strong>塗りつぶしは地形と建物</strong>で、
@@ -980,7 +973,6 @@
   <!-- 月丼: 月と飛行機を重ねる。航路は決まっているので、月の道と突き合わせれば
        立ち位置が解ける（「ねらう」と同じ形。目標が航路の上を動く点になっただけ）。 -->
   <div id="planeView" hidden>
-    <button class="back" id="planeBack">← 一覧にもどる</button>
     <div class="card">
       <div class="section-h"><h2>月丼</h2><span class="muted">月と飛行機を重ねる</span></div>
       <p class="tiny" style="margin:0 0 8px">羽田の<strong>進入経路は決まっている</strong>ので、
@@ -1028,7 +1020,6 @@
   </div>
 
   <div id="aimView" hidden>
-    <button class="back" id="aimBack">← 一覧にもどる</button>
     <div class="card">
       <div class="section-h"><h2 id="aimTitle">ねらう</h2><span class="muted" id="aimSub"></span></div>
 
@@ -1110,7 +1101,6 @@
   </div>
 
   <div id="recordsView" hidden>
-    <button class="back" id="recordsBack">← 一覧にもどる</button>
     <div class="card">
       <div class="section-h"><h2>記録</h2><span class="muted" id="recCount"></span></div>
       <div id="recEmpty" class="tiny" hidden>まだ記録がありません。
@@ -1407,21 +1397,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928172831"></script>
+<script src="sorami-core.js?v=20260928174010"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928172831"></script>
-<script src="sorami-exif.js?v=20260928172831"></script>
-<script src="sorami-capcloud.js?v=20260928172831"></script>
-<script src="sorami-terrain.js?v=20260928172831"></script>
-<script src="sorami-mountain.js?v=20260928172831"></script>
-<script src="sorami-fuji.js?v=20260928172831"></script>
-<script src="sorami-sky.js?v=20260928172831"></script>
-<script src="sorami-routes.js?v=20260928172831"></script>
-<script src="sorami-plane.js?v=20260928172831"></script>
-<script src="sorami-align.js?v=20260928172831"></script>
-<script src="sorami-moon.js?v=20260928172831"></script>
-<script src="sorami-composition.js?v=20260928172831"></script>
+<script src="sorami-astro.js?v=20260928174010"></script>
+<script src="sorami-exif.js?v=20260928174010"></script>
+<script src="sorami-capcloud.js?v=20260928174010"></script>
+<script src="sorami-terrain.js?v=20260928174010"></script>
+<script src="sorami-mountain.js?v=20260928174010"></script>
+<script src="sorami-fuji.js?v=20260928174010"></script>
+<script src="sorami-sky.js?v=20260928174010"></script>
+<script src="sorami-routes.js?v=20260928174010"></script>
+<script src="sorami-plane.js?v=20260928174010"></script>
+<script src="sorami-align.js?v=20260928174010"></script>
+<script src="sorami-moon.js?v=20260928174010"></script>
+<script src="sorami-composition.js?v=20260928174010"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2276,7 +2266,6 @@ function render() {
 
   if (inDetail) {
     $("detailPane").innerHTML = renderDetailPane(picked, now);
-    $("backBtn").onclick = goList;
     if ($("toSky")) $("toSky").onclick = () => { pushedCount++; location.hash = "#/sky"; };
     // 直接リンクで遠い日を開いても、選択したボタンを横スクロール内に出す。
     const strip = $("detailWeek").querySelector(".days");
@@ -2338,7 +2327,6 @@ function render() {
   // listView を隠しても消えない。ここに inAdmin を書き忘れると、
   // 利用者の管理をしている画面に「実際はどうでしたか？」が出る。
   renderRecords(now, inDetail || inRecords || inAdmin);
-  if (inRecords) $("recordsBack").onclick = goList;
   // ホームと記録画面の「実際はどうでしたか？」も同じ配線に乗せるため、
   // 描画をすべて終えてから束ねる。
   wireOutcomes(document.querySelector("main"));
@@ -4815,7 +4803,6 @@ function openPlane() {
     };
     $("planeLand").onclick = () => setKind("landing");
     $("planeTake").onclick = () => setKind("takeoff");
-    $("planeBack").onclick = () => { location.hash = ""; };
   }
   requestAnimationFrame(() => {
     PlaneMap.open({ latitude: SoramiRoutes.RJTT.latitude, longitude: SoramiRoutes.RJTT.longitude }, 10);
@@ -5287,7 +5274,6 @@ function openSky() {
     };
     $("skyMode2d").onclick = () => setMode("2d");
     $("skyMode3d").onclick = () => setMode("3d");
-    $("skyBack").onclick = () => { location.hash = ""; };
     // 横に動かして、見たい方位へ回す
     const cv = $("skyCanvas");
     const xOf = (e) => (e.touches ? e.touches[0].clientX : e.clientX);
@@ -5500,7 +5486,6 @@ function openAim(preset) {
     };
     $("aimPrev").onclick = () => { aim.dayMs -= 86400000; $("aimDate").value = new Date(aim.dayMs + 9 * 3600000).toISOString().slice(0, 10); aimApply(); };
     $("aimNext").onclick = () => { aim.dayMs += 86400000; $("aimDate").value = new Date(aim.dayMs + 9 * 3600000).toISOString().slice(0, 10); aimApply(); };
-    $("aimBack").onclick = () => { location.hash = ""; };
     $("aimPick").onclick = () => {
       // 中心をそのまま地点にする。標高と名前は地図の画面で付ける
       MapPick.open(AimMap.center(), Math.max(14, Math.round(AimMap.zoom())));
@@ -6008,6 +5993,9 @@ function markToolsCurrent() {
     else el.removeAttribute("aria-current");
   }
 }
+// 題名を押したらホームへ。どの道具の画面にも帯は出ているので、
+// 画面ごとに「← 一覧にもどる」を置く必要がない（置くと同じ意味の出口が2つになる）
+$("homeLink").onclick = () => { closeTools(); goList(); };
 $("toolsButton").onclick = () => ($("toolsMenu").hidden ? openTools() : closeTools());
 $("toolsClose").onclick = () => closeTools({ restoreFocus: true });
 $("toolsScrim").onclick = () => closeTools({ restoreFocus: true });
@@ -6626,7 +6614,6 @@ $("adminCodesCopy").onclick = async () => {
     $("adminCodesCopy").textContent = "コピーしました（IDも入っています）";
   } catch { $("adminCodesCopy").textContent = "コピーできませんでした。選んで写してください"; }
 };
-$("adminBack").onclick = () => { location.hash = ""; };
 $("toAdmin").onclick = () => { $("accountSheet").close(); location.hash = "#/admin"; };
 
 // **次の一歩を示す。** 危なさを言うだけでは、何をすればいいか分からない。
