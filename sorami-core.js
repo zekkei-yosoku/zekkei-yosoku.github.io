@@ -384,12 +384,27 @@
       //
       // 【入れた項】気温と露点の差。霧は気温が露点に達してできるので、
       // これがいちばん直接の量。分離 0.603 で単独では最も強い。
-      dewDepFull: 1, dewDepZero: 5, dewDepBonus: 35,
-      // 露点差が開いているほど上限を下げる（差5℃以上で 20点＝「期待薄」）
-      dewCeilingBase: 20,
+      //
+      // --- 2026-09-29 に同じ162日で見直した（最適化の点検）---
+      // 学習 2017-10〜2020／評価 2021〜2023-03 で、**評価期間の分離 0.774 → 0.826**。
+      //  - **前夜（前日18〜24時）の湿度**を足した。単独で 0.725＝どの項よりも強い。
+      //    夜のはじめに湿っていれば、冷え込みで露点に届く。これまで一度も見ていなかった
+      //  - 露点差は「夜明けの平均」ではなく**夜のうちの最小**で見る（0.583 → 0.676）。
+      //    霧ができたかは、夜のどこかで飽和したかで決まる。日が昇ると差は開く
+      //  - 前日の降水は加点から外した。前夜の湿度が同じ情報を持っていて、
+      //    両方入れると二重に数える（当て直すと重みがほぼ0になった）。型の名前づけには残す
+      //  - 風・前日最高と当日最低の差・下層雲量は、今回も**逆向き**だったので入れない
+      //    （ERA5 の28km格子の風は盆地の中の静けさを表せない、が有力）
+      //  - 季節（10〜11月に出やすい）を足すと 0.899 まで上がるが入れない。
+      //    ベストショットを選ぶ人が秋に多く撮っているだけかもしれず、切り分けられない
+      dewDepFull: 0.5, dewDepZero: 3, dewDepBonus: 15,
+      // 露点差が開いているほど上限を下げる（差5℃以上で 20点＝「期待薄」）。
+      // 夜のうちの最小と夜明けの平均の、小さいほうで見る
+      ceilDepFull: 1, ceilDepZero: 5, dewCeilingBase: 20,
+      eveHumidityLo: 75, eveHumidityHi: 97, eveHumidityBonus: 35,
       humidityLo: 86, humidityHi: 94, humidityBonus: 5,
       nightCloudClear: 50, nightCloudFail: 95, nightCloudBonus: 30,
-      prevRainFull: 6, prevRainBonus: 15,
+      prevRainFull: 6,
       // **見る時間に雨が降っていたら見下ろせない。** 雨は「雲の中にいる」ことでもある。
       // 秩父の較正（ベストショット162日）は晴れた朝ばかりなので、この事例は学習に入っていない。
       // 出典からではなく設計判断。2026-09-24 の点検で、雨10mm/h・全天曇りの朝が
@@ -434,9 +449,14 @@
       minDeckAGL: 150,
       // 地上が飽和していること。**必要条件なので上限として掛ける**
       dewDepFull: 0.8, dewDepZero: 2.5, dewCeilingBase: 20,
-      lowCloudLo: 40, lowCloudHi: 95, lowCloudBonus: 35,   // 単独 AUC 0.81
-      humidityLo: 88, humidityHi: 96, humidityBonus: 25,   // 単独 AUC 0.81
-      prevRainFull: 10, prevRainBonus: 20,                 // 単独 AUC 0.75
+      // 2026-09-29 の見直し: 盆地の雲海と同じく**前夜（前日18〜24時）の湿度**が単独で最も強く
+      // （評価期間 0.842＝それまでの式全体 0.831 より上）、足すと評価期間 0.831 → 0.875。
+      // 露点差の上限も、夜のうちの最小と夜明けの小さいほうで見る。評価期間の正例は18日と少ないので、
+      // 伸びの大きさは話半分に読む（前夜の湿度が効くこと自体は学習・評価の両方で同じ）
+      eveHumidityLo: 75, eveHumidityHi: 97, eveHumidityBonus: 30,
+      lowCloudLo: 40, lowCloudHi: 95, lowCloudBonus: 25,
+      humidityLo: 88, humidityHi: 96, humidityBonus: 25,
+      prevRainFull: 10, prevRainBonus: 20,
       // 見る時間に降っていたら、それは雲の中にいるということ
       observingRainMm: 0.1, observingRainPenalty: 25, observingRainCeiling: 20,
       // 925hPa（約770m）まで湿っていると層が厚く、展望台が雲の中に入る。
@@ -1683,11 +1703,28 @@
 
       const factors = [];
       const dep = temp - dew;
-      factors.push(factor(`気温と露点の差 ${f1(dep)}℃`,
-        (1 - Curve.ramp(dep, s.dewDepFull, s.dewDepZero)) * s.dewDepBonus,
-        dep <= s.dewDepFull ? "飽和寸前。あとわずかの冷え込みで霧になります"
-          : dep < s.dewDepZero ? "もう少し冷えるか湿れば霧になります"
+      // **夜のうちにいちばん飽和に近づいた差。** 霧ができたかは夜のどこかで決まる
+      let nightDep = null;
+      for (const i of series.indices(todayStart, ws, "temperature_2m")) {
+        const t = series.valueAtIndex("temperature_2m", i), d = series.valueAtIndex("dew_point_2m", i);
+        if (Number.isFinite(t) && Number.isFinite(d)) nightDep = Math.min(nightDep ?? Infinity, t - d);
+      }
+      const nightOrDawn = nightDep === null ? dep : Math.min(nightDep, dep);
+      factors.push(factor(`夜のうちの気温と露点の差 ${f1(nightOrDawn)}℃`,
+        (1 - Curve.ramp(nightOrDawn, s.dewDepFull, s.dewDepZero)) * s.dewDepBonus,
+        nightOrDawn <= s.dewDepFull ? "夜のうちに飽和します。霧ができる側です"
+          : nightOrDawn < s.dewDepZero ? "もう少し冷えるか湿れば霧になります"
           : "空気が乾いていて、冷えても霧になりません"));
+
+      // 前夜（前日18〜24時）の湿度。夜のはじめに湿っていれば、冷え込みで露点に届く
+      const eveHumidity = series.mean("relative_humidity_2m", todayStart - 6 * 3600000, todayStart);
+      if (eveHumidity !== null) {
+        factors.push(factor(`前夜の湿度 ${pct(eveHumidity)}`,
+          Curve.ramp(eveHumidity, s.eveHumidityLo, s.eveHumidityHi) * s.eveHumidityBonus,
+          eveHumidity >= s.eveHumidityHi ? "夜のはじめから湿っています。冷え込めば霧になります"
+            : eveHumidity > s.eveHumidityLo ? "夜のはじめにある程度湿っています"
+            : "夜のはじめに乾いていて、霧のもとが足りません"));
+      }
 
       const nightCloud = series.mean("cloud_cover", todayStart, ws);
       if (nightCloud !== null) {
@@ -1697,14 +1734,9 @@
             : "雲が布団になって冷え込みません"));
       }
 
-      // 降水は多いほど効くが、頭打ちが早い。対数で読む。
+      // 前日の降水は**加点しない**（前夜の湿度が同じ情報を持っていて、二重に数える）。
+      // 雨上がり型かどうかの名前づけにだけ使う
       const prevRain = series.sum("precipitation", prevStart, todayStart);
-      if (prevRain !== null) {
-        factors.push(factor(`前日の降水 ${f1(prevRain)}mm`,
-          Curve.ramp(Math.log1p(prevRain), 0, Math.log1p(s.prevRainFull)) * s.prevRainBonus,
-          prevRain > s.prevRainMm ? "前日の雨が水蒸気を残しています"
-            : "もとになる水蒸気が足りません"));
-      }
 
       const humidity = series.mean("relative_humidity_2m", ws, we);
       if (humidity !== null) {
@@ -1739,10 +1771,10 @@
       // 0点にはしない。ここの気温・露点は**展望台の高さ**の値で、霧ができるのは
       // 下の盆地なので、外れる余地がある（それでも実測で最も強い単独項: AUC 0.612）。
       // 「そこまでは行かない」という上限として掛ける。
-      const dewness = Curve.ramp(dep, s.dewDepZero, s.dewDepFull);
+      const dewness = Curve.ramp(nightOrDawn, s.ceilDepZero, s.ceilDepFull);
       if (dewness < 1) {
         ceiling = Math.round(s.dewCeilingBase + (100 - s.dewCeilingBase) * dewness);
-        ceilingReason = `気温と露点の差が ${f1(dep)}℃`;
+        ceilingReason = `夜のうちの気温と露点の差が ${f1(nightOrDawn)}℃`;
       }
       if (inv && inv.height !== null && elevation !== null && elevation !== undefined) {
         const margin = elevation - inv.height;
@@ -2074,6 +2106,21 @@
       const factors = [];
       const dep = temp - dew;
 
+      // 前夜（前日18〜24時）の湿度。単独でいちばん効く
+      const eveHumidity = series.mean("relative_humidity_2m", todayStart - 6 * 3600000, todayStart);
+      if (eveHumidity !== null) {
+        factors.push(factor(`前夜の湿度 ${pct(eveHumidity)}`,
+          Curve.ramp(eveHumidity, s.eveHumidityLo, s.eveHumidityHi) * s.eveHumidityBonus,
+          eveHumidity >= s.eveHumidityHi ? "夜のはじめから湿っています" : "夜のはじめの湿り気"));
+      }
+      // 夜のうちにいちばん飽和に近づいた差
+      let nightDep = null;
+      for (const i of series.indices(todayStart, ws, "temperature_2m")) {
+        const t = series.valueAtIndex("temperature_2m", i), d = series.valueAtIndex("dew_point_2m", i);
+        if (Number.isFinite(t) && Number.isFinite(d)) nightDep = Math.min(nightDep ?? Infinity, t - d);
+      }
+      const nightOrDawn = nightDep === null ? dep : Math.min(nightDep, dep);
+
       const low = series.max("cloud_cover_low", ws, we);
       if (low !== null) {
         factors.push(factor(`下層の雲 ${pct(low)}`,
@@ -2096,10 +2143,10 @@
 
       let ceiling = null, ceilingReason = "";
       // **霧ができなければ何も見えない。** 露点差は必要条件で、加点項目ではない
-      const dewness = Curve.ramp(dep, s.dewDepZero, s.dewDepFull);
+      const dewness = Curve.ramp(nightOrDawn, s.dewDepZero, s.dewDepFull);
       if (dewness < 1) {
         ceiling = Math.round(s.dewCeilingBase + (100 - s.dewCeilingBase) * dewness);
-        ceilingReason = `気温と露点の差が ${f1(dep)}℃`;
+        ceilingReason = `夜のうちの気温と露点の差が ${f1(nightOrDawn)}℃`;
       }
       // 厚い湿り層＝展望台が雲の中に入る側
       const rh925 = series.mean("relative_humidity_925hPa", ws, we);

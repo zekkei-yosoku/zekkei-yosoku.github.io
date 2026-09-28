@@ -83,6 +83,16 @@ console.log("== 上まで湿っていたら、雲の中に入る側 ==");
   ok(deep.factors.some((f) => /770m/.test(f.label)), "上空の湿りを理由に出す");
 }
 
+console.log("== 前夜の湿度がいちばん効く（2026-09-29） ==");
+{
+  // 羽田の正解データで、前夜（前日18〜24時）の湿度は単独で評価期間 0.842。式全体（0.791）より強かった
+  const humid = run(build({ dewDep: 1.2, rh: 97 }), 350);
+  const dryEve = run(build({ dewDep: 1.2, rh: 70 }), 350);
+  ok(humid.factors.some((f) => /前夜の湿度/.test(f.label)), "前夜の湿度の行を出す");
+  ok(humid.score > dryEve.score + 20, "前夜が湿っているほど高い",
+    `${Math.round(humid.score)} / ${Math.round(dryEve.score)}`);
+}
+
 console.log("== 盆地の雲海とは別の現象 ==");
 {
   ok(S.PHENOMENA.cityCloudSea && S.PHENOMENA.seaOfClouds, "2つの行がある");

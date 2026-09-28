@@ -102,7 +102,21 @@ const wet = run(build(withInversion, { dewDep: 0.3 }), 800);
 const dry = run(build(withInversion, { dewDep: 6.0 }), 800);
 ok(wet.score > dry.score + 20, "飽和寸前のほうが大きく高い",
   `露点差0.3℃で${wet.score.toFixed(0)} / 6℃で${dry.score.toFixed(0)}`);
-ok(wet.factors.some((f) => f.label.startsWith("気温と露点の差")), "露点差の行を出す");
+// 2026-09-29: 露点差は「夜のうちの最小」で見る（霧ができたかは夜のどこかで決まる）
+ok(wet.factors.some((f) => f.label.startsWith("夜のうちの気温と露点の差")), "露点差の行を出す");
+
+console.log("== 前夜の湿度と、夜のうちの露点差（2026-09-29） ==");
+{
+  // 秩父のベストショット162日で、前夜（前日18〜24時）の湿度が単独でいちばん効いた（AUC 0.725）
+  const humid = run(build(withInversion, { dewDep: 1.5, humidity: 96 }), 800);
+  const dryEve = run(build(withInversion, { dewDep: 1.5, humidity: 60 }), 800);
+  ok(humid.factors.some((f) => f.label.startsWith("前夜の湿度")), "前夜の湿度の行を出す");
+  ok(humid.score > dryEve.score + 15, "前夜が湿っているほど高い",
+    `湿度96%で${humid.score.toFixed(0)} / 60%で${dryEve.score.toFixed(0)}`);
+  // 前日の雨は加点しない（前夜の湿度と二重に数えるため）。型の名前づけには残す
+  const rainy = run(build(withInversion, { dewDep: 1.5, rain: 2 }), 800);
+  ok(!rainy.factors.some((f) => f.label.startsWith("前日の降水")), "前日の降水は加点の行に出さない");
+}
 ok(S.SCORERS.seaOfClouds.score(
   S.SCORERS.seaOfClouds.window(day + 24 * 3600000, {
     home: new S.Series(times, { temperature_2m: times.map(() => 4) }),
