@@ -1030,7 +1030,7 @@
   <div id="aimView" hidden>
     <button class="back" id="aimBack">← 一覧にもどる</button>
     <div class="card">
-      <div class="section-h"><h2>ねらう</h2><span class="muted">ダイヤモンド・パール</span></div>
+      <div class="section-h"><h2 id="aimTitle">ねらう</h2><span class="muted" id="aimSub"></span></div>
 
     <p class="tiny" style="margin:0 0 8px">目標に太陽や月が重なる日と、<strong>その日に見える場所（線）</strong>を出します。</p>
     <label class="fav-l" for="aimTarget">目標</label>
@@ -1147,7 +1147,9 @@
     <button id="toolsClose" class="tap" aria-label="閉じる">✕</button>
   </div>
   <nav class="drawer-list">
-    <button data-tool="#/aim" data-id="aim"><b>ねらう</b><span>目標に太陽や月が重なる日と、見える場所</span></button>
+    <button data-tool="#/aim/diamond" data-id="diamond"><b>ダイヤモンド富士</b><span>富士山の山頂に太陽が重なる日と、見える場所</span></button>
+    <button data-tool="#/aim/pearl" data-id="pearl"><b>パール富士</b><span>富士山の山頂に月が重なる日と、見える場所</span></button>
+    <button data-tool="#/aim/tower" data-id="tower"><b>塔に重ねる</b><span>スカイツリーや東京タワーに太陽や月を重ねる</span></button>
     <button data-tool="#/sky" data-id="sky"><b>空の見え方</b><span>稜線の上を太陽と月がどう通るか</span></button>
     <button data-tool="#/plane" data-id="plane"><b>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
     <button data-tool="#/records" data-id="records"><b>記録</b><span>点数が実際とどれだけ合っているか</span></button>
@@ -1405,21 +1407,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928084732"></script>
+<script src="sorami-core.js?v=20260928172831"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928084732"></script>
-<script src="sorami-exif.js?v=20260928084732"></script>
-<script src="sorami-capcloud.js?v=20260928084732"></script>
-<script src="sorami-terrain.js?v=20260928084732"></script>
-<script src="sorami-mountain.js?v=20260928084732"></script>
-<script src="sorami-fuji.js?v=20260928084732"></script>
-<script src="sorami-sky.js?v=20260928084732"></script>
-<script src="sorami-routes.js?v=20260928084732"></script>
-<script src="sorami-plane.js?v=20260928084732"></script>
-<script src="sorami-align.js?v=20260928084732"></script>
-<script src="sorami-moon.js?v=20260928084732"></script>
-<script src="sorami-composition.js?v=20260928084732"></script>
+<script src="sorami-astro.js?v=20260928172831"></script>
+<script src="sorami-exif.js?v=20260928172831"></script>
+<script src="sorami-capcloud.js?v=20260928172831"></script>
+<script src="sorami-terrain.js?v=20260928172831"></script>
+<script src="sorami-mountain.js?v=20260928172831"></script>
+<script src="sorami-fuji.js?v=20260928172831"></script>
+<script src="sorami-sky.js?v=20260928172831"></script>
+<script src="sorami-routes.js?v=20260928172831"></script>
+<script src="sorami-plane.js?v=20260928172831"></script>
+<script src="sorami-align.js?v=20260928172831"></script>
+<script src="sorami-moon.js?v=20260928172831"></script>
+<script src="sorami-composition.js?v=20260928172831"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2671,6 +2673,9 @@ async function readShot(input, pid, peak) {
 function routeFromHash() {
   if (location.hash === "#/records") return { records: true };
   if (location.hash === "#/aim") return { aim: true };
+  // メニューから来たときは、何を狙うかが決まっている（目標と天体を先に入れる）
+  const am = /^#\/aim\/(diamond|pearl|tower)$/.exec(location.hash);
+  if (am) return { aim: true, preset: am[1] };
   if (location.hash === "#/sky") return { sky: true };
   if (location.hash === "#/plane") return { plane: true };
   if (location.hash === "#/admin") return { admin: true };
@@ -2707,7 +2712,7 @@ function applyRoute() {
   atAim = !!(route && route.aim);
   atSky = !!(route && route.sky);
   atPlane = !!(route && route.plane);
-  if (atAim) openAim();
+  if (atAim) openAim(route.preset || null);
   if (atSky) openSky();
   if (atPlane) openPlane();
   if (atAdmin) renderAdmin();
@@ -5348,6 +5353,9 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   // 自分で置く目標のときだけ、高さの入力を出す
   $("aimCustomRow").hidden = wanted !== "custom";
   $("aimTargetNote").textContent = aim.target.note || "";
+  const t = aimTitleFor();
+  $("aimTitle").textContent = t.title;
+  $("aimSub").textContent = t.sub;
   $("aimView").classList.toggle("moon", aim.body === "moon");
   $("aimSun").setAttribute("aria-pressed", String(aim.body === "sun"));
   $("aimMoon").setAttribute("aria-pressed", String(aim.body === "moon"));
@@ -5428,7 +5436,34 @@ function aimRenderList() {
 }
 
 let aimReady = false;
-function openAim() {
+/**
+ * 何を狙うか。**メニューから来たときは決まっている。**
+ *   diamond … 富士山 × 太陽（ダイヤモンド富士）
+ *   pearl   … 富士山 × 月（パール富士）
+ *   tower   … 塔（既定はスカイツリー）
+ */
+const AIM_PRESETS = {
+  diamond: { target: "fuji", body: "sun" },
+  pearl: { target: "fuji", body: "moon" },
+  tower: { target: "skytree" },
+};
+
+/**
+ * 見出しは**いま選んでいるものから決める。**
+ * 富士山×太陽なら「ダイヤモンド富士」、富士山×月なら「パール富士」。
+ * 目標や天体を変えたら見出しも変わるので、いま何を見ているのか迷わない。
+ */
+function aimTitleFor() {
+  const t = aim.target, sun = aim.body === "sun";
+  if (t && t.id === "fuji") {
+    return sun ? { title: "ダイヤモンド富士", sub: "富士山 × 太陽" }
+      : { title: "パール富士", sub: "富士山 × 月" };
+  }
+  const name = t && t.name ? t.name : "目標";
+  return { title: `${name}に重ねる`, sub: sun ? "太陽" : "月" };
+}
+
+function openAim(preset) {
   if (!aimReady) {
     aimReady = true;
     aimFillSelects();
@@ -5477,6 +5512,14 @@ function openAim() {
     aimFillParts();
   }
   if (!$("aimDate").value) $("aimDate").value = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+  // メニューから来たときは、目標と天体を先に入れる
+  const pre = preset && AIM_PRESETS[preset];
+  if (pre) {
+    $("aimTarget").value = pre.target;
+    if (pre.body) aim.body = pre.body;
+    aim.target = SoramiAlign.targetById(pre.target) || aim.target;
+    aim.centerKey = null;
+  }
   aimApply({ redraw: false });
   // ページとして開くので、地図は表示されてから測る（隠れている間は幅が 0）
   requestAnimationFrame(() => {

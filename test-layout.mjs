@@ -138,7 +138,9 @@ ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待�
 }
 {
   const menu = html.slice(html.indexOf('id="toolsMenu"'), html.indexOf("</aside>"));
-  for (const [href, name] of [["#/aim", "ねらう"], ["#/sky", "空の見え方"], ["#/plane", "月丼"], ["#/records", "記録"]]) {
+  // 「ねらう」は中身で分けた（2026-09-28）。名前は狙うものそのものにする
+  for (const [href, name] of [["#/aim/diamond", "ダイヤモンド富士"], ["#/aim/pearl", "パール富士"],
+    ["#/aim/tower", "塔に重ねる"], ["#/sky", "空の見え方"], ["#/plane", "月丼"], ["#/records", "記録"]]) {
     ok(menu.includes(`data-tool="${href}"`) && menu.includes(name), `${name} が入っている`);
   }
 }
@@ -1984,6 +1986,17 @@ ok(/if \(!requireLogin\("記録"\)\) return;/.test(html), "ログインして使
 // 写真の現象は、一覧と同じ並びで出す（迷わせない）
 ok(/\.sort\(\(a, b\) => \(a\[1\]\.order \?\? 99\) - \(b\[1\]\.order \?\? 99\)\)/.test(html),
   "現象は一覧と同じ並び");
+
+console.log("== ねらうは中身で分ける ==");
+// **見出しはいま選んでいるものから決める。** 目標や天体を変えたら見出しも変わる
+ok(/const AIM_PRESETS = \{/.test(html), "メニューから来たときの初期値を持つ");
+ok(/diamond: \{ target: "fuji", body: "sun" \}/.test(html), "ダイヤモンド富士は富士山×太陽");
+ok(/pearl: \{ target: "fuji", body: "moon" \}/.test(html), "パール富士は富士山×月");
+ok(/function aimTitleFor/.test(html), "見出しを選択から決める");
+ok(/\^#\\\/aim\\\/\(diamond\|pearl\|tower\)\$/.test(html), "#/aim/<なに> の道がある");
+ok(/\$\("aimTitle"\)\.textContent = t\.title/.test(html), "見出しを差し替える");
+// 画面は1つのまま（中身が同じなので、押した場所で初期値だけ変える）
+ok((html.match(/id="aimView"/g) || []).length === 1, "画面は1つのまま");
 
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);
