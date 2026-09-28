@@ -409,7 +409,9 @@
       // 秩父の較正（ベストショット162日）は晴れた朝ばかりなので、この事例は学習に入っていない。
       // 出典からではなく設計判断。2026-09-24 の点検で、雨10mm/h・全天曇りの朝が
       // 65点（「出そう」）と出ていたため入れた。
-      observingRainMm: 0.2, observingRainPenalty: 20, observingRainCeiling: 25,
+      // 見るころの雨は 0.2mm を超えたら効きはじめ、0.5mm で満額（2026-09-29。以前は 0.2mm の1段で
+      // 90→25点と崩れていた）。秩父162日で全期間 0.811 → 0.826、評価期間 0.825 → 0.835
+      observingRainMm: 0.2, observingRainFullMm: 0.5, observingRainPenalty: 20, observingRainCeiling: 25,
       base: 10,
 
       // --- 型の名前づけにだけ使う（採点には入らない）---
@@ -459,7 +461,9 @@
       humidityLo: 88, humidityHi: 96, humidityBonus: 25,
       prevRainFull: 10, prevRainBonus: 20,
       // 見る時間に降っていたら、それは雲の中にいるということ
-      observingRainMm: 0.1, observingRainPenalty: 25, observingRainCeiling: 20,
+      // 見るころの雨は 0.2mm で満額（盆地の雲海のように 0.5mm まで傾けると、羽田の正解データでは
+      // 評価期間 0.866 → 0.857 と下がった。正例の定義が「雨なし」なので、ここは急なままにする）
+      observingRainMm: 0.1, observingRainFullMm: 0.2, observingRainPenalty: 25, observingRainCeiling: 20,
       // 925hPa（約770m）まで湿っていると層が厚く、展望台が雲の中に入る。
       // **代理指標**（雲頂そのものは観測されていない）。上限としてだけ効かせる
       deepMoistRh: 90, deepCeiling: 55,
@@ -1493,9 +1497,13 @@
         (cloud < 20 ? "ほとんど雲がありません" : cloud > 70 ? "厚い雲に覆われます" : "雲が出たり入ったりします")
         + (whole ? `。夜のあいだ（約${Math.round(nightHours)}時間）ずっとの値です`
                  : `。${Cal.hhmmRounded(ws)}〜${Cal.hhmmRounded(we)} の値です（この夜でいちばん条件の良い時間帯）`)));
+      // 0.1mm の1段で 40点崩れていた（2026-09-29 の崖の点検）。0.1→0.3mm で満額まで傾ける
+      // （実データの刻み 0.1mm で見ると 0.2mm で −20、0.3mm で −40）。
+      // **較正ではなく、崖をならしただけ**（星空には正解データが無い）
       const precip = series.max("precipitation", ws, we);
       if (precip !== null && precip > s.precipThreshold) {
-        factors.push(factor(`降水 ${f1(precip)}mm`, -s.precipPenalty, "雨では星は見えません"));
+        const k = Curve.ramp(precip, s.precipThreshold, 0.3);
+        factors.push(factor(`降水 ${f1(precip)}mm`, -k * s.precipPenalty, "雨では星は見えません"));
       }
       const moonPeak = Moon.peakBrightness(ws, we, input.lat, input.lon);
       const moonState = Moon.state(ws + (we - ws) / 2, input.lat, input.lon);
@@ -1791,11 +1799,13 @@
       }
 
       // 見る時間に降っている雨。**前日の雨（材料）とは意味が逆。**
+      // 降り方の強さで効きを上げる。しきい値の1段（0.1mm）で点が崩れる「崖」をなくす（2026-09-29）
       const nowRain = series.max("precipitation", ws, we);
       if (nowRain !== null && nowRain > s.observingRainMm) {
-        factors.push(factor(`見るころの降水 ${f1(nowRain)}mm`, -s.observingRainPenalty,
+        const k = Curve.ramp(nowRain, s.observingRainMm, s.observingRainFullMm);
+        factors.push(factor(`見るころの降水 ${f1(nowRain)}mm`, -s.observingRainPenalty * k,
           "その時間に雨が降っています。雲の中に入っている可能性が高く、見下ろせません"));
-        ceiling = Math.min(ceiling ?? Infinity, s.observingRainCeiling);
+        ceiling = Math.min(ceiling ?? Infinity, Math.round(100 - (100 - s.observingRainCeiling) * k));
         ceilingReason = "見るころに雨が降っている";
       }
 
@@ -1824,15 +1834,25 @@
       if (minTemp > 0) return unavailable("outOfSeason", `最低気温 ${f1(minTemp)}℃。氷点下になりません`);
       const factors = [];
       let base;
+      // 出典は「−15℃以下で84%」「−15〜−10℃で17%」という**帯ごとの割合**。そのまま段にすると
+      // −15.0℃ と −14.75℃ で 99→32点と崩れ、予報の0.25℃の差で答えが裏返る（2026-09-29 の崖の点検）。
+      // 帯の値はそのまま使い、**境目だけを最低気温の予報誤差（1〜2℃）ぶんの幅でつなぐ**:
+      // −16℃以下 84%、−14〜−11℃ 17%、その間は直線（−15℃で約50%）。−11〜−10℃ で 0% へ。
+      // **較正ではなく、ならしただけ**（帯の外側の値は出典どおり）
+      const probAt = (t) => t <= -16 ? s.extremeProb
+        : t <= -14 ? s.coldHumidProb + (s.extremeProb - s.coldHumidProb) * (-14 - t) / 2
+        : t <= -11 ? s.coldHumidProb
+        : s.coldHumidProb * Math.max(0, Math.min(1, -10 - t));
       if (minTemp <= s.extremeCold) {
-        base = s.extremeProb * 100;
+        base = probAt(minTemp) * 100;
         factors.push(factor(`最低気温 ${f1(minTemp)}℃`, 0, "−15℃以下。旭川2シーズンの観測で 16/19日（84%）が発生"));
       } else if (minTemp <= s.coldHumidTemp) {
-        base = s.coldHumidProb * 100;
+        base = probAt(minTemp) * 100;
         factors.push(factor(`最低気温 ${f1(minTemp)}℃`, 0, "−15〜−10℃。この帯の発生は 7/41日（17%）"));
         const humidity = series.mean("relative_humidity_2m", ws, we);
         if (humidity !== null && humidity > s.coldHumidHumidity) {
-          factors.push(factor(`湿度 ${pct(humidity)}`, 25, "論文は高湿度日の発生を確認（条件付き確率は未公表）"));
+          factors.push(factor(`湿度 ${pct(humidity)}`, 25 * Math.min(1, probAt(minTemp) / s.coldHumidProb),
+            "論文は高湿度日の発生を確認（条件付き確率は未公表）"));
         }
       } else {
         // **−10℃に届かない日は 0点。** 出典の観測でこの帯の発生例が無い。
@@ -1842,14 +1862,16 @@
         return buildScore(0, [factor(`最低気温 ${f1(minTemp)}℃`, 0,
           "発生が観測されている −10℃ に届きません。晴れて風が弱くても、この気温では出ません")]);
       }
+      // 晴れ・無風の加点も、発生しうる寒さの度合いに比例させる（−10℃ちょうどでは効かない）
+      const weight = Math.min(1, probAt(minTemp) / s.coldHumidProb);
       const cloud = series.mean("cloud_cover", ws, we);
       if (cloud !== null) {
-        factors.push(factor(`雲量 ${pct(cloud)}`, (1 - Curve.ramp(cloud, s.clearSkyCloud, 80)) * s.clearBonus,
+        factors.push(factor(`雲量 ${pct(cloud)}`, (1 - Curve.ramp(cloud, s.clearSkyCloud, 80)) * s.clearBonus * weight,
           "晴れて冷え込み、氷の粒が日射できらめきます"));
       }
       const wind = series.mean("wind_speed_10m", ws, we);
       if (wind !== null) {
-        factors.push(factor(`風速 ${f1(wind)}m/s`, (1 - Curve.ramp(wind, s.calmWind, 6)) * s.calmBonus, "風が弱いほど出やすくなります"));
+        factors.push(factor(`風速 ${f1(wind)}m/s`, (1 - Curve.ramp(wind, s.calmWind, 6)) * s.calmBonus * weight, "風が弱いほど出やすくなります"));
       }
       return buildScore(base, factors);
     },
@@ -2150,18 +2172,21 @@
         ceilingReason = `夜のうちの気温と露点の差が ${f1(nightOrDawn)}℃`;
       }
       // 厚い湿り層＝展望台が雲の中に入る側
+      // 90% の1段で 89→55点と崩れていたので、85〜95% で連続に効かせる（2026-09-29）
       const rh925 = series.mean("relative_humidity_925hPa", ws, we);
-      if (rh925 !== null && rh925 >= s.deepMoistRh) {
+      const deepK = rh925 === null ? 0 : Curve.ramp(rh925, s.deepMoistRh - 5, s.deepMoistRh + 5);
+      if (deepK > 0) {
         factors.push(factor(`上空約770mの湿度 ${pct(rh925)}`, 0,
           `上まで湿っていて雲の層が厚そうです。展望台（地上${Math.round(deck)}m）が雲の中に入るかもしれません`));
-        ceiling = Math.min(ceiling ?? Infinity, s.deepCeiling);
+        ceiling = Math.min(ceiling ?? Infinity, Math.round(100 - (100 - s.deepCeiling) * deepK));
         ceilingReason = "上空まで湿っていて、雲の層が厚そう";
       }
       const nowRain = series.max("precipitation", ws, we);
       if (nowRain !== null && nowRain > s.observingRainMm) {
-        factors.push(factor(`見るころの降水 ${f1(nowRain)}mm`, -s.observingRainPenalty,
+        const k = Curve.ramp(nowRain, s.observingRainMm, s.observingRainFullMm);
+        factors.push(factor(`見るころの降水 ${f1(nowRain)}mm`, -s.observingRainPenalty * k,
           "その時間に雨が降っています。雲の中にいる可能性が高く、見下ろせません"));
-        ceiling = Math.min(ceiling ?? Infinity, s.observingRainCeiling);
+        ceiling = Math.min(ceiling ?? Infinity, Math.round(100 - (100 - s.observingRainCeiling) * k));
         ceilingReason = "見るころに雨が降っている";
       }
       factors.push(factor(`展望台の高さ 地上${Math.round(deck)}m`, 0,
