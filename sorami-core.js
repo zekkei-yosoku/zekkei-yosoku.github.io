@@ -414,6 +414,37 @@
     insideCeiling: 20, aboveCeilingFull: 100,
       source: "秩父市「秩父雲海カメラ」ベストショット162日（2017-2023）で較正。露点差・夜間の雲量・前日の降水・湿度から算出",
     },
+    // 街の雲海（高い展望台から、街を覆う浅い霧を見下ろす）。
+    //
+    // 正本: [[ドメイン/開発/絶景日和/街の雲海/01_アルゴリズム]]。
+    // 較正は羽田(RJTT)のMETAR 2014-2026 と東京の再解析。
+    // 正例 = 朝4〜8時に「雲底300m以下 ＋ 地上がほぼ飽和（露点差0.6℃以下）
+    // ＋ 降水なし」だった日＝**99日（年7.8回）**。雨の朝を外すのが肝で、
+    // 外さないと「低い雲＋飽和」の大半がただの雨になり、分離が 0.71 まで落ちる。
+    // 学習 2014-2022／評価 2023-2026 で分け、**評価期間の分離 AUC 0.831**
+    // （正例の中央値 72点 / 対照 20点）。ブログに残る実例（2019-10-30 と
+    // 2016-03-08 のスカイツリー）はどちらも 90点。
+    //
+    // 【外した項】夜間の雲量。秩父の盆地（放射霧）では「夜が晴れる」が効くが、
+    // 東京の低い雲では**逆向き**（AUC 0.20）だった。曇った夜のほうが出る。
+    // 同じ「雲海」でも成因が違うので、盆地の式を流用しない。
+    cityCloudSea: {
+      // 地上からの高さ。これ未満の展望台では、霧の上に出られない
+      // （正例の朝の境界層高度は中央値185m。350mなら78%、450mなら87%が下）
+      minDeckAGL: 150,
+      // 地上が飽和していること。**必要条件なので上限として掛ける**
+      dewDepFull: 0.8, dewDepZero: 2.5, dewCeilingBase: 20,
+      lowCloudLo: 40, lowCloudHi: 95, lowCloudBonus: 35,   // 単独 AUC 0.81
+      humidityLo: 88, humidityHi: 96, humidityBonus: 25,   // 単独 AUC 0.81
+      prevRainFull: 10, prevRainBonus: 20,                 // 単独 AUC 0.75
+      // 見る時間に降っていたら、それは雲の中にいるということ
+      observingRainMm: 0.1, observingRainPenalty: 25, observingRainCeiling: 20,
+      // 925hPa（約770m）まで湿っていると層が厚く、展望台が雲の中に入る。
+      // **代理指標**（雲頂そのものは観測されていない）。上限としてだけ効かせる
+      deepMoistRh: 90, deepCeiling: 55,
+      base: 10,
+      source: "羽田の実測（METAR 2014-2026、朝に雲底300m以下＋地上飽和＋降水なしの99日）で較正。下層雲量・湿度・露点差・前日の雨から算出",
+    },
     diamondDust: {
       extremeCold: -15, extremeProb: 0.84, coldHumidTemp: -10, coldHumidHumidity: 90, coldHumidProb: 0.17,
       clearSkyCloud: 20, calmWind: 2, windowStart: 6, windowEnd: 9, clearBonus: 8, calmBonus: 7,
@@ -2007,11 +2038,96 @@
     },
   };
 
+  /**
+   * 街の雲海。**高い展望台から、街を覆う浅い霧を見下ろす。**
+   *
+   * 盆地の雲海（`seaOfCloudsScorer`）とは成因も式も違う。あちらは高台に立って
+   * 下の盆地にたまる放射霧を見る話で、夜が晴れているほど出る。こちらは平野の街に
+   * できる浅い霧や下層雲を、塔の上から見下ろす話で、**夜は曇っているほうが出る**。
+   * 2026-09-28 に、盆地の式をそのまま塔へ当てて東京タワーで76点を出した反省から、
+   * 式を分けて別の現象にした。
+   */
+  const cityCloudSeaScorer = {
+    id: "cityCloudSea", source: T.cityCloudSea.source,
+    window(dayMs, input) {
+      const sunrise = Sun.eventTime("sunrise", dayMs, input.lat, input.lon);
+      // ブログの実例では「ピークは早朝、8時にはもう薄い」。日の出の前後を見る
+      return sunrise === null ? null : [sunrise - 3600000, sunrise + 2 * 3600000];
+    },
+    peak(dayMs, window, input) { return Sun.eventTime("sunrise", dayMs, input.lat, input.lon) ?? window[0]; },
+    score(window, input) {
+      const s = T.cityCloudSea, series = input.home, [ws, we] = window;
+      // **地上からの高さで決まる。** 標高ではない（山の上でも、地面に立っていたら
+      // 街の霧は見下ろせない。逆に平野の塔でも、霧より高ければ見下ろせる）
+      const deck = Number.isFinite(input.eyeAGL) ? input.eyeAGL : 1.5;
+      if (deck < s.minDeckAGL) {
+        return unavailable("terrain",
+          `目の高さが地上 ${Math.round(deck)}m。街の雲海は地上 ${s.minDeckAGL}m 以上の展望台から見下ろす現象です`);
+      }
+      const temp = series.mean("temperature_2m", ws, we);
+      const dew = series.mean("dew_point_2m", ws, we);
+      if (temp === null || dew === null) {
+        return unavailable("missingData", "夜明けの気温か露点が得られませんでした");
+      }
+      const todayStart = Cal.startOfDay(ws);
+      const prevStart = Cal.addDays(todayStart, -1);
+      const factors = [];
+      const dep = temp - dew;
+
+      const low = series.max("cloud_cover_low", ws, we);
+      if (low !== null) {
+        factors.push(factor(`下層の雲 ${pct(low)}`,
+          Curve.ramp(low, s.lowCloudLo, s.lowCloudHi) * s.lowCloudBonus,
+          low >= s.lowCloudHi ? "低いところが一面雲に覆われます"
+            : "低い雲は部分的です"));
+      }
+      const humidity = series.mean("relative_humidity_2m", ws, we);
+      if (humidity !== null) {
+        factors.push(factor(`夜明けの湿度 ${pct(humidity)}`,
+          Curve.ramp(humidity, s.humidityLo, s.humidityHi) * s.humidityBonus,
+          "地面の近くが湿っています"));
+      }
+      const prevRain = series.sum("precipitation", prevStart, todayStart);
+      if (prevRain !== null) {
+        factors.push(factor(`前日の降水 ${f1(prevRain)}mm`,
+          Curve.ramp(Math.log1p(prevRain), 0, Math.log1p(s.prevRainFull)) * s.prevRainBonus,
+          prevRain > 0.5 ? "雨上がりの水蒸気が残っています" : "もとになる水蒸気が足りません"));
+      }
+
+      let ceiling = null, ceilingReason = "";
+      // **霧ができなければ何も見えない。** 露点差は必要条件で、加点項目ではない
+      const dewness = Curve.ramp(dep, s.dewDepZero, s.dewDepFull);
+      if (dewness < 1) {
+        ceiling = Math.round(s.dewCeilingBase + (100 - s.dewCeilingBase) * dewness);
+        ceilingReason = `気温と露点の差が ${f1(dep)}℃`;
+      }
+      // 厚い湿り層＝展望台が雲の中に入る側
+      const rh925 = series.mean("relative_humidity_925hPa", ws, we);
+      if (rh925 !== null && rh925 >= s.deepMoistRh) {
+        factors.push(factor(`上空約770mの湿度 ${pct(rh925)}`, 0,
+          `上まで湿っていて雲の層が厚そうです。展望台（地上${Math.round(deck)}m）が雲の中に入るかもしれません`));
+        ceiling = Math.min(ceiling ?? Infinity, s.deepCeiling);
+        ceilingReason = "上空まで湿っていて、雲の層が厚そう";
+      }
+      const nowRain = series.max("precipitation", ws, we);
+      if (nowRain !== null && nowRain > s.observingRainMm) {
+        factors.push(factor(`見るころの降水 ${f1(nowRain)}mm`, -s.observingRainPenalty,
+          "その時間に雨が降っています。雲の中にいる可能性が高く、見下ろせません"));
+        ceiling = Math.min(ceiling ?? Infinity, s.observingRainCeiling);
+        ceilingReason = "見るころに雨が降っている";
+      }
+      factors.push(factor(`展望台の高さ 地上${Math.round(deck)}m`, 0,
+        "実例の朝は霧の層が中央値185mでした。350mの展望台なら78%、450mなら87%の朝で霧より上に出られます（羽田の実測から）"));
+      return buildScore(s.base, factors, ceiling, ceilingReason);
+    },
+  };
+
   const SCORERS = {
     sunset: afterglowScorer("sunset"),
     sunrise: afterglowScorer("sunrise"),
     starrySky: starrySkyScorer,
     seaOfClouds: seaOfCloudsScorer,
+    cityCloudSea: cityCloudSeaScorer,
     rainbow: rainbowScorer,
     rime: rimeScorer,
     diamondDust: diamondDustScorer,
@@ -2101,6 +2217,13 @@
              "雲海が出る条件が揃っています",
              "出るかどうかは五分五分です",
              "雲海は出にくそうです"] },
+    // 盆地の雲海のすぐ下。**同じ「雲海」でも見る場所も成因も違う**ので行を分ける
+    cityCloudSea: { name: "街の雲海", icon: "🌁", order: 4.5, record: "occurrence", timeOfDay: "明け方",
+      ranks: ["街が沈む", "出そう", "五分五分", "期待薄"],
+      says: ["街がすっぽり霧に沈み、ビルの頭だけが出るかもしれません",
+             "低い霧が広がりそうです",
+             "出るかどうかは五分五分です",
+             "低い霧は出にくそうです"] },
     rainbow: { name: "虹", icon: "🌈", order: 3, record: "occurrence", timeOfDay: "日中",
       ranks: ["好条件", "出るかも", "わずかに", "期待薄"],
       says: ["日差しと雨が重なり、虹が架かるかもしれません",
@@ -2212,6 +2335,8 @@
       // 霧氷は木に着く話、ダイヤモンドダストは地面付近の気温の話なので、
       // どちらも地面の標高で判定する。
       eyeElevation: (place.elevation ?? bundle.home.grid.elevation) + (place.eyeHeightAGL ?? 1.5),
+      // **地面からの高さ。** 街の雲海はこれで決まる（標高ではない）
+      eyeAGL: place.eyeHeightAGL ?? 1.5,
       lightPollution: place.lightPollution || null,
       air: bundle.air || null,
     });

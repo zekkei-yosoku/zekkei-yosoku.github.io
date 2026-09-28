@@ -1,4 +1,4 @@
-/* 事後再計算と分けて、取得時点の7現象の予測を上書きせず保存する。 */
+/* 事後再計算と分けて、取得時点の8現象の予測を上書きせず保存する。 */
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
@@ -15,6 +15,10 @@ export const VALIDATION_TARGETS=[
  // 朝夕焼けの定点カメラ。再解析では視程・気圧面湿度・エアロゾルが取れず採点規則の半分が
  // 発火しないため、同じ土俵で測れるよう発表時点の予報を貯める（2026-09-21追加）。
  ...AFTERGLOW_CAMERA_SITES.map(s=>({...s,targets:[s.phenomenon]})),
+ // 街の雲海は**高い展望台でしか出ない**ので、既存の14地点はどれも対象にならない。
+ // スカイツリーの天望デッキ（地上350m）で貯める。ここが正解データの元になる（2026-09-28追加）。
+ {id:'skytree-tembo-deck',name:'東京スカイツリー 天望デッキ',latitude:35.7101,longitude:139.8107,
+  elevation:3,eyeHeightAGL:350,targets:['cityCloudSea']},
  ...['nobeyama','zao-jizo','asahikawa'].map(id=>{
    const s=catalog.find(s=>s.id===id);return {...s,targets:s.phenomena};
  }),

@@ -9,9 +9,10 @@ const S=createRequire(import.meta.url)('./sorami-core.js');
 // PHENOMENA には表へ並べるための名前だけが入っている（富士山と月は 2026-09-14、笠雲は 2026-09-15 に足した）。
 // 2026-09-21: 朝夕焼けの定点カメラ4地点を追加して 10→14。再解析では視程・気圧面湿度・
 // エアロゾルが取れず採点規則の半分が発火しないので、同じ土俵で測れる発表時点の予報を貯める。
-test('core が採点する7現象と、固定10地点＋定点カメラ4地点を保存対象に含める',()=>{
+test('core が採点する8現象と、固定10地点＋定点カメラ4地点＋スカイツリーを保存対象に含める',()=>{
  assert.deepEqual([...new Set(VALIDATION_TARGETS.flatMap(s=>s.targets))].sort(),Object.keys(S.SCORERS).sort());
- assert.equal(VALIDATION_TARGETS.length,14);
+ // 2026-09-28: 街の雲海のためにスカイツリーの天望デッキ（地上350m）を追加して 14→15。
+ assert.equal(VALIDATION_TARGETS.length,15);
 });
 test('表に並ぶ現象のうち、core が採点しないものは保存対象に含めない',()=>{
  const scored=new Set(Object.keys(S.SCORERS));
