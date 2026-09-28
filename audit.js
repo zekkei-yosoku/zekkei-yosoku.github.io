@@ -2,8 +2,12 @@
  * ページ全体のレイアウト監査。目視でなく座標と描画順で判定する。
  *
  * 使い方（ブラウザのコンソール）:
- *   const t = await (await fetch("/audit.js")).text(); new Function(t)();
+ *   const s = document.createElement("script"); s.src = "/audit.js"; document.head.append(s);
  *   window.__audit();          // いまの表示位置を検査
+ *
+ * **`new Function(...)` では読み込めない。** CSP が `script-src 'self' 'unsafe-inline'` で
+ * `unsafe-eval` を許していないため、文字列からの実行は弾かれる（2026-09-28 に踏んだ）。
+ * 同じ生成元のファイルとして読ませれば 'self' で通る。
  *
  * 重なりの判定は elementFromPoint（描画順）で行う。
  * getBoundingClientRect だけだと、閉じた <details> のように
@@ -119,7 +123,10 @@ window.__audit = function () {
     const h = parseFloat(after.height);
     return Number.isFinite(h) ? Math.max(r.height, h) : r.height;
   };
-  const small = [...document.querySelectorAll("main button, main a, main select")].filter((b) => {
+  // 本文の中の出典リンク（footer）は行の高さのまま。**的を広げると文が崩れる**ので、
+  // §3「タップ領域」の対象外として扱う（毎回挙げると本物の指摘が埋もれる）。
+  const small = [...document.querySelectorAll("main button, main a, main select")]
+    .filter((b) => !b.closest("#footer")).filter((b) => {
     const r = b.getBoundingClientRect();
     return r.height > 0 && tapHeight(b) < 32;
   }).map((b) => ({ txt: (b.textContent || "").trim().slice(0, 14), h: Math.round(tapHeight(b)) }));

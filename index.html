@@ -368,11 +368,6 @@
                   padding: 5px 12px; border-radius: 999px; background: var(--line); }
   .chips button.on { background: var(--accent); color: var(--on-accent); }
   .list-item { display: block; width: 100%; text-align: left; padding: 9px 2px; border-top: 1px solid var(--line); }
-  /* スポットのカテゴリ見出し。「絶景スポット」の見出しと競わない程度の強さにする。 */
-  .spot-cat { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
-              margin-top: 14px; padding-bottom: 2px; font-size: 0.81rem; font-weight: 700;
-              color: var(--secondary); }
-  .spot-cat:first-child { margin-top: 6px; }
   /* 消したものを戻す行。トーストにして数秒で消すと、押す前に消えて戻せない。
      シートを閉じるまで残す。 */
   .undo-row { display: flex; align-items: center; gap: 8px; margin-top: 8px;
@@ -432,8 +427,10 @@
   .or-line::before, .or-line::after { content: ""; flex: 1; height: 1px; background: var(--line); }
   #favPhenomena { flex-wrap: wrap; overflow: visible; }
   #favPhenomena button { min-height: 44px; padding: 5px 14px; }
-  .fav-btn { display: block; width: 100%; padding: 12px 0; border-radius: 10px; font-weight: 700;
-             background: var(--line); color: var(--text); }
+  /* 指の的は 44px（§3）。padding だけで作ると、文字を入れる前（読み込み中）は
+     24px、入れても 42px にしかならない（2026-09-28 監査で発見） */
+  .fav-btn { display: block; width: 100%; min-height: 44px; padding: 12px 0; border-radius: 10px;
+             font-weight: 700; background: var(--line); color: var(--text); }
   .fav-btn.primary { background: var(--accent); color: var(--on-accent); }
   .fav-row { display: flex; align-items: flex-start; border-top: 1px solid var(--line); }
   .fav-row .list-item { flex: 1; min-width: 0; border-top: none; }
@@ -450,7 +447,6 @@
   .fav-remove { display: block; width: 100%; min-height: 44px; margin-top: 20px; padding: 12px 0;
                 font-size: 0.75rem; color: var(--secondary); border-top: 1px solid var(--line); }
   .warn { color: var(--red); font-size: 0.75rem; }
-  .notice { color: var(--orange); font-size: 0.75rem; }
   .section-h { display: flex; align-items: baseline; justify-content: space-between;
                gap: 10px; flex-wrap: wrap; margin: 4px 0 6px; }
   .section-h h2 { font-size: 0.94rem; }
@@ -571,7 +567,9 @@
   /* 「ねらう」画面の選択欄。2つずつ横に並べる（幅が足りなければ縦に落ちる） */
   .aim-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
   .aim-row > * { flex: 1; min-width: 0; }
-  .aim-row > button { flex: 0 0 auto; width: auto; padding: 0 14px; }
+  /* 横の余白だけを上書きすると、.fav-btn の縦の余白（12px）まで消えて 24px になる。
+     指の的は 44px（§3）。隣の入力欄と同じ高さにも揃う（2026-09-28 監査で発見） */
+  .aim-row > button { flex: 0 0 auto; width: auto; padding: 0 14px; min-height: 44px; }
   /* 2択は押して選ぶ。選択肢が2つしかないものを select にすると、開かないと中身が見えない */
   .aim-seg { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--sunk);
              flex: 0 0 auto; }
@@ -647,7 +645,7 @@
                      color: #fff; text-shadow: 0 0 4px rgba(0,0,0,.8); }
   .maprow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .maprow #mapCoord { flex: 1; font-variant-numeric: tabular-nums; color: var(--secondary); }
-  .maprow button { flex: none; width: auto; padding: 0 12px; }
+  .maprow button { flex: none; width: auto; padding: 0 12px; min-height: 44px; }
   /* ダイヤモンド富士の行。左に名前、右に日時と重なり具合。押せる行は矢印を出す。 */
   .al { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
   .al-row { display: block; padding: 8px 10px; border-radius: 10px; background: var(--sunk);
@@ -1394,21 +1392,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928180705"></script>
+<script src="sorami-core.js?v=20260928182458"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928180705"></script>
-<script src="sorami-exif.js?v=20260928180705"></script>
-<script src="sorami-capcloud.js?v=20260928180705"></script>
-<script src="sorami-terrain.js?v=20260928180705"></script>
-<script src="sorami-mountain.js?v=20260928180705"></script>
-<script src="sorami-fuji.js?v=20260928180705"></script>
-<script src="sorami-sky.js?v=20260928180705"></script>
-<script src="sorami-routes.js?v=20260928180705"></script>
-<script src="sorami-plane.js?v=20260928180705"></script>
-<script src="sorami-align.js?v=20260928180705"></script>
-<script src="sorami-moon.js?v=20260928180705"></script>
-<script src="sorami-composition.js?v=20260928180705"></script>
+<script src="sorami-astro.js?v=20260928182458"></script>
+<script src="sorami-exif.js?v=20260928182458"></script>
+<script src="sorami-capcloud.js?v=20260928182458"></script>
+<script src="sorami-terrain.js?v=20260928182458"></script>
+<script src="sorami-mountain.js?v=20260928182458"></script>
+<script src="sorami-fuji.js?v=20260928182458"></script>
+<script src="sorami-sky.js?v=20260928182458"></script>
+<script src="sorami-routes.js?v=20260928182458"></script>
+<script src="sorami-plane.js?v=20260928182458"></script>
+<script src="sorami-align.js?v=20260928182458"></script>
+<script src="sorami-moon.js?v=20260928182458"></script>
+<script src="sorami-composition.js?v=20260928182458"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2778,7 +2776,7 @@ function highlightRow(id, dayMs, ev, now) {
 // 軸を1本にすると、良い日が【縦の列】として浮かぶ。
 //
 // 行の並びは呼び出し元から渡された order をそのまま使う。
-// 並び替えのプルダウンはカード時代と同じものが効く。
+// 並び替えは表の左上の札から選ぶ（→ sortFace）。
 /// 並び替えの札。いま何で並べているかを、表の左上に出す
 function sortFace() {
   return `<span class="mxsort-face"><i>⇅</i>${esc(SORTS[sortMode].label)}</span>`;
@@ -6717,7 +6715,11 @@ function clearAdminView() {
 }
 
 /// メニューで何を使えるか。管理者は役割で全部なので、選ばせない
-const TOOL_NAMES = { aim: "ねらう", sky: "空の見え方", plane: "月丼", records: "記録" };
+// 道具の名前は**メニューの並び（.drawer-list）が正本**。ここに書き写すと、
+// 道具を分けた日に片方だけ古くなる。実際 2026-09-28 のねらう細分化のあと、
+// 管理画面だけ「ねらう」のまま残り、新しい3つは英語のIDで出ていた。
+const TOOL_NAMES = Object.fromEntries([...document.querySelectorAll("#toolsMenu [data-tool]")]
+  .map((el) => [el.dataset.id, el.querySelector("b").textContent]));
 function toolPicker(u, me) {
   if (u.role === "admin") {
     return `<div class="tiny" style="margin-top:6px;color:var(--tertiary)">管理者はすべて使えます</div>`;

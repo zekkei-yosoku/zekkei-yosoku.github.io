@@ -318,6 +318,21 @@ ok(/function renderVerdict/.test(html) && /±\$\{err\}/.test(html),
   "点数に誤差が並記されている");
 ok(/class="band"/.test(html), "バーに動きうる幅の帯がある");
 
+console.log("== 道具の名前は1か所から取る ==");
+// 管理画面に書き写していたため、ねらうを3つに分けた日に片方だけ古くなった。
+ok(/const TOOL_NAMES = Object\.fromEntries\(\[\.\.\.document\.querySelectorAll\("#toolsMenu \[data-tool\]"\)\]/.test(html),
+  "管理画面の名前はメニューから作る");
+ok(!/TOOL_NAMES = \{/.test(html), "名前を書き写さない");
+{
+  // メニューの data-id と、Worker が許す道具（TOOLS）が一致していること。
+  const menu = [...html.matchAll(/data-tool="[^"]+" data-id="([a-z]+)"/g)].map((m) => m[1]);
+  ok(menu.length === 6, "メニューの道具は6つ", menu.join("・"));
+  const api = fs.readFileSync(new URL("../api/src/index.js", import.meta.url), "utf8");
+  const tools = /const TOOLS = \[([^\]]+)\]/.exec(api)[1].match(/"([a-z]+)"/g).map((s) => s.replace(/"/g, ""));
+  ok(JSON.stringify(menu.slice().sort()) === JSON.stringify(tools.slice().sort()),
+    "メニューと Worker の道具の一覧が一致する", `${menu.join("・")} / ${tools.join("・")}`);
+}
+
 console.log("== 並び替えは表の左上に入れる ==");
 // 独立した行に置くと、どのカードにも属さない帯が1本浮いた（2026-09-28 ユーザー指摘）。
 ok(!/id="sortRow"/.test(html), "並び替えだけの行を作らない");
