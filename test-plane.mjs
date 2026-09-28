@@ -139,5 +139,90 @@ console.log("== 展望台の上は目が高い ==");
   ok(RT.SPOTS.find((x) => x.id === "chibaport").deckM === 113, "千葉ポートタワーは地上113m");
 }
 
+console.log("== 運用は風の強さと時刻でも決まる（2026-09-29） ==");
+{
+  // 優先滑走路: 風が弱ければ北風運用のまま。34 への追い風が 5kt（2.6m/s）を超えたら南風
+  ok(RT.operationFor(180, 1.5, 12) === "north", "弱い南風（1.5m/s）は北風運用のまま");
+  ok(RT.operationFor(150, 2.5, 12) === "north", "真正面の南風でも 2.5m/s なら北風運用");
+  ok(RT.operationFor(150, 3.0, 16) === "south", "3m/s の南風・16時は都心上空の南風運用");
+  ok(RT.operationFor(150, 3.0, 21) === "southBay", "同じ南風でも21時は湾側から降りる");
+  ok(RT.operationFor(150, 3.0, 14) === "southBay", "14時も湾側（都心上空は15〜19時だけ）");
+  ok(RT.operationFor(150, 3.0, 19) === "southBay", "19時ちょうどからは湾側");
+  ok(RT.operationFor(350, 12, 16) === "north", "強い北風は北風運用");
+  // 横風（真横 60°）は 34 への追い風成分がほぼ 0 なので北風運用
+  ok(RT.operationFor(60, 8, 16) === "north", "真横の風は追い風にならないので北風運用");
+  // 風速を渡さなければ従来どおり向きだけ
+  ok(RT.operationFor(180) === "south", "風速が無ければ向きだけで決める（従来）");
+  // 湾側の南風運用は 22・23 へ。経路は滑走路の北東へ伸びる
+  const bay = P.pathsFor("southBay", { landing: true });
+  ok(bay.map((p) => p.runway).join(",") === "22,23", "湾側の南風は 22・23 へ降りる");
+  const rw22 = RT.runwayOf("22");
+  ok(bay[0].points.every((q) => q.latitude > rw22.threshold.latitude && q.longitude > rw22.threshold.longitude),
+    "22 への進入は北東から");
+}
+
+console.log("== 重なりは交点を解く（2026-09-29） ==");
+{
+  // 以前は 0.5km 刻みの最寄り点と月の角度が 1° 以内なら「重なる」としていた。
+  // 8km 先では点と点が空の上で 3.6° 離れ、真上を通っても外し、1° ずれても当たりにしていた。
+  const A = require("./sorami-astro.js");
+  const d0 = day("2026-11-24");
+  let checked = 0, worst = 0;
+  for (const spot of RT.SPOTS) {
+    const obs = { latitude: spot.latitude, longitude: spot.longitude, elevation: spot.deckM ?? 0 };
+    const track = [];
+    for (let i = 0; i <= 720; i++) {
+      const at = d0 + i * 120000; const m = A.moon(at, obs);
+      track.push({ at, azimuth: m.azimuth, altitude: m.apparentAltitude,
+        illuminated: m.illuminatedFraction, use: m.apparentAltitude >= 2 && m.apparentAltitude <= 30 });
+    }
+    for (const path of P.pathsFor("north", { landing: true })) {
+      for (const c of P.crossingsFrom(obs, path, track)) {
+        if (c.moonAlt < 2 || c.moonAlt > 30) continue;
+        // 交点の時刻の月と、経路を 10m 刻みにした点との最小角度
+        const m = A.moon(c.at, obs);
+        let best = 9;
+        for (const pt of RT.approachPath(path.runway, { fromKm: 2, toKm: 30, stepKm: 0.01 })) {
+          const v = P.seenFrom(obs, pt, 1.5);
+          best = Math.min(best, P.separation(v.azimuth, v.altitude, m.azimuth, m.apparentAltitude));
+        }
+        worst = Math.max(worst, best); checked++;
+        if (c.diskMin <= 0 || c.windowMin < c.diskMin) worst = 99;
+      }
+    }
+  }
+  ok(checked >= 3, "定番の場所で交点が見つかる", `${checked}件`);
+  ok(worst < P.MOON_RADIUS_DEG, "交点の時刻に、機体は月の円盤の中にいる",
+    `最大 ${worst.toFixed(3)}°（月の半径 ${P.MOON_RADIUS_DEG}°）`);
+  // 観測者の背後を回る区間が、方位の ±180° で「月の前を横切る線」に化けないこと
+  const r = P.rankSpots(d0, P.pathsFor("north", { landing: true }), RT.SPOTS, { limit: 30 });
+  ok(r.every((s) => s.crossings.every((c) => c.planeKm >= 2 && c.planeKm <= 20)), "機体の距離はすべて範囲内");
+  // 使われていない経路は数えない
+  const none = P.rankSpots(d0, P.pathsFor("north", { landing: true }), RT.SPOTS,
+    { limit: 30, activeAt: () => false });
+  ok(none.length === 0, "その時刻に使われていない経路では重ならない");
+  const onlyL = P.rankSpots(d0, P.pathsFor("north", { landing: true }), RT.SPOTS,
+    { limit: 30, activeAt: (p) => p.runway === "34L" });
+  ok(onlyL.every((s) => s.paths.every((id) => id.startsWith("34L"))), "使われている経路だけ数える");
+  // 期待機数は「円盤が航路にかかっている時間 × 便数」。構える時間はそれより長い
+  ok(r.every((s) => s.crossings.every((c) => c.windowMin >= c.diskMin)), "構える時間は円盤の時間より長い");
+}
+
+console.log("== 便数と降下角は公表値に合わせる（2026-09-29） ==");
+{
+  // 国交省: 年間 48.6万回（2020年3月〜）＝1日 約1,330回。以前の目安は1日約800回で6割しかなかった
+  const perDay = RT.HOURLY_MOVEMENTS.reduce((a, b) => a + b, 0);
+  ok(Math.abs(perDay * 365 - 486000) / 486000 < 0.03, "年間の発着回数が公表値（48.6万回）の±3%",
+    `${perDay}回/日 × 365 = ${(perDay * 365 / 10000).toFixed(1)}万回`);
+  // 1時間の上限は 84回（従来）〜90回（新経路の時間帯）。それを超えない
+  ok(RT.HOURLY_MOVEMENTS.every((n) => n <= 90), "どの時間も上限90回以下");
+  // 南風の都心上空ルート（16L/16R）は好天時 RNAV で 3.45°。ほかは 3.0°
+  const at = (rw) => RT.approachPath(rw, { fromKm: 10, toKm: 10 })[0].altitudeM;
+  ok(Math.abs(at("16L") - (7 + 10000 * Math.tan(3.45 * Math.PI / 180))) < 1, "16L は 3.45°（10km手前で約610m）",
+    `${Math.round(at("16L"))}m`);
+  ok(Math.abs(at("34L") - (6 + 10000 * Math.tan(3 * Math.PI / 180))) < 1, "34L は 3.0°（10km手前で約530m）",
+    `${Math.round(at("34L"))}m`);
+}
+
 console.log(`\n${fail === 0 ? "PLANE OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

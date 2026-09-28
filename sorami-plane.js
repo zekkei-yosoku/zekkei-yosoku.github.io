@@ -205,76 +205,176 @@
     return litQ * dayQ * sizeQ;
   }
 
+  // 月の半径（視直径 0.52° の半分）
+  const MOON_RADIUS_DEG = 0.26;
+  // 経路からの横ずれ。最終進入はILSの電波に乗るので、滑走路に近いほど細い。
+  // 20m ＋ 滑走路からの距離 1km あたり 8m（10km 手前で ±100m）とする。
+  // **仮定の値**（ADS-B の航跡で実測に置き換えられる印として名前を付けておく）
+  const lateralScatterM = (alongKm) => 20 + 8 * Math.max(0, alongKm);
+  // 月と経路がほぼ平行に動くと、重なっていられる時間が際限なく伸びる。そこで打ち切る
+  const MAX_WINDOW_MIN = 20;
+
+  /// その点のまわりの空を平面に開いた座標（度）。方位の折り返しを跨いでも正しい
+  function skyXY(az, alt, az0, alt0) {
+    const dAz = ((az - az0 + 540) % 360) - 180;
+    return [dAz * Math.cos(alt0 * DEG), alt - alt0];
+  }
+
+  /// 線分 AB と線分 CD の交点。A + u(B−A) = C + v(D−C) の u, v を返す（交わらなければ null）
+  function segmentHit(ax, ay, bx, by, cx, cy, dx, dy) {
+    const rx = bx - ax, ry = by - ay, sx = dx - cx, sy = dy - cy;
+    const den = rx * sy - ry * sx;
+    if (Math.abs(den) < 1e-12) return null;
+    const qx = cx - ax, qy = cy - ay;
+    const u = (qx * sy - qy * sx) / den;
+    const v = (qx * ry - qy * rx) / den;
+    return u >= 0 && u <= 1 && v >= 0 && v <= 1 ? { u, v } : null;
+  }
+
+  /**
+   * ある場所から、**月の通り道が航路の線を横切る瞬間**を解く。
+   *
+   * 以前は航路を 0.5km 刻みの点で持ち、いちばん近い点と月の角度が 1° 以内なら
+   * 「重なる」としていた。8km 先では点と点が空の上で 3.6° も離れるので、
+   * **月の真上を通っていても外し**、逆に 1°（月2個ぶん）ずれていても当たりにしていた
+   * （2026-09-29 に見直し）。
+   *
+   * 空の上で、月の軌跡（数分おきの点を結んだ線）と航路（点を結んだ線）の交点を求める。
+   * 交点の時刻に、その点を通る機体は月の前を横切る。
+   * **重なっていられる時間**は、月の円盤＋機体の大きさ＋経路の横ずれ の幅を、
+   * 月が航路を横切る速さで割ったもの。
+   */
+  function crossingsFrom(obs, path, moonTrack, { eyeM = 1.5, minPlaneKm = 2, maxPlaneKm = 20 } = {}) {
+    // distanceKm は観測者から機体まで、alongKm は滑走路から経路に沿った距離
+    const sky = path.points.map((pt) => ({ ...seenFrom(obs, pt, eyeM),
+      altitudeM: pt.altitudeM, alongKm: pt.distanceKm }));
+    const out = [];
+    for (let k = 0; k + 1 < moonTrack.length; k++) {
+      const m0 = moonTrack[k], m1 = moonTrack[k + 1];
+      if (!m0.use && !m1.use) continue;
+      const [bx, by] = skyXY(m1.azimuth, m1.altitude, m0.azimuth, m0.altitude);
+      const dtMin = (m1.at - m0.at) / 60000;
+      for (let j = 0; j + 1 < sky.length; j++) {
+        const p = sky[j], q = sky[j + 1];
+        // 経路の区間が遠すぎる・近すぎるなら見ない（両端とも範囲外）
+        if ((p.distanceKm < minPlaneKm && q.distanceKm < minPlaneKm)
+          || (p.distanceKm > maxPlaneKm && q.distanceKm > maxPlaneKm)) continue;
+        const [cx, cy] = skyXY(p.azimuth, p.altitude, m0.azimuth, m0.altitude);
+        const [dx, dy] = skyXY(q.azimuth, q.altitude, m0.azimuth, m0.altitude);
+        // **月の向きから外れた区間は見ない。** 空を平面に開くと、観測者の背後を回る区間は
+        // 方位の ±180° をまたいで「月の前を横切る長い線」に化ける（検算で実際に出た）。
+        // 月の方位から 30° 以内で、空の上で短い区間だけを交点の候補にする
+        if (Math.abs(cx) > 30 || Math.abs(dx) > 30 || Math.hypot(dx - cx, dy - cy) > 15) continue;
+        const hit = segmentHit(0, 0, bx, by, cx, cy, dx, dy);
+        if (!hit) continue;
+        const planeKm = p.distanceKm + hit.v * (q.distanceKm - p.distanceKm);
+        if (planeKm < minPlaneKm || planeKm > maxPlaneKm) continue;
+        // 月が航路を横切る速さ（航路に直角な成分、度/分）
+        const len = Math.hypot(dx - cx, dy - cy) || 1e-9;
+        const ex = (dx - cx) / len, ey = (dy - cy) / len;
+        const vPerp = Math.abs((bx / dtMin) * ey - (by / dtMin) * ex);
+        const cap = (w) => Math.min(MAX_WINDOW_MIN, vPerp > 1e-6 ? w / vPerp : MAX_WINDOW_MIN);
+        // **機体が月の円盤を横切れるのは、円盤が航路にかかっている間だけ。**
+        // 期待機数はこの時間で数える（横ずれがあっても、ずれた分だけ別の機が入るので平均は変わらない）
+        const diskMin = cap(2 * MOON_RADIUS_DEG);
+        // 「このころ」に居るべき幅は、経路の横ずれぶん広くとる
+        const alongKm = (p.alongKm ?? 0) + hit.v * ((q.alongKm ?? 0) - (p.alongKm ?? 0));
+        const spreadDeg = Math.atan2(lateralScatterM(alongKm), planeKm * 1000) / DEG;
+        const windowMin = cap(2 * (MOON_RADIUS_DEG + spreadDeg));
+        out.push({
+          at: Math.round(m0.at + hit.u * (m1.at - m0.at)),
+          path: path.id, kind: path.kind, runway: path.runway,
+          planeKm, alongKm, altitudeM: p.altitudeM + hit.v * (q.altitudeM - p.altitudeM), sepDeg: 0,
+          moonAlt: m0.altitude + hit.u * (m1.altitude - m0.altitude),
+          moonAz: (m0.azimuth + hit.u * (((m1.azimuth - m0.azimuth + 540) % 360) - 180) + 360) % 360,
+          illuminated: m0.illuminated, diskMin, windowMin,
+        });
+      }
+    }
+    return out;
+  }
+
   /**
    * **名前のある場所を採点する。** 格子で探すと上位が東京湾の真ん中になるので、
    * 「今日はここ」と言うには、立てる場所の中から選ぶ必要がある。
    *
-   * その場所から月の方向へ視線を伸ばし、航路のそばを通るかを見る。
-   * 「そば」は角度で見る（月の視直径は0.52°なので、1°離れれば重ならない）。
+   * 各場所で、月の通り道が航路を横切る瞬間を解き（`crossingsFrom`）、
+   * **重なっていられる時間 × その時間帯の便数** で「待つあいだに通る機数」を出す。
+   *
+   * `activeAt(path, at)` で、その時刻にその経路が使われているかを渡せる
+   * （運用は風で一日のうちに入れ替わる。南風の都心上空は15〜19時だけ）。
    *
    * @returns {{spot, minutes, planes, score, best, windows}[]} 良い順
    */
   function rankSpots(dayMs, paths, spots, {
-    stepMin = 5, tolDeg = 1.0, minMoonAlt = 2, maxMoonAlt = 30,
+    stepMin = 2, minMoonAlt = 2, maxMoonAlt = 30,
     minPlaneKm = 2, maxPlaneKm = 20, eyeM = 1.5, hours = 24, arrivalsShare = 0.5, limit = 6,
+    activeAt = null,
   } = {}) {
-    const lanes = Math.max(1, paths.length);
+    const active = typeof activeAt === "function" ? activeAt : () => true;
+    // 1本の経路あたりの到着（出発）率。その時刻に同じ種類で使われている経路の数で割る
+    const lanesAt = (kind, at) => Math.max(1, paths.filter((p) => p.kind === kind && active(p, at)).length);
     const out = [];
     for (const spot of spots) {
       // **展望台の上なら、そのぶん目が高い。** 機体との高低差が縮むので、
       // 同じ月の高さでも近くを通る機を狙える（低い月は地上だと街に隠れる）
       const obs = { latitude: spot.latitude, longitude: spot.longitude,
                     elevation: (spot.elevationM ?? 0) + (spot.deckM ?? 0) };
-      const hits = [];
+      const track = [];
       for (let i = 0; i * stepMin * 60000 <= hours * 3600000; i++) {
         const at = dayMs + i * stepMin * 60000;
         const m = A.moon(at, obs);
-        if (m.apparentAltitude < minMoonAlt || m.apparentAltitude > maxMoonAlt) continue;
-        const sunAltitude = A.sun(at, obs).apparentAltitude;
-        for (const path of paths) {
-          // 視線がいちばん近くを通る点を探す
-          let best = null;
-          for (const pt of path.points) {
-            const v = seenFrom(obs, pt, eyeM);
-            if (v.distanceKm < minPlaneKm || v.distanceKm > maxPlaneKm) continue;
-            const sep = separation(v.azimuth, v.altitude, m.azimuth, m.apparentAltitude);
-            if (!best || sep < best.sep) best = { sep, v, pt };
-          }
-          if (!best || best.sep > tolDeg) continue;
-          hits.push({ at, path: path.id, planeKm: best.v.distanceKm,
-            altitudeM: best.pt.altitudeM, sepDeg: best.sep,
-            moonAlt: m.apparentAltitude, moonAz: m.azimuth,
-            illuminated: m.illuminatedFraction, sunAltitude });
+        track.push({ at, azimuth: m.azimuth, altitude: m.apparentAltitude,
+          illuminated: m.illuminatedFraction,
+          use: m.apparentAltitude >= minMoonAlt && m.apparentAltitude <= maxMoonAlt });
+      }
+      const hits = [];
+      for (const path of paths) {
+        for (const c of crossingsFrom(obs, path, track, { eyeM, minPlaneKm, maxPlaneKm })) {
+          if (c.moonAlt < minMoonAlt || c.moonAlt > maxMoonAlt) continue;
+          if (c.at < dayMs || c.at > dayMs + hours * 3600000) continue;
+          if (!active(path, c.at)) continue;
+          c.sunAltitude = A.sun(c.at, obs).apparentAltitude;
+          hits.push(c);
         }
       }
       if (!hits.length) continue;
-      const times = [...new Set(hits.map((h) => h.at))].sort((a, b) => a - b);
-      let planes = 0;
+      hits.sort((a, b) => a.at - b.at);
+      let planes = 0, minutes = 0;
       for (const h of hits) {
         const hour = new Date(h.at + 9 * 3600000).getUTCHours();
-        planes += RT.trafficAt(hour) * arrivalsShare / lanes / 60 * stepMin;
+        // 期待機数＝円盤が航路にかかっている時間 × その経路の到着（出発）率
+        planes += RT.trafficAt(hour) * arrivalsShare / lanesAt(h.kind, h.at) / 60 * h.diskMin;
+        minutes += h.windowMin;
       }
       const best = hits.reduce((a, b) => (quality(b) > quality(a) ? b : a), hits[0]);
+      const windows = mergeWindows(hits.map((h) => ({
+        from: h.at - h.windowMin * 30000, to: h.at + h.windowMin * 30000 })));
       out.push({
-        spot, minutes: times.length * stepMin, planes: Math.round(planes),
-        from: times[0], to: times[times.length - 1],
+        spot, minutes: Math.round(minutes), planes: Math.round(planes * 10) / 10,
+        from: windows[0].from, to: windows[windows.length - 1].to,
         quality: Math.round(quality(best) * 100) / 100,
         score: Math.round(planes * quality(best) * 10) / 10,
-        best, windows: mergeWindows(times, stepMin),
+        best, windows, crossings: hits,
         paths: [...new Set(hits.map((h) => h.path))],
       });
     }
     return out.sort((a, b) => b.score - a.score || b.planes - a.planes).slice(0, limit);
   }
 
-  /// 連続した時刻をひとまとまりにする（1回の「狙える時間帯」）
-  function mergeWindows(times, stepMin) {
+  /**
+   * 重なる時間帯をひとまとまりにする（1回の「狙える時間帯」）。
+   * 時刻の並び（数値）でも、{from, to} の並びでも受ける
+   */
+  function mergeWindows(items, stepMin = 0) {
+    const spans = items.map((x) => (typeof x === "number" ? { from: x, to: x } : { ...x }))
+      .sort((a, b) => a.from - b.from);
     const gap = stepMin * 60000 * 1.5;
     const out = [];
-    for (const t of times) {
+    for (const s of spans) {
       const last = out[out.length - 1];
-      if (last && t - last.to <= gap) last.to = t;
-      else out.push({ from: t, to: t });
+      if (last && s.from - last.to <= gap) last.to = Math.max(last.to, s.to);
+      else out.push(s);
     }
     return out;
   }
@@ -297,7 +397,8 @@
     return out;
   }
 
-  const SoramiPlane = { distanceKm, bearing, seenFrom, separation, standLine, findSpots, keepOnLand, rankSpots, mergeWindows, pathsFor, quality };
+  const SoramiPlane = { distanceKm, bearing, seenFrom, separation, standLine, findSpots, keepOnLand,
+                        crossingsFrom, rankSpots, mergeWindows, pathsFor, quality, MOON_RADIUS_DEG };
   global.SoramiPlane = SoramiPlane;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiPlane;
 })(typeof globalThis !== "undefined" ? globalThis : this);

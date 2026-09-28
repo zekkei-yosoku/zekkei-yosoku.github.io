@@ -199,7 +199,12 @@ ok(/id="planeView"/.test(html), "月丼のページがある");
 ok(/location\.hash === "#\/plane"/.test(html), "#/plane のルートがある");
 ok(/SoramiPlane\.rankSpots\(plane\.dayMs, paths, \[here, \.\.\.SoramiRoutes\.SPOTS\]/.test(html),
   "いまの地点＋定番の場所の中から選ぶ");
-ok(/planeOperationFromWind/.test(html), "運用の向きは風から決める");
+// 運用は**羽田の**風で、**時刻ごと**に決める（2026-09-29）。以前は地点の予報を流用し、
+// 12〜21時の風向を数字で平均していたので、350°と10°の北風が180°＝南風運用に化けた。
+ok(/function planeLoadWind/.test(html) && /latitude: R\.latitude/.test(html), "運用は羽田の風から決める");
+ok(/function planeOpAt\(at\)/.test(html), "運用は時刻ごとに決める");
+ok(!/mean\("wind_direction_10m"/.test(html + code), "風向を数字で平均しない（北風が南風に化ける）");
+ok(/activeAt/.test(html), "その時刻に使われている経路だけで重なりを数える");
 ok(/id="planePick"/.test(html), "「今日はここ」を先に出す");
 // 展望台からも狙える。いま選んでいる地点（展望台かもしれない）も候補に入れる
 ok(/id: "here", name: `いまの地点/.test(html), "いまの地点も候補に入れる");

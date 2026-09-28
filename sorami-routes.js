@@ -31,8 +31,10 @@
     runways: [
       { ident: "34L", threshold: { latitude: 35.536591, longitude: 139.785672 }, headingDegT: 330, elevationM: 6 },
       { ident: "34R", threshold: { latitude: 35.53969, longitude: 139.805142 }, headingDegT: 330, elevationM: 6 },
-      { ident: "16L", threshold: { latitude: 35.565897, longitude: 139.78655 }, headingDegT: 150, elevationM: 7 },
-      { ident: "16R", threshold: { latitude: 35.560452, longitude: 139.768734 }, headingDegT: 150, elevationM: 6 },
+      // 16L/16R（南風の都心上空ルート）は、好天時の RNAV 進入で**降下角 3.45°**（騒音のため高めに通す）。
+      // 月丼は晴れた日の話なので、こちらを使う。出典: 国土交通省・中野区「羽田空港の新飛行経路」
+      { ident: "16L", threshold: { latitude: 35.565897, longitude: 139.78655 }, headingDegT: 150, elevationM: 7, glideDeg: 3.45 },
+      { ident: "16R", threshold: { latitude: 35.560452, longitude: 139.768734 }, headingDegT: 150, elevationM: 6, glideDeg: 3.45 },
       { ident: "22", threshold: { latitude: 35.567459, longitude: 139.777114 }, headingDegT: 215, elevationM: 11 },
       { ident: "04", threshold: { latitude: 35.549015, longitude: 139.761274 }, headingDegT: 35, elevationM: 6 },
       { ident: "23", threshold: { latitude: 35.540598, longitude: 139.822125 }, headingDegT: 223, elevationM: 17 },
@@ -49,34 +51,62 @@
    */
   const OPERATIONS = {
     north: { name: "北風運用", landing: ["34L", "34R"], takeoff: ["05", "34R"] },
-    south: { name: "南風運用", landing: ["16L", "16R"], takeoff: ["22", "16L"],
+    south: { name: "南風運用（都心上空）", landing: ["16L", "16R"], takeoff: ["22", "16L"],
              landingHours: [15, 19], note: "南風の到着は都心の上空。15〜19時だけです" },
+    // **15〜19時以外の南風は、湾の側から B・D 滑走路へ降りる**（都心の上は通らない）。
+    // 以前はこれを持たず、南風の日は一日じゅう都心上空の線を引いていた（2026-09-29 修正）
+    southBay: { name: "南風運用（湾側）", landing: ["22", "23"], takeoff: ["16L", "16R"],
+                note: "15〜19時以外の南風は、湾の側から降ります" },
   };
 
   /**
-   * 風の向きから運用を決める。滑走路の向き（北北西／南南東）に対し、
-   * **向かい風になるほうへ降りる**。真南北成分だけを見る。
-   * @param {number} windFromDeg 風が吹いてくる方位（気象の風向）
+   * 優先滑走路。**風が弱ければ北風運用のまま。** 34 への追い風がこれを超えたら南風運用へ移る。
+   * 5ノット（2.6m/s）は ICAO PANS-ATM の「優先滑走路を使わない追い風」の目安。
    */
-  function operationFor(windFromDeg) {
+  const TAILWIND_LIMIT_MS = 2.6;
+
+  /**
+   * 風から運用を決める。
+   *
+   * 以前は「風向が北寄りか南寄りか」だけで決めていたので、**弱い南風でも南風運用**にしていた。
+   * 実際は風が弱ければ北風運用のまま（優先滑走路）。34 への追い風成分で決める。
+   *
+   * @param {number} windFromDeg 風が吹いてくる方位（気象の風向）
+   * @param {number} [windSpeedMs] 風速。無ければ向きだけで決める（従来どおり）
+   * @param {number} [hourJst] 時刻。南風のときに、都心上空（15〜19時）か湾側かを分ける
+   */
+  function operationFor(windFromDeg, windSpeedMs, hourJst) {
     if (!Number.isFinite(windFromDeg)) return null;
-    // 滑走路の軸は 330°/150°。風がその軸の北寄り半面から吹けば北風運用
-    const diff = ((windFromDeg - 330 + 540) % 360) - 180;
-    return Math.abs(diff) < 90 ? "north" : "south";
+    let south;
+    if (Number.isFinite(windSpeedMs)) {
+      // 34（330°）へ降りるときの向かい風成分。負なら追い風
+      const head = windSpeedMs * Math.cos((windFromDeg - 330) * DEG);
+      south = -head > TAILWIND_LIMIT_MS;
+    } else {
+      // 滑走路の軸は 330°/150°。風がその軸の北寄り半面から吹けば北風運用
+      const diff = ((windFromDeg - 330 + 540) % 360) - 180;
+      south = Math.abs(diff) >= 90;
+    }
+    if (!south) return "north";
+    if (!Number.isFinite(hourJst)) return "south";
+    const [from, to] = OPERATIONS.south.landingHours;
+    return hourJst >= from && hourJst < to ? "south" : "southBay";
   }
 
   /**
    * 進入の経路。滑走路のしきい値から**手前へ**まっすぐ伸ばし、3°で上がる。
    * @returns {{latitude,longitude,altitudeM,distanceKm}[]} 近い順
    */
-  function approachPath(ident, { fromKm = 2, toKm = 30, stepKm = 0.5, slopeDeg = 3 } = {}) {
+  function approachPath(ident, { fromKm = 2, toKm = 30, stepKm = 0.5, slopeDeg = null } = {}) {
     const rw = runwayOf(ident);
     if (!rw) return [];
     const back = (rw.headingDegT + 180) % 360;
+    // 降下角は滑走路ごと（16L/16R の都心上空ルートは 3.45°、ほかは標準の 3.0°）
+    const slope = slopeDeg ?? rw.glideDeg ?? 3;
     const out = [];
     for (let d = fromKm; d <= toKm + 1e-9; d += stepKm) {
       const p = destination(rw.threshold.latitude, rw.threshold.longitude, back, d);
-      out.push({ ...p, altitudeM: rw.elevationM + d * 1000 * Math.tan(slopeDeg * DEG), distanceKm: d });
+      out.push({ ...p, altitudeM: rw.elevationM + d * 1000 * Math.tan(slope * DEG), distanceKm: d });
     }
     return out;
   }
@@ -130,12 +160,20 @@
   ];
 
   /**
-   * 1時間あたりのだいたいの便数。**羽田の運用時間の目安で、実測ではない。**
+   * 1時間あたりの発着回数（離陸＋着陸）。
+   *
+   * **年間の総数を公表値に合わせた。** 国土交通省の公表で、羽田の年間発着回数は
+   * 2020年3月の新飛行経路から **48.6万回**（国内35.7万＋国際12.9万）＝1日 約1,330回。
+   * 1時間あたりの上限は従来 84回、新経路の時間帯（15〜19時など）は 90回。
+   * 以前の値（日中42回）は根拠のない目安で、足すと1日約800回＝**実績の6割しかなかった**
+   * （期待機数が4割小さく出ていた。2026-09-29 修正）。
+   *
+   * 時間帯の配り方は推定: 深夜（23〜5時）は国際線が少し、6時台は立ち上がり、
+   * 7〜22時は上限の9割前後、15〜19時は新経路で上限が上がるぶん多め。合計 1,322回/日。
    * ADS-B の受信記録がたまれば、ここを実測へ置き換える。
-   * 深夜（23〜6時）は国際線が少し。日中は多い。
    */
   const HOURLY_MOVEMENTS = [
-    4, 3, 2, 2, 2, 6, 24, 40, 44, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 40, 36, 30, 18, 8,
+    6, 6, 6, 6, 6, 6, 30, 78, 78, 78, 78, 78, 78, 78, 78, 88, 88, 88, 88, 78, 78, 78, 40, 6,
   ];
   const trafficAt = (hourJst) => HOURLY_MOVEMENTS[((hourJst % 24) + 24) % 24];
 

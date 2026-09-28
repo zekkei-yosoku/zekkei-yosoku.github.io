@@ -1347,21 +1347,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928201509"></script>
+<script src="sorami-core.js?v=20260928225517"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928201509"></script>
-<script src="sorami-exif.js?v=20260928201509"></script>
-<script src="sorami-capcloud.js?v=20260928201509"></script>
-<script src="sorami-terrain.js?v=20260928201509"></script>
-<script src="sorami-mountain.js?v=20260928201509"></script>
-<script src="sorami-fuji.js?v=20260928201509"></script>
-<script src="sorami-sky.js?v=20260928201509"></script>
-<script src="sorami-routes.js?v=20260928201509"></script>
-<script src="sorami-plane.js?v=20260928201509"></script>
-<script src="sorami-align.js?v=20260928201509"></script>
-<script src="sorami-moon.js?v=20260928201509"></script>
-<script src="sorami-composition.js?v=20260928201509"></script>
+<script src="sorami-astro.js?v=20260928225517"></script>
+<script src="sorami-exif.js?v=20260928225517"></script>
+<script src="sorami-capcloud.js?v=20260928225517"></script>
+<script src="sorami-terrain.js?v=20260928225517"></script>
+<script src="sorami-mountain.js?v=20260928225517"></script>
+<script src="sorami-fuji.js?v=20260928225517"></script>
+<script src="sorami-sky.js?v=20260928225517"></script>
+<script src="sorami-routes.js?v=20260928225517"></script>
+<script src="sorami-plane.js?v=20260928225517"></script>
+<script src="sorami-align.js?v=20260928225517"></script>
+<script src="sorami-moon.js?v=20260928225517"></script>
+<script src="sorami-composition.js?v=20260928225517"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4579,30 +4579,79 @@ function aimUpdateNear(center) {
 // 「ねらう」と同じ形。目標が**航路の上を動く点**になっただけ。
 // 航路は `sorami-routes.js` に形として持ってある（通信しない）。
 // 運用の向き（北風・南風）はその日の風の予報から決める。
-const plane = { dayMs: null, op: null, opAuto: null, kind: "landing",
+const plane = { dayMs: null, op: null, wind: null, kind: "landing",
                 result: null, seq: 0, wired: false, pick: 0 };
 
 const PlaneMap = createMapView({ canvas: "planeCanvas", zoomIn: "planeIn", zoomOut: "planeOut" });
 
-/// その日の風から運用を決める。取れなければ北風（羽田の基本）
-function planeOperationFromWind() {
+/// **羽田の**風。いま選んでいる地点の風ではない（長野を選んでいても、効くのは羽田の風）。
+/// 以前は地点の予報を流用し、しかも**風向を数字で平均**していた。350°と10°の北風が
+/// 平均で180°＝南風運用に化ける（2026-09-29 修正）。風だけの小さな取得で、30分使い回す
+async function planeLoadWind() {
+  if (plane.wind && Date.now() - plane.wind.at < 30 * 60000) return plane.wind;
+  const R = SoramiRoutes.RJTT;
+  const url = "https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
+    latitude: R.latitude.toFixed(4), longitude: R.longitude.toFixed(4),
+    hourly: "wind_direction_10m,wind_speed_10m", wind_speed_unit: "ms",
+    timeformat: "unixtime", timezone: "Asia/Tokyo", forecast_days: "16", past_days: "2",
+  });
   try {
-    const home = bundle && bundle.home && bundle.home.byModel
-      ? Object.values(bundle.home.byModel)[0] : null;
-    if (!home || !home.isSupported("wind_direction_10m")) return null;
-    const ws = S.Cal.setHour(plane.dayMs, 12), we = S.Cal.setHour(plane.dayMs, 21);
-    const deg = home.mean("wind_direction_10m", ws, we);
-    return SoramiRoutes.operationFor(deg);
-  } catch { return null; }
+    const res = await S.cachedFetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const j = await res.json();
+    const h = j.hourly || {};
+    plane.wind = { at: Date.now(), times: (h.time || []).map((s) => s * 1000),
+      dir: h.wind_direction_10m || [], speed: h.wind_speed_10m || [] };
+  } catch { plane.wind = { at: Date.now(), times: [], dir: [], speed: [] }; }
+  return plane.wind;
+}
+
+/// その時刻の運用。**時刻ごとに決める**（風は一日のうちに変わり、南風の都心上空は15〜19時だけ）。
+/// 風が分からない時刻は北風運用（羽田の基本）
+function planeOpAt(at) {
+  if (plane.op) return plane.op;
+  const w = plane.wind;
+  const hour = new Date(at + 9 * 3600000).getUTCHours();
+  if (!w || !w.times.length) return "north";
+  let i = -1, best = Infinity;
+  for (let k = 0; k < w.times.length; k++) {
+    const d = Math.abs(w.times[k] - at);
+    if (d < best) { best = d; i = k; }
+  }
+  if (i < 0 || best > 90 * 60000) return "north";
+  return SoramiRoutes.operationFor(w.dir[i], w.speed[i], hour) || "north";
+}
+
+/// その日の運用の移り変わり（「0〜14時 北風運用」のようにまとめる）
+function planeOpSpans(dayMs) {
+  const out = [];
+  for (let h = 0; h < 24; h++) {
+    const op = planeOpAt(dayMs + h * 3600000);
+    const last = out[out.length - 1];
+    if (last && last.op === op) last.to = h; else out.push({ op, from: h, to: h });
+  }
+  return out;
 }
 
 async function planeApply() {
   const seq = ++plane.seq;
   $("planeInfo").textContent = "狙い目を探しています…";
   $("planeList").innerHTML = "";
-  const op = plane.op || plane.opAuto || "north";
-  const paths = SoramiPlane.pathsFor(op,
-    { landing: plane.kind === "landing", takeoff: plane.kind === "takeoff" });
+  await planeLoadWind();
+  if (seq !== plane.seq) return;
+  // その日に使われうる経路を全部並べ、**その時刻に使われている経路だけ**を数える
+  const spans = planeOpSpans(plane.dayMs);
+  const kind = { landing: plane.kind === "landing", takeoff: plane.kind === "takeoff" };
+  const paths = [];
+  for (const op of new Set(spans.map((s) => s.op))) {
+    for (const p of SoramiPlane.pathsFor(op, kind)) {
+      if (!paths.some((q) => q.id === p.id)) paths.push(p);
+    }
+  }
+  const activeAt = (path, at) => {
+    const o = SoramiRoutes.OPERATIONS[planeOpAt(at)];
+    return !!o && (path.kind === "landing" ? o.landing : o.takeoff).includes(path.runway);
+  };
   // **名前のある場所の中から選ぶ。** 格子で探すと上位が東京湾の真ん中になる
   // （進入は湾の上を通るため）。「今日はここ」と言うには立てる場所が要る。
   // **いま選んでいる地点も候補に入れる。** 展望台を選んでいればその高さで効く
@@ -4616,22 +4665,34 @@ async function planeApply() {
       : `標高 ${Math.round(ground)}m`,
   };
   const spots = SoramiPlane.rankSpots(plane.dayMs, paths, [here, ...SoramiRoutes.SPOTS],
-    { stepMin: 2, limit: 8 });
+    { stepMin: 2, limit: 8, activeAt });
   if (seq !== plane.seq) return;
   const moon = SoramiAstro.moon(S.Cal.setHour(plane.dayMs, 21),
     { latitude: SoramiRoutes.RJTT.latitude, longitude: SoramiRoutes.RJTT.longitude, elevation: 0 });
-  plane.result = { spots, paths, op, illuminated: moon.illuminatedFraction };
+  plane.result = { spots, paths, spans, illuminated: moon.illuminatedFraction };
   plane.pick = 0;
   planeRender();
   PlaneMap.redraw();
 }
 
+/// 期待機数の言い方。**確率ではなく、その時間に円盤の前を通る機数の平均。**
+/// 1機に満たない日も多いので「約0機」とは言わない
+function planeExpect(n) {
+  if (!(n > 0)) return "通る機はまれ";
+  if (n < 1) return `平均${n.toFixed(1)}機（${Math.round((1 - Math.exp(-n)) * 100)}%で1機以上）`;
+  return `平均${n.toFixed(1)}機`;
+}
+
 function planeRender() {
   const r = plane.result;
-  const op = SoramiRoutes.OPERATIONS[r.op];
-  $("planeOpNote").textContent = (plane.op ? "手で選んでいます" : "風の予報から決めています")
-    + `。${op.name}：着陸 ${op.landing.join("・")} ／ 離陸 ${op.takeoff.join("・")}`
-    + (op.note ? `。${op.note}` : "");
+  const opLine = (s) => {
+    const o = SoramiRoutes.OPERATIONS[s.op];
+    const rw = plane.kind === "takeoff" ? o.takeoff : o.landing;
+    return `${s.from}〜${s.to + 1}時 ${o.name}・${plane.kind === "takeoff" ? "離陸" : "着陸"} ${rw.join("・")}`;
+  };
+  $("planeOpNote").textContent = plane.op
+    ? `手で選んでいます。${opLine({ op: plane.op, from: 0, to: 23 }).replace(/^0〜24時 /, "")}`
+    : `羽田の風の予報から、時刻ごとに決めています。${r.spans.map(opLine).join(" ／ ")}`;
   $("planePick").innerHTML = "";
   if (!r.spots.length) {
     $("planeInfo").textContent = "この日は、定番の場所からは重なりません。"
@@ -4640,13 +4701,15 @@ function planeRender() {
   }
   // **「今日はここ」を先に出す。** 一覧を上から読ませない
   const top = r.spots[0];
-  const w0 = top.windows[0];
-  const sun0 = top.best.sunAltitude;
+  // **重なる瞬間を言う。** 月の通り道と航路の交点を解いているので、分まで出せる
+  const b = top.best;
+  const sun0 = b.sunAltitude;
+  const half = (b.windowMin || 0) * 30000;
   $("planePick").innerHTML = `<div class="al-row" style="cursor:default">
     <div class="al-w"><strong>${esc(top.spot.name)}</strong>
-      <span class="muted">${S.JstCal.hhmm(w0.from)}〜${S.JstCal.hhmm(w0.to)}ごろ
-      ・${sun0 < -6 ? "夜" : sun0 < 0 ? "薄明" : "昼"}
-      ・${top.spot.note ? esc(top.spot.note) : ""}</span>
+      <span class="muted">${S.JstCal.hhmm(b.at)} に重なる（${S.JstCal.hhmm(b.at - half)}〜${S.JstCal.hhmm(b.at + half)} に構える）
+      ・${sun0 < -6 ? "夜" : sun0 < 0 ? "薄明" : "昼"} ・${esc(b.path)} ・${planeExpect(top.planes)}</span>
+      <span class="muted">${top.spot.note ? esc(top.spot.note) : ""}</span>
       <span class="muted">月は 方位${Math.round(top.best.moonAz)}°・高さ${Math.round(top.best.moonAlt)}°。
       その向きの ${top.best.planeKm.toFixed(1)}km 先、高度 ${Math.round(top.best.altitudeM)}m を通ります</span>
     </div></div>`;
@@ -4663,7 +4726,7 @@ function planeRender() {
     const light = sun < -6 ? "夜" : sun < 0 ? "薄明" : "昼";
     return `<button class="al-row jump" data-spot="${i}">
       <div class="al-w"><strong>${i + 1}. ${esc(sp.spot.name)}</strong>
-        <span class="muted">${when} ・ ${light} ・ 待つあいだに約${sp.planes}機</span>
+        <span class="muted">${when} ・ ${light} ・ ${planeExpect(sp.planes)}</span>
         <span class="muted">機まで ${sp.best.planeKm.toFixed(1)}km（高度 ${Math.round(sp.best.altitudeM)}m）
         ・月 高さ${Math.round(sp.best.moonAlt)}° 方位${Math.round(sp.best.moonAz)}°
         ・${esc(sp.paths.join("・"))}</span>
@@ -4730,7 +4793,6 @@ function openPlane() {
   $("planeDate").value = new Date(plane.dayMs + 9 * 3600000).toISOString().slice(0, 10);
   $("planeWeekday").textContent = `${S.Cal.monthDay(plane.dayMs)}（${S.Cal.weekday(plane.dayMs)}）`
     + (S.JstCal.sameDay(plane.dayMs, Date.now()) ? " ・ 今日" : "");
-  plane.opAuto = planeOperationFromWind();
   if (!$("planeOp").options.length) {
     $("planeOp").innerHTML = `<option value="">風から決める</option>`
       + Object.entries(SoramiRoutes.OPERATIONS)
@@ -4743,7 +4805,6 @@ function openPlane() {
       $("planeDate").value = new Date(ms + 9 * 3600000).toISOString().slice(0, 10);
       $("planeWeekday").textContent = `${S.Cal.monthDay(ms)}（${S.Cal.weekday(ms)}）`
         + (S.JstCal.sameDay(ms, Date.now()) ? " ・ 今日" : "");
-      plane.opAuto = planeOperationFromWind();
       planeApply();
     };
     $("planePrev").onclick = () => setDay(plane.dayMs - 86400000);
