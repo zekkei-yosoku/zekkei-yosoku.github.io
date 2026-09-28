@@ -656,8 +656,6 @@
   .al-l { font-size: 0.75rem; font-weight: 700; color: var(--secondary); }
   .al-w { font-variant-numeric: tabular-nums; margin-top: 1px; }
   .al-w .tiny { color: var(--secondary); }
-  .mxrail .tod { font-size: 0.58rem; font-weight: 600; color: var(--tertiary); line-height: 1.1;
-                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dhead { display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
            font-size: 0.63rem; color: var(--tertiary); line-height: 1.25; padding-bottom: 3px; }
   /* 14列だと mm/dd が隣とくっつく。字間だけ詰める（0埋めは崩さない） */
@@ -1349,21 +1347,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928195056"></script>
+<script src="sorami-core.js?v=20260928201509"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928195056"></script>
-<script src="sorami-exif.js?v=20260928195056"></script>
-<script src="sorami-capcloud.js?v=20260928195056"></script>
-<script src="sorami-terrain.js?v=20260928195056"></script>
-<script src="sorami-mountain.js?v=20260928195056"></script>
-<script src="sorami-fuji.js?v=20260928195056"></script>
-<script src="sorami-sky.js?v=20260928195056"></script>
-<script src="sorami-routes.js?v=20260928195056"></script>
-<script src="sorami-plane.js?v=20260928195056"></script>
-<script src="sorami-align.js?v=20260928195056"></script>
-<script src="sorami-moon.js?v=20260928195056"></script>
-<script src="sorami-composition.js?v=20260928195056"></script>
+<script src="sorami-astro.js?v=20260928201509"></script>
+<script src="sorami-exif.js?v=20260928201509"></script>
+<script src="sorami-capcloud.js?v=20260928201509"></script>
+<script src="sorami-terrain.js?v=20260928201509"></script>
+<script src="sorami-mountain.js?v=20260928201509"></script>
+<script src="sorami-fuji.js?v=20260928201509"></script>
+<script src="sorami-sky.js?v=20260928201509"></script>
+<script src="sorami-routes.js?v=20260928201509"></script>
+<script src="sorami-plane.js?v=20260928201509"></script>
+<script src="sorami-align.js?v=20260928201509"></script>
+<script src="sorami-moon.js?v=20260928201509"></script>
+<script src="sorami-composition.js?v=20260928201509"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2762,9 +2760,7 @@ function renderMatrix(order, now) {
     // 行に時間帯を添える。**名前で時間帯が分かるのは朝焼け・夕焼けだけ**だった
     // （2026-09-24 ユーザー指摘）。幅は実質48pxなので、3〜4文字に収める語を core が持つ。
     let grid = `<div class="mxrail"><span>${iconFor(id, now)}</span>`
-      + `<span class="nmw"><span class="nm">${esc(meta.name)}</span>`
-      + (meta.timeOfDay ? `<span class="tod">${esc(meta.timeOfDay)}</span>` : "")
-      + `</span></div>`;
+      + `<span class="nmw"><span class="nm">${esc(meta.name)}</span></span></div>`;
     for (const dayMs of dayList) {
       const e = weeks[id].find((x) => x.dayMs === dayMs);
       if (!e) { grid += `<div class="cell void" title="予測がありません">—</div>`; continue; }
@@ -2833,9 +2829,7 @@ function renderSkeleton(now) {
   for (const [id, meta] of order) {
     // 記号は本物と同じ出し方にする（月は満ち欠けで変わる）。入れ替わりで印が動かない
     let grid = `<div class="mxrail"><span>${iconFor(id, now)}</span>`
-      + `<span class="nmw"><span class="nm">${esc(meta.name)}</span>`
-      + (meta.timeOfDay ? `<span class="tod">${esc(meta.timeOfDay)}</span>` : "")
-      + `</span></div>`;
+      + `<span class="nmw"><span class="nm">${esc(meta.name)}</span></span></div>`;
     for (let i = 0; i < days.length; i++) grid += `<div class="cell skel"></div>`;
     rows += `<div class="mxrow">${grid}</div>`;
   }
