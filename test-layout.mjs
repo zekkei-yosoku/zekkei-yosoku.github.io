@@ -318,6 +318,25 @@ ok(/function renderVerdict/.test(html) && /±\$\{err\}/.test(html),
   "点数に誤差が並記されている");
 ok(/class="band"/.test(html), "バーに動きうる幅の帯がある");
 
+console.log("== 並び替えは表の左上に入れる ==");
+// 独立した行に置くと、どのカードにも属さない帯が1本浮いた（2026-09-28 ユーザー指摘）。
+ok(!/id="sortRow"/.test(html), "並び替えだけの行を作らない");
+ok(/<div class="mxrail mxsort">\$\{sortFace\(\)\}/.test(html), "表の左上の空きに入れる");
+ok(/function sortFace/.test(html), "いま何で並べているかを札で出す");
+ok(/\.mxsort \{ min-height: 44px; \}/.test(html), "指の的を実寸で確保する");
+ok(/\.mxsort select \{ position: absolute; inset: 0;[\s\S]*?opacity: 0;/.test(html),
+  "select は透明にして札へ重ねる（閉じた幅が84pxの列に収まらない）");
+for (const m of ["standard", "score", "grade", "time"]) {
+  ok(new RegExp(`${m}: \\{ label: "[^"]+", short: "[^"]{2,3}"`).test(html),
+    `${m} に列へ収まる短い名前がある`);
+}
+// 表ごと作り直されるので、つなぎ直しの順番を間違えると並び替えが効かなくなる。
+ok(html.indexOf('$("cards").innerHTML = renderMatrix(order, now);')
+   < html.indexOf('const sel = $("sortSelect");'), "表を描いてから select をつなぐ");
+// 描き直しは並べ替え以外（予報の到着・同期）でも走る。焦点はそこで戻す。
+ok(/const sortHadFocus = document\.activeElement && document\.activeElement\.id === "sortSelect";/.test(html)
+  && /if \(sortHadFocus\) sel\.focus\(\);/.test(html), "表を作り直しても select の焦点を戻す");
+
 console.log("== 一覧と詳細は別画面 ==");
 // 同じページにスクロールで並べていたが、表と詳細が混ざって読みにくかった。
 ok(/id="listView"/.test(html) && /id="detailView"/.test(html), "2つの画面がある");

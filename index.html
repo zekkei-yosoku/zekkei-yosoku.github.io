@@ -133,19 +133,6 @@
   .drawer-list button[aria-current="page"] { background: var(--sunk); }
   .drawer-list button[aria-current="page"] b { color: var(--accent); }
   #authButton.warn { color: var(--red); }
-  #sortRow { display: flex; align-items: center; gap: 8px; padding: 0 2px 10px; }
-  #sortRow label { font-size: 0.72rem; color: var(--tertiary); }
-  /* ネイティブの select を使う。OS の選択UIがそのまま出るほうが片手で速い。
-     appearance を消すと矢印まで消えるので、自前で1つだけ描く。 */
-  /* select は置換要素で ::after が描かれず、.tap（当たり判定を広げる仕組み）が効かない。
-     指の的として 44px を実寸で確保する。 */
-  #sortSelect { appearance: none; -webkit-appearance: none; min-height: 44px;
-                font-size: 0.75rem; color: var(--text); background: var(--card);
-                border: none; border-radius: 10px; padding: 6px 28px 6px 12px;
-                background-image: linear-gradient(45deg, transparent 50%, var(--secondary) 50%),
-                                  linear-gradient(135deg, var(--secondary) 50%, transparent 50%);
-                background-position: right 12px center, right 7px center;
-                background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
   .card { background: var(--card); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
   .muted { color: var(--secondary); font-size: 0.75rem; }
   .tiny { color: var(--tertiary); font-size: 0.69rem; }
@@ -513,6 +500,20 @@
             padding-left: 16px; display: flex; align-items: center; gap: 5px;
             font-size: 0.78rem; font-weight: 700; }
   .mxhead .mxrail { margin-bottom: -7px; }              /* 見出しと1行目の隙間 */
+  /* 並び替えは【表の左上の空き】へ入れる。独立した行にすると、どのカードにも
+     属さない帯が1本浮いて見えた（2026-09-28 ユーザー指摘）。
+     ネイティブの select を使う（OSの選択UIがそのまま出るほうが片手で速い）が、
+     閉じているときの幅は 84px の列に収まらないので、**見た目は自前の札**にして
+     select は透明なまま札の上に重ねる。select は置換要素で ::after が効かないため、
+     指の的の 44px は札の実寸で確保する。 */
+  .mxsort { min-height: 44px; }
+  .mxsort-face { display: inline-flex; align-items: center; gap: 3px; max-width: 100%;
+                 font-size: 0.63rem; font-weight: 700; color: var(--secondary);
+                 background: var(--sunk); border-radius: 8px; padding: 5px 7px;
+                 white-space: nowrap; overflow: hidden; }
+  .mxsort-face i { font-style: normal; color: var(--tertiary); }
+  .mxsort select { position: absolute; inset: 0; width: 100%; height: 100%;
+                   opacity: 0; appearance: none; -webkit-appearance: none; border: none; }
   .mxrow .mxrail { align-self: stretch; padding-left: 16px;
                    margin: -7px 0 -14px 0; }            /* 上: padding+線 / 下: padding+隙間 */
   /* 区切りの線を、現象名の列の下まで伸ばす。
@@ -862,13 +863,6 @@
   <div id="listView">
     <div class="card" id="bestNote" hidden></div>
 
-    <!-- 並び替え。既定は「標準」＝現象の固定順で、行の位置が動かない。
-         点数順・信頼度順は、その日だけ上位を知りたいときに明示的に選ぶもの。
-         選択肢が4つあり、押すたびに全部を作り直す形はうるさいのでプルダウンにする。 -->
-    <div id="sortRow">
-      <label for="sortSelect">並び替え</label>
-      <select id="sortSelect"></select>
-    </div>
     <p id="listAnnouncement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
     <div id="cards"></div>
   </div>
@@ -1397,21 +1391,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928174010"></script>
+<script src="sorami-core.js?v=20260928175138"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928174010"></script>
-<script src="sorami-exif.js?v=20260928174010"></script>
-<script src="sorami-capcloud.js?v=20260928174010"></script>
-<script src="sorami-terrain.js?v=20260928174010"></script>
-<script src="sorami-mountain.js?v=20260928174010"></script>
-<script src="sorami-fuji.js?v=20260928174010"></script>
-<script src="sorami-sky.js?v=20260928174010"></script>
-<script src="sorami-routes.js?v=20260928174010"></script>
-<script src="sorami-plane.js?v=20260928174010"></script>
-<script src="sorami-align.js?v=20260928174010"></script>
-<script src="sorami-moon.js?v=20260928174010"></script>
-<script src="sorami-composition.js?v=20260928174010"></script>
+<script src="sorami-astro.js?v=20260928175138"></script>
+<script src="sorami-exif.js?v=20260928175138"></script>
+<script src="sorami-capcloud.js?v=20260928175138"></script>
+<script src="sorami-terrain.js?v=20260928175138"></script>
+<script src="sorami-mountain.js?v=20260928175138"></script>
+<script src="sorami-fuji.js?v=20260928175138"></script>
+<script src="sorami-sky.js?v=20260928175138"></script>
+<script src="sorami-routes.js?v=20260928175138"></script>
+<script src="sorami-plane.js?v=20260928175138"></script>
+<script src="sorami-align.js?v=20260928175138"></script>
+<script src="sorami-moon.js?v=20260928175138"></script>
+<script src="sorami-composition.js?v=20260928175138"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1717,14 +1711,15 @@ const GRADE_ORDER = { A: 0, B: 1, C: 2 };
 // 「並び替え」と書いてある場所なので「〜順」は繰り返しになる。
 // 向きも書かない。点数と信頼度は高いほうが先、時刻は早いほうが先で、
 // どれも向きは一つしかない。迷わないものに注釈を足すと読みにくくなるだけ。
+// `short` は表の左上の札に出す名前。列の幅が 84px しかないので、長い名前は入らない。
 const SORTS = {
-  standard: { label: "標準", key: null },
-  score: { label: "点数", key: (u) => -u.evaluation.score },
+  standard: { label: "標準", short: "標準", key: null },
+  score: { label: "点数", short: "点数", key: (u) => -u.evaluation.score },
   // 信頼度が同じなら点数の高い順。1000 は点数（0〜100）を跨がない間隔。
-  grade: { label: "信頼度", key: (u) =>
+  grade: { label: "信頼度", short: "信頼度", key: (u) =>
     GRADE_ORDER[S.reliabilityGrade(u.evaluation.confidence, u.evaluation.models).key] * 1000
     - u.evaluation.score },
-  time: { label: "観測予定時刻", key: (u) => u.evaluation.peak || u.dayMs },
+  time: { label: "観測予定時刻", short: "時刻", key: (u) => u.evaluation.peak || u.dayMs },
 };
 let sortMode = SORTS[store.get("sorami.sort", "standard")] ? store.get("sorami.sort", "standard") : "standard";
 
@@ -2290,13 +2285,18 @@ function render() {
     }
   } else {
     renderBestNote(best, now);
+    // 表ごと作り直すと、選んでいた並び替えから焦点が外れる。描き直しは
+    // 並べ替えたとき以外（予報の到着・同期）にも走るので、ここで見て戻す。
+    const sortHadFocus = document.activeElement && document.activeElement.id === "sortSelect";
+    $("cards").innerHTML = renderMatrix(order, now);
+    // 並び替えは表の左上にある。表ごと作り直されるので、毎回つなぎ直す
     const sel = $("sortSelect");
-    if (!sel.options.length) {
+    if (sel) {
       sel.innerHTML = Object.entries(SORTS).map(([id, o]) =>
         `<option value="${id}">${o.label}</option>`).join("");
+      sel.value = sortMode;
+      if (sortHadFocus) sel.focus();
     }
-    sel.value = sortMode;
-    $("cards").innerHTML = renderMatrix(order, now);
     for (const el of $("bestNote").querySelectorAll("[data-cell]")) {
       el.onclick = () => { const [id, d] = el.dataset.cell.split("|"); pick(id, now, +d); };
     }
@@ -2314,7 +2314,7 @@ function render() {
         pick(id, now, +dayMs);
       };
     }
-    sel.onchange = () => {
+    if (sel) sel.onchange = () => {
       sortMode = SORTS[sel.value] ? sel.value : "standard";
       store.set("sorami.sort", sortMode);
       render();
@@ -2776,6 +2776,11 @@ function highlightRow(id, dayMs, ev, now) {
 //
 // 行の並びは呼び出し元から渡された order をそのまま使う。
 // 並び替えのプルダウンはカード時代と同じものが効く。
+/// 並び替えの札。いま何で並べているかを、表の左上に出す
+function sortFace() {
+  return `<span class="mxsort-face"><i>⇅</i>${esc(SORTS[sortMode].short)}</span>`;
+}
+
 function renderMatrix(order, now) {
   const live = order.filter((id) => weeks[id] && weeks[id].length
     && !weeks[id].every((e) => e.evaluation.unavailable));
@@ -2785,7 +2790,8 @@ function renderMatrix(order, now) {
   const dayList = weeks[live[0]].map((e) => e.dayMs);
   const today = S.Cal.startOfDay(now);
 
-  let head = `<div class="mxrail"></div>`;
+  let head = `<div class="mxrail mxsort">${sortFace()}`
+    + `<select id="sortSelect" aria-label="並び替え"></select></div>`;
   for (const dayMs of dayList) {
     const wd = S.Cal.weekday(dayMs);
     const cls = dayMs === today ? "today" : wd === "土" ? "sat" : wd === "日" ? "sun" : "";
@@ -2858,7 +2864,8 @@ function renderSkeleton(now) {
   const days = Array.from({ length: 14 }, (_, i) => today + i * 86400000);
   const order = Object.entries(S.PHENOMENA)
     .sort((a, b) => (a[1].order ?? 99) - (b[1].order ?? 99));
-  let head = `<div class="mxrail"></div>`;
+  // 骨組みにも同じ札を置く。置かないと、予報が届いた瞬間に見出しの高さが変わる
+  let head = `<div class="mxrail mxsort">${sortFace()}</div>`;
   for (const dayMs of days) {
     const wd = S.Cal.weekday(dayMs);
     const cls = dayMs === today ? "today" : wd === "土" ? "sat" : wd === "日" ? "sun" : "";

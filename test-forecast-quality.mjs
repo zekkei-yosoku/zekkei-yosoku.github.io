@@ -115,7 +115,9 @@ test('虹の全モデルが降水欠測の場合だけ判定を保留する',()=
  upcoming:()=>null,esc:s=>String(s),cellBg:()=>'',rampGradient:()=>'',
  // 月だけ行のアイコンが満ち欠けで変わる（2026-09-14）。ここは切り出して動かすので
  // 本体の iconFor が見えない。素の絵文字を返す代役を置く
- iconFor:(id)=>S.PHENOMENA[id].icon
+ iconFor:(id)=>S.PHENOMENA[id].icon,
+ // 表の左上の並び替えも本体側にある。ここで見たいのは欠測日のセルだけなので代役を置く
+ sortFace:()=>''
  });
  const output=render(['rainbow'],day);
  assert.match(output,new RegExp(`class="cell void" data-cell="rainbow\\|${day}"`));
