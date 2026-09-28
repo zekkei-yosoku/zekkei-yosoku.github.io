@@ -507,11 +507,14 @@
      select は透明なまま札の上に重ねる。select は置換要素で ::after が効かないため、
      指の的の 44px は札の実寸で確保する。 */
   .mxsort { min-height: 44px; }
-  .mxsort-face { display: inline-flex; align-items: center; gap: 3px; max-width: 100%;
-                 font-size: 0.63rem; font-weight: 700; color: var(--secondary);
-                 background: var(--sunk); border-radius: 8px; padding: 5px 7px;
+  /* 押せるものを注記の大きさ（0.63rem）で置かない。小さいと飾りに見え、
+     押せることに気づかれない（2026-09-28 ユーザー指摘）。文字は 0.72rem、
+     枠は 84px の列に「信頼度」が収まる範囲でいっぱいに取る。 */
+  .mxsort-face { display: inline-flex; align-items: center; gap: 2px; max-width: 100%;
+                 font-size: 0.72rem; font-weight: 700; color: var(--text);
+                 background: var(--sunk); border-radius: 9px; padding: 7px 6px;
                  white-space: nowrap; overflow: hidden; }
-  .mxsort-face i { font-style: normal; color: var(--tertiary); }
+  .mxsort-face i { font-style: normal; font-size: 0.81rem; color: var(--secondary); }
   .mxsort select { position: absolute; inset: 0; width: 100%; height: 100%;
                    opacity: 0; appearance: none; -webkit-appearance: none; border: none; }
   .mxrow .mxrail { align-self: stretch; padding-left: 16px;
@@ -1391,21 +1394,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928180117"></script>
+<script src="sorami-core.js?v=20260928180705"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928180117"></script>
-<script src="sorami-exif.js?v=20260928180117"></script>
-<script src="sorami-capcloud.js?v=20260928180117"></script>
-<script src="sorami-terrain.js?v=20260928180117"></script>
-<script src="sorami-mountain.js?v=20260928180117"></script>
-<script src="sorami-fuji.js?v=20260928180117"></script>
-<script src="sorami-sky.js?v=20260928180117"></script>
-<script src="sorami-routes.js?v=20260928180117"></script>
-<script src="sorami-plane.js?v=20260928180117"></script>
-<script src="sorami-align.js?v=20260928180117"></script>
-<script src="sorami-moon.js?v=20260928180117"></script>
-<script src="sorami-composition.js?v=20260928180117"></script>
+<script src="sorami-astro.js?v=20260928180705"></script>
+<script src="sorami-exif.js?v=20260928180705"></script>
+<script src="sorami-capcloud.js?v=20260928180705"></script>
+<script src="sorami-terrain.js?v=20260928180705"></script>
+<script src="sorami-mountain.js?v=20260928180705"></script>
+<script src="sorami-fuji.js?v=20260928180705"></script>
+<script src="sorami-sky.js?v=20260928180705"></script>
+<script src="sorami-routes.js?v=20260928180705"></script>
+<script src="sorami-plane.js?v=20260928180705"></script>
+<script src="sorami-align.js?v=20260928180705"></script>
+<script src="sorami-moon.js?v=20260928180705"></script>
+<script src="sorami-composition.js?v=20260928180705"></script>
 <script>
 "use strict";
 const S = window.Sorami;
