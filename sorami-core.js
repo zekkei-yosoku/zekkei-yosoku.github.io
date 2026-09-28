@@ -1618,10 +1618,27 @@
       if (["basinFloor", "plain", "coast"].includes(input.terrain)) {
         return unavailable("terrain", "雲海を見下ろせる地形ではありません");
       }
-      // **見下ろせるかは、目の高さで決まる。** 展望台の上ならそのぶん高い
-      const eye = Number.isFinite(input.eyeElevation) ? input.eyeElevation : input.elevation;
-      if (!input.terrain && eye < s.minElevation) {
-        return unavailable("terrain", `目の高さ ${Math.round(eye)}m。雲海を見下ろすには低すぎます`);
+      // **見下ろせるかを決めるのは、立っている土地の高さ。展望台では上げない。**
+      //
+      // 2026-09-28 に「展望台のぶん目が高いなら見下ろせる」として目の高さで
+      // 判定したが、ユーザー指摘で誤りと分かった。東京タワーのトップデッキ
+      // （地面30m＋250m）で雲海が76点まで出ていた。理由は3つ:
+      //  1. ここで採点しているのは**霧ができるか**で、その気温・露点・湿度は
+      //     地面の値。平野の真ん中に立つ塔の下に、霧をためる低い土地は無い
+      //  2. 閾値は秩父（盆地を見下ろす高台）のベストショット162日で較正した。
+      //     塔の上から下層雲を見る事例は1件も入っていない
+      //  3. 「雲の中に入っていないか」を見る気圧面は `needsProfile` が
+      //     **地面の高さ**で取るかどうかを決めるので、平地の塔では取っていない。
+      //     つまり歯止めが外れたまま、霧のできやすさだけで点が付いていた
+      //
+      // 展望台の高さは、下の逆転層との差（見下ろせるかの余裕）に使う。
+      const ground = Number.isFinite(input.elevation) ? input.elevation : null;
+      const eye = Number.isFinite(input.eyeElevation) ? input.eyeElevation : ground;
+      if (!input.terrain && (ground === null || ground < s.minElevation)) {
+        return unavailable("terrain", ground === null
+          ? "地面の高さが分からず、雲海を見下ろせるか判定できません"
+          : `地面の標高 ${Math.round(ground)}m。展望台で目が高くなっても、`
+            + "見下ろす先の土地が低くなければ雲海にはなりません");
       }
       const todayStart = Cal.startOfDay(ws);
       const prevStart = Cal.addDays(todayStart, -1);
@@ -2190,10 +2207,10 @@
       lat: place.latitude, lon: place.longitude,
       terrain: place.terrain || null,
       elevation: place.elevation ?? bundle.home.grid.elevation,
-      // **目の高さ（地面＋展望台）。使うのは雲海だけ。**
-      // 雲海は「見下ろせるか」なので、250mの展望台からなら標高200mの霧は下になる。
+      // **目の高さ（地面＋展望台）。使うのは雲海の「逆転層より上か」だけ。**
+      // 見下ろせる**かどうか**は地面の標高で決める（展望台では上げない。2026-09-28 修正）。
       // 霧氷は木に着く話、ダイヤモンドダストは地面付近の気温の話なので、
-      // どちらも地面の標高で判定する（2026-09-28）。
+      // どちらも地面の標高で判定する。
       eyeElevation: (place.elevation ?? bundle.home.grid.elevation) + (place.eyeHeightAGL ?? 1.5),
       lightPollution: place.lightPollution || null,
       air: bundle.air || null,
