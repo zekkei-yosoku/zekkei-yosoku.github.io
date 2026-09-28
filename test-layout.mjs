@@ -318,6 +318,36 @@ ok(/function renderVerdict/.test(html) && /±\$\{err\}/.test(html),
   "点数に誤差が並記されている");
 ok(/class="band"/.test(html), "バーに動きうる幅の帯がある");
 
+console.log("== 文字の大きさは段から選ぶ ==");
+// 段を書いておいても、CSS を足すたびに 0.78・0.67・1.19 …と増えていた
+// （2026-09-28 の総点検で38か所。段の外が全体の4割）。**検査で止める。**
+{
+  const SCALE = ["0.58", "0.63", "0.69", "0.72", "0.75", "0.81", "0.88", "0.94", "1", "1.1", "1.25", "1.44"];
+  const used = [...html.matchAll(/font-size:\s*([0-9.]+)rem/g)].map((m) => m[1]);
+  const off = [...new Set(used)].filter((v) => !SCALE.includes(v));
+  ok(off.length === 0, "段にない大きさを使わない", off.join("・"));
+  ok(used.length > 50, "検査が空振りしていない", `${used.length}か所`);
+}
+
+console.log("== 使われていない見た目の決まりを残さない ==");
+// 画面を作り替えても CSS は残る。2026-09-28 の総点検で、無くなった
+// 「重なる日」シートの決まりが43行、未使用の .notice / .spot-cat とともに残っていた。
+{
+  // 変数で組み立てる名前（`class="dhead ${cls}"` の today/sat など）は静的に追えない。
+  const INTERPOLATED = ["today", "sat", "bands"];
+  const blocks = [...html.matchAll(/<style>([\s\S]*?)<\/style>/g)];
+  const css = blocks.map((b) => b[1]).join("");
+  let rest = html;
+  for (const b of [...blocks].reverse()) rest = rest.slice(0, b.index) + rest.slice(b.index + b[0].length);
+  const classes = new Set([...css.matchAll(/\.([A-Za-z][A-Za-z0-9_-]+)/g)].map((m) => m[1]));
+  const tokens = new Set(INTERPOLATED);
+  for (const m of rest.matchAll(/class="([^"]*)"/g)) for (const t of m[1].split(/[\s${}()|?:+"'`]+/)) if (t) tokens.add(t);
+  for (const m of rest.matchAll(/classList\.(?:add|remove|toggle|contains)\("([^"]+)"/g)) tokens.add(m[1]);
+  for (const m of rest.matchAll(/querySelectorAll?\("\.([A-Za-z][\w-]+)/g)) tokens.add(m[1]);
+  const dead = [...classes].filter((c) => !tokens.has(c)).sort();
+  ok(dead.length === 0, "CSS に、どこからも使われていない class が無い", dead.join("・"));
+}
+
 console.log("== 道具の名前は1か所から取る ==");
 // 管理画面に書き写していたため、ねらうを3つに分けた日に片方だけ古くなった。
 ok(/const TOOL_NAMES = Object\.fromEntries\(\[\.\.\.document\.querySelectorAll\("#toolsMenu \[data-tool\]"\)\]/.test(html),

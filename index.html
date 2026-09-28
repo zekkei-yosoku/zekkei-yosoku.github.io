@@ -100,7 +100,7 @@
      動かすのは transform と不透明度だけ。幅や位置を動かすと毎フレーム組み直しになる。 */
   /* 押せる大きさは `.tap::after` が 44px で作るので、箱は字の大きさのままでよい。
      min-width を足すと、題名の印とのあいだに要らない隙間ができる（2026-09-28） */
-  #toolsButton { font-size: 1.05rem; line-height: 1; color: var(--secondary); padding: 0 2px; }
+  #toolsButton { font-size: 1.1rem; line-height: 1; color: var(--secondary); padding: 0 2px; }
   #toolsButton[aria-expanded="true"] { color: var(--accent); }
   .drawer-scrim { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 40;
                   opacity: 0; transition: opacity .22s ease; }
@@ -116,15 +116,15 @@
     .drawer, .drawer-scrim { transition: none; }
   }
   .drawer-head { display: flex; align-items: center; justify-content: space-between;
-                 padding: 14px 8px 10px 18px; font-size: 0.8rem; font-weight: 700;
+                 padding: 14px 8px 10px 18px; font-size: 0.81rem; font-weight: 700;
                  letter-spacing: .16em; color: var(--secondary); }
-  #toolsClose { min-height: 44px; min-width: 44px; color: var(--tertiary); font-size: 0.95rem; }
+  #toolsClose { min-height: 44px; min-width: 44px; color: var(--tertiary); font-size: 0.94rem; }
   .drawer-list { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; overflow-y: auto; }
   .drawer-list button { display: grid; grid-template-columns: 1fr auto; align-items: center;
                         gap: 0 8px; width: 100%; text-align: left; min-height: 56px;
                         padding: 9px 12px; border-radius: 12px; }
-  .drawer-list button b { grid-column: 1; font-size: 0.92rem; font-weight: 700; color: var(--text); }
-  .drawer-list button span { grid-column: 1; font-size: 0.73rem; color: var(--tertiary); line-height: 1.35; }
+  .drawer-list button b { grid-column: 1; font-size: 0.94rem; font-weight: 700; color: var(--text); }
+  .drawer-list button span { grid-column: 1; font-size: 0.72rem; color: var(--tertiary); line-height: 1.35; }
   /* 押せることを右の「›」で示す。絵文字は使わない（現象の識別にだけ使う） */
   .drawer-list button::after { content: "›"; grid-column: 2; grid-row: 1 / span 2;
                                color: var(--tertiary); font-size: 1.1rem; }
@@ -145,7 +145,7 @@
   .place-row .name { font-size: 1.25rem; font-weight: 700; }
   .place-row .chev { margin-left: auto; color: var(--secondary); }
   /* 兄弟になったので、疑似要素で当たり判定を作らず実寸で 44px を取れる。 */
-  #favToggle { flex: none; min-width: 44px; min-height: 44px; font-size: 1.15rem; }
+  #favToggle { flex: none; min-width: 44px; min-height: 44px; font-size: 1.1rem; }
 
   .ens { display: flex; align-items: flex-end; gap: 2px; height: 44px; margin: 4px 0 2px; }
   .ens-bar { flex: 1; display: flex; align-items: flex-end; height: 100%;
@@ -183,7 +183,7 @@
   /* 富士山の詳細から笠雲へ。押せることが分かる形にする。 */
   .cap-line { display: flex; align-items: center; gap: 8px; min-height: 44px;
               color: var(--text); text-decoration: none; }
-  .cap-line .ic { font-size: 1.06rem; }
+  .cap-line .ic { font-size: 1.1rem; }
   .cap-line .go { margin-left: auto; color: var(--secondary); }
 
   /* 富士山の時刻帯。一覧のセルと同じ塗りを、横一列に並べるだけ。 */
@@ -191,7 +191,7 @@
   /* 帯を朝・日中・夕で区切る。区切りは**隙間**で示す（線を足すと枠が増える）。
      段の名前は帯の上に小さく、その段の幅の中央へ。 */
   .ft-segs { display: grid; gap: 7px; margin-top: 8px; }
-  .ft-segs > span { font-size: 0.6rem; font-weight: 700; color: var(--secondary);
+  .ft-segs > span { font-size: 0.58rem; font-weight: 700; color: var(--secondary);
                     text-align: center; }
   .ft-bandwrap { margin-top: 2px; }
   .ft-c { height: 26px; display: flex; align-items: center; justify-content: center;
@@ -225,7 +225,7 @@
      色や数字を覚えなくても、どの日がいいかがそのまま見える。 */
   .ph-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .ph-head .nm { font-weight: 700; font-size: 1rem; }
-  .ph-head .ic { font-size: 1.19rem; }
+  .ph-head .ic { font-size: 1.25rem; }
   .ph-out { color: var(--tertiary); font-size: 0.81rem; margin-top: 5px; }
 
   /* 日を押すと詳しい画面へ。押せることが分かるよう、地の色と枠を付ける。 */
@@ -252,9 +252,9 @@
   .day.bands { padding: 5px 3px; }
   .day .bd { display: grid; grid-template-columns: auto 1fr; gap: 1px 3px; width: 100%;
              align-items: center; }
-  .day .bd i { font-style: normal; font-size: 0.55rem; font-weight: 700; color: var(--tertiary);
+  .day .bd i { font-style: normal; font-size: 0.58rem; font-weight: 700; color: var(--tertiary);
                line-height: 1.2; }
-  .day .bd b { font-size: 0.68rem; font-weight: 700; text-align: right; line-height: 1.2;
+  .day .bd b { font-size: 0.69rem; font-weight: 700; text-align: right; line-height: 1.2;
                font-variant-numeric: tabular-nums; }
   /* 信頼度の等級。
      点数のすぐ横に置くと「78 C」が数字の続きに見えて、何の記号か分からなかった。
@@ -279,7 +279,7 @@
      色や数字を覚えなくても、どの日がいいかがそのまま見える。 */
   .ph-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .ph-head .nm { font-weight: 700; font-size: 1rem; }
-  .ph-head .ic { font-size: 1.19rem; }
+  .ph-head .ic { font-size: 1.25rem; }
   .ph-out { color: var(--tertiary); font-size: 0.81rem; margin-top: 5px; }
 
   /* 日を押すと詳しい画面へ。押せることが分かるよう、地の色と枠を付ける。 */
@@ -494,7 +494,7 @@
      行と行の隙間（7px）ではスクロールしてきたセルが左へ抜けて見えていた。 */
   .mxrail { position: sticky; left: 0; z-index: 2; background: var(--card);
             padding-left: 16px; display: flex; align-items: center; gap: 5px;
-            font-size: 0.78rem; font-weight: 700; }
+            font-size: 0.75rem; font-weight: 700; }
   .mxhead .mxrail { margin-bottom: -7px; }              /* 見出しと1行目の隙間 */
   /* 並び替えは【表の左上の空き】へ入れる。独立した行にすると、どのカードにも
      属さない帯が1本浮いて見えた（2026-09-28 ユーザー指摘）。
@@ -589,10 +589,10 @@
   #aimView.moon .aim-k { border-top-color: var(--ray-moon); }
   .aim-k.rise { border-top-style: dashed; }
   /* 地図の中心が線からどれだけ離れているか。**動かしながら合わせるための数字** */
-  .aim-near { margin-top: 6px; font-size: 0.78rem; color: var(--secondary); font-weight: 700;
+  .aim-near { margin-top: 6px; font-size: 0.75rem; color: var(--secondary); font-weight: 700;
               font-variant-numeric: tabular-nums; }
   .aim-near.on { color: var(--accent); }
-  .aim-tab { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 0.78rem;
+  .aim-tab { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 0.75rem;
              font-variant-numeric: tabular-nums; }
   .aim-tab th, .aim-tab td { text-align: right; padding: 5px 0; border-top: 1px solid var(--line); }
   .aim-tab th:first-child, .aim-tab td:first-child { text-align: left; }
@@ -609,21 +609,21 @@
   .sky-time input[type=range] { flex: 1; accent-color: var(--accent); height: 44px; }
   .sky-time output { flex: 0 0 auto; font-weight: 700; font-size: 1rem;
                      font-variant-numeric: tabular-nums; min-width: 4.2em; text-align: right; }
-  .sky-now { margin-top: 2px; font-size: 0.78rem; font-weight: 700; color: var(--secondary);
+  .sky-now { margin-top: 2px; font-size: 0.75rem; font-weight: 700; color: var(--secondary);
              font-variant-numeric: tabular-nums; line-height: 1.7; }
   .aim-k.sun { border-top-color: var(--ray-sun); }
   /* 太陽と月は**色で分ける**。点線は「稜線の裏」の意味に取ってあるので、ここでは使わない */
   .aim-k.moon { border-top-color: var(--ray-moon); }
   /* 検索結果の高さの印。展望台かどうかは、その場で分からないと選べない */
   .tag-lookout { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
-                 font-size: 0.68rem; font-weight: 700; vertical-align: middle;
+                 font-size: 0.69rem; font-weight: 700; vertical-align: middle;
                  background: var(--sunk); color: var(--secondary); }
   .deck-row { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
   /* 管理画面の「使えるもの」。押しやすさ（44px）は行の高さで確保する */
   .tool-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 6px; }
   .tool-pick > .tiny { color: var(--tertiary); }
   .tool-pick label { display: flex; align-items: center; gap: 5px; min-height: 44px;
-                     font-size: 0.78rem; font-weight: 700; }
+                     font-size: 0.75rem; font-weight: 700; }
   .tool-pick input { width: 18px; height: 18px; accent-color: var(--accent); }
   /* 写真の記録。**原寸は持たない**ので、出すのは小さくした写しだけ */
   .ph-add { margin-top: 10px; }
@@ -637,9 +637,9 @@
   .ph-card { position: relative; border-radius: 10px; overflow: hidden; background: var(--sunk); }
   .ph-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
   .ph-blank { aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center;
-              font-size: 1.6rem; opacity: .55; }
+              font-size: 1.44rem; opacity: .55; }
   .ph-card .ph-tag { position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 6px;
-                     background: rgba(0,0,0,.6); color: #fff; font-size: 0.68rem; font-weight: 700;
+                     background: rgba(0,0,0,.6); color: #fff; font-size: 0.69rem; font-weight: 700;
                      display: flex; justify-content: space-between; gap: 4px; }
   .ph-card .ph-del { position: absolute; top: 2px; right: 2px; min-height: 32px; min-width: 32px;
                      color: #fff; text-shadow: 0 0 4px rgba(0,0,0,.8); }
@@ -661,7 +661,7 @@
   .dhead { display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
            font-size: 0.63rem; color: var(--tertiary); line-height: 1.25; padding-bottom: 3px; }
   /* 14列だと mm/dd が隣とくっつく。字間だけ詰める（0埋めは崩さない） */
-  .dhead .d { font-weight: 700; font-size: 0.67rem; letter-spacing: -.03em;
+  .dhead .d { font-weight: 700; font-size: 0.69rem; letter-spacing: -.03em;
               color: var(--secondary); font-variant-numeric: tabular-nums; }
   .dhead.sat .d { color: #2f6fb5; } .dhead.sun .d { color: var(--red); }
   .dhead.today .d { color: var(--accent); }
@@ -683,7 +683,7 @@
   .cell .v { line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
   /* 「78 C」と横に並べると数字の続きに見えるので、行を分けて枠で囲む（現行と同じ扱い）。 */
   /* 地に色が乗るので、上の文字は本文色で通す。補助色にすると濃い地で 2:1 まで落ちる。 */
-  .cell .g { font-size: 0.56rem; font-weight: 700; color: var(--text); line-height: 1.4;
+  .cell .g { font-size: 0.58rem; font-weight: 700; color: var(--text); line-height: 1.4;
              border: 1px solid color-mix(in srgb, var(--text) 30%, transparent);
              border-radius: 4px; padding: 0 3px; }
 
@@ -693,7 +693,7 @@
   @media (hover: hover) { .cell:hover { box-shadow: inset 0 0 0 1.5px var(--line); }
                           .cell.next:hover { box-shadow: inset 0 0 0 1.5px var(--accent); } }
   .cell:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
-  .mxlegend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.66rem;
+  .mxlegend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.63rem;
               color: var(--tertiary); padding: 8px 2px 0; }
   .mxlegend .ramp { display: inline-flex; align-items: center; gap: 5px; }
   .mxlegend .ramp i { display: block; width: 76px; height: 12px; border-radius: 3px; }
@@ -701,11 +701,11 @@
   .g-inline { font-weight: 700; border: 1px solid var(--line); border-radius: 4px; padding: 0 3px;
               color: var(--secondary); }
   .mxout { padding: 8px 2px 0; }
-  .mxout summary { list-style: none; cursor: pointer; font-size: 0.7rem; color: var(--tertiary); }
+  .mxout summary { list-style: none; cursor: pointer; font-size: 0.69rem; color: var(--tertiary); }
   .mxout summary::-webkit-details-marker { display: none; }
   .mxout summary::before { content: "▸ "; }
   .mxout[open] summary::before { content: "▾ "; }
-  .mxout li { font-size: 0.7rem; color: var(--tertiary); margin-top: 4px; list-style: none; }
+  .mxout li { font-size: 0.69rem; color: var(--tertiary); margin-top: 4px; list-style: none; }
 
   /* ============================================================
      移植2: 光の時間の帯（詳細の中）
@@ -726,21 +726,21 @@
      真ん中寄せのままだと、左端の印がカードの外へはみ出す。 */
   .lt-mk .lbl { position: absolute; top: 9px; left: 0; white-space: nowrap;
                 display: inline-flex; align-items: center; gap: 4px;
-                font-size: 0.61rem; color: var(--secondary);
+                font-size: 0.63rem; color: var(--secondary);
                 font-variant-numeric: tabular-nums; }
   .lt-mk .ic { font-size: 0.88rem; line-height: 1; }
   .lt-mk b { font-weight: 600; color: var(--tertiary); }
-  .lt-axis { display: flex; justify-content: space-between; font-size: 0.62rem;
+  .lt-axis { display: flex; justify-content: space-between; font-size: 0.63rem;
              color: var(--tertiary); margin-top: 2px; }
   /* 凡例は【2段】に固定する。1段目が太陽と月の時刻、2段目がゴールデンとブルー。
      幅が広がってもゴールデンが1段目へ上がらないよう、段ごとに入れ物を分ける。
      段の中は幅が足りなければ折り返す。 */
   .lt-legend { display: flex; flex-direction: column; gap: 4px; margin-top: 8px;
-               font-size: 0.66rem; color: var(--tertiary); }
+               font-size: 0.63rem; color: var(--tertiary); }
   .lt-row { display: flex; flex-wrap: wrap; gap: 2px 14px; }
   .lt-legend b { font-weight: 600; color: var(--secondary); }
   .lt-legend .li { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-  .lt-legend .li .ic { font-size: 0.85rem; line-height: 1; }
+  .lt-legend .li .ic { font-size: 0.88rem; line-height: 1; }
   /* ゴールデン／ブルーは長いので、狭い画面では見出しと時刻で改行させる。
      時刻そのものは割らない。 */
   .lt-legend .li.pair { flex-wrap: wrap; white-space: normal; row-gap: 0; }
@@ -804,58 +804,15 @@
   </div>
 
 <style>
-/* 富士山と月。
-   **既存の一覧（14日×現象の表）と同じ作法で作る。**
-   → Vault ドメイン/開発/絶景日和/04_デザイン定義
-
-   最初これを「カードの中に角丸のグレー箱を3つ並べる」形で作ったら、
-   「自分のいる場所」が4行に折れ、点数だけ 30px で浮いた。
-   箱を入れ子にせず、行で揃える形へ直した。 */
-
-/* 見出し。現象の行と同じ「絵文字＋名前」に、右端へ点数 */
-.pk-head { display: flex; align-items: baseline; gap: 7px; }
-.pk-head .ic { font-size: 1rem; }
-.pk-head .nm { font-weight: 700; font-size: 0.94rem; flex: 1; }
-.pk-head .sc { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.pk-head .sc small { font-size: 0.69rem; font-weight: 400; margin-left: 1px; }
-.pk-says { margin-top: 2px; font-size: 0.81rem; }
-.pk-when { margin-top: 1px; font-size: 0.75rem; color: var(--secondary); }
-
-/* 内訳。**箱を作らず、行で揃える。** 左にラベル、右に数値 */
+/* 「この点数のわけ」の内訳。**箱を作らず、行で揃える。** 左にラベル、右に数値。
+   もとは富士山と月の「重なる日」シート一式だったが、その画面は無くなり、
+   生き残ったのはこの2つだけ（2026-09-28 の総点検で残りを削除）。
+   → Vault ドメイン/開発/絶景日和/04_デザイン定義 */
 .pk-rows { margin-top: 10px; border-top: 1px solid var(--line); }
 .pk-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
           padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 0.81rem; }
 .pk-row > span:first-child { color: var(--secondary); white-space: nowrap; }
 .pk-row > span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; }
-.pk-note { margin-top: 8px; font-size: 0.72rem; color: var(--tertiary); line-height: 1.55; }
-
-/* 重なる日 */
-.pk-sub { margin-top: 12px; font-size: 0.81rem; font-weight: 600; }
-.pk-comp { display: grid; grid-template-columns: auto auto 1fr; gap: 2px 10px;
-           margin-top: 4px; font-size: 0.75rem; align-items: baseline; }
-.pk-comp .d { font-variant-numeric: tabular-nums; }
-.pk-comp .w { color: var(--tertiary); }
-
-/* 時系列。横スクロール（月 §51）。**自動では動かさない**（§52） */
-.pk-tl-wrap { position: relative; margin-top: 10px; }
-.pk-tl { display: flex; gap: 4px; overflow-x: auto; padding: 2px 26px 4px 0;
-         scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
-.pk-tl::after { content: ""; flex: 0 0 6px; }
-.pk-tl-wrap::after { content: ""; position: absolute; right: 0; top: 0; bottom: 4px; width: 24px;
-  pointer-events: none; background: linear-gradient(to right, transparent, var(--card)); }
-.pk-cell { flex: 0 0 auto; scroll-snap-align: center; min-width: 46px; min-height: 44px;
-           text-align: center; padding: 5px 5px; border-radius: 5px; background: var(--sunk);
-           border: 1.5px solid transparent; cursor: pointer; font-size: 0.63rem;
-           line-height: 1.4; color: var(--text); font-variant-numeric: tabular-nums; }
-.pk-cell[aria-pressed="true"] { border-color: var(--accent); }
-.pk-cell .s { display: block; font-size: 0.88rem; font-weight: 700; }
-.pk-cell .a { display: block; color: var(--tertiary); }
-/* 色だけに頼らない（月 §76） */
-.pk-cell .mk { display: block; font-size: 0.63rem; min-height: 0.9em; color: var(--accent); }
-.pk-nav { display: flex; gap: 6px; margin-top: 6px; }
-.pk-nav button { min-width: 44px; min-height: 32px; }
-.pk-more { margin-top: 8px; font-size: 0.72rem; }
-.pk-more summary { cursor: pointer; padding: 4px 0; min-height: 28px; }
 </style>
   <div class="card" id="nowcast" hidden></div>
   <div id="status" class="card muted" hidden></div>
@@ -1392,21 +1349,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928182458"></script>
+<script src="sorami-core.js?v=20260928184229"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928182458"></script>
-<script src="sorami-exif.js?v=20260928182458"></script>
-<script src="sorami-capcloud.js?v=20260928182458"></script>
-<script src="sorami-terrain.js?v=20260928182458"></script>
-<script src="sorami-mountain.js?v=20260928182458"></script>
-<script src="sorami-fuji.js?v=20260928182458"></script>
-<script src="sorami-sky.js?v=20260928182458"></script>
-<script src="sorami-routes.js?v=20260928182458"></script>
-<script src="sorami-plane.js?v=20260928182458"></script>
-<script src="sorami-align.js?v=20260928182458"></script>
-<script src="sorami-moon.js?v=20260928182458"></script>
-<script src="sorami-composition.js?v=20260928182458"></script>
+<script src="sorami-astro.js?v=20260928184229"></script>
+<script src="sorami-exif.js?v=20260928184229"></script>
+<script src="sorami-capcloud.js?v=20260928184229"></script>
+<script src="sorami-terrain.js?v=20260928184229"></script>
+<script src="sorami-mountain.js?v=20260928184229"></script>
+<script src="sorami-fuji.js?v=20260928184229"></script>
+<script src="sorami-sky.js?v=20260928184229"></script>
+<script src="sorami-routes.js?v=20260928184229"></script>
+<script src="sorami-plane.js?v=20260928184229"></script>
+<script src="sorami-align.js?v=20260928184229"></script>
+<script src="sorami-moon.js?v=20260928184229"></script>
+<script src="sorami-composition.js?v=20260928184229"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2748,13 +2705,13 @@ function renderBestNote(best, now) {
       + ` <span class="grade" title="${esc(grade.caption)}">${grade.key}</span></span>`
       // カード全体は押さない（情報カードの見た目で画面が変わるのを避ける現行の判断）。
       // 代わりに行き先を明示したリンクを1つ置く。
-      + `<button class="tap" data-cell="${best.id}|${best.u.dayMs}" style="margin-left:auto;color:var(--accent);font-size:0.78rem;font-weight:700">詳細を見る →</button>`
+      + `<button class="tap" data-cell="${best.id}|${best.u.dayMs}" style="margin-left:auto;color:var(--accent);font-size:0.75rem;font-weight:700">詳細を見る →</button>`
     + `</div>`;
 }
 
 function highlightRow(id, dayMs, ev, now) {
   const color = RANK_COLOR[ev.rank.key];
-  return `<div style="margin-top:3px"><span style="font-size:1.19rem">${S.PHENOMENA[id].icon}</span>
+  return `<div style="margin-top:3px"><span style="font-size:1.25rem">${S.PHENOMENA[id].icon}</span>
     <strong style="margin-left:4px">${S.longNameOf(id)}</strong>
     <span class="muted">${S.JstCal.relativeDay(dayMs, now)}${ev.specificTime === false ? "" : " " + S.JstCal.hhmmRounded(ev.peak)}</span>
     ・<span style="color:${color};font-weight:700">${esc(S.phrasing(id, ev.rank).label)}</span></div>`;
@@ -3748,7 +3705,7 @@ function renderPending(now, hidden) {
     ${out.slice(0, 4).map(({ id, ev }) => {
       const meta = S.PHENOMENA[id], color = RANK_COLOR[ev.rank.key];
       return `<div class="pending-row">
-        <div><span style="font-size:1.06rem">${iconFor(id, ev.peak)}</span>
+        <div><span style="font-size:1.1rem">${iconFor(id, ev.peak)}</span>
           <strong>${S.longNameOf(id)}</strong>
           <span class="muted">${S.Cal.relativeDay(ev.peak, now)}${ev.specificTime === false ? "" : " " + S.Cal.hhmmRounded(ev.peak)}</span>
           ・<span style="color:${color}">${esc(S.phrasing(id, ev.rank).label)} ${Math.round(ev.score)}</span></div>
