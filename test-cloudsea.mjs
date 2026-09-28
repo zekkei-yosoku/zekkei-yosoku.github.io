@@ -102,10 +102,10 @@ const wet = run(build(withInversion, { dewDep: 0.3 }), 800);
 const dry = run(build(withInversion, { dewDep: 6.0 }), 800);
 ok(wet.score > dry.score + 20, "飽和寸前のほうが大きく高い",
   `露点差0.3℃で${wet.score.toFixed(0)} / 6℃で${dry.score.toFixed(0)}`);
-// 2026-09-29: 露点差は「夜のうちの最小」で見る（霧ができたかは夜のどこかで決まる）
+// 2026-09-28: 露点差は「夜のうちの最小」で見る（霧ができたかは夜のどこかで決まる）
 ok(wet.factors.some((f) => f.label.startsWith("夜のうちの気温と露点の差")), "露点差の行を出す");
 
-console.log("== 前夜の湿度と、夜のうちの露点差（2026-09-29） ==");
+console.log("== 前夜の湿度と、夜のうちの露点差（2026-09-28） ==");
 {
   // 秩父のベストショット162日で、前夜（前日18〜24時）の湿度が単独でいちばん効いた（AUC 0.725）
   const humid = run(build(withInversion, { dewDep: 1.5, humidity: 96 }), 800);

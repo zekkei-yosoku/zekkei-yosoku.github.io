@@ -1347,21 +1347,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928231845"></script>
+<script src="sorami-core.js?v=20260928231956"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928231845"></script>
-<script src="sorami-exif.js?v=20260928231845"></script>
-<script src="sorami-capcloud.js?v=20260928231845"></script>
-<script src="sorami-terrain.js?v=20260928231845"></script>
-<script src="sorami-mountain.js?v=20260928231845"></script>
-<script src="sorami-fuji.js?v=20260928231845"></script>
-<script src="sorami-sky.js?v=20260928231845"></script>
-<script src="sorami-routes.js?v=20260928231845"></script>
-<script src="sorami-plane.js?v=20260928231845"></script>
-<script src="sorami-align.js?v=20260928231845"></script>
-<script src="sorami-moon.js?v=20260928231845"></script>
-<script src="sorami-composition.js?v=20260928231845"></script>
+<script src="sorami-astro.js?v=20260928231956"></script>
+<script src="sorami-exif.js?v=20260928231956"></script>
+<script src="sorami-capcloud.js?v=20260928231956"></script>
+<script src="sorami-terrain.js?v=20260928231956"></script>
+<script src="sorami-mountain.js?v=20260928231956"></script>
+<script src="sorami-fuji.js?v=20260928231956"></script>
+<script src="sorami-sky.js?v=20260928231956"></script>
+<script src="sorami-routes.js?v=20260928231956"></script>
+<script src="sorami-plane.js?v=20260928231956"></script>
+<script src="sorami-align.js?v=20260928231956"></script>
+<script src="sorami-moon.js?v=20260928231956"></script>
+<script src="sorami-composition.js?v=20260928231956"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4586,7 +4586,7 @@ const PlaneMap = createMapView({ canvas: "planeCanvas", zoomIn: "planeIn", zoomO
 
 /// **羽田の**風。いま選んでいる地点の風ではない（長野を選んでいても、効くのは羽田の風）。
 /// 以前は地点の予報を流用し、しかも**風向を数字で平均**していた。350°と10°の北風が
-/// 平均で180°＝南風運用に化ける（2026-09-29 修正）。風だけの小さな取得で、30分使い回す
+/// 平均で180°＝南風運用に化ける（2026-09-28 修正）。風だけの小さな取得で、30分使い回す
 async function planeLoadWind() {
   if (plane.wind && Date.now() - plane.wind.at < 30 * 60000) return plane.wind;
   const R = SoramiRoutes.RJTT;
