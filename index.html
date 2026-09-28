@@ -1391,21 +1391,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260928175138"></script>
+<script src="sorami-core.js?v=20260928180117"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260928175138"></script>
-<script src="sorami-exif.js?v=20260928175138"></script>
-<script src="sorami-capcloud.js?v=20260928175138"></script>
-<script src="sorami-terrain.js?v=20260928175138"></script>
-<script src="sorami-mountain.js?v=20260928175138"></script>
-<script src="sorami-fuji.js?v=20260928175138"></script>
-<script src="sorami-sky.js?v=20260928175138"></script>
-<script src="sorami-routes.js?v=20260928175138"></script>
-<script src="sorami-plane.js?v=20260928175138"></script>
-<script src="sorami-align.js?v=20260928175138"></script>
-<script src="sorami-moon.js?v=20260928175138"></script>
-<script src="sorami-composition.js?v=20260928175138"></script>
+<script src="sorami-astro.js?v=20260928180117"></script>
+<script src="sorami-exif.js?v=20260928180117"></script>
+<script src="sorami-capcloud.js?v=20260928180117"></script>
+<script src="sorami-terrain.js?v=20260928180117"></script>
+<script src="sorami-mountain.js?v=20260928180117"></script>
+<script src="sorami-fuji.js?v=20260928180117"></script>
+<script src="sorami-sky.js?v=20260928180117"></script>
+<script src="sorami-routes.js?v=20260928180117"></script>
+<script src="sorami-plane.js?v=20260928180117"></script>
+<script src="sorami-align.js?v=20260928180117"></script>
+<script src="sorami-moon.js?v=20260928180117"></script>
+<script src="sorami-composition.js?v=20260928180117"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1708,18 +1708,18 @@ let sightings = cleanList("sorami.sightings", cleanSighting);
 // 出しているものが食い違う。
 const GRADE_ORDER = { A: 0, B: 1, C: 2 };
 // ラベルは「何で並べるか」だけ。
-// 「並び替え」と書いてある場所なので「〜順」は繰り返しになる。
+// ⇅ の札の中に出るので「〜順」は繰り返しになる。
 // 向きも書かない。点数と信頼度は高いほうが先、時刻は早いほうが先で、
 // どれも向きは一つしかない。迷わないものに注釈を足すと読みにくくなるだけ。
-// `short` は表の左上の札に出す名前。列の幅が 84px しかないので、長い名前は入らない。
+// 名前は表の左上の札にも出る。列の幅は 84px しかないので、どれも2〜3文字に収める。
 const SORTS = {
-  standard: { label: "標準", short: "標準", key: null },
-  score: { label: "点数", short: "点数", key: (u) => -u.evaluation.score },
+  standard: { label: "標準", key: null },
+  score: { label: "点数", key: (u) => -u.evaluation.score },
   // 信頼度が同じなら点数の高い順。1000 は点数（0〜100）を跨がない間隔。
-  grade: { label: "信頼度", short: "信頼度", key: (u) =>
+  grade: { label: "信頼度", key: (u) =>
     GRADE_ORDER[S.reliabilityGrade(u.evaluation.confidence, u.evaluation.models).key] * 1000
     - u.evaluation.score },
-  time: { label: "観測予定時刻", short: "時刻", key: (u) => u.evaluation.peak || u.dayMs },
+  time: { label: "時刻", key: (u) => u.evaluation.peak || u.dayMs },
 };
 let sortMode = SORTS[store.get("sorami.sort", "standard")] ? store.get("sorami.sort", "standard") : "standard";
 
@@ -2778,7 +2778,7 @@ function highlightRow(id, dayMs, ev, now) {
 // 並び替えのプルダウンはカード時代と同じものが効く。
 /// 並び替えの札。いま何で並べているかを、表の左上に出す
 function sortFace() {
-  return `<span class="mxsort-face"><i>⇅</i>${esc(SORTS[sortMode].short)}</span>`;
+  return `<span class="mxsort-face"><i>⇅</i>${esc(SORTS[sortMode].label)}</span>`;
 }
 
 function renderMatrix(order, now) {
