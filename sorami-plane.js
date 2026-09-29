@@ -345,10 +345,14 @@
           illuminated: m.illuminatedFraction,
           use: m.apparentAltitude >= minMoonAlt && m.apparentAltitude <= maxMoonAlt });
       }
+      // その場所の地平線（建物と地形）。**月の円盤がその上に出ていなければ重ならない**（2026-09-30）
+      const horizonAt = typeof spot.horizonAt === "function" ? spot.horizonAt
+        : (az) => RT.spotHorizonAt(spot.id, az);
       const hits = [];
       for (const path of paths) {
         for (const c of crossingsFrom(obs, path, track, { eyeM, minPlaneKm, maxPlaneKm })) {
           if (c.moonAlt < minMoonAlt || c.moonAlt > maxMoonAlt) continue;
+          if (c.moonAlt - MOON_RADIUS_DEG < horizonAt(c.moonAz)) continue;
           if (c.at < dayMs || c.at > dayMs + hours * 3600000) continue;
           if (!active(path, c.at)) continue;
           c.sunAltitude = A.sun(c.at, obs).apparentAltitude;

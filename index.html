@@ -964,7 +964,7 @@
       <div id="planePick" class="al" style="margin-top:8px"></div>
       <div id="planeInfo" class="tiny" style="margin-top:6px;color:var(--secondary)">計算しています…</div>
       <div id="planeList" class="al" style="margin-top:8px"></div>
-      <p class="tiny" style="margin-top:8px;color:var(--tertiary)">経路は進入図どおりの代表線（降下角3°・都心上空3.45°）、便数は時刻表の値です。</p>
+      <p class="tiny" style="margin-top:8px;color:var(--tertiary)">経路は進入図どおりの代表線（降下角3°・都心上空3.45°）、便数は時刻表、建物や地形で月が隠れる時間は除いています。</p>
     </div>
   </div>
 
@@ -1375,22 +1375,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260930005125"></script>
+<script src="sorami-core.js?v=20260930005309"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260930005125"></script>
-<script src="sorami-exif.js?v=20260930005125"></script>
-<script src="sorami-capcloud.js?v=20260930005125"></script>
-<script src="sorami-terrain.js?v=20260930005125"></script>
-<script src="sorami-mountain.js?v=20260930005125"></script>
-<script src="sorami-fuji.js?v=20260930005125"></script>
-<script src="sorami-sky.js?v=20260930005125"></script>
-<script src="sorami-routes.js?v=20260930005125"></script>
-<script src="sorami-iss.js?v=20260930005125"></script>
-<script src="sorami-plane.js?v=20260930005125"></script>
-<script src="sorami-align.js?v=20260930005125"></script>
-<script src="sorami-moon.js?v=20260930005125"></script>
-<script src="sorami-composition.js?v=20260930005125"></script>
+<script src="sorami-astro.js?v=20260930005309"></script>
+<script src="sorami-exif.js?v=20260930005309"></script>
+<script src="sorami-capcloud.js?v=20260930005309"></script>
+<script src="sorami-terrain.js?v=20260930005309"></script>
+<script src="sorami-mountain.js?v=20260930005309"></script>
+<script src="sorami-fuji.js?v=20260930005309"></script>
+<script src="sorami-sky.js?v=20260930005309"></script>
+<script src="sorami-routes.js?v=20260930005309"></script>
+<script src="sorami-iss.js?v=20260930005309"></script>
+<script src="sorami-plane.js?v=20260930005309"></script>
+<script src="sorami-align.js?v=20260930005309"></script>
+<script src="sorami-moon.js?v=20260930005309"></script>
+<script src="sorami-composition.js?v=20260930005309"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4717,6 +4717,8 @@ async function planeApply() {
     id: "here", name: `いまの地点（${place.name}）`,
     latitude: place.latitude, longitude: place.longitude,
     elevationM: ground, deckM: agl,
+    // いまの地点の地平線は、月の判定で測ってある（建物と地形）
+    horizonAt: moonHorizon || null,
     note: agl > 2 ? `地上${Math.round(agl)}m。目の高さ ${Math.round(ground + agl)}m`
       : `標高 ${Math.round(ground)}m`,
   };

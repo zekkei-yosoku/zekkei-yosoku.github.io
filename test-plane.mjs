@@ -242,5 +242,24 @@ console.log("== 便数と降下角は公表値に合わせる（2026-09-28） ==
   ok(curved < flatHere, "見上げ角は丸みのぶん低い", `${d.toFixed(1)}km 先 1000m: 平ら ${flatHere.toFixed(3)}° → ${curved.toFixed(3)}°`);
 }
 
+console.log("== 定番の場所の地平線（2026-09-30） ==");
+{
+  // 建物と地形で空が隠れる高さを、定番21か所ぶん測って持つ
+  ok(Object.keys(RT.SPOT_HORIZONS).length === RT.SPOTS.length, "定番の場所すべてに地平線がある",
+    `${Object.keys(RT.SPOT_HORIZONS).length}/${RT.SPOTS.length}`);
+  ok(RT.SPOT_HORIZONS.t2.length === 72, "方位5°ごと（72本）");
+  // 第2ターミナルは北〜東が建物で塞がる
+  ok(RT.spotHorizonAt("t2", 45) > 30, "第2ターミナルは北東が建物で高く塞がる", `${RT.spotHorizonAt("t2", 45).toFixed(1)}°`);
+  ok(RT.spotHorizonAt("umihotaru", 180) < 1, "海ほたるの南は海で開けている");
+  ok(RT.spotHorizonAt("unknown", 90) === 0, "測っていない場所は 0");
+  // 地平線の下に月があるときは数えない
+  const d0 = day("2026-11-24");
+  const open = P.rankSpots(d0, P.pathsFor("north", { landing: true }),
+    [{ id: "x", name: "ためし", latitude: 35.3130, longitude: 139.8108 }], { limit: 1 })[0];
+  const blocked = P.rankSpots(d0, P.pathsFor("north", { landing: true }),
+    [{ id: "x", name: "ためし", latitude: 35.3130, longitude: 139.8108, horizonAt: () => 45 }], { limit: 1 })[0];
+  ok(open && !blocked, "地平線が45°の場所では、低い月の回は数えない");
+}
+
 console.log(`\n${fail === 0 ? "PLANE OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);
