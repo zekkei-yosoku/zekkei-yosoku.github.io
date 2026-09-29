@@ -39,13 +39,14 @@
     return (Math.atan2(y, x) / DEG + 360) % 360;
   }
 
-  /// その地点から見た飛行機の方位と見上げ角
+  /// その地点から見た飛行機の方位と見上げ角。
+  /// **地球の丸みと大気差を含める**（「ねらう」の山や塔と同じ式）。平らな地面として解くと、
+  /// 10km 先の機体を 0.04°、20km 先で 0.08°（月の半径の3割）高く見積もっていた（2026-09-30）
   function seenFrom(obs, point, eyeM = 1.5) {
     const d = distanceKm(obs.latitude, obs.longitude, point.latitude, point.longitude);
-    const up = point.altitudeM - ((obs.elevation ?? 0) + eyeM);
     return {
       azimuth: bearing(obs.latitude, obs.longitude, point.latitude, point.longitude),
-      altitude: Math.atan2(up, d * 1000) / DEG,
+      altitude: A.targetElevationAngle(d, (obs.elevation ?? 0) + eyeM, point.altitudeM),
       distanceKm: d,
     };
   }
@@ -63,13 +64,27 @@
    */
   function standLine(path, moon, at, { eyeM = 1.5, maxKm = 40, minAltDeg = 5 } = {}) {
     if (!moon || moon.apparentAltitude < minAltDeg) return [];
-    const t = Math.tan(moon.apparentAltitude * DEG);
-    const back = (moon.azimuth + 180) % 360;
     const out = [];
     for (const p of path) {
-      const d = (p.altitudeM - eyeM) / t / 1000;          // km
-      if (!(d > 0.15) || d > maxKm) continue;
-      const q = RT.destination(p.latitude, p.longitude, back, d);
+      // 見上げ角が月の高度になる距離。地球の丸みを含む見上げ角（seenFrom と同じ式）で解く
+      let lo = 0.15, hi = maxKm;
+      const angle = (dk) => A.targetElevationAngle(dk, eyeM, p.altitudeM);
+      if (angle(lo) < moon.apparentAltitude || angle(hi) > moon.apparentAltitude) continue;
+      for (let i = 0; i < 40; i++) {
+        const mid = (lo + hi) / 2;
+        if (angle(mid) > moon.apparentAltitude) lo = mid; else hi = mid;
+      }
+      const d = (lo + hi) / 2;
+      // 観測者から見た機体の方位が月の方位になるように置く（行きと帰りの方位は子午線の収束ぶんずれる。
+      // 「ねらう」と同じ直し。2026-09-30）
+      let back = (moon.azimuth + 180) % 360, q = null;
+      for (let k = 0; k < 4; k++) {
+        q = RT.destination(p.latitude, p.longitude, back, d);
+        const seen = bearing(q.latitude, q.longitude, p.latitude, p.longitude);
+        const miss = ((moon.azimuth - seen + 540) % 360) - 180;
+        if (Math.abs(miss) < 1e-6) break;
+        back = (back + miss + 360) % 360;
+      }
       out.push({ ...q, altitudeM: p.altitudeM, planeKm: d, at });
     }
     return out;

@@ -195,5 +195,26 @@ console.log("== USNO の月出没と突き合わせる ==");
   }
 }
 
+console.log("== JPL Horizons と照合する（2026-09-30） ==");
+{
+  // 羽田・2026年10〜12月の月と太陽（大気差あり）を JPL Horizons から取って固定した。
+  // 以前は ΔT（TT−UT 約69秒）が抜けていて月が 0.01° 遅れ、太陽は章動を2回数えていた。
+  const fs = await import("node:fs");
+  const hz = JSON.parse(fs.readFileSync(new URL("./fixtures/horizons-haneda-2026q4.json", import.meta.url), "utf8"));
+  for (const [name, fn, rows] of [["月", A.moon, hz.moon], ["太陽", A.sun, hz.sun]]) {
+    let sAz = 0, sEl = 0, mx = 0;
+    for (const r of rows) {
+      const p = fn(r.t, hz.observer);
+      const dAz = (((p.azimuth - r.az + 540) % 360) - 180) * Math.cos(r.el * Math.PI / 180);
+      const dEl = p.apparentAltitude - r.el;
+      sAz += dAz * dAz; sEl += dEl * dEl; mx = Math.max(mx, Math.hypot(dAz, dEl));
+    }
+    const rms = Math.sqrt((sAz + sEl) / rows.length);
+    ok(rows.length >= 40, `${name}: 照合の標本がある`, `${rows.length}点`);
+    ok(rms < 0.003, `${name}: JPL とのずれ（二乗平均）が 0.003° 未満`, `${rms.toFixed(4)}°`);
+    ok(mx < 0.006, `${name}: いちばん大きいずれも 0.006° 未満（月の半径の2%）`, `${mx.toFixed(4)}°`);
+  }
+}
+
 console.log(`\n${fail === 0 ? "ASTRO OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗${skip ? ` / ${skip} 件スキップ` : ""}`);
 process.exit(fail === 0 ? 0 : 1);

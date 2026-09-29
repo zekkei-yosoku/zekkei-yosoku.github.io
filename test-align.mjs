@@ -129,5 +129,28 @@ console.log("== 目標の高さが無ければ計算しない ==");
   ok(AL.upcoming(TAKAO, bad, "sun", { from: day, days: 5 }).length === 0, "一覧も空");
 }
 
+console.log("== 線の上に立つと、本当に目標の方向に天体がある（2026-09-30） ==");
+{
+  // 以前は「目標から見て天体の反対の方位」に観測点を置いていた。球の上では行きと帰りの方位が
+  // 子午線の収束ぶんずれるので、観測者から見た目標の方位は天体の方位にならなかった
+  // （富士山から80kmで 0.44°＝太陽の半径より大きく、線が横に 0.6km、120kmで 1.4km ずれていた）。
+  const A = require("./sorami-astro.js");
+  const d0 = Date.parse("2026-12-22T00:00:00+09:00");
+  for (const [target, body, dists] of [[fuji, "sun", [20, 50, 80, 120]], [fuji, "moon", [60, 100]], [skytree, "sun", [3, 8]]]) {
+    for (const d of dists) {
+      for (const side of ["set", "rise"]) {
+        const p = await AL.solvePoint(target, body, d0, d, side, {});
+        if (!p || p.altitude < 0) continue;
+        const brg = TR.bearing(p.latitude, p.longitude, target.latitude, target.longitude);
+        const st = (body === "moon" ? A.moon : A.sun)(p.at, { latitude: p.latitude, longitude: p.longitude, elevation: 1.5 });
+        const miss = ((st.azimuth - brg + 540) % 360) - 180;
+        ok(Math.abs(miss) < 0.002, `${target.name}×${body === "sun" ? "太陽" : "月"} ${d}km（${side === "set" ? "沈む" : "昇る"}側）: 目標の方向に天体がある`,
+          `ずれ ${miss.toFixed(4)}°（天体の半径 ${st.angularRadius.toFixed(3)}°）`);
+        break;
+      }
+    }
+  }
+}
+
 console.log(`\n${fail === 0 ? "ALIGN OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

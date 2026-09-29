@@ -33,9 +33,12 @@ console.log("== 進入経路 ==");
   const rw = RT.runwayOf("34L");
   ok(p.every((q) => q.latitude < rw.threshold.latitude), "北へ降りるので経路は南側");
   ok(p.every((q) => q.longitude > rw.threshold.longitude), "330°の反対＝150°なので東寄り");
-  // 3°の降下角。10km手前で約530m（10000×tan3° ＝ 524m ＋ 標高）
+  // 3°の降下角。10km手前で約545m（10000×tan3° ＝ 524m ＋ 滑走路の端を越える高さ15m ＋ 標高）
   const at10 = p.find((q) => q.distanceKm === 10);
-  ok(Math.abs(at10.altitudeM - 530) < 15, "10km手前で約530m", `${Math.round(at10.altitudeM)}m`);
+  ok(Math.abs(at10.altitudeM - 545) < 5, "10km手前で約545m", `${Math.round(at10.altitudeM)}m`);
+  // 公表の進入図: ILS Z RWY 34L は APOLO（D15.1＝約28km）で 5000ft（1524m）からグライドスロープに乗る
+  const at28 = RT.approachPath("34L", { fromKm: 28, toKm: 28 })[0];
+  ok(Math.abs(at28.altitudeM - 1524) < 120, "28km手前で約5000ft（進入図の APOLO と合う）", `${Math.round(at28.altitudeM)}m`);
   ok(p.every((q, i, a) => i === 0 || q.altitudeM > a[i - 1].altitudeM), "遠いほど高い");
 
   // 16L は北から南へ降りる。経路は滑走路の北側
@@ -218,10 +221,19 @@ console.log("== 便数と降下角は公表値に合わせる（2026-09-28） ==
   ok(RT.HOURLY_MOVEMENTS.every((n) => n <= 90), "どの時間も上限90回以下");
   // 南風の都心上空ルート（16L/16R）は好天時 RNAV で 3.45°。ほかは 3.0°
   const at = (rw) => RT.approachPath(rw, { fromKm: 10, toKm: 10 })[0].altitudeM;
-  ok(Math.abs(at("16L") - (7 + 10000 * Math.tan(3.45 * Math.PI / 180))) < 1, "16L は 3.45°（10km手前で約610m）",
+  ok(Math.abs(at("16L") - (7 + 15 + 10000 * Math.tan(3.45 * Math.PI / 180))) < 1, "16L は 3.45°（10km手前で約625m）",
     `${Math.round(at("16L"))}m`);
-  ok(Math.abs(at("34L") - (6 + 10000 * Math.tan(3 * Math.PI / 180))) < 1, "34L は 3.0°（10km手前で約530m）",
+  ok(Math.abs(at("34L") - (6 + 15 + 10000 * Math.tan(3 * Math.PI / 180))) < 1, "34L は 3.0°（10km手前で約545m）",
     `${Math.round(at("34L"))}m`);
+  // 滑走路の端は 15m（50ft）で越える（ICAO の標準）
+  ok(Math.abs(RT.approachPath("34L", { fromKm: 0, toKm: 0 })[0].altitudeM - 21) < 0.5, "滑走路の端を15mで越える");
+  // 機体の見上げ角は地球の丸みと大気差を含む（平らとして解くと 20km 先で 0.08° 高く出る）
+  const flat = Math.atan2(1000, 20000) * 180 / Math.PI;
+  const curved = P.seenFrom({ latitude: 35.5, longitude: 139.8, elevation: 0 },
+    { ...RT.RJTT.runways[0].threshold, altitudeM: 1000 }, 0).altitude;
+  const d = P.distanceKm(35.5, 139.8, RT.RJTT.runways[0].threshold.latitude, RT.RJTT.runways[0].threshold.longitude);
+  const flatHere = Math.atan2(1000, d * 1000) * 180 / Math.PI;
+  ok(curved < flatHere, "見上げ角は丸みのぶん低い", `${d.toFixed(1)}km 先 1000m: 平ら ${flatHere.toFixed(3)}° → ${curved.toFixed(3)}°`);
 }
 
 console.log(`\n${fail === 0 ? "PLANE OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);

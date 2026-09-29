@@ -42,6 +42,8 @@
     ],
   };
   const runwayOf = (ident) => RJTT.runways.find((r) => r.ident === ident) || null;
+  /// 滑走路の端を越える高さ（ILS の基準高 TCH）。ICAO Annex 10 / PANS-OPS の標準 15m（50ft）
+  const THRESHOLD_CROSSING_M = 15;
 
   /**
    * 運用の向き。**風で決まる。**
@@ -106,7 +108,10 @@
     const out = [];
     for (let d = fromKm; d <= toKm + 1e-9; d += stepKm) {
       const p = destination(rw.threshold.latitude, rw.threshold.longitude, back, d);
-      out.push({ ...p, altitudeM: rw.elevationM + d * 1000 * Math.tan(slope * DEG), distanceKm: d });
+      // **滑走路の端を 15m（50ft）の高さで越える。** ICAO の標準（ILS の基準高 TCH）。
+      // 以前は端で高さ0として引いていて、どの距離でも 15m 低かった（5km 先・月の高さ3°の場面で
+      // 0.17°＝月の半径の6割ずれる。2026-09-30）
+      out.push({ ...p, altitudeM: rw.elevationM + THRESHOLD_CROSSING_M + d * 1000 * Math.tan(slope * DEG), distanceKm: d });
     }
     return out;
   }

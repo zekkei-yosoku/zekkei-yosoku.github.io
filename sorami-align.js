@@ -106,6 +106,7 @@
     const sign = limbById(limb).sign;
     let guess = { latitude: target.latitude, longitude: target.longitude };
     let obsM = 0, at = null, azimuth = null, alpha = null;
+    let back = null;   // 目標から見た観測点の方位
     for (let i = 0; i < rounds; i++) {
       if (elevationAt) {
         const e = await elevationAt(guess.latitude, guess.longitude);
@@ -120,8 +121,21 @@
       if (at === null) return null;
       const st = bodyAt(body, at, obs0);
       azimuth = st.azimuth;
-      // 観測者から見て天体（＝目標）が方位 azimuth にある。目標から見ると反対側
-      guess = TR.destination(target.latitude, target.longitude, (azimuth + 180) % 360, distanceKm);
+      // 観測者から見て天体（＝目標）が方位 azimuth にある。
+      //
+      // **「目標から見て反対の方位」に置くだけでは、観測者から見た目標の方位は azimuth にならない。**
+      // 球の上では、行きの方位と帰りの方位が子午線の収束ぶん（経度差×sin緯度）ずれる。
+      // 富士山から東へ80kmで 0.44°＝太陽の半径（0.27°）より大きく、線が横に 0.6km ずれていた
+      // （2026-09-30。高尾山で線が 0.2〜0.6km 外れていた原因）。
+      // 観測者から目標を見た方位が azimuth になるまで、置く方位を直す
+      if (back === null) back = (azimuth + 180) % 360;
+      for (let k = 0; k < 4; k++) {
+        guess = TR.destination(target.latitude, target.longitude, back, distanceKm);
+        const seen = TR.bearing(guess.latitude, guess.longitude, target.latitude, target.longitude);
+        const miss = ((azimuth - seen + 540) % 360) - 180;
+        if (Math.abs(miss) < 1e-6) break;
+        back = (back + miss + 360) % 360;
+      }
     }
     const obs = { latitude: guess.latitude, longitude: guess.longitude, elevation: obsM + eyeM };
     const st = bodyAt(body, at, obs);

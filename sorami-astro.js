@@ -23,6 +23,15 @@
 
   /// ユリウス日。AA 7.1
   const julianDay = (ms) => ms / 86400000 + 2440587.5;
+
+  /**
+   * ΔT（地球時 TT − 世界時 UT）。AA 10。
+   * **天体の位置の式は TT で書かれている**のに、UT をそのまま入れていた。月は1秒に 0.00015° 動くので、
+   * 69秒で約 0.01°（月の半径の4%）遅れて出ていた（2026-09-30、JPL Horizons との照合で方位の片寄り 0.007° として発覚）。
+   * 2020〜2030年は TT − UTC = 69.184秒、UT1 − UTC は ±0.1秒以内なので 69.2秒で固定する。
+   * 恒星時（地球の自転）は UT のまま。
+   */
+  const DELTA_T_MS = 69200;
   /// J2000.0 からのユリウス世紀
   const centuries = (ms) => (julianDay(ms) - 2451545) / 36525;
 
@@ -221,16 +230,20 @@
 
   /**
    * 観測地から見た太陽。月の `moon()` と同じ形で返す。
-   * 視差は最大 8.8 秒角（0.0024度）で、太陽の半径 0.27度に対して無視できるので geocentric のまま。
+   * 視差は最大 8.8 秒角（0.0024度）。太陽の半径 0.27度に比べて小さいが、高度にだけ足す。
    */
   function sun(ms, obs, air = {}) {
-    const s = sunPosition(ms);
+    const s = sunPosition(ms + DELTA_T_MS);
     const { dPsi, dEps } = nutation(s.T);
     const eps = meanObliquity(s.T) + dEps;
-    const eq = toEquatorial(s.longitude + dPsi, 0, eps);
+    // `sunPosition` の経度は AA 25.8 で**章動をもう含んでいる**（−0.00478 sin Ω）。
+    // ここで dPsi を足すと章動を2回数え、最大 0.005° ずれる（2026-09-30、JPL Horizons との照合で発覚）
+    const eq = toEquatorial(s.longitude, 0, eps);
     const gast = apparentSiderealTime(ms, dPsi, eps);
     const hourAngle = norm(gast + obs.longitude - eq.ra);
-    const hor = toHorizontal(hourAngle, eq.dec, obs.latitude);
+    const hor0 = toHorizontal(hourAngle, eq.dec, obs.latitude);
+    // 視差（最大 8.8 秒角）。小さいが、入れないと高度が一様に 0.002° 高く出る（JPL Horizons と照合）
+    const hor = { ...hor0, altitude: hor0.altitude - (8.794 / 3600) / (s.distanceKm / 149597870.7) * cos(hor0.altitude) };
     const refr = refraction(hor.altitude, air);
     const semi = sunAngularRadius(s.distanceKm);
     return {
@@ -254,8 +267,8 @@
    */
   function moon(ms, obs, air = {}) {
     const { latitude: lat, longitude: lon, elevation = 0 } = obs;
-    const g = moonGeocentric(ms);
-    const s = sunPosition(ms);
+    const g = moonGeocentric(ms + DELTA_T_MS);
+    const s = sunPosition(ms + DELTA_T_MS);
     const { dPsi, dEps } = nutation(g.T);
     const eps = meanObliquity(g.T) + dEps;
 
