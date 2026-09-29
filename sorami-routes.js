@@ -165,22 +165,29 @@
   ];
 
   /**
-   * 1時間あたりの発着回数（離陸＋着陸）。
+   * 1時間あたりの**到着便と出発便**（時刻表の便数）。
    *
-   * **年間の総数を公表値に合わせた。** 国土交通省の公表で、羽田の年間発着回数は
-   * 2020年3月の新飛行経路から **48.6万回**（国内35.7万＋国際12.9万）＝1日 約1,330回。
-   * 1時間あたりの上限は従来 84回、新経路の時間帯（15〜19時など）は 90回。
-   * 以前の値（日中42回）は根拠のない目安で、足すと1日約800回＝**実績の6割しかなかった**
-   * （期待機数が4割小さく出ていた。2026-09-28 修正）。
+   * 2026-09-28 には「年間48.6万回を時間帯へ推定で配った発着回数 × 到着は半分」としていた。
+   * 実際の時刻表を見ると、**到着と出発は時間帯でまるで違う**（7時台は到着6便・出発50便、
+   * 21時台は到着44便・出発18便）。半分ずつと仮定すると、朝の月丼で到着機を6倍に見積もっていた。
    *
-   * 時間帯の配り方は推定: 深夜（23〜5時）は国際線が少し、6時台は立ち上がり、
-   * 7〜22時は上限の9割前後、15〜19時は新経路で上限が上がるぶん多め。合計 1,322回/日。
-   * ADS-B の受信記録がたまれば、ここを実測へ置き換える。
+   * 出典: 羽田空港の時刻表（2024年8月の日曜）を時間帯ごとに数えた公開記事
+   *   https://mjblog271.com/hndtimetable/ 到着665便・出発664便＝1日1,329回。
+   *   国土交通省の年間48.6万回（＝1日約1,330回）と一致する。
+   * 時刻表の時刻は駐機場での時刻なので、進入はその5〜10分前。1時間の刻みでは差が出ない。
+   * 曜日・季節で数便は動く（2026-09-30 に置き換え）。
    */
-  const HOURLY_MOVEMENTS = [
-    6, 6, 6, 6, 6, 6, 30, 78, 78, 78, 78, 78, 78, 78, 78, 88, 88, 88, 88, 78, 78, 78, 40, 6,
+  const HOURLY_ARRIVALS = [
+    4, 3, 1, 0, 4, 11, 10, 6, 36, 38, 36, 40, 36, 43, 43, 43, 43, 43, 43, 41, 43, 44, 41, 13,
   ];
-  const trafficAt = (hourJst) => HOURLY_MOVEMENTS[((hourJst % 24) + 24) % 24];
+  const HOURLY_DEPARTURES = [
+    7, 7, 5, 0, 0, 2, 30, 50, 49, 50, 49, 42, 39, 34, 34, 37, 43, 45, 40, 40, 30, 18, 9, 4,
+  ];
+  const HOURLY_MOVEMENTS = HOURLY_ARRIVALS.map((a, i) => a + HOURLY_DEPARTURES[i]);
+  const hourIndex = (h) => ((h % 24) + 24) % 24;
+  /// その時間の便数。kind を渡せば到着（landing）か出発（takeoff）だけ、無ければ両方
+  const trafficAt = (hourJst, kind = null) => kind === "landing" ? HOURLY_ARRIVALS[hourIndex(hourJst)]
+    : kind === "takeoff" ? HOURLY_DEPARTURES[hourIndex(hourJst)] : HOURLY_MOVEMENTS[hourIndex(hourJst)];
 
   // --- 球面の小道具（terrain と同じ式。ここだけで完結させる） ---
   const R_KM = 6371.0088;
@@ -194,7 +201,8 @@
   }
 
   const SoramiRoutes = { RJTT, runwayOf, OPERATIONS, operationFor, SPOTS,
-                         approachPath, departurePath, HOURLY_MOVEMENTS, trafficAt, destination };
+                         approachPath, departurePath, HOURLY_MOVEMENTS, HOURLY_ARRIVALS, HOURLY_DEPARTURES,
+                         trafficAt, destination, THRESHOLD_CROSSING_M };
   global.SoramiRoutes = SoramiRoutes;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiRoutes;
 })(typeof globalThis !== "undefined" ? globalThis : this);

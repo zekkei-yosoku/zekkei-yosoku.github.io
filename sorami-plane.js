@@ -110,7 +110,7 @@
     radiusKm = 30, gridKm = 1, stepMin = 5,
     minMoonAlt = 2, maxMoonAlt = 30,
     minPlaneKm = 2, maxPlaneKm = 20, bestPlaneKm = [4, 12],
-    eyeM = 1.5, hours = 24, limit = 12, arrivalsShare = 0.5,
+    eyeM = 1.5, hours = 24, limit = 12,
   } = {}) {
     const samples = [];
     for (let i = 0; i * stepMin * 60000 <= hours * 3600000; i++) {
@@ -132,7 +132,8 @@
     for (const s of samples) {
       const hour = new Date(s.at + 9 * 3600000).getUTCHours();
       // 1本の経路あたりの到着率（機/分）。便数の半分が到着で、それを経路で分ける
-      const perMin = RT.trafficAt(hour) * arrivalsShare / lanes / 60;
+      // 格子の探索は到着の経路を見る（時刻表の到着便）
+      const perMin = RT.trafficAt(hour, "landing") / lanes / 60;
       for (const path of paths) {
         for (const q of standLine(path.points, { apparentAltitude: s.altitude, azimuth: s.azimuth },
           s.at, { eyeM, maxKm: maxPlaneKm, minAltDeg: minMoonAlt })) {
@@ -222,10 +223,11 @@
 
   // 月の半径（視直径 0.52° の半分）
   const MOON_RADIUS_DEG = 0.26;
-  // 経路からの横ずれ。最終進入はILSの電波に乗るので、滑走路に近いほど細い。
-  // 20m ＋ 滑走路からの距離 1km あたり 8m（10km 手前で ±100m）とする。
-  // **仮定の値**（ADS-B の航跡で実測に置き換えられる印として名前を付けておく）
-  const lateralScatterM = (alongKm) => 20 + 8 * Math.max(0, alongKm);
+  // 経路からの横ずれ。**実測で決めた**（2026-09-30）: Pi5 の ADS-B 受信記録1日分で、
+  // 22への最終進入（10〜28km手前・47点）の横ずれのばらつきは 5〜8m、中央は 20m 片寄り。
+  // 以前の仮定（20m＋1kmあたり8m＝10km手前で±100m）は10倍以上広かった。
+  // ばらつきの3倍に中央の片寄りと座標の誤差を足し、25m ＋ 1kmあたり1m とする
+  const lateralScatterM = (alongKm) => 25 + 1 * Math.max(0, alongKm);
   // 月と経路がほぼ平行に動くと、重なっていられる時間が際限なく伸びる。そこで打ち切る
   const MAX_WINDOW_MIN = 20;
 
@@ -323,7 +325,7 @@
    */
   function rankSpots(dayMs, paths, spots, {
     stepMin = 2, minMoonAlt = 2, maxMoonAlt = 30,
-    minPlaneKm = 2, maxPlaneKm = 20, eyeM = 1.5, hours = 24, arrivalsShare = 0.5, limit = 6,
+    minPlaneKm = 2, maxPlaneKm = 20, eyeM = 1.5, hours = 24, limit = 6,
     activeAt = null,
   } = {}) {
     const active = typeof activeAt === "function" ? activeAt : () => true;
@@ -359,7 +361,8 @@
       for (const h of hits) {
         const hour = new Date(h.at + 9 * 3600000).getUTCHours();
         // 期待機数＝円盤が航路にかかっている時間 × その経路の到着（出発）率
-        planes += RT.trafficAt(hour) * arrivalsShare / lanesAt(h.kind, h.at) / 60 * h.diskMin;
+        // 到着か出発かで時刻表の便数を分ける（朝は出発が多く、夜は到着が多い）
+        planes += RT.trafficAt(hour, h.kind) / lanesAt(h.kind, h.at) / 60 * h.diskMin;
         minutes += h.windowMin;
       }
       const best = hits.reduce((a, b) => (quality(b) > quality(a) ? b : a), hits[0]);

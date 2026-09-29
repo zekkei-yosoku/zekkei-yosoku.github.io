@@ -353,6 +353,16 @@ console.log("== 使われていない見た目の決まりを残さない ==");
   ok(dead.length === 0, "CSS に、どこからも使われていない class が無い", dead.join("・"));
 }
 
+console.log("== ダイヤモンド富士・パール富士は観測スポットの一覧を出す（2026-09-30） ==");
+ok(/async function aimRenderSpots/.test(html), "主な観測スポットごとに次の日を出す");
+ok(/SoramiAlign\.FUJI_SPOTS/.test(html), "スポットの一覧を使う");
+ok(/e\.rank !== "graze" && \(!moon \|\| e\.sunAltitude < 0\)/.test(html), "パール富士は月が暗い空にあるときだけ");
+ok(/function aimDateLabel/.test(html) && /y === now \? "" :/.test(html), "今年でない日は年も書く（400日先で同じ月日が2回出る）");
+ok(/\$\("aimTargetBox"\)\.hidden = fixedFuji/.test(html), "目標と天体が決まっているときは選ぶ行を出さない");
+ok(/\$\("aimPart"\)\.hidden = parts\.length < 2/.test(html), "選べる高さが1つなら選ぶ欄を出さない");
+ok(!/目標に太陽や月が重なる日と、/.test(html), "説明の段落を出さない");
+ok(!/線が弧を描くのは|番号は下の一覧と同じ|月が低い（2〜30°）あいだだけを見ています/.test(code), "地図の下の説明を出さない");
+
 console.log("== 道具の名前は1か所から取る ==");
 // 管理画面に書き写していたため、ねらうを3つに分けた日に片方だけ古くなった。
 ok(/const TOOL_NAMES = Object\.fromEntries\(\[\.\.\.document\.querySelectorAll\("#toolsMenu \[data-tool\]"\)\]/.test(html),
@@ -405,7 +415,12 @@ ok(!/この先7日/.test(html), "戻り先を日数で呼ばない（詳細に�
 ok(/location\.hash === "#\/records"/.test(html), "記録は自前のURLを持つ");
 ok(/id="recordsView"/.test(html), "記録は別画面");
 ok(/\{ id: "records",\s+el: "recordsView"/.test(html), "3画面を出し分ける");
-ok(/\$\("placeRow"\)\.hidden = inRecords/.test(html), "記録を読むときは地点と実況を出さない");
+// 2026-09-30: 地点カードは「その地点が主語の画面」（一覧・詳細・空の見え方）だけに出す。
+// ダイヤモンド富士や月丼の上に出ていて、何の地点か分からなかった（ユーザー指摘）
+ok(/const placeCardShown = \(\) => \["list", "detail", "sky"\]\.includes\(currentView\)/.test(html),
+  "地点カードを出す画面を決めている（一覧・詳細・空の見え方）");
+ok(/\$\("placeRow"\)\.hidden = !placeCardShown\(\)/.test(html), "記録・管理・道具の画面では地点を出さない");
+ok(/row\.hidden = decks\.length < 1 \|\| !placeCardShown\(\)/.test(html), "展望台の選択も同じ画面だけ");
 // .place-row の display:flex が [hidden] の display:none に勝ち、地点カードが消えなかった。
 ok(/\[hidden\] \{ display: none !important; \}/.test(code), "hidden が display 指定に負けないようにする");
 ok(/listScrollY/.test(html), "一覧へ戻ったとき元の位置に戻す");
@@ -1886,7 +1901,7 @@ for (const id of ["placeRow", "nowcast"]) {
 }
 ok(/\$\("recPending"\)\.hidden/.test(html), "recPending の表示を切り替えている");
 // 管理画面で隠すもの: 地点・実況・記録の問いかけ
-ok(/\$\("placeRow"\)\.hidden = inRecords \|\| inAdmin/.test(html), "地点を管理画面で隠す");
+ok(!["admin", "records"].some((v) => ["list", "detail", "sky"].includes(v)), "地点を管理画面で隠す");
 ok(/\$\("nowcast"\)\.hidden = inRecords \|\| inAdmin/.test(html), "実況を管理画面で隠す");
 
 console.log("== ログインの保持 ==");

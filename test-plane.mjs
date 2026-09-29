@@ -219,6 +219,12 @@ console.log("== 便数と降下角は公表値に合わせる（2026-09-28） ==
     `${perDay}回/日 × 365 = ${(perDay * 365 / 10000).toFixed(1)}万回`);
   // 1時間の上限は 84回（従来）〜90回（新経路の時間帯）。それを超えない
   ok(RT.HOURLY_MOVEMENTS.every((n) => n <= 90), "どの時間も上限90回以下");
+  // 到着と出発は時間帯でまるで違う（時刻表: 7時台は到着6・出発50、21時台は到着44・出発18）。
+  // 以前は「発着×半分」で、朝の到着を6倍に見積もっていた
+  ok(RT.trafficAt(7, "landing") === 6 && RT.trafficAt(7, "takeoff") === 50, "7時台は出発が多い（到着6・出発50）");
+  ok(RT.trafficAt(21, "landing") === 44 && RT.trafficAt(21, "takeoff") === 18, "21時台は到着が多い（到着44・出発18）");
+  ok(RT.HOURLY_ARRIVALS.reduce((a, b) => a + b, 0) === 665 && RT.HOURLY_DEPARTURES.reduce((a, b) => a + b, 0) === 664,
+    "時刻表の合計（到着665・出発664）");
   // 南風の都心上空ルート（16L/16R）は好天時 RNAV で 3.45°。ほかは 3.0°
   const at = (rw) => RT.approachPath(rw, { fromKm: 10, toKm: 10 })[0].altitudeM;
   ok(Math.abs(at("16L") - (7 + 15 + 10000 * Math.tan(3.45 * Math.PI / 180))) < 1, "16L は 3.45°（10km手前で約625m）",

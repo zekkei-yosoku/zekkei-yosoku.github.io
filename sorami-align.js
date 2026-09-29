@@ -51,6 +51,69 @@
       parts: [{ id: "tip", name: "避雷針の先端", m: 60, adjustable: true }] },
   ];
   const targetById = (id) => TARGETS.find((t) => t.id === id) || null;
+
+  /**
+   * ダイヤモンド富士・パール富士の**主な観測スポット**（2026-09-30）。
+   *
+   * 座標は OpenStreetMap（Nominatim）の地物、標高は国土地理院の標高API で引いた値。
+   * 住所は地物の所在地（山頂は市町村の境にあることが多いので両方を書く）。
+   * `deckM` は展望室の床の高さ（地上から）。
+   *
+   * 線や一覧が合っているかは、よく知られた日で確かめてある（test-align）:
+   *   高尾山 12/22 16:10（冬至前後）・田貫湖 4/23 と 8/21 の日の出（4/20・8/20前後）・竜ヶ岳 12/21（冬至前後）。
+   * 陣馬山・大観山・三ツ峠山・大菩薩嶺・精進湖・河口湖・新倉山は、太陽が富士山の方角を通らないので入れていない。
+   */
+  const FUJI_SPOTS = [
+    { id: "panorama", name: "山中湖パノラマ台", kind: "展望地", latitude: 35.41261, longitude: 138.90948, groundM: 1089,
+      address: "山梨県南都留郡山中湖村平野（県道730号 山中湖小山線）", note: "駐車場あり" },
+    { id: "nagaike", name: "長池親水公園（山中湖）", kind: "湖畔", latitude: 35.42702, longitude: 138.87136, groundM: 984,
+      address: "山梨県南都留郡山中湖村平野" },
+    { id: "kirara", name: "山中湖交流プラザきらら", kind: "湖畔", latitude: 35.41975, longitude: 138.90208, groundM: 984,
+      address: "山梨県南都留郡山中湖村平野" },
+    { id: "ishiwari", name: "石割山 山頂", kind: "山頂", latitude: 35.45049, longitude: 138.90136, groundM: 1412,
+      address: "山梨県南都留郡山中湖村", note: "登山" },
+    { id: "tanuki", name: "田貫湖（休暇村富士の前）", kind: "湖畔", latitude: 35.34111, longitude: 138.55320, groundM: 680,
+      address: "静岡県富士宮市佐折", note: "朝の富士山" },
+    { id: "kenashi", name: "毛無山 山頂", kind: "山頂", latitude: 35.41581, longitude: 138.54387, groundM: 1962,
+      address: "静岡県富士宮市・山梨県南巨摩郡身延町", note: "登山（朝霧高原から）" },
+    { id: "ryugatake", name: "竜ヶ岳 山頂", kind: "山頂", latitude: 35.44664, longitude: 138.58367, groundM: 1482,
+      address: "山梨県南都留郡富士河口湖町", note: "登山（本栖湖から）" },
+    { id: "nakanokura", name: "中ノ倉峠（本栖湖）", kind: "展望地", latitude: 35.47568, longitude: 138.57299, groundM: 1083,
+      address: "山梨県南巨摩郡身延町", note: "千円札の富士の撮影地。登山" },
+    { id: "koan", name: "本栖湖（浩庵キャンプ場）", kind: "湖畔", latitude: 35.47273, longitude: 138.57501, groundM: 908,
+      address: "山梨県南巨摩郡身延町" },
+    { id: "takao", name: "高尾山 山頂", kind: "山頂", latitude: 35.62523, longitude: 139.24369, groundM: 598,
+      address: "東京都八王子市高尾町", note: "ケーブルカーあり" },
+    { id: "tonodake", name: "塔ノ岳 山頂", kind: "山頂", latitude: 35.45407, longitude: 139.16332, groundM: 1489,
+      address: "神奈川県秦野市・足柄上郡山北町", note: "登山" },
+    { id: "tanzawa", name: "丹沢山 山頂", kind: "山頂", latitude: 35.47436, longitude: 139.16269, groundM: 1567,
+      address: "神奈川県足柄上郡山北町", note: "登山" },
+    { id: "oyama", name: "大山 山頂（丹沢）", kind: "山頂", latitude: 35.44083, longitude: 139.23133, groundM: 1249,
+      address: "神奈川県伊勢原市", note: "ケーブルカー＋登山" },
+    { id: "myojin", name: "明神ヶ岳 山頂", kind: "山頂", latitude: 35.27950, longitude: 139.05251, groundM: 1168,
+      address: "神奈川県南足柄市・足柄下郡箱根町", note: "登山" },
+    { id: "kintoki", name: "金時山 山頂", kind: "山頂", latitude: 35.28970, longitude: 139.00485, groundM: 1212,
+      address: "神奈川県足柄下郡箱根町・静岡県駿東郡小山町", note: "登山" },
+    { id: "enoshima", name: "江の島", kind: "島", latitude: 35.30011, longitude: 139.48064, groundM: 41,
+      address: "神奈川県藤沢市江の島" },
+    { id: "katase", name: "片瀬東浜", kind: "海岸", latitude: 35.30690, longitude: 139.48507, groundM: 2,
+      address: "神奈川県藤沢市片瀬海岸1丁目" },
+    { id: "southern", name: "サザンビーチちがさき", kind: "海岸", latitude: 35.3172, longitude: 139.4003, groundM: 2,
+      address: "神奈川県茅ヶ崎市中海岸4丁目" },
+    { id: "jogashima", name: "城ヶ島", kind: "島", latitude: 35.13332, longitude: 139.61825, groundM: 30,
+      address: "神奈川県三浦市三崎町城ヶ島" },
+    { id: "landmark", name: "横浜ランドマークタワー スカイガーデン", kind: "展望台", latitude: 35.45460, longitude: 139.63145,
+      groundM: 4, deckM: 273, address: "神奈川県横浜市西区みなとみらい2-2-1（69階）", note: "有料・開いている時間だけ" },
+    { id: "tocho", name: "東京都庁 展望室", kind: "展望台", latitude: 35.68974, longitude: 139.69300,
+      groundM: 35, deckM: 202, address: "東京都新宿区西新宿2-8-1（第一本庁舎45階）", note: "無料・開いている時間だけ" },
+    { id: "umihotaru", name: "海ほたる", kind: "展望デッキ", latitude: 35.46299, longitude: 139.87642,
+      groundM: 1, deckM: 12, address: "千葉県木更津市中島地先（東京湾アクアライン）", note: "車で行く" },
+    { id: "futtsu", name: "富津岬（富津公園）", kind: "岬", latitude: 35.31298, longitude: 139.78387, groundM: 2,
+      address: "千葉県富津市富津" },
+  ];
+  /// スポットに立ったときの観測者（地面＋展望室）
+  const spotObserver = (s) => ({ latitude: s.latitude, longitude: s.longitude,
+    elevation: (s.groundM ?? 0) + (s.deckM ?? 0) });
   const partOf = (target, partId) =>
     (target.parts || []).find((p) => p.id === partId) || (target.parts || [])[0] || null;
 
@@ -314,7 +377,7 @@
   }
 
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
-                        altitudeCrossing, geometryFrom, upcoming };
+                        altitudeCrossing, geometryFrom, upcoming, FUJI_SPOTS, spotObserver };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);

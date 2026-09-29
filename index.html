@@ -583,6 +583,11 @@
   .aim-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px;
                 font-size: 0.72rem; font-weight: 700; color: var(--secondary); }
   .aim-legend .tiny { font-weight: 400; color: var(--tertiary); }
+  /* 観測スポットの行。日付は押すとその日の線と場所を出す */
+  .aim-spot { cursor: default; }
+  .aim-days { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .aim-day { min-height: 32px; padding: 4px 10px; border-radius: 9px; background: var(--sunk);
+             color: var(--accent); font-weight: 700; }
   /* 凡例の線は、地図に引く線と同じ色・同じ線種にする（太陽は金、月は青） */
   .aim-k { display: inline-block; width: 22px; height: 0; margin-right: 5px; vertical-align: middle;
            border-top: 3px solid var(--ray-sun); border-radius: 2px; }
@@ -925,8 +930,6 @@
   <div id="planeView" hidden>
     <div class="card">
       <div class="section-h"><h2>月丼</h2><span class="muted">月と飛行機を重ねる</span></div>
-      <p class="tiny" style="margin:0 0 8px">羽田の<strong>進入経路は決まっている</strong>ので、
-        その日の月の道と重なる<strong>立ち位置</strong>が出せます。</p>
       <label class="fav-l" for="planeDate">日付</label>
       <div class="aim-row aim-date">
         <button id="planePrev" class="fav-btn" aria-label="前の日">←</button>
@@ -957,15 +960,11 @@
       <div class="aim-legend">
         <span><i class="aim-k moon"></i>進入経路</span>
         <span><i class="aim-k sun"></i>狙い目</span>
-        <span class="tiny">番号は下の一覧と同じ</span>
       </div>
       <div id="planePick" class="al" style="margin-top:8px"></div>
       <div id="planeInfo" class="tiny" style="margin-top:6px;color:var(--secondary)">計算しています…</div>
       <div id="planeList" class="al" style="margin-top:8px"></div>
-      <p class="tiny" style="margin-top:8px;color:var(--tertiary)">
-        経路は<strong>公表されている進入の形</strong>（滑走路の位置と真方位は OurAirports、降下角は3°）から
-        引いた代表線です。管制の指示で前後左右にずれます。便数は羽田の運用時間の目安で、実測ではありません。
-        <strong>出せるのは「条件が揃う場所と時間」まで</strong>で、写るかどうかは当日の運用と雲しだいです。</p>
+      <p class="tiny" style="margin-top:8px;color:var(--tertiary)">経路は進入図どおりの代表線（降下角3°・都心上空3.45°）、便数は時刻表の値です。</p>
     </div>
   </div>
 
@@ -973,7 +972,8 @@
     <div class="card">
       <div class="section-h"><h2 id="aimTitle">ねらう</h2><span class="muted" id="aimSub"></span></div>
 
-    <p class="tiny" style="margin:0 0 8px">目標に太陽や月が重なる日と、<strong>その日に見える場所（線）</strong>を出します。</p>
+    <!-- ダイヤモンド富士・パール富士では目標も天体も決まっているので、選ぶ行を出さない（2026-09-30） -->
+    <div id="aimTargetBox">
     <label class="fav-l" for="aimTarget">目標</label>
     <div class="aim-row">
       <select id="aimTarget" class="fav-in" aria-label="目標"></select>
@@ -983,6 +983,7 @@
       </div>
     </div>
     <p class="tiny" id="aimTargetNote" style="margin:-2px 0 8px"></p>
+    </div>
     <div class="aim-row" id="aimHeightRow" hidden>
       <input type="number" id="aimHeightM" class="fav-in" inputmode="decimal" min="1" max="1000"
              aria-label="先端の高さ（海面から・メートル）">
@@ -994,7 +995,7 @@
              placeholder="高さ（地上から・m）" aria-label="目標の高さ（地上から・メートル）">
       <button id="aimCustomSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">中心を目標に</button>
     </div>
-    <label class="fav-l" for="aimPart">どこに重ねるか</label>
+    <label class="fav-l" for="aimLimb">どこに重ねるか</label>
     <div class="aim-row">
       <select id="aimPart" class="fav-in" aria-label="高さ"></select>
       <select id="aimLimb" class="fav-in" aria-label="合わせ方"></select>
@@ -1023,30 +1024,22 @@
       <div class="mapattr">国土地理院</div>
     </div>
     <div class="maprow">
-      <div id="aimCoord" class="tiny">—</div>
-      <button id="aimPick" class="fav-btn">中心をこの地点にする</button>
+      <div id="aimCoord" class="tiny" hidden></div>
+      <button id="aimPick" class="fav-btn">地図の中心を自分の地点にする</button>
     </div>
     <div id="aimNear" class="aim-near">—</div>
     <div class="aim-legend">
       <span><i class="aim-k set"></i><span id="aimKeySet">日の入側</span></span>
       <span><i class="aim-k rise"></i><span id="aimKeyRise">日の出側</span></span>
-      <span class="tiny">線の上が、その日に重なって見える場所</span>
     </div>
     <div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div>
     <table class="aim-tab" id="aimLineTable" hidden>
       <thead><tr><th>側</th><th>目標から</th><th>時刻</th><th>天体の方位</th></tr></thead>
       <tbody></tbody>
     </table>
-    <div class="section-h" style="margin-top:12px"><h2>次に重なる日</h2></div>
-    <p class="tiny" style="margin:0 0 6px">いま選んでいる地点（<span id="aimPlaceName"></span>）から見た場合。押すとその日の線を出します。</p>
+    <!-- 富士山は主な観測スポットの一覧、塔はいまの地点から見た日（2026-09-30） -->
+    <div class="section-h" style="margin-top:12px"><h2 id="aimListTitle">観測スポット</h2><span class="muted" id="aimListSub"></span></div>
     <div id="aimList" class="al"></div>
-    <p class="tiny" style="margin-top:8px;color:var(--tertiary)">
-      線は<strong>目標の先端を見上げる角度と、天体の高さが一致する場所</strong>です。
-      立つ場所が高いほど見上げる角度は下がるので、そのぶんも入れて解いています。
-      ただし谷と尾根で標高が1000m以上違う所もあり、1点ずつの標高で引くと線が蛇行するため、
-      <strong>その方向のおおよその地面の高さ</strong>でならして引いています。
-      立つ場所ちょうどの時刻は、その地点を選んで「次に重なる日」を見てください。
-      まわりの建物や木、手前の尾根で隠れるかは見ていません。</p>
       </div>
   </div>
 
@@ -1347,21 +1340,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260930002426"></script>
+<script src="sorami-core.js?v=20260930004251"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260930002426"></script>
-<script src="sorami-exif.js?v=20260930002426"></script>
-<script src="sorami-capcloud.js?v=20260930002426"></script>
-<script src="sorami-terrain.js?v=20260930002426"></script>
-<script src="sorami-mountain.js?v=20260930002426"></script>
-<script src="sorami-fuji.js?v=20260930002426"></script>
-<script src="sorami-sky.js?v=20260930002426"></script>
-<script src="sorami-routes.js?v=20260930002426"></script>
-<script src="sorami-plane.js?v=20260930002426"></script>
-<script src="sorami-align.js?v=20260930002426"></script>
-<script src="sorami-moon.js?v=20260930002426"></script>
-<script src="sorami-composition.js?v=20260930002426"></script>
+<script src="sorami-astro.js?v=20260930004251"></script>
+<script src="sorami-exif.js?v=20260930004251"></script>
+<script src="sorami-capcloud.js?v=20260930004251"></script>
+<script src="sorami-terrain.js?v=20260930004251"></script>
+<script src="sorami-mountain.js?v=20260930004251"></script>
+<script src="sorami-fuji.js?v=20260930004251"></script>
+<script src="sorami-sky.js?v=20260930004251"></script>
+<script src="sorami-routes.js?v=20260930004251"></script>
+<script src="sorami-plane.js?v=20260930004251"></script>
+<script src="sorami-align.js?v=20260930004251"></script>
+<script src="sorami-moon.js?v=20260930004251"></script>
+<script src="sorami-composition.js?v=20260930004251"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2209,10 +2202,13 @@ function render() {
   for (const v of VIEWS) $(v.el).hidden = v.id !== view;
   const inDetail = view === "detail", inAdmin = view === "admin", inRecords = view === "records";
   const inAim = view === "aim", inSky = view === "sky", inPlane = view === "plane";
-  // 地点と実況は判断のための情報。記録や管理を読んでいるときは要らない。
-  $("placeRow").hidden = inRecords || inAdmin;
+  // 地点と実況は判断のための情報。**その地点が主語の画面（一覧・詳細・空の見え方）だけに出す。**
+  // ダイヤモンド富士や月丼の上に出すと、何の地点なのか分からなかった（2026-09-30 ユーザー指摘）。
+  // それらの道具は自分のスポット一覧を持つ
+  currentView = view;
+  $("placeRow").hidden = !placeCardShown();
   // 展望台の選択は地点カードの続き。地点を出さない画面では一緒に隠す
-  if (inRecords || inAdmin) $("deckRow").hidden = true;
+  if (!placeCardShown()) $("deckRow").hidden = true; else renderDeckRow();
   $("nowcast").hidden = inRecords || inAdmin || inAim || inSky || inPlane || !nowcastReady;
 
   if (inDetail) {
@@ -4347,7 +4343,8 @@ const MapPick = createMapView({ canvas: "mapCanvas", coord: "mapCoord", sheet: "
 const AimMap = createMapView({ canvas: "aimCanvas", coord: "aimCoord",
   zoomIn: "aimIn", zoomOut: "aimOut", layerMap: "aimLayerMap", layerPhoto: "aimLayerPhoto" });
 
-const aim = { target: null, body: "sun", partId: null, limb: "center", dayMs: null, lines: [], seq: 0 };
+const aim = { target: null, body: "sun", partId: null, limb: "center", dayMs: null, lines: [], seq: 0,
+              spotSeq: 0, spotCache: null, spotsShown: [], spot: null, preset: null };
 
 /// 目標の高さで線の長さが変わる（富士山は150km、避雷針は3km）ので、地図の倍率も合わせる
 function aimZoomFor(target, partId) {
@@ -4408,6 +4405,8 @@ function aimFillParts() {
   const parts = aim.target.parts || [];
   $("aimPart").innerHTML = parts.map((p) => `<option value="${p.id}">${esc(p.name)} ${p.m}m</option>`).join("");
   $("aimPart").disabled = parts.length < 2;
+  // 選べるものが1つしか無い（富士山の山頂など）なら、選ぶ欄を出さない
+  $("aimPart").hidden = parts.length < 2;
   if (!parts.some((p) => p.id === aim.partId)) aim.partId = parts[0] ? parts[0].id : null;
   $("aimPart").value = aim.partId || "";
 }
@@ -4434,10 +4433,8 @@ async function aimRedrawLine() {
     return;
   }
   const lit = lines[0].points[0].illuminated;
-  // 線は弧になる。**近いほど高く見上げるので、そのぶん天体の方位も動く**
-  $("aimLineInfo").innerHTML = "線が弧を描くのは、近いほど高く見上げることになり、"
-    + `その高さを通る${aim.body === "moon" ? "月" : "太陽"}の方位がずれていくためです。`
-    + (Number.isFinite(lit) ? `　輝面 ${Math.round(lit * 100)}%。` : "");
+  // 説明の文は出さない（2026-09-30）。月のときだけ輝面を添える
+  $("aimLineInfo").textContent = aim.body === "moon" && Number.isFinite(lit) ? `輝面 ${Math.round(lit * 100)}%` : "";
   $("aimLineTable").hidden = false;
   $("aimLineTable").querySelector("tbody").innerHTML = lines.map((l) => {
     const first = l.points[0], last = l.points[l.points.length - 1];
@@ -4513,6 +4510,23 @@ AimMap.setOverlay((ctx, { project, width, height }) => {
     ctx.lineWidth = 1.5; ctx.strokeStyle = ink; ctx.stroke();
     ctx.restore();
   }
+
+  // 観測スポット。一覧と同じ番号を振る。選んだスポットは大きく
+  (aim.spotsShown || []).forEach((sp, i) => {
+    const [x, y] = project(sp.latitude, sp.longitude);
+    const on = aim.spot && aim.spot.id === sp.id;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, y, on ? 10 : 8, 0, Math.PI * 2);
+    ctx.fillStyle = ink; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, on ? 8 : 6, 0, Math.PI * 2);
+    ctx.fillStyle = "#fff"; ctx.fill();
+    ctx.fillStyle = "#111";
+    ctx.font = `700 ${on ? 11 : 9}px -apple-system, 'Hiragino Sans', sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(String(i + 1), x, y + 0.5);
+    if (on) aimMapLabel(ctx, x, y - 16, sp.name, "#fff", width, height, "center");
+    ctx.restore();
+  });
 
   // 目標の印は線の上に置く。二重丸＋名前
   ctx.save();
@@ -4715,10 +4729,8 @@ function planeRender() {
     </div></div>`;
   const lit = r.illuminated !== null && r.illuminated !== undefined
     ? `月の輝面 ${Math.round(r.illuminated * 100)}%。` : "";
-  $("planeInfo").innerHTML = `${lit}月が低い（2〜30°）あいだだけを見ています。`
-    + `<br>機体は<strong>4〜12kmが狙いめ</strong>です（全長60mの機体が月に収まるのは6.6kmより遠く）。`
-    + `<br>展望台の上なら目が高いぶん機体との高低差が縮み、<strong>低い月でも街に隠れません</strong>。`
-    + `いま選んでいる地点も候補に入れています。`;
+  // 説明の段落は出さない（2026-09-30 ユーザー指摘「説明する必要がないもの多い」）。輝面だけ
+  $("planeInfo").textContent = lit.replace(/。$/, "");
   $("planeList").innerHTML = r.spots.map((sp, i) => {
     const when = sp.windows.map((w) => (w.from === w.to
       ? S.JstCal.hhmm(w.from) : `${S.JstCal.hhmm(w.from)}〜${S.JstCal.hhmm(w.to)}`)).join("、");
@@ -5359,6 +5371,11 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   // 自分で置く目標のときだけ、高さの入力を出す
   $("aimCustomRow").hidden = wanted !== "custom";
   $("aimTargetNote").textContent = aim.target.note || "";
+  // ダイヤモンド富士・パール富士は目標も天体も決まっている。選ぶ行と「自分の地点」釦を出さない
+  const fixedFuji = (aim.preset === "diamond" || aim.preset === "pearl") && aimIsFuji();
+  $("aimTargetBox").hidden = fixedFuji;
+  $("aimPick").hidden = aimIsFuji();
+  if (!aimIsFuji()) aim.spotsShown = [];
   const t = aimTitleFor();
   $("aimTitle").textContent = t.title;
   $("aimSub").textContent = t.sub;
@@ -5409,35 +5426,102 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   if (redraw) { aimRedrawLine(); aimRenderList(); }
 }
 
-/// いまの地点から見た「次に重なる日」
+/// 日付。**今年でなければ年も書く**（400日先まで並べるので、同じ月日が2回出ることがある）
+function aimDateLabel(ms) {
+  const y = new Date(ms + 9 * 3600000).getUTCFullYear();
+  const now = new Date(Date.now() + 9 * 3600000).getUTCFullYear();
+  return `${y === now ? "" : `${y}/`}${S.Cal.monthDay(ms)}(${S.Cal.weekday(ms)}) ${S.JstCal.hhmm(ms)}`;
+}
+
+/// ダイヤモンド富士・パール富士の一覧は、主な観測スポットごとに次の日を出す
+const aimIsFuji = () => aim.target && aim.target.id === "fuji";
+
 function aimRenderList() {
-  // **展望台の上ならその高さで。** 目が高いほど目標を見上げる角度は下がり、重なる日が変わる
+  if (aimIsFuji()) return aimRenderSpots();
+  // 塔: いまの地点から見た「次に重なる日」。**展望台の上ならその高さで**
   const obs = observerHere();
-  $("aimPlaceName").textContent = place.name;
+  $("aimListTitle").textContent = "次に重なる日";
+  $("aimListSub").textContent = `${place.name}から`;
   let rows = [];
   try {
     rows = SoramiAlign.upcoming(obs, aim.target, aim.body,
       { from: Date.now(), days: 400, limit: 6, partId: aim.partId, limb: aim.limb });
   } catch { rows = []; }
   if (!rows.length) {
-    $("aimList").innerHTML = `<p class="tiny">今後1年、この地点からは重なりません。地図の線の上へ動かすと見える場所が分かります。</p>`;
+    $("aimList").innerHTML = `<p class="tiny">この1年、${esc(place.name)}からは重なりません。</p>`;
     return;
   }
-  $("aimList").innerHTML = rows.map((e, i) => {
+  $("aimList").innerHTML = rows.map((e) => {
     const lit = e.illuminated !== null && e.illuminated !== undefined
       ? ` ・ 輝面 ${Math.round(e.illuminated * 100)}%` : "";
     return `<button class="al-row jump" data-aimday="${S.Cal.startOfDay(e.at)}">
-      <div class="al-w"><strong>${S.Cal.monthDay(e.at)}(${S.Cal.weekday(e.at)}) ${S.JstCal.hhmm(e.at)}</strong>
+      <div class="al-w"><strong>${aimDateLabel(e.at)}</strong>
         <span class="tiny">${esc(e.rank === "center" ? "ど真ん中" : e.rank === "overlap" ? "重なる" : "縁がかすめる")}${lit}
         ・ ${esc(aimSideLabel(e.side))}</span></div>
-      <div class="tiny" style="color:var(--accent)">この日の線を見る →</div></button>`;
+      <div class="tiny" style="color:var(--accent)">この日の線 →</div></button>`;
   }).join("");
   for (const el of $("aimList").querySelectorAll("[data-aimday]")) {
-    el.onclick = () => {
-      const day = +el.dataset.aimday;
-      $("aimDate").value = new Date(day + 9 * 3600000).toISOString().slice(0, 10);
-      aimApply();
-    };
+    el.onclick = () => aimShowDay(+el.dataset.aimday);
+  }
+}
+
+function aimShowDay(day, spot = null) {
+  $("aimDate").value = new Date(day + 9 * 3600000).toISOString().slice(0, 10);
+  aim.spot = spot;
+  if (spot) AimMap.open({ latitude: spot.latitude, longitude: spot.longitude }, Math.max(10, Math.round(AimMap.zoom())));
+  aimApply();
+}
+
+/**
+ * 主な観測スポットと、それぞれで次に重なる日（2026-09-30）。
+ * 以前は「いま選んでいる地点から見た日」だけで、どこへ行けばよいかが分からなかった（ユーザー指摘）。
+ * 23か所×1年を解くので、1か所ずつ間をあけて描く（画面を止めない）。
+ */
+async function aimRenderSpots() {
+  const seq = ++aim.spotSeq;
+  const moon = aim.body === "moon";
+  $("aimListTitle").textContent = "観測スポット";
+  $("aimListSub").textContent = moon ? "次にパール富士が見える日" : "次にダイヤモンド富士が見える日";
+  $("aimList").innerHTML = `<p class="tiny">計算しています…</p>`;
+  const key = `${aim.body}:${aim.limb}:${S.Cal.startOfDay(Date.now())}`;
+  aim.spotCache = aim.spotCache || {};
+  if (!aim.spotCache[key]) {
+    const rows = [];
+    for (const sp of SoramiAlign.FUJI_SPOTS) {
+      let ev = [];
+      try {
+        ev = SoramiAlign.upcoming(SoramiAlign.spotObserver(sp), aim.target, aim.body,
+          { from: Date.now(), days: 400, limit: moon ? 12 : 4, limb: aim.limb, stepMs: 3600000 });
+      } catch { ev = []; }
+      // パール富士は、**月が暗い空にあるときだけ**（昼の月は重なっても写らない）
+      ev = ev.filter((e) => e.rank !== "graze" && (!moon || e.sunAltitude < 0));
+      if (ev.length) rows.push({ sp, ev: ev.slice(0, 2) });
+      await new Promise((r) => setTimeout(r, 0));
+      if (seq !== aim.spotSeq) return;
+    }
+    rows.sort((a, b) => a.ev[0].at - b.ev[0].at);
+    aim.spotCache[key] = rows;
+  }
+  if (seq !== aim.spotSeq) return;
+  const rows = aim.spotCache[key];
+  aim.spotsShown = rows.map((r) => r.sp);
+  AimMap.redraw();
+  if (!rows.length) { $("aimList").innerHTML = `<p class="tiny">この1年、主なスポットからは見えません。</p>`; return; }
+  $("aimList").innerHTML = rows.map(({ sp, ev }, i) => {
+    const when = ev.map((e) => {
+      const lit = moon ? ` 輝面${Math.round(e.illuminated * 100)}%` : "";
+      return `<button class="tiny aim-day" data-spot="${i}" data-day="${S.Cal.startOfDay(e.at)}">${aimDateLabel(e.at)}`
+        + `${e.side === "set" ? (moon ? " 月の入" : " 日の入") : (moon ? " 月の出" : " 日の出")}${lit}</button>`;
+    }).join("");
+    const tags = [sp.kind, sp.deckM ? `地上${sp.deckM}m` : null, sp.note].filter(Boolean).join(" ・ ");
+    return `<div class="al-row aim-spot">
+      <div class="al-w"><strong>${i + 1}. ${esc(sp.name)}</strong>
+        <span class="tiny">${esc(sp.address)}</span>
+        <span class="tiny" style="color:var(--tertiary)">${esc(tags)}</span>
+        <div class="aim-days">${when}</div></div></div>`;
+  }).join("");
+  for (const el of $("aimList").querySelectorAll("[data-day]")) {
+    el.onclick = () => aimShowDay(+el.dataset.day, rows[+el.dataset.spot].sp);
   }
 }
 
@@ -5519,6 +5603,7 @@ function openAim(preset) {
   if (!$("aimDate").value) $("aimDate").value = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
   // メニューから来たときは、目標と天体を先に入れる
   const pre = preset && AIM_PRESETS[preset];
+  aim.preset = preset || null;
   if (pre) {
     $("aimTarget").value = pre.target;
     if (pre.body) aim.body = pre.body;
@@ -5688,10 +5773,13 @@ function lookoutTag(r) {
  * 東京タワーの メインデッキ150m / トップデッキ250m、
  * スカイツリーの 天望デッキ350m / 天望回廊450m は、立つ場所で地平線が変わる。
  */
+let currentView = "list";
+/// 地点カードを出す画面か（その地点が主語の画面だけ）
+const placeCardShown = () => ["list", "detail", "sky"].includes(currentView);
 function renderDeckRow() {
   const decks = (place && place.decks) || [];
   const row = $("deckRow");
-  row.hidden = decks.length < 1;
+  row.hidden = decks.length < 1 || !placeCardShown();
   if (row.hidden) return;
   const cur = place.eyeHeightAGL ?? 1.5;
   const opts = [...decks.map((d) =>
@@ -5701,9 +5789,7 @@ function renderDeckRow() {
     `<option value="${v}"${Number(v) === cur ? " selected" : ""}>${esc(label)}</option>`).join("");
   const ground = place.elevation ?? bundle?.home.grid.elevation;
   $("deckNote").textContent = Number.isFinite(ground)
-    ? `目の高さは 標高${Math.round(ground)}m ＋ ${cur}m = ${Math.round(ground + cur)}m。`
-      + `月の出や富士山の見え方が、ここで変わります。`
-    : "立つ高さで、月の出や富士山の見え方が変わります。";
+    ? `目の高さ ${Math.round(ground + cur)}m（標高${Math.round(ground)}m＋${cur}m）` : "";
 }
 $("deckPick").onchange = () => {
   const m = Number($("deckPick").value);
