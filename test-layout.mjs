@@ -61,7 +61,7 @@ ok(/const skyHorizon = \(\) => \(moonHorizon \|\| \(\(\) => 0\)\)/.test(html),
   "稜線は月の判定のものを使う（測り直さない）");
 ok(!/measureHorizon/.test(html.split("function openSky")[1] || ""),
   "空の画面からは地平線を測りに行かない");
-ok(/点線は稜線の裏/.test(html), "点線の意味を凡例に出す");
+ok(/点線＝稜線の裏/.test(html), "点線の意味を凡例に出す（短く）");
 
 // ---- 3D。**three.js は vendor から読む**（CDN を足すと CSP に外部が要り、落ちた日に画面が死ぬ）
 ok(/import\("\.\/vendor\/three\/three\.module\.js"\)/.test(html), "three は同じ配信元から読む");

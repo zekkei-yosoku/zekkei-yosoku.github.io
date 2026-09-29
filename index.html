@@ -884,8 +884,6 @@
   <div id="skyView" hidden>
     <div class="card">
       <div class="section-h"><h2>空の見え方</h2><span class="muted" id="skyPlace"></span></div>
-      <p class="tiny" style="margin:0 0 8px">横が方位、縦が高さ。<strong>塗りつぶしは地形と建物</strong>で、
-        その下に入ると見えません。</p>
       <label class="fav-l" for="skyDate">日付</label>
       <div class="aim-row aim-date">
         <button id="skyPrev" class="fav-btn" aria-label="前の日">←</button>
@@ -915,7 +913,7 @@
       <div class="aim-legend">
         <span><i class="aim-k sun"></i>太陽</span>
         <span><i class="aim-k moon"></i>月</span>
-        <span class="tiny">点線は稜線の裏（見えない）</span>
+        <span class="tiny">点線＝稜線の裏</span>
       </div>
       <table class="aim-tab" id="skyTable">
         <thead><tr><th>天体</th><th>見え始め</th><th>いちばん高い</th><th>見えなくなる</th></tr></thead>
@@ -1375,22 +1373,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260930005309"></script>
+<script src="sorami-core.js?v=20260930005414"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260930005309"></script>
-<script src="sorami-exif.js?v=20260930005309"></script>
-<script src="sorami-capcloud.js?v=20260930005309"></script>
-<script src="sorami-terrain.js?v=20260930005309"></script>
-<script src="sorami-mountain.js?v=20260930005309"></script>
-<script src="sorami-fuji.js?v=20260930005309"></script>
-<script src="sorami-sky.js?v=20260930005309"></script>
-<script src="sorami-routes.js?v=20260930005309"></script>
-<script src="sorami-iss.js?v=20260930005309"></script>
-<script src="sorami-plane.js?v=20260930005309"></script>
-<script src="sorami-align.js?v=20260930005309"></script>
-<script src="sorami-moon.js?v=20260930005309"></script>
-<script src="sorami-composition.js?v=20260930005309"></script>
+<script src="sorami-astro.js?v=20260930005414"></script>
+<script src="sorami-exif.js?v=20260930005414"></script>
+<script src="sorami-capcloud.js?v=20260930005414"></script>
+<script src="sorami-terrain.js?v=20260930005414"></script>
+<script src="sorami-mountain.js?v=20260930005414"></script>
+<script src="sorami-fuji.js?v=20260930005414"></script>
+<script src="sorami-sky.js?v=20260930005414"></script>
+<script src="sorami-routes.js?v=20260930005414"></script>
+<script src="sorami-iss.js?v=20260930005414"></script>
+<script src="sorami-plane.js?v=20260930005414"></script>
+<script src="sorami-align.js?v=20260930005414"></script>
+<script src="sorami-moon.js?v=20260930005414"></script>
+<script src="sorami-composition.js?v=20260930005414"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5268,11 +5266,10 @@ function skyRenderText() {
     body("sun", "太陽", "sun") + body("moon", "月", "moon");
 
   const layers = moonHorizon && moonHorizon.layers ? moonHorizon.layers : [];
-  $("skyNote").textContent = layers.includes("urban")
-    ? "稜線は標高タイルの地形と、OpenStreetMap の建物の高さから出しています。木や高さの入っていない建物は見ていません。"
-    : layers.includes("terrain")
-      ? "稜線は標高タイルの地形から出しています。建物は入っていません。"
-      : "稜線が測れていないので、平らな地平線で描いています。";
+  // ふだんは何も書かない。足りないときだけ言う（2026-09-30。説明の文を減らす）
+  $("skyNote").textContent = layers.includes("urban") ? ""
+    : layers.includes("terrain") ? "建物は入っていません（地形だけ）。"
+      : "稜線を測れず、平らな地平線で描いています。";
 }
 
 // ---------------------------------------------------------------- 3D の空
