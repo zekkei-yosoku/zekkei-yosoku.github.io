@@ -363,6 +363,16 @@ ok(/\$\("aimPart"\)\.hidden = parts\.length < 2/.test(html), "選べる高さが
 ok(!/目標に太陽や月が重なる日と、/.test(html), "説明の段落を出さない");
 ok(!/線が弧を描くのは|番号は下の一覧と同じ|月が低い（2〜30°）あいだだけを見ています/.test(code), "地図の下の説明を出さない");
 
+console.log("== ISS の月面通過（2026-09-30） ==");
+ok(/data-tool="#\/iss" data-id="iss"><b>ISSの月面通過<\/b>/.test(html), "メニューに ISSの月面通過 がある");
+ok(/location\.hash === "#\/iss"/.test(html), "#/iss の道がある");
+ok(/\{ id: "iss",\s+el: "issView"/.test(html), "画面の表に1行足した");
+ok(/https:\/\/celestrak\.org/.test(html), "軌道要素は CelesTrak から（CSP に足した）");
+ok(/import\("\.\/vendor\/satellite\/io\.js"\)/.test(html), "satellite.js は vendor から必要なときだけ読む");
+ok(!/if \(iss\.body === "moon"\) rows = rows\.filter/.test(html), "昼の月の回も残す（高い昼の月は写る）");
+ok(/r\.at - Date\.now\(\) > 72 \* 3600000/.test(html), "3日より先は「目安」と付ける");
+ok(/太陽は必ず減光フィルターを付けて/.test(html), "太陽のときは減光フィルターの注意を出す");
+
 console.log("== 道具の名前は1か所から取る ==");
 // 管理画面に書き写していたため、ねらうを3つに分けた日に片方だけ古くなった。
 ok(/const TOOL_NAMES = Object\.fromEntries\(\[\.\.\.document\.querySelectorAll\("#toolsMenu \[data-tool\]"\)\]/.test(html),
@@ -371,7 +381,7 @@ ok(!/TOOL_NAMES = \{/.test(html), "名前を書き写さない");
 {
   // メニューの data-id と、Worker が許す道具（TOOLS）が一致していること。
   const menu = [...html.matchAll(/data-tool="[^"]+" data-id="([a-z]+)"/g)].map((m) => m[1]);
-  ok(menu.length === 6, "メニューの道具は6つ", menu.join("・"));
+  ok(menu.length === 7, "メニューの道具は7つ（2026-09-30 に ISS を足した）", menu.join("・"));
   const api = fs.readFileSync(new URL("../api/src/index.js", import.meta.url), "utf8");
   const tools = /const TOOLS = \[([^\]]+)\]/.exec(api)[1].match(/"([a-z]+)"/g).map((s) => s.replace(/"/g, ""));
   ok(JSON.stringify(menu.slice().sort()) === JSON.stringify(tools.slice().sort()),
@@ -1902,7 +1912,8 @@ for (const id of ["placeRow", "nowcast"]) {
 ok(/\$\("recPending"\)\.hidden/.test(html), "recPending の表示を切り替えている");
 // 管理画面で隠すもの: 地点・実況・記録の問いかけ
 ok(!["admin", "records"].some((v) => ["list", "detail", "sky"].includes(v)), "地点を管理画面で隠す");
-ok(/\$\("nowcast"\)\.hidden = inRecords \|\| inAdmin/.test(html), "実況を管理画面で隠す");
+// 実況は一覧と詳細だけ（道具・記録・管理では出さない）
+ok(/\$\("nowcast"\)\.hidden = !\["list", "detail"\]\.includes\(view\)/.test(html), "実況を管理画面で隠す");
 
 console.log("== ログインの保持 ==");
 // 2026-09-08 ユーザー「更新するたびにログインはだるいよねって」。

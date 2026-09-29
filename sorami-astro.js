@@ -333,6 +333,32 @@
     };
   }
 
+  /**
+   * 月・太陽の中心の地球固定座標（ECEF、km）。ISS の通過（衛星と天体と観測者が一直線）に使う。
+   * 地心の見かけの赤経・赤緯と距離を、グリニッジ恒星時で地球に固定した座標へ回す。
+   */
+  function bodyEcef(body, ms) {
+    const tt = ms + DELTA_T_MS;
+    let lonDeg, latDeg, distanceKm, T;
+    if (body === "moon") {
+      const g = moonGeocentric(tt);
+      ({ distanceKm, T } = g);
+      const { dPsi } = nutation(T);
+      lonDeg = g.longitude + dPsi; latDeg = g.latitude;
+    } else {
+      const s = sunPosition(tt);
+      ({ distanceKm, T } = s);
+      lonDeg = s.longitude; latDeg = 0;             // 章動は経度に入っている
+    }
+    const { dPsi, dEps } = nutation(T);
+    const eps = meanObliquity(T) + dEps;
+    const eq = toEquatorial(lonDeg, latDeg, eps);
+    const theta = apparentSiderealTime(ms, dPsi, eps);
+    const lon = (eq.ra - theta) * DEG, dec = eq.dec * DEG;
+    return { x: distanceKm * Math.cos(dec) * Math.cos(lon), y: distanceKm * Math.cos(dec) * Math.sin(lon),
+             z: distanceKm * Math.sin(dec), distanceKm };
+  }
+
   // ------------------------------------------------------------------ 幾何
   const EARTH_R_KM = 6371.0088;
   /// 標準大気での屈折を含めた有効地球半径の係数。
@@ -507,7 +533,7 @@
     julianDay, centuries, nutation, meanObliquity,
     sunPosition, sun, sunAngularRadius, moonGeocentric, moon,
     toEquatorial, toHorizontal, topocentric, apparentSiderealTime,
-    refraction, moonAngularRadius,
+    refraction, moonAngularRadius, bodyEcef, DELTA_T_MS,
     findCrossing, moonCrossings, moonEvents,
     // 幾何
     EARTH_R_KM, REFRACTION_K,

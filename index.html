@@ -8,7 +8,7 @@
      connect-src を実際に使う相手だけに絞れば、盗んだトークンの持ち出し先を塞げる。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://overpass.kumi.systems https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://djlorenz.github.io https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://overpass.kumi.systems https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1043,6 +1043,40 @@
       </div>
   </div>
 
+  <!-- ISS の月面通過（2026-09-30）。月（太陽）の中心から ISS を通る直線が地面に当たる線＝中心線。
+       その左右数kmの帯の中に立つと、ISS が円盤の前を横切る。1秒に満たない -->
+  <div id="issView" hidden>
+    <div class="card">
+      <div class="section-h"><h2>ISSの月面通過</h2><span class="muted" id="issSub">ISS × 月</span></div>
+      <div class="aim-row">
+        <select id="issRange" class="fav-in" aria-label="探す範囲">
+          <option value="50">50km以内</option>
+          <option value="150" selected>150km以内</option>
+          <option value="400">400km以内</option>
+        </select>
+        <div class="aim-seg" role="group" aria-label="月か太陽">
+          <button id="issMoon" aria-pressed="true">🌙 月</button>
+          <button id="issSun" aria-pressed="false">☀️ 太陽</button>
+        </div>
+      </div>
+      <p class="tiny" id="issTle" style="margin:-2px 0 8px;color:var(--tertiary)"></p>
+      <div class="mapwrap" style="margin-top:4px">
+        <canvas id="issCanvas" aria-label="地図。ISSが月の前を横切って見える帯です"></canvas>
+        <div class="mapzoom">
+          <button id="issIn" aria-label="拡大">＋</button>
+          <button id="issOut" aria-label="縮小">−</button>
+        </div>
+        <div class="mapattr">国土地理院</div>
+      </div>
+      <div class="aim-legend">
+        <span><i class="aim-k moon" id="issKey"></i>見える帯</span>
+      </div>
+      <div class="section-h" style="margin-top:12px"><h2>これから7日</h2><span class="muted" id="issFrom"></span></div>
+      <div id="issList" class="al"></div>
+      <p class="tiny" id="issSunWarn" style="margin-top:8px;color:var(--red)" hidden>太陽は必ず減光フィルターを付けて見てください。</p>
+    </div>
+  </div>
+
   <div id="recordsView" hidden>
     <div class="card">
       <div class="section-h"><h2>記録</h2><span class="muted" id="recCount"></span></div>
@@ -1085,6 +1119,7 @@
     <button data-tool="#/aim/tower" data-id="tower"><b>塔に重ねる</b><span>スカイツリーや東京タワーに太陽や月を重ねる</span></button>
     <button data-tool="#/sky" data-id="sky"><b>空の見え方</b><span>稜線の上を太陽と月がどう通るか</span></button>
     <button data-tool="#/plane" data-id="plane"><b>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
+    <button data-tool="#/iss" data-id="iss"><b>ISSの月面通過</b><span>ISSが月や太陽の前を横切る場所と時刻</span></button>
     <button data-tool="#/records" data-id="records"><b>記録</b><span>点数が実際とどれだけ合っているか</span></button>
   </nav>
 </aside>
@@ -1340,21 +1375,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260930004251"></script>
+<script src="sorami-core.js?v=20260930005125"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260930004251"></script>
-<script src="sorami-exif.js?v=20260930004251"></script>
-<script src="sorami-capcloud.js?v=20260930004251"></script>
-<script src="sorami-terrain.js?v=20260930004251"></script>
-<script src="sorami-mountain.js?v=20260930004251"></script>
-<script src="sorami-fuji.js?v=20260930004251"></script>
-<script src="sorami-sky.js?v=20260930004251"></script>
-<script src="sorami-routes.js?v=20260930004251"></script>
-<script src="sorami-plane.js?v=20260930004251"></script>
-<script src="sorami-align.js?v=20260930004251"></script>
-<script src="sorami-moon.js?v=20260930004251"></script>
-<script src="sorami-composition.js?v=20260930004251"></script>
+<script src="sorami-astro.js?v=20260930005125"></script>
+<script src="sorami-exif.js?v=20260930005125"></script>
+<script src="sorami-capcloud.js?v=20260930005125"></script>
+<script src="sorami-terrain.js?v=20260930005125"></script>
+<script src="sorami-mountain.js?v=20260930005125"></script>
+<script src="sorami-fuji.js?v=20260930005125"></script>
+<script src="sorami-sky.js?v=20260930005125"></script>
+<script src="sorami-routes.js?v=20260930005125"></script>
+<script src="sorami-iss.js?v=20260930005125"></script>
+<script src="sorami-plane.js?v=20260930005125"></script>
+<script src="sorami-align.js?v=20260930005125"></script>
+<script src="sorami-moon.js?v=20260930005125"></script>
+<script src="sorami-composition.js?v=20260930005125"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1684,6 +1720,7 @@ let picked = null;       // 詳細で見ている現象（一覧のときは nul
 let atAim = false;       // 「ねらう」のページを見ているか
 let atSky = false;       // 「空の見え方」のページを見ているか
 let atPlane = false;     // 「月丼」のページを見ているか
+let atIss = false;       // 「ISSの月面通過」のページを見ているか
 let atRecords = false;   // 記録画面を見ているか
 let atAdmin = false;     // 管理者画面を見ているか
 let nowcastReady = false;  // 実況が取れたか。画面を切り替えても状態を保つ
@@ -1775,7 +1812,8 @@ async function loadNowcast() {
   for (const line of S.Amedas.supplementSummary(obs)) html += `<div class="tiny">${esc(line)}</div>`;
   $("nowcast").innerHTML = html;
   nowcastReady = true;
-  $("nowcast").hidden = atRecords;
+  // 実況は一覧と詳細だけ（render と同じ決まり。ここで別の条件にすると、実況が届いた瞬間に道具の画面へ出る）
+  $("nowcast").hidden = !["list", "detail"].includes(currentView);
 }
 
 // ---------------------------------------------------------------- 描画
@@ -2131,6 +2169,7 @@ const VIEWS = [
   { id: "aim",     el: "aimView",     on: () => atAim },
   { id: "sky",     el: "skyView",     on: () => atSky },
   { id: "plane",   el: "planeView",   on: () => atPlane },
+  { id: "iss",     el: "issView",     on: () => atIss },
   { id: "list",    el: "listView",    on: () => true },
 ];
 
@@ -2209,7 +2248,7 @@ function render() {
   $("placeRow").hidden = !placeCardShown();
   // 展望台の選択は地点カードの続き。地点を出さない画面では一緒に隠す
   if (!placeCardShown()) $("deckRow").hidden = true; else renderDeckRow();
-  $("nowcast").hidden = inRecords || inAdmin || inAim || inSky || inPlane || !nowcastReady;
+  $("nowcast").hidden = !["list", "detail"].includes(view) || !nowcastReady;
 
   if (inDetail) {
     $("detailPane").innerHTML = renderDetailPane(picked, now);
@@ -2618,6 +2657,7 @@ function routeFromHash() {
   if (am) return { aim: true, preset: am[1] };
   if (location.hash === "#/sky") return { sky: true };
   if (location.hash === "#/plane") return { plane: true };
+  if (location.hash === "#/iss") return { iss: true };
   if (location.hash === "#/admin") return { admin: true };
   const m = /^#\/([A-Za-z]+)(?:\/(\d+))?$/.exec(location.hash);
   // **`SCORERS` ではなく `PHENOMENA` で見る。**
@@ -2652,9 +2692,11 @@ function applyRoute() {
   atAim = !!(route && route.aim);
   atSky = !!(route && route.sky);
   atPlane = !!(route && route.plane);
+  atIss = !!(route && route.iss);
   if (atAim) openAim(route.preset || null);
   if (atSky) openSky();
   if (atPlane) openPlane();
+  if (atIss) openIss();
   if (atAdmin) renderAdmin();
   if (route && route.id) {
     // 日を含まない URL は「直近の回」を指す。前に見ていた日を残すと、
@@ -4841,6 +4883,162 @@ function openPlane() {
     requestAnimationFrame(() => PlaneMap.redraw());
   });
   planeApply();
+}
+
+// ---------------------------------------------------------------- ISS の月面通過
+//
+// ISS の位置は CelesTrak の軌道要素（TLE）を SGP4（satellite.js）で進める。
+// 軌道要素は日に数回更新され、ISS はときどき高度を上げるので、**先の日ほど外れる**。
+// 7日先まで出し、3日より先には「目安」と付ける。
+const iss = { body: "moon", rangeKm: 150, sat: null, tle: null, result: [], pick: 0, seq: 0, wired: false };
+const IssMap = createMapView({ canvas: "issCanvas", zoomIn: "issIn", zoomOut: "issOut" });
+
+/// satellite.js は必要になったときだけ読む（three.js と同じく vendor から、CSP は 'self' のまま）
+async function issLoadSat() {
+  if (iss.sat) return iss.sat;
+  const [io, pr, tr] = await Promise.all([
+    import("./vendor/satellite/io.js"), import("./vendor/satellite/propagation.js"),
+    import("./vendor/satellite/transforms.js")]);
+  iss.sat = { twoline2satrec: io.twoline2satrec, propagate: pr.propagate, gstime: pr.gstime,
+              eciToEcf: tr.eciToEcf, ecfToLookAngles: tr.ecfToLookAngles };
+  return iss.sat;
+}
+
+/// 軌道要素。**2時間は使い回す**（CelesTrak は同じ要素を短い間隔で何度も取りに来るのを嫌う）
+async function issLoadTle() {
+  const cached = store.get("sorami.issTle", null);
+  if (cached && Date.now() - cached.at < 2 * 3600000 && cached.text) return SoramiISS.parseTle(cached.text);
+  try {
+    const res = await fetch("https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const tle = SoramiISS.parseTle(text);
+    if (!tle) throw new Error("軌道要素を読めません");
+    store.set("sorami.issTle", { at: Date.now(), text });
+    return tle;
+  } catch (e) {
+    // 取れなければ、古くても手元のものを使う（古さは画面に出す）
+    return cached && cached.text ? SoramiISS.parseTle(cached.text) : null;
+  }
+}
+
+async function issApply() {
+  const seq = ++iss.seq;
+  $("issList").innerHTML = `<p class="tiny">計算しています…</p>`;
+  $("issSub").textContent = iss.body === "moon" ? "ISS × 月" : "ISS × 太陽";
+  $("issMoon").setAttribute("aria-pressed", String(iss.body === "moon"));
+  $("issSun").setAttribute("aria-pressed", String(iss.body === "sun"));
+  $("issSunWarn").hidden = iss.body !== "sun";
+  $("issKey").className = `aim-k ${iss.body === "moon" ? "moon" : "sun"}`;
+  $("issFrom").textContent = `${place.name}から${iss.rangeKm}km以内`;
+  let sat, tle;
+  try { [sat, tle] = await Promise.all([issLoadSat(), issLoadTle()]); } catch { sat = null; }
+  if (seq !== iss.seq) return;
+  if (!sat || !tle) { $("issList").innerHTML = `<p class="tiny">ISSの軌道要素を取れませんでした。時間をおいて開き直してください。</p>`; return; }
+  const ageH = (Date.now() - tle.epochMs) / 3600000;
+  $("issTle").textContent = `軌道要素は ${ageH < 1 ? "1時間以内" : `${Math.round(ageH)}時間前`}のもの。当日にもう一度開いて確かめてください。`;
+  // 画面を止めないよう、次の描画を待ってから解く（3日ぶんで0.2秒ほど）
+  await new Promise((r) => setTimeout(r, 0));
+  let rows = [];
+  try {
+    rows = SoramiISS.transits(sat, tle, { center: { latitude: place.latitude, longitude: place.longitude },
+      radiusKm: iss.rangeKm, fromMs: Date.now(), hours: 168, body: iss.body });
+  } catch { rows = []; }
+  if (seq !== iss.seq) return;
+  // 昼の月も残す。高く昇った昼の月は見えていて、ISS の影は望遠で写る（月面通過の写真の多くは昼）。
+  // 空の明るさは行に「昼・薄明・夜」で添える
+  iss.result = rows; iss.pick = 0;
+  issRender();
+  if (rows.length) IssMap.open(rows[0].center, 9);
+  else IssMap.open({ latitude: place.latitude, longitude: place.longitude }, 8);
+  requestAnimationFrame(() => IssMap.redraw());
+}
+
+function issRender() {
+  const rows = iss.result;
+  if (!rows.length) {
+    $("issList").innerHTML = `<p class="tiny">この7日、${esc(place.name)}から${iss.rangeKm}km以内で${iss.body === "moon" ? "月" : "太陽"}の前を通る回はありません。範囲を広げてみてください。</p>`;
+    return;
+  }
+  $("issList").innerHTML = rows.map((r, i) => {
+    const t = new Date(r.at + 9 * 3600000);
+    const hms = t.toISOString().slice(11, 19);
+    const dir = issDirection(place, r.center);
+    const lit = r.illuminated !== null ? ` ・ 輝面${Math.round(r.illuminated * 100)}%` : "";
+    const sky = r.sunAltitude < -6 ? "夜" : r.sunAltitude < 0 ? "薄明" : "昼";
+    // 3日より先は軌道要素の誤差で数十秒・数kmずれうる。印だけ付ける
+    const rough = r.at - Date.now() > 72 * 3600000 ? `<span class="tiny" style="color:var(--tertiary)">（目安）</span>` : "";
+    return `<button class="al-row jump" data-iss="${i}">
+      <div class="al-w"><strong>${S.Cal.monthDay(r.at)}(${S.Cal.weekday(r.at)}) ${hms}</strong>${rough}
+        <span class="muted">${dir}へ ${r.distanceKm}km の線上 ・ 帯の幅 約${(r.halfWidthKm * 2).toFixed(1)}km ・ ${r.durationS.toFixed(1)}秒</span>
+        <span class="tiny">${iss.body === "moon" ? "月" : "太陽"}の高さ${Math.round(r.altitude)}° 方位${Math.round(r.azimuth)}°${lit} ・ ${sky} ・ ISSまで${r.rangeKm}km</span></div>
+      <span class="tiny">地図で見る →</span></button>`;
+  }).join("");
+  for (const el of $("issList").querySelectorAll("[data-iss]")) {
+    el.onclick = () => {
+      iss.pick = +el.dataset.iss;
+      IssMap.open(iss.result[iss.pick].center, 11);
+      requestAnimationFrame(() => IssMap.redraw());
+    };
+  }
+}
+
+/// 方角を8方位で言う（地点から、中心線のいちばん近い点へ）
+function issDirection(from, to) {
+  const b = SoramiTerrain.bearing(from.latitude, from.longitude, to.latitude, to.longitude);
+  return ["北", "北東", "東", "南東", "南", "南西", "西", "北西"][Math.round(b / 45) % 8];
+}
+
+IssMap.setOverlay((ctx, { project, width, height }) => {
+  const rows = iss.result || [];
+  const cs = getComputedStyle(document.documentElement);
+  const color = cs.getPropertyValue(iss.body === "moon" ? "--ray-moon" : "--ray-sun").trim() || "#2f7fd0";
+  const ink = "rgba(0,0,0,.55)";
+  rows.forEach((r, i) => {
+    const on = i === iss.pick;
+    // 帯: 中心線の左右に半幅ずつ。中心線の向きに直角な向きへずらして塗る
+    const pts = r.track.map((q) => project(q.latitude, q.longitude));
+    if (pts.length < 2) return;
+    const [x0, y0] = project(r.center.latitude, r.center.longitude);
+    const [x1, y1] = project(r.center.latitude + r.halfWidthKm / 111.2, r.center.longitude);
+    const half = Math.max(2, Math.abs(y1 - y0));
+    ctx.save();
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    ctx.globalAlpha = on ? 0.28 : 0.14;
+    ctx.strokeStyle = color; ctx.lineWidth = half * 2;
+    ctx.beginPath(); pts.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = ink; ctx.lineWidth = on ? 4 : 3;
+    ctx.beginPath(); pts.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+    ctx.strokeStyle = color; ctx.lineWidth = on ? 2 : 1.4; ctx.stroke();
+    if (on) {
+      ctx.beginPath(); ctx.arc(x0, y0, 6, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+      aimMapLabel(ctx, x0, y0 - 16, new Date(r.at + 9 * 3600000).toISOString().slice(11, 19), "#fff", width, height, "center");
+    }
+    ctx.restore();
+  });
+  // いまの地点
+  const [px, py] = project(place.latitude, place.longitude);
+  ctx.save();
+  ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2);
+  ctx.fillStyle = ink; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+  aimMapLabel(ctx, px, py + 14, place.name, "#fff", width, height, "center");
+  ctx.restore();
+});
+
+function openIss() {
+  if (!iss.wired) {
+    iss.wired = true;
+    $("issMoon").onclick = () => { iss.body = "moon"; issApply(); };
+    $("issSun").onclick = () => { iss.body = "sun"; issApply(); };
+    $("issRange").onchange = () => { iss.rangeKm = Number($("issRange").value) || 150; issApply(); };
+  }
+  requestAnimationFrame(() => {
+    IssMap.open({ latitude: place.latitude, longitude: place.longitude }, 8);
+    requestAnimationFrame(() => IssMap.redraw());
+  });
+  issApply();
 }
 
 // ---------------------------------------------------------------- 空の見え方
