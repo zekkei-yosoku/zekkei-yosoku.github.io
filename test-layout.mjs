@@ -145,9 +145,10 @@ ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待�
   }
 }
 ok(/closeTools\(\); applyRoute\(\)/.test(html), "画面が変わったら閉じる");
-// 隠し合言葉は**残す**（近道として使える）。メニューができても消さない
-ok(/const AIM_WORDS/.test(html) && /const SKY_WORDS/.test(html) && /const PLANE_WORDS/.test(html),
-  "合言葉は近道として残す");
+// 検索欄に「ねらう」などを打って開く合言葉は**外した**（2026-09-30 ユーザー指摘「もういらないって言わなかったか」）。
+// 道具はメニューから開く。合言葉は、使える道具を人ごとに決めた仕組みを素通りする入口でもあった。
+// 「月丼」「そら」「パノラマ」は地名の検索語としても普通に打たれうる
+ok(!/AIM_WORDS|SKY_WORDS|PLANE_WORDS/.test(html), "検索欄の合言葉で道具を開かない");
 
 // ---- 展望台。**塔の先端の高さと、人が立つ展望台の高さは違う**
 ok(/extratags: "1"/.test(html), "検索で extratags を取る（height / levels / tower:type）");

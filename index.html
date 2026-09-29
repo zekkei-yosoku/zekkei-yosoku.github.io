@@ -1373,22 +1373,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260930005414"></script>
+<script src="sorami-core.js?v=20260930010505"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260930005414"></script>
-<script src="sorami-exif.js?v=20260930005414"></script>
-<script src="sorami-capcloud.js?v=20260930005414"></script>
-<script src="sorami-terrain.js?v=20260930005414"></script>
-<script src="sorami-mountain.js?v=20260930005414"></script>
-<script src="sorami-fuji.js?v=20260930005414"></script>
-<script src="sorami-sky.js?v=20260930005414"></script>
-<script src="sorami-routes.js?v=20260930005414"></script>
-<script src="sorami-iss.js?v=20260930005414"></script>
-<script src="sorami-plane.js?v=20260930005414"></script>
-<script src="sorami-align.js?v=20260930005414"></script>
-<script src="sorami-moon.js?v=20260930005414"></script>
-<script src="sorami-composition.js?v=20260930005414"></script>
+<script src="sorami-astro.js?v=20260930010505"></script>
+<script src="sorami-exif.js?v=20260930010505"></script>
+<script src="sorami-capcloud.js?v=20260930010505"></script>
+<script src="sorami-terrain.js?v=20260930010505"></script>
+<script src="sorami-mountain.js?v=20260930010505"></script>
+<script src="sorami-fuji.js?v=20260930010505"></script>
+<script src="sorami-sky.js?v=20260930010505"></script>
+<script src="sorami-routes.js?v=20260930010505"></script>
+<script src="sorami-iss.js?v=20260930010505"></script>
+<script src="sorami-plane.js?v=20260930010505"></script>
+<script src="sorami-align.js?v=20260930010505"></script>
+<script src="sorami-moon.js?v=20260930010505"></script>
+<script src="sorami-composition.js?v=20260930010505"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6007,11 +6007,6 @@ function renderSearchResults(host, results, onPick) {
   }
 }
 
-// 隠し画面「ねらう」を開く合言葉。地名と衝突しない語だけにする
-const AIM_WORDS = ["!aim", "!ねらう", "ねらう", "!line", "!ライン"];
-const SKY_WORDS = ["!sky", "!そら", "そら", "!パノラマ", "パノラマ"];
-const PLANE_WORDS = ["!plane", "月丼", "!月丼", "つきどん", "!つきどん"];
-
 function wireSearchBox(boxId, resultsId, onPick, onCoord) {
   // **確定の拾い方は2通り持つ。** iOS のキーボードの「検索」では keydown の Enter が
   // 届かないことがあり、`input[type=search]` の `search` イベントでしか拾えない。
@@ -6022,19 +6017,6 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
     if (!q || q === last) return;
     last = q;
     setTimeout(() => { last = null; }, 800);
-    // **合言葉で隠し画面を開く。** 地名として検索しても当たらない語を使う
-    // （地名と衝突しないよう `!` で始める。2026-09-24 ユーザー依頼）。
-    if (AIM_WORDS.includes(q.toLowerCase()) || SKY_WORDS.includes(q.toLowerCase())
-        || PLANE_WORDS.includes(q.toLowerCase())) {
-      const to = AIM_WORDS.includes(q.toLowerCase()) ? "#/aim"
-        : SKY_WORDS.includes(q.toLowerCase()) ? "#/sky" : "#/plane";
-      $(boxId).value = "";
-      $(resultsId).innerHTML = "";
-      if ($("placeSheet").open) $("placeSheet").close();
-      if ($("mapSheet").open) $("mapSheet").close();
-      location.hash = to;
-      return;
-    }
     // **緯度経度を入れたらそこへ。** 地図アプリからの貼り付け（度分秒・全角）も読む。
     // 検索に投げても地名としては当たらないので、先にこちらで拾う（2026-09-24 ユーザー依頼）。
     const coord = SoramiTerrain.parseLatLon(q);
