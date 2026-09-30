@@ -1382,22 +1382,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260930192345"></script>
+<script src="sorami-core.js?v=20260930194745"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260930192345"></script>
-<script src="sorami-exif.js?v=20260930192345"></script>
-<script src="sorami-capcloud.js?v=20260930192345"></script>
-<script src="sorami-terrain.js?v=20260930192345"></script>
-<script src="sorami-mountain.js?v=20260930192345"></script>
-<script src="sorami-fuji.js?v=20260930192345"></script>
-<script src="sorami-sky.js?v=20260930192345"></script>
-<script src="sorami-routes.js?v=20260930192345"></script>
-<script src="sorami-iss.js?v=20260930192345"></script>
-<script src="sorami-plane.js?v=20260930192345"></script>
-<script src="sorami-align.js?v=20260930192345"></script>
-<script src="sorami-moon.js?v=20260930192345"></script>
-<script src="sorami-composition.js?v=20260930192345"></script>
+<script src="sorami-astro.js?v=20260930194745"></script>
+<script src="sorami-exif.js?v=20260930194745"></script>
+<script src="sorami-capcloud.js?v=20260930194745"></script>
+<script src="sorami-terrain.js?v=20260930194745"></script>
+<script src="sorami-mountain.js?v=20260930194745"></script>
+<script src="sorami-fuji.js?v=20260930194745"></script>
+<script src="sorami-sky.js?v=20260930194745"></script>
+<script src="sorami-routes.js?v=20260930194745"></script>
+<script src="sorami-iss.js?v=20260930194745"></script>
+<script src="sorami-plane.js?v=20260930194745"></script>
+<script src="sorami-align.js?v=20260930194745"></script>
+<script src="sorami-moon.js?v=20260930194745"></script>
+<script src="sorami-composition.js?v=20260930194745"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6295,7 +6295,9 @@ wireSearchBox("searchBox", "searchResults", (r) => {
   const decks = r.decks && r.decks.length ? r.decks
     : (r.lookout === "building" && r.structureM ? [{ name: "屋上", aglM: Math.round(r.structureM) }] : null);
   selectPlace({ id: `search:${r.latitude},${r.longitude}`, name: r.name,
-    subtitle: r.source === "gsi" ? "" : r.source === "index" ? r.detail : r.detail.split(",").slice(1, 3).join("").trim(),
+    // 索引の説明から標高は外す（地点カードが標高を別に書くので二重になる）
+    subtitle: r.source === "gsi" ? "" : r.source === "index" ? r.detail.replace(/ ・ 標高\d+m$/, "")
+      : r.detail.split(",").slice(1, 3).join("").trim(),
     latitude: r.latitude, longitude: r.longitude, terrain: null,
     // 山頂は索引の標高（OSM の ele）を使う。無ければ地図の標高タイルで付く
     elevation: r.source === "index" && Number.isFinite(r.elevation) ? r.elevation : null,
