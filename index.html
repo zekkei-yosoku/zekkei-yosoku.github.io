@@ -1382,22 +1382,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260930230513"></script>
+<script src="sorami-core.js?v=20260930230645"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260930230513"></script>
-<script src="sorami-exif.js?v=20260930230513"></script>
-<script src="sorami-capcloud.js?v=20260930230513"></script>
-<script src="sorami-terrain.js?v=20260930230513"></script>
-<script src="sorami-mountain.js?v=20260930230513"></script>
-<script src="sorami-fuji.js?v=20260930230513"></script>
-<script src="sorami-sky.js?v=20260930230513"></script>
-<script src="sorami-routes.js?v=20260930230513"></script>
-<script src="sorami-iss.js?v=20260930230513"></script>
-<script src="sorami-plane.js?v=20260930230513"></script>
-<script src="sorami-align.js?v=20260930230513"></script>
-<script src="sorami-moon.js?v=20260930230513"></script>
-<script src="sorami-composition.js?v=20260930230513"></script>
+<script src="sorami-astro.js?v=20260930230645"></script>
+<script src="sorami-exif.js?v=20260930230645"></script>
+<script src="sorami-capcloud.js?v=20260930230645"></script>
+<script src="sorami-terrain.js?v=20260930230645"></script>
+<script src="sorami-mountain.js?v=20260930230645"></script>
+<script src="sorami-fuji.js?v=20260930230645"></script>
+<script src="sorami-sky.js?v=20260930230645"></script>
+<script src="sorami-routes.js?v=20260930230645"></script>
+<script src="sorami-iss.js?v=20260930230645"></script>
+<script src="sorami-plane.js?v=20260930230645"></script>
+<script src="sorami-align.js?v=20260930230645"></script>
+<script src="sorami-moon.js?v=20260930230645"></script>
+<script src="sorami-composition.js?v=20260930230645"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6166,8 +6166,10 @@ async function searchPlaces(q) {
     if (!r.name || !Number.isFinite(r.latitude) || !Number.isFinite(r.longitude)) continue;
     // 検索語をまったく含まない候補は、**1件も当たらなかったときだけ**出す（索引は語の中の地名で当てるので除く）
     if (r.source !== "index" && score(r) === 3 && merged.length >= 1) continue;
+    // 索引の山や岬は、地理院・OSM の代表点と数百m ずれることがある（宗谷岬が二重に出た）。索引が絡むときは 1.5km まで同じとみなす
     const dup = merged.find((m) => m.name === r.name
-      && SoramiTerrain.distanceKm(m.latitude, m.longitude, r.latitude, r.longitude) < 0.2);
+      && SoramiTerrain.distanceKm(m.latitude, m.longitude, r.latitude, r.longitude)
+        < (m.source === "index" || r.source === "index" ? 1.5 : 0.2));
     // 同じ場所が両方から返ったら、住所の書いてあるほう（OSM）の説明を採る。
     // **高さも引き継ぐ。** 地理院の地名情報には高さが無いので、
     // ここで捨てると「東京タワー」が展望台として出なくなる（2026-09-28 実測）
