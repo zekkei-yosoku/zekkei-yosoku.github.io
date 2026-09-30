@@ -81,7 +81,9 @@ for (const site of SITES) {
           `基準${ev.base.toFixed(1)} + 内訳${(sum - ev.base).toFixed(1)} = ${sum.toFixed(1)} ≠ ${ev.score.toFixed(1)}`);
       }
       if (!ev.confidence) flag(site.name, id, "信頼度が無い");
-      if (bundle.ensemble && ev.uncertainty && ev.uncertainty.basis !== "ensemble") {
+      // 雲海は、51通りの計算が気圧面を持たず天井を判定できないので、**わざと**モデルの割れ方で見る
+      // （`ensembleBlind` に理由が入る。e43aead）。理由の無いときだけ指摘する（2026-09-30 総点検で直した）
+      if (bundle.ensemble && ev.uncertainty && ev.uncertainty.basis !== "ensemble" && !ev.uncertainty.ensembleBlind) {
         flag(site.name, id, "アンサンブルがあるのに使われていない");
       }
       if (!ev.perModel || Object.keys(ev.perModel).length < 5) {

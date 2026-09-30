@@ -56,7 +56,9 @@ function inRegion(lat, lon, padKm = 0) {
 
 // ---------------------------------------------------------------- Overpass
 // 作るときだけ使う。公開の Overpass を4つ（1つずつ同時に1本）。画面からは使わない
-const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter",
+// overpass-api.de は、取り込みで投げすぎると回線ごと 406 で止められる（2026-09-30 に踏んだ）。
+// 作るときは使わず、ほかの公開サーバーへ分ける
+const OVERPASS = ["https://overpass.kumi.systems/api/interpreter",
   "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
 const QUERY = (s, w, n, e) => `[out:json][timeout:180];
 (
@@ -73,8 +75,8 @@ const QUERY = (s, w, n, e) => `[out:json][timeout:180];
 );
 out geom qt;`;
 
-async function overpass(q, first = 0) {
-  for (let attempt = 0; attempt < 8; attempt++) {
+async function overpass(q, first = 0, attempts = 8) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
     const url = OVERPASS[(first + attempt) % OVERPASS.length];
     try {
       const res = await fetch(url, { method: "POST", headers: { "user-agent": UA,
@@ -119,7 +121,18 @@ await Promise.all(OVERPASS.map(async (_, wi) => {
     if (fs.existsSync(file)) j = JSON.parse(fs.readFileSync(file, "utf8"));
     else if (process.env.PARTIAL) continue;      // 取れている区画だけで作る（画面の確認用）
     else {
-      j = await overpass(QUERY(s, w, Number((s + STEP).toFixed(2)), Number((w + STEP).toFixed(2))), wi);
+      try {
+        j = await overpass(QUERY(s, w, Number((s + STEP).toFixed(2)), Number((w + STEP).toFixed(2))), wi, 3);
+      } catch {
+        // **重い区画は4つに割って取り直す**（Overpass が 504 を返し続けた区画がこれで取れた。2026-09-30）
+        const h = STEP / 2, parts = [];
+        for (const [ds, dw] of [[0, 0], [0, h], [h, 0], [h, h]]) {
+          const a = Number((s + ds).toFixed(2)), b = Number((w + dw).toFixed(2));
+          parts.push(await overpass(QUERY(a, b, Number((a + h).toFixed(2)), Number((b + h).toFixed(2))), wi, 8));
+          await sleep(1500);
+        }
+        j = { elements: parts.flatMap((x) => x.elements || []) };
+      }
       fs.writeFileSync(file, JSON.stringify(j));
       await sleep(1500);
     }

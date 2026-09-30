@@ -366,6 +366,27 @@ ok(/\$\("aimPart"\)\.hidden = parts\.length < 2/.test(html), "選べる高さが
 ok(!/目標に太陽や月が重なる日と、/.test(html), "説明の段落を出さない");
 ok(!/線が弧を描くのは|番号は下の一覧と同じ|月が低い（2〜30°）あいだだけを見ています/.test(code), "地図の下の説明を出さない");
 
+console.log("== 画面のスクリプトが文法として読める（2026-09-30） ==");
+{
+  // 同じ名前の const を2回書いて画面全体が動かなくなるところだった（配信前に手元で気づいた）。
+  // 文字列の検査では文法の誤りを拾えないので、**実際に読ませる**
+  const vm = await import("node:vm");
+  const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/g)]
+    .filter(([, attr]) => !/type="(application\/json|importmap|application\/ld\+json)"/.test(attr));
+  let bad = [];
+  for (const [, , code] of scripts) {
+    try { new vm.Script(code, { filename: "index.html" }); } catch (e) { bad.push(e.message); }
+  }
+  ok(scripts.length >= 1 && bad.length === 0, "index.html の中のスクリプトに文法の誤りが無い", bad.join(" / "));
+  const own = [...html.matchAll(/<script src="([a-z0-9-]+\.js)\?v=\d+"/g)].map((m) => m[1]);
+  const badFiles = [];
+  for (const f of own) {
+    try { new vm.Script(fs.readFileSync(new URL(`./${f}`, import.meta.url), "utf8"), { filename: f }); }
+    catch (e) { badFiles.push(`${f}: ${e.message}`); }
+  }
+  ok(own.length >= 5 && badFiles.length === 0, `読み込む自前の JS ${own.length} 本に文法の誤りが無い`, badFiles.join(" / "));
+}
+
 console.log("== ねらう: その日の候補地（2026-09-30） ==");
 {
   ok(/<h2>この日の候補地<\/h2>/.test(html), "「この日の候補地」の見出しがある");
@@ -385,6 +406,9 @@ console.log("== ねらう: その日の候補地（2026-09-30） ==");
   ok(/latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, name:/.test(html), "地図の番号は立つ位置に打つ");
   ok(/\$\("aimListBox"\)\.hidden = !aimIsFuji\(\)/.test(html), "定番スポットの次の日は富士山だけ");
   ok(/const spread = Math\.max\(0\.3, lineKm \/ 40\)/.test(html), "上位が一か所に固まらないよう、近いものは1つに");
+  ok(/async function aimBuildingBlocks/.test(html) && /if \(!aimIsFuji\(\) && pool24\.length\)/.test(html), "塔は建物で先端が隠れる場所も外す");
+  ok(html.indexOf("aimRenderCands();\n  // 塔は街の中なので") > 0, "建物の確認を待たずに、先に候補を出す");
+  ok(/建物で隠れるかは確かめられませんでした/.test(html), "建物を確かめられなかったときは、そう書く");
 }
 
 console.log("== ISS の月面通過（2026-09-30） ==");

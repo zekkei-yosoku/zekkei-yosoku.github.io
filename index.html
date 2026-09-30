@@ -1382,22 +1382,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260930102336"></script>
+<script src="sorami-core.js?v=20260930185520"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260930102336"></script>
-<script src="sorami-exif.js?v=20260930102336"></script>
-<script src="sorami-capcloud.js?v=20260930102336"></script>
-<script src="sorami-terrain.js?v=20260930102336"></script>
-<script src="sorami-mountain.js?v=20260930102336"></script>
-<script src="sorami-fuji.js?v=20260930102336"></script>
-<script src="sorami-sky.js?v=20260930102336"></script>
-<script src="sorami-routes.js?v=20260930102336"></script>
-<script src="sorami-iss.js?v=20260930102336"></script>
-<script src="sorami-plane.js?v=20260930102336"></script>
-<script src="sorami-align.js?v=20260930102336"></script>
-<script src="sorami-moon.js?v=20260930102336"></script>
-<script src="sorami-composition.js?v=20260930102336"></script>
+<script src="sorami-astro.js?v=20260930185520"></script>
+<script src="sorami-exif.js?v=20260930185520"></script>
+<script src="sorami-capcloud.js?v=20260930185520"></script>
+<script src="sorami-terrain.js?v=20260930185520"></script>
+<script src="sorami-mountain.js?v=20260930185520"></script>
+<script src="sorami-fuji.js?v=20260930185520"></script>
+<script src="sorami-sky.js?v=20260930185520"></script>
+<script src="sorami-routes.js?v=20260930185520"></script>
+<script src="sorami-iss.js?v=20260930185520"></script>
+<script src="sorami-plane.js?v=20260930185520"></script>
+<script src="sorami-align.js?v=20260930185520"></script>
+<script src="sorami-moon.js?v=20260930185520"></script>
+<script src="sorami-composition.js?v=20260930185520"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4394,7 +4394,7 @@ const AimMap = createMapView({ canvas: "aimCanvas", coord: "aimCoord",
 
 const aim = { target: null, body: "sun", partId: null, limb: "center", dayMs: null, lines: [], seq: 0,
               spotSeq: 0, spotCache: null, spot: null, preset: null,
-              cands: [], candSeq: 0, candPick: null, wantSpot: null };
+              cands: [], candSeq: 0, candPick: null, wantSpot: null, buildingNote: "" };
 
 /// 目標の高さで線の長さが変わる（富士山は150km、避雷針は3km）ので、地図の倍率も合わせる
 function aimZoomFor(target, partId) {
@@ -5805,10 +5805,12 @@ async function aimFindCandidates() {
       c.stand.latitude, c.stand.longitude) < spread)) continue;
     kept.push(c);
   }
-  // 地形で目標が隠れる場所を外す。上から順に確かめ、12か所そろえば止める
-  const shown = [];
+  // 地形で目標が隠れる場所を外す。上から順に確かめ、そろえば止める
+  // （塔は、このあと建物でも外すので多めに 24 か所）
+  const checkN = aimIsFuji() ? 12 : 24;
+  let shown = [];
   for (const c of kept) {
-    if (shown.length >= 12) break;
+    if (shown.length >= checkN) break;
     let los = null;
     try {
       los = await SoramiAlign.lineOfSight(
@@ -5818,6 +5820,12 @@ async function aimFindCandidates() {
     if (seq !== aim.candSeq) return;
     if (los && !los.clear) continue;
     shown.push(c);
+  }
+  aim.buildingNote = "";
+  const pool24 = shown;
+  if (!aimIsFuji()) {
+    shown = pool24.slice(0, 12);
+    if (pool24.length) aim.buildingNote = "建物で隠れるかを確かめています…";
   }
   aim.cands = shown;
   const want = aim.wantSpot ? shown.findIndex((c) => c.place.id === aim.wantSpot) : -1;
@@ -5830,9 +5838,61 @@ async function aimFindCandidates() {
       : "この日の線に掛かる、立てる場所が見つかりません。";
     return;
   }
-  $("aimCandInfo").textContent = "";
+  $("aimCandInfo").textContent = aim.buildingNote || "";
   $("aimCandSub").textContent = `${shown.length}か所`;
   aimRenderCands();
+  // 塔は街の中なので、**建物で先端が隠れる場所も外す**（高さの分かる建物だけ。OSM で高さを持つのは1割ほど）。
+  // Overpass は混むと数十秒かかるので、**先に候補を出し、返ってきたら並べ直す**
+  if (!aimIsFuji() && pool24.length) {
+    const blocks = await aimBuildingBlocks(pool24);
+    if (seq !== aim.candSeq) return;
+    if (!blocks) { aim.buildingNote = "建物で隠れるかは確かめられませんでした。"; $("aimCandInfo").textContent = aim.buildingNote; return; }
+    const pickedId = aim.cands[aim.candPick ?? 0]?.place.id;
+    aim.cands = pool24.filter((c, i) => !(blocks[i] && blocks[i].blocked)).slice(0, 12);
+    const again = aim.cands.findIndex((c) => c.place.id === pickedId);
+    aim.candPick = aim.cands.length ? Math.max(0, again) : null;
+    aim.buildingNote = "";
+    $("aimCandInfo").textContent = aim.cands.length ? "" : "この日の候補地は、どこも建物に隠れます。";
+    $("aimCandSub").textContent = aim.cands.length ? `${aim.cands.length}か所` : "";
+    if (aim.cands.length) aimRenderCands(); else { $("aimCandPick").innerHTML = ""; $("aimCandList").innerHTML = ""; }
+    AimMap.redraw();
+  }
+}
+
+/**
+ * 候補地それぞれから目標へ向かう帯（幅60m・最長1.5km）の中の、高さの分かる建物を1回でまとめて引く。
+ * Overpass が混んでいて取れなければ null（候補はそのまま出し、確かめられなかったと書く）
+ */
+async function aimBuildingBlocks(cands) {
+  // 混んでいるときに長く待たせない（1か所 12秒で次へ）
+  const t = aim.target;
+  const polys = cands.map((c) => {
+    const brg = SoramiTerrain.bearing(c.stand.latitude, c.stand.longitude, t.latitude, t.longitude);
+    const len = Math.max(0.05, Math.min(1.5, c.distanceKm - 0.3));
+    const end = SoramiTerrain.destination(c.stand.latitude, c.stand.longitude, brg, len);
+    const side = (p, s) => SoramiTerrain.destination(p.latitude, p.longitude, brg + 90 * s, 0.03);
+    return [side(c.stand, -1), side(c.stand, 1), side(end, 1), side(end, -1)]
+      .map((p) => `${p.latitude.toFixed(5)} ${p.longitude.toFixed(5)}`).join(" ");
+  });
+  const q = `[out:json][timeout:25];(${polys.map((p) =>
+    `way["building"]["height"](poly:"${p}");way["building"]["building:levels"](poly:"${p}");`).join("")});out geom tags qt;`;
+  for (const url of SoramiTerrain.OVERPASS) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 12000);
+    try {
+      const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), signal: ctl.signal,
+        headers: { "content-type": "application/x-www-form-urlencoded" } });
+      if (!r.ok) continue;
+      const j = await r.json();
+      const buildings = (j.elements || []).filter((e) => e.geometry && e.geometry.length >= 3).map((e) => ({
+        ring: e.geometry.map((g) => [g.lat, g.lon]), heightM: SoramiTerrain.buildingHeightM(e.tags) }))
+        .filter((b) => Number.isFinite(b.heightM));
+      return cands.map((c) => SoramiAlign.buildingBlock(
+        { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM + (c.place.deckM || 0) },
+        t, buildings, { partId: aim.partId, eyeAboveGroundM: 1.5 + (c.place.deckM || 0) + (c.place.bridgeM || 0) }));
+    } catch { /* 次の Overpass へ */ } finally { clearTimeout(timer); }
+  }
+  return null;
 }
 
 function aimRenderCands() {
@@ -6032,19 +6092,39 @@ $("geoButton").onclick = () => {
     () => { $("geoStatus").textContent = "現在地を取得できませんでした（HTTPS でのみ利用できます）"; },
     { timeout: 10000 });
 };
+/// 同梱の地名索引（山・峠・展望地・岬・滝。data/place-index.json）。初めて検索したときに1回だけ読む
+let placeIndexPromise = null;
+function placeIndex() {
+  if (!placeIndexPromise) {
+    placeIndexPromise = fetch("data/place-index.json")
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .catch((e) => { placeIndexPromise = null; throw e; });
+  }
+  return placeIndexPromise;
+}
+
 /// 地名・施設名を引く。**地点シートと地図の両方から使う。**
 /// 国土地理院の地名検索（日本の公式データ。施設名に強い）と Nominatim（OSM。店・観光地）を
 /// 両方引いて混ぜる。「練馬区役所」でOSMは本庁を返さず分館を上位に出す（2026-09-24 実測）。
+/// **山・峠・展望地は同梱の索引から引く**（2026-09-30）。住所の検索は「群馬県桐生市」までしか返さず、
+/// 「赤城山鳥居峠」のような地名が出なかった（ユーザー指摘）
 async function searchPlaces(q) {
   const gsiUrl = "https://msearch.gsi.go.jp/address-search/AddressSearch?q=" + encodeURIComponent(q);
   // `extratags=1` で `height` / `building:levels` / `tower:type` が返る。
   // **展望台は立つ高さが効く**ので、検索の時点で持っておく
   const osmUrl = "https://nominatim.openstreetmap.org/search?" + new URLSearchParams(
     { q, format: "jsonv2", limit: "8", countrycodes: "jp", "accept-language": "ja", extratags: "1" });
-  const [gsiRes, osmRes] = await Promise.allSettled([
+  const [gsiRes, osmRes, idxRes] = await Promise.allSettled([
     fetch(gsiUrl).then((r) => (r.ok ? r.json() : [])),
     fetch(osmUrl).then((r) => (r.ok ? r.json() : [])),
+    placeIndex().then((j) => SoramiTerrain.searchPlaceIndex(j, q, { near: place, limit: 8 })),
   ]);
+  const local = (idxRes.status === "fulfilled" ? idxRes.value : []).map((r) => ({
+    name: r.name,
+    detail: [r.kind, r.muni, Number.isFinite(r.elevation) ? `標高${r.elevation}m` : null].filter(Boolean).join(" ・ "),
+    latitude: r.latitude, longitude: r.longitude, scope: "point", source: "index",
+    lookout: r.kind === "展望地" ? "viewpoint" : null, elevation: r.elevation, indexScore: r.score,
+  }));
   const gsi = (gsiRes.status === "fulfilled" && Array.isArray(gsiRes.value) ? gsiRes.value : [])
     .filter((f) => f && f.geometry && Array.isArray(f.geometry.coordinates))
     .map((f) => ({
@@ -6077,10 +6157,14 @@ async function searchPlaces(q) {
   const score = (r) => (r.name === q ? 0 : r.name.startsWith(q) ? 1 : r.name.includes(q) ? 2 : 3);
   const away = (r) => SoramiTerrain.distanceKm(place.latitude, place.longitude, r.latitude, r.longitude);
   const merged = [];
-  for (const r of [...gsi, ...osm].sort((a, b) => score(a) - score(b) || away(a) - away(b))) {
+  // 索引で強く当たったもの（名前が一致・前方一致、または語の中の地名が並んで当たった）を先に。
+  // 弱いもの（語の中に短い名前が含まれるだけ）は、ほかの結果のあとに回す
+  const strong = local.filter((r) => r.indexScore >= 60), weak = local.filter((r) => r.indexScore < 60);
+  const ordered = [...strong, ...[...gsi, ...osm].sort((a, b) => score(a) - score(b) || away(a) - away(b)), ...weak];
+  for (const r of ordered) {
     if (!r.name || !Number.isFinite(r.latitude) || !Number.isFinite(r.longitude)) continue;
-    // 検索語をまったく含まない候補は、**1件も当たらなかったときだけ**出す
-    if (score(r) === 3 && merged.length >= 1) continue;
+    // 検索語をまったく含まない候補は、**1件も当たらなかったときだけ**出す（索引は語の中の地名で当てるので除く）
+    if (r.source !== "index" && score(r) === 3 && merged.length >= 1) continue;
     const dup = merged.find((m) => m.name === r.name
       && SoramiTerrain.distanceKm(m.latitude, m.longitude, r.latitude, r.longitude) < 0.2);
     // 同じ場所が両方から返ったら、住所の書いてあるほう（OSM）の説明を採る。
@@ -6211,8 +6295,10 @@ wireSearchBox("searchBox", "searchResults", (r) => {
   const decks = r.decks && r.decks.length ? r.decks
     : (r.lookout === "building" && r.structureM ? [{ name: "屋上", aglM: Math.round(r.structureM) }] : null);
   selectPlace({ id: `search:${r.latitude},${r.longitude}`, name: r.name,
-    subtitle: r.source === "gsi" ? "" : r.detail.split(",").slice(1, 3).join("").trim(),
-    latitude: r.latitude, longitude: r.longitude, terrain: null, elevation: null,
+    subtitle: r.source === "gsi" ? "" : r.source === "index" ? r.detail : r.detail.split(",").slice(1, 3).join("").trim(),
+    latitude: r.latitude, longitude: r.longitude, terrain: null,
+    // 山頂は索引の標高（OSM の ele）を使う。無ければ地図の標高タイルで付く
+    elevation: r.source === "index" && Number.isFinite(r.elevation) ? r.elevation : null,
     locationScope: r.scope,
     decks, eyeHeightAGL: decks ? decks[0].aglM : null,
     structureM: r.structureM ?? null, lookout: r.lookout ?? null });

@@ -125,5 +125,22 @@ console.log("== 地図アプリのURLから座標を取る ==");
   ok(T.parseLatLon("https://example.com/no-coords") === null, "座標の無いURLは読まない");
 }
 
+console.log("== 地名索引（山・峠・展望地）（2026-09-30） ==");
+{
+  // 住所まじりの語でも、中に書かれた地名で当てる（2026-09-28 ユーザー指摘「赤城山鳥居峠が出ない」）
+  const idx = { kinds: { p: "山", s: "峠", v: "展望地" }, munis: ["群馬県前橋市", "長野県塩尻市", "群馬県桐生市", "静岡県富士宮市"],
+    places: [["s", "鳥居峠", "とりいとうげ", 3655800, 13918900, 1390, 0], ["p", "赤城山", "あかぎさん", 3656000, 13919300, 1828, 0],
+      ["s", "鳥居峠", "とりいとうげ", 3604500, 13779000, 1197, 1], ["v", "富士見台", "", 3531000, 13862000, null, 3],
+      ["p", "鳴神山", "", 3643000, 13925000, 980, 2]] };
+  const a = T.searchPlaceIndex(idx, "群馬県桐生市富士見町赤城山鳥居峠");
+  ok(a[0] && a[0].name === "鳥居峠" && a[0].muni === "群馬県前橋市", "住所まじりでも、赤城山の鳥居峠が1位", a.map((r) => `${r.name}(${r.muni})`).join(" / "));
+  ok(a.some((r) => r.name === "赤城山"), "並んで書かれた赤城山も出る");
+  const b = T.searchPlaceIndex(idx, "鳥居峠", { near: { latitude: 36.0, longitude: 137.8 } });
+  ok(b.length === 2 && b[0].muni === "長野県塩尻市", "同名は、いま見ている地点に近い順");
+  ok(T.searchPlaceIndex(idx, "とりいとうげ").length === 2, "かなでも引ける");
+  ok(T.searchPlaceIndex(idx, "Ｔ").length === 0 && T.searchPlaceIndex(idx, "山").length === 0, "1文字では引かない");
+  ok(T.searchPlaceIndex(idx, "富士見台")[0].name === "富士見台", "名前がそのまま一致");
+}
+
 console.log(`\n${fail === 0 ? "TERRAIN OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

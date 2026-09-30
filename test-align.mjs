@@ -234,6 +234,28 @@ console.log("== 富士山の頂は輪（火口の縁）（2026-09-30） ==");
   ok(!skytree.rim && fuji.rim, "輪を持つのは富士山だけ");
 }
 
+console.log("== 建物で塔が隠れるか（2026-09-30） ==");
+{
+  const obs = { latitude: 35.7101, longitude: 139.9210, elevation: 3 };   // スカイツリーの東 10km
+  const brg = TR.bearing(obs.latitude, obs.longitude, skytree.latitude, skytree.longitude);
+  // 目標の方向 100m 先に 20m 四方の建物
+  const box = (dist, side, h) => {
+    const c = TR.destination(obs.latitude, obs.longitude, brg, dist / 1000);
+    const at = (dx, dy) => TR.destination(TR.destination(c.latitude, c.longitude, brg, dy / 1000).latitude,
+      TR.destination(c.latitude, c.longitude, brg, dy / 1000).longitude, brg + 90, (dx + side) / 1000);
+    const p = [at(-10, -10), at(10, -10), at(10, 10), at(-10, 10)];
+    return { ring: p.map((q) => [q.latitude, q.longitude]), heightM: h };
+  };
+  const tall = AL.buildingBlock(obs, skytree, [box(100, 0, 30)], { partId: "tip" });
+  ok(tall && tall.blocked, "目の前 100m の 30m の建物は先端を隠す", tall && `余裕 ${tall.marginDeg.toFixed(1)}° ・ ${tall.by.distanceM}m`);
+  const low = AL.buildingBlock(obs, skytree, [box(100, 0, 5)], { partId: "tip" });
+  ok(low && !low.blocked, "5m の建物なら隠さない（先端は 3.6° 上）", low && `余裕 ${low.marginDeg.toFixed(1)}°`);
+  const side = AL.buildingBlock(obs, skytree, [box(100, 60, 60)], { partId: "tip" });
+  ok(side && !side.blocked, "横に 60m ずれた建物は数えない");
+  const far = AL.buildingBlock(obs, skytree, [box(1200, 0, 60)], { partId: "tip" });
+  ok(far && !far.blocked === (Math.atan2(58.5, 1190) / Math.PI * 180 < 3.6), "1.2km 先の 60m は見上げ角で比べる", far && `余裕 ${far.marginDeg.toFixed(2)}°`);
+}
+
 console.log("== 地形で見通せるか（2026-09-30） ==");
 {
   const obs = { latitude: 35.62523, longitude: 139.24369, elevation: 598 };   // 高尾山

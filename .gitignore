@@ -8,3 +8,4 @@ serve.mjs
 data/*
 !data/fuji-grid.json
 !data/aim-places.json
+!data/place-index.json

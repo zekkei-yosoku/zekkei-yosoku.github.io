@@ -810,13 +810,73 @@
     };
   }
 
+  // ---------------------------------------------------------------- 地名索引（2026-09-30）
+  /*
+   * 同梱の地名索引（data/place-index.json：山・峠・展望地・岬・滝。build-place-index.mjs で OSM から作る）を引く。
+   * 国土地理院の住所検索と Nominatim は、住所まじりの語（「群馬県桐生市富士見町赤城山鳥居峠」）で
+   * 峠そのものを返さなかった（2026-09-28 ユーザー指摘）。
+   * **索引の名前が語の中に含まれる**ものも拾い、含まれる名前どうしが近ければ（赤城山と鳥居峠）
+   * 並べて書かれた地名とみなして推す。語の終わりにある名前（いちばん細かい地名）をさらに推す。
+   */
+  const normName = (s) => String(s || "").normalize("NFKC").replace(/[\s　・,，、。]/g, "");
+  const toHiragana = (s) => String(s || "").replace(/[\u30a1-\u30f6]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  const openedIndex = new WeakMap();
+  function openPlaceIndex(j) {
+    let idx = openedIndex.get(j);
+    if (idx) return idx;
+    idx = { rows: (j.places || []).map((r) => ({
+      kind: (j.kinds || {})[r[0]] || "", name: r[1], nameN: normName(r[1]), kana: r[2] || "",
+      latitude: r[3] / 1e5, longitude: r[4] / 1e5, elevation: r[5] ?? null, muni: (j.munis || [])[r[6]] || "" })) };
+    openedIndex.set(j, idx);
+    return idx;
+  }
+  function searchPlaceIndex(index, query, { near = null, limit = 8 } = {}) {
+    const q = normName(query);
+    if (q.length < 2 || !index) return [];
+    const qh = toHiragana(q);
+    const idx = openPlaceIndex(index);
+    const hits = [];
+    for (const r of idx.rows) {
+      let s = 0, inQuery = false;
+      if (r.nameN === q) s = 100;
+      else if (r.kana && r.kana === qh) s = 95;
+      else if (r.nameN.startsWith(q)) s = 85;
+      else if (r.kana && qh.length >= 2 && r.kana.startsWith(qh)) s = 75;
+      else if (r.nameN.includes(q)) s = 70;
+      else if (r.nameN.length >= 2 && q.includes(r.nameN)) { s = 30 + 6 * Math.min(6, r.nameN.length); inQuery = true; }
+      if (!s) continue;
+      // 市区町村・都道府県が語に書いてあれば、その中のものを推す
+      if (r.muni) {
+        const m = r.muni.match(/^(.+?[都道府県])(.*)$/);
+        if (q.includes(r.muni)) s += 25;
+        else if (m && m[2] && q.includes(m[2])) s += 20;
+        else if (m && q.includes(m[1])) s += 8;
+      }
+      if (inQuery && q.endsWith(r.nameN)) s += 10;
+      hits.push({ r, s, inQuery });
+    }
+    // 語に含まれる名前どうしが 5km 以内なら、並べて書かれた地名（「赤城山鳥居峠」）
+    const inQ = hits.filter((h) => h.inQuery);
+    if (inQ.length > 1 && inQ.length < 600) {
+      for (const h of inQ) {
+        if (inQ.some((o) => o !== h && o.r.nameN !== h.r.nameN
+          && distanceKm(o.r.latitude, o.r.longitude, h.r.latitude, h.r.longitude) < 5)) h.s += 25;
+      }
+    }
+    const away = (r) => (near ? distanceKm(near.latitude, near.longitude, r.latitude, r.longitude) : 0);
+    hits.sort((a, b) => b.s - a.s || away(a.r) - away(b.r));
+    return hits.slice(0, limit).map(({ r, s }) => ({
+      name: r.name, kind: r.kind, muni: r.muni, latitude: r.latitude, longitude: r.longitude,
+      elevation: r.elevation, score: s }));
+  }
+
   const SoramiTerrain = {
     MAX_POINTS, DEFAULT_STEPS, OBSERVATION_DECKS, decksFor, deckLabel, structureHeight, isLookout,
     destination, bearing, distanceKm,
     fetchElevations, elevations, elevationFromTile, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
     urbanHorizon, buildingHeightM, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
-    profileToward, stepsFor, EYE_HEIGHT_PRESETS,
+    profileToward, stepsFor, EYE_HEIGHT_PRESETS, searchPlaceIndex, normName,
   };
   global.SoramiTerrain = SoramiTerrain;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiTerrain;

@@ -823,9 +823,46 @@
     return { clear: worst < g.angle - 0.02, marginDeg: g.angle - worst, blockKm: at };
   }
 
+  /**
+   * 目標の方向に、建物が立ちふさがるか（塔の候補地で使う。2026-09-30）。
+   * `buildings` は [{ ring: [[緯度, 経度], …], heightM }]（外周と高さ）。立つ位置から目標へ向かう直線が
+   * 建物の外周に入る距離を出し、その距離で建物の屋上を見上げる角度と、目標の先端の見上げ角を比べる。
+   * **建物の地面は立つ位置と同じとみなす**（街の中の数百m。`urbanHorizon` と同じ前提）。
+   * @param {number} eyeAboveGroundM 地面から目までの高さ（橋や土手、展望台の高さを含む）
+   */
+  function buildingBlock(observer, target, buildings, { partId = null, eyeAboveGroundM = 1.5, maxKm = 1.5 } = {}) {
+    const g = geometryFrom(observer, target, { partId, eyeM: 1.5 });
+    if (!g) return null;
+    const F = localFrame(observer.latitude, observer.longitude);
+    const brg = TR.bearing(observer.latitude, observer.longitude, target.latitude, target.longitude) * DEG;
+    const ux = Math.sin(brg), uy = Math.cos(brg);
+    const L = Math.min(maxKm, g.distanceKm - 0.3) * 1000;
+    let worst = -90, by = null;
+    for (const b of buildings || []) {
+      if (!b.ring || b.ring.length < 3 || !Number.isFinite(b.heightM)) continue;
+      const pts = b.ring.map(([la, lo]) => F.xy(la, lo));
+      let entry = null;
+      for (let i = 0; i < pts.length; i++) {
+        const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % pts.length];
+        // 直線 (t*ux, t*uy) と辺の交点
+        const ex = x2 - x1, ey = y2 - y1;
+        const den = ux * ey - uy * ex;
+        if (Math.abs(den) < 1e-9) continue;
+        const t = (x1 * ey - y1 * ex) / den;
+        const u = (x1 * uy - y1 * ux) / den;
+        if (u < 0 || u > 1 || t < 5 || t > L) continue;
+        if (entry === null || t < entry) entry = t;
+      }
+      if (entry === null) continue;
+      const a = Math.atan2(b.heightM - eyeAboveGroundM, entry) / DEG;
+      if (a > worst) { worst = a; by = { distanceM: Math.round(entry), heightM: b.heightM }; }
+    }
+    return { blocked: worst > g.angle, marginDeg: g.angle - worst, by };
+  }
+
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, FUJI_SPOTS, spotObserver,
-                        crossingNear, candidates, lineOfSight, rankOf, rimOutline, judge };
+                        crossingNear, candidates, lineOfSight, rankOf, rimOutline, judge, buildingBlock };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);
