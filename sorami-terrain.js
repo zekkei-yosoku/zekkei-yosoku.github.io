@@ -117,6 +117,7 @@
   const DEM_TTL_MS = 30 * 24 * 60 * 60 * 1000;
   const DEM_MAX = 800;                       // 88枚×9通りぶん。20KB/枚として約16MB
   const DEM_AT = "x-sorami-at";              // 使う場所より前に置く（後ろだと TDZ）
+  const DEM_MISSING = "x-sorami-missing";    // タイルの無い区画（404）の印
   const demStore = () => (typeof caches !== "undefined" && caches && typeof caches.open === "function"
     ? caches : null);
 
@@ -168,6 +169,9 @@
           const hit = await cache.match(url);
           const at = hit ? Number(hit.headers.get(DEM_AT)) : NaN;
           if (hit && Date.now() - at < DEM_TTL_MS && Date.now() >= at) {
+            // **海など、タイルの無い区画も憶えておく。** 開くたびに同じ升目へ取りに行って
+            // 404 を並べていた（2026-09-30 総点検。ねらうの線が相模湾・東京湾の上を通るたびに十数枚）
+            if (hit.headers.get(DEM_MISSING)) return null;
             const img = await decodeTile(await hit.blob());
             if (img) return img;
           }
@@ -176,7 +180,15 @@
       if (!cache || typeof fetch !== "function") return loadTileByImage(url);
       let res = null;
       try { res = await fetch(url, { mode: "cors" }); } catch { return loadTileByImage(url); }
-      if (!res.ok) return null;         // 海など、タイルの無い区画は 404
+      if (!res.ok) {                    // 海など、タイルの無い区画は 404
+        if (res.status === 404) {
+          try {
+            await cache.put(url, new Response("", { status: 200,
+              headers: { [DEM_MISSING]: "1", [DEM_AT]: String(Date.now()) } }));
+          } catch { /* 憶えられなくても、今回は海として返す */ }
+        }
+        return null;
+      }
       const blob = await res.blob();
       const img = await decodeTile(blob);
       if (!img) return loadTileByImage(url);
@@ -855,12 +867,23 @@
       if (inQuery && q.endsWith(r.nameN)) s += 10;
       hits.push({ r, s, inQuery });
     }
+    // **長い地名の一部になっている短い名前は捨てる**（「赤城山」の中の「城山」で全国の城山が並んだ）
+    const inQNames = [...new Set(hits.filter((h) => h.inQuery).map((h) => h.r.nameN))];
+    for (let i = hits.length - 1; i >= 0; i--) {
+      const h = hits[i];
+      if (h.inQuery && inQNames.some((n) => n.length > h.r.nameN.length && n.includes(h.r.nameN))) hits.splice(i, 1);
+    }
     // 語に含まれる名前どうしが 5km 以内なら、並べて書かれた地名（「赤城山鳥居峠」）
     const inQ = hits.filter((h) => h.inQuery);
     if (inQ.length > 1 && inQ.length < 600) {
       for (const h of inQ) {
         if (inQ.some((o) => o !== h && o.r.nameN !== h.r.nameN
           && distanceKm(o.r.latitude, o.r.longitude, h.r.latitude, h.r.longitude) < 5)) h.s += 25;
+        // **前に書かれた地名の近くに無い同名は下げる。** 「赤城山鳥居峠」で、赤城の鳥居峠が索引に無いとき、
+        // 50km 先の嬬恋村の鳥居峠を1位にしない（赤城山を先に出し、地図で寄せてもらう）
+        const before = inQ.filter((o) => o.r.nameN !== h.r.nameN && !o.r.nameN.includes(h.r.nameN)
+          && q.indexOf(o.r.nameN) >= 0 && q.indexOf(o.r.nameN) < q.indexOf(h.r.nameN));
+        if (before.length && !before.some((o) => distanceKm(o.r.latitude, o.r.longitude, h.r.latitude, h.r.longitude) < 10)) h.s -= 25;
       }
     }
     const away = (r) => (near ? distanceKm(near.latitude, near.longitude, r.latitude, r.longitude) : 0);

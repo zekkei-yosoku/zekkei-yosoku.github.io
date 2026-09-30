@@ -125,6 +125,33 @@ console.log("== 地図アプリのURLから座標を取る ==");
   ok(T.parseLatLon("https://example.com/no-coords") === null, "座標の無いURLは読まない");
 }
 
+console.log("== 海の升目（404）を憶えて、開き直しても取りに行かない（2026-09-30） ==");
+{
+  const store = new Map();
+  globalThis.caches = { open: async () => ({
+    match: async (u) => (store.has(u) ? store.get(u).clone() : undefined),
+    put: async (u, r) => { store.set(u, r); },
+    keys: async () => [...store.keys()].map((url) => ({ url })),
+    delete: async (u) => store.delete(u),
+  }) };
+  let fetched = 0;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => { fetched++; return new Response("", { status: 404 }); };
+  const path = require.resolve("./sorami-terrain.js");
+  const p = center(1818, 806);           // 日本の範囲の中（範囲の外は取りに行かない）
+  delete require.cache[path];
+  const T1 = require("./sorami-terrain.js");
+  ok(await T1.elevationFromTile(p.latitude, p.longitude) === null, "404 の升目は海（null）");
+  delete require.cache[path];
+  const T2 = require("./sorami-terrain.js");      // 画面を開き直したのと同じ（手元の憶えは空）
+  ok(await T2.elevationFromTile(p.latitude, p.longitude) === null && fetched === 1,
+    "開き直しても、同じ升目へは取りに行かない", `取得 ${fetched}回`);
+  globalThis.fetch = realFetch;
+  delete globalThis.caches;
+  delete require.cache[path];
+  require("./sorami-terrain.js");
+}
+
 console.log("== 地名索引（山・峠・展望地）（2026-09-30） ==");
 {
   // 住所まじりの語でも、中に書かれた地名で当てる（2026-09-28 ユーザー指摘「赤城山鳥居峠が出ない」）
@@ -139,6 +166,10 @@ console.log("== 地名索引（山・峠・展望地）（2026-09-30） ==");
   ok(b.length === 2 && b[0].muni === "長野県塩尻市", "同名は、いま見ている地点に近い順");
   ok(T.searchPlaceIndex(idx, "とりいとうげ").length === 2, "かなでも引ける");
   ok(T.searchPlaceIndex(idx, "Ｔ").length === 0 && T.searchPlaceIndex(idx, "山").length === 0, "1文字では引かない");
+  // 赤城の鳥居峠が索引に無いとき（公開データに無い地名）は、遠くの同名より赤城山を先に
+  const noAkagiPass = { ...idx, places: idx.places.filter((r) => !(r[1] === "鳥居峠" && r[6] === 0)) };
+  const c = T.searchPlaceIndex(noAkagiPass, "群馬県桐生市富士見町赤城山鳥居峠");
+  ok(c[0] && c[0].name === "赤城山", "近くに無い同名（塩尻の鳥居峠）より、並べて書かれた赤城山を先に", c.map((r) => `${r.name}(${r.muni})`).join(" / "));
   ok(T.searchPlaceIndex(idx, "富士見台")[0].name === "富士見台", "名前がそのまま一致");
 }
 

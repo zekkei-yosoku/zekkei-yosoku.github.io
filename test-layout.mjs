@@ -411,6 +411,20 @@ console.log("== ねらう: その日の候補地（2026-09-30） ==");
   ok(/建物で隠れるかは確かめられませんでした/.test(html), "建物を確かめられなかったときは、そう書く");
 }
 
+console.log("== 地点検索: 山・峠・展望地の索引（2026-09-30） ==");
+{
+  const gi = fs.readFileSync(new URL("./.gitignore", import.meta.url), "utf8");
+  ok(fs.existsSync(new URL("./data/place-index.json", import.meta.url)) && /^!data\/place-index\.json$/m.test(gi),
+    "data/place-index.json があり、配信から外さない");
+  ok(/fetch\("data\/place-index\.json"\)/.test(html) && /SoramiTerrain\.searchPlaceIndex\(j, q/.test(html), "検索で同梱の索引も引く");
+  ok(/const strong = local\.filter\(\(r\) => r\.indexScore >= 60\)/.test(html), "索引で強く当たったものを先に出す");
+  const idx = JSON.parse(fs.readFileSync(new URL("./data/place-index.json", import.meta.url), "utf8"));
+  const T = (await import("node:module")).createRequire(import.meta.url)("./sorami-terrain.js");
+  const r = T.searchPlaceIndex(idx, "群馬県桐生市富士見町赤城山鳥居峠");
+  ok(r[0] && r[0].name === "赤城山", "住所まじりの「…赤城山鳥居峠」で赤城山が1位（2026-09-28 ユーザー指摘の例）", r.slice(0, 3).map((x) => x.name).join(" / "));
+  ok(!r.some((x) => x.name === "城山"), "「赤城山」の中の「城山」で全国の城山を並べない");
+}
+
 console.log("== ISS の月面通過（2026-09-30） ==");
 ok(/data-tool="#\/iss" data-id="iss"><b>ISSの月面通過<\/b>/.test(html), "メニューに ISSの月面通過 がある");
 ok(/location\.hash === "#\/iss"/.test(html), "#/iss の道がある");

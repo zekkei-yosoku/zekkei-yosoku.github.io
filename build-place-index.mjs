@@ -14,7 +14,10 @@
  * 読み（name:ja-Hira・name:ja_kana）があれば持つ（かなで引けるように）。
  * 市区町村は国土地理院の逆ジオコーダ（0.02°≒2km の升ごとに1回引いて使い回す）。
  *
- * 出典: © OpenStreetMap contributors（ODbL）／国土地理院（逆ジオコーダ）
+ * 全国の下支えに Wikidata（山・峠・滝・岬・展望地・火山・丘。CC0）も足す。OSM は Overpass が混むと取れないため。
+ * `PARTIAL=1` で、取れた区画（と、ねらうの候補地で取った区画）だけで作る。
+ *
+ * 出典: © OpenStreetMap contributors（ODbL）／Wikidata（CC0）／国土地理院（逆ジオコーダ）
  * Overpass は混むと落ちるので、区画ごとに取って `data/place-index-cache/` に置き、やり直せるようにする。
  */
 import fs from "node:fs";
@@ -30,13 +33,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const OVERPASS = ["https://overpass.kumi.systems/api/interpreter",
   "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
 
-const QUERY = (s, w, n, e) => `[out:json][timeout:180];
+// 宣言する実行時間は短めに（90秒）。**混んでいるとき、長い宣言の問い合わせほど後回しにされる**（2026-09-30）
+// 点（node）だけ。展望地を面まで探すと重く、混んでいる日は打ち切られた（名前つきの展望地は大半が点）
+const QUERY = (s, w, n, e) => `[out:json][timeout:90];
 (
   node["natural"~"^(peak|volcano|saddle|cape|waterfall)$"]["name"](${s},${w},${n},${e});
   node["mountain_pass"="yes"]["name"](${s},${w},${n},${e});
-  nwr["tourism"="viewpoint"]["name"](${s},${w},${n},${e});
+  node["tourism"="viewpoint"]["name"](${s},${w},${n},${e});
 );
-out center tags qt;`;
+out qt;`;
 
 async function overpass(q, first = 0, attempts = 8) {
   for (let attempt = 0; attempt < attempts; attempt++) {
@@ -80,16 +85,13 @@ await Promise.all(OVERPASS.map(async (_, wi) => {
     if (fs.existsSync(file)) j = JSON.parse(fs.readFileSync(file, "utf8"));
     else if (process.env.PARTIAL) continue;
     else {
-      try { j = await overpass(QUERY(s, w, s + STEP, w + STEP), wi, 3); }
-      catch {
-        // 重い区画は4つに割って取り直す
-        const h = STEP / 2, parts = [];
-        for (const [ds, dw] of [[0, 0], [0, h], [h, 0], [h, h]]) {
-          parts.push(await overpass(QUERY(s + ds, w + dw, s + ds + h, w + dw + h), wi, 8));
-          await sleep(1500);
-        }
-        j = { elements: parts.flatMap((x) => x.elements || []) };
+      // 最初から4つに割って取る（1°ずつ。軽い問い合わせのほうが混んでいても通る）
+      const h = STEP / 2, parts = [];
+      for (const [ds, dw] of [[0, 0], [0, h], [h, 0], [h, h]]) {
+        parts.push(await overpass(QUERY(s + ds, w + dw, s + ds + h, w + dw + h), wi, 10));
+        await sleep(1500);
       }
+      j = { elements: parts.flatMap((x) => x.elements || []) };
       fs.writeFileSync(file, JSON.stringify(j));
       await sleep(1500);
     }
@@ -97,7 +99,53 @@ await Promise.all(OVERPASS.map(async (_, wi) => {
     if (++done % 10 === 0) console.log(`  ${done}/${chunks.length} 区画 ・ 地物 ${elements.size}`);
   }
 }));
+// ねらうの候補地で取った関東・富士山まわりの区画にも、山・峠・展望地が入っている（使い回す）
+for (const f of fs.existsSync("data/aim-places-cache") ? fs.readdirSync("data/aim-places-cache") : []) {
+  if (!/^\d/.test(f)) continue;
+  const j = JSON.parse(fs.readFileSync(path.join("data/aim-places-cache", f), "utf8"));
+  for (const el of j.elements || []) elements.set(`${el.type}/${el.id}`, el);
+}
 console.log(`地物 ${elements.size}`);
+
+// ---------------------------------------------------------------- Wikidata（全国。Overpass が混んでいても止まらない）
+// Overpass が一日じゅう 504 を返した日があった（2026-09-30）。Wikidata の山・峠・滝・岬・展望地・火山・丘で全国を下支えする
+// 種類ごとに分けて問い合わせる（まとめると Wikidata 側で打ち切られ、途中までの応答になった）
+const WD_CLASSES = ["Q8502", "Q8072", "Q54050", "Q133056", "Q34038", "Q185113", "Q6017969"];
+const wdBindings = [];
+for (const cls of WD_CLASSES) {
+  const file = path.join(CACHE, `wikidata-${cls}.json`);
+  if (!fs.existsSync(file)) {
+    const q = `SELECT ?item ?label ?coord ?ele ?kana WHERE {
+      ?item wdt:P31 wd:${cls} ; wdt:P17 wd:Q17 ; wdt:P625 ?coord .
+      ?item rdfs:label ?label FILTER(lang(?label) = "ja")
+      OPTIONAL { ?item wdt:P2044 ?ele }
+      OPTIONAL { ?item wdt:P1814 ?kana }
+    }`;
+    let text = null;
+    for (let i = 0; i < 4 && !text; i++) {
+      const res = await fetch("https://query.wikidata.org/sparql?query=" + encodeURIComponent(q),
+        { headers: { accept: "application/sparql-results+json", "user-agent": UA } });
+      const t = await res.text();
+      try { JSON.parse(t); if (res.ok) text = t; } catch { /* 打ち切られた応答 */ }
+      if (!text) { console.log(`    Wikidata ${cls} ${res.status} → 待って再試行`); await sleep(10000 * (i + 1)); }
+    }
+    if (!text) throw new Error(`Wikidata ${cls} が取れない`);
+    fs.writeFileSync(file, text);
+    await sleep(2000);
+  }
+  for (const b of JSON.parse(fs.readFileSync(file, "utf8")).results.bindings) wdBindings.push({ ...b, cls: { value: cls } });
+}
+const WD_KIND = { Q8502: "山", Q8072: "山", Q54050: "山", Q133056: "峠", Q34038: "滝", Q185113: "岬", Q6017969: "展望地" };
+const wdRows = [];
+for (const b of wdBindings) {
+  const m = b.coord.value.match(/Point\(([-\d.]+) ([-\d.]+)\)/);
+  if (!m) continue;
+  const kind = WD_KIND[b.cls.value.split("/").pop()];
+  const ele = b.ele ? Number.parseFloat(b.ele.value) : NaN;
+  wdRows.push({ kind, name: b.label.value.replace(/\s*\(.*?\)$|（.*?）$/, "").trim(), kana: b.kana ? b.kana.value : "",
+    lat: Number(m[2]), lon: Number(m[1]), ele: Number.isFinite(ele) && ele > 0 && ele < 4000 ? Math.round(ele) : null });
+}
+console.log(`Wikidata ${wdRows.length}`);
 
 // ---------------------------------------------------------------- 形をそろえる
 const toHira = (s) => String(s || "").replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
@@ -108,7 +156,10 @@ let rows = [];
 for (const el of elements.values()) {
   const t = el.tags || {};
   const kind = KIND(t);
-  const lat = el.lat ?? el.center?.lat, lon = el.lon ?? el.center?.lon;
+  // 点、または面の中心（`out center`）か外周（`out geom`）の平均
+  const g = el.geometry && el.geometry.length ? el.geometry : null;
+  const lat = el.lat ?? el.center?.lat ?? (g ? g.reduce((a, p) => a + p.lat, 0) / g.length : undefined);
+  const lon = el.lon ?? el.center?.lon ?? (g ? g.reduce((a, p) => a + p.lon, 0) / g.length : undefined);
   if (!kind || !t.name || !Number.isFinite(lat) || !Number.isFinite(lon)) continue;
   // 日本語の名前を採る（name が英字だけで name:ja があればそちら）
   const name = (/[぀-鿿]/.test(t.name) ? t.name : t["name:ja"] || t.name).trim();
@@ -117,13 +168,18 @@ for (const el of elements.values()) {
   const ele = Number.parseFloat(String(t.ele || "").replace(/[^\d.]/g, ""));
   rows.push({ kind, name, kana, lat, lon, ele: Number.isFinite(ele) && ele > 0 && ele < 4000 ? Math.round(ele) : null });
 }
-// 同じ種類・同じ名前で 300m 以内は1つに
+// Wikidata を後ろに足す（OSM と重なるものは下で1つにまとまる。OSM を先にして、OSM の位置を残す）
+for (const r of wdRows) {
+  if (!r.kind || !r.name || !/[\u3040-\u9fff]/.test(r.name)) continue;
+  rows.push({ ...r, kana: toHira(r.kana).replace(/\s/g, ""), fromWd: true });
+}
+// 同じ種類・同じ名前で 300m 以内は1つに（Wikidata の座標は粗いことがあるので 1.5km まで同じとみなす）
 const seen = new Map();
 const dist = (a, b) => Math.hypot((a.lat - b.lat) * 111, (a.lon - b.lon) * 111 * Math.cos(a.lat * Math.PI / 180));
 rows = rows.filter((r) => {
   const k = `${r.kind}:${r.name}`;
   const list = seen.get(k) || [];
-  if (list.some((q) => dist(q, r) < 0.3)) return false;
+  if (list.some((q) => dist(q, r) < (q.fromWd || r.fromWd ? 1.5 : 0.3))) return false;
   list.push(r); seen.set(k, list);
   return true;
 });
@@ -179,7 +235,7 @@ const munis = [...new Set(rows.map((r) => r.muni))];
 const KIND_CODE = { 山: "p", 峠: "s", 展望地: "v", 岬: "c", 滝: "w" };
 const out = {
   builtOn: new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10),
-  source: "© OpenStreetMap contributors (ODbL) / 国土地理院",
+  source: "© OpenStreetMap contributors (ODbL) / Wikidata (CC0) / 国土地理院",
   kinds: Object.fromEntries(Object.entries(KIND_CODE).map(([k, v]) => [v, k])),
   munis,
   // [種類, 名前, 読み, 緯度×1e5, 経度×1e5, 標高, 市区町村の番号]
