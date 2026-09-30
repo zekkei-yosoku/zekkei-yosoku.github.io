@@ -171,6 +171,11 @@ console.log("== 地名索引（山・峠・展望地）（2026-09-30） ==");
   const c = T.searchPlaceIndex(noAkagiPass, "群馬県桐生市富士見町赤城山鳥居峠");
   ok(c[0] && c[0].name === "赤城山", "近くに無い同名（塩尻の鳥居峠）より、並べて書かれた赤城山を先に", c.map((r) => `${r.name}(${r.muni})`).join(" / "));
   ok(T.searchPlaceIndex(idx, "富士見台")[0].name === "富士見台", "名前がそのまま一致");
+  // 住所の頭（都道府県・市区郡・町村）の中の地名を拾わない（「富士見町」の「富士見」）
+  const withFujimi = { ...idx, places: [...idx.places, ["p", "富士見", "", 3570000, 13860000, 1640, 3]] };
+  ok(T.searchPlaceIndex(withFujimi, "群馬県桐生市富士見町赤城山鳥居峠")[0].muni === "群馬県前橋市", "住所の中の「富士見」を地名として拾わない");
+  const idx2 = { kinds: { w: "滝" }, munis: ["和歌山県那智勝浦町"], places: [["w", "那智滝", "", 3367500, 13588900, null, 0]] };
+  ok(T.searchPlaceIndex(idx2, "那智の滝")[0]?.name === "那智滝", "「の」の有無を同じとみなす（那智の滝／那智滝）");
 }
 
 console.log(`\n${fail === 0 ? "TERRAIN OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);

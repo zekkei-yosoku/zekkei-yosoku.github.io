@@ -10,12 +10,13 @@
  *
  * 拾うもの（名前のあるものだけ）:
  *   山 natural=peak・volcano ／ 峠 natural=saddle・mountain_pass=yes ／ 展望地 tourism=viewpoint
- *   岬 natural=cape ／ 滝 natural=waterfall
+ *   岬 natural=cape ／ 滝 waterway=waterfall・natural=waterfall
  * 読み（name:ja-Hira・name:ja_kana）があれば持つ（かなで引けるように）。
  * 市区町村は国土地理院の逆ジオコーダ（0.02°≒2km の升ごとに1回引いて使い回す）。
  *
  * 全国の下支えに Wikidata（山・峠・滝・岬・展望地・火山・丘。CC0）も足す。OSM は Overpass が混むと取れないため。
  * `PARTIAL=1` で、取れた区画（と、ねらうの候補地で取った区画）だけで作る。
+ * `PBF=japan.osm.pbf` で、Geofabrik の抽出から読む（Overpass を使わない。いちばん確か）。
  *
  * 出典: © OpenStreetMap contributors（ODbL）／Wikidata（CC0）／国土地理院（逆ジオコーダ）
  * Overpass は混むと落ちるので、区画ごとに取って `data/place-index-cache/` に置き、やり直せるようにする。
@@ -31,8 +32,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // **名乗り（User-Agent）を付ける。** overpass-api.de は curl の既定や「Mozilla/5.0」だけの名乗りを 406 で弾く
 // （2026-09-30。「投げすぎて回線ごと止められた」と一度書いたが誤りで、名乗りのある問い合わせは通った）。
 // 混んでいるときは受付（overpass-api.de）より、裏の個別サーバー（z・lz4）のほうが通りやすい。1台に同時1本ずつ
-const OVERPASS = ["https://z.overpass-api.de/api/interpreter", "https://lz4.overpass-api.de/api/interpreter",
-  "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
+// **1台に同時1本だけ、間をあけて投げる。** 2026-09-30、z・lz4 に同時5本で投げ、429 のたびに20秒で投げ直したら、
+// overpass-api.de（受付と裏の2台とも）にこの回線ごと接続を拒否された。以後 overpass-api.de には投げない
+const OVERPASS = ["https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
 
 // 宣言する実行時間は短めに（90秒）。**混んでいるとき、長い宣言の問い合わせほど後回しにされる**（2026-09-30）
 // 点（node）だけ。展望地を面まで探すと重く、混んでいる日は打ち切られた（名前つきの展望地は大半が点）
@@ -58,8 +60,10 @@ async function overpass(q, first = 0, attempts = 8) {
         if (!j.remark || !/runtime error|timed out/i.test(j.remark)) return j;
       }
       console.log(`    ${url.split("/")[2]} ${res.status} → 待って再試行`);
+      // 枠が空くまで待つ（429）。**すぐに投げ直さない**
+      if (res.status === 429) { await sleep(120000); continue; }
     } catch (err) { console.log(`    ${err.message} → 待って再試行`); }
-    await sleep(15000 * (attempt + 1));
+    await sleep(60000 * (attempt + 1));
   }
   throw new Error("Overpass が返らない");
 }
@@ -78,6 +82,21 @@ chunks.push([26, 140], [24, 140], [24, 152]);  // 小笠原・硫黄島・南鳥
 console.log(`区画 ${chunks.length} 個（${STEP}°）`);
 
 const elements = new Map();
+// **PBF=ファイル名 を付けたら、Overpass を使わず Geofabrik の抽出（*.osm.pbf）から読む**（2026-09-30）。
+// Overpass は混雑と遮断で全国ぶん取れなかった。配布データを手元で読めば公開 API に負荷をかけない
+if (process.env.PBF) {
+  const { readTaggedNodes } = await import("./osm-pbf.mjs");
+  const t0 = Date.now();
+  // 滝は OSM では waterway=waterfall が普通（natural=waterfall は少ない）
+  const nodes = readTaggedNodes(process.env.PBF, (t) => !!t.name && (
+    /^(peak|volcano|saddle|cape|waterfall)$/.test(t.natural || "") || t.mountain_pass === "yes" || t.tourism === "viewpoint"
+    || t.waterway === "waterfall"),
+  { keys: ["natural", "mountain_pass", "tourism", "waterway"],
+    onProgress: (at, size, n) => console.log(`  PBF ${(at / size * 100).toFixed(0)}% ・ ${n}点`) });
+  for (const el of nodes) elements.set(`node/${el.id}`, el);
+  console.log(`PBF から ${nodes.length}点（${((Date.now() - t0) / 1000).toFixed(0)}秒）`);
+  chunks.length = 0;
+}
 const todo = [...chunks];
 let done = 0;
 await Promise.all(OVERPASS.map(async (_, wi) => {
@@ -88,11 +107,11 @@ await Promise.all(OVERPASS.map(async (_, wi) => {
     if (fs.existsSync(file)) j = JSON.parse(fs.readFileSync(file, "utf8"));
     else if (process.env.PARTIAL) continue;
     else {
-      // 最初から4つに割って取る（1°ずつ。軽い問い合わせのほうが混んでいても通る）
+      // 1°ずつ4つに割って、1本ずつ間をあけて取る
       const h = STEP / 2, parts = [];
       for (const [ds, dw] of [[0, 0], [0, h], [h, 0], [h, h]]) {
-        parts.push(await overpass(QUERY(s + ds, w + dw, s + ds + h, w + dw + h), wi, 10));
-        await sleep(1500);
+        parts.push(await overpass(QUERY(s + ds, w + dw, s + ds + h, w + dw + h), wi, 6));
+        await sleep(10000);
       }
       j = { elements: parts.flatMap((x) => x.elements || []) };
       fs.writeFileSync(file, JSON.stringify(j));
@@ -154,7 +173,8 @@ console.log(`Wikidata ${wdRows.length}`);
 const toHira = (s) => String(s || "").replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
 const KIND = (t) => (t.natural === "peak" || t.natural === "volcano" ? "山"
   : t.natural === "saddle" || t.mountain_pass === "yes" ? "峠"
-  : t.tourism === "viewpoint" ? "展望地" : t.natural === "cape" ? "岬" : t.natural === "waterfall" ? "滝" : null);
+  : t.tourism === "viewpoint" ? "展望地" : t.natural === "cape" ? "岬"
+  : t.natural === "waterfall" || t.waterway === "waterfall" ? "滝" : null);
 let rows = [];
 for (const el of elements.values()) {
   const t = el.tags || {};

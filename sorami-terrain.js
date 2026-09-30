@@ -847,20 +847,28 @@
     openedIndex.set(j, idx);
     return idx;
   }
+  // 住所の頭（都道府県・市区郡・町村）。語の中の地名を探す前に外す。「…富士見町赤城山」の「富士見」を地名として拾わない
+  const ADMIN_HEAD = /^(?:東京都|北海道|京都府|大阪府|[^\s]{2,3}?県)?(?:[^都道府県市区町村郡]{1,5}?[市郡])?(?:[^都道府県市区町村郡]{1,5}?区)?(?:[^都道府県市区町村郡]{1,5}?[町村])?/;
+  // 表記ゆれ（那智の滝／那智滝、竜ヶ岳／竜ケ岳／竜が岳）
+  const loose = (s) => s.replace(/[のノヶケが之ッ]/g, "");
   function searchPlaceIndex(index, query, { near = null, limit = 8 } = {}) {
     const q = normName(query);
     if (q.length < 2 || !index) return [];
     const qh = toHiragana(q);
+    let core = q.replace(ADMIN_HEAD, "");
+    if (core.length < 2) core = q;
+    const coreL = loose(core);
     const idx = openPlaceIndex(index);
     const hits = [];
     for (const r of idx.rows) {
       let s = 0, inQuery = false;
-      if (r.nameN === q) s = 100;
+      if (r.nameN === q || r.nameN === core) s = 100;
       else if (r.kana && r.kana === qh) s = 95;
-      else if (r.nameN.startsWith(q)) s = 85;
+      else if (coreL.length >= 2 && loose(r.nameN) === coreL) s = 92;
+      else if (r.nameN.startsWith(core)) s = 85;
       else if (r.kana && qh.length >= 2 && r.kana.startsWith(qh)) s = 75;
-      else if (r.nameN.includes(q)) s = 70;
-      else if (r.nameN.length >= 2 && q.includes(r.nameN)) { s = 30 + 6 * Math.min(6, r.nameN.length); inQuery = true; }
+      else if (r.nameN.includes(core)) s = 70;
+      else if (r.nameN.length >= 2 && core.includes(r.nameN)) { s = 30 + 6 * Math.min(6, r.nameN.length); inQuery = true; }
       if (!s) continue;
       // 市区町村・都道府県が語に書いてあれば、その中のものを推す
       if (r.muni) {
@@ -869,7 +877,7 @@
         else if (m && m[2] && q.includes(m[2])) s += 20;
         else if (m && q.includes(m[1])) s += 8;
       }
-      if (inQuery && q.endsWith(r.nameN)) s += 10;
+      if (inQuery && core.endsWith(r.nameN)) s += 10;
       hits.push({ r, s, inQuery });
     }
     // **長い地名の一部になっている短い名前は捨てる**（「赤城山」の中の「城山」で全国の城山が並んだ）
@@ -878,20 +886,31 @@
       const h = hits[i];
       if (h.inQuery && inQNames.some((n) => n.length > h.r.nameN.length && n.includes(h.r.nameN))) hits.splice(i, 1);
     }
-    // 語に含まれる名前どうしが 5km 以内なら、並べて書かれた地名（「赤城山鳥居峠」）
     const inQ = hits.filter((h) => h.inQuery);
-    if (inQ.length > 1 && inQ.length < 600) {
+    const kept = [...new Set(inQ.map((h) => h.r.nameN))];
+    if (inQ.length && inQ.length < 600) {
       for (const h of inQ) {
+        // 語に含まれる名前どうしが 5km 以内なら、並べて書かれた地名（「赤城山鳥居峠」）
         if (inQ.some((o) => o !== h && o.r.nameN !== h.r.nameN
           && distanceKm(o.r.latitude, o.r.longitude, h.r.latitude, h.r.longitude) < 5)) h.s += 25;
-        // **前に書かれた地名の近くに無い同名は下げる。** 「赤城山鳥居峠」で、赤城の鳥居峠が索引に無いとき、
-        // 50km 先の嬬恋村の鳥居峠を1位にしない（赤城山を先に出し、地図で寄せてもらう）
+        // **前に書かれた地名の近くに無い同名は下げる**（赤城の鳥居峠が無いとき、嬬恋村の鳥居峠を1位にしない）
         const before = inQ.filter((o) => o.r.nameN !== h.r.nameN && !o.r.nameN.includes(h.r.nameN)
-          && q.indexOf(o.r.nameN) >= 0 && q.indexOf(o.r.nameN) < q.indexOf(h.r.nameN));
+          && core.indexOf(o.r.nameN) >= 0 && core.indexOf(o.r.nameN) < core.indexOf(h.r.nameN));
         if (before.length && !before.some((o) => distanceKm(o.r.latitude, o.r.longitude, h.r.latitude, h.r.longitude) < 10)) h.s -= 25;
+        // **語の残りが説明できない一致は弱い当たり**（「摩周湖第一展望台」の「第一展望台」で全国の第一展望台を先に出さない）
+        let rest = core;
+        for (const n of kept) rest = rest.split(n).join("");
+        // その地点の市区町村名（「屋久島町」の「屋久島」）が書いてあれば、それも説明できる残り
+        const city = (h.r.muni.match(/^.+?[都道府県](.*)$/) || [])[1] || "";
+        const stem = city.replace(/[市区町村]$/, "").replace(/^.+郡/, "");
+        if (stem.length >= 2) rest = rest.split(stem).join("");
+        if (rest.length >= 2) h.s = Math.min(h.s, 55);
       }
     }
-    const away = (r) => (near ? distanceKm(near.latitude, near.longitude, r.latitude, r.longitude) : 0);
+    // 同点なら近い順。**ただし標高の高い山を少し先に**（標高20mで1km近い扱い）。
+    // 「高尾山」で町田市の丘（100m）より八王子の高尾山（599m）を先に出す
+    const away = (r) => (near ? distanceKm(near.latitude, near.longitude, r.latitude, r.longitude) : 0)
+      - (Number.isFinite(r.elevation) ? r.elevation / 20 : 0);
     hits.sort((a, b) => b.s - a.s || away(a.r) - away(b.r));
     return hits.slice(0, limit).map(({ r, s }) => ({
       name: r.name, kind: r.kind, muni: r.muni, latitude: r.latitude, longitude: r.longitude,
