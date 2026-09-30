@@ -1382,22 +1382,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260930214409"></script>
+<script src="sorami-core.js?v=20260930214434"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260930214409"></script>
-<script src="sorami-exif.js?v=20260930214409"></script>
-<script src="sorami-capcloud.js?v=20260930214409"></script>
-<script src="sorami-terrain.js?v=20260930214409"></script>
-<script src="sorami-mountain.js?v=20260930214409"></script>
-<script src="sorami-fuji.js?v=20260930214409"></script>
-<script src="sorami-sky.js?v=20260930214409"></script>
-<script src="sorami-routes.js?v=20260930214409"></script>
-<script src="sorami-iss.js?v=20260930214409"></script>
-<script src="sorami-plane.js?v=20260930214409"></script>
-<script src="sorami-align.js?v=20260930214409"></script>
-<script src="sorami-moon.js?v=20260930214409"></script>
-<script src="sorami-composition.js?v=20260930214409"></script>
+<script src="sorami-astro.js?v=20260930214434"></script>
+<script src="sorami-exif.js?v=20260930214434"></script>
+<script src="sorami-capcloud.js?v=20260930214434"></script>
+<script src="sorami-terrain.js?v=20260930214434"></script>
+<script src="sorami-mountain.js?v=20260930214434"></script>
+<script src="sorami-fuji.js?v=20260930214434"></script>
+<script src="sorami-sky.js?v=20260930214434"></script>
+<script src="sorami-routes.js?v=20260930214434"></script>
+<script src="sorami-iss.js?v=20260930214434"></script>
+<script src="sorami-plane.js?v=20260930214434"></script>
+<script src="sorami-align.js?v=20260930214434"></script>
+<script src="sorami-moon.js?v=20260930214434"></script>
+<script src="sorami-composition.js?v=20260930214434"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5874,7 +5874,8 @@ async function aimBuildingBlocks(cands) {
     return [side(c.stand, -1), side(c.stand, 1), side(end, 1), side(end, -1)]
       .map((p) => `${p.latitude.toFixed(5)} ${p.longitude.toFixed(5)}`).join(" ");
   });
-  const q = `[out:json][timeout:25];(${polys.map((p) =>
+  // 使うメモリを小さく宣言する（既定の 512MB は混んでいるとき確保できず 504 で待たされる）
+  const q = `[out:json][timeout:25][maxsize:67108864];(${polys.map((p) =>
     `way["building"]["height"](poly:"${p}");way["building"]["building:levels"](poly:"${p}");`).join("")});out geom tags qt;`;
   for (const url of SoramiTerrain.OVERPASS) {
     const ctl = new AbortController();

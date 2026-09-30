@@ -653,7 +653,8 @@
     //
     // 高層街では小さい建物が一度も地平線を取らないので絞っても変わらない。
     // 住宅地では2階建てが地平線そのもの。**新宿だけで測っていたら誤った判断をしていた。**
-    const q = `[out:json][timeout:120];(`
+    // **使うメモリを小さく宣言する。** 既定の 512MB は混んでいるとき確保できず、504 で待たされる（2026-09-30）
+    const q = `[out:json][timeout:120][maxsize:134217728];(`
       + `way["building"]["height"](around:${R},${lat},${lon});`
       + `way["building"]["building:levels"](around:${R},${lat},${lon});`
       + `way["man_made"="tower"]["height"](around:${R},${lat},${lon});`

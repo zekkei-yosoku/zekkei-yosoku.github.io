@@ -717,6 +717,9 @@ ok(/connect-src[^"]*https:\/\/overpass-api\.de/.test(html), "CSP に Overpass �
   const csp = (meta.match(/connect-src ([^;]*)/) || [])[1] || "";
   const missing = T.OVERPASS.map((u) => new URL(u).origin).filter((o) => !csp.split(/\s+/).includes(o));
   ok(missing.length === 0 && T.OVERPASS.length >= 3, "Overpass の問い合わせ先がすべて CSP で通っている", missing.join(" "));
+  const terrainSrc = fs.readFileSync(new URL("./sorami-terrain.js", import.meta.url), "utf8");
+  ok(/\[out:json\]\[timeout:\d+\]\[maxsize:\d+\]/.test(terrainSrc) && /\[out:json\]\[timeout:25\]\[maxsize:\d+\]/.test(html),
+    "Overpass への問い合わせは使うメモリを宣言する（既定の 512MB は混むと 504）");
 }
 ok(/SoramiTerrain\.urbanHorizon\(/.test(html), "建物の地平線を取りに行く");
 // 建物は非同期。まず地形だけで地平線を作り、届いたら重ねて作り直す。
