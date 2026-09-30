@@ -1386,22 +1386,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001014001"></script>
+<script src="sorami-core.js?v=20261001021725"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001014001"></script>
-<script src="sorami-exif.js?v=20261001014001"></script>
-<script src="sorami-capcloud.js?v=20261001014001"></script>
-<script src="sorami-terrain.js?v=20261001014001"></script>
-<script src="sorami-mountain.js?v=20261001014001"></script>
-<script src="sorami-fuji.js?v=20261001014001"></script>
-<script src="sorami-sky.js?v=20261001014001"></script>
-<script src="sorami-routes.js?v=20261001014001"></script>
-<script src="sorami-iss.js?v=20261001014001"></script>
-<script src="sorami-plane.js?v=20261001014001"></script>
-<script src="sorami-align.js?v=20261001014001"></script>
-<script src="sorami-moon.js?v=20261001014001"></script>
-<script src="sorami-composition.js?v=20261001014001"></script>
+<script src="sorami-astro.js?v=20261001021725"></script>
+<script src="sorami-exif.js?v=20261001021725"></script>
+<script src="sorami-capcloud.js?v=20261001021725"></script>
+<script src="sorami-terrain.js?v=20261001021725"></script>
+<script src="sorami-mountain.js?v=20261001021725"></script>
+<script src="sorami-fuji.js?v=20261001021725"></script>
+<script src="sorami-sky.js?v=20261001021725"></script>
+<script src="sorami-routes.js?v=20261001021725"></script>
+<script src="sorami-iss.js?v=20261001021725"></script>
+<script src="sorami-plane.js?v=20261001021725"></script>
+<script src="sorami-align.js?v=20261001021725"></script>
+<script src="sorami-moon.js?v=20261001021725"></script>
+<script src="sorami-composition.js?v=20261001021725"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3187,7 +3187,7 @@ function renderAlignments(now) {
   return wrap(`<div class="al">${rows}</div>
     ${none.length ? `<div class="tiny" style="margin-top:6px;color:var(--tertiary)">${none.map(esc).join("／")}</div>` : ""}
     <div class="tiny" style="margin-top:8px;color:var(--tertiary)">
-      太陽・月が<strong>山頂の方角を横切る瞬間</strong>の高さで判定しています（見かけの半径の内側なら「重なる」）。
+      太陽・月の中心が<strong>山頂の火口の縁</strong>に届くかで判定しています（縁の内側6割なら「ど真ん中」）。
       <strong>立つ場所が数百m違うと日付が数日ずれます。</strong>まわりの木や建物は含めていません。</div>`);
 }
 
@@ -4472,6 +4472,14 @@ const aimKm = (km) => (km < 10 ? Math.round(km * 10) / 10 : Math.round(km));
 async function aimRedrawLine() {
   const seq = ++aim.seq;
   $("aimLineInfo").textContent = "線を計算しています…";
+  // **前の線の候補地を残さない。** 線を解き直す数秒のあいだ、前の画面（ダイヤモンド富士）の候補が
+  // 新しい見出し（パール富士）の下に見えていた（2026-10-01 本番で確認）。探している途中の計算も捨てる
+  aim.candSeq++;
+  aim.cands = []; aim.candPick = null;
+  $("aimCandPick").innerHTML = ""; $("aimCandList").innerHTML = ""; $("aimCandSub").textContent = "";
+  $("aimCandInfo").textContent = "候補地を探しています…";
+  aim.lines = [];
+  AimMap.redraw();
   let lines = [];
   try {
     lines = await SoramiAlign.line(aim.target, aim.body, aim.dayMs,

@@ -411,6 +411,11 @@ console.log("== ねらう: その日の候補地（2026-09-30） ==");
   // 画面から Overpass へ帯を問い合わせると 47〜64秒かかった（2026-10-01）。同梱の高い建物で手元で判定する
   ok(/fetch\("data\/tall-buildings\.json"\)/.test(html) && !/poly:"\$\{p\}"/.test(html), "塔の建物の判定は同梱データで（Overpass に問い合わせない）");
   {
+    const redraw = (html.match(/async function aimRedrawLine\(\) \{[\s\S]*?const lines = await|async function aimRedrawLine\(\) \{[\s\S]*?lines = await/) || [""])[0];
+    ok(/aim\.candSeq\+\+;/.test(redraw) && /\$\("aimCandList"\)\.innerHTML = ""/.test(redraw),
+      "線を解き直すあいだ、前の画面の候補地を残さない");
+  }
+  {
     const gi2 = fs.readFileSync(new URL("./.gitignore", import.meta.url), "utf8");
     ok(fs.existsSync(new URL("./data/tall-buildings.json", import.meta.url)) && /^!data\/tall-buildings\.json$/m.test(gi2),
       "data/tall-buildings.json があり、配信から外さない");
