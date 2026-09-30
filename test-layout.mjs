@@ -2187,6 +2187,7 @@ ok(/\.sort\(\(a, b\) => \(a\[1\]\.order \?\? 99\) - \(b\[1\]\.order \?\? 99\)\)/
 console.log("== ねらうは中身で分ける ==");
 // **見出しはいま選んでいるものから決める。** 目標や天体を変えたら見出しも変わる
 ok(/const AIM_PRESETS = \{/.test(html), "メニューから来たときの初期値を持つ");
+ok(/tower: \{ target: "skytree", body: "sun" \}/.test(html), "塔に重ねるはメニューから開くと太陽（前の画面の月を持ち越さない）");
 ok(/diamond: \{ target: "fuji", body: "sun" \}/.test(html), "ダイヤモンド富士は富士山×太陽");
 ok(/pearl: \{ target: "fuji", body: "moon" \}/.test(html), "パール富士は富士山×月");
 ok(/function aimTitleFor/.test(html), "見出しを選択から決める");

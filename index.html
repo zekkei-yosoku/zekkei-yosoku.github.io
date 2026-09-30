@@ -1386,22 +1386,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001021725"></script>
+<script src="sorami-core.js?v=20261001022309"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001021725"></script>
-<script src="sorami-exif.js?v=20261001021725"></script>
-<script src="sorami-capcloud.js?v=20261001021725"></script>
-<script src="sorami-terrain.js?v=20261001021725"></script>
-<script src="sorami-mountain.js?v=20261001021725"></script>
-<script src="sorami-fuji.js?v=20261001021725"></script>
-<script src="sorami-sky.js?v=20261001021725"></script>
-<script src="sorami-routes.js?v=20261001021725"></script>
-<script src="sorami-iss.js?v=20261001021725"></script>
-<script src="sorami-plane.js?v=20261001021725"></script>
-<script src="sorami-align.js?v=20261001021725"></script>
-<script src="sorami-moon.js?v=20261001021725"></script>
-<script src="sorami-composition.js?v=20261001021725"></script>
+<script src="sorami-astro.js?v=20261001022309"></script>
+<script src="sorami-exif.js?v=20261001022309"></script>
+<script src="sorami-capcloud.js?v=20261001022309"></script>
+<script src="sorami-terrain.js?v=20261001022309"></script>
+<script src="sorami-mountain.js?v=20261001022309"></script>
+<script src="sorami-fuji.js?v=20261001022309"></script>
+<script src="sorami-sky.js?v=20261001022309"></script>
+<script src="sorami-routes.js?v=20261001022309"></script>
+<script src="sorami-iss.js?v=20261001022309"></script>
+<script src="sorami-plane.js?v=20261001022309"></script>
+<script src="sorami-align.js?v=20261001022309"></script>
+<script src="sorami-moon.js?v=20261001022309"></script>
+<script src="sorami-composition.js?v=20261001022309"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5944,12 +5944,14 @@ let aimReady = false;
  * 何を狙うか。**メニューから来たときは決まっている。**
  *   diamond … 富士山 × 太陽（ダイヤモンド富士）
  *   pearl   … 富士山 × 月（パール富士）
- *   tower   … 塔（既定はスカイツリー）
+ *   tower   … 塔（既定はスカイツリー × 太陽）
  */
 const AIM_PRESETS = {
   diamond: { target: "fuji", body: "sun" },
   pearl: { target: "fuji", body: "moon" },
-  tower: { target: "skytree" },
+  // 塔も太陽で開く。月を持ち越すと、パール富士のあとに開いたとき月のまま出ていた（2026-10-01）。
+  // 月は画面の「🌙 月」で切り替える
+  tower: { target: "skytree", body: "sun" },
 };
 
 /**
