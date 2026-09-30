@@ -1386,22 +1386,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001022309"></script>
+<script src="sorami-core.js?v=20261001023749"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001022309"></script>
-<script src="sorami-exif.js?v=20261001022309"></script>
-<script src="sorami-capcloud.js?v=20261001022309"></script>
-<script src="sorami-terrain.js?v=20261001022309"></script>
-<script src="sorami-mountain.js?v=20261001022309"></script>
-<script src="sorami-fuji.js?v=20261001022309"></script>
-<script src="sorami-sky.js?v=20261001022309"></script>
-<script src="sorami-routes.js?v=20261001022309"></script>
-<script src="sorami-iss.js?v=20261001022309"></script>
-<script src="sorami-plane.js?v=20261001022309"></script>
-<script src="sorami-align.js?v=20261001022309"></script>
-<script src="sorami-moon.js?v=20261001022309"></script>
-<script src="sorami-composition.js?v=20261001022309"></script>
+<script src="sorami-astro.js?v=20261001023749"></script>
+<script src="sorami-exif.js?v=20261001023749"></script>
+<script src="sorami-capcloud.js?v=20261001023749"></script>
+<script src="sorami-terrain.js?v=20261001023749"></script>
+<script src="sorami-mountain.js?v=20261001023749"></script>
+<script src="sorami-fuji.js?v=20261001023749"></script>
+<script src="sorami-sky.js?v=20261001023749"></script>
+<script src="sorami-routes.js?v=20261001023749"></script>
+<script src="sorami-iss.js?v=20261001023749"></script>
+<script src="sorami-plane.js?v=20261001023749"></script>
+<script src="sorami-align.js?v=20261001023749"></script>
+<script src="sorami-moon.js?v=20261001023749"></script>
+<script src="sorami-composition.js?v=20261001023749"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2124,6 +2124,10 @@ function iconFor(id, atMs) {
     return SoramiMoon.glyphOf(SoramiAstro.moon(atMs ?? Date.now(), obs));
   } catch { return meta.icon; }
 }
+/// その時刻の月の形（満ち欠け）。**月を表すところは全部これで描く**
+/// （2026-10-01 ユーザー指摘「月関係するところは全て月の満ち欠けに連動するように」）。
+/// 以前は道具の画面・お気に入り・記録などで固定の 🌙 や「輝面◯%」の数字だけだった
+const moonGlyphAt = (atMs) => iconFor("moon", atMs);
 /**
  * **いま選んでいる地点の「目の高さ」。** 展望台を選んでいればその高さを足す。
  *
@@ -2565,7 +2569,7 @@ function renderPhotos() {
     return `<div class="ph-card${p.tile ? "" : " noimg"}">
       ${p.tile
         ? `<img src="${esc(p.tile)}" alt="${esc(name)} ${p.score}点" loading="lazy">`
-        : `<div class="ph-blank" aria-hidden="true">${S.PHENOMENA[p.phenomenon]?.icon || "・"}</div>`}
+        : `<div class="ph-blank" aria-hidden="true">${S.PHENOMENA[p.phenomenon] ? iconFor(p.phenomenon, p.taken_at || undefined) : "・"}</div>`}
       <button class="tap ph-del" data-photo-del="${esc(p.id)}" aria-label="この写真を消す">✕</button>
       <div class="ph-tag"><span>${esc(name)}</span><span>${p.score}点</span></div>
       ${when ? `<div class="ph-tag" style="bottom:auto;top:0"><span>${esc(when)}</span></div>` : ""}
@@ -2758,7 +2762,7 @@ function renderBestNote(best, now) {
 
 function highlightRow(id, dayMs, ev, now) {
   const color = RANK_COLOR[ev.rank.key];
-  return `<div style="margin-top:3px"><span style="font-size:1.25rem">${S.PHENOMENA[id].icon}</span>
+  return `<div style="margin-top:3px"><span style="font-size:1.25rem">${iconFor(id, ev.peak)}</span>
     <strong style="margin-left:4px">${S.longNameOf(id)}</strong>
     <span class="muted">${S.JstCal.relativeDay(dayMs, now)}${ev.specificTime === false ? "" : " " + S.JstCal.hhmmRounded(ev.peak)}</span>
     ・<span style="color:${color};font-weight:700">${esc(S.phrasing(id, ev.rank).label)}</span></div>`;
@@ -2844,7 +2848,7 @@ function renderMatrix(order, now) {
   const out = dead.length
     ? `<details class="mxout"><summary>判定対象外・データ不足の現象 ${dead.length}件</summary>`
       + `<ul style="padding:0;margin:4px 0 0">` + dead.map((id) =>
-          `<li>${S.PHENOMENA[id].icon} <strong>${esc(S.PHENOMENA[id].name)}</strong> — ${
+          `<li>${iconFor(id)} <strong>${esc(S.PHENOMENA[id].name)}</strong> — ${
             esc(weeks[id][0].evaluation.unavailable.message)}</li>`).join("") + `</ul></details>`
     : "";
 
@@ -2981,7 +2985,7 @@ function moonEvents(startMs, spanMs) {
   try {
     ev = SoramiAstro.moonEvents(startMs, startMs + spanMs, obs, {});
   } catch {
-    return { rise: null, set: null, spans: [], illuminated: 0, age: 0 };
+    return { rise: null, set: null, spans: [], illuminated: 0, age: 0, phase: null };
   }
   const rises = ev.astronomical.filter((e) => e.kind === "rise").map((e) => e.at);
   const sets  = ev.astronomical.filter((e) => e.kind === "set").map((e) => e.at);
@@ -2999,17 +3003,12 @@ function moonEvents(startMs, spanMs) {
 
   const mid = SoramiAstro.moon(startMs + spanMs / 2, obs);
   return { rise: rises[0] ?? null, set: sets[0] ?? null, spans,
-           illuminated: mid.illuminatedFraction, age: mid.synodicAge };
+           illuminated: mid.illuminatedFraction, age: mid.synodicAge,
+           phase: typeof SoramiMoon !== "undefined" ? SoramiMoon.phaseOf(mid) : null };
 }
 
-// 月齢を満ち欠けの絵文字にする。朔望月は 29.53 日。
-// 数値と呼び名は title に置いて、画面には形だけ出す。
-const MOON_FACES = [
-  [1.0, "🌑", "新月"], [6.4, "🌒", "三日月"], [8.4, "🌓", "上弦"], [13.2, "🌔", "十日夜"],
-  [16.3, "🌕", "満月"], [21.1, "🌖", "居待月"], [23.1, "🌗", "下弦"], [28.5, "🌘", "有明月"],
-  [29.6, "🌑", "新月"],
-];
-const moonFace = (age) => MOON_FACES.find(([m]) => age < m) || MOON_FACES[MOON_FACES.length - 1];
+// 月の形は、一覧の月のアイコンと同じ仕組み（SoramiMoon.phaseOf：輝面と満ち欠けの向き）で決める。
+// 以前はここだけ月齢の表（MOON_FACES）で決めていて、同じ時刻でも一覧と形・呼び名が食い違うことがあった（2026-10-01）
 
 // その日の光の時間。撮りに行くなら点数より先に要る情報なので、詳細では上のほうに置く。
 //
@@ -3177,7 +3176,7 @@ function renderAlignments(now) {
   };
   const rows = [
     ...sun.map((e, i) => row(e, i === 0 ? "ダイヤモンド富士" : "その次", "☀️")),
-    ...moon.map((e, i) => row(e, i === 0 ? "パール富士" : "その次", "🌙")),
+    ...moon.map((e, i) => row(e, i === 0 ? "パール富士" : "その次", moonGlyphAt(e.at))),
   ].join("");
   // 片方しか無いことがある。**黙って消さない**（探して無いのか、そもそも出ないのか分からない）
   const none = [
@@ -3355,7 +3354,8 @@ function renderLightTimes(dayMs, now, phenomenonId) {
   // 現象そのものの時刻は、すぐ上の見出しに大きく出ているのでここには出さない
   // （朝焼け・夕焼けは日の出・日の入りと同じ時刻で、二重に出るだけになる）。
   const moon = moonEvents(d0, TL_SPAN);
-  const [, face, faceName] = moonFace(moon.age);
+  const ph = moon.phase || { glyph: S.PHENOMENA.moon.icon, name: "月" };
+  const face = ph.glyph, faceName = ph.name;
   const moonTitle = `${faceName}（月齢 ${moon.age.toFixed(1)}・照らされている割合 ${Math.round(moon.illuminated * 100)}%）`;
   const events = [
     [w.sunrise, "☀️", "日の出", ""],
@@ -3971,7 +3971,7 @@ function renderSheet() {
         現象・地形・メモを付けておくと、自分だけの絶景スポット帳になります。</p>`
     : !shown.length ? `<p class="tiny">この現象で登録した地点はありません</p>`
     : shown.map(({ f, i }) => {
-        const icons = (f.phenomena || []).filter((p) => S.PHENOMENA[p]).map((p) => S.PHENOMENA[p].icon).join("");
+        const icons = (f.phenomena || []).filter((p) => S.PHENOMENA[p]).map((p) => iconFor(p)).join("");
         const meta = [f.subtitle, f.elevation != null ? `標高${Math.round(f.elevation)}m` : ""].filter(Boolean).join(" ・ ");
         return `<div class="fav-row">
           <button class="list-item" data-fav="${i}"><strong>${esc(f.name)}</strong> <span class="tiny">${icons}</span>
@@ -4061,7 +4061,7 @@ function openFavSheet(index) {
 // 一度だけ描いて、以後は状態だけ書き換える。
 function renderFavPhenomena() {
   $("favPhenomena").innerHTML = PHENOMENA_ORDER.map(([id, p]) =>
-    `<button type="button" data-p="${id}" aria-pressed="false">${p.icon} ${p.name}</button>`).join("");
+    `<button type="button" data-p="${id}" aria-pressed="false">${iconFor(id)} ${p.name}</button>`).join("");
   for (const el of $("favPhenomena").querySelectorAll("[data-p]")) {
     el.onclick = () => {
       const i = favDraft.phenomena.indexOf(el.dataset.p);
@@ -4497,7 +4497,8 @@ async function aimRedrawLine() {
   }
   const lit = lines[0].points[0].illuminated;
   // 説明の文は出さない（2026-09-30）。月のときだけ輝面を添える
-  $("aimLineInfo").textContent = aim.body === "moon" && Number.isFinite(lit) ? `輝面 ${Math.round(lit * 100)}%` : "";
+  $("aimLineInfo").textContent = aim.body === "moon" && Number.isFinite(lit)
+    ? `${moonGlyphAt(lines[0].points[0].at)} 輝面 ${Math.round(lit * 100)}%` : "";
   $("aimLineTable").hidden = false;
   $("aimLineTable").querySelector("tbody").innerHTML = lines.map((l) => {
     const first = l.points[0], last = l.points[l.points.length - 1];
@@ -4790,11 +4791,11 @@ function planeRender() {
       <span class="muted">${S.JstCal.hhmm(b.at)} に重なる（${S.JstCal.hhmm(b.at - half)}〜${S.JstCal.hhmm(b.at + half)} に構える）
       ・${sun0 < -6 ? "夜" : sun0 < 0 ? "薄明" : "昼"} ・${esc(b.path)} ・${planeExpect(top.planes)}</span>
       <span class="muted">${top.spot.note ? esc(top.spot.note) : ""}</span>
-      <span class="muted">月は 方位${Math.round(top.best.moonAz)}°・高さ${Math.round(top.best.moonAlt)}°。
+      <span class="muted">${moonGlyphAt(b.at)} 月は 方位${Math.round(top.best.moonAz)}°・高さ${Math.round(top.best.moonAlt)}°。
       その向きの ${top.best.planeKm.toFixed(1)}km 先、高度 ${Math.round(top.best.altitudeM)}m を通ります</span>
     </div></div>`;
   const lit = r.illuminated !== null && r.illuminated !== undefined
-    ? `月の輝面 ${Math.round(r.illuminated * 100)}%。` : "";
+    ? `${moonGlyphAt(b.at)} 月の輝面 ${Math.round(r.illuminated * 100)}%。` : "";
   // 説明の段落は出さない（2026-09-30 ユーザー指摘「説明する必要がないもの多い」）。輝面だけ
   $("planeInfo").textContent = lit.replace(/。$/, "");
   $("planeList").innerHTML = r.spots.map((sp, i) => {
@@ -4806,7 +4807,7 @@ function planeRender() {
       <div class="al-w"><strong>${i + 1}. ${esc(sp.spot.name)}</strong>
         <span class="muted">${when} ・ ${light} ・ ${planeExpect(sp.planes)}</span>
         <span class="muted">機まで ${sp.best.planeKm.toFixed(1)}km（高度 ${Math.round(sp.best.altitudeM)}m）
-        ・月 高さ${Math.round(sp.best.moonAlt)}° 方位${Math.round(sp.best.moonAz)}°
+        ・${moonGlyphAt(sp.best.at)} 月 高さ${Math.round(sp.best.moonAlt)}° 方位${Math.round(sp.best.moonAz)}°
         ・${esc(sp.paths.join("・"))}</span>
         <span class="muted">${esc(sp.spot.note)}</span>
       </div>
@@ -4951,6 +4952,7 @@ async function issApply() {
   $("issList").innerHTML = `<p class="tiny">計算しています…</p>`;
   $("issSub").textContent = iss.body === "moon" ? "ISS × 月" : "ISS × 太陽";
   $("issMoon").setAttribute("aria-pressed", String(iss.body === "moon"));
+  $("issMoon").textContent = `${moonGlyphAt(Date.now())} 月`;
   $("issSun").setAttribute("aria-pressed", String(iss.body === "sun"));
   $("issSunWarn").hidden = iss.body !== "sun";
   $("issKey").className = `aim-k ${iss.body === "moon" ? "moon" : "sun"}`;
@@ -4988,7 +4990,7 @@ function issRender() {
     const t = new Date(r.at + 9 * 3600000);
     const hms = t.toISOString().slice(11, 19);
     const dir = issDirection(place, r.center);
-    const lit = r.illuminated !== null ? ` ・ 輝面${Math.round(r.illuminated * 100)}%` : "";
+    const lit = r.illuminated !== null ? ` ・ ${moonGlyphAt(r.at)} 輝面${Math.round(r.illuminated * 100)}%` : "";
     const sky = r.sunAltitude < -6 ? "夜" : r.sunAltitude < 0 ? "薄明" : "昼";
     // 3日より先は軌道要素の誤差で数十秒・数kmずれうる。印だけ付ける
     const rough = r.at - Date.now() > 72 * 3600000 ? `<span class="tiny" style="color:var(--tertiary)">（目安）</span>` : "";
@@ -5122,11 +5124,16 @@ function skyBody(ctx, x, y, r, color, ink, illuminated, waxing) {
   ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.fillStyle = ink; ctx.fill();
   const k = Math.max(0, Math.min(1, illuminated));
-  const lit = Math.PI / 2 * (waxing ? 1 : -1);
+  // **満ちていく月は右が光る**（日本＝北半球。展開図は方位が右へ増えるので、太陽のある西が右）。
+  // canvas の角度は右が0で時計回り。-π/2（上）から π/2（下）へ時計回りに描くと右半分。
+  // 2026-10-01 まで光る側が逆（満ちる月が左）で、細い月と丸い月も逆に描いていた
+  // （輝面20%で光る面積79%・80%で19%。月の満ち欠けを全部そろえたときに実測して気づいた）
+  const lit = Math.PI / 2 * (waxing ? -1 : 1);
   ctx.beginPath();
   ctx.arc(x, y, r, lit, lit + Math.PI);                       // 明るい側の半円
-  ctx.ellipse(x, y, r * Math.abs(1 - 2 * k), r, 0,            // 境目の楕円
-    lit + Math.PI, lit, k > 0.5 ? true : false);
+  // 境目の楕円。細い月（半分未満）は明るい側を通って戻る＝反時計回り、丸い月は暗い側へふくらむ＝時計回り
+  ctx.ellipse(x, y, r * Math.abs(1 - 2 * k), r, 0,
+    lit + Math.PI, lit, k < 0.5);
   ctx.closePath();
   ctx.fillStyle = color; ctx.fill();
   ctx.strokeStyle = color; ctx.lineWidth = 0.75;
@@ -5262,7 +5269,7 @@ function skyRenderText() {
     const st = body === "moon" ? SoramiAstro.moon(at, obs) : SoramiAstro.sun(at, obs);
     const hidden = st.apparentAltitude <= h(st.azimuth);
     const lit = body === "moon" ? ` ・輝面 ${Math.round(st.illuminatedFraction * 100)}%` : "";
-    rows.push(`${name}：方位 ${Math.round(st.azimuth)}° ・高さ ${st.apparentAltitude.toFixed(1)}°`
+    rows.push(`${body === "moon" ? `${moonGlyphAt(at)} ` : ""}${name}：方位 ${Math.round(st.azimuth)}° ・高さ ${st.apparentAltitude.toFixed(1)}°`
       + `${lit} ・${hidden ? "稜線の裏" : "見えます"}`);
   }
   $("skyNow").innerHTML = rows.map(esc).join("<br>");
@@ -5422,13 +5429,35 @@ function sky3dDraw() {
   for (const [id, color] of [["sun", 0xffb340], ["moon", 0xbcd7f5]]) {
     const st = id === "moon" ? SoramiAstro.moon(at, obs) : sunSt;
     if (!sky3d.bodies[id]) {
-      sky3d.bodies[id] = new T.Mesh(new T.SphereGeometry(1, 20, 16),
-        new T.MeshBasicMaterial({ color }));
+      if (id === "moon") {
+        // **月は満ち欠けの形で描く**（2D の展開図と同じ描き方を板に貼る。2026-10-01）。
+        // 球だと、細い月の日も満月の形に見えていた
+        const c = document.createElement("canvas");
+        c.width = 64; c.height = 64;
+        const sp = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(c), depthTest: false }));
+        sp.userData = { canvas: c, key: null };
+        sky3d.bodies[id] = sp;
+      } else {
+        sky3d.bodies[id] = new T.Mesh(new T.SphereGeometry(1, 20, 16),
+          new T.MeshBasicMaterial({ color }));
+      }
       sky3d.scene.add(sky3d.bodies[id]);
+    }
+    if (id === "moon") {
+      const waxing = SoramiAstro.moon(at + 3600000, obs).illuminatedFraction > st.illuminatedFraction;
+      const key = `${Math.round(st.illuminatedFraction * 100)}:${waxing}`;
+      const ud = sky3d.bodies.moon.userData;
+      if (ud.key !== key) {
+        const g = ud.canvas.getContext("2d");
+        g.clearRect(0, 0, 64, 64);
+        skyBody(g, 32, 32, 28, "#bcd7f5", "rgba(20,24,32,.9)", st.illuminatedFraction, waxing);
+        sky3d.bodies.moon.material.map.needsUpdate = true;
+        ud.key = key;
+      }
     }
     const v = SoramiSky.direction(st.azimuth, st.apparentAltitude, 60);
     sky3d.bodies[id].position.set(v.x, v.y, v.z);
-    sky3d.bodies[id].scale.setScalar(1.4);
+    sky3d.bodies[id].scale.setScalar(id === "moon" ? 2.8 : 1.4);   // 板は直径ぶん、球は半径ぶん
     sky3d.bodies[id].visible = st.apparentAltitude > -3;
   }
 
@@ -5601,6 +5630,8 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   $("aimSub").textContent = t.sub;
   $("aimView").classList.toggle("moon", aim.body === "moon");
   $("aimSun").setAttribute("aria-pressed", String(aim.body === "sun"));
+  // 月の切り替えは、選んでいる日（夜）の月の形で
+  $("aimMoon").textContent = `${moonGlyphAt((aim.dayMs ?? S.Cal.startOfDay(Date.now())) + 20 * 3600000)} 月`;
   $("aimMoon").setAttribute("aria-pressed", String(aim.body === "moon"));
   aim.limb = $("aimLimb").value;
   aimFillParts();
@@ -5707,7 +5738,7 @@ async function aimRenderSpots() {
   if (!rows.length) { $("aimList").innerHTML = `<p class="tiny">この1年、主なスポットからは見えません。</p>`; return; }
   $("aimList").innerHTML = rows.map(({ sp, ev }, i) => {
     const when = ev.map((e) => {
-      const lit = moon ? ` 輝面${Math.round(e.illuminated * 100)}%` : "";
+      const lit = moon ? ` ${moonGlyphAt(e.at)}輝面${Math.round(e.illuminated * 100)}%` : "";
       return `<button class="tiny aim-day" data-spot="${i}" data-day="${S.Cal.startOfDay(e.at)}">${aimDateLabel(e.at)}`
         + `${e.side === "set" ? (moon ? " 月の入" : " 日の入") : (moon ? " 月の出" : " 日の出")}${lit}</button>`;
     }).join("");
@@ -5906,7 +5937,8 @@ function aimRenderCands() {
   const i0 = aim.candPick ?? 0;
   const c = list[i0];
   if (!c) return;
-  const lit = aim.body === "moon" && Number.isFinite(c.illuminated) ? ` ・ 輝面 ${Math.round(c.illuminated * 100)}%` : "";
+  const lit = aim.body === "moon" && Number.isFinite(c.illuminated)
+    ? ` ・ ${moonGlyphAt(c.at)} 輝面 ${Math.round(c.illuminated * 100)}%` : "";
   const sky = aim.body === "moon" ? (c.sunAltitude < -6 ? " ・ 夜" : " ・ 薄明") : "";
   const deck = c.place.deckM ? `（地上${c.place.deckM}m）` : "";
   const kind = c.place.kind === "定番" ? c.place.spotKind : c.place.kind;
@@ -5921,7 +5953,7 @@ function aimRenderCands() {
     const k = x.place.kind === "定番" ? x.place.spotKind : x.place.kind;
     return `<button class="al-row jump${i === i0 ? " on" : ""}" data-cand="${i}">
       <div class="al-w"><strong>${i + 1}. ${esc(aimCandName(x))}</strong>
-        <div class="tiny">${S.JstCal.hhmm(x.at)} ・ ${esc(AIM_RANK_LABEL[x.rank])} ・ ${esc(aimCandSide(x))}</div>
+        <div class="tiny">${S.JstCal.hhmm(x.at)} ・ ${esc(AIM_RANK_LABEL[x.rank])} ・ ${esc(aimCandSide(x))}${aim.body === "moon" ? ` ${moonGlyphAt(x.at)}` : ""}</div>
         <div class="tiny">${esc([k, x.place.address].filter(Boolean).join(" ・ "))}</div>
       </div>
       <span class="tiny">地図で見る →</span>

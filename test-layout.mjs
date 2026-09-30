@@ -450,6 +450,25 @@ console.log("== 地点カードで探せると分かる（2026-10-01） ==");
   ok(/\$\("placeSheet"\)\.showModal\(\);\n[^\n]*\n[^\n]*\n  \$\("searchBox"\)\.focus\(\);/.test(html), "地点カードを押したら、検索欄にすぐ打てる");
 }
 
+console.log("== 月を表すところは全部、その時の満ち欠け（2026-10-01） ==");
+{
+  ok(/const moonGlyphAt = \(atMs\) => iconFor\("moon", atMs\)/.test(html), "月の形は1つの関数（iconFor と同じ仕組み）");
+  ok(!/MOON_FACES = \[/.test(html) && !/moonFace\(/.test(html), "光の帯も同じ仕組み（月齢の別の表を持たない）");
+  ok(/phase: typeof SoramiMoon !== "undefined" \? SoramiMoon\.phaseOf\(mid\)/.test(html), "光の帯の月の形は SoramiMoon.phaseOf");
+  // 画面に固定の 🌙 を書くのは、初期表示のボタンの文字だけ（開いたら満ち欠けに差し替える）
+  const fixed = [...html.matchAll(/🌙/g)].length;
+  ok(/\$\("aimMoon"\)\.textContent = `\$\{moonGlyphAt\(/.test(html) && /\$\("issMoon"\)\.textContent = `\$\{moonGlyphAt\(/.test(html),
+    "ねらう・ISS の月の切り替えは、その日の月の形");
+  ok(!/row\(e, i === 0 \? "パール富士" : "その次", "🌙"\)/.test(html), "富士山の詳細のパール富士の行も月の形");
+  ok(/輝面 \$\{Math\.round\(c\.illuminated \* 100\)\}%/.test(html) && /\$\{moonGlyphAt\(c\.at\)\} 輝面/.test(html), "候補地の輝面に月の形");
+  ok(/\$\{moonGlyphAt\(b\.at\)\} 月の輝面/.test(html) && /\$\{moonGlyphAt\(r\.at\)\} 輝面/.test(html), "月丼・ISS の輝面に月の形");
+  ok(/skyBody\(g, 32, 32, 28/.test(html), "3D の月も満ち欠けの形（球にしない）");
+  // 満ちていく月は右が光り、細い月は細く描く（2026-10-01 まで光る側も太さも逆だった）
+  ok(/const lit = Math\.PI \/ 2 \* \(waxing \? -1 : 1\);/.test(html) && /lit \+ Math\.PI, lit, k < 0\.5\);/.test(html),
+    "月の円盤: 満ちる月は右が光り、細い月は細く描く");
+  ok(fixed <= 4, `固定の 🌙 が増えていない（${fixed}か所）`);
+}
+
 console.log("== ISS の月面通過（2026-09-30） ==");
 ok(/data-tool="#\/iss" data-id="iss"><b>ISSの月面通過<\/b>/.test(html), "メニューに ISSの月面通過 がある");
 ok(/location\.hash === "#\/iss"/.test(html), "#/iss の道がある");
@@ -954,7 +973,8 @@ ok(!/setTimeout[\s\S]{0,120}favUndo/.test(html), "取り消しを時間で消さ
 ok(/addEventListener\("close", \(\) => \{ favUndo = \[\]/.test(html), "シートを閉じたら取り消しを確定する");
 ok(/closeFavSheet[\s\S]{0,160}confirm\(/.test(html), "入力途中で閉じるときだけ確認する");
 // 一覧の見え方をスポットと揃える（現象アイコン・都道府県/標高・メモ）。
-ok(/const icons = \(f\.phenomena[\s\S]{0,120}PHENOMENA\[p\]\.icon/.test(html)
+// 2026-10-01 から iconFor（月はその時の満ち欠け）で描く
+ok(/const icons = \(f\.phenomena[\s\S]{0,120}iconFor\(p\)/.test(html)
   && /data-fav="\$\{i\}"[\s\S]{0,120}\$\{icons\}/.test(html), "お気に入りに現象アイコンを出す");
 ok(/標高\$\{Math\.round\(f\.elevation\)\}m/.test(html), "標高を出す");
 ok(/f\.note \? " ー " \+ esc\(f\.note\)/.test(html), "メモを出す");
@@ -1127,7 +1147,7 @@ ok(/const forPlace = place;/.test(html) && /evaluateWeek\(id, bundle, forPlace\)
   "取得開始時の地点で評価する");
 
 console.log("== 現象タグの選択が色だけになっていない ==");
-ok(/aria-pressed="false">\$\{p\.icon\}/.test(html), "現象チップに aria-pressed がある");
+ok(/aria-pressed="false">\$\{iconFor\(id\)\}/.test(html), "現象チップに aria-pressed がある");
 ok(/function syncFavPhenomena[\s\S]{0,260}setAttribute\("aria-pressed"/.test(html), "状態を書き換える");
 ok(!/\$\("favPhenomena"\)\.innerHTML = [\s\S]{0,200}onclick/.test(html),
   "押すたびにチップを作り直さない（フォーカスが飛ぶ）");
