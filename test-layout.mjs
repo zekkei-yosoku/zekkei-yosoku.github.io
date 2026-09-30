@@ -217,7 +217,9 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   const bad = (html.match(/elevation: place\.elevation \?\? 0/g) || []).length;
   ok(bad === 0, "展望台を無視する書き方が残っていない", `${bad}件`);
 }
-ok(/const obs = observerHere\(\);/.test(html), "ねらうの一覧も観測点から取る");
+// ねらうの塔の一覧（いまの地点から次に重なる日）は、その日の候補地に置き換えた（2026-09-30）。
+// 地点カードを出さない画面で「◯◯から」と言っても、どこのことか分からないため
+ok(!/SoramiAlign\.upcoming\(obs, aim\.target/.test(html), "ねらうは見えない地点からの一覧を出さない");
 ok(/const skyObs = \(\) => \(moonObs \|\| observerHere\(\)\)/.test(html), "空の見え方も同じ");
 ok(/deckM: agl/.test(html), "その地点の立つ高さを渡す");
 // 雲海は**見下ろせるか**なので目の高さで判定する（霧氷・ダイヤは地面の標高のまま）
@@ -363,6 +365,27 @@ ok(/\$\("aimTargetBox"\)\.hidden = fixedFuji/.test(html), "目標と天体が決
 ok(/\$\("aimPart"\)\.hidden = parts\.length < 2/.test(html), "選べる高さが1つなら選ぶ欄を出さない");
 ok(!/目標に太陽や月が重なる日と、/.test(html), "説明の段落を出さない");
 ok(!/線が弧を描くのは|番号は下の一覧と同じ|月が低い（2〜30°）あいだだけを見ています/.test(code), "地図の下の説明を出さない");
+
+console.log("== ねらう: その日の候補地（2026-09-30） ==");
+{
+  ok(/<h2>この日の候補地<\/h2>/.test(html), "「この日の候補地」の見出しがある");
+  ok(/aimFindCandidates\(\);\n  if \(!lines\.length\)/.test(html), "線を引いたら候補地を探す");
+  ok(/fetch\("data\/aim-places\.json"\)/.test(html), "立てる場所は同梱のデータから（通信先を増やさない）");
+  ok(fs.existsSync(new URL("./data/aim-places.json", import.meta.url)), "data/aim-places.json がある");
+  {
+    const gi = fs.readFileSync(new URL("./.gitignore", import.meta.url), "utf8");
+    // `data/` だとフォルダごと除外され、`!` の例外が効かない。`data/*` でなければならない
+    ok(/^data\/\*$/m.test(gi) && !/^data\/$/m.test(gi) && /^!data\/aim-places\.json$/m.test(gi),
+      "配信から外さない（.gitignore は data/* と例外）");
+  }
+  ok(/SoramiAlign\.candidates\(lines, pool/.test(html), "線に掛かる場所を解き直して選ぶ");
+  ok(/SoramiAlign\.lineOfSight\(/.test(html) && /if \(los && !los\.clear\) continue;/.test(html), "地形で隠れる場所は外す");
+  ok(/if \(aim\.body === "moon"\) found = found\.filter\(\(c\) => c\.sunAltitude < 0\)/.test(html), "パールは暗い空の回だけ");
+  ok(/aimIsFuji\(\) \? \[\.\.\.aimFujiPlaces\(\), \.\.\.places\]/.test(html), "富士山は定番スポットも候補に入れる");
+  ok(/latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, name:/.test(html), "地図の番号は立つ位置に打つ");
+  ok(/\$\("aimListBox"\)\.hidden = !aimIsFuji\(\)/.test(html), "定番スポットの次の日は富士山だけ");
+  ok(/const spread = Math\.max\(0\.3, lineKm \/ 40\)/.test(html), "上位が一か所に固まらないよう、近いものは1つに");
+}
 
 console.log("== ISS の月面通過（2026-09-30） ==");
 ok(/data-tool="#\/iss" data-id="iss"><b>ISSの月面通過<\/b>/.test(html), "メニューに ISSの月面通過 がある");

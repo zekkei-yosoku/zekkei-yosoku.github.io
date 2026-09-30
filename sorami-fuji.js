@@ -595,6 +595,12 @@
     const targetAngle = Number.isFinite(geom.topVisibleAngleDeg) ? geom.topVisibleAngleDeg : null;
     if (!Number.isFinite(az) || targetAngle === null) return null;
 
+    // **頂は点ではなく火口の縁という輪**（sorami-align の FUJI_RIM）。山頂が見えているなら、
+    // 天体の中心が縁の稜線に届くかで決める。剣ヶ峰1点だと、高尾山の冬至が「縁がかすめる」になっていた（2026-09-30）。
+    // 手前の地形で山頂が隠れているときは、見えている一番上の点で従来どおり見る
+    const AL = global.SoramiAlign || null;
+    const outline = AL && geom.apexVisible ? AL.rimOutline(obs, AL.targetById("fuji")) : null;
+    const scanAz = outline ? outline.azimuth : az;
     const out = {};
     for (const body of bodies) {
       const step = stepMs ?? (body === "moon" ? 900000 : 600000);
@@ -602,10 +608,13 @@
       let group = null;
       for (let i = 0; i < days && found.length < limit; i++) {
         const dayMs = from + i * 86400000;
-        for (const at of azimuthCrossings(body, dayMs, obs, az, step)) {
-          const st = bodyAt(body, at, obs);
-          const gap = st.apparentAltitude - targetAngle;      // ＋なら山頂の上を通る
-          const rank = alignRank(gap, st.angularRadius);
+        for (const at0 of azimuthCrossings(body, dayMs, obs, scanAz, step)) {
+          const j = outline ? AL.judge(body, at0, obs, targetAngle, 0, outline) : null;
+          const at = j ? j.at : at0;
+          const st = j ? j.st : bodyAt(body, at, obs);
+          const gap = j ? j.gap : st.apparentAltitude - targetAngle;      // ＋なら山頂の上を通る
+          const rank = j && j.rank ? ALIGN_RANKS.find((r) => r.key === j.rank) || alignRank(gap, st.angularRadius)
+            : alignRank(gap, st.angularRadius);
           // 地平線の下、または山頂から外れすぎている回は落とす
           if (!rank || st.apparentAltitude < -1) continue;
           const later = bodyAt(body, at + 60000, obs).apparentAltitude;
@@ -618,10 +627,13 @@
                         altitude: st.apparentAltitude, sunAltitude: sunAlt,
                         illuminated: body === "moon" ? st.illuminatedFraction : null };
           // 続きの日は同じ「回」。いちばん近い日を代表にする
+          row.off = j && Number.isFinite(j.off) ? j.off : 0;
           if (group && at - group.last <= 40 * 3600000) {
             group.days.push(row);
             group.last = at;
-            if (Math.abs(row.gap) < Math.abs(group.best.gap)) group.best = row;
+            // どちらも頂の縁に届くなら、縁の真ん中に近い日を代表にする
+            if (Math.abs(row.gap) < Math.abs(group.best.gap)
+              || (row.gap === group.best.gap && row.off < group.best.off)) group.best = row;
           } else {
             if (group) found.push(group);
             group = { days: [row], best: row, last: at };

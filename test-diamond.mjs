@@ -8,6 +8,8 @@ const require = createRequire(import.meta.url);
 const A = require("./sorami-astro.js");
 const TR = require("./sorami-terrain.js");
 const F = require("./sorami-fuji.js");
+// 画面と同じく、火口の縁（sorami-align の FUJI_RIM）で判定させる（2026-09-30）
+require("./sorami-align.js");
 
 let pass = 0, fail = 0;
 const ok = (c, name, extra = "") => { c ? pass++ : fail++; console.log(`  ${c ? "ok  " : "FAIL"} ${name}`, extra); };
@@ -36,8 +38,9 @@ console.log("== 既知の名所の日付に合う ==");
   const tanuki = next({ latitude: 35.3466, longitude: 138.5644, elevation: 660 }, { bodies: ["sun"], limit: 2 });
   ok(tanuki.sun.length === 2, "田貫湖は年2回");
   ok(tanuki.sun.every((e) => e.side === "rise"), "どちらも日の出側");
-  ok(mmdd(tanuki.sun[0].at) === "04-21", "1回目は4月21日ごろ", jst(tanuki.sun[0].at));
-  ok(mmdd(tanuki.sun[1].at) === "08-23", "2回目は8月23日ごろ", jst(tanuki.sun[1].at));
+  // 火口の縁の真ん中に昇る日（2026-09-30 から縁で判定。剣ヶ峰1点のときは 4/21・8/23 だった）
+  ok(mmdd(tanuki.sun[0].at) === "04-23", "1回目は4月23日ごろ", jst(tanuki.sun[0].at));
+  ok(mmdd(tanuki.sun[1].at) === "08-21", "2回目は8月21日ごろ", jst(tanuki.sun[1].at));
 
   // 江ノ島: 富士山は西北西。春と秋の日の入り
   const eno = next({ latitude: 35.2996, longitude: 139.4805, elevation: 5 }, { bodies: ["sun"], limit: 2 });
@@ -56,12 +59,13 @@ console.log("== 重なり具合を言い分ける ==");
   ok(e.dayCount >= 1 && e.to >= e.from, "重なる日をまとめて1回として返す", `${e.dayCount}日`);
   ok(e.grazeDays >= e.dayCount, "縁がかすめる日は別に数える", `${e.grazeDays}日`);
 
-  // 高尾山の山頂は、中心が山頂の少し上を通る年がある。**言い切らない**
+  // 高尾山: 剣ヶ峰1点で見ると中心が 0.37° 上を通り「縁がかすめる」だったが、
+  // **頂は火口の縁という輪**で、太陽はその縁に沈む（2026-09-30。よく知られた冬至のダイヤモンド富士）
   const takao = next({ latitude: 35.6252, longitude: 139.2436, elevation: 599 }, { bodies: ["sun"], limit: 1 });
-  ok(takao.sun[0].rank === "graze" && takao.sun[0].gap > 0,
-    "中心が外れる年は「縁がかすめる」と言う", `ずれ${takao.sun[0].gap.toFixed(2)}°`);
-  ok(takao.sun[0].dayCount <= takao.sun[0].grazeDays && takao.sun[0].dayCount === 1,
-    "かすめるだけの回は「前後も」と言わない", `${takao.sun[0].dayCount}日 / かすめ${takao.sun[0].grazeDays}日`);
+  ok(takao.sun[0].rank === "center" && mmdd(takao.sun[0].at) === "12-22",
+    "高尾山は冬至に頂の縁の真ん中へ沈む", `${jst(takao.sun[0].at)} ${takao.sun[0].rankLabel}`);
+  ok(takao.sun[0].dayCount > 1 && takao.sun[0].dayCount <= takao.sun[0].grazeDays,
+    "頂のどこかに沈む日を「前後も」として数える（かすめる日は別）", `${takao.sun[0].dayCount}日 / かすめ${takao.sun[0].grazeDays}日`);
 }
 
 console.log("== 起きない場所 ==");

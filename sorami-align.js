@@ -30,7 +30,12 @@
   const TARGETS = [
     { id: "fuji", name: "富士山", latitude: 35.360555, longitude: 138.727363,
       note: "山頂（剣ヶ峰）3776m",
-      parts: [{ id: "summit", name: "山頂", m: 3776 }] },
+      parts: [{ id: "summit", name: "山頂", m: 3776 }],
+      // **山頂は点ではなく、火口の縁という輪（直径およそ800m）。** 剣ヶ峰だけを的にすると、
+      // 高尾山の冬至（よく知られたダイヤモンド富士）が「縁がかすめる」になって一覧から落ちていた（2026-09-30）。
+      // 縁の高さは 3725〜3774m と場所で違うので、平らな板とも見なせない（近い竜ヶ岳で47日続く判定になった）。
+      // 縁の形そのもの（下の FUJI_RIM）を持ち、天体の中心が**縁の稜線に届く位置が縁の範囲の中か**で決める
+      rim: { latitude: 35.36295, longitude: 138.73003 } },
     { id: "skytree", name: "東京スカイツリー", latitude: 35.710063, longitude: 139.810700,
       note: "地上の高さ ＋ 地面の標高およそ2m",
       parts: [{ id: "tip", name: "先端", m: 636 },
@@ -51,6 +56,24 @@
       parts: [{ id: "tip", name: "避雷針の先端", m: 60, adjustable: true }] },
   ];
   const targetById = (id) => TARGETS.find((t) => t.id === id) || null;
+
+  /**
+   * 富士山の火口の縁（build-fuji-rim.mjs が作る）。国土地理院 DEM5A の 3690m 以上を 20m 格子に間引いたもの。
+   * 火口の中心（35.36295, 138.73003）からの 東[m], 北[m], 標高−3600[m] を並べてある。
+   */
+  const FUJI_RIM = "-53,532,97,-45,532,98,-29,532,95,-72,512,98,-53,512,106,-45,512,108,-29,512,104,-10,512,94,-72,493,98,-53,493,110,-41,493,117,-29,493,112,-10,493,102,14,493,90,-92,474,100,-72,474,108,-53,474,119,-37,474,126,-29,474,123,-10,474,112,14,474,100,-111,474,91,33,474,91,-111,450,100,-92,450,111,-72,450,122,-53,450,130,-37,450,138,-29,450,135,-10,450,131,14,450,112,33,450,103,53,450,97,-142,450,94,-131,431,103,-111,431,109,-92,431,120,-72,431,131,-53,431,140,-33,431,149,-29,431,148,-10,431,142,14,431,130,33,431,117,53,431,105,-154,412,97,-131,412,108,-111,412,118,-92,412,133,-72,412,142,-53,412,153,-41,412,155,-29,416,152,-10,416,146,14,412,137,33,419,127,53,412,108,72,412,98,-193,412,99,-189,412,97,92,412,92,-212,392,103,-197,392,109,-173,392,108,-154,392,109,-131,392,117,-111,392,126,-92,392,143,-72,392,152,-53,400,155,-45,408,156,-29,408,151,-10,408,146,14,408,137,33,392,128,53,392,118,72,392,108,107,392,103,127,392,109,138,392,110,169,392,111,173,392,111,193,392,102,-232,373,95,-212,373,107,-201,373,113,-173,373,117,-162,377,124,-131,373,127,-111,373,140,-92,381,146,-72,388,152,-64,388,153,-49,388,152,-29,388,148,-10,388,142,14,388,135,33,388,128,53,381,119,72,377,113,107,377,109,127,377,114,150,373,117,169,373,118,173,373,118,193,373,117,212,373,112,232,373,100,-232,354,103,-212,354,112,-201,354,116,-173,361,117,-154,365,125,-131,369,128,-115,369,142,-92,369,140,-72,369,145,-56,369,145,-49,369,145,-29,369,141,-10,369,135,14,369,128,33,369,122,53,369,117,72,369,111,107,369,108,127,369,113,150,358,118,169,354,121,177,354,121,193,354,121,212,354,119,232,354,115,-251,354,99,251,354,108,-271,354,93,271,354,92,-251,334,103,-232,330,115,-216,330,120,-208,334,119,-173,350,116,-169,350,117,-131,350,118,-115,350,123,-92,350,123,-72,350,134,-68,350,134,-49,350,133,-29,350,131,-10,350,125,14,350,117,33,350,110,53,350,105,72,350,101,107,350,101,127,350,107,150,350,118,169,330,122,189,330,124,197,330,124,212,330,124,232,330,121,251,330,115,271,330,107,290,330,96,-251,311,103,-232,311,119,-216,327,121,-208,327,118,-189,327,108,-166,327,107,-131,327,103,-127,327,103,-92,327,109,-72,327,113,-53,327,116,-41,327,117,-29,327,116,-10,327,111,14,327,102,33,327,97,53,327,94,72,327,90,107,327,92,127,327,100,150,327,113,169,327,122,189,319,125,197,319,125,212,315,125,232,315,123,251,311,117,271,311,111,290,311,99,-271,311,92,-271,292,95,-251,292,107,-232,307,119,-224,303,126,-208,307,115,-189,307,102,-169,307,93,-111,307,91,-92,307,98,-72,307,102,-56,307,105,-49,307,104,-29,307,100,-10,307,97,14,307,93,127,307,95,150,307,108,169,307,120,181,307,122,197,307,122,224,307,124,232,303,123,251,292,118,271,296,115,290,292,104,314,292,92,-271,272,99,-251,272,110,-232,272,121,-228,272,123,-208,272,115,-189,272,102,-72,288,95,-64,288,95,-49,288,94,-29,288,92,127,288,92,146,288,100,154,288,91,185,288,91,208,288,94,228,288,103,247,288,119,251,288,118,271,284,115,290,272,111,314,272,98,-169,276,91,-271,253,104,-251,253,115,-232,253,126,-228,253,127,-208,265,116,-189,269,102,-72,253,93,-60,253,94,-49,253,93,138,269,95,247,269,117,251,261,117,271,269,115,290,253,114,314,253,105,333,253,95,228,253,108,-290,253,92,-29,253,92,-10,253,91,-290,234,99,-271,234,111,-251,234,123,-236,234,131,-228,241,129,-208,234,118,-189,234,107,-72,234,97,-64,234,98,-49,234,96,-21,238,95,-10,234,95,228,249,107,247,249,114,259,249,116,271,249,115,290,234,114,314,234,110,333,234,102,-169,234,97,14,234,92,353,234,92,-150,234,91,-290,210,106,-271,210,117,-251,210,128,-236,230,131,-228,230,129,-208,230,118,-189,230,107,-169,222,100,-150,210,96,-72,230,97,-64,230,98,-49,230,96,-14,230,95,-10,230,95,14,230,92,228,230,102,247,230,108,267,230,113,286,230,114,290,230,114,314,210,113,333,210,107,353,210,101,-314,210,93,372,210,93,-127,210,90,-314,191,97,-290,191,110,-271,191,120,-251,207,128,-247,207,130,-228,207,120,-208,207,112,-189,207,103,-169,207,98,-150,207,95,-127,199,91,-72,207,91,-68,207,91,-49,207,90,228,207,94,247,195,106,267,191,110,286,191,114,310,191,117,314,191,117,333,191,117,353,191,107,372,191,100,392,191,94,-333,172,101,-314,172,104,-290,172,113,-271,172,124,-263,172,127,-247,187,123,-228,187,114,-208,187,104,-189,187,96,-169,187,91,-138,187,91,-127,187,90,247,187,104,267,172,113,286,172,117,310,172,121,318,172,122,337,172,122,353,172,120,372,172,109,392,172,99,-353,172,96,-353,152,107,-333,152,112,-314,152,114,-290,152,121,-271,152,128,-267,152,129,-247,168,118,-228,168,107,-208,168,97,-189,168,90,247,168,99,267,168,113,286,152,121,310,152,125,329,152,127,341,152,127,353,152,126,372,152,116,392,152,103,-372,152,98,-372,145,99,-353,141,114,-337,137,122,-314,133,126,-290,133,129,-279,133,133,-267,137,132,-247,133,116,-228,133,103,-208,149,93,267,145,108,286,149,120,310,145,126,329,137,130,341,133,132,353,133,132,372,133,120,392,133,105,411,133,92,-372,129,99,-353,129,110,-333,129,120,-314,125,130,-290,114,138,-282,114,140,-267,114,139,-247,114,122,-228,114,115,-208,114,92,267,129,106,271,129,106,310,129,113,329,129,124,349,125,133,353,125,133,372,114,123,392,114,108,411,114,95,-353,110,98,-333,110,111,-314,110,125,-290,110,139,-282,106,142,-267,110,138,-247,102,127,-228,90,119,-208,90,108,310,110,104,329,110,116,349,110,127,356,110,128,372,90,126,392,90,113,411,90,101,-189,90,98,-169,90,90,431,90,90,-353,83,92,-333,87,105,-314,87,117,-290,87,131,-275,87,140,-267,87,137,-247,75,127,-228,71,120,-208,71,112,-189,71,105,-169,71,97,310,87,97,329,87,108,349,87,119,368,83,127,372,75,128,392,71,118,411,71,106,431,71,96,-150,71,90,-333,67,99,-314,67,111,-290,67,126,-279,67,137,-267,67,134,-247,52,127,-228,52,121,-208,52,114,-189,52,110,-169,67,97,310,67,91,329,67,103,349,67,115,368,52,127,380,52,129,392,52,124,411,52,113,431,52,102,454,52,90,-333,48,94,-314,48,108,-290,40,126,-279,48,136,-267,32,133,-247,36,127,-228,32,122,-208,32,117,-189,32,112,-169,32,98,329,32,100,349,32,113,368,32,127,380,32,132,392,32,129,411,32,119,431,32,108,454,36,94,-333,29,91,-314,29,106,-290,29,126,-279,13,137,-267,13,135,-247,13,128,-228,13,123,-208,13,119,-189,29,112,-169,29,97,329,13,105,349,13,117,368,13,132,380,13,136,392,13,132,411,13,122,431,13,108,454,13,94,310,13,95,-333,-6,94,-314,-6,108,-290,-6,129,-275,-6,139,-267,-6,137,-247,-6,130,-228,-6,125,-208,-6,121,-189,-6,113,310,-6,108,329,-6,115,349,-6,125,368,-6,137,376,-6,140,392,-6,135,411,-6,124,431,-6,111,454,-6,98,286,-6,95,-333,-10,95,-314,-18,113,-290,-10,134,-279,-29,141,-267,-22,138,-247,-10,130,-228,-29,127,-208,-29,124,-189,-29,116,286,-10,100,310,-18,113,329,-29,133,349,-29,141,368,-18,147,372,-18,148,392,-22,136,411,-22,125,431,-29,113,454,-29,100,-333,-49,97,-314,-49,111,-290,-45,134,-282,-41,144,-267,-33,137,-247,-33,129,-228,-41,127,-208,-49,125,-189,-33,116,286,-33,96,310,-33,111,329,-33,132,349,-33,141,368,-33,145,376,-33,146,392,-33,135,411,-33,125,431,-33,113,454,-41,102,473,-49,95,-333,-64,99,-314,-64,113,-290,-68,135,-282,-53,143,-267,-53,135,-247,-53,127,-224,-53,127,-208,-64,126,-189,-53,91,286,-53,93,310,-53,108,329,-57,125,349,-53,138,368,-53,141,372,-53,141,392,-53,129,411,-53,120,431,-53,110,454,-53,99,473,-53,95,-333,-72,98,-314,-76,113,-290,-76,136,-286,-76,141,-267,-72,133,-247,-84,125,-212,-72,126,-208,-72,126,-189,-88,94,286,-84,91,310,-72,106,329,-72,116,349,-72,133,356,-72,136,372,-72,129,392,-72,123,411,-72,114,431,-72,103,454,-72,91,-333,-99,99,-314,-95,112,-290,-91,134,-282,-107,141,-267,-107,133,-247,-107,125,-212,-91,125,-208,-91,125,-189,-103,98,310,-91,97,329,-91,106,349,-91,118,364,-91,128,372,-91,123,392,-91,113,411,-91,104,431,-91,94,-333,-126,102,-314,-126,114,-290,-111,132,-282,-115,142,-267,-126,136,-247,-126,128,-212,-111,123,-208,-111,123,-189,-126,97,329,-111,100,349,-111,111,364,-111,122,372,-111,118,392,-111,106,411,-111,96,-333,-149,109,-314,-149,121,-290,-149,138,-282,-138,146,-267,-149,143,-247,-149,134,-228,-149,126,-208,-134,122,-189,-149,107,329,-130,93,349,-134,114,356,-130,116,372,-130,115,392,-130,101,-353,-149,97,-353,-169,105,-333,-169,120,-314,-169,135,-290,-169,153,-279,-169,159,-267,-169,149,-247,-169,138,-228,-169,130,-208,-169,124,-189,-169,114,345,-169,118,353,-169,117,372,-153,111,392,-153,97,329,-169,97,-372,-169,92,-372,-188,93,-353,-177,107,-333,-173,121,-314,-173,135,-290,-173,153,-279,-177,160,-267,-188,155,-247,-188,145,-228,-188,137,-208,-188,130,-189,-188,124,329,-188,124,333,-188,125,353,-188,122,372,-184,109,392,-173,95,-169,-188,93,310,-188,116,-372,-192,93,-353,-192,106,-333,-192,119,-314,-192,133,-290,-192,150,-271,-196,162,-263,-207,169,-247,-207,152,-228,-207,145,-208,-207,137,-189,-200,125,-169,-207,98,310,-207,129,329,-207,130,333,-207,130,353,-196,123,372,-207,110,392,-207,97,286,-207,94,-372,-211,91,-353,-211,103,-333,-211,116,-314,-211,130,-290,-211,146,-271,-227,163,-259,-223,170,-247,-227,162,-228,-227,153,-208,-227,144,-189,-227,132,-169,-227,116,286,-227,129,310,-223,132,318,-219,132,333,-215,130,353,-211,120,372,-211,111,392,-227,100,267,-227,119,-150,-227,99,247,-227,112,228,-227,105,-353,-231,102,-333,-246,115,-314,-246,130,-290,-246,147,-271,-231,164,-251,-235,171,-247,-242,174,-228,-246,160,-208,-246,152,-189,-246,140,-169,-246,122,-150,-242,104,228,-246,115,247,-246,124,267,-242,127,286,-231,129,306,-231,131,314,-231,131,333,-231,128,353,-231,119,372,-231,109,392,-231,100,-353,-269,105,-333,-269,119,-314,-269,133,-290,-262,149,-271,-250,162,-251,-266,171,-247,-250,174,-228,-269,167,-208,-269,156,-189,-269,143,-169,-254,126,-150,-269,108,216,-269,125,247,-262,125,267,-250,127,286,-250,127,302,-250,127,314,-250,127,333,-250,122,353,-250,113,372,-250,103,392,-250,93,189,-269,111,205,-269,125,-372,-269,92,-127,-269,94,162,-269,90,-372,-289,94,-353,-281,107,-333,-285,120,-314,-273,134,-290,-273,149,-271,-273,161,-251,-273,171,-247,-273,170,-228,-277,167,-208,-281,162,-189,-289,146,-169,-289,129,-150,-289,116,-127,-289,103,-107,-289,95,169,-289,100,189,-289,126,197,-281,127,212,-277,126,232,-277,125,251,-273,124,271,-273,124,290,-273,122,314,-273,121,333,-273,116,353,-273,107,372,-273,96,-53,-289,94,-45,-289,94,131,-289,94,-72,-289,92,-29,-289,92,127,-289,94,-372,-293,94,-353,-293,106,-333,-293,119,-314,-293,131,-290,-293,144,-271,-293,154,-251,-293,160,-247,-293,161,-224,-293,159,-201,-293,157,-189,-300,149,-169,-308,139,-150,-308,127,-127,-304,112,-107,-308,101,-72,-308,103,-53,-308,106,-37,-308,108,-29,-308,105,-10,-308,100,127,-308,113,131,-308,116,169,-308,106,189,-293,124,197,-293,126,212,-293,125,232,-293,124,251,-293,122,271,-293,121,290,-293,119,314,-293,116,333,-293,110,353,-293,102,372,-293,92,107,-308,108,14,-308,95,33,-308,95,68,-308,94,88,-308,100,-372,-312,92,-353,-312,104,-333,-312,116,-314,-312,127,-290,-312,136,-271,-312,144,-251,-312,147,-232,-312,147,-228,-312,147,-197,-312,147,-189,-312,146,-169,-312,139,-150,-312,127,-127,-327,115,-92,-327,111,-72,-327,114,-53,-327,120,-41,-327,120,-29,-327,118,-10,-327,117,14,-327,114,33,-327,112,68,-327,110,88,-327,112,107,-324,116,127,-320,120,131,-324,120,169,-324,108,189,-312,119,205,-312,123,212,-312,123,232,-312,122,251,-312,120,271,-312,118,290,-312,116,314,-312,111,333,-312,104,353,-312,95,-353,-331,100,-333,-331,109,-314,-331,118,-290,-331,126,-271,-331,132,-251,-331,133,-232,-331,134,-224,-331,134,-193,-331,135,-185,-331,135,-169,-331,135,-150,-347,129,-111,-347,127,-107,-347,127,-72,-347,125,-60,-347,126,-49,-347,125,-29,-347,121,-10,-343,119,14,-343,117,33,-347,113,53,-347,112,88,-335,113,107,-331,115,127,-331,118,131,-331,118,169,-331,108,189,-331,117,208,-331,120,212,-331,120,232,-331,119,251,-331,116,271,-331,111,290,-331,105,314,-331,100,333,-331,95,-353,-351,92,-333,-351,101,-314,-351,108,-290,-351,116,-275,-351,119,-251,-351,119,-232,-351,121,-220,-351,121,-193,-351,123,-173,-351,123,-154,-351,128,-150,-351,129,-111,-351,126,-103,-351,127,-72,-355,127,-60,-358,129,-49,-366,129,-29,-366,127,-10,-366,124,14,-366,122,33,-366,116,53,-366,113,88,-366,113,107,-351,114,127,-366,115,131,-366,115,154,-351,104,189,-351,107,208,-351,111,216,-351,111,232,-351,109,251,-351,103,271,-351,95,290,-351,90,-333,-370,91,-314,-370,98,-290,-370,104,-275,-370,105,-251,-370,106,-247,-370,107,-220,-370,107,-201,-370,108,-173,-370,110,-162,-370,117,-150,-370,116,-111,-370,116,-92,-370,118,-72,-370,123,-53,-370,125,-33,-378,131,-29,-378,131,-2,-389,133,14,-389,131,33,-389,125,53,-389,117,88,-378,113,107,-370,113,127,-378,117,131,-385,116,154,-389,105,189,-370,96,193,-370,96,228,-370,96,232,-370,94,-298,-393,90,-232,-393,91,-228,-393,92,-193,-393,92,-173,-393,99,-169,-393,100,-131,-393,100,-115,-393,103,-92,-393,104,-72,-393,109,-53,-393,114,-33,-393,118,-14,-393,124,-2,-393,133,25,-397,132,33,-397,129,53,-401,118,72,-393,111,95,-393,109,127,-393,113,134,-393,114,154,-397,109,173,-397,97,-173,-413,90,-111,-413,90,-92,-413,93,-72,-413,98,-53,-413,104,-33,-413,108,-14,-413,118,10,-413,122,25,-413,124,33,-413,124,53,-413,115,72,-420,104,92,-413,99,127,-413,104,131,-413,104,166,-413,100,173,-413,96,-53,-432,91,-33,-432,98,-14,-432,108,-2,-432,109,25,-432,111,33,-432,110,53,-432,100,72,-432,93,134,-432,90,-14,-451,95,10,-451,95,29,-451,99,33,-451,98,53,-451,92";
+  let rimCache = null;
+  function rimPoints(rim) {
+    if (rimCache && rimCache.rim === rim) return rimCache.pts;
+    const v = FUJI_RIM.split(",").map(Number);
+    const kx = Math.cos(rim.latitude * Math.PI / 180) * 111320, ky = 110574;
+    const pts = [];
+    for (let i = 0; i + 2 < v.length; i += 3) {
+      pts.push({ latitude: rim.latitude + v[i + 1] / ky, longitude: rim.longitude + v[i] / kx, m: v[i + 2] + 3600 });
+    }
+    rimCache = { rim, pts };
+    return pts;
+  }
 
   /**
    * ダイヤモンド富士・パール富士の**主な観測スポット**（2026-09-30）。
@@ -131,6 +154,7 @@
   const limbById = (id) => LIMBS.find((l) => l.id === id) || LIMBS[1];
 
   const bodyAt = (body, ms, obs) => (body === "moon" ? A.moon(ms, obs) : A.sun(ms, obs));
+  const DEG = Math.PI / 180;
 
   /**
    * その日、天体の見かけの高度が `alt` を通る時刻。
@@ -315,6 +339,86 @@
   const azDiff = (a, b) => ((a - b + 540) % 360) - 180;
 
   /**
+   * 観測者から見た頂の稜線（火口の縁）。縁の点ごとに方位と見上げ角を出し、
+   * 方位の近いものの一番上を稜線とする。幅の無い目標は null。
+   * @returns {{azimuth, min, max, at(rel)}} azimuth は縁の中心の方位、min/max は稜線の左右の端（中心からの差[度]）
+   */
+  function rimOutline(obs, target) {
+    const rim = target && target.rim;
+    if (!rim) return null;
+    const d0 = TR.distanceKm(obs.latitude, obs.longitude, rim.latitude, rim.longitude);
+    const az0 = TR.bearing(obs.latitude, obs.longitude, rim.latitude, rim.longitude);
+    const list = rimPoints(rim).map((p) => {
+      const d = TR.distanceKm(obs.latitude, obs.longitude, p.latitude, p.longitude);
+      return { rel: azDiff(TR.bearing(obs.latitude, obs.longitude, p.latitude, p.longitude), az0),
+               ang: A.targetElevationAngle(d, obs.elevation ?? 0, p.m) };
+    }).sort((a, b) => a.rel - b.rel);
+    // 20m 格子なので、その距離で 15m ぶんの幅の中の一番上を取る
+    const bin = Math.atan(0.015 / Math.max(0.5, d0)) / DEG;
+    const rels = list.map((x) => x.rel);
+    const lower = (x) => { let lo = 0, hi = rels.length; while (lo < hi) { const m = (lo + hi) >> 1; if (rels[m] < x) lo = m + 1; else hi = m; } return lo; };
+    return {
+      azimuth: az0, min: rels[0], max: rels[rels.length - 1],
+      at(rel) {
+        let best = null;
+        for (let i = lower(rel - bin); i < list.length && list[i].rel <= rel + bin; i++) {
+          if (best === null || list[i].ang > best) best = list[i].ang;
+        }
+        return best;
+      },
+    };
+  }
+
+  /**
+   * 天体が狙う方位を横切った瞬間 `at0` の重なり方。
+   * 頂が輪（火口の縁）なら、天体が縁の左右の端のあいだを渡るあいだに、
+   * 中心（乗る・隠れるは半径ぶんずらした点）が**稜線に届くか**を見る。
+   * 届けば差は 0 で、時刻はその瞬間（頂に沈む／頂から出る）。届かなければ一番近づいたときの差。
+   */
+  function judge(body, at0, obs, angle, sign, outline) {
+    const st0 = bodyAt(body, at0, obs);
+    if (!outline) return { at: at0, gap: st0.apparentAltitude - (angle + sign * st0.angularRadius), st: st0 };
+    const a = bodyAt(body, at0 - 60000, obs), b = bodyAt(body, at0 + 60000, obs);
+    const rate = azDiff(b.azimuth, a.azimuth) / 120000;          // 方位の動き[度/ms]
+    if (!rate) return { at: at0, gap: st0.apparentAltitude - (angle + sign * st0.angularRadius), st: st0 };
+    const tA = at0 + outline.min / rate, tB = at0 + outline.max / rate;
+    const t0 = Math.min(tA, tB), t1 = Math.max(tA, tB);
+    const f = (t) => {
+      const st = bodyAt(body, t, obs);
+      const ridge = outline.at(azDiff(st.azimuth, outline.azimuth));
+      return ridge === null ? null : { t, st, v: st.apparentAltitude - sign * st.angularRadius - ridge };
+    };
+    const n = 48;
+    let prev = null, best = null;
+    for (let i = 0; i <= n; i++) {
+      const cur = f(t0 + (t1 - t0) * i / n);
+      if (!cur) continue;
+      if (!best || Math.abs(cur.v) < Math.abs(best.v)) best = cur;
+      if (prev && Math.sign(prev.v) !== Math.sign(cur.v)) {
+        let lo = prev, hi = cur;
+        for (let k = 0; k < 20; k++) {
+          const mid = f((lo.t + hi.t) / 2);
+          if (!mid) break;
+          if (Math.sign(mid.v) === Math.sign(lo.v)) lo = mid; else hi = mid;
+        }
+        const at = (lo.t + hi.t) / 2, st = bodyAt(body, at, obs);
+        // 縁の左右の真ん中からどれだけ外れた所か。**内側の6割なら「ど真ん中」、外側なら「重なる」**
+        // （頂の端の肩に沈む日まで「ど真ん中」と言わない）。同じ回の中で代表の日を選ぶのにも使う。
+        // 高尾山では 12/19〜12/24 が「ど真ん中」になり、よく知られた「冬至の前後」と合う
+        const half = (outline.max - outline.min) / 2;
+        const off = Math.abs(azDiff(st.azimuth, outline.azimuth) - (outline.min + outline.max) / 2);
+        return { at, gap: 0, st, off, rank: off <= 0.6 * half ? "center" : "overlap" };
+      }
+      prev = cur;
+    }
+    // 中心が稜線に届かなかった。**届かない以上「ど真ん中」とは言わない**（円盤の一部が縁に掛かるだけ）
+    const miss = best ? { at: best.t, gap: best.v, st: best.st }
+      : { at: at0, gap: st0.apparentAltitude - (angle + sign * st0.angularRadius), st: st0 };
+    const r = rankOf(miss.gap, miss.st.angularRadius);
+    return { ...miss, rank: r === "center" ? "overlap" : r };
+  }
+
+  /**
    * その地点で、次に重なる日を並べる（「ダイヤモンド◯◯一覧」「パール◯◯一覧」）。
    * 判定は `SoramiFuji.alignments()` と同じ考え方で、幾何だけ目標ごとに作る。
    */
@@ -326,6 +430,8 @@
     const step = stepMs ?? (body === "moon" ? 900000 : 600000);
     const obs = { latitude: observer.latitude, longitude: observer.longitude,
                   elevation: (observer.elevation ?? 0) + (opts.eyeM ?? 1.5) };
+    const outline = rimOutline(obs, target);
+    const aimAz = { azimuth: outline ? outline.azimuth : null };
     const out = [];
     let group = null;
     for (let i = 0; i < days && out.length < limit; i++) {
@@ -333,30 +439,31 @@
       // その日、天体が目標の方位を横切る時刻
       let prev = null;
       for (let t = dayMs; t <= dayMs + 86400000; t += step) {
-        const diff = azDiff(bodyAt(body, t, obs).azimuth, g.azimuth);
+        const diff = azDiff(bodyAt(body, t, obs).azimuth, aimAz.azimuth ?? g.azimuth);
         if (prev && Math.sign(prev.diff) !== Math.sign(diff) && Math.abs(diff - prev.diff) < 90) {
           let lo = prev.t, hi = t, loDiff = prev.diff;
           for (let k = 0; k < 36; k++) {
             const mid = (lo + hi) / 2;
-            const md = azDiff(bodyAt(body, mid, obs).azimuth, g.azimuth);
+            const md = azDiff(bodyAt(body, mid, obs).azimuth, aimAz.azimuth ?? g.azimuth);
             if (Math.sign(md) === Math.sign(loDiff)) { lo = mid; loDiff = md; } else hi = mid;
           }
-          const at = (lo + hi) / 2;
-          const st = bodyAt(body, at, obs);
-          const gap = st.apparentAltitude - (g.angle + sign * st.angularRadius);
+          const j = judge(body, (lo + hi) / 2, obs, g.angle, sign, outline);
+          const { at, gap, st } = j;
           const within = Math.abs(gap) <= 2 * st.angularRadius;
           if (within && st.apparentAltitude > -1) {
             const later = bodyAt(body, at + 60000, obs).apparentAltitude;
             const row = { at, gap, radius: st.angularRadius,
-              rank: (Math.abs(gap) <= 0.5 * st.angularRadius ? "center"
-                : Math.abs(gap) <= st.angularRadius ? "overlap" : "graze"),
+              rank: j.rank || rankOf(gap, st.angularRadius),
               side: later < st.apparentAltitude ? "set" : "rise",
               altitude: st.apparentAltitude,
               illuminated: body === "moon" ? st.illuminatedFraction : null,
               sunAltitude: body === "moon" ? A.sun(at, obs).apparentAltitude : null };
+            row.off = j.off ?? 0;
             if (group && at - group.last <= 40 * 3600000) {
               group.last = at;
-              if (Math.abs(row.gap) < Math.abs(group.best.gap)) group.best = row;
+              // 差が同じ（どちらも頂に届く）なら、縁の真ん中に近い日を代表にする
+              if (Math.abs(row.gap) < Math.abs(group.best.gap)
+                || (row.gap === group.best.gap && row.off < group.best.off)) group.best = row;
               if (row.rank !== "graze") group.solid.push(row);
             } else {
               if (group) out.push(group);
@@ -376,8 +483,349 @@
     }));
   }
 
+  // ---------------------------------------------------------------- その日の候補地（2026-09-30）
+  /*
+   * 線だけでは「どこへ行けばよいか」が分からない（ユーザー指摘「月丼みたいに候補地を出して」）。
+   * **立てる場所**（展望地・山頂・峠・橋・公園・海岸・展望台）の中から、その日の線に掛かるものを拾い、
+   * そこに立ったとして**重なるかを1つずつ解き直す**。線は標高をならして引いているので、
+   * 山頂のように周りより高い場所では、本当に重なる位置が線から横にずれる（50km先の山頂で数百m）。
+   *
+   * 場所の形で、立つ位置の決め方が違う。
+   *   点（展望地・山頂・峠・展望台）… その点に立つ。動かさない
+   *   線（橋・桟橋）                … 橋の上で重なる点を探す（両端で天体の上下が入れ替われば挟んで解く）
+   *   面（公園・海岸）              … 線が通る区間の中ほどに立ち、重なるよう横へ1歩直す（面の外へは出ない）
+   */
+
+  /// 天体の中心と、合わせたい高さ（先端＋半径×合わせ方）との差を段に分ける。`upcoming` と同じ区切り
+  const rankOf = (gap, r) => (Math.abs(gap) <= 0.5 * r ? "center"
+    : Math.abs(gap) <= r ? "overlap" : Math.abs(gap) <= 2 * r ? "graze" : null);
+
+  /**
+   * その地点で、`approxAt` の前後に天体が目標の方位を横切る瞬間を解く。
+   * 一覧（`upcoming`）の1日ぶんと同じ判定を、時刻の見当を付けて速く回す。
+   * @returns {{at, gap, rank, slope, altitude, azimuth, radius, distanceKm, targetAngle, ...}|null}
+   *   slope は天体の通り道の傾き（方位1°あたりの高度の変化）。立つ位置を横へ直すのに使う
+   */
+  function crossingNear(observer, target, body, approxAt, opts = {}) {
+    const g = geometryFrom(observer, target, opts);
+    if (!g) return null;
+    const sign = limbById(opts.limb).sign;
+    const obs = { latitude: observer.latitude, longitude: observer.longitude,
+                  elevation: (observer.elevation ?? 0) + (opts.eyeM ?? 1.5) };
+    const span = opts.spanMs ?? 3 * 3600000, step = opts.stepMs ?? 300000;
+    const outline = rimOutline(obs, target);
+    const azT = outline ? outline.azimuth : g.azimuth;
+    let prev = null, best = null;
+    for (let t = approxAt - span; t <= approxAt + span; t += step) {
+      const diff = azDiff(bodyAt(body, t, obs).azimuth, azT);
+      if (prev && Math.sign(prev.diff) !== Math.sign(diff) && Math.abs(diff - prev.diff) < 90) {
+        let lo = prev.t, hi = t, loDiff = prev.diff;
+        for (let k = 0; k < 30; k++) {
+          const mid = (lo + hi) / 2;
+          const md = azDiff(bodyAt(body, mid, obs).azimuth, azT);
+          if (Math.sign(md) === Math.sign(loDiff)) { lo = mid; loDiff = md; } else hi = mid;
+        }
+        const at = (lo + hi) / 2;
+        if (!best || Math.abs(at - approxAt) < Math.abs(best.at - approxAt)) best = { at };
+      }
+      prev = { t, diff };
+    }
+    if (!best) return null;
+    const j = judge(body, best.at, obs, g.angle, sign, outline);
+    best.at = j.at;
+    const st = j.st, gap = j.gap;
+    const rank = j.rank || rankOf(gap, st.angularRadius);
+    const a = bodyAt(body, best.at - 60000, obs), b = bodyAt(body, best.at + 60000, obs);
+    const dAz = azDiff(b.azimuth, a.azimuth);
+    const later = b.apparentAltitude;
+    return {
+      at: best.at, gap, rank,
+      slope: dAz !== 0 ? (b.apparentAltitude - a.apparentAltitude) / dAz : 0,
+      side: later < st.apparentAltitude ? "set" : "rise",
+      altitude: st.apparentAltitude, azimuth: st.azimuth, radius: st.angularRadius,
+      distanceKm: g.distanceKm, targetAngle: g.angle, targetTopM: g.topM,
+      illuminated: body === "moon" ? st.illuminatedFraction : null,
+      sunAltitude: body === "moon" ? A.sun(best.at, obs).apparentAltitude : null,
+    };
+  }
+
+  // 平面の近似（候補1つのまわり数km）。緯度1°=110.574km、経度1°=111.320km×cos(緯度)
+  function localFrame(lat0, lon0) {
+    const kx = Math.cos(lat0 * DEG) * 111320, ky = 110574;
+    return {
+      xy: (lat, lon) => [(lon - lon0) * kx, (lat - lat0) * ky],
+      ll: (x, y) => ({ latitude: lat0 + y / ky, longitude: lon0 + x / kx }),
+    };
+  }
+
+  /// 線分 ab と cd の交点（あれば a→b の割合 t と c→d の割合 u）
+  function segmentCross(a, b, c, d) {
+    const rx = b[0] - a[0], ry = b[1] - a[1], sx = d[0] - c[0], sy = d[1] - c[1];
+    const den = rx * sy - ry * sx;
+    if (Math.abs(den) < 1e-9) return null;
+    const qx = c[0] - a[0], qy = c[1] - a[1];
+    const t = (qx * sy - qy * sx) / den, u = (qx * ry - qy * rx) / den;
+    return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? { t, u } : null;
+  }
+  /// 点 p から線分 ab への最短（距離と、線分上の割合）
+  function nearestOnSegment(p, a, b) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy;
+    const t = L ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)) : 0;
+    const x = a[0] + t * dx, y = a[1] + t * dy;
+    return { d: Math.hypot(p[0] - x, p[1] - y), t, x, y };
+  }
+  function insidePolygon(p, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i], [xj, yj] = ring[j];
+      if ((yi > p[1]) !== (yj > p[1]) && p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+
+  /// 目標のまわりに観測点を回す（距離は保ったまま方位だけ変える）。重なる位置へ横に直すのに使う
+  function rotateAround(target, point, dBearing) {
+    const d = TR.distanceKm(target.latitude, target.longitude, point.latitude, point.longitude);
+    const b = TR.bearing(target.latitude, target.longitude, point.latitude, point.longitude);
+    return TR.destination(target.latitude, target.longitude, b + dBearing, d);
+  }
+
+  /**
+   * 場所の形の読み方。`g` は緯度経度を交互に並べた配列（×1e5 の整数）。
+   *   shape "point" … 点。`g` は無い
+   *   shape "line"  … 橋・桟橋。`g` は折れ線
+   *   shape "area"  … 公園・海岸。`g` は外周（閉じていなくてよい）
+   */
+  function placeGeometry(p) {
+    if (!p.g || p.g.length < 4) return [];
+    const out = [];
+    for (let i = 0; i + 1 < p.g.length; i += 2) out.push([p.g[i] / 1e5, p.g[i + 1] / 1e5]);
+    return out;
+  }
+
+  /**
+   * その日の線に掛かる場所を拾い、立つ位置と重なり方を決める。
+   * @param {Array} lines  `line()` の結果（標高をならした線）
+   * @param {Array} places 立てる場所 {id, name, kind, shape, latitude, longitude, elevationM, deckM, g, reachM}
+   * @param {object} opts  partId, limb, eyeM, elevationAt(lat,lon)→標高（面・線で立つ位置の標高）
+   * @returns {Promise<Array>} 重なる（かすめる）場所。立つ位置 `stand` と、そこでの `crossingNear` の結果
+   */
+  async function candidates(lines, places, target, body, opts = {}) {
+    const { elevationAt = null } = opts;
+    const out = [];
+    for (const l of lines) {
+      const pts = l.points;
+      if (!pts || pts.length < 2) continue;
+      const lineBearings = pts.map((p) => TR.bearing(target.latitude, target.longitude, p.latitude, p.longitude));
+      const minKm = pts[0].distanceKm, maxKm = pts[pts.length - 1].distanceKm;
+      // 天体の通り道の傾き（方位1°あたりの高度）。立つ高さが違うと、重なる方位がこれで決まるぶんずれる
+      const eye = opts.eyeM ?? 1.5;
+      const topM = (partOf(target, opts.partId) || {}).m;
+      const mid = pts[Math.floor(pts.length / 2)];
+      const mo = { latitude: mid.latitude, longitude: mid.longitude, elevation: (mid.elevationM ?? 0) + eye };
+      const b0 = bodyAt(body, mid.at - 60000, mo), b1 = bodyAt(body, mid.at + 60000, mo);
+      const dAz = azDiff(b1.azimuth, b0.azimuth);
+      const pathSlope = dAz ? (b1.apparentAltitude - b0.apparentAltitude) / dAz : 0;
+      const radius = b0.angularRadius;
+      for (const place of places) {
+        const D = TR.distanceKm(target.latitude, target.longitude, place.latitude, place.longitude);
+        const reachKm = (place.reachM || 0) / 1000;
+        if (D + reachKm < minKm * 0.9 || D - reachKm > maxKm * 1.05) continue;
+        // 線の方位をこの距離で読む
+        let i = pts.findIndex((p) => p.distanceKm >= D);
+        if (i < 0) i = pts.length - 1;
+        if (i === 0) i = 1;
+        const p0 = pts[i - 1], p1 = pts[i];
+        const f = Math.max(0, Math.min(1, (D - p0.distanceKm) / ((p1.distanceKm - p0.distanceKm) || 1)));
+        const lb = lineBearings[i - 1] + azDiff(lineBearings[i], lineBearings[i - 1]) * f;
+        const pb = TR.bearing(target.latitude, target.longitude, place.latitude, place.longitude);
+        if (Math.abs(azDiff(pb, lb)) > 90) continue;
+        // **立つ高さで、本当の線は横にずれる。** 線は標高をならして引いてあるので、
+        // その場所の高さ（点は持っている標高、面と線はその距離の生の地面）で見上げ角を出し直し、
+        // 天体の通り道の傾きから、重なる方位がどれだけ動くかを見積もる
+        const eLine = p0.elevationM + ((p1.elevationM ?? p0.elevationM) - p0.elevationM) * f;
+        const g0 = p0.groundM ?? p0.elevationM, g1 = p1.groundM ?? p1.elevationM;
+        const eRaw = g0 + (g1 - g0) * f;
+        const eP = (place.shape === "point" && Number.isFinite(place.elevationM) ? place.elevationM : eRaw)
+          + (place.deckM || 0);
+        let shift = 0;
+        if (Number.isFinite(topM) && pathSlope) {
+          const dAlpha = A.targetElevationAngle(D, eP + eye, topM) - A.targetElevationAngle(D, eLine + eye, topM);
+          shift = dAlpha / pathSlope;
+        }
+        const lateralM = Math.abs(Math.sin(azDiff(pb, lb + shift) * DEG)) * D * 1000;
+        // 重なって見える幅（天体の直径ぶんの高度差を、通り道の傾きで方位に直す）＋見積もりの余裕
+        const bandM = D * 1000 * (2 * radius / Math.max(0.2, Math.abs(pathSlope))) * DEG;
+        // 頂が輪なら、その幅（中心から縁まで 450m）と剣ヶ峰からのずれ（360m）ぶん広く拾う
+        const plateauM = target.rim ? 850 : 0;
+        if (lateralM > (place.reachM || 0) + bandM + plateauM + 150 + 0.004 * D * 1000) continue;
+        const approxAt = p0.at + (p1.at - p0.at) * f;
+        const hit = await standOn(place, l, target, body, approxAt, opts, elevationAt);
+        if (hit && hit.rank) out.push({ place, side: l.side, ...hit });
+      }
+    }
+    return out;
+  }
+
+  /// 場所の中で立つ位置を決め、そこでの重なり方を返す
+  async function standOn(place, l, target, body, approxAt, opts, elevationAt) {
+    const eyeM = (opts.eyeM ?? 1.5) + (place.deckM || 0);
+    const at = async (pt, fixedElev = null) => {
+      const e = fixedElev !== null ? fixedElev
+        : (elevationAt ? await elevationAt(pt.latitude, pt.longitude) : 0);
+      const obs = { latitude: pt.latitude, longitude: pt.longitude, elevation: Number.isFinite(e) ? e : 0 };
+      const c = crossingNear(obs, target, body, approxAt, { ...opts, eyeM });
+      return c ? { ...c, stand: { latitude: pt.latitude, longitude: pt.longitude, elevationM: obs.elevation } } : null;
+    };
+    const shape = place.shape || "point";
+    if (shape === "point") {
+      return at({ latitude: place.latitude, longitude: place.longitude },
+        Number.isFinite(place.elevationM) ? place.elevationM : null);
+    }
+    const geom = placeGeometry(place);
+    if (geom.length < 2) return null;
+    const F = localFrame(place.latitude, place.longitude);
+    const g = geom.map(([la, lo]) => F.xy(la, lo));
+    const L = l.points.map((p) => F.xy(p.latitude, p.longitude));
+    if (shape === "line") {
+      // 橋の上で、線と交わる点。交わらなければ、線に一番近い点
+      let start = null;
+      for (let j = 0; j + 1 < g.length && !start; j++) {
+        for (let k = 0; k + 1 < L.length; k++) {
+          const c = segmentCross(g[j], g[j + 1], L[k], L[k + 1]);
+          if (c) { start = { j, t: c.t }; break; }
+        }
+      }
+      if (!start) {
+        let best = null;
+        for (let j = 0; j + 1 < g.length; j++) {
+          for (const q of L) {
+            const n = nearestOnSegment(q, g[j], g[j + 1]);
+            if (!best || n.d < best.d) best = { j, t: n.t, d: n.d };
+          }
+        }
+        start = best;
+      }
+      // 橋を1本の道のりとして、端から端まで s∈[0,1] で読む
+      const seg = [];
+      let total = 0;
+      for (let j = 0; j + 1 < g.length; j++) {
+        const len = Math.hypot(g[j + 1][0] - g[j][0], g[j + 1][1] - g[j][1]);
+        seg.push({ j, from: total, len }); total += len;
+      }
+      const posAt = (s) => {
+        const d = s * total;
+        const sg = seg.find((x) => d <= x.from + x.len) || seg[seg.length - 1];
+        const t = sg.len ? (d - sg.from) / sg.len : 0;
+        const a = g[sg.j], b = g[sg.j + 1];
+        return F.ll(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t);
+      };
+      const s0 = total ? (seg[start.j].from + start.t * seg[start.j].len) / total : 0;
+      // 橋の上は川面から高いので、標高は交点で1回だけ読む（橋の上の標高タイルは水面のことが多い）
+      const p0 = posAt(s0);
+      const e0 = elevationAt ? await elevationAt(p0.latitude, p0.longitude) : 0;
+      const elev = (Number.isFinite(e0) ? e0 : 0) + (place.bridgeM ?? 0);
+      let c0 = await at(p0, elev);
+      if (!c0) return null;
+      if (c0.rank === "center") return c0;
+      // 重なる側へ、橋の上を挟み撃ちで詰める
+      const ends = [await at(posAt(0), elev), await at(posAt(1), elev)];
+      let lo = null, hi = null;
+      for (const [s, c] of [[0, ends[0]], [1, ends[1]]]) {
+        if (c && Math.sign(c.gap) !== Math.sign(c0.gap)) { lo = { s: s0, c: c0 }; hi = { s, c }; break; }
+      }
+      if (!lo) {
+        const cands = [c0, ...ends].filter(Boolean).sort((x, y) => Math.abs(x.gap) - Math.abs(y.gap));
+        return cands[0];
+      }
+      for (let k = 0; k < 12; k++) {
+        const s = lo.s + (hi.s - lo.s) * (lo.c.gap / (lo.c.gap - hi.c.gap));
+        const c = await at(posAt(s), elev);
+        if (!c) break;
+        if (c.rank === "center") return c;
+        if (Math.sign(c.gap) === Math.sign(lo.c.gap)) lo = { s, c }; else hi = { s, c };
+      }
+      return Math.abs(lo.c.gap) < Math.abs(hi.c.gap) ? lo.c : hi.c;
+    }
+    // 面: 線が面の中を通る区間を探し、その中ほどに立つ
+    const ring = g;
+    let inside = null;
+    for (let k = 0; k + 1 < L.length; k++) {
+      const hits = [];
+      for (let j = 0; j < ring.length; j++) {
+        const c = segmentCross(L[k], L[k + 1], ring[j], ring[(j + 1) % ring.length]);
+        if (c) hits.push(c.t);
+      }
+      const a = insidePolygon(L[k], ring), b = insidePolygon(L[k + 1], ring);
+      if (a) hits.push(0);
+      if (b) hits.push(1);
+      if (hits.length >= 2) {
+        hits.sort((x, y) => x - y);
+        const t = (hits[0] + hits[hits.length - 1]) / 2;
+        inside = [L[k][0] + (L[k + 1][0] - L[k][0]) * t, L[k][1] + (L[k + 1][1] - L[k][1]) * t];
+        break;
+      }
+    }
+    if (!inside) {
+      // 線は面を通らない。面の中で線に一番近い点から始める（標高のずれで本当の線が通ることがある）
+      let best = null;
+      for (let j = 0; j < ring.length; j++) {
+        for (let k = 0; k + 1 < L.length; k++) {
+          const n = nearestOnSegment(ring[j], L[k], L[k + 1]);
+          if (!best || n.d < best.d) best = { d: n.d, p: ring[j] };
+        }
+      }
+      if (!best) return null;
+      inside = best.p;
+    }
+    let c = await at(F.ll(inside[0], inside[1]));
+    if (!c || c.rank === "center" || !c.slope) return c;
+    // 横へ1歩。天体の通り道の傾きから、ずれ（gap）を消す方位の差を出して、目標のまわりに回す
+    for (let k = 0; k < 2; k++) {
+      const moved = rotateAround(target, c.stand, -c.gap / c.slope);
+      if (!insidePolygon(F.xy(moved.latitude, moved.longitude), ring)) break;
+      const c2 = await at(moved);
+      if (!c2 || Math.abs(c2.gap) >= Math.abs(c.gap)) break;
+      c = c2;
+      if (c.rank === "center") break;
+    }
+    return c;
+  }
+
+  /**
+   * 目標の先端まで、地形で見通せるか（建物は見ない）。
+   * `elevations(points)` は標高をまとめて返す関数（画面では標高タイル）。
+   * 目標のすぐ手前（1km）は目標自身の山腹なので数えない。
+   */
+  async function lineOfSight(observer, target, opts = {}) {
+    const g = geometryFrom(observer, target, opts);
+    if (!g || !opts.elevations) return null;
+    const eye = (observer.elevation ?? 0) + (opts.eyeM ?? 1.5);
+    const bearingTo = TR.bearing(observer.latitude, observer.longitude, target.latitude, target.longitude);
+    const n = Math.max(12, Math.min(160, Math.ceil(g.distanceKm / 0.4)));
+    const dists = [];
+    for (let i = 1; i < n; i++) {
+      const d = g.distanceKm * i / n;
+      if (d > g.distanceKm - 1) break;
+      // 足もとは標高タイルの升目（z11 で約60m）より細かく読めないので数えない
+      if (d < (opts.skipKm ?? 0.15)) continue;
+      dists.push(d);
+    }
+    const pts = dists.map((d) => TR.destination(observer.latitude, observer.longitude, bearingTo, d));
+    const elevs = await opts.elevations(pts);
+    let worst = -90, at = null;
+    dists.forEach((d, i) => {
+      const e = elevs[i];
+      if (!Number.isFinite(e)) return;
+      const a = A.targetElevationAngle(d, eye, e);
+      if (a > worst) { worst = a; at = d; }
+    });
+    return { clear: worst < g.angle - 0.02, marginDeg: g.angle - worst, blockKm: at };
+  }
+
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
-                        altitudeCrossing, geometryFrom, upcoming, FUJI_SPOTS, spotObserver };
+                        altitudeCrossing, geometryFrom, upcoming, FUJI_SPOTS, spotObserver,
+                        crossingNear, candidates, lineOfSight, rankOf, rimOutline, judge };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);

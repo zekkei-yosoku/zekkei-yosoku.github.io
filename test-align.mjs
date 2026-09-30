@@ -152,5 +152,98 @@ console.log("== 線の上に立つと、本当に目標の方向に天体があ�
   }
 }
 
+console.log("== その日の候補地（線に掛かる立てる場所）（2026-09-30） ==");
+{
+  const day = Date.parse("2026-10-20T00:00:00+09:00");
+  const lines = await AL.line(skytree, "sun", day, { sides: ["set"], partId: "tip", limb: "center" });
+  const l = lines[0];
+  const p = l.points.find((q) => q.distanceKm > 9);
+  const flat = { elevationAt: async () => 0, partId: "tip", limb: "center" };
+  const toLL = (lat0, lon0, dx, dy) => ({ latitude: lat0 + dy / 110574, longitude: lon0 + dx / (Math.cos(lat0 * Math.PI / 180) * 111320) });
+  const g = (pts) => pts.flatMap((q) => [Math.round(q.latitude * 1e5), Math.round(q.longitude * 1e5)]);
+  // 線の向きに直交する向き（目標から見た方位 + 90°）
+  const brg = TR.bearing(skytree.latitude, skytree.longitude, p.latitude, p.longitude);
+  const side = (m) => TR.destination(p.latitude, p.longitude, brg + 90, m / 1000);
+  const places = [
+    { id: "on", name: "線の上の点", kind: "展望地", shape: "point", latitude: p.latitude, longitude: p.longitude, elevationM: 0 },
+    { id: "off", name: "1km 離れた点", kind: "展望地", shape: "point", ...side(1000), elevationM: 0 },
+    { id: "bridge", name: "線を横切る橋", kind: "橋", shape: "line", latitude: p.latitude, longitude: p.longitude,
+      g: g([side(-180), side(220)]), reachM: 220, bridgeM: 0 },
+    { id: "park", name: "線が通る公園", kind: "公園", shape: "area", latitude: p.latitude, longitude: p.longitude,
+      g: g([toLL(p.latitude, p.longitude, -150, -150), toLL(p.latitude, p.longitude, 150, -150),
+            toLL(p.latitude, p.longitude, 150, 150), toLL(p.latitude, p.longitude, -150, 150)]), reachM: 220 },
+  ];
+  const c = await AL.candidates(lines, places, skytree, "sun", flat);
+  const by = (id) => c.find((x) => x.place.id === id);
+  ok(by("on") && by("on").rank === "center", "線の上の点は「ど真ん中」", by("on") && `${jst(by("on").at)} ずれ ${by("on").gap.toFixed(3)}°`);
+  ok(by("on") && Math.abs(by("on").at - p.at) < 90000, "時刻も線の点と同じ（1.5分以内）", by("on") && `${jst(by("on").at)} / 線 ${jst(p.at)}`);
+  ok(!by("off"), "1km 離れた点は拾わない（重ならない）");
+  const b = by("bridge");
+  const dist = (x) => TR.distanceKm(x.stand.latitude, x.stand.longitude, p.latitude, p.longitude) * 1000;
+  ok(b && b.rank === "center" && dist(b) < 15, "橋は、線と交わる点に立つ", b && `${b.rank} 線の点から ${dist(b).toFixed(1)}m`);
+  const k = by("park");
+  const inPark = (x) => Math.abs((x.stand.latitude - p.latitude) * 110574) <= 150
+    && Math.abs((x.stand.longitude - p.longitude) * Math.cos(p.latitude * Math.PI / 180) * 111320) <= 150;
+  ok(k && k.rank === "center" && inPark(k), "公園は、園内で線が通るところに立つ", k && `${k.rank} 線の点から ${dist(k).toFixed(1)}m`);
+
+  // 周りより高い場所（丘の上の展望地）は、ならした線から横にずれた所で重なる。解き直して拾う
+  const hillTrue = await AL.solvePoint(skytree, "sun", day, 12, "set", { partId: "tip", elevationAt: async () => 60 });
+  const hill = { id: "hill", name: "丘の展望地", kind: "展望地", shape: "point", latitude: hillTrue.latitude, longitude: hillTrue.longitude, elevationM: 60 };
+  const h = (await AL.candidates(lines, [hill], skytree, "sun", flat))[0];
+  const lp = l.points.reduce((a, q) => (Math.abs(q.distanceKm - 12) < Math.abs(a.distanceKm - 12) ? q : a));
+  ok(h && (h.rank === "center" || h.rank === "overlap"), "標高60mの丘は、線から横にずれていても重なると分かる",
+    h && `${h.rank} ずれ ${h.gap.toFixed(3)}° ・ 線から ${(TR.distanceKm(hill.latitude, hill.longitude, lp.latitude, lp.longitude) * 1000).toFixed(0)}m`);
+  // 一覧（upcoming）と同じ判定になる
+  const up = AL.upcoming({ latitude: hill.latitude, longitude: hill.longitude, elevation: 60 }, skytree, "sun",
+    { from: day, days: 1, limit: 1, partId: "tip" });
+  ok(up[0] && h && Math.abs(up[0].at - h.at) < 60000 && up[0].rank === h.rank, "一覧（次に重なる日）と同じ時刻・同じ判定",
+    up[0] && `${jst(up[0].at)} ${up[0].rank}`);
+}
+
+{
+  // 本物の例: 2026-12-22 のダイヤモンド富士。線は海面の高さで引いても、高尾山（598m）は拾えて 16:10 ごろ
+  const day = Date.parse("2026-12-22T00:00:00+09:00");
+  const lines = await AL.line(fuji, "sun", day, { sides: ["set"], partId: "summit" });
+  const sp = AL.FUJI_SPOTS.find((x) => x.id === "takao");
+  const place = { id: sp.id, name: sp.name, kind: "定番", shape: "point", latitude: sp.latitude, longitude: sp.longitude, elevationM: sp.groundM };
+  const c = (await AL.candidates(lines, [place], fuji, "sun", { partId: "summit" }))[0];
+  ok(c && c.rank !== "graze" && jst(c.at).slice(11) >= "16:05" && jst(c.at).slice(11) <= "16:15",
+    "2026-12-22 の候補地に高尾山が入る（16:10ごろ）", c && `${jst(c.at)} ${c.rank}`);
+  const other = await AL.candidates(await AL.line(fuji, "sun", day + 20 * 86400000, { sides: ["set"], partId: "summit" }),
+    [place], fuji, "sun", { partId: "summit" });
+  ok(other.length === 0, "20日後の線では高尾山は候補にならない");
+}
+
+console.log("== 富士山の頂は輪（火口の縁）（2026-09-30） ==");
+{
+  // 剣ヶ峰1点で見ていたときは、高尾山の冬至が「縁がかすめる」で、定番一覧から落ちていた
+  const spot = (id) => AL.spotObserver(AL.FUJI_SPOTS.find((x) => x.id === id));
+  const from = Date.parse("2026-10-01T00:00:00+09:00");
+  const up = (id) => AL.upcoming(spot(id), fuji, "sun", { from, days: 366, limit: 3, partId: "summit", stepMs: 1800000 });
+  const takao = up("takao")[0];
+  ok(takao && takao.rank === "center" && jst(takao.at).startsWith("2026-12-22"),
+    "高尾山: 冬至 12/22 に頂へ沈む（縁がかすめる、ではない）", takao && `${jst(takao.at)} ${takao.rank}`);
+  const tanuki = up("tanuki");
+  const md = (e) => jst(e.at).slice(5, 10);
+  ok(tanuki.length >= 2 && tanuki.some((e) => md(e) >= "04-15" && md(e) <= "04-28") && tanuki.some((e) => md(e) >= "08-13" && md(e) <= "08-26"),
+    "田貫湖: 4月20日前後と8月20日前後の日の出", tanuki.map((e) => jst(e.at)).join(" / "));
+  const ryu = up("ryugatake")[0];
+  ok(ryu && ryu.from <= Date.parse("2027-01-01T00:00:00+09:00") && ryu.to >= Date.parse("2027-01-02T00:00:00+09:00"),
+    "竜ヶ岳: 元日をはさむ（年末年始のダイヤモンド富士）", ryu && `${jst(ryu.from)}〜${jst(ryu.to)}`);
+  // 塔は輪を持たないので、これまでどおり先端の1点
+  ok(!skytree.rim && fuji.rim, "輪を持つのは富士山だけ");
+}
+
+console.log("== 地形で見通せるか（2026-09-30） ==");
+{
+  const obs = { latitude: 35.62523, longitude: 139.24369, elevation: 598 };   // 高尾山
+  const flat = await AL.lineOfSight(obs, fuji, { partId: "summit", elevations: async (pts) => pts.map(() => 300) });
+  ok(flat && flat.clear, "間に高い山が無ければ見通せる", flat && `余裕 ${flat.marginDeg.toFixed(2)}°`);
+  const wall = await AL.lineOfSight(obs, fuji, { partId: "summit",
+    elevations: async (pts) => pts.map((q) => (TR.distanceKm(obs.latitude, obs.longitude, q.latitude, q.longitude) > 20
+      && TR.distanceKm(obs.latitude, obs.longitude, q.latitude, q.longitude) < 22 ? 2500 : 300)) });
+  ok(wall && !wall.clear, "途中に2500mの尾根があれば隠れる", wall && `${wall.blockKm.toFixed(1)}km 先`);
+}
+
 console.log(`\n${fail === 0 ? "ALIGN OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);
