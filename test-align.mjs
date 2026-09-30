@@ -252,6 +252,13 @@ console.log("== 建物で塔が隠れるか（2026-09-30） ==");
   ok(low && !low.blocked, "5m の建物なら隠さない（先端は 3.6° 上）", low && `余裕 ${low.marginDeg.toFixed(1)}°`);
   const side = AL.buildingBlock(obs, skytree, [box(100, 60, 60)], { partId: "tip" });
   ok(side && !side.blocked, "横に 60m ずれた建物は数えない");
+  // 円で持った建物（同梱の高い建物）
+  const c100 = TR.destination(obs.latitude, obs.longitude, brg, 0.1);
+  const circ = AL.buildingBlock(obs, skytree, [{ latitude: c100.latitude, longitude: c100.longitude, radiusM: 10, heightM: 30 }], { partId: "tip" });
+  ok(circ && circ.blocked && Math.abs(circ.by.distanceM - 90) <= 1, "円の建物も、入る距離（100m−半径10m）で判定する", circ && `${circ.by.distanceM}m`);
+  const cside = TR.destination(c100.latitude, c100.longitude, brg + 90, 0.03);
+  ok(!AL.buildingBlock(obs, skytree, [{ latitude: cside.latitude, longitude: cside.longitude, radiusM: 10, heightM: 300 }], { partId: "tip" }).blocked,
+    "横に 30m ずれた円（半径10m）は線に掛からない");
   const far = AL.buildingBlock(obs, skytree, [box(1200, 0, 60)], { partId: "tip" });
   ok(far && !far.blocked === (Math.atan2(58.5, 1190) / Math.PI * 180 < 3.6), "1.2km 先の 60m は見上げ角で比べる", far && `余裕 ${far.marginDeg.toFixed(2)}°`);
 }

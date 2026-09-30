@@ -1382,22 +1382,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260930230645"></script>
+<script src="sorami-core.js?v=20261001011956"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260930230645"></script>
-<script src="sorami-exif.js?v=20260930230645"></script>
-<script src="sorami-capcloud.js?v=20260930230645"></script>
-<script src="sorami-terrain.js?v=20260930230645"></script>
-<script src="sorami-mountain.js?v=20260930230645"></script>
-<script src="sorami-fuji.js?v=20260930230645"></script>
-<script src="sorami-sky.js?v=20260930230645"></script>
-<script src="sorami-routes.js?v=20260930230645"></script>
-<script src="sorami-iss.js?v=20260930230645"></script>
-<script src="sorami-plane.js?v=20260930230645"></script>
-<script src="sorami-align.js?v=20260930230645"></script>
-<script src="sorami-moon.js?v=20260930230645"></script>
-<script src="sorami-composition.js?v=20260930230645"></script>
+<script src="sorami-astro.js?v=20261001011956"></script>
+<script src="sorami-exif.js?v=20261001011956"></script>
+<script src="sorami-capcloud.js?v=20261001011956"></script>
+<script src="sorami-terrain.js?v=20261001011956"></script>
+<script src="sorami-mountain.js?v=20261001011956"></script>
+<script src="sorami-fuji.js?v=20261001011956"></script>
+<script src="sorami-sky.js?v=20261001011956"></script>
+<script src="sorami-routes.js?v=20261001011956"></script>
+<script src="sorami-iss.js?v=20261001011956"></script>
+<script src="sorami-plane.js?v=20261001011956"></script>
+<script src="sorami-align.js?v=20261001011956"></script>
+<script src="sorami-moon.js?v=20261001011956"></script>
+<script src="sorami-composition.js?v=20261001011956"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5841,8 +5841,7 @@ async function aimFindCandidates() {
   $("aimCandInfo").textContent = aim.buildingNote || "";
   $("aimCandSub").textContent = `${shown.length}か所`;
   aimRenderCands();
-  // 塔は街の中なので、**建物で先端が隠れる場所も外す**（高さの分かる建物だけ。OSM で高さを持つのは1割ほど）。
-  // Overpass は混むと数十秒かかるので、**先に候補を出し、返ってきたら並べ直す**
+  // 塔は街の中なので、**建物で先端が隠れる場所も外す**（同梱の高い建物で手元で判定。7階以上・20m以上）
   if (!aimIsFuji() && pool24.length) {
     const blocks = await aimBuildingBlocks(pool24);
     if (seq !== aim.candSeq) return;
@@ -5860,40 +5859,34 @@ async function aimFindCandidates() {
 }
 
 /**
- * 候補地それぞれから目標へ向かう帯（幅60m・最長1.5km）の中の、高さの分かる建物を1回でまとめて引く。
- * Overpass が混んでいて取れなければ null（候補はそのまま出し、確かめられなかったと書く）
+ * 候補地それぞれから目標へ向かう直線（最長1.5km）に、高い建物（7階以上・20m以上）が立ちふさがるか。
+ * **同梱の data/tall-buildings.json で手元で判定する**（2026-10-01）。以前は画面から Overpass へ帯をまとめて
+ * 問い合わせていたが、混んだ公開サーバーで 47〜64秒かかり、画面では間に合わなかった。
+ * 読めなければ null（候補はそのまま出し、確かめられなかったと書く）
  */
-async function aimBuildingBlocks(cands) {
-  // 混んでいるときに長く待たせない（1か所 12秒で次へ）
-  const t = aim.target;
-  const polys = cands.map((c) => {
-    const brg = SoramiTerrain.bearing(c.stand.latitude, c.stand.longitude, t.latitude, t.longitude);
-    const len = Math.max(0.05, Math.min(1.5, c.distanceKm - 0.3));
-    const end = SoramiTerrain.destination(c.stand.latitude, c.stand.longitude, brg, len);
-    const side = (p, s) => SoramiTerrain.destination(p.latitude, p.longitude, brg + 90 * s, 0.03);
-    return [side(c.stand, -1), side(c.stand, 1), side(end, 1), side(end, -1)]
-      .map((p) => `${p.latitude.toFixed(5)} ${p.longitude.toFixed(5)}`).join(" ");
-  });
-  // 使うメモリを小さく宣言する（既定の 512MB は混んでいるとき確保できず 504 で待たされる）
-  const q = `[out:json][timeout:25][maxsize:67108864];(${polys.map((p) =>
-    `way["building"]["height"](poly:"${p}");way["building"]["building:levels"](poly:"${p}");`).join("")});out geom tags qt;`;
-  for (const url of SoramiTerrain.OVERPASS) {
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), 12000);
-    try {
-      const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), signal: ctl.signal,
-        headers: { "content-type": "application/x-www-form-urlencoded" } });
-      if (!r.ok) continue;
-      const j = await r.json();
-      const buildings = (j.elements || []).filter((e) => e.geometry && e.geometry.length >= 3).map((e) => ({
-        ring: e.geometry.map((g) => [g.lat, g.lon]), heightM: SoramiTerrain.buildingHeightM(e.tags) }))
-        .filter((b) => Number.isFinite(b.heightM));
-      return cands.map((c) => SoramiAlign.buildingBlock(
-        { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM + (c.place.deckM || 0) },
-        t, buildings, { partId: aim.partId, eyeAboveGroundM: 1.5 + (c.place.deckM || 0) + (c.place.bridgeM || 0) }));
-    } catch { /* 次の Overpass へ */ } finally { clearTimeout(timer); }
+let tallPromise = null;
+function tallBuildings() {
+  if (!tallPromise) {
+    tallPromise = fetch("data/tall-buildings.json")
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((j) => j.buildings.map((b) => ({ latitude: b[0] / 1e5, longitude: b[1] / 1e5, heightM: b[2], radiusM: b[3] })))
+      .catch((e) => { tallPromise = null; throw e; });
   }
-  return null;
+  return tallPromise;
+}
+async function aimBuildingBlocks(cands) {
+  const t = aim.target;
+  let all;
+  try { all = await tallBuildings(); } catch { return null; }
+  return cands.map((c) => {
+    // 目標までの間（1.5km）にある建物だけに絞ってから判定する（数万棟を毎回全部は見ない）
+    const d = Math.min(1.6, c.distanceKm);
+    const near = all.filter((b) => Math.abs(b.latitude - c.stand.latitude) < 0.016 && Math.abs(b.longitude - c.stand.longitude) < 0.02
+      && SoramiTerrain.distanceKm(c.stand.latitude, c.stand.longitude, b.latitude, b.longitude) <= d + 0.05);
+    return SoramiAlign.buildingBlock(
+      { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM + (c.place.deckM || 0) },
+      t, near, { partId: aim.partId, eyeAboveGroundM: 1.5 + (c.place.deckM || 0) + (c.place.bridgeM || 0) });
+  });
 }
 
 function aimRenderCands() {

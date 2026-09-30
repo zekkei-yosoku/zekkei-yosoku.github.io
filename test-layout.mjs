@@ -408,6 +408,13 @@ console.log("== ねらう: その日の候補地（2026-09-30） ==");
   ok(/const spread = Math\.max\(0\.3, lineKm \/ 40\)/.test(html), "上位が一か所に固まらないよう、近いものは1つに");
   ok(/async function aimBuildingBlocks/.test(html) && /if \(!aimIsFuji\(\) && pool24\.length\)/.test(html), "塔は建物で先端が隠れる場所も外す");
   ok(html.indexOf("aimRenderCands();\n  // 塔は街の中なので") > 0, "建物の確認を待たずに、先に候補を出す");
+  // 画面から Overpass へ帯を問い合わせると 47〜64秒かかった（2026-10-01）。同梱の高い建物で手元で判定する
+  ok(/fetch\("data\/tall-buildings\.json"\)/.test(html) && !/poly:"\$\{p\}"/.test(html), "塔の建物の判定は同梱データで（Overpass に問い合わせない）");
+  {
+    const gi2 = fs.readFileSync(new URL("./.gitignore", import.meta.url), "utf8");
+    ok(fs.existsSync(new URL("./data/tall-buildings.json", import.meta.url)) && /^!data\/tall-buildings\.json$/m.test(gi2),
+      "data/tall-buildings.json があり、配信から外さない");
+  }
   ok(/建物で隠れるかは確かめられませんでした/.test(html), "建物を確かめられなかったときは、そう書く");
 }
 
@@ -719,7 +726,7 @@ ok(/connect-src[^"]*https:\/\/overpass-api\.de/.test(html), "CSP に Overpass �
   const missing = T.OVERPASS.map((u) => new URL(u).origin).filter((o) => !csp.split(/\s+/).includes(o));
   ok(missing.length === 0 && T.OVERPASS.length >= 3, "Overpass の問い合わせ先がすべて CSP で通っている", missing.join(" "));
   const terrainSrc = fs.readFileSync(new URL("./sorami-terrain.js", import.meta.url), "utf8");
-  ok(/\[out:json\]\[timeout:\d+\]\[maxsize:\d+\]/.test(terrainSrc) && /\[out:json\]\[timeout:25\]\[maxsize:\d+\]/.test(html),
+  ok(/\[out:json\]\[timeout:\d+\]\[maxsize:\d+\]/.test(terrainSrc),
     "Overpass への問い合わせは使うメモリを宣言する（既定の 512MB は混むと 504）");
 }
 ok(/SoramiTerrain\.urbanHorizon\(/.test(html), "建物の地平線を取りに行く");

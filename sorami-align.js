@@ -825,7 +825,8 @@
 
   /**
    * 目標の方向に、建物が立ちふさがるか（塔の候補地で使う。2026-09-30）。
-   * `buildings` は [{ ring: [[緯度, 経度], …], heightM }]（外周と高さ）。立つ位置から目標へ向かう直線が
+   * `buildings` は [{ ring: [[緯度, 経度], …], heightM }]（外周と高さ）か、[{ latitude, longitude, radiusM, heightM }]（円）。
+   * 立つ位置から目標へ向かう直線が
    * 建物の外周に入る距離を出し、その距離で建物の屋上を見上げる角度と、目標の先端の見上げ角を比べる。
    * **建物の地面は立つ位置と同じとみなす**（街の中の数百m。`urbanHorizon` と同じ前提）。
    * @param {number} eyeAboveGroundM 地面から目までの高さ（橋や土手、展望台の高さを含む）
@@ -839,7 +840,21 @@
     const L = Math.min(maxKm, g.distanceKm - 0.3) * 1000;
     let worst = -90, by = null;
     for (const b of buildings || []) {
-      if (!b.ring || b.ring.length < 3 || !Number.isFinite(b.heightM)) continue;
+      if (!Number.isFinite(b.heightM)) continue;
+      // **円で持った建物**（同梱の高い建物。中心・半径）。直線が円に入る距離
+      if (!b.ring && Number.isFinite(b.radiusM)) {
+        const [cx, cy] = F.xy(b.latitude, b.longitude);
+        const along = cx * ux + cy * uy;
+        if (along < -b.radiusM || along > L + b.radiusM) continue;
+        const perp = Math.abs(cx * uy - cy * ux);
+        if (perp > b.radiusM) continue;
+        const t = along - Math.sqrt(b.radiusM * b.radiusM - perp * perp);
+        if (t < 5 || t > L) continue;                 // 自分が中にいる・目標より先
+        const a = Math.atan2(b.heightM - eyeAboveGroundM, t) / DEG;
+        if (a > worst) { worst = a; by = { distanceM: Math.round(t), heightM: b.heightM }; }
+        continue;
+      }
+      if (!b.ring || b.ring.length < 3) continue;
       const pts = b.ring.map(([la, lo]) => F.xy(la, lo));
       let entry = null;
       for (let i = 0; i < pts.length; i++) {
