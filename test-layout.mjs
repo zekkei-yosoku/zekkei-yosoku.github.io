@@ -438,6 +438,13 @@ console.log("== 地点検索の結果に「◯◯から ◯km」を出さない�
 ok(!/\$\{esc\(place\.name\)\}から \$\{r\.awayKm\}km/.test(html) && !/awayKm/.test(html),
   "検索結果に、いまの地点からの距離を書かない（並びには使う）");
 
+console.log("== 地点カードで探せると分かる（2026-10-01） ==");
+{
+  const card = (html.match(/<button class="place-pick" id="placeButton">[\s\S]*?<\/button>/) || [""])[0];
+  ok(/<circle cx="10\.5" cy="10\.5" r="6\.5"\/>/.test(card) && !/▾/.test(card), "地点カードの右は虫眼鏡（▾ ではない）");
+  ok(/\$\("placeSheet"\)\.showModal\(\);\n[^\n]*\n[^\n]*\n  \$\("searchBox"\)\.focus\(\);/.test(html), "地点カードを押したら、検索欄にすぐ打てる");
+}
+
 console.log("== ISS の月面通過（2026-09-30） ==");
 ok(/data-tool="#\/iss" data-id="iss"><b>ISSの月面通過<\/b>/.test(html), "メニューに ISSの月面通過 がある");
 ok(/location\.hash === "#\/iss"/.test(html), "#/iss の道がある");
