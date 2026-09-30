@@ -1382,22 +1382,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001011956"></script>
+<script src="sorami-core.js?v=20261001013452"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001011956"></script>
-<script src="sorami-exif.js?v=20261001011956"></script>
-<script src="sorami-capcloud.js?v=20261001011956"></script>
-<script src="sorami-terrain.js?v=20261001011956"></script>
-<script src="sorami-mountain.js?v=20261001011956"></script>
-<script src="sorami-fuji.js?v=20261001011956"></script>
-<script src="sorami-sky.js?v=20261001011956"></script>
-<script src="sorami-routes.js?v=20261001011956"></script>
-<script src="sorami-iss.js?v=20261001011956"></script>
-<script src="sorami-plane.js?v=20261001011956"></script>
-<script src="sorami-align.js?v=20261001011956"></script>
-<script src="sorami-moon.js?v=20261001011956"></script>
-<script src="sorami-composition.js?v=20261001011956"></script>
+<script src="sorami-astro.js?v=20261001013452"></script>
+<script src="sorami-exif.js?v=20261001013452"></script>
+<script src="sorami-capcloud.js?v=20261001013452"></script>
+<script src="sorami-terrain.js?v=20261001013452"></script>
+<script src="sorami-mountain.js?v=20261001013452"></script>
+<script src="sorami-fuji.js?v=20261001013452"></script>
+<script src="sorami-sky.js?v=20261001013452"></script>
+<script src="sorami-routes.js?v=20261001013452"></script>
+<script src="sorami-iss.js?v=20261001013452"></script>
+<script src="sorami-plane.js?v=20261001013452"></script>
+<script src="sorami-align.js?v=20261001013452"></script>
+<script src="sorami-moon.js?v=20261001013452"></script>
+<script src="sorami-composition.js?v=20261001013452"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6175,7 +6175,8 @@ async function searchPlaces(q) {
       }
       continue;
     }
-    merged.push({ ...r, awayKm: Math.round(away(r)) });
+    // 並びには距離を使うが、画面には出さない（2026-10-01 ユーザー指摘「一つ前の検索の場所から何キロはいらない」）
+    merged.push(r);
     if (merged.length >= 8) break;
   }
   return merged;
@@ -6230,8 +6231,7 @@ function renderSearchResults(host, results, onPick) {
   host.innerHTML = results.length
     ? results.map((r, i) => `<button class="list-item" data-sr="${i}"><strong>${esc(r.name)}</strong>
         ${lookoutTag(r)}
-        <div class="tiny">${esc(r.detail)}${r.scope === "area" ? "（地域の代表地点）" : ""}
-        ・ ${esc(place.name)}から ${r.awayKm}km</div></button>`).join("")
+        <div class="tiny">${esc(r.detail)}${r.scope === "area" ? "（地域の代表地点）" : ""}</div></button>`).join("")
     : `<p class="tiny">該当なし</p>`;
   for (const el of host.querySelectorAll("[data-sr]")) {
     el.onclick = () => onPick(results[+el.dataset.sr]);

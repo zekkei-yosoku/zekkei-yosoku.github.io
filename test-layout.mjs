@@ -434,6 +434,10 @@ console.log("== 地点検索: 山・峠・展望地の索引（2026-09-30） =="
   ok(/< \(m\.source === "index" \|\| r\.source === "index" \? 1\.5 : 0\.2\)/.test(html), "索引と地理院で同じ場所が二重に出ない（1.5km まで同じとみなす）");
 }
 
+console.log("== 地点検索の結果に「◯◯から ◯km」を出さない（2026-10-01） ==");
+ok(!/\$\{esc\(place\.name\)\}から \$\{r\.awayKm\}km/.test(html) && !/awayKm/.test(html),
+  "検索結果に、いまの地点からの距離を書かない（並びには使う）");
+
 console.log("== ISS の月面通過（2026-09-30） ==");
 ok(/data-tool="#\/iss" data-id="iss"><b>ISSの月面通過<\/b>/.test(html), "メニューに ISSの月面通過 がある");
 ok(/location\.hash === "#\/iss"/.test(html), "#/iss の道がある");
