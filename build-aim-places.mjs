@@ -55,12 +55,15 @@ function inRegion(lat, lon, padKm = 0) {
 }
 
 // ---------------------------------------------------------------- Overpass
-// 作るときだけ使う。公開の Overpass を4つ（1つずつ同時に1本）。画面からは使わない
-// overpass-api.de は、取り込みで投げすぎると回線ごと 406 で止められる（2026-09-30 に踏んだ）。
-// 作るときは使わず、ほかの公開サーバーへ分ける
-const OVERPASS = ["https://overpass.kumi.systems/api/interpreter",
-  "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
-const QUERY = (s, w, n, e) => `[out:json][timeout:180];
+// 作るときだけ使う。公開の Overpass に1台ずつ同時1本。
+// **名乗り（User-Agent）を付ける。** overpass-api.de は curl の既定や「Mozilla/5.0」だけの名乗りを 406 で弾く
+// （2026-09-30。「投げすぎて回線ごと止められた」と一度書いたが誤りで、名乗りのある問い合わせは通った）。
+// 混んでいるときは受付（overpass-api.de）より、裏の個別サーバー（z・lz4）のほうが通りやすい。1台に同時1本ずつ
+const OVERPASS = ["https://z.overpass-api.de/api/interpreter", "https://lz4.overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
+// **使うメモリを小さく宣言する**（maxsize）。既定の 512MB は混んでいるとき確保できず、504 で待たされ続けた。
+// 64MB と宣言したら同じ区画が 24秒で通った（2026-09-30）
+const QUERY = (s, w, n, e) => `[out:json][timeout:180][maxsize:268435456];
 (
   nwr["tourism"="viewpoint"](${s},${w},${n},${e});
   node["natural"~"^(peak|saddle)$"]["name"](${s},${w},${n},${e});

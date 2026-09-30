@@ -375,8 +375,12 @@
 
   // Overpass は**よく 504 を返す**（混んでいる時間帯は連発する。2026-09-14 実測）。
   // 1本だけに頼ると市街地で建物層が入らない日ができるので、順に試す。
+  // 受付（overpass-api.de）が止まる・混むときは、裏の個別サーバー（z・lz4）が応答することが多い
+  // （2026-09-30。受付が混んで 504 のあいだも z・lz4 は2秒で返した）。順に試す
   const OVERPASS = [
     "https://overpass-api.de/api/interpreter",
+    "https://z.overpass-api.de/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
   ];
 

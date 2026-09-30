@@ -710,6 +710,14 @@ console.log("== 建物の地平線（urban 層）==");
 // 新宿中央公園では月が地平線より上にいる時間の 31.3% が建物の裏（2026-09-14 実測）。
 // 地形だけだと市街地の地平線はほぼ 0度で、見えない時間を見えると言ってしまう。
 ok(/connect-src[^"]*https:\/\/overpass-api\.de/.test(html), "CSP に Overpass を通してある");
+{
+  // 問い合わせ先（SoramiTerrain.OVERPASS）は全部 CSP で通っていなければ、ブラウザが黙って止める
+  const T = (await import("node:module")).createRequire(import.meta.url)("./sorami-terrain.js");
+  const meta = (html.match(/http-equiv="Content-Security-Policy" content="([^"]*)"/) || [])[1] || "";
+  const csp = (meta.match(/connect-src ([^;]*)/) || [])[1] || "";
+  const missing = T.OVERPASS.map((u) => new URL(u).origin).filter((o) => !csp.split(/\s+/).includes(o));
+  ok(missing.length === 0 && T.OVERPASS.length >= 3, "Overpass の問い合わせ先がすべて CSP で通っている", missing.join(" "));
+}
 ok(/SoramiTerrain\.urbanHorizon\(/.test(html), "建物の地平線を取りに行く");
 // 建物は非同期。まず地形だけで地平線を作り、届いたら重ねて作り直す。
 // 取れなければ地形だけのまま（`.catch(() => {})` で黙って落ちない）

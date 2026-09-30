@@ -252,6 +252,9 @@ console.log("== 定番の場所の地平線（2026-09-30） ==");
   ok(RT.spotHorizonAt("t2", 45) > 30, "第2ターミナルは北東が建物で高く塞がる", `${RT.spotHorizonAt("t2", 45).toFixed(1)}°`);
   ok(RT.spotHorizonAt("umihotaru", 180) < 1, "海ほたるの南は海で開けている");
   ok(RT.spotHorizonAt("unknown", 90) === 0, "測っていない場所は 0");
+  // OSM に高さの入った建物が無い5か所は、種類ごとの目安の高さで数えた（2026-09-30）
+  ok(RT.spotHorizonAt("ukishima", 310) > 7, "浮島町公園は北西の工場で 7° 以上塞がる", `${RT.spotHorizonAt("ukishima", 310).toFixed(1)}°`);
+  ok(RT.spotHorizonAt("ukishima", 60) < 2, "浮島町公園の北東（羽田の着陸機の側）は開けている", `${RT.spotHorizonAt("ukishima", 60).toFixed(1)}°`);
   // 地平線の下に月があるときは数えない
   const d0 = day("2026-11-24");
   const open = P.rankSpots(d0, P.pathsFor("north", { landing: true }),

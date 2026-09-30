@@ -28,14 +28,17 @@ const OUT = "data/place-index.json";
 fs.mkdirSync(CACHE, { recursive: true });
 const UA = "zekkei-yosoku place-index builder (https://zekkei-yosoku.github.io)";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-// overpass-api.de は、取り込みで投げすぎると回線ごと 406 で止められる（2026-09-30 に踏んだ）。
-// 作るときは使わず、ほかの公開サーバーへ分ける
-const OVERPASS = ["https://overpass.kumi.systems/api/interpreter",
-  "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
+// **名乗り（User-Agent）を付ける。** overpass-api.de は curl の既定や「Mozilla/5.0」だけの名乗りを 406 で弾く
+// （2026-09-30。「投げすぎて回線ごと止められた」と一度書いたが誤りで、名乗りのある問い合わせは通った）。
+// 混んでいるときは受付（overpass-api.de）より、裏の個別サーバー（z・lz4）のほうが通りやすい。1台に同時1本ずつ
+const OVERPASS = ["https://z.overpass-api.de/api/interpreter", "https://lz4.overpass-api.de/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
 
 // 宣言する実行時間は短めに（90秒）。**混んでいるとき、長い宣言の問い合わせほど後回しにされる**（2026-09-30）
 // 点（node）だけ。展望地を面まで探すと重く、混んでいる日は打ち切られた（名前つきの展望地は大半が点）
-const QUERY = (s, w, n, e) => `[out:json][timeout:90];
+// **使うメモリを小さく宣言する**（maxsize）。既定の 512MB は混んでいるとき確保できず、504 で待たされ続けた。
+// 64MB と宣言したら同じ区画が 24秒で通った（2026-09-30）
+const QUERY = (s, w, n, e) => `[out:json][timeout:90][maxsize:67108864];
 (
   node["natural"~"^(peak|volcano|saddle|cape|waterfall)$"]["name"](${s},${w},${n},${e});
   node["mountain_pass"="yes"]["name"](${s},${w},${n},${e});

@@ -8,7 +8,7 @@
      connect-src を実際に使う相手だけに絞れば、盗んだトークンの持ち出し先を塞げる。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://overpass.kumi.systems https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1382,22 +1382,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20260930194745"></script>
+<script src="sorami-core.js?v=20260930214409"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20260930194745"></script>
-<script src="sorami-exif.js?v=20260930194745"></script>
-<script src="sorami-capcloud.js?v=20260930194745"></script>
-<script src="sorami-terrain.js?v=20260930194745"></script>
-<script src="sorami-mountain.js?v=20260930194745"></script>
-<script src="sorami-fuji.js?v=20260930194745"></script>
-<script src="sorami-sky.js?v=20260930194745"></script>
-<script src="sorami-routes.js?v=20260930194745"></script>
-<script src="sorami-iss.js?v=20260930194745"></script>
-<script src="sorami-plane.js?v=20260930194745"></script>
-<script src="sorami-align.js?v=20260930194745"></script>
-<script src="sorami-moon.js?v=20260930194745"></script>
-<script src="sorami-composition.js?v=20260930194745"></script>
+<script src="sorami-astro.js?v=20260930214409"></script>
+<script src="sorami-exif.js?v=20260930214409"></script>
+<script src="sorami-capcloud.js?v=20260930214409"></script>
+<script src="sorami-terrain.js?v=20260930214409"></script>
+<script src="sorami-mountain.js?v=20260930214409"></script>
+<script src="sorami-fuji.js?v=20260930214409"></script>
+<script src="sorami-sky.js?v=20260930214409"></script>
+<script src="sorami-routes.js?v=20260930214409"></script>
+<script src="sorami-iss.js?v=20260930214409"></script>
+<script src="sorami-plane.js?v=20260930214409"></script>
+<script src="sorami-align.js?v=20260930214409"></script>
+<script src="sorami-moon.js?v=20260930214409"></script>
+<script src="sorami-composition.js?v=20260930214409"></script>
 <script>
 "use strict";
 const S = window.Sorami;
