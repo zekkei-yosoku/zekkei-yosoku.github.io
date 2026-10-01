@@ -228,7 +228,14 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
     "地点から探す: 選んだ地点（aim.from）で解く");
   ok(/<strong>\$\{esc\(f\.name\)\}<\/strong>[\s\S]{0,80}から見た/.test(fn), "地点から探す: どこからの結果かを名前で書く");
   ok(/id="aimFromSearch"/.test(html) && /wireSearchBox\("aimFromSearch", "aimFromResults"/.test(html), "地点から探す: 地点はこの画面の中で探す");
-  ok(/いまの地点（\$\{here\.name\}）で調べる/.test(fn), "いまの地点を使うときも、名前を書いた釦で選ぶ");
+  ok(/いまの地点（\$\{here\.name\}）にする/.test(fn), "いまの地点を使うときも、名前を書いた釦で選ぶ");
+  // 観測地点は検索でも地図の中心でも決められ、どちらも同じ観測地点（aim.from）になる（ユーザー「検索で指定もしたい」）
+  ok(/<input type="search" id="aimFromSearch"[\s\S]{0,200}<button id="aimPick" class="fav-btn">地図の中心にする<\/button>/.test(html),
+    "観測地点: 検索欄と「地図の中心にする」を並べる");
+  ok(/\$\("aimPick"\)\.onclick = async \(\) => \{[\s\S]{0,300}aimSetFrom\(/.test(html), "地図の中心も同じ観測地点にする（アプリ全体の地点は変えない）");
+  ok(!/\$\("aimPick"\)\.hidden = aimIsFuji\(\)/.test(html), "富士山でも地図の中心で選べる");
+  { const a = html.indexOf('id="aimCanvas"'), b = html.indexOf('id="aimFromSearch"'), c = html.indexOf('id="aimCandList"');
+    ok(a < b && b < c, "観測地点は地図のすぐ下（その日の候補地より上）"); }
   ok(/SoramiAlign\.lineOfSight\(obs, aim\.target/.test(fn) && /aimBuildingBlocks\(\[/.test(fn), "見通し（地形・塔は高い建物）を添える");
   ok((html.match(/SoramiAlign\.upcoming\(obs, aim\.target/g) || []).length === 1, "ほかの所で見えない地点からの一覧を出さない");
   // 地点の住所は都道府県＋市区町村まで（OSM の住所は長い）

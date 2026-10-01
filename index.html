@@ -595,8 +595,9 @@
   .aim-legend .tiny { font-weight: 400; color: var(--tertiary); }
   /* 観測スポットの行。日付は押すとその日の線と場所を出す */
   .aim-spot { cursor: default; }
-  /* 地点から探す。「いまの地点で調べる」は横幅いっぱいにしない（入力欄の下の小さな近道） */
-  .aim-from-here { width: auto; padding: 0 12px; margin-top: 6px; }
+  /* 観測地点の決め方（検索の下）。地図の中心・いまの地点を横に並べ、幅は字の分だけ */
+  .aim-from-pick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .aim-from-pick .fav-btn { width: auto; padding: 0 12px; }
   .aim-days { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
   .aim-day { min-height: 32px; padding: 4px 10px; border-radius: 9px; background: var(--sunk);
              color: var(--accent); font-weight: 700; }
@@ -1049,10 +1050,19 @@
       </div>
       <div class="mapattr">国土地理院</div>
     </div>
-    <div class="maprow">
-      <div id="aimCoord" class="tiny" hidden></div>
-      <button id="aimPick" class="fav-btn">地図の中心を自分の地点にする</button>
+    <div id="aimCoord" class="tiny" hidden></div>
+    <!-- 観測地点（2026-10-01）。**検索でも、地図の中心でも決められる**（ユーザー「地図から観測地点を指定するだけじゃなくて
+         検索で指定もしたい」）。決めた地点から見て重なる日を、すぐ下に出す（逆引き。ユーザー「曽谷から見てスカイツリーに
+         重なるのはいつか」）。以前の「地図の中心を自分の地点にする」はアプリ全体の地点を変えるだけで、この画面には何も出なかった -->
+    <div class="section-h" style="margin-top:10px"><h2>観測地点</h2><span class="muted">ここから見て重なる日</span></div>
+    <input type="search" id="aimFromSearch" class="fav-in" enterkeyhint="search"
+           placeholder="地名・住所・駅名で探す（例: 曽谷）" aria-label="観測地点を探す">
+    <div id="aimFromResults"></div>
+    <div class="aim-from-pick">
+      <button id="aimPick" class="fav-btn">地図の中心にする</button>
+      <button id="aimFromHere" class="fav-btn" hidden></button>
     </div>
+    <div id="aimFrom"></div>
     <div id="aimNear" class="aim-near">—</div>
     <div class="aim-legend">
       <span><i class="aim-k set"></i><span id="aimKeySet">日の入側</span></span>
@@ -1073,16 +1083,6 @@
     <div class="section-h" style="margin-top:12px"><h2 id="aimListTitle">定番スポット</h2><span class="muted" id="aimListSub"></span></div>
     <div id="aimList" class="al"></div>
     </div>
-    <!-- 地点から探す（2026-10-01 ユーザー「観測地点から逆引きできない？曽谷から見てスカイツリーに重なるのはいつかなとか」）。
-         線と候補地は「その日、どこへ」に答える。これは逆に「この場所で、いつ」に答える。
-         9/30 に外した「いまの地点から」は、道具の画面に地点カードが無く、どこからなのか分からなかった。
-         ここでは地点をこの中で選び、**どこからの結果かを名前で書く** -->
-    <div class="section-h" style="margin-top:12px"><h2>地点から探す</h2></div>
-    <input type="search" id="aimFromSearch" class="fav-in" enterkeyhint="search"
-           placeholder="地名・住所・駅名（例: 曽谷）" aria-label="重なる日を調べる地点">
-    <div id="aimFromResults"></div>
-    <button id="aimFromHere" class="fav-btn aim-from-here" hidden></button>
-    <div id="aimFrom"></div>
       </div>
   </div>
 
@@ -1418,21 +1418,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001113405"></script>
+<script src="sorami-core.js?v=20261001113958"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001113405"></script>
-<script src="sorami-exif.js?v=20261001113405"></script>
-<script src="sorami-capcloud.js?v=20261001113405"></script>
-<script src="sorami-terrain.js?v=20261001113405"></script>
-<script src="sorami-mountain.js?v=20261001113405"></script>
-<script src="sorami-fuji.js?v=20261001113405"></script>
-<script src="sorami-sky.js?v=20261001113405"></script>
-<script src="sorami-routes.js?v=20261001113405"></script>
-<script src="sorami-iss.js?v=20261001113405"></script>
-<script src="sorami-plane.js?v=20261001113405"></script>
-<script src="sorami-align.js?v=20261001113405"></script>
-<script src="sorami-moon.js?v=20261001113405"></script>
+<script src="sorami-astro.js?v=20261001113958"></script>
+<script src="sorami-exif.js?v=20261001113958"></script>
+<script src="sorami-capcloud.js?v=20261001113958"></script>
+<script src="sorami-terrain.js?v=20261001113958"></script>
+<script src="sorami-mountain.js?v=20261001113958"></script>
+<script src="sorami-fuji.js?v=20261001113958"></script>
+<script src="sorami-sky.js?v=20261001113958"></script>
+<script src="sorami-routes.js?v=20261001113958"></script>
+<script src="sorami-iss.js?v=20261001113958"></script>
+<script src="sorami-plane.js?v=20261001113958"></script>
+<script src="sorami-align.js?v=20261001113958"></script>
+<script src="sorami-moon.js?v=20261001113958"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4676,7 +4676,7 @@ AimMap.setOverlay((ctx, { project, width, height }) => {
     ctx.restore();
   });
 
-  // 「地点から探す」で選んだ地点。どこから見た日なのかを地図でも分かるように、白い縁の点＋名前
+  // 観測地点。どこから見た日なのかを地図でも分かるように、白い縁の点＋名前
   if (aim.from) {
     const [fx, fy] = project(aim.from.latitude, aim.from.longitude);
     ctx.save();
@@ -5818,7 +5818,6 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   // ダイヤモンド富士・パール富士は目標も天体も決まっている。選ぶ行と「自分の地点」釦を出さない
   const fixedFuji = (aim.preset === "diamond" || aim.preset === "pearl") && aimIsFuji();
   $("aimTargetBox").hidden = fixedFuji;
-  $("aimPick").hidden = aimIsFuji();
   const t = aimTitleFor();
   $("aimTitle").textContent = t.title;
   $("aimSub").textContent = t.sub;
@@ -5948,20 +5947,23 @@ async function aimRenderSpots() {
   }
 }
 
-// ---------------------------------------------------------------- 地点から探す（2026-10-01）
+// ---------------------------------------------------------------- 観測地点から探す（2026-10-01）
 //
 // 「曽谷から見て、スカイツリーに重なるのはいつか。富士山に重なるのはいつか」（ユーザー）。
 // 計算は定番スポットの次の日と同じ（SoramiAlign.upcoming。前後の日は1回にまとめる）。
-// **どこからの結果かを必ず名前で書く。** 地点はこの中で選ぶ（地点カードの地点とは別に持つ）。
+// **どこからの結果かを必ず名前で書く。** 観測地点はこの画面で、検索か地図の中心で選ぶ（地点カードの地点とは別に持つ。
+// ユーザー「地図から観測地点を指定するだけじゃなくて検索で指定もしたい」）。
 // 重なる日があっても目標が隠れていれば見えないので、地形（塔は高い建物も）で見通しを確かめて添える。
 aim.from = store.get("sorami.aimFrom", null);
 aim.fromSeq = 0;
-function aimSetFrom(p) {
+function aimSetFrom(p, { keepMap = false } = {}) {
   aim.from = { name: p.name, subtitle: p.subtitle || "", latitude: p.latitude, longitude: p.longitude };
   store.set("sorami.aimFrom", aim.from);
   $("aimFromSearch").value = ""; $("aimFromResults").innerHTML = "";
   aimRenderFrom();
-  AimMap.redraw();
+  // 検索で選んだら地図をその地点へ寄せる（線との位置関係が見える）。地図の中心で選んだときは動かさない
+  if (keepMap) AimMap.redraw();
+  else AimMap.open({ latitude: p.latitude, longitude: p.longitude }, Math.max(11, Math.round(AimMap.zoom())));
 }
 /// 検索結果の住所を「千葉県市川市」まで縮める（OSM の住所は「曽谷, 市川柏線, 宮久保四丁目, 市川市, 千葉県, 272-0822, 日本」と長い）
 function aimAreaOf(r) {
@@ -5983,10 +5985,10 @@ async function aimRenderFrom() {
   const here = Number.isFinite(place.latitude) ? place : null;
   const same = here && f && SoramiTerrain.distanceKm(here.latitude, here.longitude, f.latitude, f.longitude) < 0.05;
   $("aimFromHere").hidden = !here || same;
-  if (here) $("aimFromHere").textContent = `いまの地点（${here.name}）で調べる`;
+  if (here) $("aimFromHere").textContent = `いまの地点（${here.name}）にする`;
   const moon = aim.body === "moon";
   const what = aimIsFuji() ? (moon ? "パール富士" : "ダイヤモンド富士") : `${aim.target.name}に${moon ? "月" : "太陽"}が重なる日`;
-  if (!f) { $("aimFrom").innerHTML = `<p class="tiny">地点を選ぶと、そこから見た${esc(what)}を出します。</p>`; return; }
+  if (!f) { $("aimFrom").innerHTML = `<p class="tiny">観測地点を検索するか、地図の中心にすると、そこから見た${esc(what)}を出します。</p>`; return; }
   if (!(aim.target.parts || []).length) { $("aimFrom").innerHTML = ""; return; }
   $("aimFrom").innerHTML = `<p class="tiny">${esc(f.name)}から計算しています…</p>`;
   await new Promise((r) => setTimeout(r, 0));
@@ -6395,9 +6397,13 @@ function openAim(preset) {
     };
     $("aimPrev").onclick = () => { aim.dayMs -= 86400000; $("aimDate").value = new Date(aim.dayMs + 9 * 3600000).toISOString().slice(0, 10); aimApply(); };
     $("aimNext").onclick = () => { aim.dayMs += 86400000; $("aimDate").value = new Date(aim.dayMs + 9 * 3600000).toISOString().slice(0, 10); aimApply(); };
-    $("aimPick").onclick = () => {
-      // 中心をそのまま地点にする。標高と名前は地図の画面で付ける
-      MapPick.open(AimMap.center(), Math.max(14, Math.round(AimMap.zoom())));
+    // 地図の中心を観測地点にする（検索と同じ観測地点。アプリ全体の地点は変えない）
+    $("aimPick").onclick = async () => {
+      const c = AimMap.center();
+      $("aimPick").disabled = true;
+      const n = await nearName(c.latitude, c.longitude);
+      $("aimPick").disabled = false;
+      aimSetFrom({ name: n.name, subtitle: n.area || "地図の中心", latitude: c.latitude, longitude: c.longitude }, { keepMap: true });
     };
     // 地図を動かすたび、中心が線からどれだけ離れているかを出す
     AimMap.onMove((c) => aimUpdateNear(c));
@@ -6436,6 +6442,24 @@ $("mapHere").onclick = () => {
     () => { $("mapCoord").textContent = "現在地を取得できませんでした"; },
     { enableHighAccuracy: true, timeout: 10000 });
 };
+/// 地図で選んだ点の名前（近くの地名）と住所（都道府県＋市区町村）。取れなければ座標を名前にする
+async function nearName(lat, lon) {
+  let name = `${lat.toFixed(4)}, ${lon.toFixed(4)}`, area = "";
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&accept-language=ja`
+      + `&lat=${lat.toFixed(6)}&lon=${lon.toFixed(6)}`;
+    const r = await fetch(url, { headers: { accept: "application/json" } });
+    if (r.ok) {
+      const a = (await r.json()).address || {};
+      const near = a.tourism || a.leisure || a.natural || a.building || a.road
+        || a.hamlet || a.neighbourhood || a.suburb || a.village || a.town || a.city;
+      if (near) name = String(near).slice(0, 24);
+      area = [a.province || a.state || "", a.city || a.town || a.village || ""].join("");
+    }
+  } catch { /* 名前が取れなくても座標で進める */ }
+  return { name, area };
+}
+
 $("mapPick").onclick = async () => {
   const c = MapPick.center();
   $("mapPick").disabled = true;
@@ -6445,20 +6469,8 @@ $("mapPick").onclick = async () => {
   let elevation = null;
   try { elevation = await SoramiTerrain.elevationFromTile(c.latitude, c.longitude, 13); } catch { elevation = null; }
   // 名前は近くの地名を当てる。取れなければ座標そのものを名前にする。
-  let name = `${c.latitude.toFixed(4)}, ${c.longitude.toFixed(4)}`;
-  let subtitle = "地図で選んだ地点";
-  try {
-    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&accept-language=ja`
-      + `&lat=${c.latitude.toFixed(6)}&lon=${c.longitude.toFixed(6)}`;
-    const r = await fetch(url, { headers: { accept: "application/json" } });
-    if (r.ok) {
-      const j = await r.json();
-      const a = j.address || {};
-      const near = a.tourism || a.leisure || a.natural || a.building || a.road
-        || a.hamlet || a.neighbourhood || a.suburb || a.village || a.town || a.city;
-      if (near) { name = String(near).slice(0, 24); subtitle = "地図で選んだ地点"; }
-    }
-  } catch { /* 名前が取れなくても座標で進める */ }
+  const { name } = await nearName(c.latitude, c.longitude);
+  const subtitle = "地図で選んだ地点";
   $("mapPick").disabled = false;
   $("mapPick").textContent = "この場所にする";
   $("mapSheet").close();
