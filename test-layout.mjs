@@ -479,6 +479,28 @@ ok(!/if \(iss\.body === "moon"\) rows = rows\.filter/.test(html), "昼の月の�
 ok(/r\.at - Date\.now\(\) > 72 \* 3600000/.test(html), "3日より先は「目安」と付ける");
 ok(/太陽は必ず減光フィルターを付けて/.test(html), "太陽のときは減光フィルターの注意を出す");
 
+console.log("== 道具の中身は、メニュー以外の画面でも許可で出し分ける（2026-10-01） ==");
+// メニューだけ隠しても、誰でも開く富士山の詳細にダイヤモンド富士・パール富士が出ていた（ユーザー指摘）
+ok(/function toolAllowed\(id\) \{\s+return allowedTools\(\)\.includes\(id\);/.test(html), "判定はメニューと同じ allowedTools");
+ok(/const showSun = toolAllowed\("diamond"\), showMoon = toolAllowed\("pearl"\);\s+if \(!a \|\| \(!showSun && !showMoon\)\) return "";/.test(html),
+  "富士山の詳細: どちらも許されていなければカードごと出さない");
+ok(/const sun = showSun \? a\.sun \|\| \[\] : \[\], moon = showMoon \? a\.moon \|\| \[\] : \[\];/.test(html),
+  "富士山の詳細: 太陽はダイヤモンド富士、月はパール富士の許可で出す");
+ok(/showSun && !sun\.length \?/.test(html) && /showMoon && !moon\.length \?/.test(html), "許されていない側の「ありません」も出さない");
+ok(/if \(\(toolAllowed\("diamond"\) \|\| toolAllowed\("pearl"\)\) && fujiAlignKey !== extraKey\)/.test(html),
+  "許されていなければ重なる日の計算もしない");
+ok(/\$\{toolAllowed\("sky"\) \? `<button class="fav-btn" id="toSky"/.test(html), "月の詳細の「空の見え方を見る」も許可で出す");
+{
+  const mapSheet = /<dialog class="sheet" id="mapSheet">[\s\S]*?<\/dialog>/.exec(html)[0];
+  ok(!/ダイヤモンド富士|パール富士|月丼|空の見え方/.test(mapSheet.replace(/<!--[\s\S]*?-->/g, "")), "地図で選ぶ画面に道具の名前を出さない");
+}
+ok(/function renderAuthButton\(\) \{\s+renderTools\(\);\s+redrawIfToolsChanged\(\);/.test(html), "ログイン・ログアウトで詳細の道具の中身も出し直す");
+// 下半分を作り直すたびに釦をつなぐ。日を替えると「空の見え方を見る」が押せなくなっていた
+ok(!/wireOutcomes\(\$\("dayDetail"\)\);/.test(html) && !/wireOutcomes\(host\);\s+wireAlignmentJump\(host\);\s+\}/.test(html.replace(/function wireDayDetail[\s\S]*?\n\}/, "")),
+  "詳細の下半分は wireDayDetail でつなぐ");
+ok([...html.matchAll(/wireDayDetail\(/g)].length >= 4, "最初の描画・日の切り替え・計算の到着のすべてでつなぐ");
+ok(!/SoramiComposition/.test(html), "画面に出していない構図の計算をしない（1回 約0.6秒）");
+
 console.log("== 道具の名前は1か所から取る ==");
 // 管理画面に書き写していたため、ねらうを3つに分けた日に片方だけ古くなった。
 ok(/const TOOL_NAMES = Object\.fromEntries\(\[\.\.\.document\.querySelectorAll\("#toolsMenu \[data-tool\]"\)\]/.test(html),

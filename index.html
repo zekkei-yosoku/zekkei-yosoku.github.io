@@ -1161,7 +1161,7 @@
     </div>
     <button class="fav-btn primary" id="mapPick" style="width:100%;margin-top:8px">この場所にする</button>
     <p class="tiny" style="margin-top:8px;color:var(--tertiary)">
-      中心のピンの場所を使います。<strong>ダイヤモンド富士は立つ場所が数百m違うと日付が変わります。</strong>
+      中心のピンの場所を使います。<strong>山や建物の見え方は、立つ場所が数百m違うと変わります。</strong>
       実際に立つ場所まで寄せてください。標高はその場所の値を国土地理院の標高タイルから読みます。</p>
   </div>
 </dialog>
@@ -1386,22 +1386,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001023749"></script>
+<script src="sorami-core.js?v=20261001100102"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001023749"></script>
-<script src="sorami-exif.js?v=20261001023749"></script>
-<script src="sorami-capcloud.js?v=20261001023749"></script>
-<script src="sorami-terrain.js?v=20261001023749"></script>
-<script src="sorami-mountain.js?v=20261001023749"></script>
-<script src="sorami-fuji.js?v=20261001023749"></script>
-<script src="sorami-sky.js?v=20261001023749"></script>
-<script src="sorami-routes.js?v=20261001023749"></script>
-<script src="sorami-iss.js?v=20261001023749"></script>
-<script src="sorami-plane.js?v=20261001023749"></script>
-<script src="sorami-align.js?v=20261001023749"></script>
-<script src="sorami-moon.js?v=20261001023749"></script>
-<script src="sorami-composition.js?v=20261001023749"></script>
+<script src="sorami-astro.js?v=20261001100102"></script>
+<script src="sorami-exif.js?v=20261001100102"></script>
+<script src="sorami-capcloud.js?v=20261001100102"></script>
+<script src="sorami-terrain.js?v=20261001100102"></script>
+<script src="sorami-mountain.js?v=20261001100102"></script>
+<script src="sorami-fuji.js?v=20261001100102"></script>
+<script src="sorami-sky.js?v=20261001100102"></script>
+<script src="sorami-routes.js?v=20261001100102"></script>
+<script src="sorami-iss.js?v=20261001100102"></script>
+<script src="sorami-plane.js?v=20261001100102"></script>
+<script src="sorami-align.js?v=20261001100102"></script>
+<script src="sorami-moon.js?v=20261001100102"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1842,7 +1841,7 @@ function upcoming(entries, now) {
 // どちらも予報の描画を待たせられないので、**あとから足して描き直す**。
 //
 // 地形はその地点で二度と変わらないので、一度測って憶える（富士 §28）。
-let fujiGeom = null, fujiWeather = null, fujiComposition = null, fujiGrid = null;
+let fujiGeom = null, fujiWeather = null, fujiGrid = null;
 // ダイヤモンド富士・パール富士。地点ごとに1回だけ計算する（天気と無関係で、年単位で変わらない）
 let fujiAlign = null, fujiAlignKey = null;
 let moonHorizon = null;
@@ -1938,7 +1937,7 @@ async function loadExtras() {
   // 地点が変わったら**全部捨てる**。建物の取得フラグを残すと、引っ越しても
   // 前の場所の地平線のままになる
   if (key !== extraKey) {
-    fujiGeom = null; fujiWeather = null; fujiComposition = null;
+    fujiGeom = null; fujiWeather = null;
     fujiAlign = null; fujiAlignKey = null;
     moonHorizon = null; moonObs = null;
     moonTerrainProfile = null; moonUrbanMeta = null; moonUrbanTried = false;
@@ -2025,7 +2024,8 @@ async function loadExtras() {
   // ---- ダイヤモンド富士・パール富士。**天気と無関係**なので、予報を待たずに始める。
   // 地域の代表地点では出さない。**1km違うと日付が9日ずれる**ので、代表点では嘘になる
   // （田貫湖で実測。→ test-diamond.mjs「立つ場所で日付が変わる」）。
-  if (fujiAlignKey !== extraKey) {
+  // 道具として許されていなければ計算もしない。ログインで許されたら、そのあとの描き直しでここへ戻る
+  if ((toolAllowed("diamond") || toolAllowed("pearl")) && fujiAlignKey !== extraKey) {
     fujiAlignKey = extraKey;
     if (SoramiTerrain.locationScope(place) === "area") {
       fujiAlign = { area: true };
@@ -2096,18 +2096,6 @@ async function loadExtras() {
     }
   }
 
-  // 構図は幾何だけ。天気を待たずに計算できる（月 §82）
-  try {
-    const T = { latitude: SoramiFuji.FUJI.latitude, longitude: SoramiFuji.FUJI.longitude,
-                elevationM: SoramiFuji.FUJI.summitM, name: "富士山" };
-    const from = Date.now(), to = from + 366 * 86400000;
-    fujiComposition = [
-      ...SoramiComposition.findAlignments("sun", obs, T, from, to, { stepMs: 300000 })
-        .map((c) => ({ ...c, name: SoramiComposition.nameOf("sun", T) })),
-      ...SoramiComposition.findAlignments("moon", obs, T, from, to, { stepMs: 300000 })
-        .map((c) => ({ ...c, name: SoramiComposition.nameOf("moon", T) })),
-    ].sort((a, b) => a.at - b.at);
-  } catch { fujiComposition = null; }
   if (seq === extraSeq) rerenderList();
 }
 
@@ -2162,8 +2150,7 @@ function redrawDayDetail() {
   const sel = weeks[picked].find((e) => e.dayMs === dayMs) || weeks[picked][0];
   if (!sel) return;
   host.innerHTML = renderDayDetail(picked, weeks[picked], sel, Date.now());
-  wireOutcomes(host);
-  wireAlignmentJump(host);
+  wireDayDetail(host);
 }
 
 function rerenderList() {
@@ -2267,7 +2254,7 @@ function render() {
 
   if (inDetail) {
     $("detailPane").innerHTML = renderDetailPane(picked, now);
-    if ($("toSky")) $("toSky").onclick = () => { pushedCount++; location.hash = "#/sky"; };
+    if ($("dayDetail")) wireDayDetail($("dayDetail"));
     // 直接リンクで遠い日を開いても、選択したボタンを横スクロール内に出す。
     const strip = $("detailWeek").querySelector(".days");
     const active = strip.querySelector('[aria-pressed="true"]');
@@ -2284,8 +2271,7 @@ function render() {
           day.setAttribute("aria-pressed", String(+day.dataset.day === dayMs));
         }
         $("dayDetail").innerHTML = renderDayDetail(picked, weeks[picked], sel, Date.now());
-        wireOutcomes($("dayDetail"));
-        wireAlignmentJump($("dayDetail"));
+        wireDayDetail($("dayDetail"));
         $("dayAnnouncement").textContent = `${S.Cal.monthDay(dayMs)} ${S.Cal.weekday(dayMs)}の詳細に切り替えました。${sel.evaluation.unavailable ? sel.evaluation.unavailable.message : S.phrasing(picked, sel.evaluation.rank).label}`;
       };
     }
@@ -2364,6 +2350,16 @@ function render() {
     loadExtras().catch((e) => console.warn("富士山・月の判定に失敗:", e))
                 .finally(() => { extrasRunning = false; });
   }
+}
+
+/// 詳細の下半分の釦をつなぐ。下半分は日を替えるたび・計算が届くたびに作り直されるので、
+/// **作り直したら必ずここを通す。** 以前は最初の描画だけで「空の見え方を見る」をつなぎ、
+/// 日を替えると押しても動かなかった。重なる日の行は逆に、最初の描画でつないでいなかった
+function wireDayDetail(host) {
+  wireOutcomes(host);
+  wireAlignmentJump(host);
+  const toSky = host.querySelector("#toSky");
+  if (toSky) toSky.onclick = () => { pushedCount++; location.hash = "#/sky"; };
 }
 
 /// ダイヤモンド富士の行から、その日の詳細へ飛ぶ
@@ -3095,8 +3091,9 @@ function renderMoonTimes(dayMs) {
     </div>
     <div class="tiny" style="margin-top:6px;color:var(--tertiary)">「この場所では」は${moonHorizon && moonHorizon.layers && moonHorizon.layers.includes("urban")
       ? "まわりの地形と建物" : "まわりの地形"}から計算した地平線です。山や建物があれば遅く、高い場所なら早くなります。</div>
-    <!-- 同じ稜線を絵で見せる画面。時刻ごとにどこを通るかは、数字より図のほうが早い -->
-    <button class="fav-btn" id="toSky" style="margin-top:8px">空の見え方を見る（稜線と通り道）→</button>
+    <!-- 同じ稜線を絵で見せる画面。時刻ごとにどこを通るかは、数字より図のほうが早い。
+         道具なので、メニューに出している人にだけ入口を置く -->
+    ${toolAllowed("sky") ? `<button class="fav-btn" id="toSky" style="margin-top:8px">空の見え方を見る（稜線と通り道）→</button>` : ""}
     ${SoramiTerrain.locationScope(place) === "area" ? `<div class="tiny" style="margin-top:4px;color:var(--tertiary)">地域の代表地点のため、近くの建物は含めていません。現在地や施設を選ぶと反映します。</div>` : ""}
     ${moonUrbanMeta ? `<div class="tiny" style="margin-top:4px;color:var(--tertiary)">半径${moonUrbanMeta.radiusM}mの建物 ${moonUrbanMeta.buildings} 棟を入れています${
       moonUrbanMeta.estimatedHeights ? `（うち ${moonUrbanMeta.estimatedHeights} 棟は階数からの見積もり）` : ""}。${
@@ -3122,17 +3119,22 @@ function renderMoonTimes(dayMs) {
 // 立つ場所が数百m違うと日付が数日ずれるため、地域の代表地点では出さない。
 function renderAlignments(now) {
   const a = fujiAlign;
-  if (!a) return "";
-  const head = `<div class="section-h" style="margin-top:2px"><h2>ダイヤモンド富士・パール富士</h2></div>`;
+  // **メニューに出している道具の分だけ出す。** 太陽はダイヤモンド富士、月はパール富士の許可で見る
+  const showSun = toolAllowed("diamond"), showMoon = toolAllowed("pearl");
+  if (!a || (!showSun && !showMoon)) return "";
+  const bodies = [showSun && "太陽", showMoon && "月"].filter(Boolean);
+  const title = [showSun && "ダイヤモンド富士", showMoon && "パール富士"].filter(Boolean).join("・");
+  const head = `<div class="section-h" style="margin-top:2px"><h2>${title}</h2></div>`;
   const wrap = (inner) => `<div class="card">${head}${inner}</div>`;
   if (a.area) {
     return wrap(`<div class="tiny" style="color:var(--tertiary)">地域の代表地点では出せません。
       <strong>立つ場所が1km違うと日付が9日ずれます。</strong>現在地・スポット・お気に入りを選ぶと出ます。</div>`);
   }
   if (a.loading) return wrap(`<div class="tiny" style="color:var(--tertiary)">計算しています…</div>`);
-  const sun = a.sun || [], moon = a.moon || [];
+  const sun = showSun ? a.sun || [] : [], moon = showMoon ? a.moon || [] : [];
   if (!sun.length && !moon.length) {
-    return wrap(`<div class="tiny" style="color:var(--tertiary)">この地点では、太陽も月も山頂に重なりません。</div>`);
+    return wrap(`<div class="tiny" style="color:var(--tertiary)">この地点では、${
+      bodies.length > 1 ? "太陽も月も" : `${bodies[0]}は`}山頂に重なりません。</div>`);
   }
   const last = weeks.fuji && weeks.fuji.length ? weeks.fuji[weeks.fuji.length - 1].dayMs + 86400000 : 0;
   const row = (e, label, icon) => {
@@ -3180,13 +3182,13 @@ function renderAlignments(now) {
   ].join("");
   // 片方しか無いことがある。**黙って消さない**（探して無いのか、そもそも出ないのか分からない）
   const none = [
-    !sun.length ? "ダイヤモンド富士は今後1年でありません" : null,
-    !moon.length ? "パール富士は今後1年でありません（満ちた月が山頂に重なる回がない）" : null,
+    showSun && !sun.length ? "ダイヤモンド富士は今後1年でありません" : null,
+    showMoon && !moon.length ? "パール富士は今後1年でありません（満ちた月が山頂に重なる回がない）" : null,
   ].filter(Boolean);
   return wrap(`<div class="al">${rows}</div>
     ${none.length ? `<div class="tiny" style="margin-top:6px;color:var(--tertiary)">${none.map(esc).join("／")}</div>` : ""}
     <div class="tiny" style="margin-top:8px;color:var(--tertiary)">
-      太陽・月の中心が<strong>山頂の火口の縁</strong>に届くかで判定しています（縁の内側6割なら「ど真ん中」）。
+      ${bodies.join("・")}の中心が<strong>山頂の火口の縁</strong>に届くかで判定しています（縁の内側6割なら「ど真ん中」）。
       <strong>立つ場所が数百m違うと日付が数日ずれます。</strong>まわりの木や建物は含めていません。</div>`);
 }
 
@@ -6512,6 +6514,12 @@ function askReauth() {
 function allowedTools() {
   return Array.isArray(auth?.tools) ? auth.tools : [];
 }
+/// **道具の中身は、メニュー以外の画面でも同じ判定で出し分ける。**
+/// 富士山の詳細のダイヤモンド富士・パール富士、月の詳細の「空の見え方を見る」など。
+/// メニューだけ隠しても、誰でも開く詳細に出ていれば見えてしまう（2026-10-01 ユーザー指摘）
+function toolAllowed(id) {
+  return allowedTools().includes(id);
+}
 function renderTools() {
   const allowed = allowedTools();
   let shown = 0;
@@ -6580,8 +6588,15 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("toolsMenu").hidden) { e.preventDefault(); closeTools({ restoreFocus: true }); }
 });
 
+/// 使える道具が変わったら（ログイン・ログアウト・期限切れ）、詳細に出している道具の中身も出し直す
+let toolsDrawnKey = null;
+function redrawIfToolsChanged() {
+  const key = allowedTools().join(",");
+  if (key !== toolsDrawnKey) { toolsDrawnKey = key; redrawDayDetail(); }
+}
 function renderAuthButton() {
   renderTools();
+  redrawIfToolsChanged();
   // 写真はアカウントのもの。ログインが変わったら出し直す
   if (atRecords) loadPhotos();
   const b = $("authButton");
