@@ -1554,21 +1554,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001230841"></script>
+<script src="sorami-core.js?v=20261001231041"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001230841"></script>
-<script src="sorami-exif.js?v=20261001230841"></script>
-<script src="sorami-capcloud.js?v=20261001230841"></script>
-<script src="sorami-terrain.js?v=20261001230841"></script>
-<script src="sorami-mountain.js?v=20261001230841"></script>
-<script src="sorami-fuji.js?v=20261001230841"></script>
-<script src="sorami-sky.js?v=20261001230841"></script>
-<script src="sorami-routes.js?v=20261001230841"></script>
-<script src="sorami-iss.js?v=20261001230841"></script>
-<script src="sorami-plane.js?v=20261001230841"></script>
-<script src="sorami-align.js?v=20261001230841"></script>
-<script src="sorami-moon.js?v=20261001230841"></script>
+<script src="sorami-astro.js?v=20261001231041"></script>
+<script src="sorami-exif.js?v=20261001231041"></script>
+<script src="sorami-capcloud.js?v=20261001231041"></script>
+<script src="sorami-terrain.js?v=20261001231041"></script>
+<script src="sorami-mountain.js?v=20261001231041"></script>
+<script src="sorami-fuji.js?v=20261001231041"></script>
+<script src="sorami-sky.js?v=20261001231041"></script>
+<script src="sorami-routes.js?v=20261001231041"></script>
+<script src="sorami-iss.js?v=20261001231041"></script>
+<script src="sorami-plane.js?v=20261001231041"></script>
+<script src="sorami-align.js?v=20261001231041"></script>
+<script src="sorami-moon.js?v=20261001231041"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5017,8 +5017,8 @@ async function planeLoadWind() {
 
 /// その時刻の運用。**時刻ごとに決める**（風は一日のうちに変わり、南風の都心上空は15〜19時だけ）。
 /// 風が分からない時刻は北風運用（羽田の基本）
-function planeOpAt(at) {
-  if (plane.op) return plane.op;
+function planeOpAt(at, { auto = false } = {}) {
+  if (plane.op && !auto) return plane.op;
   const w = plane.wind;
   const hour = new Date(at + 9 * 3600000).getUTCHours();
   if (!w || !w.times.length) return "north";
@@ -5031,11 +5031,19 @@ function planeOpAt(at) {
   return SoramiRoutes.operationFor(w.dir[i], w.speed[i], hour) || "north";
 }
 
+/// 運用の名前。南風の日は湾側と都心上空が時刻で入れ替わるので、まとめて「南風運用（湾側・都心上空）」と言う
+function planeOpLabel(ops) {
+  if (ops.length === 1) return SoramiRoutes.OPERATIONS[ops[0]].name;
+  const south = ops.filter((o) => o !== "north").map((o) => (o === "south" ? "都心上空" : "湾側"));
+  return [ops.includes("north") ? "北風運用" : null, south.length ? `南風運用（${south.join("・")}）` : null]
+    .filter(Boolean).join("・");
+}
+
 /// その日の運用の移り変わり（「0〜14時 北風運用」のようにまとめる）
-function planeOpSpans(dayMs) {
+function planeOpSpans(dayMs, opts) {
   const out = [];
   for (let h = 0; h < 24; h++) {
-    const op = planeOpAt(dayMs + h * 3600000);
+    const op = planeOpAt(dayMs + h * 3600000, opts);
     const last = out[out.length - 1];
     if (last && last.op === op) last.to = h; else out.push({ op, from: h, to: h });
   }
@@ -5108,8 +5116,16 @@ function planeRender() {
     const o = SoramiRoutes.OPERATIONS[s.op];
     return `${s.from}〜${s.to + 1}時 ${o.name}・着陸 ${o.landing.join("・")}・離陸 ${o.takeoff.join("・")}`;
   };
-  $("planeOpNote").textContent = plane.op
-    ? `手で選んでいます。${opLine({ op: plane.op, from: 0, to: 23 }).replace(/^0〜24時 /, "")}`
+  // 運用の欄は「風から決める」を出さず、**予報から決まる運用そのものを選んだ形**で出す
+  // （2026-10-01 ユーザー「風から決めるはいらなくない？今の運用を自動で選択させたらいい」）。
+  // 南風の日は 15〜19時だけ都心上空で、ほかは湾側。計算は今までどおり時刻ごとに切り替える
+  const auto = planeOpSpans(plane.dayMs, { auto: true });
+  const w = plane.wind;
+  const covered = !!w && w.times.some((t) => t >= plane.dayMs && t < plane.dayMs + 86400000);
+  $("planeOp").options[0].textContent = covered ? `予報: ${planeOpLabel([...new Set(auto.map((x) => x.op))])}` : "予報なし: 北風運用";
+  // 下の一行は滑走路（と、切り替わる日は時刻）。運用の名前は欄に出ているので繰り返さない
+  const runways = (op) => { const o = SoramiRoutes.OPERATIONS[op]; return `着陸 ${o.landing.join("・")}・離陸 ${o.takeoff.join("・")}`; };
+  $("planeOpNote").textContent = r.spans.length === 1 ? runways(r.spans[0].op)
     : r.spans.map(opLine).join(" ／ ");
   $("planePick").innerHTML = "";
   const P = planeFromPoint();
@@ -5215,7 +5231,7 @@ function openPlane() {
   $("planeWeekday").textContent = `${S.Cal.monthDay(plane.dayMs)}（${S.Cal.weekday(plane.dayMs)}）`
     + (S.JstCal.sameDay(plane.dayMs, Date.now()) ? " ・ 今日" : "");
   if (!$("planeOp").options.length) {
-    $("planeOp").innerHTML = `<option value="">風から決める</option>`
+    $("planeOp").innerHTML = `<option value="">予報</option>`
       + Object.entries(SoramiRoutes.OPERATIONS)
         .map(([k, v]) => `<option value="${k}">${esc(v.name)}</option>`).join("");
   }

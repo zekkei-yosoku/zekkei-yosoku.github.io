@@ -207,7 +207,7 @@ ok(/SoramiPlane\.rankSpots\(plane\.dayMs, paths, \[here, \.\.\.SoramiRoutes\.SPO
 // 運用は**羽田の**風で、**時刻ごと**に決める（2026-09-28）。以前は地点の予報を流用し、
 // 12〜21時の風向を数字で平均していたので、350°と10°の北風が180°＝南風運用に化けた。
 ok(/function planeLoadWind/.test(html) && /latitude: R\.latitude/.test(html), "運用は羽田の風から決める");
-ok(/function planeOpAt\(at\)/.test(html), "運用は時刻ごとに決める");
+ok(/function planeOpAt\(at, \{ auto = false \} = \{\}\)/.test(html), "運用は時刻ごとに決める");
 ok(!/mean\("wind_direction_10m"/.test(html + code), "風向を数字で平均しない（北風が南風に化ける）");
 ok(/activeAt/.test(html), "その時刻に使われている経路だけで重なりを数える");
 ok(/id="planePick"/.test(html), "「今日はここ」を先に出す");
@@ -481,6 +481,17 @@ ok(/<b>太陽・月を重ねる<\/b><span>ダイヤモンド富士・パール�
 ok(/\$\{esc\(p\.name\)\} \$\{Math\.round\(p\.m - g\)\}m<\/option>/.test(html), "高さの選択肢は地上からで出す（先端 634m）");
 ok(/aria-label="先端の高さ（地上から・メートル）"/.test(html) && /hs\[`\$\{aim\.target\.id\}:\$\{aim\.partId\}`\] = m \+ \(aim\.target\.groundM \|\| 0\);/.test(html),
   "推定の高さも地上からで入れ、憶えるのは海面から");
+
+// ユーザー「月丼の運用について、風から決めるはいらなくない？今の運用を自動で選択させたらいい」
+ok(!/>風から決める</.test(html) && /\$\("planeOp"\)\.options\[0\]\.textContent = covered \? `予報: \$\{planeOpLabel\(/.test(html),
+  "月丼: 運用の欄は「風から決める」でなく、予報から決まる運用を選んだ形で出す");
+ok(/function planeOpAt\(at, \{ auto = false \} = \{\}\) \{\s+if \(plane\.op && !auto\) return plane\.op;/.test(html), "月丼: 計算は今までどおり時刻ごとに切り替える（手で選べば上書き）");
+{
+  const src = /function planeOpLabel\(ops\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
+  const OPS = { north: { name: "北風運用" }, south: { name: "南風運用（都心上空）" }, southBay: { name: "南風運用（湾側）" } };
+  const label = new Function("SoramiRoutes", `${src}; return planeOpLabel;`)({ OPERATIONS: OPS });
+  ok(label(["north"]) === "北風運用" && label(["southBay", "south"]) === "南風運用（湾側・都心上空）", "月丼: 南風の日は「南風運用（湾側・都心上空）」とまとめる", label(["southBay", "south"]));
+}
 
 console.log("== 細かい説明文は出さない（2026-10-01） ==");
 // ユーザー「細かい説明文ってこのApp上はいらないと思ってる」「こういうのもいらない。出しておいた方がいいなら畳んでおいてほしい」
