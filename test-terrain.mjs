@@ -273,6 +273,18 @@ console.log("== その点に建つ建物の高さ（2026-10-01） ==");
     ? { ok: true, json: async () => ({ elements: [] }) }
     : { ok: true, json: async () => ({ elements: [{ tags: { building: "yes", height: "300" }, geometry: box() }] }) }) });
   ok(r8 && r8.heightM === 300, "空の返事は次のミラーで確かめ直す（ミラーが空を返すことがある）");
+  // 高さの無い建物でも Wikidata の参照があれば、Wikidata の高さを使う（大平和祈念塔）
+  const wdReply = (claims) => ({ ok: true, json: async () => ({ entities: { Q138413: { claims } } }) });
+  const metres = (amount, rank = "normal") => ({ rank, mainsnak: { datavalue: { value: { amount: `+${amount}`, unit: "http://www.wikidata.org/entity/Q11573" } } } });
+  const r9 = await T.buildingAt(lat, lon, { endpoint: ["x"], fetchImpl: async (url) => (String(url).includes("wikidata")
+    ? wdReply({ P2048: [metres(180)] })
+    : { ok: true, json: async () => ({ elements: [{ tags: { building: "yes", man_made: "tower", wikidata: "Q138413", name: "大平和祈念塔" }, geometry: box() }] }) }) });
+  ok(r9 && r9.heightM === 180 && r9.from === "wikidata" && r9.name === "大平和祈念塔", "高さの無い塔は Wikidata の高さ（180m）", JSON.stringify(r9));
+  const wd1 = await T.wikidataHeight("Q138413", { fetchImpl: async () => wdReply({ P2048: [metres(170), metres(180, "preferred")] }) });
+  ok(wd1 && wd1.heightM === 180, "Wikidata は優先（preferred）の値を使う");
+  const wd2 = await T.wikidataHeight("Q138413", { fetchImpl: async () => wdReply({ P2048: [{ rank: "normal", mainsnak: { datavalue: { value: { amount: "+1000", unit: "http://www.wikidata.org/entity/Q3710" } } } }] }) });
+  ok(wd2 && Math.round(wd2.heightM) === 305, "フィートはメートルに直す（1000ft → 305m）", JSON.stringify(wd2));
+  ok(await T.wikidataHeight("not-a-qid") === null, "Wikidata の参照の形でなければ聞かない");
   const r6 = await T.buildingAt(lat, lon, { endpoint: ["x"], fetchImpl: async () => { throw new Error("offline"); } });
   ok(r6 === null, "通信できなければ null");
 }

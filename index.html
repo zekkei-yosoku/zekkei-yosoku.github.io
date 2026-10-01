@@ -8,7 +8,7 @@
      connect-src を実際に使う相手だけに絞れば、盗んだトークンの持ち出し先を塞げる。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1558,21 +1558,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001235430"></script>
+<script src="sorami-core.js?v=20261002000446"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001235430"></script>
-<script src="sorami-exif.js?v=20261001235430"></script>
-<script src="sorami-capcloud.js?v=20261001235430"></script>
-<script src="sorami-terrain.js?v=20261001235430"></script>
-<script src="sorami-mountain.js?v=20261001235430"></script>
-<script src="sorami-fuji.js?v=20261001235430"></script>
-<script src="sorami-sky.js?v=20261001235430"></script>
-<script src="sorami-routes.js?v=20261001235430"></script>
-<script src="sorami-iss.js?v=20261001235430"></script>
-<script src="sorami-plane.js?v=20261001235430"></script>
-<script src="sorami-align.js?v=20261001235430"></script>
-<script src="sorami-moon.js?v=20261001235430"></script>
+<script src="sorami-astro.js?v=20261002000446"></script>
+<script src="sorami-exif.js?v=20261002000446"></script>
+<script src="sorami-capcloud.js?v=20261002000446"></script>
+<script src="sorami-terrain.js?v=20261002000446"></script>
+<script src="sorami-mountain.js?v=20261002000446"></script>
+<script src="sorami-fuji.js?v=20261002000446"></script>
+<script src="sorami-sky.js?v=20261002000446"></script>
+<script src="sorami-routes.js?v=20261002000446"></script>
+<script src="sorami-iss.js?v=20261002000446"></script>
+<script src="sorami-plane.js?v=20261002000446"></script>
+<script src="sorami-align.js?v=20261002000446"></script>
+<script src="sorami-moon.js?v=20261002000446"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4123,7 +4123,9 @@ function choosePlace(p) {
   if (picker) {
     $("placeSheet").close();          // 閉じると placeSheetFor は null に戻る
     // 地名の一覧の山・峠・岬・滝は、地面そのものが目標（建物を探さない）
-    picker.set({ id: p.id, natural: /^(山|峠|岬|滝)( ・|$)/.test(p.subtitle || ""),
+    picker.set({ id: p.id, natural: /^(山|峠|岬|滝)( ・|$)/.test(p.subtitle || ""), wikidata: p.wikidata ?? null,
+      // 階数からの見積もりは「分からない」として扱い、Wikidata・地図の建物で取り直す
+      structureFrom: p.structureFrom ?? null,
       name: p.name, subtitle: aimAreaOf({ detail: p.subtitle || "" }) || p.subtitle || "",
       latitude: p.latitude, longitude: p.longitude, elevation: Number.isFinite(p.elevation) ? p.elevation : null,
       structureM: p.structureM ?? null, targetHeightM: p.targetHeightM ?? null });
@@ -4147,7 +4149,7 @@ const PLACE_PICKERS = {
     set: (p) => {
       const f = favorites.find((x) => x.id === p.id && Number.isFinite(x.targetHeightM));
       if (f) { aimFillSelects(); $("aimTarget").value = `fav:${f.id}`; aimApply({ recenter: true }); return; }
-      aimSetCustomTarget({ ...p, heightM: p.targetHeightM ?? p.structureM });
+      aimSetCustomTarget({ ...p, heightM: p.targetHeightM ?? (p.structureFrom === "levels" ? null : p.structureM) });
     } },
   iss: { title: "どこの近くで探すか", custom: () => iss.from, point: () => issFromPoint(),
     set: (p) => issSetFrom(p), reset: () => issSetFrom(null) },
@@ -6333,10 +6335,16 @@ async function aimSetCustomTarget(p, { keepMap = false } = {}) {
   let auto = false;
   // 山・峠など地面そのものが目標なら、地上 0m（標高がそのまま重ねる高さ）。建物は探さない
   if (h === null && p.natural) h = 0;
+  // 検索で選んだ目標物に Wikidata の参照があれば、まずその高さ（OSM に高さが無くても取れる。大平和祈念塔 180m）
+  if (h === null && p.wikidata) {
+    $("aimTargetSub").textContent = "高さを調べています…";
+    const wd = await SoramiTerrain.wikidataHeight(p.wikidata);
+    if (wd && wd.heightM) { h = Math.round(wd.heightM); auto = "wikidata"; }
+  }
   if (h === null) {
-    $("aimTargetSub").textContent = "建物の高さを調べています…";
+    $("aimTargetSub").textContent = "高さを調べています…";
     const b = await aimBuildingAt(p.latitude, p.longitude);
-    if (b) { h = Math.round(b.heightM); auto = b.estimated ? "estimated" : true; }
+    if (b) { h = Math.round(b.heightM); auto = b.from === "wikidata" ? "wikidata" : b.estimated ? "estimated" : true; }
     // 地図で置いたときの名前は住所（「阿倍野筋」）なので、建物に名前があればそれにする（「あべのハルカス」）
     if (b && b.name && p.fromMap) p = { ...p, name: b.name };
   }
@@ -6359,7 +6367,7 @@ function aimRenderTargetCard() {
   // そのときは「高さを入れてください」と促さない（2026-10-01 ユーザー「羊蹄山を入れたら高さが空欄。高さを入れてくださいはいらない」）。
   // 欄にも 0 を入れて、空欄にしない
   $("aimTargetSub").textContent = c
-    ? [c.subtitle, `標高 ${Math.round(c.groundM || 0)}m`, c.heightM ? `地上 ${Math.round(c.heightM)}m${c.heightAuto === "estimated" ? "（地図から・推定）" : c.heightAuto ? "（地図から）" : ""}` : ""].filter(Boolean).join(" ・ ")
+    ? [c.subtitle, `標高 ${Math.round(c.groundM || 0)}m`, c.heightM ? `地上 ${Math.round(c.heightM)}m${c.heightAuto === "estimated" ? "（地図から・推定）" : c.heightAuto === "wikidata" ? "（Wikidata）" : c.heightAuto ? "（地図から）" : ""}` : ""].filter(Boolean).join(" ・ ")
     : "検索するか、地図の「ここに重ねる」";
   // 欄には、その目標で知られている数字を入れる: 建物は地上の高さ、山（地上 0m）は標高（富士山「山頂 3776m」・スカイツリー「先端 634m」と同じ）。
   // 山だけ空欄にすると、建物は入って山は入らない一貫しない画面になる（2026-10-01 ユーザー「山の標高入れておけばいいんじゃない？」）
@@ -7068,6 +7076,7 @@ async function searchPlaces(q) {
         source: "osm",
         lookout: SoramiTerrain.isLookout(r),
         decks, structureM: struct ? struct.m : null, structureFrom: struct ? struct.from : null,
+        wikidata: (r.extratags && r.extratags.wikidata) || null,
       };
     });
   // **名前が一致するものを上に。** そのうえで、**いま見ている地点から近い順**。
@@ -7091,12 +7100,14 @@ async function searchPlaces(q) {
     // **高さも引き継ぐ。** 地理院の地名情報には高さが無いので、
     // ここで捨てると「東京タワー」が展望台として出なくなる（2026-09-28 実測）
     if (dup) {
-      if (dup.source === "gsi" && r.source === "osm") {
-        dup.detail = r.detail;
-        if (!dup.decks && r.decks) dup.decks = r.decks;
-        if (!dup.lookout && r.lookout) dup.lookout = r.lookout;
-        if (dup.structureM == null && r.structureM != null) dup.structureM = r.structureM;
-      }
+      if (dup.source === "gsi" && r.source === "osm") { dup.detail = r.detail; dup.detailFromOsm = true; }
+      // **残した側に無い情報は、どちらの組み合わせでも引き継ぐ。** OSM 同士でも同名の別物が並ぶ
+      // （「通天閣」は塔と、前のシェアサイクル置き場。置き場を残して塔の高さ 108m を捨てていた。2026-10-01）。
+      // Wikidata の参照も捨てない（OSM に高さの無い目標物＝大平和祈念塔の高さを取りに行けなくなる）
+      if (!dup.decks && r.decks) dup.decks = r.decks;
+      if (!dup.lookout && r.lookout) dup.lookout = r.lookout;
+      if (dup.structureM == null && r.structureM != null) { dup.structureM = r.structureM; dup.structureFrom = r.structureFrom; }
+      if (!dup.wikidata && r.wikidata) dup.wikidata = r.wikidata;
       continue;
     }
     // 並びには距離を使うが、画面には出さない（2026-10-01 ユーザー指摘「一つ前の検索の場所から何キロはいらない」）
@@ -7227,14 +7238,14 @@ wireSearchBox("searchBox", "searchResults", (r) => {
     : (r.lookout === "building" && r.structureM ? [{ name: "屋上", aglM: Math.round(r.structureM) }] : null);
   choosePlace({ id: `search:${r.latitude},${r.longitude}`, name: r.name,
     // 索引の説明から標高は外す（地点カードが標高を別に書くので二重になる）
-    subtitle: r.source === "gsi" ? "" : r.source === "index" ? r.detail.replace(/ ・ 標高\d+m$/, "")
+    subtitle: r.source === "gsi" && !r.detailFromOsm ? "" : r.source === "index" ? r.detail.replace(/ ・ 標高\d+m$/, "")
       : r.detail.split(",").slice(1, 3).join("").trim(),
     latitude: r.latitude, longitude: r.longitude, terrain: null,
     // 山頂は索引の標高（OSM の ele）を使う。無ければ地図の標高タイルで付く
     elevation: r.source === "index" && Number.isFinite(r.elevation) ? r.elevation : null,
     locationScope: r.scope,
     decks, eyeHeightAGL: decks ? decks[0].aglM : null,
-    structureM: r.structureM ?? null, lookout: r.lookout ?? null });
+    structureM: r.structureM ?? null, structureFrom: r.structureFrom ?? null, wikidata: r.wikidata ?? null, lookout: r.lookout ?? null });
 }, async (c) => {
   // 座標を入れたら、**そのままその場所を地点にする**（2026-10-01 ユーザー「候補から選択しないと検索できないようになってるんでしょ」）。
   // 以前は地図を開いて「この場所にする」をもう一度押させていた。位置を直したいときは「地図で選ぶ」から

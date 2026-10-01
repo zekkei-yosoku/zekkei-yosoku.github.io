@@ -604,6 +604,38 @@
   }
 
   /**
+   * Wikidata にある高さ（P2048、地上から）と標高（P2044）。メートル（Q11573）とフィート（Q3710）だけ読む。
+   * OpenStreetMap に高さが無い目標物でも、wikidata の参照があれば取れる（大平和祈念塔は OSM に高さが無く、Wikidata に 180m。2026-10-01
+   * ユーザー「検索したらその建物、目標物の高さを取得して出すとかだとダメなの？」）。読めなければ null
+   */
+  async function wikidataHeight(qid, { fetchImpl = null, timeoutMs = 8000 } = {}) {
+    if (!/^Q\d+$/.test(String(qid || ""))) return null;
+    const f = fetchImpl || (typeof fetch === "function" ? fetch : null);
+    if (!f) return null;
+    try {
+      const res = await f(`https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${qid}&props=claims&format=json&origin=*`, {
+        signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(timeoutMs) : undefined });
+      if (!res.ok) return null;
+      const d = await res.json();
+      const claims = (d && d.entities && d.entities[qid] && d.entities[qid].claims) || {};
+      const RANK = { preferred: 0, normal: 1, deprecated: 9 };
+      const pick = (pid) => {
+        const list = (claims[pid] || []).slice().sort((a, b) => (RANK[a.rank] ?? 5) - (RANK[b.rank] ?? 5));
+        for (const c of list) {
+          const v = c.rank !== "deprecated" && c.mainsnak && c.mainsnak.datavalue && c.mainsnak.datavalue.value;
+          if (!v) continue;
+          const amt = parseFloat(v.amount), unit = String(v.unit || "").split("/").pop();
+          const m = unit === "Q11573" ? amt : unit === "Q3710" ? amt * 0.3048 : NaN;
+          if (Number.isFinite(m) && m > 0) return m;
+        }
+        return null;
+      };
+      const out = { heightM: pick("P2048"), elevationM: pick("P2044") };
+      return out.heightM || out.elevationM ? out : null;
+    } catch { return null; }
+  }
+
+  /**
    * その点に建つ建物（OpenStreetMap）の高さ。輪郭の中に点があるもの、無ければ輪郭が 25m 以内のいちばん近いもの。
    * 高さのタグが無ければ階数から見積もる（estimated: true）。見つからなければ null。
    * 他の目標を地図で置いたとき、建物の高さを自動で入れるのに使う（2026-10-01 ユーザー「建物の高さがわかるなら自動で入力がいいな」）。
@@ -643,19 +675,26 @@
     let best = null;
     for (const el of d.elements) {
       const h = buildingHeightM(el.tags);
+      const qid = el.tags && el.tags.wikidata;
       // way は自分の輪郭、relation は外側の輪郭（複数あれば全部）
       const rings = el.type === "relation"
         ? (el.members || []).filter((m) => m.role === "outer" && Array.isArray(m.geometry)).map((m) => m.geometry)
         : [el.geometry];
-      if (h === null || !rings.length || rings.some((g) => !g || g.length < 3)) continue;
+      // 高さも階数も無くても、Wikidata の参照があれば候補にする（高さはあとで Wikidata から）
+      if ((h === null && !qid) || !rings.length || rings.some((g) => !g || g.length < 3)) continue;
       const dist = rings.some((g) => containsPoint(g, lat, lon)) ? 0
         : Math.min(...rings.flat().map((pt) => distanceKm(lat, lon, pt.lat, pt.lon) * 1000));
       if (dist > 25) continue;
-      if (!best || dist < best.distM || (dist === best.distM && h > best.heightM)) {
-        best = { heightM: h, distM: dist, estimated: !(parseFloat(el.tags.height) > 0), name: el.tags.name || "" };
+      if (!best || dist < best.distM || (dist === best.distM && (h ?? 0) > (best.heightM ?? 0))) {
+        best = { heightM: h, distM: dist, estimated: !(parseFloat(el.tags.height) > 0), name: el.tags.name || "", wikidata: qid || null };
       }
     }
-    return best;
+    // 高さのタグが無い（無いか、階数からの見積もりだけ）なら、Wikidata の高さを使う
+    if (best && best.estimated && best.wikidata) {
+      const wd = await wikidataHeight(best.wikidata, { fetchImpl });
+      if (wd && wd.heightM) best = { ...best, heightM: wd.heightM, estimated: false, from: "wikidata" };
+    }
+    return best && best.heightM ? best : null;
   }
 
   /// タグから高さ[m]を出す。`height` が無ければ階数から見積もる
@@ -1104,7 +1143,7 @@
     destination, bearing, distanceKm,
     fetchElevations, elevations, elevationFromTile, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
-    urbanHorizon, buildingHeightM, buildingAt, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
+    urbanHorizon, buildingHeightM, buildingAt, wikidataHeight, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
     profileToward, stepsFor, EYE_HEIGHT_PRESETS, searchPlaceIndex, normName,
     waterAt, decodeWaterLayer,
   };

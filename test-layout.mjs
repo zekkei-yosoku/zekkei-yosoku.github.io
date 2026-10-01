@@ -239,7 +239,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/<div class="place-row aim-place-card" id="aimTargetCard" hidden>\s*<button class="place-pick" id="aimTargetButton">/.test(html),
     "自分で置く: どこに重ねるかに目標の場所のカード（地点カードと同じ形）");
   ok(/\$\("aimTargetButton"\)\.onclick = \(\) => openPlaceSheet\("aimTarget"\);/.test(html), "自分で置く: 押すと同じ「地点」の画面（検索・現在地・地図・お気に入り）");
-  ok(/aimTarget: \{ title: "どこに重ねるか",[\s\S]{0,500}aimSetCustomTarget\(\{ \.\.\.p, heightM: p\.targetHeightM \?\? p\.structureM \}\);/.test(html) && /structureM: p\.structureM \?\? null, targetHeightM: p\.targetHeightM \?\? null/.test(html)
+  ok(/aimTarget: \{ title: "どこに重ねるか",[\s\S]{0,500}aimSetCustomTarget\(\{ \.\.\.p, heightM: p\.targetHeightM \?\? \(p\.structureFrom === "levels" \? null : p\.structureM\) \}\);/.test(html) && /structureM: p\.structureM \?\? null, targetHeightM: p\.targetHeightM \?\? null/.test(html)
     && /if \(f\) \{ aimFillSelects\(\); \$\("aimTarget"\)\.value = `fav:\$\{f\.id\}`; aimApply\(\{ recenter: true \}\); return; \}/.test(html),
     "他の目標: 選んだ場所が目標になる（お気に入りの高さ、建物に地図の高さがあればそれも入る）");
   ok(/<button id="aimPickTarget" class="fav-btn" aria-label="地図の中心（ピンの位置）に重ねる" hidden>ここに重ねる<\/button>/.test(html),
@@ -495,11 +495,17 @@ ok(/function planeOpAt\(at, \{ auto = false \} = \{\}\) \{\s+if \(plane\.op && !
 }
 
 // ユーザー「その他の目標って自分でその建物の高さを入力する…海抜足さなくていいんだよね」「建物の高さがわかるなら自動で入力がいいな」
-ok(/const b = await aimBuildingAt\(p\.latitude, p\.longitude\);\s+if \(b\) \{ h = Math\.round\(b\.heightM\); auto = b\.estimated \? "estimated" : true; \}/.test(html), "他の目標: 建物の高さを自動で入れる（階数からの見積もりは推定と分かるように）");
+ok(/const b = await aimBuildingAt\(p\.latitude, p\.longitude\);\s+if \(b\) \{ h = Math\.round\(b\.heightM\); auto = b\.from === "wikidata" \? "wikidata" : b\.estimated \? "estimated" : true; \}/.test(html), "他の目標: 建物の高さを自動で入れる（見積もり・Wikidata は分かるように）");
 ok(/for \(const b of await tallBuildings\(\)\)/.test(html) && /return await SoramiTerrain\.buildingAt\(lat, lon\);/.test(html), "まず同梱の高い建物の一覧、無ければ OpenStreetMap に問い合わせる");
 ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM : typedNow \? typed : null;/.test(html), "お気に入り・検索の高さ、打ち込んだ高さを先に使う");
 ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れるのは地上からの高さ）");
-ok(/c\.heightAuto === "estimated" \? "（地図から・推定）" : c\.heightAuto \? "（地図から）" : ""/.test(html), "自動で入れた高さは「（地図から）」、見積もりは「（地図から・推定）」と添える");
+ok(/c\.heightAuto === "estimated" \? "（地図から・推定）" : c\.heightAuto === "wikidata" \? "（Wikidata）" : c\.heightAuto \? "（地図から）" : ""/.test(html), "自動で入れた高さは出どころを添える（地図から・推定・Wikidata）");
+// ユーザー「大平和祈念塔とか高さ出ないけど…検索したらその建物、目標物の高さを取得して出すとかだとダメなの？」
+ok(/https:\/\/www\.wikidata\.org/.test(html) && /const wd = await SoramiTerrain\.wikidataHeight\(p\.wikidata\);/.test(html), "検索した目標物に Wikidata の参照があれば、その高さを取る（OSM に高さが無くても）");
+ok(/wikidata: \(r\.extratags && r\.extratags\.wikidata\) \|\| null,/.test(html), "検索結果（OSM）から Wikidata の参照を持ち回る");
+ok(/if \(!dup\.wikidata && r\.wikidata\) dup\.wikidata = r\.wikidata;/.test(html), "地理院と OSM の同じ場所をまとめるとき、Wikidata の参照も引き継ぐ（大平和祈念塔で抜けていた）");
+ok(/if \(dup\.source === "gsi" && r\.source === "osm"\) \{ dup\.detail = r\.detail; dup\.detailFromOsm = true; \}\s+\/\/[^\n]*\n[^\n]*\n[^\n]*\n\s+if \(!dup\.decks && r\.decks\)/.test(html),
+  "同名の重複は、どちらの組み合わせでも残した側に無い高さ・参照を引き継ぐ（通天閣で塔の高さを捨てていた）");
 
 // ユーザー「羊蹄山って入れた時に…標高が出てるのに高さが空欄」「高さ（地上から）を入れてくださいってそこにいらないよね」
 ok(!/高さ（地上から）を入れてください"\]/.test(html) && !/: "高さ（地上から）を入れてください"/.test(html), "地上 0m（山の頂など）で「高さを入れてください」と促さない");
