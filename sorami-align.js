@@ -24,8 +24,9 @@
   if (!A || !TR) throw new Error("astro / terrain が先に要ります");
 
   /**
-   * 目標。`topM` は**海面からの高さ**（先端の標高）。
-   * 塔は「地上◯m」で語られるので、地面の標高を足した値を持つ。
+   * 目標。parts の `m` は**海面からの高さ**（先端の標高）で、計算はこれを使う。
+   * 塔は「地上◯m」で語られるので、`groundM`（地面の標高）を持ち、**画面には地上の高さ（m − groundM）を出す**
+   * （2026-10-01 ユーザー「スカイツリーの先端が634mだと思うんだけど636になってるのはなんで」。海面からの値をそのまま出していた）。
    */
   const TARGETS = [
     { id: "fuji", name: "富士山", latitude: 35.360555, longitude: 138.727363,
@@ -37,23 +38,23 @@
       // 縁の形そのもの（下の FUJI_RIM）を持ち、天体の中心が**縁の稜線に届く位置が縁の範囲の中か**で決める
       rim: { latitude: 35.36295, longitude: 138.73003 } },
     { id: "skytree", name: "東京スカイツリー", latitude: 35.710063, longitude: 139.810700,
-      note: "地上の高さ ＋ 地面の標高およそ2m",
+      note: "地上の高さ ＋ 地面の標高およそ2m", groundM: 2,
       parts: [{ id: "tip", name: "先端", m: 636 },
               { id: "gallery", name: "天望回廊（第二展望台）", m: 452 },
               { id: "deck", name: "天望デッキ", m: 352 }] },
     { id: "tokyotower", name: "東京タワー", latitude: 35.658581, longitude: 139.745433,
-      note: "地上の高さ ＋ 地面の標高およそ20m",
+      note: "地上の高さ ＋ 地面の標高およそ20m", groundM: 20,
       parts: [{ id: "tip", name: "先端", m: 353 },
               { id: "top", name: "トップデッキ", m: 270 },
               { id: "main", name: "メインデッキ", m: 170 }] },
     { id: "cinderella", name: "シンデレラ城", latitude: 35.632896, longitude: 139.880394,
-      note: "高さ51m ＋ 地面の標高およそ3m",
+      note: "高さ51m ＋ 地面の標高およそ3m", groundM: 3,
       parts: [{ id: "tip", name: "てっぺん", m: 54 }] },
     // 東京ディズニーランドホテルの避雷針の先端。ティンカーベルの像が載る。
-    // **公表された高さが無い**ので推定（OpenStreetMap の建物高さ60m）。画面で直せる
+    // **公表された高さが無い**ので推定（OpenStreetMap の建物高さ60m＝地上。地面の標高およそ3mを足す）。画面で直せる
     { id: "tinkerbell", name: "ティンカーベル", latitude: 35.637031, longitude: 139.878077,
-      note: "東京ディズニーランドホテルの避雷針の先端。高さは推定なので、合わせながら直せます",
-      parts: [{ id: "tip", name: "避雷針の先端", m: 60, adjustable: true }] },
+      note: "東京ディズニーランドホテルの避雷針の先端。高さは推定なので、合わせながら直せます", groundM: 3,
+      parts: [{ id: "tip", name: "避雷針の先端", m: 63, adjustable: true }] },
   ];
   const targetById = (id) => TARGETS.find((t) => t.id === id) || null;
 

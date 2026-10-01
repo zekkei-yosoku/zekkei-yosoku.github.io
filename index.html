@@ -1127,7 +1127,7 @@
     <p class="tiny" id="aimTargetNote" style="margin:-2px 0 8px"></p>
     <div class="aim-row" id="aimHeightRow" hidden>
       <input type="number" id="aimHeightM" class="fav-in" inputmode="decimal" min="1" max="1000"
-             aria-label="先端の高さ（海面から・メートル）">
+             aria-label="先端の高さ（地上から・メートル）">
       <button id="aimHeightSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">この高さで</button>
     </div>
     <p class="tiny" id="aimHeightNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
@@ -1554,21 +1554,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001225610"></script>
+<script src="sorami-core.js?v=20261001230841"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001225610"></script>
-<script src="sorami-exif.js?v=20261001225610"></script>
-<script src="sorami-capcloud.js?v=20261001225610"></script>
-<script src="sorami-terrain.js?v=20261001225610"></script>
-<script src="sorami-mountain.js?v=20261001225610"></script>
-<script src="sorami-fuji.js?v=20261001225610"></script>
-<script src="sorami-sky.js?v=20261001225610"></script>
-<script src="sorami-routes.js?v=20261001225610"></script>
-<script src="sorami-iss.js?v=20261001225610"></script>
-<script src="sorami-plane.js?v=20261001225610"></script>
-<script src="sorami-align.js?v=20261001225610"></script>
-<script src="sorami-moon.js?v=20261001225610"></script>
+<script src="sorami-astro.js?v=20261001230841"></script>
+<script src="sorami-exif.js?v=20261001230841"></script>
+<script src="sorami-capcloud.js?v=20261001230841"></script>
+<script src="sorami-terrain.js?v=20261001230841"></script>
+<script src="sorami-mountain.js?v=20261001230841"></script>
+<script src="sorami-fuji.js?v=20261001230841"></script>
+<script src="sorami-sky.js?v=20261001230841"></script>
+<script src="sorami-routes.js?v=20261001230841"></script>
+<script src="sorami-iss.js?v=20261001230841"></script>
+<script src="sorami-plane.js?v=20261001230841"></script>
+<script src="sorami-align.js?v=20261001230841"></script>
+<script src="sorami-moon.js?v=20261001230841"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4726,7 +4726,7 @@ function aimCustomTarget() {
   return { id: "custom", name: c.name || "他の目標",
     latitude: c.latitude, longitude: c.longitude,
     note: `地上 ${Math.round(c.heightM)}m ＋ 地面の標高およそ${Math.round(c.groundM)}m`,
-    parts: [{ id: "tip", name: "てっぺん", m: c.topM }] };
+    groundM: c.groundM, parts: [{ id: "tip", name: "てっぺん", m: c.topM }] };
 }
 /// 高さを直した目標。避雷針の先端のように**公表値が無いもの**は、端末に憶えた値を使う
 function aimWithHeights(t) {
@@ -4767,7 +4767,9 @@ const aimSideLabel = (side) => (aim.body === "moon"
 
 function aimFillParts() {
   const parts = aim.target.parts || [];
-  $("aimPart").innerHTML = parts.map((p) => `<option value="${p.id}">${esc(p.name)} ${p.m}m</option>`).join("");
+  // 高さは**地上から**で出す（スカイツリーの先端は 634m。計算に使う m は海面から＝636m。2026-10-01 ユーザー指摘）
+  const g = aim.target.groundM || 0;
+  $("aimPart").innerHTML = parts.map((p) => `<option value="${p.id}">${esc(p.name)} ${Math.round(p.m - g)}m</option>`).join("");
   $("aimPart").disabled = parts.length < 2;
   // 選べるものが1つしか無い（富士山の山頂など）なら、選ぶ欄を出さない
   $("aimPart").hidden = parts.length < 2;
@@ -6126,7 +6128,8 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   const part = (aim.target.parts || []).find((p) => p.id === aim.partId);
   $("aimHeightRow").hidden = !(part && part.adjustable);
   if (part && part.adjustable) {
-    $("aimHeightM").value = String(part.m);
+    const g = aim.target.groundM || 0;
+    $("aimHeightM").value = String(Math.round(part.m - g));
     // **合わせ込めるようにする。** 公表値が無いので、実際に見た角度から高さを決められる。
     // 地図の中心から目標を見上げる角度を出しておけば、「あの日あそこから5度でてっぺんだった」を
     // 手がかりに、この数字が合うまで高さを動かせる。
@@ -6136,7 +6139,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
         aim.target.latitude, aim.target.longitude);
       const ang = SoramiAstro.targetElevationAngle(d, observerHere().elevation, part.m);
       $("aimHeightNote").textContent =
-        `${Math.round(part.m)}m は地図の中心（${aimKm(d)}km先）から ${ang.toFixed(1)}°`;
+        `${Math.round(part.m - g)}m は地図の中心（${aimKm(d)}km先）から ${ang.toFixed(1)}°`;
     } else {
       $("aimHeightNote").textContent = "";
     }
@@ -6718,7 +6721,8 @@ function openAim(preset) {
       const m = Number($("aimHeightM").value);
       if (!Number.isFinite(m) || m < 1 || m > 1000) return;
       const hs = store.get("sorami.aimHeights", {});
-      hs[`${aim.target.id}:${aim.partId}`] = m;
+      // 入れるのは地上からの高さ。憶えるのは計算に使う海面からの高さ
+      hs[`${aim.target.id}:${aim.partId}`] = m + (aim.target.groundM || 0);
       store.set("sorami.aimHeights", hs);
       aimApply();
     };

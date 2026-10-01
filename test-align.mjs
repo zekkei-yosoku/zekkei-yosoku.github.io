@@ -89,6 +89,19 @@ console.log("== 線の長さは目標の高さで決まる ==");
   ok(set.points.every((p) => p.longitude > tb.longitude), "月の入側は目標の東");
 }
 
+console.log("== 塔の高さは地上で言う（2026-10-01） ==");
+// ユーザー「スカイツリーの先端が634mだと思うんだけど636になってるのはなんで」。計算は海面から、画面は地上から
+{
+  const above = (id, part) => { const t = AL.targetById(id); return t.parts.find((p) => p.id === part).m - (t.groundM || 0); };
+  ok(above("skytree", "tip") === 634, "スカイツリーの先端は地上634m", above("skytree", "tip"));
+  ok(above("skytree", "deck") === 350, "天望デッキは地上350m", above("skytree", "deck"));
+  ok(above("tokyotower", "tip") === 333, "東京タワーの先端は地上333m", above("tokyotower", "tip"));
+  ok(above("tokyotower", "main") === 150, "メインデッキは地上150m", above("tokyotower", "main"));
+  ok(above("cinderella", "tip") === 51, "シンデレラ城は地上51m", above("cinderella", "tip"));
+  ok(above("fuji", "summit") === 3776, "富士山は標高のまま3776m", above("fuji", "summit"));
+  ok(AL.targetById("skytree").parts[0].m === 636, "計算に使う値は海面から（634＋地面2m）");
+}
+
 console.log("== 地形の凹凸で線を蛇行させない ==");
 {
   // 富士山の西は谷と尾根で標高が 1500m 違う。生の標高で1点ずつ解くと方位が行き来する
