@@ -1554,21 +1554,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001231041"></script>
+<script src="sorami-core.js?v=20261001232254"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001231041"></script>
-<script src="sorami-exif.js?v=20261001231041"></script>
-<script src="sorami-capcloud.js?v=20261001231041"></script>
-<script src="sorami-terrain.js?v=20261001231041"></script>
-<script src="sorami-mountain.js?v=20261001231041"></script>
-<script src="sorami-fuji.js?v=20261001231041"></script>
-<script src="sorami-sky.js?v=20261001231041"></script>
-<script src="sorami-routes.js?v=20261001231041"></script>
-<script src="sorami-iss.js?v=20261001231041"></script>
-<script src="sorami-plane.js?v=20261001231041"></script>
-<script src="sorami-align.js?v=20261001231041"></script>
-<script src="sorami-moon.js?v=20261001231041"></script>
+<script src="sorami-astro.js?v=20261001232254"></script>
+<script src="sorami-exif.js?v=20261001232254"></script>
+<script src="sorami-capcloud.js?v=20261001232254"></script>
+<script src="sorami-terrain.js?v=20261001232254"></script>
+<script src="sorami-mountain.js?v=20261001232254"></script>
+<script src="sorami-fuji.js?v=20261001232254"></script>
+<script src="sorami-sky.js?v=20261001232254"></script>
+<script src="sorami-routes.js?v=20261001232254"></script>
+<script src="sorami-iss.js?v=20261001232254"></script>
+<script src="sorami-plane.js?v=20261001232254"></script>
+<script src="sorami-align.js?v=20261001232254"></script>
+<script src="sorami-moon.js?v=20261001232254"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6281,15 +6281,27 @@ function aimSetFrom(p, { keepMap = false } = {}) {
   else AimMap.open({ latitude: p.latitude, longitude: p.longitude }, Math.max(11, Math.round(AimMap.zoom())));
 }
 /// 他の目標の場所を決める（「地点」の画面・お気に入り・地図の「ここに重ねる」から）。
-/// 高さ（地上から）は、お気に入りに登録した高さ、検索で選んだ建物に地図の高さがあればそれ、無ければ入っている値、どちらも無ければ 0（山の頂や地面そのもの）
+/// 高さ（**地上から**。地面の標高は自動で足す）は、次の順で決める:
+///   お気に入りに登録した高さ・検索で選んだ建物の地図の高さ → 先に打ち込んだ高さ → **その点に建つ建物の高さ（自動）** → 0（山の頂や地面そのもの）
+/// （2026-10-01 ユーザー「建物なら元から情報を取っておけるよね？その建物の高さがわかるなら自動で入力がいいな」）
 async function aimSetCustomTarget(p, { keepMap = false } = {}) {
-  const ground = await aimElevation(p.latitude, p.longitude);
-  const typed = Number($("aimCustomH").value);
+  const input = $("aimCustomH"), typed = Number(input.value);
+  const typedNow = input.dataset.edited === "1" && Number.isFinite(typed) && typed > 0;
   // お気に入りに 0m（山の頂など）で登録したものは 0 のまま置く
-  const h = Number.isFinite(p.heightM) && p.heightM >= 0 ? p.heightM
-    : Number.isFinite(typed) && typed > 0 ? typed : 0;
+  let h = Number.isFinite(p.heightM) && p.heightM >= 0 ? p.heightM : typedNow ? typed : null;
+  let auto = false;
+  if (h === null) {
+    $("aimTargetSub").textContent = "建物の高さを調べています…";
+    const b = await aimBuildingAt(p.latitude, p.longitude);
+    if (b) { h = Math.round(b.heightM); auto = b.estimated ? "estimated" : true; }
+    // 地図で置いたときの名前は住所（「阿倍野筋」）なので、建物に名前があればそれにする（「あべのハルカス」）
+    if (b && b.name && p.fromMap) p = { ...p, name: b.name };
+  }
+  if (h === null) h = 0;
+  const ground = await aimElevation(p.latitude, p.longitude);
+  delete input.dataset.edited;
   store.set("sorami.aimCustom", { latitude: p.latitude, longitude: p.longitude, name: p.name || "他の目標",
-    subtitle: p.subtitle || "", heightM: h, groundM: ground, topM: ground + h });
+    subtitle: p.subtitle || "", heightM: h, heightAuto: auto, groundM: ground, topM: ground + h });
   aimFillSelects();
   $("aimTarget").value = "custom";
   aimApply({ recenter: !keepMap });
@@ -6300,12 +6312,14 @@ function aimRenderTargetCard() {
   $("aimTargetName").textContent = c ? c.name || "他の目標" : "重ねる目標の場所を選ぶ";
   $("aimTargetSub").textContent = c
     // 高さが 0 のままだと線が出ないことが多い（地面そのものに重ねることになる）。入れればよいと分かるように書く
-    ? [c.subtitle, `標高 ${Math.round(c.groundM || 0)}m`, c.heightM ? `地上 ${Math.round(c.heightM)}m` : "高さ（地上から）を入れてください"].filter(Boolean).join(" ・ ")
+    ? [c.subtitle, `標高 ${Math.round(c.groundM || 0)}m`, c.heightM ? `地上 ${Math.round(c.heightM)}m${c.heightAuto === "estimated" ? "（地図から・推定）" : c.heightAuto ? "（地図から）" : ""}` : "高さ（地上から）を入れてください"].filter(Boolean).join(" ・ ")
     : "検索するか、地図の「ここに重ねる」";
   if (c && document.activeElement !== $("aimCustomH")) $("aimCustomH").value = c.heightM ? String(Math.round(c.heightM)) : "";
   $("aimTargetFav").hidden = !c;
   if (c) renderFavStar("aimTargetFav", c);
 }
+// 打ち込んだ高さは、次に場所を選んだときに使う（打ってから場所を選ぶ人のため）。画面が書き換えた値は使わない
+$("aimCustomH").addEventListener("input", () => { $("aimCustomH").dataset.edited = "1"; });
 // 他の目標を、高さごとお気に入りに。保存したら付けた名前と登録した高さで置き直す
 $("aimTargetFav").onclick = () => {
   const c = store.get("sorami.aimCustom", null);
@@ -6636,6 +6650,20 @@ function tallBuildings() {
   }
   return tallPromise;
 }
+/// その点に建つ建物の高さ。まず同梱の一覧（首都圏の20m以上・すぐ引ける）、無ければ OpenStreetMap に問い合わせる（10秒で打ち切り）
+async function aimBuildingAt(lat, lon) {
+  try {
+    let best = null;
+    for (const b of await tallBuildings()) {
+      if (Math.abs(b.latitude - lat) > 0.003 || Math.abs(b.longitude - lon) > 0.004) continue;
+      // 一覧の radiusM は建物の広さ。ピンは建物の中心から少しずれて置かれるので 15m 余裕を見る
+      const over = SoramiTerrain.distanceKm(lat, lon, b.latitude, b.longitude) * 1000 - b.radiusM;
+      if (over <= 15 && (!best || over < best.over)) best = { heightM: b.heightM, over };
+    }
+    if (best) return best;
+  } catch { /* 一覧が読めなければ問い合わせへ */ }
+  try { return await SoramiTerrain.buildingAt(lat, lon); } catch { return null; }
+}
 async function aimBuildingBlocks(cands) {
   const t = aim.target;
   let all;
@@ -6748,7 +6776,8 @@ function openAim(preset) {
       const c = store.get("sorami.aimCustom", null);
       if (!c) { $("aimLineInfo").textContent = "先に重ねる目標の場所を選んでください。"; return; }
       if (!Number.isFinite(h) || h < 0 || h > 1000) { $("aimLineInfo").textContent = "高さ（地上から・m）を入れてください。"; return; }
-      store.set("sorami.aimCustom", { ...c, heightM: h, topM: (c.groundM || 0) + h });
+      store.set("sorami.aimCustom", { ...c, heightM: h, heightAuto: false, topM: (c.groundM || 0) + h });
+      delete $("aimCustomH").dataset.edited;
       aimFillSelects(); $("aimTarget").value = "custom";
       aimApply();
     };
@@ -6758,7 +6787,7 @@ function openAim(preset) {
       $("aimPickTarget").disabled = true;
       const n = await nearName(c.latitude, c.longitude);
       $("aimPickTarget").disabled = false;
-      await aimSetCustomTarget({ name: n.name, subtitle: n.area, latitude: c.latitude, longitude: c.longitude }, { keepMap: true });
+      await aimSetCustomTarget({ name: n.name, subtitle: n.area, latitude: c.latitude, longitude: c.longitude, fromMap: true }, { keepMap: true });
     };
     $("aimPrev").onclick = () => { aim.dayMs -= 86400000; $("aimDate").value = new Date(aim.dayMs + 9 * 3600000).toISOString().slice(0, 10); aimApply(); };
     $("aimNext").onclick = () => { aim.dayMs += 86400000; $("aimDate").value = new Date(aim.dayMs + 9 * 3600000).toISOString().slice(0, 10); aimApply(); };

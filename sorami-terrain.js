@@ -603,6 +603,58 @@
     return inside;
   }
 
+  /**
+   * その点に建つ建物（OpenStreetMap）の高さ。輪郭の中に点があるもの、無ければ輪郭が 25m 以内のいちばん近いもの。
+   * 高さのタグが無ければ階数から見積もる（estimated: true）。見つからなければ null。
+   * 他の目標を地図で置いたとき、建物の高さを自動で入れるのに使う（2026-10-01 ユーザー「建物の高さがわかるなら自動で入力がいいな」）。
+   * **必ず打ち切る**（Overpass は返ってこないことがある）
+   */
+  async function buildingAt(lat, lon, { endpoint = OVERPASS, fetchImpl = null, timeoutMs = 12000 } = {}) {
+    const f = fetchImpl || (typeof fetch === "function" ? fetch : null);
+    if (!f) return null;
+    // **輪郭から150mで引き、点が輪郭の中かで決める。** around は輪郭の線との距離なので、25m で引くと
+    // 大きな建物（あべのハルカス）の真ん中に置いたとき、線が遠くて引けなかった（2026-10-01 実測）。
+    // 大きな建物は relation（外側の輪郭が複数）で載っていることがあるので、それも引く
+    const q = `[out:json][timeout:20][maxsize:33554432];(`
+      + `way["building"](around:150,${lat},${lon});way["building:part"](around:150,${lat},${lon});`
+      + `relation["building"](around:150,${lat},${lon});way["man_made"="tower"](around:150,${lat},${lon});`
+      + `);out tags geom;`;
+    // 待つのは**全体で** timeoutMs まで（1つ目のミラーが返らないと、次を待って20秒近くかかった）
+    const deadline = Date.now() + timeoutMs;
+    for (const url of (Array.isArray(endpoint) ? endpoint : [endpoint])) {
+      const left = deadline - Date.now();
+      if (left < 1000) break;
+      try {
+        const res = await f(url, {
+          method: "POST",
+          signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(left) : undefined,
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: "data=" + encodeURIComponent(q),
+        });
+        if (!res.ok) continue;
+        const d = await res.json();
+        if (!d || d.remark || !Array.isArray(d.elements)) continue;
+        let best = null;
+        for (const el of d.elements) {
+          const h = buildingHeightM(el.tags);
+          // way は自分の輪郭、relation は外側の輪郭（複数あれば全部）
+          const rings = el.type === "relation"
+            ? (el.members || []).filter((m) => m.role === "outer" && Array.isArray(m.geometry)).map((m) => m.geometry)
+            : [el.geometry];
+          if (h === null || !rings.length || rings.some((g) => !g || g.length < 3)) continue;
+          const dist = rings.some((g) => containsPoint(g, lat, lon)) ? 0
+            : Math.min(...rings.flat().map((pt) => distanceKm(lat, lon, pt.lat, pt.lon) * 1000));
+          if (dist > 25) continue;
+          if (!best || dist < best.distM || (dist === best.distM && h > best.heightM)) {
+            best = { heightM: h, distM: dist, estimated: !(parseFloat(el.tags.height) > 0), name: el.tags.name || "" };
+          }
+        }
+        return best;   // 問い合わせが通れば、建物が無くてもここで終わり
+      } catch { /* 次のミラーへ */ }
+    }
+    return null;
+  }
+
   /// タグから高さ[m]を出す。`height` が無ければ階数から見積もる
   function buildingHeightM(tags) {
     if (!tags) return null;
@@ -1049,7 +1101,7 @@
     destination, bearing, distanceKm,
     fetchElevations, elevations, elevationFromTile, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
-    urbanHorizon, buildingHeightM, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
+    urbanHorizon, buildingHeightM, buildingAt, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
     profileToward, stepsFor, EYE_HEIGHT_PRESETS, searchPlaceIndex, normName,
     waterAt, decodeWaterLayer,
   };

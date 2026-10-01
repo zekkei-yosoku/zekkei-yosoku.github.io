@@ -240,5 +240,38 @@ console.log("== 水の上か（国土地理院ベクトルタイルの水域・2
   ok(calls.filter((u) => u.endsWith(`/16/${X}/${Y}.pbf`)).length === 1, "同じ升目は1回だけ取りに行く");
 }
 
+console.log("== その点に建つ建物の高さ（2026-10-01） ==");
+// ユーザー「建物の高さがわかるなら自動で入力がいいな」。他の目標を地図で置いたときに使う
+{
+  const lat = 35.7, lon = 139.8, d = 0.0002;   // 約20m四方
+  const box = (dy = 0) => [[lat - d + dy, lon - d], [lat - d + dy, lon + d], [lat + d + dy, lon + d], [lat + d + dy, lon - d], [lat - d + dy, lon - d]]
+    .map(([a, b]) => ({ lat: a, lon: b }));
+  const reply = (elements, extra = {}) => async () => ({ ok: true, json: async () => ({ elements, ...extra }) });
+  const r1 = await T.buildingAt(lat, lon, { endpoint: ["x"], fetchImpl: reply([{ tags: { building: "yes", height: "87" }, geometry: box() }]) });
+  ok(r1 && r1.heightM === 87 && r1.distM === 0 && r1.estimated === false, "点を囲む建物の高さ（height）", JSON.stringify(r1));
+  const r2 = await T.buildingAt(lat, lon, { endpoint: ["x"], fetchImpl: reply([{ tags: { building: "yes", "building:levels": "10" }, geometry: box() }]) });
+  ok(r2 && r2.heightM === 37 && r2.estimated === true, "高さが無ければ階数から見積もる（10階 → 37m）", JSON.stringify(r2));
+  const r3 = await T.buildingAt(lat, lon, { endpoint: ["x"], fetchImpl: reply([{ tags: { building: "yes" }, geometry: box() }]) });
+  ok(r3 === null, "高さも階数も無い建物は使わない");
+  const r4 = await T.buildingAt(lat, lon, { endpoint: ["x"], fetchImpl: reply([{ tags: { building: "yes", height: "50" }, geometry: box(0.002) }]) });
+  ok(r4 === null, "220m 離れた建物は使わない（25m まで）");
+  const r5 = await T.buildingAt(lat, lon, { endpoint: ["busy", "ok"], fetchImpl: async (url) => (url === "busy"
+    ? { ok: true, json: async () => ({ elements: [], remark: "runtime error: timeout" }) }
+    : { ok: true, json: async () => ({ elements: [{ tags: { building: "yes", height: "120" }, geometry: box() }] }) }) });
+  ok(r5 && r5.heightM === 120, "打ち切られた返事（remark）は使わず次のミラーへ");
+  // relation（外側の輪郭が複数）の建物も、点が輪郭の中なら使う
+  const r7 = await T.buildingAt(lat, lon, { endpoint: ["x"], fetchImpl: reply([{ type: "relation", tags: { building: "yes", height: "300" },
+    members: [{ role: "outer", geometry: box() }, { role: "outer", geometry: box(0.01) }] }]) });
+  ok(r7 && r7.heightM === 300 && r7.distM === 0, "relation の建物も使う（外側の輪郭の中）", JSON.stringify(r7));
+  // 待つのは全体で timeoutMs まで（ミラーが2つとも遅くても、足し算で待たない）
+  const t0 = Date.now();
+  const slow = async (url, o) => new Promise((res, rej) => { const id = setTimeout(() => res({ ok: true, json: async () => ({ elements: [] }) }), 5000);
+    o.signal && o.signal.addEventListener("abort", () => { clearTimeout(id); rej(new Error("abort")); }); });
+  await T.buildingAt(lat, lon, { endpoint: ["a", "b", "c"], fetchImpl: slow, timeoutMs: 1500 });
+  ok(Date.now() - t0 < 2500, "ミラーが返らなくても全体の打ち切りで終わる", `${Date.now() - t0}ms`);
+  const r6 = await T.buildingAt(lat, lon, { endpoint: ["x"], fetchImpl: async () => { throw new Error("offline"); } });
+  ok(r6 === null, "通信できなければ null");
+}
+
 console.log(`\n${fail === 0 ? "TERRAIN OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

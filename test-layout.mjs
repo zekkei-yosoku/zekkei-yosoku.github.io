@@ -493,6 +493,13 @@ ok(/function planeOpAt\(at, \{ auto = false \} = \{\}\) \{\s+if \(plane\.op && !
   ok(label(["north"]) === "北風運用" && label(["southBay", "south"]) === "南風運用（湾側・都心上空）", "月丼: 南風の日は「南風運用（湾側・都心上空）」とまとめる", label(["southBay", "south"]));
 }
 
+// ユーザー「その他の目標って自分でその建物の高さを入力する…海抜足さなくていいんだよね」「建物の高さがわかるなら自動で入力がいいな」
+ok(/const b = await aimBuildingAt\(p\.latitude, p\.longitude\);\s+if \(b\) \{ h = Math\.round\(b\.heightM\); auto = b\.estimated \? "estimated" : true; \}/.test(html), "他の目標: 建物の高さを自動で入れる（階数からの見積もりは推定と分かるように）");
+ok(/for \(const b of await tallBuildings\(\)\)/.test(html) && /return await SoramiTerrain\.buildingAt\(lat, lon\);/.test(html), "まず同梱の高い建物の一覧、無ければ OpenStreetMap に問い合わせる");
+ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM : typedNow \? typed : null;/.test(html), "お気に入り・検索の高さ、打ち込んだ高さを先に使う");
+ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れるのは地上からの高さ）");
+ok(/c\.heightAuto === "estimated" \? "（地図から・推定）" : c\.heightAuto \? "（地図から）" : ""/.test(html), "自動で入れた高さは「（地図から）」、見積もりは「（地図から・推定）」と添える");
+
 console.log("== 細かい説明文は出さない（2026-10-01） ==");
 // ユーザー「細かい説明文ってこのApp上はいらないと思ってる」「こういうのもいらない。出しておいた方がいいなら畳んでおいてほしい」
 for (const [what, re] of [
@@ -761,7 +768,7 @@ ok(/<div id="favTargetBox" hidden>\s*<label class="fav-l" for="favTargetH">重�
 ok(/\$\("favStandBox"\)\.hidden = \$\("favPhBox"\)\.hidden = target !== null;/.test(html), "目標として開いたら、立って見る場所の項目は隠す");
 ok(/targetHeightM: favTargetHeight\(\),/.test(html) && /\|\| favTargetHeight\(\) !== o\.targetHeightM;/.test(html), "保存する・変えたら閉じるときに確かめる");
 ok(/targetHeightM: Number\.isFinite\(f\.targetHeightM\) && f\.targetHeightM >= 0 && f\.targetHeightM <= 1000/.test(html), "読み込みでも検査する（同期で別端末へも渡る）");
-ok(/const h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM/.test(html), "0m で登録した目標は 0m のまま（前に入れた高さを引きずらない）");
+ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM/.test(html), "0m で登録した目標は 0m のまま（前に入れた高さを引きずらない）");
 
 console.log("== 道具ごとに観測地点の書き方をそろえる（2026-10-01） ==");
 ok(/const g = !elevation \? null : f && f\.inherited \? place\.elevation \?\? bundle\?\.home\.grid\.elevation \?\? groundM : groundM;/.test(html),
