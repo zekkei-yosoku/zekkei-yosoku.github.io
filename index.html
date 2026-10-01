@@ -1426,21 +1426,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001114856"></script>
+<script src="sorami-core.js?v=20261001115201"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001114856"></script>
-<script src="sorami-exif.js?v=20261001114856"></script>
-<script src="sorami-capcloud.js?v=20261001114856"></script>
-<script src="sorami-terrain.js?v=20261001114856"></script>
-<script src="sorami-mountain.js?v=20261001114856"></script>
-<script src="sorami-fuji.js?v=20261001114856"></script>
-<script src="sorami-sky.js?v=20261001114856"></script>
-<script src="sorami-routes.js?v=20261001114856"></script>
-<script src="sorami-iss.js?v=20261001114856"></script>
-<script src="sorami-plane.js?v=20261001114856"></script>
-<script src="sorami-align.js?v=20261001114856"></script>
-<script src="sorami-moon.js?v=20261001114856"></script>
+<script src="sorami-astro.js?v=20261001115201"></script>
+<script src="sorami-exif.js?v=20261001115201"></script>
+<script src="sorami-capcloud.js?v=20261001115201"></script>
+<script src="sorami-terrain.js?v=20261001115201"></script>
+<script src="sorami-mountain.js?v=20261001115201"></script>
+<script src="sorami-fuji.js?v=20261001115201"></script>
+<script src="sorami-sky.js?v=20261001115201"></script>
+<script src="sorami-routes.js?v=20261001115201"></script>
+<script src="sorami-iss.js?v=20261001115201"></script>
+<script src="sorami-plane.js?v=20261001115201"></script>
+<script src="sorami-align.js?v=20261001115201"></script>
+<script src="sorami-moon.js?v=20261001115201"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5970,7 +5970,9 @@ aim.fromSeq = 0;
 function aimFromPoint() {
   if (aim.from) return aim.from;
   return Number.isFinite(place.latitude)
-    ? { name: place.name, subtitle: place.subtitle || "", latitude: place.latitude, longitude: place.longitude, inherited: true }
+    // 住所は検索のときと同じく都道府県＋市区町村まで（地点カードの説明は「山 ・ 東京都八王子市」と種類も入る）
+    ? { name: place.name, subtitle: aimAreaOf({ detail: place.subtitle || "" }) || place.subtitle || "",
+        latitude: place.latitude, longitude: place.longitude, inherited: true }
     : null;
 }
 function aimSetFrom(p, { keepMap = false } = {}) {

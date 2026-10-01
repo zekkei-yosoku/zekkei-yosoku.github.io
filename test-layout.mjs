@@ -242,10 +242,11 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/"ここからは重なりません。"/.test(html) && !/この1年、ここからは重なりません/.test(html), "重ならない地点は「ここからは重なりません」");
   ok(/重なるのは、月が明るい空にあるときだけです/.test(html) && /縁がかすめるだけで、重なりません/.test(html), "出さない理由があるときだけ、その理由を書く");
   ok(/aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる<\/button>/.test(html), "釦の名前は「ここから重ねる」");
-  ok(/function aimFromPoint\(\) \{\s+if \(aim\.from\) return aim\.from;[\s\S]{0,200}inherited: true/.test(html),
+  ok(/function aimFromPoint\(\) \{\s+if \(aim\.from\) return aim\.from;[\s\S]{0,500}inherited: true/.test(html),
     "替えていなければ絶景予測の地点を引き継ぐ");
   ok(/\$\("aimFromSearch"\)\.value = f \? f\.name : "";/.test(fn), "引き継いだ地点の名前を欄に入れておく");
   ok(/（絶景予測で選んでいる地点）/.test(fn), "引き継いだ地点なら、そう書く");
+  ok(/subtitle: aimAreaOf\(\{ detail: place\.subtitle \|\| "" \}\)/.test(html), "引き継いだ地点の住所も都道府県＋市区町村まで");
   ok(!/id="aimFromHere"/.test(html), "引き継ぐための別の釦は置かない（欄に入れておく）");
   ok(/\$\("aimPick"\)\.onclick = async \(\) => \{[\s\S]{0,300}aimSetFrom\(/.test(html), "地図の中心も同じ観測地点にする（アプリ全体の地点は変えない）");
   ok(!/\$\("aimPick"\)\.hidden = aimIsFuji\(\)/.test(html), "富士山でも地図の中心で選べる");
