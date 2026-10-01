@@ -271,7 +271,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/\$\("aimPick"\)\.onclick = async \(\) => \{[\s\S]{0,300}aimSetFrom\(/.test(html), "地図の中心も同じ観測地点にする（アプリ全体の地点は変えない）");
   ok(!/\$\("aimPick"\)\.hidden = aimIsFuji\(\)/.test(html), "富士山でも地図の中心で選べる");
   ok(/class="tiny aim-day" data-from-day=/.test(fn), "次に重なる日は日付の小さな釦で（押すとその日の線と候補地へ）");
-  ok(/SoramiAlign\.lineOfSight\(obs, aim\.target/.test(fn) && /aimSightBuildings\(obs, D\)/.test(fn), "見通し（地形・高い建物）を添える");
+  ok(/SoramiAlign\.lineOfSight\(obs, aim\.target/.test(fn) && /aimSightBuildings\(obs, D,/.test(fn), "見通し（地形・高い建物）を添える");
   // 見えないなら、重なる日の上に目立つ形で「見えません」（2026-10-02 ユーザー「そもそも目標物が見えませんとかって出した方がいい」）
   ok(/head \+ sightSlot \+ \(chips/.test(fn), "見通しの欄は重なる日の上");
   ok(/ここからは\$\{esc\(aim\.target\.name\)\}\$\{part \? `の\$\{esc\(part\.name\)\}` : ""\}が見えません/.test(fn)
@@ -513,8 +513,10 @@ ok(/\$\("aimTargetSub"\)\.textContent = c\s+\? \[c\.subtitle, `標高 \$\{Math\.
   // 首都圏の外は、目標へ向かう線に掛かる建物を問い合わせる。一覧の外を「隠れない」と言わない
   const sb = html.slice(html.indexOf("async function aimSightBuildings"), html.indexOf("async function aimBuildingBlocks"));
   ok(/tallCovers\(all, obs\.latitude, obs\.longitude\) && tallCovers\(all, end\.latitude, end\.longitude\)/.test(sb)
-    && /SoramiTerrain\.buildingsAlong\(obs, end\)/.test(sb), "首都圏の外は線に掛かる建物を OpenStreetMap に問い合わせる");
+    && /SoramiTerrain\.buildingsAlong\(obs, end,/.test(sb), "首都圏の外は線に掛かる建物を OpenStreetMap に問い合わせる");
   ok(/if \(!got\) return null;/.test(sb), "問い合わせられなければ「確かめられない」（null）");
+  ok(/SoramiTerrain\.buildingsAlong\(obs, end, \{ wanted \}\)/.test(sb) && /aimSightBuildings\(obs, D, \(\) => seq === aim\.fromSeq\)/.test(html),
+    "観測地点を替えたら、待っている問い合わせは投げない");
   ok(/if \(!cands\.every\(\(c\) => tallCovers\(all, c\.stand\.latitude, c\.stand\.longitude\)\)\) return "outside";/.test(html)
     && /"建物で隠れるかは、首都圏の外では確かめていません。"/.test(html), "候補地も、首都圏の外では建物を確かめていないと書く");
   ok(/connect-src[^"]*https:\/\/maps\.mail\.ru/.test(html), "Overpass の予備（maps.mail.ru）へつなげる（CSP）");

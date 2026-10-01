@@ -385,7 +385,7 @@
     "https://z.overpass-api.de/api/interpreter",
     "https://lz4.overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
-    // 本家（overpass-api.de の3つ）が接続を断り、kumi も返らないときに通った（2026-10-02 実測）
+    // overpass-api.de の3台が接続を断り（この回線の遮断の疑い）、kumi も返らないときに通った（2026-10-02 実測）
     "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
   ];
 
@@ -638,11 +638,27 @@
   }
 
   /**
-   * **ミラーへ同時に聞き、使える最初の返事を使う**（残りは打ち切る）。1つずつ順に聞くと、混んでいる先に当たって
+   * **運営の違うサーバーへ1本ずつ同時に聞き、使える最初の返事を使う**（残りは打ち切る）。1つずつ順に聞くと、混んでいる先に当たって
    * 打ち切りまで待ち、3回に2回は取れなかった（2026-10-01 実測。z.overpass は空を返し、overpass-api.de は返らないことがある）。
-   * 打ち切りの返事（remark）は使わない。`usable(d)` が偽の返事（空など）も使わない。待つのは全体で timeoutMs まで。取れなければ null
+   * 打ち切りの返事（remark）は使わない。`usable(d)` が偽の返事（空など）も使わない。待つのは全体で timeoutMs まで。取れなければ null。
+   *
+   * **1台に同時1本**（技術構成「Overpass へ問い合わせるときの決まり」）。overpass-api.de は受付で、裏の z・lz4 へ振り分けるので、
+   * z・lz4 と一緒に投げると裏の1台に2本届く。**同時に投げるときは受付を外す**。画面の中でも**問い合わせは1つずつ**（前のが終わってから。
+   * 待つあいだに要らなくなったら `wanted()` が偽を返し、投げない）。2026-10-01 に受付と z・lz4 へ同時に投げる作りにして試験を重ね、
+   * 翌日 overpass-api.de の3台ともこの回線からの接続を拒否していた（2026-09-30 の遮断と同じ症状）
    */
-  async function overpassFirst(q, usable, { endpoint = OVERPASS, fetchImpl, timeoutMs }) {
+  let overpassBusy = null;
+  async function overpassFirst(q, usable, { endpoint = OVERPASS, fetchImpl, timeoutMs, wanted = null }) {
+    while (overpassBusy) await overpassBusy.catch(() => {});
+    if (wanted && !wanted()) return null;
+    const run = overpassAsk(q, usable, { endpoint, fetchImpl, timeoutMs });
+    overpassBusy = run;
+    try { return await run; } finally { if (overpassBusy === run) overpassBusy = null; }
+  }
+  async function overpassAsk(q, usable, { endpoint, fetchImpl, timeoutMs }) {
+    const all = Array.isArray(endpoint) ? endpoint : [endpoint];
+    const spread = all.filter((u) => !/^https:\/\/overpass-api\.de\//.test(u));
+    const list = spread.length && spread.length < all.length ? spread : all;
     const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
     const timer = setTimeout(() => ctrl && ctrl.abort(), timeoutMs);
     const ask = async (url) => {
@@ -656,7 +672,7 @@
       if (!d || d.remark || !Array.isArray(d.elements) || !usable(d)) throw new Error("empty");
       return d;
     };
-    try { return await Promise.any((Array.isArray(endpoint) ? endpoint : [endpoint]).map(ask)); }
+    try { return await Promise.any(list.map(ask)); }
     catch { return null; }
     finally { clearTimeout(timer); if (ctrl) ctrl.abort(); }
   }
@@ -668,7 +684,7 @@
    * **空の返事は、道路の数（out count）が入っているときだけ「高い建物は無い」とみなす**（壊れたミラーは何も入れずに返す）。取れなければ null。
    * 打ち切りは 25秒（urbanHorizon と同じ）。大阪の 1.5km の線で返事まで 17〜23秒かかった（2026-10-02 実測）
    */
-  async function buildingsAlong(from, to, { widthM = 10, minHeightM = 20, endpoint = OVERPASS, fetchImpl = null, timeoutMs = 25000 } = {}) {
+  async function buildingsAlong(from, to, { widthM = 10, minHeightM = 20, endpoint = OVERPASS, fetchImpl = null, timeoutMs = 25000, wanted = null } = {}) {
     const f = fetchImpl || (typeof fetch === "function" ? fetch : null);
     if (!f) return null;
     const line = `around:${widthM},${from.latitude},${from.longitude},${to.latitude},${to.longitude}`;
@@ -677,7 +693,7 @@
       + `way["building:part"]["height"](${line});way["man_made"="tower"]["height"](${line});`
       + `);out tags geom;way["highway"](${line});out count;`;
     const roads = (d) => d.elements.some((e) => e.type === "count" && Number(e.tags && e.tags.ways) > 0);
-    const d = await overpassFirst(q, (x) => roads(x) || x.elements.some((e) => e.type === "way"), { endpoint, fetchImpl: f, timeoutMs });
+    const d = await overpassFirst(q, (x) => roads(x) || x.elements.some((e) => e.type === "way"), { endpoint, fetchImpl: f, timeoutMs, wanted });
     if (!d) return null;
     const out = [];
     for (const el of d.elements) {

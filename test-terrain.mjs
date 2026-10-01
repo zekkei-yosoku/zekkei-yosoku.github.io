@@ -304,6 +304,20 @@ console.log("== その点に建つ建物の高さ（2026-10-01） ==");
   ok(b3 && b3.length === 1 && b3[0].heightM === 60, "何も入っていない返事（壊れたミラー）は使わず、次のミラーへ");
   const b4 = await T.buildingsAlong({ latitude: lat, longitude: lon }, to, { endpoint: ["x"], fetchImpl: along([]) });
   ok(b4 === null, "どのミラーも何も入れずに返したら、確かめられない（null）");
+  // 1台に同時1本（技術構成「Overpass へ問い合わせるときの決まり」）
+  {
+    const hits = [];
+    let inFlight = 0, maxInFlight = 0;
+    const slowOk = async (url) => { hits.push(url); inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 50)); inFlight--; return { ok: true, json: async () => ({ elements: [count(3)] }) }; };
+    const eps = ["https://overpass-api.de/api/interpreter", "https://z.overpass-api.de/api/interpreter"];
+    await Promise.all([1, 2, 3].map(() => T.buildingsAlong({ latitude: lat, longitude: lon }, to, { endpoint: eps, fetchImpl: slowOk })));
+    ok(maxInFlight === 1, "画面の中の問い合わせは1つずつ（前のが終わってから）", `同時 ${maxInFlight}`);
+    ok(hits.length === 3 && hits.every((u) => u.startsWith("https://z.")), "受付（overpass-api.de）と裏（z・lz4）へ同時に投げない", hits.join(" "));
+    let asked = 0;
+    const skipped = await T.buildingsAlong({ latitude: lat, longitude: lon }, to, { endpoint: ["x"], fetchImpl: async () => { asked++; return { ok: true, json: async () => ({ elements: [count(1)] }) }; }, wanted: () => false });
+    ok(skipped === null && asked === 0, "待つあいだに要らなくなった問い合わせは投げない");
+  }
   const r6 = await T.buildingAt(lat, lon, { endpoint: ["x"], fetchImpl: async () => { throw new Error("offline"); } });
   ok(r6 === null, "通信できなければ null");
 }

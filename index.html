@@ -1562,21 +1562,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002002038"></script>
+<script src="sorami-core.js?v=20261002082619"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002002038"></script>
-<script src="sorami-exif.js?v=20261002002038"></script>
-<script src="sorami-capcloud.js?v=20261002002038"></script>
-<script src="sorami-terrain.js?v=20261002002038"></script>
-<script src="sorami-mountain.js?v=20261002002038"></script>
-<script src="sorami-fuji.js?v=20261002002038"></script>
-<script src="sorami-sky.js?v=20261002002038"></script>
-<script src="sorami-routes.js?v=20261002002038"></script>
-<script src="sorami-iss.js?v=20261002002038"></script>
-<script src="sorami-plane.js?v=20261002002038"></script>
-<script src="sorami-align.js?v=20261002002038"></script>
-<script src="sorami-moon.js?v=20261002002038"></script>
+<script src="sorami-astro.js?v=20261002082619"></script>
+<script src="sorami-exif.js?v=20261002082619"></script>
+<script src="sorami-capcloud.js?v=20261002082619"></script>
+<script src="sorami-terrain.js?v=20261002082619"></script>
+<script src="sorami-mountain.js?v=20261002082619"></script>
+<script src="sorami-fuji.js?v=20261002082619"></script>
+<script src="sorami-sky.js?v=20261002082619"></script>
+<script src="sorami-routes.js?v=20261002082619"></script>
+<script src="sorami-iss.js?v=20261002082619"></script>
+<script src="sorami-plane.js?v=20261002082619"></script>
+<script src="sorami-align.js?v=20261002082619"></script>
+<script src="sorami-moon.js?v=20261002082619"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6482,7 +6482,7 @@ async function aimRenderFrom() {
   } catch { /* 確かめられなくても日付は出す */ }
   if (seq !== aim.fromSeq) return;
   if (!hidden) {
-    const x = await aimSightBuildings(obs, D);
+    const x = await aimSightBuildings(obs, D, () => seq === aim.fromSeq);
     if (seq !== aim.fromSeq) return;
     if (!x) buildingsKnown = false;
     else if (x.blocked) hidden = x.by ? `${x.by.distanceM}m 先の高さ ${Math.round(x.by.heightM)}m の建物に隠れます` : "高い建物に隠れます";
@@ -6765,7 +6765,7 @@ function tallCovers(all, lat, lon) {
 /// どこから重ねるか（1地点）の、建物の見通し。首都圏は同梱の一覧、外は目標へ向かう線に掛かる建物を OpenStreetMap に問い合わせる。
 /// 確かめられなければ null
 const aimAlongCache = new Map();
-async function aimSightBuildings(obs, D) {
+async function aimSightBuildings(obs, D, wanted = null) {
   const t = aim.target;
   const reach = Math.min(1.5, D - 0.3);
   if (!(reach > 0)) return { blocked: false, by: null };
@@ -6781,7 +6781,7 @@ async function aimSightBuildings(obs, D) {
   if (!near) {
     const key = [obs.latitude, obs.longitude, end.latitude, end.longitude].map((v) => v.toFixed(5)).join(",");
     if (!aimAlongCache.has(key)) {
-      const got = await SoramiTerrain.buildingsAlong(obs, end);
+      const got = await SoramiTerrain.buildingsAlong(obs, end, { wanted });
       if (!got) return null;            // 取れなかったことは覚えない（次は取れるかもしれない）
       aimAlongCache.set(key, got);
     }
