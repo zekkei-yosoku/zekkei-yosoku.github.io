@@ -1554,21 +1554,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001232254"></script>
+<script src="sorami-core.js?v=20261001232720"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001232254"></script>
-<script src="sorami-exif.js?v=20261001232254"></script>
-<script src="sorami-capcloud.js?v=20261001232254"></script>
-<script src="sorami-terrain.js?v=20261001232254"></script>
-<script src="sorami-mountain.js?v=20261001232254"></script>
-<script src="sorami-fuji.js?v=20261001232254"></script>
-<script src="sorami-sky.js?v=20261001232254"></script>
-<script src="sorami-routes.js?v=20261001232254"></script>
-<script src="sorami-iss.js?v=20261001232254"></script>
-<script src="sorami-plane.js?v=20261001232254"></script>
-<script src="sorami-align.js?v=20261001232254"></script>
-<script src="sorami-moon.js?v=20261001232254"></script>
+<script src="sorami-astro.js?v=20261001232720"></script>
+<script src="sorami-exif.js?v=20261001232720"></script>
+<script src="sorami-capcloud.js?v=20261001232720"></script>
+<script src="sorami-terrain.js?v=20261001232720"></script>
+<script src="sorami-mountain.js?v=20261001232720"></script>
+<script src="sorami-fuji.js?v=20261001232720"></script>
+<script src="sorami-sky.js?v=20261001232720"></script>
+<script src="sorami-routes.js?v=20261001232720"></script>
+<script src="sorami-iss.js?v=20261001232720"></script>
+<script src="sorami-plane.js?v=20261001232720"></script>
+<script src="sorami-align.js?v=20261001232720"></script>
+<script src="sorami-moon.js?v=20261001232720"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4118,7 +4118,7 @@ function choosePlace(p) {
   const picker = placeSheetFor && PLACE_PICKERS[placeSheetFor];
   if (picker) {
     $("placeSheet").close();          // 閉じると placeSheetFor は null に戻る
-    picker.set({ name: p.name, subtitle: aimAreaOf({ detail: p.subtitle || "" }) || p.subtitle || "",
+    picker.set({ id: p.id, name: p.name, subtitle: aimAreaOf({ detail: p.subtitle || "" }) || p.subtitle || "",
       latitude: p.latitude, longitude: p.longitude, structureM: p.structureM ?? null, targetHeightM: p.targetHeightM ?? null });
     return;
   }
@@ -4135,8 +4135,13 @@ const PLACE_PICKERS = {
     set: (p) => aimSetFrom(p),
     reset: () => { aim.from = null; aimRenderFrom(); AimMap.open({ latitude: place.latitude, longitude: place.longitude }, Math.max(11, Math.round(AimMap.zoom()))); } },
   // お気に入りから選んだら、登録した高さで置く
+  // 目標として登録したお気に入りを選んだら、プルダウンの「お気に入り」のそれにする（他の目標へ写さない）
   aimTarget: { title: "どこに重ねるか", custom: () => null, point: () => store.get("sorami.aimCustom", null) || AimMap.center(),
-    set: (p) => aimSetCustomTarget({ ...p, heightM: p.targetHeightM ?? p.structureM }) },
+    set: (p) => {
+      const f = favorites.find((x) => x.id === p.id && Number.isFinite(x.targetHeightM));
+      if (f) { aimFillSelects(); $("aimTarget").value = `fav:${f.id}`; aimApply({ recenter: true }); return; }
+      aimSetCustomTarget({ ...p, heightM: p.targetHeightM ?? p.structureM });
+    } },
   iss: { title: "どこの近くで探すか", custom: () => iss.from, point: () => issFromPoint(),
     set: (p) => issSetFrom(p), reset: () => issSetFrom(null) },
   plane: { title: "どこから重ねるか", custom: () => plane.from, point: () => planeFromPoint(),
@@ -4728,6 +4733,25 @@ function aimCustomTarget() {
     note: `地上 ${Math.round(c.heightM)}m ＋ 地面の標高およそ${Math.round(c.groundM)}m`,
     groundM: c.groundM, parts: [{ id: "tip", name: "てっぺん", m: c.topM }] };
 }
+/// 目標として登録したお気に入り（高さつき）。題名のプルダウンの「お気に入り」に並べる
+/// （2026-10-01 ユーザー「お気に入りに入れたやつは保存しておいてプルダウンに表示するようにしたら。そのお気に入りはちゃんと消したりできるように」）。
+/// 消すのは、選んだときに出るカードの ★ →「お気に入りから外す」（地点の画面のお気に入りの ✕ でも消える）
+const aimFavTargets = () => favorites.filter((f) => Number.isFinite(f.targetHeightM));
+function aimFavTarget(f) {
+  const ground = Number.isFinite(f.elevation) ? f.elevation : 0;
+  return { id: `fav:${f.id}`, favId: f.id, name: f.name, latitude: f.latitude, longitude: f.longitude, groundM: ground,
+    parts: [{ id: "tip", name: "てっぺん", m: ground + f.targetHeightM }] };
+}
+/// いま選んでいる他の目標・お気に入りの目標の中身（カードに出す形）。どちらでもなければ null
+function aimTargetInfo() {
+  const v = $("aimTarget").value;
+  if (v.startsWith("fav:")) {
+    const f = favorites.find((x) => `fav:${x.id}` === v);
+    return f ? { fav: f, name: f.name, subtitle: aimAreaOf({ detail: f.subtitle }) || f.subtitle,
+      latitude: f.latitude, longitude: f.longitude, groundM: Number.isFinite(f.elevation) ? f.elevation : 0, heightM: f.targetHeightM } : null;
+  }
+  return v === "custom" ? store.get("sorami.aimCustom", null) : null;
+}
 /// 高さを直した目標。避雷針の先端のように**公表値が無いもの**は、端末に憶えた値を使う
 function aimWithHeights(t) {
   const hs = store.get("sorami.aimHeights", {});
@@ -4744,15 +4768,19 @@ function aimTargetList() {
   const fujiOk = toolAllowed("diamond") || toolAllowed("pearl"), towerOk = toolAllowed("tower");
   const all = !fujiOk && !towerOk;
   return [...SoramiAlign.TARGETS.filter((t) => (t.id === "fuji" ? fujiOk : towerOk) || all).map(aimWithHeights),
-    ...(towerOk || all ? [custom || { id: "custom", name: "他の目標", parts: [] }] : [])];
+    ...(towerOk || all ? [...aimFavTargets().map(aimFavTarget), custom || { id: "custom", name: "他の目標", parts: [] }] : [])];
 }
 function aimFillSelects() {
   // 他の目標（2026-10-01 に「自分で置く」から改名。ユーザーが候補から選んだ）は、一覧では「他の目標（◯◯）」。題名の枠には◯◯（場所の名前）だけ
   const custom = aimCustomTarget();
   // 作り直しても選んでいたものは残す（他の目標を置き直すたびに、合わせ方が最初の選択肢へ戻っていた）
   const keep = { target: $("aimTarget").value, limb: $("aimLimb").value };
-  $("aimTarget").innerHTML = aimTargetList()
-    .map((t) => `<option value="${t.id}">${esc(t.id === "custom" ? (custom ? `他の目標（${t.name}）` : "他の目標") : t.name)}</option>`).join("");
+  const list = aimTargetList();
+  const opt = (t) => `<option value="${t.id}">${esc(t.id === "custom" ? (custom ? `他の目標（${t.name}）` : "他の目標") : t.name)}</option>`;
+  const favs = list.filter((t) => t.favId);
+  $("aimTarget").innerHTML = list.filter((t) => !t.favId && t.id !== "custom").map(opt).join("")
+    + (favs.length ? `<optgroup label="お気に入り">${favs.map(opt).join("")}</optgroup>` : "")
+    + list.filter((t) => t.id === "custom").map(opt).join("");
   $("aimLimb").innerHTML = SoramiAlign.LIMBS
     .map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
   if (keep.target) $("aimTarget").value = keep.target;
@@ -6098,6 +6126,8 @@ function openSky() {
 }
 
 function aimApply({ redraw = true, recenter = false } = {}) {
+  // お気に入りは増えたり消えたりする（ほかの画面・同期）ので、毎回組み直す。消えた目標を選んでいたら先頭へ
+  aimFillSelects();
   const wanted = $("aimTarget").value || "fuji";
   const isFuji = wanted === "fuji";
   // 次に開いたときも同じ目標で開く
@@ -6110,11 +6140,13 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   $("aimMoon").hidden = anyOk && !moonOk;
   if (aim.body === "sun" && anyOk && !sunOk) aim.body = "moon";
   if (aim.body === "moon" && anyOk && !moonOk) aim.body = "sun";
+  const favT = wanted.startsWith("fav:") ? aimFavTargets().find((f) => `fav:${f.id}` === wanted) : null;
   aim.target = wanted === "custom"
     ? (aimCustomTarget() || { id: "custom", name: "他の目標", parts: [] })
+    : favT ? aimFavTarget(favT)
     : aimWithHeights(SoramiAlign.targetById(wanted) || SoramiAlign.TARGETS[0]);
-  // 自分で置く目標のときだけ、目標の場所のカード・高さの入力・地図の「ここに重ねる」を出す
-  const customOn = wanted === "custom";
+  // 他の目標・お気に入りの目標のときだけ、目標の場所のカード・高さの入力・地図の「ここに重ねる」を出す
+  const customOn = wanted === "custom" || !!favT;
   $("aimTargetCard").hidden = !customOn;
   $("aimCustomRow").hidden = !customOn;
   $("aimPickTarget").hidden = !customOn;
@@ -6308,7 +6340,7 @@ async function aimSetCustomTarget(p, { keepMap = false } = {}) {
 }
 /// 目標の場所のカード（地点カードと同じ形）。高さの欄にも今の値を入れる
 function aimRenderTargetCard() {
-  const c = store.get("sorami.aimCustom", null);
+  const c = aimTargetInfo();
   $("aimTargetName").textContent = c ? c.name || "他の目標" : "重ねる目標の場所を選ぶ";
   $("aimTargetSub").textContent = c
     // 高さが 0 のままだと線が出ないことが多い（地面そのものに重ねることになる）。入れればよいと分かるように書く
@@ -6322,13 +6354,18 @@ function aimRenderTargetCard() {
 $("aimCustomH").addEventListener("input", () => { $("aimCustomH").dataset.edited = "1"; });
 // 他の目標を、高さごとお気に入りに。保存したら付けた名前と登録した高さで置き直す
 $("aimTargetFav").onclick = () => {
-  const c = store.get("sorami.aimCustom", null);
+  const c = aimTargetInfo();
   if (!c) return;
   favForPoint({ name: c.name, subtitle: c.subtitle, latitude: c.latitude, longitude: c.longitude }, (entry) => {
-    if (entry && SoramiTerrain.distanceKm(entry.latitude, entry.longitude, c.latitude, c.longitude) < 0.02) {
-      aimSetCustomTarget({ name: entry.name, subtitle: aimAreaOf({ detail: entry.subtitle }) || entry.subtitle,
-        latitude: c.latitude, longitude: c.longitude, heightM: entry.targetHeightM ?? c.heightM }, { keepMap: true });
-    } else aimRenderTargetCard();
+    if (entry && Number.isFinite(entry.targetHeightM)
+        && SoramiTerrain.distanceKm(entry.latitude, entry.longitude, c.latitude, c.longitude) < 0.02) {
+      // 目標として登録したら、プルダウンの「お気に入り」のそれを選ぶ。他の目標は空ける（同じものを2つ並べない）
+      if (!c.fav) store.set("sorami.aimCustom", null);
+      aimFillSelects();
+      $("aimTarget").value = `fav:${entry.id}`;
+    }
+    // 消したときは、プルダウンから外れて先頭へ戻る（aimApply が組み直す）
+    aimApply();
   }, { target: c.heightM || 0 });
 };
 /// 検索結果の住所を「千葉県市川市」まで縮める（OSM の住所は「曽谷, 市川柏線, 宮久保四丁目, 市川市, 千葉県, 272-0822, 日本」と長い）
@@ -6773,6 +6810,20 @@ function openAim(preset) {
     // 自分で置いた目標の高さ（地上から）を直す。場所はそのまま
     $("aimCustomSet").onclick = () => {
       const h = Number($("aimCustomH").value);
+      // お気に入りの目標なら、お気に入りの高さを直す（同期で他の端末へも）
+      const fv = $("aimTarget").value;
+      if (fv.startsWith("fav:")) {
+        if (!Number.isFinite(h) || h < 0 || h > 1000) { $("aimLineInfo").textContent = "高さ（地上から・m）を入れてください。"; return; }
+        const i = favorites.findIndex((f) => `fav:${f.id}` === fv);
+        if (i < 0) return;
+        const before = favorites[i];
+        favorites[i] = { ...before, targetHeightM: h };
+        if (!saveFavorites()) { favorites[i] = before; return; }
+        queuePush("fav", favorites[i].id);
+        delete $("aimCustomH").dataset.edited;
+        aimApply();
+        return;
+      }
       const c = store.get("sorami.aimCustom", null);
       if (!c) { $("aimLineInfo").textContent = "先に重ねる目標の場所を選んでください。"; return; }
       if (!Number.isFinite(h) || h < 0 || h > 1000) { $("aimLineInfo").textContent = "高さ（地上から・m）を入れてください。"; return; }
