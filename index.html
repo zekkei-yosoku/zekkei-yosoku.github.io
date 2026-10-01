@@ -605,7 +605,9 @@
      **切り替えは折り返さない。** 字の入った切り替えだと「東京スカイツリーに重ねる」と1行に入らず、切り替えが次の行に落ちて、
      下の「どこから重ねるか」が富士山の画面より 33px 下がっていた（道具ごとに位置が変わる）。長い題名は題名の側が折り返す */
   .aim-head { align-items: center; flex-wrap: nowrap; }
-  .aim-head h2 { min-width: 0; }
+  /* 題名が2行に折れても（320px で「東京スカイツリーに重ねる」）帯の高さを切り替えの高さ（44px）に収め、下の位置を動かさない */
+  .aim-head { min-height: 44px; }
+  .aim-head h2 { min-width: 0; line-height: 1.3; }
   .aim-head .aim-seg button { min-width: 44px; padding: 0 8px; font-size: 1.1rem; }
   /* どこから重ねるか（名前で探す欄）の下の、次に重なる日 */
   #aimView .search-row { margin-bottom: 4px; }
@@ -1454,21 +1456,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001123926"></script>
+<script src="sorami-core.js?v=20261001124648"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001123926"></script>
-<script src="sorami-exif.js?v=20261001123926"></script>
-<script src="sorami-capcloud.js?v=20261001123926"></script>
-<script src="sorami-terrain.js?v=20261001123926"></script>
-<script src="sorami-mountain.js?v=20261001123926"></script>
-<script src="sorami-fuji.js?v=20261001123926"></script>
-<script src="sorami-sky.js?v=20261001123926"></script>
-<script src="sorami-routes.js?v=20261001123926"></script>
-<script src="sorami-iss.js?v=20261001123926"></script>
-<script src="sorami-plane.js?v=20261001123926"></script>
-<script src="sorami-align.js?v=20261001123926"></script>
-<script src="sorami-moon.js?v=20261001123926"></script>
+<script src="sorami-astro.js?v=20261001124648"></script>
+<script src="sorami-exif.js?v=20261001124648"></script>
+<script src="sorami-capcloud.js?v=20261001124648"></script>
+<script src="sorami-terrain.js?v=20261001124648"></script>
+<script src="sorami-mountain.js?v=20261001124648"></script>
+<script src="sorami-fuji.js?v=20261001124648"></script>
+<script src="sorami-sky.js?v=20261001124648"></script>
+<script src="sorami-routes.js?v=20261001124648"></script>
+<script src="sorami-iss.js?v=20261001124648"></script>
+<script src="sorami-plane.js?v=20261001124648"></script>
+<script src="sorami-align.js?v=20261001124648"></script>
+<script src="sorami-moon.js?v=20261001124648"></script>
 <script>
 "use strict";
 const S = window.Sorami;
