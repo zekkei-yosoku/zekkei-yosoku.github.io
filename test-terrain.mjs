@@ -269,6 +269,10 @@ console.log("== その点に建つ建物の高さ（2026-10-01） ==");
     o.signal && o.signal.addEventListener("abort", () => { clearTimeout(id); rej(new Error("abort")); }); });
   await T.buildingAt(lat, lon, { endpoint: ["a", "b", "c"], fetchImpl: slow, timeoutMs: 1500 });
   ok(Date.now() - t0 < 2500, "ミラーが返らなくても全体の打ち切りで終わる", `${Date.now() - t0}ms`);
+  const r8 = await T.buildingAt(lat, lon, { endpoint: ["empty", "ok"], fetchImpl: async (url) => (url === "empty"
+    ? { ok: true, json: async () => ({ elements: [] }) }
+    : { ok: true, json: async () => ({ elements: [{ tags: { building: "yes", height: "300" }, geometry: box() }] }) }) });
+  ok(r8 && r8.heightM === 300, "空の返事は次のミラーで確かめ直す（ミラーが空を返すことがある）");
   const r6 = await T.buildingAt(lat, lon, { endpoint: ["x"], fetchImpl: async () => { throw new Error("offline"); } });
   ok(r6 === null, "通信できなければ null");
 }

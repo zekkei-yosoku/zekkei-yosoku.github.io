@@ -619,40 +619,43 @@
       + `way["building"](around:150,${lat},${lon});way["building:part"](around:150,${lat},${lon});`
       + `relation["building"](around:150,${lat},${lon});way["man_made"="tower"](around:150,${lat},${lon});`
       + `);out tags geom;`;
-    // 待つのは**全体で** timeoutMs まで（1つ目のミラーが返らないと、次を待って20秒近くかかった）
-    const deadline = Date.now() + timeoutMs;
-    for (const url of (Array.isArray(endpoint) ? endpoint : [endpoint])) {
-      const left = deadline - Date.now();
-      if (left < 1000) break;
-      try {
-        const res = await f(url, {
-          method: "POST",
-          signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(left) : undefined,
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: "data=" + encodeURIComponent(q),
-        });
-        if (!res.ok) continue;
-        const d = await res.json();
-        if (!d || d.remark || !Array.isArray(d.elements)) continue;
-        let best = null;
-        for (const el of d.elements) {
-          const h = buildingHeightM(el.tags);
-          // way は自分の輪郭、relation は外側の輪郭（複数あれば全部）
-          const rings = el.type === "relation"
-            ? (el.members || []).filter((m) => m.role === "outer" && Array.isArray(m.geometry)).map((m) => m.geometry)
-            : [el.geometry];
-          if (h === null || !rings.length || rings.some((g) => !g || g.length < 3)) continue;
-          const dist = rings.some((g) => containsPoint(g, lat, lon)) ? 0
-            : Math.min(...rings.flat().map((pt) => distanceKm(lat, lon, pt.lat, pt.lon) * 1000));
-          if (dist > 25) continue;
-          if (!best || dist < best.distM || (dist === best.distM && h > best.heightM)) {
-            best = { heightM: h, distM: dist, estimated: !(parseFloat(el.tags.height) > 0), name: el.tags.name || "" };
-          }
-        }
-        return best;   // 問い合わせが通れば、建物が無くてもここで終わり
-      } catch { /* 次のミラーへ */ }
+    // **ミラーへ同時に聞き、建物の入った最初の返事を使う**（残りは打ち切る）。1つずつ順に聞くと、混んでいる先に当たって
+    // 打ち切りまで待ち、3回に2回は取れなかった（2026-10-01 実測。z.overpass は空を返し、overpass-api.de は返らないことがある）。
+    // 空の返事・打ち切りの返事（remark）は使わない。待つのは全体で timeoutMs まで
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = setTimeout(() => ctrl && ctrl.abort(), timeoutMs);
+    const ask = async (url) => {
+      const res = await f(url, {
+        method: "POST", signal: ctrl ? ctrl.signal : undefined,
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "data=" + encodeURIComponent(q),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+      if (!d || d.remark || !Array.isArray(d.elements) || !d.elements.length) throw new Error("empty");
+      return d;
+    };
+    let d = null;
+    try { d = await Promise.any((Array.isArray(endpoint) ? endpoint : [endpoint]).map(ask)); }
+    catch { d = null; }
+    finally { clearTimeout(timer); if (ctrl) ctrl.abort(); }
+    if (!d) return null;
+    let best = null;
+    for (const el of d.elements) {
+      const h = buildingHeightM(el.tags);
+      // way は自分の輪郭、relation は外側の輪郭（複数あれば全部）
+      const rings = el.type === "relation"
+        ? (el.members || []).filter((m) => m.role === "outer" && Array.isArray(m.geometry)).map((m) => m.geometry)
+        : [el.geometry];
+      if (h === null || !rings.length || rings.some((g) => !g || g.length < 3)) continue;
+      const dist = rings.some((g) => containsPoint(g, lat, lon)) ? 0
+        : Math.min(...rings.flat().map((pt) => distanceKm(lat, lon, pt.lat, pt.lon) * 1000));
+      if (dist > 25) continue;
+      if (!best || dist < best.distM || (dist === best.distM && h > best.heightM)) {
+        best = { heightM: h, distM: dist, estimated: !(parseFloat(el.tags.height) > 0), name: el.tags.name || "" };
+      }
     }
-    return null;
+    return best;
   }
 
   /// タグから高さ[m]を出す。`height` が無ければ階数から見積もる

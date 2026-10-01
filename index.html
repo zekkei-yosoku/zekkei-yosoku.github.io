@@ -588,6 +588,10 @@
   /* 横の余白だけを上書きすると、.fav-btn の縦の余白（12px）まで消えて 24px になる。
      指の的は 44px（§3）。隣の入力欄と同じ高さにも揃う（2026-09-28 監査で発見） */
   .aim-row > button { flex: 0 0 auto; width: auto; padding: 0 14px; min-height: 44px; }
+  /* 高さの欄は単位の「m」をいつも出す（2026-10-01 ユーザー「高さの入力の際にmが自動で表示されたほうがいい気がする」） */
+  .unit-in { position: relative; display: block; }
+  .unit-in .fav-in { padding-right: 34px; }
+  .unit-in .unit { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--secondary); pointer-events: none; }
   /* 2択は押して選ぶ。選択肢が2つしかないものを select にすると、開かないと中身が見えない */
   .aim-seg { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--sunk);
              flex: 0 0 auto; }
@@ -1115,8 +1119,8 @@
     </div>
     <!-- 自分で置く目標の高さ（地上から）。検索で選んだ建物は、地図に高さがあれば最初から入る -->
     <div class="aim-row" id="aimCustomRow" hidden>
-      <input type="number" id="aimCustomH" class="fav-in" inputmode="decimal" min="0" max="1000"
-             placeholder="高さ（地上から・m）" aria-label="目標の高さ（地上から・メートル）">
+      <span class="unit-in"><input type="number" id="aimCustomH" class="fav-in" inputmode="decimal" min="0" max="9000"
+             placeholder="高さ（地上から）" aria-label="目標の高さ（地上から・メートル）"><span class="unit" aria-hidden="true">m</span></span>
       <button id="aimCustomSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">この高さで</button>
     </div>
     <div class="aim-row">
@@ -1126,8 +1130,8 @@
     <!-- 目標の高さの注記と、高さの入力（推定の塔・自分で置く目標のときだけ）。目標の行をやめたので、どこに重ねるかの下に -->
     <p class="tiny" id="aimTargetNote" style="margin:-2px 0 8px"></p>
     <div class="aim-row" id="aimHeightRow" hidden>
-      <input type="number" id="aimHeightM" class="fav-in" inputmode="decimal" min="1" max="1000"
-             aria-label="先端の高さ（地上から・メートル）">
+      <span class="unit-in"><input type="number" id="aimHeightM" class="fav-in" inputmode="decimal" min="1" max="1000"
+             aria-label="先端の高さ（地上から・メートル）"><span class="unit" aria-hidden="true">m</span></span>
       <button id="aimHeightSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">この高さで</button>
     </div>
     <p class="tiny" id="aimHeightNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
@@ -1524,7 +1528,7 @@
 
     <div id="favTargetBox" hidden>
       <label class="fav-l" for="favTargetH">重ねる目標の高さ<span class="fav-opt">地上から・m</span></label>
-      <input type="number" id="favTargetH" class="fav-in" inputmode="decimal" min="0" max="1000">
+      <span class="unit-in"><input type="number" id="favTargetH" class="fav-in" inputmode="decimal" min="0" max="1000"><span class="unit" aria-hidden="true">m</span></span>
     </div>
 
     <div id="favStandBox">
@@ -1554,21 +1558,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001232720"></script>
+<script src="sorami-core.js?v=20261001235430"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001232720"></script>
-<script src="sorami-exif.js?v=20261001232720"></script>
-<script src="sorami-capcloud.js?v=20261001232720"></script>
-<script src="sorami-terrain.js?v=20261001232720"></script>
-<script src="sorami-mountain.js?v=20261001232720"></script>
-<script src="sorami-fuji.js?v=20261001232720"></script>
-<script src="sorami-sky.js?v=20261001232720"></script>
-<script src="sorami-routes.js?v=20261001232720"></script>
-<script src="sorami-iss.js?v=20261001232720"></script>
-<script src="sorami-plane.js?v=20261001232720"></script>
-<script src="sorami-align.js?v=20261001232720"></script>
-<script src="sorami-moon.js?v=20261001232720"></script>
+<script src="sorami-astro.js?v=20261001235430"></script>
+<script src="sorami-exif.js?v=20261001235430"></script>
+<script src="sorami-capcloud.js?v=20261001235430"></script>
+<script src="sorami-terrain.js?v=20261001235430"></script>
+<script src="sorami-mountain.js?v=20261001235430"></script>
+<script src="sorami-fuji.js?v=20261001235430"></script>
+<script src="sorami-sky.js?v=20261001235430"></script>
+<script src="sorami-routes.js?v=20261001235430"></script>
+<script src="sorami-iss.js?v=20261001235430"></script>
+<script src="sorami-plane.js?v=20261001235430"></script>
+<script src="sorami-align.js?v=20261001235430"></script>
+<script src="sorami-moon.js?v=20261001235430"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4118,8 +4122,11 @@ function choosePlace(p) {
   const picker = placeSheetFor && PLACE_PICKERS[placeSheetFor];
   if (picker) {
     $("placeSheet").close();          // 閉じると placeSheetFor は null に戻る
-    picker.set({ id: p.id, name: p.name, subtitle: aimAreaOf({ detail: p.subtitle || "" }) || p.subtitle || "",
-      latitude: p.latitude, longitude: p.longitude, structureM: p.structureM ?? null, targetHeightM: p.targetHeightM ?? null });
+    // 地名の一覧の山・峠・岬・滝は、地面そのものが目標（建物を探さない）
+    picker.set({ id: p.id, natural: /^(山|峠|岬|滝)( ・|$)/.test(p.subtitle || ""),
+      name: p.name, subtitle: aimAreaOf({ detail: p.subtitle || "" }) || p.subtitle || "",
+      latitude: p.latitude, longitude: p.longitude, elevation: Number.isFinite(p.elevation) ? p.elevation : null,
+      structureM: p.structureM ?? null, targetHeightM: p.targetHeightM ?? null });
     return;
   }
   selectPlace(p);
@@ -4178,7 +4185,8 @@ async function favForPoint(f, after, { target = null } = {}) {
   if (i >= 0) { openFavSheet(i, { after, target }); return; }
   // 絶景予測の地点を引き継いでいるなら、地点カードの ☆ と同じ（地点そのものを雛形に）
   if (f.inherited) { openFavSheet(-1, { after }); return; }
-  const e = await aimElevation(f.latitude, f.longitude);
+  // 目標の地面の標高が分かっていればそれ（山は頂の標高）。無ければ地図の標高タイル
+  const e = Number.isFinite(f.groundM) ? f.groundM : await aimElevation(f.latitude, f.longitude);
   openFavSheet(-1, { after, target, point: {
     id: `map:${f.latitude.toFixed(5)},${f.longitude.toFixed(5)}`, name: f.name, subtitle: f.subtitle || "",
     latitude: f.latitude, longitude: f.longitude, elevation: Number.isFinite(e) ? Math.round(e * 10) / 10 : null,
@@ -6318,10 +6326,13 @@ function aimSetFrom(p, { keepMap = false } = {}) {
 /// （2026-10-01 ユーザー「建物なら元から情報を取っておけるよね？その建物の高さがわかるなら自動で入力がいいな」）
 async function aimSetCustomTarget(p, { keepMap = false } = {}) {
   const input = $("aimCustomH"), typed = Number(input.value);
-  const typedNow = input.dataset.edited === "1" && Number.isFinite(typed) && typed > 0;
+  // 打ち込んだ値を使うのは、欄が「地上からの高さ」のときだけ（山のときの欄は標高）
+  const typedNow = input.dataset.edited === "1" && input.dataset.mode !== "elev" && Number.isFinite(typed) && typed > 0;
   // お気に入りに 0m（山の頂など）で登録したものは 0 のまま置く
   let h = Number.isFinite(p.heightM) && p.heightM >= 0 ? p.heightM : typedNow ? typed : null;
   let auto = false;
+  // 山・峠など地面そのものが目標なら、地上 0m（標高がそのまま重ねる高さ）。建物は探さない
+  if (h === null && p.natural) h = 0;
   if (h === null) {
     $("aimTargetSub").textContent = "建物の高さを調べています…";
     const b = await aimBuildingAt(p.latitude, p.longitude);
@@ -6330,7 +6341,9 @@ async function aimSetCustomTarget(p, { keepMap = false } = {}) {
     if (b && b.name && p.fromMap) p = { ...p, name: b.name };
   }
   if (h === null) h = 0;
-  const ground = await aimElevation(p.latitude, p.longitude);
+  // 山・峠は地名の一覧の標高（頂の値）を使う。地図の標高タイルは地名の点の値で、点が頂から少しずれていると低く出る
+  // （羊蹄山は地名の点で 1703m、山頂は 1898m。2026-10-01）
+  const ground = p.natural && Number.isFinite(p.elevation) ? p.elevation : await aimElevation(p.latitude, p.longitude);
   delete input.dataset.edited;
   store.set("sorami.aimCustom", { latitude: p.latitude, longitude: p.longitude, name: p.name || "他の目標",
     subtitle: p.subtitle || "", heightM: h, heightAuto: auto, groundM: ground, topM: ground + h });
@@ -6342,11 +6355,20 @@ async function aimSetCustomTarget(p, { keepMap = false } = {}) {
 function aimRenderTargetCard() {
   const c = aimTargetInfo();
   $("aimTargetName").textContent = c ? c.name || "他の目標" : "重ねる目標の場所を選ぶ";
+  // 地上の高さが 0m なのは、山の頂など地面そのものが目標のとき（羊蹄山なら標高がそのまま重ねる高さ）。
+  // そのときは「高さを入れてください」と促さない（2026-10-01 ユーザー「羊蹄山を入れたら高さが空欄。高さを入れてくださいはいらない」）。
+  // 欄にも 0 を入れて、空欄にしない
   $("aimTargetSub").textContent = c
-    // 高さが 0 のままだと線が出ないことが多い（地面そのものに重ねることになる）。入れればよいと分かるように書く
-    ? [c.subtitle, `標高 ${Math.round(c.groundM || 0)}m`, c.heightM ? `地上 ${Math.round(c.heightM)}m${c.heightAuto === "estimated" ? "（地図から・推定）" : c.heightAuto ? "（地図から）" : ""}` : "高さ（地上から）を入れてください"].filter(Boolean).join(" ・ ")
+    ? [c.subtitle, `標高 ${Math.round(c.groundM || 0)}m`, c.heightM ? `地上 ${Math.round(c.heightM)}m${c.heightAuto === "estimated" ? "（地図から・推定）" : c.heightAuto ? "（地図から）" : ""}` : ""].filter(Boolean).join(" ・ ")
     : "検索するか、地図の「ここに重ねる」";
-  if (c && document.activeElement !== $("aimCustomH")) $("aimCustomH").value = c.heightM ? String(Math.round(c.heightM)) : "";
+  // 欄には、その目標で知られている数字を入れる: 建物は地上の高さ、山（地上 0m）は標高（富士山「山頂 3776m」・スカイツリー「先端 634m」と同じ）。
+  // 山だけ空欄にすると、建物は入って山は入らない一貫しない画面になる（2026-10-01 ユーザー「山の標高入れておけばいいんじゃない？」）
+  const elevMode = !!c && !c.heightM;
+  const input = $("aimCustomH");
+  input.dataset.mode = elevMode ? "elev" : "agl";
+  input.placeholder = elevMode ? "標高" : "高さ（地上から）";
+  input.setAttribute("aria-label", elevMode ? "目標の標高（メートル）" : "目標の高さ（地上から・メートル）");
+  if (c && document.activeElement !== input) input.value = String(Math.round(elevMode ? c.groundM || 0 : c.heightM));
   $("aimTargetFav").hidden = !c;
   if (c) renderFavStar("aimTargetFav", c);
 }
@@ -6356,7 +6378,7 @@ $("aimCustomH").addEventListener("input", () => { $("aimCustomH").dataset.edited
 $("aimTargetFav").onclick = () => {
   const c = aimTargetInfo();
   if (!c) return;
-  favForPoint({ name: c.name, subtitle: c.subtitle, latitude: c.latitude, longitude: c.longitude }, (entry) => {
+  favForPoint({ name: c.name, subtitle: c.subtitle, latitude: c.latitude, longitude: c.longitude, groundM: c.groundM }, (entry) => {
     if (entry && Number.isFinite(entry.targetHeightM)
         && SoramiTerrain.distanceKm(entry.latitude, entry.longitude, c.latitude, c.longitude) < 0.02) {
       // 目標として登録したら、プルダウンの「お気に入り」のそれを選ぶ。他の目標は空ける（同じものを2つ並べない）
@@ -6812,12 +6834,16 @@ function openAim(preset) {
       const h = Number($("aimCustomH").value);
       // お気に入りの目標なら、お気に入りの高さを直す（同期で他の端末へも）
       const fv = $("aimTarget").value;
+      // 欄が標高（山など地上 0m の目標）なら、標高を直す。地上の高さなら地上の高さを直す
+      const elev = $("aimCustomH").dataset.mode === "elev";
+      if (!Number.isFinite(h) || h < 0 || h > (elev ? 9000 : 1000)) {
+        $("aimLineInfo").textContent = elev ? "標高（m）を入れてください。" : "高さ（地上から・m）を入れてください。"; return;
+      }
       if (fv.startsWith("fav:")) {
-        if (!Number.isFinite(h) || h < 0 || h > 1000) { $("aimLineInfo").textContent = "高さ（地上から・m）を入れてください。"; return; }
         const i = favorites.findIndex((f) => `fav:${f.id}` === fv);
         if (i < 0) return;
         const before = favorites[i];
-        favorites[i] = { ...before, targetHeightM: h };
+        favorites[i] = elev ? { ...before, elevation: h, targetHeightM: 0 } : { ...before, targetHeightM: h };
         if (!saveFavorites()) { favorites[i] = before; return; }
         queuePush("fav", favorites[i].id);
         delete $("aimCustomH").dataset.edited;
@@ -6826,8 +6852,8 @@ function openAim(preset) {
       }
       const c = store.get("sorami.aimCustom", null);
       if (!c) { $("aimLineInfo").textContent = "先に重ねる目標の場所を選んでください。"; return; }
-      if (!Number.isFinite(h) || h < 0 || h > 1000) { $("aimLineInfo").textContent = "高さ（地上から・m）を入れてください。"; return; }
-      store.set("sorami.aimCustom", { ...c, heightM: h, heightAuto: false, topM: (c.groundM || 0) + h });
+      store.set("sorami.aimCustom", elev ? { ...c, groundM: h, heightM: 0, heightAuto: false, topM: h }
+        : { ...c, heightM: h, heightAuto: false, topM: (c.groundM || 0) + h });
       delete $("aimCustomH").dataset.edited;
       aimFillSelects(); $("aimTarget").value = "custom";
       aimApply();

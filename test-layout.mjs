@@ -501,6 +501,21 @@ ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM : ty
 ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れるのは地上からの高さ）");
 ok(/c\.heightAuto === "estimated" \? "（地図から・推定）" : c\.heightAuto \? "（地図から）" : ""/.test(html), "自動で入れた高さは「（地図から）」、見積もりは「（地図から・推定）」と添える");
 
+// ユーザー「羊蹄山って入れた時に…標高が出てるのに高さが空欄」「高さ（地上から）を入れてくださいってそこにいらないよね」
+ok(!/高さ（地上から）を入れてください"\]/.test(html) && !/: "高さ（地上から）を入れてください"/.test(html), "地上 0m（山の頂など）で「高さを入れてください」と促さない");
+// その後ユーザー「山だし山の標高入れておけばいいんじゃない？建物だけは入れて山とかは入れないってなんか一貫性がなくて」
+ok(/const elevMode = !!c && !c\.heightM;/.test(html) && /input\.value = String\(Math\.round\(elevMode \? c\.groundM \|\| 0 : c\.heightM\)\);/.test(html),
+  "欄には知られている数字を入れる（山は標高、建物は地上の高さ）。空欄にしない");
+ok(/const ground = p\.natural && Number\.isFinite\(p\.elevation\) \? p\.elevation : await aimElevation/.test(html), "山は地名の一覧の山頂の標高を使う（羊蹄山 1898m。地名の点の地形は 1703m）");
+ok(/favorites\[i\] = elev \? \{ \.\.\.before, elevation: h, targetHeightM: 0 \} : \{ \.\.\.before, targetHeightM: h \};/.test(html), "欄が標高なら標高を、地上の高さなら地上の高さを直す（お気に入りも）");
+ok(/natural: \/\^\(山\|峠\|岬\|滝\)\( ・\|\$\)\/\.test\(p\.subtitle \|\| ""\)/.test(html) && /if \(h === null && p\.natural\) h = 0;/.test(html),
+  "地名の一覧の山・峠・岬・滝は地上 0m で置き、建物を探しに行かない");
+
+// ユーザー「高さの入力の際にmが自動で表示されたほうがいい気がする」
+for (const id of ["aimCustomH", "aimHeightM", "favTargetH"]) {
+  ok(new RegExp(`<span class="unit-in"><input type="number" id="${id}"[^>]*><span class="unit" aria-hidden="true">m</span></span>`).test(html), `${id}: 高さの欄に単位 m をいつも出す`);
+}
+
 console.log("== 細かい説明文は出さない（2026-10-01） ==");
 // ユーザー「細かい説明文ってこのApp上はいらないと思ってる」「こういうのもいらない。出しておいた方がいいなら畳んでおいてほしい」
 for (const [what, re] of [
@@ -770,7 +785,7 @@ ok(/const aimFavTargets = \(\) => favorites\.filter\(\(f\) => Number\.isFinite\(
 ok(/`<optgroup label="お気に入り">\$\{favs\.map\(opt\)\.join\(""\)\}<\/optgroup>`/.test(html), "プルダウンでは「お気に入り」のまとまりにする");
 ok(/if \(!c\.fav\) store\.set\("sorami\.aimCustom", null\);/.test(html), "登録したら他の目標は空ける（同じものを2つ並べない）");
 ok(/function aimApply\(\{ redraw = true, recenter = false \} = \{\}\) \{\s+\/\/[^\n]*\n\s+aimFillSelects\(\);/.test(html), "お気に入りを消したらプルダウンからも消える（毎回組み直す）");
-ok(/favorites\[i\] = \{ \.\.\.before, targetHeightM: h \};/.test(html), "お気に入りの目標の高さを直すと、お気に入りも直る");
+ok(/\{ \.\.\.before, targetHeightM: h \}/.test(html), "お気に入りの目標の高さを直すと、お気に入りも直る");
 ok(/<div id="favTargetBox" hidden>\s*<label class="fav-l" for="favTargetH">重ねる目標の高さ/.test(html), "登録の画面に「重ねる目標の高さ」");
 ok(/\$\("favStandBox"\)\.hidden = \$\("favPhBox"\)\.hidden = target !== null;/.test(html), "目標として開いたら、立って見る場所の項目は隠す");
 ok(/targetHeightM: favTargetHeight\(\),/.test(html) && /\|\| favTargetHeight\(\) !== o\.targetHeightM;/.test(html), "保存する・変えたら閉じるときに確かめる");
