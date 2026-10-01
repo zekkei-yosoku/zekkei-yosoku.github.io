@@ -140,7 +140,9 @@ ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待�
   const menu = html.slice(html.indexOf('id="toolsMenu"'), html.indexOf("</aside>"));
   // 「ねらう」は中身で分けた（2026-09-28）。名前は狙うものそのものにする
   // 2026-10-01: ダイヤモンド富士・パール富士は「富士山に重ねる」1つにまとめた（ユーザー指定。名前もユーザーと決めた）
-  for (const [href, name] of [["#/aim/fuji", "富士山に重ねる"],
+  // 2026-10-01: 富士山も「太陽・月を重ねる」へまとめた（ユーザー「プルダウンで富士山を選んだら、その横の太陽・月の切り替えでできる」）
+  ok(!menu.includes('data-tool="#/aim/fuji"') && !menu.includes("<b>富士山に重ねる</b>"), "富士山は別の項目にしない");
+  for (const [href, name] of [
     ["#/aim/tower", "太陽・月を重ねる"], ["#/sky", "空の見え方"], ["#/plane", "月丼"], ["#/records", "記録"]]) {
     ok(menu.includes(`data-tool="${href}"`) && menu.includes(name), `${name} が入っている`);
   }
@@ -428,17 +430,21 @@ ok(!/id="aimSub"/.test(html) && !/富士山 × 太陽/.test(html), "「富士山
 ok(/<button id="aimSun" aria-pressed="true" aria-label="太陽" title="太陽">☀️<\/button>/.test(html) && /<button id="aimMoon" aria-pressed="false" aria-label="月" title="月">/.test(html),
   "切り替えは絵文字だけ（読み上げには太陽・月の名前）");
 ok(/\.aim-head \{ align-items: center; flex-wrap: nowrap; \}/.test(code), "切り替えは折り返さない（道具ごとに下の位置が変わらない）");
-// 塔は題名の「◯◯」が目標を選ぶ所（ユーザー「ここが目標切り替えになるのでは？」）。富士山は字だけ
-ok(/<span id="aimTargetPick" hidden><span class="aim-pick"><span id="aimTargetLabel"><\/span><svg[^>]*>[\s\S]*?<\/svg><select id="aimTarget"/.test(html),
-  "塔: 題名の◯◯に目標を選ぶ一覧を重ねる（字＋▾）");
-ok(/\$\("aimTitleText"\)\.hidden = !fujiTool;\s+\$\("aimTargetPick"\)\.hidden = fujiTool;/.test(html), "富士山は字、塔は選ぶ所");
+// 題名の「◯◯」が目標を選ぶ所（ユーザー「ここが目標切り替えになるのでは？」）。富士山も同じ枠で選ぶ（2026-10-01 まとめた）
+ok(/<h2 id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"><\/span><svg[^>]*>[\s\S]*?<\/svg><select id="aimTarget"/.test(html),
+  "題名の◯◯に目標を選ぶ一覧を重ねる（字＋▾）。いつも出す");
+ok(!/aimTitleText|fujiTool/.test(html), "富士山だけ字にする分け方は無くした");
+ok(/\.aim-pick\.single svg \{ display: none; \}/.test(html) && /classList\.toggle\("single", single\)/.test(html), "選べる目標が1つだけなら ▾ を出さない");
 // 「に重ねる」を付けると 375px 以下で折れ、切り替えと下が富士山の画面より下がった。題名は枠に入れた目標だけ（ユーザー「いい感じの枠に」）
 ok(/<select id="aimTarget" aria-label="何に重ねるか（目標）"><\/select><\/span><\/span><\/h2>/.test(html), "塔の題名は枠に入れた目標だけ（折れない）");
 ok(/\.aim-pick \{ position: relative;[^}]*border-radius: 10px; background: var\(--sunk\);/.test(code), "目標は枠に入れる（太陽／月の切り替えと同じ沈んだ地）");
 ok(/\.aim-pick select \{ position: absolute; inset: 0;[^}]*opacity: 0; font-size: 16px;/.test(code), "選ぶ一覧は字に重ねて透明に（幅は字の幅・iOS で拡大されない 16px）");
 ok(/\$\("aimSun"\)\.hidden = anyOk && !sunOk;\s+\$\("aimMoon"\)\.hidden = anyOk && !moonOk;/.test(html),
   "富士山に重ねる: 太陽はダイヤモンド富士、月はパール富士の許可で出す（許可は2つのまま）");
-ok(/TARGETS\.filter\(\(t\) => t\.id !== "fuji"\)/.test(html), "塔の目標の一覧に富士山を入れない（許可を素通りしない）");
+ok(/const fujiOk = toolAllowed\("diamond"\) \|\| toolAllowed\("pearl"\), towerOk = toolAllowed\("tower"\);/.test(html)
+  && /TARGETS\.filter\(\(t\) => \(t\.id === "fuji" \? fujiOk : towerOk\) \|\| all\)/.test(html),
+  "目標の一覧は許可のあるものだけ（富士山はダイヤモンド富士かパール富士、ほかは tower）");
+ok(/const sunOk = !isFuji \|\| toolAllowed\("diamond"\), moonOk = !isFuji \|\| toolAllowed\("pearl"\);/.test(html), "富士山を選んだら、太陽はダイヤモンド富士・月はパール富士の許可で出す");
 // 重なる日は選ぶ行より下（太陽と月で日の数が違うので、上だと切り替えるたびに釦が動く。ユーザー「UIがすごく動くのが気になる」）
 { const lb = html.indexOf('for="aimLimb">どこに重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('for="aimDate">日付'), sw = html.indexOf('id="aimSun"'), fs = html.indexOf('id="aimFromButton"');
   ok(sw < fs && fs < lb && lb < fr && fr < dt, "並び: 題名と太陽／月 → どこから → どこに → 重なる日 → 日付"); }
@@ -468,8 +474,8 @@ console.log("== 画面のスクリプトが文法として読める（2026-09-30
 }
 
 // ユーザー「塔に重ねるって塔以外も重ねるじゃん」「純粋に「重ねる」じゃだめなの？」
-ok(/data-tool="#\/aim\/tower" data-id="tower"><b>太陽・月を重ねる<\/b><span>スカイツリーや東京タワーなどに、太陽や月が重なる日と見える場所<\/span>/.test(html) && !/<b>塔に重ねる<\/b>/.test(html),
-  "メニューの名前は「太陽・月を重ねる」（塔に限らない）");
+ok(/<b>太陽・月を重ねる<\/b><span>ダイヤモンド富士・パール富士、スカイツリーや東京タワーなどに太陽や月が重なる日と見える場所<\/span>/.test(html) && !/<b>塔に重ねる<\/b>/.test(html),
+  "メニューの名前は「太陽・月を重ねる」。説明にダイヤモンド富士の名前も入れる（その名前でも見つかるように）");
 
 console.log("== 細かい説明文は出さない（2026-10-01） ==");
 // ユーザー「細かい説明文ってこのApp上はいらないと思ってる」「こういうのもいらない。出しておいた方がいいなら畳んでおいてほしい」
@@ -805,9 +811,9 @@ ok(!/TOOL_NAMES = \{/.test(html), "名前を書き写さない");
   // メニューの data-id と、Worker が許す道具（TOOLS）が一致していること。
   // 1つの項目が2つの許可を持つことがある（富士山に重ねる＝diamond と pearl）
   const menu = [...html.matchAll(/data-tool="[^"]+" data-id="([a-z ]+)"/g)].flatMap((m) => m[1].split(" "));
-  ok(menu.length === 7, "メニューの許可は7つ（項目は6つ。富士山に重ねるが2つ持つ）", menu.join("・"));
-  ok(/data-tool="#\/aim\/fuji" data-id="diamond pearl" data-names="ダイヤモンド富士 パール富士"/.test(html),
-    "富士山に重ねるは2つの許可を持ち、管理画面ではそれぞれの名前で出す");
+  ok(menu.length === 7, "メニューの許可は7つ（項目は5つ。太陽・月を重ねるが3つ持つ）", menu.join("・"));
+  ok(/data-tool="#\/aim\/tower" data-id="diamond pearl tower" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど"/.test(html),
+    "太陽・月を重ねるは3つの許可を持ち、管理画面ではそれぞれの名前で出す");
   ok(/el\.dataset\.id\.split\(" "\)\.some\(\(id\) => allowed\.includes\(id\)\)/.test(html), "どちらかの許可があればメニューに出す");
   const api = fs.readFileSync(new URL("../api/src/index.js", import.meta.url), "utf8");
   const tools = /const TOOLS = \[([^\]]+)\]/.exec(api)[1].match(/"([a-z]+)"/g).map((s) => s.replace(/"/g, ""));
@@ -2550,14 +2556,15 @@ ok(/\.sort\(\(a, b\) => \(a\[1\]\.order \?\? 99\) - \(b\[1\]\.order \?\? 99\)\)/
 console.log("== ねらうは中身で分ける ==");
 // **見出しはいま選んでいるものから決める。** 目標や天体を変えたら見出しも変わる
 ok(/const AIM_PRESETS = \{/.test(html), "メニューから来たときの初期値を持つ");
-ok(/tower: \{ target: "skytree", body: "sun" \}/.test(html), "重ねる（塔など）はメニューから開くと太陽（前の画面の月を持ち越さない）");
-ok(/fuji: \{ target: "fuji", body: "sun" \}/.test(html), "富士山に重ねるは太陽で開く");
-ok(/diamond: \{ target: "fuji", body: "sun", as: "fuji" \}/.test(html) && /pearl: \{ target: "fuji", body: "moon", as: "fuji" \}/.test(html),
-  "前の URL（#/aim/diamond・#/aim/pearl）も富士山に重ねるを太陽・月で開く");
+ok(/tower: \{ target: null, body: "sun" \}/.test(html) && /\$\("aimTarget"\)\.value = pre\.target \|\| store\.get\("sorami\.aimTarget", "fuji"\);/.test(html),
+  "メニューからは前に選んだ目標で開く（初めては富士山）。太陽で開く");
+ok(/fuji: \{ target: "fuji", body: "sun" \}/.test(html) && /diamond: \{ target: "fuji", body: "sun" \}/.test(html) && /pearl: \{ target: "fuji", body: "moon" \}/.test(html),
+  "前の URL（#/aim/fuji・diamond・pearl）は富士山を選んだ状態で開く");
 ok(/function aimTitleFor/.test(html), "見出しを選択から決める");
 ok(/\^#\\\/aim\\\/\(fuji\|diamond\|pearl\|tower\)\$/.test(html), "#/aim/<なに> の道がある（前の URL も）");
-ok(/\$\("aimTitleText"\)\.textContent = aimTitleFor\(\)\.title;/.test(html) && /\$\("aimTargetLabel"\)\.textContent = aim\.target\.name/.test(html),
-  "見出しを差し替える（富士山は題名、塔は目標の名前）");
+ok(/\$\("aimTargetLabel"\)\.textContent = aimTitleFor\(\)\.title;/.test(html)
+  && /if \(t && t\.id === "fuji"\) return \{ title: sun \? "ダイヤモンド富士" : "パール富士" \};/.test(html),
+  "枠の字は目標の名前。富士山のときはダイヤモンド富士／パール富士（有名な呼び名を残す）");
 // 画面は1つのまま（中身が同じなので、押した場所で初期値だけ変える）
 ok((html.match(/id="aimView"/g) || []).length === 1, "画面は1つのまま");
 

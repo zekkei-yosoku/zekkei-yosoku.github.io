@@ -618,6 +618,8 @@
               padding: 0 10px; margin-right: 4px; border-radius: 10px; background: var(--sunk); color: var(--text); }
   .aim-pick svg { color: var(--secondary); flex: none; }
   .aim-pick select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; cursor: pointer; }
+  /* 選べる目標が1つしか無い（ダイヤモンド富士だけ許可されている人など）ときは、▾ を出さず選べないようにする */
+  .aim-pick.single svg { display: none; }
   /* どこから重ねるか。地点カードと同じ形を、ねらうのカードの中に一段沈めて置く */
   .aim-place-card { background: var(--sunk); border-radius: 12px; padding: 6px 2px 6px 10px; margin-bottom: 8px; }
   /* 住所が無い地点（地理院の検索結果など）でもカードの高さを変えない。下の並びが動かず、押す所も 44px を割らない */
@@ -1061,7 +1063,7 @@
            「に重ねる」は付けない（道具の名前で分かる。付けると 375px 以下で折れて、切り替えと下の位置が富士山の画面より下がった）。
            「目標」の行を別に置かないので、富士山に重ねると並びが同じになる。見た目は字＋▾、押すと OS の一覧が開く
            （透明な select を字に重ねる。select の幅は一番長い候補で決まってしまうので、字の幅に合わせるため） -->
-      <div class="section-h aim-head"><h2 id="aimTitle"><span id="aimTitleText">ねらう</span><span id="aimTargetPick" hidden><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span></span></h2>
+      <div class="section-h aim-head"><h2 id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span></span></h2>
         <div class="aim-seg" role="group" aria-label="太陽か月">
           <button id="aimSun" aria-pressed="true" aria-label="太陽" title="太陽">☀️</button>
           <button id="aimMoon" aria-pressed="false" aria-label="月" title="月">🌙</button>
@@ -1277,13 +1279,11 @@
     <button id="toolsClose" class="tap" aria-label="閉じる">✕</button>
   </div>
   <nav class="drawer-list">
-    <!-- 富士山に重ねる（2026-10-01 にダイヤモンド富士・パール富士をまとめた。ユーザー指定）。使用許可は2つのまま
-         （data-id に両方。どちらかがあれば出す）。管理画面の名前は data-names から -->
-    <button data-tool="#/aim/fuji" data-id="diamond pearl" data-names="ダイヤモンド富士 パール富士"><b>富士山に重ねる</b><span>ダイヤモンド富士・パール富士。山頂に太陽や月が重なる日と、見える場所</span></button>
-    <!-- 名前は「太陽・月を重ねる」（2026-10-01 ユーザー「塔以外も重ねるじゃん」→「重ねる」→「太陽・月を重ねる」。もとは「塔に重ねる」）。
-         説明は「富士山に重ねる」と同じく何が分かるかを書く（ユーザーと決めた「スカイツリーや東京タワーなどに、太陽や月が重なる日と見える場所」）。
-         何に重ねるかは開いた画面の題名の枠で選ぶ -->
-    <button data-tool="#/aim/tower" data-id="tower"><b>太陽・月を重ねる</b><span>スカイツリーや東京タワーなどに、太陽や月が重なる日と見える場所</span></button>
+    <!-- 太陽・月を重ねる（2026-10-01）。もとは「富士山に重ねる」（ダイヤモンド富士・パール富士）と「塔に重ねる」の2つ。
+         ユーザー「塔以外も重ねるじゃん」→ 名前を「太陽・月を重ねる」に。「プルダウンで富士山を選んだら、その横の太陽・月の切り替えでできる」→ 富士山もここへ。
+         何に重ねるかは開いた画面の題名の枠で選ぶ。説明は何が分かるかを書く（ユーザーと決めた文に、ダイヤモンド富士の名前を足した）。
+         許可は3つのまま（data-id。どれかがあれば出す）。管理画面の名前は data-names から -->
+    <button data-tool="#/aim/tower" data-id="diamond pearl tower" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど"><b>太陽・月を重ねる</b><span>ダイヤモンド富士・パール富士、スカイツリーや東京タワーなどに太陽や月が重なる日と見える場所</span></button>
     <button data-tool="#/sky" data-id="sky"><b>空の見え方</b><span>稜線の上を太陽と月がどう通るか</span></button>
     <button data-tool="#/plane" data-id="plane"><b>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
     <button data-tool="#/iss" data-id="iss"><b>ISSの月面通過</b><span>ISSが月や太陽の前を横切る場所と時刻</span></button>
@@ -1554,21 +1554,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001224653"></script>
+<script src="sorami-core.js?v=20261001225610"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001224653"></script>
-<script src="sorami-exif.js?v=20261001224653"></script>
-<script src="sorami-capcloud.js?v=20261001224653"></script>
-<script src="sorami-terrain.js?v=20261001224653"></script>
-<script src="sorami-mountain.js?v=20261001224653"></script>
-<script src="sorami-fuji.js?v=20261001224653"></script>
-<script src="sorami-sky.js?v=20261001224653"></script>
-<script src="sorami-routes.js?v=20261001224653"></script>
-<script src="sorami-iss.js?v=20261001224653"></script>
-<script src="sorami-plane.js?v=20261001224653"></script>
-<script src="sorami-align.js?v=20261001224653"></script>
-<script src="sorami-moon.js?v=20261001224653"></script>
+<script src="sorami-astro.js?v=20261001225610"></script>
+<script src="sorami-exif.js?v=20261001225610"></script>
+<script src="sorami-capcloud.js?v=20261001225610"></script>
+<script src="sorami-terrain.js?v=20261001225610"></script>
+<script src="sorami-mountain.js?v=20261001225610"></script>
+<script src="sorami-fuji.js?v=20261001225610"></script>
+<script src="sorami-sky.js?v=20261001225610"></script>
+<script src="sorami-routes.js?v=20261001225610"></script>
+<script src="sorami-iss.js?v=20261001225610"></script>
+<script src="sorami-plane.js?v=20261001225610"></script>
+<script src="sorami-align.js?v=20261001225610"></script>
+<script src="sorami-moon.js?v=20261001225610"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4739,9 +4739,12 @@ function aimWithHeights(t) {
 }
 function aimTargetList() {
   const custom = aimCustomTarget();
-  // 富士山は「富士山に重ねる」で見る（許可が別。塔の一覧から選べると、そちらを通らずに見られてしまう）
-  return [...SoramiAlign.TARGETS.filter((t) => t.id !== "fuji").map(aimWithHeights),
-    custom || { id: "custom", name: "他の目標", parts: [] }];
+  // 富士山も同じ一覧の先頭に置く（2026-10-01「太陽・月を重ねる」にまとめた）。**許可のある目標だけ出す**:
+  // 富士山はダイヤモンド富士かパール富士、そのほか（塔・他の目標）は tower。どれも無い（URL を直接開いた）ときは全部
+  const fujiOk = toolAllowed("diamond") || toolAllowed("pearl"), towerOk = toolAllowed("tower");
+  const all = !fujiOk && !towerOk;
+  return [...SoramiAlign.TARGETS.filter((t) => (t.id === "fuji" ? fujiOk : towerOk) || all).map(aimWithHeights),
+    ...(towerOk || all ? [custom || { id: "custom", name: "他の目標", parts: [] }] : [])];
 }
 function aimFillSelects() {
   // 他の目標（2026-10-01 に「自分で置く」から改名。ユーザーが候補から選んだ）は、一覧では「他の目標（◯◯）」。題名の枠には◯◯（場所の名前）だけ
@@ -4753,6 +4756,8 @@ function aimFillSelects() {
   $("aimLimb").innerHTML = SoramiAlign.LIMBS
     .map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
   if (keep.target) $("aimTarget").value = keep.target;
+  // 許可が変わって前の目標が一覧から消えたら、先頭へ
+  if (!$("aimTarget").value && $("aimTarget").options.length) $("aimTarget").selectedIndex = 0;
   if (keep.limb) $("aimLimb").value = keep.limb;
 }
 /// 天体で言い方を変える。**月に「日の入側」と書かない**
@@ -6075,11 +6080,13 @@ function openSky() {
 }
 
 function aimApply({ redraw = true, recenter = false } = {}) {
-  const fujiTool = aim.preset === "fuji";
-  const wanted = fujiTool ? "fuji" : $("aimTarget").value;
-  // 富士山に重ねる: 太陽の釦はダイヤモンド富士、月の釦はパール富士の許可で出す（許可は2つのまま。ユーザー指定）。
+  const wanted = $("aimTarget").value || "fuji";
+  const isFuji = wanted === "fuji";
+  // 次に開いたときも同じ目標で開く
+  store.set("sorami.aimTarget", wanted);
+  // 富士山: 太陽の釦はダイヤモンド富士、月の釦はパール富士の許可で出す（許可は2つのまま。ユーザー指定）。
   // どちらも無い（URL を直接開いた）ときは両方出す。いまの天体が許されていなければ、許されている方へ
-  const sunOk = !fujiTool || toolAllowed("diamond"), moonOk = !fujiTool || toolAllowed("pearl");
+  const sunOk = !isFuji || toolAllowed("diamond"), moonOk = !isFuji || toolAllowed("pearl");
   const anyOk = sunOk || moonOk;
   $("aimSun").hidden = anyOk && !sunOk;
   $("aimMoon").hidden = anyOk && !moonOk;
@@ -6089,7 +6096,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
     ? (aimCustomTarget() || { id: "custom", name: "他の目標", parts: [] })
     : aimWithHeights(SoramiAlign.targetById(wanted) || SoramiAlign.TARGETS[0]);
   // 自分で置く目標のときだけ、目標の場所のカード・高さの入力・地図の「ここに重ねる」を出す
-  const customOn = !fujiTool && wanted === "custom";
+  const customOn = wanted === "custom";
   $("aimTargetCard").hidden = !customOn;
   $("aimCustomRow").hidden = !customOn;
   $("aimPickTarget").hidden = !customOn;
@@ -6098,11 +6105,12 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   // 自分で置く目標は、場所のカードに標高と高さを書くので、ここには出さない
   // 目標の高さの内訳（「地上の高さ＋地面の標高およそ2m」）は出さない（2026-10-01 細かい説明文は出さない）。推定の高さは下の欄で直す
   $("aimTargetNote").hidden = true;
-  // 題名: 富士山は「ダイヤモンド富士」「パール富士」の字。塔は「◯◯▾に重ねる」の◯◯で目標を選ぶ。太陽／月は題名の右で同じ位置
-  $("aimTitleText").hidden = !fujiTool;
-  $("aimTargetPick").hidden = fujiTool;
-  $("aimTitleText").textContent = aimTitleFor().title;
-  $("aimTargetLabel").textContent = aim.target.name || "目標";
+  // 題名はいつも目標を選ぶ枠。富士山のときは枠の字を「ダイヤモンド富士」「パール富士」にする（有名な呼び名を残す）。
+  // 太陽／月は題名の右で同じ位置
+  $("aimTargetLabel").textContent = aimTitleFor().title;
+  const single = $("aimTarget").options.length < 2;
+  $("aimTarget").disabled = single;
+  document.querySelector("#aimTargetPick .aim-pick").classList.toggle("single", single);
   $("aimView").classList.toggle("moon", aim.body === "moon");
   $("aimSun").setAttribute("aria-pressed", String(aim.body === "sun"));
   // 月の切り替えは、選んでいる日（夜）の月の形で
@@ -6673,14 +6681,12 @@ let aimReady = false;
  *   tower   … 塔（既定はスカイツリーに太陽）
  */
 const AIM_PRESETS = {
-  // 富士山に重ねる（2026-10-01 にダイヤモンド富士・パール富士をまとめた）。太陽で開く（太陽を許されていなければ月）
+  // 前の URL（#/aim/fuji・#/aim/diamond・#/aim/pearl）は、富士山を選んだ状態で開く
   fuji: { target: "fuji", body: "sun" },
-  // 前の URL（#/aim/diamond・#/aim/pearl）も、富士山に重ねるを太陽・月で開く
-  diamond: { target: "fuji", body: "sun", as: "fuji" },
-  pearl: { target: "fuji", body: "moon", as: "fuji" },
-  // 塔も太陽で開く。月を持ち越すと、パール富士のあとに開いたとき月のまま出ていた（2026-10-01）。
-  // 月は画面の「🌙 月」で切り替える
-  tower: { target: "skytree", body: "sun" },
+  diamond: { target: "fuji", body: "sun" },
+  pearl: { target: "fuji", body: "moon" },
+  // メニュー（#/aim/tower）は前に選んだ目標で開く。初めては富士山（許可が無ければ一覧の先頭）。太陽で開く
+  tower: { target: null, body: "sun" },
 };
 
 /**
@@ -6692,8 +6698,7 @@ function aimTitleFor() {
   const t = aim.target, sun = aim.body === "sun";
   // 太陽か月かは題名の右の切り替えで分かるので、添え書き（目標と天体）は持たない
   if (t && t.id === "fuji") return { title: sun ? "ダイヤモンド富士" : "パール富士" };
-  const name = t && t.name ? t.name : "目標";
-  return { title: `${name}に重ねる` };
+  return { title: t && t.name ? t.name : "目標" };
 }
 
 function openAim(preset) {
@@ -6750,19 +6755,18 @@ function openAim(preset) {
     };
     // 地図を動かすたび、中心が線からどれだけ離れているかを出す
     AimMap.onMove((c) => aimUpdateNear(c));
-    $("aimTarget").value = "skytree";
     aim.target = SoramiAlign.targetById("fuji");
     aimFillParts();
   }
   if (!$("aimDate").value) $("aimDate").value = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
   // メニューから来たときは、目標と天体を先に入れる
   const pre = preset && AIM_PRESETS[preset];
-  aim.preset = pre && pre.as ? pre.as : (preset || null);
+  // 許可はログインで変わるので、開くたびに目標の一覧を作り直す（選んでいたものは残る）
+  aimFillSelects();
   if (pre) {
-    // 富士山は塔の目標の一覧に無い（富士山に重ねるで見る）。選ぶ欄は塔の目標だけ
-    if (pre.target !== "fuji") $("aimTarget").value = pre.target;
+    $("aimTarget").value = pre.target || store.get("sorami.aimTarget", "fuji");
+    if (!$("aimTarget").value) $("aimTarget").selectedIndex = 0;
     if (pre.body) aim.body = pre.body;
-    aim.target = SoramiAlign.targetById(pre.target) || aim.target;
     aim.centerKey = null;
   }
   aimApply({ redraw: false });
@@ -7325,7 +7329,7 @@ function closeTools({ restoreFocus = false } = {}) {
 /// いまいる画面に帯を付ける。戻ってきたときにどこから来たか分かる
 function markToolsCurrent() {
   for (const el of $("toolsMenu").querySelectorAll("[data-tool]")) {
-    const here = /^#\/aim\/(diamond|pearl)$/.test(location.hash) ? "#/aim/fuji" : location.hash;
+    const here = /^#\/aim\/(fuji|diamond|pearl)$/.test(location.hash) ? "#/aim/tower" : location.hash;
     if (el.dataset.tool === here) el.setAttribute("aria-current", "page");
     else el.removeAttribute("aria-current");
   }
