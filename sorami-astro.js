@@ -528,13 +528,43 @@
     return out;
   }
 
+  /**
+   * その時刻にいちばん近い日の出・日の入と、月の出・月の入（平らな地平線に上の縁がかかる時刻）。
+   * 前後 `windowMs` の中で探し、無ければ null。`minutes` は「その時刻 − 出入り」（正なら後、負なら前）。
+   * **月の写りは空の明るさで決まる**ので、月を撮る道具の結果に「日の入の25分後」のように添える
+   * （2026-10-01 ユーザー「月系は空の明るさが重要だから、日の出何分後とか月の出何分後とかの情報をサクッと書いておいてほしい」）。
+   * 出入りは地平線の近くで単調なので、10分刻みで挟んでから詰める
+   */
+  function nearestRiseSet(ms, obs, { windowMs = 3 * 3600000, stepMs = 600000, air = {} } = {}) {
+    const near = (f) => {
+      let best = null;
+      let prev = f(ms - windowMs);
+      for (let t = ms - windowMs + stepMs; t <= ms + windowMs; t += stepMs) {
+        const cur = f(t);
+        if (prev > 0 !== cur > 0) {
+          const at = findCrossing(f, t - stepMs, t, { toleranceMs: 10000 });
+          if (at !== null && (!best || Math.abs(at - ms) < Math.abs(best.at - ms))) {
+            best = { at, kind: cur > prev ? "rise" : "set", minutes: Math.round((ms - at) / 60000) };
+          }
+        }
+        prev = cur;
+      }
+      return best;
+    };
+    return {
+      sun: near((t) => sun(t, obs, air).upperLimbAltitude),
+      moon: near((t) => moon(t, obs, air).upperLimbAltitude),
+      sunAltitude: sun(ms, obs, air).apparentAltitude,
+    };
+  }
+
   const SoramiAstro = {
     // 天文
     julianDay, centuries, nutation, meanObliquity,
     sunPosition, sun, sunAngularRadius, moonGeocentric, moon,
     toEquatorial, toHorizontal, topocentric, apparentSiderealTime,
     refraction, moonAngularRadius, bodyEcef, DELTA_T_MS,
-    findCrossing, moonCrossings, moonEvents,
+    findCrossing, moonCrossings, moonEvents, nearestRiseSet,
     // 幾何
     EARTH_R_KM, REFRACTION_K,
     targetElevationAngle, horizonDistanceKm, curvatureDropM, terrainBlocks, withoutTargetSlope,

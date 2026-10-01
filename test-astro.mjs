@@ -107,6 +107,27 @@ console.log("== 幾何（地球の丸みと大気差）==");
      "標高800mに立てば 10km 500m の丘は越えられる");
 }
 
+console.log("== その時刻に近い日の出入り・月の出入り（2026-10-01） ==");
+// ユーザー「月系は空の明るさが重要だから、日の出何分後とか月の出何分後とかの情報をサクッと書いておいてほしい」
+{
+  const obs = { latitude: 35.6581, longitude: 139.7414, elevation: 0 };
+  const JST = 9 * 3600000, day = Date.UTC(2026, 8, 20) - JST;
+  const moonRise = A.moonEvents(day, day + 86400000, obs, {}).astronomical.find((e) => e.kind === "rise");
+  const r1 = A.nearestRiseSet(moonRise.at + 25 * 60000, obs);
+  ok(r1.moon && r1.moon.kind === "rise" && r1.moon.minutes === 25, "月の出の25分後は「月の出 +25分」", JSON.stringify(r1.moon));
+  const r2 = A.nearestRiseSet(moonRise.at - 40 * 60000, obs);
+  ok(r2.moon && r2.moon.kind === "rise" && r2.moon.minutes === -40, "40分前は −40分", JSON.stringify(r2.moon));
+  // 日の入: 上の縁が地平線に沈む時刻を総当たりで求めて照合する
+  const f = (t) => A.sun(t, obs).upperLimbAltitude;
+  const set = A.findCrossing(f, day + 15 * 3600000, day + 20 * 3600000);
+  const jst = new Date(set + JST).toISOString().slice(11, 16);
+  ok(jst >= "17:30" && jst <= "17:45", "9/20 東京の日の入は 17時半すぎ", jst);
+  const r3 = A.nearestRiseSet(set + 25 * 60000, obs);
+  ok(r3.sun && r3.sun.kind === "set" && r3.sun.minutes === 25 && r3.sunAltitude < 0, "日の入の25分後（太陽は地平線の下）", JSON.stringify(r3.sun));
+  const noon = A.nearestRiseSet(day + 12 * 3600000, obs);
+  ok(noon.sun === null && noon.sunAltitude > 30, "昼のまんなかは近くに日の出入りが無い（null）");
+}
+
 console.log("== 地形の地平線で出没が遅れる／早まる ==");
 {
   const obs = { latitude: 35.6581, longitude: 139.7414, elevation: 0 };

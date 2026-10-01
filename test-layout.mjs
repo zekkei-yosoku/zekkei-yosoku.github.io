@@ -467,6 +467,36 @@ console.log("== 画面のスクリプトが文法として読める（2026-09-30
   ok(own.length >= 5 && badFiles.length === 0, `読み込む自前の JS ${own.length} 本に文法の誤りが無い`, badFiles.join(" / "));
 }
 
+console.log("== 月の結果に日の出入り・月の出入りからの差（2026-10-01） ==");
+// ユーザー「月系は空の明るさが重要だから、日の出何分後とか月の出何分後とかの情報をサクッと書いておいてほしい」
+{
+  const uses = [
+    ["パール富士（富士山の詳細）", /const twilight = isMoon \? lightTimingText\(e\.at, observerHere\(\)\) : "";/],
+    ["ねらう: 観測地点から重なる日", /const light = moon \? `<span class="sub-line">\$\{esc\(lightTimingText\(e\.at, obs\)\)\}<\/span>` : "";/],
+    ["ねらう: 定番スポット", /lightTimingText\(e\.at, SoramiAlign\.spotObserver\(sp\)\)/],
+    ["ねらう: その日の候補地（1件目）", /aim\.body === "moon" \? `<div class="tiny">\$\{esc\(lightTimingText\(c\.at, c\.stand\)\)\}<\/div>` : ""/],
+    ["ねらう: その日の候補地（一覧）", /lightTimingText\(x\.at, x\.stand\)/],
+    ["月丼: 今日はここ", /lightTimingText\(b\.at, top\.spot\)/],
+    ["月丼: 一覧", /lightTimingText\(sp\.best\.at, sp\.spot\)/],
+    ["ISS: 月の回", /iss\.body === "moon" \? `<span class="tiny">\$\{esc\(lightTimingText\(r\.at, st \|\| r\.center\)\)\}<\/span>` : ""/],
+  ];
+  for (const [what, re] of uses) ok(re.test(html), `${what}に書く`);
+  // 実際に動かす（東京 2026/9/20 の日の入 17:41 の25分後・月の出のあと）
+  const A = req("./sorami-astro.js");
+  const src = /function lightTimingText\(atMs, obs\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
+  const say = new Function("SoramiAstro", `${src}; return lightTimingText;`)(A);
+  const obs = { latitude: 35.6581, longitude: 139.7414, elevation: 0 };
+  const day = Date.UTC(2026, 8, 20) - 9 * 3600000;
+  const set = A.findCrossing((t) => A.sun(t, obs).upperLimbAltitude, day + 15 * 3600000, day + 20 * 3600000);
+  const text = say(set + 25 * 60000, obs);
+  ok(/^日の入の25分後( ・ 月の(出|入)の(\d+時間)?(\d+分)?(後|前))?$/.test(text), "「日の入の25分後 ・ 月の…」の形", text);
+  ok(say(day + 12 * 3600000, obs).startsWith("日中"), "昼のまんなかは「日中」");
+  ok(say(set + 207 * 60000, obs).startsWith("日の入の3時間27分後"), "20時台も日の入からの差で言う（「夜のまんなか」にしない）", say(set + 207 * 60000, obs));
+  const winter = Date.UTC(2026, 11, 22) - 9 * 3600000;   // 冬至の真夜中（日の入・日の出とも6時間より先）
+  ok(say(winter + 24 * 3600000, obs).startsWith("夜のまんなか"), "冬至の真夜中は「夜のまんなか」", say(winter + 24 * 3600000, obs));
+  ok(say(day, { latitude: 35, longitude: 139, elevationM: 20 }) !== "", "標高は elevationM でも受ける（月丼の場所の形）");
+}
+
 console.log("== 選択肢を作り直す前に選んだ値を読む（2026-10-01） ==");
 // ユーザー「スカイツリーで場所は曽谷を選んで、どこに重ねるかが先端から動かせない」。
 // aimApply が先に aimFillParts（選択肢を作り直し、aim.partId で選び直す）を呼んでから読んでいたので、選び直しが元に戻っていた

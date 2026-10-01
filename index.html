@@ -633,6 +633,8 @@
   .aim-days { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
   .aim-day { min-height: 32px; padding: 4px 10px; border-radius: 9px; background: var(--sunk);
              color: var(--accent); font-weight: 700; }
+  /* 月の日付の釦の2段目（日の入の◯分後・月の出の◯分後）。日付より控えめに */
+  .aim-day .sub-line { font-weight: 400; color: var(--secondary); }
   /* 凡例の線は、地図に引く線と同じ色・同じ線種にする（太陽は金、月は青） */
   .aim-k { display: inline-block; width: 22px; height: 0; margin-right: 5px; vertical-align: middle;
            border-top: 3px solid var(--ray-sun); border-radius: 2px; }
@@ -1554,21 +1556,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001171346"></script>
+<script src="sorami-core.js?v=20261001172739"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001171346"></script>
-<script src="sorami-exif.js?v=20261001171346"></script>
-<script src="sorami-capcloud.js?v=20261001171346"></script>
-<script src="sorami-terrain.js?v=20261001171346"></script>
-<script src="sorami-mountain.js?v=20261001171346"></script>
-<script src="sorami-fuji.js?v=20261001171346"></script>
-<script src="sorami-sky.js?v=20261001171346"></script>
-<script src="sorami-routes.js?v=20261001171346"></script>
-<script src="sorami-iss.js?v=20261001171346"></script>
-<script src="sorami-plane.js?v=20261001171346"></script>
-<script src="sorami-align.js?v=20261001171346"></script>
-<script src="sorami-moon.js?v=20261001171346"></script>
+<script src="sorami-astro.js?v=20261001172739"></script>
+<script src="sorami-exif.js?v=20261001172739"></script>
+<script src="sorami-capcloud.js?v=20261001172739"></script>
+<script src="sorami-terrain.js?v=20261001172739"></script>
+<script src="sorami-mountain.js?v=20261001172739"></script>
+<script src="sorami-fuji.js?v=20261001172739"></script>
+<script src="sorami-sky.js?v=20261001172739"></script>
+<script src="sorami-routes.js?v=20261001172739"></script>
+<script src="sorami-iss.js?v=20261001172739"></script>
+<script src="sorami-plane.js?v=20261001172739"></script>
+<script src="sorami-align.js?v=20261001172739"></script>
+<script src="sorami-moon.js?v=20261001172739"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2318,6 +2320,25 @@ function iconFor(id, atMs) {
 /// （2026-10-01 ユーザー指摘「月関係するところは全て月の満ち欠けに連動するように」）。
 /// 以前は道具の画面・お気に入り・記録などで固定の 🌙 や「輝面◯%」の数字だけだった
 const moonGlyphAt = (atMs) => iconFor("moon", atMs);
+/// 月を撮る時刻の空の明るさの手がかり。「日の入の25分後 ・ 月の出の1時間10分後」
+/// （2026-10-01 ユーザー「月系は空の明るさが重要だから、日の出何分後とか月の出何分後とかの情報をサクッと書いておいてほしい」）。
+/// 太陽は前後6時間の日の出入りからの差（20時台でも「日の入の3時間27分後」と言える。真夜中だけ「夜のまんなか」）、
+/// 太陽が10°より高ければ「日中」（分は写りに効かない）。月の出入りは3時間以内だけ（それより先は高く昇っている）。
+/// 月の結果を出すところ（パール富士・ねらうの月・月丼・ISS の月）は全部これを使う
+function lightTimingText(atMs, obs) {
+  let r;
+  try {
+    r = SoramiAstro.nearestRiseSet(atMs, { latitude: obs.latitude, longitude: obs.longitude,
+      elevation: obs.elevation ?? obs.elevationM ?? 0 }, { windowMs: 6 * 3600000 });
+  } catch { return ""; }
+  const dur = (m) => (m < 60 ? `${m}分` : `${Math.floor(m / 60)}時間${m % 60 ? `${m % 60}分` : ""}`);
+  const say = (e, rise, set) => {
+    const name = e.kind === "rise" ? rise : set;
+    return e.minutes === 0 ? `${name}ちょうど` : `${name}の${dur(Math.abs(e.minutes))}${e.minutes > 0 ? "後" : "前"}`;
+  };
+  return [r.sunAltitude > 10 ? "日中" : r.sun ? say(r.sun, "日の出", "日の入") : r.sunAltitude > 0 ? "日中" : "夜のまんなか",
+    r.moon && Math.abs(r.moon.minutes) <= 180 ? say(r.moon, "月の出", "月の入") : ""].filter(Boolean).join(" ・ ");
+}
 /// 月相の呼び名（詳細で添える）
 function phaseNameFor(atMs) {
   try {
@@ -3365,22 +3386,8 @@ function renderAlignments(now) {
     const when = `${S.Cal.monthDay(e.at)}(${S.Cal.weekday(e.at)}) ${S.JstCal.hhmm(e.at)}`;
     // **パール富士は、日の入・日の出からどれだけ離れているかが写真を決める。**
     // 同じ「重なる」でも、日の入直後の薄明の空か、真夜中か、日中かでまるで別物
-    //（2026-09-24 ユーザー依頼）。近いほうの出入りからの差を分で出す。
-    const twilight = (() => {
-      if (!isMoon) return "";
-      const day = S.Cal.startOfDay(e.at);
-      const marks = [["日の入", S.Sun.eventTime("sunset", day, place.latitude, place.longitude)],
-                     ["日の出", S.Sun.eventTime("sunrise", day, place.latitude, place.longitude)]]
-        .filter(([, t]) => t !== null)
-        .map(([label, t]) => ({ label, min: Math.round((e.at - t) / 60000) }));
-      if (!marks.length) return "";
-      const near = marks.reduce((a, b) => (Math.abs(b.min) < Math.abs(a.min) ? b : a));
-      if (Math.abs(near.min) > 180) {
-        return e.sunAltitude !== null && e.sunAltitude !== undefined && e.sunAltitude > 0 ? "日中" : "夜のまんなか";
-      }
-      return near.min === 0 ? `${near.label}ちょうど`
-        : `${near.label}の${Math.abs(near.min)}分${near.min > 0 ? "後" : "前"}`;
-    })();
+    //（2026-09-24 ユーザー依頼）。月の出入りからの差も添える（2026-10-01、道具と同じ書き方）
+    const twilight = isMoon ? lightTimingText(e.at, observerHere()) : "";
     const extra = [e.rankLabel,
       isMoon ? `輝面 ${Math.round(e.illuminated * 100)}%` : null,
       isMoon ? twilight : null,
@@ -5144,6 +5151,7 @@ function planeRender() {
     <div class="al-w"><strong>${esc(top.spot.name)}</strong>
       <span class="muted">${S.JstCal.hhmm(b.at)} に重なる（${S.JstCal.hhmm(b.at - half)}〜${S.JstCal.hhmm(b.at + half)} に構える）
       ・${sun0 < -6 ? "夜" : sun0 < 0 ? "薄明" : "昼"} ・${esc(b.path)} ・${planeExpect(top.planes)}</span>
+      <span class="muted">${esc(lightTimingText(b.at, top.spot))}</span>
       <span class="muted">${top.spot.note ? esc(top.spot.note) : ""}</span>
       <span class="muted">${moonGlyphAt(b.at)} 月は 方位${Math.round(top.best.moonAz)}°・高さ${Math.round(top.best.moonAlt)}°。
       その向きの ${top.best.planeKm.toFixed(1)}km 先、高度 ${Math.round(top.best.altitudeM)}m を通ります</span>
@@ -5162,6 +5170,7 @@ function planeRender() {
     return `<button class="al-row jump" data-spot="${i}">
       <span class="al-w"><strong>${i + 1}. ${esc(sp.spot.name)}</strong>
         <span class="muted">${when} ・ ${light} ・ ${planeExpect(sp.planes)}</span>
+        <span class="muted">${esc(lightTimingText(sp.best.at, sp.spot))}</span>
         <span class="muted">機まで ${sp.best.planeKm.toFixed(1)}km（高度 ${Math.round(sp.best.altitudeM)}m）
         ・${moonGlyphAt(sp.best.at)} 月 高さ${Math.round(sp.best.moonAlt)}° 方位${Math.round(sp.best.moonAz)}°
         ・${esc(sp.paths.join("・"))}</span>
@@ -5468,7 +5477,8 @@ function issRender() {
       <span class="al-w"><strong>${S.Cal.monthDay(r.at)}(${S.Cal.weekday(r.at)}) ${hms}</strong>${rough}
         ${where}
         <span class="tiny">帯の幅 約${(r.halfWidthKm * 2).toFixed(1)}km ・ ${r.durationS.toFixed(1)}秒</span>
-        <span class="tiny">${iss.body === "moon" ? "月" : "太陽"}の高さ${Math.round(r.altitude)}° 方位${Math.round(r.azimuth)}°${lit} ・ ${sky} ・ ISSまで${r.rangeKm}km</span></span>
+        <span class="tiny">${iss.body === "moon" ? "月" : "太陽"}の高さ${Math.round(r.altitude)}° 方位${Math.round(r.azimuth)}°${lit} ・ ${sky} ・ ISSまで${r.rangeKm}km</span>
+        ${iss.body === "moon" ? `<span class="tiny">${esc(lightTimingText(r.at, st || r.center))}</span>` : ""}</span>
       <span class="tiny">地図で見る →</span></button>`;
   }).join("") + overWater;
   for (const el of $("issList").querySelectorAll("[data-iss]")) {
@@ -6237,8 +6247,9 @@ async function aimRenderSpots() {
   $("aimList").innerHTML = rows.map(({ sp, ev }, i) => {
     const when = ev.map((e) => {
       const lit = moon ? ` ${moonGlyphAt(e.at)}輝面${Math.round(e.illuminated * 100)}%` : "";
+      const light = moon ? `<span class="sub-line">${esc(lightTimingText(e.at, SoramiAlign.spotObserver(sp)))}</span>` : "";
       return `<button class="tiny aim-day" data-spot="${i}" data-day="${S.Cal.startOfDay(e.at)}">${aimDateLabel(e.at)}`
-        + `${e.side === "set" ? (moon ? " 月の入" : " 日の入") : (moon ? " 月の出" : " 日の出")}${lit}</button>`;
+        + `${e.side === "set" ? (moon ? " 月の入" : " 日の入") : (moon ? " 月の出" : " 日の出")}${lit}${light}</button>`;
     }).join("");
     const tags = [sp.kind, sp.deckM ? `地上${sp.deckM}m` : null, sp.note].filter(Boolean).join(" ・ ");
     return `<div class="al-row aim-spot">
@@ -6357,8 +6368,10 @@ async function aimRenderFrom() {
     // 前後も重なる日は「（11/05〜07）」と短く（月をまたげば「（10/31〜11/02）」）
     const to = S.Cal.monthDay(e.to), fr = S.Cal.monthDay(e.from);
     const span = e.dayCount > 1 ? `（${fr}〜${fr.slice(0, 3) === to.slice(0, 3) ? to.slice(3) : to}）` : "";
+    // 月は空の明るさで写りが決まるので、日の出入り・月の出入りからの差を2段目に
+    const light = moon ? `<span class="sub-line">${esc(lightTimingText(e.at, obs))}</span>` : "";
     return `<button class="tiny aim-day" data-from-day="${S.Cal.startOfDay(e.at)}">${aimDateLabel(e.at)} ${sideOf(e)}`
-      + ` ${esc(AIM_RANK_LABEL[e.rank] || "")}${lit}${span}</button>`;
+      + ` ${esc(AIM_RANK_LABEL[e.rank] || "")}${lit}${span}${light}</button>`;
   }).join("");
   // 重ならないなら、そう言い切る（ユーザー「天体の動き的に絶対にないわけでしょ？」）。太陽は毎年同じ範囲の方角しか
   // 通らないので、1年で無ければその場所からは無い。月も 2025〜26 年は出入りの方角の幅がいちばん広い時期
@@ -6655,6 +6668,7 @@ function aimRenderCands() {
   $("aimCandPick").innerHTML = `<div class="al-row" style="cursor:default">
     <div class="al-w"><strong>${esc(aimCandName(c))}</strong>
       <div class="tiny">${S.JstCal.hhmm(c.at)} に重なる（${esc(AIM_RANK_LABEL[c.rank])}）・ ${esc(aimCandSide(c))}${sky}${lit}</div>
+      ${aim.body === "moon" ? `<div class="tiny">${esc(lightTimingText(c.at, c.stand))}</div>` : ""}
       <div class="tiny">${esc([kind + deck, c.place.address].filter(Boolean).join(" ・ "))}</div>
       <div class="tiny">${esc(aim.target.name)}まで ${aimKm(c.distanceKm)}km ・ 見上げ ${c.targetAngle.toFixed(1)}°</div>
       ${c.place.note ? `<div class="tiny">${esc(c.place.note)}</div>` : ""}
@@ -6664,6 +6678,7 @@ function aimRenderCands() {
     return `<button class="al-row jump${i === i0 ? " on" : ""}" data-cand="${i}">
       <span class="al-w"><strong>${i + 1}. ${esc(aimCandName(x))}</strong>
         <span class="tiny sub-line">${S.JstCal.hhmm(x.at)} ・ ${esc(AIM_RANK_LABEL[x.rank])} ・ ${esc(aimCandSide(x))}${aim.body === "moon" ? ` ${moonGlyphAt(x.at)}` : ""}</span>
+        ${aim.body === "moon" ? `<span class="tiny sub-line">${esc(lightTimingText(x.at, x.stand))}</span>` : ""}
         <span class="tiny sub-line">${esc([k, x.place.address].filter(Boolean).join(" ・ "))}</span>
       </span>
       <span class="tiny">地図で見る →</span>
