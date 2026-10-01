@@ -229,9 +229,19 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
     "地点から探す: 選んだ地点（aim.from）で解く");
   ok(/<strong>\$\{esc\(f\.name\)\}<\/strong>[\s\S]{0,80}から見た/.test(fn), "地点から探す: どこからの結果かを名前で書く");
   // 2026-10-01 ユーザー「絶景予測と同じレイアウトにしたら？新しいレイアウト作る必要ないよね」→ 地点カードと同じ形・同じ「地点」の画面
-  ok(/<div class="place-row aim-from-card">\s*<button class="place-pick" id="aimFromButton"/.test(html), "どこから重ねるか: 地点カードと同じ形（📍 名前・住所・標高、🔍、☆）");
+  ok(/<div class="place-row aim-place-card">\s*<button class="place-pick" id="aimFromButton"/.test(html), "どこから重ねるか: 地点カードと同じ形（📍 名前・住所・標高、🔍、☆）");
   ok(/\$\("aimFromButton"\)\.onclick = \(\) => openPlaceSheet\("aim"\);/.test(html), "押すと地点カードと同じ「地点」の画面を開く");
-  ok(/function choosePlace\(p\) \{\s+if \(placeSheetFor === "aim"\) \{/.test(html), "そこで選んだ場所は観測地点になる（アプリ全体の地点は変えない）");
+  ok(/function choosePlace\(p\) \{[\s\S]{0,500}if \(placeSheetFor === "aim"\) \{[\s\S]{0,200}aimSetFrom\(/.test(html), "そこで選んだ場所は観測地点になる（アプリ全体の地点は変えない）");
+  // 自分で置く目標の場所も同じ部品で決める（ユーザー「自分で置くを選んだ場合、どこに重ねるかの検索が必要なんじゃないの」）
+  ok(/<div class="place-row aim-place-card" id="aimTargetCard" hidden>\s*<button class="place-pick" id="aimTargetButton">/.test(html),
+    "自分で置く: どこに重ねるかに目標の場所のカード（地点カードと同じ形）");
+  ok(/\$\("aimTargetButton"\)\.onclick = \(\) => openPlaceSheet\("aimTarget"\);/.test(html), "自分で置く: 押すと同じ「地点」の画面（検索・現在地・地図・お気に入り）");
+  ok(/if \(placeSheetFor === "aimTarget"\) \{[\s\S]{0,200}aimSetCustomTarget\(\{[\s\S]{0,200}heightM: p\.structureM \?\? null/.test(html),
+    "自分で置く: 選んだ場所が目標になる（建物に地図の高さがあれば高さも入る）");
+  ok(/<button id="aimPickTarget" class="fav-btn" aria-label="地図の中心（ピンの位置）に重ねる" hidden>ここに重ねる<\/button>/.test(html),
+    "自分で置く: 地図のすぐ下に「ここに重ねる」");
+  ok(/\$\("aimTargetCard"\)\.hidden = !customOn;\s+\$\("aimCustomRow"\)\.hidden = !customOn;\s+\$\("aimPickTarget"\)\.hidden = !customOn;/.test(html),
+    "自分で置くときだけ出す");
   for (const [what, re] of [["検索の結果", /choosePlace\(\{ id: `search:/], ["現在地", /\(pos\) => choosePlace\(\{ id: `geo:/],
       ["地図で選ぶ・緯度経度", /choosePlace\(\{ id: `map:\$\{lat\.toFixed\(5\)\}/], ["お気に入り", /el\.onclick = \(\) => choosePlace\(favorites\[/]]) {
     ok(re.test(html), `地点の画面の「${what}」も、開いた目的の方へ渡す`);

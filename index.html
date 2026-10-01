@@ -150,7 +150,7 @@
   .place-pick { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-align: left; }
   .place-txt { min-width: 0; }
   /* ボタンの中に置けるのは句だけなので span。2行目として折り返す */
-  #placeSub, #aimFromSub { display: block; }
+  #placeSub, #aimFromSub, #aimTargetSub { display: block; }
   .place-row .pin { color: var(--accent); font-size: 1.25rem; }
   .place-row .name { font-size: 1.25rem; font-weight: 700; }
   .place-row .chev { margin-left: auto; color: var(--secondary); display: flex; }
@@ -617,7 +617,7 @@
   .aim-pick svg { color: var(--secondary); flex: none; }
   .aim-pick select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; cursor: pointer; }
   /* どこから重ねるか。地点カードと同じ形を、ねらうのカードの中に一段沈めて置く */
-  .aim-from-card { background: var(--sunk); border-radius: 12px; padding: 6px 2px 6px 10px; margin-bottom: 8px; }
+  .aim-place-card { background: var(--sunk); border-radius: 12px; padding: 6px 2px 6px 10px; margin-bottom: 8px; }
   /* どこから重ねるかの ☆（地点カードの ☆ と同じ大きさ） */
   .aim-from-fav { flex: 0 0 auto; min-width: 44px; min-height: 44px; font-size: 1.1rem; color: var(--tertiary); }
   .aim-from-fav.on { color: var(--accent); }
@@ -627,6 +627,7 @@
      横に並べると説明が細く5行に折れていた */
   .aim-near-row { margin-top: 8px; }
   .aim-near-row .fav-btn { width: auto; padding: 0 14px; }
+  .aim-near-btns { display: flex; gap: 6px; flex-wrap: wrap; }
   .aim-days { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
   .aim-day { min-height: 32px; padding: 4px 10px; border-radius: 9px; background: var(--sunk);
              color: var(--accent); font-weight: 700; }
@@ -1049,7 +1050,7 @@
          地点カードと同じ形（📍 名前・住所・標高、🔍、☆）。押すと地点カードと同じ「地点」の画面（検索・現在地・地図で選ぶ・
          お気に入り）が開き、そこで選んだ場所がこの観測地点になる（placeSheetFor = "aim"）。アプリ全体の地点は変えない -->
     <p class="fav-l" id="aimFromLabel">どこから重ねるか</p>
-    <div class="place-row aim-from-card">
+    <div class="place-row aim-place-card">
       <button class="place-pick" id="aimFromButton" aria-describedby="aimFromLabel">
         <span class="pin">📍</span>
         <span class="place-txt">
@@ -1065,6 +1066,27 @@
     </div>
 
     <label class="fav-l" for="aimLimb">どこに重ねるか</label>
+    <!-- 自分で置くときの目標の場所（2026-10-01 ユーザー「自分で置くを選んだ場合、どこに重ねるかの検索が必要なんじゃないの」）。
+         どこから重ねるかと同じく地点カードの形で、押すと同じ「地点」の画面（検索・現在地・地図で選ぶ・お気に入り）。
+         地図を見ながら決めるときは、地図のすぐ下の「ここに重ねる」 -->
+    <div class="place-row aim-place-card" id="aimTargetCard" hidden>
+      <button class="place-pick" id="aimTargetButton">
+        <span class="pin">📍</span>
+        <span class="place-txt">
+          <span class="name" id="aimTargetName">…</span>
+          <span class="muted" id="aimTargetSub"></span>
+        </span>
+        <span class="sr-only">（重ねる目標の場所を探す）</span>
+        <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+          stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
+      </button>
+    </div>
+    <!-- 自分で置く目標の高さ（地上から）。検索で選んだ建物は、地図に高さがあれば最初から入る -->
+    <div class="aim-row" id="aimCustomRow" hidden>
+      <input type="number" id="aimCustomH" class="fav-in" inputmode="decimal" min="0" max="1000"
+             placeholder="高さ（地上から・m）" aria-label="目標の高さ（地上から・メートル）">
+      <button id="aimCustomSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">この高さで</button>
+    </div>
     <div class="aim-row">
       <select id="aimPart" class="fav-in" aria-label="高さ"></select>
       <select id="aimLimb" class="fav-in" aria-label="合わせ方"></select>
@@ -1077,11 +1099,6 @@
       <button id="aimHeightSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">この高さで</button>
     </div>
     <p class="tiny" id="aimHeightNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
-    <div class="aim-row" id="aimCustomRow" hidden>
-      <input type="number" id="aimCustomH" class="fav-in" inputmode="decimal" min="1" max="1000"
-             placeholder="高さ（地上から・m）" aria-label="目標の高さ（地上から・メートル）">
-      <button id="aimCustomSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">中心を目標に</button>
-    </div>
     <!-- どこから重ねるかで決めた地点から、次に重なる日。**選ぶ行（どこから・目標と太陽／月・どこに）より下に置く**。
          太陽と月で日の数が違うので、上に置くと切り替えるたびに太陽／月の釦の位置が動いた（ユーザー「UIがすごく動くのが気になる」） -->
     <div id="aimFrom" class="aim-from"></div>
@@ -1111,7 +1128,11 @@
     <div id="aimCoord" class="tiny" hidden></div>
     <!-- 地図の中心（ピン）について。線までの距離と、そこを観測地点にする釦を並べる -->
     <div class="aim-near-row">
-      <button id="aimPick" class="fav-btn" aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる</button>
+      <div class="aim-near-btns">
+        <button id="aimPick" class="fav-btn" aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる</button>
+        <!-- 自分で置くときだけ。地図の中心（ピン）を目標の場所にする -->
+        <button id="aimPickTarget" class="fav-btn" aria-label="地図の中心（ピンの位置）に重ねる" hidden>ここに重ねる</button>
+      </div>
       <div id="aimNear" class="aim-near">—</div>
     </div>
     <div class="aim-legend">
@@ -1477,21 +1498,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001130154"></script>
+<script src="sorami-core.js?v=20261001131230"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001130154"></script>
-<script src="sorami-exif.js?v=20261001130154"></script>
-<script src="sorami-capcloud.js?v=20261001130154"></script>
-<script src="sorami-terrain.js?v=20261001130154"></script>
-<script src="sorami-mountain.js?v=20261001130154"></script>
-<script src="sorami-fuji.js?v=20261001130154"></script>
-<script src="sorami-sky.js?v=20261001130154"></script>
-<script src="sorami-routes.js?v=20261001130154"></script>
-<script src="sorami-iss.js?v=20261001130154"></script>
-<script src="sorami-plane.js?v=20261001130154"></script>
-<script src="sorami-align.js?v=20261001130154"></script>
-<script src="sorami-moon.js?v=20261001130154"></script>
+<script src="sorami-astro.js?v=20261001131230"></script>
+<script src="sorami-exif.js?v=20261001131230"></script>
+<script src="sorami-capcloud.js?v=20261001131230"></script>
+<script src="sorami-terrain.js?v=20261001131230"></script>
+<script src="sorami-mountain.js?v=20261001131230"></script>
+<script src="sorami-fuji.js?v=20261001131230"></script>
+<script src="sorami-sky.js?v=20261001131230"></script>
+<script src="sorami-routes.js?v=20261001131230"></script>
+<script src="sorami-iss.js?v=20261001131230"></script>
+<script src="sorami-plane.js?v=20261001131230"></script>
+<script src="sorami-align.js?v=20261001131230"></script>
+<script src="sorami-moon.js?v=20261001131230"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4055,6 +4076,12 @@ function qualityCalibration(list) {
 let placeSheetFor = null;
 /// 地点の画面で選んだ場所を、開いた目的の方へ渡す
 function choosePlace(p) {
+  if (placeSheetFor === "aimTarget") {
+    $("placeSheet").close();
+    aimSetCustomTarget({ name: p.name, subtitle: aimAreaOf({ detail: p.subtitle || "" }) || p.subtitle || "",
+      latitude: p.latitude, longitude: p.longitude, heightM: p.structureM ?? null });
+    return;
+  }
   if (placeSheetFor === "aim") {
     $("placeSheet").close();          // 閉じると placeSheetFor は null に戻る
     aimSetFrom({ name: p.name, subtitle: aimAreaOf({ detail: p.subtitle || "" }) || p.subtitle || "",
@@ -4606,11 +4633,13 @@ function aimTargetList() {
   const custom = aimCustomTarget();
   // 富士山は「富士山に重ねる」で見る（許可が別。塔の一覧から選べると、そちらを通らずに見られてしまう）
   return [...SoramiAlign.TARGETS.filter((t) => t.id !== "fuji").map(aimWithHeights),
-    custom || { id: "custom", name: "自分で置く（地図の中心）", parts: [] }];
+    custom || { id: "custom", name: "自分で置く", parts: [] }];
 }
 function aimFillSelects() {
+  // 自分で置いた目標は、一覧では「自分で置く（◯◯）」。題名の枠には◯◯（場所の名前）だけ
+  const custom = aimCustomTarget();
   $("aimTarget").innerHTML = aimTargetList()
-    .map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("");
+    .map((t) => `<option value="${t.id}">${esc(t.id === "custom" ? (custom ? `自分で置く（${t.name}）` : "自分で置く") : t.name)}</option>`).join("");
   $("aimLimb").innerHTML = SoramiAlign.LIMBS
     .map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
 }
@@ -5901,12 +5930,17 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   if (aim.body === "sun" && anyOk && !sunOk) aim.body = "moon";
   if (aim.body === "moon" && anyOk && !moonOk) aim.body = "sun";
   aim.target = wanted === "custom"
-    ? (aimCustomTarget() || { id: "custom", name: "自分で置く（地図の中心）", parts: [] })
+    ? (aimCustomTarget() || { id: "custom", name: "自分で置く", parts: [] })
     : aimWithHeights(SoramiAlign.targetById(wanted) || SoramiAlign.TARGETS[0]);
-  // 自分で置く目標のときだけ、高さの入力を出す
-  $("aimCustomRow").hidden = wanted !== "custom";
+  // 自分で置く目標のときだけ、目標の場所のカード・高さの入力・地図の「ここに重ねる」を出す
+  const customOn = !fujiTool && wanted === "custom";
+  $("aimTargetCard").hidden = !customOn;
+  $("aimCustomRow").hidden = !customOn;
+  $("aimPickTarget").hidden = !customOn;
+  if (customOn) aimRenderTargetCard();
   // 目標の高さの注記（塔だけ。富士山の山頂は当たり前なので出さない）
-  $("aimTargetNote").textContent = fujiTool ? "" : aim.target.note || "";
+  // 自分で置く目標は、場所のカードに標高と高さを書くので、ここには出さない
+  $("aimTargetNote").textContent = fujiTool || wanted === "custom" ? "" : aim.target.note || "";
   $("aimTargetNote").hidden = !$("aimTargetNote").textContent;
   // 題名: 富士山は「ダイヤモンド富士」「パール富士」の字。塔は「◯◯▾に重ねる」の◯◯で目標を選ぶ。太陽／月は題名の右で同じ位置
   $("aimTitleText").hidden = !fujiTool;
@@ -5950,7 +5984,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   // 目標が決まっていなければ線は引けない（高さが無い）
   if (!(aim.target.parts || []).length) {
     aim.lines = []; AimMap.redraw();
-    $("aimLineInfo").textContent = "地図の中心を目標にしてください（高さを入れて「中心を目標に」）。";
+    $("aimLineInfo").textContent = "重ねる目標の場所を選んでください（「どこに重ねるか」の 🔍 か、地図の「ここに重ねる」）。";
     $("aimList").innerHTML = "";
     return;
   }
@@ -6064,6 +6098,29 @@ function aimSetFrom(p, { keepMap = false } = {}) {
   // 検索で選んだら地図をその地点へ寄せる（線との位置関係が見える）。地図の中心で選んだときは動かさない
   if (keepMap) AimMap.redraw();
   else AimMap.open({ latitude: p.latitude, longitude: p.longitude }, Math.max(11, Math.round(AimMap.zoom())));
+}
+/// 自分で置く目標の場所を決める（「地点」の画面・地図の「ここに重ねる」から）。
+/// 高さ（地上から）は、検索で選んだ建物に地図の高さがあればそれ、無ければ入っている値、どちらも無ければ 0（山の頂や地面そのもの）
+async function aimSetCustomTarget(p, { keepMap = false } = {}) {
+  const ground = await aimElevation(p.latitude, p.longitude);
+  const typed = Number($("aimCustomH").value);
+  const h = Number.isFinite(p.heightM) && p.heightM > 0 ? p.heightM
+    : Number.isFinite(typed) && typed > 0 ? typed : 0;
+  store.set("sorami.aimCustom", { latitude: p.latitude, longitude: p.longitude, name: p.name || "自分で置いた目標",
+    subtitle: p.subtitle || "", heightM: h, groundM: ground, topM: ground + h });
+  aimFillSelects();
+  $("aimTarget").value = "custom";
+  aimApply({ recenter: !keepMap });
+}
+/// 目標の場所のカード（地点カードと同じ形）。高さの欄にも今の値を入れる
+function aimRenderTargetCard() {
+  const c = store.get("sorami.aimCustom", null);
+  $("aimTargetName").textContent = c ? c.name || "自分で置いた目標" : "重ねる目標の場所を選ぶ";
+  $("aimTargetSub").textContent = c
+    // 高さが 0 のままだと線が出ないことが多い（地面そのものに重ねることになる）。入れればよいと分かるように書く
+    ? [c.subtitle, `標高 ${Math.round(c.groundM || 0)}m`, c.heightM ? `地上 ${Math.round(c.heightM)}m` : "高さ（地上から）を入れてください"].filter(Boolean).join(" ・ ")
+    : "検索するか、地図の「ここに重ねる」";
+  if (c && document.activeElement !== $("aimCustomH")) $("aimCustomH").value = c.heightM ? String(Math.round(c.heightM)) : "";
 }
 /// 検索結果の住所を「千葉県市川市」まで縮める（OSM の住所は「曽谷, 市川柏線, 宮久保四丁目, 市川市, 千葉県, 272-0822, 日本」と長い）
 function aimAreaOf(r) {
@@ -6521,19 +6578,23 @@ function openAim(preset) {
       store.set("sorami.aimHeights", hs);
       aimApply();
     };
-    $("aimCustomSet").onclick = async () => {
+    // 自分で置いた目標の高さ（地上から）を直す。場所はそのまま
+    $("aimCustomSet").onclick = () => {
       const h = Number($("aimCustomH").value);
-      if (!Number.isFinite(h) || h <= 0) { $("aimLineInfo").textContent = "高さ（地上から・m）を入れてください。"; return; }
-      const c = AimMap.center();
-      $("aimCustomSet").disabled = true;
-      let ground = 0;
-      try { const e = await SoramiTerrain.elevationFromTile(c.latitude, c.longitude, 13); if (Number.isFinite(e)) ground = e; } catch { ground = 0; }
-      $("aimCustomSet").disabled = false;
-      store.set("sorami.aimCustom", { latitude: c.latitude, longitude: c.longitude,
-        heightM: h, groundM: ground, topM: ground + h, name: "自分で置いた目標" });
-      aimFillSelects();
-      $("aimTarget").value = "custom";
+      const c = store.get("sorami.aimCustom", null);
+      if (!c) { $("aimLineInfo").textContent = "先に重ねる目標の場所を選んでください。"; return; }
+      if (!Number.isFinite(h) || h < 0 || h > 1000) { $("aimLineInfo").textContent = "高さ（地上から・m）を入れてください。"; return; }
+      store.set("sorami.aimCustom", { ...c, heightM: h, topM: (c.groundM || 0) + h });
+      aimFillSelects(); $("aimTarget").value = "custom";
       aimApply();
+    };
+    // 地図の中心（ピン）を目標の場所にする（自分で置くときだけ出す）
+    $("aimPickTarget").onclick = async () => {
+      const c = AimMap.center();
+      $("aimPickTarget").disabled = true;
+      const n = await nearName(c.latitude, c.longitude);
+      $("aimPickTarget").disabled = false;
+      await aimSetCustomTarget({ name: n.name, subtitle: n.area, latitude: c.latitude, longitude: c.longitude }, { keepMap: true });
     };
     $("aimPrev").onclick = () => { aim.dayMs -= 86400000; $("aimDate").value = new Date(aim.dayMs + 9 * 3600000).toISOString().slice(0, 10); aimApply(); };
     $("aimNext").onclick = () => { aim.dayMs += 86400000; $("aimDate").value = new Date(aim.dayMs + 9 * 3600000).toISOString().slice(0, 10); aimApply(); };
@@ -6578,7 +6639,8 @@ function openAim(preset) {
 }
 
 // ねらうの観測地点を決めるときは、いまの観測地点のところで地図を開く
-$("mapButton").onclick = () => MapPick.open(placeSheetFor === "aim" ? (aimFromPoint() || place) : place);
+$("mapButton").onclick = () => MapPick.open(placeSheetFor === "aim" ? (aimFromPoint() || place)
+  : placeSheetFor === "aimTarget" ? (store.get("sorami.aimCustom", null) || AimMap.center()) : place);
 $("mapClose").onclick = () => $("mapSheet").close();
 $("mapHere").onclick = () => {
   if (!navigator.geolocation) return;
@@ -6634,9 +6696,9 @@ $("mapPick").onclick = async () => {
 function openPlaceSheet(mode = null) {
   placeSheetFor = mode;
   const forAim = mode === "aim";
-  $("placeSheetTitle").textContent = forAim ? "どこから重ねるか" : "地点";
+  $("placeSheetTitle").textContent = forAim ? "どこから重ねるか" : mode === "aimTarget" ? "何に重ねるか" : "地点";
   // ねらうでは「＋ いまの地点を登録」（地点カードの地点の登録）は出さない。観測地点の ☆ はカードの横にある
-  $("favAdd").hidden = forAim;
+  $("favAdd").hidden = !!mode;
   const back = forAim && aim.from && Number.isFinite(place.latitude);
   $("sheetInherit").hidden = !back;
   if (back) $("sheetInherit").textContent = `📍 絶景予測の地点（${place.name}）にする`;
@@ -6651,6 +6713,7 @@ function openPlaceSheet(mode = null) {
 }
 $("placeButton").onclick = () => openPlaceSheet(null);
 $("aimFromButton").onclick = () => openPlaceSheet("aim");
+$("aimTargetButton").onclick = () => openPlaceSheet("aimTarget");
 $("sheetInherit").onclick = () => {
   $("placeSheet").close();
   aim.from = null;
