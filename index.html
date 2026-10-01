@@ -595,9 +595,13 @@
   .aim-legend .tiny { font-weight: 400; color: var(--tertiary); }
   /* 観測スポットの行。日付は押すとその日の線と場所を出す */
   .aim-spot { cursor: default; }
-  /* 観測地点の決め方（検索の下）。地図の中心・いまの地点を横に並べ、幅は字の分だけ */
-  .aim-from-pick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-  .aim-from-pick .fav-btn { width: auto; padding: 0 12px; }
+  /* どこから重ねるか（名前で探す欄）の下の、次に重なる日 */
+  #aimFromSearch { margin-bottom: 4px; }
+  .aim-from { margin: 2px 0 8px; }
+  /* 地図のすぐ下に「ここから重ねる」（字の分の幅）、その下に中心の説明を幅いっぱいに。
+     横に並べると説明が細く5行に折れていた */
+  .aim-near-row { margin-top: 8px; }
+  .aim-near-row .fav-btn { width: auto; padding: 0 14px; }
   .aim-days { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
   .aim-day { min-height: 32px; padding: 4px 10px; border-radius: 9px; background: var(--sunk);
              color: var(--accent); font-weight: 700; }
@@ -998,6 +1002,18 @@
   <div id="aimView" hidden>
     <div class="card">
       <div class="section-h"><h2 id="aimTitle">ねらう</h2><span class="muted" id="aimSub"></span></div>
+    <!-- どこから重ねるか（観測地点・2026-10-01）。**カードのいちばん上に置く**。「目標」の行は塔にしか無いので、
+         その下に置くと道具ごとに位置が変わる（ユーザー「一番上の方が他の画面と位置が変わらない。ツールごとにレイアウトが
+         変わるのはよくない」）。「どこに重ねるか」と対の名前（ユーザー「どこに重ねるかがあるなら、どこから重ねるかが近くに」）。**最初は絶景予測の地点を引き継いで欄に入れておく**
+         （ユーザー「各ツールで場所を引き継ぐのはいいけど、それはどこから重ねるかの枠に入れておく」）。
+         ここは名前で探す所。地図から決めるときは、地図のすぐ下の「ここから重ねる」（地図を見ながら決めるので地図の側に置く。
+         ユーザー「地図の中心ってここにいらない。地図を見てる時にここにしようって思うわけ」）。すぐ下にここから見て次に重なる日を出す（逆引き。ユーザー「曽谷から見て
+         スカイツリーに重なるのはいつか」）。アプリ全体の地点（地点カード）は変えない -->
+    <label class="fav-l" for="aimFromSearch">どこから重ねるか</label>
+    <input type="search" id="aimFromSearch" class="fav-in" enterkeyhint="search"
+           placeholder="観測地点を地名・住所・駅名で探す" aria-label="どこから重ねるか（観測地点）">
+    <div id="aimFromResults"></div>
+    <div id="aimFrom" class="aim-from"></div>
 
     <!-- ダイヤモンド富士・パール富士では目標も天体も決まっているので、選ぶ行を出さない（2026-09-30） -->
     <div id="aimTargetBox">
@@ -1051,19 +1067,11 @@
       <div class="mapattr">国土地理院</div>
     </div>
     <div id="aimCoord" class="tiny" hidden></div>
-    <!-- 観測地点（2026-10-01）。**検索でも、地図の中心でも決められる**（ユーザー「地図から観測地点を指定するだけじゃなくて
-         検索で指定もしたい」）。決めた地点から見て重なる日を、すぐ下に出す（逆引き。ユーザー「曽谷から見てスカイツリーに
-         重なるのはいつか」）。以前の「地図の中心を自分の地点にする」はアプリ全体の地点を変えるだけで、この画面には何も出なかった -->
-    <div class="section-h" style="margin-top:10px"><h2>観測地点</h2><span class="muted">ここから見て重なる日</span></div>
-    <input type="search" id="aimFromSearch" class="fav-in" enterkeyhint="search"
-           placeholder="地名・住所・駅名で探す（例: 曽谷）" aria-label="観測地点を探す">
-    <div id="aimFromResults"></div>
-    <div class="aim-from-pick">
-      <button id="aimPick" class="fav-btn">地図の中心にする</button>
-      <button id="aimFromHere" class="fav-btn" hidden></button>
+    <!-- 地図の中心（ピン）について。線までの距離と、そこを観測地点にする釦を並べる -->
+    <div class="aim-near-row">
+      <button id="aimPick" class="fav-btn" aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる</button>
+      <div id="aimNear" class="aim-near">—</div>
     </div>
-    <div id="aimFrom"></div>
-    <div id="aimNear" class="aim-near">—</div>
     <div class="aim-legend">
       <span><i class="aim-k set"></i><span id="aimKeySet">日の入側</span></span>
       <span><i class="aim-k rise"></i><span id="aimKeyRise">日の出側</span></span>
@@ -1418,21 +1426,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001113958"></script>
+<script src="sorami-core.js?v=20261001114856"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001113958"></script>
-<script src="sorami-exif.js?v=20261001113958"></script>
-<script src="sorami-capcloud.js?v=20261001113958"></script>
-<script src="sorami-terrain.js?v=20261001113958"></script>
-<script src="sorami-mountain.js?v=20261001113958"></script>
-<script src="sorami-fuji.js?v=20261001113958"></script>
-<script src="sorami-sky.js?v=20261001113958"></script>
-<script src="sorami-routes.js?v=20261001113958"></script>
-<script src="sorami-iss.js?v=20261001113958"></script>
-<script src="sorami-plane.js?v=20261001113958"></script>
-<script src="sorami-align.js?v=20261001113958"></script>
-<script src="sorami-moon.js?v=20261001113958"></script>
+<script src="sorami-astro.js?v=20261001114856"></script>
+<script src="sorami-exif.js?v=20261001114856"></script>
+<script src="sorami-capcloud.js?v=20261001114856"></script>
+<script src="sorami-terrain.js?v=20261001114856"></script>
+<script src="sorami-mountain.js?v=20261001114856"></script>
+<script src="sorami-fuji.js?v=20261001114856"></script>
+<script src="sorami-sky.js?v=20261001114856"></script>
+<script src="sorami-routes.js?v=20261001114856"></script>
+<script src="sorami-iss.js?v=20261001114856"></script>
+<script src="sorami-plane.js?v=20261001114856"></script>
+<script src="sorami-align.js?v=20261001114856"></script>
+<script src="sorami-moon.js?v=20261001114856"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4677,12 +4685,13 @@ AimMap.setOverlay((ctx, { project, width, height }) => {
   });
 
   // 観測地点。どこから見た日なのかを地図でも分かるように、白い縁の点＋名前
-  if (aim.from) {
-    const [fx, fy] = project(aim.from.latitude, aim.from.longitude);
+  const fromPt = aimFromPoint();
+  if (fromPt) {
+    const [fx, fy] = project(fromPt.latitude, fromPt.longitude);
     ctx.save();
     ctx.beginPath(); ctx.arc(fx, fy, 5.5, 0, Math.PI * 2);
     ctx.fillStyle = ink; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
-    aimMapLabel(ctx, fx, fy + 15, aim.from.name, "#fff", width, height, "center");
+    aimMapLabel(ctx, fx, fy + 15, fromPt.name, "#fff", width, height, "center");
     ctx.restore();
   }
 
@@ -5947,19 +5956,27 @@ async function aimRenderSpots() {
   }
 }
 
-// ---------------------------------------------------------------- 観測地点から探す（2026-10-01）
+// ---------------------------------------------------------------- どこから重ねるか（観測地点・2026-10-01）
 //
 // 「曽谷から見て、スカイツリーに重なるのはいつか。富士山に重なるのはいつか」（ユーザー）。
 // 計算は定番スポットの次の日と同じ（SoramiAlign.upcoming。前後の日は1回にまとめる）。
-// **どこからの結果かを必ず名前で書く。** 観測地点はこの画面で、検索か地図の中心で選ぶ（地点カードの地点とは別に持つ。
-// ユーザー「地図から観測地点を指定するだけじゃなくて検索で指定もしたい」）。
+// **最初は絶景予測の地点を引き継ぎ、欄に名前を入れておく**（ユーザー「各ツールで場所を引き継ぐのはいいけど、
+// それはどこから重ねるかの枠に入れておく」）。検索か地図の中心で替えると、この画面ではそれを使う
+// （アプリ全体の地点＝地点カードは変えない）。どこからの結果かは必ず名前で書く。
 // 重なる日があっても目標が隠れていれば見えないので、地形（塔は高い建物も）で見通しを確かめて添える。
-aim.from = store.get("sorami.aimFrom", null);
+aim.from = null;      // 替えたときだけ持つ。null なら絶景予測の地点
 aim.fromSeq = 0;
+/// いまの観測地点。替えていなければ絶景予測の地点（inherited）
+function aimFromPoint() {
+  if (aim.from) return aim.from;
+  return Number.isFinite(place.latitude)
+    ? { name: place.name, subtitle: place.subtitle || "", latitude: place.latitude, longitude: place.longitude, inherited: true }
+    : null;
+}
 function aimSetFrom(p, { keepMap = false } = {}) {
   aim.from = { name: p.name, subtitle: p.subtitle || "", latitude: p.latitude, longitude: p.longitude };
-  store.set("sorami.aimFrom", aim.from);
-  $("aimFromSearch").value = ""; $("aimFromResults").innerHTML = "";
+  $("aimFromResults").innerHTML = "";
+  $("aimFromSearch").blur();
   aimRenderFrom();
   // 検索で選んだら地図をその地点へ寄せる（線との位置関係が見える）。地図の中心で選んだときは動かさない
   if (keepMap) AimMap.redraw();
@@ -5977,18 +5994,23 @@ function aimAreaOf(r) {
 wireSearchBox("aimFromSearch", "aimFromResults",
   (r) => aimSetFrom({ name: r.name, subtitle: aimAreaOf(r), latitude: r.latitude, longitude: r.longitude }),
   (c) => aimSetFrom({ name: `${c.latitude.toFixed(4)}, ${c.longitude.toFixed(4)}`, subtitle: "緯度経度", latitude: c.latitude, longitude: c.longitude }));
-$("aimFromHere").onclick = () => aimSetFrom(place);
+// 欄には観測地点の名前を入れておく。押したら全部選んで、打てばそのまま探せるように。
+// 空のまま離れたら名前に戻す。打った字は残す（離れると検索が走るので、戻すと結果と欄の字が食い違う）。
+// どこから見た結果かは、下の行に必ず名前で書いてある
+$("aimFromSearch").addEventListener("focus", () => $("aimFromSearch").select());
+$("aimFromSearch").addEventListener("blur", () => setTimeout(() => {
+  if (document.activeElement === $("aimFromSearch") || $("aimFromSearch").value.trim()) return;
+  const f = aimFromPoint();
+  $("aimFromSearch").value = f ? f.name : "";
+}, 250));
 
 async function aimRenderFrom() {
   const seq = ++aim.fromSeq;
-  const f = aim.from;
-  const here = Number.isFinite(place.latitude) ? place : null;
-  const same = here && f && SoramiTerrain.distanceKm(here.latitude, here.longitude, f.latitude, f.longitude) < 0.05;
-  $("aimFromHere").hidden = !here || same;
-  if (here) $("aimFromHere").textContent = `いまの地点（${here.name}）にする`;
+  const f = aimFromPoint();
+  if (document.activeElement !== $("aimFromSearch")) $("aimFromSearch").value = f ? f.name : "";
   const moon = aim.body === "moon";
   const what = aimIsFuji() ? (moon ? "パール富士" : "ダイヤモンド富士") : `${aim.target.name}に${moon ? "月" : "太陽"}が重なる日`;
-  if (!f) { $("aimFrom").innerHTML = `<p class="tiny">観測地点を検索するか、地図の中心にすると、そこから見た${esc(what)}を出します。</p>`; return; }
+  if (!f) { $("aimFrom").innerHTML = `<p class="tiny">観測地点を探すか「地図の中心」を押すと、そこから見た${esc(what)}を出します。</p>`; return; }
   if (!(aim.target.parts || []).length) { $("aimFrom").innerHTML = ""; return; }
   $("aimFrom").innerHTML = `<p class="tiny">${esc(f.name)}から計算しています…</p>`;
   await new Promise((r) => setTimeout(r, 0));
@@ -6001,24 +6023,33 @@ async function aimRenderFrom() {
       { from: Date.now(), days: 400, limit: moon ? 24 : 8, limb: aim.limb, partId: aim.partId, stepMs: 3600000 });
   } catch { ev = []; }
   if (seq !== aim.fromSeq) return;
-  const any = ev.length;
+  const all = ev;
   // 定番スポットと同じく、縁がかすめるだけの回と、明るい空の月は出さない
-  ev = ev.filter((e) => e.rank !== "graze" && (!moon || e.sunAltitude < 0)).slice(0, 6);
+  ev = ev.filter((e) => e.rank !== "graze" && (!moon || e.sunAltitude < 0)).slice(0, 4);
   const D = SoramiTerrain.distanceKm(f.latitude, f.longitude, aim.target.latitude, aim.target.longitude);
-  const head = `<p class="tiny" style="color:var(--secondary);margin-top:6px"><strong>${esc(f.name)}</strong>${
-    f.subtitle ? `（${esc(f.subtitle)}）` : ""}から見た${esc(what)} ・ ${esc(aim.target.name)}まで ${aimKm(D)}km</p>`;
+  const head = `<p class="tiny" style="color:var(--secondary)"><strong>${esc(f.name)}</strong>${
+    f.subtitle ? `（${esc(f.subtitle)}）` : ""}から見た${esc(what)}${f.inherited ? "（絶景予測で選んでいる地点）" : ""}`
+    + ` ・ ${esc(aim.target.name)}まで ${aimKm(D)}km</p>`;
   const sideOf = (e) => (e.side === "set" ? (moon ? "月の入" : "日の入") : (moon ? "月の出" : "日の出"));
-  const rows = ev.map((e) => {
-    const lit = moon ? ` ・ ${moonGlyphAt(e.at)} 輝面${Math.round(e.illuminated * 100)}%` : "";
-    const span = e.dayCount > 1 ? `<span class="tiny sub-line" style="color:var(--tertiary)">前後 ${S.Cal.monthDay(e.from)}〜${S.Cal.monthDay(e.to)} も重なります</span>` : "";
-    return `<button class="al-row jump" data-from-day="${S.Cal.startOfDay(e.at)}">
-      <span class="al-w"><strong>${aimDateLabel(e.at)}</strong> <span class="tiny">${esc(AIM_RANK_LABEL[e.rank] || "")} ・ ${sideOf(e)}${lit}</span></span>
-      ${span}<span class="tiny sub-line" style="color:var(--accent)">この日の線と候補地を見る →</span></button>`;
+  // 日付の小さな釦で並べる（定番スポットと同じ形）。押すとその日の線と候補地へ
+  const chips = ev.map((e) => {
+    const lit = moon ? ` ${moonGlyphAt(e.at)}${Math.round(e.illuminated * 100)}%` : "";
+    // 前後も重なる日は「（11/05〜07）」と短く（月をまたげば「（10/31〜11/02）」）
+    const to = S.Cal.monthDay(e.to), fr = S.Cal.monthDay(e.from);
+    const span = e.dayCount > 1 ? `（${fr}〜${fr.slice(0, 3) === to.slice(0, 3) ? to.slice(3) : to}）` : "";
+    return `<button class="tiny aim-day" data-from-day="${S.Cal.startOfDay(e.at)}">${aimDateLabel(e.at)} ${sideOf(e)}`
+      + ` ${esc(AIM_RANK_LABEL[e.rank] || "")}${lit}${span}</button>`;
   }).join("");
+  // 重ならないなら、そう言い切る（ユーザー「天体の動き的に絶対にないわけでしょ？」）。太陽は毎年同じ範囲の方角しか
+  // 通らないので、1年で無ければその場所からは無い。月も 2025〜26 年は出入りの方角の幅がいちばん広い時期
+  // （約18.6年周期の最大）なので、ここで無ければ当分無い。重なる回はあるが出さない理由があるときだけ、それを書く
+  const solid = all.filter((e) => e.rank !== "graze");
   const none = ev.length ? ""
-    : `<p class="tiny">この1年、${esc(f.name)}からは重なりません${moon && any ? "（重なる回は、月が明るい空にあるときだけ）" : ""}。</p>`;
-  $("aimFrom").innerHTML = head + (rows ? `<div class="al">${rows}</div>` : "") + none
-    + `<p class="tiny" id="aimFromSight" style="margin-top:6px;color:var(--tertiary)"></p>`;
+    : `<p class="tiny">${!all.length ? "ここからは重なりません。"
+      : !solid.length ? "ここからは縁がかすめるだけで、重なりません。"
+      : "重なるのは、月が明るい空にあるときだけです（明るい空の月は写りません）。"}</p>`;
+  $("aimFrom").innerHTML = head + (chips ? `<div class="aim-days">${chips}</div>` : "") + none
+    + `<p class="tiny" id="aimFromSight" style="margin-top:4px;color:var(--tertiary)"></p>`;
   for (const el of $("aimFrom").querySelectorAll("[data-from-day]")) {
     el.onclick = () => aimShowDay(+el.dataset.fromDay, { id: "from", latitude: f.latitude, longitude: f.longitude });
   }
@@ -6038,7 +6069,7 @@ async function aimRenderFrom() {
   }
   if (seq !== aim.fromSeq) return;
   $("aimFromSight").textContent = sight
-    ? `ただし、この地点からは${aim.target.name}が${sight}。少し場所を変えると見えることがあります。`
+    ? `ただし、ここからは${aim.target.name}が${sight}。少し場所を変えると見えることがあります。`
     : "地形と高い建物（7階・20m以上）では隠れません。低い建物や木は見ていません。";
 }
 
@@ -6404,6 +6435,9 @@ function openAim(preset) {
       const n = await nearName(c.latitude, c.longitude);
       $("aimPick").disabled = false;
       aimSetFrom({ name: n.name, subtitle: n.area || "地図の中心", latitude: c.latitude, longitude: c.longitude }, { keepMap: true });
+      // 次に重なる日は上の「どこから重ねるか」の下に出る。地図を見ている人に、どこを見ればよいかを一瞬だけ言う
+      $("aimPick").textContent = "観測地点にしました ↑";
+      setTimeout(() => { $("aimPick").textContent = "ここから重ねる"; }, 2500);
     };
     // 地図を動かすたび、中心が線からどれだけ離れているかを出す
     AimMap.onMove((c) => aimUpdateNear(c));
@@ -6451,8 +6485,9 @@ async function nearName(lat, lon) {
     const r = await fetch(url, { headers: { accept: "application/json" } });
     if (r.ok) {
       const a = (await r.json()).address || {};
-      const near = a.tourism || a.leisure || a.natural || a.building || a.road
-        || a.hamlet || a.neighbourhood || a.suburb || a.village || a.town || a.city;
+      // 施設・公園・山などの名前 → 町名（丁目・字）→ 道路の順。道路名（「市川柏線」）は場所の名前として分かりにくい
+      const near = a.tourism || a.leisure || a.natural || a.building
+        || a.quarter || a.neighbourhood || a.hamlet || a.suburb || a.village || a.town || a.road || a.city;
       if (near) name = String(near).slice(0, 24);
       area = [a.province || a.state || "", a.city || a.town || a.village || ""].join("");
     }

@@ -228,14 +228,28 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
     "地点から探す: 選んだ地点（aim.from）で解く");
   ok(/<strong>\$\{esc\(f\.name\)\}<\/strong>[\s\S]{0,80}から見た/.test(fn), "地点から探す: どこからの結果かを名前で書く");
   ok(/id="aimFromSearch"/.test(html) && /wireSearchBox\("aimFromSearch", "aimFromResults"/.test(html), "地点から探す: 地点はこの画面の中で探す");
-  ok(/いまの地点（\$\{here\.name\}）にする/.test(fn), "いまの地点を使うときも、名前を書いた釦で選ぶ");
-  // 観測地点は検索でも地図の中心でも決められ、どちらも同じ観測地点（aim.from）になる（ユーザー「検索で指定もしたい」）
-  ok(/<input type="search" id="aimFromSearch"[\s\S]{0,200}<button id="aimPick" class="fav-btn">地図の中心にする<\/button>/.test(html),
-    "観測地点: 検索欄と「地図の中心にする」を並べる");
+  // 「どこに重ねるか」と対で「どこから重ねるか」。最初は絶景予測の地点を引き継いで欄に入れる（ユーザー指定）
+  // 「目標」の行は塔にしか無いので、その下に置くと道具ごとに位置が変わる。**カードのいちばん上**（ユーザー指定）
+  { const t0 = html.indexOf('id="aimTitle"'), b = html.indexOf('for="aimFromSearch">どこから重ねるか'),
+      tg = html.indexOf('id="aimTargetBox"'), a = html.indexOf('for="aimLimb">どこに重ねるか');
+    ok(t0 > 0 && t0 < b && b < tg && tg < a, "「どこから重ねるか」はカードのいちばん上（目標・どこに重ねるかより上）"); }
+  ok(/document\.activeElement === \$\("aimFromSearch"\) \|\| \$\("aimFromSearch"\)\.value\.trim\(\)\) return;/.test(html),
+    "欄を空のまま離れたら観測地点の名前に戻す（打った字は残す）");
+  // 地図から決めるのは地図を見ているとき。釦は上の欄ではなく地図のすぐ下（ユーザー「地図の中心ってここにいらない」）
+  { const cv = html.indexOf('id="aimCanvas"'), pk = html.indexOf('id="aimPick"'), nr = html.indexOf('id="aimNear"'), fs = html.indexOf('id="aimFromSearch"');
+    ok(fs < cv && cv < pk && pk < nr, "「ここから重ねる」は地図のすぐ下、その下に中心の説明（上の欄は名前で探すだけ）"); }
+  // 重ならないなら言い切る（ユーザー「天体の動き的に絶対にないわけでしょ？」）。「この1年」と濁さない
+  ok(/"ここからは重なりません。"/.test(html) && !/この1年、ここからは重なりません/.test(html), "重ならない地点は「ここからは重なりません」");
+  ok(/重なるのは、月が明るい空にあるときだけです/.test(html) && /縁がかすめるだけで、重なりません/.test(html), "出さない理由があるときだけ、その理由を書く");
+  ok(/aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる<\/button>/.test(html), "釦の名前は「ここから重ねる」");
+  ok(/function aimFromPoint\(\) \{\s+if \(aim\.from\) return aim\.from;[\s\S]{0,200}inherited: true/.test(html),
+    "替えていなければ絶景予測の地点を引き継ぐ");
+  ok(/\$\("aimFromSearch"\)\.value = f \? f\.name : "";/.test(fn), "引き継いだ地点の名前を欄に入れておく");
+  ok(/（絶景予測で選んでいる地点）/.test(fn), "引き継いだ地点なら、そう書く");
+  ok(!/id="aimFromHere"/.test(html), "引き継ぐための別の釦は置かない（欄に入れておく）");
   ok(/\$\("aimPick"\)\.onclick = async \(\) => \{[\s\S]{0,300}aimSetFrom\(/.test(html), "地図の中心も同じ観測地点にする（アプリ全体の地点は変えない）");
   ok(!/\$\("aimPick"\)\.hidden = aimIsFuji\(\)/.test(html), "富士山でも地図の中心で選べる");
-  { const a = html.indexOf('id="aimCanvas"'), b = html.indexOf('id="aimFromSearch"'), c = html.indexOf('id="aimCandList"');
-    ok(a < b && b < c, "観測地点は地図のすぐ下（その日の候補地より上）"); }
+  ok(/class="tiny aim-day" data-from-day=/.test(fn), "次に重なる日は日付の小さな釦で（押すとその日の線と候補地へ）");
   ok(/SoramiAlign\.lineOfSight\(obs, aim\.target/.test(fn) && /aimBuildingBlocks\(\[/.test(fn), "見通し（地形・塔は高い建物）を添える");
   ok((html.match(/SoramiAlign\.upcoming\(obs, aim\.target/g) || []).length === 1, "ほかの所で見えない地点からの一覧を出さない");
   // 地点の住所は都道府県＋市区町村まで（OSM の住所は長い）
