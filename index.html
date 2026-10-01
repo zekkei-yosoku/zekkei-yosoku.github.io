@@ -14,7 +14,7 @@
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
      「拾われない仕組みを何も入れていない」状態だけは解消しておく。 -->
 <meta name="robots" content="noindex, nofollow, noarchive">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="絶景予測">
@@ -367,6 +367,9 @@
   .sheet-head button { min-height: 44px; padding: 0 4px; }
   /* シートを開くと本文のスクロールを止めるので、その瞬間に横幅が変わらないよう溝を常に確保する */
   html { scrollbar-gutter: stable; }
+  /* **ページは拡大させない**（2026-10-01 ユーザー「拡大を禁止しておいて」）。縦横の送りだけ許し、つまむ拡大とダブルタップの拡大を止める。
+     地図は自分で拡大・縮小する（.mapwrap は touch-action: none）。iPhone 本体のズーム（3本指ダブルタップ）はこれと関係なく使える */
+  html { touch-action: pan-x pan-y; }
   .sheet-body { overflow-y: auto; max-height: calc(82vh - 54px); padding: 0 16px 16px;
                 overscroll-behavior: contain; }
   .sheet input[type=search] { width: 100%; font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 10px;
@@ -397,8 +400,7 @@
   /* **入力欄だけは 16px。** 本文は 0.94rem（15px）だが、iOS は 16px 未満の入力欄に触れると
      画面を勝手に拡大し、**その拡大は指で戻すまで残る**。更新で読み直しても戻らないので
      「更新したら少し拡大されている」になる（2026-09-24 ユーザー報告）。
-     拡大を禁止（user-scalable=no）する手は採らない。iOS は無視するうえ、
-     自分で拡大したい人まで止めることになる。 */
+     （ページの拡大は 2026-10-01 に禁止したが、viewport の禁止は Safari が無視することがあるので、16px は保つ） */
   .fav-in { width: 100%; font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 10px;
             border: 1px solid var(--line); background: var(--bg); color: var(--text); }
   textarea.fav-in { resize: vertical; line-height: 1.5; }
@@ -1556,21 +1558,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001212300"></script>
+<script src="sorami-core.js?v=20261001214957"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001212300"></script>
-<script src="sorami-exif.js?v=20261001212300"></script>
-<script src="sorami-capcloud.js?v=20261001212300"></script>
-<script src="sorami-terrain.js?v=20261001212300"></script>
-<script src="sorami-mountain.js?v=20261001212300"></script>
-<script src="sorami-fuji.js?v=20261001212300"></script>
-<script src="sorami-sky.js?v=20261001212300"></script>
-<script src="sorami-routes.js?v=20261001212300"></script>
-<script src="sorami-iss.js?v=20261001212300"></script>
-<script src="sorami-plane.js?v=20261001212300"></script>
-<script src="sorami-align.js?v=20261001212300"></script>
-<script src="sorami-moon.js?v=20261001212300"></script>
+<script src="sorami-astro.js?v=20261001214957"></script>
+<script src="sorami-exif.js?v=20261001214957"></script>
+<script src="sorami-capcloud.js?v=20261001214957"></script>
+<script src="sorami-terrain.js?v=20261001214957"></script>
+<script src="sorami-mountain.js?v=20261001214957"></script>
+<script src="sorami-fuji.js?v=20261001214957"></script>
+<script src="sorami-sky.js?v=20261001214957"></script>
+<script src="sorami-routes.js?v=20261001214957"></script>
+<script src="sorami-iss.js?v=20261001214957"></script>
+<script src="sorami-plane.js?v=20261001214957"></script>
+<script src="sorami-align.js?v=20261001214957"></script>
+<script src="sorami-moon.js?v=20261001214957"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4641,8 +4643,6 @@ function createMapView(ids) {
     cv.onpointerdown = (e) => {
       cv.setPointerCapture(e.pointerId);
       if (pinch) { pinch.points.set(e.pointerId, e); return; }
-      // ページが拡大されているときの2本指は、ページを縮めて戻すためのもの。地図は動かさない
-      if (drag && window.visualViewport && window.visualViewport.scale > 1.01) { drag = null; return; }
       if (drag) {       // 2本目の指。つまむ操作へ切り替える
         pinch = { points: new Map([[drag.id, drag.last], [e.pointerId, e]]), base: null };
         drag = null;
@@ -7386,39 +7386,18 @@ document.addEventListener("keydown", (e) => {
 // ホーム画面に置いたアプリには端のスワイプの「戻る」が無いのでそのまま効く。Safari では Safari の「戻る」が先に取る
 // （行き先はこのアプリの「← 戻る」と同じ）。
 //
-// **地図の上でつまんだら、ページは拡大させない**（2026-10-01 ユーザー「地図を拡大した時に画面も拡大されちゃって戻らなくなる時がある」
-// 「重ねるとかのページを開いてからすぐに地図の上でピンチアウトすると起きる」）。
-// 地図は `touch-action: none` でページの拡大を止めているが、**画面を切り替えた直後は効かない**。切り替えた直後は
-// ねらうの計算で処理が詰まり、Safari が「ここは地図」という指定を受け取る前に指が下りるので、前の画面（一覧）として
-// ページごと拡大した。そのあとは画面の大半が地図なので、つまんで戻そうとしても地図が動くだけで戻せなかった。
-// そこで**ページ全体の touchstart**（画面を切り替える前からある）で2本目の指を受け、指のどれかが地図に乗っていれば
-// ページの拡大（touch の既定の動き・Safari の gesture）を止める。処理が詰まっていても、Safari はこの返事を待つ。
-// それでもページが拡大されたら（録画では地図のつまみが効いたあと、途中からページが拡大し始めた）、
-// **地図に触れた時点で倍率を1へ戻す**（resetPageZoom）。拡大されたページでは画面の大半が地図になり、
-// 地図の上ではページを縮められない（touch-action: none）ので、こちらで戻さないと抜け出せない。
-// 地図の拡大・縮小は地図が自分で受ける（createMapView のつまみ）。
+// **ページは拡大させない**（2026-10-01 ユーザー「拡大を禁止しておいて」）。
+// それまでは地図の上の2本指だけ止めていたが、画面を開いた直後に地図をつまむとページごと拡大し、地図が画面を占めて
+// 戻れなくなった（「地図を拡大した時に画面も拡大されちゃって戻らなくなる」・画面録画）。ページを拡大して得をする画面が無いので、
+// ページ全体で止める。止め方は3つ重ねる: viewport（maximum-scale=1, user-scalable=no。Safari は無視することがある）、
+// CSS（html の touch-action: pan-x pan-y）、ここ（2本指の touchstart と Safari の gesture を止める）。
+// 地図の拡大・縮小は地図が pointer で自分で受ける（touch を止めても pointer は届く）。
 // touchmove は passive のままにする（ページ全体の touchmove を止められる形にすると、計算中にスクロールまで待たされる）。
 const SWIPE_EDGE_PX = 28;
 let swipe = null;
-let pinchOnMap = false;
-const onMapTouch = (e) => [...e.touches].some((t) => t.target && t.target.closest && t.target.closest(".mapwrap"));
-const pageZoomed = () => !!(window.visualViewport && window.visualViewport.scale > 1.01);
-/// ページの倍率を1へ戻す。viewport に一度 maximum-scale=1 を入れて外すと、Safari は倍率を戻す
-function resetPageZoom() {
-  const meta = document.querySelector('meta[name="viewport"]');
-  if (!meta || meta.dataset.resetting) return;
-  const base = meta.getAttribute("content");
-  meta.dataset.resetting = "1";
-  meta.setAttribute("content", `${base}, maximum-scale=1`);
-  setTimeout(() => { meta.setAttribute("content", base); delete meta.dataset.resetting; }, 400);
-}
-let mapTouching = false;
 document.addEventListener("touchstart", (e) => {
-  mapTouching = onMapTouch(e);
-  if (mapTouching && pageZoomed()) resetPageZoom();
-  pinchOnMap = e.touches.length > 1 && mapTouching;
-  if (pinchOnMap) { e.preventDefault(); swipe = null; return; }
-  if (e.touches.length !== 1) { swipe = null; return; }
+  // 2本目の指が下りたら、ページの拡大を止める（地図は pointer で自分で拡大する）
+  if (e.touches.length > 1) { e.preventDefault(); swipe = null; return; }
   const t = e.touches[0];
   const open = !$("toolsMenu").hidden && $("toolsMenu").classList.contains("on");
   if (open) {
@@ -7454,13 +7433,7 @@ document.addEventListener("touchmove", (e) => {
   menu.style.transform = `translateX(${(swipe.p - 1) * 100}%)`;
   scrim.style.opacity = String(swipe.p);
 }, { passive: true });
-// 地図を触っているあいだにページが拡大されたら、すぐ戻す（止めきれなかったとき）
-if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", () => { if ((mapTouching || pinchOnMap) && pageZoomed()) resetPageZoom(); });
-}
-const endSwipe = (e) => {
-  pinchOnMap = false;
-  if (e && e.touches && !e.touches.length) mapTouching = false;
+const endSwipe = () => {
   if (!swipe || !swipe.active) { swipe = null; return; }
   const { p, v = 0, open } = swipe;
   swipe = null;
@@ -7482,9 +7455,9 @@ document.addEventListener("click", (e) => {
 }, true);
 document.addEventListener("touchend", endSwipe);
 document.addEventListener("touchcancel", endSwipe);
-// Safari のつまむ拡大（gesture）。地図に指が乗っていれば止める
-for (const type of ["gesturestart", "gesturechange"]) {
-  document.addEventListener(type, (e) => { if (pinchOnMap) e.preventDefault(); }, { passive: false });
+// Safari のつまむ拡大（gesture）も止める
+for (const type of ["gesturestart", "gesturechange", "gestureend"]) {
+  document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
 }
 
 /// 使える道具が変わったら（ログイン・ログアウト・期限切れ）、詳細に出している道具の中身も出し直す

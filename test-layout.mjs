@@ -475,15 +475,16 @@ ok(/e\.target\.closest\("\.mapwrap, canvas, input, select, textarea"\)/.test(htm
 ok(/menu\.style\.transform = `translateX\(\$\{\(swipe\.p - 1\) \* 100\}%\)`;/.test(html), "引き出しは指に付いてくる");
 ok(/const wantOpen = open \? !\(p < 0\.6 \|\| v < -0\.4\) : \(p > 0\.4 \|\| v > 0\.4\);/.test(html), "離したとき、半分近く出ているか速く払っていれば開く（左へなぞると閉じる）");
 ok(/if \(wantOpen\) \{ if \(!open\) openTools\(\{ focus: false \}\); \}/.test(html), "なぞって開いたときは焦点を動かさない（青い枠を出さない）");
-ok(/\}, \{ passive: true \}\);\s+\/\/ 地図を触っているあいだに/.test(html), "touchmove は passive（計算中にスクロールを待たせない）");
-// ユーザー「地図を拡大した時に画面も拡大されちゃって戻らなくなる」「重ねるとかのページを開いてからすぐに地図の上でピンチアウトすると起きる」
-ok(/pinchOnMap = e\.touches\.length > 1 && mapTouching;\s+if \(pinchOnMap\) \{ e\.preventDefault\(\);/.test(html), "地図に指が乗った2本指は、ページ全体の touchstart で止める（画面を開いた直後も効く）");
-ok(/for \(const type of \["gesturestart", "gesturechange"\]\) \{\s+document\.addEventListener\(type, \(e\) => \{ if \(pinchOnMap\) e\.preventDefault\(\); \}, \{ passive: false \}\);/.test(html),
+ok(/\}, \{ passive: true \}\);\s+const endSwipe = /.test(html), "touchmove は passive（計算中にスクロールを待たせない）");
+// ユーザー「拡大を禁止しておいて」（その前に「地図を拡大した時に画面も拡大されちゃって戻らなくなる」）
+ok(/<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">/.test(html),
+  "ページの拡大を禁止する（viewport）");
+ok(/html \{ touch-action: pan-x pan-y; \}/.test(html), "CSS でもつまむ拡大・ダブルタップの拡大を止める（縦横の送りは残す）");
+ok(/if \(e\.touches\.length > 1\) \{ e\.preventDefault\(\); swipe = null; return; \}/.test(html), "2本目の指が下りたら止める（Safari は viewport を無視することがある）");
+ok(/for \(const type of \["gesturestart", "gesturechange", "gestureend"\]\) \{\s+document\.addEventListener\(type, \(e\) => e\.preventDefault\(\), \{ passive: false \}\);/.test(html),
   "Safari のつまむ拡大（gesture）も止める");
-ok(/if \(mapTouching && pageZoomed\(\)\) resetPageZoom\(\);/.test(html) && /meta\.setAttribute\("content", `\$\{base\}, maximum-scale=1`\);/.test(html),
-  "それでもページが拡大されていたら、地図に触れた時点で倍率を戻す（地図の上では縮められないので）");
-ok(/visualViewport\.addEventListener\("resize", \(\) => \{ if \(\(mapTouching \|\| pinchOnMap\) && pageZoomed\(\)\) resetPageZoom\(\); \}\);/.test(html), "地図を触っている途中で拡大されても戻す");
-ok(/name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/.test(html), "ページ全体の拡大は禁止しない（地図以外では拡大できる）");
+ok(!/resetPageZoom|pinchOnMap|mapTouching/.test(html), "拡大されたら戻す仕組みは外した（拡大されないので要らない）");
+ok(/cv\.onpointermove = \(e\) => \{\s+if \(pinch && pinch\.points\.has\(e\.pointerId\)\)/.test(html), "地図は pointer で自分で拡大・縮小する（touch を止めても届く）");
 
 console.log("== 月の結果に日の出入り・月の出入りからの差（2026-10-01） ==");
 // ユーザー「月系は空の明るさが重要だから、日の出何分後とか月の出何分後とかの情報をサクッと書いておいてほしい」
@@ -935,8 +936,9 @@ for (const [sel, re] of [
   ["検索欄", /\.sheet input\[type=search\] \{[^}]*font-size: 16px/],
 ]) ok(re.test(html), `${sel} が 16px`);
 const viewport = (html.match(/<meta name="viewport"[^>]*>/) || [""])[0];
-ok(!/user-scalable\s*=\s*no|maximum-scale/.test(viewport),
-  "viewport で拡大を禁止していない（自分で拡大したい人を止めない）", viewport);
+// 2026-10-01 にページの拡大は禁止した（ユーザー「拡大を禁止しておいて」）。Safari は viewport の禁止を無視することがあるので、
+// 入力欄の 16px は保つ（16px 未満だと触れたときに拡大し、指で戻すまで残る）
+ok(/user-scalable=no/.test(viewport), "viewport でページの拡大を禁止している", viewport);
 
 console.log("== 見どころの見出しがランクに追従する ==");
 // もともとは poor にも見出しを持たせていた（「めぼしい空はなさそうです」）。
