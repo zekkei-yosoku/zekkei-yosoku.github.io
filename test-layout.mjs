@@ -210,7 +210,7 @@ ok(!/mean\("wind_direction_10m"/.test(html + code), "風向を数字で平均し
 ok(/activeAt/.test(html), "その時刻に使われている経路だけで重なりを数える");
 ok(/id="planePick"/.test(html), "「今日はここ」を先に出す");
 // 展望台からも狙える。いま選んでいる地点（展望台かもしれない）も候補に入れる
-ok(/id: "here", name: `いまの地点/.test(html), "いまの地点も候補に入れる");
+ok(/id: "here", name: `\$\{P\.name\}（どこから重ねるか）`/.test(html), "観測地点（どこから重ねるか）も候補に入れる");
 // **観測点の作り方は1か所にまとめる。** 画面ごとに書くと、展望台を見る画面と
 // 見ない画面ができる（2026-09-28 実際にそうなっていた）
 ok(/function observerHere/.test(html), "観測点をまとめる関数がある");
@@ -231,13 +231,14 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   // 2026-10-01 ユーザー「絶景予測と同じレイアウトにしたら？新しいレイアウト作る必要ないよね」→ 地点カードと同じ形・同じ「地点」の画面
   ok(/<div class="place-row aim-place-card">\s*<button class="place-pick" id="aimFromButton"/.test(html), "どこから重ねるか: 地点カードと同じ形（📍 名前・住所・標高、🔍、☆）");
   ok(/\$\("aimFromButton"\)\.onclick = \(\) => openPlaceSheet\("aim"\);/.test(html), "押すと地点カードと同じ「地点」の画面を開く");
-  ok(/function choosePlace\(p\) \{[\s\S]{0,500}if \(placeSheetFor === "aim"\) \{[\s\S]{0,200}aimSetFrom\(/.test(html), "そこで選んだ場所は観測地点になる（アプリ全体の地点は変えない）");
+  ok(/const picker = placeSheetFor && PLACE_PICKERS\[placeSheetFor\];\s+if \(picker\) \{[\s\S]{0,300}picker\.set\(/.test(html) && /aim: \{ title: "どこから重ねるか",[\s\S]{0,120}set: \(p\) => aimSetFrom\(p\)/.test(html),
+    "そこで選んだ場所は観測地点になる（アプリ全体の地点は変えない。行き先は PLACE_PICKERS の表1つ）");
   // 自分で置く目標の場所も同じ部品で決める（ユーザー「自分で置くを選んだ場合、どこに重ねるかの検索が必要なんじゃないの」）
   ok(/<div class="place-row aim-place-card" id="aimTargetCard" hidden>\s*<button class="place-pick" id="aimTargetButton">/.test(html),
     "自分で置く: どこに重ねるかに目標の場所のカード（地点カードと同じ形）");
   ok(/\$\("aimTargetButton"\)\.onclick = \(\) => openPlaceSheet\("aimTarget"\);/.test(html), "自分で置く: 押すと同じ「地点」の画面（検索・現在地・地図・お気に入り）");
-  ok(/if \(placeSheetFor === "aimTarget"\) \{[\s\S]{0,200}aimSetCustomTarget\(\{[\s\S]{0,200}heightM: p\.structureM \?\? null/.test(html),
-    "自分で置く: 選んだ場所が目標になる（建物に地図の高さがあれば高さも入る）");
+  ok(/aimTarget: \{ title: "どこに重ねるか",[\s\S]{0,200}set: \(p\) => aimSetCustomTarget\(\{ \.\.\.p, heightM: p\.targetHeightM \?\? p\.structureM \}\)/.test(html) && /structureM: p\.structureM \?\? null, targetHeightM: p\.targetHeightM \?\? null/.test(html),
+    "他の目標: 選んだ場所が目標になる（お気に入りの高さ、建物に地図の高さがあればそれも入る）");
   ok(/<button id="aimPickTarget" class="fav-btn" aria-label="地図の中心（ピンの位置）に重ねる" hidden>ここに重ねる<\/button>/.test(html),
     "自分で置く: 地図のすぐ下に「ここに重ねる」");
   ok(/\$\("aimTargetCard"\)\.hidden = !customOn;\s+\$\("aimCustomRow"\)\.hidden = !customOn;\s+\$\("aimPickTarget"\)\.hidden = !customOn;/.test(html),
@@ -258,10 +259,10 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/"ここからは重なりません。"/.test(html) && !/この1年、ここからは重なりません/.test(html), "重ならない地点は「ここからは重なりません」");
   ok(/重なるのは、月が明るい空にあるときだけです/.test(html) && /縁がかすめるだけで、重なりません/.test(html), "出さない理由があるときだけ、その理由を書く");
   ok(/aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる<\/button>/.test(html), "釦の名前は「ここから重ねる」");
-  ok(/function aimFromPoint\(\) \{\s+if \(aim\.from\) return aim\.from;[\s\S]{0,500}inherited: true/.test(html),
+  ok(/function aimFromPoint\(\) \{\s+return aim\.from \|\| inheritedPoint\(\);/.test(html) && /function inheritedPoint\(\) \{[\s\S]{0,400}inherited: true/.test(html),
     "替えていなければ絶景予測の地点を引き継ぐ");
-  ok(/\$\("aimFromName"\)\.textContent = f \? f\.name/.test(fn), "引き継いだ地点の名前をカードに入れておく");
-  ok(/f\.inherited \? "絶景予測の地点" : ""/.test(fn), "引き継いだ地点なら、そう書く");
+  ok(/renderPointCard\("aimFrom", f\);/.test(fn) && /\$\(`\$\{prefix\}Name`\)\.textContent = f \? f\.name/.test(html), "引き継いだ地点の名前をカードに入れておく（共通の renderPointCard）");
+  ok(/f\.inherited \? "絶景予測の地点" : ""/.test(html), "引き継いだ地点なら、そう書く");
   ok(/subtitle: aimAreaOf\(\{ detail: place\.subtitle \|\| "" \}\)/.test(html), "引き継いだ地点の住所も都道府県＋市区町村まで");
   ok(!/id="aimFromHere"/.test(html), "引き継ぐための別の釦は置かない（欄に入れておく）");
   ok(/\$\("aimPick"\)\.onclick = async \(\) => \{[\s\S]{0,300}aimSetFrom\(/.test(html), "地図の中心も同じ観測地点にする（アプリ全体の地点は変えない）");
@@ -568,13 +569,51 @@ console.log("== どこから重ねるかをお気に入りに（2026-10-01） ==
 // ユーザー「どこから重ねるかもお気に入りの登録をしたい。座標ピンポイントに名前つけたりしたいんだ」
 ok(/id="aimFromButton"[\s\S]{0,800}<button id="aimFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆<\/button>/.test(html),
   "カードの右に ☆（地点カードと同じ形）");
-ok(/function openFavSheet\(index, \{ point = null, fromAim = false \} = \{\}\)/.test(html), "登録の画面は、地点カード以外の点（座標）からも開ける");
-ok(/openFavSheet\(-1, \{ fromAim: true, point: \{\s+id: `map:\$\{f\.latitude\.toFixed\(5\)\}/.test(html), "観測地点の座標を雛形にして名前を付けられる");
-ok(/if \(i >= 0\) \{ openFavSheet\(i, \{ fromAim: true \}\); return; \}/.test(html), "登録済み（★）なら編集");
-ok(/if \(favDraft\.fromAim\) aimAfterFavChange\(entry\);/.test(html), "保存したら、付けた名前で出し直す");
-ok(/if \(favDraft\.fromAim\) \{ aimAfterFavChange\(null\); return; \}/.test(html), "ねらうから消したら、地点の一覧を開かずにねらうに残る");
+ok(/function openFavSheet\(index, \{ point = null, after = null, target = null \} = \{\}\)/.test(html), "登録の画面は、地点カード以外の点（座標）からも開ける");
+ok(/openFavSheet\(-1, \{ after, target, point: \{\s+id: `map:\$\{f\.latitude\.toFixed\(5\)\}/.test(html), "観測地点の座標を雛形にして名前を付けられる");
+ok(/if \(i >= 0\) \{ openFavSheet\(i, \{ after, target \}\); return; \}/.test(html), "登録済み（★）なら編集");
+ok(/if \(favDraft\.after\) favDraft\.after\(entry\);/.test(html), "保存したら、付けた名前で出し直す");
+ok(/if \(favDraft\.after\) \{ favDraft\.after\(null\); return; \}/.test(html), "道具から消したら、地点の一覧を開かずに道具の画面に残る");
 ok(/<button class="list-item" id="sheetInherit" hidden><\/button>/.test(html) && /絶景予測の地点（\$\{place\.name\}）にする/.test(html),
   "別の点を選んでいるときは、地点の画面に絶景予測の地点へ戻る行も出す");
+
+console.log("== ねらう・ISS・月丼の並びをそろえる（2026-10-01） ==");
+// ユーザー「月丼とかISSとかのレイアウトも統一感あるようにしよう」。題名の右に主な切り替え、その下に観測地点（地点カードと同じ形）
+for (const [view, title, seg, prefix] of [["planeView", "月丼", "着陸か離陸か", "planeFrom"], ["issView", "ISSの月面通過", "太陽か月", "issFrom"]]) {
+  const v = new RegExp(`<div id="${view}" hidden>[\\s\\S]*?\\n  </div>`).exec(html)[0];
+  ok(new RegExp(`<div class="section-h aim-head"><h2>${title}</h2>\\s*<div class="aim-seg" role="group" aria-label="${seg}">`).test(v), `${title}: 題名の右に主な切り替え`);
+  ok(new RegExp(`<div class="place-row aim-place-card">\\s*<button class="place-pick" id="${prefix}Button"`).test(v), `${title}: 観測地点は地点カードと同じ形`);
+  ok(new RegExp(`<button id="${prefix}Fav" class="tap aim-from-fav"`).test(v), `${title}: 観測地点の ☆`);
+  ok(v.indexOf(`id="${prefix}Button"`) < v.indexOf('class="mapwrap"') && /<div class="mappin" aria-hidden="true"><\/div>/.test(v), `${title}: 観測地点は地図より上、地図にピン`);
+  ok(!/<span class="muted"( id="issSub")?>(月と飛行機を重ねる|ISS × 月)<\/span>/.test(v), `${title}: 題名の添え書きは出さない`);
+}
+ok(/<button id="issSun" aria-pressed="false" aria-label="太陽" title="太陽">☀️<\/button>\s*<button id="issMoon" aria-pressed="true" aria-label="月" title="月">/.test(html),
+  "ISS: 太陽／月は絵文字だけ・ねらうと同じ順");
+ok(/iss: \{ title: "どこから見るか",/.test(html) && /plane: \{ title: "どこから重ねるか",/.test(html), "ISS・月丼も同じ「地点」の画面で観測地点を選ぶ");
+ok(/function issFromPoint\(\) \{ return iss\.from \|\| inheritedPoint\(\); \}/.test(html) && /function planeFromPoint\(\) \{ return plane\.from \|\| inheritedPoint\(\); \}/.test(html),
+  "ISS・月丼も絶景予測の地点を引き継ぐ");
+ok(/id="issPickHere"[^>]*>ここから見る<\/button>/.test(html) && /id="planePickHere"[^>]*>ここから重ねる<\/button>/.test(html), "地図のすぐ下に「ここから…」");
+ok(/"他の目標（\$\{t\.name\}）" : "他の目標"/.test(html.replace(/`/g, '"')) || /`他の目標（\$\{t\.name\}）` : "他の目標"/.test(html), "「自分で置く」は「他の目標」（ユーザーが候補から選んだ）");
+ok(!/"自分で置く"|`自分で置く/.test(html), "「自分で置く」の字を画面に出さない");
+
+console.log("== 他の目標のお気に入り（2026-10-01） ==");
+// ユーザー「自分で指定した重ねるもののお気に入りも必要じゃない？」。高さごと残し、どこに重ねるかの「地点」の画面から選べる
+ok(/id="aimTargetButton">[\s\S]{0,800}<button id="aimTargetFav" class="tap aim-from-fav" aria-label="お気に入りに登録" hidden>☆<\/button>\s*<\/div>/.test(html),
+  "他の目標のカードに ☆（どこから重ねるかと同じ）");
+ok(/\$\("aimTargetFav"\)\.hidden = !c;\s+if \(c\) renderFavStar\("aimTargetFav", c\);/.test(html), "目標を決めたら ☆、登録済みなら ★");
+ok(/\}, \{ target: c\.heightM \|\| 0 \}\);/.test(html) && /heightM: entry\.targetHeightM \?\? c\.heightM \}, \{ keepMap: true \}\);/.test(html),
+  "今の高さで登録の画面を開き、保存したら付けた名前と高さで置き直す");
+ok(/<div id="favTargetBox" hidden>\s*<label class="fav-l" for="favTargetH">重ねる目標の高さ/.test(html), "登録の画面に「重ねる目標の高さ」");
+ok(/\$\("favStandBox"\)\.hidden = \$\("favPhBox"\)\.hidden = target !== null;/.test(html), "目標として開いたら、立って見る場所の項目は隠す");
+ok(/targetHeightM: favTargetHeight\(\),/.test(html) && /\|\| favTargetHeight\(\) !== o\.targetHeightM;/.test(html), "保存する・変えたら閉じるときに確かめる");
+ok(/targetHeightM: Number\.isFinite\(f\.targetHeightM\) && f\.targetHeightM >= 0 && f\.targetHeightM <= 1000/.test(html), "読み込みでも検査する（同期で別端末へも渡る）");
+ok(/const h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM/.test(html), "0m で登録した目標は 0m のまま（前に入れた高さを引きずらない）");
+
+console.log("== 道具ごとに観測地点の書き方をそろえる（2026-10-01） ==");
+ok(/const g = f && f\.inherited \? place\.elevation \?\? bundle\?\.home\.grid\.elevation \?\? groundM : groundM;/.test(html),
+  "引き継いだ地点の標高は地点カードと同じ値（道具ごとに数m違って見えない）");
+ok(/const missed = r\.spots\.some\(\(sp\) => sp\.spot\.id === "here"\) \? "" : `\$\{P\.name\}からは、この日は重なりません。`;/.test(html),
+  "月丼: 観測地点から重ならない日はそう言う");
 
 console.log("== 観測地点を水の上に置かない（2026-10-01） ==");
 // ユーザー「観測地点は陸上に。ISS とか海の上になってなかった？」「他の観測地点も水の上にならないように」
