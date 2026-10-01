@@ -141,7 +141,7 @@ ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待�
   // 「ねらう」は中身で分けた（2026-09-28）。名前は狙うものそのものにする
   // 2026-10-01: ダイヤモンド富士・パール富士は「富士山に重ねる」1つにまとめた（ユーザー指定。名前もユーザーと決めた）
   for (const [href, name] of [["#/aim/fuji", "富士山に重ねる"],
-    ["#/aim/tower", "塔に重ねる"], ["#/sky", "空の見え方"], ["#/plane", "月丼"], ["#/records", "記録"]]) {
+    ["#/aim/tower", "重ねる"], ["#/sky", "空の見え方"], ["#/plane", "月丼"], ["#/records", "記録"]]) {
     ok(menu.includes(`data-tool="${href}"`) && menu.includes(name), `${name} が入っている`);
   }
 }
@@ -466,6 +466,10 @@ console.log("== 画面のスクリプトが文法として読める（2026-09-30
   }
   ok(own.length >= 5 && badFiles.length === 0, `読み込む自前の JS ${own.length} 本に文法の誤りが無い`, badFiles.join(" / "));
 }
+
+// ユーザー「塔に重ねるって塔以外も重ねるじゃん」「純粋に「重ねる」じゃだめなの？」
+ok(/data-tool="#\/aim\/tower" data-id="tower"><b>重ねる<\/b><span>スカイツリーや東京タワー、その他の目標物に太陽や月を重ねる<\/span>/.test(html) && !/<b>塔に重ねる<\/b>/.test(html),
+  "メニューの名前は「重ねる」（塔に限らない）");
 
 console.log("== 細かい説明文は出さない（2026-10-01） ==");
 // ユーザー「細かい説明文ってこのApp上はいらないと思ってる」「こういうのもいらない。出しておいた方がいいなら畳んでおいてほしい」
@@ -2546,7 +2550,7 @@ ok(/\.sort\(\(a, b\) => \(a\[1\]\.order \?\? 99\) - \(b\[1\]\.order \?\? 99\)\)/
 console.log("== ねらうは中身で分ける ==");
 // **見出しはいま選んでいるものから決める。** 目標や天体を変えたら見出しも変わる
 ok(/const AIM_PRESETS = \{/.test(html), "メニューから来たときの初期値を持つ");
-ok(/tower: \{ target: "skytree", body: "sun" \}/.test(html), "塔に重ねるはメニューから開くと太陽（前の画面の月を持ち越さない）");
+ok(/tower: \{ target: "skytree", body: "sun" \}/.test(html), "重ねる（塔など）はメニューから開くと太陽（前の画面の月を持ち越さない）");
 ok(/fuji: \{ target: "fuji", body: "sun" \}/.test(html), "富士山に重ねるは太陽で開く");
 ok(/diamond: \{ target: "fuji", body: "sun", as: "fuji" \}/.test(html) && /pearl: \{ target: "fuji", body: "moon", as: "fuji" \}/.test(html),
   "前の URL（#/aim/diamond・#/aim/pearl）も富士山に重ねるを太陽・月で開く");

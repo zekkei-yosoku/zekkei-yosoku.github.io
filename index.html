@@ -1057,7 +1057,7 @@
     <div class="card">
       <!-- 太陽／月の切り替えは題名の右（2026-10-01 ユーザー「ここボタンにしたらどう。ダイヤモンド富士・パール富士ってなってるんだから
            わかるじゃん」）。以前ここにあった目標と天体の添え書きは、題名と切り替えで分かるので出さない。塔に重ねるも同じ位置 -->
-      <!-- 塔に重ねるは、**題名が目標を選ぶ所**（2026-10-01 ユーザー「ここが目標切り替えになるのでは？」「いい感じの枠に」）。
+      <!-- 重ねる（もとの塔に重ねる）は、**題名が目標を選ぶ所**（2026-10-01 ユーザー「ここが目標切り替えになるのでは？」「いい感じの枠に」）。
            「に重ねる」は付けない（道具の名前で分かる。付けると 375px 以下で折れて、切り替えと下の位置が富士山の画面より下がった）。
            「目標」の行を別に置かないので、富士山に重ねると並びが同じになる。見た目は字＋▾、押すと OS の一覧が開く
            （透明な select を字に重ねる。select の幅は一番長い候補で決まってしまうので、字の幅に合わせるため） -->
@@ -1280,7 +1280,10 @@
     <!-- 富士山に重ねる（2026-10-01 にダイヤモンド富士・パール富士をまとめた。ユーザー指定）。使用許可は2つのまま
          （data-id に両方。どちらかがあれば出す）。管理画面の名前は data-names から -->
     <button data-tool="#/aim/fuji" data-id="diamond pearl" data-names="ダイヤモンド富士 パール富士"><b>富士山に重ねる</b><span>ダイヤモンド富士・パール富士。山頂に太陽や月が重なる日と、見える場所</span></button>
-    <button data-tool="#/aim/tower" data-id="tower"><b>塔に重ねる</b><span>スカイツリーや東京タワーに太陽や月を重ねる</span></button>
+    <!-- 名前は「重ねる」（2026-10-01 ユーザー「塔以外も重ねるじゃん。純粋に「重ねる」じゃだめなの？」。もとは「塔に重ねる」）。
+         説明の文もユーザー指定（「スカイツリーや東京タワー、その他の目標物に太陽や月を重ねる」）。
+         何に重ねるかは開いた画面の題名の枠で選ぶ -->
+    <button data-tool="#/aim/tower" data-id="tower"><b>重ねる</b><span>スカイツリーや東京タワー、その他の目標物に太陽や月を重ねる</span></button>
     <button data-tool="#/sky" data-id="sky"><b>空の見え方</b><span>稜線の上を太陽と月がどう通るか</span></button>
     <button data-tool="#/plane" data-id="plane"><b>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
     <button data-tool="#/iss" data-id="iss"><b>ISSの月面通過</b><span>ISSが月や太陽の前を横切る場所と時刻</span></button>
@@ -1551,21 +1554,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001221220"></script>
+<script src="sorami-core.js?v=20261001224236"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001221220"></script>
-<script src="sorami-exif.js?v=20261001221220"></script>
-<script src="sorami-capcloud.js?v=20261001221220"></script>
-<script src="sorami-terrain.js?v=20261001221220"></script>
-<script src="sorami-mountain.js?v=20261001221220"></script>
-<script src="sorami-fuji.js?v=20261001221220"></script>
-<script src="sorami-sky.js?v=20261001221220"></script>
-<script src="sorami-routes.js?v=20261001221220"></script>
-<script src="sorami-iss.js?v=20261001221220"></script>
-<script src="sorami-plane.js?v=20261001221220"></script>
-<script src="sorami-align.js?v=20261001221220"></script>
-<script src="sorami-moon.js?v=20261001221220"></script>
+<script src="sorami-astro.js?v=20261001224236"></script>
+<script src="sorami-exif.js?v=20261001224236"></script>
+<script src="sorami-capcloud.js?v=20261001224236"></script>
+<script src="sorami-terrain.js?v=20261001224236"></script>
+<script src="sorami-mountain.js?v=20261001224236"></script>
+<script src="sorami-fuji.js?v=20261001224236"></script>
+<script src="sorami-sky.js?v=20261001224236"></script>
+<script src="sorami-routes.js?v=20261001224236"></script>
+<script src="sorami-iss.js?v=20261001224236"></script>
+<script src="sorami-plane.js?v=20261001224236"></script>
+<script src="sorami-align.js?v=20261001224236"></script>
+<script src="sorami-moon.js?v=20261001224236"></script>
 <script>
 "use strict";
 const S = window.Sorami;
