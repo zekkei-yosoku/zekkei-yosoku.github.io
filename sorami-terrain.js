@@ -385,6 +385,8 @@
     "https://z.overpass-api.de/api/interpreter",
     "https://lz4.overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
+    // 本家（overpass-api.de の3つ）が接続を断り、kumi も返らないときに通った（2026-10-02 実測）
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
   ];
 
   // 月の仕様「地平線」: 行き先の代表点を、建物脇の観測点と取り違えない。
@@ -636,6 +638,58 @@
   }
 
   /**
+   * **ミラーへ同時に聞き、使える最初の返事を使う**（残りは打ち切る）。1つずつ順に聞くと、混んでいる先に当たって
+   * 打ち切りまで待ち、3回に2回は取れなかった（2026-10-01 実測。z.overpass は空を返し、overpass-api.de は返らないことがある）。
+   * 打ち切りの返事（remark）は使わない。`usable(d)` が偽の返事（空など）も使わない。待つのは全体で timeoutMs まで。取れなければ null
+   */
+  async function overpassFirst(q, usable, { endpoint = OVERPASS, fetchImpl, timeoutMs }) {
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = setTimeout(() => ctrl && ctrl.abort(), timeoutMs);
+    const ask = async (url) => {
+      const res = await fetchImpl(url, {
+        method: "POST", signal: ctrl ? ctrl.signal : undefined,
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "data=" + encodeURIComponent(q),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+      if (!d || d.remark || !Array.isArray(d.elements) || !usable(d)) throw new Error("empty");
+      return d;
+    };
+    try { return await Promise.any((Array.isArray(endpoint) ? endpoint : [endpoint]).map(ask)); }
+    catch { return null; }
+    finally { clearTimeout(timer); if (ctrl) ctrl.abort(); }
+  }
+
+  /**
+   * 2点を結ぶ線に掛かる高い建物（OpenStreetMap。高さか階数を持つ minHeightM 以上のもの）。`[{ ring: [[緯度, 経度], …], heightM }]`。
+   * 同梱の高い建物の一覧（首都圏）の外で、観測地点から目標が建物で隠れるかを確かめるのに使う（2026-10-02 ユーザー
+   * 「その間が建物や地形的に観測地点から目標物がそもそも見えないことってあるよね」）。
+   * **空の返事は、道路の数（out count）が入っているときだけ「高い建物は無い」とみなす**（壊れたミラーは何も入れずに返す）。取れなければ null。
+   * 打ち切りは 25秒（urbanHorizon と同じ）。大阪の 1.5km の線で返事まで 17〜23秒かかった（2026-10-02 実測）
+   */
+  async function buildingsAlong(from, to, { widthM = 10, minHeightM = 20, endpoint = OVERPASS, fetchImpl = null, timeoutMs = 25000 } = {}) {
+    const f = fetchImpl || (typeof fetch === "function" ? fetch : null);
+    if (!f) return null;
+    const line = `around:${widthM},${from.latitude},${from.longitude},${to.latitude},${to.longitude}`;
+    const q = `[out:json][timeout:25][maxsize:67108864];(`
+      + `way["building"]["height"](${line});way["building"]["building:levels"](${line});`
+      + `way["building:part"]["height"](${line});way["man_made"="tower"]["height"](${line});`
+      + `);out tags geom;way["highway"](${line});out count;`;
+    const roads = (d) => d.elements.some((e) => e.type === "count" && Number(e.tags && e.tags.ways) > 0);
+    const d = await overpassFirst(q, (x) => roads(x) || x.elements.some((e) => e.type === "way"), { endpoint, fetchImpl: f, timeoutMs });
+    if (!d) return null;
+    const out = [];
+    for (const el of d.elements) {
+      if (el.type !== "way" || !Array.isArray(el.geometry) || el.geometry.length < 3) continue;
+      const h = buildingHeightM(el.tags);
+      if (h === null || h < minHeightM) continue;
+      out.push({ ring: el.geometry.map((p) => [p.lat, p.lon]), heightM: h });
+    }
+    return out;
+  }
+
+  /**
    * その点に建つ建物（OpenStreetMap）の高さ。輪郭の中に点があるもの、無ければ輪郭が 25m 以内のいちばん近いもの。
    * 高さのタグが無ければ階数から見積もる（estimated: true）。見つからなければ null。
    * 他の目標を地図で置いたとき、建物の高さを自動で入れるのに使う（2026-10-01 ユーザー「建物の高さがわかるなら自動で入力がいいな」）。
@@ -651,26 +705,7 @@
       + `way["building"](around:150,${lat},${lon});way["building:part"](around:150,${lat},${lon});`
       + `relation["building"](around:150,${lat},${lon});way["man_made"="tower"](around:150,${lat},${lon});`
       + `);out tags geom;`;
-    // **ミラーへ同時に聞き、建物の入った最初の返事を使う**（残りは打ち切る）。1つずつ順に聞くと、混んでいる先に当たって
-    // 打ち切りまで待ち、3回に2回は取れなかった（2026-10-01 実測。z.overpass は空を返し、overpass-api.de は返らないことがある）。
-    // 空の返事・打ち切りの返事（remark）は使わない。待つのは全体で timeoutMs まで
-    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
-    const timer = setTimeout(() => ctrl && ctrl.abort(), timeoutMs);
-    const ask = async (url) => {
-      const res = await f(url, {
-        method: "POST", signal: ctrl ? ctrl.signal : undefined,
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "data=" + encodeURIComponent(q),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const d = await res.json();
-      if (!d || d.remark || !Array.isArray(d.elements) || !d.elements.length) throw new Error("empty");
-      return d;
-    };
-    let d = null;
-    try { d = await Promise.any((Array.isArray(endpoint) ? endpoint : [endpoint]).map(ask)); }
-    catch { d = null; }
-    finally { clearTimeout(timer); if (ctrl) ctrl.abort(); }
+    const d = await overpassFirst(q, (x) => x.elements.length > 0, { endpoint, fetchImpl: f, timeoutMs });
     if (!d) return null;
     let best = null;
     for (const el of d.elements) {
@@ -1143,7 +1178,7 @@
     destination, bearing, distanceKm,
     fetchElevations, elevations, elevationFromTile, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
-    urbanHorizon, buildingHeightM, buildingAt, wikidataHeight, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
+    urbanHorizon, buildingHeightM, buildingAt, buildingsAlong, wikidataHeight, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
     profileToward, stepsFor, EYE_HEIGHT_PRESETS, searchPlaceIndex, normName,
     waterAt, decodeWaterLayer,
   };

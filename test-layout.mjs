@@ -271,7 +271,15 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/\$\("aimPick"\)\.onclick = async \(\) => \{[\s\S]{0,300}aimSetFrom\(/.test(html), "地図の中心も同じ観測地点にする（アプリ全体の地点は変えない）");
   ok(!/\$\("aimPick"\)\.hidden = aimIsFuji\(\)/.test(html), "富士山でも地図の中心で選べる");
   ok(/class="tiny aim-day" data-from-day=/.test(fn), "次に重なる日は日付の小さな釦で（押すとその日の線と候補地へ）");
-  ok(/SoramiAlign\.lineOfSight\(obs, aim\.target/.test(fn) && /aimBuildingBlocks\(\[/.test(fn), "見通し（地形・塔は高い建物）を添える");
+  ok(/SoramiAlign\.lineOfSight\(obs, aim\.target/.test(fn) && /aimSightBuildings\(obs, D\)/.test(fn), "見通し（地形・高い建物）を添える");
+  // 見えないなら、重なる日の上に目立つ形で「見えません」（2026-10-02 ユーザー「そもそも目標物が見えませんとかって出した方がいい」）
+  ok(/head \+ sightSlot \+ \(chips/.test(fn), "見通しの欄は重なる日の上");
+  ok(/ここからは\$\{esc\(aim\.target\.name\)\}\$\{part \? `の\$\{esc\(part\.name\)\}` : ""\}が見えません/.test(fn)
+    && /classList\.add\("hidden-target"\)/.test(fn), "見えないときは「ここからは〇〇（の先端）が見えません」と言い切る");
+  ok(!/if \(!hidden && !aimIsFuji\(\)\)/.test(fn), "建物は富士山でも見る（観測地点が街の中のこともある）");
+  ok(/buildingsKnown \? "地形・高い建物では隠れません" : "地形では隠れません（建物は確かめられませんでした）"/.test(fn),
+    "建物を確かめられなかったときは「隠れません」と言わない");
+  ok(/\.aim-sight\.hidden-target \{[^}]*color: var\(--red\)/.test(html), "見えませんは赤で目立たせる");
   ok((html.match(/SoramiAlign\.upcoming\(obs, aim\.target/g) || []).length === 1, "ほかの所で見えない地点からの一覧を出さない");
   // 地点の住所は都道府県＋市区町村まで（OSM の住所は長い）
   const src = /function aimAreaOf\(r\) \{[\s\S]*?\n\}/.exec(html)?.[0];
@@ -499,7 +507,18 @@ ok(/const b = await aimBuildingAt\(p\.latitude, p\.longitude\);\s+if \(b\) \{ h 
 ok(/for \(const b of await tallBuildings\(\)\)/.test(html) && /return await SoramiTerrain\.buildingAt\(lat, lon\);/.test(html), "まず同梱の高い建物の一覧、無ければ OpenStreetMap に問い合わせる");
 ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM : typedNow \? typed : null;/.test(html), "お気に入り・検索の高さ、打ち込んだ高さを先に使う");
 ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れるのは地上からの高さ）");
-ok(/c\.heightAuto === "estimated" \? "（地図から・推定）" : c\.heightAuto === "wikidata" \? "（Wikidata）" : c\.heightAuto \? "（地図から）" : ""/.test(html), "自動で入れた高さは出どころを添える（地図から・推定・Wikidata）");
+ok(/\$\("aimTargetSub"\)\.textContent = c\s+\? \[c\.subtitle, `標高 \$\{Math\.round\(c\.groundM \|\| 0\)\}m`\]\.filter/.test(html)
+  && !/地上 \$\{/.test(html.slice(html.indexOf("function aimRenderTargetCard"), html.indexOf("// 打ち込んだ高さは、次に場所を選んだときに使う"))), "目標のカードに地上の高さを重ねて書かない（下の欄に入っている。2026-10-02 ユーザー「自動入力で入ってるから不要」）");
+{
+  // 首都圏の外は、目標へ向かう線に掛かる建物を問い合わせる。一覧の外を「隠れない」と言わない
+  const sb = html.slice(html.indexOf("async function aimSightBuildings"), html.indexOf("async function aimBuildingBlocks"));
+  ok(/tallCovers\(all, obs\.latitude, obs\.longitude\) && tallCovers\(all, end\.latitude, end\.longitude\)/.test(sb)
+    && /SoramiTerrain\.buildingsAlong\(obs, end\)/.test(sb), "首都圏の外は線に掛かる建物を OpenStreetMap に問い合わせる");
+  ok(/if \(!got\) return null;/.test(sb), "問い合わせられなければ「確かめられない」（null）");
+  ok(/if \(!cands\.every\(\(c\) => tallCovers\(all, c\.stand\.latitude, c\.stand\.longitude\)\)\) return "outside";/.test(html)
+    && /"建物で隠れるかは、首都圏の外では確かめていません。"/.test(html), "候補地も、首都圏の外では建物を確かめていないと書く");
+  ok(/connect-src[^"]*https:\/\/maps\.mail\.ru/.test(html), "Overpass の予備（maps.mail.ru）へつなげる（CSP）");
+}
 // ユーザー「大平和祈念塔とか高さ出ないけど…検索したらその建物、目標物の高さを取得して出すとかだとダメなの？」
 ok(/https:\/\/www\.wikidata\.org/.test(html) && /const wd = await SoramiTerrain\.wikidataHeight\(p\.wikidata\);/.test(html), "検索した目標物に Wikidata の参照があれば、その高さを取る（OSM に高さが無くても）");
 ok(/wikidata: \(r\.extratags && r\.extratags\.wikidata\) \|\| null,/.test(html), "検索結果（OSM）から Wikidata の参照を持ち回る");

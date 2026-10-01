@@ -8,7 +8,7 @@
      connect-src を実際に使う相手だけに絞れば、盗んだトークンの持ち出し先を塞げる。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -639,6 +639,10 @@
   .aim-near-row .fav-btn { width: auto; padding: 0 14px; }
   .aim-near-btns { display: flex; gap: 6px; flex-wrap: wrap; }
   .aim-days { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  /* 見通し。見えないときは日付より目立たせる（2026-10-02 ユーザー「そもそも目標物が見えませんとかって出した方がいい」） */
+  .aim-sight { margin-top: 4px; color: var(--tertiary); }
+  .aim-sight.hidden-target { margin: 8px 0 6px; color: var(--red); font-size: 0.88rem; }
+  .aim-sight.hidden-target .sub-line { margin-top: 2px; font-size: 0.75rem; color: var(--secondary); }
   .aim-day { min-height: 32px; padding: 4px 10px; border-radius: 9px; background: var(--sunk);
              color: var(--accent); font-weight: 700; }
   /* 月の日付の釦の2段目（日の入の◯分後・月の出の◯分後）。日付より控えめに */
@@ -1558,21 +1562,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002000446"></script>
+<script src="sorami-core.js?v=20261002002038"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002000446"></script>
-<script src="sorami-exif.js?v=20261002000446"></script>
-<script src="sorami-capcloud.js?v=20261002000446"></script>
-<script src="sorami-terrain.js?v=20261002000446"></script>
-<script src="sorami-mountain.js?v=20261002000446"></script>
-<script src="sorami-fuji.js?v=20261002000446"></script>
-<script src="sorami-sky.js?v=20261002000446"></script>
-<script src="sorami-routes.js?v=20261002000446"></script>
-<script src="sorami-iss.js?v=20261002000446"></script>
-<script src="sorami-plane.js?v=20261002000446"></script>
-<script src="sorami-align.js?v=20261002000446"></script>
-<script src="sorami-moon.js?v=20261002000446"></script>
+<script src="sorami-astro.js?v=20261002002038"></script>
+<script src="sorami-exif.js?v=20261002002038"></script>
+<script src="sorami-capcloud.js?v=20261002002038"></script>
+<script src="sorami-terrain.js?v=20261002002038"></script>
+<script src="sorami-mountain.js?v=20261002002038"></script>
+<script src="sorami-fuji.js?v=20261002002038"></script>
+<script src="sorami-sky.js?v=20261002002038"></script>
+<script src="sorami-routes.js?v=20261002002038"></script>
+<script src="sorami-iss.js?v=20261002002038"></script>
+<script src="sorami-plane.js?v=20261002002038"></script>
+<script src="sorami-align.js?v=20261002002038"></script>
+<script src="sorami-moon.js?v=20261002002038"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6365,9 +6369,10 @@ function aimRenderTargetCard() {
   $("aimTargetName").textContent = c ? c.name || "他の目標" : "重ねる目標の場所を選ぶ";
   // 地上の高さが 0m なのは、山の頂など地面そのものが目標のとき（羊蹄山なら標高がそのまま重ねる高さ）。
   // そのときは「高さを入れてください」と促さない（2026-10-01 ユーザー「羊蹄山を入れたら高さが空欄。高さを入れてくださいはいらない」）。
-  // 欄にも 0 を入れて、空欄にしない
+  // 欄にも 0 を入れて、空欄にしない。
+  // 地上の高さは下の欄に入っているので、ここには書かない（2026-10-02 ユーザー「そもそも自動入力で入ってるから不要」）
   $("aimTargetSub").textContent = c
-    ? [c.subtitle, `標高 ${Math.round(c.groundM || 0)}m`, c.heightM ? `地上 ${Math.round(c.heightM)}m${c.heightAuto === "estimated" ? "（地図から・推定）" : c.heightAuto === "wikidata" ? "（Wikidata）" : c.heightAuto ? "（地図から）" : ""}` : ""].filter(Boolean).join(" ・ ")
+    ? [c.subtitle, `標高 ${Math.round(c.groundM || 0)}m`].filter(Boolean).join(" ・ ")
     : "検索するか、地図の「ここに重ねる」";
   // 欄には、その目標で知られている数字を入れる: 建物は地上の高さ、山（地上 0m）は標高（富士山「山頂 3776m」・スカイツリー「先端 634m」と同じ）。
   // 山だけ空欄にすると、建物は入って山は入らない一貫しない画面になる（2026-10-01 ユーザー「山の標高入れておけばいいんじゃない？」）
@@ -6458,29 +6463,39 @@ async function aimRenderFrom() {
     : `<p class="tiny">${!all.length ? "ここからは重なりません。"
       : !solid.length ? "ここからは縁がかすめるだけで、重なりません。"
       : "重なるのは明るい空のときだけです"}</p>`;
-  $("aimFrom").innerHTML = head + (chips ? `<div class="aim-days">${chips}</div>` : "") + none
-    + `<p class="tiny" id="aimFromSight" style="margin-top:4px;color:var(--tertiary)"></p>`;
+  // 見通しは重なる日の上に出す（見えないなら、日付より先に知りたい）
+  const sightSlot = ev.length ? `<p class="tiny aim-sight" id="aimFromSight">見通しを確かめています…</p>` : "";
+  $("aimFrom").innerHTML = head + sightSlot + (chips ? `<div class="aim-days">${chips}</div>` : "") + none;
   for (const el of $("aimFrom").querySelectorAll("[data-from-day]")) {
     el.onclick = () => aimShowDay(+el.dataset.fromDay, { id: "from", latitude: f.latitude, longitude: f.longitude });
   }
   if (!ev.length) return;
-  // 見通し。重なる日があっても、目標が隠れていれば見えない
-  let sight = "";
+  // 見通し。重なる日があっても、目標が隠れていれば見えない。**見えないなら、日付の上に目立つ形で言い切る**
+  // （2026-10-02 ユーザー「その間が建物や地形的に観測地点から目標物がそもそも見えないことってあるよね。
+  // その場合はそもそも目標物が見えませんとかって出した方がいい」）。日付は消さない（押すと、その日に見える候補地が出る）。
+  // 建物は富士山でも見る（この画面の観測地点は街の中のこともある）
+  let hidden = "", buildingsKnown = true;
   try {
     const los = await SoramiAlign.lineOfSight(obs, aim.target,
       { partId: aim.partId, elevations: (pts) => SoramiTerrain.elevations(pts), skipKm: 0.3 });
-    if (los && !los.clear) sight = "山や丘の陰になり、地形で隠れます";
+    if (los && !los.clear) hidden = `${aimKm(los.blockKm)}km 先の山や丘に隠れます`;
   } catch { /* 確かめられなくても日付は出す */ }
-  if (!sight && !aimIsFuji()) {
-    const b = await aimBuildingBlocks([{ stand: { latitude: f.latitude, longitude: f.longitude, elevationM: obs.elevation },
-      place: { deckM: 0 }, distanceKm: D }]);
-    const x = b && b[0];
-    if (x && x.blocked) sight = `${x.by ? `${x.by.distanceM}m 先の高さ${Math.round(x.by.heightM)}m の建物` : "高い建物"}で隠れます`;
-  }
   if (seq !== aim.fromSeq) return;
-  $("aimFromSight").textContent = sight
-    ? `ただし、ここからは${aim.target.name}が${sight}`
-    : "地形・高い建物では隠れません";
+  if (!hidden) {
+    const x = await aimSightBuildings(obs, D);
+    if (seq !== aim.fromSeq) return;
+    if (!x) buildingsKnown = false;
+    else if (x.blocked) hidden = x.by ? `${x.by.distanceM}m 先の高さ ${Math.round(x.by.heightM)}m の建物に隠れます` : "高い建物に隠れます";
+  }
+  const el = $("aimFromSight");
+  if (hidden) {
+    const part = (aim.target.parts || []).length > 1 ? SoramiAlign.partOf(aim.target, aim.partId) : null;
+    el.classList.add("hidden-target");
+    el.innerHTML = `<strong>ここからは${esc(aim.target.name)}${part ? `の${esc(part.name)}` : ""}が見えません</strong>`
+      + `<span class="sub-line">${esc(hidden)}</span>`;
+  } else {
+    el.textContent = buildingsKnown ? "地形・高い建物では隠れません" : "地形では隠れません（建物は確かめられませんでした）";
+  }
 }
 
 // ---------------------------------------------------------------- その日の候補地（2026-09-30）
@@ -6621,7 +6636,11 @@ async function aimFindCandidates() {
   if (!aimIsFuji() && pool24.length) {
     const blocks = await aimBuildingBlocks(pool24);
     if (seq !== aim.candSeq) return;
-    if (!blocks) { aim.buildingNote = "建物で隠れるかは確かめられませんでした。"; $("aimCandInfo").textContent = aim.buildingNote; return; }
+    if (!blocks || blocks === "outside") {
+      aim.buildingNote = blocks ? "建物で隠れるかは、首都圏の外では確かめていません。" : "建物で隠れるかは確かめられませんでした。";
+      $("aimCandInfo").textContent = aim.buildingNote;
+      return;
+    }
     const pickedId = aim.cands[aim.candPick ?? 0]?.place.id;
     aim.cands = pool24.filter((c, i) => !(blocks[i] && blocks[i].blocked)).slice(0, 12);
     const again = aim.cands.findIndex((c) => c.place.id === pickedId);
@@ -6731,10 +6750,51 @@ async function aimBuildingAt(lat, lon) {
   } catch { /* 一覧が読めなければ問い合わせへ */ }
   try { return await SoramiTerrain.buildingAt(lat, lon); } catch { return null; }
 }
+/// 同梱の一覧が届く範囲（首都圏）。外の建物は一覧に無いので、外では一覧で「隠れない」と言わない
+let tallBox = null;
+function tallCovers(all, lat, lon) {
+  if (!tallBox) {
+    tallBox = { s: 90, n: -90, w: 180, e: -180 };
+    for (const b of all) {
+      tallBox.s = Math.min(tallBox.s, b.latitude); tallBox.n = Math.max(tallBox.n, b.latitude);
+      tallBox.w = Math.min(tallBox.w, b.longitude); tallBox.e = Math.max(tallBox.e, b.longitude);
+    }
+  }
+  return lat >= tallBox.s && lat <= tallBox.n && lon >= tallBox.w && lon <= tallBox.e;
+}
+/// どこから重ねるか（1地点）の、建物の見通し。首都圏は同梱の一覧、外は目標へ向かう線に掛かる建物を OpenStreetMap に問い合わせる。
+/// 確かめられなければ null
+const aimAlongCache = new Map();
+async function aimSightBuildings(obs, D) {
+  const t = aim.target;
+  const reach = Math.min(1.5, D - 0.3);
+  if (!(reach > 0)) return { blocked: false, by: null };
+  const end = SoramiTerrain.destination(obs.latitude, obs.longitude,
+    SoramiTerrain.bearing(obs.latitude, obs.longitude, t.latitude, t.longitude), reach);
+  let near = null;
+  try {
+    const all = await tallBuildings();
+    if (tallCovers(all, obs.latitude, obs.longitude) && tallCovers(all, end.latitude, end.longitude)) {
+      near = all.filter((b) => SoramiTerrain.distanceKm(obs.latitude, obs.longitude, b.latitude, b.longitude) <= reach + 0.05);
+    }
+  } catch { /* 一覧が読めなければ問い合わせへ */ }
+  if (!near) {
+    const key = [obs.latitude, obs.longitude, end.latitude, end.longitude].map((v) => v.toFixed(5)).join(",");
+    if (!aimAlongCache.has(key)) {
+      const got = await SoramiTerrain.buildingsAlong(obs, end);
+      if (!got) return null;            // 取れなかったことは覚えない（次は取れるかもしれない）
+      aimAlongCache.set(key, got);
+    }
+    near = aimAlongCache.get(key);
+  }
+  return SoramiAlign.buildingBlock(obs, t, near, { partId: aim.partId, eyeAboveGroundM: 1.5 });
+}
 async function aimBuildingBlocks(cands) {
   const t = aim.target;
   let all;
   try { all = await tallBuildings(); } catch { return null; }
+  // 首都圏の外の候補地は、一覧に建物が無いので確かめていない（「隠れない」とは言わない）
+  if (!cands.every((c) => tallCovers(all, c.stand.latitude, c.stand.longitude))) return "outside";
   return cands.map((c) => {
     // 目標までの間（1.5km）にある建物だけに絞ってから判定する（数万棟を毎回全部は見ない）
     const d = Math.min(1.6, c.distanceKm);

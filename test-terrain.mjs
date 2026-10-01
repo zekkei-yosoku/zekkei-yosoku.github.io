@@ -285,6 +285,25 @@ console.log("== その点に建つ建物の高さ（2026-10-01） ==");
   const wd2 = await T.wikidataHeight("Q138413", { fetchImpl: async () => wdReply({ P2048: [{ rank: "normal", mainsnak: { datavalue: { value: { amount: "+1000", unit: "http://www.wikidata.org/entity/Q3710" } } } }] }) });
   ok(wd2 && Math.round(wd2.heightM) === 305, "フィートはメートルに直す（1000ft → 305m）", JSON.stringify(wd2));
   ok(await T.wikidataHeight("not-a-qid") === null, "Wikidata の参照の形でなければ聞かない");
+  // 線に掛かる高い建物（首都圏の外の見通し。2026-10-02）
+  const to = { latitude: lat + 0.01, longitude: lon };
+  let sentQ = "";
+  const along = (elements) => async (url, o) => { sentQ = decodeURIComponent(String(o.body).slice(5)); return { ok: true, json: async () => ({ elements }) }; };
+  const count = (ways) => ({ type: "count", id: 0, tags: { ways: String(ways) } });
+  const b1 = await T.buildingsAlong({ latitude: lat, longitude: lon }, to, { endpoint: ["x"], fetchImpl: along([
+    { type: "way", tags: { building: "yes", height: "45" }, geometry: box() },
+    { type: "way", tags: { building: "yes", height: "8" }, geometry: box(0.001) },
+    { type: "way", tags: { building: "yes", "building:levels": "10" }, geometry: box(0.002) }, count(30)]) });
+  ok(b1 && b1.length === 2 && b1[0].heightM === 45 && b1[1].heightM === 37 && Array.isArray(b1[0].ring[0]),
+    "線に掛かる 20m 以上の建物を外周と高さで返す（8m は外す・階数は見積もる）", JSON.stringify(b1 && b1.map((x) => x.heightM)));
+  ok(sentQ.includes(`around:10,${lat},${lon},${to.latitude},${to.longitude}`) && /out count;$/.test(sentQ), "線（2点）の周りを引き、道路の数も数える");
+  const b2 = await T.buildingsAlong({ latitude: lat, longitude: lon }, to, { endpoint: ["x"], fetchImpl: along([count(12)]) });
+  ok(Array.isArray(b2) && b2.length === 0, "道路はあって高い建物が無ければ、空（隠れない）");
+  const b3 = await T.buildingsAlong({ latitude: lat, longitude: lon }, to, { endpoint: ["broken", "ok"], fetchImpl: async (url) => ({ ok: true,
+    json: async () => ({ elements: url === "broken" ? [] : [{ type: "way", tags: { building: "yes", height: "60" }, geometry: box() }, count(5)] }) }) });
+  ok(b3 && b3.length === 1 && b3[0].heightM === 60, "何も入っていない返事（壊れたミラー）は使わず、次のミラーへ");
+  const b4 = await T.buildingsAlong({ latitude: lat, longitude: lon }, to, { endpoint: ["x"], fetchImpl: along([]) });
+  ok(b4 === null, "どのミラーも何も入れずに返したら、確かめられない（null）");
   const r6 = await T.buildingAt(lat, lon, { endpoint: ["x"], fetchImpl: async () => { throw new Error("offline"); } });
   ok(r6 === null, "通信できなければ null");
 }
