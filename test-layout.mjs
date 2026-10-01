@@ -579,20 +579,35 @@ ok(/<button class="list-item" id="sheetInherit" hidden><\/button>/.test(html) &&
 
 console.log("== ねらう・ISS・月丼の並びをそろえる（2026-10-01） ==");
 // ユーザー「月丼とかISSとかのレイアウトも統一感あるようにしよう」。題名の右に主な切り替え、その下に観測地点（地点カードと同じ形）
-for (const [view, title, seg, prefix] of [["planeView", "月丼", "着陸か離陸か", "planeFrom"], ["issView", "ISSの月面通過", "太陽か月", "issFrom"]]) {
+for (const [view, title, seg, prefix, label] of [["planeView", "月丼", null, "planeFrom", "どこから重ねるか"], ["issView", "ISSの月面通過", "太陽か月", "issFrom", "どこの近くで探すか"]]) {
   const v = new RegExp(`<div id="${view}" hidden>[\\s\\S]*?\\n  </div>`).exec(html)[0];
-  ok(new RegExp(`<div class="section-h aim-head"><h2>${title}</h2>\\s*<div class="aim-seg" role="group" aria-label="${seg}">`).test(v), `${title}: 題名の右に主な切り替え`);
+  ok(seg ? new RegExp(`<div class="section-h aim-head"><h2>${title}</h2>\\s*<div class="aim-seg" role="group" aria-label="${seg}">`).test(v)
+    : new RegExp(`<div class="section-h aim-head"><h2>${title}</h2></div>`).test(v), `${title}: ${seg ? "題名の右に主な切り替え" : "題名の行（切り替えなし・同じ高さ）"}`);
   ok(new RegExp(`<div class="place-row aim-place-card">\\s*<button class="place-pick" id="${prefix}Button"`).test(v), `${title}: 観測地点は地点カードと同じ形`);
-  ok(new RegExp(`<button id="${prefix}Fav" class="tap aim-from-fav"`).test(v), `${title}: 観測地点の ☆`);
-  ok(v.indexOf(`id="${prefix}Button"`) < v.indexOf('class="mapwrap"') && /<div class="mappin" aria-hidden="true"><\/div>/.test(v), `${title}: 観測地点は地図より上、地図にピン`);
+  ok(new RegExp(`<p class="fav-l" id="${prefix}Label">${label}</p>`).test(v), `${title}: 地点の欄は「${label}」`);
+  // ISS は立つ点を先に決められない（帯は幅数kmで回ごとに動く）。中心を名前付きで残す意味が薄いので ☆ は付けない
+  ok(new RegExp(`<button id="${prefix}Fav" class="tap aim-from-fav"`).test(v) === (prefix === "planeFrom"), `${title}: ☆ は${prefix === "planeFrom" ? "付ける" : "付けない（立つ点ではない）"}`);
+  ok(v.indexOf(`id="${prefix}Button"`) < v.indexOf('class="mapwrap"'), `${title}: ${label}は地図より上`);
+  // 月丼の地図は経路を見て立つ点を選ぶ（ピンと「ここから重ねる」）。ISS の地図は帯を見るためのもので、点は選ばない
+  ok(/<div class="mappin" aria-hidden="true"><\/div>/.test(v) === (prefix === "planeFrom"), `${title}: 地図の中心ピンは${prefix === "planeFrom" ? "ある" : "置かない（帯を見る地図）"}`);
   ok(!/<span class="muted"( id="issSub")?>(月と飛行機を重ねる|ISS × 月)<\/span>/.test(v), `${title}: 題名の添え書きは出さない`);
 }
 ok(/<button id="issSun" aria-pressed="false" aria-label="太陽" title="太陽">☀️<\/button>\s*<button id="issMoon" aria-pressed="true" aria-label="月" title="月">/.test(html),
   "ISS: 太陽／月は絵文字だけ・ねらうと同じ順");
-ok(/iss: \{ title: "どこから見るか",/.test(html) && /plane: \{ title: "どこから重ねるか",/.test(html), "ISS・月丼も同じ「地点」の画面で観測地点を選ぶ");
+// ユーザー「月丼って着陸、離陸の両方狙うし、どっちかしか狙わないことってあんまりないよね」
+ok(/const kind = \{ landing: true, takeoff: true \};/.test(html) && !/plane\.kind|id="planeLand"|id="planeTake"/.test(html), "月丼: 着陸と離陸を分けず、両方の経路で数える");
+ok(/if \(path\.kind === "takeoff"\) ctx\.setLineDash\(\[7, 6\]\);/.test(html) && /<i class="aim-k moon dash"><\/i>離陸/.test(html), "月丼: 地図では離陸を破線（凡例も）");
+ok(/・着陸 \$\{o\.landing\.join\("・"\)\}・離陸 \$\{o\.takeoff\.join\("・"\)\}/.test(html), "月丼: 運用の説明に着陸と離陸の滑走路を両方書く");
+ok(/iss: \{ title: "どこの近くで探すか",/.test(html) && /plane: \{ title: "どこから重ねるか",/.test(html), "ISS・月丼も同じ「地点」の画面で選ぶ");
+// ユーザー「ISSに関してはどこから見るかは自分で選べなくない？その日見れる場所を地図見て自分で探すんだよね」
+ok(!/どこから見るか<\/p>|title: "どこから見るか"|>ここから見る</.test(html), "ISS: 「どこから見るか」とは書かない（決めるのは探す範囲の中心）");
+ok(/renderPointCard\("issFrom", P, null, \{ elevation: false \}\);/.test(html), "ISS: 探す範囲の中心には標高を書かない（そこに立つわけではない）");
+ok(/立つ場所の例: /.test(html), "ISS: 一覧の立つ場所は例（帯の中なら見える）");
 ok(/function issFromPoint\(\) \{ return iss\.from \|\| inheritedPoint\(\); \}/.test(html) && /function planeFromPoint\(\) \{ return plane\.from \|\| inheritedPoint\(\); \}/.test(html),
   "ISS・月丼も絶景予測の地点を引き継ぐ");
-ok(/id="issPickHere"[^>]*>ここから見る<\/button>/.test(html) && /id="planePickHere"[^>]*>ここから重ねる<\/button>/.test(html), "地図のすぐ下に「ここから…」");
+ok(!/id="issPickHere"/.test(html) && /id="planePickHere"[^>]*>ここから重ねる<\/button>/.test(html), "月丼だけ地図のすぐ下に「ここから重ねる」（ISS は帯を見て自分で探す）");
+ok(/\.aim-place-card \.place-pick \{ min-height: 54px; \}/.test(html), "地点のカードは住所が無くても同じ高さ（押す所 44px 以上・下が動かない）");
+ok(/function issSetFrom\(p\) \{[\s\S]{0,250}IssMap\.open\(\{ latitude: P\.latitude, longitude: P\.longitude \}, 8\);/.test(html), "ISS: 中心を替えたら地図もそこへ");
 ok(/"他の目標（\$\{t\.name\}）" : "他の目標"/.test(html.replace(/`/g, '"')) || /`他の目標（\$\{t\.name\}）` : "他の目標"/.test(html), "「自分で置く」は「他の目標」（ユーザーが候補から選んだ）");
 ok(!/"自分で置く"|`自分で置く/.test(html), "「自分で置く」の字を画面に出さない");
 
@@ -610,7 +625,7 @@ ok(/targetHeightM: Number\.isFinite\(f\.targetHeightM\) && f\.targetHeightM >= 0
 ok(/const h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM/.test(html), "0m で登録した目標は 0m のまま（前に入れた高さを引きずらない）");
 
 console.log("== 道具ごとに観測地点の書き方をそろえる（2026-10-01） ==");
-ok(/const g = f && f\.inherited \? place\.elevation \?\? bundle\?\.home\.grid\.elevation \?\? groundM : groundM;/.test(html),
+ok(/const g = !elevation \? null : f && f\.inherited \? place\.elevation \?\? bundle\?\.home\.grid\.elevation \?\? groundM : groundM;/.test(html),
   "引き継いだ地点の標高は地点カードと同じ値（道具ごとに数m違って見えない）");
 ok(/const missed = r\.spots\.some\(\(sp\) => sp\.spot\.id === "here"\) \? "" : `\$\{P\.name\}からは、この日は重なりません。`;/.test(html),
   "月丼: 観測地点から重ならない日はそう言う");

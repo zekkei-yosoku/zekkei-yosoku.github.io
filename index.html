@@ -618,6 +618,8 @@
   .aim-pick select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; cursor: pointer; }
   /* どこから重ねるか。地点カードと同じ形を、ねらうのカードの中に一段沈めて置く */
   .aim-place-card { background: var(--sunk); border-radius: 12px; padding: 6px 2px 6px 10px; margin-bottom: 8px; }
+  /* 住所が無い地点（地理院の検索結果など）でもカードの高さを変えない。下の並びが動かず、押す所も 44px を割らない */
+  .aim-place-card .place-pick { min-height: 54px; }
   /* どこから重ねるかの ☆（地点カードの ☆ と同じ大きさ） */
   .aim-from-fav { flex: 0 0 auto; min-width: 44px; min-height: 44px; font-size: 1.1rem; color: var(--tertiary); }
   .aim-from-fav.on { color: var(--accent); }
@@ -635,7 +637,7 @@
   .aim-k { display: inline-block; width: 22px; height: 0; margin-right: 5px; vertical-align: middle;
            border-top: 3px solid var(--ray-sun); border-radius: 2px; }
   #aimView.moon .aim-k { border-top-color: var(--ray-moon); }
-  .aim-k.rise { border-top-style: dashed; }
+  .aim-k.rise, .aim-k.dash { border-top-style: dashed; }
   /* 地図の中心が線からどれだけ離れているか。**動かしながら合わせるための数字** */
   .aim-near { margin-top: 6px; font-size: 0.75rem; color: var(--secondary); font-weight: 700;
               font-variant-numeric: tabular-nums; }
@@ -987,14 +989,12 @@
   <div id="planeView" hidden>
     <div class="card">
       <!-- 並びはねらうと同じ（2026-10-01 ユーザー「月丼とかISSとかのレイアウトも統一感あるように」）:
-           題名の右に主な切り替え（着陸／離陸）、その下に観測地点（地点カードと同じ形・絶景予測の地点を引き継ぐ）、
-           道具の選ぶ欄（運用）、日付、地図、地図のすぐ下に「ここから重ねる」、一覧 -->
-      <div class="section-h aim-head"><h2>月丼</h2>
-        <div class="aim-seg" role="group" aria-label="着陸か離陸か">
-          <button id="planeLand" aria-pressed="true">着陸</button>
-          <button id="planeTake" aria-pressed="false">離陸</button>
-        </div>
-      </div>
+           題名、その下に観測地点（地点カードと同じ形・絶景予測の地点を引き継ぐ）、
+           道具の選ぶ欄（運用）、日付、地図、地図のすぐ下に「ここから重ねる」、一覧。
+           **着陸と離陸は分けない**（ユーザー「着陸、離陸の両方狙うし、どっちかしか狙わないことってあんまりない」）。
+           両方の経路で数え、どちらの経路かは一覧に書き、地図では離陸を破線にする。
+           題名の行は切り替えが無くても同じ高さ（aim-head の min-height）なので、観測地点の位置はほかの道具と同じ -->
+      <div class="section-h aim-head"><h2>月丼</h2></div>
       <p class="fav-l" id="planeFromLabel">どこから重ねるか</p>
       <div class="place-row aim-place-card">
         <button class="place-pick" id="planeFromButton" aria-describedby="planeFromLabel">
@@ -1025,7 +1025,7 @@
         <button id="planeToday" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">今日</button>
       </div>
       <div class="mapwrap" style="margin-top:8px">
-        <canvas id="planeCanvas" aria-label="地図。狙い目と進入経路です"></canvas>
+        <canvas id="planeCanvas" aria-label="地図。狙い目と、着陸・離陸の経路です"></canvas>
         <div class="mappin" aria-hidden="true"></div>
         <div class="mapzoom">
           <button id="planeIn" aria-label="拡大">＋</button>
@@ -1039,7 +1039,8 @@
         </div>
       </div>
       <div class="aim-legend">
-        <span><i class="aim-k moon"></i>進入経路</span>
+        <span><i class="aim-k moon"></i>着陸</span>
+        <span><i class="aim-k moon dash"></i>離陸</span>
         <span><i class="aim-k sun"></i>狙い目</span>
       </div>
       <div id="planePick" class="al" style="margin-top:8px"></div>
@@ -1188,14 +1189,17 @@
   <div id="issView" hidden>
     <div class="card">
       <!-- 並びはねらうと同じ（2026-10-01 ユーザー「月丼とかISSとかのレイアウトも統一感あるように」）:
-           題名の右に太陽／月（絵文字だけ・ねらうと同じ順）、観測地点（地点カードと同じ形）、探す範囲、地図、「ここから見る」、一覧 -->
+           題名の右に太陽／月（絵文字だけ・ねらうと同じ順）、どこの近くで探すか（地点カードと同じ形）、探す範囲、地図、一覧。
+           **ISS は立つ場所を先に決められない。** 見える帯は幅数kmで回ごとに場所が変わるので、決めるのは探す範囲の中心だけ。
+           帯は地図に出し、どこで見るかは帯を見て決める（ユーザー「どこから見るかは自分で選べなくない？その日見れる場所を地図見て自分で探すんだよね」）。
+           だから地図は帯を見るためのもので、中心のピンと「ここから…」の釦は置かない（中心は上のカードの「地点」の画面で決める） -->
       <div class="section-h aim-head"><h2>ISSの月面通過</h2>
         <div class="aim-seg" role="group" aria-label="太陽か月">
           <button id="issSun" aria-pressed="false" aria-label="太陽" title="太陽">☀️</button>
           <button id="issMoon" aria-pressed="true" aria-label="月" title="月">🌙</button>
         </div>
       </div>
-      <p class="fav-l" id="issFromLabel">どこから見るか</p>
+      <p class="fav-l" id="issFromLabel">どこの近くで探すか</p>
       <div class="place-row aim-place-card">
         <button class="place-pick" id="issFromButton" aria-describedby="issFromLabel">
           <span class="pin">📍</span>
@@ -1203,11 +1207,10 @@
             <span class="name" id="issFromName">…</span>
             <span class="muted" id="issFromSub"></span>
           </span>
-          <span class="sr-only">（観測地点を探す）</span>
+          <span class="sr-only">（探す範囲の中心を選ぶ）</span>
           <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
           stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
         </button>
-        <button id="issFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆</button>
       </div>
       <label class="fav-l" for="issRange">探す範囲</label>
       <div class="aim-row">
@@ -1220,17 +1223,11 @@
       <p class="tiny" id="issTle" style="margin:-2px 0 8px;color:var(--tertiary)"></p>
       <div class="mapwrap" style="margin-top:4px">
         <canvas id="issCanvas" aria-label="地図。ISSが月の前を横切って見える帯です"></canvas>
-        <div class="mappin" aria-hidden="true"></div>
         <div class="mapzoom">
           <button id="issIn" aria-label="拡大">＋</button>
           <button id="issOut" aria-label="縮小">−</button>
         </div>
         <div class="mapattr">国土地理院</div>
-      </div>
-      <div class="aim-near-row">
-        <div class="aim-near-btns">
-          <button id="issPickHere" class="fav-btn" aria-label="地図の中心（ピンの位置）から見る">ここから見る</button>
-        </div>
       </div>
       <div class="aim-legend">
         <span><i class="aim-k moon" id="issKey"></i>見える帯</span>
@@ -1557,21 +1554,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001133346"></script>
+<script src="sorami-core.js?v=20261001164634"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001133346"></script>
-<script src="sorami-exif.js?v=20261001133346"></script>
-<script src="sorami-capcloud.js?v=20261001133346"></script>
-<script src="sorami-terrain.js?v=20261001133346"></script>
-<script src="sorami-mountain.js?v=20261001133346"></script>
-<script src="sorami-fuji.js?v=20261001133346"></script>
-<script src="sorami-sky.js?v=20261001133346"></script>
-<script src="sorami-routes.js?v=20261001133346"></script>
-<script src="sorami-iss.js?v=20261001133346"></script>
-<script src="sorami-plane.js?v=20261001133346"></script>
-<script src="sorami-align.js?v=20261001133346"></script>
-<script src="sorami-moon.js?v=20261001133346"></script>
+<script src="sorami-astro.js?v=20261001164634"></script>
+<script src="sorami-exif.js?v=20261001164634"></script>
+<script src="sorami-capcloud.js?v=20261001164634"></script>
+<script src="sorami-terrain.js?v=20261001164634"></script>
+<script src="sorami-mountain.js?v=20261001164634"></script>
+<script src="sorami-fuji.js?v=20261001164634"></script>
+<script src="sorami-sky.js?v=20261001164634"></script>
+<script src="sorami-routes.js?v=20261001164634"></script>
+<script src="sorami-iss.js?v=20261001164634"></script>
+<script src="sorami-plane.js?v=20261001164634"></script>
+<script src="sorami-align.js?v=20261001164634"></script>
+<script src="sorami-moon.js?v=20261001164634"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4160,7 +4157,7 @@ const PLACE_PICKERS = {
   // お気に入りから選んだら、登録した高さで置く
   aimTarget: { title: "どこに重ねるか", custom: () => null, point: () => store.get("sorami.aimCustom", null) || AimMap.center(),
     set: (p) => aimSetCustomTarget({ ...p, heightM: p.targetHeightM ?? p.structureM }) },
-  iss: { title: "どこから見るか", custom: () => iss.from, point: () => issFromPoint(),
+  iss: { title: "どこの近くで探すか", custom: () => iss.from, point: () => issFromPoint(),
     set: (p) => issSetFrom(p), reset: () => issSetFrom(null) },
   plane: { title: "どこから重ねるか", custom: () => plane.from, point: () => planeFromPoint(),
     set: (p) => planeSetFrom(p), reset: () => planeSetFrom(null) },
@@ -4174,13 +4171,13 @@ function inheritedPoint() {
     : null;
 }
 /// 観測地点のカード（地点カードと同じ形）を描く。名前と、住所・標高・引き継ぎ。☆ はお気に入りに入っていれば ★
-function renderPointCard(prefix, f, groundM = null) {
+function renderPointCard(prefix, f, groundM = null, { elevation = true } = {}) {
   // 引き継いだ地点の標高は、地点カードと同じ値を出す（道具ごとに数m違って見えないように）
-  const g = f && f.inherited ? place.elevation ?? bundle?.home.grid.elevation ?? groundM : groundM;
+  const g = !elevation ? null : f && f.inherited ? place.elevation ?? bundle?.home.grid.elevation ?? groundM : groundM;
   $(`${prefix}Name`).textContent = f ? f.name : "観測地点を選んでください";
   $(`${prefix}Sub`).textContent = f ? [f.subtitle, Number.isFinite(g) ? `標高 ${Math.round(g)}m` : "",
     f.inherited ? "絶景予測の地点" : ""].filter(Boolean).join(" ・ ") : "";
-  renderFavStar(`${prefix}Fav`, f);
+  if ($(`${prefix}Fav`)) renderFavStar(`${prefix}Fav`, f);
 }
 function renderFavStar(id, f) {
   const favOn = f && favorites.some((x) => SoramiTerrain.distanceKm(x.latitude, x.longitude, f.latitude, f.longitude) < 0.02);
@@ -4994,7 +4991,7 @@ function aimUpdateNear(center) {
 // 「ねらう」と同じ形。目標が**航路の上を動く点**になっただけ。
 // 航路は `sorami-routes.js` に形として持ってある（通信しない）。
 // 運用の向き（北風・南風）はその日の風の予報から決める。
-const plane = { dayMs: null, op: null, wind: null, kind: "landing",
+const plane = { dayMs: null, op: null, wind: null,
                 result: null, seq: 0, wired: false, pick: 0,
                 from: null };   // 観測地点。null なら絶景予測の地点を引き継ぐ（ねらうと同じ。2026-10-01）
 /// 月丼の観測地点（候補の「ここ」）。替えていなければ絶景予測の地点
@@ -5063,7 +5060,7 @@ async function planeApply() {
   if (seq !== plane.seq) return;
   // その日に使われうる経路を全部並べ、**その時刻に使われている経路だけ**を数える
   const spans = planeOpSpans(plane.dayMs);
-  const kind = { landing: plane.kind === "landing", takeoff: plane.kind === "takeoff" };
+  const kind = { landing: true, takeoff: true };
   const paths = [];
   for (const op of new Set(spans.map((s) => s.op))) {
     for (const p of SoramiPlane.pathsFor(op, kind)) {
@@ -5119,8 +5116,7 @@ function planeRender() {
   const r = plane.result;
   const opLine = (s) => {
     const o = SoramiRoutes.OPERATIONS[s.op];
-    const rw = plane.kind === "takeoff" ? o.takeoff : o.landing;
-    return `${s.from}〜${s.to + 1}時 ${o.name}・${plane.kind === "takeoff" ? "離陸" : "着陸"} ${rw.join("・")}`;
+    return `${s.from}〜${s.to + 1}時 ${o.name}・着陸 ${o.landing.join("・")}・離陸 ${o.takeoff.join("・")}`;
   };
   $("planeOpNote").textContent = plane.op
     ? `手で選んでいます。${opLine({ op: plane.op, from: 0, to: 23 }).replace(/^0〜24時 /, "")}`
@@ -5185,11 +5181,12 @@ PlaneMap.setOverlay((ctx, { project, width, height }) => {
   const moonC = cs.getPropertyValue("--ray-moon").trim() || "#2f7fd0";
   const sunC = cs.getPropertyValue("--ray-sun").trim() || "#e8820e";
   const ink = "rgba(0,0,0,.55)";
-  // 進入経路
+  // 経路。着陸は実線、離陸は破線
   for (const path of r.paths) {
     const pts = path.points.map((p) => project(p.latitude, p.longitude));
     ctx.save();
     ctx.lineJoin = "round"; ctx.lineCap = "round";
+    if (path.kind === "takeoff") ctx.setLineDash([7, 6]);
     ctx.strokeStyle = ink; ctx.lineWidth = 5.5;
     ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
     ctx.strokeStyle = moonC; ctx.lineWidth = 2.2; ctx.stroke();
@@ -5258,14 +5255,6 @@ function openPlane() {
       $("planePickHere").disabled = false;
       planeSetFrom({ name: n.name, subtitle: n.area || "地図の中心", latitude: c.latitude, longitude: c.longitude });
     };
-    const setKind = (k) => {
-      plane.kind = k;
-      $("planeLand").setAttribute("aria-pressed", String(k === "landing"));
-      $("planeTake").setAttribute("aria-pressed", String(k === "takeoff"));
-      planeApply();
-    };
-    $("planeLand").onclick = () => setKind("landing");
-    $("planeTake").onclick = () => setKind("takeoff");
   }
   requestAnimationFrame(() => {
     PlaneMap.open({ latitude: SoramiRoutes.RJTT.latitude, longitude: SoramiRoutes.RJTT.longitude }, 10);
@@ -5280,11 +5269,14 @@ function openPlane() {
 // 軌道要素は日に数回更新され、ISS はときどき高度を上げるので、**先の日ほど外れる**。
 // 7日先まで出し、3日より先には「目安」と付ける。
 const iss = { body: "moon", rangeKm: 150, sat: null, tle: null, result: [], pick: 0, seq: 0, wired: false,
-              from: null };   // 観測地点。null なら絶景予測の地点を引き継ぐ（ねらうと同じ。2026-10-01）
-/// ISS の観測地点（探す範囲の中心）。替えていなければ絶景予測の地点
+              from: null };   // 探す範囲の中心。null なら絶景予測の地点を引き継ぐ（ねらうと同じ。2026-10-01）
+/// ISS の探す範囲の中心。替えていなければ絶景予測の地点。**観測地点ではない**（立つ場所は回ごとに帯の中から選ぶ）
 function issFromPoint() { return iss.from || inheritedPoint(); }
 function issSetFrom(p) {
   iss.from = p ? { name: p.name, subtitle: p.subtitle || "", latitude: p.latitude, longitude: p.longitude } : null;
+  // 地図も新しい中心へ（帯はその近くに出る）
+  const P = issFromPoint();
+  IssMap.open({ latitude: P.latitude, longitude: P.longitude }, 8);
   issApply();
 }
 const IssMap = createMapView({ canvas: "issCanvas", zoomIn: "issIn", zoomOut: "issOut" });
@@ -5323,9 +5315,8 @@ async function issApply() {
   if (!P) return;
   const seq = ++iss.seq;
   $("issList").innerHTML = `<p class="tiny">計算しています…</p>`;
-  // 観測地点のカード（地点カードと同じ形）。標高は読めたら足す
-  renderPointCard("issFrom", P);
-  aimElevation(P.latitude, P.longitude).then((g) => { if (seq === iss.seq) renderPointCard("issFrom", P, g); });
+  // 探す範囲の中心のカード（地点カードと同じ形）。そこに立つわけではないので標高は書かない
+  renderPointCard("issFrom", P, null, { elevation: false });
   $("issMoon").setAttribute("aria-pressed", String(iss.body === "moon"));
   $("issMoon").textContent = `${moonGlyphAt(Date.now())}`;
   $("issSun").setAttribute("aria-pressed", String(iss.body === "sun"));
@@ -5460,7 +5451,7 @@ function issRender() {
     const st = r.stand;
     const where = st === undefined || st === null
       ? `<span class="muted">${iss.standsDone ? "立つ場所を確かめられませんでした（地図の帯の中の陸で見てください）" : "立つ場所を探しています…"}</span>`
-      : `<span class="muted">立つ場所: ${st.name ? `<strong>${esc(st.name)}</strong>${st.kind ? `（${esc(st.kind)}）` : ""}` : "名前のない陸の上"}
+      : `<span class="muted">立つ場所の例: ${st.name ? `<strong>${esc(st.name)}</strong>${st.kind ? `（${esc(st.kind)}）` : ""}` : "名前のない陸の上"}
           ・ ${issDirection(P, st)}へ ${st.fromHereKm.toFixed(1)}km ・ 中心線から${st.offsetKm < 0.05 ? "すぐ" : `${st.offsetKm.toFixed(1)}km`}${
           st.others && st.others.length ? `<br>ほかに: ${st.others.map((o) => esc(o.name)).join("・")}` : ""}</span>`;
     const lit = r.illuminated !== null ? ` ・ ${moonGlyphAt(r.at)} 輝面${Math.round(r.illuminated * 100)}%` : "";
@@ -5539,16 +5530,9 @@ function openIss() {
     $("issMoon").onclick = () => { iss.body = "moon"; issApply(); };
     $("issSun").onclick = () => { iss.body = "sun"; issApply(); };
     $("issRange").onchange = () => { iss.rangeKm = Number($("issRange").value) || 150; issApply(); };
-    // 観測地点: カードを押すと「地点」の画面、☆ でお気に入り、地図の「ここから見る」（ねらうと同じ部品）
+    // 探す範囲の中心: カードを押すと「地点」の画面（検索・現在地・地図で選ぶ・お気に入り。ねらうと同じ部品）。
+    // 立つ点ではないので ☆ は付けない
     $("issFromButton").onclick = () => openPlaceSheet("iss");
-    $("issFromFav").onclick = () => favForPoint(issFromPoint(), (entry) => { renameFromAfterFav(iss, entry); issApply(); });
-    $("issPickHere").onclick = async () => {
-      const c = IssMap.center();
-      $("issPickHere").disabled = true;
-      const n = await nearName(c.latitude, c.longitude);
-      $("issPickHere").disabled = false;
-      issSetFrom({ name: n.name, subtitle: n.area || "地図の中心", latitude: c.latitude, longitude: c.longitude });
-    };
   }
   requestAnimationFrame(() => {
     const P = issFromPoint();
