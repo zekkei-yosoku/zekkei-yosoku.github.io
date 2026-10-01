@@ -467,6 +467,24 @@ console.log("== 画面のスクリプトが文法として読める（2026-09-30
   ok(own.length >= 5 && badFiles.length === 0, `読み込む自前の JS ${own.length} 本に文法の誤りが無い`, badFiles.join(" / "));
 }
 
+console.log("== 引き出しのスワイプ・地図のつまみ（2026-10-01） ==");
+// ユーザー「メニューについて左からスワイプで開くようにできたりしない？」
+ok(/const SWIPE_EDGE_PX = 28;/.test(html) && /t\.clientX > SWIPE_EDGE_PX \|\| \$\("toolsButton"\)\.hidden \|\| document\.querySelector\("dialog\[open\]"\)/.test(html),
+  "左の端からだけ（☰ が無い・シートが開いているときは開かない）");
+ok(/e\.target\.closest\("\.mapwrap, canvas, input, select, textarea"\)/.test(html), "地図・3D・入力欄の上からは始めない（横に動かす部品と取り合わない）");
+ok(/menu\.style\.transform = `translateX\(\$\{\(swipe\.p - 1\) \* 100\}%\)`;/.test(html), "引き出しは指に付いてくる");
+ok(/const wantOpen = open \? !\(p < 0\.6 \|\| v < -0\.4\) : \(p > 0\.4 \|\| v > 0\.4\);/.test(html), "離したとき、半分近く出ているか速く払っていれば開く（左へなぞると閉じる）");
+ok(/if \(wantOpen\) \{ if \(!open\) openTools\(\{ focus: false \}\); \}/.test(html), "なぞって開いたときは焦点を動かさない（青い枠を出さない）");
+ok(/\}, \{ passive: true \}\);\s+\/\/ 地図を触っているあいだに/.test(html), "touchmove は passive（計算中にスクロールを待たせない）");
+// ユーザー「地図を拡大した時に画面も拡大されちゃって戻らなくなる」「重ねるとかのページを開いてからすぐに地図の上でピンチアウトすると起きる」
+ok(/pinchOnMap = e\.touches\.length > 1 && mapTouching;\s+if \(pinchOnMap\) \{ e\.preventDefault\(\);/.test(html), "地図に指が乗った2本指は、ページ全体の touchstart で止める（画面を開いた直後も効く）");
+ok(/for \(const type of \["gesturestart", "gesturechange"\]\) \{\s+document\.addEventListener\(type, \(e\) => \{ if \(pinchOnMap\) e\.preventDefault\(\); \}, \{ passive: false \}\);/.test(html),
+  "Safari のつまむ拡大（gesture）も止める");
+ok(/if \(mapTouching && pageZoomed\(\)\) resetPageZoom\(\);/.test(html) && /meta\.setAttribute\("content", `\$\{base\}, maximum-scale=1`\);/.test(html),
+  "それでもページが拡大されていたら、地図に触れた時点で倍率を戻す（地図の上では縮められないので）");
+ok(/visualViewport\.addEventListener\("resize", \(\) => \{ if \(\(mapTouching \|\| pinchOnMap\) && pageZoomed\(\)\) resetPageZoom\(\); \}\);/.test(html), "地図を触っている途中で拡大されても戻す");
+ok(/name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/.test(html), "ページ全体の拡大は禁止しない（地図以外では拡大できる）");
+
 console.log("== 月の結果に日の出入り・月の出入りからの差（2026-10-01） ==");
 // ユーザー「月系は空の明るさが重要だから、日の出何分後とか月の出何分後とかの情報をサクッと書いておいてほしい」
 {

@@ -1556,21 +1556,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001172739"></script>
+<script src="sorami-core.js?v=20261001212300"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001172739"></script>
-<script src="sorami-exif.js?v=20261001172739"></script>
-<script src="sorami-capcloud.js?v=20261001172739"></script>
-<script src="sorami-terrain.js?v=20261001172739"></script>
-<script src="sorami-mountain.js?v=20261001172739"></script>
-<script src="sorami-fuji.js?v=20261001172739"></script>
-<script src="sorami-sky.js?v=20261001172739"></script>
-<script src="sorami-routes.js?v=20261001172739"></script>
-<script src="sorami-iss.js?v=20261001172739"></script>
-<script src="sorami-plane.js?v=20261001172739"></script>
-<script src="sorami-align.js?v=20261001172739"></script>
-<script src="sorami-moon.js?v=20261001172739"></script>
+<script src="sorami-astro.js?v=20261001212300"></script>
+<script src="sorami-exif.js?v=20261001212300"></script>
+<script src="sorami-capcloud.js?v=20261001212300"></script>
+<script src="sorami-terrain.js?v=20261001212300"></script>
+<script src="sorami-mountain.js?v=20261001212300"></script>
+<script src="sorami-fuji.js?v=20261001212300"></script>
+<script src="sorami-sky.js?v=20261001212300"></script>
+<script src="sorami-routes.js?v=20261001212300"></script>
+<script src="sorami-iss.js?v=20261001212300"></script>
+<script src="sorami-plane.js?v=20261001212300"></script>
+<script src="sorami-align.js?v=20261001212300"></script>
+<script src="sorami-moon.js?v=20261001212300"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4641,6 +4641,8 @@ function createMapView(ids) {
     cv.onpointerdown = (e) => {
       cv.setPointerCapture(e.pointerId);
       if (pinch) { pinch.points.set(e.pointerId, e); return; }
+      // ページが拡大されているときの2本指は、ページを縮めて戻すためのもの。地図は動かさない
+      if (drag && window.visualViewport && window.visualViewport.scale > 1.01) { drag = null; return; }
       if (drag) {       // 2本目の指。つまむ操作へ切り替える
         pinch = { points: new Map([[drag.id, drag.last], [e.pointerId, e]]), base: null };
         drag = null;
@@ -7325,7 +7327,8 @@ function renderTools() {
  * 閉じるときは動きが終わってから `hidden` へ戻す。
  */
 let toolsAnim = 0;
-function openTools() {
+/// focus: キーボードや ☰ から開いたときは最初の項目へ。なぞって開いたときは焦点を動かさない（青い枠が出る）
+function openTools({ focus = true } = {}) {
   clearTimeout(toolsAnim);
   markToolsCurrent();
   $("toolsScrim").hidden = false;
@@ -7340,7 +7343,7 @@ function openTools() {
   // 開いているあいだ、後ろは動かさない（閉じたときに位置が変わらないように）
   document.body.style.overflow = "hidden";
   const first = $("toolsMenu").querySelector("[data-tool]");
-  if (first) first.focus();
+  if (first && focus) first.focus();
 }
 function closeTools({ restoreFocus = false } = {}) {
   if ($("toolsMenu").hidden) return;
@@ -7374,6 +7377,115 @@ for (const el of $("toolsMenu").querySelectorAll("[data-tool]")) {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("toolsMenu").hidden) { e.preventDefault(); closeTools({ restoreFocus: true }); }
 });
+
+// ---------------------------------------------------------------- 指の操作（引き出しのスワイプ・地図のつまみ）
+//
+// **左の端から右へなぞると引き出しが開く**（2026-10-01 ユーザー「メニューについて左からスワイプで開くようにできたりしない？」）。
+// 開いているときは左へなぞると閉じる。引き出しは指に付いてきて、離したときに半分より出ているか、速く払っていれば開く。
+// 始めは**左の端だけ**（地図・3D の空・日付の帯など、横に動かす部品と取り合わないため）。
+// ホーム画面に置いたアプリには端のスワイプの「戻る」が無いのでそのまま効く。Safari では Safari の「戻る」が先に取る
+// （行き先はこのアプリの「← 戻る」と同じ）。
+//
+// **地図の上でつまんだら、ページは拡大させない**（2026-10-01 ユーザー「地図を拡大した時に画面も拡大されちゃって戻らなくなる時がある」
+// 「重ねるとかのページを開いてからすぐに地図の上でピンチアウトすると起きる」）。
+// 地図は `touch-action: none` でページの拡大を止めているが、**画面を切り替えた直後は効かない**。切り替えた直後は
+// ねらうの計算で処理が詰まり、Safari が「ここは地図」という指定を受け取る前に指が下りるので、前の画面（一覧）として
+// ページごと拡大した。そのあとは画面の大半が地図なので、つまんで戻そうとしても地図が動くだけで戻せなかった。
+// そこで**ページ全体の touchstart**（画面を切り替える前からある）で2本目の指を受け、指のどれかが地図に乗っていれば
+// ページの拡大（touch の既定の動き・Safari の gesture）を止める。処理が詰まっていても、Safari はこの返事を待つ。
+// それでもページが拡大されたら（録画では地図のつまみが効いたあと、途中からページが拡大し始めた）、
+// **地図に触れた時点で倍率を1へ戻す**（resetPageZoom）。拡大されたページでは画面の大半が地図になり、
+// 地図の上ではページを縮められない（touch-action: none）ので、こちらで戻さないと抜け出せない。
+// 地図の拡大・縮小は地図が自分で受ける（createMapView のつまみ）。
+// touchmove は passive のままにする（ページ全体の touchmove を止められる形にすると、計算中にスクロールまで待たされる）。
+const SWIPE_EDGE_PX = 28;
+let swipe = null;
+let pinchOnMap = false;
+const onMapTouch = (e) => [...e.touches].some((t) => t.target && t.target.closest && t.target.closest(".mapwrap"));
+const pageZoomed = () => !!(window.visualViewport && window.visualViewport.scale > 1.01);
+/// ページの倍率を1へ戻す。viewport に一度 maximum-scale=1 を入れて外すと、Safari は倍率を戻す
+function resetPageZoom() {
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (!meta || meta.dataset.resetting) return;
+  const base = meta.getAttribute("content");
+  meta.dataset.resetting = "1";
+  meta.setAttribute("content", `${base}, maximum-scale=1`);
+  setTimeout(() => { meta.setAttribute("content", base); delete meta.dataset.resetting; }, 400);
+}
+let mapTouching = false;
+document.addEventListener("touchstart", (e) => {
+  mapTouching = onMapTouch(e);
+  if (mapTouching && pageZoomed()) resetPageZoom();
+  pinchOnMap = e.touches.length > 1 && mapTouching;
+  if (pinchOnMap) { e.preventDefault(); swipe = null; return; }
+  if (e.touches.length !== 1) { swipe = null; return; }
+  const t = e.touches[0];
+  const open = !$("toolsMenu").hidden && $("toolsMenu").classList.contains("on");
+  if (open) {
+    if (!e.target.closest("#toolsMenu, #toolsScrim")) return;
+  } else if (t.clientX > SWIPE_EDGE_PX || $("toolsButton").hidden || document.querySelector("dialog[open]")
+             || e.target.closest(".mapwrap, canvas, input, select, textarea")) {
+    // ☰ が出ていない（使える道具が無い）ときは、なぞっても開かない
+    return;
+  }
+  swipe = { x0: t.clientX, y0: t.clientY, t0: e.timeStamp, open, active: false, p: open ? 1 : 0 };
+}, { passive: false });
+document.addEventListener("touchmove", (e) => {
+  if (!swipe || e.touches.length !== 1) return;
+  const t = e.touches[0];
+  const dx = t.clientX - swipe.x0, dy = t.clientY - swipe.y0;
+  const menu = $("toolsMenu"), scrim = $("toolsScrim");
+  if (!swipe.active) {
+    // 縦に動いた（一覧を送る）・向きが逆なら、引き出しの操作にしない
+    if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { swipe = null; return; }
+    if (Math.abs(dx) < 10) return;
+    if (swipe.open ? dx > 0 : dx < 0) { swipe = null; return; }
+    swipe.active = true;
+    if (!swipe.open) {
+      clearTimeout(toolsAnim);
+      markToolsCurrent();
+      scrim.hidden = false; menu.hidden = false;
+    }
+    menu.style.transition = scrim.style.transition = "none";
+    swipe.width = menu.offsetWidth || 300;
+  }
+  swipe.p = Math.max(0, Math.min(1, (swipe.open ? 1 : 0) + dx / swipe.width));
+  swipe.v = dx / Math.max(1, e.timeStamp - swipe.t0);
+  menu.style.transform = `translateX(${(swipe.p - 1) * 100}%)`;
+  scrim.style.opacity = String(swipe.p);
+}, { passive: true });
+// 地図を触っているあいだにページが拡大されたら、すぐ戻す（止めきれなかったとき）
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", () => { if ((mapTouching || pinchOnMap) && pageZoomed()) resetPageZoom(); });
+}
+const endSwipe = (e) => {
+  pinchOnMap = false;
+  if (e && e.touches && !e.touches.length) mapTouching = false;
+  if (!swipe || !swipe.active) { swipe = null; return; }
+  const { p, v = 0, open } = swipe;
+  swipe = null;
+  const menu = $("toolsMenu"), scrim = $("toolsScrim");
+  swipeEndedAt = performance.now();
+  const wantOpen = open ? !(p < 0.6 || v < -0.4) : (p > 0.4 || v > 0.4);
+  // 指を離した位置から、ふつうの開け閉めの動きで続ける。行き先の class を先に決めてから、指の位置（inline）を外す
+  if (wantOpen) { menu.classList.add("on"); scrim.classList.add("on"); }
+  menu.style.transition = scrim.style.transition = "";
+  menu.style.transform = ""; scrim.style.opacity = "";
+  if (wantOpen) { if (!open) openTools({ focus: false }); }
+  else closeTools();
+};
+// なぞり終わりの指で、引き出しの項目や後ろの釦を押したことにしない
+let swipeEndedAt = 0;
+document.addEventListener("click", (e) => {
+  // 指を離した直後に来る click だけ（続けて ☰ を押したときまで止めない）
+  if (performance.now() - swipeEndedAt < 120) { e.preventDefault(); e.stopPropagation(); }
+}, true);
+document.addEventListener("touchend", endSwipe);
+document.addEventListener("touchcancel", endSwipe);
+// Safari のつまむ拡大（gesture）。地図に指が乗っていれば止める
+for (const type of ["gesturestart", "gesturechange"]) {
+  document.addEventListener(type, (e) => { if (pinchOnMap) e.preventDefault(); }, { passive: false });
+}
 
 /// 使える道具が変わったら（ログイン・ログアウト・期限切れ）、詳細に出している道具の中身も出し直す
 let toolsDrawnKey = null;
