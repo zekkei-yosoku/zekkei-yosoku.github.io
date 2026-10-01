@@ -155,6 +155,8 @@
   }
 
   const tiles = new Map();
+  // 標高タイルの無い升目（404＝陸の無い外洋）。水の判定で、海と分かっている所へ水域タイルを取りに行かないために憶える
+  const demMissing = new Set();
   /// タイルを1枚読む。**同じタイルは二度取りに行かない**（この画面でも、次に開いたときも）。
   function loadTile(z, x, y) {
     const key = `${z}/${x}/${y}`;
@@ -171,7 +173,7 @@
           if (hit && Date.now() - at < DEM_TTL_MS && Date.now() >= at) {
             // **海など、タイルの無い区画も憶えておく。** 開くたびに同じ升目へ取りに行って
             // 404 を並べていた（2026-09-30 総点検。ねらうの線が相模湾・東京湾の上を通るたびに十数枚）
-            if (hit.headers.get(DEM_MISSING)) return null;
+            if (hit.headers.get(DEM_MISSING)) { demMissing.add(key); return null; }
             const img = await decodeTile(await hit.blob());
             if (img) return img;
           }
@@ -182,6 +184,7 @@
       try { res = await fetch(url, { mode: "cors" }); } catch { return loadTileByImage(url); }
       if (!res.ok) {                    // 海など、タイルの無い区画は 404
         if (res.status === 404) {
+          demMissing.add(key);
           try {
             await cache.put(url, new Response("", { status: 200,
               headers: { [DEM_MISSING]: "1", [DEM_AT]: String(Date.now()) } }));
@@ -917,6 +920,124 @@
       elevation: r.elevation, score: s }));
   }
 
+  // ---------------------------------------------------------------- 水の上か（2026-10-01）
+  //
+  // **観測地点を水の上に置かない**（ユーザー「観測地点は陸上に」「他の観測地点も水の上にならないように」）。
+  // ISS の中心線のいちばん近い点が海の上に出ていて、川岸の候補地は川の中心線の上に立たせていた。
+  //
+  // **標高タイルでは見分けられない。** 海は「標高なし」になるが、湖・池・川の水面には標高が入っている
+  // （霞ヶ浦 0.2m・琵琶湖 84.6m・荒川 −0.6m。5m メッシュでも井の頭池や川に値がある。2026-10-01 実測）。
+  // 国土地理院の最適化ベクトルタイルの「水域」（WA 層）を使う。海・湖・池・川の水面が面で入っている
+  // （同日実測: 東京湾・琵琶湖・霞ヶ浦・河口湖・不忍池・井の頭池が水、川岸候補の中心線の点は14中12が水。
+  // 残り2つは河川敷の乾いた所）。z16 で1枚 約600m 四方・20KB 前後。
+  // **タイルの無い升目（404）は外洋**（陸のある升目には必ず道や建物が入る）。
+  const WATER_TILE = "https://cyberjapandata.gsi.go.jp/xyz/optimal_bvmap-v1";
+  const WATER_Z = 16;
+  const waterTiles = new Map();
+
+  /// MVT（Mapbox Vector Tile）から「水域」の面だけを読む。依存を持たないので、要るところだけ手で解く
+  function decodeWaterLayer(u8, layerName = "WA") {
+    let p = 0;
+    const varint = () => { let r = 0, s = 0, b; do { b = u8[p++]; r += (b & 0x7f) * 2 ** s; s += 7; } while (b & 0x80); return r; };
+    const skip = (w) => { if (w === 0) varint(); else if (w === 1) p += 8; else if (w === 2) { const l = varint(); p += l; } else if (w === 5) p += 4; };
+    const zz = (n) => (n >>> 1) ^ -(n & 1);
+    while (p < u8.length) {
+      const tag = varint();
+      if ((tag >> 3) !== 3 || (tag & 7) !== 2) { skip(tag & 7); continue; }
+      const layerEnd = varint() + p;
+      let name = "", extent = 4096;
+      const polys = [];
+      while (p < layerEnd) {
+        const t = varint(), f = t >> 3, w = t & 7;
+        if (f === 1 && w === 2) { const l = varint(); name = new TextDecoder().decode(u8.subarray(p, p + l)); p += l; }
+        else if (f === 5 && w === 0) extent = varint();
+        else if (f === 2 && w === 2) {
+          const featEnd = varint() + p;
+          let type = 0;
+          const geom = [];
+          while (p < featEnd) {
+            const ft = varint(), ff = ft >> 3, fw = ft & 7;
+            if (ff === 3 && fw === 0) type = varint();
+            else if (ff === 4 && fw === 2) { const end = varint() + p; while (p < end) geom.push(varint()); }
+            else skip(fw);
+          }
+          if (type !== 3) continue;          // 面だけ
+          const rings = [];
+          let x = 0, y = 0, cur = null;
+          for (let i = 0; i < geom.length;) {
+            const c = geom[i++], id = c & 7, n = c >> 3;
+            if (id === 7) { if (cur) rings.push(cur); cur = null; continue; }
+            for (let k = 0; k < n; k++) {
+              x += zz(geom[i++]); y += zz(geom[i++]);
+              if (id === 1) { if (cur) rings.push(cur); cur = [[x, y]]; } else if (cur) cur.push([x, y]);
+            }
+          }
+          if (cur) rings.push(cur);
+          polys.push(rings);
+        } else skip(w);
+      }
+      p = layerEnd;
+      if (name === layerName) return { extent, polys };
+    }
+    return { extent: 4096, polys: [] };   // 水域の無い升目
+  }
+
+  /// 面の中か（穴は外側の輪と逆回りなので、輪をまとめて偶奇で数えれば穴も効く）
+  function inWaterLayer(layer, px, py) {
+    for (const rings of layer.polys) {
+      let inside = false;
+      for (const ring of rings) {
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+          const [xi, yi] = ring[i], [xj, yj] = ring[j];
+          if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) inside = !inside;
+        }
+      }
+      if (inside) return true;
+    }
+    return false;
+  }
+
+  function loadWaterTile(x, y, fetchImpl) {
+    const key = `${x}/${y}`;
+    if (waterTiles.has(key)) return waterTiles.get(key);
+    const p = (async () => {
+      try {
+        const res = await fetchImpl(`${WATER_TILE}/${WATER_Z}/${x}/${y}.pbf`);
+        if (res.status === 404) return "sea";
+        if (!res.ok) return null;
+        return decodeWaterLayer(new Uint8Array(await res.arrayBuffer()));
+      } catch { return null; }
+    })();
+    waterTiles.set(key, p);
+    // 取れなかった升目は憶えない（次に呼ばれたときに取り直す）
+    p.then((v) => { if (v === null) waterTiles.delete(key); });
+    return p;
+  }
+
+  /**
+   * 点ごとに水の上か。true＝水（海・湖・池・川）、false＝陸、null＝分からない（日本の外・通信の失敗）。
+   * 呼び手は null を「確かめられなかった」として扱う（陸と決めつけない）。
+   */
+  async function waterAt(points, { fetchImpl = (typeof fetch === "function" ? (u) => fetch(u, { mode: "cors" }) : null),
+                                   useDem = typeof document !== "undefined" } = {}) {
+    if (!fetchImpl) return points.map(() => null);
+    return Promise.all(points.map(async (pt) => {
+      if (!inJapan(pt.latitude, pt.longitude)) return null;
+      // 標高タイル（z11・約20km 四方）が丸ごと無い升目は外洋。水域タイルを取りに行かない
+      // （外洋の水域タイルも 404 で、ISS の帯が太平洋を通る回に1点ずつ 404 が並んでいた。2026-10-01）
+      if (useDem) {
+        const dx = Math.floor(tileXf(pt.longitude, 11)), dy = Math.floor(tileYf(pt.latitude, 11));
+        await loadTile(11, dx, dy);
+        if (demMissing.has(`11/${dx}/${dy}`)) return true;
+      }
+      const fx = tileXf(pt.longitude, WATER_Z), fy = tileYf(pt.latitude, WATER_Z);
+      const tile = await loadWaterTile(Math.floor(fx), Math.floor(fy), fetchImpl);
+      if (tile === null) return null;
+      if (tile === "sea") return true;
+      return inWaterLayer(tile, (fx % 1) * tile.extent, (fy % 1) * tile.extent);
+    }));
+  }
+
   const SoramiTerrain = {
     MAX_POINTS, DEFAULT_STEPS, OBSERVATION_DECKS, decksFor, deckLabel, structureHeight, isLookout,
     destination, bearing, distanceKm,
@@ -924,6 +1045,7 @@
     measureHorizon, horizonFunction, combinedHorizon,
     urbanHorizon, buildingHeightM, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
     profileToward, stepsFor, EYE_HEIGHT_PRESETS, searchPlaceIndex, normName,
+    waterAt, decodeWaterLayer,
   };
   global.SoramiTerrain = SoramiTerrain;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiTerrain;

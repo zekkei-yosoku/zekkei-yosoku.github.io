@@ -121,7 +121,8 @@
       address: "神奈川県藤沢市江の島" },
     { id: "katase", name: "片瀬東浜", kind: "海岸", latitude: 35.30690, longitude: 139.48507, groundM: 2,
       address: "神奈川県藤沢市片瀬海岸1丁目" },
-    { id: "southern", name: "サザンビーチちがさき", kind: "海岸", latitude: 35.3172, longitude: 139.4003, groundM: 2,
+    // 浜と岬は、波打ち際から陸へ寄せた点（2026-10-01。元の点は海の上だった。国土地理院の水域で確認）
+    { id: "southern", name: "サザンビーチちがさき", kind: "海岸", latitude: 35.31780, longitude: 139.40030, groundM: 2,
       address: "神奈川県茅ヶ崎市中海岸4丁目" },
     { id: "jogashima", name: "城ヶ島", kind: "島", latitude: 35.13332, longitude: 139.61825, groundM: 30,
       address: "神奈川県三浦市三崎町城ヶ島" },
@@ -131,7 +132,7 @@
       groundM: 35, deckM: 202, address: "東京都新宿区西新宿2-8-1（第一本庁舎45階）", note: "無料・開いている時間だけ" },
     { id: "umihotaru", name: "海ほたる", kind: "展望デッキ", latitude: 35.46299, longitude: 139.87642,
       groundM: 1, deckM: 12, address: "千葉県木更津市中島地先（東京湾アクアライン）", note: "車で行く" },
-    { id: "futtsu", name: "富津岬（富津公園）", kind: "岬", latitude: 35.31298, longitude: 139.78387, groundM: 2,
+    { id: "futtsu", name: "富津岬（富津公園）", kind: "岬", latitude: 35.31280, longitude: 139.78520, groundM: 2,
       address: "千葉県富津市富津" },
   ];
   /// スポットに立ったときの観測者（地面＋展望室）

@@ -92,15 +92,15 @@
   .masthead-mark { width: 20px; height: 20px; border-radius: 5px; display: block; }
   /* 題名そのものが戻り道（YouTube・Gmail と同じ）。見た目は h1 のまま */
   #homeLink { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
-  /* 一覧以外の画面で題名の代わりに出す戻り道。カードと同じ地の丸い帯にして、押せることを形で見せる。
-     矢印だけ橙（押す向きの合図）。字はほかの釦と同じ太さ */
-  #backLink { display: inline-flex; align-items: center; gap: 3px; flex: none;
-              height: 32px; padding: 0 13px 0 9px; border-radius: 16px;
-              background: var(--card); color: var(--text); font-size: 0.81rem; font-weight: 700; }
-  #backLink svg { color: var(--accent); flex: none; }
+  /* 題名の帯の2行目に置く「← 戻る」。囲わず文字だけ（ユーザー指定）。左端を ☰・題名とそろえ、
+     帯に寄せて（上を詰めて）題名の帯の一部に見せる。カードのあいだに浮かせない */
+  .backbar { margin: -10px 0 8px; padding: 0 2px; }
+  #backLink { display: inline-flex; align-items: center; gap: 4px; min-height: 32px;
+              color: var(--accent); font-size: 0.81rem; font-weight: 700; }
+  #backLink svg { flex: none; }
   h1 { font-size: 0.94rem; font-weight: 700; letter-spacing: .18em;
        color: var(--secondary); text-align: left; }
-  /* ログイン名は長いことがある（最大32字）。「‹ 一覧」と題名が並ぶ画面で重ならないよう、収まらなければ「…」で切る */
+  /* ログイン名は長いことがある（最大32字）。狭い画面で題名と重ならないよう、収まらなければ「…」で切る */
   #authButton { font-size: 0.75rem; font-weight: 700; color: var(--accent); min-height: 44px; padding: 0 2px;
                 flex: 0 1 auto; max-width: 34%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* メニューの引き出し。**左上の ☰ から左に出す。** ページの中へ差し込まない
@@ -149,6 +149,8 @@
   .place-row { display: flex; align-items: center; gap: 2px; width: 100%; padding: 4px 2px 10px; }
   .place-pick { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-align: left; }
   .place-txt { min-width: 0; }
+  /* ボタンの中に置けるのは句だけなので span。2行目として折り返す */
+  #placeSub { display: block; }
   .place-row .pin { color: var(--accent); font-size: 1.25rem; }
   .place-row .name { font-size: 1.25rem; font-weight: 700; }
   .place-row .chev { margin-left: auto; color: var(--secondary); display: flex; }
@@ -170,7 +172,7 @@
                 transform: translate(-50%, -50%);
                 width: max(100%, 44px); height: 44px; }
   .scorebar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
-  .scorebar > div { height: 100%; border-radius: 4px; }
+  .scorebar > div, .scorebar > span { display: block; height: 100%; border-radius: 4px; }
 
   /* 見たいものを選ぶプルダウン。ネイティブの select を使う。
      iOS ではホイール、Android ではリストと、端末に馴染んだ出方になるし、
@@ -668,6 +670,8 @@
   @media (hover: hover) { .al-row.jump:hover { box-shadow: inset 0 0 0 1.5px var(--line); } }
   /* 地図に出している候補地（ねらう）。いまどれを見ているかを縁で示す */
   .al-row.jump.on { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  /* 行の段。ボタンの中に置けるのは句だけなので span で書き、ここで段にする（2026-10-01 HTML の検査） */
+  .al-l, .al-w, .sub-line { display: block; }   /* .sub-line は行の2段目（お気に入り・検索結果・記録の行でも使う） */
   .al-l { font-size: 0.75rem; font-weight: 700; color: var(--secondary); }
   .al-w { font-variant-numeric: tabular-nums; margin-top: 1px; }
   .al-w .tiny { color: var(--secondary); }
@@ -784,12 +788,6 @@
          URL を直接開けば誰でも入れる。中身に秘密は無いのでそれでよい。 -->
     <button id="toolsButton" class="tap" hidden aria-haspopup="true" aria-expanded="false"
             aria-label="メニュー">☰</button>
-    <!-- 一覧へ戻る（2026-10-01 ユーザー「一覧に戻るボタンはあった方がいい」）。
-         一覧以外の画面で、☰ と題名のあいだに出す。題名は消さない（ユーザー「絶景予測を消しちゃうのはどうかと思う」）。
-         ☰ はどの画面でも左端のまま動かさない。この帯の中に置くので、カードのあいだに浮かない
-         （9/28 までの「← 一覧にもどる」は地点カードと道具のカードのあいだに帯で浮いていた）。
-         iPhone のホーム画面から開くとブラウザの戻るが無いので、画面の中に要る -->
-    <button id="backLink" class="tap" hidden aria-label="一覧へ戻る"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>一覧</button>
     <!-- ☰ と題名のあいだに印を置く（YouTube・Gmail と同じ並び）。
          **押したらホームへ戻る。** どの画面にも出ているので、ここが戻り道になる。
          `alt` は空にする（すぐ隣に「絶景予測」と書いてあるので二度言わせない） -->
@@ -799,6 +797,13 @@
          同期が失敗しているときは、それをここに出す（黙って同期されていないのは
          「黙って消える」と同じ種類の事故）。 -->
     <button id="authButton" class="tap"></button>
+  </div>
+  <!-- 戻る（2026-10-01 ユーザー「一覧に戻るボタンはあった方がいい」「☰ と絶景予測の下にいい感じに。
+       ボタンみたいに囲わなくていい。←戻る でいい」）。一覧以外の画面で、題名の帯のすぐ下に文字だけで出す。
+       **ひとつ前の画面へ戻る**（月の詳細 → 空の見え方 → 戻る で月の詳細）。一気に一覧へは題名を押す。
+       iPhone のホーム画面から開くとブラウザの戻るが無いので、画面の中に要る -->
+  <div class="backbar" id="backBar" hidden>
+    <button id="backLink" class="tap" aria-label="前の画面へ戻る"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3.5M7.5 3.5 3 8l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>戻る</button>
   </div>
 
   <!-- ☆ は地点ボタンの中へ挿入していたが、button の中の button は不正で、
@@ -810,7 +815,7 @@
       <span class="pin">📍</span>
       <span class="place-txt">
         <span class="name" id="placeName">…</span>
-        <div class="muted" id="placeSub"></div>
+        <span class="muted" id="placeSub"></span>
       </span>
       <span class="sr-only">（地点を探す）</span>
       <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
@@ -865,7 +870,8 @@
     <div class="card" style="margin-top:10px">
       <div class="section-h"><h2>登録のしかた</h2></div>
       <div id="signupMode" class="tiny"></div>
-      <button id="toggleSignup" class="fav-btn" style="margin-top:10px"></button>
+      <!-- 文字は設定を読めてから入れる。読めないうちは出さない（空のボタンになる） -->
+      <button id="toggleSignup" class="fav-btn" style="margin-top:10px" hidden></button>
       <p class="tiny" style="margin-top:8px">誰でも登録できる状態は「他者への予報提供」に近づき、
         気象業務法上の扱いに関わります。開けるかどうかは意識して決めてください。</p>
     </div>
@@ -1400,21 +1406,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001110038"></script>
+<script src="sorami-core.js?v=20261001112358"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001110038"></script>
-<script src="sorami-exif.js?v=20261001110038"></script>
-<script src="sorami-capcloud.js?v=20261001110038"></script>
-<script src="sorami-terrain.js?v=20261001110038"></script>
-<script src="sorami-mountain.js?v=20261001110038"></script>
-<script src="sorami-fuji.js?v=20261001110038"></script>
-<script src="sorami-sky.js?v=20261001110038"></script>
-<script src="sorami-routes.js?v=20261001110038"></script>
-<script src="sorami-iss.js?v=20261001110038"></script>
-<script src="sorami-plane.js?v=20261001110038"></script>
-<script src="sorami-align.js?v=20261001110038"></script>
-<script src="sorami-moon.js?v=20261001110038"></script>
+<script src="sorami-astro.js?v=20261001112358"></script>
+<script src="sorami-exif.js?v=20261001112358"></script>
+<script src="sorami-capcloud.js?v=20261001112358"></script>
+<script src="sorami-terrain.js?v=20261001112358"></script>
+<script src="sorami-mountain.js?v=20261001112358"></script>
+<script src="sorami-fuji.js?v=20261001112358"></script>
+<script src="sorami-sky.js?v=20261001112358"></script>
+<script src="sorami-routes.js?v=20261001112358"></script>
+<script src="sorami-iss.js?v=20261001112358"></script>
+<script src="sorami-plane.js?v=20261001112358"></script>
+<script src="sorami-align.js?v=20261001112358"></script>
+<script src="sorami-moon.js?v=20261001112358"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2269,8 +2275,8 @@ function render() {
   // 順番を間違えても気づけない。**表に1行足すだけ**にする（2026-09-28）。
   const view = VIEWS.find((v) => v.on()).id;
   for (const v of VIEWS) $(v.el).hidden = v.id !== view;
-  // 一覧以外の画面では、題名の左に「‹ 一覧」
-  $("backLink").hidden = view === "list";
+  // 一覧以外の画面では、題名の帯の下に「← 戻る」
+  $("backBar").hidden = view === "list";
   const inDetail = view === "detail";
   // 地点と実況は判断のための情報。**その地点が主語の画面（一覧・詳細・空の見え方）だけに出す。**
   // ダイヤモンド富士や月丼の上に出すと、何の地点なのか分からなかった（2026-09-30 ユーザー指摘）。
@@ -2734,6 +2740,12 @@ function pushRoute(hash) {
 /// 1つずつ戻していたので、一覧→詳細→道具と進んでから題名を押すと詳細で止まっていた。
 /// 戻った先が一覧でなければ（詳細のURLを直接開いてから進んだ場合）、そこを一覧に置き換える。
 /// 履歴は増やさない（増やすと、一覧でブラウザの戻るを押したときに道具の画面へ戻ってしまう）。
+/// ひとつ前の画面へ。前がアプリの中に無ければ（URL を直接開いた画面）一覧へ
+function goBack() {
+  if ((history.state && history.state.depth) > 0) history.back();
+  else goList();
+}
+
 let toListAfterBack = false;
 function goList() {
   const depth = (history.state && history.state.depth) || 0;
@@ -3222,11 +3234,12 @@ function renderAlignments(now) {
       isMoon ? (e.side === "rise" ? "月の出側" : "月の入側")
              : (e.side === "rise" ? "日の出側" : "日の入側")].filter(Boolean).join(" ・ ");
     const span = e.dayCount > 1
-      ? `<div class="tiny" style="color:var(--tertiary)">前後 ${S.Cal.monthDay(e.from)}〜${S.Cal.monthDay(e.to)} も重なります</div>` : "";
-    const body = `<div class="al-l">${icon} ${esc(label)}</div>`
-      + `<div class="al-w"><strong>${when}</strong> <span class="tiny">${esc(extra)}</span></div>`
+      ? `<span class="tiny sub-line" style="color:var(--tertiary)">前後 ${S.Cal.monthDay(e.from)}〜${S.Cal.monthDay(e.to)} も重なります</span>` : "";
+    // ボタンの中に置けるのは句だけなので、行は span（.al-l・.al-w・.sub-line で段にする）
+    const body = `<span class="al-l">${icon} ${esc(label)}</span>`
+      + `<span class="al-w"><strong>${when}</strong> <span class="tiny">${esc(extra)}</span></span>`
       + span
-      + (inRange ? `<div class="tiny" style="color:var(--accent)">この日の見え方を見る →</div>` : "");
+      + (inRange ? `<span class="tiny sub-line" style="color:var(--accent)">この日の見え方を見る →</span>` : "");
     // 予報のある日なら、その日の富士山の見え方へ飛べる。**天気は別に計算しない**
     return inRange
       ? `<button class="al-row jump" data-jump="${day}" title="この日の富士山の見え方を見る">${body}</button>`
@@ -3594,7 +3607,7 @@ function renderDetail(id, sel, now, opts = {}) {
   const perModel = S.MODELS.filter((m) => ev.perModel[m] !== undefined).map((m) => {
     const v = ev.perModel[m], color = RANK_COLOR[S.rankOf(v).key];
     return `<div class="pm"><span class="n">${S.MODEL_NAMES[m]}</span>
-      <span class="scorebar"><div style="width:${v}%;background:${color}"></div></span>
+      <span class="scorebar"><span style="width:${v}%;background:${color}"></span></span>
       <span class="v">${Math.round(v)}</span></div>`;
   }).join("");
   // 記録できるのはその回が終わってから。まだ来ていない空は評価できない。
@@ -3905,7 +3918,7 @@ function renderRecords(now, pendingHidden) {
     <div class="list-item" style="display:flex;gap:8px;align-items:center">
       <span>${iconFor(s.phenomenon, s.peak)}</span>
       <span style="flex:1"><strong style="font-size:0.81rem">${S.JstCal.monthDay(s.peak)} ${esc(s.placeName)}</strong>
-        <div class="tiny">${meta.name} ・ ${Math.round(s.score) || 0}点</div></span>
+        <span class="tiny sub-line">${meta.name} ・ ${Math.round(s.score) || 0}点</span></span>
       <span class="badge" style="background:var(--line)">${esc(LABEL[s.outcome] ?? s.outcome)}</span></div>`;
     }).join("")
     || `<p class="tiny" style="padding:8px 0">その回が終わると「実際はどうでしたか？」が出ます。</p>`);
@@ -4033,7 +4046,7 @@ function renderSheet() {
         const meta = [f.subtitle, f.elevation != null ? `標高${Math.round(f.elevation)}m` : ""].filter(Boolean).join(" ・ ");
         return `<div class="fav-row">
           <button class="list-item" data-fav="${i}"><strong>${esc(f.name)}</strong> <span class="tiny">${icons}</span>
-            <div class="tiny">${esc(meta)}${f.note ? " ー " + esc(f.note) : ""}</div></button>
+            <span class="tiny sub-line">${esc(meta)}${f.note ? " ー " + esc(f.note) : ""}</span></button>
           <button class="tap fav-edit" data-editfav="${i}">編集</button>
           <button class="fav-del" data-delfav="${i}" aria-label="${esc(f.name)} をお気に入りから外す">✕</button></div>`;
       }).join("");
@@ -4862,13 +4875,13 @@ function planeRender() {
     const sun = sp.best.sunAltitude;
     const light = sun < -6 ? "夜" : sun < 0 ? "薄明" : "昼";
     return `<button class="al-row jump" data-spot="${i}">
-      <div class="al-w"><strong>${i + 1}. ${esc(sp.spot.name)}</strong>
+      <span class="al-w"><strong>${i + 1}. ${esc(sp.spot.name)}</strong>
         <span class="muted">${when} ・ ${light} ・ ${planeExpect(sp.planes)}</span>
         <span class="muted">機まで ${sp.best.planeKm.toFixed(1)}km（高度 ${Math.round(sp.best.altitudeM)}m）
         ・${moonGlyphAt(sp.best.at)} 月 高さ${Math.round(sp.best.moonAlt)}° 方位${Math.round(sp.best.moonAz)}°
         ・${esc(sp.paths.join("・"))}</span>
         <span class="muted">${esc(sp.spot.note)}</span>
-      </div>
+      </span>
       <span class="tiny">地図で見る →</span>
     </button>`;
   }).join("");
@@ -5031,43 +5044,141 @@ async function issApply() {
   if (seq !== iss.seq) return;
   // 昼の月も残す。高く昇った昼の月は見えていて、ISS の影は望遠で写る（月面通過の写真の多くは昼）。
   // 空の明るさは行に「昼・薄明・夜」で添える
-  iss.result = rows; iss.pick = 0;
+  iss.result = rows; iss.pick = 0; iss.overWater = 0; iss.standsDone = false;
   issRender();
   if (rows.length) IssMap.open(rows[0].center, 9);
   else IssMap.open({ latitude: place.latitude, longitude: place.longitude }, 8);
   requestAnimationFrame(() => IssMap.redraw());
+  if (!rows.length) return;
+  // 立つ場所（陸の上）。地名の表と水域のタイルを読むので、行を先に出してから足す
+  for (const r of rows) {
+    try { r.stand = await issStand(r); } catch { r.stand = undefined; }
+    if (seq !== iss.seq) return;
+  }
+  // 帯が水の上だけを通る回は、陸から見られないので並べない（何回外したかは書く）
+  const pickedAt = rows[iss.pick] && rows[iss.pick].at;
+  iss.result = rows.filter((r) => r.stand !== null);
+  iss.overWater = rows.length - iss.result.length;
+  iss.standsDone = true;
+  iss.pick = Math.max(0, iss.result.findIndex((r) => r.at === pickedAt));
+  issRender();
+  const first = iss.result[iss.pick];
+  if (first && first.stand) IssMap.open(first.stand, 9);
+  requestAnimationFrame(() => IssMap.redraw());
+}
+
+/**
+ * ISS の帯の中で、**陸の上に**立てる場所を選ぶ（2026-10-01 ユーザー「観測地点は陸上に。ISS が海の上になっていた」）。
+ * 以前は「いまの地点から中心線へいちばん近い点」をそのまま出しており、東京湾や相模湾の上になることがあった。
+ *
+ *   1. 帯の芯（中心線から半幅の6割以内。軌道要素の誤差でずれても外れにくい）にある、名前のある場所
+ *      （ねらうの候補地＝展望地・公園・海岸・川岸など、地名索引＝山・峠・展望地・岬・滝）を、いまの地点から近い順に。
+ *      山頂は登らないと立てないので、1.6倍遠いものとして並べる。水の上のもの（橋・桟橋を除く）は外す
+ *   2. 無ければ、中心線をいまの地点から近い順にたどって、最初の陸の点（名前なし）
+ *   3. それも無ければ（帯が水の上だけを通る）、立つ場所は出さない（null）
+ */
+async function issStand(r) {
+  const F = (la, lo) => [(lo - r.center.longitude) * 111.32 * Math.cos(r.center.latitude * Math.PI / 180), (la - r.center.latitude) * 110.54];
+  const track = r.track.map((q) => F(q.latitude, q.longitude));
+  const offKm = (la, lo) => {
+    const [px, py] = F(la, lo);
+    let d = Infinity;
+    for (let k = 0; k + 1 < track.length; k++) {
+      const [ax, ay] = track[k], [bx, by] = track[k + 1];
+      const L2 = (bx - ax) ** 2 + (by - ay) ** 2 || 1;
+      const t = Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / L2));
+      d = Math.min(d, Math.hypot(px - ax - (bx - ax) * t, py - ay - (by - ay) * t));
+    }
+    return d;
+  };
+  const core = Math.max(0.15, r.halfWidthKm * 0.6);
+  const lats = r.track.map((q) => q.latitude), lons = r.track.map((q) => q.longitude);
+  const pad = core / 100 + 0.01;
+  const inBox = (la, lo) => la >= Math.min(...lats) - pad && la <= Math.max(...lats) + pad
+    && lo >= Math.min(...lons) - pad * 1.3 && lo <= Math.max(...lons) + pad * 1.3;
+  const named = [];
+  const add = (name, kind, la, lo) => {
+    if (!name || !inBox(la, lo)) return;
+    const off = offKm(la, lo);
+    if (off > core) return;
+    const away = SoramiTerrain.distanceKm(place.latitude, place.longitude, la, lo);
+    if (away > iss.rangeKm) return;
+    named.push({ name, kind, latitude: la, longitude: lo, offsetKm: off, fromHereKm: away,
+      score: away * (kind === "山頂" || kind === "山" ? 1.6 : 1) + off * 2 });
+  };
+  try { for (const p of await aimPlaces()) add(p.name, p.kind, p.latitude, p.longitude); } catch { /* 無くても索引で探す */ }
+  try {
+    const idx = await placeIndex();
+    for (const p of idx.places) add(p[1], idx.kinds[p[0]] || "", p[3] / 1e5, p[4] / 1e5);
+  } catch { /* 無くても中心線で探す */ }
+  named.sort((a, b) => a.score - b.score);
+  // 同じ所が2つの表に入っていることがある。近いもの（300m）は1つに
+  const picks = [];
+  for (const n of named) {
+    if (picks.some((q) => SoramiTerrain.distanceKm(q.latitude, q.longitude, n.latitude, n.longitude) < 0.3)) continue;
+    picks.push(n);
+    if (picks.length >= 8) break;
+  }
+  // 橋・桟橋も外す（ねらうと違って、ISS は川や海の上から見る理由が無い。陸の公園や展望地を先に出す）
+  const water = await SoramiTerrain.waterAt(picks);
+  const onLand = picks.filter((n, i) => water[i] !== true);
+  if (onLand.length) return { ...onLand[0], others: onLand.slice(1, 3) };
+  // 名前のある場所が無い。中心線を、いまの地点から近い順にたどる
+  const line = r.track
+    .map((q) => ({ latitude: q.latitude, longitude: q.longitude,
+      fromHereKm: SoramiTerrain.distanceKm(place.latitude, place.longitude, q.latitude, q.longitude) }))
+    .filter((q) => q.fromHereKm <= iss.rangeKm)
+    .sort((a, b) => a.fromHereKm - b.fromHereKm);
+  for (let i = 0; i < line.length; i += 12) {
+    const batch = line.slice(i, i + 12);
+    const w = await SoramiTerrain.waterAt(batch);
+    const k = w.findIndex((v) => v === false);
+    if (k >= 0) return { ...batch[k], name: "", kind: "", offsetKm: 0, others: [] };
+  }
+  return null;
 }
 
 function issRender() {
   const rows = iss.result;
+  const overWater = iss.overWater
+    ? `<p class="tiny" style="color:var(--tertiary)">ほかに、帯が海や湖の上だけを通る回が${iss.overWater}回あります（陸から見られないので出していません）。</p>` : "";
   if (!rows.length) {
-    $("issList").innerHTML = `<p class="tiny">この7日、${esc(place.name)}から${iss.rangeKm}km以内で${iss.body === "moon" ? "月" : "太陽"}の前を通る回はありません。範囲を広げてみてください。</p>`;
+    $("issList").innerHTML = `<p class="tiny">この7日、${esc(place.name)}から${iss.rangeKm}km以内で${iss.body === "moon" ? "月" : "太陽"}の前を通る回はありません。範囲を広げてみてください。</p>${overWater}`;
     return;
   }
   $("issList").innerHTML = rows.map((r, i) => {
     const t = new Date(r.at + 9 * 3600000);
     const hms = t.toISOString().slice(11, 19);
-    const dir = issDirection(place, r.center);
+    // 立つ場所（陸の上）。探し終わるまでは「探しています」。水の上だけを通る回は並べないので、
+    // 探し終わっても無いのは、確かめられなかったとき（通信の失敗など）
+    const st = r.stand;
+    const where = st === undefined || st === null
+      ? `<span class="muted">${iss.standsDone ? "立つ場所を確かめられませんでした（地図の帯の中の陸で見てください）" : "立つ場所を探しています…"}</span>`
+      : `<span class="muted">立つ場所: ${st.name ? `<strong>${esc(st.name)}</strong>${st.kind ? `（${esc(st.kind)}）` : ""}` : "名前のない陸の上"}
+          ・ ${issDirection(place, st)}へ ${st.fromHereKm.toFixed(1)}km ・ 中心線から${st.offsetKm < 0.05 ? "すぐ" : `${st.offsetKm.toFixed(1)}km`}${
+          st.others && st.others.length ? `<br>ほかに: ${st.others.map((o) => esc(o.name)).join("・")}` : ""}</span>`;
     const lit = r.illuminated !== null ? ` ・ ${moonGlyphAt(r.at)} 輝面${Math.round(r.illuminated * 100)}%` : "";
     const sky = r.sunAltitude < -6 ? "夜" : r.sunAltitude < 0 ? "薄明" : "昼";
     // 3日より先は軌道要素の誤差で数十秒・数kmずれうる。印だけ付ける
     const rough = r.at - Date.now() > 72 * 3600000 ? `<span class="tiny" style="color:var(--tertiary)">（目安）</span>` : "";
     return `<button class="al-row jump" data-iss="${i}">
-      <div class="al-w"><strong>${S.Cal.monthDay(r.at)}(${S.Cal.weekday(r.at)}) ${hms}</strong>${rough}
-        <span class="muted">${dir}へ ${r.distanceKm}km の線上 ・ 帯の幅 約${(r.halfWidthKm * 2).toFixed(1)}km ・ ${r.durationS.toFixed(1)}秒</span>
-        <span class="tiny">${iss.body === "moon" ? "月" : "太陽"}の高さ${Math.round(r.altitude)}° 方位${Math.round(r.azimuth)}°${lit} ・ ${sky} ・ ISSまで${r.rangeKm}km</span></div>
+      <span class="al-w"><strong>${S.Cal.monthDay(r.at)}(${S.Cal.weekday(r.at)}) ${hms}</strong>${rough}
+        ${where}
+        <span class="tiny">帯の幅 約${(r.halfWidthKm * 2).toFixed(1)}km ・ ${r.durationS.toFixed(1)}秒</span>
+        <span class="tiny">${iss.body === "moon" ? "月" : "太陽"}の高さ${Math.round(r.altitude)}° 方位${Math.round(r.azimuth)}°${lit} ・ ${sky} ・ ISSまで${r.rangeKm}km</span></span>
       <span class="tiny">地図で見る →</span></button>`;
-  }).join("");
+  }).join("") + overWater;
   for (const el of $("issList").querySelectorAll("[data-iss]")) {
     el.onclick = () => {
       iss.pick = +el.dataset.iss;
-      IssMap.open(iss.result[iss.pick].center, 11);
+      const r = iss.result[iss.pick];
+      IssMap.open(r.stand || r.center, 11);
       requestAnimationFrame(() => IssMap.redraw());
     };
   }
 }
 
-/// 方角を8方位で言う（地点から、中心線のいちばん近い点へ）
+/// 方角を8方位で言う（いまの地点から、立つ場所へ）
 function issDirection(from, to) {
   const b = SoramiTerrain.bearing(from.latitude, from.longitude, to.latitude, to.longitude);
   return ["北", "北東", "東", "南東", "南", "南西", "西", "北西"][Math.round(b / 45) % 8];
@@ -5095,10 +5206,13 @@ IssMap.setOverlay((ctx, { project, width, height }) => {
     ctx.strokeStyle = ink; ctx.lineWidth = on ? 4 : 3;
     ctx.beginPath(); pts.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
     ctx.strokeStyle = color; ctx.lineWidth = on ? 2 : 1.4; ctx.stroke();
-    if (on) {
-      ctx.beginPath(); ctx.arc(x0, y0, 6, 0, Math.PI * 2);
+    // 印は**立つ場所（陸の上）**に付ける。中心線のいちばん近い点は海の上のことがあるので印を付けない
+    if (on && r.stand) {
+      const [sx, sy] = project(r.stand.latitude, r.stand.longitude);
+      ctx.beginPath(); ctx.arc(sx, sy, 6, 0, Math.PI * 2);
       ctx.fillStyle = color; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
-      aimMapLabel(ctx, x0, y0 - 16, new Date(r.at + 9 * 3600000).toISOString().slice(11, 19), "#fff", width, height, "center");
+      const hms = new Date(r.at + 9 * 3600000).toISOString().slice(11, 19);
+      aimMapLabel(ctx, sx, sy - 16, r.stand.name ? `${r.stand.name} ${hms}` : hms, "#fff", width, height, "center");
     }
     ctx.restore();
   });
@@ -5910,8 +6024,12 @@ async function aimFindCandidates() {
   // （塔は、このあと建物でも外すので多めに 24 か所）
   const checkN = aimIsFuji() ? 12 : 24;
   let shown = [];
-  for (const c of kept) {
+  for (const k of kept) {
     if (shown.length >= checkN) break;
+    // 水の上に立たせない（川岸は川の中心線、公園・海岸は池や海に掛かる所で重なりを解くことがある）
+    const c = await aimOnLand(k, lines, opts);
+    if (seq !== aim.candSeq) return;
+    if (!c) continue;
     let los = null;
     try {
       los = await SoramiAlign.lineOfSight(
@@ -5957,6 +6075,73 @@ async function aimFindCandidates() {
     if (aim.cands.length) aimRenderCands(); else { $("aimCandPick").innerHTML = ""; $("aimCandList").innerHTML = ""; }
     AimMap.redraw();
   }
+}
+
+/**
+ * **候補地を水の上に置かない**（2026-10-01 ユーザー「観測地点は陸上に」「水の上にならないように」）。
+ *
+ * 川岸は川の中心線の上で、公園・海岸は面の中で重なりを解くので、立つ点が川面・池・海に出ることがある。
+ * 水の上なら、**重なる線に沿って陸まで動かし、その点で重なりを解き直す**（線の上なら重なりは保たれる。
+ * 動いた先で外れたら外す）。600m 動いても陸に出なければ外す。
+ * 橋と桟橋は水の上でも人が立てる構造物なので確かめない。水かどうか分からない（通信の失敗）ときは残す。
+ */
+const AIM_STAND_ON_WATER_OK = new Set(["橋", "桟橋"]);
+async function aimOnLand(c, lines, opts) {
+  if (AIM_STAND_ON_WATER_OK.has(c.place.kind)) return c;
+  const [water] = await SoramiTerrain.waterAt([c.stand]);
+  return water === true ? aimMoveToLand(c, lines, opts) : c;
+}
+
+/// 線（緯度経度の折れ線）の上で、点にいちばん近い位置から、線に沿って ±d メートル動いた点を並べる（近い順）
+function alongLine(points, from, stepsM) {
+  const F = (la, lo) => [(lo - from.longitude) * 111320 * Math.cos(from.latitude * Math.PI / 180), (la - from.latitude) * 110540];
+  const back = ([x, y]) => ({ latitude: from.latitude + y / 110540,
+    longitude: from.longitude + x / (111320 * Math.cos(from.latitude * Math.PI / 180)) });
+  const g = points.map((p) => F(p.latitude, p.longitude));
+  // 折れ線を道のりで読む
+  const acc = [0];
+  for (let k = 1; k < g.length; k++) acc.push(acc[k - 1] + Math.hypot(g[k][0] - g[k - 1][0], g[k][1] - g[k - 1][1]));
+  let best = { s: 0, d: Infinity };
+  for (let k = 0; k + 1 < g.length; k++) {
+    const [ax, ay] = g[k], [bx, by] = g[k + 1];
+    const L2 = (bx - ax) ** 2 + (by - ay) ** 2 || 1;
+    const t = Math.max(0, Math.min(1, (-ax * (bx - ax) - ay * (by - ay)) / L2));
+    const d = Math.hypot(ax + (bx - ax) * t, ay + (by - ay) * t);
+    if (d < best.d) best = { s: acc[k] + t * (acc[k + 1] - acc[k]), d };
+  }
+  const at = (s) => {
+    if (s < 0 || s > acc[acc.length - 1]) return null;
+    let k = acc.findIndex((v) => v >= s);
+    if (k <= 0) k = 1;
+    const t = (s - acc[k - 1]) / ((acc[k] - acc[k - 1]) || 1);
+    return back([g[k - 1][0] + (g[k][0] - g[k - 1][0]) * t, g[k - 1][1] + (g[k][1] - g[k - 1][1]) * t]);
+  };
+  const out = [];
+  for (const d of stepsM) for (const sgn of [1, -1]) {
+    const p = at(best.s + sgn * d);
+    if (p) out.push({ ...p, movedM: d });
+  }
+  return out;
+}
+
+async function aimMoveToLand(c, lines, opts) {
+  const l = lines.find((x) => x.side === c.side) || lines[0];
+  if (!l || !l.points || l.points.length < 2) return null;
+  const steps = [];
+  for (let d = 20; d <= 600; d += 20) steps.push(d);
+  const probes = alongLine(l.points, c.stand, steps);
+  const water = await SoramiTerrain.waterAt(probes);
+  for (let i = 0; i < probes.length; i++) {
+    if (water[i] !== false) continue;
+    const pt = probes[i];
+    const e = await aimElevation(pt.latitude, pt.longitude);
+    const ground = Number.isFinite(e) ? e : 0;
+    const hit = SoramiAlign.crossingNear({ latitude: pt.latitude, longitude: pt.longitude, elevation: ground },
+      aim.target, aim.body, c.at, { ...opts, eyeM: 1.5 + (c.place.deckM || 0) });
+    if (!hit || !hit.rank) continue;   // 動いた先で重ならなければ、さらに先を見る
+    return { ...c, ...hit, stand: { latitude: pt.latitude, longitude: pt.longitude, elevationM: ground }, movedM: pt.movedM };
+  }
+  return null;
 }
 
 /**
@@ -6010,10 +6195,10 @@ function aimRenderCands() {
   $("aimCandList").innerHTML = list.map((x, i) => {
     const k = x.place.kind === "定番" ? x.place.spotKind : x.place.kind;
     return `<button class="al-row jump${i === i0 ? " on" : ""}" data-cand="${i}">
-      <div class="al-w"><strong>${i + 1}. ${esc(aimCandName(x))}</strong>
-        <div class="tiny">${S.JstCal.hhmm(x.at)} ・ ${esc(AIM_RANK_LABEL[x.rank])} ・ ${esc(aimCandSide(x))}${aim.body === "moon" ? ` ${moonGlyphAt(x.at)}` : ""}</div>
-        <div class="tiny">${esc([k, x.place.address].filter(Boolean).join(" ・ "))}</div>
-      </div>
+      <span class="al-w"><strong>${i + 1}. ${esc(aimCandName(x))}</strong>
+        <span class="tiny sub-line">${S.JstCal.hhmm(x.at)} ・ ${esc(AIM_RANK_LABEL[x.rank])} ・ ${esc(aimCandSide(x))}${aim.body === "moon" ? ` ${moonGlyphAt(x.at)}` : ""}</span>
+        <span class="tiny sub-line">${esc([k, x.place.address].filter(Boolean).join(" ・ "))}</span>
+      </span>
       <span class="tiny">地図で見る →</span>
     </button>`;
   }).join("");
@@ -6339,7 +6524,7 @@ function renderSearchResults(host, results, onPick) {
   host.innerHTML = results.length
     ? results.map((r, i) => `<button class="list-item" data-sr="${i}"><strong>${esc(r.name)}</strong>
         ${lookoutTag(r)}
-        <div class="tiny">${esc(r.detail)}${r.scope === "area" ? "（地域の代表地点）" : ""}</div></button>`).join("")
+        <span class="tiny sub-line">${esc(r.detail)}${r.scope === "area" ? "（地域の代表地点）" : ""}</span></button>`).join("")
     : `<p class="tiny">該当なし</p>`;
   for (const el of host.querySelectorAll("[data-sr]")) {
     el.onclick = () => onPick(results[+el.dataset.sr]);
@@ -6627,9 +6812,9 @@ function markToolsCurrent() {
     else el.removeAttribute("aria-current");
   }
 }
-// 一覧では題名、それ以外の画面では同じ場所の「‹ 一覧」。どちらも一覧へ戻る
+// 題名は一覧へ（何画面進んでいても1回で）。「← 戻る」はひとつ前の画面へ
 $("homeLink").onclick = () => { closeTools(); goList(); };
-$("backLink").onclick = () => { closeTools(); goList(); };
+$("backLink").onclick = () => { closeTools(); goBack(); };
 $("toolsButton").onclick = () => ($("toolsMenu").hidden ? openTools() : closeTools());
 $("toolsClose").onclick = () => closeTools({ restoreFocus: true });
 $("toolsScrim").onclick = () => closeTools({ restoreFocus: true });
@@ -7343,6 +7528,7 @@ function clearAdminView() {
     const el = $(id);
     if (el) el.innerHTML = "";
   }
+  $("toggleSignup").hidden = true;
 }
 
 /// メニューで何を使えるか。管理者は役割で全部なので、選ばせない
@@ -7412,6 +7598,7 @@ async function renderAdmin() {
       ? `<span class="warn">いまは<strong>誰でも</strong>好きなIDで登録できます。</span>`
       : `いまは<strong>許可したIDだけ</strong>登録できます。`;
     $("toggleSignup").textContent = st.openSignup ? "許可したIDだけにする" : "誰でも登録できるようにする";
+    $("toggleSignup").hidden = false;
     // 許可リストは、閉じているときにしか意味がない
     $("allowCard").hidden = st.openSignup;
     $("toggleSignup").onclick = async () => {

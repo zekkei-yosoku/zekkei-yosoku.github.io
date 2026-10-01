@@ -134,3 +134,53 @@ window.__audit = function () {
 
   return report;
 };
+
+/*
+ * 描いたあとの DOM が HTML として正しいか（2026-10-01 ユーザー「HTML でのチェックもしてね」）。
+ * index.html の静的な部分は test-html.mjs が見る。こちらは **JS が組み立てた部分**（一覧・詳細・道具の行など）。
+ * 画面ごとに中身が変わるので、各画面を開いてから呼ぶ:  window.__htmlAudit()
+ */
+window.__htmlAudit = function () {
+  const report = { issues: [] };
+  const add = (kind, list) => { if (list.length) report.issues.push({ kind, 件数: list.length, 例: list.slice(0, 5) }); };
+  const where = (el) => {
+    const host = el.closest("[id]");
+    return `${el.tagName.toLowerCase()}${el.className && typeof el.className === "string" ? "." + el.className.split(" ")[0] : ""}`
+      + (host && host !== el ? ` @#${host.id}` : el.id ? `#${el.id}` : "");
+  };
+  // 同じ id
+  const seen = new Map();
+  for (const el of document.querySelectorAll("[id]")) seen.set(el.id, (seen.get(el.id) || 0) + 1);
+  add("同じ id が2つ以上", [...seen].filter(([, n]) => n > 1).map(([id, n]) => `${id}×${n}`));
+  // 押せる物の中に押せる物（svg の中は除く）
+  const inter = "a[href], button, input:not([type=hidden]), select, textarea, label, details, iframe";
+  add("押せる物の中に押せる物", [...document.querySelectorAll("a[href], button")]
+    .filter((h) => h.querySelector(inter)).map((h) => `${where(h)} ⊃ ${where(h.querySelector(inter))}`));
+  // 句だけを入れる要素の中に塊
+  const block = "div, p, ul, ol, li, dl, table, section, article, aside, nav, header, footer, h1, h2, h3, h4, h5, h6, form, figure, blockquote, pre, hr, details, dialog";
+  add("ボタン・span・見出しの中に塊", [...document.querySelectorAll("button, span, strong, em, small, label, h1, h2, h3, h4, h5, h6")]
+    .filter((h) => !h.closest("svg") && h.querySelector(block)).map((h) => `${where(h)} ⊃ ${where(h.querySelector(block))}`));
+  // <p> の中に塊を書くと、ブラウザが <p> を閉じて、属性の無い空の <p> が残る
+  add("属性の無い空の <p>（<p> の中に塊を書いた跡）", [...document.querySelectorAll("p")]
+    .filter((p) => !p.attributes.length && !p.childNodes.length).map(where));
+  // 参照先
+  const refs = [];
+  for (const k of ["for", "aria-labelledby", "aria-describedby", "aria-controls"]) {
+    for (const el of document.querySelectorAll(`[${k}]`)) {
+      for (const id of el.getAttribute(k).split(/\s+/)) if (id && !document.getElementById(id)) refs.push(`${where(el)} ${k}="${id}"`);
+    }
+  }
+  add("参照先の id が無い", refs);
+  // 押せる物・入力欄に名前がある（読み上げで何の釦か分かる）
+  const nameOf = (el) => (el.getAttribute("aria-label") || "").trim()
+    || (el.getAttribute("aria-labelledby") || "").split(/\s+/).map((id) => document.getElementById(id)?.textContent || "").join("").trim()
+    || (el.textContent || "").trim() || (el.getAttribute("title") || "").trim()
+    || [...el.querySelectorAll("img[alt]")].map((i) => i.alt).join("").trim()
+    || (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)?.textContent.trim())
+    || el.closest("label")?.textContent.trim() || (el.getAttribute("placeholder") || "").trim();
+  // hidden 属性の付いたもの自体は描かれない（ファイル選択の input は別の釦から開く）ので数えない
+  add("名前の無い釦・入力欄", [...document.querySelectorAll("button, a[href], input:not([type=hidden]), select, textarea")]
+    .filter((el) => !el.hidden && !nameOf(el)).map(where));
+  add("alt の無い img", [...document.querySelectorAll("img:not([alt])")].map(where));
+  return report;
+};

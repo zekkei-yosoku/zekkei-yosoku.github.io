@@ -547,22 +547,24 @@ ok(/function routeFromHash/.test(html), "URLのハッシュで場所を持つ（
 ok(/addEventListener\("hashchange"/.test(html), "hashchange を見ている");
 // 画面ごとの「← 一覧にもどる」は帯として浮き、カードから離れて見えた（9/28 に外した）。
 // 2026-10-01: 題名だけでは戻れると気づけない（ユーザー「一覧に戻るボタンはあった方がいい」）。
-// 一覧以外の画面では、☰ と題名のあいだに「‹ 一覧」を出す。どの画面でも同じ左上で、カードのあいだに浮かない。
+// 一覧以外の画面では、題名の帯のすぐ下に「← 戻る」を出す。どの画面でも同じ左上で、カードのあいだに浮かない。
 ok(/id="homeLink"/.test(html), "一覧では題名が戻り道");
 ok(/\$\("homeLink"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \}/.test(html),
   "題名を押すと一覧へ戻る（引き出しも閉じる）");
 {
-  const mast = /<div class="masthead">[\s\S]*?<\/div>/.exec(html)[0];
-  ok(/<button id="backLink" class="tap" hidden aria-label="一覧へ戻る">/.test(mast), "「‹ 一覧」は題名と同じ帯（masthead）の中");
-  // ☰ は左端のまま、☰ と題名のあいだに出す。題名は消さない（ユーザー「絶景予測を消しちゃうのはどうかと思う」）
-  ok(mast.indexOf('id="toolsButton"') < mast.indexOf('id="backLink"') && mast.indexOf('id="backLink"') < mast.indexOf('id="homeLink"'),
-    "並びは ☰ → ‹ 一覧 → 題名");
-  ok(/\$\("backLink"\)\.hidden = view === "list";/.test(html), "一覧以外の画面で「‹ 一覧」を出す");
+  // 2026-10-01 ユーザー「☰ と絶景予測の下にいい感じに。ボタンみたいに囲わなくていい。←戻る でいい」
+  const mast = /<div class="masthead">[\s\S]*?\n  <\/div>/.exec(html)[0];
+  ok(!/id="backLink"/.test(mast), "題名の帯（☰・題名・ログイン）には足さない");
+  ok(/<\/div>\n(?:  <!--[\s\S]*?-->\n)?  <div class="backbar" id="backBar" hidden>\n    <button id="backLink"/.test(html), "「← 戻る」は題名の帯のすぐ下");
+  ok(/aria-hidden="true"><path d="M13 8H3\.5M7\.5 3\.5 3 8l4\.5 4\.5"[^>]*\/><\/svg>戻る<\/button>/.test(html), "文字は「← 戻る」");
+  ok(!/#backLink \{[^}]*(background|border)/.test(code), "囲わない（地も枠も付けない）");
+  ok(/\$\("backBar"\)\.hidden = view === "list";/.test(html), "一覧以外の画面で出す");
+  ok(/\$\("backLink"\)\.onclick = \(\) => \{ closeTools\(\); goBack\(\); \}/.test(html), "ひとつ前の画面へ戻る");
+  ok(/function goBack\(\) \{\s+if \(\(history\.state && history\.state\.depth\) > 0\) history\.back\(\);\s+else goList\(\);/.test(html),
+    "前がアプリの中に無ければ（URL を直接開いた画面）一覧へ");
   ok(!/\.masthead h1"\)\.hidden/.test(html), "題名は隠さない");
-  ok(/\$\("backLink"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \}/.test(html), "「‹ 一覧」を押すと一覧へ戻る");
-  ok(/#backLink \{[^}]*background: var\(--card\)/.test(code), "押せる形（カードと同じ地の丸い帯）");
 }
-ok(!/一覧にもどる<\/button>/.test(html), "画面ごとの帯の戻るボタンは置かない（場所は題名の位置ひとつ）");
+ok(!/一覧にもどる<\/button>/.test(html), "画面ごとに戻るボタンを置かない（場所は題名の帯の下ひとつ）");
 // 進めた回数を変数で数えると、ブラウザの戻る・進むでずれて、アプリの外まで戻ってしまう
 ok(!/pushedCount/.test(html), "進めた回数を変数で数えない");
 ok(/history\.pushState\(\{ depth \}, "", hash\)/.test(html), "履歴そのものに何画面目かを持たせる");

@@ -178,5 +178,59 @@ console.log("== 地名索引（山・峠・展望地）（2026-09-30） ==");
   ok(T.searchPlaceIndex(idx2, "那智の滝")[0]?.name === "那智滝", "「の」の有無を同じとみなす（那智の滝／那智滝）");
 }
 
+console.log("== 水の上か（国土地理院ベクトルタイルの水域・2026-10-01） ==");
+{
+  // 手で組んだタイル: 「WA」層に、穴のあいた正方形の水域（中の島が陸）を1つ
+  const varint = (n) => { const o = []; while (n > 127) { o.push((n & 127) | 128); n = Math.floor(n / 128); } o.push(n); return o; };
+  const zz = (n) => (n << 1) ^ (n >> 31);
+  const field = (f, w, body) => [...varint((f << 3) | w), ...(w === 2 ? [...varint(body.length), ...body] : body)];
+  // 輪ごとに MoveTo・LineTo・ClosePath。カーソルは前の輪の終わりから続く（差分で書く）
+  const geomAbs = (() => {
+    const out = []; let x = 0, y = 0;
+    for (const pts of [[[1000, 1000], [3000, 1000], [3000, 3000], [1000, 3000]], [[1800, 1800], [1800, 2200], [2200, 2200], [2200, 1800]]]) {
+      pts.forEach(([px, py], i) => {
+        if (i === 0) out.push(...varint(1 | (1 << 3)));
+        if (i === 1) out.push(...varint(2 | ((pts.length - 1) << 3)));
+        out.push(...varint(zz(px - x)), ...varint(zz(py - y))); x = px; y = py;
+      });
+      out.push(...varint(7 | (1 << 3)));
+    }
+    return out;
+  })();
+  const feature = [...field(3, 0, varint(3)), ...field(4, 2, geomAbs)];
+  const layerOf = (name) => [...field(1, 2, [...new TextEncoder().encode(name)]), ...field(2, 2, feature), ...field(5, 0, varint(4096))];
+  const tile = new Uint8Array([...field(3, 2, layerOf("RdCL")), ...field(3, 2, layerOf("WA"))]);
+  const L = T.decodeWaterLayer(tile);
+  ok(L.extent === 4096 && L.polys.length === 1 && L.polys[0].length === 2, "WA 層の面を読む（ほかの層は読まない）", JSON.stringify(L.polys[0].map((r) => r.length)));
+  ok(T.decodeWaterLayer(new Uint8Array([...field(3, 2, layerOf("RdCL"))])).polys.length === 0, "水域の無い升目は空");
+
+  // 東京の z16 の升目 1つを、このタイルが返すことにする
+  const lat = 35.7118, lon = 139.7708, Z = 16;
+  const fx = (lon + 180) / 360 * 2 ** Z;
+  const r = lat * Math.PI / 180, fy = (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * 2 ** Z;
+  const X = Math.floor(fx), Y = Math.floor(fy);
+  const at = (u, v) => {   // 升目の中の位置（0〜4096）を緯度経度へ
+    const lo = (X + u / 4096) / 2 ** Z * 360 - 180;
+    const n = Math.PI - 2 * Math.PI * (Y + v / 4096) / 2 ** Z;
+    return { latitude: Math.atan(Math.sinh(n)) * 180 / Math.PI, longitude: lo };
+  };
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    if (url.endsWith(`/16/${X}/${Y}.pbf`)) return { ok: true, status: 200, arrayBuffer: async () => tile.buffer };
+    if (url.endsWith(`/16/${X + 1}/${Y}.pbf`)) return { ok: false, status: 404 };
+    return { ok: false, status: 503 };
+  };
+  const w = await T.waterAt([at(1500, 1500), at(2000, 2000), at(500, 500), at(4096 + 100, 500), at(2000, 4096 + 100),
+    { latitude: 48.85, longitude: 2.35 }], { fetchImpl });
+  ok(w[0] === true, "水域の中は水");
+  ok(w[1] === false, "水域の穴（島）は陸");
+  ok(w[2] === false, "水域の外は陸");
+  ok(w[3] === true, "タイルの無い升目（404）は外洋＝水");
+  ok(w[4] === null, "取れなかった升目は「分からない」（陸と決めつけない）");
+  ok(w[5] === null, "日本の外は分からない");
+  ok(calls.filter((u) => u.endsWith(`/16/${X}/${Y}.pbf`)).length === 1, "同じ升目は1回だけ取りに行く");
+}
+
 console.log(`\n${fail === 0 ? "TERRAIN OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);
