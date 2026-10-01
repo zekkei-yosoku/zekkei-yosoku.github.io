@@ -107,7 +107,7 @@ ok(/const requireLoginForFavorites = \(\) => requireLogin\("お気に入りの�
 // 文言が実態と食い違っていた（ログインすれば端末をまたいで共有される）
 ok(!/この端末のブラウザにだけ/.test(html), "「この端末にだけ」と書かない");
 ok(!/ログインし直せば戻ります/.test(html), "消える話も書かない");
-ok(/アカウントに保存され、ログインした端末で共有されます/.test(html), "共有されると書く");
+// 2026-10-01 ユーザー「細かい説明文ってこのApp上はいらない」で、保存場所の説明そのものを外した（誤った説明も書かない）
 ok(/function toolPicker/.test(html), "管理画面で選べる");
 ok(/"\/admin\/tools"/.test(html), "管理画面から決める経路を呼ぶ");
 ok(/管理者はすべて使えます/.test(html), "管理者は選ばせない（役割で全部）");
@@ -257,7 +257,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
     ok(fs < cv && cv < pk && pk < nr, "「ここから重ねる」は地図のすぐ下、その下に中心の説明（上の欄は名前で探すだけ）"); }
   // 重ならないなら言い切る（ユーザー「天体の動き的に絶対にないわけでしょ？」）。「この1年」と濁さない
   ok(/"ここからは重なりません。"/.test(html) && !/この1年、ここからは重なりません/.test(html), "重ならない地点は「ここからは重なりません」");
-  ok(/重なるのは、月が明るい空にあるときだけです/.test(html) && /縁がかすめるだけで、重なりません/.test(html), "出さない理由があるときだけ、その理由を書く");
+  ok(/"重なるのは明るい空のときだけです"/.test(html) && /縁がかすめるだけで、重なりません/.test(html), "出さない理由があるときだけ、その理由を一言で書く");
   ok(/aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる<\/button>/.test(html), "釦の名前は「ここから重ねる」");
   ok(/function aimFromPoint\(\) \{\s+return aim\.from \|\| inheritedPoint\(\);/.test(html) && /function inheritedPoint\(\) \{[\s\S]{0,400}inherited: true/.test(html),
     "替えていなければ絶景予測の地点を引き継ぐ");
@@ -466,6 +466,22 @@ console.log("== 画面のスクリプトが文法として読める（2026-09-30
   }
   ok(own.length >= 5 && badFiles.length === 0, `読み込む自前の JS ${own.length} 本に文法の誤りが無い`, badFiles.join(" / "));
 }
+
+console.log("== 細かい説明文は出さない（2026-10-01） ==");
+// ユーザー「細かい説明文ってこのApp上はいらないと思ってる」「こういうのもいらない。出しておいた方がいいなら畳んでおいてほしい」
+for (const [what, re] of [
+  ["一覧の下の計算の説明", /真ん中の値を点数にしています|アンサンブル予報）の散らばり|取得日の方位を使用|評価の帯は20〜25点間隔|見に行くかどうかの目安としてお使いください/],
+  ["月丼の経路の説明", /経路は進入図どおりの代表線/],
+  ["地図で選ぶの説明", /中心のピンの場所を使います/],
+  ["お気に入りの保存先の説明", /アカウントに保存され、ログインした端末で共有されます/],
+  ["詳細の時間帯の説明", /30分きざみで計算し、1時間ごとにいちばん良い値/],
+  ["モデル表の距離の説明", /低層165km・中層260km・高層368km/],
+  ["校正グラフの長い説明", /棒が線より短ければ点数が甘く/],
+]) ok(!re.test(html), `${what}を出さない`);
+ok(/<details class="tiny fav-where" id="footer"><summary>出典<\/summary><div id="footerBody"><\/div><\/details>/.test(html), "出典は消さずに畳む（表示が利用の条件）");
+ok(/予報: Open-Meteo ／ 実況: 気象庁アメダス ／ 光害: .*検索: OSM Nominatim ・ 標高: 国土地理院/.test(html) && /このアプリで点数化/.test(html), "出典と、加工したこと（点数化）は書く");
+ok(/<details class="card more"><summary>もっと詳しく<\/summary>[\s\S]{0,200}<p class="tiny">📖 \$\{esc\(ev\.source\)\}<\/p><\/details>/.test(html), "根拠の一文は「もっと詳しく」の中へ畳む");
+ok(/太陽は必ず減光フィルターを付けて見てください。/.test(html), "安全の注意は残す");
 
 console.log("== 引き出しのスワイプ・地図のつまみ（2026-10-01） ==");
 // ユーザー「メニューについて左からスワイプで開くようにできたりしない？」
@@ -737,7 +753,7 @@ ok(/const hit = SoramiAlign\.crossingNear\(\{ latitude: pt\.latitude, longitude:
 ok(/const water = await SoramiTerrain\.waterAt\(picks\);\s+const onLand = picks\.filter\(\(n, i\) => water\[i\] !== true\);/.test(html),
   "ISS: 立つ場所は水の上を外す（橋も外す）");
 ok(/iss\.result = rows\.filter\(\(r\) => r\.stand !== null\);/.test(html), "ISS: 帯が水の上だけを通る回は並べない");
-ok(/帯が海や湖の上だけを通る回が\$\{iss\.overWater\}回あります/.test(html), "ISS: 外した回の数は書く");
+ok(/海や湖の上だけを通る回（\$\{iss\.overWater\}回）は除外/.test(html), "ISS: 外した回の数は一言で書く");
 ok(/if \(on && r\.stand\) \{\s+const \[sx, sy\] = project\(r\.stand\.latitude, r\.stand\.longitude\);/.test(html),
   "ISS: 地図の印は立つ場所に（中心線のいちばん近い点には付けない）");
 
@@ -962,7 +978,7 @@ for (const label of ["暦の上では", "この場所では", "まるごと", "�
 ok(/class="lt"/.test(html.slice(html.indexOf("function renderMoonTimes"),
                                 html.indexOf("function renderLightTimes"))),
   "既存の .lt を使い回す（新しい見た目を作らない）");
-ok(/月は毎日およそ50分おそくなる/.test(html), "出ない日・入らない日を黙って空欄にしない");
+ok(/この日は\$\{!astro\("rise"\) \? "月の出" : "月の入"\}がありません/.test(html), "出ない日・入らない日を黙って空欄にしない（理由の説明はしない）");
 // 高い場所では地平線が下がり、暦より**早く**出る（東京タワー150mで2分早い）。
 // 「地形から」だと遮る意味にしか読めないので、上下どちらへも動く言い方にする。
 ok(!/"地形から"/.test(html), "「地形から」という片方向の言い方を使っていない");
@@ -1101,9 +1117,8 @@ ok(/loadUrbanHorizon\(obs\)[\s\S]{0,1400}\.catch\(\(\) => \{\}\)/.test(html),
 ok(/URBAN_CACHE_KEY/.test(html) && /URBAN_CACHE_VERSION/.test(html),
   "地点ごとにキャッシュする（毎回 410KB 引かない）");
 ok(/radiusM: \[1000, 400\]/.test(html), "半径も段階で試す");
-ok(/地図に高さが登録されていない建物は入りません/.test(html),
-  "不完全なデータであることを画面に出す");
-ok(/半径\$\{moonUrbanMeta\.radiusM\}mの建物 \$\{moonUrbanMeta\.buildings\} 棟/.test(html), "どの半径で何棟入れたかを出す");
+// 建物の内訳（半径・棟数・欠け）の説明は 2026-10-01 に外した（ユーザー「細かい説明文ってこのApp上はいらない」）
+ok(!/地図に高さが登録されていない建物は入りません/.test(html), "建物の内訳の説明は出さない");
 // Overpass は混むと30秒返ってこない（実測）。待つと月の行がその間ずっと出ない。
 ok(/loadUrbanHorizon\(obs\)\.then\(/.test(html), "建物は待たずに、届いたら差し替える");
 ok(/moonUrbanTried = true;[\s\S]{0,200}loadUrbanHorizon/.test(html), "取得は地点ごとに1回だけ");
@@ -1246,7 +1261,8 @@ ok(/期待薄<\/b>.*絶景/s.test(html), "色帯の両端を言葉で示す");
 ok(!/不向き<\/b>|>不向き</.test(html), "汎用ラベル「不向き」を画面に出さない");
 ok(/g-inline/.test(html), "凡例でも実物と同じ見た目を見せる");
 ok(/class="grade"/.test(html), "詳細の見出しにも等級を出す");
-ok(/A・B・C<\/strong> は信頼度/.test(html), "等級の意味を画面で説明している");
+// 等級の意味は表の凡例の一言だけ（一覧の下の説明段落は 2026-10-01 に外した）
+ok(/<span class="g-inline">C<\/span> は信頼度<\/span>/.test(html), "等級の意味は凡例で言う（A/B/C は信頼度）");
 
 console.log("== ホーム画面のアイコン ==");
 // これが無いと OS がアプリ名の先頭文字で代用し、「絶」の一文字が出る。
@@ -1536,10 +1552,7 @@ ok(/if \(!okay\) throw new Error/.test(html), "読み込みの保存失敗を黙
 ok(/navigator\.storage\?\.persist\?\.\(\)/.test(html), "保存領域の保護を申請する");
 // 結果は画面に出さない。**出しても利用者にできることが無い**（本体はアカウントにある）
 ok(!/id="storageNote"/.test(html), "申請の結果は画面に出さない");
-// 保存場所を隠さない
-ok(/アカウントに保存され、ログインした端末で共有されます/.test(html), "どこに保存されるかを画面で言う");
-ok((html.match(/アカウントに保存され/g) || []).length >= 1,
-  "地点シートにも保存場所を書く");
+// 保存場所の説明文は 2026-10-01 に外した（ユーザー「細かい説明文ってこのApp上はいらない」）
 
 console.log("== 外から来た文字をそのまま HTML へ入れない ==");
 // 2026-09-07 Codex の指摘で発覚し、実ブラウザで発火を確認した。
@@ -2500,7 +2513,7 @@ console.log("== 月の代表地点・キャッシュ・保存経路 ==");
   ok(html.includes('locationScope: SoramiTerrain.locationScope(f)'), "既存のお気に入りは改名前に種別を確定");
   ok(html.includes('locationScope: favDraft.locationScope'), "お気に入り再保存で種別を落とさない");
   ok(html.includes('locationScope: entry.locationScope, eyeHeightAGL: entry.eyeHeightAGL'), "表示地点へ高さと種別を反映");
-  ok(html.includes('地域の代表地点のため、近くの建物は含めていません。'), "地域の詳細で建物を含まない前提を示す");
+  ok(html.includes('近くの建物は含めていません（地域の代表地点）'), "地域の詳細で建物を含まない前提を一言で示す");
 }
 
 console.log("== 写真から記録する ==");

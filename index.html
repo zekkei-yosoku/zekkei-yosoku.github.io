@@ -1050,7 +1050,6 @@
       <div id="planePick" class="al" style="margin-top:8px"></div>
       <div id="planeInfo" class="tiny" style="margin-top:6px;color:var(--secondary)">計算しています…</div>
       <div id="planeList" class="al" style="margin-top:8px"></div>
-      <p class="tiny" style="margin-top:8px;color:var(--tertiary)">経路は進入図どおりの代表線（降下角3°・都心上空3.45°）、便数は時刻表、建物や地形で月が隠れる時間は除いています。</p>
     </div>
   </div>
 
@@ -1245,9 +1244,7 @@
   <div id="recordsView" hidden>
     <div class="card">
       <div class="section-h"><h2>記録</h2><span class="muted" id="recCount"></span></div>
-      <div id="recEmpty" class="tiny" hidden>まだ記録がありません。
-        その回が終わると、ホームと現象の詳細に「実際はどうでしたか？」が出ます。
-        押すだけで、そのときの点数と気象の値が端末に残ります。</div>
+      <div id="recEmpty" class="tiny" hidden>まだ記録がありません。</div>
       <div class="ph-add">
         <button id="photoPick" class="fav-btn primary">記録を足す</button>
         <input type="file" id="photoFile" accept="image/*" hidden>
@@ -1267,7 +1264,8 @@
        点数の較正（帯グラフ・一覧・書き出し）は見に行くものなので #/records へ分けた。 -->
   <div class="card" id="recPending" hidden></div>
 
-  <p class="tiny" id="footer"></p>
+  <!-- 出典だけを畳んで置く（2026-10-01 ユーザー「出しておいた方がいいなら畳んでおいてほしい」）。出典の表示は利用の条件 -->
+  <details class="tiny fav-where" id="footer"><summary>出典</summary><div id="footerBody"></div></details>
 </main>
 
 <!-- メニューの引き出し。**左上の ☰ から左に出す**（押した場所と出る場所を合わせる）。
@@ -1318,9 +1316,7 @@
       <button id="mapHere" class="fav-btn">現在地へ</button>
     </div>
     <button class="fav-btn primary" id="mapPick" style="width:100%;margin-top:8px">この場所にする</button>
-    <p class="tiny" style="margin-top:8px;color:var(--tertiary)">
-      中心のピンの場所を使います。<strong>山や建物の見え方は、立つ場所が数百m違うと変わります。</strong>
-      実際に立つ場所まで寄せてください。標高はその場所の値を国土地理院の標高タイルから読みます。</p>
+
   </div>
 </dialog>
 
@@ -1344,7 +1340,6 @@
     <div class="chips" id="favChips"></div>
     <div id="favList"></div>
     <p class="tiny" id="favNotice" role="status" aria-live="polite"></p>
-    <p class="tiny" style="margin-top:10px">アカウントに保存され、ログインした端末で共有されます。控えは記録画面の「書き出し」から。</p>
   </div>
 </dialog>
 
@@ -1382,8 +1377,7 @@
          畳んで並べていたが、開くと画面の下端まで伸び、ID欄が3つ同時に存在して
          パスワード管理アプリの自動入力が狂った。同じダイアログの中で差し替える。 -->
     <div id="panelLogin">
-      <p class="tiny">ログインすると、お気に入りと記録が他の端末でも使えます。
-        ログインしなくても予報はこれまでどおり見られます。</p>
+      <p class="tiny">お気に入りと記録を他の端末でも使えます。</p>
       <button id="passkeyLogin" class="fav-btn primary" style="margin-top:14px" hidden>パスキーでログイン</button>
       <p class="tiny" id="passkeyNote" style="margin-top:6px" hidden><span class="nb">Face ID / Touch ID</span> で入れます。</p>
       <div class="or-line"><span>または</span></div>
@@ -1483,8 +1477,7 @@
     <button id="disablePw" class="fav-btn" style="margin-top:8px" hidden>パスワードでのログインをやめる</button>
     <details id="enablePwWay" style="margin-top:8px" hidden>
       <summary class="tiny" style="cursor:pointer;color:var(--secondary)">パスワードでのログインを使う</summary>
-      <p class="tiny" style="margin-top:8px">パスキーを全部失くしたときの備えになります。
-        端末に依存しないので、URLが変わっても使えます。</p>
+      <p class="tiny" style="margin-top:8px">パスキーを全部失くしたときの備えに。</p>
       <label class="fav-l" for="newAccPw">パスワード</label>
       <input type="password" id="newAccPw" class="fav-in" autocomplete="new-password" maxlength="128">
       <p class="hint">半角英数と記号で8〜128桁。<span class="nb">使える記号は <b>! # $ % &amp; * + - . = ? @ _</b></span><br>
@@ -1527,16 +1520,16 @@
     <details class="tiny fav-where"><summary>座標</summary><span id="favCoord"></span></details>
 
     <div id="favTargetBox" hidden>
-      <label class="fav-l" for="favTargetH">重ねる目標の高さ<span class="fav-opt">地上から・m。ねらうの「他の目標」で使います</span></label>
+      <label class="fav-l" for="favTargetH">重ねる目標の高さ<span class="fav-opt">地上から・m</span></label>
       <input type="number" id="favTargetH" class="fav-in" inputmode="decimal" min="0" max="1000">
     </div>
 
     <div id="favStandBox">
-    <label class="fav-l" for="favTerrain">立って見る場所の地形<span class="fav-opt">雲海・霧氷の判定に使います</span></label>
+    <label class="fav-l" for="favTerrain">立って見る場所の地形<span class="fav-opt">任意</span></label>
     <select id="favTerrain" class="fav-in" aria-describedby="favTerrainNote"></select>
     <p class="tiny" id="favTerrainNote" style="margin-top:5px"></p>
 
-    <label class="fav-l" for="favEye">立つ高さ<span class="fav-opt">展望台やビルの上ならここが効きます</span></label>
+    <label class="fav-l" for="favEye">立つ高さ<span class="fav-opt">任意</span></label>
     <select id="favEye" class="fav-in" aria-describedby="favEyeNote"></select>
     <p class="tiny" id="favEyeNote" style="margin-top:5px"></p>
     </div>
@@ -1546,7 +1539,7 @@
               placeholder="狙い目の時期、駐車場、注意点など"></textarea>
 
     <div id="favPhBox">
-    <div class="fav-l" id="favPhLabel">この地点で狙う現象<span class="fav-opt">任意・絞り込みに使います</span></div>
+    <div class="fav-l" id="favPhLabel">この地点で狙う現象<span class="fav-opt">任意</span></div>
     <div class="chips" id="favPhenomena" role="group" aria-labelledby="favPhLabel"></div>
     </div>
 
@@ -1558,21 +1551,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001214957"></script>
+<script src="sorami-core.js?v=20261001221220"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001214957"></script>
-<script src="sorami-exif.js?v=20261001214957"></script>
-<script src="sorami-capcloud.js?v=20261001214957"></script>
-<script src="sorami-terrain.js?v=20261001214957"></script>
-<script src="sorami-mountain.js?v=20261001214957"></script>
-<script src="sorami-fuji.js?v=20261001214957"></script>
-<script src="sorami-sky.js?v=20261001214957"></script>
-<script src="sorami-routes.js?v=20261001214957"></script>
-<script src="sorami-iss.js?v=20261001214957"></script>
-<script src="sorami-plane.js?v=20261001214957"></script>
-<script src="sorami-align.js?v=20261001214957"></script>
-<script src="sorami-moon.js?v=20261001214957"></script>
+<script src="sorami-astro.js?v=20261001221220"></script>
+<script src="sorami-exif.js?v=20261001221220"></script>
+<script src="sorami-capcloud.js?v=20261001221220"></script>
+<script src="sorami-terrain.js?v=20261001221220"></script>
+<script src="sorami-mountain.js?v=20261001221220"></script>
+<script src="sorami-fuji.js?v=20261001221220"></script>
+<script src="sorami-sky.js?v=20261001221220"></script>
+<script src="sorami-routes.js?v=20261001221220"></script>
+<script src="sorami-iss.js?v=20261001221220"></script>
+<script src="sorami-plane.js?v=20261001221220"></script>
+<script src="sorami-align.js?v=20261001221220"></script>
+<script src="sorami-moon.js?v=20261001221220"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1665,7 +1658,7 @@ function confidenceText(ev) {
     else if (ev.confidence.key === "low") parts.push("評価はあてになりません");
     if (ev.confidence.cappedByModelDisagreement && u.modelAgreement != null) {
       const other = Math.round(ev.models * (1 - u.modelAgreement));
-      parts.push(`ただし ${other}つの予報モデルは別の評価です。モデル間の不一致で信頼度を下げています`);
+      parts.push(`ただし ${other}つの予報モデルは別の評価です`);
     }
   } else if (u && u.basis === "single") {
     // **モデルを横断して採点していない現象**（富士山・月）。
@@ -2535,24 +2528,11 @@ function render() {
   // ホームと記録画面の「実際はどうでしたか？」も同じ配線に乗せるため、
   // 描画をすべて終えてから束ねる。
   wireOutcomes(document.querySelector("main"));
-  $("footer").innerHTML =
-    `${bundle ? S.JstCal.hhmm(bundle.fetchedAt) : "—"} 時点の予測。`
-    + `${S.MODELS.length}つの数値予報モデル（${S.MODELS.map((m) => S.MODEL_NAMES[m]).join("・")}）の`
-    + `真ん中の値を点数にしています。<br>`
-    + (bundle && bundle.ensemble
-        ? `点数がどれくらい動きうるかは、ECMWF が初期値をわずかに変えて計算した`
-          + `${bundle.ensemble.members.length}通り（アンサンブル予報）の散らばりから出しています。<br>`
-        : `${bundle ? "アンサンブル予報が取れなかったため、" : ""}`
-          + `点数の確からしさはモデル間の見解の差から出しています。<br>`)
-    + `朝焼けは日の出方向 ${bundle ? Math.round(bundle.sunriseBearing) : "—"}°、夕焼けは日の入方向 ${bundle ? Math.round(bundle.sunsetBearing) : "—"}° の空の雲も見ています（取得日の方位を使用）。<br>`
-    + `点数の横の <strong>A・B・C</strong> は信頼度です。`
-    + `<strong>A</strong> は評価がほぼ動かない、<strong>B</strong> は1段変わり得る、`
-    + `<strong>C</strong> は評価そのものが当てにならない。`
-    + `評価の帯は20〜25点間隔なので、点数が何点ずれそうかをその幅と比べて決めています。`
-    + `先の日ほど予報を出すモデルが減り（14日先は${S.MODELS.length}つ中3つ）、A は出しません。<br>`
-    + `<strong>これは予測です。</strong>気象庁や ECMWF が出している予報を材料に、`
-    + `このアプリが独自に点数を付けたものです。実際の空とは違うことがあります。`
-    + `見に行くかどうかの目安としてお使いください。<br>`
+  // 一覧の下は、何時の予報かと出典だけを「出典」に畳んで置く（2026-10-01 ユーザー「細かい説明文ってこのApp上はいらない」
+  // 「出しておいた方がいいなら畳んでおいてほしい」）。計算の仕組み・信頼度の説明・断り書きの段落は外した（A/B/C は表の凡例にある）。
+  // **出典は消さない。** Open-Meteo・OSM・国土地理院・気象庁は出典の表示が利用の条件で、加工したらその旨も書く
+  $("footerBody").innerHTML =
+    `${bundle ? S.JstCal.hhmm(bundle.fetchedAt) : "—"} 時点の予報をもとにこのアプリで点数化<br>`
     + `予報: Open-Meteo ／ 実況: 気象庁アメダス ／ 光害: <a href="https://djlorenz.github.io/astronomy/lp/">Lorenz Light Pollution Atlas 2025</a>（VIIRS） ／ 検索: OSM Nominatim ・ 標高: 国土地理院`;
 
   // 富士山は通信が要るので、予報の描画を待たせない。**失敗しても本体を巻き込まない**
@@ -3321,7 +3301,7 @@ function renderMoonTimes(dayMs) {
 
   // 月は毎日約50分ずれるので、出ない日・入らない日がある。黙って空欄にしない。
   const note = (!astro("rise") || !astro("set"))
-    ? `<div class="tiny" style="margin-top:6px;color:var(--tertiary)">月は毎日およそ50分おそくなるので、この日は${!astro("rise") ? "月の出" : "月の入"}が翌日へ回ります。</div>`
+    ? `<div class="tiny" style="margin-top:6px;color:var(--tertiary)">この日は${!astro("rise") ? "月の出" : "月の入"}がありません</div>`
     : "";
   return `<div class="card">
     <div class="lt">
@@ -3333,17 +3313,10 @@ function renderMoonTimes(dayMs) {
         return `<span class="lt-l"${key}>${esc(l)}</span><span${key}>${hm(a)}</span><span${key}>${hm(b)}</span>`;
       }).join("")}
     </div>
-    <div class="tiny" style="margin-top:6px;color:var(--tertiary)">「この場所では」は${moonHorizon && moonHorizon.layers && moonHorizon.layers.includes("urban")
-      ? "まわりの地形と建物" : "まわりの地形"}から計算した地平線です。山や建物があれば遅く、高い場所なら早くなります。</div>
     <!-- 同じ稜線を絵で見せる画面。時刻ごとにどこを通るかは、数字より図のほうが早い。
          道具なので、メニューに出している人にだけ入口を置く -->
     ${toolAllowed("sky") ? `<button class="fav-btn" id="toSky" style="margin-top:8px">空の見え方を見る（稜線と通り道）→</button>` : ""}
-    ${SoramiTerrain.locationScope(place) === "area" ? `<div class="tiny" style="margin-top:4px;color:var(--tertiary)">地域の代表地点のため、近くの建物は含めていません。現在地や施設を選ぶと反映します。</div>` : ""}
-    ${moonUrbanMeta ? `<div class="tiny" style="margin-top:4px;color:var(--tertiary)">半径${moonUrbanMeta.radiusM}mの建物 ${moonUrbanMeta.buildings} 棟を入れています${
-      moonUrbanMeta.estimatedHeights ? `（うち ${moonUrbanMeta.estimatedHeights} 棟は階数からの見積もり）` : ""}。${
-      moonUrbanMeta.tallest && moonUrbanMeta.tallest.name
-        ? `いちばん高く見えるのは ${esc(moonUrbanMeta.tallest.name)}（${Math.round(moonUrbanMeta.tallest.heightM)}m・${moonUrbanMeta.tallest.distanceM}m先）。` : ""
-      }<strong>地図に高さが登録されていない建物は入りません</strong>ので、実際はもう少し隠れます。</div>` : ""}
+    ${SoramiTerrain.locationScope(place) === "area" ? `<div class="tiny" style="margin-top:4px;color:var(--tertiary)">近くの建物は含めていません（地域の代表地点）</div>` : ""}
     ${noVisible ? `<div class="tiny" style="margin-top:4px;color:var(--tertiary)">出入りのころに見える見込みは最大 ${Math.round(peak * 100)}% で、「見え始め」の時刻は出ませんでした。</div>` : ""}
     ${note}</div>`;
 }
@@ -3485,9 +3458,6 @@ function renderFujiTimes(ev) {
       ${segs.map((g) => `<div class="ft-ticks" style="grid-template-columns:repeat(${g.cells.length},minmax(0,1fr))">`
         + g.cells.map((h, i) => `<span>${i % 3 === 0 ? HOUR(h) + "時" : ""}</span>`).join("") + `</div>`).join("")}
     </div>
-    <div class="tiny" style="margin-top:6px;color:var(--tertiary)">空が明るいあいだ（${hm(ev.window[0])}〜${hm(ev.window[1])}）を30分きざみで計算し、1時間ごとにいちばん良い値を並べています。${
-      amEnd !== null && pmStart !== null
-        ? `朝は${hm(ev.window[0])}〜${hm(amEnd)}、夕は${hm(pmStart)}〜${hm(ev.window[1])}（黄金の時間の終わり・始まりで区切っています）。上の3段はそれぞれの区間でいちばん良い値です。` : ""}</div>
   </div>`;
 }
 
@@ -3629,8 +3599,6 @@ function renderLightTimes(dayMs, now, phenomenonId) {
         ? `<div class="lt-row"><span class="li" title="${esc(moonTitle)}"><span class="ic">${face}</span><span><b>月</b> ${moon.spans.length ? "ずっと出ています" : "昇りません"}</span></span></div>`
         : ""}
     </div>
-    <p class="tiny" style="margin-top:6px">ゴールデンアワーは太陽高度 −4°〜+6°、ブルーアワーは −6°〜−4°。
-      軸は 0〜27時（夜の見ごろは暦の上では翌日になるため）。</p>
   </div>`;
 }
 
@@ -3686,8 +3654,8 @@ function renderDayDetail(id, entries, sel, now) {
     ${renderLightTimes(sel.dayMs, now, id)}
     <div class="card">${renderDetail(id, sel, now)}</div>
     <details class="card more"><summary>もっと詳しく</summary>
-      ${renderDetail(id, sel, now, { part: "how" })}${renderTable(id, entries)}</details>
-    <p class="tiny" style="padding:0 4px">📖 ${esc(ev.source)}</p>`;
+      ${renderDetail(id, sel, now, { part: "how" })}${renderTable(id, entries)}
+      <p class="tiny">📖 ${esc(ev.source)}</p></details>`;
 }
 
 // 評価の言葉を主役、点数を従にする。
@@ -3763,8 +3731,9 @@ function renderDetail(id, sel, now, opts = {}) {
       <span><span class="mark" style="color:${mk.color}">${mk.m}</span>${esc(f.label)}</span>
       <strong style="color:${pos ? "var(--accent)" : "var(--red)"}">${f.c >= 0 ? "+" : ""}${f.c.toFixed(1)}</strong></div>
       <div class="bar"><span class="mid"></span>
-        <span class="fill" style="${pos ? `left:50%` : `left:${50 - w}%`};width:${w}%;background:${pos ? "var(--accent)" : "var(--red)"};opacity:.75"></span></div>
-      ${f.detail ? `<div class="tiny">${esc(f.detail)}</div>` : ""}</div>`;
+        <span class="fill" style="${pos ? `left:50%` : `left:${50 - w}%`};width:${w}%;background:${pos ? "var(--accent)" : "var(--red)"};opacity:.75"></span></div></div>`;
+    // 要素ごとの理由文（「低い雲は頭上をふさぎます。ふつうの日より悪い条件です」）は出さない。
+    // 良い・悪いは印（◎○△✕）と ± で分かる（2026-10-01 ユーザー「細かい説明文ってこのApp上はいらない」）
   }).join("");
   const perModel = S.MODELS.filter((m) => ev.perModel[m] !== undefined).map((m) => {
     const v = ev.perModel[m], color = RANK_COLOR[S.rankOf(v).key];
@@ -3793,16 +3762,14 @@ function renderDetail(id, sel, now, opts = {}) {
   // 「基準 98 → 98／効かなかった要素: 全部」と出てしまうので、状態として並べる
   // （2026-09-14。既存の器に載せたときに露見した）。
   if (ev.uncertainty && ev.uncertainty.basis === "single") {
+    // 値（全角空白の前）だけを出し、続く説明は出さない（2026-10-01）
     const listed = ev.factors.map((f) => {
-      const [head, ...rest] = String(f.detail || "").split("　");
+      const [head] = String(f.detail || "").split("　");
       return `<div class="pk-row"><span>${esc(f.label)}</span>`
-           + `<span>${esc(head)}</span></div>`
-           + (rest.length ? `<p class="tiny" style="margin:-2px 0 4px;color:var(--tertiary)">${esc(rest.join("　"))}</p>` : "");
+           + `<span>${esc(head)}</span></div>`;
     }).join("");
     return `<div style="padding:4px 0 6px">
-      <div class="section-h"><h2>この点数のわけ</h2>
-        <span class="tiny">${ev.phenomenon === "capCloud"
-          ? "学習したモデルが重視した順（＋押し上げ／−押し下げ）" : "かけ合わせで決まります"}</span></div>
+      <div class="section-h"><h2>この点数のわけ</h2></div>
       <div class="pk-rows">${listed}</div>
       ${record}
     </div>`;
@@ -3823,7 +3790,6 @@ function renderWeek(id, entries, sel, now) {
          選んだ日の月相は、すぐ下の詳細の見出しに出る。 -->
     <div class="ph-head"><span class="ic">${iconFor(id, now)}</span>
       <h2>${S.PHENOMENA[id].name}・週間</h2></div>
-    <p class="tiny">日付を押すと、下の詳細が切り替わります。横にスクロールできます。</p>
     <div class="days" aria-label="詳細を見る日を選ぶ">${renderDays(id, entries, now, sel.dayMs)}</div>
   </div>`;
 }
@@ -3850,7 +3816,7 @@ function renderTable(id, entries) {
     <tr><th></th><th>点</th><th>低層</th><th>中層</th><th>高層</th>
     ${hasSunward ? "<th>陽低</th><th>陽中</th><th>陽高</th>" : ""}
     <th>降水</th><th>湿度</th><th>気温</th><th>視程</th></tr>${rows}</table></div>
-    <p class="tiny">モデル横断の中央値。「陽側」は太陽方位へ低層165km・中層260km・高層368km離れた地点の雲量。</p></div>`;
+    ${hasSunward ? `<p class="tiny">陽＝太陽の方向の雲</p>` : ""}</div>`;
 }
 
 // ---------------------------------------------------------------- 記録・校正
@@ -4083,7 +4049,7 @@ function renderRecords(now, pendingHidden) {
         <span class="tiny sub-line">${meta.name} ・ ${Math.round(s.score) || 0}点</span></span>
       <span class="badge" style="background:var(--line)">${esc(LABEL[s.outcome] ?? s.outcome)}</span></div>`;
     }).join("")
-    || `<p class="tiny" style="padding:8px 0">その回が終わると「実際はどうでしたか？」が出ます。</p>`);
+    || `<p class="tiny" style="padding:8px 0">まだありません</p>`);
 }
 
 // 帯は 20点刻み。標本ゼロの帯は 0% ではなく「—」。
@@ -4108,7 +4074,7 @@ function occurrenceCalibration(list) {
       <span class="muted">${list.length}件</span></div>
     <p class="tiny" style="margin:-2px 0 6px">雲海・霧氷・ダイヤモンドダスト・虹</p>
     <div class="bins">${rows}</div>
-    <p class="tiny" style="margin-top:6px">横棒が実際に見えた割合、縦線が点数どおりならこうなるはずという水準です。棒が線より短ければ点数が甘く、長ければ辛いということ。</p>`;
+    <p class="tiny" style="margin-top:6px">棒＝実際に見えた割合 ／ 線＝点数どおりの水準</p>`;
 }
 
 // 質の現象。「見えたか」では何点でもほぼ100%になるので、
@@ -4435,11 +4401,10 @@ function eyeOptions(p) {
 function eyeNote() {
   const m = favDraft.eyeHeightAGL ?? 1.5;
   const ground = favDraft.elevation;
-  if (!Number.isFinite(ground)) return "遠くの山や月の出が、手前の地形に隠れるかどうかの判定に使います。";
+  if (!Number.isFinite(ground)) return "";
   const eye = Math.round(ground + m);
   const far = 3.57 * Math.sqrt(Math.max(0, eye)) * 1.15;   // 屈折込みの地平線までの距離
-  return `目の高さは 標高${Math.round(ground)}m + ${m}m = ${eye}m。`
-       + `遮るものが無ければ ${far.toFixed(0)}km 先まで見通せます。`;
+  return `目の高さ ${eye}m ・ ${far.toFixed(0)}km 先まで見通せる`;
 }
 function renderEyeNote() { $("favEyeNote").textContent = eyeNote(); }
 $("favEye").onchange = () => {
@@ -5135,12 +5100,11 @@ function planeRender() {
   };
   $("planeOpNote").textContent = plane.op
     ? `手で選んでいます。${opLine({ op: plane.op, from: 0, to: 23 }).replace(/^0〜24時 /, "")}`
-    : `羽田の風の予報から、時刻ごとに決めています。${r.spans.map(opLine).join(" ／ ")}`;
+    : r.spans.map(opLine).join(" ／ ");
   $("planePick").innerHTML = "";
   const P = planeFromPoint();
   if (!r.spots.length) {
-    $("planeInfo").textContent = `この日は、${P.name}からも定番の場所からも重なりません。`
-      + "日を変えるか、運用（北風・南風）を切り替えてみてください。";
+    $("planeInfo").textContent = `この日は、${P.name}からも定番の場所からも重なりません。`;
     return;
   }
   // **「今日はここ」を先に出す。** 一覧を上から読ませない
@@ -5345,7 +5309,8 @@ async function issApply() {
   if (seq !== iss.seq) return;
   if (!sat || !tle) { $("issList").innerHTML = `<p class="tiny">ISSの軌道要素を取れませんでした。時間をおいて開き直してください。</p>`; return; }
   const ageH = (Date.now() - tle.epochMs) / 3600000;
-  $("issTle").textContent = `軌道要素は ${ageH < 1 ? "1時間以内" : `${Math.round(ageH)}時間前`}のもの。当日にもう一度開いて確かめてください。`;
+  // 軌道要素の古さは、古いとき（1日より前）だけ一言（3日より先の回には「目安」が付く）
+  $("issTle").textContent = ageH > 24 ? `軌道要素が${Math.round(ageH / 24)}日前のため目安` : "";
   // 画面を止めないよう、次の描画を待ってから解く（3日ぶんで0.2秒ほど）
   await new Promise((r) => setTimeout(r, 0));
   let rows = [];
@@ -5455,9 +5420,9 @@ function issRender() {
   const P = issFromPoint();
   const rows = iss.result;
   const overWater = iss.overWater
-    ? `<p class="tiny" style="color:var(--tertiary)">ほかに、帯が海や湖の上だけを通る回が${iss.overWater}回あります（陸から見られないので出していません）。</p>` : "";
+    ? `<p class="tiny" style="color:var(--tertiary)">海や湖の上だけを通る回（${iss.overWater}回）は除外</p>` : "";
   if (!rows.length) {
-    $("issList").innerHTML = `<p class="tiny">この7日、${esc(P.name)}から${iss.rangeKm}km以内で${iss.body === "moon" ? "月" : "太陽"}の前を通る回はありません。範囲を広げてみてください。</p>${overWater}`;
+    $("issList").innerHTML = `<p class="tiny">この7日、${esc(P.name)}から${iss.rangeKm}km以内で${iss.body === "moon" ? "月" : "太陽"}の前を通る回はありません。</p>${overWater}`;
     return;
   }
   $("issList").innerHTML = rows.map((r, i) => {
@@ -6128,8 +6093,8 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   if (customOn) aimRenderTargetCard();
   // 目標の高さの注記（塔だけ。富士山の山頂は当たり前なので出さない）
   // 自分で置く目標は、場所のカードに標高と高さを書くので、ここには出さない
-  $("aimTargetNote").textContent = fujiTool || wanted === "custom" ? "" : aim.target.note || "";
-  $("aimTargetNote").hidden = !$("aimTargetNote").textContent;
+  // 目標の高さの内訳（「地上の高さ＋地面の標高およそ2m」）は出さない（2026-10-01 細かい説明文は出さない）。推定の高さは下の欄で直す
+  $("aimTargetNote").hidden = true;
   // 題名: 富士山は「ダイヤモンド富士」「パール富士」の字。塔は「◯◯▾に重ねる」の◯◯で目標を選ぶ。太陽／月は題名の右で同じ位置
   $("aimTitleText").hidden = !fujiTool;
   $("aimTargetPick").hidden = fujiTool;
@@ -6160,8 +6125,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
         aim.target.latitude, aim.target.longitude);
       const ang = SoramiAstro.targetElevationAngle(d, observerHere().elevation, part.m);
       $("aimHeightNote").textContent =
-        `いまの ${Math.round(part.m)}m だと、地図の中心（${aimKm(d)}km先）からは ${ang.toFixed(1)}° に見えます。`
-        + `実際に見た角度が分かれば、合うまで高さを動かせます。`;
+        `${Math.round(part.m)}m は地図の中心（${aimKm(d)}km先）から ${ang.toFixed(1)}°`;
     } else {
       $("aimHeightNote").textContent = "";
     }
@@ -6175,7 +6139,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   // 目標が決まっていなければ線は引けない（高さが無い）
   if (!(aim.target.parts || []).length) {
     aim.lines = []; AimMap.redraw();
-    $("aimLineInfo").textContent = "重ねる目標の場所を選んでください（「どこに重ねるか」の 🔍 か、地図の「ここに重ねる」）。";
+    $("aimLineInfo").textContent = "重ねる目標の場所を選んでください";
     $("aimList").innerHTML = "";
     return;
   }
@@ -6342,7 +6306,7 @@ async function aimRenderFrom() {
 
   const moon = aim.body === "moon";
   const what = aimIsFuji() ? (moon ? "パール富士" : "ダイヤモンド富士") : `${aim.target.name}に${moon ? "月" : "太陽"}が重なる日`;
-  if (!f) { $("aimFrom").innerHTML = `<p class="tiny">観測地点を選ぶか、地図の「ここから重ねる」を押すと、そこから見た${esc(what)}を出します。</p>`; return; }
+  if (!f) { $("aimFrom").innerHTML = `<p class="tiny">観測地点を選んでください</p>`; return; }
   if (!(aim.target.parts || []).length) { $("aimFrom").innerHTML = ""; return; }
   $("aimFrom").innerHTML = `<p class="tiny">${esc(f.name)}から計算しています…</p>`;
   await new Promise((r) => setTimeout(r, 0));
@@ -6382,7 +6346,7 @@ async function aimRenderFrom() {
   const none = ev.length ? ""
     : `<p class="tiny">${!all.length ? "ここからは重なりません。"
       : !solid.length ? "ここからは縁がかすめるだけで、重なりません。"
-      : "重なるのは、月が明るい空にあるときだけです（明るい空の月は写りません）。"}</p>`;
+      : "重なるのは明るい空のときだけです"}</p>`;
   $("aimFrom").innerHTML = head + (chips ? `<div class="aim-days">${chips}</div>` : "") + none
     + `<p class="tiny" id="aimFromSight" style="margin-top:4px;color:var(--tertiary)"></p>`;
   for (const el of $("aimFrom").querySelectorAll("[data-from-day]")) {
@@ -6404,8 +6368,8 @@ async function aimRenderFrom() {
   }
   if (seq !== aim.fromSeq) return;
   $("aimFromSight").textContent = sight
-    ? `ただし、ここからは${aim.target.name}が${sight}。少し場所を変えると見えることがあります。`
-    : "地形と高い建物（7階・20m以上）では隠れません。低い建物や木は見ていません。";
+    ? `ただし、ここからは${aim.target.name}が${sight}`
+    : "地形・高い建物では隠れません";
 }
 
 // ---------------------------------------------------------------- その日の候補地（2026-09-30）
