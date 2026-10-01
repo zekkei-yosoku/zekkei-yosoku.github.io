@@ -1386,21 +1386,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001100102"></script>
+<script src="sorami-core.js?v=20261001102901"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001100102"></script>
-<script src="sorami-exif.js?v=20261001100102"></script>
-<script src="sorami-capcloud.js?v=20261001100102"></script>
-<script src="sorami-terrain.js?v=20261001100102"></script>
-<script src="sorami-mountain.js?v=20261001100102"></script>
-<script src="sorami-fuji.js?v=20261001100102"></script>
-<script src="sorami-sky.js?v=20261001100102"></script>
-<script src="sorami-routes.js?v=20261001100102"></script>
-<script src="sorami-iss.js?v=20261001100102"></script>
-<script src="sorami-plane.js?v=20261001100102"></script>
-<script src="sorami-align.js?v=20261001100102"></script>
-<script src="sorami-moon.js?v=20261001100102"></script>
+<script src="sorami-astro.js?v=20261001102901"></script>
+<script src="sorami-exif.js?v=20261001102901"></script>
+<script src="sorami-capcloud.js?v=20261001102901"></script>
+<script src="sorami-terrain.js?v=20261001102901"></script>
+<script src="sorami-mountain.js?v=20261001102901"></script>
+<script src="sorami-fuji.js?v=20261001102901"></script>
+<script src="sorami-sky.js?v=20261001102901"></script>
+<script src="sorami-routes.js?v=20261001102901"></script>
+<script src="sorami-iss.js?v=20261001102901"></script>
+<script src="sorami-plane.js?v=20261001102901"></script>
+<script src="sorami-align.js?v=20261001102901"></script>
+<script src="sorami-moon.js?v=20261001102901"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1844,6 +1844,36 @@ function upcoming(entries, now) {
 let fujiGeom = null, fujiWeather = null, fujiGrid = null;
 // ダイヤモンド富士・パール富士。地点ごとに1回だけ計算する（天気と無関係で、年単位で変わらない）
 let fujiAlign = null, fujiAlignKey = null;
+let fujiAlignObs = null; // 富士山が見えると分かった観測者。ここが決まるまで重なる日は計算できない
+
+/// ダイヤモンド富士・パール富士の計算を始める。
+///
+/// **道具として許されていなければ計算もしない。** 呼ぶのは2か所:
+/// 富士山の見え方が決まったとき（loadExtras）と、使える道具が変わったとき（ログインなど）。
+/// loadExtras は走っているあいだ再入しないので、ログインがその途中に来ると
+/// 「描き直しで戻ってくる」を当てにできない（2026-10-01）。
+function startFujiAlign() {
+  if (!toolAllowed("diamond") && !toolAllowed("pearl")) return;
+  if (!fujiAlignObs || !fujiGeom || fujiAlignKey === extraKey) return;
+  const key = fujiAlignKey = extraKey;
+  // 地域の代表地点では出さない。**1km違うと日付が9日ずれる**ので、代表点では嘘になる
+  // （田貫湖で実測。→ test-diamond.mjs「立つ場所で日付が変わる」）。
+  if (SoramiTerrain.locationScope(place) === "area") {
+    fujiAlign = { area: true };
+    if (picked === "fuji") redrawDayDetail();
+    return;
+  }
+  fujiAlign = { loading: true };
+  const obs = fujiAlignObs, geom = fujiGeom;
+  // 月まで入れると数百ms。描画を止めないよう、次の間合いへ回す。
+  // 捨てるかどうかは地点で見る（回数で見ると、同じ地点の取り直しで「計算しています…」のまま残る）
+  setTimeout(() => {
+    if (fujiAlignKey !== key) return;
+    try { fujiAlign = SoramiFuji.alignments(obs, geom, { from: Date.now(), days: 400, limit: 2 }); }
+    catch { fujiAlign = null; }
+    if (picked === "fuji") redrawDayDetail();
+  }, 0);
+}
 let moonHorizon = null;
 let moonObs = null;      // 地平線を測ったときの観測者。詳細の月の出入り計算が同じ前提を使う
 let moonUrbanMeta = null; // 建物層の内訳（何棟・推定が何棟・いちばん高いもの）
@@ -1938,7 +1968,7 @@ async function loadExtras() {
   // 前の場所の地平線のままになる
   if (key !== extraKey) {
     fujiGeom = null; fujiWeather = null;
-    fujiAlign = null; fujiAlignKey = null;
+    fujiAlign = null; fujiAlignKey = null; fujiAlignObs = null;
     moonHorizon = null; moonObs = null;
     moonTerrainProfile = null; moonUrbanMeta = null; moonUrbanTried = false;
     extraKey = key;
@@ -2024,23 +2054,8 @@ async function loadExtras() {
   // ---- ダイヤモンド富士・パール富士。**天気と無関係**なので、予報を待たずに始める。
   // 地域の代表地点では出さない。**1km違うと日付が9日ずれる**ので、代表点では嘘になる
   // （田貫湖で実測。→ test-diamond.mjs「立つ場所で日付が変わる」）。
-  // 道具として許されていなければ計算もしない。ログインで許されたら、そのあとの描き直しでここへ戻る
-  if ((toolAllowed("diamond") || toolAllowed("pearl")) && fujiAlignKey !== extraKey) {
-    fujiAlignKey = extraKey;
-    if (SoramiTerrain.locationScope(place) === "area") {
-      fujiAlign = { area: true };
-      if (picked === "fuji") redrawDayDetail();
-    } else {
-      fujiAlign = { loading: true };
-      // 月まで入れると数百ms。描画を止めないよう、次の間合いへ回す
-      setTimeout(() => {
-        if (seq !== extraSeq) return;
-        try { fujiAlign = SoramiFuji.alignments(obs, fujiGeom, { from: Date.now(), days: 400, limit: 2 }); }
-        catch { fujiAlign = null; }
-        if (picked === "fuji") redrawDayDetail();
-      }, 0);
-    }
-  }
+  fujiAlignObs = obs;
+  startFujiAlign();
 
   // 笠雲の上空は、富士山の天気と**同時に**取りに行く。
   // 笠雲の"評価"は富士山の結果が要るので後だが、"取得"は互いに待つ必要がない。
@@ -6592,7 +6607,7 @@ document.addEventListener("keydown", (e) => {
 let toolsDrawnKey = null;
 function redrawIfToolsChanged() {
   const key = allowedTools().join(",");
-  if (key !== toolsDrawnKey) { toolsDrawnKey = key; redrawDayDetail(); }
+  if (key !== toolsDrawnKey) { toolsDrawnKey = key; startFujiAlign(); redrawDayDetail(); }
 }
 function renderAuthButton() {
   renderTools();

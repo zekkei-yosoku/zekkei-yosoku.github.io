@@ -487,8 +487,11 @@ ok(/const showSun = toolAllowed\("diamond"\), showMoon = toolAllowed\("pearl"\);
 ok(/const sun = showSun \? a\.sun \|\| \[\] : \[\], moon = showMoon \? a\.moon \|\| \[\] : \[\];/.test(html),
   "富士山の詳細: 太陽はダイヤモンド富士、月はパール富士の許可で出す");
 ok(/showSun && !sun\.length \?/.test(html) && /showMoon && !moon\.length \?/.test(html), "許されていない側の「ありません」も出さない");
-ok(/if \(\(toolAllowed\("diamond"\) \|\| toolAllowed\("pearl"\)\) && fujiAlignKey !== extraKey\)/.test(html),
+ok(/function startFujiAlign\(\) \{\s+if \(!toolAllowed\("diamond"\) && !toolAllowed\("pearl"\)\) return;/.test(html),
   "許されていなければ重なる日の計算もしない");
+// ログインが loadExtras の途中に来ても取りこぼさない（loadExtras は走っているあいだ再入しない）
+ok(/toolsDrawnKey = key; startFujiAlign\(\); redrawDayDetail\(\);/.test(html), "許されたら、その場で重なる日の計算を始める");
+ok(/if \(fujiAlignKey !== key\) return;/.test(html), "計算の結果は地点で捨てる（同じ地点の取り直しで「計算しています…」のまま残らない）");
 ok(/\$\{toolAllowed\("sky"\) \? `<button class="fav-btn" id="toSky"/.test(html), "月の詳細の「空の見え方を見る」も許可で出す");
 {
   const mapSheet = /<dialog class="sheet" id="mapSheet">[\s\S]*?<\/dialog>/.exec(html)[0];
