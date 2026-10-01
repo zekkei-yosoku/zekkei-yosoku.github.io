@@ -1554,21 +1554,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001170749"></script>
+<script src="sorami-core.js?v=20261001171346"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001170749"></script>
-<script src="sorami-exif.js?v=20261001170749"></script>
-<script src="sorami-capcloud.js?v=20261001170749"></script>
-<script src="sorami-terrain.js?v=20261001170749"></script>
-<script src="sorami-mountain.js?v=20261001170749"></script>
-<script src="sorami-fuji.js?v=20261001170749"></script>
-<script src="sorami-sky.js?v=20261001170749"></script>
-<script src="sorami-routes.js?v=20261001170749"></script>
-<script src="sorami-iss.js?v=20261001170749"></script>
-<script src="sorami-plane.js?v=20261001170749"></script>
-<script src="sorami-align.js?v=20261001170749"></script>
-<script src="sorami-moon.js?v=20261001170749"></script>
+<script src="sorami-astro.js?v=20261001171346"></script>
+<script src="sorami-exif.js?v=20261001171346"></script>
+<script src="sorami-capcloud.js?v=20261001171346"></script>
+<script src="sorami-terrain.js?v=20261001171346"></script>
+<script src="sorami-mountain.js?v=20261001171346"></script>
+<script src="sorami-fuji.js?v=20261001171346"></script>
+<script src="sorami-sky.js?v=20261001171346"></script>
+<script src="sorami-routes.js?v=20261001171346"></script>
+<script src="sorami-iss.js?v=20261001171346"></script>
+<script src="sorami-plane.js?v=20261001171346"></script>
+<script src="sorami-align.js?v=20261001171346"></script>
+<script src="sorami-moon.js?v=20261001171346"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4769,10 +4769,14 @@ function aimTargetList() {
 function aimFillSelects() {
   // 他の目標（2026-10-01 に「自分で置く」から改名。ユーザーが候補から選んだ）は、一覧では「他の目標（◯◯）」。題名の枠には◯◯（場所の名前）だけ
   const custom = aimCustomTarget();
+  // 作り直しても選んでいたものは残す（他の目標を置き直すたびに、合わせ方が最初の選択肢へ戻っていた）
+  const keep = { target: $("aimTarget").value, limb: $("aimLimb").value };
   $("aimTarget").innerHTML = aimTargetList()
     .map((t) => `<option value="${t.id}">${esc(t.id === "custom" ? (custom ? `他の目標（${t.name}）` : "他の目標") : t.name)}</option>`).join("");
   $("aimLimb").innerHTML = SoramiAlign.LIMBS
     .map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
+  if (keep.target) $("aimTarget").value = keep.target;
+  if (keep.limb) $("aimLimb").value = keep.limb;
 }
 /// 天体で言い方を変える。**月に「日の入側」と書かない**
 const aimSideLabel = (side) => (aim.body === "moon"
@@ -6125,8 +6129,11 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   $("aimMoon").textContent = `${moonGlyphAt((aim.dayMs ?? S.Cal.startOfDay(Date.now())) + 20 * 3600000)}`;
   $("aimMoon").setAttribute("aria-pressed", String(aim.body === "moon"));
   aim.limb = $("aimLimb").value;
-  aimFillParts();
+  // **選び直した高さは、選択肢を作り直す前に読む。** aimFillParts は aim.partId で選び直すので、
+  // 後で読むと元の値（先端）に戻る（2026-09-25 から 10-01 まで高さを替えられなかった。
+  // ユーザー「スカイツリーで場所は曽谷を選んで、どこに重ねるかが先端から動かせない」）
   aim.partId = $("aimPart").value || aim.partId;
+  aimFillParts();
   // 高さが推定の部位だけ、直せるようにする
   const part = (aim.target.parts || []).find((p) => p.id === aim.partId);
   $("aimHeightRow").hidden = !(part && part.adjustable);

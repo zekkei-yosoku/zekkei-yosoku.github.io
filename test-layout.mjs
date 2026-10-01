@@ -467,6 +467,25 @@ console.log("== 画面のスクリプトが文法として読める（2026-09-30
   ok(own.length >= 5 && badFiles.length === 0, `読み込む自前の JS ${own.length} 本に文法の誤りが無い`, badFiles.join(" / "));
 }
 
+console.log("== 選択肢を作り直す前に選んだ値を読む（2026-10-01） ==");
+// ユーザー「スカイツリーで場所は曽谷を選んで、どこに重ねるかが先端から動かせない」。
+// aimApply が先に aimFillParts（選択肢を作り直し、aim.partId で選び直す）を呼んでから読んでいたので、選び直しが元に戻っていた
+{
+  const body = /function aimApply\(\{[\s\S]*?\n\}/.exec(html)?.[0] || "";
+  const read = body.indexOf('aim.partId = $("aimPart").value'), fill = body.indexOf("aimFillParts();");
+  ok(read > 0 && fill > read, "ねらう: 高さ（先端・展望台）は、選択肢を作り直す前に読む");
+  // 実際に動かす: 選び直した値が残る
+  const fillSrc = /function aimFillParts\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
+  const sel = { innerHTML: "", value: "tip", disabled: false, hidden: false };
+  const aim = { partId: "tip", target: { parts: [{ id: "tip", name: "先端", m: 636 }, { id: "gallery", name: "天望回廊", m: 452 }] } };
+  const run = new Function("aim", "$", "esc", `${fillSrc}; aim.partId = $("aimPart").value || aim.partId; aimFillParts(); return aim.partId;`);
+  sel.value = "gallery";
+  ok(run(aim, () => sel, (x) => x) === "gallery" && sel.value === "gallery", "天望回廊を選ぶと天望回廊のまま（先端へ戻らない）");
+  const fillSel = /function aimFillSelects\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
+  ok(/const keep = \{ target: \$\("aimTarget"\)\.value, limb: \$\("aimLimb"\)\.value \};/.test(fillSel)
+    && /if \(keep\.limb\) \$\("aimLimb"\)\.value = keep\.limb;/.test(fillSel), "ねらう: 選択肢を作り直しても合わせ方は残す");
+}
+
 console.log("== 同じ名前の関数を2つ置かない・観測点は1つ（2026-10-01） ==");
 // 2026-09-28 に observerHere の同期版を別の場所に足したら、先にあった DEM を測る非同期版を黙って上書きした
 // （後から書いた宣言が勝つ。文法の誤りにはならない）。富士山と月が予報の格子の標高に戻り、
