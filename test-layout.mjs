@@ -230,10 +230,9 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/<strong>\$\{esc\(f\.name\)\}<\/strong>[\s\S]{0,80}から見た/.test(fn), "地点から探す: どこからの結果かを名前で書く");
   ok(/id="aimFromSearch"/.test(html) && /wireSearchBox\("aimFromSearch", "aimFromResults"/.test(html), "地点から探す: 地点はこの画面の中で探す");
   // 「どこに重ねるか」と対で「どこから重ねるか」。最初は絶景予測の地点を引き継いで欄に入れる（ユーザー指定）
-  // 「目標」の行は塔にしか無いので、その下に置くと道具ごとに位置が変わる。**カードのいちばん上**（ユーザー指定）
-  { const t0 = html.indexOf('id="aimTitle"'), b = html.indexOf('for="aimFromSearch">どこから重ねるか'),
-      tg = html.indexOf('id="aimTargetBox"'), a = html.indexOf('for="aimLimb">どこに重ねるか');
-    ok(t0 > 0 && t0 < b && b < tg && tg < a, "「どこから重ねるか」はカードのいちばん上（目標・どこに重ねるかより上）"); }
+  // 道具ごとに位置が変わらないよう、題名のすぐ下（ユーザー指定）。塔の目標は題名の中で選ぶので、目標の行は無い
+  { const t0 = html.indexOf('id="aimTitle"'), b = html.indexOf('for="aimFromSearch">どこから重ねるか'), a = html.indexOf('for="aimLimb">どこに重ねるか');
+    ok(t0 > 0 && t0 < b && b < a && !/id="aimTargetBox"/.test(html), "「どこから重ねるか」は題名のすぐ下（目標の行は無い）"); }
   ok(/document\.activeElement === \$\("aimFromSearch"\) \|\| \$\("aimFromSearch"\)\.value\.trim\(\)\) return;/.test(html),
     "欄を空のまま離れたら観測地点の名前に戻す（打った字は残す）");
   // 地図から決めるのは地図を見ているとき。釦は上の欄ではなく地図のすぐ下（ユーザー「地図の中心ってここにいらない」）
@@ -406,13 +405,17 @@ ok(/function aimDateLabel/.test(html) && /y === now \? "" :/.test(html), "今年
 // 富士山に重ねるは目標が決まっているので、選ぶ欄の代わりに「富士山」と書く。太陽／月の切り替えは塔と同じ位置に残す
 // 太陽／月の切り替えは題名の右（どちらの道具も同じ位置）。「富士山 × 太陽」の添え書きは出さない。
 // 富士山に重ねるは目標の行を出さない（ユーザー「ここボタンにしたら」「目標が富士山って当たり前だからいらない」）
-ok(/<div class="section-h aim-head"><h2 id="aimTitle">ねらう<\/h2>\s+<div class="aim-seg" role="group" aria-label="太陽か月">/.test(html),
+ok(/<div class="section-h aim-head"><h2 id="aimTitle">[\s\S]*?<\/h2>\s+<div class="aim-seg" role="group" aria-label="太陽か月">/.test(html),
   "太陽／月の切り替えは題名の右（塔も富士山も同じ位置）");
 ok(!/id="aimSub"/.test(html) && !/富士山 × 太陽/.test(html), "「富士山 × 太陽」の添え書きを出さない");
 ok(/<button id="aimSun" aria-pressed="true" aria-label="太陽" title="太陽">☀️<\/button>/.test(html) && /<button id="aimMoon" aria-pressed="false" aria-label="月" title="月">/.test(html),
   "切り替えは絵文字だけ（読み上げには太陽・月の名前）");
 ok(/\.aim-head \{ align-items: center; flex-wrap: nowrap; \}/.test(code), "切り替えは折り返さない（道具ごとに下の位置が変わらない）");
-ok(/\$\("aimTargetBox"\)\.hidden = fujiTool;/.test(html), "富士山に重ねるは目標の行を出さない");
+// 塔は題名の「◯◯」が目標を選ぶ所（ユーザー「ここが目標切り替えになるのでは？」）。富士山は字だけ
+ok(/<span id="aimTargetPick" hidden><span class="aim-pick"><span id="aimTargetLabel"><\/span><svg[^>]*>[\s\S]*?<\/svg><select id="aimTarget"/.test(html),
+  "塔: 題名の◯◯に目標を選ぶ一覧を重ねる（字＋▾）");
+ok(/\$\("aimTitleText"\)\.hidden = !fujiTool;\s+\$\("aimTargetPick"\)\.hidden = fujiTool;/.test(html), "富士山は字、塔は選ぶ所");
+ok(/\.aim-pick select \{ position: absolute; inset: 0;[^}]*opacity: 0; font-size: 16px;/.test(code), "選ぶ一覧は字に重ねて透明に（幅は字の幅・iOS で拡大されない 16px）");
 ok(/\$\("aimSun"\)\.hidden = anyOk && !sunOk;\s+\$\("aimMoon"\)\.hidden = anyOk && !moonOk;/.test(html),
   "富士山に重ねる: 太陽はダイヤモンド富士、月はパール富士の許可で出す（許可は2つのまま）");
 ok(/TARGETS\.filter\(\(t\) => t\.id !== "fuji"\)/.test(html), "塔の目標の一覧に富士山を入れない（許可を素通りしない）");
@@ -2353,7 +2356,8 @@ ok(/diamond: \{ target: "fuji", body: "sun", as: "fuji" \}/.test(html) && /pearl
   "前の URL（#/aim/diamond・#/aim/pearl）も富士山に重ねるを太陽・月で開く");
 ok(/function aimTitleFor/.test(html), "見出しを選択から決める");
 ok(/\^#\\\/aim\\\/\(fuji\|diamond\|pearl\|tower\)\$/.test(html), "#/aim/<なに> の道がある（前の URL も）");
-ok(/\$\("aimTitle"\)\.textContent = t\.title/.test(html), "見出しを差し替える");
+ok(/\$\("aimTitleText"\)\.textContent = aimTitleFor\(\)\.title;/.test(html) && /\$\("aimTargetLabel"\)\.textContent = aim\.target\.name/.test(html),
+  "見出しを差し替える（富士山は題名、塔は目標の名前）");
 // 画面は1つのまま（中身が同じなので、押した場所で初期値だけ変える）
 ok((html.match(/id="aimView"/g) || []).length === 1, "画面は1つのまま");
 
