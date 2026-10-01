@@ -219,8 +219,26 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(bad === 0, "展望台を無視する書き方が残っていない", `${bad}件`);
 }
 // ねらうの塔の一覧（いまの地点から次に重なる日）は、その日の候補地に置き換えた（2026-09-30）。
-// 地点カードを出さない画面で「◯◯から」と言っても、どこのことか分からないため
-ok(!/SoramiAlign\.upcoming\(obs, aim\.target/.test(html), "ねらうは見えない地点からの一覧を出さない");
+// 地点カードを出さない画面で「◯◯から」と言っても、どこのことか分からないため。
+// 2026-10-01 ユーザー「観測地点から逆引きできない？曽谷から見てスカイツリーに重なるのはいつか」→
+// **地点をねらうの画面の中で選び、どこからの結果かを名前で書く**形で戻した（地点カードの地点は黙って使わない）
+{
+  const fn = /async function aimRenderFrom\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
+  ok(/const obs = \{ latitude: f\.latitude, longitude: f\.longitude/.test(fn) && /SoramiAlign\.upcoming\(obs, aim\.target/.test(fn),
+    "地点から探す: 選んだ地点（aim.from）で解く");
+  ok(/<strong>\$\{esc\(f\.name\)\}<\/strong>[\s\S]{0,80}から見た/.test(fn), "地点から探す: どこからの結果かを名前で書く");
+  ok(/id="aimFromSearch"/.test(html) && /wireSearchBox\("aimFromSearch", "aimFromResults"/.test(html), "地点から探す: 地点はこの画面の中で探す");
+  ok(/いまの地点（\$\{here\.name\}）で調べる/.test(fn), "いまの地点を使うときも、名前を書いた釦で選ぶ");
+  ok(/SoramiAlign\.lineOfSight\(obs, aim\.target/.test(fn) && /aimBuildingBlocks\(\[/.test(fn), "見通し（地形・塔は高い建物）を添える");
+  ok((html.match(/SoramiAlign\.upcoming\(obs, aim\.target/g) || []).length === 1, "ほかの所で見えない地点からの一覧を出さない");
+  // 地点の住所は都道府県＋市区町村まで（OSM の住所は長い）
+  const src = /function aimAreaOf\(r\) \{[\s\S]*?\n\}/.exec(html)?.[0];
+  const areaOf = src ? new Function(`${src}; return aimAreaOf;`)() : () => "";
+  ok(areaOf({ detail: "曽谷, 市川柏線, 宮久保四丁目, 市川市, 千葉県, 272-0822, 日本" }) === "千葉県市川市", "OSM の住所を「千葉県市川市」へ縮める");
+  ok(areaOf({ detail: "山 ・ 東京都八王子市 ・ 標高599m" }) === "東京都八王子市", "索引の説明から市区町村を取る");
+  ok(areaOf({ detail: "本町, 甲府市, 山梨県, 日本" }) === "山梨県甲府市", "町名より市を先に取る");
+  ok(areaOf({ detail: "国土地理院の地名情報" }) === "", "住所が無ければ書かない");
+}
 ok(/const skyObs = \(\) => \(moonObs \|\| observerHere\(\)\)/.test(html), "空の見え方も同じ");
 ok(/deckM: agl/.test(html), "その地点の立つ高さを渡す");
 // 雲海は**見下ろせるか**なので目の高さで判定する（霧氷・ダイヤは地面の標高のまま）
@@ -469,6 +487,20 @@ console.log("== 月を表すところは全部、その時の満ち欠け（2026
     "月の円盤: 満ちる月は右が光り、細い月は細く描く");
   ok(fixed <= 4, `固定の 🌙 が増えていない（${fixed}か所）`);
 }
+
+console.log("== 観測地点を水の上に置かない（2026-10-01） ==");
+// ユーザー「観測地点は陸上に。ISS とか海の上になってなかった？」「他の観測地点も水の上にならないように」
+ok(/const c = await aimOnLand\(k, lines, opts\);/.test(html), "ねらう: 候補ごとに水の上かを見る（見通しを確かめる前に）");
+ok(/const AIM_STAND_ON_WATER_OK = new Set\(\["橋", "桟橋"\]\);/.test(html), "ねらう: 水の上でも残すのは橋・桟橋だけ（人が立てる構造物）");
+ok(/return water === true \? aimMoveToLand\(c, lines, opts\) : c;/.test(html), "ねらう: 水の上なら陸へ動かす（動かせなければ外す）");
+ok(/const hit = SoramiAlign\.crossingNear\(\{ latitude: pt\.latitude, longitude: pt\.longitude, elevation: ground \}/.test(html),
+  "ねらう: 動かした点で重なりを解き直す");
+ok(/const water = await SoramiTerrain\.waterAt\(picks\);\s+const onLand = picks\.filter\(\(n, i\) => water\[i\] !== true\);/.test(html),
+  "ISS: 立つ場所は水の上を外す（橋も外す）");
+ok(/iss\.result = rows\.filter\(\(r\) => r\.stand !== null\);/.test(html), "ISS: 帯が水の上だけを通る回は並べない");
+ok(/帯が海や湖の上だけを通る回が\$\{iss\.overWater\}回あります/.test(html), "ISS: 外した回の数は書く");
+ok(/if \(on && r\.stand\) \{\s+const \[sx, sy\] = project\(r\.stand\.latitude, r\.stand\.longitude\);/.test(html),
+  "ISS: 地図の印は立つ場所に（中心線のいちばん近い点には付けない）");
 
 console.log("== ISS の月面通過（2026-09-30） ==");
 ok(/data-tool="#\/iss" data-id="iss"><b>ISSの月面通過<\/b>/.test(html), "メニューに ISSの月面通過 がある");

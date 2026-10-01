@@ -595,6 +595,8 @@
   .aim-legend .tiny { font-weight: 400; color: var(--tertiary); }
   /* 観測スポットの行。日付は押すとその日の線と場所を出す */
   .aim-spot { cursor: default; }
+  /* 地点から探す。「いまの地点で調べる」は横幅いっぱいにしない（入力欄の下の小さな近道） */
+  .aim-from-here { width: auto; padding: 0 12px; margin-top: 6px; }
   .aim-days { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
   .aim-day { min-height: 32px; padding: 4px 10px; border-radius: 9px; background: var(--sunk);
              color: var(--accent); font-weight: 700; }
@@ -1071,6 +1073,16 @@
     <div class="section-h" style="margin-top:12px"><h2 id="aimListTitle">定番スポット</h2><span class="muted" id="aimListSub"></span></div>
     <div id="aimList" class="al"></div>
     </div>
+    <!-- 地点から探す（2026-10-01 ユーザー「観測地点から逆引きできない？曽谷から見てスカイツリーに重なるのはいつかなとか」）。
+         線と候補地は「その日、どこへ」に答える。これは逆に「この場所で、いつ」に答える。
+         9/30 に外した「いまの地点から」は、道具の画面に地点カードが無く、どこからなのか分からなかった。
+         ここでは地点をこの中で選び、**どこからの結果かを名前で書く** -->
+    <div class="section-h" style="margin-top:12px"><h2>地点から探す</h2></div>
+    <input type="search" id="aimFromSearch" class="fav-in" enterkeyhint="search"
+           placeholder="地名・住所・駅名（例: 曽谷）" aria-label="重なる日を調べる地点">
+    <div id="aimFromResults"></div>
+    <button id="aimFromHere" class="fav-btn aim-from-here" hidden></button>
+    <div id="aimFrom"></div>
       </div>
   </div>
 
@@ -1406,21 +1418,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001112358"></script>
+<script src="sorami-core.js?v=20261001113405"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001112358"></script>
-<script src="sorami-exif.js?v=20261001112358"></script>
-<script src="sorami-capcloud.js?v=20261001112358"></script>
-<script src="sorami-terrain.js?v=20261001112358"></script>
-<script src="sorami-mountain.js?v=20261001112358"></script>
-<script src="sorami-fuji.js?v=20261001112358"></script>
-<script src="sorami-sky.js?v=20261001112358"></script>
-<script src="sorami-routes.js?v=20261001112358"></script>
-<script src="sorami-iss.js?v=20261001112358"></script>
-<script src="sorami-plane.js?v=20261001112358"></script>
-<script src="sorami-align.js?v=20261001112358"></script>
-<script src="sorami-moon.js?v=20261001112358"></script>
+<script src="sorami-astro.js?v=20261001113405"></script>
+<script src="sorami-exif.js?v=20261001113405"></script>
+<script src="sorami-capcloud.js?v=20261001113405"></script>
+<script src="sorami-terrain.js?v=20261001113405"></script>
+<script src="sorami-mountain.js?v=20261001113405"></script>
+<script src="sorami-fuji.js?v=20261001113405"></script>
+<script src="sorami-sky.js?v=20261001113405"></script>
+<script src="sorami-routes.js?v=20261001113405"></script>
+<script src="sorami-iss.js?v=20261001113405"></script>
+<script src="sorami-plane.js?v=20261001113405"></script>
+<script src="sorami-align.js?v=20261001113405"></script>
+<script src="sorami-moon.js?v=20261001113405"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4664,6 +4676,16 @@ AimMap.setOverlay((ctx, { project, width, height }) => {
     ctx.restore();
   });
 
+  // 「地点から探す」で選んだ地点。どこから見た日なのかを地図でも分かるように、白い縁の点＋名前
+  if (aim.from) {
+    const [fx, fy] = project(aim.from.latitude, aim.from.longitude);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(fx, fy, 5.5, 0, Math.PI * 2);
+    ctx.fillStyle = ink; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+    aimMapLabel(ctx, fx, fy + 15, aim.from.name, "#fff", width, height, "center");
+    ctx.restore();
+  }
+
   // 目標の印は線の上に置く。二重丸＋名前
   ctx.save();
   ctx.beginPath(); ctx.arc(cx, cy, 7.5, 0, Math.PI * 2);
@@ -5846,7 +5868,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
     AimMap.open({ latitude: aim.target.latitude, longitude: aim.target.longitude },
       aimZoomFor(aim.target, aim.partId));
   }
-  if (redraw) { aimRedrawLine(); aimRenderList(); }
+  if (redraw) { aimRedrawLine(); aimRenderList(); aimRenderFrom(); }
 }
 
 /// 日付。**今年でなければ年も書く**（400日先まで並べるので、同じ月日が2回出ることがある）
@@ -5924,6 +5946,98 @@ async function aimRenderSpots() {
   for (const el of $("aimList").querySelectorAll("[data-day]")) {
     el.onclick = () => aimShowDay(+el.dataset.day, rows[+el.dataset.spot].sp);
   }
+}
+
+// ---------------------------------------------------------------- 地点から探す（2026-10-01）
+//
+// 「曽谷から見て、スカイツリーに重なるのはいつか。富士山に重なるのはいつか」（ユーザー）。
+// 計算は定番スポットの次の日と同じ（SoramiAlign.upcoming。前後の日は1回にまとめる）。
+// **どこからの結果かを必ず名前で書く。** 地点はこの中で選ぶ（地点カードの地点とは別に持つ）。
+// 重なる日があっても目標が隠れていれば見えないので、地形（塔は高い建物も）で見通しを確かめて添える。
+aim.from = store.get("sorami.aimFrom", null);
+aim.fromSeq = 0;
+function aimSetFrom(p) {
+  aim.from = { name: p.name, subtitle: p.subtitle || "", latitude: p.latitude, longitude: p.longitude };
+  store.set("sorami.aimFrom", aim.from);
+  $("aimFromSearch").value = ""; $("aimFromResults").innerHTML = "";
+  aimRenderFrom();
+  AimMap.redraw();
+}
+/// 検索結果の住所を「千葉県市川市」まで縮める（OSM の住所は「曽谷, 市川柏線, 宮久保四丁目, 市川市, 千葉県, 272-0822, 日本」と長い）
+function aimAreaOf(r) {
+  if (r.muni) return r.muni;
+  const parts = String(r.detail || "").split(/\s*[,、・]\s*/);
+  const pref = parts.find((x) => /[都道府県]$/.test(x)) || "";
+  // 市・区を先に（「本町」のような町名を市より先に拾わない）。無ければ町・村
+  const muni = parts.find((x) => /[市区]$/.test(x) && x !== pref) || parts.find((x) => /[町村]$/.test(x)) || "";
+  return pref + muni;
+}
+wireSearchBox("aimFromSearch", "aimFromResults",
+  (r) => aimSetFrom({ name: r.name, subtitle: aimAreaOf(r), latitude: r.latitude, longitude: r.longitude }),
+  (c) => aimSetFrom({ name: `${c.latitude.toFixed(4)}, ${c.longitude.toFixed(4)}`, subtitle: "緯度経度", latitude: c.latitude, longitude: c.longitude }));
+$("aimFromHere").onclick = () => aimSetFrom(place);
+
+async function aimRenderFrom() {
+  const seq = ++aim.fromSeq;
+  const f = aim.from;
+  const here = Number.isFinite(place.latitude) ? place : null;
+  const same = here && f && SoramiTerrain.distanceKm(here.latitude, here.longitude, f.latitude, f.longitude) < 0.05;
+  $("aimFromHere").hidden = !here || same;
+  if (here) $("aimFromHere").textContent = `いまの地点（${here.name}）で調べる`;
+  const moon = aim.body === "moon";
+  const what = aimIsFuji() ? (moon ? "パール富士" : "ダイヤモンド富士") : `${aim.target.name}に${moon ? "月" : "太陽"}が重なる日`;
+  if (!f) { $("aimFrom").innerHTML = `<p class="tiny">地点を選ぶと、そこから見た${esc(what)}を出します。</p>`; return; }
+  if (!(aim.target.parts || []).length) { $("aimFrom").innerHTML = ""; return; }
+  $("aimFrom").innerHTML = `<p class="tiny">${esc(f.name)}から計算しています…</p>`;
+  await new Promise((r) => setTimeout(r, 0));
+  const ground = await aimElevation(f.latitude, f.longitude);
+  if (seq !== aim.fromSeq) return;
+  const obs = { latitude: f.latitude, longitude: f.longitude, elevation: Number.isFinite(ground) ? ground : 0 };
+  let ev = [];
+  try {
+    ev = SoramiAlign.upcoming(obs, aim.target, aim.body,
+      { from: Date.now(), days: 400, limit: moon ? 24 : 8, limb: aim.limb, partId: aim.partId, stepMs: 3600000 });
+  } catch { ev = []; }
+  if (seq !== aim.fromSeq) return;
+  const any = ev.length;
+  // 定番スポットと同じく、縁がかすめるだけの回と、明るい空の月は出さない
+  ev = ev.filter((e) => e.rank !== "graze" && (!moon || e.sunAltitude < 0)).slice(0, 6);
+  const D = SoramiTerrain.distanceKm(f.latitude, f.longitude, aim.target.latitude, aim.target.longitude);
+  const head = `<p class="tiny" style="color:var(--secondary);margin-top:6px"><strong>${esc(f.name)}</strong>${
+    f.subtitle ? `（${esc(f.subtitle)}）` : ""}から見た${esc(what)} ・ ${esc(aim.target.name)}まで ${aimKm(D)}km</p>`;
+  const sideOf = (e) => (e.side === "set" ? (moon ? "月の入" : "日の入") : (moon ? "月の出" : "日の出"));
+  const rows = ev.map((e) => {
+    const lit = moon ? ` ・ ${moonGlyphAt(e.at)} 輝面${Math.round(e.illuminated * 100)}%` : "";
+    const span = e.dayCount > 1 ? `<span class="tiny sub-line" style="color:var(--tertiary)">前後 ${S.Cal.monthDay(e.from)}〜${S.Cal.monthDay(e.to)} も重なります</span>` : "";
+    return `<button class="al-row jump" data-from-day="${S.Cal.startOfDay(e.at)}">
+      <span class="al-w"><strong>${aimDateLabel(e.at)}</strong> <span class="tiny">${esc(AIM_RANK_LABEL[e.rank] || "")} ・ ${sideOf(e)}${lit}</span></span>
+      ${span}<span class="tiny sub-line" style="color:var(--accent)">この日の線と候補地を見る →</span></button>`;
+  }).join("");
+  const none = ev.length ? ""
+    : `<p class="tiny">この1年、${esc(f.name)}からは重なりません${moon && any ? "（重なる回は、月が明るい空にあるときだけ）" : ""}。</p>`;
+  $("aimFrom").innerHTML = head + (rows ? `<div class="al">${rows}</div>` : "") + none
+    + `<p class="tiny" id="aimFromSight" style="margin-top:6px;color:var(--tertiary)"></p>`;
+  for (const el of $("aimFrom").querySelectorAll("[data-from-day]")) {
+    el.onclick = () => aimShowDay(+el.dataset.fromDay, { id: "from", latitude: f.latitude, longitude: f.longitude });
+  }
+  if (!ev.length) return;
+  // 見通し。重なる日があっても、目標が隠れていれば見えない
+  let sight = "";
+  try {
+    const los = await SoramiAlign.lineOfSight(obs, aim.target,
+      { partId: aim.partId, elevations: (pts) => SoramiTerrain.elevations(pts), skipKm: 0.3 });
+    if (los && !los.clear) sight = "山や丘の陰になり、地形で隠れます";
+  } catch { /* 確かめられなくても日付は出す */ }
+  if (!sight && !aimIsFuji()) {
+    const b = await aimBuildingBlocks([{ stand: { latitude: f.latitude, longitude: f.longitude, elevationM: obs.elevation },
+      place: { deckM: 0 }, distanceKm: D }]);
+    const x = b && b[0];
+    if (x && x.blocked) sight = `${x.by ? `${x.by.distanceM}m 先の高さ${Math.round(x.by.heightM)}m の建物` : "高い建物"}で隠れます`;
+  }
+  if (seq !== aim.fromSeq) return;
+  $("aimFromSight").textContent = sight
+    ? `ただし、この地点からは${aim.target.name}が${sight}。少し場所を変えると見えることがあります。`
+    : "地形と高い建物（7階・20m以上）では隠れません。低い建物や木は見ていません。";
 }
 
 // ---------------------------------------------------------------- その日の候補地（2026-09-30）
@@ -6310,6 +6424,7 @@ function openAim(preset) {
   });
   aimRedrawLine();
   aimRenderList();
+  aimRenderFrom();
 }
 
 $("mapButton").onclick = () => MapPick.open(place);
