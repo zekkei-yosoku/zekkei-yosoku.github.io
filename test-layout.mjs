@@ -547,15 +547,18 @@ ok(/function routeFromHash/.test(html), "URLのハッシュで場所を持つ（
 ok(/addEventListener\("hashchange"/.test(html), "hashchange を見ている");
 // 画面ごとの「← 一覧にもどる」は帯として浮き、カードから離れて見えた（9/28 に外した）。
 // 2026-10-01: 題名だけでは戻れると気づけない（ユーザー「一覧に戻るボタンはあった方がいい」）。
-// 一覧以外の画面では、題名の場所に「‹ 一覧」を出す。どの画面でも同じ左上で、カードのあいだに浮かない。
+// 一覧以外の画面では、☰ と題名のあいだに「‹ 一覧」を出す。どの画面でも同じ左上で、カードのあいだに浮かない。
 ok(/id="homeLink"/.test(html), "一覧では題名が戻り道");
 ok(/\$\("homeLink"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \}/.test(html),
   "題名を押すと一覧へ戻る（引き出しも閉じる）");
 {
   const mast = /<div class="masthead">[\s\S]*?<\/div>/.exec(html)[0];
   ok(/<button id="backLink" class="tap" hidden aria-label="一覧へ戻る">/.test(mast), "「‹ 一覧」は題名と同じ帯（masthead）の中");
-  ok(/\$\("backLink"\)\.hidden = view === "list";\s+document\.querySelector\("\.masthead h1"\)\.hidden = view !== "list";/.test(html),
-    "一覧以外の画面では題名の代わりに「‹ 一覧」を出す");
+  // ☰ は左端のまま、☰ と題名のあいだに出す。題名は消さない（ユーザー「絶景予測を消しちゃうのはどうかと思う」）
+  ok(mast.indexOf('id="toolsButton"') < mast.indexOf('id="backLink"') && mast.indexOf('id="backLink"') < mast.indexOf('id="homeLink"'),
+    "並びは ☰ → ‹ 一覧 → 題名");
+  ok(/\$\("backLink"\)\.hidden = view === "list";/.test(html), "一覧以外の画面で「‹ 一覧」を出す");
+  ok(!/\.masthead h1"\)\.hidden/.test(html), "題名は隠さない");
   ok(/\$\("backLink"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \}/.test(html), "「‹ 一覧」を押すと一覧へ戻る");
   ok(/#backLink \{[^}]*background: var\(--card\)/.test(code), "押せる形（カードと同じ地の丸い帯）");
 }
@@ -580,6 +583,9 @@ ok(/row\.hidden = decks\.length < 1 \|\| !placeCardShown\(\)/.test(html), "展�
 // .place-row の display:flex が [hidden] の display:none に勝ち、地点カードが消えなかった。
 ok(/\[hidden\] \{ display: none !important; \}/.test(code), "hidden が display 指定に負けないようにする");
 ok(/listScrollY/.test(html), "一覧へ戻ったとき元の位置に戻す");
+// 「詳細と記録だけ先頭」と並べて書いていたため、道具の画面が一覧の途中の位置で開いていた（2026-10-01）
+ok(/window\.scrollTo\(0, currentView === "list" \? listScrollY : 0\);/.test(html), "一覧以外の画面は先頭から開く");
+ok(/if \(currentView === "list"\) listScrollY = window\.scrollY;/.test(html), "一覧を離れるときに位置を憶える（メニューから開いたときも）");
 // 詳細の中で現象を替えるたびに履歴を積むと、戻るのに何度も押させることになる。
 ok(/history\.replaceState\(history\.state, "", `#\/\$\{picked\}\/\$\{dayMs\}`\)/.test(html),
   "詳細内の切り替えは履歴を積まない（何画面目かは残す）");
