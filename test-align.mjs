@@ -55,6 +55,9 @@ console.log("== どこに重ねるかで場所が変わる ==");
   ok(tipTop && tipCenter && tipBehind && gallery, "先端と天望回廊、3つの合わせ方すべてで解ける");
   ok(d(tipTop, tipCenter) > 10 && d(tipTop, tipCenter) < 200,
     "「てっぺんに乗る」と「中心が重なる」は数十m違う", `${Math.round(d(tipTop, tipCenter))}m`);
+  const behind = AL.limbById("behind");
+  ok(behind.name === "上の縁がてっぺん" && behind.mountainName === "沈む・昇る瞬間" && !AL.LIMBS.some((l) => /裏に隠れる/.test(l.name)),
+    "3つ目の名前は、塔は「上の縁がてっぺん」、山は「沈む・昇る瞬間」（2026-10-02 ユーザー選択）");
   ok(d(tipCenter, gallery) > 100, "先端と天望回廊（第二展望台）は100m以上違う",
     `${Math.round(d(tipCenter, gallery))}m`);
   ok(tipTop.altitude > tipCenter.altitude && tipCenter.altitude > tipBehind.altitude,

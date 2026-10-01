@@ -514,6 +514,17 @@ ok(/const b = await aimBuildingAt\(p\.latitude, p\.longitude\);\s+if \(b\) \{ h 
 ok(/for \(const b of await tallBuildings\(\)\)/.test(html) && /return await SoramiTerrain\.buildingAt\(lat, lon\);/.test(html), "まず同梱の高い建物の一覧、無ければ OpenStreetMap に問い合わせる");
 ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM : typedNow \? typed : null;/.test(html), "お気に入り・検索の高さ、打ち込んだ高さを先に使う");
 ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れるのは地上からの高さ）");
+{
+  // 3つ目の合わせ方の名前は目標で変える（2026-10-02 ユーザー選択）
+  const fill = html.slice(html.indexOf("function aimFillSelects"), html.indexOf("/// 天体で言い方を変える"));
+  ok(/esc\(mountain && l\.mountainName \? l\.mountainName : l\.name\)/.test(fill) && fill.indexOf("const sel = list.find") > fill.indexOf("if (keep.target)"),
+    "合わせ方の名前は、選んだ目標が山かで決める（目標を戻してから）");
+  const isM = new Function("t", "return (" + /const aimIsMountain = (\(t\) => [\s\S]*?);\n/.exec(html)[1] + ")(t)");
+  ok(isM({ id: "fuji" }) && isM({ id: "custom", groundM: 1898, parts: [{ m: 1898 }] }) && isM({ id: "fav:1", groundM: 100, parts: [{ m: 100 }] }),
+    "富士山・地上 0m の他の目標・お気に入りは山");
+  ok(!isM({ id: "skytree", groundM: 2, parts: [{ m: 636 }, { m: 452 }] }) && !isM({ id: "custom", groundM: 110, parts: [{ m: 290 }] }) && !isM({ id: "custom", parts: [] }),
+    "塔・建物（地上の高さがある）は山ではない");
+}
 ok(/\$\("aimTargetSub"\)\.textContent = c\s+\? \[c\.subtitle, `標高 \$\{Math\.round\(c\.groundM \|\| 0\)\}m`\]\.filter/.test(html)
   && !/地上 \$\{/.test(html.slice(html.indexOf("function aimRenderTargetCard"), html.indexOf("// 打ち込んだ高さは、次に場所を選んだときに使う"))), "目標のカードに地上の高さを重ねて書かない（下の欄に入っている。2026-10-02 ユーザー「自動入力で入ってるから不要」）");
 {

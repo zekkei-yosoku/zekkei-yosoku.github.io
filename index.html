@@ -1568,21 +1568,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002083038"></script>
+<script src="sorami-core.js?v=20261002083601"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002083038"></script>
-<script src="sorami-exif.js?v=20261002083038"></script>
-<script src="sorami-capcloud.js?v=20261002083038"></script>
-<script src="sorami-terrain.js?v=20261002083038"></script>
-<script src="sorami-mountain.js?v=20261002083038"></script>
-<script src="sorami-fuji.js?v=20261002083038"></script>
-<script src="sorami-sky.js?v=20261002083038"></script>
-<script src="sorami-routes.js?v=20261002083038"></script>
-<script src="sorami-iss.js?v=20261002083038"></script>
-<script src="sorami-plane.js?v=20261002083038"></script>
-<script src="sorami-align.js?v=20261002083038"></script>
-<script src="sorami-moon.js?v=20261002083038"></script>
+<script src="sorami-astro.js?v=20261002083601"></script>
+<script src="sorami-exif.js?v=20261002083601"></script>
+<script src="sorami-capcloud.js?v=20261002083601"></script>
+<script src="sorami-terrain.js?v=20261002083601"></script>
+<script src="sorami-mountain.js?v=20261002083601"></script>
+<script src="sorami-fuji.js?v=20261002083601"></script>
+<script src="sorami-sky.js?v=20261002083601"></script>
+<script src="sorami-routes.js?v=20261002083601"></script>
+<script src="sorami-iss.js?v=20261002083601"></script>
+<script src="sorami-plane.js?v=20261002083601"></script>
+<script src="sorami-align.js?v=20261002083601"></script>
+<script src="sorami-moon.js?v=20261002083601"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4801,13 +4801,19 @@ function aimFillSelects() {
   $("aimTarget").innerHTML = list.filter((t) => !t.favId && t.id !== "custom").map(opt).join("")
     + (favs.length ? `<optgroup label="お気に入り">${favs.map(opt).join("")}</optgroup>` : "")
     + list.filter((t) => t.id === "custom").map(opt).join("");
-  $("aimLimb").innerHTML = SoramiAlign.LIMBS
-    .map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
   if (keep.target) $("aimTarget").value = keep.target;
   // 許可が変わって前の目標が一覧から消えたら、先頭へ
   if (!$("aimTarget").value && $("aimTarget").options.length) $("aimTarget").selectedIndex = 0;
+  // 3つ目（上の縁を合わせる）の名前は目標で変える: 山は「沈む・昇る瞬間」、塔は「上の縁がてっぺん」（2026-10-02 ユーザー選択）
+  const sel = list.find((t) => t.id === $("aimTarget").value);
+  const mountain = !!sel && aimIsMountain(sel);
+  $("aimLimb").innerHTML = SoramiAlign.LIMBS
+    .map((l) => `<option value="${l.id}">${esc(mountain && l.mountainName ? l.mountainName : l.name)}</option>`).join("");
   if (keep.limb) $("aimLimb").value = keep.limb;
 }
+/// 山（地面そのものが目標）か。富士山と、地上の高さが 0m の目標（羊蹄山など。てっぺんの高さ＝地面の標高）
+const aimIsMountain = (t) => t.id === "fuji"
+  || (Number.isFinite(t.groundM) && (t.parts || []).length === 1 && Math.abs(t.parts[0].m - t.groundM) < 0.5);
 /// 天体で言い方を変える。**月に「日の入側」と書かない**
 const aimSideLabel = (side) => (aim.body === "moon"
   ? (side === "set" ? "月の入側" : "月の出側")
