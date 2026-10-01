@@ -144,7 +144,8 @@ ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待�
     ok(menu.includes(`data-tool="${href}"`) && menu.includes(name), `${name} が入っている`);
   }
 }
-ok(/closeTools\(\); applyRoute\(\)/.test(html), "画面が変わったら閉じる");
+ok(/addEventListener\("hashchange", \(\) => \{\s+closeTools\(\);/.test(html) && /function pushRoute\(hash\) \{\s+closeTools\(\);/.test(html),
+  "画面が変わったら閉じる（進めたときも、戻る・進むでも）");
 // 検索欄に「ねらう」などを打って開く合言葉は**外した**（2026-09-30 ユーザー指摘「もういらないって言わなかったか」）。
 // 道具はメニューから開く。合言葉は、使える道具を人ごとに決めた仕組みを素通りする入口でもあった。
 // 「月丼」「そら」「パノラマ」は地名の検索語としても普通に打たれうる
@@ -544,12 +545,26 @@ console.log("== 一覧と詳細は別画面 ==");
 ok(/id="listView"/.test(html) && /id="detailView"/.test(html), "2つの画面がある");
 ok(/function routeFromHash/.test(html), "URLのハッシュで場所を持つ（戻るが効く）");
 ok(/addEventListener\("hashchange"/.test(html), "hashchange を見ている");
-// 画面ごとの「← 一覧にもどる」は帯として浮き、カードから離れて見えた。
-// 題名そのものを戻り道にして（YouTube・Gmail と同じ）、出口をひとつに絞る。
-ok(/id="homeLink"/.test(html), "題名が戻り道になっている");
+// 画面ごとの「← 一覧にもどる」は帯として浮き、カードから離れて見えた（9/28 に外した）。
+// 2026-10-01: 題名だけでは戻れると気づけない（ユーザー「一覧に戻るボタンはあった方がいい」）。
+// 一覧以外の画面では、題名の場所に「‹ 一覧」を出す。どの画面でも同じ左上で、カードのあいだに浮かない。
+ok(/id="homeLink"/.test(html), "一覧では題名が戻り道");
 ok(/\$\("homeLink"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \}/.test(html),
   "題名を押すと一覧へ戻る（引き出しも閉じる）");
-ok(!/一覧にもどる<\/button>/.test(html), "同じ意味の戻るボタンを画面ごとに置かない");
+{
+  const mast = /<div class="masthead">[\s\S]*?<\/div>/.exec(html)[0];
+  ok(/<button id="backLink" class="tap" hidden aria-label="一覧へ戻る">/.test(mast), "「‹ 一覧」は題名と同じ帯（masthead）の中");
+  ok(/\$\("backLink"\)\.hidden = view === "list";\s+document\.querySelector\("\.masthead h1"\)\.hidden = view !== "list";/.test(html),
+    "一覧以外の画面では題名の代わりに「‹ 一覧」を出す");
+  ok(/\$\("backLink"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \}/.test(html), "「‹ 一覧」を押すと一覧へ戻る");
+  ok(/#backLink \{[^}]*background: var\(--card\)/.test(code), "押せる形（カードと同じ地の丸い帯）");
+}
+ok(!/一覧にもどる<\/button>/.test(html), "画面ごとの帯の戻るボタンは置かない（場所は題名の位置ひとつ）");
+// 進めた回数を変数で数えると、ブラウザの戻る・進むでずれて、アプリの外まで戻ってしまう
+ok(!/pushedCount/.test(html), "進めた回数を変数で数えない");
+ok(/history\.pushState\(\{ depth \}, "", hash\)/.test(html), "履歴そのものに何画面目かを持たせる");
+ok(/if \(depth > 0\) \{ toListAfterBack = true; history\.go\(-depth\); return; \}/.test(html), "何画面進んでいても一度で一覧へ戻る");
+ok(!/location\.hash = /.test(html), "画面を進めるのは pushRoute だけ（深さを持たない履歴を作らない）");
 ok(!/この先7日/.test(html), "戻り先を日数で呼ばない（詳細にも同じ7日間がある）");
 
 // 記録はホームに置いていた。判断に使わないものを、判断する画面に混ぜない。
@@ -566,7 +581,8 @@ ok(/row\.hidden = decks\.length < 1 \|\| !placeCardShown\(\)/.test(html), "展�
 ok(/\[hidden\] \{ display: none !important; \}/.test(code), "hidden が display 指定に負けないようにする");
 ok(/listScrollY/.test(html), "一覧へ戻ったとき元の位置に戻す");
 // 詳細の中で現象を替えるたびに履歴を積むと、戻るのに何度も押させることになる。
-ok(/location\.replace/.test(html), "詳細内の切り替えは履歴を積まない");
+ok(/history\.replaceState\(history\.state, "", `#\/\$\{picked\}\/\$\{dayMs\}`\)/.test(html),
+  "詳細内の切り替えは履歴を積まない（何画面目かは残す）");
 
 console.log("== 詳細の見出し ==");
 // 390px では見出しと評価を1行に並べると重なった（実機で確認）。
@@ -2042,8 +2058,9 @@ console.log("== 管理画面に、ほかの画面のものを出さない ==");
 // 2026-09-08 ユーザー指摘「管理画面に実際はどうでしたか？がある」。
 // recPending は listView の**外**にある独立したカードなので、listView を
 // 隠しても消えない。切り替えの条件に inAdmin を書き忘れていた。
-ok(/renderRecords\(now, inDetail \|\| inRecords \|\| inAdmin\)/.test(html),
-  "記録の問いかけを管理画面で隠す");
+// 2026-10-01: 隠す画面を並べて書いていたため、あとから足した道具の画面の下にも出ていた。一覧のときだけ出す
+ok(/renderRecords\(now, view !== "list"\)/.test(html),
+  "記録の問いかけは一覧のときだけ（管理・記録・道具の画面には出さない）");
 // main 直下の画面は VIEWS の表で切り替える。画面ごとの条件は書かない
 for (const el of ["listView", "detailView", "recordsView", "adminView", "aimView", "skyView", "planeView"]) {
   ok(new RegExp(`el: "${el}"`).test(html), `${el} が画面の表にある`);

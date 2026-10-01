@@ -92,6 +92,12 @@
   .masthead-mark { width: 20px; height: 20px; border-radius: 5px; display: block; }
   /* 題名そのものが戻り道（YouTube・Gmail と同じ）。見た目は h1 のまま */
   #homeLink { display: flex; align-items: center; gap: 6px; }
+  /* 一覧以外の画面で題名の代わりに出す戻り道。カードと同じ地の丸い帯にして、押せることを形で見せる。
+     矢印だけ橙（押す向きの合図）。字はほかの釦と同じ太さ */
+  #backLink { display: inline-flex; align-items: center; gap: 3px; margin-right: auto;
+              height: 32px; padding: 0 13px 0 9px; border-radius: 16px;
+              background: var(--card); color: var(--text); font-size: 0.81rem; font-weight: 700; }
+  #backLink svg { color: var(--accent); flex: none; }
   h1 { font-size: 0.94rem; font-weight: 700; letter-spacing: .18em;
        color: var(--secondary); text-align: left; }
   #authButton { font-size: 0.75rem; font-weight: 700; color: var(--accent); min-height: 44px; padding: 0 2px; }
@@ -781,6 +787,11 @@
          `alt` は空にする（すぐ隣に「絶景予測」と書いてあるので二度言わせない） -->
     <h1><button id="homeLink" class="tap">
       <img src="icon-32.png?v=1" class="masthead-mark" alt="" width="20" height="20">絶景予測</button></h1>
+    <!-- 一覧へ戻る（2026-10-01 ユーザー「一覧に戻るボタンはあった方がいい」）。
+         一覧以外の画面では題名の代わりに**同じ場所**へ出す。どの画面でも左上の同じ位置にあり、
+         カードのあいだに浮かない（9/28 までの「← 一覧にもどる」は地点カードと道具のカードのあいだに帯で浮いていた）。
+         iPhone のホーム画面から開くとブラウザの戻るが無いので、画面の中に要る -->
+    <button id="backLink" class="tap" hidden aria-label="一覧へ戻る"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>一覧</button>
     <!-- ログインは任意。押さなくても予報は全部見られる。
          同期が失敗しているときは、それをここに出す（黙って同期されていないのは
          「黙って消える」と同じ種類の事故）。 -->
@@ -1386,21 +1397,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001102901"></script>
+<script src="sorami-core.js?v=20261001104250"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001102901"></script>
-<script src="sorami-exif.js?v=20261001102901"></script>
-<script src="sorami-capcloud.js?v=20261001102901"></script>
-<script src="sorami-terrain.js?v=20261001102901"></script>
-<script src="sorami-mountain.js?v=20261001102901"></script>
-<script src="sorami-fuji.js?v=20261001102901"></script>
-<script src="sorami-sky.js?v=20261001102901"></script>
-<script src="sorami-routes.js?v=20261001102901"></script>
-<script src="sorami-iss.js?v=20261001102901"></script>
-<script src="sorami-plane.js?v=20261001102901"></script>
-<script src="sorami-align.js?v=20261001102901"></script>
-<script src="sorami-moon.js?v=20261001102901"></script>
+<script src="sorami-astro.js?v=20261001104250"></script>
+<script src="sorami-exif.js?v=20261001104250"></script>
+<script src="sorami-capcloud.js?v=20261001104250"></script>
+<script src="sorami-terrain.js?v=20261001104250"></script>
+<script src="sorami-mountain.js?v=20261001104250"></script>
+<script src="sorami-fuji.js?v=20261001104250"></script>
+<script src="sorami-sky.js?v=20261001104250"></script>
+<script src="sorami-routes.js?v=20261001104250"></script>
+<script src="sorami-iss.js?v=20261001104250"></script>
+<script src="sorami-plane.js?v=20261001104250"></script>
+<script src="sorami-align.js?v=20261001104250"></script>
+<script src="sorami-moon.js?v=20261001104250"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1734,7 +1745,6 @@ let atIss = false;       // 「ISSの月面通過」のページを見ている�
 let atRecords = false;   // 記録画面を見ているか
 let atAdmin = false;     // 管理者画面を見ているか
 let nowcastReady = false;  // 実況が取れたか。画面を切り替えても状態を保つ
-let pushedCount = 0;     // 自分で進めた回数。戻るボタンの挙動を決めるのに使う
 let listScrollY = 0;     // 一覧へ戻ったときに元の位置へ戻す
 
 let bundle = null;       // 取得済みの予報
@@ -2256,8 +2266,10 @@ function render() {
   // 順番を間違えても気づけない。**表に1行足すだけ**にする（2026-09-28）。
   const view = VIEWS.find((v) => v.on()).id;
   for (const v of VIEWS) $(v.el).hidden = v.id !== view;
-  const inDetail = view === "detail", inAdmin = view === "admin", inRecords = view === "records";
-  const inAim = view === "aim", inSky = view === "sky", inPlane = view === "plane";
+  // 一覧では題名、それ以外の画面では同じ場所に「‹ 一覧」
+  $("backLink").hidden = view === "list";
+  document.querySelector(".masthead h1").hidden = view !== "list";
+  const inDetail = view === "detail";
   // 地点と実況は判断のための情報。**その地点が主語の画面（一覧・詳細・空の見え方）だけに出す。**
   // ダイヤモンド富士や月丼の上に出すと、何の地点なのか分からなかった（2026-09-30 ユーザー指摘）。
   // それらの道具は自分のスポット一覧を持つ
@@ -2281,7 +2293,8 @@ function render() {
         if (!sel) return;
         selectedDay[picked] = dayMs;
         // hashchange で画面全体を再描画すると横位置・フォーカス・縦位置が戻る。
-        history.replaceState(null, "", `#/${picked}/${dayMs}`);
+        // 履歴の深さ（history.state）は残す。null で置き換えると、一覧へ戻る釦が戻る段数を失う
+        history.replaceState(history.state, "", `#/${picked}/${dayMs}`);
         for (const day of strip.querySelectorAll("[data-day]")) {
           day.setAttribute("aria-pressed", String(+day.dataset.day === dayMs));
         }
@@ -2330,10 +2343,11 @@ function render() {
     };
   }
 
-  // 管理画面でも隠す。recPending は listView の外にある独立したカードなので、
-  // listView を隠しても消えない。ここに inAdmin を書き忘れると、
-  // 利用者の管理をしている画面に「実際はどうでしたか？」が出る。
-  renderRecords(now, inDetail || inRecords || inAdmin);
+  // **一覧のときだけ出す。** recPending は listView の外にある独立したカードなので、
+  // listView を隠しても消えない。隠す画面を並べて書いていたため、あとから足した道具の画面
+  // （ねらう・空の見え方・月丼・ISS）の下に「実際はどうでしたか？」が出ていた（2026-10-01）。
+  // 詳細には詳細の中に同じ入口がある
+  renderRecords(now, view !== "list");
   // ホームと記録画面の「実際はどうでしたか？」も同じ配線に乗せるため、
   // 描画をすべて終えてから束ねる。
   wireOutcomes(document.querySelector("main"));
@@ -2374,7 +2388,7 @@ function wireDayDetail(host) {
   wireOutcomes(host);
   wireAlignmentJump(host);
   const toSky = host.querySelector("#toSky");
-  if (toSky) toSky.onclick = () => { pushedCount++; location.hash = "#/sky"; };
+  if (toSky) toSky.onclick = () => pushRoute("#/sky");
 }
 
 /// ダイヤモンド富士の行から、その日の詳細へ飛ぶ
@@ -2697,16 +2711,32 @@ function routeFromHash() {
 function pick(id, now, dayMs) {
   const u = upcoming(weeks[id], now);
   const day = dayMs !== undefined && dayMs !== null ? dayMs : (u ? u.dayMs : null);
-  listScrollY = window.scrollY;
-  pushedCount++;
-  location.hash = day !== null ? `#/${id}/${day}` : `#/${id}`;
+  pushRoute(day !== null ? `#/${id}/${day}` : `#/${id}`);
 }
 
+/// 画面を進める。**履歴の1つ1つに「一覧から何画面目か」（depth）を持たせる。**
+///
+/// 以前は進めた回数を変数で数えていたが、ブラウザの戻る・進むでは減らず、
+/// 同じ画面をメニューから開き直すと履歴は増えないのに数だけ増えた。
+/// 数がずれると、一覧へ戻るつもりでアプリの外まで戻ってしまう。
+/// 履歴そのものに持たせれば、戻る・進むでも必ず合う。
+function pushRoute(hash) {
+  closeTools();
+  if (location.hash === hash) return;
+  const depth = ((history.state && history.state.depth) || 0) + 1;
+  history.pushState({ depth }, "", hash);
+  applyRoute();   // pushState は hashchange を起こさない
+}
+
+/// 一覧へ戻る。**何画面進んでいても一度で戻る**（2026-10-01）。
+/// 1つずつ戻していたので、一覧→詳細→道具と進んでから題名を押すと詳細で止まっていた。
+/// 戻った先が一覧でなければ（詳細のURLを直接開いてから進んだ場合）、そこを一覧に置き換える。
+/// 履歴は増やさない（増やすと、一覧でブラウザの戻るを押したときに道具の画面へ戻ってしまう）。
+let toListAfterBack = false;
 function goList() {
-  // 自分で進めてきたなら戻るで返す（履歴を増やさない）。
-  // 詳細のURLを直接開いた場合は戻り先が無いので、ハッシュを外す。
-  if (pushedCount > 0) { pushedCount--; history.back(); }
-  else location.replace(location.pathname + location.search);
+  const depth = (history.state && history.state.depth) || 0;
+  if (depth > 0) { toListAfterBack = true; history.go(-depth); return; }
+  if (routeFromHash()) { history.replaceState(null, "", location.pathname + location.search); applyRoute(); }
 }
 
 function applyRoute() {
@@ -2730,12 +2760,21 @@ function applyRoute() {
     if (route.dayMs !== null) selectedDay[route.id] = route.dayMs;
     else delete selectedDay[route.id];
   }
+  // 一覧を離れる前に位置を憶える（メニューから道具を開いたときも、ブラウザの戻る・進むでも）
+  if (currentView === "list") listScrollY = window.scrollY;
   render();
-  // 画面が入れ替わるので位置を戻す。詳細と記録は先頭から、一覧は元いた位置へ。
-  if (picked || atRecords) window.scrollTo(0, 0);
-  else window.scrollTo(0, listScrollY);
+  // 画面が入れ替わるので位置を戻す。一覧は元いた位置へ、ほかの画面は先頭から。
+  // 以前は「詳細と記録だけ先頭」としていたので、道具の画面が一覧の途中の位置で開いていた（2026-10-01）
+  window.scrollTo(0, currentView === "list" ? listScrollY : 0);
 }
-window.addEventListener("hashchange", () => { closeTools(); applyRoute(); });
+window.addEventListener("hashchange", () => {
+  closeTools();
+  if (toListAfterBack) {
+    toListAfterBack = false;
+    if (routeFromHash()) history.replaceState(null, "", location.pathname + location.search);
+  }
+  applyRoute();
+});
 
 // 記録へ進む。一覧の位置を覚えておき、戻るで返す。
 
@@ -6586,17 +6625,15 @@ function markToolsCurrent() {
     else el.removeAttribute("aria-current");
   }
 }
-// 題名を押したらホームへ。どの道具の画面にも帯は出ているので、
-// 画面ごとに「← 一覧にもどる」を置く必要がない（置くと同じ意味の出口が2つになる）
+// 一覧では題名、それ以外の画面では同じ場所の「‹ 一覧」。どちらも一覧へ戻る
 $("homeLink").onclick = () => { closeTools(); goList(); };
+$("backLink").onclick = () => { closeTools(); goList(); };
 $("toolsButton").onclick = () => ($("toolsMenu").hidden ? openTools() : closeTools());
 $("toolsClose").onclick = () => closeTools({ restoreFocus: true });
 $("toolsScrim").onclick = () => closeTools({ restoreFocus: true });
 for (const el of $("toolsMenu").querySelectorAll("[data-tool]")) {
   el.onclick = () => {
-    closeTools();
-    pushedCount++;
-    location.hash = el.dataset.tool;
+    pushRoute(el.dataset.tool);
   };
 }
 document.addEventListener("keydown", (e) => {
@@ -7214,7 +7251,7 @@ $("adminCodesCopy").onclick = async () => {
     $("adminCodesCopy").textContent = "コピーしました（IDも入っています）";
   } catch { $("adminCodesCopy").textContent = "コピーできませんでした。選んで写してください"; }
 };
-$("toAdmin").onclick = () => { $("accountSheet").close(); location.hash = "#/admin"; };
+$("toAdmin").onclick = () => { $("accountSheet").close(); pushRoute("#/admin"); };
 
 // **次の一歩を示す。** 危なさを言うだけでは、何をすればいいか分からない。
 //
