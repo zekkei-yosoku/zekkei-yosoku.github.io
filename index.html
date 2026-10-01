@@ -371,6 +371,12 @@
                 overscroll-behavior: contain; }
   .sheet input[type=search] { width: 100%; font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 10px;
     border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  /* 検索欄と「検索」釦（2026-10-01 ユーザー「検索開始のボタンも出しておいた方がいい」）。
+     Enter やキーボードの「検索」だけだと、押して何も起きないときに、始まっていないのか見つからないのか分からない */
+  .search-row { display: flex; gap: 6px; align-items: stretch; }
+  .search-row input[type=search] { flex: 1; min-width: 0; width: auto; }
+  /* .fav-btn（幅100%・縦の余白）が後ろにあるので、二重の指定で勝たせる */
+  .search-row .search-go { flex: 0 0 auto; width: auto; padding: 0 16px; }
   .chips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0; }
   /* 実寸で指の的を取る。密集したチップに疑似要素で 44px を被せると、
      折り返した上下の行と重なって隣を押してしまう。 */
@@ -596,7 +602,7 @@
   /* 観測スポットの行。日付は押すとその日の線と場所を出す */
   .aim-spot { cursor: default; }
   /* どこから重ねるか（名前で探す欄）の下の、次に重なる日 */
-  #aimFromSearch { margin-bottom: 4px; }
+  #aimView .search-row { margin-bottom: 4px; }
   .aim-from { margin: 2px 0 8px; }
   /* 地図のすぐ下に「ここから重ねる」（字の分の幅）、その下に中心の説明を幅いっぱいに。
      横に並べると説明が細く5行に折れていた */
@@ -1010,8 +1016,11 @@
          ユーザー「地図の中心ってここにいらない。地図を見てる時にここにしようって思うわけ」）。すぐ下にここから見て次に重なる日を出す（逆引き。ユーザー「曽谷から見て
          スカイツリーに重なるのはいつか」）。アプリ全体の地点（地点カード）は変えない -->
     <label class="fav-l" for="aimFromSearch">どこから重ねるか</label>
-    <input type="search" id="aimFromSearch" class="fav-in" enterkeyhint="search"
-           placeholder="観測地点を地名・住所・駅名で探す" aria-label="どこから重ねるか（観測地点）">
+    <div class="search-row">
+      <input type="search" id="aimFromSearch" class="fav-in" enterkeyhint="search"
+             placeholder="観測地点を地名・住所・駅名・緯度経度で探す" aria-label="どこから重ねるか（観測地点）">
+      <button id="aimFromSearchGo" class="fav-btn search-go">検索</button>
+    </div>
     <div id="aimFromResults"></div>
     <div id="aimFrom" class="aim-from"></div>
 
@@ -1180,7 +1189,10 @@
   <div class="sheet-body">
     <!-- 地図は国土地理院のタイル。**ライブラリは使わない**（このアプリは依存パッケージを持たない）。
          標高タイルを読むのと同じ配信元で、出典表示の条件も同じ。 -->
-    <input type="search" id="mapSearch" enterkeyhint="search" placeholder="地名・緯度経度・地図のURLで動かす">
+    <div class="search-row">
+      <input type="search" id="mapSearch" enterkeyhint="search" placeholder="地名・緯度経度・地図のURLで動かす">
+      <button id="mapSearchGo" class="fav-btn search-go">検索</button>
+    </div>
     <div id="mapSearchResults"></div>
     <div class="mapwrap">
       <div class="maplayer" role="group" aria-label="地図の種類">
@@ -1209,7 +1221,10 @@
 <dialog class="sheet" id="placeSheet">
   <div class="sheet-head"><strong>地点</strong><button id="placeClose">閉じる</button></div>
   <div class="sheet-body">
-    <input type="search" id="searchBox" enterkeyhint="search" placeholder="住所・地名・駅名・緯度経度・地図のURL">
+    <div class="search-row">
+      <input type="search" id="searchBox" enterkeyhint="search" placeholder="住所・地名・駅名・緯度経度・地図のURL">
+      <button id="searchBoxGo" class="fav-btn search-go">検索</button>
+    </div>
     <div id="searchResults"></div>
     <button class="list-item" id="geoButton">📡 現在地を使う</button>
     <button class="list-item" id="mapButton">🗺️ 地図で選ぶ（ピンを置く）</button>
@@ -1426,21 +1441,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001115201"></script>
+<script src="sorami-core.js?v=20261001120729"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001115201"></script>
-<script src="sorami-exif.js?v=20261001115201"></script>
-<script src="sorami-capcloud.js?v=20261001115201"></script>
-<script src="sorami-terrain.js?v=20261001115201"></script>
-<script src="sorami-mountain.js?v=20261001115201"></script>
-<script src="sorami-fuji.js?v=20261001115201"></script>
-<script src="sorami-sky.js?v=20261001115201"></script>
-<script src="sorami-routes.js?v=20261001115201"></script>
-<script src="sorami-iss.js?v=20261001115201"></script>
-<script src="sorami-plane.js?v=20261001115201"></script>
-<script src="sorami-align.js?v=20261001115201"></script>
-<script src="sorami-moon.js?v=20261001115201"></script>
+<script src="sorami-astro.js?v=20261001120729"></script>
+<script src="sorami-exif.js?v=20261001120729"></script>
+<script src="sorami-capcloud.js?v=20261001120729"></script>
+<script src="sorami-terrain.js?v=20261001120729"></script>
+<script src="sorami-mountain.js?v=20261001120729"></script>
+<script src="sorami-fuji.js?v=20261001120729"></script>
+<script src="sorami-sky.js?v=20261001120729"></script>
+<script src="sorami-routes.js?v=20261001120729"></script>
+<script src="sorami-iss.js?v=20261001120729"></script>
+<script src="sorami-plane.js?v=20261001120729"></script>
+<script src="sorami-align.js?v=20261001120729"></script>
+<script src="sorami-moon.js?v=20261001120729"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6497,25 +6512,28 @@ async function nearName(lat, lon) {
   return { name, area };
 }
 
+/// 緯度経度の点を地点にする（地図の「この場所にする」と、検索欄に緯度経度を入れたとき）。
+/// 標高はその場所の値を読む（**地点検索の代表点と違い、ここが効く**）。取れなければ標高なしで進める。
+/// 名前は近くの地名を当てる。取れなければ座標そのものを名前にする。
+async function selectPointAt(lat, lon, subtitle) {
+  let elevation = null;
+  try { elevation = await SoramiTerrain.elevationFromTile(lat, lon, 13); } catch { elevation = null; }
+  const { name } = await nearName(lat, lon);
+  selectPlace({ id: `map:${lat.toFixed(5)},${lon.toFixed(5)}`,
+    name, subtitle, latitude: lat, longitude: lon,
+    elevation: elevation === null || elevation === undefined ? null : Math.round(elevation * 10) / 10,
+    // **点は代表点ではない。** ダイヤモンド富士や建物の地平線が出せる
+    locationScope: "point" });
+}
+
 $("mapPick").onclick = async () => {
   const c = MapPick.center();
   $("mapPick").disabled = true;
   $("mapPick").textContent = "標高を読んでいます…";
-  // 標高はその場所の値を読む（**地点検索の代表点と違い、ここが効く**）。
-  // 取れなければ標高なしで進める（採点側は標高が無くても動く）。
-  let elevation = null;
-  try { elevation = await SoramiTerrain.elevationFromTile(c.latitude, c.longitude, 13); } catch { elevation = null; }
-  // 名前は近くの地名を当てる。取れなければ座標そのものを名前にする。
-  const { name } = await nearName(c.latitude, c.longitude);
-  const subtitle = "地図で選んだ地点";
+  $("mapSheet").close();
+  await selectPointAt(c.latitude, c.longitude, "地図で選んだ地点");
   $("mapPick").disabled = false;
   $("mapPick").textContent = "この場所にする";
-  $("mapSheet").close();
-  selectPlace({ id: `map:${c.latitude.toFixed(5)},${c.longitude.toFixed(5)}`,
-    name, subtitle, latitude: c.latitude, longitude: c.longitude,
-    elevation: elevation === null || elevation === undefined ? null : Math.round(elevation * 10) / 10,
-    // **地図で置いた点は代表点ではない。** ダイヤモンド富士や建物の地平線が出せる
-    locationScope: "point" });
 };
 
 $("placeButton").onclick = () => {
@@ -6709,6 +6727,12 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
     // 検索に投げても地名としては当たらないので、先にこちらで拾う（2026-09-24 ユーザー依頼）。
     const coord = SoramiTerrain.parseLatLon(q);
     if (coord) { $(resultsId).innerHTML = ""; onCoord(coord); return; }
+    // 度（°・度）があるのに読めなければ、座標の書き間違い。地名として探しても何も出ないので、書き方を言う
+    if (/[°º˚度]/.test(q)) {
+      $(resultsId).innerHTML = `<p class="tiny">緯度経度を読めませんでした。<span class="nb">35°44'52.1"N 139°55'49.1"E</span> や
+        <span class="nb">35.7478, 139.9303</span> の形で入れてください。</p>`;
+      return;
+    }
     // 短縮リンク（maps.app.goo.gl/…）は**ブラウザからは行き先を読めない**（CORS）。
     // 2026-09-27 から、行き先だけを調べる経路を API に置いた。
     if (SoramiTerrain.isShortMapLink(q)) {
@@ -6736,9 +6760,13 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
     try { renderSearchResults($(resultsId), await searchPlaces(q), onPick); }
     catch { $(resultsId).innerHTML = `<p class="warn">検索に失敗しました</p>`; }
   };
-  $(boxId).addEventListener("keydown", (e) => { if (e.key === "Enter") run(); });
+  // 日本語の変換を確定する Enter では始めない（確定のたびに検索が走る）
+  $(boxId).addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) run(); });
   $(boxId).addEventListener("search", run);       // iOS のキーボードの「検索」
   $(boxId).addEventListener("change", run);       // 予測変換からの確定など
+  // 「検索」釦。押せば必ず始まる（同じ語でも、もう一度探す）
+  const go = document.getElementById(`${boxId}Go`);
+  if (go) go.onclick = () => { last = null; run(); };
 }
 
 wireSearchBox("searchBox", "searchResults", (r) => {
@@ -6757,9 +6785,12 @@ wireSearchBox("searchBox", "searchResults", (r) => {
     locationScope: r.scope,
     decks, eyeHeightAGL: decks ? decks[0].aglM : null,
     structureM: r.structureM ?? null, lookout: r.lookout ?? null });
-}, (c) => {
-  // 座標を入れたときは**地図をそこで開く**。標高と名前は地図の「この場所にする」で付く
-  MapPick.open({ latitude: c.latitude, longitude: c.longitude });
+}, async (c) => {
+  // 座標を入れたら、**そのままその場所を地点にする**（2026-10-01 ユーザー「候補から選択しないと検索できないようになってるんでしょ」）。
+  // 以前は地図を開いて「この場所にする」をもう一度押させていた。位置を直したいときは「地図で選ぶ」から
+  $("searchResults").innerHTML = `<p class="tiny">${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)} にしています…</p>`;
+  await selectPointAt(c.latitude, c.longitude, `緯度経度 ${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)}`);
+  $("searchResults").innerHTML = ""; $("searchBox").value = "";
 });
 
 // 地図の中の検索は**地点を決めない。地図を動かすだけ。**

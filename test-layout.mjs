@@ -510,6 +510,22 @@ console.log("== 月を表すところは全部、その時の満ち欠け（2026
   ok(fixed <= 4, `固定の 🌙 が増えていない（${fixed}か所）`);
 }
 
+console.log("== 検索欄に「検索」釦（2026-10-01） ==");
+// ユーザー「35°44'52.1"N 139°55'49.1"E を入れてエンター押しても検索できない。検索開始のボタンも出しておいた方がいい。名前は「検索」とか」
+for (const id of ["searchBox", "mapSearch", "aimFromSearch"]) {
+  ok(new RegExp(`<div class="search-row">\\s*<input type="search" id="${id}"[^>]*>\\s*<button id="${id}Go" class="fav-btn search-go">検索</button>`).test(html),
+    `${id} の横に「検索」釦`);
+}
+ok(/const go = document\.getElementById\(`\$\{boxId\}Go`\);\s+if \(go\) go\.onclick = \(\) => \{ last = null; run\(\); \};/.test(html),
+  "「検索」釦は押せば必ず始まる（同じ語でも）");
+ok(/e\.key === "Enter" && !e\.isComposing/.test(html), "日本語の変換を確定する Enter では始めない");
+// .fav-btn（幅100%）が後ろにあるので、釦の幅は二重の指定で上書きする。1段だと釦が幅いっぱいに広がり、欄が潰れた（ユーザー「検索ボタンデカすぎね」）
+ok(/\.search-row \.search-go \{ flex: 0 0 auto; width: auto;/.test(code), "「検索」釦は字の幅（欄を潰さない）");
+// 地点の検索欄に緯度経度を入れたら、候補を選ばずにそのまま地点にする（ユーザー「候補から選択しないと検索できないようになってるんでしょ」）
+ok(/wireSearchBox\("searchBox", "searchResults"[\s\S]{0,1600}\}, async \(c\) => \{[\s\S]{0,400}await selectPointAt\(c\.latitude, c\.longitude/.test(html),
+  "地点の検索: 緯度経度ならそのまま地点にする（地図をもう一度押させない）");
+ok(/if \(\/\[°º˚度\]\/\.test\(q\)\) \{[\s\S]{0,120}緯度経度を読めませんでした/.test(html), "度があるのに読めなければ、地名として探さず書き方を言う");
+
 console.log("== 観測地点を水の上に置かない（2026-10-01） ==");
 // ユーザー「観測地点は陸上に。ISS とか海の上になってなかった？」「他の観測地点も水の上にならないように」
 ok(/const c = await aimOnLand\(k, lines, opts\);/.test(html), "ねらう: 候補ごとに水の上かを見る（見通しを確かめる前に）");
@@ -2269,8 +2285,8 @@ console.log("== 月の代表地点・キャッシュ・保存経路 ==");
     && /wireSearchBox\("mapSearch", "mapSearchResults"/.test(html), "地点シートと地図で同じ検索を使う");
   ok(/MapPick\.setView\(r\.latitude, r\.longitude/.test(html), "地図の検索は地点を決めず、地図を動かすだけ");
   // iOS のキーボードの「検索」では keydown の Enter が届かないことがある（2026-09-24 ユーザー報告）
-  ok(/addEventListener\("search", run\)/.test(html) && /addEventListener\("keydown", \(e\) => \{ if \(e\.key === "Enter"\) run\(\); \}\)/.test(html),
-    "確定は Enter と search の両方で拾う");
+  ok(/addEventListener\("search", run\)/.test(html) && /addEventListener\("keydown", \(e\) => \{ if \(e\.key === "Enter" && !e\.isComposing\) run\(\); \}\)/.test(html),
+    "確定は Enter と search の両方で拾う（変換を確定する Enter は除く）");
   // 2026-09-24: 検索は国土地理院とOSMの2本立てになった。種別はそれぞれの判定を通して持つ
   ok(html.includes("scope: SoramiTerrain.searchLocationScope(r)")
     && html.includes("scope: SoramiTerrain.gsiLocationScope(f.properties?.title)")
