@@ -1554,21 +1554,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001164634"></script>
+<script src="sorami-core.js?v=20261001170749"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001164634"></script>
-<script src="sorami-exif.js?v=20261001164634"></script>
-<script src="sorami-capcloud.js?v=20261001164634"></script>
-<script src="sorami-terrain.js?v=20261001164634"></script>
-<script src="sorami-mountain.js?v=20261001164634"></script>
-<script src="sorami-fuji.js?v=20261001164634"></script>
-<script src="sorami-sky.js?v=20261001164634"></script>
-<script src="sorami-routes.js?v=20261001164634"></script>
-<script src="sorami-iss.js?v=20261001164634"></script>
-<script src="sorami-plane.js?v=20261001164634"></script>
-<script src="sorami-align.js?v=20261001164634"></script>
-<script src="sorami-moon.js?v=20261001164634"></script>
+<script src="sorami-astro.js?v=20261001170749"></script>
+<script src="sorami-exif.js?v=20261001170749"></script>
+<script src="sorami-capcloud.js?v=20261001170749"></script>
+<script src="sorami-terrain.js?v=20261001170749"></script>
+<script src="sorami-mountain.js?v=20261001170749"></script>
+<script src="sorami-fuji.js?v=20261001170749"></script>
+<script src="sorami-sky.js?v=20261001170749"></script>
+<script src="sorami-routes.js?v=20261001170749"></script>
+<script src="sorami-iss.js?v=20261001170749"></script>
+<script src="sorami-plane.js?v=20261001170749"></script>
+<script src="sorami-align.js?v=20261001170749"></script>
+<script src="sorami-moon.js?v=20261001170749"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2092,21 +2092,37 @@ let extrasRunning = false;   // 再入を防ぐ（render は何度も呼ばれ�
 let extraKey = null;         // どの地点のものか
 let extraSeq = 0;            // 地点を切り替えたときに、遅れて来た結果を捨てる
 
-const fujiGroundCache = new Map();
+const groundDemCache = new Map();   // 地点の座標 → DEM の地面の標高（測れなければ null）
 // **地面の標高は DEM から取る。**
 // `bundle.home.grid.elevation` は「予報を取った地点」のもので、地点を切り替えた直後は
 // 前の地点の値が残る。山中湖で東京の 30m を使い、富士山が地形に隠れる判定になった
 // （2026-09-14）。手入力の標高も、座標がずれていれば嘘になる（富士 §7・§8）。
-async function observerHere() {
+/// いまの地点の地面を DEM で測っておく。富士山・月の計算（loadExtras）の最初に待つ
+async function measureGroundHere() {
   const key = `${place.latitude},${place.longitude}`;
-  if (!fujiGroundCache.has(key)) {
-    let g = null;
-    try { g = await SoramiTerrain.elevationFromTile(place.latitude, place.longitude, 13); } catch {}
-    if (g === null || g === undefined) g = place.elevation ?? bundle?.home.grid.elevation ?? 0;
-    fujiGroundCache.set(key, g);
-  }
-  const ground = fujiGroundCache.get(key);
-  return { latitude: place.latitude, longitude: place.longitude, groundM: ground,
+  if (groundDemCache.has(key)) return;
+  let g = null;
+  try { g = await SoramiTerrain.elevationFromTile(place.latitude, place.longitude, 13); } catch {}
+  groundDemCache.set(key, Number.isFinite(g) ? g : null);
+}
+/**
+ * **いま選んでいる地点の「目の高さ」。** 展望台を選んでいればその高さを足す。
+ *
+ * 地面の標高は DEM（測る前・測れなければ地点の標高、無ければ予報の格子）。**ここを1か所にまとめる。**
+ * 画面ごとに `place.elevation ?? 0` と書いていたため、富士山と月は展望台を見て、
+ * 「ねらう」と「空の見え方」は見ていない、という食い違いが起きていた
+ * （2026-09-28 ユーザー指摘で発覚）。
+ *
+ * **同じ名前の関数を2つ置かない。** 2026-09-28 にこの同期版を別の場所に足したら、
+ * 先にあった DEM を測る非同期版を上書きし（後から書いた宣言が勝つ）、富士山と月の計算が
+ * 予報の格子の標高に戻っていた。地点の範囲（locationScope）も渡らず、町の代表点でも
+ * 近くの建物を取りに行っていた（詳細には「含めていません」と書いたまま）。2026-10-01 に1つへまとめた
+ */
+function observerHere() {
+  const ground = groundDemCache.get(`${place.latitude},${place.longitude}`)
+    ?? place.elevation ?? bundle?.home.grid.elevation ?? 0;
+  return { latitude: place.latitude, longitude: place.longitude,
+           groundM: ground, eyeHeightAGL: place.eyeHeightAGL ?? 1.5,
            locationScope: SoramiTerrain.locationScope(place),
            elevation: ground + (place.eyeHeightAGL ?? 1.5) };
 }
@@ -2131,8 +2147,9 @@ const airFor = (t) => (bundle.air
 async function loadExtras() {
   if (!bundle) return;
   const seq = ++extraSeq;
-  const obs = await observerHere();
+  await measureGroundHere();
   if (seq !== extraSeq) return;
+  const obs = observerHere();
   const key = `${SoramiTerrain.urbanCacheKey(obs)}:${obs.locationScope}`;
   // 地点が変わったら**全部捨てる**。建物の取得フラグを残すと、引っ越しても
   // 前の場所の地平線のままになる
@@ -2301,21 +2318,6 @@ function iconFor(id, atMs) {
 /// （2026-10-01 ユーザー指摘「月関係するところは全て月の満ち欠けに連動するように」）。
 /// 以前は道具の画面・お気に入り・記録などで固定の 🌙 や「輝面◯%」の数字だけだった
 const moonGlyphAt = (atMs) => iconFor("moon", atMs);
-/**
- * **いま選んでいる地点の「目の高さ」。** 展望台を選んでいればその高さを足す。
- *
- * 地面の標高は DEM（無ければ予報の格子）。**ここを1か所にまとめる。**
- * 画面ごとに `place.elevation ?? 0` と書いていたため、富士山と月は展望台を見て、
- * 「ねらう」と「空の見え方」は見ていない、という食い違いが起きていた
- * （2026-09-28 ユーザー指摘で発覚）。
- */
-function observerHere() {
-  const ground = place.elevation ?? bundle?.home.grid.elevation ?? 0;
-  return { latitude: place.latitude, longitude: place.longitude,
-           groundM: ground, eyeHeightAGL: place.eyeHeightAGL ?? 1.5,
-           elevation: ground + (place.eyeHeightAGL ?? 1.5) };
-}
-
 /// 月相の呼び名（詳細で添える）
 function phaseNameFor(atMs) {
   try {

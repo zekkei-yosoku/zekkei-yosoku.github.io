@@ -213,7 +213,7 @@ ok(/id="planePick"/.test(html), "「今日はここ」を先に出す");
 ok(/id: "here", name: `\$\{P\.name\}（どこから重ねるか）`/.test(html), "観測地点（どこから重ねるか）も候補に入れる");
 // **観測点の作り方は1か所にまとめる。** 画面ごとに書くと、展望台を見る画面と
 // 見ない画面ができる（2026-09-28 実際にそうなっていた）
-ok(/function observerHere/.test(html), "観測点をまとめる関数がある");
+ok((html.match(/function observerHere\(/g) || []).length === 1, "観測点をまとめる関数がある（1つだけ）");
 ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高さを足す");
 {
   const bad = (html.match(/elevation: place\.elevation \?\? 0/g) || []).length;
@@ -465,6 +465,35 @@ console.log("== 画面のスクリプトが文法として読める（2026-09-30
     catch (e) { badFiles.push(`${f}: ${e.message}`); }
   }
   ok(own.length >= 5 && badFiles.length === 0, `読み込む自前の JS ${own.length} 本に文法の誤りが無い`, badFiles.join(" / "));
+}
+
+console.log("== 同じ名前の関数を2つ置かない・観測点は1つ（2026-10-01） ==");
+// 2026-09-28 に observerHere の同期版を別の場所に足したら、先にあった DEM を測る非同期版を黙って上書きした
+// （後から書いた宣言が勝つ。文法の誤りにはならない）。富士山と月が予報の格子の標高に戻り、
+// 町の代表点でも近くの建物を取りに行っていた
+{
+  const names = [...html.matchAll(/^(?:async )?function\*? ?([A-Za-z_$][\w$]*)/gm)].map((m) => m[1]);
+  const dup = [...new Set(names.filter((n, i) => names.indexOf(n) !== i))];
+  ok(names.length > 100 && !dup.length, "画面のいちばん外の関数名が重ならない（後の宣言が前のを黙って消す）", dup.join(", "));
+  ok(/await measureGroundHere\(\);\s+if \(seq !== extraSeq\) return;\s+const obs = observerHere\(\);/.test(html),
+    "富士山・月は DEM で地面を測ってから観測点を作る");
+  // 実際に動かす
+  const T = req("./sorami-terrain.js");
+  const src = /const groundDemCache = new Map\(\);[\s\S]*?\nfunction observerHere\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
+  const run = (place, dem) => new Function("place", "bundle", "SoramiTerrain",
+    `${src}; return { measureGroundHere, observerHere };`)(place, { home: { grid: { elevation: 400 } } },
+    { ...T, elevationFromTile: async () => dem });
+  const peak = run({ id: "search:35.6,139.2", name: "高尾山", latitude: 35.6251, longitude: 139.2437, elevation: 599, eyeHeightAGL: 1.5 }, 594);
+  const before = peak.observerHere();
+  await peak.measureGroundHere();
+  const after = peak.observerHere();
+  ok(before.groundM === 599 && after.groundM === 594 && after.elevation === 595.5, "測る前は地点の標高、測ったら DEM（目の高さを足す）");
+  ok(after.locationScope === "point", "地点の範囲（点）を渡す");
+  const city = run({ id: "search:35.66,139.32", name: "八王子市", latitude: 35.66, longitude: 139.32, elevation: null }, null);
+  await city.measureGroundHere();
+  ok(city.observerHere().locationScope === "area" && T.locationScope(city.observerHere()) === "area",
+    "町の代表点は「area」を渡す（建物を取りに行かない。詳細の「含めていません」と合う）");
+  ok(city.observerHere().groundM === 400, "DEM が無い所（海など）は予報の格子の標高");
 }
 
 console.log("== ねらう: その日の候補地（2026-09-30） ==");
