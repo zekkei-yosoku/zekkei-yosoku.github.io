@@ -404,13 +404,21 @@ ok(/SoramiAlign\.FUJI_SPOTS/.test(html), "スポットの一覧を使う");
 ok(/e\.rank !== "graze" && \(!moon \|\| e\.sunAltitude < 0\)/.test(html), "パール富士は月が暗い空にあるときだけ");
 ok(/function aimDateLabel/.test(html) && /y === now \? "" :/.test(html), "今年でない日は年も書く（400日先で同じ月日が2回出る）");
 // 富士山に重ねるは目標が決まっているので、選ぶ欄の代わりに「富士山」と書く。太陽／月の切り替えは塔と同じ位置に残す
-ok(/\$\("aimTarget"\)\.hidden = fujiTool;\s+\$\("aimTargetFixed"\)\.hidden = !fujiTool;/.test(html), "富士山に重ねる: 目標は「富士山」と書き、太陽／月は塔と同じ位置");
+// 太陽／月の切り替えは題名の右（どちらの道具も同じ位置）。「富士山 × 太陽」の添え書きは出さない。
+// 富士山に重ねるは目標の行を出さない（ユーザー「ここボタンにしたら」「目標が富士山って当たり前だからいらない」）
+ok(/<div class="section-h aim-head"><h2 id="aimTitle">ねらう<\/h2>\s+<div class="aim-seg" role="group" aria-label="太陽か月">/.test(html),
+  "太陽／月の切り替えは題名の右（塔も富士山も同じ位置）");
+ok(!/id="aimSub"/.test(html) && !/富士山 × 太陽/.test(html), "「富士山 × 太陽」の添え書きを出さない");
+ok(/<button id="aimSun" aria-pressed="true" aria-label="太陽" title="太陽">☀️<\/button>/.test(html) && /<button id="aimMoon" aria-pressed="false" aria-label="月" title="月">/.test(html),
+  "切り替えは絵文字だけ（読み上げには太陽・月の名前）");
+ok(/\.aim-head \{ align-items: center; flex-wrap: nowrap; \}/.test(code), "切り替えは折り返さない（道具ごとに下の位置が変わらない）");
+ok(/\$\("aimTargetBox"\)\.hidden = fujiTool;/.test(html), "富士山に重ねるは目標の行を出さない");
 ok(/\$\("aimSun"\)\.hidden = anyOk && !sunOk;\s+\$\("aimMoon"\)\.hidden = anyOk && !moonOk;/.test(html),
   "富士山に重ねる: 太陽はダイヤモンド富士、月はパール富士の許可で出す（許可は2つのまま）");
 ok(/TARGETS\.filter\(\(t\) => t\.id !== "fuji"\)/.test(html), "塔の目標の一覧に富士山を入れない（許可を素通りしない）");
 // 重なる日は選ぶ行より下（太陽と月で日の数が違うので、上だと切り替えるたびに釦が動く。ユーザー「UIがすごく動くのが気になる」）
-{ const lb = html.indexOf('for="aimLimb">どこに重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('for="aimDate">日付'), sw = html.indexOf('id="aimSun"');
-  ok(sw < lb && lb < fr && fr < dt, "重なる日は「どこに重ねるか」の下（太陽／月の釦より下）"); }
+{ const lb = html.indexOf('for="aimLimb">どこに重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('for="aimDate">日付'), sw = html.indexOf('id="aimSun"'), fs = html.indexOf('id="aimFromSearch"');
+  ok(sw < fs && fs < lb && lb < fr && fr < dt, "並び: 題名と太陽／月 → どこから → どこに → 重なる日 → 日付"); }
 ok(/\$\("aimPart"\)\.hidden = parts\.length < 2/.test(html), "選べる高さが1つなら選ぶ欄を出さない");
 ok(!/目標に太陽や月が重なる日と、/.test(html), "説明の段落を出さない");
 ok(!/線が弧を描くのは|番号は下の一覧と同じ|月が低い（2〜30°）あいだだけを見ています/.test(code), "地図の下の説明を出さない");

@@ -601,8 +601,12 @@
   .aim-legend .tiny { font-weight: 400; color: var(--tertiary); }
   /* 観測スポットの行。日付は押すとその日の線と場所を出す */
   .aim-spot { cursor: default; }
-  /* 富士山に重ねるの「目標」。選ぶ欄の代わりの字。高さは隣の太陽／月の切り替えにそろえる */
-  .aim-fixed { display: flex; align-items: center; min-height: 44px; font-weight: 700; }
+  /* 題名と、その右の太陽／月の切り替え（絵文字だけ。ユーザー「太陽と月の絵文字で切り替え」）。
+     **切り替えは折り返さない。** 字の入った切り替えだと「東京スカイツリーに重ねる」と1行に入らず、切り替えが次の行に落ちて、
+     下の「どこから重ねるか」が富士山の画面より 33px 下がっていた（道具ごとに位置が変わる）。長い題名は題名の側が折り返す */
+  .aim-head { align-items: center; flex-wrap: nowrap; }
+  .aim-head h2 { min-width: 0; }
+  .aim-head .aim-seg button { min-width: 44px; padding: 0 8px; font-size: 1.1rem; }
   /* どこから重ねるか（名前で探す欄）の下の、次に重なる日 */
   #aimView .search-row { margin-bottom: 4px; }
   .aim-from { margin: 2px 0 8px; }
@@ -1009,7 +1013,14 @@
 
   <div id="aimView" hidden>
     <div class="card">
-      <div class="section-h"><h2 id="aimTitle">ねらう</h2><span class="muted" id="aimSub"></span></div>
+      <!-- 太陽／月の切り替えは題名の右（2026-10-01 ユーザー「ここボタンにしたらどう。ダイヤモンド富士・パール富士ってなってるんだから
+           わかるじゃん」）。以前ここにあった目標と天体の添え書きは、題名と切り替えで分かるので出さない。塔に重ねるも同じ位置 -->
+      <div class="section-h aim-head"><h2 id="aimTitle">ねらう</h2>
+        <div class="aim-seg" role="group" aria-label="太陽か月">
+          <button id="aimSun" aria-pressed="true" aria-label="太陽" title="太陽">☀️</button>
+          <button id="aimMoon" aria-pressed="false" aria-label="月" title="月">🌙</button>
+        </div>
+      </div>
     <!-- どこから重ねるか（観測地点・2026-10-01）。**カードのいちばん上に置く**。「目標」の行は塔にしか無いので、
          その下に置くと道具ごとに位置が変わる（ユーザー「一番上の方が他の画面と位置が変わらない。ツールごとにレイアウトが
          変わるのはよくない」）。「どこに重ねるか」と対の名前（ユーザー「どこに重ねるかがあるなら、どこから重ねるかが近くに」）。**最初は絶景予測の地点を引き継いで欄に入れておく**
@@ -1025,17 +1036,12 @@
     </div>
     <div id="aimFromResults"></div>
 
-    <!-- 目標と、太陽／月の切り替え。富士山に重ねるでは目標が決まっているので、選ぶ欄の代わりに「富士山」と書く。
-         太陽／月の切り替えは塔に重ねると同じ位置（ユーザー「塔に重ねるみたいに一つにまとめて、太陽と月の絵文字で切り替え」） -->
+    <!-- 目標（塔に重ねるだけ）。富士山に重ねるでは目標は決まっていて当たり前なので、行ごと出さない
+         （ユーザー「目標が富士山って当たり前だからいらないよね」） -->
     <div id="aimTargetBox">
     <label class="fav-l" for="aimTarget">目標</label>
     <div class="aim-row">
       <select id="aimTarget" class="fav-in" aria-label="目標"></select>
-      <div id="aimTargetFixed" class="aim-fixed" hidden>富士山</div>
-      <div class="aim-seg" role="group" aria-label="太陽か月">
-        <button id="aimSun" aria-pressed="true">☀️ 太陽</button>
-        <button id="aimMoon" aria-pressed="false">🌙 月</button>
-      </div>
     </div>
     <p class="tiny" id="aimTargetNote" style="margin:-2px 0 8px"></p>
     </div>
@@ -1448,21 +1454,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001123327"></script>
+<script src="sorami-core.js?v=20261001123926"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001123327"></script>
-<script src="sorami-exif.js?v=20261001123327"></script>
-<script src="sorami-capcloud.js?v=20261001123327"></script>
-<script src="sorami-terrain.js?v=20261001123327"></script>
-<script src="sorami-mountain.js?v=20261001123327"></script>
-<script src="sorami-fuji.js?v=20261001123327"></script>
-<script src="sorami-sky.js?v=20261001123327"></script>
-<script src="sorami-routes.js?v=20261001123327"></script>
-<script src="sorami-iss.js?v=20261001123327"></script>
-<script src="sorami-plane.js?v=20261001123327"></script>
-<script src="sorami-align.js?v=20261001123327"></script>
-<script src="sorami-moon.js?v=20261001123327"></script>
+<script src="sorami-astro.js?v=20261001123926"></script>
+<script src="sorami-exif.js?v=20261001123926"></script>
+<script src="sorami-capcloud.js?v=20261001123926"></script>
+<script src="sorami-terrain.js?v=20261001123926"></script>
+<script src="sorami-mountain.js?v=20261001123926"></script>
+<script src="sorami-fuji.js?v=20261001123926"></script>
+<script src="sorami-sky.js?v=20261001123926"></script>
+<script src="sorami-routes.js?v=20261001123926"></script>
+<script src="sorami-iss.js?v=20261001123926"></script>
+<script src="sorami-plane.js?v=20261001123926"></script>
+<script src="sorami-align.js?v=20261001123926"></script>
+<script src="sorami-moon.js?v=20261001123926"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5856,16 +5862,14 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   // 自分で置く目標のときだけ、高さの入力を出す
   $("aimCustomRow").hidden = wanted !== "custom";
   $("aimTargetNote").textContent = aim.target.note || "";
-  // 富士山に重ねるは、選ぶ欄の代わりに「富士山」と書く（太陽／月の釦の位置は塔と同じ）
-  $("aimTarget").hidden = fujiTool;
-  $("aimTargetFixed").hidden = !fujiTool;
+  // 富士山に重ねるは目標の行を出さない（決まっていて当たり前）。太陽／月は題名の右で、塔と同じ位置
+  $("aimTargetBox").hidden = fujiTool;
   const t = aimTitleFor();
   $("aimTitle").textContent = t.title;
-  $("aimSub").textContent = t.sub;
   $("aimView").classList.toggle("moon", aim.body === "moon");
   $("aimSun").setAttribute("aria-pressed", String(aim.body === "sun"));
   // 月の切り替えは、選んでいる日（夜）の月の形で
-  $("aimMoon").textContent = `${moonGlyphAt((aim.dayMs ?? S.Cal.startOfDay(Date.now())) + 20 * 3600000)} 月`;
+  $("aimMoon").textContent = `${moonGlyphAt((aim.dayMs ?? S.Cal.startOfDay(Date.now())) + 20 * 3600000)}`;
   $("aimMoon").setAttribute("aria-pressed", String(aim.body === "moon"));
   aim.limb = $("aimLimb").value;
   aimFillParts();
@@ -6398,9 +6402,9 @@ function aimRenderCands() {
 let aimReady = false;
 /**
  * 何を狙うか。**メニューから来たときは決まっている。**
- *   diamond … 富士山 × 太陽（ダイヤモンド富士）
- *   pearl   … 富士山 × 月（パール富士）
- *   tower   … 塔（既定はスカイツリー × 太陽）
+ *   fuji    … 富士山に重ねる（太陽ならダイヤモンド富士、月ならパール富士）
+ *   diamond・pearl … 前の URL。富士山に重ねるを太陽・月で開く
+ *   tower   … 塔（既定はスカイツリーに太陽）
  */
 const AIM_PRESETS = {
   // 富士山に重ねる（2026-10-01 にダイヤモンド富士・パール富士をまとめた）。太陽で開く（太陽を許されていなければ月）
@@ -6420,12 +6424,10 @@ const AIM_PRESETS = {
  */
 function aimTitleFor() {
   const t = aim.target, sun = aim.body === "sun";
-  if (t && t.id === "fuji") {
-    return sun ? { title: "ダイヤモンド富士", sub: "富士山 × 太陽" }
-      : { title: "パール富士", sub: "富士山 × 月" };
-  }
+  // 太陽か月かは題名の右の切り替えで分かるので、添え書き（目標と天体）は持たない
+  if (t && t.id === "fuji") return { title: sun ? "ダイヤモンド富士" : "パール富士" };
   const name = t && t.name ? t.name : "目標";
-  return { title: `${name}に重ねる`, sub: sun ? "太陽" : "月" };
+  return { title: `${name}に重ねる` };
 }
 
 function openAim(preset) {
