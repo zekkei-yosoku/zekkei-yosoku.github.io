@@ -140,6 +140,9 @@
   /* いまいる画面は帯で示す。戻ってきたときにどこから来たか分かる */
   .drawer-list button[aria-current="page"] { background: var(--sunk); }
   .drawer-list button[aria-current="page"] b { color: var(--accent); }
+  /* 一覧（道具ではない）は道具の上に置き、細い線で分ける */
+  #toolsHome { position: relative; margin-bottom: 5px; }
+  #toolsHome::before { content: ""; position: absolute; left: 12px; right: 12px; bottom: -4px; border-bottom: 1px solid var(--line); }
   #authButton.warn { color: var(--red); }
   .card { background: var(--card); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
   .muted { color: var(--secondary); font-size: 0.75rem; }
@@ -1287,6 +1290,9 @@
     <button id="toolsClose" class="tap" aria-label="閉じる">✕</button>
   </div>
   <nav class="drawer-list">
+    <!-- 一覧へ（2026-10-02 ユーザー「メニューの中に絶景予測の一覧に戻るボタンがほしい」）。道具ではないので data-tool・data-id を持たない
+         （許可・管理画面の名前に混ぜない）。いちばん上に置き、道具と線で分ける。一覧にいるときは帯を付ける -->
+    <button id="toolsHome"><b>絶景予測の一覧</b><span>夕焼け・星空・雲海などが見られそうか</span></button>
     <!-- 太陽・月を重ねる（2026-10-01）。もとは「富士山に重ねる」（ダイヤモンド富士・パール富士）と「塔に重ねる」の2つ。
          ユーザー「塔以外も重ねるじゃん」→ 名前を「太陽・月を重ねる」に。「プルダウンで富士山を選んだら、その横の太陽・月の切り替えでできる」→ 富士山もここへ。
          何に重ねるかは開いた画面の題名の枠で選ぶ。説明は何が分かるかを書く（ユーザーと決めた文に、ダイヤモンド富士の名前を足した）。
@@ -1562,21 +1568,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002082619"></script>
+<script src="sorami-core.js?v=20261002083038"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002082619"></script>
-<script src="sorami-exif.js?v=20261002082619"></script>
-<script src="sorami-capcloud.js?v=20261002082619"></script>
-<script src="sorami-terrain.js?v=20261002082619"></script>
-<script src="sorami-mountain.js?v=20261002082619"></script>
-<script src="sorami-fuji.js?v=20261002082619"></script>
-<script src="sorami-sky.js?v=20261002082619"></script>
-<script src="sorami-routes.js?v=20261002082619"></script>
-<script src="sorami-iss.js?v=20261002082619"></script>
-<script src="sorami-plane.js?v=20261002082619"></script>
-<script src="sorami-align.js?v=20261002082619"></script>
-<script src="sorami-moon.js?v=20261002082619"></script>
+<script src="sorami-astro.js?v=20261002083038"></script>
+<script src="sorami-exif.js?v=20261002083038"></script>
+<script src="sorami-capcloud.js?v=20261002083038"></script>
+<script src="sorami-terrain.js?v=20261002083038"></script>
+<script src="sorami-mountain.js?v=20261002083038"></script>
+<script src="sorami-fuji.js?v=20261002083038"></script>
+<script src="sorami-sky.js?v=20261002083038"></script>
+<script src="sorami-routes.js?v=20261002083038"></script>
+<script src="sorami-iss.js?v=20261002083038"></script>
+<script src="sorami-plane.js?v=20261002083038"></script>
+<script src="sorami-align.js?v=20261002083038"></script>
+<script src="sorami-moon.js?v=20261002083038"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7510,8 +7516,7 @@ function openTools({ focus = true } = {}) {
   $("toolsButton").setAttribute("aria-expanded", "true");
   // 開いているあいだ、後ろは動かさない（閉じたときに位置が変わらないように）
   document.body.style.overflow = "hidden";
-  const first = $("toolsMenu").querySelector("[data-tool]");
-  if (first && focus) first.focus();
+  if (focus) $("toolsHome").focus();
 }
 function closeTools({ restoreFocus = false } = {}) {
   if ($("toolsMenu").hidden) return;
@@ -7525,6 +7530,8 @@ function closeTools({ restoreFocus = false } = {}) {
 }
 /// いまいる画面に帯を付ける。戻ってきたときにどこから来たか分かる
 function markToolsCurrent() {
+  if (routeFromHash()) $("toolsHome").removeAttribute("aria-current");
+  else $("toolsHome").setAttribute("aria-current", "page");
   for (const el of $("toolsMenu").querySelectorAll("[data-tool]")) {
     const here = /^#\/aim\/(fuji|diamond|pearl)$/.test(location.hash) ? "#/aim/tower" : location.hash;
     if (el.dataset.tool === here) el.setAttribute("aria-current", "page");
@@ -7533,6 +7540,7 @@ function markToolsCurrent() {
 }
 // 題名は一覧へ（何画面進んでいても1回で）。「← 戻る」はひとつ前の画面へ
 $("homeLink").onclick = () => { closeTools(); goList(); };
+$("toolsHome").onclick = () => { closeTools(); goList(); };
 $("backLink").onclick = () => { closeTools(); goBack(); };
 $("toolsButton").onclick = () => ($("toolsMenu").hidden ? openTools() : closeTools());
 $("toolsClose").onclick = () => closeTools({ restoreFocus: true });

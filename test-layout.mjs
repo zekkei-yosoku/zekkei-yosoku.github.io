@@ -146,6 +146,13 @@ ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待�
     ["#/aim/tower", "太陽・月を重ねる"], ["#/sky", "空の見え方"], ["#/plane", "月丼"], ["#/records", "記録"]]) {
     ok(menu.includes(`data-tool="${href}"`) && menu.includes(name), `${name} が入っている`);
   }
+  // 一覧へ（2026-10-02 ユーザー「メニューの中に絶景予測の一覧に戻るボタンがほしい」）
+  ok(/<nav class="drawer-list">\s*<!--[\s\S]*?-->\s*<button id="toolsHome"><b>絶景予測の一覧<\/b>/.test(menu), "メニューのいちばん上に「絶景予測の一覧」");
+  ok(!/id="toolsHome"[^>]*data-(tool|id)=/.test(menu), "一覧は道具ではない（許可・管理画面の名前に混ぜない）");
+  ok(/\$\("toolsHome"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \};/.test(html), "押すと題名と同じく、何画面進んでいても1回で一覧へ");
+  ok(/if \(routeFromHash\(\)\) \$\("toolsHome"\)\.removeAttribute\("aria-current"\);\s+else \$\("toolsHome"\)\.setAttribute\("aria-current", "page"\);/.test(html),
+    "一覧にいるときは「絶景予測の一覧」に帯");
+  ok(/if \(focus\) \$\("toolsHome"\)\.focus\(\);/.test(html), "☰ で開いたら、いちばん上の項目へ焦点");
 }
 ok(/addEventListener\("hashchange", \(\) => \{\s+closeTools\(\);/.test(html) && /function pushRoute\(hash\) \{\s+closeTools\(\);/.test(html),
   "画面が変わったら閉じる（進めたときも、戻る・進むでも）");
