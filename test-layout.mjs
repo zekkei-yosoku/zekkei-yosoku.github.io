@@ -228,15 +228,21 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/const obs = \{ latitude: f\.latitude, longitude: f\.longitude/.test(fn) && /SoramiAlign\.upcoming\(obs, aim\.target/.test(fn),
     "地点から探す: 選んだ地点（aim.from）で解く");
   ok(/<strong>\$\{esc\(f\.name\)\}<\/strong>[\s\S]{0,80}から見た/.test(fn), "地点から探す: どこからの結果かを名前で書く");
-  ok(/id="aimFromSearch"/.test(html) && /wireSearchBox\("aimFromSearch", "aimFromResults"/.test(html), "地点から探す: 地点はこの画面の中で探す");
+  // 2026-10-01 ユーザー「絶景予測と同じレイアウトにしたら？新しいレイアウト作る必要ないよね」→ 地点カードと同じ形・同じ「地点」の画面
+  ok(/<div class="place-row aim-from-card">\s*<button class="place-pick" id="aimFromButton"/.test(html), "どこから重ねるか: 地点カードと同じ形（📍 名前・住所・標高、🔍、☆）");
+  ok(/\$\("aimFromButton"\)\.onclick = \(\) => openPlaceSheet\("aim"\);/.test(html), "押すと地点カードと同じ「地点」の画面を開く");
+  ok(/function choosePlace\(p\) \{\s+if \(placeSheetFor === "aim"\) \{/.test(html), "そこで選んだ場所は観測地点になる（アプリ全体の地点は変えない）");
+  for (const [what, re] of [["検索の結果", /choosePlace\(\{ id: `search:/], ["現在地", /\(pos\) => choosePlace\(\{ id: `geo:/],
+      ["地図で選ぶ・緯度経度", /choosePlace\(\{ id: `map:\$\{lat\.toFixed\(5\)\}/], ["お気に入り", /el\.onclick = \(\) => choosePlace\(favorites\[/]]) {
+    ok(re.test(html), `地点の画面の「${what}」も、開いた目的の方へ渡す`);
+  }
+  ok(/addEventListener\("close", \(\) => \{\s+favUndo = \[\];[\s\S]{0,200}placeSheetFor = null;/.test(html), "閉じたら絶景予測の地点の画面に戻す（次に地点カードから開いたときに観測地点を決めない）");
   // 「どこに重ねるか」と対で「どこから重ねるか」。最初は絶景予測の地点を引き継いで欄に入れる（ユーザー指定）
   // 道具ごとに位置が変わらないよう、題名のすぐ下（ユーザー指定）。塔の目標は題名の中で選ぶので、目標の行は無い
-  { const t0 = html.indexOf('id="aimTitle"'), b = html.indexOf('for="aimFromSearch">どこから重ねるか'), a = html.indexOf('for="aimLimb">どこに重ねるか');
+  { const t0 = html.indexOf('id="aimTitle"'), b = html.indexOf('id="aimFromLabel">どこから重ねるか'), a = html.indexOf('for="aimLimb">どこに重ねるか');
     ok(t0 > 0 && t0 < b && b < a && !/id="aimTargetBox"/.test(html), "「どこから重ねるか」は題名のすぐ下（目標の行は無い）"); }
-  ok(/document\.activeElement === \$\("aimFromSearch"\) \|\| \$\("aimFromSearch"\)\.value\.trim\(\)\) return;/.test(html),
-    "欄を空のまま離れたら観測地点の名前に戻す（打った字は残す）");
   // 地図から決めるのは地図を見ているとき。釦は上の欄ではなく地図のすぐ下（ユーザー「地図の中心ってここにいらない」）
-  { const cv = html.indexOf('id="aimCanvas"'), pk = html.indexOf('id="aimPick"'), nr = html.indexOf('id="aimNear"'), fs = html.indexOf('id="aimFromSearch"');
+  { const cv = html.indexOf('id="aimCanvas"'), pk = html.indexOf('id="aimPick"'), nr = html.indexOf('id="aimNear"'), fs = html.indexOf('id="aimFromButton"');
     ok(fs < cv && cv < pk && pk < nr, "「ここから重ねる」は地図のすぐ下、その下に中心の説明（上の欄は名前で探すだけ）"); }
   // 重ならないなら言い切る（ユーザー「天体の動き的に絶対にないわけでしょ？」）。「この1年」と濁さない
   ok(/"ここからは重なりません。"/.test(html) && !/この1年、ここからは重なりません/.test(html), "重ならない地点は「ここからは重なりません」");
@@ -244,8 +250,8 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる<\/button>/.test(html), "釦の名前は「ここから重ねる」");
   ok(/function aimFromPoint\(\) \{\s+if \(aim\.from\) return aim\.from;[\s\S]{0,500}inherited: true/.test(html),
     "替えていなければ絶景予測の地点を引き継ぐ");
-  ok(/\$\("aimFromSearch"\)\.value = f \? f\.name : "";/.test(fn), "引き継いだ地点の名前を欄に入れておく");
-  ok(/（絶景予測で選んでいる地点）/.test(fn), "引き継いだ地点なら、そう書く");
+  ok(/\$\("aimFromName"\)\.textContent = f \? f\.name/.test(fn), "引き継いだ地点の名前をカードに入れておく");
+  ok(/f\.inherited \? "絶景予測の地点" : ""/.test(fn), "引き継いだ地点なら、そう書く");
   ok(/subtitle: aimAreaOf\(\{ detail: place\.subtitle \|\| "" \}\)/.test(html), "引き継いだ地点の住所も都道府県＋市区町村まで");
   ok(!/id="aimFromHere"/.test(html), "引き継ぐための別の釦は置かない（欄に入れておく）");
   ok(/\$\("aimPick"\)\.onclick = async \(\) => \{[\s\S]{0,300}aimSetFrom\(/.test(html), "地図の中心も同じ観測地点にする（アプリ全体の地点は変えない）");
@@ -415,12 +421,15 @@ ok(/\.aim-head \{ align-items: center; flex-wrap: nowrap; \}/.test(code), "切�
 ok(/<span id="aimTargetPick" hidden><span class="aim-pick"><span id="aimTargetLabel"><\/span><svg[^>]*>[\s\S]*?<\/svg><select id="aimTarget"/.test(html),
   "塔: 題名の◯◯に目標を選ぶ一覧を重ねる（字＋▾）");
 ok(/\$\("aimTitleText"\)\.hidden = !fujiTool;\s+\$\("aimTargetPick"\)\.hidden = fujiTool;/.test(html), "富士山は字、塔は選ぶ所");
+// 「に重ねる」を付けると 375px 以下で折れ、切り替えと下が富士山の画面より下がった。題名は枠に入れた目標だけ（ユーザー「いい感じの枠に」）
+ok(/<select id="aimTarget" aria-label="何に重ねるか（目標）"><\/select><\/span><\/span><\/h2>/.test(html), "塔の題名は枠に入れた目標だけ（折れない）");
+ok(/\.aim-pick \{ position: relative;[^}]*border-radius: 10px; background: var\(--sunk\);/.test(code), "目標は枠に入れる（太陽／月の切り替えと同じ沈んだ地）");
 ok(/\.aim-pick select \{ position: absolute; inset: 0;[^}]*opacity: 0; font-size: 16px;/.test(code), "選ぶ一覧は字に重ねて透明に（幅は字の幅・iOS で拡大されない 16px）");
 ok(/\$\("aimSun"\)\.hidden = anyOk && !sunOk;\s+\$\("aimMoon"\)\.hidden = anyOk && !moonOk;/.test(html),
   "富士山に重ねる: 太陽はダイヤモンド富士、月はパール富士の許可で出す（許可は2つのまま）");
 ok(/TARGETS\.filter\(\(t\) => t\.id !== "fuji"\)/.test(html), "塔の目標の一覧に富士山を入れない（許可を素通りしない）");
 // 重なる日は選ぶ行より下（太陽と月で日の数が違うので、上だと切り替えるたびに釦が動く。ユーザー「UIがすごく動くのが気になる」）
-{ const lb = html.indexOf('for="aimLimb">どこに重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('for="aimDate">日付'), sw = html.indexOf('id="aimSun"'), fs = html.indexOf('id="aimFromSearch"');
+{ const lb = html.indexOf('for="aimLimb">どこに重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('for="aimDate">日付'), sw = html.indexOf('id="aimSun"'), fs = html.indexOf('id="aimFromButton"');
   ok(sw < fs && fs < lb && lb < fr && fr < dt, "並び: 題名と太陽／月 → どこから → どこに → 重なる日 → 日付"); }
 ok(/\$\("aimPart"\)\.hidden = parts\.length < 2/.test(html), "選べる高さが1つなら選ぶ欄を出さない");
 ok(!/目標に太陽や月が重なる日と、/.test(html), "説明の段落を出さない");
@@ -531,7 +540,7 @@ console.log("== 月を表すところは全部、その時の満ち欠け（2026
 
 console.log("== 検索欄に「検索」釦（2026-10-01） ==");
 // ユーザー「35°44'52.1"N 139°55'49.1"E を入れてエンター押しても検索できない。検索開始のボタンも出しておいた方がいい。名前は「検索」とか」
-for (const id of ["searchBox", "mapSearch", "aimFromSearch"]) {
+for (const id of ["searchBox", "mapSearch"]) {
   ok(new RegExp(`<div class="search-row">\\s*<input type="search" id="${id}"[^>]*>\\s*<button id="${id}Go" class="fav-btn search-go">検索</button>`).test(html),
     `${id} の横に「検索」釦`);
 }
@@ -547,16 +556,15 @@ ok(/if \(\/\[°º˚度\]\/\.test\(q\)\) \{[\s\S]{0,120}緯度経度を読めま�
 
 console.log("== どこから重ねるかをお気に入りに（2026-10-01） ==");
 // ユーザー「どこから重ねるかもお気に入りの登録をしたい。座標ピンポイントに名前つけたりしたいんだ」
-ok(/<button id="aimFromSearchGo"[^>]*>検索<\/button>[\s\S]{0,400}<button id="aimFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆<\/button>/.test(html),
-  "欄の横に ☆（地点カードと同じ形）");
+ok(/id="aimFromButton"[\s\S]{0,800}<button id="aimFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆<\/button>/.test(html),
+  "カードの右に ☆（地点カードと同じ形）");
 ok(/function openFavSheet\(index, \{ point = null, fromAim = false \} = \{\}\)/.test(html), "登録の画面は、地点カード以外の点（座標）からも開ける");
 ok(/openFavSheet\(-1, \{ fromAim: true, point: \{\s+id: `map:\$\{f\.latitude\.toFixed\(5\)\}/.test(html), "観測地点の座標を雛形にして名前を付けられる");
 ok(/if \(i >= 0\) \{ openFavSheet\(i, \{ fromAim: true \}\); return; \}/.test(html), "登録済み（★）なら編集");
 ok(/if \(favDraft\.fromAim\) aimAfterFavChange\(entry\);/.test(html), "保存したら、付けた名前で出し直す");
 ok(/if \(favDraft\.fromAim\) \{ aimAfterFavChange\(null\); return; \}/.test(html), "ねらうから消したら、地点の一覧を開かずにねらうに残る");
-ok(/addEventListener\("focus", \(\) => \{ if \(!\$\("aimFromResults"\)\.innerHTML\.trim\(\)\) aimShowFavChoices\(\); \}\)/.test(html),
-  "欄を押すと、お気に入りを候補に並べる");
-ok(/絶景予測の地点に戻す/.test(html), "別の点を選んでいるときは、絶景予測の地点へ戻る道も出す");
+ok(/<button class="list-item" id="sheetInherit" hidden><\/button>/.test(html) && /絶景予測の地点（\$\{place\.name\}）にする/.test(html),
+  "別の点を選んでいるときは、地点の画面に絶景予測の地点へ戻る行も出す");
 
 console.log("== 観測地点を水の上に置かない（2026-10-01） ==");
 // ユーザー「観測地点は陸上に。ISS とか海の上になってなかった？」「他の観測地点も水の上にならないように」
@@ -1125,7 +1133,7 @@ ok(/data-undo="\$\{i\}"/.test(html) && /元に戻す/.test(html), "取り消し�
 ok(/const at = Math\.min\(u\.index, favorites\.length\);[\s\S]{0,60}favorites\.splice\(at, 0, u\.entry\)/.test(html),
   "元の位置へ戻す");
 ok(!/setTimeout[\s\S]{0,120}favUndo/.test(html), "取り消しを時間で消さない（押す前に消えるため）");
-ok(/addEventListener\("close", \(\) => \{ favUndo = \[\]/.test(html), "シートを閉じたら取り消しを確定する");
+ok(/addEventListener\("close", \(\) => \{\s+favUndo = \[\];/.test(html), "シートを閉じたら取り消しを確定する");
 ok(/closeFavSheet[\s\S]{0,160}confirm\(/.test(html), "入力途中で閉じるときだけ確認する");
 // 一覧の見え方をスポットと揃える（現象アイコン・都道府県/標高・メモ）。
 // 2026-10-01 から iconFor（月はその時の満ち欠け）で描く

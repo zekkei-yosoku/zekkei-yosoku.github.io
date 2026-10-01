@@ -150,7 +150,7 @@
   .place-pick { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-align: left; }
   .place-txt { min-width: 0; }
   /* ボタンの中に置けるのは句だけなので span。2行目として折り返す */
-  #placeSub { display: block; }
+  #placeSub, #aimFromSub { display: block; }
   .place-row .pin { color: var(--accent); font-size: 1.25rem; }
   .place-row .name { font-size: 1.25rem; font-weight: 700; }
   .place-row .chev { margin-left: auto; color: var(--secondary); display: flex; }
@@ -610,13 +610,18 @@
   .aim-head h2 { min-width: 0; line-height: 1.3; }
   .aim-head .aim-seg button { min-width: 44px; padding: 0 8px; font-size: 1.1rem; }
   /* 題名の中の目標。字は橙で▾つき、押せる高さは帯と同じ 44px。透明な select を重ねる（iOS で拡大されないよう字は 16px） */
-  .aim-pick { position: relative; display: inline-flex; align-items: center; gap: 2px; min-height: 44px; color: var(--accent); }
+  /* 枠に入れて、押せる物と分かるように（2026-10-01 ユーザー「目標の切り替えのところはいい感じの枠に」）。
+     右の太陽／月の切り替えと同じ沈んだ地・角丸にそろえる */
+  .aim-pick { position: relative; display: inline-flex; align-items: center; gap: 4px; min-height: 40px;
+              padding: 0 10px; margin-right: 4px; border-radius: 10px; background: var(--sunk); color: var(--text); }
+  .aim-pick svg { color: var(--secondary); flex: none; }
   .aim-pick select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; cursor: pointer; }
+  /* どこから重ねるか。地点カードと同じ形を、ねらうのカードの中に一段沈めて置く */
+  .aim-from-card { background: var(--sunk); border-radius: 12px; padding: 6px 2px 6px 10px; margin-bottom: 8px; }
   /* どこから重ねるかの ☆（地点カードの ☆ と同じ大きさ） */
   .aim-from-fav { flex: 0 0 auto; min-width: 44px; min-height: 44px; font-size: 1.1rem; color: var(--tertiary); }
   .aim-from-fav.on { color: var(--accent); }
   /* どこから重ねるか（名前で探す欄）の下の、次に重なる日 */
-  #aimView .search-row { margin-bottom: 4px; }
   .aim-from { margin: 2px 0 8px; }
   /* 地図のすぐ下に「ここから重ねる」（字の分の幅）、その下に中心の説明を幅いっぱいに。
      横に並べると説明が細く5行に折れていた */
@@ -1023,10 +1028,11 @@
     <div class="card">
       <!-- 太陽／月の切り替えは題名の右（2026-10-01 ユーザー「ここボタンにしたらどう。ダイヤモンド富士・パール富士ってなってるんだから
            わかるじゃん」）。以前ここにあった目標と天体の添え書きは、題名と切り替えで分かるので出さない。塔に重ねるも同じ位置 -->
-      <!-- 塔に重ねるは、**題名の「◯◯」が目標を選ぶ所**（2026-10-01 ユーザー「ここが目標切り替えになるのでは？」）。
+      <!-- 塔に重ねるは、**題名が目標を選ぶ所**（2026-10-01 ユーザー「ここが目標切り替えになるのでは？」「いい感じの枠に」）。
+           「に重ねる」は付けない（道具の名前で分かる。付けると 375px 以下で折れて、切り替えと下の位置が富士山の画面より下がった）。
            「目標」の行を別に置かないので、富士山に重ねると並びが同じになる。見た目は字＋▾、押すと OS の一覧が開く
            （透明な select を字に重ねる。select の幅は一番長い候補で決まってしまうので、字の幅に合わせるため） -->
-      <div class="section-h aim-head"><h2 id="aimTitle"><span id="aimTitleText">ねらう</span><span id="aimTargetPick" hidden><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span>に重ねる</span></h2>
+      <div class="section-h aim-head"><h2 id="aimTitle"><span id="aimTitleText">ねらう</span><span id="aimTargetPick" hidden><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span></span></h2>
         <div class="aim-seg" role="group" aria-label="太陽か月">
           <button id="aimSun" aria-pressed="true" aria-label="太陽" title="太陽">☀️</button>
           <button id="aimMoon" aria-pressed="false" aria-label="月" title="月">🌙</button>
@@ -1039,16 +1045,24 @@
          ここは名前で探す所。地図から決めるときは、地図のすぐ下の「ここから重ねる」（地図を見ながら決めるので地図の側に置く。
          ユーザー「地図の中心ってここにいらない。地図を見てる時にここにしようって思うわけ」）。すぐ下にここから見て次に重なる日を出す（逆引き。ユーザー「曽谷から見て
          スカイツリーに重なるのはいつか」）。アプリ全体の地点（地点カード）は変えない -->
-    <label class="fav-l" for="aimFromSearch">どこから重ねるか</label>
-    <div class="search-row">
-      <input type="search" id="aimFromSearch" class="fav-in" enterkeyhint="search"
-             placeholder="観測地点を地名・住所・駅名・緯度経度で探す" aria-label="どこから重ねるか（観測地点）">
-      <button id="aimFromSearchGo" class="fav-btn search-go">検索</button>
-      <!-- 観測地点をお気に入りに（座標そのものに名前を付けて残す。2026-10-01 ユーザー「どこから重ねるかもお気に入りの登録をしたい。
-           座標ピンポイントに名前つけたりしたい」）。地点カードの ☆ と同じ形。登録済みなら ★ で、押すと編集 -->
+    <!-- 2026-10-01 ユーザー「どこから重ねるかの作りは絶景予測と同じレイアウトにしたら？別に新しいレイアウト作る必要ないよね」。
+         地点カードと同じ形（📍 名前・住所・標高、🔍、☆）。押すと地点カードと同じ「地点」の画面（検索・現在地・地図で選ぶ・
+         お気に入り）が開き、そこで選んだ場所がこの観測地点になる（placeSheetFor = "aim"）。アプリ全体の地点は変えない -->
+    <p class="fav-l" id="aimFromLabel">どこから重ねるか</p>
+    <div class="place-row aim-from-card">
+      <button class="place-pick" id="aimFromButton" aria-describedby="aimFromLabel">
+        <span class="pin">📍</span>
+        <span class="place-txt">
+          <span class="name" id="aimFromName">…</span>
+          <span class="muted" id="aimFromSub"></span>
+        </span>
+        <span class="sr-only">（観測地点を探す）</span>
+        <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+          stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
+      </button>
+      <!-- 観測地点をお気に入りに（座標そのものに名前を付けて残す。ユーザー「座標ピンポイントに名前つけたりしたい」）。登録済みなら ★ で編集 -->
       <button id="aimFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆</button>
     </div>
-    <div id="aimFromResults"></div>
 
     <label class="fav-l" for="aimLimb">どこに重ねるか</label>
     <div class="aim-row">
@@ -1239,13 +1253,15 @@
 </dialog>
 
 <dialog class="sheet" id="placeSheet">
-  <div class="sheet-head"><strong>地点</strong><button id="placeClose">閉じる</button></div>
+  <div class="sheet-head"><strong id="placeSheetTitle">地点</strong><button id="placeClose">閉じる</button></div>
   <div class="sheet-body">
     <div class="search-row">
       <input type="search" id="searchBox" enterkeyhint="search" placeholder="住所・地名・駅名・緯度経度・地図のURL">
       <button id="searchBoxGo" class="fav-btn search-go">検索</button>
     </div>
     <div id="searchResults"></div>
+    <!-- ねらうの「どこから重ねるか」で別の点を選んでいるときだけ。絶景予測の地点に戻す -->
+    <button class="list-item" id="sheetInherit" hidden></button>
     <button class="list-item" id="geoButton">📡 現在地を使う</button>
     <button class="list-item" id="mapButton">🗺️ 地図で選ぶ（ピンを置く）</button>
     <div id="geoStatus" class="warn"></div>
@@ -1461,21 +1477,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261001125429"></script>
+<script src="sorami-core.js?v=20261001130154"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261001125429"></script>
-<script src="sorami-exif.js?v=20261001125429"></script>
-<script src="sorami-capcloud.js?v=20261001125429"></script>
-<script src="sorami-terrain.js?v=20261001125429"></script>
-<script src="sorami-mountain.js?v=20261001125429"></script>
-<script src="sorami-fuji.js?v=20261001125429"></script>
-<script src="sorami-sky.js?v=20261001125429"></script>
-<script src="sorami-routes.js?v=20261001125429"></script>
-<script src="sorami-iss.js?v=20261001125429"></script>
-<script src="sorami-plane.js?v=20261001125429"></script>
-<script src="sorami-align.js?v=20261001125429"></script>
-<script src="sorami-moon.js?v=20261001125429"></script>
+<script src="sorami-astro.js?v=20261001130154"></script>
+<script src="sorami-exif.js?v=20261001130154"></script>
+<script src="sorami-capcloud.js?v=20261001130154"></script>
+<script src="sorami-terrain.js?v=20261001130154"></script>
+<script src="sorami-mountain.js?v=20261001130154"></script>
+<script src="sorami-fuji.js?v=20261001130154"></script>
+<script src="sorami-sky.js?v=20261001130154"></script>
+<script src="sorami-routes.js?v=20261001130154"></script>
+<script src="sorami-iss.js?v=20261001130154"></script>
+<script src="sorami-plane.js?v=20261001130154"></script>
+<script src="sorami-align.js?v=20261001130154"></script>
+<script src="sorami-moon.js?v=20261001130154"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4034,6 +4050,19 @@ function qualityCalibration(list) {
 }
 
 // ---------------------------------------------------------------- 地点
+/// 地点の画面を、何の地点を決めるために開いているか。null は絶景予測の地点（地点カード）、"aim" はねらうの「どこから重ねるか」。
+/// 画面は1つを使い回す（検索・現在地・地図で選ぶ・お気に入り。2026-10-01 ユーザー「新しいレイアウト作る必要ないよね」）
+let placeSheetFor = null;
+/// 地点の画面で選んだ場所を、開いた目的の方へ渡す
+function choosePlace(p) {
+  if (placeSheetFor === "aim") {
+    $("placeSheet").close();          // 閉じると placeSheetFor は null に戻る
+    aimSetFrom({ name: p.name, subtitle: aimAreaOf({ detail: p.subtitle || "" }) || p.subtitle || "",
+      latitude: p.latitude, longitude: p.longitude });
+    return;
+  }
+  selectPlace(p);
+}
 function selectPlace(p) {
   place = p;
   store.set("sorami.place", p);
@@ -4105,7 +4134,7 @@ function renderSheet() {
           <button class="tap fav-edit" data-editfav="${i}">編集</button>
           <button class="fav-del" data-delfav="${i}" aria-label="${esc(f.name)} をお気に入りから外す">✕</button></div>`;
       }).join("");
-  for (const el of $("favList").querySelectorAll("[data-fav]")) el.onclick = () => selectPlace(favorites[+el.dataset.fav]);
+  for (const el of $("favList").querySelectorAll("[data-fav]")) el.onclick = () => choosePlace(favorites[+el.dataset.fav]);
   for (const el of $("favList").querySelectorAll("[data-editfav]")) el.onclick = () => openFavSheet(+el.dataset.editfav);
   // 1タップで消して、取り消しで戻す。確認を挟まないぶん速く、押し間違えても失わない。
   for (const el of $("favList").querySelectorAll("[data-delfav]")) el.onclick = () => removeFavorite(+el.dataset.delfav);
@@ -6031,8 +6060,6 @@ function aimFromPoint() {
 }
 function aimSetFrom(p, { keepMap = false } = {}) {
   aim.from = { name: p.name, subtitle: p.subtitle || "", latitude: p.latitude, longitude: p.longitude };
-  $("aimFromResults").innerHTML = "";
-  $("aimFromSearch").blur();
   aimRenderFrom();
   // 検索で選んだら地図をその地点へ寄せる（線との位置関係が見える）。地図の中心で選んだときは動かさない
   if (keepMap) AimMap.redraw();
@@ -6047,23 +6074,6 @@ function aimAreaOf(r) {
   const muni = parts.find((x) => /[市区]$/.test(x) && x !== pref) || parts.find((x) => /[町村]$/.test(x)) || "";
   return pref + muni;
 }
-wireSearchBox("aimFromSearch", "aimFromResults",
-  (r) => aimSetFrom({ name: r.name, subtitle: aimAreaOf(r), latitude: r.latitude, longitude: r.longitude }),
-  // 緯度経度なら、地点の検索・「ここから重ねる」と同じく近くの地名を名前にする（取れなければ座標）
-  async (c) => {
-    const n = await nearName(c.latitude, c.longitude);
-    aimSetFrom({ name: n.name, subtitle: n.area || "緯度経度", latitude: c.latitude, longitude: c.longitude });
-  });
-// 欄には観測地点の名前を入れておく。押したら全部選んで、打てばそのまま探せるように。
-// 空のまま離れたら名前に戻す。打った字は残す（離れると検索が走るので、戻すと結果と欄の字が食い違う）。
-// どこから見た結果かは、下の行に必ず名前で書いてある
-$("aimFromSearch").addEventListener("focus", () => $("aimFromSearch").select());
-$("aimFromSearch").addEventListener("blur", () => setTimeout(() => {
-  if (document.activeElement === $("aimFromSearch") || $("aimFromSearch").value.trim()) return;
-  const f = aimFromPoint();
-  $("aimFromSearch").value = f ? f.name : "";
-}, 250));
-
 /// 観測地点がお気に入りのどれか（同じ点＝20m 以内）。無ければ -1
 function aimFavIndex(f) {
   if (!f) return -1;
@@ -6092,40 +6102,12 @@ function aimAfterFavChange(entry) {
   }
   if (f) aimRenderFrom();
 }
-/// 欄を押したら、お気に入りを候補に並べる（選ぶだけでその点から重ねる）。打って探せば検索の結果に替わる
-function aimShowFavChoices() {
-  // 別の点を選んでいるときは、絶景予測の地点へ戻る道も出す（ほかに戻る手段が無い）
-  const back = aim.from && Number.isFinite(place.latitude)
-    ? `<button class="list-item" data-aimback="1"><strong>絶景予測の地点に戻す</strong><span class="tiny sub-line">${esc(place.name)}</span></button>` : "";
-  if (!favorites.length && !back) return;
-  const box = $("aimFromResults");
-  box.dataset.kind = "fav";
-  box.innerHTML = back + (favorites.length ? `<p class="tiny" style="margin:6px 0 2px">お気に入り</p>` : "") + favorites.map((x, i) =>
-    `<button class="list-item" data-aimfav="${i}"><strong>★ ${esc(x.name)}</strong>`
-    + `<span class="tiny sub-line">${esc(x.subtitle || `${x.latitude.toFixed(4)}, ${x.longitude.toFixed(4)}`)}</span></button>`).join("");
-  const b = box.querySelector("[data-aimback]");
-  if (b) b.onclick = () => {
-    aim.from = null; box.innerHTML = ""; box.dataset.kind = ""; $("aimFromSearch").blur();
-    aimRenderFrom(); AimMap.open({ latitude: place.latitude, longitude: place.longitude }, Math.max(11, Math.round(AimMap.zoom())));
-  };
-  for (const el of box.querySelectorAll("[data-aimfav]")) {
-    el.onclick = () => {
-      const x = favorites[+el.dataset.aimfav];
-      if (x) aimSetFrom({ name: x.name, subtitle: aimAreaOf({ detail: x.subtitle || "" }) || x.subtitle || "", latitude: x.latitude, longitude: x.longitude });
-    };
-  }
-}
-$("aimFromSearch").addEventListener("focus", () => { if (!$("aimFromResults").innerHTML.trim()) aimShowFavChoices(); });
-// 候補（お気に入り）だけ出したまま離れたら畳む。検索の結果は残す（選びに戻れるように）
-$("aimFromSearch").addEventListener("blur", () => setTimeout(() => {
-  const box = $("aimFromResults");
-  if (document.activeElement !== $("aimFromSearch") && box.dataset.kind === "fav") { box.innerHTML = ""; box.dataset.kind = ""; }
-}, 300));
-
 async function aimRenderFrom() {
   const seq = ++aim.fromSeq;
   const f = aimFromPoint();
-  if (document.activeElement !== $("aimFromSearch")) $("aimFromSearch").value = f ? f.name : "";
+  // 地点カードと同じ形: 名前と、住所・標高（標高は読めたら足す）
+  $("aimFromName").textContent = f ? f.name : "観測地点を選んでください";
+  $("aimFromSub").textContent = f ? [f.subtitle, f.inherited ? "絶景予測の地点" : ""].filter(Boolean).join(" ・ ") : "";
   // ☆／★（お気に入りに入っている点なら ★。押すと編集）
   const favOn = aimFavIndex(f) >= 0;
   $("aimFromFav").textContent = favOn ? "★" : "☆";
@@ -6133,13 +6115,16 @@ async function aimRenderFrom() {
   $("aimFromFav").setAttribute("aria-label", favOn ? "お気に入りを編集" : "お気に入りに登録");
   const moon = aim.body === "moon";
   const what = aimIsFuji() ? (moon ? "パール富士" : "ダイヤモンド富士") : `${aim.target.name}に${moon ? "月" : "太陽"}が重なる日`;
-  if (!f) { $("aimFrom").innerHTML = `<p class="tiny">観測地点を探すか「地図の中心」を押すと、そこから見た${esc(what)}を出します。</p>`; return; }
+  if (!f) { $("aimFrom").innerHTML = `<p class="tiny">観測地点を選ぶか、地図の「ここから重ねる」を押すと、そこから見た${esc(what)}を出します。</p>`; return; }
   if (!(aim.target.parts || []).length) { $("aimFrom").innerHTML = ""; return; }
   $("aimFrom").innerHTML = `<p class="tiny">${esc(f.name)}から計算しています…</p>`;
   await new Promise((r) => setTimeout(r, 0));
   const ground = await aimElevation(f.latitude, f.longitude);
   if (seq !== aim.fromSeq) return;
   const obs = { latitude: f.latitude, longitude: f.longitude, elevation: Number.isFinite(ground) ? ground : 0 };
+  if (Number.isFinite(ground)) {
+    $("aimFromSub").textContent = [f.subtitle, `標高 ${Math.round(ground)}m`, f.inherited ? "絶景予測の地点" : ""].filter(Boolean).join(" ・ ");
+  }
   let ev = [];
   try {
     ev = SoramiAlign.upcoming(obs, aim.target, aim.body,
@@ -6150,8 +6135,8 @@ async function aimRenderFrom() {
   // 定番スポットと同じく、縁がかすめるだけの回と、明るい空の月は出さない
   ev = ev.filter((e) => e.rank !== "graze" && (!moon || e.sunAltitude < 0)).slice(0, 4);
   const D = SoramiTerrain.distanceKm(f.latitude, f.longitude, aim.target.latitude, aim.target.longitude);
-  const head = `<p class="tiny" style="color:var(--secondary)"><strong>${esc(f.name)}</strong>${
-    f.subtitle ? `（${esc(f.subtitle)}）` : ""}から見た${esc(what)}${f.inherited ? "（絶景予測で選んでいる地点）" : ""}`
+  // 住所・標高・引き継いだことは上のカードに出ているので、ここは名前だけ（どこからの結果かは必ず名前で書く）
+  const head = `<p class="tiny" style="color:var(--secondary)"><strong>${esc(f.name)}</strong>から見た${esc(what)}`
     + ` ・ ${esc(aim.target.name)}まで ${aimKm(D)}km</p>`;
   const sideOf = (e) => (e.side === "set" ? (moon ? "月の入" : "日の入") : (moon ? "月の出" : "日の出"));
   // 日付の小さな釦で並べる（定番スポットと同じ形）。押すとその日の線と候補地へ
@@ -6592,7 +6577,8 @@ function openAim(preset) {
   aimRenderFrom();
 }
 
-$("mapButton").onclick = () => MapPick.open(place);
+// ねらうの観測地点を決めるときは、いまの観測地点のところで地図を開く
+$("mapButton").onclick = () => MapPick.open(placeSheetFor === "aim" ? (aimFromPoint() || place) : place);
 $("mapClose").onclick = () => $("mapSheet").close();
 $("mapHere").onclick = () => {
   if (!navigator.geolocation) return;
@@ -6627,7 +6613,7 @@ async function selectPointAt(lat, lon, subtitle) {
   let elevation = null;
   try { elevation = await SoramiTerrain.elevationFromTile(lat, lon, 13); } catch { elevation = null; }
   const { name } = await nearName(lat, lon);
-  selectPlace({ id: `map:${lat.toFixed(5)},${lon.toFixed(5)}`,
+  choosePlace({ id: `map:${lat.toFixed(5)},${lon.toFixed(5)}`,
     name, subtitle, latitude: lat, longitude: lon,
     elevation: elevation === null || elevation === undefined ? null : Math.round(elevation * 10) / 10,
     // **点は代表点ではない。** ダイヤモンド富士や建物の地平線が出せる
@@ -6644,7 +6630,16 @@ $("mapPick").onclick = async () => {
   $("mapPick").textContent = "この場所にする";
 };
 
-$("placeButton").onclick = () => {
+/// 地点の画面を開く。mode は placeSheetFor（null＝絶景予測の地点、"aim"＝ねらうの観測地点）
+function openPlaceSheet(mode = null) {
+  placeSheetFor = mode;
+  const forAim = mode === "aim";
+  $("placeSheetTitle").textContent = forAim ? "どこから重ねるか" : "地点";
+  // ねらうでは「＋ いまの地点を登録」（地点カードの地点の登録）は出さない。観測地点の ☆ はカードの横にある
+  $("favAdd").hidden = forAim;
+  const back = forAim && aim.from && Number.isFinite(place.latitude);
+  $("sheetInherit").hidden = !back;
+  if (back) $("sheetInherit").textContent = `📍 絶景予測の地点（${place.name}）にする`;
   $("favNotice").textContent = "";
   for (const el of document.querySelectorAll(".save-err")) el.hidden = true;
   renderSheet();
@@ -6653,17 +6648,31 @@ $("placeButton").onclick = () => {
   // 前の検索語は選択しておき、打てば置き換わるようにする（2026-10-01）
   $("searchBox").focus();
   $("searchBox").select();
+}
+$("placeButton").onclick = () => openPlaceSheet(null);
+$("aimFromButton").onclick = () => openPlaceSheet("aim");
+$("sheetInherit").onclick = () => {
+  $("placeSheet").close();
+  aim.from = null;
+  aimRenderFrom();
+  AimMap.open({ latitude: place.latitude, longitude: place.longitude }, Math.max(11, Math.round(AimMap.zoom())));
 };
 $("placeClose").onclick = () => $("placeSheet").close();
 // 取り消しはシートを開いている間だけ持つ。閉じたら確定させる（次に開いたときに
 // 前回消したものの「元に戻す」が残っていると、何を消したのか分からなくなる）。
-$("placeSheet").addEventListener("close", () => { favUndo = []; });
+$("placeSheet").addEventListener("close", () => {
+  favUndo = [];
+  // 次に地点カードから開いたときに、ねらうの観測地点を決めてしまわないよう戻す
+  placeSheetFor = null;
+  $("placeSheetTitle").textContent = "地点";
+  $("favAdd").hidden = false; $("sheetInherit").hidden = true;
+});
 $("geoButton").onclick = () => {
   $("geoStatus").textContent = "";
   navigator.geolocation.getCurrentPosition(
     // id を "current" 固定にすると、別の場所で ☆ を押したときに前の登録が開く。
     // 取得方法ではなく座標で識別する（約11m 単位）。
-    (pos) => selectPlace({ id: `geo:${pos.coords.latitude.toFixed(4)},${pos.coords.longitude.toFixed(4)}`,
+    (pos) => choosePlace({ id: `geo:${pos.coords.latitude.toFixed(4)},${pos.coords.longitude.toFixed(4)}`,
       name: "現在地", subtitle: "",
       latitude: pos.coords.latitude, longitude: pos.coords.longitude, terrain: null, elevation: null }),
     () => { $("geoStatus").textContent = "現在地を取得できませんでした（HTTPS でのみ利用できます）"; },
@@ -6884,7 +6893,7 @@ wireSearchBox("searchBox", "searchResults", (r) => {
   // 無ければ OSM の構造物の高さだが、塔は先端なので**自動では立たせない**。
   const decks = r.decks && r.decks.length ? r.decks
     : (r.lookout === "building" && r.structureM ? [{ name: "屋上", aglM: Math.round(r.structureM) }] : null);
-  selectPlace({ id: `search:${r.latitude},${r.longitude}`, name: r.name,
+  choosePlace({ id: `search:${r.latitude},${r.longitude}`, name: r.name,
     // 索引の説明から標高は外す（地点カードが標高を別に書くので二重になる）
     subtitle: r.source === "gsi" ? "" : r.source === "index" ? r.detail.replace(/ ・ 標高\d+m$/, "")
       : r.detail.split(",").slice(1, 3).join("").trim(),
