@@ -545,6 +545,19 @@ ok(/wireSearchBox\("searchBox", "searchResults"[\s\S]{0,1600}\}, async \(c\) => 
   "地点の検索: 緯度経度ならそのまま地点にする（地図をもう一度押させない）");
 ok(/if \(\/\[°º˚度\]\/\.test\(q\)\) \{[\s\S]{0,120}緯度経度を読めませんでした/.test(html), "度があるのに読めなければ、地名として探さず書き方を言う");
 
+console.log("== どこから重ねるかをお気に入りに（2026-10-01） ==");
+// ユーザー「どこから重ねるかもお気に入りの登録をしたい。座標ピンポイントに名前つけたりしたいんだ」
+ok(/<button id="aimFromSearchGo"[^>]*>検索<\/button>[\s\S]{0,400}<button id="aimFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆<\/button>/.test(html),
+  "欄の横に ☆（地点カードと同じ形）");
+ok(/function openFavSheet\(index, \{ point = null, fromAim = false \} = \{\}\)/.test(html), "登録の画面は、地点カード以外の点（座標）からも開ける");
+ok(/openFavSheet\(-1, \{ fromAim: true, point: \{\s+id: `map:\$\{f\.latitude\.toFixed\(5\)\}/.test(html), "観測地点の座標を雛形にして名前を付けられる");
+ok(/if \(i >= 0\) \{ openFavSheet\(i, \{ fromAim: true \}\); return; \}/.test(html), "登録済み（★）なら編集");
+ok(/if \(favDraft\.fromAim\) aimAfterFavChange\(entry\);/.test(html), "保存したら、付けた名前で出し直す");
+ok(/if \(favDraft\.fromAim\) \{ aimAfterFavChange\(null\); return; \}/.test(html), "ねらうから消したら、地点の一覧を開かずにねらうに残る");
+ok(/addEventListener\("focus", \(\) => \{ if \(!\$\("aimFromResults"\)\.innerHTML\.trim\(\)\) aimShowFavChoices\(\); \}\)/.test(html),
+  "欄を押すと、お気に入りを候補に並べる");
+ok(/絶景予測の地点に戻す/.test(html), "別の点を選んでいるときは、絶景予測の地点へ戻る道も出す");
+
 console.log("== 観測地点を水の上に置かない（2026-10-01） ==");
 // ユーザー「観測地点は陸上に。ISS とか海の上になってなかった？」「他の観測地点も水の上にならないように」
 ok(/const c = await aimOnLand\(k, lines, opts\);/.test(html), "ねらう: 候補ごとに水の上かを見る（見通しを確かめる前に）");
@@ -1440,7 +1453,7 @@ ok(/まだ送っていない変更が \$\{pushQueue\.length\}件/.test(html), "�
 // お気に入りはアカウントに紐づくもの。端末にだけ溜めても、消えるか、あとで混ざる。
 ok(/function requireLogin\(what\) \{\s*\n\s*if \(auth\) return true;/.test(html),
   "未ログインでは登録させない");
-ok(/function openFavSheet\(index\) \{\s*\n\s*if \(!requireLoginForFavorites\(\)\) return;/.test(html),
+ok(/function openFavSheet\(index[^)]*\) \{\s*\n\s*if \(!requireLoginForFavorites\(\)\) return;/.test(html),
   "登録フォームを開く前に確かめる");
 ok(/\$\{what\}にはログインが要ります/.test(html) && /お気に入りの登録/.test(html),
   "理由を言ってログインへ案内する");
