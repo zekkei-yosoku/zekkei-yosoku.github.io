@@ -260,7 +260,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/addEventListener\("close", \(\) => \{\s+favUndo = \[\];[\s\S]{0,200}placeSheetFor = null;/.test(html), "閉じたら絶景予測の地点の画面に戻す（次に地点カードから開いたときに観測地点を決めない）");
   // 「どこに重ねるか」と対で「どこから重ねるか」。最初は絶景予測の地点を引き継いで欄に入れる（ユーザー指定）
   // 道具ごとに位置が変わらないよう、題名のすぐ下（ユーザー指定）。塔の目標は題名の中で選ぶので、目標の行は無い
-  { const t0 = html.indexOf('id="aimTitle"'), b = html.indexOf('id="aimFromLabel">どこから重ねるか'), a = html.indexOf('for="aimLimb">どこに重ねるか');
+  { const t0 = html.indexOf('id="aimTitle"'), b = html.indexOf('id="aimFromLabel">どこから重ねるか'), a = html.indexOf('id="aimWhereLabel">どこに重ねるか');
     ok(t0 > 0 && t0 < b && b < a && !/id="aimTargetBox"/.test(html), "「どこから重ねるか」は題名のすぐ下（目標の行は無い）"); }
   // 地図から決めるのは地図を見ているとき。釦は上の欄ではなく地図のすぐ下（ユーザー「地図の中心ってここにいらない」）
   { const cv = html.indexOf('id="aimCanvas"'), pk = html.indexOf('id="aimPick"'), nr = html.indexOf('id="aimNear"'), fs = html.indexOf('id="aimFromButton"');
@@ -462,7 +462,7 @@ ok(/const fujiOk = toolAllowed\("diamond"\) \|\| toolAllowed\("pearl"\), towerOk
   "目標の一覧は許可のあるものだけ（富士山はダイヤモンド富士かパール富士、ほかは tower）");
 ok(/const sunOk = !isFuji \|\| toolAllowed\("diamond"\), moonOk = !isFuji \|\| toolAllowed\("pearl"\);/.test(html), "富士山を選んだら、太陽はダイヤモンド富士・月はパール富士の許可で出す");
 // 重なる日は選ぶ行より下（太陽と月で日の数が違うので、上だと切り替えるたびに釦が動く。ユーザー「UIがすごく動くのが気になる」）
-{ const lb = html.indexOf('for="aimLimb">どこに重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('for="aimDate">日付'), sw = html.indexOf('id="aimSun"'), fs = html.indexOf('id="aimFromButton"');
+{ const lb = html.indexOf('id="aimWhereLabel">どこに重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('for="aimDate">日付'), sw = html.indexOf('id="aimSun"'), fs = html.indexOf('id="aimFromButton"');
   ok(sw < fs && fs < lb && lb < fr && fr < dt, "並び: 題名と太陽／月 → どこから → どこに → 重なる日 → 日付"); }
 ok(/\$\("aimPart"\)\.hidden = parts\.length < 2/.test(html), "選べる高さが1つなら選ぶ欄を出さない");
 ok(!/目標に太陽や月が重なる日と、/.test(html), "説明の段落を出さない");
@@ -515,15 +515,29 @@ ok(/for \(const b of await tallBuildings\(\)\)/.test(html) && /return await Sora
 ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM : typedNow \? typed : null;/.test(html), "お気に入り・検索の高さ、打ち込んだ高さを先に使う");
 ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れるのは地上からの高さ）");
 {
-  // 3つ目の合わせ方の名前は目標で変える（2026-10-02 ユーザー選択）
+  // どこに重ねるかは図つきの3つの釦（2026-10-02 ユーザー「もっと簡潔でわかりやすいのが」→ Codex と相談 → ユーザーが選んだ）
   const fill = html.slice(html.indexOf("function aimFillSelects"), html.indexOf("/// 天体で言い方を変える"));
-  ok(/esc\(mountain && l\.mountainName \? l\.mountainName : l\.name\)/.test(fill) && fill.indexOf("const sel = list.find") > fill.indexOf("if (keep.target)"),
-    "合わせ方の名前は、選んだ目標が山かで決める（目標を戻してから）");
+  ok(/<div class="aim-limb" id="aimLimb" role="group" aria-labelledby="aimWhereLabel"><\/div>/.test(html) && !/<select id="aimLimb"/.test(html),
+    "どこに重ねるかは select ではなく釦の組");
+  ok(/<button type="button" data-limb="\$\{l\.id\}" aria-pressed=/.test(fill) && /aimLimbFigure\(l\.sign, mountain,/.test(fill) && /<span>\$\{esc\(l\.name\)\}<\/span>/.test(fill),
+    "釦は図と短い字");
+  ok(fill.indexOf("const sel = list.find") > fill.indexOf("if (keep.target)"), "図の形は目標を戻してから決める");
   const isM = new Function("t", "return (" + /const aimIsMountain = (\(t\) => [\s\S]*?);\n/.exec(html)[1] + ")(t)");
   ok(isM({ id: "fuji" }) && isM({ id: "custom", groundM: 1898, parts: [{ m: 1898 }] }) && isM({ id: "fav:1", groundM: 100, parts: [{ m: 100 }] }),
-    "富士山・地上 0m の他の目標・お気に入りは山");
+    "富士山・地上 0m の他の目標・お気に入りは山の図");
   ok(!isM({ id: "skytree", groundM: 2, parts: [{ m: 636 }, { m: 452 }] }) && !isM({ id: "custom", groundM: 110, parts: [{ m: 290 }] }) && !isM({ id: "custom", parts: [] }),
-    "塔・建物（地上の高さがある）は山ではない");
+    "塔・建物（地上の高さがある）は塔の図");
+  // 図: 円の中心は 下の縁=てっぺんの上に半径・真ん中=てっぺん・上の縁=てっぺんの下に半径。山の裏に入った円は点線
+  const fig = new Function("sign", "mountain", "id", /function aimLimbFigure\(sign, mountain, maskId\) \{([\s\S]*?)\n\}/.exec(html)[1].replace(/maskId/g, "id"));
+  const cyOf = (svg) => Number(/<circle cx="20" cy="([\d.]+)" r="6" fill="currentColor"/.exec(svg)[1]);
+  ok(cyOf(fig(1, false, "a")) === 7 && cyOf(fig(0, false, "b")) === 13 && cyOf(fig(-1, false, "c")) === 19, "図の円の位置（下の縁・真ん中・上の縁）");
+  ok(/stroke-dasharray/.test(fig(-1, true, "d")) && !/stroke-dasharray/.test(fig(-1, false, "e")) && !/stroke-dasharray/.test(fig(1, true, "f")),
+    "山の上の縁だけ、裏に入った円を点線で");
+  ok(/mask="url\(#x\)"/.test(fig(0, true, "x")) && /<mask id="x">/.test(fig(0, true, "x")), "目標の手前の所は円を描かない（mask）");
+  ok(/\$\("aimLimb"\)\.onclick = \(e\) => \{/.test(html) && !/\["aimTarget", "aimPart", "aimLimb", "aimDate"\]/.test(html), "釦を押したら選び直す");
+  ok(/\.aim-limb button\[aria-pressed="true"\] \{ background: var\(--accent\)/.test(html) && /\.aim-limb button \{[^}]*min-height: 56px/.test(html),
+    "押している釦は橙・指の的は 44px 以上");
+  ok(/\$\("aimPartRow"\)\.hidden = parts\.length < 2;/.test(html), "高さを選ぶ欄が無いときは行ごと出さない（空の行を残さない）");
 }
 ok(/\$\("aimTargetSub"\)\.textContent = c\s+\? \[c\.subtitle, `標高 \$\{Math\.round\(c\.groundM \|\| 0\)\}m`\]\.filter/.test(html)
   && !/地上 \$\{/.test(html.slice(html.indexOf("function aimRenderTargetCard"), html.indexOf("// 打ち込んだ高さは、次に場所を選んだときに使う"))), "目標のカードに地上の高さを重ねて書かない（下の欄に入っている。2026-10-02 ユーザー「自動入力で入ってるから不要」）");
@@ -641,8 +655,8 @@ console.log("== 選択肢を作り直す前に選んだ値を読む（2026-10-01
   sel.value = "gallery";
   ok(run(aim, () => sel, (x) => x) === "gallery" && sel.value === "gallery", "天望回廊を選ぶと天望回廊のまま（先端へ戻らない）");
   const fillSel = /function aimFillSelects\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
-  ok(/const keep = \{ target: \$\("aimTarget"\)\.value, limb: \$\("aimLimb"\)\.value \};/.test(fillSel)
-    && /if \(keep\.limb\) \$\("aimLimb"\)\.value = keep\.limb;/.test(fillSel), "ねらう: 選択肢を作り直しても合わせ方は残す");
+  ok(/const keep = \{ target: \$\("aimTarget"\)\.value, limb: aimLimbValue\(\) \};/.test(fillSel)
+    && /const cur = keep\.limb \|\| SoramiAlign\.LIMBS\[0\]\.id;/.test(fillSel) && /aria-pressed="\$\{l\.id === cur\}"/.test(fillSel), "ねらう: 選択肢を作り直しても合わせ方は残す");
 }
 
 console.log("== 同じ名前の関数を2つ置かない・観測点は1つ（2026-10-01） ==");

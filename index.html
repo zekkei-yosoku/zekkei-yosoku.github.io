@@ -595,6 +595,12 @@
   .unit-in { position: relative; display: block; }
   .unit-in .fav-in { padding-right: 34px; }
   .unit-in .unit { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--secondary); pointer-events: none; }
+  /* どこに重ねるか（太陽・月のどの縁をてっぺんに合わせるか）。図の下に短い字の3つの釦。押している釦は橙 */
+  .aim-limb { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--sunk); margin-bottom: 8px; }
+  .aim-limb button { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px;
+                     min-height: 56px; padding: 6px 4px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; color: var(--secondary); }
+  .aim-limb button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  .aim-limb svg { display: block; }
   /* 2択は押して選ぶ。選択肢が2つしかないものを select にすると、開かないと中身が見えない */
   .aim-seg { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--sunk);
              flex: 0 0 auto; }
@@ -1106,7 +1112,7 @@
       <button id="aimFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆</button>
     </div>
 
-    <label class="fav-l" for="aimLimb">どこに重ねるか</label>
+    <p class="fav-l" id="aimWhereLabel">どこに重ねるか</p>
     <!-- 自分で置くときの目標の場所（2026-10-01 ユーザー「自分で置くを選んだ場合、どこに重ねるかの検索が必要なんじゃないの」）。
          どこから重ねるかと同じく地点カードの形で、押すと同じ「地点」の画面（検索・現在地・地図で選ぶ・お気に入り）。
          地図を見ながら決めるときは、地図のすぐ下の「ここに重ねる」 -->
@@ -1130,10 +1136,12 @@
              placeholder="高さ（地上から）" aria-label="目標の高さ（地上から・メートル）"><span class="unit" aria-hidden="true">m</span></span>
       <button id="aimCustomSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">この高さで</button>
     </div>
-    <div class="aim-row">
+    <div class="aim-row" id="aimPartRow">
       <select id="aimPart" class="fav-in" aria-label="高さ"></select>
-      <select id="aimLimb" class="fav-in" aria-label="合わせ方"></select>
     </div>
+    <!-- 太陽・月のどの縁をてっぺんに合わせるか。図と短い字の3つの釦（2026-10-02 ユーザー「もっと簡潔でわかりやすいのがあるんじゃないか」
+         →Codex と相談→ユーザーが選んだ）。select だと開かないと中身が見えず、字だけでは位置が伝わらない。中身は aimFillSelects で作る -->
+    <div class="aim-limb" id="aimLimb" role="group" aria-labelledby="aimWhereLabel"></div>
     <!-- 目標の高さの注記と、高さの入力（推定の塔・自分で置く目標のときだけ）。目標の行をやめたので、どこに重ねるかの下に -->
     <p class="tiny" id="aimTargetNote" style="margin:-2px 0 8px"></p>
     <div class="aim-row" id="aimHeightRow" hidden>
@@ -1568,21 +1576,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002083803"></script>
+<script src="sorami-core.js?v=20261002084935"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002083803"></script>
-<script src="sorami-exif.js?v=20261002083803"></script>
-<script src="sorami-capcloud.js?v=20261002083803"></script>
-<script src="sorami-terrain.js?v=20261002083803"></script>
-<script src="sorami-mountain.js?v=20261002083803"></script>
-<script src="sorami-fuji.js?v=20261002083803"></script>
-<script src="sorami-sky.js?v=20261002083803"></script>
-<script src="sorami-routes.js?v=20261002083803"></script>
-<script src="sorami-iss.js?v=20261002083803"></script>
-<script src="sorami-plane.js?v=20261002083803"></script>
-<script src="sorami-align.js?v=20261002083803"></script>
-<script src="sorami-moon.js?v=20261002083803"></script>
+<script src="sorami-astro.js?v=20261002084935"></script>
+<script src="sorami-exif.js?v=20261002084935"></script>
+<script src="sorami-capcloud.js?v=20261002084935"></script>
+<script src="sorami-terrain.js?v=20261002084935"></script>
+<script src="sorami-mountain.js?v=20261002084935"></script>
+<script src="sorami-fuji.js?v=20261002084935"></script>
+<script src="sorami-sky.js?v=20261002084935"></script>
+<script src="sorami-routes.js?v=20261002084935"></script>
+<script src="sorami-iss.js?v=20261002084935"></script>
+<script src="sorami-plane.js?v=20261002084935"></script>
+<script src="sorami-align.js?v=20261002084935"></script>
+<script src="sorami-moon.js?v=20261002084935"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4794,7 +4802,7 @@ function aimFillSelects() {
   // 他の目標（2026-10-01 に「自分で置く」から改名。ユーザーが候補から選んだ）は、一覧では「他の目標（◯◯）」。題名の枠には◯◯（場所の名前）だけ
   const custom = aimCustomTarget();
   // 作り直しても選んでいたものは残す（他の目標を置き直すたびに、合わせ方が最初の選択肢へ戻っていた）
-  const keep = { target: $("aimTarget").value, limb: $("aimLimb").value };
+  const keep = { target: $("aimTarget").value, limb: aimLimbValue() };
   const list = aimTargetList();
   const opt = (t) => `<option value="${t.id}">${esc(t.id === "custom" ? (custom ? `他の目標（${t.name}）` : "他の目標") : t.name)}</option>`;
   const favs = list.filter((t) => t.favId);
@@ -4804,12 +4812,34 @@ function aimFillSelects() {
   if (keep.target) $("aimTarget").value = keep.target;
   // 許可が変わって前の目標が一覧から消えたら、先頭へ
   if (!$("aimTarget").value && $("aimTarget").options.length) $("aimTarget").selectedIndex = 0;
-  // 3つ目（上の縁を合わせる）の名前は目標で変える: 山は「沈む・昇る瞬間」、塔は「上の縁がてっぺん」（2026-10-02 ユーザー選択）
+  // どこに重ねるかの釦。名前は山も塔も同じで、図だけ目標の形（山は台形・塔は縦線）にする
   const sel = list.find((t) => t.id === $("aimTarget").value);
   const mountain = !!sel && aimIsMountain(sel);
-  $("aimLimb").innerHTML = SoramiAlign.LIMBS
-    .map((l) => `<option value="${l.id}">${esc(mountain && l.mountainName ? l.mountainName : l.name)}</option>`).join("");
-  if (keep.limb) $("aimLimb").value = keep.limb;
+  const cur = keep.limb || SoramiAlign.LIMBS[0].id;
+  $("aimLimb").innerHTML = SoramiAlign.LIMBS.map((l) => `<button type="button" data-limb="${l.id}" aria-pressed="${l.id === cur}"`
+    + ` aria-label="${esc(aimLimbSay(l.id, mountain))}">${aimLimbFigure(l.sign, mountain, `aimLimbMask-${l.id}`)}<span>${esc(l.name)}</span></button>`).join("");
+}
+/// いま押している合わせ方
+const aimLimbValue = () => ($("aimLimb").querySelector('[aria-pressed="true"]') || {}).dataset?.limb || "";
+/// 読み上げる説明（画面では図が言う）
+function aimLimbSay(id, mountain) {
+  const b = aim.body === "moon" ? "月" : "太陽";
+  return id === "onTop" ? `下の縁: ${b}がてっぺんに乗る`
+    : id === "center" ? `真ん中: てっぺんが${b}の真ん中`
+    : mountain ? `上の縁: ${b}が山の裏へ沈む・山の裏から昇る瞬間` : `上の縁: てっぺんが${b}の上の縁`;
+}
+/// 図（40×28）。円が太陽・月、山は台形・塔は細い尖塔（縦線だけだと地点の印に見えた）。目標の手前にある所は円を描かない（mask）。
+/// 山の裏に入った円は点線の輪郭だけ（上の縁＝沈みきる・出始める瞬間）
+function aimLimbFigure(sign, mountain, maskId) {
+  const r = 6, tipY = 13, cy = tipY - sign * r;
+  const shape = mountain ? `M2 28 L15 ${tipY} H25 L38 28 Z` : `M16.5 28 L20 ${tipY} L23.5 28 Z`;
+  return `<svg viewBox="0 0 40 28" width="40" height="28" aria-hidden="true">`
+    + `<defs><mask id="${maskId}"><rect width="40" height="28" fill="#fff"/>`
+    + `<path d="${shape}" fill="#000" stroke="#000" stroke-width="${mountain ? 0 : 1.5}"/></mask></defs>`
+    + `<circle cx="20" cy="${cy}" r="${r}" fill="currentColor" mask="url(#${maskId})"/>`
+    + `<path d="${shape}" fill="currentColor" opacity="${mountain ? 0.4 : 0.55}"/>`
+    + (mountain && sign < 0 ? `<circle cx="20" cy="${cy}" r="${r - 0.75}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/>` : "")
+    + `</svg>`;
 }
 /// 山（地面そのものが目標）か。富士山と、地上の高さが 0m の目標（羊蹄山など。てっぺんの高さ＝地面の標高）
 const aimIsMountain = (t) => t.id === "fuji"
@@ -4827,6 +4857,7 @@ function aimFillParts() {
   $("aimPart").disabled = parts.length < 2;
   // 選べるものが1つしか無い（富士山の山頂など）なら、選ぶ欄を出さない
   $("aimPart").hidden = parts.length < 2;
+  $("aimPartRow").hidden = parts.length < 2;
   if (!parts.some((p) => p.id === aim.partId)) aim.partId = parts[0] ? parts[0].id : null;
   $("aimPart").value = aim.partId || "";
 }
@@ -6192,7 +6223,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   // 月の切り替えは、選んでいる日（夜）の月の形で
   $("aimMoon").textContent = `${moonGlyphAt((aim.dayMs ?? S.Cal.startOfDay(Date.now())) + 20 * 3600000)}`;
   $("aimMoon").setAttribute("aria-pressed", String(aim.body === "moon"));
-  aim.limb = $("aimLimb").value;
+  aim.limb = aimLimbValue() || SoramiAlign.LIMBS[0].id;
   // **選び直した高さは、選択肢を作り直す前に読む。** aimFillParts は aim.partId で選び直すので、
   // 後で読むと元の値（先端）に戻る（2026-09-25 から 10-01 まで高さを替えられなかった。
   // ユーザー「スカイツリーで場所は曽谷を選んで、どこに重ねるかが先端から動かせない」）
@@ -6891,9 +6922,15 @@ function openAim(preset) {
   if (!aimReady) {
     aimReady = true;
     aimFillSelects();
-    for (const id of ["aimTarget", "aimPart", "aimLimb", "aimDate"]) {
+    for (const id of ["aimTarget", "aimPart", "aimDate"]) {
       $(id).onchange = () => aimApply({ recenter: id === "aimTarget" });
     }
+    $("aimLimb").onclick = (e) => {
+      const b = e.target.closest("[data-limb]");
+      if (!b || b.getAttribute("aria-pressed") === "true") return;
+      for (const x of $("aimLimb").querySelectorAll("[data-limb]")) x.setAttribute("aria-pressed", String(x === b));
+      aimApply();
+    };
     $("aimSun").onclick = () => { aim.body = "sun"; aimApply(); };
     $("aimMoon").onclick = () => { aim.body = "moon"; aimApply(); };
     $("aimToday").onclick = () => {

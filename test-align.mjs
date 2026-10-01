@@ -54,12 +54,9 @@ console.log("== どこに重ねるかで場所が変わる ==");
   const d = (a, b) => TR.distanceKm(a.latitude, a.longitude, b.latitude, b.longitude) * 1000;
   ok(tipTop && tipCenter && tipBehind && gallery, "先端と天望回廊、3つの合わせ方すべてで解ける");
   ok(d(tipTop, tipCenter) > 10 && d(tipTop, tipCenter) < 200,
-    "「てっぺんに乗せる」と「中心を重ねる」は数十m違う", `${Math.round(d(tipTop, tipCenter))}m`);
-  const behind = AL.limbById("behind");
-  ok(AL.limbById("onTop").name === "てっぺんに乗せる" && AL.limbById("center").name === "中心を重ねる",
-    "名前は撮る人がすること（乗せる・重ねる。2026-10-02 ユーザー「乗る、とかじゃなくて乗せる」）");
-  ok(behind.name === "上の縁がてっぺん" && behind.mountainName === "沈む・昇る瞬間" && !AL.LIMBS.some((l) => /裏に隠れる/.test(l.name)),
-    "3つ目の名前は、塔は「上の縁がてっぺん」、山は「沈む・昇る瞬間」（2026-10-02 ユーザー選択）");
+    "「下の縁」と「真ん中」は数十m違う", `${Math.round(d(tipTop, tipCenter))}m`);
+  ok(AL.LIMBS.map((l) => l.name).join("・") === "下の縁・真ん中・上の縁",
+    "名前は天体のどの縁を合わせるかだけを短く（意味は画面の図。2026-10-02 ユーザー「もっと簡潔でわかりやすいのが」）");
   ok(d(tipCenter, gallery) > 100, "先端と天望回廊（第二展望台）は100m以上違う",
     `${Math.round(d(tipCenter, gallery))}m`);
   ok(tipTop.altitude > tipCenter.altitude && tipCenter.altitude > tipBehind.altitude,
