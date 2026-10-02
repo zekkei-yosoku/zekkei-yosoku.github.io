@@ -1644,21 +1644,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002142227"></script>
+<script src="sorami-core.js?v=20261002144230"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002142227"></script>
-<script src="sorami-exif.js?v=20261002142227"></script>
-<script src="sorami-capcloud.js?v=20261002142227"></script>
-<script src="sorami-terrain.js?v=20261002142227"></script>
-<script src="sorami-mountain.js?v=20261002142227"></script>
-<script src="sorami-fuji.js?v=20261002142227"></script>
-<script src="sorami-sky.js?v=20261002142227"></script>
-<script src="sorami-routes.js?v=20261002142227"></script>
-<script src="sorami-iss.js?v=20261002142227"></script>
-<script src="sorami-plane.js?v=20261002142227"></script>
-<script src="sorami-align.js?v=20261002142227"></script>
-<script src="sorami-moon.js?v=20261002142227"></script>
+<script src="sorami-astro.js?v=20261002144230"></script>
+<script src="sorami-exif.js?v=20261002144230"></script>
+<script src="sorami-capcloud.js?v=20261002144230"></script>
+<script src="sorami-terrain.js?v=20261002144230"></script>
+<script src="sorami-mountain.js?v=20261002144230"></script>
+<script src="sorami-fuji.js?v=20261002144230"></script>
+<script src="sorami-sky.js?v=20261002144230"></script>
+<script src="sorami-routes.js?v=20261002144230"></script>
+<script src="sorami-iss.js?v=20261002144230"></script>
+<script src="sorami-plane.js?v=20261002144230"></script>
+<script src="sorami-align.js?v=20261002144230"></script>
+<script src="sorami-moon.js?v=20261002144230"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3883,7 +3883,7 @@ function renderDetail(id, sel, now, opts = {}) {
   const current = findSighting(id, ev.peak);
   const record = finished
     ? `<div style="padding:8px 0"><div style="margin-bottom:6px">実際はどうでしたか？</div>
-       ${outcomeButtons(id, ev.peak, ev.score, current)}</div>`
+       ${outcomeButtons(id, ev.peak, (roundOf(id, ev.peak) || { ev }).ev.score, current)}</div>`
     : `<p class="tiny" style="padding:4px 0">${S.JstCal.hhmmRounded(ev.peak)} を過ぎたら記録できます</p>`;
   // 広い画面では「なぜこの点数か」と「どれくらい確かか」で列を分ける。
   // 1行を長くしないための分割で、片方だけを描けるように part で切り替える。
@@ -3975,14 +3975,15 @@ function samePlaceAs(record, here) {
  * 残すのは**始まる前の予測**（始まってから計算し直した値で上書きしない。答え合わせは「見る前に出していた点」とするもの）。
  * 写真なしで答えられる（外れた日ほど写真を撮らないので、写真を必須にすると外れの記録が集まらない）。8日より古い回は捨てる
  */
-const ROUND_KEEP_MS = 8 * 86400000, ROUND_ANSWER_MS = 7 * 86400000;
+const ROUND_KEEP_MS = 8 * 86400000, ROUND_ANSWER_MS = 7 * 86400000, ROUND_MAX = 240;
 function keepRounds(forPlace, now = Date.now()) {
   const today = S.Cal.startOfDay(now);
   const list = store.get("sorami.rounds", []).filter((r) => r && now - r.peak < ROUND_KEEP_MS);
   for (const [pid, entries] of Object.entries(weeks)) {
     for (const e of entries) {
       const ev = e.evaluation;
-      if (!ev || ev.unavailable || e.dayMs !== today || !Array.isArray(ev.window)) continue;
+      // 今日と明日の回（明日の朝焼けを、明日アプリを開く前の予測で残す。開いたのが日の出のあとでも始まる前の予測になる）
+      if (!ev || ev.unavailable || (e.dayMs !== today && e.dayMs !== S.Cal.addDays(today, 1)) || !Array.isArray(ev.window)) continue;
       const i = list.findIndex((r) => r.pid === pid && samePlaceAs(r, forPlace) && S.JstCal.sameDay(r.peak, ev.peak));
       if (i >= 0 && now >= list[i].window[0]) continue;      // 始まったあとは上書きしない
       const snap = { pid, peak: ev.peak, latitude: forPlace.latitude, longitude: forPlace.longitude,
@@ -3992,7 +3993,9 @@ function keepRounds(forPlace, now = Date.now()) {
       if (i >= 0) list[i] = snap; else list.push(snap);
     }
   }
-  store.set("sorami.rounds", list);
+  // 地点を何度も替えると増えるので、新しい順に上限まで（1件はおよそ4KB）
+  list.sort((a, b) => b.peak - a.peak);
+  store.set("sorami.rounds", list.slice(0, ROUND_MAX));
 }
 /// 残した回を、今の予報の回と同じ形に
 const roundFromSnap = (r) => ({ pid: r.pid, observations: r.observations || null, ev: {
@@ -4722,14 +4725,15 @@ function locateMe({ quiet = false } = {}) {
   return new Promise((resolve) => {
     if (!navigator.geolocation) { resolve(null); return; }
     navigator.geolocation.getCurrentPosition((pos) => {
-      myPos = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracyM: pos.coords.accuracy };
+      myPos = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracyM: pos.coords.accuracy, at: Date.now() };
       for (const redraw of MAP_VIEWS) redraw();
       resolve(myPos);
     }, () => resolve(null), { enableHighAccuracy: !quiet, timeout: 10000, maximumAge: 60000 });
   });
 }
 async function locateIfAllowed() {
-  if (myPos) return;
+  // 2分より古ければ取り直す（歩いて場所を探していると、点が置いていかれる）
+  if (myPos && Date.now() - myPos.at < 120000) return;
   try {
     const st = navigator.permissions && await navigator.permissions.query({ name: "geolocation" });
     if (st && st.state === "granted") locateMe({ quiet: true });
@@ -5679,7 +5683,10 @@ for (const row of document.querySelectorAll(".coord-row")) {
   // ISS は選んでいる回の立つ場所の例、ほかは地図の中心（ピン）
   const center = () => (row.dataset.map === "iss" ? issStandPoint() : ({ aim: AimMap, plane: PlaneMap })[row.dataset.map].center());
   const copy = row.querySelector("[data-coord-copy]");
+  // 地図をまだ描いていない（座標が「—」）なら何もしない（見えていない初期位置を写さない）
+  const ready = () => row.querySelector(".coord").textContent !== "—" && !!center();
   copy.onclick = async () => {
+    if (!ready()) return;
     const ok = await copyText(coordText(center()));
     const done = copy.querySelector(".copied"), c = copy.querySelector(".coord");
     done.textContent = ok ? "コピーしました" : "コピーできませんでした";
@@ -5688,10 +5695,11 @@ for (const row of document.querySelectorAll(".coord-row")) {
     copy.timer = setTimeout(() => { done.hidden = true; c.hidden = false; }, 1500);
   };
   row.querySelector("[data-map-app-open]").onclick = () => {
+    if (!ready()) return;
     const app = savedMapApp(), t = coordText(center());
     if (app) openMapApp(app, t); else openMapAppSheet(t);
   };
-  row.querySelector("[data-map-app-change]").onclick = () => openMapAppSheet(coordText(center()));
+  row.querySelector("[data-map-app-change]").onclick = () => { if (ready()) openMapAppSheet(coordText(center())); };
 }
 renderCoordRows();
 /// ISS の座標の行: 選んでいる回の立つ場所の例。無ければ行を出さない
@@ -6863,7 +6871,7 @@ async function aimRenderFrom() {
   } catch { /* 確かめられなくても日付は出す */ }
   if (seq !== aim.fromSeq) return;
   if (!hidden) {
-    const x = await aimSightBuildings(obs, D, () => seq === aim.fromSeq);
+    const x = await aimSightBuildings(obs, D, () => seq === aim.fromSeq, Number.isFinite(ground) ? ground : null);
     if (seq !== aim.fromSeq) return;
     if (!x) buildingsKnown = false;
     else if (x.blocked) hidden = x.by ? `${x.by.distanceM}m 先の高さ ${Math.round(x.by.heightM)}m の建物に隠れます` : "高い建物に隠れます";
@@ -7146,7 +7154,7 @@ function tallCovers(all, lat, lon) {
 /// どこから重ねるか（1地点）の、建物の見通し。首都圏は同梱の一覧、外は目標へ向かう線に掛かる建物を OpenStreetMap に問い合わせる。
 /// 確かめられなければ null
 const aimAlongCache = new Map();
-async function aimSightBuildings(obs, D, wanted = null) {
+async function aimSightBuildings(obs, D, wanted = null, groundM = null) {
   const t = aim.target;
   const reach = Math.min(1.5, D - 0.3);
   if (!(reach > 0)) return { blocked: false, by: null };
@@ -7168,7 +7176,34 @@ async function aimSightBuildings(obs, D, wanted = null) {
     }
     near = aimAlongCache.get(key);
   }
+  near = await aimBuildingsOnLine(obs, groundM, t, near, reach);
   return SoramiAlign.buildingBlock(obs, t, near, { partId: aim.partId, eyeAboveGroundM: 1.5 });
+}
+/**
+ * 目標へ向かう線に掛かる建物だけを選び、**建物の地面の標高と立つ場所の地面の差を高さに足す**（2026-10-02 総点検）。
+ * buildingBlock は建物の地面を立つ場所と同じとみなすので、丘の上から見ると下の街の 20m の建物を「隠れる」と誤っていた
+ * （候補地の絞り込みも同じ）。地面は標高タイル（z13）で建物の中心を読む
+ */
+async function aimBuildingsOnLine(stand, groundM, target, buildings, reachKm) {
+  const brg = SoramiTerrain.bearing(stand.latitude, stand.longitude, target.latitude, target.longitude) * Math.PI / 180;
+  const cosLat = Math.cos(stand.latitude * Math.PI / 180), L = reachKm * 1000;
+  const xy = (la, lo) => [(lo - stand.longitude) * 111320 * cosLat, (la - stand.latitude) * 110540];
+  const on = [];
+  for (const b of buildings || []) {
+    let c, r;
+    if (b.ring) {
+      const pts = b.ring.map(([la, lo]) => xy(la, lo));
+      c = [pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.reduce((a, p) => a + p[1], 0) / pts.length];
+      r = Math.max(...pts.map((p) => Math.hypot(p[0] - c[0], p[1] - c[1])));
+    } else { c = xy(b.latitude, b.longitude); r = b.radiusM || 0; }
+    const along = c[0] * Math.sin(brg) + c[1] * Math.cos(brg), perp = Math.abs(c[0] * Math.cos(brg) - c[1] * Math.sin(brg));
+    if (along < -r || along > L + r || perp > r + 1) continue;
+    on.push({ b, lat: stand.latitude + c[1] / 110540, lon: stand.longitude + c[0] / (111320 * cosLat) });
+  }
+  if (!on.length || !Number.isFinite(groundM)) return on.map((x) => x.b);
+  let g = [];
+  try { g = await SoramiTerrain.elevations(on.map((x) => ({ latitude: x.lat, longitude: x.lon })), { zoom: 13 }); } catch { g = []; }
+  return on.map((x, i) => (Number.isFinite(g[i]) ? { ...x.b, heightM: x.b.heightM + (g[i] - groundM) } : x.b));
 }
 async function aimBuildingBlocks(cands) {
   const t = aim.target;
@@ -7176,15 +7211,16 @@ async function aimBuildingBlocks(cands) {
   try { all = await tallBuildings(); } catch { return null; }
   // 首都圏の外の候補地は、一覧に建物が無いので確かめていない（「隠れない」とは言わない）
   if (!cands.every((c) => tallCovers(all, c.stand.latitude, c.stand.longitude))) return "outside";
-  return cands.map((c) => {
+  return Promise.all(cands.map(async (c) => {
     // 目標までの間（1.5km）にある建物だけに絞ってから判定する（数万棟を毎回全部は見ない）
     const d = Math.min(1.6, c.distanceKm);
-    const near = all.filter((b) => Math.abs(b.latitude - c.stand.latitude) < 0.016 && Math.abs(b.longitude - c.stand.longitude) < 0.02
+    const box = all.filter((b) => Math.abs(b.latitude - c.stand.latitude) < 0.016 && Math.abs(b.longitude - c.stand.longitude) < 0.02
       && SoramiTerrain.distanceKm(c.stand.latitude, c.stand.longitude, b.latitude, b.longitude) <= d + 0.05);
+    const near = await aimBuildingsOnLine(c.stand, c.stand.elevationM, t, box, Math.min(1.5, c.distanceKm - 0.3));
     return SoramiAlign.buildingBlock(
       { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM + (c.place.deckM || 0) },
       t, near, { partId: aim.partId, eyeAboveGroundM: 1.5 + (c.place.deckM || 0) + (c.place.bridgeM || 0) });
-  });
+  }));
 }
 
 function aimRenderCands() {

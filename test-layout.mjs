@@ -561,7 +561,7 @@ ok(/\$\("aimTargetSub"\)\.textContent = c\s+\? \[c\.subtitle, `標高 \$\{Math\.
   ok(/tallCovers\(all, obs\.latitude, obs\.longitude\) && tallCovers\(all, end\.latitude, end\.longitude\)/.test(sb)
     && /SoramiTerrain\.buildingsAlong\(obs, end,/.test(sb), "首都圏の外は線に掛かる建物を OpenStreetMap に問い合わせる");
   ok(/if \(!got\) return null;/.test(sb), "問い合わせられなければ「確かめられない」（null）");
-  ok(/SoramiTerrain\.buildingsAlong\(obs, end, \{ wanted \}\)/.test(sb) && /aimSightBuildings\(obs, D, \(\) => seq === aim\.fromSeq\)/.test(html),
+  ok(/SoramiTerrain\.buildingsAlong\(obs, end, \{ wanted \}\)/.test(sb) && /aimSightBuildings\(obs, D, \(\) => seq === aim\.fromSeq,/.test(html),
     "観測地点を替えたら、待っている問い合わせは投げない");
   ok(/if \(!cands\.every\(\(c\) => tallCovers\(all, c\.stand\.latitude, c\.stand\.longitude\)\)\) return "outside";/.test(html)
     && /"建物で隠れるかは、首都圏の外では確かめていません。"/.test(html), "候補地も、首都圏の外では建物を確かめていないと書く");
@@ -2761,6 +2761,26 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
     && /row\.querySelector\("\[data-map-app-open\]"\)\.classList\.toggle\("split", !!app\);/.test(html), "覚えたら、地図アプリの釦の右端の ▾ で選び直す（「変更」で1行を使わない）");
 }
 {
+  // 建物の地面の標高を足して隠れるかを判定する（総点検 2026-10-02。丘の上から下の街の建物を「隠れる」と誤っていた）
+  const src = /async function aimBuildingsOnLine\([\s\S]*?\n\}/.exec(html)[0];
+  const T = req("./sorami-terrain.js");
+  const run = async (groundAtBuilding, standGround) => {
+    const fake = { ...T, elevations: async (pts) => pts.map(() => groundAtBuilding) };
+    const fn = new Function("SoramiTerrain", `${src}; return aimBuildingsOnLine;`)(fake);
+    const stand = { latitude: 35.6, longitude: 139.6 }, target = { latitude: 35.6, longitude: 139.75 };   // 真東へ約13.6km
+    const onLine = { latitude: 35.6, longitude: 139.605, radiusM: 20, heightM: 40 };                     // 東へ450m、線の上
+    const offLine = { latitude: 35.605, longitude: 139.605, radiusM: 20, heightM: 40 };                  // 北へ550mずれる
+    const behind = { latitude: 35.6, longitude: 139.59, radiusM: 20, heightM: 40 };                      // 西（後ろ）
+    return fn(stand, standGround, target, [onLine, offLine, behind], 1.5);
+  };
+  const low = await run(20, 200);       // 丘の上（200m）から、下の街（20m）の 40m の建物
+  ok(low.length === 1 && low[0].heightM === -140, "線の上の建物だけを選び、地面の差を高さに足す（下の街の建物は低くなる）", JSON.stringify(low.map((b) => b.heightM)));
+  const same = await run(30, null);
+  ok(same.length === 1 && same[0].heightM === 40, "立つ場所の標高が分からなければ足さない");
+  ok(/near = await aimBuildingsOnLine\(obs, groundM, t, near, reach\);/.test(html)
+    && /const near = await aimBuildingsOnLine\(c\.stand, c\.stand\.elevationM, t, box,/.test(html), "どこから重ねるかも、候補地も");
+}
+{
   // 地図の種類と現在地（2026-10-02 ユーザー「地図、写真ってどっちも地図じゃん。こういうボタンを用意して地図モードを変えられるように」「現在地マーク」）
   ok(!/class="maplayer"/.test(html) && !/>写真<\/button>/.test(html), "「地図／写真」の2択はやめた");
   const L = /const MAP_LAYERS = \{[\s\S]*?\n\};/.exec(html)[0];
@@ -2771,7 +2791,10 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   ok(/if \(st && st\.state === "granted"\) locateMe\(\{ quiet: true \}\);/.test(html), "許可済みなら開いたときから現在地の点（許可は釦を押したときだけ聞く）");
   ok(/drawMyPos\(ctx, project, view\);/.test(html) && /ctx\.fillStyle = "#1a73e8"/.test(html), "現在地は青い点");
   ok(!/id="mapHere"/.test(html), "地図で選ぶの「現在地へ」は地図の上の釦にまとめた");
-  ok(/if \(remember\) store\.set\("sorami\.mapLayer", next\);/.test(html) && /setLayer\(store\.get\("sorami\.mapLayer", "map"\)\);/.test(html),
+  ok(/if \(myPos && Date\.now\(\) - myPos\.at < 120000\) return;/.test(html), "現在地は2分より古ければ取り直す");
+  ok(/const ready = \(\) => row\.querySelector\("\.coord"\)\.textContent !== "—" && !!center\(\);/.test(html)
+    && (html.match(/if \(!ready\(\)\) return;/g) || []).length === 2, "座標がまだ出ていなければ、コピーも地図アプリも何もしない");
+    ok(/if \(remember\) store\.set\("sorami\.mapLayer", next\);/.test(html) && /setLayer\(store\.get\("sorami\.mapLayer", "map"\)\);/.test(html),
     "選んだ種類はどの地図でも次から使う");
   ok(/coord: "aimCoord"/.test(html) && /coord: "planeCoord"/.test(html) && !/coord: "issCoord"/.test(html), "ねらう・月丼はピンの位置、ISS は立つ場所の例（ピンは置かない決まり）");
   ok(/<div class="coord-row" data-map="iss" hidden>[\s\S]{0,120}立つ場所の例/.test(html) && /function issCoordUpdate\(\)/.test(html), "ISS は選んでいる回の立つ場所の例");
@@ -2835,6 +2858,20 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
     "別の地点の回は出さない");
   ok(/const out = answerableRounds\(now\)\.filter\(\(\{ pid, ev \}\) => !findSighting\(pid, ev\.peak\)\)/.test(html), "実際はどうでしたかは答えられる回から");
   ok(/const round = roundOf\(pid, peak\);/.test(html.slice(html.indexOf("function recordAnswer"))), "記録も残した回の予測で");
+  // 総点検（2026-10-02）: 詳細の画面も、残した回の予測で答える（予報が変わった回で「予測通り」が期待外れになっていた）
+  ok(/outcomeButtons\(id, ev\.peak, \(roundOf\(id, ev\.peak\) \|\| \{ ev \}\)\.ev\.score, current\)/.test(html), "詳細の答えも残した回の予測の点で");
+  // 明日の回も残す（明日の朝焼けを、明日アプリを開く前の予測で）・上限
+  const mem2 = {};
+  const store2 = { get: (k, d) => (k in mem2 ? JSON.parse(mem2[k]) : d), set: (k, v) => { mem2[k] = JSON.stringify(v); } };
+  const tomorrow = { dayMs: today + DAY, evaluation: { ...mk(60, 5, 6).evaluation, peak: today + DAY + 5.5 * 3600000,
+    window: [today + DAY + 5 * 3600000, today + DAY + 6 * 3600000] } };
+  const R2 = f(C, store2, { sunrise: [tomorrow], sunset: [mk(74, 16.5, 17.5)] }, place, () => ({}));
+  R2.keepRounds(place, now0);
+  ok(store2.get("sorami.rounds").map((r) => r.pid).sort().join() === "sunrise,sunset", "今日と明日の回を残す");
+  const many = Array.from({ length: 300 }, (_, i) => ({ pid: "sunset", peak: now0 - i * 60000, latitude: 1, longitude: 1, window: [0, 1] }));
+  store2.set("sorami.rounds", many);
+  R2.keepRounds(place, now0);
+  ok(store2.get("sorami.rounds").length === 240, "残す回は上限まで（地点を替えるたびに増え続けない）", String(store2.get("sorami.rounds").length));
 }
 ok(/記録を足す/.test(html), "入口の名前は「記録を足す」");
 ok(/altitude: r && Number\.isFinite\(r\.altitudeM\)/.test(html), "標高を送る");
