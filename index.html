@@ -1599,21 +1599,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002104430"></script>
+<script src="sorami-core.js?v=20261002105936"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002104430"></script>
-<script src="sorami-exif.js?v=20261002104430"></script>
-<script src="sorami-capcloud.js?v=20261002104430"></script>
-<script src="sorami-terrain.js?v=20261002104430"></script>
-<script src="sorami-mountain.js?v=20261002104430"></script>
-<script src="sorami-fuji.js?v=20261002104430"></script>
-<script src="sorami-sky.js?v=20261002104430"></script>
-<script src="sorami-routes.js?v=20261002104430"></script>
-<script src="sorami-iss.js?v=20261002104430"></script>
-<script src="sorami-plane.js?v=20261002104430"></script>
-<script src="sorami-align.js?v=20261002104430"></script>
-<script src="sorami-moon.js?v=20261002104430"></script>
+<script src="sorami-astro.js?v=20261002105936"></script>
+<script src="sorami-exif.js?v=20261002105936"></script>
+<script src="sorami-capcloud.js?v=20261002105936"></script>
+<script src="sorami-terrain.js?v=20261002105936"></script>
+<script src="sorami-mountain.js?v=20261002105936"></script>
+<script src="sorami-fuji.js?v=20261002105936"></script>
+<script src="sorami-sky.js?v=20261002105936"></script>
+<script src="sorami-routes.js?v=20261002105936"></script>
+<script src="sorami-iss.js?v=20261002105936"></script>
+<script src="sorami-plane.js?v=20261002105936"></script>
+<script src="sorami-align.js?v=20261002105936"></script>
+<script src="sorami-moon.js?v=20261002105936"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6375,7 +6375,11 @@ function aimApply({ redraw = true, recenter = false } = {}) {
     + (S.JstCal.sameDay(aim.dayMs, Date.now()) ? " ・ 今日" : "");
   // 目標が決まっていなければ線は引けない（高さが無い）
   if (!(aim.target.parts || []).length) {
-    aim.lines = []; AimMap.redraw();
+    aim.lines = [];
+    // 地図をまだ開いていなければ（中心が無ければ）、どこから重ねるかの地点で開く
+    const c = AimMap.center();
+    if (!c || !Number.isFinite(c.latitude)) AimMap.open(...aimMapView());
+    else AimMap.redraw();
     $("aimLineInfo").textContent = "重ねる目標の場所を選んでください";
     $("aimList").innerHTML = "";
     return;
@@ -7133,13 +7137,25 @@ function openAim(preset) {
   aimApply({ redraw: false });
   // ページとして開くので、地図は表示されてから測る（隠れている間は幅が 0）
   requestAnimationFrame(() => {
-    AimMap.open({ latitude: aim.target.latitude, longitude: aim.target.longitude },
-      aimZoomFor(aim.target, aim.partId));
+    AimMap.open(...aimMapView());
     requestAnimationFrame(() => AimMap.redraw());
   });
-  aimRedrawLine();
-  aimRenderList();
+  // 目標の場所が決まっていなければ、線も一覧も出さない（aimApply が「重ねる目標の場所を選んでください」と出している）。
+  // 計算すると「この日は、どこからも重なりません」「線が無いので候補地もありません」と、目標が無いだけなのに重ならないように読めた
+  if ((aim.target.parts || []).length) { aimRedrawLine(); aimRenderList(); }
   aimRenderFrom();
+}
+
+/// 地図を開く中心と倍率。目標の場所が決まっていなければ（他の目標をまだ選んでいない）、どこから重ねるかの地点で開く
+/// （2026-10-02 ユーザー「他の目標で現在地の場合、地図が何も表示されてない。もう一度現在地を選択すると表示される」。
+/// 目標の座標が無いまま地図を開き、中心が無くて何も描かれなかった。地点を選び直すとその地点で開き直すので出ていた）
+function aimMapView() {
+  const t = aim.target;
+  if (Number.isFinite(t.latitude) && Number.isFinite(t.longitude)) {
+    return [{ latitude: t.latitude, longitude: t.longitude }, aimZoomFor(t, aim.partId)];
+  }
+  const f = aimFromPoint() || place;
+  return [{ latitude: f ? f.latitude : 35.68, longitude: f ? f.longitude : 139.77 }, 12];
 }
 
 // ねらうの観測地点を決めるときは、いまの観測地点のところで地図を開く

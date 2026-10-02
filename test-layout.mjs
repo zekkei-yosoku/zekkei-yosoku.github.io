@@ -538,6 +538,18 @@ ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れ�
   ok(/\.aim-limb button\[aria-pressed="true"\] \{ background: var\(--accent\)/.test(html) && /\.aim-limb button \{[^}]*min-height: 56px/.test(html),
     "押している釦は橙・指の的は 44px 以上");
   ok(/\$\("aimPartRow"\)\.hidden = parts\.length < 2;/.test(html), "高さを選ぶ欄が無いときは行ごと出さない（空の行を残さない）");
+  // 他の目標をまだ選んでいないとき、地図が何も描かれなかった（2026-10-02 ユーザー「他の目標で現在地の場合、地図が何も表示されてない」）
+  ok(/requestAnimationFrame\(\(\) => \{\s+AimMap\.open\(\.\.\.aimMapView\(\)\);/.test(html), "地図は aimMapView の中心で開く");
+  ok(/if \(\(aim\.target\.parts \|\| \[\]\)\.length\) \{ aimRedrawLine\(\); aimRenderList\(\); \}\n  aimRenderFrom\(\);\n\}/.test(html),
+    "目標の場所が無いときは、線と一覧を計算しない（「どこからも重なりません」と出さない）");
+  {
+    const mv = /function aimMapView\(\) \{[\s\S]*?\n\}/.exec(html)[0];
+    const f = new Function("aim", "aimZoomFor", "aimFromPoint", "place", `${mv}; return aimMapView();`);
+    const unset = f({ target: { id: "custom", name: "他の目標", parts: [] } }, () => 9, () => ({ latitude: 35.73, longitude: 139.64 }), null);
+    ok(unset[0].latitude === 35.73 && unset[0].longitude === 139.64 && unset[1] === 12, "目標の場所が無ければ、どこから重ねるかの地点で開く");
+    const set = f({ target: { latitude: 35.71, longitude: 139.81, parts: [{ m: 636 }] }, partId: "tip" }, () => 11, () => ({ latitude: 0, longitude: 0 }), null);
+    ok(set[0].latitude === 35.71 && set[1] === 11, "目標があれば目標の場所で開く");
+  }
 }
 ok(/\$\("aimTargetSub"\)\.textContent = c\s+\? \[c\.subtitle, `標高 \$\{Math\.round\(c\.groundM \|\| 0\)\}m`\]\.filter/.test(html)
   && !/地上 \$\{/.test(html.slice(html.indexOf("function aimRenderTargetCard"), html.indexOf("// 打ち込んだ高さは、次に場所を選んだときに使う"))), "目標のカードに地上の高さを重ねて書かない（下の欄に入っている。2026-10-02 ユーザー「自動入力で入ってるから不要」）");
