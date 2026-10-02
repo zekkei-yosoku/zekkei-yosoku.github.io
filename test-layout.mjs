@@ -2929,8 +2929,11 @@ console.log("== 見え方の図（2026-10-02） ==");
     "選んだ時刻は重なる時刻からの差で言う", [rel(0), rel(-180000), rel(20000), rel(-80000)].join(" / "));
   // 形の出どころを書き分ける（Codex: 寸法からの形・推定の模式図・標高データを見た目で区別する）
   ok(/稜線は国土地理院の標高データから/.test(html) && /形は写真から測ったおおよその形/.test(html)
-    && /形は公表寸法から作ったおおよその形/.test(html) && /の模式図（幅は推定）/.test(html), "形の出どころを書く");
+    && /の模式図（幅は推定）/.test(html)
+    && /のシルエットを写真の縮尺に合わせたもの`/.test(html) && /形は城のシルエットを写真の縮尺に合わせたもの/.test(html), "形の出どころを書く");
   ok(/円盤は形の後ろ（形で隠れる）/.test(html) && /ctx\.setLineDash\(\[3, 3\]\)/.test(html), "円盤は形の後ろ、隠れた所は点線の輪");
+  ok(/ctx\.fillStyle = bright \? "rgba\(16,20,30,0\.94\)" : "#020306";/.test(html) && /const rim = bright \? null : /.test(html),
+    "暗い空では形を空より暗く塗り、縁を明るい線でなぞる（夜空と見分けにくかった）");
   ok(/選んだ時刻だけ字で出す/.test(html), "時刻の字は選んだものだけ（320px で読めるように）");
   const lookSrc = html.slice(html.indexOf("async function aimLookRender"), html.indexOf("let aimLookResize"));
   ok(/cv\.onclick = /.test(lookSrc) && !/onpointerdown/.test(lookSrc) && /data-look-range/.test(lookSrc), "道をさわるか、つまみで時刻を選ぶ（iPhone の指のタップは click で受ける）");

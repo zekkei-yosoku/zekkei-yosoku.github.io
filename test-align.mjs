@@ -346,10 +346,26 @@ console.log("== 見え方の図（2026-10-02） ==");
   const st = AL.towerOutline(TAKAO, skytree, { eyeM: 1.5 });
   const topSt = A.targetElevationAngle(st.distanceKm, TAKAO.elevation + 1.5, 636);
   ok(Math.abs(st.topAngle - topSt) < 1e-9, "スカイツリーの上端は先端の見上げ角");
-  const halfBase = Math.atan(34 / (st.distanceKm * 1000)) * 180 / Math.PI;
-  ok(Math.abs((st.azimuth - st.points[0][0]) - halfBase) < 1e-6, "足もとの幅は一辺68m");
+  const baseW = (Math.max(...st.points.map((p) => p[0])) - Math.min(...st.points.map((p) => p[0])));
+  const want = Math.atan(68 / (st.distanceKm * 1000)) * 180 / Math.PI;
+  const sw = AL.TOWER_SHAPES.skytree.outline;
+  const wAt = (h0, h1) => { const q = sw.filter((p) => p[1] >= h0 && p[1] <= h1); return Math.max(...q.map((p) => p[0])) - Math.min(...q.map((p) => p[0])); };
+  ok(Math.abs(sw[sw.length - 1][0] - sw[0][0] - 68) < 0.5, "足もとの幅は一辺68m", (sw[sw.length - 1][0] - sw[0][0]).toFixed(1));
+  ok(Math.abs(wAt(341, 372) - 62.5) < 5, "天望デッキの幅は写真の実測（62.5m。縁の張り出しを含めて ±5m）", wAt(341, 372).toFixed(1));
+  ok(wAt(440, 458) > 33 && wAt(440, 458) < 41, "天望回廊の幅は写真の実測（37m）", wAt(440, 458).toFixed(1));
+  ok(Math.max(...sw.map((p) => p[1])) === 634, "先端は 634m");
+  // ユーザーの写真（35.707668, 139.798313 から 1,150m）: 天望回廊の高さの位置が写真と合う（先端とデッキから決めた縮尺で予測 617px、写真 612px）
+  ok(baseW > want * 0.9, "足もとの見かけの幅", baseW.toFixed(4));
   const tt = AL.towerOutline(TAKAO, AL.targetById("tokyotower"));
   ok(tt.known && tt.points.length > 30, "東京タワーは作り込んだ形", `${tt.points.length}点`);
+  {
+    const tw = AL.TOWER_SHAPES.tokyotower.outline;
+    const wAt = (h0, h1) => { const q = tw.filter((p) => p[1] >= h0 && p[1] <= h1); return Math.max(...q.map((p) => p[0])) - Math.min(...q.map((p) => p[0])); };
+    ok(Math.max(...tw.map((p) => p[1])) === 333, "東京タワーの先は 333m");
+    // ユーザーの写真（真南 424m）で測った: メインデッキ 地上112〜131m・幅 44m（斜めに見える）
+    ok(Math.abs(wAt(112, 131) - 44) < 5, "メインデッキの幅は写真の実測（44m）", wAt(112, 131).toFixed(1));
+    ok(wAt(135, 220) < wAt(112, 131), "メインデッキは上の塔より張り出す");
+  }
   const cin = AL.towerOutline(TAKAO, AL.targetById("cinderella"));
   ok(cin.known && cin.points.length > 40, "シンデレラ城は左右の小塔まで描く", `${cin.points.length}点`);
   ok(Math.abs(Math.max(...cin.points.map((p) => p[1])) - cin.topAngle) < 1e-9, "シンデレラ城の上端は尖塔");
@@ -390,8 +406,15 @@ console.log("== 見え方の図（2026-10-02） ==");
 
   // 図の範囲: 円盤6つぶんの高さは取り、広げるのは上へ
   const w = AL.viewWindow({ azimuth: 100, baseAngle: 0, topAngle: 0.5, radiusDeg: 0.25, aspect: 1.4 });
-  ok(w.halfH === 1.5 && Math.abs(w.alt0 - 1.35) < 1e-9, "小さく見える目標でも円盤6つぶん。下は根元のすぐ下", JSON.stringify(w));
-  ok(Math.abs(w.halfW - 2.1) < 1e-9, "横は図の縦横比");
+  ok(Math.abs(w.halfH - 1.5) < 0.001 && Math.abs(w.alt0 - 1.35) < 1e-9, "小さく見える目標でも円盤6つぶん。下は根元のすぐ下", JSON.stringify(w));
+  ok(Math.abs(w.halfW - w.halfH * 1.4) < 1e-9, "横は図の縦横比");
+  // 近い塔（見上げ 29°）: 写したあとの上の端まで入る。重なる時刻の円盤（先端より上）も入れる
+  {
+    const big = AL.viewWindow({ azimuth: 76.6, baseAngle: -0.1, topAngle: 28.8, radiusDeg: 0.27, aspect: 1.39, include: [29.6] });
+    const P = AL.viewProjector(big.az0, big.alt0);
+    ok(P(76.6, 29.6 + 0.27)[1] <= big.halfH, "円盤の上の縁まで図に入る", `${P(76.6, 29.87)[1].toFixed(2)} <= ${big.halfH.toFixed(2)}`);
+    ok(P(76.6, -0.1)[1] >= -big.halfH, "根元も図に入る");
+  }
 
   // 道: 重なる時刻を必ず含み、20秒刻みで図の外まで
   const win = AL.viewWindow({ azimuth: o.azimuth, baseAngle: o.viewBaseAngle, topAngle: o.topAngle, radiusDeg: m.angularRadius, aspect: 1.39 });

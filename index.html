@@ -1606,21 +1606,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002191541"></script>
+<script src="sorami-core.js?v=20261002193040"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002191541"></script>
-<script src="sorami-exif.js?v=20261002191541"></script>
-<script src="sorami-capcloud.js?v=20261002191541"></script>
-<script src="sorami-terrain.js?v=20261002191541"></script>
-<script src="sorami-mountain.js?v=20261002191541"></script>
-<script src="sorami-fuji.js?v=20261002191541"></script>
-<script src="sorami-sky.js?v=20261002191541"></script>
-<script src="sorami-routes.js?v=20261002191541"></script>
-<script src="sorami-iss.js?v=20261002191541"></script>
-<script src="sorami-plane.js?v=20261002191541"></script>
-<script src="sorami-align.js?v=20261002191541"></script>
-<script src="sorami-moon.js?v=20261002191541"></script>
+<script src="sorami-astro.js?v=20261002193040"></script>
+<script src="sorami-exif.js?v=20261002193040"></script>
+<script src="sorami-capcloud.js?v=20261002193040"></script>
+<script src="sorami-terrain.js?v=20261002193040"></script>
+<script src="sorami-mountain.js?v=20261002193040"></script>
+<script src="sorami-fuji.js?v=20261002193040"></script>
+<script src="sorami-sky.js?v=20261002193040"></script>
+<script src="sorami-routes.js?v=20261002193040"></script>
+<script src="sorami-iss.js?v=20261002193040"></script>
+<script src="sorami-plane.js?v=20261002193040"></script>
+<script src="sorami-align.js?v=20261002193040"></script>
+<script src="sorami-moon.js?v=20261002193040"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6867,7 +6867,8 @@ async function aimLookRender(host, spec) {
   const W = Math.max(200, Math.round(cv.clientWidth || host.clientWidth || 320));
   host._lookW = W;
   const H = Math.round(Math.min(420, W * 0.72));
-  const win = SoramiAlign.viewWindow({ azimuth: az, baseAngle: viewBase, topAngle, radiusDeg: radius, aspect: W / H });
+  const win = SoramiAlign.viewWindow({ azimuth: az, baseAngle: viewBase, topAngle, radiusDeg: radius, aspect: W / H,
+    include: [st.apparentAltitude] });
   const proj = SoramiAlign.viewProjector(win.az0, win.alt0);
   const path = SoramiAlign.viewPath(body, eyeObs, spec.at, proj, win);
   const i0 = Math.max(0, path.findIndex((p) => p.at === spec.at));
@@ -6905,7 +6906,7 @@ async function aimLookRender(host, spec) {
     mountain ? (shape ? "稜線は国土地理院の標高データから" : "稜線を読み込めませんでした")
       : t.id === "cinderella" ? "形は城のシルエットを写真の縮尺に合わせたもの（薄い所は木に隠れて見えない部分）"
       : t.id === "tinkerbell" ? "形は写真から測ったおおよその形"
-      : known ? "形は公表寸法から作ったおおよその形"
+      : known ? `形は${t.id === "skytree" ? "スカイツリー" : t.name}のシルエットを写真の縮尺に合わせたもの`
       : schematic ? `建物は高さ${Math.round(top.m - (t.groundM || 0))}mの模式図（幅は推定）` : "",
     "高さは大気の屈折を含む"].filter(Boolean).join(" ・ ");
   range.max = String(path.length - 1);
@@ -6937,7 +6938,9 @@ async function aimLookRender(host, spec) {
     const c = toPx([p.x, p.y]);
     // 円盤は形の後ろ（形で隠れる）。隠れた所も点線の輪で分かるようにする
     if (c) aimLookDisc(ctx, c[0], c[1], rPx, body, p);
-    ctx.fillStyle = "rgba(16,20,30,0.94)";
+    // 形は空より暗く塗り、暗い空では縁を明るい線でなぞる（ユーザー「シルエットが背景と色が被って見えづらくなってる」。夜空と同じ紺だった）
+    ctx.fillStyle = bright ? "rgba(16,20,30,0.94)" : "#020306";
+    const rim = bright ? null : "rgba(200,212,240,0.7)";
     if (shape && shape.length > 1) {
       const outlinePath = () => {
         ctx.beginPath();
@@ -6959,6 +6962,15 @@ async function aimLookRender(host, spec) {
       }
     }
     if (!mountain) ctx.fillRect(0, baseY, W, H - baseY + 2);
+    if (rim && shape && shape.length > 1) {
+      ctx.save();
+      ctx.strokeStyle = rim; ctx.lineWidth = 1.2; ctx.lineJoin = "round";
+      ctx.beginPath(); ctx.moveTo(shape[0][0], shape[0][1]);
+      for (const [x, y] of shape) ctx.lineTo(x, y);
+      ctx.stroke();
+      if (!mountain) { ctx.beginPath(); ctx.moveTo(0, baseY); ctx.lineTo(W, baseY); ctx.stroke(); }
+      ctx.restore();
+    }
     // 形に隠れた所も分かるように、円盤の輪を明るい点線で（暗い形の上でも見える色）
     if (c) {
       ctx.strokeStyle = body === "sun" ? "rgba(255,226,160,0.95)" : "rgba(235,238,255,0.9)";
