@@ -1567,8 +1567,14 @@ ok(html.match(/data-answer="same"/g).length === 1, "選択肢を組み立てる�
   ok(/\.outcome button \{[^}]*min-height: 44px/.test(html), "答えのボタンは指の的 44px");
   ok(/<div class="answer-gauge"\$\{state === "diff" \? "" : " hidden"\}>/.test(ob) && /type="range" min="0" max="100" step="1" value="\$\{v\}" data-gauge/.test(ob),
     "ゲージは違ったときだけ出す（0〜100、予測の点から始める）");
-  ok(/class="gauge-pred" style="left:\$\{at\}"/.test(ob) && /data-answer="save"[^>]*>この点で記録<\/button>/.test(ob), "予測の位置に印・この点で記録");
-  ok(/📷 写真を添える/.test(ob) && !/撮った写真から時刻を読む/.test(html), "写真は「写真を添える」1つ");
+  ok(/class="gauge-pred" style="left:\$\{at\}"/.test(ob) && /data-answer="save" class="fav-btn primary"/.test(ob), "予測の位置に印・この点で記録");
+  ok(/📷 写真をアップロード/.test(ob) && !/写真を添える/.test(ob) && !/撮った写真から時刻を読む/.test(html),
+    "写真は「写真をアップロード」1つ（ユーザー「添えるって変だよね」）");
+  // 記録しても詳細では同じ形で描き直されるので、記録したことを見せる（ユーザー「この点で記録を押しても何も変わらない」）
+  ok(/const saved = state === "diff" && actual !== null;/.test(ob)
+    && /\$\{saved \? " disabled" : ""\}>\$\{saved \? "記録済み" : "この点で記録"\}/.test(ob), "記録した点のままなら「記録済み」（押せない）");
+  ok(/save\.disabled = same;\s+save\.textContent = same \? "記録済み" : "この点で記録";/.test(html), "ゲージを動かすと「この点で記録」に戻る");
+  ok(/\.gauge-foot button:disabled \{ background: var\(--line\)/.test(html), "記録済みは灰色");
   const wo = html.slice(html.indexOf("function wireOutcomes"), html.indexOf("function wireOutcomes") + 2200);
   ok(/if \(k === "diff"\) \{[\s\S]{0,300}\.answer-gauge"\)\.hidden = false;[\s\S]{0,80}return;/.test(wo), "違ったを押してもまだ記録しない（ゲージを出す）");
   ok(/recordAnswer\(pid, peak, k === "same" \? pred : k === "save" \? \+gauge\.value : null\)/.test(wo), "予測通り＝予測の点・この点で記録＝ゲージの点・確認せず＝点なし");

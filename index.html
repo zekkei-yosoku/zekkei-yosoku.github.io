@@ -370,6 +370,7 @@
   .gauge-foot output { font-size: 0.94rem; font-weight: 700; color: var(--text); min-width: 0; }
   .gauge-foot output .sub-line { font-weight: 400; }
   .gauge-foot button { flex: 0 0 auto; width: auto; padding: 0 14px; min-height: 44px; }
+  .gauge-foot button:disabled { background: var(--line); color: var(--secondary); }
 
   /* margin: auto は既定でモーダルを中央に置くための指定。38行目の `* { margin: 0 }` に
      消されていて、PCでは左上に貼り付いていた。 */
@@ -1586,21 +1587,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002095436"></script>
+<script src="sorami-core.js?v=20261002102441"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002095436"></script>
-<script src="sorami-exif.js?v=20261002095436"></script>
-<script src="sorami-capcloud.js?v=20261002095436"></script>
-<script src="sorami-terrain.js?v=20261002095436"></script>
-<script src="sorami-mountain.js?v=20261002095436"></script>
-<script src="sorami-fuji.js?v=20261002095436"></script>
-<script src="sorami-sky.js?v=20261002095436"></script>
-<script src="sorami-routes.js?v=20261002095436"></script>
-<script src="sorami-iss.js?v=20261002095436"></script>
-<script src="sorami-plane.js?v=20261002095436"></script>
-<script src="sorami-align.js?v=20261002095436"></script>
-<script src="sorami-moon.js?v=20261002095436"></script>
+<script src="sorami-astro.js?v=20261002102441"></script>
+<script src="sorami-exif.js?v=20261002102441"></script>
+<script src="sorami-capcloud.js?v=20261002102441"></script>
+<script src="sorami-terrain.js?v=20261002102441"></script>
+<script src="sorami-mountain.js?v=20261002102441"></script>
+<script src="sorami-fuji.js?v=20261002102441"></script>
+<script src="sorami-sky.js?v=20261002102441"></script>
+<script src="sorami-routes.js?v=20261002102441"></script>
+<script src="sorami-iss.js?v=20261002102441"></script>
+<script src="sorami-plane.js?v=20261002102441"></script>
+<script src="sorami-align.js?v=20261002102441"></script>
+<script src="sorami-moon.js?v=20261002102441"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2851,7 +2852,13 @@ function wireOutcomes(root) {
   for (const box of root.querySelectorAll(".answer")) {
     const pid = box.dataset.pid, peak = +box.dataset.peak, pred = +box.dataset.pred;
     const gauge = box.querySelector("[data-gauge]"), out = box.querySelector("[data-gauge-out]");
-    gauge.oninput = () => { out.innerHTML = answerHtml(pid, +gauge.value, pred); };
+    const save = box.querySelector('[data-answer="save"]');
+    gauge.oninput = () => {
+      out.innerHTML = answerHtml(pid, +gauge.value, pred);
+      const same = box.dataset.recorded !== "" && +gauge.value === +box.dataset.recorded;
+      save.disabled = same;
+      save.textContent = same ? "記録済み" : "この点で記録";
+    };
     for (const b of box.querySelectorAll("[data-answer]")) {
       b.onclick = () => {
         if (!requireLogin("記録")) return;
@@ -4049,6 +4056,7 @@ function shotHeightNote(s) {
  * **「予測通り」は1回押すだけ。違ったときだけゲージで何点だったかを選ぶ**（2026-10-02 ユーザー「選択式じゃなくて何点だったかを
  * ゲージで選ばせたら」「予測通りってボタンと、違うならゲージ」）。ゲージは予測の点から始め、予測の位置に印を置く。
  * 写真は「記録を足す」の画面で、この回の現象・時刻・点数を入れて開く（「写真のアップロードも良い感じに組み合わせて」）。
+ * 名前は「写真をアップロード」（ユーザー「添えるって変だよね」。写真はサーバーに上がる）。
  */
 function outcomeButtons(id, peak, predicted, sighting = null) {
   const shot = sighting && Number.isFinite(sighting.observedAtMs)
@@ -4068,7 +4076,11 @@ function outcomeButtons(id, peak, predicted, sighting = null) {
   const v = actual ?? pred;
   // つまみの中心は端で半分ずれるので、予測の印もつまみの動く幅に合わせる（つまみ 28px）
   const at = `calc(${pred}% + ${(14 - pred * 0.28).toFixed(1)}px)`;
-  return `<div class="answer" data-pid="${id}" data-peak="${peak}" data-pred="${pred}">
+  // 記録した点のままなら「記録済み」（押せない）。ゲージを動かすと「この点で記録」に戻る。
+  // 詳細の画面では記録しても同じ形で描き直されるので、これが無いと押しても何も変わらないように見えた
+  //（2026-10-02 ユーザー「違ったを選んで点数を変えて、この点で記録を押しても何も変わらない」）
+  const saved = state === "diff" && actual !== null;
+  return `<div class="answer" data-pid="${id}" data-peak="${peak}" data-pred="${pred}" data-recorded="${saved ? actual : ""}">
     <div class="outcome">
       <button data-answer="same"${on("same")}>予測通り</button>
       <button data-answer="diff"${on("diff")}>違った</button>
@@ -4078,10 +4090,10 @@ function outcomeButtons(id, peak, predicted, sighting = null) {
       <div class="gauge-track"><span class="gauge-pred" style="left:${at}" aria-hidden="true"></span>
         <input type="range" min="0" max="100" step="1" value="${v}" data-gauge aria-label="実際は何点だったか"></div>
       <div class="gauge-foot"><output data-gauge-out>${answerHtml(id, v, pred)}</output>
-        <button data-answer="save" class="fav-btn primary">この点で記録</button></div>
+        <button data-answer="save" class="fav-btn primary"${saved ? " disabled" : ""}>${saved ? "記録済み" : "この点で記録"}</button></div>
     </div>
     <label class="shot"><input type="file" accept="image/*" data-shot-pid="${id}" data-shot-peak="${peak}">
-      <span>📷 写真を添える</span></label>${shot}
+      <span>📷 写真をアップロード</span></label>${shot}
   </div>`;
 }
 /// ゲージの読み: 「52点・まずまず」と、その下に小さく「予測 74」（320px でも折り返しの位置が変わらないよう2行に決めておく）
