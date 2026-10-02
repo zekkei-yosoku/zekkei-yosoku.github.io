@@ -748,7 +748,7 @@ console.log("== 地点カードで探せると分かる（2026-10-01） ==");
 {
   const card = (html.match(/<button class="place-pick" id="placeButton">[\s\S]*?<\/button>/) || [""])[0];
   ok(/<circle cx="10\.5" cy="10\.5" r="6\.5"\/>/.test(card) && !/▾/.test(card), "地点カードの右は虫眼鏡（▾ ではない）");
-  ok(/\$\("placeSheet"\)\.showModal\(\);\n[^\n]*\n[^\n]*\n  \$\("searchBox"\)\.focus\(\);/.test(html), "地点カードを押したら、検索欄にすぐ打てる");
+  ok(/showSheet\(\$\("placeSheet"\)\);\n[^\n]*\n[^\n]*\n  \$\("searchBox"\)\.focus\(\);/.test(html), "地点カードを押したら、検索欄にすぐ打てる");
 }
 
 console.log("== 月を表すところは全部、その時の満ち欠け（2026-10-01） ==");
@@ -896,7 +896,7 @@ ok(/toolsDrawnKey = key; startFujiAlign\(\); redrawDayDetail\(\);/.test(html), "
 ok(/if \(fujiAlignKey !== key\) return;/.test(html), "計算の結果は地点で捨てる（同じ地点の取り直しで「計算しています…」のまま残らない）");
 ok(/\$\{toolAllowed\("sky"\) \? `<button class="fav-btn" id="toSky"/.test(html), "月の詳細の「空の見え方を見る」も許可で出す");
 {
-  const mapSheet = /<dialog class="sheet" id="mapSheet">[\s\S]*?<\/dialog>/.exec(html)[0];
+  const mapSheet = /<dialog class="sheet" id="mapSheet"[^>]*>[\s\S]*?<\/dialog>/.exec(html)[0];
   ok(!/ダイヤモンド富士|パール富士|月丼|空の見え方/.test(mapSheet.replace(/<!--[\s\S]*?-->/g, "")), "地図で選ぶ画面に道具の名前を出さない");
 }
 ok(/function renderAuthButton\(\) \{\s+renderTools\(\);\s+redrawIfToolsChanged\(\);/.test(html), "ログイン・ログアウトで詳細の道具の中身も出し直す");
@@ -1615,9 +1615,9 @@ const pend = html.slice(html.indexOf("function renderPending"),
 ok(/outcomeButtons\(id, ev\.peak/.test(pend), "ホームの一覧に押す場所が付く");
 ok(/\$\("recPending"\)\.hidden = hidden \|\| !out\.length/.test(pend),
   "答える回が無ければホームに何も出さない");
-ok(/ev\.window\[1\] > now\) continue/.test(pend), "終わった回だけ聞く");
-ok(/3 \* 86400000/.test(pend), "古すぎる回は聞かない");
-ok(/findSighting\(id, ev\.peak\)\) continue/.test(pend), "答えた回は二度聞かない");
+ok(/ev\.window\[1\] > now \|\| now - ev\.window\[1\] > ROUND_ANSWER_MS\) return;/.test(html), "終わった回だけ聞く");
+ok(/ROUND_ANSWER_MS = 7 \* 86400000/.test(html), "古すぎる回は聞かない（終わってから7日まで）");
+ok(/!findSighting\(pid, ev\.peak\)/.test(pend), "答えた回は二度聞かない");
 ok(/out\.slice\(0, 4\)/.test(pend), "一度に出す件数を絞る");
 
 // 描画より先に配線していたため、記録カードのボタンだけ無反応だった。
@@ -1945,7 +1945,7 @@ ok(/>新規登録<\/button>/.test(authSheet) && /アカウントの回復<\/butt
   "入口のラベルが名詞で揃っている");
 ok(!/とき<\/button>/.test(authSheet), "ボタンのラベルに節を使わない");
 // 最初の画面はログイン。新規登録や回復から始めない
-ok(/showAuthPanel\("login"\);\s*\n\s*\$\("authSheet"\)\.showModal/.test(html), "開いたらログイン画面から");
+ok(/showAuthPanel\("login"\);\s*\n\s*showSheet\(\$\("authSheet"\)\)/.test(html), "開いたらログイン画面から");
 // 見出しが画面に追従する
 ok(/\$\("authTitle"\)\.textContent = AUTH_PANELS\[which\]/.test(html), "見出しが画面に追従する");
 // IDは打ち直させない
@@ -2717,10 +2717,62 @@ ok(/SoramiTerrain\.parseLatLon\(v\) \|\| SoramiTerrain\.parseMapLink\(v\)/.test(
   "緯度経度でも地図のURLでも受ける");
 ok(/\$\("photoWhen"\)\.value = iso\(at \?\? photoDraft\.round\?\.peak \?\? Date\.now\(\)\)/.test(html),
   "写真から読めたら先に入れる（無ければその回の時刻、それも無ければ「いま」）");
-// **過去に遡って入れられる。** 写真は任意で、日時は手で直せる
-ok(/id="photoChoose"/.test(html), "写真はシートの中で選ぶ（任意）");
-ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html),
-  "写真なしでも記録を作れる");
+// **過去に遡って入れられる。** 写真は必須（2026-10-02 ユーザー「それは写真をアップロードが必須」）、日時は手で直せる
+ok(/id="photoChoose"/.test(html), "写真はシートの中で選ぶ");
+ok(/if \(!photoDraft\.thumb\) \{[\s\S]{0,200}"写真を選んでください"[\s\S]{0,80}return;/.test(html), "写真が無ければ保存しない");
+ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "記録の画面から記録を足せる");
+{
+  // 閉じるはほかのシートと同じ（2026-10-02 ユーザー「この閉じるボタン小さいと思わない？」）
+  const ps = /<dialog class="sheet" id="photoSheet"[^>]*>[\s\S]*?<\/dialog>/.exec(html)[0];
+  ok(/<div class="sheet-head"><strong id="photoTitle">記録を足す<\/strong><button id="photoClose">閉じる<\/button><\/div>\s*<div class="sheet-body">/.test(ps)
+    && !/sheet-x/.test(html), "記録を足すの閉じるは題名の右の「閉じる」（指の的 44px）");
+  ok(/\$\("photoClose"\)\.onclick = \(\) => \$\("photoSheet"\)\.close\(\);/.test(html), "閉じるで閉じる");
+  // 開いたとき最初の釦を選んだ状態（青い枠）にしない（ユーザー「青くなって選択状態で開くのが気に入らない」）
+  const sheets = html.match(/<dialog class="sheet"[^>]*>/g) || [];
+  ok(sheets.length === 6 && sheets.every((d) => / tabindex="-1">$/.test(d)), "シートはそのものに焦点を置ける", sheets.join(" "));
+  ok(/function showSheet\(el\) \{\s+el\.showModal\(\);\s+el\.focus\(\{ preventScroll: true \}\);/.test(html)
+    && (html.match(/\.showModal\(\)/g) || []).length === 1, "シートはすべて showSheet で開き、シートそのものに焦点を置く");
+  ok(/dialog:focus \{ outline: none; \}/.test(html), "シートそのものには枠を出さない");
+  ok(!/gauge\.focus\(\)/.test(html), "違ったでゲージを選んだ状態にしない");
+  ok(/\.sheet input\.fav-in\[type=datetime-local\] \{ -webkit-appearance: none; appearance: none; display: block;/.test(html)
+    && /input\.fav-in\[type=datetime-local\], input\.fav-in\[type=date\] \{ min-width: 0; max-width: 100%; \}/.test(html),
+    "撮影日時の欄をシートの幅に収める（iPhone で右へはみ出していた）");
+}
+{
+  // 今日の回の予測を残し、終わってから7日は写真なしで答えられる（2026-10-02 ユーザー「遡って記録とかできたら良い？」→「１も２もやろう」）
+  ok(/keepRounds\(forPlace\);\n    \$\("status"\)\.hidden = true;/.test(html), "予報を計算したら今日の回を残す");
+  const C = req("./sorami-core.js");
+  const grab = (name) => { const i = html.indexOf(name); return html.slice(i, html.indexOf("\n}\n", i) + 2); };
+  const src = [grab("function samePlaceAs"), html.slice(html.indexOf("const ROUND_KEEP_MS"), html.indexOf("function findSighting"))].join("\n");
+  const mem = {};
+  const store = { get: (k, d) => (k in mem ? JSON.parse(mem[k]) : d), set: (k, v) => { mem[k] = JSON.stringify(v); } };
+  const DAY = 86400000, now0 = Date.UTC(2026, 9, 2, 3, 0);          // 10/02 12:00 JST
+  const today = C.Cal.startOfDay(now0);
+  const mk = (score, startH, endH) => ({ dayMs: today, evaluation: { peak: today + (startH + endH) / 2 * 3600000, score,
+    rank: C.rankOf(score), confidence: { key: "high" }, perModel: {}, factors: [], specificTime: true,
+    window: [today + startH * 3600000, today + endH * 3600000] } });
+  const place = { id: "p1", name: "曽谷", latitude: 35.74, longitude: 139.93 };
+  const f = new Function("S", "store", "weeks", "place", "collectObservations",
+    `${src}; return { keepRounds, answerableRounds, roundOf };`);
+  let weeks = { sunset: [mk(74, 16.5, 17.5)] };
+  let R = f(C, store, weeks, place, () => ({ x: 1 }));
+  R.keepRounds(place, now0);                                          // 始まる前（12時）の予測 74 を残す
+  weeks.sunset[0] = mk(30, 16.5, 17.5);
+  R = f(C, store, weeks, place, () => ({ x: 2 }));
+  R.keepRounds(place, today + 17 * 3600000);                          // 始まったあと（17時）の 30 では上書きしない
+  ok(store.get("sorami.rounds")[0].score === 74, "残すのは始まる前の予測（始まってから上書きしない）");
+  // 翌朝: 予報は今日から先だけ（前日の回は weeks に無い）でも、残した回に答えられる
+  R = f(C, store, { sunset: [] }, place, () => ({}));
+  const next = R.answerableRounds(today + DAY + 8 * 3600000);
+  ok(next.length === 1 && next[0].pid === "sunset" && Math.round(next[0].ev.score) === 74 && next[0].ev.rank.key === "good",
+    "翌朝も前日の夕焼けに答えられる（予測は残した 74）", JSON.stringify(next.map((x) => x.ev.score)));
+  ok(R.roundOf("sunset", today + 17 * 3600000).observations.x === 1, "答えには残したときの気象値を付ける");
+  ok(R.answerableRounds(today + 8 * DAY).length === 0, "終わってから7日を過ぎた回は出さない");
+  ok(f(C, store, { sunset: [] }, { id: "p2", name: "別", latitude: 34, longitude: 135 }, () => ({})).answerableRounds(today + DAY).length === 0,
+    "別の地点の回は出さない");
+  ok(/const out = answerableRounds\(now\)\.filter\(\(\{ pid, ev \}\) => !findSighting\(pid, ev\.peak\)\)/.test(html), "実際はどうでしたかは答えられる回から");
+  ok(/const round = roundOf\(pid, peak\);/.test(html.slice(html.indexOf("function recordAnswer"))), "記録も残した回の予測で");
+}
 ok(/記録を足す/.test(html), "入口の名前は「記録を足す」");
 ok(/altitude: r && Number\.isFinite\(r\.altitudeM\)/.test(html), "標高を送る");
 ok(/100点満点で何点でしたか/.test(html), "点数を聞く");

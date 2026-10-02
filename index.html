@@ -377,6 +377,9 @@
   dialog { border: none; border-radius: 16px; background: var(--card); color: var(--text);
            width: min(92vw, 480px); max-height: 82vh; padding: 0; margin: auto; }
   dialog::backdrop { background: rgba(0,0,0,.45); }
+  /* シートは開いたときシートそのものに焦点を置く（showSheet。tabindex="-1"）。置かないと最初の釦（閉じる）が選ばれた状態（青い枠）で開いた
+     （2026-10-02 ユーザー「なんか青くなって選択状態で開くのが気に入らない」）。キーボードなら Tab で中へ入れる */
+  dialog:focus { outline: none; }
   .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 8px; }
   .sheet-head button { min-height: 44px; padding: 0 4px; }
   /* シートを開くと本文のスクロールを止めるので、その瞬間に横幅が変わらないよう溝を常に確保する */
@@ -418,6 +421,13 @@
   .fav-in { width: 100%; font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 10px;
             border: 1px solid var(--line); background: var(--bg); color: var(--text); }
   textarea.fav-in { resize: vertical; line-height: 1.5; }
+  /* iPhone の日時の欄は中身の幅より狭くならず、記録を足すの「撮影日時」がシートの右へはみ出していた（2026-10-02 ユーザーの画面写し）。
+     外枠の幅に収める */
+  input.fav-in[type=datetime-local], input.fav-in[type=date] { min-width: 0; max-width: 100%; }
+  /* min-width だけでは縮まなかった（iOS 26 シミュレーターで確認）。シートの日時の欄は OS の見た目を外す（押せば日時の選択は出る）。
+     値はほかの欄と同じく左に寄せる */
+  .sheet input.fav-in[type=datetime-local] { -webkit-appearance: none; appearance: none; display: block; min-height: 44px; }
+  .sheet input.fav-in[type=datetime-local]::-webkit-date-and-time-value { text-align: left; }
   /* 矢印は OS のものをそのまま出す。appearance を消すと矢印まで消え、
      入力欄と見分けが付かなくなる。高さだけ指の的として確保する。 */
   select.fav-in { min-height: 44px; }
@@ -1324,7 +1334,7 @@
   </nav>
 </aside>
 
-<dialog class="sheet" id="mapSheet">
+<dialog class="sheet" id="mapSheet" tabindex="-1">
   <div class="sheet-head"><strong>地図で選ぶ</strong><button id="mapClose">閉じる</button></div>
   <div class="sheet-body">
     <!-- 地図は国土地理院のタイル。**ライブラリは使わない**（このアプリは依存パッケージを持たない）。
@@ -1356,7 +1366,7 @@
   </div>
 </dialog>
 
-<dialog class="sheet" id="placeSheet">
+<dialog class="sheet" id="placeSheet" tabindex="-1">
   <div class="sheet-head"><strong id="placeSheetTitle">地点</strong><button id="placeClose">閉じる</button></div>
   <div class="sheet-body">
     <div class="search-row">
@@ -1381,9 +1391,10 @@
 
 <!-- 写真から記録する。**原寸は送らない**（小さくした写しと、EXIF の「いつ・どこ」だけ）。
      採点基準を変えたときに付け直せるよう、そのときの現象と点数を一緒に残す。 -->
-<dialog class="sheet" id="photoSheet" aria-labelledby="photoTitle">
-  <form method="dialog"><button class="sheet-x" aria-label="閉じる">✕</button></form>
-  <h2 id="photoTitle">記録を足す</h2>
+<dialog class="sheet" id="photoSheet" aria-labelledby="photoTitle" tabindex="-1">
+  <!-- 閉じるはほかのシートと同じく題名の右に「閉じる」（2026-10-02 ユーザー「この閉じるボタン小さいと思わない？」。小さな ✕ が左上にあった） -->
+  <div class="sheet-head"><strong id="photoTitle">記録を足す</strong><button id="photoClose">閉じる</button></div>
+  <div class="sheet-body">
   <img id="photoPreview" alt="選んだ写真" class="ph-preview" hidden>
   <button id="photoChoose" class="fav-btn" style="margin-top:8px">写真を選ぶ</button>
   <p class="tiny" id="photoMeta" style="margin:6px 0 0;color:var(--tertiary)"></p>
@@ -1404,9 +1415,10 @@
   <input type="text" id="photoNote" class="fav-in" maxlength="120" placeholder="気づいたこと">
   <p class="warn" id="photoErr" hidden></p>
   <button id="photoSave" class="fav-btn primary" style="margin-top:16px">保存</button>
+  </div>
 </dialog>
 
-<dialog class="sheet" id="authSheet" aria-labelledby="authTitle">
+<dialog class="sheet" id="authSheet" aria-labelledby="authTitle" tabindex="-1">
   <div class="sheet-head"><strong id="authTitle">ログイン</strong><button id="authClose">閉じる</button></div>
   <div class="sheet-body">
     <!-- **1画面に1つの目的だけ置く。** 以前は同じシートに ログイン／新規登録／回復コード を
@@ -1502,7 +1514,7 @@
   </div>
 </dialog>
 
-<dialog class="sheet" id="accountSheet" aria-labelledby="accountTitle">
+<dialog class="sheet" id="accountSheet" aria-labelledby="accountTitle" tabindex="-1">
   <div class="sheet-head"><strong id="accountTitle">アカウント</strong><button id="accountClose">閉じる</button></div>
   <div class="sheet-body">
     <div id="accountBody" class="tiny"></div>
@@ -1546,7 +1558,7 @@
 <!-- お気に入りの登録。項目は内蔵スポット（spots.js）と同じ形にしてある。
      地形は飾りではなく、雲海（盆地の底・平地・海岸を除外）と霧氷（平地・海岸を除外）の
      判定と、鉛直分布を取りに行くかどうかに直接効く。選び方で点数が変わる。 -->
-<dialog class="sheet" id="favSheet" aria-labelledby="favSheetTitle">
+<dialog class="sheet" id="favSheet" aria-labelledby="favSheetTitle" tabindex="-1">
   <div class="sheet-head"><strong id="favSheetTitle">お気に入りに登録</strong><button id="favCancel">閉じる</button></div>
   <div class="sheet-body">
     <label class="fav-l" for="favName">名前<span class="fav-req">必須</span></label>
@@ -1587,21 +1599,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002102441"></script>
+<script src="sorami-core.js?v=20261002104430"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002102441"></script>
-<script src="sorami-exif.js?v=20261002102441"></script>
-<script src="sorami-capcloud.js?v=20261002102441"></script>
-<script src="sorami-terrain.js?v=20261002102441"></script>
-<script src="sorami-mountain.js?v=20261002102441"></script>
-<script src="sorami-fuji.js?v=20261002102441"></script>
-<script src="sorami-sky.js?v=20261002102441"></script>
-<script src="sorami-routes.js?v=20261002102441"></script>
-<script src="sorami-iss.js?v=20261002102441"></script>
-<script src="sorami-plane.js?v=20261002102441"></script>
-<script src="sorami-align.js?v=20261002102441"></script>
-<script src="sorami-moon.js?v=20261002102441"></script>
+<script src="sorami-astro.js?v=20261002104430"></script>
+<script src="sorami-exif.js?v=20261002104430"></script>
+<script src="sorami-capcloud.js?v=20261002104430"></script>
+<script src="sorami-terrain.js?v=20261002104430"></script>
+<script src="sorami-mountain.js?v=20261002104430"></script>
+<script src="sorami-fuji.js?v=20261002104430"></script>
+<script src="sorami-sky.js?v=20261002104430"></script>
+<script src="sorami-routes.js?v=20261002104430"></script>
+<script src="sorami-iss.js?v=20261002104430"></script>
+<script src="sorami-plane.js?v=20261002104430"></script>
+<script src="sorami-align.js?v=20261002104430"></script>
+<script src="sorami-moon.js?v=20261002104430"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1975,6 +1987,7 @@ async function load(force) {
     for (const id of Object.keys(S.SCORERS)) {
       weeks[id] = S.evaluateWeek(id, bundle, forPlace);
     }
+    keepRounds(forPlace);
     $("status").hidden = true;
     // 予報が揃ってから URL の場所を反映する。詳細のURLを直接開いた場合も
     // ここで初めてその現象を描ける。
@@ -2637,7 +2650,7 @@ async function makeThumb(file, max = 768, quality = 0.72) {
   return { url, ...size };
 }
 
-/// 写真を読み込んで下書きへ入れる。**写真は任意**なので、無くても記録は作れる
+/// 写真を読み込んで下書きへ入れる。**写真は必須**（2026-10-02 ユーザー「遡って記録…それは写真をアップロードが必須」）
 async function photoAttach(file) {
   photoDraft.file = file;
   photoDraft.exif = null;
@@ -2688,7 +2701,7 @@ async function openPhotoSheet(file, round = null) {
   $("photoNote").value = "";
 
   photoFillFromExif();
-  $("photoSheet").showModal();
+  showSheet($("photoSheet"));
 }
 
 /// 写真から読めたものを入力欄へ。**読めなければ既定を入れて、手で直せるようにする**
@@ -2769,6 +2782,8 @@ async function photoShot(body) {
     photoLatitude: body.latitude, photoLongitude: body.longitude, photoAltitudeM: body.altitude, photoAglM: aglM };
 }
 $("photoPick").onclick = () => openPhotoSheet(null);
+$("photoClose").onclick = () => $("photoSheet").close();
+$("photoSheet").addEventListener("close", () => { photoDraft.round = null; });
 $("photoChoose").onclick = (e) => { e.preventDefault(); $("photoFile").click(); };
 $("photoFile").onchange = async () => {
   const f = $("photoFile").files && $("photoFile").files[0];
@@ -2780,6 +2795,12 @@ $("photoFile").onchange = async () => {
 $("photoScore").oninput = () => { $("photoScoreOut").textContent = $("photoScore").value; };
 $("photoSave").onclick = async (e) => {
   e.preventDefault();
+  // **写真は必須。** 日にちが経った記憶の点数は当てにならないので、撮影時刻と場所の証拠を付ける
+  if (!photoDraft.thumb) {
+    $("photoErr").textContent = photoDraft.file ? "この写真は読み込めませんでした。別の写真を選んでください" : "写真を選んでください";
+    $("photoErr").hidden = false;
+    return;
+  }
   const r = photoDraft.exif;
   const where = photoWhereAt();
   // **入力欄が正本。** 写真から入れた値も、手で直したらそちらを使う
@@ -2867,7 +2888,6 @@ function wireOutcomes(root) {
           // 違った → ゲージを出す（記録はまだしない）
           for (const x of box.querySelectorAll(".outcome button")) x.classList.toggle("on", x === b);
           box.querySelector(".answer-gauge").hidden = false;
-          gauge.focus();
           return;
         }
         recordAnswer(pid, peak, k === "same" ? pred : k === "save" ? +gauge.value : null);
@@ -3904,16 +3924,66 @@ function samePlaceAs(record, here) {
   }
   return record?.placeName === here?.name;   // 座標を持たない古い記録は名前で照合する
 }
+/**
+ * **今日の回の予測を端末に残す**（2026-10-02 ユーザー「遡って記録とかできたら良い？」→「１も２もやろう」）。
+ * 予報は毎回「今日から先」を取り直すので、残さないと前日の夕焼けに翌朝もう答えられなかった。
+ * 残すのは**始まる前の予測**（始まってから計算し直した値で上書きしない。答え合わせは「見る前に出していた点」とするもの）。
+ * 写真なしで答えられる（外れた日ほど写真を撮らないので、写真を必須にすると外れの記録が集まらない）。8日より古い回は捨てる
+ */
+const ROUND_KEEP_MS = 8 * 86400000, ROUND_ANSWER_MS = 7 * 86400000;
+function keepRounds(forPlace, now = Date.now()) {
+  const today = S.Cal.startOfDay(now);
+  const list = store.get("sorami.rounds", []).filter((r) => r && now - r.peak < ROUND_KEEP_MS);
+  for (const [pid, entries] of Object.entries(weeks)) {
+    for (const e of entries) {
+      const ev = e.evaluation;
+      if (!ev || ev.unavailable || e.dayMs !== today || !Array.isArray(ev.window)) continue;
+      const i = list.findIndex((r) => r.pid === pid && samePlaceAs(r, forPlace) && S.JstCal.sameDay(r.peak, ev.peak));
+      if (i >= 0 && now >= list[i].window[0]) continue;      // 始まったあとは上書きしない
+      const snap = { pid, peak: ev.peak, latitude: forPlace.latitude, longitude: forPlace.longitude,
+        placeName: forPlace.name, placeId: forPlace.id, score: ev.score, rank: ev.rank.key, confidence: ev.confidence.key,
+        perModel: ev.perModel, factors: ev.factors, window: ev.window, specificTime: ev.specificTime,
+        observations: collectObservations(pid, ev.peak) };
+      if (i >= 0) list[i] = snap; else list.push(snap);
+    }
+  }
+  store.set("sorami.rounds", list);
+}
+/// 残した回を、今の予報の回と同じ形に
+const roundFromSnap = (r) => ({ pid: r.pid, observations: r.observations || null, ev: {
+  peak: r.peak, score: r.score, rank: S.RANKS.find((x) => x.key === r.rank) || S.rankOf(r.score),
+  confidence: { key: r.confidence }, perModel: r.perModel, factors: r.factors, window: r.window, specificTime: r.specificTime } });
+/// その回（この地点・その日）。残した回（始まる前の予測）を先に、無ければ今の予報の回
+function roundOf(pid, peak) {
+  const r = store.get("sorami.rounds", []).find((x) => x && x.pid === pid && samePlaceAs(x, place) && S.JstCal.sameDay(x.peak, peak));
+  if (r) return roundFromSnap(r);
+  const e = (weeks[pid] || []).find((x) => S.JstCal.sameDay(x.evaluation.peak, peak));
+  return e && e.evaluation && !e.evaluation.unavailable ? { pid, ev: e.evaluation, observations: null } : null;
+}
+/// 答えられる回: 終わってから7日以内の、この地点の回（残した回と今の予報の回を合わせ、同じ日の同じ現象は1つ）
+function answerableRounds(now) {
+  const out = new Map();
+  const add = (round) => {
+    const { ev } = round;
+    if (!S.PHENOMENA[round.pid] || !Array.isArray(ev.window) || ev.window[1] > now || now - ev.window[1] > ROUND_ANSWER_MS) return;
+    const k = `${round.pid}|${S.Cal.startOfDay(ev.peak)}`;
+    if (!out.has(k)) out.set(k, round);
+  };
+  for (const r of store.get("sorami.rounds", [])) if (r && samePlaceAs(r, place)) add(roundFromSnap(r));
+  for (const [pid, entries] of Object.entries(weeks)) {
+    for (const e of entries) if (e.evaluation && !e.evaluation.unavailable) add({ pid, ev: e.evaluation, observations: null });
+  }
+  return [...out.values()];
+}
 function findSighting(pid, peak) {
   return sightings.find((s) => s.phenomenon === pid && samePlaceAs(s, place) && S.JstCal.sameDay(s.peak, peak));
 }
 /// 答えを記録する。actual は実際の点（0〜100）、null は確認せず。帯グラフの答えは点から出す（S.outcomeFromActual）。
 /// **前の記録に付いている写真の時刻・位置は残す**（以前は答えるたびに作り直し、先に添えた写真の情報が消えていた）
 function recordAnswer(pid, peak, actual, shot = null) {
-  const entries = weeks[pid] || [];
-  const entry = entries.find((e) => Math.abs(e.evaluation.peak - peak) < 60000);
-  if (!entry) return;
-  const ev = entry.evaluation;
+  const round = roundOf(pid, peak);
+  if (!round) return;
+  const ev = round.ev;
   const existing = findSighting(pid, peak);
   const a = Number.isFinite(actual) ? Math.max(0, Math.min(100, Math.round(actual))) : null;
   const record = { ...(existing || {}),
@@ -3922,10 +3992,10 @@ function recordAnswer(pid, peak, actual, shot = null) {
     // 将来 ID で照合し直せるよう、記録した時点の地点IDも残しておく。
     recordedAt: Date.now(), phenomenon: pid, placeName: place.name, placeId: place.id,
     latitude: place.latitude, longitude: place.longitude,
-    peak, score: ev.score, rank: ev.rank.key, confidence: ev.confidence.key,
+    peak: ev.peak, score: ev.score, rank: ev.rank.key, confidence: ev.confidence.key,
     perModel: ev.perModel, factors: ev.factors,
     actualScore: a, outcome: S.outcomeFromActual(pid, ev.score, a),
-    observations: collectObservations(pid, peak),
+    observations: round.observations || collectObservations(pid, ev.peak),
     ...(shot ? shotFields(ev, shot) : {}),
   };
   if (existing) sightings = sightings.map((s) => (s.id === existing.id ? record : s));
@@ -3976,17 +4046,9 @@ function collectObservations(pid, peak) {
 // それが主要な操作に見えていた（実際そう受け取られた）。
 // 答える場所をここに置く。アプリを開いて1タップで済む。
 function renderPending(now, hidden) {
-  const out = [];
-  for (const [id, entries] of Object.entries(weeks)) {
-    for (const e of entries) {
-      const ev = e.evaluation;
-      if (!ev || ev.unavailable) continue;
-      if (ev.window[1] > now) continue;                       // まだ終わっていない
-      if (now - ev.window[1] > 3 * 86400000) continue;        // 古すぎる回は覚えていない
-      if (findSighting(id, ev.peak)) continue;                // もう答えた
-      out.push({ id, ev, peak: ev.peak });
-    }
-  }
+  // 終わってから7日以内の回（端末に残した回を含む。keepRounds）。答えた回は出さない
+  const out = answerableRounds(now).filter(({ pid, ev }) => !findSighting(pid, ev.peak))
+    .map(({ pid, ev }) => ({ id: pid, ev, peak: ev.peak }));
   out.sort((a, b) => b.peak - a.peak);
   $("recPending").hidden = hidden || !out.length;
   if (!out.length) { $("recPending").innerHTML = ""; return; }
@@ -4431,7 +4493,7 @@ function openFavSheet(index, { point = null, after = null, target = null } = {})
   renderFavPhenomena();
   renderTerrainNote();
   renderEyeNote();
-  $("favSheet").showModal();
+  showSheet($("favSheet"));
   $("favName").focus();
 }
 // チップは innerHTML で作り直すと、押した瞬間にボタンが消えてフォーカスが飛ぶ。
@@ -4589,7 +4651,7 @@ $("favDelete").onclick = () => {
   // ねらうから開いていたら、ねらうの画面に残る（地点の一覧は開かない）
   if (favDraft.after) { favDraft.after(null); return; }
   // 取り消しは一覧の上に出る。★ から開いていた場合も、そこへ着地させる。
-  if (!$("placeSheet").open) $("placeSheet").showModal();
+  if (!$("placeSheet").open) showSheet($("placeSheet"));
 };
 // ---------------------------------------------------------------- 地図で選ぶ
 //
@@ -4753,7 +4815,7 @@ function createMapView(ids) {
   function open(from, zoom = 15) {
     if (!cv) attach();
     view = { lat: from.latitude, lon: from.longitude, zoom };
-    if (ids.sheet) $(ids.sheet).showModal();
+    if (ids.sheet) showSheet($(ids.sheet));
     // dialog が開いてから測る（閉じている間は幅が 0）
     requestAnimationFrame(() => { draw(); requestAnimationFrame(draw); });
   }
@@ -7148,7 +7210,7 @@ function openPlaceSheet(mode = null) {
   $("favNotice").textContent = "";
   for (const el of document.querySelectorAll(".save-err")) el.hidden = true;
   renderSheet();
-  $("placeSheet").showModal();
+  showSheet($("placeSheet"));
   // **開いたらすぐ打てる。** 押した操作の中で焦点を移すと、iPhone でもキーボードが出る。
   // 前の検索語は選択しておき、打てば置き換わるようにする（2026-10-01）
   $("searchBox").focus();
@@ -7559,7 +7621,7 @@ function askReauth() {
   const supported = !!window.PublicKeyCredential;
   $("passkeyLogin").hidden = !supported;
   $("passkeyNote").hidden = !supported;
-  if (!$("authSheet").open) $("authSheet").showModal();
+  if (!$("authSheet").open) showSheet($("authSheet"));
   authFail($("authErr"), "確認のため、もう一度ログインしてください");
   if (!supported) $("authPw").focus();
 }
@@ -7636,6 +7698,13 @@ function markToolsCurrent() {
     if (el.dataset.tool === here) el.setAttribute("aria-current", "page");
     else el.removeAttribute("aria-current");
   }
+}
+/// シートを開く。**シートそのものに焦点を置く**（2026-10-02 ユーザー「なんか青くなって選択状態で開くのが気に入らない」）。
+/// showModal だけだと最初の釦（閉じる）に焦点が行き、選ばれた状態（青い枠）で開く。<dialog autofocus> は効かないブラウザがあった。
+/// 入力欄に焦点を置くシート（お気に入りの名前・検索）は、このあとで入力欄へ移す
+function showSheet(el) {
+  el.showModal();
+  el.focus({ preventScroll: true });
 }
 // 題名は一覧へ（何画面進んでいても1回で）。「← 戻る」はひとつ前の画面へ
 $("homeLink").onclick = () => { closeTools(); goList(); };
@@ -7939,7 +8008,7 @@ $("authButton").onclick = () => {
   $("passkeyLogin").hidden = !supported;
   $("passkeyNote").hidden = !supported;
   showAuthPanel("login");
-  $("authSheet").showModal();
+  showSheet($("authSheet"));
 };
 // パスキーに寄せる。対応していない端末では丸ごと隠して、これまでどおりパスワードで登録する。
 function setSignupWays() {
@@ -8122,7 +8191,7 @@ $("authId").addEventListener("input", () => {
 async function openAccountSheet() {
   $("accountErr").hidden = true;
   $("recoveryShown").hidden = true;
-  $("accountSheet").showModal();
+  showSheet($("accountSheet"));
   try {
     const me = await apiCall("GET", "/me");
     $("disablePw").hidden = !me.hasPassword || !me.credentials.length;
