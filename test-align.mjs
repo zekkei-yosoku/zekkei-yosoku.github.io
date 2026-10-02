@@ -359,7 +359,7 @@ console.log("== 見え方の図（2026-10-02） ==");
   const cw = AL.TOWER_SHAPES.cinderella.outline;
   ok(Math.max(...cw.map((p) => p[1])) === 51 && cw[0][1] === 0 && cw[cw.length - 1][1] === 0, "写真の輪郭: 尖塔の先が51m、両端は地面まで");
   const span = cw[cw.length - 1][0] - cw[0][0];
-  ok(Math.abs(span - 37.6) < 0.5, "地面での幅は建物の広さ（OSM の輪郭をこの向きで見た幅 37.6m）", `${span.toFixed(1)}m`);
+  ok(span > 27 && span < 32, "地面での幅は城全体のシルエットの絵から（29m 余り）", `${span.toFixed(1)}m`);
   const upper = cw.filter((p) => p[1] > AL.TOWER_SHAPES.cinderella.hiddenBelowM + 0.1);
   const upSpan = Math.max(...upper.map((p) => p[0])) - Math.min(...upper.map((p) => p[0]));
   ok(upSpan > 10 && upSpan < 15, "木より上に見える所は写真の幅", `${upSpan.toFixed(1)}m`);
