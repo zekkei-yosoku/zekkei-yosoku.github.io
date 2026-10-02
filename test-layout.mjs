@@ -2396,7 +2396,7 @@ ok(/scrollbar-gutter: stable/.test(html), "止めた瞬間に横幅が変わら�
 // 2026-09-24: 地図で選ぶシートを足して5つ（地点・お気に入り・記録・認証・地図）。
 // 2026-09-28: 写真から記録するシートを足して6つ。
 // 「ねらう」「空の見え方」「月丼」はポップアップではなく**ページ**にした
-ok((html.match(/<dialog class="sheet"/g) || []).length === 6, "シートは6つ",
+ok((html.match(/<dialog class="sheet"/g) || []).length === 7, "シートは7つ",
   String((html.match(/<dialog class="sheet"/g) || []).length));
 
 console.log("== 登録した直後に、パスキーの登録へ進める ==");
@@ -2743,7 +2743,35 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   ok(/\$\("photoClose"\)\.onclick = \(\) => \$\("photoSheet"\)\.close\(\);/.test(html), "閉じるで閉じる");
   // 開いたとき最初の釦を選んだ状態（青い枠）にしない（ユーザー「青くなって選択状態で開くのが気に入らない」）
   const sheets = html.match(/<dialog class="sheet"[^>]*>/g) || [];
-  ok(sheets.length === 6 && sheets.every((d) => / tabindex="-1">$/.test(d)), "シートはそのものに焦点を置ける", sheets.join(" "));
+  ok(sheets.length === 7 && sheets.every((d) => / tabindex="-1">$/.test(d)), "シートはそのものに焦点を置ける", sheets.join(" "));
+}
+{
+  // 座標をコピー・地図アプリで開く（2026-10-02 ユーザー「詳細な緯度経度が欲しい」「座標コピーのボタンと地図アプリで開くのボタン。
+  // 端末のデフォルトか Google か Apple かを選ばせ、選んだアプリを常に使うか聞く」）
+  for (const key of ["aim", "plane", "iss"]) {
+    const row = new RegExp(`<div class="coord-row" data-map="${key}"[^>]*>[\\s\\S]*?data-coord-copy>座標をコピー</button><button class="fav-btn" data-map-app-open>地図アプリで開く</button>`);
+    ok(row.test(html), `${key}: 地図の下に「座標をコピー」「地図アプリで開く」`);
+  }
+  ok(/coord: "aimCoord"/.test(html) && /coord: "planeCoord"/.test(html) && !/coord: "issCoord"/.test(html), "ねらう・月丼はピンの位置、ISS は立つ場所の例（ピンは置かない決まり）");
+  ok(/<div class="coord-row" data-map="iss" hidden>[\s\S]{0,120}立つ場所の例/.test(html) && /function issCoordUpdate\(\)/.test(html), "ISS は選んでいる回の立つ場所の例");
+  const C = /const IS_APPLE[\s\S]*?const savedMapApp = [^\n]*\n/.exec(html)[0];
+  const env = (ua, saved) => new Function("navigator", "store", `${C}; return { coordText, MAP_APPS, mapAppChoices, savedMapApp };`)(
+    { userAgent: ua }, { get: () => saved });
+  const iphone = env("Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X)", "google");
+  const android = env("Mozilla/5.0 (Linux; Android 15)", "apple");
+  const win = env("Mozilla/5.0 (Windows NT 10.0)", null);
+  ok(iphone.mapAppChoices().join() === "apple,google" && /この端末の標準/.test(iphone.MAP_APPS.apple.name), "iPhone は Apple マップ（この端末の標準）と Google マップ");
+  ok(android.mapAppChoices().join() === "device,google" && win.mapAppChoices().join() === "google,apple", "Android は端末の地図アプリと Google、ほかは Google と Apple");
+  ok(iphone.savedMapApp() === "google" && android.savedMapApp() === null, "覚えたアプリは、その端末で選べるものだけ使う");
+  const tt = iphone.coordText({ latitude: 35.734921, longitude: 139.642318 });
+  ok(tt === "35.73492, 139.64232", "座標は小数第5位（約1m）", tt);
+  ok(iphone.MAP_APPS.google.url(tt) === "https://www.google.com/maps/search/?api=1&query=35.73492%2C%20139.64232"
+    && iphone.MAP_APPS.apple.url(tt).startsWith("https://maps.apple.com/?ll=35.73492,139.64232&q=")
+    && android.MAP_APPS.device.url(tt) === "geo:35.73492,139.64232?q=35.73492,139.64232", "それぞれの地図アプリの開き方");
+  ok(/<label class="map-app-remember"><input type="checkbox" id="mapAppRemember">次からもこのアプリで開く<\/label>/.test(html)
+    && /store\.set\("sorami\.mapApp", \$\("mapAppRemember"\)\.checked \? k : null\);/.test(html), "「次からもこのアプリで開く」で覚え、外して選べば忘れる");
+  ok(/if \(app\) openMapApp\(app, t\); else openMapAppSheet\(t\);/.test(html), "覚えていれば聞かずに開く");
+  ok(/row\.querySelector\("\[data-map-app-change\]"\)\.hidden = !app;/.test(html), "覚えているときだけ「開くアプリを変える」");
   ok(/function showSheet\(el\) \{\s+el\.showModal\(\);\s+el\.focus\(\{ preventScroll: true \}\);/.test(html)
     && (html.match(/\.showModal\(\)/g) || []).length === 1, "シートはすべて showSheet で開き、シートそのものに焦点を置く");
   ok(/dialog:focus \{ outline: none; \}/.test(html), "シートそのものには枠を出さない");

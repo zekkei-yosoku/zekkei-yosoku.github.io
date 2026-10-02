@@ -665,6 +665,20 @@
   .aim-from { margin: 2px 0 8px; }
   /* 地図のすぐ下に「ここから重ねる」（字の分の幅）、その下に中心の説明を幅いっぱいに。
      横に並べると説明が細く5行に折れていた */
+  /* ピンの位置の座標と、ほかの地図アプリへ。1行目に座標、2行目に釦2つ、覚えたアプリがあれば下に「開くアプリを変える」。
+     320px で座標と「開くアプリを変える」を同じ行に置くと両方が折り返し、「Google マップで開く」も2行になった（2026-10-02 測定）。
+     座標の釦は字の幅だけ、地図アプリの釦が残りを使う。どちらも折り返さない */
+  .coord-row { margin-top: 8px; }
+  .coord-head { font-size: 0.75rem; color: var(--secondary); white-space: nowrap; }
+  .coord-head .coord { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .coord-btns { display: flex; gap: 6px; margin-top: 4px; }
+  .coord-btns .fav-btn { flex: 1; min-width: 0; padding: 0 8px; font-size: 0.81rem; white-space: nowrap; }
+  .coord-btns [data-coord-copy] { flex: 0 0 auto; width: auto; padding: 0 12px; }
+  .coord-foot { text-align: right; }
+  .coord-change { min-height: 44px; font-size: 0.75rem; color: var(--accent); }
+  .map-app-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .map-app-remember { display: flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 6px; font-size: 0.81rem; }
+  .map-app-remember input { width: 20px; height: 20px; accent-color: var(--accent); }
   .aim-near-row { margin-top: 8px; }
   .aim-near-row .fav-btn { width: auto; padding: 0 14px; }
   .aim-near-btns { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -1077,6 +1091,11 @@
         </div>
         <div class="mapattr">国土地理院</div>
       </div>
+      <div class="coord-row" data-map="plane">
+        <div class="coord-head">ピンの位置 <span class="coord" id="planeCoord">—</span></div>
+        <div class="coord-btns"><button class="fav-btn" data-coord-copy>座標をコピー</button><button class="fav-btn" data-map-app-open>地図アプリで開く</button></div>
+        <div class="coord-foot"><button class="tap coord-change" data-map-app-change hidden>開くアプリを変える</button></div>
+      </div>
       <div class="aim-near-row">
         <div class="aim-near-btns">
           <button id="planePickHere" class="fav-btn" aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる</button>
@@ -1197,7 +1216,13 @@
       </div>
       <div class="mapattr">国土地理院</div>
     </div>
-    <div id="aimCoord" class="tiny" hidden></div>
+    <!-- ピンの位置の座標と、ほかの地図アプリへ（2026-10-02 ユーザー「撮影ポイントをピンポイントに知りたい場合、詳細な緯度経度が欲しい」
+         「他のMAPアプリに飛ばしたりとかってできるの？」）。候補地の「地図で見る」を押すとピンがその点に来る -->
+    <div class="coord-row" data-map="aim">
+        <div class="coord-head">ピンの位置 <span class="coord" id="aimCoord">—</span></div>
+        <div class="coord-btns"><button class="fav-btn" data-coord-copy>座標をコピー</button><button class="fav-btn" data-map-app-open>地図アプリで開く</button></div>
+        <div class="coord-foot"><button class="tap coord-change" data-map-app-change hidden>開くアプリを変える</button></div>
+      </div>
     <!-- 地図の中心（ピン）について。線までの距離と、そこを観測地点にする釦を並べる -->
     <div class="aim-near-row">
       <div class="aim-near-btns">
@@ -1276,6 +1301,12 @@
           <button id="issOut" aria-label="縮小">−</button>
         </div>
         <div class="mapattr">国土地理院</div>
+      </div>
+      <!-- ISS の地図は帯を見るためのもので中心ピンは置かない（2026-10-01 決定）。座標は、選んでいる回の「立つ場所の例」 -->
+      <div class="coord-row" data-map="iss" hidden>
+        <div class="coord-head">立つ場所の例 <span class="coord" id="issCoord">—</span></div>
+        <div class="coord-btns"><button class="fav-btn" data-coord-copy>座標をコピー</button><button class="fav-btn" data-map-app-open>地図アプリで開く</button></div>
+        <div class="coord-foot"><button class="tap coord-change" data-map-app-change hidden>開くアプリを変える</button></div>
       </div>
       <div class="aim-legend">
         <span><i class="aim-k moon" id="issKey"></i>見える帯</span>
@@ -1418,6 +1449,16 @@
   <input type="text" id="photoNote" class="fav-in" maxlength="120" placeholder="気づいたこと">
   <p class="warn" id="photoErr" hidden></p>
   <button id="photoSave" class="fav-btn primary" style="margin-top:16px">保存</button>
+  </div>
+</dialog>
+
+<!-- 地図アプリで開く（2026-10-02）。選べるアプリは端末で変わる（mapAppChoices） -->
+<dialog class="sheet" id="mapAppSheet" aria-labelledby="mapAppTitle" tabindex="-1">
+  <div class="sheet-head"><strong id="mapAppTitle">地図アプリで開く</strong><button id="mapAppClose">閉じる</button></div>
+  <div class="sheet-body">
+    <p class="tiny" id="mapAppCoord"></p>
+    <div id="mapAppList" class="map-app-list"></div>
+    <label class="map-app-remember"><input type="checkbox" id="mapAppRemember">次からもこのアプリで開く</label>
   </div>
 </dialog>
 
@@ -1602,21 +1643,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002110305"></script>
+<script src="sorami-core.js?v=20261002132501"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002110305"></script>
-<script src="sorami-exif.js?v=20261002110305"></script>
-<script src="sorami-capcloud.js?v=20261002110305"></script>
-<script src="sorami-terrain.js?v=20261002110305"></script>
-<script src="sorami-mountain.js?v=20261002110305"></script>
-<script src="sorami-fuji.js?v=20261002110305"></script>
-<script src="sorami-sky.js?v=20261002110305"></script>
-<script src="sorami-routes.js?v=20261002110305"></script>
-<script src="sorami-iss.js?v=20261002110305"></script>
-<script src="sorami-plane.js?v=20261002110305"></script>
-<script src="sorami-align.js?v=20261002110305"></script>
-<script src="sorami-moon.js?v=20261002110305"></script>
+<script src="sorami-astro.js?v=20261002132501"></script>
+<script src="sorami-exif.js?v=20261002132501"></script>
+<script src="sorami-capcloud.js?v=20261002132501"></script>
+<script src="sorami-terrain.js?v=20261002132501"></script>
+<script src="sorami-mountain.js?v=20261002132501"></script>
+<script src="sorami-fuji.js?v=20261002132501"></script>
+<script src="sorami-sky.js?v=20261002132501"></script>
+<script src="sorami-routes.js?v=20261002132501"></script>
+<script src="sorami-iss.js?v=20261002132501"></script>
+<script src="sorami-plane.js?v=20261002132501"></script>
+<script src="sorami-align.js?v=20261002132501"></script>
+<script src="sorami-moon.js?v=20261002132501"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5197,7 +5238,7 @@ function planeSetFrom(p) {
   planeApply();
 }
 
-const PlaneMap = createMapView({ canvas: "planeCanvas", zoomIn: "planeIn", zoomOut: "planeOut" });
+const PlaneMap = createMapView({ canvas: "planeCanvas", coord: "planeCoord", zoomIn: "planeIn", zoomOut: "planeOut" });
 
 /// **羽田の**風。いま選んでいる地点の風ではない（長野を選んでいても、効くのは羽田の風）。
 /// 以前は地点の予報を流用し、しかも**風向を数字で平均**していた。350°と10°の北風が
@@ -5494,6 +5535,94 @@ function issSetFrom(p) {
 }
 const IssMap = createMapView({ canvas: "issCanvas", zoomIn: "issIn", zoomOut: "issOut" });
 
+// ---------------------------------------------------------------- ピンの位置を、ほかの地図アプリへ（2026-10-02）
+//
+// ユーザー「撮影ポイントをピンポイントに知りたい場合、詳細な緯度経度が欲しい」「他のMAPアプリに飛ばしたりとかってできるの？」
+// →「座標コピーのボタンと、地図アプリで開くのボタン。押したら端末の標準か Google か Apple かを選ばせ、選んだアプリを常に使うか聞く。よくある仕様に」。
+// 座標は小数第5位（約1m）。国土地理院の座標と Google・Apple の座標のずれは1m未満。
+// 選べるアプリは端末で変わる: iPhone・Mac は標準が Apple マップ（「この端末の標準」と添える）、Android は geo: で端末の地図アプリ、
+// それ以外（Windows など）は端末の標準が無いので Google と Apple
+const IS_APPLE = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent), IS_ANDROID = /Android/.test(navigator.userAgent);
+const coordText = (c) => `${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)}`;
+const MAP_APPS = {
+  device: { name: "この端末の地図アプリ", url: (t) => `geo:${t.replace(" ", "")}?q=${t.replace(" ", "")}` },
+  google: { name: "Google マップ", url: (t) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t)}` },
+  apple: { name: IS_APPLE ? "Apple マップ（この端末の標準）" : "Apple マップ",
+    url: (t) => `https://maps.apple.com/?ll=${t.replace(" ", "")}&q=${encodeURIComponent(t)}` },
+};
+const mapAppChoices = () => (IS_APPLE ? ["apple", "google"] : IS_ANDROID ? ["device", "google"] : ["google", "apple"]);
+/// 「次からもこのアプリで開く」で覚えたアプリ（この端末で選べるものだけ）
+const savedMapApp = () => { const k = store.get("sorami.mapApp", null); return mapAppChoices().includes(k) ? k : null; };
+function openMapApp(app, t) {
+  const url = MAP_APPS[app].url(t);
+  if (url.startsWith("geo:")) { location.href = url; return; }
+  // 押した操作の中で開く（アプリが入っていればアプリで開く）
+  const a = document.createElement("a");
+  a.href = url; a.target = "_blank"; a.rel = "noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+}
+let mapAppCoord = "";
+function openMapAppSheet(t) {
+  mapAppCoord = t;
+  $("mapAppCoord").textContent = t;
+  $("mapAppRemember").checked = !!savedMapApp();
+  $("mapAppList").innerHTML = mapAppChoices()
+    .map((k) => `<button class="fav-btn" data-map-app="${k}">${esc(MAP_APPS[k].name)}</button>`).join("");
+  for (const b of $("mapAppList").querySelectorAll("[data-map-app]")) {
+    b.onclick = () => {
+      const k = b.dataset.mapApp;
+      // 覚えるのは「次からも」に印があるときだけ。外して選んだら、覚えていたものも忘れる（次はまた聞く）
+      store.set("sorami.mapApp", $("mapAppRemember").checked ? k : null);
+      $("mapAppSheet").close();
+      renderCoordRows();
+      openMapApp(k, mapAppCoord);
+    };
+  }
+  showSheet($("mapAppSheet"));
+}
+$("mapAppClose").onclick = () => $("mapAppSheet").close();
+/// 覚えたアプリがあれば「Google マップで開く」、無ければ「地図アプリで開く」。覚えているときだけ「開くアプリを変える」
+function renderCoordRows() {
+  const app = savedMapApp();
+  for (const row of document.querySelectorAll(".coord-row")) {
+    row.querySelector("[data-map-app-open]").textContent = app ? `${MAP_APPS[app].name.replace(/（.*）/, "")}で開く` : "地図アプリで開く";
+    row.querySelector("[data-map-app-change]").hidden = !app;
+  }
+}
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); return true; } catch { /* 古い仕組みで写す */ }
+  const ta = document.createElement("textarea");
+  ta.value = t; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch { ok = false; }
+  ta.remove();
+  return ok;
+}
+for (const row of document.querySelectorAll(".coord-row")) {
+  // ISS は選んでいる回の立つ場所の例、ほかは地図の中心（ピン）
+  const center = () => (row.dataset.map === "iss" ? issStandPoint() : ({ aim: AimMap, plane: PlaneMap })[row.dataset.map].center());
+  const copy = row.querySelector("[data-coord-copy]");
+  copy.onclick = async () => {
+    const ok = await copyText(coordText(center()));
+    copy.textContent = ok ? "コピーしました" : "コピーできませんでした";
+    setTimeout(() => { copy.textContent = "座標をコピー"; }, 1500);
+  };
+  row.querySelector("[data-map-app-open]").onclick = () => {
+    const app = savedMapApp(), t = coordText(center());
+    if (app) openMapApp(app, t); else openMapAppSheet(t);
+  };
+  row.querySelector("[data-map-app-change]").onclick = () => openMapAppSheet(coordText(center()));
+}
+renderCoordRows();
+/// ISS の座標の行: 選んでいる回の立つ場所の例。無ければ行を出さない
+const issStandPoint = () => { const r = iss.result && iss.result[iss.pick]; return r && r.stand ? r.stand : null; };
+function issCoordUpdate() {
+  const st = issStandPoint();
+  document.querySelector('.coord-row[data-map="iss"]').hidden = !st;
+  $("issCoord").textContent = st ? coordText(st) : "—";
+}
+
 /// satellite.js は必要になったときだけ読む（three.js と同じく vendor から、CSP は 'self' のまま）
 async function issLoadSat() {
   if (iss.sat) return iss.sat;
@@ -5684,10 +5813,12 @@ function issRender() {
     el.onclick = () => {
       iss.pick = +el.dataset.iss;
       const r = iss.result[iss.pick];
+      issCoordUpdate();
       IssMap.open(r.stand || r.center, 11);
       requestAnimationFrame(() => IssMap.redraw());
     };
   }
+  issCoordUpdate();
 }
 
 /// 方角を8方位で言う（いまの地点から、立つ場所へ）
