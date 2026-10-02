@@ -42,19 +42,26 @@
       parts: [{ id: "tip", name: "先端", m: 636 },
               { id: "gallery", name: "天望回廊（第二展望台）", m: 452 },
               { id: "deck", name: "天望デッキ", m: 352 }] },
+    // 333m（海抜351m なので地面は18m）。展望台の「150m」「250m」は海抜に近い呼び名で、**地上はメインデッキ 125m・トップデッキ 223.55m**
+    // （Wikipedia。2026-10-02 見え方の図を作るときに調べて気づいた。それまで地上150m・250m として 25m ほど高く解いていた）
     { id: "tokyotower", name: "東京タワー", latitude: 35.658581, longitude: 139.745433,
-      note: "地上の高さ ＋ 地面の標高およそ20m", groundM: 20,
-      parts: [{ id: "tip", name: "先端", m: 353 },
-              { id: "top", name: "トップデッキ", m: 270 },
-              { id: "main", name: "メインデッキ", m: 170 }] },
-    { id: "cinderella", name: "シンデレラ城", latitude: 35.632896, longitude: 139.880394,
+      note: "地上の高さ ＋ 地面の標高およそ18m", groundM: 18,
+      parts: [{ id: "tip", name: "先端", m: 351 },
+              { id: "top", name: "トップデッキ", m: 242 },
+              { id: "main", name: "メインデッキ", m: 143 }] },
+    // 位置は OpenStreetMap の建物の中心（35.6320784, 139.8808364）とユーザーの座標が3mで合う所。
+    // 2026-10-02 まで 95m 北西（35.632896, 139.880394）に置いていて、3.7km 先からの方角が 1.2° ずれていた
+    { id: "cinderella", name: "シンデレラ城", latitude: 35.632104, longitude: 139.880834,
       note: "高さ51m ＋ 地面の標高およそ3m", groundM: 3,
       parts: [{ id: "tip", name: "てっぺん", m: 54 }] },
-    // 東京ディズニーランドホテルの避雷針の先端。ティンカーベルの像が載る。
-    // **公表された高さが無い**ので推定（OpenStreetMap の建物高さ60m＝地上。地面の標高およそ3mを足す）。画面で直せる
+    // 東京ディズニーランドホテルの屋根のドームに立つティンカーベルの像。いちばん上は掲げた杖の先。
+    // **公表された高さが無い**。2026-10-02 ユーザーの写真（2024-11-30 05:54:55、葛西臨海公園 692.9m 先から、月の上に杖が重なる）で測った:
+    // 写真の月の中心と杖の先のずれ（月の直径が物差し）と、その時刻の月の高度 4.30° から、杖の先は見上げ 4.23°＝目より 51.3m 上、
+    // 目は地面 2.8m（国土地理院 1m DEM）＋1.5m で、**海抜およそ56m**（時計か撮影地が1〜2mずれていれば 55.5〜57m）。
+    // それまでは OpenStreetMap の建物高さ60m を地上として 63m にしていた（7m 高く、月1つ分より上にずれていた）。画面で直せる
     { id: "tinkerbell", name: "ティンカーベル", latitude: 35.637031, longitude: 139.878077,
-      note: "東京ディズニーランドホテルの避雷針の先端。高さは推定なので、合わせながら直せます", groundM: 3,
-      parts: [{ id: "tip", name: "避雷針の先端", m: 63, adjustable: true }] },
+      note: "東京ディズニーランドホテルの屋根に立つ像の杖の先。高さは写真から測った値（±1m）なので、合わせながら直せます", groundM: 3,
+      parts: [{ id: "tip", name: "杖の先", m: 56, adjustable: true }] },
   ];
   const targetById = (id) => TARGETS.find((t) => t.id === id) || null;
 
@@ -245,13 +252,15 @@
 
   /**
    * 線を引く距離の範囲。**目標の高さで決まる。**
-   * 高さ h を見上げる角度は距離で決まるので、使える角度の帯（約20°〜1°）を距離に直す。
+   * 高さ h を見上げる角度は距離で決まるので、使える角度の帯（約20°〜0.5°）を距離に直す。
    * 60mの避雷針を120km先から見上げても地平線の下で、3776mの富士山を8km先から
    * 見上げるのは山の中腹。同じ距離を全部の目標に当てると、どちらかが無駄になる。
+   * 遠い端は 2026-10-02 まで 1° だった（シンデレラ城で3km）。ユーザーの城と満月の写真は 3.7km（見上げ 0.75°）から撮っていて、
+   * その辺りの候補地が線の先に浮いていた（ユーザー「地図上の線が届いてないね」）ので 0.5° にした（城で6km、スカイツリーで73km）
    */
   function lineRange(topM) {
     const near = Math.max(0.3, (topM / 1000) / Math.tan(20 * Math.PI / 180));
-    const far = Math.min(150, (topM / 1000) / Math.tan(1.0 * Math.PI / 180));
+    const far = Math.min(150, (topM / 1000) / Math.tan(0.5 * Math.PI / 180));
     return { minKm: Math.round(near * 10) / 10, maxKm: Math.round(far) };
   }
 
@@ -668,7 +677,8 @@
         if (lateralM > (place.reachM || 0) + bandM + plateauM + 150 + 0.004 * D * 1000) continue;
         const approxAt = p0.at + (p1.at - p0.at) * f;
         const hit = await standOn(place, l, target, body, approxAt, opts, elevationAt);
-        if (hit && hit.rank) out.push({ place, side: l.side, ...hit });
+        // **線の届く範囲に立つものだけ。** 広い公園は端が範囲に掛かると拾うので、立つ点が線の先に出ることがあった
+        if (hit && hit.rank && hit.distanceKm >= minKm * 0.98 && hit.distanceKm <= maxKm * 1.02) out.push({ place, side: l.side, ...hit });
       }
     }
     return out;
@@ -882,9 +892,153 @@
     return { blocked: worst > g.angle, marginDeg: g.angle - worst, by };
   }
 
+  // ---------------------------------------------------------------- 見え方の図（2026-10-02）
+  //
+  // 「その日、その場所から目標物を見たとき、太陽・月がどう動いて重なるか」の図の計算（描くのは画面側）。
+  // ユーザー「その目標物に対して月、太陽がどのような軌道で動くのかを見たい」。全周の展開図（空の見え方）は
+  // 地平線のあたりが潰れて使えなかったので、目標のまわり数度だけを拡大する。Codex と相談して、
+  // 方位と高さをそのまま並べず、目標を中心に**見かけの角度を保つ**心射図法で写す。
+
+  const R = Math.PI / 180;
+  const unit = (az, alt) => [Math.cos(alt * R) * Math.sin(az * R), Math.cos(alt * R) * Math.cos(az * R), Math.sin(alt * R)];
+  const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  /**
+   * 方位・高さ → 図の座標（度。右が方位の増える向き、上が高い向き）。中心から90度以上離れた所は null。
+   * 中心の右向き e は方位が増える向き、上向き n は e × 中心
+   */
+  function viewProjector(az0, alt0) {
+    const c = unit(az0, alt0);
+    const e = [Math.cos(az0 * R), -Math.sin(az0 * R), 0];
+    const n = [e[1] * c[2] - e[2] * c[1], e[2] * c[0] - e[0] * c[2], e[0] * c[1] - e[1] * c[0]];
+    return (az, alt) => {
+      const v = unit(az, alt), d = dot3(v, c);
+      if (d <= 1e-6) return null;
+      return [dot3(v, e) / d / R, dot3(v, n) / d / R];
+    };
+  }
+
+  /**
+   * よく使う4つの目標の形（2026-10-02 ユーザー「頻度高いししっかり形は作り込んで欲しい」）。
+   * ふつうは [地上の高さm, 半分の幅m] を下から並べた左右対称の形。公表寸法と写真から作った**おおよその形**で、
+   * 見る向きで少し変わる（スカイツリーの足もとは向きで 59〜68m）。左右で違う形は `outline`（[横m, 地上の高さm]、左から右へ）で持つ
+   */
+  const TOWER_SHAPES = {
+    // 634m。足もとは一辺68mの正三角形で、上へ行くほど丸くなり地上315mで円（公式）。天望デッキ（床 340・345・350m の3層。
+    // 胴より一回り張り出す。直径およそ50m）、天望回廊（445〜451.2m を約110m の回廊で一周。直径およそ40m）、
+    // 上は約140m のゲイン塔（495m〜。円筒）（公式・東京都の紹介）
+    skytree: [[0, 34], [50, 32], [100, 30], [150, 28], [200, 26], [250, 23.5], [300, 20.5], [315, 19.5], [333, 18.5], [335, 25],
+      [362, 25], [364, 17.5], [440, 14.5], [443, 20], [458, 20], [460, 13], [480, 10], [494, 7], [496, 4], [620, 3], [625, 1.5], [634, 0.5]],
+    // 333m。塔脚の間隔88m、メインデッキ（地上120〜131m の2階建て・幅およそ28.7m で塔から少し張り出す）、
+    // トップデッキ（223.55m〜・幅およそ14.3m）、上はアンテナ（およそ253〜333m の80m）（Wikipedia・全日本タワー協議会）
+    tokyotower: [[0, 44], [15, 37], [30, 30.5], [45, 25], [60, 20.5], [80, 16], [100, 12.5], [119, 10], [120, 14.4], [131, 14.4],
+      [132, 9.2], [160, 7.6], [190, 6], [222, 4.6], [223.5, 7.15], [229.5, 7.15], [231, 4.2], [250, 3], [253, 1.6], [300, 1], [333, 0.3]],
+    // 51m。2026-10-02 ユーザーの写真（2024-08-20 19:02:04、700mm、城から西北西 3.7km、昇る満月の前の城）から輪郭を取った。
+    // 月の半径 0.276° が写真で 508px（カメラの計算 0.000537°/px と1%で合う＝月は合成ではない）を物差しに、1px＝3.5cm。
+    // 尖塔の先を 51m に合わせ、木に隠れた下（およそ15m 以下）はまっすぐ地面へ下ろした。旗と風見の横棒は外した。西北西から見た形
+    cinderella: { outline: [
+      [-6.41, 0], [-6.41, 20.56], [-5.99, 20.52], [-5.99, 25.01], [-5.1, 28.22], [-4.93, 31.08], [-4.47, 26.49], [-3.87, 25.15],
+      [-3.51, 26.88], [-3.37, 32.42], [-3.2, 32.88], [-3.13, 32.42], [-2.49, 32.42], [-2.45, 35.85], [-1.71, 35.92],
+      [-1.71, 36.45], [-1.25, 36.49], [-1.25, 39.13], [-1.11, 40.05], [-0.94, 39.13], [-0.62, 42.07], [-0.02, 51], [0.83, 38.64],
+      [1.15, 40.02], [1.25, 36.49], [1.71, 36.45], [1.71, 35.92], [2.49, 35.81], [2.49, 32.74], [2.74, 36.03], [3.09, 33.91],
+      [3.23, 34.33], [3.41, 33.91], [3.51, 34.33], [3.69, 33.91], [3.97, 34.33], [4.01, 33.87], [4.11, 34.33], [4.15, 33.91],
+      [4.22, 34.33], [4.26, 33.91], [4.4, 34.33], [4.54, 33.91], [4.75, 35.99], [4.86, 33.31], [5.1, 33.55], [5.84, 38.82],
+      [5.95, 42.52], [6.37, 35.92], [6.66, 33.87], [7.08, 33.1], [7.19, 26.28], [7.29, 32.32], [7.47, 32.74], [7.54, 32.32],
+      [8.07, 32.32], [8.18, 33.52], [8.46, 33.24], [9.02, 40.83], [9.13, 35.85], [9.98, 31.12], [10.01, 26.95], [10.33, 26.88],
+      [10.33, 26.31], [10.68, 26.28], [10.68, 22.89], [10.93, 21.12], [11.32, 21.23], [11.42, 20.88], [11.42, 0]] },
+    // 東京ディズニーランドホテルの屋根のドームと、その上のティンカーベル（杖の先が先端）。**先端から下へ**の寸法で持つ
+    // （高さを直しても形が崩れないように）。2026-10-02 ユーザーが葛西臨海公園（692.9m）から撮った写真を、月の直径 0.497°
+    // （写真で 482px）を物差しにして行ごとに測った幅の半分: 杖の先〜像の足 2.2m、玉 0.5m、飾り 2.3m、ドームの頂〜屋根 5.5m・幅 9.3m。
+    // 羽は右にだけ 0.8m 出るので左右の平均で持つ
+    tinkerbell: { fromTop: [[0, 0.03], [0.45, 0.05], [0.5, 0.18], [0.85, 0.22], [0.95, 0.5], [1.15, 0.5], [1.25, 0.2], [1.6, 0.13],
+      [2.15, 0.08], [2.2, 0.27], [2.45, 0.29], [2.68, 0.2], [2.9, 0.29], [3.1, 0.4], [3.25, 0.79], [3.45, 0.67], [3.65, 0.5], [4.0, 0.5],
+      [4.4, 0.74], [4.6, 1.04], [4.95, 1.18], [5.15, 1.0], [5.3, 1.35], [5.6, 1.75], [6.0, 2.17], [6.5, 2.63], [7.0, 3.02], [7.5, 3.37],
+      [8.0, 3.7], [8.5, 3.99], [9.0, 4.14], [9.5, 4.36], [10.2, 4.6], [10.45, 4.65]], roofHalf: 60,
+      // 見え方の図は先端から16m（ドームと像）だけを拡大する。ホテル全体を入れると像が点になる
+      viewFromTopM: 16 },
+  };
+
+  /**
+   * 塔の輪郭（方位・高さの点の並び。左の根元から上がって右へ下りる）。既定の塔は模式図、
+   * 地上の高さ heightM だけ分かる建物（他の目標）は**幅を推定した四角**（schematic: true）。山（地上 0m）は null（地形から描く）
+   */
+  function towerOutline(observer, target, { eyeM = 1.5, heightM = null } = {}) {
+    if (target.rim) return null;   // 富士山（火口の縁のデータを持つ山）
+    const ground = target.groundM ?? 0;
+    const top = heightM !== null ? heightM : ((partOf(target, "tip") || (target.parts || [])[0] || {}).m ?? ground) - ground;
+    if (!(top > 0.5)) return null;
+    const d = TR.distanceKm(observer.latitude, observer.longitude, target.latitude, target.longitude);
+    const az0 = TR.bearing(observer.latitude, observer.longitude, target.latitude, target.longitude);
+    const eye = (observer.elevation ?? 0) + eyeM;
+    let shape = TOWER_SHAPES[target.id] || null, schematic = false, outline = null;
+    if (shape && shape.outline) {
+      // 左右で違う形（シンデレラ城）。高さを直したら縦だけ伸び縮みさせる
+      const k = top / Math.max(...shape.outline.map(([, h]) => h));
+      outline = shape.outline.map(([x, h]) => [x, h * k]);
+    } else if (shape && shape.fromTop) {
+      // 先端から下へ測った形（ティンカーベル）。屋根より下は建物の幅で埋める
+      const roof = top - shape.fromTop[shape.fromTop.length - 1][0];
+      shape = [[0, shape.roofHalf], [roof, shape.roofHalf], ...shape.fromTop.slice().reverse().map(([d, w]) => [top - d, w])];
+    } else if (shape) {
+      // 高さを直せる目標（推定の高さ）は、形を高さに合わせて伸び縮みさせる
+      const k = top / shape[shape.length - 1][0];
+      shape = shape.map(([h, w]) => [h * k, w]);
+    } else {
+      const w = Math.max(6, Math.min(25, top * 0.12));
+      shape = [[0, w], [top, w]];
+      schematic = true;
+    }
+    const ang = (h) => A.targetElevationAngle(d, eye, ground + h);
+    const daz = (w) => Math.atan(w / (d * 1000)) / R;
+    const points = outline ? outline.map(([x, h]) => [az0 + daz(x), ang(h)])
+      : [...shape.map(([h, w]) => [az0 - daz(w), ang(h)]), ...shape.slice().reverse().map(([h, w]) => [az0 + daz(w), ang(h)])];
+    const from = TOWER_SHAPES[target.id] && TOWER_SHAPES[target.id].viewFromTopM;
+    return { points, schematic, known: !!TOWER_SHAPES[target.id], azimuth: az0, distanceKm: d,
+      baseAngle: ang(0), topAngle: ang(top), viewBaseAngle: from ? ang(Math.max(0, top - from)) : ang(0) };
+  }
+
+  /**
+   * 図の範囲。縦は目標の根元（山は頂の少し下）から先端＋円盤3つぶん、横は図の縦横比で決める。
+   * 目標がとても小さく見えるときも、円盤が6つ入る高さは取る。**広げるときは上へ**（下へ広げると地面の帯ばかりになる）
+   */
+  function viewWindow({ azimuth, baseAngle, topAngle, radiusDeg = 0.27, aspect = 1 }) {
+    const lo = baseAngle - Math.max(0.12 * (topAngle - baseAngle), radiusDeg * 0.6);
+    const hi = topAngle + radiusDeg * 3;
+    const halfH = Math.max((hi - lo) / 2, radiusDeg * 6);
+    return { az0: azimuth, alt0: lo + halfH, halfH, halfW: halfH * aspect };
+  }
+
+  /**
+   * 図の範囲を通る太陽・月の道。重なる時刻 `at` から前後へ、範囲の外へ出るまで stepS 秒ごと（最大 maxMin 分）。
+   * 重なる時刻の点を必ず含める（細い塔で、刻みが瞬間を飛び越えないように）
+   */
+  function viewPath(body, observer, at, proj, win, { stepS = 20, maxMin = 240 } = {}) {
+    const stateAt = (t) => (body === "moon" ? A.moon(t, observer) : A.sun(t, observer));
+    const inside = (p) => p && Math.abs(p[0]) <= win.halfW * 1.15 && Math.abs(p[1]) <= win.halfH * 1.15;
+    const pt = (t) => {
+      const st = stateAt(t);
+      const p = proj(st.azimuth, st.apparentAltitude);
+      return { at: t, azimuth: st.azimuth, altitude: st.apparentAltitude, radius: st.angularRadius,
+        illuminated: body === "moon" ? st.illuminatedFraction : null,
+        brightLimbZenithAngle: body === "moon" ? st.brightLimbZenithAngle : null, x: p ? p[0] : null, y: p ? p[1] : null };
+    };
+    const out = [pt(at)];
+    for (const dir of [-1, 1]) {
+      let wasIn = inside([out[0].x, out[0].y]);
+      for (let k = 1; k * stepS <= maxMin * 60; k++) {
+        const q = pt(at + dir * k * stepS * 1000);
+        const isIn = q.x !== null && inside([q.x, q.y]);
+        if (dir < 0) out.unshift(q); else out.push(q);
+        if (wasIn && !isIn) break;
+        wasIn = wasIn || isIn;
+      }
+    }
+    return out;
+  }
+
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, FUJI_SPOTS, spotObserver,
-                        crossingNear, candidates, lineOfSight, rankOf, rimOutline, judge, buildingBlock };
+                        crossingNear, candidates, lineOfSight, rankOf, rimOutline, judge, buildingBlock,
+                        viewProjector, TOWER_SHAPES, towerOutline, viewWindow, viewPath };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);

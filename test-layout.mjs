@@ -166,12 +166,23 @@ ok(/eyeOptions\(favDraft\)\.find/.test(html), "選んだときも同じ一覧か
 {
   const T = req("./sorami-terrain.js");
   const tower = T.decksFor("東京タワー");
-  ok(tower && tower.some((d) => d.aglM === 150) && tower.some((d) => d.aglM === 250),
-    "東京タワーはメインデッキ150m・トップデッキ250m", JSON.stringify(tower));
+  // 案内の 150m・250m は海抜。地上は 125m・223.55m（2026-10-02 直した）
+  ok(tower && tower.some((d) => d.aglM === 125) && tower.some((d) => d.aglM === 224),
+    "東京タワーはメインデッキ125m・トップデッキ224m（地上）", JSON.stringify(tower));
+  ok(T.decksFor("サンシャイン60")[0].aglM === 221 && T.decksFor("六本木ヒルズ")[0].aglM === 218,
+    "海抜で案内している展望台も地上で持つ（サンシャイン60 221m・東京シティビュー 218m）");
   const st = T.structureHeight({ height: "333" });
   ok(st && st.m === 333, "OSM の height は構造物の高さ（先端）", JSON.stringify(st));
   ok(tower[0].aglM < st.m, "**展望台は先端より低い**", `${tower[0].aglM}m < ${st.m}m`);
   ok(T.decksFor("高尾山") === null, "展望台でない場所は null");
+  // 前に保存した地点（メインデッキ 150m に立つ）は、読み込むときに 125m へ引き直す
+  const fdSrc = /function freshDecks\(f\) \{[\s\S]*?\n\}/.exec(html)[0];
+  const fresh = new Function("SoramiTerrain", `${fdSrc}; return freshDecks;`)(T);
+  const old = fresh({ name: "東京タワー", decks: [{ name: "メインデッキ", aglM: 150 }, { name: "トップデッキ", aglM: 250 }], eyeHeightAGL: 250 });
+  ok(old.eyeHeightAGL === 224 && old.decks[0].aglM === 125, "保存済みのトップデッキ 250m は 224m に直る", JSON.stringify(old));
+  const ground = fresh({ name: "東京タワー", decks: [{ name: "メインデッキ", aglM: 150 }], eyeHeightAGL: 1.5 });
+  ok(ground.eyeHeightAGL === 1.5, "地面に立つ選択はそのまま");
+  ok(fresh({ name: "高尾山", eyeHeightAGL: 1.5 }).decks === undefined, "展望台の無い地点は触らない");
   // **施設名を含むだけの別物を弾く。** 部分一致だけだと交番が150mの展望台になる
   ok(T.decksFor("愛宕警察署東京タワー前交番") === null, "交番は展望台ではない");
   ok(T.decksFor("東京タワー前交番") === null, "頭から当たっても「前交番」なら別物");
@@ -2886,6 +2897,50 @@ ok(/\$\("aimTargetLabel"\)\.textContent = aimTitleFor\(\)\.title;/.test(html)
   "枠の字は目標の名前。富士山のときはダイヤモンド富士／パール富士（有名な呼び名を残す）");
 // 画面は1つのまま（中身が同じなので、押した場所で初期値だけ変える）
 ok((html.match(/id="aimView"/g) || []).length === 1, "画面は1つのまま");
+
+console.log("== 見え方の図（2026-10-02） ==");
+// ユーザー「その目標物に対して月、太陽がどのような軌道で動くのかを見たい」。候補地と、どこから重ねるかの地点の2か所に出す
+{
+  const box = html.slice(html.indexOf('<div id="aimCandBox">'), html.indexOf('<div id="aimListBox">'));
+  ok(box.indexOf('id="aimCandPick"') < box.indexOf('id="aimCandLook"') && box.indexOf('id="aimCandLook"') < box.indexOf('id="aimCandList"'),
+    "選んだ候補地のカードのすぐ下に図（候補地の一覧より上）");
+  ok(/aimLookRender\(\$\("aimCandLook"\), \{ obs: \{ latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, elevation: c\.stand\.elevationM \},\s*eyeM: 1\.5 \+ \(c\.place\.deckM \|\| 0\), at: c\.at/.test(html),
+    "候補地の図は、重なりを解いたときと同じ立つ高さ・時刻で描く");
+  ok(/const lookEv = ev\.find\(\(e\) => S\.JstCal\.sameDay\(e\.at, aim\.dayMs\)\) \|\| ev\[0\];/.test(html)
+    && /aimLookRender\(\$\("aimFromLook"\), \{ obs, eyeM: 1\.5, at: lookEv\.at, label: f\.name \}\)/.test(html),
+    "どこから重ねるかの地点にも、開いている日（無ければ次）の図");
+  ok((html.match(/\$\("aimCandLook"\)\.hidden = true;/g) || []).length >= 3, "候補地が無くなったら図も隠す");
+  // 月の明るい縁の向き。写真（2024-11-30 05:54:55）の三日月は左下が光り、計算の 138.3° と合った
+  const dirSrc = /function aimLimbDir\(zenithAngleDeg\) \{[\s\S]*?\n\}/.exec(html)[0];
+  const dir = new Function(`${dirSrc}; return aimLimbDir;`)();
+  const phi = dir(138.3) * 180 / Math.PI;
+  ok(phi > 90 && phi < 180, "天頂から左回り138°の明るい縁は、図の左下（canvas の角度 90〜180°）", phi.toFixed(1));
+  ok(Math.abs(dir(0) * 180 / Math.PI + 90) < 1e-9, "0° は真上");
+  ok(Math.abs(Math.abs(dir(90) * 180 / Math.PI) - 180) < 1e-9, "90° は左");
+  // 空の色は太陽の高さで変わる（明るい画面・暗い画面にかかわらず）
+  const skySrc = html.slice(html.indexOf("const AIM_LOOK_SKY = ["), html.indexOf("/// 月の明るい縁の、図の上での向き"));
+  const sky = new Function(`${skySrc}; return aimLookSky;`)();
+  const lum = (c) => c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
+  ok(lum(sky(-20)[0]) < lum(sky(-7)[0]) && lum(sky(-7)[0]) < lum(sky(0)[0]) && lum(sky(0)[0]) < lum(sky(10)[0]), "夜→薄明→昼で空が明るくなる");
+  ok(JSON.stringify(sky(-30)) === JSON.stringify(sky(-18)) && JSON.stringify(sky(40)) === JSON.stringify(sky(8)), "端より先は端の色");
+  const relSrc = /function aimLookRel\(dt\) \{[\s\S]*?\n\}/.exec(html)[0];
+  const rel = new Function(`${relSrc}; return aimLookRel;`)();
+  ok(rel(0) === "重なる時刻" && rel(-180000) === "重なる3分前" && rel(20000) === "重なる20秒後" && rel(-80000) === "重なる1分20秒前",
+    "選んだ時刻は重なる時刻からの差で言う", [rel(0), rel(-180000), rel(20000), rel(-80000)].join(" / "));
+  // 形の出どころを書き分ける（Codex: 寸法からの形・推定の模式図・標高データを見た目で区別する）
+  ok(/稜線は国土地理院の標高データから/.test(html) && /形は写真から測ったおおよその形/.test(html)
+    && /形は公表寸法から作ったおおよその形/.test(html) && /の模式図（幅は推定）/.test(html), "形の出どころを書く");
+  ok(/円盤は形の後ろ（形で隠れる）/.test(html) && /ctx\.setLineDash\(\[3, 3\]\)/.test(html), "円盤は形の後ろ、隠れた所は点線の輪");
+  ok(/選んだ時刻だけ字で出す/.test(html), "時刻の字は選んだものだけ（320px で読めるように）");
+  const lookSrc = html.slice(html.indexOf("async function aimLookRender"), html.indexOf("let aimLookResize"));
+  ok(/cv\.onclick = /.test(lookSrc) && !/onpointerdown/.test(lookSrc) && /data-look-range/.test(lookSrc), "道をさわるか、つまみで時刻を選ぶ（iPhone の指のタップは click で受ける）");
+  ok(/\.aim-look canvas \{ display: block; width: 100%;[^}]*touch-action: pan-y;/.test(html), "図は幅いっぱい。縦のスクロールは止めない");
+  ok(/\.aim-look-time input \{[^}]*height: 44px;/.test(html), "つまみは44px の高さ");
+  ok(/Math\.round\(cv\.clientWidth\) !== h\._lookW\) aimLookRender/.test(html), "幅が変わったときだけ描き直す（スクロールの resize で選んだ時刻を戻さない）");
+  ok(/\.aim-look-h > span:first-child \{ flex: 0 0 auto; \}/.test(html), "「見え方」の見出しは折り返さない");
+  ok(/if \(!\(part && part\.adjustable\)\) \$\("aimHeightNote"\)\.textContent = "";/.test(html), "高さを直せない目標へ替えたら前の注記を消す");
+  ok(/if \(c && d > 0\.05\) \{/.test(html), "地図の中心が目標そのものなら見上げ角を出さない（0km先から -90°）");
+}
 
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

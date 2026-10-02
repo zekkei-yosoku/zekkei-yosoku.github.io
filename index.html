@@ -698,6 +698,20 @@
   .aim-sight { margin-top: 4px; color: var(--tertiary); }
   .aim-sight.hidden-target { margin: 8px 0 6px; color: var(--red); font-size: 0.88rem; }
   .aim-sight.hidden-target .sub-line { margin-top: 2px; font-size: 0.75rem; color: var(--secondary); }
+  /* 見え方の図（2026-10-02）。空の色は太陽の高さで決まるので、明るい画面でも暗い画面でも同じ色で描く */
+  .aim-look { margin-top: 10px; }
+  .aim-look-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+                font-size: 0.81rem; font-weight: 700; }
+  .aim-look-h > span:first-child { flex: 0 0 auto; }
+  .aim-look-h .tiny { min-width: 0; font-weight: 400; color: var(--secondary); text-align: right; }
+  .aim-look canvas { display: block; width: 100%; margin-top: 4px; border-radius: 10px; background: var(--sunk);
+                     touch-action: pan-y; }
+  .aim-look-time { display: flex; align-items: center; gap: 10px; }
+  .aim-look-time input { flex: 1; min-width: 0; height: 44px; accent-color: var(--accent); }
+  .aim-look-time output { flex: 0 0 auto; font-size: 0.88rem; font-weight: 700; color: var(--text);
+                          text-align: right; font-variant-numeric: tabular-nums; }
+  .aim-look-time output .sub-line { display: block; font-size: 0.69rem; font-weight: 400; color: var(--secondary); }
+  .aim-look-note { margin-top: 0; color: var(--tertiary); }
   .aim-day { min-height: 32px; padding: 4px 10px; border-radius: 9px; background: var(--sunk);
              color: var(--accent); font-weight: 700; }
   /* 月の日付の釦の2段目（日の入の◯分後・月の出の◯分後）。日付より控えめに */
@@ -1198,6 +1212,8 @@
     <div id="aimCandBox">
     <div class="section-h" style="margin-top:12px"><h2>この日の候補地</h2><span class="muted" id="aimCandSub"></span></div>
     <div id="aimCandPick" class="al"></div>
+    <!-- 選んだ候補地からの見え方（2026-10-02）。目標のまわりだけを拡大して、太陽・月の道と円盤を描く -->
+    <div id="aimCandLook" class="aim-look" hidden></div>
     <div id="aimCandInfo" class="tiny" style="margin-top:6px;color:var(--secondary)"></div>
     <div id="aimCandList" class="al" style="margin-top:8px"></div>
     </div>
@@ -1590,21 +1606,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002150809"></script>
+<script src="sorami-core.js?v=20261002183939"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002150809"></script>
-<script src="sorami-exif.js?v=20261002150809"></script>
-<script src="sorami-capcloud.js?v=20261002150809"></script>
-<script src="sorami-terrain.js?v=20261002150809"></script>
-<script src="sorami-mountain.js?v=20261002150809"></script>
-<script src="sorami-fuji.js?v=20261002150809"></script>
-<script src="sorami-sky.js?v=20261002150809"></script>
-<script src="sorami-routes.js?v=20261002150809"></script>
-<script src="sorami-iss.js?v=20261002150809"></script>
-<script src="sorami-plane.js?v=20261002150809"></script>
-<script src="sorami-align.js?v=20261002150809"></script>
-<script src="sorami-moon.js?v=20261002150809"></script>
+<script src="sorami-astro.js?v=20261002183939"></script>
+<script src="sorami-exif.js?v=20261002183939"></script>
+<script src="sorami-capcloud.js?v=20261002183939"></script>
+<script src="sorami-terrain.js?v=20261002183939"></script>
+<script src="sorami-mountain.js?v=20261002183939"></script>
+<script src="sorami-fuji.js?v=20261002183939"></script>
+<script src="sorami-sky.js?v=20261002183939"></script>
+<script src="sorami-routes.js?v=20261002183939"></script>
+<script src="sorami-iss.js?v=20261002183939"></script>
+<script src="sorami-plane.js?v=20261002183939"></script>
+<script src="sorami-align.js?v=20261002183939"></script>
+<script src="sorami-moon.js?v=20261002183939"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1864,9 +1880,20 @@ function cleanSighting(r) {
     photoAglM: num(r.photoAglM, -100, 1000),
     photoOutsideWindow: r.photoOutsideWindow === true };
 }
+/**
+ * 保存した地点の展望台の高さを、いまの公表値の一覧で引き直す。
+ * 2026-10-02 東京タワーなどの「150m」「250m」が海抜だったと分かり地上へ直した。前に保存した 150m のままだと 25m 高く立ってしまう
+ */
+function freshDecks(f) {
+  const now = Array.isArray(f.decks) && SoramiTerrain.decksFor(f.name);
+  if (!now) return f;
+  const i = f.decks.findIndex((d) => d && d.aglM === f.eyeHeightAGL);
+  return { ...f, decks: now, eyeHeightAGL: i >= 0 && now[i] ? now[i].aglM : f.eyeHeightAGL };
+}
 function cleanFavorite(f) {
   if (!f || typeof f !== "object" || !isText(f.id) || !f.id) return null;
   if (!Number.isFinite(f.latitude) || !Number.isFinite(f.longitude)) return null;
+  f = freshDecks(f);
   return { ...f, locationScope: SoramiTerrain.locationScope(f), name: isText(f.name) && f.name ? f.name : "名称未設定",
     subtitle: isText(f.subtitle) ? f.subtitle : "",
     note: isText(f.note) ? f.note : "",
@@ -1889,7 +1916,7 @@ let place = (() => {
   if (!p || typeof p !== "object" || !Number.isFinite(p.latitude) || !Number.isFinite(p.longitude)) {
     return { ...DEFAULT_PLACE };
   }
-  return { ...p, locationScope: SoramiTerrain.locationScope(p), name: typeof p.name === "string" && p.name ? p.name : DEFAULT_PLACE.name,
+  return { ...freshDecks(p), locationScope: SoramiTerrain.locationScope(p), name: typeof p.name === "string" && p.name ? p.name : DEFAULT_PLACE.name,
     subtitle: typeof p.subtitle === "string" ? p.subtitle : "" };
 })();
 // 読み込み時にも同じ検査を通す。localStorage は壊れうる（取り込みの途中失敗、
@@ -4538,7 +4565,7 @@ $("favTerrain").onchange = () => { favDraft.terrain = $("favTerrain").value || n
 
 // 地面からの目の高さ。**地面の標高とは別の話。**
 // 標高は座標から分かるが、その上に何m立っているかは分からない。
-// 東京タワーの地面は21mで、大展望台は+150m。ここを聞かないと、
+// 東京タワーの地面は18mで、メインデッキは+125m。ここを聞かないと、
 // 「山に隠れて見えない」と「展望台からなら見える」を取り違える。
 const EYE_HEIGHTS = [
   ["", "地面に立って（既定）", 1.5],
@@ -4553,7 +4580,7 @@ const EYE_HEIGHTS = [
 ];
 /**
  * 立つ高さの選択肢。**その地点に展望台があれば、公表値を先頭に足す。**
- * 「150mほどの展望台」ではなく「メインデッキ 150m」と書けるほうが選びやすいし、
+ * 「100mほどの展望台」ではなく「メインデッキ 125m」と書けるほうが選びやすいし、
  * 実際の高さがそのまま入る。
  */
 function eyeOptions(p) {
@@ -5079,6 +5106,7 @@ async function aimRedrawLine() {
   aim.candSeq++;
   aim.cands = []; aim.candPick = null;
   $("aimCandPick").innerHTML = ""; $("aimCandList").innerHTML = ""; $("aimCandSub").textContent = "";
+  $("aimCandLook").hidden = true;
   $("aimCandInfo").textContent = "候補地を探しています…";
   aim.lines = [];
   AimMap.redraw();
@@ -5990,6 +6018,8 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   // 高さが推定の部位だけ、直せるようにする
   const part = (aim.target.parts || []).find((p) => p.id === aim.partId);
   $("aimHeightRow").hidden = !(part && part.adjustable);
+  // 高さを直せない目標へ替えたら、前の目標の注記を残さない（ティンカーベルから富士山へ替えて「53m は…」が残っていた）
+  if (!(part && part.adjustable)) $("aimHeightNote").textContent = "";
   if (part && part.adjustable) {
     const g = aim.target.groundM || 0;
     $("aimHeightM").value = String(Math.round(part.m - g));
@@ -5997,9 +6027,9 @@ function aimApply({ redraw = true, recenter = false } = {}) {
     // 地図の中心から目標を見上げる角度を出しておけば、「あの日あそこから5度でてっぺんだった」を
     // 手がかりに、この数字が合うまで高さを動かせる。
     const c = AimMap.center();
-    if (c) {
-      const d = SoramiTerrain.distanceKm(c.latitude, c.longitude,
-        aim.target.latitude, aim.target.longitude);
+    const d = c ? SoramiTerrain.distanceKm(c.latitude, c.longitude, aim.target.latitude, aim.target.longitude) : 0;
+    // 地図の中心が目標そのもの（0km）では見上げ角に意味が無い（「0km先から -90.0°」と出ていた）
+    if (c && d > 0.05) {
       const ang = SoramiAstro.targetElevationAngle(d, observerHere().elevation, part.m);
       $("aimHeightNote").textContent =
         `${Math.round(part.m - g)}m は地図の中心（${aimKm(d)}km先）から ${ang.toFixed(1)}°`;
@@ -6273,7 +6303,11 @@ async function aimRenderFrom() {
       : "重なるのは明るい空のときだけです"}</p>`;
   // 見通しは重なる日の上に出す（見えないなら、日付より先に知りたい）
   const sightSlot = ev.length ? `<p class="tiny aim-sight" id="aimFromSight">見通しを確かめています…</p>` : "";
-  $("aimFrom").innerHTML = head + sightSlot + (chips ? `<div class="aim-days">${chips}</div>` : "") + none;
+  // 見え方は、いま開いている日の回（無ければ次の回）
+  const lookEv = ev.find((e) => S.JstCal.sameDay(e.at, aim.dayMs)) || ev[0];
+  $("aimFrom").innerHTML = head + sightSlot + (chips ? `<div class="aim-days">${chips}</div>` : "") + none
+    + (lookEv ? `<div class="aim-look" id="aimFromLook"></div>` : "");
+  if (lookEv) aimLookRender($("aimFromLook"), { obs, eyeM: 1.5, at: lookEv.at, label: f.name });
   for (const el of $("aimFrom").querySelectorAll("[data-from-day]")) {
     el.onclick = () => aimShowDay(+el.dataset.fromDay, { id: "from", latitude: f.latitude, longitude: f.longitude });
   }
@@ -6371,6 +6405,7 @@ async function aimFindCandidates() {
   const lines = aim.lines || [];
   aim.cands = []; aim.candPick = null;
   $("aimCandPick").innerHTML = ""; $("aimCandList").innerHTML = ""; $("aimCandSub").textContent = "";
+  $("aimCandLook").hidden = true;
   if (!lines.length) { $("aimCandInfo").textContent = "この日は線が無いので、候補地もありません。"; return; }
   $("aimCandInfo").textContent = "候補地を探しています…";
   let places = [];
@@ -6456,7 +6491,8 @@ async function aimFindCandidates() {
     aim.buildingNote = "";
     $("aimCandInfo").textContent = aim.cands.length ? "" : "この日の候補地は、どこも建物に隠れます。";
     $("aimCandSub").textContent = aim.cands.length ? `${aim.cands.length}か所` : "";
-    if (aim.cands.length) aimRenderCands(); else { $("aimCandPick").innerHTML = ""; $("aimCandList").innerHTML = ""; }
+    if (aim.cands.length) aimRenderCands();
+    else { $("aimCandPick").innerHTML = ""; $("aimCandList").innerHTML = ""; $("aimCandLook").hidden = true; }
     AimMap.redraw();
   }
 }
@@ -6671,6 +6707,9 @@ function aimRenderCands() {
       <span class="tiny">地図で見る →</span>
     </button>`;
   }).join("");
+  // 立つ高さは重なりを解いたときと同じ（地面＋1.5m＋展望台）にする。違えると図の重なる時刻がずれる
+  aimLookRender($("aimCandLook"), { obs: { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM },
+    eyeM: 1.5 + (c.place.deckM || 0), at: c.at, label: aimCandName(c) });
   for (const el of $("aimCandList").querySelectorAll("[data-cand]")) {
     el.onclick = () => {
       aim.candPick = Number(el.dataset.cand);
@@ -6682,6 +6721,297 @@ function aimRenderCands() {
     };
   }
 }
+
+// ---------------------------------------------------------------- 見え方（2026-10-02）
+//
+// ユーザー「その目標物に対して月、太陽がどのような軌道で動くのかを見たいなっていうのがこの機能を実装した最大の思いだった」。
+// 立つ場所から目標のまわり数度だけを拡大し、太陽・月の道と円盤を描く（外した「空の見え方」の全周の図では目標が小さすぎた）。
+// Codex と相談して決めた形: 目標を中心に接平面へ写す（方位と高度をそのまま並べると円盤がゆがむ）、形の出どころを書き分ける、
+// 月の欠けは空での向きで描く、20秒刻みで重なる瞬間を必ず含める、320px では選んだ時刻だけを字で出す。
+// 形は、既定の4つ（スカイツリー・東京タワー・シンデレラ城・ティンカーベル）は作り込んだ形、他の建物は高さと推定の幅の模式図、
+// 山は標高データの稜線（富士山は火口の縁のデータも足す）。手前の建物は描かない（隠れるなら見通しで「見えません」と出る）
+const AIM_LOOK_SKY = [
+  // 太陽の高度と、そのときの空の色（上・下）
+  [-18, [11, 19, 36], [26, 37, 64]],
+  [-12, [16, 28, 58], [48, 62, 104]],
+  [-6, [33, 56, 104], [150, 106, 116]],
+  [-2, [58, 96, 150], [230, 156, 112]],
+  [2, [96, 150, 205], [244, 194, 132]],
+  [8, [110, 170, 225], [200, 228, 246]],
+];
+function aimLookSky(sunAlt) {
+  const k = AIM_LOOK_SKY;
+  if (!(sunAlt > k[0][0])) return [k[0][1], k[0][2]];
+  for (let i = 1; i < k.length; i++) {
+    if (sunAlt > k[i][0]) continue;
+    const f = (sunAlt - k[i - 1][0]) / (k[i][0] - k[i - 1][0]);
+    const mix = (a, b) => a.map((v, j) => Math.round(v + (b[j] - v) * f));
+    return [mix(k[i - 1][1], k[i][1]), mix(k[i - 1][2], k[i][2])];
+  }
+  return [k[k.length - 1][1], k[k.length - 1][2]];
+}
+/// 月の明るい縁の、図の上での向き（canvas の角度。右が0で時計回り）。
+/// brightLimbZenithAngle は天頂の向きから左回りの角度。2024-11-30 05:54:55 のユーザーの写真（葛西臨海公園からティンカーベル）で、
+/// 計算 138.3° と写真の三日月の向き 138.1° が合うことを確かめた
+function aimLimbDir(zenithAngleDeg) {
+  const th = zenithAngleDeg * Math.PI / 180;
+  return Math.atan2(-Math.cos(th), -Math.sin(th));
+}
+function aimLookDisc(ctx, x, y, r, body, p) {
+  ctx.save();
+  if (body === "sun") {
+    const g = ctx.createRadialGradient(x, y, r * 0.6, x, y, r * 2.2);
+    g.addColorStop(0, "rgba(255,190,80,0.55)"); g.addColorStop(1, "rgba(255,190,80,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffcf5a"; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  } else {
+    const k = Math.max(0, Math.min(1, p.illuminated ?? 1));
+    ctx.fillStyle = "rgba(70,80,105,0.5)";
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    const phi = aimLimbDir(p.brightLimbZenithAngle ?? 0);
+    ctx.beginPath();
+    ctx.arc(x, y, r, phi - Math.PI / 2, phi + Math.PI / 2);
+    ctx.ellipse(x, y, r * Math.abs(1 - 2 * k), r, phi, Math.PI / 2, -Math.PI / 2, k < 0.5);
+    ctx.closePath();
+    ctx.fillStyle = "#f4efd8"; ctx.fill();
+    // 細い月は図では1px に満たないので、明るい縁を線でなぞって見えるようにする
+    if (k < 0.15) {
+      ctx.strokeStyle = "#f4efd8"; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(x, y, r - 0.8, phi - Math.PI / 2 * Math.min(1, 0.55 + k * 3), phi + Math.PI / 2 * Math.min(1, 0.55 + k * 3)); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+/// 山の稜線（図の左から右へ [方位, 見上げ角]）。目標の前後の帯を標高データで引き、方位ごとに一番上を取る
+const aimRidgeCache = new Map();
+async function aimLookRidge(obs, eye, target, win) {
+  const D = SoramiTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);
+  const spanAz = win.halfW / Math.cos(win.alt0 * Math.PI / 180) * 1.15;
+  const cols = 48, n = 60, s = Math.max(1.5, Math.min(12, D * 0.15));
+  const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude, spanAz].map((v) => v.toFixed(4)).join(",");
+  if (aimRidgeCache.has(key)) return aimRidgeCache.get(key);
+  const pts = [];
+  for (let i = 0; i <= cols; i++) {
+    const az = win.az0 - spanAz + (2 * spanAz * i) / cols;
+    for (let j = 0; j <= n; j++) {
+      const d = Math.max(0.15, D - s + (2 * s * j) / n);
+      pts.push({ ...SoramiTerrain.destination(obs.latitude, obs.longitude, az, d), az, d });
+    }
+  }
+  let el;
+  try { el = await SoramiTerrain.elevations(pts, { zoom: D > 40 ? 12 : 13 }); } catch { return null; }
+  const rim = SoramiAlign.rimOutline({ ...obs, elevation: eye }, target);
+  const summit = SoramiAstro.targetElevationAngle(D, eye, target.parts[0].m);
+  const out = [];
+  for (let i = 0; i <= cols; i++) {
+    const az = pts[i * (n + 1)].az;
+    let best = -90;
+    for (let j = 0; j <= n; j++) {
+      const k = i * (n + 1) + j;
+      if (Number.isFinite(el[k])) best = Math.max(best, SoramiAstro.targetElevationAngle(pts[k].d, eye, el[k]));
+    }
+    const rel = ((az - win.az0 + 540) % 360) - 180;
+    if (rim) { const a = rim.at(((az - rim.azimuth + 540) % 360) - 180); if (a !== null) best = Math.max(best, a); }
+    // 目標の頂は格子の間に落ちることがあるので、真ん中の列には頂そのものも入れる
+    if (Math.abs(rel) <= spanAz / cols) best = Math.max(best, summit);
+    out.push([az, best]);
+  }
+  if (out.every(([, a]) => a === -90)) return null;
+  aimRidgeCache.set(key, out);
+  return out;
+}
+
+const aimLookHosts = new Set();
+const aimLookHMS = (ms) => `${S.JstCal.hhmm(ms)}:${String(new Date(ms).getUTCSeconds()).padStart(2, "0")}`;
+/// 重なる時刻からの差を短く（「重なる3分前」「重なる20秒後」）
+function aimLookRel(dt) {
+  if (Math.abs(dt) < 1000) return "重なる時刻";
+  const s = Math.round(Math.abs(dt) / 1000);
+  const v = s < 60 ? `${s}秒` : s % 60 ? `${Math.floor(s / 60)}分${s % 60}秒` : `${s / 60}分`;
+  return `重なる${v}${dt < 0 ? "前" : "後"}`;
+}
+/**
+ * 見え方の図を host に描く。spec: { obs: 立つ場所（elevation は地面の標高）, eyeM: 地面からの目の高さ, at: 重なる時刻, label: 場所の名前 }
+ */
+async function aimLookRender(host, spec) {
+  if (!host) return;
+  const seq = (host._lookSeq = (host._lookSeq || 0) + 1);
+  const t = aim.target, body = aim.body;
+  host._lookSpec = spec;
+  aimLookHosts.add(host);
+  if (!t || !(t.parts || []).length || !spec || !Number.isFinite(spec.at)) { host.hidden = true; return; }
+  host.hidden = false;
+  if (!host.querySelector("canvas")) {
+    host.innerHTML = `<div class="aim-look-h"><span>見え方</span><span class="tiny" data-look-who></span></div>
+      <canvas data-look-canvas role="img"></canvas>
+      <div class="aim-look-time"><input type="range" min="0" max="0" step="1" value="0" data-look-range aria-label="時刻を動かす">
+        <output data-look-at></output></div>
+      <p class="tiny aim-look-note" data-look-note></p>`;
+  }
+  const cv = host.querySelector("[data-look-canvas]"), range = host.querySelector("[data-look-range]");
+  const out = host.querySelector("[data-look-at]"), note = host.querySelector("[data-look-note]");
+  host.querySelector("[data-look-who]").textContent = `${spec.label ? `${spec.label}から ・ ` : ""}${aimDateLabel(spec.at)}`;
+  const ground = spec.obs.elevation ?? 0, eye = ground + spec.eyeM;
+  const eyeObs = { latitude: spec.obs.latitude, longitude: spec.obs.longitude, elevation: eye };
+  const st = body === "moon" ? SoramiAstro.moon(spec.at, eyeObs) : SoramiAstro.sun(spec.at, eyeObs);
+  const radius = st.angularRadius;
+  const D = SoramiTerrain.distanceKm(spec.obs.latitude, spec.obs.longitude, t.latitude, t.longitude);
+  const az = SoramiTerrain.bearing(spec.obs.latitude, spec.obs.longitude, t.latitude, t.longitude);
+  const outline = aimIsMountain(t) ? null : SoramiAlign.towerOutline(spec.obs, t, { eyeM: spec.eyeM });
+  const mountain = !outline;
+  const topAngle = outline ? outline.topAngle : SoramiAstro.targetElevationAngle(D, eye, t.parts[0].m);
+  const baseAngle = outline ? outline.baseAngle : topAngle - 5 * radius;
+  // 図の下の端。ティンカーベルはホテル全体でなくドームと像のまわり
+  const viewBase = outline ? outline.viewBaseAngle : baseAngle;
+  const W = Math.max(200, Math.round(cv.clientWidth || host.clientWidth || 320));
+  host._lookW = W;
+  const H = Math.round(Math.min(420, W * 0.72));
+  const win = SoramiAlign.viewWindow({ azimuth: az, baseAngle: viewBase, topAngle, radiusDeg: radius, aspect: W / H });
+  const proj = SoramiAlign.viewProjector(win.az0, win.alt0);
+  const path = SoramiAlign.viewPath(body, eyeObs, spec.at, proj, win);
+  const i0 = Math.max(0, path.findIndex((p) => p.at === spec.at));
+  const k = (H / 2) / win.halfH;
+  const toPx = (xy) => (xy ? [W / 2 + xy[0] * k, H / 2 - xy[1] * k] : null);
+  let shape = null;
+  if (outline) shape = outline.points.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
+  else {
+    note.textContent = "稜線を読み込んでいます…";
+    const ridge = await aimLookRidge(spec.obs, eye, t, win);
+    if (seq !== host._lookSeq) return;
+    if (ridge) shape = ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
+  }
+  const part = SoramiAlign.partOf(t, aim.partId);
+  const top = (t.parts || [])[0];
+  const partY = !mountain && part && top && part.m < top.m - 0.5
+    ? toPx(proj(az, SoramiAstro.targetElevationAngle(D, eye, part.m)))[1] : null;
+  const baseY = toPx(proj(az, baseAngle))[1];
+  // 時刻の目盛り。道のりの長さに合わせて1〜60分ごとに、多くても10個
+  const span = (path[path.length - 1].at - path[0].at) / 60000;
+  const every = [1, 2, 5, 10, 15, 30, 60].find((m) => span / m <= 10) || 60;
+  const ticks = [];
+  for (let m = Math.ceil(path[0].at / (every * 60000)) * every * 60000; m <= path[path.length - 1].at; m += every * 60000) {
+    const s = body === "moon" ? SoramiAstro.moon(m, eyeObs) : SoramiAstro.sun(m, eyeObs);
+    const p = toPx(proj(s.azimuth, s.apparentAltitude));
+    if (p) ticks.push(p);
+  }
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  cv.style.height = `${H}px`;
+  const ctx = cv.getContext("2d");
+  const known = outline && outline.known, schematic = outline && outline.schematic;
+  note.textContent = [
+    mountain ? (shape ? "稜線は国土地理院の標高データから" : "稜線を読み込めませんでした")
+      : t.id === "tinkerbell" || t.id === "cinderella" ? "形は写真から測ったおおよその形"
+      : known ? "形は公表寸法から作ったおおよその形"
+      : schematic ? `建物は高さ${Math.round(top.m - (t.groundM || 0))}mの模式図（幅は推定）` : "",
+    "高さは大気の屈折を含む"].filter(Boolean).join(" ・ ");
+  range.max = String(path.length - 1);
+  const draw = (i) => {
+    const p = path[i];
+    const sunAlt = body === "sun" ? p.altitude : SoramiAstro.sun(p.at, eyeObs).apparentAltitude;
+    const [skyTop, skyLow] = aimLookSky(sunAlt);
+    const bright = (skyTop[0] * 0.3 + skyTop[1] * 0.59 + skyTop[2] * 0.11) > 120;
+    const ink = bright ? "rgba(20,30,50,0.78)" : "rgba(255,255,255,0.82)";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, `rgb(${skyTop})`); g.addColorStop(1, `rgb(${skyLow})`);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // 道と時刻の目盛り
+    ctx.strokeStyle = ink; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+    ctx.beginPath();
+    let pen = false;
+    for (const q of path) {
+      const xy = toPx(q.x === null ? null : [q.x, q.y]);
+      if (!xy) { pen = false; continue; }
+      if (pen) ctx.lineTo(xy[0], xy[1]); else ctx.moveTo(xy[0], xy[1]);
+      pen = true;
+    }
+    ctx.stroke();
+    ctx.fillStyle = ink;
+    for (const [x, y] of ticks) { ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI * 2); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    const rPx = Math.max(1.5, p.radius * k);
+    const c = toPx([p.x, p.y]);
+    // 円盤は形の後ろ（形で隠れる）。隠れた所も点線の輪で分かるようにする
+    if (c) aimLookDisc(ctx, c[0], c[1], rPx, body, p);
+    ctx.fillStyle = "rgba(16,20,30,0.94)";
+    if (shape && shape.length > 1) {
+      ctx.beginPath();
+      if (mountain) {
+        ctx.moveTo(shape[0][0], H + 2);
+        for (const [x, y] of shape) ctx.lineTo(x, y);
+        ctx.lineTo(shape[shape.length - 1][0], H + 2);
+      } else {
+        ctx.moveTo(shape[0][0], shape[0][1]);
+        for (const [x, y] of shape) ctx.lineTo(x, y);
+      }
+      ctx.closePath(); ctx.fill();
+    }
+    if (!mountain) ctx.fillRect(0, baseY, W, H - baseY + 2);
+    // 形に隠れた所も分かるように、円盤の輪を明るい点線で（暗い形の上でも見える色）
+    if (c) {
+      ctx.strokeStyle = body === "sun" ? "rgba(255,226,160,0.95)" : "rgba(235,238,255,0.9)";
+      ctx.lineWidth = 1.2; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.arc(c[0], c[1], rPx, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+    }
+    // 字は空にも形にも重なるので、縁取りして読めるようにする
+    const halo = bright ? "rgba(255,255,255,0.75)" : "rgba(0,0,0,0.6)";
+    const text = (str, x, y, align) => {
+      ctx.textAlign = align; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+      ctx.strokeStyle = halo; ctx.lineWidth = 3; ctx.strokeText(str, x, y);
+      ctx.fillStyle = ink; ctx.fillText(str, x, y);
+    };
+    // 選んだ時刻だけ字で出す（320px で全部の時刻を並べると読めない）。円盤の右、入らなければ左
+    const right = c ? c[0] + rPx + 8 + 62 < W : true;
+    if (c) {
+      ctx.font = "700 12px system-ui, sans-serif";
+      text(aimLookHMS(p.at), right ? c[0] + rPx + 8 : c[0] - rPx - 8, Math.max(10, Math.min(H - 10, c[1])), right ? "left" : "right");
+    }
+    // 展望台などに重ねるときは、その高さに印。名前は時刻の字と反対の側に
+    if (partY !== null && shape) {
+      const near = shape.filter(([, y]) => Math.abs(y - partY) < 6);
+      const half = near.length ? Math.max(...near.map(([x]) => Math.abs(x - W / 2))) : 8;
+      ctx.strokeStyle = ink; ctx.lineWidth = 1.2; ctx.setLineDash([2, 2]);
+      ctx.beginPath(); ctx.moveTo(W / 2 - half - 6, partY); ctx.lineTo(W / 2 + half + 6, partY); ctx.stroke(); ctx.setLineDash([]);
+      ctx.font = "600 11px system-ui, sans-serif";
+      const room = ctx.measureText(part.name).width + 6;
+      if (right && W / 2 - half - 10 > room) text(part.name, W / 2 - half - 10, partY, "right");
+      else text(part.name, Math.min(W - room, W / 2 + half + 10), partY, "left");
+    }
+    out.innerHTML = `${aimLookHMS(p.at)}<span class="sub-line">${esc(aimLookRel(p.at - spec.at))}</span>`;
+    cv.setAttribute("aria-label", `${spec.label || "ここ"}から見た${t.name}と${body === "moon" ? "月" : "太陽"}の動き。`
+      + `${aimLookHMS(spec.at)}に重なる。いまの図は${aimLookHMS(p.at)}`);
+  };
+  range.value = String(i0);
+  range.oninput = () => draw(Number(range.value));
+  // 道をさわって時刻を選ぶ（いちばん近い点。36px より遠ければ何もしない）。
+  // pointerdown では iPhone の指のタップで動かなかった（2026-10-02 シミュレーターで確認。マウスでは動く）ので click で受ける
+  cv.onclick = (ev) => {
+    const b = cv.getBoundingClientRect(), x = ev.clientX - b.left, y = ev.clientY - b.top;
+    let best = -1, bd = 36;
+    path.forEach((q, i) => {
+      const xy = q.x === null ? null : toPx([q.x, q.y]);
+      if (!xy) return;
+      const d = Math.hypot(xy[0] - x, xy[1] - y);
+      if (d < bd) { bd = d; best = i; }
+    });
+    if (best >= 0) { range.value = String(best); draw(best); }
+  };
+  draw(i0);
+}
+let aimLookResize = 0;
+window.addEventListener("resize", () => {
+  clearTimeout(aimLookResize);
+  aimLookResize = setTimeout(() => {
+    for (const h of aimLookHosts) {
+      if (!h.isConnected) { aimLookHosts.delete(h); continue; }
+      // **幅が変わったときだけ描き直す。** iPhone はスクロールでツールバーが出入りするたびに resize が来て、選んだ時刻が戻っていた
+      const cv = h.querySelector("canvas");
+      if (!h.hidden && h._lookSpec && cv && Math.round(cv.clientWidth) !== h._lookW) aimLookRender(h, h._lookSpec);
+    }
+  }, 150);
+});
 
 let aimReady = false;
 /**
@@ -7041,7 +7371,7 @@ function lookoutTag(r) {
 
 /**
  * 展望台の選択。**複数あるときだけ出す。**
- * 東京タワーの メインデッキ150m / トップデッキ250m、
+ * 東京タワーの メインデッキ125m / トップデッキ224m、
  * スカイツリーの 天望デッキ350m / 天望回廊450m は、立つ場所で地平線が変わる。
  */
 let currentView = "list";
@@ -7139,7 +7469,7 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
 
 wireSearchBox("searchBox", "searchResults", (r) => {
   // **展望台を選んだら、その高さを地点に持たせる。**
-  // 公表値があればそれ（東京タワーのメインデッキ 150m など）。
+  // 公表値があればそれ（東京タワーのメインデッキ 125m など）。
   // 無ければ OSM の構造物の高さだが、塔は先端なので**自動では立たせない**。
   const decks = r.decks && r.decks.length ? r.decks
     : (r.lookout === "building" && r.structureM ? [{ name: "屋上", aglM: Math.round(r.structureM) }] : null);
