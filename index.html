@@ -592,13 +592,20 @@
             box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
   .mappin::after { content: ""; position: absolute; left: 50%; top: 50%; width: 2px; height: 2px;
                    margin: -1px 0 0 -1px; background: var(--accent); }
-  /* 地図と写真の切り替え。地図の上に重ねる（画面の縦を使わない）。 */
-  .maplayer { position: absolute; left: 8px; top: 8px; z-index: 1; display: flex; gap: 2px;
-              padding: 2px; border-radius: 10px;
-              background: color-mix(in srgb, var(--card) 88%, transparent); }
-  .maplayer button { min-height: 32px; padding: 0 10px; border-radius: 8px; font-size: 0.72rem;
-                     font-weight: 700; color: var(--secondary); }
-  .maplayer button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  /* 地図の種類（右上の釦と、押すと出る一覧）。「地図／写真」の2択はどちらも地図だった（2026-10-02 ユーザー指摘）ので、
+     地図アプリと同じく重なりの記号の釦にした。標準・航空写真・地形 */
+  .map-ctl, .mapzoom .map-locate { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
+            background: var(--card); color: var(--text); border: 1px solid color-mix(in srgb, var(--text) 14%, transparent); }
+  .map-layers-btn { position: absolute; right: 8px; top: 8px; }
+  .map-layer-menu { position: absolute; right: 8px; top: 54px; z-index: 2; display: flex; flex-direction: column; min-width: 132px;
+                    padding: 4px; border-radius: 12px; background: var(--card); box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+  .map-layer-menu[hidden] { display: none; }
+  .map-layer-menu button { min-height: 44px; padding: 0 12px; border-radius: 8px; text-align: left; font-size: 0.81rem; font-weight: 700; }
+  .map-layer-menu button[aria-checked="true"] { color: var(--accent); background: var(--sunk); }
+  .map-layer-menu button[aria-checked="true"]::after { content: " ✓"; }
+  .mapzoom .map-locate.busy { color: var(--accent); }
+  .map-msg { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); margin: 0; padding: 6px 10px; border-radius: 8px;
+             font-size: 0.75rem; background: var(--card); color: var(--text); white-space: nowrap; }
   .mapzoom { position: absolute; right: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 4px; }
   .mapzoom button { width: 40px; height: 40px; border-radius: 10px; font-size: 1.1rem; font-weight: 700;
                     background: var(--card); color: var(--text);
@@ -665,22 +672,26 @@
   .aim-from { margin: 2px 0 8px; }
   /* 地図のすぐ下に「ここから重ねる」（字の分の幅）、その下に中心の説明を幅いっぱいに。
      横に並べると説明が細く5行に折れていた */
-  /* ピンの位置の座標と、ほかの地図アプリへ。1行目に座標、2行目に釦2つ、覚えたアプリがあれば下に「開くアプリを変える」。
-     320px で座標と「開くアプリを変える」を同じ行に置くと両方が折り返し、「Google マップで開く」も2行になった（2026-10-02 測定）。
-     座標の釦は字の幅だけ、地図アプリの釦が残りを使う。どちらも折り返さない */
-  .coord-row { margin-top: 8px; }
-  .coord-head { font-size: 0.75rem; color: var(--secondary); white-space: nowrap; }
-  .coord-head .coord { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
-  .coord-btns { display: flex; gap: 6px; margin-top: 4px; }
-  .coord-btns .fav-btn { flex: 1; min-width: 0; padding: 0 8px; font-size: 0.81rem; white-space: nowrap; }
-  .coord-btns [data-coord-copy] { flex: 0 0 auto; width: auto; padding: 0 12px; }
-  .coord-foot { text-align: right; }
-  .coord-change { min-height: 44px; font-size: 0.75rem; color: var(--accent); }
+  /* 地図の下の小さな丸い釦（座標・地図アプリ・ここから重ねる）。2026-10-02 ユーザー「ボタンが余白多いしでかい」で、
+     幅いっぱいの大きな釦から字の幅の丸い釦に。見た目は 34px、押せる所は上下に 5px 足して 44px（::before） */
+  .chip { position: relative; display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 12px;
+          border-radius: 999px; background: var(--line); color: var(--text); font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+  .chip::before { content: ""; position: absolute; left: 0; right: 0; top: -5px; bottom: -5px; }
+  .chip:disabled { opacity: .5; }
+  /* 座標の行。座標の釦（押すとコピー）・地図アプリの釦。覚えたアプリがあれば、釦の右端の ▾ で選び直す
+     （「変更」を別に置くと 390px で1行を丸ごと使った）。狭ければ折り返す */
+  .coord-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 6px; margin-top: 10px; }
+  .coord-row[hidden] { display: none; }
+  .coord-row .chip { padding: 0 10px; }
+  .coord-row .coord { font-variant-numeric: tabular-nums; }
+  .coord-label { font-size: 0.75rem; color: var(--secondary); }
+  .chip-split { display: inline-flex; gap: 1px; }
+  .chip.split { border-radius: 999px 0 0 999px; }
+  .coord-row .chip-more { padding: 0 9px 0 7px; border-radius: 0 999px 999px 0; }
   .map-app-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
   .map-app-remember { display: flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 6px; font-size: 0.81rem; }
   .map-app-remember input { width: 20px; height: 20px; accent-color: var(--accent); }
-  .aim-near-row { margin-top: 8px; }
-  .aim-near-row .fav-btn { width: auto; padding: 0 14px; }
+  .aim-near-row { margin-top: 10px; }
   .aim-near-btns { display: flex; gap: 6px; flex-wrap: wrap; }
   .aim-days { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
   /* 見通し。見えないときは日付より目立たせる（2026-10-02 ユーザー「そもそも目標物が見えませんとかって出した方がいい」） */
@@ -1092,13 +1103,12 @@
         <div class="mapattr">国土地理院</div>
       </div>
       <div class="coord-row" data-map="plane">
-        <div class="coord-head">ピンの位置 <span class="coord" id="planeCoord">—</span></div>
-        <div class="coord-btns"><button class="fav-btn" data-coord-copy>座標をコピー</button><button class="fav-btn" data-map-app-open>地図アプリで開く</button></div>
-        <div class="coord-foot"><button class="tap coord-change" data-map-app-change hidden>開くアプリを変える</button></div>
+        <button class="chip" data-coord-copy aria-label="ピンの位置の座標をコピー"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span class="coord" id="planeCoord">—</span><span class="copied" hidden>コピーしました</span></button>
+        <span class="chip-split"><button class="chip" data-map-app-open><span data-map-app-label>地図アプリ</span><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg></button><button class="chip chip-more" data-map-app-change aria-label="開くアプリを変える" hidden><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
       </div>
       <div class="aim-near-row">
         <div class="aim-near-btns">
-          <button id="planePickHere" class="fav-btn" aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる</button>
+          <button id="planePickHere" class="chip" aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる</button>
         </div>
       </div>
       <div class="aim-legend">
@@ -1204,10 +1214,6 @@
       <button id="aimToday" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">今日</button>
     </div>
     <div class="mapwrap" style="margin-top:8px">
-      <div class="maplayer" role="group" aria-label="地図の種類">
-        <button id="aimLayerMap" aria-pressed="true">地図</button>
-        <button id="aimLayerPhoto" aria-pressed="false">写真</button>
-      </div>
       <canvas id="aimCanvas" aria-label="地図。線の上が、その日に重なって見える場所です"></canvas>
       <div class="mappin" aria-hidden="true"></div>
       <div class="mapzoom">
@@ -1219,16 +1225,15 @@
     <!-- ピンの位置の座標と、ほかの地図アプリへ（2026-10-02 ユーザー「撮影ポイントをピンポイントに知りたい場合、詳細な緯度経度が欲しい」
          「他のMAPアプリに飛ばしたりとかってできるの？」）。候補地の「地図で見る」を押すとピンがその点に来る -->
     <div class="coord-row" data-map="aim">
-        <div class="coord-head">ピンの位置 <span class="coord" id="aimCoord">—</span></div>
-        <div class="coord-btns"><button class="fav-btn" data-coord-copy>座標をコピー</button><button class="fav-btn" data-map-app-open>地図アプリで開く</button></div>
-        <div class="coord-foot"><button class="tap coord-change" data-map-app-change hidden>開くアプリを変える</button></div>
+        <button class="chip" data-coord-copy aria-label="ピンの位置の座標をコピー"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span class="coord" id="aimCoord">—</span><span class="copied" hidden>コピーしました</span></button>
+        <span class="chip-split"><button class="chip" data-map-app-open><span data-map-app-label>地図アプリ</span><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg></button><button class="chip chip-more" data-map-app-change aria-label="開くアプリを変える" hidden><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
       </div>
     <!-- 地図の中心（ピン）について。線までの距離と、そこを観測地点にする釦を並べる -->
     <div class="aim-near-row">
       <div class="aim-near-btns">
-        <button id="aimPick" class="fav-btn" aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる</button>
+        <button id="aimPick" class="chip" aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる</button>
         <!-- 他の目標のときだけ。地図の中心（ピン）を目標の場所にする -->
-        <button id="aimPickTarget" class="fav-btn" aria-label="地図の中心（ピンの位置）に重ねる" hidden>ここに重ねる</button>
+        <button id="aimPickTarget" class="chip" aria-label="地図の中心（ピンの位置）に重ねる" hidden>ここに重ねる</button>
       </div>
       <div id="aimNear" class="aim-near">—</div>
     </div>
@@ -1304,9 +1309,9 @@
       </div>
       <!-- ISS の地図は帯を見るためのもので中心ピンは置かない（2026-10-01 決定）。座標は、選んでいる回の「立つ場所の例」 -->
       <div class="coord-row" data-map="iss" hidden>
-        <div class="coord-head">立つ場所の例 <span class="coord" id="issCoord">—</span></div>
-        <div class="coord-btns"><button class="fav-btn" data-coord-copy>座標をコピー</button><button class="fav-btn" data-map-app-open>地図アプリで開く</button></div>
-        <div class="coord-foot"><button class="tap coord-change" data-map-app-change hidden>開くアプリを変える</button></div>
+        <span class="coord-label">立つ場所の例</span>
+        <button class="chip" data-coord-copy aria-label="立つ場所の例の座標をコピー"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span class="coord" id="issCoord">—</span><span class="copied" hidden>コピーしました</span></button>
+        <span class="chip-split"><button class="chip" data-map-app-open><span data-map-app-label>地図アプリ</span><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg></button><button class="chip chip-more" data-map-app-change aria-label="開くアプリを変える" hidden><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
       </div>
       <div class="aim-legend">
         <span><i class="aim-k moon" id="issKey"></i>見える帯</span>
@@ -1379,10 +1384,6 @@
     </div>
     <div id="mapSearchResults"></div>
     <div class="mapwrap">
-      <div class="maplayer" role="group" aria-label="地図の種類">
-        <button id="mapLayerMap" aria-pressed="true">地図</button>
-        <button id="mapLayerPhoto" aria-pressed="false">写真</button>
-      </div>
       <canvas id="mapCanvas" aria-label="地図。指でずらして中心にピンを合わせます"></canvas>
       <div class="mappin" aria-hidden="true"></div>
       <div class="mapzoom">
@@ -1391,9 +1392,9 @@
       </div>
       <div class="mapattr">国土地理院</div>
     </div>
+    <!-- 現在地は地図の右下の釦（どの地図も同じ。前は下に「現在地へ」があった） -->
     <div class="maprow">
       <div id="mapCoord" class="tiny">—</div>
-      <button id="mapHere" class="fav-btn">現在地へ</button>
     </div>
     <button class="fav-btn primary" id="mapPick" style="width:100%;margin-top:8px">この場所にする</button>
 
@@ -1643,21 +1644,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002132501"></script>
+<script src="sorami-core.js?v=20261002142227"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002132501"></script>
-<script src="sorami-exif.js?v=20261002132501"></script>
-<script src="sorami-capcloud.js?v=20261002132501"></script>
-<script src="sorami-terrain.js?v=20261002132501"></script>
-<script src="sorami-mountain.js?v=20261002132501"></script>
-<script src="sorami-fuji.js?v=20261002132501"></script>
-<script src="sorami-sky.js?v=20261002132501"></script>
-<script src="sorami-routes.js?v=20261002132501"></script>
-<script src="sorami-iss.js?v=20261002132501"></script>
-<script src="sorami-plane.js?v=20261002132501"></script>
-<script src="sorami-align.js?v=20261002132501"></script>
-<script src="sorami-moon.js?v=20261002132501"></script>
+<script src="sorami-astro.js?v=20261002142227"></script>
+<script src="sorami-exif.js?v=20261002142227"></script>
+<script src="sorami-capcloud.js?v=20261002142227"></script>
+<script src="sorami-terrain.js?v=20261002142227"></script>
+<script src="sorami-mountain.js?v=20261002142227"></script>
+<script src="sorami-fuji.js?v=20261002142227"></script>
+<script src="sorami-sky.js?v=20261002142227"></script>
+<script src="sorami-routes.js?v=20261002142227"></script>
+<script src="sorami-iss.js?v=20261002142227"></script>
+<script src="sorami-plane.js?v=20261002142227"></script>
+<script src="sorami-align.js?v=20261002142227"></script>
+<script src="sorami-moon.js?v=20261002142227"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4705,21 +4706,54 @@ $("favDelete").onclick = () => {
 //
 // ダイヤモンド富士は**立つ場所が数百m違うと日付が変わる**ので、
 // 文字の地点検索（市区町村の代表点）では精度が足りない。その穴を埋めるための画面。
+/// 地図の種類（国土地理院のタイル）。キーは保存してあるので変えない（map・photo）
+const MAP_LAYERS = {
+  map: { key: "pale", ext: "png", maxZ: 17, label: "標準" },
+  photo: { key: "seamlessphoto", ext: "jpg", maxZ: 18, label: "航空写真" },
+  // 陰影起伏図は z16 まで。淡色地図に掛け合わせる
+  terrain: { key: "pale", ext: "png", maxZ: 16, label: "地形", shade: { key: "hillshademap", ext: "png" } },
+};
+const MAP_ICON_LAYERS = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2.5 8 12 13l9.5-5L12 3Z"/><path d="m2.5 12.5 9.5 5 9.5-5"/><path d="m2.5 16.5 9.5 5 9.5-5" opacity=".55"/></svg>`;
+const MAP_ICON_LOCATE = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>`;
+/// 現在地（どの地図でも共通）。{ latitude, longitude, accuracyM }
+let myPos = null;
+const MAP_VIEWS = new Set();          // 現在地が変わったら描き直す地図
+function locateMe({ quiet = false } = {}) {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) { resolve(null); return; }
+    navigator.geolocation.getCurrentPosition((pos) => {
+      myPos = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracyM: pos.coords.accuracy };
+      for (const redraw of MAP_VIEWS) redraw();
+      resolve(myPos);
+    }, () => resolve(null), { enableHighAccuracy: !quiet, timeout: 10000, maximumAge: 60000 });
+  });
+}
+async function locateIfAllowed() {
+  if (myPos) return;
+  try {
+    const st = navigator.permissions && await navigator.permissions.query({ name: "geolocation" });
+    if (st && st.state === "granted") locateMe({ quiet: true });
+  } catch { /* 許可を確かめられなければ出さない */ }
+}
+/// 現在地の点（地図アプリと同じ青い点。誤差が大きければ薄い円も）
+function drawMyPos(ctx, project, view) {
+  if (!myPos) return;
+  const [x, y] = project(myPos.latitude, myPos.longitude);
+  const mPerPx = 156543.03 * Math.cos(myPos.latitude * Math.PI / 180) / 2 ** view.zoom;
+  const r = myPos.accuracyM / mPerPx;
+  if (r > 10 && r < 400) {
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(26,115,232,.15)"; ctx.fill();
+  }
+  ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fillStyle = "#1a73e8"; ctx.fill();
+}
 function createMapView(ids) {
   const TILE = 256;
-  // 国土地理院のタイル。**淡色地図と航空写真**を切り替える。
-  // 写真は拡張子が .jpg で、淡色より深い縮尺まである（ピンを置く用途では写真のほうが分かる）。
-  const LAYERS = {
-    map: { key: "pale", ext: "png", maxZ: 17, label: "地図" },
-    photo: { key: "seamlessphoto", ext: "jpg", maxZ: 18, label: "写真" },
-  };
   let layer = "map";
-  const URL = (z, x, y) => {
-    const l = LAYERS[layer];
-    return `https://cyberjapandata.gsi.go.jp/xyz/${l.key}/${z}/${x}/${y}.${l.ext}`;
-  };
+  const URL = (src, z, x, y) => `https://cyberjapandata.gsi.go.jp/xyz/${src.key}/${z}/${x}/${y}.${src.ext}`;
   const MIN_Z = 5;
-  const maxZoom = () => LAYERS[layer].maxZ;
+  const maxZoom = () => MAP_LAYERS[layer].maxZ;
   const tiles = new Map();          // "layer/z/x/y" → Image（読み込み済みだけ描く）
   let cv = null, ctx = null, view = { lat: 35.36, lon: 138.73, zoom: 14 };
   let drag = null, pinch = null, raf = 0;
@@ -4746,14 +4780,14 @@ function createMapView(ids) {
     return 180 / Math.PI * Math.atan(Math.sinh(n));
   };
 
-  function tileImage(z, x, y) {
-    const key = `${layer}/${z}/${x}/${y}`;
+  function tileImage(src, z, x, y) {
+    const key = `${src.key}/${z}/${x}/${y}`;
     if (tiles.has(key)) return tiles.get(key);
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => draw();
     img.onerror = () => { img.failed = true; };     // 海など無い区画。黙って空けておく
-    img.src = URL(z, x, y);
+    img.src = URL(src, z, x, y);
     tiles.set(key, img);
     return img;
   }
@@ -4779,14 +4813,25 @@ function createMapView(ids) {
       if (ty < 0 || ty >= max) continue;
       for (let tx = x0; tx <= x1; tx++) {
         const wrapped = ((tx % max) + max) % max;
-        const img = tileImage(z, wrapped, ty);
+        const L = MAP_LAYERS[layer];
+        const img = tileImage(L, z, wrapped, ty);
         if (!img.complete || img.failed) continue;
-        ctx.drawImage(img, Math.round(tx * size - cx + w / 2), Math.round(ty * size - cy + h / 2),
-          Math.ceil(size), Math.ceil(size));
+        const px = Math.round(tx * size - cx + w / 2), py = Math.round(ty * size - cy + h / 2);
+        ctx.drawImage(img, px, py, Math.ceil(size), Math.ceil(size));
+        // 地形: 淡色地図に陰影起伏図を掛け合わせる（斜面が影になり、尾根と谷が見える。陰影だけだと地名も道も無い）
+        if (L.shade) {
+          const sh = tileImage(L.shade, z, wrapped, ty);
+          if (sh.complete && !sh.failed) {
+            ctx.globalCompositeOperation = "multiply"; ctx.globalAlpha = 0.6;
+            ctx.drawImage(sh, px, py, Math.ceil(size), Math.ceil(size));
+            ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+          }
+        }
       }
     }
     if (ids.coord) $(ids.coord).textContent = `${view.lat.toFixed(5)}, ${view.lon.toFixed(5)}`;
     if (overlay) { try { overlay(ctx, { project, view, width: w, height: h }); } catch { /* 重ね描きで落とさない */ } }
+    drawMyPos(ctx, project, view);
     if (onChange) onChange({ latitude: view.lat, longitude: view.lon, zoom: view.zoom });
   }
   const schedule = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; draw(); }); };
@@ -4839,26 +4884,55 @@ function createMapView(ids) {
     cv.ondblclick = (e) => { e.preventDefault(); zoomBy(1); };
     if (ids.zoomIn) $(ids.zoomIn).onclick = () => zoomBy(1);
     if (ids.zoomOut) $(ids.zoomOut).onclick = () => zoomBy(-1);
-    const setLayer = (next) => {
-      if (!LAYERS[next] || layer === next) return;
-      layer = next;
-      store.set("sorami.mapLayer", next);
-      view.zoom = Math.min(view.zoom, maxZoom());
-      if (ids.layerMap) $(ids.layerMap).setAttribute("aria-pressed", String(next === "map"));
-      if (ids.layerPhoto) $(ids.layerPhoto).setAttribute("aria-pressed", String(next === "photo"));
+    // 地図の上に、種類の切り替え（右上）と現在地（右下、＋の上）を置く。どの地図も同じ部品（2026-10-02 ユーザー「地図、写真ってどっちも地図じゃん。
+    // こういうボタンを用意して地図モードを変えられるように」「現在地マークをおいといた方が良い」）
+    const wrap = cv.closest(".mapwrap");
+    wrap.insertAdjacentHTML("beforeend", `<button class="map-ctl map-layers-btn" aria-label="地図の種類" aria-haspopup="true" aria-expanded="false">${MAP_ICON_LAYERS}</button>
+      <div class="map-layer-menu" role="menu" aria-label="地図の種類" hidden>${Object.entries(MAP_LAYERS).map(([k, l]) =>
+        `<button role="menuitemradio" data-layer="${k}" aria-checked="false">${esc(l.label)}</button>`).join("")}</div>
+      <p class="map-msg" role="status" hidden></p>`);
+    wrap.querySelector(".mapzoom").insertAdjacentHTML("afterbegin", `<button class="map-locate" aria-label="現在地">${MAP_ICON_LOCATE}</button>`);
+    const menu = wrap.querySelector(".map-layer-menu"), menuBtn = wrap.querySelector(".map-layers-btn");
+    const showMenu = (on) => { menu.hidden = !on; menuBtn.setAttribute("aria-expanded", String(on)); };
+    menuBtn.onclick = (e) => { e.stopPropagation(); showMenu(menu.hidden); };
+    for (const b of menu.querySelectorAll("[data-layer]")) b.onclick = () => { setLayer(b.dataset.layer, true); showMenu(false); };
+    document.addEventListener("pointerdown", (e) => { if (!menu.hidden && !e.target.closest(".map-layer-menu, .map-layers-btn")) showMenu(false); });
+    const msg = wrap.querySelector(".map-msg"), locate = wrap.querySelector(".map-locate");
+    locate.onclick = async () => {
+      locate.classList.add("busy");
+      const got = await locateMe();
+      locate.classList.remove("busy");
+      if (!got) {
+        msg.textContent = "現在地を取得できませんでした";
+        msg.hidden = false;
+        clearTimeout(msg.timer);
+        msg.timer = setTimeout(() => { msg.hidden = true; }, 3000);
+        return;
+      }
+      view.lat = got.latitude; view.lon = got.longitude;
+      view.zoom = Math.max(view.zoom, Math.min(15, maxZoom()));
       schedule();
     };
-    if (ids.layerMap) $(ids.layerMap).onclick = () => setLayer("map");
-    if (ids.layerPhoto) $(ids.layerPhoto).onclick = () => setLayer("photo");
-    // 前に選んだ種類を憶えておく（写真で置く人は次も写真で置く）
-    const saved = store.get("sorami.mapLayer", "map");
-    if (saved !== layer) setLayer(saved);
+    MAP_VIEWS.add(schedule);
     window.addEventListener("resize", schedule);
+  }
+  /// 種類を替える。選んだ種類はどの地図でも次から使う（写真で置く人は次も写真で置く）
+  function setLayer(next, remember = false) {
+    if (!MAP_LAYERS[next]) next = "map";
+    layer = next;
+    if (remember) store.set("sorami.mapLayer", next);
+    view.zoom = Math.min(view.zoom, maxZoom());
+    const wrap = cv && cv.closest(".mapwrap");
+    if (wrap) for (const b of wrap.querySelectorAll("[data-layer]")) b.setAttribute("aria-checked", String(b.dataset.layer === next));
+    schedule();
   }
 
   function open(from, zoom = 15) {
     if (!cv) attach();
+    // 位置情報が許されていれば、開いたときから現在地の点を出す（地図は動かさない）。許されていなければ聞かない（現在地の釦を押したときだけ聞く）
+    locateIfAllowed();
     view = { lat: from.latitude, lon: from.longitude, zoom };
+    setLayer(store.get("sorami.mapLayer", "map"));
     if (ids.sheet) showSheet($(ids.sheet));
     // dialog が開いてから測る（閉じている間は幅が 0）
     requestAnimationFrame(() => { draw(); requestAnimationFrame(draw); });
@@ -4877,7 +4951,7 @@ function createMapView(ids) {
 }
 
 const MapPick = createMapView({ canvas: "mapCanvas", coord: "mapCoord", sheet: "mapSheet",
-  zoomIn: "mapIn", zoomOut: "mapOut", layerMap: "mapLayerMap", layerPhoto: "mapLayerPhoto" });
+  zoomIn: "mapIn", zoomOut: "mapOut" });
 
 // ---------------------------------------------------------------- ねらう（ダイヤモンド／パール）
 //
@@ -4887,7 +4961,7 @@ const MapPick = createMapView({ canvas: "mapCanvas", coord: "mapCoord", sheet: "
 // 線の考え方: 目標までの距離が決まれば見上げ角が決まり、その高度を天体が通る時刻と方位が決まる。
 // 観測者は目標から見てその方位の反対側にいる。距離を変えながら解くと線になる。
 const AimMap = createMapView({ canvas: "aimCanvas", coord: "aimCoord",
-  zoomIn: "aimIn", zoomOut: "aimOut", layerMap: "aimLayerMap", layerPhoto: "aimLayerPhoto" });
+  zoomIn: "aimIn", zoomOut: "aimOut" });
 
 const aim = { target: null, body: "sun", partId: null, limb: "center", dayMs: null, lines: [], seq: 0,
               spotSeq: 0, spotCache: null, spot: null, preset: null,
@@ -5545,9 +5619,9 @@ const IssMap = createMapView({ canvas: "issCanvas", zoomIn: "issIn", zoomOut: "i
 const IS_APPLE = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent), IS_ANDROID = /Android/.test(navigator.userAgent);
 const coordText = (c) => `${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)}`;
 const MAP_APPS = {
-  device: { name: "この端末の地図アプリ", url: (t) => `geo:${t.replace(" ", "")}?q=${t.replace(" ", "")}` },
-  google: { name: "Google マップ", url: (t) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t)}` },
-  apple: { name: IS_APPLE ? "Apple マップ（この端末の標準）" : "Apple マップ",
+  device: { name: "この端末の地図アプリ", chipLabel: "地図アプリ", url: (t) => `geo:${t.replace(" ", "")}?q=${t.replace(" ", "")}` },
+  google: { name: "Google マップ", chipLabel: "Google", url: (t) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t)}` },
+  apple: { name: IS_APPLE ? "Apple マップ（この端末の標準）" : "Apple マップ", chipLabel: "Apple",
     url: (t) => `https://maps.apple.com/?ll=${t.replace(" ", "")}&q=${encodeURIComponent(t)}` },
 };
 const mapAppChoices = () => (IS_APPLE ? ["apple", "google"] : IS_ANDROID ? ["device", "google"] : ["google", "apple"]);
@@ -5585,8 +5659,10 @@ $("mapAppClose").onclick = () => $("mapAppSheet").close();
 function renderCoordRows() {
   const app = savedMapApp();
   for (const row of document.querySelectorAll(".coord-row")) {
-    row.querySelector("[data-map-app-open]").textContent = app ? `${MAP_APPS[app].name.replace(/（.*）/, "")}で開く` : "地図アプリで開く";
+    // 釦の名前は短く（Google・Apple）。「Google マップ」まで書くと 375px で座標と1行に並ばなかった。↗ の印で地図アプリへ飛ぶと分かる
+    row.querySelector("[data-map-app-label]").textContent = app ? MAP_APPS[app].chipLabel : "地図アプリ";
     row.querySelector("[data-map-app-change]").hidden = !app;
+    row.querySelector("[data-map-app-open]").classList.toggle("split", !!app);
   }
 }
 async function copyText(t) {
@@ -5605,8 +5681,11 @@ for (const row of document.querySelectorAll(".coord-row")) {
   const copy = row.querySelector("[data-coord-copy]");
   copy.onclick = async () => {
     const ok = await copyText(coordText(center()));
-    copy.textContent = ok ? "コピーしました" : "コピーできませんでした";
-    setTimeout(() => { copy.textContent = "座標をコピー"; }, 1500);
+    const done = copy.querySelector(".copied"), c = copy.querySelector(".coord");
+    done.textContent = ok ? "コピーしました" : "コピーできませんでした";
+    done.hidden = false; c.hidden = true;
+    clearTimeout(copy.timer);
+    copy.timer = setTimeout(() => { done.hidden = true; c.hidden = false; }, 1500);
   };
   row.querySelector("[data-map-app-open]").onclick = () => {
     const app = savedMapApp(), t = coordText(center());
@@ -7300,13 +7379,6 @@ function aimMapView() {
 $("mapButton").onclick = () => MapPick.open(placeSheetFor && PLACE_PICKERS[placeSheetFor]
   ? (PLACE_PICKERS[placeSheetFor].point() || place) : place);
 $("mapClose").onclick = () => $("mapSheet").close();
-$("mapHere").onclick = () => {
-  if (!navigator.geolocation) return;
-  navigator.geolocation.getCurrentPosition(
-    (pos) => MapPick.setCenter(pos.coords.latitude, pos.coords.longitude),
-    () => { $("mapCoord").textContent = "現在地を取得できませんでした"; },
-    { enableHighAccuracy: true, timeout: 10000 });
-};
 /// 地図で選んだ点の名前（近くの地名）と住所（都道府県＋市区町村）。取れなければ座標を名前にする
 async function nearName(lat, lon) {
   let name = `${lat.toFixed(4)}, ${lon.toFixed(4)}`, area = "";

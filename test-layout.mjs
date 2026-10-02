@@ -249,7 +249,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/aimTarget: \{ title: "どこに重ねるか",[\s\S]{0,500}aimSetCustomTarget\(\{ \.\.\.p, heightM: p\.targetHeightM \?\? \(p\.structureFrom === "levels" \? null : p\.structureM\) \}\);/.test(html) && /structureM: p\.structureM \?\? null, targetHeightM: p\.targetHeightM \?\? null/.test(html)
     && /if \(f\) \{ aimFillSelects\(\); \$\("aimTarget"\)\.value = `fav:\$\{f\.id\}`; aimApply\(\{ recenter: true \}\); return; \}/.test(html),
     "他の目標: 選んだ場所が目標になる（お気に入りの高さ、建物に地図の高さがあればそれも入る）");
-  ok(/<button id="aimPickTarget" class="fav-btn" aria-label="地図の中心（ピンの位置）に重ねる" hidden>ここに重ねる<\/button>/.test(html),
+  ok(/<button id="aimPickTarget" class="chip" aria-label="地図の中心（ピンの位置）に重ねる" hidden>ここに重ねる<\/button>/.test(html),
     "自分で置く: 地図のすぐ下に「ここに重ねる」");
   ok(/\$\("aimTargetCard"\)\.hidden = !customOn;\s+\$\("aimCustomRow"\)\.hidden = !customOn;\s+\$\("aimPickTarget"\)\.hidden = !customOn;/.test(html),
     "自分で置くときだけ出す");
@@ -2749,9 +2749,30 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   // 座標をコピー・地図アプリで開く（2026-10-02 ユーザー「詳細な緯度経度が欲しい」「座標コピーのボタンと地図アプリで開くのボタン。
   // 端末のデフォルトか Google か Apple かを選ばせ、選んだアプリを常に使うか聞く」）
   for (const key of ["aim", "plane", "iss"]) {
-    const row = new RegExp(`<div class="coord-row" data-map="${key}"[^>]*>[\\s\\S]*?data-coord-copy>座標をコピー</button><button class="fav-btn" data-map-app-open>地図アプリで開く</button>`);
-    ok(row.test(html), `${key}: 地図の下に「座標をコピー」「地図アプリで開く」`);
+    const row = new RegExp(`<div class="coord-row" data-map="${key}"[^>]*>[\\s\\S]*?<button class="chip" data-coord-copy aria-label="[^"]+の座標をコピー">[\\s\\S]*?<span class="coord" id="${key}Coord">—</span>[\\s\\S]*?<button class="chip" data-map-app-open><span data-map-app-label>地図アプリ</span>`);
+    ok(row.test(html), `${key}: 地図の下に、座標（押すとコピー）と「地図アプリ」の小さな釦`);
   }
+  // ボタンが余白多いしでかい（2026-10-02 ユーザー）→ 字の幅の丸い釦。見た目 34px・押せる所は 44px
+  ok(/\.chip \{[^}]*min-height: 34px;[^}]*border-radius: 999px;/.test(html) && /\.chip::before \{ content: ""; position: absolute; left: 0; right: 0; top: -5px; bottom: -5px; \}/.test(html),
+    "地図の下の釦は小さな丸い釦（押せる所は 44px）");
+  ok(/id="aimPick" class="chip"/.test(html) && /id="planePickHere" class="chip"/.test(html), "ここから重ねるも同じ丸い釦");
+  ok(/row\.querySelector\("\[data-map-app-label\]"\)\.textContent = app \? MAP_APPS\[app\]\.chipLabel : "地図アプリ";/.test(html), "覚えたアプリの名前を釦に短く出す（Google・Apple）");
+  ok((html.match(/<button class="chip chip-more" data-map-app-change aria-label="開くアプリを変える" hidden>/g) || []).length === 3
+    && /row\.querySelector\("\[data-map-app-open\]"\)\.classList\.toggle\("split", !!app\);/.test(html), "覚えたら、地図アプリの釦の右端の ▾ で選び直す（「変更」で1行を使わない）");
+}
+{
+  // 地図の種類と現在地（2026-10-02 ユーザー「地図、写真ってどっちも地図じゃん。こういうボタンを用意して地図モードを変えられるように」「現在地マーク」）
+  ok(!/class="maplayer"/.test(html) && !/>写真<\/button>/.test(html), "「地図／写真」の2択はやめた");
+  const L = /const MAP_LAYERS = \{[\s\S]*?\n\};/.exec(html)[0];
+  ok(/map: \{ key: "pale"[^}]*label: "標準" \}/.test(L) && /photo: \{ key: "seamlessphoto"[^}]*label: "航空写真" \}/.test(L)
+    && /terrain: \{ key: "pale"[^\n]*label: "地形", shade: \{ key: "hillshademap", ext: "png" \} \}/.test(L), "種類は 標準・航空写真・地形（淡色に陰影起伏図）");
+  ok(/class="map-ctl map-layers-btn" aria-label="地図の種類" aria-haspopup="true"/.test(html) && /role="menuitemradio" data-layer=/.test(html), "右上の釦で種類の一覧を開く");
+  ok(/insertAdjacentHTML\("afterbegin", `<button class="map-locate" aria-label="現在地">/.test(html), "現在地の釦は右下（＋の上）");
+  ok(/if \(st && st\.state === "granted"\) locateMe\(\{ quiet: true \}\);/.test(html), "許可済みなら開いたときから現在地の点（許可は釦を押したときだけ聞く）");
+  ok(/drawMyPos\(ctx, project, view\);/.test(html) && /ctx\.fillStyle = "#1a73e8"/.test(html), "現在地は青い点");
+  ok(!/id="mapHere"/.test(html), "地図で選ぶの「現在地へ」は地図の上の釦にまとめた");
+  ok(/if \(remember\) store\.set\("sorami\.mapLayer", next\);/.test(html) && /setLayer\(store\.get\("sorami\.mapLayer", "map"\)\);/.test(html),
+    "選んだ種類はどの地図でも次から使う");
   ok(/coord: "aimCoord"/.test(html) && /coord: "planeCoord"/.test(html) && !/coord: "issCoord"/.test(html), "ねらう・月丼はピンの位置、ISS は立つ場所の例（ピンは置かない決まり）");
   ok(/<div class="coord-row" data-map="iss" hidden>[\s\S]{0,120}立つ場所の例/.test(html) && /function issCoordUpdate\(\)/.test(html), "ISS は選んでいる回の立つ場所の例");
   const C = /const IS_APPLE[\s\S]*?const savedMapApp = [^\n]*\n/.exec(html)[0];
@@ -2771,7 +2792,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   ok(/<label class="map-app-remember"><input type="checkbox" id="mapAppRemember">次からもこのアプリで開く<\/label>/.test(html)
     && /store\.set\("sorami\.mapApp", \$\("mapAppRemember"\)\.checked \? k : null\);/.test(html), "「次からもこのアプリで開く」で覚え、外して選べば忘れる");
   ok(/if \(app\) openMapApp\(app, t\); else openMapAppSheet\(t\);/.test(html), "覚えていれば聞かずに開く");
-  ok(/row\.querySelector\("\[data-map-app-change\]"\)\.hidden = !app;/.test(html), "覚えているときだけ「開くアプリを変える」");
+  ok(/row\.querySelector\("\[data-map-app-change\]"\)\.hidden = !app;/.test(html), "覚えているときだけ選び直す釦");
   ok(/function showSheet\(el\) \{\s+el\.showModal\(\);\s+el\.focus\(\{ preventScroll: true \}\);/.test(html)
     && (html.match(/\.showModal\(\)/g) || []).length === 1, "シートはすべて showSheet で開き、シートそのものに焦点を置く");
   ok(/dialog:focus \{ outline: none; \}/.test(html), "シートそのものには枠を出さない");
