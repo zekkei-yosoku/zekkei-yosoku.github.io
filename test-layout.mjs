@@ -634,10 +634,9 @@ console.log("== 月の結果に日の出入り・月の出入りからの差（2
 {
   const uses = [
     ["パール富士（富士山の詳細）", /const twilight = isMoon \? lightTimingText\(e\.at, observerHere\(\)\) : "";/],
-    ["ねらう: 観測地点から重なる日", /const light = moon \? `<span class="sub-line">\$\{esc\(lightTimingText\(e\.at, obs\)\)\}<\/span>` : "";/],
+    ["ねらう: 見え方の図の上の一行", /return \[`\$\{moonGlyphAt\(at\)\}\$\{lit\}`, lightTimingText\(at, o\)\]/],
     ["ねらう: 定番スポット", /lightTimingText\(e\.at, SoramiAlign\.spotObserver\(sp\)\)/],
-    ["ねらう: その日の候補地（1件目）", /aim\.body === "moon" \? `<div class="tiny">\$\{esc\(lightTimingText\(c\.at, c\.stand\)\)\}<\/div>` : ""/],
-    ["ねらう: その日の候補地（一覧）", /lightTimingText\(x\.at, x\.stand\)/],
+    ["ねらう: その日の候補地（選んだ行）", /\(moon \? `<span class="tiny sub-line">\$\{esc\(lightTimingText\(c\.at, c\.stand\)\)\}<\/span>` : ""\)/],
     ["月丼: 今日はここ", /lightTimingText\(b\.at, top\.spot\)/],
     ["月丼: 一覧", /lightTimingText\(sp\.best\.at, sp\.spot\)/],
     ["ISS: 月の回", /iss\.body === "moon" \? `<span class="tiny">\$\{esc\(lightTimingText\(r\.at, st \|\| r\.center\)\)\}<\/span>` : ""/],
@@ -727,7 +726,9 @@ console.log("== ねらう: その日の候補地（2026-09-30） ==");
   ok(/\$\("aimListBox"\)\.hidden = !aimIsFuji\(\)/.test(html), "定番スポットの次の日は富士山だけ");
   ok(/const spread = Math\.max\(0\.3, lineKm \/ 40\)/.test(html), "上位が一か所に固まらないよう、近いものは1つに");
   ok(/async function aimBuildingBlocks/.test(html) && /if \(!aimIsFuji\(\) && pool24\.length\)/.test(html), "塔は建物で先端が隠れる場所も外す");
-  ok(html.indexOf("aimRenderCands();\n  // 塔は街の中なので") > 0, "建物の確認を待たずに、先に候補を出す");
+  ok(html.indexOf("aimRenderCands();\n  if (!shown.length) return;\n  // 塔は街の中なので") > 0
+    && html.indexOf("aimRenderCands();\n  if (!shown.length) return;\n  // 塔は街の中なので") < html.indexOf("const blocks = await aimBuildingBlocks(pool24);"),
+    "建物の確認を待たずに、先に候補を出す");
   // 画面から Overpass へ帯を問い合わせると 47〜64秒かかった（2026-10-01）。同梱の高い建物で手元で判定する
   ok(/fetch\("data\/tall-buildings\.json"\)/.test(html) && !/poly:"\$\{p\}"/.test(html), "塔の建物の判定は同梱データで（Overpass に問い合わせない）");
   {
@@ -780,7 +781,8 @@ console.log("== 月を表すところは全部、その時の満ち欠け（2026
   ok(/\$\("aimMoon"\)\.textContent = `\$\{moonGlyphAt\(/.test(html) && /\$\("issMoon"\)\.textContent = `\$\{moonGlyphAt\(/.test(html),
     "ねらう・ISS の月の切り替えは、その日の月の形");
   ok(!/row\(e, i === 0 \? "パール富士" : "その次", "🌙"\)/.test(html), "富士山の詳細のパール富士の行も月の形");
-  ok(/輝面 \$\{Math\.round\(c\.illuminated \* 100\)\}%/.test(html) && /\$\{moonGlyphAt\(c\.at\)\} 輝面/.test(html), "候補地の輝面に月の形");
+  ok(/\$\{moonGlyphAt\(e\.at\)\}\$\{Math\.round\(e\.illuminated \* 100\)\}%/.test(html) && /lit = ` 輝面 \$\{Math\.round\(SoramiAstro\.moon\(at, o\)\.illuminatedFraction \* 100\)\}%`/.test(html)
+    && /\$\{moon \? ` \$\{moonGlyphAt\(c\.at\)\}` : ""\}/.test(html), "重なる日の帯・見え方の一行・候補地に月の形（輝面は帯と一行）");
   ok(/\$\{moonGlyphAt\(b\.at\)\} 月の輝面/.test(html) && /\$\{moonGlyphAt\(r\.at\)\} 輝面/.test(html), "月丼・ISS の輝面に月の形");
   ok(fixed <= 4, `固定の 🌙 が増えていない（${fixed}か所）`);
 }
@@ -2899,17 +2901,74 @@ ok(/\$\("aimTargetLabel"\)\.textContent = aimTitleFor\(\)\.title;/.test(html)
 ok((html.match(/id="aimView"/g) || []).length === 1, "画面は1つのまま");
 
 console.log("== 見え方の図（2026-10-02） ==");
-// ユーザー「その目標物に対して月、太陽がどのような軌道で動くのかを見たい」。候補地と、どこから重ねるかの地点の2か所に出す
+// ユーザー「その目標物に対して月、太陽がどのような軌道で動くのかを見たい」
+// 2026-10-03 図は1つ（ユーザー「どこに重ねるかを変えても見え方が変わらないのと、見え方が二箇所にあるのはなんで？」）
 {
-  const box = html.slice(html.indexOf('<div id="aimCandBox">'), html.indexOf('<div id="aimListBox">'));
-  ok(box.indexOf('id="aimCandPick"') < box.indexOf('id="aimCandLook"') && box.indexOf('id="aimCandLook"') < box.indexOf('id="aimCandList"'),
-    "選んだ候補地のカードのすぐ下に図（候補地の一覧より上）");
-  ok(/aimLookRender\(\$\("aimCandLook"\), \{ obs: \{ latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, elevation: c\.stand\.elevationM \},\s*eyeM: 1\.5 \+ \(c\.place\.deckM \|\| 0\), at: c\.at/.test(html),
-    "候補地の図は、重なりを解いたときと同じ立つ高さ・時刻で描く");
-  ok(/const lookEv = ev\.find\(\(e\) => S\.JstCal\.sameDay\(e\.at, aim\.dayMs\)\) \|\| ev\[0\];/.test(html)
-    && /aimLookRender\(\$\("aimFromLook"\), \{ obs, eyeM: 1\.5, at: lookEv\.at, label: f\.name, atName: /.test(html),
-    "どこから重ねるかの地点にも、開いている日（無ければ次）の図");
-  ok((html.match(/\$\("aimCandLook"\)\.hidden = true;/g) || []).length >= 3, "候補地が無くなったら図も隠す");
+  ok((html.match(/id="aimLook"/g) || []).length === 1 && !/id="aim(CandLook|FromLook|CandPick)"/.test(html), "見え方の図は1つ（候補地用・観測地点用を分けない）");
+  const iFrom = html.indexOf('<div id="aimFrom"'), iLook = html.indexOf('<div id="aimLook"'), iDate = html.indexOf('<label class="fav-l" for="aimDate">');
+  ok(iFrom > 0 && iFrom < iLook && iLook < iDate, "重なる日の帯 → 見え方 → 日付の順（日付で図が変わるので、入力を上に）");
+  const look = /async function aimUpdateLook\(\) \{[\s\S]*?\n\}/.exec(html)[0];
+  ok(/const c = aim\.candPick !== null \? \(aim\.cands \|\| \[\]\)\[aim\.candPick\] : null;/.test(look)
+    && /aimLookRender\(host, \{ obs: \{ latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, elevation: c\.stand\.elevationM \},\s*eyeM: 1\.5 \+ \(c\.place\.deckM \|\| 0\), at: c\.at/.test(look),
+    "候補地を選んでいれば、重なりを解いたときと同じ立つ高さ・時刻で描く");
+  ok(/const here = ev \? SoramiAlign\.crossingNear\(obs, t, aim\.body, ev\.at, opts\) : null;\s*if \(here && Math\.abs\(here\.gap\) <= SoramiAlign\.LIMB_FIT \* here\.radius\)/.test(look),
+    "観測地点で選んだ縁が触れる（選んだ縁で解き直して半径の2割以内）なら、観測地点そのものから描く（富士山の火口の縁は横に広い）");
+  ok(/SoramiAlign\.solvePoint\(t, aim\.body, aim\.dayMs, D, sd,/.test(look) && /（計算上の位置）/.test(look)
+    && /に立ったままだと、\$\{aimPassage\(ev\)\}/.test(look),
+    "触れないなら、同じ距離で選んだ合わせ方になる計算上の地点から描き、立ったままの通り方も書く");
+  ok(/\$\{found\.length \? "重なるのは明るい空のときだけです" : "重なりません"\}/.test(look), "その日に近くで重ならなければ、そう書く");
+  ok(/const dark = \(x\) => aim\.body !== "moon"\s*\|\| SoramiAstro\.sun\(x\.q\.at, \{ latitude: x\.q\.latitude, longitude: x\.q\.longitude/.test(look), "月の計算上の地点も暗い空の回だけ（その地点の空で。候補地と同じ）");
+  ok(/const sides = ev \? \[ev\.side\] : \["rise", "set"\];/.test(look) && /\.sort\(\(x, y\) => x\.d - y\.d\)\[0\]/.test(look),
+    "重なる回の無い日は、両側を解いて観測地点に近い方（曽谷→日の出側が反対側の 23km 先になっていた）");
+  ok(/if \(aim\.wantSpot\) return;/.test(look), "選び直す候補地を待っている間は図を替えない（観測地点へ飛んで戻らない）");
+  ok(/data-look-title/.test(html) && /data-look-sub/.test(html) && /data-look-light/.test(html) && /data-look-extra/.test(html),
+    "図の上に「どこから・いつ・どう重なるか」の一行");
+  // 呼び出し: 帯（aimRenderFrom）・候補地の行・側の切り替え・候補の結果
+  const from = /async function aimRenderFrom\(\) \{[\s\S]*?\n\}/.exec(html)[0];
+  ok(/aimUpdateLook\(\);/.test(from) && (from.match(/\$\("aimLook"\)\.hidden = true;/g) || []).length >= 2, "観測地点・目標が無ければ図を隠す");
+  ok(/limb: "center", partId: aim\.partId/.test(from), "重なる日は合わせ方で変えない（ユーザー「同じ日で少し左右前後に動けば変わるよね」）");
+}
+console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==");
+// ユーザー「候補日はプルダウンにしたら？」「日の出と日の入に関してはボタンで切り替えが良い」「もっと最適なレイアウトがあるでしょ」→ Codex と相談し、帯と切り替え（ユーザー「この形で作る」）
+{
+  const from = /async function aimRenderFrom\(\) \{[\s\S]*?\n\}/.exec(html)[0];
+  ok(/<div class="aim-days strip">\$\{chips\}<\/div>/.test(from) && /class="tiny aim-day" data-from-day=/.test(from) && /aria-pressed="\$\{on\}"/.test(from),
+    "重なる日は横に流す帯。選んでいる日は押された釦");
+  ok(/\.aim-days\.strip \{[^}]*flex-wrap: nowrap;[^}]*overflow-x: auto;/.test(html), "帯は1行（増えても図を下へ押さない）");
+  ok(/\.aim-days\.strip \.aim-day \{[^}]*min-height: 48px;/.test(html), "帯の釦は 48px 以上");
+  ok(/aim\.candPick = null; aim\.spot = null; aim\.wantSpot = null; aim\.wantKey = null; aim\.candSide = el\.dataset\.fromSide;\s*\$\("aimDate"\)\.value = /.test(from),
+    "帯で日を替えたら候補地の選択はやめ、候補地はその日の側を出す");
+  const cands = /function aimRenderCands\(\) \{[\s\S]*?\n\}/.exec(html)[0];
+  ok(/<div id="aimSideSeg" class="aim-side-seg" role="group"/.test(html), "日の出・日の入の切り替え");
+  ok(/\$\{x\.has \? ` \$\{x\.n\}か所` : ""\}/.test(cands) && /: "この日は線なし"\}<\/span>/.test(cands) && /\$\{x\.has \? "" : " disabled"\}/.test(cands),
+    "切り替えに時刻の幅と数。0か所は押せる・線が無い側は押せない（Codex: 0か所と線なしを分ける）");
+  ok(/\.aim-side-seg button \{[^}]*min-height: 48px;/.test(html), "切り替えの釦は 48px 以上");
+  ok(/\.filter\(\(x\) => x\.c\.side === aim\.candSide\)/.test(cands), "一覧は選んだ側だけ");
+  ok(/\(aim\.brightSides \|\| \[\]\)\.includes\(aim\.candSide\) \? `この日の\$\{aimSideName\(aim\.candSide\)\}側は、明るい空で重なります。`/.test(cands),
+    "月が明るい空でだけ重なる側は、そう書く（場所が無いのとは別）");
+  ok(/aim\.candPick = aim\.candPick === i \? null : i;\s*aimRenderCands\(\);\s*aimUpdateLook\(\);/.test(cands), "行を押すと選ぶ（もう一度でやめる）→ 図が変わる");
+  ok(/data-cand-map=/.test(cands) && /AimMap\.open\(\{ latitude: x\.stand\.latitude/.test(cands), "地図は「地図で見る」で動かす（行を押しても地図へ飛ばない）");
+  ok(/↑ 見え方に表示中/.test(cands), "選んだ行に、図に出していること");
+  ok(/all\[aim\.candPick\]\.side !== aim\.candSide\) \{ aim\.candPick = null; aimUpdateLook\(\); \}/.test(cands), "反対の側へ替えたら、その候補地の選択はやめる");
+  const find = /async function aimFindCandidates\(\) \{[\s\S]*?\n\}/.exec(html)[0];
+  ok(/aim\.candPick = want >= 0 \? want : null;/.test(find) && !/aim\.candPick = 0/.test(find), "候補地は自動では選ばない");
+  ok((find.match(/giveUp\(\);/g) || []).length >= 2 && /if \(aim\.candPick !== null \|\| waited\) aimUpdateLook\(\);/.test(find),
+    "選び直しを待っていたら、見つからなくても図を描き直す");
+  ok(/if \(was && !aim\.wantSpot && aim\.candKey === keyNow\) \{ aim\.wantSpot = was\.place\.id; aim\.wantKey = keyNow; \}/.test(html),
+    "合わせ方・高さだけ替えたら、同じ候補地を選び直す（日付を替えたときは選び直さない）");
+  ok(/if \(aim\.wantKey && aim\.wantKey !== keyNow\) \{ aim\.wantSpot = null; aim\.wantKey = null; \}/.test(html),
+    "選び直しを待つ間に日付・天体・目標を替えたら、その待ちは捨てる（Codex の点検）");
+  ok(/if \(!\(aim\.target\.parts \|\| \[\]\)\.length\) \{\s*aim\.seq\+\+; aim\.candSeq\+\+;[\s\S]{0,160}aimRenderFrom\(\);/.test(html),
+    "高さの無い目標へ替えたら、進んでいる計算を捨て、図も消す");
+  ok(!/if \(!all\.length\) \{ seg\.innerHTML = ""/.test(cands) && /if \(!sides\.some\(\(x\) => x\.has\)\) \{ seg\.innerHTML = ""/.test(cands),
+    "候補地が0か所でも、線のある側の切り替えは出す（Codex の点検）");
+  ok(/aim\.blockedAll \? `この日の\$\{aimSideName\(aim\.candSide\)\}側の候補地は、どこも建物に隠れます。`/.test(cands), "どこも建物に隠れるときは、そう書く");
+  ok(/found\.some\(\(c\) => c\.side === sd && c\.sunAltitude >= 0\) && !found\.some\(\(c\) => c\.side === sd && c\.sunAltitude < 0\)/.test(html),
+    "「明るい空で重なる」は、暗い空の候補が初めから無い側だけ（Codex の点検）");
+  // 地図の番号は、一覧の番号と同じ（選んだ側だけ）
+  ok(/\.filter\(\(x\) => !aim\.candSide \|\| x\.c\.side === aim\.candSide\)\.forEach\(\(\{ c, i \}, k\) =>/.test(html), "地図の番号も選んだ側だけ");
+}
+{
   // 月の明るい縁の向き。写真（2024-11-30 05:54:55）の三日月は左下が光り、計算の 138.3° と合った
   const dirSrc = /function aimLimbDir\(zenithAngleDeg\) \{[\s\S]*?\n\}/.exec(html)[0];
   const dir = new Function(`${dirSrc}; return aimLimbDir;`)();
@@ -2929,15 +2988,16 @@ console.log("== 見え方の図（2026-10-02） ==");
     "選んだ時刻は重なる時刻からの差で言う", [rel(0), rel(-180000), rel(20000), rel(-80000)].join(" / "));
   ok(rel(-60000, "先端を通る") === "先端を通る1分前", "どこから重ねるかの図は「先端を通る」時刻からの差で言う（選んだ縁が触れるとは限らない）");
   // 形の出どころを書き分ける（Codex: 寸法からの形・推定の模式図・標高データを見た目で区別する）
-  ok(/稜線は国土地理院の標高データから/.test(html) && /形は写真から測ったおおよその形/.test(html)
+  ok(/稜線は国土地理院の標高データから/.test(html) && /形はシルエットを写真の縮尺に合わせたもの（ドームは少し細め）/.test(html)
     && /の模式図（幅は推定）/.test(html)
-    && /のシルエットを写真の縮尺に合わせたもの`/.test(html) && /形は城のシルエットを写真の縮尺に合わせたもの/.test(html), "形の出どころを書く");
+    && /のシルエットを写真の縮尺に合わせたもの`/.test(html) && /形は城のシルエットを、先端51m・下の端を地面にそろえたもの/.test(html), "形の出どころを書く");
   ok(/const groundY = hiddenY !== null \? Math\.min\(hiddenY, baseY\) : baseY;/.test(html) && !/globalAlpha = 0\.45; outlinePath/.test(html),
-    "木に隠れた所（城の地上18mより下）は薄い形を描かず、地面の帯をその高さまで上げる（ユーザー指摘）");
+    "形の材料で見えない所は薄い形を描かず、地面の帯をその高さまで上げる（ユーザー「このグレーの下の部分って表示しなくて良い」）");
   ok(/円盤は形の後ろ（形で隠れる）/.test(html) && /ctx\.setLineDash\(\[3, 3\]\)/.test(html), "円盤は形の後ろ、隠れた所は点線の輪");
   ok(/ctx\.fillStyle = bright \? "rgba\(16,20,30,0\.94\)" : "#020306";/.test(html) && /const rim = bright \? null : /.test(html),
     "暗い空では形を空より暗く塗り、縁を明るい線でなぞる（夜空と見分けにくかった）");
   ok(/選んだ時刻だけ字で出す/.test(html), "時刻の字は選んだものだけ（320px で読めるように）");
+  ok(/smallBy >= 2 \? `ここからは\$\{t\.name\}の高さが/.test(html) && /（同じ縮尺）/.test(html), "遠くて形が円盤より小さいときは、同じ縮尺であることを書く");
   const lookSrc = html.slice(html.indexOf("async function aimLookRender"), html.indexOf("let aimLookResize"));
   ok(/cv\.onclick = /.test(lookSrc) && !/onpointerdown/.test(lookSrc) && /data-look-range/.test(lookSrc), "道をさわるか、つまみで時刻を選ぶ（iPhone の指のタップは click で受ける）");
   ok(/\.aim-look canvas \{ display: block; width: 100%;[^}]*touch-action: pan-y;/.test(html), "図は幅いっぱい。縦のスクロールは止めない");

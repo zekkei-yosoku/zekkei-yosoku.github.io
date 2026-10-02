@@ -334,13 +334,40 @@ console.log("== 見え方の図（2026-10-02） ==");
   ok(Math.abs(m.brightLimbZenithAngle - 138.1) < 3, "明るい縁の向きが写真の三日月（138.1°）と合う", m.brightLimbZenithAngle.toFixed(1));
   ok(m.illuminatedFraction < 0.03, "写真と同じ細い月", `${(m.illuminatedFraction * 100).toFixed(1)}%`);
   ok(o.known && !o.schematic, "ティンカーベルは作り込んだ形");
-  const depth = Math.max(...AL.TOWER_SHAPES.tinkerbell.outline.map(([, d]) => d));
-  ok(Math.abs(depth - 10.4) < 0.1, "屋根の線は杖の先から 10.4m 下（写真）", depth);
+  // 2026-10-03 ユーザーのシルエット（ドーム・小塔・手すり）に入れ替え。縮尺は 11/29 の写真の月で測った（絵の 59.5px＝1m）
+  const tOut = AL.TOWER_SHAPES.tinkerbell.outline;
+  const depth = Math.max(...tOut.map(([, d]) => d));
+  ok(Math.abs(depth - 13.95) < 0.1, "絵の下の端（左右の屋根）は杖の先から約14m 下", depth);
   const roofAngle = A.targetElevationAngle(o.distanceKm, 4.3, tb.parts[0].m - depth);
-  ok(o.points.some((p) => Math.abs(p[1] - roofAngle) < 1e-6), "屋根の線から下はホテルの幅で埋める");
-  const tinkTop = AL.TOWER_SHAPES.tinkerbell.outline.reduce((a, p) => (p[1] < a[1] ? p : a));
-  ok(tinkTop[1] === 0 && tinkTop[0] < 0 && tinkTop[0] > -0.5, "杖の先はドームの軸の少し左（写真で 0.3m）", JSON.stringify(tinkTop));
-  ok(o.viewBaseAngle > o.baseAngle && o.viewBaseAngle < roofAngle, "図はドームと像のまわりを拡大する（先端から16m）");
+  ok(o.points.some((p) => Math.abs(p[1] - roofAngle) < 1e-6), "絵の下の端から下はホテルの幅で埋める");
+  const tinkTop = tOut.reduce((a, p) => (p[1] < a[1] ? p : a));
+  ok(tinkTop[1] === 0 && Math.abs(tinkTop[0] + 0.3) < 1e-9, "杖の先はドームの軸の 0.3m 左（写真）", JSON.stringify(tinkTop));
+  // 写真で測った所: 像の下の玉の真ん中は杖の先から 2.84m 下
+  const ball = tOut.filter((p) => Math.abs(p[1] - 2.84) < 0.3);
+  ok(ball.length > 0 && Math.max(...ball.map((p) => Math.abs(p[0]))) < 0.8, "玉は先端から 2.84m 下で幅 1m 足らず", JSON.stringify(ball.slice(0, 4)));
+  const tSpan = Math.max(...tOut.map(([x]) => x)) - Math.min(...tOut.map(([x]) => x));
+  ok(tSpan > 25 && tSpan < 27, "左右は絵の幅（約26m：ドームと左右の小塔）", tSpan.toFixed(1));
+  ok(AL.TOWER_SHAPES.tinkerbell.viewFromTopM === 14 && o.viewBaseAngle > o.baseAngle && o.viewBaseAngle < A.targetElevationAngle(o.distanceKm, 4.3, tb.parts[0].m - 13),
+    "図はシルエットの下の端（先端から14m）まで");
+
+  // 2枚目の写真: 2024-11-29 04:52:23。月の位置から撮影地を逆算すると、11/30 の撮影地から 74m（ティンカーベルまで 694m）
+  {
+    const at2 = Date.UTC(2024, 10, 28, 19, 52, 23);
+    const obs2 = { latitude: 35.639731, longitude: 139.871155, elevation: 2.8 };
+    const o2 = AL.towerOutline(obs2, tb);
+    const m2 = A.moon(at2, { ...obs2, elevation: 4.3 });
+    ok(Math.abs(o2.distanceKm - 0.694) < 0.005, "撮影地からティンカーベルまで 694m", o2.distanceKm.toFixed(4));
+    // 写真では月の直径 183px（半径 91.6px）、杖の先は月の中心の 17.7px 下・8px 左
+    const pxDeg = m2.angularRadius / 91.56;
+    ok(Math.abs((m2.apparentAltitude - o2.topAngle) - 17.7 * pxDeg) < 0.03, "杖の先は月の中心の 0.048° 下（写真と合う）",
+      `${(m2.apparentAltitude - o2.topAngle).toFixed(3)}°`);
+    ok(Math.abs(((m2.azimuth - o2.azimuth + 540) % 360) - 180) < 0.12, "方位も月の中心とほぼ同じ（写真は 0.02° 右）",
+      `${(((m2.azimuth - o2.azimuth + 540) % 360) - 180).toFixed(3)}°`);
+    ok(m2.illuminatedFraction > 0.04 && m2.illuminatedFraction < 0.07, "写真と同じ細い月（5%）", `${(m2.illuminatedFraction * 100).toFixed(1)}%`);
+    // 縮尺: 694m 先の 1m は 0.0826°。写真の 1m は 30.6px
+    const mPx = (Math.atan(1 / 694) * 180 / Math.PI) / pxDeg;
+    ok(Math.abs(mPx - 30.6) < 0.3, "写真の 1m は 30.6px（月の直径を物差しに）", mPx.toFixed(2));
+  }
 
   // 4つの形と、他の建物・山
   const st = AL.towerOutline(TAKAO, skytree, { eyeM: 1.5 });
@@ -375,11 +402,9 @@ console.log("== 見え方の図（2026-10-02） ==");
   const cw = AL.TOWER_SHAPES.cinderella.outline;
   ok(Math.max(...cw.map((p) => p[1])) === 51 && cw[0][1] === 0 && cw[cw.length - 1][1] === 0, "写真の輪郭: 尖塔の先が51m、両端は地面まで");
   const span = cw[cw.length - 1][0] - cw[0][0];
-  ok(span > 17 && span < 22, "幅はシルエットを写真の縮尺に合わせた幅（19m 余り）", `${span.toFixed(1)}m`);
-  // 縮尺の合わせ所: 主塔のバルコニー（写真の実測 3.73m）。尖塔の先から 11.5m 下あたりの幅
-  const balc = cw.filter((p) => p[1] > 38.5 && p[1] < 39.3 && Math.abs(p[0]) < 2.5);
-  const bw = Math.max(...balc.map((p) => p[0])) - Math.min(...balc.map((p) => p[0]));
-  ok(bw > 3.2 && bw < 4.3, "主塔のバルコニーの幅は写真の実測（3.73m）に近い", `${bw.toFixed(2)}m`);
+  // シルエットをそのまま、尖塔の先 51m・絵の下の端を地面に（2026-10-03。写真の縮尺に合わせると下の端が地上18m に浮いて「形へんてこりん」だった）
+  ok(span > 27 && span < 33, "幅はシルエットの絵のまま（30m 前後）", `${span.toFixed(1)}m`);
+  ok(AL.TOWER_SHAPES.cinderella.hiddenBelowM === undefined, "城の下の段（角の小塔・城壁）も描く（木の線で切らない）");
   // 観測地点ごとに比が合う（ユーザー「この比率って観測地点によってちゃんと合うように計算で出せるよね？」）: 形はメートルで持ち、
   // 見かけの大きさは距離で割る。2倍離れると形の見かけの幅は半分、月の見かけの大きさはそのまま
   for (const id of ["skytree", "tokyotower", "cinderella", "tinkerbell"]) {
@@ -389,7 +414,6 @@ console.log("== 見え方の図（2026-10-02） ==");
     const r = wOf(AL.towerOutline({ ...near, elevation: 3 }, t)) / wOf(AL.towerOutline({ ...far, elevation: 3 }, t));
     ok(Math.abs(r - 2) < 0.02, `${t.name}: 3km と 6km で見かけの幅は2倍`, r.toFixed(3));
   }
-  ok(AL.TOWER_SHAPES.cinderella.hiddenBelowM > 15 && AL.TOWER_SHAPES.cinderella.hiddenBelowM < 22, "シルエットの下端（木に隠れる所）は地上 18m 前後");
   // 写真の場面を再現する: 2024-08-20 19:02:04、城の西北西 2.85km から。尖塔の先は月の中心より 0.26° 上（写真: 上の縁のさらに 0.026° 上）
   {
     const spot = TR.destination(ct.latitude, ct.longitude, 284.99, 2.85);
@@ -406,7 +430,10 @@ console.log("== 見え方の図（2026-10-02） ==");
 
   // 図の範囲: 円盤6つぶんの高さは取り、広げるのは上へ
   const w = AL.viewWindow({ azimuth: 100, baseAngle: 0, topAngle: 0.5, radiusDeg: 0.25, aspect: 1.4 });
-  ok(Math.abs(w.halfH - 1.5) < 0.001 && Math.abs(w.alt0 - 1.35) < 1e-9, "小さく見える目標でも円盤6つぶん。下は根元のすぐ下", JSON.stringify(w));
+  // 目標の大きさをそろえる（図の高さの6割）。円盤は本当の比で、直径が図の高さの4割を超えるときだけ範囲を広げる（2026-10-03）
+  ok(2 * w.halfH >= 5 * 0.25 - 1e-9 && w.alt0 - w.halfH < 0 && w.alt0 - w.halfH > -0.05, "小さく見える目標: 円盤の直径は図の高さの4割まで。下は根元のすぐ下", JSON.stringify(w));
+  const big = AL.viewWindow({ azimuth: 100, baseAngle: 0, topAngle: 3, radiusDeg: 0.25, aspect: 1.4 });
+  ok(Math.abs(3 / (2 * big.halfH) - 0.62) < 0.01, "大きく見える目標は図の高さの6割", (3 / (2 * big.halfH)).toFixed(3));
   ok(Math.abs(w.halfW - w.halfH * 1.4) < 1e-9, "横は図の縦横比");
   // 近い塔（見上げ 29°）: 写したあとの上の端まで入る。重なる時刻の円盤（先端より上）も入れる
   {
@@ -414,6 +441,16 @@ console.log("== 見え方の図（2026-10-02） ==");
     const P = AL.viewProjector(big.az0, big.alt0);
     ok(P(76.6, 29.6 + 0.27)[1] <= big.halfH, "円盤の上の縁まで図に入る", `${P(76.6, 29.87)[1].toFixed(2)} <= ${big.halfH.toFixed(2)}`);
     ok(P(76.6, -0.1)[1] >= -big.halfH, "根元も図に入る");
+  }
+  // 割合は写したあとの長さで測る（Codex: 角度で割ると、見上げの大きい塔で6割にならない）
+  for (const [base, top, r, inc] of [[0, 3, 0.25, []], [-0.1, 28.8, 0.27, []], [-0.1, 28.8, 0.27, [28.9]], [2.0, 4.3, 0.247, [4.31]]]) {
+    const v = AL.viewWindow({ azimuth: 90, baseAngle: base, topAngle: top, radiusDeg: r, aspect: 1.2, include: inc });
+    const P = AL.viewProjector(v.az0, v.alt0);
+    const frac = (P(90, top)[1] - P(90, base)[1]) / (2 * v.halfH);
+    const disc = inc.length ? (P(90, inc[0] + r)[1] - P(90, inc[0] - r)[1]) / (2 * v.halfH) : 0;
+    ok(Math.abs(frac - 0.62) < 0.012, `目標は写したあと図の高さの6割（見上げ ${top}°）`, frac.toFixed(3));
+    ok(disc <= 0.405, `円盤の直径は図の高さの4割まで（見上げ ${top}°）`, disc.toFixed(3));
+    ok(inc.every((a) => P(90, a + 1.2 * r)[1] <= v.halfH && P(90, a - 1.2 * r)[1] >= -v.halfH), `円盤は図に入る（見上げ ${top}°）`);
   }
 
   // 道: 重なる時刻を必ず含み、20秒刻みで図の外まで

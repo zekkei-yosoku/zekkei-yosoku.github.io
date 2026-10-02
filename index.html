@@ -694,6 +694,26 @@
   .aim-near-row { margin-top: 10px; }
   .aim-near-btns { display: flex; gap: 6px; flex-wrap: wrap; }
   .aim-days { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  /* この地点で重なる日の帯（2026-10-03 ユーザー「候補日はプルダウンにしたら？」→ Codex と相談し、4件ほどなら一目で比べられる横の帯）。
+     一行のまま横に流す。日付と側の2段・44px 以上。選んだものに色 */
+  .aim-days.strip { flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+                    padding-bottom: 2px; scrollbar-width: none; }
+  .aim-days.strip::-webkit-scrollbar { display: none; }
+  .aim-days.strip .aim-day { flex: 0 0 auto; min-height: 48px; padding: 5px 12px; text-align: center; scroll-snap-align: start; }
+  .aim-day[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  .aim-day[aria-pressed="true"] .sub-line { color: var(--on-accent); opacity: 0.85; }
+  /* 候補地の日の出／日の入の切り替え。時刻の幅と数を2段で */
+  .aim-side-seg { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--sunk); }
+  .aim-side-seg:empty { display: none; }
+  .aim-side-seg button { flex: 1; min-width: 0; min-height: 48px; padding: 4px 6px; border-radius: 8px; font-size: 0.81rem;
+                         font-weight: 700; color: var(--secondary); }
+  .aim-side-seg button .sub-line { font-size: 0.69rem; font-weight: 400; }
+  .aim-side-seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  .aim-side-seg button:disabled { opacity: 0.45; }
+  /* 候補地の行。押すと選んで、見え方がその候補地になる（地図は「地図で見る」で動かす） */
+  .cand-row .cand-pick { display: block; width: 100%; padding: 0; text-align: left; font: inherit; color: inherit; background: none; }
+  .cand-row .cand-map { margin-top: 6px; }
+  .aim-showing { color: var(--accent); font-weight: 700; }
   /* 見通し。見えないときは日付より目立たせる（2026-10-02 ユーザー「そもそも目標物が見えませんとかって出した方がいい」） */
   .aim-sight { margin-top: 4px; color: var(--tertiary); }
   .aim-sight.hidden-target { margin: 8px 0 6px; color: var(--red); font-size: 0.88rem; }
@@ -703,7 +723,9 @@
   .aim-look-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
                 font-size: 0.81rem; font-weight: 700; }
   .aim-look-h > span:first-child { flex: 0 0 auto; }
-  .aim-look-h .tiny { min-width: 0; font-weight: 400; color: var(--secondary); text-align: right; }
+  /* いま何を描いているか（どこから・いつ・どう重なるか）。図の上の一行（Codex: 図の中身だけで推測させない） */
+  .aim-look-cap { margin: 2px 0 0; font-size: 0.75rem; color: var(--text); }
+  .aim-look-cap .sub-line { color: var(--secondary); }
   .aim-look canvas { display: block; width: 100%; margin-top: 4px; border-radius: 10px; background: var(--sunk);
                      touch-action: pan-y; }
   .aim-look-time { display: flex; align-items: center; gap: 10px; }
@@ -1165,6 +1187,10 @@
     <!-- どこから重ねるかで決めた地点から、次に重なる日。**選ぶ行（どこから・目標と太陽／月・どこに）より下に置く**。
          太陽と月で日の数が違うので、上に置くと切り替えるたびに太陽／月の釦の位置が動いた（ユーザー「UIがすごく動くのが気になる」） -->
     <div id="aimFrom" class="aim-from"></div>
+    <!-- 見え方の図は**1つ**（2026-10-03 ユーザー「どこに重ねるかを変えても見え方が変わらないのと、見え方が二箇所にあるのはなんで？」）。
+         重なる日の帯のすぐ下。描くのは「いま選んでいる場面」: 候補地を選んでいればその候補地、無ければ観測地点の近くで選んだ合わせ方が
+         ぴったりになる計算上の地点。図の上の一行が「いま何を描いているか」（Codex と相談した形） -->
+    <div id="aimLook" class="aim-look" hidden></div>
     <label class="fav-l" for="aimDate">日付</label>
     <div class="aim-row aim-date">
       <button id="aimPrev" class="fav-btn" aria-label="前の日">←</button>
@@ -1211,10 +1237,10 @@
     <!-- その日の候補地（2026-09-30）。月丼と同じく「この日はここ」を先に出し、線に掛かる立てる場所を並べる -->
     <!-- 目標の場所が決まっていないときは見出しごと出さない（中身の無い見出しが残っていた。2026-10-02） -->
     <div id="aimCandBox">
-    <div class="section-h" style="margin-top:12px"><h2>この日の候補地</h2><span class="muted" id="aimCandSub"></span></div>
-    <div id="aimCandPick" class="al"></div>
-    <!-- 選んだ候補地からの見え方（2026-10-02）。目標のまわりだけを拡大して、太陽・月の道と円盤を描く -->
-    <div id="aimCandLook" class="aim-look" hidden></div>
+    <div class="section-h" style="margin-top:12px"><h2>この日の候補地</h2></div>
+    <!-- 日の出側と日の入側を切り替える（2026-10-03 ユーザー「日の出と日の入に関してはボタンで切り替えが良いと思う」
+         「候補地が何箇所かあるならそれを出したら？」）。釦に時刻の幅と数。線の無い側は押せない（線なし）。0か所の側は押せる -->
+    <div id="aimSideSeg" class="aim-side-seg" role="group" aria-label="日の出側か日の入側か"></div>
     <div id="aimCandInfo" class="tiny" style="margin-top:6px;color:var(--secondary)"></div>
     <div id="aimCandList" class="al" style="margin-top:8px"></div>
     </div>
@@ -1607,21 +1633,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002200102"></script>
+<script src="sorami-core.js?v=20261003012043"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002200102"></script>
-<script src="sorami-exif.js?v=20261002200102"></script>
-<script src="sorami-capcloud.js?v=20261002200102"></script>
-<script src="sorami-terrain.js?v=20261002200102"></script>
-<script src="sorami-mountain.js?v=20261002200102"></script>
-<script src="sorami-fuji.js?v=20261002200102"></script>
-<script src="sorami-sky.js?v=20261002200102"></script>
-<script src="sorami-routes.js?v=20261002200102"></script>
-<script src="sorami-iss.js?v=20261002200102"></script>
-<script src="sorami-plane.js?v=20261002200102"></script>
-<script src="sorami-align.js?v=20261002200102"></script>
-<script src="sorami-moon.js?v=20261002200102"></script>
+<script src="sorami-astro.js?v=20261003012043"></script>
+<script src="sorami-exif.js?v=20261003012043"></script>
+<script src="sorami-capcloud.js?v=20261003012043"></script>
+<script src="sorami-terrain.js?v=20261003012043"></script>
+<script src="sorami-mountain.js?v=20261003012043"></script>
+<script src="sorami-fuji.js?v=20261003012043"></script>
+<script src="sorami-sky.js?v=20261003012043"></script>
+<script src="sorami-routes.js?v=20261003012043"></script>
+<script src="sorami-iss.js?v=20261003012043"></script>
+<script src="sorami-plane.js?v=20261003012043"></script>
+<script src="sorami-align.js?v=20261003012043"></script>
+<script src="sorami-moon.js?v=20261003012043"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4962,7 +4988,9 @@ const AimMap = createMapView({ canvas: "aimCanvas", coord: "aimCoord",
 
 const aim = { target: null, body: "sun", partId: null, limb: "center", dayMs: null, lines: [], seq: 0,
               spotSeq: 0, spotCache: null, spot: null, preset: null,
-              cands: [], candSeq: 0, candPick: null, wantSpot: null, buildingNote: "" };
+              cands: [], candSeq: 0, candPick: null, wantSpot: null, buildingNote: "",
+              // 候補地で見ている側（rise / set）、見え方の図の描き直しの番号、この地点で重なる日（帯）
+              candSide: null, lookSeq: 0, fromEvents: [] };
 
 /// 目標の高さで線の長さが変わる（富士山は150km、避雷針は3km）ので、地図の倍率も合わせる
 function aimZoomFor(target, partId) {
@@ -5105,9 +5133,17 @@ async function aimRedrawLine() {
   // **前の線の候補地を残さない。** 線を解き直す数秒のあいだ、前の画面（ダイヤモンド富士）の候補が
   // 新しい見出し（パール富士）の下に見えていた（2026-10-01 本番で確認）。探している途中の計算も捨てる
   aim.candSeq++;
+  // 合わせ方・高さだけを替えたとき（同じ目標・天体・日）は、選んでいた候補地が新しい候補にもあれば選び直す
+  // （図が観測地点へ飛んで戻らないように。日付を替えたときは選び直さない）
+  const keyNow = `${aim.target.id}|${aim.body}|${aim.dayMs}`;
+  const was = aim.candPick !== null ? (aim.cands || [])[aim.candPick] : null;
+  // 選び直しを待っている間に日付・天体・目標を替えたら、その待ちは捨てる（Codex の点検: 別の日に持ち越していた）。
+  // 定番スポットから来た待ち（wantKey なし）は日付を替えて来るので捨てない
+  if (aim.wantKey && aim.wantKey !== keyNow) { aim.wantSpot = null; aim.wantKey = null; }
+  if (was && !aim.wantSpot && aim.candKey === keyNow) { aim.wantSpot = was.place.id; aim.wantKey = keyNow; }
+  aim.candKey = keyNow;
   aim.cands = []; aim.candPick = null;
-  $("aimCandPick").innerHTML = ""; $("aimCandList").innerHTML = ""; $("aimCandSub").textContent = "";
-  $("aimCandLook").hidden = true;
+  $("aimCandList").innerHTML = ""; $("aimSideSeg").innerHTML = "";
   $("aimCandInfo").textContent = "候補地を探しています…";
   aim.lines = [];
   AimMap.redraw();
@@ -5206,8 +5242,8 @@ AimMap.setOverlay((ctx, { project, width, height }) => {
     ctx.restore();
   }
 
-  // この日の候補地。一覧と同じ番号を、**立つ位置**に振る。選んだものは大きく
-  (aim.cands || []).forEach((c, i) => {
+  // この日の候補地。一覧と同じ番号を、**立つ位置**に振る。選んだものは大きく。日の出／日の入の切り替えで選んでいる側だけ
+  (aim.cands || []).map((c, i) => ({ c, i })).filter((x) => !aim.candSide || x.c.side === aim.candSide).forEach(({ c, i }, k) => {
     const sp = { latitude: c.stand.latitude, longitude: c.stand.longitude, name: aimCandName(c) };
     const [x, y] = project(sp.latitude, sp.longitude);
     const on = aim.candPick === i;
@@ -5219,7 +5255,7 @@ AimMap.setOverlay((ctx, { project, width, height }) => {
     ctx.fillStyle = "#111";
     ctx.font = `700 ${on ? 11 : 9}px -apple-system, 'Hiragino Sans', sans-serif`;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(String(i + 1), x, y + 0.5);
+    ctx.fillText(String(k + 1), x, y + 0.5);
     if (on) aimMapLabel(ctx, x, y - 16, sp.name, "#fff", width, height, "center");
     ctx.restore();
   });
@@ -6046,7 +6082,10 @@ function aimApply({ redraw = true, recenter = false } = {}) {
     + (S.JstCal.sameDay(aim.dayMs, Date.now()) ? " ・ 今日" : "");
   // 目標が決まっていなければ線は引けない（高さが無い）
   if (!(aim.target.parts || []).length) {
+    aim.seq++; aim.candSeq++;
+    aim.cands = []; aim.candPick = null; aim.wantSpot = null; aim.wantKey = null;
     aim.lines = [];
+    aimRenderFrom();
     // 地図をまだ開いていなければ（中心が無ければ）、どこから重ねるかの地点で開く
     const c = AimMap.center();
     if (!c || !Number.isFinite(c.latitude)) AimMap.open(...aimMapView());
@@ -6261,8 +6300,8 @@ async function aimRenderFrom() {
 
   const moon = aim.body === "moon";
   const what = aimIsFuji() ? (moon ? "パール富士" : "ダイヤモンド富士") : `${aim.target.name}に${moon ? "月" : "太陽"}が重なる日`;
-  if (!f) { $("aimFrom").innerHTML = `<p class="tiny">観測地点を選んでください</p>`; return; }
-  if (!(aim.target.parts || []).length) { $("aimFrom").innerHTML = ""; return; }
+  if (!f) { $("aimFrom").innerHTML = `<p class="tiny">観測地点を選んでください</p>`; $("aimLook").hidden = true; return; }
+  if (!(aim.target.parts || []).length) { $("aimFrom").innerHTML = ""; $("aimLook").hidden = true; return; }
   $("aimFrom").innerHTML = `<p class="tiny">${esc(f.name)}から計算しています…</p>`;
   await new Promise((r) => setTimeout(r, 0));
   const ground = await aimElevation(f.latitude, f.longitude);
@@ -6285,17 +6324,17 @@ async function aimRenderFrom() {
   // 住所・標高・引き継いだことは上のカードに出ているので、ここは名前だけ（どこからの結果かは必ず名前で書く）
   const head = `<p class="tiny" style="color:var(--secondary)"><strong>${esc(f.name)}</strong>から見た${esc(what)}`
     + ` ・ ${esc(aim.target.name)}まで ${aimKm(D)}km</p>`;
-  const sideOf = (e) => (e.side === "set" ? (moon ? "月の入" : "日の入") : (moon ? "月の出" : "日の出"));
-  // 日付の小さな釦で並べる（定番スポットと同じ形）。押すとその日の線と候補地へ
+  aim.fromEvents = ev;
+  // 横に流す帯（2026-10-03 ユーザー「候補日はプルダウンにしたら？」→ Codex と相談し、4件ほどなら一目で比べて1回で選べる帯）。
+  // 釦は日付と側の2段だけ。通り方・動き方は、選んだ日のぶんだけ見え方の図の上の一行に書く。押すとその日（図・日付・地図・候補地）
+  const thisYear = new Date(Date.now() + 9 * 3600000).getUTCFullYear();
   const chips = ev.map((e) => {
+    const y = new Date(e.at + 9 * 3600000).getUTCFullYear();
     const lit = moon ? ` ${moonGlyphAt(e.at)}${Math.round(e.illuminated * 100)}%` : "";
-    // 前後も重なる日は「（11/05〜07）」と短く（月をまたげば「（10/31〜11/02）」）
-    const to = S.Cal.monthDay(e.to), fr = S.Cal.monthDay(e.from);
-    const span = e.dayCount > 1 ? `（${fr}〜${fr.slice(0, 3) === to.slice(0, 3) ? to.slice(3) : to}）` : "";
-    // 月は空の明るさで写りが決まるので、日の出入り・月の出入りからの差を2段目に
-    const light = moon ? `<span class="sub-line">${esc(lightTimingText(e.at, obs))}</span>` : "";
-    return `<button class="tiny aim-day" data-from-day="${S.Cal.startOfDay(e.at)}">${aimDateLabel(e.at)} ${sideOf(e)}${lit}${span}`
-      + `<span class="sub-line">${esc(aimPassage(e))}</span>${light}<span class="sub-line" data-move></span></button>`;
+    const on = S.JstCal.sameDay(e.at, aim.dayMs);
+    return `<button type="button" class="tiny aim-day" data-from-day="${S.Cal.startOfDay(e.at)}" data-from-side="${e.side}" aria-pressed="${on}">`
+      + `${y === thisYear ? "" : `${y}/`}${S.Cal.monthDay(e.at)}(${S.Cal.weekday(e.at)})`
+      + `<span class="sub-line">${aimSideName(e.side)} ${S.JstCal.hhmm(e.at)}${lit}</span></button>`;
   }).join("");
   // 重ならないなら、そう言い切る（ユーザー「天体の動き的に絶対にないわけでしょ？」）。太陽は毎年同じ範囲の方角しか
   // 通らないので、1年で無ければその場所からは無い。月も 2025〜26 年は出入りの方角の幅がいちばん広い時期
@@ -6307,17 +6346,20 @@ async function aimRenderFrom() {
       : "重なるのは明るい空のときだけです"}</p>`;
   // 見通しは重なる日の上に出す（見えないなら、日付より先に知りたい）
   const sightSlot = ev.length ? `<p class="tiny aim-sight" id="aimFromSight">見通しを確かめています…</p>` : "";
-  // 見え方は、いま開いている日の回（無ければ次の回）
-  const lookEv = ev.find((e) => S.JstCal.sameDay(e.at, aim.dayMs)) || ev[0];
-  $("aimFrom").innerHTML = head + sightSlot + (chips ? `<div class="aim-days">${chips}</div>` : "") + none
-    + (lookEv ? `<div class="aim-look" id="aimFromLook"></div>` : "");
-  // この場所からの実際の通り方を描く。時刻は先端の方角を通る時刻（選んだ縁が触れるとは限らない）
-  if (lookEv) aimLookRender($("aimFromLook"), { obs, eyeM: 1.5, at: lookEv.at, label: f.name, atName: `${aimIsMountain(aim.target) ? "山頂" : "先端"}を通る` });
-  // 選んだ合わせ方にするには、その日どちらへ何m動けばよいか（その日の線の上で、ここと同じ距離の点まで）
-  aimFromMoves(ev, obs, D, seq);
+  $("aimFrom").innerHTML = head + sightSlot + (chips ? `<div class="aim-days strip">${chips}</div>` : "") + none;
+  // 選んでいる日の釦が見える所まで帯を送る
+  const onChip = $("aimFrom").querySelector('.aim-day[aria-pressed="true"]');
+  if (onChip) onChip.parentElement.scrollLeft = Math.max(0, onChip.offsetLeft - 8);
   for (const el of $("aimFrom").querySelectorAll("[data-from-day]")) {
-    el.onclick = () => aimShowDay(+el.dataset.fromDay, { id: "from", latitude: f.latitude, longitude: f.longitude });
+    el.onclick = () => {
+      // その日へ。候補地の選択はやめる（見え方は観測地点の近く）。地図へは送らない（図がすぐ下で変わる）。
+      // 候補地は押した日の側（日の入の日を押したのに日の出側の候補地が出ていた）
+      aim.candPick = null; aim.spot = null; aim.wantSpot = null; aim.wantKey = null; aim.candSide = el.dataset.fromSide;
+      $("aimDate").value = new Date(+el.dataset.fromDay + 9 * 3600000).toISOString().slice(0, 10);
+      aimApply();
+    };
   }
+  aimUpdateLook();
   if (!ev.length) return;
   // 見通し。重なる日があっても、目標が隠れていれば見えない。**見えないなら、日付の上に目立つ形で言い切る**
   // （2026-10-02 ユーザー「その間が建物や地形的に観測地点から目標物がそもそも見えないことってあるよね。
@@ -6416,49 +6458,101 @@ function aimPassage(e) {
   return `中心が${top}の${Math.abs(g).toFixed(2)}°${g > 0 ? "上" : "下"}を通る`;
 }
 const AIM_DIR8 = ["北", "北東", "東", "南東", "南", "南西", "西", "北西"];
-/// 「どこから重ねるか」の日ごとに、選んだ合わせ方にする動き方を書く。その日の線（選んだ合わせ方）の上で、ここと同じ距離の点まで
-async function aimFromMoves(ev, obs, D, seq) {
-  const limb = SoramiAlign.LIMBS.find((l) => l.id === aim.limb) || SoramiAlign.LIMBS[1];
-  for (let i = 0; i < ev.length; i++) {
-    const e = ev[i];
-    // ここで選んだ縁が触れる（通り方の言い方と同じ基準）なら、動かなくてよい
-    if (Math.abs(e.gap - limb.sign * e.radius) <= SoramiAlign.LIMB_FIT * e.radius) {
-      const slot = $("aimFrom").querySelectorAll("[data-move]")[i];
-      if (slot) slot.textContent = `${limb.name}はここで合う`;
-      continue;
-    }
-    let p = null;
-    try {
-      p = await SoramiAlign.solvePoint(aim.target, aim.body, S.Cal.startOfDay(e.at), D, e.side,
-        { partId: aim.partId, limb: aim.limb, elevationAt: aimElevation });
-    } catch { p = null; }
-    if (seq !== aim.fromSeq) return;
-    const slot = $("aimFrom").querySelectorAll("[data-move]")[i];
-    if (!slot) continue;
-    if (!p) { slot.textContent = ""; continue; }
-    const m = SoramiTerrain.distanceKm(obs.latitude, obs.longitude, p.latitude, p.longitude) * 1000;
-    const dir = AIM_DIR8[Math.round(SoramiTerrain.bearing(obs.latitude, obs.longitude, p.latitude, p.longitude) / 45) % 8];
-    // 遠い目標では 0.1° が横に数m なので、100m 未満は 1m 単位で言う（それまで 15m 未満を「ちょうど」にまとめ、通り方の言い方と食い違った）
-    const far = m >= 1000 ? `${(m / 1000).toFixed(1)}km` : m >= 100 ? `${Math.round(m / 10) * 10}m` : `${Math.max(1, Math.round(m))}m`;
-    slot.textContent = `${limb.name}にするなら${dir}へ約${far}`;
+/**
+ * 見え方の図（1つ）に描く場面を決めて描く（2026-10-03 ユーザー「どこに重ねるかを変えても見え方が変わらないのと、見え方が二箇所にあるのはなんで？」）。
+ *   1. 候補地を選んでいれば、その候補地（重なりを解いた立つ点・時刻）
+ *   2. 無ければ、観測地点の近くで**選んだ合わせ方がぴったりになる計算上の地点**（その日の線の上で、観測地点と同じ距離の点）。
+ *      側は、その日に観測地点で重なる回があればその側、無ければ候補地で見ている側
+ * 図の上の一行に「どこから・いつ・どう重なるか」を書く（Codex: 何を描いているかを図の中身だけで推測させない）。
+ * 合わせ方・日付・候補地のどれを替えても、ここで描き直すので図が変わる
+ */
+async function aimUpdateLook() {
+  const seq = ++aim.lookSeq;
+  const host = $("aimLook"), t = aim.target;
+  if (!t || !(t.parts || []).length) { host.hidden = true; return; }
+  if (aim.wantSpot) return;
+  // 月は空の明るさが大事（2026-10-01 ユーザー「日の出何分後とか月の出何分後とかの情報をサクッと書いておいてほしい」）
+  const light = (at, o) => {
+    if (aim.body !== "moon") return null;
+    let lit = "";
+    try { lit = ` 輝面 ${Math.round(SoramiAstro.moon(at, o).illuminatedFraction * 100)}%`; } catch { lit = ""; }
+    return [`${moonGlyphAt(at)}${lit}`, lightTimingText(at, o)].filter(Boolean).join(" ・ ");
+  };
+  const c = aim.candPick !== null ? (aim.cands || [])[aim.candPick] : null;
+  if (c) {
+    const k = (aim.cands || []).filter((x) => x.side === c.side).indexOf(c) + 1;
+    aimLookRender(host, { obs: { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM },
+      eyeM: 1.5 + (c.place.deckM || 0), at: c.at, title: `候補地 ${k}. ${aimCandName(c)}から`,
+      sub: `${aimDateLabel(c.at)} ${aimCandSide(c)} ・ ${aimFitPhrase()}`, light: light(c.at, c.stand) });
+    return;
   }
-}
-const aimCandName = (c) => (c.place.kind === "川岸" ? `${c.place.name}の川岸`
+  const f = aimFromPoint();
+  if (!f) { host.hidden = true; return; }
+  const ground = await aimElevation(f.latitude, f.longitude);
+  if (seq !== aim.lookSeq) return;
+  const obs = { latitude: f.latitude, longitude: f.longitude, elevation: Number.isFinite(ground) ? ground : 0 };
+  const D = SoramiTerrain.distanceKm(f.latitude, f.longitude, t.latitude, t.longitude);
+  const ev = (aim.fromEvents || []).find((e) => S.JstCal.sameDay(e.at, aim.dayMs)) || null;
+  const opts = { partId: aim.partId, limb: aim.limb, eyeM: 1.5 };
+  // ここで選んだ縁が触れる（通り方の言い方と同じ基準）なら、観測地点そのものから。**選んだ縁で解き直して確かめる**
+  // （富士山は火口の縁が横に広く、同じ場所で「下の縁が乗る」「真ん中が通る」が時刻違いで両方起きる。真ん中の通り方から
+  // 引き算すると、高尾山で合っているのに「南へ約48m」と出ていた）
+  const here = ev ? SoramiAlign.crossingNear(obs, t, aim.body, ev.at, opts) : null;
+  if (here && Math.abs(here.gap) <= SoramiAlign.LIMB_FIT * here.radius) {
+    const at = here.at;
+    aimLookRender(host, { obs, eyeM: 1.5, at, title: `${f.name}から`,
+      sub: `${aimDateLabel(at)} ${aimSideName(ev.side)} ・ ${aimFitPhrase()}`, light: light(at, obs) });
+    return;
+  }
+  // 側は、その日に観測地点で重なる回があればその側。無ければ両側を解いて**観測地点に近い方**
+  // （曽谷はスカイツリーの東なので、日の出側の点は反対側の 23km 先になっていた）
+  const sides = ev ? [ev.side] : ["rise", "set"];
+  const sols = await Promise.all(sides.map((sd) => SoramiAlign.solvePoint(t, aim.body, aim.dayMs, D, sd, { ...opts, elevationAt: aimElevation })
+    .then((q) => (q ? { q, sd, d: SoramiTerrain.distanceKm(f.latitude, f.longitude, q.latitude, q.longitude) } : null), () => null)));
+  if (seq !== aim.lookSeq) return;
+  // 月は暗い空の回だけ（候補地と同じ。昼の月は重なっても写らない）
+  const dark = (x) => aim.body !== "moon"
+    || SoramiAstro.sun(x.q.at, { latitude: x.q.latitude, longitude: x.q.longitude, elevation: obs.elevation }).apparentAltitude < 0;
+  const found = sols.filter(Boolean);
+  const best = found.filter(dark).sort((x, y) => x.d - y.d)[0];
+  const p = best ? best.q : null, side = best ? best.sd : null;
+  if (!p) {
+    host.hidden = false;
+    host.innerHTML = `<div class="aim-look-h"><span>見え方</span></div><p class="tiny" style="color:var(--secondary)">`
+      + `この日は、${esc(f.name)}の近く（${esc(t.name)}まで ${aimKm(D)}km）で${aim.body === "moon" ? "月" : "太陽"}が`
+      + `${found.length ? "重なるのは明るい空のときだけです" : "重なりません"}。</p>`;
+    return;
+  }
+  const pg = await aimElevation(p.latitude, p.longitude);
+  if (seq !== aim.lookSeq) return;
+  const stand = { latitude: p.latitude, longitude: p.longitude, elevation: Number.isFinite(pg) ? pg : 0 };
+  const hit = SoramiAlign.crossingNear(stand, t, aim.body, p.at, opts);
+  const m = SoramiTerrain.distanceKm(f.latitude, f.longitude, p.latitude, p.longitude) * 1000;
+  const dir = AIM_DIR8[Math.round(SoramiTerrain.bearing(f.latitude, f.longitude, p.latitude, p.longitude) / 45) % 8];
+  // 遠い目標では 0.1° が横に数m なので、100m 未満は 1m 単位で言う
+  const far = m >= 1000 ? `${(m / 1000).toFixed(1)}km` : m >= 100 ? `${Math.round(m / 10) * 10}m` : `${Math.max(1, Math.round(m))}m`;
+  const at = hit ? hit.at : p.at;
+  aimLookRender(host, { obs: stand, eyeM: 1.5, at, title: `${f.name}から${dir}へ約${far}（計算上の位置）`,
+    sub: `${aimDateLabel(at)} ${aimSideName(side)} ・ ${aimFitPhrase()}`, light: light(at, stand),
+    extra: ev ? `${f.name}に立ったままだと、${aimPassage(ev)}` : null });
+}const aimCandName = (c) => (c.place.kind === "川岸" ? `${c.place.name}の川岸`
   : c.place.name || `名前のない${c.place.kind}`);
-const aimCandSide = (c) => (aim.body === "moon"
-  ? (c.side === "set" ? "月の入" : "月の出") : (c.side === "set" ? "日の入" : "日の出"));
+const aimSideName = (side) => (aim.body === "moon" ? (side === "set" ? "月の入" : "月の出") : (side === "set" ? "日の入" : "日の出"));
+const aimCandSide = (c) => aimSideName(c.side);
 
 async function aimFindCandidates() {
   const seq = ++aim.candSeq;
   const lines = aim.lines || [];
-  aim.cands = []; aim.candPick = null;
-  $("aimCandPick").innerHTML = ""; $("aimCandList").innerHTML = ""; $("aimCandSub").textContent = "";
-  $("aimCandLook").hidden = true;
-  if (!lines.length) { $("aimCandInfo").textContent = "この日は線が無いので、候補地もありません。"; return; }
+  aim.cands = []; aim.candPick = null; aim.blockedAll = false; aim.brightSides = [];
+  $("aimCandList").innerHTML = ""; $("aimSideSeg").innerHTML = "";
+  // 選ぶ候補地を待っている間、見え方の図はそのまま（aimUpdateLook が待つ）。見つからなくても待ちをやめて描き直す
+  const giveUp = () => { if (seq === aim.candSeq && aim.wantSpot) { aim.wantSpot = null; aim.wantKey = null; aimUpdateLook(); } };
+  if (!lines.length) { $("aimCandInfo").textContent = "この日は線が無いので、候補地もありません。"; giveUp(); return; }
   $("aimCandInfo").textContent = "候補地を探しています…";
   let places = [];
   try { places = await aimPlaces(); } catch {
     if (seq === aim.candSeq) $("aimCandInfo").textContent = "候補地を読み込めませんでした。";
+    giveUp();
     return;
   }
   if (seq !== aim.candSeq) return;
@@ -6469,6 +6563,9 @@ async function aimFindCandidates() {
   if (seq !== aim.candSeq) return;
   // パールは月が暗い空にあるときだけ（昼の月は重なっても写らない）
   const all = found.length;
+  // 明るい空でだけ重なる側 = 明るい空の候補はあるが、暗い空の候補が初めから無い側（見通しなどで落ちた側は別の理由。Codex の点検）
+  aim.brightSides = aim.body !== "moon" ? []
+    : ["rise", "set"].filter((sd) => found.some((c) => c.side === sd && c.sunAltitude >= 0) && !found.some((c) => c.side === sd && c.sunAltitude < 0));
   if (aim.body === "moon") found = found.filter((c) => c.sunAltitude < 0);
   for (const c of found) c.score = aimCandScore(c);
   // 同じ点数なら、目標に近い方（大きく写る）を先に。重なり方は点数に入っているので、ずれの細かい差では並べない
@@ -6510,37 +6607,36 @@ async function aimFindCandidates() {
     if (pool24.length) aim.buildingNote = "建物で隠れるかを確かめています…";
   }
   aim.cands = shown;
+  const waited = !!aim.wantSpot;
   const want = aim.wantSpot ? shown.findIndex((c) => c.place.id === aim.wantSpot) : -1;
-  aim.wantSpot = null;
-  aim.candPick = shown.length ? Math.max(0, want) : null;
+  aim.wantSpot = null; aim.wantKey = null;
+  // 自動では選ばない（選ぶのは行を押したとき・定番スポットから来たとき・合わせ方を替えたときの選び直しだけ。
+  // Codex: 日付を替えて勝手に別の場所へ図を飛ばさない）
+  aim.candPick = want >= 0 ? want : null;
   AimMap.redraw();
-  if (!shown.length) {
-    $("aimCandInfo").textContent = aim.body === "moon" && all > 0
-      ? "この日の月は、明るい空で重なります。"
-      : "この日の線に掛かる、立てる場所が見つかりません。";
-    return;
-  }
-  $("aimCandInfo").textContent = aim.buildingNote || "";
-  $("aimCandSub").textContent = `${shown.length}か所`;
+  if (aim.candPick !== null || waited) aimUpdateLook();
+  // 候補地が0でも、線のある側の切り替えは出す（0か所と線なしを分ける。理由は側ごとに aimRenderCands が書く）
   aimRenderCands();
+  if (!shown.length) return;
   // 塔は街の中なので、**建物で先端が隠れる場所も外す**（同梱の高い建物で手元で判定。7階以上・20m以上）
   if (!aimIsFuji() && pool24.length) {
     const blocks = await aimBuildingBlocks(pool24);
     if (seq !== aim.candSeq) return;
     if (!blocks || blocks === "outside") {
       aim.buildingNote = blocks ? "建物で隠れるかは、首都圏の外では確かめていません。" : "建物で隠れるかは確かめられませんでした。";
-      $("aimCandInfo").textContent = aim.buildingNote;
+      aimRenderCands();
       return;
     }
-    const pickedId = aim.cands[aim.candPick ?? 0]?.place.id;
+    const pickedId = aim.candPick !== null ? aim.cands[aim.candPick]?.place.id : null;
     aim.cands = pool24.filter((c, i) => !(blocks[i] && blocks[i].blocked)).slice(0, 12);
-    const again = aim.cands.findIndex((c) => c.place.id === pickedId);
-    aim.candPick = aim.cands.length ? Math.max(0, again) : null;
+    const again = pickedId ? aim.cands.findIndex((c) => c.place.id === pickedId) : -1;
+    const lost = aim.candPick !== null && again < 0;
+    aim.candPick = again >= 0 ? again : null;
     aim.buildingNote = "";
-    $("aimCandInfo").textContent = aim.cands.length ? "" : "この日の候補地は、どこも建物に隠れます。";
-    $("aimCandSub").textContent = aim.cands.length ? `${aim.cands.length}か所` : "";
-    if (aim.cands.length) aimRenderCands();
-    else { $("aimCandPick").innerHTML = ""; $("aimCandList").innerHTML = ""; $("aimCandLook").hidden = true; }
+    aim.blockedAll = !aim.cands.length;
+    aimRenderCands();
+    // 選んでいた候補地が建物で外れたら、見え方は観測地点の近くへ戻す（勝手に別の候補地へ飛ばさない）
+    if (lost) aimUpdateLook();
     AimMap.redraw();
   }
 }
@@ -6727,44 +6823,73 @@ async function aimBuildingBlocks(cands) {
 }
 
 function aimRenderCands() {
-  const list = aim.cands || [];
-  const i0 = aim.candPick ?? 0;
-  const c = list[i0];
-  if (!c) return;
-  const lit = aim.body === "moon" && Number.isFinite(c.illuminated)
-    ? ` ・ ${moonGlyphAt(c.at)} 輝面 ${Math.round(c.illuminated * 100)}%` : "";
-  const sky = aim.body === "moon" ? (c.sunAltitude < -6 ? " ・ 夜" : " ・ 薄明") : "";
-  const deck = c.place.deckM ? `（地上${c.place.deckM}m）` : "";
-  const kind = c.place.kind === "定番" ? c.place.spotKind : c.place.kind;
-  $("aimCandPick").innerHTML = `<div class="al-row" style="cursor:default">
-    <div class="al-w"><strong>${esc(aimCandName(c))}</strong>
-      <div class="tiny">${S.JstCal.hhmm(c.at)} に${esc(aimFitPhrase())}${aimIsFuji() && c.rank !== "center" ? "（火口の縁の端）" : ""} ・ ${esc(aimCandSide(c))}${sky}${lit}</div>
-      ${aim.body === "moon" ? `<div class="tiny">${esc(lightTimingText(c.at, c.stand))}</div>` : ""}
-      <div class="tiny">${esc([kind + deck, c.place.address].filter(Boolean).join(" ・ "))}</div>
-      <div class="tiny">${esc(aim.target.name)}まで ${aimKm(c.distanceKm)}km ・ 見上げ ${c.targetAngle.toFixed(1)}°</div>
-      ${c.place.note ? `<div class="tiny">${esc(c.place.note)}</div>` : ""}
-    </div></div>`;
-  $("aimCandList").innerHTML = list.map((x, i) => {
-    const k = x.place.kind === "定番" ? x.place.spotKind : x.place.kind;
-    return `<button class="al-row jump${i === i0 ? " on" : ""}" data-cand="${i}">
-      <span class="al-w"><strong>${i + 1}. ${esc(aimCandName(x))}</strong>
-        <span class="tiny sub-line">${S.JstCal.hhmm(x.at)}${aimIsFuji() && x.rank !== "center" ? " ・ 火口の縁の端" : ""} ・ ${esc(aimCandSide(x))}${aim.body === "moon" ? ` ${moonGlyphAt(x.at)}` : ""}</span>
-        ${aim.body === "moon" ? `<span class="tiny sub-line">${esc(lightTimingText(x.at, x.stand))}</span>` : ""}
-        <span class="tiny sub-line">${esc([k, x.place.address].filter(Boolean).join(" ・ "))}</span>
-      </span>
-      <span class="tiny">地図で見る →</span>
-    </button>`;
+  const all = aim.cands || [];
+  const seg = $("aimSideSeg");
+  const moon = aim.body === "moon";
+  // 側ごとに、線があるか・時刻の幅・候補地の数
+  const sides = ["rise", "set"].map((side) => {
+    const l = (aim.lines || []).find((x) => x.side === side && x.points && x.points.length);
+    const ts = l ? l.points.map((q) => q.at).filter(Number.isFinite) : [];
+    return { side, has: !!l, n: all.filter((c) => c.side === side).length,
+      from: ts.length ? Math.min(...ts) : null, to: ts.length ? Math.max(...ts) : null };
+  });
+  if (!sides.some((x) => x.has)) { seg.innerHTML = ""; $("aimCandList").innerHTML = ""; return; }
+  const picked = aim.candPick !== null ? all[aim.candPick] : null;
+  if (picked) aim.candSide = picked.side;
+  // 見る側: 前に選んだ側（線があれば）。無ければ候補のある側の早い方、それも無ければ線のある側
+  if (!sides.some((x) => x.side === aim.candSide && x.has)) {
+    const pick = sides.filter((x) => x.has && x.n).sort((a, b) => a.from - b.from)[0] || sides.find((x) => x.has);
+    aim.candSide = pick ? pick.side : null;
+  }
+  seg.innerHTML = sides.map((x) => `<button type="button" data-side="${x.side}" aria-pressed="${x.side === aim.candSide}"${x.has ? "" : " disabled"}>`
+    // 2段（320px で時刻の幅が折り返して3段になっていた）
+    + `${aimSideName(x.side)}${x.has ? ` ${x.n}か所` : ""}`
+    + `<span class="sub-line">${x.has ? `${S.JstCal.hhmm(x.from)}〜${S.JstCal.hhmm(x.to)}` : "この日は線なし"}</span></button>`).join("");
+  for (const b of seg.querySelectorAll("[data-side]")) {
+    b.onclick = () => {
+      if (b.disabled || b.dataset.side === aim.candSide) return;
+      aim.candSide = b.dataset.side;
+      // 選んでいた候補地が反対の側なら、選ぶのをやめる（見え方は観測地点の近くへ）
+      if (aim.candPick !== null && all[aim.candPick].side !== aim.candSide) { aim.candPick = null; aimUpdateLook(); }
+      aimRenderCands();
+      AimMap.redraw();
+    };
+  }
+  const list = all.map((c, i) => ({ c, i })).filter((x) => x.c.side === aim.candSide);
+  $("aimCandInfo").textContent = list.length ? (aim.buildingNote || "")
+    : (aim.brightSides || []).includes(aim.candSide) ? `この日の${aimSideName(aim.candSide)}側は、明るい空で重なります。`
+    : aim.blockedAll ? `この日の${aimSideName(aim.candSide)}側の候補地は、どこも建物に隠れます。`
+    : `この日の${aimSideName(aim.candSide)}側には、合わせ方どおりに立てて見通せる場所が見つかりません。`;
+  $("aimCandList").innerHTML = list.map(({ c, i }, k) => {
+    const on = aim.candPick === i;
+    const kind = c.place.kind === "定番" ? c.place.spotKind : c.place.kind;
+    const deck = c.place.deckM ? `（地上${c.place.deckM}m）` : "";
+    const edge = aimIsFuji() && c.rank !== "center" ? " ・ 火口の縁の端" : "";
+    const more = !on ? "" : `<span class="tiny sub-line">${esc([kind + deck, c.place.address].filter(Boolean).join(" ・ "))}</span>`
+      + (moon ? `<span class="tiny sub-line">${esc(lightTimingText(c.at, c.stand))}</span>` : "")
+      + `<span class="tiny sub-line">${esc(aim.target.name)}まで ${aimKm(c.distanceKm)}km ・ 見上げ ${c.targetAngle.toFixed(1)}°</span>`
+      + (c.place.note ? `<span class="tiny sub-line">${esc(c.place.note)}</span>` : "")
+      + `<span class="tiny sub-line aim-showing">↑ 見え方に表示中</span>`;
+    return `<div class="al-row cand-row jump${on ? " on" : ""}"><button type="button" class="cand-pick" data-cand="${i}" aria-pressed="${on}">`
+      + `<span class="al-w"><strong>${k + 1}. ${esc(aimCandName(c))}</strong>`
+      + `<span class="tiny sub-line">${S.JstCal.hhmm(c.at)} ・ ${esc(kind)} ・ ${aimKm(c.distanceKm)}km${edge}${moon ? ` ${moonGlyphAt(c.at)}` : ""}</span>${more}</span></button>`
+      + (on ? `<button type="button" class="chip cand-map" data-cand-map="${i}">地図で見る</button>` : "") + `</div>`;
   }).join("");
-  // 立つ高さは重なりを解いたときと同じ（地面＋1.5m＋展望台）にする。違えると図の重なる時刻がずれる
-  aimLookRender($("aimCandLook"), { obs: { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM },
-    eyeM: 1.5 + (c.place.deckM || 0), at: c.at, label: aimCandName(c) });
+  // 行を押すと選ぶ（もう一度押すとやめる）。見え方と地図の印がその候補地に。地図は「地図で見る」で動かす（Codex: 地図を見たい人を勝手に動かさない）
   for (const el of $("aimCandList").querySelectorAll("[data-cand]")) {
     el.onclick = () => {
-      aim.candPick = Number(el.dataset.cand);
-      const x = aim.cands[aim.candPick];
+      const i = Number(el.dataset.cand);
+      aim.candPick = aim.candPick === i ? null : i;
+      aimRenderCands();
+      aimUpdateLook();
+      AimMap.redraw();
+    };
+  }
+  for (const el of $("aimCandList").querySelectorAll("[data-cand-map]")) {
+    el.onclick = () => {
+      const x = aim.cands[Number(el.dataset.candMap)];
       AimMap.open({ latitude: x.stand.latitude, longitude: x.stand.longitude }, 15);
       requestAnimationFrame(() => AimMap.redraw());
-      aimRenderCands();
       window.scrollTo({ top: $("aimCanvas").getBoundingClientRect().top + window.scrollY - 80, behavior: "smooth" });
     };
   }
@@ -6891,7 +7016,8 @@ async function aimLookRender(host, spec) {
   if (!t || !(t.parts || []).length || !spec || !Number.isFinite(spec.at)) { host.hidden = true; return; }
   host.hidden = false;
   if (!host.querySelector("canvas")) {
-    host.innerHTML = `<div class="aim-look-h"><span>見え方</span><span class="tiny" data-look-who></span></div>
+    host.innerHTML = `<div class="aim-look-h"><span>見え方</span></div>
+      <p class="aim-look-cap"><strong data-look-title></strong><span class="sub-line" data-look-sub></span><span class="sub-line" data-look-light></span><span class="sub-line" data-look-extra></span></p>
       <canvas data-look-canvas role="img"></canvas>
       <div class="aim-look-time"><input type="range" min="0" max="0" step="any" value="0" data-look-range aria-label="時刻を動かす">
         <output data-look-at></output></div>
@@ -6899,7 +7025,12 @@ async function aimLookRender(host, spec) {
   }
   const cv = host.querySelector("[data-look-canvas]"), range = host.querySelector("[data-look-range]");
   const out = host.querySelector("[data-look-at]"), note = host.querySelector("[data-look-note]");
-  host.querySelector("[data-look-who]").textContent = `${spec.label ? `${spec.label}から ・ ` : ""}${aimDateLabel(spec.at)}`;
+  host.querySelector("[data-look-title]").textContent = spec.title || "";
+  host.querySelector("[data-look-sub]").textContent = spec.sub || "";
+  for (const k of ["light", "extra"]) {
+    const el = host.querySelector(`[data-look-${k}]`);
+    el.textContent = spec[k] || ""; el.hidden = !spec[k];
+  }
   const ground = spec.obs.elevation ?? 0, eye = ground + spec.eyeM;
   const eyeObs = { latitude: spec.obs.latitude, longitude: spec.obs.longitude, elevation: eye };
   const st = body === "moon" ? SoramiAstro.moon(spec.at, eyeObs) : SoramiAstro.sun(spec.at, eyeObs);
@@ -6914,7 +7045,8 @@ async function aimLookRender(host, spec) {
   const viewBase = outline ? outline.viewBaseAngle : baseAngle;
   const W = Math.max(200, Math.round(cv.clientWidth || host.clientWidth || 320));
   host._lookW = W;
-  const H = Math.round(Math.min(420, W * 0.72));
+  // 塔は縦長の図、山は横長の図（2026-10-03 ユーザー「もう少し拡大した図にして欲しい」。塔は横幅より高さが要る）
+  const H = Math.round(Math.min(440, W * (mountain ? 0.66 : 0.9)));
   const win = SoramiAlign.viewWindow({ azimuth: az, baseAngle: viewBase, topAngle, radiusDeg: radius, aspect: W / H,
     include: [st.apparentAltitude] });
   const proj = SoramiAlign.viewProjector(win.az0, win.alt0);
@@ -6950,12 +7082,16 @@ async function aimLookRender(host, spec) {
   cv.style.height = `${H}px`;
   const ctx = cv.getContext("2d");
   const known = outline && outline.known, schematic = outline && outline.schematic;
+  const smallBy = outline && topAngle > viewBase ? (2 * radius) / (topAngle - viewBase) : 0;
   note.textContent = [
     mountain ? (shape ? "稜線は国土地理院の標高データから" : "稜線を読み込めませんでした")
-      : t.id === "cinderella" ? "形は城のシルエットを写真の縮尺に合わせたもの（地上18mより下は木に隠れるので地面として塗る）"
-      : t.id === "tinkerbell" ? "形は写真から測ったおおよその形"
+      : t.id === "cinderella" ? "形は城のシルエットを、先端51m・下の端を地面にそろえたもの"
+      : t.id === "tinkerbell" ? "形はシルエットを写真の縮尺に合わせたもの（ドームは少し細め）"
       : known ? `形は${t.id === "skytree" ? "スカイツリー" : t.name}のシルエットを写真の縮尺に合わせたもの`
       : schematic ? `建物は高さ${Math.round(top.m - (t.groundM || 0))}mの模式図（幅は推定）` : "",
+    // 太陽・月と形はいつも同じ縮尺（ユーザー「観測地点からの月とシルエットの比率が合うようになってれば」）。
+    // 遠くて形が円盤より小さいときは、図が小さく見える理由を書く
+    smallBy >= 2 ? `ここからは${t.name}の高さが${body === "moon" ? "月" : "太陽"}の直径の約${Math.round(smallBy)}分の1（同じ縮尺）` : "",
     "高さは大気の屈折を含む"].filter(Boolean).join(" ・ ");
   range.max = String(path.length - 1);
   // つまみは刻みなしで動かし、道の点（20秒ごと）のあいだは位置と時刻を割り振って埋める
@@ -7061,7 +7197,7 @@ async function aimLookRender(host, spec) {
       else text(part.name, Math.min(W - room, W / 2 + half + 10), partY, "left");
     }
     out.innerHTML = `${aimLookHMS(p.at)}<span class="sub-line">${esc(aimLookRel(p.at - spec.at, spec.atName))}</span>`;
-    cv.setAttribute("aria-label", `${spec.label || "ここ"}から見た${t.name}と${body === "moon" ? "月" : "太陽"}の動き。`
+    cv.setAttribute("aria-label", `${spec.title || "ここから"}見た${t.name}と${body === "moon" ? "月" : "太陽"}の動き。`
       + `${aimLookHMS(spec.at)}に重なる。いまの図は${aimLookHMS(p.at)}`);
   };
   range.value = String(i0);
