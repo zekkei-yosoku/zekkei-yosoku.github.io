@@ -1217,10 +1217,13 @@
       <tbody></tbody>
     </table>
     <!-- その日の候補地（2026-09-30）。月丼と同じく「この日はここ」を先に出し、線に掛かる立てる場所を並べる -->
+    <!-- 目標の場所が決まっていないときは見出しごと出さない（中身の無い見出しが残っていた。2026-10-02） -->
+    <div id="aimCandBox">
     <div class="section-h" style="margin-top:12px"><h2>この日の候補地</h2><span class="muted" id="aimCandSub"></span></div>
     <div id="aimCandPick" class="al"></div>
     <div id="aimCandInfo" class="tiny" style="margin-top:6px;color:var(--secondary)"></div>
     <div id="aimCandList" class="al" style="margin-top:8px"></div>
+    </div>
     <!-- 富士山だけ、定番のスポットで次に見える日（2026-09-30） -->
     <div id="aimListBox">
     <div class="section-h" style="margin-top:12px"><h2 id="aimListTitle">定番スポット</h2><span class="muted" id="aimListSub"></span></div>
@@ -1599,21 +1602,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002105936"></script>
+<script src="sorami-core.js?v=20261002110305"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002105936"></script>
-<script src="sorami-exif.js?v=20261002105936"></script>
-<script src="sorami-capcloud.js?v=20261002105936"></script>
-<script src="sorami-terrain.js?v=20261002105936"></script>
-<script src="sorami-mountain.js?v=20261002105936"></script>
-<script src="sorami-fuji.js?v=20261002105936"></script>
-<script src="sorami-sky.js?v=20261002105936"></script>
-<script src="sorami-routes.js?v=20261002105936"></script>
-<script src="sorami-iss.js?v=20261002105936"></script>
-<script src="sorami-plane.js?v=20261002105936"></script>
-<script src="sorami-align.js?v=20261002105936"></script>
-<script src="sorami-moon.js?v=20261002105936"></script>
+<script src="sorami-astro.js?v=20261002110305"></script>
+<script src="sorami-exif.js?v=20261002110305"></script>
+<script src="sorami-capcloud.js?v=20261002110305"></script>
+<script src="sorami-terrain.js?v=20261002110305"></script>
+<script src="sorami-mountain.js?v=20261002110305"></script>
+<script src="sorami-fuji.js?v=20261002110305"></script>
+<script src="sorami-sky.js?v=20261002110305"></script>
+<script src="sorami-routes.js?v=20261002110305"></script>
+<script src="sorami-iss.js?v=20261002110305"></script>
+<script src="sorami-plane.js?v=20261002110305"></script>
+<script src="sorami-align.js?v=20261002110305"></script>
+<script src="sorami-moon.js?v=20261002110305"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6382,8 +6385,11 @@ function aimApply({ redraw = true, recenter = false } = {}) {
     else AimMap.redraw();
     $("aimLineInfo").textContent = "重ねる目標の場所を選んでください";
     $("aimList").innerHTML = "";
+    $("aimCandBox").hidden = true;
+    $("aimListBox").hidden = true;
     return;
   }
+  $("aimCandBox").hidden = false;
   // 目標を替えたら、その目標の線が入る倍率で開き直す
   if (recenter && Number.isFinite(aim.target.latitude)) {
     AimMap.open({ latitude: aim.target.latitude, longitude: aim.target.longitude },
