@@ -1,4 +1,4 @@
-// 空の展開図（`sorami-sky.js`）。**通信しない。**
+// 太陽・月の通り道と、稜線より上の区間（`sorami-sky.js`）。**通信しない。**
 //
 // 答え合わせは国立天文台の値で行う（東京の日の出・日の入と、その方位）。
 import { createRequire } from "node:module";
@@ -50,55 +50,6 @@ console.log("== 稜線が高いと、見え始めが遅れる ==");
   ok(walled.from > flat.from + 30 * 60000, "見え始めが30分以上遅れる",
     `${jst(flat.from)} → ${jst(walled.from)}`);
   ok(Math.abs(walled.to - flat.to) < 60000, "沈む側は変わらない", jst(walled.to));
-}
-
-console.log("== 描く範囲 ==");
-{
-  const t = SK.track("sun", day("2026-06-21"), TOKYO, { stepMin: 5 });
-  const spans = SK.visibleSpans(t, () => 0, "sun", TOKYO);
-  const f = SK.frame(t, spans);
-  ok(f.spanDeg <= 140 && f.spanDeg >= 60, "横幅は60〜140度に収める", `${Math.round(f.spanDeg)}度`);
-  // 夏至の東京の南中高度は約77.8度
-  ok(f.topDeg >= 80 && f.topDeg <= 90, "上端は最高高度より上", `${f.topDeg}度`);
-  const p = SK.peak(t);
-  ok(p.altitude > 77 && p.altitude < 79, "夏至の南中高度は約77.8度", p.altitude.toFixed(1));
-  ok(jst(p.at) >= "11:30" && jst(p.at) <= "12:10", "南中は正午ごろ", jst(p.at));
-}
-
-console.log("== 稜線と方位の目盛り ==");
-{
-  const line = SK.skyline((az) => (az < 180 ? 5 : 1), 350, 370, 1);
-  ok(line.length === 21, "端から端まで引く", `${line.length}点`);
-  ok(line[0].angle === 1 && line[line.length - 1].angle === 5, "360をまたいで折り返す",
-    `${line[0].angle} → ${line[line.length - 1].angle}`);
-  const ticks = SK.compassTicks(350, 460);
-  ok(ticks.map((t) => t.name).join(",") === "北,北東,東", "北をまたぐ目盛り",
-    ticks.map((t) => `${t.x}:${t.name}`).join(" "));
-}
-
-console.log("== 3Dの向きと格子 ==");
-{
-  const near = (v, w, eps = 1e-9) => Math.abs(v - w) < eps;
-  const n = SK.direction(0, 0, 1), e = SK.direction(90, 0, 1), up = SK.direction(0, 90, 1);
-  ok(near(n.z, -1) && near(n.x, 0), "北は -Z", JSON.stringify(n));
-  ok(near(e.x, 1) && near(e.z, 0), "東は +X", JSON.stringify(e));
-  ok(near(up.y, 1), "真上は +Y");
-  const s45 = SK.direction(180, 45, 10);
-  ok(near(s45.z, 10 * Math.cos(Math.PI / 4)) && s45.y > 0, "南45度も長さを保つ",
-    `${s45.x.toFixed(2)},${s45.y.toFixed(2)},${s45.z.toFixed(2)}`);
-
-  // 方位が一周する格子は、端と最初がつながる（つなぎ目に隙間を作らない）
-  const az = Array.from({ length: 8 }, (_, i) => i * 45);
-  const dist = [1, 2, 3];
-  const g = SK.meshGrid(az, dist, () => 0);
-  ok(g.positions.length === 8 * 3 * 3, "点の数は 方位×距離", String(g.positions.length / 3));
-  ok(g.indices.length === 8 * 2 * 6, "面の数も一周ぶん", String(g.indices.length / 3));
-  ok(Math.max(...g.indices) === 8 * 3 - 1, "最後の方位が最初へ戻る");
-  // 見上げ角が高いほど、同じ距離でも高く置かれる
-  const flat = SK.meshGrid([0], [10], () => 0);
-  const tilt = SK.meshGrid([0], [10], () => 30);
-  ok(tilt.positions[1] > flat.positions[1], "角度が大きいほど y が上",
-    `${flat.positions[1].toFixed(2)} → ${tilt.positions[1].toFixed(2)}`);
 }
 
 console.log(`\n${fail === 0 ? "SKY OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);

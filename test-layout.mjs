@@ -54,23 +54,18 @@ ok(/id="cards"/.test(html), "#cards がある");
 ok((html.match(/class="mxhead"/g) || []).length === 2, "日付の見出しを作るのは2箇所だけ");
 ok(/function renderSkeleton/.test(html), "予報待ちの骨組みがある");
 
-// ---- 空の見え方（#/sky）。**稜線は月の判定が測ったものを使い回す**（通信を増やさない）
-ok(/id="skyView"/.test(html), "空の見え方のページがある");
-ok(/location\.hash === "#\/sky"/.test(html), "#/sky のルートがある");
-ok(/const skyHorizon = \(\) => \(moonHorizon \|\| \(\(\) => 0\)\)/.test(html),
-  "稜線は月の判定のものを使う（測り直さない）");
-ok(!/measureHorizon/.test(html.split("function openSky")[1] || ""),
-  "空の画面からは地平線を測りに行かない");
-ok(/点線＝稜線の裏/.test(html), "点線の意味を凡例に出す（短く）");
-
-// ---- 3D。**three.js は vendor から読む**（CDN を足すと CSP に外部が要り、落ちた日に画面が死ぬ）
-ok(/import\("\.\/vendor\/three\/three\.module\.js"\)/.test(html), "three は同じ配信元から読む");
+// ---- 空の見え方（#/sky・全周の展開図と3D）は 2026-10-02 になくした（ユーザー「使い物になってない」→ なくすを選んだ）。
+// 目標物に対する太陽・月の動きは「太陽・月を重ねる」の見え方の図で見る
+ok(!/id="skyView"/.test(html) && !/location\.hash === "#\/sky"/.test(html) && !/data-tool="#\/sky"/.test(html), "空の見え方の画面・道・メニューは無い");
+ok(!/vendor\/three/.test(html) && !fs.existsSync(new URL("./vendor/three", import.meta.url)), "three.js は持たない（3D をなくした）");
 ok(!/cdn\.|unpkg|jsdelivr|skypack/.test(html), "CDN からは読まない");
 ok(/script-src 'self'/.test(html), "CSP の script-src は self のまま");
-// 読むのは3Dを開いたときだけ。他の画面は重くならない
-ok(/async function sky3dLoad/.test(html) && /if \(mode === "3d"\)/.test(html),
-  "3Dを開いたときだけ読む");
-ok(/srgbToLinear/.test(html), "色は線形へ直してから渡す（そのままだと夜空が明るくなる）");
+// その画面にしか無かった「山・建物込みの日の出・日の入」は光の時間へ
+ok(/const ridge = sunOverRidge\(d0\);/.test(html) && /<b>この場所では<\/b><span class="v">日の出 \$\{t\(ridge\.rise\)\} \/ 日の入 \$\{t\(ridge\.set\)\}/.test(html),
+  "光の時間に「この場所では 日の出・日の入」（山・建物込み）");
+ok(/if \(!moonHorizon \|\| !moonObs \|\| !moonTerrainProfile/.test(html), "地形を測れていなければ出さない（平らなら暦と同じ）");
+ok(/if \(seq === extraSeq\) \{ rerenderList\(\); refreshLightTimes\(\); \}/.test(html) && /rerenderList\(\);\s+refreshLightTimes\(\);\s+\}\)\.catch/.test(html)
+  && /lt\.outerHTML = html;/.test(html), "稜線が届いたら、詳細の光の時間だけ描き直す（詳細を開いたままでも出る。ゲージの操作は消さない）");
 
 // ---- 画面の出し分け。**表に1行足すだけ**にする
 ok(/const VIEWS = \[/.test(html), "画面の一覧が表になっている");
@@ -78,10 +73,10 @@ ok(/const view = VIEWS\.find\(\(v\) => v\.on\(\)\)\.id/.test(html), "出す画�
 ok(/for \(const v of VIEWS\) \$\(v\.el\)\.hidden = v\.id !== view/.test(html), "ほかは全部隠す");
 {
   // 以前の書き方（条件を書き足す形）が残っていないこと
-  const bad = /atSky && !inDetail && !inAdmin/.test(html) || /atPlane && !inDetail/.test(html);
+  const bad = /atPlane && !inDetail/.test(html);
   ok(!bad, "条件を書き足す形が残っていない");
   const views = html.slice(html.indexOf("const VIEWS = ["), html.indexOf("];", html.indexOf("const VIEWS = [")));
-  for (const id of ["detail", "admin", "records", "aim", "sky", "plane", "list"]) {
+  for (const id of ["detail", "admin", "records", "aim", "plane", "list"]) {
     ok(views.includes(`id: "${id}"`), `${id} が表にある`);
   }
   ok(views.indexOf('id: "detail"') < views.indexOf('id: "list"'), "詳細のほうが一覧より強い");
@@ -143,7 +138,7 @@ ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待�
   // 2026-10-01: 富士山も「太陽・月を重ねる」へまとめた（ユーザー「プルダウンで富士山を選んだら、その横の太陽・月の切り替えでできる」）
   ok(!menu.includes('data-tool="#/aim/fuji"') && !menu.includes("<b>富士山に重ねる</b>"), "富士山は別の項目にしない");
   for (const [href, name] of [
-    ["#/aim/tower", "太陽・月を重ねる"], ["#/sky", "空の見え方"], ["#/plane", "月丼"], ["#/records", "記録"]]) {
+    ["#/aim/tower", "太陽・月を重ねる"], ["#/plane", "月丼"], ["#/records", "記録"]]) {
     ok(menu.includes(`data-tool="${href}"`) && menu.includes(name), `${name} が入っている`);
   }
   // 一覧へ（2026-10-02 ユーザー「メニューの中に絶景予測の一覧に戻るボタンがほしい」）
@@ -296,7 +291,6 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(areaOf({ detail: "本町, 甲府市, 山梨県, 日本" }) === "山梨県甲府市", "町名より市を先に取る");
   ok(areaOf({ detail: "国土地理院の地名情報" }) === "", "住所が無ければ書かない");
 }
-ok(/const skyObs = \(\) => \(moonObs \|\| observerHere\(\)\)/.test(html), "空の見え方も同じ");
 ok(/deckM: agl/.test(html), "その地点の立つ高さを渡す");
 // 雲海は**見下ろせるか**なので目の高さで判定する（霧氷・ダイヤは地面の標高のまま）
 ok(/eyeElevation:/.test(coreSrc), "目の高さを採点へ渡す");
@@ -777,10 +771,6 @@ console.log("== 月を表すところは全部、その時の満ち欠け（2026
   ok(!/row\(e, i === 0 \? "パール富士" : "その次", "🌙"\)/.test(html), "富士山の詳細のパール富士の行も月の形");
   ok(/輝面 \$\{Math\.round\(c\.illuminated \* 100\)\}%/.test(html) && /\$\{moonGlyphAt\(c\.at\)\} 輝面/.test(html), "候補地の輝面に月の形");
   ok(/\$\{moonGlyphAt\(b\.at\)\} 月の輝面/.test(html) && /\$\{moonGlyphAt\(r\.at\)\} 輝面/.test(html), "月丼・ISS の輝面に月の形");
-  ok(/skyBody\(g, 32, 32, 28/.test(html), "3D の月も満ち欠けの形（球にしない）");
-  // 満ちていく月は右が光り、細い月は細く描く（2026-10-01 まで光る側も太さも逆だった）
-  ok(/const lit = Math\.PI \/ 2 \* \(waxing \? -1 : 1\);/.test(html) && /lit \+ Math\.PI, lit, k < 0\.5\);/.test(html),
-    "月の円盤: 満ちる月は右が光り、細い月は細く描く");
   ok(fixed <= 4, `固定の 🌙 が増えていない（${fixed}か所）`);
 }
 
@@ -908,13 +898,13 @@ ok(/function startFujiAlign\(\) \{\s+if \(!toolAllowed\("diamond"\) && !toolAllo
 // ログインが loadExtras の途中に来ても取りこぼさない（loadExtras は走っているあいだ再入しない）
 ok(/toolsDrawnKey = key; startFujiAlign\(\); redrawDayDetail\(\);/.test(html), "許されたら、その場で重なる日の計算を始める");
 ok(/if \(fujiAlignKey !== key\) return;/.test(html), "計算の結果は地点で捨てる（同じ地点の取り直しで「計算しています…」のまま残らない）");
-ok(/\$\{toolAllowed\("sky"\) \? `<button class="fav-btn" id="toSky"/.test(html), "月の詳細の「空の見え方を見る」も許可で出す");
+ok(!/id="toSky"/.test(html) && !/toolAllowed\("sky"\)/.test(html), "月の詳細に「空の見え方を見る」は無い（画面をなくした）");
 {
   const mapSheet = /<dialog class="sheet" id="mapSheet"[^>]*>[\s\S]*?<\/dialog>/.exec(html)[0];
   ok(!/ダイヤモンド富士|パール富士|月丼|空の見え方/.test(mapSheet.replace(/<!--[\s\S]*?-->/g, "")), "地図で選ぶ画面に道具の名前を出さない");
 }
 ok(/function renderAuthButton\(\) \{\s+renderTools\(\);\s+redrawIfToolsChanged\(\);/.test(html), "ログイン・ログアウトで詳細の道具の中身も出し直す");
-// 下半分を作り直すたびに釦をつなぐ。日を替えると「空の見え方を見る」が押せなくなっていた
+// 下半分を作り直すたびに釦をつなぐ。日を替えると押せなくなっていた
 ok(!/wireOutcomes\(\$\("dayDetail"\)\);/.test(html) && !/wireOutcomes\(host\);\s+wireAlignmentJump\(host\);\s+\}/.test(html.replace(/function wireDayDetail[\s\S]*?\n\}/, "")),
   "詳細の下半分は wireDayDetail でつなぐ");
 ok([...html.matchAll(/wireDayDetail\(/g)].length >= 4, "最初の描画・日の切り替え・計算の到着のすべてでつなぐ");
@@ -929,7 +919,7 @@ ok(!/TOOL_NAMES = \{/.test(html), "名前を書き写さない");
   // メニューの data-id と、Worker が許す道具（TOOLS）が一致していること。
   // 1つの項目が2つの許可を持つことがある（富士山に重ねる＝diamond と pearl）
   const menu = [...html.matchAll(/data-tool="[^"]+" data-id="([a-z ]+)"/g)].flatMap((m) => m[1].split(" "));
-  ok(menu.length === 7, "メニューの許可は7つ（項目は5つ。太陽・月を重ねるが3つ持つ）", menu.join("・"));
+  ok(menu.length === 6, "メニューの許可は6つ（道具は4つ。太陽・月を重ねるが3つ持つ）", menu.join("・"));
   ok(/data-tool="#\/aim\/tower" data-id="diamond pearl tower" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど"/.test(html),
     "太陽・月を重ねるは3つの許可を持ち、管理画面ではそれぞれの名前で出す");
   ok(/el\.dataset\.id\.split\(" "\)\.some\(\(id\) => allowed\.includes\(id\)\)/.test(html), "どちらかの許可があればメニューに出す");
@@ -1008,7 +998,7 @@ ok(!/location\.hash = /.test(html), "画面を進めるのは pushRoute だけ�
     return { r, log, loc };
   };
   const a = run(true);
-  a.r.pushRoute("#/aim/tower"); a.r.pushRoute("#/sky");
+  a.r.pushRoute("#/aim/tower"); a.r.pushRoute("#/plane");
   ok(!a.log.includes("push"), "履歴を積まない（iOS の戻る・進むに戻る先を作らない）", a.log.join(" "));
   a.r.goBack();
   ok(a.loc.hash === "#/aim/tower" && a.log.at(-1) === "show#/aim/tower", "「← 戻る」はひとつ前の画面へ（アプリの中で覚えた道）", a.log.join(" "));
@@ -1017,7 +1007,7 @@ ok(!/location\.hash = /.test(html), "画面を進めるのは pushRoute だけ�
   a.r.goBack();
   ok(a.loc.hash === "", "一覧で「← 戻る」を押しても外へ出ない");
   const b = run(false);
-  b.r.pushRoute("#/aim/tower"); b.r.pushRoute("#/sky");
+  b.r.pushRoute("#/aim/tower"); b.r.pushRoute("#/plane");
   ok(b.log.filter((x) => x === "push").length === 2 && b.r.trail.length === 0, "Safari のタブでは今までどおり履歴を積む（Safari の戻るボタン）");
   b.r.goBack();
   ok(b.log.at(-1) === "back", "Safari のタブの「← 戻る」は履歴をひとつ戻す");
@@ -1030,10 +1020,10 @@ ok(!/この先7日/.test(html), "戻り先を日数で呼ばない（詳細に�
 ok(/location\.hash === "#\/records"/.test(html), "記録は自前のURLを持つ");
 ok(/id="recordsView"/.test(html), "記録は別画面");
 ok(/\{ id: "records",\s+el: "recordsView"/.test(html), "3画面を出し分ける");
-// 2026-09-30: 地点カードは「その地点が主語の画面」（一覧・詳細・空の見え方）だけに出す。
+// 2026-09-30: 地点カードは「その地点が主語の画面」（一覧・詳細）だけに出す（空の見え方は 2026-10-02 になくした）。
 // ダイヤモンド富士や月丼の上に出ていて、何の地点か分からなかった（ユーザー指摘）
-ok(/const placeCardShown = \(\) => \["list", "detail", "sky"\]\.includes\(currentView\)/.test(html),
-  "地点カードを出す画面を決めている（一覧・詳細・空の見え方）");
+ok(/const placeCardShown = \(\) => \["list", "detail"\]\.includes\(currentView\)/.test(html),
+  "地点カードを出す画面を決めている（一覧・詳細）");
 ok(/\$\("placeRow"\)\.hidden = !placeCardShown\(\)/.test(html), "記録・管理・道具の画面では地点を出さない");
 ok(/row\.hidden = decks\.length < 1 \|\| !placeCardShown\(\)/.test(html), "展望台の選択も同じ画面だけ");
 // .place-row の display:flex が [hidden] の display:none に勝ち、地点カードが消えなかった。
@@ -2560,7 +2550,7 @@ console.log("== 管理画面に、ほかの画面のものを出さない ==");
 ok(/renderRecords\(now, view !== "list"\)/.test(html),
   "記録の問いかけは一覧のときだけ（管理・記録・道具の画面には出さない）");
 // main 直下の画面は VIEWS の表で切り替える。画面ごとの条件は書かない
-for (const el of ["listView", "detailView", "recordsView", "adminView", "aimView", "skyView", "planeView"]) {
+for (const el of ["listView", "detailView", "recordsView", "adminView", "aimView", "planeView"]) {
   ok(new RegExp(`el: "${el}"`).test(html), `${el} が画面の表にある`);
 }
 // 画面ではないもの（地点カード・実況）は、これまでどおり個別に切り替える
