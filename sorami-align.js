@@ -515,6 +515,14 @@
   /// 天体の中心と、合わせたい高さ（先端＋半径×合わせ方）との差を段に分ける。`upcoming` と同じ区切り
   const rankOf = (gap, r) => (Math.abs(gap) <= 0.5 * r ? "center"
     : Math.abs(gap) <= r ? "overlap" : Math.abs(gap) <= 2 * r ? "graze" : null);
+  /**
+   * **選んだ合わせ方どおり**とみなすずれ（天体の半径に対する割合）。候補地はこれ以内のものだけを出す（2026-10-02）。
+   * ユーザー「上の縁を選んでるのに上の縁が先端に重ならなかったりする」: それまで半径の2倍ずれた所（縁がかすめる）まで
+   * 「重なる」として出していて、図では選んだ縁が先端から 0.5° 離れていた。半径の2割なら、図でも縁が先端に触れて見える
+   */
+  const LIMB_FIT = 0.2;
+  /// 動ける場所（橋・川岸・公園）は、ずれがここまで小さくなるまで立つ点を詰める
+  const LIMB_EXACT = 0.02;
 
   /**
    * その地点で、`approxAt` の前後に天体が目標の方位を横切る瞬間を解く。
@@ -678,7 +686,9 @@
         const approxAt = p0.at + (p1.at - p0.at) * f;
         const hit = await standOn(place, l, target, body, approxAt, opts, elevationAt);
         // **線の届く範囲に立つものだけ。** 広い公園は端が範囲に掛かると拾うので、立つ点が線の先に出ることがあった
-        if (hit && hit.rank && hit.distanceKm >= minKm * 0.98 && hit.distanceKm <= maxKm * 1.02) out.push({ place, side: l.side, ...hit });
+        // **線の届く範囲に立つものだけ**、そして**選んだ合わせ方どおりに重なるものだけ**（ずれが半径の2割以内）
+        if (hit && hit.rank && Math.abs(hit.gap) <= LIMB_FIT * hit.radius
+          && hit.distanceKm >= minKm * 0.98 && hit.distanceKm <= maxKm * 1.02) out.push({ place, side: l.side, ...hit });
       }
     }
     return out;
@@ -744,7 +754,7 @@
       const elev = (Number.isFinite(e0) ? e0 : 0) + (place.bridgeM ?? 0);
       let c0 = await at(p0, elev);
       if (!c0) return null;
-      if (c0.rank === "center") return c0;
+      if (Math.abs(c0.gap) <= LIMB_EXACT * c0.radius) return c0;
       // 重なる側へ、橋の上を挟み撃ちで詰める
       const ends = [await at(posAt(0), elev), await at(posAt(1), elev)];
       let lo = null, hi = null;
@@ -759,7 +769,7 @@
         const s = lo.s + (hi.s - lo.s) * (lo.c.gap / (lo.c.gap - hi.c.gap));
         const c = await at(posAt(s), elev);
         if (!c) break;
-        if (c.rank === "center") return c;
+        if (Math.abs(c.gap) <= LIMB_EXACT * c.radius) return c;
         if (Math.sign(c.gap) === Math.sign(lo.c.gap)) lo = { s, c }; else hi = { s, c };
       }
       return Math.abs(lo.c.gap) < Math.abs(hi.c.gap) ? lo.c : hi.c;
@@ -796,15 +806,16 @@
       inside = best.p;
     }
     let c = await at(F.ll(inside[0], inside[1]));
-    if (!c || c.rank === "center" || !c.slope) return c;
-    // 横へ1歩。天体の通り道の傾きから、ずれ（gap）を消す方位の差を出して、目標のまわりに回す
-    for (let k = 0; k < 2; k++) {
+    if (!c || !c.slope || Math.abs(c.gap) <= LIMB_EXACT * c.radius) return c;
+    // 横へ1歩ずつ。天体の通り道の傾きから、ずれ（gap）を消す方位の差を出して、目標のまわりに回す。
+    // 中心に入った所で止めず、選んだ縁が先端に触れるまで詰める（それまで半径の半分ずれたまま止めていた。Codex の点検で指摘）
+    for (let k = 0; k < 6; k++) {
       const moved = rotateAround(target, c.stand, -c.gap / c.slope);
       if (!insidePolygon(F.xy(moved.latitude, moved.longitude), ring)) break;
       const c2 = await at(moved);
       if (!c2 || Math.abs(c2.gap) >= Math.abs(c.gap)) break;
       c = c2;
-      if (c.rank === "center") break;
+      if (Math.abs(c.gap) <= LIMB_EXACT * c.radius) break;
     }
     return c;
   }
@@ -1179,7 +1190,7 @@
 
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, FUJI_SPOTS, spotObserver,
-                        crossingNear, candidates, lineOfSight, rankOf, rimOutline, judge, buildingBlock,
+                        crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, judge, buildingBlock,
                         viewProjector, TOWER_SHAPES, towerOutline, viewWindow, viewPath };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;

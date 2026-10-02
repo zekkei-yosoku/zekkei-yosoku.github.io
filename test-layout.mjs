@@ -2907,7 +2907,7 @@ console.log("== 見え方の図（2026-10-02） ==");
   ok(/aimLookRender\(\$\("aimCandLook"\), \{ obs: \{ latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, elevation: c\.stand\.elevationM \},\s*eyeM: 1\.5 \+ \(c\.place\.deckM \|\| 0\), at: c\.at/.test(html),
     "候補地の図は、重なりを解いたときと同じ立つ高さ・時刻で描く");
   ok(/const lookEv = ev\.find\(\(e\) => S\.JstCal\.sameDay\(e\.at, aim\.dayMs\)\) \|\| ev\[0\];/.test(html)
-    && /aimLookRender\(\$\("aimFromLook"\), \{ obs, eyeM: 1\.5, at: lookEv\.at, label: f\.name \}\)/.test(html),
+    && /aimLookRender\(\$\("aimFromLook"\), \{ obs, eyeM: 1\.5, at: lookEv\.at, label: f\.name, atName: /.test(html),
     "どこから重ねるかの地点にも、開いている日（無ければ次）の図");
   ok((html.match(/\$\("aimCandLook"\)\.hidden = true;/g) || []).length >= 3, "候補地が無くなったら図も隠す");
   // 月の明るい縁の向き。写真（2024-11-30 05:54:55）の三日月は左下が光り、計算の 138.3° と合った
@@ -2923,10 +2923,11 @@ console.log("== 見え方の図（2026-10-02） ==");
   const lum = (c) => c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
   ok(lum(sky(-20)[0]) < lum(sky(-7)[0]) && lum(sky(-7)[0]) < lum(sky(0)[0]) && lum(sky(0)[0]) < lum(sky(10)[0]), "夜→薄明→昼で空が明るくなる");
   ok(JSON.stringify(sky(-30)) === JSON.stringify(sky(-18)) && JSON.stringify(sky(40)) === JSON.stringify(sky(8)), "端より先は端の色");
-  const relSrc = /function aimLookRel\(dt\) \{[\s\S]*?\n\}/.exec(html)[0];
+  const relSrc = /function aimLookRel\(dt, name = "重なる"\) \{[\s\S]*?\n\}/.exec(html)[0];
   const rel = new Function(`${relSrc}; return aimLookRel;`)();
   ok(rel(0) === "重なる時刻" && rel(-180000) === "重なる3分前" && rel(20000) === "重なる20秒後" && rel(-80000) === "重なる1分20秒前",
     "選んだ時刻は重なる時刻からの差で言う", [rel(0), rel(-180000), rel(20000), rel(-80000)].join(" / "));
+  ok(rel(-60000, "先端を通る") === "先端を通る1分前", "どこから重ねるかの図は「先端を通る」時刻からの差で言う（選んだ縁が触れるとは限らない）");
   // 形の出どころを書き分ける（Codex: 寸法からの形・推定の模式図・標高データを見た目で区別する）
   ok(/稜線は国土地理院の標高データから/.test(html) && /形は写真から測ったおおよその形/.test(html)
     && /の模式図（幅は推定）/.test(html)
@@ -2950,6 +2951,11 @@ console.log("== 見え方の図（2026-10-02） ==");
   const mid = atFn(0.5);
   ok(mid.at === 10000 && Math.abs(mid.x - 0.5) < 1e-9 && Math.abs(mid.y - 1) < 1e-9, "道の点のあいだは位置と時刻を割り振る", JSON.stringify(mid));
   ok(atFn(1).at === 20000 && atFn(0).at === 0, "端はそのまま");
+  const wrap = new Function("path", `${/const at = \(v\) => \{[\s\S]*?\n  \};/.exec(html)[0]}; return at;`)([
+    { at: 0, x: 0, y: 0, radius: 0.25, altitude: 1, illuminated: 0.1, brightLimbZenithAngle: 359 },
+    { at: 20000, x: 1, y: 1, radius: 0.25, altitude: 1, illuminated: 0.1, brightLimbZenithAngle: 1 }]);
+  const mb = ((wrap(0.5).brightLimbZenithAngle % 360) + 360) % 360;
+  ok(mb < 0.001 || mb > 359.999, "月の向きは 359°→1° を近い方へ回して割り振る（180° にならない）", mb);
   ok(/if \(first\) requestAnimationFrame\(/.test(html), "描き直しは画面の更新1回につき1度");
   ok(/\.aim-look-h > span:first-child \{ flex: 0 0 auto; \}/.test(html), "「見え方」の見出しは折り返さない");
   ok(/if \(!\(part && part\.adjustable\)\) \$\("aimHeightNote"\)\.textContent = "";/.test(html), "高さを直せない目標へ替えたら前の注記を消す");

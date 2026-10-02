@@ -427,5 +427,33 @@ console.log("== 見え方の図（2026-10-02） ==");
   ok(path.every((p) => Number.isFinite(p.brightLimbZenithAngle) && Number.isFinite(p.illuminated)), "月の点は欠けの向きと割合を持つ");
 }
 
+console.log("== 候補地は選んだ合わせ方どおり（2026-10-02） ==");
+// ユーザー「上の縁を選んでるのに上の縁が先端に重ならなかったりする」: 半径の2倍ずれた所まで「重なる」として出していた
+{
+  const fs = await import("node:fs");
+  const A = require("./sorami-astro.js");
+  const j = JSON.parse(fs.readFileSync(new URL("./data/aim-places.json", import.meta.url), "utf8"));
+  const places = j.places.map((r, i) => ({ id: `p${i}`, name: r.n || "", kind: j.kinds[r.k] || "", shape: r.s === "a" ? "area" : r.s === "l" ? "line" : "point",
+    latitude: r.p[0] / 1e5, longitude: r.p[1] / 1e5, elevationM: r.e, deckM: r.d || 0,
+    g: r.g ? r.g.map((v, k) => (j.gRelative ? v + r.p[k % 2] : v)) : null, reachM: 300 }))
+    .filter((p) => Math.abs(p.latitude - 35.7) < 0.35 && Math.abs(p.longitude - 139.8) < 0.45);
+  const sign = { onTop: 1, center: 0, behind: -1 };
+  let worst = 0, n = 0;
+  for (const id of ["skytree", "tokyotower"]) for (const limb of ["onTop", "center", "behind"]) {
+    const t = AL.targetById(id);
+    const lines = await AL.line(t, "sun", Date.parse("2026-10-20T00:00:00+09:00"), { partId: "tip", limb });
+    const cs = await AL.candidates(lines, places, t, "sun", { partId: "tip", limb });
+    for (const c of cs) {
+      const obs = { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM };
+      const eyeM = 1.5 + (c.place.deckM || 0);
+      const st = A.sun(c.at, { ...obs, elevation: obs.elevation + eyeM });
+      const top = AL.towerOutline(obs, t, { eyeM }).topAngle;
+      worst = Math.max(worst, Math.abs(st.apparentAltitude - sign[limb] * st.angularRadius - top) / st.angularRadius);
+      n++;
+    }
+  }
+  ok(n > 50 && worst <= AL.LIMB_FIT + 1e-6, "選んだ縁と先端のずれは半径の2割以内（図でも縁が先端に触れて見える）", `${n}か所・最大 ${worst.toFixed(3)}`);
+}
+
 console.log(`\n${fail === 0 ? "ALIGN OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);
