@@ -82,8 +82,8 @@ console.log("== 線の長さは目標の高さで決まる ==");
   const fuji = AL.lineRange(3776), tink = AL.lineRange(60);
   ok(fuji.maxKm > 100 && fuji.minKm > 5, "富士山は数kmより外〜100km超", JSON.stringify(fuji));
   ok(tink.maxKm <= 8 && tink.minKm < 1, "60mの目標は数km以内", JSON.stringify(tink));
-  // ユーザーの城と満月の写真は 3.7km（見上げ 0.75°）から。そこまで線が届く（2026-10-02 まで 3km で切れていた）
-  ok(AL.lineRange(54).maxKm >= 5, "シンデレラ城の線は 3.7km の撮影地より先まで", JSON.stringify(AL.lineRange(54)));
+  // 城の 3.7km 先の候補地が線の先に浮いていた（2026-10-02 まで 3km で切れていた）。ユーザーの写真も見上げ 0.98°（2.85km）から
+  ok(AL.lineRange(54).maxKm >= 5, "シンデレラ城の線は 3.7km の候補地より先まで", JSON.stringify(AL.lineRange(54)));
   // 候補地は線の届く範囲に立つものだけ（広い公園の端が掛かると、立つ点が線の先に出ていた。ユーザー「地図上の線が届いてないね」）
   {
     const cin = AL.targetById("cinderella");
@@ -334,8 +334,12 @@ console.log("== 見え方の図（2026-10-02） ==");
   ok(Math.abs(m.brightLimbZenithAngle - 138.1) < 3, "明るい縁の向きが写真の三日月（138.1°）と合う", m.brightLimbZenithAngle.toFixed(1));
   ok(m.illuminatedFraction < 0.03, "写真と同じ細い月", `${(m.illuminatedFraction * 100).toFixed(1)}%`);
   ok(o.known && !o.schematic, "ティンカーベルは作り込んだ形");
-  const roofAngle = A.targetElevationAngle(o.distanceKm, 4.3, tb.parts[0].m - 10.45);
-  ok(o.points.some((p) => Math.abs(p[1] - roofAngle) < 1e-6), "屋根は杖の先から10.45m 下");
+  const depth = Math.max(...AL.TOWER_SHAPES.tinkerbell.outline.map(([, d]) => d));
+  ok(Math.abs(depth - 10.4) < 0.1, "屋根の線は杖の先から 10.4m 下（写真）", depth);
+  const roofAngle = A.targetElevationAngle(o.distanceKm, 4.3, tb.parts[0].m - depth);
+  ok(o.points.some((p) => Math.abs(p[1] - roofAngle) < 1e-6), "屋根の線から下はホテルの幅で埋める");
+  const tinkTop = AL.TOWER_SHAPES.tinkerbell.outline.reduce((a, p) => (p[1] < a[1] ? p : a));
+  ok(tinkTop[1] === 0 && tinkTop[0] < 0 && tinkTop[0] > -0.5, "杖の先はドームの軸の少し左（写真で 0.3m）", JSON.stringify(tinkTop));
   ok(o.viewBaseAngle > o.baseAngle && o.viewBaseAngle < roofAngle, "図はドームと像のまわりを拡大する（先端から16m）");
 
   // 4つの形と、他の建物・山
@@ -355,7 +359,18 @@ console.log("== 見え方の図（2026-10-02） ==");
   const cw = AL.TOWER_SHAPES.cinderella.outline;
   ok(Math.max(...cw.map((p) => p[1])) === 51 && cw[0][1] === 0 && cw[cw.length - 1][1] === 0, "写真の輪郭: 尖塔の先が51m、両端は地面まで");
   const span = cw[cw.length - 1][0] - cw[0][0];
-  ok(span > 15 && span < 21, "写真の輪郭の幅（木より上に見える所）", `${span.toFixed(1)}m`);
+  ok(Math.abs(span - 37.6) < 0.5, "地面での幅は建物の広さ（OSM の輪郭をこの向きで見た幅 37.6m）", `${span.toFixed(1)}m`);
+  const upper = cw.filter((p) => p[1] > AL.TOWER_SHAPES.cinderella.hiddenBelowM + 0.1);
+  const upSpan = Math.max(...upper.map((p) => p[0])) - Math.min(...upper.map((p) => p[0]));
+  ok(upSpan > 10 && upSpan < 15, "木より上に見える所は写真の幅", `${upSpan.toFixed(1)}m`);
+  // 写真の場面を再現する: 2024-08-20 19:02:04、城の西北西 2.85km から。尖塔の先は月の中心より 0.26° 上（写真: 上の縁のさらに 0.026° 上）
+  {
+    const spot = TR.destination(ct.latitude, ct.longitude, 284.99, 2.85);
+    const mo = A.moon(Date.UTC(2024, 7, 20, 10, 2, 4), { ...spot, elevation: 2 + 1.5 });
+    const co = AL.towerOutline({ ...spot, elevation: 2 }, ct);
+    ok(Math.abs((co.topAngle - mo.apparentAltitude) - 0.267) < 0.05, "写真どおり尖塔の先が月の上の縁より上に出る", `${(co.topAngle - mo.apparentAltitude).toFixed(3)}°`);
+    ok(Math.abs(((mo.azimuth - co.azimuth + 540) % 360) - 180 - 0.0185) < 0.06, "月の中心は尖塔のすぐ右（写真で 0.019°）", `${(((mo.azimuth - co.azimuth + 540) % 360) - 180).toFixed(3)}°`);
+  }
   const bld = { id: "custom", name: "ビル", latitude: 35.68, longitude: 139.70, groundM: 30, parts: [{ id: "tip", m: 130 }] };
   const sc = AL.towerOutline(TAKAO, bld);
   ok(sc.schematic && !sc.known, "他の建物は模式図");
