@@ -2940,6 +2940,17 @@ console.log("== 見え方の図（2026-10-02） ==");
   ok(/\.aim-look canvas \{ display: block; width: 100%;[^}]*touch-action: pan-y;/.test(html), "図は幅いっぱい。縦のスクロールは止めない");
   ok(/\.aim-look-time input \{[^}]*height: 44px;/.test(html), "つまみは44px の高さ");
   ok(/Math\.round\(cv\.clientWidth\) !== h\._lookW\) aimLookRender/.test(html), "幅が変わったときだけ描き直す（スクロールの resize で選んだ時刻を戻さない）");
+  // ユーザー録画（2026-10-02）: 字の幅でつまみの棒が伸び縮みしていた・20秒ごとに円盤が飛んでいた
+  ok(/\.aim-look-time output \{ flex: 0 0 6\.6rem; width: 6\.6rem;[^}]*white-space: nowrap;/.test(html), "時刻の字の欄は幅を決めておく（つまみの長さが変わらない）");
+  ok(/step="any" value="0" data-look-range/.test(html), "つまみは刻みなしで動く");
+  const atSrc = /const at = \(v\) => \{[\s\S]*?\n  \};/.exec(html)[0];
+  const path = [{ at: 0, x: 0, y: 0, radius: 0.25, altitude: 1, illuminated: 0.5, brightLimbZenithAngle: 90 },
+                { at: 20000, x: 1, y: 2, radius: 0.25, altitude: 2, illuminated: 0.5, brightLimbZenithAngle: 90 }];
+  const atFn = new Function("path", `${atSrc}; return at;`)(path);
+  const mid = atFn(0.5);
+  ok(mid.at === 10000 && Math.abs(mid.x - 0.5) < 1e-9 && Math.abs(mid.y - 1) < 1e-9, "道の点のあいだは位置と時刻を割り振る", JSON.stringify(mid));
+  ok(atFn(1).at === 20000 && atFn(0).at === 0, "端はそのまま");
+  ok(/if \(first\) requestAnimationFrame\(/.test(html), "描き直しは画面の更新1回につき1度");
   ok(/\.aim-look-h > span:first-child \{ flex: 0 0 auto; \}/.test(html), "「見え方」の見出しは折り返さない");
   ok(/if \(!\(part && part\.adjustable\)\) \$\("aimHeightNote"\)\.textContent = "";/.test(html), "高さを直せない目標へ替えたら前の注記を消す");
   ok(/if \(c && d > 0\.05\) \{/.test(html), "地図の中心が目標そのものなら見上げ角を出さない（0km先から -90°）");

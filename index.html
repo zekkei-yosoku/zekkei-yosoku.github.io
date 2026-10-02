@@ -708,8 +708,9 @@
                      touch-action: pan-y; }
   .aim-look-time { display: flex; align-items: center; gap: 10px; }
   .aim-look-time input { flex: 1; min-width: 0; height: 44px; accent-color: var(--accent); }
-  .aim-look-time output { flex: 0 0 auto; font-size: 0.88rem; font-weight: 700; color: var(--text);
-                          text-align: right; font-variant-numeric: tabular-nums; }
+  /* 字の欄は幅を決めておく。「重なる9分前」「重なる12分40秒後」で幅が変わり、つまみの棒が伸び縮みしていた（2026-10-02 ユーザー録画） */
+  .aim-look-time output { flex: 0 0 6.6rem; width: 6.6rem; font-size: 0.88rem; font-weight: 700; color: var(--text);
+                          text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .aim-look-time output .sub-line { display: block; font-size: 0.69rem; font-weight: 400; color: var(--secondary); }
   .aim-look-note { margin-top: 0; color: var(--tertiary); }
   .aim-day { min-height: 32px; padding: 4px 10px; border-radius: 9px; background: var(--sunk);
@@ -1606,21 +1607,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002193040"></script>
+<script src="sorami-core.js?v=20261002194410"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002193040"></script>
-<script src="sorami-exif.js?v=20261002193040"></script>
-<script src="sorami-capcloud.js?v=20261002193040"></script>
-<script src="sorami-terrain.js?v=20261002193040"></script>
-<script src="sorami-mountain.js?v=20261002193040"></script>
-<script src="sorami-fuji.js?v=20261002193040"></script>
-<script src="sorami-sky.js?v=20261002193040"></script>
-<script src="sorami-routes.js?v=20261002193040"></script>
-<script src="sorami-iss.js?v=20261002193040"></script>
-<script src="sorami-plane.js?v=20261002193040"></script>
-<script src="sorami-align.js?v=20261002193040"></script>
-<script src="sorami-moon.js?v=20261002193040"></script>
+<script src="sorami-astro.js?v=20261002194410"></script>
+<script src="sorami-exif.js?v=20261002194410"></script>
+<script src="sorami-capcloud.js?v=20261002194410"></script>
+<script src="sorami-terrain.js?v=20261002194410"></script>
+<script src="sorami-mountain.js?v=20261002194410"></script>
+<script src="sorami-fuji.js?v=20261002194410"></script>
+<script src="sorami-sky.js?v=20261002194410"></script>
+<script src="sorami-routes.js?v=20261002194410"></script>
+<script src="sorami-iss.js?v=20261002194410"></script>
+<script src="sorami-plane.js?v=20261002194410"></script>
+<script src="sorami-align.js?v=20261002194410"></script>
+<script src="sorami-moon.js?v=20261002194410"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6845,7 +6846,7 @@ async function aimLookRender(host, spec) {
   if (!host.querySelector("canvas")) {
     host.innerHTML = `<div class="aim-look-h"><span>見え方</span><span class="tiny" data-look-who></span></div>
       <canvas data-look-canvas role="img"></canvas>
-      <div class="aim-look-time"><input type="range" min="0" max="0" step="1" value="0" data-look-range aria-label="時刻を動かす">
+      <div class="aim-look-time"><input type="range" min="0" max="0" step="any" value="0" data-look-range aria-label="時刻を動かす">
         <output data-look-at></output></div>
       <p class="tiny aim-look-note" data-look-note></p>`;
   }
@@ -6910,8 +6911,19 @@ async function aimLookRender(host, spec) {
       : schematic ? `建物は高さ${Math.round(top.m - (t.groundM || 0))}mの模式図（幅は推定）` : "",
     "高さは大気の屈折を含む"].filter(Boolean).join(" ・ ");
   range.max = String(path.length - 1);
-  const draw = (i) => {
-    const p = path[i];
+  // つまみは刻みなしで動かし、道の点（20秒ごと）のあいだは位置と時刻を割り振って埋める
+  // （2026-10-02 ユーザー「もっと滑らかに動作するようにできないの？」。20秒ごとに円盤が飛んでいた）
+  const at = (v) => {
+    const i = Math.max(0, Math.min(path.length - 1, Math.floor(v))), j = Math.min(path.length - 1, i + 1), f = v - i;
+    const a = path[i], b = path[j];
+    if (!f || a.x === null || b.x === null) return a;
+    const mix = (u, w) => (u === null || w === null ? u : u + (w - u) * f);
+    return { ...a, at: Math.round(mix(a.at, b.at) / 1000) * 1000, x: mix(a.x, b.x), y: mix(a.y, b.y), radius: mix(a.radius, b.radius),
+      altitude: mix(a.altitude, b.altitude), illuminated: mix(a.illuminated, b.illuminated),
+      brightLimbZenithAngle: mix(a.brightLimbZenithAngle, b.brightLimbZenithAngle) };
+  };
+  const draw = (v) => {
+    const p = at(v);
     const sunAlt = body === "sun" ? p.altitude : SoramiAstro.sun(p.at, eyeObs).apparentAltitude;
     const [skyTop, skyLow] = aimLookSky(sunAlt);
     const bright = (skyTop[0] * 0.3 + skyTop[1] * 0.59 + skyTop[2] * 0.11) > 120;
@@ -7006,7 +7018,13 @@ async function aimLookRender(host, spec) {
       + `${aimLookHMS(spec.at)}に重なる。いまの図は${aimLookHMS(p.at)}`);
   };
   range.value = String(i0);
-  range.oninput = () => draw(Number(range.value));
+  // 描き直しは画面の更新1回につき1度にまとめる（指で速く動かすと input が描くより速く来る）
+  let pending = null;
+  range.oninput = () => {
+    const first = pending === null;
+    pending = Number(range.value);
+    if (first) requestAnimationFrame(() => { const v = pending; pending = null; draw(v); });
+  };
   // 道をさわって時刻を選ぶ（いちばん近い点。36px より遠ければ何もしない）。
   // pointerdown では iPhone の指のタップで動かなかった（2026-10-02 シミュレーターで確認。マウスでは動く）ので click で受ける
   cv.onclick = (ev) => {
