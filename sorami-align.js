@@ -1135,11 +1135,13 @@
     const points = outline ? outline.map(([x, h]) => [az0 + daz(x), ang(h)])
       : [...shape.map(([h, w]) => [az0 - daz(w), ang(h)]), ...shape.slice().reverse().map(([h, w]) => [az0 + daz(w), ang(h)])];
     const from = TOWER_SHAPES[target.id] && TOWER_SHAPES[target.id].viewFromTopM;
-    // 形の材料で見えていない下の方（城の木に隠れた所）の上端。図ではそこから下を薄く描く
+    // 形の材料で見えていない下の方（城の木に隠れた所）の上端。図ではそこから下を地面として塗る
     const hidden = TOWER_SHAPES[target.id] && TOWER_SHAPES[target.id].hiddenBelowM;
     const hiddenM = hidden ? hidden * top / Math.max(...TOWER_SHAPES[target.id].outline.map(([, h]) => h)) : null;
+    // 図の下の端: ティンカーベルはドームと像のまわり、城は木の線（そこから下は地面として塗るので図に入れない）
     return { points, schematic, known: !!TOWER_SHAPES[target.id], azimuth: az0, distanceKm: d,
-      baseAngle: ang(0), topAngle: ang(top), viewBaseAngle: from ? ang(Math.max(0, top - from)) : ang(0),
+      baseAngle: ang(0), topAngle: ang(top),
+      viewBaseAngle: from ? ang(Math.max(0, top - from)) : hiddenM !== null ? ang(hiddenM) : ang(0),
       hiddenAngle: hiddenM !== null ? ang(hiddenM) : null };
   }
 

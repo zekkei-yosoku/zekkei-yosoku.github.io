@@ -2932,6 +2932,8 @@ console.log("== 見え方の図（2026-10-02） ==");
   ok(/稜線は国土地理院の標高データから/.test(html) && /形は写真から測ったおおよその形/.test(html)
     && /の模式図（幅は推定）/.test(html)
     && /のシルエットを写真の縮尺に合わせたもの`/.test(html) && /形は城のシルエットを写真の縮尺に合わせたもの/.test(html), "形の出どころを書く");
+  ok(/const groundY = hiddenY !== null \? Math\.min\(hiddenY, baseY\) : baseY;/.test(html) && !/globalAlpha = 0\.45; outlinePath/.test(html),
+    "木に隠れた所（城の地上18mより下）は薄い形を描かず、地面の帯をその高さまで上げる（ユーザー指摘）");
   ok(/円盤は形の後ろ（形で隠れる）/.test(html) && /ctx\.setLineDash\(\[3, 3\]\)/.test(html), "円盤は形の後ろ、隠れた所は点線の輪");
   ok(/ctx\.fillStyle = bright \? "rgba\(16,20,30,0\.94\)" : "#020306";/.test(html) && /const rim = bright \? null : /.test(html),
     "暗い空では形を空より暗く塗り、縁を明るい線でなぞる（夜空と見分けにくかった）");

@@ -1607,21 +1607,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002195822"></script>
+<script src="sorami-core.js?v=20261002200102"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002195822"></script>
-<script src="sorami-exif.js?v=20261002195822"></script>
-<script src="sorami-capcloud.js?v=20261002195822"></script>
-<script src="sorami-terrain.js?v=20261002195822"></script>
-<script src="sorami-mountain.js?v=20261002195822"></script>
-<script src="sorami-fuji.js?v=20261002195822"></script>
-<script src="sorami-sky.js?v=20261002195822"></script>
-<script src="sorami-routes.js?v=20261002195822"></script>
-<script src="sorami-iss.js?v=20261002195822"></script>
-<script src="sorami-plane.js?v=20261002195822"></script>
-<script src="sorami-align.js?v=20261002195822"></script>
-<script src="sorami-moon.js?v=20261002195822"></script>
+<script src="sorami-astro.js?v=20261002200102"></script>
+<script src="sorami-exif.js?v=20261002200102"></script>
+<script src="sorami-capcloud.js?v=20261002200102"></script>
+<script src="sorami-terrain.js?v=20261002200102"></script>
+<script src="sorami-mountain.js?v=20261002200102"></script>
+<script src="sorami-fuji.js?v=20261002200102"></script>
+<script src="sorami-sky.js?v=20261002200102"></script>
+<script src="sorami-routes.js?v=20261002200102"></script>
+<script src="sorami-iss.js?v=20261002200102"></script>
+<script src="sorami-plane.js?v=20261002200102"></script>
+<script src="sorami-align.js?v=20261002200102"></script>
+<script src="sorami-moon.js?v=20261002200102"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6952,7 +6952,7 @@ async function aimLookRender(host, spec) {
   const known = outline && outline.known, schematic = outline && outline.schematic;
   note.textContent = [
     mountain ? (shape ? "稜線は国土地理院の標高データから" : "稜線を読み込めませんでした")
-      : t.id === "cinderella" ? "形は城のシルエットを写真の縮尺に合わせたもの（薄い所は木に隠れて見えない部分）"
+      : t.id === "cinderella" ? "形は城のシルエットを写真の縮尺に合わせたもの（地上18mより下は木に隠れるので地面として塗る）"
       : t.id === "tinkerbell" ? "形は写真から測ったおおよその形"
       : known ? `形は${t.id === "skytree" ? "スカイツリー" : t.name}のシルエットを写真の縮尺に合わせたもの`
       : schematic ? `建物は高さ${Math.round(top.m - (t.groundM || 0))}mの模式図（幅は推定）` : "",
@@ -7015,25 +7015,19 @@ async function aimLookRender(host, spec) {
         }
         ctx.closePath();
       };
-      if (hiddenY === null) { outlinePath(); ctx.fill(); }
-      else {
-        // 形の材料で見えていない下の方（城の木に隠れた所）は薄く描く
-        ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, hiddenY); ctx.clip(); outlinePath(); ctx.fill(); ctx.restore();
-        ctx.save(); ctx.beginPath(); ctx.rect(0, hiddenY, W, H - hiddenY); ctx.clip(); ctx.globalAlpha = 0.45; outlinePath(); ctx.fill(); ctx.restore();
-      }
+      outlinePath(); ctx.fill();
     }
-    if (!mountain) ctx.fillRect(0, baseY, W, H - baseY + 2);
+    // 地面の帯。城のように木に隠れて形が分からない所がある目標は、その高さ（木の線）から下を地面として塗る
+    // （2026-10-02 ユーザー「このグレーの下の部分って表示しなくて良いと思う」。薄く描いた推定の形を外した）
+    const groundY = hiddenY !== null ? Math.min(hiddenY, baseY) : baseY;
+    if (!mountain) ctx.fillRect(0, groundY, W, H - groundY + 2);
     if (rim && shape && shape.length > 1) {
       ctx.save();
       ctx.strokeStyle = rim; ctx.lineWidth = 1.2; ctx.lineJoin = "round";
       const rimPath = () => { ctx.beginPath(); ctx.moveTo(shape[0][0], shape[0][1]); for (const [x, y] of shape) ctx.lineTo(x, y); };
-      if (hiddenY === null) { rimPath(); ctx.stroke(); }
-      else {
-        // 木に隠れて見えない所は、縁の線も薄く（塗りと同じ。Codex の点検で指摘）
-        ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, hiddenY); ctx.clip(); rimPath(); ctx.stroke(); ctx.restore();
-        ctx.save(); ctx.beginPath(); ctx.rect(0, hiddenY, W, H - hiddenY); ctx.clip(); ctx.globalAlpha = 0.45; rimPath(); ctx.stroke(); ctx.restore();
-      }
-      if (!mountain) { ctx.beginPath(); ctx.moveTo(0, baseY); ctx.lineTo(W, baseY); ctx.stroke(); }
+      // 地面の帯より下の縁は描かない
+      ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, mountain ? H : groundY); ctx.clip(); rimPath(); ctx.stroke(); ctx.restore();
+      if (!mountain) { ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(W, groundY); ctx.stroke(); }
       ctx.restore();
     }
     // 形に隠れた所も分かるように、円盤の輪を明るい点線で（暗い形の上でも見える色）
