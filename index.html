@@ -1576,21 +1576,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002084935"></script>
+<script src="sorami-core.js?v=20261002090225"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002084935"></script>
-<script src="sorami-exif.js?v=20261002084935"></script>
-<script src="sorami-capcloud.js?v=20261002084935"></script>
-<script src="sorami-terrain.js?v=20261002084935"></script>
-<script src="sorami-mountain.js?v=20261002084935"></script>
-<script src="sorami-fuji.js?v=20261002084935"></script>
-<script src="sorami-sky.js?v=20261002084935"></script>
-<script src="sorami-routes.js?v=20261002084935"></script>
-<script src="sorami-iss.js?v=20261002084935"></script>
-<script src="sorami-plane.js?v=20261002084935"></script>
-<script src="sorami-align.js?v=20261002084935"></script>
-<script src="sorami-moon.js?v=20261002084935"></script>
+<script src="sorami-astro.js?v=20261002090225"></script>
+<script src="sorami-exif.js?v=20261002090225"></script>
+<script src="sorami-capcloud.js?v=20261002090225"></script>
+<script src="sorami-terrain.js?v=20261002090225"></script>
+<script src="sorami-mountain.js?v=20261002090225"></script>
+<script src="sorami-fuji.js?v=20261002090225"></script>
+<script src="sorami-sky.js?v=20261002090225"></script>
+<script src="sorami-routes.js?v=20261002090225"></script>
+<script src="sorami-iss.js?v=20261002090225"></script>
+<script src="sorami-plane.js?v=20261002090225"></script>
+<script src="sorami-align.js?v=20261002090225"></script>
+<script src="sorami-moon.js?v=20261002090225"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2909,12 +2909,25 @@ function pick(id, now, dayMs) {
 /// 同じ画面をメニューから開き直すと履歴は増えないのに数だけ増えた。
 /// 数がずれると、一覧へ戻るつもりでアプリの外まで戻ってしまう。
 /// 履歴そのものに持たせれば、戻る・進むでも必ず合う。
+///
+/// **ホーム画面に置いた iPhone のアプリでは、ブラウザの履歴を積まない**（2026-10-02 ユーザー「縁を内側にスライドさせたら、
+/// 戻る・進むを無効化しないとメニューが開かないことあるぞ」）。履歴があると、左の端からなぞったとき iOS の「戻る」が先に取り、
+/// メニューが開かない（一覧では開く＝戻る先が無いとき）。ページから iOS の戻る・進むは止められないので、戻る先を作らない。
+/// ひとつ前の画面はアプリの中で覚える（appTrail）。Safari のタブでは今までどおり積む（Safari の戻るボタンで戻れるように）。
+/// Android はホーム画面のアプリでも端のなぞりが OS の「戻る」なので積む（積まないとアプリから出てしまう）
+const NO_HISTORY = navigator.standalone === true;
+const appTrail = [];   // NO_HISTORY のときの来た道（前の画面の hash。一覧は ""）
 function pushRoute(hash) {
   closeTools();
   if (location.hash === hash) return;
-  const depth = ((history.state && history.state.depth) || 0) + 1;
-  history.pushState({ depth }, "", hash);
-  applyRoute();   // pushState は hashchange を起こさない
+  if (NO_HISTORY) {
+    appTrail.push(location.hash);
+    history.replaceState({ depth: appTrail.length }, "", hash);
+  } else {
+    const depth = ((history.state && history.state.depth) || 0) + 1;
+    history.pushState({ depth }, "", hash);
+  }
+  applyRoute();   // pushState・replaceState は hashchange を起こさない
 }
 
 /// 一覧へ戻る。**何画面進んでいても一度で戻る**（2026-10-01）。
@@ -2923,13 +2936,21 @@ function pushRoute(hash) {
 /// 履歴は増やさない（増やすと、一覧でブラウザの戻るを押したときに道具の画面へ戻ってしまう）。
 /// ひとつ前の画面へ。前がアプリの中に無ければ（URL を直接開いた画面）一覧へ
 function goBack() {
+  if (NO_HISTORY) {
+    const prev = appTrail.pop();
+    if (!prev) { goList(); return; }
+    history.replaceState({ depth: appTrail.length }, "", prev);
+    applyRoute();
+    return;
+  }
   if ((history.state && history.state.depth) > 0) history.back();
   else goList();
 }
 
 let toListAfterBack = false;
 function goList() {
-  const depth = (history.state && history.state.depth) || 0;
+  if (NO_HISTORY) appTrail.length = 0;
+  const depth = NO_HISTORY ? 0 : (history.state && history.state.depth) || 0;
   if (depth > 0) { toListAfterBack = true; history.go(-depth); return; }
   if (routeFromHash()) { history.replaceState(null, "", location.pathname + location.search); applyRoute(); }
 }
@@ -2962,6 +2983,14 @@ function applyRoute() {
   // 以前は「詳細と記録だけ先頭」としていたので、道具の画面が一覧の途中の位置で開いていた（2026-10-01）
   window.scrollTo(0, currentView === "list" ? listScrollY : 0);
 }
+// アプリの中のリンク（#/capCloud など）も pushRoute で進める。リンクのまま進むと、深さを持たない履歴が積まれ
+// （「← 戻る」が一覧まで飛ぶ）、ホーム画面のアプリでは iOS の戻るが端のなぞりを取る
+document.addEventListener("click", (e) => {
+  const a = e.target.closest && e.target.closest('a[href^="#/"]');
+  if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+  e.preventDefault();
+  pushRoute(a.getAttribute("href"));
+});
 window.addEventListener("hashchange", () => {
   closeTools();
   if (toListAfterBack) {

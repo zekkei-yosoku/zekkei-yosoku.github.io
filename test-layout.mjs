@@ -965,7 +965,7 @@ ok(/\$\("homeLink"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \}/.test(
   ok(!/#backLink \{[^}]*(background|border)/.test(code), "囲わない（地も枠も付けない）");
   ok(/\$\("backBar"\)\.hidden = view === "list";/.test(html), "一覧以外の画面で出す");
   ok(/\$\("backLink"\)\.onclick = \(\) => \{ closeTools\(\); goBack\(\); \}/.test(html), "ひとつ前の画面へ戻る");
-  ok(/function goBack\(\) \{\s+if \(\(history\.state && history\.state\.depth\) > 0\) history\.back\(\);\s+else goList\(\);/.test(html),
+  ok(/  if \(\(history\.state && history\.state\.depth\) > 0\) history\.back\(\);\s+else goList\(\);\n\}/.test(html),
     "前がアプリの中に無ければ（URL を直接開いた画面）一覧へ");
   ok(!/\.masthead h1"\)\.hidden/.test(html), "題名は隠さない");
 }
@@ -975,6 +975,41 @@ ok(!/pushedCount/.test(html), "進めた回数を変数で数えない");
 ok(/history\.pushState\(\{ depth \}, "", hash\)/.test(html), "履歴そのものに何画面目かを持たせる");
 ok(/if \(depth > 0\) \{ toListAfterBack = true; history\.go\(-depth\); return; \}/.test(html), "何画面進んでいても一度で一覧へ戻る");
 ok(!/location\.hash = /.test(html), "画面を進めるのは pushRoute だけ（深さを持たない履歴を作らない）");
+{
+  // ホーム画面に置いた iPhone のアプリでは履歴を積まない（2026-10-02 ユーザー「縁を内側にスライドさせたら、戻る・進むを無効化しないと
+  // メニューが開かないことあるぞ」）。偽の history・location で、pushRoute・goBack・goList を実際に動かす
+  const s0 = html.indexOf("const NO_HISTORY"), g0 = html.indexOf("function goList", s0);
+  const src = [html.slice(s0, html.indexOf("\n}", g0) + 2).replace(/^const NO_HISTORY[^\n]*\n/, "")];
+  ok(/const NO_HISTORY = navigator\.standalone === true;/.test(html), "iPhone のホーム画面のアプリだけ（navigator.standalone）");
+  const run = (noHistory) => {
+    const log = [];
+    const loc = { hash: "", pathname: "/", search: "" };
+    const hist = { state: null,
+      pushState(st, _t, u) { log.push("push"); this.state = st; loc.hash = u; },
+      replaceState(st, _t, u) { log.push("replace"); this.state = st; loc.hash = u.startsWith("#") ? u : ""; },
+      back() { log.push("back"); }, go(n) { log.push(`go${n}`); } };
+    const f = new Function("NO_HISTORY", "history", "location", "closeTools", "applyRoute", "routeFromHash",
+      `${src.join("\n")}; return { pushRoute, goBack, goList, trail: appTrail };`);
+    const r = f(noHistory, hist, loc, () => {}, () => log.push(`show${loc.hash || "list"}`), () => (loc.hash ? {} : null));
+    return { r, log, loc };
+  };
+  const a = run(true);
+  a.r.pushRoute("#/aim/tower"); a.r.pushRoute("#/sky");
+  ok(!a.log.includes("push"), "履歴を積まない（iOS の戻る・進むに戻る先を作らない）", a.log.join(" "));
+  a.r.goBack();
+  ok(a.loc.hash === "#/aim/tower" && a.log.at(-1) === "show#/aim/tower", "「← 戻る」はひとつ前の画面へ（アプリの中で覚えた道）", a.log.join(" "));
+  a.r.pushRoute("#/plane"); a.r.goList();
+  ok(a.loc.hash === "" && a.r.trail.length === 0 && !a.log.some((x) => /^go-|^back$/.test(x)), "一覧へは1回で（履歴をさかのぼらない）", a.log.join(" "));
+  a.r.goBack();
+  ok(a.loc.hash === "", "一覧で「← 戻る」を押しても外へ出ない");
+  const b = run(false);
+  b.r.pushRoute("#/aim/tower"); b.r.pushRoute("#/sky");
+  ok(b.log.filter((x) => x === "push").length === 2 && b.r.trail.length === 0, "Safari のタブでは今までどおり履歴を積む（Safari の戻るボタン）");
+  b.r.goBack();
+  ok(b.log.at(-1) === "back", "Safari のタブの「← 戻る」は履歴をひとつ戻す");
+  ok(/document\.addEventListener\("click", \(e\) => \{\s+const a = e\.target\.closest && e\.target\.closest\('a\[href\^="#\/"\]'\);[\s\S]{0,200}pushRoute\(a\.getAttribute\("href"\)\);/.test(html),
+    "アプリの中のリンク（#/capCloud など）も pushRoute で進める");
+}
 ok(!/この先7日/.test(html), "戻り先を日数で呼ばない（詳細にも同じ7日間がある）");
 
 // 記録はホームに置いていた。判断に使わないものを、判断する画面に混ぜない。
