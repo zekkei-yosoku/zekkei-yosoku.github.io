@@ -357,9 +357,19 @@
   .scrollx { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
   .outcome { display: flex; gap: 8px; }
-  .outcome button { flex: 1; text-align: center; font-size: 0.81rem; font-weight: 500; padding: 9px 0;
+  .outcome button { flex: 1; text-align: center; font-size: 0.81rem; font-weight: 500; padding: 9px 0; min-height: 44px;
                     border-radius: 9px; background: var(--line); }
   .outcome button.on { background: var(--accent); color: var(--on-accent); }
+  /* 違ったときのゲージ。予測の位置に細い印を置く（予測からどれだけ違ったかが見える） */
+  .answer-gauge { margin-top: 8px; }
+  .gauge-track { position: relative; }
+  .gauge-track input { width: 100%; height: 44px; accent-color: var(--accent); }
+  .gauge-pred { position: absolute; top: 6px; bottom: 6px; width: 2px; margin-left: -1px; border-radius: 1px;
+                background: var(--secondary); opacity: .55; pointer-events: none; }
+  .gauge-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .gauge-foot output { font-size: 0.94rem; font-weight: 700; color: var(--text); min-width: 0; }
+  .gauge-foot output .sub-line { font-weight: 400; }
+  .gauge-foot button { flex: 0 0 auto; width: auto; padding: 0 14px; min-height: 44px; }
 
   /* margin: auto は既定でモーダルを中央に置くための指定。38行目の `* { margin: 0 }` に
      消されていて、PCでは左上に貼り付いていた。 */
@@ -1576,21 +1586,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002090225"></script>
+<script src="sorami-core.js?v=20261002095436"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002090225"></script>
-<script src="sorami-exif.js?v=20261002090225"></script>
-<script src="sorami-capcloud.js?v=20261002090225"></script>
-<script src="sorami-terrain.js?v=20261002090225"></script>
-<script src="sorami-mountain.js?v=20261002090225"></script>
-<script src="sorami-fuji.js?v=20261002090225"></script>
-<script src="sorami-sky.js?v=20261002090225"></script>
-<script src="sorami-routes.js?v=20261002090225"></script>
-<script src="sorami-iss.js?v=20261002090225"></script>
-<script src="sorami-plane.js?v=20261002090225"></script>
-<script src="sorami-align.js?v=20261002090225"></script>
-<script src="sorami-moon.js?v=20261002090225"></script>
+<script src="sorami-astro.js?v=20261002095436"></script>
+<script src="sorami-exif.js?v=20261002095436"></script>
+<script src="sorami-capcloud.js?v=20261002095436"></script>
+<script src="sorami-terrain.js?v=20261002095436"></script>
+<script src="sorami-mountain.js?v=20261002095436"></script>
+<script src="sorami-fuji.js?v=20261002095436"></script>
+<script src="sorami-sky.js?v=20261002095436"></script>
+<script src="sorami-routes.js?v=20261002095436"></script>
+<script src="sorami-iss.js?v=20261002095436"></script>
+<script src="sorami-plane.js?v=20261002095436"></script>
+<script src="sorami-align.js?v=20261002095436"></script>
+<script src="sorami-moon.js?v=20261002095436"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1840,6 +1850,7 @@ function cleanSighting(r) {
   const num = (v, lo, hi) => (Number.isFinite(v) && v >= lo && v <= hi ? v : null);
   return { ...r, placeName: isText(r.placeName) ? r.placeName : "",
     outcome: isText(r.outcome) ? r.outcome : "unchecked",
+    actualScore: Number.isFinite(r.actualScore) && r.actualScore >= 0 && r.actualScore <= 100 ? Math.round(r.actualScore) : null,
     score: Number.isFinite(r.score) ? r.score : 0,
     observedAtMs: num(r.observedAtMs, 0, 4102444800000),      // 2100年まで
     photoLatitude: num(r.photoLatitude, -90, 90),
@@ -2600,7 +2611,7 @@ function wireAlignmentJump(root) {
 //
 // 小さくても残す意味はある。**採点のしかたを変えたとき、付け直せるのは写真だけ**で、
 // 「あの日は何点だった」という記憶は残らない。
-const photoDraft = { file: null, thumb: null, tile: null, exif: null, width: 0, height: 0 };
+const photoDraft = { file: null, thumb: null, tile: null, exif: null, width: 0, height: 0, round: null };
 
 /**
  * 長辺 `max` px に縮めた JPEG を data URL で返す。
@@ -2650,8 +2661,11 @@ async function photoAttach(file) {
  * その日の予測が手元に無くても、見たものは記録できる
  * （予測との突き合わせは、予測があった回だけの話）。
  */
-async function openPhotoSheet(file) {
+/// round: 「実際はどうでしたか？」の 📷 から開いたとき、その回（{ pid, peak, score }）。現象・時刻・点数を入れて開き、
+/// 保存したらその回の答えと写真の時刻・位置も記録する
+async function openPhotoSheet(file, round = null) {
   if (!requireLogin("記録")) return;
+  photoDraft.round = round;
   photoDraft.file = null; photoDraft.exif = null; photoDraft.thumb = null; photoDraft.tile = null;
   photoDraft.width = 0; photoDraft.height = 0;
   $("photoPreview").hidden = true;
@@ -2665,9 +2679,11 @@ async function openPhotoSheet(file) {
     .map(([id, m]) => `<option value="${id}">${esc(m.name)}</option>`).join("");
   // いま見ている現象があれば、それを初期値に
   if (picked && S.PHENOMENA[picked]) $("photoPhenom").value = picked;
+  if (round) $("photoPhenom").value = round.pid;
 
-  $("photoScore").value = "70";
-  $("photoScoreOut").textContent = "70";
+  const score = String(round ? Math.round(round.score) : 70);
+  $("photoScore").value = score;
+  $("photoScoreOut").textContent = score;
   $("photoNote").value = "";
 
   photoFillFromExif();
@@ -2679,7 +2695,7 @@ function photoFillFromExif() {
   const at = photoAt();
   const iso = (ms) => new Date(ms + tzOffsetMs()).toISOString().slice(0, 16);
   // 写真から時刻が読めればそれ、無ければ「いま」。どちらも過去へ直せる
-  $("photoWhen").value = iso(at ?? Date.now());
+  $("photoWhen").value = iso(at ?? photoDraft.round?.peak ?? Date.now());
   const r = photoDraft.exif;
   $("photoWhere").value = r && Number.isFinite(r.latitude)
     ? `${r.latitude.toFixed(5)}, ${r.longitude.toFixed(5)}`
@@ -2727,6 +2743,30 @@ function photoAt() {
   return offsetMin !== null ? SoramiExif.instantFrom(r.takenLocal, offsetMin) : null;
 }
 
+/**
+ * 写真の時刻・位置を、その回の記録に足す形へ。**入力欄が正本**（写真から入れた値も手で直したらそちら）。
+ *
+ * 写真の標高から「地上何mで撮ったか」も出す。
+ * **写真の GPSAltitude は Geolocation API の高度とは別物。**
+ * 前者は標高（ジオイド補正済み）、後者は仕様どおり楕円体高で、
+ * 日本ではジオイドぶん 32〜38m ずれる。実測（iPhone・庄内）では
+ * 写真の標高 27.8m に対し DEM 29.2m で **1.4m** しか違わなかった
+ * （同じ端末のライブ高度は 31.8m ずれていた）。
+ * ただし**1枚での確認**なので、これだけで設定を書き換えず、食い違いを知らせるに留める。
+ * 時刻が分かると、採点の時間帯の中で撮られたかが分かる（雲海の正例162日のうち44日は窓の外で撮られていた。02_検証結果）
+ */
+async function photoShot(body) {
+  const r = photoDraft.exif;
+  let aglM = null;
+  if (Number.isFinite(body.altitude) && Number.isFinite(body.latitude)) {
+    try {
+      const g = await SoramiTerrain.elevationFromTile(body.latitude, body.longitude, 13);
+      if (Number.isFinite(g)) aglM = body.altitude - g;
+    } catch { /* 標高タイルが引けなくても記録は残す */ }
+  }
+  return { observedAtMs: body.takenAt, observedOffsetKnown: r ? r.offsetKnown : null,
+    photoLatitude: body.latitude, photoLongitude: body.longitude, photoAltitudeM: body.altitude, photoAglM: aglM };
+}
 $("photoPick").onclick = () => openPhotoSheet(null);
 $("photoChoose").onclick = (e) => { e.preventDefault(); $("photoFile").click(); };
 $("photoFile").onchange = async () => {
@@ -2757,6 +2797,13 @@ $("photoSave").onclick = async (e) => {
   $("photoSave").disabled = true;
   try {
     await apiCall("POST", "/photos", body);
+    // 「実際はどうでしたか？」から開いたときは、その回の答え（この点数）と写真の時刻・位置も記録する。
+    // 現象を選び直したら、その回とは別の記録なので答えにしない
+    const round = photoDraft.round;
+    if (round && body.phenomenon === round.pid) {
+      recordAnswer(round.pid, round.peak, body.score, await photoShot(body));
+    }
+    photoDraft.round = null;
     $("photoSheet").close();
     await loadPhotos();
   } catch (err) {
@@ -2801,74 +2848,38 @@ function renderPhotos() {
 function wireOutcomes(root) {
   // **記録もログインして使う。** サーバーに持つものなので、
   // 端末にだけ貯めて消えるより、入口で止めて案内したほうがよい
-  for (const el of root.querySelectorAll("[data-outcome]")) {
-    el.onclick = () => {
-      if (!requireLogin("記録")) return;
-      recordOutcome(el.dataset.pid, +el.dataset.peak, el.dataset.outcome);
-    };
-  }
-  for (const el of root.querySelectorAll("[data-shot-pid]")) {
-    el.onchange = () => {
-      if (!requireLogin("記録")) { el.value = ""; return; }
-      readShot(el, el.dataset.shotPid, +el.dataset.shotPeak);
+  for (const box of root.querySelectorAll(".answer")) {
+    const pid = box.dataset.pid, peak = +box.dataset.peak, pred = +box.dataset.pred;
+    const gauge = box.querySelector("[data-gauge]"), out = box.querySelector("[data-gauge-out]");
+    gauge.oninput = () => { out.innerHTML = answerHtml(pid, +gauge.value, pred); };
+    for (const b of box.querySelectorAll("[data-answer]")) {
+      b.onclick = () => {
+        if (!requireLogin("記録")) return;
+        const k = b.dataset.answer;
+        if (k === "diff") {
+          // 違った → ゲージを出す（記録はまだしない）
+          for (const x of box.querySelectorAll(".outcome button")) x.classList.toggle("on", x === b);
+          box.querySelector(".answer-gauge").hidden = false;
+          gauge.focus();
+          return;
+        }
+        recordAnswer(pid, peak, k === "same" ? pred : k === "save" ? +gauge.value : null);
+      };
+    }
+    const file = box.querySelector("[data-shot-pid]");
+    file.onchange = async () => {
+      const f = file.files && file.files[0];
+      file.value = "";                             // 同じ写真をもう一度選べるように
+      if (!f || !requireLogin("記録")) return;
+      // 点数は、ゲージを開いていればその値、答えていれば答えた点、無ければ予測の点
+      const s0 = findSighting(pid, peak);
+      const score = !box.querySelector(".answer-gauge").hidden ? +gauge.value
+        : Number.isFinite(s0?.actualScore) ? s0.actualScore : pred;
+      await openPhotoSheet(f, { pid, peak, score });
     };
   }
 }
 
-/**
- * 写真から撮影時刻と位置を読んで、その回の記録へ足す。
- *
- * **画像は端末から出ない。** 先頭 256KB だけ読んで時刻と座標を取り、あとは捨てる。
- * 送るデータが増えないので保存先も費用も変わらない。
- *
- * 時刻が分かると何が良いか: いまの記録は「その日」でしか紐づいていないが、
- * 採点は時間帯（朝焼けなら日の出前後、雲海なら日の出±1時間）に対して出している。
- * **その時間帯の中で撮られたのかが分からないと、当たり外れを測れない。**
- * 実際、雲海の正例162日のうち44日は採点の窓の外で撮られていた（02_検証結果）。
- */
-async function readShot(input, pid, peak) {
-  const file = input.files && input.files[0];
-  input.value = "";                               // 同じ写真をもう一度選べるように
-  if (!file || typeof SoramiExif === "undefined") return;
-  let r = null;
-  try { r = await SoramiExif.readFile(file); } catch { r = null; }
-  if (!r || !r.takenLocal) {
-    alert("この写真からは撮影時刻を読み取れませんでした。");
-    return;
-  }
-  // 時差が無い写真（一眼はたいてい付けない）は、その地点の時差を当てる。
-  // **日本と決め打ちしない。** 取得済みの予報が持つ時差を使う
-  const offsetMin = Number.isFinite(bundle?.utcOffsetSeconds)
-    ? bundle.utcOffsetSeconds / 60 : null;
-  const at = r.takenAtMs !== null ? r.takenAtMs
-    : (offsetMin !== null ? SoramiExif.instantFrom(r.takenLocal, offsetMin) : null);
-  if (at === null) {
-    alert("この写真には時差が入っておらず、いつの時刻か決められませんでした。");
-    return;
-  }
-  // 写真の標高から「地上何mで撮ったか」を出す。
-  //
-  // **写真の GPSAltitude は Geolocation API の高度とは別物。**
-  // 前者は標高（ジオイド補正済み）、後者は仕様どおり楕円体高で、
-  // 日本ではジオイドぶん 32〜38m ずれる。実測（iPhone・庄内）では
-  // 写真の標高 27.8m に対し DEM 29.2m で **1.4m** しか違わなかった
-  // （同じ端末のライブ高度は 31.8m ずれていた）。
-  // ただし**1枚での確認**なので、これだけで設定を書き換えず、食い違いを知らせるに留める。
-  let aglM = null;
-  if (Number.isFinite(r.altitudeM) && Number.isFinite(r.latitude)) {
-    try {
-      const g = await SoramiTerrain.elevationFromTile(r.latitude, r.longitude, 13);
-      if (Number.isFinite(g)) aglM = r.altitudeM - g;
-    } catch { /* 標高タイルが引けなくても記録は残す */ }
-  }
-  attachShot(pid, peak, {
-    observedAtMs: at,
-    observedOffsetKnown: r.offsetKnown,
-    photoLatitude: r.latitude, photoLongitude: r.longitude,
-    photoAltitudeM: r.altitudeM,
-    photoAglM: aglM,
-  });
-}
 
 // ---------------------------------------------------------------- 画面の行き来
 //
@@ -3800,7 +3811,7 @@ function renderDetail(id, sel, now, opts = {}) {
   const current = findSighting(id, ev.peak);
   const record = finished
     ? `<div style="padding:8px 0"><div style="margin-bottom:6px">実際はどうでしたか？</div>
-       ${outcomeButtons(id, ev.peak, current?.outcome ?? null, current)}</div>`
+       ${outcomeButtons(id, ev.peak, ev.score, current)}</div>`
     : `<p class="tiny" style="padding:4px 0">${S.JstCal.hhmmRounded(ev.peak)} を過ぎたら記録できます</p>`;
   // 広い画面では「なぜこの点数か」と「どれくらい確かか」で列を分ける。
   // 1行を長くしないための分割で、片方だけを描けるように part で切り替える。
@@ -3889,21 +3900,26 @@ function samePlaceAs(record, here) {
 function findSighting(pid, peak) {
   return sightings.find((s) => s.phenomenon === pid && samePlaceAs(s, place) && S.JstCal.sameDay(s.peak, peak));
 }
-function recordOutcome(pid, peak, outcome) {
+/// 答えを記録する。actual は実際の点（0〜100）、null は確認せず。帯グラフの答えは点から出す（S.outcomeFromActual）。
+/// **前の記録に付いている写真の時刻・位置は残す**（以前は答えるたびに作り直し、先に添えた写真の情報が消えていた）
+function recordAnswer(pid, peak, actual, shot = null) {
   const entries = weeks[pid] || [];
   const entry = entries.find((e) => Math.abs(e.evaluation.peak - peak) < 60000);
   if (!entry) return;
   const ev = entry.evaluation;
   const existing = findSighting(pid, peak);
-  const record = {
+  const a = Number.isFinite(actual) ? Math.max(0, Math.min(100, Math.round(actual))) : null;
+  const record = { ...(existing || {}),
     id: existing?.id || crypto.randomUUID(),
     // 照合は placeName で行っている（findSighting）。名前は変えられるので、
     // 将来 ID で照合し直せるよう、記録した時点の地点IDも残しておく。
     recordedAt: Date.now(), phenomenon: pid, placeName: place.name, placeId: place.id,
     latitude: place.latitude, longitude: place.longitude,
     peak, score: ev.score, rank: ev.rank.key, confidence: ev.confidence.key,
-    perModel: ev.perModel, factors: ev.factors, outcome,
+    perModel: ev.perModel, factors: ev.factors,
+    actualScore: a, outcome: S.outcomeFromActual(pid, ev.score, a),
     observations: collectObservations(pid, peak),
+    ...(shot ? shotFields(ev, shot) : {}),
   };
   if (existing) sightings = sightings.map((s) => (s.id === existing.id ? record : s));
   else sightings.push(record);
@@ -3911,43 +3927,16 @@ function recordOutcome(pid, peak, outcome) {
   queuePush("sight", record.id);
   render();
 }
-
-/**
- * 写真から読んだ時刻と位置を、その回の記録へ足す。
- *
- * まだ答えを選んでいない回にも付けられるようにする（先に写真だけ、があり得る）。
- * 採点の時間帯の外で撮られていたら印を付ける。**捨てずに印を付ける**——
- * 窓の外の写真も「その日に出ていた」証拠ではあり、陰性にしてはいけない。
- */
-function attachShot(pid, peak, shot) {
-  const entries = weeks[pid];
-  if (!entries) return;
-  const entry = entries.find((e) => Math.abs(e.evaluation.peak - peak) < 60000);
-  if (!entry) return;
-  const ev = entry.evaluation;
-  const existing = findSighting(pid, peak);
+/// 写真の時刻・位置から、記録に足す項目（地点からの距離・採点の時間帯の外か）
+function shotFields(ev, shot) {
   const far = (Number.isFinite(shot.photoLatitude) && Number.isFinite(shot.photoLongitude))
-    ? SoramiTerrain.distanceKm(place.latitude, place.longitude,
-                               shot.photoLatitude, shot.photoLongitude) * 1000
+    ? SoramiTerrain.distanceKm(place.latitude, place.longitude, shot.photoLatitude, shot.photoLongitude) * 1000
     : null;
-  const outside = Array.isArray(ev.window)
+  const outside = Array.isArray(ev.window) && Number.isFinite(shot.observedAtMs)
     && (shot.observedAtMs < ev.window[0] || shot.observedAtMs > ev.window[1]);
-  const base = existing || {
-    id: crypto.randomUUID(), recordedAt: Date.now(), phenomenon: pid,
-    placeName: place.name, placeId: place.id,
-    latitude: place.latitude, longitude: place.longitude,
-    peak, score: ev.score, rank: ev.rank.key, confidence: ev.confidence.key,
-    perModel: ev.perModel, factors: ev.factors, outcome: "unchecked",
-    observations: collectObservations(pid, peak),
-  };
-  const record = { ...base, ...shot,
-    photoDistanceM: far, photoOutsideWindow: outside };
-  if (existing) sightings = sightings.map((x) => (x.id === existing.id ? record : x));
-  else sightings.push(record);
-  store.set("sorami.sightings", sightings);
-  queuePush("sight", record.id);
-  render();
+  return { ...shot, photoDistanceM: far, photoOutsideWindow: outside };
 }
+
 // 生の気象値を残す。閾値を変えたときに過去の記録を再採点できなければ校正のデータにならない。
 function collectObservations(pid, peak) {
   if (!bundle) return {};
@@ -4005,7 +3994,7 @@ function renderPending(now, hidden) {
           <strong>${S.longNameOf(id)}</strong>
           <span class="muted">${S.Cal.relativeDay(ev.peak, now)}${ev.specificTime === false ? "" : " " + S.Cal.hhmmRounded(ev.peak)}</span>
           ・<span style="color:${color}">${esc(S.phrasing(id, ev.rank).label)} ${Math.round(ev.score)}</span></div>
-        ${outcomeButtons(id, ev.peak, null, findSighting(id, ev.peak))}
+        ${outcomeButtons(id, ev.peak, ev.score, findSighting(id, ev.peak))}
       </div>`;
     }).join("")}
   </div>`;
@@ -4055,22 +4044,48 @@ function shotHeightNote(s) {
     + `近いのは「${esc(near.label)}」です。</div>`;
 }
 
-function outcomeButtons(id, peak, current, sighting = null) {
+/**
+ * 実際はどうだったかを答える部品。ホームと詳細で同じものを使う（選択肢がずれると同じ回に別々の答えが入る）。
+ * **「予測通り」は1回押すだけ。違ったときだけゲージで何点だったかを選ぶ**（2026-10-02 ユーザー「選択式じゃなくて何点だったかを
+ * ゲージで選ばせたら」「予測通りってボタンと、違うならゲージ」）。ゲージは予測の点から始め、予測の位置に印を置く。
+ * 写真は「記録を足す」の画面で、この回の現象・時刻・点数を入れて開く（「写真のアップロードも良い感じに組み合わせて」）。
+ */
+function outcomeButtons(id, peak, predicted, sighting = null) {
   const shot = sighting && Number.isFinite(sighting.observedAtMs)
     ? `<div class="tiny shot-note">📷 ${S.JstCal.hhmmRounded(sighting.observedAtMs)} の写真`
       + shotPlaceNote(sighting)
       + `${sighting.photoOutsideWindow ? "・<strong>採点した時間帯の外</strong>" : ""}</div>`
       + shotHeightNote(sighting)
     : "";
-  // **写真は端末から出ない。** 撮影時刻と座標だけ読んで画像は捨てる。
-  // 3択より「いつ・どこで撮ったか」のほうが照合に使える
-  //（採点の時間帯の中で撮られたのかが分かる）。
-  return `<div class="outcome">${S.outcomesFor(id).map(([k, l]) =>
-    `<button data-outcome="${k}" data-pid="${id}" data-peak="${peak}"` +
-    `${current === k ? ' class="on"' : ""}>${l}</button>`).join("")}</div>
+  const pred = Math.round(predicted);
+  const actual = sighting && Number.isFinite(sighting.actualScore) ? sighting.actualScore : null;
+  // 前の記録（答えだけで点数の無いもの）は、予測通り・確認せずだけ押した形で出す
+  const state = !sighting ? null
+    : actual !== null ? (actual === pred ? "same" : "diff")
+    : sighting.outcome === "asExpected" ? "same"
+    : sighting.outcome === "unchecked" && !Number.isFinite(sighting.observedAtMs) ? "none" : null;
+  const on = (k) => (state === k ? ' class="on"' : "");
+  const v = actual ?? pred;
+  // つまみの中心は端で半分ずれるので、予測の印もつまみの動く幅に合わせる（つまみ 28px）
+  const at = `calc(${pred}% + ${(14 - pred * 0.28).toFixed(1)}px)`;
+  return `<div class="answer" data-pid="${id}" data-peak="${peak}" data-pred="${pred}">
+    <div class="outcome">
+      <button data-answer="same"${on("same")}>予測通り</button>
+      <button data-answer="diff"${on("diff")}>違った</button>
+      <button data-answer="none"${on("none")}>確認せず</button>
+    </div>
+    <div class="answer-gauge"${state === "diff" ? "" : " hidden"}>
+      <div class="gauge-track"><span class="gauge-pred" style="left:${at}" aria-hidden="true"></span>
+        <input type="range" min="0" max="100" step="1" value="${v}" data-gauge aria-label="実際は何点だったか"></div>
+      <div class="gauge-foot"><output data-gauge-out>${answerHtml(id, v, pred)}</output>
+        <button data-answer="save" class="fav-btn primary">この点で記録</button></div>
+    </div>
     <label class="shot"><input type="file" accept="image/*" data-shot-pid="${id}" data-shot-peak="${peak}">
-      <span>📷 撮った写真から時刻を読む</span></label>${shot}`;
+      <span>📷 写真を添える</span></label>${shot}
+  </div>`;
 }
+/// ゲージの読み: 「52点・まずまず」と、その下に小さく「予測 74」（320px でも折り返しの位置が変わらないよう2行に決めておく）
+const answerHtml = (id, v, pred) => `${v}点・${esc(S.actualWord(id, v))}<span class="tiny sub-line">予測 ${pred}</span>`;
 
 function renderRecords(now, pendingHidden) {
   renderPending(now ?? Date.now(), pendingHidden);
@@ -4101,7 +4116,7 @@ function renderRecords(now, pendingHidden) {
       <span>${iconFor(s.phenomenon, s.peak)}</span>
       <span style="flex:1"><strong style="font-size:0.81rem">${S.JstCal.monthDay(s.peak)} ${esc(s.placeName)}</strong>
         <span class="tiny sub-line">${meta.name} ・ ${Math.round(s.score) || 0}点</span></span>
-      <span class="badge" style="background:var(--line)">${esc(LABEL[s.outcome] ?? s.outcome)}</span></div>`;
+      <span class="badge" style="background:var(--line)">${Number.isFinite(s.actualScore) ? `実際 ${s.actualScore}点` : esc(LABEL[s.outcome] ?? s.outcome)}</span></div>`;
     }).join("")
     || `<p class="tiny" style="padding:8px 0">まだありません</p>`);
 }

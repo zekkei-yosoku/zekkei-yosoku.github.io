@@ -2339,6 +2339,24 @@
   const longNameOf = (id) => PHENOMENA[id]?.longName ?? PHENOMENA[id]?.name ?? id;
   const recordKind = (id) => PHENOMENA[id]?.record ?? "occurrence";
   const outcomesFor = (id) => RECORD_OUTCOMES[recordKind(id)];
+
+  // 実際は何点だったか（2026-10-02 ユーザー「選択式じゃなくて何点だったかをゲージで選ばせたら」
+  // 「予測通りってボタンと、違うならゲージ」）。答えは actualScore（0〜100、予測と同じ物差し）で持ち、
+  // 帯グラフの答え（RECORD_OUTCOMES のキー）はそこから出す。前の記録（答えだけのもの）もそのまま描ける。
+  //   quality … 予測との差が ±10 以内なら予測通り、上なら期待以上、下なら期待外れ
+  //   occurrence … 40 以上なら見えた。40 は RANKS の「平凡」の境で、この現象の言い方では「わずかに」
+  //     （雲海なら出る見込みが少しある）。予測通りを押した 30 点（期待薄）が「見えた」にならないように
+  const ACTUAL_WORDS = {
+    quality: [[85, "絶景"], [65, "よかった"], [40, "まずまず"], [0, "いまひとつ"]],
+    occurrence: [[85, "絶景"], [65, "よく見えた"], [40, "わずかに見えた"], [0, "見えなかった"]],
+  };
+  const actualWord = (id, v) => (ACTUAL_WORDS[recordKind(id)].find(([min]) => v >= min) || [0, ""])[1];
+  function outcomeFromActual(id, predicted, actual) {
+    if (!Number.isFinite(actual)) return "unchecked";
+    if (recordKind(id) === "occurrence") return actual >= 40 ? "seen" : "missed";
+    const d = actual - predicted;
+    return d > 10 ? "better" : d < -10 ? "worse" : "asExpected";
+  }
   // `longNameOf` は下の公開オブジェクトから出す
 
 
@@ -2799,7 +2817,7 @@
   const Sorami = {
     Geo, Cal, JstCal: Cal, Sun, Moon, Curve, T, Series, MODELS, MODEL_NAMES,
     HOME_VARS, OFFSET_VARS, PROFILE_LEVELS, PROFILE_VARS, needsProfile,
-    CLOUD_LAYERS, SCORERS, PHENOMENA, RANKS, RECORD_OUTCOMES, recordKind, outcomesFor, longNameOf,
+    CLOUD_LAYERS, SCORERS, PHENOMENA, RANKS, RECORD_OUTCOMES, recordKind, outcomesFor, longNameOf, actualWord, outcomeFromActual,
     decodeLocation, buildURL, fetchForecast, cachedFetch, fetchWithRetry, RETRY_WAIT_MS, OM_CACHE_TTL_MS, evaluate, evaluateWeek, readingAt,
     setTimezoneOffset, rankOf, confidenceOf, confidenceOfEnsemble, reliabilityGrade, phrasing, leadTimePenalty,
     ensembleSpread, fetchEnsemble, profileLevelCount, ENSEMBLE_VARS, ENSEMBLE_MEMBERS, ENSEMBLE_MODEL,

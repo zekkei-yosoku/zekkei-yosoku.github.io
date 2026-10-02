@@ -100,7 +100,7 @@ ok(/return Array\.isArray\(auth\?\.tools\) \? auth\.tools : \[\];/.test(html),
 // **記録もお気に入りも、答える前にログインを求める。**
 // 端末にだけ貯めると、しばらく開かないと消える（iOS は7日）
 ok(/if \(!requireLogin\("記録"\)\) return;/.test(html), "答えるときにログインを求める");
-ok(/if \(!requireLogin\("記録"\)\) \{ el\.value = ""; return; \}/.test(html),
+ok(/file\.value = "";[^\n]*\n\s+if \(!f \|\| !requireLogin\("記録"\)\) return;/.test(html),
   "写真を選んだときも求める（選択を戻す）");
 ok(/const requireLoginForFavorites = \(\) => requireLogin\("お気に入りの登録"\)/.test(html),
   "お気に入りと同じ入口を使う");
@@ -1558,7 +1558,39 @@ for (const id of ["seaOfClouds", "rainbow", "rime", "diamondDust"]) {
 ok(/期待以上[\s\S]{0,40}予測通り[\s\S]{0,40}期待外れ/.test(coreSrc), "質は3段階で訊く");
 // 同じ回に別々の答えが入らないよう、押す場所は1箇所で作る。
 ok(/function outcomeButtons/.test(html), "選択肢を作る場所が1つ");
-ok(html.match(/data-outcome="\$\{k\}"/g).length === 1, "選択肢を組み立てる箇所が1つだけ");
+ok(html.match(/data-answer="same"/g).length === 1, "選択肢を組み立てる箇所が1つだけ");
+{
+  // 予測通りは1回押すだけ、違ったらゲージ（2026-10-02 ユーザー「選択式じゃなくて何点だったかをゲージで」「予測通りってボタンと、違うならゲージ」）
+  const ob = html.slice(html.indexOf("function outcomeButtons"), html.indexOf("const answerHtml"));
+  ok(/<button data-answer="same"[^>]*>予測通り<\/button>\s*<button data-answer="diff"[^>]*>違った<\/button>\s*<button data-answer="none"[^>]*>確認せず<\/button>/.test(ob),
+    "予測通り・違った・確認せず");
+  ok(/\.outcome button \{[^}]*min-height: 44px/.test(html), "答えのボタンは指の的 44px");
+  ok(/<div class="answer-gauge"\$\{state === "diff" \? "" : " hidden"\}>/.test(ob) && /type="range" min="0" max="100" step="1" value="\$\{v\}" data-gauge/.test(ob),
+    "ゲージは違ったときだけ出す（0〜100、予測の点から始める）");
+  ok(/class="gauge-pred" style="left:\$\{at\}"/.test(ob) && /data-answer="save"[^>]*>この点で記録<\/button>/.test(ob), "予測の位置に印・この点で記録");
+  ok(/📷 写真を添える/.test(ob) && !/撮った写真から時刻を読む/.test(html), "写真は「写真を添える」1つ");
+  const wo = html.slice(html.indexOf("function wireOutcomes"), html.indexOf("function wireOutcomes") + 2200);
+  ok(/if \(k === "diff"\) \{[\s\S]{0,300}\.answer-gauge"\)\.hidden = false;[\s\S]{0,80}return;/.test(wo), "違ったを押してもまだ記録しない（ゲージを出す）");
+  ok(/recordAnswer\(pid, peak, k === "same" \? pred : k === "save" \? \+gauge\.value : null\)/.test(wo), "予測通り＝予測の点・この点で記録＝ゲージの点・確認せず＝点なし");
+  ok(/await openPhotoSheet\(f, \{ pid, peak, score \}\)/.test(wo), "写真は「記録を足す」の画面を、この回の現象・時刻・点数で開く");
+  ok(/if \(round\) \$\("photoPhenom"\)\.value = round\.pid;/.test(html) && /\$\("photoWhen"\)\.value = iso\(at \?\? photoDraft\.round\?\.peak \?\? Date\.now\(\)\)/.test(html),
+    "写真の画面に現象と時刻（写真に無ければその回）を入れる");
+  ok(/if \(round && body\.phenomenon === round\.pid\) \{\s+recordAnswer\(round\.pid, round\.peak, body\.score, await photoShot\(body\)\);/.test(html),
+    "写真を保存したら、その回の答えと写真の時刻・位置も記録する（現象を選び直したら答えにしない）");
+  const ra = html.slice(html.indexOf("function recordAnswer"), html.indexOf("function shotFields"));
+  ok(/const record = \{ \.\.\.\(existing \|\| \{\}\),/.test(ra), "答え直しても、先に添えた写真の時刻・位置を消さない");
+  ok(/actualScore: a, outcome: S\.outcomeFromActual\(pid, ev\.score, a\)/.test(ra), "帯グラフの答えは実際の点から出す");
+  ok(/actualScore: Number\.isFinite\(r\.actualScore\) && r\.actualScore >= 0 && r\.actualScore <= 100/.test(html), "取り込んだ実際の点も確かめる");
+  ok(/Number\.isFinite\(s\.actualScore\) \? `実際 \$\{s\.actualScore\}点`/.test(html), "記録の一覧は実際の点を出す");
+  const C = req("./sorami-core.js");
+  ok(C.outcomeFromActual("sunset", 74, 74) === "asExpected" && C.outcomeFromActual("sunset", 74, 85) === "better"
+    && C.outcomeFromActual("sunset", 74, 63) === "worse" && C.outcomeFromActual("sunset", 74, 64) === "asExpected", "質: 予測との差 ±10 で予測通り");
+  ok(C.outcomeFromActual("seaOfClouds", 30, 30) === "missed" && C.outcomeFromActual("seaOfClouds", 55, 55) === "seen"
+    && C.outcomeFromActual("rainbow", 10, 40) === "seen" && C.outcomeFromActual("rime", 70, null) === "unchecked",
+    "出たか: 40 以上で見えた（期待薄のまま予測通りなら見えなかった）");
+  ok(C.actualWord("sunset", 90) === "絶景" && C.actualWord("sunset", 50) === "まずまず" && C.actualWord("seaOfClouds", 10) === "見えなかった",
+    "ゲージの言い方（質と出たかで分ける）");
+}
 ok(/qualityCalibration/.test(html) && /occurrenceCalibration/.test(html),
   "較正のグラフも訊き方ごとに分ける");
 ok(/inBand\(list, lo\)/.test(html), "どちらも同じ帯で集計する");
@@ -1583,7 +1615,7 @@ ok(/findSighting\(id, ev\.peak\)\) continue/.test(pend), "答えた回は二度�
 ok(/out\.slice\(0, 4\)/.test(pend), "一度に出す件数を絞る");
 
 // 描画より先に配線していたため、記録カードのボタンだけ無反応だった。
-const wire = code.indexOf('querySelectorAll("[data-outcome]")');
+const wire = code.indexOf('querySelectorAll(".answer")');
 const draw = code.indexOf("renderRecords(now,");
 ok(draw > -1 && wire > draw, "描画をすべて終えてから押下を配線する");
 
@@ -1709,7 +1741,7 @@ console.log("== 外から来た文字をそのまま HTML へ入れない ==");
 // 読み込ませると任意の HTML が動いた。記録は読み込みで外から入るし、
 // これから同期でサーバー越しにも入る。
 ok(!/\$\{LABEL\[s\.outcome\] \?\? s\.outcome\}/.test(html), "outcome を素で埋めていない");
-ok(/\$\{esc\(LABEL\[s\.outcome\] \?\? s\.outcome\)\}/.test(html), "outcome をエスケープする");
+ok(/: esc\(LABEL\[s\.outcome\] \?\? s\.outcome\)\}/.test(html), "outcome をエスケープする");
 // 知らない現象は `S.PHENOMENA[...]` が undefined になり、.icon で落ちる
 ok(/const meta = S\.PHENOMENA\[s\.phenomenon\];\s*\n\s*if \(!meta\) return "";/.test(html),
   "知らない現象の記録は描かない");
@@ -2677,8 +2709,8 @@ ok(/takenAt: photoWhenMs\(\)/.test(html), "入力欄の日時を送る");
 ok(/latitude: where \? where\.latitude : null/.test(html), "入力欄の座標を送る");
 ok(/SoramiTerrain\.parseLatLon\(v\) \|\| SoramiTerrain\.parseMapLink\(v\)/.test(html),
   "緯度経度でも地図のURLでも受ける");
-ok(/\$\("photoWhen"\)\.value = iso\(at \?\? Date\.now\(\)\)/.test(html),
-  "写真から読めたら先に入れる（無ければ「いま」）");
+ok(/\$\("photoWhen"\)\.value = iso\(at \?\? photoDraft\.round\?\.peak \?\? Date\.now\(\)\)/.test(html),
+  "写真から読めたら先に入れる（無ければその回の時刻、それも無ければ「いま」）");
 // **過去に遡って入れられる。** 写真は任意で、日時は手で直せる
 ok(/id="photoChoose"/.test(html), "写真はシートの中で選ぶ（任意）");
 ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html),
