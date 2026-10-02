@@ -359,10 +359,21 @@ console.log("== 見え方の図（2026-10-02） ==");
   const cw = AL.TOWER_SHAPES.cinderella.outline;
   ok(Math.max(...cw.map((p) => p[1])) === 51 && cw[0][1] === 0 && cw[cw.length - 1][1] === 0, "写真の輪郭: 尖塔の先が51m、両端は地面まで");
   const span = cw[cw.length - 1][0] - cw[0][0];
-  ok(span > 27 && span < 32, "地面での幅は城全体のシルエットの絵から（29m 余り）", `${span.toFixed(1)}m`);
-  const upper = cw.filter((p) => p[1] > AL.TOWER_SHAPES.cinderella.hiddenBelowM + 0.1);
-  const upSpan = Math.max(...upper.map((p) => p[0])) - Math.min(...upper.map((p) => p[0]));
-  ok(upSpan > 10 && upSpan < 15, "木より上に見える所は写真の幅", `${upSpan.toFixed(1)}m`);
+  ok(span > 17 && span < 22, "幅はシルエットを写真の縮尺に合わせた幅（19m 余り）", `${span.toFixed(1)}m`);
+  // 縮尺の合わせ所: 主塔のバルコニー（写真の実測 3.73m）。尖塔の先から 11.5m 下あたりの幅
+  const balc = cw.filter((p) => p[1] > 38.5 && p[1] < 39.3 && Math.abs(p[0]) < 2.5);
+  const bw = Math.max(...balc.map((p) => p[0])) - Math.min(...balc.map((p) => p[0]));
+  ok(bw > 3.2 && bw < 4.3, "主塔のバルコニーの幅は写真の実測（3.73m）に近い", `${bw.toFixed(2)}m`);
+  // 観測地点ごとに比が合う（ユーザー「この比率って観測地点によってちゃんと合うように計算で出せるよね？」）: 形はメートルで持ち、
+  // 見かけの大きさは距離で割る。2倍離れると形の見かけの幅は半分、月の見かけの大きさはそのまま
+  for (const id of ["skytree", "tokyotower", "cinderella", "tinkerbell"]) {
+    const t = AL.targetById(id);
+    const near = TR.destination(t.latitude, t.longitude, 270, 3), far = TR.destination(t.latitude, t.longitude, 270, 6);
+    const wOf = (o) => Math.max(...o.points.map((p) => p[0])) - Math.min(...o.points.map((p) => p[0]));
+    const r = wOf(AL.towerOutline({ ...near, elevation: 3 }, t)) / wOf(AL.towerOutline({ ...far, elevation: 3 }, t));
+    ok(Math.abs(r - 2) < 0.02, `${t.name}: 3km と 6km で見かけの幅は2倍`, r.toFixed(3));
+  }
+  ok(AL.TOWER_SHAPES.cinderella.hiddenBelowM > 15 && AL.TOWER_SHAPES.cinderella.hiddenBelowM < 22, "シルエットの下端（木に隠れる所）は地上 18m 前後");
   // 写真の場面を再現する: 2024-08-20 19:02:04、城の西北西 2.85km から。尖塔の先は月の中心より 0.26° 上（写真: 上の縁のさらに 0.026° 上）
   {
     const spot = TR.destination(ct.latitude, ct.longitude, 284.99, 2.85);

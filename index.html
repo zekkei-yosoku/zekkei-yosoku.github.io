@@ -1606,21 +1606,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261002191004"></script>
+<script src="sorami-core.js?v=20261002191541"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261002191004"></script>
-<script src="sorami-exif.js?v=20261002191004"></script>
-<script src="sorami-capcloud.js?v=20261002191004"></script>
-<script src="sorami-terrain.js?v=20261002191004"></script>
-<script src="sorami-mountain.js?v=20261002191004"></script>
-<script src="sorami-fuji.js?v=20261002191004"></script>
-<script src="sorami-sky.js?v=20261002191004"></script>
-<script src="sorami-routes.js?v=20261002191004"></script>
-<script src="sorami-iss.js?v=20261002191004"></script>
-<script src="sorami-plane.js?v=20261002191004"></script>
-<script src="sorami-align.js?v=20261002191004"></script>
-<script src="sorami-moon.js?v=20261002191004"></script>
+<script src="sorami-astro.js?v=20261002191541"></script>
+<script src="sorami-exif.js?v=20261002191541"></script>
+<script src="sorami-capcloud.js?v=20261002191541"></script>
+<script src="sorami-terrain.js?v=20261002191541"></script>
+<script src="sorami-mountain.js?v=20261002191541"></script>
+<script src="sorami-fuji.js?v=20261002191541"></script>
+<script src="sorami-sky.js?v=20261002191541"></script>
+<script src="sorami-routes.js?v=20261002191541"></script>
+<script src="sorami-iss.js?v=20261002191541"></script>
+<script src="sorami-plane.js?v=20261002191541"></script>
+<script src="sorami-align.js?v=20261002191541"></script>
+<script src="sorami-moon.js?v=20261002191541"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6886,6 +6886,7 @@ async function aimLookRender(host, spec) {
   const partY = !mountain && part && top && part.m < top.m - 0.5
     ? toPx(proj(az, SoramiAstro.targetElevationAngle(D, eye, part.m)))[1] : null;
   const baseY = toPx(proj(az, baseAngle))[1];
+  const hiddenY = outline && outline.hiddenAngle !== null ? toPx(proj(az, outline.hiddenAngle))[1] : null;
   // 時刻の目盛り。道のりの長さに合わせて1〜60分ごとに、多くても10個
   const span = (path[path.length - 1].at - path[0].at) / 60000;
   const every = [1, 2, 5, 10, 15, 30, 60].find((m) => span / m <= 10) || 60;
@@ -6902,7 +6903,7 @@ async function aimLookRender(host, spec) {
   const known = outline && outline.known, schematic = outline && outline.schematic;
   note.textContent = [
     mountain ? (shape ? "稜線は国土地理院の標高データから" : "稜線を読み込めませんでした")
-      : t.id === "cinderella" ? "形は写真から測ったおおよその形（木に隠れた下の方は城全体のシルエットの絵から）"
+      : t.id === "cinderella" ? "形は城のシルエットを写真の縮尺に合わせたもの（薄い所は木に隠れて見えない部分）"
       : t.id === "tinkerbell" ? "形は写真から測ったおおよその形"
       : known ? "形は公表寸法から作ったおおよその形"
       : schematic ? `建物は高さ${Math.round(top.m - (t.groundM || 0))}mの模式図（幅は推定）` : "",
@@ -6950,7 +6951,12 @@ async function aimLookRender(host, spec) {
         }
         ctx.closePath();
       };
-      outlinePath(); ctx.fill();
+      if (hiddenY === null) { outlinePath(); ctx.fill(); }
+      else {
+        // 形の材料で見えていない下の方（城の木に隠れた所）は薄く描く
+        ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, hiddenY); ctx.clip(); outlinePath(); ctx.fill(); ctx.restore();
+        ctx.save(); ctx.beginPath(); ctx.rect(0, hiddenY, W, H - hiddenY); ctx.clip(); ctx.globalAlpha = 0.45; outlinePath(); ctx.fill(); ctx.restore();
+      }
     }
     if (!mountain) ctx.fillRect(0, baseY, W, H - baseY + 2);
     // 形に隠れた所も分かるように、円盤の輪を明るい点線で（暗い形の上でも見える色）
