@@ -65,7 +65,7 @@ test('シリウス・小惑星半径でも山の自動表示範囲は旧縮尺�
  for(const radius of [0,.001,.004]){const top=3,base=top-5*Math.max(radius,.27),win=L.viewWindow({azimuth:240,baseAngle:base,topAngle:top,radiusDeg:radius,aspect:1.5});const focal=Math.max(24/(2*win.halfH*Math.PI/180),36/(2*win.halfW*Math.PI/180))*1.12;assert.ok(focal>8&&focal<2000);assert.ok(L.cameraFrame(focal));}
 });
 test('天体変更の遅い返答は最新選択を上書きせず、合わせ方を天体ごとに保持する',async()=>{
- const start=html.indexOf('    $("aimBody").onchange = async () => {'),end=html.indexOf('    $("aimToday").onclick',start);assert.ok(start>0&&end>start);
+ const start=html.indexOf('    $("aimBody").onchange = async () => {'),end=html.indexOf('    $("aimHeightSet").onclick',start);assert.ok(start>0&&end>start);
  const waits={},els={aimBody:{value:'sirius'},aimLineInfo:{},aimLimb:{innerHTML:'old'}};
  const aim={body:'moon',bodySeq:0,limb:'behind',limbsByBody:{sun:'onTop'}};
  const c={aim,$:id=>els[id],SoramiBodies:{ensure:id=>new Promise((resolve,reject)=>waits[id]={resolve,reject})},aimLimbValue:()=>aim.limb,aimApply(){c.applied=aim.body}};

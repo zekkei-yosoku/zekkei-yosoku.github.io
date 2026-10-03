@@ -289,8 +289,8 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/SoramiAlign\.lineOfSight\(obs, aim\.target/.test(fn) && /aimSightBuildings\(obs, D,/.test(fn), "見通し（地形・高い建物）を添える");
   // 見えないなら、重なる日の上に目立つ形で「見えません」（2026-10-02 ユーザー「そもそも目標物が見えませんとかって出した方がいい」）
   ok(/\$\("aimFrom"\)\.innerHTML = sightSlot \+ \(chips/.test(fn) && /id="aimFromSight" hidden/.test(fn), "見通しの欄は重なる日の上（隠れるときだけ出す）");
-  ok(/ここからは\$\{esc\(aim\.target\.name\)\}\$\{part \? `の\$\{esc\(part\.name\)\}` : ""\}が見えません/.test(fn)
-    && /classList\.add\("hidden-target"\)/.test(fn), "見えないときは「ここからは〇〇（の先端）が見えません」と言い切る");
+  ok(/\$\{esc\(f\.name\)\}からは\$\{esc\(aim\.target\.name\)\}\$\{part \? `の\$\{esc\(part\.name\)\}` : ""\}が見えません/.test(fn)
+    && /classList\.add\("hidden-target"\)/.test(fn), "見えない注意は観測地点名を明示して候補地の図と区別する");
   ok(!/if \(!hidden && !aimIsFuji\(\)\)/.test(fn), "建物は富士山でも見る（観測地点が街の中のこともある）");
   ok(!/地形・高い建物では隠れません|見通しを確かめています/.test(html), "隠れないとき・確かめている間は何も書かない（2026-10-03 ユーザーが選んだ「いらない説明文」）");
   ok(/\.aim-sight\.hidden-target \{[^}]*color: var\(--red\)/.test(html), "見えませんは赤で目立たせる");
@@ -469,7 +469,7 @@ ok(/const fujiOk = toolAllowed\("diamond"\) \|\| toolAllowed\("pearl"\), towerOk
 ok(/const sunOk = !isFuji \|\| toolAllowed\("diamond"\), moonOk = !isFuji \|\| toolAllowed\("pearl"\);/.test(html), "富士山を選んだら、太陽はダイヤモンド富士・月はパール富士の許可で出す");
 // 重なる日は選ぶ行より下（太陽と月で日の数が違うので、上だと切り替えるたびに釦が動く。ユーザー「UIがすごく動くのが気になる」）
 // 日付欄は月間カレンダーを開くボタンへ変更。入力値はhidden aimDateで保持。
-{ const lb = html.indexOf('id="aimWhereLabel">どこに重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('for="aimCalendarOpen">日付'), sw = html.indexOf('id="aimBody"'), fs = html.indexOf('id="aimFromButton"');
+{ const lb = html.indexOf('id="aimWhereLabel">どこに重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('class="aim-date-section"'), sw = html.indexOf('id="aimBody"'), fs = html.indexOf('id="aimFromButton"');
   ok(sw < fs && fs < lb && lb < dt && dt < fr, "並び: 題名と天体 → どこから → どこに → 日付と候補日"); }
 ok(/\$\("aimPart"\)\.hidden = parts\.length < 2/.test(html), "選べる高さが1つなら選ぶ欄を出さない");
 ok(!/目標に太陽や月が重なる日と、/.test(html), "説明の段落を出さない");
@@ -2911,7 +2911,7 @@ console.log("== 見え方の図（2026-10-02） ==");
 // 2026-10-03 図は1つ（ユーザー「どこに重ねるかを変えても見え方が変わらないのと、見え方が二箇所にあるのはなんで？」）
 {
   ok((html.match(/id="aimLook"/g) || []).length === 1 && !/id="aim(CandLook|FromLook|CandPick)"/.test(html), "見え方の図は1つ（候補地用・観測地点用を分けない）");
-  const iFrom = html.indexOf('<div id="aimFrom"'), iLook = html.indexOf('<div id="aimLook"'), iDate = html.indexOf('<label class="fav-l" for="aimCalendarOpen">');
+  const iFrom = html.indexOf('<div id="aimFrom"'), iLook = html.indexOf('<div id="aimLook"'), iDate = html.indexOf('class="aim-date-section"');
   ok(iDate > 0 && iDate < iFrom && iFrom < iLook, "日付 → 同じセクションの候補日 → 見え方の順");
   const look = /async function aimUpdateLook\(\) \{[\s\S]*?\n\}/.exec(html)[0];
   ok(/const c = aim\.candPick !== null \? \(aim\.cands \|\| \[\]\)\[aim\.candPick\] : null;/.test(look)

@@ -58,3 +58,10 @@ test("先端の下を通る日は建物全体との重なりとしてカレン�
  assert.match(grid,/2026年10月3日、重なる日/);assert.match(grid,/>●<\/span>/);
  assert.equal(events.has(start-86400000),false);assert.equal(events.has(start+86400000),false);
 });
+
+test("カレンダーの今日は今日を選択して候補地を解除し図へ反映する",()=>{
+ const {c,$,aim}=setup();aim.candPick=3;aim.wantKey="old";aim.candSide="set";
+ $("aimCalToday").onclick();
+ assert.equal($("aimDate").value,new Date(S.JstCal.startOfDay(Date.now())+9*3600000).toISOString().slice(0,10));
+ assert.equal(aim.candPick,null);assert.equal(aim.spot,null);assert.equal(aim.wantKey,null);assert.equal(aim.candSide,null);assert.equal($("aimCalendar").open,false);assert.equal(c.applied,true);
+});

@@ -1238,16 +1238,11 @@
     <p class="tiny" id="aimHeightNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
     <!-- 日付と観測地点の候補日は一つのセクション。図を見る前に選ぶ。 -->
     <section class="aim-date-section" aria-label="日付と候補日">
-    <label class="fav-l" for="aimCalendarOpen">日付</label>
     <div class="aim-row aim-date">
       <button id="aimPrev" class="fav-btn" aria-label="前の日">←</button>
       <input type="hidden" id="aimDate">
       <button type="button" id="aimCalendarOpen" class="fav-in" aria-label="重なる日カレンダーを開く" aria-haspopup="dialog" aria-controls="aimCalendar">日付を選ぶ</button>
       <button id="aimNext" class="fav-btn" aria-label="次の日">→</button>
-    </div>
-    <div class="aim-row" style="margin-bottom:2px">
-      <span id="aimWeekday" class="tiny" style="flex:1"></span>
-      <button id="aimToday" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">今日</button>
     </div>
     <div id="aimFrom" class="aim-from"></div>
     </section>
@@ -1481,7 +1476,7 @@
     <div class="aim-cal-week" aria-hidden="true"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
     <div id="aimCalGrid" class="aim-cal-grid" role="group" aria-label="日付を選ぶ" aria-busy="false"></div>
     <div id="aimCalStatus" class="tiny" role="status" aria-live="polite"></div>
-    <div class="aim-cal-foot"><span class="tiny">● 重なる日　○ 近くを通る日</span><button id="aimCalToday" class="fav-btn">今月</button></div>
+    <div class="aim-cal-foot"><span class="tiny">● 重なる日　○ 近くを通る日</span><button id="aimCalToday" class="fav-btn">今日</button></div>
     <p class="tiny">選んだ観測地点から計算。天気と見通しは日付を選んで確認できます。</p>
   </div>
 </dialog>
@@ -1704,22 +1699,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004032021"></script>
+<script src="sorami-core.js?v=20261004034022"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004032021"></script>
-<script src="sorami-exif.js?v=20261004032021"></script>
-<script src="sorami-capcloud.js?v=20261004032021"></script>
-<script src="sorami-terrain.js?v=20261004032021"></script>
-<script src="sorami-mountain.js?v=20261004032021"></script>
-<script src="sorami-fuji.js?v=20261004032021"></script>
-<script src="sorami-sky.js?v=20261004032021"></script>
-<script src="sorami-routes.js?v=20261004032021"></script>
-<script src="sorami-iss.js?v=20261004032021"></script>
-<script src="sorami-plane.js?v=20261004032021"></script>
-<script src="sorami-bodies.js?v=20261004032021"></script>
-<script src="sorami-align.js?v=20261004032021"></script>
-<script src="sorami-moon.js?v=20261004032021"></script>
+<script src="sorami-astro.js?v=20261004034022"></script>
+<script src="sorami-exif.js?v=20261004034022"></script>
+<script src="sorami-capcloud.js?v=20261004034022"></script>
+<script src="sorami-terrain.js?v=20261004034022"></script>
+<script src="sorami-mountain.js?v=20261004034022"></script>
+<script src="sorami-fuji.js?v=20261004034022"></script>
+<script src="sorami-sky.js?v=20261004034022"></script>
+<script src="sorami-routes.js?v=20261004034022"></script>
+<script src="sorami-iss.js?v=20261004034022"></script>
+<script src="sorami-plane.js?v=20261004034022"></script>
+<script src="sorami-bodies.js?v=20261004034022"></script>
+<script src="sorami-align.js?v=20261004034022"></script>
+<script src="sorami-moon.js?v=20261004034022"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6166,10 +6161,8 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   aim.dayMs = Number.isFinite(picked) ? picked : S.Cal.startOfDay(Date.now());
   $("aimKeySet").textContent = aimSideLabel("set");
   $("aimKeyRise").textContent = aimSideLabel("rise");
-  $("aimCalendarOpen").innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6M17 2v6M3 11h18"/></svg>${$("aimDate").value.replaceAll("-", "/")}`;
-  $("aimCalendarOpen").setAttribute("aria-label", `${$("aimDate").value}、重なる日カレンダーを開く`);
-  $("aimWeekday").textContent = `${S.Cal.monthDay(aim.dayMs)}（${S.Cal.weekday(aim.dayMs)}）`
-    + (S.JstCal.sameDay(aim.dayMs, Date.now()) ? " ・ 今日" : "");
+  $("aimCalendarOpen").innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6M17 2v6M3 11h18"/></svg>${$("aimDate").value.replaceAll("-", "/")}（${S.Cal.weekday(aim.dayMs)}）`;
+  $("aimCalendarOpen").setAttribute("aria-label", `${$("aimDate").value}（${S.Cal.weekday(aim.dayMs)}）、重なる日カレンダーを開く`);
   // 目標が決まっていなければ線は引けない（高さが無い）
   if (!(aim.target.parts || []).length) {
     aim.seq++; aim.candSeq++;
@@ -6400,7 +6393,11 @@ for (const id of ["aimCalYear", "aimCalMonth"]) $(id).onchange = () => {
   aimCal.year = +$("aimCalYear").value; aimCal.month = +$("aimCalMonth").value; aimCalRender();
 };
 $("aimCalToday").onclick = () => {
-  const date = new Date(Date.now() + 9 * 3600000); aimCal.year = date.getUTCFullYear(); aimCal.month = date.getUTCMonth(); aimCalRender();
+  const day = S.JstCal.startOfDay(Date.now());
+  aim.candPick = null; aim.spot = null; aim.wantSpot = null; aim.wantKey = null; aim.candSide = null;
+  $("aimDate").value = new Date(day + 9 * 3600000).toISOString().slice(0, 10);
+  $("aimCalendar").close();
+  aimApply();
 };
 
 /// 他の目標の場所を決める（「地点」の画面・お気に入り・地図の「ここに重ねる」から）。
@@ -6600,7 +6597,7 @@ async function aimRenderFrom() {
   if (hidden) {
     const part = (aim.target.parts || []).length > 1 ? SoramiAlign.partOf(aim.target, aim.partId) : null;
     el.classList.add("hidden-target");
-    el.innerHTML = `<strong>ここからは${esc(aim.target.name)}${part ? `の${esc(part.name)}` : ""}が見えません</strong>`
+    el.innerHTML = `<strong>${esc(f.name)}からは${esc(aim.target.name)}${part ? `の${esc(part.name)}` : ""}が見えません</strong>`
       + `<span class="sub-line">${esc(hidden)}</span>`;
     el.hidden = false;
   }
@@ -7887,10 +7884,6 @@ function openAim(preset) {
         $("aimBody").value = aim.body;
         $("aimLineInfo").textContent = "天体計算を読み込めませんでした。天体を選び直して再試行してください";
       }
-    };
-    $("aimToday").onclick = () => {
-      $("aimDate").value = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
-      aimApply();
     };
     $("aimHeightSet").onclick = () => {
       const m = Number($("aimHeightM").value);
