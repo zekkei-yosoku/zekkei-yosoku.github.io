@@ -94,6 +94,8 @@ test("構図の移動・復帰は時刻と天体逆引きを変えない",()=>{
  cv.onpointermove({pointerId:1,clientX:140,clientY:94});assert.equal(host._lensOffset[1],-18/H);
  cv.onpointermove({pointerId:1,clientX:150,clientY:105});assert.equal(host._lensOffset[1],5/H);
  cv.onpointerup();assert.equal(host._lensOffset[0],50/W);
+ host._lensOffset=[0,(-18+4)/H];cv.onkeydown({key:"ArrowUp",preventDefault:()=>{}});assert.equal(host._lensOffset[1],-18/H);
+ for(let i=0;i<10;i++)cv.onkeydown({key:"ArrowUp",preventDefault:()=>{}});assert.ok(host._lensOffset[1]<-36/H);
  center.onclick();host._pick={result:{}};move.onclick();assert.equal(host._pick,null);assert.equal(clears,1);
 });
 

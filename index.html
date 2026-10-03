@@ -1694,22 +1694,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261003230720"></script>
+<script src="sorami-core.js?v=20261004015025"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261003230720"></script>
-<script src="sorami-exif.js?v=20261003230720"></script>
-<script src="sorami-capcloud.js?v=20261003230720"></script>
-<script src="sorami-terrain.js?v=20261003230720"></script>
-<script src="sorami-mountain.js?v=20261003230720"></script>
-<script src="sorami-fuji.js?v=20261003230720"></script>
-<script src="sorami-sky.js?v=20261003230720"></script>
-<script src="sorami-routes.js?v=20261003230720"></script>
-<script src="sorami-iss.js?v=20261003230720"></script>
-<script src="sorami-plane.js?v=20261003230720"></script>
-<script src="sorami-bodies.js?v=20261003230720"></script>
-<script src="sorami-align.js?v=20261003230720"></script>
-<script src="sorami-moon.js?v=20261003230720"></script>
+<script src="sorami-astro.js?v=20261004015025"></script>
+<script src="sorami-exif.js?v=20261004015025"></script>
+<script src="sorami-capcloud.js?v=20261004015025"></script>
+<script src="sorami-terrain.js?v=20261004015025"></script>
+<script src="sorami-mountain.js?v=20261004015025"></script>
+<script src="sorami-fuji.js?v=20261004015025"></script>
+<script src="sorami-sky.js?v=20261004015025"></script>
+<script src="sorami-routes.js?v=20261004015025"></script>
+<script src="sorami-iss.js?v=20261004015025"></script>
+<script src="sorami-plane.js?v=20261004015025"></script>
+<script src="sorami-bodies.js?v=20261004015025"></script>
+<script src="sorami-align.js?v=20261004015025"></script>
+<script src="sorami-moon.js?v=20261004015025"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7454,19 +7454,7 @@ async function aimLookRender(host, spec) {
       if (anchor && !(item.distanceKm > D && !mountain && anchor[1] >= groundY) && anchor[0] + panX >= 0 && anchor[0] + panX <= W && anchor[1] + panY >= 0 && anchor[1] + panY <= H)
         visibleTargets.push({ item, anchor });
     }
-    // 名称は画面内の目標だけ。重なる名前は段をずらし、枠外の名前を端へ貼り付けない。
-    ctx.font = "600 11px system-ui, sans-serif";
-    const labels = [];
-    for (const { item, anchor } of visibleTargets) {
-      const width = ctx.measureText(item.target.name).width;
-      const x = Math.max(5 - panX, Math.min(W - width - 5 - panX, anchor[0] - width / 2));
-      let y = anchor[1] - 12;
-      while (labels.some(b => x < b.x + b.w + 4 && x + width + 4 > b.x && Math.abs(y - b.y) < 14)) y -= 14;
-      if (y + panY < 12 || y + panY > H - 12) continue;
-      ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.strokeStyle = bright ? "rgba(255,255,255,.85)" : "#000"; ctx.lineWidth = 3;
-      ctx.strokeText(item.target.name, x, y); ctx.fillStyle = ink; ctx.fillText(item.target.name, x, y);
-      labels.push({ x, y, w: width });
-    }
+    // 図中に目標名は重ねない。visibleTargetsは読み上げに使用する。
     // 形に隠れた所も分かるように、円盤の輪を明るい点線で（暗い形の上でも見える色）
     if (c) {
       ctx.strokeStyle = body === "sun" ? "rgba(255,226,160,0.95)" : "rgba(235,238,255,0.9)";
@@ -7550,7 +7538,7 @@ async function aimLookRender(host, spec) {
   move.setAttribute("aria-pressed", String(!!host._lensMoving));
   move.textContent = host._lensMoving ? "構図を確定" : "構図を変更";
   move.onclick = () => { host._lensMoving = !host._lensMoving; host._pick = null; aimReverseClear(); aimLookRender(host, spec); };
-  center.onclick = () => { host._lensOffset = [0, 0]; draw(cur); };
+  center.onclick = () => { host._lensKeyOffset = null; host._lensOffset = [0, 0]; draw(cur); };
   cv.onkeydown = null;
   cv.tabIndex = host._lensMoving && frame ? 0 : -1;
   if (host._lensMoving && frame && !host._pick) {
@@ -7558,6 +7546,7 @@ async function aimLookRender(host, spec) {
     host.querySelector("[data-look-hint]").textContent = "";
     cv.style.touchAction = "none";
     const gesture = host._lensGesture || (host._lensGesture = { points: new Map(), drag: null, pinch: null, raf: 0 });
+    host._lensKeyOffset = null;
     let groundSnapped = false;
     // 地面の上端を固定枠の下端へ吸着。離脱側を広くして境界のちらつきを防ぐ。
     const groundEdge = hiddenY !== null ? Math.min(hiddenY, baseY) : baseY;
@@ -7583,6 +7572,7 @@ async function aimLookRender(host, spec) {
       }
     };
     cv.onpointerdown = ev => {
+      host._lensKeyOffset = null;
       if (gesture.points.size >= 2) return;
       gesture.points.set(ev.pointerId, point(ev)); beginGesture();
       try { cv.setPointerCapture(ev.pointerId); } catch {}
@@ -7624,7 +7614,7 @@ async function aimLookRender(host, spec) {
     };
     cv.onpointerup = cv.onpointercancel = cv.onlostpointercapture = endGesture;
     cv.onclick = null;
-    cv.onkeydown = (ev) => { const d = { ArrowLeft: [-.01, 0], ArrowRight: [.01, 0], ArrowUp: [0, -.01], ArrowDown: [0, .01] }[ev.key]; if (!d) return; ev.preventDefault(); const off = host._lensOffset || [0, 0]; groundSnapped = false; host._lensOffset = [Math.max(-panLimit, Math.min(panLimit, off[0] + d[0])), Math.max(-1, Math.min(1, off[1] + d[1]))]; draw(cur); };
+    cv.onkeydown = (ev) => { const d = { ArrowLeft: [-.01, 0], ArrowRight: [.01, 0], ArrowUp: [0, -.01], ArrowDown: [0, .01] }[ev.key]; if (!d) return; ev.preventDefault(); const off = host._lensKeyOffset || host._lensOffset || [0, 0]; host._lensKeyOffset = [Math.max(-panLimit, Math.min(panLimit, off[0] + d[0])), Math.max(-1, Math.min(1, off[1] + d[1]))]; shift(...host._lensKeyOffset); };
   } else {
     if (host._lensGesture?.raf) cancelAnimationFrame(host._lensGesture.raf);
     host._lensGesture = null; cv.onlostpointercapture = null;

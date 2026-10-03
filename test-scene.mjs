@@ -35,5 +35,5 @@ test('実レンダーが周囲の東京タワーを描き、古い主目標へ�
  const c=vm.createContext({aim,S,SoramiBodies:B,SoramiAstro:A,SoramiAlign:AL,SoramiTerrain:TR,aimLens:lens,AIM_SENSOR:{full:[36,24]},aimLookHosts:new Set(),aimReverseClear(){},aimIsMountain:t=>!!t.rim,aimTargetList:()=>AL.TARGETS,aimLookRidge:async()=>null,aimLookPick(){},aimLookSky:()=>[[10,20,30],[30,40,50]],aimLookDisc(){},aimLookHMS:ms=>S.JstCal.hhmm(ms),aimLookRel:()=>'',esc:s=>s,window:{devicePixelRatio:1},localStorage:{setItem(){}},navigator:{},requestAnimationFrame:()=>1,cancelAnimationFrame(){}});
  vm.runInContext(html.slice(start,end)+';this.render=aimLookRender',c);
  await c.render(host,{obs:observer,eyeM:1.5,at,title:'試験地点から'});
- assert.ok(calls.includes('東京タワー'));assert.ok(calls.includes('東京スカイツリー'));assert.ok(canvas['aria-label'].includes('東京タワー'));assert.equal(aim.target.id,'skytree');
+ assert.ok(!calls.includes('東京タワー'));assert.ok(!calls.includes('東京スカイツリー'));assert.ok(canvas['aria-label'].includes('東京タワー'));assert.equal(aim.target.id,'skytree');
 });
