@@ -716,6 +716,15 @@
   .aim-days { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
   /* この地点で重なる日の帯（2026-10-03 ユーザー「候補日はプルダウンにしたら？」→ Codex と相談し、4件ほどなら一目で比べられる横の帯）。
      一行のまま横に流す。日付と側の2段・44px 以上。選んだものに色 */
+  .aim-date-section { margin: 14px 0; padding-top: 12px; border-top: 1px solid var(--line); }
+  .aim-date-section > .fav-l { margin-top: 0; }
+  .aim-disclosure { margin-top: 12px; border-top: 1px solid var(--line); }
+  .aim-disclosure > summary { display: flex; align-items: center; gap: 10px; min-height: 48px; cursor: pointer; list-style: none; }
+  .aim-disclosure > summary::-webkit-details-marker { display: none; }
+  .aim-disclosure > summary::before { content: "›"; font-size: 22px; color: var(--secondary); }
+  .aim-disclosure[open] > summary::before { transform: rotate(90deg); }
+  .aim-disclosure > summary h2 { margin: 0; font-size: 15px; }
+  .aim-disclosure > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .aim-days.strip { flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
                     padding-bottom: 2px; scrollbar-width: none; }
   .aim-days.strip::-webkit-scrollbar { display: none; }
@@ -1227,13 +1236,8 @@
       <button id="aimHeightSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">この高さで</button>
     </div>
     <p class="tiny" id="aimHeightNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
-    <!-- どこから重ねるかで決めた地点から、次に重なる日。**選ぶ行（どこから・目標と太陽／月・どこに）より下に置く**。
-         太陽と月で日の数が違うので、上に置くと切り替えるたびに太陽／月の釦の位置が動いた（ユーザー「UIがすごく動くのが気になる」） -->
-    <div id="aimFrom" class="aim-from"></div>
-    <!-- 見え方の図は**1つ**（2026-10-03 ユーザー「どこに重ねるかを変えても見え方が変わらないのと、見え方が二箇所にあるのはなんで？」）。
-         重なる日の帯のすぐ下。描くのは「いま選んでいる場面」: 候補地を選んでいればその候補地、無ければ観測地点の近くで選んだ合わせ方が
-         ぴったりになる計算上の地点。図の上の一行が「いま何を描いているか」（Codex と相談した形） -->
-    <div id="aimLook" class="aim-look" hidden></div>
+    <!-- 日付と観測地点の候補日は一つのセクション。図を見る前に選ぶ。 -->
+    <section class="aim-date-section" aria-label="日付と候補日">
     <label class="fav-l" for="aimCalendarOpen">日付</label>
     <div class="aim-row aim-date">
       <button id="aimPrev" class="fav-btn" aria-label="前の日">←</button>
@@ -1245,6 +1249,9 @@
       <span id="aimWeekday" class="tiny" style="flex:1"></span>
       <button id="aimToday" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">今日</button>
     </div>
+    <div id="aimFrom" class="aim-from"></div>
+    </section>
+    <div id="aimLook" class="aim-look" hidden></div>
     <div class="mapwrap" style="margin-top:8px">
       <canvas id="aimCanvas" aria-label="地図。線の上が、その日に重なって見える場所です"></canvas>
       <div class="mappin" aria-hidden="true"></div>
@@ -1280,17 +1287,20 @@
     <!-- その日の候補地（2026-09-30）。月丼と同じく「この日はここ」を先に出し、線に掛かる立てる場所を並べる -->
     <!-- 目標の場所が決まっていないときは見出しごと出さない（中身の無い見出しが残っていた。2026-10-02） -->
     <div id="aimCandBox">
-    <div class="section-h" style="margin-top:12px"><h2>この日の候補地</h2></div>
+    <details class="aim-disclosure"><summary><h2>この日の候補地</h2></summary>
     <!-- 日の出側と日の入側を切り替える（2026-10-03 ユーザー「日の出と日の入に関してはボタンで切り替えが良いと思う」
          「候補地が何箇所かあるならそれを出したら？」）。釦に時刻の幅と数。線の無い側は押せない（線なし）。0か所の側は押せる -->
     <div id="aimSideSeg" class="aim-side-seg" role="group" aria-label="日の出側か日の入側か"></div>
     <div id="aimCandInfo" class="tiny" style="margin-top:6px;color:var(--secondary)"></div>
     <div id="aimCandList" class="al" style="margin-top:8px"></div>
+    </details>
     </div>
     <!-- 富士山だけ、定番のスポットで次に見える日（2026-09-30） -->
     <div id="aimListBox">
-    <div class="section-h" style="margin-top:12px"><h2 id="aimListTitle">定番スポット</h2><span class="muted" id="aimListSub"></span></div>
+    <details class="aim-disclosure"><summary><h2 id="aimListTitle">定番スポット</h2></summary>
+    <p class="tiny" id="aimListSub"></p>
     <div id="aimList" class="al"></div>
+    </details>
     </div>
       </div>
   </div>
@@ -1694,22 +1704,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004015025"></script>
+<script src="sorami-core.js?v=20261004032021"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004015025"></script>
-<script src="sorami-exif.js?v=20261004015025"></script>
-<script src="sorami-capcloud.js?v=20261004015025"></script>
-<script src="sorami-terrain.js?v=20261004015025"></script>
-<script src="sorami-mountain.js?v=20261004015025"></script>
-<script src="sorami-fuji.js?v=20261004015025"></script>
-<script src="sorami-sky.js?v=20261004015025"></script>
-<script src="sorami-routes.js?v=20261004015025"></script>
-<script src="sorami-iss.js?v=20261004015025"></script>
-<script src="sorami-plane.js?v=20261004015025"></script>
-<script src="sorami-bodies.js?v=20261004015025"></script>
-<script src="sorami-align.js?v=20261004015025"></script>
-<script src="sorami-moon.js?v=20261004015025"></script>
+<script src="sorami-astro.js?v=20261004032021"></script>
+<script src="sorami-exif.js?v=20261004032021"></script>
+<script src="sorami-capcloud.js?v=20261004032021"></script>
+<script src="sorami-terrain.js?v=20261004032021"></script>
+<script src="sorami-mountain.js?v=20261004032021"></script>
+<script src="sorami-fuji.js?v=20261004032021"></script>
+<script src="sorami-sky.js?v=20261004032021"></script>
+<script src="sorami-routes.js?v=20261004032021"></script>
+<script src="sorami-iss.js?v=20261004032021"></script>
+<script src="sorami-plane.js?v=20261004032021"></script>
+<script src="sorami-bodies.js?v=20261004032021"></script>
+<script src="sorami-align.js?v=20261004032021"></script>
+<script src="sorami-moon.js?v=20261004032021"></script>
 <script>
 "use strict";
 const S = window.Sorami;

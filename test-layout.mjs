@@ -470,7 +470,7 @@ ok(/const sunOk = !isFuji \|\| toolAllowed\("diamond"\), moonOk = !isFuji \|\| t
 // 重なる日は選ぶ行より下（太陽と月で日の数が違うので、上だと切り替えるたびに釦が動く。ユーザー「UIがすごく動くのが気になる」）
 // 日付欄は月間カレンダーを開くボタンへ変更。入力値はhidden aimDateで保持。
 { const lb = html.indexOf('id="aimWhereLabel">どこに重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('for="aimCalendarOpen">日付'), sw = html.indexOf('id="aimBody"'), fs = html.indexOf('id="aimFromButton"');
-  ok(sw < fs && fs < lb && lb < fr && fr < dt, "並び: 題名と太陽／月 → どこから → どこに → 重なる日 → 日付"); }
+  ok(sw < fs && fs < lb && lb < dt && dt < fr, "並び: 題名と天体 → どこから → どこに → 日付と候補日"); }
 ok(/\$\("aimPart"\)\.hidden = parts\.length < 2/.test(html), "選べる高さが1つなら選ぶ欄を出さない");
 ok(!/目標に太陽や月が重なる日と、/.test(html), "説明の段落を出さない");
 ok(!/線が弧を描くのは|番号は下の一覧と同じ|月が低い（2〜30°）あいだだけを見ています/.test(code), "地図の下の説明を出さない");
@@ -2912,7 +2912,7 @@ console.log("== 見え方の図（2026-10-02） ==");
 {
   ok((html.match(/id="aimLook"/g) || []).length === 1 && !/id="aim(CandLook|FromLook|CandPick)"/.test(html), "見え方の図は1つ（候補地用・観測地点用を分けない）");
   const iFrom = html.indexOf('<div id="aimFrom"'), iLook = html.indexOf('<div id="aimLook"'), iDate = html.indexOf('<label class="fav-l" for="aimCalendarOpen">');
-  ok(iFrom > 0 && iFrom < iLook && iLook < iDate, "重なる日の帯 → 見え方 → 日付の順（日付で図が変わるので、入力を上に）");
+  ok(iDate > 0 && iDate < iFrom && iFrom < iLook, "日付 → 同じセクションの候補日 → 見え方の順");
   const look = /async function aimUpdateLook\(\) \{[\s\S]*?\n\}/.exec(html)[0];
   ok(/const c = aim\.candPick !== null \? \(aim\.cands \|\| \[\]\)\[aim\.candPick\] : null;/.test(look)
     && /aimLookRender\(host, \{ obs: \{ latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, elevation: c\.stand\.elevationM \},\s*eyeM: 1\.5 \+ \(c\.place\.deckM \|\| 0\), at: c\.at/.test(look),
