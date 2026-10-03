@@ -1694,22 +1694,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261003225239"></script>
+<script src="sorami-core.js?v=20261003230720"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261003225239"></script>
-<script src="sorami-exif.js?v=20261003225239"></script>
-<script src="sorami-capcloud.js?v=20261003225239"></script>
-<script src="sorami-terrain.js?v=20261003225239"></script>
-<script src="sorami-mountain.js?v=20261003225239"></script>
-<script src="sorami-fuji.js?v=20261003225239"></script>
-<script src="sorami-sky.js?v=20261003225239"></script>
-<script src="sorami-routes.js?v=20261003225239"></script>
-<script src="sorami-iss.js?v=20261003225239"></script>
-<script src="sorami-plane.js?v=20261003225239"></script>
-<script src="sorami-bodies.js?v=20261003225239"></script>
-<script src="sorami-align.js?v=20261003225239"></script>
-<script src="sorami-moon.js?v=20261003225239"></script>
+<script src="sorami-astro.js?v=20261003230720"></script>
+<script src="sorami-exif.js?v=20261003230720"></script>
+<script src="sorami-capcloud.js?v=20261003230720"></script>
+<script src="sorami-terrain.js?v=20261003230720"></script>
+<script src="sorami-mountain.js?v=20261003230720"></script>
+<script src="sorami-fuji.js?v=20261003230720"></script>
+<script src="sorami-sky.js?v=20261003230720"></script>
+<script src="sorami-routes.js?v=20261003230720"></script>
+<script src="sorami-iss.js?v=20261003230720"></script>
+<script src="sorami-plane.js?v=20261003230720"></script>
+<script src="sorami-bodies.js?v=20261003230720"></script>
+<script src="sorami-align.js?v=20261003230720"></script>
+<script src="sorami-moon.js?v=20261003230720"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7149,15 +7149,17 @@ function aimLookDisc(ctx, x, y, r, body, p) {
 const aimRidgeCache = new Map();
 async function aimLookRidge(obs, eye, target, win) {
   const D = SoramiTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);
-  // 構図は左右へ画面幅1枚分動く。中央の3画面分と余白を取得し、端でも稜線を切らない。
-  const edgeAz = SoramiAlign.viewUnprojector(win.az0, win.alt0)(win.halfW * (2 * (win.panLimit || 1) + 1.45), 0)[0];
-  const spanAz = Math.abs(((edgeAz - win.az0 + 540) % 360) - 180);
-  const cols = 144, n = 60, s = Math.max(1.5, Math.min(12, D * 0.15));
-  const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude, spanAz].map((v) => v.toFixed(4)).join(",");
+  // 山の地形範囲・解像度はレンズや構図から独立させる。広角でも山頂を粗くしない。
+  const az0 = SoramiTerrain.bearing(obs.latitude, obs.longitude, target.latitude, target.longitude);
+  const s = target.id === "fuji" ? 18 : Math.max(1.5, Math.min(12, D * 0.15));
+  const spanAz = Math.atan2(s, Math.max(.15, D)) * 180 / Math.PI;
+  const cols = 240, n = 120;
+  const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude, s,
+    target.parts[0].m].map((v) => v.toFixed(5)).join(",");
   if (aimRidgeCache.has(key)) return aimRidgeCache.get(key);
   const pts = [];
   for (let i = 0; i <= cols; i++) {
-    const az = win.az0 - spanAz + (2 * spanAz * i) / cols;
+    const az = az0 - spanAz + (2 * spanAz * i) / cols;
     for (let j = 0; j <= n; j++) {
       const d = Math.max(0.15, D - s + (2 * s * j) / n);
       pts.push({ ...SoramiTerrain.destination(obs.latitude, obs.longitude, az, d), az, d });
@@ -7175,13 +7177,28 @@ async function aimLookRidge(obs, eye, target, win) {
       const k = i * (n + 1) + j;
       if (Number.isFinite(el[k])) best = Math.max(best, SoramiAstro.targetElevationAngle(pts[k].d, eye, el[k]));
     }
-    const rel = ((az - win.az0 + 540) % 360) - 180;
+    const rel = ((az - az0 + 540) % 360) - 180;
     if (rim) { const a = rim.at(((az - rim.azimuth + 540) % 360) - 180); if (a !== null) best = Math.max(best, a); }
     // 目標の頂は格子の間に落ちることがあるので、真ん中の列には頂そのものも入れる
     if (Math.abs(rel) <= spanAz / cols) best = Math.max(best, summit);
     out.push([az, best]);
   }
-  if (out.every(([, a]) => a === -90)) return null;
+  // 未取得の列を -90° の谷として結ばない。欠測時は輪郭全体を保留し再試行可能にする。
+  if (out.some(([, a]) => a === -90)) return null;
+  // 火口縁は粗い地形格子から独立して補う。DEMの補間値より低くしない。
+  if (rim) {
+    const coarse = out.slice();
+    for (let i = 0; i <= 120; i++) {
+      const rel = rim.min + (rim.max - rim.min) * i / 120;
+      const h = rim.at(rel); if (h === null) continue;
+      const az = rim.azimuth + rel;
+      const x = ((((az - az0 + 540) % 360) - 180) + spanAz) / (2 * spanAz) * cols;
+      if (x < 0 || x > cols) continue;
+      const lo = Math.min(cols - 1, Math.floor(x)), f = x - lo;
+      out.push([az, Math.max(h, coarse[lo][1] * (1-f) + coarse[lo+1][1] * f)]);
+    }
+    out.sort((a,b) => ((a[0]-az0+540)%360)-((b[0]-az0+540)%360));
+  }
   aimRidgeCache.set(key, out);
   return out;
 }

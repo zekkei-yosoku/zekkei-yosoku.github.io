@@ -109,21 +109,17 @@ test("図を移動しても画角枠は中央、道のタップは移動分を�
 });
 
 
-test("最大の構図移動でも稜線が左右の画面端に届く",async()=>{
+test("稜線の地形範囲は画角・構図移動で粗くならない",async()=>{
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8");
  const ridge=html.slice(html.indexOf("const aimRidgeCache"),html.indexOf("const AIM_SENSOR"));
- const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,SoramiTerrain:{distanceKm:()=>100,destination:(lat,lng,az,d)=>({latitude:lat,longitude:lng}),elevations:async pts=>pts.map(()=>1000)},SoramiAlign:{rimOutline:()=>null,viewUnprojector:AL.viewUnprojector},SoramiAstro:{targetElevationAngle:()=>2}});
+ let calls=0;
+ const c=vm.createContext({SoramiTerrain:{distanceKm:()=>100,bearing:()=>180,destination:(lat,lng,az,d)=>({latitude:lat,longitude:lng}),elevations:async pts=>{calls++;return pts.map(()=>1000)}},SoramiAlign:{rimOutline:()=>null},SoramiAstro:{targetElevationAngle:()=>2}});
  vm.runInContext(ridge,c);
- for(const halfW of [3,144]) {
- const win={az0:180,alt0:2,halfW};
- const pts=await c.aimLookRidge({latitude:35,longitude:139},10,{latitude:36,longitude:139,parts:[{m:3776}]},win);
- for(const offset of [-1,1]) {
-  const pixels=pts.map(([az,alt])=>{const xy=AL.viewProjector(win.az0,win.alt0)(az,alt);assert.ok(xy);return (xy[0]/win.halfW+1)/2*300+offset*300;});
-  assert.ok(Math.min(...pixels)<0);assert.ok(Math.max(...pixels)>300);
- }
- assert.ok(pts.every(([,alt])=>Number.isFinite(alt)));
- assert.ok(pts.at(-1)[0]-pts[0][0]<180);
- }
+ const obs={latitude:35,longitude:139},target={latitude:36,longitude:139,parts:[{m:3776}]};
+ const narrow=await c.aimLookRidge(obs,10,target,{az0:180,alt0:2,halfW:3,panLimit:1});
+ const wide=await c.aimLookRidge(obs,10,target,{az0:180,alt0:2,halfW:144,panLimit:20});
+ assert.equal(narrow,wide);assert.equal(calls,1);assert.equal(narrow.length,241);
+ assert.ok(narrow.every(([,alt])=>Number.isFinite(alt)));assert.ok(narrow.at(-1)[0]-narrow[0][0]<18);
 });
 
 
