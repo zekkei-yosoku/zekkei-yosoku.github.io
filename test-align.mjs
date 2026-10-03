@@ -369,6 +369,37 @@ console.log("== 見え方の図（2026-10-02） ==");
     ok(Math.abs(mPx - 30.6) < 0.3, "写真の 1m は 30.6px（月の直径を物差しに）", mPx.toFixed(2));
   }
 
+  // 逆引き（2026-10-03）: 写真の構図（月の中心が杖の先の 0.022° 右・0.048° 上）を置くと、逆算した撮影地と時刻が出る
+  {
+    const around = { latitude: 35.639731, longitude: 139.871155 };
+    const at2 = Date.UTC(2024, 10, 28, 19, 52, 23);
+    const r = await AL.solveComposition(tb, "moon", { around, distanceKm: 0.694, at0: at2 + 600000, dx: 0.022, dy: 0.048, groundM: 2.8 });
+    ok(r && TR.distanceKm(around.latitude, around.longitude, r.latitude, r.longitude) * 1000 < 3, "逆引き: 写真の撮影地（3m 以内）",
+      r && `${(TR.distanceKm(around.latitude, around.longitude, r.latitude, r.longitude) * 1000).toFixed(1)}m`);
+    ok(r && Math.abs(r.at - at2) < 20000 && r.side === "rise", "逆引き: 写真の時刻（20秒以内）・月の出側", r && new Date(r.at).toISOString());
+    // 解いた点から見ると、本当に置いた位置に来る
+    const eye = { latitude: r.latitude, longitude: r.longitude, elevation: r.groundM + 1.5 };
+    const g = AL.geometryFrom({ ...eye, elevation: r.groundM }, tb, { partId: tb.parts[0].id });
+    const mm = A.moon(r.at, eye);
+    const xy = AL.viewProjector(g.azimuth, g.angle)(mm.azimuth, mm.apparentAltitude);
+    ok(Math.abs(xy[0] - 0.022) < 0.002 && Math.abs(xy[1] - 0.048) < 0.002, "逆引き: その点・時刻で円盤は置いた位置", xy.map((v) => v.toFixed(4)).join(", "));
+    // 置き方を変えると立つ点が動く（上の縁を先端に＝月の中心を半径ぶん下へ）
+    const r2 = await AL.solveComposition(tb, "moon", { around, distanceKm: 0.694, at0: at2, dx: 0, dy: -mm.angularRadius, groundM: 2.8 });
+    // 694m 先では 3m 横へ動くと目標の方角が 0.25°（月の半径）変わる
+    ok(r2 && TR.distanceKm(r.latitude, r.longitude, r2.latitude, r2.longitude) * 1000 > 1.5, "逆引き: 置く位置を変えると立つ点が動く（694m 先では数m）",
+      r2 && `${(TR.distanceKm(r.latitude, r.longitude, r2.latitude, r2.longitude) * 1000).toFixed(0)}m`);
+    // 道から遠すぎる所（同じ日・同じ距離では来ない所）は null
+    const r3 = await AL.solveComposition(tb, "moon", { around, distanceKm: 0.694, at0: at2, dx: 0, dy: 40, groundM: 2.8, maxShiftMs: 3600000 });
+    ok(r3 === null, "逆引き: 来ない所は null");
+    // その日の中の解だけ（日付の境目で前後の日へ進まない）。11/29 の解を 11/28 の日として頼むと null
+    const day29 = Date.UTC(2024, 10, 28, 15, 0, 0);   // 11/29 0:00 JST
+    const ok29 = await AL.solveComposition(tb, "moon", { around, distanceKm: 0.694, at0: at2, dx: 0.022, dy: 0.048, groundM: 2.8, dayMs: day29 });
+    const ng28 = await AL.solveComposition(tb, "moon", { around, distanceKm: 0.694, at0: at2, dx: 0.022, dy: 0.048, groundM: 2.8, dayMs: day29 - 86400000 });
+    ok(ok29 && ng28 === null, "逆引き: その日の中の解だけ");
+    const U = AL.viewUnprojector(120, 4), P = AL.viewProjector(120, 4), q = U(0.3, -0.2), back = P(q[0], q[1]);
+    ok(Math.abs(back[0] - 0.3) < 1e-9 && Math.abs(back[1] + 0.2) < 1e-9, "図の座標→方位・高さ→図の座標で戻る");
+  }
+
   // 4つの形と、他の建物・山
   const st = AL.towerOutline(TAKAO, skytree, { eyeM: 1.5 });
   const topSt = A.targetElevationAngle(st.distanceKm, TAKAO.elevation + 1.5, 636);

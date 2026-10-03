@@ -1267,10 +1267,84 @@
     return out;
   }
 
+  /** 図の座標（度）→ 方位・高さ。viewProjector の逆 */
+  function viewUnprojector(az0, alt0) {
+    const c = unit(az0, alt0);
+    const e = [Math.cos(az0 * R), -Math.sin(az0 * R), 0];
+    const n = [e[1] * c[2] - e[2] * c[1], e[2] * c[0] - e[0] * c[2], e[0] * c[1] - e[1] * c[0]];
+    return (x, y) => {
+      const v = [0, 1, 2].map((i) => c[i] + x * R * e[i] + y * R * n[i]);
+      const L = Math.hypot(v[0], v[1], v[2]);
+      return [((Math.atan2(v[0], v[1]) / R) + 360) % 360, Math.asin(v[2] / L) / R];
+    };
+  }
+
+  /**
+   * 逆引き（2026-10-03 ユーザー「見え方の月とか太陽の位置を調整したら、それがどこら辺の座標で撮れるのか逆引きみたいなことってできる？」）。
+   * 目標から distanceKm の円の上で、時刻 at0 の近くに、円盤の中心が目標の先端から図の上で (dx, dy) 度の所に来る立つ点と時刻を解く。
+   * 未知数は「目標から見た立つ点の方位」と「時刻」、条件は図の上の横と縦（Codex と相談: 距離は固定、2変数のニュートン法）。
+   * 立つ高さは地面＋eyeM。解いた点の地面を elevationAt で取り直し、0.5m 以上変われば解き直す。dayMs（その日の始まり）を渡せば、その日の中の解だけ。解けなければ null
+   */
+  async function solveComposition(target, body, { around, distanceKm, at0, dx, dy, eyeM = 1.5, groundM = 0,
+    elevationAt = null, partId = null, maxShiftMs = 4 * 3600000, dayMs = null } = {}) {
+    const D = distanceKm;
+    const pid = partId || ((target.parts || [])[0] || {}).id;
+    const place = (th) => TR.destination(target.latitude, target.longitude, th, D);
+    const at = (th, t, g) => {
+      const p = place(th);
+      const obs = { latitude: p.latitude, longitude: p.longitude, elevation: g };
+      const geo = geometryFrom(obs, target, { eyeM, partId: pid });
+      if (!geo) return null;
+      const st = bodyAt(body, t, { ...obs, elevation: g + eyeM });
+      const xy = viewProjector(geo.azimuth, geo.angle)(st.azimuth, st.apparentAltitude);
+      return xy ? { r: [xy[0] - dx, xy[1] - dy], p, geo, st } : null;
+    };
+    let th = TR.bearing(target.latitude, target.longitude, around.latitude, around.longitude), t = at0, g = groundM;
+    for (let round = 0; round < 3; round++) {
+      let ok = false;
+      for (let k = 0; k < 40; k++) {
+        const c = at(th, t, g);
+        if (!c) return null;
+        if (Math.hypot(c.r[0], c.r[1]) < 5e-4) { ok = true; break; }
+        const hTh = (3 / (D * 1000)) / R, hT = 5000;   // 3m ぶんの方位と5秒で傾きを測る
+        const a = at(th + hTh, t, g), b = at(th, t + hT, g);
+        if (!a || !b) return null;
+        const j00 = (a.r[0] - c.r[0]) / hTh, j01 = (b.r[0] - c.r[0]) / hT;
+        const j10 = (a.r[1] - c.r[1]) / hTh, j11 = (b.r[1] - c.r[1]) / hT;
+        const det = j00 * j11 - j01 * j10;
+        if (!Number.isFinite(det) || det === 0) return null;
+        const dTh = -(j11 * c.r[0] - j01 * c.r[1]) / det;
+        const dT = -(-j10 * c.r[0] + j00 * c.r[1]) / det;
+        // 一度に動かしすぎない（方位は 20°・時刻は 30分まで）
+        const s = Math.min(1, 20 / Math.max(1e-9, Math.abs(dTh)), 1800000 / Math.max(1, Math.abs(dT)));
+        th += dTh * s; t += dT * s;
+        if (Math.abs(t - at0) > maxShiftMs) return null;
+      }
+      if (!ok) return null;
+      if (!elevationAt) break;
+      const p = place(th);
+      let g2 = null;
+      try { g2 = await elevationAt(p.latitude, p.longitude); } catch { g2 = null; }
+      if (!Number.isFinite(g2)) break;
+      const moved = Math.abs(g2 - g) >= 0.5;
+      g = g2;
+      if (!moved) break;
+    }
+    const c = at(th, t, g);
+    if (!c || Math.hypot(c.r[0], c.r[1]) > 2e-3) return null;
+    // 「同じ日」を守る（dayMs はその日の始まり。日付の境目の近くで前後の日の解へ進むことがある。Codex の点検）
+    if (Number.isFinite(dayMs) && (t < dayMs || t >= dayMs + 86400000)) return null;
+    const eye = { latitude: c.p.latitude, longitude: c.p.longitude, elevation: g + eyeM };
+    const later = bodyAt(body, t + 60000, eye).apparentAltitude;
+    return { latitude: c.p.latitude, longitude: c.p.longitude, groundM: g, at: Math.round(t), azimuth: c.geo.azimuth, distanceKm: D,
+      altitude: c.st.apparentAltitude, side: later < c.st.apparentAltitude ? "set" : "rise",
+      sunAltitude: body === "moon" ? A.sun(t, eye).apparentAltitude : c.st.apparentAltitude };
+  }
+
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, FUJI_SPOTS, spotObserver,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, judge, buildingBlock,
-                        viewProjector, TOWER_SHAPES, towerOutline, viewWindow, viewPath };
+                        viewProjector, viewUnprojector, solveComposition, TOWER_SHAPES, towerOutline, viewWindow, viewPath };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);

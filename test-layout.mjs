@@ -242,7 +242,8 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   const fn = /async function aimRenderFrom\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
   ok(/const obs = \{ latitude: f\.latitude, longitude: f\.longitude/.test(fn) && /SoramiAlign\.upcoming\(obs, aim\.target/.test(fn),
     "地点から探す: 選んだ地点（aim.from）で解く");
-  ok(/<strong>\$\{esc\(f\.name\)\}<\/strong>[\s\S]{0,80}から見た/.test(fn), "地点から探す: どこからの結果かを名前で書く");
+  // 帯の上の「◯◯から見た◯◯ ・ ◯◯まで Nkm」は出さない（2026-10-03 ユーザーが選んだ「いらない説明文」）。どこからかは上のカードと図の上の一行
+  ok(!/から見た\$\{esc\(what\)\}/.test(fn) && !/const head = /.test(fn), "地点から探す: 帯の上に地点と題名を繰り返さない");
   // 2026-10-01 ユーザー「絶景予測と同じレイアウトにしたら？新しいレイアウト作る必要ないよね」→ 地点カードと同じ形・同じ「地点」の画面
   ok(/<div class="place-row aim-place-card">\s*<button class="place-pick" id="aimFromButton"/.test(html), "どこから重ねるか: 地点カードと同じ形（📍 名前・住所・標高、🔍、☆）");
   ok(/\$\("aimFromButton"\)\.onclick = \(\) => openPlaceSheet\("aim"\);/.test(html), "押すと地点カードと同じ「地点」の画面を開く");
@@ -269,8 +270,9 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   { const t0 = html.indexOf('id="aimTitle"'), b = html.indexOf('id="aimFromLabel">どこから重ねるか'), a = html.indexOf('id="aimWhereLabel">どこに重ねるか');
     ok(t0 > 0 && t0 < b && b < a && !/id="aimTargetBox"/.test(html), "「どこから重ねるか」は題名のすぐ下（目標の行は無い）"); }
   // 地図から決めるのは地図を見ているとき。釦は上の欄ではなく地図のすぐ下（ユーザー「地図の中心ってここにいらない」）
-  { const cv = html.indexOf('id="aimCanvas"'), pk = html.indexOf('id="aimPick"'), nr = html.indexOf('id="aimNear"'), fs = html.indexOf('id="aimFromButton"');
-    ok(fs < cv && cv < pk && pk < nr, "「ここから重ねる」は地図のすぐ下、その下に中心の説明（上の欄は名前で探すだけ）"); }
+  { const cv = html.indexOf('id="aimCanvas"'), pk = html.indexOf('id="aimPick"'), fs = html.indexOf('id="aimFromButton"');
+    ok(fs < cv && cv < pk && !/id="aimNear"/.test(html) && !/function aimUpdateNear/.test(html),
+      "「ここから重ねる」は地図のすぐ下（中心から線までの説明は出さない。2026-10-03 ユーザーが選んだ「いらない説明文」）"); }
   // 重ならないなら言い切る（ユーザー「天体の動き的に絶対にないわけでしょ？」）。「この1年」と濁さない
   ok(/"ここからは重なりません。"/.test(html) && !/この1年、ここからは重なりません/.test(html), "重ならない地点は「ここからは重なりません」");
   ok(/"重なるのは明るい空のときだけです"/.test(html) && /縁がかすめるだけで、重なりません/.test(html), "出さない理由があるときだけ、その理由を一言で書く");
@@ -286,12 +288,11 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/class="tiny aim-day" data-from-day=/.test(fn), "次に重なる日は日付の小さな釦で（押すとその日の線と候補地へ）");
   ok(/SoramiAlign\.lineOfSight\(obs, aim\.target/.test(fn) && /aimSightBuildings\(obs, D,/.test(fn), "見通し（地形・高い建物）を添える");
   // 見えないなら、重なる日の上に目立つ形で「見えません」（2026-10-02 ユーザー「そもそも目標物が見えませんとかって出した方がいい」）
-  ok(/head \+ sightSlot \+ \(chips/.test(fn), "見通しの欄は重なる日の上");
+  ok(/\$\("aimFrom"\)\.innerHTML = sightSlot \+ \(chips/.test(fn) && /id="aimFromSight" hidden/.test(fn), "見通しの欄は重なる日の上（隠れるときだけ出す）");
   ok(/ここからは\$\{esc\(aim\.target\.name\)\}\$\{part \? `の\$\{esc\(part\.name\)\}` : ""\}が見えません/.test(fn)
     && /classList\.add\("hidden-target"\)/.test(fn), "見えないときは「ここからは〇〇（の先端）が見えません」と言い切る");
   ok(!/if \(!hidden && !aimIsFuji\(\)\)/.test(fn), "建物は富士山でも見る（観測地点が街の中のこともある）");
-  ok(/buildingsKnown \? "地形・高い建物では隠れません" : "地形では隠れません（建物は確かめられませんでした）"/.test(fn),
-    "建物を確かめられなかったときは「隠れません」と言わない");
+  ok(!/地形・高い建物では隠れません|見通しを確かめています/.test(html), "隠れないとき・確かめている間は何も書かない（2026-10-03 ユーザーが選んだ「いらない説明文」）");
   ok(/\.aim-sight\.hidden-target \{[^}]*color: var\(--red\)/.test(html), "見えませんは赤で目立たせる");
   ok((html.match(/SoramiAlign\.upcoming\(obs, aim\.target/g) || []).length === 1, "ほかの所で見えない地点からの一覧を出さない");
   // 地点の住所は都道府県＋市区町村まで（OSM の住所は長い）
@@ -569,7 +570,7 @@ ok(/\$\("aimTargetSub"\)\.textContent = c\s+\? \[c\.subtitle, `標高 \$\{Math\.
   ok(/SoramiTerrain\.buildingsAlong\(obs, end, \{ wanted \}\)/.test(sb) && /aimSightBuildings\(obs, D, \(\) => seq === aim\.fromSeq,/.test(html),
     "観測地点を替えたら、待っている問い合わせは投げない");
   ok(/if \(!cands\.every\(\(c\) => tallCovers\(all, c\.stand\.latitude, c\.stand\.longitude\)\)\) return "outside";/.test(html)
-    && /"建物で隠れるかは、首都圏の外では確かめていません。"/.test(html), "候補地も、首都圏の外では建物を確かめていないと書く");
+    && /if \(!blocks \|\| blocks === "outside"\) return;/.test(html), "候補地も、首都圏の外では建物で外さない（断り書きは出さない）");
   ok(/connect-src[^"]*https:\/\/maps\.mail\.ru/.test(html), "Overpass の予備（maps.mail.ru）へつなげる（CSP）");
 }
 // ユーザー「大平和祈念塔とか高さ出ないけど…検索したらその建物、目標物の高さを取得して出すとかだとダメなの？」
@@ -741,7 +742,7 @@ console.log("== ねらう: その日の候補地（2026-09-30） ==");
     ok(fs.existsSync(new URL("./data/tall-buildings.json", import.meta.url)) && /^!data\/tall-buildings\.json$/m.test(gi2),
       "data/tall-buildings.json があり、配信から外さない");
   }
-  ok(/建物で隠れるかは確かめられませんでした/.test(html), "建物を確かめられなかったときは、そう書く");
+  ok(!/建物で隠れるかは/.test(html), "建物の断り書きは出さない（2026-10-03 ユーザーが選んだ「いらない説明文」）");
 }
 
 console.log("== 地点検索: 山・峠・展望地の索引（2026-09-30） ==");
@@ -2948,7 +2949,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
     "月が明るい空でだけ重なる側は、そう書く（場所が無いのとは別）");
   ok(/aim\.candPick = aim\.candPick === i \? null : i;\s*aimRenderCands\(\);\s*aimUpdateLook\(\);/.test(cands), "行を押すと選ぶ（もう一度でやめる）→ 図が変わる");
   ok(/data-cand-map=/.test(cands) && /AimMap\.open\(\{ latitude: x\.stand\.latitude/.test(cands), "地図は「地図で見る」で動かす（行を押しても地図へ飛ばない）");
-  ok(/↑ 見え方に表示中/.test(cands), "選んだ行に、図に出していること");
+  ok(!/見え方に表示中/.test(cands) && /cand-row jump\$\{on \? " on" : ""\}/.test(cands), "選んだ行は色で分かる（「↑ 見え方に表示中」は出さない）");
   ok(/all\[aim\.candPick\]\.side !== aim\.candSide\) \{ aim\.candPick = null; aimUpdateLook\(\); \}/.test(cands), "反対の側へ替えたら、その候補地の選択はやめる");
   const find = /async function aimFindCandidates\(\) \{[\s\S]*?\n\}/.exec(html)[0];
   ok(/aim\.candPick = want >= 0 \? want : null;/.test(find) && !/aim\.candPick = 0/.test(find), "候補地は自動では選ばない");
@@ -2987,19 +2988,39 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(rel(0) === "重なる時刻" && rel(-180000) === "重なる3分前" && rel(20000) === "重なる20秒後" && rel(-80000) === "重なる1分20秒前",
     "選んだ時刻は重なる時刻からの差で言う", [rel(0), rel(-180000), rel(20000), rel(-80000)].join(" / "));
   ok(rel(-60000, "先端を通る") === "先端を通る1分前", "どこから重ねるかの図は「先端を通る」時刻からの差で言う（選んだ縁が触れるとは限らない）");
-  // 形の出どころを書き分ける（Codex: 寸法からの形・推定の模式図・標高データを見た目で区別する）
-  ok(/稜線は国土地理院の標高データから/.test(html) && /形はシルエットを写真の縮尺に合わせたもの（ドームは少し細め）/.test(html)
-    && /の模式図（幅は推定）/.test(html)
-    && /のシルエットを写真の縮尺に合わせたもの`/.test(html) && /形は城のシルエットを、先端51m・下の端を地面にそろえたもの/.test(html), "形の出どころを書く");
+  // 図の下の説明（形の出どころ・大気の屈折・縮尺）は出さない（2026-10-03 ユーザー「この説明文いらないわ」「いらない説明文結構ない？」）
+  ok(!/形は城のシルエット|形はシルエットを写真の縮尺|高さは大気の屈折を含む|の模式図（幅は推定）|稜線は国土地理院の標高データから/.test(html)
+    && /note\.textContent = mountain && !shape \? "稜線を読み込めませんでした" : "";/.test(html), "図の下に説明を出さない（稜線を読めなかったときだけ）");
   ok(/const groundY = hiddenY !== null \? Math\.min\(hiddenY, baseY\) : baseY;/.test(html) && !/globalAlpha = 0\.45; outlinePath/.test(html),
     "形の材料で見えない所は薄い形を描かず、地面の帯をその高さまで上げる（ユーザー「このグレーの下の部分って表示しなくて良い」）");
   ok(/円盤は形の後ろ（形で隠れる）/.test(html) && /ctx\.setLineDash\(\[3, 3\]\)/.test(html), "円盤は形の後ろ、隠れた所は点線の輪");
   ok(/ctx\.fillStyle = bright \? "rgba\(16,20,30,0\.94\)" : "#020306";/.test(html) && /const rim = bright \? null : /.test(html),
     "暗い空では形を空より暗く塗り、縁を明るい線でなぞる（夜空と見分けにくかった）");
   ok(/選んだ時刻だけ字で出す/.test(html), "時刻の字は選んだものだけ（320px で読めるように）");
-  ok(/smallBy >= 2 \? `ここからは\$\{t\.name\}の高さが/.test(html) && /（同じ縮尺）/.test(html), "遠くて形が円盤より小さいときは、同じ縮尺であることを書く");
-  const lookSrc = html.slice(html.indexOf("async function aimLookRender"), html.indexOf("let aimLookResize"));
+  const lookSrc = html.slice(html.indexOf("async function aimLookRender"), html.indexOf("function aimLookPick("));
   ok(/cv\.onclick = /.test(lookSrc) && !/onpointerdown/.test(lookSrc) && /data-look-range/.test(lookSrc), "道をさわるか、つまみで時刻を選ぶ（iPhone の指のタップは click で受ける）");
+  // 逆引き（2026-10-03 ユーザー「見え方の月とか太陽の位置を調整したら、それがどこら辺の座標で撮れるのか逆引きできる？」→「円盤を置く」）
+  const pickSrc = html.slice(html.indexOf("function aimLookPick("), html.indexOf("let aimLookResize"));
+  ok(/data-look-pick/.test(html) && /撮れる場所を探す/.test(pickSrc) && /"やめる"/.test(pickSrc), "図の下に「撮れる場所を探す」（押すと「やめる」）");
+  ok(/if \(!on\) \{[^}]*cv\.onpointerdown = cv\.onpointermove = cv\.onpointerup = null; cv\.onclick = pathTap; return; \}/.test(pickSrc),
+    "逆引きでないときは、いつもの道のタップのまま（ぶつからない）");
+  ok(/cv\.onpointerdown = /.test(pickSrc) && /cv\.onpointerup = /.test(pickSrc) && /cv\.onclick = \(ev\) => \{ if \(Date\.now\(\) - \(st\.upAt \|\| 0\) < 800\) return;/.test(pickSrc),
+    "円盤は指で動かす・空をタップで置ける（短いタップは click でも受け、描き直しをまたいで二重には解かない）");
+  ok(/if \(host\._lookSeq === mySeq\) draw\(\);/.test(pickSrc) && /if \(host\._lookSeq === seq\) draw\(v\);/.test(lookSrc),
+    "描き直したあと、前の図の待ちで上書きしない");
+  ok(/\[data-look-canvas\]\.picking \{[^}]*touch-action: none;/.test(html), "逆引きの間だけ、図の上で指を動かしてもページがスクロールしない");
+  ok(/SoramiAlign\.solveComposition\(aim\.target, aim\.body, \{ around: spec\.obs, distanceKm: D, at0, dx, dy,/.test(pickSrc),
+    "同じ日・目標まで同じ距離で、置いた位置になる立つ点と時刻を解く");
+  ok(/SoramiAlign\.viewUnprojector\(win\.az0, win\.alt0\)/.test(pickSrc) && /SoramiAlign\.viewProjector\(az, topAngle\)\(pAz, pAlt\)/.test(pickSrc),
+    "置いた位置は、目標の先端を真ん中にした図の上のずれに直して解く");
+  ok(/この日・この距離では、そこには来ません/.test(pickSrc), "解けなければそう書く");
+  ok(/const stale = \(\) => seq !== st\.seq \|\| host\._pick !== st \|\| host\._lookSeq !== mySeq \|\| aimLookKey\(\) !== key;/.test(pickSrc)
+    && (pickSrc.match(/if \(stale\(\)\) return;/g) || []).length >= 2,
+    "解いている間に条件を替えた・描き直した（幅が変わった）ら、結果は捨てる（Codex の点検）");
+  ok(/dayMs: aim\.dayMs \}\);/.test(pickSrc), "その日の中の解だけ（前後の日へ進まない）");
+  ok(/<strong>撮れる場所<\/strong>/.test(pickSrc) && /r\.latitude\.toFixed\(5\)/.test(pickSrc) && /data-found-map/.test(pickSrc) && /水の上です/.test(pickSrc),
+    "撮れる場所: どこから何m・座標・時刻・目標の方角・地図で見る（水の上ならそう書く）");
+  ok(/if \(!spec\.pick\) host\._pick = null;/.test(lookSrc), "日付・合わせ方・候補地を替えたら逆引きは終わる");
   ok(/\.aim-look canvas \{ display: block; width: 100%;[^}]*touch-action: pan-y;/.test(html), "図は幅いっぱい。縦のスクロールは止めない");
   ok(/\.aim-look-time input \{[^}]*height: 44px;/.test(html), "つまみは44px の高さ");
   ok(/Math\.round\(cv\.clientWidth\) !== h\._lookW\) aimLookRender/.test(html), "幅が変わったときだけ描き直す（スクロールの resize で選んだ時刻を戻さない）");
@@ -3021,7 +3042,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(/if \(first\) requestAnimationFrame\(/.test(html), "描き直しは画面の更新1回につき1度");
   ok(/\.aim-look-h > span:first-child \{ flex: 0 0 auto; \}/.test(html), "「見え方」の見出しは折り返さない");
   ok(/if \(!\(part && part\.adjustable\)\) \$\("aimHeightNote"\)\.textContent = "";/.test(html), "高さを直せない目標へ替えたら前の注記を消す");
-  ok(/if \(c && d > 0\.05\) \{/.test(html), "地図の中心が目標そのものなら見上げ角を出さない（0km先から -90°）");
+  ok(!/は地図の中心（\$\{aimKm\(d\)\}km先）から/.test(html), "高さ欄の下に見上げ角を出さない（2026-10-03 ユーザーが選んだ「いらない説明文」）");
 }
 
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
