@@ -1255,7 +1255,8 @@ ok(/function shotHeightNote/.test(html), "立つ高さと食い違ったら知�
 ok(!/place\.eyeHeightAGL = /.test(html), "写真から立つ高さを勝手に変えない");
 // 取り込んだ値を信用しない（同期でサーバー越しにも入る）
 ok(/photoLatitude: num\(r\.photoLatitude, -90, 90\)/.test(html), "緯度の範囲を検査する");
-ok(/photoOutsideWindow: r\.photoOutsideWindow === true/.test(html), "真偽値を素通りさせない");
+// 旧記録の不明をfalseに変えない。文字列などの不正値はnullへ正規化する。
+ok(/photoOutsideWindow: typeof r\.photoOutsideWindow === "boolean" \? r\.photoOutsideWindow : null/.test(html), "真偽値と不明だけを保持する");
 
 console.log("== 建物の地平線（urban 層）==");
 // 新宿中央公園では月が地平線より上にいる時間の 31.3% が建物の裏（2026-09-14 実測）。
@@ -1633,7 +1634,8 @@ const pend = html.slice(html.indexOf("function renderPending"),
 ok(/outcomeButtons\(id, ev\.peak/.test(pend), "ホームの一覧に押す場所が付く");
 ok(/\$\("recPending"\)\.hidden = hidden \|\| !out\.length/.test(pend),
   "答える回が無ければホームに何も出さない");
-ok(/ev\.window\[1\] > now \|\| now - ev\.window\[1\] > ROUND_ANSWER_MS\) return;/.test(html), "終わった回だけ聞く");
+// F01: 保存した開始前予測のfilterで、終了後7日以内に限定する。境界の挙動はtest-ui-diagnosisで検証。
+ok(/r\.window\[1\] <= now && now - r\.window\[1\] <= ROUND_ANSWER_MS/.test(html), "終わった回だけ聞く");
 ok(/ROUND_ANSWER_MS = 7 \* 86400000/.test(html), "古すぎる回は聞かない（終わってから7日まで）");
 ok(/!findSighting\(pid, ev\.peak\)/.test(pend), "答えた回は二度聞かない");
 ok(/out\.slice\(0, 4\)/.test(pend), "一度に出す件数を絞る");
@@ -2863,7 +2865,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   ok(/const out = answerableRounds\(now\)\.filter\(\(\{ pid, ev \}\) => !findSighting\(pid, ev\.peak\)\)/.test(html), "実際はどうでしたかは答えられる回から");
   ok(/const round = roundOf\(pid, peak\);/.test(html.slice(html.indexOf("function recordAnswer"))), "記録も残した回の予測で");
   // 総点検（2026-10-02）: 詳細の画面も、残した回の予測で答える（予報が変わった回で「予測通り」が期待外れになっていた）
-  ok(/outcomeButtons\(id, ev\.peak, \(roundOf\(id, ev\.peak\) \|\| \{ ev \}\)\.ev\.score, current\)/.test(html), "詳細の答えも残した回の予測の点で");
+  ok(/outcomeButtons\(id, ev\.peak, current \? current\.score : savedRound\.ev\.score, current\)/.test(html), "詳細は保存した予測だけで答える（事後の予報に戻さない）");
   // 明日の回も残す（明日の朝焼けを、明日アプリを開く前の予測で）・上限
   const mem2 = {};
   const store2 = { get: (k, d) => (k in mem2 ? JSON.parse(mem2[k]) : d), set: (k, v) => { mem2[k] = JSON.stringify(v); } };

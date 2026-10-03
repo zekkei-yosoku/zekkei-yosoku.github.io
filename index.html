@@ -1639,21 +1639,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261003100826"></script>
+<script src="sorami-core.js?v=20261003114424"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261003100826"></script>
-<script src="sorami-exif.js?v=20261003100826"></script>
-<script src="sorami-capcloud.js?v=20261003100826"></script>
-<script src="sorami-terrain.js?v=20261003100826"></script>
-<script src="sorami-mountain.js?v=20261003100826"></script>
-<script src="sorami-fuji.js?v=20261003100826"></script>
-<script src="sorami-sky.js?v=20261003100826"></script>
-<script src="sorami-routes.js?v=20261003100826"></script>
-<script src="sorami-iss.js?v=20261003100826"></script>
-<script src="sorami-plane.js?v=20261003100826"></script>
-<script src="sorami-align.js?v=20261003100826"></script>
-<script src="sorami-moon.js?v=20261003100826"></script>
+<script src="sorami-astro.js?v=20261003114424"></script>
+<script src="sorami-exif.js?v=20261003114424"></script>
+<script src="sorami-capcloud.js?v=20261003114424"></script>
+<script src="sorami-terrain.js?v=20261003114424"></script>
+<script src="sorami-mountain.js?v=20261003114424"></script>
+<script src="sorami-fuji.js?v=20261003114424"></script>
+<script src="sorami-sky.js?v=20261003114424"></script>
+<script src="sorami-routes.js?v=20261003114424"></script>
+<script src="sorami-iss.js?v=20261003114424"></script>
+<script src="sorami-plane.js?v=20261003114424"></script>
+<script src="sorami-align.js?v=20261003114424"></script>
+<script src="sorami-moon.js?v=20261003114424"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1752,8 +1752,8 @@ function confidenceText(ev) {
     // **モデルを横断して採点していない現象**（富士山・月）。
     // 「N つの予報モデルが…」と言うと嘘になる（実際 N=0 で「0つの」と出た）。
     // 何を根拠に幅を出しているかを、そのまま言う。
-    const w = Math.round(u.modelWidth);
-    parts.push(d === 0
+    const w = Math.round(u.expectedError);
+    parts.push(w < 1 ? "点数はあまり動きません" : d === 0
       ? `点数は ±${w}点 ほど動く見込みです`
       : `${d}日先なので、点数は ±${w}点 ほど動く見込みです`);
     if (ev.confidence.key === "medium") parts.push("評価が1段変わり得ます");
@@ -1911,7 +1911,7 @@ function cleanSighting(r) {
     photoAltitudeM: num(r.photoAltitudeM, -500, 9000),
     photoDistanceM: num(r.photoDistanceM, 0, 2e7),
     photoAglM: num(r.photoAglM, -100, 1000),
-    photoOutsideWindow: r.photoOutsideWindow === true };
+    photoOutsideWindow: typeof r.photoOutsideWindow === "boolean" ? r.photoOutsideWindow : null };
 }
 /**
  * 保存した地点の展望台の高さを、いまの公表値の一覧で引き直す。
@@ -3906,10 +3906,15 @@ function renderDetail(id, sel, now, opts = {}) {
   // 記録できるのはその回が終わってから。まだ来ていない空は評価できない。
   const finished = ev.window[1] <= now;
   const current = findSighting(id, ev.peak);
+  const savedRound = roundOf(id, ev.peak);
+  // 分の切上げと日付をそろえる（23:59台を丸めて当日0:00と案内しない）。
+  const recordAt = Math.ceil(ev.window[1] / 60000) * 60000;
   const record = finished
-    ? `<div style="padding:8px 0"><div style="margin-bottom:6px">実際はどうでしたか？</div>
-       ${outcomeButtons(id, ev.peak, (roundOf(id, ev.peak) || { ev }).ev.score, current)}</div>`
-    : `<p class="tiny" style="padding:4px 0">${S.JstCal.hhmmRounded(ev.peak)} を過ぎたら記録できます</p>`;
+    ? current || savedRound
+      ? `<div style="padding:8px 0"><div style="margin-bottom:6px">実際はどうでしたか？</div>
+       ${outcomeButtons(id, ev.peak, current ? current.score : savedRound.ev.score, current)}</div>`
+      : `<p class="tiny" style="padding:4px 0">始まる前の予測がないため、答え合わせはできません</p>`
+    : `<p class="tiny" style="padding:4px 0">${S.JstCal.sameDay(recordAt, now) ? "" : S.JstCal.monthDay(recordAt) + " "}${S.JstCal.hhmm(recordAt)} を過ぎたら記録できます</p>`;
   // 広い画面では「なぜこの点数か」と「どれくらい確かか」で列を分ける。
   // 1行を長くしないための分割で、片方だけを描けるように part で切り替える。
   if (opts.part === "how") {
@@ -4008,10 +4013,10 @@ function keepRounds(forPlace, now = Date.now()) {
     for (const e of entries) {
       const ev = e.evaluation;
       // 今日と明日の回（明日の朝焼けを、明日アプリを開く前の予測で残す。開いたのが日の出のあとでも始まる前の予測になる）
-      if (!ev || ev.unavailable || (e.dayMs !== today && e.dayMs !== S.Cal.addDays(today, 1)) || !Array.isArray(ev.window)) continue;
+      if (!ev || ev.unavailable || (e.dayMs !== today && e.dayMs !== S.Cal.addDays(today, 1)) || !Array.isArray(ev.window) || now >= ev.window[0]) continue;
       const i = list.findIndex((r) => r.pid === pid && samePlaceAs(r, forPlace) && S.JstCal.sameDay(r.peak, ev.peak));
       if (i >= 0 && now >= list[i].window[0]) continue;      // 始まったあとは上書きしない
-      const snap = { pid, peak: ev.peak, latitude: forPlace.latitude, longitude: forPlace.longitude,
+      const snap = { pid, peak: ev.peak, capturedAt: now, latitude: forPlace.latitude, longitude: forPlace.longitude,
         placeName: forPlace.name, placeId: forPlace.id, score: ev.score, rank: ev.rank.key, confidence: ev.confidence.key,
         perModel: ev.perModel, factors: ev.factors, window: ev.window, specificTime: ev.specificTime,
         observations: collectObservations(pid, ev.peak) };
@@ -4026,27 +4031,19 @@ function keepRounds(forPlace, now = Date.now()) {
 const roundFromSnap = (r) => ({ pid: r.pid, observations: r.observations || null, ev: {
   peak: r.peak, score: r.score, rank: S.RANKS.find((x) => x.key === r.rank) || S.rankOf(r.score),
   confidence: { key: r.confidence }, perModel: r.perModel, factors: r.factors, window: r.window, specificTime: r.specificTime } });
-/// その回（この地点・その日）。残した回（始まる前の予測）を先に、無ければ今の予報の回
-function roundOf(pid, peak) {
-  const r = store.get("sorami.rounds", []).find((x) => x && x.pid === pid && samePlaceAs(x, place) && S.JstCal.sameDay(x.peak, peak));
-  if (r) return roundFromSnap(r);
-  const e = (weeks[pid] || []).find((x) => S.JstCal.sameDay(x.evaluation.peak, peak));
-  return e && e.evaluation && !e.evaluation.unavailable ? { pid, ev: e.evaluation, observations: null } : null;
+/// 保存時刻が開始前と確認できる予測だけを答え合わせに使う。
+/// 旧版の保存時刻不明な回は保持するが、事後予測との区別ができないので使わない。
+function isPreEventRound(r) {
+  return r && Number.isFinite(r.capturedAt) && Array.isArray(r.window) && r.capturedAt < r.window[0];
 }
-/// 答えられる回: 終わってから7日以内の、この地点の回（残した回と今の予報の回を合わせ、同じ日の同じ現象は1つ）
+function roundOf(pid, peak) {
+  const r = store.get("sorami.rounds", []).find((x) => isPreEventRound(x) && x.pid === pid && samePlaceAs(x, place) && S.JstCal.sameDay(x.peak, peak));
+  return r ? roundFromSnap(r) : null;
+}
+/// 終了から7日以内、この地点の開始前に保存した回。
 function answerableRounds(now) {
-  const out = new Map();
-  const add = (round) => {
-    const { ev } = round;
-    if (!S.PHENOMENA[round.pid] || !Array.isArray(ev.window) || ev.window[1] > now || now - ev.window[1] > ROUND_ANSWER_MS) return;
-    const k = `${round.pid}|${S.Cal.startOfDay(ev.peak)}`;
-    if (!out.has(k)) out.set(k, round);
-  };
-  for (const r of store.get("sorami.rounds", [])) if (r && samePlaceAs(r, place)) add(roundFromSnap(r));
-  for (const [pid, entries] of Object.entries(weeks)) {
-    for (const e of entries) if (e.evaluation && !e.evaluation.unavailable) add({ pid, ev: e.evaluation, observations: null });
-  }
-  return [...out.values()];
+  return store.get("sorami.rounds", []).filter((r) => isPreEventRound(r) && samePlaceAs(r, place)
+    && S.PHENOMENA[r.pid] && r.window[1] <= now && now - r.window[1] <= ROUND_ANSWER_MS).map(roundFromSnap);
 }
 function findSighting(pid, peak) {
   return sightings.find((s) => s.phenomenon === pid && samePlaceAs(s, place) && S.JstCal.sameDay(s.peak, peak));
@@ -4055,9 +4052,10 @@ function findSighting(pid, peak) {
 /// **前の記録に付いている写真の時刻・位置は残す**（以前は答えるたびに作り直し、先に添えた写真の情報が消えていた）
 function recordAnswer(pid, peak, actual, shot = null) {
   const round = roundOf(pid, peak);
-  if (!round) return;
-  const ev = round.ev;
   const existing = findSighting(pid, peak);
+  if (!round && !existing) return;
+  // 答え直しでも記録済みの予測を変えない。旧版の記録・写真も保持する。
+  const ev = existing ? { ...round?.ev, ...existing, rank: S.rankOf(existing.score), confidence: { key: existing.confidence } } : round.ev;
   const a = Number.isFinite(actual) ? Math.max(0, Math.min(100, Math.round(actual))) : null;
   const record = { ...(existing || {}),
     id: existing?.id || crypto.randomUUID(),
@@ -4066,9 +4064,10 @@ function recordAnswer(pid, peak, actual, shot = null) {
     recordedAt: Date.now(), phenomenon: pid, placeName: place.name, placeId: place.id,
     latitude: place.latitude, longitude: place.longitude,
     peak: ev.peak, score: ev.score, rank: ev.rank.key, confidence: ev.confidence.key,
-    perModel: ev.perModel, factors: ev.factors,
+    perModel: ev.perModel, factors: ev.factors, window: ev.window,
     actualScore: a, outcome: S.outcomeFromActual(pid, ev.score, a),
-    observations: round.observations || collectObservations(pid, ev.peak),
+    // 取得時の気象値だけを保持。旧記録の欠測を今の予報で埋めない。
+    observations: existing ? existing.observations || {} : round.observations || {},
     ...(shot ? shotFields(ev, shot) : {}),
   };
   if (existing) sightings = sightings.map((s) => (s.id === existing.id ? record : s));
@@ -4082,8 +4081,9 @@ function shotFields(ev, shot) {
   const far = (Number.isFinite(shot.photoLatitude) && Number.isFinite(shot.photoLongitude))
     ? SoramiTerrain.distanceKm(place.latitude, place.longitude, shot.photoLatitude, shot.photoLongitude) * 1000
     : null;
+  // 旧記録は予測の窓が残っていないことがある。時間内だったとは断定しない。
   const outside = Array.isArray(ev.window) && Number.isFinite(shot.observedAtMs)
-    && (shot.observedAtMs < ev.window[0] || shot.observedAtMs > ev.window[1]);
+    ? (shot.observedAtMs < ev.window[0] || shot.observedAtMs > ev.window[1]) : null;
   return { ...shot, photoDistanceM: far, photoOutsideWindow: outside };
 }
 
@@ -5136,6 +5136,8 @@ const aimKm = (km) => (km < 10 ? Math.round(km * 10) / 10 : Math.round(km));
 async function aimRedrawLine() {
   const seq = ++aim.seq;
   $("aimLineInfo").textContent = "線を計算しています…";
+  $("aimLineTable").hidden = true;
+  $("aimLineTable").querySelector("tbody").innerHTML = "";
   // **前の線の候補地を残さない。** 線を解き直す数秒のあいだ、前の画面（ダイヤモンド富士）の候補が
   // 新しい見出し（パール富士）の下に見えていた（2026-10-01 本番で確認）。探している途中の計算も捨てる
   aim.candSeq++;
@@ -5157,7 +5159,12 @@ async function aimRedrawLine() {
   try {
     lines = await SoramiAlign.line(aim.target, aim.body, aim.dayMs,
       { partId: aim.partId, limb: aim.limb, elevationAt: aimElevation });
-  } catch { lines = []; }
+  } catch {
+    if (seq !== aim.seq) return;
+    $("aimLineInfo").textContent = "線を計算できませんでした。条件を選び直して再試行してください。";
+    $("aimCandInfo").textContent = "";
+    return;
+  }
   if (seq !== aim.seq) return;
   aim.lines = lines;
   AimMap.redraw();
@@ -7665,7 +7672,7 @@ async function searchPlaces(q) {
     .filter((f) => f && f.geometry && Array.isArray(f.geometry.coordinates))
     .map((f) => ({
       name: String(f.properties?.title || "").trim(),
-      detail: "国土地理院の地名情報",
+      detail: `緯度${(+f.geometry.coordinates[1]).toFixed(5)} ・ 経度${(+f.geometry.coordinates[0]).toFixed(5)}（国土地理院）`,
       latitude: +f.geometry.coordinates[1], longitude: +f.geometry.coordinates[0],
       scope: SoramiTerrain.gsiLocationScope(f.properties?.title),
       source: "gsi",
