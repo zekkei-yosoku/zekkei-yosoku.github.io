@@ -726,6 +726,9 @@
   .aim-look-cap { margin: 2px 0 0; font-size: 0.75rem; color: var(--text); }
   .aim-look-pick { display: flex; gap: 8px; margin-top: 6px; }
   .aim-look-pick .chip { min-height: 44px; }
+  .aim-look-pick .chip.primary { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+  .aim-look-pick .chip.primary:disabled { opacity: 0.4; }
+  .aim-look-hint { margin: 6px 0 0; color: var(--secondary); }
   .aim-look-pick .chip[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
   .aim-look-found { margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--sunk); font-size: 0.81rem; }
   .aim-look-found p { margin: 0 0 4px; }
@@ -1636,21 +1639,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261003093633"></script>
+<script src="sorami-core.js?v=20261003095057"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261003093633"></script>
-<script src="sorami-exif.js?v=20261003093633"></script>
-<script src="sorami-capcloud.js?v=20261003093633"></script>
-<script src="sorami-terrain.js?v=20261003093633"></script>
-<script src="sorami-mountain.js?v=20261003093633"></script>
-<script src="sorami-fuji.js?v=20261003093633"></script>
-<script src="sorami-sky.js?v=20261003093633"></script>
-<script src="sorami-routes.js?v=20261003093633"></script>
-<script src="sorami-iss.js?v=20261003093633"></script>
-<script src="sorami-plane.js?v=20261003093633"></script>
-<script src="sorami-align.js?v=20261003093633"></script>
-<script src="sorami-moon.js?v=20261003093633"></script>
+<script src="sorami-astro.js?v=20261003095057"></script>
+<script src="sorami-exif.js?v=20261003095057"></script>
+<script src="sorami-capcloud.js?v=20261003095057"></script>
+<script src="sorami-terrain.js?v=20261003095057"></script>
+<script src="sorami-mountain.js?v=20261003095057"></script>
+<script src="sorami-fuji.js?v=20261003095057"></script>
+<script src="sorami-sky.js?v=20261003095057"></script>
+<script src="sorami-routes.js?v=20261003095057"></script>
+<script src="sorami-iss.js?v=20261003095057"></script>
+<script src="sorami-plane.js?v=20261003095057"></script>
+<script src="sorami-align.js?v=20261003095057"></script>
+<script src="sorami-moon.js?v=20261003095057"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5259,6 +5262,30 @@ AimMap.setOverlay((ctx, { project, width, height }) => {
     ctx.restore();
   });
 
+  // 確定した見え方になる場所（見え方の図で円盤を動かして確定したもの）。線は距離ごとの解、丸はいま見ている図の場所
+  const rv = aim.reverse;
+  if (rv && rv.points.length) {
+    const rc = cs.getPropertyValue("--accent").trim() || "#2a7de1";
+    const rp = rv.points.map((p) => project(p.latitude, p.longitude));
+    ctx.save();
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    if (rp.length > 1) {
+      const trace = () => { ctx.beginPath(); rp.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); };
+      ctx.strokeStyle = ink; ctx.lineWidth = 7; trace(); ctx.stroke();
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; trace(); ctx.stroke();
+      ctx.strokeStyle = rc; ctx.lineWidth = 2; trace(); ctx.stroke();
+      const e0 = rp[0], e1 = rp[rp.length - 1];
+      aimMapLabel(ctx, e0[0], e0[1] + 14, `${aimKm(rv.points[0].distanceKm)}km`, "#fff", width, height, "center");
+      aimMapLabel(ctx, e1[0], e1[1] + 14, `${aimKm(rv.points[rv.points.length - 1].distanceKm)}km`, "#fff", width, height, "center");
+    }
+    const [qx, qy] = project(rv.at.latitude, rv.at.longitude);
+    ctx.beginPath(); ctx.arc(qx, qy, 9, 0, Math.PI * 2); ctx.fillStyle = ink; ctx.fill();
+    ctx.beginPath(); ctx.arc(qx, qy, 6.5, 0, Math.PI * 2); ctx.fillStyle = rc; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+    aimMapLabel(ctx, qx, qy - 17, `撮れる場所 ${S.JstCal.hhmm(rv.at.at)}`, "#fff", width, height, "center");
+    ctx.restore();
+  }
+
   // 観測地点。どこから見た日なのかを地図でも分かるように、白い縁の点＋名前
   const fromPt = aimFromPoint();
   if (fromPt) {
@@ -6262,6 +6289,9 @@ function aimAreaOf(r) {
 }
 $("aimFromFav").onclick = () => favForPoint(aimFromPoint(), (entry) => { renameFromAfterFav(aim, entry); aimRenderFrom(); });
 
+/// 見通しを確かめた観測地点・目標・部位（替わったら前の結果は使わない）
+const aimSightKey = (f) => `${f.latitude},${f.longitude}|${aim.target && aim.target.id}|${aim.partId}`;
+
 async function aimRenderFrom() {
   const seq = ++aim.fromSeq;
   const f = aimFromPoint();
@@ -6345,6 +6375,11 @@ async function aimRenderFrom() {
     if (seq !== aim.fromSeq) return;
     if (x && x.blocked) hidden = x.by ? `${x.by.distanceM}m 先の高さ ${Math.round(x.by.heightM)}m の建物に隠れます` : "高い建物に隠れます";
   }
+  // 見えないなら見え方の図は要らない（2026-10-03 ユーザー「ここからは見えませんなら見え方とかいらない」）
+  const sight = { key: aimSightKey(f), hidden: !!hidden };
+  const changed = !aim.sight || aim.sight.key !== sight.key || aim.sight.hidden !== sight.hidden;
+  aim.sight = sight;
+  if (changed) aimUpdateLook();
   const el = $("aimFromSight");
   if (hidden) {
     const part = (aim.target.parts || []).length > 1 ? SoramiAlign.partOf(aim.target, aim.partId) : null;
@@ -6454,6 +6489,7 @@ async function aimUpdateLook() {
   }
   const f = aimFromPoint();
   if (!f) { host.hidden = true; return; }
+  if (aim.sight && aim.sight.hidden && aim.sight.key === aimSightKey(f)) { host._pick = null; aimReverseClear(); host.hidden = true; return; }
   const ground = await aimElevation(f.latitude, f.longitude);
   if (seq !== aim.lookSeq) return;
   const obs = { latitude: f.latitude, longitude: f.longitude, elevation: Number.isFinite(ground) ? ground : 0 };
@@ -6973,7 +7009,7 @@ async function aimLookRender(host, spec) {
   host._lookSpec = spec;
   aimLookHosts.add(host);
   // 逆引き（撮れる場所を探す）は、逆引きの結果から描くときだけ続ける。日付・合わせ方・候補地を替えたら終わる
-  if (!spec.pick) host._pick = null;
+  if (!spec.pick) { host._pick = null; aimReverseClear(); }
   if (!t || !(t.parts || []).length || !spec || !Number.isFinite(spec.at)) { host.hidden = true; return; }
   host.hidden = false;
   if (!host.querySelector("canvas")) {
@@ -6982,7 +7018,9 @@ async function aimLookRender(host, spec) {
       <canvas data-look-canvas role="img"></canvas>
       <div class="aim-look-time"><input type="range" min="0" max="0" step="any" value="0" data-look-range aria-label="時刻を動かす">
         <output data-look-at></output></div>
-      <div class="aim-look-pick"><button type="button" class="chip" data-look-pick aria-pressed="false">撮れる場所を探す</button></div>
+      <p class="tiny aim-look-hint" data-look-hint hidden></p>
+      <div class="aim-look-pick"><button type="button" class="chip" data-look-pick aria-pressed="false"></button>
+        <button type="button" class="chip primary" data-look-confirm hidden disabled>確定</button></div>
       <div class="aim-look-found" data-look-found hidden></div>
       <p class="tiny aim-look-note" data-look-note hidden></p>`;
   }
@@ -7199,27 +7237,34 @@ async function aimLookRender(host, spec) {
  */
 function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path, toPx, pathTap }) {
   const btn = host.querySelector("[data-look-pick]"), found = host.querySelector("[data-look-found]");
+  const ok = host.querySelector("[data-look-confirm]"), hint = host.querySelector("[data-look-hint]");
   const on = !!host._pick;
-  btn.textContent = on ? "やめる" : "撮れる場所を探す";
+  const bodyName = aim.body === "moon" ? "月" : "太陽";
+  // 「撮れる場所を探す」は何をする釦か分からなかった（2026-10-03 ユーザー「月を動かす・太陽を動かすの方がいい」「確定ボタンが見当たらない」）
+  btn.textContent = on ? "やめる" : `${bodyName}を動かす`;
   btn.setAttribute("aria-pressed", String(on));
+  ok.hidden = !on;
   cv.classList.toggle("picking", on);
   btn.onclick = () => {
-    if (host._pick) { host._pick = null; found.hidden = true; aimUpdateLook(); return; }
+    if (host._pick) { host._pick = null; found.hidden = true; aimReverseClear(); aimUpdateLook(); return; }
     host._pick = { base: spec, ghost: null };
     aimLookRender(host, { ...spec, pick: true });
   };
-  if (!on) { found.hidden = true; cv.onpointerdown = cv.onpointermove = cv.onpointerup = null; cv.onclick = pathTap; return; }
+  if (!on) { found.hidden = true; hint.hidden = true; cv.onpointerdown = cv.onpointermove = cv.onpointerup = null; cv.onclick = pathTap; return; }
   const st = host._pick;
-  if (!st.result) {
-    found.hidden = false;
-    found.innerHTML = `<p class="tiny">円盤を置きたい所へ動かすか、空をタップ</p>`;
-  }
+  ok.disabled = !st.ghost;
+  hint.hidden = false;
+  hint.textContent = st.ghost ? `置いた位置で「確定」を押すと、そう見える場所を地図に出します`
+    : `${bodyName}を指で動かすか、空をタップして置いてください`;
+  if (!st.result && !st.busy) found.hidden = true;
   const xyOf = (ev) => { const b = cv.getBoundingClientRect(); return [ev.clientX - b.left, ev.clientY - b.top]; };
   // この描画の分だけ受ける（解いて描き直したあと、前の描画の待ちが古い図で上書きしていた）
   const mySeq = host._lookSeq;
   let dragging = false, frame = 0;
   const show = (xy) => {
     st.ghost = xy;
+    ok.disabled = false;
+    hint.textContent = `置いた位置で「確定」を押すと、そう見える場所を地図に出します`;
     if (!frame) frame = requestAnimationFrame(() => { frame = 0; if (host._lookSeq === mySeq) draw(); });
   };
   const solve = async () => {
@@ -7240,6 +7285,7 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
     // 解いている間に日付・天体・目標・合わせ方を替えた／図を描き直した（画面の幅が変わった）ら、結果は捨てる（Codex の点検）
     const key = aimLookKey();
     const stale = () => seq !== st.seq || host._pick !== st || host._lookSeq !== mySeq || aimLookKey() !== key;
+    st.busy = true; ok.disabled = true;
     found.hidden = false;
     found.innerHTML = `<p class="tiny">探しています…</p>`;
     let r = null;
@@ -7249,26 +7295,79 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
         eyeM: 1.5, groundM: spec.obs.elevation ?? 0, elevationAt: aimElevation, dayMs: aim.dayMs });
     } catch { r = null; }
     if (stale()) return;
+    st.busy = false;
     if (!r) {
       found.innerHTML = `<p class="tiny">この日・この距離では、そこには来ません</p>`;
+      ok.disabled = false;
       return;
     }
+    // 同じ見え方になる場所は、距離を変えると線になる。その線を地図に出す
+    const dist = SoramiAlign.lineDistances(Math.max(0.3, D / 6), Math.min(150, D * 4), 13).concat([D]).sort((a, b) => a - b);
+    const along = await aimReverseCurve(r, { dx, dy, D, dist, stale });
+    if (stale()) return;
     let water = null;
     try { [water] = await SoramiTerrain.waterAt([{ latitude: r.latitude, longitude: r.longitude }]); } catch { water = null; }
     if (stale()) return;
     st.result = { ...r, water: water === true };
     st.ghost = null;
+    aim.reverse = { key, points: along, at: r };
+    aimReverseShow(r, along);
     aimLookRender(host, { obs: { latitude: r.latitude, longitude: r.longitude, elevation: r.groundM }, eyeM: 1.5, at: r.at,
       title: "撮れる場所から（計算上の位置）", sub: `${aimDateLabel(r.at)} ${aimSideName(r.side)}`, atName: "置いた", pick: true });
   };
   cv.onpointerdown = (ev) => { dragging = true; try { cv.setPointerCapture(ev.pointerId); } catch { /* 取れなくても動く */ } show(xyOf(ev)); };
   cv.onpointermove = (ev) => { if (dragging) show(xyOf(ev)); };
-  cv.onpointerup = (ev) => { if (!dragging) return; dragging = false; st.upAt = Date.now(); show(xyOf(ev)); solve(); };
+  cv.onpointerup = (ev) => { if (!dragging) return; dragging = false; st.upAt = Date.now(); show(xyOf(ev)); };
   cv.onpointercancel = () => { dragging = false; };
   // iPhone の短いタップは pointer が来ないことがある（2026-10-02）ので click でも受ける。pointerup で解いた直後の click は捨てる
   // （時刻は描き直しをまたいで持つ。描き直した新しい図に、指を離した位置で2回目を解いていた）
-  cv.onclick = (ev) => { if (Date.now() - (st.upAt || 0) < 800) return; show(xyOf(ev)); solve(); };
+  cv.onclick = (ev) => { if (Date.now() - (st.upAt || 0) < 800) return; show(xyOf(ev)); };
+  ok.onclick = () => { if (st.ghost && !st.busy) solve(); };
   if (st.result) aimLookFound(found, st.result, D);
+}
+
+/**
+ * 確定した見え方になる場所は、目標までの距離を変えると線になる（同じ日・同じ円盤の位置で、近いほど時刻と立つ点が変わる）。
+ * 確定した点から距離を変えながら解き、地図に引く線にする（2026-10-03 ユーザー「確定してその軌道を通る位置を地図で見れないの？」）
+ */
+async function aimReverseCurve(r, { dx, dy, D, dist, stale }) {
+  const out = [{ ...r, distanceKm: D }];
+  const run = async (list) => {
+    let prev = r;
+    for (const d of list) {
+      if (stale()) return;
+      let q = null;
+      try {
+        q = await SoramiAlign.solveComposition(aim.target, aim.body, { around: prev, distanceKm: d, at0: prev.at, dx, dy,
+          eyeM: 1.5, groundM: prev.groundM, elevationAt: aimElevation, dayMs: aim.dayMs });
+      } catch { q = null; }
+      // 日の出側と日の入側は別の線。同じ側だけをつなぐ
+      if (q && q.side === r.side) { out.push(q); prev = q; }
+    }
+  };
+  await run(dist.filter((d) => d > D + 1e-6));
+  await run(dist.filter((d) => d < D - 1e-6).reverse());
+  return out.sort((a, b) => a.distanceKm - b.distanceKm);
+}
+
+function aimReverseClear() {
+  if (!aim.reverse) return;
+  aim.reverse = null;
+  AimMap.redraw();
+}
+
+/// 線全体が入る大きさで地図を出し、地図の所まで送る
+function aimReverseShow(r, points) {
+  const cv = $("aimCanvas"), w = (cv && cv.clientWidth) || 340, h = (cv && cv.clientHeight) || 340;
+  const la = points.map((p) => p.latitude), lo = points.map((p) => p.longitude);
+  const la0 = Math.min(...la), la1 = Math.max(...la), lo0 = Math.min(...lo), lo1 = Math.max(...lo);
+  const mid = { latitude: (la0 + la1) / 2, longitude: (lo0 + lo1) / 2 };
+  const cosl = Math.cos(mid.latitude * Math.PI / 180);
+  const zx = Math.log2(w * 0.8 * 360 / (256 * Math.max(lo1 - lo0, 1e-4)));
+  const zy = Math.log2(h * 0.8 * 360 / (256 * Math.max((la1 - la0) / cosl, 1e-4)));
+  AimMap.open(mid, Math.max(8, Math.min(16, Math.floor(Math.min(zx, zy)))));
+  requestAnimationFrame(() => AimMap.redraw());
+  window.scrollTo({ top: $("aimCanvas").getBoundingClientRect().top + window.scrollY - 80, behavior: "smooth" });
 }
 
 /// 逆引きを解き始めたときの条件（替わったら結果を捨てる）
@@ -7289,8 +7388,12 @@ function aimLookFound(found, r, D) {
     + `<p class="sub-line">${r.latitude.toFixed(5)}, ${r.longitude.toFixed(5)}</p>`
     + `<p class="sub-line">${aimLookHMS(r.at)} ${aimSideName(r.side)} ・ ${esc(aim.target.name)}は${toward}（${Math.round(r.azimuth)}°）・ ${aimKm(D)}km</p>`
     + (r.water ? `<p class="sub-line">水の上です</p>` : "")
+    + (aim.reverse && aim.reverse.points.length > 1
+      ? `<p class="sub-line">同じ見え方になる場所は、地図の線（目標から ${aimKm(aim.reverse.points[0].distanceKm)}〜${aimKm(aim.reverse.points[aim.reverse.points.length - 1].distanceKm)}km）。距離で時刻が変わります</p>` : "")
     + `<button type="button" class="chip" data-found-map>地図で見る</button>`;
   found.querySelector("[data-found-map]").onclick = () => {
+    const pts = aim.reverse && aim.reverse.points.length > 1 ? aim.reverse.points : null;
+    if (pts) { aimReverseShow(r, pts); return; }
     AimMap.open({ latitude: r.latitude, longitude: r.longitude }, 15);
     requestAnimationFrame(() => AimMap.redraw());
     window.scrollTo({ top: $("aimCanvas").getBoundingClientRect().top + window.scrollY - 80, behavior: "smooth" });

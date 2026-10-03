@@ -396,6 +396,27 @@ console.log("== 見え方の図（2026-10-02） ==");
     const ok29 = await AL.solveComposition(tb, "moon", { around, distanceKm: 0.694, at0: at2, dx: 0.022, dy: 0.048, groundM: 2.8, dayMs: day29 });
     const ng28 = await AL.solveComposition(tb, "moon", { around, distanceKm: 0.694, at0: at2, dx: 0.022, dy: 0.048, groundM: 2.8, dayMs: day29 - 86400000 });
     ok(ok29 && ng28 === null, "逆引き: その日の中の解だけ");
+    // 確定した見え方になる場所は、距離を変えると線になる（地図に出す。2026-10-03）。確定点から距離を変えて解き継ぐと、
+    // どの距離でも同じ側・その日の中で、円盤は置いた位置に来る
+    {
+      let prev = r;
+      const chain = [];
+      for (const d of [0.8, 1, 1.4, 2, 3]) {
+        const q = await AL.solveComposition(tb, "moon", { around: prev, distanceKm: d, at0: prev.at, dx: 0.022, dy: 0.048, groundM: prev.groundM, dayMs: Date.UTC(2024, 10, 28, 15, 0, 0) });
+        if (q) { chain.push(q); prev = q; }
+      }
+      ok(chain.length === 5 && chain.every((q) => q.side === r.side), "逆引きの線: 距離を変えても5点とも解け、同じ側", `${chain.length}点`);
+      const worst = Math.max(...chain.map((q) => {
+        const e = { latitude: q.latitude, longitude: q.longitude, elevation: q.groundM + 1.5 };
+        const g2 = AL.geometryFrom({ ...e, elevation: q.groundM }, tb, { partId: tb.parts[0].id });
+        const m2 = A.moon(q.at, e);
+        const p2 = AL.viewProjector(g2.azimuth, g2.angle)(m2.azimuth, m2.apparentAltitude);
+        return Math.hypot(p2[0] - 0.022, p2[1] - 0.048);
+      }));
+      ok(worst < 0.003, "逆引きの線: どの距離の点でも円盤は置いた位置（0.003° 以内）", worst.toFixed(5));
+      ok(chain.every((q, i) => Math.abs(q.distanceKm - [0.8, 1, 1.4, 2, 3][i]) < 1e-9)
+        && chain.some((q) => TR.distanceKm(r.latitude, r.longitude, q.latitude, q.longitude) > 0.1), "逆引きの線: 距離ごとに立つ点が動く（線になる）");
+    }
     const U = AL.viewUnprojector(120, 4), P = AL.viewProjector(120, 4), q = U(0.3, -0.2), back = P(q[0], q[1]);
     ok(Math.abs(back[0] - 0.3) < 1e-9 && Math.abs(back[1] + 0.2) < 1e-9, "図の座標→方位・高さ→図の座標で戻る");
   }

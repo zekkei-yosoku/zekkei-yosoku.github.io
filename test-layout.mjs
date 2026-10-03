@@ -3001,7 +3001,17 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(/cv\.onclick = /.test(lookSrc) && !/onpointerdown/.test(lookSrc) && /data-look-range/.test(lookSrc), "道をさわるか、つまみで時刻を選ぶ（iPhone の指のタップは click で受ける）");
   // 逆引き（2026-10-03 ユーザー「見え方の月とか太陽の位置を調整したら、それがどこら辺の座標で撮れるのか逆引きできる？」→「円盤を置く」）
   const pickSrc = html.slice(html.indexOf("function aimLookPick("), html.indexOf("let aimLookResize"));
-  ok(/data-look-pick/.test(html) && /撮れる場所を探す/.test(pickSrc) && /"やめる"/.test(pickSrc), "図の下に「撮れる場所を探す」（押すと「やめる」）");
+  ok(/data-look-pick/.test(html) && /\$\{bodyName\}を動かす/.test(pickSrc) && /"やめる"/.test(pickSrc) && !/textContent = [^;]*撮れる場所を探す/.test(html) && !/>撮れる場所を探す</.test(html),
+    "図の下の釦は「月を動かす」「太陽を動かす」（押すと「やめる」）。「撮れる場所を探す」は分かりにくかった（ユーザー 2026-10-03）");
+  ok(/data-look-confirm[^>]*>確定</.test(html) && /ok\.onclick = \(\) => \{ if \(st\.ghost && !st\.busy\) solve\(\); \};/.test(pickSrc)
+    && !/st\.upAt = Date\.now\(\); show\(xyOf\(ev\)\); solve\(\)/.test(pickSrc) && !/show\(xyOf\(ev\)\); solve\(\); \};/.test(pickSrc),
+    "円盤を置いただけでは解かず、「確定」を押したときに解く（置くまでは確定を押せない）");
+  ok(/aimReverseCurve\(r, \{ dx, dy, D, dist, stale \}\)/.test(pickSrc) && /aim\.reverse = \{ key, points: along, at: r \};/.test(pickSrc)
+    && /const rv = aim\.reverse;/.test(html) && /撮れる場所 \$\{S\.JstCal\.hhmm\(rv\.at\.at\)\}/.test(html),
+    "確定したら、同じ見え方になる場所を距離を変えて解いた線にして地図に出す");
+  ok(/if \(aim\.sight && aim\.sight\.hidden && aim\.sight\.key === aimSightKey\(f\)\) \{[^}]*host\.hidden = true; return; \}/.test(html)
+    && /const sight = \{ key: aimSightKey\(f\), hidden: !!hidden \};/.test(html),
+    "ここから目標が見えないとき（「ここからは◯◯が見えません」）は、見え方の図を出さない");
   ok(/if \(!on\) \{[^}]*cv\.onpointerdown = cv\.onpointermove = cv\.onpointerup = null; cv\.onclick = pathTap; return; \}/.test(pickSrc),
     "逆引きでないときは、いつもの道のタップのまま（ぶつからない）");
   ok(/cv\.onpointerdown = /.test(pickSrc) && /cv\.onpointerup = /.test(pickSrc) && /cv\.onclick = \(ev\) => \{ if \(Date\.now\(\) - \(st\.upAt \|\| 0\) < 800\) return;/.test(pickSrc),
@@ -3020,7 +3030,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(/dayMs: aim\.dayMs \}\);/.test(pickSrc), "その日の中の解だけ（前後の日へ進まない）");
   ok(/<strong>撮れる場所<\/strong>/.test(pickSrc) && /r\.latitude\.toFixed\(5\)/.test(pickSrc) && /data-found-map/.test(pickSrc) && /水の上です/.test(pickSrc),
     "撮れる場所: どこから何m・座標・時刻・目標の方角・地図で見る（水の上ならそう書く）");
-  ok(/if \(!spec\.pick\) host\._pick = null;/.test(lookSrc), "日付・合わせ方・候補地を替えたら逆引きは終わる");
+  ok(/if \(!spec\.pick\) \{ host\._pick = null; aimReverseClear\(\); \}/.test(lookSrc), "日付・合わせ方・候補地を替えたら逆引きは終わる（地図の線も消す）");
   ok(/\.aim-look canvas \{ display: block; width: 100%;[^}]*touch-action: pan-y;/.test(html), "図は幅いっぱい。縦のスクロールは止めない");
   ok(/\.aim-look-time input \{[^}]*height: 44px;/.test(html), "つまみは44px の高さ");
   ok(/Math\.round\(cv\.clientWidth\) !== h\._lookW\) aimLookRender/.test(html), "幅が変わったときだけ描き直す（スクロールの resize で選んだ時刻を戻さない）");
