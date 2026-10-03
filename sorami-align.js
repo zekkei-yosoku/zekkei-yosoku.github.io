@@ -1402,7 +1402,8 @@
    * 図の範囲を通る太陽・月の道。重なる時刻 `at` から前後へ、範囲の外へ出るまで stepS 秒ごと（最大 maxMin 分）。
    * 重なる時刻の点を必ず含める（細い塔で、刻みが瞬間を飛び越えないように）
    */
-  function viewPath(body, observer, at, proj, win, { stepS = 20, maxMin = 240 } = {}) {
+  function viewPath(body, observer, at, proj, win, { stepS = 20, maxMin = 240, includeAt = at } = {}) {
+    if (!Number.isFinite(includeAt) || Math.abs(includeAt - at) > maxMin * 60000) includeAt = at;
     const stateAt = (t) => (body === "moon" ? A.moon(t, observer) : A.sun(t, observer));
     const inside = (p) => p && Math.abs(p[0]) <= win.halfW * 1.15 && Math.abs(p[1]) <= win.halfH * 1.15;
     const pt = (t) => {
@@ -1419,10 +1420,12 @@
         const q = pt(at + dir * k * stepS * 1000);
         const isIn = q.x !== null && inside([q.x, q.y]);
         if (dir < 0) out.unshift(q); else out.push(q);
-        if (wasIn && !isIn) break;
+        if (wasIn && !isIn && dir * (q.at - includeAt) >= 0) break;
         wasIn = wasIn || isIn;
       }
     }
+    // 拡大で表示範囲から外れても、つまみで選んだ補間時刻を正確に保持する。
+    if (!out.some(p => p.at === includeAt)) { out.push(pt(includeAt)); out.sort((a, b) => a.at - b.at); }
     return out;
   }
 

@@ -1688,21 +1688,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261003162229"></script>
+<script src="sorami-core.js?v=20261003163810"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261003162229"></script>
-<script src="sorami-exif.js?v=20261003162229"></script>
-<script src="sorami-capcloud.js?v=20261003162229"></script>
-<script src="sorami-terrain.js?v=20261003162229"></script>
-<script src="sorami-mountain.js?v=20261003162229"></script>
-<script src="sorami-fuji.js?v=20261003162229"></script>
-<script src="sorami-sky.js?v=20261003162229"></script>
-<script src="sorami-routes.js?v=20261003162229"></script>
-<script src="sorami-iss.js?v=20261003162229"></script>
-<script src="sorami-plane.js?v=20261003162229"></script>
-<script src="sorami-align.js?v=20261003162229"></script>
-<script src="sorami-moon.js?v=20261003162229"></script>
+<script src="sorami-astro.js?v=20261003163810"></script>
+<script src="sorami-exif.js?v=20261003163810"></script>
+<script src="sorami-capcloud.js?v=20261003163810"></script>
+<script src="sorami-terrain.js?v=20261003163810"></script>
+<script src="sorami-mountain.js?v=20261003163810"></script>
+<script src="sorami-fuji.js?v=20261003163810"></script>
+<script src="sorami-sky.js?v=20261003163810"></script>
+<script src="sorami-routes.js?v=20261003163810"></script>
+<script src="sorami-iss.js?v=20261003163810"></script>
+<script src="sorami-plane.js?v=20261003163810"></script>
+<script src="sorami-align.js?v=20261003163810"></script>
+<script src="sorami-moon.js?v=20261003163810"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7169,6 +7169,8 @@ async function aimLookRender(host, spec) {
   if (!host) return;
   const seq = (host._lookSeq = (host._lookSeq || 0) + 1);
   const t = aim.target, body = aim.body;
+  const sameLookSpec = host._lookSpec === spec;
+  if (!sameLookSpec) { host._lensGesture = null; host._lookAt = null; }
   host._lookSpec = spec;
   aimLookHosts.add(host);
   // 逆引き（撮れる場所を探す）は、逆引きの結果から描くときだけ続ける。日付・合わせ方・候補地を替えたら終わる
@@ -7249,11 +7251,12 @@ async function aimLookRender(host, spec) {
   host.querySelector("[data-lens-auto]").setAttribute("aria-pressed", String(aimLens.mode === "auto"));
   host.querySelector("[data-lens-info]").textContent = `${aimLens.mode === "auto" ? "見やすい表示：約" : ""}${(Math.round(focal * 10) / 10)}mm${frame ? ` ・ 画角 ${frame.horizontalDeg.toFixed(1)}° × ${frame.verticalDeg.toFixed(1)}°` : "（画角枠なし）"}（歪曲なしの目安）`;
   const proj = SoramiAlign.viewProjector(win.az0, win.alt0);
-  const path = SoramiAlign.viewPath(body, eyeObs, spec.at, proj, win);
+  const selectedAt = sameLookSpec && Number.isFinite(host._lookAt) ? host._lookAt : spec.at;
+  const path = SoramiAlign.viewPath(body, eyeObs, spec.at, proj, win, { includeAt: selectedAt });
   const frameDay = S.JstCal.startOfDay(spec.at);
   const framePoints = frame ? SoramiAlign.frameDayPath(body, eyeObs, frameDay, proj) : null;
   let frameTimesKey = null;
-  const i0 = Math.max(0, path.findIndex((p) => p.at === spec.at));
+  const i0 = path.reduce((best, p, i) => Math.abs(p.at - selectedAt) < Math.abs(path[best].at - selectedAt) ? i : best, 0);
   const k = (H / 2) / win.halfH;
   const toPx = (xy) => (xy ? [W / 2 + xy[0] * k, H / 2 - xy[1] * k] : null);
   let shape = null, ridgePending = null;
@@ -7301,6 +7304,7 @@ async function aimLookRender(host, spec) {
   };
   const draw = (v) => {
     const p = at(v);
+    host._lookAt = p.at;
     const sunAlt = body === "sun" ? p.altitude : SoramiAstro.sun(p.at, eyeObs).apparentAltitude;
     const [skyTop, skyLow] = aimLookSky(sunAlt);
     const bright = (skyTop[0] * 0.3 + skyTop[1] * 0.59 + skyTop[2] * 0.11) > 120;
@@ -7463,7 +7467,8 @@ async function aimLookRender(host, spec) {
     host.querySelector("[data-look-hint]").hidden = true;
     host.querySelector("[data-look-hint]").textContent = "";
     cv.style.touchAction = "none";
-    let drag = null, groundSnapped = false;
+    const gesture = host._lensGesture || (host._lensGesture = { points: new Map(), drag: null, pinch: null, raf: 0 });
+    let groundSnapped = false;
     // 地面の上端を固定枠の下端へ吸着。離脱側を広くして境界のちらつきを防ぐ。
     const groundEdge = hiddenY !== null ? Math.min(hiddenY, baseY) : baseY;
     const snapY = ((H / 2 + frame.halfH * k) - groundEdge) / H;
@@ -7474,12 +7479,64 @@ async function aimLookRender(host, spec) {
       groundSnapped = nextSnap;
       host._lensOffset = [Math.max(-1, Math.min(1, dx)), Math.max(-1, Math.min(1, nextSnap ? snapY : dy))]; draw(cur);
     };
-    cv.onpointerdown = (ev) => { const off = host._lensOffset || [0, 0]; drag = [ev.clientX, ev.clientY, ...off]; try { cv.setPointerCapture(ev.pointerId); } catch {} };
-    cv.onpointermove = (ev) => { if (drag) shift(drag[2] + (ev.clientX - drag[0]) / W, drag[3] + (ev.clientY - drag[1]) / H); };
-    cv.onpointerup = cv.onpointercancel = () => { drag = null; };
+    const point = ev => [ev.clientX, ev.clientY];
+    const beginGesture = () => {
+      const pts = [...gesture.points.values()], off = host._lensOffset || [0, 0];
+      gesture.drag = gesture.pinch = null;
+      if (pts.length === 1) gesture.drag = [...pts[0], ...off];
+      if (pts.length >= 2) {
+        const [a, b] = pts, distance = Math.hypot(a[0] - b[0], a[1] - b[1]);
+        if (distance > 0) {
+          const rect = cv.getBoundingClientRect();
+          gesture.pinch = { distance, focal, halfH: win.halfH, off: [...off], x: ((a[0] + b[0]) / 2 - rect.left - W / 2) / W, y: ((a[1] + b[1]) / 2 - rect.top - H / 2) / H };
+        }
+      }
+    };
+    cv.onpointerdown = ev => {
+      if (gesture.points.size >= 2) return;
+      gesture.points.set(ev.pointerId, point(ev)); beginGesture();
+      try { cv.setPointerCapture(ev.pointerId); } catch {}
+    };
+    cv.onpointermove = ev => {
+      if (!gesture.points.has(ev.pointerId)) return;
+      gesture.points.set(ev.pointerId, point(ev));
+      if (gesture.pinch) {
+        if (gesture.raf) return;
+        gesture.raf = requestAnimationFrame(() => {
+          gesture.raf = 0;
+          if (!host._lensMoving || host._lensGesture !== gesture || !gesture.pinch) return;
+          const [a, b] = [...gesture.points.values()], start = gesture.pinch;
+          if (!a || !b) return;
+          const distance = Math.hypot(a[0] - b[0], a[1] - b[1]);
+          if (!(distance > 0)) return;
+          const nextFocal = Math.max(8, Math.min(2000, start.focal * distance / start.distance));
+          // 自動表示から手動への切替時にも12%の枠余白を維持し、指の中央を拡大の支点にする。
+          const nextHalfH = Math.max(sh / (2 * nextFocal * Math.PI / 180), sw / (2 * nextFocal * Math.PI / 180) / (W / H)) * 1.12;
+          const ratio = start.halfH / nextHalfH, rect = cv.getBoundingClientRect();
+          const midX = ((a[0] + b[0]) / 2 - rect.left - W / 2) / W;
+          const midY = ((a[1] + b[1]) / 2 - rect.top - H / 2) / H;
+          host._lensOffset = [Math.max(-1, Math.min(1, ratio * start.off[0] + midX - ratio * start.x)), Math.max(-1, Math.min(1, ratio * start.off[1] + midY - ratio * start.y))];
+          aimLens.focal = nextFocal; aimLens.mode = "manual"; aimLens.on = true;
+          try { localStorage.setItem("sorami.lens", JSON.stringify(aimLens)); } catch {}
+          aimLookRender(host, spec);
+        });
+      } else if (gesture.drag) {
+        const drag = gesture.drag; shift(drag[2] + (ev.clientX - drag[0]) / W, drag[3] + (ev.clientY - drag[1]) / H);
+      }
+    };
+    const endGesture = ev => {
+      if (ev?.pointerId !== undefined) gesture.points.delete(ev.pointerId); else gesture.points.clear();
+      if (gesture.raf) { cancelAnimationFrame(gesture.raf); gesture.raf = 0; }
+      beginGesture();
+    };
+    cv.onpointerup = cv.onpointercancel = cv.onlostpointercapture = endGesture;
     cv.onclick = null;
     cv.onkeydown = (ev) => { const d = { ArrowLeft: [-.01, 0], ArrowRight: [.01, 0], ArrowUp: [0, -.01], ArrowDown: [0, .01] }[ev.key]; if (!d) return; ev.preventDefault(); const off = host._lensOffset || [0, 0]; groundSnapped = false; host._lensOffset = [Math.max(-1, Math.min(1, off[0] + d[0])), Math.max(-1, Math.min(1, off[1] + d[1]))]; draw(cur); };
-  } else cv.style.touchAction = host._pick ? "none" : "";
+  } else {
+    if (host._lensGesture?.raf) cancelAnimationFrame(host._lensGesture.raf);
+    host._lensGesture = null; cv.onlostpointercapture = null;
+    cv.style.touchAction = host._pick ? "none" : "";
+  }
   draw(i0);
   if (ridgePending) ridgePending.then((ridge) => {
     if (seq !== host._lookSeq) return;

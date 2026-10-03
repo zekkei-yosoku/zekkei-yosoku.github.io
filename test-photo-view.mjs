@@ -85,14 +85,14 @@ test("構図の移動・復帰は時刻と天体逆引きを変えない",()=>{
  let draws=0,prevented=0,clears=0;const move={setAttribute:()=>{}},center={},hint={},host={_lensMoving:true,_pick:null,querySelector:q=>q.includes("hint")?hint:q.includes("center")?center:move};
  const cv={style:{},setPointerCapture:()=>{}},cur=43,W=316,H=284,k=10,frame={halfW:5,halfH:6};
  const c=vm.createContext({host,cv,cur,W,H,k,frame,hiddenY:null,baseY:220,mountain:false,navigator:{vibrate:()=>{}},Math,draw:()=>draws++,aimLookRender:()=>{},aimReverseClear:()=>clears++,spec:{}});vm.runInContext(html.slice(a,b),c);
- cv.onpointerdown({clientX:100,clientY:100,pointerId:1});cv.onpointermove({clientX:150,clientY:120});cv.onpointerup();
+ cv.onpointerdown({clientX:100,clientY:100,pointerId:1});cv.onpointermove({pointerId:1,clientX:150,clientY:120});cv.onpointerup();
  assert.ok(host._lensOffset[0]>0);assert.ok(host._lensOffset[1]>0);assert.equal(c.cur,43);assert.equal(host._pick,null);
  cv.onkeydown({key:"ArrowLeft",preventDefault:()=>prevented++});assert.equal(prevented,1);center.onclick();assert.deepEqual(Array.from(host._lensOffset),[0,0]);assert.ok(draws>=3);
  // 下端202px、地面220px。吸着→近傍維持→離脱と横移動の独立性。
  cv.onpointerdown({clientX:100,clientY:100,pointerId:1});
- cv.onpointermove({clientX:130,clientY:86});assert.equal(host._lensOffset[1],-18/H);
- cv.onpointermove({clientX:140,clientY:94});assert.equal(host._lensOffset[1],-18/H);
- cv.onpointermove({clientX:150,clientY:105});assert.equal(host._lensOffset[1],5/H);
+ cv.onpointermove({pointerId:1,clientX:130,clientY:86});assert.equal(host._lensOffset[1],-18/H);
+ cv.onpointermove({pointerId:1,clientX:140,clientY:94});assert.equal(host._lensOffset[1],-18/H);
+ cv.onpointermove({pointerId:1,clientX:150,clientY:105});assert.equal(host._lensOffset[1],5/H);
  cv.onpointerup();assert.equal(host._lensOffset[0],50/W);
  center.onclick();host._pick={result:{}};move.onclick();assert.equal(host._pick,null);assert.equal(clears,1);
 });
@@ -153,4 +153,37 @@ test("広角の画面端は拡大する円盤の縁で入る時刻を判定す�
 test("採取間隔の不正値は無限ループせず拒否する",()=>{
  for(const stepS of [0,-1,NaN,Infinity,.01,61]) assert.throws(()=>AL.frameDayPath("moon",observer,day("03"),()=>[0,0],{stepS}),RangeError);
  assert.throws(()=>AL.frameDayPath("moon",observer,NaN,()=>[0,0]),RangeError);
+});
+
+
+test("2本指のピンチは焦点距離と構図を連動し、再描画後も累積誤差なし・指を離すとドラッグへ戻る",()=>{
+ const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf('  const move = host.querySelector("[data-lens-move]")'),b=html.indexOf('  draw(i0);',a),code="{ "+html.slice(a,b)+" }";
+ let queued=null,renders=0,saved=0,draws=0;
+ const controls={move:{setAttribute:()=>{}},center:{},hint:{}};
+ const host={_lensMoving:true,_pick:null,_lensOffset:[.1,.1],querySelector:q=>q.includes("hint")?controls.hint:q.includes("center")?controls.center:controls.move};
+ const cv={style:{},setPointerCapture:()=>{},getBoundingClientRect:()=>({left:0,top:0})};
+ const R=Math.PI/180,H=300,W=300,halfH=24/(2*200*R)*1.12,aimLens={mode:"manual",focal:200,on:true};
+ const c=vm.createContext({host,cv,cur:43,W,H,k:H/2/halfH,frame:{halfH:24/(400*R)},win:{halfH},focal:200,sh:24,sw:36,hiddenY:null,baseY:250,mountain:false,navigator:{},Math,Map,aimLens,localStorage:{setItem:()=>saved++},spec:{},draw:()=>draws++,aimReverseClear:()=>{},requestAnimationFrame:fn=>{queued=fn;return 1;},cancelAnimationFrame:()=>{queued=null;},aimLookRender:()=>{renders++;c.focal=aimLens.focal;c.win={halfH:Math.max(24/(2*c.focal*R),36/(2*c.focal*R))*1.12};vm.runInContext(code,c);}});
+ // 正方形では横寸法が画面範囲を決める。
+ c.win.halfH=36/(400*R)*1.12;c.k=H/2/c.win.halfH;
+ vm.runInContext(code,c);
+ cv.onpointerdown({pointerId:1,clientX:100,clientY:150});cv.onpointerdown({pointerId:2,clientX:200,clientY:150});
+ cv.onpointermove({pointerId:2,clientX:300,clientY:150});assert.equal(aimLens.focal,200);queued();assert.equal(aimLens.focal,400);assert.equal(aimLens.mode,"manual");assert.ok(Math.abs(host._lensOffset[0]-(.2+50/W))<1e-9);
+ cv.onpointermove({pointerId:2,clientX:400,clientY:150});queued();assert.equal(aimLens.focal,600);assert.ok(Math.abs(host._lensOffset[0]-(.3+100/W))<1e-9);assert.ok(Math.abs(host._lensOffset[1]-.3)<1e-9);
+ cv.onpointerup({pointerId:2});const before=[...host._lensOffset];cv.onpointermove({pointerId:1,clientX:110,clientY:160});assert.ok(Math.abs(host._lensOffset[0]-before[0]-10/W)<1e-9);assert.equal(renders,2);assert.equal(saved,2);assert.ok(draws>0);
+ cv.onpointercancel({pointerId:1});assert.equal(host._lensGesture.points.size,0);
+ // 狭めると広角になり、範囲を超えても8mm以上。
+ cv.onpointerdown({pointerId:1,clientX:0,clientY:0});cv.onpointerdown({pointerId:2,clientX:1000,clientY:0});cv.onpointermove({pointerId:2,clientX:1,clientY:0});queued();assert.equal(aimLens.focal,8);
+ cv.onpointercancel({pointerId:1});cv.onpointercancel({pointerId:2});
+});
+
+
+test("拡大で道が短くなっても表示範囲外の選択時刻と20秒未満の補間時刻を残す",()=>{
+ const obs={latitude:35.68,longitude:139.76,elevation:10},at=Date.parse("2026-10-03T06:00:00+09:00"),st=globalThis.SoramiAstro.sun(at,obs),proj=AL.viewProjector(st.azimuth,st.apparentAltitude),win={halfW:.1,halfH:.1};
+ const short=AL.viewPath("sun",obs,at,proj,win),selected=at+1837000;
+ assert.ok(short.at(-1).at<selected);
+ const kept=AL.viewPath("sun",obs,at,proj,win,{includeAt:selected});assert.ok(kept.some(p=>p.at===selected));assert.ok(kept.at(-1).at>=selected);assert.ok(kept.length>short.length);
+ const exact=kept.find(p=>p.at===selected),expected=globalThis.SoramiAstro.sun(selected,obs);assert.equal(exact.altitude,expected.apparentAltitude);
+ for(let i=1;i<kept.length;i++)assert.ok(kept[i].at>kept[i-1].at);
+ const early=AL.viewPath("sun",obs,at,proj,win,{includeAt:at-1737000});assert.ok(early.some(p=>p.at===at-1737000));
 });
