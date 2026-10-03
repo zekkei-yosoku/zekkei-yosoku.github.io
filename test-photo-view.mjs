@@ -75,16 +75,16 @@ test("自動表示の相当焦点距離を反映しても図の縮尺が変わ�
  for(const sensor of ["full","aps","canon","m43"])for(const portrait of [false,true])for(const [W,H] of [[316,284],[610,440]]) {
   const base=AL.viewWindow({azimuth:70,baseAngle:.1,topAngle:1.3,radiusDeg:.27,aspect:W/H}),info={textContent:""},button={setAttribute:()=>{}},lensFocal={};
   const aimLens={sensor,portrait,mode:"auto",on:true};const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,AIM_SENSOR:{full:[36,24],aps:[23.5,15.6],canon:[22.3,14.9],m43:[17.3,13]},aimLens,win:{...base},W,H,lensFocal,Math,SoramiAlign:AL,host:{querySelector:q=>q.includes("auto")?button:info}});
-  vm.runInContext(html.slice(a,b),c);assert.equal(c.win.halfH,base.halfH);assert.match(info.textContent,/見やすい表示：約/);
+  vm.runInContext(html.slice(a,b),c);assert.equal(c.win.halfH,base.halfH);assert.match(info.textContent,/^約/);
   aimLens.mode="manual";aimLens.focal=+lensFocal.value;c.win={...base};vm.runInContext("{ "+html.slice(a,b)+" }",c);
   assert.ok(Math.abs(c.win.halfH/base.halfH-1)<.0002);assert.equal(c.win.alt0,base.alt0);
  }
 });
-test("構図の移動・復帰は時刻と天体逆引きを変えない",()=>{
+test("山でも基準線に吸着・離脱し、構図の移動・復帰は時刻と天体逆引きを変えない",()=>{
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf('  const move = host.querySelector("[data-lens-move]")'),b=html.indexOf('  draw(i0);',a);
  let draws=0,prevented=0,clears=0;const move={setAttribute:()=>{}},center={},hint={},host={_lensMoving:true,_pick:null,querySelector:q=>q.includes("hint")?hint:q.includes("center")?center:move};
  const cv={style:{},setPointerCapture:()=>{}},cur=43,W=316,H=284,k=10,frame={halfW:5,halfH:6};
- const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,panLimit:1,host,cv,cur,W,H,k,frame,hiddenY:null,baseY:220,mountain:false,navigator:{vibrate:()=>{}},Math,draw:()=>draws++,aimLookRender:()=>{},aimReverseClear:()=>clears++,spec:{}});vm.runInContext(html.slice(a,b),c);
+ const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,panLimit:1,host,cv,cur,W,H,k,frame,hiddenY:null,baseY:220,groundEdge:220,mountain:true,navigator:{vibrate:()=>{}},Math,draw:()=>draws++,aimLookRender:()=>{},aimReverseClear:()=>clears++,spec:{}});vm.runInContext(html.slice(a,b),c);
  cv.onpointerdown({clientX:100,clientY:100,pointerId:1});cv.onpointermove({pointerId:1,clientX:150,clientY:120});cv.onpointerup();
  assert.ok(host._lensOffset[0]>0);assert.ok(host._lensOffset[1]>0);assert.equal(c.cur,43);assert.equal(host._pick,null);
  cv.onkeydown({key:"ArrowLeft",preventDefault:()=>prevented++});assert.equal(prevented,1);center.onclick();assert.deepEqual(Array.from(host._lensOffset),[0,0]);assert.ok(draws>=3);
@@ -96,7 +96,12 @@ test("構図の移動・復帰は時刻と天体逆引きを変えない",()=>{
  cv.onpointerup();assert.equal(host._lensOffset[0],50/W);
  host._lensOffset=[0,(-18+4)/H];cv.onkeydown({key:"ArrowUp",preventDefault:()=>{}});assert.equal(host._lensOffset[1],-18/H);
  for(let i=0;i<10;i++)cv.onkeydown({key:"ArrowUp",preventDefault:()=>{}});assert.ok(host._lensOffset[1]<-36/H);
- center.onclick();host._pick={result:{}};move.onclick();assert.equal(host._pick,null);assert.equal(clears,1);
+ center.onclick();
+ cv.onpointerdown({clientX:100,clientY:100,pointerId:1});
+ cv.onpointermove({pointerId:1,clientX:107,clientY:150});assert.equal(host._lensOffset[0],0);assert.ok(host._lensOffset[1]>0);
+ cv.onpointermove({pointerId:1,clientX:116,clientY:155});assert.equal(host._lensOffset[0],0);
+ cv.onpointermove({pointerId:1,clientX:125,clientY:160});assert.equal(host._lensOffset[0],25/W);
+ cv.onpointerup();center.onclick();host._pick={result:{}};move.onclick();assert.equal(host._pick,null);assert.equal(clears,1);
 });
 
 
@@ -105,6 +110,10 @@ test("図を移動しても画角枠は中央、道のタップは移動分を�
  const cv={getBoundingClientRect:()=>({left:10,top:20})},host={_lensOffset:[.2,.1]},range={};let drawn=-1;
  const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,cv,host,range,W:300,H:270,path:[{x:5,y:6},{x:10,y:20}],toPx:xy=>xy,Math,draw:i=>drawn=i});
  vm.runInContext(html.slice(a,b),c);cv.onclick({clientX:10+60+10,clientY:20+27+20});assert.equal(drawn,1);assert.equal(range.value,"1");
+ host._lookSceneBottom=40;drawn=-1;cv.onclick({clientX:80,clientY:67});assert.equal(drawn,-1);
+ // ポインターは範囲内でも、36px以内の省略された候補点を選ばない。
+ cv.onclick({clientX:80,clientY:59});assert.notEqual(drawn,1);
+
  const f=html.slice(html.indexOf("    if (frame) {",html.indexOf("const draw = (v)")),html.indexOf('    const outside = host.querySelector'));
  assert.match(f,/const fx = \(W - fw\) \/ 2, fy = \(H - fh\) \/ 2/);assert.doesNotMatch(f,/_lensOffset/);
  assert.match(html,/ctx\.save\(\); ctx\.translate\(panX, panY\)/);assert.match(html,/const px = screenX - panX, py = screenY - panY/);
@@ -161,7 +170,7 @@ test("2本指のピンチは焦点距離と構図を連動し、再描画後も�
  const host={_lensMoving:true,_pick:null,_lensOffset:[.1,.1],querySelector:q=>q.includes("hint")?controls.hint:q.includes("center")?controls.center:controls.move};
  const cv={style:{},setPointerCapture:()=>{},getBoundingClientRect:()=>({left:0,top:0})};
  const R=Math.PI/180,H=300,W=300,halfH=24/(2*200*R)*1.12,aimLens={mode:"manual",focal:200,on:true};
- const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,panLimit:1,host,cv,cur:43,W,H,k:H/2/halfH,frame:{halfH:24/(400*R)},win:{halfH},focal:200,sh:24,sw:36,hiddenY:null,baseY:250,mountain:false,navigator:{},Math,Map,aimLens,localStorage:{setItem:()=>saved++},spec:{},draw:()=>draws++,aimReverseClear:()=>{},requestAnimationFrame:fn=>{queued=fn;return 1;},cancelAnimationFrame:()=>{queued=null;},aimLookRender:()=>{renders++;c.focal=aimLens.focal;c.win={halfH:Math.max(24/(2*c.focal*R),36/(2*c.focal*R))*1.12};vm.runInContext(code,c);}});
+ const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,panLimit:1,host,cv,cur:43,W,H,k:H/2/halfH,frame:{halfH:24/(400*R)},win:{halfH},focal:200,sh:24,sw:36,hiddenY:null,baseY:250,groundEdge:250,mountain:false,navigator:{},Math,Map,aimLens,localStorage:{setItem:()=>saved++},spec:{},draw:()=>draws++,aimReverseClear:()=>{},requestAnimationFrame:fn=>{queued=fn;return 1;},cancelAnimationFrame:()=>{queued=null;},aimLookRender:()=>{renders++;c.focal=aimLens.focal;c.win={halfH:Math.max(24/(2*c.focal*R),36/(2*c.focal*R))*1.12};vm.runInContext(code,c);}});
  // 正方形では横寸法が画面範囲を決める。
  c.win.halfH=36/(400*R)*1.12;c.k=H/2/c.win.halfH;
  vm.runInContext(code,c);

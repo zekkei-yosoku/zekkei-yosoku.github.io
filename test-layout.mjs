@@ -2993,7 +2993,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   // 図の下の説明（形の出どころ・大気の屈折・縮尺）は出さない（2026-10-03 ユーザー「この説明文いらないわ」「いらない説明文結構ない？」）
   ok(!/形は城のシルエット|形はシルエットを写真の縮尺|高さは大気の屈折を含む|の模式図（幅は推定）|稜線は国土地理院の標高データから/.test(html)
     && /note\.textContent = shape \? "" : "稜線を読み込めませんでした";/.test(html), "図の下に説明を出さない（稜線の読込中・失敗時だけ）");
-  ok(/const groundY = hiddenY !== null \? Math\.min\(hiddenY, baseY\) : baseY;/.test(html) && !/globalAlpha = 0\.45; outlinePath/.test(html),
+  ok(/const groundEdge = mountain \? toPx\(proj\(az, 0\)\)\[1\] : \(hiddenY !== null \? Math\.min\(hiddenY, baseY\) : baseY\);/.test(html) && !/globalAlpha = 0\.45; outlinePath/.test(html),
     "形の材料で見えない所は薄い形を描かず、地面の帯をその高さまで上げる（ユーザー「このグレーの下の部分って表示しなくて良い」）");
   ok(/円盤は形の後ろ（形で隠れる）/.test(html) && /ctx\.setLineDash\(\[3, 3\]\)/.test(html), "円盤は形の後ろ、隠れた所は点線の輪");
   ok(/ctx\.fillStyle = bright \? "rgba\(16,20,30,0\.94\)" : "#020306";/.test(html) && /const rim = bright \? null : /.test(html),

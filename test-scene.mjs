@@ -28,7 +28,7 @@ test('一日の軌道は画面外でも続き、4時間以上移した1秒時刻
 });
 test('実レンダーが周囲の東京タワーを描き、古い主目標への置換をしない',async()=>{
  const html=readFileSync(new URL('./index.html',import.meta.url),'utf8'),start=html.indexOf('async function aimLookRender('),end=html.indexOf('\n/**',start);
- const calls=[],ctx=new Proxy({measureText:s=>({width:s.length*8}),createLinearGradient:()=>({addColorStop(){}})}, {get:(o,k)=>k in o?o[k]:(...args)=>{if(k==='fillText')calls.push(args[0]);}});
+ const operations=[],calls=[],ctx=new Proxy({measureText:s=>({width:s.length*8}),createLinearGradient:()=>({addColorStop(){}})}, {get:(o,k)=>k in o?o[k]:(...args)=>{operations.push({method:k,args});if(k==='fillText')calls.push(args[0]);}});
  const canvas={clientWidth:600,style:{},getContext:()=>ctx,setAttribute:(k,v)=>{canvas[k]=v},getBoundingClientRect:()=>({left:0,top:0})};
  const els=new Map(),host={clientWidth:600,_lookSeq:0,_lensOffset:[0,0],querySelector:q=>q==='canvas'||q.includes('data-look-canvas')?canvas:els.get(q)||(()=>{const x={dataset:{},style:{},value:'',setAttribute(){},checkValidity:()=>true};els.set(q,x);return x})()};
  const target=AL.targetById('skytree'),aim={target,body:'moon',partId:'tip'},lens={on:true,mode:'manual',focal:60,sensor:'full',portrait:false};
@@ -36,4 +36,8 @@ test('実レンダーが周囲の東京タワーを描き、古い主目標へ�
  vm.runInContext(html.slice(start,end)+';this.render=aimLookRender',c);
  await c.render(host,{obs:observer,eyeM:1.5,at,title:'試験地点から'});
  assert.ok(!calls.includes('東京タワー'));assert.ok(!calls.includes('東京スカイツリー'));assert.ok(canvas['aria-label'].includes('東京タワー'));assert.equal(aim.target.id,'skytree');
+ assert.ok(calls.includes('地上'));assert.ok(operations.some(x=>x.method==='clip'));
+ const bands=operations.filter(x=>x.method==='fillRect'&&x.args[1]!==0);assert.ok(bands.some(x=>x.args[3]>0&&x.args[3]<=24));
+ const clip=operations.find(x=>x.method==='rect');assert.ok(clip.args[3]>=0&&clip.args[3]<=440);
+ const clipAt=operations.findIndex(x=>x.method==='clip'),fillAt=operations.findIndex((x,i)=>i>clipAt&&x.method==='fill');assert.ok(clipAt<fillAt);
 });
