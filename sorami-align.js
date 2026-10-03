@@ -500,6 +500,86 @@
     }));
   }
 
+  // 写真の見え方は先端の一致に限定しない。建物の輪郭全体と円盤の距離。
+  function polygonDistance(point, polygon) {
+    let inside = false, distance = Infinity;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const a = polygon[j], b = polygon[i];
+      if ((a[1] > point[1]) !== (b[1] > point[1]) && point[0] < (b[0] - a[0]) * (point[1] - a[1]) / (b[1] - a[1]) + a[0]) inside = !inside;
+      const dx = b[0] - a[0], dy = b[1] - a[1], len = dx * dx + dy * dy;
+      const u = len ? Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / len)) : 0;
+      distance = Math.min(distance, Math.hypot(point[0] - a[0] - u * dx, point[1] - a[1] - u * dy));
+    }
+    return inside ? 0 : distance;
+  }
+  function cameraFrame(focalMm, sensorWidth = 36, sensorHeight = 24, portrait = false) {
+    if (!Number.isFinite(focalMm) || focalMm < 8 || focalMm > 2000 || !Number.isFinite(sensorWidth) || !Number.isFinite(sensorHeight) || !(sensorWidth > 0 && sensorHeight > 0)) return null;
+    const w = portrait ? sensorHeight : sensorWidth, h = portrait ? sensorWidth : sensorHeight;
+    return { halfW: w / (2 * focalMm) / R, halfH: h / (2 * focalMm) / R,
+      horizontalDeg: 2 * Math.atan(w / (2 * focalMm)) / R, verticalDeg: 2 * Math.atan(h / (2 * focalMm)) / R };
+  }
+  function dailyView(observer, target, body, dayMs, opts = {}) {
+    const g = geometryFrom(observer, target, opts);
+    if (!g) return [];
+    const obs = { ...observer, elevation: (observer.elevation ?? 0) + (opts.eyeM ?? 1.5) };
+    const outline = towerOutline(observer, target, opts);
+    const centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
+    const project = viewProjector(g.azimuth, centerAlt);
+    const polygon = outline ? outline.points.map(([a, h]) => project(a, h)).filter(Boolean) : null;
+    const evaluate = (at) => {
+      const st = bodyAt(body, at, obs), xy = project(st.azimuth, st.apparentAltitude);
+      const radius = Math.tan(st.angularRadius * R) / R;
+      const distance = xy ? (polygon ? polygonDistance(xy, polygon) : Math.hypot(xy[0], xy[1])) : Infinity;
+      return { at, gap: st.apparentAltitude - g.angle, radius: st.angularRadius, distanceToTarget: distance,
+        intersects: distance <= radius && st.apparentAltitude + st.angularRadius > 0,
+        nearTarget: distance <= 2 * radius && st.apparentAltitude + st.angularRadius > 0,
+        altitude: st.apparentAltitude, illuminated: body === "moon" ? st.illuminatedFraction : null,
+        sunAltitude: body === "moon" ? A.sun(at, obs).apparentAltitude : st.apparentAltitude,
+        side: bodyAt(body, at + 60000, obs).apparentAltitude < st.apparentAltitude ? "set" : "rise" };
+    };
+    const end = dayMs + 86400000, crossings = [];
+    let previous = null, nearest = null;
+    // 全天の軌道も確認し、目標の方位を横切らない日にも最接近を返す。
+    for (let at = dayMs; at <= end; at += 600000) {
+      const st = bodyAt(body, at, obs), diff = azDiff(st.azimuth, g.azimuth), row = evaluate(at);
+      if (at < end && (!nearest || row.distanceToTarget < nearest.distanceToTarget)) nearest = row;
+      if (at === dayMs && Math.abs(diff) < 1e-9) crossings.push(row);
+      if (previous && Math.abs(previous.diff) > 1e-9 && (at < end || Math.abs(diff) > 1e-9) && Math.sign(diff) !== Math.sign(previous.diff) && Math.abs(diff - previous.diff) < 90) {
+        let lo = previous.at, hi = at, sign = previous.diff;
+        for (let k = 0; k < 28; k++) {
+          const mid = (lo + hi) / 2, d = azDiff(bodyAt(body, mid, obs).azimuth, g.azimuth);
+          if (Math.sign(d) === Math.sign(sign)) lo = mid; else hi = mid;
+        }
+        let best = evaluate((lo + hi) / 2);
+        // 横切る瞬間の前後も見る。円盤が建物の横の縁だけに掛かる日を落とさない。
+        if (outline) for (let dt = -600000; dt <= 600000; dt += 20000) {
+          const t = (lo + hi) / 2 + dt;
+          if (t < dayMs || t >= end) continue;
+          const e = evaluate(t);
+          if (e.distanceToTarget < best.distanceToTarget) best = e;
+        }
+        if (best.at >= dayMs && best.at < end) crossings.push(best);
+      }
+      previous = { at, diff };
+    }
+    if (!crossings.length && nearest) {
+      const lo = Math.max(dayMs, nearest.at - 600000), hi = Math.min(end - 1, nearest.at + 600000);
+      for (let at = lo; at <= hi; at += 20000) { const e = evaluate(at); if (e.distanceToTarget < nearest.distanceToTarget) nearest = e; }
+      crossings.push(nearest);
+    }
+    return crossings.sort((a, b) => a.at - b.at);
+  }
+
+  function buildingUpcoming(observer, target, body, { from = Date.now(), days = 400, limit = 4, partId = null } = {}) {
+    const start = Math.floor((from + 9 * 3600000) / 86400000) * 86400000 - 9 * 3600000, out = [];
+    for (let i = 0; i < days && out.length < limit; i++) {
+      const row = dailyView(observer, target, body, start + i * 86400000, { partId })
+        .find((e) => e.at >= from && e.intersects && (body !== "moon" || e.sunAltitude < 0));
+      if (row) out.push(row);
+    }
+    return out;
+  }
+
   // ---------------------------------------------------------------- その日の候補地（2026-09-30）
   /*
    * 線だけでは「どこへ行けばよいか」が分からない（ユーザー指摘「月丼みたいに候補地を出して」）。
@@ -1343,7 +1423,7 @@
   }
 
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
-                        altitudeCrossing, geometryFrom, upcoming, FUJI_SPOTS, spotObserver,
+                        altitudeCrossing, geometryFrom, upcoming, dailyView, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, judge, buildingBlock,
                         viewProjector, viewUnprojector, solveComposition, TOWER_SHAPES, towerOutline, viewWindow, viewPath };
   global.SoramiAlign = SoramiAlign;

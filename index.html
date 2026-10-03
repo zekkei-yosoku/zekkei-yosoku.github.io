@@ -755,6 +755,11 @@
   .aim-look-cap .sub-line { color: var(--secondary); }
   .aim-look canvas { display: block; width: 100%; margin-top: 4px; border-radius: 10px; background: var(--sunk);
                      touch-action: pan-y; }
+  .aim-lens { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }
+  .aim-lens label { display: flex; align-items: center; gap: 4px; font-size: 0.75rem; }
+  .aim-lens input { width: 76px; min-height: 44px; padding: 6px; background: var(--sunk); color: var(--text); border: 1px solid var(--line); border-radius: 9px; font-size: 1rem; }
+  .aim-lens select { min-height: 44px; max-width: 100%; font-size: 1rem; background: var(--sunk); color: var(--text); border: 1px solid var(--line); border-radius: 9px; }
+  .aim-look-unavailable { min-height: 300px; display: flex; align-items: center; justify-content: center; }
   .aim-look-time { display: flex; align-items: center; gap: 10px; }
   .aim-look-time input { flex: 1; min-width: 0; height: 44px; accent-color: var(--accent); }
   /* 字の欄は幅を決めておく。「重なる9分前」「重なる12分40秒後」で幅が変わり、つまみの棒が伸び縮みしていた（2026-10-02 ユーザー録画） */
@@ -1675,21 +1680,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261003144351"></script>
+<script src="sorami-core.js?v=20261003150315"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261003144351"></script>
-<script src="sorami-exif.js?v=20261003144351"></script>
-<script src="sorami-capcloud.js?v=20261003144351"></script>
-<script src="sorami-terrain.js?v=20261003144351"></script>
-<script src="sorami-mountain.js?v=20261003144351"></script>
-<script src="sorami-fuji.js?v=20261003144351"></script>
-<script src="sorami-sky.js?v=20261003144351"></script>
-<script src="sorami-routes.js?v=20261003144351"></script>
-<script src="sorami-iss.js?v=20261003144351"></script>
-<script src="sorami-plane.js?v=20261003144351"></script>
-<script src="sorami-align.js?v=20261003144351"></script>
-<script src="sorami-moon.js?v=20261003144351"></script>
+<script src="sorami-astro.js?v=20261003150315"></script>
+<script src="sorami-exif.js?v=20261003150315"></script>
+<script src="sorami-capcloud.js?v=20261003150315"></script>
+<script src="sorami-terrain.js?v=20261003150315"></script>
+<script src="sorami-mountain.js?v=20261003150315"></script>
+<script src="sorami-fuji.js?v=20261003150315"></script>
+<script src="sorami-sky.js?v=20261003150315"></script>
+<script src="sorami-routes.js?v=20261003150315"></script>
+<script src="sorami-iss.js?v=20261003150315"></script>
+<script src="sorami-plane.js?v=20261003150315"></script>
+<script src="sorami-align.js?v=20261003150315"></script>
+<script src="sorami-moon.js?v=20261003150315"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6251,12 +6256,17 @@ const aimCal = { year: 0, month: 0, seq: 0, events: new Map(), cache: new Map() 
 function aimCalMonthStart(year, month) { return Date.UTC(year, month, 1) - 9 * 3600000; }
 function aimCalRows(obs, target, body, year, month, partId) {
   const start = aimCalMonthStart(year, month), end = aimCalMonthStart(year, month + 1);
+  if (!aimIsMountain(target)) {
+    const rows = [];
+    for (let day = start; day < end; day += 86400000) rows.push(...SoramiAlign.dailyView(obs, target, body, day, { partId }));
+    return rows.filter((e) => e.nearTarget && (body !== "moon" || e.sunAltitude < 0));
+  }
   return SoramiAlign.upcoming(obs, target, body, { from: start, days: Math.round((end - start) / 86400000),
     limit: Infinity, limb: "center", partId, stepMs: 3600000, groupDays: false })
     .filter((e) => e.at >= start && e.at < end && (body !== "moon" || e.sunAltitude < 0));
 }
 // 見え方と同じ2半径内の候補を扱い、円盤が届く日と近接通過を区別する。
-function aimCalSolid(e) { return Math.abs(e.gap) <= 1.2 * e.radius; }
+function aimCalSolid(e) { return e.intersects ?? (Math.abs(e.gap) <= 1.2 * e.radius); }
 function aimCalGridHtml(year, month, events, selected, today) {
   const first = new Date(Date.UTC(year, month, 1)).getUTCDay();
   const days = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
@@ -6439,6 +6449,17 @@ $("aimFromFav").onclick = () => favForPoint(aimFromPoint(), (entry) => { renameF
 /// 見通しを確かめた観測地点・目標・部位（替わったら前の結果は使わない）
 const aimSightKey = (f) => `${f.latitude},${f.longitude}|${aim.target && aim.target.id}|${aim.partId}`;
 
+// 400日探索を8日ずつ区切り、日付・地点の操作を止めない。
+async function aimBuildingDays(obs, target, body, partId, seq) {
+  const from = Date.now(), start = S.Cal.startOfDay(from), rows = [];
+  for (let i = 0; i < 400 && rows.length < 4; i++) {
+    if (i % 8 === 0) { await new Promise((resolve) => setTimeout(resolve, 0)); if (seq !== aim.fromSeq) return []; }
+    const row = SoramiAlign.dailyView(obs, target, body, start + i * 86400000, { partId })
+      .find((e) => e.at >= from && e.intersects && (body !== "moon" || e.sunAltitude < 0));
+    if (row) rows.push(row);
+  }
+  return rows;
+}
 async function aimRenderFrom() {
   const seq = ++aim.fromSeq;
   const f = aimFromPoint();
@@ -6459,13 +6480,14 @@ async function aimRenderFrom() {
   // 1.2倍以内）を並べ、日ごとに**実際の通り方**と、**選んだ合わせ方にするにはどちらへ何m動けばよいか**を書く（Codex と相談した形）
   let ev = [];
   try {
-    ev = SoramiAlign.upcoming(obs, aim.target, aim.body,
-      { from: Date.now(), days: 400, limit: moon ? 24 : 8, limb: "center", partId: aim.partId, stepMs: 3600000 });
+    ev = aimIsMountain(aim.target) ? SoramiAlign.upcoming(obs, aim.target, aim.body,
+      { from: Date.now(), days: 400, limit: moon ? 24 : 8, limb: "center", partId: aim.partId, stepMs: 3600000 })
+      : await aimBuildingDays(obs, aim.target, aim.body, aim.partId, seq);
   } catch { ev = []; }
   if (seq !== aim.fromSeq) return;
   const all = ev;
   // 明るい空の月は出さない
-  ev = ev.filter((e) => Math.abs(e.gap) <= 1.2 * e.radius && (!moon || e.sunAltitude < 0)).slice(0, 4);
+  ev = ev.filter((e) => aimCalSolid(e) && (!moon || e.sunAltitude < 0)).slice(0, 4);
   const D = SoramiTerrain.distanceKm(f.latitude, f.longitude, aim.target.latitude, aim.target.longitude);
   // 帯の上の「◯◯から見た◯◯ ・ ◯◯まで Nkm」は出さない（2026-10-03 ユーザーが選んだ「いらない説明文」。地点と題名の繰り返し）
   aim.fromEvents = ev;
@@ -6483,7 +6505,7 @@ async function aimRenderFrom() {
   // 重ならないなら、そう言い切る（ユーザー「天体の動き的に絶対にないわけでしょ？」）。太陽は毎年同じ範囲の方角しか
   // 通らないので、1年で無ければその場所からは無い。月も 2025〜26 年は出入りの方角の幅がいちばん広い時期
   // （約18.6年周期の最大）なので、ここで無ければ当分無い。重なる回はあるが出さない理由があるときだけ、それを書く
-  const solid = all.filter((e) => Math.abs(e.gap) <= 1.2 * e.radius);
+  const solid = all.filter(aimCalSolid);
   const none = ev.length ? ""
     : `<p class="tiny">${!all.length ? "ここからは重なりません。"
       : !solid.length ? "ここからは縁がかすめるだけで、重なりません。"
@@ -6636,7 +6658,7 @@ async function aimUpdateLook() {
   }
   const f = aimFromPoint();
   if (!f) { host.hidden = true; return; }
-  if (aim.sight && aim.sight.hidden && aim.sight.key === aimSightKey(f)) { host._pick = null; aimReverseClear(); host.hidden = true; return; }
+  // 見通しNGも図を残す。遮蔽物の注意は観測地点の行で示す。
   const ground = await aimElevation(f.latitude, f.longitude);
   if (seq !== aim.lookSeq) return;
   const obs = { latitude: f.latitude, longitude: f.longitude, elevation: Number.isFinite(ground) ? ground : 0 };
@@ -6645,20 +6667,22 @@ async function aimUpdateLook() {
   // 合わせ方（下の縁・真ん中・上の縁）は、日付の帯・地図の線・候補地を決めるもので、ここでは通り方を変えない
   const opts = { partId: aim.partId, limb: "center", eyeM: 1.5, stepMs: 3600000 };
   let rows = [];
-  try { rows = SoramiAlign.upcoming(obs, t, aim.body, { ...opts, from: aim.dayMs, days: 1, limit: 4 }); } catch { rows = []; }
+  try { rows = SoramiAlign.dailyView(obs, t, aim.body, aim.dayMs, opts); } catch { rows = []; }
   const dayRows = rows.filter((e) => S.JstCal.sameDay(e.at, aim.dayMs));
   const e = dayRows.find((x) => x.side === aim.candSide && dayRows.length > 1) || dayRows.sort((x, y) => Math.abs(x.gap) - Math.abs(y.gap))[0];
   if (!e) {
     host.hidden = false;
-    host.innerHTML = `<div class="aim-look-h"><span>見え方</span></div><p class="tiny" style="color:var(--secondary)">`
-      + `この日は、${esc(f.name)}から見て${aim.body === "moon" ? "月" : "太陽"}が${esc(t.name)}に重なりません。</p>`;
+    host.innerHTML = `<div class="aim-look-h"><span>見え方</span></div><div class="aim-look-unavailable">見え方を計算できませんでした。日付を選び直してください。</div>`;
     return;
   }
-  const hit = SoramiAlign.crossingNear(obs, t, aim.body, e.at, { partId: aim.partId, limb: "center", eyeM: 1.5 });
-  const at = hit ? hit.at : e.at;
+  const mountain = aimIsMountain(t);
+  const hits = mountain ? SoramiAlign.upcoming(obs, t, aim.body, { ...opts, from: aim.dayMs, days: 1, limit: 4 }) : [];
+  const hit = hits.find((x) => x.side === e.side);
+  const overlap = mountain ? !!hit && aimCalSolid(hit) : e.intersects;
+  const at = hit?.at ?? e.at;
   aimLookRender(host, { obs, eyeM: 1.5, at, title: `${f.name}から`,
-    sub: `${aimDateLabel(at)} ${aimSideName(e.side)} ・ ${aimPassage(e)}`, light: light(at, obs),
-    atName: aimCalSolid(e) ? undefined : "最接近" });
+    sub: `${aimDateLabel(at)} ${aimSideName(e.side)} ・ ${overlap ? (mountain ? aimPassage(hit) : "建物に重なる") : "重ならない日の通り方"}`,
+    light: light(at, obs), extra: e.altitude < 0 ? `${aim.body === "moon" ? "月" : "太陽"}は地平線の下です` : "", atName: overlap ? undefined : "最接近" });
 }const aimCandName = (c) => (c.place.kind === "川岸" ? `${c.place.name}の川岸`
   : c.place.name || `名前のない${c.place.kind}`);
 const aimSideName = (side) => (aim.body === "moon" ? (side === "set" ? "月の入" : "月の出") : (side === "set" ? "日の入" : "日の出"));
@@ -7112,6 +7136,8 @@ async function aimLookRidge(obs, eye, target, win) {
   return out;
 }
 
+const AIM_SENSOR = { full: [36, 24], aps: [23.5, 15.6], canon: [22.3, 14.9], m43: [17.3, 13] };
+const aimLens = (() => { try { const x = JSON.parse(localStorage.getItem("sorami.lens") || "{}"); return { on: !!x.on, focal: Math.min(2000, Math.max(8, Number(x.focal) || 200)), sensor: AIM_SENSOR[x.sensor] ? x.sensor : "full", portrait: !!x.portrait }; } catch { return { on: false, focal: 200, sensor: "full", portrait: false }; } })();
 const aimLookHosts = new Set();
 const aimLookHMS = (ms) => `${S.JstCal.hhmm(ms)}:${String(new Date(ms).getUTCSeconds()).padStart(2, "0")}`;
 /// 重なる時刻からの差を短く（「重なる3分前」「重なる20秒後」）
@@ -7138,6 +7164,11 @@ async function aimLookRender(host, spec) {
     host.innerHTML = `<div class="aim-look-h"><span>見え方</span></div>
       <p class="aim-look-cap"><strong data-look-title></strong><span class="sub-line" data-look-sub></span><span class="sub-line" data-look-light></span><span class="sub-line" data-look-extra></span></p>
       <canvas data-look-canvas role="img"></canvas>
+      <div class="aim-lens"><button type="button" class="chip" data-lens-on aria-pressed="false">画角枠</button>
+        <label>焦点距離 <input type="number" min="8" max="2000" step="1" required data-lens-focal aria-label="レンズの実焦点距離（mm）"> mm</label><button type="button" class="chip" data-lens-apply>反映</button>
+        <select data-lens-sensor aria-label="センサーサイズ"><option value="full">フルサイズ</option><option value="aps">APS-C</option><option value="canon">APS-C（Canon）</option><option value="m43">マイクロフォーサーズ</option></select>
+        <button type="button" class="chip" data-lens-portrait aria-pressed="false">縦位置</button></div>
+      <div class="tiny" data-lens-info></div>
       <div class="aim-look-time"><input type="range" min="0" max="0" step="any" value="0" data-look-range aria-label="時刻を動かす">
         <output data-look-at></output></div>
       <p class="tiny aim-look-hint" data-look-hint hidden></p>
@@ -7154,6 +7185,21 @@ async function aimLookRender(host, spec) {
     const el = host.querySelector(`[data-look-${k}]`);
     el.textContent = spec[k] || ""; el.hidden = !spec[k];
   }
+  const lensOn = host.querySelector("[data-lens-on]"), lensFocal = host.querySelector("[data-lens-focal]"), lensSensor = host.querySelector("[data-lens-sensor]"), lensPortrait = host.querySelector("[data-lens-portrait]");
+  lensOn.setAttribute("aria-pressed", String(aimLens.on)); lensPortrait.setAttribute("aria-pressed", String(aimLens.portrait));
+  lensFocal.value = String(aimLens.focal); lensSensor.value = aimLens.sensor;
+  const saveLens = () => { try { localStorage.setItem("sorami.lens", JSON.stringify(aimLens)); } catch {} aimLookRender(host, spec); };
+  lensOn.onclick = () => { aimLens.on = !aimLens.on; saveLens(); };
+  lensPortrait.onclick = () => { aimLens.portrait = !aimLens.portrait; aimLens.on = true; saveLens(); };
+  lensSensor.onchange = () => { aimLens.sensor = lensSensor.value; aimLens.on = true; saveLens(); };
+  lensFocal.onchange = () => {
+    if (!lensFocal.value.trim() || !lensFocal.checkValidity() || !Number.isFinite(+lensFocal.value) || +lensFocal.value < 8 || +lensFocal.value > 2000) { lensFocal.reportValidity(); return; }
+    aimLens.focal = +lensFocal.value; aimLens.on = true; saveLens();
+  };
+  host.querySelector("[data-lens-apply]").onclick = lensFocal.onchange;
+  lensFocal.onkeydown = (event) => { if (event.key === "Enter") { event.preventDefault(); lensFocal.onchange(); } };
+  const frame = aimLens.on ? SoramiAlign.cameraFrame(aimLens.focal, ...AIM_SENSOR[aimLens.sensor], aimLens.portrait) : null;
+  host.querySelector("[data-lens-info]").textContent = frame ? `${aimLens.focal}mm ・ 画角 ${frame.horizontalDeg.toFixed(1)}° × ${frame.verticalDeg.toFixed(1)}°（歪曲なしの目安）` : "レンズの実焦点距離を入れて画角を確認できます";
   const ground = spec.obs.elevation ?? 0, eye = ground + spec.eyeM;
   const eyeObs = { latitude: spec.obs.latitude, longitude: spec.obs.longitude, elevation: eye };
   const st = body === "moon" ? SoramiAstro.moon(spec.at, eyeObs) : SoramiAstro.sun(spec.at, eyeObs);
@@ -7172,6 +7218,11 @@ async function aimLookRender(host, spec) {
   const H = Math.round(Math.min(440, W * (mountain ? 0.66 : 0.9)));
   const win = SoramiAlign.viewWindow({ azimuth: az, baseAngle: viewBase, topAngle, radiusDeg: radius, aspect: W / H,
     include: [st.apparentAltitude] });
+  if (frame) {
+    win.az0 = az; win.alt0 = (viewBase + topAngle) / 2;
+    win.halfH = Math.max(frame.halfH, frame.halfW / (W / H)) * 1.12;
+    win.halfW = win.halfH * W / H;
+  }
   const proj = SoramiAlign.viewProjector(win.az0, win.alt0);
   const path = SoramiAlign.viewPath(body, eyeObs, spec.at, proj, win);
   const i0 = Math.max(0, path.findIndex((p) => p.at === spec.at));
@@ -7319,6 +7370,15 @@ async function aimLookRender(host, spec) {
       ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
       ctx.beginPath(); ctx.arc(ghost[0], ghost[1], rPx, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       ctx.restore();
+    }
+    if (frame) {
+      const fw = frame.halfW * 2 * k, fh = frame.halfH * 2 * k;
+      ctx.setLineDash([]); ctx.strokeStyle = "#000"; ctx.lineWidth = 4;
+      ctx.strokeRect((W - fw) / 2, (H - fh) / 2, fw, fh);
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect((W - fw) / 2, (H - fh) / 2, fw, fh);
+    }
+    if (!c || c[0] < 0 || c[0] > W || c[1] < 0 || c[1] > H) {
+      ctx.fillStyle = ink; ctx.font = "700 12px sans-serif"; ctx.fillText(`${body === "moon" ? "月" : "太陽"}は画面の外`, 10, 20);
     }
     cur = v;
     out.innerHTML = `${aimLookHMS(p.at)}<span class="sub-line">${esc(aimLookRel(p.at - spec.at, spec.atName))}</span>`;

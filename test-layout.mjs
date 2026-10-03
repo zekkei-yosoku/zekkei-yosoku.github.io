@@ -2918,10 +2918,10 @@ console.log("== 見え方の図（2026-10-02） ==");
     "候補地を選んでいれば、重なりを解いたときと同じ立つ高さ・時刻で描く");
   // 2026-10-03 ユーザー「同じ日で観測地点をずらしたらその場所からの重なり方を出して欲しいだけ」「無理やり3択の場所に見え方を合わせてない？」
   ok(!/solvePoint/.test(look) && !/（計算上の位置）/.test(look), "観測地点の図は、場所を動かさない（選んだ合わせ方になる計算上の地点へずらさない）");
-  ok(/SoramiAlign\.upcoming\(obs, t, aim\.body, \{ \.\.\.opts, from: aim\.dayMs, days: 1, limit: 4 \}\)/.test(look)
-    && /sub: `\$\{aimDateLabel\(at\)\} \$\{aimSideName\(e\.side\)\} ・ \$\{aimPassage\(e\)\}`/.test(look),
-    "その日、その観測地点での実際の通り方（中心が先端の◯°上を通る、など）で描く。合わせ方で通り方を変えない");
-  ok(/この日は、\$\{esc\(f\.name\)\}から見て/.test(look), "その日に重ならなければ、そう書く");
+  // 2026-10-03 追加依頼: 建物全体の通過を判定し、重ならない日も常に同じ図を出す。
+  ok(/SoramiAlign\.dailyView\(obs, t, aim\.body, aim\.dayMs, opts\)/.test(look)
+    && /建物に重なる/.test(look), "実際の観測地点で建物全体との重なりを描く");
+  ok(/重ならない日の通り方/.test(look) && !/この日は、\$\{esc\(f\.name\)\}から見て/.test(look), "重ならない日も図を残して通り方を表示する");
   ok(/if \(aim\.wantSpot\) return;/.test(look), "選び直す候補地を待っている間は図を替えない（観測地点へ飛んで戻らない）");
   ok(/data-look-title/.test(html) && /data-look-sub/.test(html) && /data-look-light/.test(html) && /data-look-extra/.test(html),
     "図の上に「どこから・いつ・どう重なるか」の一行");
@@ -3010,9 +3010,10 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(/aimReverseCurve\(r, \{ dx, dy, D, dist, stale \}\)/.test(pickSrc) && /aim\.reverse = \{ key, points: along, at: r \};/.test(pickSrc)
     && /const rv = aim\.reverse;/.test(html) && /撮れる場所 \$\{S\.JstCal\.hhmm\(rv\.at\.at\)\}/.test(html),
     "確定したら、同じ見え方になる場所を距離を変えて解いた線にして地図に出す");
-  ok(/if \(aim\.sight && aim\.sight\.hidden && aim\.sight\.key === aimSightKey\(f\)\) \{[^}]*host\.hidden = true; return; \}/.test(html)
+  // 見通しNGも表示を維持。注意は観測地点側の既存案内を残す。
+  ok(!/aim\.sight\.key === aimSightKey\(f\)\) \{[^}]*host\.hidden = true/.test(html)
     && /const sight = \{ key: aimSightKey\(f\), hidden: !!hidden \};/.test(html),
-    "ここから目標が見えないとき（「ここからは◯◯が見えません」）は、見え方の図を出さない");
+    "見通しが悪くても図を残し、見通し判定自体は保持する");
   ok(/if \(!on\) \{[^}]*cv\.onpointerdown = cv\.onpointermove = cv\.onpointerup = null; cv\.onclick = pathTap; return; \}/.test(pickSrc),
     "逆引きでないときは、いつもの道のタップのまま（ぶつからない）");
   ok(/cv\.onpointerdown = /.test(pickSrc) && /cv\.onpointerup = /.test(pickSrc) && /cv\.onclick = \(ev\) => \{ if \(Date\.now\(\) - \(st\.upAt \|\| 0\) < 800\) return;/.test(pickSrc),
