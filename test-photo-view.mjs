@@ -31,7 +31,7 @@ test("焦点距離・センサーサイズ・縦横から実画角を計算す�
 test("日付変更で重なりなしや見通しNGでも図へ描画を渡す",async()=>{
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf("async function aimUpdateLook()"),b=html.indexOf("\n}const aimCandName",a)+2;
  const host={hidden:true},aim={target,body:"moon",partId:"tip",candPick:null,candSide:null,lookSeq:0,sight:{hidden:true,key:"same"}};
- let rendered;const c=vm.createContext({aim,$:()=>host,S,SoramiAlign:AL,aimFromPoint:()=>({...observer,name:"試験地点"}),aimElevation:async()=>83,aimLookRender:(h,s)=>{h.hidden=false;rendered=s},aimIsMountain:t=>!!t.rim,aimCalSolid:e=>e.intersects??Math.abs(e.gap)<=1.2*e.radius,aimDateLabel:()=>"日付",aimSideName:()=>"月の出",aimPassage:()=>"通過",moonGlyphAt:()=>"月",lightTimingText:()=>"夜",Math,Date,Number});
+ let rendered;const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,aim,$:()=>host,S,SoramiAlign:AL,aimFromPoint:()=>({...observer,name:"試験地点"}),aimElevation:async()=>83,aimLookRender:(h,s)=>{h.hidden=false;rendered=s},aimIsMountain:t=>!!t.rim,aimCalSolid:e=>e.intersects??Math.abs(e.gap)<=1.2*e.radius,aimDateLabel:()=>"日付",aimSideName:()=>"月の出",aimPassage:()=>"通過",moonGlyphAt:()=>"月",lightTimingText:()=>"夜",Math,Date,Number});
  vm.runInContext(html.slice(a,b)+";this.update=aimUpdateLook",c);
  for(const d of ["03","02","04"]){aim.dayMs=day(d);await c.update();assert.equal(host.hidden,false);assert.ok(rendered);assert.equal(rendered.obs.latitude,observer.latitude);assert.ok(rendered.at>=day(d)&&rendered.at<day(d)+86400000);assert.equal(rendered.atName,d==="03"?undefined:"最接近");}
  assert.match(rendered.extra,/地平線の下/);
@@ -57,7 +57,7 @@ test("焦点距離の空欄・範囲外は保存せず、有効値のみ反映�
 test("年間探索は途中で操作に戻り、古い地点の結果を破棄する",async()=>{
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf("async function aimBuildingDays"),b=html.indexOf("async function aimRenderFrom",a);
  const aim={fromSeq:1};let calls=0,waits=0;
- const c=vm.createContext({aim,S,Date,Promise,setTimeout:(f)=>{waits++;if(waits===2)aim.fromSeq=2;f()},SoramiAlign:{dailyView:()=>{calls++;return []}}});
+ const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,aim,S,Date,Promise,setTimeout:(f)=>{waits++;if(waits===2)aim.fromSeq=2;f()},SoramiAlign:{dailyView:()=>{calls++;return []}}});
  vm.runInContext(html.slice(a,b)+";this.run=aimBuildingDays",c);
  const rows=await c.run(observer,target,"moon","tip",1);assert.equal(rows.length,0);assert.equal(calls,8);assert.equal(waits,2);
 });
@@ -66,7 +66,7 @@ test("年間探索は途中で操作に戻り、古い地点の結果を破棄�
 test("自動表示は旧200mmを移行せず、手動指定だけ保持する",()=>{
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf("const AIM_SENSOR ="),b=html.indexOf("const aimLookHosts",a);
  for(const [saved,mode] of [[{},"auto"],[{on:true,focal:200},"auto"],[{mode:"manual",on:true,focal:700},"manual"]]) {
-  const c=vm.createContext({localStorage:{getItem:()=>JSON.stringify(saved)}});vm.runInContext(html.slice(a,b)+";this.lens=aimLens",c);
+  const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,localStorage:{getItem:()=>JSON.stringify(saved)}});vm.runInContext(html.slice(a,b)+";this.lens=aimLens",c);
   assert.equal(c.lens.mode,mode);assert.equal(c.lens.on,true);if(mode==="manual")assert.equal(c.lens.focal,700);
  }
 });
@@ -74,7 +74,7 @@ test("自動表示の相当焦点距離を反映しても図の縮尺が変わ�
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf("  const sensor = AIM_SENSOR[aimLens.sensor]"),b=html.indexOf("  const proj =",a);
  for(const sensor of ["full","aps","canon","m43"])for(const portrait of [false,true])for(const [W,H] of [[316,284],[610,440]]) {
   const base=AL.viewWindow({azimuth:70,baseAngle:.1,topAngle:1.3,radiusDeg:.27,aspect:W/H}),info={textContent:""},button={setAttribute:()=>{}},lensFocal={};
-  const aimLens={sensor,portrait,mode:"auto",on:true};const c=vm.createContext({AIM_SENSOR:{full:[36,24],aps:[23.5,15.6],canon:[22.3,14.9],m43:[17.3,13]},aimLens,win:{...base},W,H,lensFocal,Math,SoramiAlign:AL,host:{querySelector:q=>q.includes("auto")?button:info}});
+  const aimLens={sensor,portrait,mode:"auto",on:true};const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,AIM_SENSOR:{full:[36,24],aps:[23.5,15.6],canon:[22.3,14.9],m43:[17.3,13]},aimLens,win:{...base},W,H,lensFocal,Math,SoramiAlign:AL,host:{querySelector:q=>q.includes("auto")?button:info}});
   vm.runInContext(html.slice(a,b),c);assert.equal(c.win.halfH,base.halfH);assert.match(info.textContent,/見やすい表示：約/);
   aimLens.mode="manual";aimLens.focal=+lensFocal.value;c.win={...base};vm.runInContext("{ "+html.slice(a,b)+" }",c);
   assert.ok(Math.abs(c.win.halfH/base.halfH-1)<.0002);assert.equal(c.win.alt0,base.alt0);
@@ -84,7 +84,7 @@ test("構図の移動・復帰は時刻と天体逆引きを変えない",()=>{
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf('  const move = host.querySelector("[data-lens-move]")'),b=html.indexOf('  draw(i0);',a);
  let draws=0,prevented=0,clears=0;const move={setAttribute:()=>{}},center={},hint={},host={_lensMoving:true,_pick:null,querySelector:q=>q.includes("hint")?hint:q.includes("center")?center:move};
  const cv={style:{},setPointerCapture:()=>{}},cur=43,W=316,H=284,k=10,frame={halfW:5,halfH:6};
- const c=vm.createContext({host,cv,cur,W,H,k,frame,hiddenY:null,baseY:220,mountain:false,navigator:{vibrate:()=>{}},Math,draw:()=>draws++,aimLookRender:()=>{},aimReverseClear:()=>clears++,spec:{}});vm.runInContext(html.slice(a,b),c);
+ const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,host,cv,cur,W,H,k,frame,hiddenY:null,baseY:220,mountain:false,navigator:{vibrate:()=>{}},Math,draw:()=>draws++,aimLookRender:()=>{},aimReverseClear:()=>clears++,spec:{}});vm.runInContext(html.slice(a,b),c);
  cv.onpointerdown({clientX:100,clientY:100,pointerId:1});cv.onpointermove({pointerId:1,clientX:150,clientY:120});cv.onpointerup();
  assert.ok(host._lensOffset[0]>0);assert.ok(host._lensOffset[1]>0);assert.equal(c.cur,43);assert.equal(host._pick,null);
  cv.onkeydown({key:"ArrowLeft",preventDefault:()=>prevented++});assert.equal(prevented,1);center.onclick();assert.deepEqual(Array.from(host._lensOffset),[0,0]);assert.ok(draws>=3);
@@ -101,7 +101,7 @@ test("構図の移動・復帰は時刻と天体逆引きを変えない",()=>{
 test("図を移動しても画角枠は中央、道のタップは移動分を引いて時刻を選ぶ",()=>{
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf("  cv.onclick = (ev) => {",html.indexOf("async function aimLookRender")),b=html.indexOf("  aimLookPick(host",a);
  const cv={getBoundingClientRect:()=>({left:10,top:20})},host={_lensOffset:[.2,.1]},range={};let drawn=-1;
- const c=vm.createContext({cv,host,range,W:300,H:270,path:[{x:5,y:6},{x:10,y:20}],toPx:xy=>xy,Math,draw:i=>drawn=i});
+ const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,cv,host,range,W:300,H:270,path:[{x:5,y:6},{x:10,y:20}],toPx:xy=>xy,Math,draw:i=>drawn=i});
  vm.runInContext(html.slice(a,b),c);cv.onclick({clientX:10+60+10,clientY:20+27+20});assert.equal(drawn,1);assert.equal(range.value,"1");
  const f=html.slice(html.indexOf("    if (frame) {",html.indexOf("const draw = (v)")),html.indexOf('    const outside = host.querySelector'));
  assert.match(f,/const fx = \(W - fw\) \/ 2, fy = \(H - fh\) \/ 2/);assert.doesNotMatch(f,/_lensOffset/);
@@ -112,7 +112,7 @@ test("図を移動しても画角枠は中央、道のタップは移動分を�
 test("最大の構図移動でも稜線が左右の画面端に届く",async()=>{
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8");
  const ridge=html.slice(html.indexOf("const aimRidgeCache"),html.indexOf("const AIM_SENSOR"));
- const c=vm.createContext({SoramiTerrain:{distanceKm:()=>100,destination:(lat,lng,az,d)=>({latitude:lat,longitude:lng}),elevations:async pts=>pts.map(()=>1000)},SoramiAlign:{rimOutline:()=>null,viewUnprojector:AL.viewUnprojector},SoramiAstro:{targetElevationAngle:()=>2}});
+ const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,SoramiTerrain:{distanceKm:()=>100,destination:(lat,lng,az,d)=>({latitude:lat,longitude:lng}),elevations:async pts=>pts.map(()=>1000)},SoramiAlign:{rimOutline:()=>null,viewUnprojector:AL.viewUnprojector},SoramiAstro:{targetElevationAngle:()=>2}});
  vm.runInContext(ridge,c);
  for(const halfW of [3,144]) {
  const win={az0:180,alt0:2,halfW};
@@ -163,7 +163,7 @@ test("2本指のピンチは焦点距離と構図を連動し、再描画後も�
  const host={_lensMoving:true,_pick:null,_lensOffset:[.1,.1],querySelector:q=>q.includes("hint")?controls.hint:q.includes("center")?controls.center:controls.move};
  const cv={style:{},setPointerCapture:()=>{},getBoundingClientRect:()=>({left:0,top:0})};
  const R=Math.PI/180,H=300,W=300,halfH=24/(2*200*R)*1.12,aimLens={mode:"manual",focal:200,on:true};
- const c=vm.createContext({host,cv,cur:43,W,H,k:H/2/halfH,frame:{halfH:24/(400*R)},win:{halfH},focal:200,sh:24,sw:36,hiddenY:null,baseY:250,mountain:false,navigator:{},Math,Map,aimLens,localStorage:{setItem:()=>saved++},spec:{},draw:()=>draws++,aimReverseClear:()=>{},requestAnimationFrame:fn=>{queued=fn;return 1;},cancelAnimationFrame:()=>{queued=null;},aimLookRender:()=>{renders++;c.focal=aimLens.focal;c.win={halfH:Math.max(24/(2*c.focal*R),36/(2*c.focal*R))*1.12};vm.runInContext(code,c);}});
+ const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,host,cv,cur:43,W,H,k:H/2/halfH,frame:{halfH:24/(400*R)},win:{halfH},focal:200,sh:24,sw:36,hiddenY:null,baseY:250,mountain:false,navigator:{},Math,Map,aimLens,localStorage:{setItem:()=>saved++},spec:{},draw:()=>draws++,aimReverseClear:()=>{},requestAnimationFrame:fn=>{queued=fn;return 1;},cancelAnimationFrame:()=>{queued=null;},aimLookRender:()=>{renders++;c.focal=aimLens.focal;c.win={halfH:Math.max(24/(2*c.focal*R),36/(2*c.focal*R))*1.12};vm.runInContext(code,c);}});
  // 正方形では横寸法が画面範囲を決める。
  c.win.halfH=36/(400*R)*1.12;c.k=H/2/c.win.halfH;
  vm.runInContext(code,c);

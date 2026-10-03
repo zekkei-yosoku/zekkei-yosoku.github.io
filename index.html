@@ -668,6 +668,9 @@
   /* 題名が2行に折れても（320px で「東京スカイツリーに重ねる」）帯の高さを切り替えの高さ（44px）に収め、下の位置を動かさない */
   .aim-head { min-height: 44px; }
   .aim-head h2 { min-width: 0; line-height: 1.3; }
+  .aim-body-select { flex: 0 0 106px; width: 106px; min-height: 44px; margin: 0; padding: 8px; font-size: 16px; border-radius: 10px; }
+  .aim-cal-time { font-size: 0.72rem; line-height: 1.25; white-space: nowrap; }
+  .aim-cal-sky { font-size: 0.72rem; line-height: 1.2; }
   .aim-head .aim-seg button { min-width: 44px; padding: 0 8px; font-size: 1.1rem; }
   /* 題名の中の目標。字は橙で▾つき、押せる高さは帯と同じ 44px。透明な select を重ねる（iOS で拡大されないよう字は 16px） */
   /* 枠に入れて、押せる物と分かるように（2026-10-01 ユーザー「目標の切り替えのところはいい感じの枠に」）。
@@ -1154,10 +1157,11 @@
            「目標」の行を別に置かないので、富士山に重ねると並びが同じになる。見た目は字＋▾、押すと OS の一覧が開く
            （透明な select を字に重ねる。select の幅は一番長い候補で決まってしまうので、字の幅に合わせるため） -->
       <div class="section-h aim-head"><h2 id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span></span></h2>
-        <div class="aim-seg" role="group" aria-label="太陽か月">
-          <button id="aimSun" aria-pressed="true" aria-label="太陽" title="太陽">☀️</button>
-          <button id="aimMoon" aria-pressed="false" aria-label="月" title="月">🌙</button>
-        </div>
+        <select id="aimBody" class="aim-body-select" aria-label="天体">
+          <optgroup label="太陽・月"><option value="sun">太陽</option><option value="moon">月</option></optgroup>
+          <optgroup label="恒星"><option value="sirius">シリウス</option></optgroup>
+          <optgroup label="惑星"><option value="mercury">水星</option><option value="venus">金星</option><option value="mars">火星</option><option value="jupiter">木星</option><option value="saturn">土星</option></optgroup>
+        </select>
       </div>
     <!-- どこから重ねるか（観測地点・2026-10-01）。**カードのいちばん上に置く**。「目標」の行は塔にしか無いので、
          その下に置くと道具ごとに位置が変わる（ユーザー「一番上の方が他の画面と位置が変わらない。ツールごとにレイアウトが
@@ -1390,11 +1394,11 @@
     <!-- 一覧へ（2026-10-02 ユーザー「メニューの中に絶景予測の一覧に戻るボタンがほしい」）。道具ではないので data-tool・data-id を持たない
          （許可・管理画面の名前に混ぜない）。いちばん上に置き、道具と線で分ける。一覧にいるときは帯を付ける -->
     <button id="toolsHome"><b>絶景予測の一覧</b><span>夕焼け・星空・雲海などが見られそうか</span></button>
-    <!-- 太陽・月を重ねる（2026-10-01）。もとは「富士山に重ねる」（ダイヤモンド富士・パール富士）と「塔に重ねる」の2つ。
-         ユーザー「塔以外も重ねるじゃん」→ 名前を「太陽・月を重ねる」に。「プルダウンで富士山を選んだら、その横の太陽・月の切り替えでできる」→ 富士山もここへ。
+    <!-- 天体を重ねる（2026-10-01）。もとは「富士山に重ねる」（ダイヤモンド富士・パール富士）と「塔に重ねる」の2つ。
+         ユーザー「塔以外も重ねるじゃん」→ 名前を「天体を重ねる」に。「プルダウンで富士山を選んだら、その横の太陽・月の切り替えでできる」→ 富士山もここへ。
          何に重ねるかは開いた画面の題名の枠で選ぶ。説明は何が分かるかを書く（ユーザーと決めた文に、ダイヤモンド富士の名前を足した）。
          許可は3つのまま（data-id。どれかがあれば出す）。管理画面の名前は data-names から -->
-    <button data-tool="#/aim/tower" data-id="diamond pearl tower" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど"><b>太陽・月を重ねる</b><span>ダイヤモンド富士・パール富士、スカイツリーや東京タワーなどに太陽や月が重なる日と見える場所</span></button>
+    <button data-tool="#/aim/tower" data-id="diamond pearl tower" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど"><b>天体を重ねる</b><span>ダイヤモンド富士・パール富士、スカイツリーや東京タワーなどに天体が重なる日と見える場所</span></button>
     <button data-tool="#/plane" data-id="plane"><b>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
     <button data-tool="#/iss" data-id="iss"><b>ISSの月面通過</b><span>ISSが月や太陽の前を横切る場所と時刻</span></button>
     <button data-tool="#/records" data-id="records"><b>記録</b><span>点数が実際とどれだけ合っているか</span></button>
@@ -1690,21 +1694,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261003202305"></script>
+<script src="sorami-core.js?v=20261003212720"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261003202305"></script>
-<script src="sorami-exif.js?v=20261003202305"></script>
-<script src="sorami-capcloud.js?v=20261003202305"></script>
-<script src="sorami-terrain.js?v=20261003202305"></script>
-<script src="sorami-mountain.js?v=20261003202305"></script>
-<script src="sorami-fuji.js?v=20261003202305"></script>
-<script src="sorami-sky.js?v=20261003202305"></script>
-<script src="sorami-routes.js?v=20261003202305"></script>
-<script src="sorami-iss.js?v=20261003202305"></script>
-<script src="sorami-plane.js?v=20261003202305"></script>
-<script src="sorami-align.js?v=20261003202305"></script>
-<script src="sorami-moon.js?v=20261003202305"></script>
+<script src="sorami-astro.js?v=20261003212720"></script>
+<script src="sorami-exif.js?v=20261003212720"></script>
+<script src="sorami-capcloud.js?v=20261003212720"></script>
+<script src="sorami-terrain.js?v=20261003212720"></script>
+<script src="sorami-mountain.js?v=20261003212720"></script>
+<script src="sorami-fuji.js?v=20261003212720"></script>
+<script src="sorami-sky.js?v=20261003212720"></script>
+<script src="sorami-routes.js?v=20261003212720"></script>
+<script src="sorami-iss.js?v=20261003212720"></script>
+<script src="sorami-plane.js?v=20261003212720"></script>
+<script src="sorami-bodies.js?v=20261003212720"></script>
+<script src="sorami-align.js?v=20261003212720"></script>
+<script src="sorami-moon.js?v=20261003212720"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5043,11 +5048,13 @@ const MapPick = createMapView({ canvas: "mapCanvas", coord: "mapCoord", sheet: "
 const AimMap = createMapView({ canvas: "aimCanvas", coord: "aimCoord",
   zoomIn: "aimIn", zoomOut: "aimOut" });
 
-const aim = { target: null, body: store.get("sorami.aimBody", "sun") === "moon" ? "moon" : "sun", partId: null, limb: "center", dayMs: null, lines: [], seq: 0,
+const aim = { target: null, body: SoramiBodies.definition(store.get("sorami.aimBody", "sun")) ? store.get("sorami.aimBody", "sun") : "sun", partId: null, limb: "center", dayMs: null, lines: [], seq: 0,
               spotSeq: 0, spotCache: null, spot: null, preset: null,
               cands: [], candSeq: 0, candPick: null, wantSpot: null,
               // 候補地で見ている側（rise / set）、見え方の図の描き直しの番号、この地点で重なる日（帯）
               candSide: null, lookSeq: 0, fromEvents: [] };
+
+aim.bodySeq = 0; aim.limbsByBody = {};
 
 /// 目標の高さで線の長さが変わる（富士山は150km、避雷針は3km）ので、地図の倍率も合わせる
 function aimZoomFor(target, partId) {
@@ -5109,7 +5116,7 @@ function aimWithHeights(t) {
 }
 function aimTargetList() {
   const custom = aimCustomTarget();
-  // 富士山も同じ一覧の先頭に置く（2026-10-01「太陽・月を重ねる」にまとめた）。**許可のある目標だけ出す**:
+  // 富士山も同じ一覧の先頭に置く（2026-10-01「天体を重ねる」にまとめた）。**許可のある目標だけ出す**:
   // 富士山はダイヤモンド富士かパール富士、そのほか（塔・他の目標）は tower。どれも無い（URL を直接開いた）ときは全部
   const fujiOk = toolAllowed("diamond") || toolAllowed("pearl"), towerOk = toolAllowed("tower");
   const all = !fujiOk && !towerOk;
@@ -5133,15 +5140,15 @@ function aimFillSelects() {
   // どこに重ねるかの釦。名前は山も塔も同じで、図だけ目標の形（山は台形・塔は縦線）にする
   const sel = list.find((t) => t.id === $("aimTarget").value);
   const mountain = !!sel && aimIsMountain(sel);
-  const cur = keep.limb || SoramiAlign.LIMBS[0].id;
-  $("aimLimb").innerHTML = SoramiAlign.LIMBS.map((l) => `<button type="button" data-limb="${l.id}" aria-pressed="${l.id === cur}"`
-    + ` aria-label="${esc(aimLimbSay(l.id, mountain))}">${aimLimbFigure(l.sign, mountain, `aimLimbMask-${l.id}`)}<span>${esc(l.name)}</span></button>`).join("");
+  const cur = SoramiBodies.definition(aim.body).limbs ? (keep.limb || aim.limb || SoramiAlign.LIMBS[0].id) : "center";
+  $("aimLimb").innerHTML = (SoramiBodies.definition(aim.body).limbs ? SoramiAlign.LIMBS : SoramiAlign.LIMBS.filter(l => l.id === "center")).map((l) => `<button type="button" data-limb="${l.id}" aria-pressed="${l.id === cur}"`
+    + ` ${!SoramiBodies.definition(aim.body).limbs ? "disabled" : ""} aria-label="${esc(aimLimbSay(l.id, mountain))}">${aimLimbFigure(l.sign, mountain, `aimLimbMask-${l.id}`)}<span>${esc(l.name)}</span></button>`).join("");
 }
 /// いま押している合わせ方
 const aimLimbValue = () => ($("aimLimb").querySelector('[aria-pressed="true"]') || {}).dataset?.limb || "";
 /// 読み上げる説明（画面では図が言う）
 function aimLimbSay(id, mountain) {
-  const b = aim.body === "moon" ? "月" : "太陽";
+  const b = SoramiBodies.definition(aim.body).name;
   return id === "onTop" ? `下の縁: ${b}がてっぺんに乗る`
     : id === "center" ? `真ん中: てっぺんが${b}の真ん中`
     : mountain ? `上の縁: ${b}が山の裏へ沈む・山の裏から昇る瞬間` : `上の縁: てっぺんが${b}の上の縁`;
@@ -5163,7 +5170,7 @@ function aimLimbFigure(sign, mountain, maskId) {
 const aimIsMountain = (t) => t.id === "fuji"
   || (Number.isFinite(t.groundM) && (t.parts || []).length === 1 && Math.abs(t.parts[0].m - t.groundM) < 0.5);
 /// 天体で言い方を変える。**月に「日の入側」と書かない**
-const aimSideLabel = (side) => (aim.body === "moon"
+const aimSideLabel = (side) => (!SoramiBodies.definition(aim.body).limbs ? (side === "set" ? "沈む側" : "昇る側") : aim.body === "moon"
   ? (side === "set" ? "月の入側" : "月の出側")
   : (side === "set" ? "日の入側" : "日の出側"));
 
@@ -6073,6 +6080,13 @@ function openIss() {
 }
 
 function aimApply({ redraw = true, recenter = false } = {}) {
+  if (!SoramiBodies.definition(aim.body).limbs && !SoramiBodies.ready()) {
+    const request = ++aim.bodySeq;
+    SoramiBodies.ensure(aim.body).then(() => { if(request === aim.bodySeq) aimApply({redraw,recenter}); }).catch(() => {
+      if(request === aim.bodySeq) $("aimLineInfo").textContent = "天体計算を読み込めませんでした。天体を選び直して再試行してください";
+    });
+    return;
+  }
   // お気に入りは増えたり消えたりする（ほかの画面・同期）ので、毎回組み直す。消えた目標を選んでいたら先頭へ
   aimFillSelects();
   const wanted = $("aimTarget").value || "fuji";
@@ -6083,10 +6097,20 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   // どちらも無い（URL を直接開いた）ときは両方出す。いまの天体が許されていなければ、許されている方へ
   const sunOk = !isFuji || toolAllowed("diamond"), moonOk = !isFuji || toolAllowed("pearl");
   const anyOk = sunOk || moonOk;
-  $("aimSun").hidden = anyOk && !sunOk;
-  $("aimMoon").hidden = anyOk && !moonOk;
+  const previousBody = aim.body;
+  const newBodyOk = toolAllowed("tower") || !(toolAllowed("diamond") || toolAllowed("pearl") || toolAllowed("tower"));
+  for (const option of $("aimBody").options) {
+    const allowed = option.value === "sun" ? (!anyOk || sunOk) : option.value === "moon" ? (!anyOk || moonOk) : newBodyOk;
+    option.disabled = !allowed; option.hidden = !allowed;
+  }
+  if (!SoramiBodies.definition(aim.body).limbs && !newBodyOk) aim.body = sunOk ? "sun" : "moon";
   if (aim.body === "sun" && anyOk && !sunOk) aim.body = "moon";
   if (aim.body === "moon" && anyOk && !moonOk) aim.body = "sun";
+  if (previousBody !== aim.body) {
+    aim.limb = aim.limbsByBody[aim.body] || "center";
+    $("aimLimb").innerHTML = "";
+    aimFillSelects();
+  }
   store.set("sorami.aimBody", aim.body);
   const favT = wanted.startsWith("fav:") ? aimFavTargets().find((f) => `fav:${f.id}` === wanted) : null;
   aim.target = wanted === "custom"
@@ -6110,10 +6134,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   $("aimTarget").disabled = single;
   document.querySelector("#aimTargetPick .aim-pick").classList.toggle("single", single);
   $("aimView").classList.toggle("moon", aim.body === "moon");
-  $("aimSun").setAttribute("aria-pressed", String(aim.body === "sun"));
-  // 月の切り替えは、選んでいる日（夜）の月の形で
-  $("aimMoon").textContent = `${moonGlyphAt((aim.dayMs ?? S.Cal.startOfDay(Date.now())) + 20 * 3600000)}`;
-  $("aimMoon").setAttribute("aria-pressed", String(aim.body === "moon"));
+  $("aimBody").value = aim.body;
   aim.limb = aimLimbValue() || SoramiAlign.LIMBS[0].id;
   // **選び直した高さは、選択肢を作り直す前に読む。** aimFillParts は aim.partId で選び直すので、
   // 後で読むと元の値（先端）に戻る（2026-09-25 から 10-01 まで高さを替えられなかった。
@@ -6201,7 +6222,7 @@ async function aimRenderSpots() {
   const seq = ++aim.spotSeq;
   const moon = aim.body === "moon";
   $("aimListTitle").textContent = "定番スポット";
-  $("aimListSub").textContent = moon ? "次にパール富士が見える日" : "次にダイヤモンド富士が見える日";
+  $("aimListSub").textContent = !SoramiBodies.definition(aim.body).limbs ? "次に富士山を通る日" : moon ? "次にパール富士が見える日" : "次にダイヤモンド富士が見える日";
   $("aimList").innerHTML = `<p class="tiny">計算しています…</p>`;
   const key = `${aim.body}:${aim.limb}:${S.Cal.startOfDay(Date.now())}`;
   aim.spotCache = aim.spotCache || {};
@@ -6230,7 +6251,7 @@ async function aimRenderSpots() {
       const lit = moon ? ` ${moonGlyphAt(e.at)}輝面${Math.round(e.illuminated * 100)}%` : "";
       const light = moon ? `<span class="sub-line">${esc(lightTimingText(e.at, SoramiAlign.spotObserver(sp)))}</span>` : "";
       return `<button class="tiny aim-day" data-spot="${i}" data-day="${S.Cal.startOfDay(e.at)}">${aimDateLabel(e.at)}`
-        + `${e.side === "set" ? (moon ? " 月の入" : " 日の入") : (moon ? " 月の出" : " 日の出")}${lit}${light}</button>`;
+        + `${aimSideName(e.side)}${lit}${light}</button>`;
     }).join("");
     const tags = [sp.kind, sp.deckM ? `地上${sp.deckM}m` : null, sp.note].filter(Boolean).join(" ・ ");
     return `<div class="al-row aim-spot">
@@ -6280,7 +6301,7 @@ function aimCalRows(obs, target, body, year, month, partId) {
     .filter((e) => e.at >= start && e.at < end && (body !== "moon" || e.sunAltitude < 0));
 }
 // 見え方と同じ2半径内の候補を扱い、円盤が届く日と近接通過を区別する。
-function aimCalSolid(e) { return e.intersects ?? (Math.abs(e.gap) <= 1.2 * e.radius); }
+function aimCalSolid(e) { return e.intersects ?? (Math.abs(e.gap) <= (e.radius === 0 ? 1e-5 : 1.2 * e.radius)); }
 function aimCalGridHtml(year, month, events, selected, today) {
   const first = new Date(Date.UTC(year, month, 1)).getUTCDay();
   const days = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
@@ -6289,8 +6310,8 @@ function aimCalGridHtml(year, month, events, selected, today) {
     const at = aimCalMonthStart(year, month) + (d - 1) * 86400000;
     const rows = events.get(at) || [], on = S.JstCal.sameDay(at, selected), now = S.JstCal.sameDay(at, today);
     const solid = rows.some(aimCalSolid);
-    const label = `${year}年${month + 1}月${d}日${rows.length ? (solid ? "、重なる日、" : "、近くを通る日、") + rows.map((e) => `${aimSideName(e.side)} ${S.JstCal.hhmm(e.at)}`).join("、") : ""}`;
-    html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span><span class="aim-cal-mark" aria-hidden="true">${rows.length ? (solid ? "●" : "○") : ""}</span></button>`;
+    const label = `${year}年${month + 1}月${d}日${rows.length ? (solid ? "、重なる日、" : "、近くを通る日、") + rows.map((e) => `${aimSideName(e.side)} ${S.JstCal.hhmm(e.at)}${!SoramiBodies.definition(aim.body).limbs ? " " + SoramiBodies.sky(e.sunAltitude) : ""}`).join("、") : ""}`;
+    html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span><span class="aim-cal-mark" aria-hidden="true">${rows.length ? (solid ? "●" : "○") : ""}</span>${rows.length && !SoramiBodies.definition(aim.body).limbs ? `<span class="aim-cal-time">${S.JstCal.hhmm(rows[0].at)}</span><span class="aim-cal-sky">${SoramiBodies.sky(rows[0].sunAltitude)}</span>` : ""}</button>`;
   }
   return html;
 }
@@ -6316,7 +6337,7 @@ async function aimCalRender() {
   $("aimCalMonth").innerHTML = Array.from({ length: 12 }, (_, i) => `<option value="${i}">${i + 1}月</option>`).join("");
   $("aimCalMonth").value = String(month);
   const f = aimFromPoint(), target = aim.target, body = aim.body, partId = aim.partId;
-  $("aimCalContext").textContent = f && target ? `${f.name}から ${target.name}に${body === "moon" ? "月" : "太陽"}を重ねる` : "観測地点と目標を選んでください";
+  $("aimCalContext").textContent = f && target ? `${f.name}から ${target.name}に${SoramiBodies.definition(body).name}を重ねる` : "観測地点と目標を選んでください";
   $("aimCalGrid").setAttribute("aria-busy", "true");
   $("aimCalStatus").textContent = "重なる日を計算しています…";
   aimCalDraw();
@@ -6483,6 +6504,8 @@ async function aimRenderFrom() {
   const moon = aim.body === "moon";
   if (!f) { $("aimFrom").innerHTML = `<p class="tiny">観測地点を選んでください</p>`; $("aimLook").hidden = true; return; }
   if (!(aim.target.parts || []).length) { $("aimFrom").innerHTML = ""; $("aimLook").hidden = true; return; }
+  // The selected day's diagram does not wait for a 400-day candidate search.
+  aimUpdateLook();
   $("aimFrom").innerHTML = `<p class="tiny">${esc(f.name)}から計算しています…</p>`;
   await new Promise((r) => setTimeout(r, 0));
   const ground = await aimElevation(f.latitude, f.longitude);
@@ -6514,7 +6537,7 @@ async function aimRenderFrom() {
     const on = S.JstCal.sameDay(e.at, aim.dayMs);
     return `<button type="button" class="tiny aim-day" data-from-day="${S.Cal.startOfDay(e.at)}" data-from-side="${e.side}" aria-pressed="${on}">`
       + `${y === thisYear ? "" : `${y}/`}${S.Cal.monthDay(e.at)}(${S.Cal.weekday(e.at)})`
-      + `<span class="sub-line">${aimSideName(e.side)} ${S.JstCal.hhmm(e.at)}${lit}</span></button>`;
+      + `<span class="sub-line">${aimSideName(e.side)} ${S.JstCal.hhmm(e.at)}${!SoramiBodies.definition(aim.body).limbs ? " " + SoramiBodies.sky(e.sunAltitude) : ""}${lit}</span></button>`;
   }).join("");
   // 重ならないなら、そう言い切る（ユーザー「天体の動き的に絶対にないわけでしょ？」）。太陽は毎年同じ範囲の方角しか
   // 通らないので、1年で無ければその場所からは無い。月も 2025〜26 年は出入りの方角の幅がいちばん広い時期
@@ -6636,6 +6659,7 @@ function aimFitPhrase() {
 /// この場所での実際の通り方（中心の高さ − 先端の高さ ＝ gap）。半径の2割以内なら、その縁が触れると言う
 function aimPassage(e) {
   const top = aimIsMountain(aim.target) ? "山頂" : "先端", r = e.radius, g = e.gap, near = SoramiAlign.LIMB_FIT * r;
+  if (!SoramiBodies.definition(aim.body).limbs) return `中心が${top}の${Math.abs(g).toFixed(2)}°${g > 0 ? "上" : "下"}を通る`;
   if (Math.abs(g - r) <= near) return `下の縁が${top}に乗る`;
   if (Math.abs(g) <= near) return `真ん中が${top}を通る`;
   if (Math.abs(g + r) <= near) return `上の縁が${top}に重なる`;
@@ -6657,6 +6681,10 @@ async function aimUpdateLook() {
   if (aim.wantSpot) return;
   // 月は空の明るさが大事（2026-10-01 ユーザー「日の出何分後とか月の出何分後とかの情報をサクッと書いておいてほしい」）
   const light = (at, o) => {
+    if (!SoramiBodies.definition(aim.body).limbs) {
+      const sky = SoramiBodies.sky(SoramiAstro.sun(at, o).geometricAltitude);
+      return `${sky}${aim.body === "saturn" ? " ・ 土星本体（環を除く）" : ""}`;
+    }
     if (aim.body !== "moon") return null;
     let lit = "";
     try { lit = ` 輝面 ${Math.round(SoramiAstro.moon(at, o).illuminatedFraction * 100)}%`; } catch { lit = ""; }
@@ -6696,10 +6724,10 @@ async function aimUpdateLook() {
   const at = hit?.at ?? e.at;
   aimLookRender(host, { obs, eyeM: 1.5, at, title: `${f.name}から`,
     sub: `${aimDateLabel(at)} ${aimSideName(e.side)} ・ ${overlap ? (mountain ? aimPassage(hit) : "建物に重なる") : "重ならない日の通り方"}`,
-    light: light(at, obs), extra: e.altitude < 0 ? `${aim.body === "moon" ? "月" : "太陽"}は地平線の下です` : "", atName: overlap ? undefined : "最接近" });
+    light: light(at, obs), extra: e.altitude < 0 ? `${SoramiBodies.definition(aim.body).name}は地平線の下です` : "", atName: overlap ? undefined : "最接近" });
 }const aimCandName = (c) => (c.place.kind === "川岸" ? `${c.place.name}の川岸`
   : c.place.name || `名前のない${c.place.kind}`);
-const aimSideName = (side) => (aim.body === "moon" ? (side === "set" ? "月の入" : "月の出") : (side === "set" ? "日の入" : "日の出"));
+const aimSideName = (side) => (!SoramiBodies.definition(aim.body).limbs ? (side === "set" ? "沈む側" : "昇る側") : aim.body === "moon" ? (side === "set" ? "月の入" : "月の出") : (side === "set" ? "日の入" : "日の出"));
 const aimCandSide = (c) => aimSideName(c.side);
 
 async function aimFindCandidates() {
@@ -6997,6 +7025,7 @@ function aimRenderCands() {
     const pick = sides.filter((x) => x.has && x.n).sort((a, b) => a.from - b.from)[0] || sides.find((x) => x.has);
     aim.candSide = pick ? pick.side : null;
   }
+  seg.setAttribute("aria-label", SoramiBodies.definition(aim.body).limbs ? (moon ? "月の出側か月の入側か" : "日の出側か日の入側か") : "昇る側か沈む側か");
   seg.innerHTML = sides.map((x) => `<button type="button" data-side="${x.side}" aria-pressed="${x.side === aim.candSide}"${x.has ? "" : " disabled"}>`
     // 2段（320px で時刻の幅が折り返して3段になっていた）
     + `${aimSideName(x.side)}${x.has ? ` ${x.n}か所` : ""}`
@@ -7092,6 +7121,11 @@ function aimLookDisc(ctx, x, y, r, body, p) {
     g.addColorStop(0, "rgba(255,190,80,0.55)"); g.addColorStop(1, "rgba(255,190,80,0)");
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 2.2, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "#ffcf5a"; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  } else if (body !== "moon") {
+    // Visual minimum is separate from physical radius used for intersections.
+    const marker = Math.max(2.5, r);
+    ctx.fillStyle = body === "mars" ? "#ffa878" : "#f4efd8";
+    ctx.beginPath(); ctx.arc(x, y, marker, 0, Math.PI * 2); ctx.fill();
   } else {
     const k = Math.max(0, Math.min(1, p.illuminated ?? 1));
     ctx.fillStyle = "rgba(70,80,105,0.5)";
@@ -7222,14 +7256,14 @@ async function aimLookRender(host, spec) {
   host.querySelector("[data-lens-auto]").onclick = () => { aimLens.mode = "auto"; aimLens.on = true; host._lensOffset = [0, 0]; saveLens(); };
   const ground = spec.obs.elevation ?? 0, eye = ground + spec.eyeM;
   const eyeObs = { latitude: spec.obs.latitude, longitude: spec.obs.longitude, elevation: eye };
-  const st = body === "moon" ? SoramiAstro.moon(spec.at, eyeObs) : SoramiAstro.sun(spec.at, eyeObs);
+  const st = SoramiBodies.state(body, spec.at, eyeObs);
   const radius = st.angularRadius;
   const D = SoramiTerrain.distanceKm(spec.obs.latitude, spec.obs.longitude, t.latitude, t.longitude);
   const az = SoramiTerrain.bearing(spec.obs.latitude, spec.obs.longitude, t.latitude, t.longitude);
   const outline = aimIsMountain(t) ? null : SoramiAlign.towerOutline(spec.obs, t, { eyeM: spec.eyeM });
   const mountain = !outline;
   const topAngle = outline ? outline.topAngle : SoramiAstro.targetElevationAngle(D, eye, t.parts[0].m);
-  const baseAngle = outline ? outline.baseAngle : topAngle - 5 * radius;
+  const baseAngle = outline ? outline.baseAngle : topAngle - 5 * Math.max(radius, 0.27);
   // 図の下の端。ティンカーベルはホテル全体でなくドームと像のまわり
   const viewBase = outline ? outline.viewBaseAngle : baseAngle;
   const W = Math.max(200, Math.round(cv.clientWidth || host.clientWidth || 320));
@@ -7278,7 +7312,7 @@ async function aimLookRender(host, spec) {
   const every = [1, 2, 5, 10, 15, 30, 60].find((m) => span / m <= 10) || 60;
   const ticks = [];
   for (let m = Math.ceil(path[0].at / (every * 60000)) * every * 60000; m <= path[path.length - 1].at; m += every * 60000) {
-    const s = body === "moon" ? SoramiAstro.moon(m, eyeObs) : SoramiAstro.sun(m, eyeObs);
+    const s = SoramiBodies.state(body, m, eyeObs);
     const p = toPx(proj(s.azimuth, s.apparentAltitude));
     if (p) ticks.push(p);
   }
@@ -7427,10 +7461,10 @@ async function aimLookRender(host, spec) {
     }
     const outside = host.querySelector("[data-look-outside]");
     outside.hidden = !!c && c[0] + panX >= 0 && c[0] + panX <= W && c[1] + panY >= 0 && c[1] + panY <= H;
-    outside.textContent = outside.hidden ? "" : `${body === "moon" ? "月" : "太陽"}は図の外です。時刻を動かすと通り方を確認できます`;
+    outside.textContent = outside.hidden ? "" : `${SoramiBodies.definition(body).name}は図の外です。時刻を動かすと通り方を確認できます`;
     cur = v;
     out.innerHTML = `${aimLookHMS(p.at)}<span class="sub-line">${esc(aimLookRel(p.at - spec.at, spec.atName))}</span>`;
-    cv.setAttribute("aria-label", `${spec.title || "ここから"}見た${t.name}と${body === "moon" ? "月" : "太陽"}の動き。`
+    cv.setAttribute("aria-label", `${spec.title || "ここから"}見た${t.name}と${SoramiBodies.definition(body).name}の動き。`
       + `${aimLookHMS(spec.at)}に${spec.atName || "重なる"}。いまの図は${aimLookHMS(p.at)}`);
   };
   let cur = i0;
@@ -7562,7 +7596,7 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
   const btn = host.querySelector("[data-look-pick]"), found = host.querySelector("[data-look-found]");
   const ok = host.querySelector("[data-look-confirm]"), hint = host.querySelector("[data-look-hint]");
   const on = !!host._pick;
-  const bodyName = aim.body === "moon" ? "月" : "太陽";
+  const bodyName = SoramiBodies.definition(aim.body).name;
   // 「撮れる場所を探す」は何をする釦か分からなかった（2026-10-03 ユーザー「月を動かす・太陽を動かすの方がいい」「確定ボタンが見当たらない」）
   btn.textContent = on ? "やめる" : `${bodyName}を移動`;
   btn.setAttribute("aria-pressed", String(on));
@@ -7761,11 +7795,13 @@ const AIM_PRESETS = {
 function aimTitleFor() {
   const t = aim.target, sun = aim.body === "sun";
   // 太陽か月かは題名の右の切り替えで分かるので、添え書き（目標と天体）は持たない
-  if (t && t.id === "fuji") return { title: sun ? "ダイヤモンド富士" : "パール富士" };
+  if (t && t.id === "fuji" && SoramiBodies.definition(aim.body).limbs) return { title: sun ? "ダイヤモンド富士" : "パール富士" };
   return { title: t && t.name ? t.name : "目標" };
 }
 
 function openAim(preset) {
+  const entry = ++aim.bodySeq;
+  const body = AIM_PRESETS[preset]?.body || aim.body;
   if (!aimReady) {
     aimReady = true;
     aimFillSelects();
@@ -7778,8 +7814,24 @@ function openAim(preset) {
       for (const x of $("aimLimb").querySelectorAll("[data-limb]")) x.setAttribute("aria-pressed", String(x === b));
       aimApply();
     };
-    $("aimSun").onclick = () => { aim.body = "sun"; aimApply(); };
-    $("aimMoon").onclick = () => { aim.body = "moon"; aimApply(); };
+    $("aimBody").onchange = async () => {
+      const id = $("aimBody").value, request = ++aim.bodySeq;
+      aim.limbsByBody[aim.body] = aimLimbValue() || aim.limb;
+      $("aimLineInfo").textContent = "天体を読み込んでいます…";
+      try {
+        await SoramiBodies.ensure(id);
+        if (request !== aim.bodySeq) return;
+        aim.body = id; aim.limb = aim.limbsByBody[id] || "center";
+        aim.candPick = null; aim.wantSpot = null; aim.wantKey = null; aim.spot = null;
+        // Previous body's pressed button must not leak into the next body's controls.
+        $("aimLimb").innerHTML = "";
+        aimApply();
+      } catch {
+        if (request !== aim.bodySeq) return;
+        $("aimBody").value = aim.body;
+        $("aimLineInfo").textContent = "天体計算を読み込めませんでした。天体を選び直して再試行してください";
+      }
+    };
     $("aimToday").onclick = () => {
       $("aimDate").value = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
       aimApply();
@@ -7856,8 +7908,22 @@ function openAim(preset) {
   if (pre) {
     $("aimTarget").value = pre.target || store.get("sorami.aimTarget", "fuji");
     if (!$("aimTarget").value) $("aimTarget").selectedIndex = 0;
-    if (pre.body) aim.body = pre.body;
+    if (pre.body && pre.body !== aim.body) {
+      aim.limbsByBody[aim.body] = aimLimbValue() || aim.limb;
+      aim.body = pre.body;
+      aim.limb = aim.limbsByBody[aim.body] || "center";
+      $("aimLimb").innerHTML = "";
+    }
     aim.centerKey = null;
+  }
+  if (!SoramiBodies.definition(body).limbs && !SoramiBodies.ready()) {
+    const request = entry;
+    $("aimBody").value = body;
+    $("aimLineInfo").textContent = "天体を読み込んでいます…";
+    SoramiBodies.ensure(body).then(() => { if(request === aim.bodySeq) openAim(preset); }).catch(() => {
+      if(request === aim.bodySeq) $("aimLineInfo").textContent = "天体計算を読み込めませんでした。ページを再読み込みして再試行してください";
+    });
+    return;
   }
   aimApply({ redraw: false });
   // ページとして開くので、地図は表示されてから測る（隠れている間は幅が 0）

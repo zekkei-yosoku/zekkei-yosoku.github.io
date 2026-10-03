@@ -1,3 +1,4 @@
+createRequire(import.meta.url)("./sorami-bodies.js");
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -107,15 +108,15 @@ test('月の選択はメニュー再入場・再読込でも保持し、明示�
  const declaration=init.slice(0,init.indexOf('};')+2);
  const preset=html.slice(html.indexOf('const AIM_PRESETS = {'),html.indexOf('};',html.indexOf('const AIM_PRESETS = {'))+2);
  const start=html.indexOf('  if (pre) {',html.indexOf('const pre = preset && AIM_PRESETS[preset]'));
- const entry=html.slice(start,html.indexOf('  aimApply({ redraw: false });',start));
+ const entry=html.slice(start,html.indexOf('  if (!SoramiBodies.definition(body).limbs',start));
  const sel={value:'skytree',selectedIndex:0};
- const c={store,$:()=>sel};
- runInNewContext(declaration+preset+'; result={aim,AIM_PRESETS};',c);
+ const c={store,$:()=>sel,SoramiBodies:globalThis.SoramiBodies,aimLimbValue:()=>"center"};
+ runInNewContext(declaration+preset+'; aim.limbsByBody={};result={aim,AIM_PRESETS};',c);
  for(const name of ['tower','tower']){c.aim=c.result.aim;c.pre=c.result.AIM_PRESETS[name];runInNewContext(entry,c);assert.equal(c.aim.body,'moon');}
  c.pre=c.result.AIM_PRESETS.diamond;runInNewContext(entry,c);assert.equal(c.aim.body,'sun');
  c.pre=c.result.AIM_PRESETS.pearl;runInNewContext(entry,c);assert.equal(c.aim.body,'moon');
  runInNewContext('store.set("sorami.aimBody", aim.body);',c);
- const reloaded={store};runInNewContext(declaration+';result=aim;',reloaded);assert.equal(reloaded.result.body,'moon');
+ const reloaded={store,SoramiBodies:globalThis.SoramiBodies};runInNewContext(declaration+';result=aim;',reloaded);assert.equal(reloaded.result.body,'moon');
 });
 
 

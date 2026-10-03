@@ -167,7 +167,9 @@
   ];
   const limbById = (id) => LIMBS.find((l) => l.id === id) || LIMBS[1];
 
-  const bodyAt = (body, ms, obs) => (body === "moon" ? A.moon(ms, obs) : A.sun(ms, obs));
+  const B = global.SoramiBodies || (typeof require !== "undefined" ? require("./sorami-bodies.js") : null);
+  const bodyAt = (body, ms, obs) => B ? B.state(body, ms, obs) : (body === "moon" ? A.moon(ms, obs) : body === "sun" ? A.sun(ms, obs) : (() => { throw new Error("天体計算が未読込です"); })());
+  const extended = body => body !== "sun" && body !== "moon";
   const DEG = Math.PI / 180;
 
   /**
@@ -246,7 +248,7 @@
       azimuth: st.azimuth, altitude: st.apparentAltitude,
       radius: st.angularRadius,
       illuminated: body === "moon" ? st.illuminatedFraction : null,
-      sunAltitude: body === "moon" ? A.sun(at, obs).apparentAltitude : null,
+      sunAltitude: body === "sun" ? null : body === "moon" ? A.sun(at, obs).apparentAltitude : A.sun(at, obs).geometricAltitude,
     };
   }
 
@@ -465,7 +467,7 @@
           }
           const j = judge(body, (lo + hi) / 2, obs, g.angle, sign, outline);
           const { at, gap, st } = j;
-          const within = Math.abs(gap) <= 2 * st.angularRadius;
+          const within = Math.abs(gap) <= (extended(body) ? st.angularRadius + 0.5 : 2 * st.angularRadius);
           if (within && st.apparentAltitude > -1) {
             const later = bodyAt(body, at + 60000, obs).apparentAltitude;
             const row = { at, gap, radius: st.angularRadius,
@@ -473,7 +475,7 @@
               side: later < st.apparentAltitude ? "set" : "rise",
               altitude: st.apparentAltitude,
               illuminated: body === "moon" ? st.illuminatedFraction : null,
-              sunAltitude: body === "moon" ? A.sun(at, obs).apparentAltitude : null };
+              sunAltitude: body === "sun" ? null : body === "moon" ? A.sun(at, obs).apparentAltitude : A.sun(at, obs).geometricAltitude };
             row.off = j.off ?? 0;
             // カレンダーでは各日を返す。既存の候補帯は連続日を代表日にまとめる。
             if (groupDays && group && at - group.last <= 40 * 3600000) {
@@ -532,9 +534,9 @@
       const distance = xy ? (polygon ? polygonDistance(xy, polygon) : Math.hypot(xy[0], xy[1])) : Infinity;
       return { at, gap: st.apparentAltitude - g.angle, radius: st.angularRadius, distanceToTarget: distance,
         intersects: distance <= radius && st.apparentAltitude + st.angularRadius > 0,
-        nearTarget: distance <= 2 * radius && st.apparentAltitude + st.angularRadius > 0,
+        nearTarget: distance <= (extended(body) ? radius + 0.5 : 2 * radius) && st.apparentAltitude + st.angularRadius > 0,
         altitude: st.apparentAltitude, illuminated: body === "moon" ? st.illuminatedFraction : null,
-        sunAltitude: body === "moon" ? A.sun(at, obs).apparentAltitude : st.apparentAltitude,
+        sunAltitude: body === "sun" ? st.apparentAltitude : body === "moon" ? A.sun(at, obs).apparentAltitude : A.sun(at, obs).geometricAltitude,
         side: bodyAt(body, at + 60000, obs).apparentAltitude < st.apparentAltitude ? "set" : "rise" };
     };
     const end = dayMs + 86400000, crossings = [];
@@ -567,6 +569,20 @@
       for (let at = lo; at <= hi; at += 20000) { const e = evaluate(at); if (e.distanceToTarget < nearest.distanceToTarget) nearest = e; }
       crossings.push(nearest);
     }
+    if (extended(body)) {
+      const refine = row => {
+        let lo=Math.max(dayMs,row.at-20000),hi=Math.min(end-1,row.at+20000);
+        const ratio=(Math.sqrt(5)-1)/2;
+        let x=hi-ratio*(hi-lo),y=lo+ratio*(hi-lo),a=evaluate(x),b=evaluate(y);
+        for(let i=0;i<32;i++) {
+          if(a.distanceToTarget<=b.distanceToTarget){hi=y;y=x;b=a;x=hi-ratio*(hi-lo);a=evaluate(x);}
+          else{lo=x;x=y;a=b;y=lo+ratio*(hi-lo);b=evaluate(y);}
+        }
+        const best=a.distanceToTarget<=b.distanceToTarget?a:b;
+        return best.distanceToTarget<row.distanceToTarget?best:row;
+      };
+      for(let i=0;i<crossings.length;i++) crossings[i]=refine(crossings[i]);
+    }
     return crossings.sort((a, b) => a.at - b.at);
   }
 
@@ -594,7 +610,7 @@
    */
 
   /// 天体の中心と、合わせたい高さ（先端＋半径×合わせ方）との差を段に分ける。`upcoming` と同じ区切り
-  const rankOf = (gap, r) => (Math.abs(gap) <= 0.5 * r ? "center"
+  const rankOf = (gap, r) => (Math.abs(gap) <= (r === 0 ? 1e-5 : 0.5 * r) ? "center"
     : Math.abs(gap) <= r ? "overlap" : Math.abs(gap) <= 2 * r ? "graze" : null);
   /**
    * **選んだ合わせ方どおり**とみなすずれ（天体の半径に対する割合）。候補地はこれ以内のものだけを出す（2026-10-02）。
@@ -650,7 +666,7 @@
       altitude: st.apparentAltitude, azimuth: st.azimuth, radius: st.angularRadius,
       distanceKm: g.distanceKm, targetAngle: g.angle, targetTopM: g.topM,
       illuminated: body === "moon" ? st.illuminatedFraction : null,
-      sunAltitude: body === "moon" ? A.sun(best.at, obs).apparentAltitude : null,
+      sunAltitude: body === "sun" ? null : body === "moon" ? A.sun(best.at, obs).apparentAltitude : A.sun(best.at, obs).geometricAltitude,
     };
   }
 
@@ -760,7 +776,7 @@
         }
         const lateralM = Math.abs(Math.sin(azDiff(pb, lb + shift) * DEG)) * D * 1000;
         // 重なって見える幅（天体の直径ぶんの高度差を、通り道の傾きで方位に直す）＋見積もりの余裕
-        const bandM = D * 1000 * (2 * radius / Math.max(0.2, Math.abs(pathSlope))) * DEG;
+        const bandM = D * 1000 * ((extended(body) ? 0.5 + 2 * radius : 2 * radius) / Math.max(0.2, Math.abs(pathSlope))) * DEG;
         // 頂が輪なら、その幅（中心から縁まで 450m）と剣ヶ峰からのずれ（360m）ぶん広く拾う
         const plateauM = target.rim ? 850 : 0;
         if (lateralM > (place.reachM || 0) + bandM + plateauM + 150 + 0.004 * D * 1000) continue;
@@ -768,7 +784,7 @@
         const hit = await standOn(place, l, target, body, approxAt, opts, elevationAt);
         // **線の届く範囲に立つものだけ。** 広い公園は端が範囲に掛かると拾うので、立つ点が線の先に出ることがあった
         // **線の届く範囲に立つものだけ**、そして**選んだ合わせ方どおりに重なるものだけ**（ずれが半径の2割以内）
-        if (hit && hit.rank && Math.abs(hit.gap) <= LIMB_FIT * hit.radius
+        if (hit && hit.rank && Math.abs(hit.gap) <= (hit.radius === 0 ? 1e-5 : LIMB_FIT * hit.radius)
           && hit.distanceKm >= minKm * 0.98 && hit.distanceKm <= maxKm * 1.02) out.push({ place, side: l.side, ...hit });
       }
     }
@@ -1325,7 +1341,7 @@
     if (!Number.isFinite(dayMs) || !Number.isFinite(stepS) || stepS < 1 || stepS > 60) throw new RangeError("日付と採取間隔（1〜60秒）を指定してください");
     const out = [], end = dayMs + 86400000;
     for (let at = dayMs; at <= end; at = Math.min(end, at + stepS * 1000)) {
-      const st = body === "moon" ? A.moon(at, observer) : A.sun(at, observer);
+      const st = bodyAt(body, at, observer);
       const xy = proj(st.azimuth, st.apparentAltitude);
       out.push({ at, x: xy ? xy[0] : null, y: xy ? xy[1] : null, radius: st.angularRadius });
       if (at === end) break;
@@ -1404,7 +1420,7 @@
    */
   function viewPath(body, observer, at, proj, win, { stepS = 20, maxMin = 240, includeAt = at } = {}) {
     if (!Number.isFinite(includeAt) || Math.abs(includeAt - at) > maxMin * 60000) includeAt = at;
-    const stateAt = (t) => (body === "moon" ? A.moon(t, observer) : A.sun(t, observer));
+    const stateAt = (t) => bodyAt(body, t, observer);
     const inside = (p) => p && Math.abs(p[0]) <= win.halfW * 1.15 && Math.abs(p[1]) <= win.halfH * 1.15;
     const pt = (t) => {
       const st = stateAt(t);
@@ -1500,7 +1516,7 @@
     const later = bodyAt(body, t + 60000, eye).apparentAltitude;
     return { latitude: c.p.latitude, longitude: c.p.longitude, groundM: g, at: Math.round(t), azimuth: c.geo.azimuth, distanceKm: D,
       altitude: c.st.apparentAltitude, side: later < c.st.apparentAltitude ? "set" : "rise",
-      sunAltitude: body === "moon" ? A.sun(t, eye).apparentAltitude : c.st.apparentAltitude };
+      sunAltitude: body === "sun" ? c.st.apparentAltitude : body === "moon" ? A.sun(t, eye).apparentAltitude : A.sun(t, eye).geometricAltitude };
   }
 
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
