@@ -1688,21 +1688,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261003163810"></script>
+<script src="sorami-core.js?v=20261003200533"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261003163810"></script>
-<script src="sorami-exif.js?v=20261003163810"></script>
-<script src="sorami-capcloud.js?v=20261003163810"></script>
-<script src="sorami-terrain.js?v=20261003163810"></script>
-<script src="sorami-mountain.js?v=20261003163810"></script>
-<script src="sorami-fuji.js?v=20261003163810"></script>
-<script src="sorami-sky.js?v=20261003163810"></script>
-<script src="sorami-routes.js?v=20261003163810"></script>
-<script src="sorami-iss.js?v=20261003163810"></script>
-<script src="sorami-plane.js?v=20261003163810"></script>
-<script src="sorami-align.js?v=20261003163810"></script>
-<script src="sorami-moon.js?v=20261003163810"></script>
+<script src="sorami-astro.js?v=20261003200533"></script>
+<script src="sorami-exif.js?v=20261003200533"></script>
+<script src="sorami-capcloud.js?v=20261003200533"></script>
+<script src="sorami-terrain.js?v=20261003200533"></script>
+<script src="sorami-mountain.js?v=20261003200533"></script>
+<script src="sorami-fuji.js?v=20261003200533"></script>
+<script src="sorami-sky.js?v=20261003200533"></script>
+<script src="sorami-routes.js?v=20261003200533"></script>
+<script src="sorami-iss.js?v=20261003200533"></script>
+<script src="sorami-plane.js?v=20261003200533"></script>
+<script src="sorami-align.js?v=20261003200533"></script>
+<script src="sorami-moon.js?v=20261003200533"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7502,8 +7502,8 @@ async function aimLookRender(host, spec) {
       gesture.points.set(ev.pointerId, point(ev));
       if (gesture.pinch) {
         if (gesture.raf) return;
-        gesture.raf = requestAnimationFrame(() => {
-          gesture.raf = 0;
+        gesture.flush = () => {
+          gesture.raf = 0; gesture.flush = null;
           if (!host._lensMoving || host._lensGesture !== gesture || !gesture.pinch) return;
           const [a, b] = [...gesture.points.values()], start = gesture.pinch;
           if (!a || !b) return;
@@ -7519,14 +7519,17 @@ async function aimLookRender(host, spec) {
           aimLens.focal = nextFocal; aimLens.mode = "manual"; aimLens.on = true;
           try { localStorage.setItem("sorami.lens", JSON.stringify(aimLens)); } catch {}
           aimLookRender(host, spec);
-        });
+        };
+        gesture.raf = requestAnimationFrame(gesture.flush);
       } else if (gesture.drag) {
         const drag = gesture.drag; shift(drag[2] + (ev.clientX - drag[0]) / W, drag[3] + (ev.clientY - drag[1]) / H);
       }
     };
     const endGesture = ev => {
+      if (ev?.pointerId !== undefined && !gesture.points.has(ev.pointerId)) return;
+      // 指を離すのが次の描画より早くても、最後のピンチ距離を取りこぼさない。
+      if (gesture.raf) { cancelAnimationFrame(gesture.raf); gesture.raf = 0; gesture.flush?.(); }
       if (ev?.pointerId !== undefined) gesture.points.delete(ev.pointerId); else gesture.points.clear();
-      if (gesture.raf) { cancelAnimationFrame(gesture.raf); gesture.raf = 0; }
       beginGesture();
     };
     cv.onpointerup = cv.onpointercancel = cv.onlostpointercapture = endGesture;

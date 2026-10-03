@@ -175,6 +175,12 @@ test("2本指のピンチは焦点距離と構図を連動し、再描画後も�
  // 狭めると広角になり、範囲を超えても8mm以上。
  cv.onpointerdown({pointerId:1,clientX:0,clientY:0});cv.onpointerdown({pointerId:2,clientX:1000,clientY:0});cv.onpointermove({pointerId:2,clientX:1,clientY:0});queued();assert.equal(aimLens.focal,8);
  cv.onpointercancel({pointerId:1});cv.onpointercancel({pointerId:2});
+ // 次のRAFより早く指を離しても最後の拡大率を反映。余分な指/重複lostcaptureは無視。
+ cv.onpointerdown({pointerId:1,clientX:100,clientY:150});cv.onpointerdown({pointerId:2,clientX:200,clientY:150});
+ cv.onpointermove({pointerId:2,clientX:300,clientY:150});assert.equal(aimLens.focal,8);
+ cv.onpointerup({pointerId:99});assert.equal(aimLens.focal,8);
+ cv.onpointerup({pointerId:2});assert.equal(aimLens.focal,16);assert.equal(host._lensGesture.points.size,1);
+ const r=renders;cv.onlostpointercapture({pointerId:2});assert.equal(renders,r);cv.onpointercancel({pointerId:1});
 });
 
 
