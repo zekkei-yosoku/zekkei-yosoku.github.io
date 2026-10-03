@@ -549,7 +549,7 @@ ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れ�
   ok(/requestAnimationFrame\(\(\) => \{\s+AimMap\.open\(\.\.\.aimMapView\(\)\);/.test(html), "地図は aimMapView の中心で開く");
   ok(/if \(\(aim\.target\.parts \|\| \[\]\)\.length\) \{ aimRedrawLine\(\); aimRenderList\(\); \}\n  aimRenderFrom\(\);\n\}/.test(html),
     "目標の場所が無いときは、線と一覧を計算しない（「どこからも重なりません」と出さない）");
-  ok(/"重ねる目標の場所を選んでください";[\s\S]{0,120}\$\("aimCandBox"\)\.hidden = true;\s+\$\("aimListBox"\)\.hidden = true;\s+return;\s+\}\s+\$\("aimCandBox"\)\.hidden = false;/.test(html),
+  ok(/"重ねる目標の場所を選んでください";[\s\S]{0,300}\$\("aimCandBox"\)\.hidden = true;\s+\$\("aimListBox"\)\.hidden = true;\s+return;\s+\}\s+\$\("aimCandBox"\)\.hidden = false;/.test(html),
     "目標の場所が無いときは、候補地・定番スポットの見出しも出さない");
   {
     const mv = /function aimMapView\(\) \{[\s\S]*?\n\}/.exec(html)[0];
@@ -2893,8 +2893,8 @@ ok(/\.sort\(\(a, b\) => \(a\[1\]\.order \?\? 99\) - \(b\[1\]\.order \?\? 99\)\)/
 console.log("== ねらうは中身で分ける ==");
 // **見出しはいま選んでいるものから決める。** 目標や天体を変えたら見出しも変わる
 ok(/const AIM_PRESETS = \{/.test(html), "メニューから来たときの初期値を持つ");
-ok(/tower: \{ target: null, body: "sun" \}/.test(html) && /\$\("aimTarget"\)\.value = pre\.target \|\| store\.get\("sorami\.aimTarget", "fuji"\);/.test(html),
-  "メニューからは前に選んだ目標で開く（初めては富士山）。太陽で開く");
+ok(/tower: \{ target: null, body: null \}/.test(html) && /\$\("aimTarget"\)\.value = pre\.target \|\| store\.get\("sorami\.aimTarget", "fuji"\);/.test(html),
+  "メニューからは前に選んだ目標で開く（初めては富士山）。選んだ天体を保持する");
 ok(/fuji: \{ target: "fuji", body: "sun" \}/.test(html) && /diamond: \{ target: "fuji", body: "sun" \}/.test(html) && /pearl: \{ target: "fuji", body: "moon" \}/.test(html),
   "前の URL（#/aim/fuji・diamond・pearl）は富士山を選んだ状態で開く");
 ok(/function aimTitleFor/.test(html), "見出しを選択から決める");
@@ -2991,7 +2991,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(rel(-60000, "先端を通る") === "先端を通る1分前", "どこから重ねるかの図は「先端を通る」時刻からの差で言う（選んだ縁が触れるとは限らない）");
   // 図の下の説明（形の出どころ・大気の屈折・縮尺）は出さない（2026-10-03 ユーザー「この説明文いらないわ」「いらない説明文結構ない？」）
   ok(!/形は城のシルエット|形はシルエットを写真の縮尺|高さは大気の屈折を含む|の模式図（幅は推定）|稜線は国土地理院の標高データから/.test(html)
-    && /note\.textContent = mountain && !shape \? "稜線を読み込めませんでした" : "";/.test(html), "図の下に説明を出さない（稜線を読めなかったときだけ）");
+    && /note\.textContent = shape \? "" : "稜線を読み込めませんでした";/.test(html), "図の下に説明を出さない（稜線の読込中・失敗時だけ）");
   ok(/const groundY = hiddenY !== null \? Math\.min\(hiddenY, baseY\) : baseY;/.test(html) && !/globalAlpha = 0\.45; outlinePath/.test(html),
     "形の材料で見えない所は薄い形を描かず、地面の帯をその高さまで上げる（ユーザー「このグレーの下の部分って表示しなくて良い」）");
   ok(/円盤は形の後ろ（形で隠れる）/.test(html) && /ctx\.setLineDash\(\[3, 3\]\)/.test(html), "円盤は形の後ろ、隠れた所は点線の輪");
@@ -3004,8 +3004,8 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(/cv\.onclick = /.test(lookSrc) && /host\._lensMoving && frame && !host\._pick/.test(lookSrc) && /data-look-range/.test(lookSrc), "道をさわるか、つまみで時刻を選ぶ（iPhone の指のタップは click で受ける）");
   // 逆引き（2026-10-03 ユーザー「見え方の月とか太陽の位置を調整したら、それがどこら辺の座標で撮れるのか逆引きできる？」→「円盤を置く」）
   const pickSrc = html.slice(html.indexOf("function aimLookPick("), html.indexOf("let aimLookResize"));
-  ok(/data-look-pick/.test(html) && /\$\{bodyName\}を動かす/.test(pickSrc) && /"やめる"/.test(pickSrc) && !/textContent = [^;]*撮れる場所を探す/.test(html) && !/>撮れる場所を探す</.test(html),
-    "図の下の釦は「月を動かす」「太陽を動かす」（押すと「やめる」）。「撮れる場所を探す」は分かりにくかった（ユーザー 2026-10-03）");
+  ok(/data-look-pick/.test(html) && /\$\{bodyName\}を移動/.test(pickSrc) && /"やめる"/.test(pickSrc) && !/textContent = [^;]*撮れる場所を探す/.test(html) && !/>撮れる場所を探す</.test(html),
+    "図の下の釦は「月を移動」「太陽を移動」（押すと「やめる」）。「撮れる場所を探す」は分かりにくかった（ユーザー 2026-10-03）");
   ok(/data-look-confirm[^>]*>確定</.test(html) && /ok\.onclick = \(\) => \{ if \(st\.ghost && !st\.busy\) solve\(\); \};/.test(pickSrc)
     && !/st\.upAt = Date\.now\(\); show\(xyOf\(ev\)\); solve\(\)/.test(pickSrc) && !/show\(xyOf\(ev\)\); solve\(\); \};/.test(pickSrc),
     "円盤を置いただけでは解かず、「確定」を押したときに解く（置くまでは確定を押せない）");

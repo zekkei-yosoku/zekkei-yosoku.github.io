@@ -88,3 +88,32 @@ test('写真時間帯のtrue/false/nullは保存JSONと取込処理を通して�
   assert.equal(clean(JSON.parse(JSON.stringify(raw))).photoOutsideWindow,typeof flag==='boolean'?flag:null);
  }
 });
+
+
+test('未設定の自由目標へ切り替えると前の目標の時刻表を消す',()=>{
+ const a=html.indexOf('  if (!(aim.target.parts || []).length) {',html.indexOf('function aimApply('));
+ const b=html.indexOf('  $("aimCandBox").hidden = false;',a);
+ const body={innerHTML:'前の目標の時刻'},elements=new Map();
+ const $=id=>{if(!elements.has(id)) elements.set(id,{hidden:false,innerHTML:'old',querySelector:()=>body});return elements.get(id);};
+ const aim={target:{parts:[]},seq:3,candSeq:3,lines:[1],cands:[1]};
+ runInNewContext('(function(){'+html.slice(a,b)+'})()',{$,aim,aimRenderFrom:()=>{},AimMap:{center:()=>({latitude:35}),redraw:()=>{}},Number});
+ assert.equal($('aimLineTable').hidden,true);assert.equal(body.innerHTML,'');assert.equal($('aimLineInfo').textContent,'重ねる目標の場所を選んでください');assert.equal(aim.lines.length,0);
+});
+
+
+test('月の選択はメニュー再入場・再読込でも保持し、明示のダイヤモンドURLだけ太陽を指定する',()=>{
+ const saved={'sorami.aimBody':'moon','sorami.aimTarget':'skytree'},store={get:(key,fallback)=>saved[key]??fallback,set:(key,value)=>saved[key]=value};
+ const init=html.slice(html.indexOf('const aim = {'),html.indexOf('///',html.indexOf('const aim = {')));
+ const declaration=init.slice(0,init.indexOf('};')+2);
+ const preset=html.slice(html.indexOf('const AIM_PRESETS = {'),html.indexOf('};',html.indexOf('const AIM_PRESETS = {'))+2);
+ const start=html.indexOf('  if (pre) {',html.indexOf('const pre = preset && AIM_PRESETS[preset]'));
+ const entry=html.slice(start,html.indexOf('  aimApply({ redraw: false });',start));
+ const sel={value:'skytree',selectedIndex:0};
+ const c={store,$:()=>sel};
+ runInNewContext(declaration+preset+'; result={aim,AIM_PRESETS};',c);
+ for(const name of ['tower','tower']){c.aim=c.result.aim;c.pre=c.result.AIM_PRESETS[name];runInNewContext(entry,c);assert.equal(c.aim.body,'moon');}
+ c.pre=c.result.AIM_PRESETS.diamond;runInNewContext(entry,c);assert.equal(c.aim.body,'sun');
+ c.pre=c.result.AIM_PRESETS.pearl;runInNewContext(entry,c);assert.equal(c.aim.body,'moon');
+ runInNewContext('store.set("sorami.aimBody", aim.body);',c);
+ const reloaded={store};runInNewContext(declaration+';result=aim;',reloaded);assert.equal(reloaded.result.body,'moon');
+});
