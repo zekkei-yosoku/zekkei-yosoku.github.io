@@ -439,7 +439,7 @@
    * 判定は `SoramiFuji.alignments()` と同じ考え方で、幾何だけ目標ごとに作る。
    */
   function upcoming(observer, target, body, opts = {}) {
-    const { from = Date.now(), days = 400, limit = 6, limb = "center", stepMs = null } = opts;
+    const { from = Date.now(), days = 400, limit = 6, limb = "center", stepMs = null, groupDays = true } = opts;
     const g = geometryFrom(observer, target, opts);
     if (!g) return [];
     const sign = limbById(limb).sign;
@@ -475,7 +475,8 @@
               illuminated: body === "moon" ? st.illuminatedFraction : null,
               sunAltitude: body === "moon" ? A.sun(at, obs).apparentAltitude : null };
             row.off = j.off ?? 0;
-            if (group && at - group.last <= 40 * 3600000) {
+            // カレンダーでは各日を返す。既存の候補帯は連続日を代表日にまとめる。
+            if (groupDays && group && at - group.last <= 40 * 3600000) {
               group.last = at;
               // 差が同じ（どちらも頂に届く）なら、縁の真ん中に近い日を代表にする
               if (Math.abs(row.gap) < Math.abs(group.best.gap)

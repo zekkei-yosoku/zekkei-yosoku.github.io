@@ -636,8 +636,25 @@
                     font-weight: 700; color: var(--secondary); white-space: nowrap; }
   .aim-seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
   /* 日付は**この画面の主語**。前後の送りと同じ行に置き、数字を大きく出す */
-  .aim-date #aimDate { font-size: 1rem; font-weight: 700; text-align: center; min-height: 44px; }
+  .aim-date #aimCalendarOpen { font-size: 1rem; font-weight: 700; text-align: center; min-height: 44px; }
   .aim-date button { min-width: 52px; font-size: 1rem; }
+  #aimCalendarOpen { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  #aimCalendar { width: min(440px, calc(100vw - 24px)); }
+  .aim-cal-nav { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
+  .aim-cal-nav button { flex: 0 0 44px; width: 44px; }
+  .aim-cal-nav select { flex: 1; min-width: 0; margin: 0; }
+  .aim-cal-week, .aim-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+  .aim-cal-week { text-align: center; color: var(--secondary); font-size: 0.75rem; padding-bottom: 6px; }
+  .aim-cal-grid button { min-height: 48px; padding: 4px 0; border-radius: 10px; font-size: 1rem;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .aim-cal-grid button.has-event { background: var(--sunk); font-weight: 700; }
+  .aim-cal-mark { font-size: 0.72rem; line-height: 1; height: 12px; color: var(--accent); }
+  .aim-cal-grid button[aria-current="date"] { box-shadow: inset 0 0 0 1px var(--accent); }
+  .aim-cal-grid button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  .aim-cal-grid button[aria-pressed="true"] .aim-cal-mark { color: var(--on-accent); }
+  #aimCalStatus { min-height: 22px; margin-top: 10px; }
+  .aim-cal-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; }
+  .aim-cal-foot button { width: auto; padding: 8px 16px; }
   /* 線の凡例。地図のすぐ下に置き、色と線種の意味をその場で言う */
   .aim-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px;
                 font-size: 0.72rem; font-weight: 700; color: var(--secondary); }
@@ -1198,10 +1215,11 @@
          重なる日の帯のすぐ下。描くのは「いま選んでいる場面」: 候補地を選んでいればその候補地、無ければ観測地点の近くで選んだ合わせ方が
          ぴったりになる計算上の地点。図の上の一行が「いま何を描いているか」（Codex と相談した形） -->
     <div id="aimLook" class="aim-look" hidden></div>
-    <label class="fav-l" for="aimDate">日付</label>
+    <label class="fav-l" for="aimCalendarOpen">日付</label>
     <div class="aim-row aim-date">
       <button id="aimPrev" class="fav-btn" aria-label="前の日">←</button>
-      <input type="date" id="aimDate" class="fav-in" aria-label="日付">
+      <input type="hidden" id="aimDate">
+      <button type="button" id="aimCalendarOpen" class="fav-in" aria-label="重なる日カレンダーを開く" aria-haspopup="dialog" aria-controls="aimCalendar">日付を選ぶ</button>
       <button id="aimNext" class="fav-btn" aria-label="次の日">→</button>
     </div>
     <div class="aim-row" style="margin-bottom:2px">
@@ -1421,6 +1439,24 @@
 
 <!-- 写真から記録する。**原寸は送らない**（小さくした写しと、EXIF の「いつ・どこ」だけ）。
      採点基準を変えたときに付け直せるよう、そのときの現象と点数を一緒に残す。 -->
+<dialog class="sheet" id="aimCalendar" aria-labelledby="aimCalTitle" tabindex="-1">
+  <div class="sheet-head"><strong id="aimCalTitle">重なる日カレンダー</strong><button id="aimCalClose">閉じる</button></div>
+  <div class="sheet-body">
+    <div id="aimCalContext" class="tiny"></div>
+    <div class="aim-cal-nav">
+      <button id="aimCalPrev" class="fav-btn" aria-label="前の月">←</button>
+      <select id="aimCalYear" class="fav-in" aria-label="カレンダーの年"></select>
+      <select id="aimCalMonth" class="fav-in" aria-label="カレンダーの月"></select>
+      <button id="aimCalNext" class="fav-btn" aria-label="次の月">→</button>
+    </div>
+    <div class="aim-cal-week" aria-hidden="true"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+    <div id="aimCalGrid" class="aim-cal-grid" role="group" aria-label="日付を選ぶ" aria-busy="false"></div>
+    <div id="aimCalStatus" class="tiny" role="status" aria-live="polite"></div>
+    <div class="aim-cal-foot"><span class="tiny">● 天体の位置で重なる日</span><button id="aimCalToday" class="fav-btn">今月</button></div>
+    <p class="tiny">選んだ観測地点から計算。天気と見通しは日付を選んで確認できます。</p>
+  </div>
+</dialog>
+
 <dialog class="sheet" id="photoSheet" aria-labelledby="photoTitle" tabindex="-1">
   <!-- 閉じるはほかのシートと同じく題名の右に「閉じる」（2026-10-02 ユーザー「この閉じるボタン小さいと思わない？」。小さな ✕ が左上にあった） -->
   <div class="sheet-head"><strong id="photoTitle">記録を足す</strong><button id="photoClose">閉じる</button></div>
@@ -1639,21 +1675,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261003114424"></script>
+<script src="sorami-core.js?v=20261003142327"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261003114424"></script>
-<script src="sorami-exif.js?v=20261003114424"></script>
-<script src="sorami-capcloud.js?v=20261003114424"></script>
-<script src="sorami-terrain.js?v=20261003114424"></script>
-<script src="sorami-mountain.js?v=20261003114424"></script>
-<script src="sorami-fuji.js?v=20261003114424"></script>
-<script src="sorami-sky.js?v=20261003114424"></script>
-<script src="sorami-routes.js?v=20261003114424"></script>
-<script src="sorami-iss.js?v=20261003114424"></script>
-<script src="sorami-plane.js?v=20261003114424"></script>
-<script src="sorami-align.js?v=20261003114424"></script>
-<script src="sorami-moon.js?v=20261003114424"></script>
+<script src="sorami-astro.js?v=20261003142327"></script>
+<script src="sorami-exif.js?v=20261003142327"></script>
+<script src="sorami-capcloud.js?v=20261003142327"></script>
+<script src="sorami-terrain.js?v=20261003142327"></script>
+<script src="sorami-mountain.js?v=20261003142327"></script>
+<script src="sorami-fuji.js?v=20261003142327"></script>
+<script src="sorami-sky.js?v=20261003142327"></script>
+<script src="sorami-routes.js?v=20261003142327"></script>
+<script src="sorami-iss.js?v=20261003142327"></script>
+<script src="sorami-plane.js?v=20261003142327"></script>
+<script src="sorami-align.js?v=20261003142327"></script>
+<script src="sorami-moon.js?v=20261003142327"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6082,6 +6118,8 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   aim.dayMs = Number.isFinite(picked) ? picked : S.Cal.startOfDay(Date.now());
   $("aimKeySet").textContent = aimSideLabel("set");
   $("aimKeyRise").textContent = aimSideLabel("rise");
+  $("aimCalendarOpen").innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6M17 2v6M3 11h18"/></svg>${$("aimDate").value.replaceAll("-", "/")}`;
+  $("aimCalendarOpen").setAttribute("aria-label", `${$("aimDate").value}、重なる日カレンダーを開く`);
   $("aimWeekday").textContent = `${S.Cal.monthDay(aim.dayMs)}（${S.Cal.weekday(aim.dayMs)}）`
     + (S.JstCal.sameDay(aim.dayMs, Date.now()) ? " ・ 今日" : "");
   // 目標が決まっていなければ線は引けない（高さが無い）
@@ -6208,6 +6246,103 @@ function aimSetFrom(p, { keepMap = false } = {}) {
   if (keepMap) AimMap.redraw();
   else AimMap.open({ latitude: p.latitude, longitude: p.longitude }, Math.max(11, Math.round(AimMap.zoom())));
 }
+// 月の中の各日を計算する。帯の4件/連続期間の代表日で月を埋めない。
+const aimCal = { year: 0, month: 0, seq: 0, events: new Map(), cache: new Map() };
+function aimCalMonthStart(year, month) { return Date.UTC(year, month, 1) - 9 * 3600000; }
+function aimCalRows(obs, target, body, year, month, partId) {
+  const start = aimCalMonthStart(year, month), end = aimCalMonthStart(year, month + 1);
+  return SoramiAlign.upcoming(obs, target, body, { from: start, days: Math.round((end - start) / 86400000),
+    limit: Infinity, limb: "center", partId, stepMs: 3600000, groupDays: false })
+    .filter((e) => e.at >= start && e.at < end && Math.abs(e.gap) <= 1.2 * e.radius && (body !== "moon" || e.sunAltitude < 0));
+}
+function aimCalGridHtml(year, month, events, selected, today) {
+  const first = new Date(Date.UTC(year, month, 1)).getUTCDay();
+  const days = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  let html = Array.from({ length: first }, () => '<span aria-hidden="true"></span>').join("");
+  for (let d = 1; d <= days; d++) {
+    const at = aimCalMonthStart(year, month) + (d - 1) * 86400000;
+    const rows = events.get(at) || [], on = S.JstCal.sameDay(at, selected), now = S.JstCal.sameDay(at, today);
+    const label = `${year}年${month + 1}月${d}日${rows.length ? "、重なる日、" + rows.map((e) => `${aimSideName(e.side)} ${S.JstCal.hhmm(e.at)}`).join("、") : ""}`;
+    html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span><span class="aim-cal-mark" aria-hidden="true">${rows.length ? "●" : ""}</span></button>`;
+  }
+  return html;
+}
+function aimCalDraw() {
+  $("aimCalGrid").innerHTML = aimCalGridHtml(aimCal.year, aimCal.month, aimCal.events, aim.dayMs, Date.now());
+  for (const button of $("aimCalGrid").querySelectorAll("[data-cal-day]")) button.onclick = () => {
+    const day = +button.dataset.calDay, rows = aimCal.events.get(day) || [];
+    const event = rows.find((e) => e.side === aim.candSide) || rows[0];
+    aim.candPick = null; aim.spot = null; aim.wantSpot = null; aim.wantKey = null;
+    aim.candSide = event ? event.side : null;
+    $("aimDate").value = new Date(day + 9 * 3600000).toISOString().slice(0, 10);
+    $("aimCalendar").close();
+    aimApply();
+  };
+}
+async function aimCalRender() {
+  const seq = ++aimCal.seq, year = aimCal.year, month = aimCal.month;
+  aimCal.events = new Map();
+  const baseYear = new Date(Date.now() + 9 * 3600000).getUTCFullYear();
+  const years = Array.from({ length: Math.max(baseYear + 10, year + 2) - Math.min(baseYear - 2, year) + 1 }, (_, i) => Math.min(baseYear - 2, year) + i);
+  $("aimCalYear").innerHTML = years.map((y) => `<option value="${y}">${y}年</option>`).join("");
+  $("aimCalYear").value = String(year);
+  $("aimCalMonth").innerHTML = Array.from({ length: 12 }, (_, i) => `<option value="${i}">${i + 1}月</option>`).join("");
+  $("aimCalMonth").value = String(month);
+  const f = aimFromPoint(), target = aim.target, body = aim.body, partId = aim.partId;
+  $("aimCalContext").textContent = f && target ? `${f.name}から ${target.name}に${body === "moon" ? "月" : "太陽"}を重ねる` : "観測地点と目標を選んでください";
+  $("aimCalGrid").setAttribute("aria-busy", "true");
+  $("aimCalStatus").textContent = "重なる日を計算しています…";
+  aimCalDraw();
+  const valid = () => seq === aimCal.seq && $("aimCalendar").open;
+  try {
+    if (!f || !(target?.parts || []).length) throw new Error("観測地点と目標を選んでください");
+    const ground = await aimElevation(f.latitude, f.longitude);
+    if (!valid()) return;
+    const obs = { latitude: f.latitude, longitude: f.longitude, elevation: Number.isFinite(ground) ? ground : 0 };
+    const key = JSON.stringify([obs, target, body, partId, year, month]);
+    let rows = aimCal.cache.get(key);
+    if (!rows) {
+      // 開いたことを描いてから計算する。閉じた/月を替えた待ちは捨てる。
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      if (!valid()) return;
+      rows = aimCalRows(obs, target, body, year, month, partId);
+      aimCal.cache.set(key, rows);
+      if (aimCal.cache.size > 24) aimCal.cache.delete(aimCal.cache.keys().next().value);
+    }
+    if (!valid()) return;
+    for (const row of rows) {
+      const day = S.Cal.startOfDay(row.at);
+      if (!aimCal.events.has(day)) aimCal.events.set(day, []);
+      aimCal.events.get(day).push(row);
+    }
+    aimCalDraw();
+    $("aimCalStatus").textContent = aimCal.events.size ? `重なる日 ${aimCal.events.size}日${body === "moon" ? "（暗い空の時間）" : ""}` : "この月は重なる日がありません";
+  } catch (err) {
+    if (!valid()) return;
+    $("aimCalStatus").textContent = err.message === "観測地点と目標を選んでください" ? err.message : "計算できませんでした。月を選び直して再試行してください";
+  } finally { if (valid()) $("aimCalGrid").setAttribute("aria-busy", "false"); }
+}
+function aimCalMove(offset) {
+  const date = new Date(Date.UTC(aimCal.year, aimCal.month + offset, 1));
+  aimCal.year = date.getUTCFullYear(); aimCal.month = date.getUTCMonth();
+  aimCalRender();
+}
+$("aimCalendarOpen").onclick = () => {
+  const date = new Date((aim.dayMs ?? Date.now()) + 9 * 3600000);
+  aimCal.year = date.getUTCFullYear(); aimCal.month = date.getUTCMonth();
+  showSheet($("aimCalendar")); aimCalRender();
+};
+$("aimCalClose").onclick = () => $("aimCalendar").close();
+$("aimCalendar").addEventListener("close", () => { aimCal.seq++; $("aimCalendarOpen").focus({ preventScroll: true }); });
+$("aimCalPrev").onclick = () => aimCalMove(-1);
+$("aimCalNext").onclick = () => aimCalMove(1);
+for (const id of ["aimCalYear", "aimCalMonth"]) $(id).onchange = () => {
+  aimCal.year = +$("aimCalYear").value; aimCal.month = +$("aimCalMonth").value; aimCalRender();
+};
+$("aimCalToday").onclick = () => {
+  const date = new Date(Date.now() + 9 * 3600000); aimCal.year = date.getUTCFullYear(); aimCal.month = date.getUTCMonth(); aimCalRender();
+};
+
 /// 他の目標の場所を決める（「地点」の画面・お気に入り・地図の「ここに重ねる」から）。
 /// 高さ（**地上から**。地面の標高は自動で足す）は、次の順で決める:
 ///   お気に入りに登録した高さ・検索で選んだ建物の地図の高さ → 先に打ち込んだ高さ → **その点に建つ建物の高さ（自動）** → 0（山の頂や地面そのもの）

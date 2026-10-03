@@ -468,7 +468,8 @@ ok(/const fujiOk = toolAllowed\("diamond"\) \|\| toolAllowed\("pearl"\), towerOk
   "目標の一覧は許可のあるものだけ（富士山はダイヤモンド富士かパール富士、ほかは tower）");
 ok(/const sunOk = !isFuji \|\| toolAllowed\("diamond"\), moonOk = !isFuji \|\| toolAllowed\("pearl"\);/.test(html), "富士山を選んだら、太陽はダイヤモンド富士・月はパール富士の許可で出す");
 // 重なる日は選ぶ行より下（太陽と月で日の数が違うので、上だと切り替えるたびに釦が動く。ユーザー「UIがすごく動くのが気になる」）
-{ const lb = html.indexOf('id="aimWhereLabel">どこに重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('for="aimDate">日付'), sw = html.indexOf('id="aimSun"'), fs = html.indexOf('id="aimFromButton"');
+// 日付欄は月間カレンダーを開くボタンへ変更。入力値はhidden aimDateで保持。
+{ const lb = html.indexOf('id="aimWhereLabel">どこに重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('for="aimCalendarOpen">日付'), sw = html.indexOf('id="aimSun"'), fs = html.indexOf('id="aimFromButton"');
   ok(sw < fs && fs < lb && lb < fr && fr < dt, "並び: 題名と太陽／月 → どこから → どこに → 重なる日 → 日付"); }
 ok(/\$\("aimPart"\)\.hidden = parts\.length < 2/.test(html), "選べる高さが1つなら選ぶ欄を出さない");
 ok(!/目標に太陽や月が重なる日と、/.test(html), "説明の段落を出さない");
@@ -1384,7 +1385,8 @@ ok(/days = 14/.test(coreSrc), "14日ぶん採点する");
 const daysCss = html.slice(html.indexOf(".days {"), html.indexOf(".days {") + 400);
 ok(/overflow-x: auto/.test(daysCss), "横スクロールにする");
 ok(/scroll-snap-type/.test(daysCss), "スクロールが列で止まる");
-ok(!/grid-template-columns: repeat\(7/.test(html), "7列固定のグリッドは残っていない");
+// 予報カードの7列固定は禁止。日付カレンダーの曜日7列は意図した例外。
+ok(!/grid-template-columns: repeat\(7/.test(html.replace(/\.aim-cal-grid[^}]*}/g, "")), "予報カードに7列固定のグリッドは残っていない");
 
 console.log("== 信頼度を1文字で出す ==");
 // 14日並べると、どこから先を鵜呑みにしないかが分からない。
@@ -2402,7 +2404,7 @@ ok(/scrollbar-gutter: stable/.test(html), "止めた瞬間に横幅が変わら�
 // 2026-09-24: 地図で選ぶシートを足して5つ（地点・お気に入り・記録・認証・地図）。
 // 2026-09-28: 写真から記録するシートを足して6つ。
 // 「ねらう」「空の見え方」「月丼」はポップアップではなく**ページ**にした
-ok((html.match(/<dialog class="sheet"/g) || []).length === 7, "シートは7つ",
+ok((html.match(/<dialog class="sheet"/g) || []).length === 8, "カレンダーを含めシートは8つ",
   String((html.match(/<dialog class="sheet"/g) || []).length));
 
 console.log("== 登録した直後に、パスキーの登録へ進める ==");
@@ -2749,7 +2751,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   ok(/\$\("photoClose"\)\.onclick = \(\) => \$\("photoSheet"\)\.close\(\);/.test(html), "閉じるで閉じる");
   // 開いたとき最初の釦を選んだ状態（青い枠）にしない（ユーザー「青くなって選択状態で開くのが気に入らない」）
   const sheets = html.match(/<dialog class="sheet"[^>]*>/g) || [];
-  ok(sheets.length === 7 && sheets.every((d) => / tabindex="-1">$/.test(d)), "シートはそのものに焦点を置ける", sheets.join(" "));
+  ok(sheets.length === 8 && sheets.every((d) => / tabindex="-1">$/.test(d)), "シートはそのものに焦点を置ける", sheets.join(" "));
 }
 {
   // 座標をコピー・地図アプリで開く（2026-10-02 ユーザー「詳細な緯度経度が欲しい」「座標コピーのボタンと地図アプリで開くのボタン。
@@ -2908,7 +2910,7 @@ console.log("== 見え方の図（2026-10-02） ==");
 // 2026-10-03 図は1つ（ユーザー「どこに重ねるかを変えても見え方が変わらないのと、見え方が二箇所にあるのはなんで？」）
 {
   ok((html.match(/id="aimLook"/g) || []).length === 1 && !/id="aim(CandLook|FromLook|CandPick)"/.test(html), "見え方の図は1つ（候補地用・観測地点用を分けない）");
-  const iFrom = html.indexOf('<div id="aimFrom"'), iLook = html.indexOf('<div id="aimLook"'), iDate = html.indexOf('<label class="fav-l" for="aimDate">');
+  const iFrom = html.indexOf('<div id="aimFrom"'), iLook = html.indexOf('<div id="aimLook"'), iDate = html.indexOf('<label class="fav-l" for="aimCalendarOpen">');
   ok(iFrom > 0 && iFrom < iLook && iLook < iDate, "重なる日の帯 → 見え方 → 日付の順（日付で図が変わるので、入力を上に）");
   const look = /async function aimUpdateLook\(\) \{[\s\S]*?\n\}/.exec(html)[0];
   ok(/const c = aim\.candPick !== null \? \(aim\.cands \|\| \[\]\)\[aim\.candPick\] : null;/.test(look)
