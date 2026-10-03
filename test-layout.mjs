@@ -2912,15 +2912,12 @@ console.log("== 見え方の図（2026-10-02） ==");
   ok(/const c = aim\.candPick !== null \? \(aim\.cands \|\| \[\]\)\[aim\.candPick\] : null;/.test(look)
     && /aimLookRender\(host, \{ obs: \{ latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, elevation: c\.stand\.elevationM \},\s*eyeM: 1\.5 \+ \(c\.place\.deckM \|\| 0\), at: c\.at/.test(look),
     "候補地を選んでいれば、重なりを解いたときと同じ立つ高さ・時刻で描く");
-  ok(/const here = ev \? SoramiAlign\.crossingNear\(obs, t, aim\.body, ev\.at, opts\) : null;\s*if \(here && Math\.abs\(here\.gap\) <= SoramiAlign\.LIMB_FIT \* here\.radius\)/.test(look),
-    "観測地点で選んだ縁が触れる（選んだ縁で解き直して半径の2割以内）なら、観測地点そのものから描く（富士山の火口の縁は横に広い）");
-  ok(/SoramiAlign\.solvePoint\(t, aim\.body, aim\.dayMs, D, sd,/.test(look) && /（計算上の位置）/.test(look)
-    && /に立ったままだと、\$\{aimPassage\(ev\)\}/.test(look),
-    "触れないなら、同じ距離で選んだ合わせ方になる計算上の地点から描き、立ったままの通り方も書く");
-  ok(/\$\{found\.length \? "重なるのは明るい空のときだけです" : "重なりません"\}/.test(look), "その日に近くで重ならなければ、そう書く");
-  ok(/const dark = \(x\) => aim\.body !== "moon"\s*\|\| SoramiAstro\.sun\(x\.q\.at, \{ latitude: x\.q\.latitude, longitude: x\.q\.longitude/.test(look), "月の計算上の地点も暗い空の回だけ（その地点の空で。候補地と同じ）");
-  ok(/const sides = ev \? \[ev\.side\] : \["rise", "set"\];/.test(look) && /\.sort\(\(x, y\) => x\.d - y\.d\)\[0\]/.test(look),
-    "重なる回の無い日は、両側を解いて観測地点に近い方（曽谷→日の出側が反対側の 23km 先になっていた）");
+  // 2026-10-03 ユーザー「同じ日で観測地点をずらしたらその場所からの重なり方を出して欲しいだけ」「無理やり3択の場所に見え方を合わせてない？」
+  ok(!/solvePoint/.test(look) && !/（計算上の位置）/.test(look), "観測地点の図は、場所を動かさない（選んだ合わせ方になる計算上の地点へずらさない）");
+  ok(/SoramiAlign\.upcoming\(obs, t, aim\.body, \{ \.\.\.opts, from: aim\.dayMs, days: 1, limit: 4 \}\)/.test(look)
+    && /sub: `\$\{aimDateLabel\(at\)\} \$\{aimSideName\(e\.side\)\} ・ \$\{aimPassage\(e\)\}`/.test(look),
+    "その日、その観測地点での実際の通り方（中心が先端の◯°上を通る、など）で描く。合わせ方で通り方を変えない");
+  ok(/この日は、\$\{esc\(f\.name\)\}から見て/.test(look), "その日に重ならなければ、そう書く");
   ok(/if \(aim\.wantSpot\) return;/.test(look), "選び直す候補地を待っている間は図を替えない（観測地点へ飛んで戻らない）");
   ok(/data-look-title/.test(html) && /data-look-sub/.test(html) && /data-look-light/.test(html) && /data-look-extra/.test(html),
     "図の上に「どこから・いつ・どう重なるか」の一行");

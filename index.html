@@ -1639,21 +1639,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261003095057"></script>
+<script src="sorami-core.js?v=20261003100826"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261003095057"></script>
-<script src="sorami-exif.js?v=20261003095057"></script>
-<script src="sorami-capcloud.js?v=20261003095057"></script>
-<script src="sorami-terrain.js?v=20261003095057"></script>
-<script src="sorami-mountain.js?v=20261003095057"></script>
-<script src="sorami-fuji.js?v=20261003095057"></script>
-<script src="sorami-sky.js?v=20261003095057"></script>
-<script src="sorami-routes.js?v=20261003095057"></script>
-<script src="sorami-iss.js?v=20261003095057"></script>
-<script src="sorami-plane.js?v=20261003095057"></script>
-<script src="sorami-align.js?v=20261003095057"></script>
-<script src="sorami-moon.js?v=20261003095057"></script>
+<script src="sorami-astro.js?v=20261003100826"></script>
+<script src="sorami-exif.js?v=20261003100826"></script>
+<script src="sorami-capcloud.js?v=20261003100826"></script>
+<script src="sorami-terrain.js?v=20261003100826"></script>
+<script src="sorami-mountain.js?v=20261003100826"></script>
+<script src="sorami-fuji.js?v=20261003100826"></script>
+<script src="sorami-sky.js?v=20261003100826"></script>
+<script src="sorami-routes.js?v=20261003100826"></script>
+<script src="sorami-iss.js?v=20261003100826"></script>
+<script src="sorami-plane.js?v=20261003100826"></script>
+<script src="sorami-align.js?v=20261003100826"></script>
+<script src="sorami-moon.js?v=20261003100826"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6493,50 +6493,24 @@ async function aimUpdateLook() {
   const ground = await aimElevation(f.latitude, f.longitude);
   if (seq !== aim.lookSeq) return;
   const obs = { latitude: f.latitude, longitude: f.longitude, elevation: Number.isFinite(ground) ? ground : 0 };
-  const D = SoramiTerrain.distanceKm(f.latitude, f.longitude, t.latitude, t.longitude);
-  const ev = (aim.fromEvents || []).find((e) => S.JstCal.sameDay(e.at, aim.dayMs)) || null;
-  const opts = { partId: aim.partId, limb: aim.limb, eyeM: 1.5 };
-  // ここで選んだ縁が触れる（通り方の言い方と同じ基準）なら、観測地点そのものから。**選んだ縁で解き直して確かめる**
-  // （富士山は火口の縁が横に広く、同じ場所で「下の縁が乗る」「真ん中が通る」が時刻違いで両方起きる。真ん中の通り方から
-  // 引き算すると、高尾山で合っているのに「南へ約48m」と出ていた）
-  const here = ev ? SoramiAlign.crossingNear(obs, t, aim.body, ev.at, opts) : null;
-  if (here && Math.abs(here.gap) <= SoramiAlign.LIMB_FIT * here.radius) {
-    const at = here.at;
-    aimLookRender(host, { obs, eyeM: 1.5, at, title: `${f.name}から`,
-      sub: `${aimDateLabel(at)} ${aimSideName(ev.side)} ・ ${aimFitPhrase()}`, light: light(at, obs) });
-    return;
-  }
-  // 側は、その日に観測地点で重なる回があればその側。無ければ両側を解いて**観測地点に近い方**
-  // （曽谷はスカイツリーの東なので、日の出側の点は反対側の 23km 先になっていた）
-  const sides = ev ? [ev.side] : ["rise", "set"];
-  const sols = await Promise.all(sides.map((sd) => SoramiAlign.solvePoint(t, aim.body, aim.dayMs, D, sd, { ...opts, elevationAt: aimElevation })
-    .then((q) => (q ? { q, sd, d: SoramiTerrain.distanceKm(f.latitude, f.longitude, q.latitude, q.longitude) } : null), () => null)));
-  if (seq !== aim.lookSeq) return;
-  // 月は暗い空の回だけ（候補地と同じ。昼の月は重なっても写らない）
-  const dark = (x) => aim.body !== "moon"
-    || SoramiAstro.sun(x.q.at, { latitude: x.q.latitude, longitude: x.q.longitude, elevation: obs.elevation }).apparentAltitude < 0;
-  const found = sols.filter(Boolean);
-  const best = found.filter(dark).sort((x, y) => x.d - y.d)[0];
-  const p = best ? best.q : null, side = best ? best.sd : null;
-  if (!p) {
+  // **観測地点そのものの、その日の実際の通り方を出す**（2026-10-03 ユーザー「同じ日で観測地点をずらしたらその場所からの重なり方を出して欲しいだけ」
+  // 「無理やり3択の場所に見え方を合わせてない？」）。選んだ縁が合わなくても、場所を動かさず、本当の通り方（中心が先端の◯°上を通る）で描く。
+  // 合わせ方（下の縁・真ん中・上の縁）は、日付の帯・地図の線・候補地を決めるもので、ここでは通り方を変えない
+  const opts = { partId: aim.partId, limb: "center", eyeM: 1.5, stepMs: 3600000 };
+  let rows = [];
+  try { rows = SoramiAlign.upcoming(obs, t, aim.body, { ...opts, from: aim.dayMs, days: 1, limit: 4 }); } catch { rows = []; }
+  const dayRows = rows.filter((e) => S.JstCal.sameDay(e.at, aim.dayMs));
+  const e = dayRows.find((x) => x.side === aim.candSide && dayRows.length > 1) || dayRows.sort((x, y) => Math.abs(x.gap) - Math.abs(y.gap))[0];
+  if (!e) {
     host.hidden = false;
     host.innerHTML = `<div class="aim-look-h"><span>見え方</span></div><p class="tiny" style="color:var(--secondary)">`
-      + `この日は、${esc(f.name)}の近く（${esc(t.name)}まで ${aimKm(D)}km）で${aim.body === "moon" ? "月" : "太陽"}が`
-      + `${found.length ? "重なるのは明るい空のときだけです" : "重なりません"}。</p>`;
+      + `この日は、${esc(f.name)}から見て${aim.body === "moon" ? "月" : "太陽"}が${esc(t.name)}に重なりません。</p>`;
     return;
   }
-  const pg = await aimElevation(p.latitude, p.longitude);
-  if (seq !== aim.lookSeq) return;
-  const stand = { latitude: p.latitude, longitude: p.longitude, elevation: Number.isFinite(pg) ? pg : 0 };
-  const hit = SoramiAlign.crossingNear(stand, t, aim.body, p.at, opts);
-  const m = SoramiTerrain.distanceKm(f.latitude, f.longitude, p.latitude, p.longitude) * 1000;
-  const dir = AIM_DIR8[Math.round(SoramiTerrain.bearing(f.latitude, f.longitude, p.latitude, p.longitude) / 45) % 8];
-  // 遠い目標では 0.1° が横に数m なので、100m 未満は 1m 単位で言う
-  const far = m >= 1000 ? `${(m / 1000).toFixed(1)}km` : m >= 100 ? `${Math.round(m / 10) * 10}m` : `${Math.max(1, Math.round(m))}m`;
-  const at = hit ? hit.at : p.at;
-  aimLookRender(host, { obs: stand, eyeM: 1.5, at, title: `${f.name}から${dir}へ約${far}（計算上の位置）`,
-    sub: `${aimDateLabel(at)} ${aimSideName(side)} ・ ${aimFitPhrase()}`, light: light(at, stand),
-    extra: ev ? `${f.name}に立ったままだと、${aimPassage(ev)}` : null });
+  const hit = SoramiAlign.crossingNear(obs, t, aim.body, e.at, { partId: aim.partId, limb: "center", eyeM: 1.5 });
+  const at = hit ? hit.at : e.at;
+  aimLookRender(host, { obs, eyeM: 1.5, at, title: `${f.name}から`,
+    sub: `${aimDateLabel(at)} ${aimSideName(e.side)} ・ ${aimPassage(e)}`, light: light(at, obs) });
 }const aimCandName = (c) => (c.place.kind === "川岸" ? `${c.place.name}の川岸`
   : c.place.name || `名前のない${c.place.kind}`);
 const aimSideName = (side) => (aim.body === "moon" ? (side === "set" ? "月の入" : "月の出") : (side === "set" ? "日の入" : "日の出"));
