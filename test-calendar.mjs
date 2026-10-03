@@ -11,13 +11,13 @@ function setup(al=AL){
  const $=id=>{if(!els.has(id))els.set(id,{value:"",innerHTML:"",textContent:"",open:true,setAttribute(k,v){this[k]=v},querySelectorAll(){return buttons},addEventListener(){},focus(){},close(){this.open=false}});return els.get(id)};
  const aim={dayMs:Date.parse("2026-12-22T00:00:00+09:00"),body:"sun",partId:"summit",target:AL.targetById("fuji"),candSide:"set",spot:{}};
  const c=vm.createContext({$,aim,S,SoramiAlign:al,Date,Map,Number,String,Array,JSON,Error,Math,Promise,setTimeout,esc:s=>s.replaceAll('"','&quot;'),aimSideName:s=>s==="set"?"日の入":"日の出",aimFromPoint:()=>({name:"高尾山",latitude:35.6252,longitude:139.2436}),aimElevation:async()=>599,showSheet:e=>{e.open=true},aimApply:()=>{c.applied=true}});
- vm.runInContext(code+';this.cal=aimCal;this.rows=aimCalRows;this.grid=aimCalGridHtml;this.render=aimCalRender;this.draw=aimCalDraw;',c);
+ vm.runInContext(code+';this.cal=aimCal;this.rows=aimCalRows;this.grid=aimCalGridHtml;this.solid=aimCalSolid;this.render=aimCalRender;this.draw=aimCalDraw;',c);
  return {c,$,aim,buttons};
 }
 test("連続する重なる日を代表日にまとめず全日表示する",()=>{
  const {c}=setup(), obs={latitude:35.6252,longitude:139.2436,elevation:599}, target=AL.targetById("fuji");
  const rows=c.rows(obs,target,"sun",2026,11,"summit");
- assert.equal(rows.length,20); assert.ok(rows.every(e=>e.dayCount===1));
+ assert.equal(rows.filter(c.solid).length,20); assert.equal(rows.length,22); assert.ok(rows.every(e=>e.dayCount===1));
  const grouped=AL.upcoming(obs,target,"sun",{from:Date.parse("2026-12-01T00:00:00+09:00"),days:31,limit:Infinity,partId:"summit",stepMs:3600000});
  assert.equal(grouped.length,1); assert.ok(grouped[0].dayCount>1);
 });
@@ -44,4 +44,17 @@ test("古い月の非同期結果と閉じた後の結果を捨てる・エラ�
  assert.equal([...c.cal.events.keys()][0],Date.parse("2027-02-01T00:00:00+09:00"));
  c.cal.month=2;const closed=c.render();$("aimCalendar").open=false;waits[2](599);await closed;assert.equal(c.cal.events.size,0);
  $("aimCalendar").open=true;c.aimElevation=async()=>{throw Error("test")};await c.render();assert.match($("aimCalStatus").textContent,/計算できませんでした/);assert.equal($("aimCalGrid")["aria-busy"],"false");
+});
+
+test("見え方に出る近接通過もカレンダーへ表示し、重なりと区別する",()=>{
+ const {c}=setup();const obs={latitude:35.58386,longitude:139.56853,elevation:83},target=AL.targetById("skytree");
+ const rows=c.rows(obs,target,"moon",2026,9,"tip");
+ const start=Date.parse("2026-10-03T00:00:00+09:00"), today=rows.find(e=>S.JstCal.sameDay(e.at,start));
+ assert.ok(today);assert.ok(Math.abs(today.gap)>1.2*today.radius);assert.equal(c.solid(today),false);
+ const actual=AL.upcoming(obs,target,"moon",{from:start,days:1,limit:4,limb:"center",partId:"tip",stepMs:3600000});
+ assert.equal(today.at,actual[0].at);
+ const events=new Map(rows.map(e=>[S.Cal.startOfDay(e.at),[e]]));
+ const grid=c.grid(2026,9,events,start,start);
+ assert.match(grid,/2026年10月3日、近くを通る日/);assert.match(grid,/>○<\/span>/);
+ assert.equal(events.has(start-86400000),false);assert.equal(events.has(start+86400000),false);
 });
