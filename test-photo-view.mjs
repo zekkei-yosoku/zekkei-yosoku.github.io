@@ -61,3 +61,31 @@ test("年間探索は途中で操作に戻り、古い地点の結果を破棄�
  vm.runInContext(html.slice(a,b)+";this.run=aimBuildingDays",c);
  const rows=await c.run(observer,target,"moon","tip",1);assert.equal(rows.length,0);assert.equal(calls,8);assert.equal(waits,2);
 });
+
+
+test("自動表示は旧200mmを移行せず、手動指定だけ保持する",()=>{
+ const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf("const AIM_SENSOR ="),b=html.indexOf("const aimLookHosts",a);
+ for(const [saved,mode] of [[{},"auto"],[{on:true,focal:200},"auto"],[{mode:"manual",on:true,focal:700},"manual"]]) {
+  const c=vm.createContext({localStorage:{getItem:()=>JSON.stringify(saved)}});vm.runInContext(html.slice(a,b)+";this.lens=aimLens",c);
+  assert.equal(c.lens.mode,mode);assert.equal(c.lens.on,true);if(mode==="manual")assert.equal(c.lens.focal,700);
+ }
+});
+test("自動表示の相当焦点距離を反映しても図の縮尺が変わらない",()=>{
+ const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf("  const sensor = AIM_SENSOR[aimLens.sensor]"),b=html.indexOf("  const proj =",a);
+ for(const sensor of ["full","aps","canon","m43"])for(const portrait of [false,true])for(const [W,H] of [[316,284],[610,440]]) {
+  const base=AL.viewWindow({azimuth:70,baseAngle:.1,topAngle:1.3,radiusDeg:.27,aspect:W/H}),info={textContent:""},button={setAttribute:()=>{}},lensFocal={};
+  const aimLens={sensor,portrait,mode:"auto",on:true};const c=vm.createContext({AIM_SENSOR:{full:[36,24],aps:[23.5,15.6],canon:[22.3,14.9],m43:[17.3,13]},aimLens,win:{...base},W,H,lensFocal,Math,SoramiAlign:AL,host:{querySelector:q=>q.includes("auto")?button:info}});
+  vm.runInContext(html.slice(a,b),c);assert.equal(c.win.halfH,base.halfH);assert.match(info.textContent,/見やすい表示：約/);
+  aimLens.mode="manual";aimLens.focal=+lensFocal.value;c.win={...base};vm.runInContext("{ "+html.slice(a,b)+" }",c);
+  assert.ok(Math.abs(c.win.halfH/base.halfH-1)<.0002);assert.equal(c.win.alt0,base.alt0);
+ }
+});
+test("枠の移動・中央復帰は時刻と天体逆引きを変えない",()=>{
+ const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf('  const move = host.querySelector("[data-lens-move]")'),b=html.indexOf('  draw(i0);',a);
+ let draws=0,prevented=0,clears=0;const move={setAttribute:()=>{}},center={},hint={},host={_lensMoving:true,_pick:null,querySelector:q=>q.includes("hint")?hint:q.includes("center")?center:move};
+ const cv={style:{},setPointerCapture:()=>{}},cur=43,W=316,H=284,k=10,frame={halfW:5,halfH:6};
+ const c=vm.createContext({host,cv,cur,W,H,k,frame,Math,draw:()=>draws++,aimLookRender:()=>{},aimReverseClear:()=>clears++,spec:{}});vm.runInContext(html.slice(a,b),c);
+ cv.onpointerdown({clientX:100,clientY:100,pointerId:1});cv.onpointermove({clientX:150,clientY:120});cv.onpointerup();
+ assert.ok(host._lensOffset[0]>0);assert.ok(host._lensOffset[1]>0);assert.equal(c.cur,43);assert.equal(host._pick,null);
+ cv.onkeydown({key:"ArrowLeft",preventDefault:()=>prevented++});assert.equal(prevented,1);center.onclick();assert.deepEqual(Array.from(host._lensOffset),[0,0]);assert.ok(draws>=3);host._pick={result:{}};move.onclick();assert.equal(host._pick,null);assert.equal(clears,1);
+});

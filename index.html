@@ -1680,21 +1680,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261003150315"></script>
+<script src="sorami-core.js?v=20261003152617"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261003150315"></script>
-<script src="sorami-exif.js?v=20261003150315"></script>
-<script src="sorami-capcloud.js?v=20261003150315"></script>
-<script src="sorami-terrain.js?v=20261003150315"></script>
-<script src="sorami-mountain.js?v=20261003150315"></script>
-<script src="sorami-fuji.js?v=20261003150315"></script>
-<script src="sorami-sky.js?v=20261003150315"></script>
-<script src="sorami-routes.js?v=20261003150315"></script>
-<script src="sorami-iss.js?v=20261003150315"></script>
-<script src="sorami-plane.js?v=20261003150315"></script>
-<script src="sorami-align.js?v=20261003150315"></script>
-<script src="sorami-moon.js?v=20261003150315"></script>
+<script src="sorami-astro.js?v=20261003152617"></script>
+<script src="sorami-exif.js?v=20261003152617"></script>
+<script src="sorami-capcloud.js?v=20261003152617"></script>
+<script src="sorami-terrain.js?v=20261003152617"></script>
+<script src="sorami-mountain.js?v=20261003152617"></script>
+<script src="sorami-fuji.js?v=20261003152617"></script>
+<script src="sorami-sky.js?v=20261003152617"></script>
+<script src="sorami-routes.js?v=20261003152617"></script>
+<script src="sorami-iss.js?v=20261003152617"></script>
+<script src="sorami-plane.js?v=20261003152617"></script>
+<script src="sorami-align.js?v=20261003152617"></script>
+<script src="sorami-moon.js?v=20261003152617"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7137,7 +7137,8 @@ async function aimLookRidge(obs, eye, target, win) {
 }
 
 const AIM_SENSOR = { full: [36, 24], aps: [23.5, 15.6], canon: [22.3, 14.9], m43: [17.3, 13] };
-const aimLens = (() => { try { const x = JSON.parse(localStorage.getItem("sorami.lens") || "{}"); return { on: !!x.on, focal: Math.min(2000, Math.max(8, Number(x.focal) || 200)), sensor: AIM_SENSOR[x.sensor] ? x.sensor : "full", portrait: !!x.portrait }; } catch { return { on: false, focal: 200, sensor: "full", portrait: false }; } })();
+// 旧版の固定200mmは引き継がず、見やすい自動表示を初期値にする。
+const aimLens = (() => { try { const x = JSON.parse(localStorage.getItem("sorami.lens") || "{}"); return { on: x.mode ? !!x.on : true, mode: x.mode === "manual" ? "manual" : "auto", focal: Number.isFinite(x.focal) && x.focal >= 8 && x.focal <= 2000 ? x.focal : null, sensor: AIM_SENSOR[x.sensor] ? x.sensor : "full", portrait: !!x.portrait }; } catch { return { on: true, mode: "auto", focal: null, sensor: "full", portrait: false }; } })();
 const aimLookHosts = new Set();
 const aimLookHMS = (ms) => `${S.JstCal.hhmm(ms)}:${String(new Date(ms).getUTCSeconds()).padStart(2, "0")}`;
 /// 重なる時刻からの差を短く（「重なる3分前」「重なる20秒後」）
@@ -7167,8 +7168,8 @@ async function aimLookRender(host, spec) {
       <div class="aim-lens"><button type="button" class="chip" data-lens-on aria-pressed="false">画角枠</button>
         <label>焦点距離 <input type="number" min="8" max="2000" step="1" required data-lens-focal aria-label="レンズの実焦点距離（mm）"> mm</label><button type="button" class="chip" data-lens-apply>反映</button>
         <select data-lens-sensor aria-label="センサーサイズ"><option value="full">フルサイズ</option><option value="aps">APS-C</option><option value="canon">APS-C（Canon）</option><option value="m43">マイクロフォーサーズ</option></select>
-        <button type="button" class="chip" data-lens-portrait aria-pressed="false">縦位置</button></div>
-      <div class="tiny" data-lens-info></div>
+        <button type="button" class="chip" data-lens-portrait aria-pressed="false">縦位置</button><button type="button" class="chip" data-lens-auto>見やすい表示</button><button type="button" class="chip" data-lens-move aria-pressed="false">枠を動かす</button><button type="button" class="chip" data-lens-center>枠を中央へ</button></div>
+      <div class="tiny" data-lens-info></div><p class="tiny" data-look-outside hidden></p>
       <div class="aim-look-time"><input type="range" min="0" max="0" step="any" value="0" data-look-range aria-label="時刻を動かす">
         <output data-look-at></output></div>
       <p class="tiny aim-look-hint" data-look-hint hidden></p>
@@ -7187,19 +7188,18 @@ async function aimLookRender(host, spec) {
   }
   const lensOn = host.querySelector("[data-lens-on]"), lensFocal = host.querySelector("[data-lens-focal]"), lensSensor = host.querySelector("[data-lens-sensor]"), lensPortrait = host.querySelector("[data-lens-portrait]");
   lensOn.setAttribute("aria-pressed", String(aimLens.on)); lensPortrait.setAttribute("aria-pressed", String(aimLens.portrait));
-  lensFocal.value = String(aimLens.focal); lensSensor.value = aimLens.sensor;
+  lensSensor.value = aimLens.sensor;
   const saveLens = () => { try { localStorage.setItem("sorami.lens", JSON.stringify(aimLens)); } catch {} aimLookRender(host, spec); };
   lensOn.onclick = () => { aimLens.on = !aimLens.on; saveLens(); };
   lensPortrait.onclick = () => { aimLens.portrait = !aimLens.portrait; aimLens.on = true; saveLens(); };
   lensSensor.onchange = () => { aimLens.sensor = lensSensor.value; aimLens.on = true; saveLens(); };
   lensFocal.onchange = () => {
     if (!lensFocal.value.trim() || !lensFocal.checkValidity() || !Number.isFinite(+lensFocal.value) || +lensFocal.value < 8 || +lensFocal.value > 2000) { lensFocal.reportValidity(); return; }
-    aimLens.focal = +lensFocal.value; aimLens.on = true; saveLens();
+    aimLens.focal = +lensFocal.value; aimLens.mode = "manual"; aimLens.on = true; saveLens();
   };
   host.querySelector("[data-lens-apply]").onclick = lensFocal.onchange;
   lensFocal.onkeydown = (event) => { if (event.key === "Enter") { event.preventDefault(); lensFocal.onchange(); } };
-  const frame = aimLens.on ? SoramiAlign.cameraFrame(aimLens.focal, ...AIM_SENSOR[aimLens.sensor], aimLens.portrait) : null;
-  host.querySelector("[data-lens-info]").textContent = frame ? `${aimLens.focal}mm ・ 画角 ${frame.horizontalDeg.toFixed(1)}° × ${frame.verticalDeg.toFixed(1)}°（歪曲なしの目安）` : "レンズの実焦点距離を入れて画角を確認できます";
+  host.querySelector("[data-lens-auto]").onclick = () => { aimLens.mode = "auto"; aimLens.on = true; host._lensOffset = [0, 0]; saveLens(); };
   const ground = spec.obs.elevation ?? 0, eye = ground + spec.eyeM;
   const eyeObs = { latitude: spec.obs.latitude, longitude: spec.obs.longitude, elevation: eye };
   const st = body === "moon" ? SoramiAstro.moon(spec.at, eyeObs) : SoramiAstro.sun(spec.at, eyeObs);
@@ -7217,12 +7217,21 @@ async function aimLookRender(host, spec) {
   // 塔は縦長の図、山は横長の図（2026-10-03 ユーザー「もう少し拡大した図にして欲しい」。塔は横幅より高さが要る）
   const H = Math.round(Math.min(440, W * (mountain ? 0.66 : 0.9)));
   const win = SoramiAlign.viewWindow({ azimuth: az, baseAngle: viewBase, topAngle, radiusDeg: radius, aspect: W / H,
-    include: [st.apparentAltitude] });
-  if (frame) {
-    win.az0 = az; win.alt0 = (viewBase + topAngle) / 2;
+    include: st.apparentAltitude >= 0 && Math.abs(st.apparentAltitude - topAngle) <= Math.max(topAngle - viewBase, 5 * radius) ? [st.apparentAltitude] : [] });
+  const sensor = AIM_SENSOR[aimLens.sensor];
+  const sw = aimLens.portrait ? sensor[1] : sensor[0], sh = aimLens.portrait ? sensor[0] : sensor[1];
+  // 従来の図の範囲を保ち、その中に余白12%で収まる枠の実焦点距離を逆算する。
+  const autoFocal = Math.max(sh / (2 * win.halfH * Math.PI / 180), sw / (2 * win.halfW * Math.PI / 180)) * 1.12;
+  const focal = aimLens.mode === "auto" ? autoFocal : aimLens.focal;
+  lensFocal.value = String(Math.round(focal * 10) / 10);
+  lensFocal.step = "any";
+  const frame = aimLens.on ? SoramiAlign.cameraFrame(focal, ...sensor, aimLens.portrait) : null;
+  if (frame && aimLens.mode === "manual") {
     win.halfH = Math.max(frame.halfH, frame.halfW / (W / H)) * 1.12;
     win.halfW = win.halfH * W / H;
   }
+  host.querySelector("[data-lens-auto]").setAttribute("aria-pressed", String(aimLens.mode === "auto"));
+  host.querySelector("[data-lens-info]").textContent = `${aimLens.mode === "auto" ? "見やすい表示：約" : ""}${(Math.round(focal * 10) / 10)}mm${frame ? ` ・ 画角 ${frame.horizontalDeg.toFixed(1)}° × ${frame.verticalDeg.toFixed(1)}°` : "（画角枠なし）"}（歪曲なしの目安）`;
   const proj = SoramiAlign.viewProjector(win.az0, win.alt0);
   const path = SoramiAlign.viewPath(body, eyeObs, spec.at, proj, win);
   const i0 = Math.max(0, path.findIndex((p) => p.at === spec.at));
@@ -7345,14 +7354,10 @@ async function aimLookRender(host, spec) {
       ctx.strokeStyle = halo; ctx.lineWidth = 3; ctx.strokeText(str, x, y);
       ctx.fillStyle = ink; ctx.fillText(str, x, y);
     };
-    // 選んだ時刻だけ字で出す（320px で全部の時刻を並べると読めない）。円盤の右、入らなければ左
-    const right = c ? c[0] + rPx + 8 + 62 < W : true;
-    if (c) {
-      ctx.font = "700 12px system-ui, sans-serif";
-      text(aimLookHMS(p.at), right ? c[0] + rPx + 8 : c[0] - rPx - 8, Math.max(10, Math.min(H - 10, c[1])), right ? "left" : "right");
-    }
+    // 時刻は図の下のoutputだけに表示し、画面外の天体で文字が見切れるのを防ぐ。
+    const right = c ? c[0] > W / 2 : true;
     // 展望台などに重ねるときは、その高さに印。名前は時刻の字と反対の側に
-    if (partY !== null && shape) {
+    if (partY !== null && partY >= 10 && partY <= H - 10 && shape) {
       const near = shape.filter(([, y]) => Math.abs(y - partY) < 6);
       const half = near.length ? Math.max(...near.map(([x]) => Math.abs(x - W / 2))) : 8;
       ctx.strokeStyle = ink; ctx.lineWidth = 1.2; ctx.setLineDash([2, 2]);
@@ -7374,12 +7379,15 @@ async function aimLookRender(host, spec) {
     if (frame) {
       const fw = frame.halfW * 2 * k, fh = frame.halfH * 2 * k;
       ctx.setLineDash([]); ctx.strokeStyle = "#000"; ctx.lineWidth = 4;
-      ctx.strokeRect((W - fw) / 2, (H - fh) / 2, fw, fh);
-      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect((W - fw) / 2, (H - fh) / 2, fw, fh);
+      const off = host._lensOffset || [0, 0];
+      const fx = Math.max(2, Math.min(W - fw - 2, (W - fw) / 2 + off[0] * W));
+      const fy = Math.max(2, Math.min(H - fh - 2, (H - fh) / 2 + off[1] * H));
+      ctx.strokeRect(fx, fy, fw, fh);
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(fx, fy, fw, fh);
     }
-    if (!c || c[0] < 0 || c[0] > W || c[1] < 0 || c[1] > H) {
-      ctx.fillStyle = ink; ctx.font = "700 12px sans-serif"; ctx.fillText(`${body === "moon" ? "月" : "太陽"}は画面の外`, 10, 20);
-    }
+    const outside = host.querySelector("[data-look-outside]");
+    outside.hidden = !!c && c[0] >= 0 && c[0] <= W && c[1] >= 0 && c[1] <= H;
+    outside.textContent = outside.hidden ? "" : `${body === "moon" ? "月" : "太陽"}は図の外です。時刻を動かすと通り方を確認できます`;
     cur = v;
     out.innerHTML = `${aimLookHMS(p.at)}<span class="sub-line">${esc(aimLookRel(p.at - spec.at, spec.atName))}</span>`;
     cv.setAttribute("aria-label", `${spec.title || "ここから"}見た${t.name}と${body === "moon" ? "月" : "太陽"}の動き。`
@@ -7408,6 +7416,30 @@ async function aimLookRender(host, spec) {
     if (best >= 0) { range.value = String(best); draw(best); }
   };
   aimLookPick(host, { spec, cv, draw: () => draw(cur), W, H, k, win, az, topAngle, D, path, toPx, pathTap: cv.onclick });
+  const move = host.querySelector("[data-lens-move]");
+  const center = host.querySelector("[data-lens-center]");
+  move.disabled = center.disabled = !frame;
+  move.setAttribute("aria-pressed", String(!!host._lensMoving));
+  move.onclick = () => { host._lensMoving = !host._lensMoving; host._pick = null; aimReverseClear(); aimLookRender(host, spec); };
+  center.onclick = () => { host._lensOffset = [0, 0]; draw(cur); };
+  cv.onkeydown = null;
+  cv.tabIndex = host._lensMoving && frame ? 0 : -1;
+  if (host._lensMoving && frame && !host._pick) {
+    host.querySelector("[data-look-hint]").hidden = false;
+    host.querySelector("[data-look-hint]").textContent = "枠をドラッグして構図を調整。矢印キーでも動かせます";
+    cv.style.touchAction = "none";
+    let drag = null;
+    const shift = (dx, dy) => {
+      const fw = frame.halfW * 2 * k, fh = frame.halfH * 2 * k;
+      const mx = Math.max(0, (W - fw) / (2 * W) - 2 / W), my = Math.max(0, (H - fh) / (2 * H) - 2 / H);
+      host._lensOffset = [Math.max(-mx, Math.min(mx, dx)), Math.max(-my, Math.min(my, dy))]; draw(cur);
+    };
+    cv.onpointerdown = (ev) => { const off = host._lensOffset || [0, 0]; drag = [ev.clientX, ev.clientY, ...off]; try { cv.setPointerCapture(ev.pointerId); } catch {} };
+    cv.onpointermove = (ev) => { if (drag) shift(drag[2] + (ev.clientX - drag[0]) / W, drag[3] + (ev.clientY - drag[1]) / H); };
+    cv.onpointerup = cv.onpointercancel = () => { drag = null; };
+    cv.onclick = null;
+    cv.onkeydown = (ev) => { const d = { ArrowLeft: [-.01, 0], ArrowRight: [.01, 0], ArrowUp: [0, -.01], ArrowDown: [0, .01] }[ev.key]; if (!d) return; ev.preventDefault(); const off = host._lensOffset || [0, 0]; shift(off[0] + d[0], off[1] + d[1]); };
+  } else cv.style.touchAction = host._pick ? "none" : "";
   draw(i0);
 }
 
@@ -7429,10 +7461,11 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
   cv.classList.toggle("picking", on);
   btn.onclick = () => {
     if (host._pick) { host._pick = null; found.hidden = true; aimReverseClear(); aimUpdateLook(); return; }
+    host._lensMoving = false;
     host._pick = { base: spec, ghost: null };
     aimLookRender(host, { ...spec, pick: true });
   };
-  if (!on) { found.hidden = true; hint.hidden = true; cv.onpointerdown = cv.onpointermove = cv.onpointerup = null; cv.onclick = pathTap; return; }
+  if (!on) { found.hidden = true; hint.hidden = true; cv.onpointerdown = cv.onpointermove = cv.onpointerup = cv.onpointercancel = null; cv.onclick = pathTap; return; }
   const st = host._pick;
   ok.disabled = !st.ghost;
   hint.hidden = false;

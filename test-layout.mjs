@@ -2997,9 +2997,11 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(/円盤は形の後ろ（形で隠れる）/.test(html) && /ctx\.setLineDash\(\[3, 3\]\)/.test(html), "円盤は形の後ろ、隠れた所は点線の輪");
   ok(/ctx\.fillStyle = bright \? "rgba\(16,20,30,0\.94\)" : "#020306";/.test(html) && /const rim = bright \? null : /.test(html),
     "暗い空では形を空より暗く塗り、縁を明るい線でなぞる（夜空と見分けにくかった）");
-  ok(/選んだ時刻だけ字で出す/.test(html), "時刻の字は選んだものだけ（320px で読めるように）");
+  // 2026-10-03: 画面外の天体で時刻が見切れるため、時刻は図の下のoutputへ統一。
+  ok(/時刻は図の下のoutputだけに表示/.test(html), "時刻は図の下に統一し図内で見切れない");
   const lookSrc = html.slice(html.indexOf("async function aimLookRender"), html.indexOf("function aimLookPick("));
-  ok(/cv\.onclick = /.test(lookSrc) && !/onpointerdown/.test(lookSrc) && /data-look-range/.test(lookSrc), "道をさわるか、つまみで時刻を選ぶ（iPhone の指のタップは click で受ける）");
+  // 2026-10-03: 通常は道のclick、枠移動モードだけpointerを使う。
+  ok(/cv\.onclick = /.test(lookSrc) && /host\._lensMoving && frame && !host\._pick/.test(lookSrc) && /data-look-range/.test(lookSrc), "道をさわるか、つまみで時刻を選ぶ（iPhone の指のタップは click で受ける）");
   // 逆引き（2026-10-03 ユーザー「見え方の月とか太陽の位置を調整したら、それがどこら辺の座標で撮れるのか逆引きできる？」→「円盤を置く」）
   const pickSrc = html.slice(html.indexOf("function aimLookPick("), html.indexOf("let aimLookResize"));
   ok(/data-look-pick/.test(html) && /\$\{bodyName\}を動かす/.test(pickSrc) && /"やめる"/.test(pickSrc) && !/textContent = [^;]*撮れる場所を探す/.test(html) && !/>撮れる場所を探す</.test(html),
@@ -3014,7 +3016,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(!/aim\.sight\.key === aimSightKey\(f\)\) \{[^}]*host\.hidden = true/.test(html)
     && /const sight = \{ key: aimSightKey\(f\), hidden: !!hidden \};/.test(html),
     "見通しが悪くても図を残し、見通し判定自体は保持する");
-  ok(/if \(!on\) \{[^}]*cv\.onpointerdown = cv\.onpointermove = cv\.onpointerup = null; cv\.onclick = pathTap; return; \}/.test(pickSrc),
+  ok(/if \(!on\) \{[^}]*cv\.onpointerdown = cv\.onpointermove = cv\.onpointerup = cv\.onpointercancel = null; cv\.onclick = pathTap; return; \}/.test(pickSrc),
     "逆引きでないときは、いつもの道のタップのまま（ぶつからない）");
   ok(/cv\.onpointerdown = /.test(pickSrc) && /cv\.onpointerup = /.test(pickSrc) && /cv\.onclick = \(ev\) => \{ if \(Date\.now\(\) - \(st\.upAt \|\| 0\) < 800\) return;/.test(pickSrc),
     "円盤は指で動かす・空をタップで置ける（短いタップは click でも受け、描き直しをまたいで二重には解かない）");
