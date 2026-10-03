@@ -918,7 +918,8 @@ ok(!/id="toSky"/.test(html) && !/toolAllowed\("sky"\)/.test(html), "月の詳細
   const mapSheet = /<dialog class="sheet" id="mapSheet"[^>]*>[\s\S]*?<\/dialog>/.exec(html)[0];
   ok(!/ダイヤモンド富士|パール富士|月丼|空の見え方/.test(mapSheet.replace(/<!--[\s\S]*?-->/g, "")), "地図で選ぶ画面に道具の名前を出さない");
 }
-ok(/function renderAuthButton\(\) \{\s+renderTools\(\);\s+redrawIfToolsChanged\(\);/.test(html), "ログイン・ログアウトで詳細の道具の中身も出し直す");
+const authButtonSource = /function renderAuthButton\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
+ok(/renderTools\(\);\s+redrawIfToolsChanged\(\);/.test(authButtonSource), "ログイン・ログアウトで詳細の道具の中身も出し直す");
 // 下半分を作り直すたびに釦をつなぐ。日を替えると押せなくなっていた
 ok(!/wireOutcomes\(\$\("dayDetail"\)\);/.test(html) && !/wireOutcomes\(host\);\s+wireAlignmentJump\(host\);\s+\}/.test(html.replace(/function wireDayDetail[\s\S]*?\n\}/, "")),
   "詳細の下半分は wireDayDetail でつなぐ");
@@ -1819,7 +1820,7 @@ ok(/if \(res\.status === 401 && auth\) \{ clearAuth\(\); clearAdminView\(\); ren
   "401 ではログイン状態と管理画面の中身だけ落とす");
 ok(!/401[\s\S]{0,120}favorites = \[\]/.test(html), "401 でデータを消さない");
 // 同期の失敗を黙って飲まない
-ok(/renderAuthButton[\s\S]{0,400}classList\.toggle\("warn", failing\)/.test(html), "同期の失敗をボタンに出す");
+ok(/classList\.toggle\("warn", failing\)/.test(authButtonSource), "同期の失敗をボタンに出す");
 ok(/pushQueue/.test(html) && /store\.set\("sorami\.queue"/.test(html), "送れなかった変更を覚えておく");
 // サーバーから来たものも外部データとして検査する
 ok(/const cleaned = clean\(\{ \.\.\.body, id: row\.id \}\)/.test(html),

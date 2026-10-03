@@ -1032,6 +1032,7 @@
   <!-- 管理者だけの画面。権限はサーバーが判定するので、ここを隠すのは見た目の話でしかない
        （URLを直接開かれてもAPIが403で断る）。 -->
   <div id="adminView" hidden>
+    <div id="adminBody" hidden>
     <div class="card">
       <div class="section-h"><h2>利用者</h2><span class="muted" id="adminUserCount"></span></div>
       <div id="adminUsers" class="tiny"></div>
@@ -1063,6 +1064,7 @@
       <div class="section-h"><h2>操作の記録</h2><span class="muted">直近50件</span></div>
       <p class="tiny">自分でやった操作も残ります。取り消せないものを、あとから辿れるように。</p>
       <div id="adminLog" class="tiny"></div>
+    </div>
     </div>
     <p class="warn" id="adminErr" style="margin-top:10px" hidden></p>
     <div id="adminCodes" hidden style="margin-top:10px;padding:12px;border-radius:10px;background:var(--sunk)">
@@ -1688,21 +1690,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261003200533"></script>
+<script src="sorami-core.js?v=20261003202305"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261003200533"></script>
-<script src="sorami-exif.js?v=20261003200533"></script>
-<script src="sorami-capcloud.js?v=20261003200533"></script>
-<script src="sorami-terrain.js?v=20261003200533"></script>
-<script src="sorami-mountain.js?v=20261003200533"></script>
-<script src="sorami-fuji.js?v=20261003200533"></script>
-<script src="sorami-sky.js?v=20261003200533"></script>
-<script src="sorami-routes.js?v=20261003200533"></script>
-<script src="sorami-iss.js?v=20261003200533"></script>
-<script src="sorami-plane.js?v=20261003200533"></script>
-<script src="sorami-align.js?v=20261003200533"></script>
-<script src="sorami-moon.js?v=20261003200533"></script>
+<script src="sorami-astro.js?v=20261003202305"></script>
+<script src="sorami-exif.js?v=20261003202305"></script>
+<script src="sorami-capcloud.js?v=20261003202305"></script>
+<script src="sorami-terrain.js?v=20261003202305"></script>
+<script src="sorami-mountain.js?v=20261003202305"></script>
+<script src="sorami-fuji.js?v=20261003202305"></script>
+<script src="sorami-sky.js?v=20261003202305"></script>
+<script src="sorami-routes.js?v=20261003202305"></script>
+<script src="sorami-iss.js?v=20261003202305"></script>
+<script src="sorami-plane.js?v=20261003202305"></script>
+<script src="sorami-align.js?v=20261003202305"></script>
+<script src="sorami-moon.js?v=20261003202305"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -8543,6 +8545,7 @@ function redrawIfToolsChanged() {
   if (key !== toolsDrawnKey) { toolsDrawnKey = key; startFujiAlign(); redrawDayDetail(); }
 }
 function renderAuthButton() {
+  if (atAdmin && auth !== adminRenderAuth) renderAdmin();
   renderTools();
   redrawIfToolsChanged();
   // 写真はアカウントのもの。ログインが変わったら出し直す
@@ -9133,6 +9136,7 @@ $("logout").onclick = () => {
 // すると管理者がなりすませてしまい、本人の操作と区別が付かなくなる。
 // 困っている人には回復コードを渡し、本人が自分で決め直す。
 const adminFail = (msg) => { $("adminErr").textContent = msg; $("adminErr").hidden = false; };
+let adminRenderSeq = 0, adminRenderAuth = null;
 let adminCodes = [];
 const showAdminCodes = (who, codes) => {
   adminCodes = codes; adminCodesFor = who;
@@ -9230,6 +9234,9 @@ function authWays(u) {
 // 画面の切り替えは URL のハッシュだけで決まるので、消さないと未ログインでも
 // `#/admin` を開いた人に見えてしまう（調査 E-2）。
 function clearAdminView() {
+  adminRenderSeq++;
+  $("adminBody").hidden = true;
+  adminFail(auth ? "権限がありません" : "ログインしてください");
   adminCodes = []; adminCodesFor = "";
   $("adminCodes").hidden = true;
   for (const id of ["adminCodesHead", "adminCodesList", "adminUsers", "adminAllowed",
@@ -9265,6 +9272,9 @@ function toolPicker(u, me) {
 }
 
 async function renderAdmin() {
+  const seq = ++adminRenderSeq, adminAuth = auth;
+  adminRenderAuth = auth;
+  const active = () => seq === adminRenderSeq && auth === adminAuth && auth?.role === "admin";
   // **URLだけで中身を出さない。** 管理者と確認できたときだけ描く。
   // 権限はサーバーが判定するが、画面に前の内容を残さないのは画面側の責任。
   if (!auth || auth.role !== "admin") {
@@ -9273,8 +9283,10 @@ async function renderAdmin() {
     return;
   }
   $("adminErr").hidden = true;
+  $("adminBody").hidden = true;
   try {
     const me = await apiCall("GET", "/admin/users");
+    if (!active()) return;
     const day = (t) => (t ? new Date(t).toLocaleDateString("ja-JP") : "—");
     $("adminUserCount").textContent = `${me.users.length}人`;
     $("adminUsers").innerHTML = me.users.map((u) => {
@@ -9308,6 +9320,7 @@ async function renderAdmin() {
       : `<p class="tiny">誰も登録できません。</p>`;
 
     const st = await apiCall("GET", "/admin/settings");
+    if (!active()) return;
     $("signupMode").innerHTML = st.openSignup
       ? `<span class="warn">いまは<strong>誰でも</strong>好きなIDで登録できます。</span>`
       : `いまは<strong>許可したIDだけ</strong>登録できます。`;
@@ -9323,6 +9336,7 @@ async function renderAdmin() {
     };
 
     const log = await apiCall("GET", "/admin/log");
+    if (!active()) return;
     const LABEL = { add_passkey: "パスキーを登録", delete_passkey: "パスキーを削除",
       enable_password: "パスワードを有効化", disable_password: "パスワードを無効化",
       issue_recovery: "回復コードを発行", allow_signup: "登録を許可", disallow_signup: "許可を取り消し",
@@ -9387,7 +9401,11 @@ async function renderAdmin() {
       try { await apiCall("POST", "/admin/disallow", { loginId: el.dataset.disallow }); renderAdmin(); }
       catch (e) { adminFail(e.message); }
     };
-  } catch (e) { adminFail(e.message); }
+    if (active()) $("adminBody").hidden = false;
+  } catch (e) {
+    if (!active()) return;
+    clearAdminView(); adminFail(e.message);
+  }
 }
 $("allowAdd").onclick = async () => {
   $("adminErr").hidden = true;
