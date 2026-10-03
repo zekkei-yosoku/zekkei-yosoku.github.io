@@ -1694,22 +1694,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261003212720"></script>
+<script src="sorami-core.js?v=20261003225239"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261003212720"></script>
-<script src="sorami-exif.js?v=20261003212720"></script>
-<script src="sorami-capcloud.js?v=20261003212720"></script>
-<script src="sorami-terrain.js?v=20261003212720"></script>
-<script src="sorami-mountain.js?v=20261003212720"></script>
-<script src="sorami-fuji.js?v=20261003212720"></script>
-<script src="sorami-sky.js?v=20261003212720"></script>
-<script src="sorami-routes.js?v=20261003212720"></script>
-<script src="sorami-iss.js?v=20261003212720"></script>
-<script src="sorami-plane.js?v=20261003212720"></script>
-<script src="sorami-bodies.js?v=20261003212720"></script>
-<script src="sorami-align.js?v=20261003212720"></script>
-<script src="sorami-moon.js?v=20261003212720"></script>
+<script src="sorami-astro.js?v=20261003225239"></script>
+<script src="sorami-exif.js?v=20261003225239"></script>
+<script src="sorami-capcloud.js?v=20261003225239"></script>
+<script src="sorami-terrain.js?v=20261003225239"></script>
+<script src="sorami-mountain.js?v=20261003225239"></script>
+<script src="sorami-fuji.js?v=20261003225239"></script>
+<script src="sorami-sky.js?v=20261003225239"></script>
+<script src="sorami-routes.js?v=20261003225239"></script>
+<script src="sorami-iss.js?v=20261003225239"></script>
+<script src="sorami-plane.js?v=20261003225239"></script>
+<script src="sorami-bodies.js?v=20261003225239"></script>
+<script src="sorami-align.js?v=20261003225239"></script>
+<script src="sorami-moon.js?v=20261003225239"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7150,7 +7150,7 @@ const aimRidgeCache = new Map();
 async function aimLookRidge(obs, eye, target, win) {
   const D = SoramiTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);
   // 構図は左右へ画面幅1枚分動く。中央の3画面分と余白を取得し、端でも稜線を切らない。
-  const edgeAz = SoramiAlign.viewUnprojector(win.az0, win.alt0)(win.halfW * 3.45, 0)[0];
+  const edgeAz = SoramiAlign.viewUnprojector(win.az0, win.alt0)(win.halfW * (2 * (win.panLimit || 1) + 1.45), 0)[0];
   const spanAz = Math.abs(((edgeAz - win.az0 + 540) % 360) - 180);
   const cols = 144, n = 60, s = Math.max(1.5, Math.min(12, D * 0.15));
   const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude, spanAz].map((v) => v.toFixed(4)).join(",");
@@ -7288,18 +7288,39 @@ async function aimLookRender(host, spec) {
   host.querySelector("[data-lens-info]").textContent = `${aimLens.mode === "auto" ? "見やすい表示：約" : ""}${(Math.round(focal * 10) / 10)}mm${frame ? ` ・ 画角 ${frame.horizontalDeg.toFixed(1)}° × ${frame.verticalDeg.toFixed(1)}°` : "（画角枠なし）"}（歪曲なしの目安）`;
   const proj = SoramiAlign.viewProjector(win.az0, win.alt0);
   const selectedAt = sameLookSpec && Number.isFinite(host._lookAt) ? host._lookAt : spec.at;
-  const path = SoramiAlign.viewPath(body, eyeObs, spec.at, proj, win, { includeAt: selectedAt });
+  const path = SoramiAlign.viewPath(body, eyeObs, spec.at, proj, win, { includeAt: selectedAt, dayMs: S.JstCal.startOfDay(spec.at) });
   const frameDay = S.JstCal.startOfDay(spec.at);
   const framePoints = frame ? SoramiAlign.frameDayPath(body, eyeObs, frameDay, proj) : null;
   let frameTimesKey = null;
   const i0 = path.reduce((best, p, i) => Math.abs(p.at - selectedAt) < Math.abs(path[best].at - selectedAt) ? i : best, 0);
   const k = (H / 2) / win.halfH;
   const toPx = (xy) => (xy ? [W / 2 + xy[0] * k, H / 2 - xy[1] * k] : null);
+  const scene = SoramiAlign.sceneTargets(spec.obs, [t, ...aimTargetList()], { eyeM: spec.eyeM });
+  const sceneCenters = scene.map(item => proj(item.azimuth, item.topAngle)).filter(p => p && Math.abs(p[0]) < 330);
+  const panLimit = Math.max(1, ...sceneCenters.map(p => Math.abs(p[0]) / (2 * win.halfW) + .5));
   let shape = null, ridgePending = null;
   if (outline) shape = outline.points.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
   else {
     // 稜線を待つ間も新しい目標の図を先に描く。前の建物や時刻を残さない。
-    ridgePending = aimLookRidge(spec.obs, eye, t, win);
+    ridgePending = aimLookRidge(spec.obs, eye, t, { ...win, panLimit });
+  }
+  for (const item of scene) {
+    if (item.target.id === t.id) continue;
+    if (item.outline) item.shape = item.outline.points.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
+    else {
+      const center = proj(item.azimuth, item.topAngle);
+      // 背面の山は描かない。地形取得は山自身の方位・距離で行う。
+      if (!center) continue;
+      const rw = { ...win, az0: item.azimuth, panLimit };
+      aimLookRidge(spec.obs, eye, item.target, rw).then(ridge => {
+        if (seq !== host._lookSeq) return;
+        item.shape = ridge ? ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean) : null;
+        item.failed = !ridge;
+        const missing = scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`);
+        note.textContent = [note.dataset.primary || "", ...missing].filter(Boolean).join(" / "); note.hidden = !note.textContent;
+        draw(cur);
+      });
+    }
   }
   const part = SoramiAlign.partOf(t, aim.partId);
   const top = (t.parts || [])[0];
@@ -7323,6 +7344,7 @@ async function aimLookRender(host, spec) {
   // 図の下の説明（形の出どころ・大気の屈折・縮尺）は出さない（2026-10-03 ユーザー「この説明文いらないわ」「いらない説明文結構ない？」）。
   // 出すのは稜線を読めなかったときだけ
   note.textContent = ridgePending ? "稜線を読み込んでいます…" : "";
+  note.dataset.primary = note.textContent;
   note.hidden = !note.textContent;
   range.max = String(path.length - 1);
   // つまみは刻みなしで動かし、道の点（20秒ごと）のあいだは位置と時刻を割り振って埋める
@@ -7379,39 +7401,54 @@ async function aimLookRender(host, spec) {
     for (const [x, y] of ticks) { ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI * 2); ctx.fill(); }
     ctx.globalAlpha = 1;
     const rPx = Math.max(1.5, p.radius * k);
-    const c = toPx([p.x, p.y]);
+    const c = p.x === null ? null : toPx([p.x, p.y]);
     // 円盤は形の後ろ（形で隠れる）。隠れた所も点線の輪で分かるようにする
     if (c) aimLookDisc(ctx, c[0], c[1], rPx, body, p);
     // 形は空より暗く塗り、暗い空では縁を明るい線でなぞる（ユーザー「シルエットが背景と色が被って見えづらくなってる」。夜空と同じ紺だった）
     ctx.fillStyle = bright ? "rgba(16,20,30,0.94)" : "#020306";
     const rim = bright ? null : "rgba(200,212,240,0.7)";
-    if (shape && shape.length > 1) {
-      const outlinePath = () => {
-        ctx.beginPath();
-        if (mountain) {
-          ctx.moveTo(shape[0][0], H + Math.abs(panY) + 2);
-          for (const [x, y] of shape) ctx.lineTo(x, y);
-          ctx.lineTo(shape[shape.length - 1][0], H + Math.abs(panY) + 2);
-        } else {
-          ctx.moveTo(shape[0][0], shape[0][1]);
-          for (const [x, y] of shape) ctx.lineTo(x, y);
-        }
-        ctx.closePath();
-      };
-      outlinePath(); ctx.fill();
-    }
-    // 地面の帯。城のように木に隠れて形が分からない所がある目標は、その高さ（木の線）から下を地面として塗る
-    // （2026-10-02 ユーザー「このグレーの下の部分って表示しなくて良いと思う」。薄く描いた推定の形を外した）
     const groundY = hiddenY !== null ? Math.min(hiddenY, baseY) : baseY;
-    if (!mountain) ctx.fillRect(-Math.abs(panX), groundY, W + 2 * Math.abs(panX), H - groundY + Math.abs(panY) + 2);
-    if (rim && shape && shape.length > 1) {
-      ctx.save();
-      ctx.strokeStyle = rim; ctx.lineWidth = 1.2; ctx.lineJoin = "round";
-      const rimPath = () => { ctx.beginPath(); ctx.moveTo(shape[0][0], shape[0][1]); for (const [x, y] of shape) ctx.lineTo(x, y); };
-      // 地面の帯より下の縁は描かない
-      ctx.save(); ctx.beginPath(); ctx.rect(-panX, -panY, W, mountain ? H : Math.max(0, groundY + panY)); ctx.clip(); rimPath(); ctx.stroke(); ctx.restore();
-      if (!mountain) { ctx.beginPath(); ctx.moveTo(-panX, groundY); ctx.lineTo(W - panX, groundY); ctx.stroke(); }
-      ctx.restore();
+    const visibleTargets = [];
+    for (const item of scene) {
+      const selected = item.target.id === t.id, points = selected ? shape : item.shape;
+      if (!points || points.length < 2) continue;
+      const isMountain = !item.outline;
+      const minX = Math.min(...points.map(p => p[0])) + panX, maxX = Math.max(...points.map(p => p[0])) + panX;
+      if (!selected && (maxX < 0 || minX > W)) continue;
+      ctx.fillStyle = bright ? "rgba(16,20,30,0.94)" : "#020306";
+      ctx.beginPath();
+      if (isMountain) ctx.moveTo(points[0][0], H + Math.abs(panY) + 2);
+      else ctx.moveTo(points[0][0], points[0][1]);
+      for (const [x, y] of points) ctx.lineTo(x, y);
+      if (isMountain) ctx.lineTo(points[points.length - 1][0], H + Math.abs(panY) + 2);
+      ctx.closePath(); ctx.fill();
+      if (rim) {
+        ctx.strokeStyle = rim; ctx.lineWidth = selected ? 1.2 : 1; ctx.lineJoin = "round";
+        ctx.beginPath(); ctx.moveTo(points[0][0], points[0][1]);
+        for (const [x, y] of points) ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+      if (selected && !mountain) {
+        ctx.fillStyle = bright ? "rgba(16,20,30,0.94)" : "#020306";
+        ctx.fillRect(-Math.abs(panX), groundY, W + 2 * Math.abs(panX), H - groundY + Math.abs(panY) + 2);
+        if (rim) { ctx.strokeStyle = rim; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-panX, groundY); ctx.lineTo(W - panX, groundY); ctx.stroke(); }
+      }
+      const anchor = toPx(proj(item.azimuth, item.topAngle));
+      if (anchor && !(item.distanceKm > D && !mountain && anchor[1] >= groundY) && anchor[0] + panX >= 0 && anchor[0] + panX <= W && anchor[1] + panY >= 0 && anchor[1] + panY <= H)
+        visibleTargets.push({ item, anchor });
+    }
+    // 名称は画面内の目標だけ。重なる名前は段をずらし、枠外の名前を端へ貼り付けない。
+    ctx.font = "600 11px system-ui, sans-serif";
+    const labels = [];
+    for (const { item, anchor } of visibleTargets) {
+      const width = ctx.measureText(item.target.name).width;
+      const x = Math.max(5 - panX, Math.min(W - width - 5 - panX, anchor[0] - width / 2));
+      let y = anchor[1] - 12;
+      while (labels.some(b => x < b.x + b.w + 4 && x + width + 4 > b.x && Math.abs(y - b.y) < 14)) y -= 14;
+      if (y + panY < 12 || y + panY > H - 12) continue;
+      ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.strokeStyle = bright ? "rgba(255,255,255,.85)" : "#000"; ctx.lineWidth = 3;
+      ctx.strokeText(item.target.name, x, y); ctx.fillStyle = ink; ctx.fillText(item.target.name, x, y);
+      labels.push({ x, y, w: width });
     }
     // 形に隠れた所も分かるように、円盤の輪を明るい点線で（暗い形の上でも見える色）
     if (c) {
@@ -7464,7 +7501,7 @@ async function aimLookRender(host, spec) {
     outside.textContent = outside.hidden ? "" : `${SoramiBodies.definition(body).name}は図の外です。時刻を動かすと通り方を確認できます`;
     cur = v;
     out.innerHTML = `${aimLookHMS(p.at)}<span class="sub-line">${esc(aimLookRel(p.at - spec.at, spec.atName))}</span>`;
-    cv.setAttribute("aria-label", `${spec.title || "ここから"}見た${t.name}と${SoramiBodies.definition(body).name}の動き。`
+    cv.setAttribute("aria-label", `${spec.title || "ここから"}見た${visibleTargets.map(x => x.item.target.name).join("、") || t.name}と${SoramiBodies.definition(body).name}の動き。`
       + `${aimLookHMS(spec.at)}に${spec.atName || "重なる"}。いまの図は${aimLookHMS(p.at)}`);
   };
   let cur = i0;
@@ -7513,7 +7550,7 @@ async function aimLookRender(host, spec) {
       const nextSnap = canSnap && Math.abs((dy - snapY) * H) <= (groundSnapped ? 18 : 9);
       if (nextSnap && !groundSnapped) { try { navigator.vibrate?.(12); } catch {} }
       groundSnapped = nextSnap;
-      host._lensOffset = [Math.max(-1, Math.min(1, dx)), Math.max(-1, Math.min(1, nextSnap ? snapY : dy))]; draw(cur);
+      host._lensOffset = [Math.max(-panLimit, Math.min(panLimit, dx)), Math.max(-1, Math.min(1, nextSnap ? snapY : dy))]; draw(cur);
     };
     const point = ev => [ev.clientX, ev.clientY];
     const beginGesture = () => {
@@ -7551,7 +7588,7 @@ async function aimLookRender(host, spec) {
           const ratio = start.halfH / nextHalfH, rect = cv.getBoundingClientRect();
           const midX = ((a[0] + b[0]) / 2 - rect.left - W / 2) / W;
           const midY = ((a[1] + b[1]) / 2 - rect.top - H / 2) / H;
-          host._lensOffset = [Math.max(-1, Math.min(1, ratio * start.off[0] + midX - ratio * start.x)), Math.max(-1, Math.min(1, ratio * start.off[1] + midY - ratio * start.y))];
+          host._lensOffset = [Math.max(-panLimit, Math.min(panLimit, ratio * start.off[0] + midX - ratio * start.x)), Math.max(-1, Math.min(1, ratio * start.off[1] + midY - ratio * start.y))];
           aimLens.focal = nextFocal; aimLens.mode = "manual"; aimLens.on = true;
           try { localStorage.setItem("sorami.lens", JSON.stringify(aimLens)); } catch {}
           aimLookRender(host, spec);
@@ -7570,7 +7607,7 @@ async function aimLookRender(host, spec) {
     };
     cv.onpointerup = cv.onpointercancel = cv.onlostpointercapture = endGesture;
     cv.onclick = null;
-    cv.onkeydown = (ev) => { const d = { ArrowLeft: [-.01, 0], ArrowRight: [.01, 0], ArrowUp: [0, -.01], ArrowDown: [0, .01] }[ev.key]; if (!d) return; ev.preventDefault(); const off = host._lensOffset || [0, 0]; groundSnapped = false; host._lensOffset = [Math.max(-1, Math.min(1, off[0] + d[0])), Math.max(-1, Math.min(1, off[1] + d[1]))]; draw(cur); };
+    cv.onkeydown = (ev) => { const d = { ArrowLeft: [-.01, 0], ArrowRight: [.01, 0], ArrowUp: [0, -.01], ArrowDown: [0, .01] }[ev.key]; if (!d) return; ev.preventDefault(); const off = host._lensOffset || [0, 0]; groundSnapped = false; host._lensOffset = [Math.max(-panLimit, Math.min(panLimit, off[0] + d[0])), Math.max(-1, Math.min(1, off[1] + d[1]))]; draw(cur); };
   } else {
     if (host._lensGesture?.raf) cancelAnimationFrame(host._lensGesture.raf);
     host._lensGesture = null; cv.onlostpointercapture = null;
@@ -7581,6 +7618,8 @@ async function aimLookRender(host, spec) {
     if (seq !== host._lookSeq) return;
     if (ridge) shape = ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
     note.textContent = shape ? "" : "稜線を読み込めませんでした";
+    note.dataset.primary = note.textContent;
+    note.textContent = [note.dataset.primary, ...scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`)].filter(Boolean).join(" / ");
     note.hidden = !note.textContent;
     draw(cur);
   });

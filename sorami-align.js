@@ -1418,8 +1418,9 @@
    * 図の範囲を通る太陽・月の道。重なる時刻 `at` から前後へ、範囲の外へ出るまで stepS 秒ごと（最大 maxMin 分）。
    * 重なる時刻の点を必ず含める（細い塔で、刻みが瞬間を飛び越えないように）
    */
-  function viewPath(body, observer, at, proj, win, { stepS = 20, maxMin = 240, includeAt = at } = {}) {
-    if (!Number.isFinite(includeAt) || Math.abs(includeAt - at) > maxMin * 60000) includeAt = at;
+  function viewPath(body, observer, at, proj, win, { stepS = 20, maxMin = 240, includeAt = at, dayMs = null } = {}) {
+    if (!(stepS > 0) || !Number.isFinite(stepS)) throw new RangeError("stepS must be positive");
+    if (!Number.isFinite(includeAt) || (!Number.isFinite(dayMs) && Math.abs(includeAt - at) > maxMin * 60000)) includeAt = at;
     const stateAt = (t) => bodyAt(body, t, observer);
     const inside = (p) => p && Math.abs(p[0]) <= win.halfW * 1.15 && Math.abs(p[1]) <= win.halfH * 1.15;
     const pt = (t) => {
@@ -1429,6 +1430,13 @@
         illuminated: body === "moon" ? st.illuminatedFraction : null,
         brightLimbZenithAngle: body === "moon" ? st.brightLimbZenithAngle : null, x: p ? p[0] : null, y: p ? p[1] : null };
     };
+    if (Number.isFinite(dayMs)) {
+      const out = [], end = dayMs + 86400000;
+      for (let ms = dayMs; ms < end; ms += stepS * 1000) out.push(pt(ms));
+      for (const ms of [at, includeAt]) if (ms >= dayMs && ms < end && !out.some(p => p.at === ms)) out.push(pt(ms));
+      out.push(pt(end - 1));
+      return out.sort((a, b) => a.at - b.at);
+    }
     const out = [pt(at)];
     for (const dir of [-1, 1]) {
       let wasIn = inside([out[0].x, out[0].y]);
@@ -1443,6 +1451,23 @@
     // 拡大で表示範囲から外れても、つまみで選んだ補間時刻を正確に保持する。
     if (!out.some(p => p.at === includeAt)) { out.push(pt(includeAt)); out.sort((a, b) => a.at - b.at); }
     return out;
+  }
+
+  // 同じ観測地点の目標を遠い順に並べる。選択中の目標以外も同じ投影を使う。
+  function sceneTargets(observer, targets, { eyeM = 1.5 } = {}) {
+    const seen = new Set(), out = [];
+    for (const target of targets) {
+      if (!target || seen.has(target.id) || !Number.isFinite(target.latitude) || !Number.isFinite(target.longitude)
+          || !target.parts?.length || !Number.isFinite(target.parts[0].m)) continue;
+      seen.add(target.id);
+      const distanceKm = TR.distanceKm(observer.latitude, observer.longitude, target.latitude, target.longitude);
+      if (!(distanceKm > 0.01)) continue;
+      const azimuth = TR.bearing(observer.latitude, observer.longitude, target.latitude, target.longitude);
+      const eye = (observer.elevation || 0) + eyeM;
+      out.push({ target, distanceKm, azimuth, topAngle: A.targetElevationAngle(distanceKm, eye, target.parts[0].m),
+        outline: target.rim ? null : towerOutline(observer, target, { eyeM }) });
+    }
+    return out.sort((a, b) => b.distanceKm - a.distanceKm);
   }
 
   /** 図の座標（度）→ 方位・高さ。viewProjector の逆 */
@@ -1522,7 +1547,7 @@
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, judge, buildingBlock,
-                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, TOWER_SHAPES, towerOutline, viewWindow, viewPath };
+                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, TOWER_SHAPES, towerOutline, viewWindow, viewPath, sceneTargets };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);
