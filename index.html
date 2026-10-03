@@ -1680,21 +1680,21 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261003152617"></script>
+<script src="sorami-core.js?v=20261003154528"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261003152617"></script>
-<script src="sorami-exif.js?v=20261003152617"></script>
-<script src="sorami-capcloud.js?v=20261003152617"></script>
-<script src="sorami-terrain.js?v=20261003152617"></script>
-<script src="sorami-mountain.js?v=20261003152617"></script>
-<script src="sorami-fuji.js?v=20261003152617"></script>
-<script src="sorami-sky.js?v=20261003152617"></script>
-<script src="sorami-routes.js?v=20261003152617"></script>
-<script src="sorami-iss.js?v=20261003152617"></script>
-<script src="sorami-plane.js?v=20261003152617"></script>
-<script src="sorami-align.js?v=20261003152617"></script>
-<script src="sorami-moon.js?v=20261003152617"></script>
+<script src="sorami-astro.js?v=20261003154528"></script>
+<script src="sorami-exif.js?v=20261003154528"></script>
+<script src="sorami-capcloud.js?v=20261003154528"></script>
+<script src="sorami-terrain.js?v=20261003154528"></script>
+<script src="sorami-mountain.js?v=20261003154528"></script>
+<script src="sorami-fuji.js?v=20261003154528"></script>
+<script src="sorami-sky.js?v=20261003154528"></script>
+<script src="sorami-routes.js?v=20261003154528"></script>
+<script src="sorami-iss.js?v=20261003154528"></script>
+<script src="sorami-plane.js?v=20261003154528"></script>
+<script src="sorami-align.js?v=20261003154528"></script>
+<script src="sorami-moon.js?v=20261003154528"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7101,8 +7101,10 @@ function aimLookDisc(ctx, x, y, r, body, p) {
 const aimRidgeCache = new Map();
 async function aimLookRidge(obs, eye, target, win) {
   const D = SoramiTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);
-  const spanAz = win.halfW / Math.cos(win.alt0 * Math.PI / 180) * 1.15;
-  const cols = 48, n = 60, s = Math.max(1.5, Math.min(12, D * 0.15));
+  // 構図は左右へ画面幅1枚分動く。中央の3画面分と余白を取得し、端でも稜線を切らない。
+  const edgeAz = SoramiAlign.viewUnprojector(win.az0, win.alt0)(win.halfW * 3.45, 0)[0];
+  const spanAz = Math.abs(((edgeAz - win.az0 + 540) % 360) - 180);
+  const cols = 144, n = 60, s = Math.max(1.5, Math.min(12, D * 0.15));
   const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude, spanAz].map((v) => v.toFixed(4)).join(",");
   if (aimRidgeCache.has(key)) return aimRidgeCache.get(key);
   const pts = [];
@@ -7168,7 +7170,7 @@ async function aimLookRender(host, spec) {
       <div class="aim-lens"><button type="button" class="chip" data-lens-on aria-pressed="false">画角枠</button>
         <label>焦点距離 <input type="number" min="8" max="2000" step="1" required data-lens-focal aria-label="レンズの実焦点距離（mm）"> mm</label><button type="button" class="chip" data-lens-apply>反映</button>
         <select data-lens-sensor aria-label="センサーサイズ"><option value="full">フルサイズ</option><option value="aps">APS-C</option><option value="canon">APS-C（Canon）</option><option value="m43">マイクロフォーサーズ</option></select>
-        <button type="button" class="chip" data-lens-portrait aria-pressed="false">縦位置</button><button type="button" class="chip" data-lens-auto>見やすい表示</button><button type="button" class="chip" data-lens-move aria-pressed="false">枠を動かす</button><button type="button" class="chip" data-lens-center>枠を中央へ</button></div>
+        <button type="button" class="chip" data-lens-portrait aria-pressed="false">縦位置</button><button type="button" class="chip" data-lens-auto>見やすい表示</button><button type="button" class="chip" data-lens-move aria-pressed="false">構図を動かす</button><button type="button" class="chip" data-lens-center>構図を戻す</button></div>
       <div class="tiny" data-lens-info></div><p class="tiny" data-look-outside hidden></p>
       <div class="aim-look-time"><input type="range" min="0" max="0" step="any" value="0" data-look-range aria-label="時刻を動かす">
         <output data-look-at></output></div>
@@ -7292,6 +7294,8 @@ async function aimLookRender(host, spec) {
     const g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, `rgb(${skyTop})`); g.addColorStop(1, `rgb(${skyLow})`);
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const pan = host._lensOffset || [0, 0], panX = pan[0] * W, panY = pan[1] * H;
+    ctx.save(); ctx.translate(panX, panY);
     // 道と時刻の目盛り
     ctx.strokeStyle = ink; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.5; ctx.setLineDash([]);
     ctx.beginPath();
@@ -7317,9 +7321,9 @@ async function aimLookRender(host, spec) {
       const outlinePath = () => {
         ctx.beginPath();
         if (mountain) {
-          ctx.moveTo(shape[0][0], H + 2);
+          ctx.moveTo(shape[0][0], H + Math.abs(panY) + 2);
           for (const [x, y] of shape) ctx.lineTo(x, y);
-          ctx.lineTo(shape[shape.length - 1][0], H + 2);
+          ctx.lineTo(shape[shape.length - 1][0], H + Math.abs(panY) + 2);
         } else {
           ctx.moveTo(shape[0][0], shape[0][1]);
           for (const [x, y] of shape) ctx.lineTo(x, y);
@@ -7331,14 +7335,14 @@ async function aimLookRender(host, spec) {
     // 地面の帯。城のように木に隠れて形が分からない所がある目標は、その高さ（木の線）から下を地面として塗る
     // （2026-10-02 ユーザー「このグレーの下の部分って表示しなくて良いと思う」。薄く描いた推定の形を外した）
     const groundY = hiddenY !== null ? Math.min(hiddenY, baseY) : baseY;
-    if (!mountain) ctx.fillRect(0, groundY, W, H - groundY + 2);
+    if (!mountain) ctx.fillRect(-Math.abs(panX), groundY, W + 2 * Math.abs(panX), H - groundY + Math.abs(panY) + 2);
     if (rim && shape && shape.length > 1) {
       ctx.save();
       ctx.strokeStyle = rim; ctx.lineWidth = 1.2; ctx.lineJoin = "round";
       const rimPath = () => { ctx.beginPath(); ctx.moveTo(shape[0][0], shape[0][1]); for (const [x, y] of shape) ctx.lineTo(x, y); };
       // 地面の帯より下の縁は描かない
-      ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, mountain ? H : groundY); ctx.clip(); rimPath(); ctx.stroke(); ctx.restore();
-      if (!mountain) { ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(W, groundY); ctx.stroke(); }
+      ctx.save(); ctx.beginPath(); ctx.rect(-panX, -panY, W, mountain ? H : Math.max(0, groundY + panY)); ctx.clip(); rimPath(); ctx.stroke(); ctx.restore();
+      if (!mountain) { ctx.beginPath(); ctx.moveTo(-panX, groundY); ctx.lineTo(W - panX, groundY); ctx.stroke(); }
       ctx.restore();
     }
     // 形に隠れた所も分かるように、円盤の輪を明るい点線で（暗い形の上でも見える色）
@@ -7350,6 +7354,9 @@ async function aimLookRender(host, spec) {
     // 字は空にも形にも重なるので、縁取りして読めるようにする
     const halo = bright ? "rgba(255,255,255,0.75)" : "rgba(0,0,0,0.6)";
     const text = (str, x, y, align) => {
+      const width = ctx.measureText(str).width;
+      x = align === "right" ? Math.max(width + 6 - panX, Math.min(W - 6 - panX, x)) : Math.max(6 - panX, Math.min(W - width - 6 - panX, x));
+      y = Math.max(10 - panY, Math.min(H - 10 - panY, y));
       ctx.textAlign = align; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
       ctx.strokeStyle = halo; ctx.lineWidth = 3; ctx.strokeText(str, x, y);
       ctx.fillStyle = ink; ctx.fillText(str, x, y);
@@ -7357,7 +7364,7 @@ async function aimLookRender(host, spec) {
     // 時刻は図の下のoutputだけに表示し、画面外の天体で文字が見切れるのを防ぐ。
     const right = c ? c[0] > W / 2 : true;
     // 展望台などに重ねるときは、その高さに印。名前は時刻の字と反対の側に
-    if (partY !== null && partY >= 10 && partY <= H - 10 && shape) {
+    if (partY !== null && partY + panY >= 10 && partY + panY <= H - 10 && shape) {
       const near = shape.filter(([, y]) => Math.abs(y - partY) < 6);
       const half = near.length ? Math.max(...near.map(([x]) => Math.abs(x - W / 2))) : 8;
       ctx.strokeStyle = ink; ctx.lineWidth = 1.2; ctx.setLineDash([2, 2]);
@@ -7367,6 +7374,7 @@ async function aimLookRender(host, spec) {
       if (right && W / 2 - half - 10 > room) text(part.name, W / 2 - half - 10, partY, "right");
       else text(part.name, Math.min(W - room, W / 2 + half + 10), partY, "left");
     }
+    ctx.restore(); // ここからの円盤操作・画角枠は画面の座標。枠は中央固定。
     // 逆引きで置いた円盤（いま描いている場所からの見え方ではなく、置きたい位置）
     const ghost = host._pick && host._pick.ghost;
     if (ghost) {
@@ -7379,14 +7387,12 @@ async function aimLookRender(host, spec) {
     if (frame) {
       const fw = frame.halfW * 2 * k, fh = frame.halfH * 2 * k;
       ctx.setLineDash([]); ctx.strokeStyle = "#000"; ctx.lineWidth = 4;
-      const off = host._lensOffset || [0, 0];
-      const fx = Math.max(2, Math.min(W - fw - 2, (W - fw) / 2 + off[0] * W));
-      const fy = Math.max(2, Math.min(H - fh - 2, (H - fh) / 2 + off[1] * H));
+      const fx = (W - fw) / 2, fy = (H - fh) / 2;
       ctx.strokeRect(fx, fy, fw, fh);
       ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(fx, fy, fw, fh);
     }
     const outside = host.querySelector("[data-look-outside]");
-    outside.hidden = !!c && c[0] >= 0 && c[0] <= W && c[1] >= 0 && c[1] <= H;
+    outside.hidden = !!c && c[0] + panX >= 0 && c[0] + panX <= W && c[1] + panY >= 0 && c[1] + panY <= H;
     outside.textContent = outside.hidden ? "" : `${body === "moon" ? "月" : "太陽"}は図の外です。時刻を動かすと通り方を確認できます`;
     cur = v;
     out.innerHTML = `${aimLookHMS(p.at)}<span class="sub-line">${esc(aimLookRel(p.at - spec.at, spec.atName))}</span>`;
@@ -7405,7 +7411,7 @@ async function aimLookRender(host, spec) {
   // 道をさわって時刻を選ぶ（いちばん近い点。36px より遠ければ何もしない）。
   // pointerdown では iPhone の指のタップで動かなかった（2026-10-02 シミュレーターで確認。マウスでは動く）ので click で受ける
   cv.onclick = (ev) => {
-    const b = cv.getBoundingClientRect(), x = ev.clientX - b.left, y = ev.clientY - b.top;
+    const b = cv.getBoundingClientRect(), off = host._lensOffset || [0, 0], x = ev.clientX - b.left - off[0] * W, y = ev.clientY - b.top - off[1] * H;
     let best = -1, bd = 36;
     path.forEach((q, i) => {
       const xy = q.x === null ? null : toPx([q.x, q.y]);
@@ -7415,7 +7421,7 @@ async function aimLookRender(host, spec) {
     });
     if (best >= 0) { range.value = String(best); draw(best); }
   };
-  aimLookPick(host, { spec, cv, draw: () => draw(cur), W, H, k, win, az, topAngle, D, path, toPx, pathTap: cv.onclick });
+  aimLookPick(host, { spec, cv, draw: () => draw(cur), W, H, k, win, az, topAngle, D, path, toPx: xy => { const p = toPx(xy), off = host._lensOffset || [0, 0]; return p ? [p[0] + off[0] * W, p[1] + off[1] * H] : null; }, pan: () => { const off = host._lensOffset || [0, 0]; return [off[0] * W, off[1] * H]; }, pathTap: cv.onclick });
   const move = host.querySelector("[data-lens-move]");
   const center = host.querySelector("[data-lens-center]");
   move.disabled = center.disabled = !frame;
@@ -7426,13 +7432,11 @@ async function aimLookRender(host, spec) {
   cv.tabIndex = host._lensMoving && frame ? 0 : -1;
   if (host._lensMoving && frame && !host._pick) {
     host.querySelector("[data-look-hint]").hidden = false;
-    host.querySelector("[data-look-hint]").textContent = "枠をドラッグして構図を調整。矢印キーでも動かせます";
+    host.querySelector("[data-look-hint]").textContent = "図をドラッグして構図を調整。枠は中央固定です。矢印キーでも動かせます";
     cv.style.touchAction = "none";
     let drag = null;
     const shift = (dx, dy) => {
-      const fw = frame.halfW * 2 * k, fh = frame.halfH * 2 * k;
-      const mx = Math.max(0, (W - fw) / (2 * W) - 2 / W), my = Math.max(0, (H - fh) / (2 * H) - 2 / H);
-      host._lensOffset = [Math.max(-mx, Math.min(mx, dx)), Math.max(-my, Math.min(my, dy))]; draw(cur);
+      host._lensOffset = [Math.max(-1, Math.min(1, dx)), Math.max(-1, Math.min(1, dy))]; draw(cur);
     };
     cv.onpointerdown = (ev) => { const off = host._lensOffset || [0, 0]; drag = [ev.clientX, ev.clientY, ...off]; try { cv.setPointerCapture(ev.pointerId); } catch {} };
     cv.onpointermove = (ev) => { if (drag) shift(drag[2] + (ev.clientX - drag[0]) / W, drag[3] + (ev.clientY - drag[1]) / H); };
@@ -7449,7 +7453,7 @@ async function aimLookRender(host, spec) {
  * 指を離したら、同じ日・目標まで同じ距離で、そう見える立つ点と時刻を解き（SoramiAlign.solveComposition）、その点から描き直す。
  * いつもの時刻のつまみ・道のタップとはぶつからない（逆引きの間だけ図で円盤を置く）
  */
-function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path, toPx, pathTap }) {
+function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path, toPx, pan = () => [0, 0], pathTap }) {
   const btn = host.querySelector("[data-look-pick]"), found = host.querySelector("[data-look-found]");
   const ok = host.querySelector("[data-look-confirm]"), hint = host.querySelector("[data-look-hint]");
   const on = !!host._pick;
@@ -7485,7 +7489,8 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
   const solve = async () => {
     if (!st.ghost) return;
     // 置いた位置を、目標の先端からのずれ（先端を真ん中にした図の上の度）に直す
-    const [px, py] = st.ghost;
+    const [screenX, screenY] = st.ghost, [panX, panY] = pan();
+    const px = screenX - panX, py = screenY - panY;
     const [pAz, pAlt] = SoramiAlign.viewUnprojector(win.az0, win.alt0)((px - W / 2) / k, (H / 2 - py) / k);
     const [dx, dy] = SoramiAlign.viewProjector(az, topAngle)(pAz, pAlt);
     // 時刻の手がかり: 置いた所にいちばん近い道の点
@@ -7493,7 +7498,7 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
     for (const q of path) {
       const xy = q.x === null ? null : toPx([q.x, q.y]);
       if (!xy) continue;
-      const d = Math.hypot(xy[0] - px, xy[1] - py);
+      const d = Math.hypot(xy[0] - screenX, xy[1] - screenY);
       if (d < bd) { bd = d; at0 = q.at; }
     }
     const seq = (st.seq = (st.seq || 0) + 1);

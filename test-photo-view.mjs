@@ -80,7 +80,7 @@ test("自動表示の相当焦点距離を反映しても図の縮尺が変わ�
   assert.ok(Math.abs(c.win.halfH/base.halfH-1)<.0002);assert.equal(c.win.alt0,base.alt0);
  }
 });
-test("枠の移動・中央復帰は時刻と天体逆引きを変えない",()=>{
+test("構図の移動・復帰は時刻と天体逆引きを変えない",()=>{
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf('  const move = host.querySelector("[data-lens-move]")'),b=html.indexOf('  draw(i0);',a);
  let draws=0,prevented=0,clears=0;const move={setAttribute:()=>{}},center={},hint={},host={_lensMoving:true,_pick:null,querySelector:q=>q.includes("hint")?hint:q.includes("center")?center:move};
  const cv={style:{},setPointerCapture:()=>{}},cur=43,W=316,H=284,k=10,frame={halfW:5,halfH:6};
@@ -88,4 +88,33 @@ test("枠の移動・中央復帰は時刻と天体逆引きを変えない",()=
  cv.onpointerdown({clientX:100,clientY:100,pointerId:1});cv.onpointermove({clientX:150,clientY:120});cv.onpointerup();
  assert.ok(host._lensOffset[0]>0);assert.ok(host._lensOffset[1]>0);assert.equal(c.cur,43);assert.equal(host._pick,null);
  cv.onkeydown({key:"ArrowLeft",preventDefault:()=>prevented++});assert.equal(prevented,1);center.onclick();assert.deepEqual(Array.from(host._lensOffset),[0,0]);assert.ok(draws>=3);host._pick={result:{}};move.onclick();assert.equal(host._pick,null);assert.equal(clears,1);
+});
+
+
+test("図を移動しても画角枠は中央、道のタップは移動分を引いて時刻を選ぶ",()=>{
+ const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf("  cv.onclick = (ev) => {",html.indexOf("async function aimLookRender")),b=html.indexOf("  aimLookPick(host",a);
+ const cv={getBoundingClientRect:()=>({left:10,top:20})},host={_lensOffset:[.2,.1]},range={};let drawn=-1;
+ const c=vm.createContext({cv,host,range,W:300,H:270,path:[{x:5,y:6},{x:10,y:20}],toPx:xy=>xy,Math,draw:i=>drawn=i});
+ vm.runInContext(html.slice(a,b),c);cv.onclick({clientX:10+60+10,clientY:20+27+20});assert.equal(drawn,1);assert.equal(range.value,"1");
+ const f=html.slice(html.indexOf("    if (frame) {",html.indexOf("const draw = (v)")),html.indexOf('    const outside = host.querySelector'));
+ assert.match(f,/const fx = \(W - fw\) \/ 2, fy = \(H - fh\) \/ 2/);assert.doesNotMatch(f,/_lensOffset/);
+ assert.match(html,/ctx\.save\(\); ctx\.translate\(panX, panY\)/);assert.match(html,/const px = screenX - panX, py = screenY - panY/);
+});
+
+
+test("最大の構図移動でも稜線が左右の画面端に届く",async()=>{
+ const html=readFileSync(new URL("./index.html",import.meta.url),"utf8");
+ const ridge=html.slice(html.indexOf("const aimRidgeCache"),html.indexOf("const AIM_SENSOR"));
+ const c=vm.createContext({SoramiTerrain:{distanceKm:()=>100,destination:(lat,lng,az,d)=>({latitude:lat,longitude:lng}),elevations:async pts=>pts.map(()=>1000)},SoramiAlign:{rimOutline:()=>null,viewUnprojector:AL.viewUnprojector},SoramiAstro:{targetElevationAngle:()=>2}});
+ vm.runInContext(ridge,c);
+ for(const halfW of [3,144]) {
+ const win={az0:180,alt0:2,halfW};
+ const pts=await c.aimLookRidge({latitude:35,longitude:139},10,{latitude:36,longitude:139,parts:[{m:3776}]},win);
+ for(const offset of [-1,1]) {
+  const pixels=pts.map(([az,alt])=>{const xy=AL.viewProjector(win.az0,win.alt0)(az,alt);assert.ok(xy);return (xy[0]/win.halfW+1)/2*300+offset*300;});
+  assert.ok(Math.min(...pixels)<0);assert.ok(Math.max(...pixels)>300);
+ }
+ assert.ok(pts.every(([,alt])=>Number.isFinite(alt)));
+ assert.ok(pts.at(-1)[0]-pts[0][0]<180);
+ }
 });
