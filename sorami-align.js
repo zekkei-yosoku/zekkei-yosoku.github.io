@@ -1320,6 +1320,84 @@
   }
 
 
+  /** 画角の時刻判定用。当日全体を採取し、表示の道が途中で切れていても判定できる。 */
+  function frameDayPath(body, observer, dayMs, proj, { stepS = 60 } = {}) {
+    if (!Number.isFinite(dayMs) || !Number.isFinite(stepS) || stepS < 1 || stepS > 60) throw new RangeError("日付と採取間隔（1〜60秒）を指定してください");
+    const out = [], end = dayMs + 86400000;
+    for (let at = dayMs; at <= end; at = Math.min(end, at + stepS * 1000)) {
+      const st = body === "moon" ? A.moon(at, observer) : A.sun(at, observer);
+      const xy = proj(st.azimuth, st.apparentAltitude);
+      out.push({ at, x: xy ? xy[0] : null, y: xy ? xy[1] : null, radius: st.angularRadius });
+      if (at === end) break;
+    }
+    return out;
+  }
+
+  /** 円盤の一部が矩形の画角に入る区間。採取点間は補間し、角をかすめる短い通過も拾う。 */
+  function framePassages(points, frame, { x = 0, y = 0 } = {}) {
+    if (!frame || !points || points.length < 2 || !Number.isFinite(frame.halfW) || !Number.isFinite(frame.halfH)
+      || frame.halfW <= 0 || frame.halfH <= 0 || !Number.isFinite(x) || !Number.isFinite(y)) return [];
+    const valid = p => Number.isFinite(p.at) && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.radius) && p.radius >= 0;
+    const norm = v => { const length = Math.hypot(...v); return v.map(c => c / length); };
+    const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const ray = (px, py) => norm([px * R, py * R, 1]);
+    const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([sx, sy]) => ray(sx * frame.halfW - x, sy * frame.halfH - y));
+    const edges = corners.map((a, i) => { const b = corners[(i + 1) % 4]; return { a, b, n: norm(cross(a, b)) }; });
+    // 正接投影の円盤は広角端で拡大・楕円化する。球面の矩形辺と円盤の角距離で接触を判定する。
+    const gap = p => {
+      if (Math.abs(p.x + x) <= frame.halfW && Math.abs(p.y + y) <= frame.halfH) return -p.radius;
+      const v = ray(p.x, p.y);
+      let closest = -1;
+      for (const { a, b, n } of edges) {
+        const h = dot3(v, n), q = v.map((c, i) => c - h * n[i]);
+        const onArc = dot3(cross(a, q), n) >= -1e-12 && dot3(cross(q, b), n) >= -1e-12;
+        closest = Math.max(closest, onArc ? Math.sqrt(Math.max(0, 1 - h * h)) : Math.max(dot3(v, a), dot3(v, b)));
+      }
+      return Math.acos(Math.max(-1, Math.min(1, closest))) / R - p.radius;
+    };
+    // 外側の候補を軽く捨てるための、安全側の投影半径上限。精密な判定自体は上の球面距離を使う。
+    const projectedRadius = (p, r) => {
+      const rho = Math.hypot(p.x, p.y) * R, t = Math.tan(r * R);
+      return rho * t >= 1 ? Infinity : t * (1 + rho * rho) / (1 - rho * t) / R;
+    };
+    const result = [];
+    const add = (start, end) => {
+      const last = result[result.length - 1];
+      if (last && start - last.end <= 1) last.end = end;
+      else result.push({ start, end });
+    };
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1], b = points[i];
+      if (!valid(a) || !valid(b) || b.at <= a.at) continue;
+      const radius = Math.max(a.radius, b.radius), r = Math.max(projectedRadius(a, radius), projectedRadius(b, radius));
+      if (Math.min(a.x, b.x) + x > frame.halfW + r || Math.max(a.x, b.x) + x < -frame.halfW - r
+        || Math.min(a.y, b.y) + y > frame.halfH + r || Math.max(a.y, b.y) + y < -frame.halfH - r) continue;
+      const mix = f => ({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, radius: a.radius + (b.radius - a.radius) * f });
+      const g = f => gap(mix(f));
+      let lo = 0, hi = 1;
+      // 一分以内の線分で最も近い所を探す。両端が外でも矩形の角を横切る場合を見逃さない。
+      for (let j = 0; j < 24; j++) {
+        const l = (lo * 2 + hi) / 3, h = (lo + hi * 2) / 3;
+        if (g(l) < g(h)) hi = h; else lo = l;
+      }
+      const mid = (lo + hi) / 2;
+      if (g(mid) > 1e-9 && g(0) > 0 && g(1) > 0) continue;
+      let enter = 0, exit = 1;
+      if (g(0) > 0) {
+        let l = 0, h = mid;
+        for (let j = 0; j < 24; j++) { const m = (l + h) / 2; if (g(m) > 0) l = m; else h = m; }
+        enter = h;
+      }
+      if (g(1) > 0) {
+        let l = mid, h = 1;
+        for (let j = 0; j < 24; j++) { const m = (l + h) / 2; if (g(m) > 0) h = m; else l = m; }
+        exit = l;
+      }
+      add(a.at + (b.at - a.at) * enter, a.at + (b.at - a.at) * exit);
+    }
+    return result.map(row => ({ ...row, openStart: row.start <= points[0].at + 1, openEnd: row.end >= points[points.length - 1].at - 1 }));
+  }
+
   /**
    * 図の範囲を通る太陽・月の道。重なる時刻 `at` から前後へ、範囲の外へ出るまで stepS 秒ごと（最大 maxMin 分）。
    * 重なる時刻の点を必ず含める（細い塔で、刻みが瞬間を飛び越えないように）
@@ -1425,7 +1503,7 @@
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, judge, buildingBlock,
-                        viewProjector, viewUnprojector, solveComposition, TOWER_SHAPES, towerOutline, viewWindow, viewPath };
+                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, TOWER_SHAPES, towerOutline, viewWindow, viewPath };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);

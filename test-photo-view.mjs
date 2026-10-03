@@ -84,10 +84,17 @@ test("構図の移動・復帰は時刻と天体逆引きを変えない",()=>{
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf('  const move = host.querySelector("[data-lens-move]")'),b=html.indexOf('  draw(i0);',a);
  let draws=0,prevented=0,clears=0;const move={setAttribute:()=>{}},center={},hint={},host={_lensMoving:true,_pick:null,querySelector:q=>q.includes("hint")?hint:q.includes("center")?center:move};
  const cv={style:{},setPointerCapture:()=>{}},cur=43,W=316,H=284,k=10,frame={halfW:5,halfH:6};
- const c=vm.createContext({host,cv,cur,W,H,k,frame,Math,draw:()=>draws++,aimLookRender:()=>{},aimReverseClear:()=>clears++,spec:{}});vm.runInContext(html.slice(a,b),c);
+ const c=vm.createContext({host,cv,cur,W,H,k,frame,hiddenY:null,baseY:220,mountain:false,navigator:{vibrate:()=>{}},Math,draw:()=>draws++,aimLookRender:()=>{},aimReverseClear:()=>clears++,spec:{}});vm.runInContext(html.slice(a,b),c);
  cv.onpointerdown({clientX:100,clientY:100,pointerId:1});cv.onpointermove({clientX:150,clientY:120});cv.onpointerup();
  assert.ok(host._lensOffset[0]>0);assert.ok(host._lensOffset[1]>0);assert.equal(c.cur,43);assert.equal(host._pick,null);
- cv.onkeydown({key:"ArrowLeft",preventDefault:()=>prevented++});assert.equal(prevented,1);center.onclick();assert.deepEqual(Array.from(host._lensOffset),[0,0]);assert.ok(draws>=3);host._pick={result:{}};move.onclick();assert.equal(host._pick,null);assert.equal(clears,1);
+ cv.onkeydown({key:"ArrowLeft",preventDefault:()=>prevented++});assert.equal(prevented,1);center.onclick();assert.deepEqual(Array.from(host._lensOffset),[0,0]);assert.ok(draws>=3);
+ // 下端202px、地面220px。吸着→近傍維持→離脱と横移動の独立性。
+ cv.onpointerdown({clientX:100,clientY:100,pointerId:1});
+ cv.onpointermove({clientX:130,clientY:86});assert.equal(host._lensOffset[1],-18/H);
+ cv.onpointermove({clientX:140,clientY:94});assert.equal(host._lensOffset[1],-18/H);
+ cv.onpointermove({clientX:150,clientY:105});assert.equal(host._lensOffset[1],5/H);
+ cv.onpointerup();assert.equal(host._lensOffset[0],50/W);
+ center.onclick();host._pick={result:{}};move.onclick();assert.equal(host._pick,null);assert.equal(clears,1);
 });
 
 
@@ -117,4 +124,33 @@ test("最大の構図移動でも稜線が左右の画面端に届く",async()=>
  assert.ok(pts.every(([,alt])=>Number.isFinite(alt)));
  assert.ok(pts.at(-1)[0]-pts[0][0]<180);
  }
+});
+
+
+test("画角への出入りは円盤の縁で判定し、構図移動で時刻が変わる",()=>{
+ const points=[{at:0,x:-3,y:0,radius:.5},{at:60000,x:3,y:0,radius:.5}],frame={halfW:1,halfH:1};
+ const r=AL.framePassages(points,frame);assert.equal(r.length,1);const R=Math.PI/180,edge=Math.tan(Math.atan(R)+.5*R)/R;assert.ok(Math.abs(r[0].start-60000*(3-edge)/6)<1);assert.ok(Math.abs(r[0].end-60000*(3+edge)/6)<1);
+ const moved=AL.framePassages(points,frame,{x:1,y:0});const left=Math.tan(Math.atan(-2*R)-.5*R)/R,right=Math.tan(.5*R)/R;assert.ok(Math.abs(moved[0].start-60000*(3+left)/6)<1);assert.ok(Math.abs(moved[0].end-60000*(3+right)/6)<1);
+ assert.equal(AL.framePassages(points,frame,{y:4}).length,0);assert.equal(AL.framePassages(points,null).length,0);
+});
+test("矩形の角をかすめる通過と日境界・投影外を区別する",()=>{
+ const frame={halfW:1,halfH:1};
+ const glancing=AL.framePassages([{at:0,x:-2,y:0,radius:.1},{at:60000,x:0,y:2,radius:.1}],frame);assert.equal(glancing.length,1);assert.ok(glancing[0].start>0&&glancing[0].end<60000);
+ const staying=AL.framePassages([{at:0,x:0,y:0,radius:.1},{at:60000,x:0,y:0,radius:.1}],frame);assert.ok(staying[0].openStart&&staying[0].openEnd);
+ assert.equal(AL.framePassages([{at:0,x:null,y:null,radius:.1},{at:60000,x:0,y:0,radius:.1}],frame).length,0);
+});
+test("当日の画角判定用の道は深夜から翌0時まで切らずに生成する",()=>{
+ const start=day("03"),points=AL.frameDayPath("moon",observer,start,AL.viewProjector(60,5));
+ assert.equal(points[0].at,start);assert.equal(points.at(-1).at,start+86400000);assert.equal(points.length,1441);assert.ok(points.every(p=>Number.isFinite(p.radius)));
+});
+
+
+test("広角の画面端は拡大する円盤の縁で入る時刻を判定する",()=>{
+ const R=Math.PI/180,edge=Math.tan(Math.atan(100*R)+.25*R)/R;
+ const spans=AL.framePassages([{at:0,x:102,y:0,radius:.25},{at:60000,x:98,y:0,radius:.25}],{halfW:100,halfH:10});
+ assert.equal(spans.length,1);assert.ok(Math.abs(spans[0].start-(102-edge)/4*60000)<1);assert.ok(spans[0].openEnd);
+});
+test("採取間隔の不正値は無限ループせず拒否する",()=>{
+ for(const stepS of [0,-1,NaN,Infinity,.01,61]) assert.throws(()=>AL.frameDayPath("moon",observer,day("03"),()=>[0,0],{stepS}),RangeError);
+ assert.throws(()=>AL.frameDayPath("moon",observer,NaN,()=>[0,0]),RangeError);
 });
