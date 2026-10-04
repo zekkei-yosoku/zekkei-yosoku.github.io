@@ -1058,6 +1058,13 @@
 #aimView .preview-body-native{display:none}#aimView .preview-body-open{flex:1;min-width:80px;min-height:44px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;font-size:16px}
 .preview-body-dialog{width:min(400px,calc(100vw - 24px))}.preview-body-group{padding:14px 0;border-bottom:1px solid var(--line)}.preview-body-group:first-child{padding-top:0}.preview-body-group:last-child{border:0}.preview-body-group h3{font-size:12px;font-weight:500;color:var(--secondary);margin:0 0 10px}.preview-body-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.preview-body-choice{min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--sunk);color:var(--text);font-size:16px;text-align:left}.preview-body-choice[aria-pressed=true]{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}.preview-body-choice[aria-pressed=true]:after{content:'✓';float:right}.preview-body-choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
+/* 天体と目標は同じ選択操作なので、同じ外観と占有幅に揃える。 */
+#aimView .aim-head #aimTitle{min-width:0;flex:1 1 0}
+#aimView #aimTargetPick{display:block;width:100%}
+#aimView .preview-body-open,#aimView #aimTargetPick .aim-pick{box-sizing:border-box;flex:1 1 0;min-width:0;width:100%;height:48px;min-height:48px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;font-size:16px;font-weight:400}
+#aimView .preview-body-open svg,#aimView #aimTargetPick .aim-pick svg{width:12px;height:12px;flex:none;color:var(--secondary)}
+#aimView [data-body-label],#aimView #aimTargetLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
 #aimView .aim-date #aimCalendarOpen{gap:0}
 
 #aimView #previewTimeScope{display:flex;width:max-content;max-width:100%;gap:0;padding:0;margin:2px 0 0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
@@ -1802,22 +1809,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004152500"></script>
+<script src="sorami-core.js?v=20261004171500"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004152500"></script>
-<script src="sorami-exif.js?v=20261004152500"></script>
-<script src="sorami-capcloud.js?v=20261004152500"></script>
-<script src="sorami-terrain.js?v=20261004152500"></script>
-<script src="sorami-mountain.js?v=20261004152500"></script>
-<script src="sorami-fuji.js?v=20261004152500"></script>
-<script src="sorami-sky.js?v=20261004152500"></script>
-<script src="sorami-routes.js?v=20261004152500"></script>
-<script src="sorami-iss.js?v=20261004152500"></script>
-<script src="sorami-plane.js?v=20261004152500"></script>
-<script src="sorami-bodies.js?v=20261004152500"></script>
-<script src="sorami-align.js?v=20261004152500"></script>
-<script src="sorami-moon.js?v=20261004152500"></script>
+<script src="sorami-astro.js?v=20261004171500"></script>
+<script src="sorami-exif.js?v=20261004171500"></script>
+<script src="sorami-capcloud.js?v=20261004171500"></script>
+<script src="sorami-terrain.js?v=20261004171500"></script>
+<script src="sorami-mountain.js?v=20261004171500"></script>
+<script src="sorami-fuji.js?v=20261004171500"></script>
+<script src="sorami-sky.js?v=20261004171500"></script>
+<script src="sorami-routes.js?v=20261004171500"></script>
+<script src="sorami-iss.js?v=20261004171500"></script>
+<script src="sorami-plane.js?v=20261004171500"></script>
+<script src="sorami-bodies.js?v=20261004171500"></script>
+<script src="sorami-align.js?v=20261004171500"></script>
+<script src="sorami-moon.js?v=20261004171500"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -9993,6 +10000,7 @@ checkForUpdate();
 (()=>{
  const source=document.getElementById('aimBody'),head=source.closest('.aim-head');
  const picker=document.createElement('button');picker.type='button';picker.id='previewBodyOpen';picker.className='preview-body-open';picker.setAttribute('aria-haspopup','dialog');picker.setAttribute('aria-controls','previewBodyDialog');
+ picker.innerHTML='<span data-body-label></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
  source.classList.add('preview-body-native');source.after(picker);
  const dialog=document.createElement('dialog');dialog.id='previewBodyDialog';dialog.className='sheet preview-body-dialog';dialog.setAttribute('aria-labelledby','previewBodyTitle');
  dialog.innerHTML='<div class="sheet-head"><strong id="previewBodyTitle">天体を選ぶ</strong><button type="button" data-body-close>閉じる</button></div><div class="sheet-body"></div>';
@@ -10005,7 +10013,7 @@ checkForUpdate();
   content.append(section);
  }
  document.body.append(dialog);
- const sync=()=>{const name=source.selectedOptions[0]?.textContent||'天体';if(picker.textContent!==`${name} ▾`)picker.textContent=`${name} ▾`;picker.setAttribute('aria-label',`天体：${name}、選択を開く`);for(const b of dialog.querySelectorAll('[data-body-value]'))b.setAttribute('aria-pressed',String(b.dataset.bodyValue===source.value));};
+ const sync=()=>{const name=source.selectedOptions[0]?.textContent||'天体';const label=picker.querySelector('[data-body-label]');if(label.textContent!==name)label.textContent=name;picker.setAttribute('aria-label',`天体：${name}、選択を開く`);for(const b of dialog.querySelectorAll('[data-body-value]'))b.setAttribute('aria-pressed',String(b.dataset.bodyValue===source.value));};
  picker.onclick=()=>{sync();showSheet(dialog);};dialog.querySelector('[data-body-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>picker.focus({preventScroll:true}));
  new MutationObserver(sync).observe(head,{childList:true,subtree:true});source.addEventListener('change',sync);sync();
 })();
