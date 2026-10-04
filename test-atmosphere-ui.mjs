@@ -8,3 +8,12 @@ test('3択は自動条件へ一意に対応し手入力はUIへ出さない',()=
  const src=html.slice(html.indexOf('<div id="aimAir"'),html.indexOf('</section><section id="previewPlaces"'));
  assert.equal((src.match(/<option value=/g)||[]).length,3);assert.ok(src.includes('<select id="aimAirMode"'));assert.ok(!src.includes('<input'));assert.ok(html.includes('if(!["auto","standard","none"].includes(aimAirSettings.mode))aimAirSettings.mode="auto"')); assert.ok(html.includes('host.querySelector(".aim-time-controls").append($("aimAir"))'));
 });
+
+test('大気差は選択モードと取得結果を区別して表示する',()=>{
+ const els={aimAirSummary:{textContent:''},aimAirStatus:{textContent:''}},settings={mode:'standard'};let air={temperatureC:10,pressureHPa:1010,source:'標準条件'};
+ const c=vm.createContext({aimAirSettings:settings,$:id=>els[id],SoramiAtmosphere:{at:()=>air},S:{JstCal:{hhmm:()=> '22:21'}}});vm.runInContext(grab('aimAirDescribe'),c);
+ c.aimAirDescribe(0,{});assert.equal(els.aimAirSummary.textContent,'標準値を使用');
+ settings.mode='auto';air={temperatureC:17.5,pressureHPa:1012,source:'気象予報'};c.aimAirDescribe(0,{});assert.equal(els.aimAirSummary.textContent,'17.5℃ / 1012hPa');
+ air={temperatureC:10,pressureHPa:1000,source:'標準大気',fallback:true};c.aimAirDescribe(0,{});assert.equal(els.aimAirSummary.textContent,'予報なし・標準値を使用');
+ settings.mode='none';air={none:true};c.aimAirDescribe(0,{});assert.equal(els.aimAirSummary.textContent,'補正なし');
+});
