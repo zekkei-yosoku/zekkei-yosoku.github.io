@@ -8379,7 +8379,7 @@ async function searchPlaces(q, {localOnly = false, near = place} = {}) {
     placeIndex().then((j) => SoramiTerrain.searchPlaceIndex(j, q, { near, limit: 8 })),
     searchSupplement(),
   ]);
-  const landmarkRows = SoramiAlign.TARGETS.filter(r => r.id !== "tinkerbell").map(r => ({
+  const landmarkRows = SoramiAlign.TARGETS.filter(r => r.id !== "tinkerbell" && r.id !== "fuji").map(r => ({
     ...r, aliases: r.id === "skytree" ? ["スカイツリー", "とうきょうスカイツリー"] : [],
     kind: r.id === "fuji" ? "山" : "施設", detail: r.id === "skytree" ? "東京都墨田区押上" : r.id === "tokyotower" ? "東京都港区芝公園" : "施設・目標", scope: "point", source: "landmark", decks: SoramiTerrain.decksFor(r.name),
   }));
