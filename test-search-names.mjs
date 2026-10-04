@@ -27,3 +27,5 @@ vm.runInContext(html.slice(html.indexOf('function wireSearchBox('),html.indexOf(
 const box=node('searchBox'),out=node('searchResults'),go=node('searchBoxGo');box.value='旧候補';box.events.input();go.onclick();await new Promise(setImmediate);box.value='';box.events.input();pending.shift().resolve([{name:'旧候補'}]);await new Promise(setImmediate);assert.equal(out.innerHTML,'');
 box.value='A候補';box.events.input();go.onclick();await new Promise(setImmediate);box.value='B候補';box.events.input();go.onclick();await new Promise(setImmediate);const pa=pending.shift(),pb=pending.shift();pb.resolve([{name:'B候補'}]);await new Promise(setImmediate);pa.resolve([{name:'A候補'}]);await new Promise(setImmediate);assert.equal(out.innerHTML,'B候補');dialog.events.close();assert.equal(out.innerHTML,'');
 console.log('CLEAR / OUT-OF-ORDER / CLOSE RACE OK');
+
+box.value='変換候補';box.events.input();const count=pending.length;box.events.keydown({key:'Enter',isComposing:true,keyCode:13});box.events.keydown({key:'Enter',isComposing:false,keyCode:229});await new Promise(setImmediate);assert.equal(pending.length,count);dialog.events.close();console.log('IME CONFIRM DOES NOT SEARCH OK');
