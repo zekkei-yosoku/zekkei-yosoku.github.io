@@ -545,7 +545,7 @@ ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れ�
   ok(/requestAnimationFrame\(\(\) => \{\s+AimMap\.open\(\.\.\.aimMapView\(\)\);/.test(html), "地図は aimMapView の中心で開く");
   ok(/if \(\(aim\.target\.parts \|\| \[\]\)\.length\) \{ aimRedrawLine\(\); aimRenderList\(\); \}\n  aimRenderFrom\(\);\n\}/.test(html),
     "目標の場所が無いときは、線と一覧を計算しない（「どこからも重なりません」と出さない）");
-  ok(/"重ねる目標の場所を選んでください";[\s\S]{0,300}\$\("aimCandBox"\)\.hidden = true;\s+\$\("aimListBox"\)\.hidden = true;\s+return;\s+\}\s+\$\("aimCandBox"\)\.hidden = false;/.test(html),
+  ok(/\$\("aimLineInfo"\)\.textContent = "";[\s\S]{0,400}\$\("aimCandBox"\)\.hidden = true;\s+\$\("aimListBox"\)\.hidden = true;\s+return;\s+\}\s+\$\("aimCandBox"\)\.hidden = false;/.test(html),
     "目標の場所が無いときは、候補地・定番スポットの見出しも出さない");
   {
     const mv = /function aimMapView\(\) \{[\s\S]*?\n\}/.exec(html)[0];

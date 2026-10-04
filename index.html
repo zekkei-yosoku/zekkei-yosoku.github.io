@@ -997,6 +997,8 @@
 #aimView .aim-head #aimTitle{font-size:16px;flex:1}
 #aimView .aim-body-select{flex:1;width:100px}
 #aimView .fav-l{margin-top:10px;margin-bottom:4px;font-size:12px}
+#aimView .aim-section-title{margin:20px 0 8px;font-size:clamp(15px,1.2vw,18px);font-weight:700;line-height:1.5;color:var(--text)}
+#aimView .aim-target-prompt{padding:12px 14px;margin:8px 0 10px;border-left:3px solid var(--accent);border-radius:8px;background:var(--card);color:var(--text);font-size:14px;line-height:1.6}
 #aimView .aim-place-card{background:var(--card);margin-bottom:6px;padding:0 4px 0 10px}
 #aimView .aim-place-card .place-pick{min-height:52px}
 #aimView #aimFromSub{font-size:11px}
@@ -1293,7 +1295,7 @@
     <div class="card">
       <!-- 2026-10-04：何を→どこから→どこにの順。観測標高は観測地点に、部位と縁は目標にまとめる。 -->
       <h2 class="preview-title">天体を重ねる</h2>
-      <p class="fav-l" id="aimWhatLabel">何を重ねるか</p>
+      <h3 class="fav-l aim-section-title" id="aimWhatLabel">何を重ねるか</h3>
       <div class="section-h aim-head">
         <select id="aimBody" class="aim-body-select" aria-label="天体">
           <optgroup label="太陽・月"><option value="sun">太陽</option><option value="moon">月</option></optgroup>
@@ -1311,7 +1313,7 @@
     <!-- 2026-10-01 ユーザー「どこから重ねるかの作りは絶景予測と同じレイアウトにしたら？別に新しいレイアウト作る必要ないよね」。
          地点カードと同じ形（📍 名前・住所・標高、🔍、☆）。押すと地点カードと同じ「地点」の画面（検索・現在地・地図で選ぶ・
          お気に入り）が開き、そこで選んだ場所がこの観測地点になる（placeSheetFor = "aim"）。アプリ全体の地点は変えない -->
-    <p class="fav-l" id="aimFromLabel">どこから重ねるか</p>
+    <h3 class="fav-l aim-section-title" id="aimFromLabel">どこから重ねるか</h3>
     <div class="place-row aim-place-card">
       <button class="place-pick" id="aimFromButton" aria-describedby="aimFromLabel">
         <span class="pin">📍</span>
@@ -1334,8 +1336,9 @@
     <p class="tiny muted" id="aimObserverHeightHint">標高＋地上からの目線の高さ</p>
     <p id="aimObserverHeightError" class="tiny" role="alert" hidden></p>
 
-    <p class="fav-l" id="aimWhereLabel">何に重ねるか</p>
+    <h3 class="fav-l aim-section-title" id="aimWhereLabel">何に重ねるか</h3>
     <div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span></span></div>
+    <p id="aimTargetPrompt" class="aim-target-prompt" role="status" hidden>重ねる目標の場所を選んでください。</p>
     <!-- 自分で置くときの目標の場所（2026-10-01 ユーザー「自分で置くを選んだ場合、どこに重ねるかの検索が必要なんじゃないの」）。
          どこから重ねるかと同じく地点カードの形で、押すと同じ「地点」の画面（検索・現在地・地図で選ぶ・お気に入り）。
          地図を見ながら決めるときは、地図のすぐ下の「ここに重ねる」 -->
@@ -1839,23 +1842,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004230000"></script>
+<script src="sorami-core.js?v=20261004231000"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004230000"></script>
-<script src="sorami-exif.js?v=20261004230000"></script>
-<script src="sorami-capcloud.js?v=20261004230000"></script>
-<script src="sorami-terrain.js?v=20261004230000"></script>
-<script src="sorami-mountain.js?v=20261004230000"></script>
-<script src="sorami-fuji.js?v=20261004230000"></script>
-<script src="sorami-sky.js?v=20261004230000"></script>
-<script src="sorami-routes.js?v=20261004230000"></script>
-<script src="sorami-iss.js?v=20261004230000"></script>
-<script src="sorami-plane.js?v=20261004230000"></script>
-<script src="sorami-atmosphere.js?v=20261004230000"></script>
-<script src="sorami-bodies.js?v=20261004230000"></script>
-<script src="sorami-align.js?v=20261004230000"></script>
-<script src="sorami-moon.js?v=20261004230000"></script>
+<script src="sorami-astro.js?v=20261004231000"></script>
+<script src="sorami-exif.js?v=20261004231000"></script>
+<script src="sorami-capcloud.js?v=20261004231000"></script>
+<script src="sorami-terrain.js?v=20261004231000"></script>
+<script src="sorami-mountain.js?v=20261004231000"></script>
+<script src="sorami-fuji.js?v=20261004231000"></script>
+<script src="sorami-sky.js?v=20261004231000"></script>
+<script src="sorami-routes.js?v=20261004231000"></script>
+<script src="sorami-iss.js?v=20261004231000"></script>
+<script src="sorami-plane.js?v=20261004231000"></script>
+<script src="sorami-atmosphere.js?v=20261004231000"></script>
+<script src="sorami-bodies.js?v=20261004231000"></script>
+<script src="sorami-align.js?v=20261004231000"></script>
+<script src="sorami-moon.js?v=20261004231000"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6272,6 +6275,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   $("aimTargetCard").hidden = !customOn;
   $("aimCustomRow").hidden = !customOn;
   $("aimPickTarget").hidden = !customOn;
+  $("aimTargetPrompt").hidden = !!(aim.target.parts || []).length;
   if (customOn) aimRenderTargetCard();
   // 目標の高さの注記（塔だけ。富士山の山頂は当たり前なので出さない）
   // 自分で置く目標は、場所のカードに標高と高さを書くので、ここには出さない
@@ -6319,7 +6323,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
     const c = AimMap.center();
     if (!c || !Number.isFinite(c.latitude)) AimMap.open(...aimMapView());
     else AimMap.redraw();
-    $("aimLineInfo").textContent = "重ねる目標の場所を選んでください";
+    $("aimLineInfo").textContent = ""; // 未選択の案内は目標の選択欄に表示する。
     $("aimLineTable").hidden = true;
     $("aimLineTable").querySelector("tbody").innerHTML = "";
     $("aimList").innerHTML = "";

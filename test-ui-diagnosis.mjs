@@ -98,7 +98,7 @@ test('未設定の自由目標へ切り替えると前の目標の時刻表を�
  const $=id=>{if(!elements.has(id)) elements.set(id,{hidden:false,innerHTML:'old',querySelector:()=>body});return elements.get(id);};
  const aim={target:{parts:[]},seq:3,candSeq:3,lines:[1],cands:[1]};
  runInNewContext('(function(){'+html.slice(a,b)+'})()',{$,aim,aimRenderFrom:()=>{},AimMap:{center:()=>({latitude:35}),redraw:()=>{}},Number});
- assert.equal($('aimLineTable').hidden,true);assert.equal(body.innerHTML,'');assert.equal($('aimLineInfo').textContent,'重ねる目標の場所を選んでください');assert.equal(aim.lines.length,0);
+ assert.equal($('aimLineTable').hidden,true);assert.equal(body.innerHTML,'');assert.equal($('aimLineInfo').textContent,'');assert.equal(aim.lines.length,0);
 });
 
 
