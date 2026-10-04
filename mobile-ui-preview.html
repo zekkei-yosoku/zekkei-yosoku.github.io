@@ -387,6 +387,8 @@
   /* **ページは拡大させない**（2026-10-01 ユーザー「拡大を禁止しておいて」）。縦横の送りだけ許し、つまむ拡大とダブルタップの拡大を止める。
      地図は自分で拡大・縮小する（.mapwrap は touch-action: none）。iPhone 本体のズーム（3本指ダブルタップ）はこれと関係なく使える */
   html { touch-action: pan-x pan-y; }
+  /* Safariの連打は操作として扱い、ページのダブルタップ拡大にしない。 */
+  button { touch-action: manipulation; }
   .sheet-body { overflow-y: auto; max-height: calc(82vh - 54px); padding: 0 16px 16px;
                 overscroll-behavior: contain; }
   .sheet input[type=search] { width: 100%; font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 10px;
@@ -644,7 +646,9 @@
     .aim-date #aimCalendarOpen { font-size: 0.75rem; padding: 0 2px; }
     #aimCalendarOpen svg { display: none; }
   }
-  #aimCalendar { width: min(440px, calc(100vw - 24px)); }
+  /* 月の週数で高さが変わっても上端を固定し、下側だけ伸縮する。 */
+  #aimCalendar { width: min(440px, calc(100vw - 24px));
+    top: max(16px, 8vh, env(safe-area-inset-top)); bottom: auto; margin: 0 auto; }
   .aim-cal-nav { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
   .aim-cal-nav button { flex: 0 0 44px; width: 44px; }
   .aim-cal-nav select { flex: 1; min-width: 0; margin: 0; }
@@ -1770,22 +1774,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004131620"></script>
+<script src="sorami-core.js?v=20261004134500"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004131620"></script>
-<script src="sorami-exif.js?v=20261004131620"></script>
-<script src="sorami-capcloud.js?v=20261004131620"></script>
-<script src="sorami-terrain.js?v=20261004131620"></script>
-<script src="sorami-mountain.js?v=20261004131620"></script>
-<script src="sorami-fuji.js?v=20261004131620"></script>
-<script src="sorami-sky.js?v=20261004131620"></script>
-<script src="sorami-routes.js?v=20261004131620"></script>
-<script src="sorami-iss.js?v=20261004131620"></script>
-<script src="sorami-plane.js?v=20261004131620"></script>
-<script src="sorami-bodies.js?v=20261004131620"></script>
-<script src="sorami-align.js?v=20261004131620"></script>
-<script src="sorami-moon.js?v=20261004131620"></script>
+<script src="sorami-astro.js?v=20261004134500"></script>
+<script src="sorami-exif.js?v=20261004134500"></script>
+<script src="sorami-capcloud.js?v=20261004134500"></script>
+<script src="sorami-terrain.js?v=20261004134500"></script>
+<script src="sorami-mountain.js?v=20261004134500"></script>
+<script src="sorami-fuji.js?v=20261004134500"></script>
+<script src="sorami-sky.js?v=20261004134500"></script>
+<script src="sorami-routes.js?v=20261004134500"></script>
+<script src="sorami-iss.js?v=20261004134500"></script>
+<script src="sorami-plane.js?v=20261004134500"></script>
+<script src="sorami-bodies.js?v=20261004134500"></script>
+<script src="sorami-align.js?v=20261004134500"></script>
+<script src="sorami-moon.js?v=20261004134500"></script>
 <script>
 "use strict";
 const S = window.Sorami;
