@@ -664,6 +664,7 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
   .aim-cal-grid button.has-event { background: var(--sunk); font-weight: 700; }
   .aim-cal-mark { font-size: 0.72rem; line-height: 1; height: 12px; color: var(--accent); }
+  .aim-cal-mark.has-phase { height: 18px; line-height: 18px; font-size: 0.95rem; white-space: nowrap; }
   .aim-cal-grid button[aria-current="date"] { box-shadow: inset 0 0 0 1px var(--accent); }
   .aim-cal-grid button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
   .aim-cal-grid button[aria-pressed="true"] .aim-cal-mark { color: var(--on-accent); }
@@ -1782,22 +1783,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004135800"></script>
+<script src="sorami-core.js?v=20261004140500"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004135800"></script>
-<script src="sorami-exif.js?v=20261004135800"></script>
-<script src="sorami-capcloud.js?v=20261004135800"></script>
-<script src="sorami-terrain.js?v=20261004135800"></script>
-<script src="sorami-mountain.js?v=20261004135800"></script>
-<script src="sorami-fuji.js?v=20261004135800"></script>
-<script src="sorami-sky.js?v=20261004135800"></script>
-<script src="sorami-routes.js?v=20261004135800"></script>
-<script src="sorami-iss.js?v=20261004135800"></script>
-<script src="sorami-plane.js?v=20261004135800"></script>
-<script src="sorami-bodies.js?v=20261004135800"></script>
-<script src="sorami-align.js?v=20261004135800"></script>
-<script src="sorami-moon.js?v=20261004135800"></script>
+<script src="sorami-astro.js?v=20261004140500"></script>
+<script src="sorami-exif.js?v=20261004140500"></script>
+<script src="sorami-capcloud.js?v=20261004140500"></script>
+<script src="sorami-terrain.js?v=20261004140500"></script>
+<script src="sorami-mountain.js?v=20261004140500"></script>
+<script src="sorami-fuji.js?v=20261004140500"></script>
+<script src="sorami-sky.js?v=20261004140500"></script>
+<script src="sorami-routes.js?v=20261004140500"></script>
+<script src="sorami-iss.js?v=20261004140500"></script>
+<script src="sorami-plane.js?v=20261004140500"></script>
+<script src="sorami-bodies.js?v=20261004140500"></script>
+<script src="sorami-align.js?v=20261004140500"></script>
+<script src="sorami-moon.js?v=20261004140500"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6396,8 +6397,10 @@ function aimCalGridHtml(year, month, events, selected, today) {
     const at = aimCalMonthStart(year, month) + (d - 1) * 86400000;
     const rows = events.get(at) || [], on = S.JstCal.sameDay(at, selected), now = S.JstCal.sameDay(at, today);
     const solid = rows.some(aimCalSolid);
-    const label = `${year}年${month + 1}月${d}日${rows.length ? (solid ? "、重なる日、" : "、近くを通る日、") + rows.map((e) => `${aimSideName(e.side)} ${S.JstCal.hhmm(e.at)}${!SoramiBodies.definition(aim.body).limbs ? " " + SoramiBodies.sky(e.sunAltitude) : ""}`).join("、") : ""}`;
-    html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span><span class="aim-cal-mark" aria-hidden="true">${rows.length ? (solid ? "●" : "○") : ""}</span>${rows.length ? `<span class="aim-cal-time">${S.JstCal.hhmm(rows[0].at)}</span><span class="aim-cal-sky">${!SoramiBodies.definition(aim.body).limbs ? SoramiBodies.sky(rows[0].sunAltitude) : ""}</span>` : ""}</button>`;
+    // 候補日はその時刻、他の日はJST正午の月の形。既存の月相判定を使う。
+    const phase = aim.body === "moon" ? SoramiMoon.phaseOf(SoramiBodies.state("moon", rows[0]?.at ?? at + 12 * 3600000, { ...aimFromPoint(), elevation: 0 })) : null;
+    const label = `${year}年${month + 1}月${d}日${phase ? "、" + phase.name : ""}${rows.length ? (solid ? "、重なる日、" : "、近くを通る日、") + rows.map((e) => `${aimSideName(e.side)} ${S.JstCal.hhmm(e.at)}${!SoramiBodies.definition(aim.body).limbs ? " " + SoramiBodies.sky(e.sunAltitude) : ""}`).join("、") : ""}`;
+    html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span><span class="aim-cal-mark${phase ? " has-phase" : ""}" aria-hidden="true">${phase ? phase.glyph + " " : ""}${rows.length ? (solid ? "●" : "○") : ""}</span>${rows.length ? `<span class="aim-cal-time">${S.JstCal.hhmm(rows[0].at)}</span><span class="aim-cal-sky">${!SoramiBodies.definition(aim.body).limbs ? SoramiBodies.sky(rows[0].sunAltitude) : ""}</span>` : ""}</button>`;
   }
   return html;
 }
