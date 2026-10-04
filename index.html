@@ -1017,7 +1017,7 @@
 #aimView .aim-look{margin-top:0}
 #aimView .aim-look-h{display:none}
 #aimView .aim-look-cap{margin:0 0 8px}
-#aimView .aim-look-time{margin:6px 0}
+#aimView .aim-look-time{margin:12px 0;display:flex;flex-direction:column;align-items:stretch;gap:4px}#aimView .aim-time-heading{display:flex;align-items:center;gap:12px;font-size:14px}#aimView .aim-look-time output{flex:1;width:auto;text-align:left;font-size:16px;font-variant-numeric:tabular-nums}#aimView .aim-look-time input{flex:none;width:100%;height:32px}
 #aimView .aim-lens{margin:10px 0 0}
 #aimView .aim-lens-row{gap:8px;flex-wrap:nowrap}
 #aimView .aim-lens-row label{min-width:0;flex:1;font-size:13px}
@@ -1846,23 +1846,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261005000500"></script>
+<script src="sorami-core.js?v=20261005001500"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261005000500"></script>
-<script src="sorami-exif.js?v=20261005000500"></script>
-<script src="sorami-capcloud.js?v=20261005000500"></script>
-<script src="sorami-terrain.js?v=20261005000500"></script>
-<script src="sorami-mountain.js?v=20261005000500"></script>
-<script src="sorami-fuji.js?v=20261005000500"></script>
-<script src="sorami-sky.js?v=20261005000500"></script>
-<script src="sorami-routes.js?v=20261005000500"></script>
-<script src="sorami-iss.js?v=20261005000500"></script>
-<script src="sorami-plane.js?v=20261005000500"></script>
-<script src="sorami-atmosphere.js?v=20261005000500"></script>
-<script src="sorami-bodies.js?v=20261005000500"></script>
-<script src="sorami-align.js?v=20261005000500"></script>
-<script src="sorami-moon.js?v=20261005000500"></script>
+<script src="sorami-astro.js?v=20261005001500"></script>
+<script src="sorami-exif.js?v=20261005001500"></script>
+<script src="sorami-capcloud.js?v=20261005001500"></script>
+<script src="sorami-terrain.js?v=20261005001500"></script>
+<script src="sorami-mountain.js?v=20261005001500"></script>
+<script src="sorami-fuji.js?v=20261005001500"></script>
+<script src="sorami-sky.js?v=20261005001500"></script>
+<script src="sorami-routes.js?v=20261005001500"></script>
+<script src="sorami-iss.js?v=20261005001500"></script>
+<script src="sorami-plane.js?v=20261005001500"></script>
+<script src="sorami-atmosphere.js?v=20261005001500"></script>
+<script src="sorami-bodies.js?v=20261005001500"></script>
+<script src="sorami-align.js?v=20261005001500"></script>
+<script src="sorami-moon.js?v=20261005001500"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7463,8 +7463,8 @@ async function aimLookRender(host, spec) {
         <div class="aim-lens-toggles"><button type="button" class="chip" data-lens-on aria-pressed="false">画角枠</button><label class="aim-grid-control">グリッド<select data-lens-grid aria-label="構図のグリッド"><option value="none">なし</option><option value="thirds">9分割</option><option value="diagonal">9分割＋対角</option></select></label></div>
       </div>
       <div class="tiny" data-lens-info></div><p class="tiny" data-look-outside hidden></p>
-      <div class="aim-look-time"><input type="range" min="0" max="0" step="any" value="0" data-look-range aria-label="時刻を動かす">
-        <output data-look-at></output></div>
+      <div class="aim-look-time"><div class="aim-time-heading"><span>時刻</span><output data-look-at></output></div><input type="range" min="0" max="0" step="any" value="0" data-look-range aria-label="時刻を動かす">
+        </div>
       <div class="aim-look-pick"><button type="button" class="chip" data-lens-move aria-pressed="false">構図を動かす</button><button type="button" class="chip" data-lens-center>目標を中央に</button></div>
       <p class="tiny aim-look-hint" data-look-hint hidden></p>
       <div class="aim-look-found" data-look-found hidden></div>
