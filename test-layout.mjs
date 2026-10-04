@@ -29,8 +29,8 @@ console.log("== sticky が別の要素へ被らない ==");
 // 守るべきはその事故であって、sticky という手段そのものではない。
 // 同じ事故が起きない条件を直接検査する。
 const stickyUses = [...code.matchAll(/([.#][\w-]+)[^{]*\{[^}]*position:\s*sticky/g)].map((m) => m[1]);
-ok(stickyUses.every((sel) => sel === ".mxrail"),
-  "sticky を使うのはマトリクスの現象名の列だけ", stickyUses.join(" "));
+ok(stickyUses.every((sel) => [".mxrail", ".preview-tabs"].includes(sel)),
+  "sticky はマトリクス列と撮影確認タブのみ", stickyUses.join(" "));
 // 記録画面では一覧ごと隠すので、sticky な要素が記録カードへ被る経路が無い。
 // **出す画面は1つ**なので、記録を出せば一覧は自動で隠れる（VIEWS の表）。
 ok(/for \(const v of VIEWS\) \$\(v\.el\)\.hidden = v\.id !== view/.test(html),
@@ -446,19 +446,19 @@ ok(/function aimDateLabel/.test(html) && /y === now \? "" :/.test(html), "今年
 // 富士山に重ねるは目標が決まっているので、選ぶ欄の代わりに「富士山」と書く。太陽／月の切り替えは塔と同じ位置に残す
 // 太陽／月の切り替えは題名の右（どちらの道具も同じ位置）。「富士山 × 太陽」の添え書きは出さない。
 // 富士山に重ねるは目標の行を出さない（ユーザー「ここボタンにしたら」「目標が富士山って当たり前だからいらない」）
-ok(/<div class="section-h aim-head"><h2 id="aimTitle">[\s\S]*?<\/h2>\s+<select id="aimBody"/.test(html),
-  "太陽／月の切り替えは題名の右（塔も富士山も同じ位置）");
+ok(/<div class="section-h aim-head"><div id="aimTitle">[\s\S]*?<\/div>\s+<select id="aimBody"/.test(html),
+  "天体と目標を同じ選択行に配置");
 ok(!/id="aimSub"/.test(html) && !/富士山 × 太陽/.test(html), "「富士山 × 太陽」の添え書きを出さない");
 ok(/<select id="aimBody"[^>]*aria-label="天体"/.test(html) && /<option value="sirius">シリウス<\/option>/.test(html),
   "天体は名前つきのドロップダウンで選ぶ");
 ok(/\.aim-head \{ align-items: center; flex-wrap: nowrap; \}/.test(code), "切り替えは折り返さない（道具ごとに下の位置が変わらない）");
 // 題名の「◯◯」が目標を選ぶ所（ユーザー「ここが目標切り替えになるのでは？」）。富士山も同じ枠で選ぶ（2026-10-01 まとめた）
-ok(/<h2 id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"><\/span><svg[^>]*>[\s\S]*?<\/svg><select id="aimTarget"/.test(html),
+ok(/<div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"><\/span><svg[^>]*>[\s\S]*?<\/svg><select id="aimTarget"/.test(html),
   "題名の◯◯に目標を選ぶ一覧を重ねる（字＋▾）。いつも出す");
 ok(!/aimTitleText|fujiTool/.test(html), "富士山だけ字にする分け方は無くした");
 ok(/\.aim-pick\.single svg \{ display: none; \}/.test(html) && /classList\.toggle\("single", single\)/.test(html), "選べる目標が1つだけなら ▾ を出さない");
 // 「に重ねる」を付けると 375px 以下で折れ、切り替えと下が富士山の画面より下がった。題名は枠に入れた目標だけ（ユーザー「いい感じの枠に」）
-ok(/<select id="aimTarget" aria-label="何に重ねるか（目標）"><\/select><\/span><\/span><\/h2>/.test(html), "塔の題名は枠に入れた目標だけ（折れない）");
+ok(/<select id="aimTarget" aria-label="何に重ねるか（目標）"><\/select><\/span><\/span><\/div>/.test(html), "塔の題名は枠に入れた目標だけ（折れない）");
 ok(/\.aim-pick \{ position: relative;[^}]*border-radius: 10px; background: var\(--sunk\);/.test(code), "目標は枠に入れる（太陽／月の切り替えと同じ沈んだ地）");
 ok(/\.aim-pick select \{ position: absolute; inset: 0;[^}]*opacity: 0; font-size: 16px;/.test(code), "選ぶ一覧は字に重ねて透明に（幅は字の幅・iOS で拡大されない 16px）");
 ok(/option.value === "sun" \? \(!anyOk \|\| sunOk\)/.test(html) && /option.value === "moon" \? \(!anyOk \|\| moonOk\)/.test(html),
@@ -710,7 +710,7 @@ console.log("== 同じ名前の関数を2つ置かない・観測点は1つ（20
 
 console.log("== ねらう: その日の候補地（2026-09-30） ==");
 {
-  ok(/<h2>この日の候補地<\/h2>/.test(html), "「この日の候補地」の見出しがある");
+  ok(/<h2 class="preview-candidate-title">この日の候補地<\/h2>/.test(html), "「この日の候補地」の見出しがある");
   ok(/aimFindCandidates\(\);\n  if \(!lines\.length\)/.test(html), "線を引いたら候補地を探す");
   ok(/fetch\("data\/aim-places\.json"\)/.test(html), "立てる場所は同梱のデータから（通信先を増やさない）");
   ok(fs.existsSync(new URL("./data/aim-places.json", import.meta.url)), "data/aim-places.json がある");
@@ -3005,8 +3005,8 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(/cv\.onclick = /.test(lookSrc) && /host\._lensMoving && frame && !host\._pick/.test(lookSrc) && /data-look-range/.test(lookSrc), "道をさわるか、つまみで時刻を選ぶ（iPhone の指のタップは click で受ける）");
   // 逆引き（2026-10-03 ユーザー「見え方の月とか太陽の位置を調整したら、それがどこら辺の座標で撮れるのか逆引きできる？」→「円盤を置く」）
   const pickSrc = html.slice(html.indexOf("function aimLookPick("), html.indexOf("let aimLookResize"));
-  ok(/data-look-pick/.test(html) && /\$\{bodyName\}を移動/.test(pickSrc) && /"やめる"/.test(pickSrc) && !/textContent = [^;]*撮れる場所を探す/.test(html) && !/>撮れる場所を探す</.test(html),
-    "図の下の釦は「月を移動」「太陽を移動」（押すと「やめる」）。「撮れる場所を探す」は分かりにくかった（ユーザー 2026-10-03）");
+  ok(/class="aim-body-move"/.test(html) && /\$\{bodyName\}を移動/.test(pickSrc) && /data-look-cancel/.test(html),
+    "図内アイコンから天体の相対移動を開始し、図下でキャンセルできる");
   ok(/data-look-confirm[^>]*>確定</.test(html) && /ok\.onclick = \(\) => \{ if \(st\.ghost && !st\.busy\) solve\(\); \};/.test(pickSrc)
     && !/st\.upAt = Date\.now\(\); show\(xyOf\(ev\)\); solve\(\)/.test(pickSrc) && !/show\(xyOf\(ev\)\); solve\(\); \};/.test(pickSrc),
     "円盤を置いただけでは解かず、「確定」を押したときに解く（置くまでは確定を押せない）");
@@ -3017,12 +3017,12 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(!/aim\.sight\.key === aimSightKey\(f\)\) \{[^}]*host\.hidden = true/.test(html)
     && /const sight = \{ key: aimSightKey\(f\), hidden: !!hidden \};/.test(html),
     "見通しが悪くても図を残し、見通し判定自体は保持する");
-  ok(/if \(!on\) \{[^}]*cv\.onpointerdown = cv\.onpointermove = cv\.onpointerup = cv\.onpointercancel = null; cv\.onclick = pathTap; return; \}/.test(pickSrc),
-    "逆引きでないときは、いつもの道のタップのまま（ぶつからない）");
-  ok(/cv\.onpointerdown = /.test(pickSrc) && /cv\.onpointerup = /.test(pickSrc) && /cv\.onclick = \(ev\) => \{ if \(Date\.now\(\) - \(st\.upAt \|\| 0\) < 800\) return;/.test(pickSrc),
-    "円盤は指で動かす・空をタップで置ける（短いタップは click でも受け、描き直しをまたいで二重には解かない）");
-  ok(/if \(host\._lookSeq === mySeq\) draw\(\);/.test(pickSrc) && /if \(host\._lookSeq === seq\) draw\(v\);/.test(lookSrc),
-    "描き直したあと、前の図の待ちで上書きしない");
+  ok(/cv\.onclick = pathTap; return;/.test(pickSrc) && /cv\.removeAttribute\("tabindex"\)/.test(pickSrc),
+    "逆算モードを終えると通常の軌道タップへ戻る");
+  ok(/drag\.base\[0\]\+dx,drag\.base\[1\]\+dy/.test(pickSrc) && /Math\.hypot\(dx,dy\)<3/.test(pickSrc) && /cv\.onclick = \(\) => \{\}/.test(pickSrc),
+    "タップでは移動せず、指の差分だけ相対移動する");
+  ok(/if \(fresh\(\)\) draw\(\);/.test(pickSrc) && /if \(host\._lookSeq === seq\) draw\(v\);/.test(lookSrc),
+    "前の描画の待ちで現在の図を上書きしない");
   ok(/\[data-look-canvas\]\.picking \{[^}]*touch-action: none;/.test(html), "逆引きの間だけ、図の上で指を動かしてもページがスクロールしない");
   ok(/SoramiAlign\.solveComposition\(aim\.target, aim\.body, \{ around: spec\.obs, distanceKm: D, at0, dx, dy,/.test(pickSrc),
     "同じ日・目標まで同じ距離で、置いた位置になる立つ点と時刻を解く");
@@ -3042,18 +3042,14 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   // ユーザー録画（2026-10-02）: 字の幅でつまみの棒が伸び縮みしていた・20秒ごとに円盤が飛んでいた
   ok(/\.aim-look-time output \{ flex: 0 0 6\.6rem; width: 6\.6rem;[^}]*white-space: nowrap;/.test(html), "時刻の字の欄は幅を決めておく（つまみの長さが変わらない）");
   ok(/step="any" value="0" data-look-range/.test(html), "つまみは刻みなしで動く");
-  const atSrc = /const at = \(v\) => \{[\s\S]*?\n  \};/.exec(html)[0];
-  const path = [{ at: 0, x: 0, y: 0, radius: 0.25, altitude: 1, illuminated: 0.5, brightLimbZenithAngle: 90 },
-                { at: 20000, x: 1, y: 2, radius: 0.25, altitude: 2, illuminated: 0.5, brightLimbZenithAngle: 90 }];
-  const atFn = new Function("path", `${atSrc}; return at;`)(path);
-  const mid = atFn(0.5);
-  ok(mid.at === 10000 && Math.abs(mid.x - 0.5) < 1e-9 && Math.abs(mid.y - 1) < 1e-9, "道の点のあいだは位置と時刻を割り振る", JSON.stringify(mid));
-  ok(atFn(1).at === 20000 && atFn(0).at === 0, "端はそのまま");
-  const wrap = new Function("path", `${/const at = \(v\) => \{[\s\S]*?\n  \};/.exec(html)[0]}; return at;`)([
-    { at: 0, x: 0, y: 0, radius: 0.25, altitude: 1, illuminated: 0.1, brightLimbZenithAngle: 359 },
-    { at: 20000, x: 1, y: 1, radius: 0.25, altitude: 1, illuminated: 0.1, brightLimbZenithAngle: 1 }]);
-  const mb = ((wrap(0.5).brightLimbZenithAngle % 360) + 360) % 360;
-  ok(mb < 0.001 || mb > 359.999, "月の向きは 359°→1° を近い方へ回して割り振る（180° にならない）", mb);
+  const atSrc = /const at = v => \{[\s\S]*?\n  \};/.exec(html)[0];
+  const bodies = req("./sorami-bodies.js"), align = req("./sorami-align.js");
+  const eye = {latitude:35.7479052, longitude:139.9301117, elevation:21.5}, day=Date.parse("2026-10-04T00:00:00+09:00");
+  const path = [{at:day},{at:day+20000}], proj=align.viewProjector(245,5);
+  const atFn = new Function("path","SoramiBodies","body","eyeObs","proj",`${atSrc}; return at;`)(path,bodies,"moon",eye,proj);
+  const mid = atFn(.5), expected=bodies.state("moon",day+10000,eye), xy=proj(expected.azimuth,expected.apparentAltitude);
+  ok(mid.at===day+10000 && mid.radius===expected.angularRadius && mid.brightLimbZenithAngle===expected.brightLimbZenithAngle && mid.x===(xy ? xy[0] : null) && mid.y===(xy ? xy[1] : null), "点の間は選択時刻の既存天体計算で位置・月の向きを直接評価");
+  ok(atFn(1).at===day+20000 && atFn(0).at===day, "時間の両端はそのまま");
   ok(/if \(first\) requestAnimationFrame\(/.test(html), "描き直しは画面の更新1回につき1度");
   ok(/\.aim-look-h > span:first-child \{ flex: 0 0 auto; \}/.test(html), "「見え方」の見出しは折り返さない");
   ok(/if \(!\(part && part\.adjustable\)\) \$\("aimHeightNote"\)\.textContent = "";/.test(html), "高さを直せない目標へ替えたら前の注記を消す");

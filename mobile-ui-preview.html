@@ -18,7 +18,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="絶景予測">
-<title>絶景予測 · UIテスト</title>
+<title>絶景予測</title>
 <!-- ホーム画面に置いたとき、これが無いとOSがアプリ名の先頭文字で代用する（「絶」が出ていた）。
      iOS は apple-touch-icon、Android はマニフェストの icons を見る。
      角丸はOS側が付けるので、画像は正方形いっぱいに描いてある。 -->
@@ -655,7 +655,7 @@
   .aim-cal-nav { gap: 4px; }
   .aim-cal-nav select { flex: 1; min-width: 56px; margin: 0; padding: 8px 24px 8px 8px; font-size: 16px;
     -webkit-appearance: none; appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23aaa' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23aaa' stroke-width='1.5'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 8px center; background-size: 10px; }
   .aim-cal-nav #aimCalYear { flex: 1.4; min-width: 80px; }
   .aim-cal-separator { flex: 0 0 auto; color: var(--secondary); }
@@ -665,7 +665,7 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
   .aim-cal-grid button.has-event { background: var(--sunk); font-weight: 700; }
   .aim-cal-mark { font-size: 0.72rem; line-height: 1; height: 12px; color: var(--accent); }
-  .aim-cal-mark.has-phase { height: 18px; line-height: 18px; font-size: 0.95rem; white-space: nowrap; }
+  .aim-cal-mark[data-moon-phase] { height: 18px; line-height: 18px; font-size: 1rem; white-space: nowrap; }
   .aim-cal-grid button[aria-current="date"] { box-shadow: inset 0 0 0 1px var(--accent); }
   .aim-cal-grid button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
   .aim-cal-grid button[aria-pressed="true"] .aim-cal-mark { color: var(--on-accent); }
@@ -782,6 +782,19 @@
   .aim-look-found p { margin: 0 0 4px; }
   .aim-look-found .sub-line { color: var(--secondary); }
   .aim-look-found .chip { margin-top: 4px; min-height: 44px; }
+  .aim-look-figure { position: relative; }
+  .aim-body-move { position:absolute;top:10px;right:8px;width:44px;min-height:44px;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text); }
+  .aim-body-move.active { background:var(--accent);color:var(--on-accent); }
+  .aim-body-controls { position:absolute;left:8px;bottom:8px;pointer-events:none; }
+  .aim-body-directions { display:grid;grid-template:repeat(3,44px) / repeat(3,44px);gap:0; }
+  .aim-body-actions { display:flex;justify-content:center;gap:8px; }
+  .aim-body-directions button { width:44px;min-height:44px;padding:0;pointer-events:auto;border-radius:50%;background:var(--card);border:1px solid var(--line);color:var(--text);font-size:1.25rem; }
+  .aim-body-directions [data-body-nudge="-1,0"] { grid-area:2 / 1; }
+  .aim-body-directions [data-body-nudge="0,-1"] { grid-area:1 / 2; }
+  .aim-body-directions [data-body-nudge="0,1"] { grid-area:3 / 2; }
+  .aim-body-directions [data-body-nudge="1,0"] { grid-area:2 / 3; }
+  .aim-body-actions { margin-top:8px; }
+  .aim-body-actions button { min-height:44px;width:auto;padding:0 16px; }
   [data-look-canvas].picking { cursor: crosshair; touch-action: none; }
   .aim-look-cap .sub-line { color: var(--secondary); }
   .aim-look canvas { display: block; width: 100%; margin-top: 4px; border-radius: 10px; background: var(--sunk);
@@ -1052,7 +1065,7 @@
 #aimView #previewTimeScope button[aria-pressed=true]{background:var(--sunk);color:var(--text);font-weight:600}
 </style></head>
 <body>
-<main><p class="tiny preview-banner">UIテスト · 現行の予測を使用（保存先も本番と共通）</p>
+<main>
   <div class="masthead">
     <!-- メニュー。**題名の左**に置く（よくある位置。2026-09-28 ユーザー指定）。
          表示はログイン名で絞っているが、**これは見た目だけ**で、
@@ -1364,7 +1377,7 @@
       <span><i class="aim-k set"></i><span id="aimKeySet">日の入側</span></span>
       <span><i class="aim-k rise"></i><span id="aimKeyRise">日の出側</span></span>
     </div>
-    
+
     <table class="aim-tab" id="aimLineTable" hidden>
       <thead><tr><th>側</th><th>目標から</th><th>時刻</th><th>天体の方位</th></tr></thead>
       <tbody></tbody>
@@ -1488,7 +1501,6 @@
     <!-- 一覧へ（2026-10-02 ユーザー「メニューの中に絶景予測の一覧に戻るボタンがほしい」）。道具ではないので data-tool・data-id を持たない
          （許可・管理画面の名前に混ぜない）。いちばん上に置き、道具と線で分ける。一覧にいるときは帯を付ける -->
     <button id="toolsHome"><b>絶景予測の一覧</b><span>夕焼け・星空・雲海などが見られそうか</span></button>
-    <button id="toolsUiPreview"><b>通常UIに戻る</b><span>使い慣れたレイアウトに戻ります</span></button>
     <!-- 天体を重ねる（2026-10-01）。もとは「富士山に重ねる」（ダイヤモンド富士・パール富士）と「塔に重ねる」の2つ。
          ユーザー「塔以外も重ねるじゃん」→ 名前を「天体を重ねる」に。「プルダウンで富士山を選んだら、その横の太陽・月の切り替えでできる」→ 富士山もここへ。
          何に重ねるかは開いた画面の題名の枠で選ぶ。説明は何が分かるかを書く（ユーザーと決めた文に、ダイヤモンド富士の名前を足した）。
@@ -1790,22 +1802,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004142500"></script>
+<script src="sorami-core.js?v=20261004151000"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004142500"></script>
-<script src="sorami-exif.js?v=20261004142500"></script>
-<script src="sorami-capcloud.js?v=20261004142500"></script>
-<script src="sorami-terrain.js?v=20261004142500"></script>
-<script src="sorami-mountain.js?v=20261004142500"></script>
-<script src="sorami-fuji.js?v=20261004142500"></script>
-<script src="sorami-sky.js?v=20261004142500"></script>
-<script src="sorami-routes.js?v=20261004142500"></script>
-<script src="sorami-iss.js?v=20261004142500"></script>
-<script src="sorami-plane.js?v=20261004142500"></script>
-<script src="sorami-bodies.js?v=20261004142500"></script>
-<script src="sorami-align.js?v=20261004142500"></script>
-<script src="sorami-moon.js?v=20261004142500"></script>
+<script src="sorami-astro.js?v=20261004151000"></script>
+<script src="sorami-exif.js?v=20261004151000"></script>
+<script src="sorami-capcloud.js?v=20261004151000"></script>
+<script src="sorami-terrain.js?v=20261004151000"></script>
+<script src="sorami-mountain.js?v=20261004151000"></script>
+<script src="sorami-fuji.js?v=20261004151000"></script>
+<script src="sorami-sky.js?v=20261004151000"></script>
+<script src="sorami-routes.js?v=20261004151000"></script>
+<script src="sorami-iss.js?v=20261004151000"></script>
+<script src="sorami-plane.js?v=20261004151000"></script>
+<script src="sorami-bodies.js?v=20261004151000"></script>
+<script src="sorami-align.js?v=20261004151000"></script>
+<script src="sorami-moon.js?v=20261004151000"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6407,7 +6419,7 @@ function aimCalGridHtml(year, month, events, selected, today) {
     // 候補日はその時刻、他の日はJST正午の月の形。既存の月相判定を使う。
     const phase = aim.body === "moon" ? SoramiMoon.phaseOf(SoramiBodies.state("moon", rows[0]?.at ?? at + 12 * 3600000, { ...aimFromPoint(), elevation: 0 })) : null;
     const label = `${year}年${month + 1}月${d}日${phase ? "、" + phase.name : ""}${rows.length ? (solid ? "、重なる日、" : "、近くを通る日、") + rows.map((e) => `${aimSideName(e.side)} ${S.JstCal.hhmm(e.at)}${!SoramiBodies.definition(aim.body).limbs ? " " + SoramiBodies.sky(e.sunAltitude) : ""}`).join("、") : ""}`;
-    html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span><span class="aim-cal-mark${phase ? " has-phase" : ""}" aria-hidden="true">${phase ? phase.glyph + " " : ""}${rows.length ? (solid ? "●" : "○") : ""}</span>${rows.length ? `<span class="aim-cal-time">${S.JstCal.hhmm(rows[0].at)}</span><span class="aim-cal-sky">${!SoramiBodies.definition(aim.body).limbs ? SoramiBodies.sky(rows[0].sunAltitude) : ""}</span>` : ""}</button>`;
+    html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span><span class="aim-cal-mark"${phase ? " data-moon-phase" : ""} aria-hidden="true">${phase ? phase.glyph + " " : ""}${rows.length ? (solid ? "●" : "○") : ""}</span>${rows.length ? `<span class="aim-cal-time">${S.JstCal.hhmm(rows[0].at)}</span><span class="aim-cal-sky">${!SoramiBodies.definition(aim.body).limbs ? SoramiBodies.sky(rows[0].sunAltitude) : ""}</span>` : ""}</button>`;
   }
   return html;
 }
@@ -7334,7 +7346,9 @@ async function aimLookRender(host, spec) {
   if (!host.querySelector("canvas")) {
     host.innerHTML = `<div class="aim-look-h"><span>見え方</span></div>
       <p class="aim-look-cap"><strong data-look-title></strong><span class="sub-line" data-look-sub></span><span class="sub-line" data-look-light></span><span class="sub-line" data-look-extra></span></p>
-      <canvas data-look-canvas role="img"></canvas>
+      <div class="aim-look-figure"><canvas data-look-canvas role="img"></canvas><button type="button" data-look-pick class="aim-body-move" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg></button>
+      <div class="aim-body-controls" data-look-controls hidden><div class="aim-body-directions" role="group" aria-label="天体の位置を微調整"><button type="button" data-body-nudge="-1,0" aria-label="天体を左へ">←</button><button type="button" data-body-nudge="0,-1" aria-label="天体を上へ">↑</button><button type="button" data-body-nudge="0,1" aria-label="天体を下へ">↓</button><button type="button" data-body-nudge="1,0" aria-label="天体を右へ">→</button></div><span class="sr-only" role="status" aria-live="polite" data-look-position></span></div></div>
+      <div class="aim-body-actions" data-body-actions hidden><button type="button" class="chip primary" data-look-confirm hidden disabled>確定</button><button type="button" class="chip" data-look-cancel>キャンセル</button></div>
       <div class="tiny aim-frame-times" data-look-frame-times hidden></div>
       <div class="aim-lens">
         <div class="aim-lens-row"><label>焦点距離 <input type="number" min="8" max="2000" step="any" required data-lens-focal aria-label="レンズの実焦点距離（mm）"> mm</label><button type="button" class="chip" data-lens-apply>反映</button></div>
@@ -7344,8 +7358,7 @@ async function aimLookRender(host, spec) {
       <div class="tiny" data-lens-info></div><p class="tiny" data-look-outside hidden></p>
       <div class="aim-look-time"><input type="range" min="0" max="0" step="any" value="0" data-look-range aria-label="時刻を動かす">
         <output data-look-at></output></div>
-      <div class="aim-look-pick"><button type="button" class="chip" data-lens-move aria-pressed="false">構図を変更</button><button type="button" class="chip" data-lens-center>目標を中央に</button><button type="button" class="chip" data-look-pick aria-pressed="false"></button>
-        <button type="button" class="chip primary" data-look-confirm hidden disabled>確定</button></div>
+      <div class="aim-look-pick"><button type="button" class="chip" data-lens-move aria-pressed="false">構図を変更</button><button type="button" class="chip" data-lens-center>目標を中央に</button></div>
       <p class="tiny aim-look-hint" data-look-hint hidden></p>
       <div class="aim-look-found" data-look-found hidden></div>
       <p class="tiny aim-look-note" data-look-note hidden></p>`;
@@ -7706,7 +7719,7 @@ async function aimLookRender(host, spec) {
     });
     if (best >= 0) { range.value = String(best); draw(best); }
   };
-  aimLookPick(host, { spec, cv, draw: () => draw(cur), W, H, k, win, az, topAngle, D, path, toPx: xy => { const p = toPx(xy), off = host._lensOffset || [0, 0]; return p ? [p[0] + off[0] * W, p[1] + off[1] * H] : null; }, pan: () => { const off = host._lensOffset || [0, 0]; return [off[0] * W, off[1] * H]; }, pathTap: cv.onclick });
+  aimLookPick(host, { spec, cv, draw: () => draw(cur), bodyPosition: () => { const p = at(cur); if (p.x === null) return null; const xy = toPx([p.x, p.y]), off = host._lensOffset || [0, 0]; return [xy[0] + off[0] * W, xy[1] + off[1] * H]; }, W, H, k, win, az, topAngle, D, path, toPx: xy => { const p = toPx(xy), off = host._lensOffset || [0, 0]; return p ? [p[0] + off[0] * W, p[1] + off[1] * H] : null; }, pan: () => { const off = host._lensOffset || [0, 0]; return [off[0] * W, off[1] * H]; }, pathTap: cv.onclick });
   const move = host.querySelector("[data-lens-move]");
   const center = host.querySelector("[data-lens-center]");
   move.disabled = center.disabled = !frame;
@@ -7808,43 +7821,72 @@ async function aimLookRender(host, spec) {
 }
 
 /**
- * 逆引き（2026-10-03 ユーザー「見え方の月とか太陽の位置を調整したら、それがどこら辺の座標で撮れるのか逆引きみたいなことってできる？」
- * → Codex と相談した案をユーザーが選んだ）。「撮れる場所を探す」を押すと、円盤を指で動かすか空をタップして置ける。
- * 指を離したら、同じ日・目標まで同じ距離で、そう見える立つ点と時刻を解き（SoramiAlign.solveComposition）、その点から描き直す。
- * いつもの時刻のつまみ・道のタップとはぶつからない（逆引きの間だけ図で円盤を置く）
+ * 天体の位置から撮影場所を逆算する。図内アイコンで移動モードを開く。
+ * 空の任意の位置から相対ドラッグ／方向ボタンで調整し、確定時に既存solveCompositionを実行。
+ * タップでは移動せず、キャンセルは最後に確定した結果を維持する。
  */
-function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path, toPx, pan = () => [0, 0], pathTap }) {
+function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path, toPx, pan = () => [0, 0], pathTap, bodyPosition }) {
   const btn = host.querySelector("[data-look-pick]"), found = host.querySelector("[data-look-found]");
   const ok = host.querySelector("[data-look-confirm]"), hint = host.querySelector("[data-look-hint]");
   const on = !!host._pick;
   const bodyName = SoramiBodies.definition(aim.body).name;
-  // 「撮れる場所を探す」は何をする釦か分からなかった（2026-10-03 ユーザー「月を動かす・太陽を動かすの方がいい」「確定ボタンが見当たらない」）
-  btn.textContent = on ? "やめる" : `${bodyName}を移動`;
+  const controls = host.querySelector("[data-look-controls]"), cancel = host.querySelector("[data-look-cancel]"), status = host.querySelector("[data-look-position]");
+  const directions = [...host.querySelectorAll("[data-body-nudge]")];
+  btn.setAttribute("aria-label", on ? `${bodyName}の移動をキャンセル` : `${bodyName}を移動して撮れる場所を探す`);
+  btn.title = on ? "移動をキャンセル" : `${bodyName}を移動`;
   btn.setAttribute("aria-pressed", String(on));
-  ok.hidden = !on;
-  cv.classList.toggle("picking", on);
+  btn.classList.toggle("active", on);
+  controls.hidden = !on; const actions = host.querySelector("[data-body-actions]"); if(actions)actions.hidden = !on; ok.hidden = !on; cv.classList.toggle("picking", on); hint.hidden = true;
+  const leave = () => {
+    const editing = host._pick;
+    if (editing?.busy) return;
+    host._pick = null; found.hidden = true;
+    if (editing) { aim.reverse = editing.reverseBefore; AimMap.redraw(); aimLookRender(host, editing.base); }
+  };
   btn.onclick = () => {
-    if (host._pick) { host._pick = null; found.hidden = true; aimReverseClear(); aimUpdateLook(); return; }
+    if (host._pick) { leave(); return; }
     host._lensMoving = false;
-    host._pick = { base: spec, ghost: null };
+    host._pick = { base: spec, reverseBefore: aim.reverse, ghost: null, ghostAngle: null };
     aimLookRender(host, { ...spec, pick: true });
   };
-  if (!on) { found.hidden = true; hint.hidden = true; cv.onpointerdown = cv.onpointermove = cv.onpointerup = cv.onpointercancel = null; cv.onclick = pathTap; return; }
+  cancel.onclick = leave;
+  if (!on) {
+    btn.disabled = false; found.hidden = true;
+    cv.onpointerdown = cv.onpointermove = cv.onpointerup = cv.onpointercancel = cv.onlostpointercapture = cv.onkeydown = null;
+    cv.removeAttribute("tabindex"); cv.onclick = pathTap; return;
+  }
   const st = host._pick;
-  ok.disabled = !st.ghost;
-  hint.hidden = false;
-  hint.textContent = st.ghost ? `置いた位置で「確定」を押すと、そう見える場所を地図に出します`
-    : `${bodyName}を指で動かすか、空をタップして置いてください`;
-  if (!st.result && !st.busy) found.hidden = true;
-  const xyOf = (ev) => { const b = cv.getBoundingClientRect(); return [ev.clientX - b.left, ev.clientY - b.top]; };
-  // この描画の分だけ受ける（解いて描き直したあと、前の描画の待ちが古い図で上書きしていた）
   const mySeq = host._lookSeq;
-  let dragging = false, frame = 0;
-  const show = (xy) => {
-    st.ghost = xy;
+  const fresh = () => host._lookSeq === mySeq && host._pick === st;
+  const lock = () => { for (const b of [btn, cancel, ...directions]) b.disabled = !!st.busy; ok.disabled = !!st.busy || !st.ghost; };
+  lock();
+  if (!st.result && !st.busy) found.hidden = true;
+  const xyOf = ev => { const b = cv.getBoundingClientRect(); return [(ev.clientX - b.left) * W / b.width, (ev.clientY - b.top) * H / b.height]; };
+  const initial = () => { const p = bodyPosition?.(); return p && p.every(Number.isFinite) && p[0]>=0 && p[0]<=W && p[1]>=0 && p[1]<=H ? p : [W/2,H/2]; };
+  if (st.ghostAngle) {
+    const xy = SoramiAlign.viewProjector(win.az0, win.alt0)(...st.ghostAngle);
+    st.ghost = xy ? toPx(xy) : null;
+    draw(); lock();
+  }
+  let drag = null, frame = 0;
+  const announce = () => { if(st.ghost) status.textContent = `${bodyName}の位置、左から${Math.round(st.ghost[0]/W*100)}%、上から${Math.round(st.ghost[1]/H*100)}%`; };
+  const show = xy => {
+    if (!fresh() || st.busy) return;
+    st.ghost = [Math.max(0,Math.min(W,xy[0])),Math.max(0,Math.min(H,xy[1]))];
+    const [panX,panY] = pan();
+    st.ghostAngle = SoramiAlign.viewUnprojector(win.az0,win.alt0)((st.ghost[0]-panX-W/2)/k,(H/2-st.ghost[1]+panY)/k);
     ok.disabled = false;
-    hint.textContent = `置いた位置で「確定」を押すと、そう見える場所を地図に出します`;
-    if (!frame) frame = requestAnimationFrame(() => { frame = 0; if (host._lookSeq === mySeq) draw(); });
+    if (st.result) { found.hidden = false; found.textContent = "位置を変更中（未確定）"; }
+    if (!frame) frame = requestAnimationFrame(() => { frame = 0; if (fresh()) draw(); });
+  };
+  const nudge = (dx,dy) => { const p = st.ghost || initial(); show([p[0]+dx,p[1]+dy]); announce(); };
+  for (const button of directions) button.onclick = () => { const [dx,dy]=button.dataset.bodyNudge.split(",").map(Number); nudge(dx,dy); };
+  cv.tabIndex = 0;
+  cv.onkeydown = ev => {
+    const arrows={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
+    if (ev.key === "Escape") { ev.preventDefault(); leave(); return; }
+    if (!arrows[ev.key] || st.busy) return;
+    ev.preventDefault(); const step=ev.shiftKey?10:1; nudge(arrows[ev.key][0]*step,arrows[ev.key][1]*step);
   };
   const solve = async () => {
     if (!st.ghost) return;
@@ -7865,7 +7907,7 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
     // 解いている間に日付・天体・目標・合わせ方を替えた／図を描き直した（画面の幅が変わった）ら、結果は捨てる（Codex の点検）
     const key = aimLookKey();
     const stale = () => seq !== st.seq || host._pick !== st || host._lookSeq !== mySeq || aimLookKey() !== key;
-    st.busy = true; ok.disabled = true;
+    st.busy = true; lock();
     found.hidden = false;
     found.innerHTML = `<p class="tiny">探しています…</p>`;
     let r = null;
@@ -7875,8 +7917,8 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
         eyeM: 1.5, groundM: spec.obs.elevation ?? 0, elevationAt: aimElevation, dayMs: aim.dayMs });
     } catch { r = null; }
     if (stale()) return;
-    st.busy = false;
     if (!r) {
+      st.busy = false; lock();
       found.innerHTML = `<p class="tiny">この日・この距離では、そこには来ません</p>`;
       ok.disabled = false;
       return;
@@ -7888,20 +7930,32 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
     let water = null;
     try { [water] = await SoramiTerrain.waterAt([{ latitude: r.latitude, longitude: r.longitude }]); } catch { water = null; }
     if (stale()) return;
+    st.busy = false;
     st.result = { ...r, water: water === true };
-    st.ghost = null;
+    st.ghost = null; st.ghostAngle = null;
     aim.reverse = { key, points: along, at: r };
     aimReverseShow(r, along);
-    aimLookRender(host, { obs: { latitude: r.latitude, longitude: r.longitude, elevation: r.groundM }, eyeM: 1.5, at: r.at,
-      title: "撮れる場所から（計算上の位置）", sub: `${aimDateLabel(r.at)} ${aimSideName(r.side)}`, atName: "置いた", pick: true });
+    const resultSpec = { obs: { latitude: r.latitude, longitude: r.longitude, elevation: r.groundM }, eyeM: 1.5, at: r.at,
+      title: "撮れる場所から（計算上の位置）", sub: `${aimDateLabel(r.at)} ${aimSideName(r.side)}`, atName: "置いた", pick: true };
+    st.base = resultSpec; st.reverseBefore = aim.reverse;
+    aimLookRender(host, resultSpec);
   };
-  cv.onpointerdown = (ev) => { dragging = true; try { cv.setPointerCapture(ev.pointerId); } catch { /* 取れなくても動く */ } show(xyOf(ev)); };
-  cv.onpointermove = (ev) => { if (dragging) show(xyOf(ev)); };
-  cv.onpointerup = (ev) => { if (!dragging) return; dragging = false; st.upAt = Date.now(); show(xyOf(ev)); };
-  cv.onpointercancel = () => { dragging = false; };
-  // iPhone の短いタップは pointer が来ないことがある（2026-10-02）ので click でも受ける。pointerup で解いた直後の click は捨てる
-  // （時刻は描き直しをまたいで持つ。描き直した新しい図に、指を離した位置で2回目を解いていた）
-  cv.onclick = (ev) => { if (Date.now() - (st.upAt || 0) < 800) return; show(xyOf(ev)); };
+  cv.onpointerdown = ev => {
+    if (!fresh() || st.busy || drag || (ev.pointerType === "mouse" && ev.button !== 0)) return;
+    drag = { id: ev.pointerId, start: xyOf(ev), base: [...(st.ghost || initial())], moved: false };
+    try { cv.setPointerCapture(ev.pointerId); } catch { /* pointerの移動は受け続ける */ }
+  };
+  const movePointer = ev => {
+    if (!drag || ev.pointerId !== drag.id || !fresh() || st.busy) return;
+    const p=xyOf(ev),dx=p[0]-drag.start[0],dy=p[1]-drag.start[1];
+    if (!drag.moved && Math.hypot(dx,dy)<3) return;
+    drag.moved=true; show([drag.base[0]+dx,drag.base[1]+dy]);
+  };
+  cv.onpointermove = movePointer;
+  cv.onpointerup = ev => { if(!drag || ev.pointerId!==drag.id)return; movePointer(ev); drag=null; announce(); };
+  cv.onpointercancel = cv.onlostpointercapture = () => { drag=null; };
+  // タップの位置へ飛ばさない。pointerを受けない入力は方向ボタン/矢印キーで操作できる。
+  cv.onclick = () => {};
   ok.onclick = () => { if (st.ghost && !st.busy) solve(); };
   if (st.result) aimLookFound(found, st.result, D);
 }
@@ -8737,10 +8791,6 @@ function showSheet(el) {
 // 題名は一覧へ（何画面進んでいても1回で）。「← 戻る」はひとつ前の画面へ
 $("homeLink").onclick = () => { closeTools(); goList(); };
 $("toolsHome").onclick = () => { closeTools(); goList(); };
-$("toolsUiPreview").onclick = () => {
-  const page = location.pathname.endsWith("/mobile-ui-preview.html") ? "./index.html" : "./mobile-ui-preview.html";
-  location.assign(page + location.hash);
-};
 $("backLink").onclick = () => { closeTools(); goBack(); };
 $("toolsButton").onclick = () => ($("toolsMenu").hidden ? openTools() : closeTools());
 $("toolsClose").onclick = () => closeTools({ restoreFocus: true });
@@ -9920,7 +9970,7 @@ checkForUpdate();
    const info=look.querySelector('[data-lens-info]');if(info)lens.append(info);
    const compose=document.createElement('div');compose.className='preview-compose';const move=look.querySelector('[data-lens-move]'),center=look.querySelector('[data-lens-center]');if(move)quick.append(move);if(center)compose.append(center);lens.append(compose);const apply=lens.querySelector('[data-lens-apply]');if(apply)apply.hidden=true;
    const reverse=document.createElement('section');reverse.className='preview-reverse';const title=document.createElement('h3');title.textContent='撮れる場所を逆算';reverse.append(title);look.append(reverse);
-   for(const selector of['.aim-look-pick','[data-look-hint]','[data-look-found]']){const node=look.querySelector(selector);if(node)reverse.append(node);}
+   for(const selector of['[data-look-found]']){const node=look.querySelector(selector);if(node)reverse.append(node);}
   }
   const timeScope=el('previewTimeScope');if(timeScope){const scope=look._uiAllDay?'day':'fine';for(const button of timeScope.querySelectorAll('button')){const pressed=String(button.dataset.timeScope===scope);if(button.getAttribute('aria-pressed')!==pressed)button.setAttribute('aria-pressed',pressed);}}
   const focalInput=look.querySelector('[data-lens-focal]');if(focalInput){focalInput.onfocus=()=>{focalInput._uiFocusValue=focalInput.value;};focalInput.onblur=()=>{if(focalInput.value!==focalInput._uiFocusValue&&focalInput.checkValidity()&&focalInput.value.trim()&&(aimLens.mode!=='manual'||+focalInput.value!==aimLens.focal))focalInput.onchange();};}
@@ -9929,7 +9979,7 @@ checkForUpdate();
   const note=look.querySelector('[data-look-note]'),outside=look.querySelector('[data-look-outside]');if(note&&outside&&note.previousElementSibling!==outside)outside.after(note);
   const selected=el('aimCandList').querySelector('[data-cand][aria-pressed="true"]');let back=look.querySelector('.preview-return');
   const caption=look.querySelector('.aim-look-cap');if(!back&&caption){back=document.createElement('button');back.type='button';back.className='tap preview-return';back.textContent='観測地点の見え方に戻す';caption.after(back);back.onclick=()=>{const current=el('aimCandList').querySelector('[data-cand][aria-pressed="true"]');if(current)current.click();else aimUpdateLook();};}if(back)back.hidden=!selected;
-  const result=look.querySelector('[data-found-map]'),found=look.querySelector('[data-look-found]');const key=result?found.textContent.trim():'';if(key&&key!==resultKey){resultKey=key;requestAnimationFrame(()=>{if(!scene.hidden)found.scrollIntoView({block:'nearest',behavior:'auto'});});}else if(!key)resultKey='';
+  const result=look.querySelector('[data-found-map]'),found=look.querySelector('[data-look-found]');const reverse=look.querySelector('.preview-reverse');if(reverse && reverse.hidden !== !!found?.hidden)reverse.hidden=!!found?.hidden;const key=result?found.textContent.trim():'';if(key&&key!==resultKey){resultKey=key;requestAnimationFrame(()=>{if(!scene.hidden)found.scrollIntoView({block:'nearest',behavior:'auto'});});}else if(!key)resultKey='';
   for(const row of el('aimCandList').querySelectorAll('.cand-row.on'))if(!row.querySelector('.preview-show-scene')){const b=document.createElement('button');b.type='button';b.className='chip preview-show-scene';b.textContent='この場所の見え方';b.onclick=()=>{show('scene',true);if(!wide.matches)el('previewSceneTab').scrollIntoView({block:'start',behavior:'smooth'});};row.append(b);}
  };
  new MutationObserver(update).observe(root,{childList:true,subtree:true});update();

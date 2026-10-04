@@ -655,7 +655,7 @@
   .aim-cal-nav { gap: 4px; }
   .aim-cal-nav select { flex: 1; min-width: 56px; margin: 0; padding: 8px 24px 8px 8px; font-size: 16px;
     -webkit-appearance: none; appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23aaa' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23aaa' stroke-width='1.5'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 8px center; background-size: 10px; }
   .aim-cal-nav #aimCalYear { flex: 1.4; min-width: 80px; }
   .aim-cal-separator { flex: 0 0 auto; color: var(--secondary); }
@@ -665,7 +665,7 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
   .aim-cal-grid button.has-event { background: var(--sunk); font-weight: 700; }
   .aim-cal-mark { font-size: 0.72rem; line-height: 1; height: 12px; color: var(--accent); }
-  .aim-cal-mark.has-phase { height: 18px; line-height: 18px; font-size: 0.95rem; white-space: nowrap; }
+  .aim-cal-mark[data-moon-phase] { height: 18px; line-height: 18px; font-size: 1rem; white-space: nowrap; }
   .aim-cal-grid button[aria-current="date"] { box-shadow: inset 0 0 0 1px var(--accent); }
   .aim-cal-grid button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
   .aim-cal-grid button[aria-pressed="true"] .aim-cal-mark { color: var(--on-accent); }
@@ -782,6 +782,19 @@
   .aim-look-found p { margin: 0 0 4px; }
   .aim-look-found .sub-line { color: var(--secondary); }
   .aim-look-found .chip { margin-top: 4px; min-height: 44px; }
+  .aim-look-figure { position: relative; }
+  .aim-body-move { position:absolute;top:10px;right:8px;width:44px;min-height:44px;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text); }
+  .aim-body-move.active { background:var(--accent);color:var(--on-accent); }
+  .aim-body-controls { position:absolute;left:8px;bottom:8px;pointer-events:none; }
+  .aim-body-directions { display:grid;grid-template:repeat(3,44px) / repeat(3,44px);gap:0; }
+  .aim-body-actions { display:flex;justify-content:center;gap:8px; }
+  .aim-body-directions button { width:44px;min-height:44px;padding:0;pointer-events:auto;border-radius:50%;background:var(--card);border:1px solid var(--line);color:var(--text);font-size:1.25rem; }
+  .aim-body-directions [data-body-nudge="-1,0"] { grid-area:2 / 1; }
+  .aim-body-directions [data-body-nudge="0,-1"] { grid-area:1 / 2; }
+  .aim-body-directions [data-body-nudge="0,1"] { grid-area:3 / 2; }
+  .aim-body-directions [data-body-nudge="1,0"] { grid-area:2 / 3; }
+  .aim-body-actions { margin-top:8px; }
+  .aim-body-actions button { min-height:44px;width:auto;padding:0 16px; }
   [data-look-canvas].picking { cursor: crosshair; touch-action: none; }
   .aim-look-cap .sub-line { color: var(--secondary); }
   .aim-look canvas { display: block; width: 100%; margin-top: 4px; border-radius: 10px; background: var(--sunk);
@@ -977,7 +990,80 @@
     table.numbers { width: 100%; }
   }
 </style>
-</head>
+<style id="previewStyles">.preview-banner{margin:0 0 12px;color:var(--secondary);font-size:11px}
+.preview-title{font-size:20px;margin:8px 0 14px}
+#aimView>.card{padding:0;background:transparent;box-shadow:none;border:0}
+#aimView .aim-head{padding:10px 12px;border-radius:12px;background:var(--card);gap:16px}
+#aimView .aim-head #aimTitle{font-size:16px;flex:1}
+#aimView .aim-body-select{flex:1;width:100px}.preview-cross{flex:none;color:var(--secondary)}
+#aimView .fav-l{margin-top:10px;margin-bottom:4px;font-size:12px}
+#aimView .aim-place-card{background:var(--card);margin-bottom:6px;padding:0 4px 0 10px}
+#aimView .aim-place-card .place-pick{min-height:52px}
+#aimView #aimFromSub{font-size:11px}
+#aimView .aim-limb{margin-bottom:0}
+#aimView .aim-limb button{min-height:58px;flex-direction:row;justify-content:center;gap:6px;font-size:13px}
+#aimView .aim-limb svg{width:26px;height:26px}
+#aimView .aim-date-section{margin:12px 0;padding-top:12px}
+.preview-tabs{position:sticky;top:4px;z-index:5;display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:12px;margin:12px 0}
+.preview-tabs button{flex:1;min-height:48px;font-size:15px;font-weight:600;border-radius:9px;background:transparent;color:var(--secondary)}
+.preview-tabs button[aria-selected=true]{background:var(--card);color:var(--text);box-shadow:0 1px 4px #0001}
+.preview-tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#aimView .aim-look{margin-top:0}
+#aimView .aim-look-h{display:none}
+#aimView .aim-look-cap{margin:0 0 8px}
+#aimView .aim-look-time{margin:6px 0}
+#aimView .aim-lens{margin:10px 0 0}
+#aimView .aim-lens-row{gap:8px;flex-wrap:nowrap}
+#aimView .aim-lens-row label{min-width:0;flex:1;font-size:13px}
+#aimView .aim-lens-row label input{width:80px;flex:1;max-width:140px;min-width:0;min-height:48px}
+#aimView .aim-lens-row .chip{min-height:48px;flex:0 0 auto;padding:0 16px}
+.preview-camera{margin:8px 0 0;border-top:1px solid var(--line)}
+.preview-camera>summary{display:flex;align-items:center;justify-content:space-between;min-height:44px;cursor:pointer;font-size:12px;color:var(--secondary)}
+.preview-camera>summary:focus-visible{outline:2px solid var(--accent)}
+.preview-camera .aim-lens-row{margin:8px 0}
+.preview-camera .tiny{margin:8px 0}
+.preview-compose{display:flex;gap:8px;margin-top:8px}
+.preview-compose .chip{flex:1;min-height:48px;font-size:13px}
+.preview-reverse{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.preview-reverse h3{font-size:12px;font-weight:500;color:var(--secondary);margin:0 0 6px}
+#aimView .aim-look-pick{display:flex;flex-wrap:wrap;margin:0;gap:8px}
+#aimView .aim-look-pick .chip{flex:1;min-height:44px}
+#aimView .aim-look-pick [data-look-confirm]{flex-basis:100%}
+.preview-candidate-title{margin-top:18px;font-size:16px}
+#previewPlaces .aim-disclosure>summary{min-height:48px}
+#previewPlaces[hidden],#previewScene[hidden]{display:none}
+#previewPlaces .preview-show-scene{min-height:44px;flex:0 0 auto}
+@media(max-width:360px){#aimView .aim-limb button{font-size:12px;gap:3px}#aimView .aim-limb svg{width:23px;height:23px}}
+@media(min-width:960px){main:has(#aimView:not([hidden])){max-width:1120px}.preview-tabs{display:none}.preview-workspace{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:28px;margin-top:20px}#previewScene,#previewPlaces{min-width:0}#previewPlaces .mapwrap{margin-top:0!important}#previewScene:before{content:'見え方';display:block;font-weight:600;font-size:16px;margin-bottom:12px}#previewPlaces:before{content:'撮影場所';display:block;font-weight:600;font-size:16px;margin-bottom:12px}}
+.preview-quick{display:flex;gap:8px;margin:8px 0}.preview-quick .chip{flex:1;min-height:44px}
+.preview-return{min-height:44px;font-size:12px;margin-top:6px}
+
+#aimView .aim-look-found{scroll-margin-top:72px}#previewPlaces .cand-row{flex-wrap:wrap}#previewPlaces .cand-row .cand-pick{flex-basis:100%}#previewPlaces .cand-map,#previewPlaces .preview-show-scene{flex:1}
+/* 同じ入力/選択は同じ面。選択中だけアクセント色。 */
+#aimView #aimPart,#aimView #aimCustomH,#aimView #aimHeightM,#aimView #aimCalendarOpen,#aimView #aimBody,#aimView #previewTime,#aimView #previewTimeScope{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;color-scheme:light dark}
+.preview-date-time{display:flex;align-items:center;gap:8px;margin-top:8px}.preview-date-time input{min-height:44px;min-width:0;flex:1;padding:6px 12px;font-size:16px}.preview-date-time label{font-size:12px;color:var(--secondary)}.preview-date-time button{min-height:44px;padding:8px 12px;font-size:12px}
+.preview-time-scope{display:flex;align-items:center;gap:8px;margin:4px 0}.preview-time-scope select{min-height:44px;padding:6px 10px;flex:1;min-width:0}.preview-time-scope span{font-size:11px;color:var(--secondary)}
+#aimView .preview-sensor-label{font-size:12px;flex:0 0 auto;color:var(--secondary)}#aimView [data-lens-sensor]{min-width:0;flex:1;min-height:44px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;font-size:14px;padding:8px}
+#aimView .aim-lens-row:has([data-lens-sensor]){margin:8px 0}#aimView [data-lens-info]{margin:8px 0;font-size:11px}
+#aimView .preview-quick{gap:6px;margin:8px 0}#aimView .preview-quick .chip{padding:8px 6px;font-size:12px;min-height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center}#aimView .preview-quick [data-lens-move][aria-pressed=true]{background:var(--accent);color:#171717}
+#aimView .preview-compose:has([data-lens-center][hidden]){display:none}#aimView .preview-compose [data-lens-center]{flex:none;margin-left:auto;border-radius:10px;min-height:44px}
+#aimView [data-lens-apply][hidden]{display:none}
+.preview-calendar-choices{margin:10px 0;padding:8px;border-top:1px solid var(--line)}.preview-calendar-choices p{margin:0 0 8px}.preview-calendar-choices .chip{min-height:44px;margin:0 6px 6px 0}#aimCalGrid .aim-cal-time{font-size:10px;white-space:nowrap}
+#aimView .aim-date{display:grid;grid-template-columns:32px minmax(0,1fr) 104px 32px;gap:5px}#aimView .aim-date #aimCalendarOpen{font-size:12px;gap:3px;padding:0 2px}#aimView .aim-date #aimCalendarOpen svg{display:none}#aimView .aim-date #aimPrev,#aimView .aim-date #aimNext{width:32px;min-width:32px;min-height:44px;padding:0}
+#aimView .preview-date-time{margin:0;gap:0;min-width:0;border:1px solid var(--line);background:var(--card);border-radius:12px;overflow:hidden}#aimView .preview-date-time #previewTime{width:72px;min-width:0;flex:1;font-size:14px;padding:0 2px;border:0;border-radius:0;background:transparent}#aimView #previewTime::-webkit-calendar-picker-indicator{display:none}#aimView #previewReference{width:32px;min-width:32px;min-height:44px;padding:0;border-radius:0;background:transparent;display:flex;align-items:center;justify-content:center}
+@media(min-width:420px){#aimView .aim-date{grid-template-columns:44px minmax(0,1fr) 130px 44px;gap:8px}#aimView .aim-date #aimPrev,#aimView .aim-date #aimNext{width:44px}#aimView .aim-date #aimCalendarOpen{font-size:14px}#aimView #previewReference{width:44px;min-width:44px}}
+#aimView .aim-lens-row .preview-sensor-label{flex:0 0 auto}#aimView .aim-date #aimCalendarOpen{overflow:hidden;font-size:11px}#aimView .preview-date-label{white-space:nowrap}
+@media(max-width:360px){#aimView .preview-date-weekday{display:none}}
+#aimView .aim-lens-row{display:flex;align-items:center}#aimView .aim-lens-row:has([data-lens-sensor]){gap:10px}
+#aimView .preview-body-native{display:none}#aimView .preview-body-open{flex:1;min-width:80px;min-height:44px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;font-size:16px}
+.preview-body-dialog{width:min(400px,calc(100vw - 24px))}.preview-body-group{padding:14px 0;border-bottom:1px solid var(--line)}.preview-body-group:first-child{padding-top:0}.preview-body-group:last-child{border:0}.preview-body-group h3{font-size:12px;font-weight:500;color:var(--secondary);margin:0 0 10px}.preview-body-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.preview-body-choice{min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--sunk);color:var(--text);font-size:16px;text-align:left}.preview-body-choice[aria-pressed=true]{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}.preview-body-choice[aria-pressed=true]:after{content:'✓';float:right}.preview-body-choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+#aimView .aim-date #aimCalendarOpen{gap:0}
+
+#aimView #previewTimeScope{display:flex;width:max-content;max-width:100%;gap:0;padding:0;margin:2px 0 0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+#aimView #previewTimeScope button{width:auto;min-width:60px;min-height:44px;padding:0 10px;border:0;border-radius:0;font-size:12px;font-weight:400;background:transparent;color:var(--secondary)}
+#aimView #previewTimeScope button[aria-pressed=true]{background:var(--sunk);color:var(--text);font-weight:600}
+</style></head>
 <body>
 <main>
   <div class="masthead">
@@ -1182,7 +1268,7 @@
            「に重ねる」は付けない（道具の名前で分かる。付けると 375px 以下で折れて、切り替えと下の位置が富士山の画面より下がった）。
            「目標」の行を別に置かないので、富士山に重ねると並びが同じになる。見た目は字＋▾、押すと OS の一覧が開く
            （透明な select を字に重ねる。select の幅は一番長い候補で決まってしまうので、字の幅に合わせるため） -->
-      <div class="section-h aim-head"><h2 id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span></span></h2>
+      <h2 class="preview-title">天体を重ねる</h2><div class="section-h aim-head"><div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span></span></div>
         <select id="aimBody" class="aim-body-select" aria-label="天体">
           <optgroup label="太陽・月"><option value="sun">太陽</option><option value="moon">月</option></optgroup>
           <optgroup label="恒星"><option value="sirius">シリウス</option></optgroup>
@@ -1263,8 +1349,8 @@
     </div>
     <div id="aimFrom" class="aim-from"></div>
     </section>
-    <div id="aimLook" class="aim-look" hidden></div>
-    <div class="mapwrap" style="margin-top:8px">
+<div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div><div class="preview-tabs" role="tablist" aria-label="撮影の確認"><button type="button" id="previewSceneTab" role="tab" aria-selected="true" aria-controls="previewScene">見え方</button><button type="button" id="previewPlacesTab" role="tab" aria-selected="false" aria-controls="previewPlaces" tabindex="-1">撮影場所</button></div><div class="preview-workspace"><section id="previewScene" role="tabpanel" aria-labelledby="previewSceneTab">    <div id="aimLook" class="aim-look" hidden></div>
+</section><section id="previewPlaces" role="tabpanel" aria-labelledby="previewPlacesTab">    <div class="mapwrap" style="margin-top:8px">
       <canvas id="aimCanvas" aria-label="地図。線の上が、その日に重なって見える場所です"></canvas>
       <div class="mappin" aria-hidden="true"></div>
       <div class="mapzoom">
@@ -1291,7 +1377,7 @@
       <span><i class="aim-k set"></i><span id="aimKeySet">日の入側</span></span>
       <span><i class="aim-k rise"></i><span id="aimKeyRise">日の出側</span></span>
     </div>
-    <div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div>
+
     <table class="aim-tab" id="aimLineTable" hidden>
       <thead><tr><th>側</th><th>目標から</th><th>時刻</th><th>天体の方位</th></tr></thead>
       <tbody></tbody>
@@ -1299,13 +1385,12 @@
     <!-- その日の候補地（2026-09-30）。月丼と同じく「この日はここ」を先に出し、線に掛かる立てる場所を並べる -->
     <!-- 目標の場所が決まっていないときは見出しごと出さない（中身の無い見出しが残っていた。2026-10-02） -->
     <div id="aimCandBox">
-    <details class="aim-disclosure"><summary><h2>この日の候補地</h2></summary>
+    <h2 class="preview-candidate-title">この日の候補地</h2>
     <!-- 日の出側と日の入側を切り替える（2026-10-03 ユーザー「日の出と日の入に関してはボタンで切り替えが良いと思う」
          「候補地が何箇所かあるならそれを出したら？」）。釦に時刻の幅と数。線の無い側は押せない（線なし）。0か所の側は押せる -->
     <div id="aimSideSeg" class="aim-side-seg" role="group" aria-label="日の出側か日の入側か"></div>
     <div id="aimCandInfo" class="tiny" style="margin-top:6px;color:var(--secondary)"></div>
     <div id="aimCandList" class="al" style="margin-top:8px"></div>
-    </details>
     </div>
     <!-- 富士山だけ、定番のスポットで次に見える日（2026-09-30） -->
     <div id="aimListBox">
@@ -1314,7 +1399,7 @@
     <div id="aimList" class="al"></div>
     </details>
     </div>
-      </div>
+</section></div>      </div>
   </div>
 
   <!-- ISS の月面通過（2026-09-30）。月（太陽）の中心から ISS を通る直線が地面に当たる線＝中心線。
@@ -1416,7 +1501,6 @@
     <!-- 一覧へ（2026-10-02 ユーザー「メニューの中に絶景予測の一覧に戻るボタンがほしい」）。道具ではないので data-tool・data-id を持たない
          （許可・管理画面の名前に混ぜない）。いちばん上に置き、道具と線で分ける。一覧にいるときは帯を付ける -->
     <button id="toolsHome"><b>絶景予測の一覧</b><span>夕焼け・星空・雲海などが見られそうか</span></button>
-    <button id="toolsUiPreview"><b>新しいUIを試す</b><span>スマホ向けのテストレイアウト</span></button>
     <!-- 天体を重ねる（2026-10-01）。もとは「富士山に重ねる」（ダイヤモンド富士・パール富士）と「塔に重ねる」の2つ。
          ユーザー「塔以外も重ねるじゃん」→ 名前を「天体を重ねる」に。「プルダウンで富士山を選んだら、その横の太陽・月の切り替えでできる」→ 富士山もここへ。
          何に重ねるかは開いた画面の題名の枠で選ぶ。説明は何が分かるかを書く（ユーザーと決めた文に、ダイヤモンド富士の名前を足した）。
@@ -1718,22 +1802,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004142500"></script>
+<script src="sorami-core.js?v=20261004151000"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004142500"></script>
-<script src="sorami-exif.js?v=20261004142500"></script>
-<script src="sorami-capcloud.js?v=20261004142500"></script>
-<script src="sorami-terrain.js?v=20261004142500"></script>
-<script src="sorami-mountain.js?v=20261004142500"></script>
-<script src="sorami-fuji.js?v=20261004142500"></script>
-<script src="sorami-sky.js?v=20261004142500"></script>
-<script src="sorami-routes.js?v=20261004142500"></script>
-<script src="sorami-iss.js?v=20261004142500"></script>
-<script src="sorami-plane.js?v=20261004142500"></script>
-<script src="sorami-bodies.js?v=20261004142500"></script>
-<script src="sorami-align.js?v=20261004142500"></script>
-<script src="sorami-moon.js?v=20261004142500"></script>
+<script src="sorami-astro.js?v=20261004151000"></script>
+<script src="sorami-exif.js?v=20261004151000"></script>
+<script src="sorami-capcloud.js?v=20261004151000"></script>
+<script src="sorami-terrain.js?v=20261004151000"></script>
+<script src="sorami-mountain.js?v=20261004151000"></script>
+<script src="sorami-fuji.js?v=20261004151000"></script>
+<script src="sorami-sky.js?v=20261004151000"></script>
+<script src="sorami-routes.js?v=20261004151000"></script>
+<script src="sorami-iss.js?v=20261004151000"></script>
+<script src="sorami-plane.js?v=20261004151000"></script>
+<script src="sorami-bodies.js?v=20261004151000"></script>
+<script src="sorami-align.js?v=20261004151000"></script>
+<script src="sorami-moon.js?v=20261004151000"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6335,7 +6419,7 @@ function aimCalGridHtml(year, month, events, selected, today) {
     // 候補日はその時刻、他の日はJST正午の月の形。既存の月相判定を使う。
     const phase = aim.body === "moon" ? SoramiMoon.phaseOf(SoramiBodies.state("moon", rows[0]?.at ?? at + 12 * 3600000, { ...aimFromPoint(), elevation: 0 })) : null;
     const label = `${year}年${month + 1}月${d}日${phase ? "、" + phase.name : ""}${rows.length ? (solid ? "、重なる日、" : "、近くを通る日、") + rows.map((e) => `${aimSideName(e.side)} ${S.JstCal.hhmm(e.at)}${!SoramiBodies.definition(aim.body).limbs ? " " + SoramiBodies.sky(e.sunAltitude) : ""}`).join("、") : ""}`;
-    html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span><span class="aim-cal-mark${phase ? " has-phase" : ""}" aria-hidden="true">${phase ? phase.glyph + " " : ""}${rows.length ? (solid ? "●" : "○") : ""}</span>${rows.length && !SoramiBodies.definition(aim.body).limbs ? `<span class="aim-cal-time">${S.JstCal.hhmm(rows[0].at)}</span><span class="aim-cal-sky">${SoramiBodies.sky(rows[0].sunAltitude)}</span>` : ""}</button>`;
+    html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span><span class="aim-cal-mark"${phase ? " data-moon-phase" : ""} aria-hidden="true">${phase ? phase.glyph + " " : ""}${rows.length ? (solid ? "●" : "○") : ""}</span>${rows.length ? `<span class="aim-cal-time">${S.JstCal.hhmm(rows[0].at)}</span><span class="aim-cal-sky">${!SoramiBodies.definition(aim.body).limbs ? SoramiBodies.sky(rows[0].sunAltitude) : ""}</span>` : ""}</button>`;
   }
   return html;
 }
@@ -7253,6 +7337,7 @@ async function aimLookRender(host, spec) {
   const sameLookSpec = host._lookSpec === spec;
   if (!sameLookSpec) { host._lensGesture = null; host._lookAt = null; }
   host._lookSpec = spec;
+  host._uiTime = null;
   aimLookHosts.add(host);
   // 逆引き（撮れる場所を探す）は、逆引きの結果から描くときだけ続ける。日付・合わせ方・候補地を替えたら終わる
   if (!spec.pick) { host._pick = null; aimReverseClear(); }
@@ -7261,7 +7346,9 @@ async function aimLookRender(host, spec) {
   if (!host.querySelector("canvas")) {
     host.innerHTML = `<div class="aim-look-h"><span>見え方</span></div>
       <p class="aim-look-cap"><strong data-look-title></strong><span class="sub-line" data-look-sub></span><span class="sub-line" data-look-light></span><span class="sub-line" data-look-extra></span></p>
-      <canvas data-look-canvas role="img"></canvas>
+      <div class="aim-look-figure"><canvas data-look-canvas role="img"></canvas><button type="button" data-look-pick class="aim-body-move" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg></button>
+      <div class="aim-body-controls" data-look-controls hidden><div class="aim-body-directions" role="group" aria-label="天体の位置を微調整"><button type="button" data-body-nudge="-1,0" aria-label="天体を左へ">←</button><button type="button" data-body-nudge="0,-1" aria-label="天体を上へ">↑</button><button type="button" data-body-nudge="0,1" aria-label="天体を下へ">↓</button><button type="button" data-body-nudge="1,0" aria-label="天体を右へ">→</button></div><span class="sr-only" role="status" aria-live="polite" data-look-position></span></div></div>
+      <div class="aim-body-actions" data-body-actions hidden><button type="button" class="chip primary" data-look-confirm hidden disabled>確定</button><button type="button" class="chip" data-look-cancel>キャンセル</button></div>
       <div class="tiny aim-frame-times" data-look-frame-times hidden></div>
       <div class="aim-lens">
         <div class="aim-lens-row"><label>焦点距離 <input type="number" min="8" max="2000" step="any" required data-lens-focal aria-label="レンズの実焦点距離（mm）"> mm</label><button type="button" class="chip" data-lens-apply>反映</button></div>
@@ -7271,8 +7358,7 @@ async function aimLookRender(host, spec) {
       <div class="tiny" data-lens-info></div><p class="tiny" data-look-outside hidden></p>
       <div class="aim-look-time"><input type="range" min="0" max="0" step="any" value="0" data-look-range aria-label="時刻を動かす">
         <output data-look-at></output></div>
-      <div class="aim-look-pick"><button type="button" class="chip" data-lens-move aria-pressed="false">構図を変更</button><button type="button" class="chip" data-lens-center>目標を中央に</button><button type="button" class="chip" data-look-pick aria-pressed="false"></button>
-        <button type="button" class="chip primary" data-look-confirm hidden disabled>確定</button></div>
+      <div class="aim-look-pick"><button type="button" class="chip" data-lens-move aria-pressed="false">構図を変更</button><button type="button" class="chip" data-lens-center>目標を中央に</button></div>
       <p class="tiny aim-look-hint" data-look-hint hidden></p>
       <div class="aim-look-found" data-look-found hidden></div>
       <p class="tiny aim-look-note" data-look-note hidden></p>`;
@@ -7392,22 +7478,25 @@ async function aimLookRender(host, spec) {
   note.dataset.primary = note.textContent;
   note.hidden = !note.textContent;
   range.max = String(path.length - 1);
-  // つまみは刻みなしで動かし、道の点（20秒ごと）のあいだは位置と時刻を割り振って埋める
-  // （2026-10-02 ユーザー「もっと滑らかに動作するようにできないの？」。20秒ごとに円盤が飛んでいた）
-  const at = (v) => {
-    const i = Math.max(0, Math.min(path.length - 1, Math.floor(v))), j = Math.min(path.length - 1, i + 1), f = v - i;
-    const a = path[i], b = path[j];
-    if (!f || a.x === null || b.x === null) return a;
-    const mix = (u, w) => (u === null || w === null ? u : u + (w - u) * f);
-    return { ...a, at: Math.round(mix(a.at, b.at) / 1000) * 1000, x: mix(a.x, b.x), y: mix(a.y, b.y), radius: mix(a.radius, b.radius),
-      altitude: mix(a.altitude, b.altitude), illuminated: mix(a.illuminated, b.illuminated),
-      // 角度は近い方へ回して割り振る（359°→1° を素直に割ると 180° になり、月の向きが一瞬裏返る。Codex の点検で指摘）
-      brightLimbZenithAngle: a.brightLimbZenithAngle === null || b.brightLimbZenithAngle === null ? a.brightLimbZenithAngle
-        : a.brightLimbZenithAngle + ((((b.brightLimbZenithAngle - a.brightLimbZenithAngle) % 360) + 540) % 360 - 180) * f };
+  const at = v => {
+    const i = Math.max(0, Math.min(path.length - 2, Math.floor(v))), j = i + 1, f = v-i;
+    const ms = path[i].at + (path[j].at - path[i].at) * f;
+    const st = SoramiBodies.state(body, ms, eyeObs), xy = proj(st.azimuth, st.apparentAltitude);
+    return { at: ms, azimuth: st.azimuth, altitude: st.apparentAltitude, radius: st.angularRadius,
+      illuminated: body === 'moon' ? st.illuminatedFraction : null,
+      brightLimbZenithAngle: body === 'moon' ? st.brightLimbZenithAngle : null,
+      x: xy ? xy[0] : null, y: xy ? xy[1] : null };
   };
   const draw = (v) => {
     const p = at(v);
     host._lookAt = p.at;
+    if (host._uiTime) {
+      host._uiTime.current = p.at;
+      if (p.at < host._uiTime.day + +range.min*1000 || p.at > host._uiTime.day + +range.max*1000) { host._uiAllDay = true; host._uiTime.window(); }
+      range.value = String((p.at-host._uiTime.day)/1000); range.setAttribute('aria-valuetext', aimLookHMS(p.at));
+      const input = document.getElementById('previewTime');
+      if (input && document.activeElement !== input) input.value = S.JstCal.hhmm(p.at).padStart(5,'0');
+    }
     const sunAlt = body === "sun" ? p.altitude : SoramiAstro.sun(p.at, eyeObs).apparentAltitude;
     const [skyTop, skyLow] = aimLookSky(sunAlt);
     const bright = (skyTop[0] * 0.3 + skyTop[1] * 0.59 + skyTop[2] * 0.11) > 120;
@@ -7423,6 +7512,7 @@ async function aimLookRender(host, spec) {
     if (frame && timesKey !== frameTimesKey) {
       frameTimesKey = timesKey;
       const spans = SoramiAlign.framePassages(framePoints, frame, { x: panX / k, y: -panY / k });
+      if(host._uiTime){host._uiTime.frameSpans=spans;host._uiTime.window();}
       times.textContent = spans.length ? `画角内（目安）：${spans.map(row => {
         const from = row.openStart ? "0:00時点で枠内" : `${S.JstCal.hhmm(row.start)}に入る`;
         const until = row.openEnd ? "24:00まで枠内" : `${S.JstCal.hhmm(row.end)}に外れる`;
@@ -7561,7 +7651,7 @@ async function aimLookRender(host, spec) {
     outside.hidden = !!c && c[0] + panX >= 0 && c[0] + panX <= W && c[1] + panY >= 0 && c[1] + panY <= clipBottom;
     outside.textContent = outside.hidden ? "" : `${SoramiBodies.definition(body).name}は図の外です。時刻を動かすと通り方を確認できます`;
     cur = v;
-    out.innerHTML = `${aimLookHMS(p.at)}<span class="sub-line">${esc(aimLookRel(p.at - spec.at, spec.atName))}</span>`;
+    out.innerHTML = `${S.JstCal.sameDay(p.at,spec.at) ? "" : p.at < spec.at ? "前日 " : "翌日 "}${aimLookHMS(p.at)}<span class="sub-line">${esc(aimLookRel(p.at - spec.at, spec.atName))}</span>`;
     cv.setAttribute("aria-label", `${spec.title || "ここから"}見た${visibleTargets.map(x => x.item.target.name).join("、") || t.name}と${SoramiBodies.definition(body).name}の動き。`
       + `${aimLookHMS(spec.at)}に${spec.atName || "重なる"}。いまの図は${aimLookHMS(p.at)}`);
   };
@@ -7573,6 +7663,46 @@ async function aimLookRender(host, spec) {
     const first = pending === null;
     pending = Number(range.value);
     if (first) requestAnimationFrame(() => { const v = pending; pending = null; if (host._lookSeq === seq) draw(v); });
+  };
+  // UIの時間軸だけを変える。位置は既存の天体計算で、その時刻を直接評価する。
+  const timeIndex = ms => {
+    if(ms < path[0].at)return (ms-path[0].at)/(path[1].at-path[0].at);
+    if(ms > path[path.length-1].at)return path.length-1+(ms-path[path.length-1].at)/(path[path.length-1].at-path[path.length-2].at);
+    let lo = 0, hi = path.length - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (path[mid].at <= ms) lo = mid; else hi = mid; }
+    return lo + (ms - path[lo].at) / Math.max(1, path[hi].at - path[lo].at);
+  };
+  const uiDay = S.JstCal.startOfDay(spec.at), uiEnd = uiDay + 86400000 - 1;
+  const uiState = host._uiTime = {
+    day: uiDay, reference: spec.at, name: spec.atName || '重なる', current: selectedAt,
+    set(ms) { if (host._lookSeq !== seq || !Number.isFinite(ms)) return; draw(timeIndex(ms)); },
+    window() {
+      const center=spec.at;
+      const all = host._uiAllDay;
+      const a = SoramiBodies.state(body, center - 1000, eyeObs), b = SoramiBodies.state(body, center + 1000, eyeObs);
+      const pa = proj(a.azimuth, a.apparentAltitude), pb = proj(b.azimuth, b.apparentAltitude);
+      const speed = pa && pb ? Math.hypot(pb[0] - pa[0], pb[1] - pa[1]) / 2 : 0;
+      // 一往復は図の幅程度。望遠ほど時間幅を小さくし、速すぎる移動を避ける。
+      let halfMs = this.frameSpans?.length ? Math.max(30000,...this.frameSpans.flatMap(s=>[Math.abs(s.start-center),Math.abs(s.end-center)])) : Math.max(30000, Math.min(1800000, speed > 0 ? Math.min(win.halfW, win.halfH) / speed * 1000 : 300000));
+      halfMs=Math.max(halfMs,Math.abs((host._lookAt ?? selectedAt)-center));
+      range.min = String(((all ? uiDay : center - halfMs)-uiDay)/1000);
+      range.max = String(((all ? uiEnd : center + halfMs)-uiDay)/1000);
+      range.step = 'any'; range.value = String(Math.max(+range.min, Math.min(+range.max, ((host._lookAt ?? selectedAt)-uiDay)/1000)));
+      range.setAttribute('aria-label', all ? '一日の時刻を動かす' : '時刻を細かく調整');
+      range.setAttribute('aria-valuetext', aimLookHMS(host._lookAt ?? selectedAt));
+    }
+  };
+  uiState.window();
+  let uiPending = null;
+  range.oninput = () => {
+    const first = uiPending === null; uiPending = uiDay + Number(range.value)*1000;
+    if (first) requestAnimationFrame(() => { const ms = uiPending; uiPending = null; if (host._lookSeq === seq && ms !== null) uiState.set(ms); });
+  };
+  range.onchange = () => { const ms = uiDay + Number(range.value)*1000; uiPending = null; uiState.set(ms);  };
+  range.onkeydown = e => {
+    if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
+    e.preventDefault(); const delta = (e.shiftKey ? 10000 : 1000) * (['ArrowLeft','ArrowDown'].includes(e.key) ? -1 : 1);
+    uiState.set(Math.max(uiDay + +range.min*1000, Math.min(uiDay + +range.max*1000, host._lookAt + delta)));
   };
   // 道をさわって時刻を選ぶ（いちばん近い点。36px より遠ければ何もしない）。
   // pointerdown では iPhone の指のタップで動かなかった（2026-10-02 シミュレーターで確認。マウスでは動く）ので click で受ける
@@ -7589,7 +7719,7 @@ async function aimLookRender(host, spec) {
     });
     if (best >= 0) { range.value = String(best); draw(best); }
   };
-  aimLookPick(host, { spec, cv, draw: () => draw(cur), W, H, k, win, az, topAngle, D, path, toPx: xy => { const p = toPx(xy), off = host._lensOffset || [0, 0]; return p ? [p[0] + off[0] * W, p[1] + off[1] * H] : null; }, pan: () => { const off = host._lensOffset || [0, 0]; return [off[0] * W, off[1] * H]; }, pathTap: cv.onclick });
+  aimLookPick(host, { spec, cv, draw: () => draw(cur), bodyPosition: () => { const p = at(cur); if (p.x === null) return null; const xy = toPx([p.x, p.y]), off = host._lensOffset || [0, 0]; return [xy[0] + off[0] * W, xy[1] + off[1] * H]; }, W, H, k, win, az, topAngle, D, path, toPx: xy => { const p = toPx(xy), off = host._lensOffset || [0, 0]; return p ? [p[0] + off[0] * W, p[1] + off[1] * H] : null; }, pan: () => { const off = host._lensOffset || [0, 0]; return [off[0] * W, off[1] * H]; }, pathTap: cv.onclick });
   const move = host.querySelector("[data-lens-move]");
   const center = host.querySelector("[data-lens-center]");
   move.disabled = center.disabled = !frame;
@@ -7678,7 +7808,7 @@ async function aimLookRender(host, spec) {
     host._lensGesture = null; cv.onlostpointercapture = null;
     cv.style.touchAction = host._pick ? "none" : "";
   }
-  draw(i0);
+  cur = timeIndex(selectedAt); draw(cur);
   if (ridgePending) ridgePending.then((ridge) => {
     if (seq !== host._lookSeq) return;
     if (ridge) shape = ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
@@ -7691,43 +7821,72 @@ async function aimLookRender(host, spec) {
 }
 
 /**
- * 逆引き（2026-10-03 ユーザー「見え方の月とか太陽の位置を調整したら、それがどこら辺の座標で撮れるのか逆引きみたいなことってできる？」
- * → Codex と相談した案をユーザーが選んだ）。「撮れる場所を探す」を押すと、円盤を指で動かすか空をタップして置ける。
- * 指を離したら、同じ日・目標まで同じ距離で、そう見える立つ点と時刻を解き（SoramiAlign.solveComposition）、その点から描き直す。
- * いつもの時刻のつまみ・道のタップとはぶつからない（逆引きの間だけ図で円盤を置く）
+ * 天体の位置から撮影場所を逆算する。図内アイコンで移動モードを開く。
+ * 空の任意の位置から相対ドラッグ／方向ボタンで調整し、確定時に既存solveCompositionを実行。
+ * タップでは移動せず、キャンセルは最後に確定した結果を維持する。
  */
-function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path, toPx, pan = () => [0, 0], pathTap }) {
+function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path, toPx, pan = () => [0, 0], pathTap, bodyPosition }) {
   const btn = host.querySelector("[data-look-pick]"), found = host.querySelector("[data-look-found]");
   const ok = host.querySelector("[data-look-confirm]"), hint = host.querySelector("[data-look-hint]");
   const on = !!host._pick;
   const bodyName = SoramiBodies.definition(aim.body).name;
-  // 「撮れる場所を探す」は何をする釦か分からなかった（2026-10-03 ユーザー「月を動かす・太陽を動かすの方がいい」「確定ボタンが見当たらない」）
-  btn.textContent = on ? "やめる" : `${bodyName}を移動`;
+  const controls = host.querySelector("[data-look-controls]"), cancel = host.querySelector("[data-look-cancel]"), status = host.querySelector("[data-look-position]");
+  const directions = [...host.querySelectorAll("[data-body-nudge]")];
+  btn.setAttribute("aria-label", on ? `${bodyName}の移動をキャンセル` : `${bodyName}を移動して撮れる場所を探す`);
+  btn.title = on ? "移動をキャンセル" : `${bodyName}を移動`;
   btn.setAttribute("aria-pressed", String(on));
-  ok.hidden = !on;
-  cv.classList.toggle("picking", on);
+  btn.classList.toggle("active", on);
+  controls.hidden = !on; const actions = host.querySelector("[data-body-actions]"); if(actions)actions.hidden = !on; ok.hidden = !on; cv.classList.toggle("picking", on); hint.hidden = true;
+  const leave = () => {
+    const editing = host._pick;
+    if (editing?.busy) return;
+    host._pick = null; found.hidden = true;
+    if (editing) { aim.reverse = editing.reverseBefore; AimMap.redraw(); aimLookRender(host, editing.base); }
+  };
   btn.onclick = () => {
-    if (host._pick) { host._pick = null; found.hidden = true; aimReverseClear(); aimUpdateLook(); return; }
+    if (host._pick) { leave(); return; }
     host._lensMoving = false;
-    host._pick = { base: spec, ghost: null };
+    host._pick = { base: spec, reverseBefore: aim.reverse, ghost: null, ghostAngle: null };
     aimLookRender(host, { ...spec, pick: true });
   };
-  if (!on) { found.hidden = true; hint.hidden = true; cv.onpointerdown = cv.onpointermove = cv.onpointerup = cv.onpointercancel = null; cv.onclick = pathTap; return; }
+  cancel.onclick = leave;
+  if (!on) {
+    btn.disabled = false; found.hidden = true;
+    cv.onpointerdown = cv.onpointermove = cv.onpointerup = cv.onpointercancel = cv.onlostpointercapture = cv.onkeydown = null;
+    cv.removeAttribute("tabindex"); cv.onclick = pathTap; return;
+  }
   const st = host._pick;
-  ok.disabled = !st.ghost;
-  hint.hidden = false;
-  hint.textContent = st.ghost ? `置いた位置で「確定」を押すと、そう見える場所を地図に出します`
-    : `${bodyName}を指で動かすか、空をタップして置いてください`;
-  if (!st.result && !st.busy) found.hidden = true;
-  const xyOf = (ev) => { const b = cv.getBoundingClientRect(); return [ev.clientX - b.left, ev.clientY - b.top]; };
-  // この描画の分だけ受ける（解いて描き直したあと、前の描画の待ちが古い図で上書きしていた）
   const mySeq = host._lookSeq;
-  let dragging = false, frame = 0;
-  const show = (xy) => {
-    st.ghost = xy;
+  const fresh = () => host._lookSeq === mySeq && host._pick === st;
+  const lock = () => { for (const b of [btn, cancel, ...directions]) b.disabled = !!st.busy; ok.disabled = !!st.busy || !st.ghost; };
+  lock();
+  if (!st.result && !st.busy) found.hidden = true;
+  const xyOf = ev => { const b = cv.getBoundingClientRect(); return [(ev.clientX - b.left) * W / b.width, (ev.clientY - b.top) * H / b.height]; };
+  const initial = () => { const p = bodyPosition?.(); return p && p.every(Number.isFinite) && p[0]>=0 && p[0]<=W && p[1]>=0 && p[1]<=H ? p : [W/2,H/2]; };
+  if (st.ghostAngle) {
+    const xy = SoramiAlign.viewProjector(win.az0, win.alt0)(...st.ghostAngle);
+    st.ghost = xy ? toPx(xy) : null;
+    draw(); lock();
+  }
+  let drag = null, frame = 0;
+  const announce = () => { if(st.ghost) status.textContent = `${bodyName}の位置、左から${Math.round(st.ghost[0]/W*100)}%、上から${Math.round(st.ghost[1]/H*100)}%`; };
+  const show = xy => {
+    if (!fresh() || st.busy) return;
+    st.ghost = [Math.max(0,Math.min(W,xy[0])),Math.max(0,Math.min(H,xy[1]))];
+    const [panX,panY] = pan();
+    st.ghostAngle = SoramiAlign.viewUnprojector(win.az0,win.alt0)((st.ghost[0]-panX-W/2)/k,(H/2-st.ghost[1]+panY)/k);
     ok.disabled = false;
-    hint.textContent = `置いた位置で「確定」を押すと、そう見える場所を地図に出します`;
-    if (!frame) frame = requestAnimationFrame(() => { frame = 0; if (host._lookSeq === mySeq) draw(); });
+    if (st.result) { found.hidden = false; found.textContent = "位置を変更中（未確定）"; }
+    if (!frame) frame = requestAnimationFrame(() => { frame = 0; if (fresh()) draw(); });
+  };
+  const nudge = (dx,dy) => { const p = st.ghost || initial(); show([p[0]+dx,p[1]+dy]); announce(); };
+  for (const button of directions) button.onclick = () => { const [dx,dy]=button.dataset.bodyNudge.split(",").map(Number); nudge(dx,dy); };
+  cv.tabIndex = 0;
+  cv.onkeydown = ev => {
+    const arrows={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
+    if (ev.key === "Escape") { ev.preventDefault(); leave(); return; }
+    if (!arrows[ev.key] || st.busy) return;
+    ev.preventDefault(); const step=ev.shiftKey?10:1; nudge(arrows[ev.key][0]*step,arrows[ev.key][1]*step);
   };
   const solve = async () => {
     if (!st.ghost) return;
@@ -7748,7 +7907,7 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
     // 解いている間に日付・天体・目標・合わせ方を替えた／図を描き直した（画面の幅が変わった）ら、結果は捨てる（Codex の点検）
     const key = aimLookKey();
     const stale = () => seq !== st.seq || host._pick !== st || host._lookSeq !== mySeq || aimLookKey() !== key;
-    st.busy = true; ok.disabled = true;
+    st.busy = true; lock();
     found.hidden = false;
     found.innerHTML = `<p class="tiny">探しています…</p>`;
     let r = null;
@@ -7758,8 +7917,8 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
         eyeM: 1.5, groundM: spec.obs.elevation ?? 0, elevationAt: aimElevation, dayMs: aim.dayMs });
     } catch { r = null; }
     if (stale()) return;
-    st.busy = false;
     if (!r) {
+      st.busy = false; lock();
       found.innerHTML = `<p class="tiny">この日・この距離では、そこには来ません</p>`;
       ok.disabled = false;
       return;
@@ -7771,20 +7930,32 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
     let water = null;
     try { [water] = await SoramiTerrain.waterAt([{ latitude: r.latitude, longitude: r.longitude }]); } catch { water = null; }
     if (stale()) return;
+    st.busy = false;
     st.result = { ...r, water: water === true };
-    st.ghost = null;
+    st.ghost = null; st.ghostAngle = null;
     aim.reverse = { key, points: along, at: r };
     aimReverseShow(r, along);
-    aimLookRender(host, { obs: { latitude: r.latitude, longitude: r.longitude, elevation: r.groundM }, eyeM: 1.5, at: r.at,
-      title: "撮れる場所から（計算上の位置）", sub: `${aimDateLabel(r.at)} ${aimSideName(r.side)}`, atName: "置いた", pick: true });
+    const resultSpec = { obs: { latitude: r.latitude, longitude: r.longitude, elevation: r.groundM }, eyeM: 1.5, at: r.at,
+      title: "撮れる場所から（計算上の位置）", sub: `${aimDateLabel(r.at)} ${aimSideName(r.side)}`, atName: "置いた", pick: true };
+    st.base = resultSpec; st.reverseBefore = aim.reverse;
+    aimLookRender(host, resultSpec);
   };
-  cv.onpointerdown = (ev) => { dragging = true; try { cv.setPointerCapture(ev.pointerId); } catch { /* 取れなくても動く */ } show(xyOf(ev)); };
-  cv.onpointermove = (ev) => { if (dragging) show(xyOf(ev)); };
-  cv.onpointerup = (ev) => { if (!dragging) return; dragging = false; st.upAt = Date.now(); show(xyOf(ev)); };
-  cv.onpointercancel = () => { dragging = false; };
-  // iPhone の短いタップは pointer が来ないことがある（2026-10-02）ので click でも受ける。pointerup で解いた直後の click は捨てる
-  // （時刻は描き直しをまたいで持つ。描き直した新しい図に、指を離した位置で2回目を解いていた）
-  cv.onclick = (ev) => { if (Date.now() - (st.upAt || 0) < 800) return; show(xyOf(ev)); };
+  cv.onpointerdown = ev => {
+    if (!fresh() || st.busy || drag || (ev.pointerType === "mouse" && ev.button !== 0)) return;
+    drag = { id: ev.pointerId, start: xyOf(ev), base: [...(st.ghost || initial())], moved: false };
+    try { cv.setPointerCapture(ev.pointerId); } catch { /* pointerの移動は受け続ける */ }
+  };
+  const movePointer = ev => {
+    if (!drag || ev.pointerId !== drag.id || !fresh() || st.busy) return;
+    const p=xyOf(ev),dx=p[0]-drag.start[0],dy=p[1]-drag.start[1];
+    if (!drag.moved && Math.hypot(dx,dy)<3) return;
+    drag.moved=true; show([drag.base[0]+dx,drag.base[1]+dy]);
+  };
+  cv.onpointermove = movePointer;
+  cv.onpointerup = ev => { if(!drag || ev.pointerId!==drag.id)return; movePointer(ev); drag=null; announce(); };
+  cv.onpointercancel = cv.onlostpointercapture = () => { drag=null; };
+  // タップの位置へ飛ばさない。pointerを受けない入力は方向ボタン/矢印キーで操作できる。
+  cv.onclick = () => {};
   ok.onclick = () => { if (st.ghost && !st.busy) solve(); };
   if (st.result) aimLookFound(found, st.result, D);
 }
@@ -8620,10 +8791,6 @@ function showSheet(el) {
 // 題名は一覧へ（何画面進んでいても1回で）。「← 戻る」はひとつ前の画面へ
 $("homeLink").onclick = () => { closeTools(); goList(); };
 $("toolsHome").onclick = () => { closeTools(); goList(); };
-$("toolsUiPreview").onclick = () => {
-  const page = location.pathname.endsWith("/mobile-ui-preview.html") ? "./index.html" : "./mobile-ui-preview.html";
-  location.assign(page + location.hash);
-};
 $("backLink").onclick = () => { closeTools(); goBack(); };
 $("toolsButton").onclick = () => ($("toolsMenu").hidden ? openTools() : closeTools());
 $("toolsClose").onclick = () => closeTools({ restoreFocus: true });
@@ -9745,5 +9912,99 @@ load(false);
 restoreSession();
 checkForUpdate();
 </script>
-</body>
+<script id="previewPresentation">(()=>{
+ const el=id=>document.getElementById(id),root=el('aimView'),look=el('aimLook'),scene=el('previewScene'),places=el('previewPlaces'),tabs=[el('previewSceneTab'),el('previewPlacesTab')],wide=matchMedia('(min-width:960px)');
+ let mode='scene',resultKey='';
+ function show(which,focus=false){
+  mode=which;const both=wide.matches;
+  scene.hidden=!both&&which!=='scene';places.hidden=!both&&which!=='places';
+  tabs.forEach((t,i)=>{const on=(i===0)===(which==='scene');t.setAttribute('aria-selected',String(on));t.tabIndex=on?0:-1;if(focus&&on)t.focus();});
+  requestAnimationFrame(()=>{if(!places.hidden)AimMap.redraw();if(!scene.hidden&&look._lookSpec&&!look.hidden){const cv=look.querySelector('canvas');if(cv&&Math.round(cv.clientWidth)!==look._lookW)aimLookRender(look,look._lookSpec);}});
+ }
+ tabs.forEach((t,i)=>{t.onclick=()=>show(i?'places':'scene');t.onkeydown=e=>{let j;if(e.key==='ArrowRight'||e.key==='ArrowLeft')j=1-i;else if(e.key==='Home')j=0;else if(e.key==='End')j=1;else return;e.preventDefault();show(j?'places':'scene',true);};});
+ wide.addEventListener('change',()=>show(mode));show('scene');
+ const dateSection=root.querySelector('.aim-date-section'),dateTime=document.createElement('div');
+ dateTime.className='preview-date-time';dateTime.innerHTML='<input id="previewTime" type="time" step="60" aria-label="見え方の時刻"><button type="button" class="chip" id="previewReference"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 8v4l3 2M2 12h4m-2-2 2 2-2 2"/></svg></button>';
+ el('aimCalendarOpen').after(dateTime);
+ const clock=el('previewTime'),reference=el('previewReference');
+ clock.onchange=()=>{const m=/^(\d{2}):(\d{2})$/.exec(clock.value),state=look._uiTime;if(!m||!state||state.day!==aim.dayMs)return;const at=state.day+(+m[1]*60 + +m[2])*60000;if(at<state.day + +look.querySelector('[data-look-range]').min*1000||at>state.day + +look.querySelector('[data-look-range]').max*1000)look._uiAllDay=true;state.window();state.set(at);};
+ reference.onclick=()=>{const state=look._uiTime;if(state){look._uiAllDay=false;state.window();state.set(state.reference);}};
+ const calChoices=document.createElement('div');calChoices.className='preview-calendar-choices';calChoices.hidden=true;el('aimCalGrid').after(calChoices);
+ const hideCalChoices=()=>{calChoices.hidden=true;calChoices.replaceChildren();};
+ for(const id of ['aimCalPrev','aimCalNext','aimCalYear','aimCalMonth','aimCalToday'])el(id).addEventListener(id==='aimCalYear'||id==='aimCalMonth'?'change':'click',hideCalChoices);
+ const timeContext=()=>`${aim.body}|${aim.target?.id}|${aim.partId}|${JSON.stringify(aimFromPoint())}`;
+ el('aimCalendar').addEventListener('close',()=>{calChoices.hidden=true;calChoices.replaceChildren();});
+ el('aimCalGrid').addEventListener('click',e=>{
+  const button=e.target.closest('[data-cal-day]');if(!button)return;const day=+button.dataset.calDay,rows=aimCal.events.get(day)||[];
+  look._uiRequestedTime=null;
+  const select=event=>{aim.candSide=event.side;look._uiRequestedTime={day,at:event.at,context:timeContext()};button.onclick();};
+  if(rows.length===1){e.stopImmediatePropagation();select(rows[0]);return;}
+  if(rows.length>1){
+   e.stopImmediatePropagation();calChoices.replaceChildren();const title=document.createElement('p');title.textContent=`${new Date(day+9*3600000).toISOString().slice(5,10).replace('-','/')} の時刻`;calChoices.append(title);
+   for(const event of rows){const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=`${S.JstCal.hhmm(event.at)} ${aimSideName(event.side)}`;b.onclick=()=>select(event);calChoices.append(b);}
+   calChoices.hidden=false;calChoices.scrollIntoView({block:'nearest',behavior:'auto'});
+  }
+ },true);
+ const update=()=>{
+  const dateButton=el('aimCalendarOpen');if(!dateButton.querySelector('.preview-date-label')){const date=document.createElement('span');date.className='preview-date-label';date.textContent=el('aimDate').value.replaceAll('-','/');const weekday=document.createElement('span');weekday.className='preview-date-weekday';weekday.textContent=`(${S.Cal.weekday(aim.dayMs)})`;dateButton.replaceChildren(date,weekday);}
+
+  const state=look._uiTime;
+  clock.disabled=reference.disabled=!state||look.hidden||state.day!==aim.dayMs;
+  const refText=state?`${state.name} ${S.JstCal.hhmm(state.reference)}`:'時刻を計算中';const refLabel=state?`${refText}へ移動`:'時刻を計算中';reference.setAttribute('aria-label',refLabel);reference.title=refLabel;
+  if(state&&!clock.disabled){
+   if(document.activeElement!==clock){const v=S.JstCal.hhmm(state.current).padStart(5,'0');if(clock.value!==v)clock.value=v;}
+   const requested=look._uiRequestedTime;if(requested&&(requested.context!==timeContext()||requested.day!==aim.dayMs))look._uiRequestedTime=null;else if(requested&&requested.day===state.day){look._uiRequestedTime=null;state.window(requested.at);state.set(requested.at);}
+   if(!look.querySelector('.preview-time-scope')){
+    const row=document.createElement('div');row.className='preview-time-scope';row.id='previewTimeScope';row.setAttribute('role','group');row.setAttribute('aria-label','時間バーの範囲');row.innerHTML='<button type="button" data-time-scope="fine" aria-pressed="true">微調整</button><button type="button" data-time-scope="day" aria-pressed="false">全日</button>';
+    look.querySelector('.aim-look-time').before(row);for(const button of row.querySelectorAll('button'))button.onclick=()=>{look._uiAllDay=button.dataset.timeScope==='day';look._uiTime?.window();if(!look._uiAllDay)look._uiTime?.set(look._uiTime.reference);update();};
+   }
+  }
+  const head=root.querySelector('.aim-head'),body=el('aimBody'),target=el('aimTarget'),goalLabel=el('aimTargetLabel');if(head&&head.firstElementChild!==body)head.prepend(body);if(head&&!head.querySelector('.preview-cross')){const cross=document.createElement('span');cross.className='preview-cross';cross.textContent='×';cross.setAttribute('aria-hidden','true');body.after(cross);}const goal=target.selectedOptions[0]?.textContent;if(goal&&goalLabel.textContent!==goal)goalLabel.textContent=goal;
+  const lens=look.querySelector('.aim-lens');
+  if(lens&&!look.querySelector('.preview-compose')){
+   const time=look.querySelector('.aim-look-time');if(time)time.after(lens);
+   const rows=lens.querySelectorAll('.aim-lens-row'),sensor=look.querySelector('[data-lens-sensor]'),portrait=look.querySelector('[data-lens-portrait]');
+   // 焦点距離・縦横は直接触る。センサー等のカメラ設定だけを一か所にまとめる。
+   const quick=document.createElement('div');quick.className='preview-quick';if(portrait)quick.append(portrait);const frame=look.querySelector('[data-lens-on]');if(frame)quick.append(frame);if(rows[0])rows[0].after(quick);
+   const sensorRow=rows[1];if(sensorRow){const label=document.createElement('label');label.className='preview-sensor-label';label.textContent='センサーサイズ';label.htmlFor='previewSensor';if(sensor){sensor.id='previewSensor';sensorRow.prepend(label);}rows[0].after(sensorRow);}
+   const info=look.querySelector('[data-lens-info]');if(info)lens.append(info);
+   const compose=document.createElement('div');compose.className='preview-compose';const move=look.querySelector('[data-lens-move]'),center=look.querySelector('[data-lens-center]');if(move)quick.append(move);if(center)compose.append(center);lens.append(compose);const apply=lens.querySelector('[data-lens-apply]');if(apply)apply.hidden=true;
+   const reverse=document.createElement('section');reverse.className='preview-reverse';const title=document.createElement('h3');title.textContent='撮れる場所を逆算';reverse.append(title);look.append(reverse);
+   for(const selector of['[data-look-found]']){const node=look.querySelector(selector);if(node)reverse.append(node);}
+  }
+  const timeScope=el('previewTimeScope');if(timeScope){const scope=look._uiAllDay?'day':'fine';for(const button of timeScope.querySelectorAll('button')){const pressed=String(button.dataset.timeScope===scope);if(button.getAttribute('aria-pressed')!==pressed)button.setAttribute('aria-pressed',pressed);}}
+  const focalInput=look.querySelector('[data-lens-focal]');if(focalInput){focalInput.onfocus=()=>{focalInput._uiFocusValue=focalInput.value;};focalInput.onblur=()=>{if(focalInput.value!==focalInput._uiFocusValue&&focalInput.checkValidity()&&focalInput.value.trim()&&(aimLens.mode!=='manual'||+focalInput.value!==aimLens.focal))focalInput.onchange();};}
+  const portraitButton=look.querySelector('[data-lens-portrait]');if(portraitButton){const text=portraitButton.getAttribute('aria-pressed')==='true'?'縦位置':'横位置';if(portraitButton.textContent!==text)portraitButton.textContent=text;}
+  const centerButton=look.querySelector('[data-lens-center]'),movingButton=look.querySelector('[data-lens-move]');if(centerButton)centerButton.hidden=movingButton?.getAttribute('aria-pressed')!=='true';
+  const note=look.querySelector('[data-look-note]'),outside=look.querySelector('[data-look-outside]');if(note&&outside&&note.previousElementSibling!==outside)outside.after(note);
+  const selected=el('aimCandList').querySelector('[data-cand][aria-pressed="true"]');let back=look.querySelector('.preview-return');
+  const caption=look.querySelector('.aim-look-cap');if(!back&&caption){back=document.createElement('button');back.type='button';back.className='tap preview-return';back.textContent='観測地点の見え方に戻す';caption.after(back);back.onclick=()=>{const current=el('aimCandList').querySelector('[data-cand][aria-pressed="true"]');if(current)current.click();else aimUpdateLook();};}if(back)back.hidden=!selected;
+  const result=look.querySelector('[data-found-map]'),found=look.querySelector('[data-look-found]');const reverse=look.querySelector('.preview-reverse');if(reverse && reverse.hidden !== !!found?.hidden)reverse.hidden=!!found?.hidden;const key=result?found.textContent.trim():'';if(key&&key!==resultKey){resultKey=key;requestAnimationFrame(()=>{if(!scene.hidden)found.scrollIntoView({block:'nearest',behavior:'auto'});});}else if(!key)resultKey='';
+  for(const row of el('aimCandList').querySelectorAll('.cand-row.on'))if(!row.querySelector('.preview-show-scene')){const b=document.createElement('button');b.type='button';b.className='chip preview-show-scene';b.textContent='この場所の見え方';b.onclick=()=>{show('scene',true);if(!wide.matches)el('previewSceneTab').scrollIntoView({block:'start',behavior:'smooth'});};row.append(b);}
+ };
+ new MutationObserver(update).observe(root,{childList:true,subtree:true});update();
+ // 既存の地図移動処理より先に表示する。計算や地点選択の処理は既存のまま。
+ root.addEventListener('click',e=>{const b=e.target.closest('button');if(b&&(b.matches('[data-cand-map],[data-day],[data-found-map]')))show('places');},true);
+})();
+
+(()=>{
+ const source=document.getElementById('aimBody'),head=source.closest('.aim-head');
+ const picker=document.createElement('button');picker.type='button';picker.id='previewBodyOpen';picker.className='preview-body-open';picker.setAttribute('aria-haspopup','dialog');picker.setAttribute('aria-controls','previewBodyDialog');
+ source.classList.add('preview-body-native');source.after(picker);
+ const dialog=document.createElement('dialog');dialog.id='previewBodyDialog';dialog.className='sheet preview-body-dialog';dialog.setAttribute('aria-labelledby','previewBodyTitle');
+ dialog.innerHTML='<div class="sheet-head"><strong id="previewBodyTitle">天体を選ぶ</strong><button type="button" data-body-close>閉じる</button></div><div class="sheet-body"></div>';
+ const content=dialog.querySelector('.sheet-body');
+ for(const group of source.querySelectorAll('optgroup')){
+  const section=document.createElement('section'),title=document.createElement('h3'),list=document.createElement('div');section.className='preview-body-group';title.textContent=group.label;list.className='preview-body-list';section.append(title,list);
+  for(const option of group.querySelectorAll('option')){
+   const b=document.createElement('button');b.type='button';b.dataset.bodyValue=option.value;b.className='preview-body-choice';b.textContent=option.textContent;b.onclick=()=>{source.value=option.value;source.dispatchEvent(new Event('change',{bubbles:true}));dialog.close();};list.append(b);
+  }
+  content.append(section);
+ }
+ document.body.append(dialog);
+ const sync=()=>{const name=source.selectedOptions[0]?.textContent||'天体';if(picker.textContent!==`${name} ▾`)picker.textContent=`${name} ▾`;picker.setAttribute('aria-label',`天体：${name}、選択を開く`);for(const b of dialog.querySelectorAll('[data-body-value]'))b.setAttribute('aria-pressed',String(b.dataset.bodyValue===source.value));};
+ picker.onclick=()=>{sync();showSheet(dialog);};dialog.querySelector('[data-body-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>picker.focus({preventScroll:true}));
+ new MutationObserver(sync).observe(head,{childList:true,subtree:true});source.addEventListener('change',sync);sync();
+})();
+</script></body>
 </html>

@@ -1,0 +1,21 @@
+import {createRequire} from "node:module";
+const require=createRequire(import.meta.url);
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
+const AL=require('./sorami-align.js');
+const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');const a=html.indexOf('function aimLookPick('),b=html.indexOf('\n/**',a);const code=html.slice(a,b);
+const element=()=>({hidden:false,disabled:false,textContent:'',attrs:{},classList:{toggle(){}},setAttribute(k,v){this.attrs[k]=v},removeAttribute(k){delete this.attrs[k]}});
+const els={};for(const key of ['pick','found','confirm','hint','controls','cancel','position'])els[`[data-look-${key}]`]=element();
+const buttons=['-1,0','0,-1','0,1','1,0'].map(v=>Object.assign(element(),{dataset:{bodyNudge:v}}));
+const original={key:'previous',points:[{latitude:1}],at:{at:123}};const spec={at:123,obs:{},pick:true};const host={_lookSeq:1,_pick:{base:spec,reverseBefore:original,ghost:null},querySelector:q=>els[q],querySelectorAll:()=>buttons};
+const cv=Object.assign(element(),{getBoundingClientRect:()=>({left:10,top:20,width:200,height:150}),setPointerCapture(){}});
+let renders=[],draws=0;const c={aim:{body:'moon',reverse:original},SoramiBodies:{definition:()=>({name:'月'})},SoramiAlign:AL,AimMap:{redraw(){}},aimLookRender:(h,s)=>renders.push(s),aimLookFound(){},requestAnimationFrame:f=>{f();return 1},Date,Math,Number,Array};vm.createContext(c);vm.runInContext(code+';this.pick=aimLookPick;',c);
+function mount(W=400,H=300,k=100){c.pick(host,{spec,cv,draw:()=>draws++,W,H,k,win:{az0:270,alt0:5},az:270,topAngle:5,D:1,path:[],toPx:xy=>xy?[W/2+xy[0]*k,H/2-xy[1]*k]:null,pan:()=>[0,0],pathTap(){},bodyPosition:()=>[80,90]});}
+const ev=(x,y,id=1)=>({clientX:x,clientY:y,pointerId:id,pointerType:'touch',button:0});
+mount();cv.onpointerdown(ev(150,100));cv.onpointerup(ev(150,100));assert.equal(host._pick.ghost,null,'tap must not teleport');
+cv.onpointerdown(ev(150,100));cv.onpointermove(ev(150,99));assert.equal(host._pick.ghost,null,'subthreshold move');cv.onpointermove(ev(170,80));assert.deepEqual([...host._pick.ghost],[120,50]);
+cv.onpointermove(ev(190,100,2));assert.deepEqual([...host._pick.ghost],[120,50],'second pointer ignored');cv.onpointerup(ev(170,80));buttons[3].onclick();assert.deepEqual([...host._pick.ghost],[121,50]);
+cv.onkeydown({key:'ArrowUp',shiftKey:true,preventDefault(){}});assert.deepEqual([...host._pick.ghost],[121,40]);
+host._pick.busy=true;buttons[3].onclick();cv.onpointerdown(ev(150,100));cv.onpointermove(ev(200,150));assert.deepEqual([...host._pick.ghost],[121,40],'busy cannot change position');els['[data-look-cancel]'].onclick();assert.ok(host._pick,'busy cancel locked');host._pick.busy=false;
+const angle=[...host._pick.ghostAngle];mount(800,600,200);assert.ok(Math.abs(host._pick.ghost[0]-242)<1e-8 && Math.abs(host._pick.ghost[1]-80)<1e-8,'angle preserved across resize');assert.deepEqual([...host._pick.ghostAngle],angle);
+els['[data-look-cancel]'].onclick();assert.equal(host._pick,null);assert.equal(c.aim.reverse,original);assert.equal(renders.at(-1),spec);assert.ok(draws>0);
+console.log('PASS: no tap teleport; drag delta and scale; threshold; pointer isolation; 1px/Shift10px; busy guard; angle resize; cancel preserves previous result');
