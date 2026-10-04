@@ -23,5 +23,6 @@ test('E79 総点検で見つけた下部欄まわりの不具合を戻さない'
  assert.match(css,/\.aim-date\{display:grid;grid-template-columns:32px auto minmax\(0,1fr\) 32px 32px;/,'日付は内容幅、時刻と差は残りの幅');
  assert.match(css,/\.preview-footer-rel\{max-width:100%;overflow:hidden;text-overflow:ellipsis;/);
  assert.match(p,/footerRange\.onkeydown=[\s\S]{0,300}e\.shiftKey\?600:60/,'矢印は1分、Shiftで10分');
+ assert.match(h,/if \(!bundle && route && !route\.id\) applyRoute\(\);\n    else \$\("placeName"\)\.textContent = place\.name;/,'予測の取得に失敗しても天体などの画面はURLどおり開く');
  assert.match(p,/focalInput\.value=button\.dataset\.focalPreset;focalInput\.onchange\(\);const sheet=button\.closest\('dialog'\);if\(sheet\?\.open\)sheet\.close\(\);/,'焦点距離の代表値を押したら画角調整を閉じる');
 });

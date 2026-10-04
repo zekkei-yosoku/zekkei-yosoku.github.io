@@ -1864,23 +1864,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261005012458"></script>
+<script src="sorami-core.js?v=20261005013132"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261005012458"></script>
-<script src="sorami-exif.js?v=20261005012458"></script>
-<script src="sorami-capcloud.js?v=20261005012458"></script>
-<script src="sorami-terrain.js?v=20261005012458"></script>
-<script src="sorami-mountain.js?v=20261005012458"></script>
-<script src="sorami-fuji.js?v=20261005012458"></script>
-<script src="sorami-sky.js?v=20261005012458"></script>
-<script src="sorami-routes.js?v=20261005012458"></script>
-<script src="sorami-iss.js?v=20261005012458"></script>
-<script src="sorami-plane.js?v=20261005012458"></script>
-<script src="sorami-atmosphere.js?v=20261005012458"></script>
-<script src="sorami-bodies.js?v=20261005012458"></script>
-<script src="sorami-align.js?v=20261005012458"></script>
-<script src="sorami-moon.js?v=20261005012458"></script>
+<script src="sorami-astro.js?v=20261005013132"></script>
+<script src="sorami-exif.js?v=20261005013132"></script>
+<script src="sorami-capcloud.js?v=20261005013132"></script>
+<script src="sorami-terrain.js?v=20261005013132"></script>
+<script src="sorami-mountain.js?v=20261005013132"></script>
+<script src="sorami-fuji.js?v=20261005013132"></script>
+<script src="sorami-sky.js?v=20261005013132"></script>
+<script src="sorami-routes.js?v=20261005013132"></script>
+<script src="sorami-iss.js?v=20261005013132"></script>
+<script src="sorami-plane.js?v=20261005013132"></script>
+<script src="sorami-atmosphere.js?v=20261005013132"></script>
+<script src="sorami-bodies.js?v=20261005013132"></script>
+<script src="sorami-align.js?v=20261005013132"></script>
+<script src="sorami-moon.js?v=20261005013132"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2285,6 +2285,12 @@ async function load(force) {
       + `${navigator.onLine === false ? "通信が切れているようです" : "予測に失敗しました"}</p>`
       + `<button id="retry" class="fav-btn primary">再試行</button>`;
     $("retry").onclick = () => load(true);
+    // 予測を使わない画面（天体・飛行機・ISS・記録・管理）は、取れなくてもURLどおり開く。
+    // 起動時の画面切替を予測の成功後にしか行っておらず、一時的な取得失敗で一覧に止まり、
+    // 地点名も「…」のままだった（2026-10-05 iOS 27 の総点検で確認）。
+    const route = routeFromHash();
+    if (!bundle && route && !route.id) applyRoute();
+    else $("placeName").textContent = place.name;
   }
 }
 
