@@ -1030,6 +1030,8 @@
 #aimView .aim-lens-row .preview-sensor-label{flex:0 0 auto}#aimView .aim-date #aimCalendarOpen{overflow:hidden;font-size:11px}#aimView .preview-date-label{white-space:nowrap}
 @media(max-width:360px){#aimView .preview-date-weekday{display:none}}
 #aimView .aim-lens-row{display:flex;align-items:center}#aimView .aim-lens-row:has([data-lens-sensor]){gap:10px}
+#aimView .preview-body-native{display:none}#aimView .preview-body-open{flex:1;min-width:80px;min-height:44px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;font-size:16px}
+.preview-body-dialog{width:min(400px,calc(100vw - 24px))}.preview-body-group{padding:14px 0;border-bottom:1px solid var(--line)}.preview-body-group:first-child{padding-top:0}.preview-body-group:last-child{border:0}.preview-body-group h3{font-size:12px;font-weight:500;color:var(--secondary);margin:0 0 10px}.preview-body-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.preview-body-choice{min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--sunk);color:var(--text);font-size:16px;text-align:left}.preview-body-choice[aria-pressed=true]{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}.preview-body-choice[aria-pressed=true]:after{content:'✓';float:right}.preview-body-choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </style></head>
 <body>
 <main><p class="tiny preview-banner">UIテスト · 現行の予測を使用（保存先も本番と共通）</p>
@@ -1768,22 +1770,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004040643"></script>
+<script src="sorami-core.js?v=20261004131620"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004040643"></script>
-<script src="sorami-exif.js?v=20261004040643"></script>
-<script src="sorami-capcloud.js?v=20261004040643"></script>
-<script src="sorami-terrain.js?v=20261004040643"></script>
-<script src="sorami-mountain.js?v=20261004040643"></script>
-<script src="sorami-fuji.js?v=20261004040643"></script>
-<script src="sorami-sky.js?v=20261004040643"></script>
-<script src="sorami-routes.js?v=20261004040643"></script>
-<script src="sorami-iss.js?v=20261004040643"></script>
-<script src="sorami-plane.js?v=20261004040643"></script>
-<script src="sorami-bodies.js?v=20261004040643"></script>
-<script src="sorami-align.js?v=20261004040643"></script>
-<script src="sorami-moon.js?v=20261004040643"></script>
+<script src="sorami-astro.js?v=20261004131620"></script>
+<script src="sorami-exif.js?v=20261004131620"></script>
+<script src="sorami-capcloud.js?v=20261004131620"></script>
+<script src="sorami-terrain.js?v=20261004131620"></script>
+<script src="sorami-mountain.js?v=20261004131620"></script>
+<script src="sorami-fuji.js?v=20261004131620"></script>
+<script src="sorami-sky.js?v=20261004131620"></script>
+<script src="sorami-routes.js?v=20261004131620"></script>
+<script src="sorami-iss.js?v=20261004131620"></script>
+<script src="sorami-plane.js?v=20261004131620"></script>
+<script src="sorami-bodies.js?v=20261004131620"></script>
+<script src="sorami-align.js?v=20261004131620"></script>
+<script src="sorami-moon.js?v=20261004131620"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7442,7 +7444,7 @@ async function aimLookRender(host, spec) {
   note.hidden = !note.textContent;
   range.max = String(path.length - 1);
   const at = v => {
-    const i = Math.max(0, Math.min(path.length - 1, Math.floor(v))), j = Math.min(path.length - 1, i + 1), f = Math.max(0,Math.min(1,v-i));
+    const i = Math.max(0, Math.min(path.length - 2, Math.floor(v))), j = i + 1, f = v-i;
     const ms = path[i].at + (path[j].at - path[i].at) * f;
     const st = SoramiBodies.state(body, ms, eyeObs), xy = proj(st.azimuth, st.apparentAltitude);
     return { at: ms, azimuth: st.azimuth, altitude: st.apparentAltitude, radius: st.angularRadius,
@@ -7455,7 +7457,7 @@ async function aimLookRender(host, spec) {
     host._lookAt = p.at;
     if (host._uiTime) {
       host._uiTime.current = p.at;
-      if (p.at < host._uiTime.day + +range.min*1000 || p.at > host._uiTime.day + +range.max*1000) host._uiTime.window(p.at);
+      if (p.at < host._uiTime.day + +range.min*1000 || p.at > host._uiTime.day + +range.max*1000) { host._uiAllDay = true; host._uiTime.window(); }
       range.value = String((p.at-host._uiTime.day)/1000); range.setAttribute('aria-valuetext', aimLookHMS(p.at));
       const input = document.getElementById('previewTime');
       if (input && document.activeElement !== input) input.value = S.JstCal.hhmm(p.at).padStart(5,'0');
@@ -7475,6 +7477,7 @@ async function aimLookRender(host, spec) {
     if (frame && timesKey !== frameTimesKey) {
       frameTimesKey = timesKey;
       const spans = SoramiAlign.framePassages(framePoints, frame, { x: panX / k, y: -panY / k });
+      if(host._uiTime){host._uiTime.frameSpans=spans;host._uiTime.window();}
       times.textContent = spans.length ? `画角内（目安）：${spans.map(row => {
         const from = row.openStart ? "0:00時点で枠内" : `${S.JstCal.hhmm(row.start)}に入る`;
         const until = row.openEnd ? "24:00まで枠内" : `${S.JstCal.hhmm(row.end)}に外れる`;
@@ -7613,7 +7616,7 @@ async function aimLookRender(host, spec) {
     outside.hidden = !!c && c[0] + panX >= 0 && c[0] + panX <= W && c[1] + panY >= 0 && c[1] + panY <= clipBottom;
     outside.textContent = outside.hidden ? "" : `${SoramiBodies.definition(body).name}は図の外です。時刻を動かすと通り方を確認できます`;
     cur = v;
-    out.innerHTML = `${aimLookHMS(p.at)}<span class="sub-line">${esc(aimLookRel(p.at - spec.at, spec.atName))}</span>`;
+    out.innerHTML = `${S.JstCal.sameDay(p.at,spec.at) ? "" : p.at < spec.at ? "前日 " : "翌日 "}${aimLookHMS(p.at)}<span class="sub-line">${esc(aimLookRel(p.at - spec.at, spec.atName))}</span>`;
     cv.setAttribute("aria-label", `${spec.title || "ここから"}見た${visibleTargets.map(x => x.item.target.name).join("、") || t.name}と${SoramiBodies.definition(body).name}の動き。`
       + `${aimLookHMS(spec.at)}に${spec.atName || "重なる"}。いまの図は${aimLookHMS(p.at)}`);
   };
@@ -7628,7 +7631,8 @@ async function aimLookRender(host, spec) {
   };
   // UIの時間軸だけを変える。位置は既存の天体計算で、その時刻を直接評価する。
   const timeIndex = ms => {
-    ms = Math.max(path[0].at, Math.min(path[path.length - 1].at, ms));
+    if(ms < path[0].at)return (ms-path[0].at)/(path[1].at-path[0].at);
+    if(ms > path[path.length-1].at)return path.length-1+(ms-path[path.length-1].at)/(path[path.length-1].at-path[path.length-2].at);
     let lo = 0, hi = path.length - 1;
     while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (path[mid].at <= ms) lo = mid; else hi = mid; }
     return lo + (ms - path[lo].at) / Math.max(1, path[hi].at - path[lo].at);
@@ -7637,31 +7641,33 @@ async function aimLookRender(host, spec) {
   const uiState = host._uiTime = {
     day: uiDay, reference: spec.at, name: spec.atName || '重なる', current: selectedAt,
     set(ms) { if (host._lookSeq !== seq || !Number.isFinite(ms)) return; draw(timeIndex(ms)); },
-    window(center = host._lookAt ?? selectedAt) {
+    window() {
+      const center=spec.at;
       const all = host._uiAllDay;
       const a = SoramiBodies.state(body, center - 1000, eyeObs), b = SoramiBodies.state(body, center + 1000, eyeObs);
       const pa = proj(a.azimuth, a.apparentAltitude), pb = proj(b.azimuth, b.apparentAltitude);
       const speed = pa && pb ? Math.hypot(pb[0] - pa[0], pb[1] - pa[1]) / 2 : 0;
       // 一往復は図の幅程度。望遠ほど時間幅を小さくし、速すぎる移動を避ける。
-      const halfMs = Math.max(30000, Math.min(1800000, speed > 0 ? Math.min(win.halfW, win.halfH) / speed * 1000 : 300000));
-      range.min = String(((all ? uiDay : Math.max(uiDay, center - halfMs))-uiDay)/1000);
-      range.max = String(((all ? uiEnd : Math.min(uiEnd, center + halfMs))-uiDay)/1000);
-      range.step = 'any'; range.value = String(Math.max(+range.min, Math.min(+range.max, (center-uiDay)/1000)));
+      let halfMs = this.frameSpans?.length ? Math.max(30000,...this.frameSpans.flatMap(s=>[Math.abs(s.start-center),Math.abs(s.end-center)])) : Math.max(30000, Math.min(1800000, speed > 0 ? Math.min(win.halfW, win.halfH) / speed * 1000 : 300000));
+      halfMs=Math.max(halfMs,Math.abs((host._lookAt ?? selectedAt)-center));
+      range.min = String(((all ? uiDay : center - halfMs)-uiDay)/1000);
+      range.max = String(((all ? uiEnd : center + halfMs)-uiDay)/1000);
+      range.step = 'any'; range.value = String(Math.max(+range.min, Math.min(+range.max, ((host._lookAt ?? selectedAt)-uiDay)/1000)));
       range.setAttribute('aria-label', all ? '一日の時刻を動かす' : '時刻を細かく調整');
-      range.setAttribute('aria-valuetext', aimLookHMS(center));
+      range.setAttribute('aria-valuetext', aimLookHMS(host._lookAt ?? selectedAt));
     }
   };
-  uiState.window(selectedAt);
+  uiState.window();
   let uiPending = null;
   range.oninput = () => {
     const first = uiPending === null; uiPending = uiDay + Number(range.value)*1000;
     if (first) requestAnimationFrame(() => { const ms = uiPending; uiPending = null; if (host._lookSeq === seq && ms !== null) uiState.set(ms); });
   };
-  range.onchange = () => { const ms = uiDay + Number(range.value)*1000; uiPending = null; uiState.set(ms); uiState.window(ms); };
+  range.onchange = () => { const ms = uiDay + Number(range.value)*1000; uiPending = null; uiState.set(ms);  };
   range.onkeydown = e => {
     if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
     e.preventDefault(); const delta = (e.shiftKey ? 10000 : 1000) * (['ArrowLeft','ArrowDown'].includes(e.key) ? -1 : 1);
-    uiState.set(Math.max(uiDay, Math.min(uiEnd, host._lookAt + delta)));
+    uiState.set(Math.max(uiDay + +range.min*1000, Math.min(uiDay + +range.max*1000, host._lookAt + delta)));
   };
   // 道をさわって時刻を選ぶ（いちばん近い点。36px より遠ければ何もしない）。
   // pointerdown では iPhone の指のタップで動かなかった（2026-10-02 シミュレーターで確認。マウスでは動く）ので click で受ける
@@ -8393,12 +8399,20 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
   // **確定の拾い方は2通り持つ。** iOS のキーボードの「検索」では keydown の Enter が
   // 届かないことがあり、`input[type=search]` の `search` イベントでしか拾えない。
   // 同じ語で二重に走らないよう、直前の語を憶えておく。
-  let last = null;
+  let last = null, seq = 0, lastTimer = 0;
+  const box = $(boxId), results = $(resultsId);
+  const invalidate = () => { ++seq; last = null; clearTimeout(lastTimer); results.innerHTML = ""; };
+  // 消去/入力変更で表示と待機中の結果を同時に無効化。遅い旧検索を復活させない。
+  box.addEventListener("input", invalidate);
   const run = async () => {
     const q = $(boxId).value.trim();
-    if (!q || q === last) return;
+    if (!q) { invalidate(); return; }
+    if (q === last) return;
     last = q;
-    setTimeout(() => { last = null; }, 800);
+    const ticket = ++seq;
+    const current = () => ticket === seq && box.value.trim() === q;
+    clearTimeout(lastTimer);
+    lastTimer = setTimeout(() => { if (ticket === seq) last = null; }, 800);
     // **緯度経度を入れたらそこへ。** 地図アプリからの貼り付け（度分秒・全角）も読む。
     // 検索に投げても地名としては当たらないので、先にこちらで拾う（2026-09-24 ユーザー依頼）。
     const coord = SoramiTerrain.parseLatLon(q);
@@ -8421,6 +8435,7 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
         const body = await r.json();
         if (r.ok && body.url) resolved = SoramiTerrain.parseMapLink(body.url);
       } catch { resolved = null; }
+      if (!current()) return;
       if (resolved && onCoord) {
         $(boxId).value = "";
         $(resultsId).innerHTML = "";
@@ -8434,8 +8449,10 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
     }
     $(resultsId).dataset.kind = "";
     $(resultsId).innerHTML = `<p class="tiny">検索中…</p>`;
-    try { renderSearchResults($(resultsId), await searchPlaces(q), onPick); }
-    catch { $(resultsId).innerHTML = `<p class="warn">検索に失敗しました</p>`; }
+    try {
+      const found = await searchPlaces(q);
+      if (current()) renderSearchResults(results, found, onPick);
+    } catch { if (current()) results.innerHTML = `<p class="warn">検索に失敗しました</p>`; }
   };
   // 日本語の変換を確定する Enter では始めない（確定のたびに検索が走る）
   $(boxId).addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) run(); });
@@ -9834,8 +9851,8 @@ checkForUpdate();
  dateTime.className='preview-date-time';dateTime.innerHTML='<input id="previewTime" type="time" step="60" aria-label="見え方の時刻"><button type="button" class="chip" id="previewReference"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 8v4l3 2M2 12h4m-2-2 2 2-2 2"/></svg></button>';
  el('aimCalendarOpen').after(dateTime);
  const clock=el('previewTime'),reference=el('previewReference');
- clock.onchange=()=>{const m=/^(\d{2}):(\d{2})$/.exec(clock.value),state=look._uiTime;if(!m||!state||state.day!==aim.dayMs)return;const at=state.day+(+m[1]*60 + +m[2])*60000;state.window(at);state.set(at);};
- reference.onclick=()=>{const state=look._uiTime;if(state){state.window(state.reference);state.set(state.reference);}};
+ clock.onchange=()=>{const m=/^(\d{2}):(\d{2})$/.exec(clock.value),state=look._uiTime;if(!m||!state||state.day!==aim.dayMs)return;const at=state.day+(+m[1]*60 + +m[2])*60000;if(at<state.day + +look.querySelector('[data-look-range]').min*1000||at>state.day + +look.querySelector('[data-look-range]').max*1000)look._uiAllDay=true;state.window();state.set(at);};
+ reference.onclick=()=>{const state=look._uiTime;if(state){look._uiAllDay=false;state.window();state.set(state.reference);}};
  const calChoices=document.createElement('div');calChoices.className='preview-calendar-choices';calChoices.hidden=true;el('aimCalGrid').after(calChoices);
  const hideCalChoices=()=>{calChoices.hidden=true;calChoices.replaceChildren();};
  for(const id of ['aimCalPrev','aimCalNext','aimCalYear','aimCalMonth','aimCalToday'])el(id).addEventListener(id==='aimCalYear'||id==='aimCalMonth'?'change':'click',hideCalChoices);
@@ -9863,7 +9880,7 @@ checkForUpdate();
    const requested=look._uiRequestedTime;if(requested&&(requested.context!==timeContext()||requested.day!==aim.dayMs))look._uiRequestedTime=null;else if(requested&&requested.day===state.day){look._uiRequestedTime=null;state.window(requested.at);state.set(requested.at);}
    if(!look.querySelector('.preview-time-scope')){
     const row=document.createElement('div');row.className='preview-time-scope';row.innerHTML='<select id="previewTimeScope" aria-label="時間バーの範囲"><option value="fine">近くを調整</option><option value="day">一日全体</option></select><span>← 時刻 →</span>';
-    look.querySelector('.aim-look-time').before(row);const select=row.querySelector('select');select.value=look._uiAllDay?'day':'fine';select.onchange=()=>{look._uiAllDay=select.value==='day';look._uiTime?.window();};
+    look.querySelector('.aim-look-time').before(row);const select=row.querySelector('select');select.value=look._uiAllDay?'day':'fine';select.onchange=()=>{look._uiAllDay=select.value==='day';look._uiTime?.window();if(!look._uiAllDay)look._uiTime?.set(look._uiTime.reference);};
    }
   }
   const head=root.querySelector('.aim-head'),body=el('aimBody'),target=el('aimTarget'),goalLabel=el('aimTargetLabel');if(head&&head.firstElementChild!==body)head.prepend(body);if(head&&!head.querySelector('.preview-cross')){const cross=document.createElement('span');cross.className='preview-cross';cross.textContent='×';cross.setAttribute('aria-hidden','true');body.after(cross);}const goal=target.selectedOptions[0]?.textContent;if(goal&&goalLabel.textContent!==goal)goalLabel.textContent=goal;
@@ -9879,6 +9896,7 @@ checkForUpdate();
    const reverse=document.createElement('section');reverse.className='preview-reverse';const title=document.createElement('h3');title.textContent='撮れる場所を逆算';reverse.append(title);look.append(reverse);
    for(const selector of['.aim-look-pick','[data-look-hint]','[data-look-found]']){const node=look.querySelector(selector);if(node)reverse.append(node);}
   }
+  const timeScope=el('previewTimeScope');if(timeScope){const scope=look._uiAllDay?'day':'fine';if(timeScope.value!==scope)timeScope.value=scope;}
   const focalInput=look.querySelector('[data-lens-focal]');if(focalInput){focalInput.onfocus=()=>{focalInput._uiFocusValue=focalInput.value;};focalInput.onblur=()=>{if(focalInput.value!==focalInput._uiFocusValue&&focalInput.checkValidity()&&focalInput.value.trim()&&(aimLens.mode!=='manual'||+focalInput.value!==aimLens.focal))focalInput.onchange();};}
   const portraitButton=look.querySelector('[data-lens-portrait]');if(portraitButton){const text=portraitButton.getAttribute('aria-pressed')==='true'?'縦位置':'横位置';if(portraitButton.textContent!==text)portraitButton.textContent=text;}
   const centerButton=look.querySelector('[data-lens-center]'),movingButton=look.querySelector('[data-lens-move]');if(centerButton)centerButton.hidden=movingButton?.getAttribute('aria-pressed')!=='true';
@@ -9891,6 +9909,26 @@ checkForUpdate();
  new MutationObserver(update).observe(root,{childList:true,subtree:true});update();
  // 既存の地図移動処理より先に表示する。計算や地点選択の処理は既存のまま。
  root.addEventListener('click',e=>{const b=e.target.closest('button');if(b&&(b.matches('[data-cand-map],[data-day],[data-found-map]')))show('places');},true);
+})();
+
+(()=>{
+ const source=document.getElementById('aimBody'),head=source.closest('.aim-head');
+ const picker=document.createElement('button');picker.type='button';picker.id='previewBodyOpen';picker.className='preview-body-open';picker.setAttribute('aria-haspopup','dialog');picker.setAttribute('aria-controls','previewBodyDialog');
+ source.classList.add('preview-body-native');source.after(picker);
+ const dialog=document.createElement('dialog');dialog.id='previewBodyDialog';dialog.className='sheet preview-body-dialog';dialog.setAttribute('aria-labelledby','previewBodyTitle');
+ dialog.innerHTML='<div class="sheet-head"><strong id="previewBodyTitle">天体を選ぶ</strong><button type="button" data-body-close>閉じる</button></div><div class="sheet-body"></div>';
+ const content=dialog.querySelector('.sheet-body');
+ for(const group of source.querySelectorAll('optgroup')){
+  const section=document.createElement('section'),title=document.createElement('h3'),list=document.createElement('div');section.className='preview-body-group';title.textContent=group.label;list.className='preview-body-list';section.append(title,list);
+  for(const option of group.querySelectorAll('option')){
+   const b=document.createElement('button');b.type='button';b.dataset.bodyValue=option.value;b.className='preview-body-choice';b.textContent=option.textContent;b.onclick=()=>{source.value=option.value;source.dispatchEvent(new Event('change',{bubbles:true}));dialog.close();};list.append(b);
+  }
+  content.append(section);
+ }
+ document.body.append(dialog);
+ const sync=()=>{const name=source.selectedOptions[0]?.textContent||'天体';if(picker.textContent!==`${name} ▾`)picker.textContent=`${name} ▾`;picker.setAttribute('aria-label',`天体：${name}、選択を開く`);for(const b of dialog.querySelectorAll('[data-body-value]'))b.setAttribute('aria-pressed',String(b.dataset.bodyValue===source.value));};
+ picker.onclick=()=>{sync();showSheet(dialog);};dialog.querySelector('[data-body-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>picker.focus({preventScroll:true}));
+ new MutationObserver(sync).observe(head,{childList:true,subtree:true});source.addEventListener('change',sync);sync();
 })();
 </script></body>
 </html>

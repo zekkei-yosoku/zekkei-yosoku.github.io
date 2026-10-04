@@ -1704,22 +1704,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004040643"></script>
+<script src="sorami-core.js?v=20261004131620"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004040643"></script>
-<script src="sorami-exif.js?v=20261004040643"></script>
-<script src="sorami-capcloud.js?v=20261004040643"></script>
-<script src="sorami-terrain.js?v=20261004040643"></script>
-<script src="sorami-mountain.js?v=20261004040643"></script>
-<script src="sorami-fuji.js?v=20261004040643"></script>
-<script src="sorami-sky.js?v=20261004040643"></script>
-<script src="sorami-routes.js?v=20261004040643"></script>
-<script src="sorami-iss.js?v=20261004040643"></script>
-<script src="sorami-plane.js?v=20261004040643"></script>
-<script src="sorami-bodies.js?v=20261004040643"></script>
-<script src="sorami-align.js?v=20261004040643"></script>
-<script src="sorami-moon.js?v=20261004040643"></script>
+<script src="sorami-astro.js?v=20261004131620"></script>
+<script src="sorami-exif.js?v=20261004131620"></script>
+<script src="sorami-capcloud.js?v=20261004131620"></script>
+<script src="sorami-terrain.js?v=20261004131620"></script>
+<script src="sorami-mountain.js?v=20261004131620"></script>
+<script src="sorami-fuji.js?v=20261004131620"></script>
+<script src="sorami-sky.js?v=20261004131620"></script>
+<script src="sorami-routes.js?v=20261004131620"></script>
+<script src="sorami-iss.js?v=20261004131620"></script>
+<script src="sorami-plane.js?v=20261004131620"></script>
+<script src="sorami-bodies.js?v=20261004131620"></script>
+<script src="sorami-align.js?v=20261004131620"></script>
+<script src="sorami-moon.js?v=20261004131620"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -8288,12 +8288,20 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
   // **確定の拾い方は2通り持つ。** iOS のキーボードの「検索」では keydown の Enter が
   // 届かないことがあり、`input[type=search]` の `search` イベントでしか拾えない。
   // 同じ語で二重に走らないよう、直前の語を憶えておく。
-  let last = null;
+  let last = null, seq = 0, lastTimer = 0;
+  const box = $(boxId), results = $(resultsId);
+  const invalidate = () => { ++seq; last = null; clearTimeout(lastTimer); results.innerHTML = ""; };
+  // 消去/入力変更で表示と待機中の結果を同時に無効化。遅い旧検索を復活させない。
+  box.addEventListener("input", invalidate);
   const run = async () => {
     const q = $(boxId).value.trim();
-    if (!q || q === last) return;
+    if (!q) { invalidate(); return; }
+    if (q === last) return;
     last = q;
-    setTimeout(() => { last = null; }, 800);
+    const ticket = ++seq;
+    const current = () => ticket === seq && box.value.trim() === q;
+    clearTimeout(lastTimer);
+    lastTimer = setTimeout(() => { if (ticket === seq) last = null; }, 800);
     // **緯度経度を入れたらそこへ。** 地図アプリからの貼り付け（度分秒・全角）も読む。
     // 検索に投げても地名としては当たらないので、先にこちらで拾う（2026-09-24 ユーザー依頼）。
     const coord = SoramiTerrain.parseLatLon(q);
@@ -8316,6 +8324,7 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
         const body = await r.json();
         if (r.ok && body.url) resolved = SoramiTerrain.parseMapLink(body.url);
       } catch { resolved = null; }
+      if (!current()) return;
       if (resolved && onCoord) {
         $(boxId).value = "";
         $(resultsId).innerHTML = "";
@@ -8329,8 +8338,10 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
     }
     $(resultsId).dataset.kind = "";
     $(resultsId).innerHTML = `<p class="tiny">検索中…</p>`;
-    try { renderSearchResults($(resultsId), await searchPlaces(q), onPick); }
-    catch { $(resultsId).innerHTML = `<p class="warn">検索に失敗しました</p>`; }
+    try {
+      const found = await searchPlaces(q);
+      if (current()) renderSearchResults(results, found, onPick);
+    } catch { if (current()) results.innerHTML = `<p class="warn">検索に失敗しました</p>`; }
   };
   // 日本語の変換を確定する Enter では始めない（確定のたびに検索が走る）
   $(boxId).addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) run(); });
