@@ -1101,14 +1101,14 @@
 #aimView .aim-time-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:0 8px;margin:4px 0 8px}#aimView .aim-time-controls .aim-air{display:contents}#aimView .aim-time-controls .aim-air-row{grid-column:1;grid-row:1;gap:8px}#aimView .aim-time-controls #previewTimeScope{grid-column:2;grid-row:1;margin:0}#aimView .aim-time-controls #aimAirDetails{grid-column:1 / -1;grid-row:2}#aimView .aim-time-controls #aimAirDetails summary{justify-content:flex-start}#aimView .aim-time-controls #aimAirSummary{margin-left:0}#aimView .aim-frame-info{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}#aimView .aim-frame-info .aim-frame-times{flex:1 1 120px;min-width:120px}#aimView .aim-air{margin:0 0 8px auto;border-top:0;max-width:100%}#aimView .aim-air-row{display:flex;align-items:center;gap:12px}#aimView #aimAirMode{width:auto;min-width:112px;min-height:44px;font-size:0.81rem;padding:8px 32px 8px 12px}#aimAirLabel{font-size:0.81rem;color:var(--secondary);flex:none}#aimView .aim-air-options{display:flex;background:var(--sunk);border-radius:10px;padding:3px;flex:1;max-width:330px}#aimView .aim-air-options button{flex:1;min-width:0;min-height:44px;border:0;border-radius:8px;font-size:0.81rem;color:var(--secondary);background:transparent}#aimView .aim-air-options button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);font-weight:600}#aimView #aimAirDetails summary{justify-content:flex-start;gap:8px;min-height:44px;font-size:0.75rem;color:var(--secondary)}#aimAirDetails summary::-webkit-details-marker{display:none}#aimAirSummary{margin-left:auto}#aimView .aim-air-chevron{font-size:18px}#aimAirDetails[open] .aim-air-chevron{transform:rotate(180deg)}
 #aimView{padding-bottom:calc(96px + env(safe-area-inset-bottom))}#aimView .aim-date-section{border:0;padding-top:0}
 #aimView .preview-datetime-footer{position:fixed;z-index:35;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid rgba(0,0,0,.16);box-shadow:0 -4px 16px rgba(0,0,0,.12);padding:2px max(12px,env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
-#aimView .preview-datetime-footer .aim-date{display:grid;grid-template-columns:32px minmax(0,1fr) auto 32px 32px;align-items:center;gap:2px;max-width:780px;margin:0 auto;padding:0;border:0}
+#aimView .preview-datetime-footer .aim-date{display:grid;grid-template-columns:32px auto minmax(0,1fr) 32px 32px;align-items:center;gap:2px;max-width:780px;margin:0 auto;padding:0;border:0}
 #aimView .preview-datetime-footer #aimPrev,#aimView .preview-datetime-footer #aimNext,#aimView .preview-datetime-footer .preview-time-more{width:32px;min-width:32px;min-height:40px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--text);font-size:20px;line-height:1}
 #aimView .preview-datetime-footer #aimCalendarOpen{min-height:40px;padding:0 4px;border:0;background:transparent;justify-content:flex-start;font-size:14px;font-weight:700}
-#aimView .preview-datetime-footer .preview-date-time{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;border:0;border-radius:0;background:transparent;overflow:visible}
+#aimView .preview-datetime-footer .preview-date-time{justify-self:end;max-width:100%;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;border:0;border-radius:0;background:transparent;overflow:visible}
 #aimView .preview-datetime-footer #previewTime{flex:none;width:auto;min-height:24px;padding:0 4px;border:0;background:transparent;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center}
 @media(prefers-color-scheme:dark){#aimView .preview-datetime-footer{background:#2c2c2e;border-top-color:rgba(255,255,255,.2);box-shadow:0 -6px 20px rgba(0,0,0,.7)}}
-#aimView .preview-datetime-footer [data-pointer-focus]:focus{outline:none}
-#aimView .preview-footer-rel{font-size:10px;line-height:1.2;color:var(--secondary);white-space:nowrap}
+#aimView .preview-datetime-footer [data-pointer-focus]:focus,#aimView button[data-pointer-focus]:focus{outline:none}
+#aimView .preview-footer-rel{max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:10px;line-height:1.2;color:var(--secondary);white-space:nowrap}
 #aimView .preview-footer-track{max-width:780px;margin:0 auto;padding:2px 0;touch-action:none;cursor:pointer}
 #aimView .preview-footer-track>input{display:block;width:100%;height:24px;margin:0;pointer-events:none;accent-color:var(--accent)}#aimView .preview-footer-track>input:disabled{opacity:.4}
 #aimView .aim-look-time,#aimView .preview-map-time>input,#aimView .preview-map-time output,#aimView .preview-map-time .aim-time-heading>span{display:none}#aimView .preview-map-time .aim-time-heading{justify-content:flex-end}
@@ -1864,23 +1864,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261005010105"></script>
+<script src="sorami-core.js?v=20261005012458"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261005010105"></script>
-<script src="sorami-exif.js?v=20261005010105"></script>
-<script src="sorami-capcloud.js?v=20261005010105"></script>
-<script src="sorami-terrain.js?v=20261005010105"></script>
-<script src="sorami-mountain.js?v=20261005010105"></script>
-<script src="sorami-fuji.js?v=20261005010105"></script>
-<script src="sorami-sky.js?v=20261005010105"></script>
-<script src="sorami-routes.js?v=20261005010105"></script>
-<script src="sorami-iss.js?v=20261005010105"></script>
-<script src="sorami-plane.js?v=20261005010105"></script>
-<script src="sorami-atmosphere.js?v=20261005010105"></script>
-<script src="sorami-bodies.js?v=20261005010105"></script>
-<script src="sorami-align.js?v=20261005010105"></script>
-<script src="sorami-moon.js?v=20261005010105"></script>
+<script src="sorami-astro.js?v=20261005012458"></script>
+<script src="sorami-exif.js?v=20261005012458"></script>
+<script src="sorami-capcloud.js?v=20261005012458"></script>
+<script src="sorami-terrain.js?v=20261005012458"></script>
+<script src="sorami-mountain.js?v=20261005012458"></script>
+<script src="sorami-fuji.js?v=20261005012458"></script>
+<script src="sorami-sky.js?v=20261005012458"></script>
+<script src="sorami-routes.js?v=20261005012458"></script>
+<script src="sorami-iss.js?v=20261005012458"></script>
+<script src="sorami-plane.js?v=20261005012458"></script>
+<script src="sorami-atmosphere.js?v=20261005012458"></script>
+<script src="sorami-bodies.js?v=20261005012458"></script>
+<script src="sorami-align.js?v=20261005012458"></script>
+<script src="sorami-moon.js?v=20261005012458"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -9102,7 +9102,7 @@ document.addEventListener("touchstart", (e) => {
   if (open) {
     if (!e.target.closest("#toolsMenu, #toolsScrim")) return;
   } else if (t.clientX > SWIPE_EDGE_PX || (isMenuPage() && $("toolsButton").hidden) || document.querySelector("dialog[open]")
-             || e.target.closest(".mapwrap, canvas, input, select, textarea")) {
+             || e.target.closest(".mapwrap, canvas, input, select, textarea, .preview-footer-track")) {
     // ☰ が出ていない（使える道具が無い）ときは、なぞっても開かない
     return;
   }
@@ -10209,11 +10209,12 @@ checkForUpdate();
  const dateRow=root.querySelector('.aim-date');footer.append(dateRow);root.append(footer);
  const timeMore=document.createElement('button');timeMore.type='button';timeMore.className='preview-time-more';timeMore.textContent='⋯';timeMore.setAttribute('aria-label','時刻の操作設定');timeMore.setAttribute('aria-haspopup','dialog');dateRow.append(timeMore);
  // 指で選んで閉じたダイアログから焦点が戻っても青い選択枠を出さない。キーボード操作では枠を残す。
+ // 下部欄だけでなく天体・目標・画角の選択ボタンも同じ（2026-10-05 iOS 27で天体の選択後に青枠を確認）。
  let keyNav=false;
  addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey)return;keyNav=true;document.activeElement?.removeAttribute?.('data-pointer-focus');},true);
  addEventListener('pointerdown',()=>{keyNav=false;},true);
- footer.addEventListener('focusin',e=>e.target.toggleAttribute('data-pointer-focus',!keyNav));
- footer.addEventListener('focusout',e=>e.target.removeAttribute('data-pointer-focus'));
+ root.addEventListener('focusin',e=>e.target.toggleAttribute('data-pointer-focus',!keyNav));
+ root.addEventListener('focusout',e=>e.target.removeAttribute('data-pointer-focus'));
  const footerRel=document.createElement('span');footerRel.className='preview-footer-rel';footerRel.setAttribute('aria-live','off');dateTime.append(footerRel);
  const footerTrack=document.createElement('div');footerTrack.className='preview-footer-track';
  const footerRange=document.createElement('input');footerRange.type='range';footerRange.step='any';footerRange.setAttribute('aria-label','撮影時刻を滑らかに調整');footerTrack.append(footerRange);footer.append(footerTrack);
@@ -10228,6 +10229,7 @@ checkForUpdate();
  footerTrack.addEventListener('pointermove',e=>{if(footerScrub===e.pointerId)footerAt(e.clientX-footerGrab);});
  for(const type of['pointerup','pointercancel','lostpointercapture'])footerTrack.addEventListener(type,e=>{if(footerScrub!==e.pointerId)return;footerScrub=null;footerSet(true);update();});
  footerRange.oninput=()=>footerSet(false);footerRange.onchange=()=>{footerSet(true);update();};
+ footerRange.onkeydown=e=>{const dir={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1}[e.key];if(!dir||footerRange.disabled)return;e.preventDefault();footerRange.value=String(Math.max(+footerRange.min,Math.min(+footerRange.max,+footerRange.value+dir*(e.shiftKey?600:60))));footerSet(true);update();};
  const timeDialog=document.createElement('dialog');timeDialog.className='sheet preview-body-dialog preview-time-dialog';timeDialog.tabIndex=-1;timeDialog.setAttribute('aria-label','時刻の操作設定');timeDialog.innerHTML='<div class="sheet-head"><strong>時刻の操作設定</strong><button type="button" data-time-close>閉じる</button></div><div class="sheet-body"></div>';root.append(timeDialog);
  const referenceControl=el('previewReference');timeDialog.querySelector('.sheet-body').append(referenceControl);timeMore.onclick=()=>showSheet(timeDialog);timeDialog.querySelector('[data-time-close]').onclick=()=>timeDialog.close();timeDialog.addEventListener('click',e=>{if(e.target!==timeDialog)return;const r=timeDialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)timeDialog.close();});
  const clock=el('previewTime'),reference=el('previewReference');
@@ -10250,7 +10252,8 @@ checkForUpdate();
   }
  },true);
  const update=()=>{
-  const dateButton=el('aimCalendarOpen');if(!dateButton.querySelector('.preview-date-label')){const date=document.createElement('span');date.className='preview-date-label';date.textContent=el('aimDate').value.replaceAll('-','/');const weekday=document.createElement('span');weekday.className='preview-date-weekday';weekday.textContent=`(${S.Cal.weekday(aim.dayMs)})`;dateButton.replaceChildren(date,weekday);}
+  // 日付が入る前に作ると、未設定の日（1970/01/01）の曜日「(木)」だけが出る。
+  const dateButton=el('aimCalendarOpen'),dateValue=el('aimDate').value;if(dateValue&&Number.isFinite(aim.dayMs)){let date=dateButton.querySelector('.preview-date-label'),weekday=dateButton.querySelector('.preview-date-weekday');if(!date||!weekday){date=document.createElement('span');date.className='preview-date-label';weekday=document.createElement('span');weekday.className='preview-date-weekday';dateButton.replaceChildren(date,weekday);}const dateText=dateValue.replaceAll('-','/'),weekText=`(${S.Cal.weekday(aim.dayMs)})`;if(date.textContent!==dateText)date.textContent=dateText;if(weekday.textContent!==weekText)weekday.textContent=weekText;}
 
   const state=look._uiTime;
   const mapRange=el('previewMapTime'),mapOutput=el('previewMapTimeAt');
@@ -10271,7 +10274,8 @@ checkForUpdate();
   const source=mode==='places'?mapRange:look.querySelector('[data-look-range]');
   if(state&&source&&footerScrub===null&&document.activeElement!==footerRange){if(footerRange.min!==source.min)footerRange.min=source.min;if(footerRange.max!==source.max)footerRange.max=source.max;if(footerRange.value!==source.value)footerRange.value=source.value;}
   if(state)footerRange.setAttribute('aria-valuetext',aimLookHMS(state.current));
-  const out=look.querySelector('[data-look-at]'),day=/^(前日|翌日) /.exec(out?.firstChild?.textContent||'')?.[1],rel=state&&!look.hidden?[day,out?.querySelector('.sub-line')?.textContent].filter(Boolean).join(' '):'';if(footerRel.textContent!==rel)footerRel.textContent=rel;footerRel.hidden=!rel;
+  const out=look.querySelector('[data-look-at]'),day=/^(前日|翌日) /.exec(out?.firstChild?.textContent||'')?.[1],rel=state&&!look.hidden?[day,out?.querySelector('.sub-line')?.textContent].filter(Boolean).join(' '):'';if(footerRel.textContent!==rel){footerRel.textContent=rel;footerRel.title=rel;}footerRel.hidden=!rel;
+  if((!state||look.hidden)&&clock.value)clock.value='';
   if(state&&!clock.disabled){
    if(document.activeElement!==clock){const v=S.JstCal.hhmm(state.current).padStart(5,'0');if(clock.value!==v)clock.value=v;}
    const requested=look._uiRequestedTime;if(requested&&(requested.context!==timeContext()||requested.day!==aim.dayMs))look._uiRequestedTime=null;else if(requested&&requested.day===state.day){look._uiRequestedTime=null;state.window(requested.at);state.set(requested.at);}
@@ -10306,7 +10310,7 @@ checkForUpdate();
   const orientation=look.querySelector('[data-camera-orientation]'),frameSelect=look.querySelector('[data-camera-frame]');
   if(orientation){orientation.value=aimLens.portrait?'portrait':'landscape';orientation.onchange=()=>{if((orientation.value==='portrait')!==aimLens.portrait)look.querySelector('[data-lens-portrait]').click();};}
   if(frameSelect){frameSelect.value=aimLens.on?'show':'hide';frameSelect.onchange=()=>{if((frameSelect.value==='show')!==aimLens.on)look.querySelector('[data-lens-on]').click();};}
-  const focalRange=look.querySelector('[data-focal-range]');if(focalRange&&focalInput){if(document.activeElement!==focalRange)focalRange.value=String(1000*Math.log(Math.max(8,Math.min(2000,+focalInput.value))/8)/Math.log(250));focalRange.oninput=()=>{look._pendingFocal=+focalRange.value;if(look._focalRaf)return;look._focalRaf=requestAnimationFrame(()=>{look._focalRaf=null;focalInput.value=String(Math.round(8*Math.pow(250,look._pendingFocal/1000)*10)/10);focalInput.onchange();});};for(const button of look.querySelectorAll('[data-focal-preset]'))button.onclick=()=>{focalInput.value=button.dataset.focalPreset;focalInput.onchange();};}
+  const focalRange=look.querySelector('[data-focal-range]');if(focalRange&&focalInput){if(document.activeElement!==focalRange)focalRange.value=String(1000*Math.log(Math.max(8,Math.min(2000,+focalInput.value))/8)/Math.log(250));focalRange.oninput=()=>{look._pendingFocal=+focalRange.value;if(look._focalRaf)return;look._focalRaf=requestAnimationFrame(()=>{look._focalRaf=null;focalInput.value=String(Math.round(8*Math.pow(250,look._pendingFocal/1000)*10)/10);focalInput.onchange();});};for(const button of look.querySelectorAll('[data-focal-preset]'))button.onclick=()=>{focalInput.value=button.dataset.focalPreset;focalInput.onchange();const sheet=button.closest('dialog');if(sheet?.open)sheet.close();};}
   const portraitButton=look.querySelector('[data-lens-portrait]');if(portraitButton){const text=portraitButton.getAttribute('aria-pressed')==='true'?'縦位置':'横位置';if(portraitButton.textContent!==text)portraitButton.textContent=text;}
   const composeIcon=look.querySelector('.preview-compose-icon');if(composeIcon){const moving=look.querySelector('[data-lens-move]').getAttribute('aria-pressed')==='true';composeIcon.setAttribute('aria-pressed',String(moving));composeIcon.setAttribute('aria-label',moving?'構図を確定':'構図を動かす');composeIcon.title=moving?'構図を確定':'構図を動かす';}
   const centerButton=look.querySelector('[data-lens-center]'),movingButton=look.querySelector('[data-lens-move]');if(centerButton)centerButton.hidden=movingButton?.getAttribute('aria-pressed')!=='true';

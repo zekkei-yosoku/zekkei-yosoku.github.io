@@ -613,7 +613,7 @@ console.log("== 引き出しのスワイプ・地図のつまみ（2026-10-01）
 // ユーザー「メニューについて左からスワイプで開くようにできたりしない？」
 ok(/const SWIPE_EDGE_PX = 28;/.test(html) && /t\.clientX > SWIPE_EDGE_PX \|\| \(isMenuPage\(\) && \$\("toolsButton"\)\.hidden\) \|\| document\.querySelector\("dialog\[open\]"\)/.test(html),
   "左の端からだけ（☰ が無い・シートが開いているときは開かない）");
-ok(/e\.target\.closest\("\.mapwrap, canvas, input, select, textarea"\)/.test(html), "地図・3D・入力欄の上からは始めない（横に動かす部品と取り合わない）");
+ok(/e\.target\.closest\("\.mapwrap, canvas, input, select, textarea, \.preview-footer-track"\)/.test(html), "地図・3D・入力欄・下部の時間バーの上からは始めない（横に動かす部品と取り合わない）");
 ok(/menu\.style\.transform = `translateX\(\$\{\(swipe\.p - 1\) \* 100\}%\)`;/.test(html), "引き出しは指に付いてくる");
 ok(/const wantOpen = open \? !\(p < 0\.6 \|\| v < -0\.4\) : \(p > 0\.4 \|\| v > 0\.4\);/.test(html), "離したとき、半分近く出ているか速く払っていれば開く（左へなぞると閉じる）");
 ok(/if \(wantOpen\) \{ if \(!open\) openTools\(\{ focus: false \}\); \}/.test(html), "なぞって開いたときは焦点を動かさない（青い枠を出さない）");
