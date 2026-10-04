@@ -1839,23 +1839,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004225500"></script>
+<script src="sorami-core.js?v=20261004230000"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004225500"></script>
-<script src="sorami-exif.js?v=20261004225500"></script>
-<script src="sorami-capcloud.js?v=20261004225500"></script>
-<script src="sorami-terrain.js?v=20261004225500"></script>
-<script src="sorami-mountain.js?v=20261004225500"></script>
-<script src="sorami-fuji.js?v=20261004225500"></script>
-<script src="sorami-sky.js?v=20261004225500"></script>
-<script src="sorami-routes.js?v=20261004225500"></script>
-<script src="sorami-iss.js?v=20261004225500"></script>
-<script src="sorami-plane.js?v=20261004225500"></script>
-<script src="sorami-atmosphere.js?v=20261004225500"></script>
-<script src="sorami-bodies.js?v=20261004225500"></script>
-<script src="sorami-align.js?v=20261004225500"></script>
-<script src="sorami-moon.js?v=20261004225500"></script>
+<script src="sorami-astro.js?v=20261004230000"></script>
+<script src="sorami-exif.js?v=20261004230000"></script>
+<script src="sorami-capcloud.js?v=20261004230000"></script>
+<script src="sorami-terrain.js?v=20261004230000"></script>
+<script src="sorami-mountain.js?v=20261004230000"></script>
+<script src="sorami-fuji.js?v=20261004230000"></script>
+<script src="sorami-sky.js?v=20261004230000"></script>
+<script src="sorami-routes.js?v=20261004230000"></script>
+<script src="sorami-iss.js?v=20261004230000"></script>
+<script src="sorami-plane.js?v=20261004230000"></script>
+<script src="sorami-atmosphere.js?v=20261004230000"></script>
+<script src="sorami-bodies.js?v=20261004230000"></script>
+<script src="sorami-align.js?v=20261004230000"></script>
+<script src="sorami-moon.js?v=20261004230000"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4580,9 +4580,9 @@ function inheritedPoint() {
 /// 観測地点のカード（地点カードと同じ形）を描く。名前と、住所・標高・引き継ぎ。☆ はお気に入りに入っていれば ★
 function renderPointCard(prefix, f, groundM = null, { elevation = true } = {}) {
   // 引き継いだ地点の標高は、地点カードと同じ値を出す（道具ごとに数m違って見えないように）
-  const g = !elevation ? null : f && f.inherited ? place.elevation ?? bundle?.home.grid.elevation ?? groundM : groundM;
+  const g = !elevation ? null : prefix === "aimFrom" ? groundM : f && f.inherited ? place.elevation ?? bundle?.home.grid.elevation ?? groundM : groundM;
   $(`${prefix}Name`).textContent = f ? f.name : "観測地点を選んでください";
-  $(`${prefix}Sub`).textContent = f ? [f.subtitle, Number.isFinite(g) ? `標高 ${Math.round(g)}m` : "",
+  $(`${prefix}Sub`).textContent = f ? [f.subtitle, Number.isFinite(g) ? `標高 ${prefix === "aimFrom" ? Math.round(g * 10) / 10 : Math.round(g)}m` : "",
     f.inherited ? "絶景予測の地点" : ""].filter(Boolean).join(" ・ ") : "";
   if ($(`${prefix}Fav`)) renderFavStar(`${prefix}Fav`, f);
 }

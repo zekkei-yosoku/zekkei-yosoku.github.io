@@ -68,3 +68,13 @@ test('未設定のその他目標でも観測地点の標高を取得して表�
  vm.runInContext(html.slice(start,stop)+'}',c);await c.aimRenderFrom();
  assert.deepEqual(calls,[null,83]);assert.equal(c.$('aimLook').hidden,true);assert.equal(c.$('aimFrom').innerHTML,'');
 });
+
+test('継承観測地点の標高カードは観測標高と同じ座標DEMを使う',()=>{
+ const nodes=new Map(),c=vm.createContext({place:{elevation:10},bundle:null,
+ $:id=>{if(!nodes.has(id))nodes.set(id,{});return nodes.get(id)},renderFavStar(){}});
+ const a=html.indexOf('function renderPointCard('),b=html.indexOf('function renderFavStar(',a);
+ vm.runInContext(html.slice(a,b),c);const f={name:'東京',subtitle:'東京都',inherited:true};
+ c.renderPointCard('aimFrom',f,3.4);assert.match(c.$('aimFromSub').textContent,/標高 3.4m/);
+ c.renderPointCard('aimFrom',f);assert.doesNotMatch(c.$('aimFromSub').textContent,/標高/);
+ c.renderPointCard('issFrom',f,3.4);assert.match(c.$('issFromSub').textContent,/標高 10m/);
+});
