@@ -1380,7 +1380,7 @@
     </section>
 <div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div><div class="preview-tabs" role="tablist" aria-label="撮影の確認"><button type="button" id="previewSceneTab" role="tab" aria-selected="true" aria-controls="previewScene">見え方</button><button type="button" id="previewPlacesTab" role="tab" aria-selected="false" aria-controls="previewPlaces" tabindex="-1">撮影場所</button></div><div class="preview-workspace"><section id="previewScene" role="tabpanel" aria-labelledby="previewSceneTab">    <div id="aimLook" class="aim-look" hidden></div>
 <div id="aimAir" class="aim-air"><div class="aim-air-row"><span id="aimAirLabel">大気差</span><select id="aimAirMode" aria-labelledby="aimAirLabel"><option value="standard">標準</option><option value="auto">気象予報</option><option value="none">なし</option></select></div>
-<details id="aimAirDetails"><summary>気象条件 <span id="aimAirSummary">気象を反映</span><span class="aim-air-chevron" aria-hidden="true">⌄</span></summary><div class="aim-air-content">
+<details id="aimAirDetails"><summary>気象条件 <span id="aimAirSummary">気象を反映</span></summary><div class="aim-air-content">
 <p id="aimAirStatus" class="tiny" role="status"></p><p class="tiny">気象は選択地点・時刻のモデル値です。期間外・取得不可は標準大気を使用します。</p><p class="tiny">低空の逆転層によるずれは再現できません。「なし」を除き、地上目標の屈折は標準値です。</p>
 </div></details></div>
 </section><section id="previewPlaces" role="tabpanel" aria-labelledby="previewPlacesTab">    <div class="mapwrap" style="margin-top:8px">
@@ -1612,7 +1612,7 @@
     <div class="aim-cal-week" aria-hidden="true"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
     <div id="aimCalGrid" class="aim-cal-grid" role="group" aria-label="日付を選ぶ" aria-busy="false"></div>
     <div id="aimCalStatus" class="tiny" role="status" aria-live="polite"></div>
-    <div class="aim-cal-foot"><span class="tiny">● 重なる日　○ 近くを通る日</span><button id="aimCalToday" class="fav-btn">今日</button></div>
+    <div class="aim-cal-foot"><span class="tiny">● 選択条件に重なる日　○ 近くを通る日</span><button id="aimCalToday" class="fav-btn">今日</button></div>
     <p class="tiny">選んだ観測地点から計算。天気と見通しは日付を選んで確認できます。</p>
   </div>
 </dialog>
@@ -1835,23 +1835,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004195000"></script>
+<script src="sorami-core.js?v=20261004201000"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004195000"></script>
-<script src="sorami-exif.js?v=20261004195000"></script>
-<script src="sorami-capcloud.js?v=20261004195000"></script>
-<script src="sorami-terrain.js?v=20261004195000"></script>
-<script src="sorami-mountain.js?v=20261004195000"></script>
-<script src="sorami-fuji.js?v=20261004195000"></script>
-<script src="sorami-sky.js?v=20261004195000"></script>
-<script src="sorami-routes.js?v=20261004195000"></script>
-<script src="sorami-iss.js?v=20261004195000"></script>
-<script src="sorami-plane.js?v=20261004195000"></script>
-<script src="sorami-atmosphere.js?v=20261004195000"></script>
-<script src="sorami-bodies.js?v=20261004195000"></script>
-<script src="sorami-align.js?v=20261004195000"></script>
-<script src="sorami-moon.js?v=20261004195000"></script>
+<script src="sorami-astro.js?v=20261004201000"></script>
+<script src="sorami-exif.js?v=20261004201000"></script>
+<script src="sorami-capcloud.js?v=20261004201000"></script>
+<script src="sorami-terrain.js?v=20261004201000"></script>
+<script src="sorami-mountain.js?v=20261004201000"></script>
+<script src="sorami-fuji.js?v=20261004201000"></script>
+<script src="sorami-sky.js?v=20261004201000"></script>
+<script src="sorami-routes.js?v=20261004201000"></script>
+<script src="sorami-iss.js?v=20261004201000"></script>
+<script src="sorami-plane.js?v=20261004201000"></script>
+<script src="sorami-atmosphere.js?v=20261004201000"></script>
+<script src="sorami-bodies.js?v=20261004201000"></script>
+<script src="sorami-align.js?v=20261004201000"></script>
+<script src="sorami-moon.js?v=20261004201000"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5320,13 +5320,15 @@ function aimFillParts() {
   const parts = aim.target.parts || [];
   // 高さは**地上から**で出す（スカイツリーの先端は 634m。計算に使う m は海面から＝636m。2026-10-01 ユーザー指摘）
   const g = aim.target.groundM || 0;
-  $("aimPart").innerHTML = parts.map((p) => `<option value="${p.id}">${esc(p.name)} ${Math.round(p.m - g)}m</option>`).join("");
-  $("aimPart").disabled = parts.length < 2;
+  const whole = parts.length > 0 && !aimIsMountain(aim.target);
+  $("aimPart").innerHTML = parts.map((p) => `<option value="${p.id}">${esc(p.name)} ${Math.round(p.m - g)}m</option>`).join("") + (whole ? '<option value="__whole">建物全体に重なる</option>' : "");
+  $("aimPart").disabled = parts.length + (whole ? 1 : 0) < 2;
   // 選べるものが1つしか無い（富士山の山頂など）なら、選ぶ欄を出さない
-  $("aimPart").hidden = parts.length < 2;
-  $("aimPartRow").hidden = parts.length < 2;
-  if (!parts.some((p) => p.id === aim.partId)) aim.partId = parts[0] ? parts[0].id : null;
+  $("aimPart").hidden = parts.length + (whole ? 1 : 0) < 2;
+  $("aimPartRow").hidden = parts.length + (whole ? 1 : 0) < 2;
+  if (!(whole && aim.partId === "__whole") && !parts.some((p) => p.id === aim.partId)) aim.partId = parts[0] ? parts[0].id : null;
   $("aimPart").value = aim.partId || "";
+  $("aimLimb").hidden = aim.partId === "__whole";
 }
 
 /// 近い目標は1km未満から始まるので、小さい値は小数で書く
@@ -6440,6 +6442,12 @@ function aimCalRows(obs, target, body, year, month, partId) {
   if (!aimIsMountain(target)) {
     const rows = [];
     for (let day = start; day < end; day += 86400000) rows.push(...SoramiAlign.dailyView(obs, target, body, day, { partId }));
+    const selected = partId === "__whole" ? [] : SoramiAlign.upcoming(obs,target,body,{from:start,days:Math.round((end-start)/86400000),limit:Infinity,groupDays:false,partId,limb:aim.limb,stepMs:3600000}).filter(e => aimCandidateMatch(e,false));
+    for (const row of rows) {
+      const match = selected.find(e => S.JstCal.sameDay(e.at,row.at) && e.side === row.side);
+      row.selectedMatch = partId === "__whole" ? row.intersects : !!match;
+      if(match) row.at=match.at;
+    }
     return rows.filter((e) => e.nearTarget && (body !== "moon" || e.sunAltitude < 0));
   }
   return SoramiAlign.upcoming(obs, target, body, { from: start, days: Math.round((end - start) / 86400000),
@@ -6447,7 +6455,7 @@ function aimCalRows(obs, target, body, year, month, partId) {
     .filter((e) => e.at >= start && e.at < end && (body !== "moon" || e.sunAltitude < 0));
 }
 // 見え方と同じ2半径内の候補を扱い、円盤が届く日と近接通過を区別する。
-function aimCalSolid(e) { return e.intersects ?? (Math.abs(e.gap) <= (e.radius === 0 ? 1e-5 : 1.2 * e.radius)); }
+function aimCalSolid(e) { return e.selectedMatch ?? e.intersects ?? (Math.abs(e.gap) <= (e.radius === 0 ? 1e-5 : 1.2 * e.radius)); }
 function aimCalGridHtml(year, month, events, selected, today) {
   const first = new Date(Date.UTC(year, month, 1)).getUTCDay();
   const days = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
@@ -6495,7 +6503,7 @@ async function aimCalRender() {
     const ground = await aimElevation(f.latitude, f.longitude);
     if (!valid()) return;
     const obs = { latitude: f.latitude, longitude: f.longitude, elevation: Number.isFinite(ground) ? ground : 0 };
-    const key = JSON.stringify([obs, target, body, partId, year, month]);
+    const key = JSON.stringify([obs, target, body, partId, aim.limb, year, month]);
     let rows = aimCal.cache.get(key);
     if (!rows) {
       // 開いたことを描いてから計算する。閉じた/月を替えた待ちは捨てる。
@@ -6636,13 +6644,22 @@ $("aimFromFav").onclick = () => favForPoint(aimFromPoint(), (entry) => { renameF
 /// 見通しを確かめた観測地点・目標・部位（替わったら前の結果は使わない）
 const aimSightKey = (f) => `${f.latitude},${f.longitude}|${aim.target && aim.target.id}|${aim.partId}`;
 
+// 候補帯は選択部位と縁の一致。輪郭全体の日はカレンダー/全体モードへ。
+function aimCandidateMatch(e, whole = aim.partId === "__whole") {
+  if (whole) return !!e.intersects;
+  const tolerance = Math.max(1 / 60, 0.2 * (e.radius || 0));
+  return Number.isFinite(e.gap) && Math.abs(e.gap) <= tolerance;
+}
 // 400日探索を8日ずつ区切り、日付・地点の操作を止めない。
 async function aimBuildingDays(obs, target, body, partId, seq) {
   const from = Date.now(), start = S.Cal.startOfDay(from), rows = [];
+  const whole = partId === "__whole";
   for (let i = 0; i < 400 && rows.length < 4; i++) {
     if (i % 8 === 0) { await new Promise((resolve) => setTimeout(resolve, 0)); if (seq !== aim.fromSeq) return []; }
-    const row = SoramiAlign.dailyView(obs, target, body, start + i * 86400000, { partId })
-      .find((e) => e.at >= from && e.intersects && (body !== "moon" || e.sunAltitude < 0));
+    const day = start + i * 86400000;
+    const events = whole ? SoramiAlign.dailyView(obs, target, body, day, { partId })
+      : SoramiAlign.upcoming(obs, target, body, {from:day,days:1,limit:Infinity,groupDays:false,partId,limb:aim.limb,stepMs:3600000});
+    const row = events.find((e) => e.at >= from && aimCandidateMatch(e,whole) && (body !== "moon" || e.sunAltitude < 0));
     if (row) rows.push(row);
   }
   return rows;
@@ -6664,19 +6681,17 @@ async function aimRenderFrom() {
   if (seq !== aim.fromSeq) return;
   const obs = { latitude: f.latitude, longitude: f.longitude, elevation: Number.isFinite(ground) ? ground : 0 };
   if (Number.isFinite(ground)) renderPointCard("aimFrom", f, ground);
-  // **日付は合わせ方（下の縁・真ん中・上の縁）で変えない**（2026-10-02 ユーザー「同じ日で少し左右前後に動けば変わるよね。
-  // それなのに出る日付が違うのはなんでだ？観測地点が変わるだけだと思ってる」）。この場所で円盤が先端にかかる日（中心のずれが半径の
-  // 1.2倍以内）を並べ、日ごとに**実際の通り方**と、**選んだ合わせ方にするにはどちらへ何m動けばよいか**を書く（Codex と相談した形）
+  // 候補帯は選択した高さ・縁に近い日、全体モードだけ輪郭通過の日を出す。
   let ev = [];
   try {
     ev = aimIsMountain(aim.target) ? SoramiAlign.upcoming(obs, aim.target, aim.body,
-      { from: Date.now(), days: 400, limit: moon ? 24 : 8, limb: "center", partId: aim.partId, stepMs: 3600000 })
+      { from: Date.now(), days: 400, limit: Infinity, limb: aim.limb, partId: aim.partId, stepMs: 3600000, groupDays:false })
       : await aimBuildingDays(obs, aim.target, aim.body, aim.partId, seq);
   } catch { ev = []; }
   if (seq !== aim.fromSeq) return;
   const all = ev;
   // 明るい空の月は出さない
-  ev = ev.filter((e) => aimCalSolid(e) && (!moon || e.sunAltitude < 0)).slice(0, 4);
+  ev = ev.filter((e) => aimCandidateMatch(e) && (!moon || e.sunAltitude < 0)).slice(0, 4);
   const D = SoramiTerrain.distanceKm(f.latitude, f.longitude, aim.target.latitude, aim.target.longitude);
   // 帯の上の「◯◯から見た◯◯ ・ ◯◯まで Nkm」は出さない（2026-10-03 ユーザーが選んだ「いらない説明文」。地点と題名の繰り返し）
   aim.fromEvents = ev;
@@ -6691,14 +6706,7 @@ async function aimRenderFrom() {
       + `${y === thisYear ? "" : `${y}/`}${S.Cal.monthDay(e.at)}(${S.Cal.weekday(e.at)})`
       + `<span class="sub-line">${aimSideName(e.side)} ${S.JstCal.hhmm(e.at)}${!SoramiBodies.definition(aim.body).limbs ? " " + SoramiBodies.sky(e.sunAltitude) : ""}${lit}</span></button>`;
   }).join("");
-  // 重ならないなら、そう言い切る（ユーザー「天体の動き的に絶対にないわけでしょ？」）。太陽は毎年同じ範囲の方角しか
-  // 通らないので、1年で無ければその場所からは無い。月も 2025〜26 年は出入りの方角の幅がいちばん広い時期
-  // （約18.6年周期の最大）なので、ここで無ければ当分無い。重なる回はあるが出さない理由があるときだけ、それを書く
-  const solid = all.filter(aimCalSolid);
-  const none = ev.length ? ""
-    : `<p class="tiny">${!all.length ? "ここからは重なりません。"
-      : !solid.length ? "ここからは縁がかすめるだけで、重なりません。"
-      : "重なるのは明るい空のときだけです"}</p>`;
+  const none = ev.length ? "" : '<p class="tiny">この条件の候補日は見つかりません（今後400日）。</p>';
   // 見通しは重なる日の上に出す（見えないなら、日付より先に知りたい）
   // 隠れないとき・確かめている間は何も出さない（2026-10-03 ユーザーが選んだ「いらない説明文」）
   const sightSlot = ev.length ? `<p class="tiny aim-sight" id="aimFromSight" hidden></p>` : "";
@@ -6873,7 +6881,11 @@ async function aimUpdateLook() {
   const hits = mountain ? SoramiAlign.upcoming(obs, t, aim.body, { ...opts, from: aim.dayMs, days: 1, limit: 4 }) : [];
   const hit = hits.find((x) => x.side === e.side);
   const overlap = mountain ? !!hit && aimCalSolid(hit) : e.intersects;
-  const at = hit?.at ?? e.at;
+  let selectedHit = null;
+  if (aim.partId !== "__whole") {
+    try { selectedHit = SoramiAlign.upcoming(obs, t, aim.body, { ...opts, limb:aim.limb, from:aim.dayMs, days:1, limit:Infinity, groupDays:false }).find(x => x.side === e.side && aimCandidateMatch(x)); } catch {}
+  }
+  const at = selectedHit?.at ?? hit?.at ?? e.at;
   aimLookRender(host, { obs, eyeM: 1.5, at, title: "",
     sub: `${overlap ? (mountain ? aimPassage(hit) : "建物に重なる") : "重ならない日の通り方"}`,
     light: light(at, obs), extra: e.altitude < 0 ? `${SoramiBodies.definition(aim.body).name}は地平線の下です` : "", atName: overlap ? undefined : "最接近" });

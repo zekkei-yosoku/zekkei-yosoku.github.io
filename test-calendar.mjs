@@ -10,7 +10,7 @@ function setup(al=AL){
  const els=new Map(), buttons=[];
  const $=id=>{if(!els.has(id))els.set(id,{value:"",innerHTML:"",textContent:"",open:true,setAttribute(k,v){this[k]=v},querySelectorAll(){return buttons},addEventListener(){},focus(){},close(){this.open=false}});return els.get(id)};
  const aim={dayMs:Date.parse("2026-12-22T00:00:00+09:00"),body:"sun",partId:"summit",target:AL.targetById("fuji"),candSide:"set",spot:{}};
- const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,SoramiMoon:MOON,$,aim,S,SoramiAlign:al,Date,Map,Number,String,Array,JSON,Error,Math,Promise,setTimeout,esc:s=>s.replaceAll('"','&quot;'),aimIsMountain:t=>t?.id!=="skytree",aimSideName:s=>s==="set"?"日の入":"日の出",aimFromPoint:()=>({name:"高尾山",latitude:35.6252,longitude:139.2436}),aimElevation:async()=>599,showSheet:e=>{e.open=true},aimApply:()=>{c.applied=true}});
+ const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,SoramiMoon:MOON,$,aim,S,SoramiAlign:al,Date,Map,Number,String,Array,JSON,Error,Math,Promise,setTimeout,esc:s=>s.replaceAll('"','&quot;'),aimIsMountain:t=>t?.id!=="skytree",aimSideName:s=>s==="set"?"日の入":"日の出",aimFromPoint:()=>({name:"高尾山",latitude:35.6252,longitude:139.2436}),aimElevation:async()=>599,showSheet:e=>{e.open=true},aimCandidateMatch:e=>Number.isFinite(e.gap)&&Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0)),aimApply:()=>{c.applied=true}});
  vm.runInContext(code+';this.cal=aimCal;this.rows=aimCalRows;this.grid=aimCalGridHtml;this.solid=aimCalSolid;this.render=aimCalRender;this.draw=aimCalDraw;',c);
  return {c,$,aim,buttons};
 }
@@ -50,12 +50,12 @@ test("先端の下を通る日は建物全体との重なりとしてカレン�
  const {c}=setup();const obs={latitude:35.58386,longitude:139.56853,elevation:83},target=AL.targetById("skytree");
  const rows=c.rows(obs,target,"moon",2026,9,"tip");
  const start=Date.parse("2026-10-03T00:00:00+09:00"), today=rows.find(e=>S.JstCal.sameDay(e.at,start));
- assert.ok(today);assert.ok(Math.abs(today.gap)>1.2*today.radius);assert.equal(c.solid(today),true);assert.equal(today.intersects,true);
+ assert.ok(today);assert.ok(Math.abs(today.gap)>1.2*today.radius);assert.equal(c.solid(today),false);assert.equal(today.intersects,true);
  const actual=AL.upcoming(obs,target,"moon",{from:start,days:1,limit:4,limb:"center",partId:"tip",stepMs:3600000});
  assert.ok(Math.abs(today.at-actual[0].at)<1000);
  const events=new Map(rows.map(e=>[S.Cal.startOfDay(e.at),[e]]));
  const grid=c.grid(2026,9,events,start,start);
- assert.match(grid,/2026年10月3日、重なる日/);assert.match(grid,/>●<\/span>/);
+ assert.match(grid,/2026年10月3日、近くを通る日/);assert.match(grid,/>○<\/span>/);
  assert.equal(events.has(start-86400000),false);assert.equal(events.has(start+86400000),false);
 });
 

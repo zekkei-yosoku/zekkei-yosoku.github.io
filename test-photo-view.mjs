@@ -31,7 +31,7 @@ test("焦点距離・センサーサイズ・縦横から実画角を計算す�
 test("日付変更で重なりなしや見通しNGでも図へ描画を渡す",async()=>{
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf("async function aimUpdateLook()"),b=html.indexOf("\n}const aimCandName",a)+2;
  const host={hidden:true},aim={target,body:"moon",partId:"tip",candPick:null,candSide:null,lookSeq:0,sight:{hidden:true,key:"same"}};
- let rendered;const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,aim,$:()=>host,S,SoramiAlign:AL,aimFromPoint:()=>({...observer,name:"試験地点"}),aimElevation:async()=>83,aimLookRender:(h,s)=>{h.hidden=false;rendered=s},aimIsMountain:t=>!!t.rim,aimCalSolid:e=>e.intersects??Math.abs(e.gap)<=1.2*e.radius,aimDateLabel:()=>"日付",aimSideName:()=>"月の出",aimPassage:()=>"通過",moonGlyphAt:()=>"月",lightTimingText:()=>"夜",Math,Date,Number});
+ let rendered;const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,aim,$:()=>host,S,SoramiAlign:AL,aimFromPoint:()=>({...observer,name:"試験地点"}),aimElevation:async()=>83,aimLookRender:(h,s)=>{h.hidden=false;rendered=s},aimIsMountain:t=>!!t.rim,aimCalSolid:e=>e.intersects??Math.abs(e.gap)<=1.2*e.radius,aimCandidateMatch:e=>Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0)),aimDateLabel:()=>"日付",aimSideName:()=>"月の出",aimPassage:()=>"通過",moonGlyphAt:()=>"月",lightTimingText:()=>"夜",Math,Date,Number});
  vm.runInContext(html.slice(a,b)+";this.update=aimUpdateLook",c);
  for(const d of ["03","02","04"]){aim.dayMs=day(d);await c.update();assert.equal(host.hidden,false);assert.ok(rendered);assert.equal(rendered.obs.latitude,observer.latitude);assert.ok(rendered.at>=day(d)&&rendered.at<day(d)+86400000);assert.equal(rendered.atName,d==="03"?undefined:"最接近");}
  assert.match(rendered.extra,/地平線の下/);
@@ -55,11 +55,11 @@ test("焦点距離の空欄・範囲外は保存せず、有効値のみ反映�
 });
 
 test("年間探索は途中で操作に戻り、古い地点の結果を破棄する",async()=>{
- const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf("async function aimBuildingDays"),b=html.indexOf("async function aimRenderFrom",a);
+ const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf("function aimCandidateMatch"),b=html.indexOf("async function aimRenderFrom",a);
  const aim={fromSeq:1};let calls=0,waits=0;
  const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,aim,S,Date,Promise,setTimeout:(f)=>{waits++;if(waits===2)aim.fromSeq=2;f()},SoramiAlign:{dailyView:()=>{calls++;return []}}});
  vm.runInContext(html.slice(a,b)+";this.run=aimBuildingDays",c);
- const rows=await c.run(observer,target,"moon","tip",1);assert.equal(rows.length,0);assert.equal(calls,8);assert.equal(waits,2);
+ const rows=await c.run(observer,target,"moon","__whole",1);assert.equal(rows.length,0);assert.equal(calls,8);assert.equal(waits,2);
 });
 
 
@@ -199,4 +199,22 @@ test("拡大で道が短くなっても表示範囲外の選択時刻と20秒未
  const exact=kept.find(p=>p.at===selected),expected=globalThis.SoramiAstro.sun(selected,obs);assert.equal(exact.altitude,expected.apparentAltitude);
  for(let i=1;i<kept.length;i++)assert.ok(kept[i].at>kept[i-1].at);
  const early=AL.viewPath("sun",obs,at,proj,win,{includeAt:at-1737000});assert.ok(early.some(p=>p.at===at-1737000));
+});
+
+
+test("候補帯は選択高さの許容誤差だけ採用し、全体モードは輪郭通過を採用",async()=>{
+ const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf("function aimCandidateMatch"),b=html.indexOf("async function aimRenderFrom",a);
+ const aim={fromSeq:1,partId:"tip",limb:"lower"},seen=[],now=Date.now();
+ const c=vm.createContext({aim,S,Date,Promise,setTimeout:f=>f(),SoramiAlign:{
+ upcoming:(o,t,body,opts)=>{seen.push(opts);return [{at:opts.from+23*3600000,gap:seen.length<3?.2:.03,radius:.25,sunAltitude:-10,intersects:true}];},
+ dailyView:()=>[{at:now+86400000,gap:2,radius:.25,intersects:true,sunAltitude:-10}]
+ }});vm.runInContext(html.slice(a,b),c);
+ assert.equal(c.aimCandidateMatch({gap:.05,radius:.25,intersects:false}),true);
+ assert.equal(c.aimCandidateMatch({gap:.051,radius:.25,intersects:true}),false);
+ assert.equal(c.aimCandidateMatch({gap:.01,radius:0}),true);
+ assert.equal(c.aimCandidateMatch({gap:.02,radius:0}),false);
+ assert.equal(c.aimCandidateMatch({gap:2,intersects:true},true),true);
+ const selected=await c.aimBuildingDays(observer,target,"moon","tip",1);
+ assert.equal(selected.length,4);assert.ok(selected.every(e=>e.gap===.03));assert.ok(seen.every(o=>o.partId==="tip"&&o.limb==="lower"));
+ const whole=await c.aimBuildingDays(observer,target,"moon","__whole",1);assert.equal(whole.length,4);assert.ok(whole.every(e=>e.gap===2));
 });

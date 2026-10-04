@@ -274,8 +274,8 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
     ok(fs < cv && cv < pk && !/id="aimNear"/.test(html) && !/function aimUpdateNear/.test(html),
       "「ここから重ねる」は地図のすぐ下（中心から線までの説明は出さない。2026-10-03 ユーザーが選んだ「いらない説明文」）"); }
   // 重ならないなら言い切る（ユーザー「天体の動き的に絶対にないわけでしょ？」）。「この1年」と濁さない
-  ok(/"ここからは重なりません。"/.test(html) && !/この1年、ここからは重なりません/.test(html), "重ならない地点は「ここからは重なりません」");
-  ok(/"重なるのは明るい空のときだけです"/.test(html) && /縁がかすめるだけで、重なりません/.test(html), "出さない理由があるときだけ、その理由を一言で書く");
+  ok(html.includes("この条件の候補日は見つかりません（今後400日）。"), "候補なしは選択条件と400日探索の範囲を明示");
+  ok(html.includes("aimCandidateMatch(e) && (!moon || e.sunAltitude < 0)"), "選択部位と月の暗い空の条件で候補を絞る");
   ok(/aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる<\/button>/.test(html), "釦の名前は「ここから重ねる」");
   ok(/function aimFromPoint\(\) \{\s+return aim\.from \|\| inheritedPoint\(\);/.test(html) && /function inheritedPoint\(\) \{[\s\S]{0,400}inherited: true/.test(html),
     "替えていなければ絶景予測の地点を引き継ぐ");
@@ -471,7 +471,7 @@ ok(/const sunOk = !isFuji \|\| toolAllowed\("diamond"\), moonOk = !isFuji \|\| t
 // 日付欄は月間カレンダーを開くボタンへ変更。入力値はhidden aimDateで保持。
 { const lb = html.indexOf('id="aimWhereLabel">どこに重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('class="aim-date-section"'), sw = html.indexOf('id="aimBody"'), fs = html.indexOf('id="aimFromButton"');
   ok(sw < fs && fs < lb && lb < dt && dt < fr, "並び: 題名と天体 → どこから → どこに → 日付と候補日"); }
-ok(/\$\("aimPart"\)\.hidden = parts\.length < 2/.test(html), "選べる高さが1つなら選ぶ欄を出さない");
+  ok(html.includes("parts.length + (whole ? 1 : 0) < 2"), "建物全体の選択を含め選択肢が1つなら欄を隠す");
 ok(!/目標に太陽や月が重なる日と、/.test(html), "説明の段落を出さない");
 ok(!/線が弧を描くのは|番号は下の一覧と同じ|月が低い（2〜30°）あいだだけを見ています/.test(code), "地図の下の説明を出さない");
 
@@ -544,7 +544,7 @@ ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れ�
   ok(/\$\("aimLimb"\)\.onclick = \(e\) => \{/.test(html) && !/\["aimTarget", "aimPart", "aimLimb", "aimDate"\]/.test(html), "釦を押したら選び直す");
   ok(/\.aim-limb button\[aria-pressed="true"\] \{ background: var\(--accent\)/.test(html) && /\.aim-limb button \{[^}]*min-height: 56px/.test(html),
     "押している釦は橙・指の的は 44px 以上");
-  ok(/\$\("aimPartRow"\)\.hidden = parts\.length < 2;/.test(html), "高さを選ぶ欄が無いときは行ごと出さない（空の行を残さない）");
+  ok(html.includes("parts.length + (whole ? 1 : 0) < 2"), "建物全体の選択を含め選択肢が1つなら欄を隠す");
   // 他の目標をまだ選んでいないとき、地図が何も描かれなかった（2026-10-02 ユーザー「他の目標で現在地の場合、地図が何も表示されてない」）
   ok(/requestAnimationFrame\(\(\) => \{\s+AimMap\.open\(\.\.\.aimMapView\(\)\);/.test(html), "地図は aimMapView の中心で開く");
   ok(/if \(\(aim\.target\.parts \|\| \[\]\)\.length\) \{ aimRedrawLine\(\); aimRenderList\(\); \}\n  aimRenderFrom\(\);\n\}/.test(html),
@@ -671,9 +671,9 @@ console.log("== 選択肢を作り直す前に選んだ値を読む（2026-10-01
   const fillSrc = /function aimFillParts\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
   const sel = { innerHTML: "", value: "tip", disabled: false, hidden: false };
   const aim = { partId: "tip", target: { parts: [{ id: "tip", name: "先端", m: 636 }, { id: "gallery", name: "天望回廊", m: 452 }] } };
-  const run = new Function("aim", "$", "esc", `${fillSrc}; aim.partId = $("aimPart").value || aim.partId; aimFillParts(); return aim.partId;`);
+  const run = new Function("aim", "$", "esc", "aimIsMountain", `${fillSrc}; aim.partId = $("aimPart").value || aim.partId; aimFillParts(); return aim.partId;`);
   sel.value = "gallery";
-  ok(run(aim, () => sel, (x) => x) === "gallery" && sel.value === "gallery", "天望回廊を選ぶと天望回廊のまま（先端へ戻らない）");
+  ok(run(aim, () => sel, (x) => x, () => false) === "gallery" && sel.value === "gallery", "天望回廊を選ぶと天望回廊のまま（先端へ戻らない）");
   const fillSel = /function aimFillSelects\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
   ok(/const keep = \{ target: \$\("aimTarget"\)\.value, limb: aimLimbValue\(\) \};/.test(fillSel)
     && /keep\.limb \|\| aim\.limb \|\| SoramiAlign\.LIMBS\[0\]\.id/.test(fillSel) && /aria-pressed="\$\{l\.id === cur\}"/.test(fillSel), "ねらう: 選択肢を作り直しても合わせ方は残す");
@@ -2929,7 +2929,7 @@ console.log("== 見え方の図（2026-10-02） ==");
   // 呼び出し: 帯（aimRenderFrom）・候補地の行・側の切り替え・候補の結果
   const from = /async function aimRenderFrom\(\) \{[\s\S]*?\n\}/.exec(html)[0];
   ok(/aimUpdateLook\(\);/.test(from) && (from.match(/\$\("aimLook"\)\.hidden = true;/g) || []).length >= 2, "観測地点・目標が無ければ図を隠す");
-  ok(/limb: "center", partId: aim\.partId/.test(from), "重なる日は合わせ方で変えない（ユーザー「同じ日で少し左右前後に動けば変わるよね」）");
+  ok(from.includes("limb: aim.limb") && from.includes("aimCandidateMatch(e)"), "2026-10-04仕様：候補日は選択高さと縁で絞る");
 }
 console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==");
 // ユーザー「候補日はプルダウンにしたら？」「日の出と日の入に関してはボタンで切り替えが良い」「もっと最適なレイアウトがあるでしょ」→ Codex と相談し、帯と切り替え（ユーザー「この形で作る」）
