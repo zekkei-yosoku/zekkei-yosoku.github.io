@@ -10,5 +10,6 @@ test('日時は下部固定欄に集約し、見え方と撮影地で同じ時�
  assert.match(p,/setPointerCapture/,'iPhoneでもバー全体を指で動かせる');
  assert.match(p,/mode==='places'\?mapRange:look\.querySelector\('\[data-look-range\]'\)/,'撮影地は出入線、見え方は図の時間幅');
  assert.match(p,/focusin',e=>e\.target\.toggleAttribute\('data-pointer-focus',!keyNav\)/,'指で閉じたカレンダーから戻っても日付に青枠を出さない');assert.match(css,/\[data-pointer-focus\]:focus\{outline:none\}/);
+ assert.match(p,/state\.set\(state\.reference\);\}if\(timeDialog\.open\)timeDialog\.close\(\);/,'基準時刻へ移動したら設定を閉じる');
  assert.ok(css.lastIndexOf('#aimView .aim-look-time,')>css.lastIndexOf('#aimView .aim-look-time{'),'重複した時刻バーの非表示が後勝ちになる');
 });

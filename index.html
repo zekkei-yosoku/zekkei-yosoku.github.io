@@ -1864,23 +1864,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261005005551"></script>
+<script src="sorami-core.js?v=20261005010105"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261005005551"></script>
-<script src="sorami-exif.js?v=20261005005551"></script>
-<script src="sorami-capcloud.js?v=20261005005551"></script>
-<script src="sorami-terrain.js?v=20261005005551"></script>
-<script src="sorami-mountain.js?v=20261005005551"></script>
-<script src="sorami-fuji.js?v=20261005005551"></script>
-<script src="sorami-sky.js?v=20261005005551"></script>
-<script src="sorami-routes.js?v=20261005005551"></script>
-<script src="sorami-iss.js?v=20261005005551"></script>
-<script src="sorami-plane.js?v=20261005005551"></script>
-<script src="sorami-atmosphere.js?v=20261005005551"></script>
-<script src="sorami-bodies.js?v=20261005005551"></script>
-<script src="sorami-align.js?v=20261005005551"></script>
-<script src="sorami-moon.js?v=20261005005551"></script>
+<script src="sorami-astro.js?v=20261005010105"></script>
+<script src="sorami-exif.js?v=20261005010105"></script>
+<script src="sorami-capcloud.js?v=20261005010105"></script>
+<script src="sorami-terrain.js?v=20261005010105"></script>
+<script src="sorami-mountain.js?v=20261005010105"></script>
+<script src="sorami-fuji.js?v=20261005010105"></script>
+<script src="sorami-sky.js?v=20261005010105"></script>
+<script src="sorami-routes.js?v=20261005010105"></script>
+<script src="sorami-iss.js?v=20261005010105"></script>
+<script src="sorami-plane.js?v=20261005010105"></script>
+<script src="sorami-atmosphere.js?v=20261005010105"></script>
+<script src="sorami-bodies.js?v=20261005010105"></script>
+<script src="sorami-align.js?v=20261005010105"></script>
+<script src="sorami-moon.js?v=20261005010105"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -10232,7 +10232,7 @@ checkForUpdate();
  const referenceControl=el('previewReference');timeDialog.querySelector('.sheet-body').append(referenceControl);timeMore.onclick=()=>showSheet(timeDialog);timeDialog.querySelector('[data-time-close]').onclick=()=>timeDialog.close();timeDialog.addEventListener('click',e=>{if(e.target!==timeDialog)return;const r=timeDialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)timeDialog.close();});
  const clock=el('previewTime'),reference=el('previewReference');
  clock.onchange=()=>{const m=/^(\d{2}):(\d{2})$/.exec(clock.value),state=look._uiTime;if(!m||!state||state.day!==aim.dayMs)return;const at=state.day+(+m[1]*60 + +m[2])*60000;if(at<state.day + +look.querySelector('[data-look-range]').min*1000||at>state.day + +look.querySelector('[data-look-range]').max*1000)look._uiAllDay=true;state.window();state.set(at);};
- reference.onclick=()=>{const state=look._uiTime;if(state){look._uiAllDay=false;state.window();state.set(state.reference);}};
+ reference.onclick=()=>{const state=look._uiTime;if(state){look._uiAllDay=false;state.window();state.set(state.reference);}if(timeDialog.open)timeDialog.close();};
  const calChoices=document.createElement('div');calChoices.className='preview-calendar-choices';calChoices.hidden=true;el('aimCalGrid').after(calChoices);
  const hideCalChoices=()=>{calChoices.hidden=true;calChoices.replaceChildren();};
  for(const id of ['aimCalPrev','aimCalNext','aimCalYear','aimCalMonth','aimCalToday'])el(id).addEventListener(id==='aimCalYear'||id==='aimCalMonth'?'change':'click',hideCalChoices);
