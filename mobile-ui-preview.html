@@ -1059,7 +1059,7 @@
 .preview-body-dialog{width:min(400px,calc(100vw - 24px))}.preview-body-group{padding:14px 0;border-bottom:1px solid var(--line)}.preview-body-group:first-child{padding-top:0}.preview-body-group:last-child{border:0}.preview-body-group h3{font-size:12px;font-weight:500;color:var(--secondary);margin:0 0 10px}.preview-body-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.preview-body-choice{min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--sunk);color:var(--text);font-size:16px;text-align:left}.preview-body-choice[aria-pressed=true]{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}.preview-body-choice[aria-pressed=true]:after{content:'✓';float:right}.preview-body-choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 
-#aimView .aim-air{margin-top:12px;border-top:1px solid var(--line);font-size:14px}#aimView .aim-air summary{min-height:44px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:8px}#aimAirSummary{color:var(--secondary);font-size:12px}#aimView .aim-air-content{padding:8px 0}#aimView .aim-air label{display:flex;align-items:center;gap:8px;min-width:0}#aimView .aim-air select,#aimView .aim-air input{min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);padding:6px 8px;font-size:16px;min-width:0}#aimView .aim-air select{flex:1;width:0}#aimView .aim-air-values{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}#aimView .aim-air-values label{flex-wrap:wrap}#aimView .aim-air-values input{width:80px;flex:1}#aimView .aim-air p{margin:8px 0;color:var(--secondary)}
+#aimView .aim-air-content{padding:4px 0}#aimView .aim-air p{margin:8px 0;color:var(--secondary)}
 /* 天体と目標は同じ選択操作なので、同じ外観と占有幅に揃える。 */
 #aimView .aim-head{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px}
 #aimView .aim-head #aimTitle{min-width:0;flex:1 1 0}
@@ -1091,6 +1091,7 @@
  #previewScene:before,#previewPlaces:before{font-size:1rem}
  #aimView .aim-air select,#aimView .aim-air input{font-size:var(--aim-control-font)}
 }
+#aimView .aim-air{margin:8px 0 12px;border-top:0}#aimView .aim-air-row{display:flex;align-items:center;gap:12px}#aimAirLabel{font-size:0.81rem;color:var(--secondary);flex:none}#aimView .aim-air-options{display:flex;background:var(--sunk);border-radius:10px;padding:3px;flex:1;max-width:330px}#aimView .aim-air-options button{flex:1;min-width:0;min-height:44px;border:0;border-radius:8px;font-size:0.81rem;color:var(--secondary);background:transparent}#aimView .aim-air-options button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);font-weight:600}#aimView #aimAirDetails summary{justify-content:flex-start;gap:8px;min-height:44px;font-size:0.75rem;color:var(--secondary)}#aimAirDetails summary::-webkit-details-marker{display:none}#aimAirSummary{margin-left:auto}#aimView .aim-air-chevron{font-size:18px}#aimAirDetails[open] .aim-air-chevron{transform:rotate(180deg)}
 </style></head>
 <body>
 <main>
@@ -1378,11 +1379,10 @@
     <div id="aimFrom" class="aim-from"></div>
     </section>
 <div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div><div class="preview-tabs" role="tablist" aria-label="撮影の確認"><button type="button" id="previewSceneTab" role="tab" aria-selected="true" aria-controls="previewScene">見え方</button><button type="button" id="previewPlacesTab" role="tab" aria-selected="false" aria-controls="previewPlaces" tabindex="-1">撮影場所</button></div><div class="preview-workspace"><section id="previewScene" role="tabpanel" aria-labelledby="previewSceneTab">    <div id="aimLook" class="aim-look" hidden></div>
-<details id="aimAir" class="aim-air"><summary>大気差 <span id="aimAirSummary">気象を反映</span></summary><div class="aim-air-content">
-<label>計算条件<select id="aimAirMode" aria-label="大気差の計算条件"><option value="auto">気象を反映</option><option value="manual">現地の値を入力</option><option value="standard">標準大気</option><option value="none">大気差なし</option></select></label>
-<div id="aimAirManual" hidden><div class="aim-air-values"><label>気温<input id="aimAirTemp" type="number" min="-80" max="60" step="0.1" value="10" inputmode="decimal" required>℃</label><label>現地気圧<input id="aimAirPressure" type="number" min="200" max="1100" step="0.1" value="1010" inputmode="decimal" required>hPa</label></div><button id="aimAirApply" type="button" class="chip">適用</button></div>
-<p id="aimAirStatus" class="tiny" role="status"></p><p class="tiny">低空では逆転層などで実際の位置がずれます。「大気差なし」を除き、地上の目標の屈折は標準値です。</p><p class="tiny">気象はOpen-Meteoのモデル値。期間外・取得不可は標準大気へ。手入力は海面気圧ではなく現地気圧を使用します。</p>
-</div></details>
+<div id="aimAir" class="aim-air"><div class="aim-air-row"><span id="aimAirLabel">大気差</span><div class="aim-air-options" role="group" aria-labelledby="aimAirLabel"><button type="button" data-air-mode="standard" aria-pressed="false">標準</button><button type="button" data-air-mode="auto" aria-pressed="true">気象</button><button type="button" data-air-mode="none" aria-pressed="false">なし</button></div></div>
+<details id="aimAirDetails"><summary>気象条件 <span id="aimAirSummary">気象を反映</span><span class="aim-air-chevron" aria-hidden="true">⌄</span></summary><div class="aim-air-content">
+<p id="aimAirStatus" class="tiny" role="status"></p><p class="tiny">気象は選択地点・時刻のモデル値です。期間外・取得不可は標準大気を使用します。</p><p class="tiny">低空の逆転層によるずれは再現できません。「なし」を除き、地上目標の屈折は標準値です。</p>
+</div></details></div>
 </section><section id="previewPlaces" role="tabpanel" aria-labelledby="previewPlacesTab">    <div class="mapwrap" style="margin-top:8px">
       <canvas id="aimCanvas" aria-label="地図。線の上が、その日に重なって見える場所です"></canvas>
       <div class="mappin" aria-hidden="true"></div>
@@ -1835,23 +1835,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004191000"></script>
+<script src="sorami-core.js?v=20261004192000"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004191000"></script>
-<script src="sorami-exif.js?v=20261004191000"></script>
-<script src="sorami-capcloud.js?v=20261004191000"></script>
-<script src="sorami-terrain.js?v=20261004191000"></script>
-<script src="sorami-mountain.js?v=20261004191000"></script>
-<script src="sorami-fuji.js?v=20261004191000"></script>
-<script src="sorami-sky.js?v=20261004191000"></script>
-<script src="sorami-routes.js?v=20261004191000"></script>
-<script src="sorami-iss.js?v=20261004191000"></script>
-<script src="sorami-plane.js?v=20261004191000"></script>
-<script src="sorami-atmosphere.js?v=20261004191000"></script>
-<script src="sorami-bodies.js?v=20261004191000"></script>
-<script src="sorami-align.js?v=20261004191000"></script>
-<script src="sorami-moon.js?v=20261004191000"></script>
+<script src="sorami-astro.js?v=20261004192000"></script>
+<script src="sorami-exif.js?v=20261004192000"></script>
+<script src="sorami-capcloud.js?v=20261004192000"></script>
+<script src="sorami-terrain.js?v=20261004192000"></script>
+<script src="sorami-mountain.js?v=20261004192000"></script>
+<script src="sorami-fuji.js?v=20261004192000"></script>
+<script src="sorami-sky.js?v=20261004192000"></script>
+<script src="sorami-routes.js?v=20261004192000"></script>
+<script src="sorami-iss.js?v=20261004192000"></script>
+<script src="sorami-plane.js?v=20261004192000"></script>
+<script src="sorami-atmosphere.js?v=20261004192000"></script>
+<script src="sorami-bodies.js?v=20261004192000"></script>
+<script src="sorami-align.js?v=20261004192000"></script>
+<script src="sorami-moon.js?v=20261004192000"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7404,6 +7404,7 @@ async function aimLookRender(host, spec) {
       <div class="aim-look-found" data-look-found hidden></div>
       <p class="tiny aim-look-note" data-look-note hidden></p>`;
   }
+  if(host.id==="aimLook")host.querySelector("[data-look-frame-times]").after($("aimAir"));
   const cv = host.querySelector("[data-look-canvas]"), range = host.querySelector("[data-look-range]");
   const out = host.querySelector("[data-look-at]"), note = host.querySelector("[data-look-note]");
   host.querySelector("[data-look-title]").textContent = spec.title || "";
@@ -8109,13 +8110,13 @@ function aimTitleFor() {
 
 // A single atmosphere provider is shared by candidates, inverse solutions and drawing.
 const aimAirSettings={mode:"auto",temperatureC:10,pressureHPa:1010,...(store.get("sorami.aimAir",null)||{})};
-if(!["auto","manual","standard","none"].includes(aimAirSettings.mode))aimAirSettings.mode="auto";
+if(!["auto","standard","none"].includes(aimAirSettings.mode))aimAirSettings.mode="auto";
 try{SoramiAtmosphere.configure(aimAirSettings.mode,aimAirSettings);}catch{aimAirSettings.mode="auto";SoramiAtmosphere.configure("auto");}
 let aimAirLoadKey="",aimAirSeq=0,aimAirCompare=null;
 const aimAirAngle=(...args)=>SoramiAstro.targetElevationAngle(...args,{k:SoramiAtmosphere.targetK()});
 function aimAirDescribe(at,obs){
  const air=SoramiAtmosphere.at(at,obs),temp=Number.isFinite(air.temperatureC)?air.temperatureC.toFixed(1):"",pressure=Number.isFinite(air.pressureHPa)?Math.round(air.pressureHPa):"";
- const modeName={auto:air.fallback?"標準（気象なし）":"気象を反映",manual:"手入力",standard:"標準大気",none:"なし"}[aimAirSettings.mode];
+ const modeName={auto:air.fallback?"標準値を使用":`${temp}℃ / ${pressure}hPa`,standard:"1010hPa / 10℃",none:"補正なし"}[aimAirSettings.mode];
  const summary=$("aimAirSummary"),status=$("aimAirStatus");if(summary.textContent!==modeName)summary.textContent=modeName;
  const value=air.none?"天体・地上目標とも屈折なし":`${air.source} · ${temp}℃ / ${pressure}hPa · ${S.JstCal.hhmm(at)}`;
  if(status.textContent!==value)status.textContent=value;
@@ -8137,14 +8138,18 @@ function aimAirChange(){
  if(spec&&Number.isFinite(look._lookAt))aimAirCompare={at:look._lookAt,latitude:spec.obs.latitude,longitude:spec.obs.longitude,day:S.JstCal.startOfDay(spec.at)};
  aimAirSeq++;aimAirLoadKey="";aimCal.seq++;aimCal.cache.clear();aim.spotCache=null;aimRidgeCache.clear();
  SoramiAtmosphere.configure(aimAirSettings.mode,aimAirSettings);store.set("sorami.aimAir",aimAirSettings);
- $("aimAirManual").hidden=aimAirSettings.mode!=="manual";
+ aimAirSync();
  aimApply();
 }
-$("aimAirMode").value=aimAirSettings.mode;$("aimAirTemp").value=String(aimAirSettings.temperatureC);$("aimAirPressure").value=String(aimAirSettings.pressureHPa);$("aimAirManual").hidden=aimAirSettings.mode!=="manual";
-$("aimAirMode").onchange=()=>{const next=$("aimAirMode").value;if(next==="manual"&&(!$("aimAirTemp").checkValidity()||!$("aimAirPressure").checkValidity())){$("aimAirMode").value=aimAirSettings.mode;return;}
- aimAirSettings.mode=next;if(next==="manual"){aimAirSettings.temperatureC=+$("aimAirTemp").value;aimAirSettings.pressureHPa=+$("aimAirPressure").value;}aimAirChange();};
-$("aimAirApply").onclick=()=>{for(const id of ["aimAirTemp","aimAirPressure"]){if(!$(id).value.trim()||!$(id).checkValidity()){$(id).reportValidity();return;}}
- aimAirSettings.temperatureC=+$("aimAirTemp").value;aimAirSettings.pressureHPa=+$("aimAirPressure").value;aimAirChange();};
+function aimAirSync(){
+ for(const b of $("aimAir").querySelectorAll("[data-air-mode]"))b.setAttribute("aria-pressed",String(b.dataset.airMode===aimAirSettings.mode));
+}
+function aimAirChoose(next){
+ if(!["auto","standard","none"].includes(next))return;
+ aimAirSettings.mode=next;aimAirChange();
+}
+for(const b of $("aimAir").querySelectorAll("[data-air-mode]"))b.onclick=()=>aimAirChoose(b.dataset.airMode);
+aimAirSync();
 
 function openAim(preset) {
   const entry = ++aim.bodySeq;
