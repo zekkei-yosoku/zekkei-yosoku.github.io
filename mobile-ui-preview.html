@@ -1815,22 +1815,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004180500"></script>
+<script src="sorami-core.js?v=20261004182500"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004180500"></script>
-<script src="sorami-exif.js?v=20261004180500"></script>
-<script src="sorami-capcloud.js?v=20261004180500"></script>
-<script src="sorami-terrain.js?v=20261004180500"></script>
-<script src="sorami-mountain.js?v=20261004180500"></script>
-<script src="sorami-fuji.js?v=20261004180500"></script>
-<script src="sorami-sky.js?v=20261004180500"></script>
-<script src="sorami-routes.js?v=20261004180500"></script>
-<script src="sorami-iss.js?v=20261004180500"></script>
-<script src="sorami-plane.js?v=20261004180500"></script>
-<script src="sorami-bodies.js?v=20261004180500"></script>
-<script src="sorami-align.js?v=20261004180500"></script>
-<script src="sorami-moon.js?v=20261004180500"></script>
+<script src="sorami-astro.js?v=20261004182500"></script>
+<script src="sorami-exif.js?v=20261004182500"></script>
+<script src="sorami-capcloud.js?v=20261004182500"></script>
+<script src="sorami-terrain.js?v=20261004182500"></script>
+<script src="sorami-mountain.js?v=20261004182500"></script>
+<script src="sorami-fuji.js?v=20261004182500"></script>
+<script src="sorami-sky.js?v=20261004182500"></script>
+<script src="sorami-routes.js?v=20261004182500"></script>
+<script src="sorami-iss.js?v=20261004182500"></script>
+<script src="sorami-plane.js?v=20261004182500"></script>
+<script src="sorami-bodies.js?v=20261004182500"></script>
+<script src="sorami-align.js?v=20261004182500"></script>
+<script src="sorami-moon.js?v=20261004182500"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2820,7 +2820,7 @@ function render() {
   // **出典は消さない。** Open-Meteo・OSM・国土地理院・気象庁は出典の表示が利用の条件で、加工したらその旨も書く
   $("footerBody").innerHTML =
     `${bundle ? S.JstCal.hhmm(bundle.fetchedAt) : "—"} 時点の予報をもとにこのアプリで点数化<br>`
-    + `予報: Open-Meteo ／ 実況: 気象庁アメダス ／ 光害: <a href="https://djlorenz.github.io/astronomy/lp/">Lorenz Light Pollution Atlas 2025</a>（VIIRS） ／ 検索: OSM Nominatim ・ 補完: <a href="https://www.city.kawasaki.jp/530/page/0000170254.html">川崎市</a>・<a href="https://yakei-navi.com/saginumakita/">夜景Navi</a> ・ 標高: 国土地理院`;
+    + `予報: Open-Meteo ／ 実況: 気象庁アメダス ／ 光害: <a href="https://djlorenz.github.io/astronomy/lp/">Lorenz Light Pollution Atlas 2025</a>（VIIRS） ／ 検索: OSM Nominatim ・ 標高: 国土地理院 ・ 補完: <a href="https://www.city.kawasaki.jp/530/page/0000170254.html">川崎市</a>・<a href="https://yakei-navi.com/saginumakita/">夜景Navi</a>`;
 
   // 富士山は通信が要るので、予報の描画を待たせない。**失敗しても本体を巻き込まない**
   // 富士山と月は通信が要るので、予報の描画を待たせない。
@@ -8354,26 +8354,44 @@ function namedPlaceMatches(q, rows) {
   return rows.filter(r => [r.name, ...(r.aliases || [])].some(n => norm(n).includes(query)))
     .filter(r => Number.isFinite(r.latitude) && Number.isFinite(r.longitude));
 }
-async function searchPlaces(q) {
+// 同じ検索の連打をまとめ、通信が長引いても検索画面を待たせ続けない。
+const searchResponseCache = new Map();
+function searchJson(url) {
+  const cached = searchResponseCache.get(url);
+  if (cached && Date.now() - cached.at < 300000) return cached.promise;
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 6000);
+  const promise = fetch(url, {signal: controller.signal})
+    .then(r => {if (!r.ok) throw new Error("地名検索の通信失敗");return r.json();})
+    .catch(e => {searchResponseCache.delete(url);throw e;}).finally(() => clearTimeout(timer));
+  searchResponseCache.set(url, {at: Date.now(), promise});
+  if (searchResponseCache.size > 40) searchResponseCache.delete(searchResponseCache.keys().next().value);
+  return promise;
+}
+async function searchPlaces(q, {localOnly = false, near = place} = {}) {
   const gsiUrl = "https://msearch.gsi.go.jp/address-search/AddressSearch?q=" + encodeURIComponent(q);
   // `extratags=1` で `height` / `building:levels` / `tower:type` が返る。
   // **展望台は立つ高さが効く**ので、検索の時点で持っておく
   const osmUrl = "https://nominatim.openstreetmap.org/search?" + new URLSearchParams(
     { q, format: "jsonv2", limit: "8", countrycodes: "jp", "accept-language": "ja", extratags: "1" });
   const [gsiRes, osmRes, idxRes, supplementRes] = await Promise.allSettled([
-    fetch(gsiUrl).then((r) => (r.ok ? r.json() : [])),
-    fetch(osmUrl).then((r) => (r.ok ? r.json() : [])),
-    placeIndex().then((j) => SoramiTerrain.searchPlaceIndex(j, q, { near: place, limit: 8 })),
+    localOnly ? Promise.resolve([]) : searchJson(gsiUrl),
+    localOnly ? Promise.resolve([]) : searchJson(osmUrl),
+    placeIndex().then((j) => SoramiTerrain.searchPlaceIndex(j, q, { near, limit: 8 })),
     searchSupplement(),
   ]);
-  const saved = namedPlaceMatches(q, favorites).map(r => ({...r, detail: r.subtitle || "お気に入り", scope: r.locationScope || "point", source: "saved", savedPlace: r}));
+  const landmarkRows = SoramiAlign.TARGETS.filter(r => r.id !== "tinkerbell").map(r => ({
+    ...r, aliases: r.id === "skytree" ? ["スカイツリー", "とうきょうスカイツリー"] : [],
+    kind: r.id === "fuji" ? "山" : "施設", detail: r.id === "skytree" ? "東京都墨田区押上" : r.id === "tokyotower" ? "東京都港区芝公園" : "施設・目標", scope: "point", source: "landmark", decks: SoramiTerrain.decksFor(r.name),
+  }));
+  const landmarks = namedPlaceMatches(q, landmarkRows);
+  const saved = namedPlaceMatches(q, favorites).map(r => ({...r, detail: r.subtitle || "お気に入り", scope: r.locationScope || "point", source: "saved", kind: "お気に入り", savedPlace: r}));
   const supplemented = namedPlaceMatches(q, supplementRes.status === "fulfilled" ? supplementRes.value.places || [] : [])
-    .map(r => ({...r, scope: "point", source: "supplement"}));
+    .map(r => ({...r, scope: "point", kind: "公園", source: "supplement"}));
   const local = (idxRes.status === "fulfilled" ? idxRes.value : []).map((r) => ({
     name: r.name,
-    detail: [r.kind, r.muni, Number.isFinite(r.elevation) ? `標高${r.elevation}m` : null].filter(Boolean).join(" ・ "),
+    detail: [r.muni, Number.isFinite(r.elevation) ? `標高${r.elevation}m` : null].filter(Boolean).join(" ・ "),
     latitude: r.latitude, longitude: r.longitude, scope: "point", source: "index",
-    lookout: r.kind === "展望地" ? "viewpoint" : null, elevation: r.elevation, indexScore: r.score,
+    kind: r.kind, lookout: r.kind === "展望地" ? "viewpoint" : null, elevation: r.elevation, indexScore: r.score,
   }));
   const gsi = (gsiRes.status === "fulfilled" && Array.isArray(gsiRes.value) ? gsiRes.value : [])
     .filter((f) => f && f.geometry && Array.isArray(f.geometry.coordinates))
@@ -8383,6 +8401,7 @@ async function searchPlaces(q) {
       latitude: +f.geometry.coordinates[1], longitude: +f.geometry.coordinates[0],
       scope: SoramiTerrain.gsiLocationScope(f.properties?.title),
       source: "gsi",
+      kind: SoramiTerrain.gsiLocationScope(f.properties?.title) === "area" ? "地域" : /駅$/.test(f.properties?.title || "") ? "駅" : null,
       // 公表値の展望台は名前だけで引ける。OSM が当たらなくても出す
       decks: SoramiTerrain.decksFor(String(f.properties?.title || "")),
     }));
@@ -8395,6 +8414,7 @@ async function searchPlaces(q) {
       const struct = SoramiTerrain.structureHeight(r.extratags);
       return {
         name, detail: r.display_name,
+        kind: /station|halt|stop/.test(r.type || "") || /駅(?:[（(].*)?$/.test(name) ? "駅" : r.type === "park" ? "公園" : null,
         latitude: +r.lat, longitude: +r.lon,
         scope: SoramiTerrain.searchLocationScope(r),
         source: "osm",
@@ -8405,17 +8425,24 @@ async function searchPlaces(q) {
     });
   // **名前が一致するものを上に。** そのうえで、**いま見ている地点から近い順**。
   // 「高尾山」は地理院に8件あり、距離を見ないと遠い同名が枠を埋めて八王子の高尾山が出ない
-  const score = (r) => (r.name === q ? 0 : r.name.startsWith(q) ? 1 : r.name.includes(q) ? 2 : 3);
-  const away = (r) => SoramiTerrain.distanceKm(place.latitude, place.longitude, r.latitude, r.longitude);
+  const normQuery = SoramiTerrain.normName(q);
+  const score = (r) => {
+    const names = [r.name, ...(r.aliases || [])].map(n => SoramiTerrain.normName(n));
+    if (names.includes(normQuery)) return 0;
+    if (names.some(n => n.startsWith(normQuery))) return 1;
+    if (names.some(n => n.includes(normQuery))) return 2;
+    return r.source === "index" && r.indexScore >= 60 ? 2 : 3;
+  };
+  const away = (r) => SoramiTerrain.distanceKm(near.latitude, near.longitude, r.latitude, r.longitude);
   const merged = [];
-  // 索引で強く当たったもの（名前が一致・前方一致、または語の中の地名が並んで当たった）を先に。
-  // 弱いもの（語の中に短い名前が含まれるだけ）は、ほかの結果のあとに回す
-  const strong = local.filter((r) => r.indexScore >= 60), weak = local.filter((r) => r.indexScore < 60);
-  const ordered = [...saved, ...supplemented, ...strong, ...[...gsi, ...osm].sort((a, b) => score(a) - score(b) || away(a) - away(b)), ...weak];
+  // 出典ごとの優先枠を廃止。一致の強さを全候補で比較し、眺望地が本体を追い越さない。
+  const priority = r => r.source === "saved" ? 0 : r.source === "landmark" ? 1 : r.source === "supplement" ? 2 : 3;
+  const ordered = [...saved, ...landmarks, ...supplemented, ...local, ...gsi, ...osm]
+    .sort((a, b) => score(a) - score(b) || priority(a) - priority(b) || away(a) - away(b));
   for (const r of ordered) {
     if (!r.name || !Number.isFinite(r.latitude) || !Number.isFinite(r.longitude)) continue;
     // 検索語をまったく含まない候補は、**1件も当たらなかったときだけ**出す（索引は語の中の地名で当てるので除く）
-    if (!["index", "saved", "supplement"].includes(r.source) && score(r) === 3 && merged.length >= 1) continue;
+    if (!["index", "saved", "supplement", "landmark"].includes(r.source) && score(r) === 3 && merged.length >= 1) continue;
     // 索引の山や岬は、地理院・OSM の代表点と数百m ずれることがある（宗谷岬が二重に出た）。索引が絡むときは 1.5km まで同じとみなす
     const dup = merged.find((m) => m.name === r.name
       && SoramiTerrain.distanceKm(m.latitude, m.longitude, r.latitude, r.longitude)
@@ -8438,6 +8465,7 @@ async function searchPlaces(q) {
     merged.push(r);
     if (merged.length >= 8) break;
   }
+  merged.searchFailed = !localOnly && gsiRes.status === "rejected" && osmRes.status === "rejected";
   return merged;
 }
 
@@ -8489,9 +8517,9 @@ $("deckPick").onchange = () => {
 function renderSearchResults(host, results, onPick) {
   host.innerHTML = results.length
     ? results.map((r, i) => `<button class="list-item" data-sr="${i}"><strong>${esc(r.name)}</strong>
-        ${lookoutTag(r)}
-        <span class="tiny sub-line">${esc(r.detail)}${r.scope === "area" ? "（地域の代表地点）" : ""}</span></button>`).join("")
-    : `<p class="tiny">該当なし</p>`;
+        ${r.kind ? `<span class="tag-lookout">${esc(r.kind)}</span>` : ""} ${r.kind && !r.decks?.length && !r.structureM ? "" : lookoutTag(r)}
+        <span class="tiny sub-line">${esc(r.detail || "")}${r.scope === "area" ? "（地域の代表地点）" : ""}</span></button>`).join("")
+    : `<p class="tiny" role="status">${results.searchFailed ? "検索先に接続できませんでした。もう一度検索するか、地図で選んでください。" : "見つかりませんでした。市区町村を加えるか、地図で選んでください。"}</p>`;
   for (const el of host.querySelectorAll("[data-sr]")) {
     el.onclick = () => onPick(results[+el.dataset.sr]);
   }
@@ -8501,11 +8529,22 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
   // **確定の拾い方は2通り持つ。** iOS のキーボードの「検索」では keydown の Enter が
   // 届かないことがあり、`input[type=search]` の `search` イベントでしか拾えない。
   // 同じ語で二重に走らないよう、直前の語を憶えておく。
-  let last = null, seq = 0, lastTimer = 0;
+  let last = null, seq = 0, lastTimer = 0, localTimer = 0;
   const box = $(boxId), results = $(resultsId);
-  const invalidate = () => { ++seq; last = null; clearTimeout(lastTimer); results.innerHTML = ""; };
+  const searchNear = () => boxId === "mapSearch" ? MapPick.center() : placeSheetFor && PLACE_PICKERS[placeSheetFor] ? PLACE_PICKERS[placeSheetFor].point() || place : place;
+  const invalidate = () => { ++seq; last = null; clearTimeout(lastTimer); clearTimeout(localTimer); results.removeAttribute("aria-busy"); results.innerHTML = ""; };
   // 消去/入力変更で表示と待機中の結果を同時に無効化。遅い旧検索を復活させない。
-  box.addEventListener("input", invalidate);
+  results.setAttribute("aria-live", "polite");
+  box.addEventListener("input", () => {
+    invalidate();const q = box.value.trim(), ticket = seq;
+    if (q.length < 2 || SoramiTerrain.parseLatLon(q) || /^https?:/.test(q)) return;
+    // 入力中は端末内の候補だけ。外部の地名APIは検索ボタン/Enterで呼ぶ。
+    localTimer = setTimeout(async () => {
+      const found = await searchPlaces(q, {localOnly: true, near: searchNear()});
+      if (ticket === seq && box.value.trim() === q && found.length) renderSearchResults(results, found, onPick);
+    }, 200);
+  });
+  box.closest("dialog")?.addEventListener("close", invalidate);
   const run = async () => {
     const q = $(boxId).value.trim();
     if (!q) { invalidate(); return; }
@@ -8513,7 +8552,7 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
     last = q;
     const ticket = ++seq;
     const current = () => ticket === seq && box.value.trim() === q;
-    clearTimeout(lastTimer);
+    clearTimeout(lastTimer); clearTimeout(localTimer);
     lastTimer = setTimeout(() => { if (ticket === seq) last = null; }, 800);
     // **緯度経度を入れたらそこへ。** 地図アプリからの貼り付け（度分秒・全角）も読む。
     // 検索に投げても地名としては当たらないので、先にこちらで拾う（2026-09-24 ユーザー依頼）。
@@ -8550,16 +8589,21 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
       return;
     }
     $(resultsId).dataset.kind = "";
-    $(resultsId).innerHTML = `<p class="tiny">検索中…</p>`;
+    results.setAttribute("aria-busy", "true");
+    const local = await searchPlaces(q, {localOnly: true, near: searchNear()});
+    if (!current()) return;
+    if (local.length) renderSearchResults(results, local, onPick);
+    else results.innerHTML = "";
+    results.insertAdjacentHTML("beforeend", `<p class="tiny" role="status">検索中…</p>`);
     try {
-      const found = await searchPlaces(q);
+      const found = await searchPlaces(q, {near: searchNear()});
       if (current()) renderSearchResults(results, found, onPick);
-    } catch { if (current()) results.innerHTML = `<p class="warn">検索に失敗しました</p>`; }
+    } catch { if (current()) results.innerHTML = `<p class="warn" role="status">検索できませんでした。もう一度検索するか、地図で選んでください。</p>`; }
+    finally {if (current()) results.removeAttribute("aria-busy");}
   };
   // 日本語の変換を確定する Enter では始めない（確定のたびに検索が走る）
   $(boxId).addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) run(); });
   $(boxId).addEventListener("search", run);       // iOS のキーボードの「検索」
-  $(boxId).addEventListener("change", run);       // 予測変換からの確定など
   // 「検索」釦。押せば必ず始まる（同じ語でも、もう一度探す）
   const go = document.getElementById(`${boxId}Go`);
   if (go) go.onclick = () => { last = null; run(); };
