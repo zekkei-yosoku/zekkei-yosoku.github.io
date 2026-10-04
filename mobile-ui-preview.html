@@ -1835,23 +1835,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004190500"></script>
+<script src="sorami-core.js?v=20261004191000"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004190500"></script>
-<script src="sorami-exif.js?v=20261004190500"></script>
-<script src="sorami-capcloud.js?v=20261004190500"></script>
-<script src="sorami-terrain.js?v=20261004190500"></script>
-<script src="sorami-mountain.js?v=20261004190500"></script>
-<script src="sorami-fuji.js?v=20261004190500"></script>
-<script src="sorami-sky.js?v=20261004190500"></script>
-<script src="sorami-routes.js?v=20261004190500"></script>
-<script src="sorami-iss.js?v=20261004190500"></script>
-<script src="sorami-plane.js?v=20261004190500"></script>
-<script src="sorami-atmosphere.js?v=20261004190500"></script>
-<script src="sorami-bodies.js?v=20261004190500"></script>
-<script src="sorami-align.js?v=20261004190500"></script>
-<script src="sorami-moon.js?v=20261004190500"></script>
+<script src="sorami-astro.js?v=20261004191000"></script>
+<script src="sorami-exif.js?v=20261004191000"></script>
+<script src="sorami-capcloud.js?v=20261004191000"></script>
+<script src="sorami-terrain.js?v=20261004191000"></script>
+<script src="sorami-mountain.js?v=20261004191000"></script>
+<script src="sorami-fuji.js?v=20261004191000"></script>
+<script src="sorami-sky.js?v=20261004191000"></script>
+<script src="sorami-routes.js?v=20261004191000"></script>
+<script src="sorami-iss.js?v=20261004191000"></script>
+<script src="sorami-plane.js?v=20261004191000"></script>
+<script src="sorami-atmosphere.js?v=20261004191000"></script>
+<script src="sorami-bodies.js?v=20261004191000"></script>
+<script src="sorami-align.js?v=20261004191000"></script>
+<script src="sorami-moon.js?v=20261004191000"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7757,8 +7757,7 @@ async function aimLookRender(host, spec) {
   move.textContent = host._lensMoving ? "構図を確定" : "構図を変更";
   move.onclick = () => { host._lensMoving = !host._lensMoving; host._pick = null; aimReverseClear(); aimLookRender(host, spec); };
   center.onclick = () => { host._lensKeyOffset = null; host._lensOffset = [0, 0]; draw(cur); };
-  cv.onkeydown = null;
-  cv.tabIndex = host._lensMoving && frame ? 0 : -1;
+  if (!host._pick) { cv.onkeydown = null; cv.tabIndex = host._lensMoving && frame ? 0 : -1; }
   if (host._lensMoving && frame && !host._pick) {
     host.querySelector("[data-look-hint]").hidden = true;
     host.querySelector("[data-look-hint]").textContent = "";
