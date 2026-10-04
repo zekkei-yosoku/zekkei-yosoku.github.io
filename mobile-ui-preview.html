@@ -965,17 +965,55 @@
     table.numbers { width: 100%; }
   }
 </style>
-<style>
-.preview-banner{padding:10px 12px;border:1px solid var(--line);border-radius:12px;color:var(--secondary)}
-#aimView .aim-disclosure>summary{justify-content:space-between;font-weight:600;min-height:48px}
-#previewConditionValue{font-size:12px;color:var(--secondary);font-weight:400;margin-left:auto}
-#aimView .aim-look-h{align-items:center;margin-bottom:8px}#aimView .aim-look-h .chip{min-height:48px}
-#aimView .aim-look-pick{display:flex;flex-wrap:wrap}#aimView .aim-look-pick .chip{flex:1;min-width:120px}#aimView .aim-look-pick [data-look-confirm]{flex-basis:100%}
-#aimView .aim-lens-row{flex-wrap:wrap}#aimView .aim-lens-row label{min-width:0}#aimView .aim-lens-row input{max-width:calc(100% - 110px)}
-#aimView .preview-lens>summary{gap:8px;white-space:nowrap}#aimView .preview-lens .tiny{font-weight:400;color:var(--secondary);margin-left:auto;font-size:11px;text-align:right}
-#aimView .preview-lens .aim-lens{margin-top:4px}
-#aimView #aimFromLabel{font-size:12px;margin-top:6px}
-@media(min-width:960px){main:has(#aimView:not([hidden])){max-width:1120px}#aimView>.card{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);column-gap:24px}#aimView>.card>*{grid-column:1/-1}#aimLook{grid-column:1!important;grid-row:6/span 5}#previewMap{grid-column:2!important;grid-row:6/span 2}#aimLineInfo{grid-column:2!important;grid-row:8}#aimCandBox{grid-column:2!important;grid-row:9}#aimListBox{grid-column:2!important;grid-row:10}}
+<style id="previewStyles">.preview-banner{margin:0 0 12px;color:var(--secondary);font-size:11px}
+.preview-title{font-size:20px;margin:8px 0 14px}
+#aimView>.card{padding:0;background:transparent;box-shadow:none;border:0}
+#aimView .aim-head{padding:10px 12px;border-radius:12px;background:var(--card);gap:16px}
+#aimView .aim-head #aimTitle{font-size:16px;flex:1}
+#aimView .aim-body-select{flex:1;width:100px}.preview-cross{flex:none;color:var(--secondary)}
+#aimView .fav-l{margin-top:10px;margin-bottom:4px;font-size:12px}
+#aimView .aim-place-card{background:var(--card);margin-bottom:6px;padding:0 4px 0 10px}
+#aimView .aim-place-card .place-pick{min-height:52px}
+#aimView #aimFromSub{font-size:11px}
+#aimView .aim-limb{margin-bottom:0}
+#aimView .aim-limb button{min-height:58px;flex-direction:row;justify-content:center;gap:6px;font-size:13px}
+#aimView .aim-limb svg{width:26px;height:26px}
+#aimView .aim-date-section{margin:12px 0;padding-top:12px}
+.preview-tabs{position:sticky;top:4px;z-index:5;display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:12px;margin:12px 0}
+.preview-tabs button{flex:1;min-height:48px;font-size:15px;font-weight:600;border-radius:9px;background:transparent;color:var(--secondary)}
+.preview-tabs button[aria-selected=true]{background:var(--card);color:var(--text);box-shadow:0 1px 4px #0001}
+.preview-tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#aimView .aim-look{margin-top:0}
+#aimView .aim-look-h{display:none}
+#aimView .aim-look-cap{margin:0 0 8px}
+#aimView .aim-look-time{margin:6px 0}
+#aimView .aim-lens{margin:10px 0 0}
+#aimView .aim-lens-row{gap:8px;flex-wrap:nowrap}
+#aimView .aim-lens-row label{min-width:0;flex:1;font-size:13px}
+#aimView .aim-lens-row label input{width:80px;flex:1;max-width:140px;min-width:0;min-height:48px}
+#aimView .aim-lens-row .chip{min-height:48px;flex:0 0 auto;padding:0 16px}
+.preview-camera{margin:8px 0 0;border-top:1px solid var(--line)}
+.preview-camera>summary{display:flex;align-items:center;justify-content:space-between;min-height:44px;cursor:pointer;font-size:12px;color:var(--secondary)}
+.preview-camera>summary:focus-visible{outline:2px solid var(--accent)}
+.preview-camera .aim-lens-row{margin:8px 0}
+.preview-camera .tiny{margin:8px 0}
+.preview-compose{display:flex;gap:8px;margin-top:8px}
+.preview-compose .chip{flex:1;min-height:48px;font-size:13px}
+.preview-reverse{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.preview-reverse h3{font-size:12px;font-weight:500;color:var(--secondary);margin:0 0 6px}
+#aimView .aim-look-pick{display:flex;flex-wrap:wrap;margin:0;gap:8px}
+#aimView .aim-look-pick .chip{flex:1;min-height:44px}
+#aimView .aim-look-pick [data-look-confirm]{flex-basis:100%}
+.preview-candidate-title{margin-top:18px;font-size:16px}
+#previewPlaces .aim-disclosure>summary{min-height:48px}
+#previewPlaces[hidden],#previewScene[hidden]{display:none}
+#previewPlaces .preview-show-scene{min-height:44px;flex:0 0 auto}
+@media(max-width:360px){#aimView .aim-limb button{font-size:12px;gap:3px}#aimView .aim-limb svg{width:23px;height:23px}}
+@media(min-width:960px){main:has(#aimView:not([hidden])){max-width:1120px}.preview-tabs{display:none}.preview-workspace{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:28px;margin-top:20px}#previewScene,#previewPlaces{min-width:0}#previewPlaces .mapwrap{margin-top:0!important}#previewScene:before{content:'見え方';display:block;font-weight:600;font-size:16px;margin-bottom:12px}#previewPlaces:before{content:'撮影場所';display:block;font-weight:600;font-size:16px;margin-bottom:12px}}
+.preview-quick{display:flex;gap:8px;margin:8px 0}.preview-quick .chip{flex:1;min-height:44px}
+.preview-return{min-height:44px;font-size:12px;margin-top:6px}
+
+#aimView .aim-look-found{scroll-margin-top:72px}#previewPlaces .cand-row{flex-wrap:wrap}#previewPlaces .cand-row .cand-pick{flex-basis:100%}#previewPlaces .cand-map,#previewPlaces .preview-show-scene{flex:1}
 </style></head>
 <body>
 <main><p class="tiny preview-banner">UIテスト · 現行の予測を使用（保存先も本番と共通）</p>
@@ -1181,7 +1219,7 @@
            「に重ねる」は付けない（道具の名前で分かる。付けると 375px 以下で折れて、切り替えと下の位置が富士山の画面より下がった）。
            「目標」の行を別に置かないので、富士山に重ねると並びが同じになる。見た目は字＋▾、押すと OS の一覧が開く
            （透明な select を字に重ねる。select の幅は一番長い候補で決まってしまうので、字の幅に合わせるため） -->
-      <div class="section-h aim-head"><h2 id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span></span></h2>
+      <h2 class="preview-title">天体を重ねる</h2><div class="section-h aim-head"><div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span></span></div>
         <select id="aimBody" class="aim-body-select" aria-label="天体">
           <optgroup label="太陽・月"><option value="sun">太陽</option><option value="moon">月</option></optgroup>
           <optgroup label="恒星"><option value="sirius">シリウス</option></optgroup>
@@ -1214,7 +1252,7 @@
       <button id="aimFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆</button>
     </div>
 
-<details id="previewConditions" class="aim-disclosure"><summary>合わせ方 <span id="previewConditionValue"></span></summary>    <p class="fav-l" id="aimWhereLabel">どこに重ねるか</p>
+    <p class="fav-l" id="aimWhereLabel">どこに重ねるか</p>
     <!-- 自分で置くときの目標の場所（2026-10-01 ユーザー「自分で置くを選んだ場合、どこに重ねるかの検索が必要なんじゃないの」）。
          どこから重ねるかと同じく地点カードの形で、押すと同じ「地点」の画面（検索・現在地・地図で選ぶ・お気に入り）。
          地図を見ながら決めるときは、地図のすぐ下の「ここに重ねる」 -->
@@ -1252,7 +1290,7 @@
       <button id="aimHeightSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">この高さで</button>
     </div>
     <p class="tiny" id="aimHeightNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
-</details>    <!-- 日付と観測地点の候補日は一つのセクション。図を見る前に選ぶ。 -->
+    <!-- 日付と観測地点の候補日は一つのセクション。図を見る前に選ぶ。 -->
     <section class="aim-date-section" aria-label="日付と候補日">
     <div class="aim-row aim-date">
       <button id="aimPrev" class="fav-btn" aria-label="前の日">←</button>
@@ -1262,8 +1300,8 @@
     </div>
     <div id="aimFrom" class="aim-from"></div>
     </section>
-    <div id="aimLook" class="aim-look" hidden></div>
-<details id="previewMap" class="aim-disclosure"><summary>地図</summary>    <div class="mapwrap" style="margin-top:8px">
+<div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div><div class="preview-tabs" role="tablist" aria-label="撮影の確認"><button type="button" id="previewSceneTab" role="tab" aria-selected="true" aria-controls="previewScene">見え方</button><button type="button" id="previewPlacesTab" role="tab" aria-selected="false" aria-controls="previewPlaces" tabindex="-1">撮影場所</button></div><div class="preview-workspace"><section id="previewScene" role="tabpanel" aria-labelledby="previewSceneTab">    <div id="aimLook" class="aim-look" hidden></div>
+</section><section id="previewPlaces" role="tabpanel" aria-labelledby="previewPlacesTab">    <div class="mapwrap" style="margin-top:8px">
       <canvas id="aimCanvas" aria-label="地図。線の上が、その日に重なって見える場所です"></canvas>
       <div class="mappin" aria-hidden="true"></div>
       <div class="mapzoom">
@@ -1295,16 +1333,15 @@
       <thead><tr><th>側</th><th>目標から</th><th>時刻</th><th>天体の方位</th></tr></thead>
       <tbody></tbody>
     </table>
-</details><div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div>    <!-- その日の候補地（2026-09-30）。月丼と同じく「この日はここ」を先に出し、線に掛かる立てる場所を並べる -->
+    <!-- その日の候補地（2026-09-30）。月丼と同じく「この日はここ」を先に出し、線に掛かる立てる場所を並べる -->
     <!-- 目標の場所が決まっていないときは見出しごと出さない（中身の無い見出しが残っていた。2026-10-02） -->
     <div id="aimCandBox">
-    <details class="aim-disclosure"><summary><h2>この日の候補地</h2></summary>
+    <h2 class="preview-candidate-title">この日の候補地</h2>
     <!-- 日の出側と日の入側を切り替える（2026-10-03 ユーザー「日の出と日の入に関してはボタンで切り替えが良いと思う」
          「候補地が何箇所かあるならそれを出したら？」）。釦に時刻の幅と数。線の無い側は押せない（線なし）。0か所の側は押せる -->
     <div id="aimSideSeg" class="aim-side-seg" role="group" aria-label="日の出側か日の入側か"></div>
     <div id="aimCandInfo" class="tiny" style="margin-top:6px;color:var(--secondary)"></div>
     <div id="aimCandList" class="al" style="margin-top:8px"></div>
-    </details>
     </div>
     <!-- 富士山だけ、定番のスポットで次に見える日（2026-09-30） -->
     <div id="aimListBox">
@@ -1313,7 +1350,7 @@
     <div id="aimList" class="al"></div>
     </details>
     </div>
-      </div>
+</section></div>      </div>
   </div>
 
   <!-- ISS の月面通過（2026-09-30）。月（太陽）の中心から ISS を通る直線が地面に当たる線＝中心線。
@@ -9725,26 +9762,41 @@ load(false);
 restoreSession();
 checkForUpdate();
 </script>
-<script id="previewPresentation">
-(()=>{
- const el=id=>document.getElementById(id),look=el('aimLook'),map=el('previewMap');
- if(matchMedia('(min-width:960px)').matches)map.open=true;
- map.addEventListener('toggle',()=>{if(map.open)requestAnimationFrame(()=>AimMap.redraw());});
- let targetWasVisible=false;
+<script id="previewPresentation">(()=>{
+ const el=id=>document.getElementById(id),root=el('aimView'),look=el('aimLook'),scene=el('previewScene'),places=el('previewPlaces'),tabs=[el('previewSceneTab'),el('previewPlacesTab')],wide=matchMedia('(min-width:960px)');
+ let mode='scene',resultKey='';
+ function show(which,focus=false){
+  mode=which;const both=wide.matches;
+  scene.hidden=!both&&which!=='scene';places.hidden=!both&&which!=='places';
+  tabs.forEach((t,i)=>{const on=(i===0)===(which==='scene');t.setAttribute('aria-selected',String(on));t.tabIndex=on?0:-1;if(focus&&on)t.focus();});
+  requestAnimationFrame(()=>{if(!places.hidden)AimMap.redraw();if(!scene.hidden&&look._lookSpec&&!look.hidden){const cv=look.querySelector('canvas');if(cv&&Math.round(cv.clientWidth)!==look._lookW)aimLookRender(look,look._lookSpec);}});
+ }
+ tabs.forEach((t,i)=>{t.onclick=()=>show(i?'places':'scene');t.onkeydown=e=>{let j;if(e.key==='ArrowRight'||e.key==='ArrowLeft')j=1-i;else if(e.key==='Home')j=0;else if(e.key==='End')j=1;else return;e.preventDefault();show(j?'places':'scene',true);};});
+ wide.addEventListener('change',()=>show(mode));show('scene');
  const update=()=>{
-  const visible=!el('aimTargetCard').hidden;if(visible&&!targetWasVisible)el('previewConditions').open=true;targetWasVisible=visible;
-  const values=[el('aimPart').selectedOptions[0]?.textContent,el('aimLimb').querySelector('[aria-pressed="true"]')?.textContent.trim()].filter(Boolean).join(' · ');
-  if(el('previewConditionValue').textContent!==values)el('previewConditionValue').textContent=values;
-  const move=look.querySelector('[data-lens-move]'),head=look.querySelector('.aim-look-h');if(move&&head&&move.parentElement!==head)head.append(move);
-  const lens=look.querySelector('.aim-lens'),info=look.querySelector('[data-lens-info]');
-  if(lens&&!lens.closest('.preview-lens')){
-   const d=document.createElement('details');d.className='aim-disclosure preview-lens';const summary=document.createElement('summary');summary.append('構図・レンズ');const value=document.createElement('span');value.className='tiny preview-lens-value';summary.append(value);lens.before(d);d.append(summary,lens);if(info)d.append(info);const center=look.querySelector('[data-lens-center]');if(center)lens.append(center);
+  const head=root.querySelector('.aim-head'),body=el('aimBody'),target=el('aimTarget'),goalLabel=el('aimTargetLabel');if(head&&head.firstElementChild!==body)head.prepend(body);if(head&&!head.querySelector('.preview-cross')){const cross=document.createElement('span');cross.className='preview-cross';cross.textContent='×';cross.setAttribute('aria-hidden','true');body.after(cross);}const goal=target.selectedOptions[0]?.textContent;if(goal&&goalLabel.textContent!==goal)goalLabel.textContent=goal;
+  const lens=look.querySelector('.aim-lens');
+  if(lens&&!look.querySelector('.preview-compose')){
+   const time=look.querySelector('.aim-look-time');if(time)time.after(lens);
+   const rows=lens.querySelectorAll('.aim-lens-row'),sensor=look.querySelector('[data-lens-sensor]'),portrait=look.querySelector('[data-lens-portrait]');
+   // 焦点距離・縦横は直接触る。センサー等のカメラ設定だけを一か所にまとめる。
+   const quick=document.createElement('div');quick.className='preview-quick';if(portrait)quick.append(portrait);const frame=look.querySelector('[data-lens-on]');if(frame)quick.append(frame);if(rows[0])rows[0].after(quick);
+   const camera=document.createElement('details');camera.className='preview-camera';const summary=document.createElement('summary');summary.append('カメラ設定');const value=document.createElement('span');value.className='preview-camera-value';summary.append(value);camera.append(summary);lens.append(camera);
+   if(rows[1])camera.append(rows[1]);const toggles=lens.querySelector('.aim-lens-toggles');if(toggles)camera.append(toggles);const info=look.querySelector('[data-lens-info]');if(info)camera.append(info);
+   const compose=document.createElement('div');compose.className='preview-compose';const move=look.querySelector('[data-lens-move]'),center=look.querySelector('[data-lens-center]');if(move)compose.append(move);if(center)compose.append(center);lens.append(compose,camera);
+   const reverse=document.createElement('section');reverse.className='preview-reverse';const title=document.createElement('h3');title.textContent='撮れる場所を逆算';reverse.append(title);look.append(reverse);
+   for(const selector of['.aim-look-pick','[data-look-hint]','[data-look-found]']){const node=look.querySelector(selector);if(node)reverse.append(node);}
   }
-  const value=look.querySelector('.preview-lens-value'),focal=look.querySelector('[data-lens-focal]'),sensor=look.querySelector('[data-lens-sensor]');if(value&&focal&&sensor){const text=focal.value+'mm · '+sensor.selectedOptions[0].textContent;if(value.textContent!==text)value.textContent=text;}
+  const label=look.querySelector('.preview-camera-value'),sensor=look.querySelector('[data-lens-sensor]');if(label&&sensor){const text=sensor.selectedOptions[0].textContent;if(label.textContent!==text)label.textContent=text;}
+  const note=look.querySelector('[data-look-note]'),outside=look.querySelector('[data-look-outside]');if(note&&outside&&note.previousElementSibling!==outside)outside.after(note);
+  const selected=el('aimCandList').querySelector('[data-cand][aria-pressed="true"]');let back=look.querySelector('.preview-return');
+  const caption=look.querySelector('.aim-look-cap');if(!back&&caption){back=document.createElement('button');back.type='button';back.className='tap preview-return';back.textContent='観測地点の見え方に戻す';caption.after(back);back.onclick=()=>{const current=el('aimCandList').querySelector('[data-cand][aria-pressed="true"]');if(current)current.click();else aimUpdateLook();};}if(back)back.hidden=!selected;
+  const result=look.querySelector('[data-found-map]'),found=look.querySelector('[data-look-found]');const key=result?found.textContent.trim():'';if(key&&key!==resultKey){resultKey=key;requestAnimationFrame(()=>{if(!scene.hidden)found.scrollIntoView({block:'nearest',behavior:'auto'});});}else if(!key)resultKey='';
+  for(const row of el('aimCandList').querySelectorAll('.cand-row.on'))if(!row.querySelector('.preview-show-scene')){const b=document.createElement('button');b.type='button';b.className='chip preview-show-scene';b.textContent='この場所の見え方';b.onclick=()=>{show('scene',true);if(!wide.matches)el('previewSceneTab').scrollIntoView({block:'start',behavior:'smooth'});};row.append(b);}
  };
- new MutationObserver(update).observe(el('aimView'),{childList:true,subtree:true,attributes:true,attributeFilter:['aria-pressed','hidden']});update();
- // 既存の「地図で見る」が選ぶ地点・描画を変更する処理はそのまま。ここでは折り畳みだけ開く。
- el('aimView').addEventListener('click',e=>{const b=e.target.closest('button');if(b&&(b.textContent.includes('地図で見る')||b.matches('[data-day],[data-look-confirm]')))map.open=true;},true);
+ new MutationObserver(update).observe(root,{childList:true,subtree:true});update();
+ // 既存の地図移動処理より先に表示する。計算や地点選択の処理は既存のまま。
+ root.addEventListener('click',e=>{const b=e.target.closest('button');if(b&&(b.matches('[data-cand-map],[data-day],[data-found-map]')))show('places');},true);
 })();
 </script></body>
 </html>
