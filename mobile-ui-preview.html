@@ -997,6 +997,8 @@
 #aimView .aim-head #aimTitle{font-size:16px;flex:1}
 #aimView .aim-body-select{flex:1;width:100px}
 #aimView .fav-l{margin-top:10px;margin-bottom:4px;font-size:12px}
+.preview-compose-icon{position:absolute;top:66px;right:10px;width:44px;height:44px;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);z-index:2}.preview-compose-icon[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
+.preview-camera-dialog .sheet-body{display:grid;gap:16px}.preview-camera-dialog .aim-lens-row{margin:0}.preview-camera-dialog .aim-lens-toggles{display:block}.preview-focal-tools{margin:6px 0 12px}.preview-focal-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--secondary)}#aimView .aim-lens-row>button[aria-haspopup=dialog]{min-width:88px;min-height:44px;padding:8px;font-size:13px}.preview-focal-tools input{width:100%;min-height:32px;accent-color:var(--accent)}.preview-focal-presets{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}.preview-focal-presets button{min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font-size:14px}
 #aimView .aim-grid-control{display:flex;align-items:center;gap:10px;width:100%;font-size:14px;color:var(--secondary)}
 #aimView .aim-grid-control select{flex:1;min-width:0;min-height:44px;padding:8px 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;font-size:16px}
 #aimView .aim-section-title{margin:20px 0 8px;font-size:clamp(15px,1.2vw,18px);font-weight:700;line-height:1.5;color:var(--text)}
@@ -1844,23 +1846,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004235000"></script>
+<script src="sorami-core.js?v=20261005000500"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004235000"></script>
-<script src="sorami-exif.js?v=20261004235000"></script>
-<script src="sorami-capcloud.js?v=20261004235000"></script>
-<script src="sorami-terrain.js?v=20261004235000"></script>
-<script src="sorami-mountain.js?v=20261004235000"></script>
-<script src="sorami-fuji.js?v=20261004235000"></script>
-<script src="sorami-sky.js?v=20261004235000"></script>
-<script src="sorami-routes.js?v=20261004235000"></script>
-<script src="sorami-iss.js?v=20261004235000"></script>
-<script src="sorami-plane.js?v=20261004235000"></script>
-<script src="sorami-atmosphere.js?v=20261004235000"></script>
-<script src="sorami-bodies.js?v=20261004235000"></script>
-<script src="sorami-align.js?v=20261004235000"></script>
-<script src="sorami-moon.js?v=20261004235000"></script>
+<script src="sorami-astro.js?v=20261005000500"></script>
+<script src="sorami-exif.js?v=20261005000500"></script>
+<script src="sorami-capcloud.js?v=20261005000500"></script>
+<script src="sorami-terrain.js?v=20261005000500"></script>
+<script src="sorami-mountain.js?v=20261005000500"></script>
+<script src="sorami-fuji.js?v=20261005000500"></script>
+<script src="sorami-sky.js?v=20261005000500"></script>
+<script src="sorami-routes.js?v=20261005000500"></script>
+<script src="sorami-iss.js?v=20261005000500"></script>
+<script src="sorami-plane.js?v=20261005000500"></script>
+<script src="sorami-atmosphere.js?v=20261005000500"></script>
+<script src="sorami-bodies.js?v=20261005000500"></script>
+<script src="sorami-align.js?v=20261005000500"></script>
+<script src="sorami-moon.js?v=20261005000500"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7463,7 +7465,7 @@ async function aimLookRender(host, spec) {
       <div class="tiny" data-lens-info></div><p class="tiny" data-look-outside hidden></p>
       <div class="aim-look-time"><input type="range" min="0" max="0" step="any" value="0" data-look-range aria-label="時刻を動かす">
         <output data-look-at></output></div>
-      <div class="aim-look-pick"><button type="button" class="chip" data-lens-move aria-pressed="false">構図を変更</button><button type="button" class="chip" data-lens-center>目標を中央に</button></div>
+      <div class="aim-look-pick"><button type="button" class="chip" data-lens-move aria-pressed="false">構図を動かす</button><button type="button" class="chip" data-lens-center>目標を中央に</button></div>
       <p class="tiny aim-look-hint" data-look-hint hidden></p>
       <div class="aim-look-found" data-look-found hidden></div>
       <p class="tiny aim-look-note" data-look-note hidden></p>`;
@@ -7823,7 +7825,7 @@ async function aimLookRender(host, spec) {
   const center = host.querySelector("[data-lens-center]");
   move.disabled = center.disabled = !frame;
   move.setAttribute("aria-pressed", String(!!host._lensMoving));
-  move.textContent = host._lensMoving ? "構図を確定" : "構図を変更";
+  move.textContent = host._lensMoving ? "構図を確定" : "構図を動かす";
   move.onclick = () => { host._lensMoving = !host._lensMoving; host._pick = null; aimReverseClear(); aimLookRender(host, spec); };
   center.onclick = () => { host._lensKeyOffset = null; host._lensOffset = [0, 0]; draw(cur); };
   if (!host._pick) { cv.onkeydown = null; cv.tabIndex = host._lensMoving && frame ? 0 : -1; }
@@ -10185,17 +10187,30 @@ checkForUpdate();
   if(lens&&!look.querySelector('.preview-compose')){
    const time=look.querySelector('.aim-look-time');if(time)time.after(lens);
    const rows=lens.querySelectorAll('.aim-lens-row'),sensor=look.querySelector('[data-lens-sensor]'),portrait=look.querySelector('[data-lens-portrait]');
-   // 焦点距離・縦横は直接触る。センサー等のカメラ設定だけを一か所にまとめる。
-   const quick=document.createElement('div');quick.className='preview-quick';if(portrait)quick.append(portrait);const frame=look.querySelector('[data-lens-on]');if(frame)quick.append(frame);if(rows[0])rows[0].after(quick);
-   const sensorRow=rows[1];if(sensorRow){const label=document.createElement('label');label.className='preview-sensor-label';label.textContent='センサーサイズ';label.htmlFor='previewSensor';if(sensor){sensor.id='previewSensor';sensorRow.prepend(label);}rows[0].after(sensorRow);}
+   const quick=document.createElement('div');quick.className='preview-quick';
+   const settings=document.createElement('button');settings.type='button';settings.className='chip';settings.textContent='画角調整';settings.setAttribute('aria-haspopup','dialog');rows[0].append(settings);
+   const move=look.querySelector('[data-lens-move]'),center=look.querySelector('[data-lens-center]');if(move){move.hidden=true;quick.append(move);const composeIcon=document.createElement('button');composeIcon.type='button';composeIcon.className='preview-compose-icon';composeIcon.setAttribute('aria-label','構図を動かす');composeIcon.title='構図を動かす';composeIcon.innerHTML='<svg width=22 height=22 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5M7 12h10M12 7v10M7 12l2-2m-2 2 2 2M17 12l-2-2m2 2-2 2"/></svg>';composeIcon.onclick=()=>move.click();look.querySelector('.aim-look-figure').append(composeIcon);}
+   const dialog=document.createElement('dialog');dialog.className='sheet preview-body-dialog preview-camera-dialog';dialog.setAttribute('aria-label','画角調整');dialog.tabIndex=-1;
+   dialog.innerHTML='<div class="sheet-head"><strong>画角調整</strong><button type="button" data-camera-close>閉じる</button></div><div class="sheet-body"><label class="aim-grid-control">向き<select data-camera-orientation aria-label="画角の向き"><option value="landscape">横位置</option><option value="portrait">縦位置</option></select></label><label class="aim-grid-control">画角枠<select data-camera-frame aria-label="画角枠の表示"><option value="show">表示</option><option value="hide">非表示</option></select></label></div>';
+   lens.append(dialog);const content=dialog.querySelector('.sheet-body');
+   if(rows[1]){const label=document.createElement('label');label.className='preview-sensor-label';label.textContent='センサーサイズ';label.htmlFor='previewSensor';if(sensor){sensor.id='previewSensor';rows[1].prepend(label);}content.prepend(rows[1]);}if(portrait)portrait.hidden=true;
+   const toggles=lens.querySelector('.aim-lens-toggles');if(toggles)content.append(toggles);const frame=look.querySelector('[data-lens-on]');if(frame)frame.hidden=true;
+   settings.onclick=()=>showSheet(dialog);dialog.querySelector('[data-camera-close]').onclick=()=>dialog.close();dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}});
+   const focalTools=document.createElement('div');focalTools.className='preview-focal-tools';focalTools.innerHTML='<div class="preview-focal-scale"><span>広角</span><span>望遠</span></div><input type="range" min="0" max="1000" step="0.1" data-focal-range aria-label="焦点距離を滑らかに調整"><div class="preview-focal-presets" role="group" aria-label="焦点距離の代表値">'+[24,50,100,200,400,800].map(n=>'<button type="button" data-focal-preset="'+n+'">'+n+'</button>').join('')+'</div>';
+   rows[0].after(focalTools);focalTools.after(quick);quick.hidden=true;const presets=focalTools.querySelector('.preview-focal-presets');const presetsLabel=document.createElement('div');presetsLabel.textContent='焦点距離（mm）';content.append(presetsLabel,presets);
    const info=look.querySelector('[data-lens-info]');if(info)lens.append(info);
-   const compose=document.createElement('div');compose.className='preview-compose';const move=look.querySelector('[data-lens-move]'),center=look.querySelector('[data-lens-center]');if(move)quick.append(move);if(center)compose.append(center);lens.append(compose);const apply=lens.querySelector('[data-lens-apply]');if(apply)apply.hidden=true;
+   const compose=document.createElement('div');compose.className='preview-compose';if(center)compose.append(center);lens.append(compose);const apply=lens.querySelector('[data-lens-apply]');if(apply)apply.hidden=true;
    const reverse=document.createElement('section');reverse.className='preview-reverse';const title=document.createElement('h3');title.textContent='撮れる場所を逆算';reverse.append(title);look.append(reverse);
    for(const selector of['[data-look-found]']){const node=look.querySelector(selector);if(node)reverse.append(node);}
   }
   const timeScope=el('previewTimeScope');if(timeScope){const scope=look._uiAllDay?'day':'fine';for(const button of timeScope.querySelectorAll('button')){const pressed=String(button.dataset.timeScope===scope);if(button.getAttribute('aria-pressed')!==pressed)button.setAttribute('aria-pressed',pressed);}}
   const focalInput=look.querySelector('[data-lens-focal]');if(focalInput){focalInput.onfocus=()=>{focalInput._uiFocusValue=focalInput.value;};focalInput.onblur=()=>{if(focalInput.value!==focalInput._uiFocusValue&&focalInput.checkValidity()&&focalInput.value.trim()&&(aimLens.mode!=='manual'||+focalInput.value!==aimLens.focal))focalInput.onchange();};}
+  const orientation=look.querySelector('[data-camera-orientation]'),frameSelect=look.querySelector('[data-camera-frame]');
+  if(orientation){orientation.value=aimLens.portrait?'portrait':'landscape';orientation.onchange=()=>{if((orientation.value==='portrait')!==aimLens.portrait)look.querySelector('[data-lens-portrait]').click();};}
+  if(frameSelect){frameSelect.value=aimLens.on?'show':'hide';frameSelect.onchange=()=>{if((frameSelect.value==='show')!==aimLens.on)look.querySelector('[data-lens-on]').click();};}
+  const focalRange=look.querySelector('[data-focal-range]');if(focalRange&&focalInput){if(document.activeElement!==focalRange)focalRange.value=String(1000*Math.log(Math.max(8,Math.min(2000,+focalInput.value))/8)/Math.log(250));focalRange.oninput=()=>{look._pendingFocal=+focalRange.value;if(look._focalRaf)return;look._focalRaf=requestAnimationFrame(()=>{look._focalRaf=null;focalInput.value=String(Math.round(8*Math.pow(250,look._pendingFocal/1000)*10)/10);focalInput.onchange();});};for(const button of look.querySelectorAll('[data-focal-preset]'))button.onclick=()=>{focalInput.value=button.dataset.focalPreset;focalInput.onchange();};}
   const portraitButton=look.querySelector('[data-lens-portrait]');if(portraitButton){const text=portraitButton.getAttribute('aria-pressed')==='true'?'縦位置':'横位置';if(portraitButton.textContent!==text)portraitButton.textContent=text;}
+  const composeIcon=look.querySelector('.preview-compose-icon');if(composeIcon){const moving=look.querySelector('[data-lens-move]').getAttribute('aria-pressed')==='true';composeIcon.setAttribute('aria-pressed',String(moving));composeIcon.setAttribute('aria-label',moving?'構図を確定':'構図を動かす');composeIcon.title=moving?'構図を確定':'構図を動かす';}
   const centerButton=look.querySelector('[data-lens-center]'),movingButton=look.querySelector('[data-lens-move]');if(centerButton)centerButton.hidden=movingButton?.getAttribute('aria-pressed')!=='true';
   const note=look.querySelector('[data-look-note]'),outside=look.querySelector('[data-look-outside]');if(note&&outside&&note.previousElementSibling!==outside)outside.after(note);
   const selected=el('aimCandList').querySelector('[data-cand][aria-pressed="true"]');let back=look.querySelector('.preview-return');
