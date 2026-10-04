@@ -8356,11 +8356,17 @@ function namedPlaceMatches(q, rows) {
 }
 // 同じ検索の連打をまとめ、通信が長引いても検索画面を待たせ続けない。
 const searchResponseCache = new Map();
+let nextOsmSearchAt = 0;
 function searchJson(url) {
   const cached = searchResponseCache.get(url);
   if (cached && Date.now() - cached.at < 300000) return cached.promise;
   const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 6000);
-  const promise = fetch(url, {signal: controller.signal})
+  let delay = 0;
+  if (url.startsWith("https://nominatim.openstreetmap.org/search?")) {
+    const now = Date.now();delay = Math.max(0, nextOsmSearchAt - now);nextOsmSearchAt = now + delay + 1000;
+  }
+  const start = delay ? new Promise(resolve => setTimeout(resolve, delay)) : Promise.resolve();
+  const promise = start.then(() => fetch(url, {signal: controller.signal}))
     .then(r => {if (!r.ok) throw new Error("地名検索の通信失敗");return r.json();})
     .catch(e => {searchResponseCache.delete(url);throw e;}).finally(() => clearTimeout(timer));
   searchResponseCache.set(url, {at: Date.now(), promise});
@@ -8368,6 +8374,7 @@ function searchJson(url) {
   return promise;
 }
 async function searchPlaces(q, {localOnly = false, near = place} = {}) {
+  q = String(q).normalize("NFKC").trim().replace(/\s+/g, " ");
   const gsiUrl = "https://msearch.gsi.go.jp/address-search/AddressSearch?q=" + encodeURIComponent(q);
   // `extratags=1` で `height` / `building:levels` / `tower:type` が返る。
   // **展望台は立つ高さが効く**ので、検索の時点で持っておく
@@ -8602,7 +8609,7 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
     finally {if (current()) results.removeAttribute("aria-busy");}
   };
   // 日本語の変換を確定する Enter では始めない（確定のたびに検索が走る）
-  $(boxId).addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) run(); });
+  $(boxId).addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing && e.keyCode !== 229) run(); });
   $(boxId).addEventListener("search", run);       // iOS のキーボードの「検索」
   // 「検索」釦。押せば必ず始まる（同じ語でも、もう一度探す）
   const go = document.getElementById(`${boxId}Go`);
