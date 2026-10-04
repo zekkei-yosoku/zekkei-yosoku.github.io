@@ -37,3 +37,12 @@ test('合わせ方・逆算・図の経路が共通の補正を参照、屈折�
  const path=L.viewPath('moon',obs,center.at,L.viewProjector(0,0),{halfW:30,halfH:30},{includeAt:center.at});const p=path.find(p=>p.at===center.at);assert.equal(p.upperRadius,B.state('moon',center.at,obs).upperRadius);
  M.configure('none');assert.equal(M.targetK(),1);const bare=L.geometryFrom(obs,t);assert.ok(bare.angle<g.angle);M.configure('standard');assert.equal(M.targetK(),7/6);
 });
+test('予報の終了日はOpen-Meteoの上限（UTCの今日＋15日）を超えない。日本時間0〜9時も',()=>{
+ for(const nowIso of ['2026-10-05T01:30:00+09:00','2026-10-05T08:59:00+09:00','2026-10-05T09:00:00+09:00','2026-10-05T23:59:00+09:00']){
+  const now=Date.parse(nowIso),utcToday=Date.parse(new Date(now).toISOString().slice(0,10)+'T00:00:00Z');
+  const latest=now+14*86400000,url=M.endpoint(obs,latest,now).url,end=new URL(url).searchParams.get('end_date');
+  assert.ok(Date.parse(end+'T00:00:00Z')<=utcToday+15*86400000,nowIso+' end_date '+end);
+  const jstLatestDay=new Date(latest+9*3600000).toISOString().slice(0,10);
+  assert.ok(Date.parse(end+'T23:00:00Z')>=Date.parse(jstLatestDay+'T15:00:00Z')-3600000,'選べる最後の日（+14日）の日本時間の終わりまで取る '+nowIso);
+ }
+});

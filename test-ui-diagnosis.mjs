@@ -72,6 +72,17 @@ test('計算開始時に旧表を消す。古い応答・エラーで新しい�
  pending[0].reject(Error('old'));await first;assert.equal(r.els.aimLineTable.innerHTML,latest);assert.equal(r.els.aimLineTable.hidden,false);
  const fail=r.fn();pending[2].reject(Error('network'));await fail;assert.equal(r.els.aimLineTable.hidden,true);assert.match(r.els.aimLineInfo.textContent,/計算できません/);assert.doesNotMatch(r.els.aimLineInfo.textContent,/どこからも重なりません/);
 });
+test('同名の山頂は近くの駅に吸収されず、索引の市町村・標高・位置で出る（高尾山）',async()=>{
+ const terrain=createRequire(import.meta.url)('./sorami-terrain.js');
+ const osm=[{name:'高尾山',display_name:'高尾山, 高尾山線, 高尾町, 八王子市, 東京都',type:'station',lat:'35.6311',lon:'139.2561',extratags:{}},{name:'高尾山',display_name:'高尾山, 東京都, 193-0841, 日本',type:'peak',lat:'35.62523',lon:'139.24369',extratags:{}}];
+ const idx=[{name:'高尾山',muni:'東京都八王子市',elevation:599,kind:'山',latitude:35.6252267,longitude:139.2436878,score:100}];
+ const search=runInNewContext(grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?[]:osm,searchSupplement:async()=>({places:[]}),favorites:[],SoramiAlign:{TARGETS:[]},placeIndex:async()=>({}),SoramiTerrain:{...terrain,searchPlaceIndex:()=>idx},place,URLSearchParams});
+ const found=await search('高尾山',{near:{latitude:35.6812,longitude:139.7671}});
+ const summit=found.find(r=>r.kind==='山'),station=found.find(r=>r.kind==='駅');
+ assert.ok(summit&&station,'山頂と駅は別の候補');assert.match(summit.detail,/八王子市/);assert.match(summit.detail,/599m/);
+ assert.equal(summit.latitude,35.6252267);assert.equal(station.latitude,35.6311);
+ assert.equal(found.filter(r=>Math.abs(r.latitude-35.6252)<0.001).length,1,'山頂は1件にまとまる');
+});
 test('同名GSI地点は座標で区別できる。近いOSM住所は引き継ぐ',async()=>{
  const terrain=createRequire(import.meta.url)('./sorami-terrain.js');
  const gsi=[139.76,140.5].map(lon=>({properties:{title:'新宿'},geometry:{coordinates:[lon,35.68]}}));

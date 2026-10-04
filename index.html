@@ -1116,6 +1116,8 @@
 #aimView .preview-datetime-footer .preview-date-weekday{display:inline}
 @media(max-width:359px){#aimView .preview-datetime-footer #aimCalendarOpen{font-size:12px;padding:0 2px}#aimView .preview-datetime-footer #previewTime{font-size:15px;padding:0 2px}}
 @media(min-width:960px){#aimView .preview-datetime-footer{left:50%;right:auto;width:min(780px,calc(100vw - 40px));transform:translateX(-50%);border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0}}
+/* 画角調整の各行は項目名の列幅をそろえ、選択欄の左端を一列にする（2026-10-05 総点検。名前の長さで72〜135pxにばらついていた） */
+#aimView .preview-camera-dialog .aim-grid-control,#aimView .preview-camera-dialog .aim-lens-row{display:grid;grid-template-columns:7.5rem minmax(0,1fr);align-items:center;gap:10px}#aimView .preview-camera-dialog .preview-sensor-label{font-size:14px}#aimView .preview-camera-dialog .aim-lens-row select,#aimView .preview-camera-dialog .aim-grid-control select{width:100%;min-width:0}
 </style></head>
 <body>
 <main>
@@ -1864,23 +1866,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261005013132"></script>
+<script src="sorami-core.js?v=20261005015738"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261005013132"></script>
-<script src="sorami-exif.js?v=20261005013132"></script>
-<script src="sorami-capcloud.js?v=20261005013132"></script>
-<script src="sorami-terrain.js?v=20261005013132"></script>
-<script src="sorami-mountain.js?v=20261005013132"></script>
-<script src="sorami-fuji.js?v=20261005013132"></script>
-<script src="sorami-sky.js?v=20261005013132"></script>
-<script src="sorami-routes.js?v=20261005013132"></script>
-<script src="sorami-iss.js?v=20261005013132"></script>
-<script src="sorami-plane.js?v=20261005013132"></script>
-<script src="sorami-atmosphere.js?v=20261005013132"></script>
-<script src="sorami-bodies.js?v=20261005013132"></script>
-<script src="sorami-align.js?v=20261005013132"></script>
-<script src="sorami-moon.js?v=20261005013132"></script>
+<script src="sorami-astro.js?v=20261005015738"></script>
+<script src="sorami-exif.js?v=20261005015738"></script>
+<script src="sorami-capcloud.js?v=20261005015738"></script>
+<script src="sorami-terrain.js?v=20261005015738"></script>
+<script src="sorami-mountain.js?v=20261005015738"></script>
+<script src="sorami-fuji.js?v=20261005015738"></script>
+<script src="sorami-sky.js?v=20261005015738"></script>
+<script src="sorami-routes.js?v=20261005015738"></script>
+<script src="sorami-iss.js?v=20261005015738"></script>
+<script src="sorami-plane.js?v=20261005015738"></script>
+<script src="sorami-atmosphere.js?v=20261005015738"></script>
+<script src="sorami-bodies.js?v=20261005015738"></script>
+<script src="sorami-align.js?v=20261005015738"></script>
+<script src="sorami-moon.js?v=20261005015738"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7762,14 +7764,12 @@ async function aimLookRender(host, spec) {
         visibleTargets.push({ item, anchor });
     }
     // 地上と余白の境界を昼夜とも見分けられるようにする。
+    let groundText = null;
     if (groundY + panY >= 12 && groundY + panY <= H - 4) {
       ctx.strokeStyle = bright ? "#f8fafc" : "#b8c8dd"; ctx.lineWidth = 1.5;
       ctx.setLineDash(mountain ? [5, 4] : []);
       ctx.beginPath(); ctx.moveTo(-panX, groundY); ctx.lineTo(W - panX, groundY); ctx.stroke(); ctx.setLineDash([]);
-      ctx.font = `600 ${Math.max(11, Math.min(16, W / 40))}px system-ui, sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "bottom";
-      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.65)";
-      const groundLabel = mountain ? "水平（0°）" : "地上";
-      ctx.strokeText(groundLabel, 8 - panX, groundY - 4); ctx.fillStyle = "#fff"; ctx.fillText(groundLabel, 8 - panX, groundY - 4);
+      groundText = { str: mountain ? "水平（0°）" : "地上", y: groundY - 4 + panY };
     }
     // 図中に目標名は重ねない。visibleTargetsは読み上げに使用する。
     // 形に隠れた所も分かるように、円盤の輪を明るい点線で（暗い形の上でも見える色）
@@ -7809,6 +7809,12 @@ async function aimLookRender(host, spec) {
       ctx.strokeRect(fx, fy, fw, fh);
       aimDrawGrid(ctx, fx, fy, fw, fh, aimLens.grid);
       ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(fx, fy, fw, fh);
+    }
+    // 地上の字は画角枠より後に描く。先に描くと枠の縦線が字を横切った（2026-10-05 総点検、200mmで「水平（0°）」の「平」が欠けた）
+    if (groundText) {
+      ctx.font = `600 ${Math.max(11, Math.min(16, W / 40))}px system-ui, sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.lineJoin = "round";
+      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.65)"; ctx.strokeText(groundText.str, 8, groundText.y);
+      ctx.fillStyle = "#fff"; ctx.fillText(groundText.str, 8, groundText.y);
     }
     const outside = host.querySelector("[data-look-outside]");
     outside.hidden = !!c && c[0] + panX >= 0 && c[0] + panX <= W && c[1] + panY >= 0 && c[1] + panY <= clipBottom;
@@ -8652,9 +8658,14 @@ async function searchPlaces(q, {localOnly = false, near = place} = {}) {
     // 検索語をまったく含まない候補は、**1件も当たらなかったときだけ**出す（索引は語の中の地名で当てるので除く）
     if (!["index", "saved", "supplement", "landmark"].includes(r.source) && score(r) === 3 && merged.length >= 1) continue;
     // 索引の山や岬は、地理院・OSM の代表点と数百m ずれることがある（宗谷岬が二重に出た）。索引が絡むときは 1.5km まで同じとみなす
-    const dup = merged.find((m) => m.name === r.name
-      && SoramiTerrain.distanceKm(m.latitude, m.longitude, r.latitude, r.longitude)
-        < (m.source === "index" || r.source === "index" ? 1.5 : 0.2));
+    // ただし種類が食い違う（駅と山）なら別物。高尾山の山頂がケーブルカーの「高尾山」駅（1.3km）に吸収されていた（2026-10-05 総点検）
+    // 当てはまる候補が複数あれば最も近いものにまとめる（索引の代表点へ寄せたとき、別の同名候補と重ならないように）
+    let dup = null, dupKm = Infinity;
+    for (const m of merged) {
+      if (m.name !== r.name) continue;
+      const km = SoramiTerrain.distanceKm(m.latitude, m.longitude, r.latitude, r.longitude);
+      if (km < ((m.source === "index" || r.source === "index") && (!m.kind || !r.kind || m.kind === r.kind) ? 1.5 : 0.2) && km < dupKm) { dup = m; dupKm = km; }
+    }
     // 同じ場所が両方から返ったら、住所の書いてあるほう（OSM）の説明を採る。
     // **高さも引き継ぐ。** 地理院の地名情報には高さが無いので、
     // ここで捨てると「東京タワー」が展望台として出なくなる（2026-09-28 実測）
@@ -8667,6 +8678,12 @@ async function searchPlaces(q, {localOnly = false, near = place} = {}) {
       if (!dup.lookout && r.lookout) dup.lookout = r.lookout;
       if (dup.structureM == null && r.structureM != null) { dup.structureM = r.structureM; dup.structureFrom = r.structureFrom; }
       if (!dup.wikidata && r.wikidata) dup.wikidata = r.wikidata;
+      // 同梱の索引は山頂・展望地の代表点と市町村・標高・種類を持つ。OSM・地理院の側を残したときは位置と説明を索引から採る
+      // （「高尾山」が OSM の「高尾山, 東京都, 193-0841, 日本」だけになり、町田の100mの山と見分けられなかった。2026-10-05 総点検）
+      if (r.source === "index" && dup.source !== "index") {
+        dup.detail = r.detail; dup.kind = r.kind || dup.kind; dup.latitude = r.latitude; dup.longitude = r.longitude;
+        if (dup.elevation == null && Number.isFinite(r.elevation)) dup.elevation = r.elevation;
+      }
       continue;
     }
     // 並びには距離を使うが、画面には出さない（2026-10-01 ユーザー指摘「一つ前の検索の場所から何キロはいらない」）

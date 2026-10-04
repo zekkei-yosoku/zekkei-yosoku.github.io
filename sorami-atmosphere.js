@@ -34,7 +34,10 @@
     if(delta>14||day<'2022-01-01')return null;
     const start=new Date(date-DAY+9*HOUR).toISOString().slice(0,10),end=new Date(date+DAY+9*HOUR).toISOString().slice(0,10);
     const historical=delta<-4;
-    const rangeStart=historical?start:new Date(today-5*DAY+9*HOUR).toISOString().slice(0,10),rangeEnd=historical?end:new Date(today+15*DAY+9*HOUR).toISOString().slice(0,10);
+    // Open-Meteo accepts end_date up to UTC today+15. From 00:00 to 09:00 JST the JST date is one day ahead of UTC,
+    // so JST today+15 was rejected with HTTP 400 and every forecast-mode request fell back to the standard atmosphere.
+    // JST today+14 never exceeds that limit and still covers the whole JST day of the latest selectable date (+14).
+    const rangeStart=historical?start:new Date(today-5*DAY+9*HOUR).toISOString().slice(0,10),rangeEnd=historical?end:new Date(today+14*DAY+9*HOUR).toISOString().slice(0,10);
     const p=new URLSearchParams({latitude:String(o.latitude),longitude:String(o.longitude),elevation:String(o.elevation??0),hourly:'temperature_2m,surface_pressure',start_date:rangeStart,end_date:rangeEnd,timezone:'UTC',timeformat:'unixtime'});
     return {url:`https://${historical?'historical-forecast-api':'api'}.open-meteo.com/v1/forecast?${p}`,source:historical?'過去の気象モデル':'気象予報',historical};
   }
