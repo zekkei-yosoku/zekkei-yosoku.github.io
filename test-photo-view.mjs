@@ -31,9 +31,10 @@ test("焦点距離・センサーサイズ・縦横から実画角を計算す�
 test("日付変更で重なりなしや見通しNGでも図へ描画を渡す",async()=>{
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf("async function aimUpdateLook()"),b=html.indexOf("\n}const aimCandName",a)+2;
  const host={hidden:true},aim={target,body:"moon",partId:"tip",candPick:null,candSide:null,lookSeq:0,sight:{hidden:true,key:"same"}};
- let rendered;const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,aim,$:()=>host,S,SoramiAlign:AL,aimFromPoint:()=>({...observer,name:"試験地点"}),aimElevation:async()=>83,aimLookRender:(h,s)=>{h.hidden=false;rendered=s},aimIsMountain:t=>!!t.rim,aimCalSolid:e=>e.intersects??Math.abs(e.gap)<=1.2*e.radius,aimCandidateMatch:e=>Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0)),aimDateLabel:()=>"日付",aimSideName:()=>"月の出",aimPassage:()=>"通過",moonGlyphAt:()=>"月",lightTimingText:()=>"夜",Math,Date,Number});
- vm.runInContext(html.slice(a,b)+";this.update=aimUpdateLook",c);
+ let rendered;const c=vm.createContext({SoramiTerrain:{decksFor:()=>null},SoramiBodies:globalThis.SoramiBodies,aim,$:()=>host,S,SoramiAlign:AL,aimFromPoint:()=>({...observer,name:"試験地点"}),aimElevation:async()=>83,aimLookRender:(h,s)=>{h.hidden=false;rendered=s},aimIsMountain:t=>!!t.rim,aimCalSolid:e=>e.intersects??Math.abs(e.gap)<=1.2*e.radius,aimCandidateMatch:e=>Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0)),aimDateLabel:()=>"日付",aimSideName:()=>"月の出",aimPassage:()=>"通過",moonGlyphAt:()=>"月",lightTimingText:()=>"夜",Math,Date,Number});
+ vm.runInContext(html.slice(html.indexOf('function aimObserverEye('),html.indexOf('aim.from = aimSavedFrom'))+html.slice(a,b)+";this.update=aimUpdateLook",c);
  for(const d of ["03","02","04"]){aim.dayMs=day(d);await c.update();assert.equal(host.hidden,false);assert.ok(rendered);assert.equal(rendered.obs.latitude,observer.latitude);assert.ok(rendered.at>=day(d)&&rendered.at<day(d)+86400000);assert.equal(rendered.atName,d==="03"?undefined:"最接近");}
+ assert.equal(rendered.sub, "");
  assert.match(rendered.extra,/地平線の下/);
 });
 
@@ -58,7 +59,7 @@ test("年間探索は途中で操作に戻り、古い地点の結果を破棄�
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf("function aimCandidateMatch"),b=html.indexOf("async function aimRenderFrom",a);
  const aim={fromSeq:1};let calls=0,waits=0;
  const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,aim,S,Date,Promise,setTimeout:(f)=>{waits++;if(waits===2)aim.fromSeq=2;f()},SoramiAlign:{dailyView:()=>{calls++;return []}}});
- vm.runInContext(html.slice(a,b)+";this.run=aimBuildingDays",c);
+ vm.runInContext(html.slice(html.indexOf('function aimObserverEye('),html.indexOf('aim.from = aimSavedFrom'))+html.slice(a,b)+";this.run=aimBuildingDays",c);
  const rows=await c.run(observer,target,"moon","__whole",1);assert.equal(rows.length,0);assert.equal(calls,8);assert.equal(waits,2);
 });
 
@@ -66,7 +67,7 @@ test("年間探索は途中で操作に戻り、古い地点の結果を破棄�
 test("自動表示は旧200mmを移行せず、手動指定だけ保持する",()=>{
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf("const AIM_SENSOR ="),b=html.indexOf("const aimLookHosts",a);
  for(const [saved,mode] of [[{},"auto"],[{on:true,focal:200},"auto"],[{mode:"manual",on:true,focal:700},"manual"]]) {
-  const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,localStorage:{getItem:()=>JSON.stringify(saved)}});vm.runInContext(html.slice(a,b)+";this.lens=aimLens",c);
+  const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,localStorage:{getItem:()=>JSON.stringify(saved)}});vm.runInContext(html.slice(html.indexOf('function aimObserverEye('),html.indexOf('aim.from = aimSavedFrom'))+html.slice(a,b)+";this.lens=aimLens",c);
   assert.equal(c.lens.mode,mode);assert.equal(c.lens.on,true);if(mode==="manual")assert.equal(c.lens.focal,700);
  }
 });
@@ -217,4 +218,18 @@ test("候補帯は選択高さの許容誤差だけ採用し、全体モード�
  const selected=await c.aimBuildingDays(observer,target,"moon","tip",1);
  assert.equal(selected.length,4);assert.ok(selected.every(e=>e.gap===.03));assert.ok(seen.every(o=>o.partId==="tip"&&o.limb==="lower"));
  const whole=await c.aimBuildingDays(observer,target,"moon","__whole",1);assert.equal(whole.length,4);assert.ok(whole.every(e=>e.gap===2));
+});
+
+test("渋谷スカイの図の基準時刻は地上229mの直接計算に一致し、標高と二重加算しない",async()=>{
+ const html=readFileSync(new URL("./index.html",import.meta.url),"utf8");
+ const f={name:"渋谷スカイ",latitude:35.65838,longitude:139.70222,eyeHeightAGL:229},host={hidden:true};
+ const aim={target,body:"moon",partId:"tip",limb:"center",candPick:null,candSide:null,dayMs:day("04"),lookSeq:0};
+ let rendered;const c=vm.createContext({aim,$:()=>host,S,SoramiAlign:AL,SoramiBodies:globalThis.SoramiBodies,SoramiTerrain:{decksFor:()=>null},aimFromPoint:()=>f,aimElevation:async()=>19,aimLookRender:(h,s)=>rendered=s,aimIsMountain:()=>false,aimCandidateMatch:e=>Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0)),moonGlyphAt:()=>"月",lightTimingText:()=>"夜",Date,Math,Number});
+ const a=html.indexOf('async function aimUpdateLook()'),b=html.indexOf('\n}const aimCandName',a)+2;
+ vm.runInContext(html.slice(html.indexOf('function aimObserverEye('),html.indexOf('aim.from = aimSavedFrom'))+html.slice(a,b),c);await c.aimUpdateLook();
+ const obs={latitude:f.latitude,longitude:f.longitude,elevation:19};
+ const expected=AL.dailyView(obs,target,'moon',day('04'),{partId:'tip',eyeM:229}).sort((x,y)=>Math.abs(x.gap)-Math.abs(y.gap))[0];
+ assert.equal(rendered.eyeM,229);assert.equal(rendered.obs.elevation,19);assert.equal(rendered.at,expected.at);assert.equal(rendered.sub,'');
+ const ground=AL.geometryFrom(obs,target,{partId:'tip',eyeM:1.5}),roof=AL.geometryFrom(obs,target,{partId:'tip',eyeM:229});
+ assert.ok(ground.angle-roof.angle>.8);assert.notEqual(AL.dailyView(obs,target,'moon',day('04'),{partId:'tip',eyeM:1.5})[0].at,expected.at);
 });

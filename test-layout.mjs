@@ -240,7 +240,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
 // **地点をねらうの画面の中で選び、どこからの結果かを名前で書く**形で戻した（地点カードの地点は黙って使わない）
 {
   const fn = /async function aimRenderFrom\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
-  ok(/const obs = \{ latitude: f\.latitude, longitude: f\.longitude/.test(fn) && /SoramiAlign\.upcoming\(obs, aim\.target/.test(fn),
+  ok(/const obs = aimObserverAt\(f, ground\)/.test(fn) && /SoramiAlign\.upcoming\(obs, aim\.target/.test(fn),
     "地点から探す: 選んだ地点（aim.from）で解く");
   // 帯の上の「◯◯から見た◯◯ ・ ◯◯まで Nkm」は出さない（2026-10-03 ユーザーが選んだ「いらない説明文」）。どこからかは上のカードと図の上の一行
   ok(!/から見た\$\{esc\(what\)\}/.test(fn) && !/const head = /.test(fn), "地点から探す: 帯の上に地点と題名を繰り返さない");
@@ -286,14 +286,8 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/\$\("aimPick"\)\.onclick = async \(\) => \{[\s\S]{0,300}aimSetFrom\(/.test(html), "地図の中心も同じ観測地点にする（アプリ全体の地点は変えない）");
   ok(!/\$\("aimPick"\)\.hidden = aimIsFuji\(\)/.test(html), "富士山でも地図の中心で選べる");
   ok(/class="tiny aim-day" data-from-day=/.test(fn), "次に重なる日は日付の小さな釦で（押すとその日の線と候補地へ）");
-  ok(/SoramiAlign\.lineOfSight\(obs, aim\.target/.test(fn) && /aimSightBuildings\(obs, D,/.test(fn), "見通し（地形・高い建物）を添える");
-  // 見えないなら、重なる日の上に目立つ形で「見えません」（2026-10-02 ユーザー「そもそも目標物が見えませんとかって出した方がいい」）
-  ok(/\$\("aimFrom"\)\.innerHTML = sightSlot \+ \(chips/.test(fn) && /id="aimFromSight" hidden/.test(fn), "見通しの欄は重なる日の上（隠れるときだけ出す）");
-  ok(/\$\{esc\(f\.name\)\}からは\$\{esc\(aim\.target\.name\)\}\$\{part \? `の\$\{esc\(part\.name\)\}` : ""\}が見えません/.test(fn)
-    && /classList\.add\("hidden-target"\)/.test(fn), "見えない注意は観測地点名を明示して候補地の図と区別する");
-  ok(!/if \(!hidden && !aimIsFuji\(\)\)/.test(fn), "建物は富士山でも見る（観測地点が街の中のこともある）");
-  ok(!/地形・高い建物では隠れません|見通しを確かめています/.test(html), "隠れないとき・確かめている間は何も書かない（2026-10-03 ユーザーが選んだ「いらない説明文」）");
-  ok(/\.aim-sight\.hidden-target \{[^}]*color: var\(--red\)/.test(html), "見えませんは赤で目立たせる");
+  ok(!/aimFromSight|aimSightBuildings\(obs, D,|SoramiAlign\.lineOfSight/.test(fn), "不十分な見通し推定を観測地点で断定表示しない");
+  ok(/innerHTML = \(chips/.test(fn), "候補日を警告で分断せず日付直下に表示する");
   ok((html.match(/SoramiAlign\.upcoming\(obs, aim\.target/g) || []).length === 1, "ほかの所で見えない地点からの一覧を出さない");
   // 地点の住所は都道府県＋市区町村まで（OSM の住所は長い）
   const src = /function aimAreaOf\(r\) \{[\s\S]*?\n\}/.exec(html)?.[0];
@@ -568,8 +562,8 @@ ok(/\$\("aimTargetSub"\)\.textContent = c\s+\? \[c\.subtitle, `標高 \$\{Math\.
   ok(/tallCovers\(all, obs\.latitude, obs\.longitude\) && tallCovers\(all, end\.latitude, end\.longitude\)/.test(sb)
     && /SoramiTerrain\.buildingsAlong\(obs, end,/.test(sb), "首都圏の外は線に掛かる建物を OpenStreetMap に問い合わせる");
   ok(/if \(!got\) return null;/.test(sb), "問い合わせられなければ「確かめられない」（null）");
-  ok(/SoramiTerrain\.buildingsAlong\(obs, end, \{ wanted \}\)/.test(sb) && /aimSightBuildings\(obs, D, \(\) => seq === aim\.fromSeq,/.test(html),
-    "観測地点を替えたら、待っている問い合わせは投げない");
+  ok(/SoramiTerrain\.buildingsAlong\(obs, end, \{ wanted \}\)/.test(sb) && !/await aimSightBuildings\(obs, D,/.test(html),
+    "観測地点の断定警告のための建物問い合わせは行わない");
   ok(/if \(!cands\.every\(\(c\) => tallCovers\(all, c\.stand\.latitude, c\.stand\.longitude\)\)\) return "outside";/.test(html)
     && /if \(!blocks \|\| blocks === "outside"\) return;/.test(html), "候補地も、首都圏の外では建物で外さない（断り書きは出さない）");
   ok(/connect-src[^"]*https:\/\/maps\.mail\.ru/.test(html), "Overpass の予備（maps.mail.ru）へつなげる（CSP）");
@@ -2921,8 +2915,8 @@ console.log("== 見え方の図（2026-10-02） ==");
   ok(!/solvePoint/.test(look) && !/（計算上の位置）/.test(look), "観測地点の図は、場所を動かさない（選んだ合わせ方になる計算上の地点へずらさない）");
   // 2026-10-03 追加依頼: 建物全体の通過を判定し、重ならない日も常に同じ図を出す。
   ok(/SoramiAlign\.dailyView\(obs, t, aim\.body, aim\.dayMs, opts\)/.test(look)
-    && /建物に重なる/.test(look), "実際の観測地点で建物全体との重なりを描く");
-  ok(/重ならない日の通り方/.test(look) && !/この日は、\$\{esc\(f\.name\)\}から見て/.test(look), "重ならない日も図を残して通り方を表示する");
+    && /eyeM: obs.eyeM/.test(look), "実際の観測地点で建物全体との重なりを描く");
+  ok(!/重ならない日の通り方/.test(look) && /sub: ""/.test(look) && !/この日は、\$\{esc\(f\.name\)\}から見て/.test(look), "重ならない日も図を残し、重複する通り方の説明を省く");
   ok(/if \(aim\.wantSpot\) return;/.test(look), "選び直す候補地を待っている間は図を替えない（観測地点へ飛んで戻らない）");
   ok(/data-look-title/.test(html) && /data-look-sub/.test(html) && /data-look-light/.test(html) && /data-look-extra/.test(html),
     "図の上に「どこから・いつ・どう重なるか」の一行");
@@ -3015,8 +3009,8 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
     "確定したら、同じ見え方になる場所を距離を変えて解いた線にして地図に出す");
   // 見通しNGも表示を維持。注意は観測地点側の既存案内を残す。
   ok(!/aim\.sight\.key === aimSightKey\(f\)\) \{[^}]*host\.hidden = true/.test(html)
-    && /const sight = \{ key: aimSightKey\(f\), hidden: !!hidden \};/.test(html),
-    "見通しが悪くても図を残し、見通し判定自体は保持する");
+    && !/const sight = \{ key: aimSightKey\(f\), hidden: !!hidden \};/.test(html),
+    "見通しの断定警告を外して図を残す");
   ok(/cv\.onclick = pathTap; return;/.test(pickSrc) && /cv\.removeAttribute\("tabindex"\)/.test(pickSrc),
     "逆算モードを終えると通常の軌道タップへ戻る");
   ok(/drag\.base\[0\]\+dx,drag\.base\[1\]\+dy/.test(pickSrc) && /Math\.hypot\(dx,dy\)<3/.test(pickSrc) && /cv\.onclick = \(\) => \{\}/.test(pickSrc),
