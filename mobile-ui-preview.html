@@ -1815,22 +1815,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004173500"></script>
+<script src="sorami-core.js?v=20261004180500"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004173500"></script>
-<script src="sorami-exif.js?v=20261004173500"></script>
-<script src="sorami-capcloud.js?v=20261004173500"></script>
-<script src="sorami-terrain.js?v=20261004173500"></script>
-<script src="sorami-mountain.js?v=20261004173500"></script>
-<script src="sorami-fuji.js?v=20261004173500"></script>
-<script src="sorami-sky.js?v=20261004173500"></script>
-<script src="sorami-routes.js?v=20261004173500"></script>
-<script src="sorami-iss.js?v=20261004173500"></script>
-<script src="sorami-plane.js?v=20261004173500"></script>
-<script src="sorami-bodies.js?v=20261004173500"></script>
-<script src="sorami-align.js?v=20261004173500"></script>
-<script src="sorami-moon.js?v=20261004173500"></script>
+<script src="sorami-astro.js?v=20261004180500"></script>
+<script src="sorami-exif.js?v=20261004180500"></script>
+<script src="sorami-capcloud.js?v=20261004180500"></script>
+<script src="sorami-terrain.js?v=20261004180500"></script>
+<script src="sorami-mountain.js?v=20261004180500"></script>
+<script src="sorami-fuji.js?v=20261004180500"></script>
+<script src="sorami-sky.js?v=20261004180500"></script>
+<script src="sorami-routes.js?v=20261004180500"></script>
+<script src="sorami-iss.js?v=20261004180500"></script>
+<script src="sorami-plane.js?v=20261004180500"></script>
+<script src="sorami-bodies.js?v=20261004180500"></script>
+<script src="sorami-align.js?v=20261004180500"></script>
+<script src="sorami-moon.js?v=20261004180500"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2820,7 +2820,7 @@ function render() {
   // **出典は消さない。** Open-Meteo・OSM・国土地理院・気象庁は出典の表示が利用の条件で、加工したらその旨も書く
   $("footerBody").innerHTML =
     `${bundle ? S.JstCal.hhmm(bundle.fetchedAt) : "—"} 時点の予報をもとにこのアプリで点数化<br>`
-    + `予報: Open-Meteo ／ 実況: 気象庁アメダス ／ 光害: <a href="https://djlorenz.github.io/astronomy/lp/">Lorenz Light Pollution Atlas 2025</a>（VIIRS） ／ 検索: OSM Nominatim ・ 標高: 国土地理院`;
+    + `予報: Open-Meteo ／ 実況: 気象庁アメダス ／ 光害: <a href="https://djlorenz.github.io/astronomy/lp/">Lorenz Light Pollution Atlas 2025</a>（VIIRS） ／ 検索: OSM Nominatim ・ 補完: <a href="https://www.city.kawasaki.jp/530/page/0000170254.html">川崎市</a>・<a href="https://yakei-navi.com/saginumakita/">夜景Navi</a> ・ 標高: 国土地理院`;
 
   // 富士山は通信が要るので、予報の描画を待たせない。**失敗しても本体を巻き込まない**
   // 富士山と月は通信が要るので、予報の描画を待たせない。
@@ -8340,17 +8340,35 @@ function placeIndex() {
 /// 両方引いて混ぜる。「練馬区役所」でOSMは本庁を返さず分館を上位に出す（2026-09-24 実測）。
 /// **山・峠・展望地は同梱の索引から引く**（2026-09-30）。住所の検索は「群馬県桐生市」までしか返さず、
 /// 「赤城山鳥居峠」のような地名が出なかった（ユーザー指摘）
+// 検索元に未収録の施設と、利用者が名前を付けたお気に入りも検索する。
+let searchSupplementPromise = null;
+function searchSupplement() {
+  if (!searchSupplementPromise) searchSupplementPromise = fetch("data/search-supplement.json")
+    .then(r => { if (!r.ok) throw new Error("補完索引の取得失敗"); return r.json(); })
+    .catch(e => { searchSupplementPromise = null; throw e; });
+  return searchSupplementPromise;
+}
+function namedPlaceMatches(q, rows) {
+  const norm = s => SoramiTerrain.normName(s).replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  const query = norm(q);if (!query) return [];
+  return rows.filter(r => [r.name, ...(r.aliases || [])].some(n => norm(n).includes(query)))
+    .filter(r => Number.isFinite(r.latitude) && Number.isFinite(r.longitude));
+}
 async function searchPlaces(q) {
   const gsiUrl = "https://msearch.gsi.go.jp/address-search/AddressSearch?q=" + encodeURIComponent(q);
   // `extratags=1` で `height` / `building:levels` / `tower:type` が返る。
   // **展望台は立つ高さが効く**ので、検索の時点で持っておく
   const osmUrl = "https://nominatim.openstreetmap.org/search?" + new URLSearchParams(
     { q, format: "jsonv2", limit: "8", countrycodes: "jp", "accept-language": "ja", extratags: "1" });
-  const [gsiRes, osmRes, idxRes] = await Promise.allSettled([
+  const [gsiRes, osmRes, idxRes, supplementRes] = await Promise.allSettled([
     fetch(gsiUrl).then((r) => (r.ok ? r.json() : [])),
     fetch(osmUrl).then((r) => (r.ok ? r.json() : [])),
     placeIndex().then((j) => SoramiTerrain.searchPlaceIndex(j, q, { near: place, limit: 8 })),
+    searchSupplement(),
   ]);
+  const saved = namedPlaceMatches(q, favorites).map(r => ({...r, detail: r.subtitle || "お気に入り", scope: r.locationScope || "point", source: "saved", savedPlace: r}));
+  const supplemented = namedPlaceMatches(q, supplementRes.status === "fulfilled" ? supplementRes.value.places || [] : [])
+    .map(r => ({...r, scope: "point", source: "supplement"}));
   const local = (idxRes.status === "fulfilled" ? idxRes.value : []).map((r) => ({
     name: r.name,
     detail: [r.kind, r.muni, Number.isFinite(r.elevation) ? `標高${r.elevation}m` : null].filter(Boolean).join(" ・ "),
@@ -8393,11 +8411,11 @@ async function searchPlaces(q) {
   // 索引で強く当たったもの（名前が一致・前方一致、または語の中の地名が並んで当たった）を先に。
   // 弱いもの（語の中に短い名前が含まれるだけ）は、ほかの結果のあとに回す
   const strong = local.filter((r) => r.indexScore >= 60), weak = local.filter((r) => r.indexScore < 60);
-  const ordered = [...strong, ...[...gsi, ...osm].sort((a, b) => score(a) - score(b) || away(a) - away(b)), ...weak];
+  const ordered = [...saved, ...supplemented, ...strong, ...[...gsi, ...osm].sort((a, b) => score(a) - score(b) || away(a) - away(b)), ...weak];
   for (const r of ordered) {
     if (!r.name || !Number.isFinite(r.latitude) || !Number.isFinite(r.longitude)) continue;
     // 検索語をまったく含まない候補は、**1件も当たらなかったときだけ**出す（索引は語の中の地名で当てるので除く）
-    if (r.source !== "index" && score(r) === 3 && merged.length >= 1) continue;
+    if (!["index", "saved", "supplement"].includes(r.source) && score(r) === 3 && merged.length >= 1) continue;
     // 索引の山や岬は、地理院・OSM の代表点と数百m ずれることがある（宗谷岬が二重に出た）。索引が絡むときは 1.5km まで同じとみなす
     const dup = merged.find((m) => m.name === r.name
       && SoramiTerrain.distanceKm(m.latitude, m.longitude, r.latitude, r.longitude)
@@ -8548,6 +8566,7 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
 }
 
 wireSearchBox("searchBox", "searchResults", (r) => {
+  if (r.savedPlace) { choosePlace(r.savedPlace); return; }
   // **展望台を選んだら、その高さを地点に持たせる。**
   // 公表値があればそれ（東京タワーのメインデッキ 125m など）。
   // 無ければ OSM の構造物の高さだが、塔は先端なので**自動では立たせない**。

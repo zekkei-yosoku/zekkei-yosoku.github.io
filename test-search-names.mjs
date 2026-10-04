@@ -1,0 +1,7 @@
+import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';import {createRequire} from 'node:module';
+const repo=new URL('./',import.meta.url).pathname;const require=createRequire(repo+'test-terrain.mjs'),T=require(repo+'sorami-terrain.js');const html=fs.readFileSync(repo+'index.html','utf8');const data=JSON.parse(fs.readFileSync(repo+'data/search-supplement.json'));const src=html.slice(html.indexOf('let searchSupplementPromise'),html.indexOf('/// 検索結果を並べる。'));
+let networkFail=false;const saved={id:'fav:example',name:'独自の撮影ポイント',latitude:35.58,longitude:139.57,eyeHeightAGL:15,elevation:70};const ctx=vm.createContext({SoramiTerrain:T,URLSearchParams,fetch:async u=>{if(u.startsWith('data/'))return {ok:true,json:async()=>data};if(networkFail)throw Error('offline');return {ok:true,json:async()=>[]};},favorites:[saved],place:{latitude:35.68,longitude:139.76},placeIndex:async()=>({places:[]})});vm.runInContext(src,ctx);
+for(const q of ['鷺沼北公園','鷺沼北','土橋第４公園','サギヌマキタコウエン']){const a=await ctx.searchPlaces(q);assert.equal(a[0].name,'鷺沼北公園');assert.equal(a[0].latitude,35.58426157);}
+let a=await ctx.searchPlaces('独自の撮影');assert.equal(a[0].savedPlace,saved);assert.equal(a[0].savedPlace.eyeHeightAGL,15);assert.equal(ctx.namedPlaceMatches('',[saved]).length,0);
+networkFail=true;a=await ctx.searchPlaces('鷺沼北公園');assert.equal(a[0].name,'鷺沼北公園');
+console.log('SEARCH NAMES OK: exact, prefix, alias, kana, favorite metadata, blank, external failure');
