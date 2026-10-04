@@ -997,6 +997,8 @@
 #aimView .aim-head #aimTitle{font-size:16px;flex:1}
 #aimView .aim-body-select{flex:1;width:100px}
 #aimView .fav-l{margin-top:10px;margin-bottom:4px;font-size:12px}
+#aimView .aim-grid-control{display:flex;align-items:center;gap:10px;width:100%;font-size:14px;color:var(--secondary)}
+#aimView .aim-grid-control select{flex:1;min-width:0;min-height:44px;padding:8px 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;font-size:16px}
 #aimView .aim-section-title{margin:20px 0 8px;font-size:clamp(15px,1.2vw,18px);font-weight:700;line-height:1.5;color:var(--text)}
 #aimView .aim-target-prompt{padding:12px 14px;margin:8px 0 10px;border-left:3px solid var(--accent);border-radius:8px;background:var(--card);color:var(--text);font-size:14px;line-height:1.6}
 #aimView .aim-place-card{background:var(--card);margin-bottom:6px;padding:0 4px 0 10px}
@@ -1842,23 +1844,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004234000"></script>
+<script src="sorami-core.js?v=20261004235000"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004234000"></script>
-<script src="sorami-exif.js?v=20261004234000"></script>
-<script src="sorami-capcloud.js?v=20261004234000"></script>
-<script src="sorami-terrain.js?v=20261004234000"></script>
-<script src="sorami-mountain.js?v=20261004234000"></script>
-<script src="sorami-fuji.js?v=20261004234000"></script>
-<script src="sorami-sky.js?v=20261004234000"></script>
-<script src="sorami-routes.js?v=20261004234000"></script>
-<script src="sorami-iss.js?v=20261004234000"></script>
-<script src="sorami-plane.js?v=20261004234000"></script>
-<script src="sorami-atmosphere.js?v=20261004234000"></script>
-<script src="sorami-bodies.js?v=20261004234000"></script>
-<script src="sorami-align.js?v=20261004234000"></script>
-<script src="sorami-moon.js?v=20261004234000"></script>
+<script src="sorami-astro.js?v=20261004235000"></script>
+<script src="sorami-exif.js?v=20261004235000"></script>
+<script src="sorami-capcloud.js?v=20261004235000"></script>
+<script src="sorami-terrain.js?v=20261004235000"></script>
+<script src="sorami-mountain.js?v=20261004235000"></script>
+<script src="sorami-fuji.js?v=20261004235000"></script>
+<script src="sorami-sky.js?v=20261004235000"></script>
+<script src="sorami-routes.js?v=20261004235000"></script>
+<script src="sorami-iss.js?v=20261004235000"></script>
+<script src="sorami-plane.js?v=20261004235000"></script>
+<script src="sorami-atmosphere.js?v=20261004235000"></script>
+<script src="sorami-bodies.js?v=20261004235000"></script>
+<script src="sorami-align.js?v=20261004235000"></script>
+<script src="sorami-moon.js?v=20261004235000"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7405,7 +7407,22 @@ async function aimLookRidge(obs, eye, target, win) {
 
 const AIM_SENSOR = { full: [36, 24], aps: [23.5, 15.6], canon: [22.3, 14.9], m43: [17.3, 13] };
 // 旧版の固定200mmは引き継がず、見やすい自動表示を初期値にする。
-const aimLens = (() => { try { const x = JSON.parse(localStorage.getItem("sorami.lens") || "{}"); return { on: x.mode ? !!x.on : true, mode: x.mode === "manual" ? "manual" : "auto", focal: Number.isFinite(x.focal) && x.focal >= 8 && x.focal <= 2000 ? x.focal : null, sensor: AIM_SENSOR[x.sensor] ? x.sensor : "full", portrait: !!x.portrait }; } catch { return { on: true, mode: "auto", focal: null, sensor: "full", portrait: false }; } })();
+// グリッドは中央固定の撮影枠にだけ重ねる。実景や天体の座標は変更しない。
+function aimDrawGrid(ctx, x, y, w, h, mode) {
+  if (!["thirds", "diagonal"].includes(mode)) return;
+  ctx.save(); ctx.setLineDash([]); ctx.beginPath();
+  for (const ratio of [1/3, 2/3]) {
+    ctx.moveTo(x + w * ratio, y); ctx.lineTo(x + w * ratio, y + h);
+    ctx.moveTo(x, y + h * ratio); ctx.lineTo(x + w, y + h * ratio);
+  }
+  if (mode === "diagonal") {
+    ctx.moveTo(x, y); ctx.lineTo(x + w, y + h);
+    ctx.moveTo(x + w, y); ctx.lineTo(x, y + h);
+  }
+  ctx.strokeStyle = "rgba(0,0,0,.45)"; ctx.lineWidth = 3; ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,.65)"; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+}
+const aimLens = (() => { try { const x = JSON.parse(localStorage.getItem("sorami.lens") || "{}"); return { on: x.mode ? !!x.on : true, mode: x.mode === "manual" ? "manual" : "auto", focal: Number.isFinite(x.focal) && x.focal >= 8 && x.focal <= 2000 ? x.focal : null, sensor: AIM_SENSOR[x.sensor] ? x.sensor : "full", portrait: !!x.portrait, grid: ["thirds", "diagonal"].includes(x.grid) ? x.grid : "none" }; } catch { return { on: true, mode: "auto", focal: null, sensor: "full", portrait: false, grid: "none" }; } })();
 const aimLookHosts = new Set();
 const aimLookHMS = (ms) => `${S.JstCal.hhmm(ms)}:${String(new Date(ms).getUTCSeconds()).padStart(2, "0")}`;
 /// 重なる時刻からの差を短く（「重なる3分前」「重なる20秒後」）
@@ -7441,7 +7458,7 @@ async function aimLookRender(host, spec) {
       <div class="aim-time-controls"></div><div class="aim-lens">
         <div class="aim-lens-row"><label>焦点距離 <input type="number" min="8" max="2000" step="any" required data-lens-focal aria-label="レンズの実焦点距離（mm）"> mm</label><button type="button" class="chip" data-lens-apply>反映</button></div>
         <div class="aim-lens-row"><select data-lens-sensor aria-label="センサーサイズ"><option value="full">フルサイズ</option><option value="aps">APS-C</option><option value="canon">APS-C（Canon）</option><option value="m43">マイクロフォーサーズ</option></select><button type="button" class="chip" data-lens-portrait aria-pressed="false">縦位置</button></div>
-        <div class="aim-lens-toggles"><button type="button" class="chip" data-lens-on aria-pressed="false">画角枠</button></div>
+        <div class="aim-lens-toggles"><button type="button" class="chip" data-lens-on aria-pressed="false">画角枠</button><label class="aim-grid-control">グリッド<select data-lens-grid aria-label="構図のグリッド"><option value="none">なし</option><option value="thirds">9分割</option><option value="diagonal">9分割＋対角</option></select></label></div>
       </div>
       <div class="tiny" data-lens-info></div><p class="tiny" data-look-outside hidden></p>
       <div class="aim-look-time"><input type="range" min="0" max="0" step="any" value="0" data-look-range aria-label="時刻を動かす">
@@ -7463,7 +7480,10 @@ async function aimLookRender(host, spec) {
   const lensOn = host.querySelector("[data-lens-on]"), lensFocal = host.querySelector("[data-lens-focal]"), lensSensor = host.querySelector("[data-lens-sensor]"), lensPortrait = host.querySelector("[data-lens-portrait]");
   lensOn.setAttribute("aria-pressed", String(aimLens.on)); lensPortrait.setAttribute("aria-pressed", String(aimLens.portrait));
   lensSensor.value = aimLens.sensor;
+  const lensGrid = host.querySelector("[data-lens-grid]");
+  lensGrid.value = aimLens.grid;
   const saveLens = () => { try { localStorage.setItem("sorami.lens", JSON.stringify(aimLens)); } catch {} aimLookRender(host, spec); };
+  lensGrid.onchange = () => { aimLens.grid = lensGrid.value; if (aimLens.grid !== "none") aimLens.on = true; saveLens(); };
   lensOn.onclick = () => { aimLens.on = !aimLens.on; saveLens(); };
   lensPortrait.onclick = () => { aimLens.portrait = !aimLens.portrait; aimLens.on = true; saveLens(); };
   lensSensor.onchange = () => { aimLens.sensor = lensSensor.value; aimLens.on = true; saveLens(); };
@@ -7723,6 +7743,7 @@ async function aimLookRender(host, spec) {
       ctx.setLineDash([]); ctx.strokeStyle = "#000"; ctx.lineWidth = 4;
       const fx = (W - fw) / 2, fy = (H - fh) / 2;
       ctx.strokeRect(fx, fy, fw, fh);
+      aimDrawGrid(ctx, fx, fy, fw, fh, aimLens.grid);
       ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(fx, fy, fw, fh);
     }
     const outside = host.querySelector("[data-look-outside]");

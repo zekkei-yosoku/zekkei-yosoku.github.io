@@ -233,3 +233,14 @@ test("渋谷スカイの図の基準時刻は地上229mの直接計算に一致�
  const ground=AL.geometryFrom(obs,target,{partId:'tip',eyeM:1.5}),roof=AL.geometryFrom(obs,target,{partId:'tip',eyeM:229});
  assert.ok(ground.angle-roof.angle>.8);assert.notEqual(AL.dailyView(obs,target,'moon',day('04'),{partId:'tip',eyeM:1.5})[0].at,expected.at);
 });
+
+
+test('9分割と対角グリッドは撮影枠だけに描き中央で交差する',()=>{
+ const source=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+ const a=source.indexOf('function aimDrawGrid('),b=source.indexOf('const aimLens =',a);
+ const draw=new Function(source.slice(a,b)+';return aimDrawGrid;')();
+ const lines=[],ctx={save(){},restore(){},setLineDash(){},beginPath(){},moveTo(x,y){lines.push(['M',x,y])},lineTo(x,y){lines.push(['L',x,y])},stroke(){}};
+ draw(ctx,10,20,300,150,'none');assert.equal(lines.length,0);
+ draw(ctx,10,20,300,150,'thirds');assert.equal(lines.length,8);assert.deepEqual(lines.slice(0,4),[['M',110,20],['L',110,170],['M',10,70],['L',310,70]]);
+ lines.length=0;draw(ctx,10,20,300,150,'diagonal');assert.equal(lines.length,12);assert.deepEqual(lines.slice(8),[['M',10,20],['L',310,170],['M',310,20],['L',10,170]]);
+});
