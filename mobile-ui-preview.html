@@ -761,6 +761,9 @@
   .cand-row .cand-map { margin-top: 6px; }
   /* 見通し。見えないときは日付より目立たせる（2026-10-02 ユーザー「そもそも目標物が見えませんとかって出した方がいい」） */
   /* 見え方の図（2026-10-02）。空の色は太陽の高さで決まるので、明るい画面でも暗い画面でも同じ色で描く */
+  .aim-observer-height { display:flex; align-items:center; gap:8px; margin:8px 0 12px; font-size:0.81rem; color:var(--secondary); }
+  .aim-observer-height input { min-width:0; width:7.5em; min-height:44px; padding:8px 10px; border:1px solid var(--separator); border-radius:10px; background:var(--card); color:var(--text); font:inherit; }
+  .aim-observer-height button { min-width:44px; min-height:44px; margin-left:auto; }
   .aim-look { margin-top: 10px; }
   .aim-look-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
                 font-size: 0.81rem; font-weight: 700; }
@@ -1326,6 +1329,12 @@
       <!-- 観測地点をお気に入りに（座標そのものに名前を付けて残す。ユーザー「座標ピンポイントに名前つけたりしたい」）。登録済みなら ★ で編集 -->
       <button id="aimFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆</button>
     </div>
+    <div class="aim-observer-height">
+      <label for="aimObserverHeight">観測標高</label>
+      <input id="aimObserverHeight" type="number" inputmode="decimal" min="-500" max="9000" step="any" placeholder="取得中…" aria-label="カメラ位置の標高（海抜メートル）" disabled><span>m</span>
+      <button type="button" class="tap" id="aimObserverAuto" aria-label="観測標高を自動値に戻す" title="自動値に戻す" disabled>↺</button>
+    </div>
+    <p id="aimObserverHeightError" class="tiny" role="alert" hidden></p>
 
     <p class="fav-l" id="aimWhereLabel">どこに重ねるか</p>
     <!-- 自分で置くときの目標の場所（2026-10-01 ユーザー「自分で置くを選んだ場合、どこに重ねるかの検索が必要なんじゃないの」）。
@@ -1831,23 +1840,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004222500"></script>
+<script src="sorami-core.js?v=20261004223500"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004222500"></script>
-<script src="sorami-exif.js?v=20261004222500"></script>
-<script src="sorami-capcloud.js?v=20261004222500"></script>
-<script src="sorami-terrain.js?v=20261004222500"></script>
-<script src="sorami-mountain.js?v=20261004222500"></script>
-<script src="sorami-fuji.js?v=20261004222500"></script>
-<script src="sorami-sky.js?v=20261004222500"></script>
-<script src="sorami-routes.js?v=20261004222500"></script>
-<script src="sorami-iss.js?v=20261004222500"></script>
-<script src="sorami-plane.js?v=20261004222500"></script>
-<script src="sorami-atmosphere.js?v=20261004222500"></script>
-<script src="sorami-bodies.js?v=20261004222500"></script>
-<script src="sorami-align.js?v=20261004222500"></script>
-<script src="sorami-moon.js?v=20261004222500"></script>
+<script src="sorami-astro.js?v=20261004223500"></script>
+<script src="sorami-exif.js?v=20261004223500"></script>
+<script src="sorami-capcloud.js?v=20261004223500"></script>
+<script src="sorami-terrain.js?v=20261004223500"></script>
+<script src="sorami-mountain.js?v=20261004223500"></script>
+<script src="sorami-fuji.js?v=20261004223500"></script>
+<script src="sorami-sky.js?v=20261004223500"></script>
+<script src="sorami-routes.js?v=20261004223500"></script>
+<script src="sorami-iss.js?v=20261004223500"></script>
+<script src="sorami-plane.js?v=20261004223500"></script>
+<script src="sorami-atmosphere.js?v=20261004223500"></script>
+<script src="sorami-bodies.js?v=20261004223500"></script>
+<script src="sorami-align.js?v=20261004223500"></script>
+<script src="sorami-moon.js?v=20261004223500"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4566,7 +4575,7 @@ function inheritedPoint() {
     // 住所は検索のときと同じく都道府県＋市区町村まで（地点カードの説明は「山 ・ 東京都八王子市」と種類も入る）
     ? { name: place.name, subtitle: aimAreaOf({ detail: place.subtitle || "" }) || place.subtitle || "",
         latitude: place.latitude, longitude: place.longitude, decks: place.decks ?? null,
-        eyeHeightAGL: place.eyeHeightAGL ?? null, inherited: true }
+        eyeHeightAGL: place.eyeHeightAGL === 1.5 ? 0 : place.eyeHeightAGL ?? null, inherited: true }
     : null;
 }
 /// 観測地点のカード（地点カードと同じ形）を描く。名前と、住所・標高・引き継ぎ。☆ はお気に入りに入っていれば ★
@@ -4575,7 +4584,6 @@ function renderPointCard(prefix, f, groundM = null, { elevation = true } = {}) {
   const g = !elevation ? null : f && f.inherited ? place.elevation ?? bundle?.home.grid.elevation ?? groundM : groundM;
   $(`${prefix}Name`).textContent = f ? f.name : "観測地点を選んでください";
   $(`${prefix}Sub`).textContent = f ? [f.subtitle, Number.isFinite(g) ? `標高 ${Math.round(g)}m` : "",
-    prefix === "aimFrom" && aimObserverEye(f) > 1.5 ? `地上 ${aimObserverEye(f)}m` : "",
     f.inherited ? "絶景予測の地点" : ""].filter(Boolean).join(" ・ ") : "";
   if ($(`${prefix}Fav`)) renderFavStar(`${prefix}Fav`, f);
 }
@@ -6422,20 +6430,55 @@ function aimSavedFrom(p) {
   const decks = (Array.isArray(p.decks) ? p.decks : SoramiTerrain.decksFor(name) || [])
     .filter(d => d && validEye(d.aglM)).map(d => ({ name: typeof d.name === "string" ? d.name : "展望台", aglM: d.aglM }));
   return { name, subtitle: typeof p.subtitle === "string" ? p.subtitle : "", latitude:p.latitude, longitude:p.longitude,
-    decks: decks.length ? decks : null, eyeHeightAGL: validEye(p.eyeHeightAGL) ? p.eyeHeightAGL : decks[0]?.aglM ?? 1.5 };
+    decks: decks.length ? decks : null, eyeHeightAGL: validEye(p.eyeHeightAGL) ? p.eyeHeightAGL : decks[0]?.aglM ?? 0,
+    observationElevationM: Number.isFinite(p.observationElevationM) && p.observationElevationM >= -500 && p.observationElevationM <= 9000 ? p.observationElevationM : null };
 }
 // 地盤標高と地上の目の高さを分け、候補・カレンダー・図へ同じ値を渡す。
 function aimObserverEye(f) {
   if (Number.isFinite(f?.eyeHeightAGL) && f.eyeHeightAGL >= 0 && f.eyeHeightAGL <= 700) return f.eyeHeightAGL;
   const decks = f?.decks || SoramiTerrain.decksFor(f?.name) || [];
   const deck = decks.find(d => Number.isFinite(d?.aglM) && d.aglM >= 0 && d.aglM <= 700);
-  return deck?.aglM ?? 1.5;
+  return deck?.aglM ?? 0;
 }
 function aimObserverAt(f, ground) {
-  return { latitude: f.latitude, longitude: f.longitude, elevation: Number.isFinite(ground) ? ground : 0, eyeM: aimObserverEye(f) };
+  const elevation = Number.isFinite(ground) ? ground : 0;
+  const manual = Number.isFinite(f.observationElevationM) && f.observationElevationM >= -500 && f.observationElevationM <= 9000;
+  return { latitude: f.latitude, longitude: f.longitude, elevation, eyeM: manual ? f.observationElevationM - elevation : aimObserverEye(f) };
 }
 aim.from = aimSavedFrom(store.get("sorami.aimFrom", null)); // 明示的な観測地点は再読み込みでも保持
 aim.fromSeq = 0;
+function aimRenderObserverHeight(f, ground) {
+  const input = $("aimObserverHeight"), reset = $("aimObserverAuto");
+  const ready = !!f && Number.isFinite(ground), manual = Number.isFinite(f?.observationElevationM);
+  input.disabled = !ready; reset.disabled = !ready || !manual;
+  if (!ready) { input.value = ""; return; }
+  const obs = aimObserverAt(f, ground);
+  input.value = manual ? String(f.observationElevationM) : String(Math.round((obs.elevation + obs.eyeM) * 10) / 10);
+  input.dataset.validValue = input.value;
+  input.title = manual ? "指定したカメラ位置の標高" : "地盤標高＋展望台の高さ（情報がある場合）";
+}
+function aimSetObserverHeight(value) {
+  const f = aimFromPoint();
+  if (!f || (value !== null && (!Number.isFinite(value) || value < -500 || value > 9000))) return false;
+  $("aimObserverHeightError").hidden = true;
+  aim.candPick = null; aim.spot = null; aim.wantSpot = null;
+  aimSetFrom({ ...f, observationElevationM: value }, { keepMap: true });
+  return true;
+}
+function aimCommitObserverHeight() {
+  const input = $("aimObserverHeight");
+  if (!input.value.trim() || !input.checkValidity()) {
+    input.value = input.dataset.validValue || "";
+    const error = $("aimObserverHeightError");
+    error.textContent = "−500〜9000mの標高を入力してください。"; error.hidden = false;
+    return;
+  }
+  if (aimFromPoint()?.observationElevationM !== input.valueAsNumber) aimSetObserverHeight(input.valueAsNumber);
+}
+$("aimObserverHeight").onchange = aimCommitObserverHeight;
+$("aimObserverHeight").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); aimCommitObserverHeight(); $("aimObserverHeight").blur(); } };
+$("aimObserverAuto").onclick = () => aimSetObserverHeight(null);
+
 /// いまの観測地点。替えていなければ絶景予測の地点（inherited）
 function aimFromPoint() {
   return aim.from || inheritedPoint();
@@ -6683,6 +6726,8 @@ async function aimRenderFrom() {
   const f = aimFromPoint();
   // 地点カードと同じ形: 名前と、住所・標高（標高は読めたら足す）
   renderPointCard("aimFrom", f);
+  aimRenderObserverHeight(f, null);
+  $("aimObserverHeightError").hidden = true;
 
   const moon = aim.body === "moon";
   if (!f) { $("aimFrom").innerHTML = `<p class="tiny">観測地点を選んでください</p>`; $("aimLook").hidden = true; return; }
@@ -6695,6 +6740,7 @@ async function aimRenderFrom() {
   if (seq !== aim.fromSeq) return;
   const obs = aimObserverAt(f, ground);
   if (Number.isFinite(ground)) renderPointCard("aimFrom", f, ground);
+  aimRenderObserverHeight(f, ground);
   // 候補帯は選択した高さ・縁に近い日、全体モードだけ輪郭通過の日を出す。
   let ev = [];
   try {
