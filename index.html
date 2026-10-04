@@ -1066,6 +1066,11 @@
 #aimView .preview-body-open svg,#aimView #aimTargetPick .aim-pick svg{width:12px;height:12px;flex:none;color:var(--secondary)}
 #aimView [data-body-label],#aimView #aimTargetLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+#aimView #aimTargetPick .aim-pick select{display:none}
+#aimView .preview-target-open{position:absolute;inset:0;width:100%;height:100%;min-height:0;padding:0;background:transparent;border:0;border-radius:inherit;cursor:pointer}
+#aimView .preview-target-open:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.preview-target-list .preview-body-choice{overflow-wrap:anywhere}
+
 #aimView .aim-date #aimCalendarOpen{gap:0}
 
 #aimView #previewTimeScope{display:flex;width:max-content;max-width:100%;gap:0;padding:0;margin:2px 0 0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
@@ -1810,22 +1815,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004172000"></script>
+<script src="sorami-core.js?v=20261004173500"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004172000"></script>
-<script src="sorami-exif.js?v=20261004172000"></script>
-<script src="sorami-capcloud.js?v=20261004172000"></script>
-<script src="sorami-terrain.js?v=20261004172000"></script>
-<script src="sorami-mountain.js?v=20261004172000"></script>
-<script src="sorami-fuji.js?v=20261004172000"></script>
-<script src="sorami-sky.js?v=20261004172000"></script>
-<script src="sorami-routes.js?v=20261004172000"></script>
-<script src="sorami-iss.js?v=20261004172000"></script>
-<script src="sorami-plane.js?v=20261004172000"></script>
-<script src="sorami-bodies.js?v=20261004172000"></script>
-<script src="sorami-align.js?v=20261004172000"></script>
-<script src="sorami-moon.js?v=20261004172000"></script>
+<script src="sorami-astro.js?v=20261004173500"></script>
+<script src="sorami-exif.js?v=20261004173500"></script>
+<script src="sorami-capcloud.js?v=20261004173500"></script>
+<script src="sorami-terrain.js?v=20261004173500"></script>
+<script src="sorami-mountain.js?v=20261004173500"></script>
+<script src="sorami-fuji.js?v=20261004173500"></script>
+<script src="sorami-sky.js?v=20261004173500"></script>
+<script src="sorami-routes.js?v=20261004173500"></script>
+<script src="sorami-iss.js?v=20261004173500"></script>
+<script src="sorami-plane.js?v=20261004173500"></script>
+<script src="sorami-bodies.js?v=20261004173500"></script>
+<script src="sorami-align.js?v=20261004173500"></script>
+<script src="sorami-moon.js?v=20261004173500"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7534,16 +7539,8 @@ async function aimLookRender(host, spec) {
     const clipBottom = Math.max(0, Math.min(H, sceneBottom + panY));
     host._lookSceneBottom = clipBottom;
     if (clipBottom < H) {
-      ctx.fillStyle = bright ? "#e4e7eb" : "#252a33";
+      ctx.fillStyle = "#252a33";
       ctx.fillRect(0, clipBottom, W, H - clipBottom);
-      ctx.strokeStyle = bright ? "rgba(80,90,110,0.18)" : "rgba(200,212,240,0.15)";
-      ctx.lineWidth = 1; ctx.beginPath();
-      for (let x = -H; x < W; x += 14) { ctx.moveTo(x, H); ctx.lineTo(x + H - clipBottom, clipBottom); }
-      ctx.stroke();
-      if (H - clipBottom >= 24) {
-        ctx.font = "11px system-ui, sans-serif"; ctx.textAlign = "right"; ctx.textBaseline = "top";
-        ctx.fillStyle = bright ? "#566173" : "#aab5c5"; ctx.fillText("描画省略", W - 8, clipBottom + 6);
-      }
     }
     ctx.save(); ctx.translate(panX, panY);
     ctx.beginPath(); ctx.rect(-panX, -panY, W, clipBottom); ctx.clip();
@@ -10017,6 +10014,22 @@ checkForUpdate();
  const sync=()=>{const name=source.selectedOptions[0]?.textContent||'天体';const label=picker.querySelector('[data-body-label]');if(label.textContent!==name)label.textContent=name;picker.setAttribute('aria-label',`天体：${name}、選択を開く`);for(const b of dialog.querySelectorAll('[data-body-value]'))b.setAttribute('aria-pressed',String(b.dataset.bodyValue===source.value));};
  picker.onclick=()=>{sync();showSheet(dialog);};dialog.querySelector('[data-body-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>picker.focus({preventScroll:true}));
  new MutationObserver(sync).observe(head,{childList:true,subtree:true});source.addEventListener('change',sync);sync();
+})();
+
+(()=>{
+ const source=document.getElementById('aimTarget'),host=source.closest('.aim-pick');
+ const picker=document.createElement('button');picker.type='button';picker.id='previewTargetOpen';picker.className='preview-target-open';picker.setAttribute('aria-haspopup','dialog');picker.setAttribute('aria-controls','previewTargetDialog');host.append(picker);
+ const dialog=document.createElement('dialog');dialog.id='previewTargetDialog';dialog.className='sheet preview-body-dialog';dialog.setAttribute('aria-labelledby','previewTargetTitle');
+ dialog.innerHTML='<div class="sheet-head"><strong id="previewTargetTitle">目標を選ぶ</strong><button type="button" data-target-close>閉じる</button></div><div class="sheet-body"><div class="preview-body-list preview-target-list"></div></div>';
+ document.body.append(dialog);const list=dialog.querySelector('.preview-target-list');let fingerprint='';
+ const sync=()=>{
+  const options=Array.from(source.options),key=JSON.stringify(options.map(o=>[o.value,o.textContent,o.disabled]));
+  if(key!==fingerprint){fingerprint=key;list.replaceChildren();for(const option of options){const b=document.createElement('button');b.type='button';b.className='preview-body-choice';b.dataset.targetValue=option.value;b.textContent=option.textContent;b.disabled=option.disabled;b.onclick=()=>{if(source.value!==option.value){source.value=option.value;source.dispatchEvent(new Event('change',{bubbles:true}));}dialog.close();};list.append(b);}}
+  picker.setAttribute('aria-label',`目標：${source.selectedOptions[0]?.textContent||'目標'}、選択を開く`);
+  for(const b of list.children)b.setAttribute('aria-pressed',String(b.dataset.targetValue===source.value));
+ };
+ picker.onclick=()=>{sync();showSheet(dialog);};dialog.querySelector('[data-target-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>picker.focus({preventScroll:true}));
+ source.addEventListener('change',sync);new MutationObserver(sync).observe(source,{childList:true,subtree:true,characterData:true});sync();
 })();
 </script></body>
 </html>
