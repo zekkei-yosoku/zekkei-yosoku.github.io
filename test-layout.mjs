@@ -430,6 +430,7 @@ console.log("== 使われていない見た目の決まりを残さない ==");
   for (const m of rest.matchAll(/class="([^"]*)"/g)) for (const t of m[1].split(/[\s${}()|?:+"'`]+/)) if (t) tokens.add(t);
   for (const m of rest.matchAll(/classList\.(?:add|remove|toggle|contains)\("([^"]+)"/g)) tokens.add(m[1]);
   for (const m of rest.matchAll(/querySelectorAll?\("\.([A-Za-z][\w-]+)/g)) tokens.add(m[1]);
+  for (const m of rest.matchAll(/className\s*=\s*[\"\']([^\"\']*)[\"\']/g)) for (const t of m[1].split(/\s+/)) if (t) tokens.add(t);
   const dead = [...classes].filter((c) => !tokens.has(c)).sort();
   ok(dead.length === 0, "CSS に、どこからも使われていない class が無い", dead.join("・"));
 }
@@ -2985,6 +2986,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   const rel = new Function(`${relSrc}; return aimLookRel;`)();
   ok(rel(0) === "重なる時刻" && rel(-180000) === "重なる3分前" && rel(20000) === "重なる20秒後" && rel(-80000) === "重なる1分20秒前",
     "選んだ時刻は重なる時刻からの差で言う", [rel(0), rel(-180000), rel(20000), rel(-80000)].join(" / "));
+  ok(rel(-(8 * 3600 + 4 * 60 + 17) * 1000) === "重なる8時間4分前" && rel(7200000) === "重なる2時間後", "1時間を超えた差は時間と分で言う（下部の日時欄に収める）", [rel(-(8 * 3600 + 4 * 60 + 17) * 1000), rel(7200000)].join(" / "));
   ok(rel(-60000, "先端を通る") === "先端を通る1分前", "どこから重ねるかの図は「先端を通る」時刻からの差で言う（選んだ縁が触れるとは限らない）");
   // 図の下の説明（形の出どころ・大気の屈折・縮尺）は出さない（2026-10-03 ユーザー「この説明文いらないわ」「いらない説明文結構ない？」）
   ok(!/形は城のシルエット|形はシルエットを写真の縮尺|高さは大気の屈折を含む|の模式図（幅は推定）|稜線は国土地理院の標高データから/.test(html)
