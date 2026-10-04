@@ -1091,7 +1091,7 @@
  #previewScene:before,#previewPlaces:before{font-size:1rem}
  #aimView .aim-air select,#aimView .aim-air input{font-size:var(--aim-control-font)}
 }
-#aimView .aim-air{margin:8px 0 12px;border-top:0}#aimView .aim-air-row{display:flex;align-items:center;gap:12px}#aimAirLabel{font-size:0.81rem;color:var(--secondary);flex:none}#aimView .aim-air-options{display:flex;background:var(--sunk);border-radius:10px;padding:3px;flex:1;max-width:330px}#aimView .aim-air-options button{flex:1;min-width:0;min-height:44px;border:0;border-radius:8px;font-size:0.81rem;color:var(--secondary);background:transparent}#aimView .aim-air-options button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);font-weight:600}#aimView #aimAirDetails summary{justify-content:flex-start;gap:8px;min-height:44px;font-size:0.75rem;color:var(--secondary)}#aimAirDetails summary::-webkit-details-marker{display:none}#aimAirSummary{margin-left:auto}#aimView .aim-air-chevron{font-size:18px}#aimAirDetails[open] .aim-air-chevron{transform:rotate(180deg)}
+#aimView .aim-air{margin:8px 0 12px;border-top:0}#aimView .aim-air-row{display:flex;align-items:center;gap:12px}#aimView #aimAirMode{width:auto;min-width:140px;min-height:44px;font-size:0.81rem;padding:8px 32px 8px 12px}#aimAirLabel{font-size:0.81rem;color:var(--secondary);flex:none}#aimView .aim-air-options{display:flex;background:var(--sunk);border-radius:10px;padding:3px;flex:1;max-width:330px}#aimView .aim-air-options button{flex:1;min-width:0;min-height:44px;border:0;border-radius:8px;font-size:0.81rem;color:var(--secondary);background:transparent}#aimView .aim-air-options button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);font-weight:600}#aimView #aimAirDetails summary{justify-content:flex-start;gap:8px;min-height:44px;font-size:0.75rem;color:var(--secondary)}#aimAirDetails summary::-webkit-details-marker{display:none}#aimAirSummary{margin-left:auto}#aimView .aim-air-chevron{font-size:18px}#aimAirDetails[open] .aim-air-chevron{transform:rotate(180deg)}
 </style></head>
 <body>
 <main>
@@ -1379,7 +1379,7 @@
     <div id="aimFrom" class="aim-from"></div>
     </section>
 <div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div><div class="preview-tabs" role="tablist" aria-label="撮影の確認"><button type="button" id="previewSceneTab" role="tab" aria-selected="true" aria-controls="previewScene">見え方</button><button type="button" id="previewPlacesTab" role="tab" aria-selected="false" aria-controls="previewPlaces" tabindex="-1">撮影場所</button></div><div class="preview-workspace"><section id="previewScene" role="tabpanel" aria-labelledby="previewSceneTab">    <div id="aimLook" class="aim-look" hidden></div>
-<div id="aimAir" class="aim-air"><div class="aim-air-row"><span id="aimAirLabel">大気差</span><div class="aim-air-options" role="group" aria-labelledby="aimAirLabel"><button type="button" data-air-mode="standard" aria-pressed="false">標準</button><button type="button" data-air-mode="auto" aria-pressed="true" aria-label="気象予報を反映">気象予報</button><button type="button" data-air-mode="none" aria-pressed="false">なし</button></div></div>
+<div id="aimAir" class="aim-air"><div class="aim-air-row"><span id="aimAirLabel">大気差</span><select id="aimAirMode" aria-labelledby="aimAirLabel"><option value="standard">標準</option><option value="auto">気象予報</option><option value="none">なし</option></select></div>
 <details id="aimAirDetails"><summary>気象条件 <span id="aimAirSummary">気象を反映</span><span class="aim-air-chevron" aria-hidden="true">⌄</span></summary><div class="aim-air-content">
 <p id="aimAirStatus" class="tiny" role="status"></p><p class="tiny">気象は選択地点・時刻のモデル値です。期間外・取得不可は標準大気を使用します。</p><p class="tiny">低空の逆転層によるずれは再現できません。「なし」を除き、地上目標の屈折は標準値です。</p>
 </div></details></div>
@@ -1835,23 +1835,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004192500"></script>
+<script src="sorami-core.js?v=20261004193500"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004192500"></script>
-<script src="sorami-exif.js?v=20261004192500"></script>
-<script src="sorami-capcloud.js?v=20261004192500"></script>
-<script src="sorami-terrain.js?v=20261004192500"></script>
-<script src="sorami-mountain.js?v=20261004192500"></script>
-<script src="sorami-fuji.js?v=20261004192500"></script>
-<script src="sorami-sky.js?v=20261004192500"></script>
-<script src="sorami-routes.js?v=20261004192500"></script>
-<script src="sorami-iss.js?v=20261004192500"></script>
-<script src="sorami-plane.js?v=20261004192500"></script>
-<script src="sorami-atmosphere.js?v=20261004192500"></script>
-<script src="sorami-bodies.js?v=20261004192500"></script>
-<script src="sorami-align.js?v=20261004192500"></script>
-<script src="sorami-moon.js?v=20261004192500"></script>
+<script src="sorami-astro.js?v=20261004193500"></script>
+<script src="sorami-exif.js?v=20261004193500"></script>
+<script src="sorami-capcloud.js?v=20261004193500"></script>
+<script src="sorami-terrain.js?v=20261004193500"></script>
+<script src="sorami-mountain.js?v=20261004193500"></script>
+<script src="sorami-fuji.js?v=20261004193500"></script>
+<script src="sorami-sky.js?v=20261004193500"></script>
+<script src="sorami-routes.js?v=20261004193500"></script>
+<script src="sorami-iss.js?v=20261004193500"></script>
+<script src="sorami-plane.js?v=20261004193500"></script>
+<script src="sorami-atmosphere.js?v=20261004193500"></script>
+<script src="sorami-bodies.js?v=20261004193500"></script>
+<script src="sorami-align.js?v=20261004193500"></script>
+<script src="sorami-moon.js?v=20261004193500"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6874,8 +6874,8 @@ async function aimUpdateLook() {
   const hit = hits.find((x) => x.side === e.side);
   const overlap = mountain ? !!hit && aimCalSolid(hit) : e.intersects;
   const at = hit?.at ?? e.at;
-  aimLookRender(host, { obs, eyeM: 1.5, at, title: `${f.name}から`,
-    sub: `${aimDateLabel(at)} ${aimSideName(e.side)} ・ ${overlap ? (mountain ? aimPassage(hit) : "建物に重なる") : "重ならない日の通り方"}`,
+  aimLookRender(host, { obs, eyeM: 1.5, at, title: "",
+    sub: `${overlap ? (mountain ? aimPassage(hit) : "建物に重なる") : "重ならない日の通り方"}`,
     light: light(at, obs), extra: e.altitude < 0 ? `${SoramiBodies.definition(aim.body).name}は地平線の下です` : "", atName: overlap ? undefined : "最接近" });
 }const aimCandName = (c) => (c.place.kind === "川岸" ? `${c.place.name}の川岸`
   : c.place.name || `名前のない${c.place.kind}`);
@@ -8142,13 +8142,13 @@ function aimAirChange(){
  aimApply();
 }
 function aimAirSync(){
- for(const b of $("aimAir").querySelectorAll("[data-air-mode]"))b.setAttribute("aria-pressed",String(b.dataset.airMode===aimAirSettings.mode));
+ $("aimAirMode").value=aimAirSettings.mode;
 }
 function aimAirChoose(next){
  if(!["auto","standard","none"].includes(next))return;
  aimAirSettings.mode=next;aimAirChange();
 }
-for(const b of $("aimAir").querySelectorAll("[data-air-mode]"))b.onclick=()=>aimAirChoose(b.dataset.airMode);
+$("aimAirMode").onchange=()=>aimAirChoose($("aimAirMode").value);
 aimAirSync();
 
 function openAim(preset) {
