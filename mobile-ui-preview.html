@@ -389,6 +389,7 @@
   html { touch-action: pan-x pan-y; }
   /* Safariの連打は操作として扱い、ページのダブルタップ拡大にしない。 */
   button { touch-action: manipulation; }
+  [data-look-outside] { display: none; }
   .sheet-body { overflow-y: auto; max-height: calc(82vh - 54px); padding: 0 16px 16px;
                 overscroll-behavior: contain; }
   .sheet input[type=search] { width: 100%; font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 10px;
@@ -1045,6 +1046,10 @@
 .preview-body-dialog{width:min(400px,calc(100vw - 24px))}.preview-body-group{padding:14px 0;border-bottom:1px solid var(--line)}.preview-body-group:first-child{padding-top:0}.preview-body-group:last-child{border:0}.preview-body-group h3{font-size:12px;font-weight:500;color:var(--secondary);margin:0 0 10px}.preview-body-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.preview-body-choice{min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--sunk);color:var(--text);font-size:16px;text-align:left}.preview-body-choice[aria-pressed=true]{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}.preview-body-choice[aria-pressed=true]:after{content:'✓';float:right}.preview-body-choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 #aimView .aim-date #aimCalendarOpen{gap:0}
+
+#aimView #previewTimeScope{display:flex;width:max-content;max-width:100%;gap:0;padding:0;margin:2px 0 0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+#aimView #previewTimeScope button{width:auto;min-width:60px;min-height:44px;padding:0 10px;border:0;border-radius:0;font-size:12px;font-weight:400;background:transparent;color:var(--secondary)}
+#aimView #previewTimeScope button[aria-pressed=true]{background:var(--sunk);color:var(--text);font-weight:600}
 </style></head>
 <body>
 <main><p class="tiny preview-banner">UIテスト · 現行の予測を使用（保存先も本番と共通）</p>
@@ -1785,22 +1790,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004141500"></script>
+<script src="sorami-core.js?v=20261004142500"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004141500"></script>
-<script src="sorami-exif.js?v=20261004141500"></script>
-<script src="sorami-capcloud.js?v=20261004141500"></script>
-<script src="sorami-terrain.js?v=20261004141500"></script>
-<script src="sorami-mountain.js?v=20261004141500"></script>
-<script src="sorami-fuji.js?v=20261004141500"></script>
-<script src="sorami-sky.js?v=20261004141500"></script>
-<script src="sorami-routes.js?v=20261004141500"></script>
-<script src="sorami-iss.js?v=20261004141500"></script>
-<script src="sorami-plane.js?v=20261004141500"></script>
-<script src="sorami-bodies.js?v=20261004141500"></script>
-<script src="sorami-align.js?v=20261004141500"></script>
-<script src="sorami-moon.js?v=20261004141500"></script>
+<script src="sorami-astro.js?v=20261004142500"></script>
+<script src="sorami-exif.js?v=20261004142500"></script>
+<script src="sorami-capcloud.js?v=20261004142500"></script>
+<script src="sorami-terrain.js?v=20261004142500"></script>
+<script src="sorami-mountain.js?v=20261004142500"></script>
+<script src="sorami-fuji.js?v=20261004142500"></script>
+<script src="sorami-sky.js?v=20261004142500"></script>
+<script src="sorami-routes.js?v=20261004142500"></script>
+<script src="sorami-iss.js?v=20261004142500"></script>
+<script src="sorami-plane.js?v=20261004142500"></script>
+<script src="sorami-bodies.js?v=20261004142500"></script>
+<script src="sorami-align.js?v=20261004142500"></script>
+<script src="sorami-moon.js?v=20261004142500"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -9900,8 +9905,8 @@ checkForUpdate();
    if(document.activeElement!==clock){const v=S.JstCal.hhmm(state.current).padStart(5,'0');if(clock.value!==v)clock.value=v;}
    const requested=look._uiRequestedTime;if(requested&&(requested.context!==timeContext()||requested.day!==aim.dayMs))look._uiRequestedTime=null;else if(requested&&requested.day===state.day){look._uiRequestedTime=null;state.window(requested.at);state.set(requested.at);}
    if(!look.querySelector('.preview-time-scope')){
-    const row=document.createElement('div');row.className='preview-time-scope';row.innerHTML='<select id="previewTimeScope" aria-label="時間バーの範囲"><option value="fine">近くを調整</option><option value="day">一日全体</option></select><span>← 時刻 →</span>';
-    look.querySelector('.aim-look-time').before(row);const select=row.querySelector('select');select.value=look._uiAllDay?'day':'fine';select.onchange=()=>{look._uiAllDay=select.value==='day';look._uiTime?.window();if(!look._uiAllDay)look._uiTime?.set(look._uiTime.reference);};
+    const row=document.createElement('div');row.className='preview-time-scope';row.id='previewTimeScope';row.setAttribute('role','group');row.setAttribute('aria-label','時間バーの範囲');row.innerHTML='<button type="button" data-time-scope="fine" aria-pressed="true">微調整</button><button type="button" data-time-scope="day" aria-pressed="false">全日</button>';
+    look.querySelector('.aim-look-time').before(row);for(const button of row.querySelectorAll('button'))button.onclick=()=>{look._uiAllDay=button.dataset.timeScope==='day';look._uiTime?.window();if(!look._uiAllDay)look._uiTime?.set(look._uiTime.reference);update();};
    }
   }
   const head=root.querySelector('.aim-head'),body=el('aimBody'),target=el('aimTarget'),goalLabel=el('aimTargetLabel');if(head&&head.firstElementChild!==body)head.prepend(body);if(head&&!head.querySelector('.preview-cross')){const cross=document.createElement('span');cross.className='preview-cross';cross.textContent='×';cross.setAttribute('aria-hidden','true');body.after(cross);}const goal=target.selectedOptions[0]?.textContent;if(goal&&goalLabel.textContent!==goal)goalLabel.textContent=goal;
@@ -9917,7 +9922,7 @@ checkForUpdate();
    const reverse=document.createElement('section');reverse.className='preview-reverse';const title=document.createElement('h3');title.textContent='撮れる場所を逆算';reverse.append(title);look.append(reverse);
    for(const selector of['.aim-look-pick','[data-look-hint]','[data-look-found]']){const node=look.querySelector(selector);if(node)reverse.append(node);}
   }
-  const timeScope=el('previewTimeScope');if(timeScope){const scope=look._uiAllDay?'day':'fine';if(timeScope.value!==scope)timeScope.value=scope;}
+  const timeScope=el('previewTimeScope');if(timeScope){const scope=look._uiAllDay?'day':'fine';for(const button of timeScope.querySelectorAll('button')){const pressed=String(button.dataset.timeScope===scope);if(button.getAttribute('aria-pressed')!==pressed)button.setAttribute('aria-pressed',pressed);}}
   const focalInput=look.querySelector('[data-lens-focal]');if(focalInput){focalInput.onfocus=()=>{focalInput._uiFocusValue=focalInput.value;};focalInput.onblur=()=>{if(focalInput.value!==focalInput._uiFocusValue&&focalInput.checkValidity()&&focalInput.value.trim()&&(aimLens.mode!=='manual'||+focalInput.value!==aimLens.focal))focalInput.onchange();};}
   const portraitButton=look.querySelector('[data-lens-portrait]');if(portraitButton){const text=portraitButton.getAttribute('aria-pressed')==='true'?'縦位置':'横位置';if(portraitButton.textContent!==text)portraitButton.textContent=text;}
   const centerButton=look.querySelector('[data-lens-center]'),movingButton=look.querySelector('[data-lens-move]');if(centerButton)centerButton.hidden=movingButton?.getAttribute('aria-pressed')!=='true';
