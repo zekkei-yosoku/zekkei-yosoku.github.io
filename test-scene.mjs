@@ -32,7 +32,7 @@ test('実レンダーが周囲の東京タワーを描き、古い主目標へ�
  const canvas={clientWidth:600,style:{},getContext:()=>ctx,setAttribute:(k,v)=>{canvas[k]=v},getBoundingClientRect:()=>({left:0,top:0})};
  const els=new Map(),host={clientWidth:600,_lookSeq:0,_lensOffset:[0,0],querySelector:q=>q==='canvas'||q.includes('data-look-canvas')?canvas:els.get(q)||(()=>{const x={dataset:{},style:{},value:'',setAttribute(){},checkValidity:()=>true};els.set(q,x);return x})()};
  const target=AL.targetById('skytree'),aim={target,body:'moon',partId:'tip'},lens={on:true,mode:'manual',focal:60,sensor:'full',portrait:false};
- const c=vm.createContext({document:{getElementById:()=>null,activeElement:null},aim,S,SoramiBodies:B,SoramiAstro:A,SoramiAlign:AL,SoramiTerrain:TR,aimLens:lens,AIM_SENSOR:{full:[36,24]},aimLookHosts:new Set(),aimReverseClear(){},aimIsMountain:t=>!!t.rim,aimTargetList:()=>AL.TARGETS,aimLookRidge:async()=>null,aimLookPick(){},aimLookSky:()=>[[10,20,30],[30,40,50]],aimLookDisc(){},aimLookHMS:ms=>S.JstCal.hhmm(ms),aimLookRel:()=>'',esc:s=>s,window:{devicePixelRatio:1},localStorage:{setItem(){}},navigator:{},requestAnimationFrame:()=>1,cancelAnimationFrame(){}});
+ const c=vm.createContext({aimAirCompare:null,aimAirDescribe(){},aimAirAngle:A.targetElevationAngle,document:{getElementById:()=>null,activeElement:null},aim,S,SoramiBodies:B,SoramiAstro:A,SoramiAlign:AL,SoramiTerrain:TR,aimLens:lens,AIM_SENSOR:{full:[36,24]},aimLookHosts:new Set(),aimReverseClear(){},aimIsMountain:t=>!!t.rim,aimTargetList:()=>AL.TARGETS,aimLookRidge:async()=>null,aimLookPick(){},aimLookSky:()=>[[10,20,30],[30,40,50]],aimLookDisc(...args){operations.push({method:"bodyDisc",args:args.slice(1,4)})},aimLookHMS:ms=>S.JstCal.hhmm(ms),aimLookRel:()=>'',esc:s=>s,window:{devicePixelRatio:1},localStorage:{setItem(){}},navigator:{},requestAnimationFrame:()=>1,cancelAnimationFrame(){}});
  vm.runInContext(html.slice(start,end)+';this.render=aimLookRender',c);
  await c.render(host,{obs:observer,eyeM:1.5,at,title:'試験地点から'});
  assert.ok(!calls.includes('東京タワー'));assert.ok(!calls.includes('東京スカイツリー'));assert.ok(canvas['aria-label'].includes('東京タワー'));assert.equal(aim.target.id,'skytree');
@@ -40,4 +40,13 @@ test('実レンダーが周囲の東京タワーを描き、古い主目標へ�
  const bands=operations.filter(x=>x.method==='fillRect'&&x.args[1]!==0);assert.ok(bands.some(x=>x.args[3]>0&&x.args[3]<=24));
  const clip=operations.find(x=>x.method==='rect');assert.ok(clip.args[3]>=0&&clip.args[3]<=440);
  const clipAt=operations.findIndex(x=>x.method==='clip'),fillAt=operations.findIndex((x,i)=>i>clipAt&&x.method==='fill');assert.ok(clipAt<fillAt);
+ // 移動中も実際の円盤を一つだけ描く。構図の移動分を二重に足さない。
+ for(const body of ['sun','moon','sirius','mercury','venus','mars','jupiter','saturn']){
+ aim.body=body;host._pick={ghost:[210,190]};host._lensOffset=[.1,.05];operations.length=0;
+ await c.render(host,{obs:observer,eyeM:1.5,at,pick:true,title:'試験地点から'});
+ const discs=operations.filter(x=>x.method==='bodyDisc');assert.equal(discs.length,1);
+ const translated=operations.filter(x=>x.method==='translate');
+ assert.ok(translated.some(x=>Math.abs(x.args[0]-(210-60))<1e-8));
+ assert.ok(!operations.some(x=>x.method==='arc'&&x.args[0]===210&&x.args[1]===190));
+ }
 });

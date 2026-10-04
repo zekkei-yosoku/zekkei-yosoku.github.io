@@ -168,6 +168,9 @@
   const limbById = (id) => LIMBS.find((l) => l.id === id) || LIMBS[1];
 
   const B = global.SoramiBodies || (typeof require !== "undefined" ? require("./sorami-bodies.js") : null);
+  const ATM=global.SoramiAtmosphere||(typeof require!=="undefined"?require("./sorami-atmosphere.js"):null);
+  const targetAngle=(...args)=>A.targetElevationAngle(...args,{k:ATM?ATM.targetK():7/6});
+  const limbAltitude=(s,sign)=>ATM?ATM.limbAltitude(s,sign):s.apparentAltitude-sign*s.angularRadius;
   const bodyAt = (body, ms, obs) => B ? B.state(body, ms, obs) : (body === "moon" ? A.moon(ms, obs) : body === "sun" ? A.sun(ms, obs) : (() => { throw new Error("天体計算が未読込です"); })());
   const extended = body => body !== "sun" && body !== "moon";
   const DEG = Math.PI / 180;
@@ -176,10 +179,10 @@
    * その日、天体の見かけの高度が `alt` を通る時刻。
    * @param {string} side "set"=下降中 / "rise"=上昇中
    */
-  function altitudeCrossing(body, dayMs, obs, alt, side, stepMs = 120000) {
+  function altitudeCrossing(body, dayMs, obs, alt, side, stepMs = 120000, sign = 0) {
     let prev = null;
     for (let t = dayMs; t <= dayMs + 86400000; t += stepMs) {
-      const cur = bodyAt(body, t, obs).apparentAltitude;
+      const cur = limbAltitude(bodyAt(body, t, obs),sign);
       if (prev !== null) {
         const falling = cur < prev.alt;
         const crossed = (prev.alt - alt) * (cur - alt) <= 0;
@@ -187,7 +190,7 @@
           let lo = prev.t, hi = t, loDiff = prev.alt - alt;
           for (let i = 0; i < 30; i++) {
             const mid = (lo + hi) / 2;
-            const d = bodyAt(body, mid, obs).apparentAltitude - alt;
+            const d = limbAltitude(bodyAt(body, mid, obs),sign) - alt;
             if (d * loDiff > 0) { lo = mid; loDiff = d; } else hi = mid;
           }
           return (lo + hi) / 2;
@@ -217,10 +220,9 @@
       }
       const obs0 = { latitude: guess.latitude, longitude: guess.longitude, elevation: obsM + eyeM };
       // その高さを見上げる角度。乗せる／隠れるは、天体の半径ぶんずらした高度を狙う
-      const base = A.targetElevationAngle(distanceKm, obsM + eyeM, topM);
-      const probe = bodyAt(body, dayMs + 43200000, obs0);
-      alpha = base + sign * probe.angularRadius;
-      at = altitudeCrossing(body, dayMs, obs0, alpha, side);
+      const base = targetAngle(distanceKm, obsM + eyeM, topM);
+      alpha = base;
+      at = altitudeCrossing(body, dayMs, obs0, alpha, side,120000,sign);
       if (at === null) return null;
       const st = bodyAt(body, at, obs0);
       azimuth = st.azimuth;
@@ -248,7 +250,7 @@
       azimuth: st.azimuth, altitude: st.apparentAltitude,
       radius: st.angularRadius,
       illuminated: body === "moon" ? st.illuminatedFraction : null,
-      sunAltitude: body === "sun" ? null : body === "moon" ? A.sun(at, obs).apparentAltitude : A.sun(at, obs).geometricAltitude,
+      sunAltitude: body === "sun" ? null : body === "moon" ? bodyAt("sun",at,obs).apparentAltitude : A.sun(at, obs).geometricAltitude,
     };
   }
 
@@ -349,7 +351,7 @@
     return {
       distanceKm,
       azimuth: TR.bearing(observer.latitude, observer.longitude, target.latitude, target.longitude),
-      angle: A.targetElevationAngle(distanceKm, (observer.elevation ?? 0) + eyeM, topM),
+      angle: targetAngle(distanceKm, (observer.elevation ?? 0) + eyeM, topM),
       topM,
     };
   }
@@ -369,7 +371,7 @@
     const list = rimPoints(rim).map((p) => {
       const d = TR.distanceKm(obs.latitude, obs.longitude, p.latitude, p.longitude);
       return { rel: azDiff(TR.bearing(obs.latitude, obs.longitude, p.latitude, p.longitude), az0),
-               ang: A.targetElevationAngle(d, obs.elevation ?? 0, p.m) };
+               ang: targetAngle(d, obs.elevation ?? 0, p.m) };
     }).sort((a, b) => a.rel - b.rel);
     // 20m 格子なので、その距離で 15m ぶんの幅の中の一番上を取る
     const bin = Math.atan(0.015 / Math.max(0.5, d0)) / DEG;
@@ -395,16 +397,16 @@
    */
   function judge(body, at0, obs, angle, sign, outline) {
     const st0 = bodyAt(body, at0, obs);
-    if (!outline) return { at: at0, gap: st0.apparentAltitude - (angle + sign * st0.angularRadius), st: st0 };
+    if (!outline) return { at: at0, gap: limbAltitude(st0,sign) - angle, st: st0 };
     const a = bodyAt(body, at0 - 60000, obs), b = bodyAt(body, at0 + 60000, obs);
     const rate = azDiff(b.azimuth, a.azimuth) / 120000;          // 方位の動き[度/ms]
-    if (!rate) return { at: at0, gap: st0.apparentAltitude - (angle + sign * st0.angularRadius), st: st0 };
+    if (!rate) return { at: at0, gap: limbAltitude(st0,sign) - angle, st: st0 };
     const tA = at0 + outline.min / rate, tB = at0 + outline.max / rate;
     const t0 = Math.min(tA, tB), t1 = Math.max(tA, tB);
     const f = (t) => {
       const st = bodyAt(body, t, obs);
       const ridge = outline.at(azDiff(st.azimuth, outline.azimuth));
-      return ridge === null ? null : { t, st, v: st.apparentAltitude - sign * st.angularRadius - ridge };
+      return ridge === null ? null : { t, st, v: limbAltitude(st,sign) - ridge };
     };
     const n = 48;
     let prev = null, best = null;
@@ -431,7 +433,7 @@
     }
     // 中心が稜線に届かなかった。**届かない以上「ど真ん中」とは言わない**（円盤の一部が縁に掛かるだけ）
     const miss = best ? { at: best.t, gap: best.v, st: best.st }
-      : { at: at0, gap: st0.apparentAltitude - (angle + sign * st0.angularRadius), st: st0 };
+      : { at: at0, gap: limbAltitude(st0,sign) - angle, st: st0 };
     const r = rankOf(miss.gap, miss.st.angularRadius);
     return { ...miss, rank: r === "center" ? "overlap" : r };
   }
@@ -475,7 +477,7 @@
               side: later < st.apparentAltitude ? "set" : "rise",
               altitude: st.apparentAltitude,
               illuminated: body === "moon" ? st.illuminatedFraction : null,
-              sunAltitude: body === "sun" ? null : body === "moon" ? A.sun(at, obs).apparentAltitude : A.sun(at, obs).geometricAltitude };
+              sunAltitude: body === "sun" ? null : body === "moon" ? bodyAt("sun",at,obs).apparentAltitude : A.sun(at, obs).geometricAltitude };
             row.off = j.off ?? 0;
             // カレンダーでは各日を返す。既存の候補帯は連続日を代表日にまとめる。
             if (groupDays && group && at - group.last <= 40 * 3600000) {
@@ -531,12 +533,16 @@
     const evaluate = (at) => {
       const st = bodyAt(body, at, obs), xy = project(st.azimuth, st.apparentAltitude);
       const radius = Math.tan(st.angularRadius * R) / R;
-      const distance = xy ? (polygon ? polygonDistance(xy, polygon) : Math.hypot(xy[0], xy[1])) : Infinity;
+      const upper=project(st.azimuth,st.upperAltitude??st.apparentAltitude+st.angularRadius),lower=project(st.azimuth,st.lowerAltitude??st.apparentAltitude-st.angularRadius);
+      const ratio=Number.isFinite(st.upperRadius)&&radius>0&&upper&&lower?Math.max(.1,Math.abs(upper[1]-lower[1])/(2*radius)):1;
+      const center=xy?[xy[0],Number.isFinite(st.upperRadius)&&upper&&lower?(upper[1]+lower[1])/2:xy[1]]:null;
+      const scaled=polygon&&ratio!==1?polygon.map(p=>[p[0],p[1]/ratio]):polygon;
+      const distance = center ? (scaled ? polygonDistance([center[0],center[1]/ratio], scaled) : Math.hypot(center[0],center[1]/ratio)) : Infinity;
       return { at, gap: st.apparentAltitude - g.angle, radius: st.angularRadius, distanceToTarget: distance,
-        intersects: distance <= radius && st.apparentAltitude + st.angularRadius > 0,
+        intersects: distance <= radius && (st.upperAltitude??st.apparentAltitude+st.angularRadius) > 0,
         nearTarget: distance <= (extended(body) ? radius + 0.5 : 2 * radius) && st.apparentAltitude + st.angularRadius > 0,
         altitude: st.apparentAltitude, illuminated: body === "moon" ? st.illuminatedFraction : null,
-        sunAltitude: body === "sun" ? st.apparentAltitude : body === "moon" ? A.sun(at, obs).apparentAltitude : A.sun(at, obs).geometricAltitude,
+        sunAltitude: body === "sun" ? st.apparentAltitude : body === "moon" ? bodyAt("sun",at,obs).apparentAltitude : A.sun(at, obs).geometricAltitude,
         side: bodyAt(body, at + 60000, obs).apparentAltitude < st.apparentAltitude ? "set" : "rise" };
     };
     const end = dayMs + 86400000, crossings = [];
@@ -666,7 +672,7 @@
       altitude: st.apparentAltitude, azimuth: st.azimuth, radius: st.angularRadius,
       distanceKm: g.distanceKm, targetAngle: g.angle, targetTopM: g.topM,
       illuminated: body === "moon" ? st.illuminatedFraction : null,
-      sunAltitude: body === "sun" ? null : body === "moon" ? A.sun(best.at, obs).apparentAltitude : A.sun(best.at, obs).geometricAltitude,
+      sunAltitude: body === "sun" ? null : body === "moon" ? bodyAt("sun",best.at,obs).apparentAltitude : A.sun(best.at, obs).geometricAltitude,
     };
   }
 
@@ -771,7 +777,7 @@
           + (place.deckM || 0);
         let shift = 0;
         if (Number.isFinite(topM) && pathSlope) {
-          const dAlpha = A.targetElevationAngle(D, eP + eye, topM) - A.targetElevationAngle(D, eLine + eye, topM);
+          const dAlpha = targetAngle(D, eP + eye, topM) - targetAngle(D, eLine + eye, topM);
           shift = dAlpha / pathSlope;
         }
         const lateralM = Math.abs(Math.sin(azDiff(pb, lb + shift) * DEG)) * D * 1000;
@@ -942,7 +948,7 @@
     dists.forEach((d, i) => {
       const e = elevs[i];
       if (!Number.isFinite(e)) return;
-      const a = A.targetElevationAngle(d, eye, e);
+      const a = targetAngle(d, eye, e);
       if (a > worst) { worst = a; at = d; }
     });
     return { clear: worst < g.angle - 0.02, marginDeg: g.angle - worst, blockKm: at };
@@ -1289,7 +1295,7 @@
       shape = [[0, w], [top, w]];
       schematic = true;
     }
-    const ang = (h) => A.targetElevationAngle(d, eye, ground + h);
+    const ang = (h) => targetAngle(d, eye, ground + h);
     const daz = (w) => Math.atan(w / (d * 1000)) / R;
     const points = outline ? outline.map(([x, h]) => [az0 + daz(x), ang(h)])
       : [...shape.map(([h, w]) => [az0 - daz(w), ang(h)]), ...shape.slice().reverse().map(([h, w]) => [az0 + daz(w), ang(h)])];
@@ -1426,7 +1432,7 @@
     const pt = (t) => {
       const st = stateAt(t);
       const p = proj(st.azimuth, st.apparentAltitude);
-      return { at: t, azimuth: st.azimuth, altitude: st.apparentAltitude, radius: st.angularRadius,
+      return { at: t, azimuth: st.azimuth, altitude: st.apparentAltitude, radius: st.angularRadius, upperRadius: st.upperRadius, lowerRadius: st.lowerRadius,
         illuminated: body === "moon" ? st.illuminatedFraction : null,
         brightLimbZenithAngle: body === "moon" ? st.brightLimbZenithAngle : null, x: p ? p[0] : null, y: p ? p[1] : null };
     };
@@ -1464,7 +1470,7 @@
       if (!(distanceKm > 0.01)) continue;
       const azimuth = TR.bearing(observer.latitude, observer.longitude, target.latitude, target.longitude);
       const eye = (observer.elevation || 0) + eyeM;
-      out.push({ target, distanceKm, azimuth, topAngle: A.targetElevationAngle(distanceKm, eye, target.parts[0].m),
+      out.push({ target, distanceKm, azimuth, topAngle: targetAngle(distanceKm, eye, target.parts[0].m),
         outline: target.rim ? null : towerOutline(observer, target, { eyeM }) });
     }
     return out.sort((a, b) => b.distanceKm - a.distanceKm);
@@ -1541,7 +1547,7 @@
     const later = bodyAt(body, t + 60000, eye).apparentAltitude;
     return { latitude: c.p.latitude, longitude: c.p.longitude, groundM: g, at: Math.round(t), azimuth: c.geo.azimuth, distanceKm: D,
       altitude: c.st.apparentAltitude, side: later < c.st.apparentAltitude ? "set" : "rise",
-      sunAltitude: body === "sun" ? c.st.apparentAltitude : body === "moon" ? A.sun(t, eye).apparentAltitude : A.sun(t, eye).geometricAltitude };
+      sunAltitude: body === "sun" ? c.st.apparentAltitude : body === "moon" ? bodyAt("sun",t,eye).apparentAltitude : A.sun(t, eye).geometricAltitude };
   }
 
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,

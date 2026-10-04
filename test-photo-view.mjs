@@ -124,7 +124,7 @@ test("稜線の地形範囲は画角・構図移動で粗くならない",async(
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8");
  const ridge=html.slice(html.indexOf("const aimRidgeCache"),html.indexOf("const AIM_SENSOR"));
  let calls=0;
- const c=vm.createContext({SoramiTerrain:{distanceKm:()=>100,bearing:()=>180,destination:(lat,lng,az,d)=>({latitude:lat,longitude:lng}),elevations:async pts=>{calls++;return pts.map(()=>1000)}},SoramiAlign:{rimOutline:()=>null},SoramiAstro:{targetElevationAngle:()=>2}});
+ const c=vm.createContext({SoramiAtmosphere:{targetK:()=>7/6},aimAirAngle:()=>2,SoramiTerrain:{distanceKm:()=>100,bearing:()=>180,destination:(lat,lng,az,d)=>({latitude:lat,longitude:lng}),elevations:async pts=>{calls++;return pts.map(()=>1000)}},SoramiAlign:{rimOutline:()=>null},SoramiAstro:{targetElevationAngle:()=>2}});
  vm.runInContext(ridge,c);
  const obs={latitude:35,longitude:139},target={latitude:36,longitude:139,parts:[{m:3776}]};
  const narrow=await c.aimLookRidge(obs,10,target,{az0:180,alt0:2,halfW:3,panLimit:1});

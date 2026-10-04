@@ -8,7 +8,7 @@
      connect-src を実際に使う相手だけに絞れば、盗んだトークンの持ち出し先を塞げる。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1058,6 +1058,8 @@
 #aimView .preview-body-native{display:none}#aimView .preview-body-open{flex:1;min-width:80px;min-height:44px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;font-size:16px}
 .preview-body-dialog{width:min(400px,calc(100vw - 24px))}.preview-body-group{padding:14px 0;border-bottom:1px solid var(--line)}.preview-body-group:first-child{padding-top:0}.preview-body-group:last-child{border:0}.preview-body-group h3{font-size:12px;font-weight:500;color:var(--secondary);margin:0 0 10px}.preview-body-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.preview-body-choice{min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--sunk);color:var(--text);font-size:16px;text-align:left}.preview-body-choice[aria-pressed=true]{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}.preview-body-choice[aria-pressed=true]:after{content:'✓';float:right}.preview-body-choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
+
+#aimView .aim-air{margin-top:12px;border-top:1px solid var(--line);font-size:14px}#aimView .aim-air summary{min-height:44px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:8px}#aimAirSummary{color:var(--secondary);font-size:12px}#aimView .aim-air-content{padding:8px 0}#aimView .aim-air label{display:flex;align-items:center;gap:8px;min-width:0}#aimView .aim-air select,#aimView .aim-air input{min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);padding:6px 8px;font-size:16px;min-width:0}#aimView .aim-air select{flex:1;width:0}#aimView .aim-air-values{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}#aimView .aim-air-values label{flex-wrap:wrap}#aimView .aim-air-values input{width:80px;flex:1}#aimView .aim-air p{margin:8px 0;color:var(--secondary)}
 /* 天体と目標は同じ選択操作なので、同じ外観と占有幅に揃える。 */
 #aimView .aim-head{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px}
 #aimView .aim-head #aimTitle{min-width:0;flex:1 1 0}
@@ -1076,6 +1078,19 @@
 #aimView #previewTimeScope{display:flex;width:max-content;max-width:100%;gap:0;padding:0;margin:2px 0 0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
 #aimView #previewTimeScope button{width:auto;min-width:60px;min-height:44px;padding:0 10px;border:0;border-radius:0;font-size:12px;font-weight:400;background:transparent;color:var(--secondary)}
 #aimView #previewTimeScope button[aria-pressed=true]{background:var(--sunk);color:var(--text);font-weight:600}
+/* PCは図・文字・操作を同じ比率で拡張。スマホの密度と最小タップ領域は維持。 */
+@media(min-width:960px){
+ html{font-size:clamp(16px,1.1vw,20px)}
+ main:has(#aimView:not([hidden])){max-width:1440px;padding-inline:clamp(18px,2vw,36px)}
+ #aimView{--aim-control-font:clamp(15px,1.1vw,20px);--aim-small-font:clamp(13px,.9vw,16px)}
+ #aimView .tiny,#aimView .muted,#aimView .aim-look-cap,#aimView .aim-look-cap .sub-line,#aimView [data-lens-info],#aimView .aim-frame-times{font-size:var(--aim-small-font)}
+ #aimView button,#aimView select,#aimView input,#aimView .aim-limb button,#aimView .chip,#aimView .preview-body-open,#aimView #aimTargetPick .aim-pick,#aimView #aimCalendarOpen,#aimView #previewTime,#aimView #previewTimeScope button{font-size:var(--aim-control-font)}
+ #aimView .aim-limb button{min-height:clamp(58px,4.5vw,76px);gap:10px}
+ #aimView .aim-limb svg{width:clamp(30px,2.3vw,42px);height:clamp(30px,2.3vw,42px)}
+ #aimView .preview-workspace{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
+ #previewScene:before,#previewPlaces:before{font-size:1rem}
+ #aimView .aim-air select,#aimView .aim-air input{font-size:var(--aim-control-font)}
+}
 </style></head>
 <body>
 <main>
@@ -1363,6 +1378,11 @@
     <div id="aimFrom" class="aim-from"></div>
     </section>
 <div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div><div class="preview-tabs" role="tablist" aria-label="撮影の確認"><button type="button" id="previewSceneTab" role="tab" aria-selected="true" aria-controls="previewScene">見え方</button><button type="button" id="previewPlacesTab" role="tab" aria-selected="false" aria-controls="previewPlaces" tabindex="-1">撮影場所</button></div><div class="preview-workspace"><section id="previewScene" role="tabpanel" aria-labelledby="previewSceneTab">    <div id="aimLook" class="aim-look" hidden></div>
+<details id="aimAir" class="aim-air"><summary>大気差 <span id="aimAirSummary">気象を反映</span></summary><div class="aim-air-content">
+<label>計算条件<select id="aimAirMode" aria-label="大気差の計算条件"><option value="auto">気象を反映</option><option value="manual">現地の値を入力</option><option value="standard">標準大気</option><option value="none">大気差なし</option></select></label>
+<div id="aimAirManual" hidden><div class="aim-air-values"><label>気温<input id="aimAirTemp" type="number" min="-80" max="60" step="0.1" value="10" inputmode="decimal" required>℃</label><label>現地気圧<input id="aimAirPressure" type="number" min="200" max="1100" step="0.1" value="1010" inputmode="decimal" required>hPa</label></div><button id="aimAirApply" type="button" class="chip">適用</button></div>
+<p id="aimAirStatus" class="tiny" role="status"></p><p class="tiny">低空では逆転層などで実際の位置がずれます。「大気差なし」を除き、地上の目標の屈折は標準値です。</p><p class="tiny">気象はOpen-Meteoのモデル値。期間外・取得不可は標準大気へ。手入力は海面気圧ではなく現地気圧を使用します。</p>
+</div></details>
 </section><section id="previewPlaces" role="tabpanel" aria-labelledby="previewPlacesTab">    <div class="mapwrap" style="margin-top:8px">
       <canvas id="aimCanvas" aria-label="地図。線の上が、その日に重なって見える場所です"></canvas>
       <div class="mappin" aria-hidden="true"></div>
@@ -1815,22 +1835,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004182500"></script>
+<script src="sorami-core.js?v=20261004190500"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004182500"></script>
-<script src="sorami-exif.js?v=20261004182500"></script>
-<script src="sorami-capcloud.js?v=20261004182500"></script>
-<script src="sorami-terrain.js?v=20261004182500"></script>
-<script src="sorami-mountain.js?v=20261004182500"></script>
-<script src="sorami-fuji.js?v=20261004182500"></script>
-<script src="sorami-sky.js?v=20261004182500"></script>
-<script src="sorami-routes.js?v=20261004182500"></script>
-<script src="sorami-iss.js?v=20261004182500"></script>
-<script src="sorami-plane.js?v=20261004182500"></script>
-<script src="sorami-bodies.js?v=20261004182500"></script>
-<script src="sorami-align.js?v=20261004182500"></script>
-<script src="sorami-moon.js?v=20261004182500"></script>
+<script src="sorami-astro.js?v=20261004190500"></script>
+<script src="sorami-exif.js?v=20261004190500"></script>
+<script src="sorami-capcloud.js?v=20261004190500"></script>
+<script src="sorami-terrain.js?v=20261004190500"></script>
+<script src="sorami-mountain.js?v=20261004190500"></script>
+<script src="sorami-fuji.js?v=20261004190500"></script>
+<script src="sorami-sky.js?v=20261004190500"></script>
+<script src="sorami-routes.js?v=20261004190500"></script>
+<script src="sorami-iss.js?v=20261004190500"></script>
+<script src="sorami-plane.js?v=20261004190500"></script>
+<script src="sorami-atmosphere.js?v=20261004190500"></script>
+<script src="sorami-bodies.js?v=20261004190500"></script>
+<script src="sorami-align.js?v=20261004190500"></script>
+<script src="sorami-moon.js?v=20261004190500"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4528,7 +4549,7 @@ function choosePlace(p) {
 const PLACE_PICKERS = {
   aim: { title: "どこから重ねるか", custom: () => aim.from, point: () => aimFromPoint(),
     set: (p) => aimSetFrom(p),
-    reset: () => { aim.from = null; aimRenderFrom(); AimMap.open({ latitude: place.latitude, longitude: place.longitude }, Math.max(11, Math.round(AimMap.zoom()))); } },
+    reset: () => { aim.from = null; store.set("sorami.aimFrom", null); aimRenderFrom(); AimMap.open({ latitude: place.latitude, longitude: place.longitude }, Math.max(11, Math.round(AimMap.zoom()))); } },
   // お気に入りから選んだら、登録した高さで置く
   // 目標として登録したお気に入りを選んだら、プルダウンの「お気に入り」のそれにする（他の目標へ写さない）
   aimTarget: { title: "どこに重ねるか", custom: () => null, point: () => store.get("sorami.aimCustom", null) || AimMap.center(),
@@ -6275,6 +6296,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   }
   const picked = $("aimDate").value ? Date.parse(`${$("aimDate").value}T00:00:00+09:00`) : null;
   aim.dayMs = Number.isFinite(picked) ? picked : S.Cal.startOfDay(Date.now());
+  if(aimAirEnsure(aimFromPoint(),aim.dayMs))return;
   $("aimKeySet").textContent = aimSideLabel("set");
   $("aimKeyRise").textContent = aimSideLabel("rise");
   $("aimCalendarOpen").innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6M17 2v6M3 11h18"/></svg>${$("aimDate").value.replaceAll("-", "/")}(${S.Cal.weekday(aim.dayMs)})`;
@@ -6392,14 +6414,19 @@ async function aimRenderSpots() {
 // それはどこから重ねるかの枠に入れておく」）。検索か地図の中心で替えると、この画面ではそれを使う
 // （アプリ全体の地点＝地点カードは変えない）。どこからの結果かは必ず名前で書く。
 // 重なる日があっても目標が隠れていれば見えないので、地形（塔は高い建物も）で見通しを確かめて添える。
-aim.from = null;      // 替えたときだけ持つ。null なら絶景予測の地点
+function aimSavedFrom(p) {
+  if (!p || !Number.isFinite(p.latitude) || !Number.isFinite(p.longitude) || Math.abs(p.latitude)>90 || Math.abs(p.longitude)>180) return null;
+  return { name: typeof p.name === "string" ? p.name : "選択地点", subtitle: typeof p.subtitle === "string" ? p.subtitle : "", latitude:p.latitude, longitude:p.longitude };
+}
+aim.from = aimSavedFrom(store.get("sorami.aimFrom", null)); // 明示的な観測地点は再読み込みでも保持
 aim.fromSeq = 0;
 /// いまの観測地点。替えていなければ絶景予測の地点（inherited）
 function aimFromPoint() {
   return aim.from || inheritedPoint();
 }
 function aimSetFrom(p, { keepMap = false } = {}) {
-  aim.from = { name: p.name, subtitle: p.subtitle || "", latitude: p.latitude, longitude: p.longitude };
+  aim.from = aimSavedFrom(p);
+  store.set("sorami.aimFrom", aim.from);
   aimRenderFrom();
   // 検索で選んだら地図をその地点へ寄せる（線との位置関係が見える）。地図の中心で選んだときは動かさない
   if (keepMap) AimMap.redraw();
@@ -6604,7 +6631,7 @@ function aimAreaOf(r) {
   const muni = parts.find((x) => /[市区]$/.test(x) && x !== pref) || parts.find((x) => /[町村]$/.test(x)) || "";
   return pref + muni;
 }
-$("aimFromFav").onclick = () => favForPoint(aimFromPoint(), (entry) => { renameFromAfterFav(aim, entry); aimRenderFrom(); });
+$("aimFromFav").onclick = () => favForPoint(aimFromPoint(), (entry) => { renameFromAfterFav(aim, entry); store.set("sorami.aimFrom", aim.from); aimRenderFrom(); });
 
 /// 見通しを確かめた観測地点・目標・部位（替わったら前の結果は使わない）
 const aimSightKey = (f) => `${f.latitude},${f.longitude}|${aim.target && aim.target.id}|${aim.partId}`;
@@ -7278,10 +7305,10 @@ async function aimLookRidge(obs, eye, target, win) {
   const az0 = SoramiTerrain.bearing(obs.latitude, obs.longitude, target.latitude, target.longitude);
   const s = target.id === "fuji" ? 18 : Math.max(1.5, Math.min(12, D * 0.15));
   const spanAz = Math.atan2(s, Math.max(.15, D)) * 180 / Math.PI;
-  const cols = 240, n = 120;
+  const cols = 240, n = 120, airK=SoramiAtmosphere.targetK();
   const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude, s,
     target.parts[0].m].map((v) => v.toFixed(5)).join(",");
-  if (aimRidgeCache.has(key)) return aimRidgeCache.get(key);
+  if (aimRidgeCache.has(key+airK)) return aimRidgeCache.get(key+airK);
   const pts = [];
   for (let i = 0; i <= cols; i++) {
     const az = az0 - spanAz + (2 * spanAz * i) / cols;
@@ -7292,15 +7319,16 @@ async function aimLookRidge(obs, eye, target, win) {
   }
   let el;
   try { el = await SoramiTerrain.elevations(pts, { zoom: D > 40 ? 12 : 13 }); } catch { return null; }
+  if(airK!==SoramiAtmosphere.targetK())return null;
   const rim = SoramiAlign.rimOutline({ ...obs, elevation: eye }, target);
-  const summit = SoramiAstro.targetElevationAngle(D, eye, target.parts[0].m);
+  const summit = aimAirAngle(D, eye, target.parts[0].m);
   const out = [];
   for (let i = 0; i <= cols; i++) {
     const az = pts[i * (n + 1)].az;
     let best = -90;
     for (let j = 0; j <= n; j++) {
       const k = i * (n + 1) + j;
-      if (Number.isFinite(el[k])) best = Math.max(best, SoramiAstro.targetElevationAngle(pts[k].d, eye, el[k]));
+      if (Number.isFinite(el[k])) best = Math.max(best, aimAirAngle(pts[k].d, eye, el[k]));
     }
     const rel = ((az - az0 + 540) % 360) - 180;
     if (rim) { const a = rim.at(((az - rim.azimuth + 540) % 360) - 180); if (a !== null) best = Math.max(best, a); }
@@ -7324,7 +7352,7 @@ async function aimLookRidge(obs, eye, target, win) {
     }
     out.sort((a,b) => ((a[0]-az0+540)%360)-((b[0]-az0+540)%360));
   }
-  aimRidgeCache.set(key, out);
+  aimRidgeCache.set(key+airK, out);
   return out;
 }
 
@@ -7405,14 +7433,14 @@ async function aimLookRender(host, spec) {
   const az = SoramiTerrain.bearing(spec.obs.latitude, spec.obs.longitude, t.latitude, t.longitude);
   const outline = aimIsMountain(t) ? null : SoramiAlign.towerOutline(spec.obs, t, { eyeM: spec.eyeM });
   const mountain = !outline;
-  const topAngle = outline ? outline.topAngle : SoramiAstro.targetElevationAngle(D, eye, t.parts[0].m);
+  const topAngle = outline ? outline.topAngle : aimAirAngle(D, eye, t.parts[0].m);
   const baseAngle = outline ? outline.baseAngle : topAngle - 5 * Math.max(radius, 0.27);
   // 図の下の端。ティンカーベルはホテル全体でなくドームと像のまわり
   const viewBase = outline ? outline.viewBaseAngle : baseAngle;
   const W = Math.max(200, Math.round(cv.clientWidth || host.clientWidth || 320));
   host._lookW = W;
   // 塔は縦長の図、山は横長の図（2026-10-03 ユーザー「もう少し拡大した図にして欲しい」。塔は横幅より高さが要る）
-  const H = Math.round(Math.min(440, W * (mountain ? 0.66 : 0.9)));
+  const H = Math.round(Math.min(W >= 640 ? 620 : 440, W * (mountain ? 0.66 : 0.9)));
   const win = SoramiAlign.viewWindow({ azimuth: az, baseAngle: viewBase, topAngle, radiusDeg: radius, aspect: W / H,
     include: st.apparentAltitude >= 0 && Math.abs(st.apparentAltitude - topAngle) <= Math.max(topAngle - viewBase, 5 * radius) ? [st.apparentAltitude] : [] });
   const sensor = AIM_SENSOR[aimLens.sensor];
@@ -7429,7 +7457,8 @@ async function aimLookRender(host, spec) {
   }
   host.querySelector("[data-lens-info]").textContent = `${aimLens.mode === "auto" ? "約" : ""}${(Math.round(focal * 10) / 10)}mm${frame ? ` ・ 画角 ${frame.horizontalDeg.toFixed(1)}° × ${frame.verticalDeg.toFixed(1)}°` : "（画角枠なし）"}（歪曲なしの目安）`;
   const proj = SoramiAlign.viewProjector(win.az0, win.alt0);
-  const selectedAt = sameLookSpec && Number.isFinite(host._lookAt) ? host._lookAt : spec.at;
+  const comparison=aimAirCompare&&aimAirCompare.day===S.JstCal.startOfDay(spec.at)&&aimAirCompare.latitude===spec.obs.latitude&&aimAirCompare.longitude===spec.obs.longitude?aimAirCompare.at:null;
+  const selectedAt = Number.isFinite(comparison)?comparison:sameLookSpec && Number.isFinite(host._lookAt) ? host._lookAt : spec.at;
   const path = SoramiAlign.viewPath(body, eyeObs, spec.at, proj, win, { includeAt: selectedAt, dayMs: S.JstCal.startOfDay(spec.at) });
   const frameDay = S.JstCal.startOfDay(spec.at);
   const framePoints = frame ? SoramiAlign.frameDayPath(body, eyeObs, frameDay, proj) : null;
@@ -7467,7 +7496,7 @@ async function aimLookRender(host, spec) {
   const part = SoramiAlign.partOf(t, aim.partId);
   const top = (t.parts || [])[0];
   const partY = !mountain && part && top && part.m < top.m - 0.5
-    ? toPx(proj(az, SoramiAstro.targetElevationAngle(D, eye, part.m)))[1] : null;
+    ? toPx(proj(az, aimAirAngle(D, eye, part.m)))[1] : null;
   const baseY = toPx(proj(az, baseAngle))[1];
   const hiddenY = outline && outline.hiddenAngle !== null ? toPx(proj(az, outline.hiddenAngle))[1] : null;
   // 山は仮の表示下端でなく水平0度、建物は地上の基準へ吸着する。
@@ -7495,7 +7524,7 @@ async function aimLookRender(host, spec) {
     const i = Math.max(0, Math.min(path.length - 2, Math.floor(v))), j = i + 1, f = v-i;
     const ms = path[i].at + (path[j].at - path[i].at) * f;
     const st = SoramiBodies.state(body, ms, eyeObs), xy = proj(st.azimuth, st.apparentAltitude);
-    return { at: ms, azimuth: st.azimuth, altitude: st.apparentAltitude, radius: st.angularRadius,
+    return { at: ms, azimuth: st.azimuth, altitude: st.apparentAltitude, radius: st.angularRadius, upperRadius: st.upperRadius, lowerRadius: st.lowerRadius,
       illuminated: body === 'moon' ? st.illuminatedFraction : null,
       brightLimbZenithAngle: body === 'moon' ? st.brightLimbZenithAngle : null,
       x: xy ? xy[0] : null, y: xy ? xy[1] : null };
@@ -7503,6 +7532,8 @@ async function aimLookRender(host, spec) {
   const draw = (v) => {
     const p = at(v);
     host._lookAt = p.at;
+    if(aimAirCompare)aimAirCompare.at=p.at;
+    aimAirDescribe(p.at,eyeObs);
     if (host._uiTime) {
       host._uiTime.current = p.at;
       if (p.at < host._uiTime.day + +range.min*1000 || p.at > host._uiTime.day + +range.max*1000) { host._uiAllDay = true; host._uiTime.window(); }
@@ -7559,9 +7590,12 @@ async function aimLookRender(host, spec) {
     for (const [x, y] of ticks) { ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI * 2); ctx.fill(); }
     ctx.globalAlpha = 1;
     const rPx = Math.max(1.5, p.radius * k);
-    const c = p.x === null ? null : toPx([p.x, p.y]);
+    // 移動中は元の円盤を置き換える。操作位置は画面座標なので構図の移動分を戻す。
+    const movedBody = host._pick?.ghost;
+    const c = movedBody ? [movedBody[0] - panX, movedBody[1] - panY] : p.x === null ? null : toPx([p.x, p.y]);
     // 円盤は形の後ろ（形で隠れる）。隠れた所も点線の輪で分かるようにする
-    if (c) aimLookDisc(ctx, c[0], c[1], rPx, body, p);
+    const upperPx=Math.max(1,(p.upperRadius??p.radius)*k),lowerPx=Math.max(1,(p.lowerRadius??p.radius)*k),diskY=(upperPx+lowerPx)/(2*rPx),diskCenter=c?c[1]+(lowerPx-upperPx)/2:0;
+    if (c){ctx.save();ctx.translate(c[0],diskCenter);ctx.scale(1,diskY);aimLookDisc(ctx,0,0,rPx,body,p);ctx.restore();}
     // 形は空より暗く塗り、暗い空では縁を明るい線でなぞる（ユーザー「シルエットが背景と色が被って見えづらくなってる」。夜空と同じ紺だった）
     ctx.fillStyle = bright ? "rgba(16,20,30,0.94)" : "#020306";
     const rim = bright ? null : "rgba(200,212,240,0.7)";
@@ -7600,7 +7634,7 @@ async function aimLookRender(host, spec) {
       ctx.strokeStyle = bright ? "#f8fafc" : "#b8c8dd"; ctx.lineWidth = 1.5;
       ctx.setLineDash(mountain ? [5, 4] : []);
       ctx.beginPath(); ctx.moveTo(-panX, groundY); ctx.lineTo(W - panX, groundY); ctx.stroke(); ctx.setLineDash([]);
-      ctx.font = "600 11px system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+      ctx.font = `600 ${Math.max(11, Math.min(16, W / 40))}px system-ui, sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "bottom";
       ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.65)";
       const groundLabel = mountain ? "水平（0°）" : "地上";
       ctx.strokeText(groundLabel, 8 - panX, groundY - 4); ctx.fillStyle = "#fff"; ctx.fillText(groundLabel, 8 - panX, groundY - 4);
@@ -7610,7 +7644,7 @@ async function aimLookRender(host, spec) {
     if (c) {
       ctx.strokeStyle = body === "sun" ? "rgba(255,226,160,0.95)" : "rgba(235,238,255,0.9)";
       ctx.lineWidth = 1.2; ctx.setLineDash([3, 3]);
-      ctx.beginPath(); ctx.arc(c[0], c[1], rPx, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.ellipse(c[0],diskCenter,rPx,(upperPx+lowerPx)/2,0,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
     }
     // 字は空にも形にも重なるので、縁取りして読めるようにする
     const halo = bright ? "rgba(255,255,255,0.75)" : "rgba(0,0,0,0.6)";
@@ -7630,21 +7664,12 @@ async function aimLookRender(host, spec) {
       const half = near.length ? Math.max(...near.map(([x]) => Math.abs(x - W / 2))) : 8;
       ctx.strokeStyle = ink; ctx.lineWidth = 1.2; ctx.setLineDash([2, 2]);
       ctx.beginPath(); ctx.moveTo(W / 2 - half - 6, partY); ctx.lineTo(W / 2 + half + 6, partY); ctx.stroke(); ctx.setLineDash([]);
-      ctx.font = "600 11px system-ui, sans-serif";
+      ctx.font = `600 ${Math.max(11, Math.min(16, W / 40))}px system-ui, sans-serif`;
       const room = ctx.measureText(part.name).width + 6;
       if (right && W / 2 - half - 10 > room) text(part.name, W / 2 - half - 10, partY, "right");
       else text(part.name, Math.min(W - room, W / 2 + half + 10), partY, "left");
     }
     ctx.restore(); // ここからの円盤操作・画角枠は画面の座標。枠は中央固定。
-    // 逆引きで置いた円盤（いま描いている場所からの見え方ではなく、置きたい位置）
-    const ghost = host._pick && host._pick.ghost;
-    if (ghost) {
-      ctx.save();
-      ctx.fillStyle = "rgba(255,255,255,0.28)"; ctx.strokeStyle = "rgba(255,255,255,0.95)";
-      ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
-      ctx.beginPath(); ctx.arc(ghost[0], ghost[1], rPx, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.restore();
-    }
     if (frame) {
       const fw = frame.halfW * 2 * k, fh = frame.halfH * 2 * k;
       ctx.setLineDash([]); ctx.strokeStyle = "#000"; ctx.lineWidth = 4;
@@ -8081,6 +8106,46 @@ function aimTitleFor() {
   if (t && t.id === "fuji" && SoramiBodies.definition(aim.body).limbs) return { title: sun ? "ダイヤモンド富士" : "パール富士" };
   return { title: t && t.name ? t.name : "目標" };
 }
+
+
+// A single atmosphere provider is shared by candidates, inverse solutions and drawing.
+const aimAirSettings={mode:"auto",temperatureC:10,pressureHPa:1010,...(store.get("sorami.aimAir",null)||{})};
+if(!["auto","manual","standard","none"].includes(aimAirSettings.mode))aimAirSettings.mode="auto";
+try{SoramiAtmosphere.configure(aimAirSettings.mode,aimAirSettings);}catch{aimAirSettings.mode="auto";SoramiAtmosphere.configure("auto");}
+let aimAirLoadKey="",aimAirSeq=0,aimAirCompare=null;
+const aimAirAngle=(...args)=>SoramiAstro.targetElevationAngle(...args,{k:SoramiAtmosphere.targetK()});
+function aimAirDescribe(at,obs){
+ const air=SoramiAtmosphere.at(at,obs),temp=Number.isFinite(air.temperatureC)?air.temperatureC.toFixed(1):"",pressure=Number.isFinite(air.pressureHPa)?Math.round(air.pressureHPa):"";
+ const modeName={auto:air.fallback?"標準（気象なし）":"気象を反映",manual:"手入力",standard:"標準大気",none:"なし"}[aimAirSettings.mode];
+ const summary=$("aimAirSummary"),status=$("aimAirStatus");if(summary.textContent!==modeName)summary.textContent=modeName;
+ const value=air.none?"天体・地上目標とも屈折なし":`${air.source} · ${temp}℃ / ${pressure}hPa · ${S.JstCal.hhmm(at)}`;
+ if(status.textContent!==value)status.textContent=value;
+}
+function aimAirEnsure(f,day){
+ if(aimAirSettings.mode!=="auto"||!f)return false;
+ const key=`${f.latitude},${f.longitude}|${day}|${Math.floor(Date.now()/3600000)}`;
+ if(aimAirLoadKey===key)return false;
+ aimAirLoadKey=key;const seq=++aimAirSeq;
+ $("aimAirSummary").textContent="気象を取得中…"; $("aimAirStatus").textContent="選択地点・日時の気象を取得しています…";
+ aim.seq++;aim.fromSeq++;aim.candSeq++;aim.lookSeq++;aim.spotSeq++;aimCal.seq++;
+ (async()=>{const ground=await aimElevation(f.latitude,f.longitude);if(seq!==aimAirSeq)return;
+ await SoramiAtmosphere.load({latitude:f.latitude,longitude:f.longitude,elevation:ground},day);
+ if(seq!==aimAirSeq)return;aimCal.cache.clear();aim.spotCache=null;aimApply();})();
+ return true;
+}
+function aimAirChange(){
+ const look=$("aimLook"),spec=look._lookSpec;
+ if(spec&&Number.isFinite(look._lookAt))aimAirCompare={at:look._lookAt,latitude:spec.obs.latitude,longitude:spec.obs.longitude,day:S.JstCal.startOfDay(spec.at)};
+ aimAirSeq++;aimAirLoadKey="";aimCal.seq++;aimCal.cache.clear();aim.spotCache=null;aimRidgeCache.clear();
+ SoramiAtmosphere.configure(aimAirSettings.mode,aimAirSettings);store.set("sorami.aimAir",aimAirSettings);
+ $("aimAirManual").hidden=aimAirSettings.mode!=="manual";
+ aimApply();
+}
+$("aimAirMode").value=aimAirSettings.mode;$("aimAirTemp").value=String(aimAirSettings.temperatureC);$("aimAirPressure").value=String(aimAirSettings.pressureHPa);$("aimAirManual").hidden=aimAirSettings.mode!=="manual";
+$("aimAirMode").onchange=()=>{const next=$("aimAirMode").value;if(next==="manual"&&(!$("aimAirTemp").checkValidity()||!$("aimAirPressure").checkValidity())){$("aimAirMode").value=aimAirSettings.mode;return;}
+ aimAirSettings.mode=next;if(next==="manual"){aimAirSettings.temperatureC=+$("aimAirTemp").value;aimAirSettings.pressureHPa=+$("aimAirPressure").value;}aimAirChange();};
+$("aimAirApply").onclick=()=>{for(const id of ["aimAirTemp","aimAirPressure"]){if(!$(id).value.trim()||!$(id).checkValidity()){$(id).reportValidity();return;}}
+ aimAirSettings.temperatureC=+$("aimAirTemp").value;aimAirSettings.pressureHPa=+$("aimAirPressure").value;aimAirChange();};
 
 function openAim(preset) {
   const entry = ++aim.bodySeq;

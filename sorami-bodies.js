@@ -2,6 +2,8 @@
 (function(global) {
   'use strict';
   const A = global.SoramiAstro || (typeof require === 'function' ? require('./sorami-astro.js') : null);
+  const ATM=global.SoramiAtmosphere||(typeof require==='function'?require('./sorami-atmosphere.js'):null);
+  const adjusted=(st,ms,o)=>ATM?ATM.apply(st,ms,o):st;
   const definitions = Object.freeze([
     {id:'sun',name:'太陽',group:'太陽・月',limbs:true},
     {id:'moon',name:'月',group:'太陽・月',limbs:true},
@@ -44,12 +46,12 @@
   function state(id,ms,observer) {
     const def=definition(id);
     if(!def) throw new Error('未知の天体: '+id);
-    if(id==='sun') return A.sun(ms,observer);
-    if(id==='moon') return A.moon(ms,observer);
+    if(id==='sun') return adjusted(A.sun(ms,observer),ms,observer);
+    if(id==='moon') return adjusted(A.moon(ms,observer),ms,observer);
     if(!engine) throw new Error('天体計算を読み込めませんでした');
     if(!Number.isFinite(ms)||!Number.isFinite(observer.latitude)||!Number.isFinite(observer.longitude)) throw new Error('観測日時・地点が不正です');
     const key=[id,ms,observer.latitude,observer.longitude,observer.elevation??0].join('/');
-    if(cache.has(key)) return cache.get(key);
+    if(cache.has(key)) return adjusted(cache.get(key),ms,observer);
     const time=new Date(ms), obs=new engine.Observer(observer.latitude,observer.longitude,observer.elevation??0);
     if(id==='sirius') {const c=siriusCatalog(ms);engine.DefineStar(engine.Body.Star1,c.ra,c.dec,c.distanceLightYears);}
     const eq=engine.Equator(engine.Body[def.engine],time,obs,true,true);
@@ -57,7 +59,7 @@
     const result=Object.freeze({azimuth:h.azimuth,altitude:h.altitude,apparentAltitude:h.altitude+A.refraction(h.altitude),
       angularRadius:id==='sirius'?0:Math.asin(def.radiusKm/(eq.dist*149597870.7))*180/Math.PI,distanceAU:eq.dist});
     cache.set(key,result);if(cache.size>12000) cache.delete(cache.keys().next().value);
-    return result;
+    return adjusted(result,ms,observer);
   }
   const sky = altitude => altitude < -18 ? '夜' : altitude < 0 ? '薄明' : '日中';
   const api=Object.freeze({definitions,definition,ensure,ready:()=>!!engine,state,siriusCatalog,sky,nearAngle:id=>definition(id)?.limbs?null:0.5});

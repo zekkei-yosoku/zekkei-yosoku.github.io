@@ -76,7 +76,7 @@ test('同名GSI地点は座標で区別できる。近いOSM住所は引き継�
  const terrain=createRequire(import.meta.url)('./sorami-terrain.js');
  const gsi=[139.76,140.5].map(lon=>({properties:{title:'新宿'},geometry:{coordinates:[lon,35.68]}}));
  const osm=[{name:'新宿',display_name:'新宿, 東京都',lat:'35.68001',lon:'139.76001',extratags:{}}];
- const search=runInNewContext(grab('async function searchPlaces')+';searchPlaces',{fetch:async url=>({ok:true,json:async()=>url.includes('msearch')?gsi:osm}),placeIndex:async()=>({}),SoramiTerrain:{...terrain,searchPlaceIndex:()=>[]},place,URLSearchParams});
+ const search=runInNewContext(grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?gsi:osm,searchSupplement:async()=>({places:[]}),favorites:[],SoramiAlign:{TARGETS:[]},placeIndex:async()=>({}),SoramiTerrain:{...terrain,searchPlaceIndex:()=>[]},place,URLSearchParams});
  const found=await search('新宿');assert.equal(found.length,2);assert.ok(found.some(r=>r.detail.includes('東京都')));assert.ok(found.some(r=>r.detail.includes('140.50000')));
  assert.notEqual(found[0].detail,found[1].detail);assert.ok(found.every(r=>!r.detail.includes('km')));
 });

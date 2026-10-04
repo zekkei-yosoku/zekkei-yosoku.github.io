@@ -370,8 +370,9 @@
     if (f >= 0.985) return PHASES[4];
     const set = PHASES.filter((p) => p.waxing === !!moon.waxing);
     // 輝面比が小さいほうから順に見て、最初に収まる帯
-    for (const p of [...set].sort((a, b) => a.max - b.max)) if (f <= p.max) return p;
-    return set[set.length - 1];
+    const ordered = [...set].sort((a, b) => a.max - b.max);
+    for (const p of ordered) if (f <= p.max) return p;
+    return ordered[ordered.length - 1];
   }
   const glyphOf = (moon) => phaseOf(moon).glyph;
 
