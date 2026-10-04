@@ -267,8 +267,10 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/addEventListener\("close", \(\) => \{\s+favUndo = \[\];[\s\S]{0,200}placeSheetFor = null;/.test(html), "閉じたら絶景予測の地点の画面に戻す（次に地点カードから開いたときに観測地点を決めない）");
   // 「どこに重ねるか」と対で「どこから重ねるか」。最初は絶景予測の地点を引き継いで欄に入れる（ユーザー指定）
   // 道具ごとに位置が変わらないよう、題名のすぐ下（ユーザー指定）。塔の目標は題名の中で選ぶので、目標の行は無い
-  { const t0 = html.indexOf('id="aimTitle"'), b = html.indexOf('id="aimFromLabel">どこから重ねるか'), a = html.indexOf('id="aimWhereLabel">どこに重ねるか');
-    ok(t0 > 0 && t0 < b && b < a && !/id="aimTargetBox"/.test(html), "「どこから重ねるか」は題名のすぐ下（目標の行は無い）"); }
+  { const ids=['aimWhatLabel','aimBody','aimFromLabel','aimObserverHeight','aimWhereLabel','aimTitle'];
+    const positions=ids.map(id=>html.indexOf('id="'+id+'"'));
+    ok(positions.every((p,i)=>p>0&&(!i||p>positions[i-1])), "何を→どこから（観測標高）→どこにの順で選ぶ"); }
+
   // 地図から決めるのは地図を見ているとき。釦は上の欄ではなく地図のすぐ下（ユーザー「地図の中心ってここにいらない」）
   { const cv = html.indexOf('id="aimCanvas"'), pk = html.indexOf('id="aimPick"'), fs = html.indexOf('id="aimFromButton"');
     ok(fs < cv && cv < pk && !/id="aimNear"/.test(html) && !/function aimUpdateNear/.test(html),
@@ -440,8 +442,8 @@ ok(/function aimDateLabel/.test(html) && /y === now \? "" :/.test(html), "今年
 // 富士山に重ねるは目標が決まっているので、選ぶ欄の代わりに「富士山」と書く。太陽／月の切り替えは塔と同じ位置に残す
 // 太陽／月の切り替えは題名の右（どちらの道具も同じ位置）。「富士山 × 太陽」の添え書きは出さない。
 // 富士山に重ねるは目標の行を出さない（ユーザー「ここボタンにしたら」「目標が富士山って当たり前だからいらない」）
-ok(/<div class="section-h aim-head"><div id="aimTitle">[\s\S]*?<\/div>\s+<select id="aimBody"/.test(html),
-  "天体と目標を同じ選択行に配置");
+ok(/<div class="section-h aim-head">\s+<select id="aimBody"/.test(html) && !html.includes("cross.textContent='×'"),
+  "天体は何を重ねるかの専用行で選ぶ");
 ok(!/id="aimSub"/.test(html) && !/富士山 × 太陽/.test(html), "「富士山 × 太陽」の添え書きを出さない");
 ok(/<select id="aimBody"[^>]*aria-label="天体"/.test(html) && /<option value="sirius">シリウス<\/option>/.test(html),
   "天体は名前つきのドロップダウンで選ぶ");

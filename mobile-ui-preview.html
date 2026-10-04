@@ -763,7 +763,7 @@
   /* 見え方の図（2026-10-02）。空の色は太陽の高さで決まるので、明るい画面でも暗い画面でも同じ色で描く */
   .aim-observer-height { display:flex; align-items:center; gap:8px; margin:8px 0 12px; font-size:0.81rem; color:var(--secondary); }
   .aim-observer-height input { min-width:0; width:7.5em; min-height:44px; padding:8px 10px; border:1px solid var(--separator); border-radius:10px; background:var(--card); color:var(--text); font:inherit; }
-  .aim-observer-height button { min-width:44px; min-height:44px; margin-left:auto; }
+  .aim-observer-height button { min-width:44px; min-height:44px; }
   .aim-look { margin-top: 10px; }
   .aim-look-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
                 font-size: 0.81rem; font-weight: 700; }
@@ -995,7 +995,7 @@
 #aimView>.card{padding:0;background:transparent;box-shadow:none;border:0}
 #aimView .aim-head{padding:10px 12px;border-radius:12px;background:var(--card);gap:16px}
 #aimView .aim-head #aimTitle{font-size:16px;flex:1}
-#aimView .aim-body-select{flex:1;width:100px}.preview-cross{flex:none;color:var(--secondary)}
+#aimView .aim-body-select{flex:1;width:100px}
 #aimView .fav-l{margin-top:10px;margin-bottom:4px;font-size:12px}
 #aimView .aim-place-card{background:var(--card);margin-bottom:6px;padding:0 4px 0 10px}
 #aimView .aim-place-card .place-pick{min-height:52px}
@@ -1061,8 +1061,8 @@
 
 #aimView .aim-air-content{padding:4px 0}#aimView .aim-air p{margin:8px 0;color:var(--secondary)}
 /* 天体と目標は同じ選択操作なので、同じ外観と占有幅に揃える。 */
-#aimView .aim-head{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px}
-#aimView .aim-head #aimTitle{min-width:0;flex:1 1 0}
+#aimView .aim-head{display:grid;grid-template-columns:minmax(0,1fr);gap:0;padding:0;background:transparent}
+#aimView #aimTitle{min-width:0;margin-bottom:10px}
 #aimView #aimTargetPick{display:block;width:100%}
 #aimView .preview-body-open,#aimView #aimTargetPick .aim-pick{box-sizing:border-box;flex:1 1 0;min-width:0;width:100%;height:48px;min-height:48px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;font-size:16px;font-weight:400}
 #aimView .preview-body-open svg,#aimView #aimTargetPick .aim-pick svg{width:12px;height:12px;flex:none;color:var(--secondary)}
@@ -1291,13 +1291,10 @@
 
   <div id="aimView" hidden>
     <div class="card">
-      <!-- 太陽／月の切り替えは題名の右（2026-10-01 ユーザー「ここボタンにしたらどう。ダイヤモンド富士・パール富士ってなってるんだから
-           わかるじゃん」）。以前ここにあった目標と天体の添え書きは、題名と切り替えで分かるので出さない。塔に重ねるも同じ位置 -->
-      <!-- 重ねる（もとの塔に重ねる）は、**題名が目標を選ぶ所**（2026-10-01 ユーザー「ここが目標切り替えになるのでは？」「いい感じの枠に」）。
-           「に重ねる」は付けない（道具の名前で分かる。付けると 375px 以下で折れて、切り替えと下の位置が富士山の画面より下がった）。
-           「目標」の行を別に置かないので、富士山に重ねると並びが同じになる。見た目は字＋▾、押すと OS の一覧が開く
-           （透明な select を字に重ねる。select の幅は一番長い候補で決まってしまうので、字の幅に合わせるため） -->
-      <h2 class="preview-title">天体を重ねる</h2><div class="section-h aim-head"><div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span></span></div>
+      <!-- 2026-10-04：何を→どこから→どこにの順。観測標高は観測地点に、部位と縁は目標にまとめる。 -->
+      <h2 class="preview-title">天体を重ねる</h2>
+      <p class="fav-l" id="aimWhatLabel">何を重ねるか</p>
+      <div class="section-h aim-head">
         <select id="aimBody" class="aim-body-select" aria-label="天体">
           <optgroup label="太陽・月"><option value="sun">太陽</option><option value="moon">月</option></optgroup>
           <optgroup label="恒星"><option value="sirius">シリウス</option></optgroup>
@@ -1331,12 +1328,14 @@
     </div>
     <div class="aim-observer-height">
       <label for="aimObserverHeight">観測標高</label>
-      <input id="aimObserverHeight" type="number" inputmode="decimal" min="-500" max="9000" step="any" placeholder="取得中…" aria-label="カメラ位置の標高（海抜メートル）" disabled><span>m</span>
+      <input id="aimObserverHeight" type="number" inputmode="decimal" min="-500" max="9000" step="any" placeholder="取得中…" aria-label="カメラ位置の標高（海抜メートル）" aria-describedby="aimObserverHeightHint" disabled><span>m</span>
       <button type="button" class="tap" id="aimObserverAuto" aria-label="観測標高を自動値に戻す" title="自動値に戻す" disabled>↺</button>
     </div>
+    <p class="tiny muted" id="aimObserverHeightHint">標高＋地上からの目線の高さ</p>
     <p id="aimObserverHeightError" class="tiny" role="alert" hidden></p>
 
     <p class="fav-l" id="aimWhereLabel">どこに重ねるか</p>
+    <div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span></span></div>
     <!-- 自分で置くときの目標の場所（2026-10-01 ユーザー「自分で置くを選んだ場合、どこに重ねるかの検索が必要なんじゃないの」）。
          どこから重ねるかと同じく地点カードの形で、押すと同じ「地点」の画面（検索・現在地・地図で選ぶ・お気に入り）。
          地図を見ながら決めるときは、地図のすぐ下の「ここに重ねる」 -->
@@ -1840,23 +1839,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004223500"></script>
+<script src="sorami-core.js?v=20261004224000"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004223500"></script>
-<script src="sorami-exif.js?v=20261004223500"></script>
-<script src="sorami-capcloud.js?v=20261004223500"></script>
-<script src="sorami-terrain.js?v=20261004223500"></script>
-<script src="sorami-mountain.js?v=20261004223500"></script>
-<script src="sorami-fuji.js?v=20261004223500"></script>
-<script src="sorami-sky.js?v=20261004223500"></script>
-<script src="sorami-routes.js?v=20261004223500"></script>
-<script src="sorami-iss.js?v=20261004223500"></script>
-<script src="sorami-plane.js?v=20261004223500"></script>
-<script src="sorami-atmosphere.js?v=20261004223500"></script>
-<script src="sorami-bodies.js?v=20261004223500"></script>
-<script src="sorami-align.js?v=20261004223500"></script>
-<script src="sorami-moon.js?v=20261004223500"></script>
+<script src="sorami-astro.js?v=20261004224000"></script>
+<script src="sorami-exif.js?v=20261004224000"></script>
+<script src="sorami-capcloud.js?v=20261004224000"></script>
+<script src="sorami-terrain.js?v=20261004224000"></script>
+<script src="sorami-mountain.js?v=20261004224000"></script>
+<script src="sorami-fuji.js?v=20261004224000"></script>
+<script src="sorami-sky.js?v=20261004224000"></script>
+<script src="sorami-routes.js?v=20261004224000"></script>
+<script src="sorami-iss.js?v=20261004224000"></script>
+<script src="sorami-plane.js?v=20261004224000"></script>
+<script src="sorami-atmosphere.js?v=20261004224000"></script>
+<script src="sorami-bodies.js?v=20261004224000"></script>
+<script src="sorami-align.js?v=20261004224000"></script>
+<script src="sorami-moon.js?v=20261004224000"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -10146,7 +10145,7 @@ checkForUpdate();
     look.querySelector('.aim-time-controls').append(row);for(const button of row.querySelectorAll('button'))button.onclick=()=>{look._uiAllDay=button.dataset.timeScope==='day';look._uiTime?.window();if(!look._uiAllDay)look._uiTime?.set(look._uiTime.reference);update();};
    }
   }
-  const head=root.querySelector('.aim-head'),body=el('aimBody'),target=el('aimTarget'),goalLabel=el('aimTargetLabel');if(head&&head.firstElementChild!==body)head.prepend(body);if(head&&!head.querySelector('.preview-cross')){const cross=document.createElement('span');cross.className='preview-cross';cross.textContent='×';cross.setAttribute('aria-hidden','true');body.after(cross);}const goal=target.selectedOptions[0]?.textContent;if(goal&&goalLabel.textContent!==goal)goalLabel.textContent=goal;
+  const target=el('aimTarget'),goalLabel=el('aimTargetLabel');const goal=target.selectedOptions[0]?.textContent;if(goal&&goalLabel.textContent!==goal)goalLabel.textContent=goal;
   const lens=look.querySelector('.aim-lens');
   if(lens&&!look.querySelector('.preview-compose')){
    const time=look.querySelector('.aim-look-time');if(time)time.after(lens);
