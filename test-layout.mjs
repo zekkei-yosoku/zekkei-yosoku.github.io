@@ -867,8 +867,8 @@ ok(/targetHeightM: Number\.isFinite\(f\.targetHeightM\) && f\.targetHeightM >= 0
 ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM/.test(html), "0m で登録した目標は 0m のまま（前に入れた高さを引きずらない）");
 
 console.log("== 道具ごとに観測地点の書き方をそろえる（2026-10-01） ==");
-ok(/const g = !elevation \? null : f && f\.inherited \? place\.elevation \?\? bundle\?\.home\.grid\.elevation \?\? groundM : groundM;/.test(html),
-  "引き継いだ地点の標高は地点カードと同じ値（道具ごとに数m違って見えない）");
+ok(/const g = !elevation \? null : prefix === "aimFrom" \? groundM : f && f\.inherited \? place\.elevation \?\? bundle\?\.home\.grid\.elevation \?\? groundM : groundM;/.test(html),
+  "観測地点の標高は観測標高と同じDEM、他道具の継承表示は維持");
 ok(/const missed = r\.spots\.some\(\(sp\) => sp\.spot\.id === "here"\) \? "" : `\$\{P\.name\}からは、この日は重なりません。`;/.test(html),
   "月丼: 観測地点から重ならない日はそう言う");
 
