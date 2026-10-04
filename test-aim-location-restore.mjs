@@ -56,3 +56,15 @@ test('空欄と範囲外は表示を有効値へ戻し、計算に残る値と�
  input.value='250.55';input.valueAsNumber=250.55;input.checkValidity=()=>true;c.aimCommitObserverHeight();assert.equal(c.aimFromPoint().observationElevationM,250.55);
  c.aimRenderObserverHeight(c.aimFromPoint(),19);assert.equal(input.value,'250.55');input.value='';c.aimCommitObserverHeight();assert.equal(input.value,'250.55');assert.equal(error.hidden,false);assert.equal(c.aimFromPoint().observationElevationM,250.55);
 });
+
+
+test('未設定のその他目標でも観測地点の標高を取得して表示する',async()=>{
+ const nodes=new Map(),calls=[];const from={name:'公園',latitude:35,longitude:139};
+ const c=vm.createContext({aim:{fromSeq:0,target:{parts:[]},body:'moon'},aimFromPoint:()=>from,
+ $:id=>{if(!nodes.has(id))nodes.set(id,{});return nodes.get(id)},renderPointCard(){},
+ aimRenderObserverHeight:(f,g)=>calls.push(g),aimUpdateLook(){},esc:s=>s,setTimeout,
+ aimElevation:async()=>83,aimObserverAt:()=>({elevation:83,eyeM:0})});
+ const start=html.indexOf('async function aimRenderFrom()'),stop=html.indexOf('  // 候補帯',start);
+ vm.runInContext(html.slice(start,stop)+'}',c);await c.aimRenderFrom();
+ assert.deepEqual(calls,[null,83]);assert.equal(c.$('aimLook').hidden,true);assert.equal(c.$('aimFrom').innerHTML,'');
+});

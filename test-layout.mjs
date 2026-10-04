@@ -465,7 +465,7 @@ ok(/const fujiOk = toolAllowed\("diamond"\) \|\| toolAllowed\("pearl"\), towerOk
 ok(/const sunOk = !isFuji \|\| toolAllowed\("diamond"\), moonOk = !isFuji \|\| toolAllowed\("pearl"\);/.test(html), "富士山を選んだら、太陽はダイヤモンド富士・月はパール富士の許可で出す");
 // 重なる日は選ぶ行より下（太陽と月で日の数が違うので、上だと切り替えるたびに釦が動く。ユーザー「UIがすごく動くのが気になる」）
 // 日付欄は月間カレンダーを開くボタンへ変更。入力値はhidden aimDateで保持。
-{ const lb = html.indexOf('id="aimWhereLabel">どこに重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('class="aim-date-section"'), sw = html.indexOf('id="aimBody"'), fs = html.indexOf('id="aimFromButton"');
+{ const lb = html.indexOf('id="aimWhereLabel">何に重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('class="aim-date-section"'), sw = html.indexOf('id="aimBody"'), fs = html.indexOf('id="aimFromButton"');
   ok(sw < fs && fs < lb && lb < dt && dt < fr, "並び: 題名と天体 → どこから → どこに → 日付と候補日"); }
   ok(html.includes("parts.length + (whole ? 1 : 0) < 2"), "建物全体の選択を含め選択肢が1つなら欄を隠す");
 ok(!/目標に太陽や月が重なる日と、/.test(html), "説明の段落を出さない");

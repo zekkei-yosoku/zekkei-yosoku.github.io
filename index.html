@@ -1334,7 +1334,7 @@
     <p class="tiny muted" id="aimObserverHeightHint">標高＋地上からの目線の高さ</p>
     <p id="aimObserverHeightError" class="tiny" role="alert" hidden></p>
 
-    <p class="fav-l" id="aimWhereLabel">どこに重ねるか</p>
+    <p class="fav-l" id="aimWhereLabel">何に重ねるか</p>
     <div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span></span></div>
     <!-- 自分で置くときの目標の場所（2026-10-01 ユーザー「自分で置くを選んだ場合、どこに重ねるかの検索が必要なんじゃないの」）。
          どこから重ねるかと同じく地点カードの形で、押すと同じ「地点」の画面（検索・現在地・地図で選ぶ・お気に入り）。
@@ -1839,23 +1839,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004224500"></script>
+<script src="sorami-core.js?v=20261004225500"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004224500"></script>
-<script src="sorami-exif.js?v=20261004224500"></script>
-<script src="sorami-capcloud.js?v=20261004224500"></script>
-<script src="sorami-terrain.js?v=20261004224500"></script>
-<script src="sorami-mountain.js?v=20261004224500"></script>
-<script src="sorami-fuji.js?v=20261004224500"></script>
-<script src="sorami-sky.js?v=20261004224500"></script>
-<script src="sorami-routes.js?v=20261004224500"></script>
-<script src="sorami-iss.js?v=20261004224500"></script>
-<script src="sorami-plane.js?v=20261004224500"></script>
-<script src="sorami-atmosphere.js?v=20261004224500"></script>
-<script src="sorami-bodies.js?v=20261004224500"></script>
-<script src="sorami-align.js?v=20261004224500"></script>
-<script src="sorami-moon.js?v=20261004224500"></script>
+<script src="sorami-astro.js?v=20261004225500"></script>
+<script src="sorami-exif.js?v=20261004225500"></script>
+<script src="sorami-capcloud.js?v=20261004225500"></script>
+<script src="sorami-terrain.js?v=20261004225500"></script>
+<script src="sorami-mountain.js?v=20261004225500"></script>
+<script src="sorami-fuji.js?v=20261004225500"></script>
+<script src="sorami-sky.js?v=20261004225500"></script>
+<script src="sorami-routes.js?v=20261004225500"></script>
+<script src="sorami-iss.js?v=20261004225500"></script>
+<script src="sorami-plane.js?v=20261004225500"></script>
+<script src="sorami-atmosphere.js?v=20261004225500"></script>
+<script src="sorami-bodies.js?v=20261004225500"></script>
+<script src="sorami-align.js?v=20261004225500"></script>
+<script src="sorami-moon.js?v=20261004225500"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6730,7 +6730,6 @@ async function aimRenderFrom() {
 
   const moon = aim.body === "moon";
   if (!f) { $("aimFrom").innerHTML = `<p class="tiny">観測地点を選んでください</p>`; $("aimLook").hidden = true; return; }
-  if (!(aim.target.parts || []).length) { $("aimFrom").innerHTML = ""; $("aimLook").hidden = true; return; }
   // The selected day's diagram does not wait for a 400-day candidate search.
   aimUpdateLook();
   $("aimFrom").innerHTML = `<p class="tiny">${esc(f.name)}から計算しています…</p>`;
@@ -6740,6 +6739,7 @@ async function aimRenderFrom() {
   const obs = aimObserverAt(f, ground);
   if (Number.isFinite(ground)) renderPointCard("aimFrom", f, ground);
   aimRenderObserverHeight(f, ground);
+  if (!(aim.target.parts || []).length) { $("aimFrom").innerHTML = ""; $("aimLook").hidden = true; return; }
   // 候補帯は選択した高さ・縁に近い日、全体モードだけ輪郭通過の日を出す。
   let ev = [];
   try {
