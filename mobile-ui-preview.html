@@ -1379,7 +1379,7 @@
     <div id="aimFrom" class="aim-from"></div>
     </section>
 <div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div><div class="preview-tabs" role="tablist" aria-label="撮影の確認"><button type="button" id="previewSceneTab" role="tab" aria-selected="true" aria-controls="previewScene">見え方</button><button type="button" id="previewPlacesTab" role="tab" aria-selected="false" aria-controls="previewPlaces" tabindex="-1">撮影場所</button></div><div class="preview-workspace"><section id="previewScene" role="tabpanel" aria-labelledby="previewSceneTab">    <div id="aimLook" class="aim-look" hidden></div>
-<div id="aimAir" class="aim-air"><div class="aim-air-row"><span id="aimAirLabel">大気差</span><div class="aim-air-options" role="group" aria-labelledby="aimAirLabel"><button type="button" data-air-mode="standard" aria-pressed="false">標準</button><button type="button" data-air-mode="auto" aria-pressed="true">気象</button><button type="button" data-air-mode="none" aria-pressed="false">なし</button></div></div>
+<div id="aimAir" class="aim-air"><div class="aim-air-row"><span id="aimAirLabel">大気差</span><div class="aim-air-options" role="group" aria-labelledby="aimAirLabel"><button type="button" data-air-mode="standard" aria-pressed="false">標準</button><button type="button" data-air-mode="auto" aria-pressed="true" aria-label="気象予報を反映">気象予報</button><button type="button" data-air-mode="none" aria-pressed="false">なし</button></div></div>
 <details id="aimAirDetails"><summary>気象条件 <span id="aimAirSummary">気象を反映</span><span class="aim-air-chevron" aria-hidden="true">⌄</span></summary><div class="aim-air-content">
 <p id="aimAirStatus" class="tiny" role="status"></p><p class="tiny">気象は選択地点・時刻のモデル値です。期間外・取得不可は標準大気を使用します。</p><p class="tiny">低空の逆転層によるずれは再現できません。「なし」を除き、地上目標の屈折は標準値です。</p>
 </div></details></div>
@@ -1835,23 +1835,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004192000"></script>
+<script src="sorami-core.js?v=20261004192500"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004192000"></script>
-<script src="sorami-exif.js?v=20261004192000"></script>
-<script src="sorami-capcloud.js?v=20261004192000"></script>
-<script src="sorami-terrain.js?v=20261004192000"></script>
-<script src="sorami-mountain.js?v=20261004192000"></script>
-<script src="sorami-fuji.js?v=20261004192000"></script>
-<script src="sorami-sky.js?v=20261004192000"></script>
-<script src="sorami-routes.js?v=20261004192000"></script>
-<script src="sorami-iss.js?v=20261004192000"></script>
-<script src="sorami-plane.js?v=20261004192000"></script>
-<script src="sorami-atmosphere.js?v=20261004192000"></script>
-<script src="sorami-bodies.js?v=20261004192000"></script>
-<script src="sorami-align.js?v=20261004192000"></script>
-<script src="sorami-moon.js?v=20261004192000"></script>
+<script src="sorami-astro.js?v=20261004192500"></script>
+<script src="sorami-exif.js?v=20261004192500"></script>
+<script src="sorami-capcloud.js?v=20261004192500"></script>
+<script src="sorami-terrain.js?v=20261004192500"></script>
+<script src="sorami-mountain.js?v=20261004192500"></script>
+<script src="sorami-fuji.js?v=20261004192500"></script>
+<script src="sorami-sky.js?v=20261004192500"></script>
+<script src="sorami-routes.js?v=20261004192500"></script>
+<script src="sorami-iss.js?v=20261004192500"></script>
+<script src="sorami-plane.js?v=20261004192500"></script>
+<script src="sorami-atmosphere.js?v=20261004192500"></script>
+<script src="sorami-bodies.js?v=20261004192500"></script>
+<script src="sorami-align.js?v=20261004192500"></script>
+<script src="sorami-moon.js?v=20261004192500"></script>
 <script>
 "use strict";
 const S = window.Sorami;
