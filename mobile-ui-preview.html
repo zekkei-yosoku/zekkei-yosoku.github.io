@@ -647,11 +647,17 @@
     #aimCalendarOpen svg { display: none; }
   }
   /* 月の週数で高さが変わっても上端を固定し、下側だけ伸縮する。 */
-  #aimCalendar { width: min(440px, calc(100vw - 24px));
+  #aimCalendar { width: min(440px, calc(100vw - 24px)); max-width: calc(100vw - 24px);
     top: max(16px, 8vh, env(safe-area-inset-top)); bottom: auto; margin: 0 auto; }
   .aim-cal-nav { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
   .aim-cal-nav button { flex: 0 0 44px; width: 44px; }
-  .aim-cal-nav select { flex: 1; min-width: 0; margin: 0; }
+  .aim-cal-nav { gap: 4px; }
+  .aim-cal-nav select { flex: 1; min-width: 56px; margin: 0; padding: 8px 24px 8px 8px; font-size: 16px;
+    -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23aaa' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center; background-size: 10px; }
+  .aim-cal-nav #aimCalYear { flex: 1.4; min-width: 80px; }
+  .aim-cal-separator { flex: 0 0 auto; color: var(--secondary); }
   .aim-cal-week, .aim-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
   .aim-cal-week { text-align: center; color: var(--secondary); font-size: 0.75rem; padding-bottom: 6px; }
   .aim-cal-grid button { min-height: 48px; padding: 4px 0; border-radius: 10px; font-size: 1rem;
@@ -1546,6 +1552,7 @@
     <div class="aim-cal-nav">
       <button id="aimCalPrev" class="fav-btn" aria-label="前の月">←</button>
       <select id="aimCalYear" class="fav-in" aria-label="カレンダーの年"></select>
+      <span class="aim-cal-separator" aria-hidden="true">/</span>
       <select id="aimCalMonth" class="fav-in" aria-label="カレンダーの月"></select>
       <button id="aimCalNext" class="fav-btn" aria-label="次の月">→</button>
     </div>
@@ -1775,22 +1782,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004135200"></script>
+<script src="sorami-core.js?v=20261004135800"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004135200"></script>
-<script src="sorami-exif.js?v=20261004135200"></script>
-<script src="sorami-capcloud.js?v=20261004135200"></script>
-<script src="sorami-terrain.js?v=20261004135200"></script>
-<script src="sorami-mountain.js?v=20261004135200"></script>
-<script src="sorami-fuji.js?v=20261004135200"></script>
-<script src="sorami-sky.js?v=20261004135200"></script>
-<script src="sorami-routes.js?v=20261004135200"></script>
-<script src="sorami-iss.js?v=20261004135200"></script>
-<script src="sorami-plane.js?v=20261004135200"></script>
-<script src="sorami-bodies.js?v=20261004135200"></script>
-<script src="sorami-align.js?v=20261004135200"></script>
-<script src="sorami-moon.js?v=20261004135200"></script>
+<script src="sorami-astro.js?v=20261004135800"></script>
+<script src="sorami-exif.js?v=20261004135800"></script>
+<script src="sorami-capcloud.js?v=20261004135800"></script>
+<script src="sorami-terrain.js?v=20261004135800"></script>
+<script src="sorami-mountain.js?v=20261004135800"></script>
+<script src="sorami-fuji.js?v=20261004135800"></script>
+<script src="sorami-sky.js?v=20261004135800"></script>
+<script src="sorami-routes.js?v=20261004135800"></script>
+<script src="sorami-iss.js?v=20261004135800"></script>
+<script src="sorami-plane.js?v=20261004135800"></script>
+<script src="sorami-bodies.js?v=20261004135800"></script>
+<script src="sorami-align.js?v=20261004135800"></script>
+<script src="sorami-moon.js?v=20261004135800"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6411,9 +6418,9 @@ async function aimCalRender() {
   aimCal.events = new Map();
   const baseYear = new Date(Date.now() + 9 * 3600000).getUTCFullYear();
   const years = Array.from({ length: Math.max(baseYear + 10, year + 2) - Math.min(baseYear - 2, year) + 1 }, (_, i) => Math.min(baseYear - 2, year) + i);
-  $("aimCalYear").innerHTML = years.map((y) => `<option value="${y}">${y}年</option>`).join("");
+  $("aimCalYear").innerHTML = years.map((y) => `<option value="${y}">${y}</option>`).join("");
   $("aimCalYear").value = String(year);
-  $("aimCalMonth").innerHTML = Array.from({ length: 12 }, (_, i) => `<option value="${i}">${i + 1}月</option>`).join("");
+  $("aimCalMonth").innerHTML = Array.from({ length: 12 }, (_, i) => `<option value="${i}">${i + 1}</option>`).join("");
   $("aimCalMonth").value = String(month);
   const f = aimFromPoint(), target = aim.target, body = aim.body, partId = aim.partId;
   $("aimCalContext").textContent = f && target ? `${f.name}から ${target.name}に${SoramiBodies.definition(body).name}を重ねる` : "観測地点と目標を選んでください";
