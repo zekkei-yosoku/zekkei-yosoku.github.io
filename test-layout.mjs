@@ -610,7 +610,7 @@ ok(/太陽は必ず減光フィルターを付けて見てください。/.test(
 
 console.log("== 引き出しのスワイプ・地図のつまみ（2026-10-01） ==");
 // ユーザー「メニューについて左からスワイプで開くようにできたりしない？」
-ok(/const SWIPE_EDGE_PX = 28;/.test(html) && /t\.clientX > SWIPE_EDGE_PX \|\| \$\("toolsButton"\)\.hidden \|\| document\.querySelector\("dialog\[open\]"\)/.test(html),
+ok(/const SWIPE_EDGE_PX = 28;/.test(html) && /t\.clientX > SWIPE_EDGE_PX \|\| \(isMenuPage\(\) && \$\("toolsButton"\)\.hidden\) \|\| document\.querySelector\("dialog\[open\]"\)/.test(html),
   "左の端からだけ（☰ が無い・シートが開いているときは開かない）");
 ok(/e\.target\.closest\("\.mapwrap, canvas, input, select, textarea"\)/.test(html), "地図・3D・入力欄の上からは始めない（横に動かす部品と取り合わない）");
 ok(/menu\.style\.transform = `translateX\(\$\{\(swipe\.p - 1\) \* 100\}%\)`;/.test(html), "引き出しは指に付いてくる");
@@ -979,7 +979,7 @@ ok(/\$\("homeLink"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \}/.test(
   ok(/<\/div>\n(?:  <!--[\s\S]*?-->\n)?  <div class="backbar" id="backBar" hidden>\n    <button id="backLink"/.test(html), "「← 戻る」は題名の帯のすぐ下");
   ok(/aria-hidden="true"><path d="M13 8H3\.5M7\.5 3\.5 3 8l4\.5 4\.5"[^>]*\/><\/svg>戻る<\/button>/.test(html), "文字は「← 戻る」");
   ok(!/#backLink \{[^}]*(background|border)/.test(code), "囲わない（地も枠も付けない）");
-  ok(/\$\("backBar"\)\.hidden = view === "list";/.test(html), "一覧以外の画面で出す");
+  ok(/\$\("backBar"\)\.hidden = isMenuPage\(\);/.test(html), "メニューの主要ページでは戻るを隠す");
   ok(/\$\("backLink"\)\.onclick = \(\) => \{ closeTools\(\); goBack\(\); \}/.test(html), "ひとつ前の画面へ戻る");
   ok(/  if \(\(history\.state && history\.state\.depth\) > 0\) history\.back\(\);\s+else goList\(\);\n\}/.test(html),
     "前がアプリの中に無ければ（URL を直接開いた画面）一覧へ");

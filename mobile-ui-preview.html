@@ -1842,23 +1842,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004231000"></script>
+<script src="sorami-core.js?v=20261004234000"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004231000"></script>
-<script src="sorami-exif.js?v=20261004231000"></script>
-<script src="sorami-capcloud.js?v=20261004231000"></script>
-<script src="sorami-terrain.js?v=20261004231000"></script>
-<script src="sorami-mountain.js?v=20261004231000"></script>
-<script src="sorami-fuji.js?v=20261004231000"></script>
-<script src="sorami-sky.js?v=20261004231000"></script>
-<script src="sorami-routes.js?v=20261004231000"></script>
-<script src="sorami-iss.js?v=20261004231000"></script>
-<script src="sorami-plane.js?v=20261004231000"></script>
-<script src="sorami-atmosphere.js?v=20261004231000"></script>
-<script src="sorami-bodies.js?v=20261004231000"></script>
-<script src="sorami-align.js?v=20261004231000"></script>
-<script src="sorami-moon.js?v=20261004231000"></script>
+<script src="sorami-astro.js?v=20261004234000"></script>
+<script src="sorami-exif.js?v=20261004234000"></script>
+<script src="sorami-capcloud.js?v=20261004234000"></script>
+<script src="sorami-terrain.js?v=20261004234000"></script>
+<script src="sorami-mountain.js?v=20261004234000"></script>
+<script src="sorami-fuji.js?v=20261004234000"></script>
+<script src="sorami-sky.js?v=20261004234000"></script>
+<script src="sorami-routes.js?v=20261004234000"></script>
+<script src="sorami-iss.js?v=20261004234000"></script>
+<script src="sorami-plane.js?v=20261004234000"></script>
+<script src="sorami-atmosphere.js?v=20261004234000"></script>
+<script src="sorami-bodies.js?v=20261004234000"></script>
+<script src="sorami-align.js?v=20261004234000"></script>
+<script src="sorami-moon.js?v=20261004234000"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2760,7 +2760,7 @@ function render() {
   const view = VIEWS.find((v) => v.on()).id;
   for (const v of VIEWS) $(v.el).hidden = v.id !== view;
   // 一覧以外の画面では、題名の帯の下に「← 戻る」
-  $("backBar").hidden = view === "list";
+  $("backBar").hidden = isMenuPage();
   const inDetail = view === "detail";
   // 地点と実況は判断のための情報。**その地点が主語の画面（一覧・詳細・空の見え方）だけに出す。**
   // ダイヤモンド富士や月丼の上に出すと、何の地点なのか分からなかった（2026-09-30 ユーザー指摘）。
@@ -3234,6 +3234,10 @@ function pushRoute(hash) {
 /// 戻った先が一覧でなければ（詳細のURLを直接開いてから進んだ場合）、そこを一覧に置き換える。
 /// 履歴は増やさない（増やすと、一覧でブラウザの戻るを押したときに道具の画面へ戻ってしまう）。
 /// ひとつ前の画面へ。前がアプリの中に無ければ（URL を直接開いた画面）一覧へ
+function isMenuPage() {
+  const r = routeFromHash();
+  return !r || !!(r.aim || r.plane || r.iss || r.records);
+}
 function goBack() {
   if (NO_HISTORY) {
     const prev = appTrail.pop();
@@ -9018,12 +9022,12 @@ document.addEventListener("touchstart", (e) => {
   const open = !$("toolsMenu").hidden && $("toolsMenu").classList.contains("on");
   if (open) {
     if (!e.target.closest("#toolsMenu, #toolsScrim")) return;
-  } else if (t.clientX > SWIPE_EDGE_PX || $("toolsButton").hidden || document.querySelector("dialog[open]")
+  } else if (t.clientX > SWIPE_EDGE_PX || (isMenuPage() && $("toolsButton").hidden) || document.querySelector("dialog[open]")
              || e.target.closest(".mapwrap, canvas, input, select, textarea")) {
     // ☰ が出ていない（使える道具が無い）ときは、なぞっても開かない
     return;
   }
-  swipe = { x0: t.clientX, y0: t.clientY, t0: e.timeStamp, open, active: false, p: open ? 1 : 0 };
+  swipe = { x0: t.clientX, y0: t.clientY, t0: e.timeStamp, open, back: !open && !isMenuPage(), active: false, p: open ? 1 : 0 };
 }, { passive: false });
 document.addEventListener("touchmove", (e) => {
   if (!swipe || e.touches.length !== 1) return;
@@ -9036,6 +9040,7 @@ document.addEventListener("touchmove", (e) => {
     if (Math.abs(dx) < 10) return;
     if (swipe.open ? dx > 0 : dx < 0) { swipe = null; return; }
     swipe.active = true;
+    if (swipe.back) { swipe.dx = dx; swipe.v = dx / Math.max(1, e.timeStamp - swipe.t0); return; }
     if (!swipe.open) {
       clearTimeout(toolsAnim);
       markToolsCurrent();
@@ -9044,15 +9049,20 @@ document.addEventListener("touchmove", (e) => {
     menu.style.transition = scrim.style.transition = "none";
     swipe.width = menu.offsetWidth || 300;
   }
+  if (swipe.back) { swipe.dx = dx; swipe.v = dx / Math.max(1, e.timeStamp - swipe.t0); return; }
   swipe.p = Math.max(0, Math.min(1, (swipe.open ? 1 : 0) + dx / swipe.width));
   swipe.v = dx / Math.max(1, e.timeStamp - swipe.t0);
   menu.style.transform = `translateX(${(swipe.p - 1) * 100}%)`;
   scrim.style.opacity = String(swipe.p);
 }, { passive: true });
-const endSwipe = () => {
+const endSwipe = (e) => {
   if (!swipe || !swipe.active) { swipe = null; return; }
-  const { p, v = 0, open } = swipe;
+  const { p, v = 0, open, back, dx = 0 } = swipe;
   swipe = null;
+  if (back) {
+    if (e?.type !== "touchcancel" && (dx >= 64 || (dx >= 24 && v > 0.4))) { swipeEndedAt = performance.now(); goBack(); }
+    return;
+  }
   const menu = $("toolsMenu"), scrim = $("toolsScrim");
   swipeEndedAt = performance.now();
   const wantOpen = open ? !(p < 0.6 || v < -0.4) : (p > 0.4 || v > 0.4);

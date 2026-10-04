@@ -144,3 +144,14 @@ test('管理画面を開いたまま認証が更新されたら新しい権限�
  ctx.auth={...auth};update();assert.equal(refresh,1);
  ctx.auth=null;update();assert.equal(refresh,2);assert.equal(button.textContent,'ログイン');
 });
+
+test('左端スワイプは主要ページでメニュー、詳細では戻るだけ',()=>{
+ const a=html.indexOf('const SWIPE_EDGE_PX = 28;'),b=html.indexOf('// Safari のつまむ拡大',a);
+ function boot(main){const handlers={},menu={hidden:true,classList:{contains:()=>false,add(){}},style:{},offsetWidth:300},scrim={hidden:true,classList:{add(){}},style:{}};let opened=0,back=0;
+ runInNewContext(html.slice(a,b),{document:{addEventListener:(t,f)=>handlers[t]=f,querySelector:()=>null},$:id=>id==='toolsMenu'?menu:id==='toolsScrim'?scrim:{hidden:false},isMenuPage:()=>main,clearTimeout(){},toolsAnim:0,markToolsCurrent(){},performance:{now:()=>200},openTools:()=>opened++,closeTools(){},goBack:()=>back++});
+ const event=(x,y=30,time=100)=>({touches:[{clientX:x,clientY:y}],target:{closest:()=>null},timeStamp:time,preventDefault(){}});
+ return {handlers,menu,event,counts:()=>({opened,back})};}
+ const detail=boot(false);detail.handlers.touchstart(detail.event(4));detail.handlers.touchmove(detail.event(104,30,200));detail.handlers.touchend({type:'touchend'});assert.deepEqual(detail.counts(),{opened:0,back:1});assert.equal(detail.menu.hidden,true);
+ const main=boot(true);main.handlers.touchstart(main.event(4));main.handlers.touchmove(main.event(204,30,200));main.handlers.touchend({type:'touchend'});assert.deepEqual(main.counts(),{opened:1,back:0});
+ for(const mode of ['cancel','vertical','short']){const x=boot(false);x.handlers.touchstart(x.event(4));x.handlers.touchmove(mode==='vertical'?x.event(8,100,200):x.event(mode==='short'?20:104,30,200));x.handlers[mode==='cancel'?'touchcancel':'touchend']({type:mode==='cancel'?'touchcancel':'touchend'});assert.deepEqual(x.counts(),{opened:0,back:0});}
+});
