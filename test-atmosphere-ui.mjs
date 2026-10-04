@@ -6,5 +6,5 @@ test('3択は自動条件へ一意に対応し手入力はUIへ出さない',()=
  for(const mode of ['standard','auto','none']){c.aimAirChoose(mode);assert.equal(settings.mode,mode);assert.equal(els.aimAirMode.value,mode);}
  const count=calls.length;c.aimAirChoose('manual');c.aimAirChoose('invalid');assert.equal(calls.length,count);assert.equal(settings.mode,'none');
  const src=html.slice(html.indexOf('<div id="aimAir"'),html.indexOf('</section><section id="previewPlaces"'));
- assert.equal((src.match(/<option value=/g)||[]).length,3);assert.ok(src.includes('<select id="aimAirMode"'));assert.ok(!src.includes('<input'));assert.ok(html.includes('if(!["auto","standard","none"].includes(aimAirSettings.mode))aimAirSettings.mode="auto"')); assert.ok(html.includes('host.querySelector("[data-look-frame-times]").after($("aimAir"))'));
+ assert.equal((src.match(/<option value=/g)||[]).length,3);assert.ok(src.includes('<select id="aimAirMode"'));assert.ok(!src.includes('<input'));assert.ok(html.includes('if(!["auto","standard","none"].includes(aimAirSettings.mode))aimAirSettings.mode="auto"')); assert.ok(html.includes('host.querySelector(".aim-frame-info").append($("aimAir"))'));
 });

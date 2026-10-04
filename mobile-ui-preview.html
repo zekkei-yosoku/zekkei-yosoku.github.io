@@ -1091,7 +1091,7 @@
  #previewScene:before,#previewPlaces:before{font-size:1rem}
  #aimView .aim-air select,#aimView .aim-air input{font-size:var(--aim-control-font)}
 }
-#aimView .aim-air{margin:8px 0 12px;border-top:0}#aimView .aim-air-row{display:flex;align-items:center;gap:12px}#aimView #aimAirMode{width:auto;min-width:140px;min-height:44px;font-size:0.81rem;padding:8px 32px 8px 12px}#aimAirLabel{font-size:0.81rem;color:var(--secondary);flex:none}#aimView .aim-air-options{display:flex;background:var(--sunk);border-radius:10px;padding:3px;flex:1;max-width:330px}#aimView .aim-air-options button{flex:1;min-width:0;min-height:44px;border:0;border-radius:8px;font-size:0.81rem;color:var(--secondary);background:transparent}#aimView .aim-air-options button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);font-weight:600}#aimView #aimAirDetails summary{justify-content:flex-start;gap:8px;min-height:44px;font-size:0.75rem;color:var(--secondary)}#aimAirDetails summary::-webkit-details-marker{display:none}#aimAirSummary{margin-left:auto}#aimView .aim-air-chevron{font-size:18px}#aimAirDetails[open] .aim-air-chevron{transform:rotate(180deg)}
+#aimView .aim-frame-info{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}#aimView .aim-frame-info .aim-frame-times{flex:1;min-width:180px}#aimView .aim-air{margin:0 0 8px auto;border-top:0;max-width:100%}#aimView .aim-air-row{display:flex;align-items:center;gap:12px}#aimView #aimAirMode{width:auto;min-width:112px;min-height:44px;font-size:0.81rem;padding:8px 32px 8px 12px}#aimAirLabel{font-size:0.81rem;color:var(--secondary);flex:none}#aimView .aim-air-options{display:flex;background:var(--sunk);border-radius:10px;padding:3px;flex:1;max-width:330px}#aimView .aim-air-options button{flex:1;min-width:0;min-height:44px;border:0;border-radius:8px;font-size:0.81rem;color:var(--secondary);background:transparent}#aimView .aim-air-options button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);font-weight:600}#aimView #aimAirDetails summary{justify-content:flex-start;gap:8px;min-height:44px;font-size:0.75rem;color:var(--secondary)}#aimAirDetails summary::-webkit-details-marker{display:none}#aimAirSummary{margin-left:auto}#aimView .aim-air-chevron{font-size:18px}#aimAirDetails[open] .aim-air-chevron{transform:rotate(180deg)}
 </style></head>
 <body>
 <main>
@@ -1835,23 +1835,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004193500"></script>
+<script src="sorami-core.js?v=20261004194000"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004193500"></script>
-<script src="sorami-exif.js?v=20261004193500"></script>
-<script src="sorami-capcloud.js?v=20261004193500"></script>
-<script src="sorami-terrain.js?v=20261004193500"></script>
-<script src="sorami-mountain.js?v=20261004193500"></script>
-<script src="sorami-fuji.js?v=20261004193500"></script>
-<script src="sorami-sky.js?v=20261004193500"></script>
-<script src="sorami-routes.js?v=20261004193500"></script>
-<script src="sorami-iss.js?v=20261004193500"></script>
-<script src="sorami-plane.js?v=20261004193500"></script>
-<script src="sorami-atmosphere.js?v=20261004193500"></script>
-<script src="sorami-bodies.js?v=20261004193500"></script>
-<script src="sorami-align.js?v=20261004193500"></script>
-<script src="sorami-moon.js?v=20261004193500"></script>
+<script src="sorami-astro.js?v=20261004194000"></script>
+<script src="sorami-exif.js?v=20261004194000"></script>
+<script src="sorami-capcloud.js?v=20261004194000"></script>
+<script src="sorami-terrain.js?v=20261004194000"></script>
+<script src="sorami-mountain.js?v=20261004194000"></script>
+<script src="sorami-fuji.js?v=20261004194000"></script>
+<script src="sorami-sky.js?v=20261004194000"></script>
+<script src="sorami-routes.js?v=20261004194000"></script>
+<script src="sorami-iss.js?v=20261004194000"></script>
+<script src="sorami-plane.js?v=20261004194000"></script>
+<script src="sorami-atmosphere.js?v=20261004194000"></script>
+<script src="sorami-bodies.js?v=20261004194000"></script>
+<script src="sorami-align.js?v=20261004194000"></script>
+<script src="sorami-moon.js?v=20261004194000"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7390,7 +7390,7 @@ async function aimLookRender(host, spec) {
       <div class="aim-look-figure"><canvas data-look-canvas role="img"></canvas><button type="button" data-look-pick class="aim-body-move" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg></button>
       <div class="aim-body-controls" data-look-controls hidden><div class="aim-body-directions" role="group" aria-label="天体の位置を微調整"><button type="button" data-body-nudge="-1,0" aria-label="天体を左へ">←</button><button type="button" data-body-nudge="0,-1" aria-label="天体を上へ">↑</button><button type="button" data-body-nudge="0,1" aria-label="天体を下へ">↓</button><button type="button" data-body-nudge="1,0" aria-label="天体を右へ">→</button></div><span class="sr-only" role="status" aria-live="polite" data-look-position></span></div></div>
       <div class="aim-body-actions" data-body-actions hidden><button type="button" class="chip primary" data-look-confirm hidden disabled>確定</button><button type="button" class="chip" data-look-cancel>キャンセル</button></div>
-      <div class="tiny aim-frame-times" data-look-frame-times hidden></div>
+      <div class="aim-frame-info"><div class="tiny aim-frame-times" data-look-frame-times hidden></div></div>
       <div class="aim-lens">
         <div class="aim-lens-row"><label>焦点距離 <input type="number" min="8" max="2000" step="any" required data-lens-focal aria-label="レンズの実焦点距離（mm）"> mm</label><button type="button" class="chip" data-lens-apply>反映</button></div>
         <div class="aim-lens-row"><select data-lens-sensor aria-label="センサーサイズ"><option value="full">フルサイズ</option><option value="aps">APS-C</option><option value="canon">APS-C（Canon）</option><option value="m43">マイクロフォーサーズ</option></select><button type="button" class="chip" data-lens-portrait aria-pressed="false">縦位置</button></div>
@@ -7404,7 +7404,7 @@ async function aimLookRender(host, spec) {
       <div class="aim-look-found" data-look-found hidden></div>
       <p class="tiny aim-look-note" data-look-note hidden></p>`;
   }
-  if(host.id==="aimLook")host.querySelector("[data-look-frame-times]").after($("aimAir"));
+  if(host.id==="aimLook")host.querySelector(".aim-frame-info").append($("aimAir"));
   const cv = host.querySelector("[data-look-canvas]"), range = host.querySelector("[data-look-range]");
   const out = host.querySelector("[data-look-at]"), note = host.querySelector("[data-look-note]");
   host.querySelector("[data-look-title]").textContent = spec.title || "";
