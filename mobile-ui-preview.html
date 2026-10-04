@@ -1043,6 +1043,8 @@
 #aimView .aim-lens-row{display:flex;align-items:center}#aimView .aim-lens-row:has([data-lens-sensor]){gap:10px}
 #aimView .preview-body-native{display:none}#aimView .preview-body-open{flex:1;min-width:80px;min-height:44px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;font-size:16px}
 .preview-body-dialog{width:min(400px,calc(100vw - 24px))}.preview-body-group{padding:14px 0;border-bottom:1px solid var(--line)}.preview-body-group:first-child{padding-top:0}.preview-body-group:last-child{border:0}.preview-body-group h3{font-size:12px;font-weight:500;color:var(--secondary);margin:0 0 10px}.preview-body-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.preview-body-choice{min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--sunk);color:var(--text);font-size:16px;text-align:left}.preview-body-choice[aria-pressed=true]{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}.preview-body-choice[aria-pressed=true]:after{content:'✓';float:right}.preview-body-choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+#aimView .aim-date #aimCalendarOpen{gap:0}
 </style></head>
 <body>
 <main><p class="tiny preview-banner">UIテスト · 現行の予測を使用（保存先も本番と共通）</p>
@@ -1783,22 +1785,22 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004140500"></script>
+<script src="sorami-core.js?v=20261004141500"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004140500"></script>
-<script src="sorami-exif.js?v=20261004140500"></script>
-<script src="sorami-capcloud.js?v=20261004140500"></script>
-<script src="sorami-terrain.js?v=20261004140500"></script>
-<script src="sorami-mountain.js?v=20261004140500"></script>
-<script src="sorami-fuji.js?v=20261004140500"></script>
-<script src="sorami-sky.js?v=20261004140500"></script>
-<script src="sorami-routes.js?v=20261004140500"></script>
-<script src="sorami-iss.js?v=20261004140500"></script>
-<script src="sorami-plane.js?v=20261004140500"></script>
-<script src="sorami-bodies.js?v=20261004140500"></script>
-<script src="sorami-align.js?v=20261004140500"></script>
-<script src="sorami-moon.js?v=20261004140500"></script>
+<script src="sorami-astro.js?v=20261004141500"></script>
+<script src="sorami-exif.js?v=20261004141500"></script>
+<script src="sorami-capcloud.js?v=20261004141500"></script>
+<script src="sorami-terrain.js?v=20261004141500"></script>
+<script src="sorami-mountain.js?v=20261004141500"></script>
+<script src="sorami-fuji.js?v=20261004141500"></script>
+<script src="sorami-sky.js?v=20261004141500"></script>
+<script src="sorami-routes.js?v=20261004141500"></script>
+<script src="sorami-iss.js?v=20261004141500"></script>
+<script src="sorami-plane.js?v=20261004141500"></script>
+<script src="sorami-bodies.js?v=20261004141500"></script>
+<script src="sorami-align.js?v=20261004141500"></script>
+<script src="sorami-moon.js?v=20261004141500"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6245,8 +6247,8 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   aim.dayMs = Number.isFinite(picked) ? picked : S.Cal.startOfDay(Date.now());
   $("aimKeySet").textContent = aimSideLabel("set");
   $("aimKeyRise").textContent = aimSideLabel("rise");
-  $("aimCalendarOpen").innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6M17 2v6M3 11h18"/></svg>${$("aimDate").value.replaceAll("-", "/")}（${S.Cal.weekday(aim.dayMs)}）`;
-  $("aimCalendarOpen").setAttribute("aria-label", `${$("aimDate").value}（${S.Cal.weekday(aim.dayMs)}）、重なる日カレンダーを開く`);
+  $("aimCalendarOpen").innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6M17 2v6M3 11h18"/></svg>${$("aimDate").value.replaceAll("-", "/")}(${S.Cal.weekday(aim.dayMs)})`;
+  $("aimCalendarOpen").setAttribute("aria-label", `${$("aimDate").value}(${S.Cal.weekday(aim.dayMs)})、重なる日カレンダーを開く`);
   // 目標が決まっていなければ線は引けない（高さが無い）
   if (!(aim.target.parts || []).length) {
     aim.seq++; aim.candSeq++;
@@ -9889,7 +9891,7 @@ checkForUpdate();
   }
  },true);
  const update=()=>{
-  const dateButton=el('aimCalendarOpen');if(!dateButton.querySelector('.preview-date-label')){const date=document.createElement('span');date.className='preview-date-label';date.textContent=el('aimDate').value.replaceAll('-','/');const weekday=document.createElement('span');weekday.className='preview-date-weekday';weekday.textContent=`（${S.Cal.weekday(aim.dayMs)}）`;dateButton.replaceChildren(date,weekday);}
+  const dateButton=el('aimCalendarOpen');if(!dateButton.querySelector('.preview-date-label')){const date=document.createElement('span');date.className='preview-date-label';date.textContent=el('aimDate').value.replaceAll('-','/');const weekday=document.createElement('span');weekday.className='preview-date-weekday';weekday.textContent=`(${S.Cal.weekday(aim.dayMs)})`;dateButton.replaceChildren(date,weekday);}
 
   const state=look._uiTime;
   clock.disabled=reference.disabled=!state||look.hidden||state.day!==aim.dayMs;
