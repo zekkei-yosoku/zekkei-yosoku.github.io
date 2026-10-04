@@ -997,7 +997,7 @@
 #aimView .aim-head #aimTitle{font-size:16px;flex:1}
 #aimView .aim-body-select{flex:1;width:100px}
 #aimView .fav-l{margin-top:10px;margin-bottom:4px;font-size:12px}
-.preview-compose-icon{position:absolute;top:66px;right:10px;width:44px;height:44px;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);z-index:2}.preview-compose-icon[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
+.preview-map-time{margin:8px 0}.preview-map-time .aim-time-heading{display:flex;align-items:center;gap:10px;font-size:14px}.preview-map-time output{flex:1;font-variant-numeric:tabular-nums}.preview-map-time input{width:100%;height:32px;accent-color:var(--accent)}.preview-map-time .chip{min-height:44px;padding:8px 14px}.preview-compose-icon{position:absolute;top:66px;right:10px;width:44px;height:44px;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);z-index:2}.preview-compose-icon[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
 .preview-camera-dialog .sheet-body{display:grid;gap:16px}.preview-camera-dialog .aim-lens-row{margin:0}.preview-camera-dialog .aim-lens-toggles{display:block}.preview-focal-tools{margin:6px 0 12px}.preview-focal-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--secondary)}#aimView .aim-lens-row>button[aria-haspopup=dialog]{min-width:88px;min-height:44px;padding:8px;font-size:13px}.preview-focal-tools input{width:100%;min-height:32px;accent-color:var(--accent)}.preview-focal-presets{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}.preview-focal-presets button{min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font-size:14px}
 #aimView .aim-grid-control{display:flex;align-items:center;gap:10px;width:100%;font-size:14px;color:var(--secondary)}
 #aimView .aim-grid-control select{flex:1;min-width:0;min-height:44px;padding:8px 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;font-size:16px}
@@ -1395,7 +1395,7 @@
 <details id="aimAirDetails"><summary>気象条件 <span id="aimAirSummary">気象を反映</span></summary><div class="aim-air-content">
 <p id="aimAirStatus" class="tiny" role="status"></p><p class="tiny">気象は選択地点・時刻のモデル値です。期間外・取得不可は標準大気を使用します。</p><p class="tiny">低空の逆転層によるずれは再現できません。「なし」を除き、地上目標の屈折は標準値です。</p>
 </div></details></div>
-</section><section id="previewPlaces" role="tabpanel" aria-labelledby="previewPlacesTab">    <div class="mapwrap" style="margin-top:8px">
+</section><section id="previewPlaces" role="tabpanel" aria-labelledby="previewPlacesTab"><div class="preview-map-time"><div class="aim-time-heading"><span>時刻</span><output id="previewMapTimeAt"></output><button type="button" class="chip" data-map-time-side="rise">出</button><button type="button" class="chip" data-map-time-side="set">入</button></div><input type="range" id="previewMapTime" min="0" max="86400" step="any" aria-label="地図の撮影位置の時刻を調整"></div>    <div class="mapwrap" style="margin-top:8px">
       <canvas id="aimCanvas" aria-label="地図。線の上が、その日に重なって見える場所です"></canvas>
       <div class="mappin" aria-hidden="true"></div>
       <div class="mapzoom">
@@ -1846,23 +1846,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261005002000"></script>
+<script src="sorami-core.js?v=20261005003000"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261005002000"></script>
-<script src="sorami-exif.js?v=20261005002000"></script>
-<script src="sorami-capcloud.js?v=20261005002000"></script>
-<script src="sorami-terrain.js?v=20261005002000"></script>
-<script src="sorami-mountain.js?v=20261005002000"></script>
-<script src="sorami-fuji.js?v=20261005002000"></script>
-<script src="sorami-sky.js?v=20261005002000"></script>
-<script src="sorami-routes.js?v=20261005002000"></script>
-<script src="sorami-iss.js?v=20261005002000"></script>
-<script src="sorami-plane.js?v=20261005002000"></script>
-<script src="sorami-atmosphere.js?v=20261005002000"></script>
-<script src="sorami-bodies.js?v=20261005002000"></script>
-<script src="sorami-align.js?v=20261005002000"></script>
-<script src="sorami-moon.js?v=20261005002000"></script>
+<script src="sorami-astro.js?v=20261005003000"></script>
+<script src="sorami-exif.js?v=20261005003000"></script>
+<script src="sorami-capcloud.js?v=20261005003000"></script>
+<script src="sorami-terrain.js?v=20261005003000"></script>
+<script src="sorami-mountain.js?v=20261005003000"></script>
+<script src="sorami-fuji.js?v=20261005003000"></script>
+<script src="sorami-sky.js?v=20261005003000"></script>
+<script src="sorami-routes.js?v=20261005003000"></script>
+<script src="sorami-iss.js?v=20261005003000"></script>
+<script src="sorami-plane.js?v=20261005003000"></script>
+<script src="sorami-atmosphere.js?v=20261005003000"></script>
+<script src="sorami-bodies.js?v=20261005003000"></script>
+<script src="sorami-align.js?v=20261005003000"></script>
+<script src="sorami-moon.js?v=20261005003000"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5413,6 +5413,26 @@ async function aimRedrawLine() {
 /// 目標に印が無いと、どの線がどこを向いているのかが読めない。
 /// 解いた区間（観測点の並び）は太く光らせ、そこへ届くまでと反対側は細く薄く。
 /// 距離の目盛りを打つのは、地図の上で「目標から何kmか」が読めないと場所を選べないため。
+function aimFitLines(lines) {
+ const points=[aim.target,...lines.flatMap(l=>l.points)].filter(p=>Number.isFinite(p?.latitude)&&Number.isFinite(p?.longitude));
+ if(points.length<2)return;
+ const lat0=Math.min(...points.map(p=>p.latitude)),lat1=Math.max(...points.map(p=>p.latitude)),lon0=Math.min(...points.map(p=>p.longitude)),lon1=Math.max(...points.map(p=>p.longitude)),lat=(lat0+lat1)/2,lon=(lon0+lon1)/2,cv=$('aimCanvas');
+ const dx=Math.max(.00001,(lon1-lon0)/360),dy=Math.max(.00001,(lat1-lat0)/(360*Math.cos(lat*Math.PI/180))),zoom=Math.min(Math.log2(Math.max(160,cv.clientWidth)*.75/(256*dx)),Math.log2(Math.max(200,cv.clientHeight)*.75/(256*dy)));
+ AimMap.setView(lat,lon,zoom);
+}
+// 計算済みの点列の中だけで時刻を補間する。折り返しは複数地点を返す。
+function aimLineAtTime(points, at) {
+  if (!Number.isFinite(at)) return [];
+  const found=[];
+  for(let i=1;i<points.length;i++){
+    const a=points[i-1],b=points[i];
+    if(!Number.isFinite(a.at)||!Number.isFinite(b.at)||at<Math.min(a.at,b.at)||at>Math.max(a.at,b.at))continue;
+    if(a.at===b.at)continue;
+    const f=(at-a.at)/(b.at-a.at),p={latitude:a.latitude+(b.latitude-a.latitude)*f,longitude:a.longitude+(b.longitude-a.longitude)*f};
+    if(!found.some(q=>Math.abs(q.latitude-p.latitude)+Math.abs(q.longitude-p.longitude)<1e-9))found.push(p);
+  }
+  return found;
+}
 AimMap.setOverlay((ctx, { project, width, height }) => {
   const t = aim.target;
   if (!t || !Number.isFinite(t.latitude)) return;
@@ -5446,7 +5466,8 @@ AimMap.setOverlay((ctx, { project, width, height }) => {
     ctx.setLineDash(dash);
     ctx.strokeStyle = ink; ctx.lineWidth = 5.5; path(); ctx.stroke();
     ctx.globalAlpha = 0.35; ctx.strokeStyle = color; ctx.lineWidth = 7; path(); ctx.stroke();
-    ctx.globalAlpha = 1; ctx.strokeStyle = color; ctx.lineWidth = 2.2; path(); ctx.stroke();
+    ctx.globalAlpha = 0.5; ctx.strokeStyle = color; ctx.lineWidth = 2.2; path(); ctx.stroke();
+    ctx.globalAlpha = 1;
     ctx.setLineDash([]);
 
     // 距離の目盛り。線に直交する短い棒を、切りのよい距離に打つ
@@ -5468,6 +5489,17 @@ AimMap.setOverlay((ctx, { project, width, height }) => {
     ctx.fillStyle = color; ctx.fill();
     ctx.lineWidth = 1.5; ctx.strokeStyle = ink; ctx.stroke();
     ctx.restore();
+  }
+
+  // いまの時刻に対応する計算済み区間上の撮影位置。区間外は描かない。
+  const timeState=aim.mapTime;
+  if(timeState&&timeState.day===aim.dayMs&&timeState.body===aim.body&&timeState.target===t.id){
+    for(const line of aim.lines||[])for(const p of aimLineAtTime(line.points,timeState.at)){
+      const [x,y]=project(p.latitude,p.longitude);
+      ctx.save();ctx.setLineDash(line.side==='rise'?[7,5]:[]);ctx.strokeStyle=ink;ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(x,y);ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.stroke();ctx.setLineDash([]);
+      ctx.beginPath();ctx.arc(x,y,9,0,Math.PI*2);ctx.fillStyle=ink;ctx.fill();ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+      aimMapLabel(ctx,x,y-16,`${aimSideLabel(line.side)} ${aimLookHMS(timeState.at)}`,'#fff',width,height,'center');ctx.restore();
+    }
   }
 
   // この日の候補地。一覧と同じ番号を、**立つ位置**に振る。選んだものは大きく。日の出／日の入の切り替えで選んでいる側だけ
@@ -7602,6 +7634,10 @@ async function aimLookRender(host, spec) {
   const draw = (v) => {
     const p = at(v);
     host._lookAt = p.at;
+    if(host.id==='aimLook'){
+      aim.mapTime={at:p.at,day:S.JstCal.startOfDay(spec.at),body,target:t.id};
+      if(!host._mapTimeFrame)host._mapTimeFrame=requestAnimationFrame(()=>{host._mapTimeFrame=null;AimMap.redraw();});
+    }
     if(aimAirCompare)aimAirCompare.at=p.at;
     aimAirDescribe(p.at,eyeObs);
     if (host._uiTime) {
@@ -10142,7 +10178,7 @@ checkForUpdate();
   mode=which;const both=wide.matches;
   scene.hidden=!both&&which!=='scene';places.hidden=!both&&which!=='places';
   tabs.forEach((t,i)=>{const on=(i===0)===(which==='scene');t.setAttribute('aria-selected',String(on));t.tabIndex=on?0:-1;if(focus&&on)t.focus();});
-  requestAnimationFrame(()=>{if(!places.hidden)AimMap.redraw();if(!scene.hidden&&look._lookSpec&&!look.hidden){const cv=look.querySelector('canvas');if(cv&&Math.round(cv.clientWidth)!==look._lookW)aimLookRender(look,look._lookSpec);}});
+  requestAnimationFrame(()=>{if(!places.hidden){const key=`${aim.target?.id}|${aim.body}|${aim.dayMs}|${aim.partId}|${aim.limb}|${aim.lines?.length}`;if(aim.lines?.length&&places._lineFitKey!==key){places._lineFitKey=key;aimFitLines(aim.lines);}AimMap.redraw();}if(!scene.hidden&&look._lookSpec&&!look.hidden){const cv=look.querySelector('canvas');if(cv&&Math.round(cv.clientWidth)!==look._lookW)aimLookRender(look,look._lookSpec);}});
  }
  tabs.forEach((t,i)=>{t.onclick=()=>show(i?'places':'scene');t.onkeydown=e=>{let j;if(e.key==='ArrowRight'||e.key==='ArrowLeft')j=1-i;else if(e.key==='Home')j=0;else if(e.key==='End')j=1;else return;e.preventDefault();show(j?'places':'scene',true);};});
  wide.addEventListener('change',()=>show(mode));show('scene');
@@ -10172,6 +10208,18 @@ checkForUpdate();
   const dateButton=el('aimCalendarOpen');if(!dateButton.querySelector('.preview-date-label')){const date=document.createElement('span');date.className='preview-date-label';date.textContent=el('aimDate').value.replaceAll('-','/');const weekday=document.createElement('span');weekday.className='preview-date-weekday';weekday.textContent=`(${S.Cal.weekday(aim.dayMs)})`;dateButton.replaceChildren(date,weekday);}
 
   const state=look._uiTime;
+  const mapRange=el('previewMapTime'),mapOutput=el('previewMapTimeAt');
+  if(mapRange&&mapOutput){
+   mapRange.disabled=!state;const text=state?aimLookHMS(state.current):'—';if(mapOutput.textContent!==text)mapOutput.textContent=text;
+   if(state){const scoped=(aim.lines||[]).filter(l=>!look._mapTimeSide||l.side===look._mapTimeSide).flatMap(l=>l.points.map(p=>p.at));
+    const lo=scoped.length?Math.min(...scoped):state.day,hi=scoped.length?Math.max(...scoped):state.day+86400000;
+    // 現在時刻も必ず範囲に含め、端へ寄せた表示と時刻値を矛盾させない。
+    if(document.activeElement!==mapRange){mapRange.min=String((Math.min(lo,state.current)-state.day)/1000);mapRange.max=String((Math.max(hi,state.current)-state.day)/1000);mapRange.value=String((state.current-state.day)/1000);}
+    mapRange.oninput=()=>look._uiTime?.set(state.day+(+mapRange.value)*1000);
+    for(const button of places.querySelectorAll('[data-map-time-side]')){const line=(aim.lines||[]).find(l=>l.side===button.dataset.mapTimeSide);button.disabled=!line;button.onclick=()=>{look._mapTimeSide=button.dataset.mapTimeSide;aimFitLines([line]);const times=line.points.map(p=>p.at),min=Math.min(...times),max=Math.max(...times);state.set(Math.max(min,Math.min(max,state.current)));update();};}
+   }
+  }
+
   clock.disabled=reference.disabled=!state||look.hidden||state.day!==aim.dayMs;
   const refText=state?`${state.name} ${S.JstCal.hhmm(state.reference)}`:'時刻を計算中';const refLabel=state?`${refText}へ移動`:'時刻を計算中';reference.setAttribute('aria-label',refLabel);reference.title=refLabel;
   if(state&&!clock.disabled){
