@@ -1091,7 +1091,7 @@
  #previewScene:before,#previewPlaces:before{font-size:1rem}
  #aimView .aim-air select,#aimView .aim-air input{font-size:var(--aim-control-font)}
 }
-#aimView .aim-frame-info{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}#aimView .aim-frame-info .aim-frame-times{flex:1;min-width:180px}#aimView .aim-air{margin:0 0 8px auto;border-top:0;max-width:100%}#aimView .aim-air-row{display:flex;align-items:center;gap:12px}#aimView #aimAirMode{width:auto;min-width:112px;min-height:44px;font-size:0.81rem;padding:8px 32px 8px 12px}#aimAirLabel{font-size:0.81rem;color:var(--secondary);flex:none}#aimView .aim-air-options{display:flex;background:var(--sunk);border-radius:10px;padding:3px;flex:1;max-width:330px}#aimView .aim-air-options button{flex:1;min-width:0;min-height:44px;border:0;border-radius:8px;font-size:0.81rem;color:var(--secondary);background:transparent}#aimView .aim-air-options button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);font-weight:600}#aimView #aimAirDetails summary{justify-content:flex-start;gap:8px;min-height:44px;font-size:0.75rem;color:var(--secondary)}#aimAirDetails summary::-webkit-details-marker{display:none}#aimAirSummary{margin-left:auto}#aimView .aim-air-chevron{font-size:18px}#aimAirDetails[open] .aim-air-chevron{transform:rotate(180deg)}
+#aimView .aim-frame-info{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}#aimView .aim-frame-info .aim-frame-times{flex:1 1 120px;min-width:120px}#aimView .aim-air{margin:0 0 8px auto;border-top:0;max-width:100%}#aimView .aim-air-row{display:flex;align-items:center;gap:12px}#aimView #aimAirMode{width:auto;min-width:112px;min-height:44px;font-size:0.81rem;padding:8px 32px 8px 12px}#aimAirLabel{font-size:0.81rem;color:var(--secondary);flex:none}#aimView .aim-air-options{display:flex;background:var(--sunk);border-radius:10px;padding:3px;flex:1;max-width:330px}#aimView .aim-air-options button{flex:1;min-width:0;min-height:44px;border:0;border-radius:8px;font-size:0.81rem;color:var(--secondary);background:transparent}#aimView .aim-air-options button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);font-weight:600}#aimView #aimAirDetails summary{justify-content:flex-start;gap:8px;min-height:44px;font-size:0.75rem;color:var(--secondary)}#aimAirDetails summary::-webkit-details-marker{display:none}#aimAirSummary{margin-left:auto}#aimView .aim-air-chevron{font-size:18px}#aimAirDetails[open] .aim-air-chevron{transform:rotate(180deg)}
 </style></head>
 <body>
 <main>
@@ -1835,23 +1835,23 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261004194000"></script>
+<script src="sorami-core.js?v=20261004194200"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261004194000"></script>
-<script src="sorami-exif.js?v=20261004194000"></script>
-<script src="sorami-capcloud.js?v=20261004194000"></script>
-<script src="sorami-terrain.js?v=20261004194000"></script>
-<script src="sorami-mountain.js?v=20261004194000"></script>
-<script src="sorami-fuji.js?v=20261004194000"></script>
-<script src="sorami-sky.js?v=20261004194000"></script>
-<script src="sorami-routes.js?v=20261004194000"></script>
-<script src="sorami-iss.js?v=20261004194000"></script>
-<script src="sorami-plane.js?v=20261004194000"></script>
-<script src="sorami-atmosphere.js?v=20261004194000"></script>
-<script src="sorami-bodies.js?v=20261004194000"></script>
-<script src="sorami-align.js?v=20261004194000"></script>
-<script src="sorami-moon.js?v=20261004194000"></script>
+<script src="sorami-astro.js?v=20261004194200"></script>
+<script src="sorami-exif.js?v=20261004194200"></script>
+<script src="sorami-capcloud.js?v=20261004194200"></script>
+<script src="sorami-terrain.js?v=20261004194200"></script>
+<script src="sorami-mountain.js?v=20261004194200"></script>
+<script src="sorami-fuji.js?v=20261004194200"></script>
+<script src="sorami-sky.js?v=20261004194200"></script>
+<script src="sorami-routes.js?v=20261004194200"></script>
+<script src="sorami-iss.js?v=20261004194200"></script>
+<script src="sorami-plane.js?v=20261004194200"></script>
+<script src="sorami-atmosphere.js?v=20261004194200"></script>
+<script src="sorami-bodies.js?v=20261004194200"></script>
+<script src="sorami-align.js?v=20261004194200"></script>
+<script src="sorami-moon.js?v=20261004194200"></script>
 <script>
 "use strict";
 const S = window.Sorami;
