@@ -691,7 +691,8 @@ console.log("== 同じ名前の関数を2つ置かない・観測点は1つ（20
   const src = /const groundDemCache = new Map\(\);[\s\S]*?\nfunction observerHere\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
   const run = (place, dem) => new Function("place", "bundle", "SoramiTerrain",
     `${src}; return { measureGroundHere, observerHere };`)(place, { home: { grid: { elevation: 400 } } },
-    { ...T, elevationFromTile: async () => dem });
+    { ...T, groundElevation: async (la, lo, o) => dem === null ? null
+      : (o?.withSource ? (dem === "sea" ? { elevation: 0, source: "海" } : { elevation: dem, source: "1m（レーザ）" }) : (dem === "sea" ? 0 : dem)) });
   const peak = run({ id: "search:35.6,139.2", name: "高尾山", latitude: 35.6251, longitude: 139.2437, elevation: 599, eyeHeightAGL: 1.5 }, 594);
   const before = peak.observerHere();
   await peak.measureGroundHere();
@@ -703,6 +704,11 @@ console.log("== 同じ名前の関数を2つ置かない・観測点は1つ（20
   ok(city.observerHere().locationScope === "area" && T.locationScope(city.observerHere()) === "area",
     "町の代表点は「area」を渡す（建物を取りに行かない。詳細の「含めていません」と合う）");
   ok(city.observerHere().groundM === 400, "DEM が無い所（海など）は予報の格子の標高");
+  const bay = run({ id: "search:35.5,139.8", name: "東京湾", latitude: 35.5, longitude: 139.8, elevation: null }, "sea");
+  await bay.measureGroundHere();
+  ok(bay.observerHere().groundM === 400, "標高APIが海（-----）と返す所も、これまでどおり予報の格子の標高");
+  ok(!/elevationFromTile\(/.test(html) && (html.match(/await groundAt\(/g) || []).length === 3,
+    "立つ場所の地面（地点・地図で選んだ点・写真）は国土地理院の標高API（最も精度の高いDEM）。10mメッシュのタイル z13 に戻さない（2026-10-05）");
 }
 
 console.log("== ねらう: その日の候補地（2026-09-30） ==");

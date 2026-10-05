@@ -1099,7 +1099,8 @@
  #aimView .aim-air select,#aimView .aim-air input{font-size:var(--aim-control-font)}
 }
 #aimView .aim-time-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:0 8px;margin:4px 0 8px}#aimView .aim-time-controls .aim-air{display:contents}#aimView .aim-time-controls .aim-air-row{grid-column:1;grid-row:1;gap:8px}#aimView .aim-time-controls #previewTimeScope{grid-column:2;grid-row:1;margin:0}#aimView .aim-time-controls #aimAirDetails{grid-column:1 / -1;grid-row:2}#aimView .aim-time-controls #aimAirDetails summary{justify-content:flex-start}#aimView .aim-time-controls #aimAirSummary{margin-left:0}#aimView .aim-frame-info{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}#aimView .aim-frame-info .aim-frame-times{flex:1 1 120px;min-width:120px}#aimView .aim-air{margin:0 0 8px auto;border-top:0;max-width:100%}#aimView .aim-air-row{display:flex;align-items:center;gap:12px}#aimView #aimAirMode{width:auto;min-width:112px;min-height:44px;font-size:0.81rem;padding:8px 32px 8px 12px}#aimAirLabel{font-size:0.81rem;color:var(--secondary);flex:none}#aimView .aim-air-options{display:flex;background:var(--sunk);border-radius:10px;padding:3px;flex:1;max-width:330px}#aimView .aim-air-options button{flex:1;min-width:0;min-height:44px;border:0;border-radius:8px;font-size:0.81rem;color:var(--secondary);background:transparent}#aimView .aim-air-options button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);font-weight:600}#aimView #aimAirDetails summary{justify-content:flex-start;gap:8px;min-height:44px;font-size:0.75rem;color:var(--secondary)}#aimAirDetails summary::-webkit-details-marker{display:none}#aimAirSummary{margin-left:auto}#aimView .aim-air-chevron{font-size:18px}#aimAirDetails[open] .aim-air-chevron{transform:rotate(180deg)}
-#aimView{padding-bottom:calc(96px + env(safe-area-inset-bottom))}#aimView .aim-date-section{border:0;padding-top:0}
+/* 下の時刻欄の高さぶんは、ページの最後（出典の下）に空ける。#aimView の中で空けると出典の上に余白が出て、出典は時刻欄の裏に入っていた（2026-10-05 iPhone）。高さは時刻欄を測って --aim-footer-h に入れる */
+main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84px + env(safe-area-inset-bottom))) + 12px)}#aimView .aim-date-section{border:0;padding-top:0}
 #aimView .preview-datetime-footer{position:fixed;z-index:35;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid rgba(0,0,0,.16);box-shadow:0 -4px 16px rgba(0,0,0,.12);padding:2px max(12px,env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
 #aimView .preview-datetime-footer .aim-date{display:grid;grid-template-columns:32px auto minmax(0,1fr) 32px 32px;align-items:center;gap:2px;max-width:780px;margin:0 auto;padding:0;border:0}
 #aimView .preview-datetime-footer #aimPrev,#aimView .preview-datetime-footer #aimNext,#aimView .preview-datetime-footer .preview-time-more{width:32px;min-width:32px;min-height:40px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--text);font-size:20px;line-height:1}
@@ -1866,24 +1867,24 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261005112051"></script>
+<script src="sorami-core.js?v=20261005140220"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261005112051"></script>
-<script src="sorami-exif.js?v=20261005112051"></script>
-<script src="sorami-capcloud.js?v=20261005112051"></script>
-<script src="sorami-terrain.js?v=20261005112051"></script>
-<script src="sorami-mountain.js?v=20261005112051"></script>
-<script src="sorami-fuji.js?v=20261005112051"></script>
-<script src="sorami-sky.js?v=20261005112051"></script>
-<script src="sorami-routes.js?v=20261005112051"></script>
-<script src="sorami-iss.js?v=20261005112051"></script>
-<script src="sorami-plane.js?v=20261005112051"></script>
-<script src="sorami-refraction.js?v=20261005112051"></script>
-<script src="sorami-atmosphere.js?v=20261005112051"></script>
-<script src="sorami-bodies.js?v=20261005112051"></script>
-<script src="sorami-align.js?v=20261005112051"></script>
-<script src="sorami-moon.js?v=20261005112051"></script>
+<script src="sorami-astro.js?v=20261005140220"></script>
+<script src="sorami-exif.js?v=20261005140220"></script>
+<script src="sorami-capcloud.js?v=20261005140220"></script>
+<script src="sorami-terrain.js?v=20261005140220"></script>
+<script src="sorami-mountain.js?v=20261005140220"></script>
+<script src="sorami-fuji.js?v=20261005140220"></script>
+<script src="sorami-sky.js?v=20261005140220"></script>
+<script src="sorami-routes.js?v=20261005140220"></script>
+<script src="sorami-iss.js?v=20261005140220"></script>
+<script src="sorami-plane.js?v=20261005140220"></script>
+<script src="sorami-refraction.js?v=20261005140220"></script>
+<script src="sorami-atmosphere.js?v=20261005140220"></script>
+<script src="sorami-bodies.js?v=20261005140220"></script>
+<script src="sorami-align.js?v=20261005140220"></script>
+<script src="sorami-moon.js?v=20261005140220"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2430,13 +2431,19 @@ const groundDemCache = new Map();   // 地点の座標 → DEM の地面の標�
 // `bundle.home.grid.elevation` は「予報を取った地点」のもので、地点を切り替えた直後は
 // 前の地点の値が残る。山中湖で東京の 30m を使い、富士山が地形に隠れる判定になった
 // （2026-09-14）。手入力の標高も、座標がずれていれば嘘になる（富士 §7・§8）。
+/// 立つ場所の地面の標高。国土地理院の標高APIで、その地点で最も精度の高いDEM（1m→5m→10mメッシュ）。
+/// 海と取れない所は null（呼び手が地点の標高などで補う）。2026-10-05 まで10mメッシュのタイル z13（1画素 約16m）だった
+async function groundAt(lat, lon) {
+  try {
+    const v = await SoramiTerrain.groundElevation(lat, lon, { withSource: true });
+    return v && v.source !== "海" && Number.isFinite(v.elevation) ? v.elevation : null;
+  } catch { return null; }
+}
 /// いまの地点の地面を DEM で測っておく。富士山・月の計算（loadExtras）の最初に待つ
 async function measureGroundHere() {
   const key = `${place.latitude},${place.longitude}`;
   if (groundDemCache.has(key)) return;
-  let g = null;
-  try { g = await SoramiTerrain.elevationFromTile(place.latitude, place.longitude, 13); } catch {}
-  groundDemCache.set(key, Number.isFinite(g) ? g : null);
+  groundDemCache.set(key, await groundAt(place.latitude, place.longitude));
 }
 /**
  * **いま選んでいる地点の「目の高さ」。** 展望台を選んでいればその高さを足す。
@@ -3066,10 +3073,8 @@ async function photoShot(body) {
   const r = photoDraft.exif;
   let aglM = null;
   if (Number.isFinite(body.altitude) && Number.isFinite(body.latitude)) {
-    try {
-      const g = await SoramiTerrain.elevationFromTile(body.latitude, body.longitude, 13);
-      if (Number.isFinite(g)) aglM = body.altitude - g;
-    } catch { /* 標高タイルが引けなくても記録は残す */ }
+    const g = await groundAt(body.latitude, body.longitude);
+    if (g !== null) aglM = body.altitude - g;
   }
   return { observedAtMs: body.takenAt, observedOffsetKnown: r ? r.offsetKnown : null,
     photoLatitude: body.latitude, photoLongitude: body.longitude, photoAltitudeM: body.altitude, photoAglM: aglM };
@@ -8475,8 +8480,7 @@ async function nearName(lat, lon) {
 /// 標高はその場所の値を読む（**地点検索の代表点と違い、ここが効く**）。取れなければ標高なしで進める。
 /// 名前は近くの地名を当てる。取れなければ座標そのものを名前にする。
 async function selectPointAt(lat, lon, subtitle) {
-  let elevation = null;
-  try { elevation = await SoramiTerrain.elevationFromTile(lat, lon, 13); } catch { elevation = null; }
+  const elevation = await groundAt(lat, lon);
   const { name } = await nearName(lat, lon);
   choosePlace({ id: `map:${lat.toFixed(5)},${lon.toFixed(5)}`,
     name, subtitle, latitude: lat, longitude: lon,
@@ -10242,6 +10246,7 @@ checkForUpdate();
  el('aimCalendarOpen').after(dateTime);
  const footer=document.createElement('footer');footer.className='preview-datetime-footer';footer.setAttribute('aria-label','撮影の日時');
  const dateRow=root.querySelector('.aim-date');footer.append(dateRow);root.append(footer);
+ if(typeof ResizeObserver==='function')new ResizeObserver(()=>{if(footer.offsetHeight)document.documentElement.style.setProperty('--aim-footer-h',footer.offsetHeight+'px');}).observe(footer);
  const timeMore=document.createElement('button');timeMore.type='button';timeMore.className='preview-time-more';timeMore.textContent='⋯';timeMore.setAttribute('aria-label','時刻の操作設定');timeMore.setAttribute('aria-haspopup','dialog');dateRow.append(timeMore);
  // 指で選んで閉じたダイアログから焦点が戻っても青い選択枠を出さない。キーボード操作では枠を残す。
  // 下部欄だけでなく天体・目標・画角の選択ボタンも同じ（2026-10-05 iOS 27で天体の選択後に青枠を確認）。

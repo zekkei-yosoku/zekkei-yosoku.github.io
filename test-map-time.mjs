@@ -26,3 +26,10 @@ test('E79 総点検で見つけた下部欄まわりの不具合を戻さない'
  assert.match(h,/if \(!bundle && route && !route\.id\) applyRoute\(\);\n    else \$\("placeName"\)\.textContent = place\.name;/,'予測の取得に失敗しても天体などの画面はURLどおり開く');
  assert.match(p,/focalInput\.value=button\.dataset\.focalPreset;focalInput\.onchange\(\);const sheet=button\.closest\('dialog'\);if\(sheet\?\.open\)sheet\.close\(\);/,'焦点距離の代表値を押したら画角調整を閉じる');
 });
+test('下の時刻欄の高さぶんはページの最後に空け、出典を時刻欄の裏に入れない（2026-10-05 iPhone）',()=>{
+ const p=h.slice(h.indexOf('<script id="previewPresentation">')),css=h.slice(h.indexOf('<style id="previewStyles">'),h.indexOf('</style></head>'));
+ assert.doesNotMatch(css,/#aimView\{padding-bottom/,'見え方の中で空けると出典の上に余白が出て、出典は時刻欄の裏に入る');
+ assert.match(css,/main:has\(>#aimView:not\(\[hidden\]\)\)\{padding-bottom:calc\(var\(--aim-footer-h,calc\(84px \+ env\(safe-area-inset-bottom\)\)\) \+ 12px\)\}/);
+ assert.match(p,/new ResizeObserver\(\(\)=>\{if\(footer\.offsetHeight\)document\.documentElement\.style\.setProperty\('--aim-footer-h',footer\.offsetHeight\+'px'\);\}\)\.observe\(footer\)/,'空ける高さは時刻欄を測る（安全域を含む）');
+ assert.ok(h.indexOf('<div id="aimView"')<h.indexOf('<details class="tiny fav-where" id="footer">'),'出典は見え方の後ろ（main の最後）にある');
+});
