@@ -1413,7 +1413,7 @@
 <div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div><div class="preview-tabs" role="tablist" aria-label="撮影の確認"><button type="button" id="previewSceneTab" role="tab" aria-selected="true" aria-controls="previewScene">見え方</button><button type="button" id="previewPlacesTab" role="tab" aria-selected="false" aria-controls="previewPlaces" tabindex="-1">撮影地</button></div><div class="preview-workspace"><section id="previewScene" role="tabpanel" aria-labelledby="previewSceneTab">    <div id="aimLook" class="aim-look" hidden></div>
 <div id="aimAir" class="aim-air"><div class="aim-air-row"><span id="aimAirLabel">大気差</span><select id="aimAirMode" aria-labelledby="aimAirLabel"><option value="standard">標準</option><option value="auto">気象予報</option><option value="none">なし</option></select></div>
 <details id="aimAirDetails"><summary>気象条件 <span id="aimAirSummary">気象を反映</span></summary><div class="aim-air-content">
-<p id="aimAirStatus" class="tiny" role="status"></p><p class="tiny">気象は選択地点・時刻のモデル値です。期間外・取得不可は標準大気を使用します。</p><p class="tiny">低空の逆転層によるずれは再現できません。「なし」を除き、地上目標の屈折は標準値です。</p>
+<p id="aimAirStatus" class="tiny" role="status"></p><p class="tiny">気象予報は、観測地点から目標の先までの上空の気温（予報モデル）で光の曲がり方をたどり、天体と目標に同じ大気を使います。</p><p class="tiny">上空の予報が無い日時は地上の気温・気圧だけ、取得できないときは標準大気で計算します。地上2mより下の気温差（海面・放射冷却）は入りません。</p>
 </div></details></div>
 </section><section id="previewPlaces" role="tabpanel" aria-labelledby="previewPlacesTab"><div class="preview-map-time"><div class="aim-time-heading"><span>時刻</span><output id="previewMapTimeAt"></output><button type="button" class="chip" data-map-time-side="rise">出</button><button type="button" class="chip" data-map-time-side="set">入</button></div><input type="range" id="previewMapTime" min="0" max="86400" step="any" aria-label="地図の撮影位置の時刻を調整"></div>    <div class="mapwrap" style="margin-top:8px">
       <canvas id="aimCanvas" aria-label="地図。線の上が、その日に重なって見える場所です"></canvas>
@@ -1866,23 +1866,24 @@
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261005015738"></script>
+<script src="sorami-core.js?v=20261005094333"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261005015738"></script>
-<script src="sorami-exif.js?v=20261005015738"></script>
-<script src="sorami-capcloud.js?v=20261005015738"></script>
-<script src="sorami-terrain.js?v=20261005015738"></script>
-<script src="sorami-mountain.js?v=20261005015738"></script>
-<script src="sorami-fuji.js?v=20261005015738"></script>
-<script src="sorami-sky.js?v=20261005015738"></script>
-<script src="sorami-routes.js?v=20261005015738"></script>
-<script src="sorami-iss.js?v=20261005015738"></script>
-<script src="sorami-plane.js?v=20261005015738"></script>
-<script src="sorami-atmosphere.js?v=20261005015738"></script>
-<script src="sorami-bodies.js?v=20261005015738"></script>
-<script src="sorami-align.js?v=20261005015738"></script>
-<script src="sorami-moon.js?v=20261005015738"></script>
+<script src="sorami-astro.js?v=20261005094333"></script>
+<script src="sorami-exif.js?v=20261005094333"></script>
+<script src="sorami-capcloud.js?v=20261005094333"></script>
+<script src="sorami-terrain.js?v=20261005094333"></script>
+<script src="sorami-mountain.js?v=20261005094333"></script>
+<script src="sorami-fuji.js?v=20261005094333"></script>
+<script src="sorami-sky.js?v=20261005094333"></script>
+<script src="sorami-routes.js?v=20261005094333"></script>
+<script src="sorami-iss.js?v=20261005094333"></script>
+<script src="sorami-plane.js?v=20261005094333"></script>
+<script src="sorami-refraction.js?v=20261005094333"></script>
+<script src="sorami-atmosphere.js?v=20261005094333"></script>
+<script src="sorami-bodies.js?v=20261005094333"></script>
+<script src="sorami-align.js?v=20261005094333"></script>
+<script src="sorami-moon.js?v=20261005094333"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -8254,20 +8255,30 @@ let aimAirLoadKey="",aimAirSeq=0,aimAirCompare=null;
 const aimAirAngle=(...args)=>SoramiAstro.targetElevationAngle(...args,{k:SoramiAtmosphere.targetK()});
 function aimAirDescribe(at,obs){
  const air=SoramiAtmosphere.at(at,obs),temp=Number.isFinite(air.temperatureC)?air.temperatureC.toFixed(1):"",pressure=Number.isFinite(air.pressureHPa)?Math.round(air.pressureHPa):"";
- const modeName={auto:air.fallback?"予報なし・標準値を使用":`${temp}℃ / ${pressure}hPa`,standard:"標準値を使用",none:"補正なし"}[aimAirSettings.mode];
+ // 視線上の上空の気温まで使えた時刻だけ「上空込み」。地上の値だけの日時（上空の予報が無い・候補地が遠い）と区別する
+ const line=aimAirSettings.mode==="auto"&&!air.fallback?SoramiAtmosphere.lineInfo?.(at,obs):null;
+ const modeName={auto:air.fallback?"予報なし・標準値を使用":`${temp}℃ / ${pressure}hPa${line?"・上空込み":""}`,standard:"標準値を使用",none:"補正なし"}[aimAirSettings.mode];
  const summary=$("aimAirSummary"),status=$("aimAirStatus");if(summary.textContent!==modeName)summary.textContent=modeName;
- const value=air.none?"天体・地上目標とも屈折なし":`${air.source} · ${temp}℃ / ${pressure}hPa · ${S.JstCal.hhmm(at)}`;
+ const value=air.none?"天体・地上目標とも屈折なし":aimAirSettings.mode==="auto"&&!air.fallback
+  ?`${air.source} · 地上${temp}℃ / ${pressure}hPa · ${line?`上空の気温: 視線上${line.points}地点（目標の先${Math.round(line.beyondKm)}kmまで）`:"上空の気温なし（地上の値で計算）"} · ${S.JstCal.hhmm(at)}`
+  :`${air.source} · ${temp}℃ / ${pressure}hPa · ${S.JstCal.hhmm(at)}`;
  if(status.textContent!==value)status.textContent=value;
+}
+/// 視線上の気温を取る相手。目標の場所と高さ（海抜、いちばん上の部位）が決まっているときだけ
+function aimAirTarget(){
+ const t=aim.target,p=t&&(t.parts||[])[0];
+ return p&&Number.isFinite(t.latitude)&&Number.isFinite(t.longitude)&&Number.isFinite(p.m)?{latitude:t.latitude,longitude:t.longitude,topM:p.m}:null;
 }
 function aimAirEnsure(f,day){
  if(aimAirSettings.mode!=="auto"||!f)return false;
- const key=`${f.latitude},${f.longitude}|${day}|${Math.floor(Date.now()/3600000)}`;
+ const target=aimAirTarget();
+ const key=`${f.latitude},${f.longitude}|${day}|${target?`${target.latitude},${target.longitude},${target.topM}`:""}|${Math.floor(Date.now()/3600000)}`;
  if(aimAirLoadKey===key)return false;
  aimAirLoadKey=key;const seq=++aimAirSeq;
  $("aimAirSummary").textContent="気象を取得中…"; $("aimAirStatus").textContent="選択地点・日時の気象を取得しています…";
  aim.seq++;aim.fromSeq++;aim.candSeq++;aim.lookSeq++;aim.spotSeq++;aimCal.seq++;
  (async()=>{const ground=await aimElevation(f.latitude,f.longitude);if(seq!==aimAirSeq)return;
- await SoramiAtmosphere.load({latitude:f.latitude,longitude:f.longitude,elevation:ground},day);
+ await SoramiAtmosphere.load({latitude:f.latitude,longitude:f.longitude,elevation:ground},day,{target});
  if(seq!==aimAirSeq)return;aimCal.cache.clear();aim.spotCache=null;aimApply();})();
  return true;
 }
