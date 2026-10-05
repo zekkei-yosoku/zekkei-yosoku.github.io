@@ -4,7 +4,8 @@ import {createRequire} from "node:module";
 import {readFileSync} from "node:fs";
 import vm from "node:vm";
 const require=createRequire(import.meta.url),AL=require("./sorami-align.js"),S=require("./sorami-core.js");
-const observer={latitude:35.58386,longitude:139.56853,elevation:83},target=AL.targetById("skytree");
+// 10/3 に月が先端の約23′下を通る位置（2026-10-05、方位を楕円体にしたので元の 35.58386,139.56853 から視線に直角に52m動かした）
+const observer={latitude:35.583465,longitude:139.568839,elevation:83},target=AL.targetById("skytree");
 const day=d=>Date.parse(`2026-10-${d}T00:00:00+09:00`);
 test("先端より下を通る月も建物全体との重なりとして候補へ出す",()=>{
  const row=AL.dailyView(observer,target,"moon",day("03"),{partId:"tip"})[0];

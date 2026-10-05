@@ -351,9 +351,11 @@ console.log("== 見え方の図（2026-10-02） ==");
     "図はシルエットの下の端（先端から14m）まで");
 
   // 2枚目の写真: 2024-11-29 04:52:23。月の位置から撮影地を逆算すると、11/30 の撮影地から 74m（ティンカーベルまで 694m）
+  // 2026-10-05: 方位を楕円体で解くように直したので、同じ逆算で撮影地が視線に直角に 2.06m 動いた（35.639731, 139.871155 から）。
+  // 球の方位は 0.10° 小さく、その誤りを撮影地の座標が吸っていた
   {
     const at2 = Date.UTC(2024, 10, 28, 19, 52, 23);
-    const obs2 = { latitude: 35.639731, longitude: 139.871155, elevation: 2.8 };
+    const obs2 = { latitude: 35.6397478, longitude: 139.8711648, elevation: 2.8 };
     const o2 = AL.towerOutline(obs2, tb);
     const m2 = A.moon(at2, { ...obs2, elevation: 4.3 });
     ok(Math.abs(o2.distanceKm - 0.694) < 0.005, "撮影地からティンカーベルまで 694m", o2.distanceKm.toFixed(4));
@@ -361,7 +363,7 @@ console.log("== 見え方の図（2026-10-02） ==");
     const pxDeg = m2.angularRadius / 91.56;
     ok(Math.abs((m2.apparentAltitude - o2.topAngle) - 17.7 * pxDeg) < 0.03, "杖の先は月の中心の 0.048° 下（写真と合う）",
       `${(m2.apparentAltitude - o2.topAngle).toFixed(3)}°`);
-    ok(Math.abs(((m2.azimuth - o2.azimuth + 540) % 360) - 180) < 0.12, "方位も月の中心とほぼ同じ（写真は 0.02° 右）",
+    ok(Math.abs(((m2.azimuth - o2.azimuth + 540) % 360) - 180 - 0.0216) < 0.02, "方位も写真どおり（月の中心が杖の先の 0.02° 右）",
       `${(((m2.azimuth - o2.azimuth + 540) % 360) - 180).toFixed(3)}°`);
     ok(m2.illuminatedFraction > 0.04 && m2.illuminatedFraction < 0.07, "写真と同じ細い月（5%）", `${(m2.illuminatedFraction * 100).toFixed(1)}%`);
     // 縮尺: 694m 先の 1m は 0.0826°。写真の 1m は 30.6px
@@ -514,6 +516,22 @@ console.log("== 見え方の図（2026-10-02） ==");
   const out = (p) => Math.abs(p.x) > win.halfW || Math.abs(p.y) > win.halfH;
   ok(out(path[0]) && out(path[path.length - 1]), "両端は図の外まで", `${path.length}点`);
   ok(path.every((p) => Number.isFinite(p.brightLimbZenithAngle) && Number.isFinite(p.illuminated)), "月の点は欠けの向きと割合を持つ");
+}
+
+console.log("== 写真と合う: 2026-10-03 鷺沼北公園の撮影地→スカイツリーと月（2026-10-05） ==");
+// ユーザーの連写（500mm・1秒ごと19コマ、時計はスマホと合わせてある）を測った値: 月の中心が塔の軸を横切るとき、中心は先端の 13.75′ 下、
+// 時刻は 22:22:36。撮影地はユーザー指定（35.584055, 139.568552）、地面は国土地理院1mメッシュの 86.9m。
+// 方位を球で解いていた頃は 20.4′ 下・66秒早いと予測していた（月が予測より約7′上を通った）
+{
+  const obs = { latitude: 35.584055, longitude: 139.568552, elevation: 86.9 }, eye = { ...obs, elevation: 88.4 };
+  const A = require("./sorami-astro.js"), sky = AL.targetById("skytree"), g = AL.geometryFrom(obs, sky, { eyeM: 1.5 });
+  const rel = (t) => { const m = A.moon(t, eye); return ((m.azimuth - g.azimuth + 540) % 360) - 180; };
+  let lo = Date.parse("2026-10-03T22:21:30+09:00"), hi = Date.parse("2026-10-03T22:23:30+09:00");
+  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (rel(mid) < 0) lo = mid; else hi = mid; }
+  const cross = (lo + hi) / 2, below = (A.moon(cross, eye).apparentAltitude - g.angle) * 60;
+  ok(Math.abs(below + 13.75) < 1, "月の中心が塔の軸を横切る高さは写真どおり（先端の 13.75′ 下）", `${below.toFixed(2)}′`);
+  const dt = (cross - Date.parse("2026-10-03T22:22:36.1+09:00")) / 1000;
+  ok(Math.abs(dt) < 30, "横切る時刻も写真と30秒以内（撮影地の指定が十数mずれると十数秒動く）", `${dt.toFixed(1)}秒`);
 }
 
 console.log("== 候補地は選んだ合わせ方どおり（2026-10-02） ==");

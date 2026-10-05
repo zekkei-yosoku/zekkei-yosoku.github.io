@@ -13,6 +13,7 @@
  *   富士山   … 富士山の方角ひとつ
  * 全周360度を測る必要は無い。地形は変わらないので、一度測れば使い回せる。
  *
+ * 方位・距離は楕円体（WGS84）の測地線（2026-10-05 まで球）。
  * 標高は Open-Meteo Elevation API（Copernicus DEM 相当・約90m）。
  * **1回のリクエストで100点まで**（2026-09-14 実測。101点以上は 400 が返る）。
  */
@@ -28,27 +29,78 @@
   const MAX_POINTS = 100;            // Open-Meteo の上限（実測）
   const ENDPOINT = "https://api.open-meteo.com/v1/elevation";
 
-  /// 方位と距離から緯度経度を出す（大円）
+  /*
+   * 方位・距離・行き先は**楕円体（WGS84）の測地線**で解く（Vincenty）。2026-10-05 まで地球を球として解いていて、
+   * 日本の緯度では北東・南東・南西・北西の向きで方位が最大0.12〜0.14°ずれた（南北・東西では0）。
+   * 鷺沼北公園→スカイツリーで 57.2954° と出て、正しくは 57.4108°（国土地理院の測量計算と一致）。
+   * 0.115° は月の直径の2割で、月が塔を横切る高さが約7′下に予測されていた（ユーザーの連写で発覚）。
+   * 天体の方位は地理緯度の北から測るので、地上の目標もこの方位で比べる。
+   */
+  const WGS_A = 6378137, WGS_F = 1 / 298.257223563, WGS_B = WGS_A * (1 - WGS_F);
+  /// 測地線の逆問題。{ km, azimuth（出発点での方位） }。収束しなければ球で返す（対蹠点の近くだけ）
+  function inverse(aLat, aLon, bLat, bLon) {
+    if (aLat === bLat && aLon === bLon) return { km: 0, azimuth: 0 };
+    const L = (bLon - aLon) * DEG;
+    const U1 = Math.atan((1 - WGS_F) * Math.tan(aLat * DEG)), U2 = Math.atan((1 - WGS_F) * Math.tan(bLat * DEG));
+    const sU1 = Math.sin(U1), cU1 = Math.cos(U1), sU2 = Math.sin(U2), cU2 = Math.cos(U2);
+    let lam = L, sinS, cosS, sig, cos2a, cos2sm, sinL, cosL;
+    for (let i = 0; i < 100; i++) {
+      sinL = Math.sin(lam); cosL = Math.cos(lam);
+      sinS = Math.hypot(cU2 * sinL, cU1 * sU2 - sU1 * cU2 * cosL);
+      if (sinS === 0) return { km: 0, azimuth: 0 };
+      cosS = sU1 * sU2 + cU1 * cU2 * cosL; sig = Math.atan2(sinS, cosS);
+      const sinA = cU1 * cU2 * sinL / sinS; cos2a = 1 - sinA * sinA;
+      cos2sm = cos2a ? cosS - 2 * sU1 * sU2 / cos2a : 0;
+      const C = WGS_F / 16 * cos2a * (4 + WGS_F * (4 - 3 * cos2a)), prev = lam;
+      lam = L + (1 - C) * WGS_F * sinA * (sig + C * sinS * (cos2sm + C * cosS * (-1 + 2 * cos2sm * cos2sm)));
+      if (Math.abs(lam - prev) < 1e-12) {
+        const u2 = cos2a * (WGS_A * WGS_A - WGS_B * WGS_B) / (WGS_B * WGS_B);
+        const A_ = 1 + u2 / 16384 * (4096 + u2 * (-768 + u2 * (320 - 175 * u2))), B_ = u2 / 1024 * (256 + u2 * (-128 + u2 * (74 - 47 * u2)));
+        const dS = B_ * sinS * (cos2sm + B_ / 4 * (cosS * (-1 + 2 * cos2sm * cos2sm) - B_ / 6 * cos2sm * (-3 + 4 * sinS * sinS) * (-3 + 4 * cos2sm * cos2sm)));
+        const az = Math.atan2(cU2 * sinL, cU1 * sU2 - sU1 * cU2 * cosL) / DEG;
+        return { km: WGS_B * A_ * (sig - dS) / 1000, azimuth: (az % 360 + 360) % 360 };
+      }
+    }
+    return { km: sphereKm(aLat, aLon, bLat, bLon), azimuth: sphereBearing(aLat, aLon, bLat, bLon) };
+  }
+  /// 測地線の順問題（方位と距離から行き先）
   function destination(lat, lon, bearingDeg, distanceKm) {
-    const ang = distanceKm / EARTH_KM, b = bearingDeg * DEG;
-    const p1 = lat * DEG, l1 = lon * DEG;
-    const p2 = Math.asin(Math.sin(p1) * Math.cos(ang) + Math.cos(p1) * Math.sin(ang) * Math.cos(b));
-    const l2 = l1 + Math.atan2(Math.sin(b) * Math.sin(ang) * Math.cos(p1),
-                               Math.cos(ang) - Math.sin(p1) * Math.sin(p2));
-    let lo = (l2 / DEG) % 360; if (lo > 180) lo -= 360; if (lo < -180) lo += 360;
+    const a1 = bearingDeg * DEG, s = distanceKm * 1000, sa1 = Math.sin(a1), ca1 = Math.cos(a1);
+    const tU1 = (1 - WGS_F) * Math.tan(lat * DEG), cU1 = 1 / Math.sqrt(1 + tU1 * tU1), sU1 = tU1 * cU1;
+    const sig1 = Math.atan2(tU1, ca1), sinA = cU1 * sa1, cos2a = 1 - sinA * sinA;
+    const u2 = cos2a * (WGS_A * WGS_A - WGS_B * WGS_B) / (WGS_B * WGS_B);
+    const A_ = 1 + u2 / 16384 * (4096 + u2 * (-768 + u2 * (320 - 175 * u2))), B_ = u2 / 1024 * (256 + u2 * (-128 + u2 * (74 - 47 * u2)));
+    let sig = s / (WGS_B * A_), cos2sm, sinS, cosS;
+    for (let i = 0; i < 100; i++) {
+      cos2sm = Math.cos(2 * sig1 + sig); sinS = Math.sin(sig); cosS = Math.cos(sig);
+      const dS = B_ * sinS * (cos2sm + B_ / 4 * (cosS * (-1 + 2 * cos2sm * cos2sm) - B_ / 6 * cos2sm * (-3 + 4 * sinS * sinS) * (-3 + 4 * cos2sm * cos2sm)));
+      const next = s / (WGS_B * A_) + dS;
+      if (Math.abs(next - sig) < 1e-12) { sig = next; break; }
+      sig = next;
+    }
+    cos2sm = Math.cos(2 * sig1 + sig); sinS = Math.sin(sig); cosS = Math.cos(sig);
+    const x = sU1 * sinS - cU1 * cosS * ca1;
+    const p2 = Math.atan2(sU1 * cosS + cU1 * sinS * ca1, (1 - WGS_F) * Math.hypot(sinA, x));
+    const lam = Math.atan2(sinS * sa1, cU1 * cosS - sU1 * sinS * ca1);
+    const C = WGS_F / 16 * cos2a * (4 + WGS_F * (4 - 3 * cos2a));
+    const L = lam - (1 - C) * WGS_F * sinA * (sig + C * sinS * (cos2sm + C * cosS * (-1 + 2 * cos2sm * cos2sm)));
+    let lo = (lon + L / DEG) % 360; if (lo > 180) lo -= 360; if (lo < -180) lo += 360;
     return { latitude: p2 / DEG, longitude: lo };
   }
 
-  /// 2点間の方位角（北から東回り）
-  function bearing(aLat, aLon, bLat, bLon) {
+  /// 2点間の方位角（北から東回り、出発点での測地線の向き）
+  const bearing = (aLat, aLon, bLat, bLon) => inverse(aLat, aLon, bLat, bLon).azimuth;
+  /// 測地線の長さ[km]
+  const distanceKm = (aLat, aLon, bLat, bLon) => inverse(aLat, aLon, bLat, bLon).km;
+
+  // 球での値。逆問題が収束しない（対蹠点の近く）ときの受け皿だけに使う
+  function sphereBearing(aLat, aLon, bLat, bLon) {
     const p1 = aLat * DEG, p2 = bLat * DEG, dl = (bLon - aLon) * DEG;
     const y = Math.sin(dl) * Math.cos(p2);
     const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
     return ((Math.atan2(y, x) / DEG) % 360 + 360) % 360;
   }
-
-  /// 大円距離
-  function distanceKm(aLat, aLon, bLat, bLon) {
+  function sphereKm(aLat, aLon, bLat, bLon) {
     const p1 = aLat * DEG, p2 = bLat * DEG;
     const dp = p2 - p1, dl = (bLon - aLon) * DEG;
     const h = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
@@ -240,6 +292,67 @@
   async function elevationFromTile(lat, lon, z = 11) {
     const v = await sampleTile(lat, lon, z);
     return v === undefined ? null : v;
+  }
+
+  /*
+   * 立つ場所の地面の標高。国土地理院の標高API（その地点で最も精度の高いDEM: 1mメッシュ（航空レーザ）→ 5m → 10m を
+   * 国土地理院の側で選ぶ）。出どころは hsrc（「1m（レーザ）」など）。海は "-----" で 0m とする。
+   * 2026-10-05 まで10mメッシュのタイル z13（1画素 約16m）で、鷺沼北公園の撮影地が 1mメッシュの 86.85m に対し 81.52m と出ていた。
+   * 目の高さが1m違うと26km先の目標の見上げ角が0.13′変わる。
+   * タイルで1m→5m→10mと探す形も試したが、候補地が多い画面の初回で標高タイルを223枚（うち404が95枚）取りに行ったのでやめた。
+   * 1地点1回の小さな応答で、同時は6件まで、取った値は標高タイルと同じ置き場に30日とっておく。取れなければ10mメッシュのタイル。
+   */
+  const GSI_POINT = "https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php";
+  const points = new Map();
+  let pointActive = 0;
+  const pointWaiting = [];
+  async function pointLimited(fn) {
+    while (pointActive >= 6) await new Promise((ok) => pointWaiting.push(ok));
+    pointActive++;
+    try { return await fn(); } finally { pointActive--; const next = pointWaiting.shift(); if (next) next(); }
+  }
+  function parsePoint(j) {
+    if (j && Number.isFinite(Number(j.elevation)) && j.elevation !== "") return { elevation: Number(j.elevation), source: String(j.hsrc || "") };
+    if (j && j.elevation === "-----") return { elevation: 0, source: "海" };
+    return null;
+  }
+  async function groundElevation(lat, lon, { withSource = false, fetchImpl = global.fetch } = {}) {
+    if (!inJapan(lat, lon)) return null;
+    const key = `${lat.toFixed(5)},${lon.toFixed(5)}`;
+    if (!points.has(key)) {
+      points.set(key, (async () => {
+        const url = `${GSI_POINT}?lon=${lon.toFixed(6)}&lat=${lat.toFixed(6)}&outtype=JSON`;
+        const store = demStore();
+        let cache = null;
+        if (store) {
+          try {
+            cache = await store.open(DEM_CACHE);
+            const hit = await cache.match(url), at = hit ? Number(hit.headers.get(DEM_AT)) : NaN;
+            if (hit && Date.now() - at < DEM_TTL_MS && Date.now() >= at) { const v = parsePoint(await hit.json()); if (v) return v; }
+          } catch { cache = null; }
+        }
+        try {
+          const res = typeof fetchImpl === "function" ? await pointLimited(() => fetchImpl(url)) : null;
+          if (res && res.ok) {
+            const j = await res.json(), v = parsePoint(j);
+            if (v) {
+              if (cache) {
+                try {
+                  await cache.put(url, new Response(JSON.stringify(j), { status: 200, headers: { "content-type": "application/json", [DEM_AT]: String(Date.now()) } }));
+                  pruneDemCache(cache);
+                } catch { /* 憶えられなくても今回の値は返す */ }
+              }
+              return v;
+            }
+          }
+        } catch { /* 下の10mメッシュへ */ }
+        const t = await sampleTile(lat, lon, 14);
+        return t === undefined ? null : { elevation: t === null ? 0 : t, source: t === null ? "海" : "10m（タイル）" };
+      })());
+      while (points.size > 3000) points.delete(points.keys().next().value);
+    }
+    const v = await points.get(key);
+    return v ? (withSource ? v : v.elevation) : null;
   }
 
   /**
@@ -1193,8 +1306,8 @@
 
   const SoramiTerrain = {
     MAX_POINTS, DEFAULT_STEPS, OBSERVATION_DECKS, decksFor, deckLabel, structureHeight, isLookout,
-    destination, bearing, distanceKm,
-    fetchElevations, elevations, elevationFromTile, inJapan, resolveObserver,
+    destination, bearing, distanceKm, inverse,
+    fetchElevations, elevations, elevationFromTile, groundElevation, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
     urbanHorizon, buildingHeightM, buildingAt, buildingsAlong, wikidataHeight, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
     profileToward, stepsFor, EYE_HEIGHT_PRESETS, searchPlaceIndex, normName,

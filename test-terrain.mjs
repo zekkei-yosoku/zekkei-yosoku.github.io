@@ -322,5 +322,40 @@ console.log("== その点に建つ建物の高さ（2026-10-01） ==");
   ok(r6 === null, "通信できなければ null");
 }
 
+
+// ---- 方位・距離は楕円体の測地線（2026-10-05）
+{
+  console.log("\n== 方位・距離は楕円体（国土地理院の測量計算と合う）==");
+  // 国土地理院「測量計算サイト 距離と方位角の計算」（GRS80）: 26007.345m・57.4107917°
+  const g = T.inverse(35.584055, 139.568552, 35.710063, 139.8107);
+  ok(Math.abs(g.km - 26.007345) < 1e-5 && Math.abs(g.azimuth - 57.4107917) < 1e-6, "鷺沼北公園の撮影地→スカイツリー", `${g.km.toFixed(6)}km ${g.azimuth.toFixed(7)}°`);
+  ok(Math.abs(T.bearing(35.584055, 139.568552, 35.710063, 139.8107) - 57.4107917) < 1e-6, "bearing も同じ値（球では 57.2954° で 0.115° ずれていた）");
+  let worst = 0;
+  for (const az of [0, 37, 90, 145, 180, 233, 270, 321]) for (const km of [0.5, 26, 150, 400]) {
+    const p = T.destination(35.6, 139.7, az, km), q = T.inverse(35.6, 139.7, p.latitude, p.longitude);
+    worst = Math.max(worst, Math.abs(((q.azimuth - az + 540) % 360) - 180) * 3600, Math.abs(q.km - km) * 1e6);
+  }
+  ok(worst < 0.01, "行き先→方位・距離が元に戻る（0.01秒角・0.01mm 未満）", worst.toExponential(2));
+  ok(T.distanceKm(35, 139, 35, 139) === 0 && T.bearing(35, 139, 35, 139) === 0, "同じ点は 0");
+}
+
+// ---- 立つ場所の標高は国土地理院の標高API（その地点で最も精度の高いDEM、2026-10-05）
+{
+  console.log("\n== 立つ場所の標高は国土地理院の標高API ==");
+  const urls = [];
+  const api = (body) => async (url) => { urls.push(url); if (body instanceof Error) throw body; return new Response(JSON.stringify(body), { status: 200 }); };
+  const e1 = await T.groundElevation(35.584055, 139.568552, { withSource: true, fetchImpl: api({ elevation: 86.9, hsrc: "1m（レーザ）" }) });
+  ok(e1 && e1.elevation === 86.9 && e1.source === "1m（レーザ）", "1mメッシュの値と出どころ", JSON.stringify(e1));
+  ok(/getelevation\.php\?lon=139\.568552&lat=35\.584055&outtype=JSON$/.test(urls[0]), "国土地理院の標高APIへ緯度経度で聞く", urls[0]);
+  await T.groundElevation(35.584055, 139.568552, { fetchImpl: api({ elevation: 1, hsrc: "x" }) });
+  ok(urls.length === 1, "同じ地点は聞き直さない");
+  ok(await T.groundElevation(35.2, 139.6, { fetchImpl: api({ elevation: "-----", hsrc: "-----" }) }) === 0, "海（-----）は 0m");
+  // 通信できなければ10mメッシュのタイル（z14、x+y が偶数の升目は 12.34m）
+  const z14 = center(14520, 6452, 14);
+  const e3 = await T.groundElevation(z14.latitude, z14.longitude, { withSource: true, fetchImpl: api(new Error("offline")) });
+  ok(e3 && e3.elevation === 12.34 && e3.source === "10m（タイル）", "取れなければ10mメッシュのタイル", JSON.stringify(e3));
+  ok(await T.groundElevation(48.85, 2.35) === null, "日本の外は null（呼び手が別の方法で取る）");
+}
+
 console.log(`\n${fail === 0 ? "TERRAIN OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

@@ -17,7 +17,8 @@ function setup(al=AL){
 test("連続する重なる日を代表日にまとめず全日表示する",()=>{
  const {c}=setup(), obs={latitude:35.6252,longitude:139.2436,elevation:599}, target=AL.targetById("fuji");
  const rows=c.rows(obs,target,"sun",2026,11,"summit");
- assert.equal(rows.filter(c.solid).length,20); assert.equal(rows.length,22); assert.ok(rows.every(e=>e.dayCount===1));
+ // 2026-10-05: 方位を楕円体で解くようにして、重なる期間が 12/12〜31 から 12/11〜31 へ1日早まった（冬至のころは日の入の方位がほとんど動かず、0.1°で端の1日が入る）
+ assert.equal(rows.filter(c.solid).length,21); assert.equal(rows.length,23); assert.ok(rows.every(e=>e.dayCount===1));
  const grouped=AL.upcoming(obs,target,"sun",{from:Date.parse("2026-12-01T00:00:00+09:00"),days:31,limit:Infinity,partId:"summit",stepMs:3600000});
  assert.equal(grouped.length,1); assert.ok(grouped[0].dayCount>1);
 });
@@ -47,7 +48,9 @@ test("古い月の非同期結果と閉じた後の結果を捨てる・エラ�
 });
 
 test("先端の下を通る日は建物全体との重なりとしてカレンダーへ表示する",()=>{
- const {c}=setup();const obs={latitude:35.58386,longitude:139.56853,elevation:83},target=AL.targetById("skytree");
+ // 観測点は仕組みを確かめるための点。10/3 に月が先端の約23′下を通る位置（2026-10-05、方位を楕円体にしたので 35.58386,139.56853 から視線に直角に52m動かした。
+ // 元の点では実際の写真どおり月が先端に掛かる）
+ const {c}=setup();const obs={latitude:35.583465,longitude:139.568839,elevation:83},target=AL.targetById("skytree");
  const rows=c.rows(obs,target,"moon",2026,9,"tip");
  const start=Date.parse("2026-10-03T00:00:00+09:00"), today=rows.find(e=>S.JstCal.sameDay(e.at,start));
  assert.ok(today);assert.ok(Math.abs(today.gap)>1.2*today.radius);assert.equal(c.solid(today),false);assert.equal(today.intersects,true);
