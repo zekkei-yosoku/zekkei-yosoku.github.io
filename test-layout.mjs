@@ -709,6 +709,11 @@ console.log("== 同じ名前の関数を2つ置かない・観測点は1つ（20
   ok(bay.observerHere().groundM === 400, "標高APIが海（-----）と返す所も、これまでどおり予報の格子の標高");
   ok(!/elevationFromTile\(/.test(html) && (html.match(/await groundAt\(/g) || []).length === 3,
     "立つ場所の地面（地点・地図で選んだ点・写真）は国土地理院の標高API（最も精度の高いDEM）。10mメッシュのタイル z13 に戻さない（2026-10-05）");
+  // まとめて引く標高（地形の地平線・見通し・山の稜線）は、観測点を渡して近い点ほど細かく読む。建物の足もとは標高API（2026-10-05）
+  ok(/elevations: \(pts\) => SoramiTerrain\.elevations\(pts, \{ from: c\.stand \}\)/.test(html)
+    && /SoramiTerrain\.elevations\(pts, \{ zoom: D > 40 \? 12 : 13, from: obs \}\)/.test(html)
+    && /SoramiTerrain\.groundElevation\(x\.lat, x\.lon\)/.test(html),
+    "候補地の見通し・山の稜線は観測点からの距離でズームを上げ、建物の足もとは標高APIで読む");
 }
 
 console.log("== ねらう: その日の候補地（2026-09-30） ==");
@@ -2778,7 +2783,8 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   const src = /async function aimBuildingsOnLine\([\s\S]*?\n\}/.exec(html)[0];
   const T = req("./sorami-terrain.js");
   const run = async (groundAtBuilding, standGround) => {
-    const fake = { ...T, elevations: async (pts) => pts.map(() => groundAtBuilding) };
+    // 建物の足もとは標高API（groundElevation）で1点ずつ（2026-10-05）。検査では通信しない
+    const fake = { ...T, elevations: async () => { throw new Error("タイルで引かない"); }, groundElevation: async () => groundAtBuilding };
     const fn = new Function("SoramiTerrain", `${src}; return aimBuildingsOnLine;`)(fake);
     const stand = { latitude: 35.6, longitude: 139.6 }, target = { latitude: 35.6, longitude: 139.75 };   // 真東へ約13.6km
     const onLine = { latitude: 35.6, longitude: 139.605, radiusM: 20, heightM: 40 };                     // 東へ450m、線の上

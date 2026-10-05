@@ -1867,24 +1867,24 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261005140220"></script>
+<script src="sorami-core.js?v=20261005143009"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261005140220"></script>
-<script src="sorami-exif.js?v=20261005140220"></script>
-<script src="sorami-capcloud.js?v=20261005140220"></script>
-<script src="sorami-terrain.js?v=20261005140220"></script>
-<script src="sorami-mountain.js?v=20261005140220"></script>
-<script src="sorami-fuji.js?v=20261005140220"></script>
-<script src="sorami-sky.js?v=20261005140220"></script>
-<script src="sorami-routes.js?v=20261005140220"></script>
-<script src="sorami-iss.js?v=20261005140220"></script>
-<script src="sorami-plane.js?v=20261005140220"></script>
-<script src="sorami-refraction.js?v=20261005140220"></script>
-<script src="sorami-atmosphere.js?v=20261005140220"></script>
-<script src="sorami-bodies.js?v=20261005140220"></script>
-<script src="sorami-align.js?v=20261005140220"></script>
-<script src="sorami-moon.js?v=20261005140220"></script>
+<script src="sorami-astro.js?v=20261005143009"></script>
+<script src="sorami-exif.js?v=20261005143009"></script>
+<script src="sorami-capcloud.js?v=20261005143009"></script>
+<script src="sorami-terrain.js?v=20261005143009"></script>
+<script src="sorami-mountain.js?v=20261005143009"></script>
+<script src="sorami-fuji.js?v=20261005143009"></script>
+<script src="sorami-sky.js?v=20261005143009"></script>
+<script src="sorami-routes.js?v=20261005143009"></script>
+<script src="sorami-iss.js?v=20261005143009"></script>
+<script src="sorami-plane.js?v=20261005143009"></script>
+<script src="sorami-refraction.js?v=20261005143009"></script>
+<script src="sorami-atmosphere.js?v=20261005143009"></script>
+<script src="sorami-bodies.js?v=20261005143009"></script>
+<script src="sorami-align.js?v=20261005143009"></script>
+<script src="sorami-moon.js?v=20261005143009"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7052,7 +7052,7 @@ async function aimFindCandidates() {
     try {
       los = await SoramiAlign.lineOfSight(
         { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM + (c.place.deckM || 0) },
-        aim.target, { partId: aim.partId, elevations: (pts) => SoramiTerrain.elevations(pts), skipKm: 0.3 });
+        aim.target, { partId: aim.partId, elevations: (pts) => SoramiTerrain.elevations(pts, { from: c.stand }), skipKm: 0.3 });
     } catch { los = null; }
     if (seq !== aim.candSeq) return;
     if (los && !los.clear) continue;
@@ -7253,7 +7253,8 @@ async function aimBuildingsOnLine(stand, groundM, target, buildings, reachKm) {
   }
   if (!on.length || !Number.isFinite(groundM)) return on.map((x) => x.b);
   let g = [];
-  try { g = await SoramiTerrain.elevations(on.map((x) => ({ latitude: x.lat, longitude: x.lon })), { zoom: 13 }); } catch { g = []; }
+  // 建物の足もとも立つ場所と同じ標高API（最も精度の高いDEM）。数は線に掛かる建物だけ
+  try { g = await Promise.all(on.map((x) => SoramiTerrain.groundElevation(x.lat, x.lon).catch(() => null))); } catch { g = []; }
   return on.map((x, i) => (Number.isFinite(g[i]) ? { ...x.b, heightM: x.b.heightM + (g[i] - groundM) } : x.b));
 }
 async function aimBuildingBlocks(cands) {
@@ -7434,7 +7435,7 @@ async function aimLookRidge(obs, eye, target, win) {
     }
   }
   let el;
-  try { el = await SoramiTerrain.elevations(pts, { zoom: D > 40 ? 12 : 13 }); } catch { return null; }
+  try { el = await SoramiTerrain.elevations(pts, { zoom: D > 40 ? 12 : 13, from: obs }); } catch { return null; }
   if(airK!==SoramiAtmosphere.targetK())return null;
   const rim = SoramiAlign.rimOutline({ ...obs, elevation: eye }, target);
   const summit = aimAirAngle(D, eye, target.parts[0].m);

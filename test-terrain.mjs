@@ -89,6 +89,61 @@ console.log("== 1点読み（観測点の地面）は従来どおり ==");
   ok(await T.elevationFromTile(10, 10) === null, "国外は null");
 }
 
+console.log("== 標高は画素ごとに最も精度の高いDEMから（1m→5m→10m）、近い点ほど細かく（2026-10-05） ==");
+// ユーザー「標高は全て一番精度が高いやつを使うようにしてよ」。層ごとに値を変えたタイルで、どの層を読んだかを見る
+{
+  const saveImage = globalThis.Image, saveDoc = globalThis.document;
+  const path = require.resolve("./sorami-terrain.js");
+  // have: { 層: 値 | null（標高なし） }。無い層は404
+  const run = async (have, points, opts) => {
+    const urls = [];
+    globalThis.Image = class {
+      set src(url) {
+        urls.push(url); this._layer = url.match(/xyz\/([^/]+)\//)[1]; this.width = 256; this.height = 256;
+        queueMicrotask(() => (this._layer in have ? this.onload() : this.onerror()));
+      }
+    };
+    globalThis.document = { createElement: () => { let layer = null; return { getContext: () => ({
+      drawImage: (img) => { layer = img._layer; },
+      getImageData: (_x, _y, w, h) => {
+        const v = have[layer], data = new Uint8ClampedArray(w * h * 4);
+        for (let i = 0; i < w * h; i++) {
+          if (v === null) { data[i * 4] = 128; continue; }
+          const x = Math.round(v * 100); data[i * 4] = x >> 16; data[i * 4 + 1] = (x >> 8) & 255; data[i * 4 + 2] = x & 255;
+        }
+        return { width: w, height: h, data };
+      } }) }; } };
+    delete require.cache[path];
+    const M = require("./sorami-terrain.js");
+    const v = await M.elevations(points, { fetchImpl: async () => { throw new Error("通信しない"); }, ...opts });
+    return { v, urls, M };
+  };
+  const P = { latitude: 35.584055, longitude: 139.568552 };
+  const eq = (a, b) => Math.abs(a - b) < 1e-6;
+  let r = await run({ dem1a_png: 86.85, dem5a_png: 86.4, dem_png: 81.52 }, [P], { zoom: 13 });
+  ok(eq(r.v[0], 86.85) && r.urls.length === 1 && /\/dem1a_png\/13\//.test(r.urls[0]), "1mメッシュがあれば1mの値（1枚だけ読む）", JSON.stringify([r.v, r.urls]));
+  r = await run({ dem1a_png: null, dem5a_png: 86.4, dem_png: 81.52 }, [P], { zoom: 13 });
+  ok(eq(r.v[0], 86.4), "1mの範囲外の画素は5m（航空レーザ）", JSON.stringify(r.v));
+  r = await run({ dem5b_png: 85.9, dem_png: 81.52 }, [P], { zoom: 13 });
+  ok(eq(r.v[0], 85.9), "5m（レーザ）も無ければ5m（写真測量）", JSON.stringify(r.v));
+  r = await run({ dem_png: 81.52 }, [P], { zoom: 13 });
+  ok(eq(r.v[0], 81.52), "どれも無ければ10m", JSON.stringify(r.v));
+  r = await run({ dem1a_png: null, dem_png: null }, [P], { zoom: 13 });
+  ok(r.v[0] === 0 && !r.urls.some((u) => /dem5[bc]/.test(u)), "10mでも標高なしは海（0m）。写真測量の5mは取りに行かない", JSON.stringify(r.urls));
+  r = await run({ dem1a_png: null, dem5a_png: null, dem5b_png: 85.9, dem_png: 81.52 }, [P], { zoom: 17 });
+  ok(JSON.stringify(r.urls.map((u) => u.match(/xyz\/([^/]+\/\d+)\//)[1])) === JSON.stringify(["dem1a_png/17", "dem5a_png/15", "dem_png/14", "dem5b_png/15"]),
+    "1m→5m（レーザ）→10m（海か）→5m（写真測量）の順で、層ごとの最大ズーム（1m z17・5m z15・10m z14）を超えない", JSON.stringify(r.urls));
+  // 近い点ほど細かく。観測点から見て画素1つが0.5°以下
+  const at = (km) => r.M.destination(P.latitude, P.longitude, 90, km);
+  r = await run({ dem1a_png: 50 }, [at(0.1), at(1), at(3), at(40)], { from: P });
+  const zs = r.urls.map((u) => Number(u.match(/\/dem1a_png\/(\d+)\//)[1]));
+  ok(JSON.stringify(zs) === JSON.stringify([17, 14, 13, 11]), "100m先はz17、1km先はz14、3km先はz13、遠くは呼び手のズーム（z11）", JSON.stringify(zs));
+  r = await run({ dem1a_png: 50 }, [at(0.1), at(40)], {});
+  ok(r.urls.every((u) => /\/dem1a_png\/11\//.test(u)), "観測点を渡さなければ従来どおり一律のズーム", JSON.stringify(r.urls));
+  globalThis.Image = saveImage; globalThis.document = saveDoc;
+  delete require.cache[path];
+}
+
 console.log("== 緯度経度の文字列を読む ==");
 // 地図アプリからの貼り付けをそのまま受ける（2026-09-24 ユーザー依頼）
 {
@@ -152,7 +207,8 @@ console.log("== 海の升目（404）を憶えて、開き直しても取りに�
   ok(await T1.elevationFromTile(p.latitude, p.longitude) === null, "404 の升目は海（null）");
   delete require.cache[path];
   const T2 = require("./sorami-terrain.js");      // 画面を開き直したのと同じ（手元の憶えは空）
-  ok(await T2.elevationFromTile(p.latitude, p.longitude) === null && fetched === 1,
+  // 1m（dem1a）・5m（dem5a）・10m（dem_png）を1回ずつ。10mも無ければ海なので写真測量の5mは取りに行かない（2026-10-05）
+  ok(await T2.elevationFromTile(p.latitude, p.longitude) === null && fetched === 3,
     "開き直しても、同じ升目へは取りに行かない", `取得 ${fetched}回`);
   globalThis.fetch = realFetch;
   delete globalThis.caches;

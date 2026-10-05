@@ -167,7 +167,9 @@
   // こちらで持つ。1枚65536点ぶんで、線1本に88枚使う（実測）。
   const DEM_CACHE = "sorami-dem-v1";
   const DEM_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-  const DEM_MAX = 800;                       // 88枚×9通りぶん。20KB/枚として約16MB
+  // 1枚 約80〜110KB（2026-10-05 実測。以前の「20KB」は誤り）。最も精度の高い層と近くの細かいズームにしてから、
+  // 1地点で月の地平線・候補地の見通し・富士山の稜線を合わせて約300枚になるので、5地点ぶん持つ（約150MB）
+  const DEM_MAX = 1600;
   const DEM_AT = "x-sorami-at";              // 使う場所より前に置く（後ろだと TDZ）
   const DEM_MISSING = "x-sorami-missing";    // タイルの無い区画（404）の印
   const demStore = () => (typeof caches !== "undefined" && caches && typeof caches.open === "function"
@@ -207,13 +209,15 @@
   }
 
   const tiles = new Map();
+  const TILE_MEM = 240;                      // 手元に持つ画素（1枚 約260KB）。古いものから手放し、要れば保存領域から読み直す
   // 標高タイルの無い升目（404＝陸の無い外洋）。水の判定で、海と分かっている所へ水域タイルを取りに行かないために憶える
   const demMissing = new Set();
   /// タイルを1枚読む。**同じタイルは二度取りに行かない**（この画面でも、次に開いたときも）。
-  function loadTile(z, x, y) {
-    const key = `${z}/${x}/${y}`;
+  /// layer は国土地理院の標高タイルの種類（既定は10mメッシュの dem_png）
+  function loadTile(z, x, y, layer = "dem_png") {
+    const key = layer === "dem_png" ? `${z}/${x}/${y}` : `${layer}/${z}/${x}/${y}`;
     if (tiles.has(key)) return tiles.get(key);
-    const url = `${GSI_TILE}/${z}/${x}/${y}.png`;
+    const url = `${GSI_TILE.replace(/dem_png$/, layer)}/${z}/${x}/${y}.png`;
     const p = (async () => {
       const store = demStore();
       let cache = null;
@@ -255,6 +259,7 @@
       return img;
     })();
     tiles.set(key, p);
+    while (tiles.size > TILE_MEM) tiles.delete(tiles.keys().next().value);
     return p;
   }
 
@@ -276,16 +281,60 @@
     } catch { /* 掃除は補助 */ } finally { demPruning = false; }
   }
 
-  /// 標高タイルから1点。タイル自体が取れなければ undefined、「標高なし」画素なら null
-  async function sampleTile(lat, lon, z) {
-    if (!inJapan(lat, lon)) return undefined;
+  /// 1つの層から1点。タイル自体が取れなければ undefined、「標高なし」画素なら null
+  async function sampleLayer(layer, lat, lon, z) {
     const fx = tileXf(lon, z), fy = tileYf(lat, z);
-    const img = await loadTile(z, Math.floor(fx), Math.floor(fy));
+    const img = await loadTile(z, Math.floor(fx), Math.floor(fy), layer);
     if (!img) return undefined;
     const px = Math.min(img.width - 1, Math.floor((fx % 1) * img.width));
     const py = Math.min(img.height - 1, Math.floor((fy % 1) * img.height));
     const i = (py * img.width + px) * 4;
     return pixelToElevation(img.data[i], img.data[i + 1], img.data[i + 2]);
+  }
+
+  /*
+   * 標高タイルは、画素ごとに最も精度の高いDEMから読む（2026-10-05 ユーザー「標高は全て一番精度が高いやつを使うようにしてよ」）。
+   * 1mメッシュ（航空レーザ。dem1a_png、z17まで）→ 5m（航空レーザ。dem5a_png、z15まで）→ 5m（写真測量。dem5b・dem5c、z15まで）→ 10m（dem_png、z14まで）。
+   * 1m・5mにも縮小版（z8〜）があり、同じズームなら画素の大きさは同じで、元のDEMの精度だけが上がる。
+   * 上の層はタイルがあっても範囲外の画素が「標高なし」なので画素ごとに下へ落とす。1mも5m（レーザ）も無ければ10mを見て、
+   * 10mでも「標高なし」かタイルが無ければ海（写真測量の5mを取りに行かない。海の上で404を並べないため）。
+   * 2026-10-05 まで10mだけ（dem_png）。1mは関東の平野・山地、富士山、屋久島まで実測で返った（大雪山は5mだけ）。
+   * 10mだけのときとの違い（月の全周の地平線・40km）: 高尾山の中腹で中央0.65°・最大11°、河口湖北岸で最大0.9°、鷺沼北公園で最大0.3°。
+   * 鷺沼北公園から見た富士山の稜線は最大0.8′。代わりに初回の取得が増える（月の全周の地平線で 1.7MB→6.7MB、高尾山の中腹で 2.4MB→9.0MB。30日とっておく）。
+   * 10mを先に見て海を確かめる順（1m→10m→5m）より、1地点あたり0.2〜1.4MB少ない（2026-10-05 実測）
+   */
+  /// 標高タイルから1点（最も精度の高い層）。タイル自体が取れなければ undefined、海なら null
+  async function sampleTile(lat, lon, z) {
+    if (!inJapan(lat, lon)) return undefined;
+    for (const [layer, maxZ] of [["dem1a_png", 17], ["dem5a_png", 15]]) {
+      const v = await sampleLayer(layer, lat, lon, Math.min(z, maxZ));
+      if (Number.isFinite(v)) return v;
+    }
+    const ten = await sampleLayer("dem_png", lat, lon, Math.min(z, 14));
+    if (!Number.isFinite(ten)) return ten;
+    for (const [layer, maxZ] of [["dem5b_png", 15], ["dem5c_png", 15]]) {
+      const v = await sampleLayer(layer, lat, lon, Math.min(z, maxZ));
+      if (Number.isFinite(v)) return v;
+    }
+    return ten;
+  }
+
+  /*
+   * 観測点からの距離に合わせたズーム。観測点から見て画素1つが0.5°以下になるまで上げる（z17＝約1mまで）。
+   * 見上げ角の誤差は「画素の中の高さの違い ÷ 距離」なので、近い点ほど細かい画素が要る。100m先はz17、1km先はz14、3km先はz13。
+   * 以前は一律z11（1画素 約60m）で、100m先の点は画素1つが30°に見えていた。
+   * 0.5°は急な斜面（傾き0.5）でも見上げ角の誤差が0.2°以内で、地平線を測る距離の刻みより細かい。0.3°にすると月の全周の地平線で
+   * 1mのタイルが56枚→82枚（従来の10mは22枚）に増えるので、ここで止めた（2026-10-05 鷺沼北公園で実測）。
+   * 遠い点は呼び手のズーム（base）より粗くしない。輪1本あたりのタイルは数枚で済む（画素が距離に比例して大きくなるため）。
+   */
+  const NEAR_PIXEL_RAD = 0.5 * DEG;
+  function zoomFor(from, p, base) {
+    if (!from) return base;
+    const dy = (p.latitude - from.latitude) * 111195;
+    const dx = (p.longitude - from.longitude) * 111195 * Math.cos(from.latitude * DEG);
+    const want = Math.max(0.01, Math.hypot(dx, dy) * NEAR_PIXEL_RAD);
+    const z = Math.ceil(Math.log2(156543.03 * Math.cos(p.latitude * DEG) / want));
+    return Math.max(base, Math.min(17, z));
   }
 
   /// 標高タイルから1点。取れなければ null（呼び手が Open-Meteo へ落とす）
@@ -356,13 +405,15 @@
   }
 
   /**
-   * 標高をまとめて引く。**日本国内なら標高タイル、外なら Open-Meteo。**
+   * 標高をまとめて引く。**日本国内なら標高タイル（最も精度の高い層）、外なら Open-Meteo。**
    * タイルは1枚65536点ぶんなので、まとまった範囲を見るときに桁違いに速い。
+   * `from`（観測点）を渡すと、近い点ほど細かいズームで読む（zoomFor）。
    */
   async function elevations(points, opts = {}) {
     if (!points.length) return [];
     if (points.every((p) => inJapan(p.latitude, p.longitude)) && typeof Image !== "undefined") {
-      const raw = await Promise.all(points.map((p) => sampleTile(p.latitude, p.longitude, opts.zoom ?? 11)));
+      const base = opts.zoom ?? 11;
+      const raw = await Promise.all(points.map((p) => sampleTile(p.latitude, p.longitude, zoomFor(opts.from, p, base))));
       // 読めたタイルの「標高なし」画素は海なので 0m（海面）とする。
       // 以前は Open-Meteo で埋め直していて、富士市では全周 816点が海で 100点ずつ 9回叩き、
       // 本番で 429 が続いて地形の地平線ごと失敗していた（2026-09-22）。
@@ -461,7 +512,7 @@
     for (const az of azimuths) {
       for (const d of dists) points.push(destination(observer.latitude, observer.longitude, az, d));
     }
-    const elevs = await elevations(points, opts);
+    const elevs = await elevations(points, { ...opts, from: observer });
 
     const result = [];
     let i = 0;
@@ -1086,7 +1137,7 @@
     const step = opts.step ?? Math.max(0.09, total / (MAX_POINTS - 1));
     const dists = stepsFor({ maxKm: total * 0.999, step });
     const pts = dists.map((d) => destination(observer.latitude, observer.longitude, az, d));
-    const elevs = await elevations(pts, opts);
+    const elevs = await elevations(pts, { ...opts, from: observer });
     return {
       azimuth: az,
       totalKm: total,
