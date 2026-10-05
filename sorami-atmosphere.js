@@ -225,6 +225,50 @@
       targetApparent:x.a.targetApparent+(x.b.targetApparent-x.a.targetApparent)*x.f};
   }
 
+  // ---- 標準大気と、高い所から見下ろす天体（2026-10-05）
+  /// 「標準」は海面で1010hPa・10℃の大気を観測地点の高さへ上げた値（気温は100mで0.65℃下げ、気圧は静水圧）。
+  /// 以前は高さによらず1010hPa・10℃で、標高2000mでは気圧を約27%高く見て大気差を大きく出していた。海面では従来と同じ値
+  const standardAir=z=>{const T=283.15-.0065*Math.max(-500,Math.min(10000,z));return {pressureHPa:1010*Math.pow(T/283.15,9.80665/(287.05*.0065)),temperatureC:T-273.15};};
+  /**
+   * 式（Sæmundsson）は観測点が大気の底にいる前提で、高い所から見下ろす光（下の濃い空気を通って曲がる）を表せない。
+   * 見かけ−1°未満は打ち切ってもいたので、標高2000m・見かけ−1°で33′小さく出ていた。
+   * 標高100m以上では、真高度2°より下を標準大気の光線追跡で置き換える（100〜200mと0〜2°で式からなめらかに移る）。
+   * 標準大気との差（その時刻の気温・気圧）は、観測点の気圧と気温の比で掛ける。100m未満は式のままで差0.1′以内。
+   */
+  const lowTables=new Map(),LOW_COLUMN={groundM:0,pressureHPa:1010,points:[{z:0,t:10},{z:11000,t:-61.5}]};
+  function lowTable(h0){
+    const key=Math.round(h0/50)*50;
+    if(lowTables.has(key))return lowTables.get(key);
+    let out=null;
+    try{
+      // 標準大気の地平線は幾何の伏角の約0.91倍（100〜3800mで0.907〜0.92）。その少し下から、地平線の近くほど細かく引く
+      const F=RF.field([{s:0,...LOW_COLUMN}]),geo=Math.acos(RF.EARTH_R/(RF.EARTH_R+key))/R,start=-geo*.925,tru=[],ref=[];
+      const grid=[0,.002,.008,.02,.04,.07,.11,.17,.25,.36,.5,.7,.95,1.25,1.6,2,2.5].map(d=>start+d);
+      for(let a=start+2.9;a<=2.7;a+=.4)grid.push(a);
+      for(const a of grid){
+        const r=RF.trace(F,key,a,{stepScale:4});
+        if(r.hit||(tru.length&&r.trueAltitude<=tru[tru.length-1]))continue;
+        tru.push(r.trueAltitude);ref.push(r.refraction);
+      }
+      if(tru.length>=3)out={tru,ref,at:x=>{
+        if(x<=tru[0])return ref[0];
+        let k=1;while(k<tru.length-1&&tru[k]<x)k++;
+        return x>=tru[k]?ref[k]:ref[k-1]+(ref[k]-ref[k-1])*(x-tru[k-1])/(tru[k]-tru[k-1]);
+      }};
+    }catch{out=null;}
+    lowTables.set(key,out);
+    return out;
+  }
+  function refractionAt(x,air,h0){
+    const base=correction(x,air);
+    if(air.none||!RF||h0<100||x>=2)return base;
+    const t=lowTable(h0);
+    if(!t)return base;
+    const sd=standardAir(h0),s=(air.pressureHPa/sd.pressureHPa)*((sd.temperatureC+273.15)/(air.temperatureC+273.15));
+    const w=Math.min(1,(h0-100)/100)*(x<=0?1:1-x/2);
+    return base+(t.at(x)*s-base)*w;
+  }
+
   function at(ms,o){
     if(mode==='none')return {none:true,pressureHPa:0,temperatureC:10,source:'なし'};
     if(mode==='manual')return {...manual,source:'手入力'};
@@ -239,7 +283,7 @@
       const z=Math.max(-500,Math.min(10000,o.elevation??0)),temperatureC=15-.0065*z;
       return {pressureHPa:1013.25*Math.pow((temperatureC+273.15)/288.15,9.80665/(287.05*.0065)),temperatureC,source:'標準大気（標高補正・気象なし）',fallback:true};
     }
-    return {pressureHPa:1010,temperatureC:10,source:'標準条件'};
+    return {...standardAir(o.elevation??0),source:'標準条件（標高補正）'};
   }
   function apply(state,ms,o){
     if(!enabled)return state;
@@ -249,16 +293,16 @@
       // 光を追った範囲の外は1.5°かけて従来の式へ戻す（軌跡に段を作らない）
       const {a,b,f}=line,lo=Math.min(a.lo,b.lo),hi=Math.max(a.hi,b.hi);
       const weight=x=>x<lo?Math.max(0,1-(lo-x)/1.5):x>hi?Math.max(0,1-(x-hi)/1.5):1;
-      const app=x=>{const base=x+correction(x,air),w=weight(x);if(!w)return base;const p=a.app(x)+a.offset,q=b.app(x)+b.offset,v=p+(q-p)*f;return base+(v-base)*w;};
+      const app=x=>{const base=x+refractionAt(x,air,o.elevation??0),w=weight(x);if(!w)return base;const p=a.app(x)+a.offset,q=b.app(x)+b.offset,v=p+(q-p)*f;return base+(v-base)*w;};
       const apparent=app(h),upper=app(h+r),lower=app(h-r);
       return {...state,apparentAltitude:apparent,refraction:apparent-h,upperAltitude:upper,lowerAltitude:lower,
         upperRadius:upper-apparent,lowerRadius:apparent-lower,atmosphere:weight(h)?{...air,traced:true}:air,lowAltitude:h<2};
     }
-    const apparent=h+correction(h,air),upper=h+r+correction(h+r,air),lower=h-r+correction(h-r,air);
+    const h0=o.elevation??0,apparent=h+refractionAt(h,air,h0),upper=h+r+refractionAt(h+r,air,h0),lower=h-r+refractionAt(h-r,air,h0);
     return {...state,apparentAltitude:apparent,refraction:apparent-h,upperAltitude:upper,lowerAltitude:lower,
       upperRadius:upper-apparent,lowerRadius:apparent-lower,atmosphere:air,lowAltitude:h<2};
   }
   const limbAltitude=(s,sign)=>sign===1?(s.lowerAltitude??s.apparentAltitude-s.angularRadius):sign===-1?(s.upperAltitude??s.apparentAltitude+s.angularRadius):s.apparentAltitude;
-  global.SoramiAtmosphere={configure,correction,unrefract,load,parse,sample,at,apply,limbAltitude,endpoint,lineEndpoint,parseLine,lineInfo,mode:()=>mode,enabled:()=>enabled,targetK:()=>enabled&&mode==='none'?1:7/6};
+  global.SoramiAtmosphere={configure,correction,unrefract,load,parse,sample,at,apply,limbAltitude,endpoint,lineEndpoint,parseLine,lineInfo,standardAir,mode:()=>mode,enabled:()=>enabled,targetK:()=>enabled&&mode==='none'?1:7/6};
   if(typeof module!=='undefined'&&module.exports)module.exports=global.SoramiAtmosphere;
 })(typeof window!=='undefined'?window:globalThis);

@@ -109,3 +109,20 @@ test('山頂が目標でも柱を作る（山頂の点は地面より上の気�
  assert.equal(M.apply({azimuth:ep.azimuth,geometricAltitude:1,apparentAltitude:1,angularRadius:.26},at,eye).atmosphere.traced,true);
  const info=M.lineInfo(at,eye);assert.ok(info&&Math.abs(info.targetApparent-A.targetElevationAngle(ep.distanceKm,21.5,ft.topM,{k:7/6}))*60<3);
 });
+test('標準は観測地点の高さの大気（海面は従来どおり1010hPa・10℃）。高い所から見下ろす天体も光線追跡どおり',()=>{
+ M.configure('standard');
+ const sea=M.at(day,{latitude:35,longitude:139,elevation:0});assert.equal(sea.pressureHPa,1010);assert.equal(sea.temperatureC,10);
+ const top=M.at(day,{latitude:35,longitude:139,elevation:2000});assert.ok(Math.abs(top.pressureHPa-1010*Math.pow(270.15/283.15,5.2559))<0.1&&Math.abs(top.temperatureC+3)<1e-9,JSON.stringify(top));
+ const st=x=>({azimuth:90,geometricAltitude:x,apparentAltitude:x,angularRadius:0});
+ // 100m未満は式のまま（以前と同じ）
+ const low={latitude:35,longitude:139,elevation:30};
+ for(const x of [-0.5,0,1])assert.equal(M.apply(st(x),day,low).apparentAltitude,x+M.correction(x,M.at(day,low)));
+ // 標高2000m: 同じ標準大気をその場で密に追った値と0.3′以内（以前は見かけ−1°で33′小さかった）
+ const F=RF.field([{s:0,groundM:0,pressureHPa:1010,points:[{z:0,t:10},{z:11000,t:-61.5}]}]),hi={latitude:35,longitude:139,elevation:2000},tb=RF.bodyTable(F,2000);
+ for(const x of [tb.lowestTrue+0.05,-1.7,-1,-0.5,0,0.5,1.5,2.5]){const got=M.apply(st(x),day,hi).apparentAltitude,want=tb.apparentFromTrue(x);assert.ok(Math.abs(got-want)*60<(x<2?0.3:1),`${x}: ${(got-want)*60}′`);}
+ // 高度2°と標高100mの境目で段を作らない。見かけは真高度に対して単調（重なる時刻の探索が二分法なので）
+ const a=x=>M.apply(st(x),day,hi).apparentAltitude,b=h=>M.apply(st(-0.5),day,{...hi,elevation:h}).apparentAltitude;
+ assert.ok(Math.abs(a(2-1e-7)-a(2+1e-7))<1e-5);assert.ok(Math.abs(b(100-1e-7)-b(100+1e-7))<1e-5);
+ let prev=-Infinity;for(let x=-2.5;x<5;x+=0.01){const v=a(x);assert.ok(v>prev,`${x}`);prev=v;}
+ M.configure('none');assert.equal(M.apply(st(-1),day,hi).apparentAltitude,-1);
+});
