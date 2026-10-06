@@ -413,5 +413,56 @@ console.log("== その点に建つ建物の高さ（2026-10-01） ==");
   ok(await T.groundElevation(48.85, 2.35) === null, "日本の外は null（呼び手が別の方法で取る）");
 }
 
+console.log("== 近くの建物（国土地理院の建物・2026-10-06） ==");
+// 新四谷見附橋から月・スカイツリー（4.5°）の線が90m先から高さタグの無い建物に掛かっていたのに、候補に出ていた（ユーザー報告）。
+// 国土地理院の最適化ベクトルタイルの建物（BldA）を種別の下限の高さで入れる。層の keys・values は地物より後に置く（実タイルの並び）
+{
+  const varint = (n) => { const b = []; do { let x = n & 0x7f; n = Math.floor(n / 128); if (n) x |= 0x80; b.push(x); } while (n); return b; };
+  const zz = (n) => (n << 1) ^ (n >> 31);
+  const field = (f, w, body) => [...varint((f << 3) | w), ...(w === 2 ? [...varint(body.length), ...body] : body)];
+  const square = (x1, y1, x2, y2) => {
+    const pts = [[x1, y1], [x2, y1], [x2, y2], [x1, y2]], out = []; let x = 0, y = 0;
+    pts.forEach(([px, py], i) => {
+      if (i === 0) out.push(...varint(1 | (1 << 3)));
+      if (i === 1) out.push(...varint(2 | (3 << 3)));
+      out.push(...varint(zz(px - x)), ...varint(zz(py - y))); x = px; y = py;
+    });
+    out.push(...varint(7 | (1 << 3)));
+    return out;
+  };
+  // 値の並び: 0=3102 堅ろう、1=3111 無壁舎、2=3101 普通
+  const feat = (v, g) => field(2, 2, [...field(2, 2, [0, v]), ...field(3, 0, varint(3)), ...field(4, 2, g)]);
+  const layer = [...field(1, 2, [...new TextEncoder().encode("BldA")]),
+    ...feat(1, square(1400, 1950, 1500, 2150)),        // 無壁舎（線に掛かるが入れない）
+    ...feat(0, square(1800, 1900, 2200, 2200)),        // 堅ろう建物（線に掛かる）
+    ...feat(2, square(900, 1950, 1100, 2150)),         // 普通建物（立つ点を含む＝入れない）
+    ...feat(2, square(2500, 100, 2700, 300)),          // 普通建物（線から外れる）
+    ...field(3, 2, [...new TextEncoder().encode("vt_code")]),
+    ...field(4, 2, field(5, 0, varint(3102))), ...field(4, 2, field(5, 0, varint(3111))), ...field(4, 2, field(5, 0, varint(3101))),
+    ...field(5, 0, varint(4096))];
+  const tile = new Uint8Array(field(3, 2, layer));
+  const L = T.decodeWaterLayer(tile, "BldA", "vt_code");
+  ok(L.polys.length === 4 && JSON.stringify(L.codes) === "[3111,3102,3101,3101]", "建物の層を種別ごと読む（keys・values が地物の後でも）", JSON.stringify(L.codes));
+  ok(!("codes" in T.decodeWaterLayer(tile, "BldA")), "種別を頼まなければ水域と同じ形（水域の読み方を変えない）");
+  ok(T.GSI_BUILDING_MIN_M[3101] === 6 && T.GSI_BUILDING_MIN_M[3102] === 10 && T.GSI_BUILDING_MIN_M[3103] === 60 && !T.GSI_BUILDING_MIN_M[3111],
+    "高さは種別の下限（普通6m・堅ろう3階10m・高層60m）、無壁舎は入れない");
+
+  const lat0 = 35.6862, lon0 = 139.7307, Z = 16;
+  const X = Math.floor((lon0 + 180) / 360 * 2 ** Z);
+  const r0 = lat0 * Math.PI / 180, Y = Math.floor((1 - Math.log(Math.tan(r0) + 1 / Math.cos(r0)) / Math.PI) / 2 * 2 ** Z);
+  const at = (u, v) => {
+    const n = Math.PI - 2 * Math.PI * (Y + v / 4096) / 2 ** Z;
+    return { latitude: Math.atan(Math.sinh(n)) * 180 / Math.PI, longitude: (X + u / 4096) / 2 ** Z * 360 - 180 };
+  };
+  const from = at(1000, 2048), to = at(3400, 2048);
+  const fetchImpl = async (url) => url.endsWith(`/16/${X}/${Y}.pbf`) ? { ok: true, status: 200, arrayBuffer: async () => tile.buffer } : { ok: false, status: 503 };
+  const got = await T.gsiBuildingsAlong(from, to, { fetchImpl });
+  const pxM = T.distanceKm(from.latitude, from.longitude, at(2000, 2048).latitude, at(2000, 2048).longitude) * 1000 / 1000;
+  ok(got && got.length === 1 && got[0].code === 3102 && got[0].minHeightM === 10, "線が通る建物だけ（無壁舎・立つ点を含む建物・線から外れる建物は入れない）", JSON.stringify(got && got.map((b) => b.code)));
+  ok(got && Math.abs(got[0].entryM - 800 * pxM) < 3 && Math.abs(got[0].entry.longitude - at(1800, 2048).longitude) < 1e-5, "線が建物に入る距離と点", got && got[0].entryM.toFixed(1));
+  const bad = await T.gsiBuildingsAlong(from, at(4096 + 300, 2048), { fetchImpl });
+  ok(bad === null, "升目が1枚でも取れなければ null（隠れると決めない）");
+}
+
 console.log(`\n${fail === 0 ? "TERRAIN OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

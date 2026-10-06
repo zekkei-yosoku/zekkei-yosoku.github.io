@@ -1916,24 +1916,24 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261006094812"></script>
+<script src="sorami-core.js?v=20261006101838"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261006094812"></script>
-<script src="sorami-exif.js?v=20261006094812"></script>
-<script src="sorami-capcloud.js?v=20261006094812"></script>
-<script src="sorami-terrain.js?v=20261006094812"></script>
-<script src="sorami-mountain.js?v=20261006094812"></script>
-<script src="sorami-fuji.js?v=20261006094812"></script>
-<script src="sorami-sky.js?v=20261006094812"></script>
-<script src="sorami-routes.js?v=20261006094812"></script>
-<script src="sorami-iss.js?v=20261006094812"></script>
-<script src="sorami-plane.js?v=20261006094812"></script>
-<script src="sorami-refraction.js?v=20261006094812"></script>
-<script src="sorami-atmosphere.js?v=20261006094812"></script>
-<script src="sorami-bodies.js?v=20261006094812"></script>
-<script src="sorami-align.js?v=20261006094812"></script>
-<script src="sorami-moon.js?v=20261006094812"></script>
+<script src="sorami-astro.js?v=20261006101838"></script>
+<script src="sorami-exif.js?v=20261006101838"></script>
+<script src="sorami-capcloud.js?v=20261006101838"></script>
+<script src="sorami-terrain.js?v=20261006101838"></script>
+<script src="sorami-mountain.js?v=20261006101838"></script>
+<script src="sorami-fuji.js?v=20261006101838"></script>
+<script src="sorami-sky.js?v=20261006101838"></script>
+<script src="sorami-routes.js?v=20261006101838"></script>
+<script src="sorami-iss.js?v=20261006101838"></script>
+<script src="sorami-plane.js?v=20261006101838"></script>
+<script src="sorami-refraction.js?v=20261006101838"></script>
+<script src="sorami-atmosphere.js?v=20261006101838"></script>
+<script src="sorami-bodies.js?v=20261006101838"></script>
+<script src="sorami-align.js?v=20261006101838"></script>
+<script src="sorami-moon.js?v=20261006101838"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7187,13 +7187,12 @@ async function aimFindCandidates() {
   // 候補地が0でも、線のある側の切り替えは出す（0か所と線なしを分ける。理由は側ごとに aimRenderCands が書く）
   aimRenderCands();
   if (!shown.length) return;
-  // 塔は街の中なので、**建物で先端が隠れる場所も外す**（同梱の高い建物で手元で判定。7階以上・20m以上）
-  if (!aimIsFuji() && pool24.length) {
+  // **建物で隠れる場所も外す。** 立つ点の近く（1km）は国土地理院の建物（富士山も。2026-10-06）、塔は1.5kmまで同梱の高い建物（7階以上・20m以上）も
+  if (pool24.length) {
     const blocks = await aimBuildingBlocks(pool24);
     if (seq !== aim.candSeq) return;
-    if (!blocks || blocks === "outside") return;
     const pickedId = aim.candPick !== null ? aim.cands[aim.candPick]?.place.id : null;
-    aim.cands = pool24.filter((c, i) => !(blocks[i] && blocks[i].blocked)).slice(0, 12);
+    aim.cands = pool24.filter((c, i) => !blocks[i]).slice(0, 12);
     const again = pickedId ? aim.cands.findIndex((c) => c.place.id === pickedId) : -1;
     const lost = aim.candPick !== null && again < 0;
     aim.candPick = again >= 0 ? again : null;
@@ -7369,22 +7368,48 @@ async function aimBuildingsOnLine(stand, groundM, target, buildings, reachKm) {
   try { g = await Promise.all(on.map((x) => SoramiTerrain.groundElevation(x.lat, x.lon).catch(() => null))); } catch { g = []; }
   return on.map((x, i) => (Number.isFinite(g[i]) ? { ...x.b, heightM: x.b.heightM + (g[i] - groundM) } : x.b));
 }
+/// 候補地ごとに、建物で隠れるか（true／false）。確かめられなかった候補地は false（隠れると決めない）。
+/// 立つ点から1kmまでは国土地理院の建物（種別の下限の高さ）、塔は1.5kmまで同梱の高い建物も見る
 async function aimBuildingBlocks(cands) {
   const t = aim.target;
-  let all;
-  try { all = await tallBuildings(); } catch { return null; }
-  // 首都圏の外の候補地は、一覧に建物が無いので確かめていない（「隠れない」とは言わない）
-  if (!cands.every((c) => tallCovers(all, c.stand.latitude, c.stand.longitude))) return "outside";
+  let all = null;
+  if (!aimIsFuji()) { try { all = await tallBuildings(); } catch { all = null; } }
   return Promise.all(cands.map(async (c) => {
+    const obs = { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM + (c.place.deckM || 0) };
+    // 橋の上の立つ点の標高は橋の高さ込み。建物の高さは地面（川面・線路）から測る（以前は橋の高さを目の高さに2回足していた）
+    const base = c.stand.elevationM - (c.place.bridgeM || 0);
+    const eyeAbove = 1.5 + (c.place.deckM || 0) + (c.place.bridgeM || 0);
+    // 隠れたと数えるのは、建物が「目標の合わせる高さ」と「天体の中心」の低い方より高く見えるとき
+    // （建物全体に重なる日は、天体が先端より下を通ることがある）
+    const limit = Math.max(0, c.targetAngle - c.altitude);
+    const hidden = (blk) => !!(blk && blk.by && blk.marginDeg < limit);
+    const near = await aimNearBuildings(c, base);
+    if (near && hidden(SoramiAlign.buildingBlock(obs, t, near, { partId: aim.partId, eyeAboveGroundM: eyeAbove, maxKm: 1 }))) return true;
+    // 首都圏の外の候補地は、同梱の一覧に建物が無いので確かめていない（「隠れない」とは言わない）
+    if (!all || !tallCovers(all, c.stand.latitude, c.stand.longitude)) return false;
     // 目標までの間（1.5km）にある建物だけに絞ってから判定する（数万棟を毎回全部は見ない）
     const d = Math.min(1.6, c.distanceKm);
     const box = all.filter((b) => Math.abs(b.latitude - c.stand.latitude) < 0.016 && Math.abs(b.longitude - c.stand.longitude) < 0.02
       && SoramiTerrain.distanceKm(c.stand.latitude, c.stand.longitude, b.latitude, b.longitude) <= d + 0.05);
-    const near = await aimBuildingsOnLine(c.stand, c.stand.elevationM, t, box, Math.min(1.5, c.distanceKm - 0.3));
-    return SoramiAlign.buildingBlock(
-      { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM + (c.place.deckM || 0) },
-      t, near, { partId: aim.partId, eyeAboveGroundM: 1.5 + (c.place.deckM || 0) + (c.place.bridgeM || 0) });
+    const tall = await aimBuildingsOnLine(c.stand, base, t, box, Math.min(1.5, c.distanceKm - 0.3));
+    return hidden(SoramiAlign.buildingBlock(obs, t, tall, { partId: aim.partId, eyeAboveGroundM: eyeAbove }));
   }));
+}
+/// 立つ点から目標へ1kmまでの国土地理院の建物（2026-10-06）。新四谷見附橋から月・スカイツリー（4.5°）の線は90m先から
+/// 高さタグの無い建物に掛かっていたのに、同梱の高い建物にも OpenStreetMap の高さ付きの建物にも無く、候補に出ていた（ユーザー報告）。
+/// 高さは種別の下限（低めに見積もる）＋建物の地面と立つ点の地面の差。地面は標高タイルで、線に掛かる建物の入口をまとめて読む。
+/// 取れなければ null
+async function aimNearBuildings(c, base) {
+  const t = aim.target, s = c.stand;
+  const reach = Math.min(1, c.distanceKm - 0.3);
+  if (!(reach > 0)) return [];
+  const end = SoramiTerrain.destination(s.latitude, s.longitude, SoramiTerrain.bearing(s.latitude, s.longitude, t.latitude, t.longitude), reach);
+  const got = await SoramiTerrain.gsiBuildingsAlong(s, end);
+  if (!got) return null;
+  if (!got.length) return [];
+  let g = [];
+  try { g = await SoramiTerrain.elevations(got.map((b) => b.entry), { from: s }); } catch { g = []; }
+  return got.map((b, i) => ({ ring: b.ring, heightM: b.minHeightM + (Number.isFinite(g[i]) ? g[i] - base : 0) }));
 }
 
 /// 撮影地の「この日の候補地」と、どこから重ねるかの地点の画面の候補地を同じ候補で描く

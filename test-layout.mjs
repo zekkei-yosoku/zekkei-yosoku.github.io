@@ -581,8 +581,9 @@ ok(/\$\("aimTargetSub"\)\.textContent = c\s+\? \[c\.subtitle, `標高 \$\{Math\.
   ok(/if \(!got\) return null;/.test(sb), "問い合わせられなければ「確かめられない」（null）");
   ok(/SoramiTerrain\.buildingsAlong\(obs, end, \{ wanted \}\)/.test(sb) && !/await aimSightBuildings\(obs, D,/.test(html),
     "観測地点の断定警告のための建物問い合わせは行わない");
-  ok(/if \(!cands\.every\(\(c\) => tallCovers\(all, c\.stand\.latitude, c\.stand\.longitude\)\)\) return "outside";/.test(html)
-    && /if \(!blocks \|\| blocks === "outside"\) return;/.test(html), "候補地も、首都圏の外では建物で外さない（断り書きは出さない）");
+  // 2026-10-06 から候補地ごとに判定する（1か所でも首都圏の外なら全部を確かめずにいた）。近くの国土地理院の建物は全国で見る
+  ok(/if \(!all \|\| !tallCovers\(all, c\.stand\.latitude, c\.stand\.longitude\)\) return false;/.test(html) && !/return "outside";/.test(html),
+    "候補地も、首都圏の外では同梱の一覧で外さない（断り書きは出さない）");
   ok(/connect-src[^"]*https:\/\/maps\.mail\.ru/.test(html), "Overpass の予備（maps.mail.ru）へつなげる（CSP）");
 }
 // ユーザー「大平和祈念塔とか高さ出ないけど…検索したらその建物、目標物の高さを取得して出すとかだとダメなの？」
@@ -749,10 +750,27 @@ console.log("== ねらう: その日の候補地（2026-09-30） ==");
   ok(/latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, name:/.test(html), "地図の番号は立つ位置に打つ");
   ok(/\$\("aimListBox"\)\.hidden = !aimIsFuji\(\)/.test(html), "定番スポットの次の日は富士山だけ");
   ok(/const spread = Math\.max\(0\.3, lineKm \/ 40\)/.test(html), "上位が一か所に固まらないよう、近いものは1つに");
-  ok(/async function aimBuildingBlocks/.test(html) && /if \(!aimIsFuji\(\) && pool24\.length\)/.test(html), "塔は建物で先端が隠れる場所も外す");
-  ok(html.indexOf("aimRenderCands();\n  if (!shown.length) return;\n  // 塔は街の中なので") > 0
-    && html.indexOf("aimRenderCands();\n  if (!shown.length) return;\n  // 塔は街の中なので") < html.indexOf("const blocks = await aimBuildingBlocks(pool24);"),
+  ok(/async function aimBuildingBlocks/.test(html) && /  if \(pool24\.length\) \{\n    const blocks = await aimBuildingBlocks\(pool24\);/.test(html)
+    && /aim\.cands = pool24\.filter\(\(c, i\) => !blocks\[i\]\)\.slice\(0, 12\);/.test(html), "建物で隠れる場所も外す（2026-10-06 から富士山も、近くの建物で）");
+  ok(html.indexOf("aimRenderCands();\n  if (!shown.length) return;\n  // **建物で隠れる場所も外す。**") > 0
+    && html.indexOf("aimRenderCands();\n  if (!shown.length) return;\n  // **建物で隠れる場所も外す。**") < html.indexOf("const blocks = await aimBuildingBlocks(pool24);"),
     "建物の確認を待たずに、先に候補を出す");
+  {
+    // 新四谷見附橋から月・スカイツリー（4.5°）の線が90m先から高さタグの無い建物に掛かっていたのに、候補に出ていた（2026-10-06 ユーザー報告）
+    const bb = /async function aimBuildingBlocks\(cands\) \{[\s\S]*?\n\}/.exec(html)[0], nb = /async function aimNearBuildings\(c, base\) \{[\s\S]*?\n\}/.exec(html)[0];
+    ok(/const near = await aimNearBuildings\(c, base\);\n    if \(near && hidden\(SoramiAlign\.buildingBlock\(obs, t, near, \{ partId: aim\.partId, eyeAboveGroundM: eyeAbove, maxKm: 1 \}\)\)\) return true;/.test(bb),
+      "立つ点から1kmまでは国土地理院の建物（種別の下限の高さ）で隠れるかを見る");
+    ok(/const reach = Math\.min\(1, c\.distanceKm - 0\.3\);/.test(nb) && /SoramiTerrain\.gsiBuildingsAlong\(s, end\)/.test(nb) && /if \(!got\) return null;/.test(nb)
+      && /SoramiTerrain\.elevations\(got\.map\(\(b\) => b\.entry\), \{ from: s \}\)/.test(nb) && /heightM: b\.minHeightM \+ \(Number\.isFinite\(g\[i\]\) \? g\[i\] - base : 0\)/.test(nb),
+      "建物の地面は標高タイルでまとめて読み、立つ点の地面との差を足す（取れなければ隠れると決めない）");
+    // 建物全体に重なる日は天体が先端より下を通ることがある。合わせる高さと天体の中心の低い方で比べる
+    ok(/const limit = Math\.max\(0, c\.targetAngle - c\.altitude\);/.test(bb) && /const hidden = \(blk\) => !!\(blk && blk\.by && blk\.marginDeg < limit\);/.test(bb),
+      "隠れたと数えるのは、合わせる高さと天体の中心の低い方より建物が高く見えるとき");
+    // 橋の上の立つ点の標高は橋の高さ込み。以前は橋の高さを目の高さにもう一度足し、8m 高い目で見ていた
+    ok(/const base = c\.stand\.elevationM - \(c\.place\.bridgeM \|\| 0\);/.test(bb) && /aimBuildingsOnLine\(c\.stand, base, t, box,/.test(bb),
+      "橋の上は、建物の高さを地面から測る（橋の高さを2回足さない）");
+    ok(/connect-src[^"]*https:\/\/cyberjapandata\.gsi\.go\.jp/.test(html), "国土地理院のタイルへつなげる（CSP）");
+  }
   // 画面から Overpass へ帯を問い合わせると 47〜64秒かかった（2026-10-01）。同梱の高い建物で手元で判定する
   ok(/fetch\("data\/tall-buildings\.json"\)/.test(html) && !/poly:"\$\{p\}"/.test(html), "塔の建物の判定は同梱データで（Overpass に問い合わせない）");
   {
@@ -2814,7 +2832,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   const same = await run(30, null);
   ok(same.length === 1 && same[0].heightM === 40, "立つ場所の標高が分からなければ足さない");
   ok(/near = await aimBuildingsOnLine\(obs, groundM, t, near, reach\);/.test(html)
-    && /const near = await aimBuildingsOnLine\(c\.stand, c\.stand\.elevationM, t, box,/.test(html), "どこから重ねるかも、候補地も");
+    && /const tall = await aimBuildingsOnLine\(c\.stand, base, t, box,/.test(html), "どこから重ねるかも、候補地も");
 }
 {
   // 地図の種類と現在地（2026-10-02 ユーザー「地図、写真ってどっちも地図じゃん。こういうボタンを用意して地図モードを変えられるように」「現在地マーク」）

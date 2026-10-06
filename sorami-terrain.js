@@ -1252,8 +1252,9 @@
   const WATER_Z = 16;
   const waterTiles = new Map();
 
-  /// MVT（Mapbox Vector Tile）から「水域」の面だけを読む。依存を持たないので、要るところだけ手で解く
-  function decodeWaterLayer(u8, layerName = "WA") {
+  /// MVT（Mapbox Vector Tile）から「水域」の面だけを読む。依存を持たないので、要るところだけ手で解く。
+  /// `codeKey` を渡すと、面ごとのその属性（数）も `codes` に返す（建物の種別 vt_code。2026-10-06）
+  function decodeWaterLayer(u8, layerName = "WA", codeKey = null) {
     let p = 0;
     const varint = () => { let r = 0, s = 0, b; do { b = u8[p++]; r += (b & 0x7f) * 2 ** s; s += 7; } while (b & 0x80); return r; };
     const skip = (w) => { if (w === 0) varint(); else if (w === 1) p += 8; else if (w === 2) { const l = varint(); p += l; } else if (w === 5) p += 4; };
@@ -1263,19 +1264,28 @@
       if ((tag >> 3) !== 3 || (tag & 7) !== 2) { skip(tag & 7); continue; }
       const layerEnd = varint() + p;
       let name = "", extent = 4096;
-      const polys = [];
+      const polys = [], tagsOf = [], keys = [], values = [];
       while (p < layerEnd) {
         const t = varint(), f = t >> 3, w = t & 7;
         if (f === 1 && w === 2) { const l = varint(); name = new TextDecoder().decode(u8.subarray(p, p + l)); p += l; }
         else if (f === 5 && w === 0) extent = varint();
+        else if (codeKey && f === 3 && w === 2) { const l = varint(); keys.push(new TextDecoder().decode(u8.subarray(p, p + l))); p += l; }
+        else if (codeKey && f === 4 && w === 2) {
+          // 値は整数（uint/sint/int）だけ読む。種別コードは整数
+          const end = varint() + p;
+          let v = null;
+          while (p < end) { const vt = varint(), vf = vt >> 3; if (vf === 4 || vf === 5) v = varint(); else if (vf === 6) v = zz(varint()); else skip(vt & 7); }
+          values.push(v);
+        }
         else if (f === 2 && w === 2) {
           const featEnd = varint() + p;
           let type = 0;
-          const geom = [];
+          const geom = [], tags = [];
           while (p < featEnd) {
             const ft = varint(), ff = ft >> 3, fw = ft & 7;
             if (ff === 3 && fw === 0) type = varint();
             else if (ff === 4 && fw === 2) { const end = varint() + p; while (p < end) geom.push(varint()); }
+            else if (codeKey && ff === 2 && fw === 2) { const end = varint() + p; while (p < end) tags.push(varint()); }
             else skip(fw);
           }
           if (type !== 3) continue;          // 面だけ
@@ -1291,12 +1301,19 @@
           }
           if (cur) rings.push(cur);
           polys.push(rings);
+          tagsOf.push(tags);
         } else skip(w);
       }
       p = layerEnd;
-      if (name === layerName) return { extent, polys };
+      if (name === layerName) {
+        if (!codeKey) return { extent, polys };
+        // 層の中で keys・values は地物より後に来ることがあるので、層を読み終えてから引く
+        const ki = keys.indexOf(codeKey);
+        const codes = tagsOf.map((tags) => { for (let i = 0; i < tags.length; i += 2) if (tags[i] === ki) return values[tags[i + 1]] ?? null; return null; });
+        return { extent, polys, codes };
+      }
     }
-    return { extent: 4096, polys: [] };   // 水域の無い升目
+    return { extent: 4096, polys: [], codes: [] };   // その層の無い升目
   }
 
   /// 面の中か（穴は外側の輪と逆回りなので、輪をまとめて偶奇で数えれば穴も効く）
@@ -1331,6 +1348,83 @@
     return p;
   }
 
+  // ---------------------------------------------------------------- 近くの建物（2026-10-06）
+  //
+  // 候補地の見通しに、**立つ点の近くの普通の建物**を入れる。同梱の高い建物（7階以上・20m以上）と OpenStreetMap の高さ付きの建物だけでは、
+  // 新四谷見附橋から東京スカイツリー（月の高さ4.5°）の線が 90m 先から高さタグの無い建物6棟に掛かっていたのに、候補に出ていた（ユーザー報告）。
+  // 国土地理院の最適化ベクトルタイルの建物（BldA 層）は全国にあり、種別がある（地図記号の定義。国土地理院「地図記号」）:
+  //   3101 普通建物 … 3階未満（木造は3階以上も）  3102 堅ろう建物 … 非木造で地上3階相当以上・60m未満  3103 高層建物 … 60m以上
+  //   3111・3112 無壁舎（屋根だけ。駐輪場・ホームの屋根など）は入れない
+  // 高さは入っていないので、**種別の下限**を使う（低めに見積もる＝隠れると言い過ぎない）。普通建物は平屋の屋根まで（約6m）、
+  // 堅ろう建物は3階（約10m）、高層建物は60m。z16 で1枚 約600m 四方・50KB 前後（水域と同じタイル）
+  const GSI_BUILDING_MIN_M = { 3101: 6, 3102: 10, 3103: 60 };
+  const buildingTiles = new Map();
+  function loadBuildingTile(x, y, fetchImpl) {
+    const key = `${x}/${y}`;
+    if (buildingTiles.has(key)) return buildingTiles.get(key);
+    const p = (async () => {
+      try {
+        const res = await fetchImpl(`${WATER_TILE}/${WATER_Z}/${x}/${y}.pbf`);
+        if (res.status === 404) return { extent: 4096, polys: [], codes: [] };   // 外洋の升目
+        if (!res.ok) return null;
+        return decodeWaterLayer(new Uint8Array(await res.arrayBuffer()), "BldA", "vt_code");
+      } catch { return null; }
+    })();
+    buildingTiles.set(key, p);
+    p.then((v) => { if (v === null) buildingTiles.delete(key); });
+    // 手元に持つのは200枚まで（候補地24か所で2〜3枚ずつ）
+    if (buildingTiles.size > 200) buildingTiles.delete(buildingTiles.keys().next().value);
+    return p;
+  }
+
+  /**
+   * `from` から `to` への線分が通る建物（国土地理院の建物）。線が最初に入る距離 `entryM` と、その点 `entry`、種別の下限の高さ `minHeightM`。
+   * **立つ点を含む建物は入れない**（展望台・駅の上などは、目の高さで表す。月の地平線の建物と同じ決まり）。
+   * タイルが1枚でも取れなければ null（呼び手は「確かめられなかった」として、隠れると決めない）
+   */
+  async function gsiBuildingsAlong(from, to, { fetchImpl = (typeof fetch === "function" ? (u) => fetch(u, { mode: "cors" }) : null) } = {}) {
+    if (!fetchImpl || !inJapan(from.latitude, from.longitude)) return null;
+    const totalM = distanceKm(from.latitude, from.longitude, to.latitude, to.longitude) * 1000;
+    const brg = bearing(from.latitude, from.longitude, to.latitude, to.longitude) * Math.PI / 180;
+    const cosLat = Math.cos(from.latitude * Math.PI / 180), ux = Math.sin(brg), uy = Math.cos(brg);
+    const xy = (la, lo) => [(lo - from.longitude) * 111320 * cosLat, (la - from.latitude) * 110540];
+    // 線が通る升目（50m おきに拾う。升目は約600m）
+    const keys = new Set();
+    for (let d = 0; d <= totalM + 50; d += 50) {
+      const pt = destination(from.latitude, from.longitude, brg * 180 / Math.PI, Math.min(d, totalM) / 1000);
+      keys.add(`${Math.floor(tileXf(pt.longitude, WATER_Z))}/${Math.floor(tileYf(pt.latitude, WATER_Z))}`);
+    }
+    const tiles = await Promise.all([...keys].map((k) => { const [x, y] = k.split("/").map(Number); return loadBuildingTile(x, y, fetchImpl).then((t) => [x, y, t]); }));
+    if (tiles.some(([, , t]) => t === null)) return null;
+    const n = 2 ** WATER_Z, out = [];
+    for (const [tx, ty, tile] of tiles) {
+      tile.polys.forEach((rings, i) => {
+        const minHeightM = GSI_BUILDING_MIN_M[tile.codes[i]];
+        if (!minHeightM) return;
+        const ring = rings[0].map(([px, py]) => {
+          const fx = (tx + px / tile.extent) / n, fy = (ty + py / tile.extent) / n;
+          return [Math.atan(Math.sinh(Math.PI * (1 - 2 * fy))) * 180 / Math.PI, fx * 360 - 180];
+        });
+        const pts = ring.map(([la, lo]) => xy(la, lo));
+        let entry = null, inside = false;
+        for (let a = 0, b = pts.length - 1; a < pts.length; b = a++) {
+          const [x1, y1] = pts[b], [x2, y2] = pts[a];
+          if ((y1 > 0) !== (y2 > 0) && 0 < (x2 - x1) * (0 - y1) / (y2 - y1) + x1) inside = !inside;
+          const ex = x2 - x1, ey = y2 - y1, den = ux * ey - uy * ex;
+          if (Math.abs(den) < 1e-9) continue;
+          const t = (x1 * ey - y1 * ex) / den, u = (x1 * uy - y1 * ux) / den;
+          if (u < 0 || u > 1 || t < 0 || t > totalM) continue;
+          if (entry === null || t < entry) entry = t;
+        }
+        if (inside || entry === null) return;
+        out.push({ ring, code: tile.codes[i], minHeightM, entryM: entry,
+          entry: destination(from.latitude, from.longitude, brg * 180 / Math.PI, entry / 1000) });
+      });
+    }
+    // 升目の境で1棟が2つに分かれていることがある。近い方の入口だけ使えば足りる（判定は最も高く見える1棟で決まる）
+    return out.sort((a, b) => a.entryM - b.entryM);
+  }
+
   /**
    * 点ごとに水の上か。true＝水（海・湖・池・川）、false＝陸、null＝分からない（日本の外・通信の失敗）。
    * 呼び手は null を「確かめられなかった」として扱う（陸と決めつけない）。
@@ -1360,7 +1454,7 @@
     destination, bearing, distanceKm, inverse,
     fetchElevations, elevations, elevationFromTile, groundElevation, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
-    urbanHorizon, buildingHeightM, buildingAt, buildingsAlong, wikidataHeight, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
+    urbanHorizon, buildingHeightM, buildingAt, buildingsAlong, gsiBuildingsAlong, GSI_BUILDING_MIN_M, wikidataHeight, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
     profileToward, stepsFor, EYE_HEIGHT_PRESETS, searchPlaceIndex, normName,
     waterAt, decodeWaterLayer,
   };
