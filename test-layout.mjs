@@ -842,7 +842,12 @@ console.log("== どこから重ねるかをお気に入りに（2026-10-01） ==
 // ユーザー「どこから重ねるかもお気に入りの登録をしたい。座標ピンポイントに名前つけたりしたいんだ」
 ok(/id="aimFromButton"[\s\S]{0,800}<button id="aimFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆<\/button>/.test(html),
   "カードの右に ☆（地点カードと同じ形）");
-ok(/function openFavSheet\(index, \{ point = null, after = null, target = null \} = \{\}\)/.test(html), "登録の画面は、地点カード以外の点（座標）からも開ける");
+ok(/function openFavSheet\(index, \{ point = null, after = null, target = null, replacePoint = false \} = \{\}\)/.test(html), "登録の画面は、地点カード以外の点（座標）からも開ける");
+ok(/id="favLocationEdit"[\s\S]{0,100}地図で位置を変更/.test(html)
+  && /\$\("favLocationEdit"\)\.onclick[\s\S]{0,180}MapPick\.open\(\{ latitude: favDraft\.latitude, longitude: favDraft\.longitude \}, 16\)/.test(html),
+  "お気に入り編集から登録済みの座標を中心に地図を開ける");
+ok(/if \(favMapReturn && favDraft\)[\s\S]{0,700}favDraft\.latitude = c\.latitude;[\s\S]{0,250}favDraft\.elevation = elevation/.test(html),
+  "地図で選び直した位置・住所・標高をお気に入りへ反映する");
 ok(/openFavSheet\(-1, \{ after, target, point: \{\s+id: `map:\$\{f\.latitude\.toFixed\(5\)\}/.test(html), "観測地点の座標を雛形にして名前を付けられる");
 ok(/if \(i >= 0\) \{ openFavSheet\(i, \{ after, target \}\); return; \}/.test(html), "登録済み（★）なら編集");
 ok(/if \(favDraft\.after\) favDraft\.after\(entry\);/.test(html), "保存したら、付けた名前で出し直す");
@@ -902,7 +907,7 @@ ok(/function aimApply\(\{ redraw = true, recenter = false \} = \{\}\) \{[\s\S]*?
 ok(/\{ \.\.\.before, targetHeightM: h \}/.test(html), "お気に入りの目標の高さを直すと、お気に入りも直る");
 ok(/<div id="favTargetBox" hidden>\s*<label class="fav-l" for="favTargetH">重ねる目標の高さ/.test(html), "登録の画面に「重ねる目標の高さ」");
 ok(/\$\("favStandBox"\)\.hidden = \$\("favPhBox"\)\.hidden = target !== null;/.test(html), "目標として開いたら、立って見る場所の項目は隠す");
-ok(/targetHeightM: favTargetHeight\(\),/.test(html) && /\|\| favTargetHeight\(\) !== o\.targetHeightM;/.test(html), "保存する・変えたら閉じるときに確かめる");
+ok(/targetHeightM: favTargetHeight\(\),/.test(html) && /\|\| favTargetHeight\(\) !== o\.targetHeightM[\s\S]{0,120}favDraft\.latitude !== o\.latitude/.test(html), "保存する・変えたら閉じるときに確かめる");
 ok(/targetHeightM: Number\.isFinite\(f\.targetHeightM\) && f\.targetHeightM >= 0 && f\.targetHeightM <= 1000/.test(html), "読み込みでも検査する（同期で別端末へも渡る）");
 ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM/.test(html), "0m で登録した目標は 0m のまま（前に入れた高さを引きずらない）");
 
@@ -1555,7 +1560,7 @@ ok(formTerrains.has(""), "地形を選ばないという選択肢がある");
 // 地形を変えると取りに行くデータ（鉛直分布）ごと変わる。取り直さないと古い点数が残る。
 // 標高も needsProfile（鉛直分布を取るか）の判定に入る（core 532）。地形だけ見ていると
 // 「地形は未選択のまま標高が埋まった」ときに取得データが変わったことを見落とす。
-ok(/const refetch = \(place\.terrain[\s\S]{0,140}place\.elevation[\s\S]{0,500}if \(refetch\) \{[^}]*load\(true\)/.test(html),
+ok(/const refetch = place\.latitude !== entry\.latitude \|\| place\.longitude !== entry\.longitude[\s\S]{0,300}place\.terrain[\s\S]{0,500}if \(refetch\) \{[^}]*load\(true\)/.test(html),
   "地形か標高が変わったら予報を取り直す"); // 目高と地点種別の保存を追加した分だけ探索幅を拡大
 
 // spots.js は画面から外したが、戻すときに壊れていては困るのでデータの検査は続ける。

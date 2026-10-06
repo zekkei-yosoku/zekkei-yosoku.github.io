@@ -1886,7 +1886,8 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
     <input type="text" id="favName" class="fav-in" maxlength="40" autocomplete="off">
     <p class="warn" id="favNameErr" style="margin-top:5px" hidden>名前を入れてください</p>
     <div class="tiny" id="favWhere"></div>
-    <details class="tiny fav-where"><summary>座標</summary><span id="favCoord"></span></details>
+    <details class="tiny fav-where" id="favCoordDetails"><summary>座標</summary><span id="favCoord"></span></details>
+    <button type="button" class="tap" id="favLocationEdit" hidden>地図で位置を変更</button>
 
     <div id="favTargetBox" hidden>
       <label class="fav-l" for="favTargetH">重ねる目標の高さ<span class="fav-opt">地上から・m</span></label>
@@ -1920,24 +1921,24 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261006114452"></script>
+<script src="sorami-core.js?v=20261006121922"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261006114452"></script>
-<script src="sorami-exif.js?v=20261006114452"></script>
-<script src="sorami-capcloud.js?v=20261006114452"></script>
-<script src="sorami-terrain.js?v=20261006114452"></script>
-<script src="sorami-mountain.js?v=20261006114452"></script>
-<script src="sorami-fuji.js?v=20261006114452"></script>
-<script src="sorami-sky.js?v=20261006114452"></script>
-<script src="sorami-routes.js?v=20261006114452"></script>
-<script src="sorami-iss.js?v=20261006114452"></script>
-<script src="sorami-plane.js?v=20261006114452"></script>
-<script src="sorami-refraction.js?v=20261006114452"></script>
-<script src="sorami-atmosphere.js?v=20261006114452"></script>
-<script src="sorami-bodies.js?v=20261006114452"></script>
-<script src="sorami-align.js?v=20261006114452"></script>
-<script src="sorami-moon.js?v=20261006114452"></script>
+<script src="sorami-astro.js?v=20261006121922"></script>
+<script src="sorami-exif.js?v=20261006121922"></script>
+<script src="sorami-capcloud.js?v=20261006121922"></script>
+<script src="sorami-terrain.js?v=20261006121922"></script>
+<script src="sorami-mountain.js?v=20261006121922"></script>
+<script src="sorami-fuji.js?v=20261006121922"></script>
+<script src="sorami-sky.js?v=20261006121922"></script>
+<script src="sorami-routes.js?v=20261006121922"></script>
+<script src="sorami-iss.js?v=20261006121922"></script>
+<script src="sorami-plane.js?v=20261006121922"></script>
+<script src="sorami-refraction.js?v=20261006121922"></script>
+<script src="sorami-atmosphere.js?v=20261006121922"></script>
+<script src="sorami-bodies.js?v=20261006121922"></script>
+<script src="sorami-align.js?v=20261006121922"></script>
+<script src="sorami-moon.js?v=20261006121922"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4758,6 +4759,7 @@ const PHENOMENA_ORDER = Object.entries(S.PHENOMENA).sort((a, b) => a[1].order - 
 
 let favDraft = null;   // 編集中のお気に入り。index が -1 なら新規。
 let favUndo = [];      // 消したものを戻すための控え。地点シートを閉じるまで持つ。
+let favMapReturn = false; // 位置変更の地図を閉じたら編集フォームへ戻す
 
 function renderSheet() {
   // 消した直後の取り消し。数秒で消えるトーストにすると、押す前に消えて戻せない。
@@ -4850,12 +4852,12 @@ const requireLoginForFavorites = () => requireLogin("お気に入りの登録");
 /// お気に入りの登録・編集を開く。新規はふつう地点カードの地点を雛形にする。
 /// `point` を渡すと、その点を雛形にする（ねらうの「どこから重ねるか」。座標そのものに名前を付けて残す。2026-10-01）。
 /// `after` は閉じたあとの戻り先（地点の一覧を開き直さず、道具の画面で出し直す。保存なら entry、削除なら null を渡す）
-function openFavSheet(index, { point = null, after = null, target = null } = {}) {
+function openFavSheet(index, { point = null, after = null, target = null, replacePoint = false } = {}) {
   if (!requireLoginForFavorites()) return;
   // 新規は、いま見ている地点をそのまま雛形にする。標高は予報の格子から借りる
   // （評価側も place.elevation が無ければ同じ値を使うので、点数は変わらない）。
   const gridElev = bundle?.home.grid.elevation ?? null;
-  const base = index >= 0 ? favorites[index]
+  const base = replacePoint && point ? point : index >= 0 ? favorites[index]
     : point ? point
     : { ...place, elevation: place.elevation ?? gridElev };
   favDraft = { index, ...base, locationScope: SoramiTerrain.locationScope(base), phenomena: [...(base.phenomena || [])],
@@ -4865,7 +4867,8 @@ function openFavSheet(index, { point = null, after = null, target = null } = {})
   // 入力途中で閉じたときに「変えたかどうか」を判定するための元の値。
   favDraft.origin = { name: base.name || "", note: base.note || "",
     terrain: base.terrain || "", phenomena: [...(base.phenomena || [])].join(","),
-    eyeHeightAGL: base.eyeHeightAGL ?? 1.5, targetHeightM: favDraft.targetHeightM };
+    eyeHeightAGL: base.eyeHeightAGL ?? 1.5, targetHeightM: favDraft.targetHeightM,
+    latitude: base.latitude, longitude: base.longitude };
   $("favSheetTitle").textContent = index >= 0 ? "お気に入りを編集" : "お気に入りに登録";
   $("favName").value = favDraft.name || "";
   $("favNote").value = favDraft.note || "";
@@ -4877,6 +4880,8 @@ function openFavSheet(index, { point = null, after = null, target = null } = {})
     favDraft.elevation != null ? `標高 ${Math.round(favDraft.elevation)}m${estimated ? "（推定）" : ""}` : ""]
     .filter(Boolean).join(" ・ ");
   $("favCoord").textContent = `${favDraft.latitude.toFixed(4)}, ${favDraft.longitude.toFixed(4)}`;
+  $("favCoordDetails").open = false;
+  $("favLocationEdit").hidden = index < 0;
   $("favEye").innerHTML = eyeOptions(favDraft).map(([v, label, m]) =>
     `<option value="${v}"${(favDraft.eyeHeightAGL ?? 1.5) === m ? " selected" : ""}>${esc(label)}</option>`).join("");
   $("favTerrain").innerHTML = TERRAINS.map(([v, label]) =>
@@ -4969,7 +4974,8 @@ function favDirty() {
   return $("favName").value.trim() !== o.name || $("favNote").value.trim() !== o.note
     || ($("favTerrain").value || "") !== o.terrain || favDraft.phenomena.join(",") !== o.phenomena
     || (favDraft.eyeHeightAGL ?? 1.5) !== (o.eyeHeightAGL ?? 1.5)
-    || favTargetHeight() !== o.targetHeightM;
+    || favTargetHeight() !== o.targetHeightM
+    || favDraft.latitude !== o.latitude || favDraft.longitude !== o.longitude;
 }
 /// 登録の画面の「重ねる目標の高さ」。欄を出していなければ元の値のまま、空なら持たない
 function favTargetHeight() {
@@ -4984,6 +4990,17 @@ function closeFavSheet() {
 }
 $("favCancel").onclick = () => closeFavSheet();
 $("favSheet").addEventListener("cancel", (e) => { e.preventDefault(); closeFavSheet(); });
+$("favLocationEdit").onclick = () => {
+  if (!favDraft || favDraft.index < 0) return;
+  favMapReturn = true;
+  $("favSheet").close();
+  MapPick.open({ latitude: favDraft.latitude, longitude: favDraft.longitude }, 16);
+};
+$("mapClose").onclick = () => {
+  $("mapSheet").close();
+  if (favMapReturn) { favMapReturn = false; showSheet($("favSheet")); }
+};
+$("mapSheet").addEventListener("cancel", (e) => { e.preventDefault(); $("mapClose").click(); });
 $("favAdd").onclick = () => openFavSheet(favorites.findIndex((f) => f.id === place.id));
 
 // 名前は記録の照合キー（findSighting）でもある。改名で過去の記録を見失わないよう、
@@ -5024,10 +5041,12 @@ $("favSave").onclick = () => {
   // 表示中の地点そのものを編集したなら、画面にも反映する。
   // 地形と標高は取りに行くデータ（鉛直分布）ごと変えるので、取り直さないと嘘の点数が残る。
   if (place.id === entry.id) {
-    const refetch = (place.terrain || null) !== entry.terrain
+    const refetch = place.latitude !== entry.latitude || place.longitude !== entry.longitude
+      || (place.terrain || null) !== entry.terrain
       || (place.elevation ?? null) !== entry.elevation
       || (place.eyeHeightAGL ?? 1.5) !== (entry.eyeHeightAGL ?? 1.5);
     place = { ...place, name: entry.name, subtitle: entry.subtitle,
+      latitude: entry.latitude, longitude: entry.longitude,
       terrain: entry.terrain, elevation: entry.elevation,
       locationScope: entry.locationScope, eyeHeightAGL: entry.eyeHeightAGL };
     store.set("sorami.place", place);
@@ -8749,6 +8768,23 @@ $("mapPick").onclick = async () => {
   const c = MapPick.center();
   $("mapPick").disabled = true;
   $("mapPick").textContent = "標高を読んでいます…";
+  if (favMapReturn && favDraft) {
+    const origin = favDraft.origin;
+    const [elevation, nearby] = await Promise.all([groundAt(c.latitude, c.longitude), nearName(c.latitude, c.longitude)]);
+    favDraft.latitude = c.latitude;
+    favDraft.longitude = c.longitude;
+    favDraft.subtitle = nearby.area || "地図で選んだ地点";
+    favDraft.elevation = elevation == null ? null : Math.round(elevation * 10) / 10;
+    favDraft.locationScope = "point";
+    $("mapSheet").close();
+    favMapReturn = false;
+    $("mapPick").disabled = false;
+    $("mapPick").textContent = "この場所にする";
+    openFavSheet(favDraft.index, { point: favDraft, replacePoint: true, after: favDraft.after,
+      target: favDraft.targetHeightM });
+    favDraft.origin = origin;
+    return;
+  }
   $("mapSheet").close();
   await selectPointAt(c.latitude, c.longitude, "地図で選んだ地点");
   $("mapPick").disabled = false;
