@@ -221,16 +221,18 @@ test("候補帯は選択高さの許容誤差だけ採用し、全体モード�
  const whole=await c.aimBuildingDays(observer,target,"moon","__whole",1);assert.equal(whole.length,4);assert.ok(whole.every(e=>e.gap===2));
 });
 
-test("渋谷スカイの図の基準時刻は地上229mの直接計算に一致し、標高と二重加算しない",async()=>{
+// 2026-10-06 観測標高を「標高」と「地上から」に分け、展望台では床の高さ229mに目の高さ1.5mを足す（候補地を解く SoramiAlign と同じ）。
+// aimFromPoint が返すのは aimSavedFrom を通った形（立つ所 stand と展望台 decks）
+test("渋谷スカイの図の基準時刻は展望台229m＋目の高さ1.5mの直接計算に一致し、標高と二重加算しない",async()=>{
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8");
- const f={name:"渋谷スカイ",latitude:35.65838,longitude:139.70222,eyeHeightAGL:229},host={hidden:true};
+ const f={name:"渋谷スカイ",latitude:35.65838,longitude:139.70222,decks:[{name:"展望台",aglM:229}],stand:"展望台"},host={hidden:true};
  const aim={target,body:"moon",partId:"tip",limb:"center",candPick:null,candSide:null,dayMs:day("04"),lookSeq:0};
  let rendered;const c=vm.createContext({aim,$:()=>host,S,SoramiAlign:AL,SoramiBodies:globalThis.SoramiBodies,SoramiTerrain:{decksFor:()=>null},aimFromPoint:()=>f,aimElevation:async()=>19,aimLookRender:(h,s)=>rendered=s,aimIsMountain:()=>false,aimCandidateMatch:e=>Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0)),moonGlyphAt:()=>"月",lightTimingText:()=>"夜",Date,Math,Number});
  const a=html.indexOf('async function aimUpdateLook()'),b=html.indexOf('\n}const aimCandName',a)+2;
  vm.runInContext(html.slice(html.indexOf('function aimObserverEye('),html.indexOf('aim.from = aimSavedFrom'))+html.slice(a,b),c);await c.aimUpdateLook();
  const obs={latitude:f.latitude,longitude:f.longitude,elevation:19};
- const expected=AL.dailyView(obs,target,'moon',day('04'),{partId:'tip',eyeM:229}).sort((x,y)=>Math.abs(x.gap)-Math.abs(y.gap))[0];
- assert.equal(rendered.eyeM,229);assert.equal(rendered.obs.elevation,19);assert.equal(rendered.at,expected.at);assert.equal(rendered.sub,'');
+ const expected=AL.dailyView(obs,target,'moon',day('04'),{partId:'tip',eyeM:230.5}).sort((x,y)=>Math.abs(x.gap)-Math.abs(y.gap))[0];
+ assert.equal(rendered.eyeM,230.5);assert.equal(rendered.obs.elevation,19);assert.equal(rendered.at,expected.at);assert.equal(rendered.sub,'');
  const ground=AL.geometryFrom(obs,target,{partId:'tip',eyeM:1.5}),roof=AL.geometryFrom(obs,target,{partId:'tip',eyeM:229});
  assert.ok(ground.angle-roof.angle>.8);assert.notEqual(AL.dailyView(obs,target,'moon',day('04'),{partId:'tip',eyeM:1.5})[0].at,expected.at);
 });

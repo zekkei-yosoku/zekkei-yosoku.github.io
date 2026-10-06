@@ -268,15 +268,19 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   // 「どこに重ねるか」と対で「どこから重ねるか」。最初は絶景予測の地点を引き継いで欄に入れる（ユーザー指定）
   // 2026-10-06 何を→何に→どこからの順で、1行ずつ文にして選ぶ（ユーザー「〇〇（選択）を重ねる。〇〇（選択）に重ねる。〇〇（選択）から重ねる。」）。
   // どこからを最後にしたのは、その日の候補地が何を・何に・日付で決まるから（10/01 は一番上、10/04 は2番目だった）
-  { const ids=['aimBody','aimWhatLabel','aimTitle','aimWhereLabel','aimLimb','aimFromButton','aimFromLabel','aimObserverHeight'];
+  { const ids=['aimBody','aimWhatLabel','aimTitle','aimWhereLabel','aimLimb','aimFromButton','aimFromLabel','aimStand','aimGroundHeight','aimStandHeight'];
     const positions=ids.map(id=>html.indexOf('id="'+id+'"'));
-    ok(positions.every((p,i)=>p>0&&(!i||p>positions[i-1])), "何を→何に（部位・縁）→どこから（観測標高）の順で選ぶ");
+    ok(positions.every((p,i)=>p>0&&(!i||p>positions[i-1])), "何を→何に（部位・縁）→どこから（立つ所・標高・地上から）の順で選ぶ");
     ok(/<span class="aim-say-v" id="aimWhatLabel">を重ねる<\/span>/.test(html) && /<span class="aim-say-v" id="aimWhereLabel">に重ねる<\/span>/.test(html)
       && /<span class="aim-say-v" id="aimFromLabel">から重ねる<\/span>/.test(html) && !/aim-section-title/.test(html), "見出しの代わりに、欄の右に「を重ねる」「に重ねる」「から重ねる」");
     // 題名の中に「に重ねる」を入れたら 375px 以下で折れた。右は折らず、欄の側を省略する
     ok(/\.aim-say \{ display: flex; align-items: center;/.test(html) && /\.aim-say > :first-child \{ flex: 1 1 0; min-width: 0;/.test(html)
       && /\.aim-say-v \{ flex: 0 0 5\.2em;[^}]*white-space: nowrap;/.test(html), "文の右は「から重ねる」の幅で固定して折らない・欄の側が縮む");
     // 縁の3釦は建物全体で消えるので、何にの下（何をの下に置くと、下の行の選択で上の釦が消えて画面がずれる。2026-10-06）
+    // 観測標高は「標高」（地面だけ）と「地上から」（目の高さ1.5m＋立つ所）に分ける。展望台の登録がある施設は立つ所を選ぶ（2026-10-06）
+    ok(/<label for="aimGroundHeight">標高<\/label>/.test(html) && /<label for="aimStandHeight">地上から<\/label>/.test(html) && !/id="aimObserverHeight"/.test(html)
+      && /<div class="aim-side-seg aim-stand" id="aimStand" role="group" aria-label="立つ所"><\/div>/.test(html), "観測標高は標高と地上からの2つ（展望台は立つ所を選ぶ）");
+    ok(/\.aim-observer-height label \{ flex: 0 0 4\.5em; \}/.test(html), "2行の欄の左端をそろえる");
     ok(html.indexOf('id="aimPartRow"') < html.indexOf('id="aimLimb"') && html.indexOf('id="aimLimb"') < html.indexOf('class="aim-say aim-say-from"', html.indexOf('<div id="aimView"')), "縁は部位のすぐ下（どこからより上）"); }
 
   // 地図から決めるのは地図を見ているとき。釦は上の欄ではなく地図のすぐ下（ユーザー「地図の中心ってここにいらない」）
@@ -287,7 +291,8 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(html.includes("この条件の候補日は見つかりません（今後400日）。"), "候補なしは選択条件と400日探索の範囲を明示");
   ok(html.includes("aimCandidateMatch(e) && (!moon || e.sunAltitude < 0)"), "選択部位と月の暗い空の条件で候補を絞る");
   ok(/aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる<\/button>/.test(html), "釦の名前は「ここから重ねる」");
-  ok(/function aimFromPoint\(\) \{\s+return aim\.from \|\| inheritedPoint\(\);/.test(html) && /function inheritedPoint\(\) \{[\s\S]{0,400}inherited: true/.test(html),
+  // 引き継いだ地点も、地点カードの展望台・目の高さを立つ所に読み替える（2026-10-06）
+  ok(/function aimFromPoint\(\) \{\s+if \(aim\.from\) return aim\.from;[\s\S]{0,200}const p = inheritedPoint\(\);\s+return p && \{ \.\.\.aimSavedFrom\(p\), inherited: true \};/.test(html) && /function inheritedPoint\(\) \{[\s\S]{0,400}inherited: true/.test(html),
     "替えていなければ絶景予測の地点を引き継ぐ");
   ok(/renderPointCard\("aimFrom", f\);/.test(fn) && /\$\(`\$\{prefix\}Name`\)\.textContent = f \? f\.name/.test(html), "引き継いだ地点の名前をカードに入れておく（共通の renderPointCard）");
   ok(/f\.inherited \? "絶景予測の地点" : ""/.test(html), "引き継いだ地点なら、そう書く");
@@ -3103,7 +3108,8 @@ console.log("== どこから重ねるかで、この日の候補地から選ぶ�
   const pick = /function aimFromCandidate\(c\) \{[\s\S]*?\n\}/.exec(html)[0];
   const alignSrc = fs.readFileSync(new URL("./sorami-align.js", import.meta.url), "utf8");
   ok(/aim\.candPick = null;/.test(pick) && /latitude: c\.stand\.latitude, longitude: c\.stand\.longitude/.test(pick)
-    && /eyeHeightAGL: 1\.5 \+ \(c\.place\.deckM \|\| 0\) \+ \(c\.place\.bridgeM \|\| 0\)/.test(pick)
+    && /const deck = c\.place\.deckM \? \{ name: "展望台", aglM: c\.place\.deckM \} : c\.place\.bridgeM \? \{ name: "橋の上", aglM: c\.place\.bridgeM \} : null;/.test(pick)
+    && /decks: deck \? \[deck\] : \[\], stand: deck \? deck\.name : null/.test(pick) && /const AIM_EYE_M = 1\.5;/.test(html)
     && /const eyeM = \(opts\.eyeM \?\? 1\.5\) \+ \(place\.deckM \|\| 0\);/.test(alignSrc) && /\+ \(place\.bridgeM \?\? 0\)/.test(alignSrc),
     "候補地を解いたときと同じ立つ点・目の高さ（1.5m＋展望台・橋）でどこからにする（一覧の時刻のまま重なる）");
   ok(/<button type="button" class="chip cand-from" data-cand-from="\$\{i\}">ここから重ねる<\/button>/.test(html)

@@ -69,10 +69,11 @@ test("カレンダーの今日は今日を選択して候補地を解除し図�
  assert.equal(aim.candPick,null);assert.equal(aim.spot,null);assert.equal(aim.wantKey,null);assert.equal(aim.candSide,null);assert.equal($("aimCalendar").open,false);assert.equal(c.applied,true);
 });
 
+// 2026-10-06 立つ所（展望台／地上）で地上からを決め、目の高さ1.5mを足す（展望台229m→230.5m、地上→1.5m）
 test("展望台の高さを月間探索へ渡し、同じ座標の高さ変更でキャッシュを切り替える",async()=>{
  const eyes=[];const {c}=setup({upcoming(o,t,b,x){eyes.push(x.eyeM);return []}});
- c.fromOverride={name:"渋谷スカイ",latitude:35.65838,longitude:139.70222,eyeHeightAGL:229};
- await c.render();assert.deepEqual(eyes,[229]);
- await c.render();assert.deepEqual(eyes,[229]);
- c.fromOverride.eyeHeightAGL=1.5;await c.render();assert.deepEqual(eyes,[229,1.5]);
+ c.fromOverride={name:"渋谷スカイ",latitude:35.65838,longitude:139.70222,decks:[{name:"展望台",aglM:229}],stand:"展望台"};
+ await c.render();assert.deepEqual(eyes,[230.5]);
+ await c.render();assert.deepEqual(eyes,[230.5]);
+ c.fromOverride.stand="ground";await c.render();assert.deepEqual(eyes,[230.5,1.5]);
 });
