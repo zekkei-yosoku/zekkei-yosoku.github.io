@@ -1921,24 +1921,24 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261006121922"></script>
+<script src="sorami-core.js?v=20261006133907"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261006121922"></script>
-<script src="sorami-exif.js?v=20261006121922"></script>
-<script src="sorami-capcloud.js?v=20261006121922"></script>
-<script src="sorami-terrain.js?v=20261006121922"></script>
-<script src="sorami-mountain.js?v=20261006121922"></script>
-<script src="sorami-fuji.js?v=20261006121922"></script>
-<script src="sorami-sky.js?v=20261006121922"></script>
-<script src="sorami-routes.js?v=20261006121922"></script>
-<script src="sorami-iss.js?v=20261006121922"></script>
-<script src="sorami-plane.js?v=20261006121922"></script>
-<script src="sorami-refraction.js?v=20261006121922"></script>
-<script src="sorami-atmosphere.js?v=20261006121922"></script>
-<script src="sorami-bodies.js?v=20261006121922"></script>
-<script src="sorami-align.js?v=20261006121922"></script>
-<script src="sorami-moon.js?v=20261006121922"></script>
+<script src="sorami-astro.js?v=20261006133907"></script>
+<script src="sorami-exif.js?v=20261006133907"></script>
+<script src="sorami-capcloud.js?v=20261006133907"></script>
+<script src="sorami-terrain.js?v=20261006133907"></script>
+<script src="sorami-mountain.js?v=20261006133907"></script>
+<script src="sorami-fuji.js?v=20261006133907"></script>
+<script src="sorami-sky.js?v=20261006133907"></script>
+<script src="sorami-routes.js?v=20261006133907"></script>
+<script src="sorami-iss.js?v=20261006133907"></script>
+<script src="sorami-plane.js?v=20261006133907"></script>
+<script src="sorami-refraction.js?v=20261006133907"></script>
+<script src="sorami-atmosphere.js?v=20261006133907"></script>
+<script src="sorami-bodies.js?v=20261006133907"></script>
+<script src="sorami-align.js?v=20261006133907"></script>
+<script src="sorami-moon.js?v=20261006133907"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5124,7 +5124,10 @@ function createMapView(ids) {
   let layer = "map";
   const URL = (src, z, x, y) => `https://cyberjapandata.gsi.go.jp/xyz/${src.key}/${z}/${x}/${y}.${src.ext}`;
   const MIN_Z = 5;
+  // タイルの配信上限より2段階先まで拡大できるようにする。
+  // z19・20 は z18 タイルを拡大表示するため、細部は増えないが地点を合わせやすくなる。
   const maxZoom = () => MAP_LAYERS[layer].maxZ;
+  const maxViewZoom = () => maxZoom() + 2;
   const tiles = new Map();          // "layer/z/x/y" → Image（読み込み済みだけ描く）
   let cv = null, ctx = null, view = { lat: 35.36, lon: 138.73, zoom: 14 };
   let drag = null, pinch = null, raf = 0;
@@ -5215,7 +5218,7 @@ function createMapView(ids) {
     view.lat = Math.max(-85, Math.min(85, view.lat));
     schedule();
   }
-  const zoomBy = (d) => { view.zoom = Math.max(MIN_Z, Math.min(maxZoom(), view.zoom + d)); schedule(); };
+  const zoomBy = (d) => { view.zoom = Math.max(MIN_Z, Math.min(maxViewZoom(), view.zoom + d)); schedule(); };
 
   function attach() {
     cv = $(ids.canvas); ctx = cv.getContext("2d");
@@ -5236,7 +5239,7 @@ function createMapView(ids) {
         const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
         if (pinch.base === null) { pinch.base = dist; pinch.baseZoom = view.zoom; return; }
         if (dist > 0 && pinch.base > 0) {
-          view.zoom = Math.max(MIN_Z, Math.min(maxZoom(), pinch.baseZoom + Math.log2(dist / pinch.base)));
+          view.zoom = Math.max(MIN_Z, Math.min(maxViewZoom(), pinch.baseZoom + Math.log2(dist / pinch.base)));
           schedule();
         }
         return;
@@ -5292,7 +5295,7 @@ function createMapView(ids) {
     if (!MAP_LAYERS[next]) next = "map";
     layer = next;
     if (remember) store.set("sorami.mapLayer", next);
-    view.zoom = Math.min(view.zoom, maxZoom());
+    view.zoom = Math.min(view.zoom, maxViewZoom());
     const wrap = cv && cv.closest(".mapwrap");
     if (wrap) for (const b of wrap.querySelectorAll("[data-layer]")) b.setAttribute("aria-checked", String(b.dataset.layer === next));
     schedule();
@@ -5316,7 +5319,7 @@ function createMapView(ids) {
            setCenter: (lat, lon) => { view.lat = lat; view.lon = lon; schedule(); },
            setView: (lat, lon, zoom) => {
              view.lat = lat; view.lon = lon;
-             if (Number.isFinite(zoom)) view.zoom = Math.max(MIN_Z, Math.min(maxZoom(), zoom));
+             if (Number.isFinite(zoom)) view.zoom = Math.max(MIN_Z, Math.min(maxViewZoom(), zoom));
              schedule();
            } };
 }

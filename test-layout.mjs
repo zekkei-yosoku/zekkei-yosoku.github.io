@@ -778,6 +778,12 @@ console.log("== ねらう: その日の候補地（2026-09-30） ==");
   ok(!/建物で隠れるかは/.test(html), "建物の断り書きは出さない（2026-10-03 ユーザーが選んだ「いらない説明文」）");
 }
 ok(/map: \{ key: "pale", ext: "png", maxZ: 18/.test(html), "標準地図を国土地理院タイルの最大ズームまで使う");
+ok(/const maxViewZoom = \(\) => maxZoom\(\) \+ 2;/.test(html)
+  && /const zoomBy = \(d\) => \{ view\.zoom = Math\.max\(MIN_Z, Math\.min\(maxViewZoom\(\), view\.zoom \+ d\)\)/.test(html)
+  && /pinch\.baseZoom \+ Math\.log2\(dist \/ pinch\.base\)\)\);\s+schedule\(\);/.test(html),
+  "＋釦とピンチで配信タイル上限より2段階先まで拡大できる");
+ok(/const z = Math\.max\(MIN_Z, Math\.min\(maxZoom\(\), Math\.round\(view\.zoom\)\)\);[\s\S]{0,180}const scale = 2 \*\* \(view\.zoom - z\);/.test(html),
+  "上限後は最大解像度のタイルを拡大して表示する");
 
 console.log("== 地点検索: 山・峠・展望地の索引（2026-09-30） ==");
 {
