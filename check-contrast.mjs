@@ -37,14 +37,15 @@ const overlay = (fg, bg, p) => fg.map((c, i) => Math.round(c * p + bg[i] * (1 - 
 // :root と dark ブロックからそれぞれ変数を拾う
 const block = (re) => { const m = css.match(re); return m ? m[1] : ""; };
 const rootVars = block(/:root \{([\s\S]*?)\n  \}/);
-const darkVars = block(/@media \(prefers-color-scheme: dark\) \{[\s\S]*?:root \{([\s\S]*?)\n  \}/);
+// ダークは <html data-theme="dark"> の規則（2026-10-06 まで @media (prefers-color-scheme: dark) の中の :root）
+const darkVars = block(/:root\[data-theme="dark"\] \{([\s\S]*?)\}/);
 const parse = (text) => Object.fromEntries(
   [...text.matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6})\b/g)].map((m) => [m[1], m[2]]));
 const expand = (h) => (h.length === 4 ? "#" + h.slice(1).split("").map((c) => c + c).join("") : h);
 // --sunk と濃さの設定は別の :root ブロックにある。個別に拾う。
 const one = (re, fallback) => { const m = css.match(re); return m ? m[1] : fallback; };
 const sunkLight = one(/:root \{ --sunk: (#[0-9a-fA-F]{6})/);
-const sunkDark = one(/prefers-color-scheme: dark\) \{ :root \{ --sunk: (#[0-9a-fA-F]{6})/);
+const sunkDark = one(/:root\[data-theme="dark"\] \{ --sunk: (#[0-9a-fA-F]{6})/);
 const numIn = (text, name, fallback) => {
   const m = text.match(new RegExp("--" + name + ":\\s*([\\d.]+)"));
   return m ? +m[1] : fallback;

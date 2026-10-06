@@ -26,6 +26,8 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png?v=1">
 <link rel="manifest" href="manifest.json?v=1">
 <meta name="theme-color" content="#0a0f24">
+<!-- ライト・ダークは <html data-theme> で決める（2026-10-06）。最初の値は描く前にここで入れる。切り替えは本体の script（裏にいる間は替えない） -->
+<script>document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";</script>
 <style>
   /* 配色はカード地に対するコントラストを実測して決めている。
      文字として使う色は 4.5:1 以上（WCAG AA の本文基準）。
@@ -35,7 +37,7 @@
     /* secondary と tertiary が #6e6e73 / #6b6b71 で見分けが付かず、補助文の階層が
        消えていた（コントラストを直したときに tertiary を暗くして寄せてしまった）。
        secondary を本文寄りへ戻して 本文→補助→注記 の3段を作る。 */
-    --bg: #f4f4f6; --card: #ffffff; --text: #1c1c1e; --secondary: #4a4a4f; --tertiary: #6b6b71;
+    color-scheme: light; --bg: #f4f4f6; --card: #ffffff; --text: #1c1c1e; --secondary: #4a4a4f; --tertiary: #6b6b71;
     --accent: #a04f09; --line: rgba(0,0,0,.08);
     /* 評価語の色。ライトでは「白地の上で 4.5:1」を満たす黄が存在せず、
        #7d6516 のオリーブになる。しかも隣の --good #a04f09 と見分けが付かず、
@@ -60,8 +62,9 @@
        本文の評価語の色（白地で 4.5:1 を満たすために濁らせてある）とは別に持つ。 */
     --ray-sun: #e8820e; --ray-moon: #2f7fd0;
   }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #000; --card: #1c1c1e; --text: #f2f2f7; --secondary: #c3c3ca; --tertiary: #93939a;
+  /* ダークは <html data-theme="dark"> のとき（2026-10-06 まで @media (prefers-color-scheme: dark)）。
+     iOS はアプリが裏へ回るとき外観をライト⇄ダークに往復させるので、メディアクエリに直接従うと戻った直後にライトで出る */
+  :root[data-theme="dark"] { color-scheme: dark; --bg: #000; --card: #1c1c1e; --text: #f2f2f7; --secondary: #c3c3ca; --tertiary: #93939a;
             --line: rgba(255,255,255,.1);
             --accent: #f08529; --spectacular: #e97180; --good: #f08529; --fair: #d4b247;
             --poor: #9a9a9a; --red: #db5b54; --orange: #d98a1f;
@@ -72,7 +75,6 @@
             --tint-span: 48; --tint-exp: 0.75;
             --on-accent: #1b1206;
             --ray-sun: #ffb340; --ray-moon: #6ba6e0; }
-  }
   * { box-sizing: border-box; margin: 0; }
   body { font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
          background: var(--bg); color: var(--text); font-size: 0.94rem; line-height: 1.5;
@@ -514,7 +516,7 @@
      軸を1本にすると、良い日が【縦の列】として見える。
      ============================================================ */
   :root { --sunk: #f2f3f5; --rail: 84px; --cell: 40px; }
-  @media (prefers-color-scheme: dark) { :root { --sunk: #26262a; } }
+  :root[data-theme="dark"] { --sunk: #26262a; }
 
   /* overscroll-behavior-x は【none】。contain は親への伝播を止めるだけで、
      端での跳ね返り（ゴムバンド）は残る。跳ね返っている間は scrollLeft が 0 のまま
@@ -911,7 +913,7 @@
               color: var(--secondary); font-variant-numeric: tabular-nums; }
   .dhead.sat .d { color: #2f6fb5; } .dhead.sun .d { color: var(--red); }
   .dhead.today .d { color: var(--accent); }
-  @media (prefers-color-scheme: dark) { .dhead.sat .d { color: #6ba6e0; } }
+  [data-theme="dark"] .dhead.sat .d { color: #6ba6e0; }
 
   /* 良し悪しは【セルの地の色】で示す。色は 期待薄→絶景 の連続グラデーション
      （凡例の帯と同じ並び）なので、塗りの高さや棒で重ねて言う必要がない。
@@ -1064,7 +1066,7 @@
 
 #aimView .aim-look-found{scroll-margin-top:72px}#previewPlaces .cand-row{flex-wrap:wrap}#previewPlaces .cand-row .cand-pick{flex-basis:100%}#previewPlaces .cand-map,#previewPlaces .cand-from,#previewPlaces .preview-show-scene{flex:1}
 /* 同じ入力/選択は同じ面。選択中だけアクセント色。 */
-#aimView #aimPart,#aimView #aimCustomH,#aimView #aimHeightM,#aimView #aimCalendarOpen,#aimView #aimBody,#aimView #previewTime,#aimView #previewTimeScope{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;color-scheme:light dark}
+#aimView #aimPart,#aimView #aimCustomH,#aimView #aimHeightM,#aimView #aimCalendarOpen,#aimView #aimBody,#aimView #previewTime,#aimView #previewTimeScope{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px}
 .preview-date-time{display:flex;align-items:center;gap:8px;margin-top:8px}.preview-date-time input{min-height:44px;min-width:0;flex:1;padding:6px 12px;font-size:16px}.preview-date-time label{font-size:12px;color:var(--secondary)}.preview-date-time button{min-height:44px;padding:8px 12px;font-size:12px}
 .preview-time-scope{display:flex;align-items:center;gap:8px;margin:4px 0}.preview-time-scope select{min-height:44px;padding:6px 10px;flex:1;min-width:0}.preview-time-scope span{font-size:11px;color:var(--secondary)}
 #aimView .preview-sensor-label{font-size:12px;flex:0 0 auto;color:var(--secondary)}#aimView [data-lens-sensor]{min-width:0;flex:1;min-height:44px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;font-size:14px;padding:8px}
@@ -1130,7 +1132,7 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 #aimView .preview-datetime-footer #aimCalendarOpen{min-height:40px;padding:0 4px;border:0;background:transparent;justify-content:flex-start;font-size:14px;font-weight:700}
 #aimView .preview-datetime-footer .preview-date-time{justify-self:end;max-width:100%;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;border:0;border-radius:0;background:transparent;overflow:visible}
 #aimView .preview-datetime-footer #previewTime{flex:none;width:auto;min-height:24px;padding:0 4px;border:0;background:transparent;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center}
-@media(prefers-color-scheme:dark){#aimView .preview-datetime-footer{background:#2c2c2e;border-top-color:rgba(255,255,255,.2);box-shadow:0 -6px 20px rgba(0,0,0,.7)}}
+[data-theme=dark] #aimView .preview-datetime-footer{background:#2c2c2e;border-top-color:rgba(255,255,255,.2);box-shadow:0 -6px 20px rgba(0,0,0,.7)}
 #aimView .preview-datetime-footer [data-pointer-focus]:focus,#aimView button[data-pointer-focus]:focus{outline:none}
 #aimView .preview-footer-rel{max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:10px;line-height:1.2;color:var(--secondary);white-space:nowrap}
 #aimView .preview-footer-track{max-width:780px;margin:0 auto;padding:2px 0;touch-action:none;cursor:pointer}
@@ -1918,24 +1920,24 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261006102620"></script>
+<script src="sorami-core.js?v=20261006103858"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261006102620"></script>
-<script src="sorami-exif.js?v=20261006102620"></script>
-<script src="sorami-capcloud.js?v=20261006102620"></script>
-<script src="sorami-terrain.js?v=20261006102620"></script>
-<script src="sorami-mountain.js?v=20261006102620"></script>
-<script src="sorami-fuji.js?v=20261006102620"></script>
-<script src="sorami-sky.js?v=20261006102620"></script>
-<script src="sorami-routes.js?v=20261006102620"></script>
-<script src="sorami-iss.js?v=20261006102620"></script>
-<script src="sorami-plane.js?v=20261006102620"></script>
-<script src="sorami-refraction.js?v=20261006102620"></script>
-<script src="sorami-atmosphere.js?v=20261006102620"></script>
-<script src="sorami-bodies.js?v=20261006102620"></script>
-<script src="sorami-align.js?v=20261006102620"></script>
-<script src="sorami-moon.js?v=20261006102620"></script>
+<script src="sorami-astro.js?v=20261006103858"></script>
+<script src="sorami-exif.js?v=20261006103858"></script>
+<script src="sorami-capcloud.js?v=20261006103858"></script>
+<script src="sorami-terrain.js?v=20261006103858"></script>
+<script src="sorami-mountain.js?v=20261006103858"></script>
+<script src="sorami-fuji.js?v=20261006103858"></script>
+<script src="sorami-sky.js?v=20261006103858"></script>
+<script src="sorami-routes.js?v=20261006103858"></script>
+<script src="sorami-iss.js?v=20261006103858"></script>
+<script src="sorami-plane.js?v=20261006103858"></script>
+<script src="sorami-refraction.js?v=20261006103858"></script>
+<script src="sorami-atmosphere.js?v=20261006103858"></script>
+<script src="sorami-bodies.js?v=20261006103858"></script>
+<script src="sorami-align.js?v=20261006103858"></script>
+<script src="sorami-moon.js?v=20261006103858"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -1967,8 +1969,31 @@ function readTint() {
   TINT.exp = parseFloat(cs.getPropertyValue("--tint-exp")) || 0.75;
 }
 readTint();
-// OS のライト・ダーク切り替えに追従する。値を読み直して描き直す。
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { readTint(); applyRoute(); });
+// OS のライト・ダーク切り替えに追従する（<html data-theme>）。替えたら値を読み直して描き直す。
+// **裏にいる間と、戻った直後は替えない**（2026-10-06 ユーザー録画「レイアウトの色が勝手に変わって戻る」）。
+// iOS はアプリが裏へ回るとき、切り替え画面のスナップショットを撮るため外観をライト⇄ダークに往復させる
+// （ネイティブのアプリでも traitCollectionDidChange が2回呼ばれる既知の挙動）。メディアクエリにそのまま従っていたので、
+// Google マップから戻ると約1.3秒ライトで出ていた。表で本当に替えたときは、値が落ち着くのを少し待ってから替える
+const darkQuery = matchMedia("(prefers-color-scheme: dark)");
+let themeTimer = 0, themeHoldUntil = 0;
+function applyTheme() {
+  clearTimeout(themeTimer);
+  if (document.hidden) return;
+  const wait = themeHoldUntil - Date.now();
+  if (wait > 0) { themeTimer = setTimeout(applyTheme, wait); return; }
+  const theme = darkQuery.matches ? "dark" : "light";
+  if (document.documentElement.dataset.theme === theme) return;
+  document.documentElement.dataset.theme = theme;
+  readTint(); applyRoute();
+}
+darkQuery.addEventListener("change", () => { clearTimeout(themeTimer); themeTimer = setTimeout(applyTheme, 400); });
+document.addEventListener("visibilitychange", () => {
+  clearTimeout(themeTimer);
+  if (document.hidden) return;
+  // 戻った直後は、外観の値がスナップショット用のままのことがある（録画では約1.3秒）。2秒は替えない
+  themeHoldUntil = Date.now() + 2000;
+  themeTimer = setTimeout(applyTheme, 2000);
+});
 
 const CELL_RAMP = [
   [0,  "--t-poor"], [40, "--t-fair"], [65, "--t-good"], [85, "--t-spectacular"], [100, "--t-spectacular"],

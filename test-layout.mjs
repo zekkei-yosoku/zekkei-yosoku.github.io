@@ -1769,19 +1769,47 @@ ok(!/CELL_RAMP[\s\S]{0,200}"--poor"\]/.test(html), "セルに文字色を使っ�
 // 濃さの上限はモードで違う。同じ数値だとライトが薄すぎる。
 ok(/--tint-span: 62/.test(html) && /--tint-span: 48/.test(html), "濃さの幅をモードごとに持つ");
 ok(/TINT\.span \* Math\.pow\(v \/ 100, TINT\.exp\)/.test(html), "式が設定を読む");
-ok(/matchMedia\("\(prefers-color-scheme: dark\)"\)\.addEventListener/.test(html),
+ok(/const darkQuery = matchMedia\("\(prefers-color-scheme: dark\)"\);/.test(html) && /document\.documentElement\.dataset\.theme = theme;\n  readTint\(\); applyRoute\(\);/.test(html),
   "モードを切り替えたら読み直す");
+// 2026-10-06 ユーザー録画「レイアウトの色が勝手に変わって戻る」。iOS はアプリが裏へ回るとき外観をライト⇄ダークに往復させる
+// （スナップショット用）。メディアクエリに直接従うと、Google マップから戻った直後に約1.3秒ライトで出た
+{
+  const ctl = html.slice(html.indexOf("const darkQuery ="), html.indexOf("const CELL_RAMP"));
+  ok(!/@media ?\(prefers-color-scheme/.test(html.replace(/<!--[\s\S]*?-->/g, "").replace(/\/\*[\s\S]*?\*\//g, "")), "色はメディアクエリに直接従わない（<html data-theme> で決める）");
+  ok(/<meta name="theme-color"[^>]*>\n<!--[^\n]*-->\n<script>document\.documentElement\.dataset\.theme = matchMedia\("\(prefers-color-scheme: dark\)"\)\.matches \? "dark" : "light";<\/script>/.test(html)
+    && html.indexOf('<script>document.documentElement.dataset.theme') < html.indexOf("<style>"), "最初のテーマは描く前（head・style より前）に入れる");
+  ok(/if \(document\.hidden\) return;/.test(ctl) && /themeHoldUntil = Date\.now\(\) \+ 2000;/.test(ctl), "裏にいる間は替えず、戻ってから2秒は替えない");
+  ok(/darkQuery\.addEventListener\("change", \(\) => \{ clearTimeout\(themeTimer\); themeTimer = setTimeout\(applyTheme, 400\); \}\);/.test(ctl)
+    && /const theme = darkQuery\.matches \? "dark" : "light";/.test(ctl), "表での切り替えは少し待って、そのときの値で替える");
+  ok(/color-scheme: light; --bg:/.test(html) && /:root\[data-theme="dark"\] \{ color-scheme: dark;/.test(html) && !/color-scheme:light dark/.test(html),
+    "入力欄などの部品の色もテーマに合わせる（端末の外観に直接従わない）");
+  // 動き: 裏で外観が往復しても、戻った直後の古い値でも替えない。表で替えたら替わる
+  const el = { dataset: { theme: "dark" } }, timers = [];
+  const doc = { hidden: false, documentElement: el, listeners: {}, addEventListener(k, f) { this.listeners[k] = f; } };
+  const q = { matches: true, addEventListener(k, f) { this.on = f; } };
+  let now = 0, drawn = 0;
+  const sb = new Function("matchMedia", "document", "setTimeout", "clearTimeout", "Date", "readTint", "applyRoute",
+    ctl + "; return { applyTheme };")(() => q, doc, (f, ms) => { timers.push({ f, at: now + ms }); return timers.length; }, (id) => { if (id) timers[id - 1] = null; },
+    { now: () => now }, () => {}, () => drawn++);
+  const run = (to) => { now = to; for (const t of timers) if (t && t.at <= now) { const f = t.f; timers[timers.indexOf(t)] = null; f(); } };
+  doc.hidden = true; doc.listeners.visibilitychange(); q.matches = false; q.on(); run(500); q.matches = true; q.on(); run(1000);
+  ok(el.dataset.theme === "dark" && drawn === 0, "裏で外観が往復しても替えない");
+  doc.hidden = false; q.matches = false; doc.listeners.visibilitychange(); run(1500); q.matches = true; q.on(); run(4000);
+  ok(el.dataset.theme === "dark" && drawn === 0, "戻った直後の古い値（ライト）でも替えない");
+  q.matches = false; q.on(); run(4300); ok(el.dataset.theme === "dark", "表で替えても、すぐには替えない（値が落ち着くのを待つ）");
+  run(4500); ok(el.dataset.theme === "light" && drawn === 1, "表で替えたら少し待って替え、描き直す");
+}
 // 補助文の3段。tertiary を暗くしたときに secondary と同じ色になっていた。
 const tone = (block, name) => (block.match(new RegExp("--" + name + ": (#[0-9a-f]{6})", "i")) || [])[1];
-for (const [label, block] of [["ライト", html.slice(html.indexOf(":root {"), html.indexOf("@media (prefers-color-scheme: dark)"))],
-                              ["ダーク", html.slice(html.indexOf("@media (prefers-color-scheme: dark)"), html.indexOf("* { box-sizing"))]]) {
+for (const [label, block] of [["ライト", html.slice(html.indexOf(":root {"), html.indexOf(':root[data-theme="dark"] {'))],
+                              ["ダーク", html.slice(html.indexOf(':root[data-theme="dark"] {'), html.indexOf("* { box-sizing"))]]) {
   const [t, sec, ter] = ["text", "secondary", "tertiary"].map((n) => tone(block, n));
   const grey = (h) => parseInt(h.slice(1, 3), 16);
   ok(Math.abs(grey(sec) - grey(ter)) >= 20, `${label}の補助文と注記が別の色`, `${sec} / ${ter}`);
   ok(grey(t) !== grey(sec), `${label}の本文と補助文が別の色`, `${t} / ${sec}`);
 }
 // 評価語は4段が見分けられること（ライトで オリーブと焦茶 が潰れていた）
-const lightBlock = html.slice(html.indexOf(":root {"), html.indexOf("@media (prefers-color-scheme: dark)"));
+const lightBlock = html.slice(html.indexOf(":root {"), html.indexOf(':root[data-theme="dark"] {'));
 const ranks = ["poor", "fair", "good", "spectacular"].map((n) => tone(lightBlock, n));
 ok(new Set(ranks).size === 4, "ライトの評価語4色が全部ちがう", ranks.join(" "));
 const hue = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return [r, g, b]; };
