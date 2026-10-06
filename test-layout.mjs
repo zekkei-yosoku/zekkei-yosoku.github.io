@@ -3085,6 +3085,10 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   const pickSrc = html.slice(html.indexOf("function aimLookPick("), html.indexOf("let aimLookResize"));
   ok(/class="aim-body-move"/.test(html) && /\$\{bodyName\}を移動/.test(pickSrc) && /data-look-cancel/.test(html),
     "図内アイコンから天体の相対移動を開始し、図下でキャンセルできる");
+  ok(/\.preview-figure-tools \{[^}]*top:10px;right:8px;[^}]*flex-direction:column;/.test(html)
+    && /tools\.append\(bodyMove\)[\s\S]{0,500}tools\.append\(composeIcon\);figure\.append\(tools\)/.test(html)
+    && /\.preview-compose-icon\{position:static;/.test(html),
+    "図内の2つの操作ボタンは同じ右寄せグループで位置をそろえる");
   ok(/data-look-confirm[^>]*>確定</.test(html) && /ok\.onclick = \(\) => \{ if \(st\.ghost && !st\.busy\) solve\(\); \};/.test(pickSrc)
     && !/st\.upAt = Date\.now\(\); show\(xyOf\(ev\)\); solve\(\)/.test(pickSrc) && !/show\(xyOf\(ev\)\); solve\(\); \};/.test(pickSrc),
     "円盤を置いただけでは解かず、「確定」を押したときに解く（置くまでは確定を押せない）");
