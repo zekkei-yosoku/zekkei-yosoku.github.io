@@ -1920,24 +1920,24 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261006103858"></script>
+<script src="sorami-core.js?v=20261006110429"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261006103858"></script>
-<script src="sorami-exif.js?v=20261006103858"></script>
-<script src="sorami-capcloud.js?v=20261006103858"></script>
-<script src="sorami-terrain.js?v=20261006103858"></script>
-<script src="sorami-mountain.js?v=20261006103858"></script>
-<script src="sorami-fuji.js?v=20261006103858"></script>
-<script src="sorami-sky.js?v=20261006103858"></script>
-<script src="sorami-routes.js?v=20261006103858"></script>
-<script src="sorami-iss.js?v=20261006103858"></script>
-<script src="sorami-plane.js?v=20261006103858"></script>
-<script src="sorami-refraction.js?v=20261006103858"></script>
-<script src="sorami-atmosphere.js?v=20261006103858"></script>
-<script src="sorami-bodies.js?v=20261006103858"></script>
-<script src="sorami-align.js?v=20261006103858"></script>
-<script src="sorami-moon.js?v=20261006103858"></script>
+<script src="sorami-astro.js?v=20261006110429"></script>
+<script src="sorami-exif.js?v=20261006110429"></script>
+<script src="sorami-capcloud.js?v=20261006110429"></script>
+<script src="sorami-terrain.js?v=20261006110429"></script>
+<script src="sorami-mountain.js?v=20261006110429"></script>
+<script src="sorami-fuji.js?v=20261006110429"></script>
+<script src="sorami-sky.js?v=20261006110429"></script>
+<script src="sorami-routes.js?v=20261006110429"></script>
+<script src="sorami-iss.js?v=20261006110429"></script>
+<script src="sorami-plane.js?v=20261006110429"></script>
+<script src="sorami-refraction.js?v=20261006110429"></script>
+<script src="sorami-atmosphere.js?v=20261006110429"></script>
+<script src="sorami-bodies.js?v=20261006110429"></script>
+<script src="sorami-align.js?v=20261006110429"></script>
+<script src="sorami-moon.js?v=20261006110429"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7139,7 +7139,7 @@ const aimCandSide = (c) => aimSideName(c.side);
 async function aimFindCandidates() {
   const seq = ++aim.candSeq;
   const lines = aim.lines || [];
-  aim.cands = []; aim.candPick = null; aim.blockedAll = false; aim.brightSides = [];
+  aim.cands = []; aim.candPick = null; aim.blockedAll = false; aim.brightSides = []; aim.candUnknownSides = [];
   $("aimCandList").innerHTML = ""; $("aimSideSeg").innerHTML = "";
   // 選ぶ候補地を待っている間、見え方の図はそのまま（aimUpdateLook が待つ）。見つからなくても待ちをやめて描き直す
   const giveUp = () => { if (seq === aim.candSeq && aim.wantSpot) { aim.wantSpot = null; aim.wantKey = null; aimUpdateLook(); } };
@@ -7154,9 +7154,22 @@ async function aimFindCandidates() {
   }
   if (seq !== aim.candSeq) return;
   const pool = aimIsFuji() ? [...aimFujiPlaces(), ...places] : places;
-  const opts = { partId: aim.partId, limb: aim.limb, elevationAt: aimElevation };
+  // 候補地では取得失敗を海抜0mへ置き換えない（線を引くための概算とは分ける）。
+  const opts = { partId: aim.partId, limb: aim.limb, requireFreshElevation: true,
+    elevationAt: (lat, lon) => SoramiTerrain.groundElevation(lat, lon) };
   let found = [];
-  try { found = await SoramiAlign.candidates(lines, pool, aim.target, aim.body, opts); } catch { found = []; }
+  // 公園の面の中ほど・一般の山頂/峠は、林の中でも立てる地点として登録されている。
+  // 樹木の高さや開けた立ち位置の根拠が無いので自動推薦しない。
+  // 展望地・展望台と富士山の定番は別の登録として残す（名前の「富士見」だけで許可しない）。
+  const eligible = pool.filter(aimCandidateSiteSupported);
+  try { found = await SoramiAlign.candidates(lines, eligible, aim.target, aim.body, opts); } catch {
+    if (seq === aim.candSeq) {
+      aim.candBusy = false;
+      $("aimCandInfo").textContent = "候補地を計算できませんでした。もう一度お試しください。";
+      aimRefreshSheetCands();
+    }
+    giveUp(); return;
+  }
   if (seq !== aim.candSeq) return;
   // パールは月が暗い空にあるときだけ（昼の月は重なっても写らない）
   const all = found.length;
@@ -7167,69 +7180,56 @@ async function aimFindCandidates() {
   for (const c of found) c.score = aimCandScore(c);
   // 同じ点数なら、目標に近い方（大きく写る）を先に。重なり方は点数に入っているので、ずれの細かい差では並べない
   found.sort((a, b) => Math.round((b.score - a.score) * 1000) || a.distanceKm - b.distanceKm);
-  // 近くに立つものは1つに。**線の長さの1/40（富士山で約3.5km、スカイツリーで約0.9km）より近いものは、
-  // 上位のものだけ残す。** 候補は1日に数十〜数百あり、そのままだと上位が一か所に固まる
+  // 見通しが未確認の上位地点で、近くの良い地点を先に捨てない。
   const lineKm = Math.max(...lines.map((l) => l.points[l.points.length - 1].distanceKm));
   const spread = Math.max(0.3, lineKm / 40);
-  const kept = [];
-  for (const c of found) {
-    if (kept.some((k) => SoramiTerrain.distanceKm(k.stand.latitude, k.stand.longitude,
-      c.stand.latitude, c.stand.longitude) < spread)) continue;
-    kept.push(c);
-  }
-  // 地形で目標が隠れる場所を外す。上から順に確かめ、そろえば止める
-  // （塔は、このあと建物でも外すので多めに 24 か所）
-  const checkN = aimIsFuji() ? 12 : 24;
-  let shown = [];
-  for (const k of kept) {
-    if (shown.length >= checkN) break;
-    // 水の上に立たせない（川岸は川の中心線、公園・海岸は池や海に掛かる所で重なりを解くことがある）
-    const c = await aimOnLand(k, lines, opts);
+  const shown = [];
+  const unknownSides = new Set();
+  // 小さな束で確認する。12件そろうまで次の束も探す（遮蔽で減った数を補う）。
+  for (let offset = 0; offset < found.length && shown.length < 12; offset += 4) {
+    const checked = await Promise.all(found.slice(offset, offset + 4).map(async (k) => {
+      try {
+        const c = await aimOnLand(k, lines, opts);
+        if (seq !== aim.candSeq || !c) return null;
+        const los = await SoramiAlign.lineOfSight(
+          { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM + (c.place.deckM || 0) },
+          aim.target, { partId: aim.partId, maxAngleDeg: c.altitude,
+            endSkipKm: aimIsMountain(aim.target) ? 1 : 0.01,
+            elevations: (pts) => SoramiTerrain.elevations(pts, { from: c.stand }) });
+        if (seq !== aim.candSeq) return null;
+        if (!los) { unknownSides.add(c.side); return null; }
+        if (!los.clear) return null;
+        const [blocked] = await aimBuildingBlocks([c]);
+        if (seq !== aim.candSeq) return null;
+        if (blocked === null) { unknownSides.add(c.side); return null; }
+        return blocked === false ? c : null;
+      } catch { unknownSides.add(k.side); return null; }
+    }));
     if (seq !== aim.candSeq) return;
-    if (!c) continue;
-    let los = null;
-    try {
-      los = await SoramiAlign.lineOfSight(
-        { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM + (c.place.deckM || 0) },
-        aim.target, { partId: aim.partId, elevations: (pts) => SoramiTerrain.elevations(pts, { from: c.stand }), skipKm: 0.3 });
-    } catch { los = null; }
-    if (seq !== aim.candSeq) return;
-    if (los && !los.clear) continue;
-    shown.push(c);
+    for (const c of checked) {
+      if (!c || shown.length >= 12) continue;
+      if (shown.some((k) => k.side === c.side && SoramiTerrain.distanceKm(k.stand.latitude, k.stand.longitude,
+        c.stand.latitude, c.stand.longitude) < spread)) continue;
+      shown.push(c);
+    }
   }
-  const pool24 = shown;
-  if (!aimIsFuji()) {
-    shown = pool24.slice(0, 12);
-    // 建物の断り書き（確かめています・首都圏の外・確かめられませんでした）は出さない（2026-10-03 ユーザーが選んだ「いらない説明文」）
-  }
+  // 建物まで確かめた候補だけを一度に表示する。確認中に選べる仮候補は出さない。
   aim.cands = shown;
+  aim.candUnknownSides = [...unknownSides];
   aim.candBusy = false;
   const waited = !!aim.wantSpot;
   const want = aim.wantSpot ? shown.findIndex((c) => c.place.id === aim.wantSpot) : -1;
   aim.wantSpot = null; aim.wantKey = null;
-  // 自動では選ばない（選ぶのは行を押したとき・定番スポットから来たとき・合わせ方を替えたときの選び直しだけ。
-  // Codex: 日付を替えて勝手に別の場所へ図を飛ばさない）
   aim.candPick = want >= 0 ? want : null;
   AimMap.redraw();
   if (aim.candPick !== null || waited) aimUpdateLook();
-  // 候補地が0でも、線のある側の切り替えは出す（0か所と線なしを分ける。理由は側ごとに aimRenderCands が書く）
   aimRenderCands();
-  if (!shown.length) return;
-  // **建物で隠れる場所も外す。** 立つ点の近く（1km）は国土地理院の建物（富士山も。2026-10-06）、塔は1.5kmまで同梱の高い建物（7階以上・20m以上）も
-  if (pool24.length) {
-    const blocks = await aimBuildingBlocks(pool24);
-    if (seq !== aim.candSeq) return;
-    const pickedId = aim.candPick !== null ? aim.cands[aim.candPick]?.place.id : null;
-    aim.cands = pool24.filter((c, i) => !blocks[i]).slice(0, 12);
-    const again = pickedId ? aim.cands.findIndex((c) => c.place.id === pickedId) : -1;
-    const lost = aim.candPick !== null && again < 0;
-    aim.candPick = again >= 0 ? again : null;
-      aim.blockedAll = !aim.cands.length;
-    aimRenderCands();
-    // 選んでいた候補地が建物で外れたら、見え方は観測地点の近くへ戻す（勝手に別の候補地へ飛ばさない）
-    if (lost) aimUpdateLook();
-    AimMap.redraw();
-  }
+}
+
+function aimCandidateSiteSupported(place) {
+  // 一般の桟橋には石油施設等も含まれる。川の中心線から陸へ移しただけの点も
+  // 歩ける土手・公共の撮影場所の根拠にはならない。確認された展望地等は別登録で使う。
+  return !["公園", "山頂", "峠", "桟橋", "川岸"].includes(place.kind);
 }
 
 /**
@@ -7238,13 +7238,13 @@ async function aimFindCandidates() {
  * 川岸は川の中心線の上で、公園・海岸は面の中で重なりを解くので、立つ点が川面・池・海に出ることがある。
  * 水の上なら、**重なる線に沿って陸まで動かし、その点で重なりを解き直す**（線の上なら重なりは保たれる。
  * 動いた先で外れたら外す）。600m 動いても陸に出なければ外す。
- * 橋と桟橋は水の上でも人が立てる構造物なので確かめない。水かどうか分からない（通信の失敗）ときは残す。
+ * 橋と桟橋は水の上でも人が立てる構造物なので確かめない。水かどうか分からない（通信の失敗）ときは候補にしない。
  */
 const AIM_STAND_ON_WATER_OK = new Set(["橋", "桟橋"]);
 async function aimOnLand(c, lines, opts) {
   if (AIM_STAND_ON_WATER_OK.has(c.place.kind)) return c;
   const [water] = await SoramiTerrain.waterAt([c.stand]);
-  return water === true ? aimMoveToLand(c, lines, opts) : c;
+  return water === true ? aimMoveToLand(c, lines, opts) : water === false ? c : null;
 }
 
 /// 線（緯度経度の折れ線）の上で、点にいちばん近い位置から、線に沿って ±d メートル動いた点を並べる（近い順）
@@ -7289,8 +7289,9 @@ async function aimMoveToLand(c, lines, opts) {
   for (let i = 0; i < probes.length; i++) {
     if (water[i] !== false) continue;
     const pt = probes[i];
-    const e = await aimElevation(pt.latitude, pt.longitude);
-    const ground = Number.isFinite(e) ? e : 0;
+    const e = await opts.elevationAt(pt.latitude, pt.longitude);
+    if (!Number.isFinite(e)) continue;
+    const ground = e;
     const hit = SoramiAlign.crossingNear({ latitude: pt.latitude, longitude: pt.longitude, elevation: ground },
       aim.target, aim.body, c.at, { ...opts, eyeM: 1.5 + (c.place.deckM || 0) });
     if (!hit || !hit.rank) continue;   // 動いた先で重ならなければ、さらに先を見る
@@ -7396,7 +7397,7 @@ async function aimBuildingsOnLine(stand, groundM, target, buildings, reachKm) {
   try { g = await Promise.all(on.map((x) => SoramiTerrain.groundElevation(x.lat, x.lon).catch(() => null))); } catch { g = []; }
   return on.map((x, i) => (Number.isFinite(g[i]) ? { ...x.b, heightM: x.b.heightM + (g[i] - groundM) } : x.b));
 }
-/// 候補地ごとに、建物で隠れるか（true／false）。確かめられなかった候補地は false（隠れると決めない）。
+/// 候補地の建物判定。true=遮蔽、false=検査範囲で通過、null=未確認（候補へ出さない）。
 /// 立つ点から1kmまでは国土地理院の建物（種別の下限の高さ）、塔は1.5kmまで同梱の高い建物も見る
 async function aimBuildingBlocks(cands) {
   const t = aim.target;
@@ -7412,9 +7413,13 @@ async function aimBuildingBlocks(cands) {
     const limit = Math.max(0, c.targetAngle - c.altitude);
     const hidden = (blk) => !!(blk && blk.by && blk.marginDeg < limit);
     const near = await aimNearBuildings(c, base);
-    if (near && hidden(SoramiAlign.buildingBlock(obs, t, near, { partId: aim.partId, eyeAboveGroundM: eyeAbove, maxKm: 1 }))) return true;
+    if (!near) return null;
+    if (hidden(SoramiAlign.buildingBlock(obs, t, near, { partId: aim.partId, eyeAboveGroundM: eyeAbove, maxKm: 1 }))) return true;
+    // 種別の下限で遮られないことは、実際の屋根より上を見通せる根拠にならない。
+    if (near.some((b) => b.heightUnknown)) return null;
+    if (aimIsFuji()) return false;
     // 首都圏の外の候補地は、同梱の一覧に建物が無いので確かめていない（「隠れない」とは言わない）
-    if (!all || !tallCovers(all, c.stand.latitude, c.stand.longitude)) return false;
+    if (!all || !tallCovers(all, c.stand.latitude, c.stand.longitude)) return null;
     // 目標までの間（1.5km）にある建物だけに絞ってから判定する（数万棟を毎回全部は見ない）
     const d = Math.min(1.6, c.distanceKm);
     const box = all.filter((b) => Math.abs(b.latitude - c.stand.latitude) < 0.016 && Math.abs(b.longitude - c.stand.longitude) < 0.02
@@ -7437,7 +7442,8 @@ async function aimNearBuildings(c, base) {
   if (!got.length) return [];
   let g = [];
   try { g = await SoramiTerrain.elevations(got.map((b) => b.entry), { from: s }); } catch { g = []; }
-  return got.map((b, i) => ({ ring: b.ring, heightM: b.minHeightM + (Number.isFinite(g[i]) ? g[i] - base : 0) }));
+  if (g.length !== got.length || g.some((v) => !Number.isFinite(v))) return null;
+  return got.map((b, i) => ({ ring: b.ring, heightM: b.minHeightM + g[i] - base, heightUnknown: true }));
 }
 
 /// 撮影地の「この日の候補地」と、どこから重ねるかの地点の画面の候補地を同じ候補で描く
@@ -7552,7 +7558,8 @@ function aimRenderCandList() {
   const list = all.map((c, i) => ({ c, i })).filter((x) => x.c.side === aim.candSide);
   $("aimCandInfo").textContent = list.length ? ""
     : (aim.brightSides || []).includes(aim.candSide) ? `この日の${aimSideName(aim.candSide)}側は、明るい空で重なります。`
-    : aim.blockedAll ? `この日の${aimSideName(aim.candSide)}側の候補地は、どこも建物に隠れます。`
+    : aim.candBusy ? "見通しを確認しています…"
+    : (aim.candUnknownSides || []).includes(aim.candSide) ? "見通しを確認できる候補地がありません。"
     : `この日の${aimSideName(aim.candSide)}側には、合わせ方どおりに立てて見通せる場所が見つかりません。`;
   $("aimCandList").innerHTML = list.map(({ c, i }, k) => {
     const on = aim.candPick === i;

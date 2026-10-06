@@ -406,10 +406,10 @@ console.log("== その点に建つ建物の高さ（2026-10-01） ==");
   await T.groundElevation(35.584055, 139.568552, { fetchImpl: api({ elevation: 1, hsrc: "x" }) });
   ok(urls.length === 1, "同じ地点は聞き直さない");
   ok(await T.groundElevation(35.2, 139.6, { fetchImpl: api({ elevation: "-----", hsrc: "-----" }) }) === 0, "海（-----）は 0m");
-  // 通信できなければ10mメッシュのタイル（z14、x+y が偶数の升目は 12.34m）
+  // E92: 通信できなければ最も精度の高い層のタイル（z17から、層の最大ズームまで）
   const z14 = center(14520, 6452, 14);
   const e3 = await T.groundElevation(z14.latitude, z14.longitude, { withSource: true, fetchImpl: api(new Error("offline")) });
-  ok(e3 && e3.elevation === 12.34 && e3.source === "10m（タイル）", "取れなければ10mメッシュのタイル", JSON.stringify(e3));
+  ok(e3 && e3.elevation === 12.34 && e3.source === "標高タイル", "取れなければ精度の高い層のタイルへ（出どころを10mと断定しない）", JSON.stringify(e3));
   ok(await T.groundElevation(48.85, 2.35) === null, "日本の外は null（呼び手が別の方法で取る）");
 }
 

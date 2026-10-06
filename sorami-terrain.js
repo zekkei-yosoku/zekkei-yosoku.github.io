@@ -193,6 +193,9 @@
     return new Promise((resolve) => {
       if (typeof Image === "undefined" || typeof document === "undefined") { resolve(null); return; }
       const img = new Image();
+      let finished = false;
+      const finish = (value) => { if (!finished) { finished = true; clearTimeout(timer); resolve(value); } };
+      const timer = setTimeout(() => finish(null), 8000);
       img.crossOrigin = "anonymous";
       img.onload = () => {
         try {
@@ -200,10 +203,10 @@
           c.width = img.width; c.height = img.height;
           const ctx = c.getContext("2d", { willReadFrequently: true });
           ctx.drawImage(img, 0, 0);
-          resolve(ctx.getImageData(0, 0, img.width, img.height));
-        } catch { resolve(null); }        // 汚染された canvas 等。**落とさない**
+          finish(ctx.getImageData(0, 0, img.width, img.height));
+        } catch { finish(null); }        // 汚染された canvas 等。**落とさない**
       };
-      img.onerror = () => resolve(null);  // 海など、タイルの無い区画は 404
+      img.onerror = () => finish(null);  // 海など、タイルの無い区画は 404
       img.src = url;
     });
   }
@@ -237,7 +240,7 @@
       }
       if (!cache || typeof fetch !== "function") return loadTileByImage(url);
       let res = null;
-      try { res = await fetch(url, { mode: "cors" }); } catch { return loadTileByImage(url); }
+      try { res = await fetch(url, { mode: "cors", signal: global.AbortSignal?.timeout(8000) }); } catch { return loadTileByImage(url); }
       if (!res.ok) {                    // 海など、タイルの無い区画は 404
         if (res.status === 404) {
           demMissing.add(key);
@@ -354,6 +357,7 @@
   const GSI_POINT = "https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php";
   const points = new Map();
   let pointActive = 0;
+  let pointRetryAfter = 0;
   const pointWaiting = [];
   async function pointLimited(fn) {
     while (pointActive >= 6) await new Promise((ok) => pointWaiting.push(ok));
@@ -381,7 +385,16 @@
           } catch { cache = null; }
         }
         try {
-          const res = typeof fetchImpl === "function" ? await pointLimited(() => fetchImpl(url)) : null;
+          const res = typeof fetchImpl === "function" ? await pointLimited(async () => {
+            // APIが応答しないと線と候補地がいつまでも終わらない。
+            // 失敗後30秒はタイルへ回し、数百地点で同じ失敗を繰り返さない。
+            if (Date.now() < pointRetryAfter) return null;
+            try {
+              const r = await fetchImpl(url, { signal: global.AbortSignal?.timeout(8000) });
+              if (!r?.ok && (r?.status === 429 || r?.status >= 500)) pointRetryAfter = Date.now() + 30000;
+              return r;
+            } catch { pointRetryAfter = Date.now() + 30000; return null; }
+          }) : null;
           if (res && res.ok) {
             const j = await res.json(), v = parsePoint(j);
             if (v) {
@@ -395,9 +408,11 @@
             }
           }
         } catch { /* 下の10mメッシュへ */ }
-        const t = await sampleTile(lat, lon, 14);
-        return t === undefined ? null : { elevation: t === null ? 0 : t, source: t === null ? "海" : "10m（タイル）" };
+        const t = await sampleTile(lat, lon, 17);
+        return t === undefined ? null : { elevation: t === null ? 0 : t, source: t === null ? "海" : "標高タイル" };
       })());
+      const pending = points.get(key);
+      pending.then((v) => { if (!v && points.get(key) === pending) points.delete(key); });
       while (points.size > 3000) points.delete(points.keys().next().value);
     }
     const v = await points.get(key);
@@ -1382,7 +1397,7 @@
    * **立つ点を含む建物は入れない**（展望台・駅の上などは、目の高さで表す。月の地平線の建物と同じ決まり）。
    * タイルが1枚でも取れなければ null（呼び手は「確かめられなかった」として、隠れると決めない）
    */
-  async function gsiBuildingsAlong(from, to, { fetchImpl = (typeof fetch === "function" ? (u) => fetch(u, { mode: "cors" }) : null) } = {}) {
+  async function gsiBuildingsAlong(from, to, { fetchImpl = (typeof fetch === "function" ? (u) => fetch(u, { mode: "cors", signal: global.AbortSignal?.timeout(8000) }) : null) } = {}) {
     if (!fetchImpl || !inJapan(from.latitude, from.longitude)) return null;
     const totalM = distanceKm(from.latitude, from.longitude, to.latitude, to.longitude) * 1000;
     const brg = bearing(from.latitude, from.longitude, to.latitude, to.longitude) * Math.PI / 180;
@@ -1429,7 +1444,7 @@
    * 点ごとに水の上か。true＝水（海・湖・池・川）、false＝陸、null＝分からない（日本の外・通信の失敗）。
    * 呼び手は null を「確かめられなかった」として扱う（陸と決めつけない）。
    */
-  async function waterAt(points, { fetchImpl = (typeof fetch === "function" ? (u) => fetch(u, { mode: "cors" }) : null),
+  async function waterAt(points, { fetchImpl = (typeof fetch === "function" ? (u) => fetch(u, { mode: "cors", signal: global.AbortSignal?.timeout(8000) }) : null),
                                    useDem = typeof document !== "undefined" } = {}) {
     if (!fetchImpl) return points.map(() => null);
     return Promise.all(points.map(async (pt) => {

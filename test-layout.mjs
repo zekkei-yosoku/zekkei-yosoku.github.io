@@ -582,8 +582,8 @@ ok(/\$\("aimTargetSub"\)\.textContent = c\s+\? \[c\.subtitle, `標高 \$\{Math\.
   ok(/SoramiTerrain\.buildingsAlong\(obs, end, \{ wanted \}\)/.test(sb) && !/await aimSightBuildings\(obs, D,/.test(html),
     "観測地点の断定警告のための建物問い合わせは行わない");
   // 2026-10-06 から候補地ごとに判定する（1か所でも首都圏の外なら全部を確かめずにいた）。近くの国土地理院の建物は全国で見る
-  ok(/if \(!all \|\| !tallCovers\(all, c\.stand\.latitude, c\.stand\.longitude\)\) return false;/.test(html) && !/return "outside";/.test(html),
-    "候補地も、首都圏の外では同梱の一覧で外さない（断り書きは出さない）");
+  ok(/if \(!all \|\| !tallCovers\(all, c\.stand\.latitude, c\.stand\.longitude\)\) return null;/.test(html) && !/return "outside";/.test(html),
+    "候補地も、首都圏の外では同梱データによる見通し合格にしない");
   ok(/connect-src[^"]*https:\/\/maps\.mail\.ru/.test(html), "Overpass の予備（maps.mail.ru）へつなげる（CSP）");
 }
 // ユーザー「大平和祈念塔とか高さ出ないけど…検索したらその建物、目標物の高さを取得して出すとかだとダメなの？」
@@ -743,33 +743,25 @@ console.log("== ねらう: その日の候補地（2026-09-30） ==");
     ok(/^data\/\*$/m.test(gi) && !/^data\/$/m.test(gi) && /^!data\/aim-places\.json$/m.test(gi),
       "配信から外さない（.gitignore は data/* と例外）");
   }
-  ok(/SoramiAlign\.candidates\(lines, pool/.test(html), "線に掛かる場所を解き直して選ぶ");
-  ok(/SoramiAlign\.lineOfSight\(/.test(html) && /if \(los && !los\.clear\) continue;/.test(html), "地形で隠れる場所は外す");
+  ok(/SoramiAlign\.candidates\(lines, eligible/.test(html), "線に掛かる場所を解き直して選ぶ");
+  ok(/SoramiAlign\.lineOfSight\(/.test(html) && /if \(!los\.clear\) return null;/.test(html), "地形で隠れる場所は外す");
   ok(/if \(aim\.body === "moon"\) found = found\.filter\(\(c\) => c\.sunAltitude < 0\)/.test(html), "パールは暗い空の回だけ");
   ok(/aimIsFuji\(\) \? \[\.\.\.aimFujiPlaces\(\), \.\.\.places\]/.test(html), "富士山は定番スポットも候補に入れる");
   ok(/latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, name:/.test(html), "地図の番号は立つ位置に打つ");
   ok(/\$\("aimListBox"\)\.hidden = !aimIsFuji\(\)/.test(html), "定番スポットの次の日は富士山だけ");
   ok(/const spread = Math\.max\(0\.3, lineKm \/ 40\)/.test(html), "上位が一か所に固まらないよう、近いものは1つに");
-  ok(/async function aimBuildingBlocks/.test(html) && /  if \(pool24\.length\) \{\n    const blocks = await aimBuildingBlocks\(pool24\);/.test(html)
-    && /aim\.cands = pool24\.filter\(\(c, i\) => !blocks\[i\]\)\.slice\(0, 12\);/.test(html), "建物で隠れる場所も外す（2026-10-06 から富士山も、近くの建物で）");
-  ok(html.indexOf("aimRenderCands();\n  if (!shown.length) return;\n  // **建物で隠れる場所も外す。**") > 0
-    && html.indexOf("aimRenderCands();\n  if (!shown.length) return;\n  // **建物で隠れる場所も外す。**") < html.indexOf("const blocks = await aimBuildingBlocks(pool24);"),
-    "建物の確認を待たずに、先に候補を出す");
+  // E92: 未確認の仮候補を先に表示する旧仕様を撤回。見通しの確認後だけ表示する。
+  const candidateFind = /async function aimFindCandidates\(\) \{[\s\S]*?\n\}/.exec(html)[0];
+  ok(candidateFind.indexOf("await aimBuildingBlocks([c])") < candidateFind.indexOf("aim.cands = shown;"), "建物の確認後だけ候補を表示する");
+  ok(candidateFind.includes("if (!los)") && candidateFind.includes("blocked === false ? c : null"), "欠測と未確認は候補へ通さない");
+  ok(candidateFind.includes("maxAngleDeg: c.altitude") && candidateFind.includes('endSkipKm: aimIsMountain(aim.target) ? 1 : 0.01'), "選んだ天体高さも地形で検査、塔の直前まで確認");
+  ok(candidateFind.includes("shown.some((k) => k.side === c.side"), "確認後の立つ点で側ごとに重複を除く");
   {
-    // 新四谷見附橋から月・スカイツリー（4.5°）の線が90m先から高さタグの無い建物に掛かっていたのに、候補に出ていた（2026-10-06 ユーザー報告）
     const bb = /async function aimBuildingBlocks\(cands\) \{[\s\S]*?\n\}/.exec(html)[0], nb = /async function aimNearBuildings\(c, base\) \{[\s\S]*?\n\}/.exec(html)[0];
-    ok(/const near = await aimNearBuildings\(c, base\);\n    if \(near && hidden\(SoramiAlign\.buildingBlock\(obs, t, near, \{ partId: aim\.partId, eyeAboveGroundM: eyeAbove, maxKm: 1 \}\)\)\) return true;/.test(bb),
-      "立つ点から1kmまでは国土地理院の建物（種別の下限の高さ）で隠れるかを見る");
-    ok(/const reach = Math\.min\(1, c\.distanceKm - 0\.3\);/.test(nb) && /SoramiTerrain\.gsiBuildingsAlong\(s, end\)/.test(nb) && /if \(!got\) return null;/.test(nb)
-      && /SoramiTerrain\.elevations\(got\.map\(\(b\) => b\.entry\), \{ from: s \}\)/.test(nb) && /heightM: b\.minHeightM \+ \(Number\.isFinite\(g\[i\]\) \? g\[i\] - base : 0\)/.test(nb),
-      "建物の地面は標高タイルでまとめて読み、立つ点の地面との差を足す（取れなければ隠れると決めない）");
-    // 建物全体に重なる日は天体が先端より下を通ることがある。合わせる高さと天体の中心の低い方で比べる
-    ok(/const limit = Math\.max\(0, c\.targetAngle - c\.altitude\);/.test(bb) && /const hidden = \(blk\) => !!\(blk && blk\.by && blk\.marginDeg < limit\);/.test(bb),
-      "隠れたと数えるのは、合わせる高さと天体の中心の低い方より建物が高く見えるとき");
-    // 橋の上の立つ点の標高は橋の高さ込み。以前は橋の高さを目の高さにもう一度足し、8m 高い目で見ていた
-    ok(/const base = c\.stand\.elevationM - \(c\.place\.bridgeM \|\| 0\);/.test(bb) && /aimBuildingsOnLine\(c\.stand, base, t, box,/.test(bb),
-      "橋の上は、建物の高さを地面から測る（橋の高さを2回足さない）");
-    ok(/connect-src[^"]*https:\/\/cyberjapandata\.gsi\.go\.jp/.test(html), "国土地理院のタイルへつなげる（CSP）");
+    ok(bb.includes("if (!near) return null;") && bb.includes("near.some((b) => b.heightUnknown)"), "建物の欠測や高さ不明は見通せると扱わない");
+    ok(nb.includes("g.length !== got.length") && nb.includes("heightM: b.minHeightM + g[i] - base"), "建物の地面の欠測も保留し、標高差を足す");
+    ok(bb.includes("const limit = Math.max(0, c.targetAngle - c.altitude);"), "目標と天体の低い方で建物を確認する");
+    ok(bb.includes("const base = c.stand.elevationM - (c.place.bridgeM || 0);"), "橋の高さは二重に足さない");
   }
   // 画面から Overpass へ帯を問い合わせると 47〜64秒かかった（2026-10-01）。同梱の高い建物で手元で判定する
   ok(/fetch\("data\/tall-buildings\.json"\)/.test(html) && !/poly:"\$\{p\}"/.test(html), "塔の建物の判定は同梱データで（Overpass に問い合わせない）");
@@ -923,7 +915,7 @@ console.log("== 観測地点を水の上に置かない（2026-10-01） ==");
 // ユーザー「観測地点は陸上に。ISS とか海の上になってなかった？」「他の観測地点も水の上にならないように」
 ok(/const c = await aimOnLand\(k, lines, opts\);/.test(html), "ねらう: 候補ごとに水の上かを見る（見通しを確かめる前に）");
 ok(/const AIM_STAND_ON_WATER_OK = new Set\(\["橋", "桟橋"\]\);/.test(html), "ねらう: 水の上でも残すのは橋・桟橋だけ（人が立てる構造物）");
-ok(/return water === true \? aimMoveToLand\(c, lines, opts\) : c;/.test(html), "ねらう: 水の上なら陸へ動かす（動かせなければ外す）");
+ok(/return water === true \? aimMoveToLand\(c, lines, opts\) : water === false \? c : null;/.test(html), "ねらう: 水の上なら陸へ動かす（動かせなければ外す）");
 ok(/const hit = SoramiAlign\.crossingNear\(\{ latitude: pt\.latitude, longitude: pt\.longitude, elevation: ground \}/.test(html),
   "ねらう: 動かした点で重なりを解き直す");
 ok(/const water = await SoramiTerrain\.waterAt\(picks\);\s+const onLand = picks\.filter\(\(n, i\) => water\[i\] !== true\);/.test(html),
@@ -3038,7 +3030,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
     "高さの無い目標へ替えたら、進んでいる計算を捨て、図も消す");
   ok(!/if \(!all\.length\) \{ seg\.innerHTML = ""/.test(cands) && /if \(!sides\.some\(\(x\) => x\.has\)\) \{ seg\.innerHTML = ""/.test(cands),
     "候補地が0か所でも、線のある側の切り替えは出す（Codex の点検）");
-  ok(/aim\.blockedAll \? `この日の\$\{aimSideName\(aim\.candSide\)\}側の候補地は、どこも建物に隠れます。`/.test(cands), "どこも建物に隠れるときは、そう書く");
+  ok(cands.includes("aim.candUnknownSides") && cands.includes("見通しを確認できる候補地がありません。"), "未確認を建物の遮蔽と断定せずに表示する");
   ok(/found\.some\(\(c\) => c\.side === sd && c\.sunAltitude >= 0\) && !found\.some\(\(c\) => c\.side === sd && c\.sunAltitude < 0\)/.test(html),
     "「明るい空で重なる」は、暗い空の候補が初めから無い側だけ（Codex の点検）");
   // 地図の番号は、一覧の番号と同じ（選んだ側だけ）
@@ -3156,7 +3148,7 @@ console.log("== どこから重ねるかで、この日の候補地から選ぶ�
   // どこから行の下に「この日の候補地 Nか所 ›」を置いたが、カードを押せば同じ候補地が出るので外した（2026-10-06 ユーザー「このボタンはいらないんじゃない？」）
   ok(!/id="aimFromCands"|aim-from-cands/.test(html), "どこからの入口はカード1つ（候補地だけの釦を足さない）");
   // 探している印は、線の計算・候補地探しの始まりで立て、終わり・失敗・目標なしで下ろす（地点の画面の「探しています」）
-  ok((html.match(/aim\.candBusy = true; aimRefreshSheetCands\(\);/g) || []).length === 2 && /aim\.cands = shown;\n  aim\.candBusy = false;/.test(html),
+  ok((html.match(/aim\.candBusy = true; aimRefreshSheetCands\(\);/g) || []).length === 2 && /aim\.cands = shown;\n  aim\.candUnknownSides = \[\.\.\.unknownSides\];\n  aim\.candBusy = false;/.test(html),
     "探している印を立てて、終わったら下ろす");
   const pick = /function aimFromCandidate\(c\) \{[\s\S]*?\n\}/.exec(html)[0];
   const alignSrc = fs.readFileSync(new URL("./sorami-align.js", import.meta.url), "utf8");

@@ -739,7 +739,7 @@
    */
   async function candidates(lines, places, target, body, opts = {}) {
     const { elevationAt = null } = opts;
-    const out = [];
+    const jobs = [];
     for (const l of lines) {
       const pts = l.points;
       if (!pts || pts.length < 2) continue;
@@ -787,14 +787,22 @@
         const plateauM = target.rim ? 850 : 0;
         if (lateralM > (place.reachM || 0) + bandM + plateauM + 150 + 0.004 * D * 1000) continue;
         const approxAt = p0.at + (p1.at - p0.at) * f;
-        const hit = await standOn(place, l, target, body, approxAt, opts, elevationAt);
-        // **線の届く範囲に立つものだけ。** 広い公園は端が範囲に掛かると拾うので、立つ点が線の先に出ることがあった
-        // **線の届く範囲に立つものだけ**、そして**選んだ合わせ方どおりに重なるものだけ**（ずれが半径の2割以内）
-        if (hit && hit.rank && Math.abs(hit.gap) <= (hit.radius === 0 ? 1e-5 : LIMB_FIT * hit.radius)
-          && hit.distanceKm >= minKm * 0.98 && hit.distanceKm <= maxKm * 1.02) out.push({ place, side: l.side, ...hit });
+        jobs.push(async () => {
+          const hit = await standOn(place, l, target, body, approxAt, opts, elevationAt);
+          // 線の届く範囲に立ち、選んだ合わせ方どおりに重なる地点だけ。
+          return hit && hit.rank && Math.abs(hit.gap) <= (hit.radius === 0 ? 1e-5 : LIMB_FIT * hit.radius)
+            && hit.distanceKm >= minKm * 0.98 && hit.distanceKm <= maxKm * 1.02 ? { place, side: l.side, ...hit } : null;
+        });
       }
     }
-    return out;
+    // 標高APIの上限と同じ6地点まで。1地点ずつ待つと数百の地点で数分掛かる。
+    // 応答順に依存せず、入力順で返す。
+    const out = new Array(jobs.length);
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(6, jobs.length) }, async () => {
+      while (next < jobs.length) { const i = next++; out[i] = await jobs[i](); }
+    }));
+    return out.filter(Boolean);
   }
 
   /// 場所の中で立つ位置を決め、そこでの重なり方を返す
@@ -803,6 +811,7 @@
     const at = async (pt, fixedElev = null) => {
       const e = fixedElev !== null ? fixedElev
         : (elevationAt ? await elevationAt(pt.latitude, pt.longitude) : 0);
+      if (!Number.isFinite(e)) return null;
       const obs = { latitude: pt.latitude, longitude: pt.longitude, elevation: Number.isFinite(e) ? e : 0 };
       const c = crossingNear(obs, target, body, approxAt, { ...opts, eyeM });
       return c ? { ...c, stand: { latitude: pt.latitude, longitude: pt.longitude, elevationM: obs.elevation } } : null;
@@ -810,7 +819,7 @@
     const shape = place.shape || "point";
     if (shape === "point") {
       return at({ latitude: place.latitude, longitude: place.longitude },
-        Number.isFinite(place.elevationM) ? place.elevationM : null);
+        !opts.requireFreshElevation && Number.isFinite(place.elevationM) ? place.elevationM : null);
     }
     const geom = placeGeometry(place);
     if (geom.length < 2) return null;
@@ -854,7 +863,8 @@
       // 橋の上は川面から高いので、標高は交点で1回だけ読む（橋の上の標高タイルは水面のことが多い）
       const p0 = posAt(s0);
       const e0 = elevationAt ? await elevationAt(p0.latitude, p0.longitude) : 0;
-      const elev = (Number.isFinite(e0) ? e0 : 0) + (place.bridgeM ?? 0);
+      if (!Number.isFinite(e0)) return null;
+      const elev = e0 + (place.bridgeM ?? 0);
       let c0 = await at(p0, elev);
       if (!c0) return null;
       if (Math.abs(c0.gap) <= LIMB_EXACT * c0.radius) return c0;
@@ -926,24 +936,28 @@
   /**
    * 目標の先端まで、地形で見通せるか（建物は見ない）。
    * `elevations(points)` は標高をまとめて返す関数（画面では標高タイル）。
-   * 目標のすぐ手前（1km）は目標自身の山腹なので数えない。
+   * 山のすぐ手前だけは目標自身の山腹として除外する。塔は直前まで読む。
    */
   async function lineOfSight(observer, target, opts = {}) {
     const g = geometryFrom(observer, target, opts);
     if (!g || !opts.elevations) return null;
     const eye = (observer.elevation ?? 0) + (opts.eyeM ?? 1.5);
     const bearingTo = TR.bearing(observer.latitude, observer.longitude, target.latitude, target.longitude);
-    const n = Math.max(12, Math.min(160, Math.ceil(g.distanceKm / 0.4)));
+    const endSkipKm = opts.endSkipKm ?? (target.kind === "mountain" || target.id === "fuji" ? 1 : 0.01);
+    const endKm = g.distanceKm - endSkipKm;
+    if (!(endKm > 0.01)) return null;
+    // 近距離DEMは1m/5mが使える。300mを空けると土手・切通しを見落とす。
+    // 10m〜1kmは10m、1〜5kmは50m、以遠は200m。遠方の範囲も頭打ちにしない。
     const dists = [];
-    for (let i = 1; i < n; i++) {
-      const d = g.distanceKm * i / n;
-      if (d > g.distanceKm - 1) break;
-      // 足もとは標高タイルの升目（z11 で約60m）より細かく読めないので数えない
-      if (d < (opts.skipKm ?? 0.15)) continue;
+    for (let d = 0.01; d < endKm;) {
       dists.push(d);
+      d += d < 1 ? 0.01 : d < 5 ? 0.05 : 0.2;
     }
+    dists.push(endKm);
     const pts = dists.map((d) => TR.destination(observer.latitude, observer.longitude, bearingTo, d));
     const elevs = await opts.elevations(pts);
+    // 欠けた升目を空と扱うと、そこにある尾根を無視して clear になる。
+    if (!Array.isArray(elevs) || elevs.length !== pts.length || Array.from(elevs).some((e) => !Number.isFinite(e))) return null;
     let worst = -90, at = null;
     dists.forEach((d, i) => {
       const e = elevs[i];
@@ -951,7 +965,8 @@
       const a = targetAngle(d, eye, e);
       if (a > worst) { worst = a; at = d; }
     });
-    return { clear: worst < g.angle - 0.02, marginDeg: g.angle - worst, blockKm: at };
+    const sightAngle = Number.isFinite(opts.maxAngleDeg) ? Math.min(g.angle, opts.maxAngleDeg) : g.angle;
+    return { clear: worst < sightAngle - 0.02, marginDeg: sightAngle - worst, blockKm: at };
   }
 
   /**
