@@ -717,7 +717,9 @@
   /* この日の候補地の入口。探している間・0か所でも同じ高さ（下の日付の帯を動かさない） */
   .sheet-cands { margin: 12px 0 4px; }
   .sheet-cands .aim-side-seg { margin-bottom: 6px; }
-  .sheet-cands .cand-pick { min-height: 44px; }
+  .sheet-cands .cand-row { display: flex; align-items: center; gap: 8px; }
+  .sheet-cands .cand-pick { flex: 1; width: auto; min-width: 0; min-height: 44px; }
+  .sheet-cands .cand-app { flex: none; }
   /* どこから重ねるか（名前で探す欄）の下の、次に重なる日 */
   .aim-from { margin: 2px 0 8px; }
   /* 地図のすぐ下に「ここから重ねる」（字の分の幅）、その下に中心の説明を幅いっぱいに。
@@ -1916,24 +1918,24 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261006101838"></script>
+<script src="sorami-core.js?v=20261006102620"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261006101838"></script>
-<script src="sorami-exif.js?v=20261006101838"></script>
-<script src="sorami-capcloud.js?v=20261006101838"></script>
-<script src="sorami-terrain.js?v=20261006101838"></script>
-<script src="sorami-mountain.js?v=20261006101838"></script>
-<script src="sorami-fuji.js?v=20261006101838"></script>
-<script src="sorami-sky.js?v=20261006101838"></script>
-<script src="sorami-routes.js?v=20261006101838"></script>
-<script src="sorami-iss.js?v=20261006101838"></script>
-<script src="sorami-plane.js?v=20261006101838"></script>
-<script src="sorami-refraction.js?v=20261006101838"></script>
-<script src="sorami-atmosphere.js?v=20261006101838"></script>
-<script src="sorami-bodies.js?v=20261006101838"></script>
-<script src="sorami-align.js?v=20261006101838"></script>
-<script src="sorami-moon.js?v=20261006101838"></script>
+<script src="sorami-astro.js?v=20261006102620"></script>
+<script src="sorami-exif.js?v=20261006102620"></script>
+<script src="sorami-capcloud.js?v=20261006102620"></script>
+<script src="sorami-terrain.js?v=20261006102620"></script>
+<script src="sorami-mountain.js?v=20261006102620"></script>
+<script src="sorami-fuji.js?v=20261006102620"></script>
+<script src="sorami-sky.js?v=20261006102620"></script>
+<script src="sorami-routes.js?v=20261006102620"></script>
+<script src="sorami-iss.js?v=20261006102620"></script>
+<script src="sorami-plane.js?v=20261006102620"></script>
+<script src="sorami-refraction.js?v=20261006102620"></script>
+<script src="sorami-atmosphere.js?v=20261006102620"></script>
+<script src="sorami-bodies.js?v=20261006102620"></script>
+<script src="sorami-align.js?v=20261006102620"></script>
+<script src="sorami-moon.js?v=20261006102620"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6033,6 +6035,7 @@ function openMapAppSheet(t) {
       store.set("sorami.mapApp", $("mapAppRemember").checked ? k : null);
       $("mapAppSheet").close();
       renderCoordRows();
+      aimRefreshSheetCands();   // 地点の画面の候補地の釦の名前も（Google・Apple）
       openMapApp(k, mapAppCoord);
     };
   }
@@ -7452,12 +7455,26 @@ function aimRenderSheetCands() {
   const list = all.map((c, i) => ({ c, i })).filter((x) => x.c.side === aim.candSide);
   $("sheetCandInfo").textContent = list.length ? "" : aim.candBusy ? "候補地を探しています…" : $("aimCandInfo").textContent;
   const moon = aim.body === "moon";
+  // 行の右に、外の地図アプリで立つ点を開く釦（2026-10-06 ユーザー「どこから重ねるかの中の候補からもMAPに飛べるようにしたいな」。
+  // ストリートビューで見通しを確かめる）。撮影地の地図の下の「地図アプリ」と同じ（覚えたアプリがあればその名前）
+  const app = savedMapApp(), appLabel = app ? MAP_APPS[app].chipLabel : "地図アプリ";
   $("sheetCandList").innerHTML = list.slice(0, 5).map(({ c, i }, k) => {
     const kind = c.place.kind === "定番" ? c.place.spotKind : c.place.kind;
     return `<div class="al-row cand-row jump"><button type="button" class="cand-pick" data-sheet-cand="${i}">`
       + `<span class="al-w"><strong>${k + 1}. ${esc(aimCandName(c))}</strong>`
-      + `<span class="tiny sub-line">${S.JstCal.hhmm(c.at)} ・ ${esc(kind)} ・ ${aimKm(c.distanceKm)}km${moon ? ` ${moonGlyphAt(c.at)}` : ""}</span></span></button></div>`;
+      + `<span class="tiny sub-line">${S.JstCal.hhmm(c.at)} ・ ${esc(kind)} ・ ${aimKm(c.distanceKm)}km${moon ? ` ${moonGlyphAt(c.at)}` : ""}</span></span></button>`
+      + `<button type="button" class="chip cand-app" data-sheet-cand-app="${i}" aria-label="${esc(aimCandName(c))}を${esc(app ? MAP_APPS[app].name : "地図アプリ")}で開く">${esc(appLabel)}`
+      + `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg></button></div>`;
   }).join("");
+  // 開いても地点の画面は閉じない（続けてほかの候補地も確かめられる）。アプリを覚えていなければ選ぶ画面
+  for (const el of $("sheetCandList").querySelectorAll("[data-sheet-cand-app]")) {
+    el.onclick = () => {
+      const c = (aim.cands || [])[+el.dataset.sheetCandApp];
+      if (!c) return;
+      const t = coordText(c.stand), a = savedMapApp();
+      if (a) openMapApp(a, t); else openMapAppSheet(t);
+    };
+  }
   for (const el of $("sheetCandList").querySelectorAll("[data-sheet-cand]")) {
     el.onclick = () => {
       const c = (aim.cands || [])[+el.dataset.sheetCand];

@@ -3114,6 +3114,13 @@ console.log("== どこから重ねるかで、この日の候補地から選ぶ�
     "どこから重ねるかで開いたときだけ出し、押すとそこがどこからになる");
   ok(/seg\.innerHTML = \$\("aimSideSeg"\)\.innerHTML;/.test(sheetFn) && /\$\("aimSideSeg"\)\.querySelector\(`\[data-side="\$\{b\.dataset\.side\}"\]`\)\?\.click\(\)/.test(sheetFn),
     "側の切り替えは撮影地の一覧と同じ（写して、押すとそちらを押す）");
+  // ユーザー「どこから重ねるかの中の候補からもMAPに飛べるようにしたいな」（ストリートビューで見通しを確かめる。2026-10-06）
+  ok(/class="chip cand-app" data-sheet-cand-app="\$\{i\}"/.test(sheetFn) && /const app = savedMapApp\(\), appLabel = app \? MAP_APPS\[app\]\.chipLabel : "地図アプリ";/.test(sheetFn),
+    "候補地の行の右に、撮影地の地図の下と同じ「地図アプリ」（覚えたアプリならその名前）");
+  ok(/const t = coordText\(c\.stand\), a = savedMapApp\(\);\n      if \(a\) openMapApp\(a, t\); else openMapAppSheet\(t\);/.test(sheetFn)
+    && !/data-sheet-cand-app[\s\S]{0,400}placeSheet"\)\.close/.test(sheetFn.slice(sheetFn.indexOf("[data-sheet-cand-app]"))),
+    "開くのは候補地の立つ点。地点の画面は閉じない（続けてほかの候補地も確かめられる）");
+  ok(/renderCoordRows\(\);\n      aimRefreshSheetCands\(\);/.test(html), "アプリを覚えたら候補地の釦の名前も替える");
   ok(/function aimRenderCands\(\) \{\n  aimRenderCandList\(\);\n  aimRefreshSheetCands\(\);\n\}/.test(html)
     && /function aimRefreshSheetCands\(\) \{\n  if \(\$\("placeSheet"\)\.open && placeSheetFor === "aim"\) aimRenderSheetCands\(\);\n\}/.test(html),
     "撮影地の一覧と地点の画面の候補地は同じ候補で描き直す（開いている間に探し終わったら出る）");
