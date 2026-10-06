@@ -266,10 +266,18 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   }
   ok(/addEventListener\("close", \(\) => \{\s+favUndo = \[\];[\s\S]{0,200}placeSheetFor = null;/.test(html), "閉じたら絶景予測の地点の画面に戻す（次に地点カードから開いたときに観測地点を決めない）");
   // 「どこに重ねるか」と対で「どこから重ねるか」。最初は絶景予測の地点を引き継いで欄に入れる（ユーザー指定）
-  // 道具ごとに位置が変わらないよう、題名のすぐ下（ユーザー指定）。塔の目標は題名の中で選ぶので、目標の行は無い
-  { const ids=['aimWhatLabel','aimBody','aimFromLabel','aimObserverHeight','aimWhereLabel','aimTitle'];
+  // 2026-10-06 何を→何に→どこからの順で、1行ずつ文にして選ぶ（ユーザー「〇〇（選択）を重ねる。〇〇（選択）に重ねる。〇〇（選択）から重ねる。」）。
+  // どこからを最後にしたのは、その日の候補地が何を・何に・日付で決まるから（10/01 は一番上、10/04 は2番目だった）
+  { const ids=['aimBody','aimWhatLabel','aimTitle','aimWhereLabel','aimLimb','aimFromButton','aimFromLabel','aimObserverHeight','aimFromCands'];
     const positions=ids.map(id=>html.indexOf('id="'+id+'"'));
-    ok(positions.every((p,i)=>p>0&&(!i||p>positions[i-1])), "何を→どこから（観測標高）→どこにの順で選ぶ"); }
+    ok(positions.every((p,i)=>p>0&&(!i||p>positions[i-1])), "何を→何に（部位・縁）→どこから（観測標高・この日の候補地）の順で選ぶ");
+    ok(/<span class="aim-say-v" id="aimWhatLabel">を重ねる<\/span>/.test(html) && /<span class="aim-say-v" id="aimWhereLabel">に重ねる<\/span>/.test(html)
+      && /<span class="aim-say-v" id="aimFromLabel">から重ねる<\/span>/.test(html) && !/aim-section-title/.test(html), "見出しの代わりに、欄の右に「を重ねる」「に重ねる」「から重ねる」");
+    // 題名の中に「に重ねる」を入れたら 375px 以下で折れた。右は折らず、欄の側を省略する
+    ok(/\.aim-say \{ display: flex; align-items: center;/.test(html) && /\.aim-say > :first-child \{ flex: 1 1 0; min-width: 0;/.test(html)
+      && /\.aim-say-v \{ flex: 0 0 5\.2em;[^}]*white-space: nowrap;/.test(html), "文の右は「から重ねる」の幅で固定して折らない・欄の側が縮む");
+    // 縁の3釦は建物全体で消えるので、何にの下（何をの下に置くと、下の行の選択で上の釦が消えて画面がずれる。2026-10-06）
+    ok(html.indexOf('id="aimPartRow"') < html.indexOf('id="aimLimb"') && html.indexOf('id="aimLimb"') < html.indexOf('class="aim-say aim-say-from"', html.indexOf('<div id="aimView"')), "縁は部位のすぐ下（どこからより上）"); }
 
   // 地図から決めるのは地図を見ているとき。釦は上の欄ではなく地図のすぐ下（ユーザー「地図の中心ってここにいらない」）
   { const cv = html.indexOf('id="aimCanvas"'), pk = html.indexOf('id="aimPick"'), fs = html.indexOf('id="aimFromButton"');
@@ -466,8 +474,8 @@ ok(/const fujiOk = toolAllowed\("diamond"\) \|\| toolAllowed\("pearl"\), towerOk
 ok(/const sunOk = !isFuji \|\| toolAllowed\("diamond"\), moonOk = !isFuji \|\| toolAllowed\("pearl"\);/.test(html), "富士山を選んだら、太陽はダイヤモンド富士・月はパール富士の許可で出す");
 // 重なる日は選ぶ行より下（太陽と月で日の数が違うので、上だと切り替えるたびに釦が動く。ユーザー「UIがすごく動くのが気になる」）
 // 日付欄は月間カレンダーを開くボタンへ変更。入力値はhidden aimDateで保持。
-{ const lb = html.indexOf('id="aimWhereLabel">何に重ねるか'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('class="aim-date-section"'), sw = html.indexOf('id="aimBody"'), fs = html.indexOf('id="aimFromButton"');
-  ok(sw < fs && fs < lb && lb < dt && dt < fr, "並び: 題名と天体 → どこから → どこに → 日付と候補日"); }
+{ const lb = html.indexOf('id="aimWhereLabel">に重ねる'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('class="aim-date-section"'), sw = html.indexOf('id="aimBody"'), fs = html.indexOf('id="aimFromButton"');
+  ok(sw < lb && lb < fs && fs < dt && dt < fr, "並び: 題名と天体 → 何に → どこから → 日付と候補日"); }
   ok(html.includes("parts.length + (whole ? 1 : 0) < 2"), "建物全体の選択を含め選択肢が1つなら欄を隠す");
 ok(!/目標に太陽や月が重なる日と、/.test(html), "説明の段落を出さない");
 ok(!/線が弧を描くのは|番号は下の一覧と同じ|月が低い（2〜30°）あいだだけを見ています/.test(code), "地図の下の説明を出さない");
@@ -521,7 +529,8 @@ ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れ�
 {
   // どこに重ねるかは図つきの3つの釦（2026-10-02 ユーザー「もっと簡潔でわかりやすいのが」→ Codex と相談 → ユーザーが選んだ）
   const fill = html.slice(html.indexOf("function aimFillSelects"), html.indexOf("/// 天体で言い方を変える"));
-  ok(/<div class="aim-limb" id="aimLimb" role="group" aria-labelledby="aimWhereLabel"><\/div>/.test(html) && !/<select id="aimLimb"/.test(html),
+  // 名前は aria-label（見出し「何に重ねるか」は文の「に重ねる」になったので、それを読ませない。2026-10-06）
+  ok(/<div class="aim-limb" id="aimLimb" role="group" aria-label="天体のどこを合わせるか"><\/div>/.test(html) && !/<select id="aimLimb"/.test(html),
     "どこに重ねるかは select ではなく釦の組");
   ok(/<button type="button" data-limb="\$\{l\.id\}" aria-pressed=/.test(fill) && /aimLimbFigure\(l\.sign, mountain,/.test(fill) && /<span>\$\{esc\(l\.name\)\}<\/span>/.test(fill),
     "釦は図と短い字");
@@ -546,7 +555,7 @@ ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れ�
   ok(/requestAnimationFrame\(\(\) => \{\s+AimMap\.open\(\.\.\.aimMapView\(\)\);/.test(html), "地図は aimMapView の中心で開く");
   ok(/if \(\(aim\.target\.parts \|\| \[\]\)\.length\) \{ aimRedrawLine\(\); aimRenderList\(\); \}\n  aimRenderFrom\(\);\n\}/.test(html),
     "目標の場所が無いときは、線と一覧を計算しない（「どこからも重なりません」と出さない）");
-  ok(/\$\("aimLineInfo"\)\.textContent = "";[\s\S]{0,400}\$\("aimCandBox"\)\.hidden = true;\s+\$\("aimListBox"\)\.hidden = true;\s+return;\s+\}\s+\$\("aimCandBox"\)\.hidden = false;/.test(html),
+  ok(/\$\("aimLineInfo"\)\.textContent = "";[\s\S]{0,400}\$\("aimCandBox"\)\.hidden = true;\s+\$\("aimListBox"\)\.hidden = true;\s+aim\.cands = \[\]; aim\.candBusy = false; aimRenderCandEntrances\(\);\s+return;\s+\}\s+\$\("aimCandBox"\)\.hidden = false;/.test(html),
     "目標の場所が無いときは、候補地・定番スポットの見出しも出さない");
   {
     const mv = /function aimMapView\(\) \{[\s\S]*?\n\}/.exec(html)[0];
@@ -778,7 +787,10 @@ console.log("== 地点カードで探せると分かる（2026-10-01） ==");
 {
   const card = (html.match(/<button class="place-pick" id="placeButton">[\s\S]*?<\/button>/) || [""])[0];
   ok(/<circle cx="10\.5" cy="10\.5" r="6\.5"\/>/.test(card) && !/▾/.test(card), "地点カードの右は虫眼鏡（▾ ではない）");
-  ok(/showSheet\(\$\("placeSheet"\)\);\n[^\n]*\n[^\n]*\n  \$\("searchBox"\)\.focus\(\);/.test(html), "地点カードを押したら、検索欄にすぐ打てる");
+  ok(/showSheet\(\$\("placeSheet"\)\);\n(?:  \/\/[^\n]*\n)+  if \(!focus\) return;\n  \$\("searchBox"\)\.focus\(\);/.test(html)
+    && /function openPlaceSheet\(mode = null, \{ focus = true \} = \{\}\)/.test(html), "地点カードを押したら、検索欄にすぐ打てる");
+  // 「この日の候補地」から開いたときは打たない（キーボードで候補地が隠れる。2026-10-06）
+  ok(/\$\("aimFromCands"\)\.onclick = \(\) => openPlaceSheet\("aim", \{ focus: false \}\);/.test(html), "この日の候補地から開いたら、キーボードを出さない");
 }
 
 console.log("== 月を表すところは全部、その時の満ち欠け（2026-10-01） ==");
@@ -832,7 +844,10 @@ for (const [view, title, seg, prefix, label] of [["planeView", "月丼", null, "
   ok(seg ? new RegExp(`<div class="section-h aim-head"><h2>${title}</h2>\\s*<div class="aim-seg" role="group" aria-label="${seg}">`).test(v)
     : new RegExp(`<div class="section-h aim-head"><h2>${title}</h2></div>`).test(v), `${title}: ${seg ? "題名の右に主な切り替え" : "題名の行（切り替えなし・同じ高さ）"}`);
   ok(new RegExp(`<div class="place-row aim-place-card">\\s*<button class="place-pick" id="${prefix}Button"`).test(v), `${title}: 観測地点は地点カードと同じ形`);
-  ok(new RegExp(`<p class="fav-l" id="${prefix}Label">${label}</p>`).test(v), `${title}: 地点の欄は「${label}」`);
+  // 月丼は天体を重ねると同じく、条件（運用）を先に、立つ場所を最後に「〇〇から重ねる」（2026-10-06）。ISS は探す範囲の中心なので見出しのまま
+  ok(prefix === "planeFrom"
+    ? /<span class="aim-say-v" id="planeFromLabel">から重ねる<\/span>/.test(v) && v.indexOf('id="planeOp"') < v.indexOf('id="planeFromButton"')
+    : new RegExp(`<p class="fav-l" id="${prefix}Label">${label}</p>`).test(v), `${title}: 地点の欄は「${prefix === "planeFrom" ? "〇〇から重ねる」（運用の下）" : label + "」"}`);
   // ISS は立つ点を先に決められない（帯は幅数kmで回ごとに動く）。中心を名前付きで残す意味が薄いので ☆ は付けない
   ok(new RegExp(`<button id="${prefix}Fav" class="tap aim-from-fav"`).test(v) === (prefix === "planeFrom"), `${title}: ☆ は${prefix === "planeFrom" ? "付ける" : "付けない（立つ点ではない）"}`);
   ok(v.indexOf(`id="${prefix}Button"`) < v.indexOf('class="mapwrap"'), `${title}: ${label}は地図より上`);
@@ -2951,7 +2966,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(/\.aim-days\.strip \.aim-day \{[^}]*min-height: 48px;/.test(html), "帯の釦は 48px 以上");
   ok(/aim\.candPick = null; aim\.spot = null; aim\.wantSpot = null; aim\.wantKey = null; aim\.candSide = el\.dataset\.fromSide;\s*\$\("aimDate"\)\.value = /.test(from),
     "帯で日を替えたら候補地の選択はやめ、候補地はその日の側を出す");
-  const cands = /function aimRenderCands\(\) \{[\s\S]*?\n\}/.exec(html)[0];
+  const cands = /function aimRenderCandList\(\) \{[\s\S]*?\n\}/.exec(html)[0];
   ok(/<div id="aimSideSeg" class="aim-side-seg" role="group"/.test(html), "日の出・日の入の切り替え");
   ok(/\$\{x\.has \? ` \$\{x\.n\}か所` : ""\}/.test(cands) && /: "この日は線なし"\}<\/span>/.test(cands) && /\$\{x\.has \? "" : " disabled"\}/.test(cands),
     "切り替えに時刻の幅と数。0か所は押せる・線が無い側は押せない（Codex: 0か所と線なしを分ける）");
@@ -3065,6 +3080,46 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(/\.aim-look-h > span:first-child \{ flex: 0 0 auto; \}/.test(html), "「見え方」の見出しは折り返さない");
   ok(/if \(!\(part && part\.adjustable\)\) \$\("aimHeightNote"\)\.textContent = "";/.test(html), "高さを直せない目標へ替えたら前の注記を消す");
   ok(!/は地図の中心（\$\{aimKm\(d\)\}km先）から/.test(html), "高さ欄の下に見上げ角を出さない（2026-10-03 ユーザーが選んだ「いらない説明文」）");
+}
+
+console.log("== どこから重ねるかで、この日の候補地から選ぶ（2026-10-06） ==");
+// ユーザー「どこから重ねるかについて候補地を探すって選択肢が欲しくない？」。撮影地の行は見え方を一時的に替えるだけで、どこからは変わらなかった
+{
+  const sheet = /<dialog class="sheet" id="placeSheet"[\s\S]*?<\/dialog>/.exec(html)[0];
+  ok(/<section id="sheetCands" class="sheet-cands"[^>]*hidden>/.test(sheet)
+    && sheet.indexOf('id="searchResults"') < sheet.indexOf('id="sheetCands"') && sheet.indexOf('id="sheetCands"') < sheet.indexOf('id="geoButton"'),
+    "地点の画面の検索欄の下に「この日の候補地」（ふだんは隠す）");
+  const sheetFn = /function aimRenderSheetCands\(\) \{[\s\S]*?\n\}/.exec(html)[0];
+  ok(/box\.hidden = placeSheetFor !== "aim"/.test(sheetFn) && /\$\("placeSheet"\)\.close\(\);\s+if \(c\) aimFromCandidate\(c\);/.test(sheetFn),
+    "どこから重ねるかで開いたときだけ出し、押すとそこがどこからになる");
+  ok(/seg\.innerHTML = \$\("aimSideSeg"\)\.innerHTML;/.test(sheetFn) && /\$\("aimSideSeg"\)\.querySelector\(`\[data-side="\$\{b\.dataset\.side\}"\]`\)\?\.click\(\)/.test(sheetFn),
+    "側の切り替えは撮影地の一覧と同じ（写して、押すとそちらを押す）");
+  ok(/function aimRenderCands\(\) \{\n  aimRenderCandList\(\);\n  aimRenderCandEntrances\(\);\n\}/.test(html), "撮影地の一覧と入口2つは同じ候補で描き直す（計算し直さない）");
+  ok(/aimRenderSheetCands\(\);\n  showSheet\(\$\("placeSheet"\)\);/.test(html), "地点の画面を開くたびに描く");
+  const ent = /function aimRenderCandEntrances\(\) \{[\s\S]*?\n\}/.exec(html)[0];
+  const els = {}; const $ = (id) => (els[id] ||= { hidden: false, textContent: "", open: false });
+  const run = (state) => new Function("aim", "$", "placeSheetFor", "aimRenderSheetCands", ent + "; aimRenderCandEntrances();")(state, $, null, () => {});
+  run({ target: { parts: [1] }, cands: [], candBusy: true });
+  ok($("aimFromCands").hidden && $("aimFromCandsNote").textContent === "この日の候補地を探しています…", "探している間は、そう書く");
+  run({ target: { parts: [1] }, cands: [], candBusy: false });
+  ok($("aimFromCands").hidden && $("aimFromCandsNote").textContent === "この日の候補地はありません", "0か所なら、そう書く");
+  run({ target: { parts: [1] }, cands: [1, 2, 3], candBusy: false });
+  ok(!$("aimFromCands").hidden && $("aimFromCands").textContent === "この日の候補地 3か所 ›" && $("aimFromCandsNote").textContent === "", "あれば数を出す");
+  run({ target: { parts: [] }, cands: [1], candBusy: false });
+  ok($("aimFromCands").hidden && $("aimFromCandsNote").textContent === "", "目標が決まっていなければ何も書かない（上の案内と重ねない）");
+  ok(/\.aim-from-cands \{[^}]*min-height: 44px;/.test(html), "入口の行は高さを取っておく（探し終わって下の日付の帯が動かない）");
+  // 探している印は、線の計算・候補地探しの始まりで立て、終わり・失敗・目標なしで下ろす
+  ok((html.match(/aim\.candBusy = true; aimRenderCandEntrances\(\);/g) || []).length === 2 && /aim\.cands = shown;\n  aim\.candBusy = false;/.test(html),
+    "探している印を立てて、終わったら下ろす");
+  const pick = /function aimFromCandidate\(c\) \{[\s\S]*?\n\}/.exec(html)[0];
+  const alignSrc = fs.readFileSync(new URL("./sorami-align.js", import.meta.url), "utf8");
+  ok(/aim\.candPick = null;/.test(pick) && /latitude: c\.stand\.latitude, longitude: c\.stand\.longitude/.test(pick)
+    && /eyeHeightAGL: 1\.5 \+ \(c\.place\.deckM \|\| 0\) \+ \(c\.place\.bridgeM \|\| 0\)/.test(pick)
+    && /const eyeM = \(opts\.eyeM \?\? 1\.5\) \+ \(place\.deckM \|\| 0\);/.test(alignSrc) && /\+ \(place\.bridgeM \?\? 0\)/.test(alignSrc),
+    "候補地を解いたときと同じ立つ点・目の高さ（1.5m＋展望台・橋）でどこからにする（一覧の時刻のまま重なる）");
+  ok(/<button type="button" class="chip cand-from" data-cand-from="\$\{i\}">ここから重ねる<\/button>/.test(html)
+    && /querySelectorAll\("\[data-cand-from\]"\)\) \{\s+el\.onclick = \(\) => \{\s+const c = aim\.cands\[Number\(el\.dataset\.candFrom\)\];\s+aimFromCandidate\(c\);/.test(html),
+    "撮影地の選んだ候補地にも「ここから重ねる」（見え方を替えるだけの行と、どこからにする釦を分ける）");
 }
 
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);

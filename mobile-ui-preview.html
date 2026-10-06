@@ -705,6 +705,21 @@
   /* どこから重ねるかの ☆（地点カードの ☆ と同じ大きさ） */
   .aim-from-fav { flex: 0 0 auto; min-width: 44px; min-height: 44px; font-size: 1.1rem; color: var(--tertiary); }
   .aim-from-fav.on { color: var(--accent); }
+  /* 文の形で選ぶ行（2026-10-06）。左が選ぶ欄、右が「を重ねる」など。右は「から重ねる」の幅で固定し、3行の欄の幅をそろえる。
+     右は折らず、長い名前は欄の側で省略する */
+  .aim-say { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+  .aim-say > :first-child { flex: 1 1 0; min-width: 0; margin-bottom: 0; }
+  .aim-say-v { flex: 0 0 5.2em; font-size: 1rem; font-weight: 700; white-space: nowrap; }
+  .aim-say .place-row .name, .aim-say .place-row .muted { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 欄の字は、天体・目標の欄と同じ大きさ（地点カードの 1.25rem・太字のままだと、どこからだけが大きく見える） */
+  .aim-say .place-row .name { font-size: 1rem; font-weight: 400; }
+  .aim-say .place-row .pin { font-size: 1rem; }
+  /* この日の候補地の入口。探している間・0か所でも同じ高さ（下の日付の帯を動かさない） */
+  .aim-from-cands { display: flex; align-items: center; min-height: 44px; margin: -4px 0 4px; }
+  .aim-from-cands .tiny { color: var(--secondary); }
+  .sheet-cands { margin: 12px 0 4px; }
+  .sheet-cands .aim-side-seg { margin-bottom: 6px; }
+  .sheet-cands .cand-pick { min-height: 44px; }
   /* どこから重ねるか（名前で探す欄）の下の、次に重なる日 */
   .aim-from { margin: 2px 0 8px; }
   /* 地図のすぐ下に「ここから重ねる」（字の分の幅）、その下に中心の説明を幅いっぱいに。
@@ -758,7 +773,7 @@
   .aim-side-seg button:disabled { opacity: 0.45; }
   /* 候補地の行。押すと選んで、見え方がその候補地になる（地図は「地図で見る」で動かす） */
   .cand-row .cand-pick { display: block; width: 100%; padding: 0; text-align: left; font: inherit; color: inherit; background: none; }
-  .cand-row .cand-map { margin-top: 6px; }
+  .cand-row .cand-map, .cand-row .cand-from { margin-top: 6px; }
   /* 見通し。見えないときは日付より目立たせる（2026-10-02 ユーザー「そもそも目標物が見えませんとかって出した方がいい」） */
   /* 見え方の図（2026-10-02）。空の色は太陽の高さで決まるので、明るい画面でも暗い画面でも同じ色で描く */
   .aim-observer-height { display:flex; align-items:center; gap:8px; margin:8px 0 12px; font-size:0.81rem; color:var(--secondary); }
@@ -1002,7 +1017,6 @@
 .preview-camera-dialog .sheet-body{display:grid;gap:16px}.preview-camera-dialog .aim-lens-row{margin:0}.preview-camera-dialog .aim-lens-toggles{display:block}.preview-focal-tools{margin:6px 0 12px}.preview-focal-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--secondary)}#aimView .aim-lens-row>button[aria-haspopup=dialog]{min-width:88px;min-height:44px;padding:8px;font-size:13px}.preview-focal-tools input{width:100%;min-height:32px;accent-color:var(--accent)}.preview-focal-presets{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}.preview-focal-presets button{min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font-size:14px}
 #aimView .aim-grid-control{display:flex;align-items:center;gap:10px;width:100%;font-size:14px;color:var(--secondary)}
 #aimView .aim-grid-control select{flex:1;min-width:0;min-height:44px;padding:8px 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;font-size:16px}
-#aimView .aim-section-title{margin:20px 0 8px;font-size:clamp(15px,1.2vw,18px);font-weight:700;line-height:1.5;color:var(--text)}
 #aimView .aim-target-prompt{padding:12px 14px;margin:8px 0 10px;border-left:3px solid var(--accent);border-radius:8px;background:var(--card);color:var(--text);font-size:14px;line-height:1.6}
 #aimView .aim-place-card{background:var(--card);margin-bottom:6px;padding:0 4px 0 10px}
 #aimView .aim-place-card .place-pick{min-height:52px}
@@ -1045,7 +1059,7 @@
 .preview-quick{display:flex;gap:8px;margin:8px 0}.preview-quick .chip{flex:1;min-height:44px}
 .preview-return{min-height:44px;font-size:12px;margin-top:6px}
 
-#aimView .aim-look-found{scroll-margin-top:72px}#previewPlaces .cand-row{flex-wrap:wrap}#previewPlaces .cand-row .cand-pick{flex-basis:100%}#previewPlaces .cand-map,#previewPlaces .preview-show-scene{flex:1}
+#aimView .aim-look-found{scroll-margin-top:72px}#previewPlaces .cand-row{flex-wrap:wrap}#previewPlaces .cand-row .cand-pick{flex-basis:100%}#previewPlaces .cand-map,#previewPlaces .cand-from,#previewPlaces .preview-show-scene{flex:1}
 /* 同じ入力/選択は同じ面。選択中だけアクセント色。 */
 #aimView #aimPart,#aimView #aimCustomH,#aimView #aimHeightM,#aimView #aimCalendarOpen,#aimView #aimBody,#aimView #previewTime,#aimView #previewTimeScope{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;color-scheme:light dark}
 .preview-date-time{display:flex;align-items:center;gap:8px;margin-top:8px}.preview-date-time input{min-height:44px;min-width:0;flex:1;padding:6px 12px;font-size:16px}.preview-date-time label{font-size:12px;color:var(--secondary)}.preview-date-time button{min-height:44px;padding:8px 12px;font-size:12px}
@@ -1074,6 +1088,11 @@
 #aimView .preview-body-open,#aimView #aimTargetPick .aim-pick{box-sizing:border-box;flex:1 1 0;min-width:0;width:100%;height:48px;min-height:48px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;font-size:16px;font-weight:400}
 #aimView .preview-body-open svg,#aimView #aimTargetPick .aim-pick svg{width:12px;height:12px;flex:none;color:var(--secondary)}
 #aimView [data-body-label],#aimView #aimTargetLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 文の形の3行（2026-10-06）。どこからの地点カードも、天体・目標の欄と同じ面・枠・字の大きさにする */
+#aimView .aim-say #aimTitle{margin-bottom:0}
+#aimView .aim-say-from{margin-top:14px}
+#aimView .aim-say .aim-place-card{margin-bottom:0;padding:0 2px 0 12px;border:1px solid var(--line);border-radius:12px}
+#aimView .aim-say .aim-place-card .place-pick{min-height:52px;gap:8px}
 
 #aimView #aimTargetPick .aim-pick select{display:none}
 #aimView .preview-target-open{position:absolute;inset:0;width:100%;height:100%;min-height:0;padding:0;background:transparent;border:0;border-radius:inherit;cursor:pointer}
@@ -1092,6 +1111,7 @@
  #aimView{--aim-control-font:clamp(15px,1.1vw,20px);--aim-small-font:clamp(13px,.9vw,16px)}
  #aimView .tiny,#aimView .muted,#aimView .aim-look-cap,#aimView .aim-look-cap .sub-line,#aimView [data-lens-info],#aimView .aim-frame-times{font-size:var(--aim-small-font)}
  #aimView button,#aimView select,#aimView input,#aimView .aim-limb button,#aimView .chip,#aimView .preview-body-open,#aimView #aimTargetPick .aim-pick,#aimView #aimCalendarOpen,#aimView #previewTime,#aimView #previewTimeScope button{font-size:var(--aim-control-font)}
+ #aimView .aim-say,#aimView #aimPartRow,#aimView #aimLimb,#aimView #aimTargetCard,#aimView #aimCustomRow{max-width:720px}
  #aimView .aim-limb button{min-height:clamp(58px,4.5vw,76px);gap:10px}
  #aimView .aim-limb svg{width:clamp(30px,2.3vw,42px);height:clamp(30px,2.3vw,42px)}
  #aimView .preview-workspace{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
@@ -1252,13 +1272,20 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
   <div id="planeView" hidden>
     <div class="card">
       <!-- 並びはねらうと同じ（2026-10-01 ユーザー「月丼とかISSとかのレイアウトも統一感あるように」）:
-           題名、その下に観測地点（地点カードと同じ形・絶景予測の地点を引き継ぐ）、
-           道具の選ぶ欄（運用）、日付、地図、地図のすぐ下に「ここから重ねる」、一覧。
+           題名、道具の選ぶ欄（運用）、観測地点（「〇〇から重ねる」。地点カードと同じ形・絶景予測の地点を引き継ぐ。2026-10-06 に運用の下へ）、
+           日付、地図、地図のすぐ下に「ここから重ねる」、一覧。
            **着陸と離陸は分けない**（ユーザー「着陸、離陸の両方狙うし、どっちかしか狙わないことってあんまりない」）。
            両方の経路で数え、どちらの経路かは一覧に書き、地図では離陸を破線にする。
            題名の行は切り替えが無くても同じ高さ（aim-head の min-height）なので、観測地点の位置はほかの道具と同じ -->
       <div class="section-h aim-head"><h2>月丼</h2></div>
-      <p class="fav-l" id="planeFromLabel">どこから重ねるか</p>
+      <label class="fav-l" for="planeOp">運用</label>
+      <div class="aim-row">
+        <select id="planeOp" class="fav-in" aria-label="運用の向き"></select>
+      </div>
+      <p class="tiny" id="planeOpNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
+      <!-- 2026-10-06：天体を重ねると同じく、条件（運用）を先に、立つ場所を最後に文の形で「〇〇から重ねる」。
+           運用は重ねる相手ではなく飛行機の通り道の条件なので、文にせず名前のまま上に置く -->
+      <div class="aim-say aim-say-from">
       <div class="place-row aim-place-card">
         <button class="place-pick" id="planeFromButton" aria-describedby="planeFromLabel">
           <span class="pin">📍</span>
@@ -1272,11 +1299,8 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
         </button>
         <button id="planeFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆</button>
       </div>
-      <label class="fav-l" for="planeOp">運用</label>
-      <div class="aim-row">
-        <select id="planeOp" class="fav-in" aria-label="運用の向き"></select>
+      <span class="aim-say-v" id="planeFromLabel">から重ねる</span>
       </div>
-      <p class="tiny" id="planeOpNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
       <label class="fav-l" for="planeDate">日付</label>
       <div class="aim-row aim-date">
         <button id="planePrev" class="fav-btn" aria-label="前の日">←</button>
@@ -1318,9 +1342,12 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
   <div id="aimView" hidden>
     <div class="card">
-      <!-- 2026-10-04：何を→どこから→どこにの順。観測標高は観測地点に、部位と縁は目標にまとめる。 -->
+      <!-- 2026-10-06：何を→何に→どこからの順で、1行ずつ文にして選ぶ（ユーザー「〇〇（選択）を重ねる。〇〇（選択）に重ねる。〇〇（選択）から重ねる。みたいに選ばせる」）。
+           どこからを最後にしたのは、その日の候補地が何を・何に・日付で決まるから（どこからの所で候補地を出すには、上の2つが決まっている必要がある）。
+           見出し（何を重ねるか…）は文の「を・に・から」が兼ねる。観測標高はどこからに、部位と縁は何にまとめる（縁は建物全体で消えるので、何にの下。2026-10-06 ユーザー「建物全体を選択した場合どうなるの」）。
+           2026-10-04 は何を→どこから→何に、2026-10-01 はどこからを一番上（道具ごとに位置を揃える）だった -->
       <h2 class="preview-title">天体を重ねる</h2>
-      <h3 class="fav-l aim-section-title" id="aimWhatLabel">何を重ねるか</h3>
+      <div class="aim-say">
       <div class="section-h aim-head">
         <select id="aimBody" class="aim-body-select" aria-label="天体">
           <optgroup label="太陽・月"><option value="sun">太陽</option><option value="moon">月</option></optgroup>
@@ -1328,41 +1355,13 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
           <optgroup label="惑星"><option value="mercury">水星</option><option value="venus">金星</option><option value="mars">火星</option><option value="jupiter">木星</option><option value="saturn">土星</option></optgroup>
         </select>
       </div>
-    <!-- どこから重ねるか（観測地点・2026-10-01）。**カードのいちばん上に置く**。「目標」の行は塔にしか無いので、
-         その下に置くと道具ごとに位置が変わる（ユーザー「一番上の方が他の画面と位置が変わらない。ツールごとにレイアウトが
-         変わるのはよくない」）。「どこに重ねるか」と対の名前（ユーザー「どこに重ねるかがあるなら、どこから重ねるかが近くに」）。**最初は絶景予測の地点を引き継いで欄に入れておく**
-         （ユーザー「各ツールで場所を引き継ぐのはいいけど、それはどこから重ねるかの枠に入れておく」）。
-         ここは名前で探す所。地図から決めるときは、地図のすぐ下の「ここから重ねる」（地図を見ながら決めるので地図の側に置く。
-         ユーザー「地図の中心ってここにいらない。地図を見てる時にここにしようって思うわけ」）。すぐ下にここから見て次に重なる日を出す（逆引き。ユーザー「曽谷から見て
-         スカイツリーに重なるのはいつか」）。アプリ全体の地点（地点カード）は変えない -->
-    <!-- 2026-10-01 ユーザー「どこから重ねるかの作りは絶景予測と同じレイアウトにしたら？別に新しいレイアウト作る必要ないよね」。
-         地点カードと同じ形（📍 名前・住所・標高、🔍、☆）。押すと地点カードと同じ「地点」の画面（検索・現在地・地図で選ぶ・
-         お気に入り）が開き、そこで選んだ場所がこの観測地点になる（placeSheetFor = "aim"）。アプリ全体の地点は変えない -->
-    <h3 class="fav-l aim-section-title" id="aimFromLabel">どこから重ねるか</h3>
-    <div class="place-row aim-place-card">
-      <button class="place-pick" id="aimFromButton" aria-describedby="aimFromLabel">
-        <span class="pin">📍</span>
-        <span class="place-txt">
-          <span class="name" id="aimFromName">…</span>
-          <span class="muted" id="aimFromSub"></span>
-        </span>
-        <span class="sr-only">（観測地点を探す）</span>
-        <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
-          stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
-      </button>
-      <!-- 観測地点をお気に入りに（座標そのものに名前を付けて残す。ユーザー「座標ピンポイントに名前つけたりしたい」）。登録済みなら ★ で編集 -->
-      <button id="aimFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆</button>
-    </div>
-    <div class="aim-observer-height">
-      <label for="aimObserverHeight">観測標高</label>
-      <input id="aimObserverHeight" type="number" inputmode="decimal" min="-500" max="9000" step="any" placeholder="取得中…" aria-label="カメラ位置の標高（海抜メートル）" aria-describedby="aimObserverHeightHint" disabled><span>m</span>
-      <button type="button" class="tap" id="aimObserverAuto" aria-label="観測標高を自動値に戻す" title="自動値に戻す" disabled>↺</button>
-    </div>
-    <p class="tiny muted" id="aimObserverHeightHint">標高＋地上からの目線の高さ</p>
-    <p id="aimObserverHeightError" class="tiny" role="alert" hidden></p>
-
-    <h3 class="fav-l aim-section-title" id="aimWhereLabel">何に重ねるか</h3>
+      <span class="aim-say-v" id="aimWhatLabel">を重ねる</span>
+      </div>
+    <!-- 文の右の「に重ねる」は欄の外に置き、欄の側を省略する（題名の中に「に重ねる」を入れたら 375px 以下で折れた） -->
+    <div class="aim-say">
     <div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span></span></div>
+    <span class="aim-say-v" id="aimWhereLabel">に重ねる</span>
+    </div>
     <p id="aimTargetPrompt" class="aim-target-prompt" role="status" hidden>重ねる目標の場所を選んでください。</p>
     <!-- 自分で置くときの目標の場所（2026-10-01 ユーザー「自分で置くを選んだ場合、どこに重ねるかの検索が必要なんじゃないの」）。
          どこから重ねるかと同じく地点カードの形で、押すと同じ「地点」の画面（検索・現在地・地図で選ぶ・お気に入り）。
@@ -1392,7 +1391,7 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
     </div>
     <!-- 太陽・月のどの縁をてっぺんに合わせるか。図と短い字の3つの釦（2026-10-02 ユーザー「もっと簡潔でわかりやすいのがあるんじゃないか」
          →Codex と相談→ユーザーが選んだ）。select だと開かないと中身が見えず、字だけでは位置が伝わらない。中身は aimFillSelects で作る -->
-    <div class="aim-limb" id="aimLimb" role="group" aria-labelledby="aimWhereLabel"></div>
+    <div class="aim-limb" id="aimLimb" role="group" aria-label="天体のどこを合わせるか"></div>
     <!-- 目標の高さの注記と、高さの入力（推定の塔・自分で置く目標のときだけ）。目標の行をやめたので、どこに重ねるかの下に -->
     <p class="tiny" id="aimTargetNote" style="margin:-2px 0 8px"></p>
     <div class="aim-row" id="aimHeightRow" hidden>
@@ -1401,6 +1400,40 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
       <button id="aimHeightSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">この高さで</button>
     </div>
     <p class="tiny" id="aimHeightNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
+    <!-- どこから重ねるか（観測地点・2026-10-01）。**最初は絶景予測の地点を引き継いで欄に入れておく**
+         （ユーザー「各ツールで場所を引き継ぐのはいいけど、それはどこから重ねるかの枠に入れておく」）。
+         地点カードと同じ形（📍 名前・住所・標高、🔍、☆。ユーザー「絶景予測と同じレイアウトにしたら？別に新しいレイアウト作る必要ないよね」）。
+         押すと地点カードと同じ「地点」の画面（検索・この日の候補地・現在地・地図で選ぶ・お気に入り）が開き、そこで選んだ場所がこの観測地点になる
+         （placeSheetFor = "aim"）。アプリ全体の地点は変えない。地図から決めるときは、地図のすぐ下の「ここから重ねる」
+         （ユーザー「地図の中心ってここにいらない。地図を見てる時にここにしようって思うわけ」）。
+         すぐ下にここから見て次に重なる日を出す（逆引き。ユーザー「曽谷から見てスカイツリーに重なるのはいつか」） -->
+    <div class="aim-say aim-say-from">
+    <div class="place-row aim-place-card">
+      <button class="place-pick" id="aimFromButton" aria-describedby="aimFromLabel">
+        <span class="pin">📍</span>
+        <span class="place-txt">
+          <span class="name" id="aimFromName">…</span>
+          <span class="muted" id="aimFromSub"></span>
+        </span>
+        <span class="sr-only">（観測地点を探す）</span>
+        <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+          stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
+      </button>
+      <!-- 観測地点をお気に入りに（座標そのものに名前を付けて残す。ユーザー「座標ピンポイントに名前つけたりしたい」）。登録済みなら ★ で編集 -->
+      <button id="aimFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆</button>
+    </div>
+    <span class="aim-say-v" id="aimFromLabel">から重ねる</span>
+    </div>
+    <div class="aim-observer-height">
+      <label for="aimObserverHeight">観測標高</label>
+      <input id="aimObserverHeight" type="number" inputmode="decimal" min="-500" max="9000" step="any" placeholder="取得中…" aria-label="カメラ位置の標高（海抜メートル）" aria-describedby="aimObserverHeightHint" disabled><span>m</span>
+      <button type="button" class="tap" id="aimObserverAuto" aria-label="観測標高を自動値に戻す" title="自動値に戻す" disabled>↺</button>
+    </div>
+    <p class="tiny muted" id="aimObserverHeightHint">標高＋地上からの目線の高さ</p>
+    <p id="aimObserverHeightError" class="tiny" role="alert" hidden></p>
+    <!-- その日の候補地から選ぶ入口（2026-10-06 ユーザー「どこから重ねるかについて候補地を探すって選択肢が欲しくない？」）。
+         押すと地点の画面を候補地の所で開く。場所を取っておく（探している間・0か所でも同じ高さの1行。下の日付の帯を動かさない） -->
+    <div class="aim-from-cands"><button type="button" id="aimFromCands" class="chip" hidden></button><span id="aimFromCandsNote" class="tiny"></span></div>
     <!-- 日付と観測地点の候補日は一つのセクション。図を見る前に選ぶ。 -->
     <section class="aim-date-section" aria-label="日付と候補日">
     <div class="aim-row aim-date">
@@ -1614,6 +1647,15 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
       <button id="searchBoxGo" class="fav-btn search-go">検索</button>
     </div>
     <div id="searchResults"></div>
+    <!-- 天体を重ねるの「どこから重ねるか」で開いたときだけ。撮影地の「この日の候補地」と同じ候補（計算し直さない）。
+         押すとそこがどこから重ねるかになる（2026-10-06。撮影地の行は見え方を一時的に替えるだけで、どこからは変わらなかった） -->
+    <section id="sheetCands" class="sheet-cands" aria-labelledby="sheetCandsTitle" hidden>
+      <div class="section-h"><h2 id="sheetCandsTitle">この日の候補地</h2><span id="sheetCandsDay" class="tiny"></span></div>
+      <div id="sheetCandSide" class="aim-side-seg" role="group"></div>
+      <p id="sheetCandInfo" class="tiny" role="status"></p>
+      <div id="sheetCandList" class="al"></div>
+      <button type="button" class="list-item" id="sheetCandAll">地図で全部見る（撮影地）</button>
+    </section>
     <!-- ねらうの「どこから重ねるか」で別の点を選んでいるときだけ。絶景予測の地点に戻す -->
     <button class="list-item" id="sheetInherit" hidden></button>
     <button class="list-item" id="geoButton">📡 現在地を使う</button>
@@ -1867,24 +1909,24 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261005143009"></script>
+<script src="sorami-core.js?v=20261006093111"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261005143009"></script>
-<script src="sorami-exif.js?v=20261005143009"></script>
-<script src="sorami-capcloud.js?v=20261005143009"></script>
-<script src="sorami-terrain.js?v=20261005143009"></script>
-<script src="sorami-mountain.js?v=20261005143009"></script>
-<script src="sorami-fuji.js?v=20261005143009"></script>
-<script src="sorami-sky.js?v=20261005143009"></script>
-<script src="sorami-routes.js?v=20261005143009"></script>
-<script src="sorami-iss.js?v=20261005143009"></script>
-<script src="sorami-plane.js?v=20261005143009"></script>
-<script src="sorami-refraction.js?v=20261005143009"></script>
-<script src="sorami-atmosphere.js?v=20261005143009"></script>
-<script src="sorami-bodies.js?v=20261005143009"></script>
-<script src="sorami-align.js?v=20261005143009"></script>
-<script src="sorami-moon.js?v=20261005143009"></script>
+<script src="sorami-astro.js?v=20261006093111"></script>
+<script src="sorami-exif.js?v=20261006093111"></script>
+<script src="sorami-capcloud.js?v=20261006093111"></script>
+<script src="sorami-terrain.js?v=20261006093111"></script>
+<script src="sorami-mountain.js?v=20261006093111"></script>
+<script src="sorami-fuji.js?v=20261006093111"></script>
+<script src="sorami-sky.js?v=20261006093111"></script>
+<script src="sorami-routes.js?v=20261006093111"></script>
+<script src="sorami-iss.js?v=20261006093111"></script>
+<script src="sorami-plane.js?v=20261006093111"></script>
+<script src="sorami-refraction.js?v=20261006093111"></script>
+<script src="sorami-atmosphere.js?v=20261006093111"></script>
+<script src="sorami-bodies.js?v=20261006093111"></script>
+<script src="sorami-align.js?v=20261006093111"></script>
+<script src="sorami-moon.js?v=20261006093111"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5405,6 +5447,7 @@ async function aimRedrawLine() {
   aim.cands = []; aim.candPick = null;
   $("aimCandList").innerHTML = ""; $("aimSideSeg").innerHTML = "";
   $("aimCandInfo").textContent = "候補地を探しています…";
+  aim.candBusy = true; aimRenderCandEntrances();
   aim.lines = [];
   AimMap.redraw();
   let lines = [];
@@ -5415,6 +5458,7 @@ async function aimRedrawLine() {
     if (seq !== aim.seq) return;
     $("aimLineInfo").textContent = "線を計算できませんでした。条件を選び直して再試行してください。";
     $("aimCandInfo").textContent = "";
+    aim.candBusy = false; aimRenderCandEntrances();
     return;
   }
   if (seq !== aim.seq) return;
@@ -6402,6 +6446,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
     $("aimList").innerHTML = "";
     $("aimCandBox").hidden = true;
     $("aimListBox").hidden = true;
+    aim.cands = []; aim.candBusy = false; aimRenderCandEntrances();
     return;
   }
   $("aimCandBox").hidden = false;
@@ -7005,11 +7050,12 @@ async function aimFindCandidates() {
   $("aimCandList").innerHTML = ""; $("aimSideSeg").innerHTML = "";
   // 選ぶ候補地を待っている間、見え方の図はそのまま（aimUpdateLook が待つ）。見つからなくても待ちをやめて描き直す
   const giveUp = () => { if (seq === aim.candSeq && aim.wantSpot) { aim.wantSpot = null; aim.wantKey = null; aimUpdateLook(); } };
-  if (!lines.length) { $("aimCandInfo").textContent = "この日は線が無いので、候補地もありません。"; giveUp(); return; }
+  if (!lines.length) { $("aimCandInfo").textContent = "この日は線が無いので、候補地もありません。"; aim.candBusy = false; aimRenderCandEntrances(); giveUp(); return; }
   $("aimCandInfo").textContent = "候補地を探しています…";
+  aim.candBusy = true; aimRenderCandEntrances();
   let places = [];
   try { places = await aimPlaces(); } catch {
-    if (seq === aim.candSeq) $("aimCandInfo").textContent = "候補地を読み込めませんでした。";
+    if (seq === aim.candSeq) { $("aimCandInfo").textContent = "候補地を読み込めませんでした。"; aim.candBusy = false; aimRenderCandEntrances(); }
     giveUp();
     return;
   }
@@ -7064,6 +7110,7 @@ async function aimFindCandidates() {
     // 建物の断り書き（確かめています・首都圏の外・確かめられませんでした）は出さない（2026-10-03 ユーザーが選んだ「いらない説明文」）
   }
   aim.cands = shown;
+  aim.candBusy = false;
   const waited = !!aim.wantSpot;
   const want = aim.wantSpot ? shown.findIndex((c) => c.place.id === aim.wantSpot) : -1;
   aim.wantSpot = null; aim.wantKey = null;
@@ -7275,7 +7322,74 @@ async function aimBuildingBlocks(cands) {
   }));
 }
 
+/// 撮影地の「この日の候補地」と、どこから重ねるかの入口2つ（行の下の「この日の候補地」・地点の画面）を同じ候補で描く
 function aimRenderCands() {
+  aimRenderCandList();
+  aimRenderCandEntrances();
+}
+
+/// 候補地を、どこから重ねるかにする（2026-10-06）。立つ点と目の高さ（1.5m＋展望台・橋）は候補地を解いたときと同じにし、
+/// 一覧に出した時刻のまま重なるようにする。見え方は観測地点（＝この候補地）で描き直す。地図は動かさない
+function aimFromCandidate(c) {
+  aim.candPick = null;
+  const kind = c.place.kind === "定番" ? c.place.spotKind : c.place.kind;
+  aimSetFrom({ name: aimCandName(c), subtitle: c.place.address || kind || "",
+    latitude: c.stand.latitude, longitude: c.stand.longitude,
+    decks: c.place.deckM ? [{ name: "展望台", aglM: c.place.deckM }] : null,
+    eyeHeightAGL: 1.5 + (c.place.deckM || 0) + (c.place.bridgeM || 0) }, { keepMap: true });
+  aimRenderCands();
+}
+
+/// どこから重ねるかの入口（2026-10-06 ユーザー「候補地を探すって選択肢が欲しくない？」）。中身は撮影地の一覧と同じ aim.cands（計算し直さない）。
+/// 行の下は、探している間も0か所でも同じ高さの1行（下の日付の帯を動かさない）。目標が決まっていなければ何も書かない（上の案内と重ねない）
+function aimRenderCandEntrances() {
+  const all = aim.cands || [];
+  const ready = !!(aim.target && (aim.target.parts || []).length);
+  const n = ready ? all.length : 0;
+  $("aimFromCands").hidden = !n;
+  if (n) $("aimFromCands").textContent = `この日の候補地 ${n}か所 ›`;
+  $("aimFromCandsNote").textContent = n || !ready ? "" : aim.candBusy ? "この日の候補地を探しています…" : "この日の候補地はありません";
+  if ($("placeSheet").open && placeSheetFor === "aim") aimRenderSheetCands();
+}
+
+/// 地点の画面の「この日の候補地」（どこから重ねるかで開いたときだけ）。側の切り替えは撮影地の一覧の釦を写して、押すとそちらを押す
+/// （側・数・時刻の幅・線なしを1か所で決める）。上から5か所。全部は撮影地の地図で
+function aimRenderSheetCands() {
+  const box = $("sheetCands");
+  box.hidden = placeSheetFor !== "aim" || !(aim.target && (aim.target.parts || []).length);
+  if (box.hidden) return;
+  $("sheetCandsDay").textContent = Number.isFinite(aim.dayMs) ? `${S.Cal.monthDay(aim.dayMs)}(${S.Cal.weekday(aim.dayMs)})` : "";
+  const all = aim.cands || [];
+  const seg = $("sheetCandSide");
+  seg.innerHTML = $("aimSideSeg").innerHTML;
+  seg.setAttribute("aria-label", $("aimSideSeg").getAttribute("aria-label") || "側");
+  for (const b of seg.querySelectorAll("[data-side]")) b.onclick = () => $("aimSideSeg").querySelector(`[data-side="${b.dataset.side}"]`)?.click();
+  const list = all.map((c, i) => ({ c, i })).filter((x) => x.c.side === aim.candSide);
+  $("sheetCandInfo").textContent = list.length ? "" : aim.candBusy ? "候補地を探しています…" : $("aimCandInfo").textContent;
+  const moon = aim.body === "moon";
+  $("sheetCandList").innerHTML = list.slice(0, 5).map(({ c, i }, k) => {
+    const kind = c.place.kind === "定番" ? c.place.spotKind : c.place.kind;
+    return `<div class="al-row cand-row jump"><button type="button" class="cand-pick" data-sheet-cand="${i}">`
+      + `<span class="al-w"><strong>${k + 1}. ${esc(aimCandName(c))}</strong>`
+      + `<span class="tiny sub-line">${S.JstCal.hhmm(c.at)} ・ ${esc(kind)} ・ ${aimKm(c.distanceKm)}km${moon ? ` ${moonGlyphAt(c.at)}` : ""}</span></span></button></div>`;
+  }).join("");
+  for (const el of $("sheetCandList").querySelectorAll("[data-sheet-cand]")) {
+    el.onclick = () => {
+      const c = (aim.cands || [])[+el.dataset.sheetCand];
+      $("placeSheet").close();
+      if (c) aimFromCandidate(c);
+    };
+  }
+  $("sheetCandAll").hidden = !all.length;
+}
+$("aimFromCands").onclick = () => openPlaceSheet("aim", { focus: false });
+$("sheetCandAll").onclick = () => {
+  $("placeSheet").close();
+  $("previewPlacesTab").click();
+  requestAnimationFrame(() => window.scrollTo({ top: $("aimCanvas").getBoundingClientRect().top + window.scrollY - 80, behavior: "smooth" }));
+};
+
+function aimRenderCandList() {
   const all = aim.cands || [];
   const seg = $("aimSideSeg");
   const moon = aim.body === "moon";
@@ -7326,7 +7440,9 @@ function aimRenderCands() {
     return `<div class="al-row cand-row jump${on ? " on" : ""}"><button type="button" class="cand-pick" data-cand="${i}" aria-pressed="${on}">`
       + `<span class="al-w"><strong>${k + 1}. ${esc(aimCandName(c))}</strong>`
       + `<span class="tiny sub-line">${S.JstCal.hhmm(c.at)} ・ ${esc(kind)} ・ ${aimKm(c.distanceKm)}km${edge}${moon ? ` ${moonGlyphAt(c.at)}` : ""}</span>${more}</span></button>`
-      + (on ? `<button type="button" class="chip cand-map" data-cand-map="${i}">地図で見る</button>` : "") + `</div>`;
+      + (on ? `<button type="button" class="chip cand-map" data-cand-map="${i}">地図で見る</button>`
+        // 行を押すのは見え方を一時的に替えるだけ。ここを観測地点にするのはこの釦（2026-10-06。地点の画面の候補地と同じ処理）
+        + `<button type="button" class="chip cand-from" data-cand-from="${i}">ここから重ねる</button>` : "") + `</div>`;
   }).join("");
   // 行を押すと選ぶ（もう一度押すとやめる）。見え方と地図の印がその候補地に。地図は「地図で見る」で動かす（Codex: 地図を見たい人を勝手に動かさない）
   for (const el of $("aimCandList").querySelectorAll("[data-cand]")) {
@@ -7336,6 +7452,13 @@ function aimRenderCands() {
       aimRenderCands();
       aimUpdateLook();
       AimMap.redraw();
+    };
+  }
+  for (const el of $("aimCandList").querySelectorAll("[data-cand-from]")) {
+    el.onclick = () => {
+      const c = aim.cands[Number(el.dataset.candFrom)];
+      aimFromCandidate(c);
+      $("aimCandInfo").textContent = `「${aimCandName(c)}」をどこから重ねるかにしました。`;
     };
   }
   for (const el of $("aimCandList").querySelectorAll("[data-cand-map]")) {
@@ -8501,7 +8624,7 @@ $("mapPick").onclick = async () => {
 };
 
 /// 地点の画面を開く。mode は placeSheetFor（null＝絶景予測の地点、"aim"＝ねらうの観測地点）
-function openPlaceSheet(mode = null) {
+function openPlaceSheet(mode = null, { focus = true } = {}) {
   placeSheetFor = mode;
   const picker = mode && PLACE_PICKERS[mode];
   $("placeSheetTitle").textContent = picker ? picker.title : "地点";
@@ -8513,9 +8636,12 @@ function openPlaceSheet(mode = null) {
   $("favNotice").textContent = "";
   for (const el of document.querySelectorAll(".save-err")) el.hidden = true;
   renderSheet();
+  aimRenderSheetCands();
   showSheet($("placeSheet"));
   // **開いたらすぐ打てる。** 押した操作の中で焦点を移すと、iPhone でもキーボードが出る。
-  // 前の検索語は選択しておき、打てば置き換わるようにする（2026-10-01）
+  // 前の検索語は選択しておき、打てば置き換わるようにする（2026-10-01）。
+  // 「この日の候補地」から開いたときは打たない（キーボードで候補地が隠れる。2026-10-06）
+  if (!focus) return;
   $("searchBox").focus();
   $("searchBox").select();
 }
