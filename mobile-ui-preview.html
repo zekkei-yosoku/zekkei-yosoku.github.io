@@ -715,8 +715,6 @@
   .aim-say .place-row .name { font-size: 1rem; font-weight: 400; }
   .aim-say .place-row .pin { font-size: 1rem; }
   /* この日の候補地の入口。探している間・0か所でも同じ高さ（下の日付の帯を動かさない） */
-  .aim-from-cands { display: flex; align-items: center; min-height: 44px; margin: -4px 0 4px; }
-  .aim-from-cands .tiny { color: var(--secondary); }
   .sheet-cands { margin: 12px 0 4px; }
   .sheet-cands .aim-side-seg { margin-bottom: 6px; }
   .sheet-cands .cand-pick { min-height: 44px; }
@@ -1431,9 +1429,6 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
     </div>
     <p class="tiny muted" id="aimObserverHeightHint">標高＋地上からの目線の高さ</p>
     <p id="aimObserverHeightError" class="tiny" role="alert" hidden></p>
-    <!-- その日の候補地から選ぶ入口（2026-10-06 ユーザー「どこから重ねるかについて候補地を探すって選択肢が欲しくない？」）。
-         押すと地点の画面を候補地の所で開く。場所を取っておく（探している間・0か所でも同じ高さの1行。下の日付の帯を動かさない） -->
-    <div class="aim-from-cands"><button type="button" id="aimFromCands" class="chip" hidden></button><span id="aimFromCandsNote" class="tiny"></span></div>
     <!-- 日付と観測地点の候補日は一つのセクション。図を見る前に選ぶ。 -->
     <section class="aim-date-section" aria-label="日付と候補日">
     <div class="aim-row aim-date">
@@ -1909,24 +1904,24 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261006093111"></script>
+<script src="sorami-core.js?v=20261006093625"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261006093111"></script>
-<script src="sorami-exif.js?v=20261006093111"></script>
-<script src="sorami-capcloud.js?v=20261006093111"></script>
-<script src="sorami-terrain.js?v=20261006093111"></script>
-<script src="sorami-mountain.js?v=20261006093111"></script>
-<script src="sorami-fuji.js?v=20261006093111"></script>
-<script src="sorami-sky.js?v=20261006093111"></script>
-<script src="sorami-routes.js?v=20261006093111"></script>
-<script src="sorami-iss.js?v=20261006093111"></script>
-<script src="sorami-plane.js?v=20261006093111"></script>
-<script src="sorami-refraction.js?v=20261006093111"></script>
-<script src="sorami-atmosphere.js?v=20261006093111"></script>
-<script src="sorami-bodies.js?v=20261006093111"></script>
-<script src="sorami-align.js?v=20261006093111"></script>
-<script src="sorami-moon.js?v=20261006093111"></script>
+<script src="sorami-astro.js?v=20261006093625"></script>
+<script src="sorami-exif.js?v=20261006093625"></script>
+<script src="sorami-capcloud.js?v=20261006093625"></script>
+<script src="sorami-terrain.js?v=20261006093625"></script>
+<script src="sorami-mountain.js?v=20261006093625"></script>
+<script src="sorami-fuji.js?v=20261006093625"></script>
+<script src="sorami-sky.js?v=20261006093625"></script>
+<script src="sorami-routes.js?v=20261006093625"></script>
+<script src="sorami-iss.js?v=20261006093625"></script>
+<script src="sorami-plane.js?v=20261006093625"></script>
+<script src="sorami-refraction.js?v=20261006093625"></script>
+<script src="sorami-atmosphere.js?v=20261006093625"></script>
+<script src="sorami-bodies.js?v=20261006093625"></script>
+<script src="sorami-align.js?v=20261006093625"></script>
+<script src="sorami-moon.js?v=20261006093625"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5447,7 +5442,7 @@ async function aimRedrawLine() {
   aim.cands = []; aim.candPick = null;
   $("aimCandList").innerHTML = ""; $("aimSideSeg").innerHTML = "";
   $("aimCandInfo").textContent = "候補地を探しています…";
-  aim.candBusy = true; aimRenderCandEntrances();
+  aim.candBusy = true; aimRefreshSheetCands();
   aim.lines = [];
   AimMap.redraw();
   let lines = [];
@@ -5458,7 +5453,7 @@ async function aimRedrawLine() {
     if (seq !== aim.seq) return;
     $("aimLineInfo").textContent = "線を計算できませんでした。条件を選び直して再試行してください。";
     $("aimCandInfo").textContent = "";
-    aim.candBusy = false; aimRenderCandEntrances();
+    aim.candBusy = false; aimRefreshSheetCands();
     return;
   }
   if (seq !== aim.seq) return;
@@ -6446,7 +6441,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
     $("aimList").innerHTML = "";
     $("aimCandBox").hidden = true;
     $("aimListBox").hidden = true;
-    aim.cands = []; aim.candBusy = false; aimRenderCandEntrances();
+    aim.cands = []; aim.candBusy = false; aimRefreshSheetCands();
     return;
   }
   $("aimCandBox").hidden = false;
@@ -7050,12 +7045,12 @@ async function aimFindCandidates() {
   $("aimCandList").innerHTML = ""; $("aimSideSeg").innerHTML = "";
   // 選ぶ候補地を待っている間、見え方の図はそのまま（aimUpdateLook が待つ）。見つからなくても待ちをやめて描き直す
   const giveUp = () => { if (seq === aim.candSeq && aim.wantSpot) { aim.wantSpot = null; aim.wantKey = null; aimUpdateLook(); } };
-  if (!lines.length) { $("aimCandInfo").textContent = "この日は線が無いので、候補地もありません。"; aim.candBusy = false; aimRenderCandEntrances(); giveUp(); return; }
+  if (!lines.length) { $("aimCandInfo").textContent = "この日は線が無いので、候補地もありません。"; aim.candBusy = false; aimRefreshSheetCands(); giveUp(); return; }
   $("aimCandInfo").textContent = "候補地を探しています…";
-  aim.candBusy = true; aimRenderCandEntrances();
+  aim.candBusy = true; aimRefreshSheetCands();
   let places = [];
   try { places = await aimPlaces(); } catch {
-    if (seq === aim.candSeq) { $("aimCandInfo").textContent = "候補地を読み込めませんでした。"; aim.candBusy = false; aimRenderCandEntrances(); }
+    if (seq === aim.candSeq) { $("aimCandInfo").textContent = "候補地を読み込めませんでした。"; aim.candBusy = false; aimRefreshSheetCands(); }
     giveUp();
     return;
   }
@@ -7322,10 +7317,10 @@ async function aimBuildingBlocks(cands) {
   }));
 }
 
-/// 撮影地の「この日の候補地」と、どこから重ねるかの入口2つ（行の下の「この日の候補地」・地点の画面）を同じ候補で描く
+/// 撮影地の「この日の候補地」と、どこから重ねるかの地点の画面の候補地を同じ候補で描く
 function aimRenderCands() {
   aimRenderCandList();
-  aimRenderCandEntrances();
+  aimRefreshSheetCands();
 }
 
 /// 候補地を、どこから重ねるかにする（2026-10-06）。立つ点と目の高さ（1.5m＋展望台・橋）は候補地を解いたときと同じにし、
@@ -7340,15 +7335,9 @@ function aimFromCandidate(c) {
   aimRenderCands();
 }
 
-/// どこから重ねるかの入口（2026-10-06 ユーザー「候補地を探すって選択肢が欲しくない？」）。中身は撮影地の一覧と同じ aim.cands（計算し直さない）。
-/// 行の下は、探している間も0か所でも同じ高さの1行（下の日付の帯を動かさない）。目標が決まっていなければ何も書かない（上の案内と重ねない）
-function aimRenderCandEntrances() {
-  const all = aim.cands || [];
-  const ready = !!(aim.target && (aim.target.parts || []).length);
-  const n = ready ? all.length : 0;
-  $("aimFromCands").hidden = !n;
-  if (n) $("aimFromCands").textContent = `この日の候補地 ${n}か所 ›`;
-  $("aimFromCandsNote").textContent = n || !ready ? "" : aim.candBusy ? "この日の候補地を探しています…" : "この日の候補地はありません";
+/// 地点の画面をどこから重ねるかで開いている間に候補地が変わったら（探し終わった・側を替えた）、そこも描き直す。
+/// どこから行の下に「この日の候補地 Nか所」の釦を置いたが、カードを押せば同じ候補地が出るので外した（2026-10-06 ユーザー「このボタンはいらないんじゃない？」）
+function aimRefreshSheetCands() {
   if ($("placeSheet").open && placeSheetFor === "aim") aimRenderSheetCands();
 }
 
@@ -7382,7 +7371,6 @@ function aimRenderSheetCands() {
   }
   $("sheetCandAll").hidden = !all.length;
 }
-$("aimFromCands").onclick = () => openPlaceSheet("aim", { focus: false });
 $("sheetCandAll").onclick = () => {
   $("placeSheet").close();
   $("previewPlacesTab").click();
@@ -8624,7 +8612,7 @@ $("mapPick").onclick = async () => {
 };
 
 /// 地点の画面を開く。mode は placeSheetFor（null＝絶景予測の地点、"aim"＝ねらうの観測地点）
-function openPlaceSheet(mode = null, { focus = true } = {}) {
+function openPlaceSheet(mode = null) {
   placeSheetFor = mode;
   const picker = mode && PLACE_PICKERS[mode];
   $("placeSheetTitle").textContent = picker ? picker.title : "地点";
@@ -8639,9 +8627,7 @@ function openPlaceSheet(mode = null, { focus = true } = {}) {
   aimRenderSheetCands();
   showSheet($("placeSheet"));
   // **開いたらすぐ打てる。** 押した操作の中で焦点を移すと、iPhone でもキーボードが出る。
-  // 前の検索語は選択しておき、打てば置き換わるようにする（2026-10-01）。
-  // 「この日の候補地」から開いたときは打たない（キーボードで候補地が隠れる。2026-10-06）
-  if (!focus) return;
+  // 前の検索語は選択しておき、打てば置き換わるようにする（2026-10-01）
   $("searchBox").focus();
   $("searchBox").select();
 }

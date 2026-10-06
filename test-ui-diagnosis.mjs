@@ -61,7 +61,7 @@ test('記録案内はピークではなく窓の終了時刻。翌日の日付�
 function redraw(line){
  const els=Object.fromEntries(['aimLineInfo','aimLineTable','aimCandList','aimSideSeg','aimCandInfo'].map(k=>[k,{hidden:false,textContent:'old',innerHTML:'old',querySelector(){return this;}}]));
  const aim={seq:0,candSeq:0,target:{id:'fuji'},body:'sun',dayMs:today,candPick:null,cands:[]};
- const fn=runInNewContext(grab('async function aimRedrawLine')+';aimRedrawLine',{aim,$:k=>els[k],AimMap:{redraw(){}},SoramiAlign:{line},aimElevation(){},aimFindCandidates(){},aimRenderCandEntrances(){},S,esc:x=>x,aimSideLabel:x=>x,aimKm:x=>x});
+ const fn=runInNewContext(grab('async function aimRedrawLine')+';aimRedrawLine',{aim,$:k=>els[k],AimMap:{redraw(){}},SoramiAlign:{line},aimElevation(){},aimFindCandidates(){},aimRefreshSheetCands(){},S,esc:x=>x,aimSideLabel:x=>x,aimKm:x=>x});
  return {fn,els,aim};
 }
 test('計算開始時に旧表を消す。古い応答・エラーで新しい画面を上書きしない',async()=>{
@@ -108,9 +108,9 @@ test('未設定の自由目標へ切り替えると前の目標の時刻表を�
  const body={innerHTML:'前の目標の時刻'},elements=new Map();
  const $=id=>{if(!elements.has(id)) elements.set(id,{hidden:false,innerHTML:'old',querySelector:()=>body});return elements.get(id);};
  const aim={target:{parts:[]},seq:3,candSeq:3,lines:[1],cands:[1]};
- runInNewContext('(function(){'+html.slice(a,b)+'})()',{$,aim,aimRenderFrom:()=>{},aimRenderCandEntrances:()=>{},AimMap:{center:()=>({latitude:35}),redraw:()=>{}},Number});
+ runInNewContext('(function(){'+html.slice(a,b)+'})()',{$,aim,aimRenderFrom:()=>{},aimRefreshSheetCands:()=>{},AimMap:{center:()=>({latitude:35}),redraw:()=>{}},Number});
  assert.equal($('aimLineTable').hidden,true);assert.equal(body.innerHTML,'');assert.equal($('aimLineInfo').textContent,'');assert.equal(aim.lines.length,0);
- // どこから重ねるかの「この日の候補地 Nか所」に前の目標の数を残さない（2026-10-06）
+ // どこから重ねるかの地点の画面に、前の目標の候補地を残さない（2026-10-06）
  assert.equal(aim.cands.length,0);
 });
 

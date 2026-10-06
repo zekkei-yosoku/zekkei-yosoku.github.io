@@ -268,9 +268,9 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   // 「どこに重ねるか」と対で「どこから重ねるか」。最初は絶景予測の地点を引き継いで欄に入れる（ユーザー指定）
   // 2026-10-06 何を→何に→どこからの順で、1行ずつ文にして選ぶ（ユーザー「〇〇（選択）を重ねる。〇〇（選択）に重ねる。〇〇（選択）から重ねる。」）。
   // どこからを最後にしたのは、その日の候補地が何を・何に・日付で決まるから（10/01 は一番上、10/04 は2番目だった）
-  { const ids=['aimBody','aimWhatLabel','aimTitle','aimWhereLabel','aimLimb','aimFromButton','aimFromLabel','aimObserverHeight','aimFromCands'];
+  { const ids=['aimBody','aimWhatLabel','aimTitle','aimWhereLabel','aimLimb','aimFromButton','aimFromLabel','aimObserverHeight'];
     const positions=ids.map(id=>html.indexOf('id="'+id+'"'));
-    ok(positions.every((p,i)=>p>0&&(!i||p>positions[i-1])), "何を→何に（部位・縁）→どこから（観測標高・この日の候補地）の順で選ぶ");
+    ok(positions.every((p,i)=>p>0&&(!i||p>positions[i-1])), "何を→何に（部位・縁）→どこから（観測標高）の順で選ぶ");
     ok(/<span class="aim-say-v" id="aimWhatLabel">を重ねる<\/span>/.test(html) && /<span class="aim-say-v" id="aimWhereLabel">に重ねる<\/span>/.test(html)
       && /<span class="aim-say-v" id="aimFromLabel">から重ねる<\/span>/.test(html) && !/aim-section-title/.test(html), "見出しの代わりに、欄の右に「を重ねる」「に重ねる」「から重ねる」");
     // 題名の中に「に重ねる」を入れたら 375px 以下で折れた。右は折らず、欄の側を省略する
@@ -555,7 +555,7 @@ ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れ�
   ok(/requestAnimationFrame\(\(\) => \{\s+AimMap\.open\(\.\.\.aimMapView\(\)\);/.test(html), "地図は aimMapView の中心で開く");
   ok(/if \(\(aim\.target\.parts \|\| \[\]\)\.length\) \{ aimRedrawLine\(\); aimRenderList\(\); \}\n  aimRenderFrom\(\);\n\}/.test(html),
     "目標の場所が無いときは、線と一覧を計算しない（「どこからも重なりません」と出さない）");
-  ok(/\$\("aimLineInfo"\)\.textContent = "";[\s\S]{0,400}\$\("aimCandBox"\)\.hidden = true;\s+\$\("aimListBox"\)\.hidden = true;\s+aim\.cands = \[\]; aim\.candBusy = false; aimRenderCandEntrances\(\);\s+return;\s+\}\s+\$\("aimCandBox"\)\.hidden = false;/.test(html),
+  ok(/\$\("aimLineInfo"\)\.textContent = "";[\s\S]{0,400}\$\("aimCandBox"\)\.hidden = true;\s+\$\("aimListBox"\)\.hidden = true;\s+aim\.cands = \[\]; aim\.candBusy = false; aimRefreshSheetCands\(\);\s+return;\s+\}\s+\$\("aimCandBox"\)\.hidden = false;/.test(html),
     "目標の場所が無いときは、候補地・定番スポットの見出しも出さない");
   {
     const mv = /function aimMapView\(\) \{[\s\S]*?\n\}/.exec(html)[0];
@@ -787,10 +787,7 @@ console.log("== 地点カードで探せると分かる（2026-10-01） ==");
 {
   const card = (html.match(/<button class="place-pick" id="placeButton">[\s\S]*?<\/button>/) || [""])[0];
   ok(/<circle cx="10\.5" cy="10\.5" r="6\.5"\/>/.test(card) && !/▾/.test(card), "地点カードの右は虫眼鏡（▾ ではない）");
-  ok(/showSheet\(\$\("placeSheet"\)\);\n(?:  \/\/[^\n]*\n)+  if \(!focus\) return;\n  \$\("searchBox"\)\.focus\(\);/.test(html)
-    && /function openPlaceSheet\(mode = null, \{ focus = true \} = \{\}\)/.test(html), "地点カードを押したら、検索欄にすぐ打てる");
-  // 「この日の候補地」から開いたときは打たない（キーボードで候補地が隠れる。2026-10-06）
-  ok(/\$\("aimFromCands"\)\.onclick = \(\) => openPlaceSheet\("aim", \{ focus: false \}\);/.test(html), "この日の候補地から開いたら、キーボードを出さない");
+  ok(/showSheet\(\$\("placeSheet"\)\);\n[^\n]*\n[^\n]*\n  \$\("searchBox"\)\.focus\(\);/.test(html), "地点カードを押したら、検索欄にすぐ打てる");
 }
 
 console.log("== 月を表すところは全部、その時の満ち欠け（2026-10-01） ==");
@@ -3094,22 +3091,14 @@ console.log("== どこから重ねるかで、この日の候補地から選ぶ�
     "どこから重ねるかで開いたときだけ出し、押すとそこがどこからになる");
   ok(/seg\.innerHTML = \$\("aimSideSeg"\)\.innerHTML;/.test(sheetFn) && /\$\("aimSideSeg"\)\.querySelector\(`\[data-side="\$\{b\.dataset\.side\}"\]`\)\?\.click\(\)/.test(sheetFn),
     "側の切り替えは撮影地の一覧と同じ（写して、押すとそちらを押す）");
-  ok(/function aimRenderCands\(\) \{\n  aimRenderCandList\(\);\n  aimRenderCandEntrances\(\);\n\}/.test(html), "撮影地の一覧と入口2つは同じ候補で描き直す（計算し直さない）");
+  ok(/function aimRenderCands\(\) \{\n  aimRenderCandList\(\);\n  aimRefreshSheetCands\(\);\n\}/.test(html)
+    && /function aimRefreshSheetCands\(\) \{\n  if \(\$\("placeSheet"\)\.open && placeSheetFor === "aim"\) aimRenderSheetCands\(\);\n\}/.test(html),
+    "撮影地の一覧と地点の画面の候補地は同じ候補で描き直す（開いている間に探し終わったら出る）");
   ok(/aimRenderSheetCands\(\);\n  showSheet\(\$\("placeSheet"\)\);/.test(html), "地点の画面を開くたびに描く");
-  const ent = /function aimRenderCandEntrances\(\) \{[\s\S]*?\n\}/.exec(html)[0];
-  const els = {}; const $ = (id) => (els[id] ||= { hidden: false, textContent: "", open: false });
-  const run = (state) => new Function("aim", "$", "placeSheetFor", "aimRenderSheetCands", ent + "; aimRenderCandEntrances();")(state, $, null, () => {});
-  run({ target: { parts: [1] }, cands: [], candBusy: true });
-  ok($("aimFromCands").hidden && $("aimFromCandsNote").textContent === "この日の候補地を探しています…", "探している間は、そう書く");
-  run({ target: { parts: [1] }, cands: [], candBusy: false });
-  ok($("aimFromCands").hidden && $("aimFromCandsNote").textContent === "この日の候補地はありません", "0か所なら、そう書く");
-  run({ target: { parts: [1] }, cands: [1, 2, 3], candBusy: false });
-  ok(!$("aimFromCands").hidden && $("aimFromCands").textContent === "この日の候補地 3か所 ›" && $("aimFromCandsNote").textContent === "", "あれば数を出す");
-  run({ target: { parts: [] }, cands: [1], candBusy: false });
-  ok($("aimFromCands").hidden && $("aimFromCandsNote").textContent === "", "目標が決まっていなければ何も書かない（上の案内と重ねない）");
-  ok(/\.aim-from-cands \{[^}]*min-height: 44px;/.test(html), "入口の行は高さを取っておく（探し終わって下の日付の帯が動かない）");
-  // 探している印は、線の計算・候補地探しの始まりで立て、終わり・失敗・目標なしで下ろす
-  ok((html.match(/aim\.candBusy = true; aimRenderCandEntrances\(\);/g) || []).length === 2 && /aim\.cands = shown;\n  aim\.candBusy = false;/.test(html),
+  // どこから行の下に「この日の候補地 Nか所 ›」を置いたが、カードを押せば同じ候補地が出るので外した（2026-10-06 ユーザー「このボタンはいらないんじゃない？」）
+  ok(!/id="aimFromCands"|aim-from-cands/.test(html), "どこからの入口はカード1つ（候補地だけの釦を足さない）");
+  // 探している印は、線の計算・候補地探しの始まりで立て、終わり・失敗・目標なしで下ろす（地点の画面の「探しています」）
+  ok((html.match(/aim\.candBusy = true; aimRefreshSheetCands\(\);/g) || []).length === 2 && /aim\.cands = shown;\n  aim\.candBusy = false;/.test(html),
     "探している印を立てて、終わったら下ろす");
   const pick = /function aimFromCandidate\(c\) \{[\s\S]*?\n\}/.exec(html)[0];
   const alignSrc = fs.readFileSync(new URL("./sorami-align.js", import.meta.url), "utf8");
