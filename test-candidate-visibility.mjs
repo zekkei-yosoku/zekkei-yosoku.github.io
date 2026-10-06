@@ -95,13 +95,17 @@ test('水域取得不能は陸上と読み替えない', async () => {
   assert.equal(await onLand(candidate('a'), [], {}), null);
   assert.equal((await onLand({ ...candidate('bridge'), place: { kind: '橋' } }, [], {})).place.kind, '橋');
 });
-test('高さ不明建物の下限を屋根の高さとして合格にしない', async () => {
+test('建物は種別下限で遮る場合に除外し、高さ不明だけで候補を全滅させない', async () => {
   const ctx = { aim: { target, partId: 'tip' }, aimIsFuji: () => true,
     aimNearBuildings: async () => [{ heightUnknown: true }], SoramiAlign: { buildingBlock: () => ({ by: null }) } };
   const blocks = runInNewContext(grab('async function aimBuildingBlocks') + ';aimBuildingBlocks', ctx);
-  assert.equal((await blocks([candidate('a')]))[0], null);
+  const c = { ...candidate('a'), targetAngle: 5, altitude: 1 };
+  assert.equal((await blocks([c]))[0], false);
+  ctx.SoramiAlign.buildingBlock = () => ({ by: { id: 'known-low-rise' }, marginDeg: 0 });
+  assert.equal((await blocks([c]))[0], true);
+  ctx.SoramiAlign.buildingBlock = () => ({ by: null });
   ctx.aimNearBuildings = async () => [];
-  assert.equal((await blocks([candidate('a')]))[0], false);
+  assert.equal((await blocks([c]))[0], false);
 });
 test('公園の名前や一般の山頂・峠だけで開けた撮影点とみなさない', () => {
   const supported = runInNewContext(grab('function aimCandidateSiteSupported') + ';aimCandidateSiteSupported');

@@ -1920,24 +1920,24 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261006110429"></script>
+<script src="sorami-core.js?v=20261006114452"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261006110429"></script>
-<script src="sorami-exif.js?v=20261006110429"></script>
-<script src="sorami-capcloud.js?v=20261006110429"></script>
-<script src="sorami-terrain.js?v=20261006110429"></script>
-<script src="sorami-mountain.js?v=20261006110429"></script>
-<script src="sorami-fuji.js?v=20261006110429"></script>
-<script src="sorami-sky.js?v=20261006110429"></script>
-<script src="sorami-routes.js?v=20261006110429"></script>
-<script src="sorami-iss.js?v=20261006110429"></script>
-<script src="sorami-plane.js?v=20261006110429"></script>
-<script src="sorami-refraction.js?v=20261006110429"></script>
-<script src="sorami-atmosphere.js?v=20261006110429"></script>
-<script src="sorami-bodies.js?v=20261006110429"></script>
-<script src="sorami-align.js?v=20261006110429"></script>
-<script src="sorami-moon.js?v=20261006110429"></script>
+<script src="sorami-astro.js?v=20261006114452"></script>
+<script src="sorami-exif.js?v=20261006114452"></script>
+<script src="sorami-capcloud.js?v=20261006114452"></script>
+<script src="sorami-terrain.js?v=20261006114452"></script>
+<script src="sorami-mountain.js?v=20261006114452"></script>
+<script src="sorami-fuji.js?v=20261006114452"></script>
+<script src="sorami-sky.js?v=20261006114452"></script>
+<script src="sorami-routes.js?v=20261006114452"></script>
+<script src="sorami-iss.js?v=20261006114452"></script>
+<script src="sorami-plane.js?v=20261006114452"></script>
+<script src="sorami-refraction.js?v=20261006114452"></script>
+<script src="sorami-atmosphere.js?v=20261006114452"></script>
+<script src="sorami-bodies.js?v=20261006114452"></script>
+<script src="sorami-align.js?v=20261006114452"></script>
+<script src="sorami-moon.js?v=20261006114452"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5059,7 +5059,7 @@ $("favDelete").onclick = () => {
 // 文字の地点検索（市区町村の代表点）では精度が足りない。その穴を埋めるための画面。
 /// 地図の種類（国土地理院のタイル）。キーは保存してあるので変えない（map・photo）
 const MAP_LAYERS = {
-  map: { key: "pale", ext: "png", maxZ: 17, label: "標準" },
+  map: { key: "pale", ext: "png", maxZ: 18, label: "標準" },
   photo: { key: "seamlessphoto", ext: "jpg", maxZ: 18, label: "航空写真" },
   // 陰影起伏図は z16 まで。淡色地図に掛け合わせる
   terrain: { key: "pale", ext: "png", maxZ: 16, label: "地形", shade: { key: "hillshademap", ext: "png" } },
@@ -7416,7 +7416,6 @@ async function aimBuildingBlocks(cands) {
     if (!near) return null;
     if (hidden(SoramiAlign.buildingBlock(obs, t, near, { partId: aim.partId, eyeAboveGroundM: eyeAbove, maxKm: 1 }))) return true;
     // 種別の下限で遮られないことは、実際の屋根より上を見通せる根拠にならない。
-    if (near.some((b) => b.heightUnknown)) return null;
     if (aimIsFuji()) return false;
     // 首都圏の外の候補地は、同梱の一覧に建物が無いので確かめていない（「隠れない」とは言わない）
     if (!all || !tallCovers(all, c.stand.latitude, c.stand.longitude)) return null;

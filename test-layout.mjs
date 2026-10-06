@@ -758,7 +758,7 @@ console.log("== ねらう: その日の候補地（2026-09-30） ==");
   ok(candidateFind.includes("shown.some((k) => k.side === c.side"), "確認後の立つ点で側ごとに重複を除く");
   {
     const bb = /async function aimBuildingBlocks\(cands\) \{[\s\S]*?\n\}/.exec(html)[0], nb = /async function aimNearBuildings\(c, base\) \{[\s\S]*?\n\}/.exec(html)[0];
-    ok(bb.includes("if (!near) return null;") && bb.includes("near.some((b) => b.heightUnknown)"), "建物の欠測や高さ不明は見通せると扱わない");
+    ok(bb.includes("if (!near) return null;") && !bb.includes("near.some((b) => b.heightUnknown)"), "高さ不明だけで候補を全滅させず、遮蔽する下限建物と取得欠測は除外する");
     ok(nb.includes("g.length !== got.length") && nb.includes("heightM: b.minHeightM + g[i] - base"), "建物の地面の欠測も保留し、標高差を足す");
     ok(bb.includes("const limit = Math.max(0, c.targetAngle - c.altitude);"), "目標と天体の低い方で建物を確認する");
     ok(bb.includes("const base = c.stand.elevationM - (c.place.bridgeM || 0);"), "橋の高さは二重に足さない");
@@ -777,6 +777,7 @@ console.log("== ねらう: その日の候補地（2026-09-30） ==");
   }
   ok(!/建物で隠れるかは/.test(html), "建物の断り書きは出さない（2026-10-03 ユーザーが選んだ「いらない説明文」）");
 }
+ok(/map: \{ key: "pale", ext: "png", maxZ: 18/.test(html), "標準地図を国土地理院タイルの最大ズームまで使う");
 
 console.log("== 地点検索: 山・峠・展望地の索引（2026-09-30） ==");
 {
