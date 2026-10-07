@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url),A=require('./sorami-align.js'),TR=require('./sorami-terrain.js');
-const ids=['shibuya-sky','azabudai-hills','kabukicho-tower','cocoon-tower'];
-test('公式4施設の絶対座標・標高と、方位による輪郭変化を保つ',()=>{
+const ids=['shibuya-sky','azabudai-hills','kabukicho-tower'];
+test('公式3施設の絶対座標・標高と、方位による輪郭変化を保つ',()=>{
  for(const id of ids){const t=A.targetById(id),m=A.CITY_MODELS[id];
   assert.equal(m.vertices.length,m.geoVertices.length);assert.equal(m.provenance.rescaled,false);
   assert.ok(m.sourceUrl.startsWith('https://www.geospatial.jp/ckan/dataset/plateau-'));

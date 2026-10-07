@@ -1952,28 +1952,28 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261008033830"></script>
+<script src="sorami-core.js?v=20261008035437"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261008033830"></script>
-<script src="sorami-exif.js?v=20261008033830"></script>
-<script src="sorami-capcloud.js?v=20261008033830"></script>
-<script src="sorami-terrain.js?v=20261008033830"></script>
-<script src="sorami-mountain.js?v=20261008033830"></script>
-<script src="sorami-fuji.js?v=20261008033830"></script>
-<script src="sorami-sky.js?v=20261008033830"></script>
+<script src="sorami-astro.js?v=20261008035437"></script>
+<script src="sorami-exif.js?v=20261008035437"></script>
+<script src="sorami-capcloud.js?v=20261008035437"></script>
+<script src="sorami-terrain.js?v=20261008035437"></script>
+<script src="sorami-mountain.js?v=20261008035437"></script>
+<script src="sorami-fuji.js?v=20261008035437"></script>
+<script src="sorami-sky.js?v=20261008035437"></script>
 
-<script src="sorami-plan.js?v=20261008033830"></script>
-<script src="sorami-routes.js?v=20261008033830"></script>
-<script src="sorami-iss.js?v=20261008033830"></script>
-<script src="sorami-plane.js?v=20261008033830"></script>
-<script src="sorami-refraction.js?v=20261008033830"></script>
-<script src="sorami-atmosphere.js?v=20261008033830"></script>
-<script src="sorami-bodies.js?v=20261008033830"></script>
-<script src="sorami-city-models.js?v=20261008033830"></script>
-<script src="sorami-tower-models.js?v=20261008033830"></script>
-<script src="sorami-align.js?v=20261008033830"></script>
-<script src="sorami-moon.js?v=20261008033830"></script>
+<script src="sorami-plan.js?v=20261008035437"></script>
+<script src="sorami-routes.js?v=20261008035437"></script>
+<script src="sorami-iss.js?v=20261008035437"></script>
+<script src="sorami-plane.js?v=20261008035437"></script>
+<script src="sorami-refraction.js?v=20261008035437"></script>
+<script src="sorami-atmosphere.js?v=20261008035437"></script>
+<script src="sorami-bodies.js?v=20261008035437"></script>
+<script src="sorami-city-models.js?v=20261008035437"></script>
+<script src="sorami-tower-models.js?v=20261008035437"></script>
+<script src="sorami-align.js?v=20261008035437"></script>
+<script src="sorami-moon.js?v=20261008035437"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -10678,7 +10678,8 @@ function restoreSharedPlan() {
   if(p.kind==='detail'){const changed=place.latitude!==p.o[1]||place.longitude!==p.o[2];place=SoramiPlan.expandPoint(p.o);return changed && bundle ? 'reload' : undefined;}
   const builtin=SoramiAlign.targetById(p.t.id);
   // Keep the sender's chosen heights, without modifying saved favorites or custom targets.
-  aim.sharedTarget={...(builtin || {}),...p.t,id:builtin?.id || 'shared'};
+  const retainedId=p.t.id==='cocoon-tower'&&SoramiAlign.CITY_MODELS[p.t.id]?p.t.id:null;
+  aim.sharedTarget={...(builtin || {}),...p.t,id:builtin?.id || retainedId || 'shared'};
   aim.body=p.body;aim.limb=p.limb;aim.partId=p.part;aim.limbsByBody[p.body]=p.limb;
   aim.from={...aimSavedFrom(SoramiPlan.expandPoint(p.o)),groundManualM:p.o[3],standAglM:p.o[4]};
   aimLens.on=p.l.on;aimLens.mode='manual';aimLens.focal=p.l.focal;aimLens.sensor=p.l.sensor;aimLens.portrait=p.l.portrait;aimLens.grid=p.l.grid;

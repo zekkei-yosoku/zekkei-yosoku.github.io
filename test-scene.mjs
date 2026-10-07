@@ -7,7 +7,7 @@ const require=createRequire(import.meta.url),AL=require('./sorami-align.js'),S=r
 const observer={latitude:35.58386,longitude:139.56853,elevation:83},at=Date.parse('2026-10-03T06:00:00+09:00');
 test('全既定目標の輪郭を同じ地点から作り、遠い順・重複なし・未設定拒否',()=>{
  const scene=AL.sceneTargets(observer,[...AL.TARGETS,AL.TARGETS[1],{id:'empty',parts:[]}]);
- assert.equal(scene.length,10);assert.equal(new Set(scene.map(x=>x.target.id)).size,10);assert.deepEqual(new Set(scene.map(x=>x.target.id)),new Set(AL.TARGETS.map(x=>x.id)));assert.ok(scene.some(x=>x.target.id==="tocho-building"));
+ assert.equal(scene.length,9);assert.equal(new Set(scene.map(x=>x.target.id)).size,9);assert.deepEqual(new Set(scene.map(x=>x.target.id)),new Set(AL.TARGETS.map(x=>x.id)));assert.ok(scene.some(x=>x.target.id==="tocho-building"));
  assert.ok(scene.every((x,i)=>Number.isFinite(x.topAngle)&&(!i||scene[i-1].distanceKm>=x.distanceKm)));
  assert.ok(scene.find(x=>x.target.id==='skytree').outline.points.length>20);
  assert.ok(scene.find(x=>x.target.id==='tokyotower').outline.points.length>20);

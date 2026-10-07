@@ -56,7 +56,6 @@
     {"id":"shibuya-sky","name":"渋谷スカイ","latitude":35.65838377760082,"longitude":139.70226592899252,"groundM":14.61,"note":"PLATEAU LOD2の標高と輪郭。屋上付属物を含み、現地との高さ・細部の差はあります。","parts":[{"id":"tip","name":"屋上（SKY STAGE）","m":243.637,"latitude":35.65838377760082,"longitude":139.70226592899252}]},
     {"id":"azabudai-hills","name":"麻布台ヒルズ 森JPタワー","latitude":35.6608543555483,"longitude":139.7406558121773,"groundM":18.74,"note":"PLATEAU LOD2の標高と輪郭。屋上付属物を含み、現地との高さ・細部の差はあります。","parts":[{"id":"tip","name":"頂部","m":349.558,"latitude":35.6608543555483,"longitude":139.7406558121773}]},
     {"id":"kabukicho-tower","name":"東急歌舞伎町タワー","latitude":35.69610448807164,"longitude":139.70068955167807,"groundM":29.999,"note":"PLATEAU LOD2の標高と輪郭。屋上付属物を含み、現地との高さ・細部の差はあります。","parts":[{"id":"tip","name":"頂部","m":249.772,"latitude":35.69610448807164,"longitude":139.70068955167807}]},
-    {"id":"cocoon-tower","name":"モード学園コクーンタワー","latitude":35.69160084895018,"longitude":139.69694680085274,"groundM":38.818,"note":"PLATEAU LOD2の標高と輪郭。屋上付属物を含み、現地との高さ・細部の差はあります。","parts":[{"id":"tip","name":"頂部","m":250.676,"latitude":35.69160084895018,"longitude":139.69694680085274}]},
     // 位置は OpenStreetMap の建物の中心（35.6320784, 139.8808364）とユーザーの座標が3mで合う所。
     // 2026-10-02 まで 95m 北西（35.632896, 139.880394）に置いていて、3km 先からの方角が 1° 以上（月2つ分）ずれていた
     { id: "cinderella", name: "シンデレラ城", latitude: 35.632104, longitude: 139.880834,
