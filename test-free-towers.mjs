@@ -7,7 +7,7 @@ function view(id,bearing=0){const t=A.targetById(id),obs={...T.destination(t.lat
 test('無料2塔は方位で形が変わり、公表高さを保つ',()=>{
  for(const id of ['tokyotower','skytree']){
   const a=view(id,0),b=view(id,45),width=o=>Math.max(...o.points.map(p=>p[0]))-Math.min(...o.points.map(p=>p[0]));
-  assert.notEqual(width(a.o),width(b.o));assert.equal(a.o.modelId,id+'-drawing-envelope-v'+(id==='skytree'?3:2));
+  assert.notEqual(width(a.o),width(b.o));assert.equal(a.o.modelId,id+'-drawing-envelope-v'+3);
   assert.equal(a.o.polygons,a.o.hitPolygons);assert.ok(a.o.points.every(p=>p.every(Number.isFinite)));
   assert.ok(a.o.sourceLabel.includes('推定'));assert.ok(a.o.approximate);
   const expected=A.geometryFrom(a.obs,a.t).angle;assert.ok(Math.abs(a.o.topAngle-expected)<1e-9);
@@ -68,4 +68,26 @@ test('アーチは傾斜脚の構面に収まり、外側に浮かない',()=>{
 test('スカイツリー天望デッキは上へ広がる逆円錐と広い上端',()=>{
  const m=require('./sorami-tower-models.js').skytree,r=z=>m.vertices.filter(v=>Math.abs(v[2]-z)<.001).map(v=>Math.hypot(v[0],v[1]));
  assert.ok(Math.max(...r(375))>28.9);assert.ok(Math.max(...r(334))<17);assert.ok(Math.max(...r(350))<23);assert.ok(Math.max(...r(371))>29);assert.match(m.provenance.deckProfileReference,/photo/);
+});
+
+
+test('東京タワー上展望台は現行外装断面の円形で脚を包む',()=>{
+ const m=require('./sorami-tower-models.js').tokyotower;
+ const face=m.faces.find(f=>f.length===128&&Math.abs(m.vertices[f[0]][2]-223.672)<.001);
+ assert.ok(face,'64分割の円形展望台');
+ const ring=face.slice(0,64).map(i=>m.vertices[i]);
+ for(const p of ring)assert.ok(Math.abs(Math.hypot(p[0],p[1])-7.736703)<.0001);
+ for(let deg=0;deg<360;deg+=5){const a=deg*Math.PI/180,px=ring.map(p=>p[0]*Math.cos(a)+p[1]*Math.sin(a));assert.ok(Math.abs(Math.max(...px)-Math.min(...px)-15.473406)<.02);}
+ const support=m.faces.filter(f=>f.length===8).flatMap(f=>f.map(i=>m.vertices[i])).filter(p=>p[2]>=220&&p[2]<=230);
+ for(const p of support){const roofR=p[2]<=226.333?7.736703:7.736703+(6.851784-7.736703)*(p[2]-226.333)/(229.55-226.333);assert.ok(Math.hypot(p[0],p[1])<=roofR+.1,'支持脚が外装を突き抜けない');}
+});
+
+
+test('東京タワー現行メイン外装と上部支持に架空の横スリットを作らない',()=>{
+ const m=require('./sorami-tower-models.js').tokyotower;
+ const main=m.faces.find(f=>f.length===16&&Math.abs(m.vertices[f[0]][2]-119.943)<.0001);
+ assert.ok(main);const z=main.map(i=>m.vertices[i][2]);assert.equal(Math.max(...z),130.389);
+ assert.ok(Math.max(...main.map(i=>Math.hypot(...m.vertices[i].slice(0,2))))>19,'元外装の幅を維持');
+ const supports=m.faces.filter(f=>f.length===8).flatMap(f=>f.map(i=>m.vertices[i]));
+ assert.ok(supports.some(p=>Math.abs(p[2]-223.672)<.0001),'支持が円形外装の下端まで届く');
 });

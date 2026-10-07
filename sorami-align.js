@@ -1374,7 +1374,7 @@
     };
     const ppm=calibration.pixelsPerM,pxX=x=>(x-646)/ppm,pxZ=y=>51-(y-724)/ppm;
     const box = (x,y,w,d,z0,z1) => solids.push([z0,z1].flatMap(z => [-1,1].flatMap(a => [-1,1].map(b => [x+a*w/2,y+b*d/2,z]))));
-    const band = (x,y,z0,r0,z1,r1) => solids.push([[z0,r0],[z1,r1]].flatMap(([z,r]) => Array.from({length:16},(_,i) => [x+r*Math.cos(i*Math.PI/8),y+r*Math.sin(i*Math.PI/8),z])));
+    const band = (x,y,z0,r0,z1,r1) => solids.push([[z0,r0],[z1,r1]].flatMap(([z,r]) => Array.from({length:64},(_,i) => [x+r*Math.cos(i*Math.PI/32),y+r*Math.sin(i*Math.PI/32),z])));
     const profile = (cx,depth,stations) => {
       const rows=stations.map(([y,r])=>[Math.max(0,pxZ(y)),r/ppm]).sort((a,b)=>a[0]-b[0]);
       rows.unshift([0,rows[0][1]]);
@@ -1399,7 +1399,7 @@
     }
     box(0,-6,24,2,0,8);box(0,6,24,2,0,8);box(-11,0,2,12,0,8);box(11,0,2,12,0,8);
     for(const y of [-6,6])for(let x=-11;x<=11;x+=2)box(x,y,.8,2,8,8.7);
-    return {id:"cinderella-photo-v2",heightM:51,approximate:true,calibration,solids};
+    return {id:"cinderella-photo-v3",heightM:51,approximate:true,calibration,solids};
   })();
 
   // 出典：Project PLATEAU 新宿区（2025年度）

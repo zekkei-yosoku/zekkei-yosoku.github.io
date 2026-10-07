@@ -1952,28 +1952,28 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261008030924"></script>
+<script src="sorami-core.js?v=20261008033830"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261008030924"></script>
-<script src="sorami-exif.js?v=20261008030924"></script>
-<script src="sorami-capcloud.js?v=20261008030924"></script>
-<script src="sorami-terrain.js?v=20261008030924"></script>
-<script src="sorami-mountain.js?v=20261008030924"></script>
-<script src="sorami-fuji.js?v=20261008030924"></script>
-<script src="sorami-sky.js?v=20261008030924"></script>
+<script src="sorami-astro.js?v=20261008033830"></script>
+<script src="sorami-exif.js?v=20261008033830"></script>
+<script src="sorami-capcloud.js?v=20261008033830"></script>
+<script src="sorami-terrain.js?v=20261008033830"></script>
+<script src="sorami-mountain.js?v=20261008033830"></script>
+<script src="sorami-fuji.js?v=20261008033830"></script>
+<script src="sorami-sky.js?v=20261008033830"></script>
 
-<script src="sorami-plan.js?v=20261008030924"></script>
-<script src="sorami-routes.js?v=20261008030924"></script>
-<script src="sorami-iss.js?v=20261008030924"></script>
-<script src="sorami-plane.js?v=20261008030924"></script>
-<script src="sorami-refraction.js?v=20261008030924"></script>
-<script src="sorami-atmosphere.js?v=20261008030924"></script>
-<script src="sorami-bodies.js?v=20261008030924"></script>
-<script src="sorami-city-models.js?v=20261008030924"></script>
-<script src="sorami-tower-models.js?v=20261008030924"></script>
-<script src="sorami-align.js?v=20261008030924"></script>
-<script src="sorami-moon.js?v=20261008030924"></script>
+<script src="sorami-plan.js?v=20261008033830"></script>
+<script src="sorami-routes.js?v=20261008033830"></script>
+<script src="sorami-iss.js?v=20261008033830"></script>
+<script src="sorami-plane.js?v=20261008033830"></script>
+<script src="sorami-refraction.js?v=20261008033830"></script>
+<script src="sorami-atmosphere.js?v=20261008033830"></script>
+<script src="sorami-bodies.js?v=20261008033830"></script>
+<script src="sorami-city-models.js?v=20261008033830"></script>
+<script src="sorami-tower-models.js?v=20261008033830"></script>
+<script src="sorami-align.js?v=20261008033830"></script>
+<script src="sorami-moon.js?v=20261008033830"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7839,10 +7839,26 @@ function aimLookSolidSilhouette(polygons) {
   // 向きが逆の部品が重なっても相殺しない。1つのcompound pathにしない。
   for(const poly of polygons){c.beginPath();c.moveTo(...poly[0]);for(const p of poly)c.lineTo(...p);c.closePath();c.fill();}
   c.resetTransform();const image=c.getImageData(0,0,w,h),data=image.data,n=w*h;
-  const outside=new Uint8Array(n),queue=new Int32Array(n);let head=0,tail=0,filled=0;
-  const visit=i=>{if(!outside[i]&&data[i*4+3]===0){outside[i]=1;queue[tail++]=i;}};
+  // 横の透明ランを一度だけ登録する。画素数ぶんのキューを確保せず、必要時に拡張。
+  const outside=new Uint8Array(n);let queue=new Int32Array(Math.min(n*2,Math.max(w,h)*4)),head=0,tail=0,filled=0;
+  const empty=i=>!outside[i]&&data[i*4+3]===0;
+  const visit=i=>{
+    if(!empty(i))return;
+    const row=Math.floor(i/w)*w;let left=i,right=i;
+    while(left>row&&empty(left-1))left--;
+    while(right<row+w-1&&empty(right+1))right++;
+    outside.fill(1,left,right+1);
+    if(tail+2>queue.length){const next=new Int32Array(Math.min(n*2,queue.length*2));next.set(queue);queue=next;}
+    queue[tail++]=left;queue[tail++]=right;return right;
+  };
   for(let i=0;i<w;i++){visit(i);visit((h-1)*w+i);}for(let j=1;j<h-1;j++){visit(j*w);visit(j*w+w-1);}
-  while(head<tail){const i=queue[head++],col=i%w;if(col)visit(i-1);if(col<w-1)visit(i+1);if(i>=w)visit(i-w);if(i<n-w)visit(i+w);}
+  while(head<tail){
+    const left=queue[head++],right=queue[head++];
+    for(const offset of [-w,w]){
+      if(left+offset<0||right+offset>=n)continue;
+      for(let i=left+offset;i<=right+offset;i++){if(empty(i))i=visit(i);}
+    }
+  }
   for(let i=0;i<n;i++)if(!outside[i]){
     const col=i%w,edge=(col&&outside[i-1])||(col<w-1&&outside[i+1])||(i>=w&&outside[i-w])||(i<n-w&&outside[i+w]);
     if(!edge){if(data[i*4+3]===0)filled++;data[i*4+3]=255;}

@@ -2,7 +2,7 @@
 """Own approximate geometry; no third-party model assets. Units: east,north,up meters.
 Dimensions: published tower dimensions and drawing/LOD2 deck envelopes and SKYTREE 68 m equilateral footprint.
 PLATEAU 2025 used to check geographic orientation/envelope, not a measured lattice.
-Member spacing, thickness, decks' outer profiles and curvature are estimates.
+Member spacing, thickness and curvature are estimates. Both Tokyo deck exteriors are fitted to PLATEAU sections.
 """
 import math,json
 from pathlib import Path
@@ -26,7 +26,7 @@ def interp(profile,h):
   if a<=h<=b:return x+(y-x)*(h-a)/(b-a)
  return profile[-1][1]
 
-t=model('tokyotower',333);rot=math.radians(55.872276)
+t=model('tokyotower',333);t['id']='tokyotower-drawing-envelope-v3';rot=math.radians(55.872276)
 t['provenance'].update({'footSpacingM':80,'foundationOuterWidthM':88,'rotationEastNorthCCWDeg':55.872276,'cornerBearingDeg':79.127724,'orientationFitRmsDeg':2.410756,'groundAssumptionM':18,'drawingSourceUrl':'https://www.usao.jp/usao/内藤多仲カルテ/資料全部/カルテ6-1-3.pdf','deckFloorEstimateAglM':[125,223.55],'orientationReference':'PLATEAU tower body cross-section near z=149.408m','outlineReference':'東京タワー設計と計測 図2・図10','deckEnvelopeSeaM':[148.389,247.55],'nominalLabelM':[150,250]})
 # Estimated curved four-legged envelope, calibrated to official overall/deck heights.
 # Fig.2 and Fig.10: 80 m above-ground foot spacing, 88 m foundation exterior. The above-ground
@@ -35,9 +35,9 @@ t['provenance'].update({'footSpacingM':80,'foundationOuterWidthM':88,'rotationEa
 profile=[(0,40),(20,30.5),(40,23),(60,17),(80,14),(100,12),(120,10.5),(130.389,10),(160,8),(200,5.7),(223.55,4.8),(229.55,4.5),(252.65,1.5)]
 def square(h):
  r=interp(profile,h);return [[x*math.cos(rot)-y*math.sin(rot),x*math.sin(rot)+y*math.cos(rot),h] for x,y in [(-r,-r),(r,-r),(r,r),(-r,r)]]
-levels=[0,10,20,30,40,50,60,70,80,90,100,110,120,130.389,140,150,160,170,180,190,200,210,220,223.55,229.55,240,252.65]
+levels=[0,10,20,30,40,50,60,70,80,90,100,110,120,130.389,140,150,160,170,180,190,200,210,220,223.672,229.55,240,252.65]
 for a,b in zip(levels,levels[1:]):
- if a==120 or a==223.55:continue
+ if a==120 or a==223.672:continue
  low,up=square(a),square(b);w=1.3 if a<80 else .65 if a<223.55 else .35
  for i in range(4):
   n=(i+1)%4;beam(t,low[i],up[i],w)
@@ -57,9 +57,18 @@ def octagon(m,z0,z1,width0,width1,rot):
   h=w/2;c=h*(math.sqrt(2)-1)
   return [[x*math.cos(rot)-y*math.sin(rot),x*math.sin(rot)+y*math.cos(rot),z] for x,y in [(-c,-h),(c,-h),(h,-c),(h,c),(c,h),(-c,h),(-h,c),(-h,-c)]]
  add(m,pts(z0,width0)+pts(z1,width1))
-octagon(t,120,125,27,28,rot);octagon(t,125,130.389,28,29,rot)
-octagon(t,223.55,229.55,13,13,rot)
-box(t,23.465,120,1.4,1.4,rot);box(t,130.389,223.55,1.0,1.0,rot)
+# Current main-deck exterior: two eight-corner PLATEAU rings; source centre retained as local origin.
+add(t,[[-18.487472, -1.184175, 119.943], [-17.348771, -6.647724, 119.943], [0.422256, -18.358603, 119.943], [6.116397, -17.287869, 119.943], [18.35624, 1.228005, 119.943], [17.528751, 6.114876, 119.943], [-0.575402, 18.323182, 119.943], [-6.015033, 17.483457, 119.943], [-19.201857, -1.044341, 130.389], [-17.948782, -7.059662, 130.389], [0.28004, -19.072156, 130.389], [6.517525, -17.898586, 130.389], [19.061643, 1.079129, 130.389], [18.141765, 6.510769, 130.389], [-0.419192, 19.02872, 130.389], [-6.408179, 18.102208, 130.389]])
+t['provenance']['mainDeckExteriorSeaM']=[137.943,148.389]
+t['provenance']['mainDeckExteriorSource']='PLATEAU 2025 tower exterior rings; local origin at upper deck source centre; target centre offset remains approximate'
+# Operator's 2018 facility description: the upper deck is circular.
+cylinder(t,223.672,226.333,7.736703,7.736703,64)
+cylinder(t,226.333,229.55,7.736703,6.851784,64)
+t['provenance']['topDeckShape']='circular; current PLATEAU exterior sampled at three elevations; 13m historical diameter is not the current exterior diameter'
+t['provenance']['topDeckExteriorStationsAglM']=[[223.672,7.736703],[226.333,7.736703],[229.55,6.851784]]
+t['provenance']['topDeckExteriorRadiusFitSpreadM']=.033
+t['provenance']['topDeckShapeSource']='https://kyodonewsprwire.jp/release/201801119812'
+box(t,23.465,120,1.4,1.4,rot);box(t,130.389,223.672,1.0,1.0,rot)
 # Original tower's 253 m body + 80 m aerial. Antenna equipment changed later;
 # member thickness and current aerial detail remain estimated.
 box(t,252.65,300,1.5,1.0,rot);box(t,300,313,1.0,.75,rot)
