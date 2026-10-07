@@ -1161,7 +1161,7 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 #aimView .preview-datetime-footer{position:fixed;z-index:35;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid rgba(0,0,0,.16);box-shadow:0 -4px 16px rgba(0,0,0,.12);padding:2px max(12px,env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
 #aimView .preview-datetime-footer .aim-date{display:grid;grid-template-columns:32px auto minmax(0,1fr) 32px 32px;align-items:center;gap:2px;max-width:780px;margin:0 auto;padding:0;border:0}
 #aimView .preview-datetime-footer #aimPrev,#aimView .preview-datetime-footer #aimNext,#aimView .preview-datetime-footer .preview-time-more{width:32px;min-width:32px;min-height:40px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--text);font-size:20px;line-height:1}
-#aimView .preview-datetime-footer #aimCalendarOpen{min-height:40px;padding:0 4px;border:0;background:transparent;justify-content:flex-start;font-size:14px;font-weight:700}
+#aimView .preview-datetime-footer #aimCalendarOpen{min-height:40px;padding:0 4px;border:0;background:transparent;justify-content:flex-start;font-size:18px;font-weight:700}
 #aimView .preview-datetime-footer .preview-date-time{justify-self:end;max-width:100%;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;border:0;border-radius:0;background:transparent;overflow:visible}
 #aimView .preview-datetime-footer #previewTime{flex:none;width:auto;min-height:24px;padding:0 4px;border:0;background:transparent;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center}
 [data-theme=dark] #aimView .preview-datetime-footer{background:#2c2c2e;border-top-color:rgba(255,255,255,.2);box-shadow:0 -6px 20px rgba(0,0,0,.7)}
@@ -1172,7 +1172,7 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 #aimView .aim-look-time,#aimView .preview-map-time>input,#aimView .preview-map-time output,#aimView .preview-map-time .aim-time-heading>span{display:none}#aimView .preview-map-time .aim-time-heading{justify-content:flex-end}
 #aimView .preview-time-dialog .sheet-body{display:grid;gap:8px}#aimView .preview-time-dialog .tiny{margin:8px 0 0;color:var(--secondary)}#aimView .preview-time-dialog #previewReference{width:100%;min-height:44px;border:1px solid var(--line);border-radius:8px;font-size:15px}#aimView .preview-time-dialog #previewTimeScope{width:100%;margin:0}#aimView .preview-time-dialog #previewTimeScope button{flex:1}
 #aimView .preview-datetime-footer .preview-date-weekday{display:inline}
-@media(max-width:359px){#aimView .preview-datetime-footer #aimCalendarOpen{font-size:12px;padding:0 2px}#aimView .preview-datetime-footer #previewTime{font-size:15px;padding:0 2px}}
+@media(max-width:359px){#aimView .preview-datetime-footer .preview-date-weekday{display:none}#aimView .preview-datetime-footer #aimCalendarOpen{font-size:17px;padding:0 2px}#aimView .preview-datetime-footer #previewTime{font-size:15px;padding:0 2px}}
 @media(min-width:960px){#aimView .preview-datetime-footer{left:50%;right:auto;width:min(780px,calc(100vw - 40px));transform:translateX(-50%);border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0}}
 /* 画角調整の各行は項目名の列幅をそろえ、選択欄の左端を一列にする（2026-10-05 総点検。名前の長さで72〜135pxにばらついていた） */
 #aimView .preview-camera-dialog .aim-grid-control,#aimView .preview-camera-dialog .aim-lens-row{display:grid;grid-template-columns:7.5rem minmax(0,1fr);align-items:center;gap:10px}#aimView .preview-camera-dialog .preview-sensor-label{font-size:14px}#aimView .preview-camera-dialog .aim-lens-row select,#aimView .preview-camera-dialog .aim-grid-control select{width:100%;min-width:0}
@@ -1952,26 +1952,26 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261007154155"></script>
+<script src="sorami-core.js?v=20261007155147"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261007154155"></script>
-<script src="sorami-exif.js?v=20261007154155"></script>
-<script src="sorami-capcloud.js?v=20261007154155"></script>
-<script src="sorami-terrain.js?v=20261007154155"></script>
-<script src="sorami-mountain.js?v=20261007154155"></script>
-<script src="sorami-fuji.js?v=20261007154155"></script>
-<script src="sorami-sky.js?v=20261007154155"></script>
+<script src="sorami-astro.js?v=20261007155147"></script>
+<script src="sorami-exif.js?v=20261007155147"></script>
+<script src="sorami-capcloud.js?v=20261007155147"></script>
+<script src="sorami-terrain.js?v=20261007155147"></script>
+<script src="sorami-mountain.js?v=20261007155147"></script>
+<script src="sorami-fuji.js?v=20261007155147"></script>
+<script src="sorami-sky.js?v=20261007155147"></script>
 
-<script src="sorami-plan.js?v=20261007154155"></script>
-<script src="sorami-routes.js?v=20261007154155"></script>
-<script src="sorami-iss.js?v=20261007154155"></script>
-<script src="sorami-plane.js?v=20261007154155"></script>
-<script src="sorami-refraction.js?v=20261007154155"></script>
-<script src="sorami-atmosphere.js?v=20261007154155"></script>
-<script src="sorami-bodies.js?v=20261007154155"></script>
-<script src="sorami-align.js?v=20261007154155"></script>
-<script src="sorami-moon.js?v=20261007154155"></script>
+<script src="sorami-plan.js?v=20261007155147"></script>
+<script src="sorami-routes.js?v=20261007155147"></script>
+<script src="sorami-iss.js?v=20261007155147"></script>
+<script src="sorami-plane.js?v=20261007155147"></script>
+<script src="sorami-refraction.js?v=20261007155147"></script>
+<script src="sorami-atmosphere.js?v=20261007155147"></script>
+<script src="sorami-bodies.js?v=20261007155147"></script>
+<script src="sorami-align.js?v=20261007155147"></script>
+<script src="sorami-moon.js?v=20261007155147"></script>
 <script>
 "use strict";
 const S = window.Sorami;
