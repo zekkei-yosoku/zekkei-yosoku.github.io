@@ -21,6 +21,7 @@
 
   const A = global.SoramiAstro || (typeof require !== "undefined" ? require("./sorami-astro.js") : null);
   const TM = global.SoramiTowerModels || (typeof require !== "undefined" ? require("./sorami-tower-models.js") : null);
+  const CM = global.SoramiCityModels || (typeof require !== "undefined" ? require("./sorami-city-models.js") : null);
   const TR = global.SoramiTerrain || (typeof require !== "undefined" ? require("./sorami-terrain.js") : null);
   if (!A || !TR) throw new Error("astro / terrain が先に要ります");
 
@@ -51,6 +52,11 @@
               { id: "main", name: "メインデッキ", m: 168 }] },
     // 出典：PLATEAU新宿区2025。LOD2を抽出・局所座標へ加工。本体頂部と屋上付属物を区別。
     {"id":"tocho-building","name":"東京都庁 第一本庁舎","latitude":35.6895,"longitude":139.691694,"groundM":34.63,"note":"PLATEAU LOD2。屋上付属物を含む形状。本体頂部は地上243.05m","parts":[{"id":"north","name":"北塔の頂部","m":277.68,"latitude":35.68978611899479,"longitude":139.69164621437966},{"id":"south","name":"南塔の頂部","m":277.68,"latitude":35.68921795263166,"longitude":139.6917781156376}]},
+    // PLATEAU 2025の絶対座標を保持。部分の高さは海抜で、外形の一律リサイズは行わない。
+    {"id":"shibuya-sky","name":"渋谷スカイ","latitude":35.65838377760082,"longitude":139.70226592899252,"groundM":14.61,"note":"PLATEAU LOD2の標高と輪郭。屋上付属物を含み、現地との高さ・細部の差はあります。","parts":[{"id":"tip","name":"屋上（SKY STAGE）","m":243.637,"latitude":35.65838377760082,"longitude":139.70226592899252}]},
+    {"id":"azabudai-hills","name":"麻布台ヒルズ 森JPタワー","latitude":35.6608543555483,"longitude":139.7406558121773,"groundM":18.74,"note":"PLATEAU LOD2の標高と輪郭。屋上付属物を含み、現地との高さ・細部の差はあります。","parts":[{"id":"tip","name":"頂部","m":349.558,"latitude":35.6608543555483,"longitude":139.7406558121773}]},
+    {"id":"kabukicho-tower","name":"東急歌舞伎町タワー","latitude":35.69610448807164,"longitude":139.70068955167807,"groundM":29.999,"note":"PLATEAU LOD2の標高と輪郭。屋上付属物を含み、現地との高さ・細部の差はあります。","parts":[{"id":"tip","name":"頂部","m":249.772,"latitude":35.69610448807164,"longitude":139.70068955167807}]},
+    {"id":"cocoon-tower","name":"モード学園コクーンタワー","latitude":35.69160084895018,"longitude":139.69694680085274,"groundM":38.818,"note":"PLATEAU LOD2の標高と輪郭。屋上付属物を含み、現地との高さ・細部の差はあります。","parts":[{"id":"tip","name":"頂部","m":250.676,"latitude":35.69160084895018,"longitude":139.69694680085274}]},
     // 位置は OpenStreetMap の建物の中心（35.6320784, 139.8808364）とユーザーの座標が3mで合う所。
     // 2026-10-02 まで 95m 北西（35.632896, 139.880394）に置いていて、3km 先からの方角が 1° 以上（月2つ分）ずれていた
     { id: "cinderella", name: "シンデレラ城", latitude: 35.632104, longitude: 139.880834,
@@ -1406,6 +1412,7 @@
   function towerOutline(observer, target, { eyeM = 1.5, heightM = null } = {}) {
     if (target.id === "cinderella") return modelOutline(observer,target,CASTLE_MODEL,{eyeM,heightM});
     if (target.id === "tocho-building") return modelOutline(observer,target,TOCHO_MODEL,{eyeM,heightM});
+    if (CM?.[target.id]) return modelOutline(observer,target,CM[target.id],{eyeM,heightM});
     if (TM?.[target.id]) return modelOutline(observer,target,TM[target.id],{eyeM,heightM});
     if (target.rim) return null;   // 富士山（火口の縁のデータを持つ山）
     const ground = target.groundM ?? 0;
@@ -1698,7 +1705,7 @@
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, judge, buildingBlock,
-                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, TOWER_MODELS:TM, TOCHO_MODEL, CASTLE_MODEL, convexHull, TOWER_SHAPES, towerOutline, viewWindow, viewPath, sceneTargets };
+                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, CITY_MODELS:CM,TOWER_MODELS:TM, TOCHO_MODEL, CASTLE_MODEL, convexHull, TOWER_SHAPES, towerOutline, viewWindow, viewPath, sceneTargets };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);
