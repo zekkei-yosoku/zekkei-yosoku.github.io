@@ -1291,36 +1291,49 @@
       [13.095, 13.613], [13.28, 13.782], [13.263, 13.849], [13.364, 13.882]] },
   };
 
-  // 自作の簡易立体。xは参照写真の右、yは写真から奥、zは地上m。
-  // 高さは既存のユーザー輪郭を参考にし、奥行きは公開ビューを見た概算。
-  // 実測メッシュではない。元のSketchfab/CGTraderメッシュ・テクスチャは含めない。
-  // 各凸部品を別々に投影することで、塔の間の空白を凸包で埋めない。
+  // 写真の月の横径から角度縮尺を取り、見える塔の段と屋根を校正した自作立体。
+  // 写真は1280×1920の表示座標で手動計測。遮蔽された下部/裏面/奥行きは概算。
+  // 他者メッシュ・テクスチャなし。凸部品を別々に投影して塔間を埋めない。
   const CASTLE_MODEL = (() => {
     const solids = [];
-    const box = (x,y,w,d,z0,z1) => solids.push([z0,z1].flatMap(z => [-1,1].flatMap(a => [-1,1].map(b => [x+a*w/2,y+b*d/2,z]))));
-    const band = (x,y,z0,r0,z1,r1) => solids.push([[z0,r0],[z1,r1]].flatMap(([z,r]) => Array.from({length:12},(_,i) => [x+r*Math.cos(i*Math.PI/6),y+r*Math.sin(i*Math.PI/6),z])));
-    const tower = (x,y,h,r) => {
-      const roof = Math.max(3,h*.24), shaft = h-roof;
-      band(x,y,0,r*.9,shaft-1.2,r*.9);
-      band(x,y,shaft-1.2,r*1.12,shaft,r*1.12);
-      band(x,y,shaft,r,h-.9,.07);
-      band(x,y,h-.9,.07,h,0);
+    const calibration = {
+      observer:{latitude:35.63993502841878,longitude:139.8405560339636,elevation:2,eyeM:1.5},
+      photoAt:"2023-08-31T18:41:19+09:00",timeZoneAssumed:true,source:"user-estimated",
+      imageSize:[1280,1920],tipPx:[646,724],moonLimbXPx:[279,1023],
+      moonDiameterDeg:.5565571875567298,pixelsPerM:20.423209149450226,
+      translationAligned:true,depthMeasured:false,
+      // 主塔と4つの見える尖塔。頂点の目視計測誤差は数px、空/雲の遮蔽もある。
+      landmarksPx:[[646,724],[595,1084],[540,1140],[771,921],[827,949]],
+      description:"2023年写真の見える輪郭を校正。地点・時刻・奥行き・背面は実測確定ではない"
     };
-    // 主塔を原点に置き、先端の位置と既存の時刻計算を共通にする。
-    tower(0,0,51,1.55);
-    for (const [x,y,h,r] of [
-      [-1.42,4,37.16,.85],[1.69,-3,37.16,.9],[-3.22,-2,28.41,.7],
-      [-4.26,3,24,.8],[-6.67,-3,22.85,1.0],[3.41,4,30.95,.75],
-      [5.37,-4,31.9,.9],[7.09,2,37.46,1.05],[9.47,-3,27.42,1.0],
-      [11.24,4,33.25,.85],[12.23,-5,27.38,1.1],[-10.3,-6,14.15,1.1],
-      [-8.2,5,11.01,.85],[14.8,5,14.2,1.0]
-    ]) tower(x,y,h,r);
-    box(1,0,8,10,0,24); box(5,0,5,7,0,20); box(-4,0,5,7,0,17);
-    // 城壁と低い屋根。中央の高層部を全幅の板で補完しない。
-    box(1,-6,27,2,0,8); box(1,6,27,2,0,8);
-    box(-12,0,2,12,0,8); box(14,0,2,12,0,8);
-    for (const y of [-6,6]) for(let x=-11;x<=13;x+=2) box(x,y,.8,2,8,8.7);
-    return { id: "cinderella-simple-v1", heightM:51, approximate:true, solids };
+    const ppm=calibration.pixelsPerM,pxX=x=>(x-646)/ppm,pxZ=y=>51-(y-724)/ppm;
+    const box = (x,y,w,d,z0,z1) => solids.push([z0,z1].flatMap(z => [-1,1].flatMap(a => [-1,1].map(b => [x+a*w/2,y+b*d/2,z]))));
+    const band = (x,y,z0,r0,z1,r1) => solids.push([[z0,r0],[z1,r1]].flatMap(([z,r]) => Array.from({length:16},(_,i) => [x+r*Math.cos(i*Math.PI/8),y+r*Math.sin(i*Math.PI/8),z])));
+    const profile = (cx,depth,stations) => {
+      const rows=stations.map(([y,r])=>[Math.max(0,pxZ(y)),r/ppm]).sort((a,b)=>a[0]-b[0]);
+      rows.unshift([0,rows[0][1]]);
+      for(let i=1;i<rows.length;i++)if(rows[i][0]>rows[i-1][0])band(pxX(cx),depth,...rows[i-1],...rows[i]);
+    };
+    // 主塔：細い旗竿、長い尖屋根、装飾帯、広いバルコニー、下の柱を分離。
+    profile(646,0,[[724,0],[735,1.8],[800,2],[820,4],[940,14],[951,16],
+      [957,25],[995,25],[1018,28],[1036,42],[1045,42],[1062,28],
+      [1210,28],[1228,36],[1260,36],[1410,38]]);
+    profile(595,3,[[1084,0],[1107,2],[1155,13],[1175,16],[1220,16],[1234,20],[1410,20]]);
+    profile(540,-3,[[1140,0],[1160,2],[1258,20],[1272,23],[1315,23],[1324,28],[1450,28]]);
+    profile(771,2,[[921,0],[946,2],[1095,20],[1105,26],[1114,22],[1210,22],[1220,28],[1246,28],[1425,28]]);
+    profile(827,-4,[[949,0],[975,2],[1167,18],[1175,22],[1200,22],[1210,15],[1253,15],[1270,27],[1280,27],[1460,27]]);
+    profile(704,-5,[[1257,0],[1270,2],[1316,13],[1325,16],[1460,16]]);
+    profile(774,-6,[[1238,0],[1253,2],[1302,13],[1315,18],[1460,18]]);
+    // 塔の間の大きな屋根。左右は写真で計測、厚みは推定の5m。
+    solids.push([-2.5,2.5].flatMap(y=>[[668,1220],[691,1090],[691,1075],[724,1075],[750,1215]].map(([x,z])=>[pxX(x),y,pxZ(z)])));
+    box(1,0,5,8,0,pxZ(1260));box(5,0,5,7,0,pxZ(1250));box(-4,0,5,7,0,pxZ(1340));
+    // 写真では木/手前の建物に隠れる低層部と奥側は概算を保持する。
+    for(const [x,y,h,r]of [[-10.3,-6,14.15,1.1],[-8.2,5,11.01,.85],[10.5,5,16,.85]]){
+      band(x,y,0,r,h-4,r);band(x,y,h-4,r,h,0);
+    }
+    box(0,-6,24,2,0,8);box(0,6,24,2,0,8);box(-11,0,2,12,0,8);box(11,0,2,12,0,8);
+    for(const y of [-6,6])for(let x=-11;x<=11;x+=2)box(x,y,.8,2,8,8.7);
+    return {id:"cinderella-photo-v2",heightM:51,approximate:true,calibration,solids};
   })();
 
   function convexHull(points) {
@@ -1334,7 +1347,7 @@
   function castleOutline(observer,target,{eyeM=1.5,heightM=null}={}) {
     const ground=target.groundM??0,top=heightM??((partOf(target,"tip")||target.parts[0]).m-ground);
     if(!(top>.5))return null;
-    const ref=TOWER_SHAPES.cinderella.referenceView.observer;
+    const ref=CASTLE_MODEL.calibration.observer;
     const bearing=TR.bearing(target.latitude,target.longitude,ref.latitude,ref.longitude);
     const key=`${target.latitude},${target.longitude},${bearing}`;
     let world=castleWorldCache.get(key);

@@ -276,8 +276,9 @@ test("自作の城は最高点51mで、側面・背面の輪郭と塔の順が�
  const widths=views.map(o=>Math.max(...o.points.map(p=>p[0]))-Math.min(...o.points.map(p=>p[0])));
  assert.ok(widths[0]>widths[1]*1.5,JSON.stringify(widths));
  for(const o of views){assert.equal(o.approximate,true);assert.ok(o.polygons.length>30);assert.equal(o.hitPolygons,o.polygons);assert.ok(o.points.every(p=>p.every(Number.isFinite)));}
- const right=views[0].polygons[4].reduce((s,p)=>s+p[0],0)/views[0].polygons[4].length-views[0].azimuth;
- const back=views[2].polygons[4].reduce((s,p)=>s+p[0],0)/views[2].polygons[4].length-views[2].azimuth;
+ const index=AL.CASTLE_MODEL.solids.findIndex(poly=>poly.reduce((sum,p)=>sum+p[0],0)/poly.length>5);
+ const right=views[0].polygons[index].reduce((s,p)=>s+p[0],0)/views[0].polygons[index].length-views[0].azimuth;
+ const back=views[2].polygons[index].reduce((s,p)=>s+p[0],0)/views[2].polygons[index].length-views[2].azimuth;
  assert.ok(right*back<0,"同じ小塔が反対側へ移る");
 });
 test("城の全体判定は部品の和集合を使い、塔の間の空白を埋めない",()=>{
@@ -293,4 +294,13 @@ test("城の高さ変更・日付変更は立体を保ち、方位0度の境界�
  const TR=require("./sorami-terrain.js"),t=AL.targetById("cinderella"),obs={...TR.destination(t.latitude,t.longitude,180,1),elevation:3},a=AL.towerOutline(obs,t),b=AL.towerOutline(obs,t,{heightM:102});
  assert.equal(a.polygons.length,b.polygons.length);assert.ok(b.topAngle>a.topAngle*1.8);assert.ok(Math.max(...a.points.map(p=>p[0]))-Math.min(...a.points.map(p=>p[0]))<10);
  assert.deepEqual(a.points,AL.towerOutline(obs,t).points);
+});
+
+test("2023写真の推定地点から、月の横径で縮尺を固定して5塔先端に合う",()=>{
+ const c=AL.CASTLE_MODEL.calibration,o=AL.towerOutline(c.observer,AL.targetById("cinderella"));
+ assert.equal(c.photoAt,"2023-08-31T18:41:19+09:00");assert.equal(c.source,"user-estimated");assert.equal(c.depthMeasured,false);
+ assert.equal(AL.TOWER_SHAPES.cinderella.referenceView.photoAt,"2024-08-20T19:02:04+09:00");
+ const scale=744/.5565571875567298,points=o.points.map(([a,h])=>[646+(a-o.azimuth)*scale,724-(h-o.topAngle)*scale]);
+ for(const q of [[646,724],[595,1084],[540,1140],[771,921],[827,949]])assert.ok(Math.min(...points.map(p=>Math.hypot(p[0]-q[0],p[1]-q[1])))<3,`photo landmark ${q}`);
+ const balcony=points.filter(p=>p[1]>1030&&p[1]<1050);assert.ok(balcony.some(p=>p[0]<610));assert.ok(balcony.some(p=>p[0]>682));
 });
