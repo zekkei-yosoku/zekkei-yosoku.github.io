@@ -529,16 +529,16 @@
     const outline = towerOutline(observer, target, opts);
     const centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
     const project = viewProjector(g.azimuth, centerAlt);
-    const polygon = outline ? (outline.hitPoints || outline.points).map(([a, h]) => project(a, h)).filter(Boolean) : null;
+    const polygons = outline ? (outline.hitPolygons || [outline.hitPoints || outline.points]).map(poly=>poly.map(([a,h])=>project(a,h)).filter(Boolean)).filter(poly=>poly.length>=3) : null;
     const evaluate = (at) => {
       const st = bodyAt(body, at, obs), xy = project(st.azimuth, st.apparentAltitude);
       const radius = Math.tan(st.angularRadius * R) / R;
       const upper=project(st.azimuth,st.upperAltitude??st.apparentAltitude+st.angularRadius),lower=project(st.azimuth,st.lowerAltitude??st.apparentAltitude-st.angularRadius);
       const ratio=Number.isFinite(st.upperRadius)&&radius>0&&upper&&lower?Math.max(.1,Math.abs(upper[1]-lower[1])/(2*radius)):1;
       const center=xy?[xy[0],Number.isFinite(st.upperRadius)&&upper&&lower?(upper[1]+lower[1])/2:xy[1]]:null;
-      const scaled=polygon&&ratio!==1?polygon.map(p=>[p[0],p[1]/ratio]):polygon;
-      const distance = center ? (scaled ? polygonDistance([center[0],center[1]/ratio], scaled) : Math.hypot(center[0],center[1]/ratio)) : Infinity;
-      return { at, gap: st.apparentAltitude - g.angle, radius: st.angularRadius, distanceToTarget: distance,
+      const scaled=polygons&&ratio!==1?polygons.map(poly=>poly.map(p=>[p[0],p[1]/ratio])):polygons;
+      const distance = center ? (scaled ? Math.min(...scaled.map(poly=>polygonDistance([center[0],center[1]/ratio],poly))) : Math.hypot(center[0],center[1]/ratio)) : Infinity;
+      return { at, gap: st.apparentAltitude - g.angle, radius: st.angularRadius, distanceToTarget: distance, approximate: !!outline?.approximate,
         intersects: distance <= radius && (st.upperAltitude??st.apparentAltitude+st.angularRadius) > 0,
         nearTarget: distance <= (extended(body) ? radius + 0.5 : 2 * radius) && st.apparentAltitude + st.angularRadius > 0,
         altitude: st.apparentAltitude, illuminated: body === "moon" ? st.illuminatedFraction : null,
@@ -1172,7 +1172,11 @@
     // （1px＝3.8cm。幅 30m）。2026-10-02 は写真の実測（主塔のバルコニーの幅）に合わせたが、絵は写真で木に隠れた高さを地面として描いているので、
     // 下の端が地上18m に来て、城らしい下の段（角の小塔・城壁）が地面に隠れ「形へんてこりん」になった（2026-10-03 ユーザー）。
     // 全体の高さ・幅と月の比は合う（ユーザー「観測地点からの月とシルエットの比率が合うようになってれば」）。尖塔どうしの高さは写真と数m 違う。西北西から見た形
-    cinderella: { outline: [
+    cinderella: { referenceView: {
+      observer: { latitude: 35.6394512, longitude: 139.8405504, elevation: 2, eyeM: 1.5 },
+      inferredObserver: { ...TR.destination(targetById("cinderella").latitude, targetById("cinderella").longitude, 284.99, 2.85), elevation: 2, eyeM: 1.5 },
+      photoAt: "2024-08-20T19:02:04+09:00", source: "user-estimated", description: "ユーザー申告の撮影地点候補。過去の月位置による逆算地点は別に保持（実測未確認）"
+    }, outline: [
       [-12.58, 0], [-12.58, 4.45], [-12.23, 4.49], [-12.19, 4.14], [-12.04, 4.14], [-12, 4.26], [-11.96, 6.98], [-11.54, 7.44],
       [-11.16, 8.36], [-10.55, 11.62], [-10.55, 13.42], [-10.43, 13.46], [-10.39, 14.15], [-10.2, 14.11], [-10.2, 13.46],
       [-10.08, 13.46], [-10.08, 11.58], [-9.62, 8.78], [-9.39, 7.86], [-9.01, 7.13], [-8.9, 7.06], [-8.9, 7.75], [-8.82, 7.78],
@@ -1215,7 +1219,10 @@
     // （2024-11-29 04:52:23・700mm。撮影地は月の位置から逆算して葛西臨海公園の 694m 先）の月の直径を物差しに、像の下の玉と屋根の手すりで
     // 合わせた（絵の 59.5px＝1m。像と手すりは写真と合い、ドームは写真より2割ほど細い）。横はドームの軸から（杖の先が写真と同じ軸の 0.3m 左になるようにずらした）。
     // 見え方の図は先端から14m（絵の下の端の屋根）まで。そこから下はホテルの幅で埋める
-    tinkerbell: { fromTop: true, hitFromTopM: 2.5, roofHalf: 60, viewFromTopM: 14, outline: [
+    tinkerbell: { referenceView: {
+      observer: { latitude: 35.6397478, longitude: 139.8711648, elevation: 2.8, eyeM: 1.5 },
+      photoAt: "2024-11-29T04:52:23+09:00", source: "photo-inferred", description: "写真の月の位置から逆算した参照地点（GPS実測ではない）"
+    }, fromTop: true, hitFromTopM: 2.5, roofHalf: 60, viewFromTopM: 14, outline: [
       [-12.434, 13.95], [-12.333, 13.933], [-12.333, 13.815], [-12.149, 13.681], [-12.233, 13.58], [-12.233, 13.496],
       [-12.132, 13.378], [-12.031, 13.378], [-11.947, 13.445], [-11.93, 13.58], [-12.014, 13.681], [-11.829, 13.866],
       [-11.107, 13.731], [-11.073, 13.697], [-11.123, 13.664], [-11.123, 13.613], [-11.073, 13.563], [-11.073, 13.496],
@@ -1284,11 +1291,81 @@
       [13.095, 13.613], [13.28, 13.782], [13.263, 13.849], [13.364, 13.882]] },
   };
 
+  // 自作の簡易立体。xは参照写真の右、yは写真から奥、zは地上m。
+  // 高さは既存のユーザー輪郭を参考にし、奥行きは公開ビューを見た概算。
+  // 実測メッシュではない。元のSketchfab/CGTraderメッシュ・テクスチャは含めない。
+  // 各凸部品を別々に投影することで、塔の間の空白を凸包で埋めない。
+  const CASTLE_MODEL = (() => {
+    const solids = [];
+    const box = (x,y,w,d,z0,z1) => solids.push([z0,z1].flatMap(z => [-1,1].flatMap(a => [-1,1].map(b => [x+a*w/2,y+b*d/2,z]))));
+    const band = (x,y,z0,r0,z1,r1) => solids.push([[z0,r0],[z1,r1]].flatMap(([z,r]) => Array.from({length:12},(_,i) => [x+r*Math.cos(i*Math.PI/6),y+r*Math.sin(i*Math.PI/6),z])));
+    const tower = (x,y,h,r) => {
+      const roof = Math.max(3,h*.24), shaft = h-roof;
+      band(x,y,0,r*.9,shaft-1.2,r*.9);
+      band(x,y,shaft-1.2,r*1.12,shaft,r*1.12);
+      band(x,y,shaft,r,h-.9,.07);
+      band(x,y,h-.9,.07,h,0);
+    };
+    // 主塔を原点に置き、先端の位置と既存の時刻計算を共通にする。
+    tower(0,0,51,1.55);
+    for (const [x,y,h,r] of [
+      [-1.42,4,37.16,.85],[1.69,-3,37.16,.9],[-3.22,-2,28.41,.7],
+      [-4.26,3,24,.8],[-6.67,-3,22.85,1.0],[3.41,4,30.95,.75],
+      [5.37,-4,31.9,.9],[7.09,2,37.46,1.05],[9.47,-3,27.42,1.0],
+      [11.24,4,33.25,.85],[12.23,-5,27.38,1.1],[-10.3,-6,14.15,1.1],
+      [-8.2,5,11.01,.85],[14.8,5,14.2,1.0]
+    ]) tower(x,y,h,r);
+    box(1,0,8,10,0,24); box(5,0,5,7,0,20); box(-4,0,5,7,0,17);
+    // 城壁と低い屋根。中央の高層部を全幅の板で補完しない。
+    box(1,-6,27,2,0,8); box(1,6,27,2,0,8);
+    box(-12,0,2,12,0,8); box(14,0,2,12,0,8);
+    for (const y of [-6,6]) for(let x=-11;x<=13;x+=2) box(x,y,.8,2,8,8.7);
+    return { id: "cinderella-simple-v1", heightM:51, approximate:true, solids };
+  })();
+
+  function convexHull(points) {
+    const p=points.filter(q=>q&&q.every(Number.isFinite)).slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+    const cross=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+    const half=q=>{const h=[];for(const v of q){while(h.length>1&&cross(h[h.length-2],h[h.length-1],v)<=0)h.pop();h.push(v);}return h;};
+    if(p.length<3)return p;
+    const lo=half(p),hi=half(p.slice().reverse());lo.pop();hi.pop();return lo.concat(hi);
+  }
+  const castleWorldCache = new Map();
+  function castleOutline(observer,target,{eyeM=1.5,heightM=null}={}) {
+    const ground=target.groundM??0,top=heightM??((partOf(target,"tip")||target.parts[0]).m-ground);
+    if(!(top>.5))return null;
+    const ref=TOWER_SHAPES.cinderella.referenceView.observer;
+    const bearing=TR.bearing(target.latitude,target.longitude,ref.latitude,ref.longitude);
+    const key=`${target.latitude},${target.longitude},${bearing}`;
+    let world=castleWorldCache.get(key);
+    if(!world){
+      const places=new Map(),axis=(bearing-90)*R,depth=(bearing+180)*R;
+      world=CASTLE_MODEL.solids.map(solid=>solid.map(([x,y,z])=>{
+        const k=`${x},${y}`;let p=places.get(k);
+        if(!p){const east=x*Math.sin(axis)+y*Math.sin(depth),north=x*Math.cos(axis)+y*Math.cos(depth);
+          p=TR.destination(target.latitude,target.longitude,Math.atan2(east,north)/R,Math.hypot(east,north)/1000);places.set(k,p);}
+        return {place:p,z};
+      }));
+      if(castleWorldCache.size>=8)castleWorldCache.clear();castleWorldCache.set(key,world);
+    }
+    const d=TR.distanceKm(observer.latitude,observer.longitude,target.latitude,target.longitude);
+    const az0=TR.bearing(observer.latitude,observer.longitude,target.latitude,target.longitude),eye=(observer.elevation??0)+eyeM;
+    const sight=new Map();
+    const polygons=world.map(solid=>convexHull(solid.map(({place,z})=>{
+      let g=sight.get(place);if(!g){g={d:TR.distanceKm(observer.latitude,observer.longitude,place.latitude,place.longitude),az:TR.bearing(observer.latitude,observer.longitude,place.latitude,place.longitude)};sight.set(place,g);}
+      return [az0+azDiff(g.az,az0),targetAngle(g.d,eye,ground+z*top/CASTLE_MODEL.heightM)];
+    }))).filter(p=>p.length>=3);
+    const points=polygons.flat(),ang=h=>targetAngle(d,eye,ground+h);
+    return {points,polygons,hitPolygons:polygons,schematic:false,known:true,approximate:true,
+      modelId:CASTLE_MODEL.id,azimuth:az0,distanceKm:d,baseAngle:ang(0),topAngle:ang(top),viewBaseAngle:ang(0),hiddenAngle:null};
+  }
+
   /**
    * 塔の輪郭（方位・高さの点の並び。左の根元から上がって右へ下りる）。既定の塔は模式図、
    * 地上の高さ heightM だけ分かる建物（他の目標）は**幅を推定した四角**（schematic: true）。山（地上 0m）は null（地形から描く）
    */
   function towerOutline(observer, target, { eyeM = 1.5, heightM = null } = {}) {
+    if (target.id === "cinderella") return castleOutline(observer,target,{eyeM,heightM});
     if (target.rim) return null;   // 富士山（火口の縁のデータを持つ山）
     const ground = target.groundM ?? 0;
     const top = heightM !== null ? heightM : ((partOf(target, "tip") || (target.parts || [])[0] || {}).m ?? ground) - ground;
@@ -1579,7 +1656,7 @@
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, judge, buildingBlock,
-                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, TOWER_SHAPES, towerOutline, viewWindow, viewPath, sceneTargets };
+                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, CASTLE_MODEL, convexHull, TOWER_SHAPES, towerOutline, viewWindow, viewPath, sceneTargets };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);

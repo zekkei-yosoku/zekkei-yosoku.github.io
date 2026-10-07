@@ -1952,26 +1952,26 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261007160333"></script>
+<script src="sorami-core.js?v=20261007172531"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261007160333"></script>
-<script src="sorami-exif.js?v=20261007160333"></script>
-<script src="sorami-capcloud.js?v=20261007160333"></script>
-<script src="sorami-terrain.js?v=20261007160333"></script>
-<script src="sorami-mountain.js?v=20261007160333"></script>
-<script src="sorami-fuji.js?v=20261007160333"></script>
-<script src="sorami-sky.js?v=20261007160333"></script>
+<script src="sorami-astro.js?v=20261007172531"></script>
+<script src="sorami-exif.js?v=20261007172531"></script>
+<script src="sorami-capcloud.js?v=20261007172531"></script>
+<script src="sorami-terrain.js?v=20261007172531"></script>
+<script src="sorami-mountain.js?v=20261007172531"></script>
+<script src="sorami-fuji.js?v=20261007172531"></script>
+<script src="sorami-sky.js?v=20261007172531"></script>
 
-<script src="sorami-plan.js?v=20261007160333"></script>
-<script src="sorami-routes.js?v=20261007160333"></script>
-<script src="sorami-iss.js?v=20261007160333"></script>
-<script src="sorami-plane.js?v=20261007160333"></script>
-<script src="sorami-refraction.js?v=20261007160333"></script>
-<script src="sorami-atmosphere.js?v=20261007160333"></script>
-<script src="sorami-bodies.js?v=20261007160333"></script>
-<script src="sorami-align.js?v=20261007160333"></script>
-<script src="sorami-moon.js?v=20261007160333"></script>
+<script src="sorami-plan.js?v=20261007172531"></script>
+<script src="sorami-routes.js?v=20261007172531"></script>
+<script src="sorami-iss.js?v=20261007172531"></script>
+<script src="sorami-plane.js?v=20261007172531"></script>
+<script src="sorami-refraction.js?v=20261007172531"></script>
+<script src="sorami-atmosphere.js?v=20261007172531"></script>
+<script src="sorami-bodies.js?v=20261007172531"></script>
+<script src="sorami-align.js?v=20261007172531"></script>
+<script src="sorami-moon.js?v=20261007172531"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7936,6 +7936,7 @@ async function aimLookRender(host, spec) {
     ridgePending = aimLookRidge(spec.obs, eye, t, { ...win, panLimit });
   }
   for (const item of scene) {
+    if (item.outline?.polygons) item.polygons=item.outline.polygons.map(poly=>poly.map(([a,h])=>toPx(proj(a,h))).filter(Boolean)).filter(poly=>poly.length>=3);
     if (item.target.id === t.id) continue;
     if (item.outline) item.shape = item.outline.points.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
     else {
@@ -8073,6 +8074,12 @@ async function aimLookRender(host, spec) {
       const minX = Math.min(...points.map(p => p[0])) + panX, maxX = Math.max(...points.map(p => p[0])) + panX;
       if (!selected && (maxX < 0 || minX > W)) continue;
       ctx.fillStyle = bright ? "rgba(16,20,30,0.94)" : "#020306";
+      if(item.polygons){
+        // 凸部品の和集合を一度に塗る。内部の辺は描かず、外縁だけに薄い光を置く。
+        ctx.save();ctx.shadowColor=rim||"transparent";ctx.shadowBlur=rim?2:0;ctx.beginPath();
+        for(const poly of item.polygons){ctx.moveTo(poly[0][0],poly[0][1]);for(const [x,y]of poly)ctx.lineTo(x,y);ctx.closePath();}
+        ctx.fill();ctx.restore();
+      } else {
       ctx.beginPath();
       if (isMountain) ctx.moveTo(points[0][0], sceneBottom);
       else ctx.moveTo(points[0][0], points[0][1]);
@@ -8084,6 +8091,7 @@ async function aimLookRender(host, spec) {
         ctx.beginPath(); ctx.moveTo(points[0][0], points[0][1]);
         for (const [x, y] of points) ctx.lineTo(x, y);
         ctx.stroke();
+      }
       }
       if (selected && !mountain) {
         ctx.fillStyle = bright ? "rgba(16,20,30,0.94)" : "#020306";
@@ -8146,6 +8154,12 @@ async function aimLookRender(host, spec) {
       ctx.font = `600 ${Math.max(11, Math.min(16, W / 40))}px system-ui, sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.lineJoin = "round";
       ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.65)"; ctx.strokeText(groundText.str, 8, groundText.y);
       ctx.fillStyle = "#fff"; ctx.fillText(groundText.str, 8, groundText.y);
+    }
+    if(outline?.approximate){
+      // スナップショットにも残る短い精度表示。写真や実測3Dと誤認させない。
+      const label="簡易3D・形状は目安";ctx.font="600 13px system-ui, sans-serif";ctx.textAlign="left";ctx.textBaseline="top";
+      ctx.fillStyle="rgba(0,0,0,.72)";ctx.fillRect(8,8,ctx.measureText(label).width+16,25);
+      ctx.fillStyle="#fff";ctx.fillText(label,16,14);
     }
     const outside = host.querySelector("[data-look-outside]");
     outside.hidden = !!c && c[0] + panX >= 0 && c[0] + panX <= W && c[1] + panY >= 0 && c[1] + panY <= clipBottom;

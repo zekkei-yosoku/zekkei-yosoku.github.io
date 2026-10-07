@@ -260,3 +260,37 @@ test("ティンカーベル全体は像と杖だけに当たり、ホテルと�
  const min=Math.min(...o.hitPoints.map(p=>p[1])),base=A.targetElevationAngle(o.distanceKm,4.3,t.parts[0].m-2.5);
  assert.ok(Math.abs(min-base)<.0001);
 });
+
+// 城の参照方向は10/7ユーザー提示の地点候補へ更新。以前の逆算地点を消さない。
+test("城の撮影地点候補と像の逆算地点は出典を分けて保持する",()=>{
+ const v=AL.TOWER_SHAPES.cinderella.referenceView,TR=require("./sorami-terrain.js"),t=AL.targetById("cinderella");
+ assert.equal(v.source,"user-estimated");assert.equal(v.observer.latitude,35.6394512);assert.equal(v.observer.longitude,139.8405504);
+ assert.ok(Math.abs(TR.distanceKm(v.inferredObserver.latitude,v.inferredObserver.longitude,t.latitude,t.longitude)-2.85)<.005);
+ assert.equal(AL.TOWER_SHAPES.tinkerbell.referenceView.source,"photo-inferred");
+ for(const id of ["tinkerbell","cinderella"]){const r=AL.TOWER_SHAPES[id].referenceView;assert.ok(Number.isFinite(Date.parse(r.photoAt)));assert.equal(r.observer.eyeM,1.5);}
+});
+test("自作の城は最高点51mで、側面・背面の輪郭と塔の順が変わる",()=>{
+ const TR=require("./sorami-terrain.js"),t=AL.targetById("cinderella"),ref=AL.TOWER_SHAPES.cinderella.referenceView.observer;
+ assert.equal(Math.max(...AL.CASTLE_MODEL.solids.flat().map(p=>p[2])),51);
+ const b=TR.bearing(t.latitude,t.longitude,ref.latitude,ref.longitude),views=[0,90,180,270].map(delta=>AL.towerOutline({...TR.destination(t.latitude,t.longitude,b+delta,3),elevation:2},t));
+ const widths=views.map(o=>Math.max(...o.points.map(p=>p[0]))-Math.min(...o.points.map(p=>p[0])));
+ assert.ok(widths[0]>widths[1]*1.5,JSON.stringify(widths));
+ for(const o of views){assert.equal(o.approximate,true);assert.ok(o.polygons.length>30);assert.equal(o.hitPolygons,o.polygons);assert.ok(o.points.every(p=>p.every(Number.isFinite)));}
+ const right=views[0].polygons[4].reduce((s,p)=>s+p[0],0)/views[0].polygons[4].length-views[0].azimuth;
+ const back=views[2].polygons[4].reduce((s,p)=>s+p[0],0)/views[2].polygons[4].length-views[2].azimuth;
+ assert.ok(right*back<0,"同じ小塔が反対側へ移る");
+});
+test("城の全体判定は部品の和集合を使い、塔の間の空白を埋めない",()=>{
+ const obs={...AL.TOWER_SHAPES.cinderella.referenceView.observer},t=AL.targetById("cinderella"),o=AL.towerOutline(obs,t),P=AL.viewProjector(o.azimuth,(o.baseAngle+o.topAngle)/2);
+ const polys=o.polygons.map(poly=>poly.map(p=>P(...p))),hull=AL.convexHull(polys.flat()),unproject=AL.viewUnprojector(o.azimuth,(o.baseAngle+o.topAngle)/2);
+ const x0=Math.min(...hull.map(p=>p[0])),x1=Math.max(...hull.map(p=>p[0])),y0=Math.min(...hull.map(p=>p[1])),y1=Math.max(...hull.map(p=>p[1]));let gap=null;
+ for(let i=1;i<80&&!gap;i++)for(let j=25;j<79;j++){const q=[x0+(x1-x0)*i/80,y0+(y1-y0)*j/80];if(AL.polygonDistance(q,hull)===0&&Math.min(...polys.map(p=>AL.polygonDistance(q,p)))>.001){gap=unproject(...q);break;}}
+ assert.ok(gap,"凸包なら誤って当たる塔の間の空白がある");
+ const hit=o.polygons[0].reduce((a,p)=>[a[0]+p[0]/o.polygons[0].length,a[1]+p[1]/o.polygons[0].length],[0,0]);
+ for(const [p,expected]of [[gap,false],[hit,true]]){const c=vm.createContext({require,SoramiBodies:{state:()=>({azimuth:p[0],apparentAltitude:p[1],angularRadius:.00001,geometricAltitude:p[1]})}});vm.runInContext(readFileSync(new URL("./sorami-align.js",import.meta.url),"utf8"),c);const rows=c.SoramiAlign.dailyView(obs,t,"venus",day("03"));assert.ok(rows.length);assert.ok(rows.every(r=>r.intersects===expected));assert.ok(rows.every(r=>r.approximate));}
+});
+test("城の高さ変更・日付変更は立体を保ち、方位0度の境界でも輪郭が飛ばない",()=>{
+ const TR=require("./sorami-terrain.js"),t=AL.targetById("cinderella"),obs={...TR.destination(t.latitude,t.longitude,180,1),elevation:3},a=AL.towerOutline(obs,t),b=AL.towerOutline(obs,t,{heightM:102});
+ assert.equal(a.polygons.length,b.polygons.length);assert.ok(b.topAngle>a.topAngle*1.8);assert.ok(Math.max(...a.points.map(p=>p[0]))-Math.min(...a.points.map(p=>p[0]))<10);
+ assert.deepEqual(a.points,AL.towerOutline(obs,t).points);
+});
