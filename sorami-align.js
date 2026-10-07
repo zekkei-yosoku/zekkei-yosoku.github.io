@@ -20,6 +20,7 @@
   "use strict";
 
   const A = global.SoramiAstro || (typeof require !== "undefined" ? require("./sorami-astro.js") : null);
+  const TM = global.SoramiTowerModels || (typeof require !== "undefined" ? require("./sorami-tower-models.js") : null);
   const TR = global.SoramiTerrain || (typeof require !== "undefined" ? require("./sorami-terrain.js") : null);
   if (!A || !TR) throw new Error("astro / terrain が先に要ります");
 
@@ -42,13 +43,12 @@
       parts: [{ id: "tip", name: "先端", m: 636 },
               { id: "gallery", name: "天望回廊（第二展望台）", m: 452 },
               { id: "deck", name: "天望デッキ", m: 352 }] },
-    // 333m（海抜351m なので地面は18m）。展望台の「150m」「250m」は海抜に近い呼び名で、**地上はメインデッキ 125m・トップデッキ 223.55m**
-    // （Wikipedia。2026-10-02 見え方の図を作るときに調べて気づいた。それまで地上150m・250m として 25m ほど高く解いていた）
+    // 公式施設案内の地上150m/250m。海面からの値は地面18mを加算する。
     { id: "tokyotower", name: "東京タワー", latitude: 35.658581, longitude: 139.745433,
       note: "地上の高さ ＋ 地面の標高およそ18m", groundM: 18,
       parts: [{ id: "tip", name: "先端", m: 351 },
-              { id: "top", name: "トップデッキ", m: 242 },
-              { id: "main", name: "メインデッキ", m: 143 }] },
+              { id: "top", name: "トップデッキ", m: 268 },
+              { id: "main", name: "メインデッキ", m: 168 }] },
     // 出典：PLATEAU新宿区2025。LOD2を抽出・局所座標へ加工。本体頂部と屋上付属物を区別。
     {"id":"tocho-building","name":"東京都庁 第一本庁舎","latitude":35.6895,"longitude":139.691694,"groundM":34.63,"note":"PLATEAU LOD2。屋上付属物を含む形状。本体頂部は地上243.05m","parts":[{"id":"north","name":"北塔の頂部","m":277.68,"latitude":35.68978611899479,"longitude":139.69164621437966},{"id":"south","name":"南塔の頂部","m":277.68,"latitude":35.68921795263166,"longitude":139.6917781156376}]},
     // 位置は OpenStreetMap の建物の中心（35.6320784, 139.8808364）とユーザーの座標が3mで合う所。
@@ -1381,7 +1381,7 @@
           p=TR.destination(target.latitude,target.longitude,Math.atan2(east,north)/R,Math.hypot(east,north)/1000);places.set(k,p);}
         const result={place:p,z};mapped.set(vk,result);return result;
       };
-      world=model.vertices?model.triangles.map(face=>face.map(i=>mapVertex(model.vertices[i],i))):model.solids.map(solid=>solid.map(mapVertex));
+      world=model.vertices?(model.faces||model.triangles).map(face=>face.map(i=>mapVertex(model.vertices[i],i))):model.solids.map(solid=>solid.map(mapVertex));
       if(castleWorldCache.size>=8)castleWorldCache.clear();castleWorldCache.set(key,world);
     }
     const d=TR.distanceKm(observer.latitude,observer.longitude,target.latitude,target.longitude);
@@ -1406,6 +1406,7 @@
   function towerOutline(observer, target, { eyeM = 1.5, heightM = null } = {}) {
     if (target.id === "cinderella") return modelOutline(observer,target,CASTLE_MODEL,{eyeM,heightM});
     if (target.id === "tocho-building") return modelOutline(observer,target,TOCHO_MODEL,{eyeM,heightM});
+    if (TM?.[target.id]) return modelOutline(observer,target,TM[target.id],{eyeM,heightM});
     if (target.rim) return null;   // 富士山（火口の縁のデータを持つ山）
     const ground = target.groundM ?? 0;
     const top = heightM !== null ? heightM : ((partOf(target, "tip") || (target.parts || [])[0] || {}).m ?? ground) - ground;
@@ -1697,7 +1698,7 @@
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, judge, buildingBlock,
-                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, TOCHO_MODEL, CASTLE_MODEL, convexHull, TOWER_SHAPES, towerOutline, viewWindow, viewPath, sceneTargets };
+                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, TOWER_MODELS:TM, TOCHO_MODEL, CASTLE_MODEL, convexHull, TOWER_SHAPES, towerOutline, viewWindow, viewPath, sceneTargets };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);

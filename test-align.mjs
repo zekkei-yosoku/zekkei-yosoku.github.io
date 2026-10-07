@@ -114,9 +114,9 @@ console.log("== 塔の高さは地上で言う（2026-10-01） ==");
   ok(above("skytree", "tip") === 634, "スカイツリーの先端は地上634m", above("skytree", "tip"));
   ok(above("skytree", "deck") === 350, "天望デッキは地上350m", above("skytree", "deck"));
   ok(above("tokyotower", "tip") === 333, "東京タワーの先端は地上333m", above("tokyotower", "tip"));
-  // 案内の「150m」「250m」は海抜に近い呼び名。地上はメインデッキ 125m・トップデッキ 223.55m（2026-10-02 直した）
-  ok(above("tokyotower", "main") === 125, "メインデッキは地上125m", above("tokyotower", "main"));
-  ok(above("tokyotower", "top") === 224, "トップデッキは地上224m", above("tokyotower", "top"));
+  // 公式施設案内に基づく地上150m/250m。地面の標高は別に加算。
+  ok(above("tokyotower", "main") === 150, "メインデッキは地上150m", above("tokyotower", "main"));
+  ok(above("tokyotower", "top") === 250, "トップデッキは地上250m", above("tokyotower", "top"));
   ok(above("cinderella", "tip") === 51, "シンデレラ城は地上51m", above("cinderella", "tip"));
   ok(above("fuji", "summit") === 3776, "富士山は標高のまま3776m", above("fuji", "summit"));
   ok(AL.targetById("skytree").parts[0].m === 636, "計算に使う値は海面から（634＋地面2m）");

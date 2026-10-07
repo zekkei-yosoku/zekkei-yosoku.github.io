@@ -1952,26 +1952,27 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261007220802"></script>
+<script src="sorami-core.js?v=20261007225147"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261007220802"></script>
-<script src="sorami-exif.js?v=20261007220802"></script>
-<script src="sorami-capcloud.js?v=20261007220802"></script>
-<script src="sorami-terrain.js?v=20261007220802"></script>
-<script src="sorami-mountain.js?v=20261007220802"></script>
-<script src="sorami-fuji.js?v=20261007220802"></script>
-<script src="sorami-sky.js?v=20261007220802"></script>
+<script src="sorami-astro.js?v=20261007225147"></script>
+<script src="sorami-exif.js?v=20261007225147"></script>
+<script src="sorami-capcloud.js?v=20261007225147"></script>
+<script src="sorami-terrain.js?v=20261007225147"></script>
+<script src="sorami-mountain.js?v=20261007225147"></script>
+<script src="sorami-fuji.js?v=20261007225147"></script>
+<script src="sorami-sky.js?v=20261007225147"></script>
 
-<script src="sorami-plan.js?v=20261007220802"></script>
-<script src="sorami-routes.js?v=20261007220802"></script>
-<script src="sorami-iss.js?v=20261007220802"></script>
-<script src="sorami-plane.js?v=20261007220802"></script>
-<script src="sorami-refraction.js?v=20261007220802"></script>
-<script src="sorami-atmosphere.js?v=20261007220802"></script>
-<script src="sorami-bodies.js?v=20261007220802"></script>
-<script src="sorami-align.js?v=20261007220802"></script>
-<script src="sorami-moon.js?v=20261007220802"></script>
+<script src="sorami-plan.js?v=20261007225147"></script>
+<script src="sorami-routes.js?v=20261007225147"></script>
+<script src="sorami-iss.js?v=20261007225147"></script>
+<script src="sorami-plane.js?v=20261007225147"></script>
+<script src="sorami-refraction.js?v=20261007225147"></script>
+<script src="sorami-atmosphere.js?v=20261007225147"></script>
+<script src="sorami-bodies.js?v=20261007225147"></script>
+<script src="sorami-tower-models.js?v=20261007225147"></script>
+<script src="sorami-align.js?v=20261007225147"></script>
+<script src="sorami-moon.js?v=20261007225147"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2996,7 +2997,7 @@ function render() {
   // **出典は消さない。** Open-Meteo・OSM・国土地理院・気象庁は出典の表示が利用の条件で、加工したらその旨も書く
   $("footerBody").innerHTML =
     `${bundle ? S.JstCal.hhmm(bundle.fetchedAt) : "—"} 時点の予報をもとにこのアプリで点数化<br>`
-    + `予報: Open-Meteo ／ 実況: 気象庁アメダス ／ 光害: <a href="https://djlorenz.github.io/astronomy/lp/">Lorenz Light Pollution Atlas 2025</a>（VIIRS） ／ 検索: OSM Nominatim ・ 標高: 国土地理院 ・ 都庁3D: <a href="https://www.geospatial.jp/ckan/dataset/plateau-13104-shinjuku-ku-2025">PLATEAU 新宿区2025</a>（抽出・加工、<a href="https://www.mlit.go.jp/plateau/site-policy/">利用条件</a>） ・ 補完: <a href="https://www.city.kawasaki.jp/530/page/0000170254.html">川崎市</a>・<a href="https://yakei-navi.com/saginumakita/">夜景Navi</a>`;
+    + `予報: Open-Meteo ／ 実況: 気象庁アメダス ／ 光害: <a href="https://djlorenz.github.io/astronomy/lp/">Lorenz Light Pollution Atlas 2025</a>（VIIRS） ／ 検索: OSM Nominatim ・ 標高: 国土地理院 ・ 都庁3D: <a href="https://www.geospatial.jp/ckan/dataset/plateau-13104-shinjuku-ku-2025">PLATEAU 新宿区2025</a>（抽出・加工、<a href="https://www.mlit.go.jp/plateau/site-policy/">利用条件</a>） ・ 2塔3D: 自作（格子・細部は推定）、寸法: <a href="https://www.tokyotower.co.jp/guidance/">東京タワー</a>・<a href="https://www.tokyo-skytree.jp/floor/">スカイツリー</a>、外形参考: PLATEAU港区・墨田区2025 ・ 補完: <a href="https://www.city.kawasaki.jp/530/page/0000170254.html">川崎市</a>・<a href="https://yakei-navi.com/saginumakita/">夜景Navi</a>`;
 
   // 富士山は通信が要るので、予報の描画を待たせない。**失敗しても本体を巻き込まない**
   // 富士山と月は通信が要るので、予報の描画を待たせない。
@@ -4966,7 +4967,7 @@ $("favTerrain").onchange = () => { favDraft.terrain = $("favTerrain").value || n
 
 // 地面からの目の高さ。**地面の標高とは別の話。**
 // 標高は座標から分かるが、その上に何m立っているかは分からない。
-// 東京タワーの地面は18mで、メインデッキは+125m。ここを聞かないと、
+// 東京タワーの地面は18mで、メインデッキは+150m。ここを聞かないと、
 // 「山に隠れて見えない」と「展望台からなら見える」を取り違える。
 const EYE_HEIGHTS = [
   ["", "地面に立って（既定）", 1.5],
@@ -4981,7 +4982,7 @@ const EYE_HEIGHTS = [
 ];
 /**
  * 立つ高さの選択肢。**その地点に展望台があれば、公表値を先頭に足す。**
- * 「100mほどの展望台」ではなく「メインデッキ 125m」と書けるほうが選びやすいし、
+ * 「100mほどの展望台」ではなく「メインデッキ 150m」と書けるほうが選びやすいし、
  * 実際の高さがそのまま入る。
  */
 function eyeOptions(p) {
@@ -9089,7 +9090,7 @@ function lookoutTag(r) {
 
 /**
  * 展望台の選択。**複数あるときだけ出す。**
- * 東京タワーの メインデッキ125m / トップデッキ224m、
+ * 東京タワーの メインデッキ150m / トップデッキ250m、
  * スカイツリーの 天望デッキ350m / 天望回廊450m は、立つ場所で地平線が変わる。
  */
 let currentView = "list";
@@ -9215,7 +9216,7 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord) {
 wireSearchBox("searchBox", "searchResults", (r) => {
   if (r.savedPlace) { choosePlace(r.savedPlace); return; }
   // **展望台を選んだら、その高さを地点に持たせる。**
-  // 公表値があればそれ（東京タワーのメインデッキ 125m など）。
+  // 公表値があればそれ（東京タワーのメインデッキ 150m など）。
   // 無ければ OSM の構造物の高さだが、塔は先端なので**自動では立たせない**。
   const decks = r.decks && r.decks.length ? r.decks
     : (r.lookout === "building" && r.structureM ? [{ name: "屋上", aglM: Math.round(r.structureM) }] : null);
