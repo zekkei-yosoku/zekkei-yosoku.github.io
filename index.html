@@ -1015,7 +1015,7 @@
 .plan-trigger {display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:8px 12px;border:0;border-radius:10px;background:transparent;color:var(--secondary);font:inherit;font-size:0.88rem;cursor:pointer}
 .plan-trigger:hover {background:var(--sunk);color:var(--text)}
 .plan-trigger:focus-visible {outline:2px solid var(--accent);outline-offset:2px}
-#planModes {margin:0}
+#planModes {display:flex;margin:0}
 .plan-actions {display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
 #planSheet .sheet-body {display:grid;gap:12px}
 #planSheet label {display:block;margin:12px 0 4px;font-size:0.81rem;color:var(--secondary)}
@@ -1934,26 +1934,26 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261007145044"></script>
+<script src="sorami-core.js?v=20261007145238"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261007145044"></script>
-<script src="sorami-exif.js?v=20261007145044"></script>
-<script src="sorami-capcloud.js?v=20261007145044"></script>
-<script src="sorami-terrain.js?v=20261007145044"></script>
-<script src="sorami-mountain.js?v=20261007145044"></script>
-<script src="sorami-fuji.js?v=20261007145044"></script>
-<script src="sorami-sky.js?v=20261007145044"></script>
-<script src="qrcodegen.js?v=20261007145044"></script>
-<script src="sorami-plan.js?v=20261007145044"></script>
-<script src="sorami-routes.js?v=20261007145044"></script>
-<script src="sorami-iss.js?v=20261007145044"></script>
-<script src="sorami-plane.js?v=20261007145044"></script>
-<script src="sorami-refraction.js?v=20261007145044"></script>
-<script src="sorami-atmosphere.js?v=20261007145044"></script>
-<script src="sorami-bodies.js?v=20261007145044"></script>
-<script src="sorami-align.js?v=20261007145044"></script>
-<script src="sorami-moon.js?v=20261007145044"></script>
+<script src="sorami-astro.js?v=20261007145238"></script>
+<script src="sorami-exif.js?v=20261007145238"></script>
+<script src="sorami-capcloud.js?v=20261007145238"></script>
+<script src="sorami-terrain.js?v=20261007145238"></script>
+<script src="sorami-mountain.js?v=20261007145238"></script>
+<script src="sorami-fuji.js?v=20261007145238"></script>
+<script src="sorami-sky.js?v=20261007145238"></script>
+<script src="qrcodegen.js?v=20261007145238"></script>
+<script src="sorami-plan.js?v=20261007145238"></script>
+<script src="sorami-routes.js?v=20261007145238"></script>
+<script src="sorami-iss.js?v=20261007145238"></script>
+<script src="sorami-plane.js?v=20261007145238"></script>
+<script src="sorami-refraction.js?v=20261007145238"></script>
+<script src="sorami-atmosphere.js?v=20261007145238"></script>
+<script src="sorami-bodies.js?v=20261007145238"></script>
+<script src="sorami-align.js?v=20261007145238"></script>
+<script src="sorami-moon.js?v=20261007145238"></script>
 <script>
 "use strict";
 const S = window.Sorami;
