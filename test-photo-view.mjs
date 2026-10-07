@@ -247,3 +247,16 @@ test('9分割と対角グリッドは撮影枠だけに描き中央で交差す�
  draw(ctx,10,20,300,150,'thirds');assert.equal(lines.length,8);assert.deepEqual(lines.slice(0,4),[['M',110,20],['L',110,170],['M',10,70],['L',310,70]]);
  lines.length=0;draw(ctx,10,20,300,150,'diagonal');assert.equal(lines.length,12);assert.deepEqual(lines.slice(8),[['M',10,20],['L',310,170],['M',310,20],['L',10,170]]);
 });
+
+test("ティンカーベル全体は像と杖だけに当たり、ホテルとドームには当たらない",()=>{
+ const obs={latitude:35.640308,longitude:139.871555,elevation:2.8},t=AL.targetById("tinkerbell"),o=AL.towerOutline(obs,t),A=require("./sorami-astro.js");
+ assert.equal(t.wholeLabel,"像全体に重なる");assert.ok(o.hitPoints.length>20);assert.ok(o.points.length>o.hitPoints.length);
+ const hit=o.hitPoints.reduce((a,p)=>p[1]>a[1]?p:a),positions=[{p:hit,expected:true},{p:[o.azimuth,A.targetElevationAngle(o.distanceKm,4.3,t.parts[0].m-8)],expected:false},{p:[o.azimuth,A.targetElevationAngle(o.distanceKm,4.3,25)],expected:false}];
+ for(const {p,expected}of positions){
+  const c=vm.createContext({require,SoramiBodies:{state:()=>({azimuth:p[0],apparentAltitude:p[1],angularRadius:.00001,geometricAltitude:p[1]})}});
+  vm.runInContext(readFileSync(new URL("./sorami-align.js",import.meta.url),"utf8"),c);
+  const rows=c.SoramiAlign.dailyView(obs,t,"venus",day("03"));assert.ok(rows.length);assert.ok(rows.every(r=>r.intersects===expected));
+ }
+ const min=Math.min(...o.hitPoints.map(p=>p[1])),base=A.targetElevationAngle(o.distanceKm,4.3,t.parts[0].m-2.5);
+ assert.ok(Math.abs(min-base)<.0001);
+});

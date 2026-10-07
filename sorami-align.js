@@ -59,7 +59,7 @@
     // 写真の月の中心と杖の先のずれ（月の直径が物差し）と、その時刻の月の高度 4.30° から、杖の先は見上げ 4.23°＝目より 51.3m 上、
     // 目は地面 2.8m（国土地理院 1m DEM）＋1.5m で、**海抜およそ56m**（時計か撮影地が1〜2mずれていれば 55.5〜57m）。
     // それまでは OpenStreetMap の建物高さ60m を地上として 63m にしていた（7m 高く、月1つ分より上にずれていた）。画面で直せる
-    { id: "tinkerbell", name: "ティンカーベル", latitude: 35.637031, longitude: 139.878077,
+    { id: "tinkerbell", name: "ティンカーベル", wholeLabel: "像全体に重なる", latitude: 35.637031, longitude: 139.878077,
       note: "東京ディズニーランドホテルの屋根に立つ像の杖の先。高さは写真から測った値（±1m）なので、合わせながら直せます", groundM: 3,
       parts: [{ id: "tip", name: "杖の先", m: 56, adjustable: true }] },
   ];
@@ -529,7 +529,7 @@
     const outline = towerOutline(observer, target, opts);
     const centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
     const project = viewProjector(g.azimuth, centerAlt);
-    const polygon = outline ? outline.points.map(([a, h]) => project(a, h)).filter(Boolean) : null;
+    const polygon = outline ? (outline.hitPoints || outline.points).map(([a, h]) => project(a, h)).filter(Boolean) : null;
     const evaluate = (at) => {
       const st = bodyAt(body, at, obs), xy = project(st.azimuth, st.apparentAltitude);
       const radius = Math.tan(st.angularRadius * R) / R;
@@ -1215,7 +1215,7 @@
     // （2024-11-29 04:52:23・700mm。撮影地は月の位置から逆算して葛西臨海公園の 694m 先）の月の直径を物差しに、像の下の玉と屋根の手すりで
     // 合わせた（絵の 59.5px＝1m。像と手すりは写真と合い、ドームは写真より2割ほど細い）。横はドームの軸から（杖の先が写真と同じ軸の 0.3m 左になるようにずらした）。
     // 見え方の図は先端から14m（絵の下の端の屋根）まで。そこから下はホテルの幅で埋める
-    tinkerbell: { fromTop: true, roofHalf: 60, viewFromTopM: 14, outline: [
+    tinkerbell: { fromTop: true, hitFromTopM: 2.5, roofHalf: 60, viewFromTopM: 14, outline: [
       [-12.434, 13.95], [-12.333, 13.933], [-12.333, 13.815], [-12.149, 13.681], [-12.233, 13.58], [-12.233, 13.496],
       [-12.132, 13.378], [-12.031, 13.378], [-11.947, 13.445], [-11.93, 13.58], [-12.014, 13.681], [-11.829, 13.866],
       [-11.107, 13.731], [-11.073, 13.697], [-11.123, 13.664], [-11.123, 13.613], [-11.073, 13.563], [-11.073, 13.496],
@@ -1314,12 +1314,23 @@
     const daz = (w) => Math.atan(w / (d * 1000)) / R;
     const points = outline ? outline.map(([x, h]) => [az0 + daz(x), ang(h)])
       : [...shape.map(([h, w]) => [az0 - daz(w), ang(h)]), ...shape.slice().reverse().map(([h, w]) => [az0 + daz(w), ang(h)])];
+    // 背景のドーム/ホテルを描く輪郭とは別に、像と杖だけで重なりを判定する。
+    let hitPoints = null;
+    if (shape?.fromTop && Number.isFinite(shape.hitFromTopM)) {
+      const limit=shape.hitFromTopM, clipped=[];
+      for(let i=0;i<shape.outline.length;i++){
+        const a=shape.outline[i],b=shape.outline[(i+1)%shape.outline.length],insideA=a[1]<=limit,insideB=b[1]<=limit;
+        if(insideA)clipped.push(a);
+        if(insideA!==insideB){const k=(limit-a[1])/(b[1]-a[1]);clipped.push([a[0]+k*(b[0]-a[0]),limit]);}
+      }
+      hitPoints=clipped.map(([x,depth])=>[az0+daz(x),ang(top-depth)]);
+    }
     const from = TOWER_SHAPES[target.id] && TOWER_SHAPES[target.id].viewFromTopM;
     // 形の材料で見えていない下の方の上端（hiddenBelowM を持つ目標だけ）。図ではそこから下を地面として塗る
     const hidden = TOWER_SHAPES[target.id] && TOWER_SHAPES[target.id].hiddenBelowM;
     const hiddenM = hidden ? hidden * top / Math.max(...TOWER_SHAPES[target.id].outline.map(([, h]) => h)) : null;
     // 図の下の端: ティンカーベルはドームと像のまわり。hiddenBelowM を持つ目標はその高さ（そこから下は地面として塗るので図に入れない）
-    return { points, schematic, known: !!TOWER_SHAPES[target.id], azimuth: az0, distanceKm: d,
+    return { points, hitPoints, schematic, known: !!TOWER_SHAPES[target.id], azimuth: az0, distanceKm: d,
       baseAngle: ang(0), topAngle: ang(top),
       viewBaseAngle: from ? ang(Math.max(0, top - from)) : hiddenM !== null ? ang(hiddenM) : ang(0),
       hiddenAngle: hiddenM !== null ? ang(hiddenM) : null };

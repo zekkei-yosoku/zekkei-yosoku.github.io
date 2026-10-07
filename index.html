@@ -1952,26 +1952,26 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261007155147"></script>
+<script src="sorami-core.js?v=20261007160333"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261007155147"></script>
-<script src="sorami-exif.js?v=20261007155147"></script>
-<script src="sorami-capcloud.js?v=20261007155147"></script>
-<script src="sorami-terrain.js?v=20261007155147"></script>
-<script src="sorami-mountain.js?v=20261007155147"></script>
-<script src="sorami-fuji.js?v=20261007155147"></script>
-<script src="sorami-sky.js?v=20261007155147"></script>
+<script src="sorami-astro.js?v=20261007160333"></script>
+<script src="sorami-exif.js?v=20261007160333"></script>
+<script src="sorami-capcloud.js?v=20261007160333"></script>
+<script src="sorami-terrain.js?v=20261007160333"></script>
+<script src="sorami-mountain.js?v=20261007160333"></script>
+<script src="sorami-fuji.js?v=20261007160333"></script>
+<script src="sorami-sky.js?v=20261007160333"></script>
 
-<script src="sorami-plan.js?v=20261007155147"></script>
-<script src="sorami-routes.js?v=20261007155147"></script>
-<script src="sorami-iss.js?v=20261007155147"></script>
-<script src="sorami-plane.js?v=20261007155147"></script>
-<script src="sorami-refraction.js?v=20261007155147"></script>
-<script src="sorami-atmosphere.js?v=20261007155147"></script>
-<script src="sorami-bodies.js?v=20261007155147"></script>
-<script src="sorami-align.js?v=20261007155147"></script>
-<script src="sorami-moon.js?v=20261007155147"></script>
+<script src="sorami-plan.js?v=20261007160333"></script>
+<script src="sorami-routes.js?v=20261007160333"></script>
+<script src="sorami-iss.js?v=20261007160333"></script>
+<script src="sorami-plane.js?v=20261007160333"></script>
+<script src="sorami-refraction.js?v=20261007160333"></script>
+<script src="sorami-atmosphere.js?v=20261007160333"></script>
+<script src="sorami-bodies.js?v=20261007160333"></script>
+<script src="sorami-align.js?v=20261007160333"></script>
+<script src="sorami-moon.js?v=20261007160333"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -5509,7 +5509,7 @@ function aimFillParts() {
   // 高さは**地上から**で出す（スカイツリーの先端は 634m。計算に使う m は海面から＝636m。2026-10-01 ユーザー指摘）
   const g = aim.target.groundM || 0;
   const whole = parts.length > 0 && !aimIsMountain(aim.target);
-  $("aimPart").innerHTML = parts.map((p) => `<option value="${p.id}">${esc(p.name)} ${Math.round(p.m - g)}m</option>`).join("") + (whole ? '<option value="__whole">建物全体に重なる</option>' : "");
+  $("aimPart").innerHTML = parts.map((p) => `<option value="${p.id}">${esc(p.name)} ${Math.round(p.m - g)}m</option>`).join("") + (whole ? `<option value="__whole">${esc(aim.target.wholeLabel || '建物全体に重なる')}</option>` : "");
   $("aimPart").disabled = parts.length + (whole ? 1 : 0) < 2;
   // 選べるものが1つしか無い（富士山の山頂など）なら、選ぶ欄を出さない
   $("aimPart").hidden = parts.length + (whole ? 1 : 0) < 2;
