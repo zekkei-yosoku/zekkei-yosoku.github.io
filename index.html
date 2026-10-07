@@ -1055,7 +1055,6 @@
 .preview-camera-dialog .sheet-body{display:grid;gap:16px}.preview-camera-dialog .aim-lens-row{margin:0}.preview-camera-dialog .aim-lens-toggles{display:block}.preview-focal-tools{margin:6px 0 12px}.preview-focal-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--secondary)}#aimView .aim-lens-row>button[aria-haspopup=dialog]{min-width:88px;min-height:44px;padding:8px;font-size:13px}.preview-focal-tools input{width:100%;min-height:32px;accent-color:var(--accent)}.preview-focal-presets{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}.preview-focal-presets button{min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font-size:14px}
 #aimView .aim-grid-control{display:flex;align-items:center;gap:10px;width:100%;font-size:14px;color:var(--secondary)}
 #aimView .aim-grid-control select{flex:1;min-width:0;min-height:44px;padding:8px 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;font-size:16px}
-#aimView .aim-target-prompt{padding:12px 14px;margin:8px 0 10px;border-left:3px solid var(--accent);border-radius:8px;background:var(--card);color:var(--text);font-size:14px;line-height:1.6}
 #aimView .aim-place-card{background:var(--card);margin-bottom:6px;padding:0 4px 0 10px}
 #aimView .aim-place-card .place-pick{min-height:52px}
 #aimView #aimFromSub{font-size:11px}
@@ -1400,7 +1399,6 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
     <div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span></span></div>
     <span class="aim-say-v" id="aimWhereLabel">に重ねる</span>
     </div>
-    <p id="aimTargetPrompt" class="aim-target-prompt" role="status" hidden>重ねる目標の場所を選んでください。</p>
     <!-- 自分で置くときの目標の場所（2026-10-01 ユーザー「自分で置くを選んだ場合、どこに重ねるかの検索が必要なんじゃないの」）。
          どこから重ねるかと同じく地点カードの形で、押すと同じ「地点」の画面（検索・現在地・地図で選ぶ・お気に入り）。
          地図を見ながら決めるときは、地図のすぐ下の「ここに重ねる」 -->
@@ -1954,26 +1952,26 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261007153844"></script>
+<script src="sorami-core.js?v=20261007154155"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261007153844"></script>
-<script src="sorami-exif.js?v=20261007153844"></script>
-<script src="sorami-capcloud.js?v=20261007153844"></script>
-<script src="sorami-terrain.js?v=20261007153844"></script>
-<script src="sorami-mountain.js?v=20261007153844"></script>
-<script src="sorami-fuji.js?v=20261007153844"></script>
-<script src="sorami-sky.js?v=20261007153844"></script>
+<script src="sorami-astro.js?v=20261007154155"></script>
+<script src="sorami-exif.js?v=20261007154155"></script>
+<script src="sorami-capcloud.js?v=20261007154155"></script>
+<script src="sorami-terrain.js?v=20261007154155"></script>
+<script src="sorami-mountain.js?v=20261007154155"></script>
+<script src="sorami-fuji.js?v=20261007154155"></script>
+<script src="sorami-sky.js?v=20261007154155"></script>
 
-<script src="sorami-plan.js?v=20261007153844"></script>
-<script src="sorami-routes.js?v=20261007153844"></script>
-<script src="sorami-iss.js?v=20261007153844"></script>
-<script src="sorami-plane.js?v=20261007153844"></script>
-<script src="sorami-refraction.js?v=20261007153844"></script>
-<script src="sorami-atmosphere.js?v=20261007153844"></script>
-<script src="sorami-bodies.js?v=20261007153844"></script>
-<script src="sorami-align.js?v=20261007153844"></script>
-<script src="sorami-moon.js?v=20261007153844"></script>
+<script src="sorami-plan.js?v=20261007154155"></script>
+<script src="sorami-routes.js?v=20261007154155"></script>
+<script src="sorami-iss.js?v=20261007154155"></script>
+<script src="sorami-plane.js?v=20261007154155"></script>
+<script src="sorami-refraction.js?v=20261007154155"></script>
+<script src="sorami-atmosphere.js?v=20261007154155"></script>
+<script src="sorami-bodies.js?v=20261007154155"></script>
+<script src="sorami-align.js?v=20261007154155"></script>
+<script src="sorami-moon.js?v=20261007154155"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6491,7 +6489,6 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   $("aimTargetCard").hidden = !customOn;
   $("aimCustomRow").hidden = !customOn;
   $("aimPickTarget").hidden = !customOn;
-  $("aimTargetPrompt").hidden = !!(aim.target.parts || []).length;
   if (customOn) aimRenderTargetCard();
   // 目標の高さの注記（塔だけ。富士山の山頂は当たり前なので出さない）
   // 自分で置く目標は、場所のカードに標高と高さを書くので、ここには出さない
