@@ -1952,28 +1952,28 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261008022602"></script>
+<script src="sorami-core.js?v=20261008030924"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261008022602"></script>
-<script src="sorami-exif.js?v=20261008022602"></script>
-<script src="sorami-capcloud.js?v=20261008022602"></script>
-<script src="sorami-terrain.js?v=20261008022602"></script>
-<script src="sorami-mountain.js?v=20261008022602"></script>
-<script src="sorami-fuji.js?v=20261008022602"></script>
-<script src="sorami-sky.js?v=20261008022602"></script>
+<script src="sorami-astro.js?v=20261008030924"></script>
+<script src="sorami-exif.js?v=20261008030924"></script>
+<script src="sorami-capcloud.js?v=20261008030924"></script>
+<script src="sorami-terrain.js?v=20261008030924"></script>
+<script src="sorami-mountain.js?v=20261008030924"></script>
+<script src="sorami-fuji.js?v=20261008030924"></script>
+<script src="sorami-sky.js?v=20261008030924"></script>
 
-<script src="sorami-plan.js?v=20261008022602"></script>
-<script src="sorami-routes.js?v=20261008022602"></script>
-<script src="sorami-iss.js?v=20261008022602"></script>
-<script src="sorami-plane.js?v=20261008022602"></script>
-<script src="sorami-refraction.js?v=20261008022602"></script>
-<script src="sorami-atmosphere.js?v=20261008022602"></script>
-<script src="sorami-bodies.js?v=20261008022602"></script>
-<script src="sorami-city-models.js?v=20261008022602"></script>
-<script src="sorami-tower-models.js?v=20261008022602"></script>
-<script src="sorami-align.js?v=20261008022602"></script>
-<script src="sorami-moon.js?v=20261008022602"></script>
+<script src="sorami-plan.js?v=20261008030924"></script>
+<script src="sorami-routes.js?v=20261008030924"></script>
+<script src="sorami-iss.js?v=20261008030924"></script>
+<script src="sorami-plane.js?v=20261008030924"></script>
+<script src="sorami-refraction.js?v=20261008030924"></script>
+<script src="sorami-atmosphere.js?v=20261008030924"></script>
+<script src="sorami-bodies.js?v=20261008030924"></script>
+<script src="sorami-city-models.js?v=20261008030924"></script>
+<script src="sorami-tower-models.js?v=20261008030924"></script>
+<script src="sorami-align.js?v=20261008030924"></script>
+<script src="sorami-moon.js?v=20261008030924"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7825,6 +7825,31 @@ function aimLookRel(dt, name = "重なる") {
 /**
  * 見え方の図を host に描く。spec: { obs: 立つ場所（elevation は地面の標高）, eyeM: 地面からの目の高さ, at: 重なる時刻, label: 場所の名前 }
  */
+// 部品を別々に不透明マスクへ描き、外の空から届かない内部の穴だけ埋める。
+// 凸包ではないので、城の塔間・像の腕の外など、空へ開いた凹輪郭を保つ。
+function aimLookSolidSilhouette(polygons) {
+  polygons=polygons.filter(poly=>poly.length>=3&&poly.every(p=>p.every(Number.isFinite)));
+  if(!polygons.length)return null;
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for(const poly of polygons)for(const [x,y]of poly){minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);}
+  const scale=Math.min(2,2040/Math.max(1,maxX-minX),2040/Math.max(1,maxY-minY));
+  const x=minX-2/scale,y=minY-2/scale,w=Math.ceil((maxX-minX)*scale)+4,h=Math.ceil((maxY-minY)*scale)+4;
+  const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+  const c=canvas.getContext('2d',{willReadFrequently:true});c.setTransform(scale,0,0,scale,-x*scale,-y*scale);c.fillStyle='#000';
+  // 向きが逆の部品が重なっても相殺しない。1つのcompound pathにしない。
+  for(const poly of polygons){c.beginPath();c.moveTo(...poly[0]);for(const p of poly)c.lineTo(...p);c.closePath();c.fill();}
+  c.resetTransform();const image=c.getImageData(0,0,w,h),data=image.data,n=w*h;
+  const outside=new Uint8Array(n),queue=new Int32Array(n);let head=0,tail=0,filled=0;
+  const visit=i=>{if(!outside[i]&&data[i*4+3]===0){outside[i]=1;queue[tail++]=i;}};
+  for(let i=0;i<w;i++){visit(i);visit((h-1)*w+i);}for(let j=1;j<h-1;j++){visit(j*w);visit(j*w+w-1);}
+  while(head<tail){const i=queue[head++],col=i%w;if(col)visit(i-1);if(col<w-1)visit(i+1);if(i>=w)visit(i-w);if(i<n-w)visit(i+w);}
+  for(let i=0;i<n;i++)if(!outside[i]){
+    const col=i%w,edge=(col&&outside[i-1])||(col<w-1&&outside[i+1])||(i>=w&&outside[i-w])||(i<n-w&&outside[i+w]);
+    if(!edge){if(data[i*4+3]===0)filled++;data[i*4+3]=255;}
+  }
+  c.putImageData(image,0,0);return {canvas,x,y,width:w/scale,height:h/scale,filled};
+}
+
 async function aimLookRender(host, spec) {
   if (!host) return;
   const seq = (host._lookSeq = (host._lookSeq || 0) + 1);
@@ -7940,7 +7965,7 @@ async function aimLookRender(host, spec) {
     ridgePending = aimLookRidge(spec.obs, eye, t, { ...win, panLimit });
   }
   for (const item of scene) {
-    if (item.outline?.polygons) item.polygons=item.outline.polygons.map(poly=>poly.map(([a,h])=>toPx(proj(a,h))).filter(Boolean)).filter(poly=>poly.length>=3);
+    if (item.outline?.polygons) item.polygons=item.outline.polygons.map(poly=>poly.map(([a,h])=>toPx(proj(a,h))).filter(Boolean)).filter(poly=>poly.length>=3&&poly.every(p=>p.every(Number.isFinite)));
     if (item.target.id === t.id) continue;
     if (item.outline) item.shape = item.outline.points.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
     else {
@@ -8078,11 +8103,14 @@ async function aimLookRender(host, spec) {
       const minX = Math.min(...points.map(p => p[0])) + panX, maxX = Math.max(...points.map(p => p[0])) + panX;
       if (!selected && (maxX < 0 || minX > W)) continue;
       ctx.fillStyle = bright ? "rgba(16,20,30,0.94)" : "#020306";
-      if(item.polygons){
-        // 凸部品の和集合を一度に塗る。内部の辺は描かず、外縁だけに薄い光を置く。
-        ctx.save();ctx.shadowColor=rim||"transparent";ctx.shadowBlur=rim?2:0;ctx.beginPath();
-        for(const poly of item.polygons){ctx.moveTo(poly[0][0],poly[0][1]);for(const [x,y]of poly)ctx.lineTo(x,y);ctx.closePath();}
-        ctx.fill();ctx.restore();
+      if(item.polygons?.length){
+        // 形は時刻/天体と独立。再生・ドラッグのたびに穴埋めを再計算しない。
+        let mask=item.solidSilhouette;
+        if(!mask||mask.source!==item.polygons){mask=aimLookSolidSilhouette(item.polygons);if(!mask)continue;mask.source=item.polygons;item.solidSilhouette=mask;}
+        ctx.save();ctx.shadowColor=rim||"transparent";ctx.shadowBlur=rim?2:0;
+        // マスクに色を付けた別バッファを使い、空や月をsource-inで消さない。
+        if(mask.ink!==ctx.fillStyle){const tinted=document.createElement('canvas');tinted.width=mask.canvas.width;tinted.height=mask.canvas.height;const c=tinted.getContext('2d');c.drawImage(mask.canvas,0,0);c.globalCompositeOperation='source-in';c.fillStyle=ctx.fillStyle;c.fillRect(0,0,tinted.width,tinted.height);mask.tinted=tinted;mask.ink=ctx.fillStyle;}
+        ctx.drawImage(mask.tinted,mask.x,mask.y,mask.width,mask.height);ctx.restore();
       } else {
       ctx.beginPath();
       if (isMountain) ctx.moveTo(points[0][0], sceneBottom);

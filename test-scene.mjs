@@ -28,14 +28,15 @@ test('一日の軌道は画面外でも続き、4時間以上移した1秒時刻
 });
 test('実レンダーが周囲の東京タワーを描き、古い主目標への置換をしない',async()=>{
  const html=readFileSync(new URL('./index.html',import.meta.url),'utf8'),start=html.indexOf('async function aimLookRender('),end=html.indexOf('\n/**',start);
- const operations=[],calls=[],ctx=new Proxy({measureText:s=>({width:s.length*8}),createLinearGradient:()=>({addColorStop(){}})}, {get:(o,k)=>k in o?o[k]:(...args)=>{operations.push({method:k,args});if(k==='fillText')calls.push(args[0]);}});
+ const operations=[],calls=[],makeCtx=()=>new Proxy({measureText:s=>({width:s.length*8}),getImageData:(x,y,w,h)=>({data:new Uint8ClampedArray(w*h*4)}),createLinearGradient:()=>({addColorStop(){}})}, {get:(o,k)=>k in o?o[k]:(...args)=>{operations.push({method:k,args});if(k==='fillText')calls.push(args[0]);}}),ctx=makeCtx();
  const canvas={clientWidth:600,style:{},getContext:()=>ctx,setAttribute:(k,v)=>{canvas[k]=v},getBoundingClientRect:()=>({left:0,top:0})};
  const els=new Map(),host={clientWidth:600,_lookSeq:0,_lensOffset:[0,0],querySelector:q=>q==='canvas'||q.includes('data-look-canvas')?canvas:els.get(q)||(()=>{const x={dataset:{},style:{},value:'',setAttribute(){},checkValidity:()=>true};els.set(q,x);return x})()};
  const target=AL.targetById('skytree'),aim={target,body:'moon',partId:'tip'},lens={on:true,mode:'manual',focal:60,sensor:'full',portrait:false};
- const c=vm.createContext({aimAirCompare:null,aimAirDescribe(){},aimAirAngle:A.targetElevationAngle,document:{getElementById:()=>null,activeElement:null},aim,S,SoramiBodies:B,SoramiAstro:A,SoramiAlign:AL,SoramiTerrain:TR,aimLens:lens,AIM_SENSOR:{full:[36,24]},aimLookHosts:new Set(),aimReverseClear(){},aimIsMountain:t=>!!t.rim,aimTargetList:()=>AL.TARGETS,aimLookRidge:async()=>null,aimLookPick(host,opts){if(host._pick){opts.cv.onkeydown=()=>{};opts.cv.tabIndex=0}},aimLookSky:()=>[[10,20,30],[30,40,50]],aimLookDisc(...args){operations.push({method:"bodyDisc",args:args.slice(1,4)})},aimLookHMS:ms=>S.JstCal.hhmm(ms),aimLookRel:()=>'',esc:s=>s,window:{devicePixelRatio:1},localStorage:{setItem(){}},navigator:{},requestAnimationFrame:()=>1,cancelAnimationFrame(){}});
+ const c=vm.createContext({aimAirCompare:null,aimAirDescribe(){},aimAirAngle:A.targetElevationAngle,document:{createElement:()=>({width:0,height:0,getContext:makeCtx}),getElementById:()=>null,activeElement:null},aim,S,SoramiBodies:B,SoramiAstro:A,SoramiAlign:AL,SoramiTerrain:TR,aimLens:lens,AIM_SENSOR:{full:[36,24]},aimLookHosts:new Set(),aimReverseClear(){},aimIsMountain:t=>!!t.rim,aimTargetList:()=>AL.TARGETS,aimLookRidge:async()=>null,aimLookPick(host,opts){if(host._pick){opts.cv.onkeydown=()=>{};opts.cv.tabIndex=0}},aimLookSky:()=>[[10,20,30],[30,40,50]],aimLookDisc(...args){operations.push({method:"bodyDisc",args:args.slice(1,4)})},aimLookHMS:ms=>S.JstCal.hhmm(ms),aimLookRel:()=>'',esc:s=>s,window:{devicePixelRatio:1},localStorage:{setItem(){}},navigator:{},requestAnimationFrame:()=>1,cancelAnimationFrame(){}});
  vm.runInContext(html.slice(html.indexOf('function aimDrawGrid('),html.indexOf('const aimLens =')),c);
  // E94: the renderer now records the exact plan key; load its real helper in this isolated harness.
  vm.runInContext(html.match(/^const aimLookKey = .*;$/m)[0],c);
+ vm.runInContext(html.slice(html.indexOf('function aimLookSolidSilhouette('),start),c);
  vm.runInContext(html.slice(start,end)+';this.render=aimLookRender',c);
  await c.render(host,{obs:observer,eyeM:1.5,at,title:'試験地点から'});
  assert.equal(host._planKey, vm.runInContext('aimLookKey()',c));
