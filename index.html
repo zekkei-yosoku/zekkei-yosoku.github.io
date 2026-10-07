@@ -1954,26 +1954,26 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261007151015"></script>
+<script src="sorami-core.js?v=20261007153844"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261007151015"></script>
-<script src="sorami-exif.js?v=20261007151015"></script>
-<script src="sorami-capcloud.js?v=20261007151015"></script>
-<script src="sorami-terrain.js?v=20261007151015"></script>
-<script src="sorami-mountain.js?v=20261007151015"></script>
-<script src="sorami-fuji.js?v=20261007151015"></script>
-<script src="sorami-sky.js?v=20261007151015"></script>
-<script src="qrcodegen.js?v=20261007151015"></script>
-<script src="sorami-plan.js?v=20261007151015"></script>
-<script src="sorami-routes.js?v=20261007151015"></script>
-<script src="sorami-iss.js?v=20261007151015"></script>
-<script src="sorami-plane.js?v=20261007151015"></script>
-<script src="sorami-refraction.js?v=20261007151015"></script>
-<script src="sorami-atmosphere.js?v=20261007151015"></script>
-<script src="sorami-bodies.js?v=20261007151015"></script>
-<script src="sorami-align.js?v=20261007151015"></script>
-<script src="sorami-moon.js?v=20261007151015"></script>
+<script src="sorami-astro.js?v=20261007153844"></script>
+<script src="sorami-exif.js?v=20261007153844"></script>
+<script src="sorami-capcloud.js?v=20261007153844"></script>
+<script src="sorami-terrain.js?v=20261007153844"></script>
+<script src="sorami-mountain.js?v=20261007153844"></script>
+<script src="sorami-fuji.js?v=20261007153844"></script>
+<script src="sorami-sky.js?v=20261007153844"></script>
+
+<script src="sorami-plan.js?v=20261007153844"></script>
+<script src="sorami-routes.js?v=20261007153844"></script>
+<script src="sorami-iss.js?v=20261007153844"></script>
+<script src="sorami-plane.js?v=20261007153844"></script>
+<script src="sorami-refraction.js?v=20261007153844"></script>
+<script src="sorami-atmosphere.js?v=20261007153844"></script>
+<script src="sorami-bodies.js?v=20261007153844"></script>
+<script src="sorami-align.js?v=20261007153844"></script>
+<script src="sorami-moon.js?v=20261007153844"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -10591,7 +10591,7 @@ function planSnapshot(button) {
     const start=span?.start ?? at-900000,end=span?.end ?? at+900000;
     const name=SoramiBodies.definition(aim.body).name;
     const warns=[host.querySelector('[data-look-extra]')?.textContent,host.querySelector('[data-look-note]')?.textContent,host.querySelector('[data-look-outside]')?.hidden?'':host.querySelector('[data-look-outside]')?.textContent].filter(Boolean);
-    s={title:`${name} × ${t.name}`,at,observer,target:t,start,end,created,scene,
+    s={title:`${name} × ${t.name}`,at,observer,target:t,start,end,created,scene,fullFrameMm:focal*Math.hypot(36,24)/Math.hypot(...AIM_SENSOR[aimLens.sensor]),
       rows:[['観測地点',`${observer.name} / 緯度 ${observer.latitude.toFixed(6)}・経度 ${observer.longitude.toFixed(6)}`],
         ['高さ',`地面の標高 ${aimM(observer.elevation)}m / 地上から ${aimM(spec.eyeM)}m`],
         ['目標・合わせ方',`${t.name} / ${part?.name || '全体'} / ${SoramiAlign.LIMBS.find(l=>l.id===aim.limb)?.name || '真ん中'}`],

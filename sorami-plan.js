@@ -66,40 +66,21 @@ const SoramiPlan = (() => {
   }
   function link(p) { return `https://zekkei-yosoku.github.io/#/${p.kind==='aim'?'aim':`${p.id}/${p.day}`}?plan=${encode(p)}`; }
   const mapLink = o => `https://www.google.com/maps/search/?api=1&query=${o.latitude},${o.longitude}`;
-  // Overview is drawn locally: no new location or tile request is made while sharing.
-  function locationMap(s) {
-    const cv=document.createElement('canvas');cv.width=952;cv.height=420;const ctx=cv.getContext('2d');
-    ctx.fillStyle='#f2f3f5';ctx.fillRect(0,0,952,420);ctx.font='700 26px -apple-system, sans-serif';ctx.fillStyle='#4a4a4f';ctx.fillText('位置図（概略）・北が上',24,42);
-    let a=[476,230],b=null;
-    if(s.target){const dx=(s.target.longitude-s.observer.longitude)*Math.cos(s.observer.latitude*Math.PI/180),dy=-(s.target.latitude-s.observer.latitude),scale=230/Math.max(Math.abs(dx),Math.abs(dy),1e-8);a=[476-dx*scale/2,220-dy*scale/2];b=[476+dx*scale/2,220+dy*scale/2];
-      ctx.strokeStyle='#a04f09';ctx.lineWidth=4;ctx.setLineDash([10,8]);ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();ctx.setLineDash([]);}
-    const pin=(p,label,color)=>{ctx.fillStyle=color;ctx.beginPath();ctx.arc(...p,10,0,Math.PI*2);ctx.fill();ctx.textAlign='center';ctx.font='700 30px -apple-system, sans-serif';ctx.fillText(label,p[0],p[1]-22);};
-    pin(a,'観測地点','#a04f09');if(b)pin(b,'目標','#1c1c1e');ctx.textAlign='left';ctx.fillStyle='#4a4a4f';ctx.font='400 24px -apple-system, sans-serif';ctx.fillText(`緯度 ${s.observer.latitude.toFixed(6)} / 経度 ${s.observer.longitude.toFixed(6)}`,24,380);
-    ctx.fillText('N ↑',830,42);return cv;
-  }
-
   function image(s) {
-    const cv=document.createElement('canvas'),ctx=cv.getContext('2d'),W=1080,P=64;
-    const lines=[];
+    const cv=document.createElement('canvas'),ctx=cv.getContext('2d'),W=1080,P=48,inner=W-2*P;
     const wrap=(str,width,font)=>{ctx.font=font;let row='',out=[];for(const ch of String(str)){if(ctx.measureText(row+ch).width>width&&row){out.push(row);row='';}row+=ch;}if(row)out.push(row);return out;};
-    const add=(str,size=30,color='#1c1c1e',weight=400)=>{for(const t of wrap(str,W-2*P,`${weight} ${size}px -apple-system, BlinkMacSystemFont, sans-serif`))lines.push({t,size,color,weight});};
-    add('絶景予測  /  撮影計画',26,'#a04f09',700);add(s.title,48,'#1c1c1e',700);add(`${dateTime(s.at)}（日本時間）`,36,'#1c1c1e',700);
-    const top=64+lines.reduce((a,l)=>a+l.size*1.5,0)+24;
-    const mapH=s.mapScene?420:0;
-    const sceneH=s.scene ? Math.min(660,Math.round((W-2*P)*s.scene.height/s.scene.width)) : 0;
-    const body=[];for(const r of s.rows){const label=wrap(r[0],W-2*P,'700 26px sans-serif');const value=wrap(r[1],W-2*P,'400 32px sans-serif');body.push({label,value});}
-    const noteLines=wrap(s.note,W-2*P,'400 26px sans-serif');
-    const qr=qrcodegen.QrCode.encodeText(s.url,qrcodegen.QrCode.Ecc.LOW),cell=Math.max(4,Math.floor(440/(qr.size+8))),qW=(qr.size+8)*cell;
-    const bodyH=body.reduce((a,r)=>a+r.label.length*38+r.value.length*46+24,0);
-    cv.width=W;cv.height=Math.ceil(top+sceneH+(sceneH?32:0)+mapH+(mapH?32:0)+bodyH+noteLines.length*38+qW+200);
-    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,cv.height);let y=P;
-    ctx.textBaseline='top';for(const l of lines){ctx.font=`${l.weight} ${l.size}px -apple-system, BlinkMacSystemFont, sans-serif`;ctx.fillStyle=l.color;ctx.fillText(l.t,P,y);y+=l.size*1.5;}y+=24;
-    if(s.scene){ctx.drawImage(s.scene,P,y,W-2*P,sceneH);y+=sceneH+32;}
-    if(s.mapScene){ctx.drawImage(s.mapScene,P,y,W-2*P,mapH);y+=mapH+32;}
-    for(const r of body){ctx.fillStyle='#6b6b71';ctx.font='700 26px -apple-system, sans-serif';for(const t of r.label){ctx.fillText(t,P,y);y+=38;}ctx.fillStyle='#1c1c1e';ctx.font='400 32px -apple-system, sans-serif';for(const t of r.value){ctx.fillText(t,P,y);y+=46;}y+=24;}
-    ctx.font='400 26px -apple-system, sans-serif';ctx.fillStyle='#4a4a4f';for(const t of noteLines){ctx.fillText(t,P,y);y+=38;}y+=32;
-    const qx=Math.round((W-qW)/2);ctx.fillStyle='#000';for(let r=0;r<qr.size;r++)for(let c=0;c<qr.size;c++)if(qr.getModule(c,r))ctx.fillRect(qx+(c+4)*cell,y+(r+4)*cell,cell,cell);
-    y+=qW+24;ctx.textAlign='center';ctx.font='700 28px -apple-system, sans-serif';ctx.fillText('同じ撮影条件を開く',W/2,y);y+=42;ctx.fillStyle='#6b6b71';ctx.font='400 24px -apple-system, sans-serif';ctx.fillText('zekkei-yosoku.github.io',W/2,y);return cv;
+    const title=wrap(s.title,inner,'700 42px sans-serif');
+    const rows=[['観測地点',s.observer.name],['観測日時',dateTime(s.at)]];
+    if(Number.isFinite(s.fullFrameMm)&&s.fullFrameMm>0)rows.push(['フルサイズ換算',`${Math.round(s.fullFrameMm)}mm`]);
+    const body=rows.map(([label,value])=>({label,lines:wrap(value,inner,'500 34px sans-serif')}));
+    const scale=s.scene?Math.min(inner/s.scene.width,760/s.scene.height):0;
+    const sceneW=s.scene?s.scene.width*scale:0,sceneH=s.scene?s.scene.height*scale:0;
+    cv.width=W;cv.height=Math.ceil(P+title.length*56+24+(sceneH?sceneH+28:0)+body.reduce((n,r)=>n+30+r.lines.length*46+20,0)+28+P);
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,W,cv.height);ctx.textBaseline='top';let y=P;
+    ctx.fillStyle='#1c1c1e';ctx.font='700 42px -apple-system, sans-serif';for(const t of title){ctx.fillText(t,P,y);y+=56;}y+=24;
+    if(s.scene){ctx.drawImage(s.scene,(W-sceneW)/2,y,sceneW,sceneH);y+=sceneH+28;}
+    for(const r of body){ctx.fillStyle='#6b6b71';ctx.font='400 24px -apple-system, sans-serif';ctx.fillText(r.label,P,y);y+=30;ctx.fillStyle='#1c1c1e';ctx.font='500 34px -apple-system, sans-serif';for(const t of r.lines){ctx.fillText(t,P,y);y+=46;}y+=20;}
+    ctx.fillStyle='#8e8e93';ctx.font='400 22px -apple-system, sans-serif';ctx.fillText('絶景予測',P,y+6);return cv;
   }
   function mount({snapshot,show}) {
     const d=document.createElement('dialog');d.id='planSheet';d.className='sheet';d.tabIndex=-1;d.setAttribute('aria-labelledby','planTitle');
@@ -127,7 +108,6 @@ const SoramiPlan = (() => {
       if(!reuse)current=null;try{if(!reuse)current=snapshot(source);$('planSummary').textContent=current.observer.name;status('');if(!d.open)show(d);
         if(!reuse){$('planEventTitle').value=current.title;$('planStart').value=localInput(current.start);$('planEnd').value=localInput(Math.ceil(Math.max(current.end,current.start+1000)/1000)*1000);$('planReminder').value='0';}if(kind==='calendar'){validate();return;}
         status('画像を作っています…');await document.fonts.ready;if(token!==seq||!d.open)return;
-        current.mapScene=locationMap(current);
         const cv=image(current),blob=await new Promise((resolve,reject)=>cv.toBlob(b=>b?resolve(b):reject(new Error('画像を作れませんでした。画面を開き直してください。')),'image/png'));
         if(token!==seq||!d.open)return;file=new File([blob],'絶景予測_撮影計画.png',{type:'image/png'});url=URL.createObjectURL(file);$('planPreview').src=url;for(const id of ['planSave','planCopy'])$(id).disabled=false;
         const can=navigator.canShare?.({files:[file]})&&navigator.share;$('planShare').disabled=!can;status(can?'':'画像を保存して、好きなアプリで共有できます。');
@@ -136,5 +116,5 @@ const SoramiPlan = (() => {
     document.addEventListener('click',e=>{const b=e.target.closest('[data-plan-action]');if(b)open(b.dataset.planAction,b);});
     return {open};
   }
-  return {valid,encode,decode,compactPoint,expandPoint,stamp,escapeIcs,fold,dateTime,event,ics,google,link,mapLink,locationMap,image,mount};
+  return {valid,encode,decode,compactPoint,expandPoint,stamp,escapeIcs,fold,dateTime,event,ics,google,link,mapLink,image,mount};
 })();
