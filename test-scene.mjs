@@ -34,8 +34,11 @@ test('実レンダーが周囲の東京タワーを描き、古い主目標へ�
  const target=AL.targetById('skytree'),aim={target,body:'moon',partId:'tip'},lens={on:true,mode:'manual',focal:60,sensor:'full',portrait:false};
  const c=vm.createContext({aimAirCompare:null,aimAirDescribe(){},aimAirAngle:A.targetElevationAngle,document:{getElementById:()=>null,activeElement:null},aim,S,SoramiBodies:B,SoramiAstro:A,SoramiAlign:AL,SoramiTerrain:TR,aimLens:lens,AIM_SENSOR:{full:[36,24]},aimLookHosts:new Set(),aimReverseClear(){},aimIsMountain:t=>!!t.rim,aimTargetList:()=>AL.TARGETS,aimLookRidge:async()=>null,aimLookPick(host,opts){if(host._pick){opts.cv.onkeydown=()=>{};opts.cv.tabIndex=0}},aimLookSky:()=>[[10,20,30],[30,40,50]],aimLookDisc(...args){operations.push({method:"bodyDisc",args:args.slice(1,4)})},aimLookHMS:ms=>S.JstCal.hhmm(ms),aimLookRel:()=>'',esc:s=>s,window:{devicePixelRatio:1},localStorage:{setItem(){}},navigator:{},requestAnimationFrame:()=>1,cancelAnimationFrame(){}});
  vm.runInContext(html.slice(html.indexOf('function aimDrawGrid('),html.indexOf('const aimLens =')),c);
+ // E94: the renderer now records the exact plan key; load its real helper in this isolated harness.
+ vm.runInContext(html.match(/^const aimLookKey = .*;$/m)[0],c);
  vm.runInContext(html.slice(start,end)+';this.render=aimLookRender',c);
  await c.render(host,{obs:observer,eyeM:1.5,at,title:'試験地点から'});
+ assert.equal(host._planKey, vm.runInContext('aimLookKey()',c));
  assert.ok(!calls.includes('東京タワー'));assert.ok(!calls.includes('東京スカイツリー'));assert.ok(canvas['aria-label'].includes('東京タワー'));assert.equal(aim.target.id,'skytree');
  assert.ok(calls.includes('地上'));assert.ok(operations.some(x=>x.method==='clip'));
  const bands=operations.filter(x=>x.method==='fillRect'&&x.args[1]!==0);assert.ok(bands.some(x=>x.args[3]>0&&x.args[3]<=24));

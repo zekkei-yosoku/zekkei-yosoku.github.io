@@ -8,7 +8,7 @@
      connect-src を実際に使う相手だけに絞れば、盗んだトークンの持ち出し先を塞げる。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1011,6 +1011,14 @@
     table.numbers { width: 100%; }
   }
 
+/* 撮影計画の確認と画像プレビュー（E94）。既存のsheet/chipを使う。 */
+.plan-actions {display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+#planSheet .sheet-body {display:grid;gap:12px}
+#planSheet label {display:block;margin:12px 0 4px;font-size:0.81rem;color:var(--secondary)}
+#planSheet input,#planSheet select {width:100%;box-sizing:border-box;font-size:16px;padding:10px;border:1px solid var(--line);border-radius:9px;color:var(--text);background:var(--sunk)}
+#planPreview {display:block;width:100%;height:auto;border-radius:9px}
+#planSummary,#planStatus {margin:0;overflow-wrap:anywhere}
+#planSheet a[aria-disabled=true] {color:var(--tertiary);pointer-events:none}
 </style>
 <style id="previewStyles">.preview-banner{margin:0 0 12px;color:var(--secondary);font-size:11px}
 .preview-title{font-size:20px;margin:8px 0 14px}
@@ -1456,7 +1464,7 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
     </div>
     <div id="aimFrom" class="aim-from"></div>
     </section>
-<div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div><div class="preview-tabs" role="tablist" aria-label="撮影の確認"><button type="button" id="previewSceneTab" role="tab" aria-selected="true" aria-controls="previewScene">見え方</button><button type="button" id="previewPlacesTab" role="tab" aria-selected="false" aria-controls="previewPlaces" tabindex="-1">撮影地</button></div><div class="preview-workspace"><section id="previewScene" role="tabpanel" aria-labelledby="previewSceneTab">    <div id="aimLook" class="aim-look" hidden></div>
+<div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div><div class="plan-actions"><button type="button" class="chip" data-plan-action="calendar" data-plan-source="aim">予定に追加</button><button type="button" class="chip" data-plan-action="image" data-plan-source="aim">画像で共有</button></div><div class="preview-tabs" role="tablist" aria-label="撮影の確認"><button type="button" id="previewSceneTab" role="tab" aria-selected="true" aria-controls="previewScene">見え方</button><button type="button" id="previewPlacesTab" role="tab" aria-selected="false" aria-controls="previewPlaces" tabindex="-1">撮影地</button></div><div class="preview-workspace"><section id="previewScene" role="tabpanel" aria-labelledby="previewSceneTab">    <div id="aimLook" class="aim-look" hidden></div>
 <div id="aimAir" class="aim-air"><div class="aim-air-row"><span id="aimAirLabel">大気差</span><select id="aimAirMode" aria-labelledby="aimAirLabel"><option value="standard">標準</option><option value="auto">気象予報</option><option value="none">なし</option></select></div>
 <details id="aimAirDetails"><summary>気象条件 <span id="aimAirSummary">気象を反映</span></summary><div class="aim-air-content">
 <p id="aimAirStatus" class="tiny" role="status"></p><p class="tiny">気象予報は、観測地点から目標の先までの上空の気温（予報モデル）で光の曲がり方をたどり、天体と目標に同じ大気を使います。</p><p class="tiny">上空の予報が無い日時は地上の気温・気圧だけ、取得できないときは標準大気で計算します。地上2mより下の気温差（海面・放射冷却）は入りません。</p>
@@ -1922,24 +1930,26 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261006160414"></script>
+<script src="sorami-core.js?v=20261007144206"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261006160414"></script>
-<script src="sorami-exif.js?v=20261006160414"></script>
-<script src="sorami-capcloud.js?v=20261006160414"></script>
-<script src="sorami-terrain.js?v=20261006160414"></script>
-<script src="sorami-mountain.js?v=20261006160414"></script>
-<script src="sorami-fuji.js?v=20261006160414"></script>
-<script src="sorami-sky.js?v=20261006160414"></script>
-<script src="sorami-routes.js?v=20261006160414"></script>
-<script src="sorami-iss.js?v=20261006160414"></script>
-<script src="sorami-plane.js?v=20261006160414"></script>
-<script src="sorami-refraction.js?v=20261006160414"></script>
-<script src="sorami-atmosphere.js?v=20261006160414"></script>
-<script src="sorami-bodies.js?v=20261006160414"></script>
-<script src="sorami-align.js?v=20261006160414"></script>
-<script src="sorami-moon.js?v=20261006160414"></script>
+<script src="sorami-astro.js?v=20261007144206"></script>
+<script src="sorami-exif.js?v=20261007144206"></script>
+<script src="sorami-capcloud.js?v=20261007144206"></script>
+<script src="sorami-terrain.js?v=20261007144206"></script>
+<script src="sorami-mountain.js?v=20261007144206"></script>
+<script src="sorami-fuji.js?v=20261007144206"></script>
+<script src="sorami-sky.js?v=20261007144206"></script>
+<script src="qrcodegen.js?v=20261007144206"></script>
+<script src="sorami-plan.js?v=20261007144206"></script>
+<script src="sorami-routes.js?v=20261007144206"></script>
+<script src="sorami-iss.js?v=20261007144206"></script>
+<script src="sorami-plane.js?v=20261007144206"></script>
+<script src="sorami-refraction.js?v=20261007144206"></script>
+<script src="sorami-atmosphere.js?v=20261007144206"></script>
+<script src="sorami-bodies.js?v=20261007144206"></script>
+<script src="sorami-align.js?v=20261007144206"></script>
+<script src="sorami-moon.js?v=20261007144206"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3293,6 +3303,12 @@ function wireOutcomes(root) {
 //   #/sunset      → 夕焼けの直近の回
 //   #/sunset/1756… → 夕焼けの特定の日
 function routeFromHash() {
+  if (location.hash.includes("?plan=")) {
+    const hash = location.hash.split("?")[0];
+    if (hash === "#/aim") return { aim: true };
+    const shared = /^#\/([A-Za-z]+)\/(\d+)$/.exec(hash);
+    if (shared && S.PHENOMENA[shared[1]]) return { id: shared[1], dayMs: Number(shared[2]) };
+  }
   if (location.hash === "#/records") return { records: true };
   if (location.hash === "#/aim") return { aim: true };
   // メニューから来たときは、何を狙うかが決まっている（目標と天体を先に入れる）
@@ -3373,6 +3389,7 @@ function goList() {
 }
 
 function applyRoute() {
+  if (restoreSharedPlan() === "reload") { load(true); return; }
   const route = routeFromHash();
   picked = route && route.id ? route.id : null;
   atRecords = !!(route && route.records);
@@ -4133,6 +4150,7 @@ function renderDayDetail(id, entries, sel, now) {
       <div style="margin-top:9px">${esc(S.phrasing(id, ev.rank).say)}</div>
       <div class="tiny" style="margin-top:4px">${CONF_ICON[ev.confidence.key]} ${esc(confidenceText(ev))}</div></div>`;
   return `${head}
+    ${planButtons(`data-plan-source="detail" data-plan-id="${id}" data-plan-day="${sel.dayMs}"`)}
     ${id === "moon" ? renderMoonTimes(sel.dayMs) : ""}
     ${id === "fuji" ? renderFujiTimes(ev) + renderAlignments(now) + renderCapLine(sel.dayMs) : ""}
     ${id === "capCloud" ? renderCapTiming(ev) + renderFujiBackLine(sel.dayMs) : ""}
@@ -5411,7 +5429,7 @@ function aimTargetList() {
   // 富士山はダイヤモンド富士かパール富士、そのほか（塔・他の目標）は tower。どれも無い（URL を直接開いた）ときは全部
   const fujiOk = toolAllowed("diamond") || toolAllowed("pearl"), towerOk = toolAllowed("tower");
   const all = !fujiOk && !towerOk;
-  return [...SoramiAlign.TARGETS.filter((t) => (t.id === "fuji" ? fujiOk : towerOk) || all).map(aimWithHeights),
+  return [...(aim.sharedTarget && !SoramiAlign.targetById(aim.sharedTarget.id) ? [aim.sharedTarget] : []), ...SoramiAlign.TARGETS.filter((t) => (t.id === "fuji" ? fujiOk : towerOk) || all).map(t => aim.sharedTarget?.id === t.id ? aim.sharedTarget : aimWithHeights(t)),
     ...(towerOk || all ? [...aimFavTargets().map(aimFavTarget), custom || { id: "custom", name: "他の目標", parts: [] }] : [])];
 }
 function aimFillSelects() {
@@ -6441,7 +6459,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   }
   store.set("sorami.aimBody", aim.body);
   const favT = wanted.startsWith("fav:") ? aimFavTargets().find((f) => `fav:${f.id}` === wanted) : null;
-  aim.target = wanted === "custom"
+  aim.target = wanted === aim.sharedTarget?.id ? aim.sharedTarget : wanted === "custom"
     ? (aimCustomTarget() || { id: "custom", name: "他の目標", parts: [] })
     : favT ? aimFavTarget(favT)
     : aimWithHeights(SoramiAlign.targetById(wanted) || SoramiAlign.TARGETS[0]);
@@ -7102,6 +7120,7 @@ const AIM_DIR8 = ["北", "北東", "東", "南東", "南", "南西", "西", "北
 async function aimUpdateLook() {
   const seq = ++aim.lookSeq;
   const host = $("aimLook"), t = aim.target;
+  host._planKey = null;
   if (!t || !(t.parts || []).length) { host.hidden = true; return; }
   if (aim.wantSpot) return;
   // 月は空の明るさが大事（2026-10-01 ユーザー「日の出何分後とか月の出何分後とかの情報をサクッと書いておいてほしい」）
@@ -7119,7 +7138,7 @@ async function aimUpdateLook() {
   if (c) {
     const k = (aim.cands || []).filter((x) => x.side === c.side).indexOf(c) + 1;
     aimLookRender(host, { obs: { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM },
-      eyeM: 1.5 + (c.place.deckM || 0), at: c.at, title: `候補地 ${k}. ${aimCandName(c)}から`,
+      eyeM: 1.5 + (c.place.deckM || 0), at: c.at, observerName: aimCandName(c), title: `候補地 ${k}. ${aimCandName(c)}から`,
       sub: "", light: light(c.at, c.stand) });
     return;
   }
@@ -7151,7 +7170,7 @@ async function aimUpdateLook() {
     try { selectedHit = SoramiAlign.upcoming(obs, t, aim.body, { ...opts, limb:aim.limb, from:aim.dayMs, days:1, limit:Infinity, groupDays:false }).find(x => x.side === e.side && aimCandidateMatch(x)); } catch {}
   }
   const at = selectedHit?.at ?? hit?.at ?? e.at;
-  aimLookRender(host, { obs, eyeM: obs.eyeM, at, title: "",
+  aimLookRender(host, { obs, eyeM: obs.eyeM, at, observerName: f.name, title: "",
     sub: "",
     light: light(at, obs), extra: e.altitude < 0 ? `${SoramiBodies.definition(aim.body).name}は地平線の下です` : "", atName: overlap ? undefined : "最接近" });
 }const aimCandName = (c) => (c.place.kind === "川岸" ? `${c.place.name}の川岸`
@@ -7790,6 +7809,9 @@ async function aimLookRender(host, spec) {
   const sameLookSpec = host._lookSpec === spec;
   if (!sameLookSpec) { host._lensGesture = null; host._lookAt = null; }
   host._lookSpec = spec;
+  host._planKey = null;
+  const planRenderKey = aimLookKey();
+  host._planObserverName = spec.observerName || spec.title || "観測地点";
   host._uiTime = null;
   aimLookHosts.add(host);
   // 逆引き（撮れる場所を探す）は、逆引きの結果から描くときだけ続ける。日付・合わせ方・候補地を替えたら終わる
@@ -7874,7 +7896,9 @@ async function aimLookRender(host, spec) {
   host.querySelector("[data-lens-info]").textContent = `${aimLens.mode === "auto" ? "約" : ""}${(Math.round(focal * 10) / 10)}mm${frame ? ` ・ 画角 ${frame.horizontalDeg.toFixed(1)}° × ${frame.verticalDeg.toFixed(1)}°` : "（画角枠なし）"}（歪曲なしの目安）`;
   const proj = SoramiAlign.viewProjector(win.az0, win.alt0);
   const comparison=aimAirCompare&&aimAirCompare.day===S.JstCal.startOfDay(spec.at)&&aimAirCompare.latitude===spec.obs.latitude&&aimAirCompare.longitude===spec.obs.longitude?aimAirCompare.at:null;
-  const selectedAt = Number.isFinite(comparison)?comparison:sameLookSpec && Number.isFinite(host._lookAt) ? host._lookAt : spec.at;
+  const pendingPlan = host.id === "aimLook" ? aim.pendingPlan : null;
+  if (pendingPlan) { host._lensOffset = [...pendingPlan.pan]; aim.pendingPlan = null; }
+  const selectedAt = pendingPlan ? pendingPlan.at : Number.isFinite(comparison)?comparison:sameLookSpec && Number.isFinite(host._lookAt) ? host._lookAt : spec.at;
   const path = SoramiAlign.viewPath(body, eyeObs, spec.at, proj, win, { includeAt: selectedAt, dayMs: S.JstCal.startOfDay(spec.at) });
   const frameDay = S.JstCal.startOfDay(spec.at);
   const framePoints = frame ? SoramiAlign.frameDayPath(body, eyeObs, frameDay, proj) : null;
@@ -7948,6 +7972,7 @@ async function aimLookRender(host, spec) {
   const draw = (v) => {
     const p = at(v);
     host._lookAt = p.at;
+    host._planKey = planRenderKey;
     if(host.id==='aimLook'){
       aim.mapTime={at:p.at,day:S.JstCal.startOfDay(spec.at),body,target:t.id};
       if(!host._mapTimeFrame)host._mapTimeFrame=requestAnimationFrame(()=>{host._mapTimeFrame=null;AimMap.redraw();});
@@ -8687,6 +8712,11 @@ function openAim(preset) {
   const pre = preset && AIM_PRESETS[preset];
   // 許可はログインで変わるので、開くたびに目標の一覧を作り直す（選んでいたものは残る）
   aimFillSelects();
+  if (aim.pendingPlan) {
+    $("aimTarget").value = aim.sharedTarget.id;
+    aim.partId = aim.pendingPlan.part;
+    $("aimPart").value = aim.partId;
+  }
   if (pre) {
     $("aimTarget").value = pre.target || store.get("sorami.aimTarget", "fuji");
     if (!$("aimTarget").value) $("aimTarget").selectedIndex = 0;
@@ -10496,6 +10526,91 @@ for (const el of document.querySelectorAll(".sheet .hint, .sheet .tiny")) {
 //
 // 開閉のたびに各所へ書き足すのではなく、dialog の open 属性を見て一括で扱う。
 // 呼び出し箇所は10か所以上あり、**書き忘れが必ず出る**（管理画面で同じ失敗をした）。
+// E94: calendar, image and shared link all use the same immutable plan snapshot.
+function planButtons(attrs = '') {
+  return `<div class="plan-actions"><button type="button" class="chip" data-plan-action="calendar" ${attrs}>予定に追加</button><button type="button" class="chip" data-plan-action="image" ${attrs}>画像で共有</button></div>`;
+}
+function planSnapshot(button) {
+  const kind=button.dataset.planSource || 'aim',created=Date.now();let payload,s;
+  if(kind==='detail') {
+    const id=button.dataset.planId,day=+button.dataset.planDay;
+    const e=(weeks[id]||[]).find(e=>e.dayMs===day),ev=e?.evaluation;
+    if(!bundle||!ev||ev.unavailable)throw new Error('この日の予測を取得してから開き直してください。');
+    const observer={...place,elevation:place.elevation ?? bundle.home.grid.elevation ?? null};
+    payload={v:1,kind:'detail',id,day,at:ev.peak,o:SoramiPlan.compactPoint(observer,place.eyeHeightAGL ?? 1.5)};
+    const r=S.readingAt(bundle,id,ev.peak),fmt=(v,u)=>Number.isFinite(v)?`${Math.round(v*10)/10}${u}`:'未取得';
+    const start=ev.window[0],end=ev.window[1];
+    s={title:S.longNameOf(id),at:ev.peak,observer,start,end:end>start?end:start+1800000,created,
+      rows:[['見頃',ev.specificTime===false?'時刻は未確定（予定の日時は編集できます）':`${SoramiPlan.dateTime(start)} 〜 ${SoramiPlan.dateTime(end)}（日本時間）`],
+        ['予測',`${Math.round(ev.score)}点 / ${S.phrasing(id,ev.rank).label}`],['確からしさ',confidenceText(ev)],
+        ['観測地点',`${observer.name} / 緯度 ${observer.latitude.toFixed(6)}・経度 ${observer.longitude.toFixed(6)}`],
+        ['気象条件',`気温 ${fmt(r.temperature,'℃')} / 湿度 ${fmt(r.humidity,'%')} / 降水 ${fmt(r.precipitation,'mm')}`],
+        ['雲量',`低層 ${fmt(r.cloudLow,'%')} / 中層 ${fmt(r.cloudMid,'%')} / 高層 ${fmt(r.cloudHigh,'%')}`],
+        ['予報取得',`${SoramiPlan.dateTime(bundle.fetchedAt)}（日本時間）`]],
+      note:'点数は見える確率ではありません。天気や現地の条件で変わるため、出発前に最新の予測を確認してください。'};
+    if (['sunset','sunrise','moon'].includes(id)) {
+      const sky = id === 'moon' ? SoramiAstro.moon(ev.peak,observer) : SoramiAstro.sun(ev.peak,observer);
+      s.rows.splice(3,0,['見る方向',`${id==='moon'?'月':'太陽'}の方位 ${sky.azimuth.toFixed(1)}°（真北0°・東90°）`]);
+    }
+  } else {
+    const host=$('aimLook'),spec=host._lookSpec,cv=host.querySelector('[data-look-canvas]');
+    if(host.hidden||!cv||!spec||!host._uiTime||host._planKey!==aimLookKey()||!Number.isFinite(host._lookAt))throw new Error('目標・観測地点・日付を選び、見え方の計算が終わってから開いてください。');
+    if(host._pick?.busy||host._pick?.ghost||host._lensMoving)throw new Error('見え方の変更を確定してから開いてください。');
+    const t=aim.target,at=host._lookAt,observer={...spec.obs,name:host._planObserverName || aimFromPoint()?.name || '観測地点'};
+    const part=SoramiAlign.partOf(t,aim.partId),focal=+host.querySelector('[data-lens-focal]').value;
+    const target={id:t.id,name:t.name,latitude:t.latitude,longitude:t.longitude,groundM:t.groundM ?? (t.id==='fuji'?3776:0),parts:t.parts.map(p=>({id:p.id,name:p.name,m:p.m}))};
+    if(Number.isFinite(t.widthM))target.widthM=t.widthM;
+    payload={v:1,kind:'aim',o:SoramiPlan.compactPoint(observer,spec.eyeM),at,t:target,body:aim.body,part:aim.partId,limb:aim.limb,
+      air:aimAirSettings.mode,l:{...aimLens,focal},pan:[...(host._lensOffset || [0,0])]};
+    const scene=document.createElement('canvas');scene.width=cv.width;scene.height=cv.height;scene.getContext('2d').drawImage(cv,0,0);
+    const st=SoramiBodies.state(aim.body,at,{...observer,elevation:(observer.elevation||0)+spec.eyeM});
+    const spans=host._uiTime.frameSpans || [],span=spans.find(p=>p.start<=at&&p.end>=at);
+    const start=span?.start ?? at-900000,end=span?.end ?? at+900000;
+    const name=SoramiBodies.definition(aim.body).name;
+    const warns=[host.querySelector('[data-look-extra]')?.textContent,host.querySelector('[data-look-note]')?.textContent,host.querySelector('[data-look-outside]')?.hidden?'':host.querySelector('[data-look-outside]')?.textContent].filter(Boolean);
+    s={title:`${name} × ${t.name}`,at,observer,target:t,start,end,created,scene,
+      rows:[['観測地点',`${observer.name} / 緯度 ${observer.latitude.toFixed(6)}・経度 ${observer.longitude.toFixed(6)}`],
+        ['高さ',`地面の標高 ${aimM(observer.elevation)}m / 地上から ${aimM(spec.eyeM)}m`],
+        ['目標・合わせ方',`${t.name} / ${part?.name || '全体'} / ${SoramiAlign.LIMBS.find(l=>l.id===aim.limb)?.name || '真ん中'}`],
+        ['見る方向',`天体の方位 ${st.azimuth.toFixed(1)}° / 高度 ${st.apparentAltitude.toFixed(2)}°（真北0°・東90°）`],
+        ['重なる・最接近の基準時刻',`${SoramiPlan.dateTime(spec.at)}（日本時間）`],
+        ['画角内の時間',host.querySelector('[data-look-frame-times]')?.textContent || '画角枠なし'],
+        ['撮影条件',`${host.querySelector('[data-lens-sensor]').selectedOptions[0].textContent} / ${host.querySelector('[data-lens-info]').textContent} / ${aimLens.portrait?'縦位置':'横位置'}`],
+        ['大気差',`${{standard:'標準',auto:'気象予報',none:'なし'}[aimAirSettings.mode]} / ${$('aimAirSummary').textContent}`],
+        ['気象・見通し','位置と時刻の計算です。雲・樹木・現地の立入条件は別途確認してください。'],
+        ...(warns.length?[['図の注意',warns.join(' / ')]]:[]),['作成日時',`${SoramiPlan.dateTime(created)}（日本時間）`]],
+      note:'図と画角内時間は計算上の目安です。見えることを保証するものではありません。共有リンクは最新データで再計算されます。'};
+  }
+  s.url=SoramiPlan.link(payload);s.mapUrl=SoramiPlan.mapLink(s.observer);s.payload=payload;
+  return s;
+}
+let planRestoredFragment=null;
+function restoreSharedPlan() {
+  if(planRestoredFragment===location.hash)return;
+  planRestoredFragment=location.hash;
+  const token=new URLSearchParams(location.hash.split('?')[1]||'').get('plan');if(!token)return;
+  const p=SoramiPlan.decode(token);
+  if(!p || p.kind==='detail'&&!S.PHENOMENA[p.id] || p.kind==='aim'&&!SoramiBodies.definition(p.body))return;
+  const route=location.hash.split('?')[0];
+  if(route!==(p.kind==='aim'?'#/aim':`#/${p.id}/${p.day}`))return;
+  if(p.kind==='detail'){const changed=place.latitude!==p.o[1]||place.longitude!==p.o[2];place=SoramiPlan.expandPoint(p.o);return changed && bundle ? 'reload' : undefined;}
+  const builtin=SoramiAlign.targetById(p.t.id);
+  // Keep the sender's chosen heights, without modifying saved favorites or custom targets.
+  aim.sharedTarget={...(builtin || {}),...p.t,id:builtin?.id || 'shared'};
+  aim.body=p.body;aim.limb=p.limb;aim.partId=p.part;aim.limbsByBody[p.body]=p.limb;
+  aim.from={...aimSavedFrom(SoramiPlan.expandPoint(p.o)),groundManualM:p.o[3],standAglM:p.o[4]};
+  aimLens.on=p.l.on;aimLens.mode='manual';aimLens.focal=p.l.focal;aimLens.sensor=p.l.sensor;aimLens.portrait=p.l.portrait;aimLens.grid=p.l.grid;
+  aimAirSettings.mode=p.air;aimAirSync();
+  $('aimDate').value=new Date(p.at+32400000).toISOString().slice(0,10);
+  aim.pendingPlan=p;
+}
+function initPlanSharing() {
+  SoramiPlan.mount({snapshot:planSnapshot,show:showSheet});
+}
+
+initPlanSharing();
+restoreSharedPlan();
+
 const scrollLock = (() => {
   let y = 0, depth = 0;
   const props = ["position", "top", "left", "right", "width", "overflow"];
