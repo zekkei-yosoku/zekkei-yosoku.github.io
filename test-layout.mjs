@@ -438,6 +438,7 @@ console.log("== 使われていない見た目の決まりを残さない ==");
   const css = blocks.map((b) => b[1]).join("");
   let rest = html;
   for (const b of [...blocks].reverse()) rest = rest.slice(0, b.index) + rest.slice(b.index + b[0].length);
+  rest += fs.readFileSync(new URL("./sorami-plan.js", import.meta.url), "utf8");
   const classes = new Set([...css.matchAll(/\.([A-Za-z][A-Za-z0-9_-]+)/g)].map((m) => m[1]));
   const tokens = new Set(INTERPOLATED);
   for (const m of rest.matchAll(/class="([^"]*)"/g)) for (const t of m[1].split(/[\s${}()|?:+"'`]+/)) if (t) tokens.add(t);
@@ -1102,7 +1103,7 @@ ok(/history\.replaceState\(history\.state, "", `#\/\$\{picked\}\/\$\{dayMs\}`\)/
 console.log("== 詳細の見出し ==");
 // 390px では見出しと評価を1行に並べると重なった（実機で確認）。
 const headBlock = html.slice(html.indexOf('const head = `<div class="card highlight"'),
-                             html.indexOf('const head = `<div class="card highlight"') + 400);
+                             html.indexOf('return `${head}', html.indexOf('const head = `<div class="card highlight"')));
 ok(/ph-head/.test(headBlock) && /head-row/.test(headBlock), "名前と評価を別の行に置く");
 ok(/\.verdict-box \{[^}]*flex: none/.test(html), "評価の箱が縮まない");
 

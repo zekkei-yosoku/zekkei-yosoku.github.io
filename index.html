@@ -1012,12 +1012,32 @@
   }
 
 /* 撮影計画の確認と画像プレビュー（E94）。既存のsheet/chipを使う。 */
-.plan-trigger {display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:8px 12px;border:0;border-radius:10px;background:transparent;color:var(--secondary);font:inherit;font-size:0.88rem;cursor:pointer}
+.plan-trigger {display:inline-flex;flex:0 0 44px;justify-content:center;width:44px;align-items:center;gap:7px;min-height:44px;padding:8px 12px;border:0;border-radius:10px;background:transparent;color:var(--secondary);font:inherit;font-size:0.88rem;cursor:pointer}
 .plan-trigger:hover {background:var(--sunk);color:var(--text)}
 .plan-trigger:focus-visible {outline:2px solid var(--accent);outline-offset:2px}
-#planModes {display:flex;margin:0}
+.preview-toolbar{display:flex;align-items:center;gap:8px;margin:8px 0}
+.preview-toolbar>.preview-tabs{flex:1;margin:0;position:static}
+.preview-toolbar>.plan-trigger{margin-left:auto}
+.ph-head>.plan-trigger{margin-left:auto;margin-top:-8px;margin-bottom:-8px}
+#planSheet{width:min(94vw,560px);max-height:90dvh}
+#planSheet .sheet-head{gap:8px;padding:8px 12px}
+#planModes{display:flex;flex:1;position:static;margin:0;padding:3px;border-radius:10px}
+#planModes button{min-height:44px;font-size:14px}
+#planSheet #planClose{flex:0 0 44px;width:44px;display:grid;place-items:center;border-radius:9px;color:var(--secondary)}
+#planSheet .sheet-body{padding:0 12px 12px;max-height:calc(90dvh - 66px)}
+#planSheet .plan-preview-frame{max-height:calc(90dvh - 206px);min-height:140px;overflow:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:10px;background:white}
+#planSheet .plan-actions{margin:10px 0 0;display:flex;gap:6px}
+#planImage .plan-actions>.chip{flex:1;justify-content:center;min-height:44px;padding:8px 6px;font-size:13px;white-space:nowrap}
+#planSheet #planStatus{font-size:12px;color:var(--secondary);margin-top:8px}
+#planSheet #planStatus:empty{display:none}
+#planSheet #planSummary{font-size:13px;color:var(--secondary);padding:4px 0 0}
+#planSheet label{margin:10px 0 4px}
+#planSheet #planCalendar .tiny{margin:8px 0 0}
+#planSheet input[type=datetime-local]{min-width:0;-webkit-appearance:none;appearance:none;display:block}
+#planSheet input[type=datetime-local]::-webkit-date-and-time-value{text-align:left}
+@media(min-width:960px){.preview-toolbar{margin:0;height:0;position:relative;z-index:6}.preview-toolbar>.plan-trigger{position:absolute;right:0;top:6px}}
 .plan-actions {display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
-#planSheet .sheet-body {display:grid;gap:12px}
+#planSheet .sheet-body {display:block}
 #planSheet label {display:block;margin:12px 0 4px;font-size:0.81rem;color:var(--secondary)}
 #planSheet input,#planSheet select {width:100%;box-sizing:border-box;font-size:16px;padding:10px;border:1px solid var(--line);border-radius:9px;color:var(--text);background:var(--sunk)}
 #planPreview {display:block;width:100%;height:auto;border-radius:9px}
@@ -1468,7 +1488,7 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
     </div>
     <div id="aimFrom" class="aim-from"></div>
     </section>
-<div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div><div class="plan-actions"><button type="button" class="plan-trigger" data-plan-action="share" data-plan-source="aim"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M7 10H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2"/></svg>共有</button></div><div class="preview-tabs" role="tablist" aria-label="撮影の確認"><button type="button" id="previewSceneTab" role="tab" aria-selected="true" aria-controls="previewScene">見え方</button><button type="button" id="previewPlacesTab" role="tab" aria-selected="false" aria-controls="previewPlaces" tabindex="-1">撮影地</button></div><div class="preview-workspace"><section id="previewScene" role="tabpanel" aria-labelledby="previewSceneTab">    <div id="aimLook" class="aim-look" hidden></div>
+<div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div><div class="preview-toolbar"><div class="preview-tabs" role="tablist" aria-label="撮影の確認"><button type="button" id="previewSceneTab" role="tab" aria-selected="true" aria-controls="previewScene">見え方</button><button type="button" id="previewPlacesTab" role="tab" aria-selected="false" aria-controls="previewPlaces" tabindex="-1">撮影地</button></div><button type="button" class="plan-trigger" aria-label="撮影計画を共有" title="共有" data-plan-action="share" data-plan-source="aim"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M7 10H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2"/></svg></button></div><div class="preview-workspace"><section id="previewScene" role="tabpanel" aria-labelledby="previewSceneTab">    <div id="aimLook" class="aim-look" hidden></div>
 <div id="aimAir" class="aim-air"><div class="aim-air-row"><span id="aimAirLabel">大気差</span><select id="aimAirMode" aria-labelledby="aimAirLabel"><option value="standard">標準</option><option value="auto">気象予報</option><option value="none">なし</option></select></div>
 <details id="aimAirDetails"><summary>気象条件 <span id="aimAirSummary">気象を反映</span></summary><div class="aim-air-content">
 <p id="aimAirStatus" class="tiny" role="status"></p><p class="tiny">気象予報は、観測地点から目標の先までの上空の気温（予報モデル）で光の曲がり方をたどり、天体と目標に同じ大気を使います。</p><p class="tiny">上空の予報が無い日時は地上の気温・気圧だけ、取得できないときは標準大気で計算します。地上2mより下の気温差（海面・放射冷却）は入りません。</p>
@@ -1934,26 +1954,26 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261007145238"></script>
+<script src="sorami-core.js?v=20261007151015"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261007145238"></script>
-<script src="sorami-exif.js?v=20261007145238"></script>
-<script src="sorami-capcloud.js?v=20261007145238"></script>
-<script src="sorami-terrain.js?v=20261007145238"></script>
-<script src="sorami-mountain.js?v=20261007145238"></script>
-<script src="sorami-fuji.js?v=20261007145238"></script>
-<script src="sorami-sky.js?v=20261007145238"></script>
-<script src="qrcodegen.js?v=20261007145238"></script>
-<script src="sorami-plan.js?v=20261007145238"></script>
-<script src="sorami-routes.js?v=20261007145238"></script>
-<script src="sorami-iss.js?v=20261007145238"></script>
-<script src="sorami-plane.js?v=20261007145238"></script>
-<script src="sorami-refraction.js?v=20261007145238"></script>
-<script src="sorami-atmosphere.js?v=20261007145238"></script>
-<script src="sorami-bodies.js?v=20261007145238"></script>
-<script src="sorami-align.js?v=20261007145238"></script>
-<script src="sorami-moon.js?v=20261007145238"></script>
+<script src="sorami-astro.js?v=20261007151015"></script>
+<script src="sorami-exif.js?v=20261007151015"></script>
+<script src="sorami-capcloud.js?v=20261007151015"></script>
+<script src="sorami-terrain.js?v=20261007151015"></script>
+<script src="sorami-mountain.js?v=20261007151015"></script>
+<script src="sorami-fuji.js?v=20261007151015"></script>
+<script src="sorami-sky.js?v=20261007151015"></script>
+<script src="qrcodegen.js?v=20261007151015"></script>
+<script src="sorami-plan.js?v=20261007151015"></script>
+<script src="sorami-routes.js?v=20261007151015"></script>
+<script src="sorami-iss.js?v=20261007151015"></script>
+<script src="sorami-plane.js?v=20261007151015"></script>
+<script src="sorami-refraction.js?v=20261007151015"></script>
+<script src="sorami-atmosphere.js?v=20261007151015"></script>
+<script src="sorami-bodies.js?v=20261007151015"></script>
+<script src="sorami-align.js?v=20261007151015"></script>
+<script src="sorami-moon.js?v=20261007151015"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4145,7 +4165,7 @@ function renderDayDetail(id, entries, sel, now) {
   const color = RANK_COLOR[ev.rank.key];
   const head = `<div class="card highlight" style="border-color:${color}">
       <div class="ph-head"><span class="ic">${iconFor(id, ev.peak)}</span><span class="nm">${S.longNameOf(id)}</span>
-        ${id === "moon" ? `<span class="tiny" style="color:var(--tertiary)">${esc(phaseNameFor(ev.peak))}</span>` : ""}</div>
+        ${id === "moon" ? `<span class="tiny" style="color:var(--tertiary)">${esc(phaseNameFor(ev.peak))}</span>` : ""}${planButtons(`data-plan-source="detail" data-plan-id="${id}" data-plan-day="${sel.dayMs}"`)}</div>
       <div class="head-row">
         <span class="muted">${when}</span>
         ${renderVerdict(id, ev)}
@@ -4154,7 +4174,6 @@ function renderDayDetail(id, entries, sel, now) {
       <div style="margin-top:9px">${esc(S.phrasing(id, ev.rank).say)}</div>
       <div class="tiny" style="margin-top:4px">${CONF_ICON[ev.confidence.key]} ${esc(confidenceText(ev))}</div></div>`;
   return `${head}
-    ${planButtons(`data-plan-source="detail" data-plan-id="${id}" data-plan-day="${sel.dayMs}"`)}
     ${id === "moon" ? renderMoonTimes(sel.dayMs) : ""}
     ${id === "fuji" ? renderFujiTimes(ev) + renderAlignments(now) + renderCapLine(sel.dayMs) : ""}
     ${id === "capCloud" ? renderCapTiming(ev) + renderFujiBackLine(sel.dayMs) : ""}
@@ -10532,7 +10551,7 @@ for (const el of document.querySelectorAll(".sheet .hint, .sheet .tiny")) {
 // 呼び出し箇所は10か所以上あり、**書き忘れが必ず出る**（管理画面で同じ失敗をした）。
 // E94: calendar, image and shared link all use the same immutable plan snapshot.
 function planButtons(attrs = '') {
-  return `<div class="plan-actions"><button type="button" class="plan-trigger" data-plan-action="share" ${attrs}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M7 10H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2"/></svg>共有</button></div>`;
+  return `<button type="button" class="plan-trigger" aria-label="撮影計画を共有" title="共有" data-plan-action="share" ${attrs}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M7 10H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2"/></svg></button>`;
 }
 function planSnapshot(button) {
   const kind=button.dataset.planSource || 'aim',created=Date.now();let payload,s;
