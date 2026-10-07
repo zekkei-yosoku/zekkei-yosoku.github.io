@@ -104,13 +104,13 @@ const SoramiPlan = (() => {
   function mount({snapshot,show}) {
     const d=document.createElement('dialog');d.id='planSheet';d.className='sheet';d.tabIndex=-1;d.setAttribute('aria-labelledby','planTitle');
     d.innerHTML=`<div class="sheet-head"><strong id="planTitle">撮影計画</strong><button type="button" id="planClose">閉じる</button></div>
-      <div class="sheet-body"><p id="planSummary"></p><p id="planStatus" class="tiny" role="status" aria-live="polite"></p>
-      <section id="planCalendar"><label for="planEventTitle">予定の件名</label><input type="text" id="planEventTitle" maxlength="200">
+      <div class="sheet-body"><div id="planModes" class="preview-tabs" role="tablist" aria-label="共有方法"><button type="button" id="planImageTab" role="tab" aria-selected="true" aria-controls="planImage">画像</button><button type="button" id="planCalendarTab" role="tab" aria-selected="false" aria-controls="planCalendar" tabindex="-1">カレンダー</button></div><p id="planSummary"></p><p id="planStatus" class="tiny" role="status" aria-live="polite"></p>
+      <section id="planCalendar" role="tabpanel" aria-labelledby="planCalendarTab"><label for="planEventTitle">予定の件名</label><input type="text" id="planEventTitle" maxlength="200">
       <label for="planStart">開始（日本時間）</label><input type="datetime-local" step="1" id="planStart"><label for="planEnd">終了（日本時間）</label><input type="datetime-local" step="1" id="planEnd">
       <label for="planReminder">予定ファイルの通知</label><select id="planReminder"><option value="0">なし</option><option value="15">15分前</option><option value="30">30分前</option><option value="60">1時間前</option></select>
       <div class="plan-actions"><a id="planGoogle" class="chip" target="_blank" rel="noopener noreferrer">Googleカレンダーで登録</a><button type="button" class="chip" id="planIcs">予定ファイルを保存</button></div>
       <p class="tiny">予定ファイルはAppleカレンダー・Outlookなどで開けます。Googleの通知は登録画面で設定してください。</p></section>
-      <section id="planImage" hidden><img id="planPreview" alt="撮影計画の共有画像"><div class="plan-actions"><button type="button" class="chip primary" id="planShare" disabled>画像を共有</button><button type="button" class="chip" id="planSave" disabled>画像を保存</button><button type="button" class="chip" id="planCopy" disabled>リンクをコピー</button></div></section></div>`;
+      <section id="planImage" role="tabpanel" aria-labelledby="planImageTab" hidden><img id="planPreview" alt="撮影計画の共有画像"><div class="plan-actions"><button type="button" class="chip primary" id="planShare" disabled>画像を共有</button><button type="button" class="chip" id="planSave" disabled>画像を保存</button><button type="button" class="chip" id="planCopy" disabled>リンクをコピー</button></div></section></div>`;
     document.body.append(d);const $=id=>document.getElementById(id);let current=null,file=null,url=null,seq=0,back=null;
     const status=t=>$('planStatus').textContent=t;
     const edits=()=>({title:$('planEventTitle').value,start:$('planStart').value,end:$('planEnd').value,reminder:$('planReminder').value});
@@ -123,16 +123,17 @@ const SoramiPlan = (() => {
     $('planSave').onclick=()=>{if(file){download(file,file.name);status('画像の保存を開始しました。保存先から共有できます。');}};
     $('planCopy').onclick=async()=>{const copiedUrl=current?.url;if(!copiedUrl)return;try{await navigator.clipboard.writeText(copiedUrl);status('同じ撮影条件のリンクをコピーしました。');}catch{status('コピーできませんでした。下のリンクを選んでコピーしてください。');const a=document.createElement('a');a.href=copiedUrl;a.textContent=copiedUrl;$('planStatus').append(document.createElement('br'),a);}};
     $('planShare').onclick=async()=>{if(!file)return;const data={files:[file],title:current.title};try{if(!navigator.canShare?.({files:[file]})||!navigator.share){status('この端末では画像共有を使えません。「画像を保存」から共有してください。');return;}await navigator.share(data);status('共有画面を閉じました。');}catch(e){status(e.name==='AbortError'?'共有を取り消しました。': '共有できませんでした。「画像を保存」から共有してください。');}};
-    async function open(kind,source){back=source;seq++;const token=seq;file=null;if(url)URL.revokeObjectURL(url);url=null;$('planPreview').removeAttribute('src');for(const id of ['planSave','planShare','planCopy'])$(id).disabled=true;
-      $('planTitle').textContent=kind==='calendar'?'予定に追加':'画像で共有';$('planCalendar').hidden=kind!=='calendar';$('planImage').hidden=kind!=='image';
-      try{current=snapshot(source);$('planSummary').textContent=`${current.title} / ${current.observer.name}`;status('');show(d);
-        if(kind==='calendar'){$('planEventTitle').value=current.title;$('planStart').value=localInput(current.start);$('planEnd').value=localInput(Math.ceil(Math.max(current.end,current.start+1000)/1000)*1000);$('planReminder').value='0';validate();return;}
+    async function open(kind,source,reuse=false){if(kind==='share')kind='image';back=source;seq++;const token=seq;file=null;if(url)URL.revokeObjectURL(url);url=null;$('planPreview').removeAttribute('src');for(const id of ['planSave','planShare','planCopy'])$(id).disabled=true;
+      $('planTitle').textContent='共有';for(const [id,mode] of [['planImageTab','image'],['planCalendarTab','calendar']]){$(id).setAttribute('aria-selected',String(kind===mode));$(id).tabIndex=kind===mode?0:-1;}$('planCalendar').hidden=kind!=='calendar';$('planImage').hidden=kind!=='image';
+      if(!reuse)current=null;try{if(!reuse)current=snapshot(source);$('planSummary').textContent=`${current.title} / ${current.observer.name}`;status('');if(!d.open)show(d);
+        if(!reuse){$('planEventTitle').value=current.title;$('planStart').value=localInput(current.start);$('planEnd').value=localInput(Math.ceil(Math.max(current.end,current.start+1000)/1000)*1000);$('planReminder').value='0';}if(kind==='calendar'){validate();return;}
         status('画像を作っています…');await document.fonts.ready;if(token!==seq||!d.open)return;
         current.mapScene=locationMap(current);
         const cv=image(current),blob=await new Promise((resolve,reject)=>cv.toBlob(b=>b?resolve(b):reject(new Error('画像を作れませんでした。画面を開き直してください。')),'image/png'));
         if(token!==seq||!d.open)return;file=new File([blob],'絶景予測_撮影計画.png',{type:'image/png'});url=URL.createObjectURL(file);$('planPreview').src=url;for(const id of ['planSave','planCopy'])$(id).disabled=false;
         const can=navigator.canShare?.({files:[file]})&&navigator.share;$('planShare').disabled=!can;status(can?'内容を確認して、共有先を選んでください。':'画像を保存して、好きなアプリで共有できます。');
-      }catch(e){current=null;$('planCalendar').hidden=true;$('planImage').hidden=true;$('planSummary').textContent='';status(e.message||'撮影計画を作れませんでした。画面を開き直してください。');if(!d.open)show(d);}}
+      }catch(e){$('planCalendar').hidden=true;$('planImage').hidden=true;$('planSummary').textContent='';status(e.message||'撮影計画を作れませんでした。画面を開き直してください。');if(!d.open)show(d);}}
+    for(const [id,mode] of [['planImageTab','image'],['planCalendarTab','calendar']]){$(id).onclick=()=>open(mode,back,true);$(id).onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const next=e.key==='Home'?'planImageTab':e.key==='End'?'planCalendarTab':id==='planImageTab'?'planCalendarTab':'planImageTab';$(next).click();$(next).focus();}};}
     document.addEventListener('click',e=>{const b=e.target.closest('[data-plan-action]');if(b)open(b.dataset.planAction,b);});
     return {open};
   }
