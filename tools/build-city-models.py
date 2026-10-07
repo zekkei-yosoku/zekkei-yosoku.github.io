@@ -45,6 +45,7 @@ for id,name,bid,ward,partZ in settings:
   covered=sum(abs(cross(p[a],p[bv],p[c]))/2 for a,bv,c in part);assert abs(covered-abs(area))<max(.001,abs(area)*1e-6),(id,covered,area)
   tris+=part
  model={'id':id+'-plateau-lod2-2025','buildingId':E.parse(path).getroot().attrib['{'+ns['g']+'}id'],'heightM':round(partZ-ground,6),'groundM':ground,'sourceLabel':'PLATEAU '+{'13113-shibuya-ku':'渋谷区','13103-minato-ku':'港区','13104-shinjuku-ku':'新宿区'}[ward]+'2025（加工）・形状は目安','sourceUrl':'https://www.geospatial.jp/ckan/dataset/plateau-'+ward+'-2025','vertices':[[round(x,5) for x in v] for v in vv],'geoVertices':geo,'triangles':tris,'provenance':{'year':2025,'lod':2,'rescaled':False,'includesInstallations':True,'sourceGroundM':ground,'sourceTopM':top,'license':'PLATEAU Site Policy / PDL1.0 (CC BY 4.0 compatible)'}}
+ # Preserve source altitude: nominal heights use different ground/roof definitions.
  models[id]=model
  parts=[{'id':'tip','name':'屋上（SKY STAGE）' if id=='shibuya-sky' else '頂部','m':partZ,'latitude':lat,'longitude':lon}]
  targets.append({'id':id,'name':name,'latitude':lat,'longitude':lon,'groundM':ground,'note':'PLATEAU LOD2の標高と輪郭。屋上付属物を含み、現地との高さ・細部の差はあります。','parts':parts})

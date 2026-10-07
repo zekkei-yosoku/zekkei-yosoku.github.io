@@ -44,12 +44,12 @@
       parts: [{ id: "tip", name: "先端", m: 636 },
               { id: "gallery", name: "天望回廊（第二展望台）", m: 452 },
               { id: "deck", name: "天望デッキ", m: 352 }] },
-    // 公式施設案内の地上150m/250m。海面からの値は地面18mを加算する。
+    // 展望台は物理的な上端を狙う（PLATEAU海抜）。公称150/250を屋根高さに流用しない。
     { id: "tokyotower", name: "東京タワー", latitude: 35.658581, longitude: 139.745433,
-      note: "地上の高さ ＋ 地面の標高およそ18m", groundM: 18,
+      note: "先端333m。展望台の上端は図面とPLATEAU標高を参照（細部は推定）", groundM: 18,
       parts: [{ id: "tip", name: "先端", m: 351 },
-              { id: "top", name: "トップデッキ", m: 268 },
-              { id: "main", name: "メインデッキ", m: 168 }] },
+              { id: "top", name: "トップデッキの上端", m: 247.55 },
+              { id: "main", name: "メインデッキの上端", m: 148.389 }] },
     // 出典：PLATEAU新宿区2025。LOD2を抽出・局所座標へ加工。本体頂部と屋上付属物を区別。
     {"id":"tocho-building","name":"東京都庁 第一本庁舎","latitude":35.6895,"longitude":139.691694,"groundM":34.63,"note":"PLATEAU LOD2。屋上付属物を含む形状。本体頂部は地上243.05m","parts":[{"id":"north","name":"北塔の頂部","m":277.68,"latitude":35.68978611899479,"longitude":139.69164621437966},{"id":"south","name":"南塔の頂部","m":277.68,"latitude":35.68921795263166,"longitude":139.6917781156376}]},
     // PLATEAU 2025の絶対座標を保持。部分の高さは海抜で、外形の一律リサイズは行わない。

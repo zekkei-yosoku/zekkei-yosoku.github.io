@@ -166,20 +166,20 @@ ok(/eyeOptions\(favDraft\)\.find/.test(html), "選んだときも同じ一覧か
 {
   const T = req("./sorami-terrain.js");
   const tower = T.decksFor("東京タワー");
-  // 公式施設案内の地上150m/250m。
-  ok(tower && tower.some((d) => d.aglM === 150) && tower.some((d) => d.aglM === 250),
-    "東京タワーはメインデッキ150m・トップデッキ250m（地上）", JSON.stringify(tower));
+  // 図面の物理床高を使用（現行の床高は推定）。
+  ok(tower && tower.some((d) => d.aglM === 125) && tower.some((d) => d.aglM === 223.55),
+    "東京タワーの床高は図面参照125m・223.55m", JSON.stringify(tower));
   ok(T.decksFor("サンシャイン60")[0].aglM === 221 && T.decksFor("六本木ヒルズ")[0].aglM === 218,
     "海抜で案内している展望台も地上で持つ（サンシャイン60 221m・東京シティビュー 218m）");
   const st = T.structureHeight({ height: "333" });
   ok(st && st.m === 333, "OSM の height は構造物の高さ（先端）", JSON.stringify(st));
   ok(tower[0].aglM < st.m, "**展望台は先端より低い**", `${tower[0].aglM}m < ${st.m}m`);
   ok(T.decksFor("高尾山") === null, "展望台でない場所は null");
-  // 誤った125m/224mで保存済みの展望台は公式値に引き直す
+  // 公称150/250で保存済みの展望台は物理床高へ引き直す
   const fdSrc = /function freshDecks\(f\) \{[\s\S]*?\n\}/.exec(html)[0];
   const fresh = new Function("SoramiTerrain", `${fdSrc}; return freshDecks;`)(T);
-  const old = fresh({ name: "東京タワー", decks: [{ name: "メインデッキ", aglM: 125 }, { name: "トップデッキ", aglM: 224 }], eyeHeightAGL: 224 });
-  ok(old.eyeHeightAGL === 250 && old.decks[0].aglM === 150, "保存済みのトップデッキ224mは250mに直る", JSON.stringify(old));
+  const old = fresh({ name: "東京タワー", decks: [{ name: "メインデッキ", aglM: 150 }, { name: "トップデッキ", aglM: 250 }], eyeHeightAGL: 250 });
+  ok(old.eyeHeightAGL === 223.55 && old.decks[0].aglM === 125, "保存済み公称250mは図面の床高223.55mへ更新", JSON.stringify(old));
   const ground = fresh({ name: "東京タワー", decks: [{ name: "メインデッキ", aglM: 150 }], eyeHeightAGL: 1.5 });
   ok(ground.eyeHeightAGL === 1.5, "地面に立つ選択はそのまま");
   ok(fresh({ name: "高尾山", eyeHeightAGL: 1.5 }).decks === undefined, "展望台の無い地点は触らない");

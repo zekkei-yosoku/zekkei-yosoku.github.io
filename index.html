@@ -1952,28 +1952,28 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261007231147"></script>
+<script src="sorami-core.js?v=20261008002927"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261007231147"></script>
-<script src="sorami-exif.js?v=20261007231147"></script>
-<script src="sorami-capcloud.js?v=20261007231147"></script>
-<script src="sorami-terrain.js?v=20261007231147"></script>
-<script src="sorami-mountain.js?v=20261007231147"></script>
-<script src="sorami-fuji.js?v=20261007231147"></script>
-<script src="sorami-sky.js?v=20261007231147"></script>
+<script src="sorami-astro.js?v=20261008002927"></script>
+<script src="sorami-exif.js?v=20261008002927"></script>
+<script src="sorami-capcloud.js?v=20261008002927"></script>
+<script src="sorami-terrain.js?v=20261008002927"></script>
+<script src="sorami-mountain.js?v=20261008002927"></script>
+<script src="sorami-fuji.js?v=20261008002927"></script>
+<script src="sorami-sky.js?v=20261008002927"></script>
 
-<script src="sorami-plan.js?v=20261007231147"></script>
-<script src="sorami-routes.js?v=20261007231147"></script>
-<script src="sorami-iss.js?v=20261007231147"></script>
-<script src="sorami-plane.js?v=20261007231147"></script>
-<script src="sorami-refraction.js?v=20261007231147"></script>
-<script src="sorami-atmosphere.js?v=20261007231147"></script>
-<script src="sorami-bodies.js?v=20261007231147"></script>
-<script src="sorami-city-models.js?v=20261007231147"></script>
-<script src="sorami-tower-models.js?v=20261007231147"></script>
-<script src="sorami-align.js?v=20261007231147"></script>
-<script src="sorami-moon.js?v=20261007231147"></script>
+<script src="sorami-plan.js?v=20261008002927"></script>
+<script src="sorami-routes.js?v=20261008002927"></script>
+<script src="sorami-iss.js?v=20261008002927"></script>
+<script src="sorami-plane.js?v=20261008002927"></script>
+<script src="sorami-refraction.js?v=20261008002927"></script>
+<script src="sorami-atmosphere.js?v=20261008002927"></script>
+<script src="sorami-bodies.js?v=20261008002927"></script>
+<script src="sorami-city-models.js?v=20261008002927"></script>
+<script src="sorami-tower-models.js?v=20261008002927"></script>
+<script src="sorami-align.js?v=20261008002927"></script>
+<script src="sorami-moon.js?v=20261008002927"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2257,8 +2257,9 @@ function cleanSighting(r) {
     photoOutsideWindow: typeof r.photoOutsideWindow === "boolean" ? r.photoOutsideWindow : null };
 }
 /**
- * 保存した地点の展望台の高さを、いまの公表値の一覧で引き直す。
- * 2026-10-02 東京タワーなどの「150m」「250m」が海抜だったと分かり地上へ直した。前に保存した 150m のままだと 25m 高く立ってしまう
+ * 保存した地点の展望台の高さを、現在の施設別の床高一覧で引き直す。
+ * 東京タワーは公称値と図面の床高が異なるため、2026-10-08に図面の推定床高へ更新。
+ * 地上で立つ選択や独自の高さは保持する。共有URL内の明示高さは保持する。
  */
 function freshDecks(f) {
   const now = Array.isArray(f.decks) && SoramiTerrain.decksFor(f.name);
