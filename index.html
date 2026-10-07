@@ -1952,26 +1952,26 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261007175134"></script>
+<script src="sorami-core.js?v=20261007212418"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261007175134"></script>
-<script src="sorami-exif.js?v=20261007175134"></script>
-<script src="sorami-capcloud.js?v=20261007175134"></script>
-<script src="sorami-terrain.js?v=20261007175134"></script>
-<script src="sorami-mountain.js?v=20261007175134"></script>
-<script src="sorami-fuji.js?v=20261007175134"></script>
-<script src="sorami-sky.js?v=20261007175134"></script>
+<script src="sorami-astro.js?v=20261007212418"></script>
+<script src="sorami-exif.js?v=20261007212418"></script>
+<script src="sorami-capcloud.js?v=20261007212418"></script>
+<script src="sorami-terrain.js?v=20261007212418"></script>
+<script src="sorami-mountain.js?v=20261007212418"></script>
+<script src="sorami-fuji.js?v=20261007212418"></script>
+<script src="sorami-sky.js?v=20261007212418"></script>
 
-<script src="sorami-plan.js?v=20261007175134"></script>
-<script src="sorami-routes.js?v=20261007175134"></script>
-<script src="sorami-iss.js?v=20261007175134"></script>
-<script src="sorami-plane.js?v=20261007175134"></script>
-<script src="sorami-refraction.js?v=20261007175134"></script>
-<script src="sorami-atmosphere.js?v=20261007175134"></script>
-<script src="sorami-bodies.js?v=20261007175134"></script>
-<script src="sorami-align.js?v=20261007175134"></script>
-<script src="sorami-moon.js?v=20261007175134"></script>
+<script src="sorami-plan.js?v=20261007212418"></script>
+<script src="sorami-routes.js?v=20261007212418"></script>
+<script src="sorami-iss.js?v=20261007212418"></script>
+<script src="sorami-plane.js?v=20261007212418"></script>
+<script src="sorami-refraction.js?v=20261007212418"></script>
+<script src="sorami-atmosphere.js?v=20261007212418"></script>
+<script src="sorami-bodies.js?v=20261007212418"></script>
+<script src="sorami-align.js?v=20261007212418"></script>
+<script src="sorami-moon.js?v=20261007212418"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7887,6 +7887,7 @@ async function aimLookRender(host, spec) {
   const eyeObs = { latitude: spec.obs.latitude, longitude: spec.obs.longitude, elevation: eye };
   const st = SoramiBodies.state(body, spec.at, eyeObs);
   const radius = st.angularRadius;
+  const pickGeo = SoramiAlign.geometryFrom(spec.obs,t,{eyeM:spec.eyeM,partId:host.id==="aimLook"?aim.partId:null});
   const D = SoramiTerrain.distanceKm(spec.obs.latitude, spec.obs.longitude, t.latitude, t.longitude);
   const az = SoramiTerrain.bearing(spec.obs.latitude, spec.obs.longitude, t.latitude, t.longitude);
   const outline = aimIsMountain(t) ? null : SoramiAlign.towerOutline(spec.obs, t, { eyeM: spec.eyeM });
@@ -8233,7 +8234,7 @@ async function aimLookRender(host, spec) {
     });
     if (best >= 0) { range.value = String(best); draw(best); }
   };
-  aimLookPick(host, { spec, cv, draw: () => draw(cur), bodyPosition: () => { const p = at(cur); if (p.x === null) return null; const xy = toPx([p.x, p.y]), off = host._lensOffset || [0, 0]; return [xy[0] + off[0] * W, xy[1] + off[1] * H]; }, W, H, k, win, az, topAngle, D, path, toPx: xy => { const p = toPx(xy), off = host._lensOffset || [0, 0]; return p ? [p[0] + off[0] * W, p[1] + off[1] * H] : null; }, pan: () => { const off = host._lensOffset || [0, 0]; return [off[0] * W, off[1] * H]; }, pathTap: cv.onclick });
+  aimLookPick(host, { spec, cv, draw: () => draw(cur), bodyPosition: () => { const p = at(cur); if (p.x === null) return null; const xy = toPx([p.x, p.y]), off = host._lensOffset || [0, 0]; return [xy[0] + off[0] * W, xy[1] + off[1] * H]; }, W, H, k, win, az:pickGeo?.azimuth??az, topAngle:pickGeo?.angle??topAngle, D:pickGeo?.distanceKm??D, path, toPx: xy => { const p = toPx(xy), off = host._lensOffset || [0, 0]; return p ? [p[0] + off[0] * W, p[1] + off[1] * H] : null; }, pan: () => { const off = host._lensOffset || [0, 0]; return [off[0] * W, off[1] * H]; }, pathTap: cv.onclick });
   const move = host.querySelector("[data-lens-move]");
   const center = host.querySelector("[data-lens-center]");
   move.disabled = center.disabled = !frame;
@@ -10592,7 +10593,7 @@ function planSnapshot(button) {
     if(host._pick?.busy||host._pick?.ghost||host._lensMoving)throw new Error('見え方の変更を確定してから開いてください。');
     const t=aim.target,at=host._lookAt,observer={...spec.obs,name:host._planObserverName || aimFromPoint()?.name || '観測地点'};
     const part=SoramiAlign.partOf(t,aim.partId),focal=+host.querySelector('[data-lens-focal]').value;
-    const target={id:t.id,name:t.name,latitude:t.latitude,longitude:t.longitude,groundM:t.groundM ?? (t.id==='fuji'?3776:0),parts:t.parts.map(p=>({id:p.id,name:p.name,m:p.m}))};
+    const target={id:t.id,name:t.name,latitude:t.latitude,longitude:t.longitude,groundM:t.groundM ?? (t.id==='fuji'?3776:0),parts:t.parts.map(p=>({id:p.id,name:p.name,m:p.m,...(Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)?{latitude:p.latitude,longitude:p.longitude}:{})}))};
     if(Number.isFinite(t.widthM))target.widthM=t.widthM;
     payload={v:1,kind:'aim',o:SoramiPlan.compactPoint(observer,spec.eyeM),at,t:target,body:aim.body,part:aim.partId,limb:aim.limb,
       air:aimAirSettings.mode,l:{...aimLens,focal},pan:[...(host._lensOffset || [0,0])]};

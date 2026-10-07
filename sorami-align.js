@@ -49,6 +49,12 @@
       parts: [{ id: "tip", name: "先端", m: 351 },
               { id: "top", name: "トップデッキ", m: 242 },
               { id: "main", name: "メインデッキ", m: 143 }] },
+    // 高さは東京都財務局の建物概要（最高243.4m、軒高241.87m）。
+    // 塔の平面位置・幅・段差は概算。既存の観測スポットtochoとは別ID。
+    {id:"tocho-building",name:"東京都庁 第一本庁舎",latitude:35.6895,longitude:139.691694,groundM:35,
+      note:"高さ243.4m。南北塔の形状・平面位置は簡易3Dの概算",parts:[
+        {id:"north",name:"北塔の頂部",m:278.4,...TR.destination(35.6895,139.691694,350,.032)},
+        {id:"south",name:"南塔の頂部",m:278.4,...TR.destination(35.6895,139.691694,170,.032)}]},
     // 位置は OpenStreetMap の建物の中心（35.6320784, 139.8808364）とユーザーの座標が3mで合う所。
     // 2026-10-02 まで 95m 北西（35.632896, 139.880394）に置いていて、3km 先からの方角が 1° 以上（月2つ分）ずれていた
     { id: "cinderella", name: "シンデレラ城", latitude: 35.632104, longitude: 139.880834,
@@ -149,6 +155,12 @@
   const partOf = (target, partId) =>
     (target.parts || []).find((p) => p.id === partId) || (target.parts || [])[0] || null;
 
+  const partTarget = (target, partId) => {
+    if(partId==="__whole")return target;
+    const p=partOf(target,partId);
+    return p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)?{...target,latitude:p.latitude,longitude:p.longitude}:target;
+  };
+
   /**
    * 天体のどこを合わせるか。**「下の縁」と「真ん中」は別の位置**。
    *   onTop  … 天体の下の縁が先端に接する（乗っかって見える）→ 中心は半径ぶん上
@@ -206,6 +218,7 @@
    * @param {function} elevationAt  (lat, lon) => 標高[m]（省略可。既定は 0m）
    */
   async function solvePoint(target, body, dayMs, distanceKm, side, opts = {}) {
+    target=partTarget(target,opts.partId);
     const { eyeM = 1.5, elevationAt = null, rounds = 3, heightM = null, limb = "center" } = opts;
     const topM = heightM !== null ? heightM : (partOf(target, opts.partId) || {}).m;
     if (!Number.isFinite(topM)) return null;
@@ -344,6 +357,7 @@
 
   /// 観測地点から見た目標の幾何（方位と見上げ角）。**地形は見ない**（線と一覧の両方で使う素の値）
   function geometryFrom(observer, target, opts = {}) {
+    target=partTarget(target,opts.partId);
     const { eyeM = 1.5, partId = null, heightM = null } = opts;
     const topM = heightM !== null ? heightM : (partOf(target, partId) || {}).m;
     if (!Number.isFinite(topM)) return null;
@@ -738,6 +752,7 @@
    * @returns {Promise<Array>} 重なる（かすめる）場所。立つ位置 `stand` と、そこでの `crossingNear` の結果
    */
   async function candidates(lines, places, target, body, opts = {}) {
+    target=partTarget(target,opts.partId);
     const { elevationAt = null } = opts;
     const jobs = [];
     for (const l of lines) {
@@ -939,6 +954,7 @@
    * 山のすぐ手前だけは目標自身の山腹として除外する。塔は直前まで読む。
    */
   async function lineOfSight(observer, target, opts = {}) {
+    target=partTarget(target,opts.partId);
     const g = geometryFrom(observer, target, opts);
     if (!g || !opts.elevations) return null;
     const eye = (observer.elevation ?? 0) + (opts.eyeM ?? 1.5);
@@ -978,6 +994,7 @@
    * @param {number} eyeAboveGroundM 地面から目までの高さ（橋や土手、展望台の高さを含む）
    */
   function buildingBlock(observer, target, buildings, { partId = null, eyeAboveGroundM = 1.5, maxKm = 1.5 } = {}) {
+    target=partTarget(target,partId);
     const g = geometryFrom(observer, target, { partId, eyeM: 1.5 });
     if (!g) return null;
     const F = localFrame(observer.latitude, observer.longitude);
@@ -1336,6 +1353,18 @@
     return {id:"cinderella-photo-v2",heightM:51,approximate:true,calibration,solids};
   })();
 
+  // 自作の双塔モデル。全高のみ公式確認、平面寸法/段差高さは概算。
+  const TOCHO_MODEL=(()=>{
+    const solids=[],box=(x,y,w,d,z0,z1)=>solids.push([z0,z1].flatMap(z=>[-1,1].flatMap(a=>[-1,1].map(b=>[x+a*w/2,y+b*d/2,z]))));
+    const oct=(y,w,d,z0,z1)=>solids.push([z0,z1].flatMap(z=>[[-w/2,-d/2+6],[-w/2+6,-d/2],[w/2-6,-d/2],[w/2,-d/2+6],[w/2,d/2-6],[w/2-6,d/2],[-w/2+6,d/2],[-w/2,d/2-6]].map(([x,q])=>[x,y+q,z])));
+    box(0,0,44,106,0,145);box(0,0,54,116,0,32);
+    for(const y of [-32,32]){
+      oct(y,36,36,145,202);oct(y,30,30,202,222);oct(y,24,24,222,241.87);
+      box(0,y,10,10,241.87,243.4);
+    }
+    return {id:"tocho-simple-v1",heightM:243.4,referenceBearing:170,approximate:true,solids};
+  })();
+
   function convexHull(points) {
     const p=points.filter(q=>q&&q.every(Number.isFinite)).slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
     const cross=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
@@ -1344,16 +1373,16 @@
     const lo=half(p),hi=half(p.slice().reverse());lo.pop();hi.pop();return lo.concat(hi);
   }
   const castleWorldCache = new Map();
-  function castleOutline(observer,target,{eyeM=1.5,heightM=null}={}) {
+  function modelOutline(observer,target,model,{eyeM=1.5,heightM=null}={}) {
     const ground=target.groundM??0,top=heightM??((partOf(target,"tip")||target.parts[0]).m-ground);
     if(!(top>.5))return null;
-    const ref=CASTLE_MODEL.calibration.observer;
-    const bearing=TR.bearing(target.latitude,target.longitude,ref.latitude,ref.longitude);
-    const key=`${target.latitude},${target.longitude},${bearing}`;
+    const ref=model.calibration?.observer;
+    const bearing=ref?TR.bearing(target.latitude,target.longitude,ref.latitude,ref.longitude):model.referenceBearing;
+    const key=`${model.id},${target.latitude},${target.longitude},${bearing}`;
     let world=castleWorldCache.get(key);
     if(!world){
       const places=new Map(),axis=(bearing-90)*R,depth=(bearing+180)*R;
-      world=CASTLE_MODEL.solids.map(solid=>solid.map(([x,y,z])=>{
+      world=model.solids.map(solid=>solid.map(([x,y,z])=>{
         const k=`${x},${y}`;let p=places.get(k);
         if(!p){const east=x*Math.sin(axis)+y*Math.sin(depth),north=x*Math.cos(axis)+y*Math.cos(depth);
           p=TR.destination(target.latitude,target.longitude,Math.atan2(east,north)/R,Math.hypot(east,north)/1000);places.set(k,p);}
@@ -1366,11 +1395,11 @@
     const sight=new Map();
     const polygons=world.map(solid=>convexHull(solid.map(({place,z})=>{
       let g=sight.get(place);if(!g){g={d:TR.distanceKm(observer.latitude,observer.longitude,place.latitude,place.longitude),az:TR.bearing(observer.latitude,observer.longitude,place.latitude,place.longitude)};sight.set(place,g);}
-      return [az0+azDiff(g.az,az0),targetAngle(g.d,eye,ground+z*top/CASTLE_MODEL.heightM)];
+      return [az0+azDiff(g.az,az0),targetAngle(g.d,eye,ground+z*top/model.heightM)];
     }))).filter(p=>p.length>=3);
     const points=polygons.flat(),ang=h=>targetAngle(d,eye,ground+h);
     return {points,polygons,hitPolygons:polygons,schematic:false,known:true,approximate:true,
-      modelId:CASTLE_MODEL.id,azimuth:az0,distanceKm:d,baseAngle:ang(0),topAngle:ang(top),viewBaseAngle:ang(0),hiddenAngle:null};
+      modelId:model.id,azimuth:az0,distanceKm:d,baseAngle:ang(0),topAngle:ang(top),viewBaseAngle:ang(0),hiddenAngle:null};
   }
 
   /**
@@ -1378,7 +1407,8 @@
    * 地上の高さ heightM だけ分かる建物（他の目標）は**幅を推定した四角**（schematic: true）。山（地上 0m）は null（地形から描く）
    */
   function towerOutline(observer, target, { eyeM = 1.5, heightM = null } = {}) {
-    if (target.id === "cinderella") return castleOutline(observer,target,{eyeM,heightM});
+    if (target.id === "cinderella") return modelOutline(observer,target,CASTLE_MODEL,{eyeM,heightM});
+    if (target.id === "tocho-building") return modelOutline(observer,target,TOCHO_MODEL,{eyeM,heightM});
     if (target.rim) return null;   // 富士山（火口の縁のデータを持つ山）
     const ground = target.groundM ?? 0;
     const top = heightM !== null ? heightM : ((partOf(target, "tip") || (target.parts || [])[0] || {}).m ?? ground) - ground;
@@ -1612,6 +1642,7 @@
    */
   async function solveComposition(target, body, { around, distanceKm, at0, dx, dy, eyeM = 1.5, groundM = 0,
     elevationAt = null, partId = null, maxShiftMs = 4 * 3600000, dayMs = null } = {}) {
+    target=partTarget(target,partId);
     const D = distanceKm;
     const pid = partId || ((target.parts || [])[0] || {}).id;
     const place = (th) => TR.destination(target.latitude, target.longitude, th, D);
@@ -1669,7 +1700,7 @@
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, judge, buildingBlock,
-                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, CASTLE_MODEL, convexHull, TOWER_SHAPES, towerOutline, viewWindow, viewPath, sceneTargets };
+                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, TOCHO_MODEL, CASTLE_MODEL, convexHull, TOWER_SHAPES, towerOutline, viewWindow, viewPath, sceneTargets };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);
