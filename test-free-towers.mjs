@@ -7,7 +7,7 @@ function view(id,bearing=0){const t=A.targetById(id),obs={...T.destination(t.lat
 test('無料2塔は方位で形が変わり、公表高さを保つ',()=>{
  for(const id of ['tokyotower','skytree']){
   const a=view(id,0),b=view(id,45),width=o=>Math.max(...o.points.map(p=>p[0]))-Math.min(...o.points.map(p=>p[0]));
-  assert.notEqual(width(a.o),width(b.o));assert.equal(a.o.modelId,id+'-drawing-envelope-v2');
+  assert.notEqual(width(a.o),width(b.o));assert.equal(a.o.modelId,id+'-drawing-envelope-v'+(id==='skytree'?3:2));
   assert.equal(a.o.polygons,a.o.hitPolygons);assert.ok(a.o.points.every(p=>p.every(Number.isFinite)));
   assert.ok(a.o.sourceLabel.includes('推定'));assert.ok(a.o.approximate);
   const expected=A.geometryFrom(a.obs,a.t).angle;assert.ok(Math.abs(a.o.topAngle-expected)<1e-9);
@@ -63,4 +63,9 @@ test('アーチは傾斜脚の構面に収まり、外側に浮かない',()=>{
  const centres=m.faces.filter(f=>f.length===8).map(f=>[0,1,2].map(k=>f.reduce((s,i)=>s+m.vertices[i][k],0)/f.length)).filter(c=>c[2]>39&&c[2]<40);
  assert.equal(centres.length,8,'4面×アーチ頂点の前後2材');
  for(const [x,y] of centres){const east=x*Math.cos(rot)+y*Math.sin(rot),north=-x*Math.sin(rot)+y*Math.cos(rot);assert.ok(Math.max(Math.abs(east),Math.abs(north))<24,'高さ40m付近のアーチが半幅40mの外側に残らない');}
+});
+
+test('スカイツリー天望デッキは上へ広がる逆円錐と広い上端',()=>{
+ const m=require('./sorami-tower-models.js').skytree,r=z=>m.vertices.filter(v=>Math.abs(v[2]-z)<.001).map(v=>Math.hypot(v[0],v[1]));
+ assert.ok(Math.max(...r(375))>28.9);assert.ok(Math.max(...r(334))<17);assert.ok(Math.max(...r(350))<23);assert.ok(Math.max(...r(371))>29);assert.match(m.provenance.deckProfileReference,/photo/);
 });

@@ -258,7 +258,7 @@ test("ティンカーベル全体は像と杖だけに当たり、ホテルと�
   const rows=c.SoramiAlign.dailyView(obs,t,"venus",day("03"));assert.ok(rows.length);assert.ok(rows.every(r=>r.intersects===expected));
  }
  const min=Math.min(...o.hitPoints.map(p=>p[1])),base=A.targetElevationAngle(o.distanceKm,4.3,t.parts[0].m-2.5);
- assert.ok(Math.abs(min-base)<.0001);
+ assert.ok(Math.abs(min-base)<.001);
 });
 
 // 城の参照方向は10/7ユーザー提示の地点候補へ更新。以前の逆算地点を消さない。

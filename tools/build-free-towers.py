@@ -66,6 +66,7 @@ box(t,252.65,300,1.5,1.0,rot);box(t,300,313,1.0,.75,rot)
 cylinder(t,313,333,.3,.12,12)
 
 s=model('skytree',634)
+s['id']='skytree-drawing-envelope-v3';s['sourceLabel']='図面・写真参照3D・形状は推定'
 # Official operator: 68 m equilateral base; circular transition at 315 m.
 # Designer: 32 m diameter transition, circular arcs tangent to a cone, 24 perimeter subdivisions.
 # Reconstruct the radial arc envelope; cone slope inferred from the published
@@ -105,8 +106,17 @@ for a,b in zip(levels,levels[1:]):
    beam(s,low[i],low[n],w*.55);beam(s,low[i],up[n],w*.5);beam(s,low[n],up[i],w*.5)
 # Central elevator/concrete shaft is opaque; lattice gaps remain around it.
 cylinder(s,0,375,4.0,4.0,16);cylinder(s,375,434,3.3,3,16)
-for a,b,r0,r1 in [(329,341,17,24),(341,350,24,28),(350,360,28,29.25),(360,368,29.25,28),(368,374,28,17),(434,441,16,17),(441,450,17,19),(450,457,19,20),(457,462,20,12)]:cylinder(s,a,b,r0,r1,32)
+# Photo-constrained reverse-cone deck: widen upwards, not an inflated middle and pinched roof.
+# User reference photo: tip y=465, upper main-deck rim y=944. 375m rim is an estimate,
+# giving 1.849px/m; maximum photographed width about108px agrees with58.5m envelope.
+# Floor350m is an occupied floor, not the widest roof; all intermediate stations estimated.
+s['provenance']['deckProfileReference']='user-supplied elevation photo 2026-10-08; approximate pixel trace, not surveyed'
+s['provenance']['photoScalePixelsPerM']=479/259
+s['provenance']['photoScaleQuality']='approximate: roof height, camera inclination and distance unmeasured'
+s['provenance']['detailRevision']='reverse-cone roof and antenna collars v3'
+for a,b,r0,r1 in [(329,334,15,16),(334,340,16,18.5),(340,350,18.5,22.5),(350,365,22.5,27.5),(365,369,27.5,28.3),(369,371,28.3,29.25),(371,375,29.25,29),(434,441,12,16),(441,447,16,19),(447,450,19,19),(450,453,19,17),(453,458,17,17),(458,462,17,15)]:cylinder(s,a,b,r0,r1,48)
 for a,b,r0,r1 in [(494,500,8,4),(500,525,4,4),(525,530,4,3),(530,557,3,3),(557,563,3,2.5),(563,587,2.5,2.5),(587,592,2.5,2),(592,616,2,2),(616,630,2,2.8),(630,634,2.8,.4)]:cylinder(s,a,b,r0,r1,24)
+for z,r in [(500,5),(530,4),(557,3.8),(563,3.2),(587,3.1),(592,2.8),(616,2.6)]:cylinder(s,z-.5,z+.5,r,r,32)
 for m in [t,s]:
  assert all(all(math.isfinite(x) for x in p) for p in m['vertices'])
  assert math.isclose(max(p[2] for p in m['vertices']),m['heightM'],abs_tol=1e-6)

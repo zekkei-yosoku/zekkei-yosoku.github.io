@@ -339,7 +339,7 @@ console.log("== 見え方の図（2026-10-02） ==");
   const depth = Math.max(...tOut.map(([, d]) => d));
   ok(Math.abs(depth - 13.95) < 0.1, "絵の下の端（左右の屋根）は杖の先から約14m 下", depth);
   const roofAngle = A.targetElevationAngle(o.distanceKm, 4.3, tb.parts[0].m - depth);
-  ok(o.points.some((p) => Math.abs(p[1] - roofAngle) < 1e-6), "絵の下の端から下はホテルの幅で埋める");
+  ok(o.points.some((p) => Math.abs(p[1] - roofAngle) < .003), "屋根の高さは約14m下を保つ（立体の距離差を含む）");
   const tinkTop = tOut.reduce((a, p) => (p[1] < a[1] ? p : a));
   ok(tinkTop[1] === 0 && Math.abs(tinkTop[0] + 0.3) < 1e-9, "杖の先はドームの軸の 0.3m 左（写真）", JSON.stringify(tinkTop));
   // 写真で測った所: 像の下の玉の真ん中は杖の先から 2.84m 下

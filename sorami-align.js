@@ -1310,6 +1310,53 @@
       [13.095, 13.613], [13.28, 13.782], [13.263, 13.849], [13.364, 13.882]] },
   };
 
+  // 参照写真の凹輪郭を三角形へ分割して、部位別の推定厚みを持つ体積にする。
+  // 未撮影の横顔/背面は復元不能。厚みは実測ではなく、写真正面だけを拘束する。
+  const TINKERBELL_MODEL = (() => {
+    try {
+    const shape=TOWER_SHAPES.tinkerbell,ref=shape.referenceView.observer,limit=shape.hitFromTopM;
+    const t=TARGETS.find(t=>t.id==="tinkerbell"),distance=TR.distanceKm(t.latitude,t.longitude,ref.latitude,ref.longitude)*1000;
+    const top=t.parts[0].m-t.groundM,eye=ref.elevation+ref.eyeM-t.groundM,solids=[];
+    const clip=(inside)=>{const out=[];for(let i=0;i<shape.outline.length;i++){
+      const a=shape.outline[i],b=shape.outline[(i+1)%shape.outline.length],ia=inside(a[1]),ib=inside(b[1]);
+      if(ia)out.push(a);if(ia!==ib){const f=(limit-a[1])/(b[1]-a[1]);out.push([a[0]+f*(b[0]-a[0]),limit]);}}
+      return out;};
+    function triangulate(poly){
+      const cross=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+      const area=poly.reduce((sum,a,i)=>{const b=poly[(i+1)%poly.length];return sum+a[0]*b[1]-b[0]*a[1];},0);
+      const ids=poly.map((_,i)=>i);if(area<0)ids.reverse();const triangles=[];
+      while(ids.length>3){let found=false;for(let j=0;j<ids.length;j++){
+        const ai=ids[(j+ids.length-1)%ids.length],bi=ids[j],ci=ids[(j+1)%ids.length],a=poly[ai],b=poly[bi],c=poly[ci];
+        if(cross(a,b,c)<=1e-10)continue;
+        if(ids.some(i=>i!==ai&&i!==bi&&i!==ci&&cross(a,b,poly[i])>=-1e-10&&cross(b,c,poly[i])>=-1e-10&&cross(c,a,poly[i])>=-1e-10))continue;
+        triangles.push([a,b,c]);ids.splice(j,1);found=true;break;}
+        if(!found)throw new Error("像の参照輪郭を三角形化できません");}
+      triangles.push(ids.map(i=>poly[i]));
+      const sum=triangles.reduce((s,[a,b,c])=>s+Math.abs(cross(a,b,c)),0);
+      if(Math.abs(sum-Math.abs(area))>1e-7)throw new Error("像の輪郭面積が一致しません");return triangles;
+    }
+    function depth([x,d],statue){
+      if(!statue)return Math.max(.08,Math.sqrt(Math.max(0,3.7*3.7-x*x))*.65);
+      if(d<.55)return .009; // 杖を身体と同じ厚みにしない
+      if(x>.65)return .022; // 薄い羽
+      if(d<1.05)return .11; // 頭
+      if(d<1.65)return .14; // 胴・腕
+      return .055; // 脚
+    }
+    function volume(poly,statue){for(const tri of triangulate(poly)){
+      // 光線上で前後面を動かす。推定奥行きが参照写真の輪郭を広げない。
+      const points=[];for(const sign of [-1,1])for(const p of tri){const [x,d]=p,y=sign*depth(p,statue),f=(distance+y)/distance;
+        points.push([x*f,y,eye+(top-d-eye)*f]);}solids.push(points);
+    }}
+    volume(clip(d=>d<=limit),true);const hitSolidCount=solids.length;
+    volume(clip(d=>d>=limit),false);
+    const hotel=[];for(const z of [0,top-13.95])for(const [x,y] of [[-60,-12],[60,-12],[60,12],[-60,12]]){
+      const f=(distance+y)/distance;hotel.push([x*f,y,z===0?0:eye+(z-eye)*f]);}solids.push(hotel);
+    return {id:"tinkerbell-photo-volume-v1",heightM:top,heightMode:"translate-top",groundAnchored:true,solids,hitSolidCount,viewFromTopM:14,
+      calibration:{observer:ref},approximate:true,sourceLabel:"写真参照3D・厚みは推定",provenance:{kind:"photo-constrained-approximation",depthMeasured:false,statueHeightM:limit}};
+    } catch { return null; } // この像だけを旧写真輪郭へ戻し、他目標と計算を止めない。
+  })();
+
   // 写真の月の横径から角度縮尺を取り、見える塔の段と屋根を校正した自作立体。
   // 写真は1280×1920の表示座標で手動計測。遮蔽された下部/裏面/奥行きは概算。
   // 他者メッシュ・テクスチャなし。凸部品を別々に投影して塔間を埋めない。
@@ -1393,16 +1440,17 @@
     const d=TR.distanceKm(observer.latitude,observer.longitude,target.latitude,target.longitude);
     const az0=TR.bearing(observer.latitude,observer.longitude,target.latitude,target.longitude),eye=(observer.elevation??0)+eyeM;
     const sight=new Map(),projected=new Map();
-    const polygons=world.map(solid=>convexHull(solid.map(vertex=>{
+    const projectedParts=world.map(solid=>convexHull(solid.map(vertex=>{
       if(projected.has(vertex))return projected.get(vertex);
       const {place,z}=vertex;
       let g=sight.get(place);if(!g){g={d:TR.distanceKm(observer.latitude,observer.longitude,place.latitude,place.longitude),az:TR.bearing(observer.latitude,observer.longitude,place.latitude,place.longitude)};sight.set(place,g);}
-      const result=[az0+azDiff(g.az,az0),targetAngle(g.d,eye,ground+z*top/model.heightM)];projected.set(vertex,result);return result;
-    }))).filter(p=>p.length>=3);
+      const result=[az0+azDiff(g.az,az0),targetAngle(g.d,eye,ground+(model.heightMode==="translate-top"?(model.groundAnchored&&z===0?0:z+top-model.heightM):z*top/model.heightM))];projected.set(vertex,result);return result;
+    })));
+    const polygons=projectedParts.filter(p=>p.length>=3),hitPolygons=Number.isInteger(model.hitSolidCount)?projectedParts.slice(0,model.hitSolidCount).filter(p=>p.length>=3):polygons;
     const points=polygons.flat(),ang=h=>targetAngle(d,eye,ground+h);
     const viewTop=model.vertices?Math.max(...model.vertices.map(v=>v[2]))*top/model.heightM:top;
-    return {points,polygons,hitPolygons:polygons,schematic:false,known:true,approximate:true,
-      modelId:model.id,sourceLabel:model.sourceLabel,sourceUrl:model.sourceUrl,azimuth:az0,distanceKm:d,baseAngle:ang(0),topAngle:ang(viewTop),viewBaseAngle:ang(0),hiddenAngle:null};
+    return {points,polygons,hitPolygons,hitPoints: model.hitSolidCount?hitPolygons.flat():null,schematic:false,known:true,approximate:true,
+      modelId:model.id,sourceLabel:model.sourceLabel,sourceUrl:model.sourceUrl,azimuth:az0,distanceKm:d,baseAngle:ang(0),topAngle:ang(viewTop),viewBaseAngle:ang(model.viewFromTopM?Math.max(0,top-model.viewFromTopM):0),hiddenAngle:null};
   }
 
   /**
@@ -1410,6 +1458,7 @@
    * 地上の高さ heightM だけ分かる建物（他の目標）は**幅を推定した四角**（schematic: true）。山（地上 0m）は null（地形から描く）
    */
   function towerOutline(observer, target, { eyeM = 1.5, heightM = null } = {}) {
+    if (target.id === "tinkerbell" && TINKERBELL_MODEL) return modelOutline(observer,target,TINKERBELL_MODEL,{eyeM,heightM});
     if (target.id === "cinderella") return modelOutline(observer,target,CASTLE_MODEL,{eyeM,heightM});
     if (target.id === "tocho-building") return modelOutline(observer,target,TOCHO_MODEL,{eyeM,heightM});
     if (CM?.[target.id]) return modelOutline(observer,target,CM[target.id],{eyeM,heightM});
@@ -1455,7 +1504,7 @@
     const hidden = TOWER_SHAPES[target.id] && TOWER_SHAPES[target.id].hiddenBelowM;
     const hiddenM = hidden ? hidden * top / Math.max(...TOWER_SHAPES[target.id].outline.map(([, h]) => h)) : null;
     // 図の下の端: ティンカーベルはドームと像のまわり。hiddenBelowM を持つ目標はその高さ（そこから下は地面として塗るので図に入れない）
-    return { points, hitPoints, schematic, known: !!TOWER_SHAPES[target.id], azimuth: az0, distanceKm: d,
+    return { points, hitPoints, ...(target.id==="tinkerbell"?{modelId:"tinkerbell-reference-2d-fallback",sourceLabel:"写真輪郭2D・3D生成不可",approximate:true}:{}), schematic, known: !!TOWER_SHAPES[target.id], azimuth: az0, distanceKm: d,
       baseAngle: ang(0), topAngle: ang(top),
       viewBaseAngle: from ? ang(Math.max(0, top - from)) : hiddenM !== null ? ang(hiddenM) : ang(0),
       hiddenAngle: hiddenM !== null ? ang(hiddenM) : null };
@@ -1705,7 +1754,7 @@
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, judge, buildingBlock,
-                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, CITY_MODELS:CM,TOWER_MODELS:TM, TOCHO_MODEL, CASTLE_MODEL, convexHull, TOWER_SHAPES, towerOutline, viewWindow, viewPath, sceneTargets };
+                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, CITY_MODELS:CM,TOWER_MODELS:TM, TOCHO_MODEL, CASTLE_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, viewWindow, viewPath, sceneTargets };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);
