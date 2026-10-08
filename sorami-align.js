@@ -1447,8 +1447,9 @@
     })));
     const polygons=projectedParts.filter(p=>p.length>=3),hitPolygons=Number.isInteger(model.hitSolidCount)?projectedParts.slice(0,model.hitSolidCount).filter(p=>p.length>=3):polygons;
     const points=polygons.flat(),ang=h=>targetAngle(d,eye,ground+h);
+    const basePoints=target.id==="skytree"?world.flat().filter(v=>v.z<=1).map(v=>projected.get(v)):undefined;
     const viewTop=model.vertices?Math.max(...model.vertices.map(v=>v[2]))*top/model.heightM:top;
-    return {points,polygons,hitPolygons,hitPoints: model.hitSolidCount?hitPolygons.flat():null,schematic:false,known:true,approximate:true,
+    return {points,polygons,basePoints,hitPolygons,hitPoints: model.hitSolidCount?hitPolygons.flat():null,schematic:false,known:true,approximate:true,
       modelId:model.id,sourceLabel:model.sourceLabel,sourceUrl:model.sourceUrl,azimuth:az0,distanceKm:d,baseAngle:ang(0),topAngle:ang(viewTop),viewBaseAngle:ang(model.viewFromTopM?Math.max(0,top-model.viewFromTopM):0),hiddenAngle:null};
   }
 
