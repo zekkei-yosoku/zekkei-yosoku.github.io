@@ -7,7 +7,7 @@ function view(id,bearing=0){const t=A.targetById(id),obs={...T.destination(t.lat
 test('無料2塔は方位で形が変わり、公表高さを保つ',()=>{
  for(const id of ['tokyotower','skytree']){
   const a=view(id,0),b=view(id,45),width=o=>Math.max(...o.points.map(p=>p[0]))-Math.min(...o.points.map(p=>p[0]));
-  assert.notEqual(width(a.o),width(b.o));assert.equal(a.o.modelId,id+'-drawing-envelope-v'+3);
+  assert.notEqual(width(a.o),width(b.o));assert.equal(a.o.modelId,id+'-drawing-envelope-v'+4);
   assert.equal(a.o.polygons,a.o.hitPolygons);assert.ok(a.o.points.every(p=>p.every(Number.isFinite)));
   assert.ok(a.o.sourceLabel.includes('推定'));assert.ok(a.o.approximate);
   const expected=A.geometryFrom(a.obs,a.t).angle;assert.ok(Math.abs(a.o.topAngle-expected)<1e-9);
@@ -90,4 +90,26 @@ test('東京タワー現行メイン外装と上部支持に架空の横スリ�
  assert.ok(Math.max(...main.map(i=>Math.hypot(...m.vertices[i].slice(0,2))))>19,'元外装の幅を維持');
  const supports=m.faces.filter(f=>f.length===8).flatMap(f=>f.map(i=>m.vertices[i]));
  assert.ok(supports.some(p=>Math.abs(p[2]-223.672)<.0001),'支持が円形外装の下端まで届く');
+});
+
+// Structural shaft diameter is independent of external antenna/crown photo estimates.
+test('スカイツリー先端は6m六角芯と平らな外装頂部を区別する',()=>{
+ const m=require('./sorami-tower-models.js').skytree;
+ const core=m.faces.find(f=>f.length===12&&m.vertices[f[0]][2]===497&&m.vertices[f[6]][2]===634);
+ assert.ok(core);for(const i of core)assert.ok(Math.abs(Math.hypot(...m.vertices[i].slice(0,2))-3)<.0001);
+ const top=m.vertices.filter(v=>v[2]===634);assert.ok(Math.max(...top.map(v=>Math.hypot(...v.slice(0,2))))>3,'針のような0.8m頂部に戻らない');
+ assert.equal(m.provenance.gainDigitalEquipmentUnitHeightApproxM,10);assert.equal(m.provenance.gainDigitalEquipmentUnits,4);
+ assert.equal(A.targetById('tokyotower').latitude,35.65859131567304);
+ assert.equal(A.targetById('tokyotower').longitude,139.74544420093412);
+});
+
+test('東京タワー上部は公式外形の全断面を丸め誤差内で保持する',()=>{
+ const upper=require('./tools/東京タワー_上部PLATEAU外形.json'),m=require('./sorami-tower-models.js').tokyotower;
+ const pointKey=p=>p.map(x=>x.toFixed(4)).join(',');const actual=new Set(m.vertices.map(pointKey));
+ for(const f of upper.polygons)for(const p of f)assert.ok(actual.has(pointKey(p)),'公式頂点を保持');
+ assert.ok(m.provenance.nominalTipExtensionM<.5,'公称値合わせは末端だけ');
+ assert.equal(m.provenance.upperExteriorSourceTopAglM,upper.sourceTopAglM);
+ const t=A.targetById('tokyotower');assert.deepEqual(upper.origin,[t.latitude,t.longitude]);
+ const terminal=upper.polygons.flat().filter(p=>Math.abs(p[2]-upper.sourceTopAglM)<.00001).map(p=>p.slice(0,2).map(x=>x.toFixed(4)).join(','));
+ for(const p of m.vertices.filter(p=>p[2]===333))assert.ok(terminal.includes(p.slice(0,2).map(x=>x.toFixed(4)).join(',')),'先端だけ中心がずれない');
 });

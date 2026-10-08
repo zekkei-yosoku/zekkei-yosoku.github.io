@@ -45,7 +45,8 @@
               { id: "gallery", name: "天望回廊（第二展望台）", m: 452 },
               { id: "deck", name: "天望デッキ", m: 352 }] },
     // 展望台は物理的な上端を狙う（PLATEAU海抜）。公称150/250を屋根高さに流用しない。
-    { id: "tokyotower", name: "東京タワー", latitude: 35.658581, longitude: 139.745433,
+    // PLATEAU 2025 upper-deck source centre; decimal precision is data retention, not survey accuracy.
+    { id: "tokyotower", name: "東京タワー", latitude: 35.65859131567304, longitude: 139.74544420093412,
       note: "先端333m。展望台の上端は図面とPLATEAU標高を参照（細部は推定）", groundM: 18,
       parts: [{ id: "tip", name: "先端", m: 351 },
               { id: "top", name: "トップデッキの上端", m: 247.55 },

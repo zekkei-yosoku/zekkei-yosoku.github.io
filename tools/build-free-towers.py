@@ -1,13 +1,13 @@
 # coding: utf-8
-"""Own approximate geometry; no third-party model assets. Units: east,north,up meters.
+"""Own approximate lattice with attributed PLATEAU Tokyo upper exterior. Units: east,north,up meters.
 Dimensions: published tower dimensions and drawing/LOD2 deck envelopes and SKYTREE 68 m equilateral footprint.
-PLATEAU 2025 used to check geographic orientation/envelope, not a measured lattice.
+PLATEAU 2025 upper Tokyo exterior is retained; lower lattice remains estimated.
 Member spacing, thickness and curvature are estimates. Both Tokyo deck exteriors are fitted to PLATEAU sections.
 """
 import math,json
 from pathlib import Path
 
-def model(name,height):return dict(id=name+'-drawing-envelope-v2',heightM=height,referenceBearing=0,approximate=True,sourceLabel='図面参照3D・細部は推定',sourceUrl='https://www.tokyotower.co.jp/guidance/' if name=='tokyotower' else 'https://www.tokyo-skytree.jp/floor/',vertices=[],faces=[],provenance={'kind':'self-authored-approximation','envelopeReference':'PLATEAU 2025 港区・墨田区（参考）','measuredLattice':False})
+def model(name,height):return dict(id=name+'-drawing-envelope-v2',heightM=height,referenceBearing=0,approximate=True,sourceLabel='図面参照3D・細部は推定',sourceUrl='https://www.tokyotower.co.jp/guidance/' if name=='tokyotower' else 'https://www.tokyo-skytree.jp/floor/',vertices=[],faces=[],provenance={'kind':'self-authored-approximation','envelopeReference':'PLATEAU 2025 港区上部外形/墨田区参考形状','measuredLattice':False})
 def add(m,pts):
  i=len(m['vertices']);m['vertices'] += [[round(x,4) for x in p] for p in pts];m['faces'].append(list(range(i,i+len(pts))))
 def cross(a,b):return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]
@@ -26,7 +26,7 @@ def interp(profile,h):
   if a<=h<=b:return x+(y-x)*(h-a)/(b-a)
  return profile[-1][1]
 
-t=model('tokyotower',333);t['id']='tokyotower-drawing-envelope-v3';rot=math.radians(55.872276)
+t=model('tokyotower',333);t['id']='tokyotower-drawing-envelope-v4';rot=math.radians(55.872276)
 t['provenance'].update({'footSpacingM':80,'foundationOuterWidthM':88,'rotationEastNorthCCWDeg':55.872276,'cornerBearingDeg':79.127724,'orientationFitRmsDeg':2.410756,'groundAssumptionM':18,'drawingSourceUrl':'https://www.usao.jp/usao/内藤多仲カルテ/資料全部/カルテ6-1-3.pdf','deckFloorEstimateAglM':[125,223.55],'orientationReference':'PLATEAU tower body cross-section near z=149.408m','outlineReference':'東京タワー設計と計測 図2・図10','deckEnvelopeSeaM':[148.389,247.55],'nominalLabelM':[150,250]})
 # Estimated curved four-legged envelope, calibrated to official overall/deck heights.
 # Fig.2 and Fig.10: 80 m above-ground foot spacing, 88 m foundation exterior. The above-ground
@@ -60,7 +60,7 @@ def octagon(m,z0,z1,width0,width1,rot):
 # Current main-deck exterior: two eight-corner PLATEAU rings; source centre retained as local origin.
 add(t,[[-18.487472, -1.184175, 119.943], [-17.348771, -6.647724, 119.943], [0.422256, -18.358603, 119.943], [6.116397, -17.287869, 119.943], [18.35624, 1.228005, 119.943], [17.528751, 6.114876, 119.943], [-0.575402, 18.323182, 119.943], [-6.015033, 17.483457, 119.943], [-19.201857, -1.044341, 130.389], [-17.948782, -7.059662, 130.389], [0.28004, -19.072156, 130.389], [6.517525, -17.898586, 130.389], [19.061643, 1.079129, 130.389], [18.141765, 6.510769, 130.389], [-0.419192, 19.02872, 130.389], [-6.408179, 18.102208, 130.389]])
 t['provenance']['mainDeckExteriorSeaM']=[137.943,148.389]
-t['provenance']['mainDeckExteriorSource']='PLATEAU 2025 tower exterior rings; local origin at upper deck source centre; target centre offset remains approximate'
+t['provenance']['mainDeckExteriorSource']='PLATEAU 2025 tower exterior rings; local origin at upper deck source centre; target centre aligned to source upper-deck centre'
 # Operator's 2018 facility description: the upper deck is circular.
 cylinder(t,223.672,226.333,7.736703,7.736703,64)
 cylinder(t,226.333,229.55,7.736703,6.851784,64)
@@ -71,11 +71,19 @@ t['provenance']['topDeckShapeSource']='https://kyodonewsprwire.jp/release/201801
 box(t,23.465,120,1.4,1.4,rot);box(t,130.389,223.672,1.0,1.0,rot)
 # Original tower's 253 m body + 80 m aerial. Antenna equipment changed later;
 # member thickness and current aerial detail remain estimated.
-box(t,252.65,300,1.5,1.0,rot);box(t,300,313,1.0,.75,rot)
-cylinder(t,313,333,.3,.12,12)
+# Preserve the contemporary LOD2 upper exterior instead of guessing the antenna taper.
+upper=json.loads((Path(__file__).parent/'東京タワー_上部PLATEAU外形.json').read_text())
+for polygon in upper['polygons']:add(t,polygon)
+# Nominal target 333m differs by 0.486m from the source's 332.514m AGL (ground18).
+# Extend only the narrow terminal; do not vertically rescale the entire source exterior.
+terminal=list({tuple(p) for polygon in upper['polygons'] for p in polygon if abs(p[2]-upper['sourceTopAglM'])<1e-6})
+terminalCenter=[sum(p[k] for p in terminal)/len(terminal) for k in range(2)]
+terminal.sort(key=lambda p:math.atan2(p[1]-terminalCenter[1],p[0]-terminalCenter[0]))
+add(t,terminal+[[p[0],p[1],333] for p in terminal])
+t['provenance'].update({'upperExteriorSourceUrl':upper['source'],'upperExteriorSourceTopAglM':upper['sourceTopAglM'],'upperExteriorClipAglM':upper['clipAglM'],'upperExteriorPolygons':len(upper['polygons']),'nominalTipExtensionM':round(333-upper['sourceTopAglM'],6),'kind':'self-authored-lattice-with-plateau-upper-exterior','upperExteriorSourceKind':upper['sourceKind'],'license':upper['license'],'center':[35.65859131567304,139.74544420093412]})
 
 s=model('skytree',634)
-s['id']='skytree-drawing-envelope-v3';s['sourceLabel']='図面・写真参照3D・形状は推定'
+s['id']='skytree-drawing-envelope-v4';s['sourceLabel']='図面・写真参照3D・形状は推定'
 # Official operator: 68 m equilateral base; circular transition at 315 m.
 # Designer: 32 m diameter transition, circular arcs tangent to a cone, 24 perimeter subdivisions.
 # Reconstruct the radial arc envelope; cone slope inferred from the published
@@ -124,12 +132,19 @@ s['provenance']['photoScalePixelsPerM']=479/259
 s['provenance']['photoScaleQuality']='approximate: roof height, camera inclination and distance unmeasured'
 s['provenance']['detailRevision']='reverse-cone roof and antenna collars v3'
 for a,b,r0,r1 in [(329,334,15,16),(334,340,16,18.5),(340,350,18.5,22.5),(350,365,22.5,27.5),(365,369,27.5,28.3),(369,371,28.3,29.25),(371,375,29.25,29),(434,441,12,16),(441,447,16,19),(447,450,19,19),(450,453,19,17),(453,458,17,17),(458,462,17,15)]:cylinder(s,a,b,r0,r1,48)
-for a,b,r0,r1 in [(494,500,8,4),(500,525,4,4),(525,530,4,3),(530,557,3,3),(557,563,3,2.5),(563,587,2.5,2.5),(587,592,2.5,2),(592,616,2,2),(616,630,2,2.8),(630,634,2.8,.4)]:cylinder(s,a,b,r0,r1,24)
-for z,r in [(500,5),(530,4),(557,3.8),(563,3.2),(587,3.1),(592,2.8),(616,2.6)]:cylinder(s,z-.5,z+.5,r,r,32)
+# NHK antenna engineer: approx. 140m gain tower, six-sided core approx. 6m diameter.
+# Core and external equipment are separate: the shaft must not taper to a needle.
+# External equipment stations/crown are traced from the user's photo; not survey dimensions.
+cylinder(s,497,634,3,3,6)
+# Keep the photo-traced exterior stations, but prioritise the core lower bound; no fabricated absolute station elevations
+# for the four digital antenna units described in the paper.
+for a,b,r0,r1 in [(494,500,8,4),(500,525,4,4),(525,530,4,3),(530,557,3,3),(557,563,3,2.5),(563,587,2.5,2.5),(587,592,2.5,2),(592,616,2,2),(616,620,3,4.5),(620,630,4.5,6.5),(630,634,6.5,7)]:cylinder(s,a,b,r0,r1,40)
+for z,r in [(500,5),(530,4),(557,3.8),(563,3.2),(587,3.1),(592,2.8),(616,3.5)]:cylinder(s,z-.5,z+.5,r,r,40)
+s['provenance'].update({'gainCoreDiameterApproxM':6,'gainCoreDiameterConvention':'circumdiameter; source says approximate diameter without across-flats convention','gainCoreSides':6,'gainCoreOrientationQuality':'estimated; north vertex not surveyed','gainCorePriority':'published core diameter lower bound overrides narrower photo-trace estimates','gainCoreSourceUrl':'https://www.jstage.jst.go.jp/article/itej/66/7/66_541/_article/-char/ja/','gainDigitalEquipmentUnits':4,'gainDigitalEquipmentUnitHeightApproxM':10,'gainEquipmentStationsQuality':'photo-constrained; four digital units not separately located from unavailable dimensioned elevations','gainCrownShape':'flat flared crown, not a pointed cone','gainCrownPhotoEstimateDiameterM':14,'gainCrownDiameterQuality':'user photograph width / approximate image scale; camera geometry and roof height unknown; not a verified dimension','detailRevision':'hexagonal gain core lower diameter bound and flat photo-traced crown v4'})
 for m in [t,s]:
  assert all(all(math.isfinite(x) for x in p) for p in m['vertices'])
  assert math.isclose(max(p[2] for p in m['vertices']),m['heightM'],abs_tol=1e-6)
 models={'tokyotower':t,'skytree':s}
 out=Path(__file__).resolve().parent.parent/'sorami-tower-models.js'
-out.write_text('/* Generated by tools/build-free-towers.py. Own estimated lattice, drawing/dimension-constrained envelope; internal detail remains approximate. */\n(function(g){"use strict";const models='+json.dumps(models,ensure_ascii=False,separators=(',',':'))+';if(typeof module!=="undefined"&&module.exports)module.exports=models;else g.SoramiTowerModels=models;})(typeof globalThis!=="undefined"?globalThis:this);\n')
+out.write_text('/* Generated by tools/build-free-towers.py. Own estimated lattice plus modified Project PLATEAU 2025 Minato-ku Tokyo upper exterior. Source: https://www.geospatial.jp/ckan/dataset/plateau-13103-minato-ku-2025 ; license: https://www.mlit.go.jp/plateau/site-policy/ (PDL1.0 / CC BY4.0 compatible). Internal detail remains approximate. */\n(function(g){"use strict";const models='+json.dumps(models,ensure_ascii=False,separators=(',',':'))+';if(typeof module!=="undefined"&&module.exports)module.exports=models;else g.SoramiTowerModels=models;})(typeof globalThis!=="undefined"?globalThis:this);\n')
 print(out)
