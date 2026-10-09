@@ -4,7 +4,7 @@ from pathlib import Path
 import json,re
 repo=Path(__file__).resolve().parents[1]
 model=json.loads((repo/'tools/タワー・オブ・テラー_写真輪郭.json').read_text())
-p=model['provenance']['photoOutlinePixels']
+p=model.get('structuralOutlinePixels',model['provenance']['photoOutlinePixels'])
 def cross(a,b,c):return(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])
 poly=[[(x-610)/8.1,max(0,59-(y-1018)/8.1)] for x,y in p]
 area=sum(a[0]*b[1]-b[0]*a[1] for a,b in zip(poly,poly[1:]+poly[:1]))
@@ -19,7 +19,7 @@ while len(ids)>3:
 tri.append([poly[k] for k in ids])
 assert abs(sum(abs(cross(*t)) for t in tri)-abs(area))<1e-6
 # Separate architectural volumes by horizontal height bands and low-wing/main-tower zones.
-# Depth is estimated from GSI aerial imagery, never derived from third-party 3D meshes.
+# Depth is estimated from provided elevation ratios and GSI aerial imagery, never derived from third-party 3D meshes.
 # Low-wing ornaments above the 25.3m eave are thin turrets/rails, not 22m-deep walls.
 # Above 38m, the main tower's protruding shoulder belongs to the main roof volume.
 # Cutting before extrusion prevents a large ground-to-roof triangle from sloping the entire facade.
@@ -39,6 +39,12 @@ def clip(poly,axis,value,greater):
 solids=[];total_area=0
 for section in model['volumeSections']:
  rows=section['depthStations'];centre=section['centreDepthM']
+ centre_rows=section.get('centreDepthStations')
+ def centre_at(z):
+  if not centre_rows:return centre
+  for (a,c0),(b,c1) in zip(centre_rows,centre_rows[1:]):
+   if a-1e-9<=z<=b+1e-9:return c0+(c1-c0)*(z-a)/(b-a)
+  raise ValueError('roof centre station missing')
  for t in tri:
   cut=clip(clip(t,0,section['xMin'],True),0,section['xMax'],False)
   cut=clip(clip(cut,1,section['zMin'],True),1,section['zMax'],False)
@@ -52,11 +58,11 @@ for section in model['volumeSections']:
    pts=[]
    for sign in [-1,1]:
     for x,z in band:
-     depth=d0+(d1-d0)*(z-z0)/(z1-z0);y=centre+sign*depth/2
+     depth=d0+(d1-d0)*(z-z0)/(z1-z0);y=centre_at(z)+sign*depth/2
      # Keep physical height at 59m; distant front-view expansion is below a pixel.
      pts.append([round(x,6),round(y,6),round(z,6)])
    solids.append(pts)
-assert abs(total_area-abs(area))<1e-5, 'section cuts must preserve the complete photo profile'
+assert abs(total_area-abs(area))<1e-5, 'section cuts must preserve the complete structural profile'
 model['solids']=solids
 (repo/'tools/タワー・オブ・テラー_写真輪郭.json').write_text(json.dumps(model,ensure_ascii=False,indent=2))
 s=(repo/'sorami-align.js').read_text()
