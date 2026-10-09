@@ -1952,28 +1952,28 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261009103354"></script>
+<script src="sorami-core.js?v=20261009113410"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261009103354"></script>
-<script src="sorami-exif.js?v=20261009103354"></script>
-<script src="sorami-capcloud.js?v=20261009103354"></script>
-<script src="sorami-terrain.js?v=20261009103354"></script>
-<script src="sorami-mountain.js?v=20261009103354"></script>
-<script src="sorami-fuji.js?v=20261009103354"></script>
-<script src="sorami-sky.js?v=20261009103354"></script>
+<script src="sorami-astro.js?v=20261009113410"></script>
+<script src="sorami-exif.js?v=20261009113410"></script>
+<script src="sorami-capcloud.js?v=20261009113410"></script>
+<script src="sorami-terrain.js?v=20261009113410"></script>
+<script src="sorami-mountain.js?v=20261009113410"></script>
+<script src="sorami-fuji.js?v=20261009113410"></script>
+<script src="sorami-sky.js?v=20261009113410"></script>
 
-<script src="sorami-plan.js?v=20261009103354"></script>
-<script src="sorami-routes.js?v=20261009103354"></script>
-<script src="sorami-iss.js?v=20261009103354"></script>
-<script src="sorami-plane.js?v=20261009103354"></script>
-<script src="sorami-refraction.js?v=20261009103354"></script>
-<script src="sorami-atmosphere.js?v=20261009103354"></script>
-<script src="sorami-bodies.js?v=20261009103354"></script>
-<script src="sorami-city-models.js?v=20261009103354"></script>
-<script src="sorami-tower-models.js?v=20261009103354"></script>
-<script src="sorami-align.js?v=20261009103354"></script>
-<script src="sorami-moon.js?v=20261009103354"></script>
+<script src="sorami-plan.js?v=20261009113410"></script>
+<script src="sorami-routes.js?v=20261009113410"></script>
+<script src="sorami-iss.js?v=20261009113410"></script>
+<script src="sorami-plane.js?v=20261009113410"></script>
+<script src="sorami-refraction.js?v=20261009113410"></script>
+<script src="sorami-atmosphere.js?v=20261009113410"></script>
+<script src="sorami-bodies.js?v=20261009113410"></script>
+<script src="sorami-city-models.js?v=20261009113410"></script>
+<script src="sorami-tower-models.js?v=20261009113410"></script>
+<script src="sorami-align.js?v=20261009113410"></script>
+<script src="sorami-moon.js?v=20261009113410"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7837,7 +7837,15 @@ function aimLookSolidSilhouette(polygons,{closeBase=false,basePoints=[]}={}) {
   const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
   const c=canvas.getContext('2d',{willReadFrequently:true});c.setTransform(scale,0,0,scale,-x*scale,-y*scale);c.fillStyle='#000';
   // 向きが逆の部品が重なっても相殺しない。1つのcompound pathにしない。
-  for(const poly of polygons){c.beginPath();c.moveTo(...poly[0]);for(const p of poly)c.lineTo(...p);c.closePath();c.fill();}
+  for(const original of polygons){
+    // ほぼ同じ連続点があるとcanvasの塗りで大きな三角欠けが出ることがある。
+    // マスクの0.1画素未満だけ整理する。細い3点部品は元の点を維持。
+    const clean=[],epsilon=.1/scale;
+    for(const p of original){const last=clean.at(-1);if(!last||Math.hypot(p[0]-last[0],p[1]-last[1])>=epsilon)clean.push(p);}
+    if(clean.length>1&&Math.hypot(clean.at(-1)[0]-clean[0][0],clean.at(-1)[1]-clean[0][1])<epsilon)clean.pop();
+    const poly=clean.length>=3?clean:original;
+    c.beginPath();c.moveTo(...poly[0]);for(const p of poly)c.lineTo(...p);c.closePath();c.fill();
+  }
   // 足元を塗りつぶす目標だけ、基部の横幅と投影高さの帯で地面へ開く空白を閉じる。凸包にはしない。
   if(closeBase&&basePoints.length>=2){
     const feet=basePoints.filter(p=>p.every(Number.isFinite));
