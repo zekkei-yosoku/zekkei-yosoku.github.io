@@ -1043,6 +1043,23 @@
 #planPreview {display:block;width:100%;height:auto;border-radius:9px}
 #planSummary,#planStatus {margin:0;overflow-wrap:anywhere}
 #planSheet a[aria-disabled=true] {color:var(--tertiary);pointer-events:none}
+
+/* E171: short celestial names in two columns; long target names in one row. */
+@media(min-width:960px){#aimRecentOpen{position:absolute;right:54px;top:0;min-height:44px}}
+#previewBodyDialog .preview-body-group{padding:8px 0}#previewBodyDialog .preview-body-group h3{margin-bottom:6px}
+#previewBodyDialog .preview-body-choice{min-height:44px;padding:8px 12px}
+#previewTargetDialog{width:min(480px,calc(100vw - 24px))}
+#previewTargetDialog .preview-target-list{grid-template-columns:1fr;gap:4px}
+#previewTargetDialog .preview-body-choice{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:9px 12px;border-radius:8px}
+#previewTargetDialog .preview-body-choice[aria-pressed=true]:after{flex:none}
+.target-search{width:100%;margin-bottom:12px;min-height:44px}.target-group-title{font-size:12px;color:var(--secondary);margin:12px 2px 4px}
+.history-nav,.history-subnav,.place-shortcuts{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.history-nav button,.history-subnav button,.place-shortcuts button{min-height:44px;padding:8px 12px;border-radius:8px;background:var(--sunk);color:var(--text)}
+.history-nav button[aria-pressed=true],.history-subnav button[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
+.history-pages{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0}.history-pages .chip{min-height:44px}.history-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.history-heading button{min-height:44px;color:var(--accent)}
+.history-row{display:flex;align-items:center;border-bottom:1px solid var(--line)}.history-row .list-item{flex:1;min-width:0;overflow-wrap:anywhere}.history-row .history-remove{min-width:44px;min-height:44px;color:var(--secondary)}
+.history-list .list-item strong{display:block}.history-list .list-item{font-size:15px}.history-empty{padding:12px 0}
+
 </style>
 <style id="previewStyles">.preview-banner{margin:0 0 12px;color:var(--secondary);font-size:11px}
 .preview-title{font-size:20px;margin:8px 0 14px}
@@ -1952,28 +1969,29 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261009162956"></script>
+<script src="sorami-core.js?v=20261009173449"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261009162956"></script>
-<script src="sorami-exif.js?v=20261009162956"></script>
-<script src="sorami-capcloud.js?v=20261009162956"></script>
-<script src="sorami-terrain.js?v=20261009162956"></script>
-<script src="sorami-mountain.js?v=20261009162956"></script>
-<script src="sorami-fuji.js?v=20261009162956"></script>
-<script src="sorami-sky.js?v=20261009162956"></script>
+<script src="sorami-astro.js?v=20261009173449"></script>
+<script src="sorami-exif.js?v=20261009173449"></script>
+<script src="sorami-capcloud.js?v=20261009173449"></script>
+<script src="sorami-terrain.js?v=20261009173449"></script>
+<script src="sorami-mountain.js?v=20261009173449"></script>
+<script src="sorami-fuji.js?v=20261009173449"></script>
+<script src="sorami-sky.js?v=20261009173449"></script>
 
-<script src="sorami-plan.js?v=20261009162956"></script>
-<script src="sorami-routes.js?v=20261009162956"></script>
-<script src="sorami-iss.js?v=20261009162956"></script>
-<script src="sorami-plane.js?v=20261009162956"></script>
-<script src="sorami-refraction.js?v=20261009162956"></script>
-<script src="sorami-atmosphere.js?v=20261009162956"></script>
-<script src="sorami-bodies.js?v=20261009162956"></script>
-<script src="sorami-city-models.js?v=20261009162956"></script>
-<script src="sorami-tower-models.js?v=20261009162956"></script>
-<script src="sorami-align.js?v=20261009162956"></script>
-<script src="sorami-moon.js?v=20261009162956"></script>
+<script src="sorami-history.js?v=20261009173449"></script>
+<script src="sorami-plan.js?v=20261009173449"></script>
+<script src="sorami-routes.js?v=20261009173449"></script>
+<script src="sorami-iss.js?v=20261009173449"></script>
+<script src="sorami-plane.js?v=20261009173449"></script>
+<script src="sorami-refraction.js?v=20261009173449"></script>
+<script src="sorami-atmosphere.js?v=20261009173449"></script>
+<script src="sorami-bodies.js?v=20261009173449"></script>
+<script src="sorami-city-models.js?v=20261009173449"></script>
+<script src="sorami-tower-models.js?v=20261009173449"></script>
+<script src="sorami-align.js?v=20261009173449"></script>
+<script src="sorami-moon.js?v=20261009173449"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -4693,6 +4711,7 @@ function qualityCalibration(list) {
 let placeSheetFor = null;
 /// 地点の画面で選んだ場所を、開いた目的の方へ渡す
 function choosePlace(p) {
+  try { recentHistory.rememberPlace(p,{observer:placeSheetFor==='aim'||(!placeSheetFor&&!aim.from)}); } catch { /* History must not prevent choosing a place. */ }
   const picker = placeSheetFor && PLACE_PICKERS[placeSheetFor];
   if (picker) {
     $("placeSheet").close();          // 閉じると placeSheetFor は null に戻る
@@ -4717,7 +4736,7 @@ function choosePlace(p) {
 const PLACE_PICKERS = {
   aim: { title: "どこから重ねるか", custom: () => aim.from, point: () => aimFromPoint(),
     set: (p) => aimSetFrom(p),
-    reset: () => { aim.from = null; store.set("sorami.aimFrom", null); aimRenderFrom(); AimMap.open({ latitude: place.latitude, longitude: place.longitude }, Math.max(11, Math.round(AimMap.zoom()))); } },
+    reset: () => { try { recentHistory.observerSelected(); } catch {} aim.from = null; store.set("sorami.aimFrom", null); aimRenderFrom(); AimMap.open({ latitude: place.latitude, longitude: place.longitude }, Math.max(11, Math.round(AimMap.zoom()))); } },
   // お気に入りから選んだら、登録した高さで置く
   // 目標として登録したお気に入りを選んだら、プルダウンの「お気に入り」のそれにする（他の目標へ写さない）
   aimTarget: { title: "どこに重ねるか", custom: () => null, point: () => store.get("sorami.aimCustom", null) || AimMap.center(),
@@ -6763,6 +6782,7 @@ function aimFromPoint() {
 }
 function aimSetFrom(p, { keepMap = false } = {}) {
   aim.from = aimSavedFrom(p);
+  try { if(aim.from)recentHistory.rememberPlace({...aim.from,elevation:p.groundManualM??p.elevation??null,eyeHeightAGL:aimObserverEye(aim.from)},{observer:true}); } catch { /* Keep observer selection independent of history. */ }
   store.set("sorami.aimFrom", aim.from);
   aimRenderFrom();
   // 検索で選んだら地図をその地点へ寄せる（線との位置関係が見える）。地図の中心で選んだときは動かさない
@@ -7887,7 +7907,9 @@ async function aimLookRender(host, spec) {
   if (!host) return;
   const seq = (host._lookSeq = (host._lookSeq || 0) + 1);
   const t = aim.target, body = aim.body;
-  const sameLookSpec = host._lookSpec === spec;
+  const restoredContext = JSON.stringify([aimLookKey(),spec.obs,spec.eyeM,t?.latitude,t?.longitude,t?.parts]);
+  if(host._restoredPlanContext!==restoredContext)host._restoredPlanContext=null;
+  const sameLookSpec = host._lookSpec === spec || host._restoredPlanContext === restoredContext;
   if (!sameLookSpec) { host._lensGesture = null; host._lookAt = null; }
   host._lookSpec = spec;
   host._planKey = null;
@@ -7979,7 +8001,7 @@ async function aimLookRender(host, spec) {
   const proj = SoramiAlign.viewProjector(win.az0, win.alt0);
   const comparison=aimAirCompare&&aimAirCompare.day===S.JstCal.startOfDay(spec.at)&&aimAirCompare.latitude===spec.obs.latitude&&aimAirCompare.longitude===spec.obs.longitude?aimAirCompare.at:null;
   const pendingPlan = host.id === "aimLook" ? aim.pendingPlan : null;
-  if (pendingPlan) { host._lensOffset = [...pendingPlan.pan]; aim.pendingPlan = null; }
+  if (pendingPlan) { host._restoredPlanContext=restoredContext; host._lensOffset = [...pendingPlan.pan]; aim.pendingPlan = null; }
   const selectedAt = pendingPlan ? pendingPlan.at : Number.isFinite(comparison)?comparison:sameLookSpec && Number.isFinite(host._lookAt) ? host._lookAt : spec.at;
   const path = SoramiAlign.viewPath(body, eyeObs, spec.at, proj, win, { includeAt: selectedAt, dayMs: S.JstCal.startOfDay(spec.at) });
   const frameDay = S.JstCal.startOfDay(spec.at);
@@ -8933,6 +8955,7 @@ function openPlaceSheet(mode = null) {
   for (const el of document.querySelectorAll(".save-err")) el.hidden = true;
   renderSheet();
   aimRenderSheetCands();
+  try { recentHistory.open(); } catch { /* Keep the existing location picker available. */ }
   showSheet($("placeSheet"));
   // **開いたらすぐ打てる。** 押した操作の中で焦点を移すと、iPhone でもキーボードが出る。
   // 前の検索語は選択しておき、打てば置き換わるようにする（2026-10-01）
@@ -9632,6 +9655,7 @@ function redrawIfToolsChanged() {
   if (key !== toolsDrawnKey) { toolsDrawnKey = key; startFujiAlign(); redrawDayDetail(); }
 }
 function renderAuthButton() {
+  try { recentHistory.accountChanged(); } catch { /* History is optional during startup. */ }
   if (atAdmin && auth !== adminRenderAuth) renderAdmin();
   renderTools();
   redrawIfToolsChanged();
@@ -10679,23 +10703,30 @@ function planSnapshot(button) {
   return s;
 }
 let planRestoredFragment=null;
-function restoreSharedPlan() {
+function restoreSharedPlan(recent = null) {
+  if(!recent) {
   if(planRestoredFragment===location.hash)return;
   planRestoredFragment=location.hash;
   const token=new URLSearchParams(location.hash.split('?')[1]||'').get('plan');if(!token)return;
-  const p=SoramiPlan.decode(token);
+  recent=SoramiPlan.decode(token);
+  }
+  const p=recent;
   if(!p || p.kind==='detail'&&!S.PHENOMENA[p.id] || p.kind==='aim'&&!SoramiBodies.definition(p.body))return;
   const route=location.hash.split('?')[0];
-  if(route!==(p.kind==='aim'?'#/aim':`#/${p.id}/${p.day}`))return;
+  if(arguments.length===0&&route!==(p.kind==='aim'?'#/aim':`#/${p.id}/${p.day}`))return;
   if(p.kind==='detail'){const changed=place.latitude!==p.o[1]||place.longitude!==p.o[2];place=SoramiPlan.expandPoint(p.o);return changed && bundle ? 'reload' : undefined;}
   const builtin=SoramiAlign.targetById(p.t.id);
   // Keep the sender's chosen heights, without modifying saved favorites or custom targets.
   const retainedId=p.t.id==='cocoon-tower'&&SoramiAlign.CITY_MODELS[p.t.id]?p.t.id:null;
   aim.sharedTarget={...(builtin || {}),...p.t,id:builtin?.id || retainedId || 'shared'};
+  aim.candPick=null;aim.spot=null;aim.wantSpot=null;aim.wantKey=null;aim.candKey=null;aim.centerKey=null;aim.reverse=null;aimAirCompare=null;
+  $('aimLimb').innerHTML='';
   aim.body=p.body;aim.limb=p.limb;aim.partId=p.part;aim.limbsByBody[p.body]=p.limb;
-  aim.from={...aimSavedFrom(SoramiPlan.expandPoint(p.o)),groundManualM:p.o[3],standAglM:p.o[4]};
+  aim.from={...aimSavedFrom(SoramiPlan.expandPoint(p.o)),...(arguments.length?{subtitle:'履歴の撮影地'}:{}),groundManualM:p.o[3],standAglM:p.o[4]};
   aimLens.on=p.l.on;aimLens.mode='manual';aimLens.focal=p.l.focal;aimLens.sensor=p.l.sensor;aimLens.portrait=p.l.portrait;aimLens.grid=p.l.grid;
-  aimAirSettings.mode=p.air;aimAirSync();
+  aimAirSettings.mode=p.air;aimAirSeq++;aimAirLoadKey='';aimCal.seq++;aimCal.cache.clear();aim.spotCache=null;aimRidgeCache.clear();
+  SoramiAtmosphere.configure(p.air,aimAirSettings);store.set('sorami.aimAir',aimAirSettings);aimAirSync();
+  if(arguments.length){store.set('sorami.aimFrom',aim.from);store.set('sorami.lens',aimLens);}
   $('aimDate').value=new Date(p.at+32400000).toISOString().slice(0,10);
   aim.pendingPlan=p;
 }
@@ -10888,7 +10919,7 @@ checkForUpdate();
   content.append(section);
  }
  document.body.append(dialog);
- const sync=()=>{const name=source.selectedOptions[0]?.textContent||'天体';const label=picker.querySelector('[data-body-label]');if(label.textContent!==name)label.textContent=name;picker.setAttribute('aria-label',`天体：${name}、選択を開く`);for(const b of dialog.querySelectorAll('[data-body-value]'))b.setAttribute('aria-pressed',String(b.dataset.bodyValue===source.value));};
+ const sync=()=>{const name=source.selectedOptions[0]?.textContent||'天体';const label=picker.querySelector('[data-body-label]');if(label.textContent!==name)label.textContent=name;picker.setAttribute('aria-label',`天体：${name}、選択を開く`);for(const b of dialog.querySelectorAll('[data-body-value]')){const o=Array.from(source.options).find(o=>o.value===b.dataset.bodyValue);b.disabled=!!o?.disabled;b.hidden=!!o?.hidden;b.setAttribute('aria-pressed',String(b.dataset.bodyValue===source.value));}for(const group of dialog.querySelectorAll('.preview-body-group'))group.hidden=!Array.from(group.querySelectorAll('[data-body-value]')).some(b=>!b.hidden);};
  picker.onclick=()=>{sync();showSheet(dialog);};dialog.querySelector('[data-body-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>picker.focus({preventScroll:true}));
  new MutationObserver(sync).observe(document.getElementById('aimView'),{childList:true,subtree:true});source.addEventListener('change',sync);sync();
 })();
@@ -10897,16 +10928,75 @@ checkForUpdate();
  const source=document.getElementById('aimTarget'),host=source.closest('.aim-pick');
  const picker=document.createElement('button');picker.type='button';picker.id='previewTargetOpen';picker.className='preview-target-open';picker.setAttribute('aria-haspopup','dialog');picker.setAttribute('aria-controls','previewTargetDialog');host.append(picker);
  const dialog=document.createElement('dialog');dialog.id='previewTargetDialog';dialog.className='sheet preview-body-dialog';dialog.setAttribute('aria-labelledby','previewTargetTitle');
- dialog.innerHTML='<div class="sheet-head"><strong id="previewTargetTitle">目標を選ぶ</strong><button type="button" data-target-close>閉じる</button></div><div class="sheet-body"><div class="preview-body-list preview-target-list"></div></div>';
- document.body.append(dialog);const list=dialog.querySelector('.preview-target-list');let fingerprint='';
+ dialog.innerHTML='<div class="sheet-head"><strong id="previewTargetTitle">目標を選ぶ</strong><button type="button" data-target-close>閉じる</button></div><div class="sheet-body"><input type="search" class="fav-in target-search" aria-label="重ねる対象を検索" placeholder="名前で絞り込む"><div class="preview-body-list preview-target-list"></div><p class="tiny" data-target-empty hidden>見つかりませんでした。名前を短くして探してください。</p></div>';
+ document.body.append(dialog);const list=dialog.querySelector('.preview-target-list'),search=dialog.querySelector('.target-search');let fingerprint='';
+ const category=o=>o.value==='fuji'?'山':/terror|cinderella|tinker/.test(o.value)?'テーマパーク':o.value==='custom'||o.value.startsWith('fav:')?'自分の目標':'建物';
+ const filter=()=>{const q=search.value.normalize('NFKC').toLocaleLowerCase().trim();let count=0;for(const b of list.querySelectorAll('[data-target-value]')){b.hidden=!b.textContent.normalize('NFKC').toLocaleLowerCase().includes(q);if(!b.hidden)count++;}for(const h of list.querySelectorAll('[data-target-category]'))h.hidden=!Array.from(list.querySelectorAll('[data-target-value]')).some(b=>b.dataset.category===h.dataset.targetCategory&&!b.hidden);dialog.querySelector('[data-target-empty]').hidden=count>0;};search.oninput=filter;
  const sync=()=>{
   const options=Array.from(source.options),key=JSON.stringify(options.map(o=>[o.value,o.textContent,o.disabled]));
-  if(key!==fingerprint){fingerprint=key;list.replaceChildren();for(const option of options){const b=document.createElement('button');b.type='button';b.className='preview-body-choice';b.dataset.targetValue=option.value;b.textContent=option.textContent;b.disabled=option.disabled;b.onclick=()=>{if(source.value!==option.value){source.value=option.value;source.dispatchEvent(new Event('change',{bubbles:true}));}dialog.close();};list.append(b);}}
+  if(key!==fingerprint){fingerprint=key;list.replaceChildren();for(const cat of ['山','建物','テーマパーク','自分の目標']){const group=options.filter(o=>category(o)===cat);if(!group.length)continue;const h=document.createElement('div');h.className='target-group-title';h.dataset.targetCategory=cat;h.textContent=cat;list.append(h);for(const option of group){const b=document.createElement('button');b.type='button';b.className='preview-body-choice';b.dataset.targetValue=option.value;b.dataset.category=cat;b.textContent=option.textContent;b.disabled=option.disabled;b.onclick=()=>{if(source.value!==option.value){source.value=option.value;source.dispatchEvent(new Event('change',{bubbles:true}));}dialog.close();};list.append(b);}}filter();}
   picker.setAttribute('aria-label',`目標：${source.selectedOptions[0]?.textContent||'目標'}、選択を開く`);
-  for(const b of list.children)b.setAttribute('aria-pressed',String(b.dataset.targetValue===source.value));
+  picker.disabled=source.disabled;for(const b of list.querySelectorAll('[data-target-value]'))b.setAttribute('aria-pressed',String(b.dataset.targetValue===source.value));
  };
  picker.onclick=()=>{sync();showSheet(dialog);};dialog.querySelector('[data-target-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>picker.focus({preventScroll:true}));
  source.addEventListener('change',sync);new MutationObserver(sync).observe(source,{childList:true,subtree:true,characterData:true});sync();
 })();
+
+// E171: these histories stay in this browser; favorites keep their existing account sync.
+const recentHistory=(()=>{
+ const history=SoramiHistory.create({read:store.get,write:store.set,scope:()=>auth?.loginId||'guest',validatePlan:p=>{try{return p?.kind==='aim'?SoramiPlan.decode(SoramiPlan.encode(p)):null;}catch{return null;}}});
+ const sheet=$('placeSheet'),content=sheet.querySelector('.sheet-body'),nav=document.createElement('div');nav.className='history-nav';nav.setAttribute('role','group');nav.setAttribute('aria-label','地点の選び方');
+ const historyPanel=document.createElement('section'),favPanel=document.createElement('section'),candidatePanel=document.createElement('section');historyPanel.id='recentPanel';favPanel.id='recentFavorites';candidatePanel.id='recentCandidates';
+ historyPanel.innerHTML='<div class="history-subnav" role="group" aria-label="履歴の種類"><button type="button" data-recent-kind="places">場所</button><button type="button" data-recent-kind="plans">重ねる条件</button></div><div class="history-heading"><p class="tiny">このブラウザの最近30件</p><button type="button" data-recent-clear>履歴を消す</button></div><p class="tiny" data-recent-note></p><input type="search" class="fav-in" data-recent-search aria-label="履歴を検索" placeholder="場所・対象・天体・日付で絞り込む"><div class="history-list"></div><div class="history-pages"><button type="button" class="chip" data-recent-prev>前の5件</button><span class="tiny" data-recent-count role="status"></span><button type="button" class="chip" data-recent-next>次の5件</button></div><button type="button" class="chip" data-recent-undo hidden>消した履歴を戻す</button>';
+ const err=document.createElement('p');err.className='warn';err.setAttribute('role','status');err.hidden=true;err.textContent='履歴を保存できませんでした。ブラウザの保存設定や空き容量を確認してください。';
+ const favoritesStart=$('favAdd').parentElement;let n=favoritesStart;while(n){const next=n.nextSibling;favPanel.append(n);n=next;}
+ content.append(favPanel.querySelector('#favUndo'));
+ candidatePanel.append($('sheetCands'));content.append(historyPanel,favPanel,candidatePanel,err);
+ const shortcuts=document.createElement('div');shortcuts.className='place-shortcuts';for(const id of ['geoButton','mapButton']){const b=$(id);b.classList.remove('list-item');b.setAttribute('aria-label',b.textContent);b.textContent=id==='geoButton'?'現在地':'地図で選ぶ';shortcuts.append(b);} $('searchResults').after(shortcuts,nav);
+ const panels={recent:historyPanel,favorites:favPanel,candidates:candidatePanel};let active='recent',kind='places',page=0;
+ for(const [id,label] of [['recent','履歴'],['favorites','お気に入り'],['candidates','候補地']]){const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.historyPanel=id;b.setAttribute('aria-controls',panels[id].id);b.onclick=()=>{active=id;render();};nav.append(b);}
+ const list=historyPanel.querySelector('.history-list'),note=historyPanel.querySelector('[data-recent-note]'),undo=historyPanel.querySelector('[data-recent-undo]');
+ const okay=result=>{err.hidden=result;return result;};
+ function render(){
+  for(const [id,panel] of Object.entries(panels))panel.hidden=id!==active;
+  for(const b of nav.children){b.setAttribute('aria-pressed',String(b.dataset.historyPanel===active));b.hidden=b.dataset.historyPanel==='candidates'&&placeSheetFor!=='aim';}
+  for(const b of historyPanel.querySelectorAll('[data-recent-kind]'))b.setAttribute('aria-pressed',String(b.dataset.recentKind===kind));
+  note.textContent=kind==='places'?'選んだ場所をもう一度使う':'日時・画角も復元。☆は撮影地を登録';historyPanel.querySelector('[data-recent-search]').placeholder=kind==='places'?'場所の名前で絞り込む':'場所・対象・天体・日付で絞り込む';
+  const rows=history.list(kind),query=historyPanel.querySelector('[data-recent-search]').value.normalize('NFKC').toLocaleLowerCase().trim();
+  const filtered=rows.map((row,i)=>({row,i})).filter(({row})=>{const v=row.value;return (kind==='places'?[v.name,v.subtitle]:[v.t.name,SoramiBodies.definition(v.body)?.name,v.o[0],SoramiPlan.dateTime(v.at)]).join(' ').normalize('NFKC').toLocaleLowerCase().includes(query);});
+  page=Math.max(0,Math.min(page,Math.ceil(filtered.length/5)-1));const start=page*5;list.replaceChildren();
+  if(!filtered.length){const p=document.createElement('p');p.className='tiny history-empty';p.textContent=query?'該当する履歴はありません。':kind==='places'?'場所を選ぶとここに残ります。':'対象・天体・撮影地・日付を選び、見え方が表示されるとここに残ります。';list.append(p);}
+  filtered.slice(start,start+5).forEach(({row,i})=>{const v=row.value,line=document.createElement('div');line.className='history-row';const b=document.createElement('button');b.type='button';b.className='list-item';const title=document.createElement('strong'),sub=document.createElement('span');sub.className='tiny sub-line';
+   title.textContent=kind==='places'?v.name:`${v.t.name} × ${SoramiBodies.definition(v.body)?.name||v.body}`;
+   sub.textContent=kind==='places'?v.subtitle||`緯度 ${v.latitude.toFixed(5)}・経度 ${v.longitude.toFixed(5)}`:`${v.o[0]} ・ ${SoramiPlan.dateTime(v.at)}`;
+   b.append(title,sub);b.onclick=()=>{if(kind==='places')choosePlace(v);else{sheet.close();blocked=false;restoreSharedPlan(v);if(location.hash!=='#/aim')pushRoute('#/aim');else openAim();}};
+   const del=document.createElement('button');del.type='button';del.className='history-remove';del.textContent='×';del.setAttribute('aria-label',`${title.textContent}を履歴から消す`);del.onclick=()=>{okay(history.remove(kind,row));render();};const star=document.createElement('button');star.type='button';star.className='history-remove';
+   const point=kind==='places'?{...v}:{...SoramiPlan.expandPoint(v.o),subtitle:'履歴の撮影地'};
+   const fav=favorites.findIndex(f=>SoramiTerrain.distanceKm(f.latitude,f.longitude,point.latitude,point.longitude)<0.02);star.textContent=fav>=0?'★':'☆';
+   const label=kind==='places'?point.name:`${point.name}（撮影地）`;star.setAttribute('aria-label',fav>=0?`${label}のお気に入りを編集`:`${label}をお気に入りに登録`);
+   star.title=star.getAttribute('aria-label');star.onclick=()=>{if(!requireLoginForFavorites())return;const deck=point.decks?.find(d=>d.name===point.stand);const eye=Number.isFinite(point.standAglM)?point.standAglM:deck?deck.aglM+1.5:point.eyeHeightAGL;openFavSheet(favorites.findIndex(f=>SoramiTerrain.distanceKm(f.latitude,f.longitude,point.latitude,point.longitude)<0.02),{point:{...point,elevation:point.groundManualM??point.elevation,eyeHeightAGL:eye??1.5},target:point.targetHeightM??null,after:render});};
+   line.append(b,star,del);list.append(line);
+  });
+  historyPanel.querySelector('[data-recent-clear]').disabled=!rows.length;undo.hidden=!history.canUndo();undo.textContent=history.undoKind()==='places'?'消した場所の履歴を戻す':'消した条件の履歴を戻す';
+  historyPanel.querySelector('[data-recent-count]').textContent=filtered.length?`${start+1}–${Math.min(start+5,filtered.length)} / ${filtered.length}件`:'0件';
+  historyPanel.querySelector('[data-recent-prev]').disabled=page===0;historyPanel.querySelector('[data-recent-next]').disabled=start+5>=filtered.length;
+  if(active==='candidates'&&$('sheetCands').hidden){const empty=candidatePanel.querySelector('[data-no-candidates]')||document.createElement('p');empty.dataset.noCandidates='';empty.className='tiny';empty.textContent='日付と重ねる条件を選ぶと、この日の候補地が表示されます。';candidatePanel.append(empty);}else candidatePanel.querySelector('[data-no-candidates]')?.remove();
+ }
+ for(const b of historyPanel.querySelectorAll('[data-recent-kind]'))b.onclick=()=>{kind=b.dataset.recentKind;page=0;historyPanel.querySelector('[data-recent-search]').value='';render();};
+ historyPanel.querySelector('[data-recent-clear]').onclick=()=>{okay(history.clear(kind));render();};undo.onclick=()=>{const restored=history.undoKind();if(okay(history.restore())){kind=restored;page=0;historyPanel.querySelector('[data-recent-search]').value='';}render();};
+ historyPanel.querySelector('[data-recent-search]').oninput=()=>{page=0;render();};historyPanel.querySelector('[data-recent-prev]').onclick=()=>{page--;render();};historyPanel.querySelector('[data-recent-next]').onclick=()=>{page++;render();};
+ const trigger=document.createElement('button');trigger.type='button';trigger.className='chip';trigger.textContent='履歴';trigger.id='aimRecentOpen';trigger.setAttribute('aria-label','場所・重ねる条件の履歴');trigger.onclick=()=>{active='recent';kind='plans';openPlaceSheet('aim');};$('aimView').querySelector('.preview-toolbar').append(trigger);
+ let timer=0,last='',owner=auth?.loginId||'guest',blocked=false;function schedule(){clearTimeout(timer);timer=setTimeout(()=>{
+  if((auth?.loginId||'guest')!==owner){owner=auth?.loginId||'guest';blocked=true;last='';return;}
+  if(blocked||$('aimView').hidden||sheet.open)return;
+  const h=$('aimLook'),spec=h._lookSpec;if(h.hidden||!spec||h._planKey!==aimLookKey()||h._pick?.busy||h._pick?.ghost||h._lensMoving)return;
+  const key=JSON.stringify([aim.target,aim.body,aim.partId,aim.limb,aim.dayMs,spec.obs,spec.eyeM,h._lookAt,aimLens,h._lensOffset,aimAirSettings.mode]);if(key===last)return;
+  try{const snap=planSnapshot({dataset:{planSource:'aim'}});if(okay(history.add('plans',snap.payload))){last=key;okay(history.add('places',{...SoramiPlan.expandPoint(snap.payload.o),subtitle:'最近使った撮影地'},{derived:true}));}}catch{/* A pending calculation is not a completed history item. */}
+ },1000);}
+ new MutationObserver(schedule).observe($('aimLook'),{childList:true,subtree:true,characterData:true});$('aimView').addEventListener('change',schedule);$('aimView').addEventListener('click',schedule);sheet.addEventListener('close',schedule);schedule();
+ window.addEventListener('storage',e=>{if(e.key?.startsWith('sorami.recent.v1:')&&sheet.open)render();});
+ return {accountChanged(){const next=auth?.loginId||'guest';if(next!==owner){owner=next;blocked=true;clearTimeout(timer);last='';if(sheet.open)render();}},observerSelected(){blocked=false;},rememberPlace(p,{observer=false}={}){if(observer)blocked=false;okay(history.add('places',p));},open(){page=0;if(active==='candidates'&&placeSheetFor!=='aim')active='recent';render();},history};
+})();
+
 </script></body>
 </html>

@@ -30,12 +30,12 @@ test('展望台が2つある施設は立つ所を選べ、選んだ展望台で�
 });
 
 test('地点選択の共通経路も展望台データを保ってねらうへ渡す',()=>{
- let selected;const picker={set:p=>selected=p};
- const c=vm.createContext({placeSheetFor:'aim',PLACE_PICKERS:{aim:picker},$(){return {close(){}}},aimAreaOf:()=>'',selectPlace(){throw Error('別の経路へ渡してはいけない')}});
+ let selected, remembered;const picker={set:p=>selected=p};
+ const c=vm.createContext({recentHistory:{rememberPlace:p=>remembered=p},placeSheetFor:'aim',PLACE_PICKERS:{aim:picker},$(){return {close(){}}},aimAreaOf:()=>'',selectPlace(){throw Error('別の経路へ渡してはいけない')}});
  const start=html.indexOf('function choosePlace('),end=html.indexOf('/// 地点の画面を道具',start);
  vm.runInContext(html.slice(start,end),c);
  c.choosePlace({name:'渋谷スカイ',latitude:35.65838,longitude:139.70222,elevation:19,decks:[{name:'展望台',aglM:229}],eyeHeightAGL:229});
- assert.equal(selected.eyeHeightAGL,229);assert.equal(selected.decks[0].aglM,229);assert.equal(selected.elevation,19);
+ assert.equal(remembered.eyeHeightAGL,229);assert.equal(selected.eyeHeightAGL,229);assert.equal(selected.decks[0].aglM,229);assert.equal(selected.elevation,19);
 });
 
 test('標高と地上からは別々に手で入れて保存復元し、それぞれ自動値へ戻せる',()=>{

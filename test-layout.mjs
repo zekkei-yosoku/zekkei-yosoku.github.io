@@ -3161,7 +3161,7 @@ console.log("== どこから重ねるかで、この日の候補地から選ぶ�
   ok(/function aimRenderCands\(\) \{\n  aimRenderCandList\(\);\n  aimRefreshSheetCands\(\);\n\}/.test(html)
     && /function aimRefreshSheetCands\(\) \{\n  if \(\$\("placeSheet"\)\.open && placeSheetFor === "aim"\) aimRenderSheetCands\(\);\n\}/.test(html),
     "撮影地の一覧と地点の画面の候補地は同じ候補で描き直す（開いている間に探し終わったら出る）");
-  ok(/aimRenderSheetCands\(\);\n  showSheet\(\$\("placeSheet"\)\);/.test(html), "地点の画面を開くたびに描く");
+  ok(/aimRenderSheetCands\(\);\n  (?:.*recentHistory\.open\(\).*\n  )?showSheet\(\$\("placeSheet"\)\);/.test(html), "地点の画面を開くたびに描く");
   // どこから行の下に「この日の候補地 Nか所 ›」を置いたが、カードを押せば同じ候補地が出るので外した（2026-10-06 ユーザー「このボタンはいらないんじゃない？」）
   ok(!/id="aimFromCands"|aim-from-cands/.test(html), "どこからの入口はカード1つ（候補地だけの釦を足さない）");
   // 探している印は、線の計算・候補地探しの始まりで立て、終わり・失敗・目標なしで下ろす（地点の画面の「探しています」）
