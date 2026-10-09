@@ -7,7 +7,7 @@ function view(id,bearing=0){const t=A.targetById(id),obs={...T.destination(t.lat
 test('無料2塔は方位で形が変わり、公表高さを保つ',()=>{
  for(const id of ['tokyotower','skytree']){
   const a=view(id,0),b=view(id,45),width=o=>Math.max(...o.points.map(p=>p[0]))-Math.min(...o.points.map(p=>p[0]));
-  assert.notEqual(width(a.o),width(b.o));assert.equal(a.o.modelId,id+'-drawing-envelope-v'+4);
+  assert.notEqual(width(a.o),width(b.o));assert.equal(a.o.modelId,id+'-drawing-envelope-v'+5);
   assert.equal(a.o.polygons,a.o.hitPolygons);assert.ok(a.o.points.every(p=>p.every(Number.isFinite)));
   assert.ok(a.o.sourceLabel.includes('推定'));assert.ok(a.o.approximate);
   const expected=A.geometryFrom(a.obs,a.t).angle;assert.ok(Math.abs(a.o.topAngle-expected)<1e-9);

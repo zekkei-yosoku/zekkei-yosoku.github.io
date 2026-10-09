@@ -82,8 +82,32 @@ terminal.sort(key=lambda p:math.atan2(p[1]-terminalCenter[1],p[0]-terminalCenter
 add(t,terminal+[[p[0],p[1],333] for p in terminal])
 t['provenance'].update({'upperExteriorSourceUrl':upper['source'],'upperExteriorSourceTopAglM':upper['sourceTopAglM'],'upperExteriorClipAglM':upper['clipAglM'],'upperExteriorPolygons':len(upper['polygons']),'nominalTipExtensionM':round(333-upper['sourceTopAglM'],6),'kind':'self-authored-lattice-with-plateau-upper-exterior','upperExteriorSourceKind':upper['sourceKind'],'license':upper['license'],'center':[35.65859131567304,139.74544420093412]})
 
+# Recover omitted equipment silhouettes from the user's calibrated south-view contour.
+# Only exterior equipment bands are added; feet, arches, deck/upper PLATEAU exterior
+# and their absolute elevations are retained. Unseen equipment plan is an estimate.
+equipment=json.loads((Path(__file__).parent/'東京タワー_提供輪郭の設備.json').read_text())
+referenceExtent=abs(math.cos(rot))+abs(math.sin(rot))
+for band in equipment['equipmentBands']:
+ # Extract the broad plateau of each photographed equipment band, not the
+ # fine contour's narrow shoulder rows. End rings have the same width so
+ # the visible platform does not become a diamond centred at one height.
+ usable=[(z,(right-left)/2) for z,left,right in band if z>=135.8]
+ maximum=max(w for z,w in usable)
+ plateau=[z for z,w in usable if w>=maximum-.5]
+ lo,hi=min(plateau),max(plateau)
+ if hi-lo<.5:hi=lo+.5
+ half=max(maximum/referenceExtent,interp(profile,(lo+hi)/2))
+ rings=[[[x*math.cos(rot)-y*math.sin(rot),x*math.sin(rot)+y*math.cos(rot),z] for x,y in [(-half,-half),(half,-half),(half,half),(-half,half)]] for z in [lo,hi]]
+ # Exterior support frames only; physical contact gaps remain open.
+ for i in range(4):
+  j=(i+1)%4
+  beam(t,rings[0][i],rings[0][j],.4);beam(t,rings[-1][i],rings[-1][j],.4)
+  beam(t,rings[0][i],rings[-1][i],.5)
+t['id']='tokyotower-drawing-envelope-v5'
+t['provenance'].update({'equipmentContourReference':equipment['reference'],'equipmentContourFile':'tools/東京タワー_提供輪郭の設備.json','equipmentBands':len(equipment['equipmentBands']),'equipmentGeometryQuality':equipment['interpretation'],'equipmentReferenceObserver':equipment['observer']})
+
 s=model('skytree',634)
-s['id']='skytree-drawing-envelope-v4';s['sourceLabel']='図面・写真参照3D・形状は推定'
+s['id']='skytree-drawing-envelope-v5';s['sourceLabel']='図面・写真参照3D・形状は推定'
 # Official operator: 68 m equilateral base; circular transition at 315 m.
 # Designer: 32 m diameter transition, circular arcs tangent to a cone, 24 perimeter subdivisions.
 # Reconstruct the radial arc envelope; cone slope inferred from the published
@@ -109,7 +133,7 @@ def contour(z):
   r=arc_r(r0,z) if z<=transition else radius+slope*(z-transition)
   pts.append([r*math.sin(angle),r*math.cos(angle),z])
  return pts
-levels=sorted(set(list(range(0,315,15))+[50,315,329,374,390,405,420,434,462,478,494]))
+levels=sorted(set(list(range(0,315,15))+[50,315,329,374,390,405,420,434]))
 for a,b in zip(levels,levels[1:]):
  if a==329 or a==434:continue
  low,up=contour(a),contour(b);w=1.5 if a<160 else 1 if a<329 else .65
@@ -124,23 +148,50 @@ for a,b in zip(levels,levels[1:]):
 # Central elevator/concrete shaft is opaque; lattice gaps remain around it.
 cylinder(s,0,375,4.0,4.0,16);cylinder(s,375,434,3.3,3,16)
 # Photo-constrained reverse-cone deck: widen upwards, not an inflated middle and pinched roof.
-# User reference photo: tip y=465, upper main-deck rim y=944. 375m rim is an estimate,
-# giving 1.849px/m; maximum photographed width about108px agrees with58.5m envelope.
+# User reference photo: tip y=464, upper main-deck rim y=944. Operator confirms 375m roof;
+# rim correspondence gives approximately 1.853px/m; maximum photographed width about108px agrees with58.5m envelope.
 # Floor350m is an occupied floor, not the widest roof; all intermediate stations estimated.
 s['provenance']['deckProfileReference']='user-supplied elevation photo 2026-10-08; approximate pixel trace, not surveyed'
-s['provenance']['photoScalePixelsPerM']=479/259
-s['provenance']['photoScaleQuality']='approximate: roof height, camera inclination and distance unmeasured'
+s['provenance']['photoScalePixelsPerM']=480/259
+s['provenance']['photoScaleQuality']='operator confirms 375m roof; photographed rim/floor correspondence and camera pose approximate'
 s['provenance']['detailRevision']='reverse-cone roof and antenna collars v3'
-for a,b,r0,r1 in [(329,334,15,16),(334,340,16,18.5),(340,350,18.5,22.5),(350,365,22.5,27.5),(365,369,27.5,28.3),(369,371,28.3,29.25),(371,375,29.25,29),(434,441,12,16),(441,447,16,19),(447,450,19,19),(450,453,19,17),(453,458,17,17),(458,462,17,15)]:cylinder(s,a,b,r0,r1,48)
-# NHK antenna engineer: approx. 140m gain tower, six-sided core approx. 6m diameter.
-# Core and external equipment are separate: the shaft must not taper to a needle.
-# External equipment stations/crown are traced from the user's photo; not survey dimensions.
+for a,b,r0,r1 in [(329,334,15,16),(334,340,16,18.5),(340,350,18.5,22.5),(350,365,22.5,27.5),(365,369,27.5,28.3),(369,371,28.3,29.25),(371,375,29.25,29)]:cylinder(s,a,b,r0,r1,48)
+# User photograph: row-by-row measured exterior of upper gallery, neck and aerial.
+# 375m roof height is confirmed by the operator; photo rim/floor correspondence
+# and camera pose remain approximate. A photograph is not a surveyed 3D mesh.
+photo=json.loads((Path(__file__).parent/'スカイツリー_提供写真の輪郭.json').read_text())
+scale=(photo['deckRoofPixelY']-photo['tipPixelY'])/(photo['tipHeightM']-photo['deckRoofHeightM'])
+photoProfile=sorted([(photo['tipHeightM']-(y-photo['tipPixelY'])/scale,w/(2*scale)) for y,w in photo['antennaWidthProfilePixels']])
+# Open steel regions are built at coarse structural stations. Pixel noise is
+# used for the equipment exterior, not converted into sub-metre steel braces.
+flangeZ=photo['tipHeightM']-(photo['neckUpperFlangePixelY']-photo['tipPixelY'])/scale
+shaftZ=photo['tipHeightM']-(photo['neckShaftAboveFlangePixelY']-photo['tipPixelY'])/scale
+# The visibly abrupt upper neck flange is a real exterior break in the photograph;
+# retain that named boundary without restoring one brace at every noisy pixel.
+for lo,hi,stations in [(434,443,[434,439,443]),(462,508,[462,470,480,488,492,496,flangeZ,shaftZ,502,506,508])]:
+ rings=[]
+ for z in stations:
+  photoRadius=interp(photoProfile,z) if z>=photoProfile[0][0] else photoProfile[0][1]
+  if z==434:rings.append(contour(434));continue
+  # Steel surrounding the solid six-sided core must stay outside its vertices.
+  r=max(.1,photoRadius-.35)
+  if z>=shaftZ:r=max(r,3.35)
+  # Keep each column on its existing azimuth across the 434m join.
+  rings.append([[r*p[0]/math.hypot(p[0],p[1]),r*p[1]/math.hypot(p[0],p[1]),z] for p in contour(434)])
+ for low,up in zip(rings,rings[1:]):
+  for i in range(24):
+   n=(i+1)%24;beam(s,low[i],up[i],.65)
+   beam(s,low[i],low[n],.35);beam(s,low[i],up[n],.3);beam(s,low[n],up[i],.3)
+for z in [443,462,508]:
+ if photoProfile[0][0]<z<photoProfile[-1][0]:photoProfile.append((z,interp(photoProfile,z)))
+ photoProfile.sort()
+for (a,r0),(b,r1) in zip(photoProfile,photoProfile[1:]):
+ if a<443 or 462<=a<508:continue
+ # Upper gallery glass/equipment and antenna exterior; their depths are
+ # inferred from rotationally symmetric sections, not recovered from one photo.
+ cylinder(s,a,b,max(r0,3) if a>=497 else r0,max(r1,3) if b>=497 else r1,64)
 cylinder(s,497,634,3,3,6)
-# Keep the photo-traced exterior stations, but prioritise the core lower bound; no fabricated absolute station elevations
-# for the four digital antenna units described in the paper.
-for a,b,r0,r1 in [(494,500,8,4),(500,525,4,4),(525,530,4,3),(530,557,3,3),(557,563,3,2.5),(563,587,2.5,2.5),(587,592,2.5,2),(592,616,2,2),(616,620,3,4.5),(620,630,4.5,6.5),(630,634,6.5,7)]:cylinder(s,a,b,r0,r1,40)
-for z,r in [(500,5),(530,4),(557,3.8),(563,3.2),(587,3.1),(592,2.8),(616,3.5)]:cylinder(s,z-.5,z+.5,r,r,40)
-s['provenance'].update({'gainCoreDiameterApproxM':6,'gainCoreDiameterConvention':'circumdiameter; source says approximate diameter without across-flats convention','gainCoreSides':6,'gainCoreOrientationQuality':'estimated; north vertex not surveyed','gainCorePriority':'published core diameter lower bound overrides narrower photo-trace estimates','gainCoreSourceUrl':'https://www.jstage.jst.go.jp/article/itej/66/7/66_541/_article/-char/ja/','gainDigitalEquipmentUnits':4,'gainDigitalEquipmentUnitHeightApproxM':10,'gainEquipmentStationsQuality':'photo-constrained; four digital units not separately located from unavailable dimensioned elevations','gainCrownShape':'flat flared crown, not a pointed cone','gainCrownPhotoEstimateDiameterM':14,'gainCrownDiameterQuality':'user photograph width / approximate image scale; camera geometry and roof height unknown; not a verified dimension','detailRevision':'hexagonal gain core lower diameter bound and flat photo-traced crown v4'})
+s['provenance'].update({'photoOutlineReference':photo['reference'],'photoOutlineSha256':photo['imageSha256'],'photoOutlineSourceFile':'tools/スカイツリー_提供写真の輪郭.json','photoOutlineRows':len(photo['tracedRows']),'photoOutlineStations':len(photoProfile),'photoOutlineHeightMappingQuality':photo['heightMappingQuality'],'photoOutlineExteriorAssumption':photo['circularExteriorAssumption'],'deckRoofHeightSourceUrl':photo['roofHeightSourceUrl'],'gainCoreDiameterApproxM':6,'gainCoreDiameterConvention':'circumdiameter; source convention unspecified','gainCoreSides':6,'gainCoreOrientationQuality':'estimated; north vertex not surveyed','gainCorePriority':'published core lower bound retained under photograph-derived equipment exterior','gainCoreSourceUrl':'https://www.jstage.jst.go.jp/article/itej/66/7/66_541/_article/-char/ja/','detailRevision':'row-traced user-photo upper gallery, lattice neck and antenna v5','gainCrownShape':'flat flared crown from photograph','gainCrownPhotoEstimateDiameterM':2*photoProfile[-1][1],'gainCrownDiameterQuality':'photograph-derived; camera geometry unmeasured','gainDigitalEquipmentUnits':4,'gainDigitalEquipmentUnitHeightApproxM':10,'gainEquipmentStationsQuality':'user-photo outline; not four absolute surveyed antenna-unit elevations'})
 for m in [t,s]:
  assert all(all(math.isfinite(x) for x in p) for p in m['vertices'])
  assert math.isclose(max(p[2] for p in m['vertices']),m['heightM'],abs_tol=1e-6)
