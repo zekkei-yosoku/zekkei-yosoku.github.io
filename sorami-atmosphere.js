@@ -54,7 +54,7 @@
     return {observer:{...o},source,rows,loadedAt:Date.now()};
   }
   async function load(o,ms,{fetcher=global.fetch,now=Date.now(),target=null}={}){
-    if(validTarget(target)){const [out]=await Promise.all([load(o,ms,{fetcher,now}),loadLine(o,target,ms,{fetcher,now})]);return out;}
+    if(validTarget(target)){const [out,line]=await Promise.all([load(o,ms,{fetcher,now}),loadLine(o,target,ms,{fetcher,now})]);const until=r=>r.loadedAt+(r.error&&r.error!=='予報期間外'?60000:HOUR);return {...out,refreshAt:Math.min(until(out),line?until(line):Infinity)};}
     const key=keyOf(o,ms),old=records.get(key);
     if(old&&now-old.loadedAt<(old.error?60000:HOUR))return old;
     if(pending.has(key))return pending.get(key);

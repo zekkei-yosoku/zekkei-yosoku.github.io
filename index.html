@@ -1969,29 +1969,29 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261010123803"></script>
+<script src="sorami-core.js?v=20261011033522"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261010123803"></script>
-<script src="sorami-exif.js?v=20261010123803"></script>
-<script src="sorami-capcloud.js?v=20261010123803"></script>
-<script src="sorami-terrain.js?v=20261010123803"></script>
-<script src="sorami-mountain.js?v=20261010123803"></script>
-<script src="sorami-fuji.js?v=20261010123803"></script>
-<script src="sorami-sky.js?v=20261010123803"></script>
+<script src="sorami-astro.js?v=20261011033522"></script>
+<script src="sorami-exif.js?v=20261011033522"></script>
+<script src="sorami-capcloud.js?v=20261011033522"></script>
+<script src="sorami-terrain.js?v=20261011033522"></script>
+<script src="sorami-mountain.js?v=20261011033522"></script>
+<script src="sorami-fuji.js?v=20261011033522"></script>
+<script src="sorami-sky.js?v=20261011033522"></script>
 
-<script src="sorami-history.js?v=20261010123803"></script>
-<script src="sorami-plan.js?v=20261010123803"></script>
-<script src="sorami-routes.js?v=20261010123803"></script>
-<script src="sorami-iss.js?v=20261010123803"></script>
-<script src="sorami-plane.js?v=20261010123803"></script>
-<script src="sorami-refraction.js?v=20261010123803"></script>
-<script src="sorami-atmosphere.js?v=20261010123803"></script>
-<script src="sorami-bodies.js?v=20261010123803"></script>
-<script src="sorami-city-models.js?v=20261010123803"></script>
-<script src="sorami-tower-models.js?v=20261010123803"></script>
-<script src="sorami-align.js?v=20261010123803"></script>
-<script src="sorami-moon.js?v=20261010123803"></script>
+<script src="sorami-history.js?v=20261011033522"></script>
+<script src="sorami-plan.js?v=20261011033522"></script>
+<script src="sorami-routes.js?v=20261011033522"></script>
+<script src="sorami-iss.js?v=20261011033522"></script>
+<script src="sorami-plane.js?v=20261011033522"></script>
+<script src="sorami-refraction.js?v=20261011033522"></script>
+<script src="sorami-atmosphere.js?v=20261011033522"></script>
+<script src="sorami-bodies.js?v=20261011033522"></script>
+<script src="sorami-city-models.js?v=20261011033522"></script>
+<script src="sorami-tower-models.js?v=20261011033522"></script>
+<script src="sorami-align.js?v=20261011033522"></script>
+<script src="sorami-moon.js?v=20261011033522"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6646,7 +6646,7 @@ async function aimSpotRows() {
       if (aim.spotWork !== work || aimSpotKey() !== key) return null;
       let ev = [];
       try { ev = SoramiAlign.upcoming(SoramiAlign.spotObserver(sp), target, body,
-        { from: now, days: 400, limit: body === "moon" ? 12 : 4, limb, stepMs: 3600000 }); } catch {}
+        { from: now, days: 400, limit: body === "moon" ? 12 : 4, limb, stepMs: 3600000 }); } catch (error) { throw error; }
       ev = ev.filter(e => e.rank !== "graze" && (body !== "moon" || e.sunAltitude < 0));
       if (ev.length) rows.push({ sp, ev: ev.slice(0, 2) });
     }
@@ -6664,7 +6664,13 @@ async function aimRenderSpots() {
   $("aimListTitle").textContent = "定番スポット";
   $("aimListSub").textContent = !SoramiBodies.definition(aim.body).limbs ? "次に富士山を通る日" : moon ? "次にパール富士が見える日" : "次にダイヤモンド富士が見える日";
   $("aimList").innerHTML = `<p class="tiny">計算しています…</p>`;
-  const rows = await aimSpotRows();
+  let rows;
+  try { rows = await aimSpotRows(); } catch {
+    if (seq !== aim.spotSeq || !aimIsFuji()) return;
+    $("aimList").innerHTML = '<p class="tiny" role="status">定番スポットの候補日を計算できませんでした。</p><button type="button" class="fav-btn" data-spot-retry>再試行</button>';
+    $("aimList").querySelector('[data-spot-retry]').onclick = () => aimRenderSpots();
+    return;
+  }
   if (seq !== aim.spotSeq || !aimIsFuji()) return;
   if (rows === null) { aim.spotWork = null; return aimRenderSpots(); }
   if (!rows.length) { $("aimList").innerHTML = `<p class="tiny">この1年、主なスポットからは見えません。</p>`; return; }
@@ -7038,12 +7044,13 @@ function aimCandidateMatch(e, whole = aim.partId === "__whole") {
   const tolerance = Math.max(1 / 60, 0.2 * (e.radius || 0));
   return Number.isFinite(e.gap) && Math.abs(e.gap) <= tolerance;
 }
-// 400日探索を8日ずつ区切り、日付・地点の操作を止めない。
+// 400日探索は最大8日、重い天体では約1フレームごとに操作へ制御を返す。
 async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now(), limb = aim.limb, isCurrent = () => seq === aim.fromSeq } = {}) {
   const start = S.Cal.startOfDay(from), rows = [];
   const whole = partId === "__whole";
+  let yieldedAt = 0;
   for (let i = 0; i < 400 && rows.length < 4; i++) {
-    if (i % 8 === 0) { await new Promise((resolve) => setTimeout(resolve, 0)); if (!isCurrent()) return []; }
+    if (i % 8 === 0 || Date.now() - yieldedAt >= 16) { await new Promise((resolve) => setTimeout(resolve, 0)); if (!isCurrent()) return []; yieldedAt = Date.now(); }
     const day = start + i * 86400000;
     const events = whole ? SoramiAlign.dailyView(obs, target, body, day, { partId, eyeM: obs.eyeM })
       : SoramiAlign.upcoming(obs, target, body, {eyeM:obs.eyeM,from:day,days:1,limit:Infinity,groupDays:false,partId,limb,stepMs:3600000});
@@ -7120,7 +7127,13 @@ async function aimRenderFrom() {
   let ev = [];
   try {
     ev = await aimDaysFor(obs, aimDaysInputKey(f));
-  } catch { ev = []; }
+  } catch {
+    if (seq !== aim.fromSeq) return;
+    aim.fromEvents = [];
+    $("aimFrom").innerHTML = '<p class="tiny" role="status">候補日を計算できませんでした。</p><button type="button" class="fav-btn" data-from-retry>再試行</button>';
+    $("aimFrom").querySelector('[data-from-retry]').onclick = () => aimRenderFrom();
+    return;
+  }
   if (seq !== aim.fromSeq) return;
   if (ev === null) return aimRenderFrom();
   const all = ev;
@@ -8761,7 +8774,7 @@ function aimTitleFor() {
 const aimAirSettings={mode:"auto",temperatureC:10,pressureHPa:1010,...(store.get("sorami.aimAir",null)||{})};
 if(!["auto","standard","none"].includes(aimAirSettings.mode))aimAirSettings.mode="auto";
 try{SoramiAtmosphere.configure(aimAirSettings.mode,aimAirSettings);}catch{aimAirSettings.mode="auto";SoramiAtmosphere.configure("auto");}
-let aimAirLoadKey="",aimAirSeq=0,aimAirCompare=null;
+let aimAirLoadKey="",aimAirLoadUntil=0,aimAirSeq=0,aimAirCompare=null;
 const aimAirAngle=(...args)=>SoramiAstro.targetElevationAngle(...args,{k:SoramiAtmosphere.targetK()});
 function aimAirDescribe(at,obs){
  const air=SoramiAtmosphere.at(at,obs),temp=Number.isFinite(air.temperatureC)?air.temperatureC.toFixed(1):"",pressure=Number.isFinite(air.pressureHPa)?Math.round(air.pressureHPa):"";
@@ -8782,13 +8795,19 @@ function aimAirTarget(){
 function aimAirEnsure(f,day){
  if(aimAirSettings.mode!=="auto"||!f)return false;
  const target=aimAirTarget();
- const key=`${f.latitude},${f.longitude}|${day}|${target?`${target.latitude},${target.longitude},${target.topM}`:""}|${Math.floor(Date.now()/3600000)}`;
- if(aimAirLoadKey===key)return false;
- aimAirLoadKey=key;const seq=++aimAirSeq;
+ const key=`${f.latitude},${f.longitude}|${day}|${target?`${target.latitude},${target.longitude},${target.topM}`:""}`;
+ if(aimAirLoadKey===key&&Date.now()<aimAirLoadUntil)return false;
+ aimAirLoadKey=key;aimAirLoadUntil=Infinity;const seq=++aimAirSeq;
  $("aimAirSummary").textContent="気象を取得中…"; $("aimAirStatus").textContent="選択地点・日時の気象を取得しています…";
  aim.seq++;aim.lineWork=null;aim.fromSeq++;aim.candSeq++;aim.lookSeq++;aim.spotSeq++;aimCal.seq++;
- (async()=>{const ground=await aimElevation(f.latitude,f.longitude);if(seq!==aimAirSeq)return;
- await SoramiAtmosphere.load({latitude:f.latitude,longitude:f.longitude,elevation:ground},day,{target});
+ (async()=>{try{
+ const ground=await aimElevation(f.latitude,f.longitude);if(seq!==aimAirSeq)return;
+ const result=await SoramiAtmosphere.load({latitude:f.latitude,longitude:f.longitude,elevation:ground},day,{target});
+ if(seq!==aimAirSeq)return;
+ aimAirLoadUntil=result.refreshAt??(result.loadedAt+(result.error&&result.error!=="予報期間外"?60000:3600000));
+ // 長時間かかった取得でも、この完了描画で直ちに再取得をループしない。
+ aimAirLoadUntil=Math.max(Date.now()+1000,aimAirLoadUntil);
+ }catch{if(seq!==aimAirSeq)return;aimAirLoadUntil=Date.now()+60000;}
  if(seq!==aimAirSeq)return;aimApply();})();
  return true;
 }
