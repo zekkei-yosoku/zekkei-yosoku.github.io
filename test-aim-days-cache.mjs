@@ -25,10 +25,10 @@ test('日付・描画世代が変わっても完成済みの候補と空の結�
 test('候補探索中の連続した日付操作でも探索は1回',async()=>{
  const f=fixture(),release=f.hold(),a=f.run();await new Promise(r=>setTimeout(r,10));f.aim.dayMs+=DAY;f.aim.fromSeq++;const b=f.run();release();assert.equal(await a,await b);assert.equal(f.calls,1);
 });
-test('地点・標高・目の高さ・天体・部位・目標の同ID座標と形状・大気・地形を鍵にする',()=>{
- const mutations=[f=>f.point.latitude+=.01,f=>f.point.longitude+=.01,f=>f.point.groundManualM++,f=>f.point.observationElevationM=10,f=>f.point.standAglM++,f=>f.aim.body='sun',f=>f.aim.partId='tip',f=>f.aim.target.latitude+=.01,f=>f.aim.target.parts[0].m++,f=>f.aim.target.rim=[[1,2]],f=>f.setAir('b'),f=>f.c.fujiGrid={}];
+test('地点・標高・目の高さ・天体・部位・目標の同ID座標と形状・大気を鍵にする',()=>{
+ const mutations=[f=>f.point.latitude+=.01,f=>f.point.longitude+=.01,f=>f.point.groundManualM++,f=>f.point.observationElevationM=10,f=>f.point.standAglM++,f=>f.aim.body='sun',f=>f.aim.partId='tip',f=>f.aim.target.latitude+=.01,f=>f.aim.target.parts[0].m++,f=>f.aim.target.rim=[[1,2]],f=>f.setAir('b')];
  for(const change of mutations){const f=fixture(),k=f.key();change(f);assert.notEqual(f.key(),k);}
- const f=fixture(),k=f.key();f.aim.dayMs+=DAY;f.aim.limb='behind';assert.equal(f.key(),k);f.aim.partId='tip';const partKey=f.key();f.aim.limb='center';assert.notEqual(f.key(),partKey);
+ const f=fixture(),k=f.key();f.aim.dayMs+=DAY;f.aim.limb='behind';f.c.fujiGrid={};assert.equal(f.key(),k);f.aim.partId='tip';const partKey=f.key();f.aim.limb='center';assert.notEqual(f.key(),partKey);
 });
 test('必要な再探索と古い非同期結果の破棄、実際の地面標高の更新',async()=>{
  const f=fixture(),release=f.hold(),old=f.run();await new Promise(r=>setTimeout(r,10));f.point.latitude+=.01;const newer=f.run();release();assert.equal(await old,null);assert.ok(await newer);assert.equal(f.calls,2);
