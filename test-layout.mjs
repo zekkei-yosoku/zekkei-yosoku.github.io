@@ -456,7 +456,7 @@ console.log("== 使われていない見た目の決まりを残さない ==");
 console.log("== ダイヤモンド富士・パール富士は観測スポットの一覧を出す（2026-09-30） ==");
 ok(/async function aimRenderSpots/.test(html), "主な観測スポットごとに次の日を出す");
 ok(/SoramiAlign\.FUJI_SPOTS/.test(html), "スポットの一覧を使う");
-ok(/e\.rank !== "graze" && \(!moon \|\| e\.sunAltitude < 0\)/.test(html), "パール富士は月が暗い空にあるときだけ");
+ok(/e\.rank !== "graze" && \(body !== "moon" \|\| e\.sunAltitude < 0\)/.test(html), "パール富士は月が暗い空にあるときだけ");
 ok(/function aimDateLabel/.test(html) && /y === now \? "" :/.test(html), "今年でない日は年も書く（400日先で同じ月日が2回出る）");
 // 富士山に重ねるは目標が決まっているので、選ぶ欄の代わりに「富士山」と書く。太陽／月の切り替えは塔と同じ位置に残す
 // 太陽／月の切り替えは題名の右（どちらの道具も同じ位置）。「富士山 × 太陽」の添え書きは出さない。
@@ -565,7 +565,7 @@ ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れ�
   ok(/requestAnimationFrame\(\(\) => \{\s+AimMap\.open\(\.\.\.aimMapView\(\)\);/.test(html), "地図は aimMapView の中心で開く");
   ok(/if \(\(aim\.target\.parts \|\| \[\]\)\.length\) \{ aimRedrawLine\(\); aimRenderList\(\); \}\n  aimRenderFrom\(\);\n\}/.test(html),
     "目標の場所が無いときは、線と一覧を計算しない（「どこからも重なりません」と出さない）");
-  ok(/\$\("aimLineInfo"\)\.textContent = "";[\s\S]{0,400}\$\("aimCandBox"\)\.hidden = true;\s+\$\("aimListBox"\)\.hidden = true;\s+aim\.cands = \[\]; aim\.candBusy = false; aimRefreshSheetCands\(\);\s+return;\s+\}\s+\$\("aimCandBox"\)\.hidden = false;/.test(html),
+  ok(/\$\("aimLineInfo"\)\.textContent = "";[\s\S]{0,400}\$\("aimCandBox"\)\.hidden = true;\s+\$\("aimListBox"\)\.hidden = true;\s+aim\.cands = \[\]; aim\.candBusy = false; aimRefreshSheetCands\(\);\s+return false;\s+\}\s+\$\("aimCandBox"\)\.hidden = false;/.test(html),
     "目標の場所が無いときは、候補地・定番スポットの見出しも出さない");
   {
     const mv = /function aimMapView\(\) \{[\s\S]*?\n\}/.exec(html)[0];
@@ -3172,7 +3172,7 @@ console.log("== どこから重ねるかで、この日の候補地から選ぶ�
   // どこから行の下に「この日の候補地 Nか所 ›」を置いたが、カードを押せば同じ候補地が出るので外した（2026-10-06 ユーザー「このボタンはいらないんじゃない？」）
   ok(!/id="aimFromCands"|aim-from-cands/.test(html), "どこからの入口はカード1つ（候補地だけの釦を足さない）");
   // 探している印は、線の計算・候補地探しの始まりで立て、終わり・失敗・目標なしで下ろす（地点の画面の「探しています」）
-  ok((html.match(/aim\.candBusy = true; aimRefreshSheetCands\(\);/g) || []).length === 2 && /aim\.cands = shown;\n  aim\.candUnknownSides = \[\.\.\.unknownSides\];\n  aim\.candBusy = false;/.test(html),
+  ok((html.match(/aim\.candBusy = true; aimRefreshSheetCands\(\);/g) || []).length === 2 && /aim\.cands = shown;\n  aim\.candUnknownSides = \[\.\.\.unknownSides\];\n  if \(unknownSides\.size\) aim\.lineWork = null;[^\n]*\n  aim\.candBusy = false;/.test(html),
     "探している印を立てて、終わったら下ろす");
   const pick = /function aimFromCandidate\(c\) \{[\s\S]*?\n\}/.exec(html)[0];
   const alignSrc = fs.readFileSync(new URL("./sorami-align.js", import.meta.url), "utf8");

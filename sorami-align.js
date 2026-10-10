@@ -233,8 +233,10 @@
     let obsM = 0, at = null, azimuth = null, alpha = null;
     let back = null;   // 目標から見た観測点の方位
     for (let i = 0; i < rounds; i++) {
+      if (opts.isCurrent && !opts.isCurrent()) return null;
       if (elevationAt) {
         const e = await elevationAt(guess.latitude, guess.longitude);
+        if (opts.isCurrent && !opts.isCurrent()) return null;
         if (Number.isFinite(e)) obsM = e;
       }
       const obs0 = { latitude: guess.latitude, longitude: guess.longitude, elevation: obsM + eyeM };
@@ -329,8 +331,10 @@
       : lineDistances(minKm, maxKm);
     const out = [];
     for (const side of sides) {
+      if (opts.isCurrent && !opts.isCurrent()) return [];
       const solved = await mapLimit(dists, 6,
         (d) => solvePoint(target, body, dayMs, d, side, opts));
+      if (opts.isCurrent && !opts.isCurrent()) return [];
       // 地平線より下、または天体が出ていない側は線にならない
       let points = solved.filter((p) => p && p.altitude > -1).map((p) => ({ ...p, side }));
       // **1点ごとの凹凸で線を蛇行させない。**
@@ -809,6 +813,7 @@
         if (lateralM > (place.reachM || 0) + bandM + plateauM + 150 + 0.004 * D * 1000) continue;
         const approxAt = p0.at + (p1.at - p0.at) * f;
         jobs.push(async () => {
+          if (opts.isCurrent && !opts.isCurrent()) return null;
           const hit = await standOn(place, l, target, body, approxAt, opts, elevationAt);
           // 線の届く範囲に立ち、選んだ合わせ方どおりに重なる地点だけ。
           return hit && hit.rank && Math.abs(hit.gap) <= (hit.radius === 0 ? 1e-5 : LIMB_FIT * hit.radius)
@@ -821,18 +826,19 @@
     const out = new Array(jobs.length);
     let next = 0;
     await Promise.all(Array.from({ length: Math.min(6, jobs.length) }, async () => {
-      while (next < jobs.length) { const i = next++; out[i] = await jobs[i](); }
+      while (next < jobs.length && (!opts.isCurrent || opts.isCurrent())) { const i = next++; out[i] = await jobs[i](); }
     }));
-    return out.filter(Boolean);
+    return opts.isCurrent && !opts.isCurrent() ? [] : out.filter(Boolean);
   }
 
   /// 場所の中で立つ位置を決め、そこでの重なり方を返す
   async function standOn(place, l, target, body, approxAt, opts, elevationAt) {
     const eyeM = (opts.eyeM ?? 1.5) + (place.deckM || 0);
     const at = async (pt, fixedElev = null) => {
+      if (opts.isCurrent && !opts.isCurrent()) return null;
       const e = fixedElev !== null ? fixedElev
         : (elevationAt ? await elevationAt(pt.latitude, pt.longitude) : 0);
-      if (!Number.isFinite(e)) return null;
+      if (opts.isCurrent && !opts.isCurrent() || !Number.isFinite(e)) return null;
       const obs = { latitude: pt.latitude, longitude: pt.longitude, elevation: Number.isFinite(e) ? e : 0 };
       const c = crossingNear(obs, target, body, approxAt, { ...opts, eyeM });
       return c ? { ...c, stand: { latitude: pt.latitude, longitude: pt.longitude, elevationM: obs.elevation } } : null;

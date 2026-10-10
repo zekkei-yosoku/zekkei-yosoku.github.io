@@ -61,7 +61,7 @@ test('記録案内はピークではなく窓の終了時刻。翌日の日付�
 function redraw(line){
  const els=Object.fromEntries(['aimLineInfo','aimLineTable','aimCandList','aimSideSeg','aimCandInfo'].map(k=>[k,{hidden:false,textContent:'old',innerHTML:'old',querySelector(){return this;}}]));
  const aim={seq:0,candSeq:0,target:{id:'fuji'},body:'sun',dayMs:today,candPick:null,cands:[]};
- const fn=runInNewContext(grab('async function aimRedrawLine')+';aimRedrawLine',{aim,$:k=>els[k],AimMap:{redraw(){}},SoramiAlign:{line},aimElevation(){},aimFindCandidates(){},aimRefreshSheetCands(){},S,esc:x=>x,aimSideLabel:x=>x,aimKm:x=>x});
+ const fn=runInNewContext(grab('async function aimRedrawLine')+';aimRedrawLine',{aim,$:k=>els[k],SoramiAtmosphere:{dataKey:()=>"standard"},aimRenderCands(){},AimMap:{redraw(){}},SoramiAlign:{line},aimElevation(){},aimFindCandidates(){},aimRefreshSheetCands(){},S,esc:x=>x,aimSideLabel:x=>x,aimKm:x=>x});
  return {fn,els,aim};
 }
 test('計算開始時に旧表を消す。古い応答・エラーで新しい画面を上書きしない',async()=>{
@@ -70,7 +70,7 @@ test('計算開始時に旧表を消す。古い応答・エラーで新しい�
  r.aim.target={id:'tower'};const second=r.fn();pending[1].resolve([{side:'rise',points:[{at:ev.peak,distanceKm:2,azimuth:90},{at:ev.peak,distanceKm:3,azimuth:91}]}]);await second;
  const latest=r.els.aimLineTable.innerHTML;assert.match(latest,/2〜3km/);
  pending[0].reject(Error('old'));await first;assert.equal(r.els.aimLineTable.innerHTML,latest);assert.equal(r.els.aimLineTable.hidden,false);
- const fail=r.fn();pending[2].reject(Error('network'));await fail;assert.equal(r.els.aimLineTable.hidden,true);assert.match(r.els.aimLineInfo.textContent,/計算できません/);assert.doesNotMatch(r.els.aimLineInfo.textContent,/どこからも重なりません/);
+ r.aim.dayMs+=86400000;const fail=r.fn();pending[2].reject(Error('network'));await fail;assert.equal(r.els.aimLineTable.hidden,true);assert.match(r.els.aimLineInfo.textContent,/計算できません/);assert.doesNotMatch(r.els.aimLineInfo.textContent,/どこからも重なりません/);
 });
 test('同名の山頂は近くの駅に吸収されず、索引の市町村・標高・位置で出る（高尾山）',async()=>{
  const terrain=createRequire(import.meta.url)('./sorami-terrain.js');
