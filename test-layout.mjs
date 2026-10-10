@@ -240,7 +240,10 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
 // **地点をねらうの画面の中で選び、どこからの結果かを名前で書く**形で戻した（地点カードの地点は黙って使わない）
 {
   const fn = /async function aimRenderFrom\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
-  ok(/const obs = aimObserverAt\(f, ground\)/.test(fn) && /SoramiAlign\.upcoming\(obs, aim\.target/.test(fn),
+  // 2026-10-10: 探索を条件キャッシュへ移した。表示関数から同じ観測点を渡す経路を確認する。
+  const search = /async function aimDaysFor\(obs, inputKey\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
+  ok(/const obs = aimObserverAt\(f, ground\)/.test(fn) && /aimDaysFor\(obs, aimDaysInputKey\(f\)\)/.test(fn)
+    && /SoramiAlign\.upcoming\(obs, target/.test(search),
     "地点から探す: 選んだ地点（aim.from）で解く");
   // 帯の上の「◯◯から見た◯◯ ・ ◯◯まで Nkm」は出さない（2026-10-03 ユーザーが選んだ「いらない説明文」）。どこからかは上のカードと図の上の一行
   ok(!/から見た\$\{esc\(what\)\}/.test(fn) && !/const head = /.test(fn), "地点から探す: 帯の上に地点と題名を繰り返さない");
@@ -303,7 +306,8 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/class="tiny aim-day" data-from-day=/.test(fn), "次に重なる日は日付の小さな釦で（押すとその日の線と候補地へ）");
   ok(!/aimFromSight|aimSightBuildings\(obs, D,|SoramiAlign\.lineOfSight/.test(fn), "不十分な見通し推定を観測地点で断定表示しない");
   ok(/innerHTML = \(chips/.test(fn), "候補日を警告で分断せず日付直下に表示する");
-  ok((html.match(/SoramiAlign\.upcoming\(obs, aim\.target/g) || []).length === 1, "ほかの所で見えない地点からの一覧を出さない");
+  // 2026-10-10: 候補帯の探索入口は条件キャッシュの1か所へ移動した。
+  ok((html.match(/ev = await aimDaysFor\(obs, aimDaysInputKey\(f\)\)/g) || []).length === 1, "ほかの所で見えない地点からの一覧を出さない");
   // 地点の住所は都道府県＋市区町村まで（OSM の住所は長い）
   const src = /function aimAreaOf\(r\) \{[\s\S]*?\n\}/.exec(html)?.[0];
   const areaOf = src ? new Function(`${src}; return aimAreaOf;`)() : () => "";
@@ -3007,7 +3011,10 @@ console.log("== 見え方の図（2026-10-02） ==");
   // 呼び出し: 帯（aimRenderFrom）・候補地の行・側の切り替え・候補の結果
   const from = /async function aimRenderFrom\(\) \{[\s\S]*?\n\}/.exec(html)[0];
   ok(/aimUpdateLook\(\);/.test(from) && (from.match(/\$\("aimLook"\)\.hidden = true;/g) || []).length >= 2, "観測地点・目標が無ければ図を隠す");
-  ok(from.includes("limb: aim.limb") && from.includes("aimCandidateMatch(e)"), "2026-10-04仕様：候補日は選択高さと縁で絞る");
+  // 2026-10-10: 選択部位と縁は探索開始時に固定し、表示日だけの変更で混ぜない。
+  const search = /async function aimDaysFor\(obs, inputKey\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
+  ok(search.includes("partId = aim.partId, limb = aim.limb") && search.includes("limb, partId")
+    && from.includes("aimCandidateMatch(e)"), "2026-10-04仕様：候補日は選択高さと縁で絞る");
 }
 console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==");
 // ユーザー「候補日はプルダウンにしたら？」「日の出と日の入に関してはボタンで切り替えが良い」「もっと最適なレイアウトがあるでしょ」→ Codex と相談し、帯と切り替え（ユーザー「この形で作る」）

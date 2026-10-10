@@ -1969,29 +1969,29 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261010115218"></script>
+<script src="sorami-core.js?v=20261010121627"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261010115218"></script>
-<script src="sorami-exif.js?v=20261010115218"></script>
-<script src="sorami-capcloud.js?v=20261010115218"></script>
-<script src="sorami-terrain.js?v=20261010115218"></script>
-<script src="sorami-mountain.js?v=20261010115218"></script>
-<script src="sorami-fuji.js?v=20261010115218"></script>
-<script src="sorami-sky.js?v=20261010115218"></script>
+<script src="sorami-astro.js?v=20261010121627"></script>
+<script src="sorami-exif.js?v=20261010121627"></script>
+<script src="sorami-capcloud.js?v=20261010121627"></script>
+<script src="sorami-terrain.js?v=20261010121627"></script>
+<script src="sorami-mountain.js?v=20261010121627"></script>
+<script src="sorami-fuji.js?v=20261010121627"></script>
+<script src="sorami-sky.js?v=20261010121627"></script>
 
-<script src="sorami-history.js?v=20261010115218"></script>
-<script src="sorami-plan.js?v=20261010115218"></script>
-<script src="sorami-routes.js?v=20261010115218"></script>
-<script src="sorami-iss.js?v=20261010115218"></script>
-<script src="sorami-plane.js?v=20261010115218"></script>
-<script src="sorami-refraction.js?v=20261010115218"></script>
-<script src="sorami-atmosphere.js?v=20261010115218"></script>
-<script src="sorami-bodies.js?v=20261010115218"></script>
-<script src="sorami-city-models.js?v=20261010115218"></script>
-<script src="sorami-tower-models.js?v=20261010115218"></script>
-<script src="sorami-align.js?v=20261010115218"></script>
-<script src="sorami-moon.js?v=20261010115218"></script>
+<script src="sorami-history.js?v=20261010121627"></script>
+<script src="sorami-plan.js?v=20261010121627"></script>
+<script src="sorami-routes.js?v=20261010121627"></script>
+<script src="sorami-iss.js?v=20261010121627"></script>
+<script src="sorami-plane.js?v=20261010121627"></script>
+<script src="sorami-refraction.js?v=20261010121627"></script>
+<script src="sorami-atmosphere.js?v=20261010121627"></script>
+<script src="sorami-bodies.js?v=20261010121627"></script>
+<script src="sorami-city-models.js?v=20261010121627"></script>
+<script src="sorami-tower-models.js?v=20261010121627"></script>
+<script src="sorami-align.js?v=20261010121627"></script>
+<script src="sorami-moon.js?v=20261010121627"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7010,18 +7010,59 @@ function aimCandidateMatch(e, whole = aim.partId === "__whole") {
   return Number.isFinite(e.gap) && Math.abs(e.gap) <= tolerance;
 }
 // 400日探索を8日ずつ区切り、日付・地点の操作を止めない。
-async function aimBuildingDays(obs, target, body, partId, seq) {
-  const from = Date.now(), start = S.Cal.startOfDay(from), rows = [];
+async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now(), limb = aim.limb, isCurrent = () => seq === aim.fromSeq } = {}) {
+  const start = S.Cal.startOfDay(from), rows = [];
   const whole = partId === "__whole";
   for (let i = 0; i < 400 && rows.length < 4; i++) {
-    if (i % 8 === 0) { await new Promise((resolve) => setTimeout(resolve, 0)); if (seq !== aim.fromSeq) return []; }
+    if (i % 8 === 0) { await new Promise((resolve) => setTimeout(resolve, 0)); if (!isCurrent()) return []; }
     const day = start + i * 86400000;
     const events = whole ? SoramiAlign.dailyView(obs, target, body, day, { partId, eyeM: obs.eyeM })
-      : SoramiAlign.upcoming(obs, target, body, {eyeM:obs.eyeM,from:day,days:1,limit:Infinity,groupDays:false,partId,limb:aim.limb,stepMs:3600000});
+      : SoramiAlign.upcoming(obs, target, body, {eyeM:obs.eyeM,from:day,days:1,limit:Infinity,groupDays:false,partId,limb,stepMs:3600000});
     const row = events.find((e) => e.at >= from && aimCandidateMatch(e,whole) && (body !== "moon" || e.sunAltitude < 0));
     if (row) rows.push(row);
   }
   return rows;
+}
+// 表示日を替えても検索条件は同じ。地形・標高・有効な大気データが替われば再探索する。
+function aimDaysInputKey(f, now = Date.now()) {
+  if (!f) return null;
+  return JSON.stringify([f.latitude, f.longitude, f.groundManualM, f.observationElevationM,
+    f.standAglM, aimObserverEye(f), aim.target, aim.body, aim.partId,
+    aim.partId === "__whole" ? null : aim.limb, !!fujiGrid,
+    SoramiAtmosphere.dataKey(now), S.Cal.startOfDay(now)]);
+}
+function aimSyncFromDay() {
+  for (const el of $("aimFrom").querySelectorAll("[data-from-day]")) {
+    el.setAttribute("aria-pressed", String(S.JstCal.sameDay(+el.dataset.fromDay, aim.dayMs)));
+  }
+}
+async function aimDaysFor(obs, inputKey) {
+  const now = Date.now(), key = JSON.stringify([inputKey, obs]);
+  const previous = aim.fromDays;
+  if (previous && previous.key === key && now < previous.until) return previous.rows || previous.promise;
+  // 別条件の古い候補を新条件の操作に使わせない。
+  $("aimFrom").innerHTML = `<p class="tiny">${esc(aimFromPoint().name)}から計算しています…</p>`;
+  const target = aim.target, body = aim.body, partId = aim.partId, limb = aim.limb;
+  const entry = { key, inputKey, until: Infinity, rows: null, promise: null };
+  aim.fromDays = entry;
+  entry.promise = (async () => {
+    await new Promise(resolve => setTimeout(resolve, 0));
+    if (aim.fromDays !== entry) return null;
+    if (aimDaysInputKey(aimFromPoint()) !== inputKey) { aim.fromDays = null; return null; }
+    const rows = aimIsMountain(target) ? SoramiAlign.upcoming(obs, target, body,
+      { eyeM: obs.eyeM, from: now, days: 400, limit: Infinity, limb, partId, stepMs: 3600000, groupDays: false })
+      : await aimBuildingDays(obs, target, body, partId, null,
+        { from: now, limb, isCurrent: () => aim.fromDays === entry && aimDaysInputKey(aimFromPoint()) === inputKey });
+    if (aim.fromDays !== entry) return null;
+    // 探索中のデータ更新・失効を混ぜた結果は再利用しない。
+    if (aimDaysInputKey(aimFromPoint()) !== inputKey) { aim.fromDays = null; return null; }
+    entry.rows = rows;
+    const nextDay = S.Cal.startOfDay(now) + 86400000;
+    // 候補の時刻を過ぎたら、次の候補を補充するため再探索する。
+    entry.until = Math.min(nextDay, ...rows.filter(e => e.at >= now).map(e => e.at));
+    return rows;
+  })().catch(error => { if (aim.fromDays === entry) aim.fromDays = null; throw error; });
+  return entry.promise;
 }
 async function aimRenderFrom() {
   const seq = ++aim.fromSeq;
@@ -7035,7 +7076,10 @@ async function aimRenderFrom() {
   if (!f) { $("aimFrom").innerHTML = `<p class="tiny">観測地点を選んでください</p>`; $("aimLook").hidden = true; return; }
   // The selected day's diagram does not wait for a 400-day candidate search.
   aimUpdateLook();
-  $("aimFrom").innerHTML = `<p class="tiny">${esc(f.name)}から計算しています…</p>`;
+  if (aim.fromDays?.rows) aimSyncFromDay();
+  if (!aim.fromDays || aim.fromDays.inputKey !== aimDaysInputKey(f)) {
+    $("aimFrom").innerHTML = `<p class="tiny">${esc(f.name)}から計算しています…</p>`;
+  }
   await new Promise((r) => setTimeout(r, 0));
   const ground = await aimElevation(f.latitude, f.longitude);
   if (seq !== aim.fromSeq) return;
@@ -7046,11 +7090,10 @@ async function aimRenderFrom() {
   // 候補帯は選択した高さ・縁に近い日、全体モードだけ輪郭通過の日を出す。
   let ev = [];
   try {
-    ev = aimIsMountain(aim.target) ? SoramiAlign.upcoming(obs, aim.target, aim.body,
-      { eyeM: obs.eyeM, from: Date.now(), days: 400, limit: Infinity, limb: aim.limb, partId: aim.partId, stepMs: 3600000, groupDays:false })
-      : await aimBuildingDays(obs, aim.target, aim.body, aim.partId, seq);
+    ev = await aimDaysFor(obs, aimDaysInputKey(f));
   } catch { ev = []; }
   if (seq !== aim.fromSeq) return;
+  if (ev === null) return aimRenderFrom();
   const all = ev;
   // 明るい空の月は出さない
   ev = ev.filter((e) => aimCandidateMatch(e) && (!moon || e.sunAltitude < 0)).slice(0, 4);

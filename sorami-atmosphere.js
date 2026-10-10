@@ -303,6 +303,13 @@
       upperRadius:upper-apparent,lowerRadius:apparent-lower,atmosphere:air,lowAltitude:h<2};
   }
   const limbAltitude=(s,sign)=>sign===1?(s.lowerAltitude??s.apparentAltitude-s.angularRadius):sign===-1?(s.upperAltitude??s.apparentAltitude+s.angularRadius):s.apparentAltitude;
-  global.SoramiAtmosphere={configure,correction,unrefract,load,parse,sample,at,apply,limbAltitude,endpoint,lineEndpoint,parseLine,lineInfo,standardAir,mode:()=>mode,enabled:()=>enabled,targetK:()=>enabled&&mode==='none'?1:7/6};
+  // 候補日探索が使う有効な大気データだけを識別する。表示日や予報期間外の失敗は含めない。
+  const dataIds=new WeakMap();let nextDataId=0;
+  function dataKey(now=Date.now()){
+    const id=r=>{if(!dataIds.has(r))dataIds.set(r,++nextDataId);return dataIds.get(r);};
+    const active=(map,field)=>[...map.values()].filter(r=>r[field]&&now-r.loadedAt<HOUR).map(id);
+    return JSON.stringify([enabled,mode,mode==='manual'?manual:null,mode==='auto'?[active(records,'rows'),active(lines,'times')]:null]);
+  }
+  global.SoramiAtmosphere={dataKey,configure,correction,unrefract,load,parse,sample,at,apply,limbAltitude,endpoint,lineEndpoint,parseLine,lineInfo,standardAir,mode:()=>mode,enabled:()=>enabled,targetK:()=>enabled&&mode==='none'?1:7/6};
   if(typeof module!=='undefined'&&module.exports)module.exports=global.SoramiAtmosphere;
 })(typeof window!=='undefined'?window:globalThis);
