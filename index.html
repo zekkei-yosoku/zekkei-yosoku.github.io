@@ -1969,29 +1969,29 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261011033522"></script>
+<script src="sorami-core.js?v=20261011034653"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261011033522"></script>
-<script src="sorami-exif.js?v=20261011033522"></script>
-<script src="sorami-capcloud.js?v=20261011033522"></script>
-<script src="sorami-terrain.js?v=20261011033522"></script>
-<script src="sorami-mountain.js?v=20261011033522"></script>
-<script src="sorami-fuji.js?v=20261011033522"></script>
-<script src="sorami-sky.js?v=20261011033522"></script>
+<script src="sorami-astro.js?v=20261011034653"></script>
+<script src="sorami-exif.js?v=20261011034653"></script>
+<script src="sorami-capcloud.js?v=20261011034653"></script>
+<script src="sorami-terrain.js?v=20261011034653"></script>
+<script src="sorami-mountain.js?v=20261011034653"></script>
+<script src="sorami-fuji.js?v=20261011034653"></script>
+<script src="sorami-sky.js?v=20261011034653"></script>
 
-<script src="sorami-history.js?v=20261011033522"></script>
-<script src="sorami-plan.js?v=20261011033522"></script>
-<script src="sorami-routes.js?v=20261011033522"></script>
-<script src="sorami-iss.js?v=20261011033522"></script>
-<script src="sorami-plane.js?v=20261011033522"></script>
-<script src="sorami-refraction.js?v=20261011033522"></script>
-<script src="sorami-atmosphere.js?v=20261011033522"></script>
-<script src="sorami-bodies.js?v=20261011033522"></script>
-<script src="sorami-city-models.js?v=20261011033522"></script>
-<script src="sorami-tower-models.js?v=20261011033522"></script>
-<script src="sorami-align.js?v=20261011033522"></script>
-<script src="sorami-moon.js?v=20261011033522"></script>
+<script src="sorami-history.js?v=20261011034653"></script>
+<script src="sorami-plan.js?v=20261011034653"></script>
+<script src="sorami-routes.js?v=20261011034653"></script>
+<script src="sorami-iss.js?v=20261011034653"></script>
+<script src="sorami-plane.js?v=20261011034653"></script>
+<script src="sorami-refraction.js?v=20261011034653"></script>
+<script src="sorami-atmosphere.js?v=20261011034653"></script>
+<script src="sorami-bodies.js?v=20261011034653"></script>
+<script src="sorami-city-models.js?v=20261011034653"></script>
+<script src="sorami-tower-models.js?v=20261011034653"></script>
+<script src="sorami-align.js?v=20261011034653"></script>
+<script src="sorami-moon.js?v=20261011034653"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -7045,17 +7045,18 @@ function aimCandidateMatch(e, whole = aim.partId === "__whole") {
   return Number.isFinite(e.gap) && Math.abs(e.gap) <= tolerance;
 }
 // 400日探索は最大8日、重い天体では約1フレームごとに操作へ制御を返す。
-async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now(), limb = aim.limb, isCurrent = () => seq === aim.fromSeq } = {}) {
+async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now(), limb = aim.limb, isCurrent = () => seq === aim.fromSeq, days = 400, limit = 4, onScanned = () => {} } = {}) {
   const start = S.Cal.startOfDay(from), rows = [];
-  const whole = partId === "__whole";
+  const whole = partId === "__whole", mountain = typeof aimIsMountain === "function" && aimIsMountain(target);
   let yieldedAt = 0;
-  for (let i = 0; i < 400 && rows.length < 4; i++) {
+  for (let i = 0; i < days && rows.length < limit; i++) {
     if (i % 8 === 0 || Date.now() - yieldedAt >= 16) { await new Promise((resolve) => setTimeout(resolve, 0)); if (!isCurrent()) return []; yieldedAt = Date.now(); }
     const day = start + i * 86400000;
-    const events = whole ? SoramiAlign.dailyView(obs, target, body, day, { partId, eyeM: obs.eyeM })
+    const events = whole && !mountain ? SoramiAlign.dailyView(obs, target, body, day, { partId, eyeM: obs.eyeM })
       : SoramiAlign.upcoming(obs, target, body, {eyeM:obs.eyeM,from:day,days:1,limit:Infinity,groupDays:false,partId,limb,stepMs:3600000});
     const row = events.find((e) => e.at >= from && aimCandidateMatch(e,whole) && (body !== "moon" || e.sunAltitude < 0));
     if (row) rows.push(row);
+    onScanned(day + 86400000);
   }
   return rows;
 }
@@ -7079,16 +7080,14 @@ async function aimDaysFor(obs, inputKey) {
   // 別条件の古い候補を新条件の操作に使わせない。
   $("aimFrom").innerHTML = `<p class="tiny">${esc(aimFromPoint().name)}から計算しています…</p>`;
   const target = aim.target, body = aim.body, partId = aim.partId, limb = aim.limb;
-  const entry = { key, inputKey, until: Infinity, rows: null, promise: null };
+  const entry = { key, inputKey, until: Infinity, rows: null, promise: null, searchedUntil: S.Cal.startOfDay(now), origin: now, morePromise: null };
   aim.fromDays = entry;
   entry.promise = (async () => {
     await new Promise(resolve => setTimeout(resolve, 0));
     if (aim.fromDays !== entry) return null;
     if (aimDaysInputKey(aimFromPoint()) !== inputKey) { aim.fromDays = null; return null; }
-    const rows = aimIsMountain(target) ? SoramiAlign.upcoming(obs, target, body,
-      { eyeM: obs.eyeM, from: now, days: 400, limit: Infinity, limb, partId, stepMs: 3600000, groupDays: false })
-      : await aimBuildingDays(obs, target, body, partId, null,
-        { from: now, limb, isCurrent: () => aim.fromDays === entry && aimDaysInputKey(aimFromPoint()) === inputKey });
+    const rows = await aimBuildingDays(obs, target, body, partId, null,
+      { from: now, limb, isCurrent: () => aim.fromDays === entry && aimDaysInputKey(aimFromPoint()) === inputKey, onScanned: end => { entry.searchedUntil = end; } });
     if (aim.fromDays !== entry) return null;
     // 探索中のデータ更新・失効を混ぜた結果は再利用しない。
     if (aimDaysInputKey(aimFromPoint()) !== inputKey) { aim.fromDays = null; return null; }
@@ -7096,9 +7095,45 @@ async function aimDaysFor(obs, inputKey) {
     const nextDay = S.Cal.startOfDay(now) + 86400000;
     // 候補の時刻を過ぎたら、次の候補を補充するため再探索する。
     entry.until = Math.min(nextDay, ...rows.filter(e => e.at >= now).map(e => e.at));
-    return rows;
+    return entry.rows;
   })().catch(error => { if (aim.fromDays === entry) aim.fromDays = null; throw error; });
   return entry.promise;
+}
+// 今日から2暦年の終端。初期探索の続きだけを計算し、既存候補を残す。
+function aimTwoYearEnd(now) {
+  const date = new Date(S.Cal.startOfDay(now) + 9 * 3600000);
+  return Date.UTC(date.getUTCFullYear() + 2, date.getUTCMonth(), date.getUTCDate()) - 9 * 3600000;
+}
+async function aimMoreDays() {
+  const entry = aim.fromDays, f = aimFromPoint();
+  if (!entry?.rows || entry.morePromise || Date.now() >= entry.until || entry.inputKey !== aimDaysInputKey(f)) return aimRenderFrom();
+  const current = () => aim.fromDays === entry && entry.inputKey === aimDaysInputKey(aimFromPoint()) && Date.now() < entry.until;
+  const end = aimTwoYearEnd(entry.origin), from = entry.searchedUntil, previousCount = entry.rows.length;
+  if (from >= end) return;
+  const target = aim.target, body = aim.body, partId = aim.partId, limb = aim.limb;
+  const button = $("aimFrom").querySelector('[data-from-more]');
+  if (button) { button.disabled = true; button.textContent = "先の候補を計算しています…"; }
+  entry.morePromise = (async () => {
+    const ground = await aimElevation(f.latitude, f.longitude);
+    if (!current()) return;
+    const obs = aimObserverAt(f, ground), days = Math.ceil((end - from) / 86400000);
+    let scanned = from;
+    const rows = await aimBuildingDays(obs, target, body, partId, null,
+      { from, days, limit: 4, limb, isCurrent: current, onScanned: value => { scanned = value; } });
+    if (!current()) return;
+    entry.rows = [...entry.rows, ...rows]; entry.searchedUntil = scanned;
+    entry.until = Math.min(entry.until, ...rows.map(e => e.at));
+  })();
+  try { await entry.morePromise; }
+  catch { if (current()) { entry.morePromise = null; await aimRenderFrom(); const retry = $("aimFrom").querySelector('[data-from-more]'); if (retry) retry.textContent = "計算できませんでした。再試行"; } return; }
+  finally { entry.morePromise = null; }
+  if (current()) {
+    await aimRenderFrom();
+    if (current()) {
+      const added = $("aimFrom").querySelectorAll("[data-from-day]")[previousCount];
+      if (added) added.parentElement.scrollLeft = Math.max(0, added.offsetLeft - 8);
+    }
+  } else if (aim.fromDays === entry) await aimRenderFrom();
 }
 async function aimRenderFrom() {
   const seq = ++aim.fromSeq;
@@ -7138,7 +7173,7 @@ async function aimRenderFrom() {
   if (ev === null) return aimRenderFrom();
   const all = ev;
   // 明るい空の月は出さない
-  ev = ev.filter((e) => aimCandidateMatch(e) && (!moon || e.sunAltitude < 0)).slice(0, 4);
+  ev = ev.filter((e) => aimCandidateMatch(e) && (!moon || e.sunAltitude < 0));
   // 帯の上の「◯◯から見た◯◯ ・ ◯◯まで Nkm」は出さない（2026-10-03 ユーザーが選んだ「いらない説明文」。地点と題名の繰り返し）
   aim.fromEvents = ev;
   // 横に流す帯（2026-10-03 ユーザー「候補日はプルダウンにしたら？」→ Codex と相談し、4件ほどなら一目で比べて1回で選べる帯）。
@@ -7152,9 +7187,13 @@ async function aimRenderFrom() {
       + `${y === thisYear ? "" : `${y}/`}${S.Cal.monthDay(e.at)}(${S.Cal.weekday(e.at)})`
       + `<span class="sub-line">${aimSideName(e.side)} ${S.JstCal.hhmm(e.at)}${!SoramiBodies.definition(aim.body).limbs ? " " + SoramiBodies.sky(e.sunAltitude) : ""}${lit}</span></button>`;
   }).join("");
-  const none = ev.length ? "" : '<p class="tiny">この条件の候補日は見つかりません（今後400日）。</p>';
+  const entry = aim.fromDays, complete = entry && entry.searchedUntil >= aimTwoYearEnd(entry.origin);
+  const none = ev.length ? "" : `<p class="tiny">この条件の候補日は見つかりません（${complete ? "2年先まで" : "今後400日"}）。</p>`;
+  const more = complete ? '<p class="tiny" role="status">2年先まで探索しました。</p>' : `<button type="button" class="fav-btn tiny" data-from-more${entry?.morePromise ? " disabled" : ""}>${entry?.morePromise ? "先の候補を計算しています…" : "さらに先の候補を探す（2年先まで）"}</button>`;
   // 候補日は日付直下で一まとまりにする。未検証の見通しを断定表示しない。
-  $("aimFrom").innerHTML = (chips ? `<div class="aim-days strip">${chips}</div>` : "") + none;
+  $("aimFrom").innerHTML = (chips ? `<div class="aim-days strip">${chips}</div>` : "") + none + more;
+  const moreButton = $("aimFrom").querySelector("[data-from-more]");
+  if (moreButton) moreButton.onclick = aimMoreDays;
   // 選んでいる日の釦が見える所まで帯を送る
   const onChip = $("aimFrom").querySelector('.aim-day[aria-pressed="true"]');
   if (onChip) onChip.parentElement.scrollLeft = Math.max(0, onChip.offsetLeft - 8);
