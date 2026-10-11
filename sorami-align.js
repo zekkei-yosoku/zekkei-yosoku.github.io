@@ -1454,18 +1454,42 @@
     const d=TR.distanceKm(observer.latitude,observer.longitude,target.latitude,target.longitude);
     const az0=TR.bearing(observer.latitude,observer.longitude,target.latitude,target.longitude),eye=(observer.elevation??0)+eyeM;
     const sight=new Map(),projected=new Map();
-    const projectedParts=world.map(solid=>convexHull(solid.map(vertex=>{
+    const height=z=>model.heightMode==="translate-top"?(model.groundAnchored&&z===0?0:z+top-model.heightM):z*top/model.heightM;
+    const project=vertex=>{
       if(projected.has(vertex))return projected.get(vertex);
       const {place,z}=vertex;
       let g=sight.get(place);if(!g){g={d:TR.distanceKm(observer.latitude,observer.longitude,place.latitude,place.longitude),az:TR.bearing(observer.latitude,observer.longitude,place.latitude,place.longitude)};sight.set(place,g);}
-      const result=[az0+azDiff(g.az,az0),targetAngle(g.d,eye,ground+(model.heightMode==="translate-top"?(model.groundAnchored&&z===0?0:z+top-model.heightM):z*top/model.heightM))];projected.set(vertex,result);return result;
-    })));
+      const result=[az0+azDiff(g.az,az0),targetAngle(g.d,eye,ground+height(z))];projected.set(vertex,result);return result;
+    };
+    const projectedParts=world.map(solid=>convexHull(solid.map(project)));
     const polygons=projectedParts.filter(p=>p.length>=3),hitPolygons=Number.isInteger(model.hitSolidCount)?projectedParts.slice(0,model.hitSolidCount).filter(p=>p.length>=3):polygons;
     const points=polygons.flat(),ang=h=>targetAngle(d,eye,ground+h);
     const basePoints=target.id==="skytree"?world.flat().filter(v=>v.z<=1).map(v=>projected.get(v)):undefined;
-    const viewTop=model.vertices?Math.max(...model.vertices.map(v=>v[2]))*top/model.heightM:top;
+    // Frame the actual projection: nearer roof edges can be higher than the
+    // selected aim point at the building centre. Keep geometryFrom's aim angle.
+    const angles=points.map(p=>p[1]),baseAngle=angles.reduce((a,v)=>Math.min(a,v),Infinity),topAngle=angles.reduce((a,v)=>Math.max(a,v),-Infinity);
+    let viewBaseAngle=baseAngle;
+    if(model.viewFromTopM){
+      const cutoff=Math.max(0,top-model.viewFromTopM),upper=[];
+      for(const solid of world){
+        for(const a of solid)if(height(a.z)>=cutoff)upper.push(project(a)[1]);
+        // solids hold convex volume vertices, not an ordered surface ring.
+        // All pairs include every true edge; extra chords stay inside the volume.
+        const edges=model.vertices?solid.map((a,i)=>[a,solid[(i+1)%solid.length]]):solid.flatMap((a,i)=>solid.slice(i+1).map(b=>[a,b]));
+        for(const [a,b] of edges){
+          const ha=height(a.z),hb=height(b.z);
+          if((ha<cutoff&&hb>cutoff)||(hb<cutoff&&ha>cutoff)){
+            const f=(cutoff-ha)/(hb-ha);
+            // Clip the 3D edge before projection, never interpolate angles.
+            const place={latitude:a.place.latitude+f*(b.place.latitude-a.place.latitude),longitude:a.place.longitude+f*(b.place.longitude-a.place.longitude)};
+            upper.push(targetAngle(TR.distanceKm(observer.latitude,observer.longitude,place.latitude,place.longitude),eye,ground+cutoff));
+          }
+        }
+      }
+      viewBaseAngle=upper.length?upper.reduce((a,v)=>Math.min(a,v),Infinity):ang(cutoff);
+    }
     return {points,polygons,basePoints,hitPolygons,hitPoints: model.hitSolidCount?hitPolygons.flat():null,schematic:false,known:true,approximate:true,
-      modelId:model.id,sourceLabel:model.sourceLabel,sourceUrl:model.sourceUrl,azimuth:az0,distanceKm:d,baseAngle:ang(0),topAngle:ang(viewTop),viewBaseAngle:ang(model.viewFromTopM?Math.max(0,top-model.viewFromTopM):0),hiddenAngle:null};
+      modelId:model.id,sourceLabel:model.sourceLabel,sourceUrl:model.sourceUrl,azimuth:az0,distanceKm:d,baseAngle,topAngle,viewBaseAngle,hiddenAngle:null};
   }
 
   /**

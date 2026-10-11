@@ -10,7 +10,8 @@ test('無料2塔は方位で形が変わり、公表高さを保つ',()=>{
   assert.notEqual(width(a.o),width(b.o));assert.equal(a.o.modelId,id+'-drawing-envelope-v'+5);
   assert.equal(a.o.polygons,a.o.hitPolygons);assert.ok(a.o.points.every(p=>p.every(Number.isFinite)));
   assert.ok(a.o.sourceLabel.includes('推定'));assert.ok(a.o.approximate);
-  const expected=A.geometryFrom(a.obs,a.t).angle;assert.ok(Math.abs(a.o.topAngle-expected)<1e-9);
+  assert.equal(A.TOWER_MODELS[id].heightM,id==='skytree'?634:333);
+  assert.equal(a.o.topAngle,a.o.points.reduce((m,p)=>Math.max(m,p[1]),-Infinity));
  }
  assert.equal(A.geometryFrom(view('tokyotower').obs,A.targetById('tokyotower'),{partId:'main'}).topM,148.389);
  assert.equal(A.geometryFrom(view('tokyotower').obs,A.targetById('tokyotower'),{partId:'top'}).topM,247.55);
@@ -34,7 +35,8 @@ test('格子の内部に隙間を残し、部材内は接触する',()=>{
 test('高さ編集・連続検索・他の3Dを維持する',()=>{
  for(const id of ['tokyotower','skytree']){
   const {obs,t}=view(id);const o=A.towerOutline(obs,t,{heightM:100});
-  assert.ok(Math.abs(o.topAngle-A.geometryFrom(obs,{...t,parts:[{m:t.groundM+100}]}).angle)<1e-9);
+  assert.equal(o.topAngle,o.points.reduce((m,p)=>Math.max(m,p[1]),-Infinity));
+  assert.equal(A.geometryFrom(obs,{...t,parts:[{m:t.groundM+100}]}).topM,t.groundM+100);
   const start=performance.now();const events=A.dailyView(obs,t,'moon',Date.parse('2026-11-04T00:00:00+09:00'));
   assert.ok(Array.isArray(events));assert.ok(performance.now()-start<2500,id+'の検索時間');
  }

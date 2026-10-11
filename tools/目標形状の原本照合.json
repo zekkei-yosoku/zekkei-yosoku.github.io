@@ -1,0 +1,82 @@
+{
+  "verifiedAt": "2026-10-12",
+  "coordinateDecimals": {
+    "latitude": 12,
+    "longitude": 12,
+    "altitudeM": 5
+  },
+  "comparison": "LOD2 exterior vertex sets including installations; absolute latitude, longitude and sea-level altitude",
+  "limits": "A match proves equality of the compared exterior vertex sets at the declared rounding precision, not face connectivity or as-built survey accuracy. Source LOD2 lacks fine facade details.",
+  "models": [
+    {
+      "target": "tocho-building",
+      "buildingId": "bldg_94caaf2f-dec2-41a7-8b0f-06ecd0fac6c7",
+      "sourceMesh": "udx/bldg/53394525_bldg_6697_op.gml",
+      "sourceSha256": "6ee3ab2254dd634b437ebc2afbb5dbb430acb9cc5c2f7cfe687ca637f403d327",
+      "sourceVertices": 946,
+      "currentVertices": 946,
+      "missingVertices": 0,
+      "addedVertices": 0,
+      "lod3Present": false,
+      "groundM": 34.63,
+      "sourceTopM": 295.279,
+      "creationDate": "2024-03-15"
+    },
+    {
+      "target": "cocoon-tower",
+      "buildingId": "bldg_4e9cedb2-e1b8-48f6-9c04-b862aca365f1",
+      "sourceMesh": "udx/bldg/53394525_bldg_6697_op.gml",
+      "sourceSha256": "6ee3ab2254dd634b437ebc2afbb5dbb430acb9cc5c2f7cfe687ca637f403d327",
+      "sourceVertices": 507,
+      "currentVertices": 507,
+      "missingVertices": 0,
+      "addedVertices": 0,
+      "lod3Present": false,
+      "groundM": 38.818,
+      "sourceTopM": 250.676,
+      "creationDate": "2024-03-15"
+    },
+    {
+      "target": "kabukicho-tower",
+      "buildingId": "bldg_159ebc0b-e5cd-4de8-a027-e924ee337964",
+      "sourceMesh": "udx/bldg/53394536_bldg_6697_op.gml",
+      "sourceSha256": "a5de4cd723119dd97b2c578db6247bba99a1ed2fb0f29824879d5ad5ab97009d",
+      "sourceVertices": 763,
+      "currentVertices": 763,
+      "missingVertices": 0,
+      "addedVertices": 0,
+      "lod3Present": false,
+      "groundM": 29.999,
+      "sourceTopM": 249.772,
+      "creationDate": "2024-03-15"
+    },
+    {
+      "target": "shibuya-sky",
+      "buildingId": "bldg_7b006717-e9e6-4a94-8843-1f4ce13b2509",
+      "sourceMesh": "udx/bldg/53393596_bldg_6697_op.gml",
+      "sourceSha256": "88dab9e2cc41dc75b37a83ca3ad78dfa0eb1f081b918af56fc79851c80150724",
+      "sourceVertices": 2964,
+      "currentVertices": 2964,
+      "missingVertices": 0,
+      "addedVertices": 0,
+      "lod3Present": false,
+      "groundM": 14.61,
+      "sourceTopM": 245.586,
+      "creationDate": "2024-03-15"
+    },
+    {
+      "target": "azabudai-hills",
+      "buildingId": "bldg_433bc5b3-db73-4644-ac24-a28d51b7ecd5",
+      "sourceMesh": "udx/bldg/53393599_bldg_6697_op.gml",
+      "sourceSha256": "95059a52aee0e34ca0185b52e7888233df4b8094c2f011ee0bafbaddd6888ace",
+      "sourceVertices": 835,
+      "currentVertices": 835,
+      "missingVertices": 0,
+      "addedVertices": 0,
+      "lod3Present": false,
+      "groundM": 18.74,
+      "sourceTopM": 349.558,
+      "creationDate": "2024-03-15"
+    }
+  ]
+}

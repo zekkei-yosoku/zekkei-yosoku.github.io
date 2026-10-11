@@ -426,7 +426,7 @@ console.log("== 見え方の図（2026-10-02） ==");
   // 4つの形と、他の建物・山
   const st = AL.towerOutline(TAKAO, skytree, { eyeM: 1.5 });
   const topSt = A.targetElevationAngle(st.distanceKm, TAKAO.elevation + 1.5, 636);
-  ok(Math.abs(st.topAngle - topSt) < 1e-9, "スカイツリーの上端は先端の見上げ角");
+  ok(Math.abs(st.topAngle - st.points.reduce((m,p)=>Math.max(m,p[1]),-Infinity)) < 1e-9 && st.topAngle >= topSt, "スカイツリーの表示上端は投影輪郭の最高点を含む");
   const baseW = (Math.max(...st.points.map((p) => p[0])) - Math.min(...st.points.map((p) => p[0])));
   const want = Math.atan(68 / (st.distanceKm * 1000)) * 180 / Math.PI;
   const sw = AL.TOWER_SHAPES.skytree.outline;
