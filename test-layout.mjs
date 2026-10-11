@@ -29,9 +29,9 @@ console.log("== sticky が別の要素へ被らない ==");
 // 守るべきはその事故であって、sticky という手段そのものではない。
 // 同じ事故が起きない条件を直接検査する。
 const stickyUses = [...code.matchAll(/([.#][\w-]+)[^{]*\{[^}]*position:\s*sticky/g)].map((m) => m[1]);
-// 2026-10-12: 天体の地図シートの日時操作欄を追加。シート内の自前スクロールに閉じ、背景色で塗るので一覧へは被らない。
-ok(stickyUses.every((sel) => [".mxrail", ".preview-tabs", ".sky-map-footer"].includes(sel)),
-  "sticky はマトリクス列・撮影確認タブ・天体の地図の日時欄のみ", stickyUses.join(" "));
+// 2026-10-12 E183: スカイマップをページ化。日時はページ内の固定欄とし、シート用sticky例外を撤去。
+ok(stickyUses.every((sel) => [".mxrail", ".preview-tabs"].includes(sel)),
+  "sticky はマトリクス列・撮影確認タブのみ", stickyUses.join(" "));
 // 記録画面では一覧ごと隠すので、sticky な要素が記録カードへ被る経路が無い。
 // **出す画面は1つ**なので、記録を出せば一覧は自動で隠れる（VIEWS の表）。
 ok(/for \(const v of VIEWS\) \$\(v\.el\)\.hidden = v\.id !== view/.test(html),
@@ -2487,8 +2487,8 @@ ok(/scrollbar-gutter: stable/.test(html), "止めた瞬間に横幅が変わら�
 // 2026-09-24: 地図で選ぶシートを足して5つ（地点・お気に入り・記録・認証・地図）。
 // 2026-09-28: 写真から記録するシートを足して6つ。
 // 「ねらう」「空の見え方」「月丼」はポップアップではなく**ページ**にした
-// 2026-10-12: 天体の地図（観測点を固定して太陽・月の方向を見る）を足して9つ。
-ok((html.match(/<dialog class="sheet"/g) || []).length === 9, "カレンダーを含めシートは9つ",
+// 2026-10-12 E183: スカイマップを独立ページにし、シートは従来の8つへ戻す。
+ok((html.match(/<dialog class="sheet"/g) || []).length === 8, "カレンダーを含めシートは8つ",
   String((html.match(/<dialog class="sheet"/g) || []).length));
 
 console.log("== 登録した直後に、パスキーの登録へ進める ==");
@@ -2835,7 +2835,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   ok(/\$\("photoClose"\)\.onclick = \(\) => \$\("photoSheet"\)\.close\(\);/.test(html), "閉じるで閉じる");
   // 開いたとき最初の釦を選んだ状態（青い枠）にしない（ユーザー「青くなって選択状態で開くのが気に入らない」）
   const sheets = html.match(/<dialog class="sheet"[^>]*>/g) || [];
-  ok(sheets.length === 9 && sheets.every((d) => / tabindex="-1">$/.test(d)), "シートはそのものに焦点を置ける", sheets.join(" "));
+  ok(sheets.length === 8 && sheets.every((d) => / tabindex="-1">$/.test(d)), "シートはそのものに焦点を置ける", sheets.join(" "));
 }
 {
   // 座標をコピー・地図アプリで開く（2026-10-02 ユーザー「詳細な緯度経度が欲しい」「座標コピーのボタンと地図アプリで開くのボタン。

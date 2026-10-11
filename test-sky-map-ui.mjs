@@ -1,0 +1,53 @@
+import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url),A=require('./sorami-astro.js'),B=require('./sorami-bodies.js'),M=require('./sorami-sky-map.js'),TR=require('./sorami-terrain.js'),AL=require('./sorami-align.js'),MOON=require('./sorami-moon.js');
+const html=readFileSync(new URL('./index.html',import.meta.url),'utf8'),ui=/<script id="skyMapPresentation">([\s\S]*?)<\/script>/.exec(html)[1],day=Date.parse('2026-12-22T00:00:00+09:00');
+const flush=()=>new Promise(r=>setImmediate(r));
+function fixture({saved=null,tools=['tower'],ground=5.5,waiting=false}={}){
+ const elements=new Map(),clicks=[],data=new Map(saved?[['sorami.skyMap',saved]]:[]),observer={name:'観測地点',latitude:35.64285,longitude:139.78291,groundManualM:null,standAglM:1.5};let moves=0,loads=0,calls=0,resolveGround;
+ const element=id=>{if(!elements.has(id))elements.set(id,{hidden:false,value:'',options:[],children:[],disabled:false,textContent:'',innerHTML:'',setAttribute(k,v){this[k]=v;},replaceChildren(...v){this.children=v;this.options=v.filter(x=>x instanceof Option);},append(v){this.children.push(v)},add(v){this.options.push(v)},focus(){this.focused=true}});return elements.get(id)};
+ class Option{constructor(name,value){this.textContent=name;this.value=value;this.hidden=false;this.disabled=false;}}
+ element('skyMapBody').options=B.definitions.map(d=>new Option(d.name,d.id));element('aimLook').hidden=true;element('aimView').hidden=true;
+ const ctx=new Proxy({},{get:()=>()=>{},set:()=>true});let center={...observer},zoom=13,overlay;const discs=[];
+ const map={setOverlay:f=>overlay=f,open:(p,z)=>{center={...p};zoom=z;},center:()=>({...center}),zoom:()=>zoom,setCenter:(latitude,longitude)=>{center={latitude,longitude};},redraw:()=>{moves++;if(overlay)overlay(ctx,{project:(lat,lon)=>[180+(lon-center.longitude)*10000,180-(lat-center.latitude)*10000],width:390,height:400})}};
+ const aim={body:'sun',target:AL.TARGETS.find(t=>t.id==='skytree'),partId:'__whole',limbsByBody:{},limb:'center',dayMs:day},cache=new Map();
+ const targetList=()=>AL.TARGETS.filter(t=>tools.includes('tower')||!tools.length||t.id==='fuji'&&(tools.includes('diamond')||tools.includes('pearl')));
+ const c={document:{getElementById:element,addEventListener:(name,f)=>{if(name==='click')clicks.push(f)},createElement:()=>element('made'+Math.random())},Option,store:{get:(k,d)=>data.has(k)?data.get(k):d,set:(k,v)=>data.set(k,v)},createMapView:()=>map,toolAllowed:id=>tools.includes(id),SoramiBodies:B,SoramiSkyMap:M,SoramiAstro:{...A,sun:(...a)=>{calls++;return A.sun(...a)},moon:(...a)=>{calls++;return A.moon(...a)}},SoramiMoon:MOON,SoramiTerrain:{...TR,groundElevation:async()=>{loads++;if(waiting)return new Promise(r=>resolveGround=r);return ground}},SoramiAlign:AL,aim,aimElevCache:cache,aimFromPoint:()=>observer,place:observer,aimObserverEye:p=>p.standAglM??1.5,aimObserverAt:(p,g)=>({latitude:p.latitude,longitude:p.longitude,elevation:p.groundManualM??g??0,eyeM:p.standAglM??1.5}),aimSavedFrom:p=>({...p}),aimLookKey:()=> 'current',aimLimbValue:()=> 'center',aimMapLabel:()=>{},aimLookDisc:(ctx,x,y,r,body,p)=>discs.push({body,...p}),aimTargetList:targetList,aimFillSelects:()=>{},goBack:()=>{},openPlaceSheet:()=>{},PLACE_PICKERS:{},SkyMapUI:null,routeFromHash:()=>null,pushRoute:hash=>{c.hash=hash;if(hash==='#/skymap'){element('skyMapView').hidden=false;c.SkyMapUI.open();}else c.SkyMapUI.leave();},S:{JstCal:{hhmm:at=>new Date(at+32400000).toISOString().slice(11,16)}},requestAnimationFrame:f=>{c.frame=f;return 1},cancelAnimationFrame:()=>{c.frame=null},Date,Math,Number,String,Array,Set,Map,Object,JSON};
+ vm.createContext(c);vm.runInContext(ui,c);return{c,element,data,aim,cache,map,clicks,discs,observer,open:async()=>{c.SkyMapUI.open();await flush();},get calls(){return calls},get loads(){return loads},release:v=>resolveGround(v),get draws(){return moves}};
+}
+test('前回の日時・天体・目標と地図中心を復元し、8天体が実runtimeで有限値を描く',async()=>{
+ const f=fixture({saved:{at:day+45240000,body:'moon',targetId:AL.TARGETS.find(t=>t.name.includes('森JP')).id,observer:{latitude:35.64285,longitude:139.78291,name:'公園',standAglM:1.5},mapCenter:{latitude:35.65,longitude:139.79},zoom:15}});await f.open();assert.equal(f.element('skyMapTime').value,'12:34');assert.deepEqual(f.map.center(),{latitude:35.65,longitude:139.79});
+ // Use the actual IDs; the supplied target must be permitted and present.
+ const id=AL.TARGETS.find(t=>t.name.includes('森JP')).id;f.element('skyMapTarget').value=id;f.element('skyMapTarget').onchange();await flush();
+ for(const d of B.definitions){f.element('skyMapBody').value=d.id;f.element('skyMapBody').onchange();await flush();assert.equal(f.element('skyMapBody').value,d.id);assert.ok(f.element('skyMapAngles').children[0].textContent.includes(d.name));assert.doesNotMatch(f.element('skyMapAngles').children[0].textContent,/NaN|Infinity/);}
+ assert.match(f.element('skyMapTargetInfo').textContent,/距離.*目標の標高/);assert.doesNotMatch(f.element('skyMapTargetInfo').textContent,/NaN/);assert.ok(f.discs.some(d=>d.body==='moon'&&d.illuminated>0&&Number.isFinite(d.brightLimbZenithAngle)));
+ f.c.SkyMapUI.leave();assert.equal(f.data.get('sorami.skyMap').targetId,id);
+});
+test('時間バー確定はrAF待ちでも反映、同日スクラブとパンで日計算や地盤取得をやり直さない',async()=>{
+ const f=fixture({saved:{at:day+43200000}});await f.open();const calls=f.calls,loads=f.loads;f.element('skyMapRange').value='45240';f.element('skyMapRange').oninput();assert.ok(f.c.frame);f.element('skyMapRange').onchange();assert.equal(f.element('skyMapTime').value,'12:34');assert.equal(f.c.frame,null);assert.ok(f.calls-calls<20);assert.equal(f.loads,loads);
+ const before=f.data.get('sorami.skyMap').observer;f.map.setCenter(35.66,139.79);f.element('skyMapLater').onclick();assert.equal(f.element('skyMapTime').value,'12:35');assert.equal(f.data.get('sorami.skyMap').observer.latitude,before.latitude);assert.equal(f.loads,loads);
+ f.element('skyMapPick').onclick();await flush();assert.equal(f.data.get('sorami.skyMap').observer.latitude,35.66);assert.equal(f.loads,loads+1);
+});
+test('読込中の時刻操作を保持し、取得失敗は表示と再試行、失敗値は成功cacheに保存しない',async()=>{
+ const f=fixture({waiting:true,saved:{at:day}});f.c.SkyMapUI.open();await flush();f.element('skyMapLater').onclick();assert.equal(f.element('skyMapTime').value,'00:01');assert.equal(f.element('skyMapUse').disabled,true);f.release(null);await flush();assert.match(f.element('skyMapStatus').textContent,/取得できません/);assert.equal(f.element('skyMapRetry').hidden,false);assert.equal(f.cache.size,0);
+ const p=f.element('skyMapRetry').onclick();await flush();f.release(8);await p;assert.equal(f.element('skyMapTime').value,'00:01');assert.equal(f.cache.get('35.642850,139.782910'),8);
+});
+test('手入力標高を自動標高cacheへ混ぜず、目標なしも閲覧できる',async()=>{
+ const f=fixture({saved:{at:day,observer:{latitude:35.64,longitude:139.78,groundManualM:88,standAglM:351.5}}});await f.open();assert.equal(f.loads,0);assert.equal(f.cache.size,0);assert.match(f.element('skyMapTargetInfo').textContent,/目標なし/);f.element('skyMapUse').onclick();assert.match(f.element('skyMapStatus').textContent,/目標を選んで/);
+});
+test('重ねる更新中の入口は保存済み天体より現在の天体・目標を優先、任意時刻を戻す',async()=>{
+ const f=fixture({saved:{at:day,body:'moon'}});f.element('aimView').hidden=false;f.element('skyMapOpen').onclick();await flush();assert.equal(f.element('skyMapBody').value,'sun');assert.equal(f.element('skyMapTarget').value,f.aim.target.id);
+ f.element('skyMapTime').value='12:34';f.element('skyMapTime').onchange();f.element('skyMapUse').onclick();assert.equal(f.c.hash,'#/aim');assert.equal(f.aim.plannerTransfer.at,day+45240000);assert.equal(f.aim.plannerTransfer.body,'sun');assert.equal(f.cache.get('35.642850,139.782910'),5.5);
+ const capture=f.clicks[0];f.aim.plannerTransfer={at:1};capture({target:{closest:selector=>selector.includes('[data-cand]')?{}:null}});assert.equal(f.aim.plannerTransfer,null);
+});
+test('保存した自作目標は現在の許可に従い復元し、地図で置いた目標の切替復帰も同じ物になる',async()=>{
+ const custom={name:'自作',latitude:35.65,longitude:139.79,heightM:100,groundM:5,topM:105};
+ const f=fixture({tools:['pearl'],saved:{at:day,body:'sun',targetId:'custom',custom}});await f.open();assert.equal(f.element('skyMapBody').value,'moon');assert.equal(f.element('skyMapTarget').value,'');assert.equal(f.element('skyMapCustom').hidden,true);
+ const g=fixture({saved:{at:day,targetId:'custom',custom}});await g.open();g.element('skyMapTarget').value='';g.element('skyMapTarget').onchange();await flush();g.element('skyMapTarget').value='custom';g.element('skyMapTarget').onchange();await flush();assert.match(g.element('skyMapTargetInfo').textContent,/自作/);g.element('skyMapUse').onclick();assert.equal(g.data.get('sorami.aimCustom').topM,105);
+});
+test('地盤cacheは約11mのセルを混同せず、幾何専用天体stateは大気providerを呼ばない',async()=>{
+ const fn=html.slice(html.indexOf('async function aimElevation('),html.indexOf('/// 自分で置いた目標',html.indexOf('async function aimElevation(')));let n=0;const c={Map,aimElevCache:new Map(),SoramiTerrain:{groundElevation:async lat=>{n++;return lat*1000}}};vm.createContext(c);vm.runInContext(fn,c);const a=await c.aimElevation(35.000001,139),b=await c.aimElevation(35.000009,139);assert.notEqual(a,b);assert.equal(n,2);await c.aimElevation(35.000001,139);assert.equal(n,2);
+ const src=readFileSync(new URL('./sorami-bodies.js',import.meta.url),'utf8'),d={require,Date,SoramiAstro:A,SoramiAtmosphere:{apply:()=>{throw Error('refraction called')}},module:{exports:{}},globalThis:null};d.globalThis=d;vm.createContext(d);vm.runInContext(src,d);for(const body of B.definitions){const st=d.module.exports.state(body.id,day,{latitude:35,longitude:139,elevation:0},{refraction:false});assert.ok(Number.isFinite(st.altitude));assert.equal(st.apparentAltitude,st.altitude);}
+});
+test('見え方からの往復は自動標高を手入力へ変えず、既知の標高・目の高さをそのまま使う',async()=>{
+ const f=fixture();const look=f.element('aimLook');look.hidden=false;look._planKey='current';look._lookAt=day+45240000;look._lookSpec={obs:{latitude:f.observer.latitude,longitude:f.observer.longitude,elevation:91},eyeM:1.5,observerName:'観測地点'};f.element('aimView').hidden=false;f.element('skyMapOpen').onclick();await flush();assert.equal(f.loads,0);assert.equal(f.element('skyMapTime').value,'12:34');assert.equal(f.data.get('sorami.skyMap').observer.groundManualM,null);assert.equal(f.cache.get('35.642850,139.782910'),91);f.element('skyMapUse').onclick();assert.equal(f.aim.plannerTransfer.at,day+45240000);
+});

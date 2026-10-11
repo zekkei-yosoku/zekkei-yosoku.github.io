@@ -43,15 +43,16 @@
     return {ra:((Math.atan2(v[1],v[0])*12/Math.PI)%24+24)%24,dec:Math.asin(v[2]/length)*180/Math.PI,distanceLightYears:length*3.261563777};
   }
   const cache=new Map();
-  function state(id,ms,observer) {
+  function state(id,ms,observer,{refraction=true}={}) {
+    const finish=st=>refraction?adjusted(st,ms,observer):{...st,altitude:st.geometricAltitude??st.altitude,apparentAltitude:st.geometricAltitude??st.altitude};
     const def=definition(id);
     if(!def) throw new Error('未知の天体: '+id);
-    if(id==='sun') return adjusted(A.sun(ms,observer),ms,observer);
-    if(id==='moon') return adjusted(A.moon(ms,observer),ms,observer);
+    if(id==='sun') return finish(A.sun(ms,observer));
+    if(id==='moon') return finish(A.moon(ms,observer));
     if(!engine) throw new Error('天体計算を読み込めませんでした');
     if(!Number.isFinite(ms)||!Number.isFinite(observer.latitude)||!Number.isFinite(observer.longitude)) throw new Error('観測日時・地点が不正です');
     const key=[id,ms,observer.latitude,observer.longitude,observer.elevation??0].join('/');
-    if(cache.has(key)) return adjusted(cache.get(key),ms,observer);
+    if(cache.has(key)) return finish(cache.get(key));
     const time=new Date(ms), obs=new engine.Observer(observer.latitude,observer.longitude,observer.elevation??0);
     if(id==='sirius') {const c=siriusCatalog(ms);engine.DefineStar(engine.Body.Star1,c.ra,c.dec,c.distanceLightYears);}
     const eq=engine.Equator(engine.Body[def.engine],time,obs,true,true);
@@ -59,7 +60,7 @@
     const result=Object.freeze({azimuth:h.azimuth,altitude:h.altitude,apparentAltitude:h.altitude+A.refraction(h.altitude),
       angularRadius:id==='sirius'?0:Math.asin(def.radiusKm/(eq.dist*149597870.7))*180/Math.PI,distanceAU:eq.dist});
     cache.set(key,result);if(cache.size>12000) cache.delete(cache.keys().next().value);
-    return adjusted(result,ms,observer);
+    return finish(result);
   }
   const sky = altitude => altitude < -18 ? '夜' : altitude < 0 ? '薄明' : '日中';
   const api=Object.freeze({definitions,definition,ensure,ready:()=>!!engine,state,siriusCatalog,sky,nearAngle:id=>definition(id)?.limbs?null:0.5});
