@@ -3,18 +3,18 @@ const flush=()=>new Promise(r=>setImmediate(r));
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 test('観測点配置は中心固定のパンで候補だけ動き、確定まで観測点・計算を変えない',async()=>{
  const f=fixture();await f.open();const original=f.data.get('sorami.skyMap:testuser').observer,loads=f.loads,calls=f.calls;
- f.element('skyMapObserverTool').onclick();assert.equal(f.element('skyMapObserverTool')['aria-pressed'],'true');assert.equal(f.element('skyMapPickConfirm').hidden,false);
+ f.element('skyMapObserverTool').onclick();assert.equal(f.element('skyMapObserverTool')['aria-pressed'],'true');assert.equal(f.element('skyMapObserverTool')['aria-label'],'観測地点の移動を完了');assert.doesNotMatch(html,/id="skyMapPickConfirm"|id="skyMapPickCancel"|id="skyMapCenter"/);
  f.map.setCenter(35.68,139.77);f.map.redraw();assert.equal(f.loads,loads);assert.equal(f.calls,calls);assert.deepEqual(f.data.get('sorami.skyMap:testuser').observer,original);
  f.map.pick({latitude:0,longitude:0},{x:2,y:2});assert.deepEqual(f.data.get('sorami.skyMap:testuser').observer,original);
- f.element('skyMapPickConfirm').onclick();await flush();assert.equal(f.data.get('sorami.skyMap:testuser').observer.latitude,35.68);assert.equal(f.data.get('sorami.skyMap:testuser').observer.longitude,139.77);assert.equal(f.loads,loads+1);
+ f.element('skyMapObserverTool').onclick();await flush();assert.equal(f.data.get('sorami.skyMap:testuser').observer.latitude,35.68);assert.equal(f.data.get('sorami.skyMap:testuser').observer.longitude,139.77);assert.equal(f.loads,loads+1);
 });
 test('配置キャンセルは元の観測点を保持し、目標なしでも明示した中心から新規目標を置ける',async()=>{
- const f=fixture();await f.open();const before=f.data.get('sorami.skyMap:testuser').observer;f.element('skyMapObserverTool').onclick();f.map.setCenter(36,140);f.element('skyMapPickCancel').onclick();assert.deepEqual(f.data.get('sorami.skyMap:testuser').observer,before);
- f.element('skyMapTargetTool').onclick();f.map.setCenter(35.7,139.9);f.element('skyMapPickConfirm').onclick();assert.equal(f.element('skyMapTargetSheet').open,true);assert.equal(f.element('skyMapPickLatitude').value,'35.7');assert.equal(f.element('skyMapPickLongitude').value,'139.9');
+ const f=fixture();await f.open();const before=f.data.get('sorami.skyMap:testuser').observer;f.element('skyMapObserverTool').onclick();f.map.setCenter(36,140);f.map.double();assert.deepEqual(f.data.get('sorami.skyMap:testuser').observer,before);
+ f.element('skyMapTargetTool').onclick();f.map.setCenter(35.7,139.9);f.element('skyMapTargetTool').onclick();assert.equal(f.element('skyMapTargetSheet').open,true);assert.equal(f.element('skyMapPickLatitude').value,'35.7');assert.equal(f.element('skyMapPickLongitude').value,'139.9');
  f.element('skyMapPickName').value='手動目標';f.element('skyMapPickHeight').valueAsNumber=100;f.element('skyMapPickLatitude').value='35.701';f.element('skyMapPickLongitude').value='139.902';await f.element('skyMapPickSave').onclick();await flush();assert.equal(f.data.get('sorami.skyMap:testuser').custom.latitude,35.701);assert.equal(f.data.get('sorami.skyMap:testuser').custom.longitude,139.902);
 });
 test('空欄・範囲外座標では目標を確定しない',async()=>{
- const f=fixture();await f.open();f.element('skyMapTargetTool').onclick();f.map.setCenter(35.7,139.9);f.element('skyMapPickConfirm').onclick();f.element('skyMapPickHeight').valueAsNumber=100;f.element('skyMapPickLatitude').value='';await f.element('skyMapPickSave').onclick();assert.match(f.element('skyMapPickError').textContent,/緯度/);assert.equal(f.element('skyMapTargetSheet').open,true);f.element('skyMapPickLatitude').value='91';await f.element('skyMapPickSave').onclick();assert.equal(f.element('skyMapTarget').value,'');
+ const f=fixture();await f.open();f.element('skyMapTargetTool').onclick();f.map.setCenter(35.7,139.9);f.element('skyMapTargetTool').onclick();f.element('skyMapPickHeight').valueAsNumber=100;f.element('skyMapPickLatitude').value='';await f.element('skyMapPickSave').onclick();assert.match(f.element('skyMapPickError').textContent,/緯度/);assert.equal(f.element('skyMapTargetSheet').open,true);f.element('skyMapPickLatitude').value='91';await f.element('skyMapPickSave').onclick();assert.equal(f.element('skyMapTarget').value,'');
 });
 test('日時バーはAim/Sky双方で同じ部品を使い、場所枠と精密照準を共通形状へ揃える',()=>{
  assert.match(html,/ToolDateTimeBar.decorate\(\{footer,row:dateRow/);assert.match(html,/ToolDateTimeBar.decorate\(\{footer:skyFooter/);assert.match(html,/class="place-pick" id="skyMapChoose"/);assert.match(html,/pickMode\?\[width\/2,height\/2\]/);assert.doesNotMatch(html,/ctx.arc\(x,y,14,0,Math.PI\*2\)/);assert.match(html,/ctx.lineWidth=main\?6:5/);assert.match(html,/type="hidden" id="skyMapDate"/);
@@ -26,4 +26,20 @@ test('共通カレンダーは月末の選択・年月送りを扱い、時刻�
 });
 test('共通時間バーはつまみを掴むと跳ばず、指を離して確定し、使用不可なら操作しない',()=>{
  const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);const track=d.document.createElement('div'),range=d.document.createElement('input');Object.assign(range,{min:0,max:86400,value:43200,getBoundingClientRect:()=>({left:0,width:200})});track.setPointerCapture=()=>{};let inputs=0,commits=0,enabled=true;range.oninput=()=>inputs++;range.onchange=()=>commits++;c.ToolDateTimeBar.wireScrub({track,range,enabled:()=>enabled});const e=(x)=>({pointerId:1,button:0,clientX:x,preventDefault(){}});track.listeners.pointerdown(e(100));assert.equal(inputs,0);track.listeners.pointermove(e(120));assert.ok(Number(range.value)>43200);track.listeners.pointerup(e(120));assert.equal(inputs,1);assert.equal(commits,1);enabled=false;track.listeners.pointerdown(e(10));assert.equal(inputs,1);
+});
+
+test('太陽・月の4表示状態は保存され、非表示でも日時と重ねる条件は変えない',async()=>{
+ const f=fixture({saved:{at:Date.parse('2026-12-22T12:34:00+09:00'),targetId:'skytree'}});await f.open();const loads=f.loads;
+ const state=()=>f.data.get('sorami.skyMap:testuser');const before=state();
+ const names=()=>f.element('skyMapAngles').children.map(x=>x.textContent);
+ assert.equal(names().length,2);
+ f.element('skyMapShowSun').onclick();await flush();assert.equal(names().length,1);assert.match(names()[0],/月/);assert.equal(state().showSun,false);assert.equal(state().showMoon,true);
+ f.element('skyMapShowMoon').onclick();await flush();assert.equal(names().length,0);assert.equal(f.element('skyMapEvents').children.length,0);assert.equal(state().showMoon,false);
+ f.element('skyMapShowSun').onclick();await flush();assert.equal(names().length,1);assert.match(names()[0],/太陽/);
+ f.element('skyMapShowMoon').onclick();await flush();assert.equal(names().length,2);assert.equal(state().at,before.at);assert.equal(state().body,before.body);assert.deepEqual(state().observer,before.observer);assert.equal(state().targetId,before.targetId);assert.equal(f.loads,loads);
+ const g=fixture({saved:{...before,showSun:false,showMoon:false}});await g.open();assert.equal(g.element('skyMapAngles').children.length,0);assert.equal(g.element('skyMapShowSun')['aria-pressed'],'false');
+});
+test('太陽・月を隠しても選択した別の天体は表示できる',async()=>{
+ const f=fixture({saved:{body:'sirius',showSun:false,showMoon:false}});await f.open();assert.equal(f.element('skyMapAngles').children.length,1);assert.match(f.element('skyMapAngles').children[0].textContent,/シリウス/);
+ assert.match(html,/sky-map-wrap\.sky-map-wide\{position:fixed;inset:0;/);assert.doesNotMatch(html,/sky-map-wide\{[^}]*inset:64px/);
 });
