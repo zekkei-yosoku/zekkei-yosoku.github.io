@@ -1205,6 +1205,20 @@ main:has(>#skyMapView:not([hidden])){max-width:1200px;padding-bottom:calc(210px 
 .sky-map-actions,.sky-map-events{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.sky-map-date{display:grid;grid-template-columns:36px minmax(0,1.5fr) minmax(0,1fr) 36px;gap:4px}.sky-map-date input{width:100%;min-width:0;min-height:44px;box-sizing:border-box;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;font-size:16px}.sky-map-date button{padding:0}
 #skyMapRange{width:100%;height:38px;accent-color:var(--accent)}.sky-map-use{width:100%;min-height:44px;background:var(--accent);color:var(--on-accent)}#skyMapCustom input{width:90px;min-height:44px;background:var(--card);color:var(--text);font-size:16px}#skyMapTargetInfo{margin:10px 0}#skyMapRetry[hidden]{display:none}
 .sky-map-footer{position:fixed;bottom:0;left:0;right:0;max-width:1200px;margin:auto;background:var(--card);padding:6px 18px calc(6px + env(safe-area-inset-bottom));z-index:30;border-top:1px solid var(--line);box-sizing:border-box}.sky-map-time-actions{display:flex;align-items:center;gap:8px;margin-bottom:4px}.sky-map-time-actions .tiny{margin-left:auto}.sky-map-time-actions button{min-height:36px}.sky-map-definition{color:var(--secondary)}
+
+/* E185: recognisable shapes remain beside their subject and keep readable names. */
+.ui-icon-label{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+#aimView .preview-history-icon{width:44px;min-width:44px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.ui-icon-label svg,.place-row .pin svg{flex:none;vertical-align:middle}
+.place-row .pin{display:flex;align-items:center;justify-content:center;flex:none;width:24px}
+.place-shortcuts button{display:inline-flex;align-items:center;gap:7px}
+.search-row .search-go{width:44px;min-width:44px;min-height:44px;padding:0;display:flex;align-items:center;justify-content:center}
+.sky-map-recenter{position:absolute;left:8px;bottom:8px;z-index:4;min-width:44px;min-height:44px}
+#aimView .preview-camera-dialog .camera-visual-row{display:block;font-size:14px}
+.camera-visual-choices{display:flex;gap:8px;margin-top:8px}
+.camera-visual-choice{display:flex;flex:1;min-width:0;min-height:68px;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px 4px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--secondary);font-size:13px;line-height:1.3}
+.camera-visual-choice[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--sunk)}
+.camera-visual-choice span{white-space:nowrap}.camera-visual-choice small{display:block;font-size:inherit}
 </style></head>
 <body>
 <main>
@@ -1951,7 +1965,7 @@ main:has(>#skyMapView:not([hidden])){max-width:1200px;padding-bottom:calc(210px 
         <strong>IDと一緒に</strong>パスワードマネージャへ保存してください。
         入るときは ID とコードの両方が要ります。</div>
     </div>
-    <button id="logoutAll" class="fav-btn" style="margin-top:16px">すべての端末からログアウト</button>
+    <button id="logoutAll" class="fav-btn" style="margin-top:16px">ほかの端末からログアウト</button>
     <p class="tiny" style="margin-top:6px;color:var(--tertiary)">端末を失くしたときに。
       この端末は入ったままで、ほかの端末のログインだけが切れます。</p>
     <button id="logout" class="fav-remove">ログアウト</button>
@@ -2004,30 +2018,30 @@ main:has(>#skyMapView:not([hidden])){max-width:1200px;padding-bottom:calc(210px 
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261012090128"></script>
+<script src="sorami-core.js?v=20261012093937"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261012090128"></script>
-<script src="sorami-exif.js?v=20261012090128"></script>
-<script src="sorami-capcloud.js?v=20261012090128"></script>
-<script src="sorami-terrain.js?v=20261012090128"></script>
-<script src="sorami-mountain.js?v=20261012090128"></script>
-<script src="sorami-fuji.js?v=20261012090128"></script>
-<script src="sorami-sky.js?v=20261012090128"></script>
+<script src="sorami-astro.js?v=20261012093937"></script>
+<script src="sorami-exif.js?v=20261012093937"></script>
+<script src="sorami-capcloud.js?v=20261012093937"></script>
+<script src="sorami-terrain.js?v=20261012093937"></script>
+<script src="sorami-mountain.js?v=20261012093937"></script>
+<script src="sorami-fuji.js?v=20261012093937"></script>
+<script src="sorami-sky.js?v=20261012093937"></script>
 
-<script src="sorami-history.js?v=20261012090128"></script>
-<script src="sorami-plan.js?v=20261012090128"></script>
-<script src="sorami-routes.js?v=20261012090128"></script>
-<script src="sorami-iss.js?v=20261012090128"></script>
-<script src="sorami-plane.js?v=20261012090128"></script>
-<script src="sorami-refraction.js?v=20261012090128"></script>
-<script src="sorami-atmosphere.js?v=20261012090128"></script>
-<script src="sorami-bodies.js?v=20261012090128"></script>
-<script src="sorami-sky-map.js?v=20261012090128"></script>
-<script src="sorami-city-models.js?v=20261012090128"></script>
-<script src="sorami-tower-models.js?v=20261012090128"></script>
-<script src="sorami-align.js?v=20261012090128"></script>
-<script src="sorami-moon.js?v=20261012090128"></script>
+<script src="sorami-history.js?v=20261012093937"></script>
+<script src="sorami-plan.js?v=20261012093937"></script>
+<script src="sorami-routes.js?v=20261012093937"></script>
+<script src="sorami-iss.js?v=20261012093937"></script>
+<script src="sorami-plane.js?v=20261012093937"></script>
+<script src="sorami-refraction.js?v=20261012093937"></script>
+<script src="sorami-atmosphere.js?v=20261012093937"></script>
+<script src="sorami-bodies.js?v=20261012093937"></script>
+<script src="sorami-sky-map.js?v=20261012093937"></script>
+<script src="sorami-city-models.js?v=20261012093937"></script>
+<script src="sorami-tower-models.js?v=20261012093937"></script>
+<script src="sorami-align.js?v=20261012093937"></script>
+<script src="sorami-moon.js?v=20261012093937"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -8120,7 +8134,7 @@ async function aimLookRender(host, spec) {
       <div class="aim-time-controls"></div><div class="aim-lens">
         <div class="aim-lens-row"><label>焦点距離 <input type="number" min="8" max="2000" step="any" required data-lens-focal aria-label="レンズの実焦点距離（mm）"> mm</label><button type="button" class="chip" data-lens-apply>反映</button></div>
         <div class="aim-lens-row"><select data-lens-sensor aria-label="センサーサイズ"><option value="full">フルサイズ</option><option value="aps">APS-C</option><option value="canon">APS-C（Canon）</option><option value="m43">マイクロフォーサーズ</option></select><button type="button" class="chip" data-lens-portrait aria-pressed="false">縦位置</button></div>
-        <div class="aim-lens-toggles"><button type="button" class="chip" data-lens-on aria-pressed="false">画角枠</button><label class="aim-grid-control">グリッド<select data-lens-grid aria-label="構図のグリッド"><option value="none">なし</option><option value="thirds">9分割</option><option value="diagonal">9分割＋対角</option></select></label></div>
+        <div class="aim-lens-toggles"><button type="button" class="chip" data-lens-on aria-pressed="false">画角枠</button><div class="aim-grid-control"><span>グリッド</span><select data-lens-grid aria-label="構図のグリッド"><option value="none">なし</option><option value="thirds">9分割</option><option value="diagonal">9分割＋対角</option></select></div></div>
       </div>
       <div class="tiny" data-lens-info></div><p class="tiny" data-look-outside hidden></p>
       <div class="aim-look-time"><div class="aim-time-heading"><span>時刻</span><output data-look-at></output></div><input type="range" min="0" max="0" step="any" value="0" data-look-range aria-label="時刻を動かす">
@@ -9027,8 +9041,8 @@ function openAim(preset) {
       $("aimPick").disabled = false;
       aimSetFrom({ name: n.name, subtitle: n.area || "地図の中心", latitude: c.latitude, longitude: c.longitude }, { keepMap: true });
       // 次に重なる日は上の「どこから重ねるか」の下に出る。地図を見ている人に、どこを見ればよいかを一瞬だけ言う
-      $("aimPick").textContent = "観測地点にしました ↑";
-      setTimeout(() => { $("aimPick").textContent = "ここから重ねる"; }, 2500);
+      ($("aimPick").querySelector("span") || $("aimPick")).textContent = "観測地点にしました ↑";
+      setTimeout(() => { ($("aimPick").querySelector("span") || $("aimPick")).textContent = "ここから重ねる"; }, 2500);
     };
     // 地図を動かすたび、中心が線からどれだけ離れているかを出す
 
@@ -9745,8 +9759,10 @@ function closeTools({ restoreFocus = false } = {}) {
 function markToolsCurrent() {
   if (routeFromHash()) $("toolsHome").removeAttribute("aria-current");
   else $("toolsHome").setAttribute("aria-current", "page");
+  if (routeFromHash()?.skymap) $("skyMapMenu").setAttribute("aria-current", "page");
+  else $("skyMapMenu").removeAttribute("aria-current");
   for (const el of $("toolsMenu").querySelectorAll("[data-tool]")) {
-    const here = /^#\/aim\/(fuji|diamond|pearl)$/.test(location.hash) ? "#/aim/tower" : location.hash;
+    const here = routeFromHash()?.aim ? "#/aim/tower" : location.hash;
     if (el.dataset.tool === here) el.setAttribute("aria-current", "page");
     else el.removeAttribute("aria-current");
   }
@@ -10982,6 +10998,40 @@ load(false);
 restoreSession();
 checkForUpdate();
 </script>
+<script id="uiVisualPrimitives">
+const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
+// E185: visual choices forward to the original native control; no calculation path is added.
+function uiVisualChoices(select, kind) {
+  if (!select) return;
+  let group = select.parentElement.querySelector('[data-visual-choices]');
+  if (!group) {
+    select.hidden = true;
+    group = document.createElement('div'); group.className = 'camera-visual-choices';
+    group.dataset.visualChoices = kind; group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', select.getAttribute('aria-label'));
+    select.parentElement.classList.add('camera-visual-row');
+    for (const option of Array.from(select.options)) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'camera-visual-choice';
+      b.dataset.visualValue = option.value; b.setAttribute('aria-label', option.textContent);
+      const portrait = option.value === 'portrait', grid = option.value !== 'none';
+      let drawing = kind === 'orientation' ? (portrait ? '<rect x="9" y="3" width="18" height="30" rx="2"/>' : '<rect x="3" y="8" width="30" height="20" rx="2"/>') : '<rect x="3" y="8" width="30" height="20" rx="1"/>';
+      if (kind === 'grid' && grid) drawing += '<path d="M13 8v20m10-20v20M3 14.7h30M3 21.3h30"/>';
+      if (kind === 'grid' && option.value === 'diagonal') drawing += '<path d="m3 8 30 20M33 8 3 28"/>';
+      b.innerHTML = '<svg viewBox="0 0 36 36" width="44" height="36" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">' + drawing + '</svg><span>' + (option.value === 'diagonal' ? '9分割<small>＋対角</small>' : option.textContent) + '</span>';
+      b.onclick = () => { if (select.value === option.value) return; select.value = option.value; select.dispatchEvent(new Event('change', {bubbles: true})); uiVisualChoices(select, kind); };
+      group.append(b);
+    }
+    select.parentElement.append(group);
+  }
+  for (const b of group.children) {
+    const option = Array.from(select.options).find(o => o.value === b.dataset.visualValue);
+    const disabled = select.disabled || !!option?.disabled, hidden = !!option?.hidden;
+    if (b.disabled !== disabled) b.disabled = disabled; if (b.hidden !== hidden) b.hidden = hidden;
+    const on = String(select.value === b.dataset.visualValue);
+    if (b.getAttribute('aria-pressed') !== on) b.setAttribute('aria-pressed', on);
+  }
+}
+</script>
 <script id="previewPresentation">(()=>{
  const el=id=>document.getElementById(id),root=el('aimView'),look=el('aimLook'),scene=el('previewScene'),places=el('previewPlaces'),tabs=[el('previewSceneTab'),el('previewPlacesTab')],wide=matchMedia('(min-width:960px)');
  let mode='scene',resultKey='';
@@ -11085,7 +11135,7 @@ checkForUpdate();
    const settings=document.createElement('button');settings.type='button';settings.className='chip';settings.textContent='画角調整';settings.setAttribute('aria-haspopup','dialog');rows[0].append(settings);
    const move=look.querySelector('[data-lens-move]'),center=look.querySelector('[data-lens-center]');if(move){move.hidden=true;quick.append(move);const figure=look.querySelector('.aim-look-figure'),tools=document.createElement('div');tools.className='preview-figure-tools';tools.setAttribute('role','group');tools.setAttribute('aria-label','見え方の操作');const bodyMove=figure.querySelector('[data-look-pick]');if(bodyMove)tools.append(bodyMove);const composeIcon=document.createElement('button');composeIcon.type='button';composeIcon.className='preview-compose-icon';composeIcon.setAttribute('aria-label','構図を動かす');composeIcon.title='構図を動かす';composeIcon.innerHTML='<svg width=22 height=22 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5M7 12h10M12 7v10M7 12l2-2m-2 2 2 2M17 12l-2-2m2 2-2 2"/></svg>';composeIcon.onclick=()=>move.click();tools.append(composeIcon);figure.append(tools);}
    const dialog=document.createElement('dialog');dialog.className='sheet preview-body-dialog preview-camera-dialog';dialog.setAttribute('aria-label','画角調整');dialog.tabIndex=-1;
-   dialog.innerHTML='<div class="sheet-head"><strong>画角調整</strong><button type="button" data-camera-close>閉じる</button></div><div class="sheet-body"><label class="aim-grid-control">向き<select data-camera-orientation aria-label="画角の向き"><option value="landscape">横位置</option><option value="portrait">縦位置</option></select></label><label class="aim-grid-control">画角枠<select data-camera-frame aria-label="画角枠の表示"><option value="show">表示</option><option value="hide">非表示</option></select></label></div>';
+   dialog.innerHTML='<div class="sheet-head"><strong>画角調整</strong><button type="button" data-camera-close>閉じる</button></div><div class="sheet-body"><div class="aim-grid-control"><span>向き</span><select data-camera-orientation aria-label="画角の向き"><option value="landscape">横位置</option><option value="portrait">縦位置</option></select></div><label class="aim-grid-control">画角枠<select data-camera-frame aria-label="画角枠の表示"><option value="show">表示</option><option value="hide">非表示</option></select></label></div>';
    lens.append(dialog);const content=dialog.querySelector('.sheet-body');
    if(rows[1]){const label=document.createElement('label');label.className='preview-sensor-label';label.textContent='センサーサイズ';label.htmlFor='previewSensor';if(sensor){sensor.id='previewSensor';rows[1].prepend(label);}content.prepend(rows[1]);}if(portrait)portrait.hidden=true;
    const toggles=lens.querySelector('.aim-lens-toggles');if(toggles)content.append(toggles);const frame=look.querySelector('[data-lens-on]');if(frame)frame.hidden=true;
@@ -11102,6 +11152,7 @@ checkForUpdate();
   const orientation=look.querySelector('[data-camera-orientation]'),frameSelect=look.querySelector('[data-camera-frame]');
   if(orientation){orientation.value=aimLens.portrait?'portrait':'landscape';orientation.onchange=()=>{if((orientation.value==='portrait')!==aimLens.portrait)look.querySelector('[data-lens-portrait]').click();};}
   if(frameSelect){frameSelect.value=aimLens.on?'show':'hide';frameSelect.onchange=()=>{if((frameSelect.value==='show')!==aimLens.on)look.querySelector('[data-lens-on]').click();};}
+  uiVisualChoices(orientation,'orientation');uiVisualChoices(look.querySelector('[data-lens-grid]'),'grid');
   const focalRange=look.querySelector('[data-focal-range]');if(focalRange&&focalInput){if(document.activeElement!==focalRange)focalRange.value=String(1000*Math.log(Math.max(8,Math.min(2000,+focalInput.value))/8)/Math.log(250));focalRange.oninput=()=>{look._pendingFocal=+focalRange.value;if(look._focalRaf)return;look._focalRaf=requestAnimationFrame(()=>{look._focalRaf=null;focalInput.value=String(Math.round(8*Math.pow(250,look._pendingFocal/1000)*10)/10);focalInput.onchange();});};for(const button of look.querySelectorAll('[data-focal-preset]'))button.onclick=()=>{focalInput.value=button.dataset.focalPreset;focalInput.onchange();const sheet=button.closest('dialog');if(sheet?.open)sheet.close();};}
   const portraitButton=look.querySelector('[data-lens-portrait]');if(portraitButton){const text=portraitButton.getAttribute('aria-pressed')==='true'?'縦位置':'横位置';if(portraitButton.textContent!==text)portraitButton.textContent=text;}
   const composeIcon=look.querySelector('.preview-compose-icon');if(composeIcon){const moving=look.querySelector('[data-lens-move]').getAttribute('aria-pressed')==='true';composeIcon.setAttribute('aria-pressed',String(moving));composeIcon.setAttribute('aria-label',moving?'構図を確定':'構図を動かす');composeIcon.title=moving?'構図を確定':'構図を動かす';}
@@ -11166,7 +11217,7 @@ const recentHistory=(()=>{
  const favoritesStart=$('favAdd').parentElement;let n=favoritesStart;while(n){const next=n.nextSibling;favPanel.append(n);n=next;}
  content.append(favPanel.querySelector('#favUndo'));
  candidatePanel.append($('sheetCands'));content.append(historyPanel,favPanel,candidatePanel,err);
- const shortcuts=document.createElement('div');shortcuts.className='place-shortcuts';for(const id of ['geoButton','mapButton']){const b=$(id);b.classList.remove('list-item');b.setAttribute('aria-label',b.textContent);b.textContent=id==='geoButton'?'現在地':'地図で選ぶ';shortcuts.append(b);} $('searchResults').after(shortcuts,nav);
+ const shortcuts=document.createElement('div');shortcuts.className='place-shortcuts';for(const id of ['geoButton','mapButton']){const b=$(id);b.classList.remove('list-item');b.setAttribute('aria-label',id==='geoButton'?'現在地を使う':'地図で選ぶ');b.innerHTML=(id==='geoButton'?MAP_ICON_LOCATE:UI_ICONS.map)+'<span>'+(id==='geoButton'?'現在地':'地図で選ぶ')+'</span>';shortcuts.append(b);} $('searchResults').after(shortcuts,nav);
  const panels={recent:historyPanel,favorites:favPanel,candidates:candidatePanel};let active='recent',kind='places',page=0;
  for(const [id,label] of [['recent','履歴'],['favorites','お気に入り'],['candidates','候補地']]){const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.historyPanel=id;b.setAttribute('aria-controls',panels[id].id);b.onclick=()=>{active=id;render();};nav.append(b);}
  const list=historyPanel.querySelector('.history-list'),note=historyPanel.querySelector('[data-recent-note]'),undo=historyPanel.querySelector('[data-recent-undo]');
@@ -11368,5 +11419,18 @@ const recentHistory=(()=>{
 })();
 </script>
 
+
+<script id="intuitiveControls">(()=>{
+ const el=id=>document.getElementById(id);
+ const mark=(id,key)=>{const n=el(id)?.querySelector('.pin');if(n)n.innerHTML=UI_ICONS[key];};
+ for(const id of ['aimFromButton','planeFromButton'])mark(id,'observer');
+ for(const id of ['placeButton','aimTargetButton','issFromButton'])mark(id,'pin');
+ const label=(id,key)=>{const b=el(id);if(!b)return;const text=b.textContent.trim();b.classList.add('ui-icon-label');b.innerHTML=UI_ICONS[key]+'<span>'+text+'</span>';};
+ for(const id of ['aimPick','planePickHere'])label(id,'observer');label('aimPickTarget','pin');
+ for(const id of ['mapSearchGo','searchBoxGo']){const b=el(id);b.setAttribute('aria-label','検索');b.title='検索';b.innerHTML=UI_ICONS.search;}
+ label('skyMapOpen','map');const recent=el('aimRecentOpen');if(recent){recent.innerHTML=UI_ICONS.history;recent.classList.add('preview-history-icon');recent.title='履歴';}label('photoPick','photo');label('exportBtn','download');label('importBtn','upload');
+ const center=el('skyMapCenter');center.className='map-ctl sky-map-recenter';center.setAttribute('aria-label','観測地点を地図の中央に表示');center.title='観測地点を地図の中央に表示';center.innerHTML=UI_ICONS.recenter;el('skyMapCanvas').parentElement.append(center);
+ // The existing center handler pans only; it never moves the observer or fetches elevation.
+})();</script>
 </body>
 </html>
