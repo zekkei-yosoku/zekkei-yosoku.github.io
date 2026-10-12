@@ -15,3 +15,6 @@ echo "更新した読み込み:"
 grep -oE '[A-Za-z0-9_-]+\.js\?v=[0-9]+' index.html | sed 's/^/  /'
 # 取りこぼしが無いか。**版の付いていない自前の js があれば言う**
 grep -oE 'src="[A-Za-z0-9_-]+\.js"' index.html | sed 's/^/  ★版が付いていない: /' || true
+
+# E186: script-src permits only exact inline hashes. Rebuild after cache-version edits.
+node update-csp.mjs

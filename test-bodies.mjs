@@ -79,7 +79,7 @@ test('初回読込中の太陽選択と明示URLは旧入口の完了で上書�
   let done;const pending=new Promise(r=>done=r),els=new Map();
   const $=id=>{if(!els.has(id))els.set(id,{value:id==='aimTarget'?'skytree':'',innerHTML:'',textContent:''});return els.get(id)};
   const aim={body:'sirius',bodySeq:0,limb:'center',limbsByBody:{},target:null};
-  const c={aim,$,AIM_PRESETS:{tower:{body:null,target:null},diamond:{body:'sun',target:'fuji'}},SoramiBodies:{definition:B.definition,ready:()=>false,ensure:id=>id==='sun'?Promise.resolve():pending},SoramiAlign:{targetById:()=>({id:'fuji',parts:[{id:'summit',m:3776}]})},aimFillSelects(){},aimFillParts(){},aimLimbValue:()=>aim.limb,store:{get:()=> 'skytree'},Date,Number,requestAnimationFrame(){},aimApply(){c.applied=aim.body},aimRedrawLine(){},aimRenderList(){},aimRenderFrom(){}};
+  const c={aim,$,toolAllowed:()=>true,AIM_PRESETS:{tower:{body:null,target:null},diamond:{body:'sun',target:'fuji'}},SoramiBodies:{definition:B.definition,ready:()=>false,ensure:id=>id==='sun'?Promise.resolve():pending},SoramiAlign:{targetById:()=>({id:'fuji',parts:[{id:'summit',m:3776}]})},aimFillSelects(){},aimFillParts(){},aimLimbValue:()=>aim.limb,store:{get:()=> 'skytree'},Date,Number,requestAnimationFrame(){},aimApply(){c.applied=aim.body},aimRedrawLine(){},aimRenderList(){},aimRenderFrom(){}};
   vm.runInNewContext('let aimReady=false;'+code+';this.open=openAim;',c);return {c,$,aim,done};
  }
  let f=setup();f.c.open('tower');assert.equal(typeof f.$('aimBody').onchange,'function');assert.ok(f.$('aimDate').value);assert.equal(f.$('aimTarget').value,'skytree');

@@ -104,9 +104,9 @@ ok(/const requireLoginForFavorites = \(\) => requireLogin\("お気に入りの�
 ok(!/この端末のブラウザにだけ/.test(html), "「この端末にだけ」と書かない");
 ok(!/ログインし直せば戻ります/.test(html), "消える話も書かない");
 // 2026-10-01 ユーザー「細かい説明文ってこのApp上はいらない」で、保存場所の説明そのものを外した（誤った説明も書かない）
-ok(/function toolPicker/.test(html), "管理画面で選べる");
-ok(/"\/admin\/tools"/.test(html), "管理画面から決める経路を呼ぶ");
-ok(/管理者はすべて使えます/.test(html), "管理者は選ばせない（役割で全部）");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 // **どの画面でも出す。** 画面を移ったり、ログインの復帰が遅れたりしても消えない
 ok(/renderTools\(\);\s*\n\s*renderDeckRow\(\)/.test(html), "描き直しのたびに見直す");
 ok(/renderAuthButton\(\);\s*\n\s*try \{/.test(html), "/me を待たずに出す");
@@ -972,7 +972,7 @@ ok(!/id="toSky"/.test(html) && !/toolAllowed\("sky"\)/.test(html), "月の詳細
   ok(!/ダイヤモンド富士|パール富士|月丼|空の見え方/.test(mapSheet.replace(/<!--[\s\S]*?-->/g, "")), "地図で選ぶ画面に道具の名前を出さない");
 }
 const authButtonSource = /function renderAuthButton\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
-ok(/renderTools\(\);\s+redrawIfToolsChanged\(\);/.test(authButtonSource), "ログイン・ログアウトで詳細の道具の中身も出し直す");
+ok(/renderTools\(\);[\s\S]*?redrawIfToolsChanged\(\);/.test(authButtonSource), "ログイン・ログアウトで詳細の道具の中身も出し直す");
 // 下半分を作り直すたびに釦をつなぐ。日を替えると押せなくなっていた
 ok(!/wireOutcomes\(\$\("dayDetail"\)\);/.test(html) && !/wireOutcomes\(host\);\s+wireAlignmentJump\(host\);\s+\}/.test(html.replace(/function wireDayDetail[\s\S]*?\n\}/, "")),
   "詳細の下半分は wireDayDetail でつなぐ");
@@ -981,8 +981,7 @@ ok(!/SoramiComposition/.test(html), "画面に出していない構図の計算�
 
 console.log("== 道具の名前は1か所から取る ==");
 // 管理画面に書き写していたため、ねらうを3つに分けた日に片方だけ古くなった。
-ok(/const TOOL_NAMES = Object\.fromEntries\(\[\.\.\.document\.querySelectorAll\("#toolsMenu \[data-tool\]"\)\]/.test(html),
-  "管理画面の名前はメニューから作る");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 ok(!/TOOL_NAMES = \{/.test(html), "名前を書き写さない");
 {
   // メニューの data-id と、Worker が許す道具（TOOLS）が一致していること。
@@ -1897,7 +1896,7 @@ ok(!/document\.cookie/.test(html), "Cookie に入れない");
 // 401 でデータを消さない。消すと、サーバーが一時的に落ちただけで手元が空になる。
 // 401 で落とすのは「ログイン状態」と「管理画面に出ていた他人の情報」だけ。
 // **お気に入りと記録は残す**（サーバーが一時的に落ちただけで手元が空にならないように）
-ok(/if \(res\.status === 401 && auth\) \{ clearAuth\(\); clearAdminView\(\); renderAuthButton\(\); \}/.test(html),
+ok(/res\.status === 401 && data\?\.code !== "reauth_required" && auth\?\.token === requestToken/.test(html),
   "401 ではログイン状態と管理画面の中身だけ落とす");
 ok(!/401[\s\S]{0,120}favorites = \[\]/.test(html), "401 でデータを消さない");
 // 同期の失敗を黙って飲まない
@@ -2079,24 +2078,23 @@ console.log("== 管理者の画面 ==");
 ok(/id="adminView"/.test(html), "画面がある");
 ok(/location\.hash === "#\/admin"/.test(html), "URLで開ける");
 ok(/\{ id: "admin",\s+el: "adminView"/.test(html), "他の画面と出し分ける");
-ok(/\$\("toAdmin"\)\.hidden = me\.role !== "admin"/.test(html), "管理者にだけ入口を出す");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 // 画面を隠すのは防御ではない。権限はサーバーが判定する。
-ok(/権限の判定は\*\*サーバーがやる\*\*/.test(html), "画面側の隠蔽を防御と考えないと明記する");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 // 他人のパスワードは扱わない
 ok(!/admin[\s\S]{0,400}password.*=.*\$\("[^"]*Pw"\)\.value/.test(html.slice(html.indexOf("renderAdmin"))),
   "管理者画面でパスワードを入力させない");
-ok(/他人のパスワードは扱わない/.test(html), "扱わない理由を書く");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 // 一覧・許可リスト・記録
-ok(/id="adminUsers"/.test(html) && /id="adminAllowed"/.test(html) && /id="adminLog"/.test(html),
-  "利用者・許可リスト・操作の記録がある");
-ok(/step\.level === "warn" \|\| step\.level === "danger"/.test(html), "締め出されそうな人を目立たせる");
-ok(/data-code=|data-role=|data-deluser=|data-disallow=/.test(html), "各操作の入口がある");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 // 取り消せない操作は二段で確かめる
-ok(/data-deluser[\s\S]{0,400}最終確認です。すべて消えます。/.test(html), "削除は二段で確かめる");
-ok(/その人がいま持っているコードは、すべて使えなくなります/.test(html), "回復コードの再発行の副作用を言う");
-ok(/本人が入り直すまで反映されません/.test(html), "権限がトークンに乗ることを言う");
-ok(/取り消しても既存のアカウントは消えません/.test(html), "許可の取り消しの意味を言う");
-ok(/気象業務法上の扱いが変わりえます/.test(html), "人を増やす前に法の話へ触れる");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 
 console.log("== 画面の文字にマークダウンを混ぜない ==");
 // 2026-09-08、許可リストの説明と confirm の文面に ** がそのまま出ていた。
@@ -2112,7 +2110,7 @@ console.log("== 回復コードはIDと一緒に保存させる ==");
 ok(/const codeBlock = \(loginId, codes\)[\s\S]{0,120}ID: \$\{loginId\}/.test(html),
   "コピーする内容にIDを含める");
 ok(/writeText\(codeBlock\(auth\?\.loginId/.test(html), "自分の分に効く");
-ok(/writeText\(codeBlock\(adminCodesFor/.test(html), "管理者が他人へ出す分にも効く");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 ok(/IDとコードの両方が要ります/.test(html), "入力時にIDが要ることを書く");
 ok(/<strong>IDと一緒に<\/strong>パスワードマネージャへ保存/.test(html), "保存時にIDのことを書く");
 ok(/絶景予測 \$\{location\.origin\}/.test(html), "どのサイトのものか分かるようにする");
@@ -2174,21 +2172,21 @@ console.log("== 利用者一覧で、何で入っているかが一目で分か�
   ok(authWays({ has_password: false, passkeys: 1, codes: 0 }).methods === 1, "1つだけなら1");
 }
 // 一覧では、印として並べる
-ok(/class="way"/.test(html), "手段を印として出す");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 
 console.log("== 管理者がパスキーを失効できる。ただし黙って締め出さない ==");
 // 2026-09-08 の調査 D-2。API はあるのに画面に口が無く、急ぐ場面でコマンドを
 // 探すことになっていた。盗まれた端末を切るのは急ぐ操作なので、画面に置く。
-ok(/data-revoke=/.test(html), "失効の口がある");
-ok(/apiCall\("POST", "\/admin\/revoke-credential"/.test(html), "失効の経路を叩く");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 // **相手を締め出しうる操作。** 唯一の入り方なら、そう言ってから訊く
-ok(/const locksOut = el\.dataset\.last === "1";/.test(html), "締め出しになるかを見る");
-ok(/これがこの人の唯一の入り方です/.test(html), "締め出しになると言う");
-ok(/先に回復コードを発行して渡してください/.test(html), "どうすればいいかを言う");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 // 押した瞬間に相手のセッションも切れることを、押す前に伝える
-ok(/いま開いている画面もすべて切れます/.test(html), "何が起きるかを言う");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 // 端末の名前を出す。どれを切るのか分からないまま押させない
-ok(/data-label="\$\{esc\(c\.label \|\| "この端末"\)\}"/.test(html), "どの端末かを出す");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 
 console.log("== 日常の入り方を必ず1つ残す ==");
 // 2026-09-08 ユーザー判断で仕様変更。認められる状態は3つだけ。
@@ -2266,8 +2264,7 @@ console.log("== 次の一歩を示す ==");
     "パスキー未登録の人に、いきなり無効化を薦めない");
 }
 // 管理画面には「薦め」を出さない。他人の設定を細かく急かす場所ではない
-ok(/step\.level === "warn" \|\| step\.level === "danger"/.test(html),
-  "管理画面では危ない人だけ目立たせる");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 // 本人の画面には全部出す
 ok(/nextStep\(\{ passkeys: \(me\.credentials \|\| \[\]\)\.length/.test(html),
   "アカウント画面でも同じ判定を使う");
@@ -2280,18 +2277,14 @@ console.log("== 管理画面の中身を、ログアウト後に残さない =="
 // そのまま他人のアカウントに入れる。
 ok(/function clearAdminView\(\)/.test(html), "管理画面を空にする処理がある");
 // 消す対象: 表示中のコード・その持ち主・一覧・許可リスト・操作の記録
-for (const id of ["adminCodes", "adminCodesList", "adminUsers", "adminAllowed", "adminLog"]) {
-  const body = html.slice(html.indexOf("function clearAdminView()"),
-                          html.indexOf("function clearAdminView()") + 600);
-  ok(body.includes(id), `${id} を空にする`);
-}
-ok(/adminCodes = \[\]/.test(html), "手元に持っているコードも捨てる");
+ok(/adminUnmount\?\.\(\)/.test(html) && /\$\("adminView"\)\.replaceChildren\(\)/.test(html), "離脱時に私有管理UI全体を消去する");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 // 呼ぶ場所: ログアウト・退会・401・別の人のログイン
 ok((html.match(/clearAdminView\(\)/g) || []).length >= 4,
   "ログアウト・退会・401・利用者の切替で呼ぶ",
   String((html.match(/clearAdminView\(\)/g) || []).length));
 // **URLだけで中身を出さない。** 管理者と確認できたときだけ描く
-ok(/if \(!auth \|\| auth\.role !== "admin"\)/.test(html), "管理者でなければ描かない");
+// E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 
 console.log("== 手元のデータを、別のアカウントへ送らない ==");
 // 2026-09-08 の調査 C-1。401でセッションが切れても手元のデータは残す（意図的：
@@ -2445,8 +2438,8 @@ ok(/半角英数と記号で6〜32桁。/.test(html), "IDは桁数を先に言�
 ok(/半角英数と記号で8〜128桁。/.test(html), "PWも桁数を先に言い切る");
 // 記号の一覧は「使える記号は …」ごと1かたまりで動かす。途中で割れると読めない
 // ID側2つ（新規登録・管理画面の許可リスト）とPW側2つ（新規登録・アカウント画面）
-ok((html.match(/<span class="nb">使える記号は/g) || []).length === 4,
-  "記号の一覧を4か所すべてで割らせない",
+ok((html.match(/<span class="nb">使える記号は/g) || []).length === 3,
+  "公開画面の記号の一覧を割らせない",
   String((html.match(/<span class="nb">使える記号は/g) || []).length));
 ok(/line-break: strict/.test(html), "。や、が行頭に来ないようにする");
 // **改行は句読点だけ。** 日本語は既定でどこでも折れるので、両方そろって初めて効く
@@ -2637,8 +2630,8 @@ for (const c of ["@", "+", "!", "#"]) {
 ok(/<strong class="nb">あとから変えられません。<\/strong>/.test(html), "IDを後から変えられないと書く");
 
 // 同じ規則が要る場所は2つ。管理者が許可リストへ入れるIDも同じ規則で弾かれる
-ok((html.match(/半角英数と記号で6〜32桁。/g) || []).length === 2,
-  "IDの規則を、新規登録と管理画面の許可リストの両方に書く",
+ok((html.match(/半角英数と記号で6〜32桁。/g) || []).length === 1,
+  "IDの規則を公開の新規登録に書く",
   String((html.match(/半角英数と記号で6〜32桁。/g) || []).length));
 ok((html.match(/半角英数と記号で8〜128桁。/g) || []).length === 2,
   "パスワードの規則を、新規登録とアカウント画面の両方に書く",
@@ -2675,7 +2668,7 @@ ok(/localStorage\.removeItem\(TOKEN_KEY/.test(html), "選んでいなければ l
 ok(/function clearAuth[\s\S]{0,220}sessionStorage\.removeItem[\s\S]{0,120}localStorage\.removeItem/.test(html),
   "ログアウトでは両方から消す");
 // 片方だけ消すと、閉じて開き直したときに死んだトークンで入り直そうとする
-ok(/if \(res\.status === 401 && auth\) \{ clearAuth\(\)/.test(html), "401 を受けたらトークンを捨てる");
+ok(/res\.status === 401 && data\?\.code !== "reauth_required"/.test(html), "401 を受けたらトークンを捨てる");
 
 ok(/<input type="checkbox" id="rememberMe"/.test(html), "保持するかを選べる");
 // **既定は外す**（2026-09-08 ユーザー判断）。30日残る鍵を、頼まれずに置かない。
@@ -3188,5 +3181,12 @@ console.log("== どこから重ねるかで、この日の候補地から選ぶ�
     "撮影地の選んだ候補地にも「ここから重ねる」（見え方を替えるだけの行と、どこからにする釦を分ける）");
 }
 
+
+// E186: management UI and its button are delivered only after an owner API check.
+ok(!/id="toAdmin"|id="adminUsers"|id="adminCodes"/.test(html), "公開HTMLに管理者入口や管理者名簿を埋め込まない");
+ok(!/POST.*\/admin\/(tools|recovery|delete-user|revoke-credential)/.test(html), "管理操作本体を公開Webへ配信しない");
+ok(/apiCall\("GET", "\/admin\/ui"\)/.test(html) && /bundle.version !== 1/.test(html), "認証必須APIから版を検査して私有UIを取得する");
+ok(/URL.revokeObjectURL\(url\)/.test(html) && !/new Function|eval\(/.test(html), "私有UIはES moduleで読み込みBlob URLを解放する");
+ok(/requestGeneration = authGeneration/.test(html) && /auth\?\.token === requestToken/.test(html), "古いアカウントの401で現在の認証を落とさない");
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

@@ -133,26 +133,19 @@ test('月の選択はメニュー再入場・再読込でも保持し、明示�
 });
 
 
-test('管理者でない直リンクは操作フォームを隠し、管理者では再表示する',async()=>{
- const els={};const $=id=>els[id]||(els[id]={hidden:false,innerHTML:"old",textContent:"",querySelectorAll:()=>[]});let calls=0;
- const ctx={auth:null,$,adminRenderSeq:0,adminRenderAuth:null,adminCodes:["synthetic"],adminCodesFor:"fixture",adminFail:msg=>{$("adminErr").hidden=false;$("adminErr").textContent=msg;},apiCall:async(_,path)=>{calls++;return path==="/admin/users"?{users:[],allowed:[]}:path==="/admin/settings"?{openSignup:false}:{entries:[]};}};
- const src=grab('function clearAdminView')+'\n'+grab('async function renderAdmin');
- const api=runInNewContext(src+';({render:renderAdmin,clear:clearAdminView})',ctx),render=api.render;
- await render();assert.equal($("adminBody").hidden,true);assert.equal(calls,0);assert.equal($("adminErr").textContent,'ログインしてください');
- ctx.auth={role:'user'};$("adminBody").hidden=false;await render();assert.equal($("adminBody").hidden,true);assert.equal(calls,0);assert.equal($("adminErr").textContent,'権限がありません');assert.equal($("adminUsers").innerHTML,'');
- ctx.auth={role:'admin'};await render();assert.equal($("adminBody").hidden,false);assert.equal(calls,3);assert.equal($("adminErr").hidden,true);
- ctx.auth={role:'user'};await render();assert.equal($("adminBody").hidden,true);assert.equal($("signupMode").innerHTML,'');
- // cachedroleが管理者でもサーバーが拒否した場合はカードを出さない。
- ctx.auth={role:'admin'};ctx.apiCall=async()=>{throw Error('権限がありません');};await render();assert.equal($("adminBody").hidden,true);assert.equal($("adminErr").textContent,'権限がありません');
- // 取得待機中の認証切替で旧応答が再表示しない。
- let resolve;ctx.apiCall=()=>new Promise(r=>resolve=r);ctx.auth={role:'admin'};const pending=render();assert.equal($("adminBody").hidden,true);
- ctx.auth={role:'user'};api.clear();resolve({users:[],allowed:[]});await pending;assert.equal($("adminBody").hidden,true);assert.equal($("adminUsers").innerHTML,'');assert.equal($("adminErr").textContent,'権限がありません');
+test('管理者直リンクは認証済みモジュールだけを表示し、旧応答・離脱時の私有DOMを破棄する',async()=>{
+ const els={};const $=id=>els[id]||(els[id]={children:[],append(...v){this.children.push(...v);},replaceChildren(...v){this.children=v;}});let calls=0;
+ const ctx={auth:null,$,atAdmin:true,adminRenderSeq:0,adminRenderAuth:null,adminUnmount:null,privateDraft:null,privateEntrySeq:0,privateModule:null,privateModuleToken:null,privateModulePromise:null,document:{createElement:()=>({setAttribute(){},textContent:''})},nextStep(){},askReauth(){},ownerModule:async()=>{calls++;throw Error('権限がありません');}};
+ const api=runInNewContext(grab('function clearAdminView')+'\n'+grab('async function renderAdmin')+';({render:renderAdmin,clear:clearAdminView})',ctx);
+ await api.render();assert.equal(calls,0);assert.equal($('adminView').children[0].textContent,'ログインしてください');
+ ctx.auth={token:'ordinary',role:'admin'};await api.render();assert.equal($('adminView').children[0].textContent,'権限がありません');
+ ctx.auth={token:'owner'};ctx.ownerModule=async()=>({mount(root){root.replaceChildren({textContent:'private'});return ()=>root.replaceChildren();}});await api.render();assert.equal($('adminView').children[0].textContent,'private');api.clear();assert.equal($('adminView').children.length,0);
+ let resolve;ctx.ownerModule=()=>new Promise(r=>resolve=r);const pending=api.render();ctx.auth={token:'other'};api.clear();resolve({mount(){throw Error('old response mounted');}});await pending;assert.equal($('adminView').children.length,0);
 });
-
 
 test('管理画面を開いたまま認証が更新されたら新しい権限で読み直す',()=>{
  let refresh=0;const button={textContent:'',classList:{toggle(){},remove(){}},setAttribute(){}};
- const auth={role:'admin',loginId:'fixture'};const ctx={auth,atAdmin:true,adminRenderAuth:auth,renderAdmin:()=>refresh++,renderTools(){},redrawIfToolsChanged(){},atRecords:false,$:()=>button,syncError:null,pushQueue:[]};
+ const auth={role:'admin',loginId:'fixture'};const ctx={SkyMapUI:null,auth,atAdmin:true,adminRenderAuth:auth,renderAdmin:()=>refresh++,renderTools(){},redrawIfToolsChanged(){},atRecords:false,$:()=>button,syncError:null,pushQueue:[]};
  const update=runInNewContext(grab('function renderAuthButton')+';renderAuthButton',ctx);update();assert.equal(refresh,0);
  ctx.auth={...auth};update();assert.equal(refresh,1);
  ctx.auth=null;update();assert.equal(refresh,2);assert.equal(button.textContent,'ログイン');
