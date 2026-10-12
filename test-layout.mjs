@@ -16,6 +16,7 @@ const { createRequire } = await import("node:module");
 const req = createRequire(import.meta.url);
 const coreMod = req("./sorami-core.js");
 const coreSrc = fs.readFileSync(new URL("./sorami-core.js", import.meta.url), "utf8");
+const predictionSrc = fs.readFileSync(new URL("./sorami-prediction.js", import.meta.url), "utf8");
 
 // コメント内の文言を拾わないよう、判定前に /* */ を落とす。
 const code = html.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -65,8 +66,10 @@ ok(/script-src 'self'/.test(html), "CSP の script-src は self のまま");
 ok(/const ridge = sunOverRidge\(d0\);/.test(html) && /<b>この場所では<\/b><span class="v">日の出 \$\{t\(ridge\.rise\)\} \/ 日の入 \$\{t\(ridge\.set\)\}/.test(html),
   "光の時間に「この場所では 日の出・日の入」（山・建物込み）");
 ok(/if \(!moonHorizon \|\| !moonObs \|\| !moonTerrainProfile/.test(html), "地形を測れていなければ出さない（平らなら暦と同じ）");
-ok(/if \(seq === extraSeq\) \{ rerenderList\(\); refreshLightTimes\(\); \}/.test(html) && /rerenderList\(\);\s+refreshLightTimes\(\);\s+\}\)\.catch/.test(html)
-  && /lt\.outerHTML = html;/.test(html), "稜線が届いたら、詳細の光の時間だけ描き直す（詳細を開いたままでも出る。ゲージの操作は消さない）");
+ok(/if \(seq !== extraSeq \|\| mine !== moonEvalSeq\) return;/.test(html)
+  && /function refreshLightTimes\(\)/.test(html) && /lt\.outerHTML = html;/.test(html)
+  && /wireMoonTimeRetry\(\$\("lightTimes"\)\)/.test(html),
+  "稜線・月の可視時刻が届いたら光の時間だけ更新し、再試行ボタンもつなぐ");
 
 // ---- 画面の出し分け。**表に1行足すだけ**にする
 ok(/const VIEWS = \[/.test(html), "画面の一覧が表になっている");
@@ -319,8 +322,8 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
 }
 ok(/deckM: agl/.test(html), "その地点の立つ高さを渡す");
 // 雲海は**見下ろせるか**なので目の高さで判定する（霧氷・ダイヤは地面の標高のまま）
-ok(/eyeElevation:/.test(coreSrc), "目の高さを採点へ渡す");
-ok(/const eye = Number\.isFinite\(input\.eyeElevation\)/.test(coreSrc), "雲海は目の高さで見下ろす");
+ok(/eyeHeightAGL:p\.eyeHeightAGL/.test(predictionSrc), "目の高さを非公開採点の条件へ渡す");
+ok(/SoramiPrediction\.fetch\(forPlace\)/.test(html) && !/evaluateWeek\(/.test(html), "独自採点はサーバーで行い、結果で表示する");
 {
   // 霧氷の採点の中だけを見る（木に着く話なので、目の高さは関係ない）
   const body = coreSrc.slice(coreSrc.indexOf("const rimeScorer"), coreSrc.indexOf("const rainbowScorer"));
@@ -986,8 +989,8 @@ ok(!/TOOL_NAMES = \{/.test(html), "名前を書き写さない");
 {
   // メニューの data-id と、Worker が許す道具（TOOLS）が一致していること。
   // 1つの項目が2つの許可を持つことがある（富士山に重ねる＝diamond と pearl）
-  const menu = [...html.matchAll(/data-tool="[^"]+" data-id="([a-z ]+)"/g)].flatMap((m) => m[1].split(" "));
-  ok(menu.length === 6, "メニューの許可は6つ（道具は4つ。天体を重ねるが3つ持つ）", menu.join("・"));
+  const menu = [...html.matchAll(/<button\b[^>]*\bdata-tool="[^"]+"[^>]*>/g)].flatMap(m => (m[0].match(/\bdata-id="([a-z ]+)"/)?.[1] || "").split(" ").filter(Boolean));
+  ok(menu.length === 7, "メニューの許可は7つ（独立スカイマップを含む）", menu.join("・"));
   ok(/data-tool="#\/aim\/tower" data-id="diamond pearl tower" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど"/.test(html),
     "天体を重ねるは3つの許可を持ち、管理画面ではそれぞれの名前で出す");
   ok(/el\.dataset\.id\.split\(" "\)\.some\(\(id\) => allowed\.includes\(id\)\)/.test(html), "どちらかの許可があればメニューに出す");
@@ -1241,19 +1244,15 @@ ok(JSON.stringify(coreMod.PHENOMENA.capCloud.ranks) === JSON.stringify(["好条�
 ok(![...coreMod.PHENOMENA.capCloud.ranks, ...coreMod.PHENOMENA.capCloud.says].some((t) => /かか[りるっ]|みごと/.test(t)),
   "ランク名と説明文に「かかる」「みごと」を使わない");
 ok(/sorami-capcloud\.js/.test(html), "採点を読み込んでいる");
-ok(/SoramiCapCloud\.evaluateDay/.test(html), "1日ぶんを評価している");
+ok(/kind: "fuji"/.test(html) && /dto.weeks.capCloud/.test(html), "非公開APIの笠雲週間を表示している");
 // 富士山が地形で見えない地点では笠雲も出さない
 ok(/delete weeks\.fuji; delete weeks\.capCloud/.test(html), "富士山が見えない地点では行ごと出さない");
-// 上空の予報は富士山の上の話なので地点で変わらない
-ok(/let capUpper = null;/.test(html), "上空の予報を地点ごとに取り直さない");
-// **一覧と同じ日数を取る。** 3日固定にしていたので、他の行が14日あるのに
-// 笠雲だけ3日で切れて「—」が並び、壊れて見えた（2026-09-15 ユーザー指摘）
-// 2026-09-22: 取得を30分使い回すため fetchImpl を渡すようにした。日数の検査は引数が増えても通る形にする
-ok(/fetchUpperAir\(\{ days: Math\.min\(16, days\.length\)[,\s}]/.test(html),
-  "取得日数を一覧の日数に合わせる");
-ok(/fetchUpperAir\(\{[^}]*fetchImpl: S\.cachedFetch/.test(html),
-  "上空の予報も使い回しを通す（Open-Meteo の回数上限）");
-ok(!/fetchUpperAir\(\{ days: 3 \}\)/.test(html), "3日固定が残っていない");
+// 上空予報の取得・採点はサーバーで共有する。公開配信に採点実装を残さない。
+for (const name of ["sorami-moon.js", "sorami-fuji.js", "sorami-capcloud.js"]) {
+  const source = fs.readFileSync(new URL(name, import.meta.url), "utf8");
+  ok(!/function (evaluateDay|evaluateAt|evaluateFuji|scoreOf)|fetchUpperAir|fetchFujiWeather/.test(source), `${name} に独自予測を配信しない`);
+}
+ok(!/SoramiCapCloud\.evaluateDay|SoramiFuji\.evaluateDay/.test(html), "画面の採点処理はAPIへ移した");
 // 富士山の詳細からの導線
 ok(/function renderCapLine/.test(html), "富士山の詳細から笠雲へ1行");
 // 仕様書 §0 が最終出力に「発生予想時間帯・最盛予想時間帯・消滅予想時間帯」を挙げている。
@@ -1261,9 +1260,8 @@ ok(/function renderCapLine/.test(html), "富士山の詳細から笠雲へ1行")
 ok(/function renderCapTiming/.test(html), "出はじめ・いちばん濃い・弱まる を出す");
 // **見に行くための道具なので、見えないものを高得点で出さない。**
 // そのために富士山の評価が要るので、笠雲は富士山より後に置く
-ok(/fujiDay: fujiBy\.get\(dayMs\)/.test(html), "笠雲へ富士山の評価を渡す");
-ok(html.indexOf("SoramiFuji.evaluateDay") < html.indexOf("SoramiCapCloud.evaluateDay"),
-  "笠雲を富士山より後に評価する");
+ok(/weeks.fuji = dto.weeks.fuji/.test(html) && /weeks.capCloud = dto.weeks.capCloud/.test(html),
+  "富士山と笠雲は同じ予報結果から表示する");
 // **「できはじめる時刻」を名乗らない。** スコアが測っているのは材料の有無で、
 // 材料は総観規模でしか動かない。40点の出入りで出したら24時間になった（実データで発覚）
 ok(/いちばん整う/.test(html), "いちばん整う時刻を出す");
@@ -1334,7 +1332,7 @@ ok(/fn = SoramiTerrain\.combinedHorizon\(\{ terrain: prof \}\)/.test(html),
   "まず地形だけで地平線を作る");
 ok(/moonHorizon = SoramiTerrain\.combinedHorizon\(\{[\s\S]{0,120}urban \}\)/.test(html),
   "建物が届いたら地平線を作り直す");
-ok(/loadUrbanHorizon\(obs\)[\s\S]{0,1400}\.catch\(\(\) => \{\}\)/.test(html),
+ok(/loadUrbanHorizon\(obs\)[\s\S]{0,1800}\.catch\(\(\) => \{ if \(seq === extraSeq\) \{ moonUrbanTried = false; extrasRetry.schedule\(\); \} \}\)/.test(html),
   "建物が取れなくても地形だけで続ける");
 ok(/URBAN_CACHE_KEY/.test(html) && /URBAN_CACHE_VERSION/.test(html),
   "地点ごとにキャッシュする（毎回 410KB 引かない）");
@@ -1347,7 +1345,7 @@ ok(/moonUrbanTried = true;[\s\S]{0,200}loadUrbanHorizon/.test(html), "取得は�
 // 地形の測定は標高APIが混むと429で落ちる。市街地の地平線を決めているのは建物なので、
 // 地形が取れないことを理由に建物まで諦めない
 // 2026-09-17: 地域代表点だけ除外。具体地点はDEM失敗時も建物を取る。
-ok(/if \(!moonUrbanTried && obs\.locationScope !== "area"\) \{/.test(html), "具体地点では地形が取れなくても建物は取りに行く");
+ok(/if \(\(!moonUrbanTried \|\| urbanPending.has\(SoramiTerrain.urbanCacheKey\(obs\)\)\) && !moonUrbanProfile && obs\.locationScope !== "area"\) \{/.test(html), "具体地点では地形が取れなくても建物は取りに行く");
 // 建物層は「建物の無い方位＝−90（何も言わない）」なので、**単独で使うと壊れる**。
 // 地形が測れていなければ平らな 0 を下敷きにする（実際に単独で使って、
 // 芝公園の月の出が暦より343分早い 2:38 と出た）
@@ -1433,8 +1431,8 @@ ok(!/onclick/.test(bestNoteFn), "いちばんの狙いめを押しても移動�
 
 console.log("== 14日ぶんを横に流す ==");
 // 7日では「来週の連休どうか」が見られない。14日に伸ばしたぶん、1画面には入らない。
-ok(/forPlace\.longitude, 15, forPlace\)/.test(html), "15日ぶん取る（最終日の窓が翌日へまたぐ）");
-ok(/days = 14/.test(coreSrc), "14日ぶん採点する");
+ok(/SoramiPrediction\.fetch\(forPlace\)/.test(html), "週間予測は完成結果と表示用気象をまとめて取得する");
+ok(/rows\.length>14/.test(predictionSrc), "14日ぶんの結果を検査して表示する");
 const daysCss = html.slice(html.indexOf(".days {"), html.indexOf(".days {") + 400);
 ok(/overflow-x: auto/.test(daysCss), "横スクロールにする");
 ok(/scroll-snap-type/.test(daysCss), "スクロールが列で止まる");
@@ -1445,11 +1443,11 @@ console.log("== 信頼度を1文字で出す ==");
 // 14日並べると、どこから先を鵜呑みにしないかが分からない。
 ok(/function reliabilityGrade/.test(coreSrc), "等級を出す関数がある");
 ok(/GRADE_MIN_MODELS = 5/.test(coreSrc), "モデル数による頭打ちがある");
-ok(/models: evaluated\.length/.test(coreSrc), "何モデルの中央値かを持ち回す");
+ok(/weeks = prediction\.weeks/.test(html) && /confidence\.models|ev\.models/.test(html), "採点モデル数は完成した評価の値を表示する");
 const grades = ["A", "B", "C"];
-for (const [err, models, want] of [[5, 8, "A"], [5, 4, "B"], [14, 8, "B"], [25, 8, "C"]]) {
-  const g = coreMod.reliabilityGrade(coreMod.confidenceOfEnsemble(err, 0.9), models);
-  ok(g.key === want, `誤差±${err}・${models}モデル → ${want}`, g.key);
+for (const [key, models, want] of [["high", 8, "A"], ["high", 4, "B"], ["medium", 8, "B"], ["low", 8, "C"]]) {
+  const g = coreMod.reliabilityGrade({key}, models);
+  ok(g.key === want, `${key}・${models}モデル → ${want}`, g.key);
 }
 ok(grades.every((k) => coreMod.reliabilityGrade({ key: "high" }, 8).key !== undefined), "等級が返る");
 ok(/class="g"/.test(html), "日のボタンに等級を出す");
@@ -1746,8 +1744,8 @@ console.log("== 予報の応答が追い越しても混ざらない ==");
 // 連続で地点や地形を変えると、応答の順序は要求の順序と一致しない。
 ok(/let loadSeq = 0/.test(html) && /const seq = \+\+loadSeq/.test(html), "取得に連番を振る");
 ok(/if \(seq !== loadSeq\) return;/.test(html), "追い越された応答を捨てる");
-ok(/const forPlace = place;/.test(html) && /evaluateWeek\(id, bundle, forPlace\)/.test(html),
-  "取得開始時の地点で評価する");
+ok(/const forPlace = place;/.test(html) && /SoramiPrediction\.fetch\(forPlace\)/.test(html),
+  "取得開始時の観測条件でサーバーへ要求する");
 
 console.log("== 現象タグの選択が色だけになっていない ==");
 ok(/aria-pressed="false">\$\{iconFor\(id\)\}/.test(html), "現象チップに aria-pressed がある");
@@ -2777,12 +2775,12 @@ console.log("== 更新の自動確認が、読み直しの繰り返しになら�
 console.log("== 月の代表地点・キャッシュ・保存経路 ==");
 {
   const T = req("./sorami-terrain.js");
-  const body = html.match(/async function loadUrbanHorizon\(obs\) \{([\s\S]*?)\n\}/)[1];
+  const body = html.match(/async function computeUrbanHorizon\(obs\) \{([\s\S]*?)\n\}/)[1];
   let reads = 0;
   const load = new Function("SoramiTerrain", "store", "URBAN_CACHE_KEY", "URBAN_CACHE_VERSION", "URBAN_MAX_AGE_MS",
     `return async function(obs){${body}}`)(T, {get(){reads++;throw Error("must not read")}}, "test", 2, 1);
   ok(await load({locationScope:"area"}) === null && reads === 0, "代表地点では旧建物キャッシュも読み込まない");
-  ok(html.includes('if (!moonUrbanTried && obs.locationScope !== "area")'), "代表地点は非同期の建物読込も開始しない");
+  ok(html.includes('&& !moonUrbanProfile && obs.locationScope !== "area")'), "代表地点は非同期の建物読込も開始しない");
   ok(html.includes('${SoramiTerrain.urbanCacheKey(obs)}:${obs.locationScope}'), "同じ座標でも地点種別の変更で遮蔽をリセット");
   // 2026-09-24: 地図の中でも検索できる（だいたいの場所へ飛んでからピンを寄せる）。
   // **地点シートと同じ検索**を使う。別々に書くと片方だけ直す事故になる
