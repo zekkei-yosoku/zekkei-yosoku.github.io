@@ -5,3 +5,12 @@ const r=fixture(),request=r.c.apiCall('POST','/admin/tools',{}).catch(e=>e);r.re
 const f=fixture(),request401=f.c.apiCall('GET','/me').catch(e=>e);f.reply(401,{error:'expired'});await request401;assert.equal(f.cleared,1);assert.equal(f.c.auth,null);
 const sync=fixture();sync.c.pushQueue=[];sync.c.syncInfo=null;let applied=0;sync.c.applyIncoming=()=>applied++;sync.c.store={set(){}};sync.c.syncError=null;vm.runInContext(html.slice(html.indexOf('async function syncNow()'),html.indexOf('/// サーバーから来たものをローカルへ')),sync.c);const incoming=sync.c.syncNow();sync.c.auth={token:'other-token',loginId:'other-user'};sync.c.authGeneration++;sync.reply(200,{favorites:[{id:'old-private-item'}],rev:2});await incoming;assert.equal(applied,0);assert.equal(sync.c.syncError,null);
 console.log('AUTH RESPONSE RACES OK: late success/401, account switch, private sync, reauth preserves session, actual expiry');
+
+// 直URLを未認証で開いてから認証したとき、認証済みの権限で道具を初期化する。
+let opened=0;const login={auth:null,authGeneration:0,clearAdminView(){},saveAuth(){},wantsRemember:()=>false,
+ privateDraft:null,adminUnmount:null,lastLoginId:null,dataOwner:'owner-one',favorites:[],sightings:[],pushQueue:[],syncInfo:{loginId:'owner-one'},
+ migrationPlan:()=> 'keep',store:{set(){}},syncNow:async()=>{},renderAuthButton(){},render(){},atAim:true,
+ routeFromHash:()=>({preset:'tower'}),openAim:p=>{assert.equal(p,'tower');opened++;},$:()=>({close(){}})};
+vm.createContext(login);vm.runInContext(html.slice(html.indexOf('async function onLoggedIn('),html.indexOf('const authFail =',html.indexOf('async function onLoggedIn('))),login);
+await login.onLoggedIn({token:'fixture-only-token',loginId:'owner-one',tools:['tower']});assert.equal(opened,1);
+console.log('DIRECT ROUTE AUTH OK: login initializes allowed aim route after authenticated sync');

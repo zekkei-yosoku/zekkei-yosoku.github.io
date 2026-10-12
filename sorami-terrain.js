@@ -703,9 +703,9 @@
     { match: /あべのハルカス/, decks: [{ name: "ハルカス300", aglM: 300 }] },
     { match: /六本木ヒルズ|森タワー|東京シティビュー/, decks: [
       { name: "東京シティビュー", aglM: 218 }, { name: "スカイデッキ", aglM: 238 }] },
-    { match: /渋谷スカイ|渋谷スクランブルスクエア/, decks: [{ name: "展望台", aglM: 229 }] },
+    { match: /渋谷スカイ|渋谷スクランブルスクエア/, decks: [{ name: "展望台", aglM: 229, heightBasis: "published-viewpoint", source: "https://www.shibuya-scramble-square.com/sky/" }] },
     { match: /サンシャイン ?60/, decks: [{ name: "展望台", aglM: 221 }] },
-    { match: /東京都庁/, decks: [{ name: "展望室", aglM: 202 }] },
+    { match: /東京都庁/, decks: [{ name: "展望室", aglM: 202, heightBasis: "published-viewpoint", source: "https://www.zaimu.metro.tokyo.lg.jp/tochousha/goannai/tenbou/" }] },
     { match: /横浜ランドマークタワー|スカイガーデン/, decks: [{ name: "スカイガーデン", aglM: 273 }] },
     { match: /江の?島シーキャンドル/, decks: [{ name: "展望台", aglM: 42 }] },
     { match: /千葉ポートタワー/, decks: [{ name: "展望台", aglM: 113 }] },

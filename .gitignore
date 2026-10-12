@@ -10,3 +10,5 @@ data/*
 !data/aim-places.json
 !data/place-index.json
 !data/tall-buildings.json
+
+!data/aim-viewpoints.json

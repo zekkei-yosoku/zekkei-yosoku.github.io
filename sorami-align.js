@@ -502,6 +502,7 @@
               altitude: st.apparentAltitude,
               illuminated: body === "moon" ? st.illuminatedFraction : null,
               sunAltitude: body === "sun" ? null : body === "moon" ? bodyAt("sun",at,obs).apparentAltitude : A.sun(at, obs).geometricAltitude };
+            if (!opts.acceptEvent || opts.acceptEvent(row)) {
             row.off = j.off ?? 0;
             // カレンダーでは各日を返す。既存の候補帯は連続日を代表日にまとめる。
             if (groupDays && group && at - group.last <= 40 * 3600000) {
@@ -513,6 +514,7 @@
             } else {
               if (group) out.push(group);
               group = { best: row, first: at, last: at, solid: row.rank !== "graze" ? [row] : [] };
+            }
             }
           }
         }
@@ -799,7 +801,7 @@
         const g0 = p0.groundM ?? p0.elevationM, g1 = p1.groundM ?? p1.elevationM;
         const eRaw = g0 + (g1 - g0) * f;
         const eP = (place.shape === "point" && Number.isFinite(place.elevationM) ? place.elevationM : eRaw)
-          + (place.deckM || 0);
+          + placeEyeM(place, eye) - eye;
         let shift = 0;
         if (Number.isFinite(topM) && pathSlope) {
           const dAlpha = targetAngle(D, eP + eye, topM) - targetAngle(D, eLine + eye, topM);
@@ -831,9 +833,12 @@
     return opts.isCurrent && !opts.isCurrent() ? [] : out.filter(Boolean);
   }
 
+  // 床高には目の高さを足す。公称の眺望高さはそのまま視点高として使う。
+  const placeEyeM = (place, eyeM = 1.5) => (place.deckM || 0) + (place.heightBasis === "published-viewpoint" ? 0 : eyeM);
+
   /// 場所の中で立つ位置を決め、そこでの重なり方を返す
   async function standOn(place, l, target, body, approxAt, opts, elevationAt) {
-    const eyeM = (opts.eyeM ?? 1.5) + (place.deckM || 0);
+    const eyeM = placeEyeM(place, opts.eyeM ?? 1.5);
     const at = async (pt, fixedElev = null) => {
       if (opts.isCurrent && !opts.isCurrent()) return null;
       const e = fixedElev !== null ? fixedElev
@@ -1792,7 +1797,7 @@
   }
 
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
-                        altitudeCrossing, geometryFrom, upcoming, dailyView, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver,
+                        altitudeCrossing, geometryFrom, upcoming, dailyView, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, judge, buildingBlock,
                         viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, CITY_MODELS:CM,TOWER_MODELS:TM, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, viewWindow, viewPath, sceneTargets };
   global.SoramiAlign = SoramiAlign;

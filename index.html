@@ -8,7 +8,7 @@
      編集後はbump.shでハッシュを更新する。connect-srcも実際に使う相手だけに絞る。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-gOfSW4WL3LWZb030or6UTMUXLImpOlEcPfeRFJorM1E=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-jknlXKyZOCFYNQZl1bpQMan8MdnM1vobV8Ynu3iSQlw=' 'sha256-usB1fxQLvUvox/bX3ufzqDrA6eaHwITaVEQhSrMNOpg=' 'sha256-VG5IzLg5ZJNFVBKHz39Y4mgG+5GtBs83/dBgcPh1aP0='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-iuB68e7nZUTQslhwqPL6YbJDAxemc6+bEMWyt3snh9s=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-jknlXKyZOCFYNQZl1bpQMan8MdnM1vobV8Ynu3iSQlw=' 'sha256-usB1fxQLvUvox/bX3ufzqDrA6eaHwITaVEQhSrMNOpg=' 'sha256-VG5IzLg5ZJNFVBKHz39Y4mgG+5GtBs83/dBgcPh1aP0='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1971,30 +1971,30 @@ main:has(>#skyMapView:not([hidden])){max-width:1200px;padding-bottom:calc(210px 
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261012165618"></script>
+<script src="sorami-core.js?v=20261012173351"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261012165618"></script>
-<script src="sorami-exif.js?v=20261012165618"></script>
-<script src="sorami-capcloud.js?v=20261012165618"></script>
-<script src="sorami-terrain.js?v=20261012165618"></script>
-<script src="sorami-mountain.js?v=20261012165618"></script>
-<script src="sorami-fuji.js?v=20261012165618"></script>
-<script src="sorami-sky.js?v=20261012165618"></script>
+<script src="sorami-astro.js?v=20261012173351"></script>
+<script src="sorami-exif.js?v=20261012173351"></script>
+<script src="sorami-capcloud.js?v=20261012173351"></script>
+<script src="sorami-terrain.js?v=20261012173351"></script>
+<script src="sorami-mountain.js?v=20261012173351"></script>
+<script src="sorami-fuji.js?v=20261012173351"></script>
+<script src="sorami-sky.js?v=20261012173351"></script>
 
-<script src="sorami-history.js?v=20261012165618"></script>
-<script src="sorami-plan.js?v=20261012165618"></script>
-<script src="sorami-routes.js?v=20261012165618"></script>
-<script src="sorami-iss.js?v=20261012165618"></script>
-<script src="sorami-plane.js?v=20261012165618"></script>
-<script src="sorami-refraction.js?v=20261012165618"></script>
-<script src="sorami-atmosphere.js?v=20261012165618"></script>
-<script src="sorami-bodies.js?v=20261012165618"></script>
-<script src="sorami-sky-map.js?v=20261012165618"></script>
-<script src="sorami-city-models.js?v=20261012165618"></script>
-<script src="sorami-tower-models.js?v=20261012165618"></script>
-<script src="sorami-align.js?v=20261012165618"></script>
-<script src="sorami-moon.js?v=20261012165618"></script>
+<script src="sorami-history.js?v=20261012173351"></script>
+<script src="sorami-plan.js?v=20261012173351"></script>
+<script src="sorami-routes.js?v=20261012173351"></script>
+<script src="sorami-iss.js?v=20261012173351"></script>
+<script src="sorami-plane.js?v=20261012173351"></script>
+<script src="sorami-refraction.js?v=20261012173351"></script>
+<script src="sorami-atmosphere.js?v=20261012173351"></script>
+<script src="sorami-bodies.js?v=20261012173351"></script>
+<script src="sorami-sky-map.js?v=20261012173351"></script>
+<script src="sorami-city-models.js?v=20261012173351"></script>
+<script src="sorami-tower-models.js?v=20261012173351"></script>
+<script src="sorami-align.js?v=20261012173351"></script>
+<script src="sorami-moon.js?v=20261012173351"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -6661,19 +6661,30 @@ async function aimSpotRows() {
   aim.spotWork = work;
   work.promise = (async () => {
     const rows = [];
-    for (const sp of SoramiAlign.FUJI_SPOTS) {
+    let missingGround = false, usablePlaces = 0;
+    const places = await aimPlaces();
+    if (aim.spotWork !== work || aimSpotKey() !== key) return null;
+    for (const place of places.filter(aimCandidateSiteSupported)) {
+      if (aim.spotWork !== work || aimSpotKey() !== key) return null;
+      const groundM = await SoramiTerrain.groundElevation(place.latitude, place.longitude).catch(() => null);
+      if (aim.spotWork !== work || aimSpotKey() !== key) return null;
+      if (!Number.isFinite(groundM)) { missingGround = true; continue; }
+      usablePlaces++;
+      const sp = {...place, groundM};
       await new Promise(resolve => setTimeout(resolve, 0));
       if (aim.spotWork !== work || aimSpotKey() !== key) return null;
       let ev = [];
       try { ev = SoramiAlign.upcoming(SoramiAlign.spotObserver(sp), target, body,
-        { from: now, days: 400, limit: body === "moon" ? 12 : 4, limb, stepMs: 3600000 }); } catch (error) { throw error; }
-      ev = ev.filter(e => e.rank !== "graze" && (body !== "moon" || e.sunAltitude < 0));
+        { from: now, days: 400, limit: body === "moon" ? 12 : 4, limb, stepMs: 3600000, eyeM: sp.heightBasis === "published-viewpoint" ? 0 : 1.5,
+          acceptEvent: e => e.rank !== "graze" && (body !== "moon" || e.sunAltitude < 0) && aimCandidateAccessible(sp, e.at) }); } catch (error) { throw error; }
+      ev = ev.filter(e => e.rank !== "graze" && (body !== "moon" || e.sunAltitude < 0) && aimCandidateAccessible(sp, e.at));
       if (ev.length) rows.push({ sp, ev: ev.slice(0, 2) });
     }
     if (aim.spotWork !== work || aimSpotKey() !== key) return null;
     rows.sort((a, b) => a.ev[0].at - b.ev[0].at);
+    if (missingGround && !usablePlaces) throw new Error("候補地の標高を取得できませんでした");
     work.rows = rows;
-    work.until = Math.min(S.Cal.startOfDay(now) + 86400000, ...rows.flatMap(r => r.ev.map(e => e.at)));
+    work.until = Math.min(missingGround ? now + 60000 : Infinity, S.Cal.startOfDay(now) + 86400000, ...rows.flatMap(r => r.ev.map(e => e.at)));
     return rows;
   })().catch(error => { if (aim.spotWork === work) aim.spotWork = null; throw error; });
   return work.promise;
@@ -6693,7 +6704,7 @@ async function aimRenderSpots() {
   }
   if (seq !== aim.spotSeq || !aimIsFuji()) return;
   if (rows === null) { aim.spotWork = null; return aimRenderSpots(); }
-  if (!rows.length) { $("aimList").innerHTML = `<p class="tiny">この1年、主なスポットからは見えません。</p>`; return; }
+  if (!rows.length) { $("aimList").innerHTML = `<p class="tiny">この1年、見通しを確認したスポットで重なる日は見つかりません。</p>`; return; }
   $("aimList").innerHTML = rows.map(({ sp, ev }, i) => {
     const when = ev.map((e) => {
       const lit = moon ? ` ${moonGlyphAt(e.at)}輝面${Math.round(e.illuminated * 100)}%` : "";
@@ -7242,32 +7253,53 @@ async function aimRenderFrom() {
 let aimPlacesPromise = null;
 function aimPlaces() {
   if (!aimPlacesPromise) {
-    aimPlacesPromise = fetch("data/aim-places.json")
-      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((j) => j.places.map((r, i) => {
-        const la = r.p[0] / 1e5, lo = r.p[1] / 1e5, kind = j.kinds[r.k] || "";
-        // 形はラベル点からの差で持っている（ファイルを小さくするため）
-        const g = r.g ? r.g.map((v, k) => (j.gRelative ? v + r.p[k % 2] : v)) : null;
-        let reach = 0;
-        for (let k = 0; g && k + 1 < g.length; k += 2) {
-          reach = Math.max(reach, SoramiTerrain.distanceKm(la, lo, g[k] / 1e5, g[k + 1] / 1e5) * 1000);
-        }
-        return { id: `p${i}`, name: r.n || "", kind, address: r.a || "",
-          shape: r.s === "a" ? "area" : r.s === "l" ? "line" : "point",
-          latitude: la, longitude: lo, elevationM: r.e, deckM: r.d || 0, g, reachM: reach,
-          // 橋の上は川面より高い（標高タイルは橋を除いた地面）。およそ 8m とする。川岸は土手の上でおよそ 5m
-          bridgeM: kind === "橋" ? 8 : kind === "川岸" ? 5 : 0 };
-      }))
-      .catch((e) => { aimPlacesPromise = null; throw e; });
+    aimPlacesPromise = fetch("data/aim-viewpoints.json")
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(j => {
+        if (j.version !== 1 || !Array.isArray(j.places)) throw new Error("候補地データを確認できません");
+        return j.places.filter(p => p && typeof p.id === "string" && typeof p.name === "string"
+          && Number.isFinite(p.latitude) && Math.abs(p.latitude) <= 90
+          && Number.isFinite(p.longitude) && Math.abs(p.longitude) <= 180
+          && p.shape === "point" && p.heightKnown === true && Number.isFinite(p.deckM)
+          && p.deckM >= 0 && p.deckM <= 700 && Array.isArray(p.targetIds)
+          && p.sightline?.status === "verified" && /^https:\/\//.test(p.sightline.source || ""));
+      }).catch(e => { aimPlacesPromise = null; throw e; });
   }
   return aimPlacesPromise;
 }
-
-/// 富士山の定番スポットも候補に入れる（住所と一言を持っている）
-const aimFujiPlaces = () => SoramiAlign.FUJI_SPOTS.map((sp) => ({
-  id: sp.id, name: sp.name, kind: "定番", spotKind: sp.kind, address: sp.address, note: sp.note || "",
-  shape: "point", latitude: sp.latitude, longitude: sp.longitude,
-  elevationM: sp.groundM, deckM: sp.deckM || 0 }));
+const aimCandidateEye = p => SoramiAlign.placeEyeM(p);
+function aimCandidateAccessible(place, at) {
+  const access = place.access;
+  if (!access || access.type === "outdoor") return true;
+  if (!Number.isFinite(at)) return false;
+  const date = new Date(at + 9 * 3600000), minute = date.getUTCHours() * 60 + date.getUTCMinutes();
+  if (!(minute >= access.openMinute && minute < access.closeMinute)) return false;
+  if (access.type === "nerima") {
+    const month = date.getUTCMonth() + 1, day = date.getUTCDate();
+    if (month === 12 && day >= 29 || month === 1 && day <= 3) return false;
+    if (date.getUTCDay() === 0 && day >= 22 && day <= 28) return false;
+  }
+  if (access.type === "tocho-south") {
+    const year = date.getUTCFullYear(), month = date.getUTCMonth(), day = date.getUTCDate();
+    if (month === 11 && day >= 29 || month === 0 && day >= 2 && day <= 3) return false;
+    const first = 1 + (2 - new Date(Date.UTC(year, month, 1)).getUTCDay() + 7) % 7;
+    const calendar = access.holidayCalendar;
+    for (const regularDay of [first, first + 14]) {
+      let closure = new Date(Date.UTC(year, month, regularDay));
+      if (!(calendar?.years || []).includes(year)) {
+        // 祝日表未公表の年は、定期休室と振替の可能性がある平日を確認済みにしない。
+        const delta = (date - closure) / 86400000;
+        if (delta >= 0 && delta < 4 && date.getUTCDay() >= 2 && date.getUTCDay() <= 5) return false;
+        continue;
+      }
+      while (closure.getUTCDay() === 0 || closure.getUTCDay() === 6
+        || calendar.dates.includes(closure.toISOString().slice(0, 10))) closure.setUTCDate(closure.getUTCDate() + 1);
+      if (day === closure.getUTCDate() && month === closure.getUTCMonth()) return false;
+    }
+  }
+  // 施設の臨時休館・予約・天候による屋上閉鎖は個別の案内を併記する。
+  return true;
+}
 
 // 並べる順。**見通しの良い種類を先に**（公園は木や建物に囲まれやすい）。
 // 富士山は遠くから高い所越しに見るので山・展望地・海岸、塔は街の中なので川岸・橋・水辺が向く
@@ -7331,7 +7363,7 @@ async function aimUpdateLook() {
   if (c) {
     const k = (aim.cands || []).filter((x) => x.side === c.side).indexOf(c) + 1;
     aimLookRender(host, { obs: { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM },
-      eyeM: 1.5 + (c.place.deckM || 0), at: c.at, observerName: aimCandName(c), title: `候補地 ${k}. ${aimCandName(c)}から`,
+      eyeM: aimCandidateEye(c.place), at: c.at, observerName: aimCandName(c), title: `候補地 ${k}. ${aimCandName(c)}から`,
       sub: "", light: light(c.at, c.stand) });
     return;
   }
@@ -7374,7 +7406,7 @@ const aimCandSide = (c) => aimSideName(c.side);
 async function aimFindCandidates() {
   const seq = ++aim.candSeq;
   const lines = aim.lines || [];
-  aim.cands = []; aim.candPick = null; aim.blockedAll = false; aim.brightSides = []; aim.candUnknownSides = [];
+  aim.cands = []; aim.candPick = null; aim.blockedAll = false; aim.brightSides = []; aim.candUnknownSides = []; aim.candClosedSides = [];
   $("aimCandList").innerHTML = ""; $("aimSideSeg").innerHTML = "";
   // 選ぶ候補地を待っている間、見え方の図はそのまま（aimUpdateLook が待つ）。見つからなくても待ちをやめて描き直す
   const giveUp = () => { if (seq === aim.candSeq && aim.wantSpot) { aim.wantSpot = null; aim.wantKey = null; aimUpdateLook(); } };
@@ -7388,14 +7420,12 @@ async function aimFindCandidates() {
     return;
   }
   if (seq !== aim.candSeq) return;
-  const pool = aimIsFuji() ? [...aimFujiPlaces(), ...places] : places;
+  const pool = places; // 目標別の視認根拠を持つ登録点だけ。OSM分類や地名は根拠にしない。
   // 候補地では取得失敗を海抜0mへ置き換えない（線を引くための概算とは分ける）。
   const opts = { partId: aim.partId, limb: aim.limb, requireFreshElevation: true, isCurrent: () => seq === aim.candSeq,
     elevationAt: (lat, lon) => SoramiTerrain.groundElevation(lat, lon) };
   let found = [];
-  // 公園の面の中ほど・一般の山頂/峠は、林の中でも立てる地点として登録されている。
-  // 樹木の高さや開けた立ち位置の根拠が無いので自動推薦しない。
-  // 展望地・展望台と富士山の定番は別の登録として残す（名前の「富士見」だけで許可しない）。
+  // 地物の種類や名称では視認を保証できない。目標別の根拠がある点だけを解く。
   const eligible = pool.filter(aimCandidateSiteSupported);
   try { found = await SoramiAlign.candidates(lines, eligible, aim.target, aim.body, opts); } catch {
     if (seq === aim.candSeq) {
@@ -7413,6 +7443,8 @@ async function aimFindCandidates() {
   aim.brightSides = aim.body !== "moon" ? []
     : ["rise", "set"].filter((sd) => found.some((c) => c.side === sd && c.sunAltitude >= 0) && !found.some((c) => c.side === sd && c.sunAltitude < 0));
   if (aim.body === "moon") found = found.filter((c) => c.sunAltitude < 0);
+  aim.candClosedSides = [...new Set(found.filter(c => !aimCandidateAccessible(c.place, c.at)).map(c => c.side))];
+  found = found.filter(c => aimCandidateAccessible(c.place, c.at));
   for (const c of found) c.score = aimCandScore(c);
   // 同じ点数なら、目標に近い方（大きく写る）を先に。重なり方は点数に入っているので、ずれの細かい差では並べない
   found.sort((a, b) => Math.round((b.score - a.score) * 1000) || a.distanceKm - b.distanceKm);
@@ -7428,7 +7460,7 @@ async function aimFindCandidates() {
         const c = await aimOnLand(k, lines, opts);
         if (seq !== aim.candSeq || !c) return null;
         const los = await SoramiAlign.lineOfSight(
-          { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM + (c.place.deckM || 0) },
+          { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM + aimCandidateEye(c.place) - 1.5 },
           aim.target, { partId: aim.partId, maxAngleDeg: c.altitude,
             endSkipKm: aimIsMountain(aim.target) ? 1 : 0.01,
             elevations: (pts) => SoramiTerrain.elevations(pts, { from: c.stand }) });
@@ -7464,9 +7496,10 @@ async function aimFindCandidates() {
 }
 
 function aimCandidateSiteSupported(place) {
-  // 一般の桟橋には石油施設等も含まれる。川の中心線から陸へ移しただけの点も
-  // 歩ける土手・公共の撮影場所の根拠にはならない。確認された展望地等は別登録で使う。
-  return !["公園", "山頂", "峠", "桟橋", "川岸"].includes(place.kind);
+  const target = SoramiAlign.targetById(aim.target?.id);
+  return !!target && place.shape === "point" && place.heightKnown === true
+    && place.sightline?.status === "verified" && (place.targetIds || []).includes(target.id)
+    && SoramiTerrain.distanceKm(target.latitude, target.longitude, aim.target.latitude, aim.target.longitude) < 0.02;
 }
 
 /**
@@ -7479,8 +7512,9 @@ function aimCandidateSiteSupported(place) {
  */
 const AIM_STAND_ON_WATER_OK = new Set(["橋", "桟橋"]);
 async function aimOnLand(c, lines, opts) {
-  if (AIM_STAND_ON_WATER_OK.has(c.place.kind)) return c;
+  if (AIM_STAND_ON_WATER_OK.has(c.place.kind) && !c.place.sightline) return c;
   const [water] = await SoramiTerrain.waterAt([c.stand]);
+  if (c.place.sightline) return water === false ? c : null; // 視認根拠は登録位置だけ。別の道へ移さない。
   return water === true ? aimMoveToLand(c, lines, opts) : water === false ? c : null;
 }
 
@@ -7530,7 +7564,7 @@ async function aimMoveToLand(c, lines, opts) {
     if (!Number.isFinite(e)) continue;
     const ground = e;
     const hit = SoramiAlign.crossingNear({ latitude: pt.latitude, longitude: pt.longitude, elevation: ground },
-      aim.target, aim.body, c.at, { ...opts, eyeM: 1.5 + (c.place.deckM || 0) });
+      aim.target, aim.body, c.at, { ...opts, eyeM: aimCandidateEye(c.place) });
     if (!hit || !hit.rank) continue;   // 動いた先で重ならなければ、さらに先を見る
     return { ...c, ...hit, stand: { latitude: pt.latitude, longitude: pt.longitude, elevationM: ground }, movedM: pt.movedM };
   }
@@ -7641,10 +7675,10 @@ async function aimBuildingBlocks(cands) {
   let all = null;
   if (!aimIsFuji()) { try { all = await tallBuildings(); } catch { all = null; } }
   return Promise.all(cands.map(async (c) => {
-    const obs = { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM + (c.place.deckM || 0) };
+    const obs = { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM + aimCandidateEye(c.place) - 1.5 };
     // 橋の上の立つ点の標高は橋の高さ込み。建物の高さは地面（川面・線路）から測る（以前は橋の高さを目の高さに2回足していた）
     const base = c.stand.elevationM - (c.place.bridgeM || 0);
-    const eyeAbove = 1.5 + (c.place.deckM || 0) + (c.place.bridgeM || 0);
+    const eyeAbove = aimCandidateEye(c.place) + (c.place.bridgeM || 0);
     // 隠れたと数えるのは、建物が「目標の合わせる高さ」と「天体の中心」の低い方より高く見えるとき
     // （建物全体に重なる日は、天体が先端より下を通ることがある）
     const limit = Math.max(0, c.targetAngle - c.altitude);
@@ -7694,7 +7728,7 @@ function aimFromCandidate(c) {
   aim.candPick = null;
   const kind = c.place.kind === "定番" ? c.place.spotKind : c.place.kind;
   // 展望台・橋の上は立つ所として持つ（地上からは床の高さ＋目の高さ1.5m。橋の地面の標高は川面なので橋の高さを足す）
-  const deck = c.place.deckM ? { name: "展望台", aglM: c.place.deckM } : c.place.bridgeM ? { name: "橋の上", aglM: c.place.bridgeM } : null;
+  const deck = c.place.deckM ? { name: c.place.name, aglM: c.place.deckM, ...(c.place.heightBasis === "published-viewpoint" ? {heightBasis:c.place.heightBasis} : {}) } : c.place.bridgeM ? { name: "橋の上", aglM: c.place.bridgeM } : null;
   aimSetFrom({ name: aimCandName(c), subtitle: c.place.address || kind || "",
     latitude: c.stand.latitude, longitude: c.stand.longitude,
     decks: deck ? [deck] : [], stand: deck ? deck.name : null }, { keepMap: true });
@@ -7795,8 +7829,9 @@ function aimRenderCandList() {
   $("aimCandInfo").textContent = list.length ? ""
     : (aim.brightSides || []).includes(aim.candSide) ? `この日の${aimSideName(aim.candSide)}側は、明るい空で重なります。`
     : aim.candBusy ? "見通しを確認しています…"
+    : (aim.candClosedSides || []).includes(aim.candSide) ? "重なる登録点はありますが、利用時間・休室条件を満たす候補地がありません。"
     : (aim.candUnknownSides || []).includes(aim.candSide) ? "見通しを確認できる候補地がありません。"
-    : `この日の${aimSideName(aim.candSide)}側には、合わせ方どおりに立てて見通せる場所が見つかりません。`;
+    : `この日の${aimSideName(aim.candSide)}側には、見通しを確認した登録点で重なる場所がありません。観測地点は地図から選べます。`;
   $("aimCandList").innerHTML = list.map(({ c, i }, k) => {
     const on = aim.candPick === i;
     const kind = c.place.kind === "定番" ? c.place.spotKind : c.place.kind;
@@ -9987,6 +10022,8 @@ async function restoreSession() {
     }
     renderAuthButton();
     await syncNow();
+    if (generation !== authGeneration || !auth) return;
+    if (atAim) openAim(routeFromHash()?.preset || null);
     render();
   } catch {
     // 401 は apiCall 側で片付いている。それ以外（圏外など）はトークンを捨てない
@@ -10024,6 +10061,7 @@ async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } 
     // **別の人のデータ。渡さないし、見せない。** 送信待ちも巻き添えで消す
     clearAdminView();
     aim.from=null; aim.plannerTransfer=null; aim.candPick=null;
+    aim.sharedTarget=null; aim.pendingPlan=null; aim.wantSpot=null; aim.spot=null;
     store.set("sorami.aimFrom",null); store.set("sorami.aimCustom",null);
     favorites = []; sightings = []; pushQueue = [];
     store.set("sorami.favorites", []); store.set("sorami.sightings", []);
@@ -10036,6 +10074,7 @@ async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } 
   await syncNow();
   if (generation !== authGeneration || auth?.loginId !== res.loginId) return;
   renderAuthButton();
+  if (atAim) openAim(routeFromHash()?.preset || null);
   render();
   // 件数のアラートは出さない。**取り込んだ結果はそのまま画面に出る**ので、
   // 同じことを数字で言い直すだけの割り込みになる。

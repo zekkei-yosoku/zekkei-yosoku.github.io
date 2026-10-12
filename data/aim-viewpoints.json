@@ -1,0 +1,297 @@
+{
+  "version": 1,
+  "places": [
+    {
+      "id": "nerima-lookout",
+      "name": "練馬区役所 本庁舎20階展望ロビー",
+      "latitude": 35.7355833333,
+      "longitude": 139.6516666667,
+      "targetIds": [
+        "fuji",
+        "skytree"
+      ],
+      "shape": "point",
+      "kind": "展望台",
+      "deckM": 80,
+      "heightBasis": "published-viewpoint",
+      "sightline": {
+        "status": "verified",
+        "source": "https://www.city.nerima.tokyo.jp/shisetsu/ku/ku/tenbo.html",
+        "checkedAt": "2026-10-12"
+      },
+      "heightKnown": true,
+      "access": {
+        "type": "nerima",
+        "openMinute": 540,
+        "closeMinute": 1290
+      },
+      "note": "入場無料。南西側の窓から富士山。混雑時は三脚等で場所を占拠しないでください。"
+    },
+    {
+      "id": "tocho-south",
+      "name": "東京都庁 南展望室",
+      "latitude": 35.6892179526,
+      "longitude": 139.6917781156,
+      "targetIds": [
+        "fuji",
+        "skytree"
+      ],
+      "shape": "point",
+      "kind": "展望台",
+      "deckM": 202,
+      "heightBasis": "published-viewpoint",
+      "sightline": {
+        "status": "verified",
+        "source": "https://www.zaimu.metro.tokyo.lg.jp/tochousha/goannai/tenbou/",
+        "checkedAt": "2026-10-12"
+      },
+      "heightKnown": true,
+      "access": {
+        "type": "tocho-south",
+        "openMinute": 570,
+        "closeMinute": 1320,
+        "holidayCalendar": {
+          "source": "https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv",
+          "checkedAt": "2026-10-12",
+          "years": [
+            2026,
+            2027
+          ],
+          "dates": [
+            "2026-01-01",
+            "2026-01-12",
+            "2026-02-11",
+            "2026-02-23",
+            "2026-03-20",
+            "2026-04-29",
+            "2026-05-03",
+            "2026-05-04",
+            "2026-05-05",
+            "2026-05-06",
+            "2026-07-20",
+            "2026-08-11",
+            "2026-09-21",
+            "2026-09-22",
+            "2026-09-23",
+            "2026-10-12",
+            "2026-11-03",
+            "2026-11-23",
+            "2027-01-01",
+            "2027-01-11",
+            "2027-02-11",
+            "2027-02-23",
+            "2027-03-21",
+            "2027-03-22",
+            "2027-04-29",
+            "2027-05-03",
+            "2027-05-04",
+            "2027-05-05",
+            "2027-07-19",
+            "2027-08-11",
+            "2027-09-20",
+            "2027-09-23",
+            "2027-10-11",
+            "2027-11-03",
+            "2027-11-23"
+          ]
+        }
+      },
+      "note": "西側の窓から富士山。9:30〜22:00、入室21:30まで。第1・第3火曜等の休室日は公式日程を確認。三脚不可。"
+    },
+    {
+      "id": "shibuya-sky-lookout",
+      "name": "渋谷スカイ SKY STAGE",
+      "latitude": 35.6583837776,
+      "longitude": 139.702265929,
+      "targetIds": [
+        "fuji",
+        "skytree",
+        "tokyotower"
+      ],
+      "shape": "point",
+      "kind": "展望台",
+      "deckM": 229,
+      "heightBasis": "published-viewpoint",
+      "sightline": {
+        "status": "verified",
+        "source": "https://www.gotokyo.org/jp/spot/1749/index.html",
+        "checkedAt": "2026-10-12"
+      },
+      "heightKnown": true,
+      "access": {
+        "type": "facility",
+        "openMinute": 600,
+        "closeMinute": 1350
+      },
+      "note": "有料・予約が必要。屋上は天候等で閉鎖されることがあります。営業日・時間は公式サイトで確認。"
+    },
+    {
+      "id": "panorama",
+      "name": "山中湖パノラマ台",
+      "latitude": 35.41261,
+      "longitude": 138.90948,
+      "targetIds": [
+        "fuji"
+      ],
+      "shape": "point",
+      "kind": "展望地",
+      "deckM": 0,
+      "sightline": {
+        "status": "verified",
+        "source": "https://www.vill.yamanakako.lg.jp/div/kankou_suishin/pdf/tourismplan/tourismplanR5.pdf",
+        "checkedAt": "2026-10-12"
+      },
+      "heightKnown": true,
+      "access": {
+        "type": "outdoor"
+      },
+      "note": "駐車場あり",
+      "address": "山梨県南都留郡山中湖村平野（県道730号 山中湖小山線）"
+    },
+    {
+      "id": "nagaike",
+      "name": "長池親水公園（山中湖）",
+      "latitude": 35.42702,
+      "longitude": 138.87136,
+      "targetIds": [
+        "fuji"
+      ],
+      "shape": "point",
+      "kind": "湖畔",
+      "deckM": 0,
+      "sightline": {
+        "status": "verified",
+        "source": "https://www.yamanashi-kankou.jp/viewpoint/pub/pvp038.html",
+        "checkedAt": "2026-10-12"
+      },
+      "heightKnown": true,
+      "access": {
+        "type": "outdoor"
+      },
+      "note": "",
+      "address": "山梨県南都留郡山中湖村平野"
+    },
+    {
+      "id": "tanuki",
+      "name": "田貫湖（休暇村富士の前）",
+      "latitude": 35.34111,
+      "longitude": 138.5532,
+      "targetIds": [
+        "fuji"
+      ],
+      "shape": "point",
+      "kind": "湖畔",
+      "deckM": 0,
+      "sightline": {
+        "status": "verified",
+        "source": "https://www.city.fujinomiya.lg.jp/1025200000/p001795.html",
+        "checkedAt": "2026-10-12"
+      },
+      "heightKnown": true,
+      "access": {
+        "type": "outdoor"
+      },
+      "note": "朝の富士山",
+      "address": "静岡県富士宮市佐折"
+    },
+    {
+      "id": "takao",
+      "name": "高尾山 山頂",
+      "latitude": 35.62523,
+      "longitude": 139.24369,
+      "targetIds": [
+        "fuji"
+      ],
+      "shape": "point",
+      "kind": "山頂",
+      "deckM": 0,
+      "sightline": {
+        "status": "verified",
+        "source": "https://www.takaotozan.co.jp/diamond/",
+        "checkedAt": "2026-10-12"
+      },
+      "heightKnown": true,
+      "access": {
+        "type": "outdoor"
+      },
+      "note": "ケーブルカーあり",
+      "address": "東京都八王子市高尾町"
+    },
+    {
+      "id": "wakasu-terror",
+      "name": "若洲海浜公園 東側遊歩道",
+      "latitude": 35.61771,
+      "longitude": 139.8385579,
+      "targetIds": [
+        "tower-terror"
+      ],
+      "shape": "point",
+      "kind": "海岸",
+      "deckM": 0,
+      "sightline": {
+        "status": "verified",
+        "source": "https://www.google.com/maps/@35.61771,139.8385579,3a,35y,81h,92t/data=!3m4!1e1!3m2!1sxFR8cAMji0pNUBsfG6h8sw!2e0",
+        "checkedAt": "2026-10-12",
+        "imageDate": "2019-11",
+        "visible": "upper-building",
+        "requestedPoint": {
+          "latitude": 35.6177139,
+          "longitude": 139.8388358
+        }
+      },
+      "heightKnown": true,
+      "access": {
+        "type": "outdoor"
+      },
+      "note": "対岸の建物上部を確認した遊歩道の点。海側の木を避けて見る位置を確認してください。"
+    }
+  ],
+  "pending": [
+    {
+      "id": "kasai-disney",
+      "name": "葛西臨海公園 東端休憩所付近",
+      "latitude": 35.6393934,
+      "longitude": 139.8708527,
+      "targetIds": [
+        "tinkerbell",
+        "cinderella"
+      ],
+      "sightline": {
+        "status": "pending",
+        "reason": "最寄りStreet Viewは約17m離れた竹林内。指定点そのものの視界は未確認。",
+        "source": "https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=35.6393934,139.8708527&heading=112"
+      }
+    },
+    {
+      "id": "shinkiba-castle",
+      "name": "新木場緑道公園 海辺",
+      "latitude": 35.6390512,
+      "longitude": 139.840936,
+      "targetIds": [
+        "cinderella"
+      ],
+      "sightline": {
+        "status": "pending",
+        "reason": "約40m西の2016年2月画像で水面と対岸を確認。城の尖塔を確実に識別できていない。",
+        "source": "https://www.google.com/maps/@35.639066,139.8404926,3a,35y,102h,93t/data=!3m4!1e1!3m2!1sGdkSU8_o5USjrbpbqqGyKw!2e0"
+      }
+    },
+    {
+      "id": "maihama-tinker",
+      "name": "舞浜駅南側 歩道・歩道橋",
+      "latitude": 35.6357208,
+      "longitude": 139.8840475,
+      "targetIds": [
+        "tinkerbell"
+      ],
+      "heightKnown": false,
+      "sightline": {
+        "status": "verified",
+        "evidenceType": "user-photo",
+        "imageDate": "2022-07",
+        "checkedAt": "2026-10-12",
+        "reason": "ユーザー提示写真で像が見え、月が沈む側と確認。歩道の床高の根拠は未取得。"
+      }
+    }
+  ]
+}

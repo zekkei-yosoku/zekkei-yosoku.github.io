@@ -456,7 +456,7 @@ console.log("== 使われていない見た目の決まりを残さない ==");
 
 console.log("== ダイヤモンド富士・パール富士は観測スポットの一覧を出す（2026-09-30） ==");
 ok(/async function aimRenderSpots/.test(html), "主な観測スポットごとに次の日を出す");
-ok(/SoramiAlign\.FUJI_SPOTS/.test(html), "スポットの一覧を使う");
+ok(/places\.filter\(aimCandidateSiteSupported\)/.test(html), "スポットの一覧を使う");
 ok(/e\.rank !== "graze" && \(body !== "moon" \|\| e\.sunAltitude < 0\)/.test(html), "パール富士は月が暗い空にあるときだけ");
 ok(/function aimDateLabel/.test(html) && /y === now \? "" :/.test(html), "今年でない日は年も書く（400日先で同じ月日が2回出る）");
 // 富士山に重ねるは目標が決まっているので、選ぶ欄の代わりに「富士山」と書く。太陽／月の切り替えは塔と同じ位置に残す
@@ -741,18 +741,18 @@ console.log("== ねらう: その日の候補地（2026-09-30） ==");
 {
   ok(/<h2 class="preview-candidate-title">この日の候補地<\/h2>/.test(html), "「この日の候補地」の見出しがある");
   ok(/aimFindCandidates\(\);\n  if \(!lines\.length\)/.test(html), "線を引いたら候補地を探す");
-  ok(/fetch\("data\/aim-places\.json"\)/.test(html), "立てる場所は同梱のデータから（通信先を増やさない）");
+  ok(/fetch\("data\/aim-viewpoints\.json"\)/.test(html), "立てる場所は同梱のデータから（通信先を増やさない）");
   ok(fs.existsSync(new URL("./data/aim-places.json", import.meta.url)), "data/aim-places.json がある");
   {
     const gi = fs.readFileSync(new URL("./.gitignore", import.meta.url), "utf8");
     // `data/` だとフォルダごと除外され、`!` の例外が効かない。`data/*` でなければならない
-    ok(/^data\/\*$/m.test(gi) && !/^data\/$/m.test(gi) && /^!data\/aim-places\.json$/m.test(gi),
+    ok(/^data\/\*$/m.test(gi) && !/^data\/$/m.test(gi) && /^!data\/aim-viewpoints\.json$/m.test(gi),
       "配信から外さない（.gitignore は data/* と例外）");
   }
   ok(/SoramiAlign\.candidates\(lines, eligible/.test(html), "線に掛かる場所を解き直して選ぶ");
   ok(/SoramiAlign\.lineOfSight\(/.test(html) && /if \(!los\.clear\) return null;/.test(html), "地形で隠れる場所は外す");
   ok(/if \(aim\.body === "moon"\) found = found\.filter\(\(c\) => c\.sunAltitude < 0\)/.test(html), "パールは暗い空の回だけ");
-  ok(/aimIsFuji\(\) \? \[\.\.\.aimFujiPlaces\(\), \.\.\.places\]/.test(html), "富士山は定番スポットも候補に入れる");
+  ok(/const pool = places/.test(html), "富士山は定番スポットも候補に入れる");
   ok(/latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, name:/.test(html), "地図の番号は立つ位置に打つ");
   ok(/\$\("aimListBox"\)\.hidden = !aimIsFuji\(\)/.test(html), "定番スポットの次の日は富士山だけ");
   ok(/const spread = Math\.max\(0\.3, lineKm \/ 40\)/.test(html), "上位が一か所に固まらないよう、近いものは1つに");
@@ -2992,7 +2992,7 @@ console.log("== 見え方の図（2026-10-02） ==");
   ok(iDate > 0 && iDate < iFrom && iFrom < iLook, "日付 → 同じセクションの候補日 → 見え方の順");
   const look = /async function aimUpdateLook\(\) \{[\s\S]*?\n\}/.exec(html)[0];
   ok(/const c = aim\.candPick !== null \? \(aim\.cands \|\| \[\]\)\[aim\.candPick\] : null;/.test(look)
-    && /aimLookRender\(host, \{ obs: \{ latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, elevation: c\.stand\.elevationM \},\s*eyeM: 1\.5 \+ \(c\.place\.deckM \|\| 0\), at: c\.at/.test(look),
+    && /aimLookRender\(host, \{ obs: \{ latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, elevation: c\.stand\.elevationM \},\s*eyeM: aimCandidateEye\(c\.place\), at: c\.at/.test(look),
     "候補地を選んでいれば、重なりを解いたときと同じ立つ高さ・時刻で描く");
   // 2026-10-03 ユーザー「同じ日で観測地点をずらしたらその場所からの重なり方を出して欲しいだけ」「無理やり3択の場所に見え方を合わせてない？」
   ok(!/solvePoint/.test(look) && !/（計算上の位置）/.test(look), "観測地点の図は、場所を動かさない（選んだ合わせ方になる計算上の地点へずらさない）");
@@ -3172,9 +3172,9 @@ console.log("== どこから重ねるかで、この日の候補地から選ぶ�
   const pick = /function aimFromCandidate\(c\) \{[\s\S]*?\n\}/.exec(html)[0];
   const alignSrc = fs.readFileSync(new URL("./sorami-align.js", import.meta.url), "utf8");
   ok(/aim\.candPick = null;/.test(pick) && /latitude: c\.stand\.latitude, longitude: c\.stand\.longitude/.test(pick)
-    && /const deck = c\.place\.deckM \? \{ name: "展望台", aglM: c\.place\.deckM \} : c\.place\.bridgeM \? \{ name: "橋の上", aglM: c\.place\.bridgeM \} : null;/.test(pick)
+    && /name: c\.place\.name, aglM: c\.place\.deckM/.test(pick) && /heightBasis:c\.place\.heightBasis/.test(pick)
     && /decks: deck \? \[deck\] : \[\], stand: deck \? deck\.name : null/.test(pick) && /const AIM_EYE_M = 1\.5;/.test(html)
-    && /const eyeM = \(opts\.eyeM \?\? 1\.5\) \+ \(place\.deckM \|\| 0\);/.test(alignSrc) && /\+ \(place\.bridgeM \?\? 0\)/.test(alignSrc),
+    && /const eyeM = placeEyeM\(place, opts\.eyeM \?\? 1\.5\);/.test(alignSrc) && /\+ \(place\.bridgeM \?\? 0\)/.test(alignSrc),
     "候補地を解いたときと同じ立つ点・目の高さ（1.5m＋展望台・橋）でどこからにする（一覧の時刻のまま重なる）");
   ok(/<button type="button" class="chip cand-from" data-cand-from="\$\{i\}">ここから重ねる<\/button>/.test(html)
     && /querySelectorAll\("\[data-cand-from\]"\)\) \{\s+el\.onclick = \(\) => \{\s+const c = aim\.cands\[Number\(el\.dataset\.candFrom\)\];\s+aimFromCandidate\(c\);/.test(html),

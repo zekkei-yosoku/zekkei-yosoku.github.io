@@ -47,7 +47,7 @@ function harness(found, overrides = {}) {
   const els = {};
   const ctx = { aim, $: k => els[k] ||= { innerHTML: '', textContent: '' },
     aimRefreshSheetCands() {}, aimPlaces: async () => [], aimIsFuji: () => false, aimIsMountain: () => false,
-    aimFujiPlaces: () => [], aimElevation() {}, aimCandScore: () => 1, aimCandidateSiteSupported: () => true,
+    aimCandidateAccessible: () => true, aimCandidateEye: AL.placeEyeM, aimElevation() {}, aimCandScore: () => 1, aimCandidateSiteSupported: () => true,
     aimOnLand: async c => c, SoramiAlign: { candidates: async () => found, lineOfSight: async () => ({ clear: true }) },
     SoramiTerrain: TR, aimBuildingBlocks: async () => [false], AimMap: { redraw() {} }, aimUpdateLook() {},
     renders: [], aimRenderCands() { ctx.renders.push([...aim.cands]); }, ...overrides };
@@ -96,7 +96,7 @@ test('水域取得不能は陸上と読み替えない', async () => {
   assert.equal((await onLand({ ...candidate('bridge'), place: { kind: '橋' } }, [], {})).place.kind, '橋');
 });
 test('建物は種別下限で遮る場合に除外し、高さ不明だけで候補を全滅させない', async () => {
-  const ctx = { aim: { target, partId: 'tip' }, aimIsFuji: () => true,
+  const ctx = { aim: { target, partId: 'tip' }, aimCandidateEye: AL.placeEyeM, aimIsFuji: () => true,
     aimNearBuildings: async () => [{ heightUnknown: true }], SoramiAlign: { buildingBlock: () => ({ by: null }) } };
   const blocks = runInNewContext(grab('async function aimBuildingBlocks') + ';aimBuildingBlocks', ctx);
   const c = { ...candidate('a'), targetAngle: 5, altitude: 1 };
@@ -107,10 +107,18 @@ test('建物は種別下限で遮る場合に除外し、高さ不明だけで�
   ctx.aimNearBuildings = async () => [];
   assert.equal((await blocks([c]))[0], false);
 });
-test('公園の名前や一般の山頂・峠だけで開けた撮影点とみなさない', () => {
-  const supported = runInNewContext(grab('function aimCandidateSiteSupported') + ';aimCandidateSiteSupported');
-  for (const kind of ['公園', '山頂', '峠', '桟橋', '川岸']) assert.equal(supported({kind, name:'富士見展望公園'}), false);
-  for (const kind of ['展望地', '展望台', '定番', '橋', '海岸']) assert.equal(supported({kind}), true);
+test('地物の種類や名前だけでは推薦せず、対象別の確認済み点だけを通す', () => {
+  const known = AL.targetById('fuji');
+  const ctx = {aim:{target:known},SoramiAlign:AL,SoramiTerrain:TR};
+  const supported = runInNewContext(grab('function aimCandidateSiteSupported') + ';aimCandidateSiteSupported',ctx);
+  for (const kind of ['公園','山頂','峠','桟橋','川岸','展望地','展望台','定番','橋','海岸']) assert.equal(supported({kind,name:'富士見展望公園'}),false);
+  const point={shape:'point',heightKnown:true,sightline:{status:'verified'},targetIds:['fuji']};
+  assert.equal(supported(point),true);
+  assert.equal(supported({...point,targetIds:['skytree']}),false);
+  assert.equal(supported({...point,heightKnown:false}),false);
+  assert.equal(supported({...point,sightline:{status:'pending'}}),false);
+  ctx.aim.target={...known,longitude:known.longitude+0.01};
+  assert.equal(supported(point),false);
 });
 test('標高APIが応答しなくても打ち切り、後続地点で同じ失敗を繰り返さない', async () => {
   let calls = 0;
