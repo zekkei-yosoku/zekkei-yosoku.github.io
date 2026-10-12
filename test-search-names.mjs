@@ -29,3 +29,11 @@ box.value='A候補';box.events.input();go.onclick();await new Promise(setImmedia
 console.log('CLEAR / OUT-OF-ORDER / CLOSE RACE OK');
 
 box.value='変換候補';box.events.input();const count=pending.length;box.events.keydown({key:'Enter',isComposing:true,keyCode:13});box.events.keydown({key:'Enter',isComposing:false,keyCode:229});await new Promise(setImmediate);assert.equal(pending.length,count);dialog.events.close();console.log('IME CONFIRM DOES NOT SEARCH OK');
+
+for(const q of ['練馬区役所','練馬区役所本庁舎','練馬区役所 展望ロビー']){const r=await ctx.searchPlaces(q,{localOnly:true});assert.equal(r[0].name,'練馬区役所');assert.equal(r[0].decks[0].aglM,80);assert.equal(r[0].decks[0].heightBasis,'published-viewpoint');assert.match(r[0].decks[0].source,/city.nerima.tokyo.jp/);assert.ok(Math.abs(r[0].longitude-139.651667)<.000001);}
+for(const name of ['練馬区役所前バス停','練馬区役所入口','練馬区役所西庁舎','練馬区役所付近の公園'])assert.equal(T.decksFor(name),null);
+assert.equal(T.decksFor('練馬区役所本庁舎20階展望ロビー')[0].aglM,80);
+console.log('OFFICIAL LOOKOUT REGISTRY / LOBBY SEARCH / FALSE POI MATCH OK');
+
+ctx.placeIndex=async()=>({kinds:{v:'展望地'},munis:['大阪府堺市'],places:[['v','堺市役所高層館展望ロビー','',3460000,13548000,null,0]]});
+const relevant=await ctx.searchPlaces('練馬区役所',{localOnly:true});assert.equal(relevant.length,1);assert.equal(relevant[0].name,'練馬区役所');console.log('EXACT FACILITY DOES NOT INCLUDE UNRELATED WARD HALLS OK');
