@@ -54,7 +54,7 @@ test('日付バーは時刻を保持し、時刻バーは同じ日に戻り、�
 test('地図の動く方角・イベント・高度文字を外し、出入り時刻を時計欄へ固定する',()=>{
  const draw=html.slice(html.indexOf(' function drawBody('),html.indexOf(' const bodyName='));assert.doesNotMatch(draw,/mapLabel\(/);
  const footer=html.slice(html.indexOf('<footer class="sky-map-footer"'),html.indexOf('</footer>',html.indexOf('<footer class="sky-map-footer"')));assert.match(footer,/id="skyMapEvents"/);assert.match(footer,/id="skyMapDateMode"/);assert.match(footer,/id="skyMapTimeMode"/);
- assert.match(html,/sky-map-north/);assert.doesNotMatch(html,/\[\['北',0\],\['東',90\]/);
+ assert.match(html,/sky-map-north/);assert.match(html,/\[\['北',0\],\['東',90\],\['南',180\],\['西',270\]\]/);
 });
 
 test('時刻バーの矢印とShiftは日付境界で止まり、日付バーのShiftは時刻を保って7日進む',async()=>{
@@ -66,4 +66,27 @@ test('時刻バーの矢印とShiftは日付境界で止まり、日付バーの
 
 test('日付更新中は前の日の出入り時刻を押せず、新しい時刻へ置き換わる',async()=>{
  const f=fixture({saved:{at:Date.parse('2026-12-22T12:34:00+09:00')}});await f.open();const before=f.element('skyMapEvents').children.filter(b=>b.type==='button');assert.ok(before.length);f.element('skyMapNext').onclick();assert.ok(before.every(b=>b.disabled));await flush();const after=f.element('skyMapEvents').children.filter(b=>b.type==='button');assert.ok(after.length);assert.ok(after.every(b=>!b.disabled));assert.notEqual(after[0],before[0]);
+});
+
+test('紫の目標方位を通過する時刻/高度は時計欄へ常時表示し、日付で更新、同日で保持、押すと移動する',async()=>{
+ const f=fixture({saved:{at:Date.parse('2027-03-12T10:02:00+09:00'),targetId:'fuji'}});await f.open();const row=f.element('skyMapPassages'),buttons=()=>row.children.find(n=>n.className==='sky-map-passages-values')?.children.filter(b=>b.type==='button')||[],before=buttons();assert.ok(before.length);assert.ok(before.every(b=>/\d{2}:\d{2}.*°/.test(b.textContent)));const old=before[0];old.onclick();assert.equal(f.element('skyMapTime').value,old.textContent.match(/(\d{2}:\d{2})/)[1]);assert.equal(buttons()[0],old,'同日スクラブは通過表示を作り直さない');
+ f.element('skyMapNext').onclick();assert.ok(row.children.some(b=>b.textContent==='計算中…'));assert.ok(!row.children.some(b=>b.type==='button'));await flush();assert.notEqual(buttons()[0],old);
+ f.element('skyMapTarget').value='';f.element('skyMapTarget').onchange();await flush();assert.equal(row.children.length,0);
+ const footer=html.slice(html.indexOf('<footer class="sky-map-footer"'),html.indexOf('</footer>',html.indexOf('<footer class="sky-map-footer"')));assert.match(footer,/id="skyMapPassages"/);
+});
+
+test('通過の計算失敗は計算中のまま残らず再試行でき、非表示と目標なしは行を隠す',async()=>{
+ const f=fixture({saved:{at:Date.parse('2027-03-12T12:00:00+09:00'),targetId:'fuji'}});await f.open();const original=f.c.SoramiBodies;f.c.SoramiBodies={...original,ensure:async()=>{throw Error('fixture')}};f.element('skyMapBody').onchange();await flush();assert.ok(f.element('skyMapPassages').children.some(b=>b.textContent==='計算できません'));assert.equal(f.element('skyMapRetry').hidden,false);f.c.SoramiBodies=original;await f.element('skyMapRetry').onclick();assert.ok(f.element('skyMapPassages').children.some(n=>n.className==='sky-map-passages-values'&&n.children.some(b=>b.type==='button')));f.element('skyMapShowSun').onclick();f.element('skyMapShowMoon').onclick();await flush();assert.equal(f.element('skyMapPassages').children.length,0);
+});
+
+test('通常プレビューのタップは移動を開始せず、拡大後だけピンの移動を始める',async()=>{
+ const f=fixture({saved:{at:Date.parse('2027-03-12T12:00:00+09:00'),targetId:'fuji'}});await f.open();f.map.pick(f.observer,{x:180,y:180});assert.notEqual(f.element('skyMapObserverTool')['aria-pressed'],'true');f.element('skyMapExpand').onclick();f.map.pick(f.observer,{x:180,y:180});assert.equal(f.element('skyMapObserverTool')['aria-pressed'],'true');
+});
+test('目標仰角は通過天体の高度と区別し、観測高さと選択部位に一致する',async()=>{
+ const f=fixture({saved:{at:Date.parse('2027-03-12T12:00:00+09:00'),targetId:'fuji'}});await f.open();const head=f.element('skyMapPassages').children.find(n=>n.className==='sky-map-passages-head');assert.equal(head.children[0].textContent,'目標方位を通過');assert.match(head.children[1].textContent,/目標仰角.*°/);const target=f.element('skyMapTargetInfo').textContent;assert.ok(target.includes(head.children[1].textContent.replace('目標仰角 ','')));
+ const footer=html.slice(html.indexOf('<footer class="sky-map-footer"'),html.indexOf('</footer>',html.indexOf('<footer class="sky-map-footer"')));assert.match(footer,/id="skyMapStatus"/);assert.match(footer,/id="skyMapRetry"/);
+});
+
+test('月の通過時刻を押すと選択天体も月に揃い、重ねるへ渡す条件が混ざらない',async()=>{
+ const f=fixture({saved:{at:Date.parse('2027-03-13T12:00:00+09:00'),body:'sun',targetId:'fuji'}});await f.open();const values=f.element('skyMapPassages').children.find(n=>n.className==='sky-map-passages-values'),moon=values.children.find(n=>n.type==='button'&&n['aria-label'].startsWith('月が'));assert.ok(moon);const loads=f.loads;moon.onclick();assert.equal(f.element('skyMapBody').value,'moon');assert.equal(f.data.get('sorami.skyMap:testuser').body,'moon');assert.equal(f.element('skyMapTime').value,moon.textContent.match(/\d{2}:\d{2}/)[0]);assert.equal(f.loads,loads);
 });
