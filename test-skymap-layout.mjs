@@ -138,7 +138,7 @@ test('E198: 条件3行は「を見る／の方向を見る／から見る」、�
  const block=html.slice(html.indexOf('<div class="sky-map-controls">'),html.indexOf('<div class="mapwrap sky-map-wrap">'));
  assert.deepEqual([...block.matchAll(/<span class="aim-say-v">([^<]+)<\/span>/g)].map(m=>m[1]),['を見る','の方向を見る','から見る']);
  const sky=html.slice(html.indexOf('<section id="skyMapView"'),html.indexOf('</section>',html.indexOf('<section id="skyMapView"')));
- assert.doesNotMatch(sky,/観測点|出・入|出入は|中心に目標を置く/);assert.match(html,/観測地点を固定して太陽・月の方向と高度を確認/);
+ assert.doesNotMatch(sky,/観測点|出・入|出入は|中心に目標を置く/);assert.match(html,/観測地点を固定して天体の方向と高度を確認/);
  const f=fixture({saved:{at:day,body:'sun',showSun:true,showMoon:false}});await f.open();
  const events=f.element('skyMapEvents').children.filter(b=>b.type==='button');assert.ok(events.length);
  for(const b of events){assert.match(b['aria-label'],/^日の(出|入) \d\d:\d\d・方位 /);assert.match(b.textContent,/^☀[↑↓] \d\d:\d\d$/);}
@@ -167,4 +167,39 @@ test('E198: 時刻は0を付けて桁を揃え、月丼の日付は今日と書�
  assert.equal(S.Cal.hhmm(Date.parse('2026-10-13T05:07:30+09:00')),'05:07');assert.equal(S.Cal.hhmmRounded(Date.parse('2026-10-13T09:59:40+09:00')),'10:00');
  assert.doesNotMatch(html,/・ 今日"/);assert.match(html,/\$\("planeWeekday"\)\.textContent = S\.Cal\.relativeDay\(ms\);/);
  assert.match(html,/月 方位\$\{Math\.round\(sp\.best\.moonAz\)\}°・高さ/);assert.match(html,/の方位\$\{Math\.round\(r\.azimuth\)\}°・高さ\$\{Math\.round\(r\.altitude\)\}°/);
+});
+
+test('追加6天体は太陽/月を維持して1つだけ表示し、選択/解除/保存/再開が同期する',async()=>{
+ const f=fixture({saved:{at:day,body:'sun',showSun:true,showMoon:true,targetId:'skytree'}});await f.open();
+ for(const id of ['sirius','mercury','venus','mars','jupiter','saturn']){
+  f.element('skyMapMoreBodies').onclick();assert.equal(f.element('skyMapBodiesSheet').open,true);
+  f.element('skyMapExtra-'+id).onclick();await flush();const s=f.data.get('sorami.skyMap:testuser');
+  assert.equal(s.extraBody,id);assert.equal(s.body,id);assert.equal(s.showSun,true);assert.equal(s.showMoon,true);assert.equal(s.at,day);
+  assert.equal(f.element('skyMapAngles').children.length,3);assert.equal(f.element('skyMapBodiesSheet').open,false);assert.equal(f.element('skyMapExtra-'+id)['aria-pressed'],'true');
+  assert.equal(f.element('skyMapExtraName').textContent,f.c.SoramiBodies.definitions.find(d=>d.id===id).name);
+ }
+ const snapshot=f.data.get('sorami.skyMap:testuser'),g=fixture({saved:snapshot});await g.open();assert.equal(g.element('skyMapExtra-saturn')['aria-pressed'],'true');assert.equal(g.element('skyMapAngles').children.length,3);
+ g.element('skyMapClearExtra').onclick();await flush();const cleared=g.data.get('sorami.skyMap:testuser');assert.equal(cleared.extraBody,null);assert.equal(cleared.showSun,true);assert.equal(cleared.showMoon,true);assert.equal(g.element('skyMapAngles').children.length,2);assert.equal(g.element('skyMapExtraActive').hidden,true);
+ const h=fixture({saved:cleared});await h.open();assert.equal(h.element('skyMapAngles').children.length,2);assert.equal(h.element('skyMapExtra-none')['aria-pressed'],'true');
+});
+test('追加天体は太陽/月を非表示にしても残り、全て解除すると描画と出入りを消す',async()=>{
+ const f=fixture({saved:{at:day,body:'sun',showSun:true,showMoon:true}});await f.open();f.element('skyMapExtra-jupiter').onclick();await flush();
+ f.element('skyMapShowSun').onclick();await flush();f.element('skyMapShowMoon').onclick();await flush();assert.equal(f.element('skyMapAngles').children.length,1);assert.match(f.element('skyMapAngles').children[0].textContent,/木星/);
+ f.element('skyMapExtra-none').onclick();await flush();assert.equal(f.element('skyMapAngles').children.length,0);assert.equal(f.element('skyMapEvents').children.length,0);
+});
+test('追加天体の選択は権限失効/画面離脱後のイベントを拒否し、計算失敗は再試行できる',async()=>{
+ const tools=['skymap','tower'],f=fixture({tools,saved:{at:day}});await f.open();const old=f.data.get('sorami.skyMap:testuser');tools.splice(0,2,'tower');f.element('skyMapExtra-jupiter').onclick();await flush();assert.equal(f.data.get('sorami.skyMap:testuser'),old);
+ const g=fixture({saved:{at:day}});await g.open();g.c.SkyMapUI.leave();g.element('skyMapExtra-jupiter').onclick();assert.equal(g.element('skyMapBodiesSheet').open,false);
+ const h=fixture({saved:{at:day}});await h.open();const b=h.c.SoramiBodies;h.c.SoramiBodies={...b,ensure:async id=>{if(id==='jupiter')throw Error('offline')}};h.element('skyMapExtra-jupiter').onclick();await flush();assert.match(h.element('skyMapStatus').textContent,/再試行/);assert.equal(h.element('skyMapRetry').hidden,false);h.c.SoramiBodies=b;await h.element('skyMapRetry').onclick();assert.ok(h.element('skyMapAngles').children.some(d=>d.textContent.includes('木星')));
+});
+
+test('月を主天体にしたまま追加天体を解除すると月へ戻り、構図の権限も戻る',async()=>{
+ const f=fixture({tools:['skymap','pearl'],saved:{at:day,body:'moon',showSun:true,showMoon:true,targetId:'fuji'}});await f.open();assert.equal(f.element('skyMapUse').hidden,false);f.element('skyMapExtra-venus').onclick();await flush();assert.equal(f.element('skyMapUse').hidden,true);
+ f.element('skyMapClearExtra').onclick();await flush();assert.equal(f.element('skyMapBody').value,'moon');assert.equal(f.element('skyMapUse').hidden,false);assert.equal(f.data.get('sorami.skyMap:testuser').primaryBody,'moon');
+});
+test('追加天体の取得不能でも太陽/月を描き、選択天体の構図は止めて再試行で復帰する',async()=>{
+ const f=fixture({saved:{at:day,body:'moon',showSun:true,showMoon:true,targetId:'skytree'}});await f.open();const provider=f.c.SoramiBodies;
+ f.c.SoramiBodies={...provider,ensure:async id=>{if(id==='saturn')throw Error('offline')}};f.element('skyMapExtra-saturn').onclick();await flush();
+ const names=f.element('skyMapAngles').children.map(x=>x.textContent);assert.equal(names.length,2);assert.ok(names.some(x=>x.startsWith('太陽')));assert.ok(names.some(x=>x.includes('月')));assert.equal(f.element('skyMapUse').disabled,true);assert.match(f.element('skyMapTargetInfo').textContent,/選択天体は計算できません/);assert.match(f.element('skyMapStatus').textContent,/土星.*再試行/);assert.equal(f.element('skyMapBody').value,'saturn');f.element('skyMapUse').onclick();assert.equal(f.c.hash,undefined);
+ f.c.SoramiBodies=provider;await f.element('skyMapRetry').onclick();assert.equal(f.element('skyMapAngles').children.length,3);assert.equal(f.element('skyMapUse').disabled,false);
 });

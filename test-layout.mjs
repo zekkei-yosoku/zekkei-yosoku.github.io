@@ -2479,7 +2479,7 @@ ok(/scrollbar-gutter: stable/.test(html), "止めた瞬間に横幅が変わら�
 // 2026-09-28: 写真から記録するシートを足して6つ。
 // 「ねらう」「空の見え方」「月丼」はポップアップではなく**ページ**にした
 // 2026-10-12 E184: スカイマップ本体は独立ページ。地図で置く目標の必須高さ入力シートを追加して9つ。
-ok((html.match(/<dialog class="sheet"/g) || []).length === 9, "目標物の高さ入力を含めシートは9つ",
+ok((html.match(/<dialog class="sheet"/g) || []).length === 10, "目標物の高さ入力を含めシートは10個",
   String((html.match(/<dialog class="sheet"/g) || []).length));
 
 console.log("== 登録した直後に、パスキーの登録へ進める ==");
@@ -2826,7 +2826,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   ok(/\$\("photoClose"\)\.onclick = \(\) => \$\("photoSheet"\)\.close\(\);/.test(html), "閉じるで閉じる");
   // 開いたとき最初の釦を選んだ状態（青い枠）にしない（ユーザー「青くなって選択状態で開くのが気に入らない」）
   const sheets = html.match(/<dialog class="sheet"[^>]*>/g) || [];
-  ok(sheets.length === 9 && sheets.every((d) => / tabindex="-1">$/.test(d)), "シートはそのものに焦点を置ける", sheets.join(" "));
+  ok(sheets.length === 10 && sheets.every((d) => / tabindex="-1">$/.test(d)), "シートはそのものに焦点を置ける", sheets.join(" "));
 }
 {
   // 座標をコピー・地図アプリで開く（2026-10-02 ユーザー「詳細な緯度経度が欲しい」「座標コピーのボタンと地図アプリで開くのボタン。
