@@ -76,7 +76,7 @@ test('紫の目標方位を通過する時刻/高度は時計欄へ常時表示�
 });
 
 test('通過の計算失敗は計算中のまま残らず再試行でき、天体を隠しても目標仰角を保持する',async()=>{
- const f=fixture({saved:{at:Date.parse('2027-03-12T12:00:00+09:00'),targetId:'fuji'}});await f.open();const original=f.c.SoramiBodies;f.c.SoramiBodies={...original,ensure:async()=>{throw Error('fixture')}};f.element('skyMapBody').onchange();await flush();assert.ok(f.element('skyMapPassages').children.some(b=>b.textContent==='計算できません'));assert.equal(f.element('skyMapRetry').hidden,false);f.c.SoramiBodies=original;await f.element('skyMapRetry').onclick();assert.ok(f.element('skyMapPassages').children.some(n=>n.className==='sky-map-passages-values'&&n.children.some(b=>b.type==='button')));f.element('skyMapShowSun').onclick();f.element('skyMapShowMoon').onclick();await flush();assert.equal(f.element('skyMapPassages').children.length,1);assert.match(f.element('skyMapPassages').children[0].children[1].textContent,/目標仰角.*°/);
+ const f=fixture({saved:{at:Date.parse('2027-03-12T12:00:00+09:00'),targetId:'fuji'}});await f.open();const original=f.c.SoramiBodies;f.c.SoramiBodies={...original,ensure:async()=>{throw Error('fixture')}};f.element('skyMapBody').onchange();await flush();assert.ok(f.element('skyMapPassages').children.some(b=>b.textContent==='計算できません'));assert.equal(f.element('skyMapRetry').hidden,false);f.c.SoramiBodies=original;await f.element('skyMapRetry').onclick();assert.ok(f.element('skyMapPassages').children.some(n=>n.className==='sky-map-passages-values'&&n.children.some(b=>b.type==='button')));f.element('skyMapShowSun').onclick();await flush();assert.equal(f.element('skyMapShowSun')['aria-pressed'],'false');assert.equal(f.element('skyMapShowMoon')['aria-pressed'],'false');assert.equal(f.element('skyMapPassages').children.length,1);assert.match(f.element('skyMapPassages').children[0].children[1].textContent,/目標仰角.*°/);
 });
 
 test('通常プレビューのタップは移動を開始せず、拡大後だけピンの移動を始める',async()=>{
@@ -89,4 +89,27 @@ test('目標仰角は通過天体の高度と区別し、観測高さと選択�
 
 test('月の通過時刻を押すと選択天体も月に揃い、重ねるへ渡す条件が混ざらない',async()=>{
  const f=fixture({saved:{at:Date.parse('2027-03-13T12:00:00+09:00'),body:'sun',targetId:'fuji'}});await f.open();const values=f.element('skyMapPassages').children.find(n=>n.className==='sky-map-passages-values'),moon=values.children.find(n=>n.type==='button'&&n['aria-label'].startsWith('月が'));assert.ok(moon);const loads=f.loads;moon.onclick();assert.equal(f.element('skyMapBody').value,'moon');assert.equal(f.data.get('sorami.skyMap:testuser').body,'moon');assert.equal(f.element('skyMapTime').value,moon.textContent.match(/\d{2}:\d{2}/)[0]);assert.equal(f.loads,loads);
+});
+
+test('通常地図で月/太陽を選ぶと実描画と表示フラグがその選択に揃う',async()=>{
+ const f=fixture({saved:{at:Date.parse('2026-11-03T16:22:00+09:00'),body:'sun',showSun:true,showMoon:false,targetId:'fuji'}});await f.open();for(const body of ['moon','sun','moon']){f.element('skyMapBody').value=body;f.element('skyMapBody').onchange();await flush();const saved=f.data.get('sorami.skyMap:testuser');assert.equal(saved.showSun,body==='sun');assert.equal(saved.showMoon,body==='moon');assert.equal(f.discs.at(-1).body,body);}
+});
+test('転送後の下部バーは軌道の配列番号を日秒として読まず、実時刻と秒scopeで同期する',()=>{
+ const d=dom(),c={document:d.document,Date,Number};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);
+ const day=Date.parse('2026-11-03T00:00:00+09:00'),source={min:'0',max:'42',get value(){throw Error('配列番号を時刻へ使ってはいけない')}},range={setAttribute(){}};
+ Object.assign(c,{state:{day,current:day+57840000,minSeconds:57300,maxSeconds:58200},mode:'scene',look:{_footerFrame:null,querySelector:()=>source},mapRange:source,footerRange:range,document:{...d.document,activeElement:null}});
+ const start=html.indexOf("  const source=mode==='places'?mapRange:look.querySelector('[data-look-range]');"),end=html.indexOf('  if(state)footerRange.setAttribute',start);assert.ok(start>=0);const sync=html.slice(start,end);vm.runInContext('{'+sync+'}',c);assert.equal(range.value,'57840');assert.equal(range.min,'57300');assert.equal(range.max,'58200');
+ c.state.current=day+57900000;vm.runInContext('{'+sync+'}',c);assert.equal(range.value,'57900');
+ const invalid={min:'old',max:'old',value:'old'};assert.equal(c.ToolDateTimeBar.syncTimeRange(invalid,{day,current:NaN,min:0,max:86400}),false);assert.equal(invalid.value,'old');
+});
+
+test('body change after leaving cannot mutate or dereference a cleared session',async()=>{const f=fixture();await f.open();f.c.SkyMapUI.leave();const before=f.calls;f.element('skyMapBody').value='moon';assert.doesNotThrow(()=>f.element('skyMapBody').onchange());assert.equal(f.calls,before);});
+
+test('重ねるから戻ると現在の選択天体を表示し以前の非表示設定で隠れない',async()=>{
+ const f=fixture({saved:{at:Date.parse('2026-11-03T16:04:00+09:00'),body:'moon',showSun:false,showMoon:true}});f.element('aimView').hidden=false;f.element('skyMapOpen').onclick();await flush();assert.equal(f.element('skyMapBody').value,'sun');assert.equal(f.element('skyMapShowSun')['aria-pressed'],'true');assert.equal(f.element('skyMapShowMoon')['aria-pressed'],'false');assert.equal(f.discs.at(-1).body,'sun');
+});
+test('カレンダー指定時刻を微調整の秒範囲へ含め、表示の端への丸めを防ぐ',()=>{
+ const start=html.indexOf('  const uiState = host._uiTime = {'),end=html.indexOf('  uiState.window();',start),day=Date.parse('2026-11-03T00:00:00+09:00'),range={setAttribute(){}},host={_lookAt:day+43200000};
+ const c={host,range,uiDay:day,uiEnd:day+86400000-1,spec:{at:day+43200000},selectedAt:day+43200000,Number,Math,SoramiBodies:{state:()=>({azimuth:0,apparentAltitude:0})},body:'sun',eyeObs:{},proj:()=>[0,0],win:{halfW:100,halfH:100},aimLookHMS:()=>'',seq:1,timeIndex:x=>x,draw(){}};
+ vm.createContext(c);vm.runInContext(html.slice(start,end)+'host._uiTime.window('+String(day+64800000)+');',c);assert.ok(+range.max>=64800);assert.equal(+range.value,43200);assert.equal(host._uiTime.maxSeconds,+range.max);
 });

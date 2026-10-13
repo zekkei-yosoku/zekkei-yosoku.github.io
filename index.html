@@ -8,7 +8,7 @@
      編集後はbump.shでハッシュを更新する。connect-srcも実際に使う相手だけに絞る。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-6xJtZ+U6ouPlePKe/PgnCXVJLv5urRLuwBlX/PAJVOc=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-UUfWVeIgMWx/Q//WJaGU8ROfxMtPodeCSxnf5uKiPp0=' 'sha256-TwLSOwA2NDhml0izc52Q5Hcy7s5laxaOuOQ46NNf5H4=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-qkQtfnkXhMD5aatuyWgi06ypecsiqTEi67WiYqTZYPk=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-HShXFEb5TFZ+9lRdULYk0dC3DC+HC3VDDeLLqoTdagE=' 'sha256-Is2JT6hypRctfy+WO2EPx41cyqtpUGs1J3hDzI4QOWI=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1979,31 +1979,31 @@ main:has(>#skyMapView:not([hidden])){padding-bottom:calc(var(--sky-footer-h,100p
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261013102101"></script>
-<script src="sorami-prediction.js?v=20261013102101"></script>
+<script src="sorami-core.js?v=20261013131454"></script>
+<script src="sorami-prediction.js?v=20261013131454"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261013102101"></script>
-<script src="sorami-exif.js?v=20261013102101"></script>
-<script src="sorami-capcloud.js?v=20261013102101"></script>
-<script src="sorami-terrain.js?v=20261013102101"></script>
-<script src="sorami-mountain.js?v=20261013102101"></script>
-<script src="sorami-fuji.js?v=20261013102101"></script>
-<script src="sorami-sky.js?v=20261013102101"></script>
+<script src="sorami-astro.js?v=20261013131454"></script>
+<script src="sorami-exif.js?v=20261013131454"></script>
+<script src="sorami-capcloud.js?v=20261013131454"></script>
+<script src="sorami-terrain.js?v=20261013131454"></script>
+<script src="sorami-mountain.js?v=20261013131454"></script>
+<script src="sorami-fuji.js?v=20261013131454"></script>
+<script src="sorami-sky.js?v=20261013131454"></script>
 
-<script src="sorami-history.js?v=20261013102101"></script>
-<script src="sorami-plan.js?v=20261013102101"></script>
-<script src="sorami-routes.js?v=20261013102101"></script>
-<script src="sorami-iss.js?v=20261013102101"></script>
-<script src="sorami-plane.js?v=20261013102101"></script>
-<script src="sorami-refraction.js?v=20261013102101"></script>
-<script src="sorami-atmosphere.js?v=20261013102101"></script>
-<script src="sorami-bodies.js?v=20261013102101"></script>
-<script src="sorami-sky-map.js?v=20261013102101"></script>
-<script src="sorami-city-models.js?v=20261013102101"></script>
-<script src="sorami-tower-models.js?v=20261013102101"></script>
-<script src="sorami-align.js?v=20261013102101"></script>
-<script src="sorami-moon.js?v=20261013102101"></script>
+<script src="sorami-history.js?v=20261013131454"></script>
+<script src="sorami-plan.js?v=20261013131454"></script>
+<script src="sorami-routes.js?v=20261013131454"></script>
+<script src="sorami-iss.js?v=20261013131454"></script>
+<script src="sorami-plane.js?v=20261013131454"></script>
+<script src="sorami-refraction.js?v=20261013131454"></script>
+<script src="sorami-atmosphere.js?v=20261013131454"></script>
+<script src="sorami-bodies.js?v=20261013131454"></script>
+<script src="sorami-sky-map.js?v=20261013131454"></script>
+<script src="sorami-city-models.js?v=20261013131454"></script>
+<script src="sorami-tower-models.js?v=20261013131454"></script>
+<script src="sorami-align.js?v=20261013131454"></script>
+<script src="sorami-moon.js?v=20261013131454"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -8526,7 +8526,7 @@ async function aimLookRender(host, spec) {
   const uiState = host._uiTime = {
     day: uiDay, reference: spec.at, name: spec.atName || '重なる', current: selectedAt,
     set(ms) { if (host._lookSeq !== seq || !Number.isFinite(ms)) return; draw(timeIndex(ms)); },
-    window() {
+    window(includeAt=null) {
       const center=spec.at;
       const all = host._uiAllDay;
       const a = SoramiBodies.state(body, center - 1000, eyeObs), b = SoramiBodies.state(body, center + 1000, eyeObs);
@@ -8534,10 +8534,11 @@ async function aimLookRender(host, spec) {
       const speed = pa && pb ? Math.hypot(pb[0] - pa[0], pb[1] - pa[1]) / 2 : 0;
       // 一往復は図の幅程度。望遠ほど時間幅を小さくし、速すぎる移動を避ける。
       let halfMs = this.frameSpans?.length ? Math.max(30000,...this.frameSpans.flatMap(s=>[Math.abs(s.start-center),Math.abs(s.end-center)])) : Math.max(30000, Math.min(1800000, speed > 0 ? Math.min(win.halfW, win.halfH) / speed * 1000 : 300000));
-      halfMs=Math.max(halfMs,Math.abs((host._lookAt ?? selectedAt)-center));
+      halfMs=Math.max(halfMs,Math.abs((host._lookAt ?? selectedAt)-center),Number.isFinite(includeAt)?Math.abs(includeAt-center):0);
       range.min = String(((all ? uiDay : center - halfMs)-uiDay)/1000);
       range.max = String(((all ? uiEnd : center + halfMs)-uiDay)/1000);
       range.step = 'any'; range.value = String(Math.max(+range.min, Math.min(+range.max, ((host._lookAt ?? selectedAt)-uiDay)/1000)));
+      this.minSeconds=Number(range.min);this.maxSeconds=Number(range.max);
       range.setAttribute('aria-label', all ? '一日の時刻を動かす' : '時刻を細かく調整');
       range.setAttribute('aria-valuetext', aimLookHMS(host._lookAt ?? selectedAt));
     }
@@ -10926,7 +10927,7 @@ load(false);
 restoreSession();
 checkForUpdate();
 </script>
-<script src="sorami-datetime-ui.js?v=20261013102101"></script>
+<script src="sorami-datetime-ui.js?v=20261013131454"></script>
 <script id="uiVisualPrimitives">
 const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
 // E185: visual choices forward to the original native control; no calculation path is added.
@@ -11037,7 +11038,7 @@ function uiVisualChoices(select, kind) {
   const refText=state?`${state.name} ${S.JstCal.hhmm(state.reference)}`:'時刻を計算中';const refLabel=state?`${refText}へ移動`:'時刻を計算中';if(reference.textContent!==refLabel)reference.textContent=refLabel;
   // 地図の範囲を決めた後に写す。見え方は図の時間幅、撮影地は出入線の時間幅。
   const source=mode==='places'?mapRange:look.querySelector('[data-look-range]');
-  if(state&&source&&footerScrub===null&&document.activeElement!==footerRange){if(footerRange.min!==source.min)footerRange.min=source.min;if(footerRange.max!==source.max)footerRange.max=source.max;if(footerRange.value!==source.value)footerRange.value=source.value;}
+  if(state&&source&&!look._footerFrame&&document.activeElement!==footerRange){ToolDateTimeBar.syncTimeRange(footerRange,{day:state.day,current:state.current,min:mode==='places'?Number(source.min):state.minSeconds,max:mode==='places'?Number(source.max):state.maxSeconds});}
   if(state)footerRange.setAttribute('aria-valuetext',aimLookHMS(state.current));
   const out=look.querySelector('[data-look-at]'),day=/^(前日|翌日) /.exec(out?.firstChild?.textContent||'')?.[1],rel=state&&!look.hidden?[day,out?.querySelector('.sub-line')?.textContent].filter(Boolean).join(' '):'';if(footerRel.textContent!==rel){footerRel.textContent=rel;footerRel.title=rel;}footerRel.hidden=!rel;
   if((!state||look.hidden)&&clock.value)clock.value='';
@@ -11303,7 +11304,7 @@ ctx.lineWidth=1;
  function enter(fromAim=false){
   const look=el('aimLook'),spec=look._lookSpec,from=aimFromPoint()||place;
   const live=fromAim&&!look.hidden&&look._planKey===aimLookKey()&&spec&&Number.isFinite(look._lookAt);
-  pending=fromAim?{custom:aim.target?.id==='custom'?store.get('sorami.aimCustom',null):null,observer:live?{...from,latitude:spec.obs.latitude,longitude:spec.obs.longitude,groundManualM:from.groundManualM??null,standAglM:spec.eyeM===aimObserverEye(from)?from.standAglM??null:spec.eyeM,name:spec.observerName||from.name}:from,body:aim.body,at:live?look._lookAt:Number.isFinite(aim.dayMs)?aim.dayMs+43200000:Date.now(),targetId:aim.target?.id||'',partId:aim.partId,ground:live?spec.obs.elevation:null}:null;
+  pending=fromAim?{custom:aim.target?.id==='custom'?store.get('sorami.aimCustom',null):null,observer:live?{...from,latitude:spec.obs.latitude,longitude:spec.obs.longitude,groundManualM:from.groundManualM??null,standAglM:spec.eyeM===aimObserverEye(from)?from.standAglM??null:spec.eyeM,name:spec.observerName||from.name}:from,body:aim.body,showSun:aim.body==='sun',showMoon:aim.body==='moon',at:live?look._lookAt:Number.isFinite(aim.dayMs)?aim.dayMs+43200000:Date.now(),targetId:aim.target?.id||'',partId:aim.partId,ground:live?spec.obs.elevation:null}:null;
   pushRoute('#/skymap');
  }
  function start(){
@@ -11335,7 +11336,7 @@ ctx.lineWidth=1;
  el('skyMapOpen').onclick=()=>enter(true);el('skyMapMenu').onclick=()=>enter();el('skyMapClose').onclick=goBack;
  el('skyMapNow').onclick=()=>setTime(Date.now());el('skyMapEarlier').onclick=()=>setTime(session.at-60000);el('skyMapLater').onclick=()=>setTime(session.at+60000);
  el('skyMapRetry').onclick=refresh;
- el('skyMapBody').onchange=()=>{session.body=el('skyMapBody').value;refresh();};
+ el('skyMapBody').onchange=()=>{if(!session||!hasAccess()||!active())return;session.body=el('skyMapBody').value;session.showSun=session.body==='sun';session.showMoon=session.body==='moon';refresh();};
  el('skyMapDate').onchange=()=>{const at=Date.parse(el('skyMapDate').value+'T'+(el('skyMapTime').value||'12:00')+':00+09:00');setTime(at);};
  el('skyMapTime').onchange=()=>{const at=Date.parse(el('skyMapDate').value+'T'+el('skyMapTime').value+':00+09:00');setTime(at);};
  function syncScrubRange(){

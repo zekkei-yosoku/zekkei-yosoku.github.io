@@ -16,6 +16,11 @@ function wireScrub({track,range,enabled=()=>true}){
  for(const type of ['pointerup','pointercancel','lostpointercapture'])track.addEventListener(type,e=>{if(pointer!==e.pointerId)return;pointer=null;if(enabled())range.onchange?.();});
  return ()=>{pointer=null;};
 }
+function syncTimeRange(range,{day,current,min,max}){
+ const value=(current-day)/1000;
+ if(![day,current,value,min,max].every(Number.isFinite)||max<min)return false;
+ range.min=String(Math.min(min,value));range.max=String(Math.max(max,value));range.value=String(value);return true;
+}
 function dateText(button,at){
  const d=new Date(at+OFFSET),iso=d.toISOString().slice(0,10);
  if(button.dataset.displayDate===iso&&button.querySelector('.preview-date-year'))return;
@@ -32,5 +37,5 @@ function calendar({button,getAt,setDay}){
  button.onclick=()=>{const d=new Date(getAt()+OFFSET);year=d.getUTCFullYear();month=d.getUTCMonth();paint();dialog.showModal();dialog.focus();};
  const shift=delta=>{const d=new Date(Date.UTC(year,month+delta,1));if(d.getUTCFullYear()<100||d.getUTCFullYear()>9999)return;year=d.getUTCFullYear();month=d.getUTCMonth();paint();};dialog.querySelector('[data-prev]').onclick=()=>shift(-1);dialog.querySelector('[data-next]').onclick=()=>shift(1);dialog.querySelector('[data-month]').onchange=e=>{if(!/^\d{4}-\d{2}$/.test(e.target.value))return;const [y,m]=e.target.value.split('-').map(Number);if(y<100||y>9999||m<1||m>12)return;year=y;month=m-1;paint();};dialog.querySelector('[data-close]').onclick=()=>dialog.close();dialog.querySelector('[data-today]').onclick=()=>{setDay(Math.floor((Date.now()+OFFSET)/DAY)*DAY-OFFSET);dialog.close();};dialog.addEventListener('close',()=>button.focus({preventScroll:true}));return dialog;
 }
-g.ToolDateTimeBar={decorate,wireScrub,dateText,calendar};
+g.ToolDateTimeBar={decorate,wireScrub,syncTimeRange,dateText,calendar};
 })(typeof window==='undefined'?globalThis:window);
