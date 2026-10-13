@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import vm from 'node:vm';import {fixture} from './test-sky-map-ui.mjs';
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import vm from 'node:vm';import {fixture} from './test-sky-map-ui.mjs';import {createRequire} from 'node:module';const createRequireFn=createRequire(import.meta.url);
 const flush=()=>new Promise(r=>setImmediate(r));
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 test('観測点配置は中心固定のパンで候補だけ動き、確定まで観測点・計算を変えない',async()=>{
@@ -22,7 +22,8 @@ test('日時バーはAim/Sky双方で同じ部品を使い、場所枠と精密�
 });
 function dom(){const nodes=[];const make=()=>{const n={children:[],attrs:{},classList:{add(){}},append(...items){this.children.push(...items)},replaceChildren(...items){this.children=items},setAttribute(k,v){this.attrs[k]=v},focus(){},listeners:{},addEventListener(k,f){this.listeners[k]=f},showModal(){this.open=true},close(){this.open=false;this.listeners.close?.()},querySelector(k){return this.parts[k]??=make()},parts:{}};nodes.push(n);return n;};return {nodes,document:{createElement:make,body:{append(){}}}};}
 test('共通カレンダーは月末の選択・年月送りを扱い、時刻の適用を道具側へ委ねる',()=>{
- const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);const button=d.document.createElement('button');let chosen;const at=Date.parse('2026-12-22T12:34:00+09:00'),dialog=c.ToolDateTimeBar.calendar({button,getAt:()=>at,setDay:x=>chosen=x});button.onclick();const grid=dialog.querySelector('[data-grid]');const last=grid.children.filter(x=>x.textContent==='31')[0];last.onclick();assert.equal(chosen,Date.parse('2026-12-31T00:00:00+09:00'));button.onclick();dialog.querySelector('[data-next]').onclick();assert.equal(dialog.querySelector('[data-month]').value,'2027-01');
+ const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);const button=d.document.createElement('button');let chosen;const at=Date.parse('2026-12-22T12:34:00+09:00'),dialog=c.ToolDateTimeBar.calendar({button,getAt:()=>at,setDay:x=>chosen=x});button.onclick();const grid=dialog.querySelector('[data-grid]');const last=grid.children.filter(x=>x.textContent==='31')[0];last.onclick();assert.equal(chosen,Date.parse('2026-12-31T00:00:00+09:00'));button.onclick();dialog.querySelector('[data-next]').onclick();assert.equal(dialog.querySelector('[data-year]').value,'2027');assert.equal(dialog.querySelector('[data-month]').value,'0');
+ dialog.querySelector('[data-year]').value='2028';dialog.querySelector('[data-month]').value='2';dialog.querySelector('[data-month]').onchange();assert.equal(dialog.querySelector('[data-year]').value,'2028');assert.equal(dialog.querySelector('[data-month]').value,'2');assert.ok(grid.children.some(x=>x['aria-label']==='2028年3月1日'||x.attrs?.['aria-label']==='2028年3月1日'));
 });
 test('共通時間バーはつまみを掴むと跳ばず、指を離して確定し、使用不可なら操作しない',()=>{
  const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);const track=d.document.createElement('div'),range=d.document.createElement('input');Object.assign(range,{min:0,max:86400,value:43200,getBoundingClientRect:()=>({left:0,width:200})});track.setPointerCapture=()=>{};let inputs=0,commits=0,enabled=true;range.oninput=()=>inputs++;range.onchange=()=>commits++;c.ToolDateTimeBar.wireScrub({track,range,enabled:()=>enabled});const e=(x)=>({pointerId:1,button:0,clientX:x,preventDefault(){}});track.listeners.pointerdown(e(100));assert.equal(inputs,0);track.listeners.pointermove(e(120));assert.ok(Number(range.value)>43200);track.listeners.pointerup(e(120));assert.equal(inputs,1);assert.equal(commits,1);enabled=false;track.listeners.pointerdown(e(10));assert.equal(inputs,1);
@@ -54,7 +55,8 @@ test('日付バーは時刻を保持し、時刻バーは同じ日に戻り、�
 test('地図の動く方角・イベント・高度文字を外し、出入り時刻を時計欄へ固定する',()=>{
  const draw=html.slice(html.indexOf(' function drawBody('),html.indexOf(' const bodyName='));assert.doesNotMatch(draw,/mapLabel\(/);
  const footer=html.slice(html.indexOf('<footer class="sky-map-footer"'),html.indexOf('</footer>',html.indexOf('<footer class="sky-map-footer"')));assert.match(footer,/id="skyMapEvents"/);assert.match(footer,/id="skyMapDateMode"/);assert.match(footer,/id="skyMapTimeMode"/);
- assert.match(html,/sky-map-north/);assert.match(html,/\[\['北',0\],\['東',90\],\['南',180\],\['西',270\]\]/);
+ // E198: 画面上の固定「↑ 北」はE194で円の方角文字に置き換え済み。使われていないCSSは外し、読み上げで北が上を伝える
+ assert.doesNotMatch(html,/sky-map-north/);assert.match(html,/<span class="sr-only">地図は北が上<\/span>/);assert.match(html,/\[\['北',0\],\['東',90\],\['南',180\],\['西',270\]\]/);
 });
 
 test('時刻バーの矢印とShiftは日付境界で止まり、日付バーのShiftは時刻を保って7日進む',async()=>{
@@ -112,4 +114,57 @@ test('カレンダー指定時刻を微調整の秒範囲へ含め、表示の�
  const start=html.indexOf('  const uiState = host._uiTime = {'),end=html.indexOf('  uiState.window();',start),day=Date.parse('2026-11-03T00:00:00+09:00'),range={setAttribute(){}},host={_lookAt:day+43200000};
  const c={host,range,uiDay:day,uiEnd:day+86400000-1,spec:{at:day+43200000},selectedAt:day+43200000,Number,Math,SoramiBodies:{state:()=>({azimuth:0,apparentAltitude:0})},body:'sun',eyeObs:{},proj:()=>[0,0],win:{halfW:100,halfH:100},aimLookHMS:()=>'',seq:1,timeIndex:x=>x,draw(){}};
  vm.createContext(c);vm.runInContext(html.slice(start,end)+'host._uiTime.window('+String(day+64800000)+');',c);assert.ok(+range.max>=64800);assert.equal(+range.value,43200);assert.equal(host._uiTime.maxSeconds,+range.max);
+});
+
+// ---- E198（2026-10-13）総点検の指摘の修正と地図ボタン配置
+const day=Date.parse('2026-12-22T00:00:00+09:00');
+test('E198: 全画面の切替は通常・全画面とも右上の同じ位置で、レイヤーはその下',()=>{
+ assert.match(html,/\.sky-map-expand\{position:absolute;top:8px;right:8px;/);
+ assert.match(html,/\.sky-map-wide \.sky-map-expand\{top:calc\(8px \+ env\(safe-area-inset-top\)\)/);
+ assert.match(html,/\.sky-map-wide \.map-layers-btn\{top:calc\(58px \+ env\(safe-area-inset-top\)\)/);
+ assert.doesNotMatch(html,/sky-map-expand\{top:calc\(58px/);
+ // ズームの「拡大」と取り違えない名前
+ assert.match(html,/id="skyMapExpand" aria-label="地図を全画面表示"/);assert.match(html,/wide\?'全画面表示を終了':'地図を全画面表示'/);assert.doesNotMatch(html,/地図を拡大表示/);
+});
+test('E198: 構図の確認は地図の中と地図のすぐ下の両方から、同じ可否・同じ転送',async()=>{
+ const wrapEnd=html.indexOf('<div class="mapattr">国土地理院</div></div>',html.indexOf('id="skyMapCanvas"')),below=html.indexOf('id="skyMapUseBelow"'),custom=html.indexOf('<details id="skyMapCustom">');
+ assert.ok(wrapEnd>0&&wrapEnd<below&&below<custom,'地図の直後・目標物を置く欄の前');assert.match(html,/id="skyMapUseBelow" hidden>[\s\S]{0,400}<span>この条件の構図を確認<\/span><\/button>/);
+ const f=fixture({saved:{at:day,targetId:'skytree'}});await f.open();
+ for(const id of ['skyMapUse','skyMapUseBelow']){assert.equal(f.element(id).hidden,false,id);assert.equal(f.element(id).disabled,false,id);}
+ f.element('skyMapUseBelow').onclick();assert.equal(f.c.hash,'#/aim');assert.equal(f.aim.plannerTransfer.body,'sun');
+ const g=fixture({tools:['skymap'],saved:{at:day,targetId:'skytree'}});await g.open();for(const id of ['skyMapUse','skyMapUseBelow'])assert.equal(g.element(id).hidden,true,id);
+});
+test('E198: 条件3行は「を見る／の方向を見る／から見る」、観測地点・目標物・出入りの言い方を揃える',async()=>{
+ const block=html.slice(html.indexOf('<div class="sky-map-controls">'),html.indexOf('<div class="mapwrap sky-map-wrap">'));
+ assert.deepEqual([...block.matchAll(/<span class="aim-say-v">([^<]+)<\/span>/g)].map(m=>m[1]),['を見る','の方向を見る','から見る']);
+ const sky=html.slice(html.indexOf('<section id="skyMapView"'),html.indexOf('</section>',html.indexOf('<section id="skyMapView"')));
+ assert.doesNotMatch(sky,/観測点|出・入|出入は|中心に目標を置く/);assert.match(html,/観測地点を固定して太陽・月の方向と高度を確認/);
+ const f=fixture({saved:{at:day,body:'sun',showSun:true,showMoon:false}});await f.open();
+ const events=f.element('skyMapEvents').children.filter(b=>b.type==='button');assert.ok(events.length);
+ for(const b of events){assert.match(b['aria-label'],/^日の(出|入) \d\d:\d\d・方位 /);assert.match(b.textContent,/^☀[↑↓] \d\d:\d\d$/);}
+ assert.doesNotMatch(html,/太陽の出|太陽の入/);
+});
+test('E198: 日時の読み上げは画面と同じ表記、⋯は中身どおりの名前',()=>{
+ assert.match(html,/setAttribute\('aria-label',`\$\{ToolDateTimeBar\.label\(session\.at\)\}、日付を選ぶ`\)/);
+ assert.match(html,/session\.scrubMode==='date'\?ToolDateTimeBar\.label\(session\.at\)/);
+ assert.match(html,/\$\("aimDate"\)\.value\.replaceAll\("-", "\/"\)/);
+ assert.match(html,/id="skyMapTimeMore" aria-label="天体の位置と時刻"/);assert.match(html,/<strong>天体の位置と時刻<\/strong>/);
+ assert.match(html,/id="skyMapEarlier">−1分<\/button>[\s\S]{0,80}id="skyMapLater">\+1分<\/button>/);
+ const d={},c={document:{createElement:()=>d},Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);
+ assert.equal(c.ToolDateTimeBar.label(Date.parse('2026-10-03T23:59:00+09:00')),'2026/10/03(土)');
+});
+test('E198: 予測の取得状態は道具の画面の上に出さない',()=>{
+ assert.match(html,/main:has\(>:is\(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView\):not\(\[hidden\]\)\)>:is\(#status,#predictionDataNotice\)\{display:none\}/);
+});
+test('E198: 月・富士山の信頼度の説明で、何日先かを二重に言わない',()=>{
+ const src=html.slice(html.indexOf('function confidenceText(ev)'),html.indexOf('// 51メンバーの散らばりを見せる。'));
+ const fn=vm.runInNewContext(src+';confidenceText',{S:{MODELS:Array(8)}});
+ for(const d of [1,2,4,5,6]){const text=fn({daysAhead:d,uncertainty:{basis:'single',expectedError:17},confidence:{key:'high'},models:0});
+  assert.ok((text.match(new RegExp(d+'日先','g'))||[]).length<=1,text);assert.match(text,/点数は ±17点 ほど動く見込みです/);}
+});
+test('E198: 時刻は0を付けて桁を揃え、月丼の日付は今日と書かない',()=>{
+ const S=createRequireFn('./sorami-core.js');S.setTimezoneOffset(9*3600);
+ assert.equal(S.Cal.hhmm(Date.parse('2026-10-13T05:07:30+09:00')),'05:07');assert.equal(S.Cal.hhmmRounded(Date.parse('2026-10-13T09:59:40+09:00')),'10:00');
+ assert.doesNotMatch(html,/・ 今日"/);assert.match(html,/\$\("planeWeekday"\)\.textContent = S\.Cal\.relativeDay\(ms\);/);
+ assert.match(html,/月 方位\$\{Math\.round\(sp\.best\.moonAz\)\}°・高さ/);assert.match(html,/の方位\$\{Math\.round\(r\.azimuth\)\}°・高さ\$\{Math\.round\(r\.altitude\)\}°/);
 });

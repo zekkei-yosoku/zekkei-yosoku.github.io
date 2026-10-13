@@ -35,7 +35,8 @@ S.setTimezoneOffset(9 * 3600);
 const jpTime = S.Cal.hhmm(t);
 S.setTimezoneOffset(0);
 const utcTime = S.Cal.hhmm(t);
-ok(jpTime === "0:30", "日本では 0:30", jpTime);
+// 2026-10-13: 時も0を付けて桁を揃える（ユーザー指定）
+ok(jpTime === "00:30", "日本では 00:30", jpTime);
 ok(utcTime === "15:30", "UTC では 15:30", utcTime);
 
 console.log("== 曜日も地点の暦 ==");

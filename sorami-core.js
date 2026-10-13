@@ -50,9 +50,11 @@
     addDays(ms, n) { return ms + n * 86400000; },
     setHour(dayStartMs, hour) { return dayStartMs + hour * 3600000; },
     sameDay(a, b) { return Cal.startOfDay(a) === Cal.startOfDay(b); },
+    // HH:MM。時も0を付けて桁を揃える（05:51。2026-10-13 ユーザー指定、月日と同じ理由）。
+    // 画面ごとに付けると必ずどこかで抜けるので、ここだけで付ける。
     hhmm(ms) {
       const d = new Date(ms + tzOffset);
-      return `${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+      return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
     },
     // 表示は分に四捨五入。切り捨てると暦の表記と1分ずれる。
     hhmmRounded(ms) { return Cal.hhmm(Math.round(ms / 60000) * 60000); },
