@@ -75,8 +75,8 @@ test('紫の目標方位を通過する時刻/高度は時計欄へ常時表示�
  const footer=html.slice(html.indexOf('<footer class="sky-map-footer"'),html.indexOf('</footer>',html.indexOf('<footer class="sky-map-footer"')));assert.match(footer,/id="skyMapPassages"/);
 });
 
-test('通過の計算失敗は計算中のまま残らず再試行でき、非表示と目標なしは行を隠す',async()=>{
- const f=fixture({saved:{at:Date.parse('2027-03-12T12:00:00+09:00'),targetId:'fuji'}});await f.open();const original=f.c.SoramiBodies;f.c.SoramiBodies={...original,ensure:async()=>{throw Error('fixture')}};f.element('skyMapBody').onchange();await flush();assert.ok(f.element('skyMapPassages').children.some(b=>b.textContent==='計算できません'));assert.equal(f.element('skyMapRetry').hidden,false);f.c.SoramiBodies=original;await f.element('skyMapRetry').onclick();assert.ok(f.element('skyMapPassages').children.some(n=>n.className==='sky-map-passages-values'&&n.children.some(b=>b.type==='button')));f.element('skyMapShowSun').onclick();f.element('skyMapShowMoon').onclick();await flush();assert.equal(f.element('skyMapPassages').children.length,0);
+test('通過の計算失敗は計算中のまま残らず再試行でき、天体を隠しても目標仰角を保持する',async()=>{
+ const f=fixture({saved:{at:Date.parse('2027-03-12T12:00:00+09:00'),targetId:'fuji'}});await f.open();const original=f.c.SoramiBodies;f.c.SoramiBodies={...original,ensure:async()=>{throw Error('fixture')}};f.element('skyMapBody').onchange();await flush();assert.ok(f.element('skyMapPassages').children.some(b=>b.textContent==='計算できません'));assert.equal(f.element('skyMapRetry').hidden,false);f.c.SoramiBodies=original;await f.element('skyMapRetry').onclick();assert.ok(f.element('skyMapPassages').children.some(n=>n.className==='sky-map-passages-values'&&n.children.some(b=>b.type==='button')));f.element('skyMapShowSun').onclick();f.element('skyMapShowMoon').onclick();await flush();assert.equal(f.element('skyMapPassages').children.length,1);assert.match(f.element('skyMapPassages').children[0].children[1].textContent,/目標仰角.*°/);
 });
 
 test('通常プレビューのタップは移動を開始せず、拡大後だけピンの移動を始める',async()=>{

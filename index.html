@@ -8,7 +8,7 @@
      編集後はbump.shでハッシュを更新する。connect-srcも実際に使う相手だけに絞る。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-6xJtZ+U6ouPlePKe/PgnCXVJLv5urRLuwBlX/PAJVOc=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-UUfWVeIgMWx/Q//WJaGU8ROfxMtPodeCSxnf5uKiPp0=' 'sha256-2RMBGiM1E1WlAFmL6v5ShMTRBHvbwhfSGLE9vTtemog=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-6xJtZ+U6ouPlePKe/PgnCXVJLv5urRLuwBlX/PAJVOc=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-UUfWVeIgMWx/Q//WJaGU8ROfxMtPodeCSxnf5uKiPp0=' 'sha256-TwLSOwA2NDhml0izc52Q5Hcy7s5laxaOuOQ46NNf5H4=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1979,31 +1979,31 @@ main:has(>#skyMapView:not([hidden])){padding-bottom:calc(var(--sky-footer-h,100p
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261013101825"></script>
-<script src="sorami-prediction.js?v=20261013101825"></script>
+<script src="sorami-core.js?v=20261013102101"></script>
+<script src="sorami-prediction.js?v=20261013102101"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261013101825"></script>
-<script src="sorami-exif.js?v=20261013101825"></script>
-<script src="sorami-capcloud.js?v=20261013101825"></script>
-<script src="sorami-terrain.js?v=20261013101825"></script>
-<script src="sorami-mountain.js?v=20261013101825"></script>
-<script src="sorami-fuji.js?v=20261013101825"></script>
-<script src="sorami-sky.js?v=20261013101825"></script>
+<script src="sorami-astro.js?v=20261013102101"></script>
+<script src="sorami-exif.js?v=20261013102101"></script>
+<script src="sorami-capcloud.js?v=20261013102101"></script>
+<script src="sorami-terrain.js?v=20261013102101"></script>
+<script src="sorami-mountain.js?v=20261013102101"></script>
+<script src="sorami-fuji.js?v=20261013102101"></script>
+<script src="sorami-sky.js?v=20261013102101"></script>
 
-<script src="sorami-history.js?v=20261013101825"></script>
-<script src="sorami-plan.js?v=20261013101825"></script>
-<script src="sorami-routes.js?v=20261013101825"></script>
-<script src="sorami-iss.js?v=20261013101825"></script>
-<script src="sorami-plane.js?v=20261013101825"></script>
-<script src="sorami-refraction.js?v=20261013101825"></script>
-<script src="sorami-atmosphere.js?v=20261013101825"></script>
-<script src="sorami-bodies.js?v=20261013101825"></script>
-<script src="sorami-sky-map.js?v=20261013101825"></script>
-<script src="sorami-city-models.js?v=20261013101825"></script>
-<script src="sorami-tower-models.js?v=20261013101825"></script>
-<script src="sorami-align.js?v=20261013101825"></script>
-<script src="sorami-moon.js?v=20261013101825"></script>
+<script src="sorami-history.js?v=20261013102101"></script>
+<script src="sorami-plan.js?v=20261013102101"></script>
+<script src="sorami-routes.js?v=20261013102101"></script>
+<script src="sorami-iss.js?v=20261013102101"></script>
+<script src="sorami-plane.js?v=20261013102101"></script>
+<script src="sorami-refraction.js?v=20261013102101"></script>
+<script src="sorami-atmosphere.js?v=20261013102101"></script>
+<script src="sorami-bodies.js?v=20261013102101"></script>
+<script src="sorami-sky-map.js?v=20261013102101"></script>
+<script src="sorami-city-models.js?v=20261013102101"></script>
+<script src="sorami-tower-models.js?v=20261013102101"></script>
+<script src="sorami-align.js?v=20261013102101"></script>
+<script src="sorami-moon.js?v=20261013102101"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -10926,7 +10926,7 @@ load(false);
 restoreSession();
 checkForUpdate();
 </script>
-<script src="sorami-datetime-ui.js?v=20261013101825"></script>
+<script src="sorami-datetime-ui.js?v=20261013102101"></script>
 <script id="uiVisualPrimitives">
 const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
 // E185: visual choices forward to the original native control; no calculation path is added.
@@ -11261,8 +11261,8 @@ ctx.lineWidth=1;
  }
  function renderPassages(){
   const row=el('skyMapPassages'),t=session?.target,bodies=shownBodies(),top=validPoint(t)?SoramiAlign.partOf(t,session.partId)?.m:null,key=JSON.stringify([top,SoramiSkyMap.dayStart(session.at),session.eye,session.observer.latitude,session.observer.longitude,t?.id,t?.latitude,t?.longitude,session.partId,targetOn,bodies,!!session.daily,!!session.passError]);if(row._passageKey===key)return;row._passageKey=key;row.replaceChildren();
-  if(!targetOn||!validPoint(t)||!bodies.length)return;
-  const head=document.createElement('div');head.className='sky-map-passages-head';const label=document.createElement('span');label.className='sky-map-passages-label';label.textContent='目標方位を通過';head.append(label);const angle=document.createElement('span');angle.className='sky-map-target-angle';const geo=session.daily&&session.eye?SoramiAlign.geometryFrom(session.eye,t,{partId:session.partId,eyeM:0}):null;angle.textContent=geo?`目標仰角 ${SoramiAstro.targetElevationAngle(geo.distanceKm,session.eye.elevation,geo.topM,{k:1}).toFixed(2)}°`:'目標仰角 —';head.append(angle);row.append(head);
+  if(!targetOn||!validPoint(t))return;
+  const head=document.createElement('div');head.className='sky-map-passages-head';const label=document.createElement('span');label.className='sky-map-passages-label';label.textContent=bodies.length?'目標方位を通過':'目標';head.append(label);const angle=document.createElement('span');angle.className='sky-map-target-angle';const geo=session.daily&&session.eye?SoramiAlign.geometryFrom(session.eye,t,{partId:session.partId,eyeM:0}):null;angle.textContent=geo?`目標仰角 ${SoramiAstro.targetElevationAngle(geo.distanceKm,session.eye.elevation,geo.topM,{k:1}).toFixed(2)}°`:'目標仰角 —';head.append(angle);row.append(head);if(!bodies.length)return;
   if(!session.daily||!session.eye){const wait=document.createElement('span');wait.className='tiny';wait.textContent=session.passError?'計算できません':'計算中…';row.append(wait);return;}
   const mark=SoramiAlign.partTarget(t,session.partId);const distance=SoramiTerrain.distanceKm(session.observer.latitude,session.observer.longitude,mark.latitude,mark.longitude);
   if(distance<.001){const none=document.createElement('span');none.className='tiny';none.textContent='観測地点と目標が同じ位置';row.append(none);return;}
