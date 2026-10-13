@@ -8,7 +8,7 @@
      編集後はbump.shでハッシュを更新する。connect-srcも実際に使う相手だけに絞る。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-r8tAZNPTNdvaDQNRG0WOV8mXKco48aBihTSI2ebQNdU=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-HShXFEb5TFZ+9lRdULYk0dC3DC+HC3VDDeLLqoTdagE=' 'sha256-uEAo0RSt5QZV015qGnabDIsiKprbmyBuZSY67td55a4=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-L+tGbGq55IcL5BOl35Kb34AhKVZb/GkCzrEyJtVI3ko=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-HShXFEb5TFZ+9lRdULYk0dC3DC+HC3VDDeLLqoTdagE=' 'sha256-uEAo0RSt5QZV015qGnabDIsiKprbmyBuZSY67td55a4=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -616,8 +616,6 @@
   .mapattr { position: absolute; left: 6px; bottom: 6px; font-size: 0.58rem; padding: 1px 5px;
              border-radius: 4px; background: color-mix(in srgb, var(--card) 80%, transparent);
              color: var(--secondary); }
-  /* 月丼ライブ（E199）の月のまわりの空。地図と同じ枠に入れ、高さだけ低くする */
-  .mapwrap canvas.plane-live-sky { height: 240px; }
   /* 「ねらう」画面の選択欄。2つずつ横に並べる（幅が足りなければ縦に落ちる） */
   .aim-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
   .aim-row > * { flex: 1; min-width: 0; }
@@ -1381,17 +1379,6 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
         <span><i class="aim-k moon"></i>着陸</span>
         <span><i class="aim-k moon dash"></i>離陸</span>
         <span><i class="aim-k sun"></i>狙い目</span>
-        <span id="planeLiveKey" hidden><i class="aim-k sun dash"></i>月の前を通る機体</span>
-      </div>
-      <!-- 2026-10-13 E199 月丼ライブ。今日だけ、いま飛んでいる機体と、この先の予測で月の前を通る機体を出す。
-           位置は adsb.fi（私有APIが中継）。adsb.fi の条件（個人・非商用・出典とリンク）の出典を図の左下に置く -->
-      <div id="planeLive" hidden>
-        <div class="section-h" style="margin-top:12px"><h2>いまの機体</h2><span class="muted" id="planeLiveAt"></span></div>
-        <div class="mapwrap" style="margin-top:6px">
-          <canvas id="planeLiveSky" class="plane-live-sky" aria-label="月のまわりの空。いま飛んでいる機体と、この先の予測の線です"></canvas>
-          <a class="mapattr" href="https://adsb.fi/" target="_blank" rel="noopener">機体の位置: adsb.fi</a>
-        </div>
-        <div id="planeLiveList" class="al"></div>
       </div>
       <div id="planePick" class="al" style="margin-top:8px"></div>
       <div id="planeInfo" class="tiny" style="margin-top:6px;color:var(--secondary)">計算しています…</div>
@@ -1998,32 +1985,31 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261013184017"></script>
-<script src="sorami-prediction.js?v=20261013184017"></script>
+<script src="sorami-core.js?v=20261013211247"></script>
+<script src="sorami-prediction.js?v=20261013211247"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261013184017"></script>
-<script src="sorami-exif.js?v=20261013184017"></script>
-<script src="sorami-capcloud.js?v=20261013184017"></script>
-<script src="sorami-terrain.js?v=20261013184017"></script>
-<script src="sorami-mountain.js?v=20261013184017"></script>
-<script src="sorami-fuji.js?v=20261013184017"></script>
-<script src="sorami-sky.js?v=20261013184017"></script>
+<script src="sorami-astro.js?v=20261013211247"></script>
+<script src="sorami-exif.js?v=20261013211247"></script>
+<script src="sorami-capcloud.js?v=20261013211247"></script>
+<script src="sorami-terrain.js?v=20261013211247"></script>
+<script src="sorami-mountain.js?v=20261013211247"></script>
+<script src="sorami-fuji.js?v=20261013211247"></script>
+<script src="sorami-sky.js?v=20261013211247"></script>
 
-<script src="sorami-history.js?v=20261013184017"></script>
-<script src="sorami-plan.js?v=20261013184017"></script>
-<script src="sorami-routes.js?v=20261013184017"></script>
-<script src="sorami-iss.js?v=20261013184017"></script>
-<script src="sorami-plane.js?v=20261013184017"></script>
-<script src="sorami-plane-live.js?v=20261013184017"></script>
-<script src="sorami-refraction.js?v=20261013184017"></script>
-<script src="sorami-atmosphere.js?v=20261013184017"></script>
-<script src="sorami-bodies.js?v=20261013184017"></script>
-<script src="sorami-sky-map.js?v=20261013184017"></script>
-<script src="sorami-city-models.js?v=20261013184017"></script>
-<script src="sorami-tower-models.js?v=20261013184017"></script>
-<script src="sorami-align.js?v=20261013184017"></script>
-<script src="sorami-moon.js?v=20261013184017"></script>
+<script src="sorami-history.js?v=20261013211247"></script>
+<script src="sorami-plan.js?v=20261013211247"></script>
+<script src="sorami-routes.js?v=20261013211247"></script>
+<script src="sorami-iss.js?v=20261013211247"></script>
+<script src="sorami-plane.js?v=20261013211247"></script>
+<script src="sorami-refraction.js?v=20261013211247"></script>
+<script src="sorami-atmosphere.js?v=20261013211247"></script>
+<script src="sorami-bodies.js?v=20261013211247"></script>
+<script src="sorami-sky-map.js?v=20261013211247"></script>
+<script src="sorami-city-models.js?v=20261013211247"></script>
+<script src="sorami-tower-models.js?v=20261013211247"></script>
+<script src="sorami-align.js?v=20261013211247"></script>
+<script src="sorami-moon.js?v=20261013211247"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3522,7 +3508,7 @@ function applyRoute() {
   atIss = !!(route && route.iss);
   if (atAim) openAim(route.preset || null);
   if (!atAdmin && typeof clearAdminView === "function") clearAdminView();
-  if (atPlane) openPlane(); else planeLiveSync();   // 月丼を離れたら月丼ライブの取得を止める
+  if (atPlane) openPlane();
   if (atIss) openIss();
   if (atAdmin) renderAdmin();
   if (route && route.id) {
@@ -5905,8 +5891,7 @@ function aimMapLabel(ctx, x, y, text, color, width, height, place = "right") {
 // 運用の向き（北風・南風）はその日の風の予報から決める。
 const plane = { dayMs: null, op: null, wind: null,
                 result: null, seq: 0, wired: false, pick: 0,
-                from: null,     // 観測地点。null なら絶景予測の地点を引き継ぐ（ねらうと同じ。2026-10-01）
-                here: null };   // planeApply が解いた観測地点（標高・目の高さ・地平線）。月丼ライブも使う
+                from: null };   // 観測地点。null なら絶景予測の地点を引き継ぐ（ねらうと同じ。2026-10-01）
 /// 月丼の観測地点（候補の「ここ」）。替えていなければ絶景予測の地点
 function planeFromPoint() { return plane.from || inheritedPoint(); }
 function planeSetFrom(p) {
@@ -6014,8 +5999,6 @@ async function planeApply() {
     note: agl > 2 ? `地上${Math.round(agl)}m。目の高さ ${Math.round(ground + agl)}m`
       : `標高 ${Math.round(ground)}m`,
   };
-  plane.here = here;
-  planeLiveMoved();
   const spots = SoramiPlane.rankSpots(plane.dayMs, paths, [here, ...SoramiRoutes.SPOTS],
     { stepMin: 2, limit: 8, activeAt });
   if (seq !== plane.seq) return;
@@ -6148,216 +6131,7 @@ PlaneMap.setOverlay((ctx, { project, width, height }) => {
   ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
   aimMapLabel(ctx, ax, ay + 14, SoramiRoutes.RJTT.name, "#fff", width, height, "center");
   ctx.restore();
-  planeLiveDrawMap(ctx, project, width, height);
 });
-
-// ---------------------------------------------------------------- 月丼ライブ（2026-10-13 E199）
-//
-// 今日の月丼を開いている間だけ、いま飛んでいる機体を4秒ごとに取り、先の位置を予測して
-// 「どの機体が・何秒後に・月の前を通るか」を出す。予測は sorami-plane-live.js（通信しない）。
-// 位置は私有APIの /live/aircraft（adsb.fi の中継。ログインと月丼の権限が要る。1人30回/分）。
-// 画面が裏に回ったら止める。失敗したら20秒あけて取り直す。権限が無いときは取り直さない
-const PLANE_LIVE_MS = 4000, PLANE_LIVE_RETRY_MS = 20000, PLANE_LIVE_FOV = 12;
-const planeLive = { timer: null, tick: null, ticks: 0, busy: false, key: "",
-                    data: null, result: null, fetchedAt: 0, error: "" };
-const planeLiveClock = (ms) => new Date(ms + 9 * 3600000).toISOString().slice(11, 19);
-const planeLiveToday = () => plane.dayMs === S.Cal.startOfDay(Date.now());
-const planeLiveOn = () => atPlane && planeLiveToday() && !document.hidden;
-
-/// 観測地点。planeApply が解いた「ここ」（地点・標高・展望台の高さ・測った地平線）をそのまま使う
-function planeLiveObserver() {
-  const h = plane.here;
-  if (!h) return null;
-  return { latitude: h.latitude, longitude: h.longitude, elevation: h.elevationM ?? 0, eyeM: h.deckM ?? 1.5,
-    horizonAt: h.horizonAt || null };
-}
-
-/// 動かすか止めるか。月丼を開いた・日付を変えた・画面を離れた・裏に回ったときに呼ぶ
-function planeLiveSync() {
-  const shown = atPlane && planeLiveToday();
-  $("planeLive").hidden = !shown;
-  $("planeLiveKey").hidden = !shown;
-  if (!planeLiveOn()) {
-    clearTimeout(planeLive.timer); planeLive.timer = null;
-    clearInterval(planeLive.tick); planeLive.tick = null;
-    return;
-  }
-  if (!planeLive.tick) planeLive.tick = setInterval(planeLiveTick, 250);
-  if (!planeLive.timer && !planeLive.busy) planeLiveFetch();
-}
-document.addEventListener("visibilitychange", planeLiveSync);
-
-/// 観測地点が変わったら、前の地点の機体を捨てて取り直す（同じ地点なら解き直すだけ）
-function planeLiveMoved() {
-  const o = planeLiveObserver();
-  const key = o ? `${o.latitude.toFixed(5)},${o.longitude.toFixed(5)},${o.elevation},${o.eyeM}` : "";
-  if (key === planeLive.key) { planeLiveCompute(); return; }
-  planeLive.key = key; planeLive.data = null; planeLive.result = null;
-  clearTimeout(planeLive.timer); planeLive.timer = null;
-  planeLiveSync();
-}
-
-async function planeLiveFetch() {
-  planeLive.timer = null;
-  if (!planeLiveOn()) return;
-  const o = planeLiveObserver();
-  let wait = PLANE_LIVE_MS;
-  if (!o) wait = 1000;
-  else if (!auth) {
-    planeLive.error = "ログインすると、いま飛んでいる機体を表示します";
-    planeLive.data = null; planeLive.result = null; wait = 5000;
-  } else {
-    planeLive.busy = true;
-    try {
-      planeLive.data = await apiCall("GET", `/live/aircraft?lat=${o.latitude.toFixed(4)}&lon=${o.longitude.toFixed(4)}`);
-      planeLive.fetchedAt = Date.now(); planeLive.error = "";
-      planeLiveCompute();
-    } catch (e) {
-      planeLive.error = e.message || "機体の位置を取得できませんでした";
-      wait = e.status === 403 ? 0 : PLANE_LIVE_RETRY_MS;
-    } finally { planeLive.busy = false; }
-  }
-  planeLiveRenderList();
-  if (wait && planeLiveOn()) planeLive.timer = setTimeout(planeLiveFetch, wait);
-}
-
-function planeLiveCompute() {
-  const o = planeLiveObserver();
-  planeLive.result = o && planeLive.data ? SoramiPlaneLive.predictAll(o, planeLive.data, { nowMs: Date.now() }) : null;
-}
-
-function planeLiveTick() {
-  if (!planeLiveOn()) { planeLiveSync(); return; }
-  planeLiveDrawSky();
-  if (++planeLive.ticks % 4 === 0) { planeLiveRenderList(); PlaneMap.redraw(); }
-}
-
-/// 月の前を通る機体（円盤にかかる）を先に、次に月の近く（2°以内）を通る機体を、早い順に5機まで
-function planeLiveRenderList() {
-  const el = $("planeLiveList"), r = planeLive.result, now = Date.now();
-  $("planeLiveAt").textContent = planeLive.fetchedAt && !planeLive.error ? `${planeLiveClock(planeLive.fetchedAt)} 更新` : "";
-  const note = (t) => { el.innerHTML = `<p class="tiny" style="margin-top:6px">${esc(t)}</p>`; };
-  if (planeLive.error) return note(planeLive.error);
-  if (!r) return note("機体の位置を取得しています…");
-  const m = r.moonAt(now);
-  if (m.alt <= 0) return note("月が地平線の下にあるあいだは重なりません");
-  const soon = r.aircraft.filter((a) => a.closest && a.closest.t >= now - 1000 && (a.transit || a.closest.sep < 2))
-    .sort((x, y) => (y.transit ? 1 : 0) - (x.transit ? 1 : 0) || x.closest.t - y.closest.t).slice(0, 5);
-  if (!soon.length) return note(`この先、月の近く（2°以内）を通る機体はありません。まわりに${r.aircraft.length}機`);
-  el.innerHTML = soon.map((a) => {
-    const at = a.transit ? a.transit.from : a.closest.t;
-    const sec = Math.max(0, Math.round((at - now) / 1000));
-    const how = a.transit ? `円盤に${((a.transit.to - a.transit.from) / 1000).toFixed(1)}秒`
-      : `中心から月${(a.closest.sep / (2 * m.radius)).toFixed(1)}個ぶん`;
-    return `<div class="al-row"><span class="al-w"><strong>${esc(a.flight)}${a.type ? `（${esc(a.type)}）` : ""}</strong>
-      <span class="muted">${a.transit ? "月の前" : "月のそば"}まで あと${sec}秒・${planeLiveClock(at)}・${how}</span>
-      <span class="muted">${a.closest.distKm.toFixed(1)}km先・高度 ${Math.round(a.closest.altitudeM)}m
-      ・${a.mode === "approach" ? `${esc(a.runway)} 進入` : "いまの向きのまま"}・確度 ${SoramiPlaneLive.confidence(a, at, now)}</span>
-    </span></div>`;
-  }).join("");
-}
-
-/// 月を中心にした空（幅12°）。空の色・月の満ち欠けは見え方の図と同じ。機体の線はこの先の予測で、点は10秒ごと
-function planeLiveDrawSky() {
-  const cv = $("planeLiveSky"), o = planeLiveObserver();
-  const box = cv.getBoundingClientRect();
-  if (!o || !box.width) return;
-  const dpr = window.devicePixelRatio || 1;
-  if (cv.width !== Math.round(box.width * dpr) || cv.height !== Math.round(box.height * dpr)) {
-    cv.width = Math.round(box.width * dpr); cv.height = Math.round(box.height * dpr);
-  }
-  const ctx = cv.getContext("2d");
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const w = box.width, h = box.height, now = Date.now(), r = planeLive.result;
-  const m = r ? r.moonAt(now) : (() => {
-    const x = SoramiAstro.moon(now, o);
-    return { az: x.azimuth, alt: x.apparentAltitude, radius: x.angularRadius,
-      illuminated: x.illuminatedFraction, brightLimbZenithAngle: x.brightLimbZenithAngle };
-  })();
-  const k = w / PLANE_LIVE_FOV, cx = w / 2, cy = h / 2;
-  const X = (dx) => cx + dx * k, Y = (dy) => cy - dy * k;
-  const [top, bottom] = aimLookSky(SoramiAstro.sun(now, o).apparentAltitude);
-  const sky = ctx.createLinearGradient(0, 0, 0, h);
-  sky.addColorStop(0, `rgb(${top})`); sky.addColorStop(1, `rgb(${bottom})`);
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
-  // 昼の明るい空では白い線が見えないので、空の明るさで線の色を替える
-  const light = 0.299 * bottom[0] + 0.587 * bottom[1] + 0.114 * bottom[2] > 150;
-  const ink = light ? "rgba(16,28,48,.8)" : "#fff";
-  ctx.strokeStyle = light ? "rgba(16,28,48,.1)" : "rgba(255,255,255,.16)"; ctx.lineWidth = 1;
-  for (let d = -PLANE_LIVE_FOV; d <= PLANE_LIVE_FOV; d++) {
-    ctx.beginPath(); ctx.moveTo(X(d), 0); ctx.lineTo(X(d), h); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, Y(d)); ctx.lineTo(w, Y(d)); ctx.stroke();
-  }
-  // 地平線（測った地平線があれば建物・地形も）
-  ctx.fillStyle = "rgba(24,26,32,.88)";
-  ctx.beginPath(); ctx.moveTo(0, h);
-  for (let px = 0; px <= w; px += 4) {
-    const az = m.az + (px - cx) / k / Math.max(0.2, Math.cos(m.alt * Math.PI / 180));
-    ctx.lineTo(px, Math.min(h, Y((o.horizonAt ? o.horizonAt(az) : 0) - m.alt)));
-  }
-  ctx.lineTo(w, h); ctx.closePath(); ctx.fill();
-  aimLookDisc(ctx, cx, cy, Math.max(4, m.radius * k), "moon", m);
-  const hotC = getComputedStyle(document.documentElement).getPropertyValue("--ray-sun").trim() || "#e8820e";
-  const inView = (p) => Math.abs(p.dx) < PLANE_LIVE_FOV / 2 + 1 && Math.abs(p.dy) < h / k / 2 + 1;
-  for (const a of r ? r.aircraft : []) {
-    const cur = SoramiPlaneLive.skyAt(a.sky, now);
-    if (!cur) continue;
-    const ahead = a.sky.filter((p) => p.t > now);
-    if (!inView(cur) && !ahead.some(inView)) continue;
-    const hot = !!a.transit, near = !hot && !!a.closest && a.closest.sep < 1;
-    const col = hot || near ? hotC : ink;
-    ctx.save();
-    ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = hot ? 2 : 1.2;
-    ctx.globalAlpha = hot ? 1 : near ? 0.85 : 0.5;
-    ctx.beginPath(); ctx.moveTo(X(cur.dx), Y(cur.dy));
-    for (const p of ahead) ctx.lineTo(X(p.dx), Y(p.dy));
-    ctx.stroke();
-    for (const p of ahead) {
-      const s = (p.t - now) / 1000, n = Math.round(s);
-      if (n > 0 && n % 10 === 0 && Math.abs(s - n) <= 0.5) { ctx.beginPath(); ctx.arc(X(p.dx), Y(p.dy), 1.8, 0, Math.PI * 2); ctx.fill(); }
-    }
-    ctx.globalAlpha = 1;
-    if (!cur.hidden && inView(cur)) {
-      const nx = ahead[0] ? X(ahead[0].dx) - X(cur.dx) : 1, ny = ahead[0] ? Y(ahead[0].dy) - Y(cur.dy) : 0;
-      ctx.translate(X(cur.dx), Y(cur.dy)); ctx.rotate(Math.atan2(ny, nx));
-      ctx.beginPath(); ctx.moveTo(7, 0); ctx.lineTo(-5, 5); ctx.lineTo(-2, 0); ctx.lineTo(-5, -5); ctx.closePath(); ctx.fill();
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      aimMapLabel(ctx, X(cur.dx), Y(cur.dy) - 12, `${a.flight} ${cur.distKm.toFixed(1)}km`, "#fff", w, h);
-    }
-    ctx.restore();
-  }
-  aimMapLabel(ctx, 4, 14, `${moonGlyphAt(now)} 月 方位${Math.round(m.az)}°・高さ${Math.round(m.alt)}°`, "#fff", w, h);
-}
-
-/// 地図に、いまの機体（小さな三角）と、月の前を通る機体の予測の線（橙の破線）を重ねる
-function planeLiveDrawMap(ctx, project, width, height) {
-  if (!planeLiveOn() || !planeLive.result) return;
-  const now = Date.now();
-  const hotC = getComputedStyle(document.documentElement).getPropertyValue("--ray-sun").trim() || "#e8820e";
-  for (const a of planeLive.result.aircraft) {
-    const cur = SoramiPlaneLive.skyAt(a.sky, now);
-    if (!cur) continue;
-    const ahead = a.sky.filter((p) => p.t > now);
-    const hot = !!a.transit || (!!a.closest && a.closest.sep < 1);
-    const [x, y] = project(cur.latitude, cur.longitude);
-    ctx.save();
-    if (hot && ahead.length) {
-      ctx.setLineDash([7, 6]); ctx.lineCap = "round";
-      ctx.beginPath(); ctx.moveTo(x, y);
-      for (const p of ahead) ctx.lineTo(...project(p.latitude, p.longitude));
-      ctx.strokeStyle = "rgba(0,0,0,.55)"; ctx.lineWidth = 5; ctx.stroke();
-      ctx.strokeStyle = hotC; ctx.lineWidth = 2.2; ctx.stroke();
-      ctx.setLineDash([]);
-    }
-    const [nx, ny] = ahead[0] ? project(ahead[0].latitude, ahead[0].longitude) : [x + 1, y];
-    ctx.translate(x, y); ctx.rotate(Math.atan2(ny - y, nx - x));
-    ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-6, 6); ctx.lineTo(-2, 0); ctx.lineTo(-6, -6); ctx.closePath();
-    ctx.fillStyle = hot ? hotC : "#fff"; ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,.6)"; ctx.lineWidth = 1.2; ctx.stroke();
-    ctx.restore();
-    if (hot) aimMapLabel(ctx, x, y - 14, a.flight, "#fff", width, height, "center");
-  }
-}
 
 function openPlane() {
   if (!plane.dayMs) plane.dayMs = S.Cal.startOfDay(Date.now());
@@ -6375,7 +6149,6 @@ function openPlane() {
       $("planeDate").value = new Date(ms + 9 * 3600000).toISOString().slice(0, 10);
       $("planeWeekday").textContent = S.Cal.relativeDay(ms);
       planeApply();
-      planeLiveSync();
     };
     $("planePrev").onclick = () => setDay(plane.dayMs - 86400000);
     $("planeNext").onclick = () => setDay(plane.dayMs + 86400000);
@@ -6401,7 +6174,6 @@ function openPlane() {
     requestAnimationFrame(() => PlaneMap.redraw());
   });
   planeApply();
-  planeLiveSync();
 }
 
 // ---------------------------------------------------------------- ISS の月面通過
@@ -9939,7 +9711,7 @@ async function apiCall(method, path, body) {
     // 401 はセッション切れ。**データは消さない。** 入り直せば続きから使える。
     if (res.status === 401 && data?.code !== "reauth_required" && auth?.token === requestToken && authGeneration === requestGeneration) { clearAuth(); renderAuthButton(); }
     const error = new Error(data?.error || `通信できませんでした（${res.status}）`);
-    error.code = data?.code; error.status = res.status; throw error;
+    error.code = data?.code; throw error;
   }
   if (authGeneration !== requestGeneration || auth?.token !== requestToken) throw new Error("アカウントが変更されました。操作をやり直してください");
   return data;
@@ -11177,7 +10949,7 @@ load(false);
 restoreSession();
 checkForUpdate();
 </script>
-<script src="sorami-datetime-ui.js?v=20261013184017"></script>
+<script src="sorami-datetime-ui.js?v=20261013211247"></script>
 <script id="uiVisualPrimitives">
 const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
 // E185: visual choices forward to the original native control; no calculation path is added.
