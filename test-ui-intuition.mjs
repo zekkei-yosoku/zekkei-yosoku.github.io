@@ -21,7 +21,7 @@ test('復元・枠外変更・使用不可の状態が図形の選択へ反映�
  const f=fixture('grid','diagonal');assert.equal(f.buttons[2].getAttribute('aria-pressed'),'true');f.select.value='none';f.select.options[1].disabled=true;f.select.options[2].hidden=true;f.sync();assert.equal(f.buttons[0].getAttribute('aria-pressed'),'true');assert.equal(f.buttons[1].disabled,true);assert.equal(f.buttons[2].hidden,true);f.select.disabled=true;f.sync();assert.ok(f.buttons.every(b=>b.disabled));assert.equal(f.changes(),0);
 });
 test('縦横とグリッドの図は区別でき、操作は読み上げ名を残す',()=>{
- const o=fixture('orientation','landscape'),g=fixture('grid','none');assert.notEqual(o.buttons[0].innerHTML,o.buttons[1].innerHTML);assert.equal(new Set(g.buttons.map(b=>b.innerHTML)).size,3);assert.equal(g.buttons[2].getAttribute('aria-label'),'9分割＋対角');assert.match(html,/center\.setAttribute\('aria-label','観測地点を地図の中央に表示'\)/);assert.match(html,/center\.className='map-ctl sky-map-recenter'/);
+ const o=fixture('orientation','landscape'),g=fixture('grid','none');assert.notEqual(o.buttons[0].innerHTML,o.buttons[1].innerHTML);assert.equal(new Set(g.buttons.map(b=>b.innerHTML)).size,3);assert.equal(g.buttons[2].getAttribute('aria-label'),'9分割＋対角');assert.match(html,/id="skyMapObserverTool"[^>]*aria-label="観測地点を地図で変更"/);assert.doesNotMatch(html,/id="skyMapCenter"/);
 });
 test('現在位置の帯は独立MAP・通常/共有/旧URLの重ねるでも一意に付く',()=>{
  const extract=name=>{const at=html.indexOf('function '+name+'(');return html.slice(at,html.indexOf('\n}',at)+2);};
