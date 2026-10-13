@@ -77,3 +77,28 @@ test('標高取得を待っている間にtowerの許可を失った場合も遅
 test('専用権限は未ログイン・旧権限・不正応答を拒否し、天体や地盤の計算を始めない',async()=>{for(const options of [{loggedIn:false},{tools:['tower','diamond','pearl']},{accessResult:{allowed:true,tool:'skymap',tools:[]}}]){const f=fixture(options);await f.open();assert.equal(f.loads,0);assert.equal(f.calls,0);assert.equal(f.element('skyMapContent').hidden,true);}});
 test('遅い許可応答は離脱・アカウント変更後の画面を開かない',async()=>{for(const change of ['leave','account']){const f=fixture({accessWaiting:true});f.c.SkyMapUI.open();await flush();if(change==='leave')f.c.SkyMapUI.leave();else{f.c.auth={token:'different',loginId:'other',tools:['skymap']};f.c.SkyMapUI.authChanged();}f.c.accessRequests[0]({allowed:true,tool:'skymap',tools:['skymap'],loginId:'testuser'});await flush();assert.equal(f.loads,0);assert.equal(f.element('skyMapContent').hidden,true);}});
 test('専用権限だけで8天体・建物・自作目標を使え、重ねるへの転送は別権限を必要とする',async()=>{const f=fixture({tools:['skymap'],saved:{at:day,targetId:'skytree'}});await f.open();assert.equal(f.element('skyMapBody').options.filter(o=>!o.disabled).length,8);assert.equal(f.element('skyMapCustom').hidden,false);f.element('skyMapUse').onclick();assert.equal(f.c.hash,undefined);const n=f.accessCalls;f.element('skyMapLater').onclick();f.element('skyMapTime').value='12:34';f.element('skyMapTime').onchange();assert.equal(f.accessCalls,n);});
+
+// E202: 通過チップはselectとは別経路。太陽/月の移動先権限も毎回同期する。
+test('通過チップの天体変更で構図の2入口が権限に追従する',async()=>{
+ const f=fixture({tools:['skymap','pearl'],saved:{at:Date.parse('2026-06-22T00:00:00+09:00'),body:'sun',targetId:'fuji',showSun:true,showMoon:true}});await f.open();
+ const walk=e=>[e,...(e.children||[]).flatMap(walk)],buttons=walk(f.element('skyMapPassages')).filter(e=>e.type==='button');
+ const moon=buttons.find(e=>e.textContent.startsWith('☾')),sun=buttons.find(e=>e.textContent.startsWith('☀'));assert.ok(moon);assert.ok(sun);
+ for(const id of ['skyMapUse','skyMapUseBelow'])assert.equal(f.element(id).hidden,true);
+ moon.onclick();assert.equal(f.element('skyMapBody').value,'moon');
+ for(const id of ['skyMapUse','skyMapUseBelow']){assert.equal(f.element(id).hidden,false);assert.equal(f.element(id).disabled,false);}
+ sun.onclick();for(const id of ['skyMapUse','skyMapUseBelow'])assert.equal(f.element(id).hidden,true);
+});
+// E202: 日付変更は配置している目標とは独立。閉じる/別対象選択は引き続き失効させる。
+test('目標の標高取得中に日付を変えても配置は完了する',async()=>{
+ const target=AL.TARGETS.find(t=>t.name.includes('森JP')),f=fixture({waiting:true,saved:{at:day,targetId:target.id}});f.c.SkyMapUI.open();await flush();f.release(5.5);await flush();
+ f.element('skyMapHeight').valueAsNumber=20;const placing=f.element('skyMapPlaceTarget').onclick();await flush();
+ f.element('skyMapNext').onclick();await flush();f.release(10);await placing;await flush();
+ assert.equal(f.element('skyMapTarget').value,'custom');assert.equal(f.data.get('sorami.skyMap:testuser').custom.topM,30);assert.equal(f.data.get('sorami.skyMap:testuser').at,day+86400000);
+});
+
+test('目標の標高取得中の明示的な別目標選択を遅い配置結果が上書きしない',async()=>{
+ const f=fixture({waiting:true,saved:{at:day,targetId:'skytree'}});f.c.SkyMapUI.open();await flush();f.release(5.5);await flush();
+ f.element('skyMapHeight').valueAsNumber=20;const placing=f.element('skyMapPlaceTarget').onclick();await flush();
+ f.element('skyMapTarget').value='fuji';f.element('skyMapTarget').onchange();await flush();f.release(10);await placing;
+ assert.equal(f.element('skyMapTarget').value,'fuji');assert.equal(f.data.get('sorami.skyMap:testuser').custom,null);
+});
