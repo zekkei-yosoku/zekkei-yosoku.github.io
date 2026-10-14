@@ -138,7 +138,7 @@ test('E198: 条件3行は「を見る／の方向を見る／から見る」、�
  const block=html.slice(html.indexOf('<div class="sky-map-controls">'),html.indexOf('<div class="mapwrap sky-map-wrap">'));
  assert.deepEqual([...block.matchAll(/<span class="aim-say-v">([^<]+)<\/span>/g)].map(m=>m[1]),['を見る','の方向を見る','から見る']);
  const sky=html.slice(html.indexOf('<section id="skyMapView"'),html.indexOf('</section>',html.indexOf('<section id="skyMapView"')));
- assert.doesNotMatch(sky,/観測点|出・入|出入は|中心に目標を置く/);assert.match(html,/観測地点を固定して天体の方向と高度を確認/);
+ assert.doesNotMatch(sky,/観測点|出・入|出入は|中心に目標を置く/);assert.match(html,/天体の方向と高度（Map）/);
  const f=fixture({saved:{at:day,body:'sun',showSun:true,showMoon:false}});await f.open();
  const events=f.element('skyMapEvents').children.filter(b=>b.type==='button');assert.ok(events.length);
  for(const b of events){assert.match(b['aria-label'],/^日の(出|入) \d\d:\d\d・方位 /);assert.match(b.textContent,/^☀[出入] \d\d:\d\d$/);}
