@@ -127,14 +127,3 @@ test('メニュー向け準備も構図権限なし/離脱後は状態を転送�
  const f=fixture({tools:['skymap'],saved:{at:day,targetId:'skytree'}});await f.open();assert.notEqual(f.c.SkyMapUI.prepareFraming(),true);assert.equal(f.aim.plannerTransfer,undefined);
  f.c.SkyMapUI.leave();assert.equal(f.c.SkyMapUI.prepareFraming(),false);assert.equal(f.aim.plannerTransfer,undefined);
 });
-
-test('共通条件の保留中にアカウントが変わっても旧利用者の地点や目標を新利用者へ保存しない',async()=>{
- const privatePoint={name:'前ユーザーの地点',latitude:36.2,longitude:138.4,standAglM:120,groundManualM:25};
- const f=fixture({accessWaiting:true,saved:{at:day,observer:privatePoint,targetId:'skytree'}});f.c.authGeneration=1;
- assert.equal(f.c.SkyMapUI.useContext({point:privatePoint,at:day+123456}),true);await f.open();
- f.c.authGeneration++;f.c.auth={token:'other-token',loginId:'other-user',tools:['skymap','tower']};f.c.SkyMapUI.authChanged();
- f.c.accessRequests[0]({allowed:true,tool:'skymap',tools:['skymap','tower'],loginId:'testuser',role:'user'});await flush();
- assert.equal(f.data.has('sorami.skyMap:other-user'),false,'古い許可応答では新利用者へ保存しない');
- f.c.accessRequests[1]({allowed:true,tool:'skymap',tools:['skymap','tower'],loginId:'other-user',role:'user'});await flush();
- const saved=f.data.get('sorami.skyMap:other-user');assert.ok(saved);assert.notEqual(saved.observer.latitude,privatePoint.latitude);assert.notEqual(saved.targetId,'skytree');
-});

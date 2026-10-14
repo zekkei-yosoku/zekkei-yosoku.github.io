@@ -1,47 +1,6 @@
+/* Color and the upper App selector only. Tool layout rules stay in index.html. */
 :root[data-theme="dark"]{--bg:#0a1020;--card:#141e32;--sunk:#1b2840;--line:rgba(180,201,239,.14);--secondary:#bac8de;--tertiary:#9bacc6}
-.platform-active{padding-bottom:calc(100px + env(safe-area-inset-bottom))}
-.platform-active #placeRow{display:none!important}
-.masthead h1{letter-spacing:.02em}.masthead{gap:10px}
-.platform-icon{display:grid;place-items:center;min-width:36px;min-height:44px;color:var(--secondary)}
-.platform-icon svg{width:21px;height:21px}
-#authButton{max-width:23%;font-size:.69rem}
-.app-modes{background:var(--sunk);border:1px solid var(--line);box-shadow:0 0 0 5px var(--bg)}
-.app-modes button{min-height:46px;letter-spacing:.02em}
-.platform-context{display:grid;grid-template-columns:1fr;gap:0;padding:4px 16px;margin-bottom:24px;border:1px solid var(--line);border-radius:16px}
-.platform-context>button{position:relative;text-align:left;display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:74px;padding:12px 48px 12px 0;min-width:0;width:100%;color:var(--text)}
-.platform-context>button+button{border-top:1px solid var(--line)}
-.platform-context strong{font-size:.94rem;font-weight:600;overflow-wrap:anywhere}
-.platform-label,.platform-eyebrow{color:var(--secondary);font-size:.69rem;letter-spacing:.08em}
-.platform-eyebrow{margin:0 0 5px}.platform-change{position:absolute;right:0;top:28px;font-size:.75rem;color:var(--secondary)}
-.platform-section{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:22px 0 14px}
-.platform-section h2{font-size:1.25rem;letter-spacing:.015em;margin:0}.platform-section h3{font-size:.94rem;margin:0}
-.platform-section .chip{flex-shrink:0;font-size:.75rem}
-.platform-moon{position:relative;min-height:260px;overflow:hidden;border:1px solid var(--line);border-radius:18px;display:grid;grid-template-columns:minmax(0,1fr) minmax(100px,160px);align-items:center;gap:6px;padding:22px 18px 40px;background:linear-gradient(135deg,var(--card),var(--sunk))}
-.platform-moon-copy{z-index:1}.platform-moon h3{font-size:1.5rem;margin:10px 0}.platform-moon-copy>p{font-size:.81rem;line-height:1.8}
-#platformMoonCanvas{width:100%;height:auto;max-width:200px;filter:drop-shadow(0 0 24px #96b8ff22)}
-.platform-moon-caption{position:absolute;bottom:10px;left:18px;margin:0}
-.platform-sun-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.platform-sun-grid strong{display:block;font-size:1rem;margin-top:6px}
-.astro-launchers{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:20px}
-.astro-launchers button{padding:14px;min-height:115px;border-radius:16px}.astro-launchers svg{width:22px;height:22px;color:var(--accent)}
-.astro-launchers b{font-size:.88rem}.astro-launchers span{font-size:.75rem;line-height:1.6}
-.platform-link{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px;margin-top:24px;border:1px solid var(--line);border-radius:16px}
-.platform-link h3{font-size:.94rem;margin:0 0 6px}.platform-link p{margin:0}.platform-link .chip{flex-shrink:0;font-size:.75rem}
-.platform-nav{position:fixed;z-index:37;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;padding:5px max(12px,env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
-.platform-nav button{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;min-height:52px;flex:1;max-width:150px;color:var(--secondary);font-size:.69rem;border-radius:10px}
-.platform-nav svg{width:22px;height:22px;display:block}.platform-nav button[aria-current="page"]{color:var(--accent);background:var(--sunk)}
-.platform-nav button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-:is(#aimView,#skyMapView) .tool-datetime-footer{bottom:calc(63px + env(safe-area-inset-bottom))}
-main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,220px) + 85px + env(safe-area-inset-bottom))}
-main:has(>#skyMapView:not([hidden])){padding-bottom:calc(var(--sky-footer-h,220px) + 85px + env(safe-area-inset-bottom))}
-.sky-map-wrap.sky-map-wide{top:calc(60px + env(safe-area-inset-top));bottom:calc(63px + env(safe-area-inset-bottom))}
-.platform-active:has(#skyMapView:not([hidden]) .sky-map-wide) .app-modes{position:fixed;top:env(safe-area-inset-top);left:max(14px,env(safe-area-inset-left));right:max(14px,env(safe-area-inset-right));margin:0}
-.platform-active:has(#skyMapView:not([hidden]) .sky-map-wide) .platform-link{display:none}
-.platform-active:has(>:is(#astroHomeView,#platformPlansView):not([hidden]))>:is(#status,#predictionDataNotice,#nowcast,#deckRow){display:none!important}
-.platform-plan{padding:18px;border:1px solid var(--line);border-radius:16px;margin:12px 0;background:var(--card)}
-.platform-plan h3{font-size:1rem;margin:0 0 8px;overflow-wrap:anywhere}.platform-plan p{white-space:pre-wrap;overflow-wrap:anywhere}
-.platform-plan-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-.platform-forecast-row{display:flex;gap:12px;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
-.platform-forecast-row:last-child{border:0}.platform-forecast-row strong{font-size:.94rem}.platform-forecast-row span{font-size:.81rem;text-align:right}
-#platformToolAccess{border:1px solid var(--line);padding:20px;border-radius:16px}
-@media(min-width:700px){.platform-context{grid-template-columns:1fr 1fr;gap:20px}.platform-context>button+button{border-top:0;border-left:1px solid var(--line);padding-left:20px}.platform-moon{grid-template-columns:1fr 200px}}
-@media(max-width:350px){.platform-section{align-items:flex-start}.platform-section h2{font-size:1.06rem}.astro-launchers{grid-template-columns:1fr}.platform-link{align-items:flex-start;flex-direction:column}.masthead{gap:5px}.platform-moon{grid-template-columns:minmax(0,1fr) 110px}}
+.app-switch{display:flex;gap:4px;padding:4px;margin:0 0 14px;background:var(--sunk);border:1px solid var(--line);border-radius:12px}
+.app-switch button{flex:1;min-width:0;min-height:44px;padding:8px;border-radius:9px;font-size:.88rem;font-weight:700;color:var(--secondary)}
+.app-switch button[aria-pressed="true"]{background:var(--card);color:var(--text);box-shadow:inset 0 -3px var(--accent)}
+.app-switch button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
