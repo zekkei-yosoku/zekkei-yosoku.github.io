@@ -31,8 +31,8 @@ console.log("== sticky が別の要素へ被らない ==");
 // 同じ事故が起きない条件を直接検査する。
 const stickyUses = [...code.matchAll(/([.#][\w-]+)[^{]*\{[^}]*position:\s*sticky/g)].map((m) => m[1]);
 // 2026-10-12 E183: スカイマップをページ化。日時はページ内の固定欄とし、シート用sticky例外を撤去。
-ok(stickyUses.every((sel) => [".mxrail", ".preview-tabs"].includes(sel)),
-  "sticky はマトリクス列・撮影確認タブのみ", stickyUses.join(" "));
+ok(stickyUses.every((sel) => [".mxrail", ".preview-tabs", ".app-modes"].includes(sel)),
+  "sticky はマトリクス列・撮影確認タブ・共通切替のみ", stickyUses.join(" "));
 // 記録画面では一覧ごと隠すので、sticky な要素が記録カードへ被る経路が無い。
 // **出す画面は1つ**なので、記録を出せば一覧は自動で隠れる（VIEWS の表）。
 ok(/for \(const v of VIEWS\) \$\(v\.el\)\.hidden = v\.id !== view/.test(html),
@@ -1029,13 +1029,13 @@ ok(/addEventListener\("hashchange"/.test(html), "hashchange を見ている");
 // 2026-10-01: 題名だけでは戻れると気づけない（ユーザー「一覧に戻るボタンはあった方がいい」）。
 // 一覧以外の画面では、題名の帯のすぐ下に「← 戻る」を出す。どの画面でも同じ左上で、カードのあいだに浮かない。
 ok(/id="homeLink"/.test(html), "一覧では題名が戻り道");
-ok(/\$\("homeLink"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \}/.test(html),
-  "題名を押すと一覧へ戻る（引き出しも閉じる）");
+ok(/\$\("homeLink"\)\.onclick = \(\) => \{ closeTools\(\); if \(activeMode === 'astro'\) pushRoute\('#\/astro'\); else goList\(\); \}/.test(html),
+  "題名を押すと選択中アプリのホームへ戻る（引き出しも閉じる）");
 {
   // 2026-10-01 ユーザー「☰ と絶景予測の下にいい感じに。ボタンみたいに囲わなくていい。←戻る でいい」
   const mast = /<div class="masthead">[\s\S]*?\n  <\/div>/.exec(html)[0];
   ok(!/id="backLink"/.test(mast), "題名の帯（☰・題名・ログイン）には足さない");
-  ok(/<\/div>\n(?:  <!--[\s\S]*?-->\n)?  <div class="backbar" id="backBar" hidden>\n    <button id="backLink"/.test(html), "「← 戻る」は題名の帯のすぐ下");
+  ok(html.indexOf('id="backBar"') > html.indexOf('class="app-modes"') && html.indexOf('id="backBar"') < html.indexOf('id="placeRow"'), "戻るは共通ヘッダー領域の下・既存本文より前");
   ok(/aria-hidden="true"><path d="M13 8H3\.5M7\.5 3\.5 3 8l4\.5 4\.5"[^>]*\/><\/svg>戻る<\/button>/.test(html), "文字は「← 戻る」");
   ok(!/#backLink \{[^}]*(background|border)/.test(code), "囲わない（地も枠も付けない）");
   ok(/\$\("backBar"\)\.hidden = isMenuPage\(\);/.test(html), "メニューの主要ページでは戻るを隠す");
@@ -1101,7 +1101,7 @@ ok(/row\.hidden = decks\.length < 1 \|\| !placeCardShown\(\)/.test(html), "展�
 ok(/\[hidden\] \{ display: none !important; \}/.test(code), "hidden が display 指定に負けないようにする");
 ok(/listScrollY/.test(html), "一覧へ戻ったとき元の位置に戻す");
 // 「詳細と記録だけ先頭」と並べて書いていたため、道具の画面が一覧の途中の位置で開いていた（2026-10-01）
-ok(/window\.scrollTo\(0, currentView === "list" \? listScrollY : 0\);/.test(html), "一覧以外の画面は先頭から開く");
+ok(/window\.scrollTo\(0, modeReturnY \?\? \(currentView === "list" \? listScrollY : 0\)\);/.test(html), "アプリ復帰は保存位置、それ以外の画面は従来の位置へ開く");
 ok(/if \(currentView === "list"\) listScrollY = window\.scrollY;/.test(html), "一覧を離れるときに位置を憶える（メニューから開いたときも）");
 // 詳細の中で現象を替えるたびに履歴を積むと、戻るのに何度も押させることになる。
 ok(/history\.replaceState\(history\.state, "", `#\/\$\{picked\}\/\$\{dayMs\}`\)/.test(html),

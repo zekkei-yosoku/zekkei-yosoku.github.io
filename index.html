@@ -8,7 +8,7 @@
      編集後はbump.shでハッシュを更新する。connect-srcも実際に使う相手だけに絞る。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-bwAiVnKel/FUCUIzYLumh0X2RunXmeHPGDVrIl2SDE4=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-k+CgeRhaZs3txOBJ6sTHYVtv/6FAlnP8by0bX8TmSwQ=' 'sha256-G5/26JdoS9ZlhDtAVqUeH7k4tCu4Oa/52qlMDenZ0Vk=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-R9eWa/NUdad33x9s3eWtxu0gI5rTBOo0yP27cwoFi4I=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-k+CgeRhaZs3txOBJ6sTHYVtv/6FAlnP8by0bX8TmSwQ=' 'sha256-vk+ZTPvQnoQSYKsXtFNKFn6i1YQ5UUmuj/htFpP5oqY=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -89,6 +89,14 @@
   /* [hidden] は display:none を弱い指定で当てるだけなので、display を持つクラスに負ける。
      .place-row の flex に負けて、記録画面で地点カードが消えなかった。 */
   [hidden] { display: none !important; }
+  .app-modes { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 36; display: flex; gap: 4px; padding: 4px; margin: 0 0 14px; background: var(--sunk); border-radius: 12px; box-shadow: 0 0 0 4px var(--bg); }
+  .app-modes button { flex: 1; min-width: 0; min-height: 44px; padding: 8px; border-radius: 9px; font-size: 0.88rem; font-weight: 700; color: var(--secondary); }
+  .app-modes button[aria-pressed="true"] { background: var(--card); color: var(--text); box-shadow: inset 0 -3px var(--accent); }
+  .app-modes button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .astro-launchers { display: grid; gap: 10px; }
+  .astro-launchers button { display: flex; flex-direction: column; gap: 4px; width: 100%; min-height: 72px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--text); text-align: left; }
+  .astro-launchers b { font-size: 1rem; }
+  .astro-launchers span { font-size: 0.81rem; color: var(--secondary); }
   .masthead { display: flex; align-items: center; gap: 6px; padding: 6px 2px 12px; }
   .masthead h1 { flex: 1; min-width: 0; }
   .masthead-mark { width: 20px; height: 20px; border-radius: 5px; display: block; }
@@ -1319,9 +1327,10 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 :is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes:after{content:"";position:absolute;left:100%;top:0;bottom:0;width:14px;background:linear-gradient(to right,var(--timeline-panel-bg,var(--card)),transparent);pointer-events:none}
 :is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes button:after{content:"↔";font-size:10px;line-height:1;color:var(--secondary)}
 :is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes button:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
-</style></head>
+</style><link rel="stylesheet" href="platform.css?v=20261014230338">
+</head>
 <body>
-<main>
+<main class="platform-active">
   <div class="masthead">
     <!-- メニュー。**題名の左**に置く（よくある位置。2026-09-28 ユーザー指定）。
          表示はログイン名で絞っているが、**これは見た目だけ**で、
@@ -1332,12 +1341,35 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
          **押したらホームへ戻る。** どの画面にも出ているので、ここが戻り道になる。
          `alt` は空にする（すぐ隣に「絶景予測」と書いてあるので二度言わせない） -->
     <h1><button id="homeLink" class="tap">
-      <img src="icon-32.png?v=1" class="masthead-mark" alt="" width="20" height="20">絶景予測</button></h1>
+      <img src="icon-32.png?v=1" class="masthead-mark" alt="" width="20" height="20"><span id="modeBrand">絶景予測</span></button></h1>
     <!-- ログインは任意。押さなくても予報は全部見られる。
          同期が失敗しているときは、それをここに出す（黙って同期されていないのは
          「黙って消える」と同じ種類の事故）。 -->
+    <button type="button" id="platformSearch" class="platform-icon" aria-label="地点を検索"></button>
+    <button type="button" id="platformSettings" class="platform-icon" aria-label="設定"></button>
     <button id="authButton" class="tap"></button>
   </div>
+  <nav class="app-modes" aria-label="モード切り替え">
+    <button type="button" id="modeAstro" aria-pressed="false" aria-controls="astroHomeView">AstroNotes</button>
+    <button type="button" id="modeForecast" aria-pressed="true" aria-controls="listView">絶景予測</button>
+  </nav>
+  <section id="platformContext" class="platform-context card" aria-label="共通の地点と日時">
+    <button type="button" id="platformPlace"><span class="platform-label">観測地点</span><strong id="platformPlaceName"></strong><span id="platformPlaceSub" class="tiny"></span><span class="platform-change">変更 ›</span></button>
+    <button type="button" id="platformDate"><span class="platform-label">対象日時</span><strong id="platformDateText"></strong><span class="tiny">日本時間</span><span class="platform-change">変更 ›</span></button>
+  </section>
+  <section id="astroHomeView" aria-labelledby="astroHomeTitle" hidden>
+    <div class="platform-section"><div><p class="platform-eyebrow">OBSERVE &amp; DISCOVER</p><h2 id="astroHomeTitle">天体を観測する</h2></div><button type="button" id="platformObservePlan" class="chip">計画に保存</button></div>
+    <article class="platform-moon card"><div class="platform-moon-copy"><span class="platform-label">MOON</span><h3 id="platformMoonPhase">月</h3><p id="platformMoonPosition"></p><p id="platformMoonTimes" class="tiny"></p></div><canvas id="platformMoonCanvas" width="240" height="240" aria-label="選択日時の月相の模式図"></canvas><p class="platform-moon-caption tiny">月相の模式図 · 天文計算</p></article>
+    <div id="platformSun" class="card"></div>
+    <div class="platform-section"><h3>観測・撮影ツール</h3></div>
+    <div id="astroLaunchers" class="astro-launchers"></div>
+    <p id="astroAccessMessage" class="tiny" role="status" hidden></p>
+    <button type="button" id="astroLogin" class="chip" hidden>ログイン</button>
+  </section>
+  <section id="platformPlansView" aria-labelledby="platformPlansTitle" hidden>
+    <div class="platform-section"><div><p class="platform-eyebrow">PLAN YOUR NEXT MOMENT</p><h2 id="platformPlansTitle">観測・撮影の計画</h2></div><button type="button" id="platformAddPlan" class="chip">＋ 計画</button></div>
+    <p class="tiny">計画はこのブラウザに、アカウントごとに保存します。</p><div id="platformPlansList"></div>
+  </section>
   <!-- 戻る（2026-10-01 ユーザー「一覧に戻るボタンはあった方がいい」「☰ と絶景予測の下にいい感じに。
        ボタンみたいに囲わなくていい。←戻る でいい」）。一覧以外の画面で、題名の帯のすぐ下に文字だけで出す。
        **ひとつ前の画面へ戻る**（月の詳細 → 空の見え方 → 戻る で月の詳細）。一気に一覧へは題名を押す。
@@ -1388,6 +1420,7 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
   <!-- 一覧画面: この地点の全現象を、7日ぶんまとめて見る -->
   <div id="listView">
+    <div class="platform-section"><div><p class="platform-eyebrow">ANALYZE &amp; PREDICT</p><h2>絶景を見つける</h2></div><button type="button" id="platformForecastPlan" class="chip">計画に保存</button></div><div id="platformForecastFocus" class="card"></div>
     <div class="card" id="bestNote" hidden></div>
 
     <p id="listAnnouncement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
@@ -1746,7 +1779,18 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
  </div>
 </section>
   <details class="tiny fav-where" id="footer"><summary>出典</summary><div id="footerBody"></div></details>
+  <section id="platformLink" class="platform-link card" aria-labelledby="platformLinkTitle"><div><h3 id="platformLinkTitle"></h3><p id="platformLinkText" class="tiny"></p></div><button type="button" id="platformLinkGo" class="chip">確認する ›</button></section>
+  <p id="platformNotice" class="tiny" role="status" hidden></p>
 </main>
+<nav id="platformNav" class="platform-nav" aria-label="共通ナビゲーション">
+ <button type="button" data-platform-nav="home"><span data-nav-icon="home"></span><span>ホーム</span></button>
+ <button type="button" data-platform-nav="map"><span data-nav-icon="map"></span><span>マップ</span></button>
+ <button type="button" data-platform-nav="plans"><span data-nav-icon="plan"></span><span>計画</span></button>
+ <button type="button" data-platform-nav="records"><span data-nav-icon="record"></span><span>記録</span></button>
+</nav>
+<dialog id="platformDateSheet" class="sheet" tabindex="-1"><div class="sheet-head"><strong>対象日時</strong><button type="button" id="platformDateClose">閉じる</button></div><div class="sheet-body"><label for="platformDateInput">日本時間</label><input id="platformDateInput" class="fav-in" type="datetime-local" step="60" min="2000-01-01T00:00" max="2100-12-31T23:59"><p id="platformDateError" class="tiny" role="status" hidden></p><button type="button" id="platformDateNow" class="chip">現在の日時</button><button type="button" id="platformDateApply" class="fav-btn primary">この日時にする</button></div></dialog>
+<dialog id="platformPlanSheet" class="sheet" tabindex="-1"><div class="sheet-head"><strong>計画に保存</strong><button type="button" id="platformPlanClose">閉じる</button></div><div class="sheet-body"><label for="platformPlanName">計画名</label><input id="platformPlanName" class="fav-in" maxlength="120"><p id="platformPlanContext" class="tiny"></p><label for="platformPlanMemo">メモ</label><textarea id="platformPlanMemo" class="fav-in" maxlength="2000" rows="3"></textarea><p id="platformPlanError" class="tiny" role="status" hidden></p><button type="button" id="platformPlanSave" class="fav-btn primary">保存する</button></div></dialog>
+<dialog id="platformSettingsSheet" class="sheet" tabindex="-1"><div class="sheet-head"><strong>設定</strong><button type="button" id="platformSettingsClose">閉じる</button></div><div class="sheet-body"><button type="button" id="platformAccount" class="list-item">アカウント・ログイン・同期</button><button type="button" id="platformFavorites" class="list-item">お気に入り地点</button><p class="tiny">表示は端末のライト・ダーク設定に合わせます。</p></div></dialog>
 
 <!-- メニューの引き出し。**左上の ☰ から左に出す**（押した場所と出る場所を合わせる）。
      正本: Vault ドメイン/開発/絶景日和/04_デザイン定義「4-4. メニュー（引き出し）」 -->
@@ -2079,31 +2123,31 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261014171956"></script>
-<script src="sorami-prediction.js?v=20261014171956"></script>
+<script src="sorami-core.js?v=20261014230338"></script>
+<script src="sorami-prediction.js?v=20261014230338"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261014171956"></script>
-<script src="sorami-exif.js?v=20261014171956"></script>
-<script src="sorami-capcloud.js?v=20261014171956"></script>
-<script src="sorami-terrain.js?v=20261014171956"></script>
-<script src="sorami-mountain.js?v=20261014171956"></script>
-<script src="sorami-fuji.js?v=20261014171956"></script>
-<script src="sorami-sky.js?v=20261014171956"></script>
+<script src="sorami-astro.js?v=20261014230338"></script>
+<script src="sorami-exif.js?v=20261014230338"></script>
+<script src="sorami-capcloud.js?v=20261014230338"></script>
+<script src="sorami-terrain.js?v=20261014230338"></script>
+<script src="sorami-mountain.js?v=20261014230338"></script>
+<script src="sorami-fuji.js?v=20261014230338"></script>
+<script src="sorami-sky.js?v=20261014230338"></script>
 
-<script src="sorami-history.js?v=20261014171956"></script>
-<script src="sorami-plan.js?v=20261014171956"></script>
-<script src="sorami-routes.js?v=20261014171956"></script>
-<script src="sorami-iss.js?v=20261014171956"></script>
-<script src="sorami-plane.js?v=20261014171956"></script>
-<script src="sorami-refraction.js?v=20261014171956"></script>
-<script src="sorami-atmosphere.js?v=20261014171956"></script>
-<script src="sorami-bodies.js?v=20261014171956"></script>
-<script src="sorami-sky-map.js?v=20261014171956"></script>
-<script src="sorami-city-models.js?v=20261014171956"></script>
-<script src="sorami-tower-models.js?v=20261014171956"></script>
-<script src="sorami-align.js?v=20261014171956"></script>
-<script src="sorami-moon.js?v=20261014171956"></script>
+<script src="sorami-history.js?v=20261014230338"></script>
+<script src="sorami-plan.js?v=20261014230338"></script>
+<script src="sorami-routes.js?v=20261014230338"></script>
+<script src="sorami-iss.js?v=20261014230338"></script>
+<script src="sorami-plane.js?v=20261014230338"></script>
+<script src="sorami-refraction.js?v=20261014230338"></script>
+<script src="sorami-atmosphere.js?v=20261014230338"></script>
+<script src="sorami-bodies.js?v=20261014230338"></script>
+<script src="sorami-sky-map.js?v=20261014230338"></script>
+<script src="sorami-city-models.js?v=20261014230338"></script>
+<script src="sorami-tower-models.js?v=20261014230338"></script>
+<script src="sorami-align.js?v=20261014230338"></script>
+<script src="sorami-moon.js?v=20261014230338"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2993,6 +3037,7 @@ function rerenderList() {
  * 画面の一覧。**上から順に強い**（詳細を開いていれば、ほかの指定より詳細が勝つ）。
  * 画面を足すときは、ここに1行足して `routeFromHash` に道を足すだけにする。
  */
+let PlatformUI = null;
 const VIEWS = [
   { id: "detail",  el: "detailView",  on: () => !!(picked && weeks[picked]) },
   { id: "admin",   el: "adminView",   on: () => atAdmin },
@@ -3001,6 +3046,8 @@ const VIEWS = [
   { id: "aim",     el: "aimView",     on: () => atAim },
   { id: "plane",   el: "planeView",   on: () => atPlane },
   { id: "iss",     el: "issView",     on: () => atIss },
+  { id: "plans", el: "platformPlansView", on: () => !!routeFromHash()?.plans },
+  { id: "astro",   el: "astroHomeView", on: () => !!routeFromHash()?.astro },
   { id: "list",    el: "listView",    on: () => true },
 ];
 
@@ -3070,6 +3117,7 @@ function render() {
   // 順番を間違えても気づけない。**表に1行足すだけ**にする（2026-09-28）。
   const view = VIEWS.find((v) => v.on()).id;
   for (const v of VIEWS) $(v.el).hidden = v.id !== view;
+  PlatformUI?.enforce();
   // 一覧以外の画面では、題名の帯の下に「← 戻る」
   $("backBar").hidden = isMenuPage();
   const inDetail = view === "detail";
@@ -3502,6 +3550,8 @@ function wireOutcomes(root) {
 //   #/sunset      → 夕焼けの直近の回
 //   #/sunset/1756… → 夕焼けの特定の日
 function routeFromHash() {
+  if (location.hash === "#/astro") return { astro: true };
+  if (location.hash === "#/plans") return { plans: true };
   if (location.hash.includes("?plan=")) {
     const hash = location.hash.split("?")[0];
     if (hash === "#/aim") return { aim: true };
@@ -3566,7 +3616,7 @@ function pushRoute(hash) {
 /// ひとつ前の画面へ。前がアプリの中に無ければ（URL を直接開いた画面）一覧へ
 function isMenuPage() {
   const r = routeFromHash();
-  return !r || !!(r.aim || r.skymap || r.plane || r.iss || r.records);
+  return !r || !!(r.plans || r.astro || r.aim || r.skymap || r.plane || r.iss || r.records);
 }
 function goBack() {
   if (NO_HISTORY) {
@@ -3588,9 +3638,26 @@ function goList() {
   if (routeFromHash()) { history.replaceState(null, "", location.pathname + location.search); applyRoute(); }
 }
 
+let activeMode = 'forecast';
+let modeReturnY = null;
+function routeMode(r) {
+  if (r?.astro || r?.skymap || r?.aim || r?.plane || r?.iss) return 'astro';
+  if (r?.records || r?.plans || r?.admin) return activeMode;
+  return 'forecast';
+}
+function switchMode(mode) { PlatformUI?.switchMode(mode); }
+function renderModes() {
+  activeMode = routeMode(routeFromHash());
+  $('modeAstro').setAttribute('aria-pressed', String(activeMode === 'astro'));
+  $('modeForecast').setAttribute('aria-pressed', String(activeMode === 'forecast'));
+  $('modeBrand').textContent = activeMode === 'astro' ? 'AstroNotes' : '絶景予測';
+  $('homeLink').querySelector('img').hidden = activeMode === 'astro';
+  PlatformUI?.render();
+}
 function applyRoute() {
   if (restoreSharedPlan() === "reload") { load(true); return; }
   const route = routeFromHash();
+  PlatformUI?.beforeRoute(route);
   picked = route && route.id ? route.id : null;
   atRecords = !!(route && route.records);
   if (atRecords) loadPhotos();
@@ -3614,10 +3681,13 @@ function applyRoute() {
   // 一覧を離れる前に位置を憶える（メニューから道具を開いたときも、ブラウザの戻る・進むでも）
   if (currentView === "list") listScrollY = window.scrollY;
   render();
+  PlatformUI?.enforce();
   if (atSkyMap) SkyMapUI?.open();
+  PlatformUI?.afterRoute();
   // 画面が入れ替わるので位置を戻す。一覧は元いた位置へ、ほかの画面は先頭から。
   // 以前は「詳細と記録だけ先頭」としていたので、道具の画面が一覧の途中の位置で開いていた（2026-10-01）
-  window.scrollTo(0, currentView === "list" ? listScrollY : 0);
+  window.scrollTo(0, modeReturnY ?? (currentView === "list" ? listScrollY : 0));
+  modeReturnY = null;
 }
 // アプリの中のリンク（#/capCloud など）も pushRoute で進める。リンクのまま進むと、深さを持たない履歴が積まれ
 // （「← 戻る」が一覧まで飛ぶ）、ホーム画面のアプリでは iOS の戻るが端のなぞりを取る
@@ -9870,6 +9940,7 @@ function renderTools() {
   $("astroToolsGroup").hidden = !Array.from($("astroToolsGroup").querySelectorAll("[data-id]")).some(el => !el.hidden);
   $("toolsButton").hidden = shown === 0;
   if (shown === 0) closeTools();
+  renderModes();
 }
 /**
  * 引き出しの開け閉め。
@@ -9924,7 +9995,10 @@ function showSheet(el) {
   el.focus({ preventScroll: true });
 }
 // 題名は一覧へ（何画面進んでいても1回で）。「← 戻る」はひとつ前の画面へ
-$("homeLink").onclick = () => { closeTools(); goList(); };
+$('modeAstro').onclick = () => switchMode('astro');
+$('modeForecast').onclick = () => switchMode('forecast');
+$('astroLogin').onclick = () => $('authButton').click();
+$("homeLink").onclick = () => { closeTools(); if (activeMode === 'astro') pushRoute('#/astro'); else goList(); };
 $("toolsHome").onclick = () => { closeTools(); goList(); };
 $("backLink").onclick = () => { closeTools(); goBack(); };
 $("toolsButton").onclick = () => ($("toolsMenu").hidden ? openTools() : closeTools());
@@ -10039,6 +10113,7 @@ function renderAuthButton() {
   if (atAdmin && auth !== adminRenderAuth) renderAdmin();
   renderTools();
   SkyMapUI?.authChanged();
+  PlatformUI?.authChanged();
   redrawIfToolsChanged();
   // 写真はアカウントのもの。ログインが変わったら出し直す
   if (atRecords) loadPhotos();
@@ -11045,8 +11120,8 @@ load(false);
 restoreSession();
 checkForUpdate();
 </script>
-<script src="sorami-scroll-timeline.js?v=20261014171956"></script>
-<script src="sorami-datetime-ui.js?v=20261014171956"></script>
+<script src="sorami-scroll-timeline.js?v=20261014230338"></script>
+<script src="sorami-datetime-ui.js?v=20261014230338"></script>
 <script id="uiVisualPrimitives">
 const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
 // E185: visual choices forward to the original native control; no calculation path is added.
@@ -11312,7 +11387,7 @@ const recentHistory=(()=>{
 (()=>{
  document.addEventListener("click",e=>{if(e.target.closest("#aimView [data-cand],#aimView [data-day],#aimView [data-from-day],#aimCalendar [data-cal-day],#aimView [data-limb],#aimHeightSet,#aimCustomSet,#aimPrev,#aimNext"))aim.plannerTransfer=null;},true);
  const el=id=>document.getElementById(id),view=el('skyMapView');
- let pending=null;const active=()=>!view.hidden;
+ let pending=null,pendingOwner=null;const pendingIdentity=()=>JSON.stringify([auth?.loginId,typeof authGeneration==='number'?authGeneration:0]);const active=()=>!view.hidden;
  const mapLabel=(ctx,x,y,text,colour,width,height,place)=>{ctx.save();ctx.translate(52,0);aimMapLabel(ctx,x-52,y,text,colour,Math.max(100,width-112),height,place);ctx.restore();};
  const map=createMapView({canvas:'skyMapCanvas',zoomIn:'skyMapIn',zoomOut:'skyMapOut'});
  let session=null,seq=0,frame=0,targetOn=true,pickMode=null,targetSeq=0,mapWide=false,timelineMoving=false;
@@ -11328,7 +11403,7 @@ const recentHistory=(()=>{
  const canTransfer=()=>!!session?.target&&(session.target.id==='fuji'?(session.body==='sun'?toolAllowed('diamond'):session.body==='moon'?toolAllowed('pearl'):toolAllowed('tower')&&(toolAllowed('diamond')||toolAllowed('pearl'))):toolAllowed('tower'));
  const mapTargets=()=>[...SoramiAlign.TARGETS.map(t=>aimWithHeights(t)),...aimFavTargets().map(aimFavTarget),...(session?.customTarget?[session.customTarget]:[])].filter(validPoint);
  const showAccess=(message,retry=false)=>{el('skyMapContent').hidden=true;el('skyMapAccess').hidden=false;el('skyMapAccessMessage').textContent=message;el('skyMapAccessRetry').hidden=!retry;el('skyMapAccessLogin').hidden=!!auth?.token;};
- function authChanged(){const key=authKey();if(key===lastAuthKey)return;lastAuthKey=key;if(!active())return;if(!auth?.token||(session&&!toolAllowed('skymap'))){leave(false);showAccess(auth?'Astro Mapの利用が許可されていません':'ログインすると利用権限を確認できます');}else open(true);}
+ function authChanged(){if(pendingOwner!==pendingIdentity()){pending=null;pendingOwner=null;}const key=authKey();if(key===lastAuthKey)return;lastAuthKey=key;if(!active())return;if(!auth?.token||(session&&!toolAllowed('skymap'))){leave(false);showAccess(auth?'Astro Mapの利用が許可されていません':'ログインすると利用権限を確認できます');}else open(true);}
  function open(force=false){
   if(!active())return;
   if(session&&hasAccess()&&!pending&&!force){map.redraw();return;}
@@ -11437,11 +11512,12 @@ ctx.lineWidth=1;
   const look=el('aimLook'),spec=look._lookSpec,from=aimFromPoint()||place;
   const live=fromAim&&!look.hidden&&look._planKey===aimLookKey()&&spec&&Number.isFinite(look._lookAt);
   pending=fromAim?{custom:aim.target?.id==='custom'?store.get('sorami.aimCustom',null):null,observer:live?{...from,latitude:spec.obs.latitude,longitude:spec.obs.longitude,groundManualM:from.groundManualM??null,standAglM:spec.eyeM===aimObserverEye(from)?from.standAglM??null:spec.eyeM,name:spec.observerName||from.name}:from,body:aim.body,showSun:aim.body==='sun',showMoon:aim.body==='moon',at:live?look._lookAt:Number.isFinite(aim.dayMs)?aim.dayMs+43200000:Date.now(),targetId:aim.target?.id||'',partId:aim.partId,ground:live?spec.obs.elevation:null}:null;
+  pendingOwner=pendingIdentity();
   pushRoute('#/skymap');
  }
  function start(){
   if(session&&active()&&!pending){map.redraw();return;}
-  const saved=store.get(skyStoreKey(),null)||(store.get('sorami.owner',null)===auth?.loginId?store.get('sorami.skyMap',null):null),draft=pending||saved;pending=null;
+  const saved=store.get(skyStoreKey(),null)||(store.get('sorami.owner',null)===auth?.loginId?store.get('sorami.skyMap',null):null),draft=(pendingOwner===pendingIdentity()?pending:null)||saved;pending=null;pendingOwner=null;
   const from=aimFromPoint()||place,list=mapTargets().filter(validPoint);
   const custom=draft?.custom||null,customTarget=custom?{id:'custom',name:custom.name,...custom,parts:[{id:'tip',name:'てっぺん',m:custom.topM}]}:null;
   const target=customTarget&&draft?.targetId==='custom'?customTarget:list.find(t=>t.id===draft?.targetId)||null;
@@ -11453,7 +11529,7 @@ ctx.lineWidth=1;
   targetSelect.value=session.target?.id||'';targetOn=validPoint(session.target);el('skyMapCustom').hidden=false;
   map.setOverlay(draw);map.open(validPoint(draft?.mapCenter)?draft.mapCenter:session.observer,Number.isFinite(draft?.zoom)?draft.zoom:13);refresh();
  }
- function leave(persist=true,invalidate=true){stopSkyScrub();if(skyCalendar?.open)skyCalendar.close();if(skyTimeDialog?.open)skyTimeDialog.close();if(invalidate){accessSeq++;accessPromise=null;checkingToken=null;}if(targetSheet.open)targetSheet.close();if(bodiesSheet.open)bodiesSheet.close();pickMode=null;mapWide=false;targetSeq++;if(session&&persist&&hasAccess())save();seq++;cancelAnimationFrame(frame);frame=0;session=null;accessToken=null;accessTools=[];el('skyMapContent').hidden=true;el('skyMapCanvas').closest('.mapwrap').classList.remove('sky-map-wide');el('skyMapExpand').setAttribute('aria-pressed','false');el('skyMapExpand').setAttribute('aria-label','地図を全画面表示');el('skyMapExpand').title='地図を全画面表示';}
+ function leave(persist=true,invalidate=true){if(invalidate){pending=null;pendingOwner=null;}stopSkyScrub();if(skyCalendar?.open)skyCalendar.close();if(skyTimeDialog?.open)skyTimeDialog.close();if(invalidate){accessSeq++;accessPromise=null;checkingToken=null;}if(targetSheet.open)targetSheet.close();if(bodiesSheet.open)bodiesSheet.close();pickMode=null;mapWide=false;targetSeq++;if(session&&persist&&hasAccess())save();seq++;cancelAnimationFrame(frame);frame=0;session=null;accessToken=null;accessTools=[];el('skyMapContent').hidden=true;el('skyMapCanvas').closest('.mapwrap').classList.remove('sky-map-wide');el('skyMapExpand').setAttribute('aria-pressed','false');el('skyMapExpand').setAttribute('aria-label','地図を全画面表示');el('skyMapExpand').title='地図を全画面表示';}
  PLACE_PICKERS.skymap={title:'Astro Mapの観測地点',custom:()=>session?.observer,point:()=>session?.observer||place,set:p=>{if(!hasAccess()||!session||!active())return;session.observer=aimSavedFrom(p);session.ground=null;map.setCenter(p.latitude,p.longitude);refresh();},reset:()=>{if(!session)return;session.observer=aimSavedFrom(place);session.ground=null;map.setCenter(place.latitude,place.longitude);refresh();}};
  el('skyMapExpand').onclick=()=>{const wide=el('skyMapCanvas').closest('.mapwrap').classList.toggle('sky-map-wide');mapWide=wide;el('skyMapExpand').setAttribute('aria-pressed',String(wide));el('skyMapExpand').setAttribute('aria-label',wide?'全画面表示を終了':'地図を全画面表示');el('skyMapExpand').title=wide?'全画面表示を終了':'地図を全画面表示';if(!wide){if(bodiesSheet.open)bodiesSheet.close();setPickMode(null);const wrap=el('skyMapCanvas').closest('.mapwrap'),menu=wrap.querySelector('.map-layer-menu'),button=wrap.querySelector('.map-layers-btn');if(menu)menu.hidden=true;if(button)button.setAttribute('aria-expanded','false');}map.redraw();};
  const skyFooter=el('skyMapTimeMore').closest('footer');
@@ -11544,7 +11620,10 @@ ctx.lineWidth=1;
   save();return true;
  }
  el('skyMapUse').onclick=el('skyMapUseBelow').onclick=()=>{if(prepareFraming())pushRoute('#/aim');};
- SkyMapUI={open,leave,authChanged,prepareFraming};if(routeFromHash()?.skymap)applyRoute();
+ SkyMapUI={open,leave,authChanged,prepareFraming,
+  context(){return hasAccess()&&session?{point:{...session.observer,elevation:session.observer.groundManualM??session.ground??null,eyeHeightAGL:aimObserverEye(session.observer)},at:session.at,body:session.body}:null;},
+  useContext(value){if(!auth?.token||!toolAllowed('skymap'))return false;const saved=store.get(skyStoreKey(),null);pending={...saved,observer:aimSavedFrom({...value.point,groundManualM:Object.prototype.hasOwnProperty.call(value.point,'groundManualM')?value.point.groundManualM:value.point.elevation??null}),at:value.at};pendingOwner=pendingIdentity();return true;}
+ };if(routeFromHash()?.skymap)applyRoute();
 })();
 </script>
 
@@ -11559,5 +11638,6 @@ ctx.lineWidth=1;
  for(const id of ['mapSearchGo','searchBoxGo']){const b=el(id);b.setAttribute('aria-label','検索');b.title='検索';b.innerHTML=UI_ICONS.search;}
  label('skyMapOpen','map');const recent=el('aimRecentOpen');if(recent){recent.innerHTML=UI_ICONS.history;recent.classList.add('preview-history-icon');recent.title='履歴';}label('photoPick','photo');label('exportBtn','download');label('importBtn','upload');
 })();</script>
+<script src="sorami-platform.js?v=20261014230338"></script>
 </body>
 </html>
