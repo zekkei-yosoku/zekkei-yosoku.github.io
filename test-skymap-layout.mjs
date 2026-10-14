@@ -46,15 +46,15 @@ test('太陽・月を隠しても選択した別の天体は表示できる',asy
 });
 test('日付バーは時刻を保持し、時刻バーは同じ日に戻り、モード切替が保留中スクラブを止める',async()=>{
  const at=Date.parse('2026-12-22T12:34:00+09:00'),f=fixture({saved:{at,targetId:'skytree'}});await f.open();const loads=f.loads;
- f.element('skyMapDateMode').onclick();assert.equal(f.element('skyMapRange').min,-7);assert.equal(f.element('skyMapDateMode')['aria-pressed'],'true');f.element('skyMapRange').value='2';f.element('skyMapRange').onchange();await flush();assert.equal(f.element('skyMapDate').value,'2026-12-24');assert.equal(f.element('skyMapTime').value,'12:34');assert.equal(f.loads,loads);
+ f.element('skyMapScrubMode').onclick();assert.equal(f.element('skyMapRange').min,-7);assert.equal(f.element('skyMapScrubMode').dataset.mode,'date');f.element('skyMapRange').value='2';f.element('skyMapRange').onchange();await flush();assert.equal(f.element('skyMapDate').value,'2026-12-24');assert.equal(f.element('skyMapTime').value,'12:34');assert.equal(f.loads,loads);
  f.element('skyMapRange').onkeydown({key:'ArrowLeft',shiftKey:false,preventDefault(){}});await flush();assert.equal(f.element('skyMapDate').value,'2026-12-23');assert.equal(f.element('skyMapTime').value,'12:34');
- f.element('skyMapTimeMode').onclick();assert.equal(f.element('skyMapRange').max,86399);f.element('skyMapRange').value='3600';f.element('skyMapRange').onchange();assert.equal(f.element('skyMapDate').value,'2026-12-23');assert.equal(f.element('skyMapTime').value,'01:00');
- f.element('skyMapRange').value='7200';f.element('skyMapRange').oninput();assert.ok(f.c.frame);f.element('skyMapDateMode').onclick();assert.equal(f.c.frame,null);assert.equal(f.element('skyMapTime').value,'01:00');assert.equal(f.data.get('sorami.skyMap:testuser').scrubMode,'date');
- const g=fixture({saved:f.data.get('sorami.skyMap:testuser')});await g.open();assert.equal(g.element('skyMapDateMode')['aria-pressed'],'true');assert.equal(g.element('skyMapTime').value,'01:00');
+ f.element('skyMapScrubMode').onclick();assert.equal(f.element('skyMapRange').max,86399);f.element('skyMapRange').value='3600';f.element('skyMapRange').onchange();assert.equal(f.element('skyMapDate').value,'2026-12-23');assert.equal(f.element('skyMapTime').value,'01:00');
+ f.element('skyMapRange').value='7200';f.element('skyMapRange').oninput();assert.ok(f.c.frame);f.element('skyMapScrubMode').onclick();assert.equal(f.c.frame,null);assert.equal(f.element('skyMapTime').value,'01:00');assert.equal(f.data.get('sorami.skyMap:testuser').scrubMode,'date');
+ const g=fixture({saved:f.data.get('sorami.skyMap:testuser')});await g.open();assert.equal(g.element('skyMapScrubMode').dataset.mode,'date');assert.equal(g.element('skyMapTime').value,'01:00');
 });
 test('地図の動く方角・イベント・高度文字を外し、出入り時刻を時計欄へ固定する',()=>{
  const draw=html.slice(html.indexOf(' function drawBody('),html.indexOf(' const bodyName='));assert.doesNotMatch(draw,/mapLabel\(/);
- const footer=html.slice(html.indexOf('<footer class="sky-map-footer"'),html.indexOf('</footer>',html.indexOf('<footer class="sky-map-footer"')));assert.match(footer,/id="skyMapEvents"/);assert.match(footer,/id="skyMapDateMode"/);assert.match(footer,/id="skyMapTimeMode"/);
+ const footer=html.slice(html.indexOf('<footer class="sky-map-footer"'),html.indexOf('</footer>',html.indexOf('<footer class="sky-map-footer"')));assert.match(footer,/id="skyMapEvents"/);assert.match(footer,/id="skyMapScrubMode"/);assert.doesNotMatch(footer,/id="skyMap(?:Date|Time)Mode"/);
  // E198: 画面上の固定「↑ 北」はE194で円の方角文字に置き換え済み。使われていないCSSは外し、読み上げで北が上を伝える
  assert.doesNotMatch(html,/sky-map-north/);assert.match(html,/<span class="sr-only">地図は北が上<\/span>/);assert.match(html,/\[\['北',0\],\['東',90\],\['南',180\],\['西',270\]\]/);
 });
@@ -63,7 +63,7 @@ test('時刻バーの矢印とShiftは日付境界で止まり、日付バーの
  for(const [clock,key,shift,expected] of [['23:59','ArrowRight',false,'23:59'],['23:55','ArrowRight',true,'23:59'],['00:00','ArrowLeft',false,'00:00'],['00:05','ArrowLeft',true,'00:00'],['12:34','ArrowRight',true,'12:44']]){
   const f=fixture({saved:{at:Date.parse('2026-12-22T'+clock+':00+09:00')}});await f.open();f.element('skyMapRange').onkeydown({key,shiftKey:shift,preventDefault(){}});await flush();assert.equal(f.element('skyMapDate').value,'2026-12-22');assert.equal(f.element('skyMapTime').value,expected);
  }
- const f=fixture({saved:{at:Date.parse('2026-12-22T12:34:00+09:00')}});await f.open();f.element('skyMapDateMode').onclick();f.element('skyMapRange').onkeydown({key:'ArrowRight',shiftKey:true,preventDefault(){}});await flush();assert.equal(f.element('skyMapDate').value,'2026-12-29');assert.equal(f.element('skyMapTime').value,'12:34');
+ const f=fixture({saved:{at:Date.parse('2026-12-22T12:34:00+09:00')}});await f.open();f.element('skyMapScrubMode').onclick();f.element('skyMapRange').onkeydown({key:'ArrowRight',shiftKey:true,preventDefault(){}});await flush();assert.equal(f.element('skyMapDate').value,'2026-12-29');assert.equal(f.element('skyMapTime').value,'12:34');
 });
 
 test('日付更新中は前の日の出入り時刻を押せず、新しい時刻へ置き換わる',async()=>{
