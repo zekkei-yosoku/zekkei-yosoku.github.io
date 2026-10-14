@@ -43,7 +43,7 @@ test('朝焼け・日中・夕焼け・夜は観測地点の太陽高度で区�
  assert.equal(phase(0,null,()=>{throw Error('unexpected')}),null);assert.equal(phase(0,o,()=>({geometricAltitude:NaN})),null);
 });
 test('スクロールが始まる前の指の遊び中に非同期描画が来ても目盛りを戻さない',()=>{
- const f=setup();f.root.listeners.touchstart();f.root.scrollLeft+=6;f.controller.sync(f.state.at,'date');assert.equal(f.root.scrollLeft,4102);f.root.listeners.scroll();f.flush();f.root.listeners.touchend();f.settle();assert.equal(f.root.scrollLeft,4096);
+ const f=setup();f.root.listeners.touchstart();f.root.scrollLeft+=6;f.controller.sync(f.state.at,'date');assert.equal(f.root.scrollLeft,4102);f.root.listeners.scroll();f.flush();f.root.listeners.touchend();for(let i=0;i<12;i++)f.flush();f.settle();assert.equal(f.root.scrollLeft,4096);
 });
 test('素早く離すと慣性スクロールを残し、指を止めて離すと精密な位置で止める',()=>{
  const f=setup();f.state.mode='time';f.controller.sync(f.state.at,'time');const at=f.state.at;
@@ -85,4 +85,18 @@ test('時刻モードは動かしている間を連続の時刻で描き、止�
 });
 test('日付モードは従来どおり1日単位で、同じ時刻を保つ',()=>{
  const f=setup(),at=f.state.at;f.root.listeners.touchstart({timeStamp:1});f.root.scrollLeft+=10;f.root.listeners.scroll();f.flush();assert.equal(f.state.at,at);f.root.scrollLeft+=4;f.root.listeners.scroll();f.flush();assert.equal(f.state.at,at+DAY);
+});
+test('日付モードは目盛りの間を前後の日の同じ時刻の割合で渡し、離すと正確な日へ寄せて割合を消す',()=>{
+ const blends=[];const f=setup(240,{onBlend:b=>blends.push(b)}),at=f.state.at;
+ f.root.listeners.touchstart({timeStamp:1});f.root.scrollLeft+=6;f.root.listeners.scroll();f.flush();
+ assert.deepEqual({...blends.at(-1)},{from:at,to:at+DAY,f:.25});assert.equal(f.state.at,at,'時刻は正確な日のまま');
+ f.root.scrollLeft+=12;f.root.listeners.scroll();f.flush();assert.deepEqual({...blends.at(-1)},{from:at,to:at+DAY,f:.75});assert.equal(f.state.at,at+DAY,'近い日へ切り替える');
+ f.root.scrollLeft-=24;f.root.listeners.scroll();f.flush();assert.deepEqual({...blends.at(-1)},{from:at-DAY,to:at,f:.75});
+ f.root.listeners.touchmove({timeStamp:2});f.root.listeners.touchend({timeStamp:500});const mid=[];for(let i=0;i<12;i++){f.flush();mid.push(blends.at(-1)?.f??null);}
+ assert.equal(blends.at(-1),null);assert.equal(f.state.at,at);assert.equal(f.root.scrollLeft,4096);assert.ok(mid.some(v=>v!==null&&v>.75),'寄せる間も割合が連続で変わる');
+ assert.ok(blends.every(b=>b===null||(b.to-b.from===DAY&&(b.from-at)%DAY===0)),'結ぶのは同じ時刻の前後の日だけ');
+});
+test('外部の日時変更や停止で補間を残さない',()=>{
+ const blends=[];const f=setup(240,{onBlend:b=>blends.push(b)}),at=f.state.at;f.root.listeners.touchstart({timeStamp:1});f.root.scrollLeft+=6;f.root.listeners.scroll();f.flush();assert.ok(blends.at(-1));
+ f.state.at=at+30*DAY;f.controller.sync(f.state.at,'date');assert.equal(blends.at(-1),null);
 });

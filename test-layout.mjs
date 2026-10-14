@@ -3125,7 +3125,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   // ユーザー録画（2026-10-02）: 字の幅でつまみの棒が伸び縮みしていた・20秒ごとに円盤が飛んでいた
   ok(/\.aim-look-time output \{ flex: 0 0 6\.6rem; width: 6\.6rem;[^}]*white-space: nowrap;/.test(html), "時刻の字の欄は幅を決めておく（つまみの長さが変わらない）");
   ok(/step="any" value="0" data-look-range/.test(html), "つまみは刻みなしで動く");
-  const atSrc = /const at = v => \{[\s\S]*?\n  \};/.exec(html)[0];
+  const atSrc = /const pack = \(ms, st\) => \{[\s\S]*?\n  \};/.exec(html)[0] + "\n" + /const at = v => \{[\s\S]*?\n  \};/.exec(html)[0];
   const bodies = req("./sorami-bodies.js"), align = req("./sorami-align.js");
   const eye = {latitude:35.7479052, longitude:139.9301117, elevation:21.5}, day=Date.parse("2026-10-04T00:00:00+09:00");
   const path = [{at:day},{at:day+20000}], proj=align.viewProjector(245,5);

@@ -8,7 +8,7 @@
      編集後はbump.shでハッシュを更新する。connect-srcも実際に使う相手だけに絞る。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-S6nnso7hD4xwhcNS4SGoK1JqRdN2EQGO+JuHYFB0JVM=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-k+CgeRhaZs3txOBJ6sTHYVtv/6FAlnP8by0bX8TmSwQ=' 'sha256-G5/26JdoS9ZlhDtAVqUeH7k4tCu4Oa/52qlMDenZ0Vk=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-ZIAm4oGzQcfu1jnxpd38of8kgR/n9X9vihfqxpS1hzw=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-md66en9pUcKdNmAwVmy4XqpICDsarhUu+BdMCTrQEbI=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -2079,31 +2079,31 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261014235814"></script>
-<script src="sorami-prediction.js?v=20261014235814"></script>
+<script src="sorami-core.js?v=20261015000726"></script>
+<script src="sorami-prediction.js?v=20261015000726"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261014235814"></script>
-<script src="sorami-exif.js?v=20261014235814"></script>
-<script src="sorami-capcloud.js?v=20261014235814"></script>
-<script src="sorami-terrain.js?v=20261014235814"></script>
-<script src="sorami-mountain.js?v=20261014235814"></script>
-<script src="sorami-fuji.js?v=20261014235814"></script>
-<script src="sorami-sky.js?v=20261014235814"></script>
+<script src="sorami-astro.js?v=20261015000726"></script>
+<script src="sorami-exif.js?v=20261015000726"></script>
+<script src="sorami-capcloud.js?v=20261015000726"></script>
+<script src="sorami-terrain.js?v=20261015000726"></script>
+<script src="sorami-mountain.js?v=20261015000726"></script>
+<script src="sorami-fuji.js?v=20261015000726"></script>
+<script src="sorami-sky.js?v=20261015000726"></script>
 
-<script src="sorami-history.js?v=20261014235814"></script>
-<script src="sorami-plan.js?v=20261014235814"></script>
-<script src="sorami-routes.js?v=20261014235814"></script>
-<script src="sorami-iss.js?v=20261014235814"></script>
-<script src="sorami-plane.js?v=20261014235814"></script>
-<script src="sorami-refraction.js?v=20261014235814"></script>
-<script src="sorami-atmosphere.js?v=20261014235814"></script>
-<script src="sorami-bodies.js?v=20261014235814"></script>
-<script src="sorami-sky-map.js?v=20261014235814"></script>
-<script src="sorami-city-models.js?v=20261014235814"></script>
-<script src="sorami-tower-models.js?v=20261014235814"></script>
-<script src="sorami-align.js?v=20261014235814"></script>
-<script src="sorami-moon.js?v=20261014235814"></script>
+<script src="sorami-history.js?v=20261015000726"></script>
+<script src="sorami-plan.js?v=20261015000726"></script>
+<script src="sorami-routes.js?v=20261015000726"></script>
+<script src="sorami-iss.js?v=20261015000726"></script>
+<script src="sorami-plane.js?v=20261015000726"></script>
+<script src="sorami-refraction.js?v=20261015000726"></script>
+<script src="sorami-atmosphere.js?v=20261015000726"></script>
+<script src="sorami-bodies.js?v=20261015000726"></script>
+<script src="sorami-sky-map.js?v=20261015000726"></script>
+<script src="sorami-city-models.js?v=20261015000726"></script>
+<script src="sorami-tower-models.js?v=20261015000726"></script>
+<script src="sorami-align.js?v=20261015000726"></script>
+<script src="sorami-moon.js?v=20261015000726"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2934,6 +2934,16 @@ const moonGlyphAt = (atMs) => iconFor("moon", atMs);
 /// 太陽は前後6時間の日の出入りからの差（20時台でも「日の入の3時間27分後」と言える。真夜中だけ「夜のまんなか」）、
 /// 太陽が10°より高ければ「日中」（分は写りに効かない）。月の出入りは3時間以内だけ（それより先は高く昇っている）。
 /// 月の結果を出すところ（パール富士・ねらうの月・月丼・ISS の月）は全部これを使う
+/// 日付の目盛りの間を動かしている間だけ、前後の日の同じ時刻の位置を見た目で結ぶ（2026-10-15 ユーザー採用）。
+/// 途中は実在の時刻の位置ではない。指を離すと正確な日時の計算へ戻る
+function blendBodyState(a, b, f) {
+  const out = { ...(f < 0.5 ? a : b) };
+  const wrap = (x, y) => { const d = (((y - x) % 360) + 540) % 360 - 180; return (((x + d * f) % 360) + 360) % 360; };
+  for (const k of ["azimuth", "brightLimbZenithAngle"]) if (Number.isFinite(a[k]) && Number.isFinite(b[k])) out[k] = wrap(a[k], b[k]);
+  for (const k of ["altitude", "apparentAltitude", "geometricAltitude", "illuminatedFraction", "angularRadius", "upperRadius", "lowerRadius"])
+    if (Number.isFinite(a[k]) && Number.isFinite(b[k])) out[k] = a[k] + (b[k] - a[k]) * f;
+  return out;
+}
 function lightTimingText(atMs, obs) {
   let r;
   try {
@@ -8250,7 +8260,7 @@ async function aimLookRender(host, spec) {
   host._planKey = null;
   const planRenderKey = aimLookKey();
   host._planObserverName = spec.observerName || spec.title || "観測地点";
-  host._uiTime = null;
+  host._uiTime = null; host._blendP = null;
   aimLookHosts.add(host);
   // 逆引き（撮れる場所を探す）は、逆引きの結果から描くときだけ続ける。日付・合わせ方・候補地を替えたら終わる
   if (!spec.pick) { host._pick = null; aimReverseClear(); }
@@ -8404,17 +8414,20 @@ async function aimLookRender(host, spec) {
   note.dataset.primary = note.textContent;
   note.hidden = !note.textContent;
   range.max = String(path.length - 1);
-  const at = v => {
-    const i = Math.max(0, Math.min(path.length - 2, Math.floor(v))), j = i + 1, f = v-i;
-    const ms = path[i].at + (path[j].at - path[i].at) * f;
-    const st = SoramiBodies.state(body, ms, eyeObs), xy = proj(st.azimuth, st.apparentAltitude);
+  const pack = (ms, st) => {
+    const xy = proj(st.azimuth, st.apparentAltitude);
     return { at: ms, azimuth: st.azimuth, altitude: st.apparentAltitude, radius: st.angularRadius, upperRadius: st.upperRadius, lowerRadius: st.lowerRadius,
       illuminated: body === 'moon' ? st.illuminatedFraction : null,
       brightLimbZenithAngle: body === 'moon' ? st.brightLimbZenithAngle : null,
       x: xy ? xy[0] : null, y: xy ? xy[1] : null };
   };
+  const at = v => {
+    const i = Math.max(0, Math.min(path.length - 2, Math.floor(v))), j = i + 1, f = v-i;
+    const ms = path[i].at + (path[j].at - path[i].at) * f;
+    return pack(ms, SoramiBodies.state(body, ms, eyeObs));
+  };
   const draw = (v) => {
-    const p = at(v);
+    const p = host._blendP || at(v);
     host._lookAt = p.at;
     if(host.id==='aimLook'&&aim.plannerTransfer)aim.plannerTransfer.at=p.at;
     host._planKey = planRenderKey;
@@ -8629,6 +8642,13 @@ async function aimLookRender(host, spec) {
   const uiState = host._uiTime = {
     day: uiDay, reference: spec.at, name: spec.atName || '重なる', current: selectedAt,
     set(ms) { if (host._lookSeq !== seq || !Number.isFinite(ms)) return; draw(timeIndex(ms)); },
+    blend(b) {
+      if (host._lookSeq !== seq) return;
+      if (!b) { if (!host._blendP) return; host._blendP = null; draw(timeIndex(this.current)); return; }
+      const near = b.f < 0.5 ? b.from : b.to;
+      host._blendP = pack(near, blendBodyState(SoramiBodies.state(body, b.from, eyeObs), SoramiBodies.state(body, b.to, eyeObs), b.f));
+      draw(timeIndex(near));
+    },
     window(includeAt=null) {
       const center=spec.at;
       const all = host._uiAllDay;
@@ -11051,8 +11071,8 @@ load(false);
 restoreSession();
 checkForUpdate();
 </script>
-<script src="sorami-scroll-timeline.js?v=20261014235814"></script>
-<script src="sorami-datetime-ui.js?v=20261014235814"></script>
+<script src="sorami-scroll-timeline.js?v=20261015000726"></script>
+<script src="sorami-datetime-ui.js?v=20261015000726"></script>
 <script id="uiVisualPrimitives">
 const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
 // E185: visual choices forward to the original native control; no calculation path is added.
@@ -11123,7 +11143,7 @@ function uiVisualChoices(select, kind) {
  const footerTimeline=document.createElement('div');footerTimeline.className='sky-map-timeline';footerTimeline.tabIndex=0;footerTimeline.setAttribute('role','slider');footerTrack.append(footerTimeline);
  const center=document.createElement('span');center.className='sky-map-timeline-center';center.setAttribute('aria-hidden','true');footerTrack.append(center);
  function commitPreviewTime(at){const state=look._uiTime;if(!state)return;const day=S.JstCal.startOfDay(at);if(day!==aim.dayMs){look._uiRequestedTime={day,at,context:timeContext()};el('aimDate').value=new Date(day+32400000).toISOString().slice(0,10);aimApply({recenter:false});}}
- const previewTimeline=SoramiScrollTimeline.mount({root:footerTimeline,getAt:()=>look._uiTime?.current,getMode:()=>scrubMode,enabled:()=>!footerRange.disabled&&!root.hidden,getObserver:()=>look._lookSpec?.obs,sun:(at,o)=>SoramiAstro.sun(at,o),onChange:at=>{look._uiTime?.set(at);},onSettle:at=>{commitPreviewTime(at);update();},format:(at,m)=>m==='date'?new Date(at+32400000).toISOString().slice(5,10).replace('-','/'):S.JstCal.hhmm(at).padStart(5,'0'),describe:at=>ToolDateTimeBar.label(at)+' '+S.JstCal.hhmm(at).padStart(5,'0')});
+ const previewTimeline=SoramiScrollTimeline.mount({root:footerTimeline,getAt:()=>look._uiTime?.current,getMode:()=>scrubMode,enabled:()=>!footerRange.disabled&&!root.hidden,getObserver:()=>look._lookSpec?.obs,sun:(at,o)=>SoramiAstro.sun(at,o),onChange:at=>{look._uiTime?.set(at);},onBlend:b=>look._uiTime?.blend(b),onSettle:at=>{commitPreviewTime(at);update();},format:(at,m)=>m==='date'?new Date(at+32400000).toISOString().slice(5,10).replace('-','/'):S.JstCal.hhmm(at).padStart(5,'0'),describe:at=>ToolDateTimeBar.label(at)+' '+S.JstCal.hhmm(at).padStart(5,'0')});
  ToolDateTimeBar.decorate({footer,row:dateRow,date:el('aimCalendarOpen'),time:el('previewTime'),prev:el('aimPrev'),next:el('aimNext'),more:timeMore,track:footerTrack});
  const timeDialog=document.createElement('dialog');timeDialog.className='sheet preview-body-dialog preview-time-dialog';timeDialog.tabIndex=-1;timeDialog.setAttribute('aria-label','時刻の操作設定');timeDialog.innerHTML='<div class="sheet-head"><strong>時刻の操作設定</strong><button type="button" data-time-close>閉じる</button></div><div class="sheet-body"></div>';root.append(timeDialog);
  const referenceControl=el('previewReference');timeDialog.querySelector('.sheet-body').append(referenceControl);timeMore.onclick=()=>showSheet(timeDialog);timeDialog.querySelector('[data-time-close]').onclick=()=>timeDialog.close();timeDialog.addEventListener('click',e=>{if(e.target!==timeDialog)return;const r=timeDialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)timeDialog.close();});
@@ -11373,7 +11393,7 @@ const recentHistory=(()=>{
   // Rise/set directions run past the ring so the landmarks along them can be read on the map.
   const far=Math.hypot(width,height),ray=(az,k)=>[x+Math.sin(az*Math.PI/180)*k,y-Math.cos(az*Math.PI/180)*k];
   for(const event of data.events){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(...ray(event.azimuth,far));ctx.globalAlpha=1;ctx.setLineDash(event.side==='rise'?[]:[9,6]);ctx.strokeStyle='rgba(0,0,0,.85)';ctx.lineWidth=main?6:5;ctx.stroke();ctx.strokeStyle=colour;ctx.lineWidth=main?3:2.5;ctx.stroke();ctx.setLineDash([]);}
-  const st=skyState(body,session.at,session.eye),p=xy(st.azimuth);ctx.lineWidth=main?3:2;ctx.setLineDash(st.altitude<0?[5,4]:[]);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(...p);ctx.stroke();ctx.setLineDash([]);aimLookDisc(ctx,p[0],p[1],main?9:7,body,{illuminated:st.illuminatedFraction,brightLimbZenithAngle:st.brightLimbZenithAngle});
+  const b=session.blend,st=b?blendBodyState(skyState(body,b.from,session.eye),skyState(body,b.to,session.eye),b.f):skyState(body,session.at,session.eye),p=xy(st.azimuth);ctx.lineWidth=main?3:2;ctx.setLineDash(st.altitude<0?[5,4]:[]);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(...p);ctx.stroke();ctx.setLineDash([]);aimLookDisc(ctx,p[0],p[1],main?9:7,body,{illuminated:st.illuminatedFraction,brightLimbZenithAngle:st.brightLimbZenithAngle});
   ctx.globalAlpha=1;
  }
  const bodyName=id=>(SoramiBodies.definitions.find(d=>d.id===id)||{}).name||(id==='sun'?'太陽':id==='moon'?'月':id);
@@ -11464,7 +11484,7 @@ ctx.lineWidth=1;
  el('skyMapExpand').onclick=()=>{const wide=el('skyMapCanvas').closest('.mapwrap').classList.toggle('sky-map-wide');mapWide=wide;el('skyMapExpand').setAttribute('aria-pressed',String(wide));el('skyMapExpand').setAttribute('aria-label',wide?'全画面表示を終了':'地図を全画面表示');el('skyMapExpand').title=wide?'全画面表示を終了':'地図を全画面表示';if(!wide){if(bodiesSheet.open)bodiesSheet.close();setPickMode(null);const wrap=el('skyMapCanvas').closest('.mapwrap'),menu=wrap.querySelector('.map-layer-menu'),button=wrap.querySelector('.map-layers-btn');if(menu)menu.hidden=true;if(button)button.setAttribute('aria-expanded','false');}map.redraw();};
  const skyFooter=el('skyMapTimeMore').closest('footer');
  ToolDateTimeBar.decorate({footer:skyFooter,row:el('skyMapPrev').parentElement,date:el('skyMapCalendarOpen'),time:el('skyMapTime'),prev:el('skyMapPrev'),next:el('skyMapNext'),more:el('skyMapTimeMore'),track:el('skyMapTrack')});
- const skyTimeline=SoramiScrollTimeline.mount({root:el('skyMapTimeline'),getAt:()=>session?.at,getMode:()=>session?.scrubMode,enabled:()=>hasAccess()&&!!session&&active(),onChange:at=>{if(!hasAccess()||!session||!active())return;timelineMoving=true;const changed=SoramiSkyMap.dayStart(at)!==SoramiSkyMap.dayStart(session.at);session.at=at;if(changed){seq++;session.timelinePending=true;session.daily=null;session.dailies=null;el('skyMapEvents').replaceChildren();el('skyMapStatus').textContent='';el('skyMapRetry').hidden=true;map.redraw();}render();},onSettle:()=>{timelineMoving=false;if(!hasAccess()||!session||!active())return;if(session.timelinePending)refresh();else render();},format:(at,mode)=>mode==='date'?dateAt(at).slice(5).replace('-','/'):textAt(at),getObserver:()=>session?.observer,sun:(at,o)=>SoramiAstro.sun(at,o),describe:(at,mode)=>ToolDateTimeBar.label(at)+(mode==='time'?' '+textAt(at):'')});
+ const skyTimeline=SoramiScrollTimeline.mount({root:el('skyMapTimeline'),getAt:()=>session?.at,getMode:()=>session?.scrubMode,enabled:()=>hasAccess()&&!!session&&active(),onChange:at=>{if(!hasAccess()||!session||!active())return;timelineMoving=true;const changed=SoramiSkyMap.dayStart(at)!==SoramiSkyMap.dayStart(session.at);session.at=at;if(changed){seq++;session.timelinePending=true;session.daily=null;session.dailies=null;el('skyMapEvents').replaceChildren();el('skyMapStatus').textContent='';el('skyMapRetry').hidden=true;map.redraw();}render();},onBlend:b=>{if(!session)return;session.blend=b;map.redraw();},onSettle:()=>{timelineMoving=false;if(!hasAccess()||!session||!active())return;if(session.timelinePending)refresh();else render();},format:(at,mode)=>mode==='date'?dateAt(at).slice(5).replace('-','/'):textAt(at),getObserver:()=>session?.observer,sun:(at,o)=>SoramiAstro.sun(at,o),describe:(at,mode)=>ToolDateTimeBar.label(at)+(mode==='time'?' '+textAt(at):'')});
  const stopSkyScrub=()=>{skyTimeline.stop();timelineMoving=false;};
  const skyCalendar=ToolDateTimeBar.calendar({button:el('skyMapCalendarOpen'),getAt:()=>session?.at??Date.now(),setDay:day=>{if(session)setTime(day+(session.at-SoramiSkyMap.dayStart(session.at)));}});
  const skyTimeDialog=document.createElement('dialog');skyTimeDialog.className='sheet preview-time-dialog sky-map-time-dialog';skyTimeDialog.tabIndex=-1;skyTimeDialog.setAttribute('aria-label','天体の位置と時刻');skyTimeDialog.innerHTML='<div class="sheet-head"><strong>天体の位置と時刻</strong><button type="button" data-close>閉じる</button></div><div id="skyMapAngles" class="sky-map-angles"></div><p id="skyMapDetailInfo" class="sky-map-angles tiny"></p><div class="sheet-body sky-map-time-actions"><button type="button" id="skyMapEarlier">−1分</button><button type="button" id="skyMapNow">今</button><button type="button" id="skyMapLater">+1分</button></div>';document.body.append(skyTimeDialog);
