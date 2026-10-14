@@ -1029,13 +1029,13 @@ ok(/addEventListener\("hashchange"/.test(html), "hashchange を見ている");
 // 2026-10-01: 題名だけでは戻れると気づけない（ユーザー「一覧に戻るボタンはあった方がいい」）。
 // 一覧以外の画面では、題名の帯のすぐ下に「← 戻る」を出す。どの画面でも同じ左上で、カードのあいだに浮かない。
 ok(/id="homeLink"/.test(html), "一覧では題名が戻り道");
-ok(/AppSwitchUI\?\.isAstro\(\)[^\n]*AppSwitchUI\.home\(\); else goList\(\)/.test(html),
-  "題名は選択中アプリへ戻る（引き出しも閉じる）");
+ok(/\$\("homeLink"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \}/.test(html),
+  "題名を押すと一覧へ戻る（引き出しも閉じる）");
 {
   // 2026-10-01 ユーザー「☰ と絶景予測の下にいい感じに。ボタンみたいに囲わなくていい。←戻る でいい」
   const mast = /<div class="masthead">[\s\S]*?\n  <\/div>/.exec(html)[0];
   ok(!/id="backLink"/.test(mast), "題名の帯（☰・題名・ログイン）には足さない");
-  ok(html.indexOf('id="backBar"') > html.indexOf('class="app-switch"') && html.indexOf('id="backBar"') < html.indexOf('id="placeRow"'), "戻るは上部切替の下・既存本文より前");
+  ok(/<\/div>\n(?:  <!--[\s\S]*?-->\n)?  <div class="backbar" id="backBar" hidden>\n    <button id="backLink"/.test(html), "「← 戻る」は題名の帯のすぐ下");
   ok(/aria-hidden="true"><path d="M13 8H3\.5M7\.5 3\.5 3 8l4\.5 4\.5"[^>]*\/><\/svg>戻る<\/button>/.test(html), "文字は「← 戻る」");
   ok(!/#backLink \{[^}]*(background|border)/.test(code), "囲わない（地も枠も付けない）");
   ok(/\$\("backBar"\)\.hidden = isMenuPage\(\);/.test(html), "メニューの主要ページでは戻るを隠す");
@@ -1101,7 +1101,7 @@ ok(/row\.hidden = decks\.length < 1 \|\| !placeCardShown\(\)/.test(html), "展�
 ok(/\[hidden\] \{ display: none !important; \}/.test(code), "hidden が display 指定に負けないようにする");
 ok(/listScrollY/.test(html), "一覧へ戻ったとき元の位置に戻す");
 // 「詳細と記録だけ先頭」と並べて書いていたため、道具の画面が一覧の途中の位置で開いていた（2026-10-01）
-ok(/window\.scrollTo\(0, appReturnScroll \?\? \(currentView === "list" \? listScrollY : 0\)\);/.test(html), "App復帰は保存位置・通常移動は従来の位置");
+ok(/window\.scrollTo\(0, currentView === "list" \? listScrollY : 0\);/.test(html), "一覧以外の画面は先頭から開く");
 ok(/if \(currentView === "list"\) listScrollY = window\.scrollY;/.test(html), "一覧を離れるときに位置を憶える（メニューから開いたときも）");
 // 詳細の中で現象を替えるたびに履歴を積むと、戻るのに何度も押させることになる。
 ok(/history\.replaceState\(history\.state, "", `#\/\$\{picked\}\/\$\{dayMs\}`\)/.test(html),

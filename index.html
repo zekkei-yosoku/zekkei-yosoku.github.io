@@ -8,7 +8,7 @@
      編集後はbump.shでハッシュを更新する。connect-srcも実際に使う相手だけに絞る。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-rd3KtlImFiY7uhVZEJre31UoR5lpR81rIwkeEAsKVs0=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-k+CgeRhaZs3txOBJ6sTHYVtv/6FAlnP8by0bX8TmSwQ=' 'sha256-G5/26JdoS9ZlhDtAVqUeH7k4tCu4Oa/52qlMDenZ0Vk=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-bwAiVnKel/FUCUIzYLumh0X2RunXmeHPGDVrIl2SDE4=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-k+CgeRhaZs3txOBJ6sTHYVtv/6FAlnP8by0bX8TmSwQ=' 'sha256-G5/26JdoS9ZlhDtAVqUeH7k4tCu4Oa/52qlMDenZ0Vk=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1319,8 +1319,7 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 :is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes:after{content:"";position:absolute;left:100%;top:0;bottom:0;width:14px;background:linear-gradient(to right,var(--timeline-panel-bg,var(--card)),transparent);pointer-events:none}
 :is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes button:after{content:"↔";font-size:10px;line-height:1;color:var(--secondary)}
 :is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes button:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
-</style><link rel="stylesheet" href="platform.css?v=20261014233302">
-</head>
+</style></head>
 <body>
 <main>
   <div class="masthead">
@@ -1333,17 +1332,12 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
          **押したらホームへ戻る。** どの画面にも出ているので、ここが戻り道になる。
          `alt` は空にする（すぐ隣に「絶景予測」と書いてあるので二度言わせない） -->
     <h1><button id="homeLink" class="tap">
-      <img src="icon-32.png?v=1" class="masthead-mark" alt="" width="20" height="20"><span id="appBrand">絶景予測</span></button></h1>
+      <img src="icon-32.png?v=1" class="masthead-mark" alt="" width="20" height="20">絶景予測</button></h1>
     <!-- ログインは任意。押さなくても予報は全部見られる。
          同期が失敗しているときは、それをここに出す（黙って同期されていないのは
          「黙って消える」と同じ種類の事故）。 -->
     <button id="authButton" class="tap"></button>
   </div>
-  <nav class="app-switch" aria-label="アプリ切り替え">
-    <button type="button" id="appAstro" aria-pressed="false">AstroNotes</button>
-    <button type="button" id="appForecast" aria-pressed="true">絶景予測</button>
-  </nav>
-  <section id="astroAccessView" class="card" hidden><h2>AstroNotes</h2><p id="astroAccessText" role="status"></p><button type="button" id="astroAccessLogin" class="chip">ログイン</button></section>
   <!-- 戻る（2026-10-01 ユーザー「一覧に戻るボタンはあった方がいい」「☰ と絶景予測の下にいい感じに。
        ボタンみたいに囲わなくていい。←戻る でいい」）。一覧以外の画面で、題名の帯のすぐ下に文字だけで出す。
        **ひとつ前の画面へ戻る**（月の詳細 → 空の見え方 → 戻る で月の詳細）。一気に一覧へは題名を押す。
@@ -2085,31 +2079,31 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261014233302"></script>
-<script src="sorami-prediction.js?v=20261014233302"></script>
+<script src="sorami-core.js?v=20261014234108"></script>
+<script src="sorami-prediction.js?v=20261014234108"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261014233302"></script>
-<script src="sorami-exif.js?v=20261014233302"></script>
-<script src="sorami-capcloud.js?v=20261014233302"></script>
-<script src="sorami-terrain.js?v=20261014233302"></script>
-<script src="sorami-mountain.js?v=20261014233302"></script>
-<script src="sorami-fuji.js?v=20261014233302"></script>
-<script src="sorami-sky.js?v=20261014233302"></script>
+<script src="sorami-astro.js?v=20261014234108"></script>
+<script src="sorami-exif.js?v=20261014234108"></script>
+<script src="sorami-capcloud.js?v=20261014234108"></script>
+<script src="sorami-terrain.js?v=20261014234108"></script>
+<script src="sorami-mountain.js?v=20261014234108"></script>
+<script src="sorami-fuji.js?v=20261014234108"></script>
+<script src="sorami-sky.js?v=20261014234108"></script>
 
-<script src="sorami-history.js?v=20261014233302"></script>
-<script src="sorami-plan.js?v=20261014233302"></script>
-<script src="sorami-routes.js?v=20261014233302"></script>
-<script src="sorami-iss.js?v=20261014233302"></script>
-<script src="sorami-plane.js?v=20261014233302"></script>
-<script src="sorami-refraction.js?v=20261014233302"></script>
-<script src="sorami-atmosphere.js?v=20261014233302"></script>
-<script src="sorami-bodies.js?v=20261014233302"></script>
-<script src="sorami-sky-map.js?v=20261014233302"></script>
-<script src="sorami-city-models.js?v=20261014233302"></script>
-<script src="sorami-tower-models.js?v=20261014233302"></script>
-<script src="sorami-align.js?v=20261014233302"></script>
-<script src="sorami-moon.js?v=20261014233302"></script>
+<script src="sorami-history.js?v=20261014234108"></script>
+<script src="sorami-plan.js?v=20261014234108"></script>
+<script src="sorami-routes.js?v=20261014234108"></script>
+<script src="sorami-iss.js?v=20261014234108"></script>
+<script src="sorami-plane.js?v=20261014234108"></script>
+<script src="sorami-refraction.js?v=20261014234108"></script>
+<script src="sorami-atmosphere.js?v=20261014234108"></script>
+<script src="sorami-bodies.js?v=20261014234108"></script>
+<script src="sorami-sky-map.js?v=20261014234108"></script>
+<script src="sorami-city-models.js?v=20261014234108"></script>
+<script src="sorami-tower-models.js?v=20261014234108"></script>
+<script src="sorami-align.js?v=20261014234108"></script>
+<script src="sorami-moon.js?v=20261014234108"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2999,7 +2993,6 @@ function rerenderList() {
  * 画面の一覧。**上から順に強い**（詳細を開いていれば、ほかの指定より詳細が勝つ）。
  * 画面を足すときは、ここに1行足して `routeFromHash` に道を足すだけにする。
  */
-let AppSwitchUI = null;
 const VIEWS = [
   { id: "detail",  el: "detailView",  on: () => !!(picked && weeks[picked]) },
   { id: "admin",   el: "adminView",   on: () => atAdmin },
@@ -3008,7 +3001,6 @@ const VIEWS = [
   { id: "aim",     el: "aimView",     on: () => atAim },
   { id: "plane",   el: "planeView",   on: () => atPlane },
   { id: "iss",     el: "issView",     on: () => atIss },
-  { id: "astroAccess", el: "astroAccessView", on: () => !!routeFromHash()?.astro },
   { id: "list",    el: "listView",    on: () => true },
 ];
 
@@ -3510,7 +3502,6 @@ function wireOutcomes(root) {
 //   #/sunset      → 夕焼けの直近の回
 //   #/sunset/1756… → 夕焼けの特定の日
 function routeFromHash() {
-  if (location.hash === "#/astro") return { astro: true };
   if (location.hash.includes("?plan=")) {
     const hash = location.hash.split("?")[0];
     if (hash === "#/aim") return { aim: true };
@@ -3575,7 +3566,7 @@ function pushRoute(hash) {
 /// ひとつ前の画面へ。前がアプリの中に無ければ（URL を直接開いた画面）一覧へ
 function isMenuPage() {
   const r = routeFromHash();
-  return !r || !!(r.astro || r.aim || r.skymap || r.plane || r.iss || r.records);
+  return !r || !!(r.aim || r.skymap || r.plane || r.iss || r.records);
 }
 function goBack() {
   if (NO_HISTORY) {
@@ -3597,7 +3588,6 @@ function goList() {
   if (routeFromHash()) { history.replaceState(null, "", location.pathname + location.search); applyRoute(); }
 }
 
-let appReturnScroll = null;
 function applyRoute() {
   if (restoreSharedPlan() === "reload") { load(true); return; }
   const route = routeFromHash();
@@ -3627,8 +3617,7 @@ function applyRoute() {
   if (atSkyMap) SkyMapUI?.open();
   // 画面が入れ替わるので位置を戻す。一覧は元いた位置へ、ほかの画面は先頭から。
   // 以前は「詳細と記録だけ先頭」としていたので、道具の画面が一覧の途中の位置で開いていた（2026-10-01）
-  window.scrollTo(0, appReturnScroll ?? (currentView === "list" ? listScrollY : 0));
-  appReturnScroll = null;
+  window.scrollTo(0, currentView === "list" ? listScrollY : 0);
 }
 // アプリの中のリンク（#/capCloud など）も pushRoute で進める。リンクのまま進むと、深さを持たない履歴が積まれ
 // （「← 戻る」が一覧まで飛ぶ）、ホーム画面のアプリでは iOS の戻るが端のなぞりを取る
@@ -9881,7 +9870,6 @@ function renderTools() {
   $("astroToolsGroup").hidden = !Array.from($("astroToolsGroup").querySelectorAll("[data-id]")).some(el => !el.hidden);
   $("toolsButton").hidden = shown === 0;
   if (shown === 0) closeTools();
-  AppSwitchUI?.render();
 }
 /**
  * 引き出しの開け閉め。
@@ -9936,7 +9924,7 @@ function showSheet(el) {
   el.focus({ preventScroll: true });
 }
 // 題名は一覧へ（何画面進んでいても1回で）。「← 戻る」はひとつ前の画面へ
-$("homeLink").onclick = () => { closeTools(); if (AppSwitchUI?.isAstro()) AppSwitchUI.home(); else goList(); };
+$("homeLink").onclick = () => { closeTools(); goList(); };
 $("toolsHome").onclick = () => { closeTools(); goList(); };
 $("backLink").onclick = () => { closeTools(); goBack(); };
 $("toolsButton").onclick = () => ($("toolsMenu").hidden ? openTools() : closeTools());
@@ -10051,7 +10039,6 @@ function renderAuthButton() {
   if (atAdmin && auth !== adminRenderAuth) renderAdmin();
   renderTools();
   SkyMapUI?.authChanged();
-  if (typeof AppSwitchUI !== "undefined") AppSwitchUI?.accountChanged();
   redrawIfToolsChanged();
   // 写真はアカウントのもの。ログインが変わったら出し直す
   if (atRecords) loadPhotos();
@@ -11058,8 +11045,8 @@ load(false);
 restoreSession();
 checkForUpdate();
 </script>
-<script src="sorami-scroll-timeline.js?v=20261014233302"></script>
-<script src="sorami-datetime-ui.js?v=20261014233302"></script>
+<script src="sorami-scroll-timeline.js?v=20261014234108"></script>
+<script src="sorami-datetime-ui.js?v=20261014234108"></script>
 <script id="uiVisualPrimitives">
 const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
 // E185: visual choices forward to the original native control; no calculation path is added.
@@ -11572,6 +11559,5 @@ ctx.lineWidth=1;
  for(const id of ['mapSearchGo','searchBoxGo']){const b=el(id);b.setAttribute('aria-label','検索');b.title='検索';b.innerHTML=UI_ICONS.search;}
  label('skyMapOpen','map');const recent=el('aimRecentOpen');if(recent){recent.innerHTML=UI_ICONS.history;recent.classList.add('preview-history-icon');recent.title='履歴';}label('photoPick','photo');label('exportBtn','download');label('importBtn','upload');
 })();</script>
-<script src="sorami-platform.js?v=20261014233302"></script>
 </body>
 </html>
