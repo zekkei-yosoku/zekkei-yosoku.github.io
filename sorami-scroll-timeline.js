@@ -4,7 +4,15 @@
 const DAY=86400000,MINUTE=60000,OFFSET=32400000,EXTENT=4096;
 const scale=mode=>mode==='date'?{step:DAY,pixels:24,labelEvery:2}:{step:MINUTE,pixels:4,labelEvery:15};
 const advance=(at,pixels,mode)=>{const s=scale(mode),units=pixels/s.pixels;return at+Math.sign(units)*Math.round(Math.abs(units))*s.step;};
-const phaseNames={morning:'朝焼け',day:'日中',evening:'夕焼け',night:'夜'};
+// Solar elevation drives a continuous sky palette, including blue and golden hours.
+const skyStops=[[-18,[9,18,47]],[-12,[20,38,85]],[-6,[67,84,138]],[-3,[160,109,145]],[-.833,[237,151,110]],[2,[246,188,112]],[6,[223,214,172]],[12,[145,197,223]],[30,[100,171,214]],[60,[64,145,197]]];
+function skyColor(at,observer,sun){
+ if(!observer||typeof sun!=='function')return null;
+ const h=sun(at,observer)?.geometricAltitude;if(!Number.isFinite(h))return null;
+ for(let i=1;i<skyStops.length;i++){const a=skyStops[i-1],b=skyStops[i];if(h<=b[0]){const t=Math.max(0,Math.min(1,(h-a[0])/(b[0]-a[0])));return a[1].map((v,j)=>Math.round(v+(b[1][j]-v)*t));}}
+ return skyStops[skyStops.length-1][1].slice();
+}
+function skyInk(rgb){const l=rgb.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((n,v,i)=>n+v*[.2126,.7152,.0722][i],0);return (1.05/(l+.05)>=(l+.05)/.05)?'#fff':'#000';}
 function solarPhase(at,observer,sun){
  if(!observer||typeof sun!=='function')return null;
  const h=sun(at,observer)?.geometricAltitude;
@@ -14,43 +22,58 @@ function solarPhase(at,observer,sun){
 }
 function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},format,describe=format,getObserver=()=>null,sun=()=>null}){
  const tape=document.createElement('div');tape.className='sky-timeline-tape';root.replaceChildren(tape);
- let anchor=null,mode=null,lastAt=null,width=0,moving=false,pressed=false,touching=false,frame=0,timer=0,generation=0,blocked=true,mouse=null,context='',phaseCache=new Map(),lastTouchMove=0;
- const caption=document.createElement('span');caption.className='timeline-current-phase';caption.setAttribute('aria-hidden','true');root.insertAdjacentElement?.('afterend',caption);
+ let anchor=null,mode=null,lastAt=null,width=0,moving=false,pressed=false,touching=false,frame=0,timer=0,generation=0,blocked=true,mouse=null,context='',colorCache=new Map(),lastTouchMove=0,glideFrame=0,velocity=0,lastScroll=null,inputKind='';
  const label=at=>format(at,mode);
- const phase=at=>{const key=Math.floor(at/300000);if(!phaseCache.has(key)){if(phaseCache.size>1600)phaseCache.clear();phaseCache.set(key,solarPhase(key*300000,getObserver(),sun));}return phaseCache.get(key);};
- const flush=()=>{frame=0;if(!enabled()||!Number.isFinite(anchor))return;const at=advance(anchor,root.scrollLeft-EXTENT,mode);if(at===lastAt)return;lastAt=at;root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(at));caption.textContent=mode==='time'?(phaseNames[phase(at)]||''):'';onChange(at);};
+ const cachedColor=key=>{if(!colorCache.has(key)){if(colorCache.size>1600)colorCache.clear();colorCache.set(key,skyColor(key*300000,getObserver(),sun));}return colorCache.get(key);};
+ const color=at=>{const key=Math.floor(at/300000),a=cachedColor(key),t=(at-key*300000)/300000;if(!a||!t)return a;const b=cachedColor(key+1);return b?a.map((v,i)=>Math.round(v+(b[i]-v)*t)):a;};
+ const flush=()=>{frame=0;if(!enabled()||!Number.isFinite(anchor))return;const at=advance(anchor,root.scrollLeft-EXTENT,mode);if(at===lastAt)return;lastAt=at;root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(at));onChange(at);if(Math.abs(root.scrollLeft-EXTENT)>=EXTENT/2)rebase();};
  function reset(at,nextMode){
-  generation++;cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;blocked=true;anchor=lastAt=at;mode=nextMode;width=root.clientWidth;const nextContext=JSON.stringify(getObserver());if(context!==nextContext){phaseCache.clear();context=nextContext;}
+  cancelGlide();generation++;cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;blocked=true;anchor=lastAt=at;mode=nextMode;width=root.clientWidth;const nextContext=JSON.stringify(getObserver());if(context!==nextContext){colorCache.clear();context=nextContext;}
   const s=scale(mode),origin=EXTENT+width/2,ordinal=Math.floor((at+(mode==='date'?OFFSET:0))/s.step),nodes=[];
   tape.style.width=(EXTENT*2+width)+'px';tape.style.setProperty('--timeline-unit',s.pixels+'px');tape.style.backgroundPositionX=origin+'px';
   for(let u=-Math.ceil(EXTENT/s.pixels);u<=Math.ceil(EXTENT/s.pixels);u++)if(((ordinal+u)%s.labelEvery+s.labelEvery)%s.labelEvery===0){const tick=document.createElement('span');tick.className='sky-timeline-label';tick.style.left=(origin+u*s.pixels)+'px';tick.textContent=label(at+u*s.step);nodes.push(tick);}
   if(mode==='time'){
-   const bands=[];let previous=null,start=0;
-   for(let x=0;x<=EXTENT*2+width+20;x+=20){const edge=Math.min(x,EXTENT*2+width),kind=x<EXTENT*2+width?phase(at+(x-origin)/s.pixels*s.step):null;
-    if(kind!==previous){if(previous){const band=document.createElement('span');band.className='timeline-phase timeline-phase-'+previous;band.style.left=start+'px';band.style.width=(edge-start)+'px';band.setAttribute('aria-hidden','true');bands.push(band);}start=edge;previous=kind;}
-   }nodes.unshift(...bands);
-  }
-  tape.replaceChildren(...nodes);caption.textContent=mode==='time'?(phaseNames[phase(at)]||''):'';root.dataset.mode=mode;root.setAttribute('aria-label',mode==='date'?'日付を横スクロールして調整':'時刻を横スクロールして調整');root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(at));root.setAttribute('aria-valuemin',String(Date.UTC(100,0,1)-OFFSET));root.setAttribute('aria-valuemax',String(Date.UTC(10000,0,1)-OFFSET-1));root.scrollLeft=EXTENT;
+   const stops=[],tickTime=300000,toPixel=t=>origin+(t-at)/s.step*s.pixels,first=Math.floor((at-origin/s.pixels*s.step)/tickTime)*tickTime;for(let t=first;toPixel(t)<=EXTENT*2+width+tickTime/s.step*s.pixels;t+=tickTime){const rgb=color(t);if(rgb)stops.push('rgb('+rgb.join(',')+') '+toPixel(t)+'px');}
+   tape.style.backgroundImage=stops.length?'repeating-linear-gradient(to right,rgba(0,0,0,.25) 0 1px,rgba(255,255,255,.28) 1px 2px,transparent 2px var(--timeline-unit)),linear-gradient(to right,'+stops.join(',')+')':'';
+   tape.style.backgroundSize='var(--timeline-unit) 8px,100% 100%';tape.style.backgroundPosition=origin+'px 5px,0 0';
+   for(const tick of nodes){const atTick=at+(parseFloat(tick.style.left)-origin)/s.pixels*s.step,rgb=color(atTick);if(rgb)tick.style.color=skyInk(rgb);}
+  }else{tape.style.backgroundImage='';tape.style.backgroundSize='';tape.style.backgroundPosition=origin+'px 5px';}
+  tape.replaceChildren(...nodes);root.dataset.mode=mode;root.setAttribute('aria-label',mode==='date'?'日付を横スクロールして調整':'時刻を横スクロールして調整');root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(at));root.setAttribute('aria-valuemin',String(Date.UTC(100,0,1)-OFFSET));root.setAttribute('aria-valuemax',String(Date.UTC(10000,0,1)-OFFSET-1));root.scrollLeft=EXTENT;
+ }
+ const now=()=>typeof performance==='undefined'?Date.now():performance.now();
+ function cancelGlide(){cancelAnimationFrame(glideFrame);glideFrame=0;}
+ function glide(speed){
+  cancelGlide();let previous=now();
+  const step=()=>{glideFrame=0;if(!enabled()||pressed||blocked)return;const time=now(),dt=Math.max(1,Math.min(32,time-previous));previous=time;root.scrollLeft+=speed*dt;speed*=Math.exp(-dt/500);if(Math.abs(speed)>.015)glideFrame=requestAnimationFrame(step);};
+  glideFrame=requestAnimationFrame(step);
+ }
+ function rebase(){
+  const offset=root.scrollLeft-EXTENT,s=scale(mode),shift=Math.trunc(offset/s.pixels)*s.pixels;
+  if(!shift)return;
+  const carry=!pressed&&inputKind==='touch'?velocity:0,keep={moving,pressed,touching,blocked,mouse},at=anchor+shift/s.pixels*s.step,current=lastAt;
+  reset(at,mode);lastAt=current;moving=keep.moving;pressed=keep.pressed;touching=keep.touching;blocked=keep.blocked;mouse=keep.mouse;if(mouse)mouse.left-=shift;
+  if(Math.abs(carry)>.02){root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';}
+  root.scrollLeft=EXTENT+offset-shift;lastScroll={left:root.scrollLeft,time:now()};const token=generation;timer=setTimeout(()=>settle(token),150);if(Math.abs(carry)>.02)glide(carry);
  }
  function settle(token){
   if(token!==generation)return;if(!enabled()){stop();return;}
   if(pressed){timer=setTimeout(()=>settle(token),120);return;}
   flush();const at=lastAt;reset(at,mode);onSettle(at);
  }
- root.addEventListener('scroll',()=>{if(!enabled()){stop();return;}if(blocked||!enabled()||!Number.isFinite(anchor)||Math.abs(root.scrollLeft-EXTENT)<.1&&!moving)return;moving=true;if(!frame)frame=requestAnimationFrame(flush);clearTimeout(timer);const token=generation;timer=setTimeout(()=>settle(token),150);},{passive:true});
- function activate(){if(!enabled())return false;if(!Number.isFinite(anchor))reset(getAt(),getMode());else if(!moving&&Math.abs(root.scrollLeft-EXTENT)>=.1)reset(lastAt,mode);blocked=false;return true;}
- root.addEventListener('touchstart',e=>{if(!activate())return;touching=true;pressed=true;lastTouchMove=e?.timeStamp||0;},{passive:true});
+ root.addEventListener('scroll',()=>{if(!enabled()){stop();return;}if(blocked||!enabled()||!Number.isFinite(anchor)||Math.abs(root.scrollLeft-EXTENT)<.1&&!moving)return;const time=now();if(lastScroll&&Math.abs(root.scrollLeft-lastScroll.left)>.1)velocity=(root.scrollLeft-lastScroll.left)/Math.max(1,time-lastScroll.time);lastScroll={left:root.scrollLeft,time};moving=true;if(!frame)frame=requestAnimationFrame(flush);clearTimeout(timer);const token=generation;timer=setTimeout(()=>settle(token),150);},{passive:true});
+ function activate(kind){if(!enabled())return false;cancelGlide();velocity=0;inputKind=kind||inputKind;if(!Number.isFinite(anchor))reset(getAt(),getMode());else if(!moving&&Math.abs(root.scrollLeft-EXTENT)>=.1)reset(lastAt,mode);lastScroll={left:root.scrollLeft,time:now()};blocked=false;return true;}
+ root.addEventListener('touchstart',e=>{if(!activate('touch'))return;touching=true;pressed=true;lastTouchMove=e?.timeStamp||0;},{passive:true});
  root.addEventListener('touchmove',e=>{lastTouchMove=e.timeStamp;},{passive:true});
  for(const event of ['touchend','touchcancel'])root.addEventListener(event,e=>{touching=false;pressed=false;if(!enabled()){stop();return;}if(moving&&enabled()&&(!e||event==='touchcancel'||e.timeStamp-lastTouchMove>=120)){flush();const at=lastAt;root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';reset(at,mode);onSettle(at);}},{passive:true});
- root.addEventListener('pointerdown',e=>{if(!activate())return;pressed=true;if(e?.pointerType==='mouse'){mouse={x:e.clientX,left:root.scrollLeft};root.setPointerCapture?.(e.pointerId);e.preventDefault();}});
+ root.addEventListener('pointerdown',e=>{if(!activate(e?.pointerType==='mouse'?'mouse':'touch'))return;pressed=true;if(e?.pointerType==='mouse'){mouse={x:e.clientX,left:root.scrollLeft};root.setPointerCapture?.(e.pointerId);e.preventDefault();}});
  root.addEventListener('pointermove',e=>{if(mouse&&enabled())root.scrollLeft=mouse.left+mouse.x-e.clientX;});
- root.addEventListener('wheel',e=>{if(!activate())return;if(!e.deltaX&&e.deltaY){e.preventDefault();root.scrollLeft+=e.deltaY;}},{passive:false});
+ root.addEventListener('wheel',e=>{if(!activate('wheel'))return;if(!e.deltaX&&e.deltaY){e.preventDefault();root.scrollLeft+=e.deltaY;}},{passive:false});
  for(const event of ['pointerup','pointercancel','lostpointercapture'])root.addEventListener(event,()=>{if(!touching)pressed=false;mouse=null;},{passive:true});
  root.addEventListener('keydown',e=>{const dir={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1,PageUp:-1,PageDown:1}[e.key];if(!dir||!enabled())return;e.preventDefault();const large=e.shiftKey||e.key.startsWith('Page'),delta=(mode==='date'?DAY:MINUTE)*(large?(mode==='date'?7:15):1),at=getAt()+dir*delta;stop();reset(at,mode);onChange(at);onSettle(at);});
- function stop(){generation++;cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;pressed=false;touching=false;mouse=null;blocked=true;anchor=null;}
+ function stop(){cancelGlide();velocity=0;lastScroll=null;generation++;cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;pressed=false;touching=false;mouse=null;blocked=true;anchor=null;}
  const controller={sync(at,nextMode){if(!enabled()){stop();return;}if(!Number.isFinite(at))return;if((moving||pressed||touching)&&mode===nextMode&&at===lastAt&&width===root.clientWidth&&context===JSON.stringify(getObserver()))return;if(at===anchor&&nextMode===mode&&width===root.clientWidth&&Math.abs(root.scrollLeft-EXTENT)<.1&&context===JSON.stringify(getObserver()))return;stop();reset(at,nextMode);},stop};
  if(typeof ResizeObserver==='function')new ResizeObserver(()=>{if(enabled())controller.sync(getAt(),getMode());else stop();}).observe(root);
  return controller;
 }
-const api={scale,advance,mount,solarPhase,phaseNames};g.SoramiScrollTimeline=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+const api={scale,advance,mount,solarPhase,skyColor,skyInk};g.SoramiScrollTimeline=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window==='undefined'?globalThis:window);

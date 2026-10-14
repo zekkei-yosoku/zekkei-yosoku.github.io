@@ -1,10 +1,10 @@
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
 const src=readFileSync(new URL('./sorami-scroll-timeline.js',import.meta.url),'utf8'),DAY=86400000;
-function setup(width=240){let next=0;const frames=new Map(),timers=new Map(),changes=[],state={at:Date.parse('2028-11-05T16:04:37.250+09:00'),mode:'date',enabled:true};
+function setup(width=240,options={}){let next=0,simTime=0;const frames=new Map(),timers=new Map(),changes=[],state={at:Date.parse('2028-11-05T16:04:37.250+09:00'),mode:'date',enabled:true};
  const make=()=>({style:{setProperty(){}},dataset:{},children:[],listeners:{},scrollLeft:0,clientWidth:width,attrs:{},setAttribute(k,v){this.attrs[k]=v},replaceChildren(...c){this.children=c},addEventListener(k,f){this.listeners[k]=f}}),root=make();
- const c={document:{createElement:make},requestAnimationFrame:f=>{frames.set(++next,f);return next},cancelAnimationFrame:i=>frames.delete(i),setTimeout:f=>{timers.set(++next,f);return next},clearTimeout:i=>timers.delete(i)};vm.createContext(c);vm.runInContext(src,c);
- const controller=c.SoramiScrollTimeline.mount({root,getAt:()=>state.at,getMode:()=>state.mode,enabled:()=>state.enabled,onChange:at=>{state.at=at;changes.push(at);controller.sync(at,state.mode)},format:at=>new Date(at).toISOString()});controller.sync(state.at,state.mode);
- const flush=()=>{for(const [id,f] of [...frames]){frames.delete(id);f();}};const settle=()=>{flush();for(const [id,f] of [...timers]){timers.delete(id);f();}};
+ const c={performance:{now:()=>simTime},document:{createElement:make},requestAnimationFrame:f=>{frames.set(++next,f);return next},cancelAnimationFrame:i=>frames.delete(i),setTimeout:f=>{timers.set(++next,f);return next},clearTimeout:i=>timers.delete(i)};vm.createContext(c);vm.runInContext(src,c);
+ const controller=c.SoramiScrollTimeline.mount({root,getAt:()=>state.at,getMode:()=>state.mode,enabled:()=>state.enabled,onChange:at=>{state.at=at;changes.push(at);controller.sync(at,state.mode)},format:at=>new Date(at).toISOString(),...options});controller.sync(state.at,state.mode);
+ const flush=()=>{simTime+=16;for(const [id,f] of [...frames]){frames.delete(id);f();}};const settle=()=>{flush();for(const [id,f] of [...timers]){timers.delete(id);f();}};
  return {c,root,state,controller,changes,flush,settle,scroll(dx){root.listeners.wheel({deltaX:dx,deltaY:0});root.scrollLeft+=dx;root.listeners.scroll();flush();}};
 }
 test('固定目盛りは画面幅によらず24px=1日、4px=1分で左右対称、日付は秒まで保持する',()=>{
@@ -52,4 +52,27 @@ test('素早く離すと慣性スクロールを残し、指を止めて離す�
 });
 test('無効化中の指離し・慣性・非表示を経て再開しても元の日付から固定量だけ動く',()=>{
  const f=setup(),at=f.state.at;f.root.listeners.touchstart({timeStamp:100});f.root.scrollLeft+=24;f.root.listeners.scroll();f.flush();f.state.enabled=false;f.root.listeners.touchend({timeStamp:200});f.root.scrollLeft=0;f.root.listeners.scroll();f.settle();f.state.enabled=true;f.controller.sync(f.state.at,'date');f.scroll(24);assert.equal(f.state.at,at+2*DAY);
+});
+test('指を離さず有限バッファの何十倍を送っても、前後とも固定尺度で続く',()=>{
+ for(const mode of ['time','date']){const f=setup();f.state.mode=mode;f.controller.sync(f.state.at,mode);const at=f.state.at,pixels=mode==='time'?4:24,step=mode==='time'?60000:DAY;f.root.listeners.touchstart({timeStamp:1});
+ for(let i=1;i<=120;i++){f.root.scrollLeft+=pixels*100;f.root.listeners.scroll();f.flush();assert.equal(f.state.at,at+i*100*step);assert.ok(f.root.scrollLeft>2000&&f.root.scrollLeft<6200);}
+ for(let i=119;i>=-120;i--){f.root.scrollLeft-=pixels*100;f.root.listeners.scroll();f.flush();assert.equal(f.state.at,at+i*100*step);}
+ f.root.listeners.touchend({timeStamp:500});f.settle();assert.equal(f.root.scrollLeft,4096);assert.equal(f.state.at,at-12000*step);}
+});
+test('空色は高度に連続で補間し、夜・blue hour・golden hour・昼の青を経て文字は4.5以上のcontrast',()=>{
+ const {skyColor,skyInk}=setup().c.SoramiScrollTimeline,o={latitude:35,longitude:139};let prev;
+ for(let h=-25;h<=80;h+=.1){const rgb=skyColor(0,o,()=>({geometricAltitude:h}));assert.equal(rgb.length,3);assert.ok(rgb.every(v=>v>=0&&v<=255));if(prev)assert.ok(Math.max(...rgb.map((v,i)=>Math.abs(v-prev[i])))<=5);prev=rgb;
+ const l=rgb.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4}).reduce((n,v,i)=>n+v*[.2126,.7152,.0722][i],0),ink=skyInk(rgb),ratio=ink==='#fff'?1.05/(l+.05):(l+.05)/.05;assert.ok(ratio>=4.5);}
+ const golden=skyColor(0,o,()=>({geometricAltitude:2})),night=skyColor(0,o,()=>({geometricAltitude:-20}));assert.ok(golden[0]>golden[2]);assert.ok(night[2]>night[0]);
+});
+test('地点変更でグラデーションを再生成し、日本語captionや色の箱を作らない',()=>{
+ let o={latitude:35,longitude:139},calls=0;const f=setup(240,{getObserver:()=>o,sun:(at,p)=>{calls++;return{geometricAltitude:p.latitude>0?2:-18}}});f.state.mode='time';f.controller.sync(f.state.at,'time');const tape=f.root.children[0],before=tape.style.backgroundImage,count=calls;assert.match(before,/linear-gradient/);assert.ok(tape.children.every(e=>e.className==='sky-timeline-label'));f.controller.sync(f.state.at,'time');assert.equal(calls,count);o={latitude:-35,longitude:139};f.controller.sync(f.state.at,'time');assert.notEqual(tape.style.backgroundImage,before);assert.ok(calls>count);
+});
+test('日付/分の線とラベルの原点を幅によらず一致させ、同じ時刻の空色はrebase/settleで跳ばない',()=>{
+ const rgbAt=(image,x)=>{const stops=[...image.matchAll(/rgb\((\d+),(\d+),(\d+)\) (-?[\d.]+)px/g)].map(m=>({rgb:m.slice(1,4).map(Number),x:+m[4]}));for(let i=1;i<stops.length;i++)if(x<=stops[i].x){const a=stops[i-1],b=stops[i],t=(x-a.x)/(b.x-a.x);return a.rgb.map((v,j)=>v+(b.rgb[j]-v)*t);}throw Error('outside gradient');};
+ for(const width of [160,223,240,340,780]){const f=setup(width,{getObserver:()=>({latitude:35}),sun:at=>({geometricAltitude:Math.sin(at/20000000)*15})});assert.equal(f.root.children[0].style.backgroundPosition,(4096+width/2)+'px 5px');f.state.mode='time';f.controller.sync(f.state.at,'time');const tape=f.root.children[0],initial=tape.style.backgroundImage;
+ f.root.listeners.touchstart({timeStamp:1});f.root.scrollLeft+=2048;const before=rgbAt(initial,f.root.scrollLeft+width/2);f.root.listeners.scroll();f.flush();const after=rgbAt(tape.style.backgroundImage,f.root.scrollLeft+width/2);assert.ok(before.every((v,i)=>Math.abs(v-after[i])<.01));assert.equal(tape.style.backgroundPosition,(4096+width/2)+'px 5px,0 0');f.root.listeners.touchend({timeStamp:500});const settled=rgbAt(tape.style.backgroundImage,4096+width/2);assert.ok(after.every((v,i)=>Math.abs(v-settled[i])<.01));}
+});
+test('慣性中の境界rebaseは速度を引き継ぎ、触り直すと代行慣性を即座に止める',()=>{
+ const f=setup();f.state.mode='time';f.controller.sync(f.state.at,'time');f.root.listeners.touchstart({timeStamp:1});f.root.listeners.touchmove({timeStamp:10});f.root.scrollLeft+=2000;f.root.listeners.scroll();f.flush();f.root.listeners.touchend({timeStamp:20});f.flush();f.root.scrollLeft+=80;f.root.listeners.scroll();f.flush();const at=f.state.at;assert.equal(f.root.scrollLeft,4096);f.flush();assert.ok(f.root.scrollLeft>4096);f.root.listeners.scroll();f.flush();assert.ok(f.state.at>at);f.root.listeners.touchstart({timeStamp:100});f.flush();const left=f.root.scrollLeft;for(let i=0;i<10;i++)f.flush();assert.equal(f.root.scrollLeft,left);f.root.listeners.touchcancel({timeStamp:500});f.settle();assert.equal(f.root.scrollLeft,4096);
 });
