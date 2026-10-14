@@ -8,7 +8,7 @@
      編集後はbump.shでハッシュを更新する。connect-srcも実際に使う相手だけに絞る。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-L+tGbGq55IcL5BOl35Kb34AhKVZb/GkCzrEyJtVI3ko=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-hgHtIX5XCVaih1mwHnmeHquiFuLHzwhE1XLlcxR8KyU=' 'sha256-gZYaIEXmN48N3FFMK5pnWUe5hV8YVg3uSVff93qBVAg=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-g4lnk5M4z/Y9Cn/1RlFNy62c6FhqTJqVwPnIBrGawr4=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-k+CgeRhaZs3txOBJ6sTHYVtv/6FAlnP8by0bX8TmSwQ=' 'sha256-TyRZ9MR9V/9p7GQjpyjCFVrUChMTxG9BCAdyayFJxFY=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1720,7 +1720,7 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
   <p class="tiny sky-map-definition">出入りは天体の中心が高度0°を通る方向と時刻です（大気補正なし）。</p>
   <details><summary class="tiny">地図の読み方</summary><p class="tiny">方位は真北0°・東90°。円弧は方向の目盛りです。出入りは天体の中心が高度0°を通る方向です。大気の屈折・地形・建物の遮りは補正しません。</p></details>
 
-  <footer class="sky-map-footer" aria-label="撮影の日時"><div class="sky-map-body-bar" id="skyMapBodyBar" role="group" aria-label="地図に表示する天体"><button type="button" class="map-ctl" id="skyMapShowSun" aria-label="太陽の表示" aria-pressed="true" title="太陽の表示を切り替え"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><span>太陽</span></button><button type="button" class="map-ctl" id="skyMapShowMoon" aria-label="月の表示" aria-pressed="true" title="月の表示を切り替え"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14a8.5 8.5 0 0 1-10-10A8.5 8.5 0 1 0 20 14Z"/></svg><span>月</span></button><button type="button" id="skyMapMoreBodies" aria-label="その他の天体を選ぶ" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="var(--card)"/><circle cx="15" cy="12" r="2" fill="var(--card)"/><circle cx="9" cy="18" r="2" fill="var(--card)"/></svg><span id="skyMapExtraName"></span></button></div><div class="sky-map-date"><button type="button" id="skyMapPrev" aria-label="前の日">‹</button><input type="hidden" id="skyMapDate"><button type="button" id="skyMapCalendarOpen" aria-label="日付を選ぶ" aria-haspopup="dialog"></button><button type="button" id="skyMapNext" aria-label="次の日">›</button><div class="preview-date-time"><input type="time" id="skyMapTime" aria-label="撮影時刻を入力"></div><button type="button" id="skyMapTimeMore" aria-label="天体の位置と時刻" aria-haspopup="dialog">⋯</button></div><div class="sky-map-status-row"><p id="skyMapStatus" class="tiny" role="status"></p><button type="button" class="chip" id="skyMapRetry" hidden>再試行</button></div><div class="sky-map-readouts" id="skyMapReadouts"><div id="skyMapPassages" class="sky-map-passages" aria-label="目標方位を通過する時刻と高度"></div><div id="skyMapEvents" class="sky-map-events" aria-label="出入りの時刻"></div></div><div class="sky-map-scrub"><div class="sky-map-scrub-modes" role="group" aria-label="バーで動かす対象"><button type="button" class="chip" id="skyMapScrubMode" aria-label="日付に切り替え" data-mode="time">時刻</button></div><div id="skyMapTrack" class="preview-footer-track"><div id="skyMapTimeline" class="sky-map-timeline" tabindex="0" role="slider" aria-label="日時を横スクロールして調整"></div><span class="sky-map-timeline-center" aria-hidden="true"></span><input hidden type="range" id="skyMapRange" min="0" max="86399" step="1" aria-label="撮影時刻を滑らかに調整"></div></div>
+  <footer class="sky-map-footer" aria-label="撮影の日時"><div class="sky-map-body-bar" id="skyMapBodyBar" role="group" aria-label="地図に表示する天体"><button type="button" class="map-ctl" id="skyMapShowSun" aria-label="太陽の表示" aria-pressed="true" title="太陽の表示を切り替え"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><span>太陽</span></button><button type="button" class="map-ctl" id="skyMapShowMoon" aria-label="月の表示" aria-pressed="true" title="月の表示を切り替え"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14a8.5 8.5 0 0 1-10-10A8.5 8.5 0 1 0 20 14Z"/></svg><span>月</span></button><button type="button" id="skyMapMoreBodies" aria-label="その他の天体を選ぶ" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="var(--card)"/><circle cx="15" cy="12" r="2" fill="var(--card)"/><circle cx="9" cy="18" r="2" fill="var(--card)"/></svg><span id="skyMapExtraName"></span></button></div><div class="sky-map-date"><button type="button" id="skyMapPrev" aria-label="前の日">‹</button><input type="hidden" id="skyMapDate"><button type="button" id="skyMapCalendarOpen" aria-label="日付を選ぶ" aria-haspopup="dialog"></button><button type="button" id="skyMapNext" aria-label="次の日">›</button><div class="preview-date-time"><input type="time" id="skyMapTime" aria-label="撮影時刻を入力"></div><button type="button" id="skyMapTimeMore" aria-label="天体の位置と時刻" aria-haspopup="dialog">⋯</button></div><div class="sky-map-status-row"><p id="skyMapStatus" class="tiny" role="status"></p><button type="button" class="chip" id="skyMapRetry" hidden>再試行</button></div><div class="sky-map-readouts" id="skyMapReadouts"><div id="skyMapPassages" class="sky-map-passages" aria-label="目標方位を通過する時刻と高度"></div><div id="skyMapEvents" class="sky-map-events" aria-label="出入りの時刻"></div></div><div class="sky-map-scrub"><div class="sky-map-scrub-modes" role="group" aria-label="バーで動かす対象"><button type="button" class="chip" id="skyMapScrubMode" aria-label="時刻、日付に切り替え" data-mode="time">時刻</button></div><div id="skyMapTrack" class="preview-footer-track"><div id="skyMapTimeline" class="sky-map-timeline" tabindex="0" role="slider" aria-label="日時を横スクロールして調整"></div><span class="sky-map-timeline-center" aria-hidden="true"></span><input hidden type="range" id="skyMapRange" min="0" max="86399" step="1" aria-label="撮影時刻を滑らかに調整"></div></div>
   </footer>
  </div>
 </section>
@@ -2055,31 +2055,31 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261014143508"></script>
-<script src="sorami-prediction.js?v=20261014143508"></script>
+<script src="sorami-core.js?v=20261014151316"></script>
+<script src="sorami-prediction.js?v=20261014151316"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261014143508"></script>
-<script src="sorami-exif.js?v=20261014143508"></script>
-<script src="sorami-capcloud.js?v=20261014143508"></script>
-<script src="sorami-terrain.js?v=20261014143508"></script>
-<script src="sorami-mountain.js?v=20261014143508"></script>
-<script src="sorami-fuji.js?v=20261014143508"></script>
-<script src="sorami-sky.js?v=20261014143508"></script>
+<script src="sorami-astro.js?v=20261014151316"></script>
+<script src="sorami-exif.js?v=20261014151316"></script>
+<script src="sorami-capcloud.js?v=20261014151316"></script>
+<script src="sorami-terrain.js?v=20261014151316"></script>
+<script src="sorami-mountain.js?v=20261014151316"></script>
+<script src="sorami-fuji.js?v=20261014151316"></script>
+<script src="sorami-sky.js?v=20261014151316"></script>
 
-<script src="sorami-history.js?v=20261014143508"></script>
-<script src="sorami-plan.js?v=20261014143508"></script>
-<script src="sorami-routes.js?v=20261014143508"></script>
-<script src="sorami-iss.js?v=20261014143508"></script>
-<script src="sorami-plane.js?v=20261014143508"></script>
-<script src="sorami-refraction.js?v=20261014143508"></script>
-<script src="sorami-atmosphere.js?v=20261014143508"></script>
-<script src="sorami-bodies.js?v=20261014143508"></script>
-<script src="sorami-sky-map.js?v=20261014143508"></script>
-<script src="sorami-city-models.js?v=20261014143508"></script>
-<script src="sorami-tower-models.js?v=20261014143508"></script>
-<script src="sorami-align.js?v=20261014143508"></script>
-<script src="sorami-moon.js?v=20261014143508"></script>
+<script src="sorami-history.js?v=20261014151316"></script>
+<script src="sorami-plan.js?v=20261014151316"></script>
+<script src="sorami-routes.js?v=20261014151316"></script>
+<script src="sorami-iss.js?v=20261014151316"></script>
+<script src="sorami-plane.js?v=20261014151316"></script>
+<script src="sorami-refraction.js?v=20261014151316"></script>
+<script src="sorami-atmosphere.js?v=20261014151316"></script>
+<script src="sorami-bodies.js?v=20261014151316"></script>
+<script src="sorami-sky-map.js?v=20261014151316"></script>
+<script src="sorami-city-models.js?v=20261014151316"></script>
+<script src="sorami-tower-models.js?v=20261014151316"></script>
+<script src="sorami-align.js?v=20261014151316"></script>
+<script src="sorami-moon.js?v=20261014151316"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -8395,14 +8395,14 @@ async function aimLookRender(host, spec) {
     if(host.id==='aimLook'&&aim.plannerTransfer)aim.plannerTransfer.at=p.at;
     host._planKey = planRenderKey;
     if(host.id==='aimLook'){
-      aim.mapTime={at:p.at,day:S.JstCal.startOfDay(spec.at),body,target:t.id};
+      aim.mapTime={at:p.at,day:S.JstCal.startOfDay(p.at),body,target:t.id};
       if(!host._mapTimeFrame)host._mapTimeFrame=requestAnimationFrame(()=>{host._mapTimeFrame=null;AimMap.redraw();});
     }
     if(aimAirCompare)aimAirCompare.at=p.at;
     aimAirDescribe(p.at,eyeObs);
     if (host._uiTime) {
       host._uiTime.current = p.at;
-      if (p.at < host._uiTime.day + +range.min*1000 || p.at > host._uiTime.day + +range.max*1000) { host._uiAllDay = true; host._uiTime.window(); }
+      if (S.JstCal.startOfDay(p.at)===host._uiTime.day && (p.at < host._uiTime.day + +range.min*1000 || p.at > host._uiTime.day + +range.max*1000)) { host._uiAllDay = true; host._uiTime.window(); }
       range.value = String((p.at-host._uiTime.day)/1000); range.setAttribute('aria-valuetext', aimLookHMS(p.at));
       const input = document.getElementById('previewTime');
       if (input && document.activeElement !== input) input.value = S.JstCal.hhmm(p.at).padStart(5,'0');
@@ -11019,8 +11019,8 @@ load(false);
 restoreSession();
 checkForUpdate();
 </script>
-<script src="sorami-scroll-timeline.js?v=20261014143508"></script>
-<script src="sorami-datetime-ui.js?v=20261014143508"></script>
+<script src="sorami-scroll-timeline.js?v=20261014151316"></script>
+<script src="sorami-datetime-ui.js?v=20261014151316"></script>
 <script id="uiVisualPrimitives">
 const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
 // E185: visual choices forward to the original native control; no calculation path is added.
@@ -11132,7 +11132,7 @@ function uiVisualChoices(select, kind) {
   }
 
   clock.disabled=reference.disabled=footerRange.disabled=!state||look.hidden||state.day!==aim.dayMs;
-  scrubToggle.disabled=footerRange.disabled;const modeText=scrubMode==='date'?'日付':'時刻',nextText=scrubMode==='date'?'時刻':'日付';if(scrubToggle.textContent!==modeText)scrubToggle.textContent=modeText;scrubToggle.dataset.mode=scrubMode;scrubToggle.setAttribute('aria-label',nextText+'に切り替え');scrubToggle.title='現在は'+modeText+'。'+nextText+'に切り替え';
+  scrubToggle.disabled=footerRange.disabled;const modeText=scrubMode==='date'?'日付':'時刻',nextText=scrubMode==='date'?'時刻':'日付';if(scrubToggle.textContent!==modeText)scrubToggle.textContent=modeText;scrubToggle.dataset.mode=scrubMode;scrubToggle.setAttribute('aria-label',modeText+'、'+nextText+'に切り替え');scrubToggle.title='現在は'+modeText+'。'+nextText+'に切り替え';
   const refText=state?`${state.name} ${S.JstCal.hhmm(state.reference)}`:'時刻を計算中';const refLabel=state?`${refText}へ移動`:'時刻を計算中';if(reference.textContent!==refLabel)reference.textContent=refLabel;
   // 地図の範囲を決めた後に写す。見え方は図の時間幅、撮影地は出入線の時間幅。
   const source=mode==='places'?mapRange:look.querySelector('[data-look-range]');
@@ -11452,7 +11452,7 @@ ctx.lineWidth=1;
   range.min=dateMode?-7:0;range.max=dateMode?7:86399;range.step=1;range.value=dateMode?(SoramiSkyMap.dayStart(session.at)-session.dayAnchor)/86400000:(session.at-SoramiSkyMap.dayStart(session.at))/1000;
   skyTimeline.sync(session.at,session.scrubMode);
   range.setAttribute('aria-label',dateMode?'撮影日を滑らかに調整':'撮影時刻を滑らかに調整');
-  const toggle=el('skyMapScrubMode');toggle.textContent=dateMode?'日付':'時刻';toggle.dataset.mode=session.scrubMode;toggle.setAttribute('aria-label',dateMode?'時刻に切り替え':'日付に切り替え');toggle.title='現在は'+toggle.textContent+'。'+(dateMode?'時刻':'日付')+'に切り替え';
+  const toggle=el('skyMapScrubMode');toggle.textContent=dateMode?'日付':'時刻';toggle.dataset.mode=session.scrubMode;toggle.setAttribute('aria-label',dateMode?'日付、時刻に切り替え':'時刻、日付に切り替え');toggle.title='現在は'+toggle.textContent+'。'+(dateMode?'時刻':'日付')+'に切り替え';
  }
  function setScrubMode(mode){if(!hasAccess()||!session)return;stopSkyScrub();cancelAnimationFrame(frame);frame=0;session.scrubMode=mode;session.dayAnchor=SoramiSkyMap.dayStart(session.at);if(session.timelinePending)refresh();render();}
  el('skyMapScrubMode').onclick=()=>setScrubMode(session?.scrubMode==='date'?'time':'date');
