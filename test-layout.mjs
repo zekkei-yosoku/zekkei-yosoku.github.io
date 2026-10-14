@@ -517,7 +517,7 @@ console.log("== 画面のスクリプトが文法として読める（2026-09-30
 
 // ユーザー「塔に重ねるって塔以外も重ねるじゃん」「純粋に「重ねる」じゃだめなの？」
 // 2026-10-15 メニューはAstroNotesの1項目（FramingとMapは画面上部のスイッチ）。説明にダイヤモンド富士の名前は残す
-ok(/<b>AstroNotes<\/b><span>ダイヤモンド富士・パール富士など天体が重なる日と場所（Framing）、天体の方向と高度（Map）<\/span>/.test(html) && !/<b>塔に重ねる<\/b>/.test(html),
+ok(/<b><img [^>]*alt="AstroNotes"[^>]*><\/b><span>ダイヤモンド富士・パール富士など天体が重なる日と場所（Framing）、天体の方向と高度（Map）<\/span>/.test(html) && !/<b>塔に重ねる<\/b>/.test(html),
   "メニューの名前は「AstroNotes」。説明にダイヤモンド富士の名前も入れる（その名前でも見つかるように）");
 
 // ユーザー「スカイツリーの先端が634mだと思うんだけど636になってるのはなんで」
@@ -993,7 +993,7 @@ ok(!/TOOL_NAMES = \{/.test(html), "名前を書き写さない");
   const menu = [...html.matchAll(/<button\b[^>]*\bdata-tool="[^"]+"[^>]*>/g)].flatMap(m => (m[0].match(/\bdata-id="([a-z ]+)"/)?.[1] || "").split(" ").filter(Boolean));
   ok(menu.length === 7, "メニューの許可は7つ（独立スカイマップを含む）", menu.join("・"));
   // 2026-10-15 FramingとMapはメニューではAstroNotesの1項目（画面上部のスイッチで行き来する）
-  ok(/data-tool="#\/aim\/tower" data-id="diamond pearl tower skymap" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど Astro Map"><b>AstroNotes<\/b>/.test(html),
+  ok(/data-tool="#\/aim\/tower" data-id="diamond pearl tower skymap" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど Astro Map"><b><img [^>]*alt="AstroNotes"[^>]*><\/b>/.test(html),
     "AstroNotesは4つの許可を持ち、どれかがあれば出す");
   ok(/el\.dataset\.id\.split\(" "\)\.some\(\(id\) => allowed\.includes\(id\)\)/.test(html), "どちらかの許可があればメニューに出す");
   const api = fs.readFileSync(new URL("../api/src/index.js", import.meta.url), "utf8");
