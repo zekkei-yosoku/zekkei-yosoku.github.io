@@ -46,7 +46,7 @@ test('太陽・月を隠しても選択した別の天体は表示できる',asy
 });
 test('日付バーは時刻を保持し、時刻バーは同じ日に戻り、モード切替が保留中スクラブを止める',async()=>{
  const at=Date.parse('2026-12-22T12:34:00+09:00'),f=fixture({saved:{at,targetId:'skytree'}});await f.open();const loads=f.loads;
- f.element('skyMapDateMode').onclick();assert.equal(f.element('skyMapRange').min,-730);assert.equal(f.element('skyMapDateMode')['aria-pressed'],'true');f.element('skyMapRange').value='2';f.element('skyMapRange').onchange();await flush();assert.equal(f.element('skyMapDate').value,'2026-12-24');assert.equal(f.element('skyMapTime').value,'12:34');assert.equal(f.loads,loads);
+ f.element('skyMapDateMode').onclick();assert.equal(f.element('skyMapRange').min,-7);assert.equal(f.element('skyMapDateMode')['aria-pressed'],'true');f.element('skyMapRange').value='2';f.element('skyMapRange').onchange();await flush();assert.equal(f.element('skyMapDate').value,'2026-12-24');assert.equal(f.element('skyMapTime').value,'12:34');assert.equal(f.loads,loads);
  f.element('skyMapRange').onkeydown({key:'ArrowLeft',shiftKey:false,preventDefault(){}});await flush();assert.equal(f.element('skyMapDate').value,'2026-12-23');assert.equal(f.element('skyMapTime').value,'12:34');
  f.element('skyMapTimeMode').onclick();assert.equal(f.element('skyMapRange').max,86399);f.element('skyMapRange').value='3600';f.element('skyMapRange').onchange();assert.equal(f.element('skyMapDate').value,'2026-12-23');assert.equal(f.element('skyMapTime').value,'01:00');
  f.element('skyMapRange').value='7200';f.element('skyMapRange').oninput();assert.ok(f.c.frame);f.element('skyMapDateMode').onclick();assert.equal(f.c.frame,null);assert.equal(f.element('skyMapTime').value,'01:00');assert.equal(f.data.get('sorami.skyMap:testuser').scrubMode,'date');
@@ -100,7 +100,7 @@ test('転送後の下部バーは軌道の配列番号を日秒として読ま�
  const d=dom(),c={document:d.document,Date,Number};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);
  const day=Date.parse('2026-11-03T00:00:00+09:00'),source={min:'0',max:'42',get value(){throw Error('配列番号を時刻へ使ってはいけない')}},range={setAttribute(){}};
  Object.assign(c,{state:{day,current:day+57840000,minSeconds:57300,maxSeconds:58200},mode:'scene',look:{_footerFrame:null,querySelector:()=>source},mapRange:source,footerRange:range,document:{...d.document,activeElement:null}});
- const start=html.indexOf("  const source=mode==='places'?mapRange:look.querySelector('[data-look-range]');"),end=html.indexOf('  if(state)footerRange.setAttribute',start);assert.ok(start>=0);const sync=html.slice(start,end);vm.runInContext('{'+sync+'}',c);assert.equal(range.value,'57840');assert.equal(range.min,'57300');assert.equal(range.max,'58200');
+ const start=html.indexOf("  const source=mode==='places'?mapRange:look.querySelector('[data-look-range]');"),end=html.indexOf('  if(state){footerRange.setAttribute',start);assert.ok(start>=0);const sync=html.slice(start,end);vm.runInContext('{'+sync+'}',c);assert.equal(range.value,'57840');assert.equal(range.min,'57300');assert.equal(range.max,'58200');
  c.state.current=day+57900000;vm.runInContext('{'+sync+'}',c);assert.equal(range.value,'57900');
  const invalid={min:'old',max:'old',value:'old'};assert.equal(c.ToolDateTimeBar.syncTimeRange(invalid,{day,current:NaN,min:0,max:86400}),false);assert.equal(invalid.value,'old');
 });
@@ -141,7 +141,7 @@ test('E198: 条件3行は「を見る／の方向を見る／から見る」、�
  assert.doesNotMatch(sky,/観測点|出・入|出入は|中心に目標を置く/);assert.match(html,/観測地点を固定して天体の方向と高度を確認/);
  const f=fixture({saved:{at:day,body:'sun',showSun:true,showMoon:false}});await f.open();
  const events=f.element('skyMapEvents').children.filter(b=>b.type==='button');assert.ok(events.length);
- for(const b of events){assert.match(b['aria-label'],/^日の(出|入) \d\d:\d\d・方位 /);assert.match(b.textContent,/^☀[↑↓] \d\d:\d\d$/);}
+ for(const b of events){assert.match(b['aria-label'],/^日の(出|入) \d\d:\d\d・方位 /);assert.match(b.textContent,/^☀[出入] \d\d:\d\d$/);}
  assert.doesNotMatch(html,/太陽の出|太陽の入/);
 });
 test('E198: 日時の読み上げは画面と同じ表記、⋯は中身どおりの名前',()=>{
@@ -179,7 +179,7 @@ test('追加6天体は太陽/月を維持して1つだけ表示し、選択/解�
   assert.equal(f.element('skyMapExtraName').textContent,f.c.SoramiBodies.definitions.find(d=>d.id===id).name);
  }
  const snapshot=f.data.get('sorami.skyMap:testuser'),g=fixture({saved:snapshot});await g.open();assert.equal(g.element('skyMapExtra-saturn')['aria-pressed'],'true');assert.equal(g.element('skyMapAngles').children.length,3);
- g.element('skyMapClearExtra').onclick();await flush();const cleared=g.data.get('sorami.skyMap:testuser');assert.equal(cleared.extraBody,null);assert.equal(cleared.showSun,true);assert.equal(cleared.showMoon,true);assert.equal(g.element('skyMapAngles').children.length,2);assert.equal(g.element('skyMapExtraActive').hidden,true);
+ g.element('skyMapClearExtra').onclick();await flush();const cleared=g.data.get('sorami.skyMap:testuser');assert.equal(cleared.extraBody,null);assert.equal(cleared.showSun,true);assert.equal(cleared.showMoon,true);assert.equal(g.element('skyMapAngles').children.length,2);assert.equal(g.element('skyMapClearExtra').hidden,true);
  const h=fixture({saved:cleared});await h.open();assert.equal(h.element('skyMapAngles').children.length,2);assert.equal(h.element('skyMapExtra-none')['aria-pressed'],'true');
 });
 test('追加天体は太陽/月を非表示にしても残り、全て解除すると描画と出入りを消す',async()=>{

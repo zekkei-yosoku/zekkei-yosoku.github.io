@@ -8,7 +8,7 @@
      編集後はbump.shでハッシュを更新する。connect-srcも実際に使う相手だけに絞る。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-L+tGbGq55IcL5BOl35Kb34AhKVZb/GkCzrEyJtVI3ko=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-HShXFEb5TFZ+9lRdULYk0dC3DC+HC3VDDeLLqoTdagE=' 'sha256-ZeafVGE+Uaqa7vqpO+MAWSDLOkDyLmDf99Rxcqqsgdk=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-L+tGbGq55IcL5BOl35Kb34AhKVZb/GkCzrEyJtVI3ko=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-o9vzDadBpB536d+KEdwCTEZqQpz6/UYD8zys6oeOtd4=' 'sha256-AnVpxAx17KgasgAK6gvFpi7tJma4GGosXaVpZaeSTNg=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1250,6 +1250,48 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 /* Short landscape screens keep the map usable; the same readouts remain in the time details. */
 @media(max-height:500px) and (orientation:landscape){#skyMapView:has(.sky-map-wide) :is(#skyMapPassages,#skyMapEvents){display:none}}
 #skyMapDetailInfo{white-space:pre-line}
+
+/* Touch usability: four compact rows; narrow, relative date/time scrub. */
+#skyMapView .sky-map-footer{padding-top:0;padding-bottom:env(safe-area-inset-bottom);padding-inline:max(8px,env(safe-area-inset-left)) max(8px,env(safe-area-inset-right))}
+#skyMapView .sky-map-body-bar{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
+#skyMapView .sky-map-body-bar button{min-height:44px;padding-block:4px}
+#skyMapView #skyMapMoreBodies{min-width:44px;padding-inline:10px;gap:6px}
+#skyMapView #skyMapMoreBodies[data-active="true"]{color:var(--ray-extra);background:color-mix(in srgb,var(--ray-extra) 10%,var(--card));box-shadow:inset 0 -2px var(--ray-extra)}
+#skyMapView #skyMapExtraName:empty{display:none}
+#skyMapView .tool-datetime-row{grid-template-columns:44px minmax(0,1fr) 44px auto 44px;gap:0;min-height:44px}
+#skyMapView .tool-datetime-date{font-size:16px;justify-content:center;padding-inline:0}
+#skyMapView .tool-datetime-time{min-height:44px;font-size:16px;padding-inline:8px}
+#skyMapView .sky-map-readouts{display:flex;align-items:center;gap:8px;max-width:780px;margin:auto;min-height:44px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+#skyMapView:not(:has(.sky-map-wide)) .sky-map-readouts{display:none}
+#skyMapView .sky-map-readouts::-webkit-scrollbar{display:none}
+#skyMapView .sky-map-readouts .sky-map-passages-head{display:none}
+#skyMapView .sky-map-readouts .sky-map-passages:not(:has(.sky-map-passages-values)){display:none}
+#skyMapView .sky-map-readouts :is(.sky-map-passages,.sky-map-passages-values,.sky-map-events){display:flex;flex:none;flex-direction:row;align-items:center;gap:8px;margin:0;overflow:visible;white-space:nowrap}
+#skyMapView .sky-map-readouts .chip{min-height:44px;padding:0 4px;font-size:12px;border:0;border-radius:0;background:transparent;white-space:nowrap}
+#skyMapView .sky-map-readouts .tiny{font-size:12px;white-space:nowrap;padding:0}
+#skyMapView .sky-map-passage-prefix{font-size:12px;color:var(--sky-target-text)}
+:root{--sky-target-text:#8040b8}:root[data-theme=dark]{--sky-target-text:#d8a3ff}
+#skyMapView .sky-map-readouts:has(#skyMapPassages:empty):has(#skyMapEvents:empty){display:none}
+#skyMapView .sky-map-scrub{justify-content:center;gap:8px;max-width:360px;min-height:44px}
+#skyMapView .sky-map-scrub-modes{gap:0;background:var(--sunk);border-radius:8px;overflow:hidden}
+#skyMapView .sky-map-scrub-modes button{min-width:44px;min-height:44px;padding:0 6px;border-radius:0;font-size:12px}
+#skyMapView .sky-map-scrub-modes button[aria-pressed="true"]{background:var(--card);box-shadow:inset 0 -2px var(--accent);color:var(--accent)}
+#skyMapView #skyMapTrack{max-width:240px;min-height:44px;display:flex;align-items:center;padding:0}
+#skyMapView #skyMapRange{height:24px;min-height:0;margin:0;padding:0}
+@media(max-height:500px) and (orientation:landscape){#skyMapView .sky-map-readouts{display:none}}
+
+#skyMapView #skyMapTrack{position:relative;display:block;max-width:240px;height:44px;min-width:0;touch-action:pan-x}
+#skyMapView #skyMapRange{display:none}
+.sky-map-timeline{height:44px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none;touch-action:pan-x;-webkit-overflow-scrolling:touch;border-radius:0;scroll-snap-type:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.sky-map-timeline::-webkit-scrollbar{display:none}
+.sky-timeline-tape{position:relative;height:44px;background-image:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px var(--timeline-unit));background-size:var(--timeline-unit) 8px;background-repeat:repeat-x;background-position-y:5px}
+.sky-timeline-label{position:absolute;top:19px;transform:translateX(-50%);font-size:11px;white-space:nowrap;color:var(--secondary);pointer-events:none}
+.sky-map-timeline-center{position:absolute;top:3px;bottom:3px;width:2px;left:50%;transform:translateX(-50%);background:var(--accent);pointer-events:none}
+.timeline-current-phase{position:absolute;top:2px;right:4px;font-size:10px;color:var(--text);pointer-events:none}
+.timeline-phase{position:absolute;top:0;bottom:0;box-sizing:border-box;text-align:center;padding-top:3px;font-size:10px;color:var(--text);pointer-events:none;background:var(--phase-color)}
+.timeline-phase-morning{--phase-color:rgba(236,155,155,.26)}.timeline-phase-day{--phase-color:rgba(234,202,121,.22)}.timeline-phase-evening{--phase-color:rgba(237,139,85,.26)}.timeline-phase-night{--phase-color:rgba(118,138,185,.25)}
+#aimView .preview-footer-track{position:relative;display:block;touch-action:pan-x;height:44px;max-width:240px;margin:0 auto;width:100%}
+#aimView .preview-footer-track>input[hidden]{display:none}
 </style></head>
 <body>
 <main>
@@ -1672,7 +1714,7 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
   <p class="tiny sky-map-definition">出入りは天体の中心が高度0°を通る方向と時刻です（大気補正なし）。</p>
   <details><summary class="tiny">地図の読み方</summary><p class="tiny">方位は真北0°・東90°。円弧は方向の目盛りです。出入りは天体の中心が高度0°を通る方向です。大気の屈折・地形・建物の遮りは補正しません。</p></details>
 
-  <footer class="sky-map-footer" aria-label="撮影の日時"><div class="sky-map-body-bar" id="skyMapBodyBar" role="group" aria-label="地図に表示する天体"><button type="button" class="map-ctl" id="skyMapShowSun" aria-label="太陽の表示" aria-pressed="true" title="太陽の表示を切り替え"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><span>太陽</span></button><button type="button" class="map-ctl" id="skyMapShowMoon" aria-label="月の表示" aria-pressed="true" title="月の表示を切り替え"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14a8.5 8.5 0 0 1-10-10A8.5 8.5 0 1 0 20 14Z"/></svg><span>月</span></button><button type="button" id="skyMapMoreBodies" aria-label="その他の天体を選ぶ" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="var(--card)"/><circle cx="15" cy="12" r="2" fill="var(--card)"/><circle cx="9" cy="18" r="2" fill="var(--card)"/></svg></button></div><div class="sky-map-extra-active" id="skyMapExtraActive" hidden><span id="skyMapExtraName"></span><button type="button" id="skyMapClearExtra" aria-label="追加天体の表示を解除">×</button></div><div class="sky-map-date"><button type="button" id="skyMapPrev" aria-label="前の日">‹</button><input type="hidden" id="skyMapDate"><button type="button" id="skyMapCalendarOpen" aria-label="日付を選ぶ" aria-haspopup="dialog"></button><div class="preview-date-time"><input type="time" id="skyMapTime" aria-label="撮影時刻を入力"></div><button type="button" id="skyMapNext" aria-label="次の日">›</button><button type="button" id="skyMapTimeMore" aria-label="天体の位置と時刻" aria-haspopup="dialog">⋯</button></div><div class="sky-map-status-row"><p id="skyMapStatus" class="tiny" role="status"></p><button type="button" class="chip" id="skyMapRetry" hidden>再試行</button></div><div id="skyMapPassages" class="sky-map-passages" aria-label="目標方位を通過する時刻と高度"></div><div id="skyMapEvents" class="sky-map-events" aria-label="出入りの時刻"></div><div class="sky-map-scrub"><div class="sky-map-scrub-modes" role="group" aria-label="バーで動かす対象"><button type="button" class="chip" id="skyMapDateMode" aria-label="日付をバーで動かす" aria-pressed="false">日付</button><button type="button" class="chip" id="skyMapTimeMode" aria-label="時刻をバーで動かす" aria-pressed="true">時刻</button></div><div id="skyMapTrack" class="preview-footer-track"><input type="range" id="skyMapRange" min="0" max="86399" step="1" aria-label="撮影時刻を滑らかに調整"></div></div>
+  <footer class="sky-map-footer" aria-label="撮影の日時"><div class="sky-map-body-bar" id="skyMapBodyBar" role="group" aria-label="地図に表示する天体"><button type="button" class="map-ctl" id="skyMapShowSun" aria-label="太陽の表示" aria-pressed="true" title="太陽の表示を切り替え"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><span>太陽</span></button><button type="button" class="map-ctl" id="skyMapShowMoon" aria-label="月の表示" aria-pressed="true" title="月の表示を切り替え"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14a8.5 8.5 0 0 1-10-10A8.5 8.5 0 1 0 20 14Z"/></svg><span>月</span></button><button type="button" id="skyMapMoreBodies" aria-label="その他の天体を選ぶ" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="var(--card)"/><circle cx="15" cy="12" r="2" fill="var(--card)"/><circle cx="9" cy="18" r="2" fill="var(--card)"/></svg><span id="skyMapExtraName"></span></button></div><div class="sky-map-date"><button type="button" id="skyMapPrev" aria-label="前の日">‹</button><input type="hidden" id="skyMapDate"><button type="button" id="skyMapCalendarOpen" aria-label="日付を選ぶ" aria-haspopup="dialog"></button><button type="button" id="skyMapNext" aria-label="次の日">›</button><div class="preview-date-time"><input type="time" id="skyMapTime" aria-label="撮影時刻を入力"></div><button type="button" id="skyMapTimeMore" aria-label="天体の位置と時刻" aria-haspopup="dialog">⋯</button></div><div class="sky-map-status-row"><p id="skyMapStatus" class="tiny" role="status"></p><button type="button" class="chip" id="skyMapRetry" hidden>再試行</button></div><div class="sky-map-readouts" id="skyMapReadouts"><div id="skyMapPassages" class="sky-map-passages" aria-label="目標方位を通過する時刻と高度"></div><div id="skyMapEvents" class="sky-map-events" aria-label="出入りの時刻"></div></div><div class="sky-map-scrub"><div class="sky-map-scrub-modes" role="group" aria-label="バーで動かす対象"><button type="button" class="chip" id="skyMapDateMode" aria-label="日付をバーで動かす" aria-pressed="false">日付</button><button type="button" class="chip" id="skyMapTimeMode" aria-label="時刻をバーで動かす" aria-pressed="true">時刻</button></div><div id="skyMapTrack" class="preview-footer-track"><div id="skyMapTimeline" class="sky-map-timeline" tabindex="0" role="slider" aria-label="日時を横スクロールして調整"></div><span class="sky-map-timeline-center" aria-hidden="true"></span><input hidden type="range" id="skyMapRange" min="0" max="86399" step="1" aria-label="撮影時刻を滑らかに調整"></div></div>
   </footer>
  </div>
 </section>
@@ -1768,7 +1810,7 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
 <!-- 写真から記録する。**原寸は送らない**（小さくした写しと、EXIF の「いつ・どこ」だけ）。
      採点基準を変えたときに付け直せるよう、そのときの現象と点数を一緒に残す。 -->
-<dialog class="sheet" id="skyMapBodiesSheet" aria-labelledby="skyMapBodiesTitle" tabindex="-1"><div class="sheet-head"><strong id="skyMapBodiesTitle">その他の天体</strong><button type="button" id="skyMapBodiesClose">閉じる</button></div><div class="sheet-body sky-map-body-options"><button type="button" id="skyMapExtra-sirius" aria-pressed="false">シリウス</button><button type="button" id="skyMapExtra-mercury" aria-pressed="false">水星</button><button type="button" id="skyMapExtra-venus" aria-pressed="false">金星</button><button type="button" id="skyMapExtra-mars" aria-pressed="false">火星</button><button type="button" id="skyMapExtra-jupiter" aria-pressed="false">木星</button><button type="button" id="skyMapExtra-saturn" aria-pressed="false">土星</button><button type="button" id="skyMapExtra-none" aria-pressed="true">表示しない</button></div></dialog>
+<dialog class="sheet" id="skyMapBodiesSheet" aria-labelledby="skyMapBodiesTitle" tabindex="-1"><div class="sheet-head"><strong id="skyMapBodiesTitle">その他の天体</strong><button type="button" id="skyMapClearExtra" aria-label="追加天体の表示を解除" hidden>解除</button><button type="button" id="skyMapBodiesClose">閉じる</button></div><div class="sheet-body sky-map-body-options"><button type="button" id="skyMapExtra-sirius" aria-pressed="false">シリウス</button><button type="button" id="skyMapExtra-mercury" aria-pressed="false">水星</button><button type="button" id="skyMapExtra-venus" aria-pressed="false">金星</button><button type="button" id="skyMapExtra-mars" aria-pressed="false">火星</button><button type="button" id="skyMapExtra-jupiter" aria-pressed="false">木星</button><button type="button" id="skyMapExtra-saturn" aria-pressed="false">土星</button><button type="button" id="skyMapExtra-none" aria-pressed="true">表示しない</button></div></dialog>
 <dialog class="sheet" id="skyMapTargetSheet" aria-labelledby="skyMapTargetTitle" tabindex="-1"><div class="sheet-head"><strong id="skyMapTargetTitle">目標物</strong><button type="button" id="skyMapTargetClose">閉じる</button></div><div class="sheet-body"><p id="skyMapTargetCoord" class="tiny"></p><div class="sky-map-point-coordinates"><label>緯度<input type="number" id="skyMapPickLatitude" min="-90" max="90" step="any" inputmode="decimal"></label><label>経度<input type="number" id="skyMapPickLongitude" min="-180" max="180" step="any" inputmode="decimal"></label></div><label>名前<input type="text" id="skyMapPickName" maxlength="100" value="地図で置いた目標"></label><label>地上から（m）<input type="number" id="skyMapPickHeight" min="0" max="9000" step="any" inputmode="decimal"></label><p id="skyMapPickError" class="tiny" role="status"></p><button type="button" class="chip sky-map-use" id="skyMapPickSave">目標物にする</button></div></dialog>
 <dialog class="sheet" id="aimCalendar" aria-labelledby="aimCalTitle" tabindex="-1">
   <div class="sheet-head"><strong id="aimCalTitle">重なる日カレンダー</strong><button id="aimCalClose">閉じる</button></div>
@@ -2007,31 +2049,31 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261014073335"></script>
-<script src="sorami-prediction.js?v=20261014073335"></script>
+<script src="sorami-core.js?v=20261014091336"></script>
+<script src="sorami-prediction.js?v=20261014091336"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261014073335"></script>
-<script src="sorami-exif.js?v=20261014073335"></script>
-<script src="sorami-capcloud.js?v=20261014073335"></script>
-<script src="sorami-terrain.js?v=20261014073335"></script>
-<script src="sorami-mountain.js?v=20261014073335"></script>
-<script src="sorami-fuji.js?v=20261014073335"></script>
-<script src="sorami-sky.js?v=20261014073335"></script>
+<script src="sorami-astro.js?v=20261014091336"></script>
+<script src="sorami-exif.js?v=20261014091336"></script>
+<script src="sorami-capcloud.js?v=20261014091336"></script>
+<script src="sorami-terrain.js?v=20261014091336"></script>
+<script src="sorami-mountain.js?v=20261014091336"></script>
+<script src="sorami-fuji.js?v=20261014091336"></script>
+<script src="sorami-sky.js?v=20261014091336"></script>
 
-<script src="sorami-history.js?v=20261014073335"></script>
-<script src="sorami-plan.js?v=20261014073335"></script>
-<script src="sorami-routes.js?v=20261014073335"></script>
-<script src="sorami-iss.js?v=20261014073335"></script>
-<script src="sorami-plane.js?v=20261014073335"></script>
-<script src="sorami-refraction.js?v=20261014073335"></script>
-<script src="sorami-atmosphere.js?v=20261014073335"></script>
-<script src="sorami-bodies.js?v=20261014073335"></script>
-<script src="sorami-sky-map.js?v=20261014073335"></script>
-<script src="sorami-city-models.js?v=20261014073335"></script>
-<script src="sorami-tower-models.js?v=20261014073335"></script>
-<script src="sorami-align.js?v=20261014073335"></script>
-<script src="sorami-moon.js?v=20261014073335"></script>
+<script src="sorami-history.js?v=20261014091336"></script>
+<script src="sorami-plan.js?v=20261014091336"></script>
+<script src="sorami-routes.js?v=20261014091336"></script>
+<script src="sorami-iss.js?v=20261014091336"></script>
+<script src="sorami-plane.js?v=20261014091336"></script>
+<script src="sorami-refraction.js?v=20261014091336"></script>
+<script src="sorami-atmosphere.js?v=20261014091336"></script>
+<script src="sorami-bodies.js?v=20261014091336"></script>
+<script src="sorami-sky-map.js?v=20261014091336"></script>
+<script src="sorami-city-models.js?v=20261014091336"></script>
+<script src="sorami-tower-models.js?v=20261014091336"></script>
+<script src="sorami-align.js?v=20261014091336"></script>
+<script src="sorami-moon.js?v=20261014091336"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -10971,7 +11013,8 @@ load(false);
 restoreSession();
 checkForUpdate();
 </script>
-<script src="sorami-datetime-ui.js?v=20261014073335"></script>
+<script src="sorami-scroll-timeline.js?v=20261014091336"></script>
+<script src="sorami-datetime-ui.js?v=20261014091336"></script>
 <script id="uiVisualPrimitives">
 const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
 // E185: visual choices forward to the original native control; no calculation path is added.
@@ -11034,12 +11077,11 @@ function uiVisualChoices(select, kind) {
  const footerRel=document.createElement('span');footerRel.className='preview-footer-rel';footerRel.setAttribute('aria-live','off');dateTime.append(footerRel);
  const footerTrack=document.createElement('div');footerTrack.className='preview-footer-track';
  const footerRange=document.createElement('input');footerRange.type='range';footerRange.step='any';footerRange.setAttribute('aria-label','撮影時刻を滑らかに調整');footerTrack.append(footerRange);footer.append(footerTrack);
- // iPhoneの標準スライダーはつまみしか掴めないので、バー全体で指の位置へ時刻を合わせる。
- const footerSet=now=>{const state=look._uiTime;if(!state)return;look._footerTime=state.day+(+footerRange.value)*1000;if(now){if(look._footerFrame)cancelAnimationFrame(look._footerFrame);look._footerFrame=null;state.set(look._footerTime);return;}if(look._footerFrame)return;look._footerFrame=requestAnimationFrame(()=>{look._footerFrame=null;look._uiTime?.set(look._footerTime);});};
- ToolDateTimeBar.wireScrub({track:footerTrack,range:footerRange,enabled:()=>!footerRange.disabled});
+ footerRange.hidden=true;
+ const footerTimeline=document.createElement('div');footerTimeline.className='sky-map-timeline';footerTimeline.tabIndex=0;footerTimeline.setAttribute('role','slider');footerTrack.append(footerTimeline);
+ const center=document.createElement('span');center.className='sky-map-timeline-center';center.setAttribute('aria-hidden','true');footerTrack.append(center);
+ const previewTimeline=SoramiScrollTimeline.mount({root:footerTimeline,getAt:()=>look._uiTime?.current,getMode:()=>'time',enabled:()=>!footerRange.disabled&&!root.hidden,getObserver:()=>look._lookSpec?.obs,sun:(at,o)=>SoramiAstro.sun(at,o),onChange:at=>{look._uiTime?.set(at);},onSettle:at=>{const state=look._uiTime;if(!state)return;const day=S.JstCal.startOfDay(at);if(day!==aim.dayMs){look._uiRequestedTime={day,at,context:timeContext()};el('aimDate').value=new Date(day+32400000).toISOString().slice(0,10);aimApply({recenter:false});}update();},format:at=>S.JstCal.hhmm(at).padStart(5,'0'),describe:at=>ToolDateTimeBar.label(at)+' '+S.JstCal.hhmm(at).padStart(5,'0')});
  ToolDateTimeBar.decorate({footer,row:dateRow,date:el('aimCalendarOpen'),time:el('previewTime'),prev:el('aimPrev'),next:el('aimNext'),more:timeMore,track:footerTrack});
- footerRange.oninput=()=>footerSet(false);footerRange.onchange=()=>{footerSet(true);update();};
- footerRange.onkeydown=e=>{const dir={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1}[e.key];if(!dir||footerRange.disabled)return;e.preventDefault();footerRange.value=String(Math.max(+footerRange.min,Math.min(+footerRange.max,+footerRange.value+dir*(e.shiftKey?600:60))));footerSet(true);update();};
  const timeDialog=document.createElement('dialog');timeDialog.className='sheet preview-body-dialog preview-time-dialog';timeDialog.tabIndex=-1;timeDialog.setAttribute('aria-label','時刻の操作設定');timeDialog.innerHTML='<div class="sheet-head"><strong>時刻の操作設定</strong><button type="button" data-time-close>閉じる</button></div><div class="sheet-body"></div>';root.append(timeDialog);
  const referenceControl=el('previewReference');timeDialog.querySelector('.sheet-body').append(referenceControl);timeMore.onclick=()=>showSheet(timeDialog);timeDialog.querySelector('[data-time-close]').onclick=()=>timeDialog.close();timeDialog.addEventListener('click',e=>{if(e.target!==timeDialog)return;const r=timeDialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)timeDialog.close();});
  const clock=el('previewTime'),reference=el('previewReference');
@@ -11063,7 +11105,7 @@ function uiVisualChoices(select, kind) {
  },true);
  const update=()=>{
   // 日付が入る前に作ると、未設定の日（1970/01/01）の曜日「(木)」だけが出る。
-  const dateButton=el('aimCalendarOpen'),dateValue=el('aimDate').value;if(dateValue&&Number.isFinite(aim.dayMs))ToolDateTimeBar.dateText(dateButton,aim.dayMs);
+  const dateButton=el('aimCalendarOpen'),dateValue=el('aimDate').value;if(dateValue&&Number.isFinite(aim.dayMs))ToolDateTimeBar.dateText(dateButton,look._uiTime?.day===aim.dayMs?look._uiTime.current:aim.dayMs);
 
   const state=look._uiTime;
   const mapRange=el('previewMapTime'),mapOutput=el('previewMapTimeAt');
@@ -11083,16 +11125,13 @@ function uiVisualChoices(select, kind) {
   // 地図の範囲を決めた後に写す。見え方は図の時間幅、撮影地は出入線の時間幅。
   const source=mode==='places'?mapRange:look.querySelector('[data-look-range]');
   if(state&&source&&!look._footerFrame&&document.activeElement!==footerRange){ToolDateTimeBar.syncTimeRange(footerRange,{day:state.day,current:state.current,min:mode==='places'?Number(source.min):state.minSeconds,max:mode==='places'?Number(source.max):state.maxSeconds});}
-  if(state)footerRange.setAttribute('aria-valuetext',aimLookHMS(state.current));
+  if(state){footerRange.setAttribute('aria-valuetext',aimLookHMS(state.current));previewTimeline.sync(state.current,'time');}else previewTimeline.stop();
   const out=look.querySelector('[data-look-at]'),day=/^(前日|翌日) /.exec(out?.firstChild?.textContent||'')?.[1],rel=state&&!look.hidden?[day,out?.querySelector('.sub-line')?.textContent].filter(Boolean).join(' '):'';if(footerRel.textContent!==rel){footerRel.textContent=rel;footerRel.title=rel;}footerRel.hidden=!rel;
   if((!state||look.hidden)&&clock.value)clock.value='';
   if(state&&!clock.disabled){
    if(document.activeElement!==clock){const v=S.JstCal.hhmm(state.current).padStart(5,'0');if(clock.value!==v)clock.value=v;}
    const requested=look._uiRequestedTime;if(requested&&(requested.context!==timeContext()||requested.day!==aim.dayMs))look._uiRequestedTime=null;else if(requested&&requested.day===state.day){look._uiRequestedTime=null;state.window(requested.at);state.set(requested.at);}
-   if(!el('previewTimeScope')){
-    const row=document.createElement('div');row.className='preview-time-scope';row.id='previewTimeScope';row.setAttribute('role','group');row.setAttribute('aria-label','時間バーの範囲');row.innerHTML='<button type="button" data-time-scope="fine" aria-pressed="true">微調整</button><button type="button" data-time-scope="day" aria-pressed="false">全日</button>';
-    const scopeLabel=document.createElement('p');scopeLabel.className='tiny';scopeLabel.textContent='時間バーの範囲';timeDialog.querySelector('.sheet-body').append(scopeLabel,row);for(const button of row.querySelectorAll('button'))button.onclick=()=>{look._uiAllDay=button.dataset.timeScope==='day';look._uiTime?.window();if(!look._uiAllDay)look._uiTime?.set(look._uiTime.reference);update();};
-   }
+
   }
   const target=el('aimTarget'),goalLabel=el('aimTargetLabel');const goal=target.selectedOptions[0]?.textContent;if(goal&&goalLabel.textContent!==goal)goalLabel.textContent=goal;
   const lens=look.querySelector('.aim-lens');
@@ -11238,7 +11277,7 @@ const recentHistory=(()=>{
  let pending=null;const active=()=>!view.hidden;
  const mapLabel=(ctx,x,y,text,colour,width,height,place)=>{ctx.save();ctx.translate(52,0);aimMapLabel(ctx,x-52,y,text,colour,Math.max(100,width-112),height,place);ctx.restore();};
  const map=createMapView({canvas:'skyMapCanvas',zoomIn:'skyMapIn',zoomOut:'skyMapOut'});
- let session=null,seq=0,frame=0,targetOn=true,pickMode=null,targetSeq=0,mapWide=false;
+ let session=null,seq=0,frame=0,targetOn=true,pickMode=null,targetSeq=0,mapWide=false,timelineMoving=false;
  const targetSheet=el("skyMapTargetSheet");
  // 構図の確認は地図の中（全画面）と地図のすぐ下の2か所。表示・使用可否は常に揃える
  const useButtons=()=>[el('skyMapUse'),el('skyMapUseBelow')];
@@ -11276,7 +11315,7 @@ const recentHistory=(()=>{
  const pointKey=o=>o?JSON.stringify([o.latitude,o.longitude,o.groundManualM??o.elevation,aimObserverEye(o)]):'';
  function skyState(body,at,o){const s=body==='sun'?SoramiAstro.sun(at,o):body==='moon'?SoramiAstro.moon(at,o):SoramiBodies.state(body,at,o,{refraction:false});return {...s,altitude:s.geometricAltitude??s.altitude};}
  const currentState=()=>session.dailies?.[session.body]?skyState(session.body,session.at,session.eye):null;
- function save(){if(!hasAccess())return;store.set(skyStoreKey(),{body:session.body,at:session.at,observer:session.observer,targetId:session.target?.id||'',partId:session.partId,showSun:session.showSun,showMoon:session.showMoon,extraBody:session.extraBody,primaryBody:session.primaryBody,scrubMode:session.scrubMode,custom:session.custom||null,mapCenter:map.center(),zoom:map.zoom()});}
+ function save(){if(!hasAccess()||timelineMoving)return;store.set(skyStoreKey(),{body:session.body,at:session.at,observer:session.observer,targetId:session.target?.id||'',partId:session.partId,showSun:session.showSun,showMoon:session.showMoon,extraBody:session.extraBody,primaryBody:session.primaryBody,scrubMode:session.scrubMode,custom:session.custom||null,mapCenter:map.center(),zoom:map.zoom()});}
  const COLOURS={sun:'#ff981f',moon:'#aad8ff',extra:'#8ce5b0'};
  const extraIds=['sirius','mercury','venus','mars','jupiter','saturn'].filter(id=>SoramiBodies.definitions.some(d=>d.id===id));
  const bodiesSheet=el('skyMapBodiesSheet');
@@ -11317,10 +11356,10 @@ ctx.lineWidth=1;
   if(!session.daily||!session.eye){const wait=document.createElement('span');wait.className='tiny';wait.textContent=session.passError?'計算できません':'計算中…';row.append(wait);return;}
   const mark=SoramiAlign.partTarget(t,session.partId);const distance=SoramiTerrain.distanceKm(session.observer.latitude,session.observer.longitude,mark.latitude,mark.longitude);
   if(distance<.001){const none=document.createElement('span');none.className='tiny';none.textContent='観測地点と目標が同じ位置';row.append(none);return;}
-  const values=document.createElement('div');values.className='sky-map-passages-values';row.append(values);const bearing=geo?.azimuth??SoramiTerrain.bearing(session.observer.latitude,session.observer.longitude,mark.latitude,mark.longitude);
+  const values=document.createElement('div');values.className='sky-map-passages-values';row.append(values);const prefix=document.createElement('span');prefix.className='sky-map-passage-prefix';prefix.textContent='通過';values.append(prefix);const bearing=geo?.azimuth??SoramiTerrain.bearing(session.observer.latitude,session.observer.longitude,mark.latitude,mark.longitude);
   for(const body of bodies){if(!session.dailies?.[body]){const unavailable=document.createElement('span');unavailable.className='tiny';unavailable.textContent=`${bodyName(body)} 計算できません`;values.append(unavailable);continue;}const icon=body==='sun'?'☀':body==='moon'?'☾':bodyName(body),passes=SoramiSkyMap.passages(session.dailies?.[body],bearing,body,session.eye,skyState);
    if(!passes.length){const none=document.createElement('span');none.className='tiny';none.textContent=`${icon} 通過なし`;values.append(none);continue;}
-   for(const pass of passes){const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=`${icon} ${textAt(pass.at)}・高度 ${pass.altitude.toFixed(1)}°`;b.setAttribute('aria-label',`${bodyName(body)}が目標方位を通過 ${textAt(pass.at)}、高度 ${pass.altitude.toFixed(1)}度`);b.onclick=()=>{if(!hasAccess()||!session?.dailies?.[body])return;session.body=body;if(['sun','moon'].includes(body))session.primaryBody=body;el('skyMapBody').value=body;session.daily=session.dailies[body];setTime(pass.at);};values.append(b);}
+   for(const pass of passes){const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=`${icon} ${textAt(pass.at)}・${pass.altitude.toFixed(1)}°`;b.setAttribute('aria-label',`${bodyName(body)}が目標方位を通過 ${textAt(pass.at)}、高度 ${pass.altitude.toFixed(1)}度`);b.onclick=()=>{if(!hasAccess()||!session?.dailies?.[body])return;session.body=body;if(['sun','moon'].includes(body))session.primaryBody=body;el('skyMapBody').value=body;session.daily=session.dailies[body];setTime(pass.at);};values.append(b);}
   }
  }
  function render(){
@@ -11328,10 +11367,10 @@ ctx.lineWidth=1;
   // E202: 通過チップでも天体が変わる。2つの構図入口を現在条件へ同期する。
   for(const b of useButtons()){const allowed=canTransfer();b.hidden=!allowed;b.disabled=!allowed||!session.dailies?.[session.body]||!session.eye;}
   el('skyMapShowSun').setAttribute('aria-pressed',String(session.showSun));el('skyMapShowMoon').setAttribute('aria-pressed',String(session.showMoon));
-  el('skyMapExtraActive').hidden=!session.extraBody;el('skyMapExtraName').textContent=session.extraBody?bodyName(session.extraBody):'';el('skyMapMoreBodies').setAttribute('aria-label',session.extraBody?`その他の天体を選ぶ、${bodyName(session.extraBody)}を表示中`:'その他の天体を選ぶ');
+  el('skyMapClearExtra').hidden=!session.extraBody;el('skyMapMoreBodies').setAttribute('data-active',String(!!session.extraBody));el('skyMapExtraName').textContent=session.extraBody?bodyName(session.extraBody):'';el('skyMapMoreBodies').setAttribute('aria-label',session.extraBody?`その他の天体を選ぶ、${bodyName(session.extraBody)}を表示中`:'その他の天体を選ぶ');
   for(const id of [...extraIds,'none'])el('skyMapExtra-'+id).setAttribute('aria-pressed',String(id===(session.extraBody||'none')));
   el('skyMapDate').value=dateAt(session.at);el('skyMapTime').value=textAt(session.at);syncScrubRange();
-  ToolDateTimeBar.dateText(el('skyMapCalendarOpen'),session.at);el('skyMapCalendarOpen').setAttribute('aria-label',`${ToolDateTimeBar.label(session.at)}、日付を選ぶ`);renderPassages();if(!session.daily||!session.eye){save();return;}const st=currentState();
+  ToolDateTimeBar.dateText(el('skyMapCalendarOpen'),session.at);el('skyMapCalendarOpen').setAttribute('aria-label',`${ToolDateTimeBar.label(session.at)}、日付を選ぶ`);renderPassages();if(!session.daily||!session.eye){el('skyMapAngles').replaceChildren();el('skyMapDetailInfo').textContent=session.timelinePending?'日時を調整しています':'';save();return;}const st=currentState();
   el('skyMapRange').setAttribute('aria-valuetext',session.scrubMode==='date'?ToolDateTimeBar.label(session.at):textAt(session.at));
   el('skyMapAngles').replaceChildren(...shownBodies().filter(body=>session.dailies[body]).map(body=>{const v=body===session.body?st:skyState(body,session.at,session.eye),d=document.createElement('div');const alt=v.altitude.toFixed(2).replace(/^-(0\.00)$/,'$1');d.textContent=`${body==='moon'?SoramiMoon.phaseOf(v).glyph+' ':''}${bodyName(body)}　方位 ${v.azimuth.toFixed(1)}° ・ 高度 ${alt}°${body==='moon'?' ・ 輝面 '+Math.round(v.illuminatedFraction*100)+'%':''}${+alt<0?' ・ 地平線の下':''}`;if(body!==session.body&&shownBodies().length>1)d.className='tiny';return d;}));
   const t=session.target;
@@ -11339,10 +11378,10 @@ ctx.lineWidth=1;
   else el('skyMapTargetInfo').textContent='目標物なしでも天体の方向を確認できます';
   el('skyMapDetailInfo').textContent=el('skyMapTargetInfo').textContent+'\n'+Array.from(el('skyMapEvents').children).map(e=>e.textContent).join(' ・ ');map.redraw();save();
  }
- function setTime(at){if(!hasAccess()||!session||!Number.isFinite(at))return;const changed=SoramiSkyMap.dayStart(at)!==SoramiSkyMap.dayStart(session.at);session.at=at;if(changed)refresh();render();}
+ function setTime(at){if(!hasAccess()||!session||!Number.isFinite(at))return;const changed=SoramiSkyMap.dayStart(at)!==SoramiSkyMap.dayStart(session.at);session.at=at;timelineMoving=false;if(changed||session.timelinePending)refresh();render();}
  async function refresh(){
   if(!hasAccess()||!session)return;
-  const request=++seq;session.passError=false;session.daily=null;session.dailies=null;for(const button of el('skyMapEvents').children)if(button.type==='button')button.disabled=true;el('skyMapStatus').textContent='天体の位置を計算しています…';el('skyMapRetry').hidden=true;for(const b of useButtons())b.disabled=true;render();
+  const request=++seq;session.timelinePending=false;session.passError=false;session.daily=null;session.dailies=null;for(const button of el('skyMapEvents').children)if(button.type==='button')button.disabled=true;el('skyMapStatus').textContent='天体の位置を計算しています…';el('skyMapRetry').hidden=true;for(const b of useButtons())b.disabled=true;render();
   try{
    const requestedBodies=[...new Set([session.body,...shownBodies()])],loaded=await Promise.allSettled(requestedBodies.map(body=>SoramiBodies.ensure(body)));if(request!==seq||!hasAccess()||!active())return;
    const readyBodies=requestedBodies.filter((_,i)=>loaded[i].status==='fulfilled'),failedBodies=requestedBodies.filter((_,i)=>loaded[i].status==='rejected');if(!readyBodies.length)throw Error('body load failed');
@@ -11352,7 +11391,7 @@ ctx.lineWidth=1;
    session.ground=ground;if(Number.isFinite(ground)&&!Number.isFinite(o.groundManualM))aimElevCache.set(`${o.latitude.toFixed(6)},${o.longitude.toFixed(6)}`,ground);const obs=aimObserverAt(o,ground);session.eye={latitude:obs.latitude,longitude:obs.longitude,elevation:obs.elevation+obs.eyeM};
    const day=SoramiSkyMap.dayStart(session.at);session.dailies=Object.fromEntries(readyBodies.map(body=>[body,SoramiSkyMap.daily(body,day,session.eye,skyState)]));session.daily=session.dailies[session.body]||Object.values(session.dailies)[0];
    const coords=`${o.latitude.toFixed(5)}, ${o.longitude.toFixed(5)}`;el('skyMapObserver').textContent=o.name&&o.name!==coords?o.name:'観測地点';el('skyMapObserverSub').textContent=coords;
-   el('skyMapEvents').replaceChildren();for(const body of shownBodies()){if(!session.dailies[body])continue;const events=session.dailies[body].events;if(!events.length){const n=document.createElement('span');n.className='tiny';n.textContent=`${bodyName(body)}：この日は出入りなし`;el('skyMapEvents').append(n);continue;}for(const event of events){const b=document.createElement('button');b.className='chip';b.type='button';b.textContent=`${body==='sun'?'☀':body==='moon'?'☾':bodyName(body)}${event.side==='rise'?'↑':'↓'} ${textAt(event.at)}`;b.setAttribute('aria-label',`${riseSetName(body,event.side)} ${textAt(event.at)}・方位 ${event.azimuth.toFixed(1)}度`);b.onclick=()=>setTime(event.at);el('skyMapEvents').append(b);}}
+   el('skyMapEvents').replaceChildren();for(const body of shownBodies()){if(!session.dailies[body])continue;const events=session.dailies[body].events;if(!events.length){const n=document.createElement('span');n.className='tiny';n.textContent=`${bodyName(body)}：この日は出入りなし`;el('skyMapEvents').append(n);continue;}for(const event of events){const b=document.createElement('button');b.className='chip';b.type='button';b.textContent=`${body==='sun'?'☀':body==='moon'?'☾':bodyName(body)}${event.side==='rise'?'出':'入'} ${textAt(event.at)}`;b.setAttribute('aria-label',`${riseSetName(body,event.side)} ${textAt(event.at)}・方位 ${event.azimuth.toFixed(1)}度`);b.onclick=()=>setTime(event.at);el('skyMapEvents').append(b);}}
    el('skyMapStatus').textContent=[failedBodies.length?`${failedBodies.map(bodyName).join('・')}の計算を読み込めませんでした。再試行してください`:'',!Number.isFinite(ground)?'標高を取得できません。標高0mとして計算しています':''].filter(Boolean).join(' ');el('skyMapRetry').hidden=Number.isFinite(ground)&&!failedBodies.length;for(const b of useButtons()){b.disabled=!canTransfer();b.hidden=!canTransfer();}render();
   }catch{if(request===seq){session.passError=true;renderPassages();el('skyMapStatus').textContent='天体の計算を読み込めませんでした。再試行してください';el('skyMapRetry').hidden=false;}}
  }
@@ -11381,7 +11420,8 @@ ctx.lineWidth=1;
  el('skyMapExpand').onclick=()=>{const wide=el('skyMapCanvas').closest('.mapwrap').classList.toggle('sky-map-wide');mapWide=wide;el('skyMapExpand').setAttribute('aria-pressed',String(wide));el('skyMapExpand').setAttribute('aria-label',wide?'全画面表示を終了':'地図を全画面表示');el('skyMapExpand').title=wide?'全画面表示を終了':'地図を全画面表示';if(!wide){if(bodiesSheet.open)bodiesSheet.close();setPickMode(null);const wrap=el('skyMapCanvas').closest('.mapwrap'),menu=wrap.querySelector('.map-layer-menu'),button=wrap.querySelector('.map-layers-btn');if(menu)menu.hidden=true;if(button)button.setAttribute('aria-expanded','false');}map.redraw();};
  const skyFooter=el('skyMapTimeMore').closest('footer');
  ToolDateTimeBar.decorate({footer:skyFooter,row:el('skyMapPrev').parentElement,date:el('skyMapCalendarOpen'),time:el('skyMapTime'),prev:el('skyMapPrev'),next:el('skyMapNext'),more:el('skyMapTimeMore'),track:el('skyMapTrack')});
- const stopSkyScrub=ToolDateTimeBar.wireScrub({track:el('skyMapTrack'),range:el('skyMapRange'),enabled:()=>hasAccess()&&!!session});
+ const skyTimeline=SoramiScrollTimeline.mount({root:el('skyMapTimeline'),getAt:()=>session?.at,getMode:()=>session?.scrubMode,enabled:()=>hasAccess()&&!!session&&active(),onChange:at=>{if(!hasAccess()||!session||!active())return;timelineMoving=true;const changed=SoramiSkyMap.dayStart(at)!==SoramiSkyMap.dayStart(session.at);session.at=at;if(changed){seq++;session.timelinePending=true;session.daily=null;session.dailies=null;el('skyMapEvents').replaceChildren();el('skyMapStatus').textContent='';el('skyMapRetry').hidden=true;map.redraw();}render();},onSettle:()=>{timelineMoving=false;if(!hasAccess()||!session||!active())return;if(session.timelinePending)refresh();else render();},format:(at,mode)=>mode==='date'?dateAt(at).slice(5).replace('-','/'):textAt(at),getObserver:()=>session?.observer,sun:(at,o)=>SoramiAstro.sun(at,o),describe:(at,mode)=>ToolDateTimeBar.label(at)+(mode==='time'?' '+textAt(at):'')});
+ const stopSkyScrub=()=>{skyTimeline.stop();timelineMoving=false;};
  const skyCalendar=ToolDateTimeBar.calendar({button:el('skyMapCalendarOpen'),getAt:()=>session?.at??Date.now(),setDay:day=>{if(session)setTime(day+(session.at-SoramiSkyMap.dayStart(session.at)));}});
  const skyTimeDialog=document.createElement('dialog');skyTimeDialog.className='sheet preview-time-dialog sky-map-time-dialog';skyTimeDialog.tabIndex=-1;skyTimeDialog.setAttribute('aria-label','天体の位置と時刻');skyTimeDialog.innerHTML='<div class="sheet-head"><strong>天体の位置と時刻</strong><button type="button" data-close>閉じる</button></div><div id="skyMapAngles" class="sky-map-angles"></div><p id="skyMapDetailInfo" class="sky-map-angles tiny"></p><div class="sheet-body sky-map-time-actions"><button type="button" id="skyMapEarlier">−1分</button><button type="button" id="skyMapNow">今</button><button type="button" id="skyMapLater">+1分</button></div>';document.body.append(skyTimeDialog);
  ToolDateTimeBar.trackPointerFocus(el('skyMapView'),skyTimeDialog,skyCalendar,targetSheet,bodiesSheet);
@@ -11396,15 +11436,16 @@ ctx.lineWidth=1;
  el('skyMapTime').onchange=()=>{const at=Date.parse(el('skyMapDate').value+'T'+el('skyMapTime').value+':00+09:00');setTime(at);};
  function syncScrubRange(){
   const range=el('skyMapRange'),dateMode=session.scrubMode==='date';
-  if(!Number.isFinite(session.dayAnchor)||Math.abs(SoramiSkyMap.dayStart(session.at)-session.dayAnchor)>730*86400000)session.dayAnchor=SoramiSkyMap.dayStart(session.at);
-  range.min=dateMode?-730:0;range.max=dateMode?730:86399;range.step=1;range.value=dateMode?(SoramiSkyMap.dayStart(session.at)-session.dayAnchor)/86400000:(session.at-SoramiSkyMap.dayStart(session.at))/1000;
+  if(!Number.isFinite(session.dayAnchor)||Math.abs(SoramiSkyMap.dayStart(session.at)-session.dayAnchor)>7*86400000)session.dayAnchor=SoramiSkyMap.dayStart(session.at);
+  range.min=dateMode?-7:0;range.max=dateMode?7:86399;range.step=1;range.value=dateMode?(SoramiSkyMap.dayStart(session.at)-session.dayAnchor)/86400000:(session.at-SoramiSkyMap.dayStart(session.at))/1000;
+  skyTimeline.sync(session.at,session.scrubMode);
   range.setAttribute('aria-label',dateMode?'撮影日を滑らかに調整':'撮影時刻を滑らかに調整');
   el('skyMapDateMode').setAttribute('aria-pressed',String(dateMode));el('skyMapTimeMode').setAttribute('aria-pressed',String(!dateMode));
  }
- function setScrubMode(mode){if(!hasAccess()||!session)return;stopSkyScrub();cancelAnimationFrame(frame);frame=0;session.scrubMode=mode;session.dayAnchor=SoramiSkyMap.dayStart(session.at);render();}
+ function setScrubMode(mode){if(!hasAccess()||!session)return;stopSkyScrub();cancelAnimationFrame(frame);frame=0;session.scrubMode=mode;session.dayAnchor=SoramiSkyMap.dayStart(session.at);if(session.timelinePending)refresh();render();}
  el('skyMapDateMode').onclick=()=>setScrubMode('date');el('skyMapTimeMode').onclick=()=>setScrubMode('time');
  function applySkyScrub(){const v=Number(el('skyMapRange').value);if(!session||!Number.isFinite(v))return;setTime(session.scrubMode==='date'?session.dayAnchor+Math.round(v)*86400000+(session.at-SoramiSkyMap.dayStart(session.at)):SoramiSkyMap.dayStart(session.at)+v*1000);}
- el('skyMapRange').onkeydown=e=>{const dir={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1}[e.key];if(!dir||!session||!hasAccess())return;e.preventDefault();const day=SoramiSkyMap.dayStart(session.at),next=session.at+dir*(session.scrubMode==='date'?(e.shiftKey?7:1)*86400000:(e.shiftKey?600000:60000));setTime(session.scrubMode==='date'?next:Math.max(day,Math.min(day+86399000,next)));};
+ el('skyMapRange').onkeydown=e=>{const dir={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1,PageDown:1,PageUp:-1}[e.key];if(!dir||!session||!hasAccess())return;e.preventDefault();const large=e.shiftKey||e.key.startsWith('Page'),day=SoramiSkyMap.dayStart(session.at),next=session.at+dir*(session.scrubMode==='date'?(large?7:1)*86400000:(large?600000:60000));setTime(session.scrubMode==='date'?next:Math.max(day,Math.min(day+86399000,next)));};
  el('skyMapRange').oninput=()=>{if(frame)return;frame=requestAnimationFrame(()=>{frame=0;applySkyScrub();});};
  el('skyMapRange').onchange=()=>{cancelAnimationFrame(frame);frame=0;applySkyScrub();};
  el('skyMapPrev').onclick=()=>setTime(session.at-86400000);el('skyMapNext').onclick=()=>setTime(session.at+86400000);
