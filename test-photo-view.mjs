@@ -36,7 +36,8 @@ test("日付変更で重なりなしや見通しNGでも図へ描画を渡す",a
  vm.runInContext(html.slice(html.indexOf('function aimObserverEye('),html.indexOf('aim.from = aimSavedFrom'))+html.slice(a,b)+";this.update=aimUpdateLook",c);
  for(const d of ["03","02","04"]){aim.dayMs=day(d);await c.update();assert.equal(host.hidden,false);assert.ok(rendered);assert.equal(rendered.obs.latitude,observer.latitude);assert.ok(rendered.at>=day(d)&&rendered.at<day(d)+86400000);assert.equal(rendered.atName,d==="03"?undefined:"最接近");}
  assert.equal(rendered.sub, "");
- assert.match(rendered.extra,/地平線の下/);
+ // 2026-10-14 ユーザー「月は地平線の下ですとかの表示はいらない」。出し入れで見え方の図が上下にずれるため出さない
+ assert.equal(rendered.extra,undefined);
 });
 
 test("日末10分内の方位通過も他の通過とともに当日内で検出する",()=>{

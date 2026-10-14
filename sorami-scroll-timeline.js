@@ -22,13 +22,14 @@ function solarPhase(at,observer,sun){
 }
 function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},format,describe=format,getObserver=()=>null,sun=()=>null}){
  const tape=document.createElement('div');tape.className='sky-timeline-tape';root.replaceChildren(tape);
- let anchor=null,mode=null,lastAt=null,width=0,moving=false,pressed=false,touching=false,frame=0,timer=0,generation=0,blocked=true,mouse=null,context='',colorCache=new Map(),lastTouchMove=0,glideFrame=0,velocity=0,lastScroll=null,inputKind='';
+ let snapFrame=0,snapTarget=null,anchor=null,mode=null,lastAt=null,width=0,moving=false,pressed=false,touching=false,frame=0,timer=0,generation=0,blocked=true,mouse=null,context='',colorCache=new Map(),lastTouchMove=0,glideFrame=0,velocity=0,lastScroll=null,inputKind='';
  const label=at=>format(at,mode);
  const cachedColor=key=>{if(!colorCache.has(key)){if(colorCache.size>1600)colorCache.clear();colorCache.set(key,skyColor(key*300000,getObserver(),sun));}return colorCache.get(key);};
  const color=at=>{const key=Math.floor(at/300000),a=cachedColor(key),t=(at-key*300000)/300000;if(!a||!t)return a;const b=cachedColor(key+1);return b?a.map((v,i)=>Math.round(v+(b[i]-v)*t)):a;};
- const flush=()=>{frame=0;if(!enabled()||!Number.isFinite(anchor))return;const at=advance(anchor,root.scrollLeft-EXTENT,mode);if(at===lastAt)return;lastAt=at;root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(at));onChange(at);if(Math.abs(root.scrollLeft-EXTENT)>=EXTENT/2)rebase();};
+ // 分単位でも動かしている間は連続した時刻を渡す。4px=1分の段差で天体が跳ばないように（2026-10-14）
+ const flush=()=>{frame=0;if(!enabled()||!Number.isFinite(anchor))return;const offset=root.scrollLeft-EXTENT,s=scale(mode),at=mode==='time'?Math.round(anchor+offset/s.pixels*s.step):advance(anchor,offset,mode);if(at===lastAt)return;lastAt=at;root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(at));onChange(at);if(Math.abs(root.scrollLeft-EXTENT)>=EXTENT/2)rebase();};
  function reset(at,nextMode){
-  cancelGlide();generation++;cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;blocked=true;anchor=lastAt=at;mode=nextMode;width=root.clientWidth;const nextContext=JSON.stringify(getObserver());if(context!==nextContext){colorCache.clear();context=nextContext;}
+  cancelGlide();cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;generation++;cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;blocked=true;anchor=lastAt=at;mode=nextMode;width=root.clientWidth;const nextContext=JSON.stringify(getObserver());if(context!==nextContext){colorCache.clear();context=nextContext;}
   const s=scale(mode),origin=EXTENT+width/2,ordinal=Math.floor((at+(mode==='date'?OFFSET:0))/s.step),nodes=[];
   tape.style.width=(EXTENT*2+width)+'px';tape.style.setProperty('--timeline-unit',s.pixels+'px');tape.style.backgroundPositionX=origin+'px';
   for(let u=-Math.ceil(EXTENT/s.pixels);u<=Math.ceil(EXTENT/s.pixels);u++)if(((ordinal+u)%s.labelEvery+s.labelEvery)%s.labelEvery===0){const tick=document.createElement('span');tick.className='sky-timeline-label';tick.style.left=(origin+u*s.pixels)+'px';tick.textContent=label(at+u*s.step);nodes.push(tick);}
@@ -58,19 +59,28 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},for
  function settle(token){
   if(token!==generation)return;if(!enabled()){stop();return;}
   if(pressed){timer=setTimeout(()=>settle(token),120);return;}
-  flush();const at=lastAt;reset(at,mode);onSettle(at);
+  finish();
+ }
+ // 止めたら目盛りの1分へ寄せる。寄せる間も時刻を連続で渡し、指を離した瞬間に跳ばせない
+ function done(target){if(lastAt!==target){lastAt=target;onChange(target);}reset(target,mode);onSettle(target);}
+ function finish(){
+  clearTimeout(timer);timer=0;flush();const s=scale(mode),target=advance(anchor,root.scrollLeft-EXTENT,mode),from=lastAt;
+  if(mode!=='time'||!Number.isFinite(from)||from===target){done(target);return;}
+  const begin=now(),startLeft=root.scrollLeft,endLeft=EXTENT+(target-anchor)/s.step*s.pixels;blocked=true;moving=true;snapTarget=target;
+  const step=()=>{snapFrame=0;if(!enabled()){stop();return;}const t=Math.min(1,(now()-begin)/160),e=1-(1-t)**3;if(t>=1){done(target);return;}root.scrollLeft=startLeft+(endLeft-startLeft)*e;const at=Math.round(from+(target-from)*e);if(at!==lastAt){lastAt=at;onChange(at);}snapFrame=requestAnimationFrame(step);};
+  snapFrame=requestAnimationFrame(step);
  }
  root.addEventListener('scroll',()=>{if(!enabled()){stop();return;}if(blocked||!enabled()||!Number.isFinite(anchor)||Math.abs(root.scrollLeft-EXTENT)<.1&&!moving)return;const time=now();if(lastScroll&&Math.abs(root.scrollLeft-lastScroll.left)>.1)velocity=(root.scrollLeft-lastScroll.left)/Math.max(1,time-lastScroll.time);lastScroll={left:root.scrollLeft,time};moving=true;if(!frame)frame=requestAnimationFrame(flush);clearTimeout(timer);const token=generation;timer=setTimeout(()=>settle(token),150);},{passive:true});
- function activate(kind){if(!enabled())return false;cancelGlide();velocity=0;inputKind=kind||inputKind;if(!Number.isFinite(anchor))reset(getAt(),getMode());else if(!moving&&Math.abs(root.scrollLeft-EXTENT)>=.1)reset(lastAt,mode);lastScroll={left:root.scrollLeft,time:now()};blocked=false;return true;}
+ function activate(kind){if(!enabled())return false;cancelGlide();if(snapFrame)done(snapTarget);velocity=0;inputKind=kind||inputKind;if(!Number.isFinite(anchor))reset(getAt(),getMode());else if(!moving&&Math.abs(root.scrollLeft-EXTENT)>=.1)reset(lastAt,mode);lastScroll={left:root.scrollLeft,time:now()};blocked=false;return true;}
  root.addEventListener('touchstart',e=>{if(!activate('touch'))return;touching=true;pressed=true;lastTouchMove=e?.timeStamp||0;},{passive:true});
  root.addEventListener('touchmove',e=>{lastTouchMove=e.timeStamp;},{passive:true});
- for(const event of ['touchend','touchcancel'])root.addEventListener(event,e=>{touching=false;pressed=false;if(!enabled()){stop();return;}if(moving&&enabled()&&(!e||event==='touchcancel'||e.timeStamp-lastTouchMove>=120)){flush();const at=lastAt;root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';reset(at,mode);onSettle(at);}},{passive:true});
+ for(const event of ['touchend','touchcancel'])root.addEventListener(event,e=>{touching=false;pressed=false;if(!enabled()){stop();return;}if(moving&&enabled()&&(!e||event==='touchcancel'||e.timeStamp-lastTouchMove>=120)){root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';finish();}},{passive:true});
  root.addEventListener('pointerdown',e=>{if(!activate(e?.pointerType==='mouse'?'mouse':'touch'))return;pressed=true;if(e?.pointerType==='mouse'){mouse={x:e.clientX,left:root.scrollLeft};root.setPointerCapture?.(e.pointerId);e.preventDefault();}});
  root.addEventListener('pointermove',e=>{if(mouse&&enabled())root.scrollLeft=mouse.left+mouse.x-e.clientX;});
  root.addEventListener('wheel',e=>{if(!activate('wheel'))return;if(!e.deltaX&&e.deltaY){e.preventDefault();root.scrollLeft+=e.deltaY;}},{passive:false});
  for(const event of ['pointerup','pointercancel','lostpointercapture'])root.addEventListener(event,()=>{if(!touching)pressed=false;mouse=null;},{passive:true});
  root.addEventListener('keydown',e=>{const dir={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1,PageUp:-1,PageDown:1}[e.key];if(!dir||!enabled())return;e.preventDefault();const large=e.shiftKey||e.key.startsWith('Page'),delta=(mode==='date'?DAY:MINUTE)*(large?(mode==='date'?7:15):1),at=getAt()+dir*delta;stop();reset(at,mode);onChange(at);onSettle(at);});
- function stop(){cancelGlide();velocity=0;lastScroll=null;generation++;cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;pressed=false;touching=false;mouse=null;blocked=true;anchor=null;}
+ function stop(){cancelGlide();cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;velocity=0;lastScroll=null;generation++;cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;pressed=false;touching=false;mouse=null;blocked=true;anchor=null;}
  const controller={sync(at,nextMode){if(!enabled()){stop();return;}if(!Number.isFinite(at))return;if((moving||pressed||touching)&&mode===nextMode&&at===lastAt&&width===root.clientWidth&&context===JSON.stringify(getObserver()))return;if(at===anchor&&nextMode===mode&&width===root.clientWidth&&Math.abs(root.scrollLeft-EXTENT)<.1&&context===JSON.stringify(getObserver()))return;stop();reset(at,nextMode);},stop};
  if(typeof ResizeObserver==='function')new ResizeObserver(()=>{if(enabled())controller.sync(getAt(),getMode());else stop();}).observe(root);
  return controller;
