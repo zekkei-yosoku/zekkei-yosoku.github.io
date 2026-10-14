@@ -117,3 +117,13 @@ test('指を離さない日付変更中も現在日の出入線を描き、前�
  for(const event of expected.events){const angle=Math.atan2(Math.sin(event.azimuth*Math.PI/180),Math.cos(event.azimuth*Math.PI/180))*180/Math.PI;assert.ok(rays.some(x=>Math.abs(M.delta(Math.atan2(x.args[0]-180,180-x.args[1])*180/Math.PI,angle))<.01),'選択日の'+event.side+'線');}
  assert.ok(f.drawOps.some(x=>x.op==='setLineDash'&&x.args[0][0]===9),'入りは破線');f.c.timeline.onSettle();await flush();
 });
+
+test('メニュー向け準備は日時/天体/地点/目の高さ/目標を保ち、先にleaveしない',async()=>{
+ const at=day+45240000,observer={latitude:35.65829,longitude:139.70226,name:'渋谷スカイ',groundManualM:14.9,standAglM:229},f=fixture({saved:{at,body:'moon',observer,targetId:'skytree'}});await f.open();
+ assert.equal(f.c.SkyMapUI.prepareFraming(),true);assert.equal(f.c.hash,undefined);assert.equal(f.aim.plannerTransfer.at,at);assert.equal(f.aim.body,'moon');assert.equal(f.element('aimDate').value,'2026-12-22');assert.equal(f.element('aimTarget').value,'skytree');assert.equal(f.aim.from.standAglM,229);assert.equal(f.aim.from.groundManualM,14.9);
+ f.c.SkyMapUI.leave();assert.equal(f.aim.plannerTransfer.at,at);assert.equal(f.aim.from.name,'渋谷スカイ');
+});
+test('メニュー向け準備も構図権限なし/離脱後は状態を転送しない',async()=>{
+ const f=fixture({tools:['skymap'],saved:{at:day,targetId:'skytree'}});await f.open();assert.notEqual(f.c.SkyMapUI.prepareFraming(),true);assert.equal(f.aim.plannerTransfer,undefined);
+ f.c.SkyMapUI.leave();assert.equal(f.c.SkyMapUI.prepareFraming(),false);assert.equal(f.aim.plannerTransfer,undefined);
+});
