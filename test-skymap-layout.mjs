@@ -126,13 +126,13 @@ test('E198: 全画面の切替は通常・全画面とも右上の同じ位置�
  // ズームの「拡大」と取り違えない名前
  assert.match(html,/id="skyMapExpand" aria-label="地図を全画面表示"/);assert.match(html,/wide\?'全画面表示を終了':'地図を全画面表示'/);assert.doesNotMatch(html,/地図を拡大表示/);
 });
-test('E198: 構図の確認は地図の中と地図のすぐ下の両方から、同じ可否・同じ転送',async()=>{
- const wrapEnd=html.indexOf('<div class="mapattr">国土地理院</div></div>',html.indexOf('id="skyMapCanvas"')),below=html.indexOf('id="skyMapUseBelow"'),custom=html.indexOf('<details id="skyMapCustom">');
- assert.ok(wrapEnd>0&&wrapEnd<below&&below<custom,'地図の直後・目標物を置く欄の前');assert.match(html,/id="skyMapUseBelow" hidden>[\s\S]{0,400}<span>この条件の構図を確認<\/span><\/button>/);
- const f=fixture({saved:{at:day,targetId:'skytree'}});await f.open();
- for(const id of ['skyMapUse','skyMapUseBelow']){assert.equal(f.element(id).hidden,false,id);assert.equal(f.element(id).disabled,false,id);}
- f.element('skyMapUseBelow').onclick();assert.equal(f.c.hash,'#/aim');assert.equal(f.aim.plannerTransfer.body,'sun');
- const g=fixture({tools:['skymap'],saved:{at:day,targetId:'skytree'}});await g.open();for(const id of ['skyMapUse','skyMapUseBelow'])assert.equal(g.element(id).hidden,true,id);
+test('2026-10-15: 構図の確認は地図の中（全画面）と上部のFraming/Mapスイッチから、同じ転送。地図の下のボタンは置かない',async()=>{
+ assert.equal(html.indexOf('id="skyMapUseBelow"'),-1,'地図の下のボタンは上部スイッチへ移した');
+ const sw=html.indexOf('id="skyMapAstroSwitch"'),head=html.indexOf('<div class="sky-map-head">'),content=html.indexOf('id="skyMapContent"');assert.ok(sw>0&&sw<head&&head<content,'Mapの切り替えは画面のいちばん上');
+ assert.ok(html.indexOf('id="aimAstroSwitch"')<html.indexOf('id="aimBody"'),'Framingの切り替えも画面のいちばん上');
+ const f=fixture({saved:{at:day,targetId:'skytree'}});await f.open();assert.equal(f.element('skyMapUse').hidden,false);assert.equal(f.element('skyMapUse').disabled,false);
+ f.element('skyMapToFraming').onclick();assert.equal(f.c.hash,'#/aim');assert.equal(f.aim.plannerTransfer.body,'sun','旧ボタンと同じく条件を引き継ぐ');
+ const g=fixture({tools:['skymap'],saved:{at:day,targetId:'skytree'}});await g.open();assert.equal(g.element('skyMapUse').hidden,true);g.element('skyMapToFraming').onclick();assert.equal(g.c.hash,'#/aim/tower','引き継げないときはメニューと同じくFramingを開く');
 });
 test('E198: 条件3行は「を見る／の方向を見る／から見る」、観測地点・目標物・出入りの言い方を揃える',async()=>{
  const block=html.slice(html.indexOf('<div class="sky-map-controls">'),html.indexOf('<div class="mapwrap sky-map-wrap">'));

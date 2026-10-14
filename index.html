@@ -8,7 +8,7 @@
      編集後はbump.shでハッシュを更新する。connect-srcも実際に使う相手だけに絞る。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-ZIAm4oGzQcfu1jnxpd38of8kgR/n9X9vihfqxpS1hzw=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-md66en9pUcKdNmAwVmy4XqpICDsarhUu+BdMCTrQEbI=' 'sha256-n1yWDZ7WMXNoDOnRrCkJxgUluylV6+2VdBD0jKTUubQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-TD3wIsVMuwJRDg9CnLPvet6A6sLsS0Gd3RInNSnRR0s=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-W2iO+e0p/YcdAMxGjZYFOLmihQO8m8TJYOBjuypB/qM=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1202,7 +1202,7 @@ main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84
 .sky-map-point-tools{position:absolute;left:8px;top:8px;display:flex;flex-direction:column;gap:8px;z-index:4}.sky-map-point-tools .map-ctl{position:static;min-width:44px;min-height:44px}.sky-map-point-tools [aria-pressed="true"]{color:var(--on-accent);background:var(--accent)}.sky-map-expand{position:absolute;top:8px;right:8px;z-index:4;min-width:44px;min-height:44px}.sky-map-expand [data-map-contract]{display:none}.sky-map-expand[aria-pressed="true"] [data-map-expand]{display:none}.sky-map-expand[aria-pressed="true"] [data-map-contract]{display:block}.sky-map-wrap[data-pick-mode] canvas{cursor:crosshair}#skyMapTargetSheet input{font-size:16px;min-height:44px;width:100%;box-sizing:border-box}#skyMapTargetSheet label{display:block;margin:12px 0}
 
 main:has(>#skyMapView:not([hidden])){padding-bottom:calc(var(--sky-footer-h,100px) + 12px)}
-.sky-map-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.sky-map-head h2{font-size:22px;margin:12px 0}
+.sky-map-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.sky-map-head h2{font-size:22px;margin:12px 0}.astro-switch{display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:12px;margin:8px 0 12px}.astro-switch button{flex:1;min-width:0;min-height:44px;font-size:15px;font-weight:600;border-radius:9px;background:transparent;color:var(--secondary)}.astro-switch button[aria-pressed=true]{background:var(--card);color:var(--text);box-shadow:0 1px 4px #0001}.astro-switch button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .sky-map-controls{display:flex;flex-direction:column;gap:0;margin:8px 0}.sky-map-controls label{flex:1;min-width:0;font-size:12px}.sky-map-controls select{display:block;width:100%;min-height:44px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px}
 .sky-map-angles{font-variant-numeric:tabular-nums;margin:12px 0}.sky-map-wrap{height:clamp(350px,55dvh,700px)}.sky-map-wrap canvas{width:100%;height:100%}
 /* Labels reserve the right control strip; an expanded map keeps time controls available. */
@@ -1332,7 +1332,7 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
          **押したらホームへ戻る。** どの画面にも出ているので、ここが戻り道になる。
          `alt` は空にする（すぐ隣に「絶景予測」と書いてあるので二度言わせない） -->
     <h1><button id="homeLink" class="tap">
-      <img src="icon-32.png?v=1" class="masthead-mark" alt="" width="20" height="20">絶景予測</button></h1>
+      <img src="icon-32.png?v=1" class="masthead-mark" id="mastheadMark" alt="" width="20" height="20"><img src="astronotes-mark-128.png?v=1" class="masthead-mark" id="mastheadAstroMark" alt="" width="20" height="20" hidden><span id="mastheadName">絶景予測</span></button></h1>
     <!-- ログインは任意。押さなくても予報は全部見られる。
          同期が失敗しているときは、それをここに出す（黙って同期されていないのは
          「黙って消える」と同じ種類の事故）。 -->
@@ -1482,7 +1482,9 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
            どこからを最後にしたのは、その日の候補地が何を・何に・日付で決まるから（どこからの所で候補地を出すには、上の2つが決まっている必要がある）。
            見出し（何を重ねるか…）は文の「を・に・から」が兼ねる。観測標高はどこからに、部位と縁は何にまとめる（縁は建物全体で消えるので、何にの下。2026-10-06 ユーザー「建物全体を選択した場合どうなるの」）。
            2026-10-04 は何を→どこから→何に、2026-10-01 はどこからを一番上（道具ごとに位置を揃える）だった -->
-      <h2 class="preview-title">Astro Framing</h2><button type="button" class="chip" id="skyMapOpen">Astro Map</button>
+      <!-- 2026-10-15 ユーザー「今の行き来ボタンの機能をそのまま上の配置に持っていってスイッチにすればいい」。FramingとMapの行き来は上部の2択だけにする。
+           Mapを押したときの処理は旧「Astro Map」ボタン（条件を引き継ぐ）のまま -->
+      <div class="astro-switch" id="aimAstroSwitch" role="group" aria-label="FramingとMapの切り替え"><button type="button" aria-pressed="true">Framing</button><button type="button" id="skyMapOpen" aria-pressed="false">Map</button></div><h2 class="preview-title" id="aimFramingTitle">Astro Framing</h2>
       <div class="aim-say">
       <div class="section-h aim-head">
         <select id="aimBody" class="aim-body-select" aria-label="天体">
@@ -1727,15 +1729,15 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
   <!-- 出典だけを畳んで置く（2026-10-01 ユーザー「出しておいた方がいいなら畳んでおいてほしい」）。出典の表示は利用の条件 -->
 <section id="skyMapView" aria-labelledby="skyMapTitle" hidden>
- <div class="sky-map-head"><h2 id="skyMapTitle">Astro Map</h2><button type="button" class="chip" id="skyMapClose">戻る</button></div>
+ <!-- 2026-10-15 Framingを押したときの処理は旧「この条件の構図を確認」と同じ（引き継げないときはメニューと同じくFramingを開く） -->
+ <div class="astro-switch" id="skyMapAstroSwitch" role="group" aria-label="FramingとMapの切り替え"><button type="button" id="skyMapToFraming" aria-pressed="false">Framing</button><button type="button" aria-pressed="true">Map</button></div><div class="sky-map-head"><h2 id="skyMapTitle">Astro Map</h2></div>
  <div id="skyMapAccess" class="card"><p id="skyMapAccessMessage" role="status">利用権限を確認しています…</p><button type="button" class="chip" id="skyMapAccessRetry">再試行</button><button type="button" class="chip" id="skyMapAccessLogin">ログイン</button></div>
  <div class="sky-map-content" id="skyMapContent" hidden>
   <div class="sky-map-controls"><div class="aim-say"><select id="skyMapBody" aria-label="見る天体"><option value="sun">太陽</option><option value="moon">月</option><option value="sirius">シリウス</option><option value="mercury">水星</option><option value="venus">金星</option><option value="mars">火星</option><option value="jupiter">木星</option><option value="saturn">土星</option></select><span class="aim-say-v">を見る</span></div><div class="aim-say"><select id="skyMapTarget" aria-label="方向を見る目標物"></select><span class="aim-say-v">の方向を見る</span></div></div>
   <div class="aim-say"><div class="place-row aim-place-card"><button type="button" class="place-pick" id="skyMapChoose" aria-label="観測地点を探す"><span class="pin" aria-hidden="true"></span><span class="place-txt"><span class="name" id="skyMapObserver">観測地点</span><span class="muted" id="skyMapObserverSub"></span></span><span class="chev" aria-hidden="true"></span></button></div><span class="aim-say-v">から見る</span></div>
 
   <div class="mapwrap sky-map-wrap"><span class="sr-only">地図は北が上</span><canvas id="skyMapCanvas" aria-label="観測地点からの天体の方向と目標物への線を示す地図"></canvas><div class="sky-map-point-tools"><button type="button" class="map-ctl" id="skyMapObserverTool" aria-label="観測地点を地図で変更" title="観測地点" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="7" rx="1.5"/><circle cx="13" cy="6.5" r="2"/><path d="M12 10v3m0 0L5 22m7-9 7 9m-7-9v9"/></svg></button><button type="button" class="map-ctl" id="skyMapTargetTool" aria-label="目標物を地図で変更" title="目標物" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z"/><circle cx="12" cy="9" r="2.5"/></svg></button><button type="button" class="map-ctl sky-map-transfer" id="skyMapUse" aria-label="この条件の構図を確認" title="この条件の構図を確認" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3H3v4m14-4h4v4M3 17v4h4m10 0h4v-4"/><path d="m5 17 5-6 3 3 3-4 3 7"/><circle cx="13" cy="7" r="2"/></svg><span>構図</span></button></div><button type="button" class="map-ctl sky-map-expand" id="skyMapExpand" aria-label="地図を全画面表示" title="地図を全画面表示" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path data-map-expand d="M4 9V4h5M4 4l5 5M15 4h5v5m0-5-5 5M4 15v5h5m-5 0 5-5M15 20h5v-5m0 5-5-5"/><path data-map-contract d="M9 4v5H4m5 0L4 4m11 0v5h5m-5 0 5-5M4 15h5v5m0-5-5 5m16-5h-5v5m0-5 5 5"/></svg></button><div class="mappin" aria-hidden="true"></div><div class="mapzoom"><button id="skyMapIn" aria-label="Astro Mapを拡大">＋</button><button id="skyMapOut" aria-label="Astro Mapを縮小">−</button></div><div class="mapattr">国土地理院</div></div>
-  <!-- E198: 構図の確認は地図の中（全画面）と、地図のすぐ下の両方から。同じ許可判定・同じ転送 -->
-  <button type="button" class="chip sky-map-use sky-map-use-below" id="skyMapUseBelow" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3H3v4m14-4h4v4M3 17v4h4m10 0h4v-4"/><path d="m5 17 5-6 3 3 3-4 3 7"/><circle cx="13" cy="7" r="2"/></svg><span>この条件の構図を確認</span></button>
+  <!-- E198: 構図の確認は地図の中（全画面）から。地図の下のボタンは上部のFraming/Mapスイッチへ移した（2026-10-15） -->
   <details id="skyMapCustom"><summary>地図の中心に目標物を置く</summary><label>地上からの高さ <input type="number" id="skyMapHeight" min="0" max="9000" step="any" aria-label="目標物の地上からの高さ"> m</label><button type="button" class="chip" id="skyMapPlaceTarget">中心に目標物を置く</button></details>
   <div id="skyMapTargetInfo" class="tiny"></div>
   <p class="tiny sky-map-definition">出入りは天体の中心が高度0°を通る方向と時刻です（大気補正なし）。</p>
@@ -2079,31 +2081,31 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261015000726"></script>
-<script src="sorami-prediction.js?v=20261015000726"></script>
+<script src="sorami-core.js?v=20261015042654"></script>
+<script src="sorami-prediction.js?v=20261015042654"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261015000726"></script>
-<script src="sorami-exif.js?v=20261015000726"></script>
-<script src="sorami-capcloud.js?v=20261015000726"></script>
-<script src="sorami-terrain.js?v=20261015000726"></script>
-<script src="sorami-mountain.js?v=20261015000726"></script>
-<script src="sorami-fuji.js?v=20261015000726"></script>
-<script src="sorami-sky.js?v=20261015000726"></script>
+<script src="sorami-astro.js?v=20261015042654"></script>
+<script src="sorami-exif.js?v=20261015042654"></script>
+<script src="sorami-capcloud.js?v=20261015042654"></script>
+<script src="sorami-terrain.js?v=20261015042654"></script>
+<script src="sorami-mountain.js?v=20261015042654"></script>
+<script src="sorami-fuji.js?v=20261015042654"></script>
+<script src="sorami-sky.js?v=20261015042654"></script>
 
-<script src="sorami-history.js?v=20261015000726"></script>
-<script src="sorami-plan.js?v=20261015000726"></script>
-<script src="sorami-routes.js?v=20261015000726"></script>
-<script src="sorami-iss.js?v=20261015000726"></script>
-<script src="sorami-plane.js?v=20261015000726"></script>
-<script src="sorami-refraction.js?v=20261015000726"></script>
-<script src="sorami-atmosphere.js?v=20261015000726"></script>
-<script src="sorami-bodies.js?v=20261015000726"></script>
-<script src="sorami-sky-map.js?v=20261015000726"></script>
-<script src="sorami-city-models.js?v=20261015000726"></script>
-<script src="sorami-tower-models.js?v=20261015000726"></script>
-<script src="sorami-align.js?v=20261015000726"></script>
-<script src="sorami-moon.js?v=20261015000726"></script>
+<script src="sorami-history.js?v=20261015042654"></script>
+<script src="sorami-plan.js?v=20261015042654"></script>
+<script src="sorami-routes.js?v=20261015042654"></script>
+<script src="sorami-iss.js?v=20261015042654"></script>
+<script src="sorami-plane.js?v=20261015042654"></script>
+<script src="sorami-refraction.js?v=20261015042654"></script>
+<script src="sorami-atmosphere.js?v=20261015042654"></script>
+<script src="sorami-bodies.js?v=20261015042654"></script>
+<script src="sorami-sky-map.js?v=20261015042654"></script>
+<script src="sorami-city-models.js?v=20261015042654"></script>
+<script src="sorami-tower-models.js?v=20261015042654"></script>
+<script src="sorami-align.js?v=20261015042654"></script>
+<script src="sorami-moon.js?v=20261015042654"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -3625,6 +3627,10 @@ function applyRoute() {
   if (currentView === "list") listScrollY = window.scrollY;
   render();
   if (atSkyMap) SkyMapUI?.open();
+  // 2026-10-15 ユーザー「AstroNotesに切り替えたら一番上のタイトルも変えて。ロゴもある」。メニューのAstroNotesの道具を開いている間は題名とマークをAstroNotesに
+  const astroNotes = atAim || atSkyMap || atPlane || atIss;
+  $("mastheadName").textContent = astroNotes ? "AstroNotes" : "絶景予測";
+  $("mastheadMark").hidden = astroNotes; $("mastheadAstroMark").hidden = !astroNotes;
   // 画面が入れ替わるので位置を戻す。一覧は元いた位置へ、ほかの画面は先頭から。
   // 以前は「詳細と記録だけ先頭」としていたので、道具の画面が一覧の途中の位置で開いていた（2026-10-01）
   window.scrollTo(0, currentView === "list" ? listScrollY : 0);
@@ -9885,6 +9891,10 @@ function toolAllowed(id) {
 }
 function renderTools() {
   $("skyMapOpen").hidden = !toolAllowed("skymap");
+  // 両方使える人だけ上部の切り替えを出す。片方だけなら今までどおり題名を出す
+  const astroBoth = toolAllowed("skymap") && ["diamond", "pearl", "tower"].some(toolAllowed);
+  for (const id of ["aimAstroSwitch", "skyMapAstroSwitch"]) $(id).hidden = !astroBoth;
+  for (const id of ["aimFramingTitle", "skyMapTitle"]) $(id).classList.toggle("sr-only", astroBoth);
   const allowed = allowedTools();
   let shown = 0;
   for (const el of $("toolsMenu").querySelectorAll("[data-id]")) {
@@ -11071,8 +11081,8 @@ load(false);
 restoreSession();
 checkForUpdate();
 </script>
-<script src="sorami-scroll-timeline.js?v=20261015000726"></script>
-<script src="sorami-datetime-ui.js?v=20261015000726"></script>
+<script src="sorami-scroll-timeline.js?v=20261015042654"></script>
+<script src="sorami-datetime-ui.js?v=20261015042654"></script>
 <script id="uiVisualPrimitives">
 const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
 // E185: visual choices forward to the original native control; no calculation path is added.
@@ -11344,7 +11354,7 @@ const recentHistory=(()=>{
  let session=null,seq=0,frame=0,targetOn=true,pickMode=null,targetSeq=0,mapWide=false,timelineMoving=false;
  const targetSheet=el("skyMapTargetSheet");
  // 構図の確認は地図の中（全画面）と地図のすぐ下の2か所。表示・使用可否は常に揃える
- const useButtons=()=>[el('skyMapUse'),el('skyMapUseBelow')];
+ const useButtons=()=>[el('skyMapUse')];
  // 太陽は日の出・日の入（アプリ全体の言い方）。ほかの天体は「月の出」「金星の入」
  const riseSetName=(body,side)=>body==='sun'?(side==='rise'?'日の出':'日の入'):`${bodyName(body)}の${side==='rise'?'出':'入'}`;
  let accessToken=null,accessTools=[],accessSeq=0,accessPromise=null,checkingToken=null,lastAuthKey='';
@@ -11493,7 +11503,7 @@ ctx.lineWidth=1;
  if(typeof ResizeObserver==='function')new ResizeObserver(()=>{if(skyFooter.offsetHeight)document.documentElement.style.setProperty('--sky-footer-h',skyFooter.offsetHeight+'px');}).observe(skyFooter);
  el('skyMapChoose').querySelector('.pin').innerHTML=UI_ICONS.observer;el('skyMapChoose').querySelector('.chev').innerHTML=UI_ICONS.search;
  el('skyMapChoose').onclick=()=>openPlaceSheet('skymap');
- el('skyMapOpen').onclick=()=>enter(true);el('skyMapMenu').onclick=()=>enter();el('skyMapClose').onclick=goBack;
+ el('skyMapOpen').onclick=()=>enter(true);el('skyMapMenu').onclick=()=>enter();
  el('skyMapNow').onclick=()=>setTime(Date.now());el('skyMapEarlier').onclick=()=>setTime(session.at-60000);el('skyMapLater').onclick=()=>setTime(session.at+60000);
  el('skyMapRetry').onclick=refresh;
  el('skyMapBody').onchange=()=>{if(!session||!hasAccess()||!active())return;const body=el('skyMapBody').value;if(!SoramiBodies.definitions.some(d=>d.id===body))return;session.body=body;if(!extraIds.includes(body)){session.showSun=body==='sun';session.showMoon=body==='moon';session.primaryBody=body;}session.extraBody=extraIds.includes(body)?body:null;refresh();};
@@ -11569,7 +11579,8 @@ ctx.lineWidth=1;
   aim.plannerTransfer={at:session.at,body:session.body,latitude:obs.latitude,longitude:obs.longitude,day:SoramiSkyMap.dayStart(session.at)};
   save();return true;
  }
- el('skyMapUse').onclick=el('skyMapUseBelow').onclick=()=>{if(prepareFraming())pushRoute('#/aim');};
+ el('skyMapUse').onclick=()=>{if(prepareFraming())pushRoute('#/aim');};
+ el('skyMapToFraming').onclick=()=>{if(canTransfer()&&session?.dailies?.[session.body]&&session.eye&&prepareFraming())pushRoute('#/aim');else pushRoute('#/aim/tower');};
  SkyMapUI={open,leave,authChanged,prepareFraming};if(routeFromHash()?.skymap)applyRoute();
 })();
 </script>
@@ -11583,7 +11594,7 @@ ctx.lineWidth=1;
  const label=(id,key)=>{const b=el(id);if(!b)return;const text=b.textContent.trim();b.classList.add('ui-icon-label');b.innerHTML=UI_ICONS[key]+'<span>'+text+'</span>';};
  for(const id of ['aimPick','planePickHere'])label(id,'observer');label('aimPickTarget','pin');
  for(const id of ['mapSearchGo','searchBoxGo']){const b=el(id);b.setAttribute('aria-label','検索');b.title='検索';b.innerHTML=UI_ICONS.search;}
- label('skyMapOpen','map');const recent=el('aimRecentOpen');if(recent){recent.innerHTML=UI_ICONS.history;recent.classList.add('preview-history-icon');recent.title='履歴';}label('photoPick','photo');label('exportBtn','download');label('importBtn','upload');
+ const recent=el('aimRecentOpen');if(recent){recent.innerHTML=UI_ICONS.history;recent.classList.add('preview-history-icon');recent.title='履歴';}label('photoPick','photo');label('exportBtn','download');label('importBtn','upload');
 })();</script>
 </body>
 </html>

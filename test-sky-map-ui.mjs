@@ -83,10 +83,10 @@ test('通過チップの天体変更で構図の2入口が権限に追従する'
  const f=fixture({tools:['skymap','pearl'],saved:{at:Date.parse('2026-06-22T00:00:00+09:00'),body:'sun',targetId:'fuji',showSun:true,showMoon:true}});await f.open();
  const walk=e=>[e,...(e.children||[]).flatMap(walk)],buttons=walk(f.element('skyMapPassages')).filter(e=>e.type==='button');
  const moon=buttons.find(e=>e.textContent.startsWith('☾')),sun=buttons.find(e=>e.textContent.startsWith('☀'));assert.ok(moon);assert.ok(sun);
- for(const id of ['skyMapUse','skyMapUseBelow'])assert.equal(f.element(id).hidden,true);
+ for(const id of ['skyMapUse'])assert.equal(f.element(id).hidden,true);
  moon.onclick();assert.equal(f.element('skyMapBody').value,'moon');
- for(const id of ['skyMapUse','skyMapUseBelow']){assert.equal(f.element(id).hidden,false);assert.equal(f.element(id).disabled,false);}
- sun.onclick();for(const id of ['skyMapUse','skyMapUseBelow'])assert.equal(f.element(id).hidden,true);
+ for(const id of ['skyMapUse']){assert.equal(f.element(id).hidden,false);assert.equal(f.element(id).disabled,false);}
+ sun.onclick();for(const id of ['skyMapUse'])assert.equal(f.element(id).hidden,true);
 });
 // E202: 日付変更は配置している目標とは独立。閉じる/別対象選択は引き続き失効させる。
 test('目標の標高取得中に日付を変えても配置は完了する',async()=>{
