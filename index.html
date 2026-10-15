@@ -12,8 +12,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="8168209264608936352">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-TVIWREKSDG7bKNy8ynVN1R31zpzkUbFJPK21zuL1aAo=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-9dr71BkfferxEt2N+TCyS0SXR8vW+Gepxnzxj/fHKLc=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-oj5Q/orXNmTgY8H9JpCDKRQz8bYxK+AvmYaLMYz3m9A='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="17266993555490214643">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-dMcCxhRgGMwV0pXT6IDyUu85cc6nlgnp6Uf3XTxWaC8=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-9dr71BkfferxEt2N+TCyS0SXR8vW+Gepxnzxj/fHKLc=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-oj5Q/orXNmTgY8H9JpCDKRQz8bYxK+AvmYaLMYz3m9A='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
 <link data-script-preload rel="preload" as="script" href="sorami-astro.js?v=9181748260451918765">
@@ -1224,7 +1224,9 @@
 }
 #aimView .aim-time-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:0 8px;margin:4px 0 8px}#aimView .aim-time-controls .aim-air{display:contents}#aimView .aim-time-controls .aim-air-row{grid-column:1;grid-row:1;gap:8px}#aimView .aim-time-controls #previewTimeScope{grid-column:2;grid-row:1;margin:0}#aimView .aim-time-controls #aimAirDetails{grid-column:1 / -1;grid-row:2}#aimView .aim-time-controls #aimAirDetails summary{justify-content:flex-start}#aimView .aim-time-controls #aimAirSummary{margin-left:0}#aimView .aim-frame-info{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}#aimView .aim-frame-info .aim-frame-times{flex:1 1 120px;min-width:120px}#aimView .aim-air{margin:0 0 8px auto;border-top:0;max-width:100%}#aimView .aim-air-row{display:flex;align-items:center;gap:12px}#aimView #aimAirMode{width:auto;min-width:112px;min-height:44px;font-size:0.81rem;padding:8px 32px 8px 12px}#aimAirLabel{font-size:0.81rem;color:var(--secondary);flex:none}#aimView .aim-air-options{display:flex;background:var(--sunk);border-radius:10px;padding:3px;flex:1;max-width:330px}#aimView .aim-air-options button{flex:1;min-width:0;min-height:44px;border:0;border-radius:8px;font-size:0.81rem;color:var(--secondary);background:transparent}#aimView .aim-air-options button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);font-weight:600}#aimView #aimAirDetails summary{justify-content:flex-start;gap:8px;min-height:44px;font-size:0.75rem;color:var(--secondary)}#aimAirDetails summary::-webkit-details-marker{display:none}#aimAirSummary{margin-left:auto}#aimView .aim-air-chevron{font-size:18px}#aimAirDetails[open] .aim-air-chevron{transform:rotate(180deg)}
 /* 下の時刻欄の高さぶんは、ページの最後（出典の下）に空ける。#aimView の中で空けると出典の上に余白が出て、出典は時刻欄の裏に入っていた（2026-10-05 iPhone）。高さは時刻欄を測って --aim-footer-h に入れる */
-main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84px + env(safe-area-inset-bottom))) + 12px)}#aimView .aim-date-section{border:0;padding-top:0}
+main:has(>#aimView:not([hidden],[data-locked])){padding-bottom:calc(var(--aim-footer-h,calc(84px + env(safe-area-inset-bottom))) + 12px)}#aimView .aim-date-section{border:0;padding-top:0}
+/* 権限が無いときは案内カードだけを出す。地図の skyMapAccess と同じ形（2026-10-15） */
+#aimView[data-locked]>:not(#aimAccess){display:none!important}
 :is(#aimView,#skyMapView) .tool-datetime-footer{position:fixed;z-index:35;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid rgba(0,0,0,.16);box-shadow:0 -4px 16px rgba(0,0,0,.12);padding:2px max(12px,env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
 :is(#aimView,#skyMapView) .tool-datetime-footer .tool-datetime-row{display:grid;grid-template-columns:44px auto minmax(0,1fr) 44px 44px;align-items:center;gap:2px;max-width:780px;margin:0 auto;padding:0;border:0}
 :is(#aimView,#skyMapView) .tool-datetime-footer :is(#aimPrev,#aimNext,#skyMapPrev,#skyMapNext,.preview-time-more,#skyMapTimeMore).tool-datetime-nav{width:44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--text);font-size:20px;line-height:1}
@@ -1522,6 +1524,7 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
   </div>
 
   <div id="aimView" hidden>
+    <div id="aimAccess" hidden><div class="sky-map-head"><h2>構図</h2></div><div class="card"><p id="aimAccessMessage" role="status">ログインすると利用権限を確認できます</p><button type="button" class="chip" id="aimAccessLogin">ログイン</button></div></div>
     <div class="card">
       <!-- 2026-10-06：何を→何に→どこからの順で、1行ずつ文にして選ぶ（ユーザー「〇〇（選択）を重ねる。〇〇（選択）に重ねる。〇〇（選択）から重ねる。みたいに選ばせる」）。
            どこからを最後にしたのは、その日の候補地が何を・何に・日付で決まるから（どこからの所で候補地を出すには、上の2つが決まっている必要がある）。
@@ -3160,6 +3163,8 @@ function render() {
   // 順番を間違えても気づけない。**表に1行足すだけ**にする（2026-09-28）。
   const view = VIEWS.find((v) => v.on()).id;
   for (const v of VIEWS) $(v.el).hidden = v.id !== view;
+  // 表示はルートだけで決まるので、構図の権限はここでも当て直す。ログアウトした直後も本体を出さない
+  if (view === "aim") renderAimAccess();
   // 一覧以外の画面では、題名の帯の下に「← 戻る」
   $("backBar").hidden = isMenuPage();
   const inDetail = view === "detail";
@@ -9228,10 +9233,22 @@ function aimAirChoose(next){
 $("aimAirMode").onchange=()=>aimAirChoose($("aimAirMode").value);
 aimAirSync();
 
-function openAim(preset) {
+/// 構図を使えるかを画面へ出す。以前は openAim が aimView ごと隠していたが、直後の render() が
+/// ルートだけで表示へ戻すため、未ログインの直URLで本体が「計算しています…」のまま止まっていた（2026-10-15）
+function renderAimAccess() {
   const permitted = toolAllowed("diamond") || toolAllowed("pearl") || toolAllowed("tower");
-  $("aimView").hidden = !permitted;
-  if (!permitted) { aim.bodySeq++; return; }
+  $("aimView").toggleAttribute("data-locked", !permitted);
+  $("aimAccess").hidden = permitted;
+  if (!permitted) {
+    $("aimAccessMessage").textContent = auth?.token ? "構図の利用が許可されていません" : "ログインすると利用権限を確認できます";
+    $("aimAccessLogin").hidden = !!auth?.token;
+  }
+  return permitted;
+}
+$("aimAccessLogin").onclick = () => $("authButton").click();
+
+function openAim(preset) {
+  if (!renderAimAccess()) { aim.bodySeq++; return; }
   if (preset) aim.pendingModelPreset = preset;
   const entry = ++aim.bodySeq;
   if (!SoramiAssets.modelsReady()) {
