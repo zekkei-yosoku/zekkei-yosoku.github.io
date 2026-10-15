@@ -92,9 +92,9 @@
   .masthead { display: flex; align-items: center; gap: 6px; padding: 6px 2px 12px; }
   .masthead h1 { flex: 1; min-width: 0; }
   .masthead-mark { width: 20px; height: 20px; border-radius: 5px; display: block; }
-  /* 採用04の横組ロゴ。画像の縦横比を維持し、既存の題名と二重表示しない。 */
-  #mastheadAstroMark { width: 140px; height: auto; aspect-ratio: 1956 / 441; border-radius: 0; flex: none; }
-  #astroNotesMenu .astro-notes-wordmark { display: block; width: 148px; max-width: 100%; height: auto; aspect-ratio: 1956 / 441; }
+  /* 丸み修正版v1の横組ロゴ。画像の縦横比を維持し、既存の題名と二重表示しない。 */
+  #mastheadAstroMark { width: 140px; height: auto; aspect-ratio: 2172 / 490; border-radius: 0; flex: none; }
+  #astroNotesMenu .astro-notes-wordmark { display: block; width: 148px; max-width: 100%; height: auto; aspect-ratio: 2172 / 490; }
   /* 題名そのものが戻り道（YouTube・Gmail と同じ）。見た目は h1 のまま */
   #homeLink { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
   /* 題名の帯の2行目に置く「← 戻る」。囲わず文字だけ（ユーザー指定）。左端を ☰・題名とそろえ、
@@ -1334,7 +1334,7 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
          **押したらホームへ戻る。** どの画面にも出ているので、ここが戻り道になる。
          `alt` は空にする（すぐ隣に「絶景予測」と書いてあるので二度言わせない） -->
     <h1><button id="homeLink" class="tap">
-      <img src="icon-32.png?v=1" class="masthead-mark" id="mastheadMark" alt="" width="20" height="20"><img src="astronotes-wordmark-slate04-480.png?v=04" class="masthead-mark" id="mastheadAstroMark" alt="" width="140" height="32" hidden><span id="mastheadName">絶景予測</span></button></h1>
+      <img src="icon-32.png?v=1" class="masthead-mark" id="mastheadMark" alt="" width="20" height="20"><img src="astronotes-wordmark-rounded-v1-480.png?v=1" class="masthead-mark" id="mastheadAstroMark" alt="" width="140" height="32" hidden><span id="mastheadName">絶景予測</span></button></h1>
     <!-- ログインは任意。押さなくても予報は全部見られる。
          同期が失敗しているときは、それをここに出す（黙って同期されていないのは
          「黙って消える」と同じ種類の事故）。 -->
@@ -1771,7 +1771,7 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
     <!-- 2026-10-15 ユーザー「絶景予測／AstroNotes／月丼／ISS／記録って感じ」。FramingとMapは画面上部のスイッチで行き来するので、メニューではAstroNotesの1項目にまとめる。
          開くのは直前に使った方（初めてはFraming）。許可は4つ（どれかがあれば出す）。管理画面の名前は管理画面側の表で持つ -->
     <section id="astroToolsGroup" aria-label="天体の道具">
-    <button id="astroNotesMenu" data-tool="#/aim/tower" data-id="diamond pearl tower skymap" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど Astro Map"><b><img src="astronotes-wordmark-slate04-480.png?v=04" class="astro-notes-wordmark" alt="AstroNotes" width="148" height="34"></b><span>ダイヤモンド富士・パール富士など天体が重なる日と場所（Framing）、天体の方向と高度（Map）</span></button>
+    <button id="astroNotesMenu" data-tool="#/aim/tower" data-id="diamond pearl tower skymap" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど Astro Map"><b><img src="astronotes-wordmark-rounded-v1-480.png?v=1" class="astro-notes-wordmark" alt="AstroNotes" width="148" height="34"></b><span>ダイヤモンド富士・パール富士など天体が重なる日と場所（Framing）、天体の方向と高度（Map）</span></button>
     <button data-tool="#/plane" data-id="plane"><b>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
     <button data-tool="#/iss" data-id="iss"><b>ISSの月面通過</b><span>ISSが月や太陽の前を横切る場所と時刻</span></button>
     </section>
@@ -2083,31 +2083,31 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261015111032"></script>
-<script src="sorami-prediction.js?v=20261015111032"></script>
+<script src="sorami-core.js?v=20261015114025"></script>
+<script src="sorami-prediction.js?v=20261015114025"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261015111032"></script>
-<script src="sorami-exif.js?v=20261015111032"></script>
-<script src="sorami-capcloud.js?v=20261015111032"></script>
-<script src="sorami-terrain.js?v=20261015111032"></script>
-<script src="sorami-mountain.js?v=20261015111032"></script>
-<script src="sorami-fuji.js?v=20261015111032"></script>
-<script src="sorami-sky.js?v=20261015111032"></script>
+<script src="sorami-astro.js?v=20261015114025"></script>
+<script src="sorami-exif.js?v=20261015114025"></script>
+<script src="sorami-capcloud.js?v=20261015114025"></script>
+<script src="sorami-terrain.js?v=20261015114025"></script>
+<script src="sorami-mountain.js?v=20261015114025"></script>
+<script src="sorami-fuji.js?v=20261015114025"></script>
+<script src="sorami-sky.js?v=20261015114025"></script>
 
-<script src="sorami-history.js?v=20261015111032"></script>
-<script src="sorami-plan.js?v=20261015111032"></script>
-<script src="sorami-routes.js?v=20261015111032"></script>
-<script src="sorami-iss.js?v=20261015111032"></script>
-<script src="sorami-plane.js?v=20261015111032"></script>
-<script src="sorami-refraction.js?v=20261015111032"></script>
-<script src="sorami-atmosphere.js?v=20261015111032"></script>
-<script src="sorami-bodies.js?v=20261015111032"></script>
-<script src="sorami-sky-map.js?v=20261015111032"></script>
-<script src="sorami-city-models.js?v=20261015111032"></script>
-<script src="sorami-tower-models.js?v=20261015111032"></script>
-<script src="sorami-align.js?v=20261015111032"></script>
-<script src="sorami-moon.js?v=20261015111032"></script>
+<script src="sorami-history.js?v=20261015114025"></script>
+<script src="sorami-plan.js?v=20261015114025"></script>
+<script src="sorami-routes.js?v=20261015114025"></script>
+<script src="sorami-iss.js?v=20261015114025"></script>
+<script src="sorami-plane.js?v=20261015114025"></script>
+<script src="sorami-refraction.js?v=20261015114025"></script>
+<script src="sorami-atmosphere.js?v=20261015114025"></script>
+<script src="sorami-bodies.js?v=20261015114025"></script>
+<script src="sorami-sky-map.js?v=20261015114025"></script>
+<script src="sorami-city-models.js?v=20261015114025"></script>
+<script src="sorami-tower-models.js?v=20261015114025"></script>
+<script src="sorami-align.js?v=20261015114025"></script>
+<script src="sorami-moon.js?v=20261015114025"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -11118,8 +11118,8 @@ load(false);
 restoreSession();
 checkForUpdate();
 </script>
-<script src="sorami-scroll-timeline.js?v=20261015111032"></script>
-<script src="sorami-datetime-ui.js?v=20261015111032"></script>
+<script src="sorami-scroll-timeline.js?v=20261015114025"></script>
+<script src="sorami-datetime-ui.js?v=20261015114025"></script>
 <script id="uiVisualPrimitives">
 const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
 // E185: visual choices forward to the original native control; no calculation path is added.
