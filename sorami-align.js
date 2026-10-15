@@ -1506,6 +1506,7 @@
     if (target.id === "tinkerbell" && TINKERBELL_MODEL) return modelOutline(observer,target,TINKERBELL_MODEL,{eyeM,heightM});
     if (target.id === "cinderella") return modelOutline(observer,target,CASTLE_MODEL,{eyeM,heightM});
     if (target.id === "tocho-building") return modelOutline(observer,target,TOCHO_MODEL,{eyeM,heightM});
+    const CM = global.SoramiCityModels || SoramiAlign.CITY_MODELS, TM = global.SoramiTowerModels || SoramiAlign.TOWER_MODELS;
     if (CM?.[target.id]) return modelOutline(observer,target,CM[target.id],{eyeM,heightM});
     if (TM?.[target.id]) return modelOutline(observer,target,TM[target.id],{eyeM,heightM});
     if (target.rim) return null;   // 富士山（火口の縁のデータを持つ山）
@@ -1799,7 +1800,7 @@
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, judge, buildingBlock,
-                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, CITY_MODELS:CM,TOWER_MODELS:TM, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, viewWindow, viewPath, sceneTargets };
+                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.SoramiCityModels || CM || {};},get TOWER_MODELS(){return global.SoramiTowerModels || TM || {};}, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, viewWindow, viewPath, sceneTargets };
   global.SoramiAlign = SoramiAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);

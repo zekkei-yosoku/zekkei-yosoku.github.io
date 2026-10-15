@@ -8,7 +8,35 @@
      編集後はbump.shでハッシュを更新する。connect-srcも実際に使う相手だけに絞る。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-9OmaCkx/UbyFIkRKnYeb7pKPuh2IVVDLIrcZTgRGn0w=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-6/92A5YcZXbgFyqX9s/PMlBZ2Bry0D7RGs3SDKqtqsU=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-sMbJMrqQ8SXSDQA/xlJ8L+3DOHjasvVeXiASAJhwLAU='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="shape-city-integrity" content="sha256-Quj0DA5HzCiMsRK2Qx8g7ccTsJGOGaejd8QjupH4f1o=">
+<meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
+<meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
+<meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
+<meta name="app-version" content="8168209264608936352">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-TVIWREKSDG7bKNy8ynVN1R31zpzkUbFJPK21zuL1aAo=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-9dr71BkfferxEt2N+TCyS0SXR8vW+Gepxnzxj/fHKLc=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-oj5Q/orXNmTgY8H9JpCDKRQz8bYxK+AvmYaLMYz3m9A='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
+<link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
+<link data-script-preload rel="preload" as="script" href="sorami-astro.js?v=9181748260451918765">
+<link data-script-preload rel="preload" as="script" href="sorami-exif.js?v=18314871901163682501">
+<link data-script-preload rel="preload" as="script" href="sorami-capcloud.js?v=4966950791580310294">
+<link data-script-preload rel="preload" as="script" href="sorami-terrain.js?v=2888802520753998075">
+<link data-script-preload rel="preload" as="script" href="sorami-mountain.js?v=6648342167869535458">
+<link data-script-preload rel="preload" as="script" href="sorami-fuji.js?v=14151766095380968202">
+<link data-script-preload rel="preload" as="script" href="sorami-sky.js?v=4746693032579981037">
+<link data-script-preload rel="preload" as="script" href="sorami-history.js?v=12978486167727035619">
+<link data-script-preload rel="preload" as="script" href="sorami-plan.js?v=477526235409259430">
+<link data-script-preload rel="preload" as="script" href="sorami-routes.js?v=12335782718866241777">
+<link data-script-preload rel="preload" as="script" href="sorami-iss.js?v=9453066214197620974">
+<link data-script-preload rel="preload" as="script" href="sorami-plane.js?v=748004624366731407">
+<link data-script-preload rel="preload" as="script" href="sorami-refraction.js?v=6010632929459496538">
+<link data-script-preload rel="preload" as="script" href="sorami-atmosphere.js?v=17064914677876876535">
+<link data-script-preload rel="preload" as="script" href="sorami-bodies.js?v=7468730107950742605">
+<link data-script-preload rel="preload" as="script" href="sorami-sky-map.js?v=16125800498973618817">
+<link data-script-preload rel="preload" as="script" href="sorami-assets.js?v=2324625497146189621">
+<link data-script-preload rel="preload" as="script" href="sorami-align.js?v=11476056468372570822">
+<link data-script-preload rel="preload" as="script" href="sorami-moon.js?v=10230678456179898054">
+<link data-script-preload rel="preload" as="script" href="sorami-scroll-timeline.js?v=1436491398997474438">
+<link data-script-preload rel="preload" as="script" href="sorami-datetime-ui.js?v=4896469771475079267">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -2097,31 +2125,33 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261015165900"></script>
-<script src="sorami-prediction.js?v=20261015165900"></script>
+<script src="sorami-core.js?v=416354364020786134"></script>
+<script src="sorami-prediction.js?v=17884626660592691492"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261015165900"></script>
-<script src="sorami-exif.js?v=20261015165900"></script>
-<script src="sorami-capcloud.js?v=20261015165900"></script>
-<script src="sorami-terrain.js?v=20261015165900"></script>
-<script src="sorami-mountain.js?v=20261015165900"></script>
-<script src="sorami-fuji.js?v=20261015165900"></script>
-<script src="sorami-sky.js?v=20261015165900"></script>
+<script src="sorami-astro.js?v=9181748260451918765"></script>
+<script src="sorami-exif.js?v=18314871901163682501"></script>
+<script src="sorami-capcloud.js?v=4966950791580310294"></script>
+<script src="sorami-terrain.js?v=2888802520753998075"></script>
+<script src="sorami-mountain.js?v=6648342167869535458"></script>
+<script src="sorami-fuji.js?v=14151766095380968202"></script>
+<script src="sorami-sky.js?v=4746693032579981037"></script>
 
-<script src="sorami-history.js?v=20261015165900"></script>
-<script src="sorami-plan.js?v=20261015165900"></script>
-<script src="sorami-routes.js?v=20261015165900"></script>
-<script src="sorami-iss.js?v=20261015165900"></script>
-<script src="sorami-plane.js?v=20261015165900"></script>
-<script src="sorami-refraction.js?v=20261015165900"></script>
-<script src="sorami-atmosphere.js?v=20261015165900"></script>
-<script src="sorami-bodies.js?v=20261015165900"></script>
-<script src="sorami-sky-map.js?v=20261015165900"></script>
-<script src="sorami-city-models.js?v=20261015165900"></script>
-<script src="sorami-tower-models.js?v=20261015165900"></script>
-<script src="sorami-align.js?v=20261015165900"></script>
-<script src="sorami-moon.js?v=20261015165900"></script>
+<script src="sorami-history.js?v=12978486167727035619"></script>
+<script src="sorami-plan.js?v=477526235409259430"></script>
+<script src="sorami-routes.js?v=12335782718866241777"></script>
+<script src="sorami-iss.js?v=9453066214197620974"></script>
+<script src="sorami-plane.js?v=748004624366731407"></script>
+<script src="sorami-refraction.js?v=6010632929459496538"></script>
+<script src="sorami-atmosphere.js?v=17064914677876876535"></script>
+<script src="sorami-bodies.js?v=7468730107950742605"></script>
+<script src="sorami-sky-map.js?v=16125800498973618817"></script>
+
+
+
+<script src="sorami-assets.js?v=2324625497146189621"></script>
+<script src="sorami-align.js?v=11476056468372570822"></script>
+<script src="sorami-moon.js?v=10230678456179898054"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2527,8 +2557,22 @@ const extrasRetry = createForecastRetry(() => { extrasLoadedSeq = -1; kickExtras
 let selectedDay = {};    // phenomenon → dayMs
 
 // ---------------------------------------------------------------- 読み込み
+let predictionDirty = true, activePredictionKey = null, acceptedPrediction = null;
+const predictionKeyFor = p => JSON.stringify([p.latitude,p.longitude,p.elevation??null,p.eyeHeightAGL??1.5,p.terrain??null]);
+const predictionNeeded = () => { const r = routeFromHash(); return !r || !!r.id; };
 let loadSeq = 0;         // 連続で地点や地形を変えたとき、古い応答を捨てるための連番
 async function load(force) {
+  const requestKey = predictionKeyFor(place);
+  if (acceptedPrediction && predictionKeyFor(acceptedPrediction.place) !== requestKey) {
+    bundle = null; weeks = {}; forecastDays = []; predictionPlace = null; acceptedPrediction = null;
+  }
+  if (!predictionNeeded()) {
+    ++loadSeq; ++extraSeq; extrasRetry.reset(); activePredictionKey = null; predictionDirty = true;
+    return;
+  }
+  if (activePredictionKey === requestKey) return;
+  activePredictionKey = requestKey;
+  predictionDirty = true;
   const seq = ++loadSeq;
   ++extraSeq; extrasRetry.reset();
   const forPlace = place;   // 取得開始時の地点で最後まで一貫して評価する
@@ -2542,6 +2586,7 @@ async function load(force) {
     // 光害はその地点の素質なので予報と並行に取得する。取れなくても致命的ではない。
     const prediction = await SoramiPrediction.fetch(forPlace);
     if (seq !== loadSeq) return;
+    predictionDirty = false; acceptedPrediction = prediction;
     bundle = prediction.bundle;
     S.setTimezoneOffset(bundle.utcOffsetSeconds);
     forPlace.lightPollution = prediction.lightPollution;
@@ -2558,7 +2603,7 @@ async function load(force) {
     // 予報が揃ってから URL の場所を反映する。詳細のURLを直接開いた場合も
     // ここで初めてその現象を描ける。
     applyRoute();
-    loadNowcast().catch(() => { nowcastReady = false; $("nowcast").hidden = true; });  // 実況は補助。失敗しても予報は出す
+    ensureNowcast();  // Supplementary observations also load when returning from a tool.
   } catch (e) {
     if (seq !== loadSeq) return;
     $("status").hidden = false;
@@ -2580,17 +2625,34 @@ async function load(force) {
     const route = routeFromHash();
     if (!bundle && route && !route.id) applyRoute();
     else $("placeName").textContent = place.name;
+  } finally {
+    if (seq === loadSeq) activePredictionKey = null;
   }
 }
 
 // アメダス実況。更新は10分間隔なのでそれより短く取りに行かない。
 let amedasStations = null;
+const nowcastPending = new Map();
+let nowcastFor = null, nowcastAt = 0, nowcastFailure = null;
+function ensureNowcast() {
+  if (!predictionNeeded() || !bundle || !acceptedPrediction || predictionKeyFor(acceptedPrediction.place) !== predictionKeyFor(place)) return;
+  const key = predictionKeyFor(place), now = Date.now();
+  if ((nowcastReady && nowcastFor === key && now - nowcastAt < 600000) || nowcastPending.has(key) || (nowcastFailure?.key === key && now - nowcastFailure.at < 60000)) return;
+  const job = {key}; nowcastPending.set(key,job);
+  job.promise = loadNowcast().then(() => {
+    if (key === predictionKeyFor(place)) { nowcastFor = key; nowcastAt = Date.now(); nowcastFailure = null; }
+  }).catch(() => {
+    if (key === predictionKeyFor(place)) { nowcastReady = false; $("nowcast").hidden = true; nowcastFailure = {key,at:Date.now()}; }
+  }).finally(() => { if (nowcastPending.get(key) === job) nowcastPending.delete(key); });
+}
 async function loadNowcast() {
+  const forPlace = place, key = predictionKeyFor(forPlace), gridElevation = bundle?.home.grid.elevation;
   const latest = await S.Amedas.latestTime();
   if (!amedasStations) amedasStations = await S.Amedas.stations();
-  const obs = await S.Amedas.nearest(place.latitude, place.longitude, amedasStations, latest,
-    place.elevation ?? bundle?.home.grid.elevation);
-  const daytime = S.Sun.position(obs.observedAt, place.latitude, place.longitude).elevation > 0;
+  const obs = await S.Amedas.nearest(forPlace.latitude, forPlace.longitude, amedasStations, latest,
+    forPlace.elevation ?? gridElevation);
+  if (key !== predictionKeyFor(place)) return;
+  const daytime = S.Sun.position(obs.observedAt, forPlace.latitude, forPlace.longitude).elevation > 0;
   const parts = [S.Amedas.condition(obs, daytime)];
   // 降っているなら量も出す。予報と実況を突き合わせて「ずれています」と警告していたが、
   // 8モデルの中央値は点数のための道具で、いまの気温を当てる道具ではない。
@@ -3105,6 +3167,7 @@ function render() {
   // ダイヤモンド富士や月丼の上に出すと、何の地点なのか分からなかった（2026-09-30 ユーザー指摘）。
   // それらの道具は自分のスポット一覧を持つ
   currentView = view;
+  if (nowcastFor !== predictionKeyFor(place)) nowcastReady = false;
   $("placeRow").hidden = !placeCardShown();
   // 展望台の選択は地点カードの続き。地点を出さない画面では一緒に隠す
   if (!placeCardShown()) $("deckRow").hidden = true; else renderDeckRow();
@@ -3198,6 +3261,7 @@ function render() {
 /// 詳細の下半分の釦をつなぐ。下半分は日を替えるたび・計算が届くたびに作り直されるので、
 /// **作り直したら必ずここを通す。** 重なる日の行は、最初の描画でつないでいなかった
 function kickExtras() {
+  if (!["list", "detail"].includes(currentView) || !predictionNeeded()) return;
   if ((extrasRunning && extrasRunningSeq === predictionLoadSeq) || !bundle || extrasLoadedSeq === predictionLoadSeq) return;
   const started = predictionLoadSeq;
   extrasLoadedSeq = started; extrasRunning = true; extrasRunningSeq = started;
@@ -3624,6 +3688,7 @@ function applyRoute() {
   if (atRecords) loadPhotos();
   atAdmin = !!(route && route.admin);
   atAim = !!(route && route.aim);
+  if (!atAim) aim.pendingModelPreset = null;
   atSkyMap = !!route?.skymap;
   if (!atSkyMap) SkyMapUI?.leave();
   atPlane = !!(route && route.plane);
@@ -3643,6 +3708,8 @@ function applyRoute() {
   if (currentView === "list") listScrollY = window.scrollY;
   render();
   if (atSkyMap) SkyMapUI?.open();
+  if (predictionNeeded() && (predictionDirty || !SoramiPrediction.fresh(acceptedPrediction, place, Date.now()))) void load(false);
+  ensureNowcast();
   // 2026-10-15 ユーザー「AstroNotesに切り替えたら一番上のタイトルも変えて。ロゴもある」。FramingとMap（メニューのAstroNotes）を開いている間は題名とマークをAstroNotesに
   const astroNotes = atAim || atSkyMap;
   if (astroNotes) try { localStorage.setItem("sorami.astroLast", atSkyMap ? "skymap" : "aim"); } catch {}
@@ -9165,7 +9232,24 @@ function openAim(preset) {
   const permitted = toolAllowed("diamond") || toolAllowed("pearl") || toolAllowed("tower");
   $("aimView").hidden = !permitted;
   if (!permitted) { aim.bodySeq++; return; }
+  if (preset) aim.pendingModelPreset = preset;
   const entry = ++aim.bodySeq;
+  if (!SoramiAssets.modelsReady()) {
+    const token = auth?.token;
+    $("aimLineInfo").textContent = "形状データを読み込んでいます…";
+    SoramiAssets.ensureModels().then(() => {
+      if (entry === aim.bodySeq && atAim && token === auth?.token) { $("aimLineInfo").textContent = ""; openAim(preset); }
+    }).catch(() => {
+      if (entry !== aim.bodySeq || !atAim || token !== auth?.token) return;
+      $("aimLineInfo").textContent = "形状データを取得できませんでした。";
+      const retry = document.createElement("button"); retry.type = "button"; retry.className = "chip"; retry.textContent = "再試行";
+      retry.onclick = () => openAim(preset); $("aimLineInfo").append(retry);
+      const reload = document.createElement("button"); reload.type = "button"; reload.className = "chip"; reload.textContent = "画面を更新";
+      reload.onclick = () => location.reload(); $("aimLineInfo").append(reload);
+    });
+    return;
+  }
+  preset = preset ?? aim.pendingModelPreset ?? null; aim.pendingModelPreset = null;
   const body = AIM_PRESETS[preset]?.body || aim.body;
   if (!aimReady) {
     aimReady = true;
@@ -9869,12 +9953,12 @@ function migrationPlan(owner, loginId, hasLocal) {
   return "discard";                                          // 別の人。渡さない
 }
 
-async function apiCall(method, path, body) {
+async function apiCall(method, path, body, signal) {
   const requestToken = auth?.token, requestGeneration = authGeneration;
   const headers = {};
   if (body !== undefined) headers["content-type"] = "application/json";
   if (auth) headers.authorization = `Bearer ${auth.token}`;
-  const res = await fetch(API + path, { method, headers,
+  const res = await fetch(API + path, { method, headers, signal,
     body: body === undefined ? undefined : JSON.stringify(body) });
   let data = null;
   try { data = await res.json(); } catch { /* 本文が無いこともある */ }
@@ -10221,7 +10305,7 @@ const localStorageHasToken = () => {
 
 // 開いたときに、残っているトークンで入り直す。
 // **通るかどうかはサーバーに訊く。** 期限も、取り消されたかどうかも、手元では分からない。
-async function restoreSession() {
+async function restoreSession({ onAccessReady = () => {} } = {}) {
   const found = storedAuth();
   if (!found) return;
   authGeneration++;
@@ -10230,13 +10314,18 @@ async function restoreSession() {
   // **/me の返事を待たずに出す。** 待っていると、圏外や応答が遅いときに
   // ログイン済みなのにメニューが出ないままになる（2026-09-28 ユーザー指摘）
   renderAuthButton();
+  const accessController = new AbortController(), accessTimer = setTimeout(() => accessController.abort(), 10000);
   try {
-    const me = await apiCall("GET", "/me");
+    const me = await apiCall("GET", "/me", undefined, accessController.signal);
+    clearTimeout(accessTimer);
     if (generation !== authGeneration || !auth) return;
     auth = { ...auth, loginId: me.loginId ?? auth.loginId, role: me.role ?? auth.role,
              tools: Array.isArray(me.tools) ? me.tools : auth.tools };
     lastLoginId = auth.loginId;
     saveAuth(auth, found.remembered);
+    if (atAim) openAim(null);
+    render();
+    onAccessReady();
     // 折り返しを過ぎた長いセッションは、ここで出し直す。
     // これをしないと、30日で持たせても30日目に必ず切れる。
     if (found.remembered) {
@@ -10245,12 +10334,14 @@ async function restoreSession() {
     renderAuthButton();
     await syncNow();
     if (generation !== authGeneration || !auth) return;
-    if (atAim) openAim(routeFromHash()?.preset || null);
+    // Refresh synced favorites without reapplying a launch preset over user input.
+    if (atAim) openAim(null);
+    SkyMapUI?.refreshTargets();
     render();
   } catch {
     // 401 は apiCall 側で片付いている。それ以外（圏外など）はトークンを捨てない
     renderAuthButton();
-  }
+  } finally { clearTimeout(accessTimer); }
 }
 
 /// ログインできたときの共通処理。初回は端末に残っているものを全部上げる。
@@ -10948,12 +11039,13 @@ WIDE.addEventListener("change", () => { if (bundle) render(); });
 // 読み込み後に本物の HTML を取りに行き、版が違えば一度だけ読み直す。
 // 一度きりにするのは、取得に失敗し続けたときの再読み込みループを避けるため。
 async function checkForUpdate() {
+  const release = document.querySelector('meta[name="app-version"]')?.content;
   const running = (document.querySelector('script[src*="sorami-core.js"]') || {}).src || "";
-  const mine = (running.match(/[?&]v=(\d+)/) || [])[1];
+  const mine = release || (running.match(/[?&]v=(\d+)/) || [])[1];
   if (!mine) return;
   try {
     const html = await (await fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" })).text();
-    const latest = (html.match(/sorami-core\.js\?v=(\d+)/) || [])[1];
+    const latest = (html.match(/name="app-version" content="(\d+)"/) || [])[1] || (html.match(/sorami-core\.js\?v=(\d+)/) || [])[1];
     if (!latest || latest === mine) return;
     // 読み直し済みの印は「読み直した先の版」で持つ。走っている版で持つと、
     // 同じセッション中の2回目の配信を拾えなくなる（1回で打ち止めになる）
@@ -11071,7 +11163,7 @@ function restoreSharedPlan(recent = null) {
   if(p.kind==='detail'){const changed=place.latitude!==p.o[1]||place.longitude!==p.o[2];place=SoramiPlan.expandPoint(p.o);return changed && bundle ? 'reload' : undefined;}
   const builtin=SoramiAlign.targetById(p.t.id);
   // Keep the sender's chosen heights, without modifying saved favorites or custom targets.
-  const retainedId=p.t.id==='cocoon-tower'&&SoramiAlign.CITY_MODELS[p.t.id]?p.t.id:null;
+  const retainedId=p.t.id==='cocoon-tower'?p.t.id:null;
   aim.sharedTarget={...(builtin || {}),...p.t,id:builtin?.id || retainedId || 'shared'};
   aim.candPick=null;aim.spot=null;aim.wantSpot=null;aim.wantKey=null;aim.candKey=null;aim.centerKey=null;aim.reverse=null;aimAirCompare=null;
   $('aimLimb').innerHTML='';
@@ -11118,12 +11210,13 @@ for (const d of document.querySelectorAll("dialog")) {
 }
 
 renderAuthButton();
-load(false);
-const startupSessionReady = restoreSession();
+let resolveStartupAccess;
+const startupSessionReady = new Promise(resolve => { resolveStartupAccess = resolve; });
+restoreSession({onAccessReady: resolveStartupAccess}).finally(resolveStartupAccess);
 checkForUpdate();
 </script>
-<script src="sorami-scroll-timeline.js?v=20261015165900"></script>
-<script src="sorami-datetime-ui.js?v=20261015165900"></script>
+<script src="sorami-scroll-timeline.js?v=1436491398997474438"></script>
+<script src="sorami-datetime-ui.js?v=4896469771475079267"></script>
 <script id="uiVisualPrimitives">
 const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
 // E185: visual choices forward to the original native control; no calculation path is added.
@@ -11464,6 +11557,15 @@ ctx.lineWidth=1;
   }
   ctx.lineWidth=3;ctx.strokeStyle='#111';ctx.beginPath();ctx.moveTo(x-8,y);ctx.lineTo(x-2,y);ctx.moveTo(x+2,y);ctx.lineTo(x+8,y);ctx.moveTo(x,y-8);ctx.lineTo(x,y-2);ctx.moveTo(x,y+2);ctx.lineTo(x,y+8);ctx.stroke();ctx.lineWidth=1;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();ctx.arc(x,y,1,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();mapLabel(ctx,x,y+20,pickMode==='target'?'目標物':'観測地点','#fff',width,height,'center');  for(const [name,az] of [['北',0],['東',90],['南',180],['西',270]]){const a=az*Math.PI/180,tx=x+Math.sin(a)*(r+10),ty=y-Math.cos(a)*(r+10);ctx.save();ctx.font='bold 14px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.strokeStyle='rgba(0,0,0,.95)';ctx.lineWidth=4;ctx.strokeText(name,tx,ty);ctx.fillStyle='#fff';ctx.fillText(name,tx,ty);ctx.restore();}ctx.restore();
  }
+ // Sync may finish after the map is already usable. Refresh choices, not the observer or date.
+ function refreshTargets(){
+  if(!session||!hasAccess())return;
+  const targets=mapTargets(),select=el('skyMapTarget'),id=session.target?.id;
+  select.replaceChildren(new Option('目標物なし',''));
+  for(const t of targets)select.add(new Option(t.name,t.id));
+  if(id){session.target=targets.find(t=>t.id===id)||null;targetOn=!!session.target;}
+  select.value=session.target?.id||'';render();
+ }
  function renderPassages(){
   const row=el('skyMapPassages'),t=session?.target,bodies=shownBodies(),top=validPoint(t)?SoramiAlign.partOf(t,session.partId)?.m:null,key=JSON.stringify([top,SoramiSkyMap.dayStart(session.at),session.eye,session.observer.latitude,session.observer.longitude,t?.id,t?.latitude,t?.longitude,session.partId,targetOn,bodies,!!session.daily,!!session.passError]);if(row._passageKey===key)return;row._passageKey=key;row.replaceChildren();
   if(!targetOn||!validPoint(t))return;
@@ -11624,7 +11726,7 @@ ctx.lineWidth=1;
  }
  el('skyMapUse').onclick=()=>{if(prepareFraming())pushRoute('#/aim');};
  el('skyMapUseBelow').onclick=()=>{if(prepareFraming())pushRoute('#/aim');};
- SkyMapUI={open,leave,authChanged,prepareFraming,enter};if(routeFromHash()?.skymap)applyRoute();
+ SkyMapUI={open,leave,authChanged,prepareFraming,enter,refreshTargets};if(routeFromHash()?.skymap)applyRoute();
 })();
 </script>
 
@@ -11687,15 +11789,27 @@ ctx.lineWidth=1;
  const update=()=>{select.value=get();for(const o of select.options)o.disabled=!permitted(o.value);status.textContent=!permitted(get())?'選択した画面は現在利用できないため、起動時は予測を開きます。':'';};
  // Refresh against live grants whenever settings is opened, including after a drawer swipe.
  new MutationObserver(()=>{if(settings.open)update();}).observe(document.getElementById('authButton'),{childList:true,subtree:true,characterData:true});
- window.addEventListener('load',async()=>{
+ const openStartup = async()=>{
+  const preferred=get();
+  if(initialHash||initialSearch||preferred==='forecast') { applyRoute(); return; }
+  $("status").hidden=false; $("status").textContent="ログイン状態を確認しています…";
   await startupSessionReady;
+  $("status").hidden=true;
   update();
   // Hash routes, shared-plan query parameters and navigation during login are not replaced.
-  if(startupInteracted||initialHash||initialSearch||location.hash!==initialHash||location.search!==initialSearch)return;
-  const selected=get();if(!permitted(selected))return;
+  if(startupInteracted||initialHash||initialSearch||location.hash!==initialHash||location.search!==initialSearch){applyRoute();return;}
+  const selected=get();if(!permitted(selected)){applyRoute();return;}
   const route=selected==='framing'?'#/aim/tower':selected==='map'?'#/skymap':null;
-  if(route){history.replaceState(history.state,'',route);applyRoute();}
- },{once:true});
+  if(route)history.replaceState(history.state,'',route);
+  applyRoute();
+ };
+ document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&predictionNeeded()){
+   if(predictionDirty||!SoramiPrediction.fresh(acceptedPrediction,place,Date.now()))void load(false);
+   ensureNowcast();
+  }
+ });
+ void openStartup();
 })();
 </script>
 

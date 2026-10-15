@@ -126,19 +126,19 @@ test('E198: 全画面の切替は通常・全画面とも右上の同じ位置�
  // ズームの「拡大」と取り違えない名前
  assert.match(html,/id="skyMapExpand" aria-label="地図を全画面表示"/);assert.match(html,/wide\?'全画面表示を終了':'地図を全画面表示'/);assert.doesNotMatch(html,/地図を拡大表示/);
 });
-test('2026-10-15: 構図の確認は地図の中（全画面）と上部のFraming/Mapスイッチから、同じ転送。地図の下のボタンは置かない',async()=>{
- assert.equal(html.indexOf('id="skyMapUseBelow"'),-1,'地図の下のボタンは上部スイッチへ移した');
- const sw=html.indexOf('id="skyMapAstroSwitch"'),head=html.indexOf('<div class="sky-map-head">'),content=html.indexOf('id="skyMapContent"');assert.ok(sw>0&&sw<head&&head<content,'Mapの切り替えは画面のいちばん上');
- assert.ok(html.indexOf('id="aimAstroSwitch"')<html.indexOf('id="aimBody"'),'Framingの切り替えも画面のいちばん上');
+// 2026-10-15: switches were replaced by three peer menu entries; retain the in-map transfer paths.
+test('構図への既存ボタンは条件を引き継ぎ、権限なしでは転送しない',async()=>{
+ assert.match(html,/id="skyMapUseBelow"/);
  const f=fixture({saved:{at:day,targetId:'skytree'}});await f.open();assert.equal(f.element('skyMapUse').hidden,false);assert.equal(f.element('skyMapUse').disabled,false);
- f.element('skyMapToFraming').onclick();assert.equal(f.c.hash,'#/aim');assert.equal(f.aim.plannerTransfer.body,'sun','旧ボタンと同じく条件を引き継ぐ');
- const g=fixture({tools:['skymap'],saved:{at:day,targetId:'skytree'}});await g.open();assert.equal(g.element('skyMapUse').hidden,true);g.element('skyMapToFraming').onclick();assert.equal(g.c.hash,'#/aim/tower','引き継げないときはメニューと同じくFramingを開く');
+ f.element('skyMapUseBelow').onclick();assert.equal(f.c.hash,'#/aim');assert.equal(f.aim.plannerTransfer.body,'sun');
+ const g=fixture({tools:['skymap'],saved:{at:day,targetId:'skytree'}});await g.open();assert.equal(g.element('skyMapUse').hidden,true);g.element('skyMapUseBelow').onclick();assert.equal(g.c.hash,undefined);
 });
 test('E198: 条件3行は「を見る／の方向を見る／から見る」、観測地点・目標物・出入りの言い方を揃える',async()=>{
  const block=html.slice(html.indexOf('<div class="sky-map-controls">'),html.indexOf('<div class="mapwrap sky-map-wrap">'));
  assert.deepEqual([...block.matchAll(/<span class="aim-say-v">([^<]+)<\/span>/g)].map(m=>m[1]),['を見る','の方向を見る','から見る']);
  const sky=html.slice(html.indexOf('<section id="skyMapView"'),html.indexOf('</section>',html.indexOf('<section id="skyMapView"')));
- assert.doesNotMatch(sky,/観測点|出・入|出入は|中心に目標を置く/);assert.match(html,/天体の方向と高度（Map）/);
+ assert.doesNotMatch(sky,/観測点|出・入|出入は|中心に目標を置く/);// Current menu uses the short Japanese name adopted on 2026-10-15.
+ assert.match(html,/id="skyMapTitle">地図<\/h2>/);
  const f=fixture({saved:{at:day,body:'sun',showSun:true,showMoon:false}});await f.open();
  const events=f.element('skyMapEvents').children.filter(b=>b.type==='button');assert.ok(events.length);
  for(const b of events){assert.match(b['aria-label'],/^日の(出|入) \d\d:\d\d・方位 /);assert.match(b.textContent,/^☀[出入] \d\d:\d\d$/);}

@@ -26,9 +26,10 @@ test('縦横とグリッドの図は区別でき、操作は読み上げ名を�
 test('現在位置の帯は独立MAP・通常/共有/旧URLの重ねるでも一意に付く',()=>{
  const extract=name=>{const at=html.indexOf('function '+name+'(');return html.slice(at,html.indexOf('\n}',at)+2);};
  const nodes=new Map();const node=id=>{if(!nodes.has(id))nodes.set(id,{attrs:{},dataset:{},setAttribute(k,v){this.attrs[k]=v;},removeAttribute(k){delete this.attrs[k];}});return nodes.get(id);};
- const tools=['#/aim/tower','#/plane','#/iss','#/records'].map(path=>{const n=node(path);n.dataset.tool=path;return n;});node('toolsMenu').querySelectorAll=()=>tools;
+ // Current menu gives map its own entry.
+ const tools=['#/skymap','#/aim/tower','#/plane','#/iss','#/records'].map(path=>{const n=node(path);n.dataset.tool=path;return n;});node('toolsMenu').querySelectorAll=()=>tools;
  const c=vm.createContext({$:node,location:{hash:''},S:{PHENOMENA:{}}});vm.runInContext(extract('routeFromHash')+'\n'+extract('markToolsCurrent'),c);
- for(const [hash,current] of [['','toolsHome'],['#/skymap','#/aim/tower'],['#/aim','#/aim/tower'],['#/aim?plan=example','#/aim/tower'],['#/aim/fuji','#/aim/tower'],['#/aim/pearl','#/aim/tower'],['#/plane','#/plane'],['#/iss','#/iss'],['#/records','#/records']]){c.location.hash=hash;c.markToolsCurrent();assert.equal(node(current).attrs['aria-current'],'page',hash);assert.equal([...nodes.values()].filter(n=>n.attrs['aria-current']==='page').length,1,hash);}
+ for(const [hash,current] of [['','toolsHome'],['#/skymap','#/skymap'],['#/aim','#/aim/tower'],['#/aim?plan=example','#/aim/tower'],['#/aim/fuji','#/aim/tower'],['#/aim/pearl','#/aim/tower'],['#/plane','#/plane'],['#/iss','#/iss'],['#/records','#/records']]){c.location.hash=hash;c.markToolsCurrent();assert.equal(node(current).attrs['aria-current'],'page',hash);assert.equal([...nodes.values()].filter(n=>n.attrs['aria-current']==='page').length,1,hash);}
 });
 test('観測地点を確定した確認表示と復帰表示の後にも三脚の形が残る',async()=>{
  const start=html.indexOf('$("aimPick").onclick = async () => {'),end=html.indexOf('\n    };',start)+7;

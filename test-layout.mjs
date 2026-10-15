@@ -112,7 +112,8 @@ ok(!/ログインし直せば戻ります/.test(html), "消える話も書かな
 // E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 // **どの画面でも出す。** 画面を移ったり、ログインの復帰が遅れたりしても消えない
 ok(/renderTools\(\);\s*\n\s*renderDeckRow\(\)/.test(html), "描き直しのたびに見直す");
-ok(/renderAuthButton\(\);\s*\n\s*try \{/.test(html), "/me を待たずに出す");
+// A bounded access request is created after rendering the saved session.
+{const restore=html.slice(html.indexOf('async function restoreSession('),html.indexOf('/// ログインできたとき'));ok(restore.indexOf('renderAuthButton();')<restore.indexOf('await apiCall("GET", "/me"'), "/me を待たずに出す");}
 ok(/aria-haspopup="true"/.test(html) && /role="dialog" aria-modal="true"/.test(html),
   "開閉を読み上げへ伝える");
 // 引き出しの作り（正本: 04_デザイン定義「4-4. 道具のメニュー（引き出し）」）
@@ -2683,8 +2684,9 @@ ok((html.match(/remember: wantsRemember\(\)/g) || []).length === 4,
   "ログインの4経路すべてでサーバーへ伝える",
   String((html.match(/remember: wantsRemember\(\)/g) || []).length));
 
-ok(/restoreSession\(\)/.test(html), "開いたときに入り直す");
-ok(/async function restoreSession[\s\S]{0,400}apiCall\("GET", "\/me"\)/.test(html),
+// Startup may expose validated grants before background sync completes.
+ok(/restoreSession\(\{onAccessReady: resolveStartupAccess\}\)/.test(html), "開いたときに入り直す");
+ok(/async function restoreSession[\s\S]{0,1000}apiCall\("GET", "\/me", undefined, accessController.signal\)/.test(html),
   "通るかどうかはサーバーに訊く（手元で期限を判断しない）");
 ok(/session\/refresh/.test(html), "折り返しを過ぎたら出し直す（30日目に必ず切れるのを防ぐ）");
 

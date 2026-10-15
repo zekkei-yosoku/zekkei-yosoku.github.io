@@ -47,7 +47,7 @@ test('新天体の昼夜は太陽を参照し、地平線下/近接/実重なり
 });
 test('新天体ライブラリは遅延読込し、失敗後の再試行ができる',async()=>{
  const scripts=[],source=readFileSync(new URL('./sorami-bodies.js',import.meta.url),'utf8');
- const c={SoramiAstro:A,Promise,Map,Math,Date,Number,Object,Error,document:{createElement:()=>({remove(){}}),head:{append:s=>scripts.push(s)}}};c.window=c;vm.runInNewContext(source,c);
+ const c={SoramiAssets:{modelsReady:()=>true},SoramiAstro:A,Promise,Map,Math,Date,Number,Object,Error,document:{createElement:()=>({remove(){}}),head:{append:s=>scripts.push(s)}}};c.window=c;vm.runInNewContext(source,c);
  await c.SoramiBodies.ensure('moon');assert.equal(scripts.length,0);
  const a=c.SoramiBodies.ensure('sirius'),b=c.SoramiBodies.ensure('venus');assert.equal(a,b);assert.equal(scripts.length,1);
  scripts[0].onerror();await assert.rejects(a,/読み込めません/);assert.throws(()=>c.SoramiBodies.state('sirius',at,obs),/読み込めません/);
@@ -68,7 +68,7 @@ test('天体変更の遅い返答は最新選択を上書きせず、合わせ�
  const start=html.indexOf('    $("aimBody").onchange = async () => {'),end=html.indexOf('    $("aimHeightSet").onclick',start);assert.ok(start>0&&end>start);
  const waits={},els={aimBody:{value:'sirius'},aimLineInfo:{},aimLimb:{innerHTML:'old'}};
  const aim={body:'moon',bodySeq:0,limb:'behind',limbsByBody:{sun:'onTop'}};
- const c={aim,$:id=>els[id],SoramiBodies:{ensure:id=>new Promise((resolve,reject)=>waits[id]={resolve,reject})},aimLimbValue:()=>aim.limb,aimApply(){c.applied=aim.body}};
+ const c={SoramiAssets:{modelsReady:()=>true},aim,$:id=>els[id],SoramiBodies:{ensure:id=>new Promise((resolve,reject)=>waits[id]={resolve,reject})},aimLimbValue:()=>aim.limb,aimApply(){c.applied=aim.body}};
  vm.runInNewContext(html.slice(start,end),c);const first=els.aimBody.onchange();els.aimBody.value='sun';const second=els.aimBody.onchange();waits.sun.resolve();await second;waits.sirius.resolve();await first;
  assert.equal(aim.body,'sun');assert.equal(aim.limb,'onTop');assert.equal(aim.limbsByBody.moon,'behind');assert.equal(c.applied,'sun');
  els.aimBody.value='venus';const failure=els.aimBody.onchange();waits.venus.reject(Error('network'));await failure;assert.equal(aim.body,'sun');assert.equal(els.aimBody.value,'sun');assert.match(els.aimLineInfo.textContent,/再試行/);
@@ -79,7 +79,7 @@ test('初回読込中の太陽選択と明示URLは旧入口の完了で上書�
   let done;const pending=new Promise(r=>done=r),els=new Map();
   const $=id=>{if(!els.has(id))els.set(id,{value:id==='aimTarget'?'skytree':'',innerHTML:'',textContent:''});return els.get(id)};
   const aim={body:'sirius',bodySeq:0,limb:'center',limbsByBody:{},target:null};
-  const c={aim,$,toolAllowed:()=>true,AIM_PRESETS:{tower:{body:null,target:null},diamond:{body:'sun',target:'fuji'}},SoramiBodies:{definition:B.definition,ready:()=>false,ensure:id=>id==='sun'?Promise.resolve():pending},SoramiAlign:{targetById:()=>({id:'fuji',parts:[{id:'summit',m:3776}]})},aimFillSelects(){},aimFillParts(){},aimLimbValue:()=>aim.limb,store:{get:()=> 'skytree'},Date,Number,requestAnimationFrame(){},aimApply(){c.applied=aim.body},aimRedrawLine(){},aimRenderList(){},aimRenderFrom(){}};
+  const c={SoramiAssets:{modelsReady:()=>true},aim,$,toolAllowed:()=>true,AIM_PRESETS:{tower:{body:null,target:null},diamond:{body:'sun',target:'fuji'}},SoramiBodies:{definition:B.definition,ready:()=>false,ensure:id=>id==='sun'?Promise.resolve():pending},SoramiAlign:{targetById:()=>({id:'fuji',parts:[{id:'summit',m:3776}]})},aimFillSelects(){},aimFillParts(){},aimLimbValue:()=>aim.limb,store:{get:()=> 'skytree'},Date,Number,requestAnimationFrame(){},aimApply(){c.applied=aim.body},aimRedrawLine(){},aimRenderList(){},aimRenderFrom(){}};
   vm.runInNewContext('let aimReady=false;'+code+';this.open=openAim;',c);return {c,$,aim,done};
  }
  let f=setup();f.c.open('tower');assert.equal(typeof f.$('aimBody').onchange,'function');assert.ok(f.$('aimDate').value);assert.equal(f.$('aimTarget').value,'skytree');
@@ -90,4 +90,11 @@ test('初回読込中の太陽選択と明示URLは旧入口の完了で上書�
 test('固有運動をAstropyの空間運動とJ2000/2026/2036で独立照合',()=>{
  const data=JSON.parse(readFileSync(new URL('./data/celestial-reference.json',import.meta.url)));
  for(const f of data.spaceMotion){const c=B.siriusCatalog(Date.parse(f.utc));assert.ok(spherical({azimuth:c.ra*15,altitude:c.dec},{azimuth:f.ra*15,altitude:f.dec})<.1);assert.ok(Math.abs(c.distanceLightYears-f.distanceLightYears)<1e-6);}
+});
+
+test('モデル待ち中の同期更新は未適用プリセットを落とさず、新しい入口が優先する',async()=>{
+ const start=html.indexOf('function openAim(preset) {'),end=html.indexOf('/// 地図を開く中心と倍率',start),code=html.slice(start,end);let ready=false,release;const pending=new Promise(r=>release=r),els=new Map(),aim={bodySeq:0,body:'moon',limbsByBody:{},limb:'center'};
+ const $=id=>{if(!els.has(id))els.set(id,{value:id==='aimTarget'?'fuji':'',innerHTML:'',textContent:''});return els.get(id)};
+ const c={aim,$,auth:{token:'test'},atAim:true,SoramiAssets:{modelsReady:()=>ready,ensureModels:()=>pending},toolAllowed:()=>true,AIM_PRESETS:{diamond:{body:'sun',target:'fuji'},pearl:{body:'moon',target:'fuji'}},SoramiBodies:{definition:B.definition,ready:()=>true},SoramiAlign:{targetById:()=>({id:'fuji',parts:[{}]})},aimFillSelects(){},aimFillParts(){},aimLimbValue:()=>aim.limb,store:{get:()=> 'fuji'},Date,Number,requestAnimationFrame(){},aimApply(){return false;}};
+ vm.runInNewContext('let aimReady=false;'+code+';this.open=openAim;',c);c.open('diamond');c.open(null);ready=true;release();await new Promise(setImmediate);assert.equal(aim.body,'sun');assert.equal(aim.pendingModelPreset,null);
 });
