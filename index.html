@@ -12,8 +12,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="17156104118495055430">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-3+OUCcvK7zpEakwNZQ/BHZo7jBCkq1hXgjgWNZZqT6A=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-9dr71BkfferxEt2N+TCyS0SXR8vW+Gepxnzxj/fHKLc=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-kMcMNnzvXRPE5mR2nEkNJTlS3n2f+Da50UDk6CABv84='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="18300298660389499004">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-UHuo+mclbxFvdfBi9K8URx6bHJg+JVub9HXkSc0o6Ms=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-9dr71BkfferxEt2N+TCyS0SXR8vW+Gepxnzxj/fHKLc=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-jTLATA/M/l2d/gmV5q4NzDHlsQKTPM0vCo0Em9itpIo=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
 <link data-script-preload rel="preload" as="script" href="sorami-astro.js?v=9181748260451918765">
@@ -451,6 +451,11 @@
   :is(#appSettings, #accountSheet) { position: fixed; inset: 0 0 0 auto; width: min(480px, 92vw); max-width: 92vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 16px 0 0 16px; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); overflow: hidden; }
   :is(#appSettings, #accountSheet)[open] { display: flex; flex-direction: column; animation: settings-from-right .22s ease-out; }
   :is(#appSettings, #accountSheet) > .sheet-head { flex: none; }
+  :is(#appSettings, #accountSheet) > .sheet-head { display: grid; grid-template-columns: 44px minmax(0,1fr) 44px; align-items: center; }
+  :is(#appSettings, #accountSheet) > .sheet-head > strong { grid-column: 2; grid-row: 1; text-align: center; }
+  :is(#appSettings, #accountSheet) > .sheet-head > button:last-child { grid-column: 3; grid-row: 1; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; }
+  :is(#appSettings, #accountSheet) .panel-back { grid-column: 1; grid-row: 1; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--text); }
+
   :is(#appSettings, #accountSheet) > .sheet-body { flex: 1; min-height: 0; max-height: none; overflow-y: auto; }
   @keyframes settings-from-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
   @media (prefers-reduced-motion: reduce) { :is(#appSettings, #accountSheet)[open] { animation: none; } }
@@ -668,7 +673,7 @@
                    margin: -1px 0 0 -1px; background: var(--accent); }
   /* 地図の種類（右上の釦と、押すと出る一覧）。「地図／写真」の2択はどちらも地図だった（2026-10-02 ユーザー指摘）ので、
      地図アプリと同じく重なりの記号の釦にした。標準・航空写真・地形 */
-  .map-ctl, .mapzoom .map-locate { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
+  .map-ctl, .mapzoom .map-locate { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center;
             background: var(--card); color: var(--text); border: 1px solid color-mix(in srgb, var(--text) 14%, transparent); }
   .map-layers-btn { position: absolute; right: 8px; top: 8px; }
   .map-layer-menu { position: absolute; right: 8px; top: 54px; z-index: 2; display: flex; flex-direction: column; min-width: 132px;
@@ -681,7 +686,7 @@
   .map-msg { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); margin: 0; padding: 6px 10px; border-radius: 8px;
              font-size: 0.75rem; background: var(--card); color: var(--text); white-space: nowrap; }
   .mapzoom { position: absolute; right: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 4px; }
-  .mapzoom button { width: 40px; height: 40px; border-radius: 10px; font-size: 1.1rem; font-weight: 700;
+  .mapzoom button { width: 44px; height: 44px; border-radius: 10px; font-size: 1.1rem; font-weight: 700;
                     background: var(--card); color: var(--text);
                     border: 1px solid color-mix(in srgb, var(--text) 14%, transparent); }
   .mapattr { position: absolute; left: 6px; bottom: 6px; font-size: 0.58rem; padding: 1px 5px;
@@ -797,7 +802,7 @@
      横に並べると説明が細く5行に折れていた */
   /* 地図の下の小さな丸い釦（座標・地図アプリ・ここから重ねる）。2026-10-02 ユーザー「ボタンが余白多いしでかい」で、
      幅いっぱいの大きな釦から字の幅の丸い釦に。見た目は 34px、押せる所は上下に 5px 足して 44px（::before） */
-  .chip { position: relative; display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 12px;
+  .chip { position: relative; display: inline-flex; align-items: center; gap: 5px; min-width: 44px; min-height: 34px; padding: 0 12px;
           border-radius: 999px; background: var(--line); color: var(--text); font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
   .chip::before { content: ""; position: absolute; left: 0; right: 0; top: -5px; bottom: -5px; }
   .chip:disabled { opacity: .5; }
@@ -981,8 +986,15 @@
   .dhead .d { font-weight: 700; font-size: 0.69rem; letter-spacing: -.03em;
               color: var(--secondary); font-variant-numeric: tabular-nums; }
   .dhead.sat .d { color: #2f6fb5; } .dhead.sun .d { color: var(--red); }
-  .dhead.today .d { color: var(--accent); }
-  [data-theme="dark"] .dhead.sat .d { color: #6ba6e0; }
+  /* 今日は曜日色と独立した中立の囲み＋文字で示す。青＝土曜と操作色を混同しない。 */
+  .dhead.today .d { color: var(--text); background: var(--sunk); border-radius: 4px; box-shadow: inset 0 0 0 1px var(--text); padding: 1px 4px; }
+  .dhead.today > span:last-child::after { content: " 今日"; color: var(--text); font-weight: 700; }
+  .dhead.sat > span:last-child { color: var(--weekday-sat, #2f6fb5); }
+  .dhead.sun > span:last-child { color: var(--red); }
+  :root { --weekday-sat: #2f6fb5; }
+  :root[data-theme="dark"] { --weekday-sat: #6ba6e0; }
+
+  [data-theme="dark"] .dhead.sat:not(.today) .d { color: var(--weekday-sat); }
 
   /* 良し悪しは【セルの地の色】で示す。色は 期待薄→絶景 の連続グラデーション
      （凡例の帯と同じ並び）なので、塗りの高さや棒で重ねて言う必要がない。
@@ -1280,7 +1292,7 @@ main:has(>#skyMapView:not([hidden])){padding-bottom:calc(var(--sky-footer-h,100p
 .sky-map-wrap.sky-map-wide{position:fixed;inset:0;height:auto;max-width:none;border:0;border-radius:0;z-index:30;margin:0}html:has(.sky-map-wide){scrollbar-gutter:auto;overflow:hidden}body:has(.sky-map-wide){overflow:hidden}.sky-map-wide .mapzoom{bottom:calc(var(--sky-footer-h,100px) + 8px)}.sky-map-wide .mapattr{bottom:calc(var(--sky-footer-h,100px) + 4px)}.sky-map-time-actions button{padding-inline:7px}.sky-map-time-actions{flex-wrap:wrap}
 .sky-map-actions,.sky-map-events{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.sky-map-date{display:grid;grid-template-columns:36px minmax(0,1.5fr) minmax(0,1fr) 36px;gap:4px}.sky-map-date input{width:100%;min-width:0;min-height:44px;box-sizing:border-box;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;font-size:16px}.sky-map-date button{padding:0}
 #skyMapRange{width:100%;height:38px;accent-color:var(--accent)}.sky-map-use{width:100%;min-height:44px;background:var(--accent);color:var(--on-accent)}#skyMapCustom input{width:90px;min-height:44px;background:var(--card);color:var(--text);font-size:16px}#skyMapTargetInfo{margin:10px 0}#skyMapRetry[hidden]{display:none}
-.sky-map-time-actions{display:flex;align-items:center;gap:8px;margin-bottom:4px}.sky-map-time-actions .tiny{margin-left:auto}.sky-map-time-actions button{min-height:36px}.sky-map-definition{color:var(--secondary)}
+.sky-map-time-actions{display:flex;align-items:center;gap:8px;margin-bottom:4px}.sky-map-time-actions .tiny{margin-left:auto}.sky-map-time-actions button{min-width:44px;min-height:36px}.sky-map-definition{color:var(--secondary)}
 
 /* E185: recognisable shapes remain beside their subject and keep readable names. */
 .ui-icon-label{display:inline-flex;align-items:center;justify-content:center;gap:7px}
@@ -1395,6 +1407,17 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
    焦点移動、入力カーソル、選択済みの状態表示は維持する。 */
 * { -webkit-tap-highlight-color: transparent; }
 *:focus, *:focus-visible { outline: none !important; }
+
+/* 入力だけは図/PCの縮小文字規則より優先し、iOSの入力時拡大を防ぐ。 */
+input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color: var(--accent); }
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]), select, textarea { font-size: 16px !important; }
+/* 透明な代理select以外はWebKit/Chromeで同じ枠・角丸・開閉印にする。 */
+select:not(.mxsort select):not(.aim-pick select) { appearance: none; -webkit-appearance: none; min-height: 44px; border: 1px solid var(--line); border-radius: 9px; background-color: var(--sunk); color: var(--text); padding: 8px 32px 8px 10px; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
+/* 共通UIの実寸。用途別の小型chip/表セルは既存の専用基準を使う。 */
+:root { --ui-control-size: 44px; --ui-icon-size: 20px; --ui-icon-stroke: 1.8; }
+button.ui-icon-button { display: inline-grid !important; place-items: center; flex: none; width: var(--ui-control-size) !important; height: var(--ui-control-size) !important; min-width: var(--ui-control-size); min-height: var(--ui-control-size); padding: 0 !important; border: 0; border-radius: 0; background: transparent; color: var(--text); }
+button.ui-icon-button::after { content: none; }
+.ui-control-icon { display: block; width: var(--ui-icon-size); height: var(--ui-icon-size); fill: none; stroke: currentColor; stroke-width: var(--ui-icon-stroke); stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 </style></head>
 <body>
 <main>
@@ -2072,7 +2095,7 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 </dialog>
 
 <dialog class="sheet" id="accountSheet" aria-labelledby="accountTitle" tabindex="-1">
-  <div class="sheet-head"><button type="button" class="chip" id="accountBack" aria-label="設定へ戻る">←</button><strong id="accountTitle">アカウント</strong><button id="accountClose">閉じる</button></div>
+  <div class="sheet-head"><button type="button" class="panel-back" id="accountBack" aria-label="設定へ戻る"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg></button><strong id="accountTitle">アカウント</strong><button id="accountClose" aria-label="閉じる" title="閉じる"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
   <div class="sheet-body">
     <div id="accountBody"></div>
     <p class="warn" id="accountErr" style="margin-top:10px" hidden></p>
@@ -3861,8 +3884,8 @@ function renderMatrix(order, now) {
     + `<select id="sortSelect" aria-label="並び替え"></select></div>`;
   for (const dayMs of dayList) {
     const wd = S.Cal.weekday(dayMs);
-    const cls = dayMs === today ? "today" : wd === "土" ? "sat" : wd === "日" ? "sun" : "";
-    head += `<div class="dhead ${cls}"><span class="d">${S.Cal.monthDay(dayMs)}</span><span>${wd}</span></div>`;
+    const cls = [wd === "土" ? "sat" : wd === "日" ? "sun" : "", dayMs === today ? "today" : ""].filter(Boolean).join(" ");
+    head += `<div class="dhead ${cls}"${cls.includes("today") ? ' aria-current="date" aria-label="今日"' : ""}><span class="d">${S.Cal.monthDay(dayMs)}</span><span>${wd}</span></div>`;
   }
   let rows = "";
   for (const id of live) {
@@ -3933,8 +3956,8 @@ function renderSkeleton(now) {
   let head = `<div class="mxrail mxsort">${sortFace()}</div>`;
   for (const dayMs of days) {
     const wd = S.Cal.weekday(dayMs);
-    const cls = dayMs === today ? "today" : wd === "土" ? "sat" : wd === "日" ? "sun" : "";
-    head += `<div class="dhead ${cls}"><span class="d">${S.Cal.monthDay(dayMs)}</span><span>${wd}</span></div>`;
+    const cls = [wd === "土" ? "sat" : wd === "日" ? "sun" : "", dayMs === today ? "today" : ""].filter(Boolean).join(" ");
+    head += `<div class="dhead ${cls}"${cls.includes("today") ? ' aria-current="date" aria-label="今日"' : ""}><span class="d">${S.Cal.monthDay(dayMs)}</span><span>${wd}</span></div>`;
   }
   let rows = "";
   for (const [id, meta] of order) {
@@ -11853,11 +11876,11 @@ ctx.lineWidth=1;
  themeRow.append(themeLabel,themeButtons,themeNote,themeStatus);updateTheme();
  row.append(themeRow,label,select,note,status);
  const settings=document.createElement('dialog');settings.id='appSettings';settings.className='sheet';settings.tabIndex=-1;settings.setAttribute('aria-labelledby','appSettingsTitle');
- settings.innerHTML='<div class="sheet-head"><strong id="appSettingsTitle">設定</strong><button type="button" id="appSettingsClose">閉じる</button></div><div class="sheet-body"></div>';
+ settings.innerHTML='<div class="sheet-head"><strong id="appSettingsTitle">設定</strong><button type="button" id="appSettingsClose" aria-label="閉じる" title="閉じる"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div class="sheet-body"></div>';
  const settingsBody=settings.querySelector('.sheet-body');
  const categories=document.createElement('div');categories.id='settingsCategories';
  categories.innerHTML='<button type="button" class="list-item" id="settingsAccount" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2Z"/></svg><span style="flex:1"><strong>アカウント・ログイン</strong><span class="tiny" style="display:block;margin-top:4px">パスワード・パスキーなど</span></span><span aria-hidden="true">›</span></button><button type="button" class="list-item" id="settingsScreen" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg><span style="flex:1"><strong>画面</strong><span class="tiny" style="display:block;margin-top:4px">表示モード・起動画面</span></span><span aria-hidden="true">›</span></button>';
- const back=document.createElement('button');back.type='button';back.id='settingsBack';back.className='chip';back.textContent='←';back.setAttribute('aria-label','戻る');back.hidden=false;
+ const back=document.createElement('button');back.type='button';back.id='settingsBack';back.className='panel-back';back.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg>';back.setAttribute('aria-label','戻る');back.hidden=false;
  row.hidden=true;settings.querySelector('.sheet-head').prepend(back);settingsBody.append(categories,row);document.body.append(settings);
  const originalAccountOpen=document.getElementById('authButton').onclick;
  let settingsOpener=document.getElementById('toolsButton');
@@ -11907,5 +11930,25 @@ ctx.lineWidth=1;
 })();
 </script>
 
+
+<script id="sharedPanelControls">
+// 共通パネル操作。文字の×/✕と個別SVGを混在させず、動的生成にも適用する。
+(() => {
+ const paths={close:'M5 5 19 19M19 5 5 19',back:'m14 5-7 7 7 7'};
+ function decorate(button,kind){
+  if(button.dataset.uiControl===kind)return;
+  button.dataset.uiControl=kind;button.classList.add('ui-icon-button');
+  if(!button.getAttribute('aria-label'))button.setAttribute('aria-label',kind==='close'?'閉じる':'戻る');
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('class','ui-control-icon');
+  const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',paths[kind]);svg.append(path);button.replaceChildren(svg);
+ }
+ function scan(root){
+  const buttons=[...(root.matches?.('button')?[root]:[]),...(root.querySelectorAll?.('button')||[])];
+  for(const b of buttons){if(b.id==='settingsBack'||b.id==='accountBack'){decorate(b,'back');continue;}if(b.id==='toolsClose'||b.getAttribute('aria-label')==='閉じる'||b.textContent.trim()==='閉じる')decorate(b,'close');}
+ }
+ scan(document);
+ new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node.nodeType===1)scan(node);}).observe(document.body,{childList:true,subtree:true});
+})();
+</script>
 </body>
 </html>
