@@ -1782,11 +1782,12 @@ ok(/const darkQuery = matchMedia\("\(prefers-color-scheme: dark\)"\);/.test(html
 {
   const ctl = html.slice(html.indexOf("const darkQuery ="), html.indexOf("const CELL_RAMP"));
   ok(!/@media ?\(prefers-color-scheme/.test(html.replace(/<!--[\s\S]*?-->/g, "").replace(/\/\*[\s\S]*?\*\//g, "")), "色はメディアクエリに直接従わない（<html data-theme> で決める）");
-  ok(/<meta name="theme-color"[^>]*>\n<!--[^\n]*-->\n<script>document\.documentElement\.dataset\.theme = matchMedia\("\(prefers-color-scheme: dark\)"\)\.matches \? "dark" : "light";<\/script>/.test(html)
-    && html.indexOf('<script>document.documentElement.dataset.theme') < html.indexOf("<style>"), "最初のテーマは描く前（head・style より前）に入れる");
+  // Stored appearance must also be applied before the first stylesheet.
+  const initialThemeScript = html.match(/<script>([^<]*sorami\.theme[^<]*)<\/script>/)?.[0];
+  ok(!!initialThemeScript && html.indexOf(initialThemeScript) < html.indexOf("<style>"), "最初のテーマは描く前（head・style より前）に入れる");
   ok(/if \(document\.hidden\) return;/.test(ctl) && /themeHoldUntil = Date\.now\(\) \+ 2000;/.test(ctl), "裏にいる間は替えず、戻ってから2秒は替えない");
   ok(/darkQuery\.addEventListener\("change", \(\) => \{ clearTimeout\(themeTimer\); themeTimer = setTimeout\(applyTheme, 400\); \}\);/.test(ctl)
-    && /const theme = darkQuery\.matches \? "dark" : "light";/.test(ctl), "表での切り替えは少し待って、そのときの値で替える");
+    && /const theme = mode === "auto" \? \(darkQuery\.matches \? "dark" : "light"\) : mode;/.test(ctl), "表での切り替えは少し待って、そのときの値で替える");
   ok(/color-scheme: light; --bg:/.test(html) && /:root\[data-theme="dark"\] \{ color-scheme: dark;/.test(html) && !/color-scheme:light dark/.test(html),
     "入力欄などの部品の色もテーマに合わせる（端末の外観に直接従わない）");
   // 動き: 裏で外観が往復しても、戻った直後の古い値でも替えない。表で替えたら替わる

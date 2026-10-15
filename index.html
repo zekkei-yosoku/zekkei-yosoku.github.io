@@ -12,8 +12,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="17195297973066252382">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-7fYLElg2DZe67thF3tOoTSaV2zsLTXVu7HCZG0hs3sE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-9dr71BkfferxEt2N+TCyS0SXR8vW+Gepxnzxj/fHKLc=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-sE/5JbWG89JiB8WO7Ohpf7bhHKKiemo4s8v82J3ZI0o='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="8684721046232894322">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-3+OUCcvK7zpEakwNZQ/BHZo7jBCkq1hXgjgWNZZqT6A=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-9dr71BkfferxEt2N+TCyS0SXR8vW+Gepxnzxj/fHKLc=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-kMcMNnzvXRPE5mR2nEkNJTlS3n2f+Da50UDk6CABv84='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
 <link data-script-preload rel="preload" as="script" href="sorami-astro.js?v=9181748260451918765">
@@ -55,7 +55,7 @@
 <link rel="manifest" href="manifest.json?v=20261015icons2">
 <meta name="theme-color" content="#0a0f24">
 <!-- ライト・ダークは <html data-theme> で決める（2026-10-06）。最初の値は描く前にここで入れる。切り替えは本体の script（裏にいる間は替えない） -->
-<script>document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";</script>
+<script>(()=>{let mode;try{mode=localStorage.getItem('sorami.theme');}catch{}document.documentElement.dataset.theme = mode==='dark'||mode==='light'?mode:matchMedia("(prefers-color-scheme: dark)").matches?'dark':'light';})();</script>
 <style>
   /* 配色はカード地に対するコントラストを実測して決めている。
      文字として使う色は 4.5:1 以上（WCAG AA の本文基準）。
@@ -2210,12 +2210,23 @@ readTint();
 // Google マップから戻ると約1.3秒ライトで出ていた。表で本当に替えたときは、値が落ち着くのを少し待ってから替える
 const darkQuery = matchMedia("(prefers-color-scheme: dark)");
 let themeTimer = 0, themeHoldUntil = 0;
+function getThemePreference() {
+  try { const mode = localStorage.getItem('sorami.theme'); return ['auto','light','dark'].includes(mode) ? mode : 'auto'; } catch { return 'auto'; }
+}
+function setThemePreference(mode) {
+  if (!['auto','light','dark'].includes(mode)) return false;
+  try { localStorage.setItem('sorami.theme', mode); } catch { return false; }
+  themeHoldUntil = 0;
+  applyTheme();
+  return true;
+}
 function applyTheme() {
   clearTimeout(themeTimer);
   if (document.hidden) return;
   const wait = themeHoldUntil - Date.now();
   if (wait > 0) { themeTimer = setTimeout(applyTheme, wait); return; }
-  const theme = darkQuery.matches ? "dark" : "light";
+  const mode = getThemePreference();
+  const theme = mode === "auto" ? (darkQuery.matches ? "dark" : "light") : mode;
   if (document.documentElement.dataset.theme === theme) return;
   document.documentElement.dataset.theme = theme;
   readTint(); applyRoute();
@@ -11816,12 +11827,23 @@ ctx.lineWidth=1;
  const note=document.createElement('p');note.className='tiny';note.textContent='この端末で最初に開く画面。リンクから開く場合はリンク先を優先します。';
  const status=document.createElement('p');status.className='tiny';status.setAttribute('role','status');
  select.onchange=()=>{try{localStorage.setItem(key,select.value);status.textContent='保存しました。次回の起動から適用します。';}catch{select.value=get();status.textContent='保存できませんでした。端末の保存設定を確認してください。';}};
- row.append(label,select,note,status);
+ const themeRow=document.createElement('div');themeRow.style.cssText='padding-bottom:20px;margin-bottom:16px;border-bottom:1px solid var(--line)';
+ const themeLabel=document.createElement('div');themeLabel.id='themeModeLabel';themeLabel.textContent='表示モード';
+ const themeButtons=document.createElement('div');themeButtons.id='themeMode';themeButtons.setAttribute('role','group');themeButtons.setAttribute('aria-labelledby','themeModeLabel');themeButtons.style.cssText='display:flex;gap:6px;margin-top:8px';
+ const themeStatus=document.createElement('p');themeStatus.className='tiny';themeStatus.setAttribute('role','status');
+ const updateTheme=()=>{for(const button of themeButtons.children){const selected=button.dataset.mode===getThemePreference();button.setAttribute('aria-pressed',String(selected));button.style.background=selected?'var(--accent)':'var(--sunk)';button.style.color=selected?'var(--on-accent)':'var(--text)';}};
+ for(const [mode,name] of [['auto','自動'],['light','ライト'],['dark','ダーク']]){
+  const button=document.createElement('button');button.type='button';button.dataset.mode=mode;button.textContent=name;button.style.cssText='flex:1;min-height:44px;border-radius:9px;font-size:16px';
+  button.onclick=()=>{const saved=setThemePreference(mode);updateTheme();themeStatus.textContent=saved?'保存しました。':'保存できませんでした。端末の保存設定を確認してください。';};themeButtons.append(button);
+ }
+ const themeNote=document.createElement('p');themeNote.className='tiny';themeNote.textContent='自動は端末の設定に合わせます。この端末に保存されます。';
+ themeRow.append(themeLabel,themeButtons,themeNote,themeStatus);updateTheme();
+ row.append(themeRow,label,select,note,status);
  const settings=document.createElement('dialog');settings.id='appSettings';settings.className='sheet';settings.tabIndex=-1;settings.setAttribute('aria-labelledby','appSettingsTitle');
  settings.innerHTML='<div class="sheet-head"><strong id="appSettingsTitle">設定</strong><button type="button" id="appSettingsClose">閉じる</button></div><div class="sheet-body"></div>';
  const settingsBody=settings.querySelector('.sheet-body');
  const categories=document.createElement('div');categories.id='settingsCategories';
- categories.innerHTML='<button type="button" class="list-item" id="settingsAccount" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2Z"/></svg><span style="flex:1"><strong>アカウント・ログイン</strong><span class="tiny" style="display:block;margin-top:4px">パスワード・パスキーなど</span></span><span aria-hidden="true">›</span></button><button type="button" class="list-item" id="settingsScreen" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg><span style="flex:1"><strong>画面</strong><span class="tiny" style="display:block;margin-top:4px">起動画面</span></span><span aria-hidden="true">›</span></button>';
+ categories.innerHTML='<button type="button" class="list-item" id="settingsAccount" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2Z"/></svg><span style="flex:1"><strong>アカウント・ログイン</strong><span class="tiny" style="display:block;margin-top:4px">パスワード・パスキーなど</span></span><span aria-hidden="true">›</span></button><button type="button" class="list-item" id="settingsScreen" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg><span style="flex:1"><strong>画面</strong><span class="tiny" style="display:block;margin-top:4px">表示モード・起動画面</span></span><span aria-hidden="true">›</span></button>';
  const back=document.createElement('button');back.type='button';back.id='settingsBack';back.className='chip';back.textContent='←';back.setAttribute('aria-label','戻る');back.hidden=false;
  row.hidden=true;settings.querySelector('.sheet-head').prepend(back);settingsBody.append(categories,row);document.body.append(settings);
  const originalAccountOpen=document.getElementById('authButton').onclick;
@@ -11845,7 +11867,7 @@ ctx.lineWidth=1;
   panel.addEventListener('touchcancel',()=>{start=null;},{passive:true});
   panel.addEventListener('touchend',event=>{const from=start;start=null;if(!from||!panel.open)return;const t=Array.from(event.changedTouches).find(t=>t.identifier===from.id);if(!t)return;const dx=t.clientX-from.x,dy=t.clientY-from.y;if(dx>70&&Math.abs(dy)<dx*.5)panel.close();},{passive:true});
  }
- const update=()=>{select.value=get();for(const o of select.options)o.disabled=!permitted(o.value);status.textContent=!permitted(get())?'選択した画面は現在利用できないため、起動時は予測を開きます。':'';};
+ const update=()=>{updateTheme();select.value=get();for(const o of select.options)o.disabled=!permitted(o.value);status.textContent=!permitted(get())?'選択した画面は現在利用できないため、起動時は予測を開きます。':'';};
  // Refresh against live grants whenever settings is opened, including after a drawer swipe.
  new MutationObserver(()=>{if(settings.open)update();}).observe(document.getElementById('authButton'),{childList:true,subtree:true,characterData:true});
  const openStartup = async()=>{
