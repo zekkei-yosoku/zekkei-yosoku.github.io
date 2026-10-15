@@ -22,9 +22,9 @@
 <!-- ホーム画面に置いたとき、これが無いとOSがアプリ名の先頭文字で代用する（「絶」が出ていた）。
      iOS は apple-touch-icon、Android はマニフェストの icons を見る。
      角丸はOS側が付けるので、画像は正方形いっぱいに描いてある。 -->
-<link rel="apple-touch-icon" href="icon-180.png?v=20261015astro">
-<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png?v=20261015astro">
-<link rel="manifest" href="manifest.json?v=20261015astro">
+<link rel="apple-touch-icon" sizes="180x180" href="app-icon-180-v2.png">
+<link rel="icon" type="image/png" sizes="32x32" href="app-icon-32-v2.png">
+<link rel="manifest" href="manifest.json?v=20261015icons2">
 <meta name="theme-color" content="#0a0f24">
 <!-- ライト・ダークは <html data-theme> で決める（2026-10-06）。最初の値は描く前にここで入れる。切り替えは本体の script（裏にいる間は替えない） -->
 <script>document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";</script>
@@ -141,6 +141,10 @@
                         gap: 0 8px; width: 100%; text-align: left; min-height: 56px;
                         padding: 9px 12px; border-radius: 12px; }
   .drawer-list button b { grid-column: 1; font-size: 0.94rem; font-weight: 700; color: var(--text); }
+  /* 主要機能の線画アイコン。ラベルを残し、選択色にも追従する。 */
+  :is(#toolsHome, #framingMenu, #mapMenu) b { display: flex; align-items: center; gap: 8px; }
+  .menu-feature-icon { width: 20px; height: 20px; flex: none; }
+  :is(#toolsHome, #framingMenu, #mapMenu) > span { padding-left: 28px; }
   .drawer-list button span { grid-column: 1; font-size: 0.72rem; color: var(--tertiary); line-height: 1.35; }
   /* 押せることを右の「›」で示す。絵文字は使わない（現象の識別にだけ使う） */
   .drawer-list button::after { content: "›"; grid-column: 2; grid-row: 1 / span 2;
@@ -1767,15 +1771,15 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
   <nav class="drawer-list">
     <!-- 一覧へ（2026-10-02 ユーザー「メニューの中に絶景予測の一覧に戻るボタンがほしい」）。道具ではないので data-tool・data-id を持たない
          （許可・管理画面の名前に混ぜない）。いちばん上に置き、道具と線で分ける。一覧にいるときは帯を付ける -->
-    <button id="toolsHome"><b>予測</b><span>夕焼け・星空・雲海などが見られそうか</span></button>
+    <button id="toolsHome"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3"/><path d="M9 2v1m-6 5H2m3-4-1-1m9 1 1-1M5 19h12a4 4 0 0 0 .4-8 5 5 0 0 0-9.5-1.2A4.6 4.6 0 0 0 5 19Z"/></svg>予測</b><span>夕焼け・星空・雲海などが見られそうか</span></button>
     <!-- 天体を重ねる（2026-10-01）。もとは「富士山に重ねる」（ダイヤモンド富士・パール富士）と「塔に重ねる」の2つ。
          ユーザー「塔以外も重ねるじゃん」→ 名前を「天体を重ねる」に。「プルダウンで富士山を選んだら、その横の太陽・月の切り替えでできる」→ 富士山もここへ。
          何に重ねるかは開いた画面の題名の枠で選ぶ。説明は何が分かるかを書く（ユーザーと決めた文に、ダイヤモンド富士の名前を足した）。
          許可は3つのまま（data-id。どれかがあれば出す）。管理画面の名前は data-names から -->
     <!-- AstroNotes内の機能を日本語で並べる。許可は構図と地図を個別に判定する。 -->
     <section id="astroToolsGroup" aria-label="天体の道具">
-    <button id="framingMenu" data-tool="#/aim/tower" data-id="diamond pearl tower" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど"><b>構図</b><span>天体と風景が重なる日時と撮影地を探す</span></button>
-    <button id="mapMenu" data-tool="#/skymap" data-id="skymap"><b>地図</b><span>撮影地からの天体の方向と高度を調べる</span></button>
+    <button id="framingMenu" data-tool="#/aim/tower" data-id="diamond pearl tower" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m8 0h5v-5"/><path d="m6 17 4-5 3 3 3-5 3 7"/><circle cx="9" cy="8" r="1"/></svg>構図</b><span>天体と風景が重なる日時と撮影地を探す</span></button>
+    <button id="mapMenu" data-tool="#/skymap" data-id="skymap"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16"/></svg>地図</b><span>撮影地からの天体の方向と高度を調べる</span></button>
     <button data-tool="#/plane" data-id="plane"><b>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
     <button data-tool="#/iss" data-id="iss"><b>ISSの月面通過</b><span>ISSが月や太陽の前を横切る場所と時刻</span></button>
     </section>
@@ -2087,31 +2091,31 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261015160706"></script>
-<script src="sorami-prediction.js?v=20261015160706"></script>
+<script src="sorami-core.js?v=20261015161618"></script>
+<script src="sorami-prediction.js?v=20261015161618"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261015160706"></script>
-<script src="sorami-exif.js?v=20261015160706"></script>
-<script src="sorami-capcloud.js?v=20261015160706"></script>
-<script src="sorami-terrain.js?v=20261015160706"></script>
-<script src="sorami-mountain.js?v=20261015160706"></script>
-<script src="sorami-fuji.js?v=20261015160706"></script>
-<script src="sorami-sky.js?v=20261015160706"></script>
+<script src="sorami-astro.js?v=20261015161618"></script>
+<script src="sorami-exif.js?v=20261015161618"></script>
+<script src="sorami-capcloud.js?v=20261015161618"></script>
+<script src="sorami-terrain.js?v=20261015161618"></script>
+<script src="sorami-mountain.js?v=20261015161618"></script>
+<script src="sorami-fuji.js?v=20261015161618"></script>
+<script src="sorami-sky.js?v=20261015161618"></script>
 
-<script src="sorami-history.js?v=20261015160706"></script>
-<script src="sorami-plan.js?v=20261015160706"></script>
-<script src="sorami-routes.js?v=20261015160706"></script>
-<script src="sorami-iss.js?v=20261015160706"></script>
-<script src="sorami-plane.js?v=20261015160706"></script>
-<script src="sorami-refraction.js?v=20261015160706"></script>
-<script src="sorami-atmosphere.js?v=20261015160706"></script>
-<script src="sorami-bodies.js?v=20261015160706"></script>
-<script src="sorami-sky-map.js?v=20261015160706"></script>
-<script src="sorami-city-models.js?v=20261015160706"></script>
-<script src="sorami-tower-models.js?v=20261015160706"></script>
-<script src="sorami-align.js?v=20261015160706"></script>
-<script src="sorami-moon.js?v=20261015160706"></script>
+<script src="sorami-history.js?v=20261015161618"></script>
+<script src="sorami-plan.js?v=20261015161618"></script>
+<script src="sorami-routes.js?v=20261015161618"></script>
+<script src="sorami-iss.js?v=20261015161618"></script>
+<script src="sorami-plane.js?v=20261015161618"></script>
+<script src="sorami-refraction.js?v=20261015161618"></script>
+<script src="sorami-atmosphere.js?v=20261015161618"></script>
+<script src="sorami-bodies.js?v=20261015161618"></script>
+<script src="sorami-sky-map.js?v=20261015161618"></script>
+<script src="sorami-city-models.js?v=20261015161618"></script>
+<script src="sorami-tower-models.js?v=20261015161618"></script>
+<script src="sorami-align.js?v=20261015161618"></script>
+<script src="sorami-moon.js?v=20261015161618"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -11112,8 +11116,8 @@ load(false);
 const startupSessionReady = restoreSession();
 checkForUpdate();
 </script>
-<script src="sorami-scroll-timeline.js?v=20261015160706"></script>
-<script src="sorami-datetime-ui.js?v=20261015160706"></script>
+<script src="sorami-scroll-timeline.js?v=20261015161618"></script>
+<script src="sorami-datetime-ui.js?v=20261015161618"></script>
 <script id="uiVisualPrimitives">
 const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
 // E185: visual choices forward to the original native control; no calculation path is added.

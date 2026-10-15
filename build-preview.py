@@ -6,7 +6,7 @@ import shutil,json,re,subprocess
 root=Path(__file__).resolve().parent
 out=root/'trial';out.mkdir(exist_ok=True)
 # Only public app runtime assets, never repository metadata or development inputs.
-for pattern in ['sorami-*.js','spots.js','*-ui.js','icon-*.png','astronotes-*.png','*.css']:
+for pattern in ['sorami-*.js','spots.js','*-ui.js','icon-*.png','app-icon-*.png','astronotes-*.png','*.css']:
  for f in root.glob(pattern):shutil.copy2(f,out/f.name)
 tracked=set(subprocess.check_output(['git','ls-files','data','vendor'],cwd=root,text=True).splitlines())
 for name in ['data','vendor']:

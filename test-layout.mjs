@@ -146,7 +146,7 @@ ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待�
     ok(menu.includes(`data-tool="${href}"`) && menu.includes(name), `${name} が入っている`);
   }
   // 絶景予測への入口（2026-10-15 名称を「絶景予測」に統一）
-  ok(/<nav class="drawer-list">\s*<!--[\s\S]*?-->\s*<button id="toolsHome"><b>予測<\/b>/.test(menu), "メニューのいちばん上に「予測」");
+  ok(/<nav class="drawer-list">\s*<!--[\s\S]*?-->\s*<button id="toolsHome"><b>(?:<svg\b[^>]*>[\s\S]*?<\/svg>)?予測<\/b>/.test(menu), "メニューのいちばん上に「予測」");
   ok(!/id="toolsHome"[^>]*data-(tool|id)=/.test(menu), "一覧は道具ではない（許可・管理画面の名前に混ぜない）");
   ok(/\$\("toolsHome"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \};/.test(html), "押すと題名と同じく、何画面進んでいても1回で一覧へ");
   ok(/if \(routeFromHash\(\)\) \$\("toolsHome"\)\.removeAttribute\("aria-current"\);\s+else \$\("toolsHome"\)\.setAttribute\("aria-current", "page"\);/.test(html),
@@ -516,7 +516,7 @@ console.log("== 画面のスクリプトが文法として読める（2026-09-30
 }
 
 // ユーザー「塔に重ねるって塔以外も重ねるじゃん」「純粋に「重ねる」じゃだめなの？」
-ok(/id="framingMenu"[^>]*><b>構図<\/b>/.test(html) && /id="mapMenu"[^>]*><b>地図<\/b>/.test(html), "日本語の構図・地図を独立した入口にする");
+ok(/id="framingMenu"[^>]*><b>(?:<svg\b[^>]*>[\s\S]*?<\/svg>)?構図<\/b>/.test(html) && /id="mapMenu"[^>]*><b>(?:<svg\b[^>]*>[\s\S]*?<\/svg>)?地図<\/b>/.test(html), "日本語の構図・地図を独立した入口にする");
 
 // ユーザー「スカイツリーの先端が634mだと思うんだけど636になってるのはなんで」
 ok(/\$\{esc\(p\.name\)\} \$\{Math\.round\(p\.m - g\)\}m<\/option>/.test(html), "高さの選択肢は地上からで出す（先端 634m）");
