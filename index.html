@@ -8,7 +8,7 @@
      編集後はbump.shでハッシュを更新する。connect-srcも実際に使う相手だけに絞る。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-JfN0Rh4lqsoN5Wc74TxJi7NAg2bXy50mB2j52g53U/U=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-6/92A5YcZXbgFyqX9s/PMlBZ2Bry0D7RGs3SDKqtqsU=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-g9GpJ6sX7DTedSlXtbKoZkNxBmTQ15Epi5L0/zUEBpk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-9OmaCkx/UbyFIkRKnYeb7pKPuh2IVVDLIrcZTgRGn0w=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-6/92A5YcZXbgFyqX9s/PMlBZ2Bry0D7RGs3SDKqtqsU=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-MT40ap+g24E+akLqTRtTZtp3YDfTU+sEoLFfGCHL3A8='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -2090,31 +2090,31 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261015162740"></script>
-<script src="sorami-prediction.js?v=20261015162740"></script>
+<script src="sorami-core.js?v=20261015163620"></script>
+<script src="sorami-prediction.js?v=20261015163620"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261015162740"></script>
-<script src="sorami-exif.js?v=20261015162740"></script>
-<script src="sorami-capcloud.js?v=20261015162740"></script>
-<script src="sorami-terrain.js?v=20261015162740"></script>
-<script src="sorami-mountain.js?v=20261015162740"></script>
-<script src="sorami-fuji.js?v=20261015162740"></script>
-<script src="sorami-sky.js?v=20261015162740"></script>
+<script src="sorami-astro.js?v=20261015163620"></script>
+<script src="sorami-exif.js?v=20261015163620"></script>
+<script src="sorami-capcloud.js?v=20261015163620"></script>
+<script src="sorami-terrain.js?v=20261015163620"></script>
+<script src="sorami-mountain.js?v=20261015163620"></script>
+<script src="sorami-fuji.js?v=20261015163620"></script>
+<script src="sorami-sky.js?v=20261015163620"></script>
 
-<script src="sorami-history.js?v=20261015162740"></script>
-<script src="sorami-plan.js?v=20261015162740"></script>
-<script src="sorami-routes.js?v=20261015162740"></script>
-<script src="sorami-iss.js?v=20261015162740"></script>
-<script src="sorami-plane.js?v=20261015162740"></script>
-<script src="sorami-refraction.js?v=20261015162740"></script>
-<script src="sorami-atmosphere.js?v=20261015162740"></script>
-<script src="sorami-bodies.js?v=20261015162740"></script>
-<script src="sorami-sky-map.js?v=20261015162740"></script>
-<script src="sorami-city-models.js?v=20261015162740"></script>
-<script src="sorami-tower-models.js?v=20261015162740"></script>
-<script src="sorami-align.js?v=20261015162740"></script>
-<script src="sorami-moon.js?v=20261015162740"></script>
+<script src="sorami-history.js?v=20261015163620"></script>
+<script src="sorami-plan.js?v=20261015163620"></script>
+<script src="sorami-routes.js?v=20261015163620"></script>
+<script src="sorami-iss.js?v=20261015163620"></script>
+<script src="sorami-plane.js?v=20261015163620"></script>
+<script src="sorami-refraction.js?v=20261015163620"></script>
+<script src="sorami-atmosphere.js?v=20261015163620"></script>
+<script src="sorami-bodies.js?v=20261015163620"></script>
+<script src="sorami-sky-map.js?v=20261015163620"></script>
+<script src="sorami-city-models.js?v=20261015163620"></script>
+<script src="sorami-tower-models.js?v=20261015163620"></script>
+<script src="sorami-align.js?v=20261015163620"></script>
+<script src="sorami-moon.js?v=20261015163620"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -10117,7 +10117,7 @@ function renderAuthButton() {
   const failing = !!syncError || pushQueue.length > 0;
   b.textContent = failing ? `⚠ ${auth.loginId}` : auth.loginId;
   b.classList.toggle("warn", failing);
-  b.setAttribute("aria-label", failing ? "同期できていません。アカウントを開く" : "アカウントを開く");
+  b.setAttribute("aria-label", failing ? "同期できていません。設定を開く" : "設定を開く");
 }
 
 /// ローカルの1件をサーバーへ送る形にする。body に中身を丸ごと入れる。
@@ -11115,8 +11115,8 @@ load(false);
 const startupSessionReady = restoreSession();
 checkForUpdate();
 </script>
-<script src="sorami-scroll-timeline.js?v=20261015162740"></script>
-<script src="sorami-datetime-ui.js?v=20261015162740"></script>
+<script src="sorami-scroll-timeline.js?v=20261015163620"></script>
+<script src="sorami-datetime-ui.js?v=20261015163620"></script>
 <script id="uiVisualPrimitives">
 const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
 // E185: visual choices forward to the original native control; no calculation path is added.
@@ -11652,16 +11652,28 @@ ctx.lineWidth=1;
  const status=document.createElement('p');status.className='tiny';status.setAttribute('role','status');
  select.onchange=()=>{try{localStorage.setItem(key,select.value);status.textContent='保存しました。次回の起動から適用します。';}catch{select.value=get();status.textContent='保存できませんでした。端末の保存設定を確認してください。';}};
  row.append(label,select,note,status);
- const settings=document.createElement('dialog');settings.id='appSettings';settings.className='sheet';settings.tabIndex=-1;settings.setAttribute('aria-labelledby','appSettingsTitle');
+ const settings=document.createElement('dialog');settings.id='appSettings';settings.className='sheet';settings.tabIndex=-1;settings.setAttribute('aria-labelledby','appSettingsTitle');settings.style.cssText='width:min(560px,100vw);max-width:100vw;height:100dvh;max-height:100dvh;margin:0 auto;border-radius:0;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';
  settings.innerHTML='<div class="sheet-head"><strong id="appSettingsTitle">設定</strong><button type="button" id="appSettingsClose">閉じる</button></div><div class="sheet-body"></div>';
- settings.querySelector('.sheet-body').append(row);document.body.append(settings);
+ const settingsBody=settings.querySelector('.sheet-body');settingsBody.style.cssText='max-height:calc(100dvh - 80px);overflow:auto';
+ const categories=document.createElement('div');categories.id='settingsCategories';
+ categories.innerHTML='<button type="button" class="list-item" id="settingsAccount" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2Z"/></svg><span style="flex:1"><strong>アカウント・ログイン</strong><span class="tiny" style="display:block;margin-top:4px">パスワード・パスキーなど</span></span><span aria-hidden="true">›</span></button><button type="button" class="list-item" id="settingsScreen" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg><span style="flex:1"><strong>画面</strong><span class="tiny" style="display:block;margin-top:4px">起動画面</span></span><span aria-hidden="true">›</span></button>';
+ const back=document.createElement('button');back.type='button';back.id='settingsBack';back.className='chip';back.textContent='←';back.setAttribute('aria-label','戻る');back.hidden=false;
+ row.hidden=true;settings.querySelector('.sheet-head').prepend(back);settingsBody.append(categories,row);document.body.append(settings);
+ const originalAccountOpen=document.getElementById('authButton').onclick;
+ let settingsOpener=document.getElementById('toolsButton');
+ const settingsHome=()=>{categories.hidden=false;row.hidden=true;back.hidden=false;document.getElementById('appSettingsTitle').textContent='設定';};
+ const openSettings=opener=>{settingsOpener=opener;update();settingsHome();closeTools();showSheet(settings);scrollLock.on();};
+ back.onclick=()=>{if(!categories.hidden){settings.close();return;}settingsHome();document.getElementById('settingsScreen').focus();};
+ document.getElementById('settingsScreen').onclick=()=>{update();categories.hidden=true;row.hidden=false;back.hidden=false;document.getElementById('appSettingsTitle').textContent='画面';settings.focus({preventScroll:true});};
+ document.getElementById('settingsAccount').onclick=()=>{settings.close();originalAccountOpen();};
+ document.getElementById('authButton').onclick=()=>{if(auth)openSettings(document.getElementById('authButton'));else originalAccountOpen();};
  const settingsButton=document.createElement('button');settingsButton.id='appSettingsOpen';settingsButton.type='button';settingsButton.setAttribute('aria-haspopup','dialog');
  settingsButton.style.cssText='display:flex;align-items:center;gap:10px;width:calc(100% - 16px);min-height:56px;flex:none;margin: auto 8px 0;padding:12px;border-top:1px solid var(--line);border-radius:0;text-align:left';
  settingsButton.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3h6l1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3Z"/><circle cx="12" cy="12" r="3"/></svg><span>設定</span>';
  document.getElementById('toolsMenu').append(settingsButton);
  settings.querySelector('#appSettingsClose').onclick=()=>settings.close();
- settings.addEventListener('close',()=>{scrollLock.off();document.getElementById('toolsButton').focus({preventScroll:true});});
- settingsButton.onclick=()=>{update();closeTools();showSheet(settings);scrollLock.on();};
+ settings.addEventListener('close',()=>{scrollLock.off();settingsOpener.focus({preventScroll:true});});
+ settingsButton.onclick=()=>openSettings(settingsButton);
  const update=()=>{select.value=get();for(const o of select.options)o.disabled=!permitted(o.value);status.textContent=!permitted(get())?'選択した画面は現在利用できないため、起動時は予測を開きます。':'';};
  // Refresh against live grants whenever settings is opened, including after a drawer swipe.
  new MutationObserver(()=>{if(settings.open)update();}).observe(document.getElementById('authButton'),{childList:true,subtree:true,characterData:true});
