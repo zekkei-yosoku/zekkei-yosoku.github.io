@@ -12,7 +12,7 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="16635838518375468028">
+<meta name="app-version" content="17195297973066252382">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-7fYLElg2DZe67thF3tOoTSaV2zsLTXVu7HCZG0hs3sE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-9dr71BkfferxEt2N+TCyS0SXR8vW+Gepxnzxj/fHKLc=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-sE/5JbWG89JiB8WO7Ohpf7bhHKKiemo4s8v82J3ZI0o='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
@@ -1377,6 +1377,11 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 :is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes:after{content:"";position:absolute;left:100%;top:0;bottom:0;width:14px;background:linear-gradient(to right,var(--timeline-panel-bg,var(--card)),transparent);pointer-events:none}
 :is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes button:after{content:"↔";font-size:10px;line-height:1;color:var(--secondary)}
 :is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes button:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+
+/* 2026-10-15: 全画面・全入力方法でフォーカス枠とタップの強調を表示しない。
+   焦点移動、入力カーソル、選択済みの状態表示は維持する。 */
+* { -webkit-tap-highlight-color: transparent; }
+*:focus, *:focus-visible { outline: none !important; }
 </style></head>
 <body>
 <main>
