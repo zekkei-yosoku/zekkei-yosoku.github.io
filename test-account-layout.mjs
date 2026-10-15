@@ -4,8 +4,8 @@ import {readFileSync} from 'node:fs';import vm from 'node:vm';import assert from
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 const sheet=html.slice(html.indexOf('<dialog class="sheet" id="accountSheet"'),html.indexOf('</dialog>',html.indexOf('id="accountSheet"')));
 
-// 並び：戻る→ID/同期→ログイン方法（パスキー・端末・パスワード・回復コード・薦め）→安全（履歴・ほかの端末）→管理入口→ログアウト→削除
-const order=['id="accountBack"','id="accountBody"','>ログイン方法</h3>','id="addPasskey"','id="accountPasskeys"','id="accountPwState"','id="disablePw"','id="enablePwWay"','id="accountCodesState"','id="newRecovery"','id="recoveryShown"','id="accountAdvice"','>安全</h3>','id="loginHistory"','id="logoutAll"','id="accountPrivateEntry"','id="logout"','id="deleteAccount"'];
+// 並び：戻る→ID/同期→ログイン方法（パスキー・端末・パスワード・回復コード・薦め）→安全（履歴・ほかの端末）→ログアウト→削除（管理の入口は設定一覧）
+const order=['id="accountBack"','id="accountBody"','>ログイン方法</h3>','id="addPasskey"','id="accountPasskeys"','id="accountPwState"','id="disablePw"','id="enablePwWay"','id="accountCodesState"','id="newRecovery"','id="recoveryShown"','id="accountAdvice"','>安全</h3>','id="loginHistory"','id="logoutAll"','id="logout"','id="deleteAccount"'];
 let at=-1;for(const m of order){const i=sheet.indexOf(m);assert.ok(i>at,`並び順: ${m}`);at=i;}
 assert.ok(!/class="card"/.test(sheet),'行は線で区切り、箱を作らない');
 assert.match(html,/document\.getElementById\('accountBack'\)\.onclick=\(\)=>\{document\.getElementById\('accountSheet'\)\.close\(\);openSettings\(/,'←で設定一覧へ戻る');

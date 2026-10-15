@@ -12,8 +12,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="11713383231424898786">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-ggyr/oHvGdvdg6sAWRJkuDkBic1nXUHABZ054GX7ujY=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-9dr71BkfferxEt2N+TCyS0SXR8vW+Gepxnzxj/fHKLc=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-VVKgA0JuTGRjhDmWNU9iuAthT+H8lFEBysC+/SJD274='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="16597816833940101698">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-4cpo22CiWC3NKCZVKhzTXgoId2vL5Cbr2UMNQrCMovQ=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-9dr71BkfferxEt2N+TCyS0SXR8vW+Gepxnzxj/fHKLc=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-sE/5JbWG89JiB8WO7Ohpf7bhHKKiemo4s8v82J3ZI0o='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
 <link data-script-preload rel="preload" as="script" href="sorami-astro.js?v=9181748260451918765">
@@ -2090,7 +2090,6 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
       <div id="loginHistoryList" class="tiny"></div>
     </details>
     <div class="account-row"><span>ほかの端末のログイン<span class="tiny">端末を失くしたときに。この端末は入ったままです</span></span><button id="logoutAll" class="chip">すべて切る</button></div>
-    <div id="accountPrivateEntry"></div>
     <button id="logout" class="fav-remove">ログアウト</button>
     <button id="deleteAccount" class="fav-remove" style="color:var(--red)">アカウントを削除する</button>
   </div>
@@ -10350,7 +10349,7 @@ async function restoreSession({ onAccessReady = () => {} } = {}) {
     clearTimeout(accessTimer);
     if (generation !== authGeneration || !auth) return;
     auth = { ...auth, loginId: me.loginId ?? auth.loginId, role: me.role ?? auth.role,
-             tools: Array.isArray(me.tools) ? me.tools : auth.tools };
+             tools: Array.isArray(me.tools) ? me.tools : auth.tools, ownerAdmin: !!me.ownerAdmin };
     lastLoginId = auth.loginId;
     saveAuth(auth, found.remembered);
     if (atAim) openAim(null);
@@ -10640,7 +10639,6 @@ async function openAccountSheet() {
     $("disablePw").hidden = !me.hasPassword || !me.credentials.length;
     $("enablePwWay").hidden = me.hasPassword;
     $("deleteAccount").hidden = !!me.ownerAdmin;
-    renderPrivateEntry(me);
     const when = (t) => (t ? new Date(t).toLocaleDateString("ja-JP") : "未使用");
     const passkeys = (me.credentials || []).length;
     $("accountBody").innerHTML =
@@ -10846,7 +10844,7 @@ function clearAdminView() {
   privateDraft = null;
   adminRenderSeq++; privateEntrySeq++; adminUnmount?.(); adminUnmount = null;
   privateModule = null; privateModuleToken = null; privateModulePromise = null;
-  $("adminView").replaceChildren(); $("accountPrivateEntry").replaceChildren();
+  $("adminView").replaceChildren(); $("settingsPrivateEntry")?.replaceChildren();
 }
 async function ownerModule() {
   const token = auth?.token;
@@ -10866,16 +10864,24 @@ async function ownerModule() {
   privateModulePromise = {token, promise};
   try { return await promise; } finally { if (privateModulePromise?.promise === promise) privateModulePromise = null; }
 }
-async function renderPrivateEntry(me) {
-  const seq = ++privateEntrySeq, token = auth?.token;
-  $("accountPrivateEntry").replaceChildren();
-  if (!me.ownerAdmin) return;
+// 管理の入口は設定一覧に置く（2026-10-15 ユーザー「右上→設定→アカウント→管理者の画面、と入るのが深すぎる」）。
+// 入口の部品も所有者の確認を通ったあとに非公開APIから受け取る（E186）。
+async function renderPrivateEntry() {
+  const seq = ++privateEntrySeq, token = auth?.token, box = $("settingsPrivateEntry");
+  box?.replaceChildren();
+  if (!box || !token) return;
+  // ログイン直後でまだ所有者か分からなければ訊く。取れなければ入口を出さない（判定はサーバー）
+  if (auth.ownerAdmin === undefined) {
+    try { const me = await apiCall("GET", "/me"); if (seq !== privateEntrySeq || token !== auth?.token) return; auth = { ...auth, ownerAdmin: !!me.ownerAdmin }; }
+    catch { return; }
+  }
+  if (!auth.ownerAdmin) return;
   try {
     const module = await ownerModule();
-    if (seq !== privateEntrySeq || token !== auth?.token || !$("accountSheet").open) return;
-    $("accountPrivateEntry").append(module.entry({open:()=>{$("accountSheet").close();pushRoute("#/admin");}}));
+    if (seq !== privateEntrySeq || token !== auth?.token || !$("appSettings").open) return;
+    box.append(module.entry({open:()=>{$("appSettings").close();pushRoute("#/admin");}}));
   } catch (e) {
-    if (seq !== privateEntrySeq || token !== auth?.token || !$("accountSheet").open) return;
+    if (seq !== privateEntrySeq || token !== auth?.token || !$("appSettings").open) return;
     const reauth = e.code === "reauth_required";
     const denied = e.status === 403;
     const status = document.createElement("p");
@@ -10883,16 +10889,16 @@ async function renderPrivateEntry(me) {
     status.textContent = reauth ? "管理者の画面を開くには、もう一度ログインしてください。"
       : denied ? "管理者の権限を確認できませんでした。"
       : "管理者の画面を読み込めませんでした。再試行してください。";
-    $("accountPrivateEntry").append(status);
+    box.append(status);
     if (denied) return;
     const retry = document.createElement("button");
     retry.type = "button"; retry.className = "fav-btn"; retry.style.marginTop = "8px";
     retry.textContent = reauth ? "ログインして管理者の画面を確認" : "管理者の画面を再試行";
     retry.onclick = () => {
-      if (seq !== privateEntrySeq || token !== auth?.token || !$("accountSheet").open) return;
-      if (reauth) askReauth(); else openAccountSheet();
+      if (seq !== privateEntrySeq || token !== auth?.token || !$("appSettings").open) return;
+      if (reauth) askReauth(); else renderPrivateEntry();
     };
-    $("accountPrivateEntry").append(retry);
+    box.append(retry);
   }
 }
 async function renderAdmin() {
@@ -10912,7 +10918,19 @@ async function renderAdmin() {
       if (seq !== adminRenderSeq || auth?.token !== token || !atAdmin) throw new Error("画面の確認をやり直してください");
       return result;
     }, onReauth:askReauth});
-  } catch (e) { if (seq === adminRenderSeq && auth?.token === token && atAdmin) { status.textContent = e.message; $("adminView").replaceChildren(status); if (e.code === "reauth_required") askReauth(); } }
+  } catch (e) {
+    if (seq !== adminRenderSeq || auth?.token !== token || !atAdmin) return;
+    status.textContent = e.message; $("adminView").replaceChildren(status);
+    // 読めなかったときも、その場でやり直せるようにする（2026-10-15）
+    const reauth = e.code === "reauth_required";
+    if (e.status !== 403) {
+      const again = document.createElement("button"); again.type = "button"; again.className = "chip";
+      again.textContent = reauth ? "ログインし直す" : "再試行";
+      again.onclick = () => { if (seq === adminRenderSeq && auth?.token === token && atAdmin) { if (reauth) askReauth(); else renderAdmin(); } };
+      $("adminView").append(again);
+    }
+    if (reauth) askReauth();
+  }
 }
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
@@ -11803,7 +11821,8 @@ ctx.lineWidth=1;
  const originalAccountOpen=document.getElementById('authButton').onclick;
  let settingsOpener=document.getElementById('toolsButton');
  const settingsHome=()=>{categories.hidden=false;row.hidden=true;back.hidden=true;document.getElementById('appSettingsTitle').textContent='設定';};
- const openSettings=opener=>{settingsOpener=opener;update();settingsHome();closeTools();showSheet(settings);scrollLock.on();};
+ const ownerEntry=document.createElement('div');ownerEntry.id='settingsPrivateEntry';categories.append(ownerEntry);
+ const openSettings=opener=>{settingsOpener=opener;update();settingsHome();closeTools();showSheet(settings);scrollLock.on();renderPrivateEntry();};
  back.onclick=()=>{if(!categories.hidden){settings.close();return;}settingsHome();document.getElementById('settingsScreen').focus();};
  document.getElementById('settingsScreen').onclick=()=>{update();categories.hidden=true;row.hidden=false;back.hidden=false;document.getElementById('appSettingsTitle').textContent='画面';settings.focus({preventScroll:true});};
  document.getElementById('settingsAccount').onclick=()=>{settings.close();originalAccountOpen();};
