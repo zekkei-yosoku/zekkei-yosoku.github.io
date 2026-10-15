@@ -12,7 +12,7 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="8684721046232894322">
+<meta name="app-version" content="17156104118495055430">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-3+OUCcvK7zpEakwNZQ/BHZo7jBCkq1hXgjgWNZZqT6A=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-9dr71BkfferxEt2N+TCyS0SXR8vW+Gepxnzxj/fHKLc=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-kMcMNnzvXRPE5mR2nEkNJTlS3n2f+Da50UDk6CABv84='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
@@ -65,8 +65,8 @@
     /* secondary と tertiary が #6e6e73 / #6b6b71 で見分けが付かず、補助文の階層が
        消えていた（コントラストを直したときに tertiary を暗くして寄せてしまった）。
        secondary を本文寄りへ戻して 本文→補助→注記 の3段を作る。 */
-    color-scheme: light; --bg: #f4f4f6; --card: #ffffff; --text: #1c1c1e; --secondary: #4a4a4f; --tertiary: #6b6b71;
-    --accent: #a04f09; --line: rgba(0,0,0,.08);
+    color-scheme: light; --bg: #f1f4f8; --card: #ffffff; --text: #1c1c1e; --secondary: #4a4a4f; --tertiary: #6b6b71;
+    --accent: #426789; --line: rgba(0,0,0,.08);
     /* 評価語の色。ライトでは「白地の上で 4.5:1」を満たす黄が存在せず、
        #7d6516 のオリーブになる。しかも隣の --good #a04f09 と見分けが付かず、
        灰→オリーブ→焦茶→赤 の中2つが同じ茶に潰れていた。
@@ -94,14 +94,14 @@
      iOS はアプリが裏へ回るとき外観をライト⇄ダークに往復させるので、メディアクエリに直接従うと戻った直後にライトで出る */
   :root[data-theme="dark"] { color-scheme: dark; --bg: #000; --card: #1c1c1e; --text: #f2f2f7; --secondary: #c3c3ca; --tertiary: #93939a;
             --line: rgba(255,255,255,.1);
-            --accent: #f08529; --spectacular: #e97180; --good: #f08529; --fair: #d4b247;
+            --accent: #9bb8d3; --spectacular: #e97180; --good: #f08529; --fair: #d4b247;
             --poor: #9a9a9a; --red: #db5b54; --orange: #d98a1f;
             /* 暗い地の上では、色を足すほど明るくなるので明度が段の手がかりになる。
                いまの文字色がそのまま塗りとしても働くので同じ値を使う。 */
             --t-poor: #9a9a9a; --t-fair: #d4b247; --t-good: #f08529; --t-spectacular: #e97180;
             /* ダークは明るい地に淡い文字が載るので 58%（=10+48）で頭打ち。実測値。 */
             --tint-span: 48; --tint-exp: 0.75;
-            --on-accent: #1b1206;
+            --on-accent: #142332;
             --ray-sun: #ffb340; --ray-moon: #6ba6e0; }
   /* AstroNotesの操作色。太陽/月・警告・予測評価の意味色は変えない。
      既存の画面表示に追従するので、共通シートも同じ操作色を継承する。 */
@@ -122,6 +122,17 @@
      .place-row の flex に負けて、記録画面で地点カードが消えなかった。 */
   [hidden] { display: none !important; }
   .masthead { display: flex; align-items: center; gap: 6px; padding: 6px 2px 12px; }
+  /* 全画面共通のブランド色。lightはロゴの白を受ける濃いheader、darkは本文へつなぐ。 */
+  :root { --header-bg: #c5d3e0; --header-end: calc(74px + env(safe-area-inset-top)); }
+  :root[data-theme="dark"] { --header-bg: var(--bg); }
+  /* scrollbar-gutterの予約領域も同じ背景で塗る。本文のスクロールと一緒に動く。 */
+  html { background: linear-gradient(to bottom, var(--header-bg) 0, var(--header-bg) calc(100% - 10px), var(--bg) 100%) top / 100% var(--header-end) no-repeat var(--bg); }
+  .masthead { position: relative; isolation: isolate; }
+  .masthead::before { content: ""; position: absolute; z-index: -1; top: calc(-12px - env(safe-area-inset-top)); bottom: 0; left: 50%; width: 100vw; transform: translateX(-50%); background: linear-gradient(to bottom, var(--header-bg) 0, var(--header-bg) calc(100% - 10px), var(--bg) 100%); pointer-events: none; }
+  .masthead #authButton { color: #294862; }
+  :root[data-theme="dark"] .masthead #authButton { color: #dce8f3; }
+  .masthead #toolsButton { color: #34495e; }
+  :root[data-theme="dark"] .masthead #toolsButton { color: #c3c3ca; }
   .masthead h1 { flex: 1; min-width: 0; }
   .masthead-mark { width: 20px; height: 20px; border-radius: 5px; display: block; }
   /* 丸み修正版v1の横組ロゴ。画像の縦横比を維持し、既存の題名と二重表示しない。 */
@@ -426,6 +437,8 @@
   .sheet-head button { min-height: 44px; padding: 0 4px; }
   /* シートを開くと本文のスクロールを止めるので、その瞬間に横幅が変わらないよう溝を常に確保する */
   html { scrollbar-gutter: stable; }
+  /* 狭い画面のoverlay scrollbarには予約帯を作らない。 */
+  @media (max-width: 600px) { html { scrollbar-gutter: auto; } }
   /* **ページは拡大させない**（2026-10-01 ユーザー「拡大を禁止しておいて」）。縦横の送りだけ許し、つまむ拡大とダブルタップの拡大を止める。
      地図は自分で拡大・縮小する（.mapwrap は touch-action: none）。iPhone 本体のズーム（3本指ダブルタップ）はこれと関係なく使える */
   html { touch-action: pan-x pan-y; }
@@ -1244,7 +1257,7 @@ main:has(>#aimView:not([hidden],[data-locked])){padding-bottom:calc(var(--aim-fo
 :is(#aimView,#skyMapView) .tool-datetime-footer :is(#aimCalendarOpen,#skyMapCalendarOpen).tool-datetime-date{min-height:44px;padding:0 4px;border:0;background:transparent;justify-content:flex-start;font-size:18px;font-weight:700}
 :is(#aimView,#skyMapView) .tool-datetime-footer .tool-datetime-clock{justify-self:end;max-width:100%;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;border:0;border-radius:0;background:transparent;overflow:visible}
 :is(#aimView,#skyMapView) .tool-datetime-footer :is(#previewTime,#skyMapTime).tool-datetime-time{flex:none;width:auto;min-height:24px;padding:0 4px;border:0;background:transparent;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center}
-[data-theme=dark] :is(#aimView,#skyMapView) .tool-datetime-footer{background:#2c2c2e;border-top-color:rgba(255,255,255,.2);box-shadow:0 -6px 20px rgba(0,0,0,.7)}
+[data-theme=dark] :is(#aimView,#skyMapView) .tool-datetime-footer{background:var(--card);border-top-color:rgba(255,255,255,.2);box-shadow:0 -6px 20px rgba(0,0,0,.7)}
 :is(#aimView,#skyMapView) .tool-datetime-footer [data-pointer-focus]:focus,#aimView button[data-pointer-focus]:focus{outline:none}
 :is(#aimView,#skyMapView) .preview-footer-rel{max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:10px;line-height:1.2;color:var(--secondary);white-space:nowrap}
 :is(#aimView,#skyMapView) .tool-datetime-footer .tool-datetime-track{max-width:780px;margin:0 auto;padding:2px 0;touch-action:none;cursor:pointer}
@@ -1372,7 +1385,7 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 #skyMapView .sky-map-readouts{padding-inline:8px}
 
 :is(#aimView,#skyMapView) .tool-datetime-footer{--timeline-panel-bg:var(--card)}
-[data-theme=dark] :is(#aimView,#skyMapView) .tool-datetime-footer{--timeline-panel-bg:#2c2c2e}
+[data-theme=dark] :is(#aimView,#skyMapView) .tool-datetime-footer{--timeline-panel-bg:var(--card)}
 
 :is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes:after{content:"";position:absolute;left:100%;top:0;bottom:0;width:14px;background:linear-gradient(to right,var(--timeline-panel-bg,var(--card)),transparent);pointer-events:none}
 :is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes button:after{content:"↔";font-size:10px;line-height:1;color:var(--secondary)}
