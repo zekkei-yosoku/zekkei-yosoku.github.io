@@ -8,6 +8,9 @@ const source=html.slice(start,html.indexOf('\nasync function renderAdmin()',star
 assert.match(html,/ownerEntry\.id='settingsPrivateEntry';categories\.append\(ownerEntry\);/,'設定一覧に入口の受け皿がある');
 assert.match(html,/const openSettings=opener=>\{[^}]*showSheet\(settings\);scrollLock\.on\(\);renderPrivateEntry\(\);\};/,'設定一覧を開くたびに入口を確かめる');
 assert.ok(!/id="accountPrivateEntry"/.test(html),'アカウント画面の奥には入口を置かない');
+// 2026-10-15 本番で非所有者の#/adminに「再試行」が出た。apiCallがHTTPの状態を渡しておらず、403の判定が当たらなかった
+assert.match(html,/error\.code = data\?\.code; error\.status = res\.status; throw error;/,'通信の失敗に状態（403など）を持たせる');
+{const s=html.indexOf('async function renderAdmin()');const body=html.slice(s,html.indexOf('\n}\n',s));assert.match(body,/if \(e\.status !== 403\) \{/,'権限が無いときは管理画面にも再試行を出さない');}
 function fixture(load,{ownerAdmin=true,unknown=false,me}={}){
   const entry={children:[],replaceChildren(...v){this.children=v;},append(...v){this.children.push(...v);}};
   const settings={open:true,close(){this.open=false;}};
