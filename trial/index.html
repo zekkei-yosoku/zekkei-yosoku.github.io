@@ -12,8 +12,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="7860683133440589766">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-PRSg7KHXsm+Lh3m4qneTnlSUEUEaSL9RKSTFeobHsEQ=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-Z11HRIprQ6aY0riOULwclQ01FQYHOOwyIsPnhrJ5LM0=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-jTLATA/M/l2d/gmV5q4NzDHlsQKTPM0vCo0Em9itpIo=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="10315210725394122031">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-500k2BgQpWiBJzv54QMO0bJwyTq8RmCOfyanGldRg9k=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-Z11HRIprQ6aY0riOULwclQ01FQYHOOwyIsPnhrJ5LM0=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
 <link data-script-preload rel="preload" as="script" href="sorami-astro.js?v=9181748260451918765">
@@ -33,6 +33,7 @@
 <link data-script-preload rel="preload" as="script" href="sorami-bodies.js?v=7468730107950742605">
 <link data-script-preload rel="preload" as="script" href="sorami-sky-map.js?v=16125800498973618817">
 <link data-script-preload rel="preload" as="script" href="sorami-assets.js?v=2324625497146189621">
+<link data-script-preload rel="preload" as="script" href="sorami-access.js?v=8899972396781375500">
 <link data-script-preload rel="preload" as="script" href="sorami-align.js?v=11476056468372570822">
 <link data-script-preload rel="preload" as="script" href="sorami-moon.js?v=10230678456179898054">
 <link data-script-preload rel="preload" as="script" href="sorami-scroll-timeline.js?v=1436491398997474438">
@@ -2213,6 +2214,7 @@ button.ui-icon-button::after { content: none; }
 
 
 <script src="sorami-assets.js?v=2324625497146189621"></script>
+<script src="sorami-access.js?v=8899972396781375500"></script>
 <script src="sorami-align.js?v=11476056468372570822"></script>
 <script src="sorami-moon.js?v=10230678456179898054"></script>
 <script>
@@ -3597,9 +3599,11 @@ async function loadPhotos() {
     const response = await apiCall("GET", "/photos");
     if (request !== photosRequest || token !== auth?.token || !toolAllowed("records")) return;
     photos = response.photos || [];
-  } catch {
+  } catch (e) {
     if (request !== photosRequest || token !== auth?.token) return;
     photos = [];
+    // 別の端末で記録の許可が外された。空の一覧ではなく、確かめ直して案内を出す
+    if (e?.status === 403) void recheckAccess(0);
   }
   renderPhotos();
 }
@@ -6864,7 +6868,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   const sunOk = !isFuji || toolAllowed("diamond"), moonOk = !isFuji || toolAllowed("pearl");
   const anyOk = sunOk || moonOk;
   const previousBody = aim.body;
-  const newBodyOk = toolAllowed("tower") || !(toolAllowed("diamond") || toolAllowed("pearl") || toolAllowed("tower"));
+  const newBodyOk = toolAllowed("tower") || !screenAllowed("framing");
   for (const option of $("aimBody").options) {
     const allowed = option.value === "sun" ? (!anyOk || sunOk) : option.value === "moon" ? (!anyOk || moonOk) : newBodyOk;
     option.disabled = !allowed; option.hidden = !allowed;
@@ -9322,11 +9326,11 @@ aimAirSync();
 /// 構図を使えるかを画面へ出す。以前は openAim が aimView ごと隠していたが、直後の render() が
 /// ルートだけで表示へ戻すため、未ログインの直URLで本体が「計算しています…」のまま止まっていた（2026-10-15）
 function renderAimAccess() {
-  const permitted = toolAllowed("diamond") || toolAllowed("pearl") || toolAllowed("tower");
+  const permitted = screenAllowed("framing");
   $("aimView").toggleAttribute("data-locked", !permitted);
   $("aimAccess").hidden = permitted;
   if (!permitted) {
-    $("aimAccessMessage").textContent = auth?.token ? "構図の利用が許可されていません" : "ログインすると利用権限を確認できます";
+    $("aimAccessMessage").textContent = auth?.token ? SoramiAccess.SCREENS.framing.label + "の利用が許可されていません" : "ログインすると利用権限を確認できます";
     $("aimAccessLogin").hidden = !!auth?.token;
   }
   return permitted;
@@ -10002,6 +10006,7 @@ const TOKEN_KEY = "sorami.token";
 
 let authGeneration = 0;
 let auth = null;                                   // { token, loginId, role }
+let accessCheckedAt = 0;                           // 最後に /me で権限を確かめた時刻（recheckAccess）
 
 // 置き場所は「保持する」を選んだかどうかで変わる。両方から消してから書く。
 function saveAuth(a, remember) {
@@ -10117,26 +10122,30 @@ function allowedTools() {
 function toolAllowed(id) {
   return allowedTools().includes(id);
 }
-const RESTRICTED_TOOL_LABELS = { plane: "月丼", iss: "ISS", records: "記録" };
+/// 画面ごとに要る許可は sorami-access.js の認可表だけを見る（構図・地図・月丼・ISS・記録）
+function screenAllowed(screen) {
+  return SoramiAccess.canOpen(allowedTools(), screen);
+}
+const RESTRICTED_SCREENS = ["plane", "iss", "records"];
 function renderToolAccess(id) {
-  const permitted = toolAllowed(id);
+  const permitted = screenAllowed(id);
   $(id + "View").toggleAttribute("data-locked", !permitted);
   $(id + "Access").hidden = permitted;
   if (!permitted) {
     $(id + "AccessMessage").textContent = auth?.token
-      ? RESTRICTED_TOOL_LABELS[id] + "の利用が許可されていません"
+      ? SoramiAccess.SCREENS[id].label + "の利用が許可されていません"
       : "ログインすると利用権限を確認できます";
     $(id + "AccessLogin").hidden = !!auth?.token;
   }
   return permitted;
 }
-for (const id of Object.keys(RESTRICTED_TOOL_LABELS)) {
+for (const id of RESTRICTED_SCREENS) {
   $(id + "AccessLogin").onclick = () => $("authButton").click();
 }
 let restrictedToolsKey = null;
 function refreshRestrictedTools() {
   const key = JSON.stringify([auth?.token, allowedTools()]);
-  for (const id of Object.keys(RESTRICTED_TOOL_LABELS)) renderToolAccess(id);
+  for (const id of RESTRICTED_SCREENS) renderToolAccess(id);
   if (key === restrictedToolsKey) return;
   restrictedToolsKey = key;
   // 古いアカウント/権限で開始した処理を無効にし、記録を即座に消す。
@@ -10148,7 +10157,7 @@ function refreshRestrictedTools() {
   if (atRecords) loadPhotos();
 }
 function renderTools() {
-  $("skyMapOpen").hidden = !toolAllowed("skymap");
+  $("skyMapOpen").hidden = !screenAllowed("skymap");
   const allowed = allowedTools();
   let shown = 0;
   for (const el of $("toolsMenu").querySelectorAll("[data-id]")) {
@@ -10431,6 +10440,43 @@ const localStorageHasToken = () => {
   try { return !!localStorage.getItem(TOKEN_KEY); } catch { return false; }
 };
 
+/// 権限は /me が正本。起動時（下の restoreSession）に加えて、画面へ戻ったとき・回線が戻ったとき・
+/// 表示中は5分ごとに確かめ直す（2026-10-15 総点検A04）。別の端末での取消しは、次に確かめた時点で
+/// 反映し、開いている保護画面はその場で閉じる。**変わっていなければ何も描き直さない。**
+/// 圏外などで確かめられないときは、最後に確かめた権限のまま使える（起動時と同じ。
+/// 2026-09-28 ユーザー指摘「圏外でログイン済みなのにメニューが出ない」）。保護APIはサーバーが毎回判定する。
+const ACCESS_RECHECK_MS = 5 * 60 * 1000;
+let accessRecheck = null;
+const accessKey = (a) => JSON.stringify([a?.loginId, a?.role, !!a?.ownerAdmin, Array.isArray(a?.tools) ? a.tools : null]);
+function recheckAccess(maxAge = ACCESS_RECHECK_MS) {
+  if (!auth?.token || document.hidden || Date.now() - accessCheckedAt < maxAge) return null;
+  if (accessRecheck) return accessRecheck;
+  const token = auth.token, generation = authGeneration;
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 10000);
+  accessRecheck = (async () => {
+    let me;
+    try { me = await apiCall("GET", "/me", undefined, controller.signal); }
+    catch { return; /* 401 は apiCall が片付ける。圏外・失敗は今の権限のまま、次の機会に確かめる */ }
+    finally { clearTimeout(timer); accessRecheck = null; }
+    if (generation !== authGeneration || auth?.token !== token) return;
+    accessCheckedAt = Date.now();
+    const next = { ...auth, loginId: me.loginId ?? auth.loginId, role: me.role ?? auth.role,
+                   tools: Array.isArray(me.tools) ? me.tools : [], ownerAdmin: !!me.ownerAdmin };
+    if (accessKey(next) === accessKey(auth)) return;
+    // 管理画面は描き直しで組み直すので、書きかけを先に預ける（背面へ回るときと同じ）
+    const draft = atAdmin ? adminUnmount?.snapshot?.() : null;
+    if (draft && next.ownerAdmin) privateDraft = { loginId: next.loginId, value: draft };
+    auth = next; lastLoginId = auth.loginId;
+    saveAuth(auth, localStorageHasToken());
+    if (atAim) openAim(null);
+    renderAuthButton();
+    render();
+  })();
+  return accessRecheck;
+}
+setInterval(() => void recheckAccess(), 60 * 1000);
+window.addEventListener("online", () => void recheckAccess(30 * 1000));
+
 // 開いたときに、残っているトークンで入り直す。
 // **通るかどうかはサーバーに訊く。** 期限も、取り消されたかどうかも、手元では分からない。
 async function restoreSession({ onAccessReady = () => {} } = {}) {
@@ -10448,8 +10494,9 @@ async function restoreSession({ onAccessReady = () => {} } = {}) {
     clearTimeout(accessTimer);
     if (generation !== authGeneration || !auth) return;
     auth = { ...auth, loginId: me.loginId ?? auth.loginId, role: me.role ?? auth.role,
-             tools: Array.isArray(me.tools) ? me.tools : auth.tools, ownerAdmin: !!me.ownerAdmin };
+             tools: Array.isArray(me.tools) ? me.tools : [], ownerAdmin: !!me.ownerAdmin };
     lastLoginId = auth.loginId;
+    accessCheckedAt = Date.now();
     saveAuth(auth, found.remembered);
     if (atAim) openAim(null);
     render();
@@ -10478,6 +10525,7 @@ async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } 
   authGeneration++; clearAdminView();
   if (sameOwnerDraft) privateDraft = {loginId:res.loginId,value:sameOwnerDraft};
   auth = { token: res.token, loginId: res.loginId, role: res.role, tools: res.tools };
+  accessCheckedAt = Array.isArray(res.tools) ? Date.now() : 0;
   const generation = authGeneration;
   lastLoginId = auth.loginId;
   saveAuth(auth, remember);
@@ -10485,7 +10533,9 @@ async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } 
   if (!Array.isArray(auth.tools)) {
     try {
       const me = await apiCall("GET", "/me");
-      auth = { ...auth, tools: me.tools, role: me.role ?? auth.role };
+      // /me と同じ項目を持つ。ownerAdmin が欠けると、次の確かめ直しで「変わった」と読んで管理画面を組み直す
+      auth = { ...auth, tools: Array.isArray(me.tools) ? me.tools : [], role: me.role ?? auth.role, ownerAdmin: !!me.ownerAdmin };
+      accessCheckedAt = Date.now();
       saveAuth(auth, remember);
     } catch { /* 取れなければ許可なしで出す */ }
   }
@@ -11039,10 +11089,11 @@ document.addEventListener("visibilitychange", () => {
   } else {
     if (atAdmin) renderAdmin();
     if (atSkyMap) SkyMapUI?.open(true);
+    void recheckAccess(30 * 1000);
   }
 });
 window.addEventListener("pagehide", clearAdminView);
-window.addEventListener("pageshow", e => {if (e.persisted && atAdmin) renderAdmin();});
+window.addEventListener("pageshow", e => { if (!e.persisted) return; if (atAdmin) renderAdmin(); void recheckAccess(30 * 1000); });
 
 // **次の一歩を示す。** 危なさを言うだけでは、何をすればいいか分からない。
 //
@@ -11898,7 +11949,7 @@ ctx.lineWidth=1;
  for(const event of ['pointerdown','keydown','wheel','touchstart'])document.addEventListener(event,()=>{startupInteracted=true;},{once:true,passive:true,capture:true});
  const key='sorami.startupScreen';
  const choices=[['forecast','予測'],['framing','構図'],['map','地図']];
- const permitted=id=>id==='forecast'||(id==='map'?toolAllowed('skymap'):id==='framing'&&['diamond','pearl','tower'].some(toolAllowed));
+ const permitted=id=>id==='forecast'||(id==='map'?screenAllowed('skymap'):id==='framing'&&screenAllowed('framing'));
  const get=()=>{try{const v=localStorage.getItem(key);return choices.some(([id])=>id===v)?v:'forecast';}catch{return 'forecast';}};
  const row=document.createElement('div');row.className='startup-setting';
  row.style.cssText='padding:12px 0';

@@ -14,11 +14,12 @@ const renderStart=html.indexOf('function render() {');
 assert.match(html.slice(renderStart,html.indexOf('$("backBar").hidden',renderStart)),/for \(const v of VIEWS\) \$\(v\.el\)\.hidden = v\.id !== view;[\s\S]*if \(view === "aim"\) renderAimAccess\(\);/);
 
 const src=html.slice(html.indexOf('function renderAimAccess() {'),html.indexOf('$("aimAccessLogin").onclick'));
+const access=readFileSync(new URL('./sorami-access.js',import.meta.url),'utf8');
 function fixture(auth){
  const els={};
  const c={auth,$:id=>els[id]??={hidden:false,textContent:'',attrs:new Set(),toggleAttribute(n,on){on?this.attrs.add(n):this.attrs.delete(n);}}};
  c.toolAllowed=id=>(c.auth?.tools||[]).includes(id);
- vm.createContext(c);vm.runInContext(src,c);return c;
+ vm.createContext(c);vm.runInContext(access,c);c.screenAllowed=s=>c.SoramiAccess.canOpen(c.auth?.tools||[],s);vm.runInContext(src,c);return c;
 }
 const locked=c=>c.$('aimView').attrs.has('data-locked');
 
