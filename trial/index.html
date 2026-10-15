@@ -8,7 +8,35 @@
      編集後はbump.shでハッシュを更新する。connect-srcも実際に使う相手だけに絞る。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-9OmaCkx/UbyFIkRKnYeb7pKPuh2IVVDLIrcZTgRGn0w=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-6/92A5YcZXbgFyqX9s/PMlBZ2Bry0D7RGs3SDKqtqsU=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-sMbJMrqQ8SXSDQA/xlJ8L+3DOHjasvVeXiASAJhwLAU='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="shape-city-integrity" content="sha256-Quj0DA5HzCiMsRK2Qx8g7ccTsJGOGaejd8QjupH4f1o=">
+<meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
+<meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
+<meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
+<meta name="app-version" content="7860683133440589766">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-PRSg7KHXsm+Lh3m4qneTnlSUEUEaSL9RKSTFeobHsEQ=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-Z11HRIprQ6aY0riOULwclQ01FQYHOOwyIsPnhrJ5LM0=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-jTLATA/M/l2d/gmV5q4NzDHlsQKTPM0vCo0Em9itpIo=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
+<link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
+<link data-script-preload rel="preload" as="script" href="sorami-astro.js?v=9181748260451918765">
+<link data-script-preload rel="preload" as="script" href="sorami-exif.js?v=18314871901163682501">
+<link data-script-preload rel="preload" as="script" href="sorami-capcloud.js?v=4966950791580310294">
+<link data-script-preload rel="preload" as="script" href="sorami-terrain.js?v=2888802520753998075">
+<link data-script-preload rel="preload" as="script" href="sorami-mountain.js?v=6648342167869535458">
+<link data-script-preload rel="preload" as="script" href="sorami-fuji.js?v=14151766095380968202">
+<link data-script-preload rel="preload" as="script" href="sorami-sky.js?v=4746693032579981037">
+<link data-script-preload rel="preload" as="script" href="sorami-history.js?v=12978486167727035619">
+<link data-script-preload rel="preload" as="script" href="sorami-plan.js?v=477526235409259430">
+<link data-script-preload rel="preload" as="script" href="sorami-routes.js?v=12335782718866241777">
+<link data-script-preload rel="preload" as="script" href="sorami-iss.js?v=9453066214197620974">
+<link data-script-preload rel="preload" as="script" href="sorami-plane.js?v=748004624366731407">
+<link data-script-preload rel="preload" as="script" href="sorami-refraction.js?v=6010632929459496538">
+<link data-script-preload rel="preload" as="script" href="sorami-atmosphere.js?v=17064914677876876535">
+<link data-script-preload rel="preload" as="script" href="sorami-bodies.js?v=7468730107950742605">
+<link data-script-preload rel="preload" as="script" href="sorami-sky-map.js?v=16125800498973618817">
+<link data-script-preload rel="preload" as="script" href="sorami-assets.js?v=2324625497146189621">
+<link data-script-preload rel="preload" as="script" href="sorami-align.js?v=11476056468372570822">
+<link data-script-preload rel="preload" as="script" href="sorami-moon.js?v=10230678456179898054">
+<link data-script-preload rel="preload" as="script" href="sorami-scroll-timeline.js?v=1436491398997474438">
+<link data-script-preload rel="preload" as="script" href="sorami-datetime-ui.js?v=4896469771475079267">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -27,7 +55,7 @@
 <link rel="manifest" href="manifest.json?v=20261015icons2">
 <meta name="theme-color" content="#0a0f24">
 <!-- ライト・ダークは <html data-theme> で決める（2026-10-06）。最初の値は描く前にここで入れる。切り替えは本体の script（裏にいる間は替えない） -->
-<script>document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";</script>
+<script>(()=>{let mode;try{mode=localStorage.getItem('sorami.theme');}catch{}document.documentElement.dataset.theme = mode==='dark'||mode==='light'?mode:matchMedia("(prefers-color-scheme: dark)").matches?'dark':'light';})();</script>
 <style>
   /* 配色はカード地に対するコントラストを実測して決めている。
      文字として使う色は 4.5:1 以上（WCAG AA の本文基準）。
@@ -37,8 +65,8 @@
     /* secondary と tertiary が #6e6e73 / #6b6b71 で見分けが付かず、補助文の階層が
        消えていた（コントラストを直したときに tertiary を暗くして寄せてしまった）。
        secondary を本文寄りへ戻して 本文→補助→注記 の3段を作る。 */
-    color-scheme: light; --bg: #f4f4f6; --card: #ffffff; --text: #1c1c1e; --secondary: #4a4a4f; --tertiary: #6b6b71;
-    --accent: #a04f09; --line: rgba(0,0,0,.08);
+    color-scheme: light; --bg: #f1f4f8; --card: #ffffff; --text: #1c1c1e; --secondary: #4a4a4f; --tertiary: #6b6b71;
+    --accent: #426789; --line: rgba(0,0,0,.08);
     /* 評価語の色。ライトでは「白地の上で 4.5:1」を満たす黄が存在せず、
        #7d6516 のオリーブになる。しかも隣の --good #a04f09 と見分けが付かず、
        灰→オリーブ→焦茶→赤 の中2つが同じ茶に潰れていた。
@@ -66,14 +94,14 @@
      iOS はアプリが裏へ回るとき外観をライト⇄ダークに往復させるので、メディアクエリに直接従うと戻った直後にライトで出る */
   :root[data-theme="dark"] { color-scheme: dark; --bg: #000; --card: #1c1c1e; --text: #f2f2f7; --secondary: #c3c3ca; --tertiary: #93939a;
             --line: rgba(255,255,255,.1);
-            --accent: #f08529; --spectacular: #e97180; --good: #f08529; --fair: #d4b247;
+            --accent: #9bb8d3; --spectacular: #e97180; --good: #f08529; --fair: #d4b247;
             --poor: #9a9a9a; --red: #db5b54; --orange: #d98a1f;
             /* 暗い地の上では、色を足すほど明るくなるので明度が段の手がかりになる。
                いまの文字色がそのまま塗りとしても働くので同じ値を使う。 */
             --t-poor: #9a9a9a; --t-fair: #d4b247; --t-good: #f08529; --t-spectacular: #e97180;
             /* ダークは明るい地に淡い文字が載るので 58%（=10+48）で頭打ち。実測値。 */
             --tint-span: 48; --tint-exp: 0.75;
-            --on-accent: #1b1206;
+            --on-accent: #142332;
             --ray-sun: #ffb340; --ray-moon: #6ba6e0; }
   /* AstroNotesの操作色。太陽/月・警告・予測評価の意味色は変えない。
      既存の画面表示に追従するので、共通シートも同じ操作色を継承する。 */
@@ -94,6 +122,17 @@
      .place-row の flex に負けて、記録画面で地点カードが消えなかった。 */
   [hidden] { display: none !important; }
   .masthead { display: flex; align-items: center; gap: 6px; padding: 6px 2px 12px; }
+  /* 全画面共通のブランド色。lightはロゴの白を受ける濃いheader、darkは本文へつなぐ。 */
+  :root { --header-bg: #c5d3e0; --header-end: calc(74px + env(safe-area-inset-top)); }
+  :root[data-theme="dark"] { --header-bg: var(--bg); }
+  /* scrollbar-gutterの予約領域も同じ背景で塗る。本文のスクロールと一緒に動く。 */
+  html { background: linear-gradient(to bottom, var(--header-bg) 0, var(--header-bg) calc(100% - 10px), var(--bg) 100%) top / 100% var(--header-end) no-repeat var(--bg); }
+  .masthead { position: relative; isolation: isolate; }
+  .masthead::before { content: ""; position: absolute; z-index: -1; top: calc(-12px - env(safe-area-inset-top)); bottom: 0; left: 50%; width: 100vw; transform: translateX(-50%); background: linear-gradient(to bottom, var(--header-bg) 0, var(--header-bg) calc(100% - 10px), var(--bg) 100%); pointer-events: none; }
+  .masthead #authButton { color: #294862; }
+  :root[data-theme="dark"] .masthead #authButton { color: #dce8f3; }
+  .masthead #toolsButton { color: #34495e; }
+  :root[data-theme="dark"] .masthead #toolsButton { color: #c3c3ca; }
   .masthead h1 { flex: 1; min-width: 0; }
   .masthead-mark { width: 20px; height: 20px; border-radius: 5px; display: block; }
   /* 丸み修正版v1の横組ロゴ。画像の縦横比を維持し、既存の題名と二重表示しない。 */
@@ -398,6 +437,8 @@
   .sheet-head button { min-height: 44px; padding: 0 4px; }
   /* シートを開くと本文のスクロールを止めるので、その瞬間に横幅が変わらないよう溝を常に確保する */
   html { scrollbar-gutter: stable; }
+  /* 狭い画面のoverlay scrollbarには予約帯を作らない。 */
+  @media (max-width: 600px) { html { scrollbar-gutter: auto; } }
   /* **ページは拡大させない**（2026-10-01 ユーザー「拡大を禁止しておいて」）。縦横の送りだけ許し、つまむ拡大とダブルタップの拡大を止める。
      地図は自分で拡大・縮小する（.mapwrap は touch-action: none）。iPhone 本体のズーム（3本指ダブルタップ）はこれと関係なく使える */
   html { touch-action: pan-x pan-y; }
@@ -410,9 +451,25 @@
   :is(#appSettings, #accountSheet) { position: fixed; inset: 0 0 0 auto; width: min(480px, 92vw); max-width: 92vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 16px 0 0 16px; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); overflow: hidden; }
   :is(#appSettings, #accountSheet)[open] { display: flex; flex-direction: column; animation: settings-from-right .22s ease-out; }
   :is(#appSettings, #accountSheet) > .sheet-head { flex: none; }
+  :is(#appSettings, #accountSheet) > .sheet-head { display: grid; grid-template-columns: 44px minmax(0,1fr) 44px; align-items: center; }
+  :is(#appSettings, #accountSheet) > .sheet-head > strong { grid-column: 2; grid-row: 1; text-align: center; }
+  :is(#appSettings, #accountSheet) > .sheet-head > button:last-child { grid-column: 3; grid-row: 1; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; }
+  :is(#appSettings, #accountSheet) .panel-back { grid-column: 1; grid-row: 1; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--text); }
+
   :is(#appSettings, #accountSheet) > .sheet-body { flex: 1; min-height: 0; max-height: none; overflow-y: auto; }
   @keyframes settings-from-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
   @media (prefers-reduced-motion: reduce) { :is(#appSettings, #accountSheet)[open] { animation: none; } }
+  /* アカウントは「ログイン方法」「安全」に分け、状態の右にそれを変える操作を置く（2026-10-15）。箱は作らず線で区切る */
+  #accountSheet .account-sec { margin: 22px 0 2px; font-size: 0.81rem; font-weight: 700; color: var(--secondary); }
+  #accountSheet .account-row { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 0; border-top: 1px solid var(--line); }
+  #accountSheet .account-row > span { flex: 1; min-width: 0; }
+  #accountSheet .account-row .tiny { display: block; margin: 2px 0 0; }
+  #accountSheet .account-row .chip { flex: none; }
+  #accountSheet .chip.primary { background: var(--accent); color: var(--on-accent); }
+  #accountSheet summary.account-row { cursor: pointer; list-style: none; }
+  #accountSheet summary.account-row::-webkit-details-marker { display: none; }
+  #accountSheet details[open] > summary .account-chev { transform: rotate(180deg); }
+  #accountPasskeys .fav-row { padding-left: 12px; }
   .sheet input[type=search] { width: 100%; font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 10px;
     border: 1px solid var(--line); background: var(--bg); color: var(--text); }
   /* 検索欄と「検索」釦（2026-10-01 ユーザー「検索開始のボタンも出しておいた方がいい」）。
@@ -616,7 +673,7 @@
                    margin: -1px 0 0 -1px; background: var(--accent); }
   /* 地図の種類（右上の釦と、押すと出る一覧）。「地図／写真」の2択はどちらも地図だった（2026-10-02 ユーザー指摘）ので、
      地図アプリと同じく重なりの記号の釦にした。標準・航空写真・地形 */
-  .map-ctl, .mapzoom .map-locate { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
+  .map-ctl, .mapzoom .map-locate { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center;
             background: var(--card); color: var(--text); border: 1px solid color-mix(in srgb, var(--text) 14%, transparent); }
   .map-layers-btn { position: absolute; right: 8px; top: 8px; }
   .map-layer-menu { position: absolute; right: 8px; top: 54px; z-index: 2; display: flex; flex-direction: column; min-width: 132px;
@@ -629,7 +686,7 @@
   .map-msg { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); margin: 0; padding: 6px 10px; border-radius: 8px;
              font-size: 0.75rem; background: var(--card); color: var(--text); white-space: nowrap; }
   .mapzoom { position: absolute; right: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 4px; }
-  .mapzoom button { width: 40px; height: 40px; border-radius: 10px; font-size: 1.1rem; font-weight: 700;
+  .mapzoom button { width: 44px; height: 44px; border-radius: 10px; font-size: 1.1rem; font-weight: 700;
                     background: var(--card); color: var(--text);
                     border: 1px solid color-mix(in srgb, var(--text) 14%, transparent); }
   .mapattr { position: absolute; left: 6px; bottom: 6px; font-size: 0.58rem; padding: 1px 5px;
@@ -745,7 +802,7 @@
      横に並べると説明が細く5行に折れていた */
   /* 地図の下の小さな丸い釦（座標・地図アプリ・ここから重ねる）。2026-10-02 ユーザー「ボタンが余白多いしでかい」で、
      幅いっぱいの大きな釦から字の幅の丸い釦に。見た目は 34px、押せる所は上下に 5px 足して 44px（::before） */
-  .chip { position: relative; display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 12px;
+  .chip { position: relative; display: inline-flex; align-items: center; gap: 5px; min-width: 44px; min-height: 34px; padding: 0 12px;
           border-radius: 999px; background: var(--line); color: var(--text); font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
   .chip::before { content: ""; position: absolute; left: 0; right: 0; top: -5px; bottom: -5px; }
   .chip:disabled { opacity: .5; }
@@ -929,8 +986,15 @@
   .dhead .d { font-weight: 700; font-size: 0.69rem; letter-spacing: -.03em;
               color: var(--secondary); font-variant-numeric: tabular-nums; }
   .dhead.sat .d { color: #2f6fb5; } .dhead.sun .d { color: var(--red); }
-  .dhead.today .d { color: var(--accent); }
-  [data-theme="dark"] .dhead.sat .d { color: #6ba6e0; }
+  /* 今日は曜日色と独立した中立の囲み＋文字で示す。青＝土曜と操作色を混同しない。 */
+  .dhead.today .d { color: var(--text); background: var(--sunk); border-radius: 4px; box-shadow: inset 0 0 0 1px var(--text); padding: 1px 4px; }
+  .dhead.today > span:last-child::after { content: " 今日"; color: var(--text); font-weight: 700; }
+  .dhead.sat > span:last-child { color: var(--weekday-sat, #2f6fb5); }
+  .dhead.sun > span:last-child { color: var(--red); }
+  :root { --weekday-sat: #2f6fb5; }
+  :root[data-theme="dark"] { --weekday-sat: #6ba6e0; }
+
+  [data-theme="dark"] .dhead.sat:not(.today) .d { color: var(--weekday-sat); }
 
   /* 良し悪しは【セルの地の色】で示す。色は 期待薄→絶景 の連続グラデーション
      （凡例の帯と同じ並び）なので、塗りの高さや棒で重ねて言う必要がない。
@@ -1196,14 +1260,19 @@
 }
 #aimView .aim-time-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:0 8px;margin:4px 0 8px}#aimView .aim-time-controls .aim-air{display:contents}#aimView .aim-time-controls .aim-air-row{grid-column:1;grid-row:1;gap:8px}#aimView .aim-time-controls #previewTimeScope{grid-column:2;grid-row:1;margin:0}#aimView .aim-time-controls #aimAirDetails{grid-column:1 / -1;grid-row:2}#aimView .aim-time-controls #aimAirDetails summary{justify-content:flex-start}#aimView .aim-time-controls #aimAirSummary{margin-left:0}#aimView .aim-frame-info{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}#aimView .aim-frame-info .aim-frame-times{flex:1 1 120px;min-width:120px}#aimView .aim-air{margin:0 0 8px auto;border-top:0;max-width:100%}#aimView .aim-air-row{display:flex;align-items:center;gap:12px}#aimView #aimAirMode{width:auto;min-width:112px;min-height:44px;font-size:0.81rem;padding:8px 32px 8px 12px}#aimAirLabel{font-size:0.81rem;color:var(--secondary);flex:none}#aimView .aim-air-options{display:flex;background:var(--sunk);border-radius:10px;padding:3px;flex:1;max-width:330px}#aimView .aim-air-options button{flex:1;min-width:0;min-height:44px;border:0;border-radius:8px;font-size:0.81rem;color:var(--secondary);background:transparent}#aimView .aim-air-options button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);font-weight:600}#aimView #aimAirDetails summary{justify-content:flex-start;gap:8px;min-height:44px;font-size:0.75rem;color:var(--secondary)}#aimAirDetails summary::-webkit-details-marker{display:none}#aimAirSummary{margin-left:auto}#aimView .aim-air-chevron{font-size:18px}#aimAirDetails[open] .aim-air-chevron{transform:rotate(180deg)}
 /* 下の時刻欄の高さぶんは、ページの最後（出典の下）に空ける。#aimView の中で空けると出典の上に余白が出て、出典は時刻欄の裏に入っていた（2026-10-05 iPhone）。高さは時刻欄を測って --aim-footer-h に入れる */
-main:has(>#aimView:not([hidden])){padding-bottom:calc(var(--aim-footer-h,calc(84px + env(safe-area-inset-bottom))) + 12px)}#aimView .aim-date-section{border:0;padding-top:0}
+main:has(>#aimView:not([hidden],[data-locked])){padding-bottom:calc(var(--aim-footer-h,calc(84px + env(safe-area-inset-bottom))) + 12px)}#aimView .aim-date-section{border:0;padding-top:0}
+/* 権限が無いときは案内カードだけを出す。地図の skyMapAccess と同じ形（2026-10-15） */
+#aimView[data-locked]>:not(#aimAccess){display:none!important}
+#planeView[data-locked]>:not(#planeAccess){display:none!important}
+#issView[data-locked]>:not(#issAccess){display:none!important}
+#recordsView[data-locked]>:not(#recordsAccess){display:none!important}
 :is(#aimView,#skyMapView) .tool-datetime-footer{position:fixed;z-index:35;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid rgba(0,0,0,.16);box-shadow:0 -4px 16px rgba(0,0,0,.12);padding:2px max(12px,env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
 :is(#aimView,#skyMapView) .tool-datetime-footer .tool-datetime-row{display:grid;grid-template-columns:44px auto minmax(0,1fr) 44px 44px;align-items:center;gap:2px;max-width:780px;margin:0 auto;padding:0;border:0}
 :is(#aimView,#skyMapView) .tool-datetime-footer :is(#aimPrev,#aimNext,#skyMapPrev,#skyMapNext,.preview-time-more,#skyMapTimeMore).tool-datetime-nav{width:44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--text);font-size:20px;line-height:1}
 :is(#aimView,#skyMapView) .tool-datetime-footer :is(#aimCalendarOpen,#skyMapCalendarOpen).tool-datetime-date{min-height:44px;padding:0 4px;border:0;background:transparent;justify-content:flex-start;font-size:18px;font-weight:700}
 :is(#aimView,#skyMapView) .tool-datetime-footer .tool-datetime-clock{justify-self:end;max-width:100%;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;border:0;border-radius:0;background:transparent;overflow:visible}
 :is(#aimView,#skyMapView) .tool-datetime-footer :is(#previewTime,#skyMapTime).tool-datetime-time{flex:none;width:auto;min-height:24px;padding:0 4px;border:0;background:transparent;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center}
-[data-theme=dark] :is(#aimView,#skyMapView) .tool-datetime-footer{background:#2c2c2e;border-top-color:rgba(255,255,255,.2);box-shadow:0 -6px 20px rgba(0,0,0,.7)}
+[data-theme=dark] :is(#aimView,#skyMapView) .tool-datetime-footer{background:var(--card);border-top-color:rgba(255,255,255,.2);box-shadow:0 -6px 20px rgba(0,0,0,.7)}
 :is(#aimView,#skyMapView) .tool-datetime-footer [data-pointer-focus]:focus,#aimView button[data-pointer-focus]:focus{outline:none}
 :is(#aimView,#skyMapView) .preview-footer-rel{max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:10px;line-height:1.2;color:var(--secondary);white-space:nowrap}
 :is(#aimView,#skyMapView) .tool-datetime-footer .tool-datetime-track{max-width:780px;margin:0 auto;padding:2px 0;touch-action:none;cursor:pointer}
@@ -1226,7 +1295,7 @@ main:has(>#skyMapView:not([hidden])){padding-bottom:calc(var(--sky-footer-h,100p
 .sky-map-wrap.sky-map-wide{position:fixed;inset:0;height:auto;max-width:none;border:0;border-radius:0;z-index:30;margin:0}html:has(.sky-map-wide){scrollbar-gutter:auto;overflow:hidden}body:has(.sky-map-wide){overflow:hidden}.sky-map-wide .mapzoom{bottom:calc(var(--sky-footer-h,100px) + 8px)}.sky-map-wide .mapattr{bottom:calc(var(--sky-footer-h,100px) + 4px)}.sky-map-time-actions button{padding-inline:7px}.sky-map-time-actions{flex-wrap:wrap}
 .sky-map-actions,.sky-map-events{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.sky-map-date{display:grid;grid-template-columns:36px minmax(0,1.5fr) minmax(0,1fr) 36px;gap:4px}.sky-map-date input{width:100%;min-width:0;min-height:44px;box-sizing:border-box;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;font-size:16px}.sky-map-date button{padding:0}
 #skyMapRange{width:100%;height:38px;accent-color:var(--accent)}.sky-map-use{width:100%;min-height:44px;background:var(--accent);color:var(--on-accent)}#skyMapCustom input{width:90px;min-height:44px;background:var(--card);color:var(--text);font-size:16px}#skyMapTargetInfo{margin:10px 0}#skyMapRetry[hidden]{display:none}
-.sky-map-time-actions{display:flex;align-items:center;gap:8px;margin-bottom:4px}.sky-map-time-actions .tiny{margin-left:auto}.sky-map-time-actions button{min-height:36px}.sky-map-definition{color:var(--secondary)}
+.sky-map-time-actions{display:flex;align-items:center;gap:8px;margin-bottom:4px}.sky-map-time-actions .tiny{margin-left:auto}.sky-map-time-actions button{min-width:44px;min-height:36px}.sky-map-definition{color:var(--secondary)}
 
 /* E185: recognisable shapes remain beside their subject and keep readable names. */
 .ui-icon-label{display:inline-flex;align-items:center;justify-content:center;gap:7px}
@@ -1331,11 +1400,27 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 #skyMapView .sky-map-readouts{padding-inline:8px}
 
 :is(#aimView,#skyMapView) .tool-datetime-footer{--timeline-panel-bg:var(--card)}
-[data-theme=dark] :is(#aimView,#skyMapView) .tool-datetime-footer{--timeline-panel-bg:#2c2c2e}
+[data-theme=dark] :is(#aimView,#skyMapView) .tool-datetime-footer{--timeline-panel-bg:var(--card)}
 
 :is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes:after{content:"";position:absolute;left:100%;top:0;bottom:0;width:14px;background:linear-gradient(to right,var(--timeline-panel-bg,var(--card)),transparent);pointer-events:none}
 :is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes button:after{content:"↔";font-size:10px;line-height:1;color:var(--secondary)}
 :is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes button:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+
+/* 2026-10-15: 全画面・全入力方法でフォーカス枠とタップの強調を表示しない。
+   焦点移動、入力カーソル、選択済みの状態表示は維持する。 */
+* { -webkit-tap-highlight-color: transparent; }
+*:focus, *:focus-visible { outline: none !important; }
+
+/* 入力だけは図/PCの縮小文字規則より優先し、iOSの入力時拡大を防ぐ。 */
+input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color: var(--accent); }
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]), select, textarea { font-size: 16px !important; }
+/* 透明な代理select以外はWebKit/Chromeで同じ枠・角丸・開閉印にする。 */
+select:not(.mxsort select):not(.aim-pick select) { appearance: none; -webkit-appearance: none; min-height: 44px; border: 1px solid var(--line); border-radius: 9px; background-color: var(--sunk); color: var(--text); padding: 8px 32px 8px 10px; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
+/* 共通UIの実寸。用途別の小型chip/表セルは既存の専用基準を使う。 */
+:root { --ui-control-size: 44px; --ui-icon-size: 20px; --ui-icon-stroke: 1.8; }
+button.ui-icon-button { display: inline-grid !important; place-items: center; flex: none; width: var(--ui-control-size) !important; height: var(--ui-control-size) !important; min-width: var(--ui-control-size); min-height: var(--ui-control-size); padding: 0 !important; border: 0; border-radius: 0; background: transparent; color: var(--text); }
+button.ui-icon-button::after { content: none; }
+.ui-control-icon { display: block; width: var(--ui-icon-size); height: var(--ui-icon-size); fill: none; stroke: currentColor; stroke-width: var(--ui-icon-stroke); stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 </style></head>
 <body>
 <main>
@@ -1424,6 +1509,7 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
   <!-- 月丼: 月と飛行機を重ねる。航路は決まっているので、月の道と突き合わせれば
        立ち位置が解ける（「ねらう」と同じ形。目標が航路の上を動く点になっただけ）。 -->
   <div id="planeView" hidden>
+    <div id="planeAccess" hidden><div class="sky-map-head"><h2>月丼</h2></div><div class="card"><p id="planeAccessMessage"></p><button id="planeAccessLogin" class="fav-btn primary">ログイン</button></div></div>
     <div class="card">
       <!-- 並びはねらうと同じ（2026-10-01 ユーザー「月丼とかISSとかのレイアウトも統一感あるように」）:
            題名、道具の選ぶ欄（運用）、観測地点（「〇〇から重ねる」。地点カードと同じ形・絶景予測の地点を引き継ぐ。2026-10-06 に運用の下へ）、
@@ -1495,6 +1581,7 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
   </div>
 
   <div id="aimView" hidden>
+    <div id="aimAccess" hidden><div class="sky-map-head"><h2>構図</h2></div><div class="card"><p id="aimAccessMessage" role="status">ログインすると利用権限を確認できます</p><button type="button" class="chip" id="aimAccessLogin">ログイン</button></div></div>
     <div class="card">
       <!-- 2026-10-06：何を→何に→どこからの順で、1行ずつ文にして選ぶ（ユーザー「〇〇（選択）を重ねる。〇〇（選択）に重ねる。〇〇（選択）から重ねる。みたいに選ばせる」）。
            どこからを最後にしたのは、その日の候補地が何を・何に・日付で決まるから（どこからの所で候補地を出すには、上の2つが決まっている必要がある）。
@@ -1664,6 +1751,7 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
   <!-- ISS の月面通過（2026-09-30）。月（太陽）の中心から ISS を通る直線が地面に当たる線＝中心線。
        その左右数kmの帯の中に立つと、ISS が円盤の前を横切る。1秒に満たない -->
   <div id="issView" hidden>
+    <div id="issAccess" hidden><div class="sky-map-head"><h2>ISS</h2></div><div class="card"><p id="issAccessMessage"></p><button id="issAccessLogin" class="fav-btn primary">ログイン</button></div></div>
     <div class="card">
       <!-- 並びはねらうと同じ（2026-10-01 ユーザー「月丼とかISSとかのレイアウトも統一感あるように」）:
            題名の右に太陽／月（絵文字だけ・ねらうと同じ順）、どこの近くで探すか（地点カードと同じ形）、探す範囲、地図、一覧。
@@ -1722,6 +1810,7 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
   </div>
 
   <div id="recordsView" hidden>
+    <div id="recordsAccess" hidden><div class="sky-map-head"><h2>記録</h2></div><div class="card"><p id="recordsAccessMessage"></p><button id="recordsAccessLogin" class="fav-btn primary">ログイン</button></div></div>
     <div class="card">
       <div class="section-h"><h2>記録</h2><span class="muted" id="recCount"></span></div>
       <div id="recEmpty" class="tiny" hidden>まだ記録がありません。</div>
@@ -2013,15 +2102,15 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 </dialog>
 
 <dialog class="sheet" id="accountSheet" aria-labelledby="accountTitle" tabindex="-1">
-  <div class="sheet-head"><strong id="accountTitle">アカウント</strong><button id="accountClose">閉じる</button></div>
+  <div class="sheet-head"><button type="button" class="panel-back" id="accountBack" aria-label="設定へ戻る"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg></button><strong id="accountTitle">アカウント</strong><button id="accountClose" aria-label="閉じる" title="閉じる"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
   <div class="sheet-body">
-    <div id="accountBody" class="tiny"></div>
+    <div id="accountBody"></div>
     <p class="warn" id="accountErr" style="margin-top:10px" hidden></p>
-    <div id="accountPrivateEntry"></div>
-    <button id="addPasskey" class="fav-btn primary" style="margin-top:16px">この端末にパスキーを登録</button>
-    <button id="newRecovery" class="fav-btn" style="margin-top:8px">回復コードを発行する</button>
-    <button id="disablePw" class="fav-btn" style="margin-top:8px" hidden>パスワードでのログインをやめる</button>
-    <details id="enablePwWay" style="margin-top:8px" hidden>
+    <h3 class="account-sec">ログイン方法</h3>
+    <div class="account-row"><span>パスキー<span class="tiny" id="accountPasskeyState"></span></span><button id="addPasskey" class="chip">この端末を登録</button></div>
+    <div id="accountPasskeys"></div>
+    <div class="account-row"><span>パスワード<span class="tiny" id="accountPwState"></span></span><button id="disablePw" class="chip" hidden>使わない</button></div>
+    <details id="enablePwWay" style="margin:0 0 8px" hidden>
       <summary class="tiny" style="cursor:pointer;color:var(--secondary)">パスワードでのログインを使う</summary>
       <p class="tiny" style="margin-top:8px">パスキーを全部失くしたときの備えに。</p>
       <label class="fav-l" for="newAccPw">パスワード</label>
@@ -2031,13 +2120,8 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
         IDと同じ文字・よくある言葉・連番は使えません。</p>
       <button id="enablePw" class="fav-btn" style="margin-top:10px">このパスワードを使う</button>
     </details>
-    <details id="loginHistory" style="margin-top:14px">
-      <summary class="tiny" style="cursor:pointer;color:var(--secondary)">ログインの履歴</summary>
-      <p class="tiny" style="margin-top:8px">成功も失敗も残ります。
-        <strong>身に覚えのない成功があれば、パスワードを変え、知らない端末のパスキーを消してください。</strong></p>
-      <div id="loginHistoryList" class="tiny"></div>
-    </details>
-    <div id="recoveryShown" hidden style="margin-top:14px;padding:12px;border-radius:10px;background:var(--sunk)">
+    <div class="account-row"><span>回復コード<span class="tiny" id="accountCodesState"></span></span><button id="newRecovery" class="chip">発行し直す</button></div>
+    <div id="recoveryShown" hidden style="margin:0 0 8px;padding:12px;border-radius:10px;background:var(--sunk)">
       <div class="tiny" style="font-weight:700">この回復コードは一度しか表示されません</div>
       <div id="recoveryCode" style="font-family:ui-monospace,monospace;font-size:0.81rem;font-weight:700;margin-top:6px;line-height:1.7;word-break:break-all"></div>
       <button id="copyCodes" class="fav-btn" style="margin-top:10px">すべてコピー</button>
@@ -2045,9 +2129,15 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
         <strong>IDと一緒に</strong>パスワードマネージャへ保存してください。
         入るときは ID とコードの両方が要ります。</div>
     </div>
-    <button id="logoutAll" class="fav-btn" style="margin-top:16px">ほかの端末からログアウト</button>
-    <p class="tiny" style="margin-top:6px;color:var(--tertiary)">端末を失くしたときに。
-      この端末は入ったままで、ほかの端末のログインだけが切れます。</p>
+    <p class="tiny" id="accountAdvice" style="margin-top:8px" hidden></p>
+    <h3 class="account-sec">安全</h3>
+    <details id="loginHistory">
+      <summary class="account-row"><span>ログインの履歴</span><span class="account-chev" aria-hidden="true" style="flex:none">▾</span></summary>
+      <p class="tiny" style="margin:0 0 8px">成功も失敗も残ります。
+        <strong>身に覚えのない成功があれば、パスワードを変え、知らない端末のパスキーを消してください。</strong></p>
+      <div id="loginHistoryList" class="tiny"></div>
+    </details>
+    <div class="account-row"><span>ほかの端末のログイン<span class="tiny">端末を失くしたときに。この端末は入ったままです</span></span><button id="logoutAll" class="chip">すべて切る</button></div>
     <button id="logout" class="fav-remove">ログアウト</button>
     <button id="deleteAccount" class="fav-remove" style="color:var(--red)">アカウントを削除する</button>
   </div>
@@ -2098,31 +2188,33 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261015165900"></script>
-<script src="sorami-prediction.js?v=20261015165900"></script>
+<script src="sorami-core.js?v=416354364020786134"></script>
+<script src="sorami-prediction.js?v=17884626660592691492"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261015165900"></script>
-<script src="sorami-exif.js?v=20261015165900"></script>
-<script src="sorami-capcloud.js?v=20261015165900"></script>
-<script src="sorami-terrain.js?v=20261015165900"></script>
-<script src="sorami-mountain.js?v=20261015165900"></script>
-<script src="sorami-fuji.js?v=20261015165900"></script>
-<script src="sorami-sky.js?v=20261015165900"></script>
+<script src="sorami-astro.js?v=9181748260451918765"></script>
+<script src="sorami-exif.js?v=18314871901163682501"></script>
+<script src="sorami-capcloud.js?v=4966950791580310294"></script>
+<script src="sorami-terrain.js?v=2888802520753998075"></script>
+<script src="sorami-mountain.js?v=6648342167869535458"></script>
+<script src="sorami-fuji.js?v=14151766095380968202"></script>
+<script src="sorami-sky.js?v=4746693032579981037"></script>
 
-<script src="sorami-history.js?v=20261015165900"></script>
-<script src="sorami-plan.js?v=20261015165900"></script>
-<script src="sorami-routes.js?v=20261015165900"></script>
-<script src="sorami-iss.js?v=20261015165900"></script>
-<script src="sorami-plane.js?v=20261015165900"></script>
-<script src="sorami-refraction.js?v=20261015165900"></script>
-<script src="sorami-atmosphere.js?v=20261015165900"></script>
-<script src="sorami-bodies.js?v=20261015165900"></script>
-<script src="sorami-sky-map.js?v=20261015165900"></script>
-<script src="sorami-city-models.js?v=20261015165900"></script>
-<script src="sorami-tower-models.js?v=20261015165900"></script>
-<script src="sorami-align.js?v=20261015165900"></script>
-<script src="sorami-moon.js?v=20261015165900"></script>
+<script src="sorami-history.js?v=12978486167727035619"></script>
+<script src="sorami-plan.js?v=477526235409259430"></script>
+<script src="sorami-routes.js?v=12335782718866241777"></script>
+<script src="sorami-iss.js?v=9453066214197620974"></script>
+<script src="sorami-plane.js?v=748004624366731407"></script>
+<script src="sorami-refraction.js?v=6010632929459496538"></script>
+<script src="sorami-atmosphere.js?v=17064914677876876535"></script>
+<script src="sorami-bodies.js?v=7468730107950742605"></script>
+<script src="sorami-sky-map.js?v=16125800498973618817"></script>
+
+
+
+<script src="sorami-assets.js?v=2324625497146189621"></script>
+<script src="sorami-align.js?v=11476056468372570822"></script>
+<script src="sorami-moon.js?v=10230678456179898054"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -2161,12 +2253,23 @@ readTint();
 // Google マップから戻ると約1.3秒ライトで出ていた。表で本当に替えたときは、値が落ち着くのを少し待ってから替える
 const darkQuery = matchMedia("(prefers-color-scheme: dark)");
 let themeTimer = 0, themeHoldUntil = 0;
+function getThemePreference() {
+  try { const mode = localStorage.getItem('sorami.theme'); return ['auto','light','dark'].includes(mode) ? mode : 'auto'; } catch { return 'auto'; }
+}
+function setThemePreference(mode) {
+  if (!['auto','light','dark'].includes(mode)) return false;
+  try { localStorage.setItem('sorami.theme', mode); } catch { return false; }
+  themeHoldUntil = 0;
+  applyTheme();
+  return true;
+}
 function applyTheme() {
   clearTimeout(themeTimer);
   if (document.hidden) return;
   const wait = themeHoldUntil - Date.now();
   if (wait > 0) { themeTimer = setTimeout(applyTheme, wait); return; }
-  const theme = darkQuery.matches ? "dark" : "light";
+  const mode = getThemePreference();
+  const theme = mode === "auto" ? (darkQuery.matches ? "dark" : "light") : mode;
   if (document.documentElement.dataset.theme === theme) return;
   document.documentElement.dataset.theme = theme;
   readTint(); applyRoute();
@@ -2528,8 +2631,22 @@ const extrasRetry = createForecastRetry(() => { extrasLoadedSeq = -1; kickExtras
 let selectedDay = {};    // phenomenon → dayMs
 
 // ---------------------------------------------------------------- 読み込み
+let predictionDirty = true, activePredictionKey = null, acceptedPrediction = null;
+const predictionKeyFor = p => JSON.stringify([p.latitude,p.longitude,p.elevation??null,p.eyeHeightAGL??1.5,p.terrain??null]);
+const predictionNeeded = () => { const r = routeFromHash(); return !r || !!r.id; };
 let loadSeq = 0;         // 連続で地点や地形を変えたとき、古い応答を捨てるための連番
 async function load(force) {
+  const requestKey = predictionKeyFor(place);
+  if (acceptedPrediction && predictionKeyFor(acceptedPrediction.place) !== requestKey) {
+    bundle = null; weeks = {}; forecastDays = []; predictionPlace = null; acceptedPrediction = null;
+  }
+  if (!predictionNeeded()) {
+    ++loadSeq; ++extraSeq; extrasRetry.reset(); activePredictionKey = null; predictionDirty = true;
+    return;
+  }
+  if (activePredictionKey === requestKey) return;
+  activePredictionKey = requestKey;
+  predictionDirty = true;
   const seq = ++loadSeq;
   ++extraSeq; extrasRetry.reset();
   const forPlace = place;   // 取得開始時の地点で最後まで一貫して評価する
@@ -2543,6 +2660,7 @@ async function load(force) {
     // 光害はその地点の素質なので予報と並行に取得する。取れなくても致命的ではない。
     const prediction = await SoramiPrediction.fetch(forPlace);
     if (seq !== loadSeq) return;
+    predictionDirty = false; acceptedPrediction = prediction;
     bundle = prediction.bundle;
     S.setTimezoneOffset(bundle.utcOffsetSeconds);
     forPlace.lightPollution = prediction.lightPollution;
@@ -2559,7 +2677,7 @@ async function load(force) {
     // 予報が揃ってから URL の場所を反映する。詳細のURLを直接開いた場合も
     // ここで初めてその現象を描ける。
     applyRoute();
-    loadNowcast().catch(() => { nowcastReady = false; $("nowcast").hidden = true; });  // 実況は補助。失敗しても予報は出す
+    ensureNowcast();  // Supplementary observations also load when returning from a tool.
   } catch (e) {
     if (seq !== loadSeq) return;
     $("status").hidden = false;
@@ -2581,17 +2699,34 @@ async function load(force) {
     const route = routeFromHash();
     if (!bundle && route && !route.id) applyRoute();
     else $("placeName").textContent = place.name;
+  } finally {
+    if (seq === loadSeq) activePredictionKey = null;
   }
 }
 
 // アメダス実況。更新は10分間隔なのでそれより短く取りに行かない。
 let amedasStations = null;
+const nowcastPending = new Map();
+let nowcastFor = null, nowcastAt = 0, nowcastFailure = null;
+function ensureNowcast() {
+  if (!predictionNeeded() || !bundle || !acceptedPrediction || predictionKeyFor(acceptedPrediction.place) !== predictionKeyFor(place)) return;
+  const key = predictionKeyFor(place), now = Date.now();
+  if ((nowcastReady && nowcastFor === key && now - nowcastAt < 600000) || nowcastPending.has(key) || (nowcastFailure?.key === key && now - nowcastFailure.at < 60000)) return;
+  const job = {key}; nowcastPending.set(key,job);
+  job.promise = loadNowcast().then(() => {
+    if (key === predictionKeyFor(place)) { nowcastFor = key; nowcastAt = Date.now(); nowcastFailure = null; }
+  }).catch(() => {
+    if (key === predictionKeyFor(place)) { nowcastReady = false; $("nowcast").hidden = true; nowcastFailure = {key,at:Date.now()}; }
+  }).finally(() => { if (nowcastPending.get(key) === job) nowcastPending.delete(key); });
+}
 async function loadNowcast() {
+  const forPlace = place, key = predictionKeyFor(forPlace), gridElevation = bundle?.home.grid.elevation;
   const latest = await S.Amedas.latestTime();
   if (!amedasStations) amedasStations = await S.Amedas.stations();
-  const obs = await S.Amedas.nearest(place.latitude, place.longitude, amedasStations, latest,
-    place.elevation ?? bundle?.home.grid.elevation);
-  const daytime = S.Sun.position(obs.observedAt, place.latitude, place.longitude).elevation > 0;
+  const obs = await S.Amedas.nearest(forPlace.latitude, forPlace.longitude, amedasStations, latest,
+    forPlace.elevation ?? gridElevation);
+  if (key !== predictionKeyFor(place)) return;
+  const daytime = S.Sun.position(obs.observedAt, forPlace.latitude, forPlace.longitude).elevation > 0;
   const parts = [S.Amedas.condition(obs, daytime)];
   // 降っているなら量も出す。予報と実況を突き合わせて「ずれています」と警告していたが、
   // 8モデルの中央値は点数のための道具で、いまの気温を当てる道具ではない。
@@ -3099,6 +3234,9 @@ function render() {
   // 順番を間違えても気づけない。**表に1行足すだけ**にする（2026-09-28）。
   const view = VIEWS.find((v) => v.on()).id;
   for (const v of VIEWS) $(v.el).hidden = v.id !== view;
+  // 表示はルートだけで決まるので、構図の権限はここでも当て直す。ログアウトした直後も本体を出さない
+  if (view === "aim") renderAimAccess();
+  for (const id of ["plane", "iss", "records"]) renderToolAccess(id);
   // 一覧以外の画面では、題名の帯の下に「← 戻る」
   $("backBar").hidden = isMenuPage();
   const inDetail = view === "detail";
@@ -3106,6 +3244,7 @@ function render() {
   // ダイヤモンド富士や月丼の上に出すと、何の地点なのか分からなかった（2026-09-30 ユーザー指摘）。
   // それらの道具は自分のスポット一覧を持つ
   currentView = view;
+  if (nowcastFor !== predictionKeyFor(place)) nowcastReady = false;
   $("placeRow").hidden = !placeCardShown();
   // 展望台の選択は地点カードの続き。地点を出さない画面では一緒に隠す
   if (!placeCardShown()) $("deckRow").hidden = true; else renderDeckRow();
@@ -3199,6 +3338,7 @@ function render() {
 /// 詳細の下半分の釦をつなぐ。下半分は日を替えるたび・計算が届くたびに作り直されるので、
 /// **作り直したら必ずここを通す。** 重なる日の行は、最初の描画でつないでいなかった
 function kickExtras() {
+  if (!["list", "detail"].includes(currentView) || !predictionNeeded()) return;
   if ((extrasRunning && extrasRunningSeq === predictionLoadSeq) || !bundle || extrasLoadedSeq === predictionLoadSeq) return;
   const started = predictionLoadSeq;
   extrasLoadedSeq = started; extrasRunning = true; extrasRunningSeq = started;
@@ -3449,10 +3589,18 @@ $("photoSave").onclick = async (e) => {
 };
 
 let photos = [];
+let photosRequest = 0;
 async function loadPhotos() {
-  if (!auth) { photos = []; renderPhotos(); return; }
-  try { photos = (await apiCall("GET", "/photos")).photos || []; }
-  catch { photos = []; }
+  const request = ++photosRequest, token = auth?.token;
+  if (!renderToolAccess("records")) { photos = []; renderPhotos(); return; }
+  try {
+    const response = await apiCall("GET", "/photos");
+    if (request !== photosRequest || token !== auth?.token || !toolAllowed("records")) return;
+    photos = response.photos || [];
+  } catch {
+    if (request !== photosRequest || token !== auth?.token) return;
+    photos = [];
+  }
   renderPhotos();
 }
 function renderPhotos() {
@@ -3625,6 +3773,7 @@ function applyRoute() {
   if (atRecords) loadPhotos();
   atAdmin = !!(route && route.admin);
   atAim = !!(route && route.aim);
+  if (!atAim) aim.pendingModelPreset = null;
   atSkyMap = !!route?.skymap;
   if (!atSkyMap) SkyMapUI?.leave();
   atPlane = !!(route && route.plane);
@@ -3644,6 +3793,8 @@ function applyRoute() {
   if (currentView === "list") listScrollY = window.scrollY;
   render();
   if (atSkyMap) SkyMapUI?.open();
+  if (predictionNeeded() && (predictionDirty || !SoramiPrediction.fresh(acceptedPrediction, place, Date.now()))) void load(false);
+  ensureNowcast();
   // 2026-10-15 ユーザー「AstroNotesに切り替えたら一番上のタイトルも変えて。ロゴもある」。FramingとMap（メニューのAstroNotes）を開いている間は題名とマークをAstroNotesに
   const astroNotes = atAim || atSkyMap;
   if (astroNotes) try { localStorage.setItem("sorami.astroLast", atSkyMap ? "skymap" : "aim"); } catch {}
@@ -3749,8 +3900,8 @@ function renderMatrix(order, now) {
     + `<select id="sortSelect" aria-label="並び替え"></select></div>`;
   for (const dayMs of dayList) {
     const wd = S.Cal.weekday(dayMs);
-    const cls = dayMs === today ? "today" : wd === "土" ? "sat" : wd === "日" ? "sun" : "";
-    head += `<div class="dhead ${cls}"><span class="d">${S.Cal.monthDay(dayMs)}</span><span>${wd}</span></div>`;
+    const cls = [wd === "土" ? "sat" : wd === "日" ? "sun" : "", dayMs === today ? "today" : ""].filter(Boolean).join(" ");
+    head += `<div class="dhead ${cls}"${cls.includes("today") ? ' aria-current="date" aria-label="今日"' : ""}><span class="d">${S.Cal.monthDay(dayMs)}</span><span>${wd}</span></div>`;
   }
   let rows = "";
   for (const id of live) {
@@ -3821,8 +3972,8 @@ function renderSkeleton(now) {
   let head = `<div class="mxrail mxsort">${sortFace()}</div>`;
   for (const dayMs of days) {
     const wd = S.Cal.weekday(dayMs);
-    const cls = dayMs === today ? "today" : wd === "土" ? "sat" : wd === "日" ? "sun" : "";
-    head += `<div class="dhead ${cls}"><span class="d">${S.Cal.monthDay(dayMs)}</span><span>${wd}</span></div>`;
+    const cls = [wd === "土" ? "sat" : wd === "日" ? "sun" : "", dayMs === today ? "today" : ""].filter(Boolean).join(" ");
+    head += `<div class="dhead ${cls}"${cls.includes("today") ? ' aria-current="date" aria-label="今日"' : ""}><span class="d">${S.Cal.monthDay(dayMs)}</span><span>${wd}</span></div>`;
   }
   let rows = "";
   for (const [id, meta] of order) {
@@ -6089,6 +6240,7 @@ function planeOpSpans(dayMs, opts) {
 }
 
 async function planeApply() {
+  if (!toolAllowed("plane")) return;
   const seq = ++plane.seq;
   $("planeInfo").textContent = "狙い目を探しています…";
   $("planeList").innerHTML = "";
@@ -6264,6 +6416,7 @@ PlaneMap.setOverlay((ctx, { project, width, height }) => {
 });
 
 function openPlane() {
+  if (!renderToolAccess("plane")) { plane.seq++; return; }
   if (!plane.dayMs) plane.dayMs = S.Cal.startOfDay(Date.now());
   $("planeDate").value = new Date(plane.dayMs + 9 * 3600000).toISOString().slice(0, 10);
   $("planeWeekday").textContent = S.Cal.relativeDay(plane.dayMs);
@@ -6300,6 +6453,7 @@ function openPlane() {
     };
   }
   requestAnimationFrame(() => {
+    if (!atPlane || !toolAllowed("plane")) return;
     PlaneMap.open({ latitude: SoramiRoutes.RJTT.latitude, longitude: SoramiRoutes.RJTT.longitude }, 10);
     requestAnimationFrame(() => PlaneMap.redraw());
   });
@@ -6452,6 +6606,7 @@ async function issLoadTle() {
 }
 
 async function issApply() {
+  if (!toolAllowed("iss")) return;
   const P = issFromPoint();
   if (!P) return;
   const seq = ++iss.seq;
@@ -6671,6 +6826,7 @@ IssMap.setOverlay((ctx, { project, width, height }) => {
 });
 
 function openIss() {
+  if (!renderToolAccess("iss")) { iss.seq++; return; }
   if (!iss.wired) {
     iss.wired = true;
     $("issMoon").onclick = () => { iss.body = "moon"; issApply(); };
@@ -6681,6 +6837,7 @@ function openIss() {
     $("issFromButton").onclick = () => openPlaceSheet("iss");
   }
   requestAnimationFrame(() => {
+    if (!atIss || !toolAllowed("iss")) return;
     const P = issFromPoint();
     IssMap.open({ latitude: P.latitude, longitude: P.longitude }, 8);
     requestAnimationFrame(() => IssMap.redraw());
@@ -9162,11 +9319,40 @@ function aimAirChoose(next){
 $("aimAirMode").onchange=()=>aimAirChoose($("aimAirMode").value);
 aimAirSync();
 
-function openAim(preset) {
+/// 構図を使えるかを画面へ出す。以前は openAim が aimView ごと隠していたが、直後の render() が
+/// ルートだけで表示へ戻すため、未ログインの直URLで本体が「計算しています…」のまま止まっていた（2026-10-15）
+function renderAimAccess() {
   const permitted = toolAllowed("diamond") || toolAllowed("pearl") || toolAllowed("tower");
-  $("aimView").hidden = !permitted;
-  if (!permitted) { aim.bodySeq++; return; }
+  $("aimView").toggleAttribute("data-locked", !permitted);
+  $("aimAccess").hidden = permitted;
+  if (!permitted) {
+    $("aimAccessMessage").textContent = auth?.token ? "構図の利用が許可されていません" : "ログインすると利用権限を確認できます";
+    $("aimAccessLogin").hidden = !!auth?.token;
+  }
+  return permitted;
+}
+$("aimAccessLogin").onclick = () => $("authButton").click();
+
+function openAim(preset) {
+  if (!renderAimAccess()) { aim.bodySeq++; return; }
+  if (preset) aim.pendingModelPreset = preset;
   const entry = ++aim.bodySeq;
+  if (!SoramiAssets.modelsReady()) {
+    const token = auth?.token;
+    $("aimLineInfo").textContent = "形状データを読み込んでいます…";
+    SoramiAssets.ensureModels().then(() => {
+      if (entry === aim.bodySeq && atAim && token === auth?.token) { $("aimLineInfo").textContent = ""; openAim(preset); }
+    }).catch(() => {
+      if (entry !== aim.bodySeq || !atAim || token !== auth?.token) return;
+      $("aimLineInfo").textContent = "形状データを取得できませんでした。";
+      const retry = document.createElement("button"); retry.type = "button"; retry.className = "chip"; retry.textContent = "再試行";
+      retry.onclick = () => openAim(preset); $("aimLineInfo").append(retry);
+      const reload = document.createElement("button"); reload.type = "button"; reload.className = "chip"; reload.textContent = "画面を更新";
+      reload.onclick = () => location.reload(); $("aimLineInfo").append(reload);
+    });
+    return;
+  }
+  preset = preset ?? aim.pendingModelPreset ?? null; aim.pendingModelPreset = null;
   const body = AIM_PRESETS[preset]?.body || aim.body;
   if (!aimReady) {
     aimReady = true;
@@ -9870,12 +10056,12 @@ function migrationPlan(owner, loginId, hasLocal) {
   return "discard";                                          // 別の人。渡さない
 }
 
-async function apiCall(method, path, body) {
+async function apiCall(method, path, body, signal) {
   const requestToken = auth?.token, requestGeneration = authGeneration;
   const headers = {};
   if (body !== undefined) headers["content-type"] = "application/json";
   if (auth) headers.authorization = `Bearer ${auth.token}`;
-  const res = await fetch(API + path, { method, headers,
+  const res = await fetch(API + path, { method, headers, signal,
     body: body === undefined ? undefined : JSON.stringify(body) });
   let data = null;
   try { data = await res.json(); } catch { /* 本文が無いこともある */ }
@@ -9883,7 +10069,8 @@ async function apiCall(method, path, body) {
     // 401 はセッション切れ。**データは消さない。** 入り直せば続きから使える。
     if (res.status === 401 && data?.code !== "reauth_required" && auth?.token === requestToken && authGeneration === requestGeneration) { clearAuth(); renderAuthButton(); }
     const error = new Error(data?.error || `通信できませんでした（${res.status}）`);
-    error.code = data?.code; throw error;
+    // 状態も渡す。権限が無い（403）ときに「再試行」を出さないための判定に使う（2026-10-15）
+    error.code = data?.code; error.status = res.status; throw error;
   }
   if (authGeneration !== requestGeneration || auth?.token !== requestToken) throw new Error("アカウントが変更されました。操作をやり直してください");
   return data;
@@ -9917,23 +10104,48 @@ function askReauth() {
   if (!supported) $("authPw").focus();
 }
 
-/**
- * メニューに何を出すか。**誰に何を見せるかはサーバーが決める**（`/me` の `tools`）。
- *
- * - **既定は何も出さない。** 記録も含めて、管理画面で1つずつ許す
- *   （記録は「答える場所」ではなく「見に行く場所」。答える入口はホームと詳細にある）
- * - 管理者は役割で全部
- * - これは**見た目の話**でしかない。URL を直接開けば画面は出る。
- *   秘密を守るためではなく、まだ人に見せる形になっていないものを畳むための仕組み
+/** 利用権限は /me の tools が正本。メニュー・直URL・画面の操作に同じ判定を使う。
+ * 公開JavaScriptの配布制限ではない。個人データと管理操作はAPIでも認証する。
+ * recordsは記録一覧の閲覧権限。予測詳細からの回答・入力は別の既存仕様。
  */
 function allowedTools() {
-  return Array.isArray(auth?.tools) ? auth.tools : [];
+  return auth?.token && Array.isArray(auth.tools) ? auth.tools : [];
 }
 /// **道具の中身は、メニュー以外の画面でも同じ判定で出し分ける。**
 /// 富士山の詳細のダイヤモンド富士・パール富士、月の詳細の「空の見え方を見る」など。
 /// メニューだけ隠しても、誰でも開く詳細に出ていれば見えてしまう（2026-10-01 ユーザー指摘）
 function toolAllowed(id) {
   return allowedTools().includes(id);
+}
+const RESTRICTED_TOOL_LABELS = { plane: "月丼", iss: "ISS", records: "記録" };
+function renderToolAccess(id) {
+  const permitted = toolAllowed(id);
+  $(id + "View").toggleAttribute("data-locked", !permitted);
+  $(id + "Access").hidden = permitted;
+  if (!permitted) {
+    $(id + "AccessMessage").textContent = auth?.token
+      ? RESTRICTED_TOOL_LABELS[id] + "の利用が許可されていません"
+      : "ログインすると利用権限を確認できます";
+    $(id + "AccessLogin").hidden = !!auth?.token;
+  }
+  return permitted;
+}
+for (const id of Object.keys(RESTRICTED_TOOL_LABELS)) {
+  $(id + "AccessLogin").onclick = () => $("authButton").click();
+}
+let restrictedToolsKey = null;
+function refreshRestrictedTools() {
+  const key = JSON.stringify([auth?.token, allowedTools()]);
+  for (const id of Object.keys(RESTRICTED_TOOL_LABELS)) renderToolAccess(id);
+  if (key === restrictedToolsKey) return;
+  restrictedToolsKey = key;
+  // 古いアカウント/権限で開始した処理を無効にし、記録を即座に消す。
+  plane.seq++; iss.seq++; photosRequest++;
+  photos = []; renderPhotos();
+  if (atAim) openAim(null);
+  if (atPlane) openPlane();
+  if (atIss) openIss();
+  if (atRecords) loadPhotos();
 }
 function renderTools() {
   $("skyMapOpen").hidden = !toolAllowed("skymap");
@@ -10118,8 +10330,7 @@ function renderAuthButton() {
   renderTools();
   SkyMapUI?.authChanged();
   redrawIfToolsChanged();
-  // 写真はアカウントのもの。ログインが変わったら出し直す
-  if (atRecords) loadPhotos();
+  refreshRestrictedTools();
   const b = $("authButton");
   if (!auth) { b.textContent = "ログイン"; b.classList.remove("warn"); b.setAttribute("aria-label", "ログイン"); return; }
   const failing = !!syncError || pushQueue.length > 0;
@@ -10222,7 +10433,7 @@ const localStorageHasToken = () => {
 
 // 開いたときに、残っているトークンで入り直す。
 // **通るかどうかはサーバーに訊く。** 期限も、取り消されたかどうかも、手元では分からない。
-async function restoreSession() {
+async function restoreSession({ onAccessReady = () => {} } = {}) {
   const found = storedAuth();
   if (!found) return;
   authGeneration++;
@@ -10231,13 +10442,18 @@ async function restoreSession() {
   // **/me の返事を待たずに出す。** 待っていると、圏外や応答が遅いときに
   // ログイン済みなのにメニューが出ないままになる（2026-09-28 ユーザー指摘）
   renderAuthButton();
+  const accessController = new AbortController(), accessTimer = setTimeout(() => accessController.abort(), 10000);
   try {
-    const me = await apiCall("GET", "/me");
+    const me = await apiCall("GET", "/me", undefined, accessController.signal);
+    clearTimeout(accessTimer);
     if (generation !== authGeneration || !auth) return;
     auth = { ...auth, loginId: me.loginId ?? auth.loginId, role: me.role ?? auth.role,
-             tools: Array.isArray(me.tools) ? me.tools : auth.tools };
+             tools: Array.isArray(me.tools) ? me.tools : auth.tools, ownerAdmin: !!me.ownerAdmin };
     lastLoginId = auth.loginId;
     saveAuth(auth, found.remembered);
+    if (atAim) openAim(null);
+    render();
+    onAccessReady();
     // 折り返しを過ぎた長いセッションは、ここで出し直す。
     // これをしないと、30日で持たせても30日目に必ず切れる。
     if (found.remembered) {
@@ -10246,12 +10462,14 @@ async function restoreSession() {
     renderAuthButton();
     await syncNow();
     if (generation !== authGeneration || !auth) return;
-    if (atAim) openAim(routeFromHash()?.preset || null);
+    // Refresh synced favorites without reapplying a launch preset over user input.
+    if (atAim) openAim(null);
+    SkyMapUI?.refreshTargets();
     render();
   } catch {
     // 401 は apiCall 側で片付いている。それ以外（圏外など）はトークンを捨てない
     renderAuthButton();
-  }
+  } finally { clearTimeout(accessTimer); }
 }
 
 /// ログインできたときの共通処理。初回は端末に残っているものを全部上げる。
@@ -10520,35 +10738,36 @@ async function openAccountSheet() {
     $("disablePw").hidden = !me.hasPassword || !me.credentials.length;
     $("enablePwWay").hidden = me.hasPassword;
     $("deleteAccount").hidden = !!me.ownerAdmin;
-    renderPrivateEntry(me);
     const when = (t) => (t ? new Date(t).toLocaleDateString("ja-JP") : "未使用");
+    const passkeys = (me.credentials || []).length;
     $("accountBody").innerHTML =
-      `<div><strong>${esc(me.loginId)}</strong>${me.role === "admin" ? " ・ 管理者" : ""}</div>`
-      + `<div style="margin-top:6px">${syncError ? `<span class="warn">同期できていません: ${esc(syncError)}</span>`
+      `<div style="font-size:1rem;font-weight:700">${esc(me.loginId)}${me.role === "admin" ? `<span class="tiny"> ・ 管理者</span>` : ""}</div>`
+      + `<div class="tiny" style="margin:2px 0 0">${syncError ? `<span class="warn">同期できていません: ${esc(syncError)}</span>`
           : pushQueue.length ? `<span class="warn">未送信の変更が ${pushQueue.length}件 あります</span>`
           : "同期できています"}${(syncError || pushQueue.length)
-          ? ` <button id="retrySync" style="color:var(--accent);font-weight:700">再試行</button>` : ""}</div>`
-      // 認証手段が1つだけだと、それを失った時点で自分のデータへ入れなくなる。
-      // 起きてから言っても遅いので、そうなる前に言う。
-      + (() => {
-        // 本人の画面には「薦め」も出す。次に何をすればいいかが分かるように
-        const s = nextStep({ passkeys: (me.credentials || []).length,
-                             has_password: me.hasPassword, codes: me.recoveryCodes });
-        if (!s.message) return "";
-        const cls = s.level === "suggest" ? "tiny" : "warn";
-        return `<p class="${cls}" style="margin-top:8px">${esc(s.message)}</p>`;
-      })()
-      + `<div style="margin-top:6px">パスワード: ${me.hasPassword ? "有効" : "無効"}`
-      + ` ／ 回復コード: ${me.recoveryCodes}件</div>`
-      + `<div class="fav-l">登録した端末</div>`
-      + (me.credentials.length
-        ? me.credentials.map((c) => `<div class="fav-row">
+          ? ` <button id="retrySync" style="color:var(--accent);font-weight:700">再試行</button>` : ""}</div>`;
+    // 状態は行の右に短く言い切る（2026-09-08 ユーザー「パスワード：無効 とかってできないの」）。
+    // 2026-10-15 から状態の横にそれを変える操作を置く形にした
+    $("accountPasskeyState").textContent = passkeys ? `${passkeys}台` : "未登録";
+    $("accountPwState").textContent = me.hasPassword ? "有効" : "無効";
+    $("accountCodesState").textContent = `${me.recoveryCodes}件`;
+    $("newRecovery").textContent = me.recoveryCodes ? "発行し直す" : "発行する";
+    // 塗るのは次にすべきこと1つだけ。パスキーが無ければ登録、あれば回復コードが無いときの発行
+    $("addPasskey").classList.toggle("primary", !passkeys);
+    $("newRecovery").classList.toggle("primary", !!passkeys && !me.recoveryCodes);
+    $("accountPasskeys").innerHTML = me.credentials.map((c) => `<div class="fav-row">
             <div class="list-item" style="border-top:none">${esc(c.label || "名称なし")}
               <div class="tiny">登録 ${when(c.created_at)} ・ 最終 ${when(c.last_used_at)}</div></div>
             <button class="fav-del" data-delkey="${esc(c.id)}" aria-label="${esc(c.label || "この端末")}のパスキーを消す">✕</button>
-          </div>`).join("")
-        : `<p class="tiny">まだありません。この端末を登録すると、次から Face ID で入れます。</p>`);
-    for (const el of $("accountBody").querySelectorAll("[data-delkey]")) el.onclick = async () => {
+          </div>`).join("");
+    // 認証手段が1つだけだと、それを失った時点で自分のデータへ入れなくなる。
+    // 起きてから言っても遅いので、そうなる前に言う。本人の画面には「薦め」も出す
+    const s = nextStep({ passkeys: (me.credentials || []).length,
+                         has_password: me.hasPassword, codes: me.recoveryCodes });
+    $("accountAdvice").hidden = !s.message;
+    $("accountAdvice").className = s.level === "suggest" ? "tiny" : "warn";
+    $("accountAdvice").textContent = s.message || "";
+    for (const el of $("accountPasskeys").querySelectorAll("[data-delkey]")) el.onclick = async () => {
       // 消したパスキーは戻せない。作り直しになるので確認する。
       if (!confirm("この端末のパスキーを消します。\nこの端末からは、パスワードか回復コードでしか入れなくなります。")) return;
       $("accountErr").hidden = true;
@@ -10724,7 +10943,7 @@ function clearAdminView() {
   privateDraft = null;
   adminRenderSeq++; privateEntrySeq++; adminUnmount?.(); adminUnmount = null;
   privateModule = null; privateModuleToken = null; privateModulePromise = null;
-  $("adminView").replaceChildren(); $("accountPrivateEntry").replaceChildren();
+  $("adminView").replaceChildren(); $("settingsPrivateEntry")?.replaceChildren();
 }
 async function ownerModule() {
   const token = auth?.token;
@@ -10744,16 +10963,24 @@ async function ownerModule() {
   privateModulePromise = {token, promise};
   try { return await promise; } finally { if (privateModulePromise?.promise === promise) privateModulePromise = null; }
 }
-async function renderPrivateEntry(me) {
-  const seq = ++privateEntrySeq, token = auth?.token;
-  $("accountPrivateEntry").replaceChildren();
-  if (!me.ownerAdmin) return;
+// 管理の入口は設定一覧に置く（2026-10-15 ユーザー「右上→設定→アカウント→管理者の画面、と入るのが深すぎる」）。
+// 入口の部品も所有者の確認を通ったあとに非公開APIから受け取る（E186）。
+async function renderPrivateEntry() {
+  const seq = ++privateEntrySeq, token = auth?.token, box = $("settingsPrivateEntry");
+  box?.replaceChildren();
+  if (!box || !token) return;
+  // ログイン直後でまだ所有者か分からなければ訊く。取れなければ入口を出さない（判定はサーバー）
+  if (auth.ownerAdmin === undefined) {
+    try { const me = await apiCall("GET", "/me"); if (seq !== privateEntrySeq || token !== auth?.token) return; auth = { ...auth, ownerAdmin: !!me.ownerAdmin }; }
+    catch { return; }
+  }
+  if (!auth.ownerAdmin) return;
   try {
     const module = await ownerModule();
-    if (seq !== privateEntrySeq || token !== auth?.token || !$("accountSheet").open) return;
-    $("accountPrivateEntry").append(module.entry({open:()=>{$("accountSheet").close();pushRoute("#/admin");}}));
+    if (seq !== privateEntrySeq || token !== auth?.token || !$("appSettings").open) return;
+    box.append(module.entry({open:()=>{$("appSettings").close();pushRoute("#/admin");}}));
   } catch (e) {
-    if (seq !== privateEntrySeq || token !== auth?.token || !$("accountSheet").open) return;
+    if (seq !== privateEntrySeq || token !== auth?.token || !$("appSettings").open) return;
     const reauth = e.code === "reauth_required";
     const denied = e.status === 403;
     const status = document.createElement("p");
@@ -10761,16 +10988,16 @@ async function renderPrivateEntry(me) {
     status.textContent = reauth ? "管理者の画面を開くには、もう一度ログインしてください。"
       : denied ? "管理者の権限を確認できませんでした。"
       : "管理者の画面を読み込めませんでした。再試行してください。";
-    $("accountPrivateEntry").append(status);
+    box.append(status);
     if (denied) return;
     const retry = document.createElement("button");
     retry.type = "button"; retry.className = "fav-btn"; retry.style.marginTop = "8px";
     retry.textContent = reauth ? "ログインして管理者の画面を確認" : "管理者の画面を再試行";
     retry.onclick = () => {
-      if (seq !== privateEntrySeq || token !== auth?.token || !$("accountSheet").open) return;
-      if (reauth) askReauth(); else openAccountSheet();
+      if (seq !== privateEntrySeq || token !== auth?.token || !$("appSettings").open) return;
+      if (reauth) askReauth(); else renderPrivateEntry();
     };
-    $("accountPrivateEntry").append(retry);
+    box.append(retry);
   }
 }
 async function renderAdmin() {
@@ -10790,7 +11017,19 @@ async function renderAdmin() {
       if (seq !== adminRenderSeq || auth?.token !== token || !atAdmin) throw new Error("画面の確認をやり直してください");
       return result;
     }, onReauth:askReauth});
-  } catch (e) { if (seq === adminRenderSeq && auth?.token === token && atAdmin) { status.textContent = e.message; $("adminView").replaceChildren(status); if (e.code === "reauth_required") askReauth(); } }
+  } catch (e) {
+    if (seq !== adminRenderSeq || auth?.token !== token || !atAdmin) return;
+    status.textContent = e.message; $("adminView").replaceChildren(status);
+    // 読めなかったときも、その場でやり直せるようにする（2026-10-15）
+    const reauth = e.code === "reauth_required";
+    if (e.status !== 403) {
+      const again = document.createElement("button"); again.type = "button"; again.className = "chip";
+      again.textContent = reauth ? "ログインし直す" : "再試行";
+      again.onclick = () => { if (seq === adminRenderSeq && auth?.token === token && atAdmin) { if (reauth) askReauth(); else renderAdmin(); } };
+      $("adminView").append(again);
+    }
+    if (reauth) askReauth();
+  }
 }
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
@@ -10949,12 +11188,13 @@ WIDE.addEventListener("change", () => { if (bundle) render(); });
 // 読み込み後に本物の HTML を取りに行き、版が違えば一度だけ読み直す。
 // 一度きりにするのは、取得に失敗し続けたときの再読み込みループを避けるため。
 async function checkForUpdate() {
+  const release = document.querySelector('meta[name="app-version"]')?.content;
   const running = (document.querySelector('script[src*="sorami-core.js"]') || {}).src || "";
-  const mine = (running.match(/[?&]v=(\d+)/) || [])[1];
+  const mine = release || (running.match(/[?&]v=(\d+)/) || [])[1];
   if (!mine) return;
   try {
     const html = await (await fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" })).text();
-    const latest = (html.match(/sorami-core\.js\?v=(\d+)/) || [])[1];
+    const latest = (html.match(/name="app-version" content="(\d+)"/) || [])[1] || (html.match(/sorami-core\.js\?v=(\d+)/) || [])[1];
     if (!latest || latest === mine) return;
     // 読み直し済みの印は「読み直した先の版」で持つ。走っている版で持つと、
     // 同じセッション中の2回目の配信を拾えなくなる（1回で打ち止めになる）
@@ -11072,7 +11312,7 @@ function restoreSharedPlan(recent = null) {
   if(p.kind==='detail'){const changed=place.latitude!==p.o[1]||place.longitude!==p.o[2];place=SoramiPlan.expandPoint(p.o);return changed && bundle ? 'reload' : undefined;}
   const builtin=SoramiAlign.targetById(p.t.id);
   // Keep the sender's chosen heights, without modifying saved favorites or custom targets.
-  const retainedId=p.t.id==='cocoon-tower'&&SoramiAlign.CITY_MODELS[p.t.id]?p.t.id:null;
+  const retainedId=p.t.id==='cocoon-tower'?p.t.id:null;
   aim.sharedTarget={...(builtin || {}),...p.t,id:builtin?.id || retainedId || 'shared'};
   aim.candPick=null;aim.spot=null;aim.wantSpot=null;aim.wantKey=null;aim.candKey=null;aim.centerKey=null;aim.reverse=null;aimAirCompare=null;
   $('aimLimb').innerHTML='';
@@ -11119,12 +11359,13 @@ for (const d of document.querySelectorAll("dialog")) {
 }
 
 renderAuthButton();
-load(false);
-const startupSessionReady = restoreSession();
+let resolveStartupAccess;
+const startupSessionReady = new Promise(resolve => { resolveStartupAccess = resolve; });
+restoreSession({onAccessReady: resolveStartupAccess}).finally(resolveStartupAccess);
 checkForUpdate();
 </script>
-<script src="sorami-scroll-timeline.js?v=20261015165900"></script>
-<script src="sorami-datetime-ui.js?v=20261015165900"></script>
+<script src="sorami-scroll-timeline.js?v=1436491398997474438"></script>
+<script src="sorami-datetime-ui.js?v=4896469771475079267"></script>
 <script id="uiVisualPrimitives">
 const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
 // E185: visual choices forward to the original native control; no calculation path is added.
@@ -11406,7 +11647,7 @@ const recentHistory=(()=>{
  const canTransfer=()=>!!session?.target&&(session.target.id==='fuji'?(session.body==='sun'?toolAllowed('diamond'):session.body==='moon'?toolAllowed('pearl'):toolAllowed('tower')&&(toolAllowed('diamond')||toolAllowed('pearl'))):toolAllowed('tower'));
  const mapTargets=()=>[...SoramiAlign.TARGETS.map(t=>aimWithHeights(t)),...aimFavTargets().map(aimFavTarget),...(session?.customTarget?[session.customTarget]:[])].filter(validPoint);
  const showAccess=(message,retry=false)=>{el('skyMapContent').hidden=true;el('skyMapAccess').hidden=false;el('skyMapAccessMessage').textContent=message;el('skyMapAccessRetry').hidden=!retry;el('skyMapAccessLogin').hidden=!!auth?.token;};
- function authChanged(){const key=authKey();if(key===lastAuthKey)return;lastAuthKey=key;if(!active())return;if(!auth?.token||(session&&!toolAllowed('skymap'))){leave(false);showAccess(auth?'Astro Mapの利用が許可されていません':'ログインすると利用権限を確認できます');}else open(true);}
+ function authChanged(){const key=authKey();if(key===lastAuthKey)return;lastAuthKey=key;if(!active())return;if(!auth?.token||(session&&!toolAllowed('skymap'))){leave(false);showAccess(auth?'地図の利用が許可されていません':'ログインすると利用権限を確認できます');}else open(true);}
  function open(force=false){
   if(!active())return;
   if(session&&hasAccess()&&!pending&&!force){map.redraw();return;}
@@ -11464,6 +11705,15 @@ ctx.lineWidth=1;
    const mark=SoramiAlign.partTarget(t,session.partId),q=project(mark.latitude,mark.longitude);ctx.strokeStyle='rgba(0,0,0,.9)';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(...q);ctx.stroke();ctx.strokeStyle='#c876ff';ctx.lineWidth=4;ctx.stroke();drawPin(ctx,...q,'#c876ff');mapLabel(ctx,q[0],q[1]-25,t.name,'#fff',width,height,'center');
   }
   ctx.lineWidth=3;ctx.strokeStyle='#111';ctx.beginPath();ctx.moveTo(x-8,y);ctx.lineTo(x-2,y);ctx.moveTo(x+2,y);ctx.lineTo(x+8,y);ctx.moveTo(x,y-8);ctx.lineTo(x,y-2);ctx.moveTo(x,y+2);ctx.lineTo(x,y+8);ctx.stroke();ctx.lineWidth=1;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();ctx.arc(x,y,1,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();mapLabel(ctx,x,y+20,pickMode==='target'?'目標物':'観測地点','#fff',width,height,'center');  for(const [name,az] of [['北',0],['東',90],['南',180],['西',270]]){const a=az*Math.PI/180,tx=x+Math.sin(a)*(r+10),ty=y-Math.cos(a)*(r+10);ctx.save();ctx.font='bold 14px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.strokeStyle='rgba(0,0,0,.95)';ctx.lineWidth=4;ctx.strokeText(name,tx,ty);ctx.fillStyle='#fff';ctx.fillText(name,tx,ty);ctx.restore();}ctx.restore();
+ }
+ // Sync may finish after the map is already usable. Refresh choices, not the observer or date.
+ function refreshTargets(){
+  if(!session||!hasAccess())return;
+  const targets=mapTargets(),select=el('skyMapTarget'),id=session.target?.id;
+  select.replaceChildren(new Option('目標物なし',''));
+  for(const t of targets)select.add(new Option(t.name,t.id));
+  if(id){session.target=targets.find(t=>t.id===id)||null;targetOn=!!session.target;}
+  select.value=session.target?.id||'';render();
  }
  function renderPassages(){
   const row=el('skyMapPassages'),t=session?.target,bodies=shownBodies(),top=validPoint(t)?SoramiAlign.partOf(t,session.partId)?.m:null,key=JSON.stringify([top,SoramiSkyMap.dayStart(session.at),session.eye,session.observer.latitude,session.observer.longitude,t?.id,t?.latitude,t?.longitude,session.partId,targetOn,bodies,!!session.daily,!!session.passError]);if(row._passageKey===key)return;row._passageKey=key;row.replaceChildren();
@@ -11534,7 +11784,7 @@ ctx.lineWidth=1;
   map.setOverlay(draw);map.open(validPoint(draft?.mapCenter)?draft.mapCenter:session.observer,Number.isFinite(draft?.zoom)?draft.zoom:13);refresh();
  }
  function leave(persist=true,invalidate=true){stopSkyScrub();if(skyCalendar?.open)skyCalendar.close();if(skyTimeDialog?.open)skyTimeDialog.close();if(invalidate){accessSeq++;accessPromise=null;checkingToken=null;}if(targetSheet.open)targetSheet.close();if(bodiesSheet.open)bodiesSheet.close();pickMode=null;mapWide=false;targetSeq++;if(session&&persist&&hasAccess())save();seq++;cancelAnimationFrame(frame);frame=0;session=null;accessToken=null;accessTools=[];el('skyMapContent').hidden=true;el('skyMapCanvas').closest('.mapwrap').classList.remove('sky-map-wide');el('skyMapExpand').setAttribute('aria-pressed','false');el('skyMapExpand').setAttribute('aria-label','地図を全画面表示');el('skyMapExpand').title='地図を全画面表示';}
- PLACE_PICKERS.skymap={title:'Astro Mapの観測地点',custom:()=>session?.observer,point:()=>session?.observer||place,set:p=>{if(!hasAccess()||!session||!active())return;session.observer=aimSavedFrom(p);session.ground=null;map.setCenter(p.latitude,p.longitude);refresh();},reset:()=>{if(!session)return;session.observer=aimSavedFrom(place);session.ground=null;map.setCenter(place.latitude,place.longitude);refresh();}};
+ PLACE_PICKERS.skymap={title:'地図の観測地点',custom:()=>session?.observer,point:()=>session?.observer||place,set:p=>{if(!hasAccess()||!session||!active())return;session.observer=aimSavedFrom(p);session.ground=null;map.setCenter(p.latitude,p.longitude);refresh();},reset:()=>{if(!session)return;session.observer=aimSavedFrom(place);session.ground=null;map.setCenter(place.latitude,place.longitude);refresh();}};
  el('skyMapExpand').onclick=()=>{const wide=el('skyMapCanvas').closest('.mapwrap').classList.toggle('sky-map-wide');mapWide=wide;el('skyMapExpand').setAttribute('aria-pressed',String(wide));el('skyMapExpand').setAttribute('aria-label',wide?'全画面表示を終了':'地図を全画面表示');el('skyMapExpand').title=wide?'全画面表示を終了':'地図を全画面表示';if(!wide){if(bodiesSheet.open)bodiesSheet.close();setPickMode(null);const wrap=el('skyMapCanvas').closest('.mapwrap'),menu=wrap.querySelector('.map-layer-menu'),button=wrap.querySelector('.map-layers-btn');if(menu)menu.hidden=true;if(button)button.setAttribute('aria-expanded','false');}map.redraw();};
  const skyFooter=el('skyMapTimeMore').closest('footer');
  ToolDateTimeBar.decorate({footer:skyFooter,row:el('skyMapPrev').parentElement,date:el('skyMapCalendarOpen'),time:el('skyMapTime'),prev:el('skyMapPrev'),next:el('skyMapNext'),more:el('skyMapTimeMore'),track:el('skyMapTrack')});
@@ -11625,7 +11875,7 @@ ctx.lineWidth=1;
  }
  el('skyMapUse').onclick=()=>{if(prepareFraming())pushRoute('#/aim');};
  el('skyMapUseBelow').onclick=()=>{if(prepareFraming())pushRoute('#/aim');};
- SkyMapUI={open,leave,authChanged,prepareFraming,enter};if(routeFromHash()?.skymap)applyRoute();
+ SkyMapUI={open,leave,authChanged,prepareFraming,enter,refreshTargets};if(routeFromHash()?.skymap)applyRoute();
 })();
 </script>
 
@@ -11659,21 +11909,35 @@ ctx.lineWidth=1;
  const note=document.createElement('p');note.className='tiny';note.textContent='この端末で最初に開く画面。リンクから開く場合はリンク先を優先します。';
  const status=document.createElement('p');status.className='tiny';status.setAttribute('role','status');
  select.onchange=()=>{try{localStorage.setItem(key,select.value);status.textContent='保存しました。次回の起動から適用します。';}catch{select.value=get();status.textContent='保存できませんでした。端末の保存設定を確認してください。';}};
- row.append(label,select,note,status);
+ const themeRow=document.createElement('div');themeRow.style.cssText='padding-bottom:20px;margin-bottom:16px;border-bottom:1px solid var(--line)';
+ const themeLabel=document.createElement('div');themeLabel.id='themeModeLabel';themeLabel.textContent='表示モード';
+ const themeButtons=document.createElement('div');themeButtons.id='themeMode';themeButtons.setAttribute('role','group');themeButtons.setAttribute('aria-labelledby','themeModeLabel');themeButtons.style.cssText='display:flex;gap:6px;margin-top:8px';
+ const themeStatus=document.createElement('p');themeStatus.className='tiny';themeStatus.setAttribute('role','status');
+ const updateTheme=()=>{for(const button of themeButtons.children){const selected=button.dataset.mode===getThemePreference();button.setAttribute('aria-pressed',String(selected));button.style.background=selected?'var(--accent)':'var(--sunk)';button.style.color=selected?'var(--on-accent)':'var(--text)';}};
+ for(const [mode,name] of [['auto','自動'],['light','ライト'],['dark','ダーク']]){
+  const button=document.createElement('button');button.type='button';button.dataset.mode=mode;button.textContent=name;button.style.cssText='flex:1;min-height:44px;border-radius:9px;font-size:16px';
+  button.onclick=()=>{const saved=setThemePreference(mode);updateTheme();themeStatus.textContent=saved?'保存しました。':'保存できませんでした。端末の保存設定を確認してください。';};themeButtons.append(button);
+ }
+ const themeNote=document.createElement('p');themeNote.className='tiny';themeNote.textContent='自動は端末の設定に合わせます。この端末に保存されます。';
+ themeRow.append(themeLabel,themeButtons,themeNote,themeStatus);updateTheme();
+ row.append(themeRow,label,select,note,status);
  const settings=document.createElement('dialog');settings.id='appSettings';settings.className='sheet';settings.tabIndex=-1;settings.setAttribute('aria-labelledby','appSettingsTitle');
- settings.innerHTML='<div class="sheet-head"><strong id="appSettingsTitle">設定</strong><button type="button" id="appSettingsClose">閉じる</button></div><div class="sheet-body"></div>';
+ settings.innerHTML='<div class="sheet-head"><strong id="appSettingsTitle">設定</strong><button type="button" id="appSettingsClose" aria-label="閉じる" title="閉じる"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div class="sheet-body"></div>';
  const settingsBody=settings.querySelector('.sheet-body');
  const categories=document.createElement('div');categories.id='settingsCategories';
- categories.innerHTML='<button type="button" class="list-item" id="settingsAccount" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2Z"/></svg><span style="flex:1"><strong>アカウント・ログイン</strong><span class="tiny" style="display:block;margin-top:4px">パスワード・パスキーなど</span></span><span aria-hidden="true">›</span></button><button type="button" class="list-item" id="settingsScreen" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg><span style="flex:1"><strong>画面</strong><span class="tiny" style="display:block;margin-top:4px">起動画面</span></span><span aria-hidden="true">›</span></button>';
- const back=document.createElement('button');back.type='button';back.id='settingsBack';back.className='chip';back.textContent='←';back.setAttribute('aria-label','戻る');back.hidden=false;
+ categories.innerHTML='<button type="button" class="list-item" id="settingsAccount" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2Z"/></svg><span style="flex:1"><strong>アカウント・ログイン</strong><span class="tiny" style="display:block;margin-top:4px">パスワード・パスキーなど</span></span><span aria-hidden="true">›</span></button><button type="button" class="list-item" id="settingsScreen" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;min-height:88px;padding:16px 4px"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg><span style="flex:1"><strong>画面</strong><span class="tiny" style="display:block;margin-top:4px">表示モード・起動画面</span></span><span aria-hidden="true">›</span></button>';
+ const back=document.createElement('button');back.type='button';back.id='settingsBack';back.className='panel-back';back.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg>';back.setAttribute('aria-label','戻る');back.hidden=false;
  row.hidden=true;settings.querySelector('.sheet-head').prepend(back);settingsBody.append(categories,row);document.body.append(settings);
  const originalAccountOpen=document.getElementById('authButton').onclick;
  let settingsOpener=document.getElementById('toolsButton');
  const settingsHome=()=>{categories.hidden=false;row.hidden=true;back.hidden=true;document.getElementById('appSettingsTitle').textContent='設定';};
- const openSettings=opener=>{settingsOpener=opener;update();settingsHome();closeTools();showSheet(settings);scrollLock.on();};
+ const ownerEntry=document.createElement('div');ownerEntry.id='settingsPrivateEntry';categories.append(ownerEntry);
+ const openSettings=opener=>{settingsOpener=opener;update();settingsHome();closeTools();showSheet(settings);scrollLock.on();renderPrivateEntry();};
  back.onclick=()=>{if(!categories.hidden){settings.close();return;}settingsHome();document.getElementById('settingsScreen').focus();};
  document.getElementById('settingsScreen').onclick=()=>{update();categories.hidden=true;row.hidden=false;back.hidden=false;document.getElementById('appSettingsTitle').textContent='画面';settings.focus({preventScroll:true});};
  document.getElementById('settingsAccount').onclick=()=>{settings.close();originalAccountOpen();};
+ // The account page returns to the settings list the same way the screen page does.
+ document.getElementById('accountBack').onclick=()=>{document.getElementById('accountSheet').close();openSettings(document.getElementById('authButton'));};
  document.getElementById('authButton').onclick=()=>{if(auth)openSettings(document.getElementById('authButton'));else originalAccountOpen();};
  settings.querySelector('#appSettingsClose').onclick=()=>settings.close();
  settings.addEventListener('close',()=>{scrollLock.off();settingsOpener.focus({preventScroll:true});});
@@ -11685,20 +11949,52 @@ ctx.lineWidth=1;
   panel.addEventListener('touchcancel',()=>{start=null;},{passive:true});
   panel.addEventListener('touchend',event=>{const from=start;start=null;if(!from||!panel.open)return;const t=Array.from(event.changedTouches).find(t=>t.identifier===from.id);if(!t)return;const dx=t.clientX-from.x,dy=t.clientY-from.y;if(dx>70&&Math.abs(dy)<dx*.5)panel.close();},{passive:true});
  }
- const update=()=>{select.value=get();for(const o of select.options)o.disabled=!permitted(o.value);status.textContent=!permitted(get())?'選択した画面は現在利用できないため、起動時は予測を開きます。':'';};
+ const update=()=>{updateTheme();select.value=get();for(const o of select.options)o.disabled=!permitted(o.value);status.textContent=!permitted(get())?'選択した画面は現在利用できないため、起動時は予測を開きます。':'';};
  // Refresh against live grants whenever settings is opened, including after a drawer swipe.
  new MutationObserver(()=>{if(settings.open)update();}).observe(document.getElementById('authButton'),{childList:true,subtree:true,characterData:true});
- window.addEventListener('load',async()=>{
+ const openStartup = async()=>{
+  const preferred=get();
+  if(initialHash||initialSearch||preferred==='forecast') { applyRoute(); return; }
+  $("status").hidden=false; $("status").textContent="ログイン状態を確認しています…";
   await startupSessionReady;
+  $("status").hidden=true;
   update();
   // Hash routes, shared-plan query parameters and navigation during login are not replaced.
-  if(startupInteracted||initialHash||initialSearch||location.hash!==initialHash||location.search!==initialSearch)return;
-  const selected=get();if(!permitted(selected))return;
+  if(startupInteracted||initialHash||initialSearch||location.hash!==initialHash||location.search!==initialSearch){applyRoute();return;}
+  const selected=get();if(!permitted(selected)){applyRoute();return;}
   const route=selected==='framing'?'#/aim/tower':selected==='map'?'#/skymap':null;
-  if(route){history.replaceState(history.state,'',route);applyRoute();}
- },{once:true});
+  if(route)history.replaceState(history.state,'',route);
+  applyRoute();
+ };
+ document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&predictionNeeded()){
+   if(predictionDirty||!SoramiPrediction.fresh(acceptedPrediction,place,Date.now()))void load(false);
+   ensureNowcast();
+  }
+ });
+ void openStartup();
 })();
 </script>
 
+
+<script id="sharedPanelControls">
+// 共通パネル操作。文字の×/✕と個別SVGを混在させず、動的生成にも適用する。
+(() => {
+ const paths={close:'M5 5 19 19M19 5 5 19',back:'m14 5-7 7 7 7'};
+ function decorate(button,kind){
+  if(button.dataset.uiControl===kind)return;
+  button.dataset.uiControl=kind;button.classList.add('ui-icon-button');
+  if(!button.getAttribute('aria-label'))button.setAttribute('aria-label',kind==='close'?'閉じる':'戻る');
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('class','ui-control-icon');
+  const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',paths[kind]);svg.append(path);button.replaceChildren(svg);
+ }
+ function scan(root){
+  const buttons=[...(root.matches?.('button')?[root]:[]),...(root.querySelectorAll?.('button')||[])];
+  for(const b of buttons){if(b.id==='settingsBack'||b.id==='accountBack'){decorate(b,'back');continue;}if(b.id==='toolsClose'||b.getAttribute('aria-label')==='閉じる'||b.textContent.trim()==='閉じる')decorate(b,'close');}
+ }
+ scan(document);
+ new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node.nodeType===1)scan(node);}).observe(document.body,{childList:true,subtree:true});
+})();
+</script>
 </body>
 </html>

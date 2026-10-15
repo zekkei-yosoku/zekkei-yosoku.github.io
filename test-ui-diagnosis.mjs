@@ -145,7 +145,7 @@ test('管理者直リンクは認証済みモジュールだけを表示し、�
 
 test('管理画面を開いたまま認証が更新されたら新しい権限で読み直す',()=>{
  let refresh=0;const button={textContent:'',classList:{toggle(){},remove(){}},setAttribute(){}};
- const auth={role:'admin',loginId:'fixture'};const ctx={SkyMapUI:null,auth,atAdmin:true,adminRenderAuth:auth,renderAdmin:()=>refresh++,renderTools(){},redrawIfToolsChanged(){},atRecords:false,$:()=>button,syncError:null,pushQueue:[]};
+ const auth={role:'admin',loginId:'fixture'};const ctx={SkyMapUI:null,auth,atAdmin:true,adminRenderAuth:auth,renderAdmin:()=>refresh++,renderTools(){},refreshRestrictedTools(){},redrawIfToolsChanged(){},atRecords:false,$:()=>button,syncError:null,pushQueue:[]};
  const update=runInNewContext(grab('function renderAuthButton')+';renderAuthButton',ctx);update();assert.equal(refresh,0);
  ctx.auth={...auth};update();assert.equal(refresh,1);
  ctx.auth=null;update();assert.equal(refresh,2);assert.equal(button.textContent,'ログイン');

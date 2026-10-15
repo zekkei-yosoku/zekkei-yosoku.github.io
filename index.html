@@ -12,8 +12,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="18300298660389499004">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-UHuo+mclbxFvdfBi9K8URx6bHJg+JVub9HXkSc0o6Ms=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-9dr71BkfferxEt2N+TCyS0SXR8vW+Gepxnzxj/fHKLc=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-jTLATA/M/l2d/gmV5q4NzDHlsQKTPM0vCo0Em9itpIo=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="7860683133440589766">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-PRSg7KHXsm+Lh3m4qneTnlSUEUEaSL9RKSTFeobHsEQ=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-Z11HRIprQ6aY0riOULwclQ01FQYHOOwyIsPnhrJ5LM0=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-jTLATA/M/l2d/gmV5q4NzDHlsQKTPM0vCo0Em9itpIo=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
 <link data-script-preload rel="preload" as="script" href="sorami-astro.js?v=9181748260451918765">
@@ -1263,6 +1263,9 @@
 main:has(>#aimView:not([hidden],[data-locked])){padding-bottom:calc(var(--aim-footer-h,calc(84px + env(safe-area-inset-bottom))) + 12px)}#aimView .aim-date-section{border:0;padding-top:0}
 /* 権限が無いときは案内カードだけを出す。地図の skyMapAccess と同じ形（2026-10-15） */
 #aimView[data-locked]>:not(#aimAccess){display:none!important}
+#planeView[data-locked]>:not(#planeAccess){display:none!important}
+#issView[data-locked]>:not(#issAccess){display:none!important}
+#recordsView[data-locked]>:not(#recordsAccess){display:none!important}
 :is(#aimView,#skyMapView) .tool-datetime-footer{position:fixed;z-index:35;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid rgba(0,0,0,.16);box-shadow:0 -4px 16px rgba(0,0,0,.12);padding:2px max(12px,env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
 :is(#aimView,#skyMapView) .tool-datetime-footer .tool-datetime-row{display:grid;grid-template-columns:44px auto minmax(0,1fr) 44px 44px;align-items:center;gap:2px;max-width:780px;margin:0 auto;padding:0;border:0}
 :is(#aimView,#skyMapView) .tool-datetime-footer :is(#aimPrev,#aimNext,#skyMapPrev,#skyMapNext,.preview-time-more,#skyMapTimeMore).tool-datetime-nav{width:44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--text);font-size:20px;line-height:1}
@@ -1505,6 +1508,7 @@ button.ui-icon-button::after { content: none; }
   <!-- 月丼: 月と飛行機を重ねる。航路は決まっているので、月の道と突き合わせれば
        立ち位置が解ける（「ねらう」と同じ形。目標が航路の上を動く点になっただけ）。 -->
   <div id="planeView" hidden>
+    <div id="planeAccess" hidden><div class="sky-map-head"><h2>月丼</h2></div><div class="card"><p id="planeAccessMessage"></p><button id="planeAccessLogin" class="fav-btn primary">ログイン</button></div></div>
     <div class="card">
       <!-- 並びはねらうと同じ（2026-10-01 ユーザー「月丼とかISSとかのレイアウトも統一感あるように」）:
            題名、道具の選ぶ欄（運用）、観測地点（「〇〇から重ねる」。地点カードと同じ形・絶景予測の地点を引き継ぐ。2026-10-06 に運用の下へ）、
@@ -1746,6 +1750,7 @@ button.ui-icon-button::after { content: none; }
   <!-- ISS の月面通過（2026-09-30）。月（太陽）の中心から ISS を通る直線が地面に当たる線＝中心線。
        その左右数kmの帯の中に立つと、ISS が円盤の前を横切る。1秒に満たない -->
   <div id="issView" hidden>
+    <div id="issAccess" hidden><div class="sky-map-head"><h2>ISS</h2></div><div class="card"><p id="issAccessMessage"></p><button id="issAccessLogin" class="fav-btn primary">ログイン</button></div></div>
     <div class="card">
       <!-- 並びはねらうと同じ（2026-10-01 ユーザー「月丼とかISSとかのレイアウトも統一感あるように」）:
            題名の右に太陽／月（絵文字だけ・ねらうと同じ順）、どこの近くで探すか（地点カードと同じ形）、探す範囲、地図、一覧。
@@ -1804,6 +1809,7 @@ button.ui-icon-button::after { content: none; }
   </div>
 
   <div id="recordsView" hidden>
+    <div id="recordsAccess" hidden><div class="sky-map-head"><h2>記録</h2></div><div class="card"><p id="recordsAccessMessage"></p><button id="recordsAccessLogin" class="fav-btn primary">ログイン</button></div></div>
     <div class="card">
       <div class="section-h"><h2>記録</h2><span class="muted" id="recCount"></span></div>
       <div id="recEmpty" class="tiny" hidden>まだ記録がありません。</div>
@@ -3229,6 +3235,7 @@ function render() {
   for (const v of VIEWS) $(v.el).hidden = v.id !== view;
   // 表示はルートだけで決まるので、構図の権限はここでも当て直す。ログアウトした直後も本体を出さない
   if (view === "aim") renderAimAccess();
+  for (const id of ["plane", "iss", "records"]) renderToolAccess(id);
   // 一覧以外の画面では、題名の帯の下に「← 戻る」
   $("backBar").hidden = isMenuPage();
   const inDetail = view === "detail";
@@ -3581,10 +3588,18 @@ $("photoSave").onclick = async (e) => {
 };
 
 let photos = [];
+let photosRequest = 0;
 async function loadPhotos() {
-  if (!auth) { photos = []; renderPhotos(); return; }
-  try { photos = (await apiCall("GET", "/photos")).photos || []; }
-  catch { photos = []; }
+  const request = ++photosRequest, token = auth?.token;
+  if (!renderToolAccess("records")) { photos = []; renderPhotos(); return; }
+  try {
+    const response = await apiCall("GET", "/photos");
+    if (request !== photosRequest || token !== auth?.token || !toolAllowed("records")) return;
+    photos = response.photos || [];
+  } catch {
+    if (request !== photosRequest || token !== auth?.token) return;
+    photos = [];
+  }
   renderPhotos();
 }
 function renderPhotos() {
@@ -6224,6 +6239,7 @@ function planeOpSpans(dayMs, opts) {
 }
 
 async function planeApply() {
+  if (!toolAllowed("plane")) return;
   const seq = ++plane.seq;
   $("planeInfo").textContent = "狙い目を探しています…";
   $("planeList").innerHTML = "";
@@ -6399,6 +6415,7 @@ PlaneMap.setOverlay((ctx, { project, width, height }) => {
 });
 
 function openPlane() {
+  if (!renderToolAccess("plane")) { plane.seq++; return; }
   if (!plane.dayMs) plane.dayMs = S.Cal.startOfDay(Date.now());
   $("planeDate").value = new Date(plane.dayMs + 9 * 3600000).toISOString().slice(0, 10);
   $("planeWeekday").textContent = S.Cal.relativeDay(plane.dayMs);
@@ -6435,6 +6452,7 @@ function openPlane() {
     };
   }
   requestAnimationFrame(() => {
+    if (!atPlane || !toolAllowed("plane")) return;
     PlaneMap.open({ latitude: SoramiRoutes.RJTT.latitude, longitude: SoramiRoutes.RJTT.longitude }, 10);
     requestAnimationFrame(() => PlaneMap.redraw());
   });
@@ -6587,6 +6605,7 @@ async function issLoadTle() {
 }
 
 async function issApply() {
+  if (!toolAllowed("iss")) return;
   const P = issFromPoint();
   if (!P) return;
   const seq = ++iss.seq;
@@ -6806,6 +6825,7 @@ IssMap.setOverlay((ctx, { project, width, height }) => {
 });
 
 function openIss() {
+  if (!renderToolAccess("iss")) { iss.seq++; return; }
   if (!iss.wired) {
     iss.wired = true;
     $("issMoon").onclick = () => { iss.body = "moon"; issApply(); };
@@ -6816,6 +6836,7 @@ function openIss() {
     $("issFromButton").onclick = () => openPlaceSheet("iss");
   }
   requestAnimationFrame(() => {
+    if (!atIss || !toolAllowed("iss")) return;
     const P = issFromPoint();
     IssMap.open({ latitude: P.latitude, longitude: P.longitude }, 8);
     requestAnimationFrame(() => IssMap.redraw());
@@ -10082,23 +10103,48 @@ function askReauth() {
   if (!supported) $("authPw").focus();
 }
 
-/**
- * メニューに何を出すか。**誰に何を見せるかはサーバーが決める**（`/me` の `tools`）。
- *
- * - **既定は何も出さない。** 記録も含めて、管理画面で1つずつ許す
- *   （記録は「答える場所」ではなく「見に行く場所」。答える入口はホームと詳細にある）
- * - 管理者は役割で全部
- * - これは**見た目の話**でしかない。URL を直接開けば画面は出る。
- *   秘密を守るためではなく、まだ人に見せる形になっていないものを畳むための仕組み
+/** 利用権限は /me の tools が正本。メニュー・直URL・画面の操作に同じ判定を使う。
+ * 公開JavaScriptの配布制限ではない。個人データと管理操作はAPIでも認証する。
+ * recordsは記録一覧の閲覧権限。予測詳細からの回答・入力は別の既存仕様。
  */
 function allowedTools() {
-  return Array.isArray(auth?.tools) ? auth.tools : [];
+  return auth?.token && Array.isArray(auth.tools) ? auth.tools : [];
 }
 /// **道具の中身は、メニュー以外の画面でも同じ判定で出し分ける。**
 /// 富士山の詳細のダイヤモンド富士・パール富士、月の詳細の「空の見え方を見る」など。
 /// メニューだけ隠しても、誰でも開く詳細に出ていれば見えてしまう（2026-10-01 ユーザー指摘）
 function toolAllowed(id) {
   return allowedTools().includes(id);
+}
+const RESTRICTED_TOOL_LABELS = { plane: "月丼", iss: "ISS", records: "記録" };
+function renderToolAccess(id) {
+  const permitted = toolAllowed(id);
+  $(id + "View").toggleAttribute("data-locked", !permitted);
+  $(id + "Access").hidden = permitted;
+  if (!permitted) {
+    $(id + "AccessMessage").textContent = auth?.token
+      ? RESTRICTED_TOOL_LABELS[id] + "の利用が許可されていません"
+      : "ログインすると利用権限を確認できます";
+    $(id + "AccessLogin").hidden = !!auth?.token;
+  }
+  return permitted;
+}
+for (const id of Object.keys(RESTRICTED_TOOL_LABELS)) {
+  $(id + "AccessLogin").onclick = () => $("authButton").click();
+}
+let restrictedToolsKey = null;
+function refreshRestrictedTools() {
+  const key = JSON.stringify([auth?.token, allowedTools()]);
+  for (const id of Object.keys(RESTRICTED_TOOL_LABELS)) renderToolAccess(id);
+  if (key === restrictedToolsKey) return;
+  restrictedToolsKey = key;
+  // 古いアカウント/権限で開始した処理を無効にし、記録を即座に消す。
+  plane.seq++; iss.seq++; photosRequest++;
+  photos = []; renderPhotos();
+  if (atAim) openAim(null);
+  if (atPlane) openPlane();
+  if (atIss) openIss();
+  if (atRecords) loadPhotos();
 }
 function renderTools() {
   $("skyMapOpen").hidden = !toolAllowed("skymap");
@@ -10283,8 +10329,7 @@ function renderAuthButton() {
   renderTools();
   SkyMapUI?.authChanged();
   redrawIfToolsChanged();
-  // 写真はアカウントのもの。ログインが変わったら出し直す
-  if (atRecords) loadPhotos();
+  refreshRestrictedTools();
   const b = $("authButton");
   if (!auth) { b.textContent = "ログイン"; b.classList.remove("warn"); b.setAttribute("aria-label", "ログイン"); return; }
   const failing = !!syncError || pushQueue.length > 0;
@@ -11601,7 +11646,7 @@ const recentHistory=(()=>{
  const canTransfer=()=>!!session?.target&&(session.target.id==='fuji'?(session.body==='sun'?toolAllowed('diamond'):session.body==='moon'?toolAllowed('pearl'):toolAllowed('tower')&&(toolAllowed('diamond')||toolAllowed('pearl'))):toolAllowed('tower'));
  const mapTargets=()=>[...SoramiAlign.TARGETS.map(t=>aimWithHeights(t)),...aimFavTargets().map(aimFavTarget),...(session?.customTarget?[session.customTarget]:[])].filter(validPoint);
  const showAccess=(message,retry=false)=>{el('skyMapContent').hidden=true;el('skyMapAccess').hidden=false;el('skyMapAccessMessage').textContent=message;el('skyMapAccessRetry').hidden=!retry;el('skyMapAccessLogin').hidden=!!auth?.token;};
- function authChanged(){const key=authKey();if(key===lastAuthKey)return;lastAuthKey=key;if(!active())return;if(!auth?.token||(session&&!toolAllowed('skymap'))){leave(false);showAccess(auth?'Astro Mapの利用が許可されていません':'ログインすると利用権限を確認できます');}else open(true);}
+ function authChanged(){const key=authKey();if(key===lastAuthKey)return;lastAuthKey=key;if(!active())return;if(!auth?.token||(session&&!toolAllowed('skymap'))){leave(false);showAccess(auth?'地図の利用が許可されていません':'ログインすると利用権限を確認できます');}else open(true);}
  function open(force=false){
   if(!active())return;
   if(session&&hasAccess()&&!pending&&!force){map.redraw();return;}
@@ -11738,7 +11783,7 @@ ctx.lineWidth=1;
   map.setOverlay(draw);map.open(validPoint(draft?.mapCenter)?draft.mapCenter:session.observer,Number.isFinite(draft?.zoom)?draft.zoom:13);refresh();
  }
  function leave(persist=true,invalidate=true){stopSkyScrub();if(skyCalendar?.open)skyCalendar.close();if(skyTimeDialog?.open)skyTimeDialog.close();if(invalidate){accessSeq++;accessPromise=null;checkingToken=null;}if(targetSheet.open)targetSheet.close();if(bodiesSheet.open)bodiesSheet.close();pickMode=null;mapWide=false;targetSeq++;if(session&&persist&&hasAccess())save();seq++;cancelAnimationFrame(frame);frame=0;session=null;accessToken=null;accessTools=[];el('skyMapContent').hidden=true;el('skyMapCanvas').closest('.mapwrap').classList.remove('sky-map-wide');el('skyMapExpand').setAttribute('aria-pressed','false');el('skyMapExpand').setAttribute('aria-label','地図を全画面表示');el('skyMapExpand').title='地図を全画面表示';}
- PLACE_PICKERS.skymap={title:'Astro Mapの観測地点',custom:()=>session?.observer,point:()=>session?.observer||place,set:p=>{if(!hasAccess()||!session||!active())return;session.observer=aimSavedFrom(p);session.ground=null;map.setCenter(p.latitude,p.longitude);refresh();},reset:()=>{if(!session)return;session.observer=aimSavedFrom(place);session.ground=null;map.setCenter(place.latitude,place.longitude);refresh();}};
+ PLACE_PICKERS.skymap={title:'地図の観測地点',custom:()=>session?.observer,point:()=>session?.observer||place,set:p=>{if(!hasAccess()||!session||!active())return;session.observer=aimSavedFrom(p);session.ground=null;map.setCenter(p.latitude,p.longitude);refresh();},reset:()=>{if(!session)return;session.observer=aimSavedFrom(place);session.ground=null;map.setCenter(place.latitude,place.longitude);refresh();}};
  el('skyMapExpand').onclick=()=>{const wide=el('skyMapCanvas').closest('.mapwrap').classList.toggle('sky-map-wide');mapWide=wide;el('skyMapExpand').setAttribute('aria-pressed',String(wide));el('skyMapExpand').setAttribute('aria-label',wide?'全画面表示を終了':'地図を全画面表示');el('skyMapExpand').title=wide?'全画面表示を終了':'地図を全画面表示';if(!wide){if(bodiesSheet.open)bodiesSheet.close();setPickMode(null);const wrap=el('skyMapCanvas').closest('.mapwrap'),menu=wrap.querySelector('.map-layer-menu'),button=wrap.querySelector('.map-layers-btn');if(menu)menu.hidden=true;if(button)button.setAttribute('aria-expanded','false');}map.redraw();};
  const skyFooter=el('skyMapTimeMore').closest('footer');
  ToolDateTimeBar.decorate({footer:skyFooter,row:el('skyMapPrev').parentElement,date:el('skyMapCalendarOpen'),time:el('skyMapTime'),prev:el('skyMapPrev'),next:el('skyMapNext'),more:el('skyMapTimeMore'),track:el('skyMapTrack')});

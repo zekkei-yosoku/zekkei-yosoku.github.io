@@ -92,9 +92,9 @@ ok(/for \(const v of VIEWS\) \$\(v\.el\)\.hidden = v\.id !== view/.test(html), "
 ok(/id="toolsButton"/.test(html) && /id="toolsMenu"/.test(html), "メニューがある");
 // **誰に何を見せるかはサーバーが決める**（/me の tools）。画面で名簿を持たない
 ok(!/TOOLS_FOR/.test(html), "画面側に名簿を持たない");
-ok(/Array\.isArray\(auth\?\.tools\)/.test(html), "サーバーが返した並びを使う");
+ok(/Array\.isArray\(auth\.tools\)/.test(html), "サーバーが返した並びを使う");
 ok(!/ALWAYS_TOOLS/.test(html), "既定で出すものを画面側に持たない");
-ok(/return Array\.isArray\(auth\?\.tools\) \? auth\.tools : \[\];/.test(html),
+ok(/return auth\?\.token && Array\.isArray\(auth\.tools\) \? auth\.tools : \[\];/.test(html),
   "サーバーが返した並びだけを出す");
 // **記録もお気に入りも、答える前にログインを求める。**
 // 端末にだけ貯めると、しばらく開かないと消える（iOS は7日）
