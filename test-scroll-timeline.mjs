@@ -100,3 +100,9 @@ test('外部の日時変更や停止で補間を残さない',()=>{
  const blends=[];const f=setup(240,{onBlend:b=>blends.push(b)}),at=f.state.at;f.root.listeners.touchstart({timeStamp:1});f.root.scrollLeft+=6;f.root.listeners.scroll();f.flush();assert.ok(blends.at(-1));
  f.state.at=at+30*DAY;f.controller.sync(f.state.at,'date');assert.equal(blends.at(-1),null);
 });
+
+test('停止位置が直前の通知と同じでも表示を再確定する',()=>{
+ let finalized=0;const f=setup(240,{onSettle:()=>finalized++});f.state.mode='time';f.controller.sync(f.state.at,'time');
+ f.scroll(4);const selected=f.state.at,count=f.changes.length;f.settle();
+ assert.equal(f.state.at,selected);assert.ok(f.changes.length>count);assert.equal(finalized,1);assert.equal(f.root.scrollLeft,4096);
+});

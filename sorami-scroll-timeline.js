@@ -70,7 +70,7 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
   finish();
  }
  // 止めたら目盛り（1分・1日）へ寄せる。寄せる間も途中を渡し、指を離した瞬間に跳ばせない
- function done(target){setBlend(null);if(lastAt!==target){lastAt=target;onChange(target);}reset(target,mode);onSettle(target);}
+ function done(target){setBlend(null);lastAt=target;onChange(target);reset(target,mode);onSettle(target);}
  function finish(){
   clearTimeout(timer);timer=0;flush();const s=scale(mode),target=advance(anchor,root.scrollLeft-EXTENT,mode),startLeft=root.scrollLeft,endLeft=EXTENT+(target-anchor)/s.step*s.pixels;
   if(!Number.isFinite(lastAt)||Math.abs(startLeft-endLeft)<.01){done(target);return;}

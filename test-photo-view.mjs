@@ -119,7 +119,7 @@ test("図を移動しても画角枠は中央、道のタップは移動分を�
 
  const f=html.slice(html.indexOf("    if (frame) {",html.indexOf("const draw = (v)")),html.indexOf('    const outside = host.querySelector'));
  assert.match(f,/const fx = \(W - fw\) \/ 2, fy = \(H - fh\) \/ 2/);assert.doesNotMatch(f,/_lensOffset/);
- assert.match(html,/ctx\.save\(\); ctx\.translate\(panX, panY\)/);assert.match(html,/const px = screenX - panX, py = screenY - panY/);
+ assert.match(html,/context\.save\(\);context\.translate\(panX,panY\)/);assert.match(html,/const px = screenX - panX, py = screenY - panY/);
 });
 
 

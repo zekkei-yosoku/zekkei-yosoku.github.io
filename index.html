@@ -8,7 +8,7 @@
      編集後はbump.shでハッシュを更新する。connect-srcも実際に使う相手だけに絞る。
      ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
      frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-Q3JsOxKLtq/lTrAFYhGvZQvq3GApLaModW98wqsFtAE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-EE6wDEQAepXs2gL9XFRmmXUIC+ghTmAq5FVtGQoVQA0=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-3aOI9tkPdoY8x5NaNOU7i9msYm3bZmJZga5dLTWVmKc=' 'sha256-7qeLcz72EsRl2YDXAVi35LSsuLMpPBRgScPere+xAlg=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-EE6wDEQAepXs2gL9XFRmmXUIC+ghTmAq5FVtGQoVQA0=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -2083,31 +2083,31 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#skyMapView,#adminView):
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
-<script src="sorami-core.js?v=20261015084848"></script>
-<script src="sorami-prediction.js?v=20261015084848"></script>
+<script src="sorami-core.js?v=20261015111032"></script>
+<script src="sorami-prediction.js?v=20261015111032"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
-<script src="sorami-astro.js?v=20261015084848"></script>
-<script src="sorami-exif.js?v=20261015084848"></script>
-<script src="sorami-capcloud.js?v=20261015084848"></script>
-<script src="sorami-terrain.js?v=20261015084848"></script>
-<script src="sorami-mountain.js?v=20261015084848"></script>
-<script src="sorami-fuji.js?v=20261015084848"></script>
-<script src="sorami-sky.js?v=20261015084848"></script>
+<script src="sorami-astro.js?v=20261015111032"></script>
+<script src="sorami-exif.js?v=20261015111032"></script>
+<script src="sorami-capcloud.js?v=20261015111032"></script>
+<script src="sorami-terrain.js?v=20261015111032"></script>
+<script src="sorami-mountain.js?v=20261015111032"></script>
+<script src="sorami-fuji.js?v=20261015111032"></script>
+<script src="sorami-sky.js?v=20261015111032"></script>
 
-<script src="sorami-history.js?v=20261015084848"></script>
-<script src="sorami-plan.js?v=20261015084848"></script>
-<script src="sorami-routes.js?v=20261015084848"></script>
-<script src="sorami-iss.js?v=20261015084848"></script>
-<script src="sorami-plane.js?v=20261015084848"></script>
-<script src="sorami-refraction.js?v=20261015084848"></script>
-<script src="sorami-atmosphere.js?v=20261015084848"></script>
-<script src="sorami-bodies.js?v=20261015084848"></script>
-<script src="sorami-sky-map.js?v=20261015084848"></script>
-<script src="sorami-city-models.js?v=20261015084848"></script>
-<script src="sorami-tower-models.js?v=20261015084848"></script>
-<script src="sorami-align.js?v=20261015084848"></script>
-<script src="sorami-moon.js?v=20261015084848"></script>
+<script src="sorami-history.js?v=20261015111032"></script>
+<script src="sorami-plan.js?v=20261015111032"></script>
+<script src="sorami-routes.js?v=20261015111032"></script>
+<script src="sorami-iss.js?v=20261015111032"></script>
+<script src="sorami-plane.js?v=20261015111032"></script>
+<script src="sorami-refraction.js?v=20261015111032"></script>
+<script src="sorami-atmosphere.js?v=20261015111032"></script>
+<script src="sorami-bodies.js?v=20261015111032"></script>
+<script src="sorami-sky-map.js?v=20261015111032"></script>
+<script src="sorami-city-models.js?v=20261015111032"></script>
+<script src="sorami-tower-models.js?v=20261015111032"></script>
+<script src="sorami-align.js?v=20261015111032"></script>
+<script src="sorami-moon.js?v=20261015111032"></script>
 <script>
 "use strict";
 const S = window.Sorami;
@@ -8208,17 +8208,17 @@ function aimLookSolidSilhouette(polygons,{closeBase=false,basePoints=[]}={}) {
   if(!polygons.length)return null;
   let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
   for(const poly of polygons)for(const [x,y]of poly){minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);}
-  const scale=Math.min(2,2040/Math.max(1,maxX-minX),2040/Math.max(1,maxY-minY));
-  const x=minX-2/scale,y=minY-2/scale,w=Math.ceil((maxX-minX)*scale)+4,h=Math.ceil((maxY-minY)*scale)+4;
+  const scaleX=Math.min(2,2040/Math.max(1,maxX-minX)),scaleY=Math.min(2,2040/Math.max(1,maxY-minY));
+  const x=minX-2/scaleX,y=minY-2/scaleY,w=Math.ceil((maxX-minX)*scaleX)+4,h=Math.ceil((maxY-minY)*scaleY)+4;
   const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
-  const c=canvas.getContext('2d',{willReadFrequently:true});c.setTransform(scale,0,0,scale,-x*scale,-y*scale);c.fillStyle='#000';
+  const c=canvas.getContext('2d',{willReadFrequently:true});c.setTransform(scaleX,0,0,scaleY,-x*scaleX,-y*scaleY);c.fillStyle='#000';
   // 向きが逆の部品が重なっても相殺しない。1つのcompound pathにしない。
   for(const original of polygons){
     // ほぼ同じ連続点があるとcanvasの塗りで大きな三角欠けが出ることがある。
     // マスクの0.1画素未満だけ整理する。細い3点部品は元の点を維持。
-    const clean=[],epsilon=.1/scale;
-    for(const p of original){const last=clean.at(-1);if(!last||Math.hypot(p[0]-last[0],p[1]-last[1])>=epsilon)clean.push(p);}
-    if(clean.length>1&&Math.hypot(clean.at(-1)[0]-clean[0][0],clean.at(-1)[1]-clean[0][1])<epsilon)clean.pop();
+    const clean=[],distance=(a,b)=>Math.hypot((a[0]-b[0])*scaleX,(a[1]-b[1])*scaleY);
+    for(const p of original){const last=clean.at(-1);if(!last||distance(p,last)>=.1)clean.push(p);}
+    if(clean.length>1&&distance(clean.at(-1),clean[0])<.1)clean.pop();
     const poly=clean.length>=3?clean:original;
     c.beginPath();c.moveTo(...poly[0]);for(const p of poly)c.lineTo(...p);c.closePath();c.fill();
   }
@@ -8228,7 +8228,7 @@ function aimLookSolidSilhouette(polygons,{closeBase=false,basePoints=[]}={}) {
     if(feet.length>=2){
       const left=Math.min(...feet.map(p=>p[0])),right=Math.max(...feet.map(p=>p[0]));
       const upper=Math.min(...feet.map(p=>p[1])),lower=Math.max(...feet.map(p=>p[1]));
-      c.fillRect(left,upper-1/scale,right-left,lower-upper+1/scale);
+      c.fillRect(left,upper-1/scaleY,right-left,lower-upper+1/scaleY);
     }
   }
   c.resetTransform();const image=c.getImageData(0,0,w,h),data=image.data,n=w*h;
@@ -8256,7 +8256,7 @@ function aimLookSolidSilhouette(polygons,{closeBase=false,basePoints=[]}={}) {
     const col=i%w,edge=(col&&outside[i-1])||(col<w-1&&outside[i+1])||(i>=w&&outside[i-w])||(i<n-w&&outside[i+w]);
     if(!edge){if(data[i*4+3]===0)filled++;data[i*4+3]=255;}
   }
-  c.putImageData(image,0,0);return {canvas,x,y,width:w/scale,height:h/scale,filled};
+  c.putImageData(image,0,0);return {canvas,x,y,width:w/scaleX,height:h/scaleY,filled};
 }
 
 async function aimLookRender(host, spec) {
@@ -8372,6 +8372,7 @@ async function aimLookRender(host, spec) {
   const scene = SoramiAlign.sceneTargets(spec.obs, [t, ...aimTargetList()], { eyeM: spec.eyeM });
   const sceneCenters = scene.map(item => proj(item.azimuth, item.topAngle)).filter(p => p && Math.abs(p[0]) < 330);
   const panLimit = Math.max(1, ...sceneCenters.map(p => Math.abs(p[0]) / (2 * win.halfW) + .5));
+  let sceneVersion=0;
   let shape = null, ridgePending = null;
   if (outline) shape = outline.points.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
   else {
@@ -8390,6 +8391,7 @@ async function aimLookRender(host, spec) {
       const rw = { ...win, az0: item.azimuth, panLimit };
       aimLookRidge(spec.obs, eye, item.target, rw).then(ridge => {
         if (seq !== host._lookSeq) return;
+        sceneVersion++;
         item.shape = ridge ? ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean) : null;
         item.failed = !ridge;
         const missing = scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`);
@@ -8418,7 +8420,16 @@ async function aimLookRender(host, spec) {
   const dpr = window.devicePixelRatio || 1;
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
   cv.style.height = `${H}px`;
-  const ctx = cv.getContext("2d");
+  const displayCtx = cv.getContext("2d");
+  const makeLayer=()=>{const canvas=document.createElement('canvas');canvas.width=cv.width;canvas.height=cv.height;return {canvas,ctx:canvas.getContext('2d')};};
+  const oldSky=host._lookLayers?.sky;
+  const keepSky=oldSky&&oldSky.width===cv.width&&oldSky.height===cv.height;
+  const skyLayer=keepSky?{canvas:oldSky,ctx:oldSky.getContext('2d')}:makeLayer(),bodyLayer=makeLayer(),buildingLayer=makeLayer();
+  const layerStats={frames:0,sky:0,body:0,buildings:0,ms:0};
+  host._lookLayers={sky:skyLayer.canvas,body:bodyLayer.canvas,buildings:buildingLayer.canvas,stats:layerStats};
+  let ctx=displayCtx,skyKey=keepSky?host._lookSkyKey:null,buildingCache=null;
+  const resetLayer=(context,canvas)=>{if(typeof context.reset==='function')context.reset();else canvas.width=canvas.width;context.setTransform(dpr,0,0,dpr,0,0);};
+  const clipWorld=(context,panX,panY,bottom)=>{context.save();context.translate(panX,panY);context.beginPath();context.rect(-panX,-panY,W,bottom);context.clip();};
   // 図の下の説明（形の出どころ・大気の屈折・縮尺）は出さない（2026-10-03 ユーザー「この説明文いらないわ」「いらない説明文結構ない？」）。
   // 出すのは稜線を読めなかったときだけ
   note.textContent = ridgePending ? "稜線を読み込んでいます…" : "";
@@ -8437,8 +8448,9 @@ async function aimLookRender(host, spec) {
     const ms = path[i].at + (path[j].at - path[i].at) * f;
     return pack(ms, SoramiBodies.state(body, ms, eyeObs));
   };
-  const draw = (v) => {
-    const p = host._blendP || at(v);
+  const draw = (v, exactAt = null) => {
+    const started=typeof performance==='undefined'?Date.now():performance.now();
+    const p = host._blendP || (Number.isFinite(exactAt) ? pack(exactAt, SoramiBodies.state(body, exactAt, eyeObs)) : at(v));
     host._lookAt = p.at;
     if(host.id==='aimLook'&&aim.plannerTransfer)aim.plannerTransfer.at=p.at;
     host._planKey = planRenderKey;
@@ -8455,7 +8467,7 @@ async function aimLookRender(host, spec) {
       const input = document.getElementById('previewTime');
       if (input && document.activeElement !== input) input.value = S.JstCal.hhmm(p.at).padStart(5,'0');
     }
-    const sunAlt = body === "sun" ? p.altitude : SoramiAstro.sun(p.at, eyeObs).apparentAltitude;
+    const sunAlt = SoramiAstro.sun(p.at, eyeObs).apparentAltitude;
     // Captions follow the displayed time; rise/set summaries run once after scrubbing settles.
     if(host.id==='aimLook'){
       const light=host.querySelector('[data-look-light]');
@@ -8477,10 +8489,12 @@ async function aimLookRender(host, spec) {
     const [skyTop, skyLow] = aimLookSky(sunAlt);
     const bright = (skyTop[0] * 0.3 + skyTop[1] * 0.59 + skyTop[2] * 0.11) > 120;
     const ink = bright ? "rgba(20,30,50,0.78)" : "rgba(255,255,255,0.82)";
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, `rgb(${skyTop})`); g.addColorStop(1, `rgb(${skyLow})`);
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const nextSkyKey=skyTop.join(',')+'|'+skyLow.join(',');
+    if(skyKey!==nextSkyKey){
+      ctx=skyLayer.ctx;resetLayer(ctx,skyLayer.canvas);
+      const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,`rgb(${skyTop})`);g.addColorStop(1,`rgb(${skyLow})`);
+      ctx.fillStyle=g;ctx.fillRect(0,0,W,H);skyKey=host._lookSkyKey=nextSkyKey;layerStats.sky++;
+    }
     const pan = host._lensOffset || [0, 0], panX = pan[0] * W, panY = pan[1] * H;
     const times = host.querySelector("[data-look-frame-times]");
     times.hidden = !frame;
@@ -8501,12 +8515,8 @@ async function aimLookRender(host, spec) {
     const sceneBottom = Math.max(groundEdge, ridgeBottom) + Math.max(12, Math.min(24, H * 0.04));
     const clipBottom = Math.max(0, Math.min(H, sceneBottom + panY));
     host._lookSceneBottom = clipBottom;
-    if (clipBottom < H) {
-      ctx.fillStyle = "#252a33";
-      ctx.fillRect(0, clipBottom, W, H - clipBottom);
-    }
-    ctx.save(); ctx.translate(panX, panY);
-    ctx.beginPath(); ctx.rect(-panX, -panY, W, clipBottom); ctx.clip();
+    ctx=bodyLayer.ctx;resetLayer(ctx,bodyLayer.canvas);layerStats.body++;
+    clipWorld(ctx,panX,panY,clipBottom);
     // 道と時刻の目盛り
     ctx.strokeStyle = ink; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.5; ctx.setLineDash([]);
     ctx.beginPath();
@@ -8528,9 +8538,15 @@ async function aimLookRender(host, spec) {
     // 円盤は形の後ろ（形で隠れる）。隠れた所も点線の輪で分かるようにする
     const upperPx=Math.max(1,(p.upperRadius??p.radius)*k),lowerPx=Math.max(1,(p.lowerRadius??p.radius)*k),diskY=(upperPx+lowerPx)/(2*rPx),diskCenter=c?c[1]+(lowerPx-upperPx)/2:0;
     if (c){ctx.save();ctx.translate(c[0],diskCenter);ctx.scale(1,diskY);aimLookDisc(ctx,0,0,rPx,body,p);ctx.restore();}
+    ctx.restore(); // End the independently updated body layer.
+    const nextBuildingKey=[panX,panY,clipBottom,sceneVersion].join(',');
+    if(!buildingCache||buildingCache.key!==nextBuildingKey){
+      ctx=buildingLayer.ctx;resetLayer(ctx,buildingLayer.canvas);
+      if(clipBottom<H){ctx.fillStyle='#252a33';ctx.fillRect(0,clipBottom,W,H-clipBottom);}
+      clipWorld(ctx,panX,panY,clipBottom);
     // 形は空より暗く塗り、暗い空では縁を明るい線でなぞる（ユーザー「シルエットが背景と色が被って見えづらくなってる」。夜空と同じ紺だった）
-    ctx.fillStyle = bright ? "rgba(16,20,30,0.94)" : "#020306";
-    const rim = bright ? null : "rgba(200,212,240,0.7)";
+    ctx.fillStyle = "#020306";
+    const rim = "rgba(200,212,240,0.28)";
     const groundY = groundEdge;
     const visibleTargets = [];
     for (const item of scene) {
@@ -8539,14 +8555,17 @@ async function aimLookRender(host, spec) {
       const isMountain = !item.outline;
       const minX = Math.min(...points.map(p => p[0])) + panX, maxX = Math.max(...points.map(p => p[0])) + panX;
       if (!selected && (maxX < 0 || minX > W)) continue;
-      ctx.fillStyle = bright ? "rgba(16,20,30,0.94)" : "#020306";
+      ctx.fillStyle = "#020306";
       if(item.polygons?.length){
         // 形は時刻/天体と独立。再生・ドラッグのたびに穴埋めを再計算しない。
         let mask=item.solidSilhouette;
         if(!mask||mask.source!==item.polygons){mask=aimLookSolidSilhouette(item.polygons,{closeBase:item.target.id==="skytree",basePoints:item.basePoints});if(!mask)continue;mask.source=item.polygons;item.solidSilhouette=mask;}
-        ctx.save();ctx.shadowColor=rim||"transparent";ctx.shadowBlur=rim?2:0;
+        ctx.save();
         // マスクに色を付けた別バッファを使い、空や月をsource-inで消さない。
         if(mask.ink!==ctx.fillStyle){const tinted=document.createElement('canvas');tinted.width=mask.canvas.width;tinted.height=mask.canvas.height;const c=tinted.getContext('2d');c.drawImage(mask.canvas,0,0);c.globalCompositeOperation='source-in';c.fillStyle=ctx.fillStyle;c.fillRect(0,0,tinted.width,tinted.height);mask.tinted=tinted;mask.ink=ctx.fillStyle;}
+        // Outline the filled union, never individual model edges or internal mesh lines.
+        if(!mask.rimCanvas){const edge=document.createElement('canvas');edge.width=mask.canvas.width;edge.height=mask.canvas.height;const c=edge.getContext('2d');c.drawImage(mask.canvas,0,0);c.globalCompositeOperation='source-in';c.fillStyle=rim;c.fillRect(0,0,edge.width,edge.height);mask.rimCanvas=edge;}
+        for(const [dx,dy] of [[-.6,0],[.6,0],[0,-.6],[0,.6]])ctx.drawImage(mask.rimCanvas,mask.x+dx,mask.y+dy,mask.width,mask.height);
         ctx.drawImage(mask.tinted,mask.x,mask.y,mask.width,mask.height);ctx.restore();
       } else {
       ctx.beginPath();
@@ -8563,7 +8582,7 @@ async function aimLookRender(host, spec) {
       }
       }
       if (selected && !mountain) {
-        ctx.fillStyle = bright ? "rgba(16,20,30,0.94)" : "#020306";
+        ctx.fillStyle = "#020306";
         ctx.fillRect(-panX, groundY, W, Math.max(0, sceneBottom - groundY));
         if (rim) { ctx.strokeStyle = rim; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-panX, groundY); ctx.lineTo(W - panX, groundY); ctx.stroke(); }
       }
@@ -8574,12 +8593,18 @@ async function aimLookRender(host, spec) {
     // 地上と余白の境界を昼夜とも見分けられるようにする。
     let groundText = null;
     if (groundY + panY >= 12 && groundY + panY <= H - 4) {
-      ctx.strokeStyle = bright ? "#f8fafc" : "#b8c8dd"; ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "#b8c8dd"; ctx.lineWidth = 1.5;
       ctx.setLineDash(mountain ? [5, 4] : []);
       ctx.beginPath(); ctx.moveTo(-panX, groundY); ctx.lineTo(W - panX, groundY); ctx.stroke(); ctx.setLineDash([]);
       groundText = { str: mountain ? "水平（0°）" : "地上", y: groundY - 4 + panY };
     }
     // 図中に目標名は重ねない。visibleTargetsは読み上げに使用する。
+      ctx.restore();buildingCache={key:nextBuildingKey,visibleTargets,groundText};layerStats.buildings++;
+    }
+    const {visibleTargets,groundText}=buildingCache;
+    ctx=displayCtx;resetLayer(ctx,cv);
+    ctx.drawImage(skyLayer.canvas,0,0,W,H);ctx.drawImage(bodyLayer.canvas,0,0,W,H);ctx.drawImage(buildingLayer.canvas,0,0,W,H);
+    clipWorld(ctx,panX,panY,clipBottom);
     // 形に隠れた所も分かるように、円盤の輪を明るい点線で（暗い形の上でも見える色）
     if (c) {
       ctx.strokeStyle = body === "sun" ? "rgba(255,226,160,0.95)" : "rgba(235,238,255,0.9)";
@@ -8631,6 +8656,7 @@ async function aimLookRender(host, spec) {
     out.innerHTML = `${S.JstCal.sameDay(p.at,spec.at) ? "" : p.at < spec.at ? "前日 " : "翌日 "}${aimLookHMS(p.at)}<span class="sub-line">${esc(aimLookRel(p.at - spec.at, spec.atName))}</span>`;
     cv.setAttribute("aria-label", `${spec.title || "ここから"}見た${visibleTargets.map(x => x.item.target.name).join("、") || t.name}と${SoramiBodies.definition(body).name}の動き。`
       + `${aimLookHMS(spec.at)}に${spec.atName || "重なる"}。いまの図は${aimLookHMS(p.at)}`);
+    layerStats.frames++;layerStats.ms+=(typeof performance==='undefined'?Date.now():performance.now())-started;
   };
   let cur = i0;
   range.value = String(i0);
@@ -8652,10 +8678,10 @@ async function aimLookRender(host, spec) {
   const uiDay = S.JstCal.startOfDay(spec.at), uiEnd = uiDay + 86400000 - 1;
   const uiState = host._uiTime = {
     day: uiDay, reference: spec.at, name: spec.atName || '重なる', current: selectedAt,
-    set(ms) { if (host._lookSeq !== seq || !Number.isFinite(ms)) return; draw(timeIndex(ms)); },
+    set(ms) { if (host._lookSeq !== seq || !Number.isFinite(ms)) return; host._blendP = null; draw(timeIndex(ms), ms); },
     blend(b) {
       if (host._lookSeq !== seq) return;
-      if (!b) { if (!host._blendP) return; host._blendP = null; draw(timeIndex(this.current)); return; }
+      if (!b) { if (!host._blendP) return; host._blendP = null; draw(timeIndex(this.current), this.current); return; }
       const near = b.f < 0.5 ? b.from : b.to;
       host._blendP = pack(near, blendBodyState(SoramiBodies.state(body, b.from, eyeObs), SoramiBodies.state(body, b.to, eyeObs), b.f));
       draw(timeIndex(near));
@@ -8795,7 +8821,7 @@ async function aimLookRender(host, spec) {
   cur = timeIndex(selectedAt); draw(cur);
   if (ridgePending) ridgePending.then((ridge) => {
     if (seq !== host._lookSeq) return;
-    if (ridge) shape = ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
+    if (ridge) { shape = ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);sceneVersion++; }
     note.textContent = shape ? "" : "稜線を読み込めませんでした";
     note.dataset.primary = note.textContent;
     note.textContent = [note.dataset.primary, ...scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`)].filter(Boolean).join(" / ");
@@ -11092,8 +11118,8 @@ load(false);
 restoreSession();
 checkForUpdate();
 </script>
-<script src="sorami-scroll-timeline.js?v=20261015084848"></script>
-<script src="sorami-datetime-ui.js?v=20261015084848"></script>
+<script src="sorami-scroll-timeline.js?v=20261015111032"></script>
+<script src="sorami-datetime-ui.js?v=20261015111032"></script>
 <script id="uiVisualPrimitives">
 const UI_ICONS = {"observer": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"6\" y=\"3\" width=\"12\" height=\"7\" rx=\"1.5\"/><circle cx=\"13\" cy=\"6.5\" r=\"2\"/><path d=\"M12 10v3m0 0L5 22m7-9 7 9m-7-9v9\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z\"/><circle cx=\"12\" cy=\"9\" r=\"2.5\"/></svg>", "search": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 21 21\"/></svg>", "map": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16\"/></svg>", "recenter": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 7V3h4m6 0h4v4M5 17v4h4m6 0h4v-4M12 13v8m0-8-5 8m5-8 5 8\"/><rect x=\"8\" y=\"7\" width=\"8\" height=\"6\" rx=\"1\"/></svg>", "history": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7v5h5M3.5 11a9 9 0 1 1 2 7\"/><path d=\"M12 7v5l3 2\"/></svg>", "upload": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5\"/></svg>", "download": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v13m-4-4 4 4 4-4M4 17v4h16v-4\"/></svg>", "photo": "<svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8\" cy=\"8\" r=\"2\"/><path d=\"m3 17 5-5 4 4 4-7 5 8\"/></svg>"};
 // E185: visual choices forward to the original native control; no calculation path is added.
