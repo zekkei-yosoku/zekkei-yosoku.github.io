@@ -146,7 +146,7 @@ ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待�
     ok(menu.includes(`data-tool="${href}"`) && menu.includes(name), `${name} が入っている`);
   }
   // 絶景予測への入口（2026-10-15 名称を「絶景予測」に統一）
-  ok(/<nav class="drawer-list">\s*<!--[\s\S]*?-->\s*<button id="toolsHome"><b>絶景予測<\/b>/.test(menu), "メニューのいちばん上に「絶景予測」");
+  ok(/<nav class="drawer-list">\s*<!--[\s\S]*?-->\s*<button id="toolsHome"><b>予測<\/b>/.test(menu), "メニューのいちばん上に「予測」");
   ok(!/id="toolsHome"[^>]*data-(tool|id)=/.test(menu), "一覧は道具ではない（許可・管理画面の名前に混ぜない）");
   ok(/\$\("toolsHome"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \};/.test(html), "押すと題名と同じく、何画面進んでいても1回で一覧へ");
   ok(/if \(routeFromHash\(\)\) \$\("toolsHome"\)\.removeAttribute\("aria-current"\);\s+else \$\("toolsHome"\)\.setAttribute\("aria-current", "page"\);/.test(html),
@@ -516,9 +516,7 @@ console.log("== 画面のスクリプトが文法として読める（2026-09-30
 }
 
 // ユーザー「塔に重ねるって塔以外も重ねるじゃん」「純粋に「重ねる」じゃだめなの？」
-// 2026-10-15 メニューはAstroNotesの1項目（FramingとMapは画面上部のスイッチ）。説明にダイヤモンド富士の名前は残す
-ok(/<b><img [^>]*alt="AstroNotes"[^>]*><\/b><span>ダイヤモンド富士・パール富士など天体が重なる日と場所（Framing）、天体の方向と高度（Map）<\/span>/.test(html) && !/<b>塔に重ねる<\/b>/.test(html),
-  "メニューの名前は「AstroNotes」。説明にダイヤモンド富士の名前も入れる（その名前でも見つかるように）");
+ok(/id="framingMenu"[^>]*><b>構図<\/b>/.test(html) && /id="mapMenu"[^>]*><b>地図<\/b>/.test(html), "日本語の構図・地図を独立した入口にする");
 
 // ユーザー「スカイツリーの先端が634mだと思うんだけど636になってるのはなんで」
 ok(/\$\{esc\(p\.name\)\} \$\{Math\.round\(p\.m - g\)\}m<\/option>/.test(html), "高さの選択肢は地上からで出す（先端 634m）");
@@ -992,9 +990,7 @@ ok(!/TOOL_NAMES = \{/.test(html), "名前を書き写さない");
   // 1つの項目が2つの許可を持つことがある（富士山に重ねる＝diamond と pearl）
   const menu = [...html.matchAll(/<button\b[^>]*\bdata-tool="[^"]+"[^>]*>/g)].flatMap(m => (m[0].match(/\bdata-id="([a-z ]+)"/)?.[1] || "").split(" ").filter(Boolean));
   ok(menu.length === 7, "メニューの許可は7つ（独立スカイマップを含む）", menu.join("・"));
-  // 2026-10-15 FramingとMapはメニューではAstroNotesの1項目（画面上部のスイッチで行き来する）
-  ok(/data-tool="#\/aim\/tower" data-id="diamond pearl tower skymap" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど Astro Map"><b><img [^>]*alt="AstroNotes"[^>]*><\/b>/.test(html),
-    "AstroNotesは4つの許可を持ち、どれかがあれば出す");
+  ok(/data-tool="#\/aim\/tower" data-id="diamond pearl tower"/.test(html) && /data-tool="#\/skymap" data-id="skymap"/.test(html), "構図と地図の権限をそれぞれの入口へ割り当てる");
   ok(/el\.dataset\.id\.split\(" "\)\.some\(\(id\) => allowed\.includes\(id\)\)/.test(html), "どちらかの許可があればメニューに出す");
   const api = fs.readFileSync(new URL("../api/src/index.js", import.meta.url), "utf8");
   const tools = /const TOOLS = \[([^\]]+)\]/.exec(api)[1].match(/"([a-z]+)"/g).map((s) => s.replace(/"/g, ""));
@@ -1497,7 +1493,7 @@ const mani = JSON.parse(fs.readFileSync(new URL("./manifest.json", import.meta.u
 // 2026-09-06 に一度「絶景予測」にしてから「絶景予報」へ変えた経緯があるので、
 // **どちらが現行かは記録を見る**（Vault ドメイン/開発/絶景日和/00_はじめに）。
 // 気象業務法が定義している語は「予報」で、その語をそのまま名乗る利点が無い。
-ok(mani.name === "絶景予測" && mani.short_name === "絶景予測", "マニフェストの名前が現在の名称");
+ok(mani.name === "AstroNotes" && mani.short_name === "AstroNotes", "マニフェストの名前が現在の名称");
 ok(mani.icons.some((i) => i.sizes === "512x512" && i.purpose === "maskable"),
   "Android が円で抜く用（maskable）を持つ");
 for (const i of mani.icons) {
