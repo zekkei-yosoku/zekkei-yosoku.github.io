@@ -41,7 +41,7 @@ function calendar({button,getAt,setDay}){
  button.onclick=()=>{const d=new Date(getAt()+OFFSET);year=d.getUTCFullYear();month=d.getUTCMonth();paint();dialog.showModal();dialog.focus();};
  const shift=delta=>{const d=new Date(Date.UTC(year,month+delta,1));if(d.getUTCFullYear()<100||d.getUTCFullYear()>9999)return;year=d.getUTCFullYear();month=d.getUTCMonth();paint();};dialog.querySelector('[data-prev]').onclick=()=>shift(-1);dialog.querySelector('[data-next]').onclick=()=>shift(1);for(const key of ['[data-year]','[data-month]'])dialog.querySelector(key).onchange=()=>{const y=Number(dialog.querySelector('[data-year]').value),m=Number(dialog.querySelector('[data-month]').value);if(!Number.isInteger(y)||!Number.isInteger(m)||m<0||m>11)return;year=y;month=m;paint();};dialog.querySelector('[data-close]').onclick=()=>dialog.close();dialog.querySelector('[data-today]').onclick=()=>{setDay(Math.floor((Date.now()+OFFSET)/DAY)*DAY-OFFSET);dialog.close();};dialog.addEventListener('close',()=>button.focus({preventScroll:true}));return dialog;
 }
-// 指で閉じたダイアログから焦点が戻っても青枠を出さない。キーボード操作では枠を残す（E77と同じ扱いをSun & Moon Mapにも）
+// 入力方法を記録してダイアログ終了時の焦点を戻す。枠の表示は共通UIのCSSで制御する。
 let keyNav=false,listening=false;
 function trackPointerFocus(...roots){
  if(!listening&&typeof g.addEventListener==='function'){listening=true;g.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey)return;keyNav=true;document.activeElement?.removeAttribute?.('data-pointer-focus');},true);g.addEventListener('pointerdown',()=>{keyNav=false;},true);}

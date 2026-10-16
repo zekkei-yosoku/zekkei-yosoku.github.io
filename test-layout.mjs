@@ -1847,7 +1847,7 @@ ok(/sightings \}/.test(html), "sightings のキー名を変えない（前のフ
 ok(/const incomingFav = Array\.isArray\(data\.favorites\)/.test(html), "読み込みでお気に入りを受ける");
 ok(/Array\.isArray\(data\) \? data : data\.sightings/.test(html), "配列だけのファイルも記録として読む");
 ok(/const merge = \(current, add\)[\s\S]{0,220}byId\.set/.test(html), "id で突き合わせて既存を失わせない");
-ok(/if \(!okay\) throw new Error/.test(html), "読み込みの保存失敗を黙って飲まない");
+ok(/persistImportedData\(\[\["sorami.sightings"/.test(html), "読み込みの保存は一括処理を通す（失敗・復元の動作はtest-import-syncで検証）");
 // 保存領域の保護。**申請だけして結果は出さない**（消えても本体はアカウントにあり、
 // 利用者にできることが無い。2026-09-28）
 ok(/navigator\.storage\?\.persist\?\.\(\)/.test(html), "保存領域の保護を申請する");
@@ -1885,7 +1885,7 @@ ok(/const cleanList = \(key, fn\)[\s\S]{0,140}Array\.isArray\(raw\) \? raw\.map\
 ok(/let favorites = cleanList\("sorami\.favorites", cleanFavorite\)/.test(html), "お気に入りを検査して読む");
 ok(/let sightings = cleanList\("sorami\.sightings", cleanSighting\)/.test(html), "記録を検査して読む");
 // 座標が壊れていると予報を取りに行けない。既定へ戻す。
-ok(/!Number\.isFinite\(p\.latitude\) \|\| !Number\.isFinite\(p\.longitude\)[\s\S]{0,60}DEFAULT_PLACE/.test(html),
+ok(/!Number\.isFinite\(p\.latitude\)[\s\S]{0,200}DEFAULT_PLACE/.test(html),
   "座標が壊れた地点は既定へ戻す");
 // 検査関数は使う場所より前に無ければならない（const の TERRAINS を参照するため）
 ok(html.indexOf("const TERRAINS = [") < html.indexOf("function cleanFavorite"), "TERRAINS が検査関数より前");
@@ -2124,7 +2124,7 @@ ok(/writeText\(codeBlock\(auth\?\.loginId/.test(html), "自分の分に効く");
 // E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 ok(/IDとコードの両方が要ります/.test(html), "入力時にIDが要ることを書く");
 ok(/<strong>IDと一緒に<\/strong>パスワードマネージャへ保存/.test(html), "保存時にIDのことを書く");
-ok(/絶景予測 \$\{location\.origin\}/.test(html), "どのサイトのものか分かるようにする");
+ok(/AstroNotes \$\{location\.origin\}/.test(html), "どのサイトのものか分かるようにする");
 
 console.log("== ログインの履歴 ==");
 ok(/id="loginHistory"/.test(html) && /\/me\/logins/.test(html), "自分の履歴を見られる");

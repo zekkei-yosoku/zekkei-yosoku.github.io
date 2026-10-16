@@ -18,3 +18,10 @@ test('Googleの予定リンクは件名とUTCの日時を同じ値で保持',()=
 test('天体共有の全条件を往復し危険な入力を拒否',()=>{const p={v:1,kind:'aim',at:payload.at,o:payload.o,body:'moon',part:'tip',limb:'onTop',t:{id:'custom',name:'自分の目標',latitude:35,longitude:139,groundM:10,parts:[{id:'tip',name:'先端',m:636}]},l:{on:true,mode:'manual',focal:400,sensor:'aps',portrait:true,grid:'thirds'},pan:[.1,.2],air:'none'};assert.equal(JSON.stringify(P.decode(P.encode(p))),JSON.stringify(p));for(const x of [{pan:[Infinity,0]},{l:{...p.l,sensor:'evil'}},{t:{...p.t,parts:[{id:'bad',name:'bad',m:Infinity}]}},{air:'evil'}])assert.equal(P.valid({...p,...x}),false);});
 
 test('秒単位の短い撮影機会を正しいUTCの予定へ変換',()=>{const e=P.event(snapshot,{...edits,start:'2026-10-31T23:59:57',end:'2026-11-01T00:00:04'}),s=P.ics(e);assert.ok(s.includes('DTSTART:20261031T145957Z'));assert.ok(s.includes('DTEND:20261031T150004Z'));assert.equal(e.end-e.start,7000);});
+
+test('存在しない日付や24時を別の日時へ繰り上げず拒否する',()=>{
+ for(const start of ['2026-02-29T12:00','2026-04-31T12:00','2026-10-31T24:00','2026-02-30T12:00:00'])
+  assert.throws(()=>P.event(snapshot,{...edits,start,end:'2026-12-01T12:00'}));
+ const e=P.event(snapshot,{...edits,start:'2028-02-29T12:00',end:'2028-02-29T12:01'});
+ assert.equal(e.end-e.start,60000);
+});

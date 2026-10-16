@@ -41,7 +41,11 @@ const SoramiPlan = (() => {
   }
   const dateTime = ms => new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(ms);
   const localInput = ms => new Date(ms+32400000).toISOString().slice(0,19);
-  const inputMs = s => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(s) ? Date.parse(s+(s.length===16?':00':'')+'+09:00') : NaN;
+  const inputMs = s => {
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(s)) return NaN;
+    const normalized = s + (s.length === 16 ? ':00' : ''), ms = Date.parse(normalized + '+09:00');
+    return Number.isFinite(ms) && localInput(ms) === normalized ? ms : NaN;
+  };
   function event(s, edits) {
     const start=inputMs(edits.start),end=inputMs(edits.end),title=edits.title.trim();
     if (!title || title.length>200 || !Number.isFinite(start) || !Number.isFinite(end) || end<=start) throw new Error('件名と日時を確認してください。終了は開始より後にしてください。');
@@ -53,7 +57,7 @@ const SoramiPlan = (() => {
     // Stable identity for the same event; changing notification settings does not duplicate its UID.
     const key=[e.title,e.start,e.location].join('|');let hash=2166136261;
     for(const c of key)hash=Math.imul(hash^c.codePointAt(0),16777619)>>>0;
-    const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Zekkei Yosoku//Shooting Plan//JA','CALSCALE:GREGORIAN','BEGIN:VEVENT',
+    const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//AstroNotes//Shooting Plan//JA','CALSCALE:GREGORIAN','BEGIN:VEVENT',
       `UID:${e.start}-${hash.toString(16)}@zekkei-yosoku.github.io`,`DTSTAMP:${stamp(now)}`,`DTSTART:${stamp(e.start)}`,`DTEND:${stamp(e.end)}`,
       `SUMMARY:${escapeIcs(e.title)}`,`LOCATION:${escapeIcs(e.location)}`,`DESCRIPTION:${escapeIcs(e.description)}`];
     if(e.reminder)lines.push('BEGIN:VALARM',`TRIGGER:-PT${e.reminder}M`,'ACTION:DISPLAY',`DESCRIPTION:${escapeIcs(e.title)}`,'END:VALARM');
@@ -80,7 +84,7 @@ const SoramiPlan = (() => {
     ctx.fillStyle='#1c1c1e';ctx.font='700 42px -apple-system, sans-serif';for(const t of title){ctx.fillText(t,P,y);y+=56;}y+=24;
     if(s.scene){ctx.drawImage(s.scene,(W-sceneW)/2,y,sceneW,sceneH);y+=sceneH+28;}
     for(const r of body){ctx.fillStyle='#6b6b71';ctx.font='400 24px -apple-system, sans-serif';ctx.fillText(r.label,P,y);y+=30;ctx.fillStyle='#1c1c1e';ctx.font='500 34px -apple-system, sans-serif';for(const t of r.lines){ctx.fillText(t,P,y);y+=46;}y+=20;}
-    ctx.fillStyle='#8e8e93';ctx.font='400 22px -apple-system, sans-serif';ctx.fillText('絶景予測',P,y+6);return cv;
+    ctx.fillStyle='#8e8e93';ctx.font='400 22px -apple-system, sans-serif';ctx.fillText('AstroNotes',P,y+6);return cv;
   }
   function mount({snapshot,show}) {
     const d=document.createElement('dialog');d.id='planSheet';d.className='sheet';d.tabIndex=-1;d.setAttribute('aria-labelledby','planTitle');
@@ -99,7 +103,7 @@ const SoramiPlan = (() => {
     for(const id of ['planEventTitle','planStart','planEnd','planReminder'])$(id).oninput=validate;
     $('planClose').onclick=()=>d.close();d.addEventListener('close',()=>{seq++;if(url)URL.revokeObjectURL(url);url=null;file=null;current=null;back?.focus({preventScroll:true});});
     $('planGoogle').onclick=e=>{if(!validate())e.preventDefault();};
-    $('planIcs').onclick=()=>{const e=validate();if(!e)return;download(new Blob([ics(e)],{type:'text/calendar;charset=utf-8'}),'絶景予測_撮影予定.ics');status('予定ファイルを保存しました。カレンダーで開き、登録を確認してください。');};
+    $('planIcs').onclick=()=>{const e=validate();if(!e)return;download(new Blob([ics(e)],{type:'text/calendar;charset=utf-8'}),'AstroNotes_撮影予定.ics');status('予定ファイルを保存しました。カレンダーで開き、登録を確認してください。');};
     $('planSave').onclick=()=>{if(file){download(file,file.name);status('画像の保存を開始しました。保存先から共有できます。');}};
     $('planCopy').onclick=async()=>{const copiedUrl=current?.url;if(!copiedUrl)return;try{await navigator.clipboard.writeText(copiedUrl);status('同じ撮影条件のリンクをコピーしました。');}catch{status('コピーできませんでした。下のリンクを選んでコピーしてください。');const a=document.createElement('a');a.href=copiedUrl;a.textContent=copiedUrl;$('planStatus').append(document.createElement('br'),a);}};
     $('planShare').onclick=async()=>{if(!file)return;const data={files:[file],title:current.title};try{if(!navigator.canShare?.({files:[file]})||!navigator.share){status('この端末では画像共有を使えません。「保存」から共有してください。');return;}await navigator.share(data);status('共有画面を閉じました。');}catch(e){status(e.name==='AbortError'?'共有を取り消しました。': '共有できませんでした。「保存」から共有してください。');}};
@@ -109,7 +113,7 @@ const SoramiPlan = (() => {
         if(!reuse){$('planEventTitle').value=current.title;$('planStart').value=localInput(current.start);$('planEnd').value=localInput(Math.ceil(Math.max(current.end,current.start+1000)/1000)*1000);$('planReminder').value='0';}if(kind==='calendar'){validate();return;}
         status('画像を作っています…');await document.fonts.ready;if(token!==seq||!d.open)return;
         const cv=image(current),blob=await new Promise((resolve,reject)=>cv.toBlob(b=>b?resolve(b):reject(new Error('画像を作れませんでした。画面を開き直してください。')),'image/png'));
-        if(token!==seq||!d.open)return;file=new File([blob],'絶景予測_撮影計画.png',{type:'image/png'});url=URL.createObjectURL(file);$('planPreview').src=url;for(const id of ['planSave','planCopy'])$(id).disabled=false;
+        if(token!==seq||!d.open)return;file=new File([blob],'AstroNotes_撮影計画.png',{type:'image/png'});url=URL.createObjectURL(file);$('planPreview').src=url;for(const id of ['planSave','planCopy'])$(id).disabled=false;
         const can=navigator.canShare?.({files:[file]})&&navigator.share;$('planShare').disabled=!can;status(can?'':'画像を保存して、好きなアプリで共有できます。');
       }catch(e){$('planCalendar').hidden=true;$('planImage').hidden=true;$('planSummary').textContent='';status(e.message||'撮影計画を作れませんでした。画面を開き直してください。');if(!d.open)show(d);}}
     for(const [id,mode] of [['planImageTab','image'],['planCalendarTab','calendar']]){$(id).onclick=()=>open(mode,back,true);$(id).onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const next=e.key==='Home'?'planImageTab':e.key==='End'?'planCalendarTab':id==='planImageTab'?'planCalendarTab':'planImageTab';$(next).click();$(next).focus();}};}
