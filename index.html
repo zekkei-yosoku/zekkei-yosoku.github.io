@@ -12,12 +12,13 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="18021307041803554691">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-500k2BgQpWiBJzv54QMO0bJwyTq8RmCOfyanGldRg9k=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-Z11HRIprQ6aY0riOULwclQ01FQYHOOwyIsPnhrJ5LM0=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="1683231344065800416">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-8jRvpLnQyvAAMbDIeHi/mJVRtZQ+ygwcItZN6ODy0ag=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-Z11HRIprQ6aY0riOULwclQ01FQYHOOwyIsPnhrJ5LM0=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
 <link data-script-preload rel="preload" as="script" href="sorami-astro.js?v=9181748260451918765">
 <link data-script-preload rel="preload" as="script" href="sorami-exif.js?v=18314871901163682501">
+<link data-script-preload rel="preload" as="script" href="sorami-photo-analysis.js?v=944312100077429319">
 <link data-script-preload rel="preload" as="script" href="sorami-capcloud.js?v=4966950791580310294">
 <link data-script-preload rel="preload" as="script" href="sorami-terrain.js?v=2888802520753998075">
 <link data-script-preload rel="preload" as="script" href="sorami-mountain.js?v=6648342167869535458">
@@ -1995,6 +1996,8 @@ button.ui-icon-button::after { content: none; }
   <input type="text" id="photoNote" class="fav-in" maxlength="120" placeholder="気づいたこと">
   <p class="warn" id="photoErr" hidden></p>
   <button id="photoSave" class="fav-btn primary" style="margin-top:16px">保存</button>
+  <!-- 2026-10-16 記録した写真と点数を予報の改善の分析に使うことを、保存する場所で伝える（設計案の未確定事項5） -->
+  <p class="tiny" style="margin:8px 0 0;color:var(--tertiary)">保存した写真と点数は、予報を良くするための分析に使います</p>
   </div>
 </dialog>
 
@@ -2197,6 +2200,7 @@ button.ui-icon-button::after { content: none; }
      星空の月明かりが依存している。触らずに足す）。 -->
 <script src="sorami-astro.js?v=9181748260451918765"></script>
 <script src="sorami-exif.js?v=18314871901163682501"></script>
+<script src="sorami-photo-analysis.js?v=944312100077429319"></script>
 <script src="sorami-capcloud.js?v=4966950791580310294"></script>
 <script src="sorami-terrain.js?v=2888802520753998075"></script>
 <script src="sorami-mountain.js?v=6648342167869535458"></script>
@@ -3385,7 +3389,9 @@ function wireAlignmentJump(root) {
 //
 // 小さくても残す意味はある。**採点のしかたを変えたとき、付け直せるのは写真だけ**で、
 // 「あの日は何点だった」という記憶は残らない。
-const photoDraft = { file: null, thumb: null, tile: null, exif: null, width: 0, height: 0, round: null };
+const photoDraft = { file: null, thumb: null, tile: null, exif: null, width: 0, height: 0, round: null,
+  // 保存時の分析（2026-10-16）。色の帯は写真を選んだ直後に計算を始める。入力欄は「開いたときに入れた値と由来」を覚え、保存時に比べる
+  color: null, colorJob: null, original: null, filled: null, scoreInitial: "default_70", scoreMoved: false };
 
 /**
  * 長辺 `max` px に縮めた JPEG を data URL で返す。
@@ -3416,11 +3422,20 @@ async function photoAttach(file) {
   photoDraft.exif = null;
   try { photoDraft.exif = await SoramiExif.readFile(file); } catch { photoDraft.exif = null; }
   // 2枚作る。**一覧には小さいほうを出す**（大きいほうを60枚並べると数MBになる）
+  photoDraft.color = null; photoDraft.colorJob = null;
+  photoDraft.original = { width: null, height: null, type: file.type || null, bytes: Number.isFinite(file.size) ? file.size : null };
   try {
     const t = await makeThumb(file);
     const tile = await makeThumb(file, 192, 0.7);
     photoDraft.thumb = t.url; photoDraft.tile = tile.url;
     photoDraft.width = t.width; photoDraft.height = t.height;
+    photoDraft.original.width = t.width; photoDraft.original.height = t.height;
+    // 保存する写し（768px）から色の帯を計算する。保存を待たせないよう、ここで始めておく。
+    // **分析が読めない・失敗しても、写真の読み込みと保存は止めない**（モジュールが無ければ計算しない）
+    const thumb = t.url, analyzer = globalThis.SoramiPhotoAnalysis;
+    if (analyzer) photoDraft.colorJob = analyzer.analyzeDataUrl(thumb)
+      .then((c) => { if (photoDraft.thumb === thumb) photoDraft.color = c; return c; })
+      .catch(() => null);
   } catch {
     photoDraft.thumb = null; photoDraft.tile = null;
     photoDraft.width = 0; photoDraft.height = 0;
@@ -3442,6 +3457,10 @@ async function openPhotoSheet(file, round = null) {
   photoDraft.round = round;
   photoDraft.file = null; photoDraft.exif = null; photoDraft.thumb = null; photoDraft.tile = null;
   photoDraft.width = 0; photoDraft.height = 0;
+  photoDraft.color = null; photoDraft.colorJob = null; photoDraft.original = null; photoDraft.filled = null;
+  // 点数の初期値の由来。予報の欄から開いたときは、予報の点のままか・本人が答えた点かを呼び出し側が渡す
+  photoDraft.scoreInitial = round ? round.scoreSource || "prefilled_forecast" : "default_70";
+  photoDraft.scoreMoved = false;
   $("photoPreview").hidden = true;
   $("photoChoose").textContent = "写真を選ぶ";
   if (file) await photoAttach(file);
@@ -3474,6 +3493,14 @@ function photoFillFromExif() {
   $("photoWhere").value = r && Number.isFinite(r.latitude)
     ? `${r.latitude.toFixed(5)}, ${r.longitude.toFixed(5)}`
     : (place ? `${place.latitude.toFixed(5)}, ${place.longitude.toFixed(5)}` : "");
+  // 入れた値の由来を覚える。保存時に入力欄と比べ、変わっていれば手入力とみなす（分析で既定値と本人の値を分けるため）
+  photoDraft.filled = {
+    when: { value: $("photoWhen").value,
+      source: at !== null ? (r && r.takenAtMs !== null && r.takenAtMs !== undefined ? "exif_offset" : "exif_local_place_tz")
+        : photoDraft.round?.peak ? "round_peak" : "default_now" },
+    where: { value: $("photoWhere").value,
+      source: r && Number.isFinite(r.latitude) ? "exif" : place ? "default_place" : "none" },
+  };
   $("photoMeta").textContent = photoMetaText();
 }
 
@@ -3518,6 +3545,71 @@ function photoAt() {
 }
 
 /**
+ * 保存時の分析（2026-10-16）。日時・場所・点数の由来、撮影の回の予報（事前／事後／なし）、色の帯をまとめる。
+ * **何が起きても保存は止めない。** 失敗したら分析なし（null）で送る。
+ * 設計: Vault 成果物/20261016_写真の保存時分析の設計案
+ */
+async function photoAnalysisFor(body, scoreSource) {
+  try {
+    const A = SoramiPhotoAnalysis;
+    const color = photoDraft.color || (photoDraft.colorJob ? await photoDraft.colorJob : null);
+    const filled = photoDraft.filled || {};
+    const timeSource = A.inputSource($("photoWhen").value, filled.when);
+    const locationSource = A.inputSource($("photoWhere").value, filled.where);
+    const r = photoDraft.exif;
+    // 予報の欄の📷から開いたときは、その回を優先する（現象を選び直したら別の記録なので優先しない）
+    const round = photoDraft.round;
+    const forecast = A.matchForecast(forecastCandidates(body.phenomenon, body.takenAt), {
+      takenAtMs: body.takenAt, latitude: body.latitude, longitude: body.longitude, timeSource, locationSource,
+      selectedPeak: round && round.pid === body.phenomenon ? round.peak : null,
+      algorithmVersion: SoramiPrediction.VERSION,
+      distanceM: (a, b, c, d) => SoramiTerrain.distanceKm(a, b, c, d) * 1000,
+    });
+    const { analysis } = A.buildAnalysis({
+      computedAt: Date.now(),
+      web: document.querySelector('meta[name="app-version"]')?.content || null,
+      entry: photoDraft.round ? "answer_photo" : "record_sheet",
+      input: { timeSource, locationSource, scoreSource,
+        // 位置と標高は photos の列が正本なので、ここには有無だけ（重ねて残さない）
+        exif: r ? { offsetKnown: r.offsetKnown ?? null, hasGps: !!r.hasGps, hasAltitude: Number.isFinite(r.altitudeM) } : null,
+        original: photoDraft.original },
+      color, forecast,
+    });
+    return analysis;
+  } catch (e) {
+    console.warn("写真の分析を残せませんでした:", e);
+    return null;
+  }
+}
+/**
+ * 撮影の日の予報の候補。端末に残した回（sorami.rounds）と、いま画面にある予報。
+ * 事前か事後かは matchForecast が「保存した時刻が時間帯の開始より前か」で決める。
+ */
+function forecastCandidates(pid, takenAt) {
+  if (!Number.isFinite(takenAt) || !S.PHENOMENA[pid]) return [];
+  const out = [];
+  for (const r of store.get("sorami.rounds", [])) {
+    if (!r || r.pid !== pid || !Number.isFinite(r.peak) || !S.JstCal.sameDay(r.peak, takenAt)) continue;
+    out.push({ origin: "round", capturedAt: r.capturedAt, peak: r.peak, window: r.window, score: r.score, rank: r.rank,
+      confidence: r.confidence, perModel: r.perModel, factors: r.factors, observations: r.observations || null,
+      placeId: r.placeId ?? null, latitude: r.latitude, longitude: r.longitude, algorithmVersion: r.algorithmVersion ?? null });
+  }
+  if (bundle && place) {
+    const row = (weeks[pid] || []).find((e) => e && S.JstCal.sameDay(e.evaluation?.peak ?? e.dayMs, takenAt));
+    const ev = row && !row.evaluation?.unavailable ? row.evaluation : null;
+    const obs = collectObservations(pid, takenAt);
+    const hasObs = Object.keys(obs).some((k) => !k.startsWith("_"));
+    if (ev || hasObs) {
+      out.push({ origin: "current", capturedAt: bundle.fetchedAt, peak: ev?.peak ?? null, window: ev?.window ?? null,
+        score: Number.isFinite(ev?.score) ? ev.score : null, rank: ev?.rank?.key ?? null, confidence: ev?.confidence?.key ?? null,
+        perModel: ev?.perModel ?? null, factors: ev?.factors ?? null, observations: hasObs ? obs : null,
+        placeId: place.id ?? null, latitude: place.latitude, longitude: place.longitude });
+    }
+  }
+  return out;
+}
+
+/**
  * 写真の時刻・位置を、その回の記録に足す形へ。**入力欄が正本**（写真から入れた値も手で直したらそちら）。
  *
  * 写真の標高から「地上何mで撮ったか」も出す。
@@ -3550,7 +3642,7 @@ $("photoFile").onchange = async () => {
   await photoAttach(f);
   photoFillFromExif();                       // 写真から読めたもので入力欄を入れ直す
 };
-$("photoScore").oninput = () => { $("photoScoreOut").textContent = $("photoScore").value; };
+$("photoScore").oninput = () => { $("photoScoreOut").textContent = $("photoScore").value; photoDraft.scoreMoved = true; };
 $("photoSave").onclick = async (e) => {
   e.preventDefault();
   // **写真は必須。** 日にちが経った記憶の点数は当てにならないので、撮影時刻と場所の証拠を付ける
@@ -3576,12 +3668,22 @@ $("photoSave").onclick = async (e) => {
   };
   $("photoSave").disabled = true;
   try {
+    // 点数の由来。動かしたら本人の点、動かしていなければ開いたときの初期値の由来（分析のモジュールに頼らず決める）
+    const scoreSource = photoDraft.scoreMoved ? "user_moved" : photoDraft.scoreInitial;
+    body.analysis = await photoAnalysisFor(body, scoreSource);
     await apiCall("POST", "/photos", body);
     // 「実際はどうでしたか？」から開いたときは、その回の答え（この点数）と写真の時刻・位置も記録する。
-    // 現象を選び直したら、その回とは別の記録なので答えにしない
+    // 現象を選び直したら、その回とは別の記録なので答えにしない。
+    // **予報の点数のまま保存したら答えにしない**（2026-10-16。以前は予報の点が本人の答えとして入っていた）。
+    // 答え済みの回には写真の時刻・位置だけを足し、まだ答えていない回は答えられるよう残す
     const round = photoDraft.round;
     if (round && body.phenomenon === round.pid) {
-      recordAnswer(round.pid, round.peak, body.score, await photoShot(body));
+      const shot = await photoShot(body);
+      if (scoreSource === "user_moved" || scoreSource === "answered") recordAnswer(round.pid, round.peak, body.score, shot);
+      else {
+        const existing = findSighting(round.pid, round.peak);
+        if (existing) recordAnswer(round.pid, round.peak, existing.actualScore, shot);
+      }
     }
     photoDraft.round = null;
     $("photoSheet").close();
@@ -3643,6 +3745,7 @@ function wireOutcomes(root) {
     const gauge = box.querySelector("[data-gauge]"), out = box.querySelector("[data-gauge-out]");
     const save = box.querySelector('[data-answer="save"]');
     gauge.oninput = () => {
+      box.dataset.gaugeMoved = "1";          // 写真の点数の由来に使う（2026-10-16）
       out.innerHTML = answerHtml(pid, +gauge.value, pred);
       const same = box.dataset.recorded !== "" && +gauge.value === +box.dataset.recorded;
       save.disabled = same;
@@ -3668,9 +3771,15 @@ function wireOutcomes(root) {
       if (!f || !requireLogin("記録")) return;
       // 点数は、ゲージを開いていればその値、答えていれば答えた点、無ければ予測の点
       const s0 = findSighting(pid, peak);
-      const score = !box.querySelector(".answer-gauge").hidden ? +gauge.value
-        : Number.isFinite(s0?.actualScore) ? s0.actualScore : pred;
-      await openPhotoSheet(f, { pid, peak, score });
+      // 点数と、その由来（2026-10-16）を同じ分岐で決める。予報の点のまま渡したものを、本人の答えと分ける。
+      // ゲージは、動かしたか・記録済みの答えを出しているときだけ本人の点
+      let score, scoreSource;
+      if (!box.querySelector(".answer-gauge").hidden) {
+        score = +gauge.value;
+        scoreSource = box.dataset.gaugeMoved === "1" || box.dataset.recorded !== "" ? "answered" : "prefilled_forecast";
+      } else if (Number.isFinite(s0?.actualScore)) { score = s0.actualScore; scoreSource = "answered"; }
+      else { score = pred; scoreSource = "prefilled_forecast"; }
+      await openPhotoSheet(f, { pid, peak, score, scoreSource });
     };
   }
 }
@@ -4749,7 +4858,7 @@ function keepRounds(forPlace, now = Date.now()) {
       const snap = { pid, peak: ev.peak, capturedAt: now, latitude: forPlace.latitude, longitude: forPlace.longitude,
         placeName: forPlace.name, placeId: forPlace.id, score: ev.score, rank: ev.rank.key, confidence: ev.confidence.key,
         perModel: ev.perModel, factors: ev.factors, window: ev.window, specificTime: ev.specificTime,
-        observations: collectObservations(pid, ev.peak) };
+        observations: collectObservations(pid, ev.peak), algorithmVersion: globalThis.SoramiPrediction?.VERSION ?? null };
       if (i >= 0) list[i] = snap; else list.push(snap);
     }
   }

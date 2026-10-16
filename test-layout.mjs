@@ -1649,11 +1649,24 @@ ok(html.match(/data-answer="same"/g).length === 1, "選択肢を組み立てる�
   const wo = html.slice(html.indexOf("function wireOutcomes"), html.indexOf("function wireOutcomes") + 2200);
   ok(/if \(k === "diff"\) \{[\s\S]{0,300}\.answer-gauge"\)\.hidden = false;[\s\S]{0,80}return;/.test(wo), "違ったを押してもまだ記録しない（ゲージを出す）");
   ok(/recordAnswer\(pid, peak, k === "same" \? pred : k === "save" \? \+gauge\.value : null\)/.test(wo), "予測通り＝予測の点・この点で記録＝ゲージの点・確認せず＝点なし");
-  ok(/await openPhotoSheet\(f, \{ pid, peak, score \}\)/.test(wo), "写真は「記録を足す」の画面を、この回の現象・時刻・点数で開く");
+  // 2026-10-16: 点数の由来（予報の点のままか・本人の答えか）も渡す。保存時の分析で、予報の点を本人の点と取り違えないため
+  ok(/await openPhotoSheet\(f, \{ pid, peak, score, scoreSource \}\)/.test(wo), "写真は「記録を足す」の画面を、この回の現象・時刻・点数（と点数の由来）で開く");
+  ok(/scoreSource = box\.dataset\.gaugeMoved === "1" \|\| box\.dataset\.recorded !== "" \? "answered" : "prefilled_forecast";/.test(wo)
+    && /else if \(Number\.isFinite\(s0\?\.actualScore\)\) \{ score = s0\.actualScore; scoreSource = "answered"; \}\s+else \{ score = pred; scoreSource = "prefilled_forecast"; \}/.test(wo),
+    "動かしたゲージ・記録済みの答えは本人の答え、それ以外は予報の点のまま（点数と由来を同じ分岐で決める）");
   ok(/if \(round\) \$\("photoPhenom"\)\.value = round\.pid;/.test(html) && /\$\("photoWhen"\)\.value = iso\(at \?\? photoDraft\.round\?\.peak \?\? Date\.now\(\)\)/.test(html),
     "写真の画面に現象と時刻（写真に無ければその回）を入れる");
-  ok(/if \(round && body\.phenomenon === round\.pid\) \{\s+recordAnswer\(round\.pid, round\.peak, body\.score, await photoShot\(body\)\);/.test(html),
-    "写真を保存したら、その回の答えと写真の時刻・位置も記録する（現象を選び直したら答えにしない）");
+  // 2026-10-16: 予報の点数のまま保存したら答えにしない（以前は予報の点が本人の答えとして入っていた。設計案の未確定事項3）。
+  // 本人の点なら従来どおり答えと写真の時刻・位置を記録し、そうでなければ答え済みの回にだけ写真の時刻・位置を足す
+  ok(/if \(round && body\.phenomenon === round\.pid\) \{\s+const shot = await photoShot\(body\);\s+if \(scoreSource === "user_moved" \|\| scoreSource === "answered"\) recordAnswer\(round\.pid, round\.peak, body\.score, shot\);/.test(html),
+    "写真を保存したら、本人の点ならその回の答えと写真の時刻・位置も記録する（現象を選び直したら答えにしない）");
+  ok(/const existing = findSighting\(round\.pid, round\.peak\);\s+if \(existing\) recordAnswer\(round\.pid, round\.peak, existing\.actualScore, shot\);/.test(html),
+    "予報の点のままなら、答え済みの回にだけ写真の時刻・位置を足す（答えは変えない）");
+  ok(/body\.analysis = await photoAnalysisFor\(body, scoreSource\);\s+await apiCall\("POST", "\/photos", body\);/.test(html), "保存時の分析を写真と一緒に送る");
+  ok(/<script src="sorami-photo-analysis\.js\?v=\d+"><\/script>/.test(html), "分析のモジュールを読み込む");
+  // 分析が読めなくても、写真の読み込みと保存は止めない（2026-10-16 レビュー指摘）
+  ok(/analyzer = globalThis\.SoramiPhotoAnalysis;\s+if \(analyzer\) photoDraft\.colorJob = analyzer\.analyzeDataUrl\(thumb\)/.test(html), "分析のモジュールが無ければ計算しない");
+  ok(/const scoreSource = photoDraft\.scoreMoved \? "user_moved" : photoDraft\.scoreInitial;/.test(html), "保存の流れは分析のモジュールに頼らない");
   const ra = html.slice(html.indexOf("function recordAnswer"), html.indexOf("function shotFields"));
   ok(/const record = \{ \.\.\.\(existing \|\| \{\}\),/.test(ra), "答え直しても、先に添えた写真の時刻・位置を消さない");
   ok(/actualScore: a, outcome: S\.outcomeFromActual\(pid, ev\.score, a\)/.test(ra), "帯グラフの答えは実際の点から出す");
