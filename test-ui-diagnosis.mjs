@@ -51,7 +51,7 @@ test('単一モデルの説明は表示と同じexpectedErrorを使い、±0は�
 });
 test('記録案内はピークではなく窓の終了時刻。翌日の日付も付ける',()=>{
  const a=html.indexOf('  const current = findSighting(id, ev.peak);');const b=html.indexOf('  // 広い画面では',a);
- const fn=new Function('S','ev','now','id','findSighting','roundOf','outcomeButtons','const savedPredictionNote=()=>"",savedRoundUnavailable=()=>"始まる前の予測がない";'+html.slice(a,b)+';return record;');
+ const fn=new Function('S','ev','now','id','findSighting','roundOf','outcomeButtons','const toolAllowed=()=>true,savedPredictionNote=()=>"",savedRoundUnavailable=()=>"始まる前の予測がない";'+html.slice(a,b)+';return record;');
  const out=(e,now)=>fn(S,e,now,'sunrise',()=>null,()=>null,()=>{throw Error('no forecast');});
  assert.match(out(ev,today+4*H),/6:00/);assert.doesNotMatch(out(ev,today+4*H),/5:30/);
  assert.match(out({...ev,window:[today+23*H,today+26*H]},today+22*H),/10\/04.*2:00/);

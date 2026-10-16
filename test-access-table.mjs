@@ -12,7 +12,7 @@ assert.deepEqual([...access.TOOLS],apiTools,'認可表の道具名がAPIの TOOL
 for(const [screen,rule] of Object.entries(access.SCREENS))for(const tool of rule.tools)assert.ok(apiTools.includes(tool),`${screen} の ${tool} はAPIにある`);
 
 // メニューの入口は、行き先の画面と同じ許可で出す
-const ROUTE={'#/aim':'framing','#/skymap':'skymap','#/plane':'plane','#/iss':'iss','#/records':'records'};
+const ROUTE={'#/aim':'framing','#/skymap':'skymap','#/plane':'plane','#/iss':'iss','#/records':'records','#/answers':'answers'};
 const seen=new Set();
 for(const [,tool,ids] of html.matchAll(/<button[^>]*data-tool="([^"]+)"[^>]*data-id="([^"]+)"/g)){
  const screen=Object.entries(ROUTE).find(([prefix])=>tool===prefix||tool.startsWith(prefix+'/'))?.[1];

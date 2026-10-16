@@ -990,12 +990,12 @@ ok(!/TOOL_NAMES = \{/.test(html), "名前を書き写さない");
   // メニューの data-id と、Worker が許す道具（TOOLS）が一致していること。
   // 1つの項目が2つの許可を持つことがある（富士山に重ねる＝diamond と pearl）
   const menu = [...html.matchAll(/<button\b[^>]*\bdata-tool="[^"]+"[^>]*>/g)].flatMap(m => (m[0].match(/\bdata-id="([a-z ]+)"/)?.[1] || "").split(" ").filter(Boolean));
-  ok(menu.length === 7, "メニューの許可は7つ（独立スカイマップを含む）", menu.join("・"));
+  ok(new Set(menu).size === 7, "メニューの許可は7つ（独立スカイマップを含む）", menu.join("・"));
   ok(/data-tool="#\/aim\/tower" data-id="diamond pearl tower"/.test(html) && /data-tool="#\/skymap" data-id="skymap"/.test(html), "構図と地図の権限をそれぞれの入口へ割り当てる");
   ok(/el\.dataset\.id\.split\(" "\)\.some\(\(id\) => allowed\.includes\(id\)\)/.test(html), "どちらかの許可があればメニューに出す");
   const api = fs.readFileSync(new URL("../api/src/index.js", import.meta.url), "utf8");
   const tools = /const TOOLS = \[([^\]]+)\]/.exec(api)[1].match(/"([a-z]+)"/g).map((s) => s.replace(/"/g, ""));
-  ok(JSON.stringify(menu.slice().sort()) === JSON.stringify(tools.slice().sort()),
+  ok(JSON.stringify([...new Set(menu)].sort()) === JSON.stringify(tools.slice().sort()),
     "メニューと Worker の道具の一覧が一致する", `${menu.join("・")} / ${tools.join("・")}`);
 }
 
@@ -1703,7 +1703,7 @@ ok(/host\.hidden = hidden \|\| \(!out\.length && !notice\)/.test(pend),
 ok(/r\.window\[1\] <= now && now - r\.window\[1\] <= ROUND_ANSWER_MS/.test(html), "終わった回だけ聞く");
 ok(/ROUND_ANSWER_MS = 7 \* 86400000/.test(html), "古すぎる回は聞かない（終わってから7日まで）");
 ok(/!findSighting\(pid, ev\.peak\)/.test(pend), "答えた回は二度聞かない");
-ok(/out\.slice\(0, 4\)/.test(pend), "一度に出す件数を絞る");
+ok(/out\.map\(/.test(pend) && !/out\.slice\(0, 4\)/.test(pend), "専用画面では未回答の予測を4件で切らずにすべて答えられる");
 
 // 描画より先に配線していたため、記録カードのボタンだけ無反応だった。
 const wire = code.indexOf('querySelectorAll(".answer")');
@@ -1711,7 +1711,7 @@ const draw = code.indexOf("renderRecords(now,");
 ok(draw > -1 && wire > draw, "描画をすべて終えてから押下を配線する");
 
 // 主要な操作に見えないよう、控えの操作は説明文の中へ落とす。
-const recCard = html.slice(html.indexOf('id="recordsView"'), html.indexOf('id="recordsView"') + 1600);
+const recCard = html.slice(html.indexOf('id="answersView"'), html.indexOf('<!-- 終わったのにまだ答えていない回。'));
 const headEnd = recCard.indexOf("</div>");
 ok(recCard.indexOf('id="exportBtn"') > recCard.indexOf('id="recBody"'),
   "書き出し・読み込みが記録画面の末尾にある");
@@ -2665,7 +2665,7 @@ for (const el of ["listView", "detailView", "recordsView", "adminView", "aimView
 for (const id of ["placeRow", "nowcast"]) {
   ok(html.includes(`$("${id}").hidden`), `${id} の表示を切り替えている`);
 }
-ok(/atRecords \? \$\("recPending"\) : \$\("recordsPending"\)/.test(html), "recPending の表示を切り替えている");
+ok(/atAnswers \? \$\("recPending"\) : \$\("recordsPending"\)/.test(html), "recPending の表示を切り替えている");
 // 管理画面で隠すもの: 地点・実況・記録の問いかけ
 ok(!["admin", "records"].some((v) => ["list", "detail", "sky"].includes(v)), "地点を管理画面で隠す");
 // 実況は一覧と詳細だけ（道具・記録・管理では出さない）
@@ -2959,7 +2959,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   ok(/const out = answerableRounds\(now\)\.filter\(\(\{ pid, ev \}\) => !findSighting\(pid, ev\.peak\)\)/.test(html), "実際はどうでしたかは答えられる回から");
   ok(/const round = roundOf\(pid, peak\);/.test(html.slice(html.indexOf("function recordAnswer"))), "記録も残した回の予測で");
   // 総点検（2026-10-02）: 詳細の画面も、残した回の予測で答える（予報が変わった回で「予測通り」が期待外れになっていた）
-  ok(/outcomeButtons\(id, ev\.peak, current \? current\.score : savedRound\.ev\.score, current\)/.test(html), "詳細は保存した予測だけで答える（事後の予報に戻さない）");
+  ok(/data-open-answers/.test(html.slice(html.indexOf("const record = !toolAllowed"),html.indexOf("const record = !toolAllowed")+800)), "予測詳細から専用の答え合わせ画面へ案内する");
   // 明日の回も残す（明日の朝焼けを、明日アプリを開く前の予測で）・上限
   const mem2 = {};
   const store2 = { get: (k, d) => (k in mem2 ? JSON.parse(mem2[k]) : d), set: (k, v) => { mem2[k] = JSON.stringify(v); } };
