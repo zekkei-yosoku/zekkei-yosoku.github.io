@@ -300,8 +300,8 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(html.includes("aimCandidateMatch(e) && (!moon || e.sunAltitude < 0)"), "選択部位と月の暗い空の条件で候補を絞る");
   ok(/aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる<\/button>/.test(html), "釦の名前は「ここから重ねる」");
   // 引き継いだ地点も、地点カードの展望台・目の高さを立つ所に読み替える（2026-10-06）
-  ok(/function aimFromPoint\(\) \{\s+if \(aim\.from\) return aim\.from;[\s\S]{0,200}const p = inheritedPoint\(\);\s+return p && \{ \.\.\.aimSavedFrom\(p\), inherited: true \};/.test(html) && /function inheritedPoint\(\) \{[\s\S]{0,400}inherited: true/.test(html),
-    "替えていなければ絶景予測の地点を引き継ぐ");
+  ok(/function aimFromPoint\(\) \{\s+return aim\.from \|\| null;/.test(html),
+    "未選択では撮影地点を暗黙補完しない");
   ok(/renderPointCard\("aimFrom", f\);/.test(fn) && /\$\(`\$\{prefix\}Name`\)\.textContent = f \? f\.name/.test(html), "引き継いだ地点の名前をカードに入れておく（共通の renderPointCard）");
   ok(/f\.inherited \? "絶景予測の地点" : ""/.test(html), "引き継いだ地点なら、そう書く");
   ok(/subtitle: aimAreaOf\(\{ detail: place\.subtitle \|\| "" \}\)/.test(html), "引き継いだ地点の住所も都道府県＋市区町村まで");
@@ -818,7 +818,7 @@ console.log("== 地点カードで探せると分かる（2026-10-01） ==");
 {
   const card = (html.match(/<button class="place-pick" id="placeButton">[\s\S]*?<\/button>/) || [""])[0];
   ok(/<circle cx="10\.5" cy="10\.5" r="6\.5"\/>/.test(card) && !/▾/.test(card), "地点カードの右は虫眼鏡（▾ ではない）");
-  ok(/showSheet\(\$\("placeSheet"\)\);\n[^\n]*\n[^\n]*\n  \$\("searchBox"\)\.focus\(\);/.test(html), "地点カードを押したら、検索欄にすぐ打てる");
+  ok(/if \(focusSearch\) \{ \$\("searchBox"\)\.focus\(\); \$\("searchBox"\)\.select\(\); \}/.test(html), "地点カードからは検索へ、候補からは候補タブへ焦点を移す");
 }
 
 console.log("== 月を表すところは全部、その時の満ち欠け（2026-10-01） ==");
@@ -1092,8 +1092,8 @@ ok(/id="recordsView"/.test(html), "記録は別画面");
 ok(/\{ id: "records",\s+el: "recordsView"/.test(html), "3画面を出し分ける");
 // 2026-09-30: 地点カードは「その地点が主語の画面」（一覧・詳細）だけに出す（空の見え方は 2026-10-02 になくした）。
 // ダイヤモンド富士や月丼の上に出ていて、何の地点か分からなかった（ユーザー指摘）
-ok(/const placeCardShown = \(\) => \["list", "detail"\]\.includes\(currentView\)/.test(html),
-  "地点カードを出す画面を決めている（一覧・詳細）");
+ok(/const placeCardShown = \(\) => \["list", "detail", "answers"\]\.includes\(currentView\)/.test(html),
+  "地点カードを出す画面を決めている（予測・詳細・結果）");
 ok(/\$\("placeRow"\)\.hidden = !placeCardShown\(\)/.test(html), "記録・管理・道具の画面では地点を出さない");
 ok(/row\.hidden = decks\.length < 1 \|\| !placeCardShown\(\)/.test(html), "展望台の選択も同じ画面だけ");
 // .place-row の display:flex が [hidden] の display:none に勝ち、地点カードが消えなかった。

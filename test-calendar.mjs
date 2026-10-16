@@ -14,6 +14,11 @@ function setup(al=AL){
  vm.runInContext(html.slice(html.indexOf('function aimObserverEye('),html.indexOf('aim.from = aimSavedFrom'))+code+';this.cal=aimCal;this.rows=aimCalRows;this.grid=aimCalGridHtml;this.solid=aimCalSolid;this.render=aimCalRender;this.draw=aimCalDraw;',c);
  return {c,$,aim,buttons};
 }
+test('撮影地点なしの月カレンダーでも日付を選べ、座標なしの月相や標高を計算しない',async()=>{
+ const {c,$,aim,buttons}=setup();c.aimFromPoint=()=>null;c.aimElevation=async()=>{throw Error('no observer elevation');};c.SoramiBodies={...c.SoramiBodies,state(){throw Error('no observer moon phase');}};aim.body='moon';c.cal.year=2026;c.cal.month=9;await c.render();
+ assert.equal(($('aimCalGrid').innerHTML.match(/data-cal-day=/g)||[]).length,31);assert.doesNotMatch($('aimCalGrid').innerHTML,/NaN|data-moon-phase/);assert.match($('aimCalStatus').textContent,/日付を選んで/);assert.equal($('aimCalGrid')['aria-busy'],'false');
+ buttons.push({dataset:{calDay:String(Date.parse('2026-10-24T00:00:00+09:00'))}});c.draw();buttons[0].onclick();assert.equal($('aimDate').value,'2026-10-24');assert.equal(c.applied,true);
+});
 test("連続する重なる日を代表日にまとめず全日表示する",()=>{
  const {c}=setup(), obs={latitude:35.6252,longitude:139.2436,elevation:599}, target=AL.targetById("fuji");
  const rows=c.rows(obs,target,"sun",2026,11,"summit");

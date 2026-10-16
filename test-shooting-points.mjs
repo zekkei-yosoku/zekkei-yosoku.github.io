@@ -45,3 +45,14 @@ test('富士山を選んでも構図から定番スポットの提案を起動�
  const nodes={aimListBox:{hidden:false},aimList:{replaceChildren(){this.cleared=true;}}};let calls=0;
  const c={$:id=>nodes[id],aimIsFuji:()=>true,aimRenderSpots:()=>calls++};vm.runInNewContext(source+';aimRenderList()',c);assert.equal(calls,0);assert.equal(nodes.aimListBox.hidden,true);assert.equal(nodes.aimList.cleared,true);
 });
+
+test('候補探索は観測地点が未選択でも同じ登録地点・高さ・日付で計算する',async()=>{
+ const events=[{at,gap:0}],points=[point('registered')];
+ assert.equal(P.conditions({...plan,observer:null}).observer,null);
+ const a=await P.candidates(plan,points,deps(events)),b=await P.candidates({...plan,observer:null},points,deps(events));assert.deepEqual(a,b);assert.equal(b.rows[0].place.id,'registered');
+});
+test('登録地点の標高はDEMと違っても候補選択後へ保持し、明示的な標高修正を優先する',()=>{
+ assert.equal(P.savedObserver({latitude:35,longitude:139,elevation:30,eyeHeightAGL:4}).groundManualM,30);
+ assert.equal(P.savedObserver({latitude:35,longitude:139,elevation:30,groundManualM:27.4}).groundManualM,27.4);
+ assert.equal(P.savedObserver(null),null);
+});

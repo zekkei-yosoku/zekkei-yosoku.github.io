@@ -22,7 +22,7 @@
     plane: Object.freeze({ tools: Object.freeze(["plane"]), label: "月丼" }),
     iss: Object.freeze({ tools: Object.freeze(["iss"]), label: "ISS" }),
     records: Object.freeze({ tools: Object.freeze(["records"]), label: "記録" }),
-    answers: Object.freeze({ tools: Object.freeze(["records"]), label: "予測の振り返り" }),
+    answers: Object.freeze({ tools: Object.freeze(["records"]), label: "結果" }),
   });
 
   /// 付与された道具の並びで、その画面を開けるか。知らない画面名は書き間違いなので投げる

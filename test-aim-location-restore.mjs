@@ -2,8 +2,8 @@ import test from 'node:test';import assert from 'node:assert/strict';import vm f
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 const a=html.indexOf('function aimSavedFrom('),b=html.indexOf('// 月の中の各日',a),src=html.slice(a,b);
 function boot(mem){const inherited={name:'現在地',latitude:35,longitude:139};const nodes=new Map();const c=vm.createContext({SoramiTerrain:{decksFor:n=>n==='渋谷スカイ'?[{name:'展望台',aglM:229}]:n==='東京スカイツリー'?[{name:'天望デッキ',aglM:350},{name:'天望回廊',aglM:450}]:null,deckLabel:d=>d},esc:x=>x,aim:{},store:{get:(k,d)=>mem[k]??d,set:(k,v)=>mem[k]=JSON.parse(JSON.stringify(v))},inheritedPoint:()=>inherited,aimRenderFrom(){},$:id=>{if(!nodes.has(id))nodes.set(id,{dataset:{},value:"",textContent:"",innerHTML:"",checkValidity:()=>true,querySelectorAll:()=>[]});return nodes.get(id)},AimMap:{open(){},zoom:()=>11,redraw(){}}});vm.runInContext(src,c);return c;}
-test('選択地点は更新後も復元し、継承の現在地では上書きしない',()=>{const mem={},c=boot(mem);assert.equal(c.aimFromPoint().name,'現在地');c.aimSetFrom({name:'鷺沼北公園',latitude:35.58386,longitude:139.56853});const re=boot(mem);assert.equal(re.aimFromPoint().name,'鷺沼北公園');assert.equal(re.aimFromPoint().latitude,35.58386);});
-test('壊れた保存座標は継承地点へ戻し、明示的解除のnullも復元',()=>{for(const p of [null,{latitude:91,longitude:139},{latitude:35,longitude:181},{latitude:'35',longitude:139}])assert.equal(boot({'sorami.aimFrom':p}).aimFromPoint().name,'現在地');});
+test('選択地点は更新後も復元し、継承の現在地では上書きしない',()=>{const mem={},c=boot(mem);assert.equal(c.aimFromPoint(),null);c.aimSetFrom({name:'鷺沼北公園',latitude:35.58386,longitude:139.56853});const re=boot(mem);assert.equal(re.aimFromPoint().name,'鷺沼北公園');assert.equal(re.aimFromPoint().latitude,35.58386);});
+test('未選択・壊れた保存座標・明示解除は予測地点を補完しない',()=>{for(const p of [null,{latitude:91,longitude:139},{latitude:35,longitude:181},{latitude:'35',longitude:139}])assert.equal(boot({'sorami.aimFrom':p}).aimFromPoint(),null);});
 
 // 2026-10-06 観測標高を「標高」（地面だけ）と「地上から」（目の高さ1.5m＋立つ所）に分けた（ユーザー「標高は標高だけ。展望台の高さは目線のところに」）。
 // 展望台は床の高さ＋1.5m（候補地を解く SoramiAlign と同じ）。それまでは普通の地点が0m、展望台は床の高さのままだった
@@ -81,7 +81,7 @@ test('空欄と範囲外は表示を有効値へ戻し、計算に残る値と�
 test('未設定のその他目標でも観測地点の標高を取得して表示する',async()=>{
  const nodes=new Map(),calls=[];const from={name:'公園',latitude:35,longitude:139};
  const c=vm.createContext({aim:{fromSeq:0,target:{parts:[]},body:'moon'},aimFromPoint:()=>from,
- $:id=>{if(!nodes.has(id))nodes.set(id,{});return nodes.get(id)},renderPointCard(){},
+ $:id=>{if(!nodes.has(id))nodes.set(id,{querySelectorAll:()=>[]});return nodes.get(id)},renderPointCard(){},
  aimRenderObserverHeight:(f,g)=>calls.push(g),aimUpdateLook(){},esc:s=>s,setTimeout,
  aimElevation:async()=>83,aimObserverAt:()=>({elevation:83,eyeM:0})});
  const start=html.indexOf('async function aimRenderFrom()'),stop=html.indexOf('  // 候補帯',start);
@@ -97,4 +97,9 @@ test('継承観測地点の標高カードは観測標高と同じ座標DEMを�
  c.renderPointCard('aimFrom',f,3.4);assert.match(c.$('aimFromSub').textContent,/標高 3.4m/);
  c.renderPointCard('aimFrom',f);assert.doesNotMatch(c.$('aimFromSub').textContent,/標高/);
  c.renderPointCard('issFrom',f,3.4);assert.match(c.$('issFromSub').textContent,/標高 10m/);
+});
+
+test('明示的に解除すると候補・時刻転送を捨て、再読み込みでも未選択のまま',()=>{
+ const mem={},c=boot(mem);c.aimSetFrom({name:'公園',latitude:35,longitude:139});Object.assign(c.aim,{candPick:2,spot:{},plannerTransfer:{at:1},fromDays:{rows:[]}});c.aimSetFrom(null);
+ assert.equal(c.aimFromPoint(),null);assert.equal(c.aim.candPick,null);assert.equal(c.aim.spot,null);assert.equal(c.aim.plannerTransfer,null);assert.equal(c.aim.fromDays,null);assert.equal(boot(mem).aimFromPoint(),null);
 });
