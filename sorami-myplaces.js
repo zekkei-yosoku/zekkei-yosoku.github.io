@@ -71,6 +71,7 @@ PLACE_PICKERS.recordTarget = { title: '見えた目標を選ぶ', custom: () => 
       if (!entry || !sheetOwnerMatches() || draft.ownerToken !== auth?.token || draft.placeId !== sheetState?.place.id) return;
       const original = sheetState.place, ctx = sheetState.ctx; openPlace(original, ctx, 'fav:' + entry.id);
       sheetState.result = draft.result; syncResult(); el('myRecordDate').value = draft.date; el('myRecordNote').value = draft.note;
+      el('myRecordOptions').open = !!draft.optionsOpen || draft.result !== 'seen';
     }, { target: p.targetHeightM ?? p.structureM ?? 0 });
   } };
 
@@ -349,18 +350,14 @@ function buildSheet() {
   sheet = document.createElement('dialog'); sheet.className = 'sheet'; sheet.id = 'myPlaceSheet'; sheet.tabIndex = -1; sheet.setAttribute('aria-labelledby', 'myPlaceTitle');
   sheet.innerHTML = `<div class="sheet-head"><strong id="myPlaceTitle">撮影ポイント</strong><button type="button" data-close>閉じる</button></div>
   <div class="sheet-body">
-    <p class="tiny" id="myPlaceSub"></p>
-    <div class="my-actions"><button type="button" class="chip" id="myPlaceUse">ここから見る</button><button type="button" class="chip" id="myPlaceMap">地図でここから見る</button></div>
-    <h3 class="my-title">次に重なる日<span class="tiny" id="myPlaceBody"></span></h3>
-    <div class="al my-list" id="myPlaceNext"></div>
-    <h3 class="my-title">見えた記録</h3>
+    <h3 class="my-title">見えたもの</h3>
     <div id="myPlaceUndo"></div>
     <div id="myPlaceRecords"></div>
     <form id="myRecordForm" class="my-form" novalidate>
-      <h3 class="my-title">記録を付ける</h3>
-      <label class="fav-l" for="myRecordTarget">目標</label>
+      <label class="fav-l" for="myRecordTarget">見えたものを追加</label>
       <select id="myRecordTarget" class="fav-in"></select>
       <button type="button" class="chip" id="myRecordPickTarget">地図・検索から目標を追加</button>
+      <details id="myRecordOptions" class="my-secondary"><summary>見え方・日付・メモ</summary>
       <div class="fav-l" id="myRecordResultLabel">見え方</div>
       <div class="aim-side-seg my-result" role="group" aria-labelledby="myRecordResultLabel">
         <button type="button" data-result="seen" aria-label="見えた">◎ 見えた</button><button type="button" data-result="partial" aria-label="一部隠れた">△ 一部だけ</button><button type="button" data-result="hidden" aria-label="見えなかった">× 見えない</button>
@@ -369,19 +366,27 @@ function buildSheet() {
       <input type="date" id="myRecordDate" class="fav-in">
       <label class="fav-l" for="myRecordNote">メモ<span class="fav-opt">任意・立つ位置や木など</span></label>
       <input type="text" id="myRecordNote" class="fav-in" maxlength="200" autocomplete="off">
+      </details>
       <p class="warn" id="myRecordError" role="status" hidden></p>
       <p class="tiny" id="myRecordSaved" role="status" hidden></p>
       <button type="submit" class="fav-btn primary" id="myRecordSave">記録する</button>
-      <p class="tiny muted">記録はこのブラウザに保存します（ほかの端末には同期しません）。撮影ポイント（お気に入り）はこれまでどおり同期します。</p>
+      <p class="tiny muted">見えたものの記録は、このブラウザに保存します。</p>
     </form>
+    <details id="myPlacePlanning" class="my-secondary"><summary>この場所から撮る</summary>
+      <div class="my-actions"><button type="button" class="chip" id="myPlaceUse">ここから見る</button><button type="button" class="chip" id="myPlaceMap">地図でここから見る</button></div>
+      <h3 class="my-title">次に重なる日<span class="tiny" id="myPlaceBody"></span></h3>
+      <div class="al my-list" id="myPlaceNext"></div>
+    </details>
+    <details id="myPlaceDetails" class="my-secondary"><summary>場所の詳細</summary><p class="tiny" id="myPlaceSub"></p></details>
   </div>`;
   document.body.append(sheet);
   sheet.querySelector('[data-close]').onclick = () => sheet.close();
   sheet.addEventListener('close', () => { sheetToken++; undoRec = null; });
+  el('myPlacePlanning').addEventListener('toggle',()=>{if(el('myPlacePlanning').open&&sheetOwnerMatches())renderSheet();});
   for (const b of sheet.querySelectorAll('[data-result]')) b.onclick = () => { sheetState.result = b.dataset.result; syncResult(); };
   el('myRecordPickTarget').onclick = () => {
     if (!sheetOwnerMatches()) { sheet.close(); return; }
-    targetDraft = { ownerToken: auth.token, placeId: sheetState.place.id, result: sheetState.result, date: el('myRecordDate').value, note: el('myRecordNote').value };
+    targetDraft = { ownerToken: auth.token, placeId: sheetState.place.id, result: sheetState.result, date: el('myRecordDate').value, note: el('myRecordNote').value, optionsOpen: el('myRecordOptions').open };
     openPlaceSheet('recordTarget');
   };
   el('myPlaceMap').onclick = () => {
@@ -392,7 +397,7 @@ function buildSheet() {
   el('myRecordForm').onsubmit = (e) => { e.preventDefault(); saveRecord(); };
   el('myPlaceUse').onclick = () => { const s = sheetState; if (s.ctx === 'records') { void openFromRecords(s.place); return; } sheet.close(); if (s.ctx === 'sky') openInSky(s.place, null); else openInAim(s.place, null); };
 }
-function syncResult() { for (const b of sheet.querySelectorAll('[data-result]')) b.setAttribute('aria-pressed', String(b.dataset.result === sheetState.result)); }
+function syncResult() { if(sheetState.result!=='seen')el('myRecordOptions').open=true; for (const b of sheet.querySelectorAll('[data-result]')) b.setAttribute('aria-pressed', String(b.dataset.result === sheetState.result)); }
 const sheetOwnerMatches = () => !!auth?.token && sheetState?.ownerToken === auth.token;
 const today = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
 function openPlace(place, ctx, targetKey = null) {
@@ -405,12 +410,13 @@ function openPlace(place, ctx, targetKey = null) {
   el('myPlaceUse').hidden = ctx === 'records' && !screenAllowed('framing');
   el('myPlaceUse').textContent = ctx === 'sky' ? '地図でここから見る' : 'ここから重ねる';
   const choices = targetChoices(), select = el('myRecordTarget');
-  select.replaceChildren(new Option('見えた目標を選ぶ', ''), ...choices.map((t) => new Option(t.name, t.id)));
+  select.replaceChildren(new Option('見えたものを選ぶ', ''), ...choices.map((t) => new Option(t.name, t.id)));
   const want = targetKey || (ctx === 'records' ? null : current);
   if (want) select.value = choices.some((t) => t.id === want) ? want : '';
-  el('myRecordDate').value = today(); el('myRecordNote').value = ''; el('myRecordError').hidden = true;
+  el('myRecordDate').value = ''; el('myRecordNote').value = ''; el('myRecordError').hidden = true;
   if (want && !select.value) { el('myRecordError').textContent = 'この目標を選べません。目標を選び直すか、地図・検索から追加してください'; el('myRecordError').hidden = false; }
   el('myRecordSaved').hidden = true;
+  for(const id of ['myRecordOptions','myPlacePlanning','myPlaceDetails'])el(id).open=false;
   syncResult(); renderSheet();
   if (!sheet.open) showSheet(sheet);
 }
@@ -418,12 +424,12 @@ function renderSheet() {
   const { place, ctx } = sheetState, token = ++sheetToken, list = load();
   const mine = list.filter((r) => r.placeId === place.id).sort((a, b) => when(b) - when(a));
   const recs = el('myPlaceRecords'); recs.replaceChildren();
-  if (!mine.length) { const p = document.createElement('p'); p.className = 'tiny'; p.textContent = 'まだ記録がありません。下で目標と見え方を選んで記録します。'; recs.append(p); }
+  if (!mine.length) { const p = document.createElement('p'); p.className = 'tiny'; p.textContent = '見えたものはまだありません。'; recs.append(p); }
   for (const r of mine) {
     const row = document.createElement('div'); row.className = 'fav-row';
     const txt = document.createElement('div'); txt.className = 'list-item my-record';
     const strong = document.createElement('strong'); strong.textContent = `${RESULTS[r.result].mark} ${r.target.name}`;
-    const sub = document.createElement('span'); sub.className = 'tiny sub-line'; sub.textContent = [RESULTS[r.result].name, r.date ? r.date.replaceAll('-', '/') : '日付なし', r.note, r.observer ? `${r.observer.latitude.toFixed(5)}, ${r.observer.longitude.toFixed(5)} / 地上${r.observer.eyeHeightAGL}m` : '旧記録：当時の座標なし'].filter(Boolean).join(' ・ ');
+    const sub = document.createElement('span'); sub.className = 'tiny sub-line'; sub.textContent = [RESULTS[r.result].name, r.date ? r.date.replaceAll('-', '/') : '', r.note].filter(Boolean).join(' ・ ');
     txt.append(strong, sub);
     const del = document.createElement('button'); del.type = 'button'; del.className = 'fav-del'; del.textContent = '✕'; del.setAttribute('aria-label', `${r.target.name}の記録を消す`);
     del.onclick = () => { if (!sheetOwnerMatches()) { sheet.close(); return; } const all = load(), i = all.findIndex((x) => x.id === r.id); if (i < 0) return; const [gone] = all.splice(i, 1); if (save(all)) { undoRec = gone; renderSheet(); } };
@@ -439,6 +445,7 @@ function renderSheet() {
   const body = ctx === 'sky' ? (skySession?.body || 'sun') : aim.body;
   el('myPlaceBody').textContent = `（${SoramiBodies.definition(body)?.name || body}）`;
   const next = el('myPlaceNext'); next.replaceChildren();
+  if(!el('myPlacePlanning').open)return;
   const seen = targetsSeenFrom(place.id).filter((r) => r.result !== 'hidden');
   if (!seen.length) { const p = document.createElement('p'); p.className = 'tiny'; p.textContent = '見えた目標を記録すると、ここに次に重なる日が出ます。'; next.append(p); return; }
   for (const r of seen) {
@@ -525,6 +532,7 @@ style.textContent = `
 #myPlaceSheet input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-height:44px}
 #myPlaceSheet input[type=date]::-webkit-date-and-time-value{text-align:left}
 #myPlaceSheet .my-actions{display:flex;flex-wrap:wrap;gap:6px}
+.my-secondary{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}.my-secondary>summary{min-height:36px;cursor:pointer;font-size:.81rem;color:var(--secondary)}
 .my-places{margin:10px 0 4px;padding-top:8px;border-top:1px solid var(--line)}
 .my-head{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap;margin:4px 0}
 .my-status{margin:0;flex:1 1 180px}

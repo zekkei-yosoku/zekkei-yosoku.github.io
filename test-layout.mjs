@@ -2485,9 +2485,9 @@ ok(/top: `\$\{-y\}px`/.test(html), "固定しても見ている位置がずれ�
 ok(/window\.scrollTo\(0, y\)/.test(html), "閉じたら元の位置へ戻す");
 ok(/if \(depth\+\+\) return;/.test(html), "入れ子で開いても二重に固定しない");
 // 開閉の呼び出しは10か所以上ある。**書き足す形にすると必ず漏れる**
-ok(/querySelectorAll\("dialog"\)[\s\S]{0,200}MutationObserver/.test(html),
+ok(/new MutationObserver\(syncDialogScrollLock\)\.observe\(document\.body/.test(html),
   "個々の開閉ではなく dialog をまとめて見る");
-ok(/attributeFilter: \["open"\]/.test(html), "open 属性の変化で判断する");
+ok(/attributeFilter: \[['"]open['"]\]/.test(html), "open 属性の変化で判断する");
 ok(/scrollbar-gutter: stable/.test(html), "止めた瞬間に横幅が変わらない");
 // シートすべてが対象。1つでも漏れると、そこだけ後ろが動く
 // 2026-09-24: 地図で選ぶシートを足して5つ（地点・お気に入り・記録・認証・地図）。
