@@ -1,0 +1,469 @@
+/* 観測記録と自分の地点（trial 試作 2026-10-16）。
+   自分の地点はお気に入りそのもの（同期のまま、形を変えない）。観測記録は「どの地点から何が見えたか」で、
+   このブラウザにログインID別に保存する（APIは未対応。本番の画面はこのキーを読まない）。
+   撮影候補は新しく探さない。見えた組（地点×目標）で、既存の重なる日の計算（aimBuildingDays）を呼ぶだけ。
+   仕様: Vault「02_観測記録と自分の地点_仕様書」 */
+(function () {
+'use strict';
+const RESULTS = { seen: { name: '見えた', mark: '◎' }, partial: { name: '一部隠れた', mark: '△' }, hidden: { name: '見えなかった', mark: '×' } };
+const NEAR_KM = 0.02;            // お気に入りの同一判定（既存の ☆ と同じ 20m）
+const MERGE_KM = 0.05;           // 記録するとき「近くの自分の地点に付けるか」を聞く距離
+const DAY = 86400000;
+const el = (id) => document.getElementById(id);
+const key = () => 'sorami.observations.v1:' + encodeURIComponent(auth?.loginId || 'guest');
+const isText = (v, max = 2000) => typeof v === 'string' && v.length <= max;
+const finite = (v) => Number.isFinite(v);
+
+// 取り込んだものを信用しない（手で書き換えられる・壊れる）。描画側でも esc する
+function clean(r) {
+  if (!r || typeof r !== 'object' || !isText(r.id, 80) || !r.id || !isText(r.placeId, 200) || !r.placeId) return null;
+  const t = r.target;
+  if (!t || !isText(t.key, 200) || !t.key || !isText(t.name, 200)) return null;
+  if (!RESULTS[r.result]) return null;
+  const date = isText(r.date, 10) && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : '';
+  return { id: r.id, placeId: r.placeId, target: { key: t.key, name: t.name || '目標',
+      latitude: finite(t.latitude) ? t.latitude : null, longitude: finite(t.longitude) ? t.longitude : null },
+    result: r.result, date, note: isText(r.note, 500) ? r.note : '',
+    createdAt: finite(r.createdAt) ? r.createdAt : 0, updatedAt: finite(r.updatedAt) ? r.updatedAt : 0 };
+}
+function load() { const raw = store.get(key(), []); return Array.isArray(raw) ? raw.map(clean).filter(Boolean) : []; }
+let version = 0;
+function save(list) { const ok = store.set(key(), list); if (ok) { version++; changed(); } return ok; }
+const when = (r) => r.date ? Date.parse(r.date + 'T12:00:00+09:00') : r.createdAt;
+
+const placeOf = (id) => favorites.find((f) => f.id === id) || null;
+const placeNear = (p, km = NEAR_KM) => p && favorites.find((f) => SoramiTerrain.distanceKm(f.latitude, f.longitude, p.latitude, p.longitude) < km) || null;
+// 地点×目標の状態は最新の記録で決める（古い記録は残す。木の伸び・工事で変わるため）
+function statusOf(placeId, targetKey, list = load()) {
+  let best = null;
+  for (const r of list) if (r.placeId === placeId && r.target.key === targetKey && (!best || when(r) > when(best) || (when(r) === when(best) && r.updatedAt > best.updatedAt))) best = r;
+  return best;
+}
+function placesFor(targetKey) {
+  const list = load(), out = [];
+  for (const f of favorites) { const r = statusOf(f.id, targetKey, list); if (r && r.result !== 'hidden') out.push({ place: f, record: r }); }
+  return out;
+}
+function targetsSeenFrom(placeId) {
+  const list = load(), keys = [...new Set(list.filter((r) => r.placeId === placeId).map((r) => r.target.key))];
+  return keys.map((k) => statusOf(placeId, k, list)).filter(Boolean);
+}
+function badge(f) {
+  const seen = targetsSeenFrom(f.id).filter((r) => r.result !== 'hidden');
+  return seen.length ? '見えた: ' + seen.map((r) => r.target.name).join('・') : '';
+}
+
+// 目標は構図の一覧と同じもの（許可のある組み込み目標＋自分の目標）。自分で一時的に置いた目標は記録できない
+const targetChoices = () => aimTargetList().filter((t) => t.id !== 'custom' && finite(t.latitude) && (t.parts || []).length);
+const resolveTarget = (k) => targetChoices().find((t) => t.id === k) || null;
+
+// ---------------------------------------------------------------- 次に重なる日（見えた組だけ）
+// 重なりの判定は構図と同じ条件にする。構図で選んでいる目標なら、その部位（建物全体を含む）と縁。
+// ほかの目標は構図の既定と同じ（塔・建物は建物全体、山は山頂）
+function matchOpts(t) {
+  if (t && aim.target?.id === t.id) return { partId: aim.partId, limb: aim.partId === '__whole' ? 'center' : aim.limb };
+  return { partId: t && aimIsMountain(t) ? null : '__whole', limb: 'center' };
+}
+const cache = new Map();
+let queue = Promise.resolve();
+const sideName = (body, side) => !SoramiBodies.definition(body)?.limbs ? (side === 'set' ? '沈む側' : '昇る側')
+  : body === 'moon' ? (side === 'set' ? '月の入' : '月の出') : (side === 'set' ? '日の入' : '日の出');
+function dayText(at) {
+  const y = new Date(at + 9 * 3600000).getUTCFullYear(), now = new Date(Date.now() + 9 * 3600000).getUTCFullYear();
+  return `${y === now ? '' : y + '/'}${S.Cal.monthDay(at)}(${S.Cal.weekday(at)})`;
+}
+// 1組につき次の1回。400日で無ければ「重なりません」（既存の言い切りと同じ根拠）
+function nextFor(place, target, body, { partId = null, limb = 'center' } = {}) {
+  const from = aimSavedFrom(place);
+  if (!from || !target) return Promise.resolve(null);
+  const top = (SoramiAlign.partOf(target, partId) || {}).m;
+  const k = JSON.stringify([from.latitude, from.longitude, from.groundManualM, aimObserverEye(from), target.id, target.latitude, target.longitude, top, body, partId, limb, S.Cal.startOfDay(Date.now())]);
+  const hit = cache.get(k);
+  if (hit && (!hit.until || Date.now() < hit.until)) return hit.promise;
+  const entry = { until: 0, promise: null };
+  entry.promise = queue = queue.catch(() => {}).then(async () => {
+    await SoramiBodies.ensure(body);
+    const ground = await aimElevation(from.latitude, from.longitude);
+    const obs = aimObserverAt(from, ground);
+    const rows = await aimBuildingDays(obs, target, body, partId, null, { from: Date.now(), days: 400, limit: 1, limb, isCurrent: () => true });
+    const row = rows[0] || null;
+    entry.until = row ? row.at : S.Cal.startOfDay(Date.now()) + DAY;
+    return row;
+  });
+  entry.promise.catch(() => cache.delete(k));
+  cache.set(k, entry);
+  if (cache.size > 200) cache.delete(cache.keys().next().value);
+  return entry.promise;
+}
+
+// ---------------------------------------------------------------- 一覧の行（構図・地図・地点の画面で同じ形）
+// rows: [{place, record}]、onPick(place,row)。計算が終わった行から埋める
+function renderRows(box, rows, target, body, opts, onPick, token) {
+  box.replaceChildren();
+  const items = rows.map(({ place, record }) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'list-item my-place-row';
+    const title = document.createElement('strong'); title.textContent = place.name;
+    const mark = document.createElement('span'); mark.className = 'my-mark ' + record.result; mark.textContent = RESULTS[record.result].mark;
+    mark.setAttribute('aria-label', RESULTS[record.result].name); title.prepend(mark);
+    const sub = document.createElement('span'); sub.className = 'tiny sub-line'; sub.textContent = '次に重なる日を計算しています…';
+    b.append(title, sub); box.append(b);
+    return { b, sub, place, at: Infinity };
+  });
+  items.forEach((it) => {
+    it.b.onclick = () => onPick(it.place, it.row || null);
+    nextFor(it.place, target, body, opts).then((row) => {
+      if (token && !token()) return;
+      it.row = row; it.at = row ? row.at : Infinity;
+      it.sub.textContent = row ? `${dayText(row.at)} ${sideName(body, row.side)} ${S.JstCal.hhmm(row.at)}` : '400日以内には重なりません';
+      // 早い順に並べ直す（計算が終わった順に入れ替わる）
+      const sorted = [...items].sort((a, b) => a.at - b.at);
+      if (sorted.some((x, i) => box.children[i] !== x.b)) box.append(...sorted.map((x) => x.b));
+    }).catch(() => { if (!token || token()) it.sub.textContent = '計算できませんでした'; });
+  });
+}
+
+// ---------------------------------------------------------------- 構図（どこから重ねるかの下）
+let aimToken = 0;
+function aimBox() {
+  let box = el('myPlacesAim');
+  if (box) return box;
+  box = document.createElement('section'); box.id = 'myPlacesAim'; box.className = 'my-places'; box.setAttribute('aria-label', '見えた自分の地点');
+  el('aimFrom').after(box);
+  return box;
+}
+function renderAim() {
+  const box = aimBox(), t = aim.target, token = ++aimToken;
+  box.replaceChildren();
+  if (!t || !(t.parts || []).length || t.id === 'custom') {
+    box.hidden = t?.id !== 'custom';
+    if (t?.id === 'custom') box.innerHTML = '<p class="tiny">この目標を ☆ で自分の目標に登録すると、見えた記録を付けられます。</p>';
+    return;
+  }
+  box.hidden = false;
+  const f = aimFromPoint(), here = f && placeNear(f), now = here && statusOf(here.id, t.id);
+  const head = document.createElement('div'); head.className = 'my-head';
+  const status = document.createElement('p'); status.className = 'tiny my-status';
+  status.textContent = !f ? '' : now ? `${here.name}から${t.name}：${RESULTS[now.result].mark} ${RESULTS[now.result].name}${now.date ? '（' + now.date.replaceAll('-', '/') + '）' : ''}`
+    : here ? `${here.name}から${t.name}：未記録` : 'この観測地点は自分の地点に未登録';
+  const rec = document.createElement('button'); rec.type = 'button'; rec.className = 'chip'; rec.id = 'myRecordAim';
+  rec.textContent = now ? '記録を見る' : '見えたか記録する';
+  rec.onclick = () => recordFor(f, t.id, 'aim');
+  rec.disabled = !f;
+  head.append(status, rec); box.append(head);
+  const rows = placesFor(t.id);
+  const h = document.createElement('h3'); h.className = 'my-title'; h.textContent = `${t.name}が見えた自分の地点`;
+  box.append(h);
+  if (!rows.length) {
+    const p = document.createElement('p'); p.className = 'tiny';
+    p.textContent = 'まだありません。行った場所で「見えたか記録する」を押すと、ここに次に重なる日が出ます。行き先は地図の「その日に重なる線」から探せます。';
+    box.append(p); return;
+  }
+  const list = document.createElement('div'); list.className = 'al my-list'; box.append(list);
+  renderRows(list, rows, t, aim.body, matchOpts(t),
+    (place, row) => openInAim(place, row), () => token === aimToken);
+}
+function openInAim(place, row) {
+  aimSetFrom(place, { keepMap: true });
+  if (row) {
+    aim.candPick = null; aim.spot = null; aim.wantSpot = null; aim.wantKey = null; aim.candSide = row.side;
+    el('aimDate').value = new Date(S.Cal.startOfDay(row.at) + 9 * 3600000).toISOString().slice(0, 10);
+    aimApply();
+  }
+  requestAnimationFrame(() => el('aimLook')?.scrollIntoView?.({ block: 'start', behavior: 'smooth' }));
+}
+
+// ---------------------------------------------------------------- 地点の画面の「見えた地点」タブ（構図のどこから重ねるかで開いたとき）
+let pickerToken = 0;
+function renderPickerPanel(panel) {
+  const token = ++pickerToken;
+  let box = panel.querySelector('.my-picker');
+  if (!box) { box = document.createElement('div'); box.className = 'my-picker'; panel.prepend(box); }
+  box.replaceChildren();
+  const t = aim.target;
+  if (!t || !(t.parts || []).length || t.id === 'custom') { box.innerHTML = '<p class="tiny">何に重ねるかを選ぶと、その目標が見えた自分の地点が出ます。</p>'; return; }
+  const rows = placesFor(t.id);
+  const p = document.createElement('p'); p.className = 'tiny';
+  p.textContent = rows.length ? `${t.name}が見えた記録のある自分の地点（次に重なる日の早い順）` : `${t.name}が見えた自分の地点はまだありません。`;
+  box.append(p);
+  if (!rows.length) return;
+  const list = document.createElement('div'); list.className = 'al my-list'; box.append(list);
+  renderRows(list, rows, t, aim.body, matchOpts(t),
+    (place, row) => { el('placeSheet').close(); openInAim(place, row); }, () => token === pickerToken);
+}
+
+// ---------------------------------------------------------------- 地図（ピン・その日に重なる線・下の一覧）
+let lineOn = (() => { try { return localStorage.getItem('sorami.myLineOn') !== '0'; } catch { return true; } })();
+const lines = { key: '', lines: [], busy: false, error: false };
+let skySession = null, skyKey = '', skyToken = 0;
+function lineKey(s) { const t = s?.target; return t ? JSON.stringify([t.id, t.latitude, t.longitude, (SoramiAlign.partOf(t, s.partId) || {}).m, s.body, SoramiSkyMap.dayStart(s.at), s.partId]) : ''; }
+function ensureLine(s) {
+  const k = lineOn ? lineKey(s) : '';
+  if (k === lines.key) return;
+  lines.key = k; lines.lines = []; lines.error = false;
+  if (!k) { lines.busy = false; SkyMapUI?.redraw?.(); return; }
+  lines.busy = true; renderSkyLineState();
+  const t = s.target, body = s.body, day = SoramiSkyMap.dayStart(s.at), partId = s.partId;
+  SoramiBodies.ensure(body).then(() => SoramiAlign.line(t, body, day, { partId, limb: 'center', elevationAt: aimElevation, isCurrent: () => lines.key === k }))
+    .then((got) => { if (lines.key !== k) return; lines.lines = got || []; lines.busy = false; renderSkyLineState(); SkyMapUI?.redraw?.(); })
+    .catch(() => { if (lines.key !== k) return; lines.busy = false; lines.error = true; renderSkyLineState(); });
+}
+const PIN = { seen: '#2f9e5b', partial: '#e09a1e', hidden: '#8c8c8c', none: '#ffffff' };
+function pinState(f, s) { const r = s?.target ? statusOf(f.id, s.target.id) : null; return r ? r.result : 'none'; }
+function skyDraw(ctx, { project, width, height }, s, pickMode) {
+  if (!s) return;
+  const cs = getComputedStyle(document.documentElement);
+  if (lineOn && !pickMode && lines.lines.length) {
+    const colour = cs.getPropertyValue(s.body === 'moon' ? '--ray-moon' : '--ray-sun').trim() || '#e8820e';
+    for (const l of lines.lines) {
+      const pts = l.points.map((p) => project(p.latitude, p.longitude));
+      const path = () => { ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); };
+      ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.setLineDash(l.side === 'set' ? [] : [11, 7]);
+      ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = 5.5; path(); ctx.stroke();
+      ctx.globalAlpha = 0.45; ctx.strokeStyle = colour; ctx.lineWidth = 7; path(); ctx.stroke();
+      ctx.globalAlpha = 0.9; ctx.lineWidth = 2.2; path(); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  if (pickMode) return;
+  const list = load();
+  for (const f of favorites) {
+    const [x, y] = project(f.latitude, f.longitude);
+    if (x < -20 || x > width + 20 || y < -20 || y > height + 20) continue;
+    const r = s.target ? statusOf(f.id, s.target.id, list) : null, st = r ? r.result : 'none';
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, y, st === 'none' ? 5 : 7, 0, Math.PI * 2);
+    ctx.fillStyle = PIN[st]; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.stroke();
+    if (st === 'hidden') { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x - 3, y - 3); ctx.lineTo(x + 3, y + 3); ctx.moveTo(x + 3, y - 3); ctx.lineTo(x - 3, y + 3); ctx.stroke(); }
+    ctx.restore();
+    if (st === 'seen' || st === 'partial') { try { aimMapLabel(ctx, x, y + 16, f.name, '#fff', width, height, 'center'); } catch {} }
+  }
+}
+function pickSky(pixel, project) {
+  let best = null, dist = 22;
+  for (const f of favorites) { const [x, y] = project(f.latitude, f.longitude), d = Math.hypot(x - pixel.x, y - pixel.y); if (d < dist) { dist = d; best = f; } }
+  if (!best) return false;
+  openPlace(best, 'sky');
+  return true;
+}
+function skyBox() {
+  let box = el('mySkyPlaces');
+  if (box) return box;
+  box = document.createElement('section'); box.id = 'mySkyPlaces'; box.className = 'my-places'; box.setAttribute('aria-label', '自分の地点');
+  el('skyMapTargetInfo').after(box);
+  return box;
+}
+function renderSkyLineState() {
+  const b = el('myLineToggle'), s = el('myLineState');
+  if (!b || !s) return;
+  b.setAttribute('aria-pressed', String(lineOn));
+  const fit = el('myLineFit'); if (fit) fit.hidden = !(lineOn && lines.lines.length);
+  s.textContent = !lineOn ? '' : !skySession?.target ? '目標物を選ぶと線が出ます' : lines.busy ? '線を計算しています…' : lines.error ? '線を計算できませんでした'
+    : lines.lines.length ? '線の上に立つと、この日に目標と重なって見えます' : 'この日は、どこからも重なりません';
+}
+function skyRender(s) {
+  skySession = s;
+  if (!s) return;
+  ensureLine(s);
+  const t = s.target, here = placeNear(s.observer);
+  const k = JSON.stringify([t?.id, s.body, s.observer?.latitude, s.observer?.longitude, here?.id, favorites.length, version, auth?.loginId, S.Cal.startOfDay(Date.now())]);
+  if (k === skyKey && el('mySkyPlaces')) { renderSkyLineState(); return; }
+  skyKey = k;
+  const box = skyBox(), token = ++skyToken;
+  box.replaceChildren();
+  const bar = document.createElement('div'); bar.className = 'my-head';
+  const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'chip'; toggle.id = 'myLineToggle'; toggle.textContent = 'その日に重なる線';
+  toggle.onclick = () => { lineOn = !lineOn; try { localStorage.setItem('sorami.myLineOn', lineOn ? '1' : '0'); } catch {} lines.key = '__'; ensureLine(skySession); renderSkyLineState(); SkyMapUI?.redraw?.(); };
+  const fit = document.createElement('button'); fit.type = 'button'; fit.className = 'chip'; fit.id = 'myLineFit'; fit.textContent = '線の位置へ'; fit.hidden = true;
+  fit.onclick = () => { const pts = [skySession?.target, ...lines.lines.flatMap((l) => l.points)].filter((q) => q && finite(q.latitude) && finite(q.longitude)); if (pts.length > 1) SkyMapUI?.fitPoints?.(pts); };
+  const state = document.createElement('span'); state.className = 'tiny'; state.id = 'myLineState';
+  bar.append(toggle, fit, state); box.append(bar);
+  if (!t) { renderSkyLineState(); return; }
+  const now = here && statusOf(here.id, t.id);
+  const head = document.createElement('div'); head.className = 'my-head';
+  const status = document.createElement('p'); status.className = 'tiny my-status';
+  status.textContent = now ? `${here.name}から${t.name}：${RESULTS[now.result].mark} ${RESULTS[now.result].name}` : here ? `${here.name}から${t.name}：未記録` : 'この観測地点は自分の地点に未登録';
+  const rec = document.createElement('button'); rec.type = 'button'; rec.className = 'chip'; rec.textContent = now ? '記録を見る' : '見えたか記録する';
+  rec.onclick = () => recordFor(s.observer, t.id, 'sky');
+  head.append(status, rec); box.append(head);
+  const rows = placesFor(t.id);
+  const h = document.createElement('h3'); h.className = 'my-title'; h.textContent = `${t.name}が見えた自分の地点`; box.append(h);
+  if (!rows.length) { const p = document.createElement('p'); p.className = 'tiny'; p.textContent = 'まだありません。地図の点（自分の地点）を押すか、観測地点で「見えたか記録する」から付けられます。'; box.append(p); renderSkyLineState(); return; }
+  const list = document.createElement('div'); list.className = 'al my-list'; box.append(list);
+  renderRows(list, rows, t, s.body, matchOpts(t), (place, row) => openInSky(place, row), () => token === skyToken);
+  renderSkyLineState();
+}
+function openInSky(place, row) {
+  SkyMapUI?.setObserver?.(place);
+  if (row) SkyMapUI?.setTime?.(row.at);
+}
+
+// ---------------------------------------------------------------- 自分の地点の画面（記録と次に重なる日）
+let sheet = null, sheetState = null, sheetToken = 0, undoRec = null;
+function buildSheet() {
+  sheet = document.createElement('dialog'); sheet.className = 'sheet'; sheet.id = 'myPlaceSheet'; sheet.tabIndex = -1; sheet.setAttribute('aria-labelledby', 'myPlaceTitle');
+  sheet.innerHTML = `<div class="sheet-head"><strong id="myPlaceTitle">自分の地点</strong><button type="button" data-close>閉じる</button></div>
+  <div class="sheet-body">
+    <p class="tiny" id="myPlaceSub"></p>
+    <div class="my-actions"><button type="button" class="chip" id="myPlaceUse">ここから見る</button></div>
+    <h3 class="my-title">次に重なる日<span class="tiny" id="myPlaceBody"></span></h3>
+    <div class="al my-list" id="myPlaceNext"></div>
+    <h3 class="my-title">見えた記録</h3>
+    <div id="myPlaceUndo"></div>
+    <div id="myPlaceRecords"></div>
+    <form id="myRecordForm" class="my-form" novalidate>
+      <h3 class="my-title">記録を付ける</h3>
+      <label class="fav-l" for="myRecordTarget">目標</label>
+      <select id="myRecordTarget" class="fav-in"></select>
+      <div class="fav-l" id="myRecordResultLabel">見え方</div>
+      <div class="aim-side-seg my-result" role="group" aria-labelledby="myRecordResultLabel">
+        <button type="button" data-result="seen" aria-label="見えた">◎ 見えた</button><button type="button" data-result="partial" aria-label="一部隠れた">△ 一部だけ</button><button type="button" data-result="hidden" aria-label="見えなかった">× 見えない</button>
+      </div>
+      <label class="fav-l" for="myRecordDate">見た日<span class="fav-opt">任意</span></label>
+      <input type="date" id="myRecordDate" class="fav-in">
+      <label class="fav-l" for="myRecordNote">メモ<span class="fav-opt">任意・立つ位置や木など</span></label>
+      <input type="text" id="myRecordNote" class="fav-in" maxlength="200" autocomplete="off">
+      <p class="warn" id="myRecordError" role="status" hidden></p>
+      <button type="submit" class="fav-btn primary" id="myRecordSave">記録する</button>
+      <p class="tiny muted">試用版：記録はこのブラウザに保存します（ほかの端末には同期しません）。自分の地点（お気に入り）はこれまでどおり同期します。</p>
+    </form>
+  </div>`;
+  document.body.append(sheet);
+  sheet.querySelector('[data-close]').onclick = () => sheet.close();
+  sheet.addEventListener('close', () => { sheetToken++; undoRec = null; });
+  for (const b of sheet.querySelectorAll('[data-result]')) b.onclick = () => { sheetState.result = b.dataset.result; syncResult(); };
+  el('myRecordForm').onsubmit = (e) => { e.preventDefault(); saveRecord(); };
+  el('myPlaceUse').onclick = () => { const s = sheetState; sheet.close(); if (s.ctx === 'sky') openInSky(s.place, null); else openInAim(s.place, null); };
+}
+function syncResult() { for (const b of sheet.querySelectorAll('[data-result]')) b.setAttribute('aria-pressed', String(b.dataset.result === sheetState.result)); }
+const today = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+function openPlace(place, ctx, targetKey = null) {
+  if (!sheet) buildSheet();
+  const current = ctx === 'sky' ? skySession?.target?.id : aim.target?.id;
+  sheetState = { place, ctx, result: 'seen' };
+  el('myPlaceTitle').textContent = place.name;
+  el('myPlaceSub').textContent = [place.subtitle, `${place.latitude.toFixed(5)}, ${place.longitude.toFixed(5)}`].filter(Boolean).join(' ・ ');
+  el('myPlaceUse').textContent = ctx === 'sky' ? '地図でここから見る' : 'ここから重ねる';
+  const choices = targetChoices(), select = el('myRecordTarget');
+  select.replaceChildren(...choices.map((t) => new Option(t.name, t.id)));
+  const want = targetKey || current;
+  if (want && choices.some((t) => t.id === want)) select.value = want;
+  el('myRecordDate').value = today(); el('myRecordNote').value = ''; el('myRecordError').hidden = true;
+  syncResult(); renderSheet();
+  if (!sheet.open) showSheet(sheet);
+}
+function renderSheet() {
+  const { place, ctx } = sheetState, token = ++sheetToken, list = load();
+  const mine = list.filter((r) => r.placeId === place.id).sort((a, b) => when(b) - when(a));
+  const recs = el('myPlaceRecords'); recs.replaceChildren();
+  if (!mine.length) { const p = document.createElement('p'); p.className = 'tiny'; p.textContent = 'まだ記録がありません。下で目標と見え方を選んで記録します。'; recs.append(p); }
+  for (const r of mine) {
+    const row = document.createElement('div'); row.className = 'fav-row';
+    const txt = document.createElement('div'); txt.className = 'list-item my-record';
+    const strong = document.createElement('strong'); strong.textContent = `${RESULTS[r.result].mark} ${r.target.name}`;
+    const sub = document.createElement('span'); sub.className = 'tiny sub-line'; sub.textContent = [RESULTS[r.result].name, r.date ? r.date.replaceAll('-', '/') : '日付なし', r.note].filter(Boolean).join(' ・ ');
+    txt.append(strong, sub);
+    const del = document.createElement('button'); del.type = 'button'; del.className = 'fav-del'; del.textContent = '✕'; del.setAttribute('aria-label', `${r.target.name}の記録を消す`);
+    del.onclick = () => { const all = load(), i = all.findIndex((x) => x.id === r.id); if (i < 0) return; const [gone] = all.splice(i, 1); if (save(all)) { undoRec = gone; renderSheet(); } };
+    row.append(txt, del); recs.append(row);
+  }
+  const undo = el('myPlaceUndo'); undo.replaceChildren();
+  if (undoRec) {
+    const u = document.createElement('div'); u.className = 'undo-row'; const s = document.createElement('span'); s.textContent = `${undoRec.target.name}の記録を消しました`;
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = '元に戻す'; b.onclick = () => { const all = load(); all.push(undoRec); if (save(all)) { undoRec = null; renderSheet(); } };
+    u.append(s, b); undo.append(u);
+  }
+  // 次に重なる日：見えた（一部を含む）目標ごと。天体はいま開いている画面の天体
+  const body = ctx === 'sky' ? (skySession?.body || 'sun') : aim.body;
+  el('myPlaceBody').textContent = `（${SoramiBodies.definition(body)?.name || body}）`;
+  const next = el('myPlaceNext'); next.replaceChildren();
+  const seen = targetsSeenFrom(place.id).filter((r) => r.result !== 'hidden');
+  if (!seen.length) { const p = document.createElement('p'); p.className = 'tiny'; p.textContent = '見えた目標を記録すると、ここに次に重なる日が出ます。'; next.append(p); return; }
+  for (const r of seen) {
+    const t = resolveTarget(r.target.key);
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'list-item my-place-row';
+    const strong = document.createElement('strong'); strong.textContent = `${RESULTS[r.result].mark} ${r.target.name}`;
+    const sub = document.createElement('span'); sub.className = 'tiny sub-line'; b.append(strong, sub); next.append(b);
+    if (!t) { sub.textContent = 'この目標はいまの権限・一覧では使えません'; b.disabled = true; continue; }
+    sub.textContent = '計算しています…';
+    nextFor(place, t, body, matchOpts(t)).then((row) => {
+      if (token !== sheetToken) return;
+      sub.textContent = row ? `${dayText(row.at)} ${sideName(body, row.side)} ${S.JstCal.hhmm(row.at)}` : '400日以内には重なりません';
+      b.onclick = () => { sheet.close(); openWith(place, t, row, ctx); };
+    }).catch(() => { if (token === sheetToken) sub.textContent = '計算できませんでした'; });
+  }
+}
+// 次に重なる日を押したら、その目標・日・地点で開く（構図ならその日の見え方、地図ならその時刻）
+function openWith(place, t, row, ctx) {
+  if (ctx === 'sky') {
+    SkyMapUI?.setTarget?.(t.id);
+    openInSky(place, row);
+    return;
+  }
+  aimFillSelects();
+  if (el('aimTarget').value !== t.id) { el('aimTarget').value = t.id; aim.partId = null; aim.partsTargetKey = null; el('aimPart').value = ''; }
+  aimSetFrom(place, { keepMap: true });
+  if (row) { aim.candPick = null; aim.spot = null; aim.wantSpot = null; aim.wantKey = null; aim.candSide = row.side; el('aimDate').value = new Date(S.Cal.startOfDay(row.at) + 9 * 3600000).toISOString().slice(0, 10); }
+  aimApply();
+}
+function saveRecord() {
+  const s = sheetState, t = resolveTarget(el('myRecordTarget').value), err = el('myRecordError');
+  if (!t) { err.textContent = '目標を選んでください'; err.hidden = false; return; }
+  if (!placeOf(s.place.id)) { err.textContent = 'この地点は自分の地点から外されています'; err.hidden = false; return; }
+  const date = el('myRecordDate').value;
+  if (date && date > today()) { err.textContent = '見た日は今日までの日付にしてください'; err.hidden = false; return; }
+  const now = Date.now(), all = load();
+  const rec = clean({ id: 'obs-' + now.toString(36) + Math.random().toString(36).slice(2, 8), placeId: s.place.id,
+    target: { key: t.id, name: t.name, latitude: t.latitude, longitude: t.longitude }, result: s.result, date, note: el('myRecordNote').value.trim().slice(0, 200), createdAt: now, updatedAt: now });
+  all.push(rec);
+  if (!save(all)) { err.textContent = '保存できませんでした。ブラウザの保存設定や空き容量を確認してください'; err.hidden = false; return; }
+  err.hidden = true; el('myRecordNote').value = ''; renderSheet();
+}
+
+// 観測地点（または地図の観測地点）から記録する。自分の地点でなければ、まず ☆ と同じ画面で登録する
+function recordFor(point, targetKey, ctx) {
+  if (!point || !requireLoginForFavorites()) return;
+  const exact = placeNear(point);
+  if (exact) { openPlace(exact, ctx, targetKey); return; }
+  const near = placeNear(point, MERGE_KM);
+  if (near && confirm(`近くの自分の地点「${near.name}」（${Math.round(SoramiTerrain.distanceKm(near.latitude, near.longitude, point.latitude, point.longitude) * 1000)}m）に記録しますか？\nキャンセルすると、この位置を新しい自分の地点として登録します。`)) { openPlace(near, ctx, targetKey); return; }
+  favForPoint(point, (entry) => {
+    if (!entry) return;
+    if (ctx === 'aim') { try { renameFromAfterFav(aim, entry); store.set('sorami.aimFrom', aim.from); aimRenderFrom(); } catch {} }
+    openPlace(entry, ctx, targetKey);
+  });
+}
+
+function changed() {
+  skyKey = '';
+  if (!el('aimView')?.hidden) renderAim();
+  if (skySession && !el('skyMapView')?.hidden) { skyRender(skySession); SkyMapUI?.redraw?.(); }
+}
+// 別タブで記録した・同期でお気に入りが替わった
+window.addEventListener('storage', (e) => { if (e.key === key() || e.key === 'sorami.favorites') { version++; changed(); } });
+
+const style = document.createElement('style');
+style.textContent = `
+.my-places{margin:10px 0 4px;padding-top:8px;border-top:1px solid var(--line)}
+.my-head{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap;margin:4px 0}
+.my-status{margin:0;flex:1 1 180px}
+.my-title{font-size:.95rem;margin:10px 0 4px}
+.my-title .tiny{margin-left:4px;font-weight:normal}
+.my-list .my-place-row{display:block;width:100%;text-align:left}
+.my-mark{display:inline-block;min-width:1.4em}
+.my-mark.seen{color:#2f9e5b}.my-mark.partial{color:#c07a00}.my-mark.hidden{color:var(--tertiary)}
+.my-result{display:flex;gap:6px;margin:4px 0 8px}
+.my-result button{flex:1 1 0;min-height:44px}
+.my-result button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent,#fff)}
+.my-form{margin-top:8px;border-top:1px solid var(--line);padding-top:4px}
+.my-form .fav-btn{margin-top:10px;width:100%}
+.my-actions{margin:6px 0}
+.my-record{cursor:default}
+.my-picker{margin-bottom:8px}
+`;
+document.head.append(style);
+
+window.MyPlacesUI = { renderAim, renderPickerPanel, skyDraw, skyRender, pickSky, badge, openPlace, recordFor, load };
+// 読み込みより先に構図が描かれていたら、ここで一覧を出す
+if (el('aimView') && !el('aimView').hidden) { try { renderAim(); } catch { /* 構図を止めない */ } }
+})();
