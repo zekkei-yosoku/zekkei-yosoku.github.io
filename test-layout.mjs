@@ -1492,7 +1492,7 @@ ok(/rel="icon"[^>]*32x32/.test(html), "タブ用のファビコンがある");
 const mani = JSON.parse(fs.readFileSync(new URL("./manifest.json", import.meta.url), "utf8"));
 // 2026-09-14 にユーザー判断で「絶景予報」→「絶景予測」へ戻した。
 // 2026-09-06 に一度「絶景予測」にしてから「絶景予報」へ変えた経緯があるので、
-// **どちらが現行かは記録を見る**（Vault ドメイン/開発/絶景日和/00_はじめに）。
+// **どちらが現行かは記録を見る**（Vault AstroNotesのプロジェクト資料/00_はじめに）。
 // 気象業務法が定義している語は「予報」で、その語をそのまま名乗る利点が無い。
 ok(mani.name === "AstroNotes" && mani.short_name === "AstroNotes", "マニフェストの名前が現在の名称");
 ok(mani.icons.some((i) => i.sizes === "512x512" && i.purpose === "maskable"),
@@ -1658,15 +1658,15 @@ ok(html.match(/data-answer="same"/g).length === 1, "選択肢を組み立てる�
     "写真の画面に現象と時刻（写真に無ければその回）を入れる");
   // 2026-10-16: 予報の点数のまま保存したら答えにしない（以前は予報の点が本人の答えとして入っていた。設計案の未確定事項3）。
   // 本人の点なら従来どおり答えと写真の時刻・位置を記録し、そうでなければ答え済みの回にだけ写真の時刻・位置を足す
-  ok(/if \(round && body\.phenomenon === round\.pid\) \{\s+const shot = await photoShot\(body\);\s+if \(scoreSource === "user_moved" \|\| scoreSource === "answered"\) recordAnswer\(round\.pid, round\.peak, body\.score, shot\);/.test(html),
+  ok(/if \(round && body\.phenomenon === round\.pid && samePlaceAs\(draft\.place, place\)\) \{\s+const shot = await photoShot\(body, draft\.exif\);\s+if \(!current\(\) \|\| !samePlaceAs\(draft\.place, place\)\) return;\s+if \(scoreSource === "user_moved" \|\| scoreSource === "answered"\) recordAnswer\(round\.pid, round\.peak, body\.score, shot\);/.test(html),
     "写真を保存したら、本人の点ならその回の答えと写真の時刻・位置も記録する（現象を選び直したら答えにしない）");
   ok(/const existing = findSighting\(round\.pid, round\.peak\);\s+if \(existing\) recordAnswer\(round\.pid, round\.peak, existing\.actualScore, shot\);/.test(html),
     "予報の点のままなら、答え済みの回にだけ写真の時刻・位置を足す（答えは変えない）");
-  ok(/body\.analysis = await photoAnalysisFor\(body, scoreSource\);\s+await apiCall\("POST", "\/photos", body\);/.test(html), "保存時の分析を写真と一緒に送る");
+  ok(/body\.analysis = await photoAnalysisFor\(body, scoreSource, draft\);\s+if \(!current\(\)\) return;\s+await apiCall\("POST", "\/photos", body\);/.test(html), "保存時の分析を写真と一緒に送る");
   ok(/<script src="sorami-photo-analysis\.js\?v=\d+"><\/script>/.test(html), "分析のモジュールを読み込む");
   // 分析が読めなくても、写真の読み込みと保存は止めない（2026-10-16 レビュー指摘）
-  ok(/analyzer = globalThis\.SoramiPhotoAnalysis;\s+if \(analyzer\) photoDraft\.colorJob = analyzer\.analyzeDataUrl\(thumb\)/.test(html), "分析のモジュールが無ければ計算しない");
-  ok(/const scoreSource = photoDraft\.scoreMoved \? "user_moved" : photoDraft\.scoreInitial;/.test(html), "保存の流れは分析のモジュールに頼らない");
+  ok(/analyzer = globalThis\.SoramiPhotoAnalysis;\s+if \(analyzer\) draft\.colorJob = analyzer\.analyzeDataUrl\(t\.url\)/.test(html), "分析のモジュールが無ければ計算しない");
+  ok(/const scoreSource = draft\.scoreMoved \? "user_moved" : draft\.scoreInitial;/.test(html), "保存の流れは分析のモジュールに頼らない");
   const ra = html.slice(html.indexOf("function recordAnswer"), html.indexOf("function shotFields"));
   ok(/const record = \{ \.\.\.\(existing \|\| \{\}\),/.test(ra), "答え直しても、先に添えた写真の時刻・位置を消さない");
   ok(/actualScore: a, outcome: S\.outcomeFromActual\(pid, ev\.score, a\)/.test(ra), "帯グラフの答えは実際の点から出す");
@@ -2839,7 +2839,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   const ps = /<dialog class="sheet" id="photoSheet"[^>]*>[\s\S]*?<\/dialog>/.exec(html)[0];
   ok(/<div class="sheet-head"><strong id="photoTitle">記録を足す<\/strong><button id="photoClose">閉じる<\/button><\/div>\s*<div class="sheet-body">/.test(ps)
     && !/sheet-x/.test(html), "記録を足すの閉じるは題名の右の「閉じる」（指の的 44px）");
-  ok(/\$\("photoClose"\)\.onclick = \(\) => \$\("photoSheet"\)\.close\(\);/.test(html), "閉じるで閉じる");
+  ok(/\$\("photoClose"\)\.onclick = \(\) => \{ if \(!photoSaving\) \$\("photoSheet"\)\.close\(\); \};/.test(html), "閉じるで閉じる");
   // 開いたとき最初の釦を選んだ状態（青い枠）にしない（ユーザー「青くなって選択状態で開くのが気に入らない」）
   const sheets = html.match(/<dialog class="sheet"[^>]*>/g) || [];
   ok(sheets.length === 10 && sheets.every((d) => / tabindex="-1">$/.test(d)), "シートはそのものに焦点を置ける", sheets.join(" "));

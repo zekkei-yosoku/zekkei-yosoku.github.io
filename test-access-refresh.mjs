@@ -56,5 +56,5 @@ assert.match(login,/auth = \{ \.\.\.auth, tools: Array\.isArray\(me\.tools\) \? 
 {const c=fixture();const loggedIn={token:'fixture-token',loginId:'u1',role:'admin',tools:['diamond'],ownerAdmin:true};c.auth=loggedIn;c.answer=()=>Promise.resolve({loginId:'u1',role:'admin',tools:['diamond'],ownerAdmin:true});
  await c.recheckAccess();assert.equal(c.auth,loggedIn,'同じ権限なら auth を差し替えない（管理画面を組み直さない）');assert.equal(c.authButtons,0);}
 // 記録一覧が 403 なら、空の一覧ではなく確かめ直して案内を出す
-assert.match(html.slice(html.indexOf('async function loadPhotos()'),html.indexOf('function renderPhotos()')),/if \(e\?\.status === 403\) void recheckAccess\(0\);/,'記録の403で権限を確かめ直す');
+assert.match(html.slice(html.indexOf('async function loadPhotos('),html.indexOf('function renderPhotos()')),/if \(e\?\.status === 403\) void recheckAccess\(0\);/,'記録の403で権限を確かめ直す');
 console.log('ACCESS REFRESH OK: unchanged no-op, revocation, missing tools, offline keep, hidden/coalesce, account switch, triggers');

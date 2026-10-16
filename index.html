@@ -12,12 +12,12 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="1683231344065800416">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-8jRvpLnQyvAAMbDIeHi/mJVRtZQ+ygwcItZN6ODy0ag=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-Z11HRIprQ6aY0riOULwclQ01FQYHOOwyIsPnhrJ5LM0=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="899810758513163000">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-E3+GpjtTvj+10QW5xnPy9kvmPOyW967hx6bMp69m/Xs=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-Z11HRIprQ6aY0riOULwclQ01FQYHOOwyIsPnhrJ5LM0=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
 <link data-script-preload rel="preload" as="script" href="sorami-astro.js?v=9181748260451918765">
-<link data-script-preload rel="preload" as="script" href="sorami-exif.js?v=18314871901163682501">
+<link data-script-preload rel="preload" as="script" href="sorami-exif.js?v=347348485217034662">
 <link data-script-preload rel="preload" as="script" href="sorami-photo-analysis.js?v=944312100077429319">
 <link data-script-preload rel="preload" as="script" href="sorami-capcloud.js?v=4966950791580310294">
 <link data-script-preload rel="preload" as="script" href="sorami-terrain.js?v=2888802520753998075">
@@ -1482,7 +1482,7 @@ button.ui-icon-button::after { content: none; }
 /* 「この点数のわけ」の内訳。**箱を作らず、行で揃える。** 左にラベル、右に数値。
    もとは富士山と月の「重なる日」シート一式だったが、その画面は無くなり、
    生き残ったのはこの2つだけ（2026-09-28 の総点検で残りを削除）。
-   → Vault ドメイン/開発/絶景日和/04_デザイン定義 */
+   → Vault のAstroNotesデザイン定義 */
 .pk-rows { margin-top: 10px; border-top: 1px solid var(--line); }
 .pk-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
           padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 0.81rem; }
@@ -1822,7 +1822,10 @@ button.ui-icon-button::after { content: none; }
         <button id="photoPick" class="fav-btn primary">記録を足す</button>
         <input type="file" id="photoFile" accept="image/*" hidden>
       </div>
-      <div id="photoList" class="ph-list"></div>
+      <p id="photoListStatus" class="tiny" role="status" hidden></p>
+  <button id="photoListRetry" class="tap" hidden>写真の読込をやり直す</button>
+  <div id="photoList" class="ph-list"></div>
+      <button id="photoListMore" class="tap" hidden>さらに写真を表示</button>
       <div id="recBody" hidden>
         <div id="calibration"></div>
         <div id="recList"></div>
@@ -1861,7 +1864,7 @@ button.ui-icon-button::after { content: none; }
 </main>
 
 <!-- メニューの引き出し。**左上の ☰ から左に出す**（押した場所と出る場所を合わせる）。
-     正本: Vault ドメイン/開発/絶景日和/04_デザイン定義「4-4. メニュー（引き出し）」 -->
+     正本: Vault のAstroNotesデザイン定義「4-4. メニュー（引き出し）」 -->
 <div id="toolsScrim" class="drawer-scrim" hidden></div>
 <aside id="toolsMenu" class="drawer" hidden role="dialog" aria-modal="true" aria-label="メニュー">
   <div class="drawer-head">
@@ -2199,7 +2202,7 @@ button.ui-icon-button::after { content: none; }
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
 <script src="sorami-astro.js?v=9181748260451918765"></script>
-<script src="sorami-exif.js?v=18314871901163682501"></script>
+<script src="sorami-exif.js?v=347348485217034662"></script>
 <script src="sorami-photo-analysis.js?v=944312100077429319"></script>
 <script src="sorami-capcloud.js?v=4966950791580310294"></script>
 <script src="sorami-terrain.js?v=2888802520753998075"></script>
@@ -3384,11 +3387,12 @@ function wireAlignmentJump(root) {
 
 // ---------------------------------------------------------------- 写真から記録する
 //
-// **原寸は送らない。** 端末で小さくした写し（長辺384px）と、EXIF から読んだ
+// 原寸は送らず、端末で縮小した写し（長辺768px）と、EXIFから読んだ
 // 「いつ・どこ」だけを送る。原寸を置くには保存場所（R2）が要る。
 //
 // 小さくても残す意味はある。**採点のしかたを変えたとき、付け直せるのは写真だけ**で、
 // 「あの日は何点だった」という記憶は残らない。
+let photoSheetGeneration = 0, photoAttachGeneration = 0, photoSaving = false;
 const photoDraft = { file: null, thumb: null, tile: null, exif: null, width: 0, height: 0, round: null,
   // 保存時の分析（2026-10-16）。色の帯は写真を選んだ直後に計算を始める。入力欄は「開いたときに入れた値と由来」を覚え、保存時に比べる
   color: null, colorJob: null, original: null, filled: null, scoreInitial: "default_70", scoreMoved: false };
@@ -3396,11 +3400,9 @@ const photoDraft = { file: null, thumb: null, tile: null, exif: null, width: 0, 
 /**
  * 長辺 `max` px に縮めた JPEG を data URL で返す。
  *
- * **768px にしている理由。** 保存先は D1（無料枠 5GB）で、超えたぶんは課金される。
- * 1枚 約100KB（base64）なら **1万枚で約1GB**＝無料枠の2割で収まる。
- * 384px では「あの日はこんな空だった」を見返すには足りても、
- * あとで採点をやり直す材料には小さすぎた。
- * 原寸を残すには R2 が要るが、そちらも超過分は課金されるため入れていない（2026-09-28）。
+ * 長辺768pxのJPEGを保存し、一覧には長辺192pxの写しを使う。
+ * 保存するJPEGから12帯の色の指標を計算する。原寸は送信しない。
+ * APIで1枚のサイズと1人300枚の上限を検める。
  */
 async function makeThumb(file, max = 768, quality = 0.72) {
   const bmp = await createImageBitmap(file);
@@ -3418,31 +3420,38 @@ async function makeThumb(file, max = 768, quality = 0.72) {
 
 /// 写真を読み込んで下書きへ入れる。**写真は必須**（2026-10-02 ユーザー「遡って記録…それは写真をアップロードが必須」）
 async function photoAttach(file) {
+  if (photoSaving) return false;
+  const generation = ++photoAttachGeneration, sheet = photoSheetGeneration, token = auth?.token;
+  const current = () => generation === photoAttachGeneration && sheet === photoSheetGeneration && token === auth?.token;
   photoDraft.file = file;
-  photoDraft.exif = null;
-  try { photoDraft.exif = await SoramiExif.readFile(file); } catch { photoDraft.exif = null; }
-  // 2枚作る。**一覧には小さいほうを出す**（大きいほうを60枚並べると数MBになる）
-  photoDraft.color = null; photoDraft.colorJob = null;
-  photoDraft.original = { width: null, height: null, type: file.type || null, bytes: Number.isFinite(file.size) ? file.size : null };
+  photoDraft.thumb = null; photoDraft.tile = null; photoDraft.exif = null;
+  photoDraft.loading = true;
+  $("photoSave").disabled = true;
+  $("photoPreview").hidden = true;
+  const draft = { file, exif: null, thumb: null, tile: null, width: 0, height: 0,
+    color: null, colorJob: null,
+    original: { width: null, height: null, type: file.type || null, bytes: Number.isFinite(file.size) ? file.size : null } };
+  try { draft.exif = await SoramiExif.readFile(file); } catch { /* EXIFなしでも保存できる */ }
+  if (!current()) return false;
   try {
     const t = await makeThumb(file);
+    if (!current()) return false;
     const tile = await makeThumb(file, 192, 0.7);
-    photoDraft.thumb = t.url; photoDraft.tile = tile.url;
-    photoDraft.width = t.width; photoDraft.height = t.height;
-    photoDraft.original.width = t.width; photoDraft.original.height = t.height;
-    // 保存する写し（768px）から色の帯を計算する。保存を待たせないよう、ここで始めておく。
-    // **分析が読めない・失敗しても、写真の読み込みと保存は止めない**（モジュールが無ければ計算しない）
-    const thumb = t.url, analyzer = globalThis.SoramiPhotoAnalysis;
-    if (analyzer) photoDraft.colorJob = analyzer.analyzeDataUrl(thumb)
-      .then((c) => { if (photoDraft.thumb === thumb) photoDraft.color = c; return c; })
-      .catch(() => null);
-  } catch {
-    photoDraft.thumb = null; photoDraft.tile = null;
-    photoDraft.width = 0; photoDraft.height = 0;
-  }
-  $("photoPreview").src = photoDraft.thumb || "";
-  $("photoPreview").hidden = !photoDraft.thumb;
-  $("photoChoose").textContent = photoDraft.thumb ? "写真を選び直す" : "写真を選ぶ";
+    if (!current()) return false;
+    draft.thumb = t.url; draft.tile = tile.url;
+    draft.width = t.width; draft.height = t.height;
+    draft.original.width = t.width; draft.original.height = t.height;
+    const analyzer = globalThis.SoramiPhotoAnalysis;
+    if (analyzer) draft.colorJob = analyzer.analyzeDataUrl(t.url)
+      .then((color) => { if (current()) photoDraft.color = color; return color; }).catch(() => null);
+  } catch { /* 写真の読込エラーは保存時に案内する */ }
+  if (!current()) return false;
+  Object.assign(photoDraft, draft, { loading: false });
+  $("photoSave").disabled = false;
+  $("photoPreview").src = draft.thumb || "";
+  $("photoPreview").hidden = !draft.thumb;
+  $("photoChoose").textContent = draft.thumb ? "写真を選び直す" : "写真を選ぶ";
+  return true;
 }
 
 /**
@@ -3453,7 +3462,12 @@ async function photoAttach(file) {
 /// round: 「実際はどうでしたか？」の 📷 から開いたとき、その回（{ pid, peak, score }）。現象・時刻・点数を入れて開き、
 /// 保存したらその回の答えと写真の時刻・位置も記録する
 async function openPhotoSheet(file, round = null) {
-  if (!requireLogin("記録")) return;
+  if (photoSaving || !requireLogin("記録")) return;
+  const generation = ++photoSheetGeneration;
+  ++photoAttachGeneration;
+  photoDraft.loading = false;
+  photoDraft.ownerToken = auth?.token;
+  $("photoSave").disabled = false;
   photoDraft.round = round;
   photoDraft.file = null; photoDraft.exif = null; photoDraft.thumb = null; photoDraft.tile = null;
   photoDraft.width = 0; photoDraft.height = 0;
@@ -3464,6 +3478,7 @@ async function openPhotoSheet(file, round = null) {
   $("photoPreview").hidden = true;
   $("photoChoose").textContent = "写真を選ぶ";
   if (file) await photoAttach(file);
+  if (generation !== photoSheetGeneration || photoDraft.ownerToken !== auth?.token) return;
   $("photoErr").hidden = true;
 
   // 現象の一覧。**この画面の順で出す**（一覧と同じ並びなら迷わない）
@@ -3549,17 +3564,20 @@ function photoAt() {
  * **何が起きても保存は止めない。** 失敗したら分析なし（null）で送る。
  * 設計: Vault 成果物/20261016_写真の保存時分析の設計案
  */
-async function photoAnalysisFor(body, scoreSource) {
+async function photoAnalysisFor(body, scoreSource, draft = photoDraft) {
   try {
     const A = SoramiPhotoAnalysis;
-    const color = photoDraft.color || (photoDraft.colorJob ? await photoDraft.colorJob : null);
-    const filled = photoDraft.filled || {};
-    const timeSource = A.inputSource($("photoWhen").value, filled.when);
-    const locationSource = A.inputSource($("photoWhere").value, filled.where);
-    const r = photoDraft.exif;
+    const whenValue = draft.whenValue ?? $("photoWhen").value;
+    const whereValue = draft.whereValue ?? $("photoWhere").value;
+    const candidates = draft.candidates ?? forecastCandidates(body.phenomenon, body.takenAt);
+    const color = draft.color || (draft.colorJob ? await draft.colorJob : null);
+    const filled = draft.filled || {};
+    const timeSource = A.inputSource(whenValue, filled.when);
+    const locationSource = A.inputSource(whereValue, filled.where);
+    const r = draft.exif;
     // 予報の欄の📷から開いたときは、その回を優先する（現象を選び直したら別の記録なので優先しない）
-    const round = photoDraft.round;
-    const forecast = A.matchForecast(forecastCandidates(body.phenomenon, body.takenAt), {
+    const round = draft.round;
+    const forecast = A.matchForecast(candidates, {
       takenAtMs: body.takenAt, latitude: body.latitude, longitude: body.longitude, timeSource, locationSource,
       selectedPeak: round && round.pid === body.phenomenon ? round.peak : null,
       algorithmVersion: SoramiPrediction.VERSION,
@@ -3568,11 +3586,11 @@ async function photoAnalysisFor(body, scoreSource) {
     const { analysis } = A.buildAnalysis({
       computedAt: Date.now(),
       web: document.querySelector('meta[name="app-version"]')?.content || null,
-      entry: photoDraft.round ? "answer_photo" : "record_sheet",
+      entry: draft.round ? "answer_photo" : "record_sheet",
       input: { timeSource, locationSource, scoreSource,
         // 位置と標高は photos の列が正本なので、ここには有無だけ（重ねて残さない）
         exif: r ? { offsetKnown: r.offsetKnown ?? null, hasGps: !!r.hasGps, hasAltitude: Number.isFinite(r.altitudeM) } : null,
-        original: photoDraft.original },
+        original: draft.original },
       color, forecast,
     });
     return analysis;
@@ -3621,8 +3639,7 @@ function forecastCandidates(pid, takenAt) {
  * ただし**1枚での確認**なので、これだけで設定を書き換えず、食い違いを知らせるに留める。
  * 時刻が分かると、採点の時間帯の中で撮られたかが分かる（雲海の正例162日のうち44日は窓の外で撮られていた。02_検証結果）
  */
-async function photoShot(body) {
-  const r = photoDraft.exif;
+async function photoShot(body, r = photoDraft.exif) {
   let aglM = null;
   if (Number.isFinite(body.altitude) && Number.isFinite(body.latitude)) {
     const g = await groundAt(body.latitude, body.longitude);
@@ -3632,20 +3649,26 @@ async function photoShot(body) {
     photoLatitude: body.latitude, photoLongitude: body.longitude, photoAltitudeM: body.altitude, photoAglM: aglM };
 }
 $("photoPick").onclick = () => openPhotoSheet(null);
-$("photoClose").onclick = () => $("photoSheet").close();
-$("photoSheet").addEventListener("close", () => { photoDraft.round = null; });
+$("photoClose").onclick = () => { if (!photoSaving) $("photoSheet").close(); };
+$("photoSheet").addEventListener("cancel", (e) => { if (photoSaving) e.preventDefault(); });
+$("photoSheet").addEventListener("close", () => { ++photoSheetGeneration; ++photoAttachGeneration; photoDraft.round = null; });
 $("photoChoose").onclick = (e) => { e.preventDefault(); $("photoFile").click(); };
 $("photoFile").onchange = async () => {
   const f = $("photoFile").files && $("photoFile").files[0];
   $("photoFile").value = "";                 // 同じ写真をもう一度選べるように
   if (!f) return;
-  await photoAttach(f);
+  if (!await photoAttach(f)) return;
   photoFillFromExif();                       // 写真から読めたもので入力欄を入れ直す
 };
 $("photoScore").oninput = () => { $("photoScoreOut").textContent = $("photoScore").value; photoDraft.scoreMoved = true; };
 $("photoSave").onclick = async (e) => {
   e.preventDefault();
-  // **写真は必須。** 日にちが経った記憶の点数は当てにならないので、撮影時刻と場所の証拠を付ける
+  if (photoSaving || photoDraft.loading) return;
+  if (photoDraft.ownerToken !== undefined && photoDraft.ownerToken !== auth?.token) {
+    photoDraft.thumb = null; photoDraft.tile = null; $("photoPreview").src = "";
+    $("photoSheet").close(); return;
+  }
+  // 写真の読込みが完了してから保存する。
   if (!photoDraft.thumb) {
     $("photoErr").textContent = photoDraft.file ? "この写真は読み込めませんでした。別の写真を選んでください" : "写真を選んでください";
     $("photoErr").hidden = false;
@@ -3666,19 +3689,29 @@ $("photoSave").onclick = async (e) => {
     thumb: photoDraft.thumb, tile: photoDraft.tile,
     width: photoDraft.width, height: photoDraft.height,
   };
-  $("photoSave").disabled = true;
+  const generation = photoSheetGeneration, account = authGeneration, token = auth?.token;
+  const draft = { ...photoDraft, round: photoDraft.round ? { ...photoDraft.round } : null,
+    whenValue: $("photoWhen").value, whereValue: $("photoWhere").value,
+    candidates: forecastCandidates(body.phenomenon, body.takenAt), place: { ...place } };
+  const current = () => generation === photoSheetGeneration && account === authGeneration && token === auth?.token;
+  const controls = ["photoSave", "photoClose", "photoChoose", "photoFile", "photoWhen", "photoWhere", "photoPhenom", "photoScore", "photoNote"];
+  photoSaving = true;
+  for (const id of controls) $(id).disabled = true;
   try {
     // 点数の由来。動かしたら本人の点、動かしていなければ開いたときの初期値の由来（分析のモジュールに頼らず決める）
-    const scoreSource = photoDraft.scoreMoved ? "user_moved" : photoDraft.scoreInitial;
-    body.analysis = await photoAnalysisFor(body, scoreSource);
+    const scoreSource = draft.scoreMoved ? "user_moved" : draft.scoreInitial;
+    body.analysis = await photoAnalysisFor(body, scoreSource, draft);
+    if (!current()) return;
     await apiCall("POST", "/photos", body);
     // 「実際はどうでしたか？」から開いたときは、その回の答え（この点数）と写真の時刻・位置も記録する。
     // 現象を選び直したら、その回とは別の記録なので答えにしない。
     // **予報の点数のまま保存したら答えにしない**（2026-10-16。以前は予報の点が本人の答えとして入っていた）。
     // 答え済みの回には写真の時刻・位置だけを足し、まだ答えていない回は答えられるよう残す
-    const round = photoDraft.round;
-    if (round && body.phenomenon === round.pid) {
-      const shot = await photoShot(body);
+    if (!current()) return;
+    const round = draft.round;
+    if (round && body.phenomenon === round.pid && samePlaceAs(draft.place, place)) {
+      const shot = await photoShot(body, draft.exif);
+      if (!current() || !samePlaceAs(draft.place, place)) return;
       if (scoreSource === "user_moved" || scoreSource === "answered") recordAnswer(round.pid, round.peak, body.score, shot);
       else {
         const existing = findSighting(round.pid, round.peak);
@@ -3689,27 +3722,54 @@ $("photoSave").onclick = async (e) => {
     $("photoSheet").close();
     await loadPhotos();
   } catch (err) {
+    if (!current()) return;
     $("photoErr").textContent = err.message || "保存できませんでした";
     $("photoErr").hidden = false;
-  } finally { $("photoSave").disabled = false; }
+  } finally {
+    photoSaving = false;
+    for (const id of controls) $(id).disabled = false;
+  }
 };
 
 let photos = [];
-let photosRequest = 0;
-async function loadPhotos() {
+let photosRequest = 0, photosCursor = null, photosLoading = false, photosError = null;
+let photosOwner = null, photosRetryAppend = false;
+$("photoListMore").onclick = () => loadPhotos(true);
+$("photoListRetry").onclick = () => loadPhotos(photosRetryAppend);
+function renderPhotoListState() {
+  $("photoListStatus").hidden = !photosLoading && !photosError;
+  $("photoListStatus").textContent = photosError || (photosLoading ? "写真を読み込んでいます…" : "");
+  $("photoListRetry").hidden = !photosError;
+  $("photoListRetry").disabled = photosLoading;
+  $("photoListMore").hidden = !photosCursor;
+  $("photoListMore").disabled = photosLoading;
+}
+async function loadPhotos(append = false) {
   const request = ++photosRequest, token = auth?.token;
-  if (!renderToolAccess("records")) { photos = []; renderPhotos(); return; }
+  if (token !== photosOwner) { photos = []; photosCursor = null; photosOwner = token; }
+  if (!renderToolAccess("records")) {
+    photos = []; photosCursor = null; photosLoading = false; photosError = null;
+    renderPhotos(); renderPhotoListState(); return;
+  }
+  photosRetryAppend = append;
+  const cursor = append ? photosCursor : null;
+  photosLoading = true; photosError = null; renderPhotoListState();
   try {
-    const response = await apiCall("GET", "/photos");
+    const response = await apiCall("GET", "/photos" + (cursor ? "?cursor=" + encodeURIComponent(cursor) : ""));
     if (request !== photosRequest || token !== auth?.token || !toolAllowed("records")) return;
-    photos = response.photos || [];
+    const incoming = response.photos || [];
+    photos = append ? [...new Map([...photos, ...incoming].map((p) => [p.id, p])).values()] : incoming;
+    photosCursor = response.nextCursor || null;
   } catch (e) {
     if (request !== photosRequest || token !== auth?.token) return;
-    photos = [];
-    // 別の端末で記録の許可が外された。空の一覧ではなく、確かめ直して案内を出す
+    if (e?.status === 403 || e?.status === 401) { photos = []; photosCursor = null; }
     if (e?.status === 403) void recheckAccess(0);
+    photosError = "写真を読み込めませんでした。回線を確認して、もう一度お試しください。";
+  } finally {
+    if (request === photosRequest && token === auth?.token) {
+      photosLoading = false; renderPhotos(); renderPhotoListState();
+    }
   }
-  renderPhotos();
 }
 function renderPhotos() {
   const host = $("photoList");
@@ -10261,7 +10321,7 @@ function refreshRestrictedTools() {
   restrictedToolsKey = key;
   // 古いアカウント/権限で開始した処理を無効にし、記録を即座に消す。
   plane.seq++; iss.seq++; photosRequest++;
-  photos = []; renderPhotos();
+  photos = []; photosCursor = null; photosOwner = null; photosLoading = false; photosError = null; renderPhotos(); renderPhotoListState();
   if (atAim) openAim(null);
   if (atPlane) openPlane();
   if (atIss) openIss();
