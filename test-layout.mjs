@@ -268,11 +268,11 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
     "自分で置く: 地図のすぐ下に「ここに重ねる」");
   ok(/\$\("aimTargetCard"\)\.hidden = !customOn;\s+\$\("aimCustomRow"\)\.hidden = !customOn;\s+\$\("aimPickTarget"\)\.hidden = !customOn;/.test(html),
     "自分で置くときだけ出す");
-  for (const [what, re] of [["検索の結果", /choosePlace\(\{ id: `search:/], ["現在地", /\(pos\) => choosePlace\(\{ id: `geo:/],
+  for (const [what, re] of [["検索の結果", /choosePlace\(\{ id: `search:/], ["現在地", /\(pos\) => \{[\s\S]{0,150}choosePlace\(\{ id: `geo:/],
       ["地図で選ぶ・緯度経度", /choosePlace\(\{ id: `map:\$\{lat\.toFixed\(5\)\}/], ["お気に入り", /el\.onclick = \(\) => choosePlace\(favorites\[/]]) {
     ok(re.test(html), `地点の画面の「${what}」も、開いた目的の方へ渡す`);
   }
-  ok(/addEventListener\("close", \(\) => \{\s+favUndo = \[\];[\s\S]{0,200}placeSheetFor = null;/.test(html), "閉じたら絶景予測の地点の画面に戻す（次に地点カードから開いたときに観測地点を決めない）");
+  ok(/addEventListener\("close", \(\) => \{\s+(?:geoRequest\+\+;\s+)?favUndo = \[\];[\s\S]{0,200}placeSheetFor = null;/.test(html), "閉じたら絶景予測の地点の画面に戻す（次に地点カードから開いたときに観測地点を決めない）");
   // 「どこに重ねるか」と対で「どこから重ねるか」。最初は絶景予測の地点を引き継いで欄に入れる（ユーザー指定）
   // 2026-10-06 何を→何に→どこからの順で、1行ずつ文にして選ぶ（ユーザー「〇〇（選択）を重ねる。〇〇（選択）に重ねる。〇〇（選択）から重ねる。」）。
   // どこからを最後にしたのは、その日の候補地が何を・何に・日付で決まるから（10/01 は一番上、10/04 は2番目だった）
@@ -1531,7 +1531,7 @@ ok(/data-undo="\$\{i\}"/.test(html) && /元に戻す/.test(html), "取り消し�
 ok(/const at = Math\.min\(u\.index, favorites\.length\);[\s\S]{0,60}favorites\.splice\(at, 0, u\.entry\)/.test(html),
   "元の位置へ戻す");
 ok(!/setTimeout[\s\S]{0,120}favUndo/.test(html), "取り消しを時間で消さない（押す前に消えるため）");
-ok(/addEventListener\("close", \(\) => \{\s+favUndo = \[\];/.test(html), "シートを閉じたら取り消しを確定する");
+ok(/addEventListener\("close", \(\) => \{\s+(?:geoRequest\+\+;\s+)?favUndo = \[\];/.test(html), "シートを閉じたら取り消しを確定する");
 ok(/closeFavSheet[\s\S]{0,160}confirm\(/.test(html), "入力途中で閉じるときだけ確認する");
 // 一覧の見え方をスポットと揃える（現象アイコン・都道府県/標高・メモ）。
 // 2026-10-01 から iconFor（月はその時の満ち欠け）で描く
