@@ -21,11 +21,11 @@ test('読込中・失敗・候補なしを区別し、失敗では再試行で�
  const error=fixture({status:'error',rounds:0});assert.match(error.el('recordsPending').innerHTML,/data-retry-rounds/);assert.equal(error.el('answersEmpty').hidden,true);
  const empty=fixture({rounds:0});assert.equal(empty.el('answersEmpty').hidden,false);assert.equal(empty.el('recordsPending').hidden,true);
 });
-test('記録と予測の振り返りは別DOM。写真/地点と採点/書き出しを混在させない',()=>{
+test('撮影ポイントと空の結果を別DOMへ分け、空の写真を予測の振り返りへ置く',()=>{
  const records=html.slice(html.indexOf('<div id="recordsView"'),html.indexOf('<div id="answersView"'));
  const answers=html.slice(html.indexOf('<div id="answersView"'),html.indexOf('<!-- 予測の振り返りへの入口。'));
- assert.match(records,/myRecordsHub/);assert.match(records,/photoPick/);assert.doesNotMatch(records,/recordsPending|recList|exportBtn/);
- assert.match(answers,/recordsPending/);assert.match(answers,/exportBtn/);assert.doesNotMatch(answers,/myRecordsHub|photoPick/);
+ assert.match(records,/myRecordsHub/);assert.doesNotMatch(records,/photoPick|photoList|recordsPending|recList|exportBtn/);
+ assert.match(answers,/recordsPending/);assert.match(answers,/exportBtn/);assert.match(answers,/photoPick/);assert.match(answers,/photoList/);assert.doesNotMatch(answers,/myRecordsHub/);
 });
 test('予測の振り返りは予測の中：メニューに置かず、予測に帯・戻るを出し、一覧に常に入口を置く',()=>{
  const menu=html.slice(html.indexOf('<nav class="drawer-list">'),html.indexOf('</nav>',html.indexOf('<nav class="drawer-list">')));
