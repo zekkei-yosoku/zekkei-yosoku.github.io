@@ -12,8 +12,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="10315210725394122031">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-500k2BgQpWiBJzv54QMO0bJwyTq8RmCOfyanGldRg9k=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-Z11HRIprQ6aY0riOULwclQ01FQYHOOwyIsPnhrJ5LM0=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="18021307041803554691">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-500k2BgQpWiBJzv54QMO0bJwyTq8RmCOfyanGldRg9k=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-PvMhNpcIa2brkmKphsfKvh0W49KnNsy9PSNdg5UZJA4=' 'sha256-Z11HRIprQ6aY0riOULwclQ01FQYHOOwyIsPnhrJ5LM0=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
 <link data-script-preload rel="preload" as="script" href="sorami-astro.js?v=9181748260451918765">
@@ -54,7 +54,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="app-icon-180-v2.png">
 <link rel="icon" type="image/png" sizes="32x32" href="app-icon-32-v2.png">
 <link rel="manifest" href="manifest.json?v=20261015icons2">
-<meta name="theme-color" content="#0a0f24">
+<meta name="theme-color" content="#c5d3e0">
 <!-- ライト・ダークは <html data-theme> で決める（2026-10-06）。最初の値は描く前にここで入れる。切り替えは本体の script（裏にいる間は替えない） -->
 <script>(()=>{let mode;try{mode=localStorage.getItem('sorami.theme');}catch{}document.documentElement.dataset.theme = mode==='dark'||mode==='light'?mode:matchMedia("(prefers-color-scheme: dark)").matches?'dark':'light';})();</script>
 <style>
@@ -110,7 +110,7 @@
   :root[data-theme="dark"]:has(:is(#aimView, #skyMapView):not([hidden])) { --accent: #9bb8d3; --on-accent: #142332; }
   * { box-sizing: border-box; margin: 0; }
   body { font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
-         background: var(--bg); color: var(--text); font-size: 0.94rem; line-height: 1.5;
+         color: var(--text); font-size: 0.94rem; line-height: 1.5; min-height: 100dvh;
          padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
   /* 内容はぜんぶ同じ1本の列に置く。幅も中心もそろえる。
      以前は main を 1060px にして中身を 760px 左寄せにしていたため、
@@ -126,8 +126,10 @@
   /* 全画面共通のブランド色。lightはロゴの白を受ける濃いheader、darkは本文へつなぐ。 */
   :root { --header-bg: #c5d3e0; --header-end: calc(74px + env(safe-area-inset-top)); }
   :root[data-theme="dark"] { --header-bg: var(--bg); }
-  /* scrollbar-gutterの予約領域も同じ背景で塗る。本文のスクロールと一緒に動く。 */
-  html { background: linear-gradient(to bottom, var(--header-bg) 0, var(--header-bg) calc(100% - 10px), var(--bg) 100%) top / 100% var(--header-end) no-repeat var(--bg); }
+  /* iOSの上端もheader色で塗る。背景色の抽出先になるhtml/bodyの単色を揃え、
+     本文はgradientで従来色へ戻す。defaultの時計色とsafe-areaの余白は保つ。 */
+  html, body { background: linear-gradient(to bottom, var(--header-bg) 0, var(--header-bg) calc(var(--header-end) - 10px), var(--bg) var(--header-end)) var(--header-bg); }
+  html { min-height: 100%; }
   .masthead { position: relative; isolation: isolate; }
   .masthead::before { content: ""; position: absolute; z-index: -1; top: calc(-12px - env(safe-area-inset-top)); bottom: 0; left: 50%; width: 100vw; transform: translateX(-50%); background: linear-gradient(to bottom, var(--header-bg) 0, var(--header-bg) calc(100% - 10px), var(--bg) 100%); pointer-events: none; }
   .masthead #authButton { color: #294862; }
@@ -1148,6 +1150,7 @@
 #aimView .preview-footer-scrub .sky-map-scrub-modes button[aria-pressed=true]{background:var(--card);box-shadow:inset 0 -2px var(--accent);color:var(--accent)}
 #aimView .preview-footer-scrub .preview-footer-track{flex:1;min-width:0;margin:0;max-width:240px}
 </style>
+<script>(()=>{const root=document.documentElement,meta=document.querySelector('meta[name="theme-color"]');const sync=()=>{meta.content=getComputedStyle(root).getPropertyValue('--header-bg').trim();};sync();new MutationObserver(sync).observe(root,{attributes:true,attributeFilter:['data-theme']});})();</script>
 <style id="previewStyles">.preview-banner{margin:0 0 12px;color:var(--secondary);font-size:11px}
 .preview-title{font-size:20px;margin:8px 0 14px}
 #aimView>.card{padding:0;background:transparent;box-shadow:none;border:0}
