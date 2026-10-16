@@ -12,10 +12,11 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="10224773464624403419">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-capjZQCk570JmiL2xHkZhevBd6gTSL3cn9ok+73ef14=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-glT64YV1EiWAPjUt76cQX84Lge96LVR2FHv2mRID1B0=' 'sha256-wez3VFwfSKMGJVDYlXC8OOw9Ifi+mBIq/64cT5NoY7A=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="2572475621736370956">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-Ka8pnVXRFqt4pGKWZsvT2Ia0COwGVe4PS0dTPTvrzf0=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-glT64YV1EiWAPjUt76cQX84Lge96LVR2FHv2mRID1B0=' 'sha256-wez3VFwfSKMGJVDYlXC8OOw9Ifi+mBIq/64cT5NoY7A=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
+<link data-script-preload rel="preload" as="script" href="sorami-saved-rounds.js?v=12447962622712891676">
 <link data-script-preload rel="preload" as="script" href="sorami-astro.js?v=9181748260451918765">
 <link data-script-preload rel="preload" as="script" href="sorami-exif.js?v=347348485217034662">
 <link data-script-preload rel="preload" as="script" href="sorami-photo-analysis.js?v=944312100077429319">
@@ -2203,6 +2204,7 @@ button.ui-icon-button::after { content: none; }
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
 <script src="sorami-core.js?v=416354364020786134"></script>
 <script src="sorami-prediction.js?v=17884626660592691492"></script>
+<script src="sorami-saved-rounds.js?v=12447962622712891676"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
 <script src="sorami-astro.js?v=9181748260451918765"></script>
@@ -3184,6 +3186,7 @@ const VIEWS = [
 ];
 
 function render() {
+  if (!routeFromHash() || routeFromHash().id) void savedRoundClient.ensure(place, () => render());
   const now = Date.now();
   $("placeName").textContent = place.name;
   const subParts = [];
@@ -4807,16 +4810,18 @@ function renderDetail(id, sel, now, opts = {}) {
       <span class="v">${Math.round(v)}</span></div>`;
   }).join("");
   // 記録できるのはその回が終わってから。まだ来ていない空は評価できない。
-  const finished = ev.window[1] <= now;
   const current = findSighting(id, ev.peak);
   const savedRound = roundOf(id, ev.peak);
+  const answerWindow = current?.window || savedRound?.ev.window || ev.window;
+  const finished = answerWindow[1] <= now;
   // 分の切上げと日付をそろえる（23:59台を丸めて当日0:00と案内しない）。
-  const recordAt = Math.ceil(ev.window[1] / 60000) * 60000;
+  const recordAt = Math.ceil(answerWindow[1] / 60000) * 60000;
   const record = finished
     ? current || savedRound
       ? `<div style="padding:8px 0"><div style="margin-bottom:6px">実際はどうでしたか？</div>
+       ${savedPredictionNote(current ? current.predictionSource : savedRound.predictionSource)}
        ${outcomeButtons(id, ev.peak, current ? current.score : savedRound.ev.score, current)}</div>`
-      : `<p class="tiny" style="padding:4px 0">始まる前の予測がないため、答え合わせはできません</p>`
+      : `<p class="tiny" style="padding:4px 0">${savedRoundUnavailable()}</p>`
     : `<p class="tiny" style="padding:4px 0">${S.JstCal.sameDay(recordAt, now) ? "" : S.JstCal.monthDay(recordAt) + " "}${S.JstCal.hhmm(recordAt)} を過ぎたら記録できます</p>`;
   // 広い画面では「なぜこの点数か」と「どれくらい確かか」で列を分ける。
   // 1行を長くしないための分割で、片方だけを描けるように part で切り替える。
@@ -4908,6 +4913,7 @@ function samePlaceAs(record, here) {
  * 残すのは**始まる前の予測**（始まってから計算し直した値で上書きしない。答え合わせは「見る前に出していた点」とするもの）。
  * 写真なしで答えられる（外れた日ほど写真を撮らないので、写真を必須にすると外れの記録が集まらない）。8日より古い回は捨てる
  */
+const savedRoundClient = SoramiSavedRounds.createClient();
 const ROUND_KEEP_MS = 8 * 86400000, ROUND_ANSWER_MS = 7 * 86400000, ROUND_MAX = 240;
 function keepRounds(forPlace, now = Date.now()) {
   const today = S.Cal.startOfDay(now);
@@ -4931,7 +4937,7 @@ function keepRounds(forPlace, now = Date.now()) {
   store.set("sorami.rounds", list.slice(0, ROUND_MAX));
 }
 /// 残した回を、今の予報の回と同じ形に
-const roundFromSnap = (r) => ({ pid: r.pid, observations: r.observations || null, ev: {
+const roundFromSnap = (r) => ({ pid: r.pid, predictionSource: r.predictionSource || null, observations: r.observations || null, ev: {
   peak: r.peak, score: r.score, rank: S.RANKS.find((x) => x.key === r.rank) || S.rankOf(r.score),
   confidence: { key: r.confidence }, perModel: r.perModel, factors: r.factors, window: r.window, specificTime: r.specificTime } });
 /// 保存時刻が開始前と確認できる予測だけを答え合わせに使う。
@@ -4939,14 +4945,30 @@ const roundFromSnap = (r) => ({ pid: r.pid, observations: r.observations || null
 function isPreEventRound(r) {
   return r && Number.isFinite(r.capturedAt) && Array.isArray(r.window) && r.capturedAt < r.window[0];
 }
+// 端末の開始前の予測を優先。近くの定番地点の予測は出典付きで補う。
+function availableRoundSnaps(now = Date.now()) {
+  const local = store.get("sorami.rounds", []).filter((r) => isPreEventRound(r) && samePlaceAs(r, place) && now - r.peak < ROUND_KEEP_MS);
+  const server = savedRoundClient.state(place).rounds.filter((r) => isPreEventRound(r) && now - r.peak < ROUND_KEEP_MS &&
+    !local.some((x) => x.pid === r.pid && S.JstCal.sameDay(x.peak, r.peak)));
+  return [...local, ...server];
+}
 function roundOf(pid, peak) {
-  const r = store.get("sorami.rounds", []).find((x) => isPreEventRound(x) && x.pid === pid && samePlaceAs(x, place) && S.JstCal.sameDay(x.peak, peak));
+  const r = availableRoundSnaps().find((x) => x.pid === pid && S.JstCal.sameDay(x.peak, peak));
   return r ? roundFromSnap(r) : null;
 }
 /// 終了から7日以内、この地点の開始前に保存した回。
 function answerableRounds(now) {
-  return store.get("sorami.rounds", []).filter((r) => isPreEventRound(r) && samePlaceAs(r, place)
-    && S.PHENOMENA[r.pid] && r.window[1] <= now && now - r.window[1] <= ROUND_ANSWER_MS).map(roundFromSnap);
+  return availableRoundSnaps(now).filter((r) => S.PHENOMENA[r.pid] && r.window[1] <= now && now - r.window[1] <= ROUND_ANSWER_MS).map(roundFromSnap);
+}
+function savedPredictionNote(source) {
+  if (source?.kind !== "server" || typeof source.spotName !== "string" || !Number.isFinite(source.capturedAt) || !Number.isFinite(source.distanceKm)) return "";
+  return `<span class="tiny sub-line" style="display:block;margin:4px 0">${esc(source.spotName)}の事前予測 ${Number.isFinite(source.score) ? Math.round(source.score) + "点・" : ""}${Math.round(source.distanceKm * 1000)}m先・${S.JstCal.monthDay(source.capturedAt)} ${S.JstCal.hhmm(source.capturedAt)}保存</span>`;
+}
+function savedRoundUnavailable() {
+  const state = savedRoundClient.state(place);
+  if (state.status === "loading" || state.status === "idle") return '保存済みの事前予測を確認しています…';
+  if (state.status === "error") return `${esc(state.reason)}。<button type="button" class="fav-btn" data-retry-rounds>再取得</button>`;
+  return `始まる前の予測がないため、答え合わせはできません。${esc(state.reason || "この回の予測は保存されていません")}`;
 }
 function findSighting(pid, peak) {
   return sightings.find((s) => s.phenomenon === pid && samePlaceAs(s, place) && S.JstCal.sameDay(s.peak, peak));
@@ -4957,6 +4979,7 @@ function recordAnswer(pid, peak, actual, shot = null) {
   const round = roundOf(pid, peak);
   const existing = findSighting(pid, peak);
   if (!round && !existing) return;
+  if (!existing && (round.ev.window[1] > Date.now() || Date.now() - round.ev.window[1] > ROUND_ANSWER_MS)) return;
   // 答え直しでも記録済みの予測を変えない。旧版の記録・写真も保持する。
   const ev = existing ? { ...round?.ev, ...existing, rank: S.rankOf(existing.score), confidence: { key: existing.confidence } } : round.ev;
   const a = Number.isFinite(actual) ? Math.max(0, Math.min(100, Math.round(actual))) : null;
@@ -4970,6 +4993,7 @@ function recordAnswer(pid, peak, actual, shot = null) {
     perModel: ev.perModel, factors: ev.factors, window: ev.window,
     actualScore: a, outcome: S.outcomeFromActual(pid, ev.score, a),
     // 取得時の気象値だけを保持。旧記録の欠測を今の予報で埋めない。
+    predictionSource: existing ? existing.predictionSource || null : round.predictionSource || null,
     observations: existing ? existing.observations || {} : round.observations || {},
     ...(shot ? shotFields(ev, shot) : {}),
   };
@@ -5024,26 +5048,35 @@ function collectObservations(pid, peak) {
 function renderPending(now, hidden) {
   // 終わってから7日以内の回（端末に残した回を含む。keepRounds）。答えた回は出さない
   const out = answerableRounds(now).filter(({ pid, ev }) => !findSighting(pid, ev.peak))
-    .map(({ pid, ev }) => ({ id: pid, ev, peak: ev.peak }));
+    .map(({ pid, ev, predictionSource }) => ({ id: pid, ev, predictionSource, peak: ev.peak }));
   out.sort((a, b) => b.peak - a.peak);
-  $("recPending").hidden = hidden || !out.length;
-  if (!out.length) { $("recPending").innerHTML = ""; return; }
+  const state = savedRoundClient.state(place);
+  const notice = state.status === "error" ? `<p class="tiny" role="status">${savedRoundUnavailable()}${state.rounds.length ? "（取得済みの予測で答え合わせできます）" : ""}</p>` : state.status === "ready" && !out.length && state.reason && state.reason !== "近くに保存対象の地点がありません" ? `<p class="tiny" role="status">${esc(state.reason)}</p>` : "";
+  $("recPending").hidden = hidden || (!out.length && !notice);
+  if (!out.length) { $("recPending").innerHTML = notice; return; }
 
   // 現象で訊きたいことが違うので、見出しは両方を包める言い方にする。
-  $("recPending").innerHTML = `<div class="pending">
+  $("recPending").innerHTML = `${notice}<div class="pending">
     <div style="margin-bottom:6px">実際はどうでしたか？</div>
-    ${out.slice(0, 4).map(({ id, ev }) => {
+    ${out.slice(0, 4).map(({ id, ev, predictionSource }) => {
       const meta = S.PHENOMENA[id], color = RANK_COLOR[ev.rank.key];
       return `<div class="pending-row">
         <div><span style="font-size:1.1rem">${iconFor(id, ev.peak)}</span>
           <strong>${S.longNameOf(id)}</strong>
           <span class="muted">${S.Cal.relativeDay(ev.peak, now)}${ev.specificTime === false ? "" : " " + S.Cal.hhmmRounded(ev.peak)}</span>
           ・<span style="color:${color}">${esc(S.phrasing(id, ev.rank).label)} ${Math.round(ev.score)}</span></div>
+        ${savedPredictionNote(predictionSource)}
         ${outcomeButtons(id, ev.peak, ev.score, findSighting(id, ev.peak))}
       </div>`;
     }).join("")}
   </div>`;
 }
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest?.("[data-retry-rounds]")) return;
+  void savedRoundClient.ensure(place, () => render(), true);
+  render();
+});
 
 // 押す場所は1箇所で作る。ホームと詳細で選択肢がずれると、
 // 同じ回に別々の答えが入る。
@@ -5165,7 +5198,7 @@ function renderRecords(now, pendingHidden) {
     <div class="list-item" style="display:flex;gap:8px;align-items:center">
       <span>${iconFor(s.phenomenon, s.peak)}</span>
       <span style="flex:1"><strong style="font-size:0.81rem">${S.JstCal.monthDay(s.peak)} ${esc(s.placeName)}</strong>
-        <span class="tiny sub-line">${meta.name} ・ ${Math.round(s.score) || 0}点</span></span>
+        <span class="tiny sub-line">${meta.name} ・ ${Math.round(s.score) || 0}点</span>${savedPredictionNote(s.predictionSource)}</span>
       <span class="badge" style="background:var(--line)">${Number.isFinite(s.actualScore) ? `実際 ${s.actualScore}点` : esc(LABEL[s.outcome] ?? s.outcome)}</span></div>`;
     }).join("")
     || `<p class="tiny" style="padding:8px 0">まだありません</p>`);
