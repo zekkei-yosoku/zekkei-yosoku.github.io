@@ -515,6 +515,16 @@ window.addEventListener('storage', (e) => { if (e.key === key() || e.key === 'so
 const style = document.createElement('style');
 style.textContent = `
 .shooting-alignment{display:flex;gap:8px;flex-wrap:wrap}.shooting-alignment select{min-width:0;flex:1;min-height:44px;font-size:16px}.shooting-overlap{padding:8px;border-radius:8px}.shooting-overlap-on{background:var(--accent);color:var(--on-accent,#fff);font-weight:bold}#aimView .preview-workspace{display:block}#aimView .preview-tabs{display:none}
+/* Shooting-point details scroll only vertically, including native iOS date fields. */
+#myPlaceSheet{overflow:hidden;min-width:0}
+#myPlaceSheet[open]{display:flex;flex-direction:column}
+#myPlaceSheet .sheet-head{flex:none;min-width:0}
+#myPlaceSheet .sheet-head strong{min-width:0;overflow-wrap:anywhere}
+#myPlaceSheet .sheet-body{min-width:0;min-height:0;max-width:100%;overflow-x:hidden;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain}
+#myPlaceSheet .my-form,#myPlaceSheet .fav-in{min-width:0;max-width:100%}
+#myPlaceSheet input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-height:44px}
+#myPlaceSheet input[type=date]::-webkit-date-and-time-value{text-align:left}
+#myPlaceSheet .my-actions{display:flex;flex-wrap:wrap;gap:6px}
 .my-places{margin:10px 0 4px;padding-top:8px;border-top:1px solid var(--line)}
 .my-head{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap;margin:4px 0}
 .my-status{margin:0;flex:1 1 180px}
