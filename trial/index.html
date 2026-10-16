@@ -12,8 +12,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="2572475621736370956">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-Ka8pnVXRFqt4pGKWZsvT2Ia0COwGVe4PS0dTPTvrzf0=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-glT64YV1EiWAPjUt76cQX84Lge96LVR2FHv2mRID1B0=' 'sha256-wez3VFwfSKMGJVDYlXC8OOw9Ifi+mBIq/64cT5NoY7A=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="8298717000200984627">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-RDHW52y3wwFI8qXRw7naKCM6qwVlIRn0rXJTm/oMObs=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-glT64YV1EiWAPjUt76cQX84Lge96LVR2FHv2mRID1B0=' 'sha256-6h8ZPQ5tR++WXzI/1RIC80rtkADK/T0aXggAeAKsdJU=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
 <link data-script-preload rel="preload" as="script" href="sorami-saved-rounds.js?v=12447962622712891676">
@@ -40,7 +40,7 @@
 <link data-script-preload rel="preload" as="script" href="sorami-moon.js?v=10230678456179898054">
 <link data-script-preload rel="preload" as="script" href="sorami-scroll-timeline.js?v=1436491398997474438">
 <link data-script-preload rel="preload" as="script" href="sorami-datetime-ui.js?v=13087204954338235521">
-<link data-script-preload rel="preload" as="script" href="sorami-myplaces.js?v=3999474080822358928">
+<link data-script-preload rel="preload" as="script" href="sorami-myplaces.js?v=4355740463869351990">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1820,17 +1820,25 @@ button.ui-icon-button::after { content: none; }
 
   <div id="recordsView" hidden>
     <div id="recordsAccess" hidden><div class="sky-map-head"><h2>記録</h2></div><div class="card"><p id="recordsAccessMessage"></p><button id="recordsAccessLogin" class="fav-btn primary">ログイン</button></div></div>
+    <div class="sky-map-head"><h2>記録</h2></div>
+    <div id="myRecordsHub" class="card"></div>
     <div class="card">
-      <div class="section-h"><h2>記録</h2><span class="muted" id="recCount"></span></div>
-      <div id="recEmpty" class="tiny" hidden>まだ記録がありません。</div>
+      <div class="section-h"><h2>写真</h2></div>
+      <p class="tiny">見た空や風景を写真で残します。事前の予測がなくても保存できます。</p>
       <div class="ph-add">
-        <button id="photoPick" class="fav-btn primary">記録を足す</button>
+        <button id="photoPick" class="fav-btn primary">写真から記録する</button>
         <input type="file" id="photoFile" accept="image/*" hidden>
       </div>
       <p id="photoListStatus" class="tiny" role="status" hidden></p>
   <button id="photoListRetry" class="tap" hidden>写真の読込をやり直す</button>
   <div id="photoList" class="ph-list"></div>
       <button id="photoListMore" class="tap" hidden>さらに写真を表示</button>
+    </div>
+    <div class="card">
+      <div class="section-h"><h2>予測の答え合わせ</h2><span class="muted" id="recCount"></span></div>
+      <p class="tiny" id="recordsRoundPlace"></p>
+      <div id="recordsPending" hidden></div>
+      <div id="recEmpty" class="tiny" hidden>まだ答え合わせの記録はありません。開始前の予測が残っている回は、終了後7日間回答できます。</div>
       <div id="recBody" hidden>
         <div id="calibration"></div>
         <div id="recList"></div>
@@ -1888,10 +1896,10 @@ button.ui-icon-button::after { content: none; }
     <section id="astroToolsGroup" aria-label="天体の道具">
     <button id="framingMenu" data-tool="#/aim/tower" data-id="diamond pearl tower" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m8 0h5v-5"/><path d="m6 17 4-5 3 3 3-5 3 7"/><circle cx="9" cy="8" r="1"/></svg>構図</b><span>天体と風景が重なる日時と撮影地を探す</span></button>
     <button id="mapMenu" data-tool="#/skymap" data-id="skymap"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16"/></svg>地図</b><span>撮影地からの天体の方向と高度を調べる</span></button>
+    <button data-tool="#/records" data-id="records"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>記録</b><span>撮影場所・見えたもの・写真を残して振り返る</span></button>
     <button data-tool="#/plane" data-id="plane"><b>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
     <button data-tool="#/iss" data-id="iss"><b>ISSの月面通過</b><span>ISSが月や太陽の前を横切る場所と時刻</span></button>
     </section>
-    <button data-tool="#/records" data-id="records"><b>記録</b><span>点数が実際とどれだけ合っているか</span></button>
   </nav>
 </aside>
 
@@ -3186,7 +3194,7 @@ const VIEWS = [
 ];
 
 function render() {
-  if (!routeFromHash() || routeFromHash().id) void savedRoundClient.ensure(place, () => render());
+  if (!routeFromHash() || routeFromHash().id || (atRecords && toolAllowed("records"))) void savedRoundClient.ensure(place, () => render());
   const now = Date.now();
   $("placeName").textContent = place.name;
   const subParts = [];
@@ -5046,17 +5054,20 @@ function collectObservations(pid, peak) {
 // それが主要な操作に見えていた（実際そう受け取られた）。
 // 答える場所をここに置く。アプリを開いて1タップで済む。
 function renderPending(now, hidden) {
+  const host = atRecords ? $("recordsPending") : $("recPending");
+  (atRecords ? $("recPending") : $("recordsPending")).hidden = true;
+  if (atRecords) hidden = !toolAllowed("records");
   // 終わってから7日以内の回（端末に残した回を含む。keepRounds）。答えた回は出さない
   const out = answerableRounds(now).filter(({ pid, ev }) => !findSighting(pid, ev.peak))
     .map(({ pid, ev, predictionSource }) => ({ id: pid, ev, predictionSource, peak: ev.peak }));
   out.sort((a, b) => b.peak - a.peak);
   const state = savedRoundClient.state(place);
   const notice = state.status === "error" ? `<p class="tiny" role="status">${savedRoundUnavailable()}${state.rounds.length ? "（取得済みの予測で答え合わせできます）" : ""}</p>` : state.status === "ready" && !out.length && state.reason && state.reason !== "近くに保存対象の地点がありません" ? `<p class="tiny" role="status">${esc(state.reason)}</p>` : "";
-  $("recPending").hidden = hidden || (!out.length && !notice);
-  if (!out.length) { $("recPending").innerHTML = notice; return; }
+  host.hidden = hidden || (!out.length && !notice);
+  if (!out.length) { host.innerHTML = notice; return; }
 
   // 現象で訊きたいことが違うので、見出しは両方を包める言い方にする。
-  $("recPending").innerHTML = `${notice}<div class="pending">
+  host.innerHTML = `${notice}<div class="pending">
     <div style="margin-bottom:6px">実際はどうでしたか？</div>
     ${out.slice(0, 4).map(({ id, ev, predictionSource }) => {
       const meta = S.PHENOMENA[id], color = RANK_COLOR[ev.rank.key];
@@ -5171,6 +5182,8 @@ function outcomeButtons(id, peak, predicted, sighting = null) {
 const answerHtml = (id, v, pred) => `${v}点・${esc(S.actualWord(id, v))}<span class="tiny sub-line">予測 ${pred}</span>`;
 
 function renderRecords(now, pendingHidden) {
+  globalThis.MyPlacesUI?.renderRecordsHub?.();
+  $("recordsRoundPlace").textContent = `${place.name}の事前予測と、実際の空を比べます。`;
   renderPending(now ?? Date.now(), pendingHidden);
   const conclusive = sightings.filter((s) => s.outcome !== "unchecked");
   $("recCount").textContent = `確定 ${conclusive.length}件`;
@@ -12083,9 +12096,15 @@ ctx.lineWidth=1;
   pending=fromAim?{custom:aim.target?.id==='custom'?store.get('sorami.aimCustom',null):null,observer:live?{...from,latitude:spec.obs.latitude,longitude:spec.obs.longitude,groundManualM:from.groundManualM??null,standAglM:spec.eyeM===aimObserverEye(from)?from.standAglM??null:spec.eyeM,name:spec.observerName||from.name}:from,body:aim.body,showSun:aim.body==='sun',showMoon:aim.body==='moon',at:live?look._lookAt:Number.isFinite(transferredAt)?transferredAt:Number.isFinite(aim.dayMs)?aim.dayMs+43200000:Date.now(),targetId:aim.target?.id||'',partId:aim.partId,ground:live?spec.obs.elevation:null}:null;
   pushRoute('#/skymap');
  }
+ function enterRecords(observer){
+  if(!auth?.token||!toolAllowed('skymap')||!validPoint(observer))return false;
+  const previous=session||store.get(skyStoreKey(),null);
+  pending={ownerToken:auth.token,observer:aimSavedFrom(observer),body:previous?.body||'sun',at:previous?.at??Date.now(),targetId:previous?.target?.id||previous?.targetId||'',partId:previous?.partId||null,custom:previous?.custom||null,ground:null};
+  pushRoute('#/skymap');return true;
+ }
  function start(){
   if(session&&active()&&!pending){map.redraw();return;}
-  const saved=store.get(skyStoreKey(),null)||(store.get('sorami.owner',null)===auth?.loginId?store.get('sorami.skyMap',null):null),draft=pending||saved;pending=null;
+  const saved=store.get(skyStoreKey(),null)||(store.get('sorami.owner',null)===auth?.loginId?store.get('sorami.skyMap',null):null),draft=(pending&&(!pending.ownerToken||pending.ownerToken===auth?.token)?pending:null)||saved;pending=null;
   const from=aimFromPoint()||place,list=mapTargets().filter(validPoint);
   const custom=draft?.custom||null,customTarget=custom?{id:'custom',name:custom.name,...custom,parts:[{id:'tip',name:'てっぺん',m:custom.topM}]}:null;
   const target=customTarget&&draft?.targetId==='custom'?customTarget:list.find(t=>t.id===draft?.targetId)||null;
@@ -12189,7 +12208,7 @@ ctx.lineWidth=1;
  }
  el('skyMapUse').onclick=()=>{if(prepareFraming())pushRoute('#/aim');};
  el('skyMapUseBelow').onclick=()=>{if(prepareFraming())pushRoute('#/aim');};
- SkyMapUI={open,leave,authChanged,prepareFraming,enter,refreshTargets,redraw:()=>map.redraw(),fitPoints:pts=>{const cv=el('skyMapCanvas'),la=pts.map(q=>q.latitude),lo=pts.map(q=>q.longitude),lat0=Math.min(...la),lat1=Math.max(...la),lon0=Math.min(...lo),lon1=Math.max(...lo),lat=(lat0+lat1)/2,lon=(lon0+lon1)/2,dx=Math.max(.00001,(lon1-lon0)/360),dy=Math.max(.00001,(lat1-lat0)/(360*Math.cos(lat*Math.PI/180)));map.setView(lat,lon,Math.min(Math.log2(Math.max(160,cv.clientWidth)*.8/(256*dx)),Math.log2(Math.max(200,cv.clientHeight)*.8/(256*dy))));},setTime:at=>setTime(at),setObserver:p=>PLACE_PICKERS.skymap.set(p),setTarget:id=>{if(!session||!hasAccess())return;const t=mapTargets().find(x=>x.id===id);if(!t)return;session.target=t;session.partId=null;targetOn=true;el('skyMapTarget').value=t.id;syncBodies();refresh();}};if(routeFromHash()?.skymap)applyRoute();
+ SkyMapUI={open,leave,authChanged,prepareFraming,enter,enterRecords,refreshTargets,redraw:()=>map.redraw(),fitPoints:pts=>{const cv=el('skyMapCanvas'),la=pts.map(q=>q.latitude),lo=pts.map(q=>q.longitude),lat0=Math.min(...la),lat1=Math.max(...la),lon0=Math.min(...lo),lon1=Math.max(...lo),lat=(lat0+lat1)/2,lon=(lon0+lon1)/2,dx=Math.max(.00001,(lon1-lon0)/360),dy=Math.max(.00001,(lat1-lat0)/(360*Math.cos(lat*Math.PI/180)));map.setView(lat,lon,Math.min(Math.log2(Math.max(160,cv.clientWidth)*.8/(256*dx)),Math.log2(Math.max(200,cv.clientHeight)*.8/(256*dy))));},setTime:at=>setTime(at),setObserver:p=>PLACE_PICKERS.skymap.set(p),setTarget:id=>{if(!session||!hasAccess())return;const t=mapTargets().find(x=>x.id===id);if(!t)return;session.target=t;session.partId=null;targetOn=true;el('skyMapTarget').value=t.id;syncBodies();refresh();}};if(routeFromHash()?.skymap)applyRoute();
 })();
 </script>
 
@@ -12310,6 +12329,6 @@ ctx.lineWidth=1;
  new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node.nodeType===1)scan(node);}).observe(document.body,{childList:true,subtree:true});
 })();
 </script>
-<script src="sorami-myplaces.js?v=3999474080822358928"></script>
+<script src="sorami-myplaces.js?v=4355740463869351990"></script>
 </body>
 </html>
