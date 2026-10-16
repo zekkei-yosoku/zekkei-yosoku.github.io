@@ -12,7 +12,7 @@ const place={name:'東京',latitude:35.68,longitude:139.76};
 const ev={peak:today+5.5*H,score:38,rank:S.rankOf(38),confidence:{key:'high'},perModel:{},factors:[],window:[today+5*H,today+6*H]};
 function rounds(initial=[],weeks={sunrise:[{dayMs:today,evaluation:ev}]}){
  const mem={'sorami.rounds':initial}; const store={get:(k,d)=>structuredClone(mem[k]??d),set:(k,v)=>mem[k]=structuredClone(v)};
- const src=grab('function samePlaceAs')+'\n'+html.slice(html.indexOf('const ROUND_KEEP_MS'),html.indexOf('function findSighting'));
+ const src=grab('function samePlaceAs')+'\n'+'const savedRoundClient={state:()=>({rounds:[]})};\n'+html.slice(html.indexOf('const ROUND_KEEP_MS'),html.indexOf('function findSighting'));
  const api=new Function('S','store','weeks','place','collectObservations',src+';return {keepRounds,roundOf,answerableRounds};')(S,store,weeks,place,()=>({cloud:1}));
  return {...api,mem,store};
 }
@@ -50,8 +50,8 @@ test('単一モデルの説明は表示と同じexpectedErrorを使い、±0は�
  assert.match(fn(make(5)),/±5点/);assert.doesNotMatch(fn(make(5)),/±8/);assert.doesNotMatch(fn(make(0)),/±0/);
 });
 test('記録案内はピークではなく窓の終了時刻。翌日の日付も付ける',()=>{
- const a=html.indexOf('  const finished = ev.window[1] <= now;');const b=html.indexOf('  // 広い画面では',a);
- const fn=new Function('S','ev','now','id','findSighting','roundOf','outcomeButtons',html.slice(a,b)+';return record;');
+ const a=html.indexOf('  const current = findSighting(id, ev.peak);');const b=html.indexOf('  // 広い画面では',a);
+ const fn=new Function('S','ev','now','id','findSighting','roundOf','outcomeButtons','const savedPredictionNote=()=>"",savedRoundUnavailable=()=>"始まる前の予測がない";'+html.slice(a,b)+';return record;');
  const out=(e,now)=>fn(S,e,now,'sunrise',()=>null,()=>null,()=>{throw Error('no forecast');});
  assert.match(out(ev,today+4*H),/6:00/);assert.doesNotMatch(out(ev,today+4*H),/5:30/);
  assert.match(out({...ev,window:[today+23*H,today+26*H]},today+22*H),/10\/04.*2:00/);
@@ -64,14 +64,7 @@ function redraw(line){
  const fn=runInNewContext(grab('async function aimRedrawLine')+';aimRedrawLine',{aim,$:k=>els[k],SoramiAtmosphere:{dataKey:()=>"standard"},aimRenderCands(){},AimMap:{redraw(){}},SoramiAlign:{line},aimElevation(){},aimFindCandidates(){},aimRefreshSheetCands(){},S,esc:x=>x,aimSideLabel:x=>x,aimKm:x=>x});
  return {fn,els,aim};
 }
-test('計算開始時に旧表を消す。古い応答・エラーで新しい画面を上書きしない',async()=>{
- const pending=[];const r=redraw(()=>new Promise((resolve,reject)=>pending.push({resolve,reject})));
- const first=r.fn();assert.equal(r.els.aimLineTable.hidden,true);assert.equal(r.els.aimLineTable.innerHTML,'');
- r.aim.target={id:'tower'};const second=r.fn();pending[1].resolve([{side:'rise',points:[{at:ev.peak,distanceKm:2,azimuth:90},{at:ev.peak,distanceKm:3,azimuth:91}]}]);await second;
- const latest=r.els.aimLineTable.innerHTML;assert.match(latest,/2〜3km/);
- pending[0].reject(Error('old'));await first;assert.equal(r.els.aimLineTable.innerHTML,latest);assert.equal(r.els.aimLineTable.hidden,false);
- r.aim.dayMs+=86400000;const fail=r.fn();pending[2].reject(Error('network'));await fail;assert.equal(r.els.aimLineTable.hidden,true);assert.match(r.els.aimLineInfo.textContent,/計算できません/);assert.doesNotMatch(r.els.aimLineInfo.textContent,/どこからも重なりません/);
-});
+test('構図を開き直しても旧撮影地の線・候補・表を復活させない',async()=>{let calls=0;const r=redraw(()=>{calls++;throw Error('obsolete discovery');});await r.fn();assert.equal(calls,0);assert.equal(r.els.aimLineTable.hidden,true);assert.equal(r.els.aimLineTable.innerHTML,'');assert.equal(r.els.aimLineInfo.textContent,'');assert.equal(r.aim.cands.length,0);});
 test('同名の山頂は近くの駅に吸収されず、索引の市町村・標高・位置で出る（高尾山）',async()=>{
  const terrain=createRequire(import.meta.url)('./sorami-terrain.js');
  const osm=[{name:'高尾山',display_name:'高尾山, 高尾山線, 高尾町, 八王子市, 東京都',type:'station',lat:'35.6311',lon:'139.2561',extratags:{}},{name:'高尾山',display_name:'高尾山, 東京都, 193-0841, 日本',type:'peak',lat:'35.62523',lon:'139.24369',extratags:{}}];

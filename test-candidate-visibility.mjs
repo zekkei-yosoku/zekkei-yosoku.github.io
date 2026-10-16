@@ -45,7 +45,7 @@ function harness(found, overrides = {}) {
   const aim = { candSeq: 0, lines: [{ side: 'set', points: [{ distanceKm: 3 }] }], body: 'sun', target,
     candPick: null, candSide: 'set', cands: [] };
   const els = {};
-  const ctx = { aim, $: k => els[k] ||= { innerHTML: '', textContent: '' },
+  const ctx = { AIM_AUTO_CANDIDATES:true, aim, $: k => els[k] ||= { innerHTML: '', textContent: '' },
     aimRefreshSheetCands() {}, aimPlaces: async () => [], aimIsFuji: () => false, aimIsMountain: () => false,
     aimCandidateAccessible: () => true, aimCandidateEye: AL.placeEyeM, aimElevation() {}, aimCandScore: () => 1, aimCandidateSiteSupported: () => true,
     aimOnLand: async c => c, SoramiAlign: { candidates: async () => found, lineOfSight: async () => ({ clear: true }) },

@@ -757,7 +757,7 @@ console.log("== ねらう: その日の候補地（2026-09-30） ==");
   ok(/if \(aim\.body === "moon"\) found = found\.filter\(\(c\) => c\.sunAltitude < 0\)/.test(html), "パールは暗い空の回だけ");
   ok(/const pool = places/.test(html), "富士山は定番スポットも候補に入れる");
   ok(/latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, name:/.test(html), "地図の番号は立つ位置に打つ");
-  ok(/\$\("aimListBox"\)\.hidden = !aimIsFuji\(\)/.test(html), "定番スポットの次の日は富士山だけ");
+ok(/\$\("aimListBox"\)\.hidden = true/.test(html), "構図の旧定番スポット一覧は隠し、撮影ポイント選択を地図に集約する");
   ok(/const spread = Math\.max\(0\.3, lineKm \/ 40\)/.test(html), "上位が一か所に固まらないよう、近いものは1つに");
   // E92: 未確認の仮候補を先に表示する旧仕様を撤回。見通しの確認後だけ表示する。
   const candidateFind = /async function aimFindCandidates\(\) \{[\s\S]*?\n\}/.exec(html)[0];
@@ -916,7 +916,7 @@ ok(/\}, \{ target: c\.heightM \|\| 0 \}\);/.test(html) && /\$\("aimTarget"\)\.va
   "今の高さで登録の画面を開き、保存したらプルダウンの「お気に入り」のそれを選ぶ");
 // ユーザー「お気に入りに入れたやつは保存しておいてプルダウンに表示するようにしたら。そのお気に入りはちゃんと消したりできるように」
 ok(/const aimFavTargets = \(\) => favorites\.filter\(\(f\) => Number\.isFinite\(f\.targetHeightM\)\);/.test(html), "目標として登録したお気に入り（高さつき）をプルダウンに出す");
-ok(/`<optgroup label="お気に入り">\$\{favs\.map\(opt\)\.join\(""\)\}<\/optgroup>`/.test(html), "プルダウンでは「お気に入り」のまとまりにする");
+ok(/`<optgroup label="自分の目標">\$\{favs\.map\(opt\)\.join\(""\)\}<\/optgroup>`/.test(html), "プルダウンでは「お気に入り」のまとまりにする");
 ok(/if \(!c\.fav\) store\.set\("sorami\.aimCustom", null\);/.test(html), "登録したら他の目標は空ける（同じものを2つ並べない）");
 ok(/function aimApply\(\{ redraw = true, recenter = false \} = \{\}\) \{[\s\S]*?aimFillSelects\(\);/.test(html), "お気に入りを消したらプルダウンからも消える（毎回組み直す）");
 ok(/\{ \.\.\.before, targetHeightM: h \}/.test(html), "お気に入りの目標の高さを直すと、お気に入りも直る");
@@ -1697,8 +1697,8 @@ ok(/id="recPending"/.test(html), "#recPending がある");
 const pend = html.slice(html.indexOf("function renderPending"),
                         html.indexOf("function outcomeButtons"));
 ok(/outcomeButtons\(id, ev\.peak/.test(pend), "ホームの一覧に押す場所が付く");
-ok(/\$\("recPending"\)\.hidden = hidden \|\| !out\.length/.test(pend),
-  "答える回が無ければホームに何も出さない");
+ok(/host\.hidden = hidden \|\| \(!out\.length && !notice\)/.test(pend),
+  "答える回も取得状態の案内も無ければホームに何も出さない");
 // F01: 保存した開始前予測のfilterで、終了後7日以内に限定する。境界の挙動はtest-ui-diagnosisで検証。
 ok(/r\.window\[1\] <= now && now - r\.window\[1\] <= ROUND_ANSWER_MS/.test(html), "終わった回だけ聞く");
 ok(/ROUND_ANSWER_MS = 7 \* 86400000/.test(html), "古すぎる回は聞かない（終わってから7日まで）");
@@ -2665,7 +2665,7 @@ for (const el of ["listView", "detailView", "recordsView", "adminView", "aimView
 for (const id of ["placeRow", "nowcast"]) {
   ok(html.includes(`$("${id}").hidden`), `${id} の表示を切り替えている`);
 }
-ok(/\$\("recPending"\)\.hidden/.test(html), "recPending の表示を切り替えている");
+ok(/atRecords \? \$\("recPending"\) : \$\("recordsPending"\)/.test(html), "recPending の表示を切り替えている");
 // 管理画面で隠すもの: 地点・実況・記録の問いかけ
 ok(!["admin", "records"].some((v) => ["list", "detail", "sky"].includes(v)), "地点を管理画面で隠す");
 // 実況は一覧と詳細だけ（道具・記録・管理では出さない）
@@ -2896,7 +2896,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
     && (html.match(/if \(!ready\(\)\) return;/g) || []).length === 2, "座標がまだ出ていなければ、コピーも地図アプリも何もしない");
     ok(/if \(remember\) store\.set\("sorami\.mapLayer", next\);/.test(html) && /setLayer\(store\.get\("sorami\.mapLayer", "map"\)\);/.test(html),
     "選んだ種類はどの地図でも次から使う");
-  ok(/coord: "aimCoord"/.test(html) && /coord: "planeCoord"/.test(html) && !/coord: "issCoord"/.test(html), "ねらう・月丼はピンの位置、ISS は立つ場所の例（ピンは置かない決まり）");
+  ok(!/const AimMap = createMapView/.test(html) && /coord: "planeCoord"/.test(html) && !/coord: "issCoord"/.test(html), "構図の撮影地マップを廃止し、月丼とISSの用途別地図は維持する");
   ok(/<div class="coord-row" data-map="iss" hidden>[\s\S]{0,120}立つ場所の例/.test(html) && /function issCoordUpdate\(\)/.test(html), "ISS は選んでいる回の立つ場所の例");
   const C = /const IS_APPLE[\s\S]*?const savedMapApp = [^\n]*\n/.exec(html)[0];
   const env = (ua, saved) => new Function("navigator", "store", `${C}; return { coordText, MAP_APPS, mapAppChoices, savedMapApp };`)(
@@ -2929,7 +2929,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   ok(/keepRounds\(forPlace\);\n    \$\("status"\)\.hidden = true;/.test(html), "予報を計算したら今日の回を残す");
   const C = req("./sorami-core.js");
   const grab = (name) => { const i = html.indexOf(name); return html.slice(i, html.indexOf("\n}\n", i) + 2); };
-  const src = [grab("function samePlaceAs"), html.slice(html.indexOf("const ROUND_KEEP_MS"), html.indexOf("function findSighting"))].join("\n");
+  const src = [grab("function samePlaceAs"), 'const savedRoundClient={state:()=>({rounds:[]})};\n'+html.slice(html.indexOf("const ROUND_KEEP_MS"), html.indexOf("function findSighting"))].join("\n");
   const mem = {};
   const store = { get: (k, d) => (k in mem ? JSON.parse(mem[k]) : d), set: (k, v) => { mem[k] = JSON.stringify(v); } };
   const DAY = 86400000, now0 = Date.UTC(2026, 9, 2, 3, 0);          // 10/02 12:00 JST
@@ -2939,7 +2939,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
     window: [today + startH * 3600000, today + endH * 3600000] } });
   const place = { id: "p1", name: "曽谷", latitude: 35.74, longitude: 139.93 };
   const f = new Function("S", "store", "weeks", "place", "collectObservations",
-    `${src}; return { keepRounds, answerableRounds, roundOf };`);
+    `const Date=class extends globalThis.Date {static now(){return ${now0}}};${src}; return { keepRounds, answerableRounds, roundOf };`);
   let weeks = { sunset: [mk(74, 16.5, 17.5)] };
   let R = f(C, store, weeks, place, () => ({ x: 1 }));
   R.keepRounds(place, now0);                                          // 始まる前（12時）の予測 74 を残す

@@ -571,6 +571,7 @@
         sunAltitude: body === "sun" ? st.apparentAltitude : body === "moon" ? bodyAt("sun",at,obs).apparentAltitude : A.sun(at, obs).geometricAltitude,
         side: bodyAt(body, at + 60000, obs).apparentAltitude < st.apparentAltitude ? "set" : "rise" };
     };
+    if(Number.isFinite(opts.at))return [evaluate(opts.at)];
     const end = dayMs + 86400000, crossings = [];
     let previous = null, nearest = null;
     // 全天の軌道も確認し、目標の方位を横切らない日にも最接近を返す。
@@ -1797,8 +1798,15 @@
       sunAltitude: body === "sun" ? c.st.apparentAltitude : body === "moon" ? bodyAt("sun",t,eye).apparentAltitude : A.sun(t, eye).geometricAltitude };
   }
 
+  function alignmentAt(observer,target,body,at,opts={}) {
+    const row=dailyView(observer,target,body,at,{...opts,at})[0];if(!row)return null;
+    if(opts.partId==='__whole')return {...row,matched:!!row.intersects};
+    const g=geometryFrom(observer,target,opts),obs={...observer,elevation:(observer.elevation??0)+(opts.eyeM??1.5)},st=bodyAt(body,at,obs);
+    const gap=limbAltitude(st,limbById(opts.limb||'center').sign)-g.angle,tolerance=Math.max(1/60,.2*st.angularRadius);
+    return {...row,gap,matched:Math.abs(azDiff(st.azimuth,g.azimuth))<=tolerance&&Math.abs(gap)<=tolerance&&(st.upperAltitude??st.apparentAltitude+st.angularRadius)>0};
+  }
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
-                        altitudeCrossing, geometryFrom, upcoming, dailyView, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
+                        altitudeCrossing, geometryFrom, upcoming, dailyView, alignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, judge, buildingBlock,
                         viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.SoramiCityModels || CM || {};},get TOWER_MODELS(){return global.SoramiTowerModels || TM || {};}, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, viewWindow, viewPath, sceneTargets };
   global.SoramiAlign = SoramiAlign;
