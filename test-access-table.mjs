@@ -20,7 +20,10 @@ for(const [,tool,ids] of html.matchAll(/<button[^>]*data-tool="([^"]+)"[^>]*data
  assert.deepEqual(ids.split(' '),[...access.SCREENS[screen].tools],`メニュー ${tool} の data-id が認可表と同じ`);
  seen.add(screen);
 }
-assert.deepEqual([...seen].sort(),Object.keys(access.SCREENS).sort(),'認可表のどの画面にもメニューの入口がある');
+// 予測の振り返り（answers）は予測の中の画面。メニューには置かず、予測一覧と予測詳細から入る（2026-10-17）
+assert.ok(!seen.has('answers'),'予測の振り返りはメニューに独立して置かない');
+assert.deepEqual([...seen].sort(),Object.keys(access.SCREENS).filter(k=>k!=='answers').sort(),'認可表のどの画面にもメニューの入口がある');
+assert.ok(/data-open-answers/.test(html),'予測の中に予測の振り返りへの入口がある');
 
 // 画面単位の判定は認可表を通す。同じ組合せを別の場所へ書き写さない
 for(const copy of ['toolAllowed("diamond") || toolAllowed("pearl") || toolAllowed("tower")',"['diamond','pearl','tower'].some(toolAllowed)",'RESTRICTED_TOOL_LABELS'])

@@ -150,8 +150,8 @@ ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待�
   ok(/<nav class="drawer-list">\s*<!--[\s\S]*?-->\s*<button id="toolsHome"><b>(?:<svg\b[^>]*>[\s\S]*?<\/svg>)?予測<\/b>/.test(menu), "メニューのいちばん上に「予測」");
   ok(!/id="toolsHome"[^>]*data-(tool|id)=/.test(menu), "一覧は道具ではない（許可・管理画面の名前に混ぜない）");
   ok(/\$\("toolsHome"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \};/.test(html), "押すと題名と同じく、何画面進んでいても1回で一覧へ");
-  ok(/if \(routeFromHash\(\)\) \$\("toolsHome"\)\.removeAttribute\("aria-current"\);\s+else \$\("toolsHome"\)\.setAttribute\("aria-current", "page"\);/.test(html),
-    "一覧にいるときは「絶景予測」に帯");
+  ok(/if \(!routeFromHash\(\) \|\| routeFromHash\(\)\.answers\) \$\("toolsHome"\)\.setAttribute\("aria-current", "page"\);\s+else \$\("toolsHome"\)\.removeAttribute\("aria-current"\);/.test(html),
+    "一覧と、その中の予測の振り返りにいるときは「予測」に帯");
   ok(/if \(focus\) \$\("toolsHome"\)\.focus\(\);/.test(html), "☰ で開いたら、いちばん上の項目へ焦点");
 }
 ok(/addEventListener\("hashchange", \(\) => \{\s+closeTools\(\);/.test(html) && /function pushRoute\(hash\) \{\s+closeTools\(\);/.test(html),
