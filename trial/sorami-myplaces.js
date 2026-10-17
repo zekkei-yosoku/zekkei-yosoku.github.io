@@ -89,10 +89,10 @@ function renderRecordsHub() {
   if (!auth?.token || !toolAllowed('records')) return;
   const title = document.createElement('h3'); title.className = 'my-title'; title.textContent = '撮影ポイント';
   const intro = document.createElement('p'); intro.className = 'tiny'; intro.textContent = 'どこから何が見えたかを残し、構図や地図で次の撮影につなげます。';
-  host.append(title, intro);
+  const heading=document.createElement('div');heading.className='my-head';heading.append(title);host.append(heading,intro);
   const actions = document.createElement('div'); actions.className = 'my-head';
-  const add = document.createElement('button'); add.type = 'button'; add.className = 'fav-btn primary'; add.textContent = '撮影ポイントを記録する';
-  add.onclick = () => { if (auth?.token && toolAllowed('records')) openPlaceSheet('records'); }; actions.append(add);
+  const add = document.createElement('button'); add.type = 'button'; add.className = 'my-add-point'; add.textContent = '＋';add.setAttribute('aria-label','撮影ポイントを追加');add.title='撮影ポイントを追加';
+  add.onclick = () => { if (auth?.token && toolAllowed('records')) openPlaceSheet('records'); }; heading.append(add);
   if (toolAllowed('skymap')) { const map = document.createElement('button'); map.type = 'button'; map.className = 'chip'; map.textContent = '地図で場所を探す'; map.onclick = () => pushRoute('#/skymap'); actions.append(map); }
   host.append(actions);
   const list = document.createElement('div'); list.className = 'al my-list'; host.append(list);
@@ -107,7 +107,7 @@ function renderRecordsHub() {
   filters.append(reset,targetSelect,bodySelect);host.insertBefore(filters,list);
   if(recordsBodyFilter){const hint=document.createElement('p');hint.className='tiny';hint.textContent='選んだ天体との重なりを調べられる対象がある撮影ポイントです。';host.insertBefore(hint,list);}
   let matches=0;
-  if (!favorites.length) { const empty = document.createElement('p'); empty.className = 'tiny'; empty.textContent = '撮影ポイントはまだありません。「撮影ポイントを記録する」から場所を登録できます。'; list.append(empty); }
+  if (!favorites.length) { const empty = document.createElement('p'); empty.className = 'tiny'; empty.textContent = '撮影ポイントはまだありません。見出し右の＋から場所を登録できます。'; list.append(empty); }
   for (const f of favorites) {
     const active=targetsSeenFrom(f.id).filter(r=>r.result!=='hidden');
     const matching=active.filter(r=>!recordsTargetFilter||r.target.key===recordsTargetFilter);
@@ -576,6 +576,7 @@ style.textContent = `
 .my-places{margin:10px 0 4px;padding-top:8px;border-top:1px solid var(--line)}
 .my-head{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap;margin:4px 0}
 .my-status{margin:0;flex:1 1 180px}
+#myRecordsHub .my-add-point{display:grid;place-items:center;flex:none;width:44px;height:44px;min-height:44px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--accent);color:var(--bg);font-size:28px;line-height:1;cursor:pointer}
 .my-title{font-size:.95rem;margin:10px 0 4px}
 .my-title .tiny{margin-left:4px;font-weight:normal}
 .my-list .my-place-row{display:block;width:100%;text-align:left}
