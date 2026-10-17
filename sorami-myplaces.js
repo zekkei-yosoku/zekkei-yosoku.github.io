@@ -74,7 +74,7 @@ PLACE_PICKERS.recordTarget = { title: '見えた目標を選ぶ', custom: () => 
       if (!entry || !sheetOwnerMatches() || draft.ownerToken !== auth?.token || draft.placeId !== sheetState?.place.id) return;
       const select=el('myRecordTarget');select.replaceChildren(new Option('対象を選ぶ',''),...targetChoices().map(t=>new Option(t.name,t.id)));
       sheetState.draftTargets=draft.targets.map(t=>({...t}));sheetState.bodies=[...draft.bodies];
-      addDraftTarget(resolveTarget('fav:'+entry.id));
+      addDraftTarget(resolveTarget(entry.targetKey||'fav:'+entry.id));
     }, { target: p.targetHeightM ?? p.structureM ?? 0 });
   } };
 
@@ -401,7 +401,7 @@ function buildSheet() {
     <div class="my-input-field"><div class="condition-label">${inputRoleIcon('observer')}<span>撮影地点</span></div><div class="my-location-value" id="myPlaceName"></div></div>
     <div class="my-head"><h3 class="my-title">見える対象</h3><button type="button" class="chip" id="myRecordAdd">＋ 対象を追加</button></div>
     <div id="myPlaceRecords"></div>
-    <div id="myTargetPicker" hidden><div class="my-input-field"><label class="condition-label" for="myRecordTarget">${inputRoleIcon('target')}<span>対象</span></label><select id="myRecordTarget" class="fav-in"></select></div><button type="button" class="chip" id="myRecordPickTarget">地図・検索で対象を選ぶ</button><p class="tiny">選ぶと一覧に追加します。続けて選べます。</p></div>
+    <div id="myTargetPicker" hidden><div class="my-input-field"><label class="condition-label" for="myRecordTarget">${inputRoleIcon('target')}<span>対象</span></label><select id="myRecordTarget" class="fav-in"></select></div><button type="button" class="chip" id="myRecordPickTarget">対象を検索・追加</button><p class="tiny">選ぶと一覧に追加します。続けて選べます。</p></div>
     <p class="warn" id="myRecordError" role="status" hidden></p><p class="tiny" id="myRecordSaved" role="status" hidden></p>
     <div class="my-actions"><button type="button" class="fav-btn primary" id="myRecordSave">まとめて保存</button><button type="button" class="chip" id="myRecordCancel">キャンセル</button></div>
     <p class="tiny muted">対象はこのブラウザに保存します。登録日は保存時に自動で残します。</p>
@@ -413,6 +413,7 @@ function buildSheet() {
   sheet.addEventListener('cancel',e=>{if(!discardDraft())e.preventDefault();});
   el('myRecordAdd').onclick=()=>showRecordEditor();
   el('myRecordCancel').onclick=()=>{sheetState.draftTargets=sheetState.initialTargets.map(t=>({...t}));el('myTargetPicker').hidden=true;el('myRecordAdd').hidden=false;el('myRecordError').hidden=true;el('myRecordSaved').hidden=true;renderSheet();};
+  if(window.AstroTargetPicker)el('myRecordTarget').hidden=true;
   el('myRecordTarget').onchange=()=>addDraftTarget(resolveTarget(el('myRecordTarget').value));
   el('myRecordSave').onclick=saveRecord;
   sheet.addEventListener('close', () => { sheetToken++; undoRec = null; });
@@ -427,7 +428,7 @@ function buildSheet() {
   el('myRecordPickTarget').onclick = () => {
     if (!sheetOwnerMatches()) { sheet.close(); return; }
     targetDraft={ownerToken:auth.token,placeId:sheetState.place.id,targets:sheetState.draftTargets.map(t=>({...t})),bodies:[...sheetState.bodies]};
-    openPlaceSheet('recordTarget');
+    if(window.AstroTargetPicker)AstroTargetPicker.open(el('myRecordTarget'),()=>openPlaceSheet('recordTarget'),el('myRecordPickTarget'));else openPlaceSheet('recordTarget');
   };
   el('myPlaceMap').onclick = () => {
     if (!sheetOwnerMatches() || !toolAllowed('skymap')) return;
