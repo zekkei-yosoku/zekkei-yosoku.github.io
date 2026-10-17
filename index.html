@@ -12,8 +12,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="15454783913789407507">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-3IZjeeiWerp4W0oWYUqxK/nNnoJFpQ1mHVAr9hQhXzE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-U1PC1Lbux6r/JoafzQyZ0xa5wj+ZXa/qpadvSncBnPU=' 'sha256-Z0JuVzm2YjnaJyUXWsmFAWB/MoYd9KFSDiuONzw1x/s=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="9028496373806610789">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-stML7YGiGlE2F7hsZLqw4ktnKj7iHEwm1xJ1ET6NG70=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-U1PC1Lbux6r/JoafzQyZ0xa5wj+ZXa/qpadvSncBnPU=' 'sha256-Z0JuVzm2YjnaJyUXWsmFAWB/MoYd9KFSDiuONzw1x/s=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
@@ -9937,7 +9937,7 @@ $("mapPick").onclick = async () => {
 };
 
 /// 地点の画面を開く。mode は placeSheetFor（null＝絶景予測の地点、"aim"＝ねらうの観測地点）
-function openPlaceSheet(mode = null, { focusSearch = true } = {}) {
+function openPlaceSheet(mode = null, { focusSearch = false } = {}) {
   placeSheetFor = mode;
   const picker = mode && PLACE_PICKERS[mode];
   $("placeSheetTitle").textContent = picker ? picker.title : "地点";
@@ -9952,8 +9952,8 @@ function openPlaceSheet(mode = null, { focusSearch = true } = {}) {
   aimRenderSheetCands();
   try { recentHistory.open(); } catch { /* Keep the existing location picker available. */ }
   showSheet($("placeSheet"));
-  // **開いたらすぐ打てる。** 押した操作の中で焦点を移すと、iPhone でもキーボードが出る。
-  // 前の検索語は選択しておき、打てば置き換わるようにする（2026-10-01）
+  // お気に入りを選べるよう、通常はシートへ焦点を置いたままにする。
+  // 検索は入力欄をタップして始める。明示的な検索専用入口だけfocusSearchで指定できる。
   if (focusSearch) { $("searchBox").focus(); $("searchBox").select(); }
 }
 $("placeButton").onclick = () => openPlaceSheet(null);

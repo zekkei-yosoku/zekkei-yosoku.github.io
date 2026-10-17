@@ -818,7 +818,7 @@ console.log("== 地点カードで探せると分かる（2026-10-01） ==");
 {
   const card = (html.match(/<button class="place-pick" id="placeButton">[\s\S]*?<\/button>/) || [""])[0];
   ok(/<circle cx="10\.5" cy="10\.5" r="6\.5"\/>/.test(card) && !/▾/.test(card), "地点カードの右は虫眼鏡（▾ ではない）");
-  ok(/if \(focusSearch\) \{ \$\("searchBox"\)\.focus\(\); \$\("searchBox"\)\.select\(\); \}/.test(html), "地点カードからは検索へ、候補からは候補タブへ焦点を移す");
+  ok(/if \(focusSearch\) \{ \$\("searchBox"\)\.focus\(\); \$\("searchBox"\)\.select\(\); \}/.test(html), "検索への焦点移動は明示指定時だけに限定する");
 }
 
 console.log("== 月を表すところは全部、その時の満ち欠け（2026-10-01） ==");
