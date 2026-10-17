@@ -183,34 +183,18 @@ function renderRows(box, rows, target, body, opts, onPick, token) {
 }
 
 // ---------------------------------------------------------------- 構図（どこから重ねるかの下）
-let aimToken = 0;
 function aimBox() {
   let box = el('myPlacesAim');
   if (box) return box;
-  box = document.createElement('section'); box.id = 'myPlacesAim'; box.className = 'my-places'; box.setAttribute('aria-label', '見えた撮影ポイント');
-  el('aimFrom').after(box);
+  box = document.createElement('section'); box.id = 'myPlacesAim'; box.className = 'shooting-location-actions'; box.setAttribute('aria-label', '撮影地点を探す');
+  el('aimFromButton').closest('.aim-say').after(box);
   return box;
 }
 function renderAim() {
-  const box = aimBox(), t = aim.target, token = ++aimToken;
-  box.replaceChildren();
-  if (!t || !(t.parts || []).length || t.id === 'custom') {
-    box.hidden = t?.id !== 'custom';
-    if (t?.id === 'custom') box.innerHTML = '<p class="tiny">この目標を ☆ で自分の目標に登録すると、見えた記録を付けられます。</p>';
-    return;
-  }
-  box.hidden = false;
-  const f = aimFromPoint(), here = f && placeNear(f), now = here && statusOf(here.id, t.id);
-  const head = document.createElement('div'); head.className = 'my-head';
-  const status = document.createElement('p'); status.className = 'tiny my-status';
-  status.textContent = !f ? '' : now ? `${here.name}から${t.name}：${RESULTS[now.result].mark} ${RESULTS[now.result].name}${now.date ? '（' + now.date.replaceAll('-', '/') + '）' : ''}`
-    : here ? `${here.name}から${t.name}：未記録` : 'この観測地点は撮影ポイントに未登録';
-  const rec = document.createElement('button'); rec.type = 'button'; rec.className = 'chip'; rec.id = 'myRecordAim';
-  rec.textContent = now ? '記録を見る' : '見え方を記録する';
-  rec.onclick = () => recordFor(f, t.id, 'aim');
-  rec.hidden = !f;
-  head.append(status, rec); box.append(head);
-  const candidates=document.createElement('button');candidates.type='button';candidates.className='chip';candidates.textContent='この日の候補から選ぶ';candidates.onclick=()=>{openPlaceSheet('aim',{focusSearch:false});recentHistory.candidates();};box.append(candidates);
+  const box = aimBox(), t = aim.target, map=el('skyMapOpen')?.closest('.sky-map-link');
+  box.replaceChildren();box.hidden=false;
+  const candidates=document.createElement('button');candidates.type='button';candidates.className='chip';candidates.textContent='この日の候補から選ぶ';candidates.hidden=!t||!(t.parts||[]).length||t.id==='custom';candidates.onclick=()=>{openPlaceSheet('aim',{focusSearch:false});recentHistory.candidates();};box.append(candidates);
+  if(map)box.append(map);
 }
 function adoptOverlap(row) {
  if(row?.matchMode!=='overlap')return;
@@ -312,7 +296,6 @@ function skyRender(s){
  skySession=s;if(!s||!auth?.token||!toolAllowed('skymap'))return;
  const box=skyBox(),t=s.target;
  const detail=el('skyMapAlignmentDetails');detail.hidden=!s.observer||!t;el('skyMapAlignmentSummary').textContent=s.matchMode==='overlap'?'重ね方：指定なし':`重ね方：${s.partId==='__whole'?'建物全体':SoramiAlign.limbById(s.limb).name}`;
- const recordButton=el('shootingRecordHere');if(recordButton)recordButton.hidden=!s.observer;
  if(!t){skyKey='';candidateState={status:'idle',rows:[],failed:0};box.textContent='何を・何に重ねるかと撮影日を選ぶと、記録した撮影ポイントから候補を出します。';candidateSheet?.close();return;}
  const key=currentSkyQuery(s);
  if(key!==skyKey){
@@ -328,7 +311,7 @@ function skyRender(s){
   part.onchange=()=>SkyMapUI?.setAlignment?.(part.value||null,limb.value||'center','limb');limb.onchange=()=>SkyMapUI?.setAlignment?.(part.value||null,limb.value||'center',limb.value?'limb':'overlap');const any=document.createElement('button');any.type='button';any.className='chip';any.textContent='指定なし';any.setAttribute('aria-pressed',String(s.matchMode==='overlap'));any.onclick=()=>SkyMapUI?.setAlignment?.(null,'center','overlap');alignment.append(any,part,limb);el('skyMapAlignmentControls').replaceChildren(alignment);
   const status=document.createElement('p');status.className='tiny';status.id='shootingCandidateStatus';status.setAttribute('role','status');
   const overlap=document.createElement('p');overlap.className='tiny shooting-overlap';overlap.id='shootingOverlap';overlap.setAttribute('role','status');box.append(status,overlap);
-  const rec=document.createElement('button');rec.type='button';rec.className='chip';rec.id='shootingRecordHere';rec.hidden=!s.observer;rec.textContent='この撮影ポイントを記録する';rec.onclick=()=>recordFor(skySession.observer,skySession.target?.id,'sky');box.append(rec);
+
   candidateState={status:'loading',rows:[],failed:0};updateCandidateUI();
   let job=candidateCache.get(key);
   if(!job){job=SoramiShooting.candidates(plan,points,{align:SoramiAlign,isMountain:aimIsMountain,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),elevationAt:aimElevation,ensure:b=>SoramiBodies.ensure(b),isCurrent:()=>owner===auth?.token&&token===skyToken&&!!skySession&&currentSkyQuery(skySession)===key});candidateCache.set(key,job);if(candidateCache.size>24)candidateCache.delete(candidateCache.keys().next().value);}
@@ -563,7 +546,7 @@ window.addEventListener('storage', (e) => { if (e.key === key() || e.key === 'so
 
 const style = document.createElement('style');
 style.textContent = `
-.shooting-alignment{display:flex;gap:8px;flex-wrap:wrap}.shooting-alignment select{min-width:0;flex:1;min-height:44px;font-size:16px}.shooting-overlap{padding:8px;border-radius:8px}.shooting-overlap-on{background:var(--accent);color:var(--on-accent,#fff);font-weight:bold}#aimView .preview-workspace{display:block}#aimView .preview-tabs{display:none}
+.shooting-location-actions{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}.shooting-location-actions .sky-map-link{margin:0}.shooting-alignment{display:flex;gap:8px;flex-wrap:wrap}.shooting-alignment select{min-width:0;flex:1;min-height:44px;font-size:16px}.shooting-overlap{padding:8px;border-radius:8px}.shooting-overlap-on{background:var(--accent);color:var(--on-accent,#fff);font-weight:bold}#aimView .preview-workspace{display:block}#aimView .preview-tabs{display:none}
 /* Shooting-point details scroll only vertically, including native iOS date fields. */
 #myPlaceSheet{overflow:hidden;min-width:0}
 #myPlaceSheet[open]{display:flex;flex-direction:column}

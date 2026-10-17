@@ -12,8 +12,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="2159827788069039840">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-5zN8W5GblC+aqf//unFDx95OexDCJTesU9a6QmqjErM=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-lplzROrTL3xt+R19O70ttKL0pE/NjRxo7krV62NJNok=' 'sha256-QWllbRS+PHfE4d8Cs6uCruH5uFogHIQ/j6KGME29bdM=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="1021919561763478491">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-gaz4ABzsrwjii414FnBWsxCPyWPyYKvro9lUhlWDmtA=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-lplzROrTL3xt+R19O70ttKL0pE/NjRxo7krV62NJNok=' 'sha256-QWllbRS+PHfE4d8Cs6uCruH5uFogHIQ/j6KGME29bdM=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
@@ -42,7 +42,7 @@
 <link data-script-preload rel="preload" as="script" href="sorami-moon.js?v=10230678456179898054">
 <link data-script-preload rel="preload" as="script" href="sorami-scroll-timeline.js?v=1436491398997474438">
 <link data-script-preload rel="preload" as="script" href="sorami-datetime-ui.js?v=13087204954338235521">
-<link data-script-preload rel="preload" as="script" href="sorami-myplaces.js?v=9071125050461396083">
+<link data-script-preload rel="preload" as="script" href="sorami-myplaces.js?v=8870909592315791152">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1704,7 +1704,17 @@ button.ui-icon-button::after { content: none; }
     <!-- 観測標高を「標高」（地面だけ）と「地上から」（目の高さ1.5m＋立つ所の高さ）に分ける（2026-10-06 ユーザー「観測標高は枠分ける？標高と目線とで」
          「標高は標高だけ。展望台の高さは目線のところに持っていくのがいいのか？」）。名前を「目線」にすると展望台の351.5mが目の高さに見えて迷うので「地上から」。
          展望台の登録がある施設は、数字を打たずに立つ所を選ぶ（それまでは先頭の展望台に決め打ちで、天望回廊は観測標高を手で直すしかなかった） -->
-    <div class="aim-side-seg aim-stand" id="aimStand" role="group" aria-label="立つ所"></div>
+    <!-- 日付と観測地点の候補日は一つのセクション。図を見る前に選ぶ。 -->
+    <section class="aim-date-section" aria-label="日付と候補日">
+    <div class="aim-row aim-date">
+      <button id="aimPrev" class="fav-btn" aria-label="前の日">‹</button>
+      <input type="hidden" id="aimDate">
+      <button type="button" id="aimCalendarOpen" class="fav-in" aria-label="重なる日カレンダーを開く" aria-haspopup="dialog" aria-controls="aimCalendar">日付を選ぶ</button>
+      <button id="aimNext" class="fav-btn" aria-label="次の日">›</button>
+    </div>
+    <div id="aimFrom" class="aim-from"></div>
+    </section>
+<div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div><div class="sky-map-link"><button type="button" class="chip" id="skyMapOpen">撮影ポイントを地図で選ぶ</button></div><div class="preview-toolbar"><div class="preview-tabs" role="tablist" aria-label="撮影の確認"><button type="button" id="previewSceneTab" role="tab" aria-selected="true" aria-controls="previewScene">見え方</button><button type="button" id="previewPlacesTab" role="tab" aria-selected="false" aria-controls="previewPlaces" tabindex="-1">撮影地</button></div><button type="button" class="plan-trigger" aria-label="撮影計画を共有" title="共有" data-plan-action="share" data-plan-source="aim"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M7 10H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2"/></svg></button></div><div class="preview-workspace"><section id="previewScene" role="tabpanel" aria-labelledby="previewSceneTab">    <details id="aimObserverDetails" class="alignment-details" hidden><summary id="aimObserverSummary">撮影地点の高さ</summary>    <div class="aim-side-seg aim-stand" id="aimStand" role="group" aria-label="立つ所"></div>
     <div class="aim-observer-height">
       <label for="aimGroundHeight">標高</label>
       <input id="aimGroundHeight" type="number" inputmode="decimal" min="-500" max="9000" step="any" placeholder="取得中…" aria-label="立つ場所の地面の標高（海抜メートル）" disabled><span>m</span>
@@ -1717,17 +1727,7 @@ button.ui-icon-button::after { content: none; }
     </div>
     <p class="tiny muted" id="aimObserverHeightHint"></p>
     <p id="aimObserverHeightError" class="tiny" role="alert" hidden></p>
-    <!-- 日付と観測地点の候補日は一つのセクション。図を見る前に選ぶ。 -->
-    <section class="aim-date-section" aria-label="日付と候補日">
-    <div class="aim-row aim-date">
-      <button id="aimPrev" class="fav-btn" aria-label="前の日">‹</button>
-      <input type="hidden" id="aimDate">
-      <button type="button" id="aimCalendarOpen" class="fav-in" aria-label="重なる日カレンダーを開く" aria-haspopup="dialog" aria-controls="aimCalendar">日付を選ぶ</button>
-      <button id="aimNext" class="fav-btn" aria-label="次の日">›</button>
-    </div>
-    <div id="aimFrom" class="aim-from"></div>
-    </section>
-<div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div><div class="sky-map-link"><button type="button" class="chip" id="skyMapOpen">撮影ポイントを地図で選ぶ</button></div><div class="preview-toolbar"><div class="preview-tabs" role="tablist" aria-label="撮影の確認"><button type="button" id="previewSceneTab" role="tab" aria-selected="true" aria-controls="previewScene">見え方</button><button type="button" id="previewPlacesTab" role="tab" aria-selected="false" aria-controls="previewPlaces" tabindex="-1">撮影地</button></div><button type="button" class="plan-trigger" aria-label="撮影計画を共有" title="共有" data-plan-action="share" data-plan-source="aim"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M7 10H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2"/></svg></button></div><div class="preview-workspace"><section id="previewScene" role="tabpanel" aria-labelledby="previewSceneTab">    <details id="aimAlignmentDetails" class="alignment-details" hidden><summary id="aimAlignmentSummary">重ね方：指定なし</summary><button type="button" class="chip" id="aimOverlapAny" aria-pressed="true">指定なし</button>    <div class="aim-row" id="aimPartRow">
+</details><details id="aimAlignmentDetails" class="alignment-details" hidden><summary id="aimAlignmentSummary">重ね方：指定なし</summary><button type="button" class="chip" id="aimOverlapAny" aria-pressed="true">指定なし</button>    <div class="aim-row" id="aimPartRow">
       <select id="aimPart" class="fav-in" aria-label="高さ"></select>
     </div>
     <!-- 太陽・月のどの縁をてっぺんに合わせるか。図と短い字の3つの釦（2026-10-02 ユーザー「もっと簡潔でわかりやすいのがあるんじゃないか」
@@ -7439,6 +7439,7 @@ const aimM = (v) => String(Math.round(v * 10) / 10);
 function aimRenderObserverHeight(f, ground) {
   const gIn = $("aimGroundHeight"), sIn = $("aimStandHeight");
   const ready = !!f && Number.isFinite(ground);
+  $("aimObserverSummary").textContent = "撮影地点の高さ";
   aim.fromGround = ready ? ground : null;
   // 立つ所（展望台の登録がある施設だけ）。地面と、展望台ごとの床の高さ
   const decks = f ? aimDecksOf(f) : [];
@@ -7453,6 +7454,7 @@ function aimRenderObserverHeight(f, ground) {
   if (!ready) { gIn.value = ""; sIn.value = ""; $("aimObserverHeightHint").textContent = ""; return; }
   const obs = aimObserverAt(f, ground);
   gIn.value = aimM(obs.elevation); sIn.value = aimM(obs.eyeM);
+  $("aimObserverSummary").textContent = `高さ：標高 ${gIn.value}m・地上から ${sIn.value}m`;
   gIn.dataset.validValue = gIn.value; sIn.dataset.validValue = sIn.value;
   $("aimObserverHeightHint").textContent = `観測標高 ${aimM(obs.elevation + obs.eyeM)}m ・ ${aimStandDeck(f)?.heightBasis === "published-viewpoint" && !Number.isFinite(f?.standAglM) ? "地上からは公称の眺望高さ" : `地上からは目の高さ${AIM_EYE_M}m込み`}`;
 }
@@ -7836,6 +7838,7 @@ async function aimRenderFrom() {
   const f = aimFromPoint();
   // 地点カードと同じ形: 名前と、住所・標高（標高は読めたら足す）
   $("aimAlignmentDetails").hidden = !f;
+  $("aimObserverDetails").hidden = !f;
   renderPointCard("aimFrom", f);
   $("aimFromClear").hidden=!f;$("aimFromFav").hidden=!f;
   for(const row of $("aimView").querySelectorAll(".aim-observer-height"))row.hidden=!f;
@@ -12471,6 +12474,6 @@ ctx.lineWidth=1;
  new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node.nodeType===1)scan(node);}).observe(document.body,{childList:true,subtree:true});
 })();
 </script>
-<script src="sorami-myplaces.js?v=9071125050461396083"></script>
+<script src="sorami-myplaces.js?v=8870909592315791152"></script>
 </body>
 </html>
