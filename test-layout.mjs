@@ -922,7 +922,7 @@ ok(/function aimApply\(\{ redraw = true, recenter = false \} = \{\}\) \{[\s\S]*?
 ok(/\{ \.\.\.before, targetHeightM: h \}/.test(html), "お気に入りの目標の高さを直すと、お気に入りも直る");
 ok(/<div id="favTargetBox" hidden>\s*<label class="fav-l" for="favTargetH">重ねる目標の高さ/.test(html), "登録の画面に「重ねる目標の高さ」");
 ok(/\$\("favStandBox"\)\.hidden = \$\("favPhBox"\)\.hidden = target !== null;/.test(html), "目標として開いたら、立って見る場所の項目は隠す");
-ok(/targetHeightM: favTargetHeight\(\),/.test(html) && /\|\| favTargetHeight\(\) !== o\.targetHeightM[\s\S]{0,120}favDraft\.latitude !== o\.latitude/.test(html), "保存する・変えたら閉じるときに確かめる");
+ok(/targetHeightM: favTargetHeight\(\)(?: \?\? before\?\.targetHeightM \?\? null)?,/.test(html) && /\|\| favTargetHeight\(\) !== o\.targetHeightM[\s\S]{0,120}favDraft\.latitude !== o\.latitude/.test(html), "保存する・変えたら閉じるときに確かめる");
 ok(/targetHeightM: Number\.isFinite\(f\.targetHeightM\) && f\.targetHeightM >= 0 && f\.targetHeightM <= 1000/.test(html), "読み込みでも検査する（同期で別端末へも渡る）");
 ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM/.test(html), "0m で登録した目標は 0m のまま（前に入れた高さを引きずらない）");
 

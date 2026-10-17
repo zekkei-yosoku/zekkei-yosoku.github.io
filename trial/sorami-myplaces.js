@@ -68,6 +68,8 @@ let targetDraft = null;
 PLACE_PICKERS.recordTarget = { title: '見えた目標を選ぶ', custom: () => null, point: () => sheetState?.place || place,
   set: p => {
     const draft = targetDraft; if (!draft || !sheetOwnerMatches() || draft.ownerToken !== auth?.token || draft.placeId !== sheetState?.place.id) return;
+    const existing=targetChoices().find(t=>SoramiTerrain.distanceKm(t.latitude,t.longitude,p.latitude,p.longitude)<NEAR_KM);
+    if(existing){addDraftTarget(existing);return;}
     void favForPoint(p, entry => {
       if (!entry || !sheetOwnerMatches() || draft.ownerToken !== auth?.token || draft.placeId !== sheetState?.place.id) return;
       const select=el('myRecordTarget');select.replaceChildren(new Option('対象を選ぶ',''),...targetChoices().map(t=>new Option(t.name,t.id)));
