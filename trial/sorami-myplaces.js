@@ -82,17 +82,16 @@ PLACE_PICKERS.recordTarget = { title: '見えた目標を選ぶ', custom: () => 
 let recordsTargetFilter = '', recordsBodyFilter = '', recordsFilterOwner = null;
 function renderRecordsHub() {
   const host = el('myRecordsHub'); if (!host) return;
-  host.replaceChildren();
+  host.replaceChildren();el('recordsHeading')?.querySelector('.my-add-point')?.remove();
   if (skyOwner !== auth?.token || !toolAllowed('skymap')) { leaveSky(); skyOwner=auth?.token; }
   if (sheet?.open && sheetState?.ownerToken !== auth?.token) sheet.close();
   // 非表示でも旧アカウントの地点・記録をDOMへ残さない。
   if (!auth?.token || !toolAllowed('records')) return;
-  const title = document.createElement('h3'); title.className = 'my-title'; title.textContent = '撮影ポイント';
   const intro = document.createElement('p'); intro.className = 'tiny'; intro.textContent = 'どこから何が見えたかを残し、構図や地図で次の撮影につなげます。';
-  const heading=document.createElement('div');heading.className='my-head';heading.append(title);host.append(heading,intro);
+  const heading=el('recordsHeading');heading.querySelector('.my-add-point')?.remove();host.append(intro);
   const actions = document.createElement('div'); actions.className = 'my-head';
-  const add = document.createElement('button'); add.type = 'button'; add.className = 'my-add-point'; add.textContent = '＋';add.setAttribute('aria-label','撮影ポイントを追加');add.title='撮影ポイントを追加';
-  add.onclick = () => { if (auth?.token && toolAllowed('records')) openPlaceSheet('records'); }; heading.append(add);
+  const add = document.createElement('button'); add.type = 'button'; add.className = 'my-add-point'; add.textContent = '＋';add.setAttribute('aria-label','記録を追加');add.title='記録を追加';
+  add.onclick = () => { if (auth?.token && toolAllowed('records')) openPlace(null,'records'); }; heading.append(add);
   if (toolAllowed('skymap')) { const map = document.createElement('button'); map.type = 'button'; map.className = 'chip'; map.textContent = '地図で場所を探す'; map.onclick = () => pushRoute('#/skymap'); actions.append(map); }
   host.append(actions);
   const list = document.createElement('div'); list.className = 'al my-list'; host.append(list);
@@ -107,7 +106,7 @@ function renderRecordsHub() {
   filters.append(reset,targetSelect,bodySelect);host.insertBefore(filters,list);
   if(recordsBodyFilter){const hint=document.createElement('p');hint.className='tiny';hint.textContent='選んだ天体との重なりを調べられる対象がある撮影ポイントです。';host.insertBefore(hint,list);}
   let matches=0;
-  if (!favorites.length) { const empty = document.createElement('p'); empty.className = 'tiny'; empty.textContent = '撮影ポイントはまだありません。見出し右の＋から場所を登録できます。'; list.append(empty); }
+  if (!favorites.length) { const empty = document.createElement('p'); empty.className = 'tiny'; empty.textContent = '記録はまだありません。右上の＋から追加できます。'; list.append(empty); }
   for (const f of favorites) {
     const active=targetsSeenFrom(f.id).filter(r=>r.result!=='hidden');
     const matching=active.filter(r=>!recordsTargetFilter||r.target.key===recordsTargetFilter);
@@ -123,7 +122,7 @@ function renderRecordsHub() {
     row.append(name, sub); row.onclick = () => {openPlace(f, 'records');if(recordsBodyFilter){sheetState.bodies=[recordsBodyFilter];for(const check of sheet.querySelectorAll('[data-planning-body]'))check.checked=check.value===recordsBodyFilter;}}; list.append(row);
   }
   if(favorites.length&&!matches){const empty=document.createElement('p');empty.className='tiny';empty.textContent='この条件の撮影ポイントはありません。';list.append(empty);}
-  const note = document.createElement('p'); note.className = 'tiny muted'; note.textContent = '見えたものの記録はこのブラウザだけに保存します。撮影ポイント（お気に入り）は同期します。'; host.append(note);
+  const note = document.createElement('p'); note.className = 'tiny muted'; note.textContent = '見えたものの記録はこのブラウザだけに保存します。撮影地点（お気に入り）は同期します。'; host.append(note);
 }
 async function openFromRecords(place, target = null, row = null) {
   if (!screenAllowed('framing')) return;
@@ -396,12 +395,13 @@ function registrationChanges(place,before,after,now=Date.now()){
 }
 function buildSheet() {
   sheet = document.createElement('dialog'); sheet.className = 'sheet'; sheet.id = 'myPlaceSheet'; sheet.tabIndex = -1; sheet.setAttribute('aria-labelledby', 'myPlaceTitle');
-  sheet.innerHTML = `<div class="sheet-head"><strong id="myPlaceTitle">撮影ポイント</strong><button type="button" data-close aria-label="閉じる">閉じる</button></div>
+  sheet.innerHTML = `<div class="sheet-head"><strong id="myPlaceTitle">記録を追加</strong><button type="button" data-close aria-label="閉じる">閉じる</button></div>
   <div class="sheet-body">
-    <div class="my-input-field"><div class="condition-label">${inputRoleIcon('observer')}<span>撮影地点</span></div><div class="my-location-value" id="myPlaceName"></div></div>
-    <div class="my-head"><h3 class="my-title">見える対象</h3><button type="button" class="chip" id="myRecordAdd">＋ 対象を追加</button></div>
+    <div class="my-input-field"><div class="condition-label">${inputRoleIcon('observer')}<span>撮影地点</span></div><button type="button" class="my-location-value" id="myPlaceName" aria-label="撮影地点を選ぶ"></button></div>
+    <div id="myRecordLocationConfirm" hidden><p class="tiny">保存していない対象の編集を戻して、撮影地点を変更しますか？</p><button type="button" class="chip" id="myRecordLocationChange">変更する</button><button type="button" class="chip" id="myRecordLocationKeep">戻る</button></div>
+    <div class="my-input-field"><div class="condition-label">${inputRoleIcon('target')}<span>対象</span></div><button type="button" class="my-location-value" id="myRecordPickTarget" aria-label="対象を選んで追加">対象を追加</button></div>
+    <select id="myRecordTarget" hidden aria-label="対象"></select><button id="myRecordAdd" type="button" hidden>対象を追加</button><div id="myTargetPicker" hidden></div>
     <div id="myPlaceRecords"></div>
-    <div id="myTargetPicker" hidden><div class="my-input-field"><label class="condition-label" for="myRecordTarget">${inputRoleIcon('target')}<span>対象</span></label><select id="myRecordTarget" class="fav-in"></select></div><button type="button" class="chip" id="myRecordPickTarget">対象を検索・追加</button><p class="tiny">選ぶと一覧に追加します。続けて選べます。</p></div>
     <p class="warn" id="myRecordError" role="status" hidden></p><p class="tiny" id="myRecordSaved" role="status" hidden></p>
     <div class="my-actions"><button type="button" class="fav-btn primary" id="myRecordSave">まとめて保存</button><button type="button" class="chip" id="myRecordCancel">キャンセル</button></div>
     <p class="tiny muted">対象はこのブラウザに保存します。登録日は保存時に自動で残します。</p>
@@ -411,8 +411,11 @@ function buildSheet() {
   document.body.append(sheet);
   sheet.querySelector('[data-close]').onclick = () => {if(discardDraft())sheet.close();};
   sheet.addEventListener('cancel',e=>{if(!discardDraft())e.preventDefault();});
-  el('myRecordAdd').onclick=()=>showRecordEditor();
-  el('myRecordCancel').onclick=()=>{sheetState.draftTargets=sheetState.initialTargets.map(t=>({...t}));el('myTargetPicker').hidden=true;el('myRecordAdd').hidden=false;el('myRecordError').hidden=true;el('myRecordSaved').hidden=true;renderSheet();};
+  el('myRecordAdd').onclick=()=>el('myRecordPickTarget').click();
+  el('myPlaceName').onclick=()=>{if(!sheetOwnerMatches())return;if(draftChanged()){el('myRecordLocationConfirm').hidden=false;return;}openPlaceSheet('records');};
+  el('myRecordLocationChange').onclick=()=>{if(!sheetOwnerMatches())return;el('myRecordLocationConfirm').hidden=true;openPlaceSheet('records');};
+  el('myRecordLocationKeep').onclick=()=>{el('myRecordLocationConfirm').hidden=true;el('myPlaceName').focus();};
+  el('myRecordCancel').onclick=()=>{sheetState.draftTargets=sheetState.initialTargets.map(t=>({...t}));el('myTargetPicker').hidden=true;el('myRecordAdd').hidden=true;el('myRecordError').hidden=true;el('myRecordSaved').hidden=true;sheet.close();};
   if(window.AstroTargetPicker)el('myRecordTarget').hidden=true;
   el('myRecordTarget').onchange=()=>addDraftTarget(resolveTarget(el('myRecordTarget').value));
   el('myRecordSave').onclick=saveRecord;
@@ -440,13 +443,15 @@ function buildSheet() {
 const sheetOwnerMatches = () => !!auth?.token && sheetState?.ownerToken === auth.token;
 function openPlace(place, ctx, targetKey = null) {
   if (!sheet) buildSheet();
+  place=place||{id:null,name:'',latitude:null,longitude:null};
   const current = ctx === 'sky' ? skySession?.target?.id : aim.target?.id;
   const initialTargets=savedTargets(place.id);
   sheetState = {initialTargets,baseline:targetSetKey(initialTargets),draftTargets:initialTargets.map(t=>({...t})),place:{...place},ctx, ownerToken: auth?.token, bodies:[ctx === 'sky' ? (skySession?.body || 'sun') : aim.body], planningRequested:false };
-  el('myPlaceTitle').textContent = '撮影ポイント';
-  el('myPlaceName').textContent = place.name;
+  el('myPlaceTitle').textContent = initialTargets.length?'記録を編集':'記録を追加';
+  el('myRecordLocationConfirm').hidden=true;
+  el('myPlaceName').textContent = place.name||'撮影地点を選ぶ';el('myPlaceName').classList.toggle('is-empty',!place.id);
   for(const check of sheet.querySelectorAll('[data-planning-body]'))check.checked=sheetState.bodies.includes(check.value);
-  el('myPlaceSub').textContent = [place.subtitle, `${place.latitude.toFixed(5)}, ${place.longitude.toFixed(5)}`, finite(place.elevation) ? `標高 ${place.elevation}m` : '標高不明', `地上から ${place.eyeHeightAGL ?? 1.5}m` ].filter(Boolean).join(' ・ ');
+  el('myPlaceSub').textContent = [place.subtitle, finite(place.latitude)&&finite(place.longitude)?`${place.latitude.toFixed(5)}, ${place.longitude.toFixed(5)}`:'', finite(place.elevation) ? `標高 ${place.elevation}m` : '標高不明', `地上から ${place.eyeHeightAGL ?? 1.5}m` ].filter(Boolean).join(' ・ ');
   el('myPlaceMap').hidden = ctx === 'sky' || !toolAllowed('skymap');
   el('myPlaceUse').hidden = ctx === 'records' && !screenAllowed('framing');
   el('myPlaceUse').textContent = ctx === 'sky' ? '地図でここから見る' : 'ここから重ねる';
@@ -454,7 +459,7 @@ function openPlace(place, ctx, targetKey = null) {
   select.replaceChildren(new Option('対象を選ぶ', ''), ...choices.map((t) => new Option(t.name, t.id)));
   const want = targetKey || (ctx === 'records' ? null : current);
   if (want) select.value = choices.some((t) => t.id === want) ? want : '';
-  el('myRecordError').hidden=true;el('myRecordSaved').hidden=true;el('myTargetPicker').hidden=true;el('myRecordAdd').hidden=false;
+  el('myRecordError').hidden=true;el('myRecordSaved').hidden=true;el('myTargetPicker').hidden=true;el('myRecordAdd').hidden=true;
   for(const id of ['myPlacePlanning','myPlaceDetails'])el(id).open=false;
   if(want&&resolveTarget(want))addDraftTarget(resolveTarget(want));else renderSheet();
   if (!sheet.open) showSheet(sheet);
@@ -462,14 +467,14 @@ function openPlace(place, ctx, targetKey = null) {
 function renderSheet() {
   const { place, ctx } = sheetState, token = ++sheetToken, list = load();
   const recs=el('myPlaceRecords');recs.replaceChildren();
-  if(!sheetState.draftTargets.length){const p=document.createElement('p');p.className='tiny';p.textContent='ここから見える対象を追加してください。複数選べます。';recs.append(p);}
+  if(!sheetState.draftTargets.length){const p=document.createElement('p');p.className='tiny';p.textContent=place.id?'ここから見える対象を追加できます。複数選べます。':'撮影地点を選び、そこから見える対象を追加します。';recs.append(p);}
   for(const t of sheetState.draftTargets){
     const row=document.createElement('div');row.className='fav-row my-draft-target';const text=document.createElement('div');text.className='my-record';const name=document.createElement('strong');name.textContent=t.name;text.append(name);
     const stamps=list.filter(r=>r.placeId===place.id&&r.target.key===t.key&&!r.removed&&r.createdAt>0).map(r=>r.createdAt);
     const sub=document.createElement('span');sub.className='tiny sub-line';sub.textContent=stamps.length?'登録日 '+new Date(Math.min(...stamps)+32400000).toISOString().slice(0,10).replaceAll('-','/'):'未保存';text.append(sub);
     const remove=document.createElement('button');remove.type='button';remove.className='chip';remove.textContent='削除';remove.setAttribute('aria-label',t.name+'を対象から外す');remove.onclick=()=>{if(!sheetOwnerMatches())return;sheetState.draftTargets=sheetState.draftTargets.filter(x=>x.key!==t.key);el('myRecordSaved').hidden=true;renderSheet();};row.append(text,remove);recs.append(row);
   }
-  el('myRecordSave').disabled=!draftChanged();el('myPlacePlanning').hidden=draftChanged();
+  el('myRecordSave').disabled=!place.id||!draftChanged();el('myRecordPickTarget').disabled=!place.id;el('myPlacePlanning').hidden=!place.id||draftChanged();el('myPlaceDetails').hidden=!place.id;
   const next = el('myPlaceNext'); next.replaceChildren();
   if(!el('myPlacePlanning').open)return;
   const seen = targetsSeenFrom(place.id).filter((r) => r.result !== 'hidden');
@@ -533,21 +538,22 @@ function saveRecord() {
   const changes=registrationChanges(current,s.initialTargets,s.draftTargets);
   if(changes.some(r=>!r))return fail('対象の情報を確認してください');
   if(changes.length&&!save([...load(),...changes]))return fail('保存できませんでした。入力は残しています。もう一度お試しください');
-  s.initialTargets=s.draftTargets.map(t=>({...t}));s.baseline=targetSetKey(s.initialTargets);err.hidden=true;el('myRecordSaved').textContent='保存しました';el('myRecordSaved').hidden=false;el('myTargetPicker').hidden=true;el('myRecordAdd').hidden=false;renderSheet();el('myRecordAdd').focus();return true;
+  s.initialTargets=s.draftTargets.map(t=>({...t}));s.baseline=targetSetKey(s.initialTargets);err.hidden=true;el('myRecordSaved').textContent='保存しました';el('myRecordSaved').hidden=false;el('myTargetPicker').hidden=true;el('myRecordAdd').hidden=true;renderSheet();el('myRecordPickTarget').focus();return true;
 }
 
 // 観測地点（または地図の観測地点）から記録する。撮影ポイントでなければ、まず ☆ と同じ画面で登録する
 function recordFor(point, targetKey, ctx) {
+  const requestOwner=auth?.token,requestState=sheetState;
   if (!point || !requireLoginForFavorites()) return;
   const exact = placeNear(point);
   if (exact) { openPlace(exact, ctx, targetKey); return; }
   const near = placeNear(point, MERGE_KM);
   if (near && confirm(`近くの撮影ポイント「${near.name}」（${Math.round(SoramiTerrain.distanceKm(near.latitude, near.longitude, point.latitude, point.longitude) * 1000)}m）に記録しますか？\nキャンセルすると、この位置を新しい撮影ポイントとして登録します。`)) { openPlace(near, ctx, targetKey); return; }
   favForPoint(point, (entry) => {
-    if (!entry) return;
+    if (!entry||requestOwner!==auth?.token||(ctx==='records'&&(!sheet?.open||sheetState!==requestState))) return;
     if (ctx === 'aim') { try { renameFromAfterFav(aim, entry); store.set('sorami.aimFrom', aim.from); aimRenderFrom(); } catch {} }
     openPlace(entry, ctx, targetKey);
-  });
+  }, {shooting:ctx==='records'});
 }
 
 function changed() {
@@ -576,7 +582,7 @@ style.textContent = `
 .my-places{margin:10px 0 4px;padding-top:8px;border-top:1px solid var(--line)}
 .my-head{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap;margin:4px 0}
 .my-status{margin:0;flex:1 1 180px}
-#myRecordsHub .my-add-point{display:grid;place-items:center;flex:none;width:44px;height:44px;min-height:44px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--accent);color:var(--bg);font-size:28px;line-height:1;cursor:pointer}
+#recordsHeading .my-add-point{display:grid;place-items:center;flex:none;width:44px;height:44px;min-height:44px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--accent);color:var(--bg);font-size:28px;line-height:1;cursor:pointer}
 .my-title{font-size:.95rem;margin:10px 0 4px}
 .my-title .tiny{margin-left:4px;font-weight:normal}
 .my-list .my-place-row{display:block;width:100%;text-align:left}
@@ -592,7 +598,7 @@ style.textContent = `
 #myPlaceSheet .my-input-field > .condition-label > span{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 #myPlaceSheet #myRecordTarget:has(option:checked[value=""]){color:var(--tertiary)}
 #myPlaceSheet #myRecordTarget option{color:var(--text)}
-#myPlaceSheet .my-location-value{padding:14px 12px;border:1px solid var(--line);border-radius:12px;background:var(--sunk);font-size:16px;overflow-wrap:anywhere}
+#myPlaceSheet .my-location-value{padding:14px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font-size:16px;overflow-wrap:anywhere;text-align:left;min-height:52px;width:100%;cursor:pointer}#myPlaceSheet #myRecordSave:disabled{opacity:.45;cursor:default}#myPlaceSheet .my-location-value.is-empty{color:var(--tertiary)}#myPlaceSheet .my-input-field{margin:12px 0}#myPlaceSheet .my-location-value:disabled{color:var(--tertiary);cursor:default}
 #myPlaceSheet .my-record-editor{padding:14px 0;border-block:1px solid var(--line);margin:12px 0}#myPlaceSheet .my-record-editor[hidden]{display:none}#myPlaceSheet .my-target-record{padding:12px 0;border-bottom:1px solid var(--line)}#myPlaceSheet .my-target-record>summary{cursor:pointer;min-height:44px;padding:4px 0;list-style:none}#myPlaceSheet .my-target-record>summary::after{content:"記録を見る ▾";font-size:12px;color:var(--secondary)}#myPlaceSheet .my-target-record[open]>summary::after{content:"記録を閉じる ▴"}#myPlaceSheet .my-target-record .my-record{flex:1;min-width:0;overflow-wrap:anywhere}
 #myPlaceSheet #myRecordTarget{min-height:52px;border-radius:12px;font-size:16px;margin:0}
 .my-body-options{border:0;padding:0;margin:14px 0 8px;min-width:0}
