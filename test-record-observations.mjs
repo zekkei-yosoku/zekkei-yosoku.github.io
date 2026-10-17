@@ -47,3 +47,12 @@ test('対象の履歴内で新しい見え方を先にし、別の対象の状�
  const start=source.indexOf('function recordGroups('),end=source.indexOf('function showRecordEditor(',start),fn=new Function('when',source.slice(start,end)+';return recordGroups;')(r=>Date.parse(r.date));
  const groups=fn([raw,{...raw,id:'later',date:'2026-10-17',result:'hidden'},{...raw,id:'other',target:{...raw.target,key:'fuji'},result:'partial'}]);assert.equal(groups[0].latest.result,'hidden');assert.equal(groups[1].latest.result,'partial');assert.equal(groups[0].records.length,2);
 });
+
+test('対象の一括変更は追加と除外だけを追記し、観測日や既存履歴を変更しない',()=>{
+ const {api}=fixture();const start=source.indexOf('function registrationChanges('),end=source.indexOf('function buildSheet(',start);
+ const run=new Function('clean','targetData',source.slice(start,end)+';return registrationChanges;')(api.clean,t=>({...t}));
+ const place={id:'p',latitude:35,longitude:139,eyeHeightAGL:4};const before=[raw.target],next=[{...raw.target,key:'fuji',name:'富士山'}];
+ const rows=run(place,before,next,1000);assert.equal(rows.length,2);assert.equal(rows[0].removed,true);assert.equal(rows[1].removed,false);assert.ok(rows.every(r=>r.date===''&&r.note===''&&r.createdAt===1000&&r.registration));
+ assert.equal(api.statusOf('p','tower',[api.clean(raw),...rows]),null);assert.equal(api.statusOf('p','fuji',rows).target.name,'富士山');assert.equal(raw.date,'2026-10-16');assert.deepEqual(run(place,next,next,1001),[]);
+ const readd=run(place,[],before,1001);assert.equal(api.statusOf('p','tower',[api.clean(raw),...rows,...readd]).removed,false);
+});
