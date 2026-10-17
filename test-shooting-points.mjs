@@ -56,3 +56,29 @@ test('登録地点の標高はDEMと違っても候補選択後へ保持し、�
  assert.equal(P.savedObserver({latitude:35,longitude:139,elevation:30,groundManualM:27.4}).groundManualM,27.4);
  assert.equal(P.savedObserver(null),null);
 });
+
+test('指定なしは円盤の接触を一度だけ探し、真ん中指定の不一致を候補から落とさない',async()=>{
+ const events=[{at,gap:.15,radius:.25,intersects:true},{at:at+1000,gap:0,radius:.25,intersects:false}];
+ const d=deps(events);let calls=0;d.align.dailyView=(o,t,b,day,opts)=>{calls++;assert.equal(opts.partId,'__whole');return events;};d.align.upcoming=()=>{throw Error('指定なしで縁ごとの探索をしない');};
+ const result=await P.candidates({...plan,matchMode:'overlap'},[point('a')],d);
+ assert.equal(calls,1);assert.deepEqual(result.rows.map(r=>r.event.at),[at]);assert.equal(result.rows[0].event.matchMode,'overlap');
+ assert.equal(P.matches(events[0],plan,()=>false),false);
+ assert.notEqual(P.queryKey(plan,[],'u','a'),P.queryKey({...plan,matchMode:'overlap'},[],'u','a'));
+});
+test('指定なしでも山は山頂への接触、点状の天体は従来の許容幅、月は暗い時間だけ',async()=>{
+ const d=deps([{at,gap:.01,radius:0,intersects:false,sunAltitude:-1}]);d.isMountain=()=>true;
+ assert.equal((await P.candidates({...plan,body:'sirius',matchMode:'overlap'},[point('a')],d)).rows.length,1);
+ d.align.dailyView=(o,t,b,day,opts)=>{assert.equal(opts.partId,null);return [{at,gap:.1,intersects:true,sunAltitude:-1},{at:at+1000,intersects:true,sunAltitude:1}];};
+ assert.equal((await P.candidates({...plan,body:'moon',matchMode:'overlap'},[point('a')],d)).rows.length,1);
+});
+
+test('実際のスカイツリーで先端の真ん中が外れる日も、建物への接触は候補帯まで残る',async()=>{
+ const target=A.targetById('skytree'),place={latitude:35.72453,longitude:139.86260,elevation:0,eyeHeightAGL:4,name:'検証地点'},date=Date.parse('2026-10-24T12:00:00+09:00');
+ const p={target,body:'sun',partId:'tip',limb:'center',matchMode:'overlap',at:date};
+ const d={align:A,isMountain:()=>false,observerAt:(f,g)=>({...f,elevation:g,eyeM:4}),ensure:async()=>{}};
+ const result=await P.candidates(p,[{place,record:{result:'seen'}}],d);assert.ok(result.rows.length);
+ assert.equal((await P.candidates({...p,matchMode:'limb'},[{place,record:{result:'seen'}}],d)).rows.length,0);
+ const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),fn=html.slice(html.indexOf('function aimCandidateMatch('),html.indexOf('// 400日探索',html.indexOf('function aimCandidateMatch(')));
+ const match=new Function('aim','SoramiShooting','aimIsMountain',fn+';return aimCandidateMatch;')({...p},P,()=>false);
+ assert.ok(result.rows.every(r=>match(r.event)));
+});

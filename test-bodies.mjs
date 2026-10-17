@@ -66,11 +66,11 @@ test('シリウス・小惑星半径でも山の自動表示範囲は旧縮尺�
 });
 test('天体変更の遅い返答は最新選択を上書きせず、合わせ方を天体ごとに保持する',async()=>{
  const start=html.indexOf('    $("aimBody").onchange = async () => {'),end=html.indexOf('    $("aimHeightSet").onclick',start);assert.ok(start>0&&end>start);
- const waits={},els={aimBody:{value:'sirius'},aimLineInfo:{},aimLimb:{innerHTML:'old'}};
+ const waits={},els={aimBody:{value:'sirius'},aimLineInfo:{},aimLimb:{innerHTML:'old'},aimAlignmentDetails:{open:true}};
  const aim={body:'moon',bodySeq:0,limb:'behind',limbsByBody:{sun:'onTop'}};
  const c={SoramiAssets:{modelsReady:()=>true},aim,$:id=>els[id],SoramiBodies:{ensure:id=>new Promise((resolve,reject)=>waits[id]={resolve,reject})},aimLimbValue:()=>aim.limb,aimApply(){c.applied=aim.body}};
  vm.runInNewContext(html.slice(start,end),c);const first=els.aimBody.onchange();els.aimBody.value='sun';const second=els.aimBody.onchange();waits.sun.resolve();await second;waits.sirius.resolve();await first;
- assert.equal(aim.body,'sun');assert.equal(aim.limb,'onTop');assert.equal(aim.limbsByBody.moon,'behind');assert.equal(c.applied,'sun');
+ assert.equal(aim.body,'sun');assert.equal(aim.limb,'onTop');assert.equal(aim.limbsByBody.moon,'behind');assert.equal(c.applied,'sun');assert.equal(aim.matchMode,'overlap');assert.equal(els.aimAlignmentDetails.open,false);
  els.aimBody.value='venus';const failure=els.aimBody.onchange();waits.venus.reject(Error('network'));await failure;assert.equal(aim.body,'sun');assert.equal(els.aimBody.value,'sun');assert.match(els.aimLineInfo.textContent,/再試行/);
 });
 test('初回読込中の太陽選択と明示URLは旧入口の完了で上書きされない',async()=>{

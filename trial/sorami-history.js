@@ -17,7 +17,7 @@ const SoramiHistory = (() => {
   const clean=(kind,row)=>{if(!row||!Number.isFinite(row.usedAt))return null;const value=kind==='places'?place(row.value):validatePlan(row.value);return value?{value,usedAt:row.usedAt}:null;};
   function reload(){const s=read(key(),null);state={};for(const k of ['places','plans'])state[k]=(Array.isArray(s?.[k])?s[k]:[]).map(r=>clean(k,r)).filter(Boolean).sort((a,b)=>b.usedAt-a.usedAt).slice(0,limit);}
   reload();
-  const identity=(kind,v)=>kind==='places'?`${v.latitude},${v.longitude}`:JSON.stringify([v.t,v.o,v.body,v.part,v.limb,Math.floor((v.at+32400000)/86400000)]);
+  const identity=(kind,v)=>kind==='places'?`${v.latitude},${v.longitude}`:JSON.stringify([v.t,v.o,v.body,v.part,v.limb,v.matchMode||'limb',Math.floor((v.at+32400000)/86400000)]);
   const save=next=>{if(!write(key(),next))return false;state=next;return true;};
   function add(kind,value,{derived=false}={}){value=kind==='places'?place(value):validatePlan(value);if(!value)return false;reload();const id=identity(kind,value);if(kind==='places'&&derived){const old=state.places.find(r=>identity(kind,r.value)===id);if(old)value={...value,...old.value};}return save({...state,[kind]:[{value,usedAt:now()},...state[kind].filter(r=>identity(kind,r.value)!==id)].slice(0,limit)});}
   function remove(kind,item){reload();const index=typeof item==='number'?item:state[kind]?.findIndex(r=>identity(kind,r.value)===identity(kind,item.value));if(!state[kind]?.[index])return true;const removed=state[kind][index],next={...state,[kind]:state[kind].filter((r,i)=>i!==index)};if(!save(next))return false;undo={kind,rows:[removed],scope:scope()};return true;}

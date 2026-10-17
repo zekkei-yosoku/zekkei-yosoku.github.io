@@ -149,7 +149,7 @@ test('未選択で構図に移ると対象・天体・日付と未選択を渡�
 });
 test('候補の保存標高30mと地上4mを、DEM27.4mへすり替えず構図へ渡す',async()=>{
  const f=fixture({selected:false,ground:27.4,saved:{at:day,targetId:'skytree',body:'sun',partId:'__whole',limb:'center'}});await f.open();
- const target=AL.targetById('skytree'),expected=JSON.stringify(['sun',target,'__whole','center',day]);
+ const target=AL.targetById('skytree'),expected=JSON.stringify(['sun',target,'__whole','center',day,'overlap']);
  assert.equal(f.c.SkyMapUI.selectCandidate({place:{name:'記録地点',latitude:35.72,longitude:139.86,elevation:30,eyeHeightAGL:4,standAglM:4},event:{at:day+55057000}},expected),true);await flush();
  assert.equal(f.data.get('sorami.skyMap:testuser').observer.groundManualM,30);assert.equal(f.loads,0);assert.equal(f.c.SkyMapUI.prepareFraming(),true);assert.equal(f.aim.from.groundManualM,30);assert.equal(f.aim.from.standAglM,4);assert.equal(f.aim.plannerTransfer.at,day+55057000);
 });

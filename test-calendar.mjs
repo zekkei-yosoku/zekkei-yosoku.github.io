@@ -10,7 +10,7 @@ function setup(al=AL){
  const els=new Map(), buttons=[];
  const $=id=>{if(!els.has(id))els.set(id,{value:"",innerHTML:"",textContent:"",open:true,setAttribute(k,v){this[k]=v},querySelectorAll(){return buttons},addEventListener(){},focus(){},close(){this.open=false}});return els.get(id)};
  const aim={dayMs:Date.parse("2026-12-22T00:00:00+09:00"),body:"sun",partId:"summit",target:AL.targetById("fuji"),candSide:"set",spot:{}};
- const c=vm.createContext({SoramiAtmosphere:{dataKey:()=>"standard"},SoramiTerrain:{decksFor:()=>null},SoramiBodies:globalThis.SoramiBodies,SoramiMoon:MOON,$,aim,S,SoramiAlign:al,Date,Map,Number,String,Array,JSON,Error,Math,Promise,setTimeout,esc:s=>s.replaceAll('"','&quot;'),aimIsMountain:t=>t?.id!=="skytree",aimSideName:s=>s==="set"?"日の入":"日の出",aimFromPoint:()=>c.fromOverride||({name:"高尾山",latitude:35.6252,longitude:139.2436}),aimElevation:async()=>599,showSheet:e=>{e.open=true},aimCandidateMatch:e=>Number.isFinite(e.gap)&&Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0)),aimApply:()=>{c.applied=true}});
+ const c=vm.createContext({SoramiAtmosphere:{dataKey:()=>"standard"},SoramiTerrain:{decksFor:()=>null},SoramiBodies:globalThis.SoramiBodies,SoramiMoon:MOON,$,aim,S,SoramiAlign:al,SoramiShooting:require("./sorami-shooting.js"),Date,Map,Number,String,Array,JSON,Error,Math,Promise,setTimeout,esc:s=>s.replaceAll('"','&quot;'),aimIsMountain:t=>t?.id!=="skytree",aimSideName:s=>s==="set"?"日の入":"日の出",aimFromPoint:()=>c.fromOverride||({name:"高尾山",latitude:35.6252,longitude:139.2436}),aimElevation:async()=>599,showSheet:e=>{e.open=true},aimCandidateMatch:e=>Number.isFinite(e.gap)&&Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0)),aimApply:()=>{c.applied=true}});
  vm.runInContext(html.slice(html.indexOf('function aimObserverEye('),html.indexOf('aim.from = aimSavedFrom'))+code+';this.cal=aimCal;this.rows=aimCalRows;this.grid=aimCalGridHtml;this.solid=aimCalSolid;this.render=aimCalRender;this.draw=aimCalDraw;',c);
  return {c,$,aim,buttons};
 }
@@ -81,4 +81,11 @@ test("展望台の高さを月間探索へ渡し、同じ座標の高さ変更�
  await c.render();assert.deepEqual(eyes,[230.5]);
  await c.render();assert.deepEqual(eyes,[230.5]);
  c.fromOverride.stand="ground";await c.render();assert.deepEqual(eyes,[230.5,1.5]);
+});
+
+test('指定なしの月カレンダーは円盤接触を採用し、縁指定とキャッシュを分ける',async()=>{
+ let broad=0,fine=0;const {c,aim,$}=setup({dailyView(o,t,b,day){broad++;return [{at:day+1000,nearTarget:true,intersects:true,gap:.15,radius:.25,side:'set'}];},upcoming(o,t,b,x){fine++;return [];}});
+ c.cal.year=2026;c.cal.month=9;aim.matchMode='overlap';await c.render();assert.equal(broad,31);assert.equal(c.cal.events.size,31);assert.match($('aimCalStatus').textContent,/重なる日 31日/);
+ aim.matchMode='limb';await c.render();assert.equal(fine,1);assert.equal(c.cal.events.size,0);
+ aim.matchMode='overlap';await c.render();assert.equal(broad,31);assert.equal(c.cal.events.size,31);
 });

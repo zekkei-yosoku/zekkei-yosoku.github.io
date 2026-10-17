@@ -121,8 +121,7 @@ async function openFromRecords(place, target = null, row = null) {
 // 重なりの判定は構図と同じ条件にする。構図で選んでいる目標なら、その部位（建物全体を含む）と縁。
 // ほかの目標は構図の既定と同じ（塔・建物は建物全体、山は山頂）
 function matchOpts(t) {
-  if (t && aim.target?.id === t.id) return { partId: aim.partId, limb: aim.partId === '__whole' ? 'center' : aim.limb };
-  return { partId: t && aimIsMountain(t) ? null : '__whole', limb: 'center' };
+  return {partId:t&&aimIsMountain(t)?null:'__whole',limb:'center',matchMode:'overlap'};
 }
 const cache = new Map();
 let queue = Promise.resolve();
@@ -133,11 +132,11 @@ function dayText(at) {
   return `${y === now ? '' : y + '/'}${S.Cal.monthDay(at)}(${S.Cal.weekday(at)})`;
 }
 // 1組につき次の1回。400日で無ければ「重なりません」（既存の言い切りと同じ根拠）
-function nextFor(place, target, body, { partId = null, limb = 'center' } = {}) {
+function nextFor(place, target, body, { partId = null, limb = 'center', matchMode = 'overlap' } = {}) {
   const from = aimSavedFrom(SoramiShooting.savedObserver(place));
   if (!from || !target) return Promise.resolve(null);
   const top = (SoramiAlign.partOf(target, partId) || {}).m;
-  const k = JSON.stringify([from.latitude, from.longitude, from.groundManualM, aimObserverEye(from), target.id, target.latitude, target.longitude, top, body, partId, limb, S.Cal.startOfDay(Date.now())]);
+  const k = JSON.stringify([from.latitude, from.longitude, from.groundManualM, aimObserverEye(from), target.id, target.latitude, target.longitude, top, body, partId, limb, matchMode, S.Cal.startOfDay(Date.now())]);
   const hit = cache.get(k);
   if (hit && (!hit.until || Date.now() < hit.until)) return hit.promise;
   const entry = { until: 0, promise: null };
@@ -145,7 +144,7 @@ function nextFor(place, target, body, { partId = null, limb = 'center' } = {}) {
     await SoramiBodies.ensure(body);
     const ground = from.groundManualM ?? await aimElevation(from.latitude, from.longitude);
     const obs = aimObserverAt(from, ground);
-    const rows = await aimBuildingDays(obs, target, body, partId, null, { from: Date.now(), days: 400, limit: 1, limb, isCurrent: () => true });
+    const rows = await aimBuildingDays(obs, target, body, partId, null, { from: Date.now(), days: 400, limit: 1, limb, matchMode, isCurrent: () => true });
     const row = rows[0] || null;
     entry.until = row ? row.at : S.Cal.startOfDay(Date.now()) + DAY;
     return row;
@@ -213,7 +212,12 @@ function renderAim() {
   head.append(status, rec); box.append(head);
   const candidates=document.createElement('button');candidates.type='button';candidates.className='chip';candidates.textContent='この日の候補から選ぶ';candidates.onclick=()=>{openPlaceSheet('aim',{focusSearch:false});recentHistory.candidates();};box.append(candidates);
 }
+function adoptOverlap(row) {
+ if(row?.matchMode!=='overlap')return;
+ aim.matchMode='overlap';aim.partId=row.partId??null;aim.limb='center';el('aimPart').value=aim.partId||'';el('aimLimb').innerHTML='';
+}
 function openInAim(place, row) {
+  adoptOverlap(row);
   aimSetFrom(SoramiShooting.savedObserver(place), { keepMap: true });
   if (row) {
     aim.candPick = null; aim.spot = null; aim.wantSpot = null; aim.wantKey = null; aim.candSide = row.side;
@@ -230,7 +234,7 @@ async function renderPickerPanel(panel) {
  const token=++pickerToken,owner=auth?.token;
  let box=panel.querySelector('.my-picker');if(!box){box=document.createElement('div');box.className='my-picker';panel.prepend(box);}box.replaceChildren();
  const mode=placeSheetFor,isSky=mode==='skymap';
- const state=()=>isSky?skySession:{target:aim.target,body:aim.body,partId:aim.partId,limb:aim.limb,at:aim.dayMs};
+ const state=()=>isSky?skySession:{target:aim.target,body:aim.body,partId:aim.partId,limb:aim.limb,matchMode:aim.matchMode,at:aim.dayMs};
  const t=state()?.target,plan=SoramiShooting.conditions(state());
  const note=document.createElement('p');note.className='tiny';box.append(note);
  if(!plan||t.id==='custom'){note.textContent='対象を選び、自分の目標に登録すると、その対象が見えた撮影ポイントから候補を探せます。';return;}
@@ -252,12 +256,12 @@ async function renderPickerPanel(panel) {
 
 // ---------------------------------------------------------------- 地図：指定日の撮影ポイント候補
 let skySession=null,skyKey='',skyToken=0,skyOwner=null;
-function leaveSky(){skySession=null;skyKey='';skyToken++;candidateState={status:'idle',rows:[],failed:0};candidateCache.clear();candidateSheet?.close();el('shootingCandidatesList')?.replaceChildren();const condition=el('shootingCandidatesCondition');if(condition)condition.textContent='';el('mySkyPlaces')?.replaceChildren();overlapGate(false,'');}
+function leaveSky(){el('skyMapAlignmentControls')?.replaceChildren();const alignmentDetail=el('skyMapAlignmentDetails');if(alignmentDetail)alignmentDetail.hidden=true;skySession=null;skyKey='';skyToken++;candidateState={status:'idle',rows:[],failed:0};candidateCache.clear();candidateSheet?.close();el('shootingCandidatesList')?.replaceChildren();const condition=el('shootingCandidatesCondition');if(condition)condition.textContent='';el('mySkyPlaces')?.replaceChildren();overlapGate(false,'');}
 let pinsOn=store.get('sorami.candidatePins',true)!==false;
 let candidateState={status:'idle',rows:[],failed:0},candidateSheet=null,selectedCandidate=null;
 const candidateCache=new Map();
 const overlapGate=SoramiShooting.hapticGate({vibrate:ms=>{if(!document.hidden&&store.get('sorami.haptic',true)!==false)navigator.vibrate?.(ms);}});
-const contextOf=s=>JSON.stringify([s.body,s.target,s.partId,s.limb,SoramiShooting.day(s.at)]);
+const contextOf=s=>JSON.stringify([s.body,s.target,s.partId,s.limb,SoramiShooting.day(s.at),s.matchMode||'limb']);
 function pointsForPlan(s){
  return placesFor(s.target.id).filter(x=>x.record.observer&&finite(x.record.target.latitude)&&finite(x.record.target.longitude)&&SoramiTerrain.distanceKm(x.record.target.latitude,x.record.target.longitude,s.target.latitude,s.target.longitude)<NEAR_KM);
 }
@@ -296,7 +300,7 @@ function updateCandidateUI(){
 function checkOverlap(s){
  const out=el('shootingOverlap');if(!out)return;if(!s.observer){overlapGate(false,'');out.textContent='';out.classList.remove('shooting-overlap-on');return;}if(!s.daily||!s.eye){if(!out.textContent)out.textContent='重なりを確認しています…';return;}
  let hit=null;
- if(s.daily&&s.eye&&s.target)try{hit=SoramiAlign.alignmentAt(s.eye,s.target,s.body,s.at,{partId:s.partId,limb:s.limb,eyeM:0});}catch{}
+ if(s.daily&&s.eye&&s.target)try{const o=SoramiShooting.searchOptions(s,aimIsMountain);hit=o.broad&&o.disc?SoramiAlign.dailyView(s.eye,s.target,s.body,s.at,{partId:o.partId,eyeM:0,at:s.at})[0]:SoramiAlign.alignmentAt(s.eye,s.target,s.body,s.at,{partId:o.partId,limb:o.limb,eyeM:0});if(o.broad&&o.disc)hit={...hit,matched:!!hit?.intersects};}catch{}
  const matched=!!hit?.matched,key=JSON.stringify([auth?.loginId,s.observer,s.target,s.body,s.partId,s.limb,SoramiShooting.day(s.at)]);
  overlapGate(matched,key);
  const text=matched?'重なる位置です':hit?'時間を動かして重なりを確認':'重なりを確認しています…';
@@ -307,6 +311,7 @@ function skyRender(s){
  if(skyOwner!==auth?.token){leaveSky();skyOwner=auth?.token;}
  skySession=s;if(!s||!auth?.token||!toolAllowed('skymap'))return;
  const box=skyBox(),t=s.target;
+ const detail=el('skyMapAlignmentDetails');detail.hidden=!s.observer||!t;el('skyMapAlignmentSummary').textContent=s.matchMode==='overlap'?'重ね方：指定なし':`重ね方：${s.partId==='__whole'?'建物全体':SoramiAlign.limbById(s.limb).name}`;
  const recordButton=el('shootingRecordHere');if(recordButton)recordButton.hidden=!s.observer;
  if(!t){skyKey='';candidateState={status:'idle',rows:[],failed:0};box.textContent='何を・何に重ねるかと撮影日を選ぶと、記録した撮影ポイントから候補を出します。';candidateSheet?.close();return;}
  const key=currentSkyQuery(s);
@@ -319,8 +324,8 @@ function skyRender(s){
   controls.append(trigger,toggle);box.append(controls);
   const alignment=document.createElement('div');alignment.className='shooting-alignment';
   const part=document.createElement('select');part.setAttribute('aria-label','重ねる対象の部位');part.replaceChildren(new Option(aimIsMountain(t)?'山頂':'先端',''),...(!aimIsMountain(t)?[new Option('建物全体','__whole')]:[]),...(t.parts||[]).map(p=>new Option(p.name,p.id)));part.value=s.partId??'';
-  const limb=document.createElement('select');limb.setAttribute('aria-label','天体の重ね方');limb.replaceChildren(...SoramiAlign.LIMBS.map(x=>new Option(x.name,x.id)));limb.value=s.limb||'center';limb.disabled=s.partId==='__whole'||!SoramiBodies.definition(s.body)?.limbs;
-  const apply=()=>SkyMapUI?.setAlignment?.(part.value||null,limb.value||'center');part.onchange=apply;limb.onchange=apply;alignment.append(part,limb);box.append(alignment);
+  const limb=document.createElement('select');limb.setAttribute('aria-label','天体の重ね方');limb.replaceChildren(new Option('指定なし',''),...SoramiAlign.LIMBS.map(x=>new Option(x.name,x.id)));limb.value=s.matchMode==='overlap'?'':s.limb||'center';limb.disabled=s.partId==='__whole'||!SoramiBodies.definition(s.body)?.limbs;
+  part.onchange=()=>SkyMapUI?.setAlignment?.(part.value||null,limb.value||'center','limb');limb.onchange=()=>SkyMapUI?.setAlignment?.(part.value||null,limb.value||'center',limb.value?'limb':'overlap');const any=document.createElement('button');any.type='button';any.className='chip';any.textContent='指定なし';any.setAttribute('aria-pressed',String(s.matchMode==='overlap'));any.onclick=()=>SkyMapUI?.setAlignment?.(null,'center','overlap');alignment.append(any,part,limb);el('skyMapAlignmentControls').replaceChildren(alignment);
   const status=document.createElement('p');status.className='tiny';status.id='shootingCandidateStatus';status.setAttribute('role','status');
   const overlap=document.createElement('p');overlap.className='tiny shooting-overlap';overlap.id='shootingOverlap';overlap.setAttribute('role','status');box.append(status,overlap);
   const rec=document.createElement('button');rec.type='button';rec.className='chip';rec.id='shootingRecordHere';rec.hidden=!s.observer;rec.textContent='この撮影ポイントを記録する';rec.onclick=()=>recordFor(skySession.observer,skySession.target?.id,'sky');box.append(rec);
@@ -504,12 +509,14 @@ function openWith(place, t, row, ctx) {
   if (ctx === 'sky') {
     if(row?.body){el('skyMapBody').value=row.body;el('skyMapBody').dispatchEvent(new Event('change',{bubbles:true}));}
     SkyMapUI?.setTarget?.(t.id);
+    if(row?.matchMode)SkyMapUI?.setAlignment?.(row.partId??null,'center',row.matchMode);
     openInSky(place, row);
     return;
   }
   if(row?.body){aim.body=row.body;el('aimBody').value=row.body;}
   aimFillSelects();
   if (el('aimTarget').value !== t.id) { el('aimTarget').value = t.id; aim.partId = null; aim.partsTargetKey = null; el('aimPart').value = ''; }
+  adoptOverlap(row);
   aimSetFrom(SoramiShooting.savedObserver(place), { keepMap: true });
   if (row) { aim.candPick = null; aim.spot = null; aim.wantSpot = null; aim.wantKey = null; aim.candSide = row.side; el('aimDate').value = new Date(S.Cal.startOfDay(row.at) + 9 * 3600000).toISOString().slice(0, 10); aim.plannerTransfer={at:row.at,body:aim.body,latitude:place.latitude,longitude:place.longitude,day:SoramiShooting.day(row.at)}; }
   aimApply();

@@ -276,9 +276,9 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   // 「どこに重ねるか」と対で「どこから重ねるか」。最初は絶景予測の地点を引き継いで欄に入れる（ユーザー指定）
   // 2026-10-06 何を→何に→どこからの順で、1行ずつ文にして選ぶ（ユーザー「〇〇（選択）を重ねる。〇〇（選択）に重ねる。〇〇（選択）から重ねる。」）。
   // どこからを最後にしたのは、その日の候補地が何を・何に・日付で決まるから（10/01 は一番上、10/04 は2番目だった）
-  { const ids=['aimBody','aimWhatLabel','aimTitle','aimWhereLabel','aimLimb','aimFromButton','aimFromLabel','aimStand','aimGroundHeight','aimStandHeight'];
+  { const ids=['aimBody','aimWhatLabel','aimTitle','aimWhereLabel','aimFromButton','aimFromLabel','aimStand','aimGroundHeight','aimStandHeight'];
     const positions=ids.map(id=>html.indexOf('id="'+id+'"'));
-    ok(positions.every((p,i)=>p>0&&(!i||p>positions[i-1])), "何を→何に（部位・縁）→どこから（立つ所・標高・地上から）の順で選ぶ");
+    ok(positions.every((p,i)=>p>0&&(!i||p>positions[i-1])), "天体→対象→撮影地点の共通順で選ぶ");
     ok(['aimWhatLabel','aimWhereLabel','aimFromLabel'].every(id=>new RegExp('id="'+id+'"><svg[^>]*aria-hidden="true"').test(html)) && html.includes('<span>天体</span>') && html.includes('<span>対象</span>') && />撮影地点<\/span>/.test(html), "構図は共通ピクトグラムと短い役割ラベル");
     // 題名の中に「に重ねる」を入れたら 375px 以下で折れた。右は折らず、欄の側を省略する
     ok(/\.aim-say \{ display: flex; align-items: center;/.test(html) && /\.aim-say > :first-child \{ flex: 1 1 0; min-width: 0;/.test(html)
@@ -288,7 +288,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
     ok(/<label for="aimGroundHeight">標高<\/label>/.test(html) && /<label for="aimStandHeight">地上から<\/label>/.test(html) && !/id="aimObserverHeight"/.test(html)
       && /<div class="aim-side-seg aim-stand" id="aimStand" role="group" aria-label="立つ所"><\/div>/.test(html), "観測標高は標高と地上からの2つ（展望台は立つ所を選ぶ）");
     ok(/\.aim-observer-height label \{ flex: 0 0 4\.5em; \}/.test(html), "2行の欄の左端をそろえる");
-    ok(html.indexOf('id="aimPartRow"') < html.indexOf('id="aimLimb"') && html.indexOf('id="aimLimb"') < html.indexOf('class="aim-say aim-say-from condition-field"', html.indexOf('<div id="aimView"')), "縁は部位のすぐ下（どこからより上）"); }
+    ok(html.indexOf('id="aimPartRow"') < html.indexOf('id="aimLimb"') && html.indexOf('id="aimLimb"') > html.indexOf('id="aimFromButton"'), "部位・縁は共通入力より下で調整する"); }
 
   // 地図から決めるのは地図を見ているとき。釦は上の欄ではなく地図のすぐ下（ユーザー「地図の中心ってここにいらない」）
   { const cv = html.indexOf('id="aimCanvas"'), pk = html.indexOf('id="aimPick"'), fs = html.indexOf('id="aimFromButton"');
@@ -697,7 +697,7 @@ console.log("== 選択肢を作り直す前に選んだ値を読む（2026-10-01
   ok(run(aim, () => sel, (x) => x, () => false) === "gallery" && sel.value === "gallery", "天望回廊を選ぶと天望回廊のまま（先端へ戻らない）");
   const fillSel = /function aimFillSelects\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
   ok(/const keep = \{ target: \$\("aimTarget"\)\.value, limb: aimLimbValue\(\) \};/.test(fillSel)
-    && /keep\.limb \|\| aim\.limb \|\| SoramiAlign\.LIMBS\[0\]\.id/.test(fillSel) && /aria-pressed="\$\{l\.id === cur\}"/.test(fillSel), "ねらう: 選択肢を作り直しても合わせ方は残す");
+    && /keep\.limb \|\| aim\.limb \|\| SoramiAlign\.LIMBS\[0\]\.id/.test(fillSel) && /aria-pressed="\$\{l\.id === cur && aim\.matchMode !== 'overlap'\}"/.test(fillSel), "ねらう: 選択肢を作り直しても合わせ方は残す");
 }
 
 console.log("== 同じ名前の関数を2つ置かない・観測点は1つ（2026-10-01） ==");

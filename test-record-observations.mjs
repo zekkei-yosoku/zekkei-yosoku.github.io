@@ -27,10 +27,15 @@ test('記録から選んだ天体と秒までの時刻を構図・地図へ渡�
  for(const mode of ['aim','sky']){
   const elements=new Map(),el=id=>{if(!elements.has(id))elements.set(id,{value:'',dispatchEvent(e){this.event=e.type;}});return elements.get(id);};
   const aim={body:'sun',from:null},calls=[],P=require('./sorami-shooting.js'),at=Date.parse('2026-10-24T16:13:57+09:00');let allowed=true;
-  const run=new Function('planningPairs','openFromRecords','el','SkyMapUI','openInSky','aim','aimFillSelects','aimSetFrom','SoramiShooting','S','aimApply',fn+';return openWith;')(()=>allowed?[1]:[],()=>{},el,{setTarget:id=>calls.push(id)},(p,r)=>calls.push(r),aim,()=>{},()=>{},P,{Cal:{startOfDay:P.day}},()=>{});
+  const run=new Function('planningPairs','openFromRecords','el','SkyMapUI','openInSky','aim','aimFillSelects','aimSetFrom','SoramiShooting','S','aimApply','adoptOverlap',fn+';return openWith;')(()=>allowed?[1]:[],()=>{},el,{setTarget:id=>calls.push(id)},(p,r)=>calls.push(r),aim,()=>{},()=>{},P,{Cal:{startOfDay:P.day}},()=>{},()=>{});
   run({latitude:35,longitude:139},{id:'tower'},{at,body:'moon',side:'set'},mode);
   if(mode==='aim'){assert.equal(aim.body,'moon');assert.equal(aim.plannerTransfer.at,at);assert.equal(aim.plannerTransfer.body,'moon');}
   else{assert.equal(el('skyMapBody').value,'moon');assert.equal(el('skyMapBody').event,'change');assert.equal(calls[1].at,at);}
   allowed=false;run({},{id:'tower'},{at,body:'sirius'},mode);assert.notEqual(aim.body,'sirius');assert.notEqual(el('skyMapBody').value,'sirius');
  }
+});
+
+test('記録からの指定なし候補は前の縁指定を残さず、全体の条件を復元する',()=>{
+ const fn=source.slice(source.indexOf('function adoptOverlap('),source.indexOf('function openInAim(')),aim={matchMode:'limb',partId:'tip',limb:'behind'},nodes={aimPart:{value:'tip'},aimLimb:{innerHTML:'old'}};
+ const adopt=new Function('aim','el',fn+';return adoptOverlap;')(aim,id=>nodes[id]);adopt({matchMode:'overlap',partId:'__whole'});assert.equal(aim.matchMode,'overlap');assert.equal(aim.partId,'__whole');assert.equal(aim.limb,'center');assert.equal(nodes.aimLimb.innerHTML,'');assert.equal(nodes.aimPart.value,'__whole');
 });

@@ -8,6 +8,7 @@ const SoramiPlan = (() => {
     if (!p || p.v !== 1 || !point(p.o) || !num(p.at, Date.UTC(2000,0), Date.UTC(2101,0))) return false;
     if (p.kind === 'detail') return text(p.id, 32) && num(p.day, Date.UTC(2000,0), Date.UTC(2101,0));
     if (p.kind !== 'aim' || !text(p.body, 32) || !text(p.part, 40) || !['onTop','center','behind'].includes(p.limb)) return false;
+    if(p.matchMode!==undefined&&!['overlap','limb'].includes(p.matchMode))return false;
     const t = p.t, l = p.l;
     return t && text(t.id, 80) && text(t.name) && num(t.latitude,-90,90) && num(t.longitude,-180,180)
       && num(t.groundM,-500,9000) && Array.isArray(t.parts) && t.parts.length > 0 && t.parts.length <= 16
