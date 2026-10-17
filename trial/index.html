@@ -12,7 +12,7 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="7557075012642376218">
+<meta name="app-version" content="12006828780689618166">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-IMU8bvaJpbdOet257w333BR6gLpOMAttcBYIhGuu5+0=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-tLCiWocCsbKxgKxe12pYRCRIE7MMu103kt8fRlAHkow=' 'sha256-jtk+9lcnYfLBfVhZvFLA0mNqUtg1AwouUY8ijwXT5RM=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
@@ -1334,6 +1334,7 @@ main:has(>#aimView:not([hidden],[data-locked])){padding-bottom:calc(var(--aim-fo
   /* trial 2026-10-16: 構図の撮影地タブは地図へ集約（その日に重なる線・自分の地点は地図に出す） */
   #previewPlacesTab, #previewPlaces { display: none !important; }
 .forecast-planning{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 14px}.forecast-planning[hidden]{display:none}.forecast-planning>.tiny{flex:1 1 150px;min-width:0;overflow-wrap:anywhere}.forecast-planning button{min-height:44px}.forecast-planning-offer{margin-top:-4px}
+.header-character{display:inline-block;width:40px;height:40px;flex:none;object-fit:contain;vertical-align:middle;pointer-events:none;user-select:none}:is(#aimFramingTitle,#skyMapTitle,#recordsHeading h2,#forecastTab){display:inline-flex;align-items:center;gap:7px}#forecastTab .header-character{margin-block:-8px}#aimFramingTitle .header-character,#skyMapTitle .header-character,#recordsHeading .header-character{margin-block:-4px}
 .note-wait{display:flex;align-items:center;justify-content:center;gap:12px;min-height:56px}.note-wait-character{flex:0 0 56px;width:56px;height:56px;background:url("astronotes-note-reading-v1.png") center/contain no-repeat;animation:note-wait-reveal 1ms step-end 450ms both}.note-wait-message{min-width:0;line-height:1.6}@keyframes note-wait-reveal{from{opacity:0}to{opacity:1}}
 </style><style id="skyMapStyles">
 .sky-map-point-tools{position:absolute;left:8px;top:8px;display:flex;flex-direction:column;gap:8px;z-index:4}.sky-map-point-tools .map-ctl{position:static;min-width:44px;min-height:44px}.sky-map-point-tools [aria-pressed="true"]{color:var(--on-accent);background:var(--accent)}.sky-map-expand{position:absolute;top:8px;right:8px;z-index:4;min-width:44px;min-height:44px}.sky-map-expand [data-map-contract]{display:none}.sky-map-expand[aria-pressed="true"] [data-map-expand]{display:none}.sky-map-expand[aria-pressed="true"] [data-map-contract]{display:block}.sky-map-wrap[data-pick-mode] canvas{cursor:crosshair}#skyMapTargetSheet input{font-size:16px;min-height:44px;width:100%;box-sizing:border-box}#skyMapTargetSheet label{display:block;margin:12px 0}
@@ -1538,7 +1539,7 @@ button.ui-icon-button::after { content: none; }
 .pk-row > span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; }
 </style>
   <div class="forecast-tabs" id="forecastTabs" role="tablist" aria-label="予測の表示" hidden>
-    <button type="button" id="forecastTab" role="tab" aria-selected="true" aria-controls="listView">予測</button>
+    <button type="button" id="forecastTab" role="tab" aria-selected="true" aria-controls="listView"><img class="header-character" src="astronotes-header-forecast-v1.png" width="40" height="40" alt="" aria-hidden="true" decoding="async" loading="lazy">予測</button>
     <button type="button" id="resultsTab" role="tab" aria-selected="false" aria-controls="answersView" tabindex="-1">結果<span id="forecastResultsCount" class="forecast-results-count" hidden></span></button>
   </div>
 
@@ -1645,7 +1646,7 @@ button.ui-icon-button::after { content: none; }
            見出し（何を重ねるか…）は文の「を・に・から」が兼ねる。観測標高はどこからに、部位と縁は何にまとめる（縁は建物全体で消えるので、何にの下。2026-10-06 ユーザー「建物全体を選択した場合どうなるの」）。
            2026-10-04 は何を→どこから→何に、2026-10-01 はどこからを一番上（道具ごとに位置を揃える）だった -->
       <!-- 構図と地図はメニューの独立入口。条件の受渡しは画面内ボタンで行う。 -->
-      <div class="aim-titlebar"><h2 class="preview-title" id="aimFramingTitle">構図</h2></div>
+      <div class="aim-titlebar"><h2 class="preview-title" id="aimFramingTitle"><img class="header-character" src="astronotes-header-framing-v1.png" width="40" height="40" alt="" aria-hidden="true" decoding="async" loading="lazy">構図</h2></div>
       <div class="aim-say condition-field">
       <div class="section-h aim-head">
         <select id="aimBody" class="aim-body-select" aria-label="天体">
@@ -1862,7 +1863,7 @@ button.ui-icon-button::after { content: none; }
 
   <div id="recordsView" hidden>
     <div id="recordsAccess" hidden><div class="sky-map-head"><h2>記録</h2></div><div class="card"><p id="recordsAccessMessage"></p><button id="recordsAccessLogin" class="fav-btn primary">ログイン</button></div></div>
-    <div class="sky-map-head" id="recordsHeading"><h2>記録</h2></div>
+    <div class="sky-map-head" id="recordsHeading"><h2><img class="header-character" src="astronotes-header-records-v1.png" width="40" height="40" alt="" aria-hidden="true" decoding="async" loading="lazy">記録</h2></div>
     <div id="myRecordsHub" class="card"></div>
 
   </div>
@@ -1904,7 +1905,7 @@ button.ui-icon-button::after { content: none; }
   <!-- 出典だけを畳んで置く（2026-10-01 ユーザー「出しておいた方がいいなら畳んでおいてほしい」）。出典の表示は利用の条件 -->
 <section id="skyMapView" aria-labelledby="skyMapTitle" hidden>
  <!-- 2026-10-15 Framingを押したときの処理は旧「この条件の構図を確認」と同じ（引き継げないときはメニューと同じくFramingを開く） -->
- <div class="sky-map-head"><h2 id="skyMapTitle">地図</h2><button type="button" class="chip preview-history-icon" id="skyMapRecentOpen" aria-label="場所の履歴" title="履歴"></button></div>
+ <div class="sky-map-head"><h2 id="skyMapTitle"><img class="header-character" src="astronotes-header-map-v1.png" width="40" height="40" alt="" aria-hidden="true" decoding="async" loading="lazy">地図</h2><button type="button" class="chip preview-history-icon" id="skyMapRecentOpen" aria-label="場所の履歴" title="履歴"></button></div>
  <div id="skyMapAccess" class="card"><p id="skyMapAccessMessage" role="status">利用権限を確認しています…</p><button type="button" class="chip" id="skyMapAccessRetry">再試行</button><button type="button" class="chip" id="skyMapAccessLogin">ログイン</button></div>
  <div class="sky-map-content" id="skyMapContent" hidden>
   <div class="sky-map-controls"><div class="aim-say condition-field"><select id="skyMapBody" aria-labelledby="skyMapBodyLabel"><option value="sun">太陽</option><option value="moon">月</option><option value="sirius">シリウス</option><option value="mercury">水星</option><option value="venus">金星</option><option value="mars">火星</option><option value="jupiter">木星</option><option value="saturn">土星</option></select><span class="aim-say-v condition-label" id="skyMapBodyLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-body"/></svg><span>天体</span></span></div><div class="aim-say condition-field"><select id="skyMapTarget" aria-labelledby="skyMapTargetLabel"></select><span class="aim-say-v condition-label" id="skyMapTargetLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-target"/></svg><span>対象</span></span></div></div>

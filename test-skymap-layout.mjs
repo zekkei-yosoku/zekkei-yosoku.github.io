@@ -138,7 +138,7 @@ test('条件3行は構図と共通の天体・対象・撮影地点ラベル、�
  assert.deepEqual([...block.matchAll(/class="aim-say-v condition-label"[^>]*><svg[^>]*>[\s\S]*?<\/svg><span[^>]*>([^<]+)<\/span>/g)].map(m=>m[1]),['天体','対象','撮影地点']);
  const sky=html.slice(html.indexOf('<section id="skyMapView"'),html.indexOf('</section>',html.indexOf('<section id="skyMapView"')));
  assert.doesNotMatch(sky,/観測点|出・入|出入は|中心に目標を置く/);// Current menu uses the short Japanese name adopted on 2026-10-15.
- assert.match(html,/id="skyMapTitle">地図<\/h2>/);
+ assert.match(html,/id="skyMapTitle">(?:<img\b[^>]*>)?地図<\/h2>/);
  const f=fixture({saved:{at:day,body:'sun',showSun:true,showMoon:false}});await f.open();
  const events=f.element('skyMapEvents').children.filter(b=>b.type==='button');assert.ok(events.length);
  for(const b of events){assert.match(b['aria-label'],/^日の(出|入) \d\d:\d\d・方位 /);assert.match(b.textContent,/^☀[出入] \d\d:\d\d$/);}
