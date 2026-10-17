@@ -39,3 +39,11 @@ test('記録からの指定なし候補は前の縁指定を残さず、全体�
  const fn=source.slice(source.indexOf('function adoptOverlap('),source.indexOf('function openInAim(')),aim={matchMode:'limb',partId:'tip',limb:'behind'},nodes={aimPart:{value:'tip'},aimLimb:{innerHTML:'old'}};
  const adopt=new Function('aim','el',fn+';return adoptOverlap;')(aim,id=>nodes[id]);adopt({matchMode:'overlap',partId:'__whole'});assert.equal(aim.matchMode,'overlap');assert.equal(aim.partId,'__whole');assert.equal(aim.limb,'center');assert.equal(nodes.aimLimb.innerHTML,'');assert.equal(nodes.aimPart.value,'__whole');
 });
+test('対象一覧は対象ごとに1行へまとめ、同じ対象の全履歴を保持する',()=>{
+ const start=source.indexOf('function recordGroups('),end=source.indexOf('function showRecordEditor(',start),fn=new Function('when',source.slice(start,end)+';return recordGroups;')(r=>r.date?Date.parse(r.date):r.createdAt);
+ const rows=[raw,{...raw,id:'tower-again',updatedAt:2},{...raw,id:'fuji-one',target:{...raw.target,key:'fuji',name:'富士山'}}];const groups=fn(rows);assert.equal(groups.length,2);assert.equal(groups[0].records.length,2);assert.equal(groups[0].latest.id,'tower-again');assert.equal(rows.length,3);
+});
+test('対象の履歴内で新しい見え方を先にし、別の対象の状態を混ぜない',()=>{
+ const start=source.indexOf('function recordGroups('),end=source.indexOf('function showRecordEditor(',start),fn=new Function('when',source.slice(start,end)+';return recordGroups;')(r=>Date.parse(r.date));
+ const groups=fn([raw,{...raw,id:'later',date:'2026-10-17',result:'hidden'},{...raw,id:'other',target:{...raw.target,key:'fuji'},result:'partial'}]);assert.equal(groups[0].latest.result,'hidden');assert.equal(groups[1].latest.result,'partial');assert.equal(groups[0].records.length,2);
+});

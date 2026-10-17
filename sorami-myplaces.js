@@ -100,7 +100,7 @@ function renderRecordsHub() {
     const name = document.createElement('strong'); name.textContent = f.name;
     const sub = document.createElement('span'); sub.className = 'tiny sub-line';
     const mine = records.filter(r => r.placeId === f.id).sort((a,b) => when(b)-when(a));
-    sub.textContent = mine.length ? `${mine.length}件・最近：${mine[0].target.name} ${statusOf(f.id, mine[0].target.key, records) ? RESULTS[mine[0].result].name : '記録あり（地点・高さの変更前）'}` : '見え方は未記録';
+    sub.textContent = mine.length ? `対象${new Set(mine.map(r=>r.target.key)).size}件・記録${mine.length}件・最近：${mine[0].target.name} ${statusOf(f.id, mine[0].target.key, records) ? RESULTS[mine[0].result].name : '記録あり（地点・高さの変更前）'}` : '見え方は未記録';
     row.append(name, sub); row.onclick = () => openPlace(f, 'records'); list.append(row);
   }
   const note = document.createElement('p'); note.className = 'tiny muted'; note.textContent = '見えたものの記録はこのブラウザだけに保存します。撮影ポイント（お気に入り）は同期します。'; host.append(note);
@@ -350,15 +350,31 @@ function planningPairs(records, bodies) {
     return record.target.key === 'fuji' ? (body === 'sun' ? toolAllowed('diamond') : body === 'moon' ? toolAllowed('pearl') : toolAllowed('tower') && (toolAllowed('diamond') || toolAllowed('pearl'))) : toolAllowed('tower');
   }).map(body => ({record, body})));
 }
+function recordGroups(records) {
+  const groups=new Map();
+  for(const r of records){if(!groups.has(r.target.key))groups.set(r.target.key,[]);groups.get(r.target.key).push(r);}
+  return [...groups.values()].map(rows=>{rows.sort((a,b)=>when(b)-when(a)||b.updatedAt-a.updatedAt);return {latest:rows[0],records:rows};});
+}
+function showRecordEditor(targetKey='') {
+  if(!sheetOwnerMatches())return;
+  const select=el('myRecordTarget');select.value=targetKey;
+  sheetState.result='seen';el('myRecordDate').value='';el('myRecordNote').value='';el('myRecordOptions').open=false;el('myRecordError').hidden=true;el('myRecordSaved').hidden=true;syncResult();
+  el('myRecordEditorTitle').textContent=targetKey?'この対象の記録を追加':'対象を追加';
+  el('myRecordForm').hidden=false;el('myRecordForm').focus({preventScroll:true});el('myRecordForm').scrollIntoView({block:'nearest'});
+}
 function buildSheet() {
   sheet = document.createElement('dialog'); sheet.className = 'sheet'; sheet.id = 'myPlaceSheet'; sheet.tabIndex = -1; sheet.setAttribute('aria-labelledby', 'myPlaceTitle');
   sheet.innerHTML = `<div class="sheet-head"><strong id="myPlaceTitle">撮影ポイント</strong><button type="button" data-close>閉じる</button></div>
   <div class="sheet-body">
     <div class="my-input-field"><div class="condition-label">${inputRoleIcon('observer')}<span>撮影地点</span></div><div class="my-location-value" id="myPlaceName"></div></div>
-    <form id="myRecordForm" class="my-form" novalidate>
+    <div class="my-head"><h3 class="my-title">対象</h3><button type="button" class="chip" id="myRecordAdd">＋ 対象を追加</button></div>
+    <div id="myPlaceUndo"></div><div id="myPlaceRecords"></div>
+    <p class="tiny" id="myRecordSaved" role="status" hidden></p>
+    <form id="myRecordForm" class="my-form my-record-editor" tabindex="-1" novalidate hidden>
+      <strong id="myRecordEditorTitle">対象を追加</strong>
       <div class="my-input-field"><label class="condition-label" for="myRecordTarget">${inputRoleIcon('target')}<span>対象</span></label>
       <select id="myRecordTarget" class="fav-in"></select></div>
-      <button type="button" class="chip" id="myRecordPickTarget">地図・検索から目標を追加</button>
+      <button type="button" class="chip" id="myRecordPickTarget">地図・検索で対象を選ぶ</button>
       <details id="myRecordOptions" class="my-secondary"><summary>見え方・日付・メモ</summary>
       <div class="fav-l" id="myRecordResultLabel">見え方</div>
       <div class="aim-side-seg my-result" role="group" aria-labelledby="myRecordResultLabel">
@@ -370,13 +386,9 @@ function buildSheet() {
       <input type="text" id="myRecordNote" class="fav-in" maxlength="200" autocomplete="off">
       </details>
       <p class="warn" id="myRecordError" role="status" hidden></p>
-      <p class="tiny" id="myRecordSaved" role="status" hidden></p>
-      <button type="submit" class="fav-btn primary" id="myRecordSave">記録する</button>
+      <div class="my-actions"><button type="submit" class="fav-btn primary" id="myRecordSave">保存する</button><button type="button" class="chip" id="myRecordCancel">キャンセル</button></div>
       <p class="tiny muted">見えたものの記録は、このブラウザに保存します。</p>
     </form>
-    <h3 class="my-title">見えたもの</h3>
-    <div id="myPlaceUndo"></div>
-    <div id="myPlaceRecords"></div>
     <details id="myPlacePlanning" class="my-secondary"><summary>この場所から撮る</summary>
       <div class="my-actions"><button type="button" class="chip" id="myPlaceUse">ここから見る</button><button type="button" class="chip" id="myPlaceMap">地図でここから見る</button></div>
       <fieldset class="my-body-options"><legend class="condition-label">${inputRoleIcon('body')}<span>天体</span><span class="tiny">複数選択可</span></legend><div id="myPlaceBodies"></div></fieldset>
@@ -388,6 +400,8 @@ function buildSheet() {
   </div>`;
   document.body.append(sheet);
   sheet.querySelector('[data-close]').onclick = () => sheet.close();
+  el('myRecordAdd').onclick=()=>showRecordEditor();
+  el('myRecordCancel').onclick=()=>{el('myRecordForm').hidden=true;el('myRecordError').hidden=true;el('myRecordAdd').focus();};
   sheet.addEventListener('close', () => { sheetToken++; undoRec = null; });
   for (const body of SoramiBodies.definitions) {
     const label=document.createElement('label'),check=document.createElement('input');
@@ -433,6 +447,7 @@ function openPlace(place, ctx, targetKey = null) {
   if (want && !select.value) { el('myRecordError').textContent = 'この目標を選べません。目標を選び直すか、地図・検索から追加してください'; el('myRecordError').hidden = false; }
   el('myRecordSaved').hidden = true;
   for(const id of ['myRecordOptions','myPlacePlanning','myPlaceDetails'])el(id).open=false;
+  el('myRecordForm').hidden=!want;el('myRecordEditorTitle').textContent=want?'この対象の記録を追加':'対象を追加';
   syncResult(); renderSheet();
   if (!sheet.open) showSheet(sheet);
 }
@@ -440,16 +455,19 @@ function renderSheet() {
   const { place, ctx } = sheetState, token = ++sheetToken, list = load();
   const mine = list.filter((r) => r.placeId === place.id).sort((a, b) => when(b) - when(a));
   const recs = el('myPlaceRecords'); recs.replaceChildren();
-  if (!mine.length) { const p = document.createElement('p'); p.className = 'tiny'; p.textContent = '見えたものはまだありません。'; recs.append(p); }
-  for (const r of mine) {
-    const row = document.createElement('div'); row.className = 'fav-row';
-    const txt = document.createElement('div'); txt.className = 'list-item my-record';
-    const strong = document.createElement('strong'); strong.textContent = `${RESULTS[r.result].mark} ${r.target.name}`;
-    const sub = document.createElement('span'); sub.className = 'tiny sub-line'; sub.textContent = [RESULTS[r.result].name, r.date ? r.date.replaceAll('-', '/') : '', r.note].filter(Boolean).join(' ・ ');
-    txt.append(strong, sub);
-    const del = document.createElement('button'); del.type = 'button'; del.className = 'fav-del'; del.textContent = '✕'; del.setAttribute('aria-label', `${r.target.name}の記録を消す`);
-    del.onclick = () => { if (!sheetOwnerMatches()) { sheet.close(); return; } const all = load(), i = all.findIndex((x) => x.id === r.id); if (i < 0) return; const [gone] = all.splice(i, 1); if (save(all)) { undoRec = gone; renderSheet(); } };
-    row.append(txt, del); recs.append(row);
+  if(!mine.length){const p=document.createElement('p');p.className='tiny';p.textContent='ここから見えた山や建物を「＋ 対象を追加」で登録します。複数追加できます。';recs.append(p);}
+  for(const group of recordGroups(mine)){
+    const r=group.latest,detail=document.createElement('details');detail.className='my-target-record';
+    const summary=document.createElement('summary'),name=document.createElement('strong'),state=document.createElement('span');
+    name.textContent=r.target.name;state.className='tiny sub-line';state.textContent=[RESULTS[r.result].name,r.date?r.date.replaceAll('-','/'):'',`${group.records.length}件の記録`].filter(Boolean).join(' ・ ');summary.append(name,state);detail.append(summary);
+    const add=document.createElement('button');add.type='button';add.className='chip';add.textContent='この対象の記録を追加';add.disabled=!resolveTarget(r.target.key);add.onclick=()=>showRecordEditor(r.target.key);detail.append(add);
+    for(const [historyIndex,history] of group.records.entries()){
+      const row=document.createElement('div');row.className='fav-row';const text=document.createElement('div');text.className='tiny my-record';text.textContent=[RESULTS[history.result].name,history.date?history.date.replaceAll('-','/'):'日付なし',history.note].filter(Boolean).join(' ・ ');
+      const del=document.createElement('button');del.type='button';del.className='fav-del';del.textContent='✕';del.setAttribute('aria-label',`${history.target.name}の${history.date||'日付なし'}・${historyIndex+1}件目の記録を消す`);
+      del.onclick=()=>{if(!sheetOwnerMatches()){sheet.close();return;}const all=load(),i=all.findIndex(x=>x.id===history.id);if(i<0)return;const [gone]=all.splice(i,1);if(save(all)){undoRec=gone;renderSheet();}};
+      row.append(text,del);detail.append(row);
+    }
+    recs.append(detail);
   }
   const undo = el('myPlaceUndo'); undo.replaceChildren();
   if (undoRec) {
@@ -522,9 +540,11 @@ function saveRecord() {
     observer: { latitude: s.place.latitude, longitude: s.place.longitude, elevation: s.place.elevation ?? null, eyeHeightAGL: s.place.eyeHeightAGL ?? 1.5 },
     target: { key: t.id, name: t.name, latitude: t.latitude, longitude: t.longitude }, result: s.result, date, note: el('myRecordNote').value.trim().slice(0, 200), createdAt: now, updatedAt: now });
   if (!rec) { err.textContent = '地点や目標の情報を確認できません。名前を短くするなどして選び直してください'; err.hidden = false; return; }
+  const duplicate=all.some(r=>r.placeId===rec.placeId&&r.target.key===rec.target.key&&r.result===rec.result&&r.date===rec.date&&r.note===rec.note&&JSON.stringify(r.observer)===JSON.stringify(rec.observer));
+  if(duplicate){el('myRecordSaved').textContent='同じ内容は記録済みです';el('myRecordSaved').hidden=false;el('myRecordForm').hidden=true;renderSheet();el('myRecordAdd').focus();return;}
   all.push(rec);
   if (!save(all)) { err.textContent = '保存できませんでした。ブラウザの保存設定や空き容量を確認してください'; err.hidden = false; return; }
-  err.hidden = true; el('myRecordSaved').textContent = `${s.place.name}から${t.name}が${RESULTS[rec.result].name}と記録しました`; el('myRecordSaved').hidden = false; el('myRecordNote').value = ''; el('myRecordTarget').value=''; renderSheet();
+  err.hidden = true; el('myRecordSaved').textContent = `${s.place.name}から${t.name}が${RESULTS[rec.result].name}と記録しました`; el('myRecordSaved').hidden = false; el('myRecordNote').value = ''; el('myRecordTarget').value='';el('myRecordForm').hidden=true; renderSheet();el('myRecordAdd').focus();
 }
 
 // 観測地点（または地図の観測地点）から記録する。撮影ポイントでなければ、まず ☆ と同じ画面で登録する
@@ -583,6 +603,7 @@ style.textContent = `
 #myPlaceSheet #myRecordTarget:has(option:checked[value=""]){color:var(--tertiary)}
 #myPlaceSheet #myRecordTarget option{color:var(--text)}
 #myPlaceSheet .my-location-value{padding:14px 12px;border:1px solid var(--line);border-radius:12px;background:var(--sunk);font-size:16px;overflow-wrap:anywhere}
+#myPlaceSheet .my-record-editor{padding:14px 0;border-block:1px solid var(--line);margin:12px 0}#myPlaceSheet .my-record-editor[hidden]{display:none}#myPlaceSheet .my-target-record{padding:12px 0;border-bottom:1px solid var(--line)}#myPlaceSheet .my-target-record>summary{cursor:pointer;min-height:44px;padding:4px 0;list-style:none}#myPlaceSheet .my-target-record>summary::after{content:"記録を見る ▾";font-size:12px;color:var(--secondary)}#myPlaceSheet .my-target-record[open]>summary::after{content:"記録を閉じる ▴"}#myPlaceSheet .my-target-record .my-record{flex:1;min-width:0;overflow-wrap:anywhere}
 #myPlaceSheet #myRecordTarget{min-height:52px;border-radius:12px;font-size:16px;margin:0}
 .my-body-options{border:0;padding:0;margin:14px 0 8px;min-width:0}
 #myPlaceBodies{display:flex;gap:6px;flex-wrap:wrap}
