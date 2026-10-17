@@ -279,7 +279,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   { const ids=['aimBody','aimWhatLabel','aimTitle','aimWhereLabel','aimLimb','aimFromButton','aimFromLabel','aimStand','aimGroundHeight','aimStandHeight'];
     const positions=ids.map(id=>html.indexOf('id="'+id+'"'));
     ok(positions.every((p,i)=>p>0&&(!i||p>positions[i-1])), "何を→何に（部位・縁）→どこから（立つ所・標高・地上から）の順で選ぶ");
-    ok(['aimWhatLabel','aimWhereLabel','aimFromLabel'].every(id=>new RegExp('id="'+id+'"><svg[^>]*aria-hidden="true"').test(html)) && html.includes('<span>天体</span>') && html.includes('<span>対象</span>') && html.includes('<span>撮影地点</span>'), "構図は共通ピクトグラムと短い役割ラベル");
+    ok(['aimWhatLabel','aimWhereLabel','aimFromLabel'].every(id=>new RegExp('id="'+id+'"><svg[^>]*aria-hidden="true"').test(html)) && html.includes('<span>天体</span>') && html.includes('<span>対象</span>') && />撮影地点<\/span>/.test(html), "構図は共通ピクトグラムと短い役割ラベル");
     // 題名の中に「に重ねる」を入れたら 375px 以下で折れた。右は折らず、欄の側を省略する
     ok(/\.aim-say \{ display: flex; align-items: center;/.test(html) && /\.aim-say > :first-child \{ flex: 1 1 0; min-width: 0;/.test(html)
       && /\.aim-say-v \{ flex: 0 0 5\.2em;[^}]*white-space: nowrap;/.test(html), "文の右は「から重ねる」の幅で固定して折らない・欄の側が縮む");
@@ -447,6 +447,7 @@ console.log("== 使われていない見た目の決まりを残さない ==");
   let rest = html;
   for (const b of [...blocks].reverse()) rest = rest.slice(0, b.index) + rest.slice(b.index + b[0].length);
   rest += fs.readFileSync(new URL("./sorami-plan.js", import.meta.url), "utf8");
+  rest += fs.readFileSync(new URL("./sorami-icons.js", import.meta.url), "utf8");
   const classes = new Set([...css.matchAll(/\.([A-Za-z][A-Za-z0-9_-]+)/g)].map((m) => m[1]));
   const tokens = new Set(INTERPOLATED);
   for (const m of rest.matchAll(/class="([^"]*)"/g)) for (const t of m[1].split(/[\s${}()|?:+"'`]+/)) if (t) tokens.add(t);
@@ -822,7 +823,7 @@ console.log("== 地点カードで探せると分かる（2026-10-01） ==");
 
 console.log("== 月を表すところは全部、その時の満ち欠け（2026-10-01） ==");
 {
-  ok(/const moonGlyphAt = \(atMs\) => iconFor\("moon", atMs\)/.test(html), "月の形は1つの関数（iconFor と同じ仕組み）");
+  ok(/const moonGlyphAt = \(atMs\) => iconFor\("moon", atMs, \{ text: true \}\)/.test(html), "月の形は1つの関数（iconFor と同じ仕組み）");
   ok(!/MOON_FACES = \[/.test(html) && !/moonFace\(/.test(html), "光の帯も同じ仕組み（月齢の別の表を持たない）");
   ok(/phase: typeof SoramiMoon !== "undefined" \? SoramiMoon\.phaseOf\(mid\)/.test(html), "光の帯の月の形は SoramiMoon.phaseOf");
   // 画面に固定の 🌙 を書くのは、初期表示のボタンの文字だけ（開いたら満ち欠けに差し替える）

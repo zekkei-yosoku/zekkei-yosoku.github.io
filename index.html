@@ -12,8 +12,9 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="2611741818883978636">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-+8EhSqhQ2X2HluzlIMEVvRaOOs2q4q8DT8WT48k3iVE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-XF/wUrJ0gyNquAp1coP2zpBpYvO2GIWAt0Vn0IHDtY0=' 'sha256-GyLSmYyCDeo6CJaky63mh5yleh3jkcLg2YEvSiYXrAM=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="5096909775004618481">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-JaEBG+jvlr4m1ji8TP4QCq76wE8yIvsIoZjJ3YjuyHE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-XF/wUrJ0gyNquAp1coP2zpBpYvO2GIWAt0Vn0IHDtY0=' 'sha256-GyLSmYyCDeo6CJaky63mh5yleh3jkcLg2YEvSiYXrAM=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
 <link data-script-preload rel="preload" as="script" href="sorami-saved-rounds.js?v=12447962622712891676">
@@ -1167,6 +1168,14 @@
   .condition-label svg{flex:none;color:var(--accent)}
   :is(#aimView,#skyMapView) .condition-field .place-pick > .pin{display:none}
   #skyMapView .condition-field{max-width:720px}
+
+  /* Selection clearing is separate from searching and never deletes a saved place. */
+  :is(#aimView,#skyMapView) .condition-field:has(.aim-place-card) > .condition-label{min-height:44px}
+  .condition-clear{display:inline-flex;align-items:center;justify-content:center;gap:5px;margin-left:auto;min-width:76px;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:9px;background:var(--sunk);color:var(--secondary);font-size:13px;font-weight:600;cursor:pointer;box-sizing:border-box}
+  .condition-clear[hidden]{display:none}
+  .condition-clear svg{color:inherit}
+  .astro-icon{display:inline-block;width:1.15em;height:1.15em;vertical-align:-.18em;flex:none;color:var(--accent);overflow:visible}
+  [data-pictogram="moon-phase"]{color:#dbe7f2}
 </style>
 <script>(()=>{const root=document.documentElement,meta=document.querySelector('meta[name="theme-color"]');const sync=()=>{meta.content=getComputedStyle(root).getPropertyValue('--header-bg').trim();};sync();new MutationObserver(sync).observe(root,{attributes:true,attributeFilter:['data-theme']});})();</script>
 <style id="previewStyles">.preview-banner{margin:0 0 12px;color:var(--secondary);font-size:11px}
@@ -1673,7 +1682,7 @@ button.ui-icon-button::after { content: none; }
     <!-- 撮影地点は任意。未選択でも対象・天体・日付から登録地点の候補を選べる。予測地域は暗黙補完しない。 -->
     <div class="aim-say aim-say-from condition-field">
     <div class="place-row aim-place-card">
-      <button class="place-pick" id="aimFromButton" aria-describedby="aimFromLabel">
+      <button class="place-pick" id="aimFromButton" aria-describedby="aimFromLabelText">
         <span class="pin">📍</span>
         <span class="place-txt">
           <span class="name" id="aimFromName">…</span>
@@ -1684,10 +1693,9 @@ button.ui-icon-button::after { content: none; }
           stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
       </button>
       <!-- 観測地点をお気に入りに（座標そのものに名前を付けて残す。ユーザー「座標ピンポイントに名前つけたりしたい」）。登録済みなら ★ で編集 -->
-      <button type="button" id="aimFromClear" class="tap" aria-label="撮影地点の選択を解除" title="選択解除" hidden>×</button>
       <button id="aimFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆</button>
     </div>
-    <span class="aim-say-v condition-label" id="aimFromLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-observer"/></svg><span>撮影地点</span></span>
+    <span class="aim-say-v condition-label" id="aimFromLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-observer"/></svg><span id="aimFromLabelText">撮影地点</span><button type="button" id="aimFromClear" class="condition-clear" aria-label="撮影地点の選択を解除" title="選択を解除" hidden><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg><span>解除</span></button></span>
     </div>
     <!-- 観測標高を「標高」（地面だけ）と「地上から」（目の高さ1.5m＋立つ所の高さ）に分ける（2026-10-06 ユーザー「観測標高は枠分ける？標高と目線とで」
          「標高は標高だけ。展望台の高さは目線のところに持っていくのがいいのか？」）。名前を「目線」にすると展望台の351.5mが目の高さに見えて迷うので「地上から」。
@@ -1881,7 +1889,7 @@ button.ui-icon-button::after { content: none; }
  <div id="skyMapAccess" class="card"><p id="skyMapAccessMessage" role="status">利用権限を確認しています…</p><button type="button" class="chip" id="skyMapAccessRetry">再試行</button><button type="button" class="chip" id="skyMapAccessLogin">ログイン</button></div>
  <div class="sky-map-content" id="skyMapContent" hidden>
   <div class="sky-map-controls"><div class="aim-say condition-field"><select id="skyMapBody" aria-labelledby="skyMapBodyLabel"><option value="sun">太陽</option><option value="moon">月</option><option value="sirius">シリウス</option><option value="mercury">水星</option><option value="venus">金星</option><option value="mars">火星</option><option value="jupiter">木星</option><option value="saturn">土星</option></select><span class="aim-say-v condition-label" id="skyMapBodyLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-body"/></svg><span>天体</span></span></div><div class="aim-say condition-field"><select id="skyMapTarget" aria-labelledby="skyMapTargetLabel"></select><span class="aim-say-v condition-label" id="skyMapTargetLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-target"/></svg><span>対象</span></span></div></div>
-  <div class="aim-say condition-field"><div class="place-row aim-place-card"><button type="button" class="place-pick" id="skyMapChoose" aria-describedby="skyMapChooseLabel"><span class="pin" aria-hidden="true"></span><span class="place-txt"><span class="name" id="skyMapObserver">撮影地点を選ぶ</span><span class="muted" id="skyMapObserverSub"></span></span><span class="chev" aria-hidden="true"></span></button><button type="button" id="skyMapObserverClear" class="tap" aria-label="撮影地点の選択を解除" title="選択解除" hidden>×</button></div><span class="aim-say-v condition-label" id="skyMapChooseLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-observer"/></svg><span>撮影地点</span></span></div>
+  <div class="aim-say condition-field"><div class="place-row aim-place-card"><button type="button" class="place-pick" id="skyMapChoose" aria-describedby="skyMapChooseLabelText"><span class="pin" aria-hidden="true"></span><span class="place-txt"><span class="name" id="skyMapObserver">撮影地点を選ぶ</span><span class="muted" id="skyMapObserverSub"></span></span><span class="chev" aria-hidden="true"></span></button></div><span class="aim-say-v condition-label" id="skyMapChooseLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-observer"/></svg><span id="skyMapChooseLabelText">撮影地点</span><button type="button" id="skyMapObserverClear" class="condition-clear" aria-label="撮影地点の選択を解除" title="選択を解除" hidden><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg><span>解除</span></button></span></div>
 
   <div class="mapwrap sky-map-wrap"><span class="sr-only">地図は北が上</span><canvas id="skyMapCanvas" aria-label="観測地点からの天体の方向と目標物への線を示す地図"></canvas><div class="sky-map-point-tools"><button type="button" class="map-ctl" id="skyMapObserverTool" aria-label="観測地点を地図で変更" title="観測地点" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="7" rx="1.5"/><circle cx="13" cy="6.5" r="2"/><path d="M12 10v3m0 0L5 22m7-9 7 9m-7-9v9"/></svg></button><button type="button" class="map-ctl" id="skyMapTargetTool" aria-label="目標物を地図で変更" title="目標物" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z"/><circle cx="12" cy="9" r="2.5"/></svg></button><button type="button" class="map-ctl sky-map-transfer" id="skyMapUse" aria-label="この条件の構図を確認" title="この条件の構図を確認" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3H3v4m14-4h4v4M3 17v4h4m10 0h4v-4"/><path d="m5 17 5-6 3 3 3-4 3 7"/><circle cx="13" cy="7" r="2"/></svg><span>構図</span></button></div><button type="button" class="map-ctl sky-map-expand" id="skyMapExpand" aria-label="地図を全画面表示" title="地図を全画面表示" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path data-map-expand d="M4 9V4h5M4 4l5 5M15 4h5v5m0-5-5 5M4 15v5h5m-5 0 5-5M15 20h5v-5m0 5-5-5"/><path data-map-contract d="M9 4v5H4m5 0L4 4m11 0v5h5m-5 0 5-5M4 15h5v5m0-5-5 5m16-5h-5v5m0-5 5 5"/></svg></button><div class="mappin" aria-hidden="true"></div><div class="mapzoom"><button id="skyMapIn" aria-label="地図を拡大">＋</button><button id="skyMapOut" aria-label="地図を縮小">−</button></div><div class="mapattr">国土地理院</div></div>
   <div class="sky-map-link"><button type="button" class="chip" id="skyMapUseBelow" hidden>この条件の構図を確認</button></div>
@@ -2231,6 +2239,7 @@ button.ui-icon-button::after { content: none; }
 
 <!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
+<script src="sorami-icons.js?v=7710713070885006918"></script>
 <script src="sorami-core.js?v=416354364020786134"></script>
 <script src="sorami-prediction.js?v=17884626660592691492"></script>
 <script src="sorami-saved-rounds.js?v=12447962622712891676"></script>
@@ -3119,18 +3128,20 @@ async function loadExtras() {
 /// 満月か細い月かは「行くかどうか」を左右するので、装飾ではなく識別の一部
 /// （04_デザイン定義「絵文字は現象の識別にだけ使う」）。
 /// 名前が隣にあるので、絵文字が日によって変わっても行は見分けられる。
-function iconFor(id, atMs) {
+function iconFor(id, atMs, { text = false } = {}) {
   const meta = S.PHENOMENA[id];
-  if (id !== "moon" || typeof SoramiMoon === "undefined") return meta.icon;
-  try {
-    const obs = { latitude: place.latitude, longitude: place.longitude, elevation: 0 };
-    return SoramiMoon.glyphOf(SoramiAstro.moon(atMs ?? Date.now(), obs));
-  } catch { return meta.icon; }
+  if (!meta) return '';
+  if (id === "moon" && typeof SoramiMoon !== "undefined") {
+    try {
+      const obs = { latitude: place.latitude, longitude: place.longitude, elevation: 0 };
+      const moon = SoramiAstro.moon(atMs ?? Date.now(), obs);
+      return text || typeof SoramiIcons === "undefined" ? SoramiMoon.glyphOf(moon) : SoramiIcons.moon(moon);
+    } catch { /* Keep an unquantified moon, never invent a phase. */ }
+  }
+  return text || typeof SoramiIcons === "undefined" ? meta.icon : SoramiIcons.icon(id);
 }
-/// その時刻の月の形（満ち欠け）。**月を表すところは全部これで描く**
-/// （2026-10-01 ユーザー指摘「月関係するところは全て月の満ち欠けに連動するように」）。
-/// 以前は道具の画面・お気に入り・記録などで固定の 🌙 や「輝面◯%」の数字だけだった
-const moonGlyphAt = (atMs) => iconFor("moon", atMs);
+// Text-only tool captions and exports retain plain text; never pass SVG to textContent.
+const moonGlyphAt = (atMs) => iconFor("moon", atMs, { text: true });
 /// 月を撮る時刻の空の明るさの手がかり。「日の入の25分後 ・ 月の出の1時間10分後」
 /// （2026-10-01 ユーザー「月系は空の明るさが重要だから、日の出何分後とか月の出何分後とかの情報をサクッと書いておいてほしい」）。
 /// 太陽は前後6時間の日の出入りからの差（20時台でも「日の入の3時間27分後」と言える。真夜中だけ「夜のまんなか」）、
@@ -4486,8 +4497,8 @@ function renderAlignments(now) {
       : `<div class="al-row">${body}</div>`;
   };
   const rows = [
-    ...sun.map((e, i) => row(e, i === 0 ? "ダイヤモンド富士" : "その次", "☀️")),
-    ...moon.map((e, i) => row(e, i === 0 ? "パール富士" : "その次", moonGlyphAt(e.at))),
+    ...sun.map((e, i) => row(e, i === 0 ? "ダイヤモンド富士" : "その次", SoramiIcons.icon("sun"))),
+    ...moon.map((e, i) => row(e, i === 0 ? "パール富士" : "その次", iconFor("moon", e.at))),
   ].join("");
   // 片方しか無いことがある。**黙って消さない**（探して無いのか、そもそも出ないのか分からない）
   const none = [
@@ -4581,7 +4592,7 @@ function renderCapLine(dayMs) {
   const label = S.phrasing("capCloud", ev.rank).label;
   const type = ev.detail ? SoramiCapCloud.TYPE_LABEL[ev.detail.type] : "";
   return `<a class="card cap-line" href="#/capCloud">
-    <span class="ic">${S.PHENOMENA.capCloud.icon}</span>
+    <span class="ic">${iconFor("capCloud")}</span>
     <span><strong>笠雲</strong> ${esc(label)} ${Math.round(ev.score)}
       <span class="tiny" style="color:var(--tertiary)">${esc(type)}・${S.JstCal.hhmmRounded(ev.peak)}ごろ</span></span>
     <span class="go">›</span></a>`;
@@ -4639,7 +4650,7 @@ function renderFujiBackLine(dayMs) {
   if (!hit || hit.evaluation.unavailable) return "";
   const ev = hit.evaluation;
   return `<a class="card cap-line" href="#/fuji">
-    <span class="ic">${S.PHENOMENA.fuji.icon}</span>
+    <span class="ic">${iconFor("fuji")}</span>
     <span><strong>富士山そのもの</strong> ${esc(S.phrasing("fuji", ev.rank).label)} ${Math.round(ev.score)}
       <span class="tiny" style="color:var(--tertiary)">笠雲は富士山が見えてこそ</span></span>
     <span class="go">›</span></a>`;
@@ -4680,11 +4691,11 @@ function renderLightTimes(dayMs, now, phenomenonId) {
   // （朝焼け・夕焼けは日の出・日の入りと同じ時刻で、二重に出るだけになる）。
   const moon = moonEvents(d0, TL_SPAN);
   const ph = moon.phase || { glyph: S.PHENOMENA.moon.icon, name: "月" };
-  const face = ph.glyph, faceName = ph.name;
+  const face = iconFor("moon", d0 + 12 * 3600000), faceName = ph.name;
   const moonTitle = `${faceName}（月齢 ${moon.age.toFixed(1)}・照らされている割合 ${Math.round(moon.illuminated * 100)}%）`;
   const events = [
-    [w.sunrise, "☀️", "日の出", ""],
-    [w.sunset, "☀️", "日の入", ""],
+    [w.sunrise, SoramiIcons.icon("sun"), "日の出", ""],
+    [w.sunset, SoramiIcons.icon("sun"), "日の入", ""],
     [moon.rise, face, "月の出", moonTitle],
     [moon.set, face, "月の入", moonTitle],
   ].filter(([t]) => t !== null && t >= d0 && t <= d1)
@@ -5444,7 +5455,7 @@ function terrainEffect(terrain, elevation) {
     : (el == null || el < MIN_ELEV.seaOfClouds) ? shortfall(MIN_ELEV.seaOfClouds) : "対象";
   const rime = ["plain", "coast"].includes(terrain) ? "山地ではないので対象外"
     : (el == null || el < MIN_ELEV.rime) ? shortfall(MIN_ELEV.rime) : "対象";
-  return `🌫️ 雲海：${sea}　❄️ 霧氷：${rime}`;
+  return `雲海：${sea}　霧氷：${rime}`;
 }
 const PHENOMENA_ORDER = Object.entries(S.PHENOMENA).sort((a, b) => a[1].order - b[1].order);
 
