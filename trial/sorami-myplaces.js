@@ -70,6 +70,7 @@ PLACE_PICKERS.recordTarget = { title: '見えた目標を選ぶ', custom: () => 
     void favForPoint(p, entry => {
       if (!entry || !sheetOwnerMatches() || draft.ownerToken !== auth?.token || draft.placeId !== sheetState?.place.id) return;
       const original = sheetState.place, ctx = sheetState.ctx; openPlace(original, ctx, 'fav:' + entry.id);
+      sheetState.bodies=draft.bodies;for(const check of sheet.querySelectorAll('[data-planning-body]'))check.checked=sheetState.bodies.includes(check.value);
       sheetState.result = draft.result; syncResult(); el('myRecordDate').value = draft.date; el('myRecordNote').value = draft.note;
       el('myRecordOptions').open = !!draft.optionsOpen || draft.result !== 'seen';
     }, { target: p.targetHeightM ?? p.structureM ?? 0 });
@@ -346,15 +347,22 @@ function openInSky(place,row){SkyMapUI?.setObserver?.(SoramiShooting.savedObserv
 
 // ---------------------------------------------------------------- 撮影ポイントの画面（記録と次に重なる日）
 let sheet = null, sheetState = null, sheetToken = 0, undoRec = null;
+// A place can have many visible targets; celestial bodies are planning filters,
+// never a restriction on the saved visibility observation.
+const inputRoleIcon = role => `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-${role}"/></svg>`;
+function planningPairs(records, bodies) {
+  return records.filter(r => r.result !== 'hidden').flatMap(record => bodies.filter(body => {
+    if (!SoramiBodies.definition(body)) return false;
+    return record.target.key === 'fuji' ? (body === 'sun' ? toolAllowed('diamond') : body === 'moon' ? toolAllowed('pearl') : toolAllowed('tower') && (toolAllowed('diamond') || toolAllowed('pearl'))) : toolAllowed('tower');
+  }).map(body => ({record, body})));
+}
 function buildSheet() {
   sheet = document.createElement('dialog'); sheet.className = 'sheet'; sheet.id = 'myPlaceSheet'; sheet.tabIndex = -1; sheet.setAttribute('aria-labelledby', 'myPlaceTitle');
   sheet.innerHTML = `<div class="sheet-head"><strong id="myPlaceTitle">撮影ポイント</strong><button type="button" data-close>閉じる</button></div>
   <div class="sheet-body">
-    <h3 class="my-title">見えたもの</h3>
-    <div id="myPlaceUndo"></div>
-    <div id="myPlaceRecords"></div>
+    <div class="my-input-field"><div class="condition-label">${inputRoleIcon('observer')}<span>撮影地点</span></div><div class="my-location-value" id="myPlaceName"></div></div>
     <form id="myRecordForm" class="my-form" novalidate>
-      <label class="fav-l" for="myRecordTarget">見えたものを追加</label>
+      <label class="condition-label" for="myRecordTarget">${inputRoleIcon('target')}<span>対象</span></label>
       <select id="myRecordTarget" class="fav-in"></select>
       <button type="button" class="chip" id="myRecordPickTarget">地図・検索から目標を追加</button>
       <details id="myRecordOptions" class="my-secondary"><summary>見え方・日付・メモ</summary>
@@ -372,9 +380,14 @@ function buildSheet() {
       <button type="submit" class="fav-btn primary" id="myRecordSave">記録する</button>
       <p class="tiny muted">見えたものの記録は、このブラウザに保存します。</p>
     </form>
+    <h3 class="my-title">見えたもの</h3>
+    <div id="myPlaceUndo"></div>
+    <div id="myPlaceRecords"></div>
     <details id="myPlacePlanning" class="my-secondary"><summary>この場所から撮る</summary>
       <div class="my-actions"><button type="button" class="chip" id="myPlaceUse">ここから見る</button><button type="button" class="chip" id="myPlaceMap">地図でここから見る</button></div>
-      <h3 class="my-title">次に重なる日<span class="tiny" id="myPlaceBody"></span></h3>
+      <fieldset class="my-body-options"><legend class="condition-label">${inputRoleIcon('body')}<span>天体</span><span class="tiny">複数選択可</span></legend><div id="myPlaceBodies"></div></fieldset>
+      <button type="button" class="chip" id="myPlaceFind">次に重なる日を探す</button>
+      <h3 class="my-title">次に重なる日</h3>
       <div class="al my-list" id="myPlaceNext"></div>
     </details>
     <details id="myPlaceDetails" class="my-secondary"><summary>場所の詳細</summary><p class="tiny" id="myPlaceSub"></p></details>
@@ -382,11 +395,18 @@ function buildSheet() {
   document.body.append(sheet);
   sheet.querySelector('[data-close]').onclick = () => sheet.close();
   sheet.addEventListener('close', () => { sheetToken++; undoRec = null; });
-  el('myPlacePlanning').addEventListener('toggle',()=>{if(el('myPlacePlanning').open&&sheetOwnerMatches())renderSheet();});
+  for (const body of SoramiBodies.definitions) {
+    const label=document.createElement('label'),check=document.createElement('input');
+    check.type='checkbox';check.value=body.id;check.dataset.planningBody=body.id;
+    check.onchange=()=>{if(!sheetOwnerMatches())return;sheetState.bodies=[...sheet.querySelectorAll('[data-planning-body]:checked')].map(n=>n.value);sheetState.planningRequested=false;renderSheet();};
+    label.append(check,document.createTextNode(body.name));el('myPlaceBodies').append(label);
+  }
+  el('myPlaceFind').onclick=()=>{if(!sheetOwnerMatches())return;sheetState.planningRequested=true;renderSheet();};
+  el('myPlacePlanning').addEventListener('toggle',()=>{if(!sheetOwnerMatches())return;if(el('myPlacePlanning').open)renderSheet();else{sheetToken++;sheetState.planningRequested=false;}});
   for (const b of sheet.querySelectorAll('[data-result]')) b.onclick = () => { sheetState.result = b.dataset.result; syncResult(); };
   el('myRecordPickTarget').onclick = () => {
     if (!sheetOwnerMatches()) { sheet.close(); return; }
-    targetDraft = { ownerToken: auth.token, placeId: sheetState.place.id, result: sheetState.result, date: el('myRecordDate').value, note: el('myRecordNote').value, optionsOpen: el('myRecordOptions').open };
+    targetDraft = { ownerToken: auth.token, placeId: sheetState.place.id, result: sheetState.result, date: el('myRecordDate').value, note: el('myRecordNote').value, optionsOpen: el('myRecordOptions').open, bodies:[...sheetState.bodies] };
     openPlaceSheet('recordTarget');
   };
   el('myPlaceMap').onclick = () => {
@@ -403,8 +423,10 @@ const today = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10
 function openPlace(place, ctx, targetKey = null) {
   if (!sheet) buildSheet();
   const current = ctx === 'sky' ? skySession?.target?.id : aim.target?.id;
-  sheetState = { place, ctx, result: 'seen', ownerToken: auth?.token };
-  el('myPlaceTitle').textContent = place.name;
+  sheetState = { place, ctx, result: 'seen', ownerToken: auth?.token, bodies:[ctx === 'sky' ? (skySession?.body || 'sun') : aim.body], planningRequested:false };
+  el('myPlaceTitle').textContent = '撮影ポイント';
+  el('myPlaceName').textContent = place.name;
+  for(const check of sheet.querySelectorAll('[data-planning-body]'))check.checked=sheetState.bodies.includes(check.value);
   el('myPlaceSub').textContent = [place.subtitle, `${place.latitude.toFixed(5)}, ${place.longitude.toFixed(5)}`, finite(place.elevation) ? `標高 ${place.elevation}m` : '標高不明', `地上から ${place.eyeHeightAGL ?? 1.5}m` ].filter(Boolean).join(' ・ ');
   el('myPlaceMap').hidden = ctx === 'sky' || !toolAllowed('skymap');
   el('myPlaceUse').hidden = ctx === 'records' && !screenAllowed('framing');
@@ -441,38 +463,51 @@ function renderSheet() {
     const b = document.createElement('button'); b.type = 'button'; b.textContent = '元に戻す'; b.onclick = () => { if (!sheetOwnerMatches()) { sheet.close(); return; } const all = load(); all.push(undoRec); if (save(all)) { undoRec = null; renderSheet(); } };
     u.append(s, b); undo.append(u);
   }
-  // 次に重なる日：見えた（一部を含む）目標ごと。天体はいま開いている画面の天体
-  const body = ctx === 'sky' ? (skySession?.body || 'sun') : aim.body;
-  el('myPlaceBody').textContent = `（${SoramiBodies.definition(body)?.name || body}）`;
   const next = el('myPlaceNext'); next.replaceChildren();
   if(!el('myPlacePlanning').open)return;
   const seen = targetsSeenFrom(place.id).filter((r) => r.result !== 'hidden');
-  if (!seen.length) { const p = document.createElement('p'); p.className = 'tiny'; p.textContent = '見えた目標を記録すると、ここに次に重なる日が出ます。'; next.append(p); return; }
-  for (const r of seen) {
+  const pairs=planningPairs(seen,sheetState.bodies);
+  el('myPlaceFind').disabled=!pairs.length;
+  if (!seen.length || !pairs.length || !sheetState.planningRequested) {
+    const p=document.createElement('p');p.className='tiny';
+    p.textContent=!seen.length?'見えた対象を追加すると、次に重なる日を探せます。':!sheetState.bodies.length?'調べたい天体を選んでください。':!pairs.length?'選んだ天体と対象は、現在の権限では構図に使えません。':'この場所から見えた対象ごとに、選んだ天体が重なる日を調べます。';
+    next.append(p);return;
+  }
+  let pending=Promise.resolve();
+  for (const {record:r,body} of pairs) {
     const t = resolveTarget(r.target.key);
     const b = document.createElement('button'); b.type = 'button'; b.className = 'list-item my-place-row';
-    const strong = document.createElement('strong'); strong.textContent = `${RESULTS[r.result].mark} ${r.target.name}`;
+    const strong = document.createElement('strong'); strong.textContent = `${r.target.name} × ${SoramiBodies.definition(body).name}`;
     const sub = document.createElement('span'); sub.className = 'tiny sub-line'; b.append(strong, sub); next.append(b);
-    if (!t) { sub.textContent = 'この目標はいまの権限・一覧では使えません'; b.disabled = true; continue; }
-    b.disabled = true;
-    sub.textContent = '計算しています…';
-    nextFor(place, t, body, matchOpts(t)).then((row) => {
-      if (token !== sheetToken) return;
+    if (!t) { sub.textContent = 'この対象はいまの権限・一覧では使えません'; b.disabled = true; continue; }
+    b.disabled = true;sub.textContent = '計算しています…';
+    pending=pending.then(()=>{
+      if(token!==sheetToken || !sheet.open || !sheetOwnerMatches())return;
+      return nextFor(place, t, body, matchOpts(t)).then((row) => {
+      if (token !== sheetToken || !sheet.open || !sheetOwnerMatches()) return;
       sub.textContent = row ? `${dayText(row.at)} ${sideName(body, row.side)} ${S.JstCal.hhmm(row.at)}` : '400日以内には重なりません';
       b.disabled = !row || (ctx === 'records' && !screenAllowed('framing'));
       if (ctx === 'records' && !screenAllowed('framing')) sub.textContent += '（構図の利用権限が必要です）';
-      b.onclick = () => { if (ctx !== 'records') sheet.close(); openWith(place, t, row, ctx); };
-    }).catch(() => { if (token === sheetToken) sub.textContent = '計算できませんでした'; });
+      b.onclick = () => {
+        if(token!==sheetToken || !sheet.open || !sheetOwnerMatches() || !planningPairs([r],[body]).length)return;
+        const current=statusOf(place.id,r.target.key);if(!current || current.id!==r.id || current.result==='hidden'){renderSheet();return;}
+        if (ctx !== 'records') sheet.close();openWith(place, t, {...row,body}, ctx);
+      };
+      }).catch(() => { if (token === sheetToken) sub.textContent = '計算できませんでした。もう一度探してください'; });
+    });
   }
 }
 // 次に重なる日を押したら、その目標・日・地点で開く（構図ならその日の見え方、地図ならその時刻）
 function openWith(place, t, row, ctx) {
+  if(row?.body && !planningPairs([{result:'seen',target:{key:t.id}}],[row.body]).length)return;
   if (ctx === 'records') { void openFromRecords(place, t, row); return; }
   if (ctx === 'sky') {
+    if(row?.body){el('skyMapBody').value=row.body;el('skyMapBody').dispatchEvent(new Event('change',{bubbles:true}));}
     SkyMapUI?.setTarget?.(t.id);
     openInSky(place, row);
     return;
   }
+  if(row?.body){aim.body=row.body;el('aimBody').value=row.body;}
   aimFillSelects();
   if (el('aimTarget').value !== t.id) { el('aimTarget').value = t.id; aim.partId = null; aim.partsTargetKey = null; el('aimPart').value = ''; }
   aimSetFrom(SoramiShooting.savedObserver(place), { keepMap: true });
@@ -493,7 +528,7 @@ function saveRecord() {
   if (!rec) { err.textContent = '地点や目標の情報を確認できません。名前を短くするなどして選び直してください'; err.hidden = false; return; }
   all.push(rec);
   if (!save(all)) { err.textContent = '保存できませんでした。ブラウザの保存設定や空き容量を確認してください'; err.hidden = false; return; }
-  err.hidden = true; el('myRecordSaved').textContent = `${s.place.name}から${t.name}が${RESULTS[rec.result].name}と記録しました`; el('myRecordSaved').hidden = false; el('myRecordNote').value = ''; renderSheet();
+  err.hidden = true; el('myRecordSaved').textContent = `${s.place.name}から${t.name}が${RESULTS[rec.result].name}と記録しました`; el('myRecordSaved').hidden = false; el('myRecordNote').value = ''; el('myRecordTarget').value=''; renderSheet();
 }
 
 // 観測地点（または地図の観測地点）から記録する。撮影ポイントでなければ、まず ☆ と同じ画面で登録する
@@ -544,7 +579,15 @@ style.textContent = `
 .my-result{display:flex;gap:6px;margin:4px 0 8px}
 .my-result button{flex:1 1 0;min-height:44px}
 .my-result button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent,#fff)}
-.my-form{margin-top:8px;border-top:1px solid var(--line);padding-top:4px}
+.my-form{margin-top:14px}
+#myPlaceSheet .condition-label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted);line-height:22px;margin-bottom:6px}
+#myPlaceSheet .my-location-value{padding:14px 12px;border:1px solid var(--line);border-radius:12px;background:var(--sunk);font-size:16px;overflow-wrap:anywhere}
+#myPlaceSheet #myRecordTarget{min-height:52px;border-radius:12px;font-size:16px;margin:0 0 8px}
+.my-body-options{border:0;padding:0;margin:14px 0 8px;min-width:0}
+#myPlaceBodies{display:flex;gap:6px;flex-wrap:wrap}
+#myPlaceBodies label{display:flex;align-items:center;gap:6px;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:10px;font-size:14px}
+#myPlaceBodies label:has(:checked){border-color:var(--accent);background:var(--sunk)}
+#myPlaceBodies input{accent-color:var(--accent);width:16px;height:16px;margin:0}
 .my-form .fav-btn{margin-top:10px;width:100%}
 .my-actions{margin:6px 0}
 .my-record{cursor:default}
