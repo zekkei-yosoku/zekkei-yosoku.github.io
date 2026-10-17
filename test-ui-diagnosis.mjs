@@ -103,7 +103,7 @@ test('未設定の自由目標へ切り替えると前の目標の時刻表を�
  const aim={target:{parts:[]},seq:3,candSeq:3,lines:[1],cands:[1]};
  runInNewContext('(function(){'+html.slice(a,b)+'})()',{$,aim,aimRenderFrom:()=>{},aimRefreshSheetCands:()=>{},AimMap:{center:()=>({latitude:35}),redraw:()=>{}},Number});
  assert.equal($('aimLineTable').hidden,true);assert.equal(body.innerHTML,'');assert.equal($('aimLineInfo').textContent,'');assert.equal(aim.lines.length,0);
- // どこから重ねるかの地点の画面に、前の目標の候補地を残さない（2026-10-06）
+ // 撮影地点の地点の画面に、前の目標の候補地を残さない（2026-10-06）
  assert.equal(aim.cands.length,0);
 });
 
@@ -138,7 +138,7 @@ test('管理者直リンクは認証済みモジュールだけを表示し、�
 
 test('管理画面を開いたまま認証が更新されたら新しい権限で読み直す',()=>{
  let refresh=0;const button={textContent:'',classList:{toggle(){},remove(){}},setAttribute(){}};
- const auth={role:'admin',loginId:'fixture'};const ctx={SkyMapUI:null,auth,atAdmin:true,adminRenderAuth:auth,renderAdmin:()=>refresh++,renderTools(){},refreshRestrictedTools(){},redrawIfToolsChanged(){},atRecords:false,$:()=>button,syncError:null,pushQueue:[]};
+ const auth={role:'admin',loginId:'fixture'};const ctx={window:{},favDraft:null,SkyMapUI:null,auth,atAdmin:true,adminRenderAuth:auth,renderAdmin:()=>refresh++,renderTools(){},refreshRestrictedTools(){},redrawIfToolsChanged(){},atRecords:false,$:()=>button,syncError:null,pushQueue:[]};
  const update=runInNewContext(grab('function renderAuthButton')+';renderAuthButton',ctx);update();assert.equal(refresh,0);
  ctx.auth={...auth};update();assert.equal(refresh,1);
  ctx.auth=null;update();assert.equal(refresh,2);assert.equal(button.textContent,'ログイン');

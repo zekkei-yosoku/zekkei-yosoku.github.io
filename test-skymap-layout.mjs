@@ -3,7 +3,7 @@ const flush=()=>new Promise(r=>setImmediate(r));
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 test('観測点配置は中心固定のパンで候補だけ動き、確定まで観測点・計算を変えない',async()=>{
  const f=fixture();await f.open();const original=f.data.get('sorami.skyMap:testuser').observer,loads=f.loads,calls=f.calls;
- f.element('skyMapObserverTool').onclick();assert.equal(f.element('skyMapObserverTool')['aria-pressed'],'true');assert.equal(f.element('skyMapObserverTool')['aria-label'],'観測地点の移動を完了');assert.doesNotMatch(html,/id="skyMapPickConfirm"|id="skyMapPickCancel"|id="skyMapCenter"/);
+ f.element('skyMapObserverTool').onclick();assert.equal(f.element('skyMapObserverTool')['aria-pressed'],'true');assert.equal(f.element('skyMapObserverTool')['aria-label'],'撮影地点の移動を完了');assert.doesNotMatch(html,/id="skyMapPickConfirm"|id="skyMapPickCancel"|id="skyMapCenter"/);
  f.map.setCenter(35.68,139.77);f.map.redraw();assert.equal(f.loads,loads);assert.equal(f.calls,calls);assert.deepEqual(f.data.get('sorami.skyMap:testuser').observer,original);
  f.map.pick({latitude:0,longitude:0},{x:2,y:2});assert.deepEqual(f.data.get('sorami.skyMap:testuser').observer,original);
  f.element('skyMapObserverTool').onclick();await flush();assert.equal(f.data.get('sorami.skyMap:testuser').observer.latitude,35.68);assert.equal(f.data.get('sorami.skyMap:testuser').observer.longitude,139.77);assert.equal(f.loads,loads+1);

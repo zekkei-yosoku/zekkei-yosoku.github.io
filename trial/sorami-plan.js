@@ -31,7 +31,7 @@ const SoramiPlan = (() => {
       return valid(p) ? p : null;
     } catch { return null; }
   }
-  const compactPoint = (o,eye=1.5) => [String(o.name || '観測地点').slice(0,100),o.latitude,o.longitude,Number.isFinite(o.elevation)?o.elevation:null,eye,o.terrain || null];
+  const compactPoint = (o,eye=1.5) => [String(o.name || '撮影地点').slice(0,100),o.latitude,o.longitude,Number.isFinite(o.elevation)?o.elevation:null,eye,o.terrain || null];
   const expandPoint = p => ({id:`shared:${p[1]},${p[2]}`,name:p[0],subtitle:'共有された撮影地点',latitude:p[1],longitude:p[2],elevation:p[3],eyeHeightAGL:p[4],terrain:p[5],locationScope:'point',decks:null});
   const stamp = ms => new Date(ms).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');
   const escapeIcs = s => String(s).replaceAll('\\','\\\\').replace(/\r\n|\r|\n/g,'\\n').replaceAll(';','\\;').replaceAll(',','\\,');
@@ -75,7 +75,7 @@ const SoramiPlan = (() => {
     const cv=document.createElement('canvas'),ctx=cv.getContext('2d'),W=1080,P=48,inner=W-2*P;
     const wrap=(str,width,font)=>{ctx.font=font;let row='',out=[];for(const ch of String(str)){if(ctx.measureText(row+ch).width>width&&row){out.push(row);row='';}row+=ch;}if(row)out.push(row);return out;};
     const title=wrap(s.title,inner,'700 42px sans-serif');
-    const rows=[['観測地点',s.observer.name],['観測日時',dateTime(s.at)]];
+    const rows=[['撮影地点',s.observer.name],['観測日時',dateTime(s.at)]];
     if(Number.isFinite(s.fullFrameMm)&&s.fullFrameMm>0)rows.push(['フルサイズ換算',`${Math.round(s.fullFrameMm)}mm`]);
     const body=rows.map(([label,value])=>({label,lines:wrap(value,inner,'500 34px sans-serif')}));
     const scale=s.scene?Math.min(inner/s.scene.width,760/s.scene.height):0;

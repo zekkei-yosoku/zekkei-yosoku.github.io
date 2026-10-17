@@ -62,7 +62,7 @@ const targetChoices = () => aimTargetList().filter((t) => t.id !== 'custom' && f
 const resolveTarget = (k) => targetChoices().find((t) => t.id === k) || null;
 
 // 検索・現在地・地図・既存地点を、従来の共通ピッカーから選ぶ。予測の地点は動かさない。
-PLACE_PICKERS.records = { title: '記録する撮影ポイント', custom: () => null, point: () => place,
+PLACE_PICKERS.records = { title: '撮影地点', custom: () => null, point: () => place,
   set: p => { if (auth?.token && toolAllowed('records')) recordFor(p, null, 'records'); } };
 let targetDraft = null;
 PLACE_PICKERS.recordTarget = { title: '見えた目標を選ぶ', custom: () => null, point: () => sheetState?.place || place,

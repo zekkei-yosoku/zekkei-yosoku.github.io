@@ -230,7 +230,7 @@ ok(!/mean\("wind_direction_10m"/.test(html + code), "風向を数字で平均し
 ok(/activeAt/.test(html), "その時刻に使われている経路だけで重なりを数える");
 ok(/id="planePick"/.test(html), "「今日はここ」を先に出す");
 // 展望台からも狙える。いま選んでいる地点（展望台かもしれない）も候補に入れる
-ok(/id: "here", name: `\$\{P\.name\}（どこから重ねるか）`/.test(html), "観測地点（どこから重ねるか）も候補に入れる");
+ok(/id: "here", name: `\$\{P\.name\}（撮影地点）`/.test(html), "撮影地点（撮影地点）も候補に入れる");
 // **観測点の作り方は1か所にまとめる。** 画面ごとに書くと、展望台を見る画面と
 // 見ない画面ができる（2026-09-28 実際にそうなっていた）
 ok((html.match(/function observerHere\(/g) || []).length === 1, "観測点をまとめる関数がある（1つだけ）");
@@ -241,7 +241,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
 }
 // ねらうの塔の一覧（いまの地点から次に重なる日）は、その日の候補地に置き換えた（2026-09-30）。
 // 地点カードを出さない画面で「◯◯から」と言っても、どこのことか分からないため。
-// 2026-10-01 ユーザー「観測地点から逆引きできない？曽谷から見てスカイツリーに重なるのはいつか」→
+// 2026-10-01 ユーザー「撮影地点から逆引きできない？曽谷から見てスカイツリーに重なるのはいつか」→
 // **地点をねらうの画面の中で選び、どこからの結果かを名前で書く**形で戻した（地点カードの地点は黙って使わない）
 {
   const fn = /async function aimRenderFrom\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
@@ -253,10 +253,10 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   // 帯の上の「◯◯から見た◯◯ ・ ◯◯まで Nkm」は出さない（2026-10-03 ユーザーが選んだ「いらない説明文」）。どこからかは上のカードと図の上の一行
   ok(!/から見た\$\{esc\(what\)\}/.test(fn) && !/const head = /.test(fn), "地点から探す: 帯の上に地点と題名を繰り返さない");
   // 2026-10-01 ユーザー「絶景予測と同じレイアウトにしたら？新しいレイアウト作る必要ないよね」→ 地点カードと同じ形・同じ「地点」の画面
-  ok(/<div class="place-row aim-place-card">\s*<button class="place-pick" id="aimFromButton"/.test(html), "どこから重ねるか: 地点カードと同じ形（📍 名前・住所・標高、🔍、☆）");
+  ok(/<div class="place-row aim-place-card">\s*<button class="place-pick" id="aimFromButton"/.test(html), "撮影地点: 地点カードと同じ形（📍 名前・住所・標高、🔍、☆）");
   ok(/\$\("aimFromButton"\)\.onclick = \(\) => openPlaceSheet\("aim"\);/.test(html), "押すと地点カードと同じ「地点」の画面を開く");
-  ok(/const picker = placeSheetFor && PLACE_PICKERS\[placeSheetFor\];\s+if \(picker\) \{[\s\S]{0,300}picker\.set\(/.test(html) && /aim: \{ title: "どこから重ねるか",[\s\S]{0,120}set: \(p\) => aimSetFrom\(p\)/.test(html),
-    "そこで選んだ場所は観測地点になる（アプリ全体の地点は変えない。行き先は PLACE_PICKERS の表1つ）");
+  ok(/const picker = placeSheetFor && PLACE_PICKERS\[placeSheetFor\];\s+if \(picker\) \{[\s\S]{0,300}picker\.set\(/.test(html) && /aim: \{ title: "撮影地点",[\s\S]{0,120}set: \(p\) => aimSetFrom\(p\)/.test(html),
+    "そこで選んだ場所は撮影地点になる（アプリ全体の地点は変えない。行き先は PLACE_PICKERS の表1つ）");
   // 自分で置く目標の場所も同じ部品で決める（ユーザー「自分で置くを選んだ場合、どこに重ねるかの検索が必要なんじゃないの」）
   ok(/<div class="place-row aim-place-card" id="aimTargetCard" hidden>\s*<button class="place-pick" id="aimTargetButton">/.test(html),
     "自分で置く: どこに重ねるかに目標の場所のカード（地点カードと同じ形）");
@@ -272,8 +272,8 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
       ["地図で選ぶ・緯度経度", /choosePlace\(\{ id: `map:\$\{lat\.toFixed\(5\)\}/], ["お気に入り", /el\.onclick = \(\) => choosePlace\(favorites\[/]]) {
     ok(re.test(html), `地点の画面の「${what}」も、開いた目的の方へ渡す`);
   }
-  ok(/addEventListener\("close", \(\) => \{\s+(?:geoRequest\+\+;\s+)?favUndo = \[\];[\s\S]{0,200}placeSheetFor = null;/.test(html), "閉じたら絶景予測の地点の画面に戻す（次に地点カードから開いたときに観測地点を決めない）");
-  // 「どこに重ねるか」と対で「どこから重ねるか」。最初は絶景予測の地点を引き継いで欄に入れる（ユーザー指定）
+  ok(/addEventListener\("close", \(\) => \{\s+(?:geoRequest\+\+;\s+)?favUndo = \[\];[\s\S]{0,200}placeSheetFor = null;/.test(html), "閉じたら絶景予測の地点の画面に戻す（次に地点カードから開いたときに撮影地点を決めない）");
+  // 「どこに重ねるか」と対で「撮影地点」。最初は絶景予測の地点を引き継いで欄に入れる（ユーザー指定）
   // 2026-10-06 何を→何に→どこからの順で、1行ずつ文にして選ぶ（ユーザー「〇〇（選択）を重ねる。〇〇（選択）に重ねる。〇〇（選択）から重ねる。」）。
   // どこからを最後にしたのは、その日の候補地が何を・何に・日付で決まるから（10/01 は一番上、10/04 は2番目だった）
   { const ids=['aimBody','aimWhatLabel','aimTitle','aimWhereLabel','aimFromButton','aimFromLabel','aimStand','aimGroundHeight','aimStandHeight'];
@@ -305,10 +305,10 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/f\.inherited \? "絶景予測の地点" : ""/.test(html), "引き継いだ地点なら、そう書く");
   ok(/subtitle: aimAreaOf\(\{ detail: place\.subtitle \|\| "" \}\)/.test(html), "引き継いだ地点の住所も都道府県＋市区町村まで");
   ok(!/id="aimFromHere"/.test(html), "引き継ぐための別の釦は置かない（欄に入れておく）");
-  ok(/\$\("aimPick"\)\.onclick = async \(\) => \{[\s\S]{0,300}aimSetFrom\(/.test(html), "地図の中心も同じ観測地点にする（アプリ全体の地点は変えない）");
+  ok(/\$\("aimPick"\)\.onclick = async \(\) => \{[\s\S]{0,300}aimSetFrom\(/.test(html), "地図の中心も同じ撮影地点にする（アプリ全体の地点は変えない）");
   ok(!/\$\("aimPick"\)\.hidden = aimIsFuji\(\)/.test(html), "富士山でも地図の中心で選べる");
   ok(/class="tiny aim-day" data-from-day=/.test(fn), "次に重なる日は日付の小さな釦で（押すとその日の線と候補地へ）");
-  ok(!/aimFromSight|aimSightBuildings\(obs, D,|SoramiAlign\.lineOfSight/.test(fn), "不十分な見通し推定を観測地点で断定表示しない");
+  ok(!/aimFromSight|aimSightBuildings\(obs, D,|SoramiAlign\.lineOfSight/.test(fn), "不十分な見通し推定を撮影地点で断定表示しない");
   ok(/innerHTML = \(chips/.test(fn), "候補日を警告で分断せず日付直下に表示する");
   // 2026-10-10: 候補帯の探索入口は条件キャッシュの1か所へ移動した。
   ok((html.match(/ev = await aimDaysFor\(obs, aimDaysInputKey\(f\)\)/g) || []).length === 1, "ほかの所で見えない地点からの一覧を出さない");
@@ -575,7 +575,7 @@ ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れ�
     const mv = /function aimMapView\(\) \{[\s\S]*?\n\}/.exec(html)[0];
     const f = new Function("aim", "aimZoomFor", "aimFromPoint", "place", `${mv}; return aimMapView();`);
     const unset = f({ target: { id: "custom", name: "他の目標", parts: [] } }, () => 9, () => ({ latitude: 35.73, longitude: 139.64 }), null);
-    ok(unset[0].latitude === 35.73 && unset[0].longitude === 139.64 && unset[1] === 12, "目標の場所が無ければ、どこから重ねるかの地点で開く");
+    ok(unset[0].latitude === 35.73 && unset[0].longitude === 139.64 && unset[1] === 12, "目標の場所が無ければ、撮影地点の地点で開く");
     const set = f({ target: { latitude: 35.71, longitude: 139.81, parts: [{ m: 636 }] }, partId: "tip" }, () => 11, () => ({ latitude: 0, longitude: 0 }), null);
     ok(set[0].latitude === 35.71 && set[1] === 11, "目標があれば目標の場所で開く");
   }
@@ -589,7 +589,7 @@ ok(/\$\("aimTargetSub"\)\.textContent = c\s+\? \[c\.subtitle, `標高 \$\{Math\.
     && /SoramiTerrain\.buildingsAlong\(obs, end,/.test(sb), "首都圏の外は線に掛かる建物を OpenStreetMap に問い合わせる");
   ok(/if \(!got\) return null;/.test(sb), "問い合わせられなければ「確かめられない」（null）");
   ok(/SoramiTerrain\.buildingsAlong\(obs, end, \{ wanted \}\)/.test(sb) && !/await aimSightBuildings\(obs, D,/.test(html),
-    "観測地点の断定警告のための建物問い合わせは行わない");
+    "撮影地点の断定警告のための建物問い合わせは行わない");
   // 2026-10-06 から候補地ごとに判定する（1か所でも首都圏の外なら全部を確かめずにいた）。近くの国土地理院の建物は全国で見る
   ok(/if \(!all \|\| !tallCovers\(all, c\.stand\.latitude, c\.stand\.longitude\)\) return null;/.test(html) && !/return "outside";/.test(html),
     "候補地も、首都圏の外では同梱データによる見通し合格にしない");
@@ -853,8 +853,8 @@ ok(/wireSearchBox\("searchBox", "searchResults"[\s\S]{0,1600}\}, async \(c\) => 
   "地点の検索: 緯度経度ならそのまま地点にする（地図をもう一度押させない）");
 ok(/if \(\/\[°º˚度\]\/\.test\(q\)\) \{[\s\S]{0,120}緯度経度を読めませんでした/.test(html), "度があるのに読めなければ、地名として探さず書き方を言う");
 
-console.log("== どこから重ねるかをお気に入りに（2026-10-01） ==");
-// ユーザー「どこから重ねるかもお気に入りの登録をしたい。座標ピンポイントに名前つけたりしたいんだ」
+console.log("== 撮影地点をお気に入りに（2026-10-01） ==");
+// ユーザー「撮影地点もお気に入りの登録をしたい。座標ピンポイントに名前つけたりしたいんだ」
 ok(/id="aimFromButton"[\s\S]{0,800}<button id="aimFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆<\/button>/.test(html),
   "カードの右に ☆（地点カードと同じ形）");
 ok(/function openFavSheet\(index, \{ point = null, after = null, target = null, replacePoint = false \} = \{\}\)/.test(html), "登録の画面は、地点カード以外の点（座標）からも開ける");
@@ -863,7 +863,7 @@ ok(/id="favLocationEdit"[\s\S]{0,100}地図で位置を変更/.test(html)
   "お気に入り編集から登録済みの座標を中心に地図を開ける");
 ok(/if \(favMapReturn && favDraft\)[\s\S]{0,700}favDraft\.latitude = c\.latitude;[\s\S]{0,250}favDraft\.elevation = elevation/.test(html),
   "地図で選び直した位置・住所・標高をお気に入りへ反映する");
-ok(/openFavSheet\(-1, \{ after, target, point: \{\s+id: `map:\$\{f\.latitude\.toFixed\(5\)\}/.test(html), "観測地点の座標を雛形にして名前を付けられる");
+ok(/openFavSheet\(-1, \{ after, target, point: \{\s+id: `map:\$\{f\.latitude\.toFixed\(5\)\}/.test(html), "撮影地点の座標を雛形にして名前を付けられる");
 ok(/if \(i >= 0\) \{ openFavSheet\(i, \{ after, target \}\); return; \}/.test(html), "登録済み（★）なら編集");
 ok(/if \(favDraft\.after\) favDraft\.after\(entry\);/.test(html), "保存したら、付けた名前で出し直す");
 ok(/if \(favDraft\.after\) \{ favDraft\.after\(null\); return; \}/.test(html), "道具から消したら、地点の一覧を開かずに道具の画面に残る");
@@ -871,12 +871,12 @@ ok(/<button class="list-item" id="sheetInherit" hidden><\/button>/.test(html) &&
   "別の点を選んでいるときは、地点の画面に絶景予測の地点へ戻る行も出す");
 
 console.log("== ねらう・ISS・月丼の並びをそろえる（2026-10-01） ==");
-// ユーザー「月丼とかISSとかのレイアウトも統一感あるようにしよう」。題名の右に主な切り替え、その下に観測地点（地点カードと同じ形）
-for (const [view, title, seg, prefix, label] of [["planeView", "月丼", null, "planeFrom", "どこから重ねるか"], ["issView", "ISSの月面通過", "太陽か月", "issFrom", "どこの近くで探すか"]]) {
+// ユーザー「月丼とかISSとかのレイアウトも統一感あるようにしよう」。題名の右に主な切り替え、その下に撮影地点（地点カードと同じ形）
+for (const [view, title, seg, prefix, label] of [["planeView", "月丼", null, "planeFrom", "撮影地点"], ["issView", "ISSの月面通過", "太陽か月", "issFrom", "どこの近くで探すか"]]) {
   const v = new RegExp(`<div id="${view}" hidden>[\\s\\S]*?\\n  </div>`).exec(html)[0];
   ok(seg ? new RegExp(`<div class="section-h aim-head"><h2>${title}</h2>\\s*<div class="aim-seg" role="group" aria-label="${seg}">`).test(v)
     : new RegExp(`<div class="section-h aim-head"><h2>${title}</h2></div>`).test(v), `${title}: ${seg ? "題名の右に主な切り替え" : "題名の行（切り替えなし・同じ高さ）"}`);
-  ok(new RegExp(`<div class="place-row aim-place-card">\\s*<button class="place-pick" id="${prefix}Button"`).test(v), `${title}: 観測地点は地点カードと同じ形`);
+  ok(new RegExp(`<div class="place-row aim-place-card">\\s*<button class="place-pick" id="${prefix}Button"`).test(v), `${title}: 撮影地点は地点カードと同じ形`);
   // 月丼は天体を重ねると同じく、条件（運用）を先に、立つ場所を最後に「〇〇から重ねる」（2026-10-06）。ISS は探す範囲の中心なので見出しのまま
   ok(prefix === "planeFrom"
     ? /<span class="aim-say-v" id="planeFromLabel">から重ねる<\/span>/.test(v) && v.indexOf('id="planeOp"') < v.indexOf('id="planeFromButton"')
@@ -894,7 +894,7 @@ ok(/<button id="issSun" aria-pressed="false" aria-label="太陽" title="太陽">
 ok(/const kind = \{ landing: true, takeoff: true \};/.test(html) && !/plane\.kind|id="planeLand"|id="planeTake"/.test(html), "月丼: 着陸と離陸を分けず、両方の経路で数える");
 ok(/if \(path\.kind === "takeoff"\) ctx\.setLineDash\(\[7, 6\]\);/.test(html) && /<i class="aim-k moon dash"><\/i>離陸/.test(html), "月丼: 地図では離陸を破線（凡例も）");
 ok(/・着陸 \$\{o\.landing\.join\("・"\)\}・離陸 \$\{o\.takeoff\.join\("・"\)\}/.test(html), "月丼: 運用の説明に着陸と離陸の滑走路を両方書く");
-ok(/iss: \{ title: "どこの近くで探すか",/.test(html) && /plane: \{ title: "どこから重ねるか",/.test(html), "ISS・月丼も同じ「地点」の画面で選ぶ");
+ok(/iss: \{ title: "どこの近くで探すか",/.test(html) && /plane: \{ title: "撮影地点",/.test(html), "ISS・月丼も同じ「地点」の画面で選ぶ");
 // ユーザー「ISSに関してはどこから見るかは自分で選べなくない？その日見れる場所を地図見て自分で探すんだよね」
 ok(!/どこから見るか<\/p>|title: "どこから見るか"|>ここから見る</.test(html), "ISS: 「どこから見るか」とは書かない（決めるのは探す範囲の中心）");
 ok(/renderPointCard\("issFrom", P, null, \{ elevation: false \}\);/.test(html), "ISS: 探す範囲の中心には標高を書かない（そこに立つわけではない）");
@@ -910,7 +910,7 @@ ok(!/"自分で置く"|`自分で置く/.test(html), "「自分で置く」の�
 console.log("== 他の目標のお気に入り（2026-10-01） ==");
 // ユーザー「自分で指定した重ねるもののお気に入りも必要じゃない？」。高さごと残し、どこに重ねるかの「地点」の画面から選べる
 ok(/id="aimTargetButton">[\s\S]{0,800}<button id="aimTargetFav" class="tap aim-from-fav" aria-label="お気に入りに登録" hidden>☆<\/button>\s*<\/div>/.test(html),
-  "他の目標のカードに ☆（どこから重ねるかと同じ）");
+  "他の目標のカードに ☆（撮影地点と同じ）");
 ok(/\$\("aimTargetFav"\)\.hidden = !c;\s+if \(c\) renderFavStar\("aimTargetFav", c\);/.test(html), "目標を決めたら ☆、登録済みなら ★");
 ok(/\}, \{ target: c\.heightM \|\| 0 \}\);/.test(html) && /\$\("aimTarget"\)\.value = `fav:\$\{entry\.id\}`;/.test(html),
   "今の高さで登録の画面を開き、保存したらプルダウンの「お気に入り」のそれを選ぶ");
@@ -926,14 +926,14 @@ ok(/targetHeightM: favTargetHeight\(\)(?: \?\? before\?\.targetHeightM \?\? null
 ok(/targetHeightM: Number\.isFinite\(f\.targetHeightM\) && f\.targetHeightM >= 0 && f\.targetHeightM <= 1000/.test(html), "読み込みでも検査する（同期で別端末へも渡る）");
 ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM/.test(html), "0m で登録した目標は 0m のまま（前に入れた高さを引きずらない）");
 
-console.log("== 道具ごとに観測地点の書き方をそろえる（2026-10-01） ==");
+console.log("== 道具ごとに撮影地点の書き方をそろえる（2026-10-01） ==");
 ok(/const g = !elevation \? null : prefix === "aimFrom" \? groundM : f && f\.inherited \? place\.elevation \?\? bundle\?\.home\.grid\.elevation \?\? groundM : groundM;/.test(html),
-  "観測地点の標高は観測標高と同じDEM、他道具の継承表示は維持");
+  "撮影地点の標高は観測標高と同じDEM、他道具の継承表示は維持");
 ok(/const missed = r\.spots\.some\(\(sp\) => sp\.spot\.id === "here"\) \? "" : `\$\{P\.name\}からは、この日は重なりません。`;/.test(html),
-  "月丼: 観測地点から重ならない日はそう言う");
+  "月丼: 撮影地点から重ならない日はそう言う");
 
-console.log("== 観測地点を水の上に置かない（2026-10-01） ==");
-// ユーザー「観測地点は陸上に。ISS とか海の上になってなかった？」「他の観測地点も水の上にならないように」
+console.log("== 撮影地点を水の上に置かない（2026-10-01） ==");
+// ユーザー「撮影地点は陸上に。ISS とか海の上になってなかった？」「他の撮影地点も水の上にならないように」
 ok(/const c = await aimOnLand\(k, lines, opts\);/.test(html), "ねらう: 候補ごとに水の上かを見る（見通しを確かめる前に）");
 ok(/const AIM_STAND_ON_WATER_OK = new Set\(\["橋", "桟橋"\]\);/.test(html), "ねらう: 水の上でも残すのは橋・桟橋だけ（人が立てる構造物）");
 ok(/return water === true \? aimMoveToLand\(c, lines, opts\) : water === false \? c : null;/.test(html), "ねらう: 水の上なら陸へ動かす（動かせなければ外す）");
@@ -2878,7 +2878,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   const same = await run(30, null);
   ok(same.length === 1 && same[0].heightM === 40, "立つ場所の標高が分からなければ足さない");
   ok(/near = await aimBuildingsOnLine\(obs, groundM, t, near, reach\);/.test(html)
-    && /const tall = await aimBuildingsOnLine\(c\.stand, base, t, box,/.test(html), "どこから重ねるかも、候補地も");
+    && /const tall = await aimBuildingsOnLine\(c\.stand, base, t, box,/.test(html), "撮影地点も、候補地も");
 }
 {
   // 地図の種類と現在地（2026-10-02 ユーザー「地図、写真ってどっちも地図じゃん。こういうボタンを用意して地図モードを変えられるように」「現在地マーク」）
@@ -3001,25 +3001,25 @@ console.log("== 見え方の図（2026-10-02） ==");
 // ユーザー「その目標物に対して月、太陽がどのような軌道で動くのかを見たい」
 // 2026-10-03 図は1つ（ユーザー「どこに重ねるかを変えても見え方が変わらないのと、見え方が二箇所にあるのはなんで？」）
 {
-  ok((html.match(/id="aimLook"/g) || []).length === 1 && !/id="aim(CandLook|FromLook|CandPick)"/.test(html), "見え方の図は1つ（候補地用・観測地点用を分けない）");
+  ok((html.match(/id="aimLook"/g) || []).length === 1 && !/id="aim(CandLook|FromLook|CandPick)"/.test(html), "見え方の図は1つ（候補地用・撮影地点用を分けない）");
   const iFrom = html.indexOf('<div id="aimFrom"'), iLook = html.indexOf('<div id="aimLook"'), iDate = html.indexOf('class="aim-date-section"');
   ok(iDate > 0 && iDate < iFrom && iFrom < iLook, "日付 → 同じセクションの候補日 → 見え方の順");
   const look = /async function aimUpdateLook\(\) \{[\s\S]*?\n\}/.exec(html)[0];
   ok(/const c = aim\.candPick !== null \? \(aim\.cands \|\| \[\]\)\[aim\.candPick\] : null;/.test(look)
     && /aimLookRender\(host, \{ obs: \{ latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, elevation: c\.stand\.elevationM \},\s*eyeM: aimCandidateEye\(c\.place\), at: c\.at/.test(look),
     "候補地を選んでいれば、重なりを解いたときと同じ立つ高さ・時刻で描く");
-  // 2026-10-03 ユーザー「同じ日で観測地点をずらしたらその場所からの重なり方を出して欲しいだけ」「無理やり3択の場所に見え方を合わせてない？」
-  ok(!/solvePoint/.test(look) && !/（計算上の位置）/.test(look), "観測地点の図は、場所を動かさない（選んだ合わせ方になる計算上の地点へずらさない）");
+  // 2026-10-03 ユーザー「同じ日で撮影地点をずらしたらその場所からの重なり方を出して欲しいだけ」「無理やり3択の場所に見え方を合わせてない？」
+  ok(!/solvePoint/.test(look) && !/（計算上の位置）/.test(look), "撮影地点の図は、場所を動かさない（選んだ合わせ方になる計算上の地点へずらさない）");
   // 2026-10-03 追加依頼: 建物全体の通過を判定し、重ならない日も常に同じ図を出す。
   ok(/SoramiAlign\.dailyView\(obs, t, aim\.body, aim\.dayMs, opts\)/.test(look)
-    && /eyeM: obs.eyeM/.test(look), "実際の観測地点で建物全体との重なりを描く");
+    && /eyeM: obs.eyeM/.test(look), "実際の撮影地点で建物全体との重なりを描く");
   ok(!/重ならない日の通り方/.test(look) && /sub: ""/.test(look) && !/この日は、\$\{esc\(f\.name\)\}から見て/.test(look), "重ならない日も図を残し、重複する通り方の説明を省く");
-  ok(/if \(aim\.wantSpot\) return;/.test(look), "選び直す候補地を待っている間は図を替えない（観測地点へ飛んで戻らない）");
+  ok(/if \(aim\.wantSpot\) return;/.test(look), "選び直す候補地を待っている間は図を替えない（撮影地点へ飛んで戻らない）");
   ok(/data-look-title/.test(html) && /data-look-sub/.test(html) && /data-look-light/.test(html) && /data-look-extra/.test(html),
     "図の上に「どこから・いつ・どう重なるか」の一行");
   // 呼び出し: 帯（aimRenderFrom）・候補地の行・側の切り替え・候補の結果
   const from = /async function aimRenderFrom\(\) \{[\s\S]*?\n\}/.exec(html)[0];
-  ok(/aimUpdateLook\(\);/.test(from) && (from.match(/\$\("aimLook"\)\.hidden = true;/g) || []).length >= 2, "観測地点・目標が無ければ図を隠す");
+  ok(/aimUpdateLook\(\);/.test(from) && (from.match(/\$\("aimLook"\)\.hidden = true;/g) || []).length >= 2, "撮影地点・目標が無ければ図を隠す");
   // 2026-10-10: 選択部位と縁は探索開始時に固定し、表示日だけの変更で混ぜない。
   const search = /async function aimDaysFor\(obs, inputKey\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
   ok(search.includes("partId = aim.partId, limb = aim.limb") && search.includes("target, body, partId") && search.includes("from: now, limb")
@@ -3084,7 +3084,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(rel(0) === "重なる時刻" && rel(-180000) === "重なる3分前" && rel(20000) === "重なる20秒後" && rel(-80000) === "重なる1分20秒前",
     "選んだ時刻は重なる時刻からの差で言う", [rel(0), rel(-180000), rel(20000), rel(-80000)].join(" / "));
   ok(rel(-(8 * 3600 + 4 * 60 + 17) * 1000) === "重なる8時間4分前" && rel(7200000) === "重なる2時間後", "1時間を超えた差は時間と分で言う（下部の日時欄に収める）", [rel(-(8 * 3600 + 4 * 60 + 17) * 1000), rel(7200000)].join(" / "));
-  ok(rel(-60000, "先端を通る") === "先端を通る1分前", "どこから重ねるかの図は「先端を通る」時刻からの差で言う（選んだ縁が触れるとは限らない）");
+  ok(rel(-60000, "先端を通る") === "先端を通る1分前", "撮影地点の図は「先端を通る」時刻からの差で言う（選んだ縁が触れるとは限らない）");
   // 図の下の説明（形の出どころ・大気の屈折・縮尺）は出さない（2026-10-03 ユーザー「この説明文いらないわ」「いらない説明文結構ない？」）
   ok(!/形は城のシルエット|形はシルエットを写真の縮尺|高さは大気の屈折を含む|の模式図（幅は推定）|稜線は国土地理院の標高データから/.test(html)
     && /note\.textContent = shape \? "" : "稜線を読み込めませんでした";/.test(html), "図の下に説明を出さない（稜線の読込中・失敗時だけ）");
@@ -3112,7 +3112,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(/aimReverseCurve\(r, \{ dx, dy, D, dist, stale \}\)/.test(pickSrc) && /aim\.reverse = \{ key, points: along, at: r \};/.test(pickSrc)
     && /const rv = aim\.reverse;/.test(html) && /撮れる場所 \$\{S\.JstCal\.hhmm\(rv\.at\.at\)\}/.test(html),
     "確定したら、同じ見え方になる場所を距離を変えて解いた線にして地図に出す");
-  // 見通しNGも表示を維持。注意は観測地点側の既存案内を残す。
+  // 見通しNGも表示を維持。注意は撮影地点側の既存案内を残す。
   ok(!/aim\.sight\.key === aimSightKey\(f\)\) \{[^}]*host\.hidden = true/.test(html)
     && !/const sight = \{ key: aimSightKey\(f\), hidden: !!hidden \};/.test(html),
     "見通しの断定警告を外して図を残す");
@@ -3155,8 +3155,8 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(!/は地図の中心（\$\{aimKm\(d\)\}km先）から/.test(html), "高さ欄の下に見上げ角を出さない（2026-10-03 ユーザーが選んだ「いらない説明文」）");
 }
 
-console.log("== どこから重ねるかで、この日の候補地から選ぶ（2026-10-06） ==");
-// ユーザー「どこから重ねるかについて候補地を探すって選択肢が欲しくない？」。撮影地の行は見え方を一時的に替えるだけで、どこからは変わらなかった
+console.log("== 撮影地点で、この日の候補地から選ぶ（2026-10-06） ==");
+// ユーザー「撮影地点について候補地を探すって選択肢が欲しくない？」。撮影地の行は見え方を一時的に替えるだけで、どこからは変わらなかった
 {
   const sheet = /<dialog class="sheet" id="placeSheet"[\s\S]*?<\/dialog>/.exec(html)[0];
   ok(/<section id="sheetCands" class="sheet-cands"[^>]*hidden>/.test(sheet)
@@ -3164,10 +3164,10 @@ console.log("== どこから重ねるかで、この日の候補地から選ぶ�
     "地点の画面の検索欄の下に「この日の候補地」（ふだんは隠す）");
   const sheetFn = /function aimRenderSheetCands\(\) \{[\s\S]*?\n\}/.exec(html)[0];
   ok(/box\.hidden = placeSheetFor !== "aim"/.test(sheetFn) && /\$\("placeSheet"\)\.close\(\);\s+if \(c\) aimFromCandidate\(c\);/.test(sheetFn),
-    "どこから重ねるかで開いたときだけ出し、押すとそこがどこからになる");
+    "撮影地点で開いたときだけ出し、押すとそこがどこからになる");
   ok(/seg\.innerHTML = \$\("aimSideSeg"\)\.innerHTML;/.test(sheetFn) && /\$\("aimSideSeg"\)\.querySelector\(`\[data-side="\$\{b\.dataset\.side\}"\]`\)\?\.click\(\)/.test(sheetFn),
     "側の切り替えは撮影地の一覧と同じ（写して、押すとそちらを押す）");
-  // ユーザー「どこから重ねるかの中の候補からもMAPに飛べるようにしたいな」（ストリートビューで見通しを確かめる。2026-10-06）
+  // ユーザー「撮影地点の中の候補からもMAPに飛べるようにしたいな」（ストリートビューで見通しを確かめる。2026-10-06）
   ok(/class="chip cand-app" data-sheet-cand-app="\$\{i\}"/.test(sheetFn) && /const app = savedMapApp\(\), appLabel = app \? MAP_APPS\[app\]\.chipLabel : "地図アプリ";/.test(sheetFn),
     "候補地の行の右に、撮影地の地図の下と同じ「地図アプリ」（覚えたアプリならその名前）");
   ok(/const t = coordText\(c\.stand\), a = savedMapApp\(\);\n      if \(a\) openMapApp\(a, t\); else openMapAppSheet\(t\);/.test(sheetFn)

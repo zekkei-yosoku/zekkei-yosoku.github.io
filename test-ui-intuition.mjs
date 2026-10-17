@@ -21,7 +21,7 @@ test('復元・枠外変更・使用不可の状態が図形の選択へ反映�
  const f=fixture('grid','diagonal');assert.equal(f.buttons[2].getAttribute('aria-pressed'),'true');f.select.value='none';f.select.options[1].disabled=true;f.select.options[2].hidden=true;f.sync();assert.equal(f.buttons[0].getAttribute('aria-pressed'),'true');assert.equal(f.buttons[1].disabled,true);assert.equal(f.buttons[2].hidden,true);f.select.disabled=true;f.sync();assert.ok(f.buttons.every(b=>b.disabled));assert.equal(f.changes(),0);
 });
 test('縦横とグリッドの図は区別でき、操作は読み上げ名を残す',()=>{
- const o=fixture('orientation','landscape'),g=fixture('grid','none');assert.notEqual(o.buttons[0].innerHTML,o.buttons[1].innerHTML);assert.equal(new Set(g.buttons.map(b=>b.innerHTML)).size,3);assert.equal(g.buttons[2].getAttribute('aria-label'),'9分割＋対角');assert.match(html,/id="skyMapObserverTool"[^>]*aria-label="観測地点を地図で変更"/);assert.doesNotMatch(html,/id="skyMapCenter"/);
+ const o=fixture('orientation','landscape'),g=fixture('grid','none');assert.notEqual(o.buttons[0].innerHTML,o.buttons[1].innerHTML);assert.equal(new Set(g.buttons.map(b=>b.innerHTML)).size,3);assert.equal(g.buttons[2].getAttribute('aria-label'),'9分割＋対角');assert.match(html,/id="skyMapObserverTool"[^>]*aria-label="撮影地点を地図で変更"/);assert.doesNotMatch(html,/id="skyMapCenter"/);
 });
 test('現在位置の帯は独立MAP・通常/共有/旧URLの重ねるでも一意に付く',()=>{
  const extract=name=>{const at=html.indexOf('function '+name+'(');return html.slice(at,html.indexOf('\n}',at)+2);};
@@ -31,8 +31,8 @@ test('現在位置の帯は独立MAP・通常/共有/旧URLの重ねるでも一
  const c=vm.createContext({$:node,location:{hash:''},S:{PHENOMENA:{}}});vm.runInContext(extract('routeFromHash')+'\n'+extract('markToolsCurrent'),c);
  for(const [hash,current] of [['','toolsHome'],['#/skymap','#/skymap'],['#/aim','#/aim/tower'],['#/aim?plan=example','#/aim/tower'],['#/aim/fuji','#/aim/tower'],['#/aim/pearl','#/aim/tower'],['#/plane','#/plane'],['#/iss','#/iss'],['#/records','#/records']]){c.location.hash=hash;c.markToolsCurrent();assert.equal(node(current).attrs['aria-current'],'page',hash);assert.equal([...nodes.values()].filter(n=>n.attrs['aria-current']==='page').length,1,hash);}
 });
-test('観測地点を確定した確認表示と復帰表示の後にも三脚の形が残る',async()=>{
+test('撮影地点を確定した確認表示と復帰表示の後にも三脚の形が残る',async()=>{
  const start=html.indexOf('$("aimPick").onclick = async () => {'),end=html.indexOf('\n    };',start)+7;
  const label={textContent:'ここから重ねる'},button={icon:'tripod',querySelector:()=>label,set textContent(v){this.icon=null;label.textContent=v;}};const timers=[];let point;
- const c=vm.createContext({$:()=>button,AimMap:{center:()=>({latitude:35,longitude:139})},nearName:async()=>({name:'地図で選んだ点',area:'東京'}),aimSetFrom:p=>{point=p;},setTimeout:fn=>timers.push(fn)});vm.runInContext(html.slice(start,end),c);await button.onclick();assert.equal(point.latitude,35);assert.equal(button.icon,'tripod');assert.match(label.textContent,/観測地点にしました/);timers[0]();assert.equal(label.textContent,'ここから重ねる');assert.equal(button.icon,'tripod');
+ const c=vm.createContext({$:()=>button,AimMap:{center:()=>({latitude:35,longitude:139})},nearName:async()=>({name:'地図で選んだ点',area:'東京'}),aimSetFrom:p=>{point=p;},setTimeout:fn=>timers.push(fn)});vm.runInContext(html.slice(start,end),c);await button.onclick();assert.equal(point.latitude,35);assert.equal(button.icon,'tripod');assert.match(label.textContent,/撮影地点にしました/);timers[0]();assert.equal(label.textContent,'ここから重ねる');assert.equal(button.icon,'tripod');
 });
