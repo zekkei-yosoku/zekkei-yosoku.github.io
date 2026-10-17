@@ -296,7 +296,7 @@ function skyRender(s){
  skySession=s;if(!s||!auth?.token||!toolAllowed('skymap'))return;
  const box=skyBox(),t=s.target;
  const shareRow=el('skyMapShareRow');if(shareRow){shareRow.hidden=!s.observer||!t;const shareButton=shareRow.querySelector('button');if(shareButton)shareButton.disabled=!s.daily||!s.eye;}
- const detail=el('skyMapAlignmentDetails');detail.hidden=!t;el('skyMapAlignmentSummary').textContent=s.matchMode==='overlap'?'重ね方：指定なし':`重ね方：${s.partId==='__whole'?'建物全体':SoramiAlign.limbById(s.limb).name}`;
+ const detail=el('skyMapAlignmentDetails');detail.hidden=!t;el('skyMapAlignmentSummary').textContent='重ね方';
  if(!t){skyKey='';candidateState={status:'idle',rows:[],failed:0};box.textContent='何を・何に重ねるかと撮影日を選ぶと、記録した撮影ポイントから候補を出します。';candidateSheet?.close();return;}
  const key=currentSkyQuery(s);
  if(key!==skyKey){
@@ -308,7 +308,6 @@ function skyRender(s){
   controls.append(trigger,toggle);box.append(controls);
   const alignment=document.createElement('div');alignment.className='alignment-controls';
   const mountain=aimIsMountain(t),parts=t.parts||[],whole=parts.length>0&&!mountain;
-  const any=document.createElement('button');any.type='button';any.className='chip';any.textContent='指定なし';any.setAttribute('aria-pressed',String(s.matchMode==='overlap'));any.onclick=()=>SkyMapUI?.setAlignment?.(null,'center','overlap');alignment.append(any);
   const part=document.createElement('select');part.className='fav-in';part.setAttribute('aria-label','重ねる対象の部位');part.replaceChildren(...parts.map(p=>new Option(`${p.name} ${Math.round(p.m-(t.groundM||0))}m`,p.id)),...(whole?[new Option(t.wholeLabel||'建物全体に重なる','__whole')]:[]));part.value=s.partId??parts[0]?.id??'';part.hidden=parts.length+(whole?1:0)<2;
   part.onchange=()=>SkyMapUI?.setAlignment?.(part.value||null,s.limb||'center','limb');alignment.append(part);
   const limbs=document.createElement('div');limbs.className='aim-limb';limbs.setAttribute('role','group');limbs.setAttribute('aria-label','天体のどこを合わせるか');limbs.hidden=s.partId==='__whole';
