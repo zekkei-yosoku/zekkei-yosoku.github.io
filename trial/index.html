@@ -12,8 +12,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="5096909775004618481">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-JaEBG+jvlr4m1ji8TP4QCq76wE8yIvsIoZjJ3YjuyHE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-XF/wUrJ0gyNquAp1coP2zpBpYvO2GIWAt0Vn0IHDtY0=' 'sha256-GyLSmYyCDeo6CJaky63mh5yleh3jkcLg2YEvSiYXrAM=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="1911031714286422521">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-JaEBG+jvlr4m1ji8TP4QCq76wE8yIvsIoZjJ3YjuyHE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-XF/wUrJ0gyNquAp1coP2zpBpYvO2GIWAt0Vn0IHDtY0=' 'sha256-+8dwtkZkyKxsPU9LCzwJ7cXW+H+h++3O3b71PUSZxas=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
@@ -42,7 +42,7 @@
 <link data-script-preload rel="preload" as="script" href="sorami-moon.js?v=10230678456179898054">
 <link data-script-preload rel="preload" as="script" href="sorami-scroll-timeline.js?v=1436491398997474438">
 <link data-script-preload rel="preload" as="script" href="sorami-datetime-ui.js?v=13087204954338235521">
-<link data-script-preload rel="preload" as="script" href="sorami-myplaces.js?v=9109581129322395051">
+<link data-script-preload rel="preload" as="script" href="sorami-myplaces.js?v=13407534911465579427">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1161,17 +1161,21 @@
 .forecast-tabs{display:flex;gap:4px;padding:4px;margin:0 0 12px;border-radius:12px;background:var(--sunk)}.forecast-tabs[hidden]{display:none}.forecast-tabs [role="tab"]{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-height:44px;border:0;border-radius:9px;background:transparent;color:var(--secondary);font-size:0.88rem;font-weight:700}.forecast-tabs [aria-selected="true"]{background:var(--card);color:var(--text);box-shadow:0 1px 4px #0001}.forecast-tabs [role="tab"]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.forecast-results-count{font-size:0.69rem;font-variant-numeric:tabular-nums;background:var(--line);color:var(--text);border-radius:10px;padding:2px 6px;min-width:18px}
 
   /* Shared input roles: celestial body, target, shooting location. */
-  :is(#aimView,#skyMapView) .condition-field{flex-direction:column;align-items:stretch;gap:6px;margin-bottom:14px}
-  :is(#aimView,#skyMapView) .condition-field > :first-child{flex:0 0 auto;width:100%;box-sizing:border-box}
-  :is(#aimView,#skyMapView) .condition-field > .condition-label{order:-1;flex:0 0 auto;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted);line-height:22px}
+  :is(#aimView,#skyMapView) .condition-field{display:grid;grid-template-columns:22px minmax(0,1fr);align-items:center;gap:10px;margin-bottom:12px}
+  :is(#aimView,#skyMapView) .condition-field > :first-child{grid-column:2;grid-row:1;min-width:0;width:100%;box-sizing:border-box}
+  :is(#aimView,#skyMapView) .condition-field > .condition-label{display:contents}
   :is(#aimView,#skyMapView) .condition-field :is(select,.preview-body-open,.preview-target-open,.place-pick){min-height:52px}
   .condition-label svg{flex:none;color:var(--accent)}
   :is(#aimView,#skyMapView) .condition-field .place-pick > .pin{display:none}
   #skyMapView .condition-field{max-width:720px}
 
   /* Selection clearing is separate from searching and never deletes a saved place. */
-  :is(#aimView,#skyMapView) .condition-field:has(.aim-place-card) > .condition-label{min-height:44px}
-  .condition-clear{display:inline-flex;align-items:center;justify-content:center;gap:5px;margin-left:auto;min-width:76px;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:9px;background:var(--sunk);color:var(--secondary);font-size:13px;font-weight:600;cursor:pointer;box-sizing:border-box}
+  :is(#aimView,#skyMapView) .condition-field > .condition-label > svg{grid-column:1;grid-row:1}
+  :is(#aimView,#skyMapView) .condition-field > .condition-label > span{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  :is(#aimView,#skyMapView) .condition-field:has(.condition-clear:not([hidden])){grid-template-columns:22px minmax(0,1fr) 76px}
+  :is(#aimView,#skyMapView) .condition-field select:has(option:checked[value=""]),:is(#aimView,#skyMapView) .condition-field:has(.condition-clear[hidden]) .place-row .name{color:var(--tertiary)}
+  :is(#aimView,#skyMapView) .condition-field select option{color:var(--text)}
+  .condition-clear{grid-column:3;grid-row:1;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:76px;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:9px;background:var(--sunk);color:var(--secondary);font-size:13px;font-weight:600;cursor:pointer;box-sizing:border-box}
   .condition-clear[hidden]{display:none}
   .condition-clear svg{color:inherit}
   .astro-icon{display:inline-block;width:1.15em;height:1.15em;vertical-align:-.18em;flex:none;color:var(--accent);overflow:visible}
@@ -12135,7 +12139,7 @@ ctx.lineWidth=1;
  function refreshTargets(){
   if(!session||!hasAccess())return;
   const targets=mapTargets(),select=el('skyMapTarget'),id=session.target?.id;
-  select.replaceChildren(new Option('目標物なし',''));
+  select.replaceChildren(new Option('対象を選ぶ',''));
   for(const t of targets)select.add(new Option(t.name,t.id));
   if(id){session.target=targets.find(t=>t.id===id)||null;targetOn=!!session.target;}
   select.value=session.target?.id||'';render();
@@ -12157,7 +12161,7 @@ ctx.lineWidth=1;
   if(!hasAccess()||!session||!active())return;
   const observer=session.observer;el('skyMapObserverClear').hidden=!validPoint(observer);
   const coords=validPoint(observer)?`${observer.latitude.toFixed(5)}, ${observer.longitude.toFixed(5)}`:'';el('skyMapObserver').textContent=validPoint(observer)?observer.name&&observer.name!==coords?observer.name:'撮影地点':'撮影地点を選ぶ';
-  el('skyMapObserverSub').textContent=validPoint(observer)?`${observer.latitude.toFixed(5)}, ${observer.longitude.toFixed(5)}`:'未選択でも、この日の候補を探せます';
+  el('skyMapObserverSub').textContent=validPoint(observer)?`${observer.latitude.toFixed(5)}, ${observer.longitude.toFixed(5)}`:'';
   // E202: 通過チップでも天体が変わる。2つの構図入口を現在条件へ同期する。
   for(const b of useButtons()){const allowed=canTransfer();b.hidden=!allowed;b.disabled=!allowed||(validPoint(observer)&&(!session.dailies?.[session.body]||!session.eye));}
   el('skyMapShowSun').setAttribute('aria-pressed',String(session.showSun));el('skyMapShowMoon').setAttribute('aria-pressed',String(session.showMoon));
@@ -12212,7 +12216,7 @@ ctx.lineWidth=1;
   const target=customTarget&&draft?.targetId==='custom'?customTarget:list.find(t=>t.id===draft?.targetId)||null;
   session={scrubMode:saved?.scrubMode==='date'?'date':'time',dayAnchor:SoramiSkyMap.dayStart(Number.isFinite(draft?.at)?draft.at:Date.now()),showSun:typeof draft?.showSun==='boolean'?draft.showSun:saved?.showSun!==false,showMoon:typeof draft?.showMoon==='boolean'?draft.showMoon:saved?.showMoon!==false,observer:validPoint(draft?.observer)?{...draft.observer}:null,body:draft?.body||'sun',at:Number.isFinite(draft?.at)?draft.at:Date.now(),ground:Number.isFinite(draft?.ground)?draft.ground:null,target,partId:draft?.partId??null,limb:draft?.limb||'center',custom,customTarget,daily:null};
   syncBodies();session.primaryBody=['sun','moon'].includes(draft?.primaryBody)?draft.primaryBody:['sun','moon'].includes(session.body)?session.body:session.showMoon&&!session.showSun?'moon':'sun';session.extraBody=extraIds.includes(draft?.extraBody)?draft.extraBody:draft?.extraBody===null?null:extraIds.includes(session.body)?session.body:null;if(extraIds.includes(session.body)&&!session.extraBody)session.body=session.primaryBody;el('skyMapBody').value=session.body;setPickMode(null);
-  const targetSelect=el('skyMapTarget');targetSelect.replaceChildren(new Option('目標物なし',''));
+  const targetSelect=el('skyMapTarget');targetSelect.replaceChildren(new Option('対象を選ぶ',''));
   for(const t of list)targetSelect.add(new Option(t.name,t.id));
   if(customTarget&&!list.some(t=>t.id==='custom'))targetSelect.add(new Option(custom.name,'custom'));
   targetSelect.value=session.target?.id||'';targetOn=validPoint(session.target);el('skyMapCustom').hidden=false;
@@ -12439,6 +12443,6 @@ ctx.lineWidth=1;
  new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node.nodeType===1)scan(node);}).observe(document.body,{childList:true,subtree:true});
 })();
 </script>
-<script src="sorami-myplaces.js?v=9109581129322395051"></script>
+<script src="sorami-myplaces.js?v=13407534911465579427"></script>
 </body>
 </html>

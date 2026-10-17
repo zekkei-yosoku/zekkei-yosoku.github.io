@@ -362,8 +362,8 @@ function buildSheet() {
   <div class="sheet-body">
     <div class="my-input-field"><div class="condition-label">${inputRoleIcon('observer')}<span>撮影地点</span></div><div class="my-location-value" id="myPlaceName"></div></div>
     <form id="myRecordForm" class="my-form" novalidate>
-      <label class="condition-label" for="myRecordTarget">${inputRoleIcon('target')}<span>対象</span></label>
-      <select id="myRecordTarget" class="fav-in"></select>
+      <div class="my-input-field"><label class="condition-label" for="myRecordTarget">${inputRoleIcon('target')}<span>対象</span></label>
+      <select id="myRecordTarget" class="fav-in"></select></div>
       <button type="button" class="chip" id="myRecordPickTarget">地図・検索から目標を追加</button>
       <details id="myRecordOptions" class="my-secondary"><summary>見え方・日付・メモ</summary>
       <div class="fav-l" id="myRecordResultLabel">見え方</div>
@@ -432,7 +432,7 @@ function openPlace(place, ctx, targetKey = null) {
   el('myPlaceUse').hidden = ctx === 'records' && !screenAllowed('framing');
   el('myPlaceUse').textContent = ctx === 'sky' ? '地図でここから見る' : 'ここから重ねる';
   const choices = targetChoices(), select = el('myRecordTarget');
-  select.replaceChildren(new Option('見えたものを選ぶ', ''), ...choices.map((t) => new Option(t.name, t.id)));
+  select.replaceChildren(new Option('対象を選ぶ', ''), ...choices.map((t) => new Option(t.name, t.id)));
   const want = targetKey || (ctx === 'records' ? null : current);
   if (want) select.value = choices.some((t) => t.id === want) ? want : '';
   el('myRecordDate').value = ''; el('myRecordNote').value = ''; el('myRecordError').hidden = true;
@@ -581,8 +581,13 @@ style.textContent = `
 .my-result button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent,#fff)}
 .my-form{margin-top:14px}
 #myPlaceSheet .condition-label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted);line-height:22px;margin-bottom:6px}
+#myPlaceSheet .my-input-field{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:center}
+#myPlaceSheet .my-input-field > .condition-label{margin:0}
+#myPlaceSheet .my-input-field > .condition-label > span{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+#myPlaceSheet #myRecordTarget:has(option:checked[value=""]){color:var(--tertiary)}
+#myPlaceSheet #myRecordTarget option{color:var(--text)}
 #myPlaceSheet .my-location-value{padding:14px 12px;border:1px solid var(--line);border-radius:12px;background:var(--sunk);font-size:16px;overflow-wrap:anywhere}
-#myPlaceSheet #myRecordTarget{min-height:52px;border-radius:12px;font-size:16px;margin:0 0 8px}
+#myPlaceSheet #myRecordTarget{min-height:52px;border-radius:12px;font-size:16px;margin:0}
 .my-body-options{border:0;padding:0;margin:14px 0 8px;min-width:0}
 #myPlaceBodies{display:flex;gap:6px;flex-wrap:wrap}
 #myPlaceBodies label{display:flex;align-items:center;gap:6px;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:10px;font-size:14px}
