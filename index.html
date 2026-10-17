@@ -12,8 +12,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="934369503533222870">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-jUhWIbeR59qVFz8X9mjJMrNpli9rEs/I3hOt1oNhK48=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-U1PC1Lbux6r/JoafzQyZ0xa5wj+ZXa/qpadvSncBnPU=' 'sha256-4mvZ5lCVjFwtEFRrHhFDcYL/SiEBBUHpgZP1m+57ykQ=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="11255944712429742131">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-V0UBX2g4cZcE9LG4AVH3FCb42IAqrj8dEuU/ZbXF430=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-U1PC1Lbux6r/JoafzQyZ0xa5wj+ZXa/qpadvSncBnPU=' 'sha256-4mvZ5lCVjFwtEFRrHhFDcYL/SiEBBUHpgZP1m+57ykQ=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
@@ -7165,6 +7165,7 @@ function openIss() {
 }
 
 function aimApply({ redraw = true, recenter = false } = {}) {
+  aimRenderSelectedPoint();
   if (!SoramiBodies.definition(aim.body).limbs && !SoramiBodies.ready()) {
     const request = ++aim.bodySeq;
     SoramiBodies.ensure(aim.body).then(() => { if(request === aim.bodySeq) aimApply({redraw,recenter}); }).catch(() => {
@@ -7838,6 +7839,15 @@ async function aimMoreDays() {
       if (added) added.parentElement.scrollLeft = Math.max(0, added.offsetLeft - 8);
     }
   } else if (aim.fromDays === entry) await aimRenderFrom();
+}
+// The selected place is already known; displaying it must not wait for models, weather or terrain.
+function aimRenderSelectedPoint() {
+  const f=aimFromPoint();
+  const ground=f?(Number.isFinite(f.groundManualM)?f.groundManualM:aimElevCache.get(`${f.latitude.toFixed(6)},${f.longitude.toFixed(6)}`)):null;
+  renderPointCard("aimFrom",f,ground);
+  $("aimFromClear").hidden=!f;$("aimFromFav").hidden=!f;
+  $("aimObserverDetails").hidden=!f;
+  return f;
 }
 async function aimRenderFrom() {
   const seq = ++aim.fromSeq;
@@ -9680,6 +9690,7 @@ $("aimAccessLogin").onclick = () => $("authButton").click();
 
 function openAim(preset) {
   if (!renderAimAccess()) { aim.bodySeq++; return; }
+  aimRenderSelectedPoint();
   if (preset) aim.pendingModelPreset = preset;
   const entry = ++aim.bodySeq;
   if (!SoramiAssets.modelsReady()) {
