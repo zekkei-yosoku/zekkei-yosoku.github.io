@@ -474,7 +474,7 @@ function renderSheet() {
     const sub=document.createElement('span');sub.className='tiny sub-line';sub.textContent=stamps.length?'登録日 '+new Date(Math.min(...stamps)+32400000).toISOString().slice(0,10).replaceAll('-','/'):'未保存';text.append(sub);
     const remove=document.createElement('button');remove.type='button';remove.className='chip';remove.textContent='削除';remove.setAttribute('aria-label',t.name+'を対象から外す');remove.onclick=()=>{if(!sheetOwnerMatches())return;sheetState.draftTargets=sheetState.draftTargets.filter(x=>x.key!==t.key);el('myRecordSaved').hidden=true;renderSheet();};row.append(text,remove);recs.append(row);
   }
-  el('myRecordSave').disabled=!place.id||!draftChanged();el('myRecordPickTarget').disabled=!place.id;el('myPlacePlanning').hidden=!place.id||draftChanged();el('myPlaceDetails').hidden=!place.id;
+  el('myRecordSave').disabled=!place.id||!draftChanged();el('myRecordPickTarget').disabled=!place.id;el('myPlacePlanning').hidden=!place.id||draftChanged();el('myPlaceDetails').hidden=!place.id;if(!draftChanged())el('myRecordLocationConfirm').hidden=true;
   const next = el('myPlaceNext'); next.replaceChildren();
   if(!el('myPlacePlanning').open)return;
   const seen = targetsSeenFrom(place.id).filter((r) => r.result !== 'hidden');
