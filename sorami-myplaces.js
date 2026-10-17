@@ -461,7 +461,7 @@ function renderSheet() {
   const recs=el('myPlaceRecords');recs.replaceChildren();
   if(!sheetState.draftTargets.length){const p=document.createElement('p');p.className='tiny';p.textContent='ここから見える対象を追加してください。複数選べます。';recs.append(p);}
   for(const t of sheetState.draftTargets){
-    const row=document.createElement('div');row.className='fav-row';const text=document.createElement('div');text.className='my-record';const name=document.createElement('strong');name.textContent=t.name;text.append(name);
+    const row=document.createElement('div');row.className='fav-row my-draft-target';const text=document.createElement('div');text.className='my-record';const name=document.createElement('strong');name.textContent=t.name;text.append(name);
     const stamps=list.filter(r=>r.placeId===place.id&&r.target.key===t.key&&!r.removed&&r.createdAt>0).map(r=>r.createdAt);
     const sub=document.createElement('span');sub.className='tiny sub-line';sub.textContent=stamps.length?'登録日 '+new Date(Math.min(...stamps)+32400000).toISOString().slice(0,10).replaceAll('-','/'):'未保存';text.append(sub);
     const remove=document.createElement('button');remove.type='button';remove.className='chip';remove.textContent='削除';remove.setAttribute('aria-label',t.name+'を対象から外す');remove.onclick=()=>{if(!sheetOwnerMatches())return;sheetState.draftTargets=sheetState.draftTargets.filter(x=>x.key!==t.key);el('myRecordSaved').hidden=true;renderSheet();};row.append(text,remove);recs.append(row);
@@ -598,6 +598,8 @@ style.textContent = `
 #myPlaceBodies input{accent-color:var(--accent);width:16px;height:16px;margin:0}
 .my-form .fav-btn{margin-top:10px;width:100%}
 .my-actions{margin:6px 0}
+#myPlaceSheet .my-draft-target{align-items:center;gap:12px;padding:10px 0}#myPlaceSheet .my-draft-target .my-record{flex:1;min-width:0;overflow-wrap:anywhere}#myPlaceSheet .my-draft-target button{flex:none;min-width:60px;min-height:44px}
+#myRecordsHub .my-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}#myRecordsHub .my-actions select{flex:1 1 130px;width:0;min-width:0}
 .my-record{cursor:default}
 .my-picker{margin-bottom:8px}
 `;
