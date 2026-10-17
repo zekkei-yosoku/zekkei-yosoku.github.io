@@ -133,9 +133,9 @@ test('構図への既存ボタンは条件を引き継ぎ、権限なしでは�
  f.element('skyMapUseBelow').onclick();assert.equal(f.c.hash,'#/aim');assert.equal(f.aim.plannerTransfer.body,'sun');
  const g=fixture({tools:['skymap'],saved:{at:day,targetId:'skytree'}});await g.open();assert.equal(g.element('skyMapUse').hidden,true);g.element('skyMapUseBelow').onclick();assert.equal(g.c.hash,undefined);
 });
-test('E198: 条件3行は「を見る／の方向を見る／から見る」、観測地点・目標物・出入りの言い方を揃える',async()=>{
+test('条件3行は構図と共通の天体・対象・撮影地点ラベル、出入りの表記を維持する',async()=>{
  const block=html.slice(html.indexOf('<div class="sky-map-controls">'),html.indexOf('<div class="mapwrap sky-map-wrap">'));
- assert.deepEqual([...block.matchAll(/<span class="aim-say-v">([^<]+)<\/span>/g)].map(m=>m[1]),['を見る','の方向を見る','から見る']);
+ assert.deepEqual([...block.matchAll(/class="aim-say-v condition-label"[^>]*><svg[^>]*>[\s\S]*?<\/svg><span>([^<]+)<\/span>/g)].map(m=>m[1]),['天体','対象','撮影地点']);
  const sky=html.slice(html.indexOf('<section id="skyMapView"'),html.indexOf('</section>',html.indexOf('<section id="skyMapView"')));
  assert.doesNotMatch(sky,/観測点|出・入|出入は|中心に目標を置く/);// Current menu uses the short Japanese name adopted on 2026-10-15.
  assert.match(html,/id="skyMapTitle">地図<\/h2>/);

@@ -12,7 +12,7 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="12324476692444708327">
+<meta name="app-version" content="16520474740439993355">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-+8EhSqhQ2X2HluzlIMEVvRaOOs2q4q8DT8WT48k3iVE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-XF/wUrJ0gyNquAp1coP2zpBpYvO2GIWAt0Vn0IHDtY0=' 'sha256-GyLSmYyCDeo6CJaky63mh5yleh3jkcLg2YEvSiYXrAM=' 'sha256-sjkaBU2k/ag2atEQVm5Jj3w8wNqfxeXApxlBPVvAwNA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
@@ -1158,6 +1158,15 @@
 
 #previewScene:has(#aimLook[hidden]),#aimView:has(#aimLook[hidden]) [data-plan-source="aim"]{display:none}
 .forecast-tabs{display:flex;gap:4px;padding:4px;margin:0 0 12px;border-radius:12px;background:var(--sunk)}.forecast-tabs[hidden]{display:none}.forecast-tabs [role="tab"]{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-height:44px;border:0;border-radius:9px;background:transparent;color:var(--secondary);font-size:0.88rem;font-weight:700}.forecast-tabs [aria-selected="true"]{background:var(--card);color:var(--text);box-shadow:0 1px 4px #0001}.forecast-tabs [role="tab"]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.forecast-results-count{font-size:0.69rem;font-variant-numeric:tabular-nums;background:var(--line);color:var(--text);border-radius:10px;padding:2px 6px;min-width:18px}
+
+  /* Shared input roles: celestial body, target, shooting location. */
+  :is(#aimView,#skyMapView) .condition-field{flex-direction:column;align-items:stretch;gap:6px;margin-bottom:14px}
+  :is(#aimView,#skyMapView) .condition-field > :first-child{flex:0 0 auto;width:100%;box-sizing:border-box}
+  :is(#aimView,#skyMapView) .condition-field > .condition-label{order:-1;flex:0 0 auto;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted);line-height:22px}
+  :is(#aimView,#skyMapView) .condition-field :is(select,.preview-body-open,.preview-target-open,.place-pick){min-height:52px}
+  .condition-label svg{flex:none;color:var(--accent)}
+  :is(#aimView,#skyMapView) .condition-field .place-pick > .pin{display:none}
+  #skyMapView .condition-field{max-width:720px}
 </style>
 <script>(()=>{const root=document.documentElement,meta=document.querySelector('meta[name="theme-color"]');const sync=()=>{meta.content=getComputedStyle(root).getPropertyValue('--header-bg').trim();};sync();new MutationObserver(sync).observe(root,{attributes:true,attributeFilter:['data-theme']});})();</script>
 <style id="previewStyles">.preview-banner{margin:0 0 12px;color:var(--secondary);font-size:11px}
@@ -1608,7 +1617,7 @@ button.ui-icon-button::after { content: none; }
            2026-10-04 は何を→どこから→何に、2026-10-01 はどこからを一番上（道具ごとに位置を揃える）だった -->
       <!-- 構図と地図はメニューの独立入口。条件の受渡しは画面内ボタンで行う。 -->
       <h2 class="preview-title" id="aimFramingTitle">構図</h2>
-      <div class="aim-say">
+      <div class="aim-say condition-field">
       <div class="section-h aim-head">
         <select id="aimBody" class="aim-body-select" aria-label="天体">
           <optgroup label="太陽・月"><option value="sun">太陽</option><option value="moon">月</option></optgroup>
@@ -1616,12 +1625,12 @@ button.ui-icon-button::after { content: none; }
           <optgroup label="惑星"><option value="mercury">水星</option><option value="venus">金星</option><option value="mars">火星</option><option value="jupiter">木星</option><option value="saturn">土星</option></optgroup>
         </select>
       </div>
-      <span class="aim-say-v" id="aimWhatLabel">を重ねる</span>
+      <span class="aim-say-v condition-label" id="aimWhatLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C13.2 9 15 10.8 21 12C15 13.2 13.2 15 12 22C10.8 15 9 13.2 3 12C9 10.8 10.8 9 12 2Z" fill="currentColor" stroke="none"/></svg><span>天体</span></span>
       </div>
     <!-- 文の右の「に重ねる」は欄の外に置き、欄の側を省略する（題名の中に「に重ねる」を入れたら 375px 以下で折れた） -->
-    <div class="aim-say">
-    <div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="何に重ねるか（目標）"></select></span></span></div>
-    <span class="aim-say-v" id="aimWhereLabel">に重ねる</span>
+    <div class="aim-say condition-field">
+    <div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="対象"></select></span></span></div>
+    <span class="aim-say-v condition-label" id="aimWhereLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><path d="M12 1v6m0 10v6M1 12h6m10 0h6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg><span>対象</span></span>
     </div>
     <!-- 自分で置くときの目標の場所（2026-10-01 ユーザー「自分で置くを選んだ場合、どこに重ねるかの検索が必要なんじゃないの」）。
          どこから重ねるかと同じく地点カードの形で、押すと同じ「地点」の画面（検索・現在地・地図で選ぶ・お気に入り）。
@@ -1661,7 +1670,7 @@ button.ui-icon-button::after { content: none; }
     </div>
     <p class="tiny" id="aimHeightNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
     <!-- 撮影地点は任意。未選択でも対象・天体・日付から登録地点の候補を選べる。予測地域は暗黙補完しない。 -->
-    <div class="aim-say aim-say-from">
+    <div class="aim-say aim-say-from condition-field">
     <div class="place-row aim-place-card">
       <button class="place-pick" id="aimFromButton" aria-describedby="aimFromLabel">
         <span class="pin">📍</span>
@@ -1677,7 +1686,7 @@ button.ui-icon-button::after { content: none; }
       <button type="button" id="aimFromClear" class="tap" aria-label="撮影地点の選択を解除" title="選択解除" hidden>×</button>
       <button id="aimFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆</button>
     </div>
-    <span class="aim-say-v" id="aimFromLabel">から重ねる</span>
+    <span class="aim-say-v condition-label" id="aimFromLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="10" rx="1.5"/><circle cx="12" cy="10" r="2.5"/><path d="m8 5 1.5-2h5L16 5m-4 10v8m0-6-6 6m6-6 6 6"/></svg><span>撮影地点</span></span>
     </div>
     <!-- 観測標高を「標高」（地面だけ）と「地上から」（目の高さ1.5m＋立つ所の高さ）に分ける（2026-10-06 ユーザー「観測標高は枠分ける？標高と目線とで」
          「標高は標高だけ。展望台の高さは目線のところに持っていくのがいいのか？」）。名前を「目線」にすると展望台の351.5mが目の高さに見えて迷うので「地上から」。
@@ -1870,8 +1879,8 @@ button.ui-icon-button::after { content: none; }
  <div class="sky-map-head"><h2 id="skyMapTitle">地図</h2></div>
  <div id="skyMapAccess" class="card"><p id="skyMapAccessMessage" role="status">利用権限を確認しています…</p><button type="button" class="chip" id="skyMapAccessRetry">再試行</button><button type="button" class="chip" id="skyMapAccessLogin">ログイン</button></div>
  <div class="sky-map-content" id="skyMapContent" hidden>
-  <div class="sky-map-controls"><div class="aim-say"><select id="skyMapBody" aria-label="見る天体"><option value="sun">太陽</option><option value="moon">月</option><option value="sirius">シリウス</option><option value="mercury">水星</option><option value="venus">金星</option><option value="mars">火星</option><option value="jupiter">木星</option><option value="saturn">土星</option></select><span class="aim-say-v">を見る</span></div><div class="aim-say"><select id="skyMapTarget" aria-label="方向を見る目標物"></select><span class="aim-say-v">の方向を見る</span></div></div>
-  <div class="aim-say"><div class="place-row aim-place-card"><button type="button" class="place-pick" id="skyMapChoose" aria-label="観測地点を探す"><span class="pin" aria-hidden="true"></span><span class="place-txt"><span class="name" id="skyMapObserver">撮影地点を選ぶ</span><span class="muted" id="skyMapObserverSub"></span></span><span class="chev" aria-hidden="true"></span></button><button type="button" id="skyMapObserverClear" class="tap" aria-label="撮影地点の選択を解除" title="選択解除" hidden>×</button></div><span class="aim-say-v">から見る</span></div>
+  <div class="sky-map-controls"><div class="aim-say condition-field"><select id="skyMapBody" aria-labelledby="skyMapBodyLabel"><option value="sun">太陽</option><option value="moon">月</option><option value="sirius">シリウス</option><option value="mercury">水星</option><option value="venus">金星</option><option value="mars">火星</option><option value="jupiter">木星</option><option value="saturn">土星</option></select><span class="aim-say-v condition-label" id="skyMapBodyLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C13.2 9 15 10.8 21 12C15 13.2 13.2 15 12 22C10.8 15 9 13.2 3 12C9 10.8 10.8 9 12 2Z" fill="currentColor" stroke="none"/></svg><span>天体</span></span></div><div class="aim-say condition-field"><select id="skyMapTarget" aria-labelledby="skyMapTargetLabel"></select><span class="aim-say-v condition-label" id="skyMapTargetLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><path d="M12 1v6m0 10v6M1 12h6m10 0h6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg><span>対象</span></span></div></div>
+  <div class="aim-say condition-field"><div class="place-row aim-place-card"><button type="button" class="place-pick" id="skyMapChoose" aria-describedby="skyMapChooseLabel"><span class="pin" aria-hidden="true"></span><span class="place-txt"><span class="name" id="skyMapObserver">撮影地点を選ぶ</span><span class="muted" id="skyMapObserverSub"></span></span><span class="chev" aria-hidden="true"></span></button><button type="button" id="skyMapObserverClear" class="tap" aria-label="撮影地点の選択を解除" title="選択解除" hidden>×</button></div><span class="aim-say-v condition-label" id="skyMapChooseLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="10" rx="1.5"/><circle cx="12" cy="10" r="2.5"/><path d="m8 5 1.5-2h5L16 5m-4 10v8m0-6-6 6m6-6 6 6"/></svg><span>撮影地点</span></span></div>
 
   <div class="mapwrap sky-map-wrap"><span class="sr-only">地図は北が上</span><canvas id="skyMapCanvas" aria-label="観測地点からの天体の方向と目標物への線を示す地図"></canvas><div class="sky-map-point-tools"><button type="button" class="map-ctl" id="skyMapObserverTool" aria-label="観測地点を地図で変更" title="観測地点" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="7" rx="1.5"/><circle cx="13" cy="6.5" r="2"/><path d="M12 10v3m0 0L5 22m7-9 7 9m-7-9v9"/></svg></button><button type="button" class="map-ctl" id="skyMapTargetTool" aria-label="目標物を地図で変更" title="目標物" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z"/><circle cx="12" cy="9" r="2.5"/></svg></button><button type="button" class="map-ctl sky-map-transfer" id="skyMapUse" aria-label="この条件の構図を確認" title="この条件の構図を確認" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3H3v4m14-4h4v4M3 17v4h4m10 0h4v-4"/><path d="m5 17 5-6 3 3 3-4 3 7"/><circle cx="13" cy="7" r="2"/></svg><span>構図</span></button></div><button type="button" class="map-ctl sky-map-expand" id="skyMapExpand" aria-label="地図を全画面表示" title="地図を全画面表示" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path data-map-expand d="M4 9V4h5M4 4l5 5M15 4h5v5m0-5-5 5M4 15v5h5m-5 0 5-5M15 20h5v-5m0 5-5-5"/><path data-map-contract d="M9 4v5H4m5 0L4 4m11 0v5h5m-5 0 5-5M4 15h5v5m0-5-5 5m16-5h-5v5m0-5 5 5"/></svg></button><div class="mappin" aria-hidden="true"></div><div class="mapzoom"><button id="skyMapIn" aria-label="地図を拡大">＋</button><button id="skyMapOut" aria-label="地図を縮小">−</button></div><div class="mapattr">国土地理院</div></div>
   <div class="sky-map-link"><button type="button" class="chip" id="skyMapUseBelow" hidden>この条件の構図を確認</button></div>

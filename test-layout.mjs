@@ -279,8 +279,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   { const ids=['aimBody','aimWhatLabel','aimTitle','aimWhereLabel','aimLimb','aimFromButton','aimFromLabel','aimStand','aimGroundHeight','aimStandHeight'];
     const positions=ids.map(id=>html.indexOf('id="'+id+'"'));
     ok(positions.every((p,i)=>p>0&&(!i||p>positions[i-1])), "何を→何に（部位・縁）→どこから（立つ所・標高・地上から）の順で選ぶ");
-    ok(/<span class="aim-say-v" id="aimWhatLabel">を重ねる<\/span>/.test(html) && /<span class="aim-say-v" id="aimWhereLabel">に重ねる<\/span>/.test(html)
-      && /<span class="aim-say-v" id="aimFromLabel">から重ねる<\/span>/.test(html) && !/aim-section-title/.test(html), "見出しの代わりに、欄の右に「を重ねる」「に重ねる」「から重ねる」");
+    ok(['aimWhatLabel','aimWhereLabel','aimFromLabel'].every(id=>new RegExp('id="'+id+'"><svg[^>]*aria-hidden="true"').test(html)) && html.includes('<span>天体</span>') && html.includes('<span>対象</span>') && html.includes('<span>撮影地点</span>'), "構図は共通ピクトグラムと短い役割ラベル");
     // 題名の中に「に重ねる」を入れたら 375px 以下で折れた。右は折らず、欄の側を省略する
     ok(/\.aim-say \{ display: flex; align-items: center;/.test(html) && /\.aim-say > :first-child \{ flex: 1 1 0; min-width: 0;/.test(html)
       && /\.aim-say-v \{ flex: 0 0 5\.2em;[^}]*white-space: nowrap;/.test(html), "文の右は「から重ねる」の幅で固定して折らない・欄の側が縮む");
@@ -289,7 +288,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
     ok(/<label for="aimGroundHeight">標高<\/label>/.test(html) && /<label for="aimStandHeight">地上から<\/label>/.test(html) && !/id="aimObserverHeight"/.test(html)
       && /<div class="aim-side-seg aim-stand" id="aimStand" role="group" aria-label="立つ所"><\/div>/.test(html), "観測標高は標高と地上からの2つ（展望台は立つ所を選ぶ）");
     ok(/\.aim-observer-height label \{ flex: 0 0 4\.5em; \}/.test(html), "2行の欄の左端をそろえる");
-    ok(html.indexOf('id="aimPartRow"') < html.indexOf('id="aimLimb"') && html.indexOf('id="aimLimb"') < html.indexOf('class="aim-say aim-say-from"', html.indexOf('<div id="aimView"')), "縁は部位のすぐ下（どこからより上）"); }
+    ok(html.indexOf('id="aimPartRow"') < html.indexOf('id="aimLimb"') && html.indexOf('id="aimLimb"') < html.indexOf('class="aim-say aim-say-from condition-field"', html.indexOf('<div id="aimView"')), "縁は部位のすぐ下（どこからより上）"); }
 
   // 地図から決めるのは地図を見ているとき。釦は上の欄ではなく地図のすぐ下（ユーザー「地図の中心ってここにいらない」）
   { const cv = html.indexOf('id="aimCanvas"'), pk = html.indexOf('id="aimPick"'), fs = html.indexOf('id="aimFromButton"');
@@ -478,7 +477,7 @@ ok(/<div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id=
 ok(!/aimTitleText|fujiTool/.test(html), "富士山だけ字にする分け方は無くした");
 ok(/\.aim-pick\.single svg \{ display: none; \}/.test(html) && /classList\.toggle\("single", single\)/.test(html), "選べる目標が1つだけなら ▾ を出さない");
 // 「に重ねる」を付けると 375px 以下で折れ、切り替えと下が富士山の画面より下がった。題名は枠に入れた目標だけ（ユーザー「いい感じの枠に」）
-ok(/<select id="aimTarget" aria-label="何に重ねるか（目標）"><\/select><\/span><\/span><\/div>/.test(html), "塔の題名は枠に入れた目標だけ（折れない）");
+ok(/<select id="aimTarget" aria-label="対象"><\/select><\/span><\/span><\/div>/.test(html), "塔の題名は枠に入れた目標だけ（折れない）");
 ok(/\.aim-pick \{ position: relative;[^}]*border-radius: 10px; background: var\(--sunk\);/.test(code), "目標は枠に入れる（太陽／月の切り替えと同じ沈んだ地）");
 ok(/\.aim-pick select \{ position: absolute; inset: 0;[^}]*opacity: 0; font-size: 16px;/.test(code), "選ぶ一覧は字に重ねて透明に（幅は字の幅・iOS で拡大されない 16px）");
 ok(/option.value === "sun" \? \(!anyOk \|\| sunOk\)/.test(html) && /option.value === "moon" \? \(!anyOk \|\| moonOk\)/.test(html),
@@ -489,7 +488,7 @@ ok(/const fujiOk = toolAllowed\("diamond"\) \|\| toolAllowed\("pearl"\), towerOk
 ok(/const sunOk = !isFuji \|\| toolAllowed\("diamond"\), moonOk = !isFuji \|\| toolAllowed\("pearl"\);/.test(html), "富士山を選んだら、太陽はダイヤモンド富士・月はパール富士の許可で出す");
 // 重なる日は選ぶ行より下（太陽と月で日の数が違うので、上だと切り替えるたびに釦が動く。ユーザー「UIがすごく動くのが気になる」）
 // 日付欄は月間カレンダーを開くボタンへ変更。入力値はhidden aimDateで保持。
-{ const lb = html.indexOf('id="aimWhereLabel">に重ねる'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('class="aim-date-section"'), sw = html.indexOf('id="aimBody"'), fs = html.indexOf('id="aimFromButton"');
+{ const lb = html.indexOf('id="aimWhereLabel">'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('class="aim-date-section"'), sw = html.indexOf('id="aimBody"'), fs = html.indexOf('id="aimFromButton"');
   ok(sw < lb && lb < fs && fs < dt && dt < fr, "並び: 題名と天体 → 何に → どこから → 日付と候補日"); }
   ok(html.includes("parts.length + (whole ? 1 : 0) < 2"), "建物全体の選択を含め選択肢が1つなら欄を隠す");
 ok(!/目標に太陽や月が重なる日と、/.test(html), "説明の段落を出さない");
