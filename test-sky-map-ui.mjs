@@ -153,3 +153,8 @@ test('候補の保存標高30mと地上4mを、DEM27.4mへすり替えず構図�
  assert.equal(f.c.SkyMapUI.selectCandidate({place:{name:'記録地点',latitude:35.72,longitude:139.86,elevation:30,eyeHeightAGL:4,standAglM:4},event:{at:day+55057000}},expected),true);await flush();
  assert.equal(f.data.get('sorami.skyMap:testuser').observer.groundManualM,30);assert.equal(f.loads,0);assert.equal(f.c.SkyMapUI.prepareFraming(),true);assert.equal(f.aim.from.groundManualM,30);assert.equal(f.aim.from.standAglM,4);assert.equal(f.aim.plannerTransfer.at,day+55057000);
 });
+
+test('地図共有は地点なし・離脱後を拒否し、計算済みの現在条件だけを返す',async()=>{
+ let f=fixture({selected:false});await f.open();assert.throws(()=>f.c.SkyMapUI.shareState());
+ f=fixture({saved:{at:day+55057000,body:'moon',targetId:'skytree',partId:'tip',limb:'behind',matchMode:'limb'}});await f.open();const p=f.c.SkyMapUI.shareState();assert.equal(p.at,day+55057000);assert.equal(p.body,'moon');assert.equal(p.limb,'behind');assert.equal(p.matchMode,'limb');assert.ok(Number.isFinite(p.eyeM));f.c.SkyMapUI.leave();assert.throws(()=>f.c.SkyMapUI.shareState());
+});
