@@ -168,3 +168,7 @@ test('地図共有は地点なし・離脱後を拒否し、計算済みの現�
  f.c.accessRequests.at(-1)({allowed:true,tool:'skymap',tools:['skymap','tower'],loginId:'other'});await flush();assert.equal(f.element('skyMapContent').hidden,false);assert.equal(f.c.SkyMapUI.snapshot(),null);assert.equal(f.element('skyMapObserver').textContent,'撮影地点を選ぶ');
  f.c.accessRequests[0]({allowed:true,tool:'skymap',tools:['skymap','tower'],loginId:'testuser'});await flush();assert.equal(f.element('skyMapContent').hidden,false);assert.equal(f.c.SkyMapUI.snapshot(),null);assert.equal(f.element('skyMapObserver').textContent,'撮影地点を選ぶ');
  });
+test('予測からの地図入口は地点・高さ・選択日を渡し、対象と天体は維持する',async()=>{
+ const f=fixture({saved:{at:day,body:'moon',targetId:'skytree'}});const observer={name:'予測の場所',latitude:36,longitude:138,groundManualM:1665,eyeHeightAGL:4};
+ assert.equal(f.c.SkyMapUI.enterForecast(observer,day+86400000),true);await flush();const state=f.c.SkyMapUI.snapshot();assert.equal(state.observer.name,observer.name);assert.equal(state.observer.groundManualM,1665);assert.equal(state.body,'moon');assert.equal(state.target.id,'skytree');assert.equal(state.at,day+86400000+43200000);
+});

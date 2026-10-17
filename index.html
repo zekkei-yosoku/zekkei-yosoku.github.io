@@ -12,8 +12,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="3918614018236441325">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-29ru8/K5PZ6t5XiefIal2Z4XNCrrXiSlUy/VXL+wsLg=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-U1PC1Lbux6r/JoafzQyZ0xa5wj+ZXa/qpadvSncBnPU=' 'sha256-9L0gTfXWVnB2kBPm1d3U6JRaRuXjQRU4MfsyNVNeU7c=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="12501215358555017006">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-3IZjeeiWerp4W0oWYUqxK/nNnoJFpQ1mHVAr9hQhXzE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-U1PC1Lbux6r/JoafzQyZ0xa5wj+ZXa/qpadvSncBnPU=' 'sha256-Z0JuVzm2YjnaJyUXWsmFAWB/MoYd9KFSDiuONzw1x/s=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-48037wd5H5dgqKj0a+OsTaLQVOU4ie+u6vXMcowzCqA=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=17884626660592691492">
@@ -1333,6 +1333,7 @@ main:has(>#aimView:not([hidden],[data-locked])){padding-bottom:calc(var(--aim-fo
 #aimView .preview-camera-dialog .aim-grid-control,#aimView .preview-camera-dialog .aim-lens-row{display:grid;grid-template-columns:7.5rem minmax(0,1fr);align-items:center;gap:10px}#aimView .preview-camera-dialog .preview-sensor-label{font-size:14px}#aimView .preview-camera-dialog .aim-lens-row select,#aimView .preview-camera-dialog .aim-grid-control select{width:100%;min-width:0}
   /* trial 2026-10-16: 構図の撮影地タブは地図へ集約（その日に重なる線・自分の地点は地図に出す） */
   #previewPlacesTab, #previewPlaces { display: none !important; }
+.forecast-planning{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 14px}.forecast-planning[hidden]{display:none}.forecast-planning>.tiny{flex:1 1 150px;min-width:0;overflow-wrap:anywhere}.forecast-planning button{min-height:44px}.forecast-planning-offer{margin-top:-4px}
 </style><style id="skyMapStyles">
 .sky-map-point-tools{position:absolute;left:8px;top:8px;display:flex;flex-direction:column;gap:8px;z-index:4}.sky-map-point-tools .map-ctl{position:static;min-width:44px;min-height:44px}.sky-map-point-tools [aria-pressed="true"]{color:var(--on-accent);background:var(--accent)}.sky-map-expand{position:absolute;top:8px;right:8px;z-index:4;min-width:44px;min-height:44px}.sky-map-expand [data-map-contract]{display:none}.sky-map-expand[aria-pressed="true"] [data-map-expand]{display:none}.sky-map-expand[aria-pressed="true"] [data-map-contract]{display:block}.sky-map-wrap[data-pick-mode] canvas{cursor:crosshair}#skyMapTargetSheet input{font-size:16px;min-height:44px;width:100%;box-sizing:border-box}#skyMapTargetSheet label{display:block;margin:12px 0}
 
@@ -3296,6 +3297,7 @@ function render() {
   // ログインの復帰がいつ終わっても、画面を移っても、取りこぼさない
   renderTools();
   renderDeckRow();
+  globalThis.ForecastPlanning?.render();
   const best = pickHighlight(weeks, now);
   // 並び: 見られる見込みのあるものが先 → あとは PHENOMENA.order（似たものが隣）。
   //
@@ -3369,6 +3371,7 @@ function render() {
         }
         $("dayDetail").innerHTML = renderDayDetail(picked, weeks[picked], sel, Date.now());
         wireDayDetail($("dayDetail"));
+        globalThis.ForecastPlanning?.render();
         $("dayAnnouncement").textContent = `${S.Cal.monthDay(dayMs)} ${S.Cal.weekday(dayMs)}の詳細に切り替えました。${sel.evaluation.unavailable ? sel.evaluation.unavailable.message : S.phrasing(picked, sel.evaluation.rank).label}`;
       };
     }
@@ -7851,6 +7854,7 @@ function aimRenderSelectedPoint() {
   renderPointCard("aimFrom",f,ground);
   $("aimFromClear").hidden=!f;$("aimFromFav").hidden=!f;
   $("aimObserverDetails").hidden=!f;
+  globalThis.ForecastPlanning?.render();
   return f;
 }
 async function aimRenderFrom() {
@@ -12216,6 +12220,7 @@ ctx.lineWidth=1;
   }
  }
  function render(){
+  globalThis.ForecastPlanning?.render();
   if(!hasAccess()||!session||!active())return;
   const observer=session.observer;el('skyMapObserverClear').hidden=!validPoint(observer);
   const coords=validPoint(observer)?`${observer.latitude.toFixed(5)}, ${observer.longitude.toFixed(5)}`:'';el('skyMapObserver').textContent=validPoint(observer)?observer.name&&observer.name!==coords?observer.name:'撮影地点':'撮影地点を選ぶ';
@@ -12259,6 +12264,12 @@ ctx.lineWidth=1;
   const live=fromAim&&!!from&&!look.hidden&&look._planKey===aimLookKey()&&spec&&Number.isFinite(look._lookAt);
   pending=fromAim?{ownerToken:auth?.token,custom:aim.target?.id==='custom'?store.get('sorami.aimCustom',null):null,observer:live?{...from,latitude:spec.obs.latitude,longitude:spec.obs.longitude,groundManualM:from.groundManualM??null,standAglM:spec.eyeM===aimObserverEye(from)?from.standAglM??null:spec.eyeM,name:spec.observerName||from.name}:from,body:aim.body,showSun:aim.body==='sun',showMoon:aim.body==='moon',at:live?look._lookAt:Number.isFinite(transferredAt)?transferredAt:Number.isFinite(aim.dayMs)?aim.dayMs+43200000:Date.now(),targetId:aim.target?.id||'',partId:aim.partId,limb:aim.partId==='__whole'?'center':aim.limb,matchMode:aim.matchMode||'limb',ground:live?spec.obs.elevation:null}:null;
   pushRoute('#/skymap');
+ }
+ function enterForecast(observer,dayMs){
+  if(!auth?.token||!toolAllowed('skymap')||!validPoint(observer)||!Number.isFinite(dayMs))return false;
+  const previous=hasAccess()?session:store.get(skyStoreKey(),null);
+  pending={ownerToken:auth.token,observer:aimSavedFrom(observer),body:previous?.body||'sun',at:dayMs+43200000,targetId:previous?.target?.id||previous?.targetId||'',partId:previous?.partId??null,limb:previous?.limb||'center',matchMode:previous?.matchMode||'overlap',custom:previous?.custom||null,ground:Number.isFinite(observer.groundManualM)?observer.groundManualM:null};
+  if(active())open(true);else pushRoute('#/skymap');return true;
  }
  function enterRecords(observer){
   if(!auth?.token||!toolAllowed('skymap')||!validPoint(observer))return false;
@@ -12381,7 +12392,7 @@ ctx.lineWidth=1;
   const current=JSON.stringify([session.body,session.target,session.partId,session.limb,SoramiShooting.day(session.at),session.matchMode||'limb']);
   if(current!==expected)return false;
   session.observer=aimSavedFrom(SoramiShooting.savedObserver(candidate.place));session.ground=Number.isFinite(candidate.place.elevation)?candidate.place.elevation:null;if(candidate.event.matchMode){session.matchMode=candidate.event.matchMode;session.partId=candidate.event.partId;session.limb='center';}session.at=candidate.event.at;session.dayAnchor=SoramiShooting.day(session.at);map.setCenter(candidate.place.latitude,candidate.place.longitude);refresh();return true;
- },setAlignment:(partId,limb,matchMode='limb')=>{if(!hasAccess()||!session||!active())return;if(partId&&partId!=='__whole'&&!(session.target?.parts||[]).some(p=>p.id===partId))return;if(!SoramiAlign.LIMBS.some(x=>x.id===limb))return;session.matchMode=matchMode==='overlap'?'overlap':'limb';session.partId=session.matchMode==='overlap'?(aimIsMountain(session.target)?null:'__whole'):partId;session.limb=session.matchMode==='overlap'||partId==='__whole'?'center':limb;refresh();},open,leave,authChanged,prepareFraming,enter,enterRecords,refreshTargets,render,redraw:()=>map.redraw(),fitPoints:pts=>{const cv=el('skyMapCanvas'),la=pts.map(q=>q.latitude),lo=pts.map(q=>q.longitude),lat0=Math.min(...la),lat1=Math.max(...la),lon0=Math.min(...lo),lon1=Math.max(...lo),lat=(lat0+lat1)/2,lon=(lon0+lon1)/2,dx=Math.max(.00001,(lon1-lon0)/360),dy=Math.max(.00001,(lat1-lat0)/(360*Math.cos(lat*Math.PI/180)));map.setView(lat,lon,Math.min(Math.log2(Math.max(160,cv.clientWidth)*.8/(256*dx)),Math.log2(Math.max(200,cv.clientHeight)*.8/(256*dy))));},setTime:at=>setTime(at),setObserver:p=>PLACE_PICKERS.skymap.set(p),setTarget:id=>{if(!session||!hasAccess())return;const t=mapTargets().find(x=>x.id===id);if(!t)return;session.target=t;session.partId=null;targetOn=true;el('skyMapTarget').value=t.id;session.partId=aimIsMountain(t)?null:'__whole';session.limb='center';session.matchMode='overlap';syncBodies();refresh();}};if(routeFromHash()?.skymap)applyRoute();
+ },setAlignment:(partId,limb,matchMode='limb')=>{if(!hasAccess()||!session||!active())return;if(partId&&partId!=='__whole'&&!(session.target?.parts||[]).some(p=>p.id===partId))return;if(!SoramiAlign.LIMBS.some(x=>x.id===limb))return;session.matchMode=matchMode==='overlap'?'overlap':'limb';session.partId=session.matchMode==='overlap'?(aimIsMountain(session.target)?null:'__whole'):partId;session.limb=session.matchMode==='overlap'||partId==='__whole'?'center':limb;refresh();},open,leave,authChanged,prepareFraming,enter,enterForecast,enterRecords,refreshTargets,render,redraw:()=>map.redraw(),fitPoints:pts=>{const cv=el('skyMapCanvas'),la=pts.map(q=>q.latitude),lo=pts.map(q=>q.longitude),lat0=Math.min(...la),lat1=Math.max(...la),lon0=Math.min(...lo),lon1=Math.max(...lo),lat=(lat0+lat1)/2,lon=(lon0+lon1)/2,dx=Math.max(.00001,(lon1-lon0)/360),dy=Math.max(.00001,(lat1-lat0)/(360*Math.cos(lat*Math.PI/180)));map.setView(lat,lon,Math.min(Math.log2(Math.max(160,cv.clientWidth)*.8/(256*dx)),Math.log2(Math.max(200,cv.clientHeight)*.8/(256*dy))));},setTime:at=>setTime(at),setObserver:p=>PLACE_PICKERS.skymap.set(p),setTarget:id=>{if(!session||!hasAccess())return;const t=mapTargets().find(x=>x.id===id);if(!t)return;session.target=t;session.partId=null;targetOn=true;el('skyMapTarget').value=t.id;session.partId=aimIsMountain(t)?null:'__whole';session.limb='center';session.matchMode='overlap';syncBodies();refresh();}};if(routeFromHash()?.skymap)applyRoute();
 })();
 </script>
 
@@ -12396,6 +12407,50 @@ ctx.lineWidth=1;
  for(const id of ['mapSearchGo','searchBoxGo']){const b=el(id);b.setAttribute('aria-label','検索');b.title='検索';b.innerHTML=UI_ICONS.search;}
  el('skyMapRecentOpen').innerHTML=UI_ICONS.history;el('skyMapRecentOpen').onclick=()=>recentHistory.places('skymap');const recent=el('aimRecentOpen');if(recent){recent.innerHTML=UI_ICONS.history;recent.classList.add('preview-history-icon');recent.title='履歴';}label('photoPick','photo');label('exportBtn','download');label('importBtn','upload');
 })();</script>
+<script id="forecastPlanning">
+// Prediction browsing and a shooting plan have separate selections. Only an explicit action transfers them.
+(() => {
+ let context=null;
+ const valid=p=>!!p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<=90&&Math.abs(p.longitude)<=180;
+ const forecast=document.createElement('div');forecast.className='forecast-planning';forecast.id='forecastPlanningActions';forecast.setAttribute('role','group');forecast.setAttribute('aria-label','この地点で撮影計画');
+ const caption=document.createElement('span');caption.className='tiny';forecast.append(caption);
+ const actions=[];
+ for(const [screen,label] of [['framing','構図で見る'],['skymap','地図で見る']]){const button=document.createElement('button');button.type='button';button.className='chip';button.textContent=label;button.onclick=()=>use(screen);forecast.append(button);actions.push([screen,button]);}
+ $('deckRow').after(forecast);
+ const offers=[];
+ for(const [screen,id] of [['framing','aimFromButton'],['skymap','skyMapChoose']]){
+  const row=document.createElement('div');row.className='forecast-planning forecast-planning-offer';row.hidden=true;row.id=screen==='framing'?'aimForecastPlace':'skyForecastPlace';
+  const label=document.createElement('span');label.className='tiny';const button=document.createElement('button');button.type='button';button.className='chip';button.textContent='この地点を使う';button.onclick=()=>use(screen);row.append(label,button);$(id).closest('.condition-field').after(row);offers.push({screen,row,label,button});
+ }
+ const same=(a,b)=>valid(a)&&valid(b)&&Math.abs(a.latitude-b.latitude)<1e-7&&Math.abs(a.longitude-b.longitude)<1e-7&&Math.abs(aimObserverEye(aimSavedFrom(a))-aimObserverEye(aimSavedFrom(b)))<.01;
+ function capture(){
+  const route=routeFromHash(),isForecast=!route||!!route.id;
+  if(!isForecast||!valid(place))return;
+  const id=route?.id,entries=weeks[id]||[],entry=entries.find(e=>e.dayMs===selectedDay[id])||upcoming(entries,Date.now());
+  const dayMs=Number.isFinite(entry?.dayMs)?entry.dayMs:S.JstCal.startOfDay(Date.now());
+  context={owner:auth?.token,observer:{...place,groundManualM:Number.isFinite(place.elevation)?place.elevation:null,decks:place.decks?.map(d=>({...d}))},dayMs};
+ }
+ function current(){return context&&context.owner===auth?.token?context:null;}
+ function render(){
+  capture();const ctx=current(),route=routeFromHash();forecast.hidden=!ctx||!!(route&&!route.id);
+  caption.textContent=ctx?`この地点で撮影計画 · ${new Date(ctx.dayMs+32400000).toISOString().slice(5,10).replace('-','/')}`:'';
+  for(const [screen,button] of actions)button.hidden=!screenAllowed(screen);
+  if(actions.every(([,b])=>b.hidden))forecast.hidden=true;
+  for(const offer of offers){const active=offer.screen==='framing'?atAim:atSkyMap;const selected=offer.screen==='framing'?aimFromPoint():SkyMapUI?.snapshot()?.observer;
+   offer.row.hidden=!active||!ctx||!screenAllowed(offer.screen)||same(selected,ctx.observer);offer.label.textContent=ctx?`予測の地点：${ctx.observer.name}`:'';offer.button.setAttribute('aria-label',ctx?`予測の地点 ${ctx.observer.name} を使う`:'予測の地点を使う');}
+ }
+ function use(screen){
+  capture();const ctx=current();if(!ctx||!valid(ctx.observer)||!screenAllowed(screen))return false;
+  if(screen!=='framing'&&screen!=='skymap')return false;
+  aim.from=aimSavedFrom(ctx.observer);store.set('sorami.aimFrom',aim.from);aim.plannerTransfer=null;aim.candPick=null;aim.spot=null;aim.wantSpot=null;aim.wantKey=null;aim.fromDays=null;aim.seq++;aim.fromSeq++;aim.lookSeq++;
+  aim.dayMs=ctx.dayMs;$('aimDate').value=new Date(ctx.dayMs+32400000).toISOString().slice(0,10);
+  if(screen==='skymap'){const opened=SkyMapUI?.enterForecast(ctx.observer,ctx.dayMs)??false;render();return opened;}
+  if(atAim)openAim();else pushRoute('#/aim');render();return true;
+ }
+ globalThis.ForecastPlanning={render,use};render();
+})();
+</script>
+
 <script id="startupPreference">
 // A local device preference; explicit links always take precedence.
 (() => {
