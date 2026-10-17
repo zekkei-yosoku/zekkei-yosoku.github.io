@@ -31,3 +31,15 @@ test('地点表示は天体エンジン待ちより先に行い、計算完了�
  vm.runInContext(extract('function renderPointCard(','function renderFavStar(')+extract('function aimRenderSelectedPoint(','async function aimRenderFrom()')+html.slice(start,end)+'}',c);
  assert.equal(c.aimApply(),false);assert.equal($('aimFromName').textContent,'撮影地点');assert.match($('aimFromSub').textContent,/30m/);
 });
+
+ test('月丼の地点表示は風取得を待たず、選択時に保存した高さを落とさない',()=>{
+ const $=dom(),point={name:'展望台',latitude:35,longitude:139,groundManualM:19,standAglM:25},c={plane:{seq:0},$,toolAllowed:()=>true,planeFromPoint:()=>point,planeLoadWind:()=>new Promise(()=>{}),renderFavStar(){}};vm.createContext(c);
+ vm.runInContext(extract('function renderPointCard(','function renderFavStar(')+extract('async function planeApply()','  // その日に使われうる経路')+'}',c);
+ c.planeApply();assert.equal($('planeFromName').textContent,'展望台');assert.match($('planeFromSub').textContent,/19m/);
+ let applied=0;c.planeApply=()=>applied++;vm.runInContext(extract('function planeSetFrom(','const PlaneMap'),c);c.planeSetFrom(point);assert.equal(c.plane.from.standAglM,25);assert.equal(c.plane.from.groundManualM,19);assert.equal(applied,1);
+ });
+test('月丼の計算地点にも保存標高と地上からの高さをそのまま渡す',async()=>{
+ const point={name:'屋上',latitude:35,longitude:139,groundManualM:19,standAglM:25},c={plane:{seq:0,dayMs:base},$:dom(),toolAllowed:()=>true,planeFromPoint:()=>point,planeLoadWind:async()=>{},renderPointCard(){},planeOpSpans:()=>[],SoramiTerrain:{decksFor:()=>[]},aimElevation:()=>{throw Error('保存標高を無視した取得');}};vm.createContext(c);
+ vm.runInContext(extract('function aimSavedFrom(','aim.from = aimSavedFrom(store.get(')+extract('async function planeApply()','  const here =')+'return {ground,agl};}',c);
+ const result=await c.planeApply();assert.equal(result.ground,19);assert.equal(result.agl,25);
+});

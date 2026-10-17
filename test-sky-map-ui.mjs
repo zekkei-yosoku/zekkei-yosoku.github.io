@@ -158,3 +158,13 @@ test('地図共有は地点なし・離脱後を拒否し、計算済みの現�
  let f=fixture({selected:false});await f.open();assert.throws(()=>f.c.SkyMapUI.shareState());
  f=fixture({saved:{at:day+55057000,body:'moon',targetId:'skytree',partId:'tip',limb:'behind',matchMode:'limb'}});await f.open();const p=f.c.SkyMapUI.shareState();assert.equal(p.at,day+55057000);assert.equal(p.body,'moon');assert.equal(p.limb,'behind');assert.equal(p.matchMode,'limb');assert.ok(Number.isFinite(p.eyeM));f.c.SkyMapUI.leave();assert.throws(()=>f.c.SkyMapUI.shareState());
 });
+
+ test('同じ座標と高さでも地図で選んだ地点の名称と説明を構図へ引き継ぐ',async()=>{
+ const observer={name:'新しい地点名',subtitle:'変更後の説明',latitude:35.64285,longitude:139.78291,groundManualM:null,standAglM:1.5};
+ const f=fixture({saved:{at:day,targetId:'skytree',observer}});await f.open();assert.equal(f.c.SkyMapUI.prepareFraming(),true);assert.equal(f.aim.from.name,observer.name);assert.equal(f.aim.from.subtitle,observer.subtitle);
+ });
+ test('構図からの保留転送はアカウントを変更した後に受け取らない',async()=>{
+ const f=fixture({accessWaiting:true,selected:false});f.c.SkyMapUI.enter(true);await flush();f.c.auth={token:'other-token',loginId:'other',tools:['skymap','tower']};f.c.SkyMapUI.authChanged();await flush();
+ f.c.accessRequests.at(-1)({allowed:true,tool:'skymap',tools:['skymap','tower'],loginId:'other'});await flush();assert.equal(f.element('skyMapContent').hidden,false);assert.equal(f.c.SkyMapUI.snapshot(),null);assert.equal(f.element('skyMapObserver').textContent,'撮影地点を選ぶ');
+ f.c.accessRequests[0]({allowed:true,tool:'skymap',tools:['skymap','tower'],loginId:'testuser'});await flush();assert.equal(f.element('skyMapContent').hidden,false);assert.equal(f.c.SkyMapUI.snapshot(),null);assert.equal(f.element('skyMapObserver').textContent,'撮影地点を選ぶ');
+ });
