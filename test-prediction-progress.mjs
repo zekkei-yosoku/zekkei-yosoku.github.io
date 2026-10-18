@@ -36,7 +36,7 @@ test('古い画面を更新せず、文字の件数を出さず、バーは段�
  const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),start=html.indexOf('function renderPredictionProgress('),end=html.indexOf('let loadSeq =',start),nodes=new Map();let visible=true;
  const node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',setAttribute(k,v){this[k]=v;},removeAttribute(k){delete this[k];}});return nodes.get(id);};
  const c={loadSeq:2,predictionNeeded:()=>visible,$:node};vm.createContext(c);vm.runInContext(html.slice(start,end),c);
- const bar=node('predictionProgressBar'),fill=node('predictionProgressFill');
+ const bar=node('predictionProgressBar'),fill=node('predictionProgressFill');node('predictionProgressMessage').textContent='予測中です';
  c.renderPredictionProgress({phase:'fetch',completed:6,total:6},2);const fetched=+bar['aria-valuenow'];assert.equal(fetched,43);
  c.renderPredictionProgress({phase:'calculate',completed:0,total:8},2);assert.equal(+bar['aria-valuenow'],fetched);
  c.renderPredictionProgress({phase:'calculate',completed:4,total:8},1);assert.equal(+bar['aria-valuenow'],fetched);
@@ -44,7 +44,7 @@ test('古い画面を更新せず、文字の件数を出さず、バーは段�
  visible=false;c.renderPredictionProgress({phase:'fetch',completed:0,total:6},2);assert.equal(+bar['aria-valuenow'],71);
  visible=true;c.renderPredictionProgress({phase:'finish'},2);assert.equal(+bar['aria-valuenow'],100);
  c.renderPredictionProgress({phase:'prepare'},2);assert.equal(bar['aria-valuenow'],undefined);
- assert(!html.includes('id="predictionProgressDetail"'));assert.match(html,/transition:transform 450ms ease-out/);assert.match(html,/prefers-reduced-motion:reduce/);
+ assert.equal(node('predictionProgressMessage').textContent,'予測中です');assert(!html.includes('id="predictionProgressDetail"'));assert.match(html,/transition:transform 450ms ease-out/);assert.match(html,/prefers-reduced-motion:reduce/);
 });
 
 test('予測未取得を見どころなしと表示せず、待機中の表を残す',()=>{const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');assert.match(html,/else if \(!bundle\) \{\s*\$\("bestNote"\)\.hidden = true;\s*\$\("cards"\)\.innerHTML = renderSkeleton\(now\);/);});

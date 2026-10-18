@@ -12,8 +12,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=4821371733716487208">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="4346035946832283104">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-w5/3v/3QpU7oC8cYkrOAMVyl8XwhY27eh/2+l4KzrAk=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-tqHQULsQB3e+Efrw9+LtLrBrM12Jqq1B1VovwKiAUdQ=' 'sha256-4YD+peGkMX7ha8i04h+cpzUpHQTPgPN+J2IzsQvYHPo=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="15213588181000332641">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-NhwW2rA1Na0hszufd2KltGqZF8kRzDv7ALTiP52dqG0=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-tqHQULsQB3e+Efrw9+LtLrBrM12Jqq1B1VovwKiAUdQ=' 'sha256-4YD+peGkMX7ha8i04h+cpzUpHQTPgPN+J2IzsQvYHPo=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=3492585016785888725">
@@ -2733,9 +2733,7 @@ const predictionNeeded = () => { const r = routeFromHash(); return !r || !!r.id;
 function renderPredictionProgress(progress,seq){
  if(seq!==loadSeq||!predictionNeeded())return;
  const message=$("predictionProgressMessage"),bar=$("predictionProgressBar"),fill=$("predictionProgressFill");if(!message||!bar||!fill)return;
- const labels={prepare:'予測の準備をしています…',fetch:'気象データを集めています…',calculate:'予測を計算しています…',finish:'予測をまとめています…',cached:'保存された予測を準備しています…'};
- if(!labels[progress?.phase])return;
- if(message.textContent!==labels[progress.phase])message.textContent=labels[progress.phase];
+ if(!['prepare','fetch','calculate','finish','cached'].includes(progress?.phase))return;
  const n=progress.completed,total=progress.total,known=['fetch','calculate'].includes(progress.phase)&&Number.isInteger(n)&&Number.isInteger(total)&&total>0&&n>=0&&n<=total;
  if(known){const percent=(progress.phase==='fetch'?n/total*6:6+n/total*8)/14*100;bar.removeAttribute('data-indeterminate');bar.setAttribute('aria-valuenow',String(Math.round(percent)));fill.setAttribute('style',`transform:scaleX(${percent/100})`);}
  else if(progress.phase==='finish'){bar.removeAttribute('data-indeterminate');bar.setAttribute('aria-valuenow','100');fill.setAttribute('style','transform:scaleX(1)');}
@@ -2759,7 +2757,7 @@ async function load(force) {
   const forPlace = place;   // 取得開始時の地点で最後まで一貫して評価する
   $("status").hidden = false;
   // 実際の取得・計算の完了項目数を表示。残り時間の推定％は使わない。
-  $("status").innerHTML = `<div class="note-wait"><span class="note-wait-character" aria-hidden="true"></span><div class="note-wait-message"><span id="predictionProgressMessage" aria-live="polite">予測を調べています…</span><div class="note-progress" id="predictionProgressBar" role="progressbar" aria-label="予測の進捗" aria-valuemin="0" aria-valuemax="100" data-indeterminate><span class="note-progress-fill" id="predictionProgressFill" aria-hidden="true"></span></div></div></div>`;
+  $("status").innerHTML = `<div class="note-wait"><span class="note-wait-character" aria-hidden="true"></span><div class="note-wait-message"><span id="predictionProgressMessage" aria-live="polite">予測中です</span><div class="note-progress" id="predictionProgressBar" role="progressbar" aria-label="予測の進捗" aria-valuemin="0" aria-valuemax="100" data-indeterminate><span class="note-progress-fill" id="predictionProgressFill" aria-hidden="true"></span></div></div></div>`;
   $("bestNote").hidden = true;
   // 最初の1回だけ骨組みを出す。地点を変えたときは、前の表を残したほうが落ち着く
   if (!bundle) $("cards").innerHTML = renderSkeleton(Date.now());
