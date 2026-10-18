@@ -361,7 +361,7 @@ function showCandidateList(){
  el('shootingCandidatesCondition').textContent=`${S.Cal.monthDay(skySession.at)}・${SoramiBodies.definition(skySession.body)?.name}を${skySession.target.name}に`;
  showSheet(candidateSheet);drawCandidateList();
 }
-function skyBox(){let box=el('mySkyPlaces');if(!box){box=document.createElement('section');box.id='mySkyPlaces';box.className='my-places';box.setAttribute('aria-label','撮影ポイント');el('skyMapChoose').closest('.aim-say').after(box);}return box;}
+function skyBox(){let box=el('mySkyPlaces');if(!box){box=document.createElement('section');box.id='mySkyPlaces';box.className='my-places';box.setAttribute('aria-label','撮影ポイント');el('skyMapDates').closest('.sky-map-candidates').after(box);}return box;}
 function updateCandidateUI(){
  const trigger=el('shootingCandidatesOpen');if(!trigger)return;
  trigger.textContent=candidateState.status==='loading'?'撮影ポイント：候補を確認中…':candidateState.status==='error'?'撮影ポイント：確認できません':`撮影ポイント：候補${candidateState.rows.length}件`;
