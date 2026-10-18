@@ -307,9 +307,9 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(!/id="aimFromHere"/.test(html), "引き継ぐための別の釦は置かない（欄に入れておく）");
   ok(/\$\("aimPick"\)\.onclick = async \(\) => \{[\s\S]{0,300}aimSetFrom\(/.test(html), "地図の中心も同じ撮影地点にする（アプリ全体の地点は変えない）");
   ok(!/\$\("aimPick"\)\.hidden = aimIsFuji\(\)/.test(html), "富士山でも地図の中心で選べる");
-  ok(/class="tiny aim-day" data-from-day=/.test(fn), "次に重なる日は日付の小さな釦で（押すとその日の線と候補地へ）");
+  ok(/class="tiny aim-day" data-from-day=/.test(html) && /candidateDatesMarkup/.test(fn), "次に重なる日は日付の小さな釦で（押すとその日の線と候補地へ）");
   ok(!/aimFromSight|aimSightBuildings\(obs, D,|SoramiAlign\.lineOfSight/.test(fn), "不十分な見通し推定を撮影地点で断定表示しない");
-  ok(/innerHTML = \(chips/.test(fn), "候補日を警告で分断せず日付直下に表示する");
+  ok(/innerHTML = candidateDatesMarkup/.test(fn), "候補日を警告で分断せず日付直下に表示する");
   // 2026-10-10: 候補帯の探索入口は条件キャッシュの1か所へ移動した。
   ok((html.match(/ev = await aimDaysFor\(obs, aimDaysInputKey\(f\)\)/g) || []).length === 1, "ほかの所で見えない地点からの一覧を出さない");
   // 地点の住所は都道府県＋市区町村まで（OSM の住所は長い）
@@ -491,7 +491,7 @@ ok(/const fujiOk = toolAllowed\("diamond"\) \|\| toolAllowed\("pearl"\), towerOk
 ok(/const sunOk = !isFuji \|\| toolAllowed\("diamond"\), moonOk = !isFuji \|\| toolAllowed\("pearl"\);/.test(html), "富士山を選んだら、太陽はダイヤモンド富士・月はパール富士の許可で出す");
 // 重なる日は選ぶ行より下（太陽と月で日の数が違うので、上だと切り替えるたびに釦が動く。ユーザー「UIがすごく動くのが気になる」）
 // 日付欄は月間カレンダーを開くボタンへ変更。入力値はhidden aimDateで保持。
-{ const lb = html.indexOf('id="aimWhereLabel">'), fr = html.indexOf('<div id="aimFrom" class="aim-from">'), dt = html.indexOf('class="aim-date-section"'), sw = html.indexOf('id="aimBody"'), fs = html.indexOf('id="aimFromButton"');
+{ const lb = html.indexOf('id="aimWhereLabel">'), fr = html.indexOf('<div id="aimFrom"'), dt = html.indexOf('class="aim-date-section"'), sw = html.indexOf('id="aimBody"'), fs = html.indexOf('id="aimFromButton"');
   ok(sw < lb && lb < fs && fs < dt && dt < fr, "並び: 題名と天体 → 何に → どこから → 日付と候補日"); }
   ok(html.includes("parts.length + (whole ? 1 : 0) < 2"), "建物全体の選択を含め選択肢が1つなら欄を隠す");
 ok(!/目標に太陽や月が重なる日と、/.test(html), "説明の段落を出さない");
@@ -3026,12 +3026,13 @@ console.log("== 見え方の図（2026-10-02） ==");
 console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==");
 // ユーザー「候補日はプルダウンにしたら？」「日の出と日の入に関してはボタンで切り替えが良い」「もっと最適なレイアウトがあるでしょ」→ Codex と相談し、帯と切り替え（ユーザー「この形で作る」）
 {
-  const from = /async function aimRenderFrom\(\) \{[\s\S]*?\n\}/.exec(html)[0];
+  // 2026-10-18: 候補カード描画は地図と共有する関数へ移動。
+  const from = /function candidateDatesMarkup\([\s\S]*?\n\}/.exec(html)[0];
   ok(/<div class="aim-days strip">\$\{chips\}<\/div>/.test(from) && /class="tiny aim-day" data-from-day=/.test(from) && /aria-pressed="\$\{on\}"/.test(from),
     "重なる日は横に流す帯。選んでいる日は押された釦");
   ok(/\.aim-days\.strip \{[^}]*flex-wrap: nowrap;[^}]*overflow-x: auto;/.test(html), "帯は1行（増えても図を下へ押さない）");
   ok(/\.aim-days\.strip \.aim-day \{[^}]*min-height: 48px;/.test(html), "帯の釦は 48px 以上");
-  ok(/aim\.candPick = null; aim\.spot = null; aim\.wantSpot = null; aim\.wantKey = null; aim\.candSide = el\.dataset\.fromSide;\s*\$\("aimDate"\)\.value = /.test(from),
+  ok(/aim\.candPick = null; aim\.spot = null; aim\.wantSpot = null; aim\.wantKey = null; aim\.candSide = el\.dataset\.fromSide;\s*\$\("aimDate"\)\.value = /.test(html),
     "帯で日を替えたら候補地の選択はやめ、候補地はその日の側を出す");
   const cands = /function aimRenderCandList\(\) \{[\s\S]*?\n\}/.exec(html)[0];
   ok(/<div id="aimSideSeg" class="aim-side-seg" role="group"/.test(html), "日の出・日の入の切り替え");
