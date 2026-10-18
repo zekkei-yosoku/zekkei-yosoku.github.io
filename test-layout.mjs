@@ -473,7 +473,7 @@ ok(/<select id="aimBody"[^>]*aria-label="天体"/.test(html) && /<option value="
   "天体は名前つきのドロップダウンで選ぶ");
 ok(/\.aim-head \{ align-items: center; flex-wrap: nowrap; \}/.test(code), "切り替えは折り返さない（道具ごとに下の位置が変わらない）");
 // 題名の「◯◯」が目標を選ぶ所（ユーザー「ここが目標切り替えになるのでは？」）。富士山も同じ枠で選ぶ（2026-10-01 まとめた）
-ok(/<div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick"><span id="aimTargetLabel"><\/span><svg[^>]*>[\s\S]*?<\/svg><select id="aimTarget"/.test(html),
+ok(/<div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick condition-choice"><span id="aimTargetLabel"><\/span><svg[^>]*>[\s\S]*?<\/svg><select id="aimTarget"/.test(html),
   "題名の◯◯に目標を選ぶ一覧を重ねる（字＋▾）。いつも出す");
 ok(!/aimTitleText|fujiTool/.test(html), "富士山だけ字にする分け方は無くした");
 ok(/\.aim-pick\.single svg \{ display: none; \}/.test(html) && /classList\.toggle\("single", single\)/.test(html), "選べる目標が1つだけなら ▾ を出さない");
