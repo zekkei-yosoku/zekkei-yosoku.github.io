@@ -61,7 +61,7 @@ test('記録から既存の組み込み/自作対象を再指定したら新規�
  const fragment=source.slice(source.indexOf('let targetDraft ='),source.indexOf('// ---------------------------------------------------------------- 記録：'));
  for(const key of ['skytree','fav:owned']){
   const pickers={},chosen=[],target={id:key,latitude:35,longitude:139};let creates=0;
-  new Function('PLACE_PICKERS','sheetOwnerMatches','auth','sheetState','targetChoices','SoramiTerrain','NEAR_KM','addDraftTarget','favForPoint',fragment+';targetDraft={ownerToken:"owner",placeId:"p"};')(pickers,()=>true,{token:'owner'},{place:{id:'p'}},()=>[target],terrain,.02,t=>chosen.push(t.id),()=>creates++);
+  new Function('PLACE_PICKERS','sheetOwnerMatches','auth','sheetState','targetChoices','SoramiTerrain','NEAR_KM','addDraftTarget','favForPoint',fragment+';targetDraft={ownerToken:"owner",state:sheetState,placeId:"p"};')(pickers,()=>true,{token:'owner'},{place:{id:'p'}},()=>[target],terrain,.02,t=>chosen.push(t.id),()=>creates++);
   pickers.recordTarget.set({latitude:35.00001,longitude:139});assert.deepEqual(chosen,[key]);assert.equal(creates,0);
  }
 });

@@ -63,15 +63,15 @@ const resolveTarget = (k) => targetChoices().find((t) => t.id === k) || null;
 
 // 検索・現在地・地図・既存地点を、従来の共通ピッカーから選ぶ。予測の地点は動かさない。
 PLACE_PICKERS.records = { title: '撮影地点', custom: () => null, point: () => place,
-  set: p => { if (auth?.token && toolAllowed('records')) recordFor(p, null, 'records'); } };
+  set: p => { if (!auth?.token || !toolAllowed('records')) return; if(sheetOwnerMatches()&&sheet?.open&&!sheetState.place.id){setDraftPlace(p);return;}recordFor(p, null, 'records'); } };
 let targetDraft = null;
 PLACE_PICKERS.recordTarget = { title: '見えた対象を選ぶ', custom: () => null, point: () => sheetState?.place || place,
   set: p => {
-    const draft = targetDraft; if (!draft || !sheetOwnerMatches() || draft.ownerToken !== auth?.token || draft.placeId !== sheetState?.place.id) return;
+    const draft = targetDraft; if (!draft || !sheetOwnerMatches() || draft.ownerToken !== auth?.token || draft.state !== sheetState || draft.placeId !== sheetState?.place.id) return;
     const existing=targetChoices().find(t=>SoramiTerrain.distanceKm(t.latitude,t.longitude,p.latitude,p.longitude)<NEAR_KM);
     if(existing){addDraftTarget(existing);return;}
     void favForPoint(p, entry => {
-      if (!entry || !sheetOwnerMatches() || draft.ownerToken !== auth?.token || draft.placeId !== sheetState?.place.id) return;
+      if (!entry || !sheetOwnerMatches() || draft.ownerToken !== auth?.token || draft.state !== sheetState || draft.placeId !== sheetState?.place.id) return;
       const select=el('myRecordTarget');select.replaceChildren(new Option('対象を選ぶ',''),...targetChoices().map(t=>new Option(t.name,t.id)));
       sheetState.draftTargets=draft.targets.map(t=>({...t}));sheetState.bodies=[...draft.bodies];
       addDraftTarget(resolveTarget(entry.targetKey||'fav:'+entry.id));
@@ -91,6 +91,19 @@ function shapeIssue(result){
  return issues.some(x=>x.reason==='limit')?'広いため調べ切れていない場所があります。記録で線・範囲を小さく分けて再試行してください。':issues.some(x=>x.reason==='invalid')?'線・範囲の形を確認してください。':result.failed?'標高などを取得できず、調べ切れていない場所があります。再試行してください。':'';
 }
 let shapeDialog=null,shapeMap=null,shapeEdit=null;
+const draftPoint=()=>Number.isFinite(sheetState?.place.latitude)&&Number.isFinite(sheetState?.place.longitude);
+function setDraftPlace(p){
+ if(!sheetOwnerMatches()||!SoramiShooting.point(p))return;
+ const existing=placeNear(p);
+ if(existing){openPlace(existing,'records');return;}
+ sheetState.place={...p,id:null,elevation:p.elevation??null,eyeHeightAGL:p.eyeHeightAGL??1.5};sheetState.newPlace=true;
+ el('myRecordSaved').hidden=true;renderSheet();
+}
+PLACE_PICKERS.recordShape={title:'地図を移動',custom:()=>null,point:()=>shapeMap?.center()||place,set:p=>{
+ if(!shapeEditorCurrent()||!SoramiShooting.point(p))return;
+ // 検索結果は地図の移動先。線・範囲の頂点やお気に入りには追加しない。
+ shapeEdit.searchName=p.name||'';shapeMap.setView(p.latitude,p.longitude,16);renderShapeEditor();
+}};
 function drawShape(ctx,project,s,{vertices=true,selected=-1}={}){
  if(!s?.vertices?.length)return;ctx.save();ctx.strokeStyle='#9ebed5';ctx.lineWidth=3;ctx.fillStyle='rgba(103,164,204,.18)';ctx.beginPath();
  s.vertices.forEach((p,i)=>{const q=project(p.latitude,p.longitude);if(i)ctx.lineTo(...q);else ctx.moveTo(...q);});
@@ -99,25 +112,30 @@ function drawShape(ctx,project,s,{vertices=true,selected=-1}={}){
 }
 function buildShapeEditor(){
  shapeDialog=document.createElement('dialog');shapeDialog.className='sheet';shapeDialog.id='myShapeSheet';shapeDialog.setAttribute('aria-labelledby','myShapeTitle');
- shapeDialog.innerHTML=`<div class="sheet-head"><strong id="myShapeTitle">撮影できる場所</strong><button type="button" id="shapeCancel">キャンセル</button></div><div class="sheet-body"><div class="my-actions" id="shapeModes" role="group" aria-label="場所の形"></div><p class="tiny" id="shapeHelp"></p><div class="mapwrap"><canvas id="shapeCanvas" aria-label="タップして点を置く地図"></canvas><div class="map-cross" aria-hidden="true">＋</div><div class="mapzoom"><button id="shapeIn" type="button" aria-label="拡大">＋</button><button id="shapeOut" type="button" aria-label="縮小">−</button></div></div><div class="my-actions"><button type="button" class="chip" id="shapeAddCenter">中心に点を追加</button><button type="button" class="chip" id="shapeUndo">1つ戻す</button></div><div class="my-actions"><select class="fav-in" id="shapeVertex" aria-label="編集する点"></select><button type="button" class="chip" id="shapeMove">中心へ移動</button><button type="button" class="chip" id="shapeRemove">点を削除</button></div><p class="tiny" id="shapeStatus" role="status"></p><button type="button" class="fav-btn primary" id="shapeApply">この形にする</button><p class="tiny">形と対象はこのブラウザに保存します。「まとめて保存」で確定します。</p></div>`;
+ shapeDialog.innerHTML=`<div class="sheet-head"><strong id="myShapeTitle">撮影できる場所</strong><button type="button" id="shapeCancel">キャンセル</button></div><div class="sheet-body"><div class="my-actions" id="shapeModes" role="group" aria-label="場所の形"></div><p class="tiny" id="shapeHelp"></p><button type="button" class="my-location-value" id="shapeSearch" aria-label="検索・お気に入りで地図を移動">場所を探す</button><div class="mapwrap"><canvas id="shapeCanvas" aria-label="タップして点を置く地図"></canvas><div class="map-cross" aria-hidden="true">＋</div><div class="mapzoom"><button id="shapeIn" type="button" aria-label="拡大">＋</button><button id="shapeOut" type="button" aria-label="縮小">−</button></div></div><div class="my-actions"><button type="button" class="chip" id="shapeAddCenter">中心に点を追加</button><button type="button" class="chip" id="shapeUndo">1つ戻す</button></div><div class="my-actions"><select class="fav-in" id="shapeVertex" aria-label="編集する点"></select><button type="button" class="chip" id="shapeMove">中心へ移動</button><button type="button" class="chip" id="shapeRemove">点を削除</button></div><p class="tiny" id="shapeStatus" role="status"></p><button type="button" class="fav-btn primary" id="shapeApply">この形にする</button><p class="tiny">形と対象はこのブラウザに保存します。「まとめて保存」で確定します。</p></div>`;
  document.body.append(shapeDialog);
- for(const [type,label] of [['point','点'],['line','線'],['area','範囲']]){const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=label;b.dataset.shapeMode=type;b.onclick=()=>{if(!shapeEditorCurrent())return;shapeEdit.undo.push(structuredClone(shapeEdit.value));shapeEdit.value.type=type;renderShapeEditor();};el('shapeModes').append(b);}
+ for(const [type,label] of [['point','点'],['line','線'],['area','範囲']]){const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=label;b.dataset.shapeMode=type;b.onclick=()=>{if(!shapeEditorCurrent())return;shapeEdit.undo.push(structuredClone(shapeEdit.value));shapeEdit.value.type=type;if(type==='point')shapeEdit.value.vertices=sheetState.place.id?[{latitude:sheetState.place.latitude,longitude:sheetState.place.longitude}]:shapeEdit.value.vertices.slice(0,1);shapeEdit.selected=-1;renderShapeEditor();};el('shapeModes').append(b);}
  shapeMap=createMapView({canvas:'shapeCanvas',zoomIn:'shapeIn',zoomOut:'shapeOut'});
  shapeMap.setOverlay((ctx,{project,width,height})=>{if(!shapeEditorCurrent())return;drawShape(ctx,project,shapeEdit.value,{selected:shapeEdit.selected});ctx.save();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(width/2-8,height/2);ctx.lineTo(width/2+8,height/2);ctx.moveTo(width/2,height/2-8);ctx.lineTo(width/2,height/2+8);ctx.stroke();ctx.restore();});
  const change=fn=>{if(!shapeEditorCurrent())return;shapeEdit.undo.push(structuredClone(shapeEdit.value));fn();renderShapeEditor();};
- const add=p=>{if(shapeEdit?.value.type==='point')return;change(()=>{if(shapeEdit.value.type==='point')shapeEdit.value.vertices=[p];else if(shapeEdit.value.vertices.length<200){const i=shapeEdit.selected;shapeEdit.value.vertices.splice(i>=0?i+1:shapeEdit.value.vertices.length,0,p);}shapeEdit.selected=-1;});};
- shapeMap.onPick((p,pixel)=>{if(!shapeEditorCurrent()||shapeEdit.value.type==='point')return;const i=shapeEdit.value.vertices.findIndex(v=>{const q=shapeMap.project(v.latitude,v.longitude);return Math.hypot(q[0]-pixel.x,q[1]-pixel.y)<16;});if(i>=0){shapeEdit.selected=i;renderShapeEditor();}else add(p);});
- el('shapeAddCenter').onclick=()=>add(shapeMap.center());
+ const add=p=>{change(()=>{if(shapeEdit.value.type==='point')shapeEdit.value.vertices=[p];else if(shapeEdit.value.vertices.length<200){const i=shapeEdit.selected;shapeEdit.value.vertices.splice(i>=0?i+1:shapeEdit.value.vertices.length,0,p);}shapeEdit.selected=-1;});};
+ shapeMap.onPick((p,pixel)=>{if(!shapeEditorCurrent())return;if(shapeEdit.value.type==='point'){if(!sheetState.place.id)add(p);return;}const i=shapeEdit.value.vertices.findIndex(v=>{const q=shapeMap.project(v.latitude,v.longitude);return Math.hypot(q[0]-pixel.x,q[1]-pixel.y)<16;});if(i>=0){shapeEdit.selected=i;renderShapeEditor();}else add(p);});
+ el('shapeAddCenter').onclick=()=>{if(shapeEdit?.value.type==='point'&&sheetState.place.id)return;add(shapeMap.center());};
  el('shapeUndo').onclick=()=>{if(!shapeEditorCurrent()||!shapeEdit.undo.length)return;shapeEdit.value=shapeEdit.undo.pop();shapeEdit.selected=-1;renderShapeEditor();};
  el('shapeVertex').onchange=()=>{shapeEdit.selected=Number(el('shapeVertex').value);renderShapeEditor();};
  el('shapeMove').onclick=()=>change(()=>{if(shapeEdit.selected>=0)shapeEdit.value.vertices[shapeEdit.selected]=shapeMap.center();});
  el('shapeRemove').onclick=()=>change(()=>{if(shapeEdit.selected>=0)shapeEdit.value.vertices.splice(shapeEdit.selected,1);shapeEdit.selected=-1;});
+ el('shapeSearch').onclick=()=>{if(shapeEditorCurrent())openPlaceSheet('recordShape');};
  el('shapeCancel').onclick=()=>shapeDialog.close();
  shapeDialog.addEventListener('close',()=>{shapeEdit=null;});
  el('shapeApply').onclick=()=>{
   if(!shapeEditorCurrent())return;
   const value=shapeEdit.value,shape=value.type==='point'?null:SoramiShooting.cleanShape(value);
-  if(value.type!=='point'&&!shape)return;
+  if(value.type==='point'?!value.vertices.length:!shape)return;
+  if(!sheetState.place.id){
+   const p=value.vertices[0];
+   sheetState.place={id:null,name:sheetState.place.name||shapeEdit.searchName||(shape?shapeName(shape)+'の撮影地点':'撮影地点'),latitude:p.latitude,longitude:p.longitude,elevation:p.latitude===sheetState.place.latitude&&p.longitude===sheetState.place.longitude?sheetState.place.elevation??null:null,eyeHeightAGL:sheetState.place.eyeHeightAGL??1.5};sheetState.newPlace=true;
+  }
   sheetState.draftShape=shape;el('myRecordSaved').hidden=true;shapeDialog.close();renderSheet();
  };
 }
@@ -125,18 +143,21 @@ function shapeEditorCurrent(){return !!shapeEdit&&sheetOwnerMatches()&&shapeEdit
 function renderShapeEditor(){
  if(!shapeEditorCurrent())return;const s=shapeEdit.value,type=s.type;
  for(const b of el('shapeModes').children)b.setAttribute('aria-pressed',String(b.dataset.shapeMode===type));
- el('shapeHelp').textContent=type==='point'?'撮影地点は1つの点です。線・範囲にすると、途中や内側から候補を探せます。':type==='line'?'地図をタップして順につなぎます。2点で直線、3点で折れ線。点を選ぶと、その後ろに追加できます。':'地図をタップして外周を囲みます。最後の点と最初の点をつないだ内側が範囲です。';
+ el('shapeHelp').textContent=type==='point'?(sheetState.place.id?'登録済みの撮影地点です。線・範囲へ変更できます。':'地図をタップして撮影地点を置きます。'):type==='line'?'地図をタップして順につなぎます。2点で直線、3点で折れ線。点を選ぶと、その後ろに追加できます。':'地図をタップして外周を囲みます。最後の点と最初の点をつないだ内側が範囲です。';
  const select=el('shapeVertex');select.disabled=type==='point';select.replaceChildren(new Option('点を選んで編集','-1'),...s.vertices.map((_,i)=>new Option('点 '+(i+1),String(i))));select.value=String(shapeEdit.selected);
  el('shapeMove').disabled=el('shapeRemove').disabled=shapeEdit.selected<0;el('shapeUndo').disabled=!shapeEdit.undo.length;
- el('shapeAddCenter').disabled=type==='point'||s.vertices.length>=200;
- const clean=type==='point'?null:SoramiShooting.cleanShape(s);el('shapeApply').disabled=type!=='point'&&!clean;
- el('shapeStatus').textContent=type==='point'?'点として登録します。':`${s.vertices.length}点${clean?' ・ '+shapeName(clean)+'として登録できます':type==='line'?' ・ 2点以上を置いてください。同じ点は続けて置けません。':' ・ 3点以上で囲んでください。交差する枠は登録できません。'}`;
+ el('shapeAddCenter').disabled=type==='point'?!!sheetState.place.id:s.vertices.length>=200;el('shapeAddCenter').textContent=type==='point'?'中心を撮影地点にする':'中心に点を追加';
+ const clean=type==='point'?null:SoramiShooting.cleanShape(s);el('shapeApply').disabled=type==='point'?!s.vertices.length:!clean;
+ el('shapeStatus').textContent=type==='point'?(s.vertices.length?'点として登録できます。':'撮影地点を置いてください。'):`${s.vertices.length}点${clean?' ・ '+shapeName(clean)+'として登録できます':type==='line'?' ・ 2点以上を置いてください。同じ点は続けて置けません。':' ・ 3点以上で囲んでください。交差する枠は登録できません。'}`;
  shapeMap.redraw();
 }
-function openShapeEditor(){
- if(!sheetOwnerMatches()||!sheetState.place.id)return;if(!shapeDialog)buildShapeEditor();
- const s=sheetState.draftShape;shapeEdit={owner:auth.token,state:sheetState,selected:-1,undo:[],value:s?structuredClone(s):{type:'point',vertices:[{latitude:sheetState.place.latitude,longitude:sheetState.place.longitude}]}};
- showSheet(shapeDialog);shapeMap.open(s?.vertices[0]||sheetState.place,16);
+function openShapeEditor(mode){
+ if(!sheetOwnerMatches())return;if(!shapeDialog)buildShapeEditor();
+ const s=sheetState.draftShape;shapeEdit={owner:auth.token,state:sheetState,selected:-1,undo:[],value:s?structuredClone(s):{type:'point',vertices:draftPoint()?[{latitude:sheetState.place.latitude,longitude:sheetState.place.longitude}]:[]}};
+ if(typeof mode==='string')shapeEdit.value.type=mode;
+ // 既存地点の代表点は動かさず、形だけを編集する。新規では未保存のまま地図を開く。
+ if(sheetState.place.id&&shapeEdit.value.type==='point')shapeEdit.value.vertices=[{latitude:sheetState.place.latitude,longitude:sheetState.place.longitude}];
+ showSheet(shapeDialog);shapeMap.open(s?.vertices[0]||(draftPoint()?sheetState.place:place),16);
  if(s){const v=s.vertices,lat0=Math.min(...v.map(p=>p.latitude)),lat1=Math.max(...v.map(p=>p.latitude)),lon0=Math.min(...v.map(p=>p.longitude)),lon1=Math.max(...v.map(p=>p.longitude)),lat=(lat0+lat1)/2;shapeMap.setView(lat,(lon0+lon1)/2,Math.min(17,Math.log2(220/(256*Math.max(.00001,(lon1-lon0)/360))),Math.log2(220/(256*Math.max(.00001,(lat1-lat0)/(360*Math.cos(lat*Math.PI/180)))))));}
  renderShapeEditor();
 }
@@ -446,7 +467,7 @@ function recordGroups(records) {
 const targetData=t=>({key:t.key||t.id,name:t.name,latitude:t.latitude,longitude:t.longitude});
 const targetSetKey=targets=>JSON.stringify(targets.map(targetData).sort((a,b)=>a.key.localeCompare(b.key)));
 const savedTargets=placeId=>targetsSeenFrom(placeId).filter(r=>r.result!=='hidden').map(r=>targetData(r.target));
-const draftChanged=()=>!!sheetState&&(targetSetKey(sheetState.draftTargets)!==sheetState.baseline||shapeKey(sheetState.draftShape)!==shapeKey(sheetState.initialShape));
+const draftChanged=()=>!!sheetState&&(sheetState.newPlace||targetSetKey(sheetState.draftTargets)!==sheetState.baseline||shapeKey(sheetState.draftShape)!==shapeKey(sheetState.initialShape));
 function addDraftTarget(t){
   if(!sheetOwnerMatches()||!t)return;
   if(!sheetState.draftTargets.some(x=>x.key===(t.key||t.id)))sheetState.draftTargets.push(targetData(t));
@@ -466,12 +487,13 @@ function buildSheet() {
   sheet = document.createElement('dialog'); sheet.className = 'sheet'; sheet.id = 'myPlaceSheet'; sheet.tabIndex = -1; sheet.setAttribute('aria-labelledby', 'myPlaceTitle');
   sheet.innerHTML = `<div class="sheet-head"><strong id="myPlaceTitle">記録を追加</strong><button type="button" data-close aria-label="閉じる">閉じる</button></div>
   <div class="sheet-body">
-    <div class="my-input-field"><div class="condition-label">${inputRoleIcon('observer')}<span>撮影地点</span></div><button type="button" class="my-location-value" id="myPlaceName" aria-label="撮影地点を選ぶ"></button></div>
+    <div class="my-actions" id="myNewShapeModes" role="group" aria-label="撮影地点の形"><button type="button" class="chip" data-new-shape="point">点</button><button type="button" class="chip" data-new-shape="line">線</button><button type="button" class="chip" data-new-shape="area">範囲</button></div>
+    <div class="my-input-field"><div class="condition-label">${inputRoleIcon('observer')}<span>撮影地点</span></div><button type="button" class="my-location-value" id="myPlaceName" aria-label="撮影地点を選ぶ"></button><label id="myNewPlaceNameLabel" hidden><input class="my-location-value" id="myNewPlaceName" maxlength="200" placeholder="場所の名前" aria-label="場所の名前"></label></div>
     <div class="my-actions"><button type="button" class="chip" id="myShapeEdit">点・線・範囲</button><span class="tiny" id="myShapeSummary"></span></div><div id="myRecordLocationConfirm" hidden><p class="tiny">保存していない対象の編集を戻して、撮影地点を変更しますか？</p><button type="button" class="chip" id="myRecordLocationChange">変更する</button><button type="button" class="chip" id="myRecordLocationKeep">戻る</button></div>
     <div class="my-input-field"><div class="condition-label">${inputRoleIcon('target')}<span>対象</span></div><button type="button" class="my-location-value" id="myRecordPickTarget" aria-label="対象を選んで追加">対象を追加</button></div>
     <select id="myRecordTarget" hidden aria-label="対象"></select><button id="myRecordAdd" type="button" hidden>対象を追加</button><div id="myTargetPicker" hidden></div>
     <div id="myPlaceRecords"></div>
-    <p class="warn" id="myRecordError" role="status" hidden></p><p class="tiny" id="myRecordSaved" role="status" hidden></p>
+    <p class="warn" id="myRecordError" role="status" hidden></p><button type="button" class="chip" id="myRecordReuse" hidden>登録済みの地点で編集を続ける</button><p class="tiny" id="myRecordSaved" role="status" hidden></p>
     <div class="my-actions"><button type="button" class="fav-btn primary" id="myRecordSave">まとめて保存</button><button type="button" class="chip" id="myRecordCancel">キャンセル</button></div>
     <p class="tiny muted">対象はこのブラウザに保存します。登録日は保存時に自動で残します。</p>
     <details id="myPlacePlanning" class="my-secondary"><summary>この場所から撮る</summary><div class="my-actions"><button type="button" class="chip" id="myPlaceUse">ここから見る</button><button type="button" class="chip" id="myPlaceMap">地図でここから見る</button></div><fieldset class="my-body-options"><legend class="condition-label">${inputRoleIcon('body')}<span>天体</span><span class="tiny">複数選択可</span></legend><div id="myPlaceBodies"></div></fieldset><button type="button" class="chip" id="myPlaceFind">次に重なる日を探す</button><h3 class="my-title">次に重なる日</h3><div class="al my-list" id="myPlaceNext"></div></details>
@@ -481,14 +503,16 @@ function buildSheet() {
   sheet.querySelector('[data-close]').onclick = () => {if(discardDraft())sheet.close();};
   sheet.addEventListener('cancel',e=>{if(!discardDraft())e.preventDefault();});
   el('myRecordAdd').onclick=()=>el('myRecordPickTarget').click();
-  el('myPlaceName').onclick=()=>{if(!sheetOwnerMatches())return;if(draftChanged()){el('myRecordLocationConfirm').hidden=false;return;}openPlaceSheet('records');};
+  el('myPlaceName').onclick=()=>{if(!sheetOwnerMatches())return;if(!sheetState.place.id){if(sheetState.draftShape)openShapeEditor();else openPlaceSheet('records');return;}if(draftChanged()){el('myRecordLocationConfirm').hidden=false;return;}openPlaceSheet('records');};
   el('myRecordLocationChange').onclick=()=>{if(!sheetOwnerMatches())return;el('myRecordLocationConfirm').hidden=true;openPlaceSheet('records');};
   el('myRecordLocationKeep').onclick=()=>{el('myRecordLocationConfirm').hidden=true;el('myPlaceName').focus();};
   el('myRecordCancel').onclick=()=>{sheetState.draftTargets=sheetState.initialTargets.map(t=>({...t}));el('myTargetPicker').hidden=true;el('myRecordAdd').hidden=true;el('myRecordError').hidden=true;el('myRecordSaved').hidden=true;sheet.close();};
   if(window.AstroTargetPicker)el('myRecordTarget').hidden=true;
   el('myRecordTarget').onchange=()=>addDraftTarget(resolveTarget(el('myRecordTarget').value));
   el('myRecordSave').onclick=saveRecord;
-  el('myShapeEdit').onclick=openShapeEditor;
+  el('myShapeEdit').onclick=()=>openShapeEditor();
+  for(const b of el('myNewShapeModes').children)b.onclick=()=>openShapeEditor(b.dataset.newShape);
+  el('myNewPlaceName').oninput=()=>{if(sheetOwnerMatches()&&!sheetState.place.id){sheetState.place.name=el('myNewPlaceName').value;el('myRecordSaved').hidden=true;}};
   sheet.addEventListener('close', () => { sheetToken++; undoRec = null; });
   for (const body of SoramiBodies.definitions) {
     const label=document.createElement('label'),check=document.createElement('input');
@@ -500,7 +524,7 @@ function buildSheet() {
   el('myPlacePlanning').addEventListener('toggle',()=>{if(!sheetOwnerMatches())return;if(el('myPlacePlanning').open)renderSheet();else{sheetToken++;sheetState.planningRequested=false;}});
   el('myRecordPickTarget').onclick = () => {
     if (!sheetOwnerMatches()) { sheet.close(); return; }
-    targetDraft={ownerToken:auth.token,placeId:sheetState.place.id,targets:sheetState.draftTargets.map(t=>({...t})),bodies:[...sheetState.bodies]};
+    targetDraft={ownerToken:auth.token,state:sheetState,placeId:sheetState.place.id,targets:sheetState.draftTargets.map(t=>({...t})),bodies:[...sheetState.bodies]};
     if(window.AstroTargetPicker)AstroTargetPicker.open(el('myRecordTarget'),()=>openPlaceSheet('recordTarget'),el('myRecordPickTarget'));else openPlaceSheet('recordTarget');
   };
   el('myPlaceMap').onclick = () => {
@@ -530,7 +554,7 @@ function openPlace(place, ctx, targetKey = null) {
   select.replaceChildren(new Option('対象を選ぶ', ''), ...choices.map((t) => new Option(t.name, t.id)));
   const want = targetKey || (ctx === 'records' ? null : current);
   if (want) select.value = choices.some((t) => t.id === want) ? want : '';
-  el('myRecordError').hidden=true;el('myRecordSaved').hidden=true;el('myTargetPicker').hidden=true;el('myRecordAdd').hidden=true;
+  el('myRecordError').hidden=true;el('myRecordReuse').hidden=true;el('myRecordSaved').hidden=true;el('myTargetPicker').hidden=true;el('myRecordAdd').hidden=true;
   for(const id of ['myPlacePlanning','myPlaceDetails'])el(id).open=false;
   if(want&&resolveTarget(want))addDraftTarget(resolveTarget(want));else renderSheet();
   if (!sheet.open) showSheet(sheet);
@@ -540,15 +564,18 @@ function renderSheet() {
   el('myPlaceUse').hidden=!!sheetState.draftShape||ctx==='records'&&!screenAllowed('framing');
   el('myPlaceMap').textContent=sheetState.draftShape?'地図でこの'+shapeName(sheetState.draftShape)+'から探す':'地図でここから見る';
   const recs=el('myPlaceRecords');recs.replaceChildren();
-  el('myShapeEdit').disabled=!place.id;el('myShapeEdit').textContent=shapeName(sheetState.draftShape)+' · 地図で編集';el('myShapeSummary').textContent=sheetState.draftShape?sheetState.draftShape.vertices.length+'点をつないだ'+shapeName(sheetState.draftShape):'';
-  if(!sheetState.draftTargets.length){const p=document.createElement('p');p.className='tiny';p.textContent=place.id?'ここから見える対象を追加できます。複数選べます。':'撮影地点を選び、そこから見える対象を追加します。';recs.append(p);}
+  el('myNewShapeModes').hidden=!!place.id||draftPoint();
+  el('myNewPlaceNameLabel').hidden=!!place.id||!draftPoint();el('myPlaceName').hidden=!el('myNewPlaceNameLabel').hidden;el('myNewPlaceName').value=place.name||'';
+  el('myPlaceName').textContent=draftPoint()?(place.name||'名前未入力'):'撮影地点を選ぶ';el('myPlaceName').classList.toggle('is-empty',!draftPoint());
+  el('myShapeEdit').hidden=!draftPoint();el('myShapeEdit').disabled=false;el('myShapeEdit').textContent=shapeName(sheetState.draftShape)+' · 地図で編集';el('myShapeSummary').textContent=sheetState.draftShape?sheetState.draftShape.vertices.length+'点をつないだ'+shapeName(sheetState.draftShape):'';
+  if(!sheetState.draftTargets.length){const p=document.createElement('p');p.className='tiny';p.textContent=draftPoint()?'ここから見える対象を追加できます。複数選べます。':'撮影地点を選び、そこから見える対象を追加します。';recs.append(p);}
   for(const t of sheetState.draftTargets){
     const row=document.createElement('div');row.className='fav-row my-draft-target';const text=document.createElement('div');text.className='my-record';const name=document.createElement('strong');name.textContent=t.name;text.append(name);
     const stamps=list.filter(r=>r.placeId===place.id&&r.target.key===t.key&&!r.removed&&r.createdAt>0).map(r=>r.createdAt);
     const sub=document.createElement('span');sub.className='tiny sub-line';sub.textContent=stamps.length?'登録日 '+new Date(Math.min(...stamps)+32400000).toISOString().slice(0,10).replaceAll('-','/'):'未保存';text.append(sub);
     const remove=document.createElement('button');remove.type='button';remove.className='chip';remove.textContent='削除';remove.setAttribute('aria-label',t.name+'を対象から外す');remove.onclick=()=>{if(!sheetOwnerMatches())return;sheetState.draftTargets=sheetState.draftTargets.filter(x=>x.key!==t.key);el('myRecordSaved').hidden=true;renderSheet();};row.append(text,remove);recs.append(row);
   }
-  el('myRecordSave').disabled=!place.id||!draftChanged();el('myRecordPickTarget').disabled=!place.id;el('myPlacePlanning').hidden=!place.id||draftChanged();el('myPlaceDetails').hidden=!place.id;if(!draftChanged())el('myRecordLocationConfirm').hidden=true;
+  el('myRecordSave').disabled=!draftPoint()||!draftChanged();el('myRecordPickTarget').disabled=!draftPoint();el('myPlacePlanning').hidden=!place.id||draftChanged();el('myPlaceDetails').hidden=!place.id;if(!draftChanged())el('myRecordLocationConfirm').hidden=true;
   const next = el('myPlaceNext'); next.replaceChildren();
   if(!el('myPlacePlanning').open)return;
   const seen = targetsSeenFrom(place.id).filter((r) => r.result !== 'hidden');
@@ -603,9 +630,40 @@ function openWith(place, t, row, ctx) {
   if (row) { aim.candPick = null; aim.spot = null; aim.wantSpot = null; aim.wantKey = null; aim.candSide = row.side; el('aimDate').value = new Date(S.Cal.startOfDay(row.at) + 9 * 3600000).toISOString().slice(0, 10); aim.plannerTransfer={at:row.at,body:aim.body,latitude:place.latitude,longitude:place.longitude,day:SoramiShooting.day(row.at)}; }
   aimApply();
 }
+// 新規の地点・形・対象は、最後の保存までお気に入りに追加しない。
+function saveNewRecord(){
+ if(!sheetOwnerMatches()||!draftPoint())return false;
+ const s=sheetState,err=el('myRecordError'),fail=text=>{err.textContent=text;err.hidden=false;return false;};
+ const name=(s.place.name||'').trim();if(!name)return fail('場所の名前を入力してください');
+ if(s.draftShape&&!SoramiShooting.cleanShape(s.draftShape))return fail('線・範囲を確認してください');
+ const existing=placeNear(s.place);
+ if(existing){
+  const reuse=el('myRecordReuse');reuse.hidden=false;reuse.onclick=()=>{
+   if(!sheetOwnerMatches()||sheetState!==s)return;
+   const current=placeOf(existing.id);if(!current||!placeNear(s.place)||placeNear(s.place).id!==current.id)return fail('登録済みの地点が変更されました。開き直してください');
+   const targets=s.draftTargets.map(t=>({...t})),shape=s.draftShape;
+   openPlace(current,s.ctx);sheetState.draftTargets=[...new Map([...sheetState.draftTargets,...targets].map(t=>[t.key,t])).values()];if(shape)sheetState.draftShape=shape;renderSheet();
+  };
+  return fail('同じ場所「'+existing.name+'」が登録されています。入力した形と対象を引き継いで編集できます');
+ }
+ el('myRecordReuse').hidden=true;
+ const current={...s.place,id:'map:'+s.place.latitude.toFixed(5)+','+s.place.longitude.toFixed(5),name,locationScope:'point',terrain:null,phenomena:[],note:''};
+ const observationsBefore=load(),shapesBefore=shapeData(),shapesAfter={...shapesBefore};
+ if(s.draftShape)shapesAfter[current.id]={latitude:current.latitude,longitude:current.longitude,shape:s.draftShape};
+ const changes=registrationChanges(current,[],s.draftTargets);if(changes.some(r=>!r))return fail('対象の情報を確認してください');
+ if(!store.set(key(),[...observationsBefore,...changes]))return fail('保存できませんでした。入力は残しています');
+ if(!store.set(shapesKey(),shapesAfter)){store.set(key(),observationsBefore);return fail('形を保存できませんでした。入力は残しています');}
+ favorites.push(current);
+ if(!saveFavorites()){favorites.pop();store.set(key(),observationsBefore);store.set(shapesKey(),shapesBefore);return fail('地点を保存できませんでした。入力は残しています');}
+ queuePush('fav',current.id);
+ s.place=current;el('myPlaceTitle').textContent='記録を編集';el('myPlaceSub').textContent=current.latitude.toFixed(5)+', '+current.longitude.toFixed(5)+' ・ 標高不明 ・ 地上から '+(current.eyeHeightAGL??1.5)+'m';s.newPlace=false;s.initialShape=s.draftShape;s.shapeBaseline=shapeKey(s.initialShape);
+ s.initialTargets=s.draftTargets.map(t=>({...t}));s.baseline=targetSetKey(s.initialTargets);
+ version++;candidateCache.clear();changed();err.hidden=true;el('myRecordSaved').textContent='保存しました';el('myRecordSaved').hidden=false;renderSheet();return true;
+}
 function saveRecord() {
   if(!sheetOwnerMatches()){sheet?.close();return false;}
   const s=sheetState,err=el('myRecordError'),current=placeOf(s.place.id);
+  if(!s.place.id)return saveNewRecord();
   const fail=text=>{err.textContent=text;err.hidden=false;return false;};
   if(!current)return fail('この撮影地点は登録から外されています');
   if(current.latitude!==s.place.latitude||current.longitude!==s.place.longitude||(current.eyeHeightAGL??1.5)!==(s.place.eyeHeightAGL??1.5))return fail('地点が変更されました。開き直してください');
@@ -650,7 +708,7 @@ const style = document.createElement('style');
 style.textContent = `
 .alignment-heading{font-size:14px;color:var(--secondary);margin:8px 0 12px}.alignment-controls>.fav-in{display:block;width:100%;margin:10px 0}.alignment-controls .aim-limb button,#aimAlignmentDetails .aim-limb button{min-height:58px;flex-direction:row;justify-content:center;gap:6px;font-size:13px}@media(max-width:360px){.alignment-controls .aim-limb button,#aimAlignmentDetails .aim-limb button{font-size:12px;gap:3px}.alignment-controls .aim-limb svg,#aimAlignmentDetails .aim-limb svg{width:23px;height:23px}}.shooting-location-actions{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}.shooting-location-actions .sky-map-link{margin:0}.shooting-alignment{display:flex;gap:8px;flex-wrap:wrap}.shooting-alignment select{min-width:0;flex:1;min-height:44px;font-size:16px}.shooting-overlap{padding:8px;border-radius:8px}.shooting-overlap-on{background:var(--accent);color:var(--on-accent,#fff);font-weight:bold}#aimView .preview-workspace{display:block}#aimView .preview-tabs{display:none}
 /* Shooting-point details scroll only vertically, including native iOS date fields. */
-#myShapeSheet [data-shape-mode][aria-pressed=true]{background:var(--accent);color:var(--bg);font-weight:700}#myShapeSheet{overflow:hidden;min-width:0}#myShapeSheet .sheet-body{overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}#myShapeSheet .my-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}#myShapeSheet canvas{display:block;width:100%;height:320px;touch-action:none}#myShapeSheet .mapwrap{position:relative;overflow:hidden;border-radius:12px}#myShapeSheet select{flex:1;min-width:100px;width:0}#myShapeSheet button{min-height:44px}#myShapeSheet .map-cross{display:none}#myShapeSheet .mapzoom{position:absolute;right:8px;top:8px;display:grid;gap:5px}#myShapeSheet .mapzoom button{width:44px;background:var(--card);color:var(--text)}#myShapeSheet #shapeApply{width:100%}
+#myShapeSheet [data-shape-mode][aria-pressed=true]{background:var(--accent);color:var(--bg);font-weight:700}#myShapeSheet{overflow:hidden;min-width:0}#myShapeSheet .sheet-body{overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}#myShapeSheet .my-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}#myShapeSheet canvas{display:block;width:100%;height:320px;touch-action:none}#myShapeSheet .mapwrap{position:relative;overflow:hidden;border-radius:12px}#myShapeSheet select{flex:1;min-width:100px;width:0}#myShapeSheet button{min-height:44px}#myShapeSheet .map-cross{display:none}#myShapeSheet .mapzoom{position:absolute;right:8px;top:8px;display:grid;gap:5px}#myShapeSheet .mapzoom button{width:44px;background:var(--card);color:var(--text)}#myShapeSheet #shapeApply{width:100%}#shapeSearch{width:100%;margin-bottom:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--input);color:var(--text);font-size:16px;text-align:left}#myNewPlaceNameLabel{display:block;min-width:0;grid-column:2}#myNewPlaceName{width:100%;font-size:16px}#myNewShapeModes{margin-bottom:12px}#myNewPlaceNameLabel[hidden],#myNewShapeModes[hidden],#myPlaceName[hidden]{display:none}
 #myPlaceSheet{overflow:hidden;min-width:0}
 #myPlaceSheet[open]{display:flex;flex-direction:column}
 #myPlaceSheet .sheet-head{flex:none;min-width:0}
