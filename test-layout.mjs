@@ -323,7 +323,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
 ok(/deckM: agl/.test(html), "その地点の立つ高さを渡す");
 // 雲海は**見下ろせるか**なので目の高さで判定する（霧氷・ダイヤは地面の標高のまま）
 ok(/eyeHeightAGL:p\.eyeHeightAGL/.test(predictionSrc), "目の高さを非公開採点の条件へ渡す");
-ok(/SoramiPrediction\.fetch\(forPlace\)/.test(html) && !/evaluateWeek\(/.test(html), "独自採点はサーバーで行い、結果で表示する");
+ok(/SoramiPrediction\.fetch\(forPlace(?:,|\))/.test(html) && !/evaluateWeek\(/.test(html), "独自採点はサーバーで行い、結果で表示する");
 {
   // 霧氷の採点の中だけを見る（木に着く話なので、目の高さは関係ない）
   const body = coreSrc.slice(coreSrc.indexOf("const rimeScorer"), coreSrc.indexOf("const rainbowScorer"));
@@ -1430,7 +1430,7 @@ ok(!/onclick/.test(bestNoteFn), "いちばんの狙いめを押しても移動�
 
 console.log("== 14日ぶんを横に流す ==");
 // 7日では「来週の連休どうか」が見られない。14日に伸ばしたぶん、1画面には入らない。
-ok(/SoramiPrediction\.fetch\(forPlace\)/.test(html), "週間予測は完成結果と表示用気象をまとめて取得する");
+ok(/SoramiPrediction\.fetch\(forPlace(?:,|\))/.test(html), "週間予測は完成結果と表示用気象をまとめて取得する");
 ok(/rows\.length>14/.test(predictionSrc), "14日ぶんの結果を検査して表示する");
 const daysCss = html.slice(html.indexOf(".days {"), html.indexOf(".days {") + 400);
 ok(/overflow-x: auto/.test(daysCss), "横スクロールにする");
@@ -1756,7 +1756,7 @@ console.log("== 予報の応答が追い越しても混ざらない ==");
 // 連続で地点や地形を変えると、応答の順序は要求の順序と一致しない。
 ok(/let loadSeq = 0/.test(html) && /const seq = \+\+loadSeq/.test(html), "取得に連番を振る");
 ok(/if \(seq !== loadSeq\) return;/.test(html), "追い越された応答を捨てる");
-ok(/const forPlace = place;/.test(html) && /SoramiPrediction\.fetch\(forPlace\)/.test(html),
+ok(/const forPlace = place;/.test(html) && /SoramiPrediction\.fetch\(forPlace(?:,|\))/.test(html),
   "取得開始時の観測条件でサーバーへ要求する");
 
 console.log("== 現象タグの選択が色だけになっていない ==");
