@@ -5,7 +5,7 @@ function boot(mem){const inherited={name:'現在地',latitude:35,longitude:139};
 test('選択地点は更新後も復元し、継承の現在地では上書きしない',()=>{const mem={},c=boot(mem);assert.equal(c.aimFromPoint(),null);c.aimSetFrom({name:'鷺沼北公園',latitude:35.58386,longitude:139.56853});const re=boot(mem);assert.equal(re.aimFromPoint().name,'鷺沼北公園');assert.equal(re.aimFromPoint().latitude,35.58386);});
 test('未選択・壊れた保存座標・明示解除は予測地点を補完しない',()=>{for(const p of [null,{latitude:91,longitude:139},{latitude:35,longitude:181},{latitude:'35',longitude:139}])assert.equal(boot({'sorami.aimFrom':p}).aimFromPoint(),null);});
 
-// 2026-10-06 観測標高を「標高」（地面だけ）と「地上から」（目の高さ1.5m＋立つ所）に分けた（ユーザー「標高は標高だけ。展望台の高さは目線のところに」）。
+// 2026-10-06 撮影位置の標高を「標高」（地面だけ）と「地上から」（目の高さ1.5m＋立つ所）に分けた（ユーザー「標高は標高だけ。展望台の高さは目線のところに」）。
 // 展望台は床の高さ＋1.5m（候補地を解く SoramiAlign と同じ）。それまでは普通の地点が0m、展望台は床の高さのままだった
 test('展望台は立つ所として保存・復元し、地上からは床の高さ＋目の高さ、標高は地面だけ',()=>{
  const mem={},c=boot(mem);c.aimSetFrom({name:'渋谷スカイ',latitude:35.65838,longitude:139.70222,decks:[{name:'展望台',aglM:229}],eyeHeightAGL:229});
@@ -47,7 +47,7 @@ test('標高と地上からは別々に手で入れて保存復元し、それ�
  for(const x of [NaN,Infinity,-501,9001])assert.equal(re.aimSetGround(x),false);
  for(const x of [NaN,-0.1,701])assert.equal(re.aimSetStandAgl(x),false);
 });
-test('前の観測標高（海抜で1つ）は地面を自動のまま地上からに読み替え、入れ直すと新しい欄へ移す',()=>{
+test('前の撮影位置の標高（海抜で1つ）は地面を自動のまま地上からに読み替え、入れ直すと新しい欄へ移す',()=>{
  const p={name:'渋谷スカイ',latitude:35.65838,longitude:139.70222,observationElevationM:250.5};
  const mem={'sorami.aimFrom':p},c=boot(mem),o=c.aimObserverAt(c.aimFromPoint(),19);
  assert.equal(o.elevation,19);assert.equal(o.eyeM,231.5);assert.equal(o.elevation+o.eyeM,250.5);
@@ -70,7 +70,7 @@ test('別地点を選び直すと前地点の手入力は引き継がず新地�
 test('空欄と範囲外は表示を有効値へ戻し、計算に残る値と食い違わない',()=>{
  const c=boot({});c.aimSetFrom({name:'渋谷スカイ',latitude:35.65838,longitude:139.70222});c.aimRenderObserverHeight(c.aimFromPoint(),19);
  const g=c.$('aimGroundHeight'),h=c.$('aimStandHeight'),error=c.$('aimObserverHeightError');
- assert.equal(g.value,'19');assert.equal(h.value,'230.5');assert.match(c.$('aimObserverHeightHint').textContent,/観測標高 249.5m/);
+ assert.equal(g.value,'19');assert.equal(h.value,'230.5');assert.match(c.$('aimObserverHeightHint').textContent,/撮影位置の標高 249.5m/);
  h.value='701';h.valueAsNumber=701;h.checkValidity=()=>false;h.onchange();assert.equal(h.value,'230.5');assert.equal(error.hidden,false);assert.equal(c.aimFromPoint().standAglM,null);
  h.value='240.5';h.valueAsNumber=240.5;h.checkValidity=()=>true;h.onchange();assert.equal(c.aimFromPoint().standAglM,240.5);
  c.aimRenderObserverHeight(c.aimFromPoint(),19);assert.equal(h.value,'240.5');h.value='';h.onchange();assert.equal(h.value,'240.5');assert.equal(c.aimFromPoint().standAglM,240.5);
@@ -89,7 +89,7 @@ test('未設定のその他目標でも観測地点の標高を取得して表�
  assert.deepEqual(calls,[null,83]);assert.equal(c.$('aimLook').hidden,true);assert.equal(c.$('aimFrom').innerHTML,'');
 });
 
-test('継承観測地点の標高カードは観測標高と同じ座標DEMを使う',()=>{
+test('継承観測地点の標高カードは撮影位置の標高と同じ座標DEMを使う',()=>{
  const nodes=new Map(),c=vm.createContext({place:{elevation:10},bundle:null,
  $:id=>{if(!nodes.has(id))nodes.set(id,{});return nodes.get(id)},renderFavStar(){}});
  const a=html.indexOf('function renderPointCard('),b=html.indexOf('function renderFavStar(',a);
@@ -102,4 +102,11 @@ test('継承観測地点の標高カードは観測標高と同じ座標DEMを�
 test('明示的に解除すると候補・時刻転送を捨て、再読み込みでも未選択のまま',()=>{
  const mem={},c=boot(mem);c.aimSetFrom({name:'公園',latitude:35,longitude:139});Object.assign(c.aim,{candPick:2,spot:{},plannerTransfer:{at:1},fromDays:{rows:[]}});c.aimSetFrom(null);
  assert.equal(c.aimFromPoint(),null);assert.equal(c.aim.candPick,null);assert.equal(c.aim.spot,null);assert.equal(c.aim.plannerTransfer,null);assert.equal(c.aim.fromDays,null);assert.equal(boot(mem).aimFromPoint(),null);
+});
+
+test('構図の初回読込では保存された対象を復元し、現在の選択があれば優先する',()=>{
+ const html=readFileSync(new URL('./index.html',import.meta.url),'utf8'),start=html.indexOf('function aimFillSelects()'),end=html.indexOf('/// いま押している',start),nodes=new Map();
+ const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',options:[],innerHTML:''});return nodes.get(id);};
+ const run=new Function('$','store','aimCustomTarget','aimLimbValue','aimTargetList','esc','aimIsMountain','SoramiBodies','SoramiAlign','aimLimbSay','aimLimbFigure','aim',html.slice(start,end)+';return aimFillSelects;')(node,{get:()=> 'skytree'},()=>null,()=>'',()=>[{id:'fuji',name:'富士山'},{id:'skytree',name:'東京スカイツリー'}],x=>x,()=>false,{definition:()=>({limbs:true})},{LIMBS:[{id:'center',sign:0,name:'真ん中'}]},()=>'',()=>'',{body:'sun',limb:'center',matchMode:'overlap'});
+ run();assert.equal(node('aimTarget').value,'skytree');node('aimTarget').value='fuji';run();assert.equal(node('aimTarget').value,'fuji');
 });

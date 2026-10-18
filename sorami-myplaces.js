@@ -21,7 +21,7 @@ function clean(r) {
   if (!t || !isText(t.key, 200) || !t.key || !isText(t.name, 200)) return null;
   if (!RESULTS[r.result]) return null;
   const date = isText(r.date, 10) && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : '';
-  return { id: r.id, placeId: r.placeId, target: { key: t.key, name: t.name || '目標',
+  return { id: r.id, placeId: r.placeId, target: { key: t.key, name: t.name || '対象',
       latitude: finite(t.latitude) ? t.latitude : null, longitude: finite(t.longitude) ? t.longitude : null },
     observer: r.observer && finite(r.observer.latitude) && finite(r.observer.longitude) && Math.abs(r.observer.latitude) <= 90 && Math.abs(r.observer.longitude) <= 180 ? { latitude: r.observer.latitude, longitude: r.observer.longitude, elevation: finite(r.observer.elevation) ? r.observer.elevation : null, eyeHeightAGL: finite(r.observer.eyeHeightAGL) ? r.observer.eyeHeightAGL : 1.5 } : null,
     result: r.result, date, note: isText(r.note, 500) ? r.note : '',
@@ -65,7 +65,7 @@ const resolveTarget = (k) => targetChoices().find((t) => t.id === k) || null;
 PLACE_PICKERS.records = { title: '撮影地点', custom: () => null, point: () => place,
   set: p => { if (auth?.token && toolAllowed('records')) recordFor(p, null, 'records'); } };
 let targetDraft = null;
-PLACE_PICKERS.recordTarget = { title: '見えた目標を選ぶ', custom: () => null, point: () => sheetState?.place || place,
+PLACE_PICKERS.recordTarget = { title: '見えた対象を選ぶ', custom: () => null, point: () => sheetState?.place || place,
   set: p => {
     const draft = targetDraft; if (!draft || !sheetOwnerMatches() || draft.ownerToken !== auth?.token || draft.placeId !== sheetState?.place.id) return;
     const existing=targetChoices().find(t=>SoramiTerrain.distanceKm(t.latitude,t.longitude,p.latitude,p.longitude)<NEAR_KM);
@@ -308,7 +308,7 @@ async function renderPickerPanel(panel) {
  const t=state()?.target,plan=SoramiShooting.conditions(state()),selectedShape=pickerShapeId;
  const pickerPoints=s=>pointsForPlan(s).filter(x=>!selectedShape||x.place.id===selectedShape);
  const note=document.createElement('p');note.className='tiny';box.append(note);
- if(!plan||t.id==='custom'){note.textContent='対象を選び、自分の目標に登録すると、その対象が見えた撮影ポイントから候補を探せます。';return;}
+ if(!plan||t.id==='custom'){note.textContent='対象を選び、自分の対象に登録すると、その対象が見えた撮影ポイントから候補を探せます。';return;}
  if(!owner||!screenAllowed(isSky?'skymap':'framing')){note.textContent='ログインして利用権限を確認してください。';return;}
  note.textContent=`${S.Cal.monthDay(plan.at)}・${SoramiBodies.definition(plan.body)?.name}を${t.name}に重ねる候補を確認しています…`;
  const query=()=>{const s=state();return s?.target?SoramiShooting.queryKey(s,pickerPoints(s),auth?.loginId,SoramiAtmosphere.dataKey(s.at)):'';};
@@ -346,7 +346,7 @@ function drawCandidateList(){
  for(const row of candidateState.rows){
   const button=document.createElement('button');button.type='button';button.className='list-item my-place-row';
   const title=document.createElement('strong');title.textContent=row.place.name;
-  const details=document.createElement('span');details.className='tiny sub-line';details.textContent=`${S.JstCal.hhmm(row.event.at)}・${sideName(skySession.body,row.event.side)}・${RESULTS[row.record.result].name}${row.record.date?'（'+row.record.date+'確認）':''}${row.shapeType?' · '+(row.shapeType==='line'?'線上':'範囲内')+' '+row.place.latitude.toFixed(5)+', '+row.place.longitude.toFixed(5):''}`;
+  const details=document.createElement('span');details.className='tiny sub-line';details.textContent=`${S.JstCal.hhmm(row.event.at)}・${sideName(skySession.body,row.event.side)}・${row.record.result==='partial'?'一部見える対象':'登録済みの対象'}${row.shapeType?' · '+(row.shapeType==='line'?'線上':'範囲内')+' '+row.place.latitude.toFixed(5)+', '+row.place.longitude.toFixed(5):''}`;
   button.append(title,details);button.onclick=()=>chooseCandidate(row);content.append(button);
  }
 }

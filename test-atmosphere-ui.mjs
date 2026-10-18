@@ -17,7 +17,7 @@ test('大気差は選択モードと取得結果を区別して表示する',()=
  assert.match(els.aimAirStatus.textContent,/上空の気温なし（地上の値で計算）/);
  // 視線上の上空の気温まで使えた時刻は「上空込み」と、何地点・どこまでかを出す
  line={points:8,beyondKm:200};c.aimAirDescribe(0,{});assert.equal(els.aimAirSummary.textContent,'17.5℃ / 1012hPa・上空込み');
- assert.match(els.aimAirStatus.textContent,/視線上8地点（目標の先200kmまで）/);line=null;
+ assert.match(els.aimAirStatus.textContent,/視線上8地点（対象の先200kmまで）/);line=null;
  air={temperatureC:10,pressureHPa:1000,source:'標準大気',fallback:true};c.aimAirDescribe(0,{});assert.equal(els.aimAirSummary.textContent,'予報なし・標準値を使用');
  settings.mode='none';air={none:true};c.aimAirDescribe(0,{});assert.equal(els.aimAirSummary.textContent,'補正なし');
 });

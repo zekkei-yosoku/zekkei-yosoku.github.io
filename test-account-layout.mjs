@@ -12,11 +12,11 @@ assert.match(html,/document\.getElementById\('accountBack'\)\.onclick=\(\)=>\{do
 
 const cut=(from,to)=>html.slice(html.indexOf(from),html.indexOf(to,html.indexOf(from)));
 const src=cut('async function openAccountSheet() {','// 履歴は開いたときだけ取りに行く')+cut('function nextStep(u) {','\n}\n')+'\n}';
-function el(){return {hidden:false,textContent:'',innerHTML:'',className:'',classes:new Set(),classList:{toggle(n,on){on?this.s.add(n):this.s.delete(n);},contains(n){return this.s.has(n);}},querySelectorAll(){return [];}};}
+function el(){return {dataset:{},hidden:false,textContent:'',innerHTML:'',className:'',classes:new Set(),classList:{toggle(n,on){on?this.s.add(n):this.s.delete(n);},contains(n){return this.s.has(n);}},querySelectorAll(){return [];}};}
 async function open(me){
  const els={};const $=id=>{if(!els[id]){const e=el();e.classList.s=e.classes;els[id]=e;}return els[id];};
- const c={$,me,esc:s=>String(s),syncError:null,pushQueue:[],RECOVERY_LOW:3,showSheet(){},renderPrivateEntry(){},adoptToken(){},accountFail(m){throw Error(m);},syncNow:async()=>{},apiCall:async()=>me};
- vm.createContext(c);vm.runInContext(src,c);await c.openAccountSheet();return $;
+ const c={$,me,auth:{token:'test-user'},esc:s=>String(s),syncError:null,pushQueue:[],RECOVERY_LOW:3,showSheet(){},renderPrivateEntry(){},adoptToken(){},accountFail(m){$('accountErr').textContent=m;$('accountErr').hidden=false;},syncNow:async()=>{},apiCall:async()=>me};
+ vm.createContext(c);vm.runInContext(src,c);await c.openAccountSheet();$.context=c;return $;
 }
 const base={loginId:'fixture-user',role:'user',ownerAdmin:false};
 
@@ -46,3 +46,16 @@ const base={loginId:'fixture-user',role:'user',ownerAdmin:false};
  assert.equal($('disablePw').hidden,false);assert.equal($('enablePwWay').hidden,true);}
 
 console.log('ACCOUNT LAYOUT OK: order, back to settings, row states, single filled action, advice, passkey rows');
+
+// Missing fields must be unavailable, never "undefined件" or an internal exception.
+for(const me of [{}, {...base,hasPassword:true,recoveryCodes:3}, {...base,credentials:[],hasPassword:true,recoveryCodes:null}]){
+ const $=await open(me);assert.equal($('accountSheet').dataset.accountReady,'false');assert.match($('accountErr').textContent,/アカウント情報を取得できませんでした/);assert.doesNotMatch($('accountErr').textContent,/undefined|TypeError|map/);assert.match($('accountBody').innerHTML,/再取得/);assert.equal(typeof $('accountRetry').onclick,'function');assert.equal($('accountCodesState').textContent,'');
+}
+
+// An older response must not overwrite a newer request or another signed-in user.
+{
+ const me={...base,credentials:[],hasPassword:true,recoveryCodes:3},$=await open(me),c=$.context,resolvers=[];
+ c.apiCall=()=>new Promise(resolve=>resolvers.push(resolve));
+ const old=c.openAccountSheet(),fresh=c.openAccountSheet();resolvers[0]({...me,loginId:'old'});await old;assert.equal($('accountSheet').dataset.accountReady,'false');resolvers[1]({...me,loginId:'fresh'});await fresh;assert.match($('accountBody').innerHTML,/fresh/);
+ const stale=c.openAccountSheet();c.auth.token='different-user';resolvers[2]({...me,loginId:'previous-owner'});await stale;assert.equal($('accountSheet').dataset.accountReady,'false');assert.doesNotMatch($('accountBody').textContent,/previous-owner/);
+}

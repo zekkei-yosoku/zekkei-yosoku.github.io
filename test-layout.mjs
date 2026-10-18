@@ -263,7 +263,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/\$\("aimTargetButton"\)\.onclick = \(\) => openPlaceSheet\("aimTarget"\);/.test(html), "自分で置く: 押すと同じ「地点」の画面（検索・現在地・地図・お気に入り）");
   ok(/aimTarget: \{ title: "どこに重ねるか",[\s\S]{0,500}aimSetCustomTarget\(\{ \.\.\.p, heightM: p\.targetHeightM \?\? \(p\.structureFrom === "levels" \? null : p\.structureM\) \}\);/.test(html) && /structureM: p\.structureM \?\? null, targetHeightM: p\.targetHeightM \?\? null/.test(html)
     && /if \(f\) \{ aimFillSelects\(\); \$\("aimTarget"\)\.value = `fav:\$\{f\.id\}`; aimApply\(\{ recenter: true \}\); return; \}/.test(html),
-    "他の目標: 選んだ場所が目標になる（お気に入りの高さ、建物に地図の高さがあればそれも入る）");
+    "他の対象: 選んだ場所が目標になる（お気に入りの高さ、建物に地図の高さがあればそれも入る）");
   ok(/<button id="aimPickTarget" class="chip" aria-label="地図の中心（ピンの位置）に重ねる" hidden>ここに重ねる<\/button>/.test(html),
     "自分で置く: 地図のすぐ下に「ここに重ねる」");
   ok(/\$\("aimTargetCard"\)\.hidden = !customOn;\s+\$\("aimCustomRow"\)\.hidden = !customOn;\s+\$\("aimPickTarget"\)\.hidden = !customOn;/.test(html),
@@ -473,7 +473,7 @@ ok(/<select id="aimBody"[^>]*aria-label="天体"/.test(html) && /<option value="
   "天体は名前つきのドロップダウンで選ぶ");
 ok(/\.aim-head \{ align-items: center; flex-wrap: nowrap; \}/.test(code), "切り替えは折り返さない（道具ごとに下の位置が変わらない）");
 // 題名の「◯◯」が目標を選ぶ所（ユーザー「ここが目標切り替えになるのでは？」）。富士山も同じ枠で選ぶ（2026-10-01 まとめた）
-ok(/<div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick condition-choice"><span id="aimTargetLabel"><\/span><svg[^>]*>[\s\S]*?<\/svg><select id="aimTarget"/.test(html),
+ok(/<div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick condition-choice"><span id="aimTargetLabel">[^<]*<\/span><svg[^>]*>[\s\S]*?<\/svg><select id="aimTarget"/.test(html),
   "題名の◯◯に目標を選ぶ一覧を重ねる（字＋▾）。いつも出す");
 ok(!/aimTitleText|fujiTool/.test(html), "富士山だけ字にする分け方は無くした");
 ok(/\.aim-pick\.single svg \{ display: none; \}/.test(html) && /classList\.toggle\("single", single\)/.test(html), "選べる目標が1つだけなら ▾ を出さない");
@@ -535,8 +535,8 @@ ok(/function planeOpAt\(at, \{ auto = false \} = \{\}\) \{\s+if \(plane\.op && !
   ok(label(["north"]) === "北風運用" && label(["southBay", "south"]) === "南風運用（湾側・都心上空）", "月丼: 南風の日は「南風運用（湾側・都心上空）」とまとめる", label(["southBay", "south"]));
 }
 
-// ユーザー「その他の目標って自分でその建物の高さを入力する…海抜足さなくていいんだよね」「建物の高さがわかるなら自動で入力がいいな」
-ok(/const b = await aimBuildingAt\(p\.latitude, p\.longitude\);\s+if \(b\) \{ h = Math\.round\(b\.heightM\); auto = b\.from === "wikidata" \? "wikidata" : b\.estimated \? "estimated" : true; \}/.test(html), "他の目標: 建物の高さを自動で入れる（見積もり・Wikidata は分かるように）");
+// ユーザー「その他の対象って自分でその建物の高さを入力する…海抜足さなくていいんだよね」「建物の高さがわかるなら自動で入力がいいな」
+ok(/const b = await aimBuildingAt\(p\.latitude, p\.longitude\);\s+if \(b\) \{ h = Math\.round\(b\.heightM\); auto = b\.from === "wikidata" \? "wikidata" : b\.estimated \? "estimated" : true; \}/.test(html), "他の対象: 建物の高さを自動で入れる（見積もり・Wikidata は分かるように）");
 ok(/for \(const b of await tallBuildings\(\)\)/.test(html) && /return await SoramiTerrain\.buildingAt\(lat, lon\);/.test(html), "まず同梱の高い建物の一覧、無ければ OpenStreetMap に問い合わせる");
 ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM : typedNow \? typed : null;/.test(html), "お気に入り・検索の高さ、打ち込んだ高さを先に使う");
 ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れるのは地上からの高さ）");
@@ -551,7 +551,7 @@ ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れ�
   ok(fill.indexOf("const sel = list.find") > fill.indexOf("if (keep.target)"), "図の形は目標を戻してから決める");
   const isM = new Function("t", "return (" + /const aimIsMountain = (\(t\) => [\s\S]*?);\n/.exec(html)[1] + ")(t)");
   ok(isM({ id: "fuji" }) && isM({ id: "custom", groundM: 1898, parts: [{ m: 1898 }] }) && isM({ id: "fav:1", groundM: 100, parts: [{ m: 100 }] }),
-    "富士山・地上 0m の他の目標・お気に入りは山の図");
+    "富士山・地上 0m の他の対象・お気に入りは山の図");
   ok(!isM({ id: "skytree", groundM: 2, parts: [{ m: 636 }, { m: 452 }] }) && !isM({ id: "custom", groundM: 110, parts: [{ m: 290 }] }) && !isM({ id: "custom", parts: [] }),
     "塔・建物（地上の高さがある）は塔の図");
   // 図: 円の中心は 下の縁=てっぺんの上に半径・真ん中=てっぺん・上の縁=てっぺんの下に半径。山の裏に入った円は点線
@@ -565,7 +565,7 @@ ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れ�
   ok(/\.aim-limb button\[aria-pressed="true"\] \{ background: var\(--accent\)/.test(html) && /\.aim-limb button \{[^}]*min-height: 56px/.test(html),
     "押している釦は橙・指の的は 44px 以上");
   ok(html.includes("parts.length + (whole ? 1 : 0) < 2"), "建物全体の選択を含め選択肢が1つなら欄を隠す");
-  // 他の目標をまだ選んでいないとき、地図が何も描かれなかった（2026-10-02 ユーザー「他の目標で現在地の場合、地図が何も表示されてない」）
+  // 他の対象をまだ選んでいないとき、地図が何も描かれなかった（2026-10-02 ユーザー「他の対象で現在地の場合、地図が何も表示されてない」）
   ok(/requestAnimationFrame\(\(\) => \{\s+AimMap\.open\(\.\.\.aimMapView\(\)\);/.test(html), "地図は aimMapView の中心で開く");
   ok(/if \(\(aim\.target\.parts \|\| \[\]\)\.length\) \{ aimRedrawLine\(\); aimRenderList\(\); \}\n  aimRenderFrom\(\);\n\}/.test(html),
     "目標の場所が無いときは、線と一覧を計算しない（「どこからも重なりません」と出さない）");
@@ -574,7 +574,7 @@ ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れ�
   {
     const mv = /function aimMapView\(\) \{[\s\S]*?\n\}/.exec(html)[0];
     const f = new Function("aim", "aimZoomFor", "aimFromPoint", "place", `${mv}; return aimMapView();`);
-    const unset = f({ target: { id: "custom", name: "他の目標", parts: [] } }, () => 9, () => ({ latitude: 35.73, longitude: 139.64 }), null);
+    const unset = f({ target: { id: "custom", name: "他の対象", parts: [] } }, () => 9, () => ({ latitude: 35.73, longitude: 139.64 }), null);
     ok(unset[0].latitude === 35.73 && unset[0].longitude === 139.64 && unset[1] === 12, "目標の場所が無ければ、撮影地点の地点で開く");
     const set = f({ target: { latitude: 35.71, longitude: 139.81, parts: [{ m: 636 }] }, partId: "tip" }, () => 11, () => ({ latitude: 0, longitude: 0 }), null);
     ok(set[0].latitude === 35.71 && set[1] === 11, "目標があれば目標の場所で開く");
@@ -696,7 +696,7 @@ console.log("== 選択肢を作り直す前に選んだ値を読む（2026-10-01
   sel.value = "gallery";
   ok(run(aim, () => sel, (x) => x, () => false) === "gallery" && sel.value === "gallery", "天望回廊を選ぶと天望回廊のまま（先端へ戻らない）");
   const fillSel = /function aimFillSelects\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
-  ok(/const keep = \{ target: \$\("aimTarget"\)\.value, limb: aimLimbValue\(\) \};/.test(fillSel)
+  ok(/const keep = \{ target: \$\("aimTarget"\)\.value \|\| store\.get\("sorami\.aimTarget", ""\), limb: aimLimbValue\(\) \};/.test(fillSel)
     && /keep\.limb \|\| aim\.limb \|\| SoramiAlign\.LIMBS\[0\]\.id/.test(fillSel) && /aria-pressed="\$\{l\.id === cur && aim\.matchMode !== 'overlap'\}"/.test(fillSel), "ねらう: 選択肢を作り直しても合わせ方は残す");
 }
 
@@ -904,23 +904,23 @@ ok(/function issFromPoint\(\) \{ return iss\.from \|\| inheritedPoint\(\); \}/.t
 ok(!/id="issPickHere"/.test(html) && /id="planePickHere"[^>]*>ここから重ねる<\/button>/.test(html), "月丼だけ地図のすぐ下に「ここから重ねる」（ISS は帯を見て自分で探す）");
 ok(/\.aim-place-card \.place-pick \{ min-height: 54px; \}/.test(html), "地点のカードは住所が無くても同じ高さ（押す所 44px 以上・下が動かない）");
 ok(/function issSetFrom\(p\) \{[\s\S]{0,250}IssMap\.open\(\{ latitude: P\.latitude, longitude: P\.longitude \}, 8\);/.test(html), "ISS: 中心を替えたら地図もそこへ");
-ok(/"他の目標（\$\{t\.name\}）" : "他の目標"/.test(html.replace(/`/g, '"')) || /`他の目標（\$\{t\.name\}）` : "他の目標"/.test(html), "「自分で置く」は「他の目標」（ユーザーが候補から選んだ）");
+ok(/"他の対象（\$\{t\.name\}）" : "他の対象"/.test(html.replace(/`/g, '"')) || /`他の対象（\$\{t\.name\}）` : "他の対象"/.test(html), "「自分で置く」は「他の対象」（ユーザーが候補から選んだ）");
 ok(!/"自分で置く"|`自分で置く/.test(html), "「自分で置く」の字を画面に出さない");
 
-console.log("== 他の目標のお気に入り（2026-10-01） ==");
+console.log("== 他の対象のお気に入り（2026-10-01） ==");
 // ユーザー「自分で指定した重ねるもののお気に入りも必要じゃない？」。高さごと残し、どこに重ねるかの「地点」の画面から選べる
 ok(/id="aimTargetButton">[\s\S]{0,800}<button id="aimTargetFav" class="tap aim-from-fav" aria-label="お気に入りに登録" hidden>☆<\/button>\s*<\/div>/.test(html),
-  "他の目標のカードに ☆（撮影地点と同じ）");
+  "他の対象のカードに ☆（撮影地点と同じ）");
 ok(/\$\("aimTargetFav"\)\.hidden = !c;\s+if \(c\) renderFavStar\("aimTargetFav", c\);/.test(html), "目標を決めたら ☆、登録済みなら ★");
 ok(/\}, \{ target: c\.heightM \|\| 0 \}\);/.test(html) && /\$\("aimTarget"\)\.value = `fav:\$\{entry\.id\}`;/.test(html),
   "今の高さで登録の画面を開き、保存したらプルダウンの「お気に入り」のそれを選ぶ");
 // ユーザー「お気に入りに入れたやつは保存しておいてプルダウンに表示するようにしたら。そのお気に入りはちゃんと消したりできるように」
 ok(/const aimFavTargets = \(\) => favorites\.filter\(\(f\) => Number\.isFinite\(f\.targetHeightM\)\);/.test(html), "目標として登録したお気に入り（高さつき）をプルダウンに出す");
-ok(/`<optgroup label="自分の目標">\$\{favs\.map\(opt\)\.join\(""\)\}<\/optgroup>`/.test(html), "プルダウンでは「お気に入り」のまとまりにする");
-ok(/if \(!c\.fav\) store\.set\("sorami\.aimCustom", null\);/.test(html), "登録したら他の目標は空ける（同じものを2つ並べない）");
+ok(/`<optgroup label="自分の対象">\$\{favs\.map\(opt\)\.join\(""\)\}<\/optgroup>`/.test(html), "プルダウンでは「お気に入り」のまとまりにする");
+ok(/if \(!c\.fav\) store\.set\("sorami\.aimCustom", null\);/.test(html), "登録したら他の対象は空ける（同じものを2つ並べない）");
 ok(/function aimApply\(\{ redraw = true, recenter = false \} = \{\}\) \{[\s\S]*?aimFillSelects\(\);/.test(html), "お気に入りを消したらプルダウンからも消える（毎回組み直す）");
 ok(/\{ \.\.\.before, targetHeightM: h \}/.test(html), "お気に入りの目標の高さを直すと、お気に入りも直る");
-ok(/<div id="favTargetBox" hidden>\s*<label class="fav-l" for="favTargetH">重ねる目標の高さ/.test(html), "登録の画面に「重ねる目標の高さ」");
+ok(/<div id="favTargetBox" hidden>\s*<label class="fav-l" for="favTargetH">重ねる対象の高さ/.test(html), "登録の画面に「重ねる対象の高さ」");
 ok(/\$\("favStandBox"\)\.hidden = \$\("favPhBox"\)\.hidden = target !== null \|\| shooting;/.test(html), "目標として開いたら、立って見る場所の項目は隠す");
 ok(/targetHeightM: favTargetHeight\(\)(?: \?\? before\?\.targetHeightM \?\? null)?,/.test(html) && /\|\| favTargetHeight\(\) !== o\.targetHeightM[\s\S]{0,120}favDraft\.latitude !== o\.latitude/.test(html), "保存する・変えたら閉じるときに確かめる");
 ok(/targetHeightM: Number\.isFinite\(f\.targetHeightM\) && f\.targetHeightM >= 0 && f\.targetHeightM <= 1000/.test(html), "読み込みでも検査する（同期で別端末へも渡る）");
