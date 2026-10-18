@@ -266,8 +266,8 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
     "他の対象: 選んだ場所が目標になる（お気に入りの高さ、建物に地図の高さがあればそれも入る）");
   ok(/<button id="aimPickTarget" class="chip" aria-label="地図の中心（ピンの位置）に重ねる" hidden>ここに重ねる<\/button>/.test(html),
     "自分で置く: 地図のすぐ下に「ここに重ねる」");
-  ok(/\$\("aimTargetCard"\)\.hidden = !customOn;\s+\$\("aimCustomRow"\)\.hidden = !customOn;\s+\$\("aimPickTarget"\)\.hidden = !customOn;/.test(html),
-    "自分で置くときだけ出す");
+  ok(/\$\("aimTargetCard"\)\.hidden = true;/.test(html) && /\$\("aimCustomRow"\)\.hidden = true;/.test(html),
+    '共通対象入力の下に従来の場所カードを重複表示しない');
   for (const [what, re] of [["検索の結果", /choosePlace\(\{ id: `search:/], ["現在地", /\(pos\) => \{[\s\S]{0,150}choosePlace\(\{ id: `geo:/],
       ["地図で選ぶ・緯度経度", /choosePlace\(\{ id: `map:\$\{lat\.toFixed\(5\)\}/], ["お気に入り", /el\.onclick = \(\) => choosePlace\(favorites\[/]]) {
     ok(re.test(html), `地点の画面の「${what}」も、開いた目的の方へ渡す`);
@@ -448,12 +448,14 @@ console.log("== 使われていない見た目の決まりを残さない ==");
   for (const b of [...blocks].reverse()) rest = rest.slice(0, b.index) + rest.slice(b.index + b[0].length);
   rest += fs.readFileSync(new URL("./sorami-plan.js", import.meta.url), "utf8");
   rest += fs.readFileSync(new URL("./sorami-icons.js", import.meta.url), "utf8");
+  rest += fs.readFileSync(new URL("./sorami-target-ui.js",import.meta.url),"utf8");
   const classes = new Set([...css.matchAll(/\.([A-Za-z][A-Za-z0-9_-]+)/g)].map((m) => m[1]));
   const tokens = new Set(INTERPOLATED);
   for (const m of rest.matchAll(/class="([^"]*)"/g)) for (const t of m[1].split(/[\s${}()|?:+"'`]+/)) if (t) tokens.add(t);
   for (const m of rest.matchAll(/classList\.(?:add|remove|toggle|contains)\("([^"]+)"/g)) tokens.add(m[1]);
   for (const m of rest.matchAll(/querySelectorAll?\("\.([A-Za-z][\w-]+)/g)) tokens.add(m[1]);
   for (const m of rest.matchAll(/className\s*=\s*[\"\']([^\"\']*)[\"\']/g)) for (const t of m[1].split(/\s+/)) if (t) tokens.add(t);
+  for(const m of rest.matchAll(/className:\s*['"]([^'"]*)['"]/g))for(const t of m[1].split(/\s+/))if(t)tokens.add(t);
   const dead = [...classes].filter((c) => !tokens.has(c)).sort();
   ok(dead.length === 0, "CSS に、どこからも使われていない class が無い", dead.join("・"));
 }
@@ -536,7 +538,7 @@ ok(/function planeOpAt\(at, \{ auto = false \} = \{\}\) \{\s+if \(plane\.op && !
 }
 
 // ユーザー「その他の対象って自分でその建物の高さを入力する…海抜足さなくていいんだよね」「建物の高さがわかるなら自動で入力がいいな」
-ok(/const b = await aimBuildingAt\(p\.latitude, p\.longitude\);\s+if \(b\) \{ h = Math\.round\(b\.heightM\); auto = b\.from === "wikidata" \? "wikidata" : b\.estimated \? "estimated" : true; \}/.test(html), "他の対象: 建物の高さを自動で入れる（見積もり・Wikidata は分かるように）");
+ok(/const b = await aimBuildingAt\(p\.latitude, p\.longitude\);\s+if\(!current\(\)\)return;\s+if \(b\) \{ h = Math\.round\(b\.heightM\); auto = b\.from === "wikidata" \? "wikidata" : b\.estimated \? "estimated" : true; \}/.test(html), "他の対象: 建物の高さを自動で入れる（見積もり・Wikidata は分かるように）");
 ok(/for \(const b of await tallBuildings\(\)\)/.test(html) && /return await SoramiTerrain\.buildingAt\(lat, lon\);/.test(html), "まず同梱の高い建物の一覧、無ければ OpenStreetMap に問い合わせる");
 ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM : typedNow \? typed : null;/.test(html), "お気に入り・検索の高さ、打ち込んだ高さを先に使う");
 ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れるのは地上からの高さ）");
@@ -1841,12 +1843,8 @@ console.log("== 手で入れたものを失わせない ==");
 // 地形・メモ・現象タグを手入力させるようにした以上、消えたら打ち直しになる。
 // iOS Safari は7日間サイトに触れないとスクリプトの保存領域を消す。霧氷やダイヤモンドダストは
 // 冬しか出ないので、「冬に行く場所を秋のうちに登録する」というこの機能が想定した使い方でちょうど消える。
-ok(/const payload = \{ exportedAt: [\s\S]{0,40}favorites, sightings \}/.test(html),
-  "書き出しにお気に入りを含める");
-ok(/sightings \}/.test(html), "sightings のキー名を変えない（前のファイルも読める）");
-ok(/const incomingFav = Array\.isArray\(data\.favorites\)/.test(html), "読み込みでお気に入りを受ける");
-ok(/Array\.isArray\(data\) \? data : data\.sightings/.test(html), "配列だけのファイルも記録として読む");
-ok(/const merge = \(current, add\)[\s\S]{0,220}byId\.set/.test(html), "id で突き合わせて既存を失わせない");
+ok(/SoramiLibrary\.backup\(/.test(html), "書き出しは共通データ処理を通す（内容・旧形式・ID統合はtest-libraryで動作検証）");
+ok(/SoramiLibrary\.restore\(/.test(html), "読み込みは共通データ処理を通す（旧形式と失敗時復元も動作検証）");
 ok(/persistImportedData\(\[\["sorami.sightings"/.test(html), "読み込みの保存は一括処理を通す（失敗・復元の動作はtest-import-syncで検証）");
 // 保存領域の保護。**申請だけして結果は出さない**（消えても本体はアカウントにあり、
 // 利用者にできることが無い。2026-09-28）
@@ -2032,7 +2030,7 @@ ok(/id="retrySync"/.test(html) && /retry\.onclick = async \(\) => \{ await syncN
   "同期が失敗していたら再試行を出す");
 // 消す前に控えを促す。取り消せない操作なので二段で確かめる
 ok(/id="deleteAccount"/.test(html), "アカウントを削除できる");
-ok(/書き出し」で控えを取ることをすすめます/.test(html), "消す前に控えを促す");
+ok(/「記録」の「データの控え」から書き出してください/.test(html), "消す前に控えを促す");
 ok((html.match(/if \(!confirm\([\s\S]{0,200}?\)\) return;/g) || []).length >= 2
   && /最終確認です。すべて消えます。/.test(html), "取り消せない削除は二段で確かめる");
 ok(/await apiCall\("DELETE", "\/me"\)[\s\S]{0,200}favorites = \[\]; sightings = \[\]/.test(html),

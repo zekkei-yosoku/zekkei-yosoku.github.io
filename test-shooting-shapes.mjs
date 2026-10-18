@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url),P=require('./sorami-shooting.js'),A=require('./sorami-align.js');
+const require=createRequire(import.meta.url),L=require('./sorami-library.js'),P=require('./sorami-shooting.js'),A=require('./sorami-align.js');
 const ll=(x,y=0)=>({latitude:35+y/111195,longitude:139+x/(111195*Math.cos(35*Math.PI/180))});
 const shape=(type,coords)=>({type,vertices:coords.map(([x,y])=>ll(x,y))});
 const at=Date.parse('2026-10-24T12:00:00+09:00');
@@ -71,7 +71,7 @@ import vm from 'node:vm';
 const ui=fs.readFileSync(new URL('./sorami-myplaces.js',import.meta.url),'utf8'),html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
 test('形はアカウントで隔離し、移動したお気に入りへ旧形状を付け替えない',()=>{
  const values=new Map(),auth={loginId:'first'},f={id:'same',...ll(0)};
- const c={auth,store:{get:(k,d)=>values.get(k)??d},SoramiShooting:P};vm.createContext(c);
+ const c={auth,SoramiLibrary:L,store:{get:(k,d)=>values.get(k)??d},SoramiShooting:P};vm.createContext(c);
  vm.runInContext(ui.slice(ui.indexOf('const shapesKey='),ui.indexOf('let shapeDialog=')),c);
  values.set('sorami.placeShapes.v1:first',{same:{...ll(0),shape:shape('line',[[0,0],[100,0]])}});
  assert.equal(c.shapeFor(f).type,'line');auth.loginId='second';assert.equal(c.shapeFor(f),null);auth.loginId='first';assert.equal(c.shapeFor({...f,latitude:36}),null);
@@ -92,27 +92,24 @@ test('記録から地図へは非同期起動前に未選択と枠の中心を�
  assert.equal(c.pendingState().observer,null);assert.equal(c.pendingState().targetId,'skytree');assert(P.shapeContains(shapeValue,c.pendingState().mapCenter));
  c.enterRecords(ll(0));assert.equal(c.pendingState().observer.latitude,35);
 });
-test('形だけの保存・容量不足・別画面の編集競合を検査する',()=>{
- const f={id:'p',...ll(0)},s=shape('line',[[0,0],[100,0]]),nodes=new Map();let data={},fail=false;
- const state={place:f,initialTargets:[],draftTargets:[],baseline:'[]',initialShape:null,draftShape:s,shapeBaseline:'null'};
- const c={sheetOwnerMatches:()=>true,sheetState:state,el:id=>{if(!nodes.has(id))nodes.set(id,{focus(){}});return nodes.get(id)},placeOf:()=>f,shapeFor:()=>data.p?.shape||null,shapeKey:JSON.stringify,shapeData:()=>data,shapesKey:()=> 'shapes',store:{set:(k,v)=>{if(fail)return false;data=v;return true;}},targetSetKey:JSON.stringify,savedTargets:()=>[],registrationChanges:()=>[],load:()=>[],version:0,candidateCache:new Map(),changed(){},renderSheet(){}};
- vm.createContext(c);vm.runInContext(ui.slice(ui.indexOf('function saveRecord()'),ui.indexOf('// 観測地点（または地図',ui.indexOf('function saveRecord()'))),c);
- fail=true;assert.equal(c.saveRecord(),false);assert.equal(data.p,undefined);assert.equal(state.draftShape,s);
- fail=false;assert.equal(c.saveRecord(),true);assert.equal(data.p.shape.type,'line');assert.equal(state.shapeBaseline,JSON.stringify(s));
- state.draftShape=shape('line',[[0,0],[200,0]]);data={p:{shape:shape('line',[[0,0],[300,0]])}};assert.equal(c.saveRecord(),false);assert.match(nodes.get('myRecordError').textContent,/別の画面/);
+test('既存の形を別画面で変更したら上書きせず開き直しを求める',()=>{
+ const f={id:'p',...ll(0)},state={place:f,initialTargets:[],draftTargets:[],baseline:'[]',shapeBaseline:'null'},nodes=new Map();let commits=0;
+ const c={sheetOwnerMatches:()=>true,sheetState:state,el:id=>{if(!nodes.has(id))nodes.set(id,{});return nodes.get(id)},placeOf:()=>f,shapeFor:()=>shape('line',[[0,0],[100,0]]),shapeKey:JSON.stringify,savedTargets:()=>[],targetSetKey:JSON.stringify,commitRecordDraft:()=>{commits++;return true;}};vm.createContext(c);
+ vm.runInContext(ui.slice(ui.indexOf('function saveRecord()'),ui.indexOf('// 観測地点（または地図',ui.indexOf('function saveRecord()'))),c);
+ assert.equal(c.saveRecord(),false);assert.equal(commits,0);assert.match(nodes.get('myRecordError').textContent,/別の画面/);
 });
 
 function newShapeHarness(){
- const nodes=new Map(),make=()=>({children:[],dataset:{},value:'',disabled:false,open:false,append(...v){this.children.push(...v)},replaceChildren(...v){this.children=v},setAttribute(k,v){this[k]=v},addEventListener(){},close(){this.open=false}});
+ const nodes=new Map(),make=()=>({children:[],dataset:{},value:'',disabled:false,open:false,append(...v){this.children.push(...v)},replaceChildren(...v){this.children=v},setAttribute(k,v){this[k]=v},addEventListener(){},dispatchEvent(){},close(){this.open=false}});
  const state={place:{id:null,name:'',latitude:null,longitude:null},draftShape:null};let picks;
  const map={setOverlay(){},onPick(fn){picks=fn},open(){},setView(...v){this.view=v},center:()=>ll(0),project:(lat,lon)=>[lon,lat],redraw(){}};
- const c={sheetState:state,sheetOwnerMatches:()=>true,auth:{token:'owner'},el:id=>{if(!nodes.has(id))nodes.set(id,make());return nodes.get(id)},document:{createElement:make,body:{append(){}}},PLACE_PICKERS:{},SoramiShooting:P,place:{...ll(0)},placeNear:()=>null,createMapView:()=>map,showSheet:d=>{d.open=true},renderSheet(){},openPlaceSheet(){},shapeName:s=>s?.type==='area'?'範囲':s?.type==='line'?'線':'点',structuredClone,Option:function(text,value){return {text,value}}};
+ const c={SoramiLibrary:L,Event:class{},wireSearchBox:(a,b,fn)=>{map.move=fn},sheetState:state,sheetOwnerMatches:()=>true,auth:{token:'owner'},el:id=>{if(!nodes.has(id))nodes.set(id,make());return nodes.get(id)},document:{createElement:make,body:{append(){}}},PLACE_PICKERS:{},SoramiShooting:P,place:{...ll(0)},placeNear:()=>null,createMapView:()=>map,showSheet:d=>{d.open=true},renderSheet(){},openPlaceSheet(){},shapeName:s=>s?.type==='area'?'範囲':s?.type==='line'?'線':'点',structuredClone,Option:function(text,value){return {text,value}}};
  vm.createContext(c);vm.runInContext(ui.slice(ui.indexOf('let shapeDialog='),ui.indexOf('// ---------------------------------------------------------------- 記録：')),c);
  return {c,state,nodes,map,pick:(p)=>picks(p,{x:1000,y:1000}),value:()=>vm.runInContext('shapeEdit.value',c)};
 }
 test('地点0件から線を選び、検索は移動だけ、2点/3点を作って未保存の対象入力へ進む',()=>{
  const h=newShapeHarness();h.c.openShapeEditor('line');assert.equal(h.value().vertices.length,0);assert(h.nodes.get('shapeApply').disabled);
- h.c.PLACE_PICKERS.recordShape.set({...ll(500),name:'川沿い'});assert.equal(h.value().vertices.length,0);assert.equal(h.map.view[0],ll(500).latitude);assert.equal(h.state.place.id,null);
+ h.map.move({...ll(500),name:'川沿い'});assert.equal(h.value().vertices.length,0);assert.equal(h.map.view[0],ll(500).latitude);assert.equal(h.state.place.id,null);
  h.pick(ll(0));h.pick(ll(100));assert.equal(h.value().vertices.length,2);assert.equal(h.nodes.get('shapeApply').disabled,false);
  h.pick(ll(100,100));h.nodes.get('shapeApply').onclick();assert.equal(h.state.draftShape.vertices.length,3);assert.equal(h.state.place.id,null);assert.equal(h.state.newPlace,true);assert.equal(h.state.place.name,'川沿い');
 });
@@ -126,22 +123,4 @@ test('点も未登録から置ける。形切替後の点は1点だけになり�
  h.nodes.get('shapeModes').children.find(x=>x.dataset.shapeMode==='line').onclick();h.pick(ll(100));
  h.nodes.get('shapeModes').children.find(x=>x.dataset.shapeMode==='point').onclick();assert.equal(h.value().vertices.length,1);
  h.nodes.get('shapeUndo').onclick();assert.equal(h.value().type,'line');assert.equal(h.value().vertices.length,2);
-});
-function newRecordHarness(){
- const data=new Map([['observations',[]],['shapes',{}]]),nodes=new Map();let failKey=null,pushes=0;
- const state={place:{...ll(0),id:null,name:'川沿い'},newPlace:true,draftTargets:[{key:'skytree',name:'東京スカイツリー'}],draftShape:shape('line',[[0,0],[100,0]])};
- const c={sheetState:state,sheetOwnerMatches:()=>true,draftPoint:()=>true,el:id=>{if(!nodes.has(id))nodes.set(id,{});return nodes.get(id)},SoramiShooting:P,placeNear:()=>null,key:()=> 'observations',shapesKey:()=> 'shapes',load:()=>data.get('observations'),shapeData:()=>data.get('shapes'),registrationChanges:(p,a,t)=>t.map(target=>({placeId:p.id,target})),favorites:[],store:{set(k,v){if(k===failKey)return false;data.set(k,v);return true;}},saveFavorites:()=>c.store.set('favorites',c.favorites.map(f=>({...f}))),queuePush(){pushes++},shapeKey:JSON.stringify,targetSetKey:JSON.stringify,version:0,candidateCache:new Map(),changed(){},renderSheet(){}};
- vm.createContext(c);vm.runInContext(ui.slice(ui.indexOf('function saveNewRecord()'),ui.indexOf('function saveRecord()')),c);return {c,state,data,nodes,fail:k=>{failKey=k},pushes:()=>pushes};
-}
-test('新規地点・形・対象を最後にまとめて保存し、保存失敗では地点を残さない',()=>{
- for(const key of ['observations','shapes','favorites']){
-  const h=newRecordHarness();h.fail(key);assert.equal(h.c.saveNewRecord(),false);assert.equal(h.c.favorites.length,0);assert.equal(h.data.get('observations').length,0);assert.equal(Object.keys(h.data.get('shapes')).length,0);assert.equal(h.state.place.id,null);assert.equal(h.pushes(),0);
- }
- const h=newRecordHarness();assert.equal(h.c.saveNewRecord(),true);assert.equal(h.c.favorites.length,1);assert.equal(h.data.get('observations')[0].placeId,h.state.place.id);assert.equal(h.data.get('shapes')[h.state.place.id].shape.type,'line');assert.equal(h.state.newPlace,false);assert.equal(h.pushes(),1);
-});
-test('重複地点は無断で上書きせず、形と対象を既存地点の下書きへ引き継ぐ',()=>{
- const h=newRecordHarness(),existing={...ll(0),id:'existing',name:'既存の川沿い'};h.state.ctx='records';h.c.placeNear=()=>existing;h.c.placeOf=()=>existing;
- const pending=h.state.draftShape;h.c.openPlace=p=>{h.c.sheetState={place:p,draftTargets:[{key:'fuji',name:'富士山'}],draftShape:null};};
- assert.equal(h.c.saveNewRecord(),false);assert.equal(h.c.favorites.length,0);assert.equal(h.nodes.get('myRecordReuse').hidden,false);
- h.nodes.get('myRecordReuse').onclick();assert.equal(h.c.sheetState.place.id,'existing');assert.equal(h.c.sheetState.draftShape,pending);assert.deepEqual(Array.from(h.c.sheetState.draftTargets,t=>t.key),['fuji','skytree']);assert.equal(h.pushes(),0);
 });

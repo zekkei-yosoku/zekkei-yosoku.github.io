@@ -1,9 +1,10 @@
+import {createRequire} from 'node:module';const require=createRequire(import.meta.url);
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 const syncSource=html.slice(html.indexOf('const toItem ='),html.indexOf('// 「保持する」の希望。'));
 const importSource=html.slice(html.indexOf('function persistImportedData('),html.indexOf('// ブラウザに「この保存領域を勝手に消さないでほしい」と申請する。'));
 function fixture(){const disk=new Map(),alerts=[],calls=[],els={importFile:{value:'fixture'}};let failure=null;
- const c={auth:{loginId:'owner',token:'synthetic'},authGeneration:1,dataOwner:'owner',favorites:[],sightings:[],pushQueue:[],syncInfo:null,syncError:null,
+ const c={SoramiLibrary:require('./sorami-library.js'),SoramiShooting:require('./sorami-shooting.js'),aimFillSelects(){},SkyMapUI:null,auth:{loginId:'owner',token:'synthetic'},authGeneration:1,dataOwner:'owner',favorites:[],sightings:[],pushQueue:[],syncInfo:null,syncError:null,
  localStorage:{getItem:k=>disk.get(k)??null,setItem(k,v){if(failure===k){failure=null;throw Error('quota');}disk.set(k,v)},removeItem:k=>disk.delete(k)},
  $:id=>els[id]??={},cleanSighting:x=>x?.id?x:null,cleanFavorite:x=>x?.id?x:null,render(){},renderAuthButton(){},alert:x=>alerts.push(x),
  apiCall:async(m,p,body)=>{calls.push({m,p,body});return m==='POST'?{accepted:{favorites:body.favorites.map(x=>x.id),sightings:body.sightings.map(x=>x.id)}}:{favorites:[],sightings:[],rev:1};}};

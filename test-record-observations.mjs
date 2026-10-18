@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url),terrain=require('./trial/sorami-terrain.js');
-const source=fs.readFileSync(new URL('./trial/sorami-myplaces.js',import.meta.url),'utf8');
-function fixture(){const values=new Map(),auth={loginId:'first'},favorites=[{id:'p',name:'撮影地',latitude:35,longitude:139,elevation:50,eyeHeightAGL:4}];const api=new Function('store','auth','favorites','SoramiTerrain','const withShape=f=>f;'+source.slice(source.indexOf('const RESULTS'),source.indexOf('// 目標は構図'))+';return {clean,load,statusOf,placesFor};')({get:(k,d)=>values.get(k)??d,set:(k,v)=>values.set(k,v)},auth,favorites,terrain);return {api,values,auth,favorites};}
+const require=createRequire(import.meta.url),L=require('./sorami-library.js'),terrain=require('./sorami-terrain.js');
+const source=fs.readFileSync(new URL('./sorami-myplaces.js',import.meta.url),'utf8');
+function fixture(){const values=new Map(),auth={loginId:'first'},favorites=[{id:'p',name:'撮影地',latitude:35,longitude:139,elevation:50,eyeHeightAGL:4}];const api=new Function('SoramiLibrary','store','auth','favorites','SoramiTerrain','const withShape=f=>f;'+source.slice(source.indexOf('const RESULTS'),source.indexOf('// 目標は構図'))+';return {clean,load,statusOf,placesFor};')(L,{get:(k,d)=>values.get(k)??d,set:(k,v)=>values.set(k,v)},auth,favorites,terrain);return {api,values,auth,favorites};}
 const raw={id:'one',placeId:'p',target:{key:'tower',name:'塔',latitude:35.1,longitude:139.1},result:'seen',date:'2026-10-16',observer:{latitude:35,longitude:139,elevation:50,eyeHeightAGL:4},createdAt:1,updatedAt:1};
 test('記録時の観測座標と高さを保持し、不正な識別子を保存対象にしない',()=>{const {api}=fixture(),r=api.clean(raw);assert.deepEqual(r.observer,raw.observer);assert.equal(api.clean({...raw,target:{...raw.target,name:'x'.repeat(201)}}),null);assert.equal(api.clean({...raw,result:'unknown'}),null);});
 test('撮影場所の移動・立つ高さの変更後は古い実績を候補へ流用しない',()=>{const {api,favorites}=fixture(),r=api.clean(raw);assert.equal(api.statusOf('p','tower',[r]).id,'one');favorites[0].latitude=35.01;assert.equal(api.statusOf('p','tower',[r]),null);favorites[0].latitude=35;favorites[0].eyeHeightAGL=20;assert.equal(api.statusOf('p','tower',[r]),null);assert.equal(r.observer.eyeHeightAGL,4);});
@@ -50,18 +50,13 @@ test('対象の履歴内で新しい見え方を先にし、別の対象の状�
 
 test('対象の一括変更は追加と除外だけを追記し、観測日や既存履歴を変更しない',()=>{
  const {api}=fixture();const start=source.indexOf('function registrationChanges('),end=source.indexOf('function buildSheet(',start);
- const run=new Function('clean','targetData',source.slice(start,end)+';return registrationChanges;')(api.clean,t=>({...t}));
+ const run=L.registrationChanges;
  const place={id:'p',latitude:35,longitude:139,eyeHeightAGL:4};const before=[raw.target],next=[{...raw.target,key:'fuji',name:'富士山'}];
  const rows=run(place,before,next,1000);assert.equal(rows.length,2);assert.equal(rows[0].removed,true);assert.equal(rows[1].removed,false);assert.ok(rows.every(r=>r.date===''&&r.note===''&&r.createdAt===1000&&r.registration));
  assert.equal(api.statusOf('p','tower',[api.clean(raw),...rows]),null);assert.equal(api.statusOf('p','fuji',rows).target.name,'富士山');assert.equal(raw.date,'2026-10-16');assert.deepEqual(run(place,next,next,1001),[]);
  const readd=run(place,[],before,1001);assert.equal(api.statusOf('p','tower',[api.clean(raw),...rows,...readd]).removed,false);
 });
 
-test('記録から既存の組み込み/自作対象を再指定したら新規作成せず同じIDを使う',()=>{
- const fragment=source.slice(source.indexOf('let targetDraft ='),source.indexOf('// ---------------------------------------------------------------- 記録：'));
- for(const key of ['skytree','fav:owned']){
-  const pickers={},chosen=[],target={id:key,latitude:35,longitude:139};let creates=0;
-  new Function('PLACE_PICKERS','sheetOwnerMatches','auth','sheetState','targetChoices','SoramiTerrain','NEAR_KM','addDraftTarget','favForPoint',fragment+';targetDraft={ownerToken:"owner",state:sheetState,placeId:"p"};')(pickers,()=>true,{token:'owner'},{place:{id:'p'}},()=>[target],terrain,.02,t=>chosen.push(t.id),()=>creates++);
-  pickers.recordTarget.set({latitude:35.00001,longitude:139});assert.deepEqual(chosen,[key]);assert.equal(creates,0);
- }
+test('対象の近傍照合は組み込み/自作の既存IDを保持する',()=>{
+ for(const id of ['skytree','fav:owned']){const target={id,latitude:35,longitude:139};assert.equal(L.nearby([target],{latitude:35.00001,longitude:139}).id,id);}
 });

@@ -13,7 +13,7 @@ test('記録追加は撮影地点が空のフォームで開き、既存の地�
 test('撮影地点未選択では対象と保存を待機にし、補助項目を隠す',()=>{
  const {el}=elements(),state={place:{id:null},ctx:'records',draftTargets:[]};
  const start=source.indexOf('function renderSheet()'),end=source.indexOf('  const next =',start);const body=source.slice(start,end)+'}';
- const render=new Function('sheetState','el','load','document','draftChanged','const shapeName=()=>"点",screenAllowed=()=>true,draftPoint=()=>Number.isFinite(sheetState.place.latitude)&&Number.isFinite(sheetState.place.longitude);let sheetToken=0;'+body+';return renderSheet;')(state,el,()=>[],{createElement:()=>({})},()=>false);
+ const render=new Function('sheetState','el','load','document','draftChanged','const finite=Number.isFinite,shapeName=()=>"点",screenAllowed=()=>true,draftPoint=()=>Number.isFinite(sheetState.place.latitude)&&Number.isFinite(sheetState.place.longitude);let sheetToken=0;'+body+';return renderSheet;')(state,el,()=>[],{createElement:()=>({})},()=>false);
  render();assert.equal(el('myRecordSave').disabled,true);assert.equal(el('myRecordPickTarget').disabled,true);assert.equal(el('myPlacePlanning').hidden,true);assert.equal(el('myPlaceDetails').hidden,true);
  state.place.id='p';state.place.latitude=35;state.place.longitude=139;render();assert.equal(el('myRecordPickTarget').disabled,false);assert.equal(el('myRecordSave').disabled,true);
 });
