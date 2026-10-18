@@ -548,35 +548,51 @@
     return { halfW: w / (2 * focalMm) / R, halfH: h / (2 * focalMm) / R,
       horizontalDeg: 2 * Math.atan(w / (2 * focalMm)) / R, verticalDeg: 2 * Math.atan(h / (2 * focalMm)) / R };
   }
-  function dailyView(observer, target, body, dayMs, opts = {}) {
+  // Observer/target geometry is invariant across a candidate search. Prepare once per search.
+  function prepareDailyView(observer, target, body, opts = {}) {
     const g = geometryFrom(observer, target, opts);
-    if (!g) return [];
+    if (!g) return () => [];
     const obs = { ...observer, elevation: (observer.elevation ?? 0) + (opts.eyeM ?? 1.5) };
     const outline = towerOutline(observer, target, opts);
     const centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
     const project = viewProjector(g.azimuth, centerAlt);
     const polygons = outline ? (outline.hitPolygons || [outline.hitPoints || outline.points]).map(poly=>poly.map(([a,h])=>project(a,h)).filter(Boolean)).filter(poly=>poly.length>=3) : null;
-    const evaluate = (at) => {
-      const st = bodyAt(body, at, obs), xy = project(st.azimuth, st.apparentAltitude);
+    const bounds=polygons?.map(poly=>({minX:Math.min(...poly.map(p=>p[0])),maxX:Math.max(...poly.map(p=>p[0])),minY:Math.min(...poly.map(p=>p[1])),maxY:Math.max(...poly.map(p=>p[1]))}));
+    const distanceToPolygons=(center,ratio)=>{
+      const point=[center[0],center[1]/ratio];let nearest=Infinity;
+      for(let i=0;i<polygons.length;i++){
+        const box=bounds[i],dx=Math.max(box.minX-point[0],0,point[0]-box.maxX),dy=Math.max(box.minY/ratio-point[1],0,point[1]-box.maxY/ratio);
+        // A polygon cannot be closer than its bounding rectangle. Keep a numerical margin.
+        if(Math.hypot(dx,dy)>nearest+1e-10)continue;
+        const poly=ratio===1?polygons[i]:polygons[i].map(p=>[p[0],p[1]/ratio]);
+        nearest=Math.min(nearest,polygonDistance(point,poly));if(nearest===0)break;
+      }
+      return nearest;
+    };
+    const evaluate = (at, st = bodyAt(body, at, obs)) => {
+      const xy = project(st.azimuth, st.apparentAltitude);
       const radius = Math.tan(st.angularRadius * R) / R;
       const upper=project(st.azimuth,st.upperAltitude??st.apparentAltitude+st.angularRadius),lower=project(st.azimuth,st.lowerAltitude??st.apparentAltitude-st.angularRadius);
       const ratio=Number.isFinite(st.upperRadius)&&radius>0&&upper&&lower?Math.max(.1,Math.abs(upper[1]-lower[1])/(2*radius)):1;
       const center=xy?[xy[0],Number.isFinite(st.upperRadius)&&upper&&lower?(upper[1]+lower[1])/2:xy[1]]:null;
-      const scaled=polygons&&ratio!==1?polygons.map(poly=>poly.map(p=>[p[0],p[1]/ratio])):polygons;
-      const distance = center ? (scaled ? Math.min(...scaled.map(poly=>polygonDistance([center[0],center[1]/ratio],poly))) : Math.hypot(center[0],center[1]/ratio)) : Infinity;
+      const distance = center ? (polygons ? distanceToPolygons(center,ratio) : Math.hypot(center[0],center[1]/ratio)) : Infinity;
       return { at, gap: st.apparentAltitude - g.angle, radius: st.angularRadius, distanceToTarget: distance, approximate: !!outline?.approximate,
         intersects: distance <= radius && (st.upperAltitude??st.apparentAltitude+st.angularRadius) > 0,
         nearTarget: distance <= (extended(body) ? radius + 0.5 : 2 * radius) && st.apparentAltitude + st.angularRadius > 0,
         altitude: st.apparentAltitude, illuminated: body === "moon" ? st.illuminatedFraction : null,
-        sunAltitude: body === "sun" ? st.apparentAltitude : body === "moon" ? bodyAt("sun",at,obs).apparentAltitude : A.sun(at, obs).geometricAltitude,
-        side: bodyAt(body, at + 60000, obs).apparentAltitude < st.apparentAltitude ? "set" : "rise" };
+      };
     };
-    if(Number.isFinite(opts.at))return [evaluate(opts.at)];
+    // Sun altitude and motion labels are only needed for returned events, not every scan sample.
+    const complete = row => ({...row,
+      sunAltitude: body === "sun" ? row.altitude : body === "moon" ? bodyAt("sun",row.at,obs).apparentAltitude : A.sun(row.at, obs).geometricAltitude,
+      side: bodyAt(body,row.at+60000,obs).apparentAltitude < row.altitude ? "set" : "rise"});
+    return (dayMs, at = null) => {
+    if(Number.isFinite(at))return [complete(evaluate(at))];
     const end = dayMs + 86400000, crossings = [];
     let previous = null, nearest = null;
     // 全天の軌道も確認し、目標の方位を横切らない日にも最接近を返す。
     for (let at = dayMs; at <= end; at += 600000) {
-      const st = bodyAt(body, at, obs), diff = azDiff(st.azimuth, g.azimuth), row = evaluate(at);
+      const st = bodyAt(body, at, obs), diff = azDiff(st.azimuth, g.azimuth), row = evaluate(at, st);
       if (at < end && (!nearest || row.distanceToTarget < nearest.distanceToTarget)) nearest = row;
       if (at === dayMs && Math.abs(diff) < 1e-9) crossings.push(row);
       if (previous && Math.abs(previous.diff) > 1e-9 && (at < end || Math.abs(diff) > 1e-9) && Math.sign(diff) !== Math.sign(previous.diff) && Math.abs(diff - previous.diff) < 90) {
@@ -616,7 +632,11 @@
       };
       for(let i=0;i<crossings.length;i++) crossings[i]=refine(crossings[i]);
     }
-    return crossings.sort((a, b) => a.at - b.at);
+    return crossings.sort((a, b) => a.at - b.at).map(complete);
+    };
+  }
+  function dailyView(observer, target, body, dayMs, opts = {}) {
+    return prepareDailyView(observer,target,body,opts)(dayMs,opts.at);
   }
 
   function buildingUpcoming(observer, target, body, { from = Date.now(), days = 400, limit = 4, partId = null } = {}) {
@@ -1806,7 +1826,7 @@
     return {...row,gap,matched:Math.abs(azDiff(st.azimuth,g.azimuth))<=tolerance&&Math.abs(gap)<=tolerance&&(st.upperAltitude??st.apparentAltitude+st.angularRadius)>0};
   }
   const SoramiAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
-                        altitudeCrossing, geometryFrom, upcoming, dailyView, alignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
+                        altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, judge, buildingBlock,
                         viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.SoramiCityModels || CM || {};},get TOWER_MODELS(){return global.SoramiTowerModels || TM || {};}, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, viewWindow, viewPath, sceneTargets };
   global.SoramiAlign = SoramiAlign;

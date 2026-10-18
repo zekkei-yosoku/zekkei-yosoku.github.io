@@ -1,0 +1,1049 @@
+{
+  "source": "2e0e2de00ac0278226d978294d9a7b9904bba879",
+  "cases": [
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "skytree",
+      "body": "moon",
+      "day": 1792335600000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792421084795.8164,
+          "gap": -7.8721477644165025,
+          "radius": 0.24877482334197557,
+          "distanceToTarget": 4.9175656069513325,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": -4.881028010000944,
+          "illuminated": 0.5834407352176801,
+          "sunAltitude": -63.998463813957436,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "skytree",
+      "body": "moon",
+      "day": 1792508400000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792509247131.6968,
+          "gap": -1.8275865976657413,
+          "radius": 0.25125724714484965,
+          "distanceToTarget": 0,
+          "approximate": true,
+          "intersects": true,
+          "nearTarget": true,
+          "altitude": 1.1635331567498175,
+          "illuminated": 0.6789420690953353,
+          "sunAltitude": -62.39962918180554,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "skytree",
+      "body": "moon",
+      "day": 1799506800000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1799574315397.3223,
+          "gap": -1.6875907477203733,
+          "radius": 0.2466371730517179,
+          "distanceToTarget": 0,
+          "approximate": true,
+          "intersects": true,
+          "nearTarget": true,
+          "altitude": 1.3035290066951855,
+          "illuminated": 0.05415855294153804,
+          "sunAltitude": -23.93307263065445,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "skytree",
+      "body": "sun",
+      "day": 1792335600000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792393740450.9849,
+          "gap": 6.2842623823769,
+          "radius": 0.2676024735092251,
+          "distanceToTarget": 6.521526698341793,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": 9.275382136792459,
+          "illuminated": null,
+          "sunAltitude": 9.275382136792459,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "skytree",
+      "body": "sun",
+      "day": 1792508400000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792566730872.3215,
+          "gap": 5.171920849230915,
+          "radius": 0.2677527861794354,
+          "distanceToTarget": 5.425358122171444,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": 8.163040603646474,
+          "illuminated": null,
+          "sunAltitude": 8.163040603646474,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "skytree",
+      "body": "sun",
+      "day": 1799506800000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1799568942935.0173,
+          "gap": -9.542579513483481,
+          "radius": 0.2710610041511919,
+          "distanceToTarget": 6.57449821811312,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": -6.551459759067922,
+          "illuminated": null,
+          "sunAltitude": -6.551459759067922,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "skytree",
+      "body": "sirius",
+      "day": 1792335600000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792370685022.0005,
+          "gap": -2.220736947206229,
+          "radius": 0,
+          "distanceToTarget": 0,
+          "approximate": true,
+          "intersects": true,
+          "nearTarget": true,
+          "altitude": 0.7703828072093297,
+          "illuminated": null,
+          "sunAltitude": 38.54141700673277,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "skytree",
+      "body": "sirius",
+      "day": 1792508400000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792543013278.0005,
+          "gap": -2.2207984461825974,
+          "radius": 0,
+          "distanceToTarget": 0,
+          "approximate": true,
+          "intersects": true,
+          "nearTarget": true,
+          "altitude": 0.7703213082329615,
+          "illuminated": null,
+          "sunAltitude": 37.06809068989111,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "skytree",
+      "body": "sirius",
+      "day": 1799506800000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1799522307757.0005,
+          "gap": -2.2279555624695195,
+          "radius": 0,
+          "distanceToTarget": 0,
+          "approximate": true,
+          "intersects": true,
+          "nearTarget": true,
+          "altitude": 0.7631641919460392,
+          "illuminated": null,
+          "sunAltitude": -30.269188003357666,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tokyotower",
+      "body": "moon",
+      "day": 1792335600000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792418348911.108,
+          "gap": 2.4370050991031533,
+          "radius": 0.2487095925479894,
+          "distanceToTarget": 2.8742512660264805,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": 3.33610764158381,
+          "illuminated": 0.5806386503784683,
+          "sunAltitude": -63.691992714843245,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tokyotower",
+      "body": "moon",
+      "day": 1792508400000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792593851600.1697,
+          "gap": 16.51061837436908,
+          "radius": 0.2542506287490684,
+          "distanceToTarget": 17.1291865079476,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": 17.409720916849736,
+          "illuminated": 0.7665459574769413,
+          "sunAltitude": -64.71258212108799,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tokyotower",
+      "body": "moon",
+      "day": 1799506800000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1799571267131.2126,
+          "gap": 9.104875463519702,
+          "radius": 0.24659481273375616,
+          "distanceToTarget": 9.344940758700933,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": 10.00397800600036,
+          "illuminated": 0.0528054049832381,
+          "sunAltitude": -13.939255717973268,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tokyotower",
+      "body": "sun",
+      "day": 1792335600000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792390438060.2065,
+          "gap": 18.529810570220967,
+          "radius": 0.2675995937860207,
+          "distanceToTarget": 19.357208519902258,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": 19.428913112701622,
+          "illuminated": null,
+          "sunAltitude": 19.428913112701622,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tokyotower",
+      "body": "sun",
+      "day": 1792508400000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792563394064.8699,
+          "gap": 17.512774194694227,
+          "radius": 0.26774989735867244,
+          "distanceToTarget": 18.228703570699686,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": 18.411876737174882,
+          "illuminated": null,
+          "sunAltitude": 18.411876737174882,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tokyotower",
+      "body": "sun",
+      "day": 1799506800000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1799566154476.1135,
+          "gap": 1.3231419340769268,
+          "radius": 0.27106129045989935,
+          "distanceToTarget": 1.9702484026900773,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": 2.222244476557583,
+          "illuminated": null,
+          "sunAltitude": 2.222244476557583,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tokyotower",
+      "body": "sirius",
+      "day": 1792335600000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792367669595.0024,
+          "gap": 8.797389795072277,
+          "radius": 0,
+          "distanceToTarget": 9.045901820200465,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": 9.696492337552934,
+          "illuminated": null,
+          "sunAltitude": 32.13953437644361,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tokyotower",
+      "body": "sirius",
+      "day": 1792508400000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792539997849.1804,
+          "gap": 8.797325817948174,
+          "radius": 0,
+          "distanceToTarget": 9.045837032381229,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": 9.69642836042883,
+          "illuminated": null,
+          "sunAltitude": 30.466895267574223,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tokyotower",
+      "body": "sirius",
+      "day": 1799506800000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1799519292047.001,
+          "gap": 8.79003953745568,
+          "radius": 0,
+          "distanceToTarget": 9.038460490235426,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": 9.689142079936337,
+          "illuminated": null,
+          "sunAltitude": -40.44430247490794,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tocho-building",
+      "body": "moon",
+      "day": 1792335600000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792335600594.5225,
+          "gap": -18.894763215734724,
+          "radius": 0.2470973392701181,
+          "distanceToTarget": 18.971318557754234,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": -18.32799520011284,
+          "illuminated": 0.48958638140162847,
+          "sunAltitude": -62.85646156203331,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tocho-building",
+      "body": "moon",
+      "day": 1792508400000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792510523579.895,
+          "gap": -3.6896050340458535,
+          "radius": 0.2512983108031853,
+          "distanceToTarget": 3.3271423574264554,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": -3.122837018423971,
+          "illuminated": 0.6802487783695005,
+          "sunAltitude": -60.13075399257178,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tocho-building",
+      "body": "moon",
+      "day": 1799506800000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1799575589444.8096,
+          "gap": -3.531518268748642,
+          "radius": 0.2466550375693903,
+          "distanceToTarget": 3.181653330031381,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": -2.9647502531267595,
+          "illuminated": 0.054767520810023174,
+          "sunAltitude": -28.182489243317406,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tocho-building",
+      "body": "sun",
+      "day": 1792335600000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792395467666.8003,
+          "gap": 3.232706538762003,
+          "radius": 0.26760397951750114,
+          "distanceToTarget": 3.4803368372758654,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": 3.7994745543838855,
+          "illuminated": null,
+          "sunAltitude": 3.7994745543838855,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tocho-building",
+      "body": "sun",
+      "day": 1792508400000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792568473026.2573,
+          "gap": 2.113930662917367,
+          "radius": 0.26775429426433245,
+          "distanceToTarget": 2.484669374124462,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": 2.6806986785392497,
+          "illuminated": null,
+          "sunAltitude": 2.6806986785392497,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tocho-building",
+      "body": "sun",
+      "day": 1799506800000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1799570967178.0283,
+          "gap": -13.539524631386874,
+          "radius": 0.27106079539665806,
+          "distanceToTarget": 13.218414852042887,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": -12.972756615764991,
+          "illuminated": null,
+          "sunAltitude": -12.972756615764991,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tocho-building",
+      "body": "sirius",
+      "day": 1792335600000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792371937091.0042,
+          "gap": -4.2345654929303365,
+          "radius": 0,
+          "distanceToTarget": 3.8559604260084894,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": -3.6677974773084543,
+          "illuminated": null,
+          "sunAltitude": 40.61034733927369,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tocho-building",
+      "body": "sirius",
+      "day": 1792508400000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792544265349.0022,
+          "gap": -4.234642428234487,
+          "radius": 0,
+          "distanceToTarget": 3.8560325312535877,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": -3.667874412612605,
+          "illuminated": null,
+          "sunAltitude": 39.25067788415169,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "tocho-building",
+      "body": "sirius",
+      "day": 1799506800000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1799523559953.0042,
+          "gap": -4.243257774440245,
+          "radius": 0,
+          "distanceToTarget": 3.8641409855386972,
+          "approximate": true,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": -3.676489758818363,
+          "illuminated": null,
+          "sunAltitude": -26.076541109253384,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "fuji",
+      "body": "moon",
+      "day": 1792335600000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792421645999.0425,
+          "gap": -7.952972010004641,
+          "radius": 0.24878829566191793,
+          "distanceToTarget": 8.004445324373057,
+          "approximate": false,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": -6.570401161606321,
+          "illuminated": 0.584043793569009,
+          "sunAltitude": -63.55517030374474,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "fuji",
+      "body": "moon",
+      "day": 1792508400000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792509210932.0942,
+          "gap": -0.12097045968187126,
+          "radius": 0.25125608459031074,
+          "distanceToTarget": 0.1209706394332587,
+          "approximate": false,
+          "intersects": true,
+          "nearTarget": true,
+          "altitude": 1.2616003887164489,
+          "illuminated": 0.6789056804575333,
+          "sunAltitude": -62.45441326874788,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "fuji",
+      "body": "moon",
+      "day": 1799506800000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1799574279248.7356,
+          "gap": 0.019743854059830035,
+          "radius": 0.24663666755608124,
+          "distanceToTarget": 0.019743854841335305,
+          "approximate": false,
+          "intersects": true,
+          "nearTarget": true,
+          "altitude": 1.4023147024581502,
+          "illuminated": 0.054141655007992284,
+          "sunAltitude": -23.813016202830052,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "fuji",
+      "body": "sun",
+      "day": 1792335600000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792393107358.4644,
+          "gap": 9.88637720615681,
+          "radius": 0.267601921473168,
+          "distanceToTarget": 9.98567714382539,
+          "approximate": false,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": 11.26894805455513,
+          "illuminated": null,
+          "sunAltitude": 11.26894805455513,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "fuji",
+      "body": "sun",
+      "day": 1792508400000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792566097470.853,
+          "gap": 8.77128946314952,
+          "radius": 0.26775223784966407,
+          "distanceToTarget": 8.840458974154979,
+          "approximate": false,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": 10.15386031154784,
+          "illuminated": null,
+          "sunAltitude": 10.15386031154784,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "fuji",
+      "body": "sun",
+      "day": 1799506800000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1799569503753.292,
+          "gap": -9.69404584088704,
+          "radius": 0.27106094639245526,
+          "distanceToTarget": 9.787618928121859,
+          "approximate": false,
+          "intersects": false,
+          "nearTarget": false,
+          "altitude": -8.31147499248872,
+          "illuminated": null,
+          "sunAltitude": -8.31147499248872,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "fuji",
+      "body": "sirius",
+      "day": 1792335600000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792370628933.0022,
+          "gap": -0.4567721723454261,
+          "radius": 0,
+          "distanceToTarget": 0.4594039031358437,
+          "approximate": false,
+          "intersects": false,
+          "nearTarget": true,
+          "altitude": 0.925798676052894,
+          "illuminated": null,
+          "sunAltitude": 38.43973636470536,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "fuji",
+      "body": "sirius",
+      "day": 1792508400000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1792542957189.0022,
+          "gap": -0.45683428923433933,
+          "radius": 0,
+          "distanceToTarget": 0.4594657972639672,
+          "approximate": false,
+          "intersects": false,
+          "nearTarget": true,
+          "altitude": 0.9257365591639808,
+          "illuminated": null,
+          "sunAltitude": 36.961778296252334,
+          "side": "set"
+        }
+      ]
+    },
+    {
+      "observer": {
+        "latitude": 35.7477,
+        "longitude": 139.93038,
+        "elevation": 19
+      },
+      "targetId": "fuji",
+      "body": "sirius",
+      "day": 1799506800000,
+      "opts": {
+        "partId": "__whole",
+        "eyeM": 1.5
+      },
+      "rows": [
+        {
+          "at": 1799522251666.0037,
+          "gap": -0.46405754022135504,
+          "radius": 0,
+          "distanceToTarget": 0.46664837324059316,
+          "approximate": false,
+          "intersects": false,
+          "nearTarget": true,
+          "altitude": 0.9185133081769651,
+          "illuminated": null,
+          "sunAltitude": -30.457611569766307,
+          "side": "set"
+        }
+      ]
+    }
+  ]
+}

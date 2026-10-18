@@ -449,7 +449,8 @@ console.log("== 使われていない見た目の決まりを残さない ==");
   rest += fs.readFileSync(new URL("./sorami-plan.js", import.meta.url), "utf8");
   rest += fs.readFileSync(new URL("./sorami-icons.js", import.meta.url), "utf8");
   rest += fs.readFileSync(new URL("./sorami-target-ui.js",import.meta.url),"utf8");
-  const classes = new Set([...css.matchAll(/\.([A-Za-z][A-Za-z0-9_-]+)/g)].map((m) => m[1]));
+  // 2026-10-19: image file extensions inside url() are not CSS class selectors.
+  const classes = new Set([...css.replace(/url\([^)]*\)/g, "").matchAll(/\.([A-Za-z][A-Za-z0-9_-]+)/g)].map((m) => m[1]));
   const tokens = new Set(INTERPOLATED);
   for (const m of rest.matchAll(/class="([^"]*)"/g)) for (const t of m[1].split(/[\s${}()|?:+"'`]+/)) if (t) tokens.add(t);
   for (const m of rest.matchAll(/classList\.(?:add|remove|toggle|contains)\("([^"]+)"/g)) tokens.add(m[1]);

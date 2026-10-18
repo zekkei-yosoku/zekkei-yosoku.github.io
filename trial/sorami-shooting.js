@@ -15,9 +15,9 @@ function searchOptions(p,isMountain){
  const broad=p.matchMode==='overlap',disc=p.body==='sun'||p.body==='moon';
  return {partId:broad?(isMountain(p.target)?null:'__whole'):p.partId,limb:broad?'center':p.limb,broad,disc};
 }
-function eventsFor(p,obs,start,{align,isMountain}){
+function eventsFor(p,obs,start,{align,isMountain,view}){
  const o=searchOptions(p,isMountain),whole=o.partId==='__whole';
- const rows=(o.broad&&o.disc||whole&&!isMountain(p.target))?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM}):align.upcoming(obs,p.target,p.body,{from:start,days:1,limit:Infinity,groupDays:false,partId:o.partId,limb:o.limb,eyeM:obs.eyeM,stepMs:3600000});
+ const rows=(o.broad&&o.disc||whole&&!isMountain(p.target))?(view?view(start):align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM})):align.upcoming(obs,p.target,p.body,{from:start,days:1,limit:Infinity,groupDays:false,partId:o.partId,limb:o.limb,eyeM:obs.eyeM,stepMs:3600000});
  return o.broad?rows.map(e=>({...e,matchMode:'overlap',partId:o.partId})):rows;
 }
 function matches(e,p,isMountain){

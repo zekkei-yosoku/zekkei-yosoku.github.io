@@ -80,7 +80,7 @@ test('空欄と範囲外は表示を有効値へ戻し、計算に残る値と�
 
 test('未設定のその他目標でも観測地点の標高を取得して表示する',async()=>{
  const nodes=new Map(),calls=[];const from={name:'公園',latitude:35,longitude:139};
- const c=vm.createContext({aim:{fromSeq:0,target:{parts:[]},body:'moon'},aimFromPoint:()=>from,
+ const c=vm.createContext({candidateWaitMarkup:()=>"待機中",aim:{fromSeq:0,target:{parts:[]},body:'moon'},aimFromPoint:()=>from,
  $:id=>{if(!nodes.has(id))nodes.set(id,{querySelectorAll:()=>[]});return nodes.get(id)},renderPointCard(){},
  aimRenderObserverHeight:(f,g)=>calls.push(g),aimUpdateLook(){},esc:s=>s,setTimeout,
  aimElevation:async()=>83,aimObserverAt:()=>({elevation:83,eyeM:0})});
