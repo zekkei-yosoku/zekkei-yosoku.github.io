@@ -17,12 +17,12 @@ function searchOptions(p,isMountain){
 }
 function eventsFor(p,obs,start,{align,isMountain,view}){
  const o=searchOptions(p,isMountain),whole=o.partId==='__whole';
- const rows=(o.broad&&o.disc||whole&&!isMountain(p.target))?(view?view(start):align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM})):align.upcoming(obs,p.target,p.body,{from:start,days:1,limit:Infinity,groupDays:false,partId:o.partId,limb:o.limb,eyeM:obs.eyeM,stepMs:3600000});
+ const rows=view?view(start):(o.broad&&o.disc||whole&&!isMountain(p.target))?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM}):align.upcoming(obs,p.target,p.body,{from:start,days:1,limit:Infinity,groupDays:false,partId:o.partId,limb:o.limb,eyeM:obs.eyeM,stepMs:3600000});
  return o.broad?rows.map(e=>({...e,matchMode:'overlap',partId:o.partId})):rows;
 }
 function matches(e,p,isMountain){
  const o=searchOptions(p,isMountain);
- return o.broad&&o.disc||o.partId==='__whole'?!!e.intersects:Number.isFinite(e.gap)&&Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0));
+ return o.broad||o.partId==='__whole'?!!e.intersects:Number.isFinite(e.gap)&&Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0));
 }
 // Registered paths/areas use ordered vertices, never the favorite's anchor.
 const SHAPE_STEP_M=25,SHAPE_LIMIT=12000;
@@ -76,7 +76,7 @@ function shapePaths(value){
  return paths;
 }
 async function shapeCandidates(p,entry,deps){
- const {align,isMountain,observerAt,elevationAt,isCurrent=()=>true,onProgress=()=>{}}=deps,s=cleanShape(entry.place.shape);
+ const {align,isMountain,observerAt,elevationAt,viewFor,isCurrent=()=>true,onProgress=()=>{}}=deps,s=cleanShape(entry.place.shape);
  if(!s)throw Error('shape-invalid');const paths=shapePaths(s),start=day(p.at),memo=new Map(),rows=[];let missing=0,steps=0;const began=Date.now();
  const check=()=>{if(!isCurrent())throw Error('shape-cancelled');if(Date.now()-began>45000)throw Error('shape-limit');};
  const evaluate=async position=>{
@@ -86,9 +86,9 @@ async function shapeCandidates(p,entry,deps){
   const ground=await elevationAt(position.latitude,position.longitude);check();
   if(!Number.isFinite(ground)){missing++;memo.set(key,null);return null;}
   const f={...entry.place,...position,elevation:ground,groundManualM:ground,sourcePlaceId:entry.place.id};delete f.shape;
-  const obs=observerAt(f,ground),o=searchOptions(p,isMountain);
-  const probes=align.dailyView?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM}).map(e=>{const exact=align.alignmentAt?.(obs,p.target,p.body,e.at,{partId:o.partId,limb:o.limb,eyeM:obs.eyeM});return {...e,gap:exact?.gap??e.gap,...(!o.disc&&exact?{spatialMatched:exact.matched}:{})};}):eventsFor(p,obs,start,{align,isMountain});
-  const events=(!o.disc||o.broad)&&align.dailyView?probes:eventsFor(p,obs,start,{align,isMountain});
+  const obs=observerAt(f,ground),o=searchOptions(p,isMountain),view=viewFor?await viewFor(obs,p):null;check();
+  const probes=view?view(start):align.dailyView?align.dailyView(obs,p.target,p.body,start,{partId:o.partId,eyeM:obs.eyeM}).map(e=>{const exact=align.alignmentAt?.(obs,p.target,p.body,e.at,{partId:o.partId,limb:o.limb,eyeM:obs.eyeM});return {...e,gap:exact?.gap??e.gap,...(!o.disc&&exact?{spatialMatched:exact.matched}:{})};}):eventsFor(p,obs,start,{align,isMountain});
+  const events=view?probes:(!o.disc||o.broad)&&align.dailyView?probes:eventsFor(p,obs,start,{align,isMountain});
   if(o.broad)for(const e of events){e.matchMode='overlap';e.partId=o.partId;}
   const result={place:f,events,probes};memo.set(key,result);
   for(const e of events)if(e.at>=start&&e.at<start+DAY&&e.spatialMatched!==false&&(!Number.isFinite(e.altitude)||o.disc||e.altitude>0)&&matches(e,p,isMountain)&&(p.body!=='moon'||e.sunAltitude<0)&&shapeContains(s,f)){
@@ -116,7 +116,7 @@ async function shapeCandidates(p,entry,deps){
  check();return {rows,missing,checked:memo.size,stepM:SHAPE_STEP_M};
 }
 
-async function candidates(plan,points,{align,isMountain,observerAt,elevationAt,ensure,isCurrent=()=>true,onProgress=()=>{}}={}){
+async function candidates(plan,points,{align,isMountain,observerAt,elevationAt,ensure,viewFor,isCurrent=()=>true,onProgress=()=>{}}={}){
  const p=conditions(plan);if(!p)return {rows:[],failed:0};
  const issues=[];let checked=0;
  await ensure(p.body);const start=day(p.at),rows=[];let failed=0;
@@ -124,10 +124,12 @@ async function candidates(plan,points,{align,isMountain,observerAt,elevationAt,e
   await new Promise(resolve=>setTimeout(resolve,0));if(!isCurrent())return {rows:[],failed:0,cancelled:true};
   try{
    const f=entry.place;
-   if(f.shape){const result=await shapeCandidates(p,entry,{align,isMountain,observerAt,elevationAt,isCurrent,onProgress});rows.push(...result.rows);checked+=result.checked;if(result.missing){failed++;issues.push({id:f.id,reason:'elevation',count:result.missing});}continue;}
+   if(f.shape){const result=await shapeCandidates(p,entry,{align,isMountain,observerAt,elevationAt,viewFor,isCurrent,onProgress});rows.push(...result.rows);checked+=result.checked;if(result.missing){failed++;issues.push({id:f.id,reason:'elevation',count:result.missing});}continue;}
    const ground=Number.isFinite(f.groundManualM)?f.groundManualM:Number.isFinite(f.elevation)?f.elevation:await elevationAt(f.latitude,f.longitude);
    if(!Number.isFinite(ground))throw Error('missing elevation');
-   const obs=observerAt(f,ground),events=eventsFor(p,obs,start,{align,isMountain});
+   const obs=observerAt(f,ground),view=viewFor?await viewFor(obs,p):null;
+   if(!isCurrent())return {rows:[],failed:0,cancelled:true};
+   const events=eventsFor(p,obs,start,{align,isMountain,view});
    for(const e of events){
     if(e.at<start||e.at>=start+DAY||!matches(e,p,isMountain)||(p.body==='moon'&&!(e.sunAltitude<0)))continue;
     rows.push({place:f,record:entry.record,event:e});

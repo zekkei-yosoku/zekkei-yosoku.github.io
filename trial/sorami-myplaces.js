@@ -316,7 +316,7 @@ async function renderPickerPanel(panel) {
  const key=query();
  const current=()=>token===pickerToken&&owner===auth?.token&&screenAllowed(isSky?'skymap':'framing')&&el('placeSheet').open&&placeSheetFor===mode&&key===query();
  try{
-  const result=await SoramiShooting.candidates(plan,pickerPoints(plan),{align:SoramiAlign,isMountain:aimIsMountain,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),elevationAt:candidateElevation,ensure:b=>SoramiBodies.ensure(b),isCurrent:current,onProgress:p=>{if(current())note.textContent='線上・範囲内を確認しています… '+p.checked+'地点';}});
+  const result=await SoramiShooting.candidates(plan,pickerPoints(plan),{align:SoramiAlign,isMountain:aimIsMountain,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),elevationAt:candidateElevation,viewFor:(obs,p)=>aimShootingView(obs,p.target,p.body,p.partId,p.matchMode),ensure:b=>SoramiBodies.ensure(b),isCurrent:current,onProgress:p=>{if(current())note.textContent='線上・範囲内を確認しています… '+p.checked+'地点';}});
   if(!current()||result.cancelled)return;
   note.textContent=`${S.Cal.monthDay(plan.at)}・${SoramiBodies.definition(plan.body)?.name}を${t.name}に：${result.rows.length}件${selectedShape?'（'+(placeOf(selectedShape)?.name||'選んだ場所')+'）':''}`;
   if(!result.rows.length){const empty=document.createElement('p');empty.className='tiny';empty.textContent=result.failed?'確認できていない撮影ポイントがあります。再試行してください。':'この日に重なる撮影ポイントはありません。日付や対象を変えるか、記録に撮影ポイントと見えた対象を追加してください。';box.append(empty);}
@@ -408,7 +408,7 @@ function skyRender(s){
 
   candidateState={status:'loading',rows:[],failed:0};updateCandidateUI();
   let job=candidateCache.get(key);
-  if(!job){job=SoramiShooting.candidates(plan,points,{align:SoramiAlign,isMountain:aimIsMountain,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),elevationAt:candidateElevation,ensure:b=>SoramiBodies.ensure(b),isCurrent:()=>owner===auth?.token&&token===skyToken&&!!skySession&&currentSkyQuery(skySession)===key,onProgress:p=>{if(owner===auth?.token&&token===skyToken){const status=el('shootingCandidateStatus');if(status)status.textContent='線上・範囲内を確認しています… '+p.checked+'地点';}}});candidateCache.set(key,job);if(candidateCache.size>24)candidateCache.delete(candidateCache.keys().next().value);}
+  if(!job){job=SoramiShooting.candidates(plan,points,{align:SoramiAlign,isMountain:aimIsMountain,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),elevationAt:candidateElevation,viewFor:(obs,p)=>aimShootingView(obs,p.target,p.body,p.partId,p.matchMode),ensure:b=>SoramiBodies.ensure(b),isCurrent:()=>owner===auth?.token&&token===skyToken&&!!skySession&&currentSkyQuery(skySession)===key,onProgress:p=>{if(owner===auth?.token&&token===skyToken){const status=el('shootingCandidateStatus');if(status)status.textContent='線上・範囲内を確認しています… '+p.checked+'地点';}}});candidateCache.set(key,job);if(candidateCache.size>24)candidateCache.delete(candidateCache.keys().next().value);}
   job.then(result=>{if(owner!==auth?.token||token!==skyToken||skyKey!==key)return;if(result.cancelled){candidateCache.delete(key);skyKey='';skyRender(skySession);return;}candidateState={...result,status:'ready'};updateCandidateUI();SkyMapUI?.redraw?.();}).catch(()=>{candidateCache.delete(key);if(owner!==auth?.token||token!==skyToken||skyKey!==key)return;candidateState={status:'error',rows:[],failed:0};updateCandidateUI();});
  }
  checkOverlap(s);

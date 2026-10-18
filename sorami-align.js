@@ -553,7 +553,9 @@
     const g = geometryFrom(observer, target, opts);
     if (!g) return () => [];
     const obs = { ...observer, elevation: (observer.elevation ?? 0) + (opts.eyeM ?? 1.5) };
-    const outline = towerOutline(observer, target, opts);
+    const mountainRidge=Array.isArray(opts.ridge)?opts.ridge:null;
+    if(mountainRidge&&(mountainRidge.length<2||mountainRidge.some(p=>!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite))))throw Error('山の稜線を取得できません');
+    const outline = mountainRidge ? {viewBaseAngle:0,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],0],[mountainRidge[0][0],0]]]} : towerOutline(observer, target, opts);
     const centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
     const project = viewProjector(g.azimuth, centerAlt);
     const polygons = outline ? (outline.hitPolygons || [outline.hitPoints || outline.points]).map(poly=>poly.map(([a,h])=>project(a,h)).filter(Boolean)).filter(poly=>poly.length>=3) : null;
@@ -613,10 +615,15 @@
       }
       previous = { at, diff };
     }
-    if (!crossings.length && nearest) {
+    if ((!crossings.length || mountainRidge) && nearest) {
       const lo = Math.max(dayMs, nearest.at - 600000), hi = Math.min(end - 1, nearest.at + 600000);
       for (let at = lo; at <= hi; at += 20000) { const e = evaluate(at); if (e.distanceToTarget < nearest.distanceToTarget) nearest = e; }
-      crossings.push(nearest);
+      if(mountainRidge){
+        // The sloping skyline can intersect far from the summit's azimuth crossing.
+        const i=crossings.findIndex(row=>Math.abs(row.at-nearest.at)<3*3600000);
+        if(i<0)crossings.push(nearest);
+        else if(nearest.distanceToTarget<crossings[i].distanceToTarget||(nearest.distanceToTarget===crossings[i].distanceToTarget&&nearest.at<crossings[i].at))crossings[i]=nearest;
+      }else crossings.push(nearest);
     }
     if (extended(body)) {
       const refine = row => {
