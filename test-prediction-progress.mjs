@@ -32,15 +32,19 @@ test('受信本文も45秒期限の対象で、止まったストリームを打
  const c=client(async(_url,{signal})=>{started=true;return new Response(new ReadableStream({start(controller){signal.addEventListener('abort',()=>controller.error(signal.reason),{once:true});}}),{headers:{'content-type':'application/x-ndjson'}});});
  const pending=c.request(place),rejected=assert.rejects(pending,{name:'AbortError'});while(!started)await Promise.resolve();t.mock.timers.tick(45000);await rejected;
 });
-test('古い地点や別画面に進捗を描かず、取得と計算の％を混同しない',()=>{
+test('古い画面を更新せず、文字の件数を出さず、バーは段階を跨いで後退しない',()=>{
  const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),start=html.indexOf('function renderPredictionProgress('),end=html.indexOf('let loadSeq =',start),nodes=new Map();let visible=true;
  const node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',setAttribute(k,v){this[k]=v;},removeAttribute(k){delete this[k];}});return nodes.get(id);};
  const c={loadSeq:2,predictionNeeded:()=>visible,$:node};vm.createContext(c);vm.runInContext(html.slice(start,end),c);
- c.renderPredictionProgress({phase:'fetch',completed:3,total:6},2);assert.equal(node('predictionProgressBar').value,50);assert.match(node('predictionProgressDetail').textContent,/データ取得 3\/6/);
- c.renderPredictionProgress({phase:'calculate',completed:1,total:8},1);assert.equal(node('predictionProgressBar').value,50);
- c.renderPredictionProgress({phase:'calculate',completed:4,total:8},2);assert.match(node('predictionProgressDetail').textContent,/予測計算 4\/8/);
- visible=false;c.renderPredictionProgress({phase:'fetch',completed:6,total:6},2);assert.match(node('predictionProgressDetail').textContent,/予測計算/);
- visible=true;c.renderPredictionProgress({phase:'finish',completed:0,total:0},2);assert.equal(node('predictionProgressBar').value,undefined);
+ const bar=node('predictionProgressBar'),fill=node('predictionProgressFill');
+ c.renderPredictionProgress({phase:'fetch',completed:6,total:6},2);const fetched=+bar['aria-valuenow'];assert.equal(fetched,43);
+ c.renderPredictionProgress({phase:'calculate',completed:0,total:8},2);assert.equal(+bar['aria-valuenow'],fetched);
+ c.renderPredictionProgress({phase:'calculate',completed:4,total:8},1);assert.equal(+bar['aria-valuenow'],fetched);
+ c.renderPredictionProgress({phase:'calculate',completed:4,total:8},2);assert.equal(+bar['aria-valuenow'],71);assert.match(fill.style,/scaleX/);
+ visible=false;c.renderPredictionProgress({phase:'fetch',completed:0,total:6},2);assert.equal(+bar['aria-valuenow'],71);
+ visible=true;c.renderPredictionProgress({phase:'finish'},2);assert.equal(+bar['aria-valuenow'],100);
+ c.renderPredictionProgress({phase:'prepare'},2);assert.equal(bar['aria-valuenow'],undefined);
+ assert(!html.includes('id="predictionProgressDetail"'));assert.match(html,/transition:transform 450ms ease-out/);assert.match(html,/prefers-reduced-motion:reduce/);
 });
 
 test('予測未取得を見どころなしと表示せず、待機中の表を残す',()=>{const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');assert.match(html,/else if \(!bundle\) \{\s*\$\("bestNote"\)\.hidden = true;\s*\$\("cards"\)\.innerHTML = renderSkeleton\(now\);/);});
