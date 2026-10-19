@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="204001531046606279">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-8XpU15ssacQaHFqn5O04IXjhSkT6nA9bVAkKEJbh4v8=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Y0TMPnAAyhQZ+vquPTGgWlV+g4QBe2p1puGKP0ajd7I=' 'sha256-vonbNCtjdFNN0+8MALqbVdM23i0w2WirADDLWY4U4Vg=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-PeTnCjc02TfcaHhg+PDXrWQVvIolk4IhT77mRkqkHAg=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="9991188917132933266">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-+wZKdgRwdYjwIHjaETW+ZaBPF+ExCbNXuJthGVYDM4w=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Y0TMPnAAyhQZ+vquPTGgWlV+g4QBe2p1puGKP0ajd7I=' 'sha256-vonbNCtjdFNN0+8MALqbVdM23i0w2WirADDLWY4U4Vg=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -1020,7 +1020,8 @@
   .dhead.sat .d { color: #2f6fb5; } .dhead.sun .d { color: var(--red); }
   /* 今日は曜日色と独立した中立の囲み＋文字で示す。青＝土曜と操作色を混同しない。 */
   .dhead.today .d { color: var(--text); background: var(--sunk); border-radius: 4px; box-shadow: inset 0 0 0 1px var(--text); padding: 1px 4px; }
-  .dhead.today > span:last-child::after { content: " 今日"; color: var(--text); font-weight: 700; }
+  /* 2026-10-20 試用版：「今日」は曜日の横ではなく日付の上に（ユーザー「日付の上に今日って記載すればいい」） */
+  .dhead.today::before { content: "今日"; color: var(--text); font-weight: 700; margin-bottom: 1px; }
   .dhead.sat > span:last-child { color: var(--weekday-sat, #2f6fb5); }
   .dhead.sun > span:last-child { color: var(--red); }
   :root { --weekday-sat: #2f6fb5; }
@@ -1587,7 +1588,6 @@ button.ui-icon-button::after { content: none; }
     <button type="button" id="resultsTab" role="tab" aria-selected="false" aria-controls="answersView" tabindex="-1">結果<span id="forecastResultsCount" class="forecast-results-count" hidden></span></button>
   </div>
 
-  <div class="card" id="nowcast" hidden></div>
   <div id="status" class="card muted" hidden></div>
   <div id="predictionDataNotice" class="card muted" hidden></div>
 
@@ -2755,7 +2755,6 @@ let atAlmanac = false, almanacPoint = null, almanacTimeline = null;
 let almanacDay = SoramiHomeTime.start(Date.now());
 let atRecords = false;   // 記録画面を見ているか
 let atAdmin = false;     // 管理者画面を見ているか
-let nowcastReady = false;  // 実況が取れたか。画面を切り替えても状態を保つ
 let listScrollY = 0;     // 一覧へ戻ったときに元の位置へ戻す
 
 let bundle = null;       // 取得済みの予報
@@ -2845,7 +2844,6 @@ async function load(force) {
     // 予報が揃ってから URL の場所を反映する。詳細のURLを直接開いた場合も
     // ここで初めてその現象を描ける。
     applyRoute();
-    ensureNowcast();  // Supplementary observations also load when returning from a tool.
   } catch (e) {
     if (seq !== loadSeq) return;
     $("status").hidden = false;
@@ -2872,52 +2870,7 @@ async function load(force) {
   }
 }
 
-// アメダス実況。更新は10分間隔なのでそれより短く取りに行かない。
-let amedasStations = null;
-const nowcastPending = new Map();
-let nowcastFor = null, nowcastAt = 0, nowcastFailure = null;
-function ensureNowcast() {
-  if (!predictionNeeded() || !bundle || !acceptedPrediction || predictionKeyFor(acceptedPrediction.place) !== predictionKeyFor(place)) return;
-  const key = predictionKeyFor(place), now = Date.now();
-  if ((nowcastReady && nowcastFor === key && now - nowcastAt < 600000) || nowcastPending.has(key) || (nowcastFailure?.key === key && now - nowcastFailure.at < 60000)) return;
-  const job = {key}; nowcastPending.set(key,job);
-  job.promise = loadNowcast().then(() => {
-    if (key === predictionKeyFor(place)) { nowcastFor = key; nowcastAt = Date.now(); nowcastFailure = null; }
-  }).catch(() => {
-    if (key === predictionKeyFor(place)) { nowcastReady = false; $("nowcast").hidden = true; nowcastFailure = {key,at:Date.now()}; }
-  }).finally(() => { if (nowcastPending.get(key) === job) nowcastPending.delete(key); });
-}
-async function loadNowcast() {
-  const forPlace = place, key = predictionKeyFor(forPlace), gridElevation = bundle?.home.grid.elevation;
-  const latest = await S.Amedas.latestTime();
-  if (!amedasStations) amedasStations = await S.Amedas.stations();
-  const obs = await S.Amedas.nearest(forPlace.latitude, forPlace.longitude, amedasStations, latest,
-    forPlace.elevation ?? gridElevation);
-  if (key !== predictionKeyFor(place)) return;
-  const daytime = S.Sun.position(obs.observedAt, forPlace.latitude, forPlace.longitude).elevation > 0;
-  const parts = [S.Amedas.condition(obs, daytime)];
-  // 降っているなら量も出す。予報と実況を突き合わせて「ずれています」と警告していたが、
-  // 8モデルの中央値は点数のための道具で、いまの気温を当てる道具ではない。
-  // 現在時刻ですでにモデル間が7℃割れることがあり（東京で 26.1〜33.0℃）、
-  // その差を異常として出していた。比べる相手が違う。測った値をそのまま出す。
-  const rain = obs.precipitation1h ?? obs.precipitation10m;
-  if (rain !== null && rain > 0) parts.push(`${rain.toFixed(1)}mm`);
-  const estimated = S.Amedas.estimatedTemperature(obs);   // 標高差があれば補正した値を出す
-  if (estimated) parts.push(`約${estimated.value.toFixed(1)}℃`);
-  else if (obs.temperature !== null) parts.push(`${obs.temperature.toFixed(1)}℃`);
-  if (obs.humidity !== null) parts.push(`湿度${Math.round(obs.humidity)}%`);
-  let html = `<div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">
-    <span class="muted">実況 ${S.JstCal.hhmm(obs.observedAt)}</span>
-    <strong>${esc(parts.join(" "))}</strong>
-    <span class="tiny" style="margin-left:auto">${esc(obs.station.name)} ${Math.round(obs.distanceKm)}km</span></div>`;
-  const elevationNote = S.Amedas.elevationNote(obs);
-  if (elevationNote) html += `<div class="tiny">${esc(elevationNote)}</div>`;
-  for (const line of S.Amedas.supplementSummary(obs)) html += `<div class="tiny">${esc(line)}</div>`;
-  $("nowcast").innerHTML = html;
-  nowcastReady = true;
-  // 実況は一覧と詳細だけ（render と同じ決まり。ここで別の条件にすると、実況が届いた瞬間に道具の画面へ出る）
-  $("nowcast").hidden = !["list", "detail"].includes(currentView);
-}
+// 2026-10-20 試用版：アメダス実況のカードは出さない（ユーザー「実況カードは完全に消していい」。点数には使っていない）
 
 // ---------------------------------------------------------------- 描画
 function upcoming(entries, now) {
@@ -3446,11 +3399,9 @@ function render() {
   currentView = view;
   if (view === "almanac") renderAlmanac();
   renderMastheadCharacter(view);
-  if (nowcastFor !== predictionKeyFor(place)) nowcastReady = false;
   $("placeRow").hidden = !placeCardShown();
   // 展望台の選択は地点カードの続き。地点を出さない画面では一緒に隠す
   if (!placeCardShown()) $("deckRow").hidden = true; else renderDeckRow();
-  $("nowcast").hidden = !["list", "detail"].includes(view) || !nowcastReady;
 
   if (inDetail) {
     $("detailPane").innerHTML = renderDetailPane(picked, now);
@@ -3533,7 +3484,7 @@ function render() {
   // **出典は消さない。** Open-Meteo・OSM・国土地理院・気象庁は出典の表示が利用の条件で、加工したらその旨も書く
   $("footerBody").innerHTML =
     `${bundle ? S.JstCal.hhmm(bundle.fetchedAt) : "—"} 時点の予報をもとにこのアプリで点数化<br>`
-    + `予報: Open-Meteo ／ 実況: 気象庁アメダス ／ 光害: <a href="https://djlorenz.github.io/astronomy/lp/">Lorenz Light Pollution Atlas 2025</a>（VIIRS） ／ 検索: OSM Nominatim ・ 標高: 国土地理院 ・ 都庁3D: <a href="https://www.geospatial.jp/ckan/dataset/plateau-13104-shinjuku-ku-2025">PLATEAU 新宿区2025</a>（抽出・加工、<a href="https://www.mlit.go.jp/plateau/site-policy/">利用条件</a>） ・ 4施設3D: PLATEAU <a href="https://www.geospatial.jp/ckan/dataset/plateau-13113-shibuya-ku-2025">渋谷区</a>・<a href="https://www.geospatial.jp/ckan/dataset/plateau-13103-minato-ku-2025">港区</a>・新宿区2025（抽出・加工） ・ 2塔3D: 自作（格子・細部は推定）、寸法: <a href="https://www.tokyotower.co.jp/guidance/">東京タワー</a>・<a href="https://www.tokyo-skytree.jp/floor/">スカイツリー</a>、外形参考: PLATEAU港区・墨田区2025 ・ タワー・オブ・テラー3D: 自作、航空写真参考: <a href="https://maps.gsi.go.jp/">国土地理院</a>（全国最新写真） ・ 補完: <a href="https://www.city.kawasaki.jp/530/page/0000170254.html">川崎市</a>・<a href="https://yakei-navi.com/saginumakita/">夜景Navi</a>`;
+    + `予報: Open-Meteo ／ 光害: <a href="https://djlorenz.github.io/astronomy/lp/">Lorenz Light Pollution Atlas 2025</a>（VIIRS） ／ 検索: OSM Nominatim ・ 標高: 国土地理院 ・ 都庁3D: <a href="https://www.geospatial.jp/ckan/dataset/plateau-13104-shinjuku-ku-2025">PLATEAU 新宿区2025</a>（抽出・加工、<a href="https://www.mlit.go.jp/plateau/site-policy/">利用条件</a>） ・ 4施設3D: PLATEAU <a href="https://www.geospatial.jp/ckan/dataset/plateau-13113-shibuya-ku-2025">渋谷区</a>・<a href="https://www.geospatial.jp/ckan/dataset/plateau-13103-minato-ku-2025">港区</a>・新宿区2025（抽出・加工） ・ 2塔3D: 自作（格子・細部は推定）、寸法: <a href="https://www.tokyotower.co.jp/guidance/">東京タワー</a>・<a href="https://www.tokyo-skytree.jp/floor/">スカイツリー</a>、外形参考: PLATEAU港区・墨田区2025 ・ タワー・オブ・テラー3D: 自作、航空写真参考: <a href="https://maps.gsi.go.jp/">国土地理院</a>（全国最新写真） ・ 補完: <a href="https://www.city.kawasaki.jp/530/page/0000170254.html">川崎市</a>・<a href="https://yakei-navi.com/saginumakita/">夜景Navi</a>`;
 
   // 富士山は通信が要るので、予報の描画を待たせない。**失敗しても本体を巻き込まない**
   // 富士山と月は通信が要るので、予報の描画を待たせない。
@@ -4252,7 +4203,6 @@ function applyRoute() {
   render();
   if (atSkyMap) SkyMapUI?.open();
   if (predictionNeeded() && (predictionDirty || !SoramiPrediction.fresh(acceptedPrediction, place, Date.now()))) void load(false);
-  ensureNowcast();
   // 2026-10-15 ユーザー「AstroNotesに切り替えたら一番上のタイトルも変えて。ロゴもある」。FramingとMap（メニューのAstroNotes）を開いている間は題名とマークをAstroNotesに
   const astroNotes = atAim || atSkyMap;
   if (astroNotes) try { localStorage.setItem("sorami.astroLast", atSkyMap ? "skymap" : "aim"); } catch {}
@@ -12933,7 +12883,6 @@ ctx.lineWidth=1;
  document.addEventListener('visibilitychange',()=>{
   if(!document.hidden&&predictionNeeded()){
    if(predictionDirty||!SoramiPrediction.fresh(acceptedPrediction,place,Date.now()))void load(false);
-   ensureNowcast();
   }
  });
  void openStartup();
