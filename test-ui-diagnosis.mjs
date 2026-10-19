@@ -76,12 +76,12 @@ test('同名の山頂は近くの駅に吸収されず、索引の市町村・�
  assert.equal(summit.latitude,35.6252267);assert.equal(station.latitude,35.6311);
  assert.equal(found.filter(r=>Math.abs(r.latitude-35.6252)<0.001).length,1,'山頂は1件にまとまる');
 });
-test('同名GSI地点は座標で区別できる。近いOSM住所は引き継ぐ',async()=>{
+test('同名GSI地点は住所で区別できる。近いOSM住所は引き継ぐ',async()=>{
  const terrain=createRequire(import.meta.url)('./sorami-terrain.js');
- const gsi=[139.76,140.5].map(lon=>({properties:{title:'新宿'},geometry:{coordinates:[lon,35.68]}}));
+ const gsi=[139.76,140.5].map(lon=>({properties:{title:'新宿',addressCode:lon===139.76?'13104':'12211'},geometry:{coordinates:[lon,35.68]}}));
  const osm=[{name:'新宿',display_name:'新宿, 東京都',lat:'35.68001',lon:'139.76001',extratags:{}}];
- const search=runInNewContext(grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?gsi:osm,searchSupplement:async()=>({places:[]}),favorites:[],SoramiAlign:{TARGETS:[]},placeIndex:async()=>({}),SoramiTerrain:{...terrain,searchPlaceIndex:()=>[]},place,URLSearchParams});
- const found=await search('新宿');assert.equal(found.length,2);assert.ok(found.some(r=>r.detail.includes('東京都')));assert.ok(found.some(r=>r.detail.includes('140.50000')));
+ const search=runInNewContext(grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?gsi:osm,searchSupplement:async()=>({places:[],municipalities:{'13104':'東京都新宿区','12211':'千葉県成田市'}}),favorites:[],SoramiAlign:{TARGETS:[]},placeIndex:async()=>({}),SoramiTerrain:{...terrain,searchPlaceIndex:()=>[]},place,URLSearchParams});
+ const found=await search('新宿');assert.equal(found.length,2);assert.ok(found.some(r=>r.detail.includes('東京都')));assert.ok(found.some(r=>r.detail.includes('千葉県成田市')));
  assert.notEqual(found[0].detail,found[1].detail);assert.ok(found.every(r=>!r.detail.includes('km')));
 });
 

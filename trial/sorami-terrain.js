@@ -633,6 +633,8 @@
     const link = parseMapLink(text);
     if (link) return link;
     const t = String(text || "").trim()
+      // コピーした座標対の丸括弧だけを外す。途中の地名や不揃いな括弧は受理しない。
+      .replace(/^(?:\(\s*([^()]*)\s*\)|（\s*([^（）]*)\s*）)$/, (_all, half, full) => (half ?? full).trim())
       .replace(/[，、]/g, ",")                     // 全角の区切り
       .replace(/[０-９．－]/g, (c) => "0123456789.-"["０１２３４５６７８９．－".indexOf(c)])
       // **分・秒・度の記号をそろえる。** iPhone は打った ' と " を自動で丸い引用符（’ ”）に変えるので、

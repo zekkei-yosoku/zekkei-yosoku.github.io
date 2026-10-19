@@ -37,3 +37,13 @@ console.log('OFFICIAL LOOKOUT REGISTRY / LOBBY SEARCH / FALSE POI MATCH OK');
 
 ctx.placeIndex=async()=>({kinds:{v:'展望地'},munis:['大阪府堺市'],places:[['v','堺市役所高層館展望ロビー','',3460000,13548000,null,0]]});
 const relevant=await ctx.searchPlaces('練馬区役所',{localOnly:true});assert.equal(relevant.length,1);assert.equal(relevant[0].name,'練馬区役所');console.log('EXACT FACILITY DOES NOT INCLUDE UNRELATED WARD HALLS OK');
+
+// GSIだけにある候補でも、同名施設を住所で見分けられる。座標そのものは変えない。
+ctx.placeIndex=async()=>({places:[]});ctx.favorites=[];
+vm.runInContext('searchResponseCache.clear()',ctx);
+ctx.fetch=async u=>u.startsWith('data/')?{ok:true,json:async()=>data}:u.includes('msearch.gsi')?{ok:true,json:async()=>[
+ {geometry:{coordinates:[140.597638222222,36.4095667777778]},properties:{title:'ひたち海浜公園',addressCode:'8221'}},
+ {geometry:{coordinates:[140.593820666667,36.3977911111111]},properties:{title:'ひたち海浜公園ＩＣ',addressCode:'08221'}},
+ {geometry:{coordinates:[140.5,36.3]},properties:{title:'ひたち海浜公園（住所不明）',addressCode:'unknown'}}]}:{ok:true,json:async()=>[]};
+const addressed=await ctx.searchPlaces('ひたち海浜公園');
+assert.equal(addressed[0].address,'茨城県ひたちなか市');assert.match(addressed[0].detail,/茨城県ひたちなか市/);assert.equal(addressed[0].latitude,36.4095667777778);assert.equal(addressed.find(r=>r.name==='ひたち海浜公園ＩＣ').address,'茨城県ひたちなか市');assert.match(addressed.find(r=>r.name.includes('住所不明')).detail,/住所を確認できません/);assert.ok(addressed.every(r=>!/[緯経]度/.test(r.detail)));console.log('GSI ADDRESS CODE: municipality, padded code, unknown fallback, coordinates preserved OK');
