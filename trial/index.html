@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="8038938341777650406">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-fFZfPC0HroNiBW0V2SVWs2kr/4o28IEPG4s7l7JLGOM=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Y0TMPnAAyhQZ+vquPTGgWlV+g4QBe2p1puGKP0ajd7I=' 'sha256-vonbNCtjdFNN0+8MALqbVdM23i0w2WirADDLWY4U4Vg=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="1792390514321">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-RE+tofTeOaSeZX9fGp2iI4ZBqMAASz+ii0fdvTJuZyE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Y0TMPnAAyhQZ+vquPTGgWlV+g4QBe2p1puGKP0ajd7I=' 'sha256-vonbNCtjdFNN0+8MALqbVdM23i0w2WirADDLWY4U4Vg=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -1185,20 +1185,20 @@
 .forecast-tabs{display:flex;gap:4px;padding:4px;margin:0 0 12px;border-radius:12px;background:var(--sunk)}.forecast-tabs[hidden]{display:none}.forecast-tabs [role="tab"]{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-height:44px;border:0;border-radius:9px;background:transparent;color:var(--secondary);font-size:0.88rem;font-weight:700}.forecast-tabs [aria-selected="true"]{background:var(--card);color:var(--text);box-shadow:0 1px 4px #0001}.forecast-tabs [role="tab"]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.forecast-results-count{font-size:0.69rem;font-variant-numeric:tabular-nums;background:var(--line);color:var(--text);border-radius:10px;padding:2px 6px;min-width:18px}
 
   /* Shared input roles: celestial body, target, shooting location. */
-  :is(#aimView,#skyMapView) .condition-field{display:grid;grid-template-columns:22px minmax(0,1fr);align-items:center;gap:10px;margin-bottom:12px}
-  :is(#aimView,#skyMapView) .condition-field > :first-child{grid-column:2;grid-row:1;min-width:0;width:100%;box-sizing:border-box}
-  :is(#aimView,#skyMapView) .condition-field > .condition-label{display:contents}
-  :is(#aimView,#skyMapView) .condition-field :is(select,.preview-body-open,.preview-target-open,.place-pick){min-height:52px}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field{display:grid;grid-template-columns:22px minmax(0,1fr);align-items:center;gap:10px;margin-bottom:12px}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field > :first-child{grid-column:2;grid-row:1;min-width:0;width:100%;box-sizing:border-box}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field > .condition-label{display:contents}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field :is(select,.preview-body-open,.preview-target-open,.place-pick){min-height:52px}
   .condition-label svg{flex:none;color:var(--accent)}
-  :is(#aimView,#skyMapView) .condition-field .place-pick > .pin{display:none}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field .place-pick > .pin{display:none}
   #skyMapView .condition-field{max-width:720px}
 
   /* Selection clearing is separate from searching and never deletes a saved place. */
-  :is(#aimView,#skyMapView) .condition-field > .condition-label > svg{grid-column:1;grid-row:1}
-  :is(#aimView,#skyMapView) .condition-field > .condition-label > span{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-  :is(#aimView,#skyMapView) .condition-field:has(.condition-clear:not([hidden])){grid-template-columns:22px minmax(0,1fr) 76px}
-  :is(#aimView,#skyMapView) .condition-field select:has(option:checked[value=""]),:is(#aimView,#skyMapView) .condition-field:has(.condition-clear[hidden]) .place-row .name{color:var(--tertiary)}
-  :is(#aimView,#skyMapView) .condition-field select option{color:var(--text)}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field > .condition-label > svg{grid-column:1;grid-row:1}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field > .condition-label > span{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field:has(.condition-clear:not([hidden])){grid-template-columns:22px minmax(0,1fr) 76px}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field select:has(option:checked[value=""]),:is(#aimView,#skyMapView,#almanacView) .condition-field:has(.condition-clear[hidden]) .place-row .name{color:var(--tertiary)}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field select option{color:var(--text)}
   .condition-clear{grid-column:3;grid-row:1;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:76px;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:9px;background:var(--sunk);color:var(--secondary);font-size:13px;font-weight:600;cursor:pointer;box-sizing:border-box}
   .condition-clear[hidden]{display:none}
   .condition-clear svg{color:inherit}
@@ -1303,8 +1303,8 @@
 /* 文の形の3行（2026-10-06）。どこからの地点カードも、天体・目標の欄と同じ面・枠・字の大きさにする */
 #aimView .aim-say #aimTitle{margin-bottom:0}
 #aimView .aim-say-from{margin-top:14px}
-:is(#aimView,#skyMapView) .aim-say .aim-place-card{background:var(--card);margin-bottom:0;padding:0 2px 0 12px;border:1px solid var(--line);border-radius:12px}
-:is(#aimView,#skyMapView) .aim-say .aim-place-card .place-pick{min-height:52px;gap:8px}
+:is(#aimView,#skyMapView,#almanacView) .aim-say .aim-place-card{background:var(--card);margin-bottom:0;padding:0 2px 0 12px;border:1px solid var(--line);border-radius:12px}
+:is(#aimView,#skyMapView,#almanacView) .aim-say .aim-place-card .place-pick{min-height:52px;gap:8px}
 
 #aimView #aimTargetPick .aim-pick select{display:none}
 #aimView .preview-target-open{position:absolute;inset:0;width:100%;height:100%;min-height:0;padding:0;background:transparent;border:0;border-radius:inherit;cursor:pointer}
@@ -1338,22 +1338,22 @@ main:has(>#aimView:not([hidden],[data-locked])){padding-bottom:calc(var(--aim-fo
 #planeView[data-locked]>:not(#planeAccess){display:none!important}
 #issView[data-locked]>:not(#issAccess){display:none!important}
 #recordsView[data-locked]>:not(#recordsAccess),#answersView[data-locked]>:not(#answersAccess){display:none!important}
-:is(#aimView,#skyMapView) .tool-datetime-footer{position:fixed;z-index:35;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid rgba(0,0,0,.16);box-shadow:0 -4px 16px rgba(0,0,0,.12);padding:2px max(12px,env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
-:is(#aimView,#skyMapView) .tool-datetime-footer .tool-datetime-row{display:grid;grid-template-columns:44px auto minmax(0,1fr) 44px 44px;align-items:center;gap:2px;max-width:780px;margin:0 auto;padding:0;border:0}
-:is(#aimView,#skyMapView) .tool-datetime-footer :is(#aimPrev,#aimNext,#skyMapPrev,#skyMapNext,.preview-time-more,#skyMapTimeMore).tool-datetime-nav{width:44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--text);font-size:20px;line-height:1}
-:is(#aimView,#skyMapView) .tool-datetime-footer :is(#aimCalendarOpen,#skyMapCalendarOpen).tool-datetime-date{min-height:44px;padding:0 4px;border:0;background:transparent;justify-content:flex-start;font-size:18px;font-weight:700}
-:is(#aimView,#skyMapView) .tool-datetime-footer .tool-datetime-clock{justify-self:end;max-width:100%;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;border:0;border-radius:0;background:transparent;overflow:visible}
-:is(#aimView,#skyMapView) .tool-datetime-footer :is(#previewTime,#skyMapTime).tool-datetime-time{flex:none;width:auto;min-height:24px;padding:0 4px;border:0;background:transparent;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center}
-[data-theme=dark] :is(#aimView,#skyMapView) .tool-datetime-footer{background:var(--card);border-top-color:rgba(255,255,255,.2);box-shadow:0 -6px 20px rgba(0,0,0,.7)}
-:is(#aimView,#skyMapView) .tool-datetime-footer [data-pointer-focus]:focus,#aimView button[data-pointer-focus]:focus{outline:none}
-:is(#aimView,#skyMapView) .preview-footer-rel{max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:10px;line-height:1.2;color:var(--secondary);white-space:nowrap}
-:is(#aimView,#skyMapView) .tool-datetime-footer .tool-datetime-track{max-width:780px;margin:0 auto;padding:2px 0;touch-action:none;cursor:pointer}
-:is(#aimView,#skyMapView) .tool-datetime-footer .tool-datetime-track>input{display:block;width:100%;height:24px;margin:0;pointer-events:none;accent-color:var(--accent)}:is(#aimView,#skyMapView) .tool-datetime-footer .tool-datetime-track>input:disabled{opacity:.4}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer{position:fixed;z-index:35;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid rgba(0,0,0,.16);box-shadow:0 -4px 16px rgba(0,0,0,.12);padding:2px max(12px,env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .tool-datetime-row{display:grid;grid-template-columns:44px auto minmax(0,1fr) 44px 44px;align-items:center;gap:2px;max-width:780px;margin:0 auto;padding:0;border:0}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer :is(#aimPrev,#aimNext,#skyMapPrev,#skyMapNext,.preview-time-more,#skyMapTimeMore).tool-datetime-nav{width:44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--text);font-size:20px;line-height:1}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer :is(#aimCalendarOpen,#skyMapCalendarOpen).tool-datetime-date{min-height:44px;padding:0 4px;border:0;background:transparent;justify-content:flex-start;font-size:18px;font-weight:700}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .tool-datetime-clock{justify-self:end;max-width:100%;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;border:0;border-radius:0;background:transparent;overflow:visible}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer :is(#previewTime,#skyMapTime).tool-datetime-time{flex:none;width:auto;min-height:24px;padding:0 4px;border:0;background:transparent;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center}
+[data-theme=dark] :is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer{background:var(--card);border-top-color:rgba(255,255,255,.2);box-shadow:0 -6px 20px rgba(0,0,0,.7)}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer [data-pointer-focus]:focus,#aimView button[data-pointer-focus]:focus{outline:none}
+:is(#aimView,#skyMapView,#almanacView) .preview-footer-rel{max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:10px;line-height:1.2;color:var(--secondary);white-space:nowrap}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .tool-datetime-track{max-width:780px;margin:0 auto;padding:2px 0;touch-action:none;cursor:pointer}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .tool-datetime-track>input{display:block;width:100%;height:24px;margin:0;pointer-events:none;accent-color:var(--accent)}:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .tool-datetime-track>input:disabled{opacity:.4}
 #aimView .aim-look-time,#aimView .preview-map-time>input,#aimView .preview-map-time output,#aimView .preview-map-time .aim-time-heading>span{display:none}#aimView .preview-map-time .aim-time-heading{justify-content:flex-end}
 #aimView .preview-time-dialog .sheet-body{display:grid;gap:8px}#aimView .preview-time-dialog .tiny{margin:8px 0 0;color:var(--secondary)}#aimView .preview-time-dialog #previewReference{width:100%;min-height:44px;border:1px solid var(--line);border-radius:8px;font-size:15px}#aimView .preview-time-dialog #previewTimeScope{width:100%;margin:0}#aimView .preview-time-dialog #previewTimeScope button{flex:1}
-:is(#aimView,#skyMapView) .tool-datetime-footer .preview-date-weekday{display:inline}
-@media(max-width:359px){:is(#aimView,#skyMapView) .tool-datetime-footer .preview-date-weekday{display:none}:is(#aimView,#skyMapView) .tool-datetime-footer :is(#aimCalendarOpen,#skyMapCalendarOpen).tool-datetime-date{font-size:17px;padding:0 2px}:is(#aimView,#skyMapView) .tool-datetime-footer :is(#previewTime,#skyMapTime).tool-datetime-time{font-size:15px;padding:0 2px}}
-@media(min-width:960px){:is(#aimView,#skyMapView) .tool-datetime-footer{left:50%;right:auto;width:min(780px,calc(100vw - 40px));transform:translateX(-50%);border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0}}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .preview-date-weekday{display:inline}
+@media(max-width:359px){:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .preview-date-weekday{display:none}:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer :is(#aimCalendarOpen,#skyMapCalendarOpen).tool-datetime-date{font-size:17px;padding:0 2px}:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer :is(#previewTime,#skyMapTime).tool-datetime-time{font-size:15px;padding:0 2px}}
+@media(min-width:960px){:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer{left:50%;right:auto;width:min(780px,calc(100vw - 40px));transform:translateX(-50%);border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0}}
 /* 画角調整の各行は項目名の列幅をそろえ、選択欄の左端を一列にする（2026-10-05 総点検。名前の長さで72〜135pxにばらついていた） */
 #aimView .preview-camera-dialog .aim-grid-control,#aimView .preview-camera-dialog .aim-lens-row{display:grid;grid-template-columns:7.5rem minmax(0,1fr);align-items:center;gap:10px}#aimView .preview-camera-dialog .preview-sensor-label{font-size:14px}#aimView .preview-camera-dialog .aim-lens-row select,#aimView .preview-camera-dialog .aim-grid-control select{width:100%;min-width:0}
   /* trial 2026-10-16: 構図の撮影地タブは地図へ集約（その日に重なる線・自分の地点は地図に出す） */
@@ -1394,10 +1394,10 @@ main:has(>#skyMapView:not([hidden])){padding-bottom:calc(var(--sky-footer-h,100p
 /* 予測の取得状態は一覧・詳細のもの。道具の画面の上には出さない */
 main:has(>:is(#aimView,#planeView,#issView,#recordsView,#answersView,#skyMapView,#adminView):not([hidden]))>:is(#status,#predictionDataNotice){display:none}
 .tool-datetime-footer .tool-datetime-date .preview-date-label{white-space:nowrap}.sky-map-controls{max-width:780px}.sky-map-content>.place-row{max-width:780px}.aim-cal-mark{font-weight:700}.aim-cal-grid button:not([aria-pressed="true"]) .aim-cal-mark{color:var(--text)}
-:is(#aimView,#skyMapView) .tool-datetime-time::-webkit-calendar-picker-indicator{display:none}.sky-map-content>.place-row .name{font-size:16px}.sky-map-content>.place-row{margin-bottom:10px}.sky-map-wrap[data-pick-mode] .mappin{transform:translate(-50%,-50%)}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-time::-webkit-calendar-picker-indicator{display:none}.sky-map-content>.place-row .name{font-size:16px}.sky-map-content>.place-row{margin-bottom:10px}.sky-map-wrap[data-pick-mode] .mappin{transform:translate(-50%,-50%)}
 .sky-map-point-coordinates{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .sky-map-controls .aim-say select{font-size:16px;min-height:52px;padding:10px 12px;border-radius:12px}.sky-map-content>.aim-say{max-width:780px}.sky-map-content .aim-say .muted{font-size:11px}
-@media(max-width:359px){:is(#aimView,#skyMapView) .tool-datetime-footer .preview-date-year{display:block;font-size:11px;line-height:12px;font-weight:400}:is(#aimView,#skyMapView) .tool-datetime-footer .preview-date-year-sep{display:none}:is(#aimView,#skyMapView) .tool-datetime-footer :is(#previewTime,#skyMapTime).tool-datetime-time{font-size:16px}}
+@media(max-width:359px){:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .preview-date-year{display:block;font-size:11px;line-height:12px;font-weight:400}:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .preview-date-year-sep{display:none}:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer :is(#previewTime,#skyMapTime).tool-datetime-time{font-size:16px}}
 .sky-map-wrap .map-layer-menu{z-index:6}.sky-map-wide .sky-map-point-tools{top:calc(8px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left))}.sky-map-wide .sky-map-expand{top:calc(8px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right))}.sky-map-wide .map-layers-btn{top:calc(58px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right))}.sky-map-wide .map-layer-menu{top:calc(104px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right))}
 .sky-map-footer .sky-map-events{display:flex;flex-wrap:nowrap;gap:4px;overflow-x:auto;margin:0;max-width:780px;margin-inline:auto}.sky-map-footer .sky-map-events .chip{flex:none;padding:3px 8px;min-height:44px;font-size:12px;white-space:nowrap;background:transparent}.sky-map-passages{display:flex;flex-direction:column;gap:0;max-width:780px;margin:0 auto;color:var(--secondary);font-size:12px;min-height:0}.sky-map-passages:empty{display:none}.sky-map-passages .chip{flex:none;min-height:44px;padding:3px 8px;font-size:12px;white-space:nowrap;color:var(--text)}.sky-map-passages-head{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:12px;line-height:1.5}.sky-map-passages-label{color:#c876ff;white-space:nowrap}.sky-map-target-angle{white-space:nowrap}.sky-map-passages-values{display:flex;align-items:center;gap:4px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}.sky-map-status-row{display:flex;align-items:center;gap:6px;font-size:12px}.sky-map-status-row #skyMapStatus{flex:1;margin:0}.sky-map-status-row:has(#skyMapStatus:empty):has(#skyMapRetry[hidden]){display:none}.sky-map-status-row #skyMapRetry{min-height:44px;font-size:12px}.sky-map-footer .sky-map-events{overflow-y:hidden;scrollbar-width:thin}.sky-map-passages .tiny{white-space:nowrap;padding:6px 0}.sky-map-scrub{display:flex;align-items:center;gap:5px;max-width:780px;margin:0 auto}.sky-map-scrub .tool-datetime-track{flex:1;min-width:0}.sky-map-scrub-modes{display:flex;gap:2px}.sky-map-scrub-modes button{min-height:44px;min-width:44px;padding:2px 5px;font-size:11px;border:0;background:transparent;color:var(--secondary)}.sky-map-scrub-modes button[aria-pressed="true"]{color:var(--accent);background:var(--sunk)}.sky-map-angles{padding:0 16px;font-size:14px}
 
@@ -1461,27 +1461,27 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#answersView,#skyMapView
 #aimView .preview-footer-track{position:relative;display:block;touch-action:pan-x;height:44px;max-width:240px;margin:0 auto;width:100%}
 #aimView .preview-footer-track>input[hidden]{display:none}
 
-:is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub .tool-datetime-track{max-width:240px;margin:0;padding:0;touch-action:pan-x}
-:is(#aimView,#skyMapView) .sky-map-scrub-modes button{color:var(--accent);background:var(--sunk)}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .sky-map-scrub .tool-datetime-track{max-width:240px;margin:0;padding:0;touch-action:pan-x}
+:is(#aimView,#skyMapView,#almanacView) .sky-map-scrub-modes button{color:var(--accent);background:var(--sunk)}
 
 #skyMapView #skyMapTrack{max-width:none;width:100%;height:52px}
 /* Full-width ruler with a fixed unit button and a viewport-centered selection mark. */
-:is(#aimView,#skyMapView) .tool-datetime-footer{padding-inline:0}
-:is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub{position:relative;width:100%;max-width:none;margin:0;gap:0;min-height:52px}
-:is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub .tool-datetime-track{flex:1 1 100%;width:100%;max-width:none;margin:0;padding:0;height:52px;min-width:0}
-:is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-timeline{height:52px}
-:is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes{position:absolute;z-index:2;left:0;top:0;border-radius:0;overflow:visible;box-shadow:none;background:var(--timeline-panel-bg,var(--card))}
-:is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes button{display:grid;grid-template-columns:max-content max-content;justify-content:center;align-items:center;gap:4px;text-align:center;line-height:1.25;white-space:nowrap;box-sizing:border-box;width:64px;height:52px;min-height:52px;padding:0;border:0;border-radius:0;background:var(--timeline-panel-bg,var(--card))}
-:is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-timeline-center{top:auto;bottom:0;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:7px solid var(--accent);background:none}
-:is(#aimView,#skyMapView) .tool-datetime-footer .tool-datetime-row{padding-inline:max(8px,env(safe-area-inset-left)) max(8px,env(safe-area-inset-right))}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer{padding-inline:0}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .sky-map-scrub{position:relative;width:100%;max-width:none;margin:0;gap:0;min-height:52px}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .sky-map-scrub .tool-datetime-track{flex:1 1 100%;width:100%;max-width:none;margin:0;padding:0;height:52px;min-width:0}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .sky-map-timeline{height:52px}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .sky-map-scrub-modes{position:absolute;z-index:2;left:0;top:0;border-radius:0;overflow:visible;box-shadow:none;background:var(--timeline-panel-bg,var(--card))}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .sky-map-scrub-modes button{display:grid;grid-template-columns:max-content max-content;justify-content:center;align-items:center;gap:4px;text-align:center;line-height:1.25;white-space:nowrap;box-sizing:border-box;width:64px;height:52px;min-height:52px;padding:0;border:0;border-radius:0;background:var(--timeline-panel-bg,var(--card))}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .sky-map-timeline-center{top:auto;bottom:0;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:7px solid var(--accent);background:none}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .tool-datetime-row{padding-inline:max(8px,env(safe-area-inset-left)) max(8px,env(safe-area-inset-right))}
 #skyMapView .sky-map-readouts{padding-inline:8px}
 
-:is(#aimView,#skyMapView) .tool-datetime-footer{--timeline-panel-bg:var(--card)}
-[data-theme=dark] :is(#aimView,#skyMapView) .tool-datetime-footer{--timeline-panel-bg:var(--card)}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer{--timeline-panel-bg:var(--card)}
+[data-theme=dark] :is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer{--timeline-panel-bg:var(--card)}
 
-:is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes:after{content:"";position:absolute;left:100%;top:0;bottom:0;width:14px;background:linear-gradient(to right,var(--timeline-panel-bg,var(--card)),transparent);pointer-events:none}
-:is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes button:after{content:"↔";font-size:10px;line-height:1;color:var(--secondary)}
-:is(#aimView,#skyMapView) .tool-datetime-footer .sky-map-scrub-modes button:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .sky-map-scrub-modes:after{content:"";position:absolute;left:100%;top:0;bottom:0;width:14px;background:linear-gradient(to right,var(--timeline-panel-bg,var(--card)),transparent);pointer-events:none}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .sky-map-scrub-modes button:after{content:"↔";font-size:10px;line-height:1;color:var(--secondary)}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .sky-map-scrub-modes button:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
 
 /* 2026-10-15: 全画面・全入力方法でフォーカス枠とタップの強調を表示しない。
    焦点移動、入力カーソル、選択済みの状態表示は維持する。 */
@@ -1563,18 +1563,18 @@ button.ui-icon-button::after { content: none; }
 .pk-row > span:first-child { color: var(--secondary); white-space: nowrap; }
 .pk-row > span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; }
 /* Shared visible choices: hidden native sources must not occupy the input grid. */
-:is(#aimView,#skyMapView) .condition-field .condition-choice{box-sizing:border-box;min-width:0;width:100%;height:52px;min-height:52px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;background-color:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;font-size:16px;font-weight:400}
-:is(#aimView,#skyMapView) .condition-choice>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-:is(#aimView,#skyMapView) .condition-choice>svg{width:12px;height:12px;flex:none;color:var(--secondary)}
+:is(#aimView,#skyMapView,#almanacView) .condition-field .condition-choice{box-sizing:border-box;min-width:0;width:100%;height:52px;min-height:52px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;background-color:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;font-size:16px;font-weight:400}
+:is(#aimView,#skyMapView,#almanacView) .condition-choice>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:is(#aimView,#skyMapView,#almanacView) .condition-choice>svg{width:12px;height:12px;flex:none;color:var(--secondary)}
 #skyMapView #skyMapTargetOpen{grid-column:2;grid-row:1}
 #skyMapView #skyMapTargetOpen[data-empty="true"]{color:var(--tertiary)}
 #skyMapView .sky-map-controls{margin:0}
-:is(#aimView,#skyMapView) .aim-say-from{margin-top:0}
+:is(#aimView,#skyMapView,#almanacView) .aim-say-from{margin-top:0}
 #skyMapView select.condition-choice{appearance:none;padding-right:36px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23aaa' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-position:right 12px center;background-size:12px 12px;background-repeat:no-repeat}
 
 #aimView #aimTargetPick .aim-pick{height:52px;min-height:52px}
 
-:is(#aimView,#skyMapView) .condition-field > :first-child{margin:0}
+:is(#aimView,#skyMapView,#almanacView) .condition-field > :first-child{margin:0}
 :is(#aimView .aim-titlebar,#skyMapView .sky-map-head){min-height:44px;margin-bottom:16px}
 :is(#aimView .aim-titlebar,#skyMapView .sky-map-head) h2{margin:0}
 #aimView :is(#aimTargetNote,#aimHeightNote):empty{display:none}
@@ -1903,6 +1903,36 @@ button.ui-icon-button::after { content: none; }
     </div>
   </div>
 
+  <style>
+  #almanacView{--alm-sun:#c58321;--alm-moon:#6388b7;--alm-moon-dark:#182332;--alm-grid:color-mix(in srgb,var(--secondary) 22%,transparent);--alm-day:color-mix(in srgb,var(--alm-sun) 5%,transparent);max-width:1100px;margin:0 auto}
+  #almanacView{padding-bottom:150px}#almanacView #almanacDateRow{display:grid;grid-template-columns:44px minmax(0,1fr) 44px auto;align-items:center;gap:4px;max-width:780px;margin:auto}#almanacDateRow button{min-height:44px;background:transparent;border:0}#almanacCalendarOpen{display:flex;justify-content:center;align-items:center;gap:4px;font-size:18px;font-weight:700}#almanacTrack{height:52px;position:relative}#almanacTimeline{height:52px}#almanacFooter{z-index:25}#almanacFooter #almanacTrack{padding:0}
+  #almanacView h1{letter-spacing:.02em;margin-bottom:8px}#almanacView h2{font-size:1.08rem;margin:0 0 8px}#almanacView h3{font-size:.85rem;text-align:center;font-weight:500;margin:8px 0}
+  #almanacOutput{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0}#almanacOutput>.card{margin:0;padding:22px;border:1px solid var(--alm-grid)}
+  .alm-panel{border-top:1px solid var(--alm-grid);padding:26px 0;margin:8px 0}.alm-caption{color:var(--secondary);font-size:.76rem;line-height:1.7;margin:0 0 12px}.alm-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:24px 0 30px}.alm-stat{padding:8px 0 8px 18px;border-left:2px solid var(--alm-grid);display:flex;flex-direction:column}.alm-stat strong{font-size:1.7rem;font-weight:500;letter-spacing:-.03em;margin:2px 0 8px;font-variant-numeric:tabular-nums}.alm-stat .alm-caption{margin:0}.alm-legend{display:flex;gap:22px;font-size:.8rem;justify-content:flex-end}.alm-sun{color:var(--alm-sun)}.alm-moon{color:var(--alm-moon)}.alm-chart{display:block;width:100%;height:auto;overflow:visible}.alm-readout{text-align:center;font-size:.82rem;margin:14px 0 8px;font-variant-numeric:tabular-nums}.alm-range{width:100%;min-height:44px;accent-color:var(--accent)}.alm-two{display:grid;grid-template-columns:2fr 1fr;gap:28px}.alm-compasses{display:grid;grid-template-columns:1fr 1fr;gap:12px}.alm-compass-item svg{display:block;width:100%;height:auto}.alm-phase{display:block;width:160px;max-width:85%;margin:28px auto 16px}.alm-phase-note{text-align:center;font-size:.8rem}.alm-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:.82rem;font-variant-numeric:tabular-nums}.alm-table th,.alm-table td{padding:14px 4px;border-bottom:1px solid var(--alm-grid);text-align:center;font-weight:400}.alm-table th{color:var(--secondary)}.alm-table-wrap{width:100%}
+  @media(prefers-color-scheme:dark){#almanacView{--alm-sun:#edbf70;--alm-moon:#9cbbdf}}
+  @media(max-width:600px){#almanacOutput{gap:10px}#almanacOutput>.card{padding:14px}#almanacOutput strong{font-size:.82rem}#almanacOutput .card>div{display:block!important}#almanacOutput .card>div>span{display:block;font-size:.85rem;margin-top:8px}.alm-summary{gap:8px}.alm-stat{padding-left:9px}.alm-stat strong{font-size:1.12rem}.alm-stat .alm-caption{font-size:.65rem}.alm-two{grid-template-columns:1fr;gap:0}.alm-panel{padding:22px 0}.alm-table{font-size:.72rem}.alm-table th,.alm-table td{padding:12px 1px}.alm-phase{width:140px;margin-top:12px}}
+  </style>
+  <section id="almanacView" aria-labelledby="almanacTitle" hidden>
+    <p class="tiny" style="letter-spacing:.18em;margin-bottom:10px">SUN & MOON · DAILY NOTES</p>
+    <h1 id="almanacTitle" style="font-size:1.65rem">太陽と月の出入り</h1>
+    <p class="muted">時刻、方位、空の動き。1日の太陽と月を、ひとつのページに。</p>
+    <button type="button" class="place-pick card" id="almanacPlace" style="width:100%;text-align:left"></button>
+    <input type="hidden" id="almanacDate">
+    <p class="tiny">時刻は日本標準時（JST / UTC+9）・方位は北を0°として時計回りです。対応期間：2020〜2030年。</p>
+    <p id="almanacRangeNote" class="tiny" role="status" hidden></p>
+    <div id="almanacOutput" aria-live="polite"></div>
+    <div id="almanacDashboard"></div>
+    <footer id="almanacFooter" aria-label="観測の日付">
+      <div id="almanacDateRow">
+        <button type="button" id="almanacPrev" aria-label="前の日">‹</button>
+        <button type="button" id="almanacCalendarOpen" aria-label="日付を選ぶ" aria-haspopup="dialog"></button>
+        <button type="button" id="almanacNext" aria-label="次の日">›</button>
+        <button type="button" class="chip" id="almanacToday">今日</button>
+      </div>
+      <div id="almanacTrack" class="preview-footer-track"><div id="almanacTimeline" class="sky-map-timeline" tabindex="0" role="slider" aria-label="日付を横スクロールして調整"></div><span class="sky-map-timeline-center" aria-hidden="true"></span></div>
+    </footer>
+    <p class="tiny">遮るもののない水平な地平線に、天体の上端が出入りする基準時刻です。標準的な大気差を含みます。山・建物・標高による地平線の変化や雲は含めないため、実際に見える時刻とは異なります。</p>
+  </section>
   <div id="recordsView" hidden>
     <div id="recordsAccess" hidden><div class="sky-map-head"><h2>記録</h2></div><div class="card"><p id="recordsAccessMessage"></p><button id="recordsAccessLogin" class="fav-btn primary">ログイン</button></div></div>
     <div class="sky-map-head" id="recordsHeading"><h2>記録</h2></div>
@@ -1990,6 +2020,7 @@ button.ui-icon-button::after { content: none; }
     <button id="framingMenu" data-tool="#/aim/tower" data-id="diamond pearl tower" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m8 0h5v-5"/><path d="m6 17 4-5 3 3 3-5 3 7"/><circle cx="9" cy="8" r="1"/></svg>構図</b><span>天体と風景が重なる日時と撮影地を探す</span></button>
     <button id="mapMenu" data-tool="#/skymap" data-id="skymap"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16"/></svg>地図</b><span>撮影地からの天体の方向と高度を調べる</span></button>
     <button id="recordsMenu" data-tool="#/records" data-id="records"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>記録</b><span>撮影ポイントと、そこから見えたものを残す</span></button>
+    <button id="almanacMenu"><b>太陽と月の出入り</b><span>日の出・日の入り、月の出・月の入りの時刻と方位</span></button>
     <button data-tool="#/plane" data-id="plane"><b>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
     <button data-tool="#/iss" data-id="iss"><b>ISSの月面通過</b><span>ISSが月や太陽の前を横切る場所と時刻</span></button>
     </section>
@@ -2337,6 +2368,7 @@ button.ui-icon-button::after { content: none; }
 
 
 <script src="sorami-assets.js?v=2324625497146189621"></script>
+<script src="sorami-almanac-dashboard.js?v=6b4ac1350da5"></script>
 <script src="sorami-access.js?v=17412933104240943276"></script>
 <script src="sorami-align.js?v=16914866522493769858"></script>
 <script src="sorami-moon.js?v=10230678456179898054"></script>
@@ -2721,6 +2753,8 @@ let atAim = false;       // 「ねらう」のページを見ているか
 let atPlane = false;     // 「月丼」のページを見ているか
 let atIss = false;       // 「ISSの月面通過」のページを見ているか
 let atAnswers = false;
+let atAlmanac = false, almanacPoint = null, almanacTimeline = null;
+let almanacDay = Math.floor((Date.now()+32400000)/86400000)*86400000-32400000;
 let atRecords = false;   // 記録画面を見ているか
 let atAdmin = false;     // 管理者画面を見ているか
 let nowcastReady = false;  // 実況が取れたか。画面を切り替えても状態を保つ
@@ -3296,6 +3330,7 @@ function rerenderList() {
  * 画面を足すときは、ここに1行足して `routeFromHash` に道を足すだけにする。
  */
 const VIEWS = [
+  { id: "almanac", el: "almanacView", on: () => atAlmanac },
   { id: "detail",  el: "detailView",  on: () => !!(picked && weeks[picked]) },
   { id: "admin",   el: "adminView",   on: () => atAdmin },
   { id: "records", el: "recordsView", on: () => atRecords },
@@ -3411,6 +3446,7 @@ function render() {
   // ダイヤモンド富士や月丼の上に出すと、何の地点なのか分からなかった（2026-09-30 ユーザー指摘）。
   // それらの道具は自分のスポット一覧を持つ
   currentView = view;
+  if (view === "almanac") renderAlmanac();
   renderMastheadCharacter(view);
   if (nowcastFor !== predictionKeyFor(place)) nowcastReady = false;
   $("placeRow").hidden = !placeCardShown();
@@ -4014,7 +4050,76 @@ function wireOutcomes(root) {
 //   #             → 一覧
 //   #/sunset      → 夕焼けの直近の回
 //   #/sunset/1756… → 夕焼けの特定の日
+// Almanac uses the same upper-limb state and root solver as the existing Moon detail.
+// Keep the civil-day interval half open so midnight belongs to exactly one day.
+function almanacEvents(body, day, point) {
+  const observer = { latitude: point.latitude, longitude: point.longitude, elevation: 0 };
+  if (!Number.isFinite(observer.latitude) || Math.abs(observer.latitude)>90 || !Number.isFinite(observer.longitude) || Math.abs(observer.longitude)>180) throw Error('Invalid observer');
+  const state = at => SoramiAstro[body](at, observer);
+  const value = at => { const v=state(at).upperLimbAltitude; if(!Number.isFinite(v))throw Error('Unavailable state');return v; };
+  const events=[]; let before=value(day);
+  for(let end=day+60000;end<=day+86400000;end+=60000){
+    const after=value(end);
+    if((before<0&&after>=0)||(before>=0&&after<0)){
+      const at=SoramiAstro.findCrossing(value,end-60000,end,{toleranceMs:100});
+      if(at!==null&&at>=day&&at<day+86400000)events.push({at,kind:after>before?'rise':'set',azimuth:state(at).azimuth});
+    }
+    before=after;
+  }
+  return events;
+}
+function renderAlmanac() {
+  const p=almanacPoint||place, input=$("almanacDate");
+  const date = day => new Date(day+32400000).toISOString().slice(0,10);
+  const lower=Date.parse('2020-01-01T00:00:00+09:00'), upper=Date.parse('2030-12-31T00:00:00+09:00');
+  const outOfRange=almanacDay<lower||almanacDay>upper;
+  almanacDay=Math.max(lower,Math.min(upper,almanacDay));
+  $("almanacRangeNote").hidden=!outOfRange;
+  $("almanacRangeNote").textContent=outOfRange?"対応期間は2020〜2030年です。範囲内の最も近い日を表示しました。":"";
+  input.value=date(almanacDay);
+  if(typeof ToolDateTimeBar!=='undefined'&&typeof SoramiScrollTimeline!=='undefined'){
+    if(!almanacTimeline){
+      ToolDateTimeBar.decorate({footer:$("almanacFooter"),row:$("almanacDateRow"),date:$("almanacCalendarOpen"),prev:$("almanacPrev"),next:$("almanacNext"),track:$("almanacTrack")});
+      ToolDateTimeBar.calendar({button:$("almanacCalendarOpen"),getAt:()=>almanacDay,setDay:day=>{almanacDay=day;renderAlmanac();}});
+      ToolDateTimeBar.trackPointerFocus($("almanacFooter"));
+      almanacTimeline=SoramiScrollTimeline.mount({root:$("almanacTimeline"),getAt:()=>almanacDay,getMode:()=> 'date',enabled:()=>atAlmanac,getObserver:()=>({latitude:(almanacPoint||place).latitude,longitude:(almanacPoint||place).longitude,elevation:0}),sun:(at,o)=>SoramiAstro.sun(at,o),onChange:at=>{const day=Math.round((at+32400000)/86400000)*86400000-32400000;const clamped=Math.max(lower,Math.min(upper,day));if(clamped!==almanacDay){almanacDay=clamped;renderAlmanac();}},onSettle:()=>almanacTimeline.sync(almanacDay,'date'),format:at=>date(at).slice(5).replace('-','/'),describe:at=>ToolDateTimeBar.label(at)});
+    }
+    ToolDateTimeBar.dateText($("almanacCalendarOpen"),almanacDay);
+    $("almanacCalendarOpen").setAttribute('aria-label',ToolDateTimeBar.label(almanacDay)+'・日付を選ぶ');
+    almanacTimeline.sync(almanacDay,'date');
+  }
+  $("almanacPlace").textContent=`観測地点：${p.name}　変更 ›`;
+  $("almanacPlace").onclick=()=>openPlaceSheet('almanac');
+  $("almanacPrev").disabled=almanacDay<=lower;$("almanacNext").disabled=almanacDay>=upper;
+  const move=days=>{almanacDay+=days*86400000;renderAlmanac();};
+  $("almanacPrev").onclick=()=>move(-1);$("almanacNext").onclick=()=>move(1);
+  $("almanacToday").onclick=()=>{almanacDay=Math.floor((Date.now()+32400000)/86400000)*86400000-32400000;renderAlmanac();};
+  input.onchange=()=>{const n=Date.parse(input.value+'T00:00:00+09:00');if(Number.isFinite(n)&&n>=lower&&n<=upper){almanacDay=n;renderAlmanac();}else{input.value=date(almanacDay);}};
+  $("almanacMenu")?.setAttribute('aria-current','page');
+  const out=$("almanacOutput");out.replaceChildren();
+  for(const [body,name] of [['sun','太陽'],['moon','月']]){
+    const card=document.createElement('div');card.className='card';
+    const heading=document.createElement('h2');heading.style.fontSize='1rem';heading.textContent=name;card.append(heading);
+    try{
+      const events=almanacEvents(body,almanacDay,p);
+      for(const [kind,label] of [['rise',body==='sun'?'日の出':'月の出'],['set',body==='sun'?'日の入り':'月の入り']]){
+        const hits=events.filter(e=>e.kind===kind),row=document.createElement('div');
+        row.style.cssText='display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line)';
+        const title=document.createElement('strong');title.textContent=label;
+        const result=document.createElement('span');result.style.fontVariantNumeric='tabular-nums';
+        result.textContent=hits.length?hits.map(e=>{const t=new Date(e.at+32400000).toISOString().slice(11,16);return `${t} ・ 方位 ${e.azimuth.toFixed(1)}°`;}).join(' / '):'この日はありません';
+        row.append(title,result);card.append(row);
+      }
+    }catch{
+      const message=document.createElement('p');message.textContent='時刻を計算できませんでした。地点と日付を確認してください。';
+      const retry=document.createElement('button');retry.type='button';retry.className='chip';retry.textContent='再計算';retry.onclick=renderAlmanac;card.append(message,retry);
+    }
+    out.append(card);
+  }
+  if(globalThis.SoramiAlmanacDashboard)SoramiAlmanacDashboard.render($("almanacDashboard"),almanacDay,p,almanacEvents,SoramiAstro);
+}
 function routeFromHash() {
+  if (location.hash === "#/almanac") return { almanac: true };
   if (location.hash.includes("?plan=")) {
     const hash = location.hash.split("?")[0];
     if (hash === "#/aim") return { aim: true };
@@ -4080,7 +4185,7 @@ function pushRoute(hash) {
 /// ひとつ前の画面へ。前がアプリの中に無ければ（URL を直接開いた画面）一覧へ
 function isMenuPage() {
   const r = routeFromHash();
-  return !r || !!(r.aim || r.skymap || r.plane || r.iss || r.records || r.answers);
+  return !r || !!(r.almanac || r.aim || r.skymap || r.plane || r.iss || r.records || r.answers);
 }
 function goBack() {
   if (NO_HISTORY) {
@@ -4105,6 +4210,8 @@ function goList() {
 function applyRoute() {
   if (restoreSharedPlan() === "reload") { load(true); return; }
   const route = routeFromHash();
+  atAlmanac = !!route?.almanac;
+  if(!atAlmanac)almanacTimeline?.stop();
   picked = route && route.id ? route.id : null;
   const wasAnswers=atAnswers;
   atRecords = !!(route && route.records);
@@ -5465,6 +5572,8 @@ function choosePlace(p) {
 ///   point  … 地図で選ぶを開く場所
 ///   set    … 選んだ場所を渡す ／ reset … 絶景予測の地点に戻す
 const PLACE_PICKERS = {
+  almanac: { title: "観測地点", custom: () => almanacPoint, point: () => almanacPoint || place,
+    set: p => { almanacPoint = p; renderAlmanac(); }, reset: () => { almanacPoint = null; renderAlmanac(); } },
   aim: { title: "撮影地点", custom: () => aim.from, point: () => aimFromPoint(),
     set: (p) => aimSetFrom(p),
     resetLabel: "撮影地点の選択を解除", reset: () => aimSetFrom(null) },
@@ -10753,14 +10862,14 @@ function refreshRestrictedTools() {
 function renderTools() {
   $("skyMapOpen").hidden = !screenAllowed("skymap");
   const allowed = allowedTools();
-  let shown = 0;
+  let shown = 1; // The local astronomical almanac is available without a protected API.
   for (const el of $("toolsMenu").querySelectorAll("[data-id]")) {
     // どれか1つでも許されていれば出す（富士山に重ねるは、ダイヤモンド富士かパール富士のどちらか）
     const on = el.dataset.id.split(" ").some((id) => allowed.includes(id));
     el.hidden = !on;
     if (on) shown++;
   }
-  $("astroToolsGroup").hidden = !Array.from($("astroToolsGroup").querySelectorAll("[data-id]")).some(el => !el.hidden);
+  $("astroToolsGroup").hidden = false;
   $("toolsButton").hidden = shown === 0;
   if (shown === 0) closeTools();
 }
@@ -10799,6 +10908,8 @@ function closeTools({ restoreFocus = false } = {}) {
 }
 /// いまいる画面に帯を付ける。戻ってきたときにどこから来たか分かる
 function markToolsCurrent() {
+  if(location.hash==='#/almanac')$("almanacMenu").setAttribute('aria-current','page');
+  else $("almanacMenu").removeAttribute('aria-current');
   // 予測の振り返りは予測の中の画面なので、予測に帯を付ける（2026-10-17 ユーザー「予測の振り返りは予測の中にあるべき」）
   if (!routeFromHash() || routeFromHash().answers) $("toolsHome").setAttribute("aria-current", "page");
   else $("toolsHome").removeAttribute("aria-current");
@@ -10818,6 +10929,7 @@ function showSheet(el) {
 // 題名は一覧へ（何画面進んでいても1回で）。「← 戻る」はひとつ前の画面へ
 $("homeLink").onclick = () => { closeTools(); goList(); };
 $("toolsHome").onclick = () => { closeTools(); goList(); };
+$("almanacMenu").onclick = () => pushRoute('#/almanac');
 $("backLink").onclick = () => { closeTools(); goBack(); };
 $("toolsButton").onclick = () => ($("toolsMenu").hidden ? openTools() : closeTools());
 $("toolsClose").onclick = () => closeTools({ restoreFocus: true });
