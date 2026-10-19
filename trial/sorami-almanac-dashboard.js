@@ -56,10 +56,10 @@ function render(root,day,p,events,astro,options={}){
  const update=()=>{
   const state=astro[body](at(),d.observer),t=time(at());view.wallMinute=new Date(at()).getHours()*60+new Date(at()).getMinutes();cursor.setAttribute('x1',x(at()));cursor.setAttribute('x2',x(at()));dot.setAttribute('cx',x(at()));dot.setAttribute('cy',y(state.geometricAltitude));
   let lunar=null;if(body==='moon'){try{lunar=g.SoramiLunarNames?.describe(at(),state,astro);}catch{}if(!lunar)lunar={ja:phaseLabel(state),en:''};}
-  title.textContent=lunar?lunar.ja:'この日の太陽';english.textContent='';names.replaceChildren();kicker.hidden=body==='moon';
+  title.textContent=lunar?lunar.ja:'この日の太陽';english.textContent=lunar?.en||'';names.replaceChildren();kicker.hidden=body==='moon';
   if(lunar?.event){const e=lunar.event;
    if(e.kind===2){english.textContent=e.name[1];
-    if(e.tags.length){const tags=el('div','alm-moon-tags');for(const [ja]of e.tags)tags.append(el('span','',ja));names.append(tags);}
+    if(e.tags.length){const tags=el('div','alm-moon-tags');for(const [,en]of e.tags)tags.append(el('span','',en));names.append(tags);}
    }
   }
   moment.textContent=`${t} ${T.zoneLabel(at())}`;

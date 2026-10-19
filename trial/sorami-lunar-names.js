@@ -7,7 +7,7 @@ const T=g.SoramiHomeTime||(typeof require==='function'?require('./sorami-home-ti
  ['バックムーン','Buck Moon','雄ジカの角が育つ季節にちなむ呼び名'],['スタージョンムーン','Sturgeon Moon','チョウザメの漁期にちなむ呼び名'],
  ['コーンムーン','Corn Moon','穀物の収穫期にちなむ呼び名'],['ハンターズムーン','Hunter’s Moon','収穫後の狩りにちなむ呼び名'],
  ['ビーバームーン','Beaver Moon','ビーバーの冬支度などにちなむ呼び名'],['コールドムーン','Cold Moon','冬の寒さにちなむ呼び名']
-],MAJOR=[['新月','New Moon'],['上弦の月','First Quarter'],['満月','Full Moon'],['下弦の月','Last Quarter']],cache=new WeakMap();
+],MAJOR=[['新月','New Moon'],['上弦の月','First Quarter Moon'],['満月','Full Moon'],['下弦の月','Last Quarter Moon']],cache=new WeakMap();
 const localDate=T.date,norm=a=>(a%360+360)%360;
 function elong(t,A){return norm(A.moonGeocentric(t+A.DELTA_T_MS).longitude-A.sunPosition(t+A.DELTA_T_MS).longitude);}
 function bisect(a,b,fn){for(let i=0;i<27;i++){const m=(a+b)/2;if(fn(m)<0)a=m;else b=m;}return(a+b)/2;}
@@ -44,7 +44,7 @@ function traditional(at,A){
 function describe(at,state,A){const day=localDate(at),event=calendar(Number(day.slice(0,4)),A).events.find(e=>localDate(e.at)===day),night=traditional(at,A);
  if(event)return {ja:MAJOR[event.kind][0],en:MAJOR[event.kind][1],event};
  const crescent=state.illuminatedFraction<.5;
- return state.waxing?{ja:night?.name||(crescent?'夕月':'満ちゆく月'),en:crescent?'Waxing Crescent':'Waxing Gibbous'}:{ja:night?.name||(crescent?'有明の月':'欠けゆく月'),en:crescent?'Waning Crescent':'Waning Gibbous'};
+ return state.waxing?{ja:night?.name||(crescent?'夕月':'満ちゆく月'),en:crescent?'Waxing Crescent Moon':'Waxing Gibbous Moon'}:{ja:night?.name||(crescent?'有明の月':'欠けゆく月'),en:crescent?'Waning Crescent Moon':'Waning Gibbous Moon'};
 }
 const api={MONTHS,MAJOR,calendar,describe,traditional,elong};g.SoramiLunarNames=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:window);
