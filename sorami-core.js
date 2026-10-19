@@ -861,10 +861,19 @@
 
 
   /// その現象での言い方を返す。汎用の RANKS より、こちらを画面に出す。
-  function phrasing(phenomenonId, rank) {
+  function phrasing(phenomenonId, rank, afterglow = null) {
     const meta = PHENOMENA[phenomenonId];
     const i = { spectacular: 0, good: 1, fair: 2, poor: 3 }[rank.key];
-    return { label: meta.ranks[i], say: meta.says[i] };
+    let say = meta.says[i];
+    if (phenomenonId === "sunset" || phenomenonId === "sunrise") {
+      // 種類を持たない過去データも「燃える雲」と断定しない。
+      const words = {
+        gradient: ["鮮やかなグラデーションが広がりそうです", "きれいなグラデーションが見られそうです", "淡いグラデーションになりそうです", "色づきは弱そうです"],
+        clouds: ["ダイナミックな爆焼けが期待できます", "雲が主役のダイナミックな空になりそうです", "雲の表情を楽しめそうです", "見応えは控えめになりそうです"],
+      };
+      say = words[afterglow?.descriptive !== true ? "" : afterglow?.style]?.[i] || ["鮮やかに色づきそうです", "きれいに色づきそうです", "淡く色づく程度になりそうです", "色づきは弱そうです"][i];
+    }
+    return { label: meta.ranks[i], say };
   }
 
   // ---------------------------------------------------------------- アンサンブル

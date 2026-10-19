@@ -4,13 +4,15 @@
  const IDS=['sunset','sunrise','starrySky','seaOfClouds','cityCloudSea','rainbow','rime','diamondDust'];
  const BASE='https://zekkei-api.okayu-sorami.workers.dev/prediction';
  const VERSION='e189-core-8e6930c-v4';
- const TTL=30*60*1000,CACHE='sorami-predictions-v1';
+ const TTL=30*60*1000,CACHE='sorami-predictions-appearance-v1';
  const conditions=p=>({latitude:p.latitude,longitude:p.longitude,elevation:p.elevation??null,eyeHeightAGL:p.eyeHeightAGL??1.5,terrain:p.terrain??null});
  const key=p=>JSON.stringify(conditions(p));
  const day=(ms,offset)=>Math.floor((ms+offset*1000)/86400000)*86400000-offset*1000;
  function validate(dto,place){
   if(!dto||dto.schemaVersion!==1||dto.algorithmVersion!==VERSION||!dto.place||key(dto.place)!==key(place)||!Number.isFinite(dto.asOf)||!Number.isFinite(dto.bundle?.fetchedAt)||!Number.isFinite(dto.bundle?.utcOffsetSeconds)||Math.abs(dto.bundle.utcOffsetSeconds)>86400||!dto.bundle.home?.byModel||!dto.weeks)throw Error('予測データを確認できません');
-  for(const id of IDS){const rows=dto.weeks[id];if(!Array.isArray(rows)||rows.length>14)throw Error('予測データを確認できません');for(const row of rows){const e=row?.evaluation;if(!Number.isFinite(row?.dayMs)||!e||!Number.isFinite(e.score)||e.score<0||e.score>100||(e.unavailable?typeof e.unavailable.kind!=='string':(!e.rank||!['spectacular','good','fair','poor'].includes(e.rank.key)))||!Array.isArray(e.factors)||e.factors.length>50)throw Error('予測データを確認できません');}}
+  for(const id of IDS){const rows=dto.weeks[id];if(!Array.isArray(rows)||rows.length>14)throw Error('予測データを確認できません');for(const row of rows){const e=row?.evaluation;if(!Number.isFinite(row?.dayMs)||!e||!Number.isFinite(e.score)||e.score<0||e.score>100||(e.unavailable?typeof e.unavailable.kind!=='string':(!e.rank||!['spectacular','good','fair','poor'].includes(e.rank.key)))||!Array.isArray(e.factors)||e.factors.length>50)throw Error('予測データを確認できません');
+   if(e.afterglow){const a=e.afterglow,s=a.scores;if(a.descriptive!==undefined&&typeof a.descriptive!=='boolean'||a.ceiling!==undefined&&(!Number.isFinite(a.ceiling)||a.ceiling<0||a.ceiling>100||e.score>a.ceiling)||!['sunrise','sunset'].includes(id)||!['gradient','clouds'].includes(a.style)||(s&&(![s.gradient,s.clouds].every(v=>Number.isFinite(v)&&v>=0&&v<=100)||Math.abs(e.score-Math.max(s.gradient,s.clouds))>1e-8||s[a.style]!==e.score)))throw Error('空の見え方を確認できません');}
+  }}
   return dto;
  }
  function fresh(dto,place,now){try{validate(dto,place);return now>=dto.asOf&&now-dto.asOf<TTL&&now>=dto.bundle.fetchedAt&&now-dto.bundle.fetchedAt<TTL&&day(now,dto.bundle.utcOffsetSeconds)===day(dto.asOf,dto.bundle.utcOffsetSeconds);}catch{return false;}}
