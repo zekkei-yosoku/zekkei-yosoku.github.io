@@ -4,14 +4,32 @@
 [data-theme=dark]{--flair-forecast:#f0b070;--flair-framing:#e8c66a;--flair-map:#8fc4ec;--flair-records:#b4c2ee}
 #listView,#bestNote,#nowcast,#answersView,#forecastTabs,#detailView{--flair:var(--flair-forecast)}#aimView{--flair:var(--flair-framing)}#skyMapView{--flair:var(--flair-map)}#recordsView{--flair:var(--flair-records)}
 
-/* ページの題名の上に英字ラベル（左寄せ・右へ伸びる線） */
-#aimFramingTitle::before,#aimView .sky-map-head h2::before,#skyMapTitle::before,#recordsView .sky-map-head h2::before{display:flex;align-items:center;gap:10px;margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:.34em;line-height:1.6;color:var(--flair);text-shadow:0 0 14px color-mix(in srgb,var(--flair) 40%,transparent)}
-#aimFramingTitle::before,#aimView .sky-map-head h2::before{content:"FRAMING" / ""}
-#skyMapTitle::before{content:"SKY MAP" / ""}
-#recordsView .sky-map-head h2::before{content:"FIELD NOTES" / ""}
+/* 2026-10-20 ユーザー「全部のタイトルはこーゆー感じにしない？広めにしたら？」（LUNAR NOTES の帯を指して）
+   英字見出しはすべて「中央寄せの字＋左右へ広く伸びて外側で消える線」の帯。線の長さは字の幅を除いた残り全部。
+   --kw は字の幅の半分＋すき間（字数×0.57em＋1.3em）。題名の行（題名と右のボタン）はその下にそのまま並ぶ。 */
+:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head){flex-wrap:wrap}
+:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head)::before,#almanacView .alm-panel-kicker{
+ flex:0 0 100%;display:block;box-sizing:border-box;margin:6px 0 2px;text-align:center;font-size:12px;font-weight:700;letter-spacing:.46em;padding-left:.46em;line-height:1.8;
+ color:var(--flair);text-shadow:0 0 16px color-mix(in srgb,var(--flair) 45%,transparent);
+ background:linear-gradient(90deg,transparent,var(--flair)) left center/calc(50% - var(--kw,5em)) 1px no-repeat,linear-gradient(90deg,var(--flair),transparent) right center/calc(50% - var(--kw,5em)) 1px no-repeat}
+#aimView .aim-titlebar::before,#aimView .sky-map-head::before{content:"FRAMING" / "";--kw:5.3em}
+#skyMapView .sky-map-head::before{content:"MAP" / "";--kw:3em}
+#recordsView .sky-map-head::before{content:"LOGBOOK" / "";--kw:5.3em}
+/* ホームの各欄：英字は帯に、日本語の題と説明も中央へ */
+#almanacDashboard{--flair:var(--alm-active)}
+#almanacView .alm-panel-kicker{--kw:7.6em;margin:0 0 10px}#almanacView .alm-detail-grid>.alm-panel:first-child .alm-panel-kicker{--kw:5.9em}#almanacView .alm-detail-grid>.alm-panel:nth-child(2) .alm-panel-kicker{--kw:5.3em}
+#almanacView .alm-panel>h2,#almanacView .alm-panel>.alm-caption{text-align:center}
+#almanacView .alm-panel>.alm-caption{margin-left:auto;margin-right:auto;max-width:40em}
+/* ホームの NOTES：太陽・月の切り替えの直下に全幅で置き、線を広く */
+#almanacView .alm-hero{position:relative;padding-top:58px}
+#almanacView .alm-eyebrow{position:absolute;top:4px;left:0;right:0;margin:0;font-size:13px;letter-spacing:.5em;padding-left:.5em}
+#almanacView .alm-eyebrow:before,#almanacView .alm-eyebrow:after{flex:1 1 auto;width:auto;max-width:300px;min-width:40px}
+@media(max-width:600px){#almanacView .alm-hero{padding-top:46px}#almanacView .alm-eyebrow{font-size:12px;letter-spacing:.42em;padding-left:.42em}}
 
 /* カードの見出しに小さな光る印。予測の「次の見どころ」「実況」には英字ラベル */
-#bestNote::before,#nowcast::before{display:block;margin:0 0 6px;font-size:9px;font-weight:700;letter-spacing:.32em;line-height:1.6;color:var(--flair);text-shadow:0 0 12px color-mix(in srgb,var(--flair) 40%,transparent)}
+#bestNote::before,#nowcast::before{display:block;margin:0 0 8px;text-align:center;font-size:11px;font-weight:700;letter-spacing:.42em;padding-left:.42em;line-height:1.8;color:var(--flair);text-shadow:0 0 14px color-mix(in srgb,var(--flair) 45%,transparent);
+ background:linear-gradient(90deg,transparent,var(--flair)) left center/calc(50% - var(--kw)) 1px no-repeat,linear-gradient(90deg,var(--flair),transparent) right center/calc(50% - var(--kw)) 1px no-repeat}
+#bestNote{--kw:9em}#nowcast{--kw:3em}
 #bestNote::before{content:"NEXT HIGHLIGHT" / ""}#nowcast::before{content:"NOW" / ""}
 #bestNote{box-shadow:inset 3px 0 0 var(--flair),0 0 0 1px color-mix(in srgb,var(--flair) 22%,transparent),0 6px 26px color-mix(in srgb,var(--flair) 12%,transparent)}
 :is(#answersView,#aimView,#recordsView,#detailView) .section-h h2::before,#answersView .card>h2::before{content:"" / "";display:inline-block;width:3px;height:.95em;margin:0 9px 0 0;vertical-align:-.1em;border-radius:2px;background:linear-gradient(var(--flair),color-mix(in srgb,var(--flair) 30%,transparent));box-shadow:0 0 8px color-mix(in srgb,var(--flair) 60%,transparent)}
