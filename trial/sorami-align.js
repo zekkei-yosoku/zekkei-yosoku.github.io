@@ -555,7 +555,9 @@
     const obs = { ...observer, elevation: (observer.elevation ?? 0) + (opts.eyeM ?? 1.5) };
     const mountainRidge=Array.isArray(opts.ridge)?opts.ridge:null;
     if(mountainRidge&&(mountainRidge.length<2||mountainRidge.some(p=>!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite))))throw Error('山の稜線を取得できません');
-    const outline = mountainRidge ? {viewBaseAngle:0,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],0],[mountainRidge[0][0],0]]]} : towerOutline(observer, target, opts);
+    // ridgeBase：山頂付近だけで判定するときの下端の高さ（既定は地平線0°。2026-10-20）
+    const ridgeBase=Number.isFinite(opts.ridgeBase)?opts.ridgeBase:0;
+    const outline = mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} : towerOutline(observer, target, opts);
     const centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
     const project = viewProjector(g.azimuth, centerAlt);
     const polygons = outline ? (outline.hitPolygons || [outline.hitPoints || outline.points]).map(poly=>poly.map(([a,h])=>project(a,h)).filter(Boolean)).filter(poly=>poly.length>=3) : null;
