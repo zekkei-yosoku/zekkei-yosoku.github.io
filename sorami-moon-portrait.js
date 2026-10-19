@@ -28,7 +28,9 @@ function shade(base,size,f,angle){
   const mu=Math.sqrt(1-rr),dot=nx*l.x+ny*l.y+mu*l.z;
   // Lommel-Seeliger-like regolith shading: no spurious limb darkening at full Moon.
   const bright=dot>0?Math.pow(Math.min(1,2*dot/(dot+mu+.00001)),.65):0;
-  const exposure=.008+.992*bright;
+  // Earthshine-like night side (2026-10-19 user choice over pure black / flat grey): the disc stays opaque and the
+  // surface pattern remains just visible, so the full Moon outline reads on both light and dark pages.
+  const exposure=.11+.89*bright;
   for(let k=0;k<3;k++)output[i+k]=base[i+k]*exposure;
   output[i+3]=base[i+3]*Math.max(0,Math.min(1,(1-Math.sqrt(rr))*r));
  }

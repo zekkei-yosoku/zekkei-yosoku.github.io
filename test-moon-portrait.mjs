@@ -16,8 +16,9 @@ test('Moon fractions agree with independent Astronomy Engine to 0.6 percentage p
  const photo=engine.Illumination('Moon',new Date('2024-10-17T18:16:38+09:00')).phase_fraction;assert.ok(photo>.999&&photo<1);
 });
 test('New, quarter and full Moon raster retain transparent exterior and continuous shadow',()=>{
+ // 2026-10-19: the night side is a faint earthshine (opaque, ~11% of the surface), not pure black.
  const size=64,base=new Uint8ClampedArray(size*size*4).fill(255);const dark=portrait.shade(base,size,0,90),full=portrait.shade(base,size,1,90),quarter=portrait.shade(base,size,.5,270),left=(32*size+16)*4,right=(32*size+48)*4;
- assert.ok(dark[left]<5);assert.ok(full[left]>245);assert.ok(quarter[left]<5);assert.ok(quarter[right]>100);assert.equal(full[3],0);assert.ok(full[(32*size+32)*4+3]>250);assert.throws(()=>portrait.lightVector(NaN,0));
+ assert.ok(dark[left]>15&&dark[left]<45&&dark[left+3]>250);assert.ok(full[left]>245);assert.ok(quarter[left]>15&&quarter[left]<45&&quarter[left+3]>250);assert.ok(quarter[right]>100);assert.equal(full[3],0);assert.ok(full[(32*size+32)*4+3]>250);assert.throws(()=>portrait.lightVector(NaN,0));
 });
 test('Texture failure falls back to computed phase without throwing',async()=>{
  const sandbox={Uint8ClampedArray,setTimeout,clearTimeout,Image:class{set src(v){queueMicrotask(()=>this.onerror());}},document:{createElement:()=>({width:0,height:0,getContext:()=>({save(){},translate(){},rotate(){},fillStyle:'',beginPath(){},arc(){},fill(){},restore(){},getImageData:()=>({data:new Uint8ClampedArray(512*512*4).fill(255)})})})}};vm.createContext(sandbox);vm.runInContext(fs.readFileSync(new URL('./trial/sorami-moon-portrait.js',import.meta.url),'utf8'),sandbox);let painted=false;const canvas={isConnected:true,setAttribute(){},getContext:()=>({putImageData(){painted=true;}})};const result=await sandbox.SoramiMoonPortrait.draw(canvas,{illuminatedFraction:.5,brightLimbZenithAngle:270,parallacticAngle:0});assert.equal(result.texture,false);assert.equal(painted,true);
