@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="1792390514321">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-RE+tofTeOaSeZX9fGp2iI4ZBqMAASz+ii0fdvTJuZyE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Y0TMPnAAyhQZ+vquPTGgWlV+g4QBe2p1puGKP0ajd7I=' 'sha256-vonbNCtjdFNN0+8MALqbVdM23i0w2WirADDLWY4U4Vg=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="1792402246478">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-i1IEE9yoJfOjv0oEt/Ez3EIwWBAicDgj92jQPAfsWDA=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Y0TMPnAAyhQZ+vquPTGgWlV+g4QBe2p1puGKP0ajd7I=' 'sha256-vonbNCtjdFNN0+8MALqbVdM23i0w2WirADDLWY4U4Vg=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-WdCjtQsc6j2vX/aXQwIKJBAJghJNz8ukoi3MfFtb6Us=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -1392,7 +1392,7 @@ main:has(>#skyMapView:not([hidden])){padding-bottom:calc(var(--sky-footer-h,100p
 /* E198: 全画面の切替は通常・全画面とも右上の同じ位置。押した所でそのまま戻せる */
 #skyMapView .aim-say-v{flex-basis:6.4em}.sky-map-use-below{display:flex;align-items:center;justify-content:center;gap:8px;margin:10px 0 0;max-width:780px}.sky-map-use-below[hidden]{display:none}#skyMapView button[data-pointer-focus]:focus,.tool-date-calendar button[data-pointer-focus]:focus,.sky-map-time-dialog button[data-pointer-focus]:focus{outline:none}
 /* 予測の取得状態は一覧・詳細のもの。道具の画面の上には出さない */
-main:has(>:is(#aimView,#planeView,#issView,#recordsView,#answersView,#skyMapView,#adminView):not([hidden]))>:is(#status,#predictionDataNotice){display:none}
+main:has(>:is(#aimView,#planeView,#issView,#recordsView,#answersView,#skyMapView,#adminView,#almanacView):not([hidden]))>:is(#status,#predictionDataNotice){display:none}
 .tool-datetime-footer .tool-datetime-date .preview-date-label{white-space:nowrap}.sky-map-controls{max-width:780px}.sky-map-content>.place-row{max-width:780px}.aim-cal-mark{font-weight:700}.aim-cal-grid button:not([aria-pressed="true"]) .aim-cal-mark{color:var(--text)}
 :is(#aimView,#skyMapView,#almanacView) .tool-datetime-time::-webkit-calendar-picker-indicator{display:none}.sky-map-content>.place-row .name{font-size:16px}.sky-map-content>.place-row{margin-bottom:10px}.sky-map-wrap[data-pick-mode] .mappin{transform:translate(-50%,-50%)}
 .sky-map-point-coordinates{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
@@ -1498,7 +1498,8 @@ select:not(.mxsort select):not(.aim-pick select) { appearance: none; -webkit-app
 button.ui-icon-button { display: inline-grid !important; place-items: center; flex: none; width: var(--ui-control-size) !important; height: var(--ui-control-size) !important; min-width: var(--ui-control-size); min-height: var(--ui-control-size); padding: 0 !important; border: 0; border-radius: 0; background: transparent; color: var(--text); }
 button.ui-icon-button::after { content: none; }
 .ui-control-icon { display: block; width: var(--ui-icon-size); height: var(--ui-icon-size); fill: none; stroke: currentColor; stroke-width: var(--ui-icon-stroke); stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-</style></head>
+</style><link rel="stylesheet" href="sorami-almanac-home.css?v=632cb3ff69ad">
+</head>
 <body>
 <svg aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute;overflow:hidden"><defs><symbol id="input-icon-body" viewBox="0 0 24 24"><path d="M12 2C13.2 9 15 10.8 21 12C15 13.2 13.2 15 12 22C10.8 15 9 13.2 3 12C9 10.8 10.8 9 12 2Z" fill="currentColor" stroke="none"/></symbol><symbol id="input-icon-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 1v6m0 10v6M1 12h6m10 0h6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></symbol><symbol id="input-icon-observer" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="10" rx="1.5"/><circle cx="12" cy="10" r="2.5"/><path d="m8 5 1.5-2h5L16 5m-4 10v8m0-6-6 6m6-6 6 6"/></symbol></defs></svg>
 <main>
@@ -1903,22 +1904,12 @@ button.ui-icon-button::after { content: none; }
     </div>
   </div>
 
-  <style>
-  #almanacView{--alm-sun:#c58321;--alm-moon:#6388b7;--alm-moon-dark:#182332;--alm-grid:color-mix(in srgb,var(--secondary) 22%,transparent);--alm-day:color-mix(in srgb,var(--alm-sun) 5%,transparent);max-width:1100px;margin:0 auto}
-  #almanacView{padding-bottom:150px}#almanacView #almanacDateRow{display:grid;grid-template-columns:44px minmax(0,1fr) 44px auto;align-items:center;gap:4px;max-width:780px;margin:auto}#almanacDateRow button{min-height:44px;background:transparent;border:0}#almanacCalendarOpen{display:flex;justify-content:center;align-items:center;gap:4px;font-size:18px;font-weight:700}#almanacTrack{height:52px;position:relative}#almanacTimeline{height:52px}#almanacFooter{z-index:25}#almanacFooter #almanacTrack{padding:0}
-  #almanacView h1{letter-spacing:.02em;margin-bottom:8px}#almanacView h2{font-size:1.08rem;margin:0 0 8px}#almanacView h3{font-size:.85rem;text-align:center;font-weight:500;margin:8px 0}
-  #almanacOutput{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0}#almanacOutput>.card{margin:0;padding:22px;border:1px solid var(--alm-grid)}
-  .alm-panel{border-top:1px solid var(--alm-grid);padding:26px 0;margin:8px 0}.alm-caption{color:var(--secondary);font-size:.76rem;line-height:1.7;margin:0 0 12px}.alm-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:24px 0 30px}.alm-stat{padding:8px 0 8px 18px;border-left:2px solid var(--alm-grid);display:flex;flex-direction:column}.alm-stat strong{font-size:1.7rem;font-weight:500;letter-spacing:-.03em;margin:2px 0 8px;font-variant-numeric:tabular-nums}.alm-stat .alm-caption{margin:0}.alm-legend{display:flex;gap:22px;font-size:.8rem;justify-content:flex-end}.alm-sun{color:var(--alm-sun)}.alm-moon{color:var(--alm-moon)}.alm-chart{display:block;width:100%;height:auto;overflow:visible}.alm-readout{text-align:center;font-size:.82rem;margin:14px 0 8px;font-variant-numeric:tabular-nums}.alm-range{width:100%;min-height:44px;accent-color:var(--accent)}.alm-two{display:grid;grid-template-columns:2fr 1fr;gap:28px}.alm-compasses{display:grid;grid-template-columns:1fr 1fr;gap:12px}.alm-compass-item svg{display:block;width:100%;height:auto}.alm-phase{display:block;width:160px;max-width:85%;margin:28px auto 16px}.alm-phase-note{text-align:center;font-size:.8rem}.alm-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:.82rem;font-variant-numeric:tabular-nums}.alm-table th,.alm-table td{padding:14px 4px;border-bottom:1px solid var(--alm-grid);text-align:center;font-weight:400}.alm-table th{color:var(--secondary)}.alm-table-wrap{width:100%}
-  @media(prefers-color-scheme:dark){#almanacView{--alm-sun:#edbf70;--alm-moon:#9cbbdf}}
-  @media(max-width:600px){#almanacOutput{gap:10px}#almanacOutput>.card{padding:14px}#almanacOutput strong{font-size:.82rem}#almanacOutput .card>div{display:block!important}#almanacOutput .card>div>span{display:block;font-size:.85rem;margin-top:8px}.alm-summary{gap:8px}.alm-stat{padding-left:9px}.alm-stat strong{font-size:1.12rem}.alm-stat .alm-caption{font-size:.65rem}.alm-two{grid-template-columns:1fr;gap:0}.alm-panel{padding:22px 0}.alm-table{font-size:.72rem}.alm-table th,.alm-table td{padding:12px 1px}.alm-phase{width:140px;margin-top:12px}}
-  </style>
   <section id="almanacView" aria-labelledby="almanacTitle" hidden>
-    <p class="tiny" style="letter-spacing:.18em;margin-bottom:10px">SUN & MOON · DAILY NOTES</p>
-    <h1 id="almanacTitle" style="font-size:1.65rem">太陽と月の出入り</h1>
-    <p class="muted">時刻、方位、空の動き。1日の太陽と月を、ひとつのページに。</p>
-    <button type="button" class="place-pick card" id="almanacPlace" style="width:100%;text-align:left"></button>
+    <h1 id="almanacTitle">ホーム</h1>
+    <p id="almanacDayLabel"></p>
+    <button type="button" class="place-pick" id="almanacPlace"></button>
     <input type="hidden" id="almanacDate">
-    <p class="tiny">時刻は日本標準時（JST / UTC+9）・方位は北を0°として時計回りです。対応期間：2020〜2030年。</p>
+
     <p id="almanacRangeNote" class="tiny" role="status" hidden></p>
     <div id="almanacOutput" aria-live="polite"></div>
     <div id="almanacDashboard"></div>
@@ -1931,7 +1922,7 @@ button.ui-icon-button::after { content: none; }
       </div>
       <div id="almanacTrack" class="preview-footer-track"><div id="almanacTimeline" class="sky-map-timeline" tabindex="0" role="slider" aria-label="日付を横スクロールして調整"></div><span class="sky-map-timeline-center" aria-hidden="true"></span></div>
     </footer>
-    <p class="tiny">遮るもののない水平な地平線に、天体の上端が出入りする基準時刻です。標準的な大気差を含みます。山・建物・標高による地平線の変化や雲は含めないため、実際に見える時刻とは異なります。</p>
+    <p class="alm-basis">時刻は日本標準時。方位は北0°から時計回り。対応期間：2020〜2030年。出入りは標準大気差を含む上端と水平な地平線が基準です。山・建物・標高・雲の影響は含みません。</p>
   </section>
   <div id="recordsView" hidden>
     <div id="recordsAccess" hidden><div class="sky-map-head"><h2>記録</h2></div><div class="card"><p id="recordsAccessMessage"></p><button id="recordsAccessLogin" class="fav-btn primary">ログイン</button></div></div>
@@ -2010,6 +2001,7 @@ button.ui-icon-button::after { content: none; }
   <nav class="drawer-list">
     <!-- 一覧へ（2026-10-02 ユーザー「メニューの中に絶景予測の一覧に戻るボタンがほしい」）。道具ではないので data-tool・data-id を持たない
          （許可・管理画面の名前に混ぜない）。いちばん上に置き、道具と線で分ける。一覧にいるときは帯を付ける -->
+    <button id="almanacMenu"><b>ホーム</b><span>この場所の太陽と月を眺める</span></button>
     <button id="toolsHome"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3"/><path d="M9 2v1m-6 5H2m3-4-1-1m9 1 1-1M5 19h12a4 4 0 0 0 .4-8 5 5 0 0 0-9.5-1.2A4.6 4.6 0 0 0 5 19Z"/></svg>予測</b><span>夕焼け・星空・雲海などが見られそうか</span></button>
     <!-- 天体を重ねる（2026-10-01）。もとは「富士山に重ねる」（ダイヤモンド富士・パール富士）と「塔に重ねる」の2つ。
          ユーザー「塔以外も重ねるじゃん」→ 名前を「天体を重ねる」に。「プルダウンで富士山を選んだら、その横の太陽・月の切り替えでできる」→ 富士山もここへ。
@@ -2020,7 +2012,7 @@ button.ui-icon-button::after { content: none; }
     <button id="framingMenu" data-tool="#/aim/tower" data-id="diamond pearl tower" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m8 0h5v-5"/><path d="m6 17 4-5 3 3 3-5 3 7"/><circle cx="9" cy="8" r="1"/></svg>構図</b><span>天体と風景が重なる日時と撮影地を探す</span></button>
     <button id="mapMenu" data-tool="#/skymap" data-id="skymap"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16"/></svg>地図</b><span>撮影地からの天体の方向と高度を調べる</span></button>
     <button id="recordsMenu" data-tool="#/records" data-id="records"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>記録</b><span>撮影ポイントと、そこから見えたものを残す</span></button>
-    <button id="almanacMenu"><b>太陽と月の出入り</b><span>日の出・日の入り、月の出・月の入りの時刻と方位</span></button>
+
     <button data-tool="#/plane" data-id="plane"><b>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
     <button data-tool="#/iss" data-id="iss"><b>ISSの月面通過</b><span>ISSが月や太陽の前を横切る場所と時刻</span></button>
     </section>
@@ -2368,7 +2360,8 @@ button.ui-icon-button::after { content: none; }
 
 
 <script src="sorami-assets.js?v=2324625497146189621"></script>
-<script src="sorami-almanac-dashboard.js?v=6b4ac1350da5"></script>
+<script src="sorami-moon-portrait.js?v=b2d3c1213268"></script>
+<script src="sorami-almanac-dashboard.js?v=bb288181dfb9"></script>
 <script src="sorami-access.js?v=17412933104240943276"></script>
 <script src="sorami-align.js?v=16914866522493769858"></script>
 <script src="sorami-moon.js?v=10230678456179898054"></script>
@@ -4088,7 +4081,9 @@ function renderAlmanac() {
     $("almanacCalendarOpen").setAttribute('aria-label',ToolDateTimeBar.label(almanacDay)+'・日付を選ぶ');
     almanacTimeline.sync(almanacDay,'date');
   }
-  $("almanacPlace").textContent=`観測地点：${p.name}　変更 ›`;
+  $("almanacPlace").textContent=`${p.name}　⌄`;
+  $("almanacPlace").setAttribute("aria-label",`観測地点 ${p.name} を変更`);
+  $("almanacDayLabel").textContent=typeof ToolDateTimeBar!=="undefined"?ToolDateTimeBar.label(almanacDay):date(almanacDay);
   $("almanacPlace").onclick=()=>openPlaceSheet('almanac');
   $("almanacPrev").disabled=almanacDay<=lower;$("almanacNext").disabled=almanacDay>=upper;
   const move=days=>{almanacDay+=days*86400000;renderAlmanac();};
@@ -4097,6 +4092,13 @@ function renderAlmanac() {
   input.onchange=()=>{const n=Date.parse(input.value+'T00:00:00+09:00');if(Number.isFinite(n)&&n>=lower&&n<=upper){almanacDay=n;renderAlmanac();}else{input.value=date(almanacDay);}};
   $("almanacMenu")?.setAttribute('aria-current','page');
   const out=$("almanacOutput");out.replaceChildren();
+  out.hidden=!!globalThis.SoramiAlmanacDashboard;
+  if(globalThis.SoramiAlmanacDashboard){SoramiAlmanacDashboard.render($("almanacDashboard"),almanacDay,p,almanacEvents,SoramiAstro,{actions:[
+    {label:"予測",open:()=>goList()},
+    {label:"構図",available:screenAllowed("framing"),open:()=>pushRoute("#/aim")},
+    {label:"地図",available:screenAllowed("skymap"),open:()=>SkyMapUI?.enter(false)},
+    {label:"記録",available:screenAllowed("records"),open:()=>pushRoute("#/records")}
+  ]});return;}
   for(const [body,name] of [['sun','太陽'],['moon','月']]){
     const card=document.createElement('div');card.className='card';
     const heading=document.createElement('h2');heading.style.fontSize='1rem';heading.textContent=name;card.append(heading);
@@ -4116,7 +4118,7 @@ function renderAlmanac() {
     }
     out.append(card);
   }
-  if(globalThis.SoramiAlmanacDashboard)SoramiAlmanacDashboard.render($("almanacDashboard"),almanacDay,p,almanacEvents,SoramiAstro);
+
 }
 function routeFromHash() {
   if (location.hash === "#/almanac") return { almanac: true };
@@ -4249,7 +4251,7 @@ function applyRoute() {
   $("mastheadName").textContent = "AstroNotes";
   $("mastheadMark").hidden = true; $("mastheadAstroMark").hidden = false;
   $("mastheadName").hidden = true;
-  $("homeLink").setAttribute("aria-label", "AstroNotes：予測の一覧へ戻る");
+  $("homeLink").setAttribute("aria-label", "AstroNotes：ホームへ戻る");
   // 画面が入れ替わるので位置を戻す。一覧は元いた位置へ、ほかの画面は先頭から。
   // 以前は「詳細と記録だけ先頭」としていたので、道具の画面が一覧の途中の位置で開いていた（2026-10-01）
   window.scrollTo(0, currentView === "list" ? listScrollY : 0);
@@ -10869,7 +10871,7 @@ function renderTools() {
     el.hidden = !on;
     if (on) shown++;
   }
-  $("astroToolsGroup").hidden = false;
+  $("astroToolsGroup").hidden = !Array.from($("astroToolsGroup").querySelectorAll("[data-id]")).some(el=>!el.hidden);
   $("toolsButton").hidden = shown === 0;
   if (shown === 0) closeTools();
 }
@@ -10927,7 +10929,7 @@ function showSheet(el) {
   el.focus({ preventScroll: true });
 }
 // 題名は一覧へ（何画面進んでいても1回で）。「← 戻る」はひとつ前の画面へ
-$("homeLink").onclick = () => { closeTools(); goList(); };
+$("homeLink").onclick = () => { closeTools(); pushRoute("#/almanac"); };
 $("toolsHome").onclick = () => { closeTools(); goList(); };
 $("almanacMenu").onclick = () => pushRoute('#/almanac');
 $("backLink").onclick = () => { closeTools(); goBack(); };
@@ -12820,9 +12822,9 @@ ctx.lineWidth=1;
  let startupInteracted=false;
  for(const event of ['pointerdown','keydown','wheel','touchstart'])document.addEventListener(event,()=>{startupInteracted=true;},{once:true,passive:true,capture:true});
  const key='sorami.startupScreen';
- const choices=[['forecast','予測'],['framing','構図'],['map','地図']];
- const permitted=id=>id==='forecast'||(id==='map'?screenAllowed('skymap'):id==='framing'&&screenAllowed('framing'));
- const get=()=>{try{const v=localStorage.getItem(key);return choices.some(([id])=>id===v)?v:'forecast';}catch{return 'forecast';}};
+ const choices=[['home','ホーム'],['forecast','予測'],['framing','構図'],['map','地図']];
+ const permitted=id=>id==='home'||id==='forecast'||(id==='map'?screenAllowed('skymap'):id==='framing'&&screenAllowed('framing'));
+ const get=()=>{try{const v=localStorage.getItem(key);return choices.some(([id])=>id===v)?v:'home';}catch{return 'home';}};
  const row=document.createElement('div');row.className='startup-setting';
  row.style.cssText='padding:12px 0';
  const label=document.createElement('label');label.htmlFor='startupScreen';label.textContent='起動画面';
@@ -12872,20 +12874,21 @@ ctx.lineWidth=1;
   panel.addEventListener('touchcancel',()=>{start=null;},{passive:true});
   panel.addEventListener('touchend',event=>{const from=start;start=null;if(!from||!panel.open)return;const t=Array.from(event.changedTouches).find(t=>t.identifier===from.id);if(!t)return;const dx=t.clientX-from.x,dy=t.clientY-from.y;if(dx>70&&Math.abs(dy)<dx*.5)panel.close();},{passive:true});
  }
- const update=()=>{updateTheme();select.value=get();for(const o of select.options)o.disabled=!permitted(o.value);status.textContent=!permitted(get())?'選択した画面は現在利用できないため、起動時は予測を開きます。':'';};
+ const update=()=>{updateTheme();select.value=get();for(const o of select.options)o.disabled=!permitted(o.value);status.textContent=!permitted(get())?'選択した画面は現在利用できないため、起動時はホームを開きます。':'';};
  // Refresh against live grants whenever settings is opened, including after a drawer swipe.
  new MutationObserver(()=>{if(settings.open)update();}).observe(document.getElementById('authButton'),{childList:true,subtree:true,characterData:true});
  const openStartup = async()=>{
   const preferred=get();
   if(initialHash||initialSearch||preferred==='forecast') { applyRoute(); return; }
+  if(preferred==='home'){history.replaceState(history.state,'','#/almanac');applyRoute();return;}
   $("status").hidden=false; $("status").textContent="ログイン状態を確認しています…";
   await startupSessionReady;
   $("status").hidden=true;
   update();
   // Hash routes, shared-plan query parameters and navigation during login are not replaced.
   if(startupInteracted||initialHash||initialSearch||location.hash!==initialHash||location.search!==initialSearch){applyRoute();return;}
-  const selected=get();if(!permitted(selected)){applyRoute();return;}
-  const route=selected==='framing'?'#/aim/tower':selected==='map'?'#/skymap':null;
+  const selected=get();if(!permitted(selected)){history.replaceState(history.state,'','#/almanac');applyRoute();return;}
+  const route=selected==='home'?'#/almanac':selected==='framing'?'#/aim/tower':selected==='map'?'#/skymap':null;
   if(route)history.replaceState(history.state,'',route);
   applyRoute();
  };
