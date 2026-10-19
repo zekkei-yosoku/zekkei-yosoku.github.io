@@ -1,0 +1,32 @@
+/* 2026-10-20 試用版だけ：ホームの NOTES 見出しと同じ意匠を他のページへ（ユーザー「他のページも同じ感じでカッコよく。使い勝手は絶対に損なわない」）。
+   見た目だけを足す。操作部品の大きさ・位置・並び・文言は変えない。英字ラベルは読み上げない（content の代替文字を空にする）。 */
+:root{--flair-forecast:#a8611f;--flair-framing:#8a6a12;--flair-map:#2f6d9e;--flair-records:#5d6fa8}
+[data-theme=dark]{--flair-forecast:#f0b070;--flair-framing:#e8c66a;--flair-map:#8fc4ec;--flair-records:#b4c2ee}
+#listView,#bestNote,#nowcast,#answersView,#forecastTabs,#detailView{--flair:var(--flair-forecast)}#aimView{--flair:var(--flair-framing)}#skyMapView{--flair:var(--flair-map)}#recordsView{--flair:var(--flair-records)}
+
+/* ページの題名の上に英字ラベル（左寄せ・右へ伸びる線） */
+#aimFramingTitle::before,#aimView .sky-map-head h2::before,#skyMapTitle::before,#recordsView .sky-map-head h2::before{display:flex;align-items:center;gap:10px;margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:.34em;line-height:1.6;color:var(--flair);text-shadow:0 0 14px color-mix(in srgb,var(--flair) 40%,transparent)}
+#aimFramingTitle::before,#aimView .sky-map-head h2::before{content:"FRAMING" / ""}
+#skyMapTitle::before{content:"SKY MAP" / ""}
+#recordsView .sky-map-head h2::before{content:"FIELD NOTES" / ""}
+
+/* カードの見出しに小さな光る印。予測の「次の見どころ」「実況」には英字ラベル */
+#bestNote::before,#nowcast::before{display:block;margin:0 0 6px;font-size:9px;font-weight:700;letter-spacing:.32em;line-height:1.6;color:var(--flair);text-shadow:0 0 12px color-mix(in srgb,var(--flair) 40%,transparent)}
+#bestNote::before{content:"NEXT HIGHLIGHT" / ""}#nowcast::before{content:"NOW" / ""}
+#bestNote{box-shadow:inset 3px 0 0 var(--flair),0 0 0 1px color-mix(in srgb,var(--flair) 22%,transparent),0 6px 26px color-mix(in srgb,var(--flair) 12%,transparent)}
+:is(#answersView,#aimView,#recordsView,#detailView) .section-h h2::before,#answersView .card>h2::before{content:"" / "";display:inline-block;width:3px;height:.95em;margin:0 9px 0 0;vertical-align:-.1em;border-radius:2px;background:linear-gradient(var(--flair),color-mix(in srgb,var(--flair) 30%,transparent));box-shadow:0 0 8px color-mix(in srgb,var(--flair) 60%,transparent)}
+
+/* 予測と結果の切り替え：選んでいる側に下線の光 */
+#forecastTabs [role=tab][aria-selected=true]{box-shadow:inset 0 -2px 0 var(--flair),0 1px 6px #00000012}
+
+/* 主ボタンに控えめな光（色・大きさは同じ） */
+:is(#answersView,#recordsView,#aimView,#skyMapView) .fav-btn.primary{box-shadow:0 4px 18px color-mix(in srgb,var(--accent) 35%,transparent)}
+
+/* メニュー：題の上に英字ラベル、選んでいる項目に左の光る線 */
+.drawer-head>span::before{content:"ASTRONOTES" / "";display:block;font-size:9px;font-weight:700;letter-spacing:.34em;color:var(--accent);margin-bottom:2px}
+.drawer-list button[aria-current="page"]{box-shadow:inset 3px 0 0 var(--accent),0 0 18px color-mix(in srgb,var(--accent) 14%,transparent)}
+.drawer-list .menu-feature-icon{color:var(--accent);filter:drop-shadow(0 0 4px color-mix(in srgb,var(--accent) 45%,transparent))}
+
+/* 予測の詳細：週間の見出しの下に光る線 */
+#detailView .ph-head{position:relative;padding-bottom:8px}
+#detailView .ph-head::after{content:"" / "";position:absolute;left:0;bottom:0;width:56px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--flair),transparent);box-shadow:0 0 10px color-mix(in srgb,var(--flair) 55%,transparent)}
