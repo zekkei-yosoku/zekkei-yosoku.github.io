@@ -44,7 +44,7 @@ function render(root,day,p,events,astro,options={}){
  const at=()=>day+view.minute*60000,info=d.bodies[body];
  const hero=el('section','alm-hero'),visual=el('div','alm-orb-stage'),portrait=el('canvas','alm-portrait');portrait.setAttribute('role','img');
  // 2026-10-19 太陽の絵は高度・時刻に関係なく常に同じ（SoramiSunPortrait）。読めなければ従来の丸を使う
- const sunCanvas=g.SoramiSunPortrait?el('canvas','alm-portrait alm-sun-portrait'):null,sun=sunCanvas||el('div','alm-solar-orb');sun.setAttribute('role','img');sun.setAttribute('aria-label','太陽のイメージ');if(sunCanvas&&body!=='moon'){try{g.SoramiSunPortrait.draw(sunCanvas);}catch{}}
+ const sunCanvas=g.SoramiSunPortrait?el('canvas','alm-portrait alm-sun-portrait'):null,sun=sunCanvas||el('div','alm-solar-orb');sun.setAttribute('role','img');sun.setAttribute('aria-label','太陽のイメージ');if(sunCanvas&&body!=='moon'){try{Promise.resolve(g.SoramiSunPortrait.draw(sunCanvas)).catch(()=>{});}catch{}}
  visual.append(body==='moon'?portrait:sun);const rim=el('div','alm-orbit-rim');rim.setAttribute('aria-hidden','true');visual.append(rim);
  const content=el('div','alm-hero-copy'),kicker=el('p','alm-eyebrow',body==='moon'?'LUNAR NOTES':'SOLAR NOTES'),title=el('h2','alm-hero-title'),moment=el('p','alm-moment');
  const english=el('p','alm-phase-english'),names=el('div','alm-moon-names');
@@ -68,8 +68,8 @@ function render(root,day,p,events,astro,options={}){
   const state=astro[body](at(),d.observer),t=time(at());view.wallMinute=new Date(at()).getHours()*60+new Date(at()).getMinutes();cursor.setAttribute('x1',x(at()));cursor.setAttribute('x2',x(at()));dot.setAttribute('cx',x(at()));dot.setAttribute('cy',y(state.geometricAltitude));
   let lunar=null;if(body==='moon'){try{lunar=g.SoramiLunarNames?.describe(at(),state,astro);}catch{}if(!lunar)lunar={ja:phaseLabel(state),en:''};}
   let solar=null;if(body!=='moon'){try{solar=g.SoramiSolarTerms?.describe(at())||null;}catch{}}
-  title.textContent=lunar?lunar.ja:solar?solar.sekki.ja:'この日の太陽';english.textContent=lunar?.en||solar?.sekki.en||'';names.replaceChildren();kicker.hidden=body==='moon';
-  if(solar){const kou=el('p','alm-solar-kou',`${solar.kou.pos}　${solar.kou.ja}`),sub=el('p','alm-solar-kou-sub',solar.kou.kana+(solar.next?` ・ 次の節気 ${solar.next.ja} ${date(solar.next.at).slice(5).replace('-','/')}`:''));names.append(kou,sub);}
+  title.textContent=lunar?lunar.ja:solar?solar.sekki.ja:'この日の太陽';english.textContent=lunar?.en||solar?.sekki.en||'';names.replaceChildren();kicker.hidden=false;
+  if(solar){const kou=el('p','alm-solar-kou',`${solar.kou.pos}　${solar.kou.kana}`),sub=el('p','alm-solar-kou-sub',solar.next?`次の節気 ${solar.next.ja} ${date(solar.next.at).slice(5).replace('-','/')}`:'');names.append(kou,sub);}
   if(lunar?.event){const e=lunar.event;
    if(e.kind===2){english.textContent=e.name[1];
     if(e.tags.length){const tags=el('div','alm-moon-tags');for(const [,en]of e.tags)tags.append(el('span','',en));names.append(tags);}

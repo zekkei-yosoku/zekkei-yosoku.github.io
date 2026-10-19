@@ -3,6 +3,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
+import vm from 'node:vm';
+import { execFileSync } from 'node:child_process';
 const require = createRequire(import.meta.url);
 const T = require('./sorami-solar-terms.js'), sun = require('./sorami-sun-portrait.js');
 
@@ -41,24 +43,26 @@ test('境目は5°ずつ途切れず並び、対応期間（2020〜2030年）の
   assert.equal(T.describe(Date.parse('2010-01-01T00:00:00Z')), null); assert.equal(T.describe(Date.parse('2040-01-01T00:00:00Z')), null); assert.equal(T.describe(NaN), null);
 });
 
-test('太陽の絵：黄〜橙の円盤、縁が明るく、外は透明、毎回同じ', () => {
-  // 2026-10-19 ユーザーが選んだイラスト風（A 黄色系）。高度・時刻を入力に取らない
-  const n = 160, s = sun.surface(n), r = n * sun.DISC, px = (x, y) => Array.from(s.slice((y * n + x) * 4, (y * n + x) * 4 + 4));
-  let warm = 0, total = 0, lumIn = 0, lumRim = 0, cIn = 0, cRim = 0;
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    const d = Math.hypot(x + 0.5 - n / 2, y + 0.5 - n / 2) / r, p = px(x, y); if (d >= 0.99) continue;
-    total++; if (p[0] >= p[1] && p[1] >= p[2] && p[0] > 200) warm++;
-    const l = p[0] + p[1] + p[2]; if (d < 0.6) { lumIn += l; cIn++; } else if (d > 0.96) { lumRim += l; cRim++; }
-  }
-  assert.ok(warm / total > 0.97, `warm ${warm}/${total}`);
-  assert.ok(lumRim / cRim > lumIn / cIn, '縁が内側より明るい');
-  assert.equal(px(2, 2)[3], 0); assert.equal(px(n / 2, n / 2)[3], 255);
-  assert.deepEqual(Array.from(sun.surface(n)), Array.from(s), '同じ入力から毎回同じ画素');
+test('太陽の画像：960px・透明あり・追跡済み、読めないときも計算の太陽を描く', async () => {
+  // 2026-10-19 ユーザーが選んだイラスト風を、細かく作り込んだ画像（生成元 tools/build-sun-texture.py）
+  const png = fs.readFileSync(new URL('./' + sun.SRC, import.meta.url));
+  assert.equal(png.readUInt32BE(16), 960); assert.equal(png.readUInt32BE(20), 960); assert.equal(png[25], 6, 'RGBA');
+  assert.ok(png.length < 1.5 * 1024 * 1024); assert.ok(sun.DISC > 0.4 && sun.DISC < 0.43, '月の絵と同じ大きさ（直径83%）');
+  assert.ok(execFileSync('git', ['ls-files', '--cached', sun.SRC, 'trial/' + sun.SRC], { encoding: 'utf8' }).includes('trial/' + sun.SRC));
+  // 画像の読み込み失敗：例外を出さず計算の太陽を描く
+  const ops = []; const ctx = new Proxy({}, { get: (_, k) => k === 'createRadialGradient' ? () => ({ addColorStop() {} }) : (...a) => ops.push(k) , set: () => true });
+  const sandbox = { setTimeout, clearTimeout, Image: class { set src(v) { queueMicrotask(() => this.onerror()); } } };
+  vm.createContext(sandbox); vm.runInContext(fs.readFileSync(new URL('./sorami-sun-portrait.js', import.meta.url), 'utf8'), sandbox);
+  const canvas = { isConnected: true, getContext: () => ctx };
+  const result = await sandbox.SoramiSunPortrait.draw(canvas);
+  assert.equal(result.texture, false); assert.ok(ops.includes('fill'), '計算の太陽を描いた');
 });
 
 test('ホームは太陽の絵と節気を使い、高度で絵を変えない', () => {
   const d = fs.readFileSync(new URL('./sorami-almanac-dashboard.js', import.meta.url), 'utf8'), h = fs.readFileSync(new URL('./index.html', import.meta.url), 'utf8');
   assert.match(d, /SoramiSunPortrait\.draw\(sunCanvas\)/); assert.match(d, /SoramiSolarTerms\?\.describe\(at\(\)\)/);
+  // 2026-10-19 ユーザー指摘：月にも LUNAR NOTES を出す。七十二候は漢字4文字ではなく読みで出す
+  assert.match(d, /kicker\.hidden=false/); assert.match(d, /solar\.kou\.pos\}　\$\{solar\.kou\.kana\}/); assert.doesNotMatch(d, /solar\.kou\.ja\}/);
   assert.doesNotMatch(d, /SoramiSunPortrait\.draw\([^)]*Altitude/);
   const order = ['sorami-solar-terms.js', 'sorami-sun-portrait.js', 'sorami-almanac-dashboard.js'].map((f) => h.indexOf(f));
   assert.ok(order.every((i) => i > 0) && order[0] < order[2] && order[1] < order[2]);
