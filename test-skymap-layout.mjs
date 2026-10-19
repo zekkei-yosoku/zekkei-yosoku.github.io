@@ -154,7 +154,8 @@ test('E198: 日時の読み上げは画面と同じ表記、⋯は中身どお�
  assert.equal(c.ToolDateTimeBar.label(Date.parse('2026-10-03T23:59:00+09:00')),'2026/10/03(土)');
 });
 test('E198: 予測の取得状態は道具の画面の上に出さない',()=>{
- assert.match(html,/main:has\(>:is\(#aimView,#planeView,#issView,#recordsView,#answersView,#skyMapView,#adminView\):not\(\[hidden\]\)\)>:is\(#status,#predictionDataNotice\)\{display:none\}/);
+ // 2026-10-19 f98f7f2 でホーム（#almanacView）も対象に加わった。期待値の更新漏れを修正
+ assert.match(html,/main:has\(>:is\(#aimView,#planeView,#issView,#recordsView,#answersView,#skyMapView,#adminView,#almanacView\):not\(\[hidden\]\)\)>:is\(#status,#predictionDataNotice\)\{display:none\}/);
 });
 test('E198: 月・富士山の信頼度の説明で、何日先かを二重に言わない',()=>{
  const src=html.slice(html.indexOf('function confidenceText(ev)'),html.indexOf('// 51メンバーの散らばりを見せる。'));
