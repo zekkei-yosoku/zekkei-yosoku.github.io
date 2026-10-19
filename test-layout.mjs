@@ -147,7 +147,7 @@ ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待�
     ok(menu.includes(`data-tool="${href}"`) && menu.includes(name), `${name} が入っている`);
   }
   // 絶景予測への入口（2026-10-15 名称を「絶景予測」に統一）
-  ok(/<nav class="drawer-list">\s*<!--[\s\S]*?-->\s*<button id="toolsHome"><b>(?:<svg\b[^>]*>[\s\S]*?<\/svg>)?予測<\/b>/.test(menu), "メニューのいちばん上に「予測」");
+  ok(menu.indexOf('id="almanacMenu"') < menu.indexOf('id="toolsHome"') && menu.includes('<b>ホーム</b>'), "メニューの先頭にホーム、その次に予測");
   ok(!/id="toolsHome"[^>]*data-(tool|id)=/.test(menu), "一覧は道具ではない（許可・管理画面の名前に混ぜない）");
   ok(/\$\("toolsHome"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \};/.test(html), "押すと題名と同じく、何画面進んでいても1回で一覧へ");
   ok(/if \(!routeFromHash\(\) \|\| routeFromHash\(\)\.answers\) \$\("toolsHome"\)\.setAttribute\("aria-current", "page"\);\s+else \$\("toolsHome"\)\.removeAttribute\("aria-current"\);/.test(html),
@@ -1031,8 +1031,8 @@ ok(/addEventListener\("hashchange"/.test(html), "hashchange を見ている");
 // 2026-10-01: 題名だけでは戻れると気づけない（ユーザー「一覧に戻るボタンはあった方がいい」）。
 // 一覧以外の画面では、題名の帯のすぐ下に「← 戻る」を出す。どの画面でも同じ左上で、カードのあいだに浮かない。
 ok(/id="homeLink"/.test(html), "一覧では題名が戻り道");
-ok(/\$\("homeLink"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \}/.test(html),
-  "題名を押すと一覧へ戻る（引き出しも閉じる）");
+ok(/\$\("homeLink"\)\.onclick = \(\) => \{ closeTools\(\);[^\n]*pushRoute\("#\/almanac"\)/.test(html),
+  "題名を押すとホームへ戻る（引き出しも閉じる）");
 {
   // 2026-10-01 ユーザー「☰ と絶景予測の下にいい感じに。ボタンみたいに囲わなくていい。←戻る でいい」
   const mast = /<div class="masthead">[\s\S]*?\n  <\/div>/.exec(html)[0];

@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="1792405714607">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-GWKo9Pe/ftCHz41vdQWUTUevspVLwmW97Ss1NDTwFtU=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Y0TMPnAAyhQZ+vquPTGgWlV+g4QBe2p1puGKP0ajd7I=' 'sha256-vonbNCtjdFNN0+8MALqbVdM23i0w2WirADDLWY4U4Vg=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-WdCjtQsc6j2vX/aXQwIKJBAJghJNz8ukoi3MfFtb6Us=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="1792406182515">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-jFbG917xXk3wTq+rneaOSz+QptDXHjW0DbPyKAGGaqI=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Y0TMPnAAyhQZ+vquPTGgWlV+g4QBe2p1puGKP0ajd7I=' 'sha256-vonbNCtjdFNN0+8MALqbVdM23i0w2WirADDLWY4U4Vg=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-PeTnCjc02TfcaHhg+PDXrWQVvIolk4IhT77mRkqkHAg=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='           blob:          ; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -2363,7 +2363,7 @@ button.ui-icon-button::after { content: none; }
 <script src="sorami-home-time.js?v=989dc4abfcf7"></script>
 <script src="sorami-moon-portrait.js?v=8785f724418b"></script>
 <script src="sorami-lunar-names.js?v=ce5d7091f2bc"></script>
-<script src="sorami-almanac-dashboard.js?v=9a697bd88377"></script>
+<script src="sorami-almanac-dashboard.js?v=46f319d8436b"></script>
 <script src="sorami-access.js?v=17412933104240943276"></script>
 <script src="sorami-align.js?v=16914866522493769858"></script>
 <script src="sorami-moon.js?v=10230678456179898054"></script>
@@ -4090,12 +4090,12 @@ function renderAlmanac() {
   $("almanacPrev").disabled=almanacDay<=lower;$("almanacNext").disabled=almanacDay>=upper;
   const move=days=>{almanacDay=T.addDays(almanacDay,days);renderAlmanac();};
   $("almanacPrev").onclick=()=>move(-1);$("almanacNext").onclick=()=>move(1);
-  $("almanacToday").onclick=()=>{almanacDay=T.start(Date.now());renderAlmanac();};
+  $("almanacToday").onclick=()=>{globalThis.SoramiAlmanacDashboard?.today();almanacDay=SoramiHomeTime.start(Date.now());renderAlmanac();};
   input.onchange=()=>{const n=T.parse(input.value);if(Number.isFinite(n)&&n>=lower&&n<=upper){almanacDay=n;renderAlmanac();}else{input.value=date(almanacDay);}};
   $("almanacMenu")?.setAttribute('aria-current','page');
   const out=$("almanacOutput");out.replaceChildren();
   out.hidden=!!globalThis.SoramiAlmanacDashboard;
-  if(globalThis.SoramiAlmanacDashboard){SoramiAlmanacDashboard.render($("almanacDashboard"),almanacDay,p,almanacEvents,SoramiAstro,{actions:[
+  if(globalThis.SoramiAlmanacDashboard){SoramiAlmanacDashboard.render($("almanacDashboard"),almanacDay,p,almanacEvents,SoramiAstro,{isActive:()=>atAlmanac,onLiveDay:()=>{almanacDay=SoramiHomeTime.start(Date.now());renderAlmanac();},actions:[
     {label:"予測",open:()=>goList()},
     {label:"構図",available:screenAllowed("framing"),open:()=>pushRoute("#/aim")},
     {label:"地図",available:screenAllowed("skymap"),open:()=>SkyMapUI?.enter(false)},
@@ -4122,6 +4122,7 @@ function renderAlmanac() {
   }
 
 }
+if(typeof document!=='undefined')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&atAlmanac)globalThis.SoramiAlmanacDashboard?.refresh();});
 function routeFromHash() {
   if (location.hash === "#/almanac") return { almanac: true };
   if (location.hash.includes("?plan=")) {
@@ -4214,8 +4215,10 @@ function goList() {
 function applyRoute() {
   if (restoreSharedPlan() === "reload") { load(true); return; }
   const route = routeFromHash();
+  const enteringHome=!!route?.almanac&&!atAlmanac;
   atAlmanac = !!route?.almanac;
-  if(!atAlmanac)almanacTimeline?.stop();
+  if(enteringHome&&globalThis.SoramiAlmanacDashboard?.enter())almanacDay=SoramiHomeTime.start(Date.now());
+  if(!atAlmanac){almanacTimeline?.stop();globalThis.SoramiAlmanacDashboard?.stop();}
   picked = route && route.id ? route.id : null;
   const wasAnswers=atAnswers;
   atRecords = !!(route && route.records);
@@ -10931,9 +10934,9 @@ function showSheet(el) {
   el.focus({ preventScroll: true });
 }
 // 題名は一覧へ（何画面進んでいても1回で）。「← 戻る」はひとつ前の画面へ
-$("homeLink").onclick = () => { closeTools(); pushRoute("#/almanac"); };
+$("homeLink").onclick = () => { closeTools(); if(globalThis.SoramiAlmanacDashboard?.enter())almanacDay=SoramiHomeTime.start(Date.now()); pushRoute("#/almanac"); };
 $("toolsHome").onclick = () => { closeTools(); goList(); };
-$("almanacMenu").onclick = () => pushRoute('#/almanac');
+$("almanacMenu").onclick = () => {if(globalThis.SoramiAlmanacDashboard?.enter())almanacDay=SoramiHomeTime.start(Date.now());pushRoute('#/almanac');};
 $("backLink").onclick = () => { closeTools(); goBack(); };
 $("toolsButton").onclick = () => ($("toolsMenu").hidden ? openTools() : closeTools());
 $("toolsClose").onclick = () => closeTools({ restoreFocus: true });
@@ -12847,7 +12850,14 @@ ctx.lineWidth=1;
  }
  const themeNote=document.createElement('p');themeNote.className='tiny';themeNote.textContent='自動は端末の設定に合わせます。この端末に保存されます。';
  themeRow.append(themeLabel,themeButtons,themeNote,themeStatus);updateTheme();
- row.append(themeRow,label,select,note,status);
+ const autoRow=document.createElement('div');autoRow.style.cssText='padding:16px 0;border-top:1px solid var(--line);margin-top:18px';
+ const autoLabel=document.createElement('label');autoLabel.style.cssText='display:flex;align-items:center;gap:12px;min-height:44px';
+ const autoInput=document.createElement('input');autoInput.type='checkbox';autoInput.id='homeAutoBody';autoInput.style.cssText='width:20px;height:20px;accent-color:var(--accent)';
+ const autoText=document.createElement('span');autoText.textContent='昼夜で太陽・月を自動切替';autoLabel.append(autoInput,autoText);
+ const autoStatus=document.createElement('p');autoStatus.className='tiny';autoStatus.setAttribute('role','status');
+ const updateAuto=()=>{autoInput.disabled=!globalThis.SoramiAlmanacDashboard;autoInput.checked=globalThis.SoramiAlmanacDashboard?.getAuto()??true;};updateAuto();
+ autoInput.onchange=()=>{const saved=globalThis.SoramiAlmanacDashboard?.setAuto(autoInput.checked);updateAuto();autoStatus.textContent=saved?'保存しました。':'保存できませんでした。端末の保存設定を確認してください。';};
+ autoRow.append(autoLabel,autoStatus);row.append(themeRow,label,select,note,status,autoRow);
  const settings=document.createElement('dialog');settings.id='appSettings';settings.className='sheet';settings.tabIndex=-1;settings.setAttribute('aria-labelledby','appSettingsTitle');
  settings.innerHTML='<div class="sheet-head"><strong id="appSettingsTitle">設定</strong><button type="button" id="appSettingsClose" aria-label="閉じる" title="閉じる"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div class="sheet-body"></div>';
  const settingsBody=settings.querySelector('.sheet-body');
@@ -12876,7 +12886,7 @@ ctx.lineWidth=1;
   panel.addEventListener('touchcancel',()=>{start=null;},{passive:true});
   panel.addEventListener('touchend',event=>{const from=start;start=null;if(!from||!panel.open)return;const t=Array.from(event.changedTouches).find(t=>t.identifier===from.id);if(!t)return;const dx=t.clientX-from.x,dy=t.clientY-from.y;if(dx>70&&Math.abs(dy)<dx*.5)panel.close();},{passive:true});
  }
- const update=()=>{updateTheme();select.value=get();for(const o of select.options)o.disabled=!permitted(o.value);status.textContent=!permitted(get())?'選択した画面は現在利用できないため、起動時はホームを開きます。':'';};
+ const update=()=>{updateTheme();updateAuto();select.value=get();for(const o of select.options)o.disabled=!permitted(o.value);status.textContent=!permitted(get())?'選択した画面は現在利用できないため、起動時はホームを開きます。':'';};
  // Refresh against live grants whenever settings is opened, including after a drawer swipe.
  new MutationObserver(()=>{if(settings.open)update();}).observe(document.getElementById('authButton'),{childList:true,subtree:true,characterData:true});
  const openStartup = async()=>{
