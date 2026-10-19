@@ -41,12 +41,19 @@ test('境目は5°ずつ途切れず並び、対応期間（2020〜2030年）の
   assert.equal(T.describe(Date.parse('2010-01-01T00:00:00Z')), null); assert.equal(T.describe(Date.parse('2040-01-01T00:00:00Z')), null); assert.equal(T.describe(NaN), null);
 });
 
-test('太陽の絵は決まった見た目：中心は指定色、縁は暗く、外は透明', () => {
-  const s = sun.surface(128), px = (x, y) => Array.from(s.slice((y * 128 + x) * 4, (y * 128 + x) * 4 + 4));
-  const c = px(64, 64), edge = px(64 + Math.floor(128 * sun.DISC) - 2, 64), out = px(2, 2);
-  for (let k = 0; k < 3; k++) assert.ok(Math.abs(c[k] - sun.BASE[k]) <= sun.BASE[k] * 0.06, `center ${c}`);
-  assert.ok(edge[2] < c[2] * 0.6 && edge[0] > edge[2], `limb ${edge}`); assert.equal(out[3], 0); assert.equal(c[3], 255);
-  assert.deepEqual(Array.from(sun.surface(128)), Array.from(s), '同じ入力から毎回同じ画素');
+test('太陽の絵：黄〜橙の円盤、縁が明るく、外は透明、毎回同じ', () => {
+  // 2026-10-19 ユーザーが選んだイラスト風（A 黄色系）。高度・時刻を入力に取らない
+  const n = 160, s = sun.surface(n), r = n * sun.DISC, px = (x, y) => Array.from(s.slice((y * n + x) * 4, (y * n + x) * 4 + 4));
+  let warm = 0, total = 0, lumIn = 0, lumRim = 0, cIn = 0, cRim = 0;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const d = Math.hypot(x + 0.5 - n / 2, y + 0.5 - n / 2) / r, p = px(x, y); if (d >= 0.99) continue;
+    total++; if (p[0] >= p[1] && p[1] >= p[2] && p[0] > 200) warm++;
+    const l = p[0] + p[1] + p[2]; if (d < 0.6) { lumIn += l; cIn++; } else if (d > 0.96) { lumRim += l; cRim++; }
+  }
+  assert.ok(warm / total > 0.97, `warm ${warm}/${total}`);
+  assert.ok(lumRim / cRim > lumIn / cIn, '縁が内側より明るい');
+  assert.equal(px(2, 2)[3], 0); assert.equal(px(n / 2, n / 2)[3], 255);
+  assert.deepEqual(Array.from(sun.surface(n)), Array.from(s), '同じ入力から毎回同じ画素');
 });
 
 test('ホームは太陽の絵と節気を使い、高度で絵を変えない', () => {
