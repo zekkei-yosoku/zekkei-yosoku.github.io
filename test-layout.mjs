@@ -301,7 +301,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   // 引き継いだ地点も、地点カードの展望台・目の高さを立つ所に読み替える（2026-10-06）
   ok(/function aimFromPoint\(\) \{\s+return aim\.from \|\| null;/.test(html),
     "未選択では撮影地点を暗黙補完しない");
-  ok(/renderPointCard\("aimFrom", f\);/.test(fn) && /\$\(`\$\{prefix\}Name`\)\.textContent = f \? f\.name/.test(html), "引き継いだ地点の名前をカードに入れておく（共通の renderPointCard）");
+  ok(/renderPointCard\("aimFrom", f\);/.test(fn) && /\$\(nameId\)\.textContent = f \? f\.name/.test(html), "引き継いだ地点の名前をカードに入れておく（共通の renderPointCard）");
   ok(/f\.inherited \? "絶景予測の地点" : ""/.test(html), "引き継いだ地点なら、そう書く");
   ok(/subtitle: aimAreaOf\(\{ detail: place\.subtitle \|\| "" \}\)/.test(html), "引き継いだ地点の住所も都道府県＋市区町村まで");
   ok(!/id="aimFromHere"/.test(html), "引き継ぐための別の釦は置かない（欄に入れておく）");
@@ -930,7 +930,7 @@ ok(/targetHeightM: Number\.isFinite\(f\.targetHeightM\) && f\.targetHeightM >= 0
 ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM/.test(html), "0m で登録した目標は 0m のまま（前に入れた高さを引きずらない）");
 
 console.log("== 道具ごとに撮影地点の書き方をそろえる（2026-10-01） ==");
-ok(/const g = !elevation \? null : prefix === "aimFrom" \? groundM : f && f\.inherited \? place\.elevation \?\? bundle\?\.home\.grid\.elevation \?\? groundM : groundM;/.test(html),
+ok(/const g = !elevation \? null : shooting \? groundM : f && f\.inherited \? place\.elevation \?\? bundle\?\.home\.grid\.elevation \?\? groundM : groundM;/.test(html),
   "撮影地点の標高は観測標高と同じDEM、他道具の継承表示は維持");
 ok(/const missed = r\.spots\.some\(\(sp\) => sp\.spot\.id === "here"\) \? "" : `\$\{P\.name\}からは、この日は重なりません。`;/.test(html),
   "月丼: 撮影地点から重ならない日はそう言う");
@@ -1521,7 +1521,7 @@ ok(fs.existsSync(new URL("./spots.js", import.meta.url)), "spots.js は残して
 // 登録できる項目が、内蔵スポットと同じであること。名前だけの★では一覧の意味がない。
 ok(/id="favSheet"/.test(html), "お気に入りの登録フォームがある");
 for (const [id, label] of [["favName", "名前"], ["favPhenomena", "現象"],
-                           ["favTerrain", "地形"], ["favNote", "メモ"]]) {
+                           ["favNote", "メモ"]]) {
   ok(new RegExp(`id="${id}"`).test(html), `${label}を登録できる`);
 }
 ok(/openFavSheet\(favorites\.findIndex/.test(html), "☆ からも登録フォームへ入れる");

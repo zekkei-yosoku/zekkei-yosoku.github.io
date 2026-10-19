@@ -100,10 +100,10 @@ test('既存の形を別画面で変更したら上書きせず開き直しを�
 });
 
 function newShapeHarness(){
- const nodes=new Map(),make=()=>({children:[],dataset:{},value:'',disabled:false,open:false,append(...v){this.children.push(...v)},replaceChildren(...v){this.children=v},setAttribute(k,v){this[k]=v},addEventListener(){},dispatchEvent(){},close(){this.open=false}});
+ const nodes=new Map(),make=()=>({children:[],dataset:{},value:'',disabled:false,open:false,append(...v){this.children.push(...v)},replaceChildren(...v){this.children=v},setAttribute(k,v){this[k]=v},addEventListener(){},querySelectorAll(){return []},dispatchEvent(){},close(){this.open=false}});
  const state={place:{id:null,name:'',latitude:null,longitude:null},draftShape:null};let picks;
  const map={setOverlay(){},onPick(fn){picks=fn},open(){},setView(...v){this.view=v},center:()=>ll(0),project:(lat,lon)=>[lon,lat],redraw(){}};
- const c={SoramiLibrary:L,Event:class{},wireSearchBox:(a,b,fn)=>{map.move=fn},sheetState:state,sheetOwnerMatches:()=>true,auth:{token:'owner'},el:id=>{if(!nodes.has(id))nodes.set(id,make());return nodes.get(id)},document:{createElement:make,body:{append(){}}},PLACE_PICKERS:{},SoramiShooting:P,place:{...ll(0)},placeNear:()=>null,createMapView:()=>map,showSheet:d=>{d.open=true},renderSheet(){},openPlaceSheet(){},shapeName:s=>s?.type==='area'?'範囲':s?.type==='line'?'線':'点',structuredClone,Option:function(text,value){return {text,value}}};
+ const c={SoramiTerrain:require('./sorami-terrain.js'),SoramiLibrary:L,Event:class{},wireSearchBox:(a,b,fn)=>{map.move=fn},sheetState:state,sheetOwnerMatches:()=>true,auth:{token:'owner'},el:id=>{if(!nodes.has(id))nodes.set(id,make());return nodes.get(id)},document:{createElement:make,body:{append(){}}},PLACE_PICKERS:{},SoramiShooting:P,place:{...ll(0)},placeNear:()=>null,createMapView:()=>map,showSheet:d=>{d.open=true},renderSheet(){},openPlaceSheet(){},shapeName:s=>s?.type==='area'?'範囲':s?.type==='line'?'線':'点',structuredClone,Option:function(text,value){return {text,value}}};
  vm.createContext(c);vm.runInContext(ui.slice(ui.indexOf('let shapeDialog='),ui.indexOf('// ---------------------------------------------------------------- 記録：')),c);
  return {c,state,nodes,map,pick:(p)=>picks(p,{x:1000,y:1000}),value:()=>vm.runInContext('shapeEdit.value',c)};
 }

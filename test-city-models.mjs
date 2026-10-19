@@ -11,7 +11,7 @@ test('公式3施設の絶対座標・標高と、方位による輪郭変化を�
   const view=b=>A.towerOutline({...TR.destination(t.latitude,t.longitude,b,3),elevation:20},t),o=view(0),q=view(65);
   assert.equal(o.modelId,id+'-plateau-lod2-2025');assert.equal(o.polygons,o.hitPolygons);
   assert.ok(o.points.every(p=>p.every(Number.isFinite)));assert.ok(o.points.length>100);
-  const width=o=>Math.max(...o.points.map(p=>p[0]))-Math.min(...o.points.map(p=>p[0]));assert.ok(Math.abs(width(o)-width(q))>1e-5);
+  const width=o=>{let lo=Infinity,hi=-Infinity;for(const [x] of o.points){lo=Math.min(lo,x);hi=Math.max(hi,x);}return hi-lo;};assert.ok(Math.abs(width(o)-width(q))>1e-5);
   assert.ok(m.triangles.every(f=>f.length===3&&f.every(i=>i>=0&&i<m.vertices.length)));
   const obs={...TR.destination(t.latitude,t.longitude,250,5),elevation:10};const start=performance.now();assert.ok(Array.isArray(A.dailyView(obs,t,'moon',Date.parse('2026-11-04T00:00:00+09:00'))));assert.ok(performance.now()-start<3500,id+'の検索時間');
  }

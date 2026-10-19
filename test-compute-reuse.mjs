@@ -21,13 +21,15 @@ test('構図では候補地点の新規探索も線の逆算も起動しない',
 test('構図の保存地点はモデル読込が終わらなくても即時表示し、明示解除のnullは補完しない',()=>{
  let selected={name:'曽谷',latitude:35.7477,longitude:139.93038,groundManualM:19},modelRequests=0;
  const $=dom(),c={aim:{bodySeq:0},auth:{token:'test'},atAim:true,$,renderAimAccess:()=>true,aimFromPoint:()=>selected,aimElevCache:new Map(),renderFavStar(){},SoramiAssets:{modelsReady:()=>false,ensureModels:()=>{modelRequests++;return new Promise(()=>{});}}};vm.createContext(c);
+ c.esc=x=>String(x);vm.runInContext(extract('function candidateWaitMarkup(','function aimSyncFromDay()'),c);
  vm.runInContext(extract('function renderPointCard(','function renderFavStar(')+extract('function aimRenderSelectedPoint(','async function aimRenderFrom()')+extract('function openAim(preset)','/// 地図を開く中心'),c);
- c.openAim();assert.equal(modelRequests,1);assert.equal($('aimFromName').textContent,'曽谷');assert.match($('aimFromSub').textContent,/標高 19m/);assert.equal($('aimFromClear').hidden,false);
- selected=null;c.openAim();assert.equal($('aimFromName').textContent,'撮影地点を選ぶ');assert.equal($('aimFromClear').hidden,true);assert.equal($('aimFromFav').hidden,true);
+ c.openAim();assert.equal(modelRequests,1);assert.equal($('aimFromName').textContent,'曽谷');assert.match($('aimFromSub').textContent,/標高 19m/);assert.equal($('aimFromClear').hidden,false);assert.match($('aimFrom').innerHTML,/note-wait-character/);
+ selected=null;c.openAim();assert.equal($('aimFromName').textContent,'撮影地点を選ぶ');assert.equal($('aimFromClear').hidden,true);assert.equal($('aimFromFav').hidden,true);assert.equal($('aimFrom').innerHTML,'');
 });
 test('地点表示は天体エンジン待ちより先に行い、計算完了を待たない',()=>{
  const $=dom(),point={name:'撮影地点',latitude:35,longitude:139,groundManualM:30};const c={aim:{body:'sirius',bodySeq:0},$,aimFromPoint:()=>point,aimElevCache:new Map(),renderFavStar(){},SoramiBodies:{definition:()=>({limbs:false}),ready:()=>false,ensure:()=>new Promise(()=>{})}};vm.createContext(c);
  const start=html.indexOf('function aimApply('),end=html.indexOf('  // お気に入りは',start);
+ c.esc=x=>String(x);vm.runInContext(extract('function candidateWaitMarkup(','function aimSyncFromDay()'),c);
  vm.runInContext(extract('function renderPointCard(','function renderFavStar(')+extract('function aimRenderSelectedPoint(','async function aimRenderFrom()')+html.slice(start,end)+'}',c);
  assert.equal(c.aimApply(),false);assert.equal($('aimFromName').textContent,'撮影地点');assert.match($('aimFromSub').textContent,/30m/);
 });
