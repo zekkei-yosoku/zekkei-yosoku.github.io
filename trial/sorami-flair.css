@@ -55,11 +55,9 @@
 #aimFramingTitle,#skyMapTitle,:is(#aimView,#recordsView) .sky-map-head h2{position:absolute!important;width:1px;height:1px;margin:0!important;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 :is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head){flex-wrap:nowrap;align-items:center;gap:12px;margin-top:4px}
 :is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head)::before{flex:1 1 auto;margin:0}
-:is(.aim-titlebar,#skyMapView .sky-map-head):has(>button:not([hidden]))::before{margin-left:56px}
+:is(.aim-titlebar,#skyMapView .sky-map-head,#recordsView .sky-map-head):has(>button:not([hidden]))::before{margin-left:56px}
 #skyMapView .sky-map-head{margin-bottom:8px}#recordsView .sky-map-head{margin-bottom:12px}
-/* 記録の＋：カードの中の操作の行の右端 */
-#myRecordsHub .my-head{display:flex;align-items:center;gap:8px}
-#myRecordsHub .my-head .my-add-point{margin-left:auto;flex:none}
+/* 記録の＋は帯の右端（履歴ボタンと同じ灰色の丸。sorami-myplaces.js） */
 /* 予測：地点カードの上の帯（地点カードを出す画面＝一覧・詳細・結果だけ） */
 #forecastBand{display:none;--flair:var(--flair-forecast);--kw:6.2em;margin:4px 0 10px;text-align:center;font-size:12px;font-weight:700;letter-spacing:.46em;padding-left:.46em;line-height:1.8;color:var(--flair);text-shadow:0 0 16px color-mix(in srgb,var(--flair) 45%,transparent);
  background:linear-gradient(90deg,transparent,var(--flair)) left center/calc(50% - var(--kw)) 1px no-repeat,linear-gradient(90deg,var(--flair),transparent) right center/calc(50% - var(--kw)) 1px no-repeat}
@@ -73,3 +71,7 @@ main:has(>#placeRow:not([hidden]))>#forecastBand{display:block}
  background:radial-gradient(closest-side,color-mix(in srgb,var(--flair) 16%,transparent),transparent) center/calc(2*var(--kw,5em)) 100% no-repeat,
   linear-gradient(90deg,transparent,var(--flair)) left center/calc(50% - var(--kw,5em)) 1px no-repeat,linear-gradient(90deg,var(--flair),transparent) right center/calc(50% - var(--kw,5em)) 1px no-repeat}
 #almanacView .alm-eyebrow{text-shadow:0 0 10px color-mix(in srgb,var(--alm-active) 55%,transparent),0 0 24px color-mix(in srgb,var(--alm-active) 35%,transparent);background:radial-gradient(closest-side,color-mix(in srgb,var(--alm-active) 16%,transparent),transparent) center/17em 100% no-repeat}
+/* 2026-10-20 ユーザー「全体的にもう少しボタン小さめにできる？」：帯の右端の丸（構図・地図の履歴、記録の＋）は見た目を36pxの丸・18pxのアイコンに。
+   押せる範囲は44pxのまま（内側4pxを透明にして、背景は内側だけに塗る） */
+:is(#aimRecentOpen,#skyMapRecentOpen,#recordsHeading .my-add-point){width:44px;height:44px;min-width:44px;min-height:44px;padding:4px!important;border-color:transparent;background-clip:content-box;box-shadow:none}
+:is(#aimRecentOpen,#skyMapRecentOpen,#recordsHeading .my-add-point) svg{width:18px;height:18px}
