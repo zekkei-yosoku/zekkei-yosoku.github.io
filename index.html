@@ -13,10 +13,11 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="538007677484242593">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-Tehsq5x0jxBLdiMctjmTJJLmZ6lPvTLCHLlrqB4z2B8=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Y0TMPnAAyhQZ+vquPTGgWlV+g4QBe2p1puGKP0ajd7I=' 'sha256-vonbNCtjdFNN0+8MALqbVdM23i0w2WirADDLWY4U4Vg=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="8038938341777650406">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-fFZfPC0HroNiBW0V2SVWs2kr/4o28IEPG4s7l7JLGOM=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Y0TMPnAAyhQZ+vquPTGgWlV+g4QBe2p1puGKP0ajd7I=' 'sha256-vonbNCtjdFNN0+8MALqbVdM23i0w2WirADDLWY4U4Vg=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
+<link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=6653775744319668949">
 <link data-script-preload rel="preload" as="script" href="sorami-saved-rounds.js?v=12447962622712891676">
 <link data-script-preload rel="preload" as="script" href="sorami-library.js?v=16818793229199510345">
@@ -2305,6 +2306,7 @@ button.ui-icon-button::after { content: none; }
      spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
 <script src="sorami-icons.js?v=7710713070885006918"></script>
 <script src="sorami-core.js?v=11910929526926383329"></script>
+<script src="sorami-search.js?v=17115894211073568200"></script>
 <script src="sorami-prediction.js?v=6653775744319668949"></script>
 <script src="sorami-saved-rounds.js?v=12447962622712891676"></script>
 <script src="sorami-library.js?v=16818793229199510345"></script>
@@ -10196,9 +10198,20 @@ function searchSupplement() {
     .catch(e => { searchSupplementPromise = null; throw e; });
   return searchSupplementPromise;
 }
+// Load once on the first search; a failed load is retryable.
+let photographicSearchPromise = null;
+function photographicSearch() {
+  if (!photographicSearchPromise) photographicSearchPromise = searchJson("data/aim-places.json")
+    .then(data => SoramiPlaceSearch.open(data))
+    .catch(e => { photographicSearchPromise = null; throw e; });
+  return photographicSearchPromise;
+}
 function namedPlaceMatches(q, rows) {
   const norm = s => SoramiTerrain.normName(s).replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
   const query = norm(q);if (!query) return [];
+  if (String(q).trim().split(/\s+/).length > 1) return rows
+    .filter(r => SoramiPlaceSearch.match(q, {...r, address: r.address || r.detail || r.subtitle}))
+    .filter(r => Number.isFinite(r.latitude) && Number.isFinite(r.longitude));
   return rows.filter(r => [r.name, ...(r.aliases || [])].some(n => norm(n).includes(query)))
     .filter(r => Number.isFinite(r.latitude) && Number.isFinite(r.longitude));
 }
@@ -10228,12 +10241,21 @@ async function searchPlaces(q, {localOnly = false, near = place} = {}) {
   // **展望台は立つ高さが効く**ので、検索の時点で持っておく
   const osmUrl = "https://nominatim.openstreetmap.org/search?" + new URLSearchParams(
     { q, format: "jsonv2", limit: "8", countrycodes: "jp", "accept-language": "ja", extratags: "1" });
-  const [gsiRes, osmRes, idxRes, supplementRes] = await Promise.allSettled([
+  const [gsiRes, osmRes, idxRes, supplementRes, photoRes] = await Promise.allSettled([
     localOnly ? Promise.resolve([]) : searchJson(gsiUrl),
     localOnly ? Promise.resolve([]) : searchJson(osmUrl),
     placeIndex().then((j) => SoramiTerrain.searchPlaceIndex(j, q, { near, limit: 8 })),
     searchSupplement(),
+    photographicSearch(),
   ]);
+  const photos = (photoRes.status === "fulfilled" ? SoramiPlaceSearch.search(photoRes.value, q) : []).map(r => {
+    // Canonical current deck heights take precedence over the legacy catalog's d.
+    const registry = r.kind === "展望台" ? SoramiTerrain.OBSERVATION_DECKS.find(d => r.name.search(d.match) === 0)?.decks : null;
+    const decks = SoramiTerrain.decksFor(r.name) || registry;
+    const namedDeck = decks?.filter(d => r.name.includes(d.name.replace(/[（(].*$/, "")));
+    return {...r, decks: namedDeck?.length ? namedDeck : decks,
+      lookout: r.kind === "展望地" ? "viewpoint" : null};
+  });
   const landmarkRows = SoramiAlign.TARGETS.filter(r => r.id !== "tinkerbell" && r.id !== "fuji").map(r => ({
     ...r, aliases: r.id === "skytree" ? ["スカイツリー", "とうきょうスカイツリー"] : [],
     kind: r.id === "fuji" ? "山" : "施設", detail: r.id === "skytree" ? "東京都墨田区押上" : r.id === "tokyotower" ? "東京都港区芝公園" : "施設・対象", scope: "point", source: "landmark", decks: SoramiTerrain.decksFor(r.name),
@@ -10292,21 +10314,28 @@ async function searchPlaces(q, {localOnly = false, near = place} = {}) {
     if (names.includes(normQuery)) return 0;
     if (names.some(n => n.startsWith(normQuery))) return 1;
     if (names.some(n => n.includes(normQuery))) return 2;
+    if (r.source === "photo" && SoramiPlaceSearch.match(q, r)) return 2;
     return r.source === "index" && r.indexScore >= 60 ? 2 : 3;
   };
   const away = (r) => SoramiTerrain.distanceKm(near.latitude, near.longitude, r.latitude, r.longitude);
   const merged = [];
+  const hasLocalAnd = q.includes(" ") && [...saved, ...landmarks, ...supplemented, ...photos, ...local]
+    .some(r => SoramiPlaceSearch.match(q, {...r, address: r.address || r.detail}));
   // 出典ごとの優先枠を廃止。一致の強さを全候補で比較し、眺望地が本体を追い越さない。
   const priority = r => r.source === "saved" ? 0 : r.source === "landmark" ? 1 : r.source === "supplement" ? 2 : 3;
-  const ordered = [...saved, ...landmarks, ...supplemented, ...local, ...gsi, ...osm]
+  const ordered = [...saved, ...landmarks, ...supplemented, ...photos, ...local, ...gsi, ...osm]
     .sort((a, b) => score(a) - score(b) || priority(a) - priority(b) || away(a) - away(b));
   const exactFacility = landmarks.some(r => score(r) === 0);
   for (const r of ordered) {
     // 施設名に完全一致したとき「役所」だけで当たった遠方の別施設を混ぜない。
     if (exactFacility && ![r.name, ...(r.aliases || [])].map(SoramiTerrain.normName).some(n => n && (n.includes(normQuery) || normQuery.includes(n)))) continue;
     if (!r.name || !Number.isFinite(r.latitude) || !Number.isFinite(r.longitude)) continue;
+    // AND local terms across name, aliases and address. Geocoders also handle
+    // translated names and address normalization, so trust their own query parsing.
+    if (q.includes(" ") && !SoramiPlaceSearch.match(q, {...r, address: r.address || r.detail})
+      && (hasLocalAnd || !["gsi", "osm"].includes(r.source))) continue;
     // 検索語をまったく含まない候補は、**1件も当たらなかったときだけ**出す（索引は語の中の地名で当てるので除く）
-    if (!["index", "saved", "supplement", "landmark"].includes(r.source) && score(r) === 3 && merged.length >= 1) continue;
+    if (!["index", "photo", "saved", "supplement", "landmark"].includes(r.source) && score(r) === 3 && merged.length >= 1) continue;
     // 索引の山や岬は、地理院・OSM の代表点と数百m ずれることがある（宗谷岬が二重に出た）。索引が絡むときは 1.5km まで同じとみなす
     // ただし種類が食い違う（駅と山）なら別物。高尾山の山頂がケーブルカーの「高尾山」駅（1.3km）に吸収されていた（2026-10-05 総点検）
     // 当てはまる候補が複数あれば最も近いものにまとめる（索引の代表点へ寄せたとき、別の同名候補と重ならないように）
@@ -10320,6 +10349,12 @@ async function searchPlaces(q, {localOnly = false, near = place} = {}) {
     // **高さも引き継ぐ。** 地理院の地名情報には高さが無いので、
     // ここで捨てると「東京タワー」が展望台として出なくなる（2026-09-28 実測）
     if (dup) {
+      // Preserve the bundled bridge/park representative point when a geocoder
+      // returns the same name on a nearby road or bank instead.
+      if (r.source === "photo" && !["saved", "landmark", "supplement", "index"].includes(dup.source)) {
+        dup.latitude = r.latitude; dup.longitude = r.longitude; dup.detail = r.detail;
+        dup.address = r.address; dup.kind = r.kind; dup.scope = r.scope; dup.source = "photo";
+      }
       if (dup.source === "gsi" && r.source === "osm") { dup.detail = r.detail; dup.detailFromOsm = true; }
       // **残した側に無い情報は、どちらの組み合わせでも引き継ぐ。** OSM 同士でも同名の別物が並ぶ
       // （「通天閣」は塔と、前のシェアサイクル置き場。置き場を残して塔の高さ 108m を捨てていた。2026-10-01）。
@@ -10493,11 +10528,11 @@ wireSearchBox("searchBox", "searchResults", (r) => {
     : (r.lookout === "building" && r.structureM ? [{ name: "屋上", aglM: Math.round(r.structureM) }] : null);
   choosePlace({ id: `search:${r.latitude},${r.longitude}`, name: r.name,
     // 索引の説明から標高は外す（地点カードが標高を別に書くので二重になる）
-    subtitle: r.source === "gsi" && !r.detailFromOsm ? r.address || "" : r.source === "index" ? r.detail.replace(/ ・ 標高\d+m$/, "")
+    subtitle: r.source === "photo" || r.source === "gsi" && !r.detailFromOsm ? r.address || "" : r.source === "index" ? r.detail.replace(/ ・ 標高\d+m$/, "")
       : r.detail.split(",").slice(1, 3).join("").trim(),
     latitude: r.latitude, longitude: r.longitude, terrain: null,
     // 山頂は索引の標高（OSM の ele）を使う。無ければ地図の標高タイルで付く
-    elevation: r.source === "index" && Number.isFinite(r.elevation) ? r.elevation : null,
+    elevation: ["index", "photo"].includes(r.source) && Number.isFinite(r.elevation) ? r.elevation : null,
     locationScope: r.scope,
     decks, eyeHeightAGL: decks ? decks[0].aglM : null,
     structureM: r.structureM ?? null, structureFrom: r.structureFrom ?? null, wikidata: r.wikidata ?? null, lookout: r.lookout ?? null });

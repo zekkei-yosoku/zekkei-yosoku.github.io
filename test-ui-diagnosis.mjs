@@ -69,7 +69,7 @@ test('同名の山頂は近くの駅に吸収されず、索引の市町村・�
  const terrain=createRequire(import.meta.url)('./sorami-terrain.js');
  const osm=[{name:'高尾山',display_name:'高尾山, 高尾山線, 高尾町, 八王子市, 東京都',type:'station',lat:'35.6311',lon:'139.2561',extratags:{}},{name:'高尾山',display_name:'高尾山, 東京都, 193-0841, 日本',type:'peak',lat:'35.62523',lon:'139.24369',extratags:{}}];
  const idx=[{name:'高尾山',muni:'東京都八王子市',elevation:599,kind:'山',latitude:35.6252267,longitude:139.2436878,score:100}];
- const search=runInNewContext(grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?[]:osm,searchSupplement:async()=>({places:[]}),favorites:[],SoramiAlign:{TARGETS:[]},placeIndex:async()=>({}),SoramiTerrain:{...terrain,searchPlaceIndex:()=>idx},place,URLSearchParams});
+ const search=runInNewContext(grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?[]:osm,photographicSearch:async()=>[],SoramiPlaceSearch:{search:()=>[],match:()=>false},searchSupplement:async()=>({places:[]}),favorites:[],SoramiAlign:{TARGETS:[]},placeIndex:async()=>({}),SoramiTerrain:{...terrain,searchPlaceIndex:()=>idx},place,URLSearchParams});
  const found=await search('高尾山',{near:{latitude:35.6812,longitude:139.7671}});
  const summit=found.find(r=>r.kind==='山'),station=found.find(r=>r.kind==='駅');
  assert.ok(summit&&station,'山頂と駅は別の候補');assert.match(summit.detail,/八王子市/);assert.match(summit.detail,/599m/);
@@ -80,7 +80,7 @@ test('同名GSI地点は住所で区別できる。近いOSM住所は引き継�
  const terrain=createRequire(import.meta.url)('./sorami-terrain.js');
  const gsi=[139.76,140.5].map(lon=>({properties:{title:'新宿',addressCode:lon===139.76?'13104':'12211'},geometry:{coordinates:[lon,35.68]}}));
  const osm=[{name:'新宿',display_name:'新宿, 東京都',lat:'35.68001',lon:'139.76001',extratags:{}}];
- const search=runInNewContext(grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?gsi:osm,searchSupplement:async()=>({places:[],municipalities:{'13104':'東京都新宿区','12211':'千葉県成田市'}}),favorites:[],SoramiAlign:{TARGETS:[]},placeIndex:async()=>({}),SoramiTerrain:{...terrain,searchPlaceIndex:()=>[]},place,URLSearchParams});
+ const search=runInNewContext(grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?gsi:osm,photographicSearch:async()=>[],SoramiPlaceSearch:{search:()=>[],match:()=>false},searchSupplement:async()=>({places:[],municipalities:{'13104':'東京都新宿区','12211':'千葉県成田市'}}),favorites:[],SoramiAlign:{TARGETS:[]},placeIndex:async()=>({}),SoramiTerrain:{...terrain,searchPlaceIndex:()=>[]},place,URLSearchParams});
  const found=await search('新宿');assert.equal(found.length,2);assert.ok(found.some(r=>r.detail.includes('東京都')));assert.ok(found.some(r=>r.detail.includes('千葉県成田市')));
  assert.notEqual(found[0].detail,found[1].detail);assert.ok(found.every(r=>!r.detail.includes('km')));
 });
