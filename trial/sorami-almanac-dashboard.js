@@ -36,8 +36,8 @@ function render(root,day,p,events,astro,options={}){
  const sun=el('div','alm-solar-orb');sun.setAttribute('role','img');sun.setAttribute('aria-label','太陽のイメージ');
  visual.append(body==='moon'?portrait:sun);const rim=el('div','alm-orbit-rim');rim.setAttribute('aria-hidden','true');visual.append(rim);
  const content=el('div','alm-hero-copy'),kicker=el('p','alm-eyebrow',body==='moon'?'LUNAR NOTES':'SOLAR NOTES'),title=el('h2','alm-hero-title'),moment=el('p','alm-moment');
- const english=el('p','alm-phase-english'),names=el('div','alm-moon-names'),eventTime=el('p','alm-phase-event');
- const nameRow=el('div','alm-name-row');nameRow.append(title,english);content.append(kicker,nameRow,names,eventTime,moment);const metrics=el('div','alm-metrics'),metricValues=[];
+ const english=el('p','alm-phase-english'),names=el('div','alm-moon-names');
+ const nameRow=el('div','alm-name-row');nameRow.append(title,english);content.append(kicker,nameRow,names,moment);const metrics=el('div','alm-metrics'),metricValues=[];
  for(const label of body==='moon'?['月齢','照明率','地球からの距離']:['昼の長さ','高度','方位']){const item=el('div','alm-metric'),value=el('strong');item.append(el('span','',label),value);metrics.append(item);metricValues.push(value);}content.append(metrics);hero.append(visual,content);root.append(hero);
  const textureStatus=el('div','alm-texture-status');textureStatus.setAttribute('role','status');root.append(textureStatus);
  const times=el('div','alm-event-pair');
@@ -56,13 +56,15 @@ function render(root,day,p,events,astro,options={}){
  const update=()=>{
   const state=astro[body](at(),d.observer),t=time(at());view.wallMinute=new Date(at()).getHours()*60+new Date(at()).getMinutes();cursor.setAttribute('x1',x(at()));cursor.setAttribute('x2',x(at()));dot.setAttribute('cx',x(at()));dot.setAttribute('cy',y(state.geometricAltitude));
   let lunar=null;if(body==='moon'){try{lunar=g.SoramiLunarNames?.describe(at(),state,astro);}catch{}if(!lunar)lunar={ja:phaseLabel(state),en:''};}
-  title.textContent=lunar?lunar.ja:'この日の太陽';english.textContent=lunar?lunar.en:'';names.replaceChildren();eventTime.textContent='';
-  if(lunar?.event){const e=lunar.event;eventTime.textContent=`${lunar.ja} ${time(e.at)} ${T.zoneLabel(e.at)}`;
-   if(e.kind===2){kicker.textContent='満月 · FULL MOON';title.textContent=e.name[0];english.textContent=e.name[1];
+  title.textContent=lunar?lunar.ja:'この日の太陽';english.textContent=lunar?lunar.en:'';names.replaceChildren();kicker.hidden=body==='moon';
+  if(lunar?.event){const e=lunar.event;
+   if(e.kind===2){kicker.hidden=false;kicker.textContent='満月 · FULL MOON';title.textContent=e.name[0];english.textContent=e.name[1];
     if(e.tags.length){const tags=el('div','alm-moon-tags');for(const [ja,en]of e.tags){const tag=el('span','',ja);tag.append(el('small','',en));tags.append(tag);}names.append(tags);}
    }
   }
-  moment.textContent=`${t} ${T.zoneLabel(at())} · ${state.geometricAltitude>=0?'地平線の上':'地平線の下'}`;
+  moment.textContent=`${t} ${T.zoneLabel(at())}`;
+  if(lunar?.event){const e=lunar.event,zone=T.zoneLabel(e.at);moment.textContent+=` · ${['新月','上弦','満月','下弦'][e.kind]} ${time(e.at)}${zone===T.zoneLabel(at())?'':' '+zone}`;}
+  if(state.geometricAltitude<0)moment.textContent+=' · 地平線の下';
   const values=body==='moon'?[num(state.synodicAge),`${(state.illuminatedFraction*100).toFixed(1)}%`,`${Math.round(state.distanceKm/1000).toLocaleString('ja-JP')}万km`]:[duration(d.daylight),`${num(state.geometricAltitude)}°`,`${num(state.azimuth)}°`];
   if(body==='moon')values[2]=`${(state.distanceKm/10000).toFixed(1)}万km`;
   metricValues.forEach((e,i)=>e.textContent=values[i]);readout.textContent=`${t} ${T.zoneLabel(at())}　高度 ${num(state.geometricAltitude)}° ／ 方位 ${num(state.azimuth)}°`;range.setAttribute('aria-valuetext',readout.textContent);
