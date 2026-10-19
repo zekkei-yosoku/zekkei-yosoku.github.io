@@ -27,3 +27,6 @@ test('Japanese night names count civil dates from the actual new Moon, not fixed
  assert.equal(N.traditional(Date.parse('2026-10-26T12:00:00+09:00'),A).name,'十六夜');
  for(const year of [2020,2024,2026,2030])for(const e of N.calendar(year,A).events.filter(e=>e.kind===0)){const day=Date.parse(jst(e.at)+'T12:00:00+09:00');assert.equal(N.traditional(day,A).day,1);assert.equal(N.traditional(day+2*86400000,A).name,'三日月');}
 });
+test('Displayed Moon age uses elapsed days since the actual new Moon rather than mean elongation',()=>{
+ const o={latitude:35.68,longitude:139.76};for(const iso of ['2026-01-01T00:00:00Z','2026-10-23T10:00:00Z','2026-10-11T00:00:00Z']){const at=Date.parse(iso);let n=E.SearchMoonPhase(0,new Date(at-32*86400000),40);while(true){const next=E.SearchMoonPhase(0,new Date(n.date.getTime()+1000),35);if(next.date.getTime()>at)break;n=next;}const result=N.describe(at,A.moon(at,o),A);assert.ok(Math.abs(result.age-(at-n.date.getTime())/86400000)<.002);}
+});

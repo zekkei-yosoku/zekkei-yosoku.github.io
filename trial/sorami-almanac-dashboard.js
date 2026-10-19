@@ -65,7 +65,7 @@ function render(root,day,p,events,astro,options={}){
   moment.textContent=`${t} ${T.zoneLabel(at())}`;
   if(lunar?.event){const e=lunar.event,zone=T.zoneLabel(e.at);moment.textContent+=` · ${['新月','上弦','満月','下弦'][e.kind]} ${time(e.at)}${zone===T.zoneLabel(at())?'':' '+zone}`;}
   if(state.geometricAltitude<0)moment.textContent+=' · 地平線の下';
-  const values=body==='moon'?[num(state.synodicAge),`${(state.illuminatedFraction*100).toFixed(1)}%`,`${Math.round(state.distanceKm/1000).toLocaleString('ja-JP')}万km`]:[duration(d.daylight),`${num(state.geometricAltitude)}°`,`${num(state.azimuth)}°`];
+  const values=body==='moon'?[num(lunar?.age??state.synodicAge),`${(state.illuminatedFraction*100).toFixed(1)}%`,`${Math.round(state.distanceKm/1000).toLocaleString('ja-JP')}万km`]:[duration(d.daylight),`${num(state.geometricAltitude)}°`,`${num(state.azimuth)}°`];
   if(body==='moon')values[2]=`${(state.distanceKm/10000).toFixed(1)}万km`;
   metricValues.forEach((e,i)=>e.textContent=values[i]);readout.textContent=`${t} ${T.zoneLabel(at())}　高度 ${num(state.geometricAltitude)}° ／ 方位 ${num(state.azimuth)}°`;range.setAttribute('aria-valuetext',readout.textContent);
   if(body==='moon'){

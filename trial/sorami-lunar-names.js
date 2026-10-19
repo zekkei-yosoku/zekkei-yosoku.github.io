@@ -41,10 +41,10 @@ function traditional(at,A){
  const n=today-ordinal(before.at)+1,names={2:'二日月',3:'三日月',13:'十三夜',14:'小望月',15:'十五夜の月',16:'十六夜',17:'立待月',18:'居待月',19:'寝待月',20:'更待月',23:'二十三夜の月',26:'二十六夜の月'};
  return {day:n,name:after&&today===ordinal(after.at)-1?'晦':names[n]||null};
 }
-function describe(at,state,A){const day=localDate(at),event=calendar(Number(day.slice(0,4)),A).events.find(e=>localDate(e.at)===day),night=traditional(at,A);
- if(event)return {ja:MAJOR[event.kind][0],en:MAJOR[event.kind][1],event};
+function describe(at,state,A){const day=localDate(at),c=calendar(Number(day.slice(0,4)),A),event=c.events.find(e=>localDate(e.at)===day),night=traditional(at,A),lastNew=c.nearbyEvents.filter(e=>e.kind===0&&e.at<=at).at(-1),age=lastNew?(at-lastNew.at)/DAY:null;
+ if(event)return {ja:MAJOR[event.kind][0],en:MAJOR[event.kind][1],event,age};
  const crescent=state.illuminatedFraction<.5;
- return state.waxing?{ja:night?.name||(crescent?'夕月':'満ちゆく月'),en:crescent?'Waxing Crescent Moon':'Waxing Gibbous Moon'}:{ja:night?.name||(crescent?'有明の月':'欠けゆく月'),en:crescent?'Waning Crescent Moon':'Waning Gibbous Moon'};
+ return state.waxing?{ja:night?.name||(crescent?'夕月':'満ちゆく月'),en:crescent?'Waxing Crescent Moon':'Waxing Gibbous Moon',age}:{ja:night?.name||(crescent?'有明の月':'欠けゆく月'),en:crescent?'Waning Crescent Moon':'Waning Gibbous Moon',age};
 }
 const api={MONTHS,MAJOR,calendar,describe,traditional,elong};g.SoramiLunarNames=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:window);
