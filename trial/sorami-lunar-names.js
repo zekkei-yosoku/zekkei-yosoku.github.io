@@ -38,8 +38,8 @@ function traditional(at,A){
  // Japanese night names count Japanese civil dates from the day containing the new Moon.
  const ordinal=t=>Math.floor((t+32400000)/DAY),today=ordinal(at),year=new Date(at+32400000).getUTCFullYear(),moons=calendar(year,A).nearbyEvents.filter(e=>e.kind===0);
  const before=moons.filter(e=>ordinal(e.at)<=today).at(-1),after=moons.find(e=>ordinal(e.at)>today);if(!before)return null;
- const n=today-ordinal(before.at)+1,names={2:'二日月',3:'三日月',13:'十三夜の月',14:'小望月',15:'十五夜の月',16:'十六夜',17:'立待月',18:'居待月',19:'寝待月',20:'更待月',23:'二十三夜の月',26:'二十六夜の月'};
- return {day:n,name:after&&today===ordinal(after.at)-1?'晦日月':names[n]||null};
+ const n=today-ordinal(before.at)+1,names={2:'二日月',3:'三日月',13:'十三夜',14:'小望月',15:'十五夜の月',16:'十六夜',17:'立待月',18:'居待月',19:'寝待月',20:'更待月',23:'二十三夜の月',26:'二十六夜の月'};
+ return {day:n,name:after&&today===ordinal(after.at)-1?'晦':names[n]||null};
 }
 function describe(at,state,A){const day=localDate(at),event=calendar(Number(day.slice(0,4)),A).events.find(e=>localDate(e.at)===day),night=traditional(at,A);
  if(event)return {ja:MAJOR[event.kind][0],en:MAJOR[event.kind][1],event};
