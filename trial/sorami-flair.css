@@ -71,7 +71,3 @@ main:has(>#placeRow:not([hidden]))>#forecastBand{display:block}
  background:radial-gradient(closest-side,color-mix(in srgb,var(--flair) 16%,transparent),transparent) center/calc(2*var(--kw,5em)) 100% no-repeat,
   linear-gradient(90deg,transparent,var(--flair)) left center/calc(50% - var(--kw,5em)) 1px no-repeat,linear-gradient(90deg,var(--flair),transparent) right center/calc(50% - var(--kw,5em)) 1px no-repeat}
 #almanacView .alm-eyebrow{text-shadow:0 0 10px color-mix(in srgb,var(--alm-active) 55%,transparent),0 0 24px color-mix(in srgb,var(--alm-active) 35%,transparent);background:radial-gradient(closest-side,color-mix(in srgb,var(--alm-active) 16%,transparent),transparent) center/17em 100% no-repeat}
-/* 2026-10-20 ユーザー「全体的にもう少しボタン小さめにできる？」：帯の右端の丸（構図・地図の履歴、記録の＋）は見た目を36pxの丸・18pxのアイコンに。
-   押せる範囲は44pxのまま（内側4pxを透明にして、背景は内側だけに塗る） */
-:is(#aimRecentOpen,#skyMapRecentOpen,#recordsHeading .my-add-point){width:44px;height:44px;min-width:44px;min-height:44px;padding:4px!important;border-color:transparent;background-clip:content-box;box-shadow:none}
-:is(#aimRecentOpen,#skyMapRecentOpen,#recordsHeading .my-add-point) svg{width:18px;height:18px}
