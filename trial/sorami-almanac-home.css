@@ -31,3 +31,7 @@ main:has(#almanacView:not([hidden])){max-width:1000px}
 #almanacView>.alm-basis{font-size:10px;line-height:1.8;color:var(--secondary);margin-top:16px}#almanacView #almanacOutput[hidden]{display:none!important}
 @media(max-width:600px){#almanacView{padding-top:10px}.alm-hero{display:flex;flex-direction:column;gap:8px;padding:10px 0 24px;min-height:0}.alm-orb-stage{width:230px}.alm-hero-copy{width:100%;text-align:center}.alm-eyebrow{font-size:9px;margin-bottom:7px;letter-spacing:.22em}#almanacView .alm-hero-title{font-size:24px;margin-bottom:6px}.alm-moment{font-size:11px;margin-bottom:21px}.alm-metrics{max-width:360px;margin:auto;gap:8px}.alm-metric{gap:6px}.alm-metric strong{font-size:20px}.alm-metric>span{font-size:10px}.alm-event-pair{padding:20px 0;margin-bottom:18px}.alm-event-time{font-size:34px}.alm-actions{gap:7px;margin-bottom:20px}.alm-actions button{min-width:calc(50% - 8px);padding:9px 12px}.alm-detail-grid{grid-template-columns:1fr;gap:0}.alm-panel{padding:22px 0}.alm-compass{max-width:260px}.alm-table{font-size:12px}.alm-table th,.alm-table td{padding:14px 2px}.alm-switch{margin-top:4px;margin-bottom:6px;max-width:224px}}
 @media(max-width:350px){.alm-orb-stage{width:205px}.alm-metric strong{font-size:17px}.alm-event-time{font-size:31px}.alm-table{font-size:11px}}
+/* 2026-10-19 太陽の絵（canvas。光の分だけ月の絵より大きく取る）と七十二候の行 */
+.alm-sun-portrait{width:100%;height:100%;filter:none}
+.alm-solar-kou{margin:0;font-size:15px;letter-spacing:.04em;text-align:center}
+.alm-solar-kou-sub{margin:2px 0 12px;font-size:12px;color:var(--secondary);text-align:center}

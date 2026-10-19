@@ -43,7 +43,8 @@ function render(root,day,p,events,astro,options={}){
  if(!d||d.bodies[body].error){const box=panel(`${name}の情報を取得できませんでした`,'地点・日付を確認して再計算してください。'),retry=el('button','chip','再計算');retry.type='button';retry.onclick=()=>render(root,day,p,events,astro,options);box.append(retry);root.append(box);return;}
  const at=()=>day+view.minute*60000,info=d.bodies[body];
  const hero=el('section','alm-hero'),visual=el('div','alm-orb-stage'),portrait=el('canvas','alm-portrait');portrait.setAttribute('role','img');
- const sun=el('div','alm-solar-orb');sun.setAttribute('role','img');sun.setAttribute('aria-label','太陽のイメージ');
+ // 2026-10-19 太陽の絵は高度・時刻に関係なく常に同じ（SoramiSunPortrait）。読めなければ従来の丸を使う
+ const sunCanvas=g.SoramiSunPortrait?el('canvas','alm-portrait alm-sun-portrait'):null,sun=sunCanvas||el('div','alm-solar-orb');sun.setAttribute('role','img');sun.setAttribute('aria-label','太陽のイメージ');if(sunCanvas&&body!=='moon'){try{g.SoramiSunPortrait.draw(sunCanvas);}catch{}}
  visual.append(body==='moon'?portrait:sun);const rim=el('div','alm-orbit-rim');rim.setAttribute('aria-hidden','true');visual.append(rim);
  const content=el('div','alm-hero-copy'),kicker=el('p','alm-eyebrow',body==='moon'?'LUNAR NOTES':'SOLAR NOTES'),title=el('h2','alm-hero-title'),moment=el('p','alm-moment');
  const english=el('p','alm-phase-english'),names=el('div','alm-moon-names');
@@ -66,7 +67,9 @@ function render(root,day,p,events,astro,options={}){
  const update=()=>{
   const state=astro[body](at(),d.observer),t=time(at());view.wallMinute=new Date(at()).getHours()*60+new Date(at()).getMinutes();cursor.setAttribute('x1',x(at()));cursor.setAttribute('x2',x(at()));dot.setAttribute('cx',x(at()));dot.setAttribute('cy',y(state.geometricAltitude));
   let lunar=null;if(body==='moon'){try{lunar=g.SoramiLunarNames?.describe(at(),state,astro);}catch{}if(!lunar)lunar={ja:phaseLabel(state),en:''};}
-  title.textContent=lunar?lunar.ja:'この日の太陽';english.textContent=lunar?.en||'';names.replaceChildren();kicker.hidden=body==='moon';
+  let solar=null;if(body!=='moon'){try{solar=g.SoramiSolarTerms?.describe(at())||null;}catch{}}
+  title.textContent=lunar?lunar.ja:solar?solar.sekki.ja:'この日の太陽';english.textContent=lunar?.en||solar?.sekki.en||'';names.replaceChildren();kicker.hidden=body==='moon';
+  if(solar){const kou=el('p','alm-solar-kou',`${solar.kou.pos}　${solar.kou.ja}`),sub=el('p','alm-solar-kou-sub',solar.kou.kana+(solar.next?` ・ 次の節気 ${solar.next.ja} ${date(solar.next.at).slice(5).replace('-','/')}`:''));names.append(kou,sub);}
   if(lunar?.event){const e=lunar.event;
    if(e.kind===2){english.textContent=e.name[1];
     if(e.tags.length){const tags=el('div','alm-moon-tags');for(const [,en]of e.tags)tags.append(el('span','',en));names.append(tags);}
@@ -88,7 +91,7 @@ function render(root,day,p,events,astro,options={}){
  const week=panel('これから7日間',`${name}の時刻を比較。${T.zone()} の時刻です。`),table=el('table','alm-table'),thead=el('thead'),tr=el('tr');
  for(const label of ['日付',body==='moon'?'月の出':'日の出',body==='moon'?'月の入り':'日の入り',body==='moon'?'照明率':'昼の長さ']){const th=el('th','',label);th.scope='col';tr.append(th);}thead.append(tr);table.append(thead);const tbody=el('tbody');
  for(let n=0;n<7;n++){const dayAt=T.addDays(day,n);if(date(dayAt)>'2030-12-31')break;const row=el('tr'),th=el('th','',date(dayAt).slice(5).replace('-','/'));th.scope='row';row.append(th);let ev=null;try{ev=events(body,dayAt,p);}catch{/* no events and unavailable remain distinct */}for(const kind of ['rise','set']){const hits=ev?.filter(e=>e.kind===kind);row.append(el('td','',ev===null?'取得不能':hits.length?hits.map(e=>time(e.at)).join(' / '):'なし'));}let extra='取得不能';try{extra=body==='moon'?`${(astro.moon(T.atHour(dayAt,12),d.observer).illuminatedFraction*100).toFixed(1)}%`:ev?duration(daylight(dayAt,d.observer,ev,astro)):'取得不能';}catch{}row.append(el('td','',extra));tbody.append(row);}table.append(tbody);week.append(table);if(body==='moon')week.append(el('p','alm-caption alm-week-note','表の照明率は各日の正午。上の月はスライダーの時刻を表します。'));root.append(week);
- const detail=el('details','alm-about');detail.append(el('summary','','表示について'));detail.append(el('p','alm-caption',body==='moon'?'月面の質感は提供写真を参考に再構成しています。三日月・十六夜などの日本の夜の呼び名は、日本時で新月を含む日を1日目として数えます。十三夜は月ごとの13日目の呼称で、旧暦9月のお月見行事の判定ではありません。満ち欠けの面積と光の向きは選択した地点・日時から計算。月面地形の正確な向きや秤動、月食の影は再現していません。新月・上弦・満月・下弦の名前は、その瞬間を含む端末のタイムゾーンの日に表示。月の絵と照明率は選択時刻の値です。満月の愛称は北米・欧米の通称。ハーベストムーンは北半球の秋分に最も近い満月、ハンターズムーンはその次。ブルームーンは同月2回目（端末のタイムゾーン）、季節のブルームーンは二分二至で区切る季節に4回ある満月の3回目。スーパームーン／マイクロムーンは統一された定義がないため、当年の地心距離範囲の近い側／遠い側10％に入る満月を目安にしています。':'太陽の絵はイメージです。時刻・高度・方位は選択した地点と日付から計算しています。'));root.append(detail);update();
+ const detail=el('details','alm-about');detail.append(el('summary','','表示について'));detail.append(el('p','alm-caption',body==='moon'?'月面の質感は提供写真を参考に再構成しています。三日月・十六夜などの日本の夜の呼び名は、日本時で新月を含む日を1日目として数えます。十三夜は月ごとの13日目の呼称で、旧暦9月のお月見行事の判定ではありません。満ち欠けの面積と光の向きは選択した地点・日時から計算。月面地形の正確な向きや秤動、月食の影は再現していません。新月・上弦・満月・下弦の名前は、その瞬間を含む端末のタイムゾーンの日に表示。月の絵と照明率は選択時刻の値です。満月の愛称は北米・欧米の通称。ハーベストムーンは北半球の秋分に最も近い満月、ハンターズムーンはその次。ブルームーンは同月2回目（端末のタイムゾーン）、季節のブルームーンは二分二至で区切る季節に4回ある満月の3回目。スーパームーン／マイクロムーンは統一された定義がないため、当年の地心距離範囲の近い側／遠い側10％に入る満月を目安にしています。':'太陽の絵はイメージで、高度や時刻では変わりません。時刻・高度・方位は選択した地点と日付から計算しています。二十四節気・七十二候は太陽の視黄経から求め、候の名前とよみは国立天文台 暦Wiki「七十二候」の宝暦暦以降の表に、節気の日時は国立天文台の暦要項に合わせています（2020〜2030年）。英語名は一般的な英訳です。'));root.append(detail);update();
  const refresh=()=>{
   if(!view.live||root.isConnected===false||document.hidden||options.isActive&&!options.isActive())return;
   const now=Date.now();if(date(now)!==date(day)){view.day=null;view.minute=null;view.wallMinute=null;options.onLiveDay?.();return;}
