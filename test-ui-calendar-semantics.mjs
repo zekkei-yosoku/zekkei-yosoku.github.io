@@ -15,5 +15,6 @@ for(const [day,weekday,weekend] of [['2026-10-16','金',''],['2026-10-17','土',
  const rule=/\.dhead\.today \.d \{([^}]*)\}/.exec(html)[1];
  assert(!rule.includes('--accent'),'今日を操作色に結び付けない');
  assert(rule.includes('box-shadow'),'今日には色以外の囲みがある');
- assert.match(html,/\.dhead\.today > span:last-child::after \{ content: " 今日"/);
+ // 2026-10-20 ユーザー「日付に枠がついてるから今日の表記もいらない」：見た目は枠だけ、今日は読み上げ用
+ assert.match(value,/<span class="sr-only">今日<\/span><\/div>/,'今日は読み上げで伝える');assert.doesNotMatch(html,/\.dhead\.today::before|span:last-child::after \{ content: " 今日"/);
 });

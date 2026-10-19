@@ -632,7 +632,8 @@ for (const [what, re] of [
   ["校正グラフの長い説明", /棒が線より短ければ点数が甘く/],
 ]) ok(!re.test(html), `${what}を出さない`);
 ok(/<details class="tiny fav-where" id="footer"><summary>出典<\/summary><div id="footerBody"><\/div><\/details>/.test(html), "出典は消さずに畳む（表示が利用の条件）");
-ok(/予報: Open-Meteo ／ 実況: 気象庁アメダス ／ 光害: .*検索: OSM Nominatim ・ 標高: 国土地理院/.test(html) && /このアプリで点数化/.test(html), "出典と、加工したこと（点数化）は書く");
+// 2026-10-20 実況カードを外したので、出典から実況（アメダス）も外す
+ok(/予報: Open-Meteo ／ 光害: .*検索: OSM Nominatim ・ 標高: 国土地理院/.test(html) && !/実況: 気象庁アメダス/.test(html) && /このアプリで点数化/.test(html), "出典と、加工したこと（点数化）は書く");
 ok(/<details class="card more"><summary>もっと詳しく<\/summary>[\s\S]{0,200}<p class="tiny">📖 \$\{esc\(ev\.source\)\}<\/p><\/details>/.test(html), "根拠の一文は「もっと詳しく」の中へ畳む");
 ok(/太陽は必ず減光フィルターを付けて見てください。/.test(html), "安全の注意は残す");
 
@@ -2661,14 +2662,14 @@ for (const el of ["listView", "detailView", "recordsView", "adminView", "aimView
   ok(new RegExp(`el: "${el}"`).test(html), `${el} が画面の表にある`);
 }
 // 画面ではないもの（地点カード・実況）は、これまでどおり個別に切り替える
-for (const id of ["placeRow", "nowcast"]) {
+for (const id of ["placeRow"]) {
   ok(html.includes(`$("${id}").hidden`), `${id} の表示を切り替えている`);
 }
 ok(/atAnswers \? \$\("recPending"\) : \$\("recordsPending"\)/.test(html), "recPending の表示を切り替えている");
 // 管理画面で隠すもの: 地点・実況・記録の問いかけ
 ok(!["admin", "records"].some((v) => ["list", "detail", "sky"].includes(v)), "地点を管理画面で隠す");
-// 実況は一覧と詳細だけ（道具・記録・管理では出さない）
-ok(/\$\("nowcast"\)\.hidden = !\["list", "detail"\]\.includes\(view\)/.test(html), "実況を管理画面で隠す");
+// 2026-10-20 ユーザー「実況カードは完全に消していい」：カードも取得もない
+ok(!html.includes('id="nowcast"') && !/ensureNowcast\(/.test(html), "実況カードを出さない");
 
 console.log("== ログインの保持 ==");
 // 2026-09-08 ユーザー「更新するたびにログインはだるいよねって」。

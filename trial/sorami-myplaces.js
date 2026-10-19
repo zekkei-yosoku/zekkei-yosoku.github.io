@@ -171,9 +171,10 @@ function renderRecordsHub() {
   const heading=el('recordsHeading');heading.querySelector('.my-add-point')?.remove();host.append(intro);
   const actions = document.createElement('div'); actions.className = 'my-head';
   const add = document.createElement('button'); add.type = 'button'; add.className = 'my-add-point'; add.textContent = '＋';add.setAttribute('aria-label','記録を追加');add.title='記録を追加';
-  add.onclick = () => { if (auth?.token && toolAllowed('records')) openPlace(null,'records'); }; heading.append(add);
+  add.onclick = () => { if (auth?.token && toolAllowed('records')) openPlace(null,'records'); };
   if (toolAllowed('skymap')) { const map = document.createElement('button'); map.type = 'button'; map.className = 'chip'; map.textContent = '地図で場所を探す'; map.onclick = () => pushRoute('#/skymap'); actions.append(map); }
-  host.append(actions);
+  // 2026-10-20 ＋は題名の横ではなくカードの中、「地図で場所を探す」と同じ行の右端（ユーザー「プラスボタンを下げれば良さそう」）
+  actions.append(add); host.append(actions);
   const list = document.createElement('div'); list.className = 'al my-list'; host.append(list);
   const records = load();
   // Favorites are location candidates, not records. Keep historical records
@@ -190,7 +191,7 @@ function renderRecordsHub() {
   filters.append(reset,targetSelect,bodySelect);host.insertBefore(filters,list);
   if(recordsBodyFilter){const hint=document.createElement('p');hint.className='tiny';hint.textContent='選んだ天体との重なりを調べられる対象がある撮影ポイントです。';host.insertBefore(hint,list);}
   let matches=0;
-  if (!recordedPlaces.length) { const empty = document.createElement('p'); empty.className = 'tiny'; empty.textContent = '記録はまだありません。右上の＋から追加できます。'; list.append(empty); }
+  if (!recordedPlaces.length) { const empty = document.createElement('p'); empty.className = 'tiny'; empty.textContent = '記録はまだありません。＋から追加できます。'; list.append(empty); }
   for (const f of recordedPlaces) {
     const active=targetsSeenFrom(f.id).filter(r=>r.result!=='hidden');
     const matching=active.filter(r=>!recordsTargetFilter||r.target.key===recordsTargetFilter);
@@ -708,7 +709,7 @@ style.textContent = `
 .my-places{margin:10px 0 4px;padding-top:8px;border-top:1px solid var(--line)}
 .my-head{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap;margin:4px 0}
 .my-status{margin:0;flex:1 1 180px}
-#recordsHeading .my-add-point{display:grid;place-items:center;flex:none;width:44px;height:44px;min-height:44px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--accent);color:var(--bg);font-size:28px;line-height:1;cursor:pointer}
+:is(#recordsHeading,#myRecordsHub) .my-add-point{display:grid;place-items:center;flex:none;width:44px;height:44px;min-height:44px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--accent);color:var(--bg);font-size:28px;line-height:1;cursor:pointer}
 .my-title{font-size:.95rem;margin:10px 0 4px}
 .my-title .tiny{margin-left:4px;font-weight:normal}
 .my-list .my-place-row{display:block;width:100%;text-align:left}

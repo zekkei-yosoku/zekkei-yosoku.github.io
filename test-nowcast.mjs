@@ -50,7 +50,8 @@ console.log("== 突き合わせの警告は持たない ==");
 ok(S.Nowcast === undefined, "Nowcast.compare を持たない");
 const html = fs.readFileSync(new URL("./index.html", import.meta.url), "utf8");
 ok(!/disagree/.test(html), "画面に「ずれています」を出さない");
-ok(/rain !== null && rain > 0\) parts\.push/.test(html), "降っているなら測った量を出す");
+// 2026-10-20 画面の実況カードは外した（ユーザー「実況カードは完全に消していい」）。sorami-core の実況の計算は残る
+ok(!html.includes('id="nowcast"'), "画面に実況カードを出さない");
 
 console.log(`\n${fail === 0 ? "NOWCAST OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

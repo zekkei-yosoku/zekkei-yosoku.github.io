@@ -1,0 +1,75 @@
+/* 2026-10-20 ホームの NOTES 見出しと同じ意匠を他のページへ（試用版で確認後、同日本番へ）（ユーザー「他のページも同じ感じでカッコよく。使い勝手は絶対に損なわない」）。
+   見た目だけを足す。操作部品の大きさ・位置・並び・文言は変えない。英字ラベルは読み上げない（content の代替文字を空にする）。 */
+:root{--flair-forecast:#a8611f;--flair-framing:#2c7d70;--flair-map:#2f6d9e;--flair-records:#5d6fa8}
+[data-theme=dark]{--flair-forecast:#f0b070;--flair-framing:#8fd6c8;--flair-map:#8fc4ec;--flair-records:#b4c2ee}
+#listView,#bestNote,#answersView,#forecastTabs,#detailView{--flair:var(--flair-forecast)}#aimView{--flair:var(--flair-framing)}#skyMapView{--flair:var(--flair-map)}#recordsView{--flair:var(--flair-records)}
+
+/* 2026-10-20 ユーザー「全部のタイトルはこーゆー感じにしない？広めにしたら？」（LUNAR NOTES の帯を指して）
+   英字見出しはすべて「中央寄せの字＋左右へ広く伸びて外側で消える線」の帯。線の長さは字の幅を除いた残り全部。
+   --kw は字の幅の半分＋すき間（字数×0.57em＋1.3em）。題名の行（題名と右のボタン）はその下にそのまま並ぶ。 */
+:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head){flex-wrap:wrap}
+:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head)::before,#almanacView .alm-panel-kicker{
+ flex:0 0 100%;display:block;box-sizing:border-box;margin:6px 0 2px;text-align:center;font-size:12px;font-weight:700;letter-spacing:.46em;padding-left:.46em;line-height:1.8;
+ color:var(--flair);text-shadow:0 0 16px color-mix(in srgb,var(--flair) 45%,transparent);
+ background:linear-gradient(90deg,transparent,var(--flair)) left center/calc(50% - var(--kw,5em)) 1px no-repeat,linear-gradient(90deg,var(--flair),transparent) right center/calc(50% - var(--kw,5em)) 1px no-repeat}
+#aimView .aim-titlebar::before,#aimView .sky-map-head::before{content:"FRAMING" / "";--kw:5.3em}
+#skyMapView .sky-map-head::before{content:"MAP" / "";--kw:3em}
+#recordsView .sky-map-head::before{content:"LOGBOOK" / "";--kw:5.3em}
+/* ホームの各欄：英字は帯に、日本語の題と説明も中央へ */
+#almanacDashboard{--flair:var(--alm-active)}
+#almanacView .alm-panel-kicker{--kw:7.6em;margin:0 0 10px}#almanacView .alm-detail-grid>.alm-panel:first-child .alm-panel-kicker{--kw:5.9em}#almanacView .alm-detail-grid>.alm-panel:nth-child(2) .alm-panel-kicker{--kw:5.3em}
+#almanacView .alm-panel>h2,#almanacView .alm-panel>.alm-caption{text-align:center}
+#almanacView .alm-panel>.alm-caption{margin-left:auto;margin-right:auto;max-width:40em}
+/* ホームの NOTES：太陽・月の切り替えの直下に全幅で置き、線を広く */
+#almanacView .alm-hero{position:relative;padding-top:58px}
+#almanacView .alm-eyebrow{position:absolute;top:4px;left:0;right:0;margin:0;font-size:13px;letter-spacing:.5em;padding-left:.5em}
+#almanacView .alm-eyebrow:before,#almanacView .alm-eyebrow:after{flex:1 1 auto;width:auto;max-width:300px;min-width:40px}
+@media(max-width:600px){#almanacView .alm-hero{padding-top:46px}#almanacView .alm-eyebrow{font-size:12px;letter-spacing:.42em;padding-left:.42em}}
+
+/* カードの見出しに小さな光る印。予測の「次の見どころ」には英字ラベル（実況の NOW は2026-10-20 ユーザー「いらない」で外した） */
+#bestNote::before{display:block;margin:0 0 8px;text-align:center;font-size:11px;font-weight:700;letter-spacing:.42em;padding-left:.42em;line-height:1.8;color:var(--flair);text-shadow:0 0 14px color-mix(in srgb,var(--flair) 45%,transparent);
+ background:linear-gradient(90deg,transparent,var(--flair)) left center/calc(50% - var(--kw)) 1px no-repeat,linear-gradient(90deg,var(--flair),transparent) right center/calc(50% - var(--kw)) 1px no-repeat}
+#bestNote{--kw:9em}
+#bestNote::before{content:"NEXT HIGHLIGHT" / ""}
+#bestNote{box-shadow:inset 3px 0 0 var(--flair),0 0 0 1px color-mix(in srgb,var(--flair) 22%,transparent),0 6px 26px color-mix(in srgb,var(--flair) 12%,transparent)}
+:is(#answersView,#aimView,#recordsView,#detailView) .section-h h2::before,#answersView .card>h2::before{content:"" / "";display:inline-block;width:3px;height:.95em;margin:0 9px 0 0;vertical-align:-.1em;border-radius:2px;background:linear-gradient(var(--flair),color-mix(in srgb,var(--flair) 30%,transparent));box-shadow:0 0 8px color-mix(in srgb,var(--flair) 60%,transparent)}
+
+/* 予測と結果の切り替え：選んでいる側に下線の光 */
+#forecastTabs [role=tab][aria-selected=true]{box-shadow:inset 0 -2px 0 var(--flair),0 1px 6px #00000012}
+
+/* 主ボタンに控えめな光（色・大きさは同じ） */
+:is(#answersView,#recordsView,#aimView,#skyMapView) .fav-btn.primary{box-shadow:0 4px 18px color-mix(in srgb,var(--accent) 35%,transparent)}
+
+/* メニュー：題の上に英字ラベル、選んでいる項目に左の光る線 */
+.drawer-head>span::before{content:"ASTRONOTES" / "";display:block;font-size:9px;font-weight:700;letter-spacing:.34em;color:var(--accent);margin-bottom:2px}
+.drawer-list button[aria-current="page"]{box-shadow:inset 3px 0 0 var(--accent),0 0 18px color-mix(in srgb,var(--accent) 14%,transparent)}
+.drawer-list .menu-feature-icon{color:var(--accent);filter:drop-shadow(0 0 4px color-mix(in srgb,var(--accent) 45%,transparent))}
+
+/* 予測の詳細：週間の見出しの下に光る線 */
+#detailView .ph-head{position:relative;padding-bottom:8px}
+#detailView .ph-head::after{content:"" / "";position:absolute;left:0;bottom:0;width:56px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--flair),transparent);box-shadow:0 0 10px color-mix(in srgb,var(--flair) 55%,transparent)}
+
+/* 2026-10-20 ユーザー「その案で進めて。予測は FORECAST、履歴は帯の右端、＋はカードの中」
+   構図・地図・記録の日本語の題名は画面から隠し、読み上げの見出しとしてだけ残す。英字の帯が題名。
+   履歴ボタンは帯と同じ行の右端（大きさは同じ）。帯の字が画面の中央に来るよう、左にボタンと同じ幅の余白を取る。 */
+#aimFramingTitle,#skyMapTitle,:is(#aimView,#recordsView) .sky-map-head h2{position:absolute!important;width:1px;height:1px;margin:0!important;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head){flex-wrap:nowrap;align-items:center;gap:12px;margin-top:4px}
+:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head)::before{flex:1 1 auto;margin:0}
+:is(.aim-titlebar,#skyMapView .sky-map-head):has(>button:not([hidden]))::before{margin-left:56px}
+#skyMapView .sky-map-head{margin-bottom:8px}#recordsView .sky-map-head{margin-bottom:12px}
+/* 記録の＋：カードの中の操作の行の右端 */
+#myRecordsHub .my-head{display:flex;align-items:center;gap:8px}
+#myRecordsHub .my-head .my-add-point{margin-left:auto;flex:none}
+/* 予測：地点カードの上の帯（地点カードを出す画面＝一覧・詳細・結果だけ） */
+#forecastBand{display:none;--flair:var(--flair-forecast);--kw:6.2em;margin:4px 0 10px;text-align:center;font-size:12px;font-weight:700;letter-spacing:.46em;padding-left:.46em;line-height:1.8;color:var(--flair);text-shadow:0 0 16px color-mix(in srgb,var(--flair) 45%,transparent);
+ background:linear-gradient(90deg,transparent,var(--flair)) left center/calc(50% - var(--kw)) 1px no-repeat,linear-gradient(90deg,var(--flair),transparent) right center/calc(50% - var(--kw)) 1px no-repeat}
+main:has(>#placeRow:not([hidden]))>#forecastBand{display:block}
+
+/* 2026-10-20 ユーザー「NEXT HIGHLIGHT だけ文字の周りがぽわっとしてる。他のページタイトルもぽわっとさせられる？」
+   帯の字の後ろに、字の幅ほどの楕円の淡い光を敷き、字の光も二重にする（背景が黒でも光が見える）。
+   同時に「フレーミングの色が気に入らない。バランスの取れた色に」→ 金（橙の予測と近い）をやめ、青緑に。予測=橙・構図=青緑・地図=青・記録=藍で暖色1・寒色3の並び */
+:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head)::before,#almanacView .alm-panel-kicker,#forecastBand,#bestNote::before{
+ text-shadow:0 0 10px color-mix(in srgb,var(--flair) 55%,transparent),0 0 24px color-mix(in srgb,var(--flair) 35%,transparent);
+ background:radial-gradient(closest-side,color-mix(in srgb,var(--flair) 16%,transparent),transparent) center/calc(2*var(--kw,5em)) 100% no-repeat,
+  linear-gradient(90deg,transparent,var(--flair)) left center/calc(50% - var(--kw,5em)) 1px no-repeat,linear-gradient(90deg,var(--flair),transparent) right center/calc(50% - var(--kw,5em)) 1px no-repeat}
+#almanacView .alm-eyebrow{text-shadow:0 0 10px color-mix(in srgb,var(--alm-active) 55%,transparent),0 0 24px color-mix(in srgb,var(--alm-active) 35%,transparent);background:radial-gradient(closest-side,color-mix(in srgb,var(--alm-active) 16%,transparent),transparent) center/17em 100% no-repeat}
