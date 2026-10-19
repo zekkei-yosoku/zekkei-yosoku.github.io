@@ -13,7 +13,7 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="1457506251142901076">
+<meta name="app-version" content="14128463296108334409">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-beRBvDSem3iTw0zNLBWfJ5BbvltOumxsdpew/rNGlG4=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Y0TMPnAAyhQZ+vquPTGgWlV+g4QBe2p1puGKP0ajd7I=' 'sha256-vonbNCtjdFNN0+8MALqbVdM23i0w2WirADDLWY4U4Vg=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-KOm09imzJD5Q53XGZLsYNGn3tc29U0k3WbZOpZi2fvM=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=416354364020786134">
@@ -543,11 +543,11 @@
     font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
   /* 利用者一覧の認証手段。名前のとなりに並べて、一目で見分ける */
 
-  .remember { display:flex; gap:10px; align-items:flex-start; margin-top:18px;
-    padding-top:14px; border-top:1px solid var(--line); cursor:pointer; }
-  .remember input { margin-top:2px; width:17px; height:17px; flex:none; accent-color: var(--accent, #2f6fed); }
-  .remember span { font-size:13px; color:var(--secondary); line-height:1.5; }
-  .remember em { display:block; font-style:normal; font-size:12px; color:var(--tertiary); margin-top:2px; }
+  .remember { display:flex; gap:12px; align-items:center; margin:0 0 16px;
+    min-height:44px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--sunk); cursor:pointer; }
+  .remember input { margin:0; width:22px; height:22px; flex:none; accent-color: var(--accent, #2f6fed); }
+  .remember span { min-width:0; font-size:15px; font-weight:600; color:var(--text); line-height:1.5; }
+  .remember em { display:block; font-style:normal; font-size:12px; font-weight:400; color:var(--secondary); margin-top:3px; }
   .auth-links { display: flex; flex-direction: column; gap: 2px; margin-top: 18px;
                 padding-top: 12px; border-top: 1px solid var(--line); }
   .auth-links button { text-align: left; min-height: 44px; font-size: 0.81rem;
@@ -2125,6 +2125,11 @@ button.ui-icon-button::after { content: none; }
     <!-- **1画面に1つの目的だけ置く。** 以前は同じシートに ログイン／新規登録／回復コード を
          畳んで並べていたが、開くと画面の下端まで伸び、ID欄が3つ同時に存在して
          パスワード管理アプリの自動入力が狂った。同じダイアログの中で差し替える。 -->
+    <!-- 全ログイン方法で共通の1個。操作を始める前に見える位置へ置く。 -->
+    <label class="remember">
+      <input type="checkbox" id="rememberMe">
+      <span>ログインしたままにする<em>この端末で30日間保持します。<br>共用の端末では外してください</em></span>
+    </label>
     <div id="panelLogin">
       <p class="tiny">お気に入りと記録を他の端末でも使えます。</p>
       <button id="passkeyLogin" class="fav-btn primary" style="margin-top:14px" hidden>パスキーでログイン</button>
@@ -2206,12 +2211,7 @@ button.ui-icon-button::after { content: none; }
 
     <p class="warn" id="authErr" style="margin-top:12px" hidden></p>
 
-    <!-- パネルの外に置く。ログイン・新規登録・回復のどれから入っても同じ意味なので、
-         画面ごとに置くと3つ同時に存在してどれが効くのか分からなくなる。 -->
-    <label class="remember">
-      <input type="checkbox" id="rememberMe">
-      <span>この端末でログインを保持する<em>30日。共用の端末では外してください</em></span>
-    </label>
+
   </div>
 </dialog>
 

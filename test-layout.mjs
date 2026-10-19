@@ -2690,8 +2690,8 @@ ok(/store\.get\("sorami\.remember", false\)/.test(html), "覚えていないと�
 ok(/sessionStorage\.setItem\(TOKEN_KEY/.test(html), "外していても読み込み直しでは保つ");
 ok(/共用の端末では外してください/.test(html), "外すべき場面を書く");
 // チェックボックスは3画面共通。パネルの中に置くと3つ同時に存在する
-ok(html.indexOf('id="rememberMe"') > html.indexOf('id="panelRecovery"'),
-  "チェックボックスはパネルの外（ログイン・新規登録・回復のどれからでも効く）");
+ok(html.indexOf('id="rememberMe"') < html.indexOf('id="panelLogin"'),
+  "チェックボックスは全パネルの手前（初期表示で見えてログイン・新規登録・回復のどれからでも効く）");
 ok((html.match(/id="rememberMe"/g) || []).length === 1, "チェックボックスは1つだけ");
 
 // サーバーへ伝えないと、選んでも12時間のトークンしか出ない
