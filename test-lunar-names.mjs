@@ -22,3 +22,8 @@ test('Generated alpha cannot introduce arbitrary notches into the physical lunar
  const restored=P.circularSurface(base,size),r=size/2;for(let y=0;y<size;y++)for(let x=0;x<size;x++)if(Math.hypot(x+.5-r,y+.5-r)<=r){assert.equal(restored[(y*size+x)*4+3],255);assert.equal(restored[(y*size+x)*4],150);}
  const shaded=P.shade(restored,size,1,0);assert.equal(shaded[3],0);assert.ok(shaded[(32*size+62)*4+3]>250);
 });
+test('Japanese night names count civil dates from the actual new Moon, not fixed illumination bins',()=>{
+ const o={latitude:35.68,longitude:139.76};for(const[day,name]of [['2026-10-13','三日月'],['2026-10-19','上弦の月'],['2026-10-23','十三夜の月'],['2026-10-24','小望月'],['2026-10-27','立待月'],['2026-10-30','更待月']]){const at=Date.parse(day+'T12:00:00+09:00');assert.equal(N.describe(at,A.moon(at,o),A).ja,name);}
+ assert.equal(N.traditional(Date.parse('2026-10-26T12:00:00+09:00'),A).name,'十六夜');
+ for(const year of [2020,2024,2026,2030])for(const e of N.calendar(year,A).events.filter(e=>e.kind===0)){const day=Date.parse(jst(e.at)+'T12:00:00+09:00');assert.equal(N.traditional(day,A).day,1);assert.equal(N.traditional(day+2*86400000,A).name,'三日月');}
+});

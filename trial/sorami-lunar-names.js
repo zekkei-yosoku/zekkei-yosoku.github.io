@@ -32,12 +32,19 @@ function calendar(year,A){
   if(e.distanceKm<=max-.9*(max-min))e.tags.push(['スーパームーン','Supermoon','その年の地心距離範囲のうち、近い側10％に入る満月']);
   if(e.distanceKm>=min+.9*(max-min))e.tags.push(['マイクロムーン','Micromoon','その年の地心距離範囲のうち、遠い側10％に入る満月']);
  }
- const result={events:events.filter(e=>e.at>=start&&e.at<end),minDistanceKm:min,maxDistanceKm:max};years.set(key,result);return result;
+ const result={events:events.filter(e=>e.at>=start&&e.at<end),nearbyEvents:events,minDistanceKm:min,maxDistanceKm:max};years.set(key,result);return result;
 }
-function describe(at,state,A){const day=localDate(at),event=calendar(Number(day.slice(0,4)),A).events.find(e=>localDate(e.at)===day);
+function traditional(at,A){
+ // Japanese night names count Japanese civil dates from the day containing the new Moon.
+ const ordinal=t=>Math.floor((t+32400000)/DAY),today=ordinal(at),year=new Date(at+32400000).getUTCFullYear(),moons=calendar(year,A).nearbyEvents.filter(e=>e.kind===0);
+ const before=moons.filter(e=>ordinal(e.at)<=today).at(-1),after=moons.find(e=>ordinal(e.at)>today);if(!before)return null;
+ const n=today-ordinal(before.at)+1,names={2:'二日月',3:'三日月',13:'十三夜の月',14:'小望月',15:'十五夜の月',16:'十六夜',17:'立待月',18:'居待月',19:'寝待月',20:'更待月',23:'二十三夜の月',26:'二十六夜の月'};
+ return {day:n,name:after&&today===ordinal(after.at)-1?'晦日月':names[n]||null};
+}
+function describe(at,state,A){const day=localDate(at),event=calendar(Number(day.slice(0,4)),A).events.find(e=>localDate(e.at)===day),night=traditional(at,A);
  if(event)return {ja:MAJOR[event.kind][0],en:MAJOR[event.kind][1],event};
  const crescent=state.illuminatedFraction<.5;
- return state.waxing?{ja:'満ちゆく月',en:crescent?'Waxing Crescent':'Waxing Gibbous'}:{ja:'欠けゆく月',en:crescent?'Waning Crescent':'Waning Gibbous'};
+ return state.waxing?{ja:night?.name||(crescent?'夕月':'満ちゆく月'),en:crescent?'Waxing Crescent':'Waxing Gibbous'}:{ja:night?.name||(crescent?'有明の月':'欠けゆく月'),en:crescent?'Waning Crescent':'Waning Gibbous'};
 }
-const api={MONTHS,MAJOR,calendar,describe,elong};g.SoramiLunarNames=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+const api={MONTHS,MAJOR,calendar,describe,traditional,elong};g.SoramiLunarNames=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:window);
