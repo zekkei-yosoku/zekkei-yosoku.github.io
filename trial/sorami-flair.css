@@ -2,7 +2,7 @@
    見た目だけを足す。操作部品の大きさ・位置・並び・文言は変えない。英字ラベルは読み上げない（content の代替文字を空にする）。 */
 :root{--flair-forecast:#a8611f;--flair-framing:#8a6a12;--flair-map:#2f6d9e;--flair-records:#5d6fa8}
 [data-theme=dark]{--flair-forecast:#f0b070;--flair-framing:#e8c66a;--flair-map:#8fc4ec;--flair-records:#b4c2ee}
-#listView,#bestNote,#nowcast,#answersView,#forecastTabs,#detailView{--flair:var(--flair-forecast)}#aimView{--flair:var(--flair-framing)}#skyMapView{--flair:var(--flair-map)}#recordsView{--flair:var(--flair-records)}
+#listView,#bestNote,#answersView,#forecastTabs,#detailView{--flair:var(--flair-forecast)}#aimView{--flair:var(--flair-framing)}#skyMapView{--flair:var(--flair-map)}#recordsView{--flair:var(--flair-records)}
 
 /* 2026-10-20 ユーザー「全部のタイトルはこーゆー感じにしない？広めにしたら？」（LUNAR NOTES の帯を指して）
    英字見出しはすべて「中央寄せの字＋左右へ広く伸びて外側で消える線」の帯。線の長さは字の幅を除いた残り全部。
@@ -26,11 +26,11 @@
 #almanacView .alm-eyebrow:before,#almanacView .alm-eyebrow:after{flex:1 1 auto;width:auto;max-width:300px;min-width:40px}
 @media(max-width:600px){#almanacView .alm-hero{padding-top:46px}#almanacView .alm-eyebrow{font-size:12px;letter-spacing:.42em;padding-left:.42em}}
 
-/* カードの見出しに小さな光る印。予測の「次の見どころ」「実況」には英字ラベル */
-#bestNote::before,#nowcast::before{display:block;margin:0 0 8px;text-align:center;font-size:11px;font-weight:700;letter-spacing:.42em;padding-left:.42em;line-height:1.8;color:var(--flair);text-shadow:0 0 14px color-mix(in srgb,var(--flair) 45%,transparent);
+/* カードの見出しに小さな光る印。予測の「次の見どころ」には英字ラベル（実況の NOW は2026-10-20 ユーザー「いらない」で外した） */
+#bestNote::before{display:block;margin:0 0 8px;text-align:center;font-size:11px;font-weight:700;letter-spacing:.42em;padding-left:.42em;line-height:1.8;color:var(--flair);text-shadow:0 0 14px color-mix(in srgb,var(--flair) 45%,transparent);
  background:linear-gradient(90deg,transparent,var(--flair)) left center/calc(50% - var(--kw)) 1px no-repeat,linear-gradient(90deg,var(--flair),transparent) right center/calc(50% - var(--kw)) 1px no-repeat}
-#bestNote{--kw:9em}#nowcast{--kw:3em}
-#bestNote::before{content:"NEXT HIGHLIGHT" / ""}#nowcast::before{content:"NOW" / ""}
+#bestNote{--kw:9em}
+#bestNote::before{content:"NEXT HIGHLIGHT" / ""}
 #bestNote{box-shadow:inset 3px 0 0 var(--flair),0 0 0 1px color-mix(in srgb,var(--flair) 22%,transparent),0 6px 26px color-mix(in srgb,var(--flair) 12%,transparent)}
 :is(#answersView,#aimView,#recordsView,#detailView) .section-h h2::before,#answersView .card>h2::before{content:"" / "";display:inline-block;width:3px;height:.95em;margin:0 9px 0 0;vertical-align:-.1em;border-radius:2px;background:linear-gradient(var(--flair),color-mix(in srgb,var(--flair) 30%,transparent));box-shadow:0 0 8px color-mix(in srgb,var(--flair) 60%,transparent)}
 
