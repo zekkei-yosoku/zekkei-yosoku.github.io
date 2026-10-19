@@ -2,7 +2,9 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const html=readFileSync(new URL('./trial/index.html',import.meta.url),'utf8');
+process.env.TZ='Asia/Tokyo';
 const c={};vm.createContext(c);
+vm.runInContext(readFileSync(new URL('./trial/sorami-home-time.js',import.meta.url),'utf8'),c);
 vm.runInContext(readFileSync(new URL('./sorami-astro.js',import.meta.url),'utf8'),c);
 vm.runInContext(html.slice(html.indexOf('function almanacEvents('),html.indexOf('function routeFromHash()')),c);
 const day=Date.parse('2026-10-19T00:00:00+09:00'),point={name:'東京',latitude:35.68,longitude:139.76};
@@ -28,6 +30,6 @@ c.SoramiAstro.sun=()=>{throw Error('Unavailable');};c.renderAlmanac();assert.mat
 get('almanacDate').value='invalid';get('almanacDate').onchange();assert.equal(get('almanacDate').value,'2026-10-20');
 console.log('ALMANAC OK: events, existing moon parity, missing events, polar day, invalid coordinates/date, date navigation and failure output');
 
-const dashboardContext={};vm.createContext(dashboardContext);vm.runInContext(readFileSync(new URL('./trial/sorami-almanac-dashboard.js',import.meta.url),'utf8'),dashboardContext);
+const dashboardContext={};vm.createContext(dashboardContext);vm.runInContext(readFileSync(new URL('./trial/sorami-home-time.js',import.meta.url),'utf8'),dashboardContext);vm.runInContext(readFileSync(new URL('./trial/sorami-almanac-dashboard.js',import.meta.url),'utf8'),dashboardContext);
 const clean={};vm.createContext(clean);vm.runInContext(readFileSync(new URL('./sorami-astro.js',import.meta.url),'utf8'),clean);c.SoramiAstro.sun=clean.SoramiAstro.sun;const d=dashboardContext.SoramiAlmanacDashboard.data(day,point,(...args)=>c.almanacEvents(...args),clean.SoramiAstro);
 assert.equal(d.bodies.sun.points.length,97);assert.ok(d.daylight>10*3600000&&d.daylight<12*3600000);assert.ok(d.bodies.moon.noon.illuminatedFraction>=0&&d.bodies.moon.noon.illuminatedFraction<=1);console.log('DASHBOARD DATA OK');

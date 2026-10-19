@@ -9,6 +9,18 @@ function lightVector(f,angle){
  return {x:-Math.sin(a)*s,y:-Math.cos(a)*s,z};
 }
 function incidence(x,y,f,angle){const r=x*x+y*y;if(r>1)return null;const l=lightVector(f,angle);return x*l.x+y*l.y+Math.sqrt(Math.max(0,1-r))*l.z;}
+function circularSurface(base,size){
+ const out=new Uint8ClampedArray(base),r=size/2;
+ for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+  const nx=x+.5-r,ny=y+.5-r,rr=Math.hypot(nx,ny),i=(y*size+x)*4;if(rr>r)continue;
+  // Texture alpha is an artistic cutout, not a measured lunar limb. Extend edge colour inward-to-outward.
+  if(base[i+3]<250){let found=false;for(let step=1;step<=r;step++){
+   const scale=Math.max(0,rr-step)/Math.max(rr,1),sx=Math.min(size-1,Math.max(0,Math.floor(r+nx*scale))),sy=Math.min(size-1,Math.max(0,Math.floor(r+ny*scale))),j=(sy*size+sx)*4;
+   if(base[j+3]>=250){for(let k=0;k<3;k++)out[i+k]=base[j+k];found=true;break;}
+  }if(!found)for(let k=0;k<3;k++)out[i+k]=209;}
+  out[i+3]=255;
+ }return out;
+}
 function shade(base,size,f,angle){
  const output=new Uint8ClampedArray(base.length),r=size/2,l=lightVector(f,angle);
  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
@@ -44,8 +56,8 @@ async function draw(canvas,state){
  ctx.save();ctx.translate(SIZE/2,SIZE/2);ctx.rotate((state.parallacticAngle||0)*DEG);
  if(surface)ctx.drawImage(surface.image,surface.x,surface.y,surface.width,surface.height,-SIZE/2,-SIZE/2,SIZE,SIZE);
  else{ctx.fillStyle='#d1d0ca';ctx.beginPath();ctx.arc(0,0,SIZE/2,0,2*Math.PI);ctx.fill();}ctx.restore();
- const frame=ctx.getImageData(0,0,SIZE,SIZE);frame.data.set(shade(frame.data,SIZE,state.illuminatedFraction,state.brightLimbZenithAngle));canvas.getContext('2d').putImageData(frame,0,0);
+ const frame=ctx.getImageData(0,0,SIZE,SIZE);frame.data.set(shade(circularSurface(frame.data,SIZE),SIZE,state.illuminatedFraction,state.brightLimbZenithAngle));canvas.getContext('2d').putImageData(frame,0,0);
  canvas.setAttribute('aria-label',`月の満ち欠け・照明率 ${(state.illuminatedFraction*100).toFixed(1)}%`);return {texture:!!surface};
 }
-const api={lightVector,incidence,shade,draw};g.SoramiMoonPortrait=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+const api={lightVector,incidence,circularSurface,shade,draw};g.SoramiMoonPortrait=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:window);
