@@ -9,7 +9,7 @@ const buttons=['-1,0','0,-1','0,1','1,0'].map(v=>Object.assign(element(),{datase
 const original={key:'previous',points:[{latitude:1}],at:{at:123}};const spec={at:123,obs:{},pick:true};const host={_lookSeq:1,_pick:{base:spec,reverseBefore:original,ghost:null},querySelector:q=>els[q],querySelectorAll:()=>buttons};
 const cv=Object.assign(element(),{getBoundingClientRect:()=>({left:10,top:20,width:200,height:150}),setPointerCapture(){}});
 let renders=[],draws=0;// 逆算は 2026-10-20 に止めた（AIM_REVERSE_ENABLED=false）。処理は残しているので、戻したとき用に有効にして検査する
-const c={AIM_REVERSE_ENABLED:true,aim:{body:'moon',reverse:original},SoramiBodies:{definition:()=>({name:'月'})},SoramiAlign:AL,AimMap:{redraw(){}},aimLookRender:(h,s)=>renders.push(s),aimLookFound(){},requestAnimationFrame:f=>{f();return 1},Date,Math,Number,Array};vm.createContext(c);vm.runInContext(code+';this.pick=aimLookPick;',c);
+const c={AIM_REVERSE_ENABLED:true,AIM_PLACE_ENABLED:false,aimShift:{x:0,y:0},aim:{body:'moon',reverse:original},SoramiBodies:{definition:()=>({name:'月'})},SoramiAlign:AL,AimMap:{redraw(){}},aimLookRender:(h,s)=>renders.push(s),aimLookFound(){},requestAnimationFrame:f=>{f();return 1},Date,Math,Number,Array};vm.createContext(c);vm.runInContext(code+';this.pick=aimLookPick;',c);
 function mount(W=400,H=300,k=100){c.pick(host,{spec,cv,draw:()=>draws++,W,H,k,win:{az0:270,alt0:5},az:270,topAngle:5,D:1,path:[],toPx:xy=>xy?[W/2+xy[0]*k,H/2-xy[1]*k]:null,pan:()=>[0,0],pathTap(){},bodyPosition:()=>[80,90]});}
 const ev=(x,y,id=1)=>({clientX:x,clientY:y,pointerId:id,pointerType:'touch',button:0});
 mount();cv.onpointerdown(ev(150,100));cv.onpointerup(ev(150,100));assert.equal(host._pick.ghost,null,'tap must not teleport');

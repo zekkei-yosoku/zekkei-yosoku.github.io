@@ -19,8 +19,8 @@ test('構図の図の操作で触っていない部品を動かさない（2026-
  assert.match(c,/#aimLook \.aim-look-figure \.aim-body-actions\{position:absolute;/);assert.match(c,/#aimLook \.aim-look-figure>\.preview-compose\{position:absolute;/);
  assert.doesNotMatch(html,/\.aim-look-figure'\)\?\.after\(actions\)/);assert.match(html,/\(figure\|\|lens\)\.append\(compose\);const bodyActions=look\.querySelector\('\[data-body-actions\]'\);if\(figure&&bodyActions\)figure\.append\(bodyActions\);/);
 });
-test('逆算（天体を動かして撮れる場所を探す）は切り替え1つで止め、処理は残す（2026-10-20 ユーザー「外してしまおう。戻しやすいように」）',()=>{
- assert.match(html,/const AIM_REVERSE_ENABLED = false;\nfunction aimLookPick\(/);assert.match(html,/btn\.hidden = !AIM_REVERSE_ENABLED;/);
+test('旧逆算（1点を解く）は切り替え1つで止め、処理は残す（2026-10-20 ユーザー「外してしまおう。戻しやすいように」）',()=>{
+ assert.match(html,/const AIM_REVERSE_ENABLED = false;/);assert.match(html,/btn\.hidden = !\(AIM_REVERSE_ENABLED \|\| placeMode\)/);
  assert.match(html,/function aimReverseClear\(/,'逆算の処理は残す');
  assert.match(fs.readFileSync(new URL('./sorami-flair.css',import.meta.url),'utf8'),/#aimLook \[data-look-pick\]\[hidden\]\{display:none!important\}/);
 });
@@ -31,4 +31,10 @@ test('構図の図は全画面で操作し、ページ上の図は見るだけ�
  const c=fs.readFileSync(new URL('./sorami-flair.css',import.meta.url),'utf8');
  assert.match(c,/#aimLook \.aim-look-figure:not\(\.look-full\) \.preview-figure-tools>:is\(\[data-look-pick\],\.preview-compose-icon\)\{display:none\}/);
  assert.match(c,/#aimLook \.aim-look-figure\.look-full\{position:fixed;/);
+});
+test('天体を動かすは前の操作のまま、終えると置いた位置で撮れる場所の地図を出す（2026-10-20 ユーザー「前の操作の方がしやすかった」）',()=>{
+ assert.match(html,/const AIM_PLACE_ENABLED = true;/);
+ assert.match(html,/if \(host\._pick && placeMode\) \{\n      const editing = host\._pick; host\._pick = null;\n      if \(editing\.ghost\) placeFromGhost\(editing\.ghost\);\n      aimLookRender\(host, editing\.initialBase \|\| editing\.base\);\n[^\n]*\n      if \(editing\.ghost && !host\._closingFull\) aimLineSheetOpen\(\);/);
+ assert.match(html,/if\(same\)host\._pickUndo=null;/,'何も変えずに閉じたら元に戻すを出さない');
+ assert.doesNotMatch(html,/aim-shift-pad|_bodyDrag/,'重ね方の下の矢印と全画面の長押しは外した');
 });
