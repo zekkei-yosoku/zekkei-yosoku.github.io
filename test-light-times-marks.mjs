@@ -12,13 +12,15 @@ test('予報の詳細は日の出・日の入の時刻だけ（夕焼けは日�
  const sunset=render(0,0,'sunset'),sunrise=render(0,0,'sunrise'),other=render(0,0,'starrySky');
  assert.match(sunset,/日の入[\s\S]*16:58/);assert.doesNotMatch(sunset,/日の出/);
  assert.match(sunrise,/日の出[\s\S]*05:52/);assert.doesNotMatch(sunrise,/日の入/);
- assert.match(other,/日の出[\s\S]*日の入/);
- for(const h of [sunset,sunrise,other])assert.doesNotMatch(h,/lt-band|ゴールデン|ブルー|月の/);
+ assert.equal(other,'','朝焼け・夕焼け以外の見出しには出さない');
+ for(const h of [sunset,sunrise])assert.doesNotMatch(h,/lt-band|ゴールデン|ブルー|月の/);
 });
 test('ホームの太陽に光の時間の帯（日の出・日の入の絵と時刻、ゴールデン／ブルーアワー）',()=>{
  const require=createRequire(import.meta.url);const D=require('./sorami-almanac-dashboard.js');
  assert.equal(typeof D.render,'function');
  const home=readFileSync(new URL('./sorami-almanac-dashboard.js',import.meta.url),'utf8');
  assert.match(home,/const box=panel\('光の時間','','TWILIGHT'\)/);
- assert.match(home,/const KEYS=\[\[-18,/,'太陽の高さで色をなめらかに変える');
+ assert.match(home,/const SKY_KEYS=\[\[-18,/,'太陽の高さで色をなめらかに変える');
+ assert.match(home,/'stop-color':skyColor\(h\)/,'空をたどるの背景も同じ空の色');
+ assert.match(home,/if\(narrow\(\)\)\{dome\.setAttribute\('class','alm-compass alm-compass-mini'\);const scrub=el\('div','alm-scrub'\);scrub\.append\(dome,readout\);chart\.append\(scrub,range\);/,'スマホは方向図と読み取りを高度グラフの下に横並び');
 });

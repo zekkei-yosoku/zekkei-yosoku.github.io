@@ -1137,12 +1137,12 @@ ok(!/detail-wrap/.test(html), "詳細を2列に分けていない");
 console.log("== 光の時間を出す ==");
 // 写真を撮りに行くなら、点数より先に要る情報。
 ok(/function renderLightTimes/.test(html), "renderLightTimes がある");
-ok(/renderLightTimes\(sel\.dayMs, now, id\)/.test(html), "選んだ日と現象の光の時間を出す");
+ok(/renderLightTimes\(sel\.dayMs, now, id\)/.test(html), "選んだ日と現象の日の出・日の入を出す");
 // 2026-09-07: 表から帯へ。朝夕2列×3行の数字を頭で1日に組み直す必要があった。
 // 2026-10-20 ユーザー「予報ならざっくり日の出日の入の時間を残すだけ」「夕焼けには日の入、朝焼けには日の出だけ」：
 // 帯（ゴールデン／ブルーアワー）はホームの太陽へ移した（sorami-almanac-dashboard.js の twilightPanel）
-ok(!/class="lt-band"/.test(html) && /class="card lt-simple" id="lightTimes"/.test(html), "予報の詳細は日の出・日の入の時刻だけ");
-ok(/phenomenonId === "sunset" \? kind === "sunset" : phenomenonId === "sunrise" \? kind === "sunrise" : true/.test(html), "夕焼けは日の入だけ・朝焼けは日の出だけ");
+ok(!/class="lt-band"/.test(html) && /<span class="lt-simple" id="lightTimes">/.test(html) && /<span class="nm">\$\{S\.longNameOf\(id\)\}<\/span>\$\{renderLightTimes\(sel\.dayMs, now, id\)\}/.test(html), "予報の詳細は日の出・日の入の時刻だけ、カードの見出しの空きに");
+ok(/phenomenonId === "sunset" \? kind === "sunset" : phenomenonId === "sunrise" \? kind === "sunrise" : false/.test(html), "夕焼けは日の入だけ・朝焼けは日の出だけ・ほかは出さない");
 {
   const home = fs.readFileSync(new URL("./sorami-almanac-dashboard.js", import.meta.url), "utf8");
   ok(/function twilightPanel\(day,d,astro\)/.test(home) && /if\(body!=='moon'\)\{const tw=twilightPanel\(day,d,astro\);/.test(home), "ホームの太陽に光の時間の帯");

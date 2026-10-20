@@ -42,7 +42,7 @@ function compass(body,info){
  for(const e of info.events){const[x,y]=pt(0,e.azimuth),rise=e.kind==='rise',a=e.azimuth*Math.PI/180,lx=C+(R+34)*Math.sin(a),ly=C-(R+34)*Math.cos(a);
   svg('circle',{cx:x,cy:y,r:5,fill:'var(--bg)',stroke:color,'stroke-width':2},s);
   const label=text(s,lx,ly-3,`${rise?'↑':'↓'} ${time(e.at)}`,{'text-anchor':'middle',fill:color,'font-size':12,'font-weight':600});label.setAttribute('class','alm-dome-time');
-  text(s,lx,ly+11,`${dir16(e.azimuth)} ${num(e.azimuth)}°`,{'text-anchor':'middle',fill:'var(--secondary)','font-size':10});}
+  text(s,lx,ly+11,`${dir16(e.azimuth)} ${num(e.azimuth)}°`,{'text-anchor':'middle',fill:'var(--secondary)','font-size':10}).setAttribute('class','alm-dome-dir');}
  if(!info.events.length&&!runs.length)text(s,C,C+4,'この日は地平線の上に出ません',{'text-anchor':'middle',fill:'var(--secondary)','font-size':12});
  const halo=svg('circle',{r:11,fill:color,opacity:.25,filter:'url(#almDomeGlow)'},s),dot=svg('circle',{r:5,fill:color,stroke:'var(--bg)','stroke-width':1.5},s);
  s.place=(alt,az)=>{const up=Number.isFinite(alt)&&alt>=0,[x,y]=pt(up?alt:0,az);for(const e of [halo,dot]){e.setAttribute('cx',x);e.setAttribute('cy',y);e.setAttribute('opacity',up?e===halo?.25:1:0);}};
@@ -77,6 +77,7 @@ function render(root,day,p,events,astro,options={}){
  if(body!=='moon'){const tw=twilightPanel(day,d,astro);if(tw)root.append(tw);}
  // 2026-10-20 ユーザー「ホームからの予測・構図・地図・記録への連携、リンクを置くだけならいらない」→「消そう」：道具へのボタンは置かない（移動はメニュー）
  const grid=el('div','alm-detail-grid'),chart=panel('空をたどる',`${name}の1日の高度。0°が水平な地平線です。帯は昼・薄明・夜。`,'SKY PATH');
+ // 2026-10-20 ユーザー「朝焼け夕焼けのグラデーションわかるように」：背景は光の時間と同じ空の色（skyColor）で、ゴールデン・ブルーアワーを濃く
  // 2026-10-20 高度グラフ：太陽の高度で昼・薄明・夜の帯を敷き、地平線より上の道筋を光らせ、出入りと最も高い時刻を書き込む
  const s=svg('svg',{viewBox:'0 0 720 320',class:'alm-chart',role:'img','aria-label':`${name}の0時から24時までの高度グラフ`}),x=t=>48+(t-day)/(d.end-day)*650,y=a=>238-a*2;
  const defs=svg('defs',{},s),clip=svg('clipPath',{id:'almChartClip'},defs);svg('rect',{x:48,y:40,width:650,height:228},clip);
@@ -84,7 +85,7 @@ function render(root,day,p,events,astro,options={}){
  const area=svg('linearGradient',{id:'almChartArea',x1:0,y1:0,x2:0,y2:1},defs);svg('stop',{offset:'0%','stop-color':'var(--alm-active)','stop-opacity':.32},area);svg('stop',{offset:'100%','stop-color':'var(--alm-active)','stop-opacity':0},area);
  const glow=svg('filter',{id:'almChartGlow',x:'-20%',y:'-50%',width:'140%',height:'200%'},defs);svg('feGaussianBlur',{stdDeviation:4},glow);
  const sunPts=d.bodies.sun.error?null:d.bodies.sun.points;
- if(sunPts){const band=svg('linearGradient',{id:'almChartSky',x1:0,y1:0,x2:1,y2:0},defs);for(const q of sunPts){const h=q.alt,o=h>=0?.14:h>=-6?.09:h>=-18?.04:0;svg('stop',{offset:`${((q.at-day)/(d.end-day)*100).toFixed(2)}%`,'stop-color':h>=0?'var(--alm-sky-day)':'var(--alm-sky-twilight)','stop-opacity':o},band);}svg('rect',{x:48,y:52,width:650,height:216,fill:'url(#almChartSky)'},s);}
+ if(sunPts){const band=svg('linearGradient',{id:'almChartSky',x1:0,y1:0,x2:1,y2:0},defs);for(const q of sunPts){const h=q.alt,o=h>=6?.1:h>=-4?.5:h>=-6?.42:h>=-12?.28:h>=-18?.12:0;svg('stop',{offset:`${((q.at-day)/(d.end-day)*100).toFixed(2)}%`,'stop-color':skyColor(h),'stop-opacity':o},band);}svg('rect',{x:48,y:52,width:650,height:216,fill:'url(#almChartSky)'},s);}
  for(const alt of [90,60,30,-15]){svg('line',{x1:48,y1:y(alt),x2:698,y2:y(alt),stroke:'var(--alm-grid)','stroke-dasharray':'2 5'},s);text(s,40,y(alt)+6,`${alt}°`,{'text-anchor':'end',fill:'var(--secondary)','font-size':19});}
  text(s,40,y(0)+6,'0°',{'text-anchor':'end',fill:'var(--secondary)','font-size':19});
  for(let hour=0;hour<=24;hour+=3){const hx=x(T.atHour(day,hour));svg('line',{x1:hx,y1:268,x2:hx,y2:hour%6?272:276,stroke:'var(--secondary)'},s);if(hour%6===0)text(s,hx,304,`${hour}時`,{'text-anchor':'middle',fill:'var(--secondary)','font-size':19});}
@@ -116,14 +117,19 @@ function render(root,day,p,events,astro,options={}){
   if(state.geometricAltitude<0)moment.textContent+=' · 地平線の下';
   const values=body==='moon'?[num(lunar?.age??state.synodicAge),`${(state.illuminatedFraction*100).toFixed(1)}%`,`${Math.round(state.distanceKm/1000).toLocaleString('ja-JP')}万km`]:[duration(d.daylight),`${num(state.geometricAltitude)}°`,`${num(state.azimuth)}°`];
   if(body==='moon')values[2]=`${(state.distanceKm/10000).toFixed(1)}万km`;
-  metricValues.forEach((e,i)=>e.textContent=values[i]);readout.textContent=`${t} ${T.zoneLabel(at())}　高度 ${num(state.geometricAltitude)}° ／ 方位 ${num(state.azimuth)}°`;range.setAttribute('aria-valuetext',readout.textContent);
+  metricValues.forEach((e,i)=>e.textContent=values[i]);readout.textContent=narrow()?`${t} ${T.zoneLabel(at())}\n高度 ${num(state.geometricAltitude)}°\n方位 ${dir16(state.azimuth)} ${num(state.azimuth)}°`:`${t} ${T.zoneLabel(at())}　高度 ${num(state.geometricAltitude)}° ／ 方位 ${num(state.azimuth)}°`;range.setAttribute('aria-valuetext',readout.textContent);
   if(body==='moon'){
    const generation=++drawGeneration;
    if(!g.SoramiMoonPortrait){textureStatus.textContent='月の描画を読み込めませんでした。ページを再読み込みしてください。';return;}
    g.SoramiMoonPortrait.draw(portrait,state).then(result=>{if(generation!==drawGeneration||!root.contains(portrait))return;if(result.texture){textureStatus.replaceChildren();return;}textureStatus.textContent='月面画像を読み込めないため、満ち欠けの形だけを表示しています。';const retry=el('button','chip','画像を再試行');retry.type='button';retry.onclick=update;textureStatus.append(retry);}).catch(()=>{if(generation===drawGeneration)textureStatus.textContent='月の描画を更新できませんでした。時刻を動かして再試行してください。';});
   }
- };range.oninput=()=>{view.live=false;view.minute=Math.max(0,Math.min(minutes-1,Number(range.value)));update();};chart.append(readout,range);
- direction.append(dome);grid.append(chart,direction);root.append(grid);
+ };range.oninput=()=>{view.live=false;view.minute=Math.max(0,Math.min(minutes-1,Number(range.value)));update();};
+ // 2026-10-20 ユーザー「このバーで空をたどると出入りの方向が動くなら横に並べるとかしないとわかりづらい」：
+ // スマホ（600px以下）では、高度グラフの下に小さい方向図と時刻・高度・方位を横に並べ、その下につまみを置く（つまみを動かすと両方の点が同時に見える）。
+ // 方向図の欄は出さない。広い画面は従来どおり2つの欄を横に並べる
+ if(narrow()){dome.setAttribute('class','alm-compass alm-compass-mini');const scrub=el('div','alm-scrub');scrub.append(dome,readout);chart.append(scrub,range);grid.append(chart);}
+ else{chart.append(readout,range);direction.append(dome);grid.append(chart,direction);}
+ root.append(grid);
  const week=panel('これから7日間',`${name}の時刻を比較。${T.zone()} の時刻です。`,'NEXT 7 DAYS'),table=el('table','alm-table'),thead=el('thead'),tr=el('tr');
  for(const label of ['日付',body==='moon'?'月の出':'日の出',body==='moon'?'月の入り':'日の入り',body==='moon'?'照明率':'昼の長さ']){const th=el('th','',label);th.scope='col';tr.append(th);}thead.append(tr);table.append(thead);const tbody=el('tbody');
  for(let n=0;n<7;n++){const dayAt=T.addDays(day,n);if(date(dayAt)>'2030-12-31')break;const row=el('tr'),th=el('th','',date(dayAt).slice(5).replace('-','/'));th.scope='row';row.append(th);let ev=null;try{ev=events(body,dayAt,p);}catch{/* no events and unavailable remain distinct */}for(const kind of ['rise','set']){const hits=ev?.filter(e=>e.kind===kind);row.append(el('td','',ev===null?'取得不能':hits.length?hits.map(e=>time(e.at)).join(' / '):'なし'));}let extra='取得不能';try{extra=body==='moon'?`${(astro.moon(T.atHour(dayAt,12),d.observer).illuminatedFraction*100).toFixed(1)}%`:ev?duration(daylight(dayAt,d.observer,ev,astro)):'取得不能';}catch{}row.append(el('td','',extra));tbody.append(row);}table.append(tbody);week.append(table);if(body==='moon')week.append(el('p','alm-caption alm-week-note','表の照明率は各日の正午。上の月はスライダーの時刻を表します。'));root.append(week);
@@ -140,15 +146,19 @@ function render(root,day,p,events,astro,options={}){
 // 光の時間（2026-10-20 ユーザー「ホームの太陽のところにトワイライトタイムとかのバーを置くべきじゃない?」）。
 // 予報の詳細から移した。1日（0〜24時）を太陽の高さで色分けした帯に、日の出・日の入を絵（上）と時刻（下）で線で結ぶ。
 // 帯の下はゴールデンアワー（太陽高度 +6°〜−4°）とブルーアワー（−4°〜−6°）の時刻だけ
+// 太陽の高さで空の色をなめらかに変える（夜→天文・航海薄明→ブルーアワー→ゴールデンアワー→昼）。光の時間の帯と空をたどるで共通
+const SKY_KEYS=[[-18,[11,16,36]],[-12,[28,43,92]],[-6,[53,82,168]],[-4,[150,110,150]],[0,[232,140,70]],[6,[240,194,122]],[12,[134,184,228]]];
+function skyColor(h){const K=SKY_KEYS;if(h<=K[0][0])return `rgb(${K[0][1]})`;for(let i=1;i<K.length;i++)if(h<=K[i][0]){const[a0,c0]=K[i-1],[a1,c1]=K[i],f=(h-a0)/(a1-a0);return `rgb(${c0.map((v,k)=>Math.round(v+(c1[k]-v)*f)).join(',')})`;}return `rgb(${K.at(-1)[1]})`;}
+const NARROW='(max-width:600px)',narrow=()=>typeof g.matchMedia==='function'&&g.matchMedia(NARROW).matches;
+// 幅をまたいだら並べ方を作り直す
+if(typeof g.matchMedia==='function'){try{g.matchMedia(NARROW).addEventListener('change',()=>active?.render());}catch{}}
 function twilightPanel(day,d,astro){
  const pts=d.bodies.sun.error?null:d.bodies.sun.points;if(!pts||pts.length<2)return null;
  const end=d.end,obs=d.observer,alt=at=>astro.sun(at,obs).geometricAltitude;
  // 隣の点のあいだで高さ h を横切る時刻を、二分法で1分より細かく求める
  const cross=(h,rising)=>{const out=[];for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i];if((a.alt-h)*(b.alt-h)>0||a.alt===b.alt)continue;if((b.alt>a.alt)!==rising)continue;let lo=a.at,hi=b.at;for(let k=0;k<20;k++){const m=(lo+hi)/2;((alt(m)-h)*(a.alt-h)>0)?lo=m:hi=m;}out.push((lo+hi)/2);}return out;};
  const one=(h,r)=>cross(h,r)[0]??null;
- // 太陽の高さで色をなめらかに変える（夜→天文・航海薄明→ブルーアワー→ゴールデンアワー→昼）
- const KEYS=[[-18,[11,16,36]],[-12,[28,43,92]],[-6,[53,82,168]],[-4,[150,110,150]],[0,[232,140,70]],[6,[240,194,122]],[12,[134,184,228]]];
- const color=h=>{if(h<=KEYS[0][0])return `rgb(${KEYS[0][1]})`;for(let i=1;i<KEYS.length;i++)if(h<=KEYS[i][0]){const[a0,c0]=KEYS[i-1],[a1,c1]=KEYS[i],f=(h-a0)/(a1-a0);return `rgb(${c0.map((v,k)=>Math.round(v+(c1[k]-v)*f)).join(',')})`;}return `rgb(${KEYS.at(-1)[1]})`;};
+ const color=skyColor;
  const css=(e,k,v)=>{if(e.style)e.style[k]=v;};
  const pct=at=>Math.max(0,Math.min(100,(at-day)/(end-day)*100));
  const stops=pts.map(q=>`${color(q.alt)} ${pct(q.at).toFixed(2)}%`).join(',');
