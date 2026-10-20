@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="12805656716825864425">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-SL3k1v96susaYhMC9Nc0Ur8xZTqUh2woDmDE7v95HLo=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-d4cZYBVfWwCa9HBA7Ig2Dx8XkbIbRmJHaqMtQ9hkZpY=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="969813810346376148">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-CQEX5rk0+3dImqk7+YcCweiRfRt1Z5Set8f4F+9A3O4=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-d4cZYBVfWwCa9HBA7Ig2Dx8XkbIbRmJHaqMtQ9hkZpY=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -1082,12 +1082,12 @@
   .mxout li { font-size: 0.69rem; color: var(--tertiary); margin-top: 4px; list-style: none; }
 
   /* 予報の詳細の日の出・日の入（2026-10-20 から時刻だけ。帯はホームの太陽へ移した） */
-  .lt-simple { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; font-variant-numeric: tabular-nums; }
+  .lt-simple { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-variant-numeric: tabular-nums; margin-left: 6px; align-self: center; }
   .lt-item { display: inline-flex; align-items: center; gap: 6px; }
   .lt-item .ic { display: inline-flex; color: var(--secondary); }
-  .lt-item .ic svg { width: 20px; height: 20px; }
-  .lt-item b { font-weight: 600; color: var(--secondary); font-size: 0.88rem; }
-  .lt-item .v { font-weight: 700; }
+  .lt-item .ic svg { width: 18px; height: 18px; }
+  .lt-item b { font-weight: 600; color: var(--secondary); font-size: 0.81rem; }
+  .lt-item .v { font-weight: 700; font-size: 0.88rem; }
 
   /* 広い画面。列を1本のまま少しだけ広げる。
      ここは【基本ルールより後ろに置く】。同じ詳細度なら後勝ちなので、
@@ -4777,10 +4777,12 @@ function renderLightTimes(dayMs, now, phenomenonId) {
   const w = S.Sun.lightWindows(dayMs, place.latitude, place.longitude);
   const t = (x) => S.JstCal.hhmmRounded(x);
   const items = [["日の出", w.sunrise, "sunrise"], ["日の入", w.sunset, "sunset"]]
-    .filter(([, x, kind]) => x !== null && (phenomenonId === "sunset" ? kind === "sunset" : phenomenonId === "sunrise" ? kind === "sunrise" : true));
+    // 見出しに入れるので朝焼け・夕焼けだけ（ほかの現象で2つ並べると見出しが2〜3行に折り返した）
+    .filter(([, x, kind]) => x !== null && (phenomenonId === "sunset" ? kind === "sunset" : phenomenonId === "sunrise" ? kind === "sunrise" : false));
   if (!items.length) return "";
-  return `<div class="card lt-simple" id="lightTimes">${items.map(([name, x, icon]) =>
-    `<span class="lt-item"><span class="ic" aria-hidden="true">${SoramiIcons.icon(icon)}</span><b>${name}</b><span class="v">${t(x)}</span></span>`).join("")}</div>`;
+  // 2026-10-20 ユーザー「ここら辺空いてるから入れれば良かったんじゃない?」：カードの見出しの空き（名前と共有ボタンのあいだ）に置く
+  return `<span class="lt-simple" id="lightTimes">${items.map(([name, x, icon]) =>
+    `<span class="lt-item"><span class="ic" aria-hidden="true">${SoramiIcons.icon(icon)}</span><b>${name}</b><span class="v">${t(x)}</span></span>`).join("")}</span>`;
 }
 
 /// 選択中の現象の詳細。1本の列で、上から読む順に並べる。
@@ -4819,7 +4821,7 @@ function renderDayDetail(id, entries, sel, now) {
   }
   const color = RANK_COLOR[ev.rank.key];
   const head = `<div class="card highlight" style="border-color:${color}">
-      <div class="ph-head"><span class="ic">${iconFor(id, ev.peak)}</span><span class="nm">${S.longNameOf(id)}</span>
+      <div class="ph-head"><span class="ic">${iconFor(id, ev.peak)}</span><span class="nm">${S.longNameOf(id)}</span>${renderLightTimes(sel.dayMs, now, id)}
         ${id === "moon" ? `<span class="tiny" style="color:var(--tertiary)">${esc(phaseNameFor(ev.peak))}</span>` : ""}${planButtons(`data-plan-source="detail" data-plan-id="${id}" data-plan-day="${sel.dayMs}"`)}</div>
       <div class="head-row">
         <span class="muted">${when}</span>
@@ -4833,7 +4835,6 @@ function renderDayDetail(id, entries, sel, now) {
     ${id === "moon" ? renderMoonTimes(sel.dayMs) : ""}
     ${id === "fuji" ? renderFujiTimes(ev) + renderAlignments(now) + renderCapLine(sel.dayMs) : ""}
     ${id === "capCloud" ? renderCapTiming(ev) + renderFujiBackLine(sel.dayMs) : ""}
-    ${renderLightTimes(sel.dayMs, now, id)}
     <div class="card">${renderDetail(id, sel, now)}</div>
     <details class="card more"><summary>もっと詳しく</summary>
       ${renderDetail(id, sel, now, { part: "how" })}${renderTable(id, entries)}
