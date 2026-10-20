@@ -15,8 +15,8 @@ test('Home civil days, shared date-bar bridge and events follow viewer zones inc
  if(process.env.TZ==='America/New_York'){const d=T.parse('2026-03-08');assert.equal(T.time(T.atHour(d,12)),'12:00');assert.equal(T.time(T.atHour(d,2)+30*60000),'03:30');
  global.document={createElement:()=>new El(),createElementNS:()=>new El()};global.SoramiMoonPortrait={draw:async()=>({texture:true})};El.prototype.contains=()=>true;
  const D=require('./trial/sorami-almanac-dashboard.js'),root=new El(),point={latitude:40.71,longitude:-74},all=e=>[e,...e.children.flatMap(all)];
- D.render(root,T.parse('2026-03-07'),point,()=>[],A);D.render(root,T.parse('2026-03-08'),point,()=>[],A);let slider=all(root).find(e=>e.type==='range');assert.equal(slider.value,'660');assert.equal(slider.max,'1379');
- D.render(root,T.parse('2026-11-01'),point,()=>[],A);slider=all(root).find(e=>e.type==='range');assert.equal(slider.value,'780');assert.equal(slider.max,'1499');
+ D.render(root,T.parse('2026-03-07'),point,()=>[],A);D.render(root,T.parse('2026-03-08'),point,()=>[],A);let day0=T.parse('2026-03-08');assert.equal(D.at(),day0+660*60000);D.setAt(day0+5000*60000);assert.equal(D.at(),day0+1379*60000);D.setAt(day0+660*60000);
+ D.render(root,T.parse('2026-11-01'),point,()=>[],A);day0=T.parse('2026-11-01');assert.equal(D.at(),day0+780*60000);D.setAt(day0+5000*60000);assert.equal(D.at(),day0+1499*60000);
  }
  const full=N.calendar(2026,A).events.filter(e=>e.kind===2);assert.equal(full.length,13);const may=full.find(e=>T.date(e.at).slice(0,7)==='2026-05'&&e.tags.some(t=>t[1]==='Blue Moon'));assert.ok(may);
  const at=Date.parse('2026-09-26T16:49:00Z'),name=N.describe(at,A.moon(at,{latitude:35,longitude:139}),A);assert.equal(name.ja,'満月');assert.equal(T.date(name.event.at),T.date(at));

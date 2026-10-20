@@ -26,10 +26,10 @@ test('Auto setting persists, applies immediately and reports storage failures wi
  f.fail();assert.equal(f.D.setAuto(true),false);assert.equal(f.D.getAuto(),false);assert.equal(f.root.dataset.body,'moon');f.D.stop();
 });
 test('Exploring a time pauses live following and never switches the body; Today keeps it; hidden/inactive screens do no work',()=>{
- const f=setup();f.render();const range=f.all(f.root).find(e=>e.type==='range');range.value='1200';range.oninput();assert.equal(f.root.dataset.body,'sun','時刻のバーを夜へ動かしても太陽のまま');
+ const f=setup();f.render();f.D.setAt(Date.parse('2026-10-19T20:00:00+09:00'));assert.equal(f.D.at(),Date.parse('2026-10-19T20:00:00+09:00'));assert.equal(f.root.dataset.body,'sun','下のバー（時刻）を夜へ動かしても太陽のまま');
  f.click('moon');f.setNow('2026-10-19T12:00:00+09:00');f.D.refresh();assert.equal(f.root.dataset.body,'moon');f.D.today();f.render();assert.equal(f.root.dataset.body,'moon','今日を押しても見ている天体のまま（2026-10-20 ユーザー「月を見てるんだから月でしょ」）');
  f.setNow('2026-10-19T18:00:00+09:00');f.context.document.hidden=true;f.D.refresh();assert.equal(f.root.dataset.body,'moon');f.context.document.hidden=false;f.D.refresh();assert.equal(f.root.dataset.body,'moon','今日のあとは自動で切り替えない');
- f.setNow('2026-10-20T00:01:00+09:00');f.D.refresh();assert.equal(f.all(f.root).find(e=>e.type==='range').value,'1');f.disable();f.setNow('2026-10-20T01:00:00+09:00');f.D.refresh();assert.equal(f.all(f.root).find(e=>e.type==='range').value,'1');f.D.stop();
+ f.setNow('2026-10-20T00:01:00+09:00');f.D.refresh();assert.equal(f.D.at(),Date.parse('2026-10-20T00:01:00+09:00'));f.disable();f.setNow('2026-10-20T01:00:00+09:00');f.D.refresh();assert.equal(f.D.at(),Date.parse('2026-10-20T00:01:00+09:00'));f.D.stop();
 });
 test('Visible upper limb defines daylight, including polar day/night and unavailable state',()=>{
  assert.equal(A.sun(Date.parse('2026-06-21T12:00:00Z'),{latitude:78,longitude:15}).upperLimbAltitude>0,true);
@@ -37,4 +37,4 @@ test('Visible upper limb defines daylight, including polar day/night and unavail
  assert.equal(D.preferredBody(0,{}, {sun:()=>({upperLimbAltitude:0})}),'sun');assert.equal(D.preferredBody(0,{}, {sun:()=>({upperLimbAltitude:NaN})}),null);
 });
 
-test('Reentry keeps live following across midnight and preserves an explored date',()=>{const f=setup();f.render();f.D.stop();f.setNow('2026-10-20T16:00:00+09:00');f.enter();assert.equal(f.all(f.root).find(e=>e.type==='range').value,'960');assert.equal(f.D.enter(),true); const g=setup();g.render();const range=g.all(g.root).find(e=>e.type==='range');range.value='1200';range.oninput();g.D.stop();assert.equal(g.D.enter(),false);});
+test('Reentry keeps live following across midnight and preserves an explored date',()=>{const f=setup();f.render();f.D.stop();f.setNow('2026-10-20T16:00:00+09:00');f.enter();assert.equal(f.D.at(),Date.parse('2026-10-20T16:00:00+09:00'));assert.equal(f.D.enter(),true); const g=setup();g.render();g.D.setAt(g.D.at()+3600000);g.D.stop();assert.equal(g.D.enter(),false);});

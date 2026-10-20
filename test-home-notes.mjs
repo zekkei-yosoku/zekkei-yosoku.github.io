@@ -14,8 +14,10 @@ function render(body,at){
 test('NOTES の見出しと各欄の英字ラベルが太陽・月の両方に出る',()=>{
  for(const[body,kicker]of [['sun','SOLAR NOTES'],['moon','LUNAR NOTES']]){const r=render(body,'2026-10-20T12:00:00+09:00'),t=r.texts();
   const k=r.all().find(e=>e.className==='alm-eyebrow');assert.equal(k.textContent,kicker);assert.equal(k.hidden,false);
-  for(const en of ['SKY PATH','HORIZON','NEXT 7 DAYS'])assert.ok(r.all().some(e=>e.className==='alm-panel-kicker'&&e.textContent===en),en);
-  for(const ja of ['空をたどる','出入りの方向','これから7日間'])assert.ok(t.includes(ja),ja);}
+  for(const en of ['SKY PATH','NEXT 7 DAYS'])assert.ok(r.all().some(e=>e.className==='alm-panel-kicker'&&e.textContent===en),en);
+  for(const ja of ['空をたどる','これから7日間'])assert.ok(t.includes(ja),ja);
+  // 2026-10-20 高さと方向は「空をたどる」1つのまとまり（出入りの方向の欄は無い）
+  assert.ok(!r.all().some(e=>e.className==='alm-panel-kicker'&&e.textContent==='HORIZON'),'HORIZON の欄は無い');}
 });
 test('出入りは矢印と16方位（上の欄だけ）。グラフ・天球図・光の時間に同じ時刻と方位を重ねて書かない。最も高い時刻を示す',()=>{
  const r=render('sun','2026-10-20T12:00:00+09:00'),t=r.texts();
@@ -44,4 +46,19 @@ test('ホームに道具へのボタン（予測・構図・地図・記録）�
 test('不要な説明文（NOTEBOOK・撮影地点の冒頭、構図の未選択時）は出さない（2026-10-20 ユーザー「消しといて」）',()=>{
  const h=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),m=fs.readFileSync(new URL('./sorami-myplaces.js',import.meta.url),'utf8');
  assert.doesNotMatch(h,/天体・対象・日付を選び、この日の候補から撮影地点を選べます/);assert.doesNotMatch(m,/どこから何が見えたかを残し、構図や地図で次の撮影につなげます/);
+});
+
+test('空をたどる：時刻は下のバーで動かし、パネルにつまみと読み取りの文字を置かない。時刻・高度はグラフ、方位は天球図の中に書く',()=>{
+ const r=render('sun','2026-10-20T12:00:00+09:00'),all=r.all();
+ const metrics=all.filter(e=>e.className==='alm-metric');assert.equal(metrics.length,1,'太陽の上の欄は昼の長さだけ');
+ assert.equal(all.find(e=>e.className==='alm-moment').textContent,'','上の欄に時刻を書かない');
+ const sky=all.find(e=>e.className==='alm-panel'&&e.children.some(c=>c.textContent==='空をたどる'));
+ const kids=sky.children.map(e=>e.className||e.tag);
+ const i=k=>kids.findIndex(c=>String(c).includes(k));
+ // 2026-10-20 ユーザー「説明もなんか浮いてる」「せっかく下に日付があるんだから時間に切り替えられるようにしたらいいじゃん」
+ assert.ok(i('alm-sky')>=0&&i('alm-tw-legend')>i('alm-sky'),'グラフと天球図 → 光の時間の2行 '+JSON.stringify(kids));
+ assert.ok(!all.some(e=>e.type==='range'||/alm-readout|alm-range/.test(e.className||'')),'パネルの中につまみと読み取りを置かない');
+ const texts=all.filter(e=>e.tag==='text').map(e=>e.textContent);
+ assert.ok(texts.includes('12:00'),'グラフの縦線の上に時刻 '+JSON.stringify(texts));assert.ok(texts.some(t=>/^\d+\.\d°$/.test(t)),'グラフの点の横に高度');assert.ok(texts.some(t=>/^南+.* \d+°$|^[東西南北]+ \d+°$/.test(t)),'天球図の点の横に方位');
+ const m=render('moon','2026-10-20T12:00:00+09:00').all();assert.ok(!m.some(e=>e.className==='alm-tw-legend'),'月には光の時間の2行を出さない');
 });

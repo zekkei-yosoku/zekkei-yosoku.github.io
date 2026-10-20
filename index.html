@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="4044301941397057879">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-wQpL1UOEVA+loQQ/HIjZBdaKvHOAAaidscRquKa1wco=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-d4cZYBVfWwCa9HBA7Ig2Dx8XkbIbRmJHaqMtQ9hkZpY=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="5151922215181314837">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-WwjHY+yqrCkxtUqNN4y5wWPP4nxrtnbicFrU97K/4Hc=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-d4cZYBVfWwCa9HBA7Ig2Dx8XkbIbRmJHaqMtQ9hkZpY=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -1471,7 +1471,9 @@ main:has(>:is(#aimView,#planeView,#issView,#recordsView,#answersView,#skyMapView
 [data-theme=dark] :is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer{--timeline-panel-bg:var(--card)}
 
 :is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .sky-map-scrub-modes:after{content:"";position:absolute;left:100%;top:0;bottom:0;width:14px;background:linear-gradient(to right,var(--timeline-panel-bg,var(--card)),transparent);pointer-events:none}
-:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .sky-map-scrub-modes button:after{content:"↔";font-size:10px;line-height:1;color:var(--secondary)}
+/* 2026-10-21 ユーザー「日付切り替えのボタンもう少しだけ大きく目立つように」：目盛りの数字（11px）と同じ大きさで埋もれていた。3画面共通 */
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .sky-map-scrub-modes button{font-size:15px;font-weight:700;color:var(--accent)}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .sky-map-scrub-modes button:after{content:"↔";font-size:13px;line-height:1;color:var(--accent);opacity:.75}
 :is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .sky-map-scrub-modes button:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
 
 /* 2026-10-15: 全画面・全入力方法でフォーカス枠とタップの強調を表示しない。
@@ -1489,7 +1491,7 @@ select:not(.mxsort select):not(.aim-pick select) { appearance: none; -webkit-app
 button.ui-icon-button { display: inline-grid !important; place-items: center; flex: none; width: var(--ui-control-size) !important; height: var(--ui-control-size) !important; min-width: var(--ui-control-size); min-height: var(--ui-control-size); padding: 0 !important; border: 0; border-radius: 0; background: transparent; color: var(--text); }
 button.ui-icon-button::after { content: none; }
 .ui-control-icon { display: block; width: var(--ui-icon-size); height: var(--ui-icon-size); fill: none; stroke: currentColor; stroke-width: var(--ui-icon-stroke); stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-</style><link rel="stylesheet" href="sorami-almanac-home.css?v=aeb4eaa4c73c"><link rel="stylesheet" href="sorami-flair.css?v=9a5b29db0c66">
+</style><link rel="stylesheet" href="sorami-almanac-home.css?v=ac669d8e9d7e"><link rel="stylesheet" href="sorami-flair.css?v=7591df362551">
 </head>
 <body>
 <svg aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute;overflow:hidden"><defs><symbol id="input-icon-body" viewBox="0 0 24 24"><path d="M12 2C13.2 9 15 10.8 21 12C15 13.2 13.2 15 12 22C10.8 15 9 13.2 3 12C9 10.8 10.8 9 12 2Z" fill="currentColor" stroke="none"/></symbol><symbol id="input-icon-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 1v6m0 10v6M1 12h6m10 0h6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></symbol><symbol id="input-icon-observer" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="10" rx="1.5"/><circle cx="12" cy="10" r="2.5"/><path d="m8 5 1.5-2h5L16 5m-4 10v8m0-6-6 6m6-6 6 6"/></symbol></defs></svg>
@@ -1915,7 +1917,7 @@ button.ui-icon-button::after { content: none; }
         <button type="button" id="almanacNext" aria-label="次の日">›</button>
         <button type="button" class="chip" id="almanacToday">今日</button>
       </div>
-      <div id="almanacTrack" class="preview-footer-track"><div id="almanacTimeline" class="sky-map-timeline" tabindex="0" role="slider" aria-label="日付を横スクロールして調整"></div><span class="sky-map-timeline-center" aria-hidden="true"></span></div>
+      <div class="sky-map-scrub"><div class="sky-map-scrub-modes" role="group" aria-label="バーで動かす対象"><button type="button" class="chip" id="almanacScrubMode" aria-label="日付、時刻に切り替え" data-mode="date">日付</button></div><div id="almanacTrack" class="preview-footer-track"><div id="almanacTimeline" class="sky-map-timeline" tabindex="0" role="slider" aria-label="日付を横スクロールして調整"></div><span class="sky-map-timeline-center" aria-hidden="true"></span></div></div>
     </footer>
     <p class="alm-basis">時刻は端末のタイムゾーン。方位は北0°から時計回り。対応期間：2020〜2030年。出入りは標準大気差を含む上端と水平な地平線が基準です。山・建物・標高・雲の影響は含みません。</p>
   </section>
@@ -2379,7 +2381,7 @@ button.ui-icon-button::after { content: none; }
 <script src="sorami-lunar-names.js?v=ce5d7091f2bc"></script>
 <script src="sorami-solar-terms.js?v=4218489875242444556"></script>
 <script src="sorami-sun-portrait.js?v=16548809566942201294"></script>
-<script src="sorami-almanac-dashboard.js?v=16215393529389943890f319d8436b"></script>
+<script src="sorami-almanac-dashboard.js?v=6751266952824004264f319d8436b"></script>
 <script src="sorami-access.js?v=17412933104240943276"></script>
 <script src="sorami-align.js?v=18362427956346772136"></script>
 <script src="sorami-moon.js?v=10230678456179898054"></script>
@@ -2764,7 +2766,7 @@ let atAim = false;       // 「ねらう」のページを見ているか
 let atPlane = false;     // 「月丼」のページを見ているか
 let atIss = false;       // 「ISSの月面通過」のページを見ているか
 let atAnswers = false;
-let atAlmanac = false, almanacPoint = null, almanacTimeline = null;
+let atAlmanac = false, almanacPoint = null, almanacTimeline = null, almanacScrub = 'date';
 let almanacDay = SoramiHomeTime.start(Date.now());
 let atRecords = false;   // 記録画面を見ているか
 let atAdmin = false;     // 管理者画面を見ているか
@@ -4033,6 +4035,9 @@ function almanacEvents(body, day, point) {
 function renderAlmanac() {
   const p=almanacPoint||place, input=$("almanacDate");
   const T=SoramiHomeTime,date=T.date,ruler=()=>T.toRuler(almanacDay);
+  // 下のバーは「日付」と「時刻」を切り替える（2026-10-20 ユーザー「せっかく下に日付があるんだから時間に切り替えられるようにしたらいいじゃん」）。
+  // 時刻のときは実時刻（ms）、日付のときは日付の目盛り（ruler）で動かす
+  const D=()=>globalThis.SoramiAlmanacDashboard,barAt=()=>almanacScrub==='time'?(D()?.at()??Date.now()):ruler();
   const lower=T.parse('2020-01-01'), upper=T.parse('2030-12-31');
   const outOfRange=almanacDay<lower||almanacDay>upper;
   almanacDay=Math.max(lower,Math.min(upper,almanacDay));
@@ -4044,11 +4049,11 @@ function renderAlmanac() {
       ToolDateTimeBar.decorate({footer:$("almanacFooter"),row:$("almanacDateRow"),date:$("almanacCalendarOpen"),prev:$("almanacPrev"),next:$("almanacNext"),track:$("almanacTrack")});
       ToolDateTimeBar.calendar({button:$("almanacCalendarOpen"),getAt:ruler,getNow:()=>T.toRuler(Date.now()),setDay:day=>{almanacDay=T.fromRuler(day);renderAlmanac();}});
       ToolDateTimeBar.trackPointerFocus($("almanacFooter"));
-      almanacTimeline=SoramiScrollTimeline.mount({root:$("almanacTimeline"),getAt:ruler,getMode:()=> 'date',enabled:()=>atAlmanac,getObserver:()=>({latitude:(almanacPoint||place).latitude,longitude:(almanacPoint||place).longitude,elevation:0}),sun:(at,o)=>SoramiAstro.sun(at,o),onChange:at=>{const day=T.fromRuler(at);const clamped=Math.max(lower,Math.min(upper,day));if(clamped!==almanacDay){almanacDay=clamped;renderAlmanac();}},onSettle:()=>almanacTimeline.sync(ruler(),'date'),format:at=>new Date(at+32400000).toISOString().slice(5,10).replace('-','/'),describe:at=>ToolDateTimeBar.label(at)});
+      almanacTimeline=SoramiScrollTimeline.mount({root:$("almanacTimeline"),getAt:barAt,getMode:()=>almanacScrub,enabled:()=>atAlmanac,getObserver:()=>({latitude:(almanacPoint||place).latitude,longitude:(almanacPoint||place).longitude,elevation:0}),sun:(at,o)=>SoramiAstro.sun(at,o),onChange:at=>{if(almanacScrub==='time'){const day=T.start(at);if(day<lower||day>upper)return;if(day!==almanacDay){almanacDay=day;renderAlmanac();}D()?.setAt(at);return;}const day=T.fromRuler(at);const clamped=Math.max(lower,Math.min(upper,day));if(clamped!==almanacDay){almanacDay=clamped;renderAlmanac();}},onSettle:()=>almanacTimeline.sync(barAt(),almanacScrub),format:(at,mode)=>mode==='time'?T.time(at):new Date(at+32400000).toISOString().slice(5,10).replace('-','/'),describe:(at,mode)=>mode==='time'?ToolDateTimeBar.label(T.toRuler(T.start(at)))+' '+T.time(at):ToolDateTimeBar.label(at)});
+      $("almanacScrubMode").onclick=()=>{almanacTimeline.stop();almanacScrub=almanacScrub==='date'?'time':'date';renderAlmanac();};
     }
     ToolDateTimeBar.dateText($("almanacCalendarOpen"),ruler());
     $("almanacCalendarOpen").setAttribute('aria-label',ToolDateTimeBar.label(ruler())+'・日付を選ぶ');
-    almanacTimeline.sync(ruler(),'date');
   }
   $("almanacPlace").textContent=`${p.name}　⌄`;
   $("almanacPlace").setAttribute("aria-label",`観測地点 ${p.name} を変更`);
@@ -4062,7 +4067,9 @@ function renderAlmanac() {
   $("almanacMenu")?.setAttribute('aria-current','page');
   const out=$("almanacOutput");out.replaceChildren();
   out.hidden=!!globalThis.SoramiAlmanacDashboard;
-  if(globalThis.SoramiAlmanacDashboard){SoramiAlmanacDashboard.render($("almanacDashboard"),almanacDay,p,almanacEvents,SoramiAstro,{isActive:()=>atAlmanac,onLiveDay:()=>{almanacDay=SoramiHomeTime.start(Date.now());renderAlmanac();}});return;}
+  const syncBar=()=>{if(typeof almanacTimeline==='undefined'||!almanacTimeline)return;const m=$("almanacScrubMode"),text=almanacScrub==='time'?'時刻':'日付',next=almanacScrub==='time'?'日付':'時刻';m.textContent=text;m.dataset.mode=almanacScrub;m.setAttribute('aria-label',text+'、'+next+'に切り替え');m.title='現在は'+text+'。'+next+'に切り替え';almanacTimeline.sync(barAt(),almanacScrub);};
+  if(globalThis.SoramiAlmanacDashboard){SoramiAlmanacDashboard.render($("almanacDashboard"),almanacDay,p,almanacEvents,SoramiAstro,{isActive:()=>atAlmanac,onLiveDay:()=>{almanacDay=SoramiHomeTime.start(Date.now());renderAlmanac();},onLive:at=>{if(typeof almanacTimeline!=='undefined'&&almanacScrub==='time')almanacTimeline?.sync(at,'time');}});syncBar();return;}
+  syncBar();
   for(const [body,name] of [['sun','太陽'],['moon','月']]){
     const card=document.createElement('div');card.className='card';
     const heading=document.createElement('h2');heading.style.fontSize='1rem';heading.textContent=name;card.append(heading);
@@ -9191,7 +9198,9 @@ async function aimLookRender(host, spec) {
     const started=typeof performance==='undefined'?Date.now():performance.now();
     const p = host._blendP || (Number.isFinite(exactAt) ? pack(exactAt, SoramiBodies.state(body, exactAt, eyeObs)) : at(v));
     host._lookAt = p.at;
-    if(host.id==='aimLook'&&aim.plannerTransfer)aim.plannerTransfer.at=p.at;
+    // 引き継ぐ時刻を書き戻すのは、その時刻で描いたこの図だけ（2026-10-21 ユーザー「月の軌道がズレるようになった」：
+    // 置いた位置の点線円のための再描画（aimShiftSync）が前の日の図を描き直し、押した候補日の時刻を前の時刻で上書きしていた）
+    if(host.id==='aimLook'&&transfer&&aim.plannerTransfer===transfer)transfer.at=p.at;
     host._planKey = planRenderKey;
     if(host.id==='aimLook'){
       aim.mapTime={at:p.at,day:S.JstCal.startOfDay(p.at),body,target:t.id};

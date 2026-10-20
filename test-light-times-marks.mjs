@@ -15,12 +15,10 @@ test('予報の詳細は日の出・日の入の時刻だけ（夕焼けは日�
  assert.equal(other,'','朝焼け・夕焼け以外の見出しには出さない');
  for(const h of [sunset,sunrise])assert.doesNotMatch(h,/lt-band|ゴールデン|ブルー|月の|<svg/,'見出しの絵と重ねない');
 });
-test('ホームの太陽に光の時間の帯（日の出・日の入の絵と時刻、ゴールデン／ブルーアワー）',()=>{
- const require=createRequire(import.meta.url);const D=require('./sorami-almanac-dashboard.js');
- assert.equal(typeof D.render,'function');
+test('ホームの光の時間は空をたどるの背景に一本化し、ゴールデン／ブルーアワーの2行をグラフのすぐ下に',()=>{
  const home=readFileSync(new URL('./sorami-almanac-dashboard.js',import.meta.url),'utf8');
- assert.match(home,/const box=panel\('光の時間','','TWILIGHT'\)/);
+ assert.doesNotMatch(home,/panel\('光の時間'/,'光の時間の帯の欄は出さない');
+ assert.match(home,/function twilightLines\(day,d,astro\)/);
  assert.match(home,/const SKY_KEYS=\[\[-18,/,'太陽の高さで色をなめらかに変える');
- assert.match(home,/'stop-color':skyColor\(h\)/,'空をたどるの背景も同じ空の色');
- assert.match(home,/if\(narrow\(\)\)\{dome\.setAttribute\('class','alm-compass alm-compass-mini'\);const scrub=el\('div','alm-scrub'\);scrub\.append\(dome,readout\);chart\.append\(scrub,range\);/,'スマホは方向図と読み取りを高度グラフの下に横並び');
+ assert.match(home,/'stop-color':skyColor\(h\)/,'空をたどるの背景は空の色');
 });

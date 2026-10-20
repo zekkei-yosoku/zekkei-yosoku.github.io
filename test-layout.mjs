@@ -1145,8 +1145,8 @@ ok(!/class="lt-band"/.test(html) && /<span class="lt-simple" id="lightTimes">/.t
 ok(/phenomenonId === "sunset" \? kind === "sunset" : phenomenonId === "sunrise" \? kind === "sunrise" : false/.test(html), "夕焼けは日の入だけ・朝焼けは日の出だけ・ほかは出さない");
 {
   const home = fs.readFileSync(new URL("./sorami-almanac-dashboard.js", import.meta.url), "utf8");
-  ok(/function twilightPanel\(day,d,astro\)/.test(home) && /if\(body!=='moon'\)\{const tw=twilightPanel\(day,d,astro\);/.test(home), "ホームの太陽に光の時間の帯");
-  ok(/\['ゴールデンアワー',/.test(home) && /\['ブルーアワー',/.test(home), "ホームの帯の下にゴールデン・ブルーアワー");
+  ok(/const viz=el\('div','alm-sky'\),light=body!=='moon'\?twilightLines\(day,d,astro\):null;/.test(home), "ホームの光の時間は空をたどるに一本化（太陽だけ）");
+  ok(/\['ゴールデンアワー',/.test(home) && /\['ブルーアワー',/.test(home), "空をたどるのグラフの下にゴールデン・ブルーアワー");
 }
 ok(/lightWindows/.test(html), "太陽の高度から求めている");
 const core2 = fs.readFileSync(new URL("./sorami-core.js", import.meta.url), "utf8");

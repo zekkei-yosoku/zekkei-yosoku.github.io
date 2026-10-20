@@ -17,7 +17,7 @@
 #recordsView .sky-map-head::before{content:"NOTEBOOK" / "";--kw:5.9em}
 /* ホームの各欄：英字は帯に、日本語の題と説明も中央へ */
 #almanacDashboard{--flair:var(--alm-active)}
-#almanacView .alm-panel-kicker{--kw:7.6em;margin:0 0 10px}#almanacView .alm-detail-grid>.alm-panel:first-child .alm-panel-kicker{--kw:5.9em}#almanacView .alm-detail-grid>.alm-panel:nth-child(2) .alm-panel-kicker{--kw:5.3em}
+#almanacView .alm-panel-kicker{--kw:7.6em;margin:0 0 10px}
 #almanacView .alm-panel>h2,#almanacView .alm-panel>.alm-caption{text-align:center}
 #almanacView .alm-panel>.alm-caption{margin-left:auto;margin-right:auto;max-width:40em}
 /* ホームの NOTES：太陽・月の切り替えの直下に全幅で置き、線を広く */
