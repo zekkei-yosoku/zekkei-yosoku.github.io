@@ -5,7 +5,7 @@ test('時刻補間は昇順・降順と端点で連続し区間外を表示し�
 test('時間が折り返す場合は複数解、無効値は表示しない',()=>{const p=[...pts.slice(0,2),{...pts[2],at:100}];assert.equal(c.aimLineAtTime(p,150).length,2);assert.equal(c.aimLineAtTime(pts,NaN).length,0);assert.equal(c.aimLineAtTime([],100).length,0);});
 test('日時は下部固定欄に集約し、見え方と撮影地で同じ時間バーを使う',()=>{
  const p=h.slice(h.indexOf('<script id="previewPresentation">')),css=h.slice(h.indexOf('<style id="previewStyles">'),h.indexOf('</style></head>'));
- assert.match(h,/aria-controls="previewPlaces"[^>]*>撮影地<\/button>/);
+ assert.match(h,/aria-controls="previewPlaces"[^>]*>撮影地点<\/button>/);
  assert.match(p,/footer\.className='preview-datetime-footer'/);assert.match(p,/footer\.append\(dateRow\)/);
  assert.match(p,/SoramiScrollTimeline.mount\(\{root:footerTimeline/,'共通部品でiPhoneの時刻目盛りを横スクロールできる');
  assert.match(p,/mode==='places'\?mapRange:look\.querySelector\('\[data-look-range\]'\)/,'撮影地は出入線、見え方は図の時間幅');

@@ -89,7 +89,9 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
  for(const event of ['pointerup','pointercancel','lostpointercapture'])root.addEventListener(event,()=>{if(!touching)pressed=false;mouse=null;},{passive:true});
  root.addEventListener('keydown',e=>{const dir={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1,PageUp:-1,PageDown:1}[e.key];if(!dir||!enabled())return;e.preventDefault();const large=e.shiftKey||e.key.startsWith('Page'),delta=(mode==='date'?DAY:MINUTE)*(large?(mode==='date'?7:15):1),at=getAt()+dir*delta;stop();reset(at,mode);onChange(at);onSettle(at);});
  function stop(){setBlend(null);cancelGlide();cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;velocity=0;lastScroll=null;generation++;cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;pressed=false;touching=false;mouse=null;blocked=true;anchor=null;}
- const controller={sync(at,nextMode){if(!enabled()){stop();return;}if(!Number.isFinite(at))return;if((moving||pressed||touching)&&mode===nextMode&&at===lastAt&&width===root.clientWidth&&context===JSON.stringify(getObserver()))return;if(at===anchor&&nextMode===mode&&width===root.clientWidth&&Math.abs(root.scrollLeft-EXTENT)<.1&&context===JSON.stringify(getObserver()))return;stop();reset(at,nextMode);},stop};
+ // 2026-10-20 ユーザー「日付をばーっと動かしてるときに今日を押しても止まらず動き続ける」：外から日時を替えるときは、指を離したあとの慣性スクロールも止める
+ const halt=()=>{if(!(moving||glideFrame||Math.abs(root.scrollLeft-EXTENT)>=.1))return;root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';};
+ const controller={sync(at,nextMode){if(!enabled()){stop();return;}if(!Number.isFinite(at))return;if((moving||pressed||touching)&&mode===nextMode&&at===lastAt&&width===root.clientWidth&&context===JSON.stringify(getObserver()))return;if(at===anchor&&nextMode===mode&&width===root.clientWidth&&Math.abs(root.scrollLeft-EXTENT)<.1&&context===JSON.stringify(getObserver()))return;halt();stop();reset(at,nextMode);},stop};
  if(typeof ResizeObserver==='function')new ResizeObserver(()=>{if(enabled())controller.sync(getAt(),getMode());else stop();}).observe(root);
  return controller;
 }

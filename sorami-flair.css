@@ -14,7 +14,7 @@
  background:linear-gradient(90deg,transparent,var(--flair)) left center/calc(50% - var(--kw,5em)) 1px no-repeat,linear-gradient(90deg,var(--flair),transparent) right center/calc(50% - var(--kw,5em)) 1px no-repeat}
 #aimView .aim-titlebar::before,#aimView .sky-map-head::before{content:"FRAMING" / "";--kw:5.3em}
 #skyMapView .sky-map-head::before{content:"MAP" / "";--kw:3em}
-#recordsView .sky-map-head::before{content:"LOGBOOK" / "";--kw:5.3em}
+#recordsView .sky-map-head::before{content:"NOTEBOOK" / "";--kw:5.9em}
 /* ホームの各欄：英字は帯に、日本語の題と説明も中央へ */
 #almanacDashboard{--flair:var(--alm-active)}
 #almanacView .alm-panel-kicker{--kw:7.6em;margin:0 0 10px}#almanacView .alm-detail-grid>.alm-panel:first-child .alm-panel-kicker{--kw:5.9em}#almanacView .alm-detail-grid>.alm-panel:nth-child(2) .alm-panel-kicker{--kw:5.3em}
@@ -53,9 +53,11 @@
    構図・地図・記録の日本語の題名は画面から隠し、読み上げの見出しとしてだけ残す。英字の帯が題名。
    履歴ボタンは帯と同じ行の右端（大きさは同じ）。帯の字が画面の中央に来るよう、左にボタンと同じ幅の余白を取る。 */
 #aimFramingTitle,#skyMapTitle,:is(#aimView,#recordsView) .sky-map-head h2{position:absolute!important;width:1px;height:1px;margin:0!important;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head){flex-wrap:nowrap;align-items:center;gap:12px;margin-top:4px}
-:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head)::before{flex:1 1 auto;margin:0}
-:is(.aim-titlebar,#skyMapView .sky-map-head,#recordsView .sky-map-head):has(>button:not([hidden]))::before{margin-left:56px}
+/* 2026-10-20 ユーザー「notebookの中央揃えができてない。他のタイトルも中央固定になってるか確認して」：
+   右のボタンの有無（予定タブでは＋を隠す、権限が無い画面は無し）で字がずれないよう、帯の行は「左の空き44px・帯・右のボタン44px」の3列に固定する */
+:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head){display:grid!important;grid-template-columns:44px minmax(0,1fr) 44px;column-gap:12px;align-items:center;margin-top:4px}
+:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head)::before{grid-column:2;grid-row:1;margin:0}
+:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head)>button{grid-column:3;grid-row:1;justify-self:end}
 #skyMapView .sky-map-head{margin-bottom:8px}#recordsView .sky-map-head{margin-bottom:12px}
 /* 記録の＋は帯の右端（履歴ボタンと同じ灰色の丸。sorami-myplaces.js） */
 /* 予測：地点カードの上の帯（地点カードを出す画面＝一覧・詳細・結果だけ） */
@@ -71,3 +73,26 @@ main:has(>#placeRow:not([hidden]))>#forecastBand{display:block}
  background:radial-gradient(closest-side,color-mix(in srgb,var(--flair) 16%,transparent),transparent) center/calc(2*var(--kw,5em)) 100% no-repeat,
   linear-gradient(90deg,transparent,var(--flair)) left center/calc(50% - var(--kw,5em)) 1px no-repeat,linear-gradient(90deg,var(--flair),transparent) right center/calc(50% - var(--kw,5em)) 1px no-repeat}
 #almanacView .alm-eyebrow{text-shadow:0 0 10px color-mix(in srgb,var(--alm-active) 55%,transparent),0 0 24px color-mix(in srgb,var(--alm-active) 35%,transparent);background:radial-gradient(closest-side,color-mix(in srgb,var(--alm-active) 16%,transparent),transparent) center/17em 100% no-repeat}
+
+/* 2026-10-20 NOTEBOOK：撮影地点と予定のタブ。予定は構図の共有から足すので、予定のタブでは＋を出さない */
+#notebookTabs{--flair:var(--flair-records)}#notebookTabs [role=tab][aria-selected=true]{box-shadow:inset 0 -2px 0 var(--flair),0 1px 6px #00000012}
+#recordsView[data-tab=plans] #recordsHeading .my-add-point{display:none}
+#scheduleHub .schedule-row .list-item{display:flex;align-items:center;gap:12px;text-align:left}
+#scheduleHub .schedule-when{flex:none;min-width:4.6em;padding:6px 8px;border-radius:9px;text-align:center;font-size:.78rem;font-weight:700;color:var(--flair-records);background:color-mix(in srgb,var(--flair-records) 12%,transparent);font-variant-numeric:tabular-nums}
+#scheduleHub .schedule-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+#scheduleHub .schedule-past{margin-top:10px}#scheduleHub .schedule-past summary{min-height:44px;display:flex;align-items:center;color:var(--secondary);font-size:.85rem;cursor:pointer}
+#scheduleHub .schedule-past .schedule-when{color:var(--secondary);background:var(--sunk)}
+
+/* 2026-10-20 構図：焦点距離は［バー｜数字｜画角調整］の1行（ユーザー「バーと焦点距離をもっとシュッと」） */
+#aimLook .preview-focal-bar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:end;column-gap:10px;margin:6px 0 10px}
+#aimLook .preview-focal-bar .preview-focal-tools{margin:0;min-width:0}
+#aimLook .preview-focal-bar .preview-focal-value{min-width:4.6em;padding-bottom:12px;text-align:right;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+#aimLook .preview-focal-bar>.chip{margin:0 0 4px}
+.preview-camera-dialog .preview-focal-entry{margin:0 0 10px}
+.preview-camera-dialog .preview-focal-entry label{display:flex;align-items:center;gap:8px;width:100%}
+#aimView .preview-camera-dialog .aim-lens-row.preview-focal-entry label input[data-lens-focal]{flex:0 0 8em;width:8em;max-width:none}
+
+/* 共有ボタンは「画角内」の行の右端（文が無いときも右端に残る） */
+#aimLook .aim-frame-info.has-share{display:flex;align-items:center;gap:8px;margin:0 0 2px}
+#aimLook .aim-frame-info.has-share>.aim-frame-times{flex:1 1 auto;min-width:0;margin:0}
+#aimLook .aim-frame-info.has-share>.aim-figure-share{margin:0 0 0 auto;flex:none}

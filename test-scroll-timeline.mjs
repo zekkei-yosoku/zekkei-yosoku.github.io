@@ -106,3 +106,13 @@ test('停止位置が直前の通知と同じでも表示を再確定する',()=
  f.scroll(4);const selected=f.state.at,count=f.changes.length;f.settle();
  assert.equal(f.state.at,selected);assert.ok(f.changes.length>count);assert.equal(finalized,1);assert.equal(f.root.scrollLeft,4096);
 });
+test('慣性で動いている最中に外から日時を替えると、慣性を止めてそのあとのスクロールで日付が動かない（2026-10-20 ユーザー「今日を押しても止まらず動き続ける」）',()=>{
+ const f=setup(),log=[];let ox='';Object.defineProperty(f.root.style,'overflowX',{get:()=>ox,set:v=>{ox=v;log.push(v);}});
+ // 指で弾いて離した（touchend は直前まで動いていたので慣性を残す）
+ f.root.listeners.touchstart({timeStamp:0});f.root.listeners.touchmove({timeStamp:10});f.root.scrollLeft+=48;f.root.listeners.scroll();f.flush();f.root.listeners.touchend({timeStamp:20});
+ assert.deepEqual(log,[],'弾いた直後は慣性を残す');
+ const today=Date.parse('2026-10-20T12:00:00+09:00');f.state.at=today;f.controller.sync(today,'date');
+ assert.deepEqual(log,['hidden',''],'今日へ戻すときに慣性を止める');assert.equal(f.state.at,today);
+ // 止める前に届いた分の scroll が来ても日付は動かない
+ f.root.scrollLeft+=24;f.root.listeners.scroll();f.flush();assert.equal(f.state.at,today);
+});

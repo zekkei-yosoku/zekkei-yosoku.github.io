@@ -26,8 +26,8 @@ test('Auto setting persists, applies immediately and reports storage failures wi
 });
 test('Exploring a time pauses live following; Today resumes it; hidden/inactive screens do no work',()=>{
  const f=setup();f.render();const range=f.all(f.root).find(e=>e.type==='range');range.value='1200';range.oninput();assert.equal(f.root.dataset.body,'moon');
- f.setNow('2026-10-19T12:00:00+09:00');f.D.refresh();assert.equal(f.root.dataset.body,'moon');f.D.today();f.render();assert.equal(f.root.dataset.body,'sun');
- f.setNow('2026-10-19T18:00:00+09:00');f.context.document.hidden=true;f.D.refresh();assert.equal(f.root.dataset.body,'sun');f.context.document.hidden=false;f.D.refresh();assert.equal(f.root.dataset.body,'moon');
+ f.setNow('2026-10-19T12:00:00+09:00');f.D.refresh();assert.equal(f.root.dataset.body,'moon');f.D.today();f.render();assert.equal(f.root.dataset.body,'moon','今日を押しても見ている天体のまま（2026-10-20 ユーザー「月を見てるんだから月でしょ」）');
+ f.setNow('2026-10-19T18:00:00+09:00');f.context.document.hidden=true;f.D.refresh();assert.equal(f.root.dataset.body,'moon');f.context.document.hidden=false;f.D.refresh();assert.equal(f.root.dataset.body,'moon','今日のあとは自動で切り替えない');
  f.setNow('2026-10-20T00:01:00+09:00');f.D.refresh();assert.equal(f.all(f.root).find(e=>e.type==='range').value,'1');f.disable();f.setNow('2026-10-20T01:00:00+09:00');f.D.refresh();assert.equal(f.all(f.root).find(e=>e.type==='range').value,'1');f.D.stop();
 });
 test('Visible upper limb defines daylight, including polar day/night and unavailable state',()=>{

@@ -189,7 +189,7 @@ function renderRecordsHub() {
   const targetSelect=document.createElement('select');targetSelect.className='fav-in';targetSelect.setAttribute('aria-label','対象で絞り込む');targetSelect.replaceChildren(new Option('すべての対象',''),...filterTargets.map(t=>new Option(t.name,t.key)));targetSelect.value=recordsTargetFilter;targetSelect.onchange=()=>{recordsTargetFilter=targetSelect.value;renderRecordsHub();};
   const bodySelect=document.createElement('select');bodySelect.className='fav-in';bodySelect.setAttribute('aria-label','撮りたい天体で絞り込む');bodySelect.replaceChildren(new Option('すべての天体',''),...SoramiBodies.definitions.map(b=>new Option(b.name,b.id)));bodySelect.value=recordsBodyFilter;bodySelect.onchange=()=>{recordsBodyFilter=bodySelect.value;renderRecordsHub();};
   filters.append(reset,targetSelect,bodySelect);host.insertBefore(filters,list);
-  if(recordsBodyFilter){const hint=document.createElement('p');hint.className='tiny';hint.textContent='選んだ天体との重なりを調べられる対象がある撮影ポイントです。';host.insertBefore(hint,list);}
+  if(recordsBodyFilter){const hint=document.createElement('p');hint.className='tiny';hint.textContent='選んだ天体との重なりを調べられる対象がある撮影地点です。';host.insertBefore(hint,list);}
   let matches=0;
   if (!recordedPlaces.length) { const empty = document.createElement('p'); empty.className = 'tiny'; empty.textContent = '記録はまだありません。右上の＋から追加できます。'; list.append(empty); }
   for (const f of recordedPlaces) {
@@ -206,7 +206,7 @@ function renderRecordsHub() {
     sub.textContent=shapeFor(f)?shapeName(shapeFor(f))+' · ':'';sub.textContent+=targets.length?`対象${targets.length}件 · ${targets.map(r=>r.target.name).join('・')}`:'対象は未登録';
     row.append(name, sub); row.onclick = () => {openPlace(f, 'records');if(recordsBodyFilter){sheetState.bodies=[recordsBodyFilter];for(const check of sheet.querySelectorAll('[data-planning-body]'))check.checked=check.value===recordsBodyFilter;}}; list.append(row);
   }
-  if(recordedPlaces.length&&!matches){const empty=document.createElement('p');empty.className='tiny';empty.textContent='この条件の撮影ポイントはありません。';list.append(empty);}
+  if(recordedPlaces.length&&!matches){const empty=document.createElement('p');empty.className='tiny';empty.textContent='この条件の撮影地点はありません。';list.append(empty);}
   const note = document.createElement('p'); note.className = 'tiny muted'; note.textContent = '見える対象と線・範囲はこのブラウザに保存します。撮影地点の名前・代表位置（お気に入り）は同期します。'; host.append(note);
   const backup=document.createElement('details');backup.className='my-secondary';const summary=document.createElement('summary');summary.textContent='データの控え';backup.append(summary);
   const hint=document.createElement('p');hint.className='tiny';hint.textContent='撮影地点・対象・線/範囲・予測の結果を保存します。写真ファイルは含みません。';backup.append(hint);
@@ -334,7 +334,7 @@ async function renderPickerPanel(panel) {
  const t=state()?.target,plan=SoramiShooting.conditions(state()),selectedShape=pickerShapeId;
  const pickerPoints=s=>pointsForPlan(s).filter(x=>!selectedShape||x.place.id===selectedShape);
  const note=document.createElement('p');note.className='tiny';box.append(note);
- if(!plan||t.id==='custom'){note.textContent='対象を選び、自分の対象に登録すると、その対象が見えた撮影ポイントから候補を探せます。';return;}
+ if(!plan||t.id==='custom'){note.textContent='対象を選び、自分の対象に登録すると、その対象が見えた撮影地点から候補を探せます。';return;}
  if(!owner||!screenAllowed(isSky?'skymap':'framing')){note.textContent='ログインして利用権限を確認してください。';return;}
  note.textContent=`${S.Cal.monthDay(plan.at)}・${SoramiBodies.definition(plan.body)?.name}を${t.name}に重ねる候補を確認しています…`;
  const query=()=>{const s=state();return s?.target?SoramiShooting.queryKey(s,pickerPoints(s),auth?.loginId,SoramiAtmosphere.dataKey(s.at)):'';};
@@ -344,7 +344,7 @@ async function renderPickerPanel(panel) {
   const result=await SoramiShooting.candidates(plan,pickerPoints(plan),{align:SoramiAlign,isMountain:aimIsMountain,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),elevationAt:candidateElevation,viewFor:(obs,p)=>aimShootingView(obs,p.target,p.body,p.partId,p.matchMode),ensure:b=>SoramiBodies.ensure(b),isCurrent:current,onProgress:p=>{if(current())note.textContent='線上・範囲内を確認しています… '+p.checked+'地点';}});
   if(!current()||result.cancelled)return;
   note.textContent=`${S.Cal.monthDay(plan.at)}・${SoramiBodies.definition(plan.body)?.name}を${t.name}に：${result.rows.length}件${selectedShape?'（'+(placeOf(selectedShape)?.name||'選んだ場所')+'）':''}`;
-  if(!result.rows.length){const empty=document.createElement('p');empty.className='tiny';empty.textContent=result.failed?'確認できていない撮影ポイントがあります。再試行してください。':'この日に重なる撮影ポイントはありません。日付や対象を変えるか、記録に撮影ポイントと見えた対象を追加してください。';box.append(empty);}
+  if(!result.rows.length){const empty=document.createElement('p');empty.className='tiny';empty.textContent=result.failed?'確認できていない撮影地点があります。再試行してください。':'この日に重なる撮影地点はありません。日付や対象を変えるか、記録に撮影地点と見えた対象を追加してください。';box.append(empty);}
   if(result.failed){const failed=document.createElement('p');failed.className='tiny';failed.textContent=shapeIssue(result)||`${result.failed}地点を確認できませんでした。`;box.append(failed);}
   for(const row of result.rows){const button=document.createElement('button');button.type='button';button.className='list-item my-place-row';const title=document.createElement('strong');title.textContent=row.place.name;const sub=document.createElement('span');sub.className='tiny sub-line';sub.textContent=`${S.JstCal.hhmm(row.event.at)}・${sideName(plan.body,row.event.side)}・${RESULTS[row.record.result].name}${row.shapeType?' · '+(row.shapeType==='line'?'線上':'範囲内')+' '+row.place.latitude.toFixed(5)+', '+row.place.longitude.toFixed(5):''}`;button.append(title,sub);button.onclick=()=>{if(!current())return;if(isSky){if(SkyMapUI?.selectCandidate?.(row,contextOf(skySession)))el('placeSheet').close();}else{el('placeSheet').close();openInAim(row.place,row.event);}};box.append(button);}
   if(result.failed){const retry=document.createElement('button');retry.type='button';retry.className='chip';retry.textContent='再試行';retry.onclick=()=>renderPickerPanel(panel);box.append(retry);}
@@ -367,7 +367,7 @@ function drawCandidateList(){
  if(!candidateSheet?.open)return;
  const content=el('shootingCandidatesList');content.replaceChildren();
  const note=document.createElement('p');note.className='tiny';
- note.textContent=candidateState.status==='loading'?'この日に重なる撮影ポイントを確認しています…':candidateState.status==='error'?'候補を確認できませんでした。もう一度お試しください':candidateState.rows.length?'選ぶと、その撮影ポイントと重なる時刻へ移動します。':candidateState.failed?'確認できていない地点があります。再試行して候補を確認してください。':'登録した撮影ポイントに、この日の条件で重なる候補はありません。';content.append(note);
+ note.textContent=candidateState.status==='loading'?'この日に重なる撮影地点を確認しています…':candidateState.status==='error'?'候補を確認できませんでした。もう一度お試しください':candidateState.rows.length?'選ぶと、その撮影地点と重なる時刻へ移動します。':candidateState.failed?'確認できていない地点があります。再試行して候補を確認してください。':'登録した撮影地点に、この日の条件で重なる候補はありません。';content.append(note);
  if(candidateState.status==='error'||candidateState.failed){const retry=document.createElement('button');retry.type='button';retry.className='chip';retry.textContent=candidateState.failed?`${candidateState.failed}地点を確認できませんでした・再試行`:'再試行';retry.onclick=()=>{candidateCache.delete(skyKey);skyKey='';skyRender(skySession);};content.append(retry);}
  for(const row of candidateState.rows){
   const button=document.createElement('button');button.type='button';button.className='list-item my-place-row';
@@ -381,15 +381,15 @@ function chooseCandidate(row){
  if(SkyMapUI?.selectCandidate?.(row,contextOf(skySession))){selectedCandidate=row;candidateSheet?.close();}
 }
 function showCandidateList(){
- if(!candidateSheet){candidateSheet=document.createElement('dialog');candidateSheet.className='sheet';candidateSheet.id='shootingCandidates';candidateSheet.setAttribute('aria-labelledby','shootingCandidatesTitle');candidateSheet.innerHTML='<div class="sheet-head"><strong id="shootingCandidatesTitle">撮影ポイントの候補</strong><button type="button" data-close>閉じる</button></div><div class="sheet-body"><p class="tiny" id="shootingCandidatesCondition"></p><div id="shootingCandidatesList" class="al my-list"></div></div>';document.body.append(candidateSheet);candidateSheet.querySelector('[data-close]').onclick=()=>candidateSheet.close();}
+ if(!candidateSheet){candidateSheet=document.createElement('dialog');candidateSheet.className='sheet';candidateSheet.id='shootingCandidates';candidateSheet.setAttribute('aria-labelledby','shootingCandidatesTitle');candidateSheet.innerHTML='<div class="sheet-head"><strong id="shootingCandidatesTitle">撮影地点の候補</strong><button type="button" data-close>閉じる</button></div><div class="sheet-body"><p class="tiny" id="shootingCandidatesCondition"></p><div id="shootingCandidatesList" class="al my-list"></div></div>';document.body.append(candidateSheet);candidateSheet.querySelector('[data-close]').onclick=()=>candidateSheet.close();}
  if(!skySession?.target)return;
  el('shootingCandidatesCondition').textContent=`${S.Cal.monthDay(skySession.at)}・${SoramiBodies.definition(skySession.body)?.name}を${skySession.target.name}に`;
  showSheet(candidateSheet);drawCandidateList();
 }
-function skyBox(){let box=el('mySkyPlaces');if(!box){box=document.createElement('section');box.id='mySkyPlaces';box.className='my-places';box.setAttribute('aria-label','撮影ポイント');el('skyMapDates').closest('.sky-map-candidates').after(box);}return box;}
+function skyBox(){let box=el('mySkyPlaces');if(!box){box=document.createElement('section');box.id='mySkyPlaces';box.className='my-places';box.setAttribute('aria-label','撮影地点');el('skyMapDates').closest('.sky-map-candidates').after(box);}return box;}
 function updateCandidateUI(){
  const trigger=el('shootingCandidatesOpen');if(!trigger)return;
- trigger.textContent=candidateState.status==='loading'?'撮影ポイント：候補を確認中…':candidateState.status==='error'?'撮影ポイント：確認できません':`撮影ポイント：候補${candidateState.rows.length}件`;
+ trigger.textContent=candidateState.status==='loading'?'撮影地点：候補を確認中…':candidateState.status==='error'?'撮影地点：確認できません':`撮影地点：候補${candidateState.rows.length}件`;
  el('shootingPins').setAttribute('aria-pressed',String(pinsOn));el('shootingPins').setAttribute('aria-checked',String(pinsOn));el('shootingPins').textContent=pinsOn?'候補ピン：表示':'候補ピン：非表示';
  const state=el('shootingCandidateStatus');state.textContent=shapeIssue(candidateState)||(candidateState.stepM?'線上・範囲内から計算した候補です。地形や見通しは現地でも確認してください。':'');
  drawCandidateList();
@@ -410,7 +410,7 @@ function skyRender(s){
  const box=skyBox(),t=s.target;
  const shareRow=el('skyMapShareRow');if(shareRow){shareRow.hidden=!s.observer||!t;const shareButton=shareRow.querySelector('button');if(shareButton)shareButton.disabled=!s.daily||!s.eye;}
  const detail=el('skyMapAlignmentDetails');detail.hidden=!t;el('skyMapAlignmentSummary').textContent='重ね方';
- if(!t){skyKey='';candidateState={status:'idle',rows:[],failed:0};box.textContent='何を・何に重ねるかと撮影日を選ぶと、記録した撮影ポイントから候補を出します。';candidateSheet?.close();return;}
+ if(!t){skyKey='';candidateState={status:'idle',rows:[],failed:0};box.textContent='何を・何に重ねるかと撮影日を選ぶと、記録した撮影地点から候補を出します。';candidateSheet?.close();return;}
  const key=currentSkyQuery(s);
  if(key!==skyKey){
   skyKey=key;selectedCandidate=null;const token=++skyToken,owner=auth.token,plan=SoramiShooting.conditions(s),points=pointsForPlan(s);
@@ -678,7 +678,7 @@ function recordFor(point, targetKey, ctx) {
   const exact = placeNear(point);
   if (exact) { openPlace(exact, ctx, targetKey); return; }
   const near = placeNear(point, MERGE_KM);
-  if (near && confirm(`近くの撮影ポイント「${near.name}」（${Math.round(SoramiTerrain.distanceKm(near.latitude, near.longitude, point.latitude, point.longitude) * 1000)}m）に記録しますか？\nキャンセルすると、この位置を新しい撮影ポイントとして登録します。`)) { openPlace(near, ctx, targetKey); return; }
+  if (near && confirm(`近くの撮影地点「${near.name}」（${Math.round(SoramiTerrain.distanceKm(near.latitude, near.longitude, point.latitude, point.longitude) * 1000)}m）に記録しますか？\nキャンセルすると、この位置を新しい撮影地点として登録します。`)) { openPlace(near, ctx, targetKey); return; }
   openPlace({...point,id:null},ctx,targetKey);sheetState.newPlace=true;renderSheet();
 }
 

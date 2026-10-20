@@ -6,7 +6,8 @@ function getAuto(){try{return g.localStorage?.getItem(AUTO_KEY)!=='false';}catch
 function setAuto(value){try{g.localStorage.setItem(AUTO_KEY,String(!!value));}catch{return false;}view.manual=false;active?.render();return true;}
 function stop(){if(timer!==null)clearInterval(timer);timer=null;active=null;}
 function enter(){view.manual=false;if(view.live){view.day=null;view.minute=null;view.wallMinute=null;}return view.live;}
-function today(){view.manual=false;view.live=true;view.minute=null;view.day=null;view.wallMinute=null;}
+// 2026-10-20 ユーザー「月を見てて今日を押すと太陽に移る。月を見てるんだから月でしょ。ここまで自動化しないで」：今日は日時だけ戻し、見ている天体はそのまま（自動切替を止める）
+function today(){view.manual=true;view.live=true;view.minute=null;view.day=null;view.wallMinute=null;}
 function preferredBody(at,p,astro){try{const h=astro.sun(at,{latitude:p.latitude,longitude:p.longitude,elevation:0}).upperLimbAltitude;return Number.isFinite(h)?h>=0?'sun':'moon':null;}catch{return null;}}
 const date=T.date,time=T.time,num=v=>Number.isFinite(v)?v.toFixed(1):'—';
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
