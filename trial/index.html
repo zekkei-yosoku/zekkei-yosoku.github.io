@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="7348255744760321059">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-jL4ycymhLzluaWkqfDewOBmlcrSjOe1XZGg4VPsgsjg=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-d4cZYBVfWwCa9HBA7Ig2Dx8XkbIbRmJHaqMtQ9hkZpY=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="6234252445011218223">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-Au+kEUOGJ1nbVxzreCAsVnZRjLkcgW5NpQkzKHkiwRo=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-d4cZYBVfWwCa9HBA7Ig2Dx8XkbIbRmJHaqMtQ9hkZpY=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -1102,10 +1102,17 @@
                 display: inline-flex; align-items: center; gap: 4px;
                 font-size: 0.63rem; color: var(--secondary);
                 font-variant-numeric: tabular-nums; }
-  .lt-mk .ic { font-size: 0.88rem; line-height: 1; }
+  .lt-mk .ic { font-size: 0.88rem; line-height: 1; display: inline-flex; align-items: center; }
+  .lt-mk .ic svg { width: 1.15em; height: 1.15em; }
+  .lt-mk .ic .lt-arrow { width: 0.6em; height: 0.75em; margin-left: 1px; color: var(--secondary); }
+  .lt-mk .lbl > span:not(.ic) + .ic { margin-left: 4px; }
   .lt-mk b { font-weight: 600; color: var(--tertiary); }
-  .lt-axis { display: flex; justify-content: space-between; font-size: 0.63rem;
-             color: var(--tertiary); margin-top: 2px; }
+  /* 時刻の目盛りは本当の位置に置く。2026-10-20 まで等間隔（space-between）で、24→27時が3時間しかないのに
+     6時間と同じ幅になり、18時は本来の位置より7%・24時は10%左に出ていた（ユーザー「表示がズレてたりする」）。
+     27時（帯の右端）は 24時と近く、狭い画面で文字がくっつくので書かない */
+  .lt-axis { position: relative; height: 1.4em; font-size: 0.63rem; color: var(--tertiary); margin-top: 2px; }
+  .lt-axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+  .lt-axis span:first-child { transform: none; }
   /* 凡例は【2段】に固定する。1段目が太陽と月の時刻、2段目がゴールデンとブルー。
      幅が広がってもゴールデンが1段目へ上がらないよう、段ごとに入れ物を分ける。
      段の中は幅が足りなければ折り返す。 */
@@ -4874,6 +4881,69 @@ function sunOverRidge(dayMs) {
     return rise === null && set === null ? null : { rise, set };
   } catch { return null; }
 }
+/// 光の時間の印を、実際に描いた文字の幅で段に振り分ける（2026-10-20）。
+/// 描く前の割り振りは % の差だけで決めていたので、画面幅や文字の大きさ（iPhone の文字サイズ設定）によって
+/// 隣の文字と重なったり、2段目が目盛りの時刻に掛かったりしていた（ユーザー「表示がズレてたりする」）。
+/// 印は多くて4つなので、各印の「段（0〜2）×文字の寄せ方（真ん中・右寄せ・左寄せ）」を総当たりして、
+///   ・同じ段で文字が重ならない（6px 空ける）・カードからはみ出さない
+///   ・下の段へ伸ばす目盛りの線が、上の段の文字を横切らない
+/// を満たす中から、段の数が少なく、真ん中寄せに近いものを選ぶ
+function layoutLightMarks(box) {
+  const W = box.clientWidth;
+  if (!W) return;
+  const marks = [...box.querySelectorAll(".lt-mk")];
+  if (!marks.length) { box.style.height = "0px"; box.dataset.laidWidth = String(W); return; }
+  const items = marks.map((m) => { const lbl = m.querySelector(".lbl"); return { m, lbl, x: parseFloat(m.style.left) / 100 * W, w: lbl.offsetWidth }; });
+  const lblH = Math.max(...items.map((it) => it.lbl.offsetHeight)) || 16, ROW = lblH + 4, GAP = 6, TOP = 9, PAD = 3;
+  const options = (it) => [it.x - it.w / 2, it.x - it.w + 6, it.x - 6]
+    .map((left, k) => ({ left: Math.max(0, Math.min(W - it.w, left)), cost: k ? 1 : 0 }));
+  let best = null;
+  const pick = new Array(items.length);
+  let strict = true;
+  const search = (i) => {
+    if (i === items.length) {
+      const rows = Math.max(...pick.map((p) => p.row)) + 1;
+      const cost = rows * 100 + pick.reduce((a, p) => a + p.cost + p.row, 0);
+      if (!best || cost < best.cost) best = { cost, rows, pick: pick.map((p) => ({ ...p })) };
+      return;
+    }
+    const it = items[i];
+    for (let row = 0; row < 3; row++) for (const o of options(it)) {
+      const right = o.left + it.w;
+      let ok = true;
+      for (let k = 0; k < i && ok; k++) {
+        const q = pick[k], qi = items[k], qr = q.left + qi.w;
+        if (q.row === row && o.left < qr + GAP && q.left < right + GAP) ok = false;              // 同じ段で重なる
+        if (strict && q.row < row && it.x > q.left - PAD && it.x < qr + PAD) ok = false;        // この線が上の段の文字を横切る
+        if (strict && row < q.row && qi.x > o.left - PAD && qi.x < right + PAD) ok = false;     // 先に置いた線がこの文字を横切る
+      }
+      if (!ok) continue;
+      pick[i] = { row, left: o.left, cost: o.cost };
+      search(i + 1);
+    }
+  };
+  search(0);
+  // 端に寄った印どうしで線を避けきれないときは、文字の重なりを避けることを優先する
+  if (!best) { strict = false; search(0); }
+  if (!best) return;
+  items.forEach((it, i) => {
+    const p = best.pick[i];
+    it.m.style.top = "0px";
+    it.lbl.style.transform = "none";
+    it.lbl.style.left = `${(p.left - it.x).toFixed(1)}px`;
+    it.lbl.style.top = `${TOP + p.row * ROW}px`;
+    it.m.querySelector(".tick").style.height = `${8 + p.row * ROW}px`;
+  });
+  box.style.height = `${TOP + best.rows * ROW}px`;
+  box.dataset.laidWidth = String(W);
+}
+if (typeof document !== "undefined" && typeof MutationObserver !== "undefined") {
+  let ltFrame = 0;
+  const ltAll = (force) => { for (const b of document.querySelectorAll(".lt-marks")) if (force || b.dataset.laidWidth !== String(b.clientWidth)) layoutLightMarks(b); };
+  new MutationObserver(() => ltAll(false)).observe(document.documentElement, { childList: true, subtree: true });
+  addEventListener("resize", () => { cancelAnimationFrame(ltFrame); ltFrame = requestAnimationFrame(() => ltAll(true)); });
+}
+
 function renderLightTimes(dayMs, now, phenomenonId) {
   const w = S.Sun.lightWindows(dayMs, place.latitude, place.longitude);
   if (w.sunrise === null && w.sunset === null) return "";
@@ -4894,26 +4964,31 @@ function renderLightTimes(dayMs, now, phenomenonId) {
   const ph = moon.phase || { glyph: S.PHENOMENA.moon.icon, name: "月" };
   const face = iconFor("moon", d0 + 12 * 3600000), faceName = ph.name;
   const moonTitle = `${faceName}（月齢 ${moon.age.toFixed(1)}・照らされている割合 ${Math.round(moon.illuminated * 100)}%）`;
+  // 2026-10-20 ユーザー「ピクトグラムと時間だけでもいいんじゃないの?」：名前の文字をやめ、絵と時刻だけにする。
+  // 出と入は絵で分ける（太陽は地平線と矢印の絵、月は満ち欠けの絵に↑↓）。名前は読み上げと長押しの説明に残す
+  const arrow = (up) => `<svg class="lt-arrow" viewBox="0 0 10 12" aria-hidden="true"><path d="${up ? "M5 11V1M1.5 4.5 5 1l3.5 3.5" : "M5 1v10M1.5 7.5 5 11l3.5-3.5"}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const events = [
-    [w.sunrise, SoramiIcons.icon("sun"), "日の出", ""],
-    [w.sunset, SoramiIcons.icon("sun"), "日の入", ""],
-    [moon.rise, face, "月の出", moonTitle],
-    [moon.set, face, "月の入", moonTitle],
+    [w.sunrise, SoramiIcons.icon("sunrise"), "日の出", ""],
+    [w.sunset, SoramiIcons.icon("sunset"), "日の入", ""],
+    [moon.rise, face + arrow(true), "月の出", moonTitle],
+    [moon.set, face + arrow(false), "月の入", moonTitle],
   ].filter(([t]) => t !== null && t >= d0 && t <= d1)
    .map(([t, ic, name, title]) => ({ x: pct(t), ic, name, title, t }))
    .sort((a, b) => a.x - b.x);
-  // 近すぎる印は段を分ける。重ねると読めない。
-  // 印1つの高さぶん（22px）ずらす。これより小さいと段を分けても重なる。
-  let lastX = -99, row = 0;
-  const marks = events.map((e) => {
-    row = e.x - lastX < 26 ? 1 - row : 0;
-    lastX = e.x;
-    // 端の印は文字がカードの外へ出るので、寄せ方を変える（目盛りは動かさない）
-    const align = e.x < 14 ? "none" : e.x > 86 ? "translateX(-100%)" : "translateX(-50%)";
-    return `<span class="lt-mk" style="left:${e.x.toFixed(1)}%;top:${row * 22}px"
-      ${e.title ? `title="${esc(e.title)}"` : ""}>
+  // 90分以内に続く出入り（例：月の入 05:47 と日の出 05:52）は1つの印にまとめる。
+  // 線どうしが数ピクセルしか離れず、文字をどう置いても片方の線がもう片方の文字を横切るため
+  const groups = [];
+  for (const e of events) {
+    const g = groups[groups.length - 1];
+    if (g && e.t - g[g.length - 1].t <= 90 * 60000) g.push(e); else groups.push([e]);
+  }
+  // 段の割り振りは描いたあとに実際の幅で決める（layoutLightMarks）。ここでは真ん中寄せの1段で置いておく
+  const marks = groups.map((g) => {
+    const x = g[0].x, say = g.map((e) => `${e.name} ${t(e.t)}`).join("、");
+    const title = [say, ...g.map((e) => e.title).filter(Boolean)].join("\n");
+    return `<span class="lt-mk" style="left:${x.toFixed(1)}%;top:0" title="${esc(title)}" role="img" aria-label="${esc(say)}">
       <span class="tick"></span>
-      <span class="lbl" style="transform:${align}"><span class="ic">${e.ic}</span><span><b>${e.name}</b> ${t(e.t)}</span></span></span>`;
+      <span class="lbl" style="transform:translateX(-50%)">${g.map((e) => `<span class="ic">${e.ic}</span><span>${t(e.t)}</span>`).join("")}</span></span>`;
   }).join("");
 
   const isToday = S.JstCal.sameDay(dayMs, now);
@@ -4924,7 +4999,7 @@ function renderLightTimes(dayMs, now, phenomenonId) {
     <div class="lt-band" style="background:${grad}">
       ${isToday ? `<span class="lt-now" style="left:${pct(now)}%"></span>` : ""}</div>
     <div class="lt-marks">${marks}</div>
-    <div class="lt-axis"><span>0時</span><span>6時</span><span>12時</span><span>18時</span><span>24時</span><span>27時</span></div>
+    <div class="lt-axis">${[0, 6, 12, 18, 24].map((h) => `<span style="left:${((h * 3600000) / TL_SPAN * 100).toFixed(2)}%">${h}時</span>`).join("")}</div>
     <div class="lt-legend">
       <div class="lt-row">
         <span class="li pair"><b>ゴールデンアワー</b><span class="v">${range(w.goldenMorning)} / ${range(w.goldenEvening)}</span></span>
