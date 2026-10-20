@@ -91,3 +91,8 @@ main:has(>#placeRow:not([hidden]))>#forecastBand{display:block}
 .preview-camera-dialog .preview-focal-entry{margin:0 0 10px}
 .preview-camera-dialog .preview-focal-entry label{display:flex;align-items:center;gap:8px;width:100%}
 #aimView .preview-camera-dialog .aim-lens-row.preview-focal-entry label input[data-lens-focal]{flex:0 0 8em;width:8em;max-width:none}
+
+/* 共有ボタンは「画角内」の行の右端（文が無いときも右端に残る） */
+#aimLook .aim-frame-info.has-share{display:flex;align-items:center;gap:8px;margin:0 0 2px}
+#aimLook .aim-frame-info.has-share>.aim-frame-times{flex:1 1 auto;min-width:0;margin:0}
+#aimLook .aim-frame-info.has-share>.aim-figure-share{margin:0 0 0 auto;flex:none}
