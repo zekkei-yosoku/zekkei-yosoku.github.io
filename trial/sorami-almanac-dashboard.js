@@ -128,12 +128,16 @@ function render(root,day,p,events,astro,options={}){
  // 「レイアウトは多角的にみて最適な案を」→ 案を承認（「作って」）：高さ（グラフ）と方向（天球図）を「空をたどる」1つのまとまりにし、
  // つまみで動くもの（グラフの点・天球図の点・時刻／高度／方位）を全部つまみのすぐ上に集める。光の時間の帯はグラフの背景に一本化し、
  // ゴールデンアワー・ブルーアワーの時刻はグラフのすぐ下へ。
- //   スマホ：グラフ（横いっぱい）→ 光の時間の2行 → 小さい天球図と時刻・高度・方位の横並び → つまみ
- //   広い画面：グラフと天球図を横に並べ → 光の時間の2行 → 読み取り → つまみ
- const domeBox=el('div','alm-dome-box');domeBox.append(el('span','alm-dome-label','方向'),dome);
+ //   スマホ：グラフ（横いっぱい）→ 小さい天球図と時刻・高度・方位の横並び → つまみ → 光の時間の2行
+ //   広い画面：グラフと天球図を横に並べ → 読み取り → つまみ → 光の時間の2行
+ // 天球図に見出しの文字は付けない（N・E・S・W と横の「方位」で分かる。1行分の余白になっていた）
+ const domeBox=el('div','alm-dome-box');domeBox.append(dome);
  const viz=el('div','alm-sky'),light=body!=='moon'?twilightLines(day,d,astro):null;
- if(narrow()){dome.setAttribute('class','alm-compass alm-compass-mini');viz.append(s);const scrub=el('div','alm-scrub');scrub.append(domeBox,readout);chart.append(viz);if(light)chart.append(light);chart.append(scrub,range);}
- else{viz.append(s,domeBox);chart.append(viz);if(light)chart.append(light);chart.append(readout,range);}
+ // 2026-10-20 ユーザー「ここが分断しててやだ。一つのバーで二つが動くのに」：つまみで動くもの（グラフ・天球図・読み取り）とつまみは切れ目なく続け、
+ // 動かない光の時間の2行はつまみの下へ
+ if(narrow()){dome.setAttribute('class','alm-compass alm-compass-mini');viz.append(s);const scrub=el('div','alm-scrub');scrub.append(domeBox,readout);chart.append(viz,scrub,range);}
+ else{viz.append(s,domeBox);chart.append(viz,readout,range);}
+ if(light)chart.append(light);
  root.append(chart);
  const week=panel('これから7日間',`${name}の時刻を比較。${T.zone()} の時刻です。`,'NEXT 7 DAYS'),table=el('table','alm-table'),thead=el('thead'),tr=el('tr');
  for(const label of ['日付',body==='moon'?'月の出':'日の出',body==='moon'?'月の入り':'日の入り',body==='moon'?'照明率':'昼の長さ']){const th=el('th','',label);th.scope='col';tr.append(th);}thead.append(tr);table.append(thead);const tbody=el('tbody');
