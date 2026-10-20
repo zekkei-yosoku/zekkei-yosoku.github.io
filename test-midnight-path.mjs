@@ -11,7 +11,7 @@ test('図は見ている時刻を含む1本の通り道だけを前日・翌日�
  assert.match(html,/const fullPath = \[\.\.\.pathBefore, \.\.\.path, \.\.\.pathAfter\];/);
  assert.match(html,/const run = runAt\(p\.at\)/);assert.match(html,/for \(const q of run \? fullPath\.slice\(run\[0\], run\[1\] \+ 1\) : path\)/);
  assert.match(html,/startMs: frameDay - 6 \* 3600000, endMs: frameDay \+ 30 \* 3600000/);
- assert.match(html,/t < frameDay \? "前日" : t >= dayEnd \? "翌" : ""/);assert.doesNotMatch(html,/"24:00まで枠内"|"0:00時点で枠内"/);
+ assert.match(html,/t < frameDay \? "前日" : t >= dayEnd \? "翌日" : ""/);assert.doesNotMatch(html,/"24:00まで枠内"|"0:00時点で枠内"/);
 });
 test('構図の図の操作で触っていない部品を動かさない（2026-10-20 ユーザー「なんで触ってないボタンがズレるの?」）',()=>{
  const c=fs.readFileSync(new URL('./sorami-flair.css',import.meta.url),'utf8');

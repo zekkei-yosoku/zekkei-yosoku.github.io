@@ -92,7 +92,7 @@ async function draw(canvas,state){
  if(surface)ctx.drawImage(globeFor(surface,state),-SIZE/2,-SIZE/2,SIZE,SIZE);
  else{ctx.fillStyle='#d1d0ca';ctx.beginPath();ctx.arc(0,0,SIZE/2,0,2*Math.PI);ctx.fill();}ctx.restore();
  const frame=ctx.getImageData(0,0,SIZE,SIZE);frame.data.set(shade(circularSurface(frame.data,SIZE),SIZE,state.illuminatedFraction,state.brightLimbZenithAngle));canvas.getContext('2d').putImageData(frame,0,0);
- canvas.setAttribute('aria-label',`月の満ち欠け・照明率 ${(state.illuminatedFraction*100).toFixed(1)}%`);return {texture:!!surface};
+ canvas.setAttribute('aria-label',`月の満ち欠け・輝面 ${(state.illuminatedFraction*100).toFixed(1)}%`);return {texture:!!surface};
 }
 const api={lightVector,incidence,circularSurface,shade,globe,PHOTO,draw};g.SoramiMoonPortrait=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:window);

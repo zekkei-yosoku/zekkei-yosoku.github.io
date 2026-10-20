@@ -46,7 +46,7 @@
   function state(id,ms,observer,{refraction=true}={}) {
     const finish=st=>refraction?adjusted(st,ms,observer):{...st,altitude:st.geometricAltitude??st.altitude,apparentAltitude:st.geometricAltitude??st.altitude};
     const def=definition(id);
-    if(!def) throw new Error('未知の天体: '+id);
+    if(!def) throw new Error('未知の天体：'+id);
     if(id==='sun') return finish(A.sun(ms,observer));
     if(id==='moon') return finish(A.moon(ms,observer));
     if(!engine) throw new Error('天体計算を読み込めませんでした');

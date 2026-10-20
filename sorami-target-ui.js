@@ -12,7 +12,7 @@ function mount(deps){
  const targets=()=>{const rows=state?.options.getTargets?.()||deps.targets();const extra=(state?.drafts||[]).map(x=>L.targetFromFavorite(x.entry));return [...new Map([...rows,...extra].filter(t=>t.id!=='custom').map(t=>[t.id||t.key,t])).values()];};
  const targetKey=t=>t.key||t.id;
  const selected=()=>new Set((state?.selected||[]).map(targetKey));
- const describe=t=>state?.drafts.some(x=>'fav:'+x.entry.id===t.id)?'未保存 · '+t.latitude.toFixed(5)+', '+t.longitude.toFixed(5):deps.describe(t);
+ const describe=t=>state?.drafts.some(x=>'fav:'+x.entry.id===t.id)?'未保存 ・ '+t.latitude.toFixed(5)+', '+t.longitude.toFixed(5):deps.describe(t);
  function close(){request.cancel();dialog.close();}
  function choose(t){
   const s=state;if(!valid(s))return;
@@ -62,7 +62,7 @@ function mount(deps){
  function duplicates(name,exclude,proceed){
   const matches=L.matchingNames(targets(),name,exclude);if(!matches.length)return false;
   const host=q('[data-target-duplicates]');host.replaceChildren();host.hidden=false;host.append(make('p',{className:'tiny',textContent:'同じ名前の対象があります。場所を確認してください。'}));
-  for(const t of matches){const b=make('button',{type:'button',className:'list-item',textContent:t.name+' · '+describe(t)+' · この対象を使う'});b.onclick=()=>{const s=state;if(!valid(s))return;useTarget(t);};host.append(b);}
+  for(const t of matches){const b=make('button',{type:'button',className:'list-item',textContent:t.name+' ・ '+describe(t)+' ・ この対象を使う'});b.onclick=()=>{const s=state;if(!valid(s))return;useTarget(t);};host.append(b);}
   const b=make('button',{type:'button',className:'chip',textContent:'別の対象として追加'});b.onclick=proceed;host.append(b);return true;
  }
  async function submit(approved=null){

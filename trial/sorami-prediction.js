@@ -5,6 +5,8 @@
  const BASE='https://zekkei-api.okayu-sorami.workers.dev/prediction';
  const VERSION='e189-core-8e6930c-v4';
  const TTL=30*60*1000,CACHE='sorami-predictions-twilight-v1';
+ // 予報の形を変えて名前を替えるたびに、古い名前の保存が端末に残り続けていた（2026-10-21 総点検で6個）。今の名前以外は消す
+ try{if(typeof caches!=='undefined'&&caches&&typeof caches.keys==='function')caches.keys().then(ks=>{for(const k of ks)if(k.startsWith('sorami-predictions')&&k!==CACHE+'-main'&&k!==CACHE+'-visibility')caches.delete(k);}).catch(()=>{});}catch{}
  const conditions=p=>({latitude:p.latitude,longitude:p.longitude,elevation:p.elevation??null,eyeHeightAGL:p.eyeHeightAGL??1.5,terrain:p.terrain??null});
  const key=p=>JSON.stringify(conditions(p));
  const day=(ms,offset)=>Math.floor((ms+offset*1000)/86400000)*86400000-offset*1000;

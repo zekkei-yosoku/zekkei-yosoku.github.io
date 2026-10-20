@@ -145,7 +145,7 @@ ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待�
     ok(menu.includes(`data-tool="${href}"`) && menu.includes(name), `${name} が入っている`);
   }
   // 絶景予測への入口（2026-10-15 名称を「絶景予測」に統一）
-  ok(menu.indexOf('id="almanacMenu"') < menu.indexOf('id="toolsHome"') && menu.includes('<b>ホーム</b>'), "メニューの先頭にホーム、その次に予測");
+  ok(menu.indexOf('id="almanacMenu"') < menu.indexOf('id="toolsHome"') && /<b>(<svg[^>]*>.*?<\/svg>)?ホーム<\/b>/.test(menu), "メニューの先頭にホーム、その次に予測");
   ok(!/id="toolsHome"[^>]*data-(tool|id)=/.test(menu), "一覧は道具ではない（許可・管理画面の名前に混ぜない）");
   ok(/\$\("toolsHome"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \};/.test(html), "押すと題名と同じく、何画面進んでいても1回で一覧へ");
   ok(/if \(!routeFromHash\(\) \|\| routeFromHash\(\)\.answers\) \$\("toolsHome"\)\.setAttribute\("aria-current", "page"\);\s+else \$\("toolsHome"\)\.removeAttribute\("aria-current"\);/.test(html),
@@ -526,7 +526,7 @@ ok(/aria-label="先端の高さ（地上から・メートル）"/.test(html) &&
   "推定の高さも地上からで入れ、憶えるのは海面から");
 
 // ユーザー「月丼の運用について、風から決めるはいらなくない？今の運用を自動で選択させたらいい」
-ok(!/>風から決める</.test(html) && /\$\("planeOp"\)\.options\[0\]\.textContent = covered \? `予報: \$\{planeOpLabel\(/.test(html),
+ok(!/>風から決める</.test(html) && /\$\("planeOp"\)\.options\[0\]\.textContent = covered \? `予報：\$\{planeOpLabel\(/.test(html),
   "月丼: 運用の欄は「風から決める」でなく、予報から決まる運用を選んだ形で出す");
 ok(/function planeOpAt\(at, \{ auto = false \} = \{\}\) \{\s+if \(plane\.op && !auto\) return plane\.op;/.test(html), "月丼: 計算は今までどおり時刻ごとに切り替える（手で選べば上書き）");
 {
@@ -631,7 +631,7 @@ for (const [what, re] of [
 ]) ok(!re.test(html), `${what}を出さない`);
 ok(/<details class="tiny fav-where" id="footer"><summary>出典<\/summary><div id="footerBody"><\/div><\/details>/.test(html), "出典は消さずに畳む（表示が利用の条件）");
 // 2026-10-20 実況カードを外したので、出典から実況（アメダス）も外す
-ok(/予報: Open-Meteo ／ 光害: .*検索: OSM Nominatim ・ 標高: 国土地理院/.test(html) && !/実況: 気象庁アメダス/.test(html) && /このアプリで点数化/.test(html), "出典と、加工したこと（点数化）は書く");
+ok(/予報：Open-Meteo ／ 光害：.*検索：OSM Nominatim ・ 標高：国土地理院/.test(html) && !/実況: 気象庁アメダス/.test(html) && /このアプリで点数化/.test(html), "出典と、加工したこと（点数化）は書く");
 ok(/<details class="card more"><summary>もっと詳しく<\/summary>[\s\S]{0,200}<p class="tiny">📖 \$\{esc\(ev\.source\)\}<\/p><\/details>/.test(html), "根拠の一文は「もっと詳しく」の中へ畳む");
 ok(/太陽は必ず減光フィルターを付けて見てください。/.test(html), "安全の注意は残す");
 
@@ -899,7 +899,7 @@ ok(/iss: \{ title: "どこの近くで探すか",/.test(html) && /plane: \{ titl
 // ユーザー「ISSに関してはどこから見るかは自分で選べなくない？その日見れる場所を地図見て自分で探すんだよね」
 ok(!/どこから見るか<\/p>|title: "どこから見るか"|>ここから見る</.test(html), "ISS: 「どこから見るか」とは書かない（決めるのは探す範囲の中心）");
 ok(/renderPointCard\("issFrom", P, null, \{ elevation: false \}\);/.test(html), "ISS: 探す範囲の中心には標高を書かない（そこに立つわけではない）");
-ok(/立つ場所の例: /.test(html), "ISS: 一覧の立つ場所は例（帯の中なら見える）");
+ok(/立つ場所の例：/.test(html), "ISS: 一覧の立つ場所は例（帯の中なら見える）");
 ok(/function issFromPoint\(\) \{ return iss\.from \|\| inheritedPoint\(\); \}/.test(html) && /function planeFromPoint\(\) \{ return plane\.from \|\| inheritedPoint\(\); \}/.test(html),
   "ISS・月丼も絶景予測の地点を引き継ぐ");
 ok(!/id="issPickHere"/.test(html) && /id="planePickHere"[^>]*>ここから重ねる<\/button>/.test(html), "月丼だけ地図のすぐ下に「ここから重ねる」（ISS は帯を見て自分で探す）");
@@ -948,7 +948,7 @@ ok(/if \(on && r\.stand\) \{\s+const \[sx, sy\] = project\(r\.stand\.latitude, r
   "ISS: 地図の印は立つ場所に（中心線のいちばん近い点には付けない）");
 
 console.log("== ISS の月面通過（2026-09-30） ==");
-ok(/data-tool="#\/iss" data-id="iss"><b>ISSの月面通過<\/b>/.test(html), "メニューに ISSの月面通過 がある");
+ok(/data-tool="#\/iss" data-id="iss"><b>(<svg[^>]*>.*?<\/svg>)?ISSの月面通過<\/b>/.test(html), "メニューに ISSの月面通過 がある");
 ok(/location\.hash === "#\/iss"/.test(html), "#/iss の道がある");
 ok(/\{ id: "iss",\s+el: "issView"/.test(html), "画面の表に1行足した");
 ok(/https:\/\/celestrak\.org/.test(html), "軌道要素は CelesTrak から（CSP に足した）");

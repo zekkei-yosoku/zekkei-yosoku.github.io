@@ -52,7 +52,7 @@ const SoramiPlan = (() => {
     if (!title || title.length>200 || !Number.isFinite(start) || !Number.isFinite(end) || end<=start) throw new Error('件名と日時を確認してください。終了は開始より後にしてください。');
     return {title,start,end,reminder:[0,15,30,60].includes(+edits.reminder)?+edits.reminder:0,
       location:`${s.observer.name} (${s.observer.latitude.toFixed(6)}, ${s.observer.longitude.toFixed(6)})`,
-      description:[s.title,...s.rows.map(r=>r.join('：')),s.note,`地図: ${s.mapUrl}`,`同じ条件: ${s.url}`].filter(Boolean).join('\n')};
+      description:[s.title,...s.rows.map(r=>r.join('：')),s.note,`地図：${s.mapUrl}`,`同じ条件：${s.url}`].filter(Boolean).join('\n')};
   }
   function ics(e,now=Date.now()) {
     // Stable identity for the same event; changing notification settings does not duplicate its UID.

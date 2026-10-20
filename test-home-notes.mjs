@@ -21,7 +21,7 @@ test('NOTES の見出しと各欄の英字ラベルが太陽・月の両方に�
 });
 test('出入りは矢印と16方位（上の欄だけ）。グラフ・天球図・光の時間に同じ時刻と方位を重ねて書かない。最も高い時刻を示す',()=>{
  const r=render('sun','2026-10-20T12:00:00+09:00'),t=r.texts();
- assert.ok(t.includes('↑ 日の出')&&t.includes('↓ 日の入り'));assert.ok(t.includes('東南東 102.0°')&&t.includes('西南西 257.8°'));
+ assert.ok(t.includes('↑ 日の出')&&t.includes('↓ 日の入'));assert.ok(t.includes('東南東 102.0°')&&t.includes('西南西 257.8°'));
  // 2026-10-20 ユーザー「この観点でしっかり見直して」：同じ時刻・方位が上の欄・グラフ・天球図・光の時間の4か所に出ていた
  const svgTimes=r.all().filter(e=>e.tag==='text'&&/05:51|17:00|102\.0°|257\.8°/.test(e.textContent||''));assert.equal(svgTimes.length,0,'グラフ・天球図に出入りの時刻と方位を書かない '+JSON.stringify(svgTimes.map(e=>e.textContent)));
  assert.ok(!r.all().some(e=>e.className==='alm-tw-time'),'光の時間の帯に時刻を書かない');
