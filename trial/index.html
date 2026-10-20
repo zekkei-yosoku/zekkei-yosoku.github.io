@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="16888947389828140662">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-6N6Bjdf5+UKpvxZ9piGXdL1KQdjNjkVxbNYGRGeXC6k=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-d4cZYBVfWwCa9HBA7Ig2Dx8XkbIbRmJHaqMtQ9hkZpY=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="16837257229994322099">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-OGi//m4sXpr2mS9uZt8P6nJISGg7y7Ytg3RHe51Fy3Y=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-d4cZYBVfWwCa9HBA7Ig2Dx8XkbIbRmJHaqMtQ9hkZpY=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -307,11 +307,12 @@
   .twilight-card .tw-head { font-weight: 600; font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
   .tw-row.best .tw-name { color: var(--accent); }
   .tw-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-  .tw-row { display: grid; grid-template-columns: 4.3em 7.3em 5.6em minmax(0, 1fr); align-items: center; gap: 10px; font-size: 14px; }
-  @media (max-width: 360px) { .tw-row { gap: 6px; font-size: 13px; } }
+  .tw-row { display: grid; grid-template-columns: 4.3em 7.3em 5.6em 1.8em minmax(0, 1fr); align-items: center; gap: 10px; font-size: 14px; }
+  @media (max-width: 360px) { .tw-row { gap: 6px; font-size: 13px; grid-template-columns: 4.3em 7.3em 5.6em 1.8em; } .tw-bar { display: none; } }
   .tw-name { font-weight: 600; white-space: nowrap; }
   .tw-best { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: var(--on-accent, #fff); }
   .tw-time { color: var(--secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tw-score { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
   .tw-rank { font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
   .tw-bar { height: 6px; border-radius: 3px; background: var(--sunk); overflow: hidden; }
   .tw-bar i { display: block; height: 100%; border-radius: 3px; }
@@ -5000,6 +5001,7 @@ function renderDayDetail(id, entries, sel, now) {
 // 朝夕焼けの時間帯ごとの見込み（2026-10-20 ユーザー「日の入り前に色付きそうは欲しい」「どの時間がどんな感じで良さそうか」）。
 // 太陽高度で分けた3つの時間帯を、本体と同じ実写モデルにその時間の気象を入れて出す（API の twilight）。
 // 見頃は、ほかより5点以上高く平凡以上のときだけ API が付ける。無い日は付けない
+// 点数も出す（2026-10-20 ユーザー「時間帯ごとの見込みでも点数が観れるといい」）。320幅では棒を外して数字を残す
 // 評価の語は上のカードと同じ（朝夕焼けなら「よく染まる」「ほんのり」「期待薄」）。2026-10-20 ユーザー「ほんのりなのに時間帯は平凡とか良好なの?」
 function renderTwilight(ev) {
   const t = ev.twilight;
@@ -5010,7 +5012,7 @@ function renderTwilight(ev) {
     const best = t.best === p.id;
     return `<li class="tw-row${best ? " best" : ""}"><span class="tw-name">${esc(p.label)}</span>
       <span class="tw-time">${time(p.window)}</span><span class="tw-rank" style="color:${color}">${ok ? esc(S.phrasing(ev.phenomenon, r).label) : "—"}</span>
-      <span class="tw-bar" aria-hidden="true"><i style="width:${ok ? Math.round(p.score) : 0}%;background:${color}"></i></span></li>`;
+      <span class="tw-score">${ok ? Math.round(p.score) : "—"}</span><span class="tw-bar" aria-hidden="true"><i style="width:${ok ? Math.round(p.score) : 0}%;background:${color}"></i></span></li>`;
   }).join("");
   const bestPhase = t.phases.find((p) => p.id === t.best);
   return `<div class="card twilight-card"><div class="tw-head">時間帯ごとの見込み${bestPhase ? `<span class="tw-best">見頃 ${esc(bestPhase.label)}</span>` : ""}</div><ol class="tw-list">${rows}</ol>
