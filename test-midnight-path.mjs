@@ -17,5 +17,5 @@ test('構図の図の操作で触っていない部品を動かさない（2026-
  const c=fs.readFileSync(new URL('./sorami-flair.css',import.meta.url),'utf8');
  assert.match(c,/#aimLook \.preview-figure-tools\{align-items:flex-end\}/);
  assert.match(c,/#aimLook \.aim-look-figure \.aim-body-actions\{position:absolute;/);assert.match(c,/#aimLook \.aim-look-figure>\.preview-compose\{position:absolute;/);
- assert.match(html,/\(figure\|\|lens\)\.append\(compose\);const bodyActions=look\.querySelector\('\[data-body-actions\]'\);if\(figure&&bodyActions\)figure\.append\(bodyActions\);/);
+ assert.doesNotMatch(html,/\.aim-look-figure'\)\?\.after\(actions\)/);assert.match(html,/\(figure\|\|lens\)\.append\(compose\);const bodyActions=look\.querySelector\('\[data-body-actions\]'\);if\(figure&&bodyActions\)figure\.append\(bodyActions\);/);
 });
