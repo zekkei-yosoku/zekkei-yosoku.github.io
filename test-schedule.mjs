@@ -27,3 +27,8 @@ test('画面：NOTEBOOK の帯、撮影地点／予定のタブ、共有シー�
  assert.match(c,/content:"NOTEBOOK" \/ ""/);assert.doesNotMatch(c,/LOGBOOK/);assert.match(c,/#recordsView\[data-tab=plans\] #recordsHeading \.my-add-point\{display:none\}/);
  assert.match(h,/撮影地点と見えたもの、これからの予定を残す/);
 });
+test('予定の使い方は0件のときだけ、保存先の説明はデータの控えの中（2026-10-20 ユーザー「出し方を変えた方がいいのも最適化して」）',()=>{
+ const h=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),m=fs.readFileSync(new URL('./sorami-myplaces.js',import.meta.url),'utf8');
+ assert.match(h,/if\(!rows\.length\)\{const how=/);assert.doesNotMatch(h,/intro\.textContent='構図で見つけた重なりを/);
+ assert.match(m,/backup\.append\(summary,note\)/);assert.doesNotMatch(m,/のブラウザに保存します。撮影地点の名前・代表位置（お気に入り）は同期します。'; host\.append\(note\)/);
+});

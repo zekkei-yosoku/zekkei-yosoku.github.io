@@ -167,8 +167,8 @@ function renderRecordsHub() {
   if(shapeDialog?.open&&!shapeEditorCurrent())shapeDialog.close();
   // 非表示でも旧アカウントの地点・記録をDOMへ残さない。
   if (!auth?.token || !toolAllowed('records')) return;
-  const intro = document.createElement('p'); intro.className = 'tiny'; intro.textContent = 'どこから何が見えたかを残し、構図や地図で次の撮影につなげます。';
-  const heading=el('recordsHeading');heading.querySelector('.my-add-point')?.remove();host.append(intro);
+  // 2026-10-20 ユーザー「不要な説明は消しといて」：冒頭の使い方の一文は出さない（タブ名と中身で分かる）
+  const heading=el('recordsHeading');heading.querySelector('.my-add-point')?.remove();
   const actions = document.createElement('div'); actions.className = 'my-head';
   const add = document.createElement('button'); add.type = 'button'; add.className = 'chip my-add-point'; add.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';add.setAttribute('aria-label','記録を追加');add.title='記録を追加';
   add.onclick = () => { if (auth?.token && toolAllowed('records')) openPlace(null,'records'); }; heading.append(add);
@@ -207,8 +207,9 @@ function renderRecordsHub() {
     row.append(name, sub); row.onclick = () => {openPlace(f, 'records');if(recordsBodyFilter){sheetState.bodies=[recordsBodyFilter];for(const check of sheet.querySelectorAll('[data-planning-body]'))check.checked=check.value===recordsBodyFilter;}}; list.append(row);
   }
   if(recordedPlaces.length&&!matches){const empty=document.createElement('p');empty.className='tiny';empty.textContent='この条件の撮影地点はありません。';list.append(empty);}
-  const note = document.createElement('p'); note.className = 'tiny muted'; note.textContent = '見える対象と線・範囲はこのブラウザに保存します。撮影地点の名前・代表位置（お気に入り）は同期します。'; host.append(note);
-  const backup=document.createElement('details');backup.className='my-secondary';const summary=document.createElement('summary');summary.textContent='データの控え';backup.append(summary);
+  // 2026-10-20 ユーザー「出し方を変えた方がいいのも最適化して」：保存先の説明は常に出さず、データの控えの中へ
+  const note = document.createElement('p'); note.className = 'tiny'; note.textContent = '見える対象と線・範囲はこのブラウザに保存します。撮影地点の名前・代表位置（お気に入り）は同期します。';
+  const backup=document.createElement('details');backup.className='my-secondary';const summary=document.createElement('summary');summary.textContent='データの控え';backup.append(summary,note);
   const hint=document.createElement('p');hint.className='tiny';hint.textContent='撮影地点・対象・線/範囲・予測の結果を保存します。写真ファイルは含みません。';backup.append(hint);
   const exportButton=document.createElement('button');exportButton.type='button';exportButton.className='chip';exportButton.textContent='書き出す';exportButton.onclick=downloadLibraryBackup;
   const importButton=document.createElement('button');importButton.type='button';importButton.className='chip';importButton.textContent='読み込む';importButton.onclick=()=>el('importFile').click();backup.append(exportButton,importButton);host.append(backup);

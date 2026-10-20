@@ -38,3 +38,7 @@ test('ホームに道具へのボタン（予測・構図・地図・記録）�
  for(const body of ['sun','moon']){const r=render(body,'2026-10-20T12:00:00+09:00');assert.ok(!r.all().some(e=>e.className==='alm-actions'),body);}
  assert.doesNotMatch(fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),/\{label:"構図",available:screenAllowed\("framing"\)/);
 });
+test('不要な説明文（NOTEBOOK・撮影地点の冒頭、構図の未選択時）は出さない（2026-10-20 ユーザー「消しといて」）',()=>{
+ const h=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),m=fs.readFileSync(new URL('./sorami-myplaces.js',import.meta.url),'utf8');
+ assert.doesNotMatch(h,/天体・対象・日付を選び、この日の候補から撮影地点を選べます/);assert.doesNotMatch(m,/どこから何が見えたかを残し、構図や地図で次の撮影につなげます/);
+});
