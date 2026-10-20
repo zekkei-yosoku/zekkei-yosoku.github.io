@@ -8,7 +8,7 @@ function fixture(){const disk=new Map(),alerts=[],calls=[],els={importFile:{valu
  localStorage:{getItem:k=>disk.get(k)??null,setItem(k,v){if(failure===k){failure=null;throw Error('quota');}disk.set(k,v)},removeItem:k=>disk.delete(k)},
  $:id=>els[id]??={},cleanSighting:x=>x?.id?x:null,cleanFavorite:x=>x?.id?x:null,render(){},renderAuthButton(){},alert:x=>alerts.push(x),
  apiCall:async(m,p,body)=>{calls.push({m,p,body});return m==='POST'?{accepted:{favorites:body.favorites.map(x=>x.id),sightings:body.sightings.map(x=>x.id)}}:{favorites:[],sightings:[],rev:1};}};
- c.store={set(k,v){disk.set(k,JSON.stringify(v));return true;}};vm.createContext(c);vm.runInContext(syncSource+'\n'+importSource,c);
+ c.store={get(k,d){const v=disk.get(k);return v?JSON.parse(v):d;},set(k,v){disk.set(k,JSON.stringify(v));return true;}};vm.createContext(c);vm.runInContext(syncSource+'\n'+importSource,c);
  const event=text=>({target:{files:[{text:typeof text==='function'?text:async()=>text}],value:'fixture'}});
  return {c,disk,alerts,calls,fail:k=>failure=k,import:text=>els.importFile.onchange(event(text))};}
 const backup=JSON.stringify({favorites:[{id:'fav',name:'new'}],sightings:[{id:'sight',actualScore:1}]});
