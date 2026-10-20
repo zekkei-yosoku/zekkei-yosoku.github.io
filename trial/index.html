@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="15562739860932693072">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-VnZtmFtX633KN3fL43EwV7Ys6i5AgP2PQAsdjsfGBpM=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-kd/QE0O2IukzshIEJQLMkEcuOfj1NaIFZHwPthotAk4=' 'sha256-d4cZYBVfWwCa9HBA7Ig2Dx8XkbIbRmJHaqMtQ9hkZpY=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="11853772790729414813">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-MlQYnHVJsmry+e5uJnReqc8k1bNTjd2BrfDQYghFr04=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-d4cZYBVfWwCa9HBA7Ig2Dx8XkbIbRmJHaqMtQ9hkZpY=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -9639,7 +9639,9 @@ async function aimLookRender(host, spec) {
   move.onclick = () => {
     if(host._lensMoving){
       host._lensMoving=false;
-      host._pickUndo={key:JSON.stringify([aimLookKey(),aim.from,aim.target,aim.matchMode,typeof auth==='undefined'?null:auth?.token]),spec,reverse:host._lensBefore?.reverse??null,lens:host._lensBefore};
+      // 2026-10-20 ユーザー「天体を動かしてないのに完了で閉じると『位置を変更しました』が出る」：構図も画角も変えていなければ元に戻すを出さない
+      const before=host._lensBefore,same=before&&JSON.stringify(before.offset)===JSON.stringify(host._lensOffset||[0,0])&&JSON.stringify(before.settings)===JSON.stringify({...aimLens});
+      if(same)host._pickUndo=null;else host._pickUndo={key:JSON.stringify([aimLookKey(),aim.from,aim.target,aim.matchMode,typeof auth==='undefined'?null:auth?.token]),spec,reverse:host._lensBefore?.reverse??null,lens:host._lensBefore};
     }else{
       host._pickUndo=null;host._lensBefore={offset:[...(host._lensOffset||[0,0])],keyOffset:host._lensKeyOffset?{...host._lensKeyOffset}:null,reverse:aim.reverse,settings:{...aimLens},stored:localStorage.getItem("sorami.lens")};host._lensMoving=true;
     }
@@ -9804,7 +9806,8 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
       const editing = host._pick; host._pick = null;
       if (editing.ghost) placeFromGhost(editing.ghost);
       aimLookRender(host, editing.initialBase || editing.base);
-      aimLineSheetOpen();
+      // 動かしていない／全画面を「完了」で閉じたときは地図を出さない
+      if (editing.ghost && !host._closingFull) aimLineSheetOpen();
       return;
     }
     if (host._pick) {
@@ -12673,7 +12676,7 @@ function uiVisualChoices(select, kind) {
     const openFull=()=>{if(look._full)return;const foot=document.querySelector('#aimView .tool-datetime-footer');const fh=foot&&!foot.hidden?Math.round(foot.getBoundingClientRect().height):0;
      look._fullScroll=scrollY;look._full=true;look._fullH=Math.max(240,innerHeight-fh);figure.style.setProperty('--full-bottom',fh+'px');figure.classList.add('look-full');document.documentElement.classList.add('look-full-open');
      if(!look._lensMoving&&lensMove&&!lensMove.disabled)lensMove.click();else aimLookRender(look,look._lookSpec);done.focus({preventScroll:true});};
-    const closeFull=()=>{if(!look._full||look._pick?.busy)return;if(look._pick)look.querySelector('[data-look-pick]')?.click();
+    const closeFull=()=>{if(!look._full||look._pick?.busy)return;if(look._pick){look._closingFull=true;try{look.querySelector('[data-look-pick]')?.click();}finally{look._closingFull=false;}}
      look._full=false;figure.classList.remove('look-full');document.documentElement.classList.remove('look-full-open');
      if(look._lensMoving&&lensMove)lensMove.click();else aimLookRender(look,look._lookSpec);scrollTo(0,look._fullScroll||0);expand.focus({preventScroll:true});};
     look._openFull=openFull;look._closeFull=closeFull;
