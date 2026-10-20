@@ -53,9 +53,11 @@
    構図・地図・記録の日本語の題名は画面から隠し、読み上げの見出しとしてだけ残す。英字の帯が題名。
    履歴ボタンは帯と同じ行の右端（大きさは同じ）。帯の字が画面の中央に来るよう、左にボタンと同じ幅の余白を取る。 */
 #aimFramingTitle,#skyMapTitle,:is(#aimView,#recordsView) .sky-map-head h2{position:absolute!important;width:1px;height:1px;margin:0!important;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head){flex-wrap:nowrap;align-items:center;gap:12px;margin-top:4px}
-:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head)::before{flex:1 1 auto;margin:0}
-:is(.aim-titlebar,#skyMapView .sky-map-head,#recordsView .sky-map-head):has(>button:not([hidden]))::before{margin-left:56px}
+/* 2026-10-20 ユーザー「notebookの中央揃えができてない。他のタイトルも中央固定になってるか確認して」：
+   右のボタンの有無（予定タブでは＋を隠す、権限が無い画面は無し）で字がずれないよう、帯の行は「左の空き44px・帯・右のボタン44px」の3列に固定する */
+:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head){display:grid!important;grid-template-columns:44px minmax(0,1fr) 44px;column-gap:12px;align-items:center;margin-top:4px}
+:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head)::before{grid-column:2;grid-row:1;margin:0}
+:is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head)>button{grid-column:3;grid-row:1;justify-self:end}
 #skyMapView .sky-map-head{margin-bottom:8px}#recordsView .sky-map-head{margin-bottom:12px}
 /* 記録の＋は帯の右端（履歴ボタンと同じ灰色の丸。sorami-myplaces.js） */
 /* 予測：地点カードの上の帯（地点カードを出す画面＝一覧・詳細・結果だけ） */
@@ -80,3 +82,12 @@ main:has(>#placeRow:not([hidden]))>#forecastBand{display:block}
 #scheduleHub .schedule-text{display:flex;flex-direction:column;gap:2px;min-width:0}
 #scheduleHub .schedule-past{margin-top:10px}#scheduleHub .schedule-past summary{min-height:44px;display:flex;align-items:center;color:var(--secondary);font-size:.85rem;cursor:pointer}
 #scheduleHub .schedule-past .schedule-when{color:var(--secondary);background:var(--sunk)}
+
+/* 2026-10-20 構図：焦点距離は［バー｜数字｜画角調整］の1行（ユーザー「バーと焦点距離をもっとシュッと」） */
+#aimLook .preview-focal-bar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:end;column-gap:10px;margin:6px 0 10px}
+#aimLook .preview-focal-bar .preview-focal-tools{margin:0;min-width:0}
+#aimLook .preview-focal-bar .preview-focal-value{min-width:4.6em;padding-bottom:12px;text-align:right;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+#aimLook .preview-focal-bar>.chip{margin:0 0 4px}
+.preview-camera-dialog .preview-focal-entry{margin:0 0 10px}
+.preview-camera-dialog .preview-focal-entry label{display:flex;align-items:center;gap:8px;width:100%}
+#aimView .preview-camera-dialog .aim-lens-row.preview-focal-entry label input[data-lens-focal]{flex:0 0 8em;width:8em;max-width:none}
