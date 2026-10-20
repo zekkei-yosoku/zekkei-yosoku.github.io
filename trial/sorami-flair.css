@@ -114,6 +114,7 @@ main:has(>#placeRow:not([hidden]))>#forecastBand{display:block}
 #aimLook .look-full .preview-figure-tools{top:calc(10px + env(safe-area-inset-top))}
 #aimLook .look-full .preview-figure-tools>:is(.preview-expand,.preview-compose-icon){display:none}
 #aimLook .look-full .preview-full-close{position:absolute;z-index:3;left:10px;top:calc(10px + env(safe-area-inset-top));display:flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border:0;border-radius:12px;background:var(--accent);color:var(--on-accent,#fff);font-weight:700;box-shadow:0 2px 10px #0005}
+#aimLook .look-full .preview-full-close[hidden]{display:none}
 #aimLook .look-full [data-look-pick][aria-pressed=false]{width:auto;display:flex;align-items:center;gap:6px;padding:0 12px}
 #aimLook .look-full [data-look-pick][aria-pressed=false]::after{content:"天体を動かす";font-size:12px;font-weight:600}
 html.look-full-open,html.look-full-open body{overflow:hidden}
