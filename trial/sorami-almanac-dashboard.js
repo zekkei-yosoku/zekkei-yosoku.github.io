@@ -45,7 +45,11 @@ function compass(body,info){
  }
  if(!info.events.length&&!runs.length)text(s,C,C+4,'この日は地平線の上に出ません',{'text-anchor':'middle',fill:'var(--secondary)','font-size':12});
  const halo=svg('circle',{r:11,fill:color,opacity:.25,filter:'url(#almDomeGlow)'},s),dot=svg('circle',{r:5,fill:color,stroke:'var(--bg)','stroke-width':1.5},s);
- s.place=(alt,az)=>{const up=Number.isFinite(alt)&&alt>=0,[x,y]=pt(up?alt:0,az);for(const e of [halo,dot]){e.setAttribute('cx',x);e.setAttribute('cy',y);e.setAttribute('opacity',up?e===halo?.25:1:0);}};
+ // 方位は点の横に書く（2026-10-20 ユーザー「説明もなんか浮いてる」：時刻・高度・方位の文字のかたまりを図から離して置いていた）。円の内側へ寄せて枠からはみ出さない
+ const azText=text(s,C,C,'',{'text-anchor':'middle',fill:'var(--text)','font-size':17,'font-weight':600,'paint-order':'stroke',stroke:'var(--bg)','stroke-width':4,'stroke-linejoin':'round'});
+ s.place=(alt,az)=>{const up=Number.isFinite(alt)&&alt>=0,[x,y]=pt(up?alt:0,az);for(const e of [halo,dot]){e.setAttribute('cx',x);e.setAttribute('cy',y);e.setAttribute('opacity',up?e===halo?.25:1:0);}
+  const dx=C-x,dy=C-y,len=Math.hypot(dx,dy)||1,lx=x+dx/len*34,ly=y+dy/len*34+6;azText.setAttribute('x',lx.toFixed(1));azText.setAttribute('y',ly.toFixed(1));
+  azText.textContent=up?`${dir16(az)} ${Math.round(az)}°`:'';};
  return s;
 }
 function render(root,day,p,events,astro,options={}){
@@ -95,10 +99,12 @@ function render(root,day,p,events,astro,options={}){
  svg('path',{d:line,fill:'none',stroke:'var(--alm-active)','stroke-width':1.5,opacity:.45,'stroke-dasharray':'3 6','clip-path':'url(#almChartDown)'},s);
  svg('line',{x1:48,y1:y(0),x2:698,y2:y(0),stroke:'var(--secondary)','stroke-width':1.2},s);
  for(const e of info.events){const ex=x(e.at),rise=e.kind==='rise';svg('path',{d:rise?`M${ex-6},${y(0)+9}L${ex},${y(0)+1}L${ex+6},${y(0)+9}Z`:`M${ex-6},${y(0)+1}L${ex},${y(0)+9}L${ex+6},${y(0)+1}Z`,fill:'var(--alm-active)'},s);}
- const peak=info.points.reduce((a,b)=>b.alt>a.alt?b:a);if(peak.alt>0){const px=x(peak.at),py=y(peak.alt);svg('line',{x1:px,y1:py-6,x2:px,y2:py-20,stroke:'var(--alm-active)'},s);text(s,Math.max(130,Math.min(620,px)),Math.max(38,py-28),`最も高い ${time(peak.at)}  ${num(peak.alt)}°`,{'text-anchor':'middle',fill:'var(--text)','font-size':20});}
- const cursor=svg('line',{y1:52,y2:268,stroke:'var(--secondary)','stroke-dasharray':'3 5'},s),halo=svg('circle',{r:13,fill:'var(--alm-active)',opacity:.3,filter:'url(#almChartGlow)','clip-path':'url(#almChartClip)'},s),dot=svg('circle',{r:6,fill:'var(--alm-active)',stroke:'var(--bg)','stroke-width':2,'clip-path':'url(#almChartClip)'},s);
- const readout=el('p','alm-readout'),range=el('input','alm-range');range.type='range';range.min='0';range.max=String(minutes-1);range.step='1';range.value=String(view.minute);range.setAttribute('aria-label',`${name}を見る時刻`);
- const dome=compass(body,info);
+ const peak=info.points.reduce((a,b)=>b.alt>a.alt?b:a);let peakText=null,peakBox=null;if(peak.alt>0){const px=x(peak.at),py=y(peak.alt);peakBox={x:Math.max(130,Math.min(620,px)),y:Math.max(70,py-28)};svg('line',{x1:px,y1:py-6,x2:px,y2:py-20,stroke:'var(--alm-active)'},s);peakText=text(s,peakBox.x,peakBox.y,`最も高い ${time(peak.at)}  ${num(peak.alt)}°`,{'text-anchor':'middle',fill:'var(--text)','font-size':20,'paint-order':'stroke',stroke:'var(--bg)','stroke-width':5,'stroke-linejoin':'round'});}
+ const cursor=svg('line',{y1:52,y2:268,stroke:'var(--secondary)','stroke-dasharray':'3 5'},s),
+  // 時刻は縦線の上、高度は点の横に書く（読み取りの文字のかたまりは置かない）
+  label={'paint-order':'stroke',stroke:'var(--bg)','stroke-width':5,'stroke-linejoin':'round'},
+  timeText=text(s,0,44,'',{'text-anchor':'middle',fill:'var(--text)','font-size':narrow()?30:22,'font-weight':700,...label}),altText=text(s,0,0,'',{fill:'var(--alm-active)','font-size':narrow()?28:21,'font-weight':600,...label}),halo=svg('circle',{r:13,fill:'var(--alm-active)',opacity:.3,filter:'url(#almChartGlow)','clip-path':'url(#almChartClip)'},s),dot=svg('circle',{r:6,fill:'var(--alm-active)',stroke:'var(--bg)','stroke-width':2,'clip-path':'url(#almChartClip)'},s);if(peakText&&s.insertBefore)s.insertBefore(peakText,halo);
+  const dome=compass(body,info);
  let drawGeneration=0;
  const update=()=>{
   const state=astro[body](at(),d.observer),t=time(at());view.wallMinute=new Date(at()).getHours()*60+new Date(at()).getMinutes();cursor.setAttribute('x1',x(at()));cursor.setAttribute('x2',x(at()));for(const e of [dot,halo]){e.setAttribute('cx',x(at()));e.setAttribute('cy',y(state.geometricAltitude));}dome.place(state.geometricAltitude,state.azimuth);
@@ -111,33 +117,31 @@ function render(root,day,p,events,astro,options={}){
     if(e.tags.length){const tags=el('div','alm-moon-tags');for(const [,en]of e.tags)tags.append(el('span','',en));names.append(tags);}
    }
   }
-  // 時刻と高度・方位は「空をたどる」の読み取りだけに出す（2026-10-20 同じ値が上の欄と読み取りの2か所に出ていた）。上は月の満ち欠けの出来事だけ
+  // 時刻と高度・方位は「空をたどる」の図の中だけに出す（2026-10-20 同じ値が上の欄と下の2か所に出ていた）。上は月の満ち欠けの出来事だけ
   moment.textContent='';
   if(lunar?.event){const e=lunar.event,zone=T.zoneLabel(e.at);moment.textContent=`${['新月','上弦','満月','下弦'][e.kind]} ${time(e.at)} ${zone}`;}
   moment.hidden=!moment.textContent;
   const values=body==='moon'?[num(lunar?.age??state.synodicAge),`${(state.illuminatedFraction*100).toFixed(1)}%`,`${Math.round(state.distanceKm/1000).toLocaleString('ja-JP')}万km`]:[duration(d.daylight)];
   if(body==='moon')values[2]=`${(state.distanceKm/10000).toFixed(1)}万km`;
-  metricValues.forEach((e,i)=>e.textContent=values[i]);readout.textContent=narrow()?`${t} ${T.zoneLabel(at())}\n高度 ${num(state.geometricAltitude)}°\n方位 ${dir16(state.azimuth)} ${num(state.azimuth)}°`:`${t} ${T.zoneLabel(at())}　高度 ${num(state.geometricAltitude)}° ／ 方位 ${dir16(state.azimuth)} ${num(state.azimuth)}°`;range.setAttribute('aria-valuetext',readout.textContent);
+  metricValues.forEach((e,i)=>e.textContent=values[i]);
+  {const cx=x(at()),cy=y(state.geometricAltitude),right=cx<560;timeText.setAttribute('x',Math.max(80,Math.min(670,cx)).toFixed(1));timeText.textContent=t;
+   altText.setAttribute('x',(cx+(right?16:-16)).toFixed(1));// 最も高いの文字と重なるところでは点の下に書く
+   const ay=cy-12,hitPeak=peakBox&&Math.abs(cx-peakBox.x)<(narrow()?190:170)&&ay>peakBox.y-30&&ay-28<peakBox.y+6;altText.setAttribute('y',Math.max(74,Math.min(262,hitPeak?cy+36:ay)).toFixed(1));altText.setAttribute('text-anchor',right?'start':'end');altText.textContent=`${num(state.geometricAltitude)}°`;
+   s.setAttribute('aria-label',`${name}の0時から24時までの高度グラフ。${t} 高度 ${num(state.geometricAltitude)}°・方位 ${dir16(state.azimuth)} ${num(state.azimuth)}°`);}
   if(body==='moon'){
    const generation=++drawGeneration;
    if(!g.SoramiMoonPortrait){textureStatus.textContent='月の描画を読み込めませんでした。ページを再読み込みしてください。';return;}
    g.SoramiMoonPortrait.draw(portrait,state).then(result=>{if(generation!==drawGeneration||!root.contains(portrait))return;if(result.texture){textureStatus.replaceChildren();return;}textureStatus.textContent='月面画像を読み込めないため、満ち欠けの形だけを表示しています。';const retry=el('button','chip','画像を再試行');retry.type='button';retry.onclick=update;textureStatus.append(retry);}).catch(()=>{if(generation===drawGeneration)textureStatus.textContent='月の描画を更新できませんでした。時刻を動かして再試行してください。';});
   }
- };range.oninput=()=>{view.live=false;view.minute=Math.max(0,Math.min(minutes-1,Number(range.value)));update();};
- // 2026-10-20 ユーザー「このバーで空をたどると出入りの方向が動くなら横に並べるとかしないとわかりづらい」→
- // 「レイアウトは多角的にみて最適な案を」→ 案を承認（「作って」）：高さ（グラフ）と方向（天球図）を「空をたどる」1つのまとまりにし、
- // つまみで動くもの（グラフの点・天球図の点・時刻／高度／方位）を全部つまみのすぐ上に集める。光の時間の帯はグラフの背景に一本化し、
- // ゴールデンアワー・ブルーアワーの時刻はグラフのすぐ下へ。
- //   スマホ：グラフ（横いっぱい）→ 小さい天球図と時刻・高度・方位の横並び → つまみ → 光の時間の2行
- //   広い画面：グラフと天球図を横に並べ → 読み取り → つまみ → 光の時間の2行
- // 天球図に見出しの文字は付けない（N・E・S・W と横の「方位」で分かる。1行分の余白になっていた）
+ };
  const domeBox=el('div','alm-dome-box');domeBox.append(dome);
  const viz=el('div','alm-sky'),light=body!=='moon'?twilightLines(day,d,astro):null;
- // 2026-10-20 ユーザー「ここが分断しててやだ。一つのバーで二つが動くのに」：つまみで動くもの（グラフ・天球図・読み取り）とつまみは切れ目なく続け、
- // 動かない光の時間の2行はつまみの下へ
- if(narrow()){dome.setAttribute('class','alm-compass alm-compass-mini');viz.append(s);const scrub=el('div','alm-scrub');scrub.append(domeBox,readout);chart.append(viz,scrub,range);}
- else{viz.append(s,domeBox);chart.append(viz,readout,range);}
- if(light)chart.append(light);
+ // 2026-10-20 ユーザー「ここが分断しててやだ」→「説明もなんか浮いてる」→「無理にまとめなくてよくない?」→
+ // 「せっかく下に日付があるんだから時間に切り替えられるようにしたらいいじゃん」：時刻は下の日付のバーを「時刻」に切り替えて動かす（地図・構図と同じ操作）。
+ // パネルの中のつまみと読み取りの文字は置かず、時刻と高度はグラフの中、方位は天球図の中に書く。
+ //   スマホ：グラフ（横いっぱい）→ 天球図（真ん中）→ 光の時間の2行
+ //   広い画面：グラフと天球図を横に並べ → 光の時間の2行
+ viz.append(s,domeBox);chart.append(viz);if(light)chart.append(light);
  root.append(chart);
  const week=panel('これから7日間',`${name}の時刻を比較。${T.zone()} の時刻です。`,'NEXT 7 DAYS'),table=el('table','alm-table'),thead=el('thead'),tr=el('tr');
  for(const label of ['日付',body==='moon'?'月の出':'日の出',body==='moon'?'月の入り':'日の入り',body==='moon'?'照明率':'昼の長さ']){const th=el('th','',label);th.scope='col';tr.append(th);}thead.append(tr);table.append(thead);const tbody=el('tbody');
@@ -146,10 +150,12 @@ function render(root,day,p,events,astro,options={}){
  const refresh=()=>{
   if(!view.live||root.isConnected===false||document.hidden||options.isActive&&!options.isActive())return;
   const now=Date.now();if(date(now)!==date(day)){view.day=null;view.minute=null;view.wallMinute=null;options.onLiveDay?.();return;}
-  view.minute=Math.max(0,Math.min(minutes-1,Math.floor((now-day)/60000)));range.value=String(view.minute);
-  update();
+  view.minute=Math.max(0,Math.min(minutes-1,Math.floor((now-day)/60000)));
+  update();options.onLive?.(at());
  };
- active={render:()=>render(root,day,p,events,astro,options),refresh};
+ active={render:()=>render(root,day,p,events,astro,options),refresh,at:()=>at(),
+  // 下のバー（時刻）から動かす。描き直さず、点と文字だけ動かす
+  setAt:t=>{if(!Number.isFinite(t))return;view.live=false;view.minute=Math.max(0,Math.min(minutes-1,Math.round((t-day)/60000)));update();}};
  if(typeof document.addEventListener==='function')timer=setInterval(refresh,15000);
 }
 // 太陽の高さで空の色をなめらかに変える（夜→天文・航海薄明→ブルーアワー→ゴールデンアワー→昼）。光の時間の帯と空をたどるで共通
@@ -170,5 +176,5 @@ function twilightLines(day,d,astro){
  for(const[label,v]of [['ゴールデンアワー',`${range(cross(-4,true),cross(6,true))} / ${range(cross(6,false),cross(-4,false))}`],['ブルーアワー',`${range(cross(-6,true),cross(-4,true))} / ${range(cross(-4,false),cross(-6,false))}`]]){const row=el('p','alm-tw-row');row.append(el('b','',label),el('span','',v));legend.append(row);}
  return legend;
 }
-const api={data,render,phaseLabel,getAuto,setAuto,preferredBody,stop,enter,today,refresh:()=>active?.refresh()};g.SoramiAlmanacDashboard=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+const api={data,render,phaseLabel,getAuto,setAuto,preferredBody,stop,enter,today,refresh:()=>active?.refresh(),at:()=>active?.at?.()??null,setAt:t=>active?.setAt?.(t)};g.SoramiAlmanacDashboard=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:window);

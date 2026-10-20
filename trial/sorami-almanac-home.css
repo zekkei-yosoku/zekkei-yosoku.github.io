@@ -25,7 +25,7 @@ main:has(#almanacView:not([hidden])){max-width:1000px}
 .alm-event-pair{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--alm-grid);border-bottom:1px solid var(--alm-grid);padding:22px 0;margin:0 0 22px}
 .alm-event{display:flex;flex-direction:column;gap:9px;align-items:center;min-width:0}.alm-event+.alm-event{border-left:1px solid var(--alm-grid)}.alm-event-label{font-size:12px;color:var(--secondary)}.alm-event-time{font-size:clamp(29px,4.8vw,44px);font-weight:300;line-height:1.2;letter-spacing:-.04em;font-variant-numeric:tabular-nums}.alm-event-direction{font-size:11px;color:var(--secondary)}
 .alm-sky{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:32px;align-items:center}.alm-panel{margin:0;padding:22px 0 26px;border-top:1px solid var(--alm-grid)}
-#almanacView .alm-panel h2{font-size:15px;font-weight:600;letter-spacing:.02em;margin:0 0 8px}.alm-caption{font-size:11px;line-height:1.8;color:var(--secondary)}.alm-chart{width:100%;display:block;margin-top:12px}.alm-compass{width:min(100%,260px);display:block;margin:10px auto 0}.alm-readout{font-size:12px;text-align:center;margin:14px 0 4px;font-variant-numeric:tabular-nums}.alm-range{height:40px;min-height:44px;accent-color:var(--alm-active);margin:0;width:100%}
+#almanacView .alm-panel h2{font-size:15px;font-weight:600;letter-spacing:.02em;margin:0 0 8px}.alm-caption{font-size:11px;line-height:1.8;color:var(--secondary)}.alm-chart{width:100%;display:block;margin-top:12px}.alm-compass{width:min(100%,260px);display:block;margin:10px auto 0}
 .alm-table{font-size:13px;table-layout:fixed}.alm-table th,.alm-table td{padding:16px 4px;font-weight:400;border-color:var(--alm-grid)}.alm-table thead th{font-size:11px;color:var(--secondary)}.alm-week-note{margin:14px 0 0}.alm-about{font-size:11px;margin:12px 0 24px}.alm-about summary{color:var(--secondary);min-height:32px;cursor:pointer}.alm-texture-status{font-size:11px;color:var(--secondary)}.alm-texture-status:empty{display:none}.alm-texture-status button{font-size:11px;margin:4px}
 #almanacView>.alm-basis{font-size:10px;line-height:1.8;color:var(--secondary);margin-top:16px}#almanacView #almanacOutput[hidden]{display:none!important}
 @media(max-width:600px){#almanacView{padding-top:10px}.alm-hero{display:flex;flex-direction:column;gap:8px;padding:10px 0 24px;min-height:0}.alm-orb-stage{width:230px}.alm-hero-copy{width:100%;text-align:center}.alm-eyebrow{font-size:9px;margin-bottom:7px;letter-spacing:.22em}#almanacView .alm-hero-title{font-size:24px;margin-bottom:6px}.alm-moment{font-size:11px;margin-bottom:21px}.alm-metrics{max-width:360px;margin:auto;gap:8px}.alm-metric{gap:6px}.alm-metric strong{font-size:20px}.alm-metric>span{font-size:10px}.alm-event-pair{padding:20px 0;margin-bottom:18px}.alm-event-time{font-size:34px}.alm-sky{display:block}.alm-panel{padding:22px 0}.alm-compass{max-width:260px}.alm-table{font-size:12px}.alm-table th,.alm-table td{padding:14px 2px}.alm-switch{margin-top:4px;margin-bottom:6px;max-width:224px}}
@@ -50,14 +50,9 @@ main:has(#almanacView:not([hidden])){max-width:1000px}
 
 .alm-tw-legend{margin-top:4px;display:grid;gap:4px}.alm-tw-row{margin:0;font-size:12px;color:var(--secondary);font-variant-numeric:tabular-nums}.alm-tw-row b{color:var(--text);font-weight:600;margin-right:8px}
 
-/* スマホ：高度グラフの下に小さい方向図と読み取りを横並び（2026-10-20） */
-.alm-scrub{display:grid;grid-template-columns:140px minmax(0,1fr);gap:14px;align-items:center;margin-top:10px}
-.alm-compass.alm-compass-mini{width:140px;max-width:140px;margin:0}
-.alm-scrub .alm-readout{white-space:pre-line;text-align:left;margin:0;font-size:13px;line-height:1.8}
 
-/* 空をたどる：高さ（グラフ）と方向（天球図）を1つのまとまりに（2026-10-20） */
+/* 空をたどる：高さ（グラフ）と方向（天球図）。時刻は下のバーで動かし、数字は図の中に書く（2026-10-20） */
 .alm-dome-box{display:flex;flex-direction:column;align-items:center;gap:4px}
-.alm-scrub .alm-dome-box{align-items:center}
-.alm-sky+.alm-tw-legend+.alm-readout,.alm-sky+.alm-readout{text-align:left}
 .alm-metrics:has(>.alm-metric:only-child){grid-template-columns:1fr;justify-items:center;text-align:center}.alm-metrics>.alm-metric:only-child{flex-direction:row;align-items:baseline;gap:10px}
-.alm-sky .alm-dome-box .alm-compass:not(.alm-compass-mini){width:min(100%,250px)}
+.alm-sky .alm-dome-box .alm-compass{width:min(100%,250px)}
+@media(max-width:600px){.alm-sky .alm-dome-box{margin-top:6px}.alm-sky .alm-dome-box .alm-compass{width:min(100%,230px)}}
