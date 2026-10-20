@@ -20,7 +20,7 @@
     framing: Object.freeze({ tools: Object.freeze(["diamond", "pearl", "tower"]), label: "構図" }),
     skymap: Object.freeze({ tools: Object.freeze(["skymap"]), label: "地図" }),
     plane: Object.freeze({ tools: Object.freeze(["plane"]), label: "月丼" }),
-    iss: Object.freeze({ tools: Object.freeze(["iss"]), label: "ISS" }),
+    iss: Object.freeze({ tools: Object.freeze(["iss"]), label: "人工衛星" }),
     records: Object.freeze({ tools: Object.freeze(["records"]), label: "記録" }),
     answers: Object.freeze({ tools: Object.freeze(["records"]), label: "結果" }),
   });
