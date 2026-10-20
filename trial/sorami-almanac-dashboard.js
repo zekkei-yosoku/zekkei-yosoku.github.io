@@ -27,7 +27,7 @@ const DIR16=['北','北北東','北東','東北東','東','東南東','南東','
 function duration(ms){if(!Number.isFinite(ms))return '—';const n=Math.floor(ms/60000);return `${Math.floor(n/60)}時間${n%60}分`;}
 // 2026-10-20 出入りの方向は天球図：中心が天頂、外周が地平線、北が上。地平線より上の道筋を描き、今の位置を点で示す
 function compass(body,info){
- const C=150,R=112,s=svg('svg',{viewBox:'-44 0 388 300',class:'alm-compass',role:'img','aria-label':`${body==='sun'?'太陽':'月'}の空の道筋と出入りの方位図`}),color='var(--alm-active)';
+ const C=150,R=112,s=svg('svg',{viewBox:'6 6 288 288',class:'alm-compass',role:'img','aria-label':`${body==='sun'?'太陽':'月'}の空の道筋と出入りの方位図`}),color='var(--alm-active)';
  const pt=(alt,az)=>{const r=R*(90-Math.max(0,alt))/90,a=az*Math.PI/180;return[C+r*Math.sin(a),C-r*Math.cos(a)];};
  const defs=svg('defs',{},s),grad=svg('radialGradient',{id:'almDomeFill'},defs);svg('stop',{offset:'0%','stop-color':color,'stop-opacity':.1},grad);svg('stop',{offset:'100%','stop-color':color,'stop-opacity':0},grad);
  const glow=svg('filter',{id:'almDomeGlow',x:'-50%',y:'-50%',width:'200%',height:'200%'},defs);svg('feGaussianBlur',{stdDeviation:3.2},glow);
@@ -78,7 +78,7 @@ function render(root,day,p,events,astro,options={}){
  const chart=panel('空をたどる',`${name}の1日の高さと方向。0°が地平線、背景はその時刻の空の色です。`,'SKY PATH');
  // 2026-10-20 ユーザー「朝焼け夕焼けのグラデーションわかるように」：背景は光の時間と同じ空の色（skyColor）で、ゴールデン・ブルーアワーを濃く
  // 2026-10-20 高度グラフ：太陽の高度で昼・薄明・夜の帯を敷き、地平線より上の道筋を光らせ、出入りと最も高い時刻を書き込む
- const s=svg('svg',{viewBox:'0 0 720 320',class:'alm-chart',role:'img','aria-label':`${name}の0時から24時までの高度グラフ`}),x=t=>48+(t-day)/(d.end-day)*650,y=a=>238-a*2;
+ const s=svg('svg',{viewBox:'0 18 720 302',class:'alm-chart',role:'img','aria-label':`${name}の0時から24時までの高度グラフ`}),x=t=>48+(t-day)/(d.end-day)*650,y=a=>238-a*2;
  const defs=svg('defs',{},s),clip=svg('clipPath',{id:'almChartClip'},defs);svg('rect',{x:48,y:40,width:650,height:228},clip);
  const up=svg('clipPath',{id:'almChartUp'},defs);svg('rect',{x:48,y:40,width:650,height:y(0)-40},up);const down=svg('clipPath',{id:'almChartDown'},defs);svg('rect',{x:48,y:y(0),width:650,height:268-y(0)},down);
  const area=svg('linearGradient',{id:'almChartArea',x1:0,y1:0,x2:0,y2:1},defs);svg('stop',{offset:'0%','stop-color':'var(--alm-active)','stop-opacity':.32},area);svg('stop',{offset:'100%','stop-color':'var(--alm-active)','stop-opacity':0},area);
@@ -95,7 +95,7 @@ function render(root,day,p,events,astro,options={}){
  svg('path',{d:line,fill:'none',stroke:'var(--alm-active)','stroke-width':1.5,opacity:.45,'stroke-dasharray':'3 6','clip-path':'url(#almChartDown)'},s);
  svg('line',{x1:48,y1:y(0),x2:698,y2:y(0),stroke:'var(--secondary)','stroke-width':1.2},s);
  for(const e of info.events){const ex=x(e.at),rise=e.kind==='rise';svg('path',{d:rise?`M${ex-6},${y(0)+9}L${ex},${y(0)+1}L${ex+6},${y(0)+9}Z`:`M${ex-6},${y(0)+1}L${ex},${y(0)+9}L${ex+6},${y(0)+1}Z`,fill:'var(--alm-active)'},s);}
- const peak=info.points.reduce((a,b)=>b.alt>a.alt?b:a);if(peak.alt>0){const px=x(peak.at),py=y(peak.alt);svg('line',{x1:px,y1:py-6,x2:px,y2:py-20,stroke:'var(--alm-active)'},s);text(s,Math.max(130,Math.min(620,px)),Math.max(30,py-28),`最も高い ${time(peak.at)}  ${num(peak.alt)}°`,{'text-anchor':'middle',fill:'var(--text)','font-size':20});}
+ const peak=info.points.reduce((a,b)=>b.alt>a.alt?b:a);if(peak.alt>0){const px=x(peak.at),py=y(peak.alt);svg('line',{x1:px,y1:py-6,x2:px,y2:py-20,stroke:'var(--alm-active)'},s);text(s,Math.max(130,Math.min(620,px)),Math.max(38,py-28),`最も高い ${time(peak.at)}  ${num(peak.alt)}°`,{'text-anchor':'middle',fill:'var(--text)','font-size':20});}
  const cursor=svg('line',{y1:52,y2:268,stroke:'var(--secondary)','stroke-dasharray':'3 5'},s),halo=svg('circle',{r:13,fill:'var(--alm-active)',opacity:.3,filter:'url(#almChartGlow)','clip-path':'url(#almChartClip)'},s),dot=svg('circle',{r:6,fill:'var(--alm-active)',stroke:'var(--bg)','stroke-width':2,'clip-path':'url(#almChartClip)'},s);
  const readout=el('p','alm-readout'),range=el('input','alm-range');range.type='range';range.min='0';range.max=String(minutes-1);range.step='1';range.value=String(view.minute);range.setAttribute('aria-label',`${name}を見る時刻`);
  const dome=compass(body,info);

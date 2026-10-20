@@ -51,8 +51,8 @@ main:has(#almanacView:not([hidden])){max-width:1000px}
 .alm-tw-legend{margin-top:12px;display:grid;gap:4px}.alm-tw-row{margin:0;font-size:12px;color:var(--secondary);font-variant-numeric:tabular-nums}.alm-tw-row b{color:var(--text);font-weight:600;margin-right:8px}
 
 /* スマホ：高度グラフの下に小さい方向図と読み取りを横並び（2026-10-20） */
-.alm-scrub{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:center;margin-top:10px}
-.alm-compass.alm-compass-mini{width:150px;max-width:150px;margin:0}
+.alm-scrub{display:grid;grid-template-columns:140px minmax(0,1fr);gap:14px;align-items:center;margin-top:10px}
+.alm-compass.alm-compass-mini{width:140px;max-width:140px;margin:0}
 .alm-scrub .alm-readout{white-space:pre-line;text-align:left;margin:0;font-size:13px;line-height:1.8}
 
 /* 空をたどる：高さ（グラフ）と方向（天球図）を1つのまとまりに（2026-10-20） */
@@ -60,4 +60,5 @@ main:has(#almanacView:not([hidden])){max-width:1000px}
 .alm-dome-label{font-size:11px;letter-spacing:.08em;color:var(--secondary)}
 .alm-scrub .alm-dome-box{align-items:center}
 .alm-sky+.alm-tw-legend+.alm-readout,.alm-sky+.alm-readout{text-align:left}
-.alm-metrics:has(>.alm-metric:only-child){grid-template-columns:1fr;justify-items:center;text-align:center}
+.alm-metrics:has(>.alm-metric:only-child){grid-template-columns:1fr;justify-items:center;text-align:center}.alm-metrics>.alm-metric:only-child{flex-direction:row;align-items:baseline;gap:10px}
+.alm-sky .alm-dome-box .alm-compass:not(.alm-compass-mini){width:min(100%,250px)}
