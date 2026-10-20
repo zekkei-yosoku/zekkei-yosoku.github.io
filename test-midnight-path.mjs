@@ -13,3 +13,9 @@ test('図は見ている時刻を含む1本の通り道だけを前日・翌日�
  assert.match(html,/startMs: frameDay - 6 \* 3600000, endMs: frameDay \+ 30 \* 3600000/);
  assert.match(html,/t < frameDay \? "前日" : t >= dayEnd \? "翌" : ""/);assert.doesNotMatch(html,/"24:00まで枠内"|"0:00時点で枠内"/);
 });
+test('構図の図の操作で触っていない部品を動かさない（2026-10-20 ユーザー「なんで触ってないボタンがズレるの?」）',()=>{
+ const c=fs.readFileSync(new URL('./sorami-flair.css',import.meta.url),'utf8');
+ assert.match(c,/#aimLook \.preview-figure-tools\{align-items:flex-end\}/);
+ assert.match(c,/#aimLook \.aim-look-figure \.aim-body-actions\{position:absolute;/);assert.match(c,/#aimLook \.aim-look-figure>\.preview-compose\{position:absolute;/);
+ assert.match(html,/\(figure\|\|lens\)\.append\(compose\);const bodyActions=look\.querySelector\('\[data-body-actions\]'\);if\(figure&&bodyActions\)figure\.append\(bodyActions\);/);
+});
