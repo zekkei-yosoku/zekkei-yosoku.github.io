@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="449564491219558777">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-6/FkXYEG4084b11NExV+o2GXr+AGz7ktfx3ioWKe04w=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Y0TMPnAAyhQZ+vquPTGgWlV+g4QBe2p1puGKP0ajd7I=' 'sha256-vonbNCtjdFNN0+8MALqbVdM23i0w2WirADDLWY4U4Vg=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="1815458934404529222">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-rd1cmTVVo7DWUB/o6P9xCcGMoLMa1jT4MGw8cyi7h7Y=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-Y0TMPnAAyhQZ+vquPTGgWlV+g4QBe2p1puGKP0ajd7I=' 'sha256-vonbNCtjdFNN0+8MALqbVdM23i0w2WirADDLWY4U4Vg=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -8876,6 +8876,47 @@ function aimLookDisc(ctx, x, y, r, body, p) {
 
 /// 山の稜線（図の左から右へ [方位, 見上げ角]）。目標の前後の帯を標高データで引き、方位ごとに一番上を取る
 const aimRidgeCache = new Map(), aimRidgePending = new Map();
+// 2026-10-20 塔・建物の手前の地形（ユーザー「これ絶対に見えないであろう距離」。精進峠からスカイツリー112kmは御坂山地に隠れるのに、図にも文にも何も出なかった）。
+// 目標の方位の左右 AIM_FRONT_SPAN° の扇で、観測点から目標の手前までの地形の見かけの高さを列ごとに取る。
+// 図の手前の山並みと、目標が地形に隠れるかの判定（真ん中の列＝目標の方位）に使う。取れなければ null
+const AIM_FRONT_SPAN = 20, aimFrontCache = new Map(), aimFrontPending = new Map();
+async function aimTerrainFront(obs, eye, target) {
+  const D = SoramiTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);
+  const az0 = SoramiTerrain.bearing(obs.latitude, obs.longitude, target.latitude, target.longitude);
+  const near = 0.3, far = D - 0.3, airK = SoramiAtmosphere.targetK();
+  if (!(far > near + 0.5)) return { ridge: [], block: null };
+  const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude].map((v) => v.toFixed(5)).join(",") + "|" + airK;
+  if (aimFrontCache.has(key)) return aimFrontCache.get(key);
+  if (aimFrontPending.has(key)) return aimFrontPending.get(key);
+  const task = (async () => {
+    const cols = 80, n = 80, pts = [];
+    for (let i = 0; i <= cols; i++) {
+      const az = az0 - AIM_FRONT_SPAN + (2 * AIM_FRONT_SPAN * i) / cols;
+      // 近いほど細かく（見かけの高さは近い地形ほど大きく変わる）
+      for (let j = 0; j <= n; j++) { const d = near * Math.pow(far / near, j / n); pts.push({ ...SoramiTerrain.destination(obs.latitude, obs.longitude, az, d), az, d }); }
+    }
+    let el;
+    try { el = await SoramiTerrain.elevations(pts, { zoom: D > 40 ? 11 : 12, from: obs }); } catch { return null; }
+    if (airK !== SoramiAtmosphere.targetK()) return null;
+    const ridge = []; let block = null;
+    for (let i = 0; i <= cols; i++) {
+      let best = -90, at = null;
+      for (let j = 0; j <= n; j++) {
+        const k = i * (n + 1) + j; if (!Number.isFinite(el[k])) continue;
+        const a = aimAirAngle(pts[k].d, eye, el[k]); if (a > best) { best = a; at = pts[k].d; }
+      }
+      if (best === -90) return null;
+      ridge.push([pts[i * (n + 1)].az, best]);
+      if (i === cols / 2) block = { angle: best, km: at };
+    }
+    const out = { ridge, block };
+    aimFrontCache.set(key, out);
+    return out;
+  })();
+  aimFrontPending.set(key, task);
+  try { return await task; } finally { aimFrontPending.delete(key); }
+}
+
 async function aimLookRidge(obs, eye, target, win) {
   const D = SoramiTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);
   // 山の地形範囲・解像度はレンズや構図から独立させる。広角でも山頂を粗くしない。
@@ -9144,7 +9185,8 @@ async function aimLookRender(host, spec) {
   const sceneCenters = scene.map(item => proj(item.azimuth, item.topAngle)).filter(p => p && Math.abs(p[0]) < 330);
   const panLimit = Math.max(1, ...sceneCenters.map(p => Math.abs(p[0]) / (2 * win.halfW) + .5));
   let sceneVersion=0;
-  let shape = null, ridgePending = null;
+  let shape = null, ridgePending = null, front = null;
+  const frontPending = outline ? aimTerrainFront(spec.obs, eye, t) : null;
   if (outline) shape = outline.points.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
   else {
     // 稜線を待つ間も新しい目標の図を先に描く。前の建物や時刻を残さない。
@@ -9166,7 +9208,7 @@ async function aimLookRender(host, spec) {
         item.shape = ridge ? ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean) : null;
         item.failed = !ridge;
         const missing = scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`);
-        note.textContent = [note.dataset.primary || "", ...missing].filter(Boolean).join(" / "); note.hidden = !note.textContent;
+        note.textContent = [note.dataset.primary || "", note.dataset.terrain || "", ...missing].filter(Boolean).join(" / "); note.hidden = !note.textContent;
         draw(cur);
       });
     }
@@ -9204,7 +9246,7 @@ async function aimLookRender(host, spec) {
   // 図の下の説明（形の出どころ・大気の屈折・縮尺）は出さない（2026-10-03 ユーザー「この説明文いらないわ」「いらない説明文結構ない？」）。
   // 出すのは稜線を読めなかったときだけ
   note.textContent = ridgePending ? "稜線を読み込んでいます…" : "";
-  note.dataset.primary = note.textContent;
+  note.dataset.primary = note.textContent; note.dataset.terrain = "";
   note.hidden = !note.textContent;
   range.max = String(path.length - 1);
   const pack = (ms, st) => {
@@ -9341,6 +9383,15 @@ async function aimLookRender(host, spec) {
         if(!mask.rimCanvas){const edge=document.createElement('canvas');edge.width=mask.canvas.width;edge.height=mask.canvas.height;const c=edge.getContext('2d');c.drawImage(mask.canvas,0,0);c.globalCompositeOperation='source-in';c.fillStyle=rim;c.fillRect(0,0,edge.width,edge.height);mask.rimCanvas=edge;}
         for(const [dx,dy] of [[-.6,0],[.6,0],[0,-.6],[0,.6]])ctx.drawImage(mask.rimCanvas,mask.x+dx,mask.y+dy,mask.width,mask.height);
         ctx.drawImage(mask.tinted,mask.x,mask.y,mask.width,mask.height);ctx.restore();
+        // 2026-10-20 選んでいない建物は、足元から地上の線まで下ろす（ユーザー「シルエットが浮いてたりして見栄えが悪い」）。
+        // 地上の線は選んだ目標の足元なので、それより近い建物の足元は線より上に来る。実際は手前の街並みに隠れる所
+        if(!selected){
+          let bottom=-Infinity;for(const poly of item.polygons)for(const q of poly)if(q[1]>bottom)bottom=q[1];
+          if(bottom<groundY-0.5){
+            let l=Infinity,r=-Infinity;for(const poly of item.polygons)for(const q of poly)if(q[1]>=bottom-1.5){l=Math.min(l,q[0]);r=Math.max(r,q[0]);}
+            if(r>l){ctx.fillRect(l,bottom-0.5,r-l,groundY-bottom+0.5);ctx.strokeStyle=rim;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(l,bottom);ctx.lineTo(l,groundY);ctx.moveTo(r,bottom);ctx.lineTo(r,groundY);ctx.stroke();}
+          }
+        }
       } else {
       ctx.beginPath();
       if (isMountain) ctx.moveTo(points[0][0], sceneBottom);
@@ -9363,6 +9414,15 @@ async function aimLookRender(host, spec) {
       const anchor = toPx(proj(item.azimuth, item.topAngle));
       if (anchor && !(item.distanceKm > D && !mountain && anchor[1] >= groundY) && anchor[0] + panX >= 0 && anchor[0] + panX <= W && anchor[1] + panY >= 0 && anchor[1] + panY <= clipBottom)
         visibleTargets.push({ item, anchor });
+    }
+    // 手前の地形（塔・建物のとき）。目標より手前にあるので、建物の上に重ねて描く。地上の線より上に出る所があるときだけ
+    if (front?.length >= 2 && front.some((q) => q[1] < groundY - 0.5)) {
+      ctx.fillStyle = "#020306";
+      ctx.beginPath(); ctx.moveTo(front[0][0], sceneBottom);
+      for (const [x, y] of front) ctx.lineTo(x, Math.min(y, sceneBottom));
+      ctx.lineTo(front[front.length - 1][0], sceneBottom); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = rim; ctx.lineWidth = 1; ctx.lineJoin = "round";
+      ctx.beginPath(); front.forEach(([x, y], i) => i ? ctx.lineTo(x, Math.min(y, sceneBottom)) : ctx.moveTo(x, Math.min(y, sceneBottom))); ctx.stroke();
     }
     // 地上と余白の境界を昼夜とも見分けられるようにする。
     let groundText = null;
@@ -9608,7 +9668,18 @@ async function aimLookRender(host, spec) {
     if (ridge) { shape = ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);sceneVersion++; }
     note.textContent = shape ? "" : "稜線を読み込めませんでした";
     note.dataset.primary = note.textContent;
-    note.textContent = [note.dataset.primary, ...scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`)].filter(Boolean).join(" / ");
+    note.textContent = [note.dataset.primary, note.dataset.terrain || "", ...scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`)].filter(Boolean).join(" / ");
+    note.hidden = !note.textContent;
+    draw(cur);
+  });
+  if (frontPending) frontPending.then((r) => {
+    if (seq !== host._lookSeq || !r) return;
+    front = r.ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean); sceneVersion++;
+    // 目標の方位で、手前の地形が目標の先端より高ければ見えない。下の部分だけ隠れるときもそう書く
+    const b = r.block, low = outline.hiddenAngle ?? outline.baseAngle;
+    note.dataset.terrain = !b ? "" : b.angle >= topAngle ? `${t.name}は約${Math.round(b.km)}km先の地形に隠れて見えません`
+      : b.angle > low + 0.01 ? `${t.name}の下の部分は約${Math.round(b.km)}km先の地形に隠れます` : "";
+    note.textContent = [note.dataset.primary || "", note.dataset.terrain, ...scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`)].filter(Boolean).join(" / ");
     note.hidden = !note.textContent;
     draw(cur);
   });
