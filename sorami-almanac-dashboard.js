@@ -71,7 +71,7 @@ function render(root,day,p,events,astro,options={}){
  const textureStatus=el('div','alm-texture-status');textureStatus.setAttribute('role','status');root.append(textureStatus);
  const times=el('div','alm-event-pair');
  for(const[kind,label]of [['rise',body==='moon'?'月の出':'日の出'],['set',body==='moon'?'月の入り':'日の入り']]){const item=el('div','alm-event'),hits=info.events.filter(e=>e.kind===kind);item.dataset.kind=kind;item.append(el('span','alm-event-label',`${kind==='rise'?'↑':'↓'} ${label}`),el('strong','alm-event-time',hits.length?hits.map(e=>time(e.at)).join(' / '):'なし'),el('span','alm-event-direction',hits.length?hits.map(e=>`${dir16(e.azimuth)} ${num(e.azimuth)}°`).join(' / '):'この日はありません'));times.append(item);}root.append(times);
- const actions=(options.actions||[]).filter(a=>a.available!==false);if(actions.length){const nav=el('nav','alm-actions');nav.setAttribute('aria-label','AstroNotesの道具');for(const a of actions){const button=el('button','',a.label);button.type='button';button.append(el('span','','↗'));button.onclick=a.open;nav.append(button);}root.append(nav);}
+ // 2026-10-20 ユーザー「ホームからの予測・構図・地図・記録への連携、リンクを置くだけならいらない」→「消そう」：道具へのボタンは置かない（移動はメニュー）
  const grid=el('div','alm-detail-grid'),chart=panel('空をたどる',`${name}の1日の高度。0°が水平な地平線です。帯は昼・薄明・夜。`,'SKY PATH');
  // 2026-10-20 高度グラフ：太陽の高度で昼・薄明・夜の帯を敷き、地平線より上の道筋を光らせ、出入りと最も高い時刻を書き込む
  const s=svg('svg',{viewBox:'0 0 720 320',class:'alm-chart',role:'img','aria-label':`${name}の0時から24時までの高度グラフ`}),x=t=>48+(t-day)/(d.end-day)*650,y=a=>238-a*2;

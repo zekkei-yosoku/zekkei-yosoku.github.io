@@ -34,3 +34,7 @@ test('16方位の境目',()=>{
  const s=fs.readFileSync(new URL('./sorami-almanac-dashboard.js',import.meta.url),'utf8'),c={};vm.createContext(c);vm.runInContext(s.match(/const DIR16=[^\n]+/)[0].replace('const DIR16','globalThis.DIR16').replace(',dir16=',';globalThis.dir16='),c);
  assert.deepEqual([0,11.2,11.3,90,102,180,257.8,348.7,348.8,359.9,-10].map(c.dir16),['北','北','北北東','東','東南東','南','西南西','北北西','北','北','北']);
 });
+test('ホームに道具へのボタン（予測・構図・地図・記録）は置かない（2026-10-20 ユーザー「リンクを置くだけならいらない」）',()=>{
+ for(const body of ['sun','moon']){const r=render(body,'2026-10-20T12:00:00+09:00');assert.ok(!r.all().some(e=>e.className==='alm-actions'),body);}
+ assert.doesNotMatch(fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),/\{label:"構図",available:screenAllowed\("framing"\)/);
+});
