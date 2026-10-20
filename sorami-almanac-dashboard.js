@@ -39,10 +39,10 @@ function compass(body,info){
  // 地平線より上の区間ごとに道筋を描く
  const runs=[];let run=null;for(const p of info.points||[]){if(p.alt>=0){if(!run)runs.push(run=[]);run.push(pt(p.alt,p.az));}else run=null;}
  for(const r of runs){if(r.length<2)continue;const d=r.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');svg('path',{d,fill:'none',stroke:color,'stroke-width':5,opacity:.35,filter:'url(#almDomeGlow)'},s);svg('path',{d,fill:'none',stroke:color,'stroke-width':2,'stroke-linecap':'round'},s);}
- for(const e of info.events){const[x,y]=pt(0,e.azimuth),rise=e.kind==='rise',a=e.azimuth*Math.PI/180,lx=C+(R+34)*Math.sin(a),ly=C-(R+34)*Math.cos(a);
+ for(const e of info.events){const[x,y]=pt(0,e.azimuth);
   svg('circle',{cx:x,cy:y,r:5,fill:'var(--bg)',stroke:color,'stroke-width':2},s);
-  const label=text(s,lx,ly-3,`${rise?'↑':'↓'} ${time(e.at)}`,{'text-anchor':'middle',fill:color,'font-size':12,'font-weight':600});label.setAttribute('class','alm-dome-time');
-  text(s,lx,ly+11,`${dir16(e.azimuth)} ${num(e.azimuth)}°`,{'text-anchor':'middle',fill:'var(--secondary)','font-size':10}).setAttribute('class','alm-dome-dir');}
+  // 出入りの時刻と方位は上の「出・入り」の欄にあるので、ここは点だけ（2026-10-20 同じ時刻・方位が3か所に出ていた）
+ }
  if(!info.events.length&&!runs.length)text(s,C,C+4,'この日は地平線の上に出ません',{'text-anchor':'middle',fill:'var(--secondary)','font-size':12});
  const halo=svg('circle',{r:11,fill:color,opacity:.25,filter:'url(#almDomeGlow)'},s),dot=svg('circle',{r:5,fill:color,stroke:'var(--bg)','stroke-width':1.5},s);
  s.place=(alt,az)=>{const up=Number.isFinite(alt)&&alt>=0,[x,y]=pt(up?alt:0,az);for(const e of [halo,dot]){e.setAttribute('cx',x);e.setAttribute('cy',y);e.setAttribute('opacity',up?e===halo?.25:1:0);}};
@@ -95,7 +95,7 @@ function render(root,day,p,events,astro,options={}){
  svg('path',{d:line,fill:'none',stroke:'var(--alm-active)','stroke-width':3,'stroke-linecap':'round','clip-path':'url(#almChartUp)'},s);
  svg('path',{d:line,fill:'none',stroke:'var(--alm-active)','stroke-width':1.5,opacity:.45,'stroke-dasharray':'3 6','clip-path':'url(#almChartDown)'},s);
  svg('line',{x1:48,y1:y(0),x2:698,y2:y(0),stroke:'var(--secondary)','stroke-width':1.2},s);
- for(const e of info.events){const ex=x(e.at),rise=e.kind==='rise';svg('path',{d:rise?`M${ex-6},${y(0)+9}L${ex},${y(0)+1}L${ex+6},${y(0)+9}Z`:`M${ex-6},${y(0)+1}L${ex},${y(0)+9}L${ex+6},${y(0)+1}Z`,fill:'var(--alm-active)'},s);text(s,Math.max(78,Math.min(668,ex)),y(0)+31,time(e.at),{'text-anchor':'middle',fill:'var(--alm-active)','font-size':22,'font-weight':600});}
+ for(const e of info.events){const ex=x(e.at),rise=e.kind==='rise';svg('path',{d:rise?`M${ex-6},${y(0)+9}L${ex},${y(0)+1}L${ex+6},${y(0)+9}Z`:`M${ex-6},${y(0)+1}L${ex},${y(0)+9}L${ex+6},${y(0)+1}Z`,fill:'var(--alm-active)'},s);}
  const peak=info.points.reduce((a,b)=>b.alt>a.alt?b:a);if(peak.alt>0){const px=x(peak.at),py=y(peak.alt);svg('line',{x1:px,y1:py-6,x2:px,y2:py-20,stroke:'var(--alm-active)'},s);text(s,Math.max(130,Math.min(620,px)),Math.max(30,py-28),`最も高い ${time(peak.at)}  ${num(peak.alt)}°`,{'text-anchor':'middle',fill:'var(--text)','font-size':20});}
  const cursor=svg('line',{y1:52,y2:268,stroke:'var(--secondary)','stroke-dasharray':'3 5'},s),halo=svg('circle',{r:13,fill:'var(--alm-active)',opacity:.3,filter:'url(#almChartGlow)','clip-path':'url(#almChartClip)'},s),dot=svg('circle',{r:6,fill:'var(--alm-active)',stroke:'var(--bg)','stroke-width':2,'clip-path':'url(#almChartClip)'},s);chart.append(s);
  const readout=el('p','alm-readout'),range=el('input','alm-range');range.type='range';range.min='0';range.max=String(minutes-1);range.step='1';range.value=String(view.minute);range.setAttribute('aria-label',`${name}を見る時刻`);
@@ -144,7 +144,8 @@ function render(root,day,p,events,astro,options={}){
  if(typeof document.addEventListener==='function')timer=setInterval(refresh,15000);
 }
 // 光の時間（2026-10-20 ユーザー「ホームの太陽のところにトワイライトタイムとかのバーを置くべきじゃない?」）。
-// 予報の詳細から移した。1日（0〜24時）を太陽の高さで色分けした帯に、日の出・日の入を絵（上）と時刻（下）で線で結ぶ。
+// 予報の詳細から移した。1日（0〜24時）を太陽の高さで色分けした帯に、日の出・日の入の絵と線を置く。
+// 時刻は上の「日の出・日の入り」の欄にあるので帯には書かない（2026-10-20 同じ時刻が3か所に出ていた）。
 // 帯の下はゴールデンアワー（太陽高度 +6°〜−4°）とブルーアワー（−4°〜−6°）の時刻だけ
 // 太陽の高さで空の色をなめらかに変える（夜→天文・航海薄明→ブルーアワー→ゴールデンアワー→昼）。光の時間の帯と空をたどるで共通
 const SKY_KEYS=[[-18,[11,16,36]],[-12,[28,43,92]],[-6,[53,82,168]],[-4,[150,110,150]],[0,[232,140,70]],[6,[240,194,122]],[12,[134,184,228]]];
@@ -162,16 +163,15 @@ function twilightPanel(day,d,astro){
  const css=(e,k,v)=>{if(e.style)e.style[k]=v;};
  const pct=at=>Math.max(0,Math.min(100,(at-day)/(end-day)*100));
  const stops=pts.map(q=>`${color(q.alt)} ${pct(q.at).toFixed(2)}%`).join(',');
- const box=panel('光の時間','','TWILIGHT'),wrap=el('div','alm-tw'),icons=el('div','alm-tw-icons'),band=el('div','alm-tw-band'),times=el('div','alm-tw-times');
+ const box=panel('光の時間','','TWILIGHT'),wrap=el('div','alm-tw'),icons=el('div','alm-tw-icons'),band=el('div','alm-tw-band');
  css(band,'background',`linear-gradient(90deg,${stops})`);
  const now=Date.now();if(now>=day&&now<end){const n=el('span','alm-tw-now');css(n,'left',`${pct(now)}%`);band.append(n);}
  for(const[kind,name,icon]of [['rise','日の出','sunrise'],['set','日の入','sunset']]){
   const ev=(d.bodies.sun.events||[]).find(e=>e.kind===kind);if(!ev)continue;const x=pct(ev.at),shift=x<8?'0%':x>92?'-100%':'-50%';
   const ic=el('span','alm-tw-icon');css(ic,'left',`${x}%`);css(ic,'transform',`translateX(${shift})`);ic.setAttribute('role','img');ic.setAttribute('aria-label',`${name} ${time(ev.at)}`);if(g.SoramiIcons&&'innerHTML' in ic)ic.innerHTML=g.SoramiIcons.icon(icon);icons.append(ic);
-  const tt=el('span','alm-tw-time',time(ev.at));css(tt,'left',`${x}%`);css(tt,'transform',`translateX(${shift})`);tt.setAttribute('aria-hidden','true');times.append(tt);
   const line=el('span','alm-tw-line');css(line,'left',`${x}%`);wrap.append(line);
  }
- wrap.prepend(icons,band,times);box.append(wrap);
+ wrap.prepend(icons,band);box.append(wrap);
  const range=(a,b)=>a!==null&&b!==null?`${time(a)}–${time(b)}`:'—';
  const legend=el('div','alm-tw-legend');
  for(const[label,v]of [['ゴールデンアワー',`${range(one(-4,true),one(6,true))} / ${range(one(6,false),one(-4,false))}`],['ブルーアワー',`${range(one(-6,true),one(-4,true))} / ${range(one(-4,false),one(-6,false))}`]]){const row=el('p','alm-tw-row');row.append(el('b','',label),el('span','',v));legend.append(row);}

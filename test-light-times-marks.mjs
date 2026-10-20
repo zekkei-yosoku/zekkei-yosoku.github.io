@@ -13,7 +13,7 @@ test('予報の詳細は日の出・日の入の時刻だけ（夕焼けは日�
  assert.match(sunset,/日の入[\s\S]*16:58/);assert.doesNotMatch(sunset,/日の出/);
  assert.match(sunrise,/日の出[\s\S]*05:52/);assert.doesNotMatch(sunrise,/日の入/);
  assert.equal(other,'','朝焼け・夕焼け以外の見出しには出さない');
- for(const h of [sunset,sunrise])assert.doesNotMatch(h,/lt-band|ゴールデン|ブルー|月の/);
+ for(const h of [sunset,sunrise])assert.doesNotMatch(h,/lt-band|ゴールデン|ブルー|月の|<svg/,'見出しの絵と重ねない');
 });
 test('ホームの太陽に光の時間の帯（日の出・日の入の絵と時刻、ゴールデン／ブルーアワー）',()=>{
  const require=createRequire(import.meta.url);const D=require('./sorami-almanac-dashboard.js');
