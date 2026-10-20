@@ -1,6 +1,6 @@
 /* 観測記録と撮影ポイント（2026-10-16）。
    撮影ポイントはお気に入りそのもの（同期のまま、形を変えない）。観測記録は「どの地点から何が見えたか」で、
-   このブラウザにログインID別に保存する（APIは未対応）。
+   このブラウザにログインID別に保存し、ログイン中はサーバーと同期する（2026-10-21〜。index.html の RecordSync）。
    撮影候補は新しく探さない。見えた組（地点×目標）で、既存の重なり計算を、記録された地点と目標に適用する。
    仕様: Vault「02_観測記録と撮影ポイント_仕様書」 */
 (function () {
@@ -634,7 +634,7 @@ function commitRecordDraft(current,isNew){
  const s=sheetState,err=el('myRecordError');
  try{
   const plan=SoramiLibrary.prepareRecord({owner:auth.loginId,favorites,observations:load(),shapes:shapeData(),place:current,isNew,initialTargets:s.initialTargets,targets:s.draftTargets,shape:s.draftShape,drafts:s.targetDrafts||[],cleanShape:SoramiShooting.cleanShape});
-  SoramiLibrary.transaction(localStorage,plan.entries);favorites=plan.favorites;
+  SoramiLibrary.transaction(localStorage,plan.entries);favorites=plan.favorites;if(typeof RecordSync!=='undefined')RecordSync.kick();
   for(const id of plan.changedFavorites)queuePush('fav',id);
   s.place={...placeOf(current.id)};s.newPlace=false;s.targetDrafts=[];s.initialShape=s.draftShape;s.shapeBaseline=shapeKey(s.initialShape);s.initialTargets=s.draftTargets.map(targetData);s.baseline=targetSetKey(s.initialTargets);
   version++;candidateCache.clear();changed();aimFillSelects();SkyMapUI?.refreshTargets?.();
@@ -691,6 +691,8 @@ function changed() {
 }
 // 別タブで記録した・同期でお気に入りが替わった
 window.addEventListener('storage', (e) => { if (e.key === key() || e.key===shapesKey() || e.key === 'sorami.favorites') { version++; changed(); } });
+// 同期で別の端末の記録・線や範囲が届いた（2026-10-21）
+window.addEventListener('sorami:records-synced', () => { version++; changed(); });
 
 const style = document.createElement('style');
 style.textContent = `
