@@ -89,7 +89,7 @@ main:has(>#placeRow:not([hidden]))>#forecastBand{display:block}
 #aimLook .preview-focal-bar .preview-focal-value{min-width:4.6em;padding-bottom:12px;text-align:right;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 #aimLook .preview-focal-bar>.chip{margin:0 0 4px}
 .preview-camera-dialog .preview-focal-entry{margin:0 0 10px}
-.preview-camera-dialog .preview-focal-entry label{display:flex;align-items:center;gap:8px;width:100%}
+.preview-camera-dialog .preview-focal-entry label{display:flex;align-items:center;gap:8px;width:100%;white-space:nowrap}
 #aimView .preview-camera-dialog .aim-lens-row.preview-focal-entry label input[data-lens-focal]{flex:0 0 8em;width:8em;max-width:none}
 
 /* 共有ボタンは「画角内」の行の右端（文が無いときも右端に残る） */
@@ -103,3 +103,18 @@ main:has(>#placeRow:not([hidden]))>#forecastBand{display:block}
 #aimLook .preview-figure-tools{align-items:flex-end}
 #aimLook .aim-look-figure .aim-body-actions{position:absolute;right:8px;bottom:8px;z-index:2;margin:0;align-items:center;gap:8px;padding:4px 4px 4px 12px;border-radius:12px;font-size:12px;color:var(--text);background:color-mix(in srgb,var(--card) 88%,transparent);box-shadow:0 2px 10px #0004}
 #aimLook .aim-look-figure>.preview-compose{position:absolute;right:8px;bottom:8px;z-index:2;margin:0}
+
+/* 2026-10-20 構図の全画面（試用版）：ページ上の図は見るだけ、右上は全画面ボタンだけ。全画面では下の日時の欄の上までを図にする */
+#aimLook .aim-look-figure:not(.look-full) .preview-figure-tools>:is([data-look-pick],.preview-compose-icon){display:none}
+#aimLook .aim-look-figure:not(.look-full) .preview-full-close{display:none}
+#aimLook .aim-look-figure:not(.look-full) canvas{cursor:zoom-in}
+#aimLook .preview-expand{display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:12px;background:color-mix(in srgb,var(--card) 82%,transparent);color:var(--text);box-shadow:0 2px 10px #0004}
+#aimLook .aim-look-figure.look-full{position:fixed;left:0;right:0;top:0;bottom:var(--full-bottom,0);z-index:34;margin:0;border-radius:0;background:#05070d;padding-top:env(safe-area-inset-top);overflow:hidden}
+#aimLook .aim-look-figure.look-full canvas{width:100%;border-radius:0}
+#aimLook .look-full .preview-figure-tools{top:calc(10px + env(safe-area-inset-top))}
+#aimLook .look-full .preview-figure-tools>:is(.preview-expand,.preview-compose-icon){display:none}
+#aimLook .look-full .preview-full-close{position:absolute;z-index:3;left:10px;top:calc(10px + env(safe-area-inset-top));display:flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border:0;border-radius:12px;background:var(--accent);color:var(--on-accent,#fff);font-weight:700;box-shadow:0 2px 10px #0005}
+#aimLook .look-full [data-look-pick][aria-pressed=false]{width:auto;display:flex;align-items:center;gap:6px;padding:0 12px}
+#aimLook .look-full [data-look-pick][aria-pressed=false]::after{content:"天体を動かす";font-size:12px;font-weight:600}
+html.look-full-open,html.look-full-open body{overflow:hidden}
+.preview-camera-dialog .preview-air-title{margin:14px 0 4px;font-size:.81rem;color:var(--secondary)}
