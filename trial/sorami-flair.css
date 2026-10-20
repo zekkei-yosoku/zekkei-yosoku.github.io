@@ -118,3 +118,6 @@ main:has(>#placeRow:not([hidden]))>#forecastBand{display:block}
 #aimLook .look-full [data-look-pick][aria-pressed=false]::after{content:"天体を動かす";font-size:12px;font-weight:600}
 html.look-full-open,html.look-full-open body{overflow:hidden}
 .preview-camera-dialog .preview-air-title{margin:14px 0 4px;font-size:.81rem;color:var(--secondary)}
+
+/* 逆算を止めているあいだ（AIM_REVERSE_ENABLED=false）は天体を動かすボタンを出さない（全画面の文字付きの表示より優先） */
+#aimLook [data-look-pick][hidden]{display:none!important}

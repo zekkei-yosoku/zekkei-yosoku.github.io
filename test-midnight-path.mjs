@@ -19,3 +19,16 @@ test('構図の図の操作で触っていない部品を動かさない（2026-
  assert.match(c,/#aimLook \.aim-look-figure \.aim-body-actions\{position:absolute;/);assert.match(c,/#aimLook \.aim-look-figure>\.preview-compose\{position:absolute;/);
  assert.doesNotMatch(html,/\.aim-look-figure'\)\?\.after\(actions\)/);assert.match(html,/\(figure\|\|lens\)\.append\(compose\);const bodyActions=look\.querySelector\('\[data-body-actions\]'\);if\(figure&&bodyActions\)figure\.append\(bodyActions\);/);
 });
+test('逆算（天体を動かして撮れる場所を探す）は切り替え1つで止め、処理は残す（2026-10-20 ユーザー「外してしまおう。戻しやすいように」）',()=>{
+ assert.match(html,/const AIM_REVERSE_ENABLED = false;\nfunction aimLookPick\(/);assert.match(html,/btn\.hidden = !AIM_REVERSE_ENABLED;/);
+ assert.match(html,/function aimReverseClear\(/,'逆算の処理は残す');
+ assert.match(fs.readFileSync(new URL('./sorami-flair.css',import.meta.url),'utf8'),/#aimLook \[data-look-pick\]\[hidden\]\{display:none!important\}/);
+});
+test('構図の図は全画面で操作し、ページ上の図は見るだけ。大気差は画角調整の中（2026-10-20 ユーザー「操作をもっと簡単でシンプルに」）',()=>{
+ assert.match(html,/const H = host\._full && host\._fullH \? Math\.round\(host\._fullH\)/);
+ assert.match(html,/expand\.setAttribute\('aria-label','全画面で調整'\)/);assert.match(html,/done\.setAttribute\('aria-label','全画面を閉じる'\)/);
+ assert.match(html,/content\.append\(airTitle,airControls\)/);
+ const c=fs.readFileSync(new URL('./sorami-flair.css',import.meta.url),'utf8');
+ assert.match(c,/#aimLook \.aim-look-figure:not\(\.look-full\) \.preview-figure-tools>:is\(\[data-look-pick\],\.preview-compose-icon\)\{display:none\}/);
+ assert.match(c,/#aimLook \.aim-look-figure\.look-full\{position:fixed;/);
+});
