@@ -242,11 +242,15 @@
       const obs0 = { latitude: guess.latitude, longitude: guess.longitude, elevation: obsM + eyeM };
       // その高さを見上げる角度。乗せる／隠れるは、天体の半径ぶんずらした高度を狙う
       const base = targetAngle(distanceKm, obsM + eyeM, topM);
-      alpha = base;
+      // 少しずらす（2026-10-20）: opts.shift = [右, 上]（天体の直径を1とする）。直径はその日の値で直す
+      const shift = Array.isArray(opts.shift) ? opts.shift : null;
+      const diameter = shift ? 2 * bodyAt(body, at ?? dayMs + 43200000, obs0).angularRadius : 0;
+      alpha = base + (shift ? shift[1] * diameter : 0);
       at = altitudeCrossing(body, dayMs, obs0, alpha, side,120000,sign);
       if (at === null) return null;
       const st = bodyAt(body, at, obs0);
-      azimuth = st.azimuth;
+      // 天体を目標の右へ x 度ずらすには、目標の方位を x / cos(高度) だけ左に置く
+      azimuth = shift ? st.azimuth - shift[0] * diameter / Math.cos(alpha * DEG) : st.azimuth;
       // 観測者から見て天体（＝目標）が方位 azimuth にある。
       //
       // **「目標から見て反対の方位」に置くだけでは、観測者から見た目標の方位は azimuth にならない。**
