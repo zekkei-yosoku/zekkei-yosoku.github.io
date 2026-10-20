@@ -1,11 +1,13 @@
 (function(g){
 'use strict';
-const T=g.SoramiHomeTime||(typeof require==='function'?require('./sorami-home-time.js'):null),NS='http://www.w3.org/2000/svg',view={body:'moon',minute:null,day:null,wallMinute:null,manual:false,live:true};
+const T=g.SoramiHomeTime||(typeof require==='function'?require('./sorami-home-time.js'):null),NS='http://www.w3.org/2000/svg',view={body:'moon',minute:null,day:null,wallMinute:null,manual:false,live:true,pick:true};
+// 2026-10-20 ユーザー「空を辿るが自動で太陽と月で切り替わるのがいらない」：昼夜で天体を選ぶのはホームを開いたとき（と自動の設定を入れたとき）の1回だけ。
+// 時刻のバー・15秒ごとの更新・日付の変更では切り替えない
 const AUTO_KEY='sorami.homeAutoBody';let timer=null,active=null;
 function getAuto(){try{return g.localStorage?.getItem(AUTO_KEY)!=='false';}catch{return true;}}
-function setAuto(value){try{g.localStorage.setItem(AUTO_KEY,String(!!value));}catch{return false;}view.manual=false;active?.render();return true;}
+function setAuto(value){try{g.localStorage.setItem(AUTO_KEY,String(!!value));}catch{return false;}view.manual=false;view.pick=true;active?.render();return true;}
 function stop(){if(timer!==null)clearInterval(timer);timer=null;active=null;}
-function enter(){view.manual=false;if(view.live){view.day=null;view.minute=null;view.wallMinute=null;}return view.live;}
+function enter(){view.manual=false;view.pick=true;if(view.live){view.day=null;view.minute=null;view.wallMinute=null;}return view.live;}
 // 2026-10-20 ユーザー「月を見てて今日を押すと太陽に移る。月を見てるんだから月でしょ。ここまで自動化しないで」：今日は日時だけ戻し、見ている天体はそのまま（自動切替を止める）
 function today(){view.manual=true;view.live=true;view.minute=null;view.day=null;view.wallMinute=null;}
 function preferredBody(at,p,astro){try{const h=astro.sun(at,{latitude:p.latitude,longitude:p.longitude,elevation:0}).upperLimbAltitude;return Number.isFinite(h)?h>=0?'sun':'moon':null;}catch{return null;}}
@@ -52,7 +54,8 @@ function render(root,day,p,events,astro,options={}){
  if(date(day)!==date(Date.now()))view.live=false;
  if(view.minute===null||view.live)view.minute=date(Date.now())===date(day)?Math.floor((Date.now()-day)/60000):(T.atHour(day,12)-day)/60000;
  view.day=date(day);view.minute=Math.max(0,Math.min(minutes-1,view.minute));
- if(getAuto()&&!view.manual)view.body=preferredBody(day+view.minute*60000,p,astro)||view.body;
+ if(getAuto()&&!view.manual&&view.pick)view.body=preferredBody(day+view.minute*60000,p,astro)||view.body;
+ view.pick=false;
  const body=view.body,name=body==='moon'?'月':'太陽';root.dataset.body=body;
  const tabs=el('div','alm-switch');tabs.setAttribute('role','group');tabs.setAttribute('aria-label','表示する天体');
  for(const[b,label,mark]of [['sun','太陽','☀'],['moon','月','☾']]){const button=el('button','',label);button.type='button';button.dataset.body=b;button.setAttribute('aria-pressed',String(b===body));const icon=el('span','',mark);icon.setAttribute('aria-hidden','true');button.prepend(icon);button.onclick=()=>{view.manual=true;if(view.body===b)return;view.body=b;render(root,day,p,events,astro,options);root.querySelector(`[data-body="${b}"]`)?.focus({preventScroll:true});};tabs.append(button);}
@@ -118,7 +121,7 @@ function render(root,day,p,events,astro,options={}){
    if(!g.SoramiMoonPortrait){textureStatus.textContent='月の描画を読み込めませんでした。ページを再読み込みしてください。';return;}
    g.SoramiMoonPortrait.draw(portrait,state).then(result=>{if(generation!==drawGeneration||!root.contains(portrait))return;if(result.texture){textureStatus.replaceChildren();return;}textureStatus.textContent='月面画像を読み込めないため、満ち欠けの形だけを表示しています。';const retry=el('button','chip','画像を再試行');retry.type='button';retry.onclick=update;textureStatus.append(retry);}).catch(()=>{if(generation===drawGeneration)textureStatus.textContent='月の描画を更新できませんでした。時刻を動かして再試行してください。';});
   }
- };range.oninput=()=>{view.live=false;view.minute=Math.max(0,Math.min(minutes-1,Number(range.value)));const next=getAuto()&&!view.manual?preferredBody(at(),p,astro):body;if(next&&next!==body){render(root,day,p,events,astro,options);root.querySelector('.alm-range')?.focus({preventScroll:true});}else update();};chart.append(readout,range);
+ };range.oninput=()=>{view.live=false;view.minute=Math.max(0,Math.min(minutes-1,Number(range.value)));update();};chart.append(readout,range);
  direction.append(dome);grid.append(chart,direction);root.append(grid);
  const week=panel('これから7日間',`${name}の時刻を比較。${T.zone()} の時刻です。`,'NEXT 7 DAYS'),table=el('table','alm-table'),thead=el('thead'),tr=el('tr');
  for(const label of ['日付',body==='moon'?'月の出':'日の出',body==='moon'?'月の入り':'日の入り',body==='moon'?'照明率':'昼の長さ']){const th=el('th','',label);th.scope='col';tr.append(th);}thead.append(tr);table.append(thead);const tbody=el('tbody');
@@ -128,7 +131,7 @@ function render(root,day,p,events,astro,options={}){
   if(!view.live||root.isConnected===false||document.hidden||options.isActive&&!options.isActive())return;
   const now=Date.now();if(date(now)!==date(day)){view.day=null;view.minute=null;view.wallMinute=null;options.onLiveDay?.();return;}
   view.minute=Math.max(0,Math.min(minutes-1,Math.floor((now-day)/60000)));range.value=String(view.minute);
-  const next=getAuto()&&!view.manual?preferredBody(now,p,astro):body;if(next&&next!==body)render(root,day,p,events,astro,options);else update();
+  update();
  };
  active={render:()=>render(root,day,p,events,astro,options),refresh};
  if(typeof document.addEventListener==='function')timer=setInterval(refresh,15000);

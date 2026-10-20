@@ -10,10 +10,11 @@ function setup(saved){
  const render=()=>D.render(root,day,p,()=>[],astro,{isActive:()=>enabled,onLiveDay:()=>{day=T.start(now);render();}});
  return{D,root,render,all,store,timers,context,enter:()=>{if(D.enter())day=T.start(now);render();},setNow:v=>now=Date.parse(v),fail:()=>writesFail=true,disable:()=>enabled=false,click:b=>all(root).find(e=>e.dataset.body===b).onclick()};
 }
-test('Live home follows sunset, respects manual choice and resumes automatic selection on entry',()=>{
+// 2026-10-20 ユーザー「空を辿るが自動で太陽と月で切り替わるのがいらない」：昼夜で選ぶのはホームを開いたときの1回だけ
+test('Home picks sun/moon once on entry; live updates keep the body; entry picks again',()=>{
  const f=setup();f.render();assert.equal(f.root.dataset.body,'sun');assert.equal(f.timers.size,1);
- f.setNow('2026-10-19T17:00:01+09:00');f.D.refresh();assert.equal(f.root.dataset.body,'moon');assert.equal(f.timers.size,1);
- f.click('sun');f.D.refresh();assert.equal(f.root.dataset.body,'sun');f.D.enter();f.render();assert.equal(f.root.dataset.body,'moon');
+ f.setNow('2026-10-19T17:00:01+09:00');f.D.refresh();assert.equal(f.root.dataset.body,'sun','日没をまたいでも開いている間は切り替えない');assert.equal(f.timers.size,1);
+ f.click('moon');f.D.refresh();assert.equal(f.root.dataset.body,'moon');f.setNow('2026-10-19T16:30:00+09:00');f.D.enter();f.render();assert.equal(f.root.dataset.body,'sun','入り直すと昼夜で選び直す');
  f.D.stop();assert.equal(f.timers.size,0);f.setNow('2026-10-20T16:00:00+09:00');assert.equal(f.D.enter(),true);
  // Host synchronizes its selected day when enter reports live mode.
  f.context.document.hidden=false;
@@ -24,9 +25,9 @@ test('Auto setting persists, applies immediately and reports storage failures wi
  assert.equal(f.D.setAuto(false),true);f.click('moon');f.D.enter();f.render();assert.equal(f.root.dataset.body,'moon');
  f.fail();assert.equal(f.D.setAuto(true),false);assert.equal(f.D.getAuto(),false);assert.equal(f.root.dataset.body,'moon');f.D.stop();
 });
-test('Exploring a time pauses live following; Today resumes it; hidden/inactive screens do no work',()=>{
- const f=setup();f.render();const range=f.all(f.root).find(e=>e.type==='range');range.value='1200';range.oninput();assert.equal(f.root.dataset.body,'moon');
- f.setNow('2026-10-19T12:00:00+09:00');f.D.refresh();assert.equal(f.root.dataset.body,'moon');f.D.today();f.render();assert.equal(f.root.dataset.body,'moon','今日を押しても見ている天体のまま（2026-10-20 ユーザー「月を見てるんだから月でしょ」）');
+test('Exploring a time pauses live following and never switches the body; Today keeps it; hidden/inactive screens do no work',()=>{
+ const f=setup();f.render();const range=f.all(f.root).find(e=>e.type==='range');range.value='1200';range.oninput();assert.equal(f.root.dataset.body,'sun','時刻のバーを夜へ動かしても太陽のまま');
+ f.click('moon');f.setNow('2026-10-19T12:00:00+09:00');f.D.refresh();assert.equal(f.root.dataset.body,'moon');f.D.today();f.render();assert.equal(f.root.dataset.body,'moon','今日を押しても見ている天体のまま（2026-10-20 ユーザー「月を見てるんだから月でしょ」）');
  f.setNow('2026-10-19T18:00:00+09:00');f.context.document.hidden=true;f.D.refresh();assert.equal(f.root.dataset.body,'moon');f.context.document.hidden=false;f.D.refresh();assert.equal(f.root.dataset.body,'moon','今日のあとは自動で切り替えない');
  f.setNow('2026-10-20T00:01:00+09:00');f.D.refresh();assert.equal(f.all(f.root).find(e=>e.type==='range').value,'1');f.disable();f.setNow('2026-10-20T01:00:00+09:00');f.D.refresh();assert.equal(f.all(f.root).find(e=>e.type==='range').value,'1');f.D.stop();
 });
