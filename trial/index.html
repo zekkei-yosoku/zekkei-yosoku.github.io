@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="10582575148659027667">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-F8VjBxhEPLtsdMIN2HMA+X/fmGRWKLJhjX8UYAj1pt8=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-d4cZYBVfWwCa9HBA7Ig2Dx8XkbIbRmJHaqMtQ9hkZpY=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="7752794660899739400">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-SL3k1v96susaYhMC9Nc0Ur8xZTqUh2woDmDE7v95HLo=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-d4cZYBVfWwCa9HBA7Ig2Dx8XkbIbRmJHaqMtQ9hkZpY=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-Lp5KJPMXvrKW2Rp3mYcqQasUtIGD7+lqrej/TfjaNd8=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -1081,37 +1081,13 @@
   .mxout[open] summary::before { content: "▾ "; }
   .mxout li { font-size: 0.69rem; color: var(--tertiary); margin-top: 4px; list-style: none; }
 
-  /* ============================================================
-     移植2: 光の時間の帯（詳細の中）
-     朝夕2列×3行の表は、数字を読んで頭で1日に組み直す必要があった。
-     1日を1本の帯にして、実際の時刻で色を切り替える。
-     ============================================================ */
-  .lt-band { position: relative; height: 40px; border-radius: 9px; overflow: hidden; margin-top: 6px; }
-  .lt-now { position: absolute; top: 0; bottom: 0; width: 2px;
-            background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
-  /* 日の出・日の入：絵（帯の上）・帯・時刻（帯の下）を線で結ぶ */
-  .lt-marks { position: relative; margin-top: 6px; }
-  .lt-icons { position: relative; height: 20px; }
-  .lt-times { position: relative; height: 1.5em; font-size: 0.63rem; margin-top: 3px; }
-  .lt-t { position: absolute; top: 0; white-space: nowrap; color: var(--secondary); font-variant-numeric: tabular-nums; }
-  .lt-i { position: absolute; bottom: 0; display: inline-flex; line-height: 1; font-size: 0.88rem; }
-  .lt-i svg { width: 1.2em; height: 1.2em; }
-  .lt-line { position: absolute; top: 18px; bottom: 0.95rem; width: 1px; transform: translateX(-0.5px); pointer-events: none; z-index: 1;
-             background: color-mix(in srgb, var(--text) 45%, transparent); }
-  .lt-marks .lt-band { margin-top: 3px; }
-  /* 凡例は【2段】に固定する。1段目が太陽と月の時刻、2段目がゴールデンとブルー。
-     幅が広がってもゴールデンが1段目へ上がらないよう、段ごとに入れ物を分ける。
-     段の中は幅が足りなければ折り返す。 */
-  .lt-legend { display: flex; flex-direction: column; gap: 4px; margin-top: 8px;
-               font-size: 0.63rem; color: var(--tertiary); }
-  .lt-row { display: flex; flex-wrap: wrap; gap: 2px 14px; }
-  .lt-legend b { font-weight: 600; color: var(--secondary); }
-  .lt-legend .li { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-  .lt-legend .li .ic { font-size: 0.88rem; line-height: 1; }
-  /* ゴールデン／ブルーは長いので、狭い画面では見出しと時刻で改行させる。
-     時刻そのものは割らない。 */
-  .lt-legend .li.pair { flex-wrap: wrap; white-space: normal; row-gap: 0; }
-  .lt-legend .li.pair > b, .lt-legend .li.pair > .v { white-space: nowrap; }
+  /* 予報の詳細の日の出・日の入（2026-10-20 から時刻だけ。帯はホームの太陽へ移した） */
+  .lt-simple { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; font-variant-numeric: tabular-nums; }
+  .lt-item { display: inline-flex; align-items: center; gap: 6px; }
+  .lt-item .ic { display: inline-flex; color: var(--secondary); }
+  .lt-item .ic svg { width: 20px; height: 20px; }
+  .lt-item b { font-weight: 600; color: var(--secondary); font-size: 0.88rem; }
+  .lt-item .v { font-weight: 700; }
 
   /* 広い画面。列を1本のまま少しだけ広げる。
      ここは【基本ルールより後ろに置く】。同じ詳細度なら後勝ちなので、
@@ -1515,7 +1491,7 @@ select:not(.mxsort select):not(.aim-pick select) { appearance: none; -webkit-app
 button.ui-icon-button { display: inline-grid !important; place-items: center; flex: none; width: var(--ui-control-size) !important; height: var(--ui-control-size) !important; min-width: var(--ui-control-size); min-height: var(--ui-control-size); padding: 0 !important; border: 0; border-radius: 0; background: transparent; color: var(--text); }
 button.ui-icon-button::after { content: none; }
 .ui-control-icon { display: block; width: var(--ui-icon-size); height: var(--ui-icon-size); fill: none; stroke: currentColor; stroke-width: var(--ui-icon-stroke); stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-</style><link rel="stylesheet" href="sorami-almanac-home.css?v=f5cfccba2a66"><link rel="stylesheet" href="sorami-flair.css?v=9a5b29db0c66">
+</style><link rel="stylesheet" href="sorami-almanac-home.css?v=1fb0ca64055a"><link rel="stylesheet" href="sorami-flair.css?v=9a5b29db0c66">
 </head>
 <body>
 <svg aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute;overflow:hidden"><defs><symbol id="input-icon-body" viewBox="0 0 24 24"><path d="M12 2C13.2 9 15 10.8 21 12C15 13.2 13.2 15 12 22C10.8 15 9 13.2 3 12C9 10.8 10.8 9 12 2Z" fill="currentColor" stroke="none"/></symbol><symbol id="input-icon-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 1v6m0 10v6M1 12h6m10 0h6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></symbol><symbol id="input-icon-observer" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="10" rx="1.5"/><circle cx="12" cy="10" r="2.5"/><path d="m8 5 1.5-2h5L16 5m-4 10v8m0-6-6 6m6-6 6 6"/></symbol></defs></svg>
@@ -2406,7 +2382,7 @@ button.ui-icon-button::after { content: none; }
 <script src="sorami-lunar-names.js?v=ce5d7091f2bc"></script>
 <script src="sorami-solar-terms.js?v=4218489875242444556"></script>
 <script src="sorami-sun-portrait.js?v=16548809566942201294"></script>
-<script src="sorami-almanac-dashboard.js?v=15887141476759602604f319d8436b"></script>
+<script src="sorami-almanac-dashboard.js?v=17489700144887381263f319d8436b"></script>
 <script src="sorami-access.js?v=17412933104240943276"></script>
 <script src="sorami-align.js?v=18362427956346772136"></script>
 <script src="sorami-moon.js?v=10230678456179898054"></script>
@@ -4483,69 +4459,8 @@ function renderDays(id, entries, now, selected = null) {
   }).join("");
 }
 
-// ---------------------------------------------------------------- 光の時間の帯
-//
-// 1日を1本の帯にして、夜・薄明・ブルーアワー・ゴールデンアワーを
-// 【実際の時刻】で色分けする。飾りのグラデーションではなく、
-// 停止位置は Sun.eventTime が返す時刻そのもの。
-//
-// 軸は 0〜27時。夜の現象は暦をまたぐ（9/7の星空の見ごろは 9/8 0:28）。
-// 0〜24時で切ると星空が軸から落ちるので、テレビ欄と同じ27時制で描く。
-const PHASE_COLORS = [
-  ["夜", "#0a0f22"], ["天文薄明", "#141c3c"], ["航海薄明", "#1e2a55"],
-  ["ブルーアワー", "#2f3c86"], ["ゴールデンアワー", "#e08a3a"], ["昼", "#79b0e0"],
-];
-function phaseGradient(dayMs, a, b) {
-  const at = (n) => S.Sun.eventTime(n, dayMs, place.latitude, place.longitude);
-  const marks = [
-    [at("astronomicalDawn"), 1], [at("nauticalDawn"), 2], [at("civilDawn"), 3],
-    [at("lowSunDawn"), 4], [at("goldenDawn"), 5],
-    [at("goldenDusk"), 4], [at("lowSunDusk"), 3], [at("civilDusk"), 2],
-    [at("nauticalDusk"), 1], [at("astronomicalDusk"), 0],
-  ].filter(([t]) => t !== null);
-  if (!marks.length) return null;
-  const p = (ms) => ((ms - a) / (b - a)) * 100;
-  const stops = [`${PHASE_COLORS[0][1]} ${(p(marks[0][0]) - 6).toFixed(1)}%`];
-  for (const [t, ph] of marks) stops.push(`${PHASE_COLORS[ph][1]} ${p(t).toFixed(1)}%`);
-  return `linear-gradient(90deg, ${stops.join(",")})`;
-}
 
-const TL_SPAN = 27 * 3600000;
 
-// 月の出・月の入り。
-// 太陽と違って月は毎日約50分ずれるので、日をまたいで出ない日・入らない日がある。
-function moonEvents(startMs, spanMs) {
-  // **`SoramiAstro` を使う。** 以前は `S.Moon.state`（core の地心計算）で高度の符号が
-  // 変わる時刻を探していたが、詳細の「月の出・月の入り」表は `SoramiAstro`（地平視差・
-  // 大気差・視半径つき）で出しているため、同じ画面に 8:21 と 8:22 が並んでいた。
-  // core の Moon は星空の採点と Swift 版とのパリティで固定されているので触らず、
-  // **表示に使う時刻だけ精密なほうへ揃える**。
-  const obs = moonObs || observerHere();
-  let ev;
-  try {
-    ev = SoramiAstro.moonEvents(startMs, startMs + spanMs, obs, {});
-  } catch {
-    return { rise: null, set: null, spans: [], illuminated: 0, age: 0, phase: null };
-  }
-  const rises = ev.astronomical.filter((e) => e.kind === "rise").map((e) => e.at);
-  const sets  = ev.astronomical.filter((e) => e.kind === "set").map((e) => e.at);
-
-  // 帯を塗るための「出ている区間」。開始時点で既に出ていれば startMs から
-  const spans = [];
-  let open = null;
-  const marks = [...ev.astronomical].sort((a, b) => a.at - b.at);
-  if (marks.length && marks[0].kind === "set") open = startMs;
-  for (const m of marks) {
-    if (m.kind === "rise") open = m.at;
-    else if (open !== null) { spans.push([open, m.at]); open = null; }
-  }
-  if (open !== null) spans.push([open, startMs + spanMs]);
-
-  const mid = SoramiAstro.moon(startMs + spanMs / 2, obs);
-  return { rise: rises[0] ?? null, set: sets[0] ?? null, spans,
-           illuminated: mid.illuminatedFraction, age: mid.synodicAge,
-           phase: typeof SoramiMoon !== "undefined" ? SoramiMoon.phaseOf(mid) : null };
-}
 
 // 月の形は、一覧の月のアイコンと同じ仕組み（SoramiMoon.phaseOf：輝面と満ち欠けの向き）で決める。
 // 以前はここだけ月齢の表（MOON_FACES）で決めていて、同じ時刻でも一覧と形・呼び名が食い違うことがあった（2026-10-01）
@@ -4855,58 +4770,17 @@ function renderFujiBackLine(dayMs) {
  * 2026-10-02 「空の見え方」をなくした（ユーザー「使い物になってない」→ なくすを選んだ）ので、その画面にしか無かったこの時刻をここへ移した。
  * 月は月の詳細に「この場所では」がある。稜線は月の判定が測ったもの（地形＋建物）を使い、地形を測れていなければ出さない（平らな地平線なら暦と同じ）
  */
-function sunOverRidge(dayMs) {
-  if (!moonHorizon || !moonObs || !moonTerrainProfile || typeof SoramiSky === "undefined") return null;
-  try {
-    const pts = SoramiSky.track("sun", dayMs, moonObs, { stepMin: 5 });
-    const spans = SoramiSky.visibleSpans(pts, moonHorizon, "sun", moonObs);
-    if (!spans.length) return null;
-    const rise = spans[0].from > dayMs ? spans[0].from : null;
-    const last = spans[spans.length - 1];
-    const set = last.to < dayMs + 86400000 ? last.to : null;
-    return rise === null && set === null ? null : { rise, set };
-  } catch { return null; }
-}
+// 予報の詳細の日の出・日の入（2026-10-20 ユーザー「予報ならざっくり日の出日の入の時間を残すだけでいい」
+// 「夕焼けには日の入、朝焼けには日の出だけでいいのか」）。時間帯の帯・ゴールデン／ブルーアワーはホームの太陽へ移した。
+// 夕焼けは日の入だけ、朝焼けは日の出だけ、ほかの現象は両方を1行で出す
 function renderLightTimes(dayMs, now, phenomenonId) {
   const w = S.Sun.lightWindows(dayMs, place.latitude, place.longitude);
-  if (w.sunrise === null && w.sunset === null) return "";
-  const d0 = S.Cal.startOfDay(dayMs), d1 = d0 + TL_SPAN;
-  const grad = phaseGradient(d0, d0, d1);
-  if (!grad) return "";
-  const pct = (ms) => Math.max(0, Math.min(100, ((ms - d0) / TL_SPAN) * 100));
-  const t = (x) => (x === null ? "—" : S.JstCal.hhmmRounded(x));
-  const range = (x) => (x === null ? "—" : `${t(x[0])}–${t(x[1])}`);
-
-  // 2026-10-20 ユーザー「そこに日の出日の入・月の出月の入の表示いる?」→「月だけ削ればいい」：月の出入りは出さない（ホームにある）。
-  // 日の出・日の入は、絵を帯の上、時刻を帯の下に置き、線で帯を貫いて結ぶ（「線を貫いて 上に時間 下にピクトグラム または逆」→
-  // 「上が時間なのに下にバーの時間があるの変」で上下を入れ替え、0〜24時の目盛りは外した）。
-  // 印は2つだけで朝と夕に離れているので、段の割り振りは要らない。端だけ寄せる
-  const sunMarks = [["日の出", w.sunrise, "sunrise"], ["日の入", w.sunset, "sunset"]]
-    .filter(([, x]) => x !== null && x >= d0 && x <= d1)
-    .map(([name, x, icon]) => {
-      const at = pct(x), shift = at < 8 ? "0%" : at > 92 ? "-100%" : "-50%";
-      return { at, name, x, icon, shift };
-    });
-  const times = sunMarks.map((m) => `<span class="lt-t" style="left:${m.at.toFixed(2)}%;transform:translateX(${m.shift})" aria-hidden="true">${t(m.x)}</span>`).join("");
-  const icons = sunMarks.map((m) => `<span class="lt-i" style="left:${m.at.toFixed(2)}%;transform:translateX(${m.shift})" role="img" aria-label="${m.name} ${t(m.x)}" title="${m.name} ${t(m.x)}">${SoramiIcons.icon(m.icon)}</span>`).join("");
-  const lines = sunMarks.map((m) => `<span class="lt-line" style="left:${m.at.toFixed(2)}%"></span>`).join("");
-
-  const isToday = S.JstCal.sameDay(dayMs, now);
-  // 「この場所では（稜線からの日の出・日の入）」の行は出さない（2026-10-20 ユーザー「これはいらないよね」）
-  return `<div class="card" id="lightTimes">
-    <div class="section-h"><h2>光の時間</h2>
-      <span class="tiny">${esc(S.JstCal.relativeDay(dayMs, now))}</span></div>
-    <div class="lt-marks"><div class="lt-icons">${icons}</div>
-    <div class="lt-band" style="background:${grad}">
-      ${isToday ? `<span class="lt-now" style="left:${pct(now)}%"></span>` : ""}</div>
-    <div class="lt-times">${times}</div>${lines}</div>
-    <div class="lt-legend">
-      <div class="lt-row">
-        <span class="li pair"><b>ゴールデンアワー</b><span class="v">${range(w.goldenMorning)} / ${range(w.goldenEvening)}</span></span>
-        <span class="li pair"><b>ブルーアワー</b><span class="v">${range(w.blueMorning)} / ${range(w.blueEvening)}</span></span>
-      </div>
-    </div>
-  </div>`;
+  const t = (x) => S.JstCal.hhmmRounded(x);
+  const items = [["日の出", w.sunrise, "sunrise"], ["日の入", w.sunset, "sunset"]]
+    .filter(([, x, kind]) => x !== null && (phenomenonId === "sunset" ? kind === "sunset" : phenomenonId === "sunrise" ? kind === "sunrise" : true));
+  if (!items.length) return "";
+  return `<div class="card lt-simple" id="lightTimes">${items.map(([name, x, icon]) =>
+    `<span class="lt-item"><span class="ic" aria-hidden="true">${SoramiIcons.icon(icon)}</span><b>${name}</b><span class="v">${t(x)}</span></span>`).join("")}</div>`;
 }
 
 /// 選択中の現象の詳細。1本の列で、上から読む順に並べる。

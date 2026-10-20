@@ -74,6 +74,7 @@ function render(root,day,p,events,astro,options={}){
  const textureStatus=el('div','alm-texture-status');textureStatus.setAttribute('role','status');root.append(textureStatus);
  const times=el('div','alm-event-pair');
  for(const[kind,label]of [['rise',body==='moon'?'月の出':'日の出'],['set',body==='moon'?'月の入り':'日の入り']]){const item=el('div','alm-event'),hits=info.events.filter(e=>e.kind===kind);item.dataset.kind=kind;item.append(el('span','alm-event-label',`${kind==='rise'?'↑':'↓'} ${label}`),el('strong','alm-event-time',hits.length?hits.map(e=>time(e.at)).join(' / '):'なし'),el('span','alm-event-direction',hits.length?hits.map(e=>`${dir16(e.azimuth)} ${num(e.azimuth)}°`).join(' / '):'この日はありません'));times.append(item);}root.append(times);
+ if(body!=='moon'){const tw=twilightPanel(day,d,astro);if(tw)root.append(tw);}
  // 2026-10-20 ユーザー「ホームからの予測・構図・地図・記録への連携、リンクを置くだけならいらない」→「消そう」：道具へのボタンは置かない（移動はメニュー）
  const grid=el('div','alm-detail-grid'),chart=panel('空をたどる',`${name}の1日の高度。0°が水平な地平線です。帯は昼・薄明・夜。`,'SKY PATH');
  // 2026-10-20 高度グラフ：太陽の高度で昼・薄明・夜の帯を敷き、地平線より上の道筋を光らせ、出入りと最も高い時刻を書き込む
@@ -135,6 +136,36 @@ function render(root,day,p,events,astro,options={}){
  };
  active={render:()=>render(root,day,p,events,astro,options),refresh};
  if(typeof document.addEventListener==='function')timer=setInterval(refresh,15000);
+}
+// 光の時間（2026-10-20 ユーザー「ホームの太陽のところにトワイライトタイムとかのバーを置くべきじゃない?」）。
+// 予報の詳細から移した。1日（0〜24時）を太陽の高さで色分けした帯に、日の出・日の入を絵（上）と時刻（下）で線で結ぶ。
+// 帯の下はゴールデンアワー（太陽高度 +6°〜−4°）とブルーアワー（−4°〜−6°）の時刻だけ
+function twilightPanel(day,d,astro){
+ const pts=d.bodies.sun.error?null:d.bodies.sun.points;if(!pts||pts.length<2)return null;
+ const end=d.end,obs=d.observer,alt=at=>astro.sun(at,obs).geometricAltitude;
+ // 隣の点のあいだで高さ h を横切る時刻を、二分法で1分より細かく求める
+ const cross=(h,rising)=>{const out=[];for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i];if((a.alt-h)*(b.alt-h)>0||a.alt===b.alt)continue;if((b.alt>a.alt)!==rising)continue;let lo=a.at,hi=b.at;for(let k=0;k<20;k++){const m=(lo+hi)/2;((alt(m)-h)*(a.alt-h)>0)?lo=m:hi=m;}out.push((lo+hi)/2);}return out;};
+ const one=(h,r)=>cross(h,r)[0]??null;
+ // 太陽の高さで色をなめらかに変える（夜→天文・航海薄明→ブルーアワー→ゴールデンアワー→昼）
+ const KEYS=[[-18,[11,16,36]],[-12,[28,43,92]],[-6,[53,82,168]],[-4,[150,110,150]],[0,[232,140,70]],[6,[240,194,122]],[12,[134,184,228]]];
+ const color=h=>{if(h<=KEYS[0][0])return `rgb(${KEYS[0][1]})`;for(let i=1;i<KEYS.length;i++)if(h<=KEYS[i][0]){const[a0,c0]=KEYS[i-1],[a1,c1]=KEYS[i],f=(h-a0)/(a1-a0);return `rgb(${c0.map((v,k)=>Math.round(v+(c1[k]-v)*f)).join(',')})`;}return `rgb(${KEYS.at(-1)[1]})`;};
+ const css=(e,k,v)=>{if(e.style)e.style[k]=v;};
+ const pct=at=>Math.max(0,Math.min(100,(at-day)/(end-day)*100));
+ const stops=pts.map(q=>`${color(q.alt)} ${pct(q.at).toFixed(2)}%`).join(',');
+ const box=panel('光の時間','','TWILIGHT'),wrap=el('div','alm-tw'),icons=el('div','alm-tw-icons'),band=el('div','alm-tw-band'),times=el('div','alm-tw-times');
+ css(band,'background',`linear-gradient(90deg,${stops})`);
+ const now=Date.now();if(now>=day&&now<end){const n=el('span','alm-tw-now');css(n,'left',`${pct(now)}%`);band.append(n);}
+ for(const[kind,name,icon]of [['rise','日の出','sunrise'],['set','日の入','sunset']]){
+  const ev=(d.bodies.sun.events||[]).find(e=>e.kind===kind);if(!ev)continue;const x=pct(ev.at),shift=x<8?'0%':x>92?'-100%':'-50%';
+  const ic=el('span','alm-tw-icon');css(ic,'left',`${x}%`);css(ic,'transform',`translateX(${shift})`);ic.setAttribute('role','img');ic.setAttribute('aria-label',`${name} ${time(ev.at)}`);if(g.SoramiIcons&&'innerHTML' in ic)ic.innerHTML=g.SoramiIcons.icon(icon);icons.append(ic);
+  const tt=el('span','alm-tw-time',time(ev.at));css(tt,'left',`${x}%`);css(tt,'transform',`translateX(${shift})`);tt.setAttribute('aria-hidden','true');times.append(tt);
+  const line=el('span','alm-tw-line');css(line,'left',`${x}%`);wrap.append(line);
+ }
+ wrap.prepend(icons,band,times);box.append(wrap);
+ const range=(a,b)=>a!==null&&b!==null?`${time(a)}–${time(b)}`:'—';
+ const legend=el('div','alm-tw-legend');
+ for(const[label,v]of [['ゴールデンアワー',`${range(one(-4,true),one(6,true))} / ${range(one(6,false),one(-4,false))}`],['ブルーアワー',`${range(one(-6,true),one(-4,true))} / ${range(one(-4,false),one(-6,false))}`]]){const row=el('p','alm-tw-row');row.append(el('b','',label),el('span','',v));legend.append(row);}
+ box.append(legend);return box;
 }
 const api={data,render,phaseLabel,getAuto,setAuto,preferredBody,stop,enter,today,refresh:()=>active?.refresh()};g.SoramiAlmanacDashboard=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:window);

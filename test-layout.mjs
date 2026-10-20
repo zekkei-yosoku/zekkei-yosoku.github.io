@@ -62,10 +62,8 @@ ok(!/id="skyView"/.test(html) && !/location\.hash === "#\/sky"/.test(html) && !/
 ok(!/vendor\/three/.test(html) && !fs.existsSync(new URL("./vendor/three", import.meta.url)), "three.js は持たない（3D をなくした）");
 ok(!/cdn\.|unpkg|jsdelivr|skypack/.test(html), "CDN からは読まない");
 ok(/script-src 'self'/.test(html), "CSP の script-src は self のまま");
-// その画面にしか無かった「山・建物込みの日の出・日の入」は光の時間へ
-ok(/const ridge = sunOverRidge\(d0\);/.test(html) && /<b>この場所では<\/b><span class="v">日の出 \$\{t\(ridge\.rise\)\} \/ 日の入 \$\{t\(ridge\.set\)\}/.test(html),
-  "光の時間に「この場所では 日の出・日の入」（山・建物込み）");
-ok(/if \(!moonHorizon \|\| !moonObs \|\| !moonTerrainProfile/.test(html), "地形を測れていなければ出さない（平らなら暦と同じ）");
+// 光の時間の「この場所では 日の出・日の入」（山・建物込み）は 2026-10-20 にユーザー指定で外した（「これはいらないよね」）
+ok(!/<b>この場所では<\/b><span class="v">日の出/.test(html), "光の時間に「この場所では」の行は出さない");
 ok(/if \(seq !== extraSeq \|\| mine !== moonEvalSeq\) return;/.test(html)
   && /function refreshLightTimes\(\)/.test(html) && /lt\.outerHTML = html;/.test(html)
   && /wireMoonTimeRetry\(\$\("lightTimes"\)\)/.test(html),
@@ -829,7 +827,6 @@ console.log("== 月を表すところは全部、その時の満ち欠け（2026
 {
   ok(/const moonGlyphAt = \(atMs\) => iconFor\("moon", atMs, \{ text: true \}\)/.test(html), "月の形は1つの関数（iconFor と同じ仕組み）");
   ok(!/MOON_FACES = \[/.test(html) && !/moonFace\(/.test(html), "光の帯も同じ仕組み（月齢の別の表を持たない）");
-  ok(/phase: typeof SoramiMoon !== "undefined" \? SoramiMoon\.phaseOf\(mid\)/.test(html), "光の帯の月の形は SoramiMoon.phaseOf");
   // 画面に固定の 🌙 を書くのは、初期表示のボタンの文字だけ（開いたら満ち欠けに差し替える）
   const fixed = [...html.matchAll(/🌙/g)].length;
   ok(/<option value="moon">月<\/option>/.test(html) && /\$\("issMoon"\)\.textContent = `\$\{moonGlyphAt\(/.test(html),
@@ -1142,13 +1139,15 @@ console.log("== 光の時間を出す ==");
 ok(/function renderLightTimes/.test(html), "renderLightTimes がある");
 ok(/renderLightTimes\(sel\.dayMs, now, id\)/.test(html), "選んだ日と現象の光の時間を出す");
 // 2026-09-07: 表から帯へ。朝夕2列×3行の数字を頭で1日に組み直す必要があった。
-ok(/class="lt-band"/.test(html), "1日を1本の帯で描く");
-ok(/TL_SPAN = 27 \* 3600000/.test(html),
-  "軸は0〜27時（夜の見ごろは暦の上では翌日になるため）");
-// 判定高度は以前 `MOON_H0 = 0.125` として index.html に直書きしていたが、
-// 2026-09-14 に SoramiAstro へ寄せた。上端・大気差・地平視差は moonCrossings が持つ。
-ok(/function moonEvents/.test(html) && /SoramiAstro\.moonEvents/.test(html),
-  "月の出・月の入りを出す（補正は SoramiAstro が上端・大気差・地平視差で行う）");
+// 2026-10-20 ユーザー「予報ならざっくり日の出日の入の時間を残すだけ」「夕焼けには日の入、朝焼けには日の出だけ」：
+// 帯（ゴールデン／ブルーアワー）はホームの太陽へ移した（sorami-almanac-dashboard.js の twilightPanel）
+ok(!/class="lt-band"/.test(html) && /class="card lt-simple" id="lightTimes"/.test(html), "予報の詳細は日の出・日の入の時刻だけ");
+ok(/phenomenonId === "sunset" \? kind === "sunset" : phenomenonId === "sunrise" \? kind === "sunrise" : true/.test(html), "夕焼けは日の入だけ・朝焼けは日の出だけ");
+{
+  const home = fs.readFileSync(new URL("./sorami-almanac-dashboard.js", import.meta.url), "utf8");
+  ok(/function twilightPanel\(day,d,astro\)/.test(home) && /if\(body!=='moon'\)\{const tw=twilightPanel\(day,d,astro\);/.test(home), "ホームの太陽に光の時間の帯");
+  ok(/\['ゴールデンアワー',/.test(home) && /\['ブルーアワー',/.test(home), "ホームの帯の下にゴールデン・ブルーアワー");
+}
 ok(/lightWindows/.test(html), "太陽の高度から求めている");
 const core2 = fs.readFileSync(new URL("./sorami-core.js", import.meta.url), "utf8");
 // 写真分野の標準的な定義。ゴールデン −4°〜+6°、ブルー −6°〜−4°。
@@ -1215,8 +1214,6 @@ console.log("== 同じ画面で月の出の時刻が食い違わない ==");
 // 光の時間の帯は core の地心計算、詳細の表は SoramiAstro（地平視差・大気差・視半径）で
 // 出していたため、同じ画面に 8:22 と 8:21 が並んでいた。表示は精密なほうへ揃える。
 // core の Moon は星空の採点と Swift 版パリティで固定なので触らない。
-ok(/function moonEvents\(startMs, spanMs\)[\s\S]{0,900}SoramiAstro\.moonEvents/.test(html),
-  "光の時間の帯も SoramiAstro から時刻を取る");
 ok(!/S\.Moon\.state\(/.test(html), "core の地心計算を月の出入りの表示に呼んでいない");
 ok(!/MOON_H0/.test(html), "旧実装の判定高度（MOON_H0）を残していない");
 
