@@ -284,6 +284,16 @@
     // 満ちているか欠けているか。太陽から見て月がどちら側にいるか（黄経の差）。
     // 0〜180度なら満ちていく、180〜360度なら欠けていく。
     // 輝面比だけでは区別できない（上弦と下弦はどちらも 50%）。
+    // 月面の向き（AA 53：光学的秤動と自転軸の位置角。物理的秤動 0.04° 未満は省く）。
+    // 2026-10-20 ユーザー「月の満ち欠けってこれ模様正確か?」：写真の月面を日時ごとの向きで球に貼り直すのに使う
+    const INC = 1.54242, Om = norm(125.0445479 - 1934.1362891 * g.T + 0.0020754 * g.T ** 2);
+    const Fm = norm(93.2720950 + 483202.0175233 * g.T - 0.0036539 * g.T ** 2);
+    const Wl = norm(g.longitude - Om);
+    const Al = Math.atan2(sin(Wl) * cos(g.latitude) * cos(INC) - sin(g.latitude) * sin(INC), cos(Wl) * cos(g.latitude)) / DEG;
+    const librationLongitude = ((Al - Fm) % 360 + 540) % 360 - 180;
+    const librationLatitude = Math.asin(-sin(Wl) * cos(g.latitude) * sin(INC) - sin(g.latitude) * cos(INC)) / DEG;
+    const Vn = Om + dPsi, Xp = sin(INC) * sin(Vn), Yp = sin(INC) * cos(Vn) * cos(eps) - cos(INC) * sin(eps);
+    const axisPositionAngle = norm(Math.asin(Math.hypot(Xp, Yp) * cos(mEq.ra - Math.atan2(Xp, Yp) / DEG) / cos(librationLatitude)) / DEG);
     const elongLon = norm(g.longitude - s.longitude);
     const waxing = elongLon < 180;
 
@@ -324,6 +334,7 @@
       brightLimbPositionAngle: chi,
       brightLimbZenithAngle: norm(chi - q),
       parallacticAngle: q,
+      librationLongitude, librationLatitude, axisPositionAngle,
       // 生の座標（構図計算で使う）
       rightAscension: topo.ra,
       declination: topo.dec,
