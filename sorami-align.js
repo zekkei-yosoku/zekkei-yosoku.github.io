@@ -1619,10 +1619,11 @@
 
 
   /** 画角の時刻判定用。当日全体を採取し、表示の道が途中で切れていても判定できる。 */
-  function frameDayPath(body, observer, dayMs, proj, { stepS = 60 } = {}) {
+  // startMs/endMs で日付の前後へ広げられる（2026-10-20 日付をまたぐ画角内の時刻のため）。既定はその日の0〜24時
+  function frameDayPath(body, observer, dayMs, proj, { stepS = 60, startMs = null, endMs = null } = {}) {
     if (!Number.isFinite(dayMs) || !Number.isFinite(stepS) || stepS < 1 || stepS > 60) throw new RangeError("日付と採取間隔（1〜60秒）を指定してください");
-    const out = [], end = dayMs + 86400000;
-    for (let at = dayMs; at <= end; at = Math.min(end, at + stepS * 1000)) {
+    const out = [], start = Number.isFinite(startMs) ? startMs : dayMs, end = Number.isFinite(endMs) && endMs > start ? endMs : dayMs + 86400000;
+    for (let at = start; at <= end; at = Math.min(end, at + stepS * 1000)) {
       const st = bodyAt(body, at, observer);
       const xy = proj(st.azimuth, st.apparentAltitude);
       out.push({ at, x: xy ? xy[0] : null, y: xy ? xy[1] : null, radius: st.angularRadius });
