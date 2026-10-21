@@ -20,3 +20,12 @@ host._pick.busy=true;buttons[3].onclick();cv.onpointerdown(ev(150,100));cv.onpoi
 const angle=[...host._pick.ghostAngle];host._pick.busy=true;host._lookSeq++;mount(800,600,200);assert.equal(host._pick.busy,false,"resize invalidates old solve and unlocks controls");assert.equal(buttons[3].disabled,false);assert.ok(Math.abs(host._pick.ghost[0]-242)<1e-8 && Math.abs(host._pick.ghost[1]-80)<1e-8,'angle preserved across resize');assert.deepEqual([...host._pick.ghostAngle],angle);
 els['[data-look-cancel]'].onclick();assert.equal(host._pick,null);assert.equal(c.aim.reverse,original);assert.equal(renders.at(-1),spec);assert.ok(draws>0);
 console.log('PASS: no tap teleport; drag delta and scale; threshold; pointer isolation; 1px/Shift10px; busy guard; angle resize; cancel preserves previous result');
+
+c.AIM_REVERSE_ENABLED=false;c.AIM_PLACE_ENABLED=true;c.SoramiBodies.definition=()=>({name:'月',limbs:true});
+let placement=null,mapOpens=0;c.aimShiftFromPlacement=(x,y)=>{placement=[x,y]};c.aimLineSheetOpen=()=>mapOpens++;
+host.id='aimLook';host._bodyRadius=.25;host._pick={base:spec,initialBase:spec,ghost:null};mount();
+cv.onpointerdown(ev(80,80));cv.onpointermove(ev(100,60));cv.onpointerup(ev(100,60));
+assert(host._pick.ghost);await els['[data-look-pick]'].onclick();
+assert.equal(host._pick,null,'finish exits placement mode');assert(placement?.every(Number.isFinite),'finish preserves search placement');assert.equal(mapOpens,0,'finish does not unexpectedly open a map');assert.equal(renders.at(-1),spec);
+host._pick={base:spec,initialBase:spec,ghost:null};placement=null;mount();await els['[data-look-pick]'].onclick();assert.equal(placement,null,'finish without movement does not change placement');
+console.log('PASS: current placement mode preserves search position, finishes inline, and leaves an unchanged position alone');

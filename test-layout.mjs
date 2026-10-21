@@ -3172,7 +3172,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   // 逆引き（2026-10-03 ユーザー「見え方の月とか太陽の位置を調整したら、それがどこら辺の座標で撮れるのか逆引きできる？」→「円盤を置く」）
   const pickSrc = html.slice(html.indexOf("function aimLookPick("), html.indexOf("let aimLookResize"));
   ok(/class="aim-body-move"/.test(html) && /\$\{bodyName\}を移動/.test(pickSrc) && /data-look-cancel/.test(html),
-    "図内アイコンから天体の相対移動を開始できる（取消は終了後Undoへ）");
+    "図内アイコンから天体の相対移動を開始できる（同じボタンで調整を終了）");
   ok(/\.preview-figure-tools \{[^}]*top:10px;right:8px;[^}]*flex-direction:column;/.test(html)
     && /tools\.append\(bodyMove\)[\s\S]{0,500}tools\.append\(composeIcon\);figure\.append\(tools\)/.test(html)
     && /\.preview-compose-icon\{position:static;/.test(html),
@@ -3205,7 +3205,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(/dayMs: aim\.dayMs \}\);/.test(pickSrc), "その日の中の解だけ（前後の日へ進まない）");
   ok(/<strong>撮れる場所<\/strong>/.test(pickSrc) && /r\.latitude\.toFixed\(5\)/.test(pickSrc) && /data-found-map/.test(pickSrc) && /水の上です/.test(pickSrc),
     "撮れる場所: どこから何m・座標・時刻・目標の方角・地図で見る（水の上ならそう書く）");
-  ok(/if \(!spec\.pick\) \{ host\._pick = null; host\._pickUndo=null; aimReverseClear\(\); \}/.test(lookSrc), "日付・合わせ方・候補地を替えたら逆引きは終わる（地図の線も消す）");
+  ok(/if \(!spec\.pick\) \{ host\._pick = null; aimReverseClear\(\); \}/.test(lookSrc), "日付・合わせ方・候補地を替えたら逆引きは終わる（地図の線も消す）");
   ok(/\.aim-look canvas \{ display: block; width: 100%;[^}]*touch-action: pan-y;/.test(html), "図は幅いっぱい。縦のスクロールは止めない");
   ok(/\.aim-look-time input \{[^}]*height: 44px;/.test(html), "つまみは44px の高さ");
   ok(/Math\.round\(cv\.clientWidth\) !== h\._lookW\) aimLookRender/.test(html), "幅が変わったときだけ描き直す（スクロールの resize で選んだ時刻を戻さない）");
