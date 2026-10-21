@@ -634,7 +634,7 @@ function commitRecordDraft(current,isNew){
   for(const id of plan.changedFavorites)queuePush('fav',id);
   s.place={...placeOf(current.id)};s.newPlace=false;s.targetDrafts=[];s.initialShape=s.draftShape;s.shapeBaseline=shapeKey(s.initialShape);s.initialTargets=s.draftTargets.map(targetData);s.baseline=targetSetKey(s.initialTargets);
   version++;candidateCache.clear();changed();aimFillSelects();SkyMapUI?.refreshTargets?.();
-  el('myPlaceTitle').textContent='記録を編集';err.hidden=true;el('myRecordSaved').textContent='保存しました';el('myRecordSaved').hidden=false;renderSheet();return true;
+  err.hidden=true;sheet.close();return true;
  }catch(e){err.textContent=e.message||'保存できませんでした。入力は残しています';err.hidden=false;return false;}
 }
 function saveNewRecord(){
