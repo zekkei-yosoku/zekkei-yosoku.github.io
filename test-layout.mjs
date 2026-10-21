@@ -996,7 +996,7 @@ ok(/found\.sort\(\(a, b\) => Math\.floor\(a\.pass\.visible\.start\.at \/ 60000\)
 {
   const m = /const PAGE_DIALOGS = \{([\s\S]*?)\n\};/.exec(html);
   const ids = m ? [...m[1].matchAll(/(\w+):\s*\{/g)].map((x) => x[1]).sort() : [];
-  ok(JSON.stringify(ids) === JSON.stringify(["aimCalendar", "aimLineSheet", "favSheet", "issPickSheet", "mapSheet", "photoSheet", "placeSheet", "planSheet", "previewTargetDialog", "skyMapTargetSheet"]),
+  ok(JSON.stringify(ids) === JSON.stringify(["aimCalendar", "aimLineSheet", "favSheet", "issPickSheet", "mapSheet", "myPlaceSheet", "myShapeSheet", "photoSheet", "placeSheet", "planSheet", "previewTargetDialog", "skyMapTargetSheet"]),
     "ページで開く画面: 地点・地図で選ぶ・撮れる場所・重なる日カレンダー・共有・対象・お気に入りに登録・記録を足す・地図に置く対象・衛星を選ぶ", ids.join(","));
   ok(!/(previewBodyDialog|skyMapBodyDialog|skyMapBodiesSheet|mapAppSheet|authSheet|accountSheet|appSettings)\s*:/.test(m ? m[1] : ""),
     "短いシートのまま: 天体を選ぶ・その他の天体・地図アプリで開く・ログイン・アカウント・設定");
