@@ -970,6 +970,11 @@ ok(/if \(location\.hash === "#\/iss\/pick"\) return \{ iss: true, issPick: true 
 ok(/nav\.className='forecast-tabs place-tabs';nav\.setAttribute\('role','tablist'\)/.test(html) && /b\.setAttribute\('role','tab'\)/.test(html) && /b\.setAttribute\('aria-selected',String\(on\)\)/.test(html),
   "地点の画面: お気に入り・履歴・この日の候補はタブ");
 ok(/field\.className='search-field';icons\.className='field-icons'/.test(html) && /#placeSheet \.search-field>input\{[^}]*padding-right:96px!important\}/.test(html), "地点の画面: 現在地・地図で選ぶは検索欄の中の絵の釦");
+// 2026-10-21 ユーザー「月の出は見えるのか、月の入は見えるのか」「富士山も、朝焼けの時間は見えるのか夕焼けの時間は見えるのか日中なのか」
+ok(/function timeBandPhases\(ev\)/.test(html) && /ev\.phenomenon === "moon" && ev\.timeBands/.test(html) && /const label = \{ morning: "朝焼け", midday: "日中", evening: "夕焼け" \};/.test(html),
+  "時間帯ごとの見込み: 朝夕焼けに加えて月（API の timeBands）と富士山（朝焼け・日中・夕焼け）");
+ok(/\$\{id === "fuji" \? renderAlignments\(now\) \+ renderCapLine\(sel\.dayMs\) : ""\}/.test(html) && /\$\{id === "fuji" \? renderFujiTimes\(ev\) : ""\}\$\{renderDetail\(id, sel, now, \{ part: "how" \}\)\}/.test(html),
+  "富士山の1時間ごとの色の帯は同じ情報なので「もっと詳しく」の中へ");
 ok(/\["stations", "宇宙ステーション", true\], \["visual", "明るい衛星", true\]/.test(html), "人工衛星: 今夜見えるを出すのは宇宙ステーションと明るい衛星だけ");
 ok(/fetch\("data\/satellite-names-ja\.json"\)/.test(html), "人工衛星: 日本語名は同梱の表から（Wikidata CC0）");
 ok(/gp\.php\?NAME=\$\{encodeURIComponent\(q\)\}&FORMAT=TLE/.test(html), "人工衛星: 表に無い衛星は CelesTrak の英語名で探せる");
