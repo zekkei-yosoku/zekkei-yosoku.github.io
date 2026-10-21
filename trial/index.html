@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="13718250135901743744">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-G6v5jiOulSShQdV7xKXf4d1ClpLM47nYrBSH/bFhe/g=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-GMs2Gk94riewAJ1Ii7ria7EKlc9B2buPe0dc0EHmQkE=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-20oFMl7+c2PM1pgnt9MPUvoGq6lBf9aXpEv7mgrLhX4=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="2635233121718354032">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-rYkEn60v2dsPjFhv+WLudjnjbonbZ4NpuAYCR6n16lE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-GMs2Gk94riewAJ1Ii7ria7EKlc9B2buPe0dc0EHmQkE=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-20oFMl7+c2PM1pgnt9MPUvoGq6lBf9aXpEv7mgrLhX4=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -7675,9 +7675,11 @@ function issPickRender() {
   // 英語の名前なら CelesTrak でも探せる（日本語名の表に無い衛星のため）
   const canRemote = q && !visibleRows && /[a-z]/i.test(q) && !(issPick.remote && issPick.remote.q === q);
   const list = visibleRows
-    ? visibleRows.map(({ tle, pass }) => {
+    ? visibleRows.map(({ tle, pass, with: others }) => {
       const v = pass.visible, { main } = issPickLabel(tle.catnr, tle.name);
-      return { catnr: tle.catnr, tle, main, sub: `${S.Cal.monthDay(v.start.at)}(${S.Cal.weekday(v.start.at)}) ${issHm(v.start.at)} ・ ${issDir16(v.start.azimuth)}→${issDir16(v.end.azimuth)} ・ 最大仰角${Math.round(v.max.elevation)}°` };
+      const names = others.map((t) => issPickLabel(t.catnr, t.name).main);
+      const together = others.length ? ` ・ ほか${others.length}機が一緒に通る（${names.slice(0, 2).join("・")}${names.length > 2 ? " など" : ""}）` : "";
+      return { catnr: tle.catnr, tle, main, sub: `${S.Cal.monthDay(v.start.at)}(${S.Cal.weekday(v.start.at)}) ${issHm(v.start.at)} ・ ${issDir16(v.start.azimuth)}→${issDir16(v.end.azimuth)} ・ 最大仰角${Math.round(v.max.elevation)}°${together}` };
     })
     : rows.map(({ catnr, tle }) => ({ catnr, tle, ...issPickLabel(catnr, tle && tle.name) }));
   if (visibleRows && !list.length) $("issPickInfo").textContent = `これから24時間、${issFromPoint().name}でこのジャンルの衛星が見える回はありません。`;
@@ -7707,11 +7709,11 @@ function issChoose(catnr, tle) {
 /// 開いているジャンルで、これから24時間に見える回。全機を順に解くので押したときだけ
 async function issPickFindVisible() {
   const seq = ++issPick.visSeq, P = issFromPoint(), list = issPick.list;
+  $("issPickVisible").disabled = true;   // 押した瞬間に止める（計算の部品を読む間に2回目が走らないように）
   let sat = null;
   try { sat = await issLoadSat(); } catch { sat = null; }
-  if (seq !== issPick.visSeq || !P || !list.length) return;
-  if (!sat) { $("issPickInfo").textContent = "計算の部品を読めませんでした。もう一度押してください。"; return; }
-  $("issPickVisible").disabled = true;
+  if (seq !== issPick.visSeq || !P || !list.length) { $("issPickVisible").disabled = false; return; }
+  if (!sat) { $("issPickInfo").textContent = "計算の部品を読めませんでした。もう一度押してください。"; $("issPickVisible").disabled = false; return; }
   $("issPickQuery").value = "";
   const found = [], from = Date.now();
   const observer = { latitude: P.latitude, longitude: P.longitude, elevation: P.elevation || 0 };
@@ -7727,8 +7729,22 @@ async function issPickFindVisible() {
       if (seq !== issPick.visSeq) return;
     }
   }
-  found.sort((a, b) => a.pass.visible.start.at - b.pass.visible.start.at);
-  issPick.visible = found.slice(0, 40);
+  // 並びは「見え始めの分」→ よく見る3機 → 日本語名のある衛星 → 衛星番号。
+  // 2026-10-21 ユーザー「連打すると順番が変わる」: ISS にドッキング中の宇宙船など一緒に飛ぶ機体は見え始めが1秒も違わず、
+  // 押した時刻で計算の刻みがずれるたびに前後が入れ替わっていた（0.3〜0.6秒差の2機で再現）。秒は画面に出していないので分でそろえる
+  const rank = (t) => (ISS_PRESETS.some(([n]) => n === t.catnr) ? 0 : iss.names && iss.names.has(t.catnr) ? 1 : 2);
+  found.sort((a, b) => Math.floor(a.pass.visible.start.at / 60000) - Math.floor(b.pass.visible.start.at / 60000)
+    || rank(a.tle) - rank(b.tle) || a.tle.catnr - b.tle.catnr);
+  // 同じ分に同じ方角を同じ高さで通る機体は、空では1つの光（ISS とドッキング中の宇宙船など）。1行にまとめ、並びの先頭（よく見る・日本語名あり）を代表に
+  // （2026-10-21 ユーザー採用「全部出していいよ」）
+  const merged = [];
+  for (const f of found) {
+    const v = f.pass.visible, minute = Math.floor(v.start.at / 60000);
+    const g = merged.find((x) => x.minute === minute && issDir16(x.pass.visible.start.azimuth) === issDir16(v.start.azimuth)
+      && issDir16(x.pass.visible.end.azimuth) === issDir16(v.end.azimuth) && Math.abs(x.pass.visible.max.elevation - v.max.elevation) <= 2);
+    if (g) g.with.push(f.tle); else merged.push({ ...f, minute, with: [] });
+  }
+  issPick.visible = merged.slice(0, 40);
   $("issPickVisible").disabled = false;
   issPickRender();
 }
