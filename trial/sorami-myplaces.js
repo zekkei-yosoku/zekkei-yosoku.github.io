@@ -141,7 +141,7 @@ function shapePointAtCenter(){
 function shapeEditorCurrent(){return !!shapeEdit&&sheetOwnerMatches()&&shapeEdit.owner===auth?.token&&shapeEdit.state===sheetState;}
 function renderShapeEditor(){
  if(!shapeEditorCurrent())return;const s=shapeEdit.value,type=s.type;
- el('shapeTypeLabel').textContent=type==='point'?'線・範囲で指定':shapeName(s)+'で指定';el('shapeFixedPin').hidden=type!=='point'||!!sheetState.place.id;el('shapeLocationPanel').hidden=type==='point'&&!!sheetState.place.id;el('shapeVertexTools').hidden=type==='point';el('shapeStatus').hidden=type==='point';el('shapeApply').textContent=type==='point'?(sheetState.place.id?'この地点のまま戻る':'この地点にする'):'この'+shapeName(s)+'にする';
+ el('shapeTypeLabel').textContent=type==='point'?'線・範囲で指定':shapeName(s)+'で指定';el('shapeFixedPin').toggleAttribute('hidden',type!=='point'||!!sheetState.place.id);el('shapeLocationPanel').hidden=type==='point'&&!!sheetState.place.id;el('shapeVertexTools').hidden=type==='point';el('shapeStatus').hidden=type==='point';el('shapeApply').textContent=type==='point'?(sheetState.place.id?'この地点のまま戻る':'この地点にする'):'この'+shapeName(s)+'にする';
  for(const b of el('shapeModes').children)b.setAttribute('aria-pressed',String(b.dataset.shapeMode===type));
  el('shapeHelp').textContent=type==='point'?(sheetState.place.id?'登録済みの撮影地点です。線・範囲へ変更できます。':'地図を動かしてピンを撮影地点に合わせます。'):type==='line'?'地図をタップして順につなぎます。2点で直線、3点で折れ線。点を選ぶと、その後ろに追加できます。':'地図をタップして外周を囲みます。最後の点と最初の点をつないだ内側が範囲です。';
  const select=el('shapeVertex');select.disabled=type==='point';select.replaceChildren(new Option('点を選んで編集','-1'),...s.vertices.map((_,i)=>new Option('点 '+(i+1),String(i))));select.value=String(shapeEdit.selected);
@@ -477,8 +477,8 @@ function skyRender(s){
  skySession=s;if(!s||!auth?.token||!toolAllowed('skymap'))return;
  const box=skyBox(),t=s.target;
  const shareRow=el('skyMapShareRow');if(shareRow){shareRow.hidden=!s.observer||!t;const shareButton=shareRow.querySelector('button');if(shareButton)shareButton.disabled=!s.daily||!s.eye;}
- const detail=el('skyMapAlignmentDetails');detail.hidden=!t;el('skyMapAlignmentSummary').textContent='重ね方';
- if(!t){skyKey='';candidateState={status:'idle',rows:[],failed:0};box.textContent='何を・何に重ねるかと撮影日を選ぶと、記録した撮影地点から候補を出します。';candidateSheet?.close();return;}
+ const detail=el('skyMapAlignmentDetails');detail.hidden=!t;el('skyMapAlignmentSummary').textContent='重ね方';box.hidden=!t;
+ if(!t){skyKey='';candidateState={status:'idle',rows:[],failed:0};box.replaceChildren();candidateSheet?.close();return;}
  const key=currentSkyQuery(s);
  if(key!==skyKey){
   skyKey=key;selectedCandidate=null;const token=++skyToken,owner=auth.token,plan=SoramiShooting.conditions(s),points=pointsForPlan(s);

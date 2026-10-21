@@ -99,9 +99,9 @@ test('未設定の自由目標へ切り替えると前の目標の時刻表を�
  const a=html.indexOf('  if (!(aim.target.parts || []).length) {',html.indexOf('function aimApply('));
  const b=html.indexOf('  $("aimCandBox").hidden = false;',a);
  const body={innerHTML:'前の目標の時刻'},elements=new Map();
- const $=id=>{if(!elements.has(id)) elements.set(id,{hidden:false,innerHTML:'old',querySelector:()=>body});return elements.get(id);};
+ const $=id=>{if(!elements.has(id)) elements.set(id,{hidden:false,innerHTML:'old',querySelector:()=>body,replaceChildren(node){body.innerHTML='';this.child=node;}});return elements.get(id);};
  const aim={target:{parts:[]},seq:3,candSeq:3,lines:[1],cands:[1]};
- runInNewContext('(function(){'+html.slice(a,b)+'})()',{$,aim,aimRenderFrom:()=>{},aimRefreshSheetCands:()=>{},AimMap:{center:()=>({latitude:35}),redraw:()=>{}},Number});
+ runInNewContext('(function(){'+html.slice(a,b)+'})()',{$,aim,document:{createElement:tag=>({tagName:tag})},aimRenderFrom:()=>{},aimRefreshSheetCands:()=>{},AimMap:{center:()=>({latitude:35}),redraw:()=>{}},Number});
  assert.equal($('aimLineTable').hidden,true);assert.equal(body.innerHTML,'');assert.equal($('aimLineInfo').textContent,'');assert.equal(aim.lines.length,0);
  // 撮影地点の地点の画面に、前の目標の候補地を残さない（2026-10-06）
  assert.equal(aim.cands.length,0);

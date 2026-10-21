@@ -662,7 +662,6 @@ console.log("== 月の結果に日の出入り・月の出入りからの差（2
     ["ねらう: 見え方の図の上の一行", /return \[`\$\{moonGlyphAt\(at\)\}\$\{lit\}`, lightTimingText\(at, o\)\]/],
     ["ねらう: 定番スポット", /lightTimingText\(e\.at, SoramiAlign\.spotObserver\(sp\)\)/],
     ["ねらう: その日の候補地（選んだ行）", /\(moon \? `<span class="tiny sub-line">\$\{esc\(lightTimingText\(c\.at, c\.stand\)\)\}<\/span>` : ""\)/],
-    ["月丼: 今日はここ", /lightTimingText\(b\.at, top\.spot\)/],
     ["月丼: 一覧", /lightTimingText\(sp\.best\.at, sp\.spot\)/],
     ["ISS: 月の回", /iss\.body === "moon" \? `<span class="tiny">\$\{esc\(lightTimingText\(r\.at, st \|\| r\.center\)\)\}<\/span>` : ""/],
   ];
@@ -2097,7 +2096,7 @@ ok(/res\.remaining <= RECOVERY_LOW/.test(html), "回復コードの残りが少�
 ok(/nextStep\(\{ passkeys: \(me\.credentials \|\| \[\]\)\.length/.test(html),
   "アカウント画面でも同じ判定を使う");
 // 同期が止まったときに、押せる手を出す
-ok(/id="retrySync"/.test(html) && /retry\.onclick = async \(\) => \{ await syncNow\(\)/.test(html),
+ok(/id="retrySync"/.test(html) && /retry\.onclick = withPendingAction\(panel,retry,async \(\) => \{ await syncNow\(\)/.test(html),
   "同期が失敗していたら再試行を出す");
 // 消す前に控えを促す。取り消せない操作なので二段で確かめる
 ok(/id="deleteAccount"/.test(html), "アカウントを削除できる");

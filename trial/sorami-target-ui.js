@@ -4,10 +4,10 @@
 function mount(deps){
  const L=root.SoramiLibrary,d=document,by=id=>d.getElementById(id),make=(tag,props={})=>Object.assign(d.createElement(tag),props);
  const dialog=make('dialog',{id:'previewTargetDialog',className:'sheet preview-body-dialog'});dialog.setAttribute('aria-labelledby','previewTargetTitle');
- dialog.innerHTML=`<div class="sheet-head"><strong id="previewTargetTitle">対象を選ぶ</strong><span class="page-actions" data-target-head-actions><button type="button" class="chip" data-target-clear aria-label="選択を解除">解除</button><button type="button" class="chip my-add-point" data-target-new aria-label="対象を追加" title="対象を追加"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button></span><button type="button" data-target-close>キャンセル</button></div><div class="sheet-body"><section data-target-list-panel><input type="search" class="fav-in target-search" aria-label="対象を検索" placeholder="対象名・場所で検索"><div class="chips target-cat-chips" data-target-cats role="group" aria-label="カテゴリ"></div><div class="preview-target-list"></div><p class="tiny" data-target-empty hidden>見つかりませんでした。</p><div class="my-actions"><button type="button" class="fav-btn primary" data-target-done>完了</button></div></section><section data-target-editor hidden><div class="target-location-search"><input id="targetPlaceSearch" type="search" class="fav-in" placeholder="地名・緯度経度・地図のURL" aria-label="対象の場所を検索"><button type="button" class="chip" id="targetPlaceSearchGo">検索</button></div><div id="targetPlaceResults"></div><div class="mapwrap"><canvas id="targetEditorCanvas" aria-label="対象の位置を選ぶ地図"></canvas><div class="map-cross" aria-hidden="true">＋</div><div class="mapzoom"><button type="button" id="targetEditorIn" aria-label="拡大">＋</button><button type="button" id="targetEditorOut" aria-label="縮小">−</button></div></div><label>名前<input type="text" class="fav-in" data-target-name maxlength="200" placeholder="対象の名前"></label><label>地上からの高さ（m）<input type="number" class="fav-in" data-target-height min="0" max="1000" step="any" value="0"></label><label>カテゴリ<select class="fav-in" data-target-category></select></label><label data-target-category-new-row hidden>新しいカテゴリの名前<input type="text" class="fav-in" data-target-category-new maxlength="20" placeholder="例：橋、神社、灯台"></label><p class="tiny" data-target-coordinate></p><p class="warn" data-target-error role="status" hidden></p><div data-target-duplicates hidden></div><div class="my-actions"><button type="button" class="chip" data-target-back>戻る</button><button type="button" class="fav-btn primary" data-target-add>対象を追加</button></div></section><section data-target-cat-panel data-no-dirty hidden><p class="tiny">山・建物は最初からあるカテゴリです。自分で作ったカテゴリは名前を変えたり削除したりできます（削除すると、中の対象はカテゴリなしになります）。</p><div data-target-cat-list></div><div class="target-location-search"><input type="text" class="fav-in" data-target-cat-new maxlength="20" placeholder="新しいカテゴリの名前" aria-label="新しいカテゴリの名前"><button type="button" class="chip" data-target-cat-add>追加</button></div><p class="warn" data-target-cat-error role="status" hidden></p><div class="my-actions"><button type="button" class="fav-btn primary" data-target-cat-done>完了</button></div></section></div>`;
+ dialog.innerHTML=`<div class="sheet-head"><strong id="previewTargetTitle">対象を選ぶ</strong><span class="page-actions" data-target-head-actions><button type="button" class="chip" data-target-clear aria-label="選択を解除">解除</button><button type="button" class="chip my-add-point" data-target-new aria-label="対象を追加" title="対象を追加"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button></span><button type="button" data-target-close>キャンセル</button></div><div class="sheet-body"><section data-target-list-panel><div class="target-selection-head" data-target-selection-head hidden><strong data-target-count role="status" aria-live="polite"></strong></div><p class="tiny" data-target-selection-status role="status" hidden></p><input type="search" class="fav-in target-search" aria-label="対象を検索" placeholder="対象名・場所で検索"><div class="chips target-cat-chips" data-target-cats role="group" aria-label="カテゴリ"></div><div class="target-select-tools" data-target-select-tools hidden><button type="button" class="chip target-select-all" data-target-all role="checkbox" aria-checked="false"><span class="target-select-check" aria-hidden="true"></span><span data-target-all-label>すべて選択</span></button><button type="button" class="chip" data-target-none hidden>選択を解除</button></div><div class="preview-target-list"></div><p class="tiny" data-target-empty hidden>見つかりませんでした。</p><div class="target-selection-actions" data-target-selection-actions hidden><button type="button" class="fav-btn primary" data-target-done>選択を適用</button></div></section><section data-target-editor hidden><div class="target-location-search"><input id="targetPlaceSearch" type="search" class="fav-in" placeholder="地名・緯度経度・地図のURL" aria-label="対象の場所を検索"><button type="button" class="chip" id="targetPlaceSearchGo">検索</button></div><div id="targetPlaceResults"></div><div class="mapwrap"><canvas id="targetEditorCanvas" aria-label="対象の位置を選ぶ地図"></canvas><div class="map-cross" aria-hidden="true">＋</div><div class="mapzoom"><button type="button" id="targetEditorIn" aria-label="拡大">＋</button><button type="button" id="targetEditorOut" aria-label="縮小">−</button></div></div><label>名前<input type="text" class="fav-in" data-target-name maxlength="200" placeholder="対象の名前"></label><label>地上からの高さ（m）<input type="number" class="fav-in" data-target-height min="0" max="1000" step="any" value="0"></label><label>カテゴリ<select class="fav-in" data-target-category></select></label><label data-target-category-new-row hidden>新しいカテゴリの名前<input type="text" class="fav-in" data-target-category-new maxlength="20" placeholder="例：橋、神社、灯台"></label><p class="tiny" data-target-coordinate></p><p class="warn" data-target-error role="status" hidden></p><div data-target-duplicates hidden></div><div class="my-actions"><button type="button" class="chip" data-target-back>対象一覧に戻る</button><button type="button" class="fav-btn primary" data-target-add>対象を追加</button></div></section><section data-target-cat-panel data-no-dirty hidden><p class="tiny">山・建物は最初からあるカテゴリです。自分で作ったカテゴリは名前を変えたり削除したりできます（削除すると、中の対象はカテゴリなしになります）。</p><div data-target-cat-list></div><div class="target-location-search"><input type="text" class="fav-in" data-target-cat-new maxlength="20" placeholder="新しいカテゴリの名前" aria-label="新しいカテゴリの名前"><button type="button" class="chip" data-target-cat-add>追加</button></div><p class="warn" data-target-cat-error role="status" hidden></p><div class="my-actions"><button type="button" class="fav-btn primary" data-target-cat-done>完了</button></div></section></div>`;
  d.body.append(dialog);
  const q=s=>dialog.querySelector(s),list=q('.preview-target-list'),search=q('.target-search'),editor=q('[data-target-editor]'),panel=q('[data-target-list-panel]');
- const request=L.gate();let state=null,map=null;
+ const request=L.gate();let state=null,map=null,categoryEditing=null;
  // カテゴリ（2026-10-21 ユーザー「対象は建物なのか山なのかカテゴリ分けできたらいい」「ユーザーがカテゴリ作れてカスタマイズできたら」）。
  // '' はすべて、'__none' はカテゴリなし。中身は画面側（deps.categoryOf / categoryList / editCategory）が持つ
  let catFilter='';const NONE='__none',hasCats=()=>typeof deps.categoryList==='function';
@@ -20,21 +20,32 @@ function mount(deps){
  function close(){request.cancel();dialog.close();}
  function choose(t){
   const s=state;if(!valid(s))return;
-  if(s.options.multiple){const key=targetKey(t),at=s.selected.findIndex(x=>targetKey(x)===key);if(at>=0)s.selected.splice(at,1);else s.selected.push(t);render();return;}
+  if(s.options.multiple){const key=targetKey(t),at=s.selected.findIndex(x=>targetKey(x)===key);if(at>=0)s.selected.splice(at,1);else s.selected.push(t);render();[...list.querySelectorAll('[data-target-key]')].find(b=>b.dataset.targetKey===key)?.focus({preventScroll:true});return;}
   deps.select(s.source,targetKey(t));close();
  }
  function render(){
-  if(!state)return;const s=state,filter=L.nameKey(search.value),checked=selected();list.replaceChildren();let count=0;
-  const usable=targets().filter(t=>s.options.multiple||[...s.source.options].some(o=>o.value===t.id&&!o.disabled));
+  if(!state)return;const s=state,filter=L.nameKey(search.value),focusKey=d.activeElement?.dataset.targetKey,available=targets();let removed=0;
+  if(s.options.multiple){const catalog=new Map(available.map(t=>[targetKey(t),t])),keys=[...new Set(s.selected.map(targetKey))];s.selected=keys.map(k=>catalog.get(k)).filter(Boolean);removed=keys.length-s.selected.length;if(removed)s.selectionNotice='一覧からなくなった'+removed+'件の選択を解除しました。';}
+  const checked=selected();list.replaceChildren();let count=0;
+  const usable=available.filter(t=>s.options.multiple||[...s.source.options].some(o=>o.value===t.id&&!o.disabled));
   renderCats(usable);
   const shown=usable.filter(t=>L.nameKey(t.name+' '+describe(t)).includes(filter)&&(!catFilter||(catFilter===NONE?!catOf(t):catOf(t)===catFilter)));
+  s.shown=shown;
+  const multiple=!!s.options.multiple;
+  q('[data-target-selection-head]').hidden=q('[data-target-select-tools]').hidden=q('[data-target-selection-actions]').hidden=!multiple;
+  q('[data-target-count]').textContent=s.selected.length+'件を選択中';q('[data-target-selection-status]').textContent=s.selectionNotice||'';q('[data-target-selection-status]').hidden=!multiple||!s.selectionNotice;
+  const selectedShown=shown.filter(t=>checked.has(targetKey(t))).length,all=shown.length>0&&selectedShown===shown.length,master=q('[data-target-all]');
+  master.setAttribute('aria-checked',all?'true':selectedShown?'mixed':'false');master.disabled=!shown.length;
+  master.querySelector('.target-select-check').textContent=all?'✓':selectedShown?'−':'';
+  q('[data-target-all-label]').textContent=filter||catFilter?'表示中をすべて選択':'すべて選択';
+  q('[data-target-none]').hidden=!s.selected.length;
   // すべてのときはカテゴリごとに分けて並べる（カテゴリの順、最後にカテゴリなし）
   const order=hasCats()?[...deps.categoryList(),'']:[''],groups=order.map(c=>[c,shown.filter(t=>catOf(t)===c)]).filter(([,rows])=>rows.length);
   for(const [cat,rows] of groups){
    if(hasCats()&&!catFilter&&groups.length>1)list.append(make('h3',{className:'target-cat-head',textContent:cat||'カテゴリなし'}));
    for(const t of rows){
    count++;const row=make('div',{className:'target-choice-row'}),button=make('button',{type:'button',className:'preview-body-choice',textContent:t.name});
-   button.setAttribute('aria-pressed',String(s.options.multiple?checked.has(targetKey(t)):s.source.value===t.id));
+   button.dataset.targetKey=targetKey(t);button.setAttribute('aria-pressed',String(s.options.multiple?checked.has(targetKey(t)):s.source.value===t.id));
    if(s.options.multiple){button.removeAttribute('aria-pressed');button.setAttribute('role','checkbox');button.setAttribute('aria-checked',String(checked.has(targetKey(t))));}
    const sub=make('span',{className:'tiny sub-line',textContent:describe(t)});button.append(sub);button.onclick=()=>choose(t);row.append(button);
    if(t.favId){const edit=make('button',{type:'button',className:'chip',textContent:'編集'});edit.setAttribute('aria-label',t.name+'を編集');edit.onclick=()=>openEditor(t);row.append(edit);}list.append(row);
@@ -42,7 +53,9 @@ function mount(deps){
   }
   q('[data-target-empty]').hidden=count>0;q('[data-target-done]').hidden=!s.options.multiple;
   q('[data-target-clear]').hidden=s.options.multiple||![...s.source.options].some(o=>o.value==='');
-  q('[data-target-done]').textContent=(s.options.doneLabel||'完了')+(s.selected.length?'（'+s.selected.length+'件）':'');
+  q('[data-target-done]').textContent=s.options.doneLabel||'選択を適用';
+  if(focusKey){const button=[...list.querySelectorAll('[data-target-key]')].find(b=>b.dataset.targetKey===focusKey);(button||(s.options.multiple&&!q('[data-target-all]').disabled?q('[data-target-all]'):search)).focus({preventScroll:true});}
+  return removed;
  }
  /// カテゴリの切り替え: すべて／中身のあるカテゴリと自分で作ったカテゴリ／カテゴリなし（中身があるとき）／カテゴリを編集
  function renderCats(rows){
@@ -73,40 +86,52 @@ function mount(deps){
  }
  function catFail(text){const e=q('[data-target-cat-error]');e.textContent=text;e.hidden=!text;}
  function catNameOk(name,except){if(!name)return catFail('名前を入れてください'),false;if(name.length>20)return catFail('名前は20文字までです'),false;if(name!==except&&deps.categoryList().includes(name))return catFail('同じ名前のカテゴリがあります'),false;catFail('');return true;}
+ function discardCategoryEdit(){
+  const editing=categoryEditing;if(!editing)return true;
+  if(editing.input.value!==editing.name&&!confirm('保存していないカテゴリ名の変更を破棄しますか？'))return false;
+  editing.row.replaceChildren(...editing.original);categoryEditing=null;catFail('');syncDirty();return true;
+ }
  function renderCatList(){
-  const host=q('[data-target-cat-list]');host.replaceChildren();
+  categoryEditing=null;const host=q('[data-target-cat-list]');host.replaceChildren();
   for(const c of deps.categoryList()){
    const row=make('div',{className:'target-choice-row target-cat-row'}),label=make('span',{className:'target-cat-name',textContent:c});row.append(label);
    if(!deps.isUserCategory(c)){row.append(make('span',{className:'tiny',textContent:'最初からある'}));host.append(row);continue;}
    const rename=make('button',{type:'button',className:'chip',textContent:'名前を変える'}),del=make('button',{type:'button',className:'chip',textContent:'削除'});
-   rename.onclick=()=>{const input=make('input',{type:'text',className:'fav-in',value:c,maxLength:20});input.setAttribute('aria-label',c+'の新しい名前');const ok=make('button',{type:'button',className:'chip',textContent:'保存'});
+   rename.onclick=()=>{if(!discardCategoryEdit())return;const original=[...row.childNodes],input=make('input',{type:'text',className:'fav-in',value:c,maxLength:20});input.setAttribute('aria-label',c+'の新しい名前');const ok=make('button',{type:'button',className:'chip',textContent:'保存'}),cancel=make('button',{type:'button',className:'chip',textContent:'キャンセル'});
+    categoryEditing={name:c,input,row,original};input.oninput=syncDirty;cancel.onclick=()=>{categoryEditing=null;catFail('');renderCatList();};
     ok.onclick=()=>{const name=input.value.trim();if(name===c){renderCatList();return;}if(!catNameOk(name,c))return;deps.editCategory('rename',c,name);if(catFilter===c)catFilter=name;renderCatList();};
-    row.replaceChildren(input,ok);input.focus();};
-   del.onclick=()=>{if(!confirm('「'+c+'」を削除しますか？中の対象はカテゴリなしになります。'))return;deps.editCategory('remove',c);if(catFilter===c)catFilter='';renderCatList();};
+    row.replaceChildren(input,ok,cancel);input.focus();};
+   del.onclick=()=>{if(!discardCategoryEdit())return;if(!confirm('「'+c+'」を削除しますか？中の対象はカテゴリなしになります。'))return;deps.editCategory('remove',c);if(catFilter===c)catFilter='';renderCatList();};
    row.append(rename,del);host.append(row);
   }
+  syncDirty();
  }
- function listMode(){request.cancel();editor.hidden=true;q('[data-target-cat-panel]').hidden=true;panel.hidden=false;q('[data-target-head-actions]').hidden=false;q('#previewTargetTitle').textContent=state?.options.title||'対象を選ぶ';render();}
+ function editorSignature(){return JSON.stringify([q('[data-target-name]').value,q('[data-target-height]').value,q('[data-target-category]').value,q('[data-target-category]').value==='__new'?q('[data-target-category-new]').value:'',map?.center()]);}
+ function editorChanged(){return !!state&&!editor.hidden&&state.editorBaseline!=null&&editorSignature()!==state.editorBaseline;}
+ function categoryChanged(){return !!categoryEditing&&categoryEditing.input.value!==categoryEditing.name||!q('[data-target-cat-panel]').hidden&&q('[data-target-cat-new]').value!=='';}
+ function syncDirty(){if(!state)return;const dirty=editorChanged()||categoryChanged()||JSON.stringify(state.drafts)!==state.draftBaseline;if(dirty)dialog.dataset.dirty='1';else delete dialog.dataset.dirty;}
+ function listMode(){request.cancel();editor.hidden=true;state.editorBaseline=null;q('[data-target-cat-panel]').hidden=true;panel.hidden=false;q('[data-target-head-actions]').hidden=false;q('#previewTargetTitle').textContent=state?.options.title||'対象を選ぶ';render();syncDirty();}
+ function leaveEditor(){if(editorChanged()&&!confirm('入力した内容を破棄しますか？'))return;listMode();q('[data-target-new]').focus({preventScroll:true});}
  function move(p){
   const s=state;if(!valid(s)||!p||!L.point(p))return;
   request.cancel();s.searchPoint=p;map.setView(p.latitude,p.longitude,16);
   const input=q('[data-target-name]');if(!input.value.trim()||input.dataset.auto==='true'){input.value=p.name||'';input.dataset.auto='true';}
   const h=p.targetHeightM??p.structureM;if(L.height(h))q('[data-target-height]').value=String(h);
-  q('[data-target-coordinate]').textContent=p.latitude.toFixed(5)+', '+p.longitude.toFixed(5);
+  q('[data-target-coordinate]').textContent=p.latitude.toFixed(5)+', '+p.longitude.toFixed(5);syncDirty();
  }
  function openEditor(target=null){
-  const s=state;if(!valid(s))return;request.cancel();s.editing=target;
+  const s=state;if(!valid(s))return;request.cancel();s.editing=target;s.editorBaseline=null;
   s.searchPoint=target?deps.favorite(target.favId)||{...target,elevation:target.groundM}:null;q('[data-target-name]').value=target?.name||'';q('[data-target-name]').dataset.auto='true';
   q('[data-target-height]').value=String(target?((s.drafts.find(x=>x.entry.id===target.favId)?.entry||deps.favorite(target.favId))?.targetHeightM??Math.max(0,(target.parts?.[0]?.m??0)-(target.groundM??0))):0);
   by('targetPlaceSearch').value='';by('targetPlaceResults').replaceChildren();q('[data-target-error]').hidden=true;q('[data-target-duplicates]').hidden=true;
   fillCategory(target?catOf(target):catFilter&&catFilter!==NONE?catFilter:'');
   panel.hidden=true;editor.hidden=false;q('[data-target-head-actions]').hidden=true;q('#previewTargetTitle').textContent=target?'対象を編集':'対象を追加';q('[data-target-add]').textContent=target?'変更を適用':'対象を追加';
   if(!map){map=deps.createMap({canvas:'targetEditorCanvas',zoomIn:'targetEditorIn',zoomOut:'targetEditorOut'});map.onPick(p=>{if(valid(state)){request.cancel();map.setCenter(p.latitude,p.longitude);}});
-   map.onMove?.(()=>request.cancel());
+   map.onMove?.(()=>{request.cancel();syncDirty();});
    deps.wireSearch('targetPlaceSearch','targetPlaceResults',move,move,{near:()=>map.center(),isCurrent:()=>valid(state)&&!editor.hidden});
   }
   by('targetPlaceSearch').dispatchEvent(new Event('input'));
-  const center=s.searchPoint||deps.center(s.source);map.open(L.point(center)?center:{latitude:35.68,longitude:139.76},16);
+  const center=s.searchPoint||deps.center(s.source);map.open(L.point(center)?center:{latitude:35.68,longitude:139.76},16);s.editorBaseline=editorSignature();syncDirty();dialog.querySelector('.sheet-body').scrollTop=0;
  }
  function useTarget(t){
   const s=state;if(!valid(s))return;
@@ -142,15 +167,20 @@ function mount(deps){
   }catch(e){if(valid(s)&&request.current(ticket))fail(e.message||'対象を保存できませんでした');}
   finally{q('[data-target-add]').disabled=false;}
  }
- search.oninput=render;q('[data-target-new]').onclick=()=>openEditor();q('[data-target-back]').onclick=listMode;q('[data-target-add]').onclick=()=>submit();q('[data-target-name]').oninput=e=>{e.target.dataset.auto='false';q('[data-target-duplicates]').hidden=true;};
+ q('[data-target-all]').onclick=()=>{const s=state;if(!valid(s))return;const keys=new Set((s.shown||[]).map(targetKey)),checked=selected(),all=keys.size>0&&[...keys].every(k=>checked.has(k));if(all)s.selected=s.selected.filter(t=>!keys.has(targetKey(t)));else s.selected=[...new Map([...s.selected,...s.shown].map(t=>[targetKey(t),t])).values()];render();q('[data-target-all]').focus({preventScroll:true});};
+ q('[data-target-none]').onclick=()=>{if(!valid(state))return;state.selected=[];render();q('[data-target-all]').focus({preventScroll:true});};
+ editor.addEventListener('input',syncDirty);editor.addEventListener('change',syncDirty);
+ search.oninput=render;q('[data-target-new]').onclick=()=>openEditor();q('[data-target-back]').onclick=leaveEditor;q('[data-target-add]').onclick=()=>submit();q('[data-target-name]').oninput=e=>{e.target.dataset.auto='false';q('[data-target-duplicates]').hidden=true;};
  q('[data-target-close]').onclick=close;
- q('[data-target-cat-done]').onclick=listMode;
- q('[data-target-cat-add]').onclick=()=>{const input=q('[data-target-cat-new]'),name=input.value.trim();if(!catNameOk(name))return;deps.editCategory('add',name);input.value='';renderCatList();};q('[data-target-clear]').onclick=()=>{if(valid(state)){deps.select(state.source,'');close();}};
- q('[data-target-done]').onclick=()=>{const s=state;if(!valid(s))return;const chosen=selected();s.options.onDone?.(s.selected,s.drafts.filter(x=>chosen.has('fav:'+x.entry.id)));close();};
- dialog.addEventListener('close',()=>{request.cancel();if(!dialog.open){const focus=state?.focus;state=null;focus?.focus({preventScroll:true});}});
- const open=(source,onNew,focus,options={})=>{state={source,focus,owner:deps.owner(),options,selected:[...(options.selected||[])],drafts:[...(options.drafts||[])]};search.value='';catFilter='';editor.hidden=true;q('[data-target-cat-panel]').hidden=true;q('[data-target-head-actions]').hidden=false;q('#previewTargetTitle').textContent=state?.options.title||'対象を選ぶ';panel.hidden=false;render();deps.show(dialog);};
- const style=make('style',{textContent:'.target-cat-chips{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;margin:8px 0 4px}.target-cat-chips::-webkit-scrollbar{display:none}#previewTargetDialog .target-cat-chips .chip{min-height:36px}#previewTargetDialog .target-cat-chips .chip[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}.target-cat-chips .chip{flex:none}.target-cat-head{margin:14px 0 6px;font-size:.81rem;color:var(--secondary)}.target-cat-row{min-height:52px;border-bottom:1px solid var(--line)}.target-cat-row .target-cat-name{flex:1;min-width:0;font-weight:700}.target-cat-row input{flex:1;min-width:0}.target-choice-row{display:flex;gap:8px;align-items:center}.target-choice-row>.preview-body-choice{flex:1;min-width:0;text-align:left}.target-choice-row>.chip{min-height:44px}.target-location-search{display:flex;gap:8px}.target-location-search input{min-width:0;flex:1}#previewTargetDialog [data-target-editor] label{display:block;margin:12px 0}#previewTargetDialog [data-target-editor] input{font-size:16px;width:100%}#previewTargetDialog .mapwrap{position:relative;overflow:hidden;border-radius:12px;margin:12px 0}#targetEditorCanvas{width:100%;height:260px;display:block;touch-action:none}#previewTargetDialog .map-cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;font-size:24px;text-shadow:0 1px 3px #fff;color:#111}#previewTargetDialog .mapzoom{position:absolute;right:8px;top:8px;display:grid;gap:5px}#previewTargetDialog button{min-height:44px}#previewTargetDialog .my-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}#previewTargetDialog [data-target-editor][hidden],#previewTargetDialog [data-target-list-panel][hidden]{display:none}'});d.head.append(style);
- return {open,edit(source,target,focus){open(source,null,focus);openEditor(target);},authChanged(){if(state&&state.owner!==deps.owner())close();}};
+ q('[data-target-cat-done]').onclick=()=>{if(categoryChanged()&&!confirm('保存していないカテゴリの変更を破棄しますか？'))return;categoryEditing=null;q('[data-target-cat-new]').value='';listMode();};
+ q('[data-target-cat-new]').oninput=syncDirty;
+ q('[data-target-cat-add]').onclick=()=>{if(!discardCategoryEdit())return;const input=q('[data-target-cat-new]'),name=input.value.trim();if(!catNameOk(name))return;deps.editCategory('add',name);input.value='';renderCatList();};q('[data-target-clear]').onclick=()=>{if(valid(state)){deps.select(state.source,'');close();}};
+ q('[data-target-done]').onclick=()=>{const s=state;if(!valid(s)||render())return;const chosen=selected();s.options.onDone?.(s.selected,s.drafts.filter(x=>chosen.has('fav:'+x.entry.id)));close();};
+ dialog.addEventListener('close',()=>{request.cancel();if(!dialog.open){const focus=state?.focus;state=null;categoryEditing=null;q('[data-target-cat-new]').value='';focus?.focus({preventScroll:true});}});
+ const open=(source,onNew,focus,options={})=>{categoryEditing=null;state={source,focus,owner:deps.owner(),options,selected:[...(options.selected||[])],drafts:[...(options.drafts||[])],draftBaseline:JSON.stringify(options.drafts||[]),editorBaseline:null};search.value='';catFilter='';editor.hidden=true;q('[data-target-cat-panel]').hidden=true;q('[data-target-head-actions]').hidden=false;q('#previewTargetTitle').textContent=state?.options.title||'対象を選ぶ';panel.hidden=false;render();deps.show(dialog);};
+ const style=make('style',{textContent:'#previewTargetDialog .target-selection-head{position:sticky;top:-12px;z-index:3;min-height:44px;display:flex;align-items:center;padding:6px 0;background:var(--bg);font-size:15px}#previewTargetDialog .target-select-tools [hidden],#previewTargetDialog .target-selection-head[hidden],#previewTargetDialog .target-select-tools[hidden],#previewTargetDialog .target-selection-actions[hidden]{display:none}#previewTargetDialog .target-select-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding-inline:12px;margin:4px 0 8px;border-bottom:1px solid var(--line)}#previewTargetDialog .target-select-tools button{display:inline-flex;gap:12px;align-items:center;padding:0;background:transparent;min-height:44px}#previewTargetDialog [data-target-none]{font-size:13px;color:var(--accent)}#previewTargetDialog .target-select-check{display:grid;place-items:center;width:20px;height:20px;border:1.8px solid currentColor;border-radius:4px;box-sizing:border-box;font-size:18px;line-height:1;flex:none}#previewTargetDialog .target-selection-actions{position:sticky;bottom:-16px;z-index:2;padding:12px 0 max(16px,env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line);margin-top:12px}#previewTargetDialog [data-target-done]{width:100%}#previewTargetDialog .preview-body-choice[role=checkbox]{scroll-margin-block:64px 100px}.target-cat-chips{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;margin:8px 0 4px}.target-cat-chips::-webkit-scrollbar{display:none}#previewTargetDialog .target-cat-chips .chip{min-height:36px}#previewTargetDialog .target-cat-chips .chip[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}.target-cat-chips .chip{flex:none}.target-cat-head{margin:14px 0 6px;font-size:.81rem;color:var(--secondary)}.target-cat-row{min-height:52px;border-bottom:1px solid var(--line)}.target-cat-row .target-cat-name{flex:1;min-width:0;font-weight:700}.target-cat-row input{flex:1;min-width:0}.target-choice-row{display:flex;gap:8px;align-items:center}.target-choice-row>.preview-body-choice{flex:1;min-width:0;text-align:left}.target-choice-row>.chip{min-height:44px}.target-location-search{display:flex;gap:8px}.target-location-search input{min-width:0;flex:1}#previewTargetDialog [data-target-editor] label{display:block;margin:12px 0}#previewTargetDialog [data-target-editor] input{font-size:16px;width:100%}#previewTargetDialog .mapwrap{position:relative;overflow:hidden;border-radius:12px;margin:12px 0}#targetEditorCanvas{width:100%;height:260px;display:block;touch-action:none}#previewTargetDialog .map-cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;font-size:24px;text-shadow:0 1px 3px #fff;color:#111}#previewTargetDialog .mapzoom{position:absolute;right:8px;top:8px;display:grid;gap:5px}#previewTargetDialog button{min-height:44px}#previewTargetDialog .my-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}#previewTargetDialog [data-target-editor][hidden],#previewTargetDialog [data-target-list-panel][hidden]{display:none}'});d.head.append(style);
+ const refresh=()=>{if(valid(state))render();};root.addEventListener?.('sorami:records-synced',refresh);
+ return {open,refresh,edit(source,target,focus){open(source,null,focus);openEditor(target);},authChanged(){if(state&&state.owner!==deps.owner())close();}};
 }
 root.SoramiTargetUI={mount};
 })(globalThis);

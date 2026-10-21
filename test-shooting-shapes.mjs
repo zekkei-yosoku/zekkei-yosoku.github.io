@@ -92,7 +92,7 @@ test('既存の形を別画面で変更したら上書きせず開き直しを�
 });
 
 function newShapeHarness(){
- const nodes=new Map(),make=()=>({children:[],dataset:{},value:'',disabled:false,open:false,append(...v){this.children.push(...v)},replaceChildren(...v){this.children=v},setAttribute(k,v){this[k]=v},addEventListener(){},querySelectorAll(){return []},dispatchEvent(){},close(){this.open=false}});
+ const nodes=new Map(),make=()=>({children:[],dataset:{},value:'',disabled:false,open:false,append(...v){this.children.push(...v)},replaceChildren(...v){this.children=v},setAttribute(k,v){this[k]=v},toggleAttribute(k,on){this.attributes??={};if(on)this.attributes[k]='';else delete this.attributes[k]},hasAttribute(k){return Object.hasOwn(this.attributes||{},k)},addEventListener(){},querySelectorAll(){return []},dispatchEvent(){},close(){this.open=false}});
  const state={place:{id:null,name:'',latitude:null,longitude:null},draftShape:null,draftTargets:[],targetDrafts:[],ctx:'records'};let picks,moveHandler,center=ll(0);
  const map={setOverlay(){},onPick(fn){picks=fn},onMove(fn){moveHandler=fn},open(p){center={...p}},setView(...v){this.view=v;center={latitude:v[0],longitude:v[1]};moveHandler?.(center)},pan(p){center={...p};moveHandler?.(center)},center:()=>center,project:(lat,lon)=>[lon,lat],redraw(){}};
  const c={shapeKey:JSON.stringify,confirm:()=>true,SoramiTerrain:require('./sorami-terrain.js'),SoramiLibrary:L,Event:class{},wireSearchBox:(a,b,fn)=>{map.move=fn},sheetState:state,sheetOwnerMatches:()=>true,auth:{token:'owner'},el:id=>{if(!nodes.has(id))nodes.set(id,make());return nodes.get(id)},document:{createElement:make,body:{append(){}}},PLACE_PICKERS:{},SoramiShooting:P,place:{...ll(0)},placeNear:()=>null,createMapView:()=>map,showSheet:d=>{d.open=true},renderSheet(){},openPlaceSheet(){},shapeName:s=>s?.type==='area'?'範囲':s?.type==='line'?'線':'点',structuredClone,Option:function(text,value){return {text,value}}};
@@ -129,7 +129,7 @@ test('新規地点は検索後も親を保存せず、パンした固定ピン�
  h.map.pan(ll(800));h.nodes.get('shapeApply').onclick();assert.equal(h.state.place.latitude,ll(800).latitude);assert.equal(h.state.place.name,'地図で選んだ地点');assert.equal(h.state.place.elevation,null);assert.equal(h.state.newPlace,true);
 });
 test('既存地点はパンしても代表点を変えず、保存座標のマーカーで扱う',()=>{
- const h=newShapeHarness();h.state.place={id:'saved',name:'既存',...ll(100)};h.c.openShapeEditor();assert.equal(h.nodes.get('shapeFixedPin').hidden,true);assert.equal(h.nodes.get('shapeLocationPanel').hidden,true);
+ const h=newShapeHarness();h.state.place={id:'saved',name:'既存',...ll(100)};h.c.openShapeEditor();assert.equal(h.nodes.get('shapeFixedPin').hasAttribute('hidden'),true);assert.equal(h.nodes.get('shapeLocationPanel').hidden,true);
  h.map.pan(ll(500));h.nodes.get('shapeApply').onclick();assert.equal(h.state.place.latitude,ll(100).latitude);
 });
 test('固定ピンから線へ切り替えると現在の中心を最初の頂点にする',()=>{

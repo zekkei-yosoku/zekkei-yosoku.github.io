@@ -15,7 +15,7 @@ const src=cut('async function openAccountSheet() {','// 履歴は開いたとき
 function el(){return {dataset:{},hidden:false,textContent:'',innerHTML:'',className:'',classes:new Set(),classList:{toggle(n,on){on?this.s.add(n):this.s.delete(n);},contains(n){return this.s.has(n);}},querySelectorAll(){return [];}};}
 async function open(me){
  const els={};const $=id=>{if(!els[id]){const e=el();e.classList.s=e.classes;els[id]=e;}return els[id];};
- const c={$,me,auth:{token:'test-user'},esc:s=>String(s),syncError:null,pushQueue:[],RECOVERY_LOW:3,showSheet(){},renderPrivateEntry(){},adoptToken(){},accountFail(m){$('accountErr').textContent=m;$('accountErr').hidden=false;},syncNow:async()=>{},apiCall:async()=>me};
+ const c={$,me,auth:{token:'test-user'},esc:s=>String(s),syncError:null,pushQueue:[],RECOVERY_LOW:3,showSheet(){},renderPrivateEntry(){},adoptToken(){},accountFail(m){$('accountErr').textContent=m;$('accountErr').hidden=false;},syncNow:async()=>{},withPendingAction:(panel,button,action)=>action,apiCall:async()=>me};
  vm.createContext(c);vm.runInContext(src,c);await c.openAccountSheet();$.context=c;return $;
 }
 const base={loginId:'fixture-user',role:'user',ownerAdmin:false};
