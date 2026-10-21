@@ -93,8 +93,8 @@ test('既存の形を別画面で変更したら上書きせず開き直しを�
 
 function newShapeHarness(){
  const nodes=new Map(),make=()=>({children:[],dataset:{},value:'',disabled:false,open:false,append(...v){this.children.push(...v)},replaceChildren(...v){this.children=v},setAttribute(k,v){this[k]=v},addEventListener(){},querySelectorAll(){return []},dispatchEvent(){},close(){this.open=false}});
- const state={place:{id:null,name:'',latitude:null,longitude:null},draftShape:null};let picks;
- const map={setOverlay(){},onPick(fn){picks=fn},open(){},setView(...v){this.view=v},center:()=>ll(0),project:(lat,lon)=>[lon,lat],redraw(){}};
+ const state={place:{id:null,name:'',latitude:null,longitude:null},draftShape:null,draftTargets:[],targetDrafts:[],ctx:'records'};let picks,moveHandler,center=ll(0);
+ const map={setOverlay(){},onPick(fn){picks=fn},onMove(fn){moveHandler=fn},open(p){center={...p}},setView(...v){this.view=v;center={latitude:v[0],longitude:v[1]};moveHandler?.(center)},pan(p){center={...p};moveHandler?.(center)},center:()=>center,project:(lat,lon)=>[lon,lat],redraw(){}};
  const c={shapeKey:JSON.stringify,confirm:()=>true,SoramiTerrain:require('./sorami-terrain.js'),SoramiLibrary:L,Event:class{},wireSearchBox:(a,b,fn)=>{map.move=fn},sheetState:state,sheetOwnerMatches:()=>true,auth:{token:'owner'},el:id=>{if(!nodes.has(id))nodes.set(id,make());return nodes.get(id)},document:{createElement:make,body:{append(){}}},PLACE_PICKERS:{},SoramiShooting:P,place:{...ll(0)},placeNear:()=>null,createMapView:()=>map,showSheet:d=>{d.open=true},renderSheet(){},openPlaceSheet(){},shapeName:s=>s?.type==='area'?'範囲':s?.type==='line'?'線':'点',structuredClone,Option:function(text,value){return {text,value}}};
  vm.createContext(c);vm.runInContext(ui.slice(ui.indexOf('let shapeDialog='),ui.indexOf('// ---------------------------------------------------------------- 記録：')),c);
  return {c,state,nodes,map,pick:(p)=>picks(p,{x:1000,y:1000}),value:()=>vm.runInContext('shapeEdit.value',c)};
@@ -111,14 +111,32 @@ test('範囲は3点で有効、取消では元の地点・形を変更しない�
  h.c.openShapeEditor('area');h.pick(ll(0));h.pick(ll(100));h.pick(ll(100,100));h.c.auth.token='other';h.nodes.get('shapeApply').onclick();assert.equal(h.state.draftShape,null);
 });
 test('点も未登録から置ける。形切替後の点は1点だけになり、戻すと線を保持',()=>{
- const h=newShapeHarness();h.c.openShapeEditor('point');assert(h.nodes.get('shapeApply').disabled);h.pick(ll(0));assert.equal(h.nodes.get('shapeApply').disabled,false);
+ const h=newShapeHarness();h.c.openShapeEditor('point');assert.equal(h.nodes.get('shapeApply').disabled,false);h.map.pan(ll(0));assert.equal(h.nodes.get('shapeApply').disabled,false);
  h.nodes.get('shapeModes').children.find(x=>x.dataset.shapeMode==='line').onclick();h.pick(ll(100));
  h.nodes.get('shapeModes').children.find(x=>x.dataset.shapeMode==='point').onclick();assert.equal(h.value().vertices.length,1);
  h.nodes.get('shapeUndo').onclick();assert.equal(h.value().type,'line');assert.equal(h.value().vertices.length,2);
 });
 
 test('形を変更して戻るときは破棄を拒否すれば残り、承認すれば閉じる',()=>{
- const h=newShapeHarness();h.c.openShapeEditor('point');h.nodes.get('shapeAddCenter').onclick();
+ const h=newShapeHarness();h.c.openShapeEditor('point');h.map.pan(ll(100));
  h.c.confirm=()=>false;h.nodes.get('shapeCancel').onclick();assert.equal(h.value().vertices.length,1);assert.equal(vm.runInContext('shapeDialog.open',h.c),true);
  h.c.confirm=()=>true;h.nodes.get('shapeCancel').onclick();assert.equal(vm.runInContext('shapeDialog.open',h.c),false);assert.equal(h.state.draftShape,null);assert.equal(h.state.place.latitude,null);
+});
+
+test('新規地点は検索後も親を保存せず、パンした固定ピンの中心を1回で決定する',()=>{
+ const h=newShapeHarness();h.c.openShapeEditor();assert.equal(h.nodes.get('shapeVertexTools').hidden,true);assert.equal(h.nodes.get('shapeLocationPanel').hidden,false);
+ h.map.move({...ll(500),name:'検索地点',elevation:100});assert.equal(h.state.place.latitude,null);assert.equal(h.value().vertices[0].latitude,ll(500).latitude);
+ h.map.pan(ll(800));h.nodes.get('shapeApply').onclick();assert.equal(h.state.place.latitude,ll(800).latitude);assert.equal(h.state.place.name,'地図で選んだ地点');assert.equal(h.state.place.elevation,null);assert.equal(h.state.newPlace,true);
+});
+test('既存地点はパンしても代表点を変えず、保存座標のマーカーで扱う',()=>{
+ const h=newShapeHarness();h.state.place={id:'saved',name:'既存',...ll(100)};h.c.openShapeEditor();assert.equal(h.nodes.get('shapeFixedPin').hidden,true);assert.equal(h.nodes.get('shapeLocationPanel').hidden,true);
+ h.map.pan(ll(500));h.nodes.get('shapeApply').onclick();assert.equal(h.state.place.latitude,ll(100).latitude);
+});
+test('固定ピンから線へ切り替えると現在の中心を最初の頂点にする',()=>{
+ const h=newShapeHarness();h.c.openShapeEditor();h.map.pan(ll(300));h.nodes.get('shapeModes').children.find(x=>x.dataset.shapeMode==='line').onclick();assert.equal(h.value().vertices[0].latitude,ll(300).latitude);assert.equal(h.nodes.get('shapeVertexTools').hidden,false);
+});
+test('新規の点から既存の線地点を再利用しても保存済みの形を消さない',()=>{
+ const h=newShapeHarness(),existing={id:'line',name:'既存の線',...ll(0)},savedShape=shape('line',[[0,0],[100,0]]);h.c.placeNear=()=>existing;
+ h.c.openPlace=p=>{h.c.sheetState={place:p,initialTargets:[],draftTargets:[],targetDrafts:[],draftShape:savedShape,ctx:'records'};};
+ h.c.openShapeEditor();h.nodes.get('shapeApply').onclick();assert.equal(h.c.sheetState.draftShape,savedShape);
 });
