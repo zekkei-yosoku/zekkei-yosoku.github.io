@@ -959,11 +959,17 @@ ok(/role="tablist" aria-label="人工衛星の表示"[^>]*><button type="button"
 ok(/<button class="place-pick" id="issSatButton" aria-describedby="issSatLabel">/.test(html) && /\[25544, "ISS（国際宇宙ステーション）"\]/.test(html) && !/id="issSat"/.test(html),
   "人工衛星: 衛星は地点と同じ形のカードで選ぶ（初めは ISS）");
 // 2026-10-21 ユーザー「検索画面はもうページにする？」→ 衛星を選ぶはページ（戻る操作が効く・入力と位置は保つ）
-ok(/<div class="card" id="issPickPage" hidden>/.test(html) && !/id="issPickSheet"/.test(html) && /id="issPickQuery"[^>]*type="search"/.test(html) && /id="issPickGroups" role="group" aria-label="ジャンル"/.test(html),
-  "人工衛星: 衛星を選ぶはページで、名前・番号の検索とジャンル");
-ok(/if \(location\.hash === "#\/iss\/pick"\) return \{ iss: true, issPick: true \};/.test(html) && /pushRoute\("#\/iss\/pick"\)/.test(html), "人工衛星: 衛星を選ぶの道は #/iss/pick");
-ok(/route\?\.iss \? "#\/iss"/.test(html), "人工衛星: 衛星を選ぶページでもメニューの人工衛星に印");
-ok(/if \(fromPick && iss\.lastKey === issApplyKey\(\)\)/.test(html), "人工衛星: 選ばずに戻ったら計算し直さず、開いていた回と位置のまま");
+// 2026-10-21 ユーザー（本番画面）: 衛星を選ぶの「← 人工衛星に戻る」をやめ、ほかと同じページの形。初めは「すべて」、☆でお気に入り
+ok(/<dialog class="sheet" id="issPickSheet"/.test(html) && !/id="issPickPage"/.test(html) && /id="issPickQuery"[^>]*type="search"/.test(html) && /id="issPickGroups" role="group" aria-label="ジャンル"/.test(html),
+  "人工衛星: 衛星を選ぶはほかと同じページ（見出しの戻る・左の縁のスワイプ）で、名前・番号の検索とジャンル");
+ok(/const issPick = \{ group: "all",/.test(html) && /\[\["all", "すべて"\], \["fav", "お気に入り"\], \.\.\.ISS_GROUPS\]/.test(html) && !/よく見る衛星です/.test(html),
+  "人工衛星: ジャンルを選ばないときは「すべて」（よく見る3機だけにしない）");
+ok(/function issToggleFav\(catnr, name\)/.test(html) && /class="iss-star" data-star=/.test(html), "人工衛星: ☆でお気に入り（お気に入りは一覧の先頭とお気に入りのチップ）");
+ok(/if \(location\.hash === "#\/iss\/pick"\) return \{ iss: true, issPick: true \};/.test(html) && /if \(picking\) issPickOpen\(\);/.test(html), "人工衛星: 以前の道 #/iss/pick で来たら衛星を選ぶを重ねる");
+// 2026-10-21 ユーザー「お気に入り・履歴・候補地点はタブ。現在地と地図は入力欄の中にGPSマークと地図マークのボタン」
+ok(/nav\.className='forecast-tabs place-tabs';nav\.setAttribute\('role','tablist'\)/.test(html) && /b\.setAttribute\('role','tab'\)/.test(html) && /b\.setAttribute\('aria-selected',String\(on\)\)/.test(html),
+  "地点の画面: お気に入り・履歴・この日の候補はタブ");
+ok(/field\.className='search-field';icons\.className='field-icons'/.test(html) && /#placeSheet \.search-field>input\{[^}]*padding-right:96px!important\}/.test(html), "地点の画面: 現在地・地図で選ぶは検索欄の中の絵の釦");
 ok(/\["stations", "宇宙ステーション", true\], \["visual", "明るい衛星", true\]/.test(html), "人工衛星: 今夜見えるを出すのは宇宙ステーションと明るい衛星だけ");
 ok(/fetch\("data\/satellite-names-ja\.json"\)/.test(html), "人工衛星: 日本語名は同梱の表から（Wikidata CC0）");
 ok(/gp\.php\?NAME=\$\{encodeURIComponent\(q\)\}&FORMAT=TLE/.test(html), "人工衛星: 表に無い衛星は CelesTrak の英語名で探せる");
@@ -984,8 +990,8 @@ ok(/found\.sort\(\(a, b\) => Math\.floor\(a\.pass\.visible\.start\.at \/ 60000\)
 {
   const m = /const PAGE_DIALOGS = \{([\s\S]*?)\n\};/.exec(html);
   const ids = m ? [...m[1].matchAll(/(\w+):\s*\{/g)].map((x) => x[1]).sort() : [];
-  ok(JSON.stringify(ids) === JSON.stringify(["aimCalendar", "aimLineSheet", "favSheet", "mapSheet", "photoSheet", "placeSheet", "planSheet", "previewTargetDialog", "skyMapTargetSheet"]),
-    "ページで開く画面: 地点・地図で選ぶ・撮れる場所・重なる日カレンダー・共有・対象・お気に入りに登録・記録を足す・地図に置く対象", ids.join(","));
+  ok(JSON.stringify(ids) === JSON.stringify(["aimCalendar", "aimLineSheet", "favSheet", "issPickSheet", "mapSheet", "photoSheet", "placeSheet", "planSheet", "previewTargetDialog", "skyMapTargetSheet"]),
+    "ページで開く画面: 地点・地図で選ぶ・撮れる場所・重なる日カレンダー・共有・対象・お気に入りに登録・記録を足す・地図に置く対象・衛星を選ぶ", ids.join(","));
   ok(!/(previewBodyDialog|skyMapBodyDialog|skyMapBodiesSheet|mapAppSheet|authSheet|accountSheet|appSettings)\s*:/.test(m ? m[1] : ""),
     "短いシートのまま: 天体を選ぶ・その他の天体・地図アプリで開く・ログイン・アカウント・設定");
   ok(/previewTargetDialog: \{ input: true \}, photoSheet: \{ input: true \}, skyMapTargetSheet: \{ input: true \}/.test(html) && /favSheet: \{ ownConfirm: true \}/.test(html),
@@ -2551,8 +2557,8 @@ ok(/scrollbar-gutter: stable/.test(html), "止めた瞬間に横幅が変わら�
 // 2026-09-28: 写真から記録するシートを足して6つ。
 // 「ねらう」「空の見え方」「月丼」はポップアップではなく**ページ**にした
 // 2026-10-12 E184: スカイマップ本体は独立ページ。地図で置く目標の必須高さ入力シートを追加して9つ。
-// 2026-10-21: 人工衛星の「衛星を選ぶ」はシートでなくページ（#/iss/pick）にしたので10のまま
-ok((html.match(/<dialog class="sheet"/g) || []).length === 10, "目標物の高さ入力を含めシートは10個",
+// 2026-10-21: 人工衛星の「衛星を選ぶ」を、ほかの選ぶ画面と同じページの形（dialog＋PAGE_DIALOGS）にして11
+ok((html.match(/<dialog class="sheet"/g) || []).length === 11, "目標物の高さ入力・衛星を選ぶを含めシートは11個",
   String((html.match(/<dialog class="sheet"/g) || []).length));
 
 console.log("== 登録した直後に、パスキーの登録へ進める ==");
@@ -2900,7 +2906,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   ok(/\$\("photoClose"\)\.onclick = \(\) => \{ if \(!photoSaving\) \$\("photoSheet"\)\.close\(\); \};/.test(html), "閉じるで閉じる");
   // 開いたとき最初の釦を選んだ状態（青い枠）にしない（ユーザー「青くなって選択状態で開くのが気に入らない」）
   const sheets = html.match(/<dialog class="sheet"[^>]*>/g) || [];
-  ok(sheets.length === 10 && sheets.every((d) => / tabindex="-1">$/.test(d)), "シートはそのものに焦点を置ける", sheets.join(" "));
+  ok(sheets.length === 11 && sheets.every((d) => / tabindex="-1">$/.test(d)), "シートはそのものに焦点を置ける", sheets.join(" "));
 }
 {
   // 座標をコピー・地図アプリで開く（2026-10-02 ユーザー「詳細な緯度経度が欲しい」「座標コピーのボタンと地図アプリで開くのボタン。

@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="13302815625235817857">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-4EaieCOpKJVGnvhSo+P4+xtL8vp/RPrtw4picZJEMaI=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-x+/lCoei7GmMMkQTjts2g8rXsUYq6MaglHUb0Cu7YPA=' 'sha256-GMs2Gk94riewAJ1Ii7ria7EKlc9B2buPe0dc0EHmQkE=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-20oFMl7+c2PM1pgnt9MPUvoGq6lBf9aXpEv7mgrLhX4=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="9770122060770266559">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-FllExjDXByPcPowMPF6FJ9e0zQ3wDlr6aB/s2t4ZgjA=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-IHJn5RiCzmHozid080+zENv1ezm18ecCQWarmEOSfmg=' 'sha256-GMs2Gk94riewAJ1Ii7ria7EKlc9B2buPe0dc0EHmQkE=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-20oFMl7+c2PM1pgnt9MPUvoGq6lBf9aXpEv7mgrLhX4=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -1172,9 +1172,9 @@
 #previewTargetDialog .preview-body-choice[aria-pressed=true]:after,.preview-body-choice[aria-checked=true]:after{flex:none}
 .preview-body-choice[aria-pressed=true] .tiny,.preview-body-choice[aria-checked=true] .tiny{color:inherit}
 .target-search{width:100%;margin-bottom:12px;min-height:44px}
-.history-nav,.history-subnav,.place-shortcuts{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
-.history-nav button,.history-subnav button,.place-shortcuts button{min-height:44px;padding:8px 12px;border-radius:8px;background:var(--sunk);color:var(--text)}
-.history-nav button[aria-pressed=true],.history-subnav button[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
+.history-subnav{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.history-subnav button{min-height:44px;padding:8px 12px;border-radius:8px;background:var(--sunk);color:var(--text)}
+.history-subnav button[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
 .history-pages{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0}.history-pages .chip{min-height:44px}.history-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.history-heading button{min-height:44px;color:var(--accent)}
 .history-row{display:flex;align-items:center;border-bottom:1px solid var(--line)}.history-row .list-item{flex:1;min-width:0;overflow-wrap:anywhere}.history-row .history-remove{min-width:44px;min-height:44px;color:var(--secondary)}
 .history-list .list-item strong{display:block}.history-list .list-item{font-size:15px}.history-empty{padding:12px 0}
@@ -1359,6 +1359,13 @@ main:has(>#aimView:not([hidden],[data-locked])){padding-bottom:calc(var(--aim-fo
 #issView[data-locked]>:not(#issAccess){display:none!important}
 /* 人工衛星の一覧（2026-10-21）: 名前・説明・補足を1行ずつ。続けて流すと「ひまわりHimawari 1」のように名前と英語名がくっついた */
 #issPassList .al-w>*,#issPickList .al-w>*{display:block}
+/* 衛星を選ぶの1行: 選ぶ釦と☆（お気に入り） */
+.iss-pick-row{display:flex;gap:6px;align-items:stretch}.iss-pick-row>.al-row{flex:1;min-width:0}
+.iss-star{flex:none;width:48px;min-height:48px;border:0;border-radius:10px;background:none;color:var(--secondary);font-size:1.25rem;line-height:1}
+.iss-star[aria-pressed="true"]{color:var(--accent)}
+.iss-pick-groups{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}.iss-pick-groups::-webkit-scrollbar{display:none}.iss-pick-groups .chip{flex:none}
+#issPickSheet .iss-pick-groups .chip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.iss-pick-head{margin:12px 0 4px;font-size:0.81rem;color:var(--secondary)}
 #recordsView[data-locked]>:not(#recordsAccess),#answersView[data-locked]>:not(#answersAccess){display:none!important}
 :is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer{position:fixed;z-index:35;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid rgba(0,0,0,.16);box-shadow:0 -4px 16px rgba(0,0,0,.12);padding:2px max(12px,env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
 :is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .tool-datetime-row{display:grid;grid-template-columns:44px auto minmax(0,1fr) 44px 44px;align-items:center;gap:2px;max-width:780px;margin:0 auto;padding:0;border:0}
@@ -1402,7 +1409,14 @@ main:has(>#almanacView:not([hidden])){padding-bottom:calc(115px + env(safe-area-
 #aimView .preview-history-icon{width:44px;min-width:44px;padding:0;display:inline-flex;align-items:center;justify-content:center}
 .ui-icon-label svg,.place-row .pin svg{flex:none;vertical-align:middle}
 .place-row .pin{display:flex;align-items:center;justify-content:center;flex:none;width:24px}
-.place-shortcuts button{display:inline-flex;align-items:center;gap:7px}
+/* 地点の画面: 検索欄の中の右に現在地・地図の絵の釦（2026-10-21） */
+.search-row .search-field{position:relative;flex:1;min-width:0;display:flex}
+/* 釦2つぶんの右の余白。入力欄の共通の padding が後から当たるので !important */
+#placeSheet .search-field>input{flex:1;min-width:0;width:100%;padding-right:96px!important}
+.search-field .field-icons{position:absolute;right:4px;top:0;bottom:0;display:flex;align-items:center;gap:2px}
+.search-field .field-icons button{display:inline-grid;place-items:center;width:44px;height:44px;min-height:44px;padding:0;border:0;border-radius:8px;background:none;color:var(--secondary)}
+.place-tabs{margin:12px 0}
+.fav-add-row{justify-content:flex-end}
 .search-row .search-go{width:44px;min-width:44px;min-height:44px;padding:0;display:flex;align-items:center;justify-content:center}
 #aimView .preview-camera-dialog .camera-visual-row{display:block;font-size:14px}
 .camera-visual-choices{display:flex;gap:8px;margin-top:8px}
@@ -1878,18 +1892,6 @@ button.ui-icon-button::after { content: none; }
        衛星が円盤の前を横切る。1秒に満たない -->
   <div id="issView" hidden>
     <div id="issAccess" hidden><div class="sky-map-head"><h2>人工衛星</h2></div><div class="card"><p id="issAccessMessage"></p><button id="issAccessLogin" class="fav-btn primary">ログイン</button></div></div>
-    <!-- 衛星を選ぶ（2026-10-21）。シートだったが、一覧が長くほぼ全画面になるのでページに（道 #/iss/pick。ユーザー「検索画面はもうページにする？」）。
-         戻ると人工衛星の画面の入力と位置はそのまま。選ぶと戻って反映。日本語名は Wikidata（CC0）から作った表 -->
-    <div class="card" id="issPickPage" hidden>
-      <button type="button" class="chip" id="issPickBack">← 人工衛星に戻る</button>
-      <div class="section-h" style="margin-top:8px"><h2 id="issPickTitle">衛星を選ぶ</h2></div>
-      <input id="issPickQuery" class="fav-in" type="search" enterkeyhint="search" autocomplete="off" placeholder="名前・衛星番号（ひまわり、HIMAWARI、25544）" aria-label="衛星を名前か番号で探す">
-      <div class="chips" id="issPickGroups" role="group" aria-label="ジャンル" style="margin-top:8px"></div>
-      <p class="tiny" id="issPickInfo" role="status"></p>
-      <button type="button" class="fav-btn" id="issPickVisible" hidden>このジャンルで今夜見える衛星を探す</button>
-      <div id="issPickList" class="al" style="margin-top:6px"></div>
-      <p class="tiny" style="margin-top:10px;color:var(--tertiary)">軌道要素は CelesTrak、日本語名は Wikidata（CC0）から。</p>
-    </div>
     <div class="card" id="issMain">
       <!-- 並びはねらうと同じ（2026-10-01 ユーザー「月丼とかISSとかのレイアウトも統一感あるように」）:
            題名、衛星、どこの近くで探すか（地点カードと同じ形）、表示の切り替え、地図、一覧。
@@ -2232,6 +2234,22 @@ button.ui-icon-button::after { content: none; }
 </dialog>
 
 <!-- 地図アプリで開く（2026-10-02）。選べるアプリは端末で変わる（mapAppChoices） -->
+<!-- 衛星を選ぶ（2026-10-21）。ほかの選ぶ画面と同じページの形（見出しの戻る・左の縁のスワイプ・ブラウザの戻る）。
+     初めは「すべて」（6ジャンルを合わせた一覧）、☆でお気に入り（ユーザー「ジャンルを選んでない時によく見る衛星にするのはやめて全表示に。お気に入りつけられるように」）。
+     日本語名は Wikidata（CC0）から作った表 -->
+<dialog class="sheet" id="issPickSheet" aria-labelledby="issPickTitle" tabindex="-1">
+  <div class="sheet-head"><strong id="issPickTitle">衛星を選ぶ</strong><button type="button" id="issPickClose">閉じる</button></div>
+  <div class="sheet-body">
+    <input id="issPickQuery" class="fav-in" type="search" enterkeyhint="search" autocomplete="off" placeholder="名前・衛星番号（ひまわり、HIMAWARI、25544）" aria-label="衛星を名前か番号で探す">
+    <div class="chips iss-pick-groups" id="issPickGroups" role="group" aria-label="ジャンル" style="margin-top:8px"></div>
+    <p class="tiny" id="issPickInfo" role="status"></p>
+    <button type="button" class="fav-btn" id="issPickVisible" hidden>このジャンルで今夜見える衛星を探す</button>
+    <div id="issPickList" class="al" style="margin-top:6px"></div>
+    <button type="button" class="chip" id="issPickMore" hidden>さらに表示</button>
+    <p class="tiny" style="margin-top:10px;color:var(--tertiary)">軌道要素は CelesTrak、日本語名は Wikidata（CC0）から。お気に入りはこの端末に保存します。</p>
+  </div>
+</dialog>
+
 <dialog class="sheet" id="mapAppSheet" aria-labelledby="mapAppTitle" tabindex="-1">
   <div class="sheet-head"><strong id="mapAppTitle">地図アプリで開く</strong><button id="mapAppClose">閉じる</button></div>
   <div class="sheet-body">
@@ -4195,7 +4213,7 @@ function routeFromHash() {
   if (am) return { aim: true, preset: am[1] };
   if (location.hash === "#/plane") return { plane: true };
   if (location.hash === "#/iss") return { iss: true };
-  if (location.hash === "#/iss/pick") return { iss: true, issPick: true };   // 衛星を選ぶ（2026-10-21）
+  if (location.hash === "#/iss/pick") return { iss: true, issPick: true };   // 以前の衛星を選ぶの道（今はページを重ねる。openIss）
   if (location.hash === "#/admin") return { admin: true };
   const m = /^#\/([A-Za-z]+)(?:\/(\d+))?$/.exec(location.hash);
   // **`SCORERS` ではなく `PHENOMENA` で見る。**
@@ -7220,17 +7238,11 @@ function issSetTab(tab, focus = false) {
   issApply();
 }
 
-/// 計算の条件。同じなら計算し直さなくてよい
-function issApplyKey() {
-  const P = issFromPoint();
-  return P ? [iss.catnr, iss.tab, P.latitude, P.longitude, iss.body, iss.rangeKm].join("|") : "";
-}
 async function issApply() {
   if (!toolAllowed("iss")) return;
   const P = issFromPoint();
   if (!P) return;
   const seq = ++iss.seq;
-  iss.lastKey = issApplyKey();
   const name = issSatName();
   const pass = iss.tab === "pass";
   // 開いていた回の方角図と地図は一覧の中（行の下）にある。一覧を書き換える前に退避しないと地図ごと消える
@@ -7638,7 +7650,15 @@ function issDrawTrack(ctx, project, color, ink, width, height) {
 const ISS_GROUPS = [
   ["stations", "宇宙ステーション", true], ["visual", "明るい衛星", true], ["weather", "気象", false],
   ["gnss", "測位（GPS・みちびき など）", false], ["science", "科学", false], ["amateur", "アマチュア無線", false]];
-const issPick = { group: null, list: [], remote: null, seq: 0, remoteSeq: 0, visSeq: 0, visible: null, timer: 0 };
+const issPick = { group: "all", list: [], remote: null, seq: 0, remoteSeq: 0, visSeq: 0, visible: null, timer: 0, limit: 200 };
+/// お気に入りの衛星（この端末に保存。{ catnr, name }）
+const issFavSats = () => { const v = store.get("sorami.issFavSats", []); return Array.isArray(v) ? v.filter((x) => x && Number.isInteger(x.catnr)) : []; };
+function issToggleFav(catnr, name) {
+  const favs = issFavSats(), at = favs.findIndex((x) => x.catnr === catnr);
+  if (at >= 0) favs.splice(at, 1); else favs.unshift({ catnr, name: String(name || "").slice(0, 80) });
+  store.set("sorami.issFavSats", favs);
+  issPickRender();
+}
 let issNamesPromise = null;
 /// 番号→{ ja, en, alias } の表。取れなくても英語名で動く（次に開いたときにまた読む）
 function issLoadNames() {
@@ -7664,57 +7684,46 @@ function issPickLabel(catnr, celestrakName) {
 
 /// 衛星を選ぶページへ。戻ってきたときに同じ位置へ戻すため、いまのスクロール位置を覚える
 function issPickOpen() {
-  iss.returnScroll = window.scrollY;
-  iss.fromPick = true;
-  pushRoute("#/iss/pick");
-}
-/// 戻る。アプリの中から来ていれば履歴を1つ戻し、URL を直接開いていれば人工衛星の画面に置き換える
-function issPickDone() {
-  const inApp = NO_HISTORY ? appTrail.length > 0 : (history.state && history.state.depth) > 0;
-  if (inApp) { goBack(); return; }
-  history.replaceState(history.state, "", "#/iss");
-  applyRoute();
-}
-async function issPickShow() {
-  // 描画が済んでから頭へ（先に動かすと、人工衛星の画面の高さのまま途中で止まることがあった）
-  window.scrollTo(0, 0); requestAnimationFrame(() => window.scrollTo(0, 0));
-  $("issPickGroups").innerHTML = ISS_GROUPS.map(([g, label]) =>
+  $("issPickGroups").innerHTML = [["all", "すべて"], ["fav", "お気に入り"], ...ISS_GROUPS].map(([g, label]) =>
     `<button type="button" class="chip" data-group="${g}" aria-pressed="${issPick.group === g}">${esc(label)}</button>`).join("");
-  for (const b of $("issPickGroups").querySelectorAll("[data-group]")) {
-    b.onclick = () => issPickGroup(issPick.group === b.dataset.group ? null : b.dataset.group);
-  }
-  issPickRender();
-  await issLoadNames();
-  if (atIss && routeFromHash()?.issPick) issPickRender();
+  for (const b of $("issPickGroups").querySelectorAll("[data-group]")) b.onclick = () => issPickGroup(b.dataset.group);
+  $("issPickQuery").value = "";
+  showSheet($("issPickSheet"));
+  issPickGroup(issPick.group || "all");
+  issLoadNames().then(() => { if ($("issPickSheet").open) issPickRender(); });
+}
+function issPickDone() { $("issPickSheet").close(); }
+
+/// ジャンルの軌道要素（2時間使い回す）。取れなければ古い控え、それも無ければ null
+async function issLoadGroup(g) {
+  const key = `sorami.issGroup.${g}`, cached = store.get(key, null);
+  if (cached && Date.now() - cached.at < 2 * 3600000 && cached.text) return SoramiISS.parseTleList(cached.text);
+  try {
+    const text = await issFetchText(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${encodeURIComponent(g)}&FORMAT=TLE`);
+    const list = SoramiISS.parseTleList(text);
+    if (list.length) store.set(key, { at: Date.now(), text });   // 大きいジャンルは保存できないことがある（そのときは次も取りに行く）
+    return list;
+  } catch { return cached && cached.text ? SoramiISS.parseTleList(cached.text) : null; }
 }
 
-/// ジャンルを開く（同じジャンルをもう一度押すと閉じる）
+/// ジャンルを開く。all は6ジャンルを合わせた一覧、fav はお気に入り（取得しない）
 async function issPickGroup(g) {
   const seq = ++issPick.seq;
-  issPick.group = g; issPick.list = []; issPick.visible = null; issPick.visSeq++;
+  issPick.group = g; issPick.list = []; issPick.visible = null; issPick.visSeq++; issPick.limit = 200;
   for (const b of $("issPickGroups").querySelectorAll("[data-group]")) b.setAttribute("aria-pressed", String(b.dataset.group === g));
   $("issPickVisible").hidden = true;
-  if (!g) { issPickRender(); return; }
-  $("issPickInfo").textContent = "軌道要素を読んでいます…";
-  $("issPickList").innerHTML = "";
-  const key = `sorami.issGroup.${g}`, cached = store.get(key, null);
-  let list = null;
-  if (cached && Date.now() - cached.at < 2 * 3600000 && cached.text) list = SoramiISS.parseTleList(cached.text);
-  else {
-    try {
-      const text = await issFetchText(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${encodeURIComponent(g)}&FORMAT=TLE`);
-      list = SoramiISS.parseTleList(text);
-      if (list.length) store.set(key, { at: Date.now(), text });   // 大きいジャンルは保存できないことがある（そのときは次も取りに行く）
-    } catch { list = cached && cached.text ? SoramiISS.parseTleList(cached.text) : null; }
-  }
+  if (g === "fav") { issPick.loading = false; issPickRender(); return; }
+  // 読み終わるのを待たずに描く（お気に入りと名前・番号の検索はすぐ使える。取れないときは15秒待つことになる）
+  issPick.loading = true; issPickRender();
+  const groups = g === "all" ? ISS_GROUPS.map(([k]) => k) : [g];
+  const lists = await Promise.all(groups.map(issLoadGroup));
   if (seq !== issPick.seq) return;
-  if (!list || !list.length) {
-    $("issPickInfo").textContent = "このジャンルの軌道要素を取れませんでした。時間をおいてもう一度押してください。";
-    return;
-  }
+  issPick.loading = false;
+  const seen = new Set(), list = [];
+  for (const l of lists) for (const t of l || []) if (!seen.has(t.catnr)) { seen.add(t.catnr); list.push(t); }
   issPick.list = list;
-  $("issPickVisible").hidden = !ISS_GROUPS.find(([k]) => k === g)[2];
-  $("issPickVisible").disabled = false;
+  issPick.failed = lists.filter((l) => !l || !l.length).length;
+  if (g !== "all") { $("issPickVisible").hidden = !list.length || !ISS_GROUPS.find(([k]) => k === g)[2]; $("issPickVisible").disabled = false; }
   issPickRender();
 }
 
@@ -7732,31 +7741,41 @@ async function issPickRemote(q) {
 }
 
 function issPickRender() {
-  const q = $("issPickQuery").value.trim(), f = issFold(q);
-  const rows = [], seen = new Set(), limit = q ? 60 : 300;
-  const add = (catnr, tle) => { if (!catnr || seen.has(catnr) || rows.length >= limit) return; seen.add(catnr); rows.push({ catnr, tle }); };
+  const q = $("issPickQuery").value.trim(), f = issFold(q), favs = issFavSats(), favSet = new Set(favs.map((x) => x.catnr));
+  const rows = [], seen = new Set();
+  const add = (catnr, tle, name, head) => { if (!catnr || seen.has(catnr)) return; seen.add(catnr); rows.push({ catnr, tle, name, head }); };
+  const tleOf = (n) => issPick.list.find((t) => t.catnr === n) || (issPick.remote && issPick.remote.list || []).find((t) => t.catnr === n);
   const wikiHit = (catnr) => { const w = iss.names && iss.names.get(catnr); return !!w && [w.ja, w.en, ...w.alias].some((s) => issFold(s).includes(f)); };
+  const hit = (catnr, name) => issFold(name).includes(f) || wikiHit(catnr) || String(catnr) === q;
+  const label = ISS_GROUPS.find(([k]) => k === issPick.group)?.[1];
   let info = "", visibleRows = null;
   if (!q && issPick.visible) visibleRows = issPick.visible;
-  else if (!q && !issPick.group) {
-    for (const [n] of ISS_PRESETS) add(n);
-    info = "よく見る衛星です。名前・衛星番号で探すか、ジャンルを選んでください。";
-  } else if (!q) {
-    for (const t of issPick.list) add(t.catnr, t);
-    info = `${ISS_GROUPS.find(([k]) => k === issPick.group)[1]}：${issPick.list.length}機${issPick.list.length > limit ? `（先頭${limit}機）` : ""}`;
+  else if (issPick.group === "fav") {
+    for (const x of favs) if (!q || hit(x.catnr, x.name)) add(x.catnr, tleOf(x.catnr), x.name);
+    info = favs.length ? `お気に入り：${favs.length}機` : "お気に入りはまだありません。一覧の☆で追加できます。";
   } else {
-    if (/^\d{1,6}$/.test(q)) add(Number(q), issPick.list.find((t) => t.catnr === Number(q)));
-    // 開いているジャンルの中から、次に日本語名の表全体から
-    for (const t of issPick.list) if (issFold(t.name).includes(f) || wikiHit(t.catnr)) add(t.catnr, t);
-    if (!issPick.group) for (const [n] of iss.names || []) if (wikiHit(n)) add(n);
-    if (issPick.remote && issPick.remote.q === q && issPick.remote.list) for (const t of issPick.remote.list) add(t.catnr, t);
-    info = rows.length ? `${rows.length}件${rows.length >= limit ? "（先頭のみ）" : ""}` : "見つかりません。";
-    if (issPick.group) info += "（開いているジャンルの中）";
-    if (issPick.remote && issPick.remote.q === q && issPick.remote.list === undefined) info += " CelesTrak で探しています…";
-    if (issPick.remote && issPick.remote.q === q && issPick.remote.list === null) info += " CelesTrak で探せませんでした。";
+    // すべて: お気に入りを先に、そのあと一覧（日本語名のあるものを五十音順、ほかは英語名の順）
+    if (issPick.group === "all") for (const x of favs) if (!q || hit(x.catnr, x.name)) add(x.catnr, tleOf(x.catnr), x.name, "お気に入り");
+    const ja = (t) => iss.names && iss.names.get(t.catnr)?.ja;
+    const sorted = [...issPick.list].sort((a, b) => (ja(a) ? 0 : 1) - (ja(b) ? 0 : 1) || (ja(a) || a.name).localeCompare(ja(b) || b.name, "ja"));
+    let first = true;
+    for (const t of sorted) if (!q || hit(t.catnr, t.name)) { add(t.catnr, t, t.name, first && issPick.group === "all" && favs.length ? "すべて" : undefined); first = false; }
+    if (q) {
+      if (/^\d{1,6}$/.test(q)) add(Number(q), tleOf(Number(q)));
+      // 一覧に無い衛星も日本語名の表から（すべてのとき）
+      if (issPick.group === "all") for (const [n] of iss.names || []) if (wikiHit(n)) add(n, tleOf(n));
+      if (issPick.remote && issPick.remote.q === q && issPick.remote.list) for (const t of issPick.remote.list) add(t.catnr, t);
+    }
+    const n = issPick.list.length;
+    info = q ? (rows.length ? `${rows.length}件` : "見つかりません。") + (issPick.group !== "all" ? `（${label}の中）` : "")
+      : issPick.group === "all" ? (n ? `すべて：${n}機` : "") : `${label}：${n}機`;
+    if (issPick.loading) info = (q ? info + " " : "") + "一覧を読んでいます…";
+    else if (!n && issPick.group !== "fav") info = (issPick.group === "all" ? "衛星の一覧" : "このジャンルの軌道要素") + "を取れませんでした。名前や番号で探すことはできます。" + (info && q ? ` ${info}` : "");
+    else if (issPick.group === "all" && issPick.failed) info += `（${issPick.failed}ジャンルは取れませんでした）`;
+    if (q && issPick.remote && issPick.remote.q === q && issPick.remote.list === undefined) info += " CelesTrak で探しています…";
+    if (q && issPick.remote && issPick.remote.q === q && issPick.remote.list === null) info += " CelesTrak で探せませんでした。";
   }
   $("issPickInfo").textContent = visibleRows ? `これから24時間、${issFromPoint().name}で見える回（早い順）` : info;
-  // 英語の名前なら CelesTrak でも探せる（日本語名の表に無い衛星のため）
   const canRemote = q && !visibleRows && /[a-z]/i.test(q) && !(issPick.remote && issPick.remote.q === q);
   const list = visibleRows
     ? visibleRows.map(({ tle, pass, with: others }) => {
@@ -7765,15 +7784,22 @@ function issPickRender() {
       const together = others.length ? ` ・ ほか${others.length}機が一緒に通る（${names.slice(0, 2).join("・")}${names.length > 2 ? " など" : ""}）` : "";
       return { catnr: tle.catnr, tle, main, sub: `${S.Cal.monthDay(v.start.at)}(${S.Cal.weekday(v.start.at)}) ${issHm(v.start.at)} ・ ${issDir16(v.start.azimuth)}→${issDir16(v.end.azimuth)} ・ 最大仰角${Math.round(v.max.elevation)}°${together}` };
     })
-    : rows.map(({ catnr, tle }) => ({ catnr, tle, ...issPickLabel(catnr, tle && tle.name) }));
+    // お気に入りに残した名前は日本語名のことがある。表にある衛星は表の英語名を添える（同じ名前を2回出さない）
+    : rows.map(({ catnr, tle, name, head }) => ({ catnr, tle, head, ...issPickLabel(catnr, (tle && tle.name)
+      || (ISS_PRESETS.some(([n]) => n === catnr) || iss.names?.has(catnr) ? "" : name)) }));
   if (visibleRows && !list.length) $("issPickInfo").textContent = `これから24時間、${issFromPoint().name}でこのジャンルの衛星が見える回はありません。`;
-  $("issPickList").innerHTML = list.map((r, i) => `<button class="al-row jump" data-pick="${i}"${r.catnr === iss.catnr ? ' aria-current="true"' : ""}>
-      <span class="al-w"><strong>${esc(r.main)}</strong><span class="tiny">${esc(r.sub)}</span></span>
-      <span class="tiny">${r.catnr === iss.catnr ? "選んでいます" : "選ぶ →"}</span></button>`).join("")
+  // 多いときは200件ずつ（すべてで1000機ほど。一度に並べると重い）
+  const shown = list.slice(0, issPick.limit);
+  $("issPickList").innerHTML = shown.map((r, i) => `${r.head ? `<h3 class="iss-pick-head">${esc(r.head)}</h3>` : ""}<div class="iss-pick-row">
+      <button class="al-row jump" data-pick="${i}"${r.catnr === iss.catnr ? ' aria-current="true"' : ""}>
+        <span class="al-w"><strong>${esc(r.main)}</strong><span class="tiny">${esc(r.sub)}</span></span>
+        <span class="tiny">${r.catnr === iss.catnr ? "選んでいます" : "選ぶ →"}</span></button>
+      <button type="button" class="iss-star" data-star="${i}" aria-pressed="${favSet.has(r.catnr)}" aria-label="${esc(r.main)}を${favSet.has(r.catnr) ? "お気に入りから外す" : "お気に入りに追加"}">${favSet.has(r.catnr) ? "★" : "☆"}</button></div>`).join("")
     + (canRemote ? `<button type="button" class="fav-btn" id="issPickRemoteRun" style="margin-top:8px">CelesTrak で英語名「${esc(q)}」を探す</button>` : "");
-  for (const el of $("issPickList").querySelectorAll("[data-pick]")) {
-    el.onclick = () => { const r = list[+el.dataset.pick]; issChoose(r.catnr, r.tle); };
-  }
+  $("issPickMore").hidden = list.length <= issPick.limit;
+  $("issPickMore").textContent = `さらに表示（あと${Math.max(0, list.length - issPick.limit)}機）`;
+  for (const el of $("issPickList").querySelectorAll("[data-pick]")) el.onclick = () => { const r = shown[+el.dataset.pick]; issChoose(r.catnr, r.tle); };
+  for (const el of $("issPickList").querySelectorAll("[data-star]")) el.onclick = () => { const r = shown[+el.dataset.star]; issToggleFav(r.catnr, r.main); };
   if (canRemote) $("issPickRemoteRun").onclick = () => issPickRemote(q);
 }
 
@@ -7786,8 +7812,8 @@ function issChoose(catnr, tle) {
   }
   store.set("sorami.issSat", catnr);
   if (tle) issKeepTle(catnr, `${tle.name}\n${tle.line1}\n${tle.line2}`);
-  iss.returnScroll = 0;   // 別の衛星にしたら一覧の頭から
   issPickDone();
+  issApply();
 }
 
 /// 開いているジャンルで、これから24時間に見える回。全機を順に解くので押したときだけ
@@ -7879,12 +7905,9 @@ IssMap.setOverlay((ctx, { project, width, height }) => {
 
 function openIss() {
   if (!renderToolAccess("iss")) { iss.seq++; return; }
+  // 以前の「衛星を選ぶ」の道（#/iss/pick）で開かれたら、人工衛星の画面にして衛星を選ぶページを重ねる
   const picking = !!routeFromHash()?.issPick;
-  $("issPickPage").hidden = !picking;
-  $("issMain").hidden = picking;
-  // 戻ってきたとき。衛星も地点も変わっていなければ計算し直さず、開いていた回と位置をそのまま見せる
-  const fromPick = iss.fromPick && !picking;
-  if (!picking) iss.fromPick = false;
+  if (picking) history.replaceState(history.state, "", "#/iss");
   if (!iss.wired) {
     iss.wired = true;
     $("issMoon").onclick = () => { iss.body = "moon"; issApply(); };
@@ -7894,7 +7917,8 @@ function openIss() {
     // 立つ点ではないので ☆ は付けない
     $("issFromButton").onclick = () => openPlaceSheet("iss");
     $("issSatButton").onclick = () => issPickOpen();
-    $("issPickBack").onclick = () => issPickDone();
+    $("issPickClose").onclick = () => issPickDone();
+    $("issPickMore").onclick = () => { issPick.limit += 200; issPickRender(); };
     $("issPickQuery").oninput = () => { clearTimeout(issPick.timer); issPick.timer = setTimeout(issPickRender, 150); };
     $("issPickVisible").onclick = () => issPickFindVisible();
     for (const [id, tab] of [["issPassTab", "pass"], ["issTransitTab", "transit"]]) {
@@ -7908,7 +7932,6 @@ function openIss() {
     // 計算中に押されたら、覚えるだけ（出来上がった一覧に効く。ここで書き直すと「見える回はありません」と出ていた）
     $("issShowAll").onchange = () => { iss.showAll = $("issShowAll").checked; if (!iss.passesReady) return; iss.passPick = -1; iss.track = []; issRenderPasses(); };
   }
-  if (picking) { issPickShow(); return; }
   // 日本語名の表は、読めたらカードと一覧の名前を差し替える（読めなくても英語名で動く）
   issLoadNames().then(() => { if (atIss) { issRenderSatCard(); if (iss.tab === "pass" && iss.passes.length) issRenderPasses(); } });
   requestAnimationFrame(() => {
@@ -7919,12 +7942,8 @@ function openIss() {
     IssMap.open({ latitude: P.latitude, longitude: P.longitude }, iss.tab === "pass" ? 5 : 8);
     requestAnimationFrame(() => IssMap.redraw());
   });
-  const y = iss.returnScroll;
-  iss.returnScroll = null;
-  if (fromPick && iss.lastKey === issApplyKey()) {
-    issDrawSky(); requestAnimationFrame(() => IssMap.redraw());
-  } else issApply();
-  if (fromPick && y != null) requestAnimationFrame(() => window.scrollTo(0, y));
+  issApply();
+  if (picking) issPickOpen();
 }
 
 function aimApply({ redraw = true, recenter = false } = {}) {
@@ -11824,7 +11843,7 @@ function markToolsCurrent() {
 // 中身と処理は各 dialog のまま、開き方だけ変える。下の画面は残るので、戻ると入力と位置が残る。
 // 入力のページ（input）は、検索欄以外を書き換えたあとに戻ると「破棄しますか？」を出す。保存の釦で閉じるときは聞かない
 const PAGE_DIALOGS = {
-  placeSheet: {}, mapSheet: {}, aimLineSheet: {}, aimCalendar: {}, planSheet: {},
+  placeSheet: {}, mapSheet: {}, aimLineSheet: {}, aimCalendar: {}, planSheet: {}, issPickSheet: {},
   previewTargetDialog: { input: true }, photoSheet: { input: true }, skyMapTargetSheet: { input: true },
   favSheet: { ownConfirm: true },   // お気に入りは閉じる処理（closeFavSheet）が自分で「破棄しますか？」を聞く
 };
@@ -13577,21 +13596,30 @@ document.getElementById('skyMapBody').hidden=true;   // 地図の欄の CSS が 
 // E171: these histories stay in this browser; favorites keep their existing account sync.
 const recentHistory=(()=>{
  const history=SoramiHistory.create({read:store.get,write:store.set,scope:()=>auth?.loginId||'guest',validatePlan:p=>{try{return p?.kind==='aim'?SoramiPlan.decode(SoramiPlan.encode(p)):null;}catch{return null;}}});
- const sheet=$('placeSheet'),content=sheet.querySelector('.sheet-body'),nav=document.createElement('div');nav.className='history-nav';nav.setAttribute('role','group');nav.setAttribute('aria-label','地点の選び方');
+ // 2026-10-21 ユーザー「お気に入り・履歴・候補地点はタブにして切り替え。現在地と地図は入力欄の中にGPSマークと地図マークのボタン」
+ const sheet=$('placeSheet'),content=sheet.querySelector('.sheet-body'),nav=document.createElement('div');nav.className='forecast-tabs place-tabs';nav.setAttribute('role','tablist');nav.setAttribute('aria-label','地点の選び方');
  const historyPanel=document.createElement('section'),favPanel=document.createElement('section'),candidatePanel=document.createElement('section');historyPanel.id='recentPanel';favPanel.id='recentFavorites';candidatePanel.id='recentCandidates';
  historyPanel.innerHTML='<div class="history-subnav" role="group" aria-label="履歴の種類"><button type="button" data-recent-kind="places">場所</button><button type="button" data-recent-kind="plans">重ねる条件</button></div><div class="history-heading"><p class="tiny">このブラウザの最近30件</p><button type="button" data-recent-clear>履歴を消す</button></div><p class="tiny" data-recent-note></p><input type="search" class="fav-in" data-recent-search aria-label="履歴を検索" placeholder="場所・対象・天体・日付で絞り込む"><div class="history-list"></div><div class="history-pages"><button type="button" class="chip" data-recent-prev>前の5件</button><span class="tiny" data-recent-count role="status"></span><button type="button" class="chip" data-recent-next>次の5件</button></div><button type="button" class="chip" data-recent-undo hidden>消した履歴を戻す</button>';
  const err=document.createElement('p');err.className='warn';err.setAttribute('role','status');err.hidden=true;err.textContent='履歴を保存できませんでした。ブラウザの保存設定や空き容量を確認してください。';
  const favoritesStart=$('favAdd').parentElement;let n=favoritesStart;while(n){const next=n.nextSibling;favPanel.append(n);n=next;}
  content.append(favPanel.querySelector('#favUndo'));
  candidatePanel.append($('sheetCands'));content.append(historyPanel,favPanel,candidatePanel,err);
- const shortcuts=document.createElement('div');shortcuts.className='place-shortcuts';for(const id of ['geoButton','mapButton']){const b=$(id);b.classList.remove('list-item');b.setAttribute('aria-label',id==='geoButton'?'現在地を使う':'地図で選ぶ');b.innerHTML=(id==='geoButton'?MAP_ICON_LOCATE:UI_ICONS.map)+'<span>'+(id==='geoButton'?'現在地':'地図で選ぶ')+'</span>';shortcuts.append(b);} $('searchResults').after(shortcuts,nav);
+ // 現在地・地図で選ぶは検索欄の中の右に絵だけの釦。お気に入りの見出しはタブと重なるので読み上げだけに
+ const field=document.createElement('div'),icons=document.createElement('div');field.className='search-field';icons.className='field-icons';const box=$('searchBox');box.before(field);field.append(box,icons);
+ for(const id of ['geoButton','mapButton']){const b=$(id);b.classList.remove('list-item');b.type='button';const say=id==='geoButton'?'現在地を使う':'地図で選ぶ';b.setAttribute('aria-label',say);b.title=say;b.innerHTML=id==='geoButton'?MAP_ICON_LOCATE:UI_ICONS.map;icons.append(b);}
+ $('favAdd').parentElement.querySelector('h2')?.classList.add('sr-only');$('favAdd').parentElement.classList.add('fav-add-row');
+ $('searchResults').after(nav);
  const panels={recent:historyPanel,favorites:favPanel,candidates:candidatePanel};let active='favorites',kind='places',page=0;
- for(const [id,label] of [['favorites','お気に入り'],['recent','履歴'],['candidates','この日の候補']]){const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.historyPanel=id;b.setAttribute('aria-controls',panels[id].id);b.onclick=()=>{active=id;render();};nav.append(b);}
+ for(const [id,label] of [['favorites','お気に入り'],['recent','履歴'],['candidates','この日の候補']]){const b=document.createElement('button');b.type='button';b.setAttribute('role','tab');b.textContent=label;b.dataset.historyPanel=id;b.setAttribute('aria-controls',panels[id].id);b.onclick=()=>{active=id;render();};
+  b.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const tabs=[...nav.children].filter(x=>!x.hidden),i=tabs.indexOf(b),next=e.key==='Home'?tabs[0]:e.key==='End'?tabs[tabs.length-1]:tabs[(i+(e.key==='ArrowRight'?1:tabs.length-1))%tabs.length];active=next.dataset.historyPanel;render();next.focus();};nav.append(b);}
  const list=historyPanel.querySelector('.history-list'),note=historyPanel.querySelector('[data-recent-note]'),undo=historyPanel.querySelector('[data-recent-undo]');
  const okay=result=>{err.hidden=result;return result;};
  function render(){
   for(const [id,panel] of Object.entries(panels))panel.hidden=id!==active;
-  for(const b of nav.children){b.setAttribute('aria-pressed',String(b.dataset.historyPanel===active));b.hidden=b.dataset.historyPanel==='candidates'&&!['aim','skymap'].includes(placeSheetFor);}
+  for(const b of nav.children){b.hidden=b.dataset.historyPanel==='candidates'&&!['aim','skymap'].includes(placeSheetFor);}
+  // 候補のタブが無い画面で候補を開いていたら、お気に入りへ
+  if(active==='candidates'&&!['aim','skymap'].includes(placeSheetFor)){active='favorites';for(const [id,panel] of Object.entries(panels))panel.hidden=id!==active;}
+  for(const b of nav.children){const on=b.dataset.historyPanel===active;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;}
   for(const b of historyPanel.querySelectorAll('[data-recent-kind]'))b.setAttribute('aria-pressed',String(b.dataset.recentKind===kind));
   note.textContent=kind==='places'?'選んだ場所をもう一度使う':'日時・画角も復元。☆は撮影地点を登録';historyPanel.querySelector('[data-recent-search]').placeholder=kind==='places'?'場所の名前で絞り込む':'場所・対象・天体・日付で絞り込む';
   const rows=history.list(kind),query=historyPanel.querySelector('[data-recent-search]').value.normalize('NFKC').toLocaleLowerCase().trim();
