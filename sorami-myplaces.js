@@ -240,7 +240,7 @@ function renderRecordsHub() {
    action('notebookSelectAll','表示中を選択',()=>{for(const f of visiblePlaces)state.ids.add(f.id);state.error='';renderRecordsHub();}).disabled=!visiblePlaces.length;
    action('notebookSelectNone','選択を解除',()=>{state.ids.clear();state.error='';renderRecordsHub();}).disabled=!state.ids.size;
    const addTargets=action('notebookAddTargets','対象を一括追加',()=>notebookAddTargets(addTargets));addTargets.disabled=!state.ids.size;
-   const remove=action('notebookDelete','NOTEBOOKから削除',()=>{
+   const remove=action('notebookDelete','削除',()=>{
     if(notebookEdit!==state||state.owner!==auth?.token||!state.ids.size)return;
     const ids=[...state.ids],stamp=notebookStamp(ids);
     if(!confirm(ids.length+'地点をNOTEBOOKから削除しますか？\nこの地点の対象登録・観測記録・線と範囲を削除します。お気に入りの候補と予定は残ります。'))return;
