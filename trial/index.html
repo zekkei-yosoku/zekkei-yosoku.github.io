@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="14607224998730682437">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-4m0IYYr7RNQ0CRhh86Xnb+uGwaTpXev+SuQDC1ZIaus=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-IHJn5RiCzmHozid080+zENv1ezm18ecCQWarmEOSfmg=' 'sha256-GMs2Gk94riewAJ1Ii7ria7EKlc9B2buPe0dc0EHmQkE=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-20oFMl7+c2PM1pgnt9MPUvoGq6lBf9aXpEv7mgrLhX4=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="11915862603242253620">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-oA/N7GXW+N+vOJMJfsQ6sAeI46mWcy69HnDlQYHbPgk=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CAHcHfR6GPdKKIKv6rsWNAqpp6j2vrMCgFANF6B89Qk=' 'sha256-GMs2Gk94riewAJ1Ii7ria7EKlc9B2buPe0dc0EHmQkE=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-20oFMl7+c2PM1pgnt9MPUvoGq6lBf9aXpEv7mgrLhX4=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -78,7 +78,7 @@
        消えていた（コントラストを直したときに tertiary を暗くして寄せてしまった）。
        secondary を本文寄りへ戻して 本文→補助→注記 の3段を作る。 */
     color-scheme: light; --bg: #f1f4f8; --card: #ffffff; --text: #1c1c1e; --secondary: #4a4a4f; --tertiary: #6b6b71;
-    --accent: #426789; --line: rgba(0,0,0,.08);
+    --accent: #426789; --location-action: #28669a; --line: rgba(0,0,0,.08);
     /* 評価語の色。ライトでは「白地の上で 4.5:1」を満たす黄が存在せず、
        #7d6516 のオリーブになる。しかも隣の --good #a04f09 と見分けが付かず、
        灰→オリーブ→焦茶→赤 の中2つが同じ茶に潰れていた。
@@ -106,7 +106,7 @@
      iOS はアプリが裏へ回るとき外観をライト⇄ダークに往復させるので、メディアクエリに直接従うと戻った直後にライトで出る */
   :root[data-theme="dark"] { color-scheme: dark; --bg: #000; --card: #1c1c1e; --text: #f2f2f7; --secondary: #c3c3ca; --tertiary: #93939a;
             --line: rgba(255,255,255,.1);
-            --accent: #9bb8d3; --spectacular: #e97180; --good: #f08529; --fair: #d4b247;
+            --accent: #9bb8d3; --location-action: #80c7ff; --spectacular: #e97180; --good: #f08529; --fair: #d4b247;
             --poor: #9a9a9a; --red: #db5b54; --orange: #d98a1f;
             /* 暗い地の上では、色を足すほど明るくなるので明度が段の手がかりになる。
                いまの文字色がそのまま塗りとしても働くので同じ値を使う。 */
@@ -1409,12 +1409,16 @@ main:has(>#almanacView:not([hidden])){padding-bottom:calc(115px + env(safe-area-
 #aimView .preview-history-icon{width:44px;min-width:44px;padding:0;display:inline-flex;align-items:center;justify-content:center}
 .ui-icon-label svg,.place-row .pin svg{flex:none;vertical-align:middle}
 .place-row .pin{display:flex;align-items:center;justify-content:center;flex:none;width:24px}
-/* 地点の画面: 検索欄の中の右に現在地・地図の絵の釦（2026-10-21） */
-.search-row .search-field{position:relative;flex:1;min-width:0;display:flex}
-/* 釦2つぶんの右の余白。入力欄の共通の padding が後から当たるので !important */
-#placeSheet .search-field>input{flex:1;min-width:0;width:100%;padding-right:96px!important}
-.search-field .field-icons{position:absolute;right:4px;top:0;bottom:0;display:flex;align-items:center;gap:2px}
-.search-field .field-icons button{display:inline-grid;place-items:center;width:44px;height:44px;min-height:44px;padding:0;border:0;border-radius:8px;background:none;color:var(--secondary)}
+/* 地点検索: 入力→文字付きの選択方法→一覧。2026-10-21 採用画像に統一 */
+.sheet .sheet-body .location-search-row{display:flex;gap:6px;align-items:stretch;margin:0}
+.sheet .sheet-body .location-search-row>input{flex:1;min-width:0;width:0;font-size:16px;box-sizing:border-box}
+.sheet .sheet-body .location-search-row>.location-search-go{display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;min-width:44px;min-height:44px;padding:0;border:0;background:transparent;color:var(--location-action);border-radius:8px}
+.place-search-actions{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:2px 0 16px}
+.place-search-actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:44px;min-height:44px;padding:0 10px;border:0;background:transparent;color:var(--location-action);font-size:15px;font-weight:600;border-radius:8px}
+.place-search-actions button:first-child{padding-left:0}
+.place-search-actions svg,.location-search-go svg{flex:none;width:22px;height:22px}
+.place-search-actions button:active,.location-search-go:active{opacity:.65}
+.place-search-actions button:focus-visible,.location-search-go:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .place-tabs{margin:12px 0}
 .fav-add-row{justify-content:flex-end}
 .search-row .search-go{width:44px;min-width:44px;min-height:44px;padding:0;display:flex;align-items:center;justify-content:center}
@@ -6009,7 +6013,7 @@ const MAP_LAYERS = {
   terrain: { key: "pale", ext: "png", maxZ: 16, label: "地形", shade: { key: "hillshademap", ext: "png" } },
 };
 const MAP_ICON_LAYERS = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2.5 8 12 13l9.5-5L12 3Z"/><path d="m2.5 12.5 9.5 5 9.5-5"/><path d="m2.5 16.5 9.5 5 9.5-5" opacity=".55"/></svg>`;
-const MAP_ICON_LOCATE = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>`;
+const MAP_ICON_LOCATE = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="m21 3-7 18-3-8-8-3Z"/></svg>`;
 /// 現在地（どの地図でも共通）。{ latitude, longitude, accuracyM }
 let myPos = null;
 const MAP_VIEWS = new Set();          // 現在地が変わったら描き直す地図
@@ -11472,6 +11476,21 @@ function renderSearchResults(host, results, onPick) {
 }
 
 function wireSearchBox(boxId, resultsId, onPick, onCoord, options = {}) {
+  // 共通の地点検索4経路。検索処理や選択先は変えず、入力と操作の見た目だけ揃える。
+  const field = $(boxId), searchButton = $(`${boxId}Go`);
+  if (field && searchButton) {
+    field.parentElement.classList.add("location-search-row");
+    field.setAttribute("aria-label", field.getAttribute("aria-label") || "地点を検索（住所・地名・駅名・緯度経度・地図のURL）");
+    field.title = "住所・地名・駅名・緯度経度・地図のURL";
+    field.placeholder = "住所・地名・座標を検索";
+    field.setAttribute("enterkeyhint", "search");
+    searchButton.classList.add("location-search-go");
+    searchButton.type = "button";
+    searchButton.setAttribute("aria-label", "検索");
+    searchButton.title = "検索";
+    searchButton.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>';
+  }
+
   // **確定の拾い方は2通り持つ。** iOS のキーボードの「検索」では keydown の Enter が
   // 届かないことがあり、`input[type=search]` の `search` イベントでしか拾えない。
   // 同じ語で二重に走らないよう、直前の語を憶えておく。
@@ -13622,9 +13641,10 @@ const recentHistory=(()=>{
  const favoritesStart=$('favAdd').parentElement;let n=favoritesStart;while(n){const next=n.nextSibling;favPanel.append(n);n=next;}
  content.append(favPanel.querySelector('#favUndo'));
  candidatePanel.append($('sheetCands'));content.append(historyPanel,favPanel,candidatePanel,err);
- // 現在地・地図で選ぶは検索欄の中の右に絵だけの釦。お気に入りの見出しはタブと重なるので読み上げだけに
- const field=document.createElement('div'),icons=document.createElement('div');field.className='search-field';icons.className='field-icons';const box=$('searchBox');box.before(field);field.append(box,icons);
- for(const id of ['geoButton','mapButton']){const b=$(id);b.classList.remove('list-item');b.type='button';const say=id==='geoButton'?'現在地を使う':'地図で選ぶ';b.setAttribute('aria-label',say);b.title=say;b.innerHTML=id==='geoButton'?MAP_ICON_LOCATE:UI_ICONS.map;icons.append(b);}
+ // 検索とは別の選択方法。文字付きで入力の直下へ（2026-10-21 採用）
+ const actions=document.createElement('div');actions.className='place-search-actions';actions.setAttribute('role','group');actions.setAttribute('aria-label','地点の選び方');$('searchBox').closest('.search-row').after(actions);
+ for(const id of ['geoButton','mapButton']){const b=$(id);b.classList.remove('list-item');b.type='button';const say=id==='geoButton'?'現在地':'地図で選ぶ';b.setAttribute('aria-label',say);b.title=say;b.innerHTML=(id==='geoButton'?MAP_ICON_LOCATE:UI_ICONS.map)+'<span>'+say+'</span>';actions.append(b);}
+ actions.after($('geoStatus'));
  $('favAdd').parentElement.querySelector('h2')?.classList.add('sr-only');$('favAdd').parentElement.classList.add('fav-add-row');
  $('searchResults').after(nav);
  const panels={recent:historyPanel,favorites:favPanel,candidates:candidatePanel};let active='favorites',kind='places',page=0;

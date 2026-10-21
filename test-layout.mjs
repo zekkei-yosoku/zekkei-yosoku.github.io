@@ -969,7 +969,8 @@ ok(/if \(location\.hash === "#\/iss\/pick"\) return \{ iss: true, issPick: true 
 // 2026-10-21 ユーザー「お気に入り・履歴・候補地点はタブ。現在地と地図は入力欄の中にGPSマークと地図マークのボタン」
 ok(/nav\.className='forecast-tabs place-tabs';nav\.setAttribute\('role','tablist'\)/.test(html) && /b\.setAttribute\('role','tab'\)/.test(html) && /b\.setAttribute\('aria-selected',String\(on\)\)/.test(html),
   "地点の画面: お気に入り・履歴・この日の候補はタブ");
-ok(/field\.className='search-field';icons\.className='field-icons'/.test(html) && /#placeSheet \.search-field>input\{[^}]*padding-right:96px!important\}/.test(html), "地点の画面: 現在地・地図で選ぶは検索欄の中の絵の釦");
+// 2026-10-21 採用変更: 入力欄内の絵だけの釦から、直下の文字付き操作へ。
+ok(/actions.className='place-search-actions'/.test(html) && /closest\('\.search-row'\)\.after\(actions\)/.test(html) && /say=id==='geoButton'\?'現在地':'地図で選ぶ'/.test(html) && !/padding-right:96px!important/.test(html), "地点の画面: 現在地・地図は検索欄の直下の文字付き操作、入力幅を確保");
 // 2026-10-21 ユーザー「月の出は見えるのか、月の入は見えるのか」「富士山も、朝焼けの時間は見えるのか夕焼けの時間は見えるのか日中なのか」
 ok(/function timeBandPhases\(ev\)/.test(html) && /ev\.phenomenon === "moon" && ev\.timeBands/.test(html) && /const label = \{ morning: "朝焼け", midday: "日中", evening: "夕焼け" \};/.test(html),
   "時間帯ごとの見込み: 朝夕焼けに加えて月（API の timeBands）と富士山（朝焼け・日中・夕焼け）");

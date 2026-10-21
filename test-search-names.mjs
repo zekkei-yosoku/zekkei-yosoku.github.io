@@ -21,7 +21,7 @@ const exact=await ctx.searchPlaces('高尾山');assert.equal(exact[0].name,'高�
 
 // 実際の入力ハンドラーで、消去・連続検索・閉じる後の旧応答を検査する。
 const nodes=new Map();const dialog={events:{},addEventListener(n,f){this.events[n]=f;}};
-const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',innerHTML:'',dataset:{},events:{},addEventListener(n,f){this.events[n]=f;},setAttribute(){},removeAttribute(){},closest(){return dialog;},insertAdjacentHTML(_p,s){this.innerHTML+=s;}});return nodes.get(id);};
+const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',innerHTML:'',dataset:{},events:{},parentElement:{classList:{add(){}}},classList:{add(){}},getAttribute(){return null;},addEventListener(n,f){this.events[n]=f;},setAttribute(){},removeAttribute(){},closest(){return dialog;},insertAdjacentHTML(_p,s){this.innerHTML+=s;}});return nodes.get(id);};
 const pending=[];const race=vm.createContext({setTimeout,clearTimeout,$:node,document:{getElementById:node},MapPick:{center:()=>({})},placeSheetFor:null,place:{},SoramiTerrain:{parseLatLon:()=>null,isShortMapLink:()=>false},searchPlaces:(q,o)=>o?.localOnly?Promise.resolve([]):new Promise(resolve=>pending.push({q,resolve})),renderSearchResults:(h,r)=>{h.innerHTML=r.map(x=>x.name).join(',');}});
 vm.runInContext(html.slice(html.indexOf('function wireSearchBox('),html.indexOf('wireSearchBox("searchBox"')),race);race.wireSearchBox('searchBox','searchResults',()=>{},()=>{});
 const box=node('searchBox'),out=node('searchResults'),go=node('searchBoxGo');box.value='旧候補';box.events.input();go.onclick();await new Promise(setImmediate);box.value='';box.events.input();pending.shift().resolve([{name:'旧候補'}]);await new Promise(setImmediate);assert.equal(out.innerHTML,'');
