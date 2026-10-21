@@ -24,7 +24,7 @@ const base={loginId:'fixture-user',role:'user',ownerAdmin:false};
 {const $=await open({...base,credentials:[],hasPassword:true,recoveryCodes:9});
  assert.equal($('accountPasskeyState').textContent,'未登録');assert.equal($('accountPwState').textContent,'有効');assert.equal($('accountCodesState').textContent,'9件');
  assert.ok($('addPasskey').classes.has('primary'));assert.ok(!$('newRecovery').classes.has('primary'));
- assert.equal($('newRecovery').textContent,'発行し直す');assert.equal($('disablePw').hidden,true);assert.equal($('enablePwWay').hidden,true);
+ assert.equal($('newRecovery').textContent,'回復コードを再発行');assert.equal($('disablePw').hidden,true);assert.equal($('enablePwWay').hidden,true);
  assert.equal($('accountPasskeys').innerHTML,'');assert.equal($('accountAdvice').hidden,false);assert.match($('accountAdvice').textContent,/パスキーを登録すると/);
  assert.match($('accountBody').innerHTML,/fixture-user/);assert.match($('accountBody').innerHTML,/同期できています/);}
 
@@ -32,7 +32,7 @@ const base={loginId:'fixture-user',role:'user',ownerAdmin:false};
 {const cred=(id,label)=>({id,label,created_at:Date.UTC(2026,9,1),last_used_at:null});
  const $=await open({...base,credentials:[cred('k1','iPhone'),cred('k2','Mac')],hasPassword:false,recoveryCodes:0});
  assert.equal($('accountPasskeyState').textContent,'2台');assert.equal($('accountPwState').textContent,'無効');assert.equal($('accountCodesState').textContent,'0件');
- assert.ok(!$('addPasskey').classes.has('primary'));assert.ok($('newRecovery').classes.has('primary'));assert.equal($('newRecovery').textContent,'発行する');
+ assert.ok(!$('addPasskey').classes.has('primary'));assert.ok($('newRecovery').classes.has('primary'));assert.equal($('newRecovery').textContent,'回復コードを発行');
  assert.equal($('enablePwWay').hidden,false);assert.equal($('disablePw').hidden,true);
  assert.equal(($('accountPasskeys').innerHTML.match(/data-delkey=/g)||[]).length,2);
  assert.equal($('accountAdvice').hidden,false);assert.equal($('accountAdvice').className,'warn');}

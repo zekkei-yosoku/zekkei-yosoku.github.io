@@ -185,8 +185,8 @@ test('地図候補は構図の共通描画を使い、日付移動で再探索�
  let searches=0;const at=Date.now()+86400000;
  const f=fixture({tools:['skymap','tower','pearl'],saved:{targetId:'fuji',body:'moon'},datesSearch:async()=>{searches++;return[{at,side:'set',illuminated:.5}]}});await f.open();await flush();
  assert.match(f.element('skyMapDates').innerHTML,/月の入/);assert.doesNotMatch(f.element('skyMapDates').innerHTML,/日の入/);assert.match(f.element('skyMapDates').innerHTML,new RegExp('data-from-at="'+at+'"'));
- f.c.SkyMapUI.setTime(at);await flush();assert.equal(searches,1);assert.equal(f.c.SkyMapUI.snapshot().at,at);assert.equal(f.element('skyMapUseDates').hidden,false);
- f.element('skyMapUseDates').onclick();assert.equal(f.c.hash,'#/aim');assert.equal(f.aim.plannerTransfer.at,at);
+ f.c.SkyMapUI.setTime(at);await flush();assert.equal(searches,1);assert.equal(f.c.SkyMapUI.snapshot().at,at);assert.equal(f.element('skyMapUseBelow').hidden,false);
+ f.element('skyMapUseBelow').onclick();assert.equal(f.c.hash,'#/aim');assert.equal(f.aim.plannerTransfer.at,at);
 });
 test('地図候補の旧探索と離脱後の応答は候補欄へ戻らない',async()=>{
  const pending=[];const f=fixture({saved:{targetId:'skytree'},datesSearch:(...args)=>new Promise(resolve=>pending.push({resolve,options:args[5]}))});await f.open();assert.equal(pending.length,1);

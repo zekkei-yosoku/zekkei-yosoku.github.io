@@ -1847,7 +1847,7 @@ ok(/#favPhenomena button \{[^}]*min-height: 44px/.test(html), "現象チップ�
 ok(/\.sheet-head button \{[^}]*min-height: 44px/.test(html), "シートの閉じるが 44px");
 ok(/\.fav-row \.fav-del \{[^}]*min-width: 44px[\s\S]{0,40}min-height: 44px/.test(html), "削除が 44px");
 ok(/\.fav-row \.fav-edit \{[^}]*min-height: 44px/.test(html), "編集が 44px");
-ok(/id="favAdd"[^>]*min-height:44px/.test(html), "いまの地点を登録が 44px");
+ok(!/id="favAdd"/.test(html) && /id="favToggle"/.test(html), "予測地点の登録はカードの星に集約する");
 
 console.log("== ライトの塗りが点数の段として読める ==");
 // 2026-09-07 ユーザー指摘「ライトモードの時の色がなんか見辛くない？」。
