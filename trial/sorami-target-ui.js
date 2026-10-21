@@ -131,7 +131,10 @@ function mount(deps){
    const ground=s.searchPoint&&L.distance(s.searchPoint,p)<1&&Number.isFinite(s.searchPoint.elevation)?s.searchPoint.elevation:await deps.elevation(p.latitude,p.longitude);
    if(!valid(s)||!request.current(ticket))return;
    if(!Number.isFinite(ground))throw Error('標高を取得できませんでした。もう一度お試しください');
-   const previous=s.drafts.find(x=>x.entry.id===s.editing?.favId),draft=L.targetDraft({...p,elevation:ground,subtitle:s.searchPoint?.subtitle||''},{name,heightM,favorites:deps.favorites(),id:s.editing?.favId});
+   // 住所: 検索で選んだ場所ならその住所、地図で置いただけなら近くの住所を引く（取れなければ空。一覧では座標になる）
+   let subtitle=s.searchPoint&&L.distance(s.searchPoint,p)<1?s.searchPoint.subtitle||'':'';
+   if(!subtitle&&deps.address){try{subtitle=await deps.address(p)||'';}catch{subtitle='';}if(!valid(s)||!request.current(ticket))return;}
+   const previous=s.drafts.find(x=>x.entry.id===s.editing?.favId),draft=L.targetDraft({...p,elevation:ground,subtitle},{name,heightM,favorites:deps.favorites(),id:s.editing?.favId});
    if(previous)draft.baseline=previous.baseline;
    const category=readCategory();draft.entry.targetCategory=category||null;
    if(s.options.multiple){s.drafts=s.drafts.filter(x=>x.entry.id!==draft.entry.id);s.drafts.push(draft);const target=L.targetFromFavorite(draft.entry);s.selected=s.selected.filter(x=>targetKey(x)!==target.id);s.selected.push(target);listMode();}

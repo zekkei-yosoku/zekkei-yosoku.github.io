@@ -64,5 +64,90 @@ for (const r of sun) {
 const moon = I.transits(sat, tle, { center, radiusKm: 300, fromMs: from, hours: 72, body: "moon" });
 ok(Array.isArray(moon), "月も解ける（この3日は東京の近くを通らない）", `${moon.length}回`);
 
+// ---------------------------------------------------------------- 人工衛星の通過（2026-10-21）
+console.log("== 何機ぶんの軌道要素を読む ==");
+{
+  const raw = fs.readFileSync(new URL("./fixtures/iss-20260929.tle", import.meta.url), "utf8").trim().split(/\r?\n/);
+  const two = I.parseTleList(`${raw.join("\n")}\n${raw.slice(-2).join("\n")}\n`);
+  ok(two.length === 2 && two.every((t) => t.catnr === 25544), "名前の行が無い組も読む（2組）", two.map((t) => t.name).join(" / "));
+  ok(tle.catnr === 25544, "衛星番号を1行目から読む");
+}
+
+console.log("== 日が当たっているか ==");
+{
+  const sunFar = { x: 1.5e8, y: 0, z: 0 };
+  ok(I.sunlit({ x: 6771, y: 0, z: 0 }, sunFar) === true, "太陽の側の衛星は照らされる");
+  ok(I.sunlit({ x: -6771, y: 0, z: 0 }, sunFar) === false, "地球の真裏（高さ400km）は影の中");
+  ok(I.sunlit({ x: -6771, y: 6500, z: 0 }, sunFar) === true, "裏側でも地球の円盤の外なら照らされる");
+}
+
+console.log("== 空を通る回（東京・7日） ==");
+{
+  const obs = { latitude: 35.6812, longitude: 139.7671, elevation: 40 };
+  const ps = I.passes(sat, tle, { observer: obs, fromMs: from, hours: 168, minEl: 0 });
+  // 独立の答え: satellite.js の見かけの仰角を1秒ずつ総当たり
+  const rec = sat.twoline2satrec(tle.line1, tle.line2);
+  const gd = { latitude: obs.latitude * Math.PI / 180, longitude: obs.longitude * Math.PI / 180, height: 0.04 };
+  const el = (t) => { const d = new Date(t), pv = sat.propagate(rec, d); return sat.ecfToLookAngles(gd, sat.eciToEcf(pv.position, sat.gstime(d))).elevation * 180 / Math.PI; };
+  const brute = [];
+  let cur = null;
+  for (let t = from - 1200000; t < from + 168 * 3600000 + 1200000; t += 1000) {
+    const e = el(t);
+    if (e > 0 && !cur) cur = { rise: t, max: e, maxAt: t };
+    if (cur && e > cur.max) { cur.max = e; cur.maxAt = t; }
+    if (e <= 0 && cur) { cur.set = t; if (cur.set >= from) brute.push(cur); cur = null; }
+  }
+  ok(ps.length === brute.length && ps.length > 30, "地平線の上を通る回の数が総当たりと同じ", `${ps.length}回 / 総当たり${brute.length}回`);
+  let dT = 0, dE = 0;
+  for (const b of brute) {
+    const p = ps.find((q) => Math.abs(q.max.at - b.maxAt) < 120000);
+    if (!p) { dT = Infinity; continue; }
+    dT = Math.max(dT, Math.abs(p.rise.at - b.rise) / 1000, Math.abs(p.set.at - b.set) / 1000);
+    dE = Math.max(dE, Math.abs(p.max.elevation - b.max));
+  }
+  ok(dT <= 2, "出・消の時刻は総当たり（1秒刻み）と2秒以内", `${dT}秒`);
+  ok(dE < 0.05, "いちばん高い仰角は総当たりと0.05°以内", `${dE.toFixed(4)}°`);
+  // 見える区間の端は、条件（照らされている・空が暗い・仰角10°以上）を本当に満たす
+  const vis = ps.filter((p) => p.visible);
+  ok(vis.length >= 1, "この週は見える回がある", `${vis.length}回`);
+  let okEnds = true;
+  for (const p of vis) for (const q of [p.visible.start, p.visible.end, p.visible.max]) {
+    if (!q.lit || q.elevation < I.VISIBLE_MIN_EL - 1e-9 || A.sun(q.at, obs).apparentAltitude > I.DARK_SUN_ALT) okEnds = false;
+  }
+  ok(okEnds, "見える区間の始め・終わり・最高点は、照らされていて空が暗く仰角10°以上");
+  ok(ps.filter((p) => p.sunAltitude > 0).every((p) => !p.visible), "昼の回は見える回に入れない");
+  // 2026-09-29 18:20 JST ごろ北西から現れ、ほぼ真上を通り南東で影に入る回（軌道要素の元期の当日）
+  const first = I.passes(sat, tle, { observer: obs, fromMs: Date.parse("2026-09-29T18:00:00+09:00"), hours: 1 }).find((p) => p.visible);
+  ok(first && first.visible.entersShadow && first.visible.max.elevation > 75, "影に入って消える回を見分ける",
+    first && `${new Date(first.visible.end.at + 9 * 3600000).toISOString().slice(11, 19)} 最大${first.visible.max.elevation.toFixed(0)}°`);
+}
+
+console.log("== 真下の通り道 ==");
+{
+  const t0 = Date.parse("2026-09-29T09:20:00Z");
+  const tr = I.groundTrack(sat, tle, t0, t0 + 600000, 60);
+  ok(tr.length === 11, "10分を1分刻みで11点", `${tr.length}点`);
+  // 真下に立てば、衛星はほぼ天頂（地表の式で解いた近似の確かめ）
+  const rec = sat.twoline2satrec(tle.line1, tle.line2);
+  let worst = 90;
+  for (const q of tr) {
+    const d = new Date(q.at), pv = sat.propagate(rec, d);
+    const la = sat.ecfToLookAngles({ latitude: q.latitude * Math.PI / 180, longitude: q.longitude * Math.PI / 180, height: 0 }, sat.eciToEcf(pv.position, sat.gstime(d)));
+    worst = Math.min(worst, la.elevation * 180 / Math.PI);
+  }
+  ok(worst > 89.5, "真下の点から見ると衛星は天頂（89.5°より上）", `${worst.toFixed(3)}°`);
+}
+
+console.log("== 日本語名の表（data/satellite-names-ja.json、Wikidata CC0） ==");
+{
+  const d = JSON.parse(fs.readFileSync(new URL("./data/satellite-names-ja.json", import.meta.url), "utf8"));
+  const m = new Map(d.names.map((r) => [r[0], r]));
+  ok(d.license === "CC0 1.0" && d.names.length > 1000, "CC0 の表で1000機以上", `${d.names.length}機`);
+  ok(m.size === d.names.length && d.names.every((r) => Number.isInteger(r[0]) && r[0] > 0 && typeof r[1] === "string" && r[1]), "番号は重ならず、日本語名がある");
+  ok(m.get(25544)[1] === "ISS（国際宇宙ステーション）" && m.get(25544)[3].includes("ザーリャ"), "ISS は呼び名を上書きし、ザーリャは別名に");
+  ok(m.get(48274)[1] === "天宮（中国の宇宙ステーション）" && m.get(48274)[3].includes("天和"), "天宮は呼び名を上書きし、天和は別名に");
+  ok(m.get(40267)[1] === "ひまわり8号", "ひまわり8号（40267）", m.get(40267)[1]);
+}
+
 console.log(`\n${fail === 0 ? "ISS OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

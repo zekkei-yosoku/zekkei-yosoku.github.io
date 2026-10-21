@@ -35,7 +35,21 @@
     const yy = Number(l1.slice(18, 20)), doy = Number(l1.slice(20, 32));
     const year = yy < 57 ? 2000 + yy : 1900 + yy;
     const epochMs = Date.UTC(year, 0, 1) + (doy - 1) * 86400000;
-    return { name: i > 0 ? lines[i - 1] : "ISS", line1: l1, line2: l2, epochMs };
+    return { name: i > 0 ? lines[i - 1] : "ISS", catnr: Number(l1.slice(2, 7)), line1: l1, line2: l2, epochMs };
+  }
+
+  /// CelesTrak の GROUP の応答（名前・1行目・2行目の繰り返し）を全部読む
+  function parseTleList(text) {
+    const lines = String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const out = [];
+    for (let i = 0; i + 1 < lines.length; i++) {
+      if (!lines[i].startsWith("1 ") || !lines[i + 1].startsWith("2 ")) continue;
+      const name = i > 0 && !/^[12] /.test(lines[i - 1]) ? lines[i - 1] : "";
+      const t = parseTle(`${name}\n${lines[i]}\n${lines[i + 1]}`);
+      if (t) out.push({ ...t, name: name || String(t.catnr) });
+      i++;
+    }
+    return out;
   }
 
   /// 緯度・経度・高さ[km] → 地球固定座標[km]
@@ -197,7 +211,115 @@
     };
   }
 
-  const SoramiISS = { parseTle, transits, passAt, groundPoint, geodeticToEcef, ecefToGeodetic, distanceKm, separationDeg };
+  // ---------------------------------------------------------------- 通過（2026-10-21）
+  //
+  // 空を横切る衛星が見えるのは、**衛星に日が当たっていて、地上が暗い**とき。
+  // 日が当たっているかは、衛星から太陽へ引いた線が地球（半径6371kmの球。半影は見ない）に遮られるかで決める。
+  // 地上の暗さは太陽の高さ −6°（市民薄明の終わり）以下。仰角10°未満は建物や山に隠れやすいので見える回に数えない。
+  const EARTH_SHADOW_R = 6371;
+  const VISIBLE_MIN_EL = 10, DARK_SUN_ALT = -6;
+
+  /// 衛星（地球固定座標）に日が当たっているか
+  function sunlit(S, sun) {
+    const ux = sun.x - S.x, uy = sun.y - S.y, uz = sun.z - S.z, n = Math.hypot(ux, uy, uz);
+    // 太陽へ向かう線の上で地心にいちばん近い点。衛星より後ろ（太陽と反対側）なら遮られない
+    const t = -(S.x * ux + S.y * uy + S.z * uz) / n;
+    if (t <= 0) return true;
+    return Math.hypot(S.x + ux / n * t, S.y + uy / n * t, S.z + uz / n * t) > EARTH_SHADOW_R;
+  }
+
+  /// 観測点から見た衛星の方位・仰角[度]と距離[km]
+  function lookAt(sat, rec, gd, ms) {
+    const S = satEcef(sat, rec, ms);
+    if (!S) return null;
+    const la = sat.ecfToLookAngles(gd, S);
+    return { at: ms, S, azimuth: ((la.azimuth / DEG) % 360 + 360) % 360, elevation: la.elevation / DEG, rangeKm: la.rangeSat };
+  }
+
+  /**
+   * 地平線より上を通る回を探す。
+   * @param {object} opts { observer:{latitude,longitude,elevation[m]}, fromMs, hours, minEl（最大仰角がこれ未満の回は捨てる）, stepS, pathStepS }
+   * @returns {Array} 時刻順。各回に出・最大・消、空の通り道（日が当たっているか付き）、見える区間（無ければ null）
+   */
+  function passes(sat, tle, { observer, fromMs = Date.now(), hours = 168, minEl = VISIBLE_MIN_EL, stepS = 20, pathStepS = 5 } = {}) {
+    const rec = sat.twoline2satrec(tle.line1, tle.line2);
+    const gd = { latitude: observer.latitude * DEG, longitude: observer.longitude * DEG, height: (observer.elevation || 0) / 1000 };
+    const obs = { latitude: observer.latitude, longitude: observer.longitude, elevation: observer.elevation || 0 };
+    const at = (t) => lookAt(sat, rec, gd, t);
+    // 0° を横切る時刻を 0.5秒まで詰める
+    const edge = (a, b) => {
+      const up = b.elevation > a.elevation;
+      let lo = a.at, hi = b.at;
+      while (hi - lo > 500) {
+        const m = (lo + hi) / 2, p = at(m);
+        if (!p) break;
+        if ((p.elevation > 0) === up) hi = m; else lo = m;
+      }
+      return at(up ? hi : lo);
+    };
+    const out = [];
+    // いま通過中の回も拾えるよう、20分前から見る
+    const end = fromMs + hours * 3600000;
+    let prev = at(fromMs - 20 * 60000), run = null;
+    for (let t = fromMs - 20 * 60000 + stepS * 1000; t <= end + 20 * 60000; t += stepS * 1000) {
+      const p = at(t);
+      if (!p || !prev) { prev = p; run = null; continue; }
+      if (prev.elevation <= 0 && p.elevation > 0) run = { rise: edge(prev, p), best: p };
+      else if (run && p.elevation > run.best.elevation) run.best = p;
+      if (run && prev.elevation > 0 && p.elevation <= 0) {
+        const set = edge(prev, p);
+        if (set.at >= fromMs && run.rise.at <= end) {
+          const r = finish(run.rise, run.best, set);
+          if (r && r.max.elevation >= minEl) out.push(r);
+        }
+        run = null;
+      }
+      prev = p;
+    }
+    return out;
+
+    function finish(rise, best, set) {
+      // 最大仰角: 粗い刻みのいちばん高い点の前後を黄金分割で詰める
+      let lo = Math.max(rise.at, best.at - stepS * 1000), hi = Math.min(set.at, best.at + stepS * 1000);
+      for (let i = 0; i < 30 && hi - lo > 200; i++) {
+        const m1 = hi - (hi - lo) * 0.618, m2 = lo + (hi - lo) * 0.618;
+        if (at(m1).elevation < at(m2).elevation) lo = m1; else hi = m2;
+      }
+      const max = at((lo + hi) / 2);
+      const path = [];
+      for (let t = rise.at; t < set.at; t += pathStepS * 1000) path.push(at(t));
+      path.push(set);
+      for (const q of path) q.lit = sunlit(q.S, A.bodyEcef("sun", q.at));
+      const sunAlt = (t) => A.sun(t, obs).apparentAltitude;
+      const dark = sunAlt(max.at) <= DARK_SUN_ALT;
+      const seen = path.filter((q) => q.lit && q.elevation >= VISIBLE_MIN_EL && (dark || sunAlt(q.at) <= DARK_SUN_ALT));
+      const trim = ({ at, azimuth, elevation, rangeKm, lit }) => ({ at, azimuth, elevation, rangeKm, lit });
+      let visible = null;
+      if (seen.length) {
+        const last = seen[seen.length - 1];
+        const top = seen.reduce((a, b) => (b.elevation > a.elevation ? b : a));
+        // 見えている途中で消える（影に入る）のか、仰角10°まで下りて見えなくなるのか
+        const next = path[path.indexOf(last) + 1];
+        visible = { start: trim(seen[0]), end: trim(last), max: trim(top), entersShadow: !!next && !next.lit };
+      }
+      return { rise: trim(rise), max: trim(max), set: trim(set), path: path.map(trim),
+        litAtMax: sunlit(max.S, A.bodyEcef("sun", max.at)), sunAltitude: sunAlt(max.at), visible };
+    }
+  }
+
+  /// 衛星の真下の点（地上軌跡）。地図に線を引く用なので、高さ400km程度の点を地表の式で解く近似で足りる
+  function groundTrack(sat, tle, fromMs, toMs, stepS = 15) {
+    const rec = sat.twoline2satrec(tle.line1, tle.line2);
+    const out = [];
+    for (let t = fromMs; t <= toMs; t += stepS * 1000) {
+      const S = satEcef(sat, rec, t);
+      if (S) out.push({ at: t, ...ecefToGeodetic(S) });
+    }
+    return out;
+  }
+
+  const SoramiISS = { parseTle, parseTleList, transits, passes, groundTrack, sunlit, passAt, groundPoint, geodeticToEcef, ecefToGeodetic,
+                      distanceKm, separationDeg, VISIBLE_MIN_EL, DARK_SUN_ALT };
   global.SoramiISS = SoramiISS;
   if (typeof module !== "undefined" && module.exports) module.exports = SoramiISS;
 })(typeof globalThis !== "undefined" ? globalThis : this);

@@ -266,7 +266,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
     "自分で置く: 地図のすぐ下に「ここに重ねる」");
   ok(/\$\("aimTargetCard"\)\.hidden = true;/.test(html) && /\$\("aimCustomRow"\)\.hidden = true;/.test(html),
     '共通対象入力の下に従来の場所カードを重複表示しない');
-  for (const [what, re] of [["検索の結果", /choosePlace\(\{ id: `search:/], ["現在地", /\(pos\) => \{[\s\S]{0,150}choosePlace\(\{ id: `geo:/],
+  for (const [what, re] of [["検索の結果", /choosePlace\(\{ id: `search:/], ["現在地", /async \(pos\) => \{[\s\S]{0,800}choosePlace\(\{ id: `geo:[^\n]*\n\s+name: "現在地", subtitle: area,/],
       ["地図で選ぶ・緯度経度", /choosePlace\(\{ id: `map:\$\{lat\.toFixed\(5\)\}/], ["お気に入り", /el\.onclick = \(\) => choosePlace\(favorites\[/]]) {
     ok(re.test(html), `地点の画面の「${what}」も、開いた目的の方へ渡す`);
   }
@@ -698,7 +698,8 @@ console.log("== 選択肢を作り直す前に選んだ値を読む（2026-10-01
   sel.value = "gallery";
   ok(run(aim, () => sel, (x) => x, () => false) === "gallery" && sel.value === "gallery", "天望回廊を選ぶと天望回廊のまま（先端へ戻らない）");
   const fillSel = /function aimFillSelects\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
-  ok(/const keep = \{ target: \$\("aimTarget"\)\.value \|\| store\.get\("sorami\.aimTarget", ""\), limb: aimLimbValue\(\) \};/.test(fillSel)
+  // 2026-10-21: 構図も対象を未選択にできる。初めては富士山（既定値）、解除した人は "" が保存されていて未選択のまま
+  ok(/const keep = \{ target: \$\("aimTarget"\)\.options\.length \? \$\("aimTarget"\)\.value : \$\("aimTarget"\)\.value \|\| store\.get\("sorami\.aimTarget", "fuji"\), limb: aimLimbValue\(\) \};/.test(fillSel)
     && /keep\.limb \|\| aim\.limb \|\| SoramiAlign\.LIMBS\[0\]\.id/.test(fillSel) && /aria-pressed="\$\{l\.id === cur && aim\.matchMode !== 'overlap'\}"/.test(fillSel), "ねらう: 選択肢を作り直しても合わせ方は残す");
 }
 
@@ -873,9 +874,10 @@ ok(/<button class="list-item" id="sheetInherit" hidden><\/button>/.test(html) &&
 
 console.log("== ねらう・ISS・月丼の並びをそろえる（2026-10-01） ==");
 // ユーザー「月丼とかISSとかのレイアウトも統一感あるようにしよう」。題名の右に主な切り替え、その下に撮影地点（地点カードと同じ形）
-for (const [view, title, seg, prefix, label] of [["planeView", "月丼", null, "planeFrom", "撮影地点"], ["issView", "ISSの月面通過", "太陽か月", "issFrom", "どこの近くで探すか"]]) {
+for (const [view, title, seg, prefix, label] of [["planeView", "月丼", null, "planeFrom", "撮影地点"], ["issView", "人工衛星", "太陽か月", "issFrom", "どこの近くで探すか"]]) {
   const v = new RegExp(`<div id="${view}" hidden>[\\s\\S]*?\\n  </div>`).exec(html)[0];
-  ok(seg ? new RegExp(`<div class="section-h aim-head"><h2>${title}</h2>\\s*<div class="aim-seg" role="group" aria-label="${seg}">`).test(v)
+  // 人工衛星（2026-10-21）: 太陽／月は「月・太陽の前」のときだけ出すので、題名の行に hidden 付きで置く
+  ok(seg ? new RegExp(`<div class="section-h aim-head"><h2>${title}</h2>\\s*<div class="aim-seg" role="group" aria-label="${seg}"( id="issBodySeg" hidden)?>`).test(v)
     : new RegExp(`<div class="section-h aim-head"><h2>${title}</h2></div>`).test(v), `${title}: ${seg ? "題名の右に主な切り替え" : "題名の行（切り替えなし・同じ高さ）"}`);
   ok(new RegExp(`<div class="place-row aim-place-card">\\s*<button class="place-pick" id="${prefix}Button"`).test(v), `${title}: 撮影地点は地点カードと同じ形`);
   // 月丼は天体を重ねると同じく、条件（運用）を先に、立つ場所を最後に「〇〇から重ねる」（2026-10-06）。ISS は探す範囲の中心なので見出しのまま
@@ -904,7 +906,8 @@ ok(/function issFromPoint\(\) \{ return iss\.from \|\| inheritedPoint\(\); \}/.t
   "ISS・月丼も絶景予測の地点を引き継ぐ");
 ok(!/id="issPickHere"/.test(html) && /id="planePickHere"[^>]*>ここから重ねる<\/button>/.test(html), "月丼だけ地図のすぐ下に「ここから重ねる」（ISS は帯を見て自分で探す）");
 ok(/\.aim-place-card \.place-pick \{ min-height: 54px; \}/.test(html), "地点のカードは住所が無くても同じ高さ（押す所 44px 以上・下が動かない）");
-ok(/function issSetFrom\(p\) \{[\s\S]{0,250}IssMap\.open\(\{ latitude: P\.latitude, longitude: P\.longitude \}, 8\);/.test(html), "ISS: 中心を替えたら地図もそこへ");
+// 2026-10-21: 通過の地図は数千kmの通り道を見るので、いちばん広い縮尺（5）。月・太陽の前は従来どおり 8
+ok(/function issSetFrom\(p\) \{[\s\S]{0,250}IssMap\.open\(\{ latitude: P\.latitude, longitude: P\.longitude \}, iss\.tab === "pass" \? 5 : 8\);/.test(html), "ISS: 中心を替えたら地図もそこへ");
 ok(/"他の対象（\$\{t\.name\}）" : "他の対象"/.test(html.replace(/`/g, '"')) || /`他の対象（\$\{t\.name\}）` : "他の対象"/.test(html), "「自分で置く」は「他の対象」（ユーザーが候補から選んだ）");
 ok(!/"自分で置く"|`自分で置く/.test(html), "「自分で置く」の字を画面に出さない");
 
@@ -948,7 +951,64 @@ ok(/if \(on && r\.stand\) \{\s+const \[sx, sy\] = project\(r\.stand\.latitude, r
   "ISS: 地図の印は立つ場所に（中心線のいちばん近い点には付けない）");
 
 console.log("== ISS の月面通過（2026-09-30） ==");
-ok(/data-tool="#\/iss" data-id="iss"><b>(<svg[^>]*>.*?<\/svg>)?ISSの月面通過<\/b>/.test(html), "メニューに ISSの月面通過 がある");
+// 2026-10-21 ユーザー「ISSを衛星を探す系のページにしたい」→ 名前を「人工衛星」に。道 #/iss と権限 iss はそのまま
+ok(/data-tool="#\/iss" data-id="iss"><b>(<svg[^>]*>.*?<\/svg>)?人工衛星<\/b>/.test(html), "メニューに 人工衛星 がある");
+ok(/role="tablist" aria-label="人工衛星の表示"[^>]*><button type="button" role="tab" id="issPassTab" aria-selected="true" aria-controls="issPassPanel">通過<\/button><button type="button" role="tab" id="issTransitTab" aria-selected="false" aria-controls="issTransitPanel" tabindex="-1">月・太陽の前<\/button>/.test(html),
+  "人工衛星: 通過／月・太陽の前を切り替える（初めは通過）");
+// 2026-10-21 ユーザー「なんで衛星の中で選択できないの？ジャンル分けして検索も」→ 選択欄をやめ、地点と同じ形のカード＋「衛星を選ぶ」シート
+ok(/<button class="place-pick" id="issSatButton" aria-describedby="issSatLabel">/.test(html) && /\[25544, "ISS（国際宇宙ステーション）"\]/.test(html) && !/id="issSat"/.test(html),
+  "人工衛星: 衛星は地点と同じ形のカードで選ぶ（初めは ISS）");
+// 2026-10-21 ユーザー「検索画面はもうページにする？」→ 衛星を選ぶはページ（戻る操作が効く・入力と位置は保つ）
+ok(/<div class="card" id="issPickPage" hidden>/.test(html) && !/id="issPickSheet"/.test(html) && /id="issPickQuery"[^>]*type="search"/.test(html) && /id="issPickGroups" role="group" aria-label="ジャンル"/.test(html),
+  "人工衛星: 衛星を選ぶはページで、名前・番号の検索とジャンル");
+ok(/if \(location\.hash === "#\/iss\/pick"\) return \{ iss: true, issPick: true \};/.test(html) && /pushRoute\("#\/iss\/pick"\)/.test(html), "人工衛星: 衛星を選ぶの道は #/iss/pick");
+ok(/route\?\.iss \? "#\/iss"/.test(html), "人工衛星: 衛星を選ぶページでもメニューの人工衛星に印");
+ok(/if \(fromPick && iss\.lastKey === issApplyKey\(\)\)/.test(html), "人工衛星: 選ばずに戻ったら計算し直さず、開いていた回と位置のまま");
+ok(/\["stations", "宇宙ステーション", true\], \["visual", "明るい衛星", true\]/.test(html), "人工衛星: 今夜見えるを出すのは宇宙ステーションと明るい衛星だけ");
+ok(/fetch\("data\/satellite-names-ja\.json"\)/.test(html), "人工衛星: 日本語名は同梱の表から（Wikidata CC0）");
+ok(/gp\.php\?NAME=\$\{encodeURIComponent\(q\)\}&FORMAT=TLE/.test(html), "人工衛星: 表に無い衛星は CelesTrak の英語名で探せる");
+ok(/https:\/\/celestrak\.org\/NORAD\/elements\/gp\.php\?CATNR=\$\{Number\(catnr\)\}&FORMAT=TLE/.test(html), "人工衛星: 選んだ衛星の番号で軌道要素を取る");
+ok(/gp\.php\?GROUP=\$\{encodeURIComponent\(g\)\}&FORMAT=TLE/.test(html) && /\$\("issPickVisible"\)\.onclick = \(\) => issPickFindVisible\(\);/.test(html) && !/issBrightRun/.test(html),
+  "人工衛星: ジャンルは押したときだけ取り、今夜見えるも押したときだけ解く");
+ok(/\$\("issBodySeg"\)\.hidden = pass; \$\("issTransitRange"\)\.hidden = pass;\s+issPlaceDetail\(\);/.test(html), "人工衛星: 太陽／月と探す範囲は月・太陽の前だけ");
+// 2026-10-21 ユーザー「情報量が多くない？」→ 通過の行は2段、方角図と地図は押した回の行のすぐ下にだけ開く
+ok(/<div id="issPassDetail" hidden[^>]*>\s*<div id="issSkyWrap"/.test(html) && /row\.after\(\$\("issPassDetail"\)\);/.test(html) && /aria-expanded="\$\{open\}"/.test(html),
+  "人工衛星: 方角図と地図は押した回の下にだけ開く");
+// 2026-10-21 確認中に踏んだ: 回を開いたまま衛星を替えると「計算しています…」で一覧を書き換え、行の下にあった地図ごと消えていた
+ok(/issParkDetail\(\);[^\n]*\n(?:\s*\/\/[^\n]*\n)?\s*if \(pass\) \{ iss\.passes = \[\]; iss\.passPick = -1;[^\n]*\n\s+\$\(pass \? "issPassList" : "issList"\)\.innerHTML = `<p class="tiny">計算しています…<\/p>`;/.test(html),
+  "人工衛星: 一覧を書き換える前に方角図と地図を退避し、前の衛星の回を捨てる");
+// 2026-10-21 ユーザー「連打すると順番が変わる」: 一緒に飛ぶ機体（1秒未満の差）の前後が押すたびに入れ替わっていた
+ok(/found\.sort\(\(a, b\) => Math\.floor\(a\.pass\.visible\.start\.at \/ 60000\) - Math\.floor\(b\.pass\.visible\.start\.at \/ 60000\)\s+\|\| rank\(a\.tle\) - rank\(b\.tle\) \|\| a\.tle\.catnr - b\.tle\.catnr\);/.test(html),
+  "人工衛星: 今夜見えるの並びは分→よく見る→日本語名→番号で固定");
+// 2026-10-21 ユーザー採用「ページ」と「短いシート」の2種類。探す・見る・選ぶ・入力する画面はページ（全画面・戻るで閉じる）
+{
+  const m = /const PAGE_DIALOGS = \{([\s\S]*?)\n\};/.exec(html);
+  const ids = m ? [...m[1].matchAll(/(\w+):\s*\{/g)].map((x) => x[1]).sort() : [];
+  ok(JSON.stringify(ids) === JSON.stringify(["aimCalendar", "aimLineSheet", "favSheet", "mapSheet", "photoSheet", "placeSheet", "planSheet", "previewTargetDialog", "skyMapTargetSheet"]),
+    "ページで開く画面: 地点・地図で選ぶ・撮れる場所・重なる日カレンダー・共有・対象・お気に入りに登録・記録を足す・地図に置く対象", ids.join(","));
+  ok(!/(previewBodyDialog|skyMapBodyDialog|skyMapBodiesSheet|mapAppSheet|authSheet|accountSheet|appSettings)\s*:/.test(m ? m[1] : ""),
+    "短いシートのまま: 天体を選ぶ・その他の天体・地図アプリで開く・ログイン・アカウント・設定");
+  ok(/previewTargetDialog: \{ input: true \}, photoSheet: \{ input: true \}, skyMapTargetSheet: \{ input: true \}/.test(html) && /favSheet: \{ ownConfirm: true \}/.test(html),
+    "入力のページは途中で戻ると確かめる（お気に入りは自分で確かめる）");
+  ok(/if \(!\(e\.target instanceof HTMLInputElement && e\.target\.type === "search"\) && !e\.target\.closest\?\.\("\[data-no-dirty\]"\)\) el\.dataset\.dirty = "1";/.test(html), "検索欄・その場で保存する欄に打っただけでは「破棄しますか」を出さない");
+  // 2026-10-21 構図も対象を外せる（地図と同じく「解除」が出る）。対象のカテゴリ
+  ok(/\$\("aimTarget"\)\.innerHTML = `<option value="">対象を選ぶ<\/option>`/.test(html) && /aim\.target = !wanted \? \{ id: "", name: "", parts: \[\] \}/.test(html), "構図: 対象を未選択にできる");
+  ok(/const TARGET_FIXED_CATEGORIES = \["山", "建物"\];/.test(html) && /categoryOf:targetCategoryOf,categoryList:targetCategoryList/.test(html) && /targetCategory: isText\(f\.targetCategory\)/.test(html), "対象のカテゴリ: 山・建物と自分のカテゴリ、お気に入りに保存");
+  ok(/if \(globalThis\.pagePop\?\.n\) \{ afterPagePop\(\(\) => pushRoute\(hash\)\); return; \}/.test(html), "ページの履歴を戻している途中に画面を移らない");
+  // ユーザー「これ揃えてって言わなかった？」: 地図の天体も構図と同じ「天体を選ぶ」シート
+  ok(/mountBodyPicker\(document\.getElementById\('aimBody'\)/.test(html) && /mountBodyPicker\(document\.getElementById\('skyMapBody'\)/.test(html)
+    && /<select class="condition-choice" id="skyMapBody"[^>]*><optgroup label="太陽・月">/.test(html), "天体を選ぶは構図と地図で同じ部品・同じ分け方");
+  // 2026-10-21 ユーザー「右から出るようなモーションはやめてほしい」「左枠から内側へのスワイプでページを閉じたい」
+  ok(/dialog\.sheet\.as-page\[open\] \{ display: flex; flex-direction: column; animation: none; \}/.test(html) && !/page-from-right/.test(html), "ページは右から動かして出さない");
+  ok(/t\.clientX <= 24/.test(html) && /edge\.dx > Math\.min\(120, innerWidth \* 0\.3\)/.test(html), "左の縁から内側へスワイプしてページを閉じる");
+  ok(/dialog\.sheet\.as-page > \.sheet-head > \[data-page-close\] \{ display: none !important; \}/.test(html), "隠した右上の×が残らない（観測地点で残っていた）");
+  const tui = fs.readFileSync(new URL("./sorami-target-ui.js", import.meta.url), "utf8");
+  ok(/<span class="page-actions" data-target-head-actions><button type="button" class="chip" data-target-clear aria-label="選択を解除">解除<\/button><button type="button" class="chip my-add-point" data-target-new aria-label="対象を追加"/.test(tui)
+    && !/＋ 対象を追加/.test(tui), "対象を選ぶ: 解除と＋（記録と同じ）は上の右");
+}
+ok(/if \(g\) g\.with\.push\(f\.tle\); else merged\.push\(\{ \.\.\.f, minute, with: \[\] \}\);/.test(html) && /ほか\$\{others\.length\}機が一緒に通る/.test(html),
+  "人工衛星: 同じ分・同じ方角・同じ高さで通る機体は1行にまとめる");
+ok(!/等級/.test(new RegExp('function issRenderPasses[\\s\\S]*?\\n}').exec(html)[0]), "人工衛星: 出典の無い明るさ（等級）は出さない");
 ok(/location\.hash === "#\/iss"/.test(html), "#/iss の道がある");
 ok(/\{ id: "iss",\s+el: "issView"/.test(html), "画面の表に1行足した");
 ok(/https:\/\/celestrak\.org/.test(html), "軌道要素は CelesTrak から（CSP に足した）");
@@ -2491,6 +2551,7 @@ ok(/scrollbar-gutter: stable/.test(html), "止めた瞬間に横幅が変わら�
 // 2026-09-28: 写真から記録するシートを足して6つ。
 // 「ねらう」「空の見え方」「月丼」はポップアップではなく**ページ**にした
 // 2026-10-12 E184: スカイマップ本体は独立ページ。地図で置く目標の必須高さ入力シートを追加して9つ。
+// 2026-10-21: 人工衛星の「衛星を選ぶ」はシートでなくページ（#/iss/pick）にしたので10のまま
 ok((html.match(/<dialog class="sheet"/g) || []).length === 10, "目標物の高さ入力を含めシートは10個",
   String((html.match(/<dialog class="sheet"/g) || []).length));
 
@@ -2913,7 +2974,8 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
     && /store\.set\("sorami\.mapApp", \$\("mapAppRemember"\)\.checked \? k : null\);/.test(html), "「次からもこのアプリで開く」で覚え、外して選べば忘れる");
   ok(/if \(app\) openMapApp\(app, t\); else openMapAppSheet\(t\);/.test(html), "覚えていれば聞かずに開く");
   ok(/row\.querySelector\("\[data-map-app-change\]"\)\.hidden = !app;/.test(html), "覚えているときだけ選び直す釦");
-  ok(/function showSheet\(el\) \{\s+el\.showModal\(\);\s+el\.focus\(\{ preventScroll: true \}\);/.test(html)
+  // 2026-10-21: ページとして開く画面は、開く前に形を整え（preparePage）、開いたあとに履歴を積む（pageOpened）
+  ok(/function showSheet\(el\) \{\s+const page = !!PAGE_DIALOGS\[el\.id\];\s+if \(page\) preparePage\(el\);\s+el\.showModal\(\);\s+el\.focus\(\{ preventScroll: true \}\);\s+if \(page\) pageOpened\(el\);/.test(html)
     && (html.match(/\.showModal\(\)/g) || []).length === 1, "シートはすべて showSheet で開き、シートそのものに焦点を置く");
   ok(/dialog:focus \{ outline: none; \}/.test(html), "シートそのものには枠を出さない");
   ok(!/gauge\.focus\(\)/.test(html), "違ったでゲージを選んだ状態にしない");
