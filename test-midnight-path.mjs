@@ -33,9 +33,10 @@ test('図内で直接調整でき、大気差は通常画面で確認できる�
  assert.match(c,/#aimLook \.aim-look-figure\.look-full\{position:fixed;/);
  assert.doesNotMatch(html,/e\.target\.tagName==='CANVAS'[^\n]*openFull\(\)/);
 });
-test('天体の調整は同じボタンで終わり、Undoと移動後の残像を出さない（2026-10-22）',()=>{
- assert.match(html,/const AIM_PLACE_ENABLED = true;/);
- assert.match(html,/<span>調整を終了<\/span>/);
+test('天体の位置調整と逆算入口を撤去し、Undoと残像を出さない（2026-10-22 最新指示）',()=>{
+ assert.match(html,/const AIM_PLACE_ENABLED = false;/);
+ assert.match(html,/<div class="aim-shift" id="aimShift" hidden>/);
+ assert.match(html,/if \(!AIM_PLACE_ENABLED\) return;/);
  assert.doesNotMatch(html,/_pickUndo|data-look-undo/);
  assert.doesNotMatch(html,/ctx\.arc\(place\[0\], place\[1\]/);
  const finish=html.slice(html.indexOf('if (host._pick && placeMode)'),html.indexOf('if (host._pick) {',html.indexOf('if (host._pick && placeMode)')));

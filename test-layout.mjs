@@ -3173,10 +3173,8 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   const pickSrc = html.slice(html.indexOf("function aimLookPick("), html.indexOf("let aimLookResize"));
   ok(/class="aim-body-move"/.test(html) && /\$\{bodyName\}を移動/.test(pickSrc) && /data-look-cancel/.test(html),
     "図内アイコンから天体の相対移動を開始できる（同じボタンで調整を終了）");
-  ok(/\.preview-figure-tools \{[^}]*top:10px;right:8px;[^}]*flex-direction:column;/.test(html)
-    && /tools\.append\(bodyMove\)[\s\S]{0,500}tools\.append\(composeIcon\);figure\.append\(tools\)/.test(html)
-    && /\.preview-compose-icon\{position:static;/.test(html),
-    "図内の2つの操作ボタンは同じ右寄せグループで位置をそろえる");
+  ok(/settings\.dataset\.cameraSettings/.test(html) && /content\.append\(move\)/.test(html) && !/composeIcon\.onclick/.test(html),
+    "2026-10-22: 構図移動は画角調整へ集約し、図内の独立移動アイコンを撤去");
   ok(/調整を終了/.test(pickSrc) && /if\(editing\.ghost\)\{const success=await solve\(\)/.test(pickSrc) && /ok\.hidden = true;cancel\.hidden=true/.test(pickSrc)
     && !/st\.upAt = Date\.now\(\); show\(xyOf\(ev\)\); solve\(\)/.test(pickSrc) && !/show\(xyOf\(ev\)\); solve\(\); \};/.test(pickSrc),
     "2026-10-19: 円盤を置いただけでは解かず、同じ移動ボタンで終了時に解く。独立の確定/キャンセルは表示しない");

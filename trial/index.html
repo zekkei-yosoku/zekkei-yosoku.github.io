@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="17802630525816102601">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-359kGTPUbS6DCzeYPEq1vTdbLhnsh2FCE6cXnPcKXn0=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-xS6QBBxzy+Yn9XCi0dQZ6jGme+MfRrdEVKgsm2LacLY=' 'sha256-fuayCfGueOEEsICEl3S+mJ5JeeVWfQBU3czKmTxmibs=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="4944117134724256676">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-S4G2M54Hnu3oVJcZDI0uEf9F94nRT1e0HTDhTFvsjsM=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-X5I69Wm07mCq9mN/KNMYrIfx0UKNA7pgVU431Hy08EY=' 'sha256-fuayCfGueOEEsICEl3S+mJ5JeeVWfQBU3czKmTxmibs=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -947,7 +947,6 @@
   .aim-look-found .sub-line { color: var(--secondary); }
   .aim-look-found .chip { margin-top: 4px; min-height: 44px; }
   .aim-look-figure { position: relative; }
-  .preview-figure-tools :is([data-look-pick],.preview-compose-icon)[aria-pressed="true"] { width:auto;max-width:180px;display:flex;align-items:center;gap:6px;padding:8px 10px;font-size:12px; }
   .preview-figure-tools { position:absolute;top:10px;right:8px;z-index:2;display:flex;flex-direction:column;gap:10px; }
   .aim-body-move { width:44px;height:44px;min-height:44px;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text); }
   .aim-body-move.active { background:var(--accent);color:var(--on-accent); }
@@ -1232,7 +1231,7 @@
 #aimView .aim-head #aimTitle{font-size:16px;flex:1}
 #aimView .aim-body-select{flex:1;width:100px}
 #aimView .fav-l{margin-top:10px;margin-bottom:4px;font-size:12px}
-.preview-map-time{margin:8px 0}.preview-map-time .aim-time-heading{display:flex;align-items:center;gap:10px;font-size:14px}.preview-map-time output{flex:1;font-variant-numeric:tabular-nums}.preview-map-time input{width:100%;height:32px;accent-color:var(--accent)}.preview-map-time .chip{min-height:44px;padding:8px 14px}.preview-compose-icon{position:static;width:44px;height:44px;min-height:44px;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text)}.preview-compose-icon[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
+.preview-map-time{margin:8px 0}.preview-map-time .aim-time-heading{display:flex;align-items:center;gap:10px;font-size:14px}.preview-map-time output{flex:1;font-variant-numeric:tabular-nums}.preview-map-time input{width:100%;height:32px;accent-color:var(--accent)}.preview-map-time .chip{min-height:44px;padding:8px 14px}
 .preview-camera-dialog .sheet-body{display:grid;gap:16px}.preview-camera-dialog .aim-lens-row{margin:0}.preview-camera-dialog .aim-lens-toggles{display:block}.preview-focal-tools{margin:6px 0 12px}.preview-focal-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--secondary)}#aimView .aim-lens-row>button[aria-haspopup=dialog]{min-width:88px;min-height:44px;padding:8px;font-size:13px}.preview-focal-tools input{width:100%;min-height:32px;accent-color:var(--accent)}.preview-focal-presets{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}.preview-focal-presets button{min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font-size:14px}@media(max-width:360px){.preview-focal-presets{grid-template-columns:repeat(3,minmax(0,1fr))}}
 #aimView .aim-grid-control{display:flex;align-items:center;gap:10px;width:100%;font-size:14px;color:var(--secondary)}
 #aimView .aim-grid-control select{flex:1;min-width:0;min-height:44px;padding:8px 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;font-size:16px}
@@ -1535,7 +1534,7 @@ select:not(.mxsort select):not(.aim-pick select) { appearance: none; -webkit-app
 button.ui-icon-button { display: inline-grid !important; place-items: center; flex: none; width: var(--ui-control-size) !important; height: var(--ui-control-size) !important; min-width: var(--ui-control-size); min-height: var(--ui-control-size); padding: 0 !important; border: 0; border-radius: 0; background: transparent; color: var(--text); }
 button.ui-icon-button::after { content: none; }
 .ui-control-icon { display: block; width: var(--ui-icon-size); height: var(--ui-icon-size); fill: none; stroke: currentColor; stroke-width: var(--ui-icon-stroke); stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-</style><link rel="stylesheet" href="sorami-almanac-home.css?v=b1bf1649491b"><link rel="stylesheet" href="sorami-flair.css?v=e547eb693349">
+</style><link rel="stylesheet" href="sorami-almanac-home.css?v=b1bf1649491b"><link rel="stylesheet" href="sorami-flair.css?v=a27d048e2326">
 </head>
 <body>
 <svg aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute;overflow:hidden"><defs><symbol id="input-icon-body" viewBox="0 0 24 24"><path d="M12 2C13.2 9 15 10.8 21 12C15 13.2 13.2 15 12 22C10.8 15 9 13.2 3 12C9 10.8 10.8 9 12 2Z" fill="currentColor" stroke="none"/></symbol><symbol id="input-icon-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 1v6m0 10v6M1 12h6m10 0h6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></symbol><symbol id="input-icon-observer" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="10" rx="1.5"/><circle cx="12" cy="10" r="2.5"/><path d="m8 5 1.5-2h5L16 5m-4 10v8m0-6-6 6m6-6 6 6"/></symbol></defs></svg>
@@ -1824,7 +1823,7 @@ button.ui-icon-button::after { content: none; }
          →Codex と相談→ユーザーが選んだ）。select だと開かないと中身が見えず、字だけでは位置が伝わらない。中身は aimFillSelects で作る -->
     <div class="aim-limb" id="aimLimb" role="group" aria-label="天体のどこを合わせるか"></div>
     <!-- 逆算（2026-10-20 trial）: 重ね方＋少しずらす → その日にそう見える陸の上の線を地図で出し、線の上を選ぶと撮影地点と時刻になる -->
-    <div class="aim-shift" id="aimShift">
+    <div class="aim-shift" id="aimShift" hidden>
       <p class="sr-only" id="aimShiftValue" aria-live="polite"></p>
       <button type="button" class="fav-btn" id="aimLineOpen">この重ね方で撮れる場所を地図で探す</button>
     </div>
@@ -10323,8 +10322,8 @@ async function aimLookRender(host, spec) {
 // 旧自動逆算は停止したまま保持する。再開には旧地図アダプターを含む再接続と別途検証が必要。
 const AIM_REVERSE_ENABLED = false;
 // 2026-10-20 ユーザー「天体動かすとかは前の操作の方がしやすかった」→「やって」：動かし方は前のまま（図の釦・相対ドラッグ・方向の釦）。
-// 2026-10-22: 図内で直接調整し、同じボタンで終了する。撮影地点の検索は既存の地図検索ボタンから明示的に開く。
-const AIM_PLACE_ENABLED = true;
+// 2026-10-22 最新指示: 天体の位置調整と配置からの逆算を撤去。計算コードは履歴復元用に保持し、入口/プログラム呼出しを停止。
+const AIM_PLACE_ENABLED = false;
 function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path, toPx, pan = () => [0, 0], pathTap, bodyPosition }) {
   const btn = host.querySelector("[data-look-pick]"), found = host.querySelector("[data-look-found]");
   const placeMode = AIM_PLACE_ENABLED && !AIM_REVERSE_ENABLED && host.id === "aimLook";
@@ -10338,7 +10337,7 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
   btn.setAttribute("aria-label", on ? `${bodyName}の調整を終了` : `${bodyName}を移動して撮れる場所を探す`);
   btn.title = on ? "調整を終了" : `${bodyName}を移動`;
   // 2026-10-20 ユーザー「動かすボタンを押したらそれが完了ボタンになればいいだけ。前の仕様だよね」：動かしている間は全画面の「完了」を隠し、完了は1つにする
-  const fullClose = host.querySelector(".preview-full-close"); if (fullClose) fullClose.hidden = on || !!host._lensMoving;
+  const fullClose = host.querySelector(".preview-full-close"); if (fullClose) fullClose.hidden = on;
   btn.setAttribute("aria-pressed", String(on));
   btn.classList.toggle("active", on);
   host._bodyMoveIcon ||= btn.innerHTML;
@@ -10359,6 +10358,7 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
     if (xy && d > 0) aimShiftFromPlacement(xy[0] / d, xy[1] / d);
   };
   btn.onclick = async () => {
+    if (!AIM_REVERSE_ENABLED && !placeMode) return;
     if (host._pick && placeMode) {
       const editing = host._pick; host._pick = null;
       if (editing.ghost) placeFromGhost(editing.ghost);
@@ -10528,7 +10528,7 @@ function aimShiftSay() {
 }
 // 置いた位置は、置いたときの目標・天体の重ね方。目標や天体を替えたら持ち越さない（別の目標に点線円が残っていた）
 function aimShiftCheck() {
-  if (!SoramiBodies.definition(aim.body).limbs || (aimShift.key && aimShift.key !== `${aim.target?.id}|${aim.body}`)) { aimShift.x = 0; aimShift.y = 0; aimShift.key = null; }
+  if (!AIM_PLACE_ENABLED || !SoramiBodies.definition(aim.body).limbs || (aimShift.key && aimShift.key !== `${aim.target?.id}|${aim.body}`)) { aimShift.x = 0; aimShift.y = 0; aimShift.key = null; }
 }
 function aimShiftSync() {
   aimShiftCheck();
@@ -10653,6 +10653,7 @@ async function aimLineSheetPick(c, at) {
   aimApply();
 }
 async function aimLineSheetOpen() {
+  if (!AIM_PLACE_ENABLED) return;
   if (!aim.target || !Number.isFinite(aim.dayMs)) return;
   if (!aimLineSheetView) {
     aimLineSheetView = createMapView({ canvas: "aimLineCanvas", sheet: "aimLineSheet", zoomIn: "aimLineIn", zoomOut: "aimLineOut" });
@@ -13502,14 +13503,16 @@ function uiVisualChoices(select, kind) {
    const time=look.querySelector('.aim-look-time');if(time)time.after(lens);
    const rows=lens.querySelectorAll('.aim-lens-row'),sensor=look.querySelector('[data-lens-sensor]'),portrait=look.querySelector('[data-lens-portrait]');
    const quick=document.createElement('div');quick.className='preview-quick';
-   const settings=document.createElement('button');settings.type='button';settings.className='chip';settings.textContent='画角調整';settings.setAttribute('aria-haspopup','dialog');rows[0].append(settings);
-   const move=look.querySelector('[data-lens-move]'),center=look.querySelector('[data-lens-center]');if(move){move.hidden=true;quick.append(move);const figure=look.querySelector('.aim-look-figure'),tools=document.createElement('div');tools.className='preview-figure-tools';tools.setAttribute('role','group');tools.setAttribute('aria-label','見え方の操作');const bodyMove=figure.querySelector('[data-look-pick]');if(bodyMove)tools.append(bodyMove);const composeIcon=document.createElement('button');composeIcon.type='button';composeIcon.className='preview-compose-icon';composeIcon.setAttribute('aria-label','構図を動かす');composeIcon.title='構図を動かす';composeIcon.innerHTML='<svg width=22 height=22 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5M7 12h10M12 7v10M7 12l2-2m-2 2 2 2M17 12l-2-2m2 2-2 2"/></svg>';composeIcon.onclick=()=>move.click();tools.append(composeIcon);figure.append(tools);}
+   const settings=document.createElement('button');settings.type='button';settings.className='chip';settings.textContent='画角調整';settings.dataset.cameraSettings='';settings.setAttribute('aria-haspopup','dialog');rows[0].append(settings);
+   const move=look.querySelector('[data-lens-move]'),center=look.querySelector('[data-lens-center]');
+   const tools=document.createElement('div');tools.className='preview-figure-tools';tools.setAttribute('role','group');tools.setAttribute('aria-label','見え方の表示');look.querySelector('.aim-look-figure').append(tools);
    const dialog=document.createElement('dialog');dialog.className='sheet preview-body-dialog preview-camera-dialog';dialog.setAttribute('aria-label','画角調整');dialog.tabIndex=-1;
    dialog.innerHTML='<div class="sheet-head"><strong>画角調整</strong><button type="button" data-camera-close>閉じる</button></div><div class="sheet-body"><div class="aim-grid-control"><span>向き</span><select data-camera-orientation aria-label="画角の向き"><option value="landscape">横位置</option><option value="portrait">縦位置</option></select></div><label class="aim-grid-control">画角枠<select data-camera-frame aria-label="画角枠の表示"><option value="show">表示</option><option value="hide">非表示</option></select></label></div>';
    lens.append(dialog);const content=dialog.querySelector('.sheet-body');
    if(rows[1]){const label=document.createElement('label');label.className='preview-sensor-label';label.textContent='センサーサイズ';label.htmlFor='previewSensor';if(sensor){sensor.id='previewSensor';rows[1].prepend(label);}content.prepend(rows[1]);}if(portrait)portrait.hidden=true;
    const toggles=lens.querySelector('.aim-lens-toggles');if(toggles)content.append(toggles);const frame=look.querySelector('[data-lens-on]');if(frame)frame.hidden=true;
-   settings.onclick=()=>showSheet(dialog);dialog.querySelector('[data-camera-close]').onclick=()=>dialog.close();dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}});
+   if(move){move.hidden=false;content.append(move);move.addEventListener('click',()=>dialog.close());}if(center)content.append(center);
+   settings.onclick=()=>{if(look._lensMoving)move.click();else showSheet(dialog);};dialog.querySelector('[data-camera-close]').onclick=()=>dialog.close();dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}});
    const focalTools=document.createElement('div');focalTools.className='preview-focal-tools';focalTools.innerHTML='<div class="preview-focal-scale"><span>広角</span><span>望遠</span></div><input type="range" min="0" max="1000" step="0.1" data-focal-range aria-label="焦点距離を滑らかに調整"><div class="preview-focal-presets" role="group" aria-label="焦点距離の代表値">'+[24,50,100,200,400,800].map(n=>'<button type="button" data-focal-preset="'+n+'">'+n+'</button>').join('')+'</div>';
    rows[0].after(focalTools);focalTools.after(quick);quick.hidden=true;const presets=focalTools.querySelector('.preview-focal-presets');const presetsLabel=document.createElement('div');presetsLabel.textContent='焦点距離（mm）';content.append(presetsLabel,presets);
    // 2026-10-20 ユーザー「バーが1番上がいい。バーの横に焦点距離を表示して。焦点距離ジャンプとかは画角調整ボタンの中」：
@@ -13520,7 +13523,7 @@ function uiVisualChoices(select, kind) {
    const share=look.querySelector('.aim-figure-share'),frameInfo=look.querySelector('.aim-frame-info'),figure=look.querySelector('.aim-look-figure');
    if(figure)figure.after(lens);if(share&&frameInfo){frameInfo.append(share);frameInfo.classList.add('has-share');}
    const info=look.querySelector('[data-lens-info]');if(info)content.append(info);
-   const compose=document.createElement('div');compose.className='preview-compose';if(center)compose.append(center);(figure||lens).append(compose);
+   const compose=document.createElement('div');compose.className='preview-compose';compose.hidden=true;(figure||lens).append(compose);
    // Keep direct manipulation and atmosphere controls available on the page.
    const figTools=figure?.querySelector('.preview-figure-tools');
    if(figure&&figTools){
@@ -13554,8 +13557,8 @@ function uiVisualChoices(select, kind) {
   const focalRange=look.querySelector('[data-focal-range]');if(focalRange&&focalInput){if(document.activeElement!==focalRange)focalRange.value=String(1000*Math.log(Math.max(8,Math.min(2000,+focalInput.value))/8)/Math.log(250));focalRange.oninput=()=>{look._pendingFocal=+focalRange.value;if(look._focalRaf)return;look._focalRaf=requestAnimationFrame(()=>{look._focalRaf=null;focalInput.value=String(Math.round(8*Math.pow(250,look._pendingFocal/1000)*10)/10);focalInput.onchange();});};for(const button of look.querySelectorAll('[data-focal-preset]'))button.onclick=()=>{focalInput.value=button.dataset.focalPreset;focalInput.onchange();const sheet=button.closest('dialog');if(sheet?.open)sheet.close();};}
   const portraitButton=look.querySelector('[data-lens-portrait]');if(portraitButton){const text=portraitButton.getAttribute('aria-pressed')==='true'?'縦位置':'横位置';if(portraitButton.textContent!==text)portraitButton.textContent=text;}
 
-  const composeIcon=look.querySelector('.preview-compose-icon');if(composeIcon){const moving=look.querySelector('[data-lens-move]').getAttribute('aria-pressed')==='true';composeIcon.setAttribute('aria-pressed',String(moving));composeIcon._restIcon ||= composeIcon.innerHTML;if(composeIcon._shownMoving!==moving){composeIcon._shownMoving=moving;composeIcon.innerHTML=moving?'<svg width=20 height=20 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 aria-hidden=true><path d="m5 12 4 4 10-10"/></svg><span>調整を終了</span>':composeIcon._restIcon;}composeIcon.setAttribute('aria-label',moving?'画角の調整を終了':'構図を動かす');composeIcon.title=moving?'調整を終了':'構図を動かす';}
-  const centerButton=look.querySelector('[data-lens-center]'),movingButton=look.querySelector('[data-lens-move]');if(centerButton)centerButton.hidden=movingButton?.getAttribute('aria-pressed')!=='true';
+  const cameraSettings=look.querySelector('[data-camera-settings]');if(cameraSettings){const label=look._lensMoving?'調整を終了':'画角調整';if(cameraSettings.textContent!==label)cameraSettings.textContent=label;cameraSettings.setAttribute('aria-pressed',String(!!look._lensMoving));}
+  const centerButton=look.querySelector('[data-lens-center]');if(centerButton)centerButton.hidden=false;
   const note=look.querySelector('[data-look-note]'),outside=look.querySelector('[data-look-outside]');if(note&&outside&&note.previousElementSibling!==outside)outside.after(note);
   const selected=el('aimCandList').querySelector('[data-cand][aria-pressed="true"]');let back=look.querySelector('.preview-return');
   const caption=look.querySelector('.aim-look-cap');if(!back&&caption){back=document.createElement('button');back.type='button';back.className='tap preview-return';back.textContent='撮影地点の見え方に戻す';caption.after(back);back.onclick=()=>{const current=el('aimCandList').querySelector('[data-cand][aria-pressed="true"]');if(current)current.click();else aimUpdateLook();};}if(back)back.hidden=!selected;

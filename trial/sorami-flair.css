@@ -98,7 +98,7 @@ main:has(>#placeRow:not([hidden]))>#forecastBand{display:block}
 #aimLook .aim-frame-info.has-share>.aim-figure-share{margin:0 0 0 auto;flex:none}
 
 /* 2026-10-20 ユーザー「なんで触ってないボタンがズレるの?」：
-   右上のボタンは右端にそろえて固定（押した側が「調整を終了」の札に伸びても、もう一方は動かない）。
+   2026-10-22 最新: 図内は全画面表示のみ。調整の入口は下の画角調整へ集約。
    「対象を中央に」は図の右下に重ねる。2026-10-22: Undo・移動後の残像は廃止 */
 #aimLook .preview-figure-tools{align-items:flex-end}
 #aimLook .aim-look-figure>.preview-compose{position:absolute;right:8px;bottom:8px;z-index:2;margin:0}

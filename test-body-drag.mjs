@@ -28,4 +28,9 @@ cv.onpointerdown(ev(80,80));cv.onpointermove(ev(100,60));cv.onpointerup(ev(100,6
 assert(host._pick.ghost);await els['[data-look-pick]'].onclick();
 assert.equal(host._pick,null,'finish exits placement mode');assert(placement?.every(Number.isFinite),'finish preserves search placement');assert.equal(mapOpens,0,'finish does not unexpectedly open a map');assert.equal(renders.at(-1),spec);
 host._pick={base:spec,initialBase:spec,ghost:null};placement=null;mount();await els['[data-look-pick]'].onclick();assert.equal(placement,null,'finish without movement does not change placement');
-console.log('PASS: current placement mode preserves search position, finishes inline, and leaves an unchanged position alone');
+console.log('PASS: dormant placement mode preserves search position, finishes inline, and leaves an unchanged position alone');
+
+c.AIM_REVERSE_ENABLED=false;c.AIM_PLACE_ENABLED=false;host._pick=null;mount();
+assert.equal(els['[data-look-pick]'].hidden,true,'latest UI removes body position adjustment');
+await els['[data-look-pick]'].onclick();assert.equal(host._pick,null,'disabled entry cannot activate placement even programmatically');
+console.log('PASS: body placement and reverse lookup remain disabled under current flags');
