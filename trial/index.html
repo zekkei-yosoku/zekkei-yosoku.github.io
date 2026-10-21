@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="2635233121718354032">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-rYkEn60v2dsPjFhv+WLudjnjbonbZ4NpuAYCR6n16lE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-GMs2Gk94riewAJ1Ii7ria7EKlc9B2buPe0dc0EHmQkE=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-20oFMl7+c2PM1pgnt9MPUvoGq6lBf9aXpEv7mgrLhX4=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="2757301342201586261">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-4JhZpozAQXH5GWP46xY8Bhgr15j5JDW3kYksMMujTKw=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-o1wFXQ5IoOvx7bm6IoDimOB7MAZIOpyWPTgcN6I5Hdg=' 'sha256-GMs2Gk94riewAJ1Ii7ria7EKlc9B2buPe0dc0EHmQkE=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-20oFMl7+c2PM1pgnt9MPUvoGq6lBf9aXpEv7mgrLhX4=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -454,6 +454,22 @@
   dialog { border: none; border-radius: 16px; background: var(--card); color: var(--text);
            width: min(92vw, 480px); max-height: 82vh; padding: 0; margin: auto; }
   dialog::backdrop { background: rgba(0,0,0,.45); }
+  /* ページとして開く選択画面（2026-10-21 ユーザー採用「ページ」と「短いシート」の2種類）。全画面で開き、左上の「戻る」で閉じる。
+     下の画面はそのまま残るので、戻ると入力と位置が残る（showSheet → showPage） */
+  /* 枠の大きさは !important: 対象を選ぶ（#previewTargetDialog）などが ID で幅を決めていて、ページなのに右に隙間が残った */
+  dialog.sheet.as-page { position: fixed !important; inset: 0 !important; width: 100% !important; max-width: none !important; height: 100% !important;
+    max-height: none !important; margin: 0 !important; border-radius: 0 !important; background: var(--bg); padding: 0 0 env(safe-area-inset-bottom); }
+  dialog.sheet.as-page[open] { display: flex; flex-direction: column; animation: page-from-right .18s ease-out; }
+  dialog.sheet.as-page::backdrop { background: var(--bg); }
+  dialog.sheet.as-page > .sheet-head { flex: none; display: grid; grid-template-columns: minmax(72px, auto) minmax(0, 1fr) minmax(72px, auto);
+    align-items: center; gap: 4px; padding: calc(env(safe-area-inset-top) + 6px) 8px 6px; border-bottom: 1px solid var(--line); }
+  dialog.sheet.as-page > .sheet-head > strong { grid-column: 2; grid-row: 1; text-align: center; }
+  dialog.sheet.as-page > .sheet-head > .page-back { grid-column: 1; grid-row: 1; justify-self: start; display: inline-flex; align-items: center;
+    gap: 2px; min-height: 44px; padding: 0 8px 0 2px; color: var(--accent); background: none; border: 0; font-size: 1rem; }
+  dialog.sheet.as-page > .sheet-head > .page-back svg { flex: none; }
+  dialog.sheet.as-page > .sheet-body { flex: 1; max-height: none; width: min(100%, 640px); margin: 0 auto; padding-top: 12px; }
+  @keyframes page-from-right { from { transform: translateX(28px); opacity: .7; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { dialog.sheet.as-page[open] { animation: none; } }
   /* シートは開いたときシートそのものに焦点を置く（showSheet。tabindex="-1"）。置かないと最初の釦（閉じる）が選ばれた状態（青い枠）で開いた
      （2026-10-02 ユーザー「なんか青くなって選択状態で開くのが気に入らない」）。キーボードなら Tab で中へ入れる */
   dialog:focus { outline: none; }
@@ -2030,7 +2046,7 @@ button.ui-icon-button::after { content: none; }
  <div class="sky-map-head"><h2 id="skyMapTitle">地図</h2><button type="button" class="chip preview-history-icon" id="skyMapRecentOpen" aria-label="場所の履歴" title="履歴"></button></div>
  <div id="skyMapAccess" class="card"><p id="skyMapAccessMessage" role="status">利用権限を確認しています…</p><button type="button" class="chip" id="skyMapAccessRetry">再試行</button><button type="button" class="chip" id="skyMapAccessLogin">ログイン</button></div>
  <div class="sky-map-content" id="skyMapContent" hidden>
-  <div class="sky-map-controls"><div class="aim-say condition-field"><select class="condition-choice" id="skyMapBody" aria-labelledby="skyMapBodyLabel"><option value="sun">太陽</option><option value="moon">月</option><option value="sirius">シリウス</option><option value="mercury">水星</option><option value="venus">金星</option><option value="mars">火星</option><option value="jupiter">木星</option><option value="saturn">土星</option></select><span class="aim-say-v condition-label" id="skyMapBodyLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-body"/></svg><span>天体</span></span></div><div class="aim-say condition-field"><select id="skyMapTarget" aria-labelledby="skyMapTargetLabel"></select><span class="aim-say-v condition-label" id="skyMapTargetLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-target"/></svg><span>対象</span></span></div></div>
+  <div class="sky-map-controls"><div class="aim-say condition-field"><select class="condition-choice" id="skyMapBody" aria-labelledby="skyMapBodyLabel"><optgroup label="太陽・月"><option value="sun">太陽</option><option value="moon">月</option></optgroup><optgroup label="恒星"><option value="sirius">シリウス</option></optgroup><optgroup label="惑星"><option value="mercury">水星</option><option value="venus">金星</option><option value="mars">火星</option><option value="jupiter">木星</option><option value="saturn">土星</option></optgroup></select><span class="aim-say-v condition-label" id="skyMapBodyLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-body"/></svg><span>天体</span></span></div><div class="aim-say condition-field"><select id="skyMapTarget" aria-labelledby="skyMapTargetLabel"></select><span class="aim-say-v condition-label" id="skyMapTargetLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-target"/></svg><span>対象</span></span></div></div>
   <div class="aim-say aim-say-from condition-field"><div class="place-row aim-place-card"><button type="button" class="place-pick" id="skyMapChoose" aria-describedby="skyMapChooseLabelText"><span class="pin" aria-hidden="true"></span><span class="place-txt"><span class="name" id="skyMapObserver">撮影地点を選ぶ</span><span class="muted" id="skyMapObserverSub"></span></span><span class="chev" aria-hidden="true"></span></button><button type="button" id="skyMapObserverFav" class="tap aim-from-fav" aria-label="お気に入りに登録" hidden>☆</button></div><span class="aim-say-v condition-label" id="skyMapChooseLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-observer"/></svg><span id="skyMapChooseLabelText">撮影地点</span><button type="button" id="skyMapObserverClear" class="condition-clear" aria-label="撮影地点の選択を解除" title="選択を解除" hidden><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg><span>解除</span></button></span></div>
 
   <section class="sky-map-candidates" aria-label="重なる日時の候補"><div id="skyMapDates" class="candidate-dates"></div><div class="sky-map-link"><button type="button" class="chip" id="skyMapUseDates" disabled>この日時の構図を見る</button></div></section>
@@ -4202,6 +4218,8 @@ const NO_HISTORY = navigator.standalone === true;
 const appTrail = [];   // NO_HISTORY のときの来た道（前の画面の hash。一覧は ""）
 function pushRoute(hash) {
   closeTools();
+  // 選択のページを閉じて戻している途中なら、戻し終えてから移る（globalThis: 検査で関数だけを取り出して動かすときにも落ちない）
+  if (globalThis.pagePop?.n) { afterPagePop(() => pushRoute(hash)); return; }
   if (location.hash === hash) return;
   if (NO_HISTORY) {
     appTrail.push(location.hash);
@@ -4223,6 +4241,7 @@ function isMenuPage() {
   return !r || !!(r.almanac || r.aim || r.skymap || r.plane || r.iss || r.records || r.answers);
 }
 function goBack() {
+  if (globalThis.pagePop?.n) { afterPagePop(goBack); return; }
   if (NO_HISTORY) {
     const prev = appTrail.pop();
     if (!prev) { goList(); return; }
@@ -11712,12 +11731,123 @@ function markToolsCurrent() {
     else el.removeAttribute("aria-current");
   }
 }
+// ---------------------------------------------------------------- ページとして開く選択画面（2026-10-21）
+//
+// ユーザー「メニューとかログインあたり以外はページ化するんじゃなかった？」→「ページ」と「短いシート」の2種類に決定。
+// ページ: 探す・見る・選ぶ・入力する画面。全画面で開き、左上の「戻る」・ブラウザの戻る（iPhone のスワイプ）で閉じる。
+// 短いシート: 数個から選ぶ・確認だけ（天体を選ぶ・その他の天体・地図アプリで開く・時刻の操作設定・画角調整・日付）。
+// メニュー・ログイン・アカウント・設定（メニューと対の右パネル）は今のまま。
+// 中身と処理は各 dialog のまま、開き方だけ変える。下の画面は残るので、戻ると入力と位置が残る。
+// 入力のページ（input）は、検索欄以外を書き換えたあとに戻ると「破棄しますか？」を出す。保存の釦で閉じるときは聞かない
+const PAGE_DIALOGS = {
+  placeSheet: {}, mapSheet: {}, aimLineSheet: {}, aimCalendar: {}, planSheet: {},
+  previewTargetDialog: { input: true }, photoSheet: { input: true }, skyMapTargetSheet: { input: true },
+  favSheet: { ownConfirm: true },   // お気に入りは閉じる処理（closeFavSheet）が自分で「破棄しますか？」を聞く
+};
+const pageStack = [];
+// 「戻る」の釦などで閉じたぶんの履歴は、まとめて1回で戻す（続けて history.back() を呼ぶと取りこぼすブラウザがある）
+// var: 画面の移動（pushRoute）は起動時にも呼ばれうるので、宣言より前に読んでも落ちないように
+var pagePop = { n: 0, waiters: [], timer: 0, queued: false };
+function pagePopFlush() {
+  const n = pagePop.n;
+  if (!n) return;
+  history.go(-n);
+  // popstate が来ないとき（履歴が無いなど）も待っている処理を止めない
+  clearTimeout(pagePop.timer);
+  pagePop.timer = setTimeout(pagePopDone, 600);
+}
+function pagePopDone() {
+  clearTimeout(pagePop.timer);
+  pagePop.n = 0;
+  const w = pagePop.waiters.splice(0);
+  for (const f of w) f();
+}
+/// 履歴を戻している途中なら、終わってから進める（戻っている間に画面を移ると、その移った先が戻されてしまう）
+function afterPagePop(f) { if (pagePop.n) pagePop.waiters.push(f); else f(); }
+const PAGE_BACK_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>';
+function preparePage(el) {
+  if (el.dataset.page) return;
+  el.dataset.page = "1";
+  el.classList.add("as-page");
+  const head = el.querySelector(":scope > .sheet-head");
+  // 右上の「閉じる」「キャンセル」は隠して、その処理を左上の「戻る」から呼ぶ（各画面の閉じる処理をそのまま使う）
+  const close = head && [...head.querySelectorAll(":scope > button")].pop();
+  if (close) { close.hidden = true; close.dataset.pageClose = "1"; }
+  const back = document.createElement("button");
+  back.type = "button"; back.className = "page-back"; back.setAttribute("aria-label", "戻る");
+  back.innerHTML = `${PAGE_BACK_ICON}<span>戻る</span>`;
+  back.onclick = () => pageLeave(el);
+  if (head) head.prepend(back);
+  if (PAGE_DIALOGS[el.id].input) {
+    const mark = (e) => { if (!(e.target instanceof HTMLInputElement && e.target.type === "search")) el.dataset.dirty = "1"; };
+    el.addEventListener("input", mark, true);
+    el.addEventListener("change", mark, true);
+  }
+  if (!PAGE_DIALOGS[el.id].ownConfirm) el.addEventListener("cancel", (e) => { e.preventDefault(); pageLeave(el); });   // Esc
+  // 閉じた**その時点で**履歴を戻す数を数える。close の知らせは後から届くので、同じ処理の中で画面を移ると
+  // （候補を選んで別の画面へ、など）移った先の履歴を戻してしまう
+  const nativeClose = el.close.bind(el);
+  el.close = (v) => { if (el.open) pageWillClose(el); nativeClose(v); };
+  el.addEventListener("close", () => pageWillClose(el));   // method="dialog" の送信など close() を通らない閉じ方
+}
+/// ページとして開いた（showSheet から）: 入力の印を消し、履歴を1つ積む
+function pageOpened(el) {
+  delete el.dataset.dirty;
+  if (!pageStack.includes(el)) pageStack.push(el);
+  // 前のページを閉じた直後（地点→地図で選ぶ、など）は、その履歴を戻し終えてから積む
+  if (!NO_HISTORY) afterPagePop(() => {
+    if (!el.open) return;
+    const depth = ((history.state && history.state.depth) || 0) + 1;
+    history.pushState({ ...(history.state || {}), depth, page: el.id }, "", location.href);
+  });
+}
+const PAGE_DISCARD = "入力した内容を破棄しますか？";   // お気に入りの登録と同じ文
+/// 「戻る」: 入力途中なら確かめてから、その画面の閉じる処理で閉じる
+function pageLeave(el) {
+  if (PAGE_DIALOGS[el.id].input && el.dataset.dirty && !confirm(PAGE_DISCARD)) return;
+  const close = el.querySelector(":scope > .sheet-head > [data-page-close]");
+  if (close) close.click(); else el.close();
+}
+function pageWillClose(el) {
+  const i = pageStack.indexOf(el);
+  if (i < 0) return;
+  pageStack.splice(i, 1);
+  if (el.pageClosedByHistory) { el.pageClosedByHistory = false; return; }
+  // 釦で閉じた: 開いたときに積んだ履歴を戻す（同じ処理の中で続けて閉じたぶんはまとめて1回で）
+  if (NO_HISTORY) return;
+  pagePop.n++;
+  if (!pagePop.queued) { pagePop.queued = true; queueMicrotask(() => { pagePop.queued = false; pagePopFlush(); }); }
+}
+window.addEventListener("popstate", () => {
+  if (pagePop.n) { pagePopDone(); return; }
+  const top = pageStack[pageStack.length - 1];
+  if (!top || (history.state && history.state.page === top.id)) return;
+  // ブラウザの戻る・スワイプ。入力途中で「破棄しない」なら、もう一度積んでページに残る
+  if (PAGE_DIALOGS[top.id].input && top.dataset.dirty && !confirm(PAGE_DISCARD)) {
+    const depth = ((history.state && history.state.depth) || 0) + 1;
+    history.pushState({ ...(history.state || {}), depth, page: top.id }, "", location.href);
+    return;
+  }
+  top.pageClosedByHistory = true;
+  const close = top.querySelector(":scope > .sheet-head > [data-page-close]");
+  if (close) close.click(); else top.close();
+  // 閉じる処理が自分で聞いて「破棄しない」になった（お気に入り）: 戻った履歴を積み直してページに残る
+  if (top.open) {
+    top.pageClosedByHistory = false;
+    const depth = ((history.state && history.state.depth) || 0) + 1;
+    history.pushState({ ...(history.state || {}), depth, page: top.id }, "", location.href);
+  }
+});
+
 /// シートを開く。**シートそのものに焦点を置く**（2026-10-02 ユーザー「なんか青くなって選択状態で開くのが気に入らない」）。
 /// showModal だけだと最初の釦（閉じる）に焦点が行き、選ばれた状態（青い枠）で開く。<dialog autofocus> は効かないブラウザがあった。
 /// 明示的な入力操作のときだけ、このあとで入力欄へ焦点を移す
 function showSheet(el) {
+  const page = !!PAGE_DIALOGS[el.id];
+  if (page) preparePage(el);
   el.showModal();
   el.focus({ preventScroll: true });
+  if (page) pageOpened(el);
 }
 // 題名は一覧へ（何画面進んでいても1回で）。「← 戻る」はひとつ前の画面へ
 $("homeLink").onclick = () => { closeTools(); if(globalThis.SoramiAlmanacDashboard?.enter())almanacDay=SoramiHomeTime.start(Date.now()); pushRoute("#/almanac"); };
@@ -13289,13 +13419,14 @@ function uiVisualChoices(select, kind) {
  root.addEventListener('click',e=>{const b=e.target.closest('button');if(b&&(b.matches('[data-cand-map],[data-day],[data-found-map]')))show('places');},true);
 })();
 
-(()=>{
- const source=document.getElementById('aimBody'),head=source.closest('.aim-head');
- const picker=document.createElement('button');picker.type='button';picker.id='previewBodyOpen';picker.className='preview-body-open condition-choice';picker.setAttribute('aria-haspopup','dialog');picker.setAttribute('aria-controls','previewBodyDialog');
+// 天体を選ぶ（短いシート）。構図と地図で同じ部品（2026-10-21 ユーザー「これ揃えてって言わなかった？」。
+// 10-18 の入力欄の統一は閉じた見た目だけで、地図は開くと端末のプルダウンのままだった）
+function mountBodyPicker(source, { pickerId, dialogId, titleId, wide, observe }) {
+ const picker=document.createElement('button');picker.type='button';picker.id=pickerId;picker.className='condition-choice';if(wide)picker.classList.add("preview-body-open");picker.setAttribute('aria-haspopup','dialog');picker.setAttribute('aria-controls',dialogId);
  picker.innerHTML='<span data-body-label></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
  source.classList.add('preview-body-native');source.after(picker);
- const dialog=document.createElement('dialog');dialog.id='previewBodyDialog';dialog.className='sheet preview-body-dialog';dialog.setAttribute('aria-labelledby','previewBodyTitle');
- dialog.innerHTML='<div class="sheet-head"><strong id="previewBodyTitle">天体を選ぶ</strong><button type="button" data-body-close>閉じる</button></div><div class="sheet-body"></div>';
+ const dialog=document.createElement('dialog');dialog.id=dialogId;dialog.className='sheet preview-body-dialog';dialog.setAttribute('aria-labelledby',titleId);
+ dialog.innerHTML=`<div class="sheet-head"><strong id="${titleId}">天体を選ぶ</strong><button type="button" data-body-close>閉じる</button></div><div class="sheet-body"></div>`;
  const content=dialog.querySelector('.sheet-body');
  for(const group of source.querySelectorAll('optgroup')){
   const section=document.createElement('section'),title=document.createElement('h3'),list=document.createElement('div');section.className='preview-body-group';title.textContent=group.label;list.className='preview-body-list';section.append(title,list);
@@ -13305,10 +13436,17 @@ function uiVisualChoices(select, kind) {
   content.append(section);
  }
  document.body.append(dialog);
- const sync=()=>{const name=source.selectedOptions[0]?.textContent||'天体';const label=picker.querySelector('[data-body-label]');if(label.textContent!==name)label.textContent=name;picker.setAttribute('aria-label',`天体：${name}、選択を開く`);for(const b of dialog.querySelectorAll('[data-body-value]')){const o=Array.from(source.options).find(o=>o.value===b.dataset.bodyValue);b.disabled=!!o?.disabled;b.hidden=!!o?.hidden;b.setAttribute('aria-pressed',String(b.dataset.bodyValue===source.value));}for(const group of dialog.querySelectorAll('.preview-body-group'))group.hidden=!Array.from(group.querySelectorAll('[data-body-value]')).some(b=>!b.hidden);};
+ const sync=()=>{const name=source.selectedOptions[0]?.textContent||'天体';const label=picker.querySelector('[data-body-label]');if(label.textContent!==name)label.textContent=name;picker.disabled=source.disabled;picker.setAttribute('aria-label',`天体：${name}、選択を開く`);for(const b of dialog.querySelectorAll('[data-body-value]')){const o=Array.from(source.options).find(o=>o.value===b.dataset.bodyValue);b.disabled=!!o?.disabled;b.hidden=!!o?.hidden;b.setAttribute('aria-pressed',String(b.dataset.bodyValue===source.value));}for(const group of dialog.querySelectorAll('.preview-body-group'))group.hidden=!Array.from(group.querySelectorAll('[data-body-value]')).some(b=>!b.hidden);};
  picker.onclick=()=>{sync();showSheet(dialog);};dialog.querySelector('[data-body-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>picker.focus({preventScroll:true}));
- new MutationObserver(sync).observe(document.getElementById('aimView'),{childList:true,subtree:true});source.addEventListener('change',sync);sync();
-})();
+ // 画面のコードが value を直接書き換える（地図は天体の切り替えや引き継ぎで change を出さない）ので、書き換えでも表示を合わせる
+ const valueOf=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value');
+ Object.defineProperty(source,'value',{configurable:true,get(){return valueOf.get.call(this);},set(v){valueOf.set.call(this,v);sync();}});
+ new MutationObserver(sync).observe(observe,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','disabled']});source.addEventListener('change',sync);sync();
+ return sync;
+}
+mountBodyPicker(document.getElementById('aimBody'),{pickerId:'previewBodyOpen',dialogId:'previewBodyDialog',titleId:'previewBodyTitle',wide:true,observe:document.getElementById('aimView')});
+mountBodyPicker(document.getElementById('skyMapBody'),{pickerId:'skyMapBodyOpen',dialogId:'skyMapBodyDialog',titleId:'skyMapBodyPickTitle',wide:false,observe:document.getElementById('skyMapBody')});
+document.getElementById('skyMapBody').hidden=true;   // 地図の欄の CSS が display を上書きするので、対象（skyMapTarget）と同じく hidden で隠す
 
 (()=>{
  const aimSource=$('aimTarget'),host=aimSource.closest('.aim-pick');
