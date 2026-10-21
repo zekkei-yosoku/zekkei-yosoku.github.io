@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="1695590553170982097">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-QOH4vO/YO3v+nsisq+5HoRHge1X0zgloUg+T//tDEDE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-GMs2Gk94riewAJ1Ii7ria7EKlc9B2buPe0dc0EHmQkE=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-20oFMl7+c2PM1pgnt9MPUvoGq6lBf9aXpEv7mgrLhX4=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="13718250135901743744">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-G6v5jiOulSShQdV7xKXf4d1ClpLM47nYrBSH/bFhe/g=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CtjnOciNTjWu0Gwoehz15PwrzWDHXRiQglquheT9aYQ=' 'sha256-GMs2Gk94riewAJ1Ii7ria7EKlc9B2buPe0dc0EHmQkE=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-20oFMl7+c2PM1pgnt9MPUvoGq6lBf9aXpEv7mgrLhX4=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -1332,6 +1332,8 @@ main:has(>#aimView:not([hidden],[data-locked])){padding-bottom:calc(var(--aim-fo
 #aimView[data-locked]>:not(#aimAccess){display:none!important}
 #planeView[data-locked]>:not(#planeAccess){display:none!important}
 #issView[data-locked]>:not(#issAccess){display:none!important}
+/* 人工衛星の一覧（2026-10-21）: 名前・説明・補足を1行ずつ。続けて流すと「ひまわりHimawari 1」のように名前と英語名がくっついた */
+#issPassList .al-w>*,#issPickList .al-w>*{display:block}
 #recordsView[data-locked]>:not(#recordsAccess),#answersView[data-locked]>:not(#answersAccess){display:none!important}
 :is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer{position:fixed;z-index:35;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid rgba(0,0,0,.16);box-shadow:0 -4px 16px rgba(0,0,0,.12);padding:2px max(12px,env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
 :is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer .tool-datetime-row{display:grid;grid-template-columns:44px auto minmax(0,1fr) 44px 44px;align-items:center;gap:2px;max-width:780px;margin:0 auto;padding:0;border:0}
@@ -1852,7 +1854,19 @@ button.ui-icon-button::after { content: none; }
        衛星が円盤の前を横切る。1秒に満たない -->
   <div id="issView" hidden>
     <div id="issAccess" hidden><div class="sky-map-head"><h2>人工衛星</h2></div><div class="card"><p id="issAccessMessage"></p><button id="issAccessLogin" class="fav-btn primary">ログイン</button></div></div>
-    <div class="card">
+    <!-- 衛星を選ぶ（2026-10-21）。シートだったが、一覧が長くほぼ全画面になるのでページに（道 #/iss/pick。ユーザー「検索画面はもうページにする？」）。
+         戻ると人工衛星の画面の入力と位置はそのまま。選ぶと戻って反映。日本語名は Wikidata（CC0）から作った表 -->
+    <div class="card" id="issPickPage" hidden>
+      <button type="button" class="chip" id="issPickBack">← 人工衛星に戻る</button>
+      <div class="section-h" style="margin-top:8px"><h2 id="issPickTitle">衛星を選ぶ</h2></div>
+      <input id="issPickQuery" class="fav-in" type="search" enterkeyhint="search" autocomplete="off" placeholder="名前・衛星番号（ひまわり、HIMAWARI、25544）" aria-label="衛星を名前か番号で探す">
+      <div class="chips" id="issPickGroups" role="group" aria-label="ジャンル" style="margin-top:8px"></div>
+      <p class="tiny" id="issPickInfo" role="status"></p>
+      <button type="button" class="fav-btn" id="issPickVisible" hidden>このジャンルで今夜見える衛星を探す</button>
+      <div id="issPickList" class="al" style="margin-top:6px"></div>
+      <p class="tiny" style="margin-top:10px;color:var(--tertiary)">軌道要素は CelesTrak、日本語名は Wikidata（CC0）から。</p>
+    </div>
+    <div class="card" id="issMain">
       <!-- 並びはねらうと同じ（2026-10-01 ユーザー「月丼とかISSとかのレイアウトも統一感あるように」）:
            題名、衛星、どこの近くで探すか（地点カードと同じ形）、表示の切り替え、地図、一覧。
            月・太陽の前では題名の行の右に太陽／月（絵文字だけ・ねらうと同じ順）。
@@ -1866,13 +1880,19 @@ button.ui-icon-button::after { content: none; }
           <button id="issMoon" aria-pressed="true" aria-label="月" title="月">🌙</button>
         </div>
       </div>
-      <label class="fav-l" for="issSat">衛星</label>
-      <div class="aim-row">
-        <select id="issSat" class="fav-in" aria-label="衛星">
-          <option value="25544">ISS（国際宇宙ステーション）</option>
-          <option value="48274">天宮（中国の宇宙ステーション）</option>
-          <option value="20580">ハッブル宇宙望遠鏡</option>
-        </select>
+      <!-- 衛星は地点と同じ形のカード。押すと「衛星を選ぶ」（名前・番号の検索とジャンル。2026-10-21 ユーザー「衛星の中で選択できないの？ジャンル分けして検索も」） -->
+      <p class="fav-l" id="issSatLabel">衛星</p>
+      <div class="place-row aim-place-card">
+        <button class="place-pick" id="issSatButton" aria-describedby="issSatLabel">
+          <span class="pin" aria-hidden="true">🛰️</span>
+          <span class="place-txt">
+            <span class="name" id="issSatName">ISS（国際宇宙ステーション）</span>
+            <span class="muted" id="issSatSub"></span>
+          </span>
+          <span class="sr-only">（衛星を選ぶ）</span>
+          <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+          stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
+        </button>
       </div>
       <p class="fav-l" id="issFromLabel">どこの近くで探すか</p>
       <div class="place-row aim-place-card">
@@ -1899,10 +1919,8 @@ button.ui-icon-button::after { content: none; }
         </div>
       </div>
       <p class="tiny" id="issTle" style="margin:-2px 0 8px;color:var(--tertiary)"></p>
-      <!-- 空の方角図: 選んだ回の通り道。真上が中心、外周が地平線、上が北。見える区間を太く -->
-      <div id="issSkyWrap" style="display:flex;justify-content:center;margin:4px 0 8px">
-        <canvas id="issSky" width="280" height="280" style="width:280px;height:280px;max-width:100%" role="img" aria-label="空の方角図"></canvas>
-      </div>
+      <!-- 地図の箱。月・太陽の前ではここ、通過では押した回の行のすぐ下（issPassDetail の中）へ動かす（2026-10-21 ユーザー「情報量が多くない？」） -->
+      <div id="issMapHome" hidden><div id="issMapBox">
       <div class="mapwrap" style="margin-top:4px">
         <canvas id="issCanvas" aria-label="地図。衛星の真下の通り道です"></canvas>
         <div class="mapzoom">
@@ -1920,14 +1938,19 @@ button.ui-icon-button::after { content: none; }
       <div class="aim-legend">
         <span><i class="aim-k moon" id="issKey"></i><span id="issKeyText">見える帯</span></span>
       </div>
+      </div></div>
       <section id="issPassPanel" role="tabpanel" aria-labelledby="issPassTab">
         <div class="section-h" style="margin-top:12px"><h2>これから7日</h2><span class="muted" id="issPassFrom"></span></div>
         <label class="tiny" style="display:flex;align-items:center;gap:6px;min-height:32px"><input type="checkbox" id="issShowAll">見えない回も出す（日が当たらない・空が明るい）</label>
         <div id="issPassList" class="al"></div>
-        <div class="section-h" style="margin-top:16px"><h2>明るい衛星</h2><span class="muted">これから24時間</span></div>
-        <p class="tiny">CelesTrak（軌道要素の配布元）が選んだ、肉眼で見やすい明るい衛星の一覧から、ここで見える回を探します。押すとその衛星に切り替えます。</p>
-        <button type="button" class="fav-btn" id="issBrightRun">見える回を探す</button>
-        <div id="issBrightList" class="al" style="margin-top:8px"></div>
+        <p class="tiny" style="margin-top:8px;color:var(--tertiary)">「見える」は、衛星に日が当たっていて空が暗いという意味です。暗い衛星は双眼鏡や望遠鏡が要ります。</p>
+        <!-- 押した回の詳しいこと。行のすぐ下へ動かして開く。空の方角図（真上が中心・外周が地平線・上が北）と地図 -->
+        <div id="issPassDetail" hidden style="padding:4px 0 12px">
+          <div id="issSkyWrap" style="display:flex;justify-content:center;margin:4px 0">
+            <canvas id="issSky" width="280" height="280" style="width:280px;height:280px;max-width:100%" role="img" aria-label="空の方角図"></canvas>
+          </div>
+          <p class="tiny" id="issPassDetailText" style="text-align:center;margin:0 0 8px"></p>
+        </div>
       </section>
       <section id="issTransitPanel" role="tabpanel" aria-labelledby="issTransitTab" hidden>
         <div class="section-h" style="margin-top:12px"><h2>これから7日</h2><span class="muted" id="issFrom"></span></div>
@@ -4146,6 +4169,7 @@ function routeFromHash() {
   if (am) return { aim: true, preset: am[1] };
   if (location.hash === "#/plane") return { plane: true };
   if (location.hash === "#/iss") return { iss: true };
+  if (location.hash === "#/iss/pick") return { iss: true, issPick: true };   // 衛星を選ぶ（2026-10-21）
   if (location.hash === "#/admin") return { admin: true };
   const m = /^#\/([A-Za-z]+)(?:\/(\d+))?$/.exec(location.hash);
   // **`SCORERS` ではなく `PHENOMENA` で見る。**
@@ -6922,18 +6946,25 @@ const ISS_PRESETS = [[25544, "ISS（国際宇宙ステーション）"], [48274,
 const iss = { body: "moon", rangeKm: 150, sat: null, tle: null, result: [], pick: 0, seq: 0, wired: false,
               from: null,   // 探す範囲の中心。null なら絶景予測の地点を引き継ぐ（ねらうと同じ。2026-10-01）
               tab: "pass", catnr: Number(store.get("sorami.issSat", 25544)) || 25544,
-              extra: store.get("sorami.issSatExtra", null),   // 明るい衛星の一覧から選んだ、選択肢に無い衛星 { catnr, name }
-              passes: [], passPick: 0, showAll: false, track: [], brightSeq: 0 };
+              extra: store.get("sorami.issSatExtra", null),   // 「衛星を選ぶ」で選んだ、よく見る3機以外の衛星 { catnr, name（CelesTrak の名前） }
+              names: null,   // 番号→{ ja, en, alias }（data/satellite-names-ja.json）
+              passes: [], passPick: 0, showAll: false, track: [] };
 /// 選んでいる衛星の呼び名
 function issSatName() {
   const p = ISS_PRESETS.find(([n]) => n === iss.catnr);
-  return p ? p[1].replace(/（.*）$/, "") : (iss.extra && iss.extra.catnr === iss.catnr ? iss.extra.name : `衛星 ${iss.catnr}`);
+  if (p) return p[1].replace(/（.*）$/, "");
+  const w = iss.names && iss.names.get(iss.catnr);
+  if (w) return w.ja;
+  return iss.extra && iss.extra.catnr === iss.catnr ? iss.extra.name : `衛星 ${iss.catnr}`;
 }
-function issFillSat() {
-  const opts = ISS_PRESETS.map(([n, name]) => [n, name]);
-  if (iss.extra && !ISS_PRESETS.some(([n]) => n === iss.extra.catnr)) opts.push([iss.extra.catnr, iss.extra.name]);
-  $("issSat").innerHTML = opts.map(([n, name]) => `<option value="${n}">${esc(name)}</option>`).join("");
-  $("issSat").value = String(iss.catnr);
+/// 衛星のカード: 日本語名（無ければ CelesTrak の英語名）と、英語名・衛星番号
+function issRenderSatCard() {
+  const p = ISS_PRESETS.find(([n]) => n === iss.catnr);
+  const w = iss.names && iss.names.get(iss.catnr);
+  const ex = iss.extra && iss.extra.catnr === iss.catnr ? iss.extra : null;
+  $("issSatName").textContent = p ? p[1] : w ? w.ja : ex ? ex.name : `衛星 ${iss.catnr}`;
+  const en = (ex && ex.name) || (w && w.en) || "";
+  $("issSatSub").textContent = [p || w ? en : "", `衛星番号 ${iss.catnr}`].filter(Boolean).join(" ・ ");
 }
 /// ISS の探す範囲の中心。替えていなければ絶景予測の地点。**観測地点ではない**（立つ場所は回ごとに帯の中から選ぶ）
 function issFromPoint() { return iss.from || inheritedPoint(); }
@@ -6942,9 +6973,8 @@ function issSetFrom(p) {
   // 地図も新しい中心へ（帯はその近くに出る）
   const P = issFromPoint();
   IssMap.open({ latitude: P.latitude, longitude: P.longitude }, iss.tab === "pass" ? 5 : 8);
-  // 明るい衛星の一覧は前の地点で解いたものなので消す
-  iss.brightSeq++; iss.bright = [];
-  $("issBrightList").innerHTML = ""; $("issBrightRun").disabled = false;
+  // 「今夜見える」は前の地点で解いたものなので消す
+  issPick.visSeq++; issPick.visible = null;
   issApply();
 }
 const IssMap = createMapView({ canvas: "issCanvas", zoomIn: "issIn", zoomOut: "issOut" });
@@ -7100,22 +7130,33 @@ function issSetTab(tab, focus = false) {
   $("issPassTab").setAttribute("aria-selected", String(pass)); $("issPassTab").tabIndex = pass ? 0 : -1;
   $("issTransitTab").setAttribute("aria-selected", String(!pass)); $("issTransitTab").tabIndex = pass ? -1 : 0;
   $("issPassPanel").hidden = !pass; $("issTransitPanel").hidden = pass;
-  $("issBodySeg").hidden = pass; $("issTransitRange").hidden = pass; $("issSkyWrap").hidden = !pass;
+  $("issBodySeg").hidden = pass; $("issTransitRange").hidden = pass;
+  issPlaceDetail();
   if (focus) $(pass ? "issPassTab" : "issTransitTab").focus();
   issApply();
 }
 
+/// 計算の条件。同じなら計算し直さなくてよい
+function issApplyKey() {
+  const P = issFromPoint();
+  return P ? [iss.catnr, iss.tab, P.latitude, P.longitude, iss.body, iss.rangeKm].join("|") : "";
+}
 async function issApply() {
   if (!toolAllowed("iss")) return;
   const P = issFromPoint();
   if (!P) return;
   const seq = ++iss.seq;
+  iss.lastKey = issApplyKey();
   const name = issSatName();
   const pass = iss.tab === "pass";
+  // 開いていた回の方角図と地図は一覧の中（行の下）にある。一覧を書き換える前に退避しないと地図ごと消える
+  issParkDetail();
+  // 前の衛星の回は捨てる（残すと、計算中に一覧が書き直されたとき前の衛星の回と地図が戻ってくる）
+  if (pass) { iss.passes = []; iss.passPick = -1; iss.track = []; iss.passesReady = false; }
   $(pass ? "issPassList" : "issList").innerHTML = `<p class="tiny">計算しています…</p>`;
   // 探す範囲の中心のカード（地点カードと同じ形）。そこに立つわけではないので標高は書かない
   renderPointCard("issFrom", P, null, { elevation: false });
-  issFillSat();
+  issRenderSatCard();
   $("issMoon").setAttribute("aria-pressed", String(iss.body === "moon"));
   $("issMoon").textContent = `${moonGlyphAt(Date.now())}`;
   $("issSun").setAttribute("aria-pressed", String(iss.body === "sun"));
@@ -7131,7 +7172,8 @@ async function issApply() {
   try { [sat, tle] = await Promise.all([issLoadSat(), issLoadTle()]); } catch { sat = null; }
   if (seq !== iss.seq) return;
   if (!sat || !tle) {
-    $(pass ? "issPassList" : "issList").innerHTML = `<p class="tiny">${esc(name)}の軌道要素を取れませんでした。時間をおいて開き直してください。</p>`;
+    issParkDetail();
+    $(pass ? "issPassList" : "issList").innerHTML = `<p class="tiny">${esc(name)}の軌道要素を取れませんでした。時間をおいて開き直してください。落下や運用終了で軌道要素が配られていない衛星もあります。</p>`;
     iss.passes = []; iss.result = []; iss.track = [];
     issDrawSky();
     return;
@@ -7313,20 +7355,51 @@ const issShownPasses = () => (iss.showAll ? iss.passes : iss.passes.filter((p) =
 const issSky = (sunAlt) => (sunAlt < -6 ? "夜" : sunAlt < 0 ? "薄明" : "昼");
 
 function issApplyPasses(seq, sat, tle, P) {
+  // 1日に1.5周より遅い（静止衛星など）は空の同じ所に止まって見え、出入りが無い。いまの方角と高さだけ出す
+  const revPerDay = Number(tle.line2.slice(52, 63));
+  if (revPerDay < 1.5) {
+    iss.passes = []; iss.tle = tle; iss.track = []; iss.passesReady = true;
+    const rec = sat.twoline2satrec(tle.line1, tle.line2), d = new Date();
+    const pv = sat.propagate(rec, d);
+    const la = pv && pv.position ? sat.ecfToLookAngles({ latitude: P.latitude * Math.PI / 180, longitude: P.longitude * Math.PI / 180, height: (P.elevation || 0) / 1000 },
+      sat.eciToEcf(pv.position, sat.gstime(d))) : null;
+    const az = la ? ((la.azimuth * 180 / Math.PI) % 360 + 360) % 360 : 0, el = la ? la.elevation * 180 / Math.PI : -90;
+    issParkDetail();
+    $("issPassList").innerHTML = `<p class="tiny">${esc(issSatName())}は地球の自転と同じ速さで回る高い軌道の衛星で、空のほぼ同じ所に止まって見えます。${
+      el > 0 ? `${esc(P.name)}からは${issDir16(az)}（方位${Math.round(az)}°）の高さ${Math.round(el)}°。肉眼では見えません。` : `${esc(P.name)}からは地平線の下です。`}</p>`;
+    iss.passPick = -1;
+    issPlaceDetail();
+    return;
+  }
   let rows = [];
   try {
     rows = SoramiISS.passes(sat, tle, { observer: { latitude: P.latitude, longitude: P.longitude, elevation: P.elevation || 0 },
       fromMs: Date.now(), hours: 168 });
   } catch { rows = []; }
   if (seq !== iss.seq) return;
-  iss.passes = rows; iss.tle = tle;
-  // 通り道は数千kmあるので、いちばん広い縮尺で（回を選ぶと地点と通り道の間を真ん中に）
-  IssMap.open({ latitude: P.latitude, longitude: P.longitude }, 5);
+  iss.passes = rows; iss.tle = tle; iss.passPick = -1; iss.track = []; iss.passesReady = true;
   issRenderPasses();
-  issPickPass(0);
+}
+
+/// 方角図と地図の置き場所（2026-10-21 ユーザー「情報量が多くない？」）。
+/// 月・太陽の前: 地図は一覧の上。通過: 押した回の行のすぐ下に方角図と地図を開く（押すまでは出さない）
+function issParkDetail() {
+  $("issPassPanel").append($("issPassDetail"));
+  $("issPassDetail").hidden = true;
+}
+function issPlaceDetail() {
+  const box = $("issMapBox");
+  if (iss.tab !== "pass") { issParkDetail(); $("issMapHome").append(box); $("issMapHome").hidden = false; return; }
+  $("issMapHome").hidden = true;
+  const row = $("issPassList").querySelector(`[data-pass="${iss.passPick}"]`);
+  if (!row) { issParkDetail(); return; }
+  $("issPassDetail").append(box);
+  row.after($("issPassDetail"));
+  $("issPassDetail").hidden = false;
 }
 
 function issRenderPasses() {
+  issParkDetail();   // 一覧を書き直すと、行の下に置いた詳しいことも消えるので先に退避
   const P = issFromPoint(), name = issSatName();
   const rows = issShownPasses();
   const hiddenN = iss.passes.length - rows.length;
@@ -7339,28 +7412,30 @@ function issRenderPasses() {
     const v = p.visible;
     const rough = p.max.at - Date.now() > 72 * 3600000 ? `<span class="tiny" style="color:var(--tertiary)">（目安）</span>` : "";
     const day = `${S.Cal.monthDay(p.max.at)}(${S.Cal.weekday(p.max.at)})`;
+    // 行は2段: 時刻と、方角の流れ（細かい時刻・距離は押すと開く）
+    const open = i === iss.passPick;
     if (!v) {
-      const why = p.sunAltitude > -6 ? "空が明るく見えない" : !p.litAtMax ? "地球の影の中で見えない" : "日が当たる所が低く見えない";
-      return `<button class="al-row jump" data-pass="${i}" aria-pressed="false">
+      const why = p.sunAltitude > -6 ? "空が明るい" : !p.litAtMax ? "地球の影の中" : "日が当たる所が低い";
+      return `<button class="al-row jump" data-pass="${i}" aria-expanded="${open}">
         <span class="al-w"><strong>${day} ${issHm(p.rise.at)}〜${issHm(p.set.at)}</strong>${rough}
-          <span class="muted">${why}</span>
-          <span class="tiny">最大仰角${Math.round(p.max.elevation)}°（${issDir16(p.max.azimuth)}）・ ${issSky(p.sunAltitude)}</span></span>
-        <span class="tiny">空の図 →</span></button>`;
+          <span class="muted">見えない（${why}）・ 最大${Math.round(p.max.elevation)}° ${issDir16(p.max.azimuth)}</span></span>
+        <span class="tiny">${open ? "閉じる" : "空の図"}</span></button>`;
     }
-    const mins = Math.max(1, Math.round((v.end.at - v.start.at) / 60000));
-    return `<button class="al-row jump" data-pass="${i}" aria-pressed="false">
+    return `<button class="al-row jump" data-pass="${i}" aria-expanded="${open}">
       <span class="al-w"><strong>${day} ${issHm(v.start.at)}〜${issHm(v.end.at)}</strong>${rough}
-        <span class="muted">${issDir16(v.start.azimuth)}の空から現れ、${issDir16(v.max.azimuth)}の高さ${Math.round(v.max.elevation)}°を通り、${
-          issDir16(v.end.azimuth)}${v.entersShadow ? "で地球の影に入って消える" : "へ低くなる"}</span>
-        <span class="tiny">見える ${issHms(v.start.at)}〜${issHms(v.end.at)}（約${mins}分）・ ${issSky(p.sunAltitude)} ・ 最も近いとき${Math.round(p.max.rangeKm)}km</span></span>
-      <span class="tiny">空の図 →</span></button>`;
+        <span class="muted">${issDir16(v.start.azimuth)} → ${issDir16(v.max.azimuth)} 高さ${Math.round(v.max.elevation)}° → ${
+          issDir16(v.end.azimuth)}${v.entersShadow ? "（影に入って消える）" : ""}</span></span>
+      <span class="tiny">${open ? "閉じる" : "空の図"}</span></button>`;
   }).join("") + (hiddenN && !iss.showAll ? `<p class="tiny" style="color:var(--tertiary)">見えない回（${hiddenN}回）は出していません</p>` : "");
   for (const el of $("issPassList").querySelectorAll("[data-pass]")) {
     el.onclick = () => {
-      issPickPass(+el.dataset.pass);
-      $("issSkyWrap").scrollIntoView({ block: "nearest", behavior: "smooth" });
+      // 開いている行をもう一度押すと閉じる
+      const i = +el.dataset.pass;
+      issPickPass(i === iss.passPick ? -1 : i);
+      if (iss.passPick >= 0) $("issPassDetail").scrollIntoView({ block: "nearest", behavior: "smooth" });
     };
   }
+  issPlaceDetail();
 }
 
 /// 回を選ぶ: 空の方角図と、地図の真下の通り道を描き直す
@@ -7368,7 +7443,16 @@ function issPickPass(i) {
   const p = issShownPasses()[i];
   iss.passPick = i;
   iss.track = p && iss.sat && iss.tle ? SoramiISS.groundTrack(iss.sat, iss.tle, p.rise.at, p.set.at, 10) : [];
-  for (const el of $("issPassList").querySelectorAll("[data-pass]")) el.setAttribute("aria-pressed", String(+el.dataset.pass === i));
+  for (const el of $("issPassList").querySelectorAll("[data-pass]")) {
+    const on = +el.dataset.pass === i;
+    el.setAttribute("aria-expanded", String(on));
+    el.lastElementChild.textContent = on ? "閉じる" : "空の図";
+  }
+  issPlaceDetail();
+  const v = p && p.visible;
+  $("issPassDetailText").textContent = !p ? "" : v
+    ? `見える ${issHms(v.start.at)}〜${issHms(v.end.at)}（約${Math.max(1, Math.round((v.end.at - v.start.at) / 60000))}分）・ ${issSky(p.sunAltitude)} ・ 最も近いとき${Math.round(p.max.rangeKm)}km`
+    : `地平線の上 ${issHm(p.rise.at)}〜${issHm(p.set.at)} ・ ${issSky(p.sunAltitude)}`;
   issDrawSky();
   const P = issFromPoint();
   if (p && iss.track.length && P) {
@@ -7381,7 +7465,7 @@ function issPickPass(i) {
 /// 空の方角図。真上が中心、外周が地平線。**上が北・右が東**（地図と同じ向き。見上げた空を下から見た向きではない）
 function issDrawSky() {
   const cv = $("issSky");
-  if (!cv || $("issSkyWrap").hidden) return;
+  if (!cv || $("issPassDetail").hidden) return;
   const W = 280, dpr = window.devicePixelRatio || 1;
   if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(W * dpr); }
   const ctx = cv.getContext("2d");
@@ -7461,32 +7545,174 @@ function issDrawTrack(ctx, project, color, ink, width, height) {
   ctx.restore();
 }
 
-/// 明るい衛星（CelesTrak の GROUP=visual。機数は CelesTrak 側で変わり、実応答は未確認）で、これから24時間に見える回。全機を順に解くので押したときだけ
-async function issFindBright() {
-  const seq = ++iss.brightSeq;
-  const P = issFromPoint();
-  if (!P) return;
-  iss.brightKey = `${P.latitude},${P.longitude}`;
-  $("issBrightRun").disabled = true;
-  $("issBrightList").innerHTML = `<p class="tiny">軌道要素を読んでいます…</p>`;
-  const cached = store.get("sorami.issBright", null);
+// ---------------------------------------------------------------- 衛星を選ぶ（2026-10-21）
+//
+// ユーザー「なんで衛星の中で選択できないの？ジャンル分けして検索も出来るようにしたら探しやすくなる」「日本語名一覧とかないの？」。
+// 上に名前・番号の検索、下に CelesTrak の GROUP ごとのジャンル。ジャンルは押したときだけ取る（2時間使い回す）。
+// 日本語名は Wikidata（CC0）の衛星カタログ番号と日本語ラベルから作った表（build-satellite-names.mjs → data/satellite-names-ja.json）。
+// 「今夜見える」はジャンルの中で解く。肉眼で見える衛星が多いのは宇宙ステーションと明るい衛星だけなので、その2つにだけ出す
+const ISS_GROUPS = [
+  ["stations", "宇宙ステーション", true], ["visual", "明るい衛星", true], ["weather", "気象", false],
+  ["gnss", "測位（GPS・みちびき など）", false], ["science", "科学", false], ["amateur", "アマチュア無線", false]];
+const issPick = { group: null, list: [], remote: null, seq: 0, remoteSeq: 0, visSeq: 0, visible: null, timer: 0 };
+let issNamesPromise = null;
+/// 番号→{ ja, en, alias } の表。取れなくても英語名で動く（次に開いたときにまた読む）
+function issLoadNames() {
+  if (!issNamesPromise) {
+    issNamesPromise = fetch("data/satellite-names-ja.json").then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d) => { iss.names = new Map(d.names.map(([n, ja, en, alias]) => [n, { ja, en, alias: alias || [] }])); return iss.names; })
+      .catch(() => { issNamesPromise = null; return iss.names || new Map(); });
+  }
+  return issNamesPromise;
+}
+/// 検索のために揃える: 全角半角・大文字小文字・ひらがな→カタカナ。空白と区切りの記号は外す
+const issFold = (s) => String(s || "").normalize("NFKC").toLowerCase()
+  .replace(/[ぁ-ゖ]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60))
+  .replace(/[\s\-_()（）・.,/]/g, "");
+/// 一覧の1行の名前: 日本語名（よく見る3機の呼び名・Wikidata）を主に、CelesTrak の英語名と番号を添える
+function issPickLabel(catnr, celestrakName) {
+  const p = ISS_PRESETS.find(([n]) => n === catnr);
+  const w = iss.names && iss.names.get(catnr);
+  const main = p ? p[1] : w ? w.ja : celestrakName || `衛星 ${catnr}`;
+  const en = celestrakName || (w && w.en) || "";
+  return { main, sub: [p || w ? en : "", `衛星番号 ${catnr}`].filter(Boolean).join(" ・ ") };
+}
+
+/// 衛星を選ぶページへ。戻ってきたときに同じ位置へ戻すため、いまのスクロール位置を覚える
+function issPickOpen() {
+  iss.returnScroll = window.scrollY;
+  iss.fromPick = true;
+  pushRoute("#/iss/pick");
+}
+/// 戻る。アプリの中から来ていれば履歴を1つ戻し、URL を直接開いていれば人工衛星の画面に置き換える
+function issPickDone() {
+  const inApp = NO_HISTORY ? appTrail.length > 0 : (history.state && history.state.depth) > 0;
+  if (inApp) { goBack(); return; }
+  history.replaceState(history.state, "", "#/iss");
+  applyRoute();
+}
+async function issPickShow() {
+  // 描画が済んでから頭へ（先に動かすと、人工衛星の画面の高さのまま途中で止まることがあった）
+  window.scrollTo(0, 0); requestAnimationFrame(() => window.scrollTo(0, 0));
+  $("issPickGroups").innerHTML = ISS_GROUPS.map(([g, label]) =>
+    `<button type="button" class="chip" data-group="${g}" aria-pressed="${issPick.group === g}">${esc(label)}</button>`).join("");
+  for (const b of $("issPickGroups").querySelectorAll("[data-group]")) {
+    b.onclick = () => issPickGroup(issPick.group === b.dataset.group ? null : b.dataset.group);
+  }
+  issPickRender();
+  await issLoadNames();
+  if (atIss && routeFromHash()?.issPick) issPickRender();
+}
+
+/// ジャンルを開く（同じジャンルをもう一度押すと閉じる）
+async function issPickGroup(g) {
+  const seq = ++issPick.seq;
+  issPick.group = g; issPick.list = []; issPick.visible = null; issPick.visSeq++;
+  for (const b of $("issPickGroups").querySelectorAll("[data-group]")) b.setAttribute("aria-pressed", String(b.dataset.group === g));
+  $("issPickVisible").hidden = true;
+  if (!g) { issPickRender(); return; }
+  $("issPickInfo").textContent = "軌道要素を読んでいます…";
+  $("issPickList").innerHTML = "";
+  const key = `sorami.issGroup.${g}`, cached = store.get(key, null);
   let list = null;
   if (cached && Date.now() - cached.at < 2 * 3600000 && cached.text) list = SoramiISS.parseTleList(cached.text);
   else {
     try {
-      const text = await issFetchText("https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=TLE");
+      const text = await issFetchText(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${encodeURIComponent(g)}&FORMAT=TLE`);
       list = SoramiISS.parseTleList(text);
-      if (list.length) store.set("sorami.issBright", { at: Date.now(), text });
+      if (list.length) store.set(key, { at: Date.now(), text });   // 大きいジャンルは保存できないことがある（そのときは次も取りに行く）
     } catch { list = cached && cached.text ? SoramiISS.parseTleList(cached.text) : null; }
   }
-  let sat = null;
-  try { sat = await issLoadSat(); } catch { sat = null; }
-  if (seq !== iss.brightSeq) return;
-  if (!list || !list.length || !sat) {
-    $("issBrightList").innerHTML = `<p class="tiny">明るい衛星の軌道要素を取れませんでした。時間をおいてもう一度押してください。</p>`;
-    $("issBrightRun").disabled = false;
+  if (seq !== issPick.seq) return;
+  if (!list || !list.length) {
+    $("issPickInfo").textContent = "このジャンルの軌道要素を取れませんでした。時間をおいてもう一度押してください。";
     return;
   }
+  issPick.list = list;
+  $("issPickVisible").hidden = !ISS_GROUPS.find(([k]) => k === g)[2];
+  $("issPickVisible").disabled = false;
+  issPickRender();
+}
+
+/// CelesTrak の名前（英語）で探す。日本語名の表に無い衛星もこれで見つかる
+async function issPickRemote(q) {
+  const seq = ++issPick.remoteSeq;
+  issPick.remote = { q, list: undefined };
+  issPickRender();
+  let list = null;
+  try { list = SoramiISS.parseTleList(await issFetchText(`https://celestrak.org/NORAD/elements/gp.php?NAME=${encodeURIComponent(q)}&FORMAT=TLE`)); }
+  catch { list = null; }
+  if (seq !== issPick.remoteSeq) return;
+  issPick.remote = { q, list };
+  issPickRender();
+}
+
+function issPickRender() {
+  const q = $("issPickQuery").value.trim(), f = issFold(q);
+  const rows = [], seen = new Set(), limit = q ? 60 : 300;
+  const add = (catnr, tle) => { if (!catnr || seen.has(catnr) || rows.length >= limit) return; seen.add(catnr); rows.push({ catnr, tle }); };
+  const wikiHit = (catnr) => { const w = iss.names && iss.names.get(catnr); return !!w && [w.ja, w.en, ...w.alias].some((s) => issFold(s).includes(f)); };
+  let info = "", visibleRows = null;
+  if (!q && issPick.visible) visibleRows = issPick.visible;
+  else if (!q && !issPick.group) {
+    for (const [n] of ISS_PRESETS) add(n);
+    info = "よく見る衛星です。名前・衛星番号で探すか、ジャンルを選んでください。";
+  } else if (!q) {
+    for (const t of issPick.list) add(t.catnr, t);
+    info = `${ISS_GROUPS.find(([k]) => k === issPick.group)[1]}：${issPick.list.length}機${issPick.list.length > limit ? `（先頭${limit}機）` : ""}`;
+  } else {
+    if (/^\d{1,6}$/.test(q)) add(Number(q), issPick.list.find((t) => t.catnr === Number(q)));
+    // 開いているジャンルの中から、次に日本語名の表全体から
+    for (const t of issPick.list) if (issFold(t.name).includes(f) || wikiHit(t.catnr)) add(t.catnr, t);
+    if (!issPick.group) for (const [n] of iss.names || []) if (wikiHit(n)) add(n);
+    if (issPick.remote && issPick.remote.q === q && issPick.remote.list) for (const t of issPick.remote.list) add(t.catnr, t);
+    info = rows.length ? `${rows.length}件${rows.length >= limit ? "（先頭のみ）" : ""}` : "見つかりません。";
+    if (issPick.group) info += "（開いているジャンルの中）";
+    if (issPick.remote && issPick.remote.q === q && issPick.remote.list === undefined) info += " CelesTrak で探しています…";
+    if (issPick.remote && issPick.remote.q === q && issPick.remote.list === null) info += " CelesTrak で探せませんでした。";
+  }
+  $("issPickInfo").textContent = visibleRows ? `これから24時間、${issFromPoint().name}で見える回（早い順）` : info;
+  // 英語の名前なら CelesTrak でも探せる（日本語名の表に無い衛星のため）
+  const canRemote = q && !visibleRows && /[a-z]/i.test(q) && !(issPick.remote && issPick.remote.q === q);
+  const list = visibleRows
+    ? visibleRows.map(({ tle, pass }) => {
+      const v = pass.visible, { main } = issPickLabel(tle.catnr, tle.name);
+      return { catnr: tle.catnr, tle, main, sub: `${S.Cal.monthDay(v.start.at)}(${S.Cal.weekday(v.start.at)}) ${issHm(v.start.at)} ・ ${issDir16(v.start.azimuth)}→${issDir16(v.end.azimuth)} ・ 最大仰角${Math.round(v.max.elevation)}°` };
+    })
+    : rows.map(({ catnr, tle }) => ({ catnr, tle, ...issPickLabel(catnr, tle && tle.name) }));
+  if (visibleRows && !list.length) $("issPickInfo").textContent = `これから24時間、${issFromPoint().name}でこのジャンルの衛星が見える回はありません。`;
+  $("issPickList").innerHTML = list.map((r, i) => `<button class="al-row jump" data-pick="${i}"${r.catnr === iss.catnr ? ' aria-current="true"' : ""}>
+      <span class="al-w"><strong>${esc(r.main)}</strong><span class="tiny">${esc(r.sub)}</span></span>
+      <span class="tiny">${r.catnr === iss.catnr ? "選んでいます" : "選ぶ →"}</span></button>`).join("")
+    + (canRemote ? `<button type="button" class="fav-btn" id="issPickRemoteRun" style="margin-top:8px">CelesTrak で英語名「${esc(q)}」を探す</button>` : "");
+  for (const el of $("issPickList").querySelectorAll("[data-pick]")) {
+    el.onclick = () => { const r = list[+el.dataset.pick]; issChoose(r.catnr, r.tle); };
+  }
+  if (canRemote) $("issPickRemoteRun").onclick = () => issPickRemote(q);
+}
+
+/// 選ぶ。軌道要素が手元にあれば取り直さない
+function issChoose(catnr, tle) {
+  iss.catnr = catnr;
+  if (!ISS_PRESETS.some(([n]) => n === catnr)) {
+    iss.extra = { catnr, name: (tle && tle.name) || (iss.names && iss.names.get(catnr) && iss.names.get(catnr).en) || `衛星 ${catnr}` };
+    store.set("sorami.issSatExtra", iss.extra);
+  }
+  store.set("sorami.issSat", catnr);
+  if (tle) issKeepTle(catnr, `${tle.name}\n${tle.line1}\n${tle.line2}`);
+  iss.returnScroll = 0;   // 別の衛星にしたら一覧の頭から
+  issPickDone();
+}
+
+/// 開いているジャンルで、これから24時間に見える回。全機を順に解くので押したときだけ
+async function issPickFindVisible() {
+  const seq = ++issPick.visSeq, P = issFromPoint(), list = issPick.list;
+  let sat = null;
+  try { sat = await issLoadSat(); } catch { sat = null; }
+  if (seq !== issPick.visSeq || !P || !list.length) return;
+  if (!sat) { $("issPickInfo").textContent = "計算の部品を読めませんでした。もう一度押してください。"; return; }
+  $("issPickVisible").disabled = true;
+  $("issPickQuery").value = "";
   const found = [], from = Date.now();
   const observer = { latitude: P.latitude, longitude: P.longitude, elevation: P.elevation || 0 };
   for (let i = 0; i < list.length; i++) {
@@ -7496,35 +7722,15 @@ async function issFindBright() {
       }
     } catch { /* 解けない要素（落下直前など）は飛ばす */ }
     if (i % 15 === 14) {
-      $("issBrightList").innerHTML = `<p class="tiny">計算しています…（${i + 1}/${list.length}機）</p>`;
+      $("issPickInfo").textContent = `計算しています…（${i + 1}/${list.length}機）`;
       await new Promise((r) => setTimeout(r, 0));
-      if (seq !== iss.brightSeq) return;
+      if (seq !== issPick.visSeq) return;
     }
   }
   found.sort((a, b) => a.pass.visible.start.at - b.pass.visible.start.at);
-  iss.bright = found.slice(0, 40);
-  $("issBrightRun").disabled = false;
-  if (!iss.bright.length) { $("issBrightList").innerHTML = `<p class="tiny">これから24時間、${esc(P.name)}で見える明るい衛星の回はありません。</p>`; return; }
-  $("issBrightList").innerHTML = iss.bright.map(({ tle, pass }, i) => {
-    const v = pass.visible;
-    const preset = ISS_PRESETS.find(([n]) => n === tle.catnr);
-    return `<button class="al-row jump" data-bright="${i}">
-      <span class="al-w"><strong>${S.Cal.monthDay(v.start.at)}(${S.Cal.weekday(v.start.at)}) ${issHm(v.start.at)} ${esc(preset ? preset[1] : tle.name)}</strong>
-        <span class="tiny">${issDir16(v.start.azimuth)}→${issDir16(v.end.azimuth)} ・ 最大仰角${Math.round(v.max.elevation)}° ・ 約${Math.max(1, Math.round((v.end.at - v.start.at) / 60000))}分</span></span>
-      <span class="tiny">この衛星にする →</span></button>`;
-  }).join("") + (found.length > 40 ? `<p class="tiny" style="color:var(--tertiary)">早い順に40回まで</p>` : "");
-  for (const el of $("issBrightList").querySelectorAll("[data-bright]")) {
-    el.onclick = () => {
-      const { tle } = iss.bright[+el.dataset.bright];
-      iss.catnr = tle.catnr;
-      if (!ISS_PRESETS.some(([n]) => n === tle.catnr)) { iss.extra = { catnr: tle.catnr, name: tle.name }; store.set("sorami.issSatExtra", iss.extra); }
-      store.set("sorami.issSat", tle.catnr);
-      // 同じ軌道要素を取り直さない
-      issKeepTle(tle.catnr, `${tle.name}\n${tle.line1}\n${tle.line2}`);
-      $("issSat").scrollIntoView({ block: "nearest", behavior: "smooth" });
-      issApply();
-    };
-  }
+  issPick.visible = found.slice(0, 40);
+  $("issPickVisible").disabled = false;
+  issPickRender();
 }
 
 IssMap.setOverlay((ctx, { project, width, height }) => {
@@ -7573,6 +7779,12 @@ IssMap.setOverlay((ctx, { project, width, height }) => {
 
 function openIss() {
   if (!renderToolAccess("iss")) { iss.seq++; return; }
+  const picking = !!routeFromHash()?.issPick;
+  $("issPickPage").hidden = !picking;
+  $("issMain").hidden = picking;
+  // 戻ってきたとき。衛星も地点も変わっていなければ計算し直さず、開いていた回と位置をそのまま見せる
+  const fromPick = iss.fromPick && !picking;
+  if (!picking) iss.fromPick = false;
   if (!iss.wired) {
     iss.wired = true;
     $("issMoon").onclick = () => { iss.body = "moon"; issApply(); };
@@ -7581,11 +7793,10 @@ function openIss() {
     // 探す範囲の中心: カードを押すと「地点」の画面（検索・現在地・地図で選ぶ・お気に入り。ねらうと同じ部品）。
     // 立つ点ではないので ☆ は付けない
     $("issFromButton").onclick = () => openPlaceSheet("iss");
-    $("issSat").onchange = () => {
-      iss.catnr = Number($("issSat").value) || 25544;
-      store.set("sorami.issSat", iss.catnr);
-      issApply();
-    };
+    $("issSatButton").onclick = () => issPickOpen();
+    $("issPickBack").onclick = () => issPickDone();
+    $("issPickQuery").oninput = () => { clearTimeout(issPick.timer); issPick.timer = setTimeout(issPickRender, 150); };
+    $("issPickVisible").onclick = () => issPickFindVisible();
     for (const [id, tab] of [["issPassTab", "pass"], ["issTransitTab", "transit"]]) {
       $(id).onclick = () => issSetTab(tab);
       $(id).onkeydown = (e) => {
@@ -7594,9 +7805,12 @@ function openIss() {
         issSetTab(e.key === "Home" ? "pass" : e.key === "End" ? "transit" : iss.tab === "pass" ? "transit" : "pass", true);
       };
     }
-    $("issShowAll").onchange = () => { iss.showAll = $("issShowAll").checked; issRenderPasses(); issPickPass(0); };
-    $("issBrightRun").onclick = () => issFindBright();
+    // 計算中に押されたら、覚えるだけ（出来上がった一覧に効く。ここで書き直すと「見える回はありません」と出ていた）
+    $("issShowAll").onchange = () => { iss.showAll = $("issShowAll").checked; if (!iss.passesReady) return; iss.passPick = -1; iss.track = []; issRenderPasses(); };
   }
+  if (picking) { issPickShow(); return; }
+  // 日本語名の表は、読めたらカードと一覧の名前を差し替える（読めなくても英語名で動く）
+  issLoadNames().then(() => { if (atIss) { issRenderSatCard(); if (iss.tab === "pass" && iss.passes.length) issRenderPasses(); } });
   requestAnimationFrame(() => {
     if (!atIss || !toolAllowed("iss")) return;
     // 通過の回をもう選んでいれば、その通り道に合わせた位置のまま（地点へ戻さない）
@@ -7605,7 +7819,12 @@ function openIss() {
     IssMap.open({ latitude: P.latitude, longitude: P.longitude }, iss.tab === "pass" ? 5 : 8);
     requestAnimationFrame(() => IssMap.redraw());
   });
-  issApply();
+  const y = iss.returnScroll;
+  iss.returnScroll = null;
+  if (fromPick && iss.lastKey === issApplyKey()) {
+    issDrawSky(); requestAnimationFrame(() => IssMap.redraw());
+  } else issApply();
+  if (fromPick && y != null) requestAnimationFrame(() => window.scrollTo(0, y));
 }
 
 function aimApply({ redraw = true, recenter = false } = {}) {
@@ -11472,7 +11691,7 @@ function markToolsCurrent() {
   if (!routeFromHash() || routeFromHash().answers) $("toolsHome").setAttribute("aria-current", "page");
   else $("toolsHome").removeAttribute("aria-current");
   for (const el of $("toolsMenu").querySelectorAll("[data-tool]")) {
-    const route = routeFromHash(), here = route?.aim ? "#/aim/tower" : location.hash;
+    const route = routeFromHash(), here = route?.aim ? "#/aim/tower" : route?.iss ? "#/iss" : location.hash;
     if (el.dataset.tool === here) el.setAttribute("aria-current", "page");
     else el.removeAttribute("aria-current");
   }

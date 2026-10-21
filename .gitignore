@@ -12,3 +12,5 @@ data/*
 !data/tall-buildings.json
 
 !data/aim-viewpoints.json
+# 2026-10-21 人工衛星の日本語名（Wikidata CC0。build-satellite-names.mjs で作る）
+!data/satellite-names-ja.json
