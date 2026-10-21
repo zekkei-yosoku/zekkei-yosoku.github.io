@@ -60,6 +60,32 @@ function prepareRecord({owner,favorites,observations,shapes,place,isNew,initialT
  const k=keys(owner),nextObservations=[...observations,...changes];
  return {favorites:nextFavorites,observations:nextObservations,shapes:nextShapes,changedFavorites:[...new Set([...(isNew?[place.id]:[]),...used.map(x=>x.entry.id)])],entries:[[k.observations,nextObservations],[k.shapes,nextShapes],['sorami.favorites',nextFavorites]]};
 }
+// Notebook membership is records/shapes; favorite locations remain picker candidates.
+function prepareNotebookBulk({owner,favorites,observations,shapes,placeIds,mode,targets=[],drafts=[],currentTargets}){
+ if(!owner||!Array.isArray(placeIds)||!placeIds.length)throw Error('撮影地点を選んでください');
+ const ids=new Set(placeIds),places=[...ids].map(id=>favorites.find(f=>f.id===id));
+ if(places.some(p=>!p)||places.some(p=>!observations.some(r=>r.placeId===p.id)&&!shapes[p.id]))throw Error('選んだ撮影地点が変更されました。選び直してください');
+ let nextFavorites=favorites,nextObservations=observations,nextShapes=Object.assign(Object.create(null),shapes),changedFavorites=[];
+ if(mode==='delete'){
+  nextObservations=observations.filter(r=>!ids.has(r.placeId));
+  for(const id of ids)delete nextShapes[id];
+ }else if(mode==='add'){
+  if(!targets.length||typeof currentTargets!=='function')throw Error('追加する対象を選んでください');
+  const chosen=[...new Map(targets.map(t=>[t.key||t.id,t])).values()],used=drafts.filter(d=>chosen.some(t=>(t.key||t.id)==='fav:'+d.entry.id));
+  nextFavorites=applyDrafts(favorites,used);changedFavorites=used.map(d=>d.entry.id);
+  nextObservations=[...observations];
+  for(const place of places){
+   const before=currentTargets(place.id),known=new Set(before.map(t=>t.key||t.id));
+   const additions=chosen.filter(t=>!known.has(t.key||t.id));
+   const changes=registrationChanges(place,before,[...before,...additions]);
+   if(changes.some(r=>!r))throw Error('対象の情報を確認してください');
+   nextObservations.push(...changes);
+  }
+ }else throw Error('操作を確認してください');
+ const k=keys(owner),entries=[[k.observations,nextObservations],[k.shapes,nextShapes]];
+ if(changedFavorites.length)entries.push(['sorami.favorites',nextFavorites]);
+ return {favorites:nextFavorites,observations:nextObservations,shapes:nextShapes,changedFavorites,entries};
+}
 const merge=(a,b)=>[...new Map([...a,...b].map(x=>[x.id,x])).values()];
 function backup({favorites,sightings,observations,shapes,owner}){return {schemaVersion:2,exportedAt:new Date().toISOString(),owner:owner||'guest',favorites,sightings,library:{observations,shapes},scope:'撮影地点・対象・線/範囲・予測の結果（写真ファイルを除く）'};}
 function restore(data,{favorites,sightings,observations,shapes,cleanFavorite,cleanSighting,cleanShape}){
@@ -78,6 +104,6 @@ function restore(data,{favorites,sightings,observations,shapes,cleanFavorite,cle
  }
  return {favorites:nextFavorites,sightings:merge(sightings,goodRecs),observations:merge(observations,goodObs),shapes:nextShapes,goodRecs,goodFavs,observationCount:goodObs.length,shapeCount,dropped};
 }
-const api={point,nameKey,height,distance,nearby,matchingNames,keys,gate,transaction,targetFromFavorite,targetDraft,applyDrafts,cleanObservation,registrationChanges,prepareRecord,backup,restore,merge};
+const api={point,nameKey,height,distance,nearby,matchingNames,keys,gate,transaction,targetFromFavorite,targetDraft,applyDrafts,cleanObservation,registrationChanges,prepareRecord,prepareNotebookBulk,backup,restore,merge};
 if(typeof module==='object'&&module.exports)module.exports=api;root.SoramiLibrary=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

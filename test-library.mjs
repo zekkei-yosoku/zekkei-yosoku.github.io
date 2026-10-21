@@ -58,3 +58,25 @@ test('不正な形・移動した代表点・孤立した対象・未対応schem
 test('所有者の保存キーと非同期の世代を分離する',()=>{
  assert.notDeepEqual(L.keys('a'),L.keys('b'));const gate=L.gate(),a=gate.next(),b=gate.next();assert.equal(gate.current(a),false);assert.equal(gate.current(b),true);gate.cancel();assert.equal(gate.current(b),false);
 });
+
+const otherPlace={...place,id:'other',name:'別の地点',latitude:36};
+function bulk(extra={}){const p=plan({favorites:[otherPlace]});return L.prepareNotebookBulk({owner:'owner',favorites:p.favorites,observations:p.observations,shapes:p.shapes,placeIds:['p'],mode:'delete',...extra});}
+test('NOTEBOOK削除は選んだ地点の全記録と形だけ。お気に入り候補・他地点を保持',()=>{
+ const rows=[...plan().observations,...L.registrationChanges(otherPlace,[],[target])],shapes={p:{shape:line},other:{shape:line}},favorites=[place,otherPlace];
+ const p=bulk({favorites,observations:rows,shapes});assert.deepEqual(p.favorites,favorites);assert.equal(p.observations.length,1);assert.equal(p.observations[0].placeId,'other');assert.equal(p.shapes.p,undefined);assert.deepEqual(p.shapes.other,shapes.other);assert(!p.entries.some(([k])=>k==='sorami.favorites'));assert.equal(rows.length,2);
+});
+test('複数地点に複数対象を追加しても既存対象を残し同じIDを二重登録しない',()=>{
+ const rows=[...L.registrationChanges(place,[],[target]),...L.registrationChanges(otherPlace,[],[target])],next={...target,key:'fuji',name:'富士山'};
+ const p=bulk({favorites:[place,otherPlace],observations:rows,placeIds:['p','other','p'],mode:'add',targets:[target,next,next],currentTargets:()=>[target]});
+ assert.equal(p.observations.length,4);assert.equal(p.observations.filter(r=>r.target.key==='fuji').length,2);assert.equal(p.observations.filter(r=>r.target.key==='skytree').length,2);assert.deepEqual(p.favorites,[place,otherPlace]);
+});
+test('一括追加で選択した新規対象だけを保存、未使用下書きは残さない',()=>{
+ const draft=L.targetDraft({latitude:38,longitude:140},{name:'自作対象',heightM:10}),unused=L.targetDraft({latitude:39,longitude:141},{name:'未使用'});
+ const p=bulk({mode:'add',targets:[L.targetFromFavorite(draft.entry)],drafts:[draft,unused],currentTargets:()=>[target]});assert(p.favorites.some(f=>f.id===draft.entry.id));assert(!p.favorites.some(f=>f.id===unused.entry.id));assert.equal(p.observations.length,2);
+});
+test('一括操作の保存失敗は全地点の記録と形を復元する',()=>{
+ const p=bulk();for(const failure of p.entries.map(([k])=>k)){const storage=disk();for(const [k]of p.entries)storage.setItem(k,JSON.stringify(k.includes('Shapes')?{p:{shape:line}}:[{id:'before'}]));const before=[...storage.values];storage.fail(failure);assert.throws(()=>L.transaction(storage,p.entries),/取り消しました/);assert.deepEqual([...storage.values],before);}
+});
+test('一括操作は未選択・未登録・候補だけの地点を拒否する',()=>{
+ assert.throws(()=>bulk({placeIds:[]}),/選んで/);assert.throws(()=>bulk({placeIds:['unknown']}),/変更/);assert.throws(()=>bulk({placeIds:['other']}),/変更/);assert.throws(()=>bulk({mode:'add',targets:[],currentTargets:()=>[]}),/対象/);
+});

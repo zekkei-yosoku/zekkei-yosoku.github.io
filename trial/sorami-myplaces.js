@@ -165,6 +165,37 @@ function openShapeEditor(mode){
 }
 
 // ---------------------------------------------------------------- 記録：撮影ポイントへの入口
+let notebookEdit=null,notebookGeneration=0,notebookNotice='';
+function notebookStamp(ids){const selected=new Set(ids);return JSON.stringify([favorites.filter(f=>selected.has(f.id)),load().filter(r=>selected.has(r.placeId)),Object.entries(shapeData()).filter(([id])=>selected.has(id))]);}
+function notebookCommit(mode,state,ids,stamp,targets=[],drafts=[]){
+ if(notebookEdit!==state||state.owner!==auth?.token||!toolAllowed('records')||!atRecords)return false;
+ try{
+  if(notebookStamp(ids)!==stamp)throw Error('選んだ地点が変更されました。選び直してください');
+  const plan=SoramiLibrary.prepareNotebookBulk({owner:auth.loginId,favorites,observations:load(),shapes:shapeData(),placeIds:ids,mode,targets:targets.map(targetData),drafts,currentTargets:id=>savedTargets(id)});
+  SoramiLibrary.transaction(localStorage,plan.entries);favorites=plan.favorites;
+  if(typeof RecordSync!=='undefined')RecordSync.kick();
+  for(const id of plan.changedFavorites)queuePush('fav',id);
+  notebookEdit=null;notebookGeneration++;notebookNotice=ids.length+'地点'+(mode==='delete'?'をNOTEBOOKから削除しました':'に対象を追加しました');
+  version++;candidateCache.clear();changed();aimFillSelects();SkyMapUI?.refreshTargets?.();return true;
+ }catch(e){state.error=e.message||'保存できませんでした。もう一度お試しください';renderRecordsHub();return false;}
+}
+function notebookAddTargets(button){
+ const state=notebookEdit,ids=[...state.ids],stamp=notebookStamp(ids),generation=notebookGeneration;
+ if(!ids.length)return;
+ const targetBaselines=new Map(favorites.map(f=>[f.id,JSON.stringify(f)]));
+ const available=new Map([...aimTargetList(),...(state.drafts||[]).map(d=>SoramiLibrary.targetFromFavorite(d.entry))].map(t=>[t.key||t.id,t]));
+ const selected=(state.targets||[]).map(t=>available.get(t.key||t.id)).filter(Boolean);
+ const source=document.createElement('select');
+ AstroTargetPicker.open(source,null,button,{multiple:true,selected,drafts:state.drafts||[],title:ids.length+'地点に追加する対象',doneLabel:'選んだ地点に追加',getTargets:()=>aimTargetList().filter(t=>t.id!=='custom'&&finite(t.latitude)&&(t.parts||[]).length),onDone:(targets,drafts)=>{
+  if(notebookEdit!==state||notebookGeneration!==generation||state.owner!==auth?.token||!atRecords)return;
+  state.targets=targets;state.drafts=drafts;
+  if(!targets.length)return;
+  if(targets.some(t=>{const key=t.key||t.id;if(!key.startsWith('fav:')||drafts.some(d=>'fav:'+d.entry.id===key))return false;const id=key.slice(4),current=placeOf(id);return !current||JSON.stringify(current)!==targetBaselines.get(id);})){
+   state.error='追加する対象が変更されました。対象を選び直してください';state.targets=[];state.drafts=[];renderRecordsHub();return;
+  }
+  notebookCommit('add',state,ids,stamp,targets,drafts);
+ }});
+}
 let recordsTargetFilter = '', recordsBodyFilter = '', recordsFilterOwner = null;
 function renderRecordsHub() {
   const host = el('myRecordsHub'); if (!host) return;
@@ -173,6 +204,7 @@ function renderRecordsHub() {
   if (sheet?.open && sheetState?.ownerToken !== auth?.token) sheet.close();
   if(shapeDialog?.open&&!shapeEditorCurrent())shapeDialog.close();
   // 非表示でも旧アカウントの地点・記録をDOMへ残さない。
+  if(notebookEdit&&notebookEdit.owner!==auth?.token){notebookEdit=null;notebookGeneration++;notebookNotice='';}
   if (!auth?.token || !toolAllowed('records')) return;
   // 2026-10-20 ユーザー「不要な説明は消しといて」：冒頭の使い方の一文は出さない（タブ名と中身で分かる）
   const actions = document.createElement('div'); actions.className = 'my-head';
@@ -180,7 +212,8 @@ function renderRecordsHub() {
   add.onclick = () => { if (auth?.token && toolAllowed('records')) openPlace(null,'records'); };
   if (toolAllowed('skymap')) { const map = document.createElement('button'); map.type = 'button'; map.className = 'chip'; map.textContent = '地図で場所を探す'; map.onclick = () => pushRoute('#/skymap'); actions.append(map); }
   // 2026-10-21 ＋は撮影地点の操作行へ。タブで見出し高さを変えない。
-  actions.append(add);
+  const edit=document.createElement('button');edit.type='button';edit.className='chip';edit.id='notebookEdit';edit.textContent=notebookEdit?'完了':'編集';edit.setAttribute('aria-pressed',String(!!notebookEdit));edit.onclick=()=>{notebookGeneration++;notebookNotice='';notebookEdit=notebookEdit?null:{owner:auth.token,ids:new Set(),error:''};renderRecordsHub();};
+  actions.append(edit,add);if(notebookEdit){add.hidden=true;for(const b of actions.children)if(b!==edit&&b!==add)b.hidden=true;}
   host.append(actions);
   const list = document.createElement('div'); list.className = 'al my-list'; host.append(list);
   const records = load();
@@ -189,6 +222,7 @@ function renderRecordsHub() {
   const recordedIds=new Set(records.map(r=>r.placeId));
   const recordedPlaces=favorites.filter(f=>recordedIds.has(f.id)||!!shapeFor(f));
   if(recordsFilterOwner!==auth.token){recordsFilterOwner=auth.token;recordsTargetFilter='';recordsBodyFilter='';}
+  if(notebookEdit)for(const id of notebookEdit.ids)if(!recordedPlaces.some(f=>f.id===id))notebookEdit.ids.delete(id);
   const filterTargets=[...new Map(recordedPlaces.flatMap(f=>targetsSeenFrom(f.id).filter(r=>r.result!=='hidden').map(r=>[r.target.key,r.target]))).values()];
   if(!filterTargets.some(t=>t.key===recordsTargetFilter))recordsTargetFilter='';
   const filters=document.createElement('div');filters.className='my-actions';
@@ -197,6 +231,24 @@ function renderRecordsHub() {
   const bodySelect=document.createElement('select');bodySelect.className='fav-in';bodySelect.setAttribute('aria-label','撮りたい天体で絞り込む');bodySelect.replaceChildren(new Option('すべての天体',''),...SoramiBodies.definitions.map(b=>new Option(b.name,b.id)));bodySelect.value=recordsBodyFilter;bodySelect.onchange=()=>{recordsBodyFilter=bodySelect.value;renderRecordsHub();};
   filters.append(reset,targetSelect,bodySelect);host.insertBefore(filters,list);
   if(recordsBodyFilter){const hint=document.createElement('p');hint.className='tiny';hint.textContent='選んだ天体との重なりを調べられる対象がある撮影地点です。';host.insertBefore(hint,list);}
+  const visiblePlaces=recordedPlaces.filter(f=>{const active=targetsSeenFrom(f.id).filter(r=>r.result!=='hidden'),matching=active.filter(r=>!recordsTargetFilter||r.target.key===recordsTargetFilter);return (!recordsTargetFilter||matching.length)&&(!recordsBodyFilter||planningPairs(matching,[recordsBodyFilter]).length);});
+  if(notebookNotice){const notice=document.createElement('p');notice.className='tiny';notice.setAttribute('role','status');notice.textContent=notebookNotice;host.insertBefore(notice,list);}
+  if(notebookEdit){
+   const state=notebookEdit,bar=document.createElement('div');bar.className='my-actions notebook-bulk';bar.id='notebookBulk';bar.setAttribute('role','group');bar.setAttribute('aria-label','選んだ撮影地点を編集');
+   const count=document.createElement('span');count.className='tiny';count.textContent=state.ids.size+'地点を選択';bar.append(count);
+   const action=(id,label,run)=>{const b=document.createElement('button');b.type='button';b.className='chip';b.id=id;b.textContent=label;b.onclick=run;bar.append(b);return b;};
+   action('notebookSelectAll','表示中を選択',()=>{for(const f of visiblePlaces)state.ids.add(f.id);state.error='';renderRecordsHub();}).disabled=!visiblePlaces.length;
+   action('notebookSelectNone','選択を解除',()=>{state.ids.clear();state.error='';renderRecordsHub();}).disabled=!state.ids.size;
+   const addTargets=action('notebookAddTargets','対象を一括追加',()=>notebookAddTargets(addTargets));addTargets.disabled=!state.ids.size;
+   const remove=action('notebookDelete','NOTEBOOKから削除',()=>{
+    if(notebookEdit!==state||state.owner!==auth?.token||!state.ids.size)return;
+    const ids=[...state.ids],stamp=notebookStamp(ids);
+    if(!confirm(ids.length+'地点をNOTEBOOKから削除しますか？\nこの地点の対象登録・観測記録・線と範囲を削除します。お気に入りの候補と予定は残ります。'))return;
+    notebookCommit('delete',state,ids,stamp);
+   });remove.disabled=!state.ids.size;remove.style.color='var(--red)';
+   host.insertBefore(bar,list);
+   if(state.error){const error=document.createElement('p');error.id='notebookBulkError';error.className='warn';error.setAttribute('role','status');error.textContent=state.error;host.insertBefore(error,list);}
+  }
   let matches=0;
   if (!recordedPlaces.length) { const empty = document.createElement('p'); empty.className = 'tiny'; empty.textContent = '記録はまだありません。右上の＋から追加できます。'; list.append(empty); }
   for (const f of recordedPlaces) {
@@ -211,7 +263,9 @@ function renderRecordsHub() {
     const mine = records.filter(r => r.placeId === f.id).sort((a,b) => when(b)-when(a));
     const targets=targetsSeenFrom(f.id).filter(r=>r.result!=='hidden');
     sub.textContent=shapeFor(f)?shapeName(shapeFor(f))+' ・ ':'';sub.textContent+=targets.length?`対象${targets.length}件 ・ ${targets.map(r=>r.target.name).join('・')}`:'対象は未登録';
-    row.append(name, sub); row.onclick = () => {openPlace(f, 'records');if(recordsBodyFilter){sheetState.bodies=[recordsBodyFilter];for(const check of sheet.querySelectorAll('[data-planning-body]'))check.checked=check.value===recordsBodyFilter;}}; list.append(row);
+    row.dataset.notebookPlace=f.id;
+    if(notebookEdit){const state=notebookEdit;row.setAttribute('role','checkbox');row.setAttribute('aria-checked',String(state.ids.has(f.id)));const check=document.createElement('span');check.className='notebook-check';check.setAttribute('aria-hidden','true');check.textContent=state.ids.has(f.id)?'☑':'☐';row.append(check);}
+    row.append(name, sub); row.onclick = () => {if(notebookEdit){const state=notebookEdit;if(state.ids.has(f.id))state.ids.delete(f.id);else state.ids.add(f.id);state.error='';state.targets=[];state.drafts=[];renderRecordsHub();return;}openPlace(f, 'records');if(recordsBodyFilter){sheetState.bodies=[recordsBodyFilter];for(const check of sheet.querySelectorAll('[data-planning-body]'))check.checked=check.value===recordsBodyFilter;}}; list.append(row);
   }
   if(recordedPlaces.length&&!matches){const empty=document.createElement('p');empty.className='tiny';empty.textContent='この条件の撮影地点はありません。';list.append(empty);}
   // 2026-10-20 ユーザー「出し方を変えた方がいいのも最適化して」：保存先の説明は常に出さず、データの控えの中へ
@@ -692,6 +746,8 @@ window.addEventListener('sorami:records-synced', () => { version++; changed(); }
 
 const style = document.createElement('style');
 style.textContent = `
+#myRecordsHub .notebook-bulk{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}#myRecordsHub .notebook-bulk button{min-height:44px}#myRecordsHub .notebook-check{float:right;font-size:22px;margin-left:10px;color:var(--accent)}#myRecordsHub [data-notebook-place][aria-checked=true]{box-shadow:inset 3px 0 var(--accent);padding-left:12px}
+
 .alignment-heading{font-size:14px;color:var(--secondary);margin:8px 0 12px}.alignment-controls>.fav-in{display:block;width:100%;margin:10px 0}.alignment-controls .aim-limb button,#aimAlignmentDetails .aim-limb button{min-height:58px;flex-direction:row;justify-content:center;gap:6px;font-size:13px}@media(max-width:360px){.alignment-controls .aim-limb button,#aimAlignmentDetails .aim-limb button{font-size:12px;gap:3px}.alignment-controls .aim-limb svg,#aimAlignmentDetails .aim-limb svg{width:23px;height:23px}}.shooting-location-actions{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}.shooting-location-actions .sky-map-link{margin:0}.shooting-alignment{display:flex;gap:8px;flex-wrap:wrap}.shooting-alignment select{min-width:0;flex:1;min-height:44px;font-size:16px}.shooting-overlap{padding:8px;border-radius:8px}.shooting-overlap-on{background:var(--accent);color:var(--on-accent,#fff);font-weight:bold}#aimView .preview-workspace{display:block}#aimView .preview-tabs{display:none}
 /* Shooting-point details scroll only vertically, including native iOS date fields. */
 #myShapeSheet [data-shape-mode][aria-pressed=true]{background:var(--accent);color:var(--bg);font-weight:700}#myShapeSheet{overflow:hidden;min-width:0}#myShapeSheet .sheet-body{overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}#myShapeSheet .my-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}#myShapeSheet canvas{display:block;width:100%;height:320px;touch-action:none}#myShapeSheet .mapwrap{position:relative;overflow:hidden;border-radius:12px}#myShapeSheet select{flex:1;min-width:100px;width:0}#myShapeSheet button{min-height:44px}#myShapeSheet .shape-fixed-pin{position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);pointer-events:none;filter:drop-shadow(0 1px 2px #0008)}#myShapeSheet .shape-fixed-pin[hidden]{display:none}#myShapeSheet .shape-options{margin:12px 0}#myShapeSheet .shape-options summary,#shapeSavedMenu>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:13px;color:var(--accent)}#myShapeSheet .shape-options .my-actions{margin-top:6px}#myShapeSheet #shapeHelp{margin:8px 0}#myShapeSheet #shapeApply{margin-top:8px}#myShapeSheet #shapeVertexTools[hidden]{display:none}#shapeLocationPanel [data-shape-source][aria-pressed=true]{background:var(--accent);color:var(--on-accent,#142332)}#myShapeSheet .mapzoom{position:absolute;right:8px;top:8px;display:grid;gap:5px}#myShapeSheet .mapzoom button{width:44px;background:var(--card);color:var(--text)}#shapeSavedLocations .chip{max-width:100%;white-space:normal;overflow-wrap:anywhere}#shapeLocationPanel .my-actions input{flex:1;min-width:0;width:0;font-size:16px}#myShapeSheet #shapeApply{width:100%}#myNewPlaceNameLabel{display:block;min-width:0;grid-column:2}#myNewPlaceName{width:100%;font-size:16px}#myNewPlaceNameLabel[hidden],#myPlaceName[hidden]{display:none}

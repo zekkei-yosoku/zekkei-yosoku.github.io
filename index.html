@@ -13,15 +13,15 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="10905235868213843544">
+<meta name="app-version" content="16800989204165472325">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-VdjggkCLgpciMcdaLJffd06BFQF4q0XUhf3TOgXcvpg=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-rVtUbjauNPl3KTjr7YNq9XUrt8kEhtkKKjODMW7bbEM=' 'sha256-kmhyR7IYH5rYOMkVKQssj/F2pj/byzQKQU/tP4FXwEM=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
 <link data-script-preload rel="preload" as="script" href="sorami-prediction.js?v=5120194595860735466">
 <link data-script-preload rel="preload" as="script" href="sorami-saved-rounds.js?v=12447962622712891676">
-<link data-script-preload rel="preload" as="script" href="sorami-library.js?v=16818793229199510345">
-<link data-script-preload rel="preload" as="script" href="sorami-target-ui.js?v=15998597592874474094">
+<link data-script-preload rel="preload" as="script" href="sorami-library.js?v=16462840529097030237">
+<link data-script-preload rel="preload" as="script" href="sorami-target-ui.js?v=8629525875525725691">
 <link data-script-preload rel="preload" as="script" href="sorami-shooting.js?v=2583579073697694747">
 <link data-script-preload rel="preload" as="script" href="sorami-astro.js?v=3007961369099197105">
 <link data-script-preload rel="preload" as="script" href="sorami-exif.js?v=347348485217034662">
@@ -48,7 +48,7 @@
 <link data-script-preload rel="preload" as="script" href="sorami-align.js?v=18362427956346772136">
 <link data-script-preload rel="preload" as="script" href="sorami-moon.js?v=10230678456179898054">
 <link data-script-preload rel="preload" as="script" href="sorami-scroll-timeline.js?v=8935928983906152049">
-<link data-script-preload rel="preload" as="script" href="sorami-myplaces.js?v=17310517925185966315">
+<link data-script-preload rel="preload" as="script" href="sorami-myplaces.js?v=11380705598186075475">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -2447,8 +2447,8 @@ button.ui-icon-button::after { content: none; }
 <script src="sorami-search.js?v=17115894211073568200"></script>
 <script src="sorami-prediction.js?v=5120194595860735466"></script>
 <script src="sorami-saved-rounds.js?v=12447962622712891676"></script>
-<script src="sorami-library.js?v=16818793229199510345"></script>
-<script src="sorami-target-ui.js?v=15998597592874474094"></script>
+<script src="sorami-library.js?v=16462840529097030237"></script>
+<script src="sorami-target-ui.js?v=8629525875525725691"></script>
 <script src="sorami-shooting.js?v=2583579073697694747"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
@@ -14121,6 +14121,6 @@ ctx.lineWidth=1;
  new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node.nodeType===1)scan(node);}).observe(document.body,{childList:true,subtree:true});
 })();
 </script>
-<script src="sorami-myplaces.js?v=17310517925185966315"></script>
+<script src="sorami-myplaces.js?v=11380705598186075475"></script>
 </body>
 </html>
