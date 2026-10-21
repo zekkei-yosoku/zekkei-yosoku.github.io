@@ -13,7 +13,7 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="113312596765498812">
+<meta name="app-version" content="9867467779368456007">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-oA/N7GXW+N+vOJMJfsQ6sAeI46mWcy69HnDlQYHbPgk=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-OouBfp4QPbv0eaF75Z60CsfbsOYdFbb9I/DSxIhAEwo=' 'sha256-GMs2Gk94riewAJ1Ii7ria7EKlc9B2buPe0dc0EHmQkE=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-20oFMl7+c2PM1pgnt9MPUvoGq6lBf9aXpEv7mgrLhX4=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
@@ -860,7 +860,7 @@
      横に並べると説明が細く5行に折れていた */
   /* 地図の下の小さな丸い釦（座標・地図アプリ・ここから重ねる）。2026-10-02 ユーザー「ボタンが余白多いしでかい」で、
      幅いっぱいの大きな釦から字の幅の丸い釦に。見た目は 34px、押せる所は上下に 5px 足して 44px（::before） */
-  .chip { position: relative; display: inline-flex; align-items: center; gap: 5px; min-width: 44px; min-height: 34px; padding: 0 12px;
+  .chip { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 44px; min-height: 34px; padding: 0 12px;
           border-radius: 999px; background: var(--line); color: var(--text); font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
   .chip::before { content: ""; position: absolute; left: 0; right: 0; top: -5px; bottom: -5px; }
   .chip:disabled { opacity: .5; }
