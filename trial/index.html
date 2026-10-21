@@ -13,7 +13,7 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="11919010285737148481">
+<meta name="app-version" content="13007863821801080544">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-VdjggkCLgpciMcdaLJffd06BFQF4q0XUhf3TOgXcvpg=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-rVtUbjauNPl3KTjr7YNq9XUrt8kEhtkKKjODMW7bbEM=' 'sha256-kmhyR7IYH5rYOMkVKQssj/F2pj/byzQKQU/tP4FXwEM=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
@@ -48,7 +48,7 @@
 <link data-script-preload rel="preload" as="script" href="sorami-align.js?v=18362427956346772136">
 <link data-script-preload rel="preload" as="script" href="sorami-moon.js?v=10230678456179898054">
 <link data-script-preload rel="preload" as="script" href="sorami-scroll-timeline.js?v=8935928983906152049">
-<link data-script-preload rel="preload" as="script" href="sorami-myplaces.js?v=2287537027652610177">
+<link data-script-preload rel="preload" as="script" href="sorami-myplaces.js?v=4519519268098648650">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -1171,6 +1171,7 @@
 #previewTargetDialog .preview-body-choice{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:9px 12px;border-radius:8px}
 #previewTargetDialog .preview-body-choice[aria-pressed=true]:after,.preview-body-choice[aria-checked=true]:after{flex:none}
 .preview-body-choice[aria-pressed=true] .tiny,.preview-body-choice[aria-checked=true] .tiny{color:inherit}
+#previewTargetDialog .preview-body-choice[role=checkbox]{display:grid;grid-template-columns:24px minmax(0,1fr);column-gap:12px;row-gap:2px;justify-content:normal}#previewTargetDialog .preview-body-choice[role=checkbox]::before{content:'';display:grid;place-items:center;grid-column:1;grid-row:1/3;width:20px;height:20px;box-sizing:border-box;border:1.8px solid currentColor;border-radius:4px;font-size:18px;line-height:1}#previewTargetDialog .preview-body-choice[role=checkbox][aria-checked=true]::before{content:'✓'}#previewTargetDialog .preview-body-choice[role=checkbox]::after{display:none;content:none}#previewTargetDialog .preview-body-choice[role=checkbox] .tiny{grid-column:2;grid-row:2;min-width:0;overflow-wrap:anywhere}
 .target-search{width:100%;margin-bottom:12px;min-height:44px}
 /* 一覧の下位選択は共通chips（現象/履歴の種類で別部品にしない）。 */
 .history-pages{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0}.history-pages .chip{min-height:44px}.history-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.history-heading button{min-height:44px;color:var(--accent)}
@@ -14122,6 +14123,6 @@ ctx.lineWidth=1;
  new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node.nodeType===1)scan(node);}).observe(document.body,{childList:true,subtree:true});
 })();
 </script>
-<script src="sorami-myplaces.js?v=2287537027652610177"></script>
+<script src="sorami-myplaces.js?v=4519519268098648650"></script>
 </body>
 </html>
