@@ -161,19 +161,19 @@ function openShapeEditor(mode){
 let recordsTargetFilter = '', recordsBodyFilter = '', recordsFilterOwner = null;
 function renderRecordsHub() {
   const host = el('myRecordsHub'); if (!host) return;
-  host.replaceChildren();el('recordsHeading')?.querySelector('.my-add-point')?.remove();
+  host.replaceChildren();
   if (skyOwner !== auth?.token || !toolAllowed('skymap')) { leaveSky(); skyOwner=auth?.token; }
   if (sheet?.open && sheetState?.ownerToken !== auth?.token) sheet.close();
   if(shapeDialog?.open&&!shapeEditorCurrent())shapeDialog.close();
   // 非表示でも旧アカウントの地点・記録をDOMへ残さない。
   if (!auth?.token || !toolAllowed('records')) return;
   // 2026-10-20 ユーザー「不要な説明は消しといて」：冒頭の使い方の一文は出さない（タブ名と中身で分かる）
-  const heading=el('recordsHeading');heading.querySelector('.my-add-point')?.remove();
   const actions = document.createElement('div'); actions.className = 'my-head';
   const add = document.createElement('button'); add.type = 'button'; add.className = 'chip my-add-point'; add.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';add.setAttribute('aria-label','記録を追加');add.title='記録を追加';
-  add.onclick = () => { if (auth?.token && toolAllowed('records')) openPlace(null,'records'); }; heading.append(add);
+  add.onclick = () => { if (auth?.token && toolAllowed('records')) openPlace(null,'records'); };
   if (toolAllowed('skymap')) { const map = document.createElement('button'); map.type = 'button'; map.className = 'chip'; map.textContent = '地図で場所を探す'; map.onclick = () => pushRoute('#/skymap'); actions.append(map); }
-  // 2026-10-20 ＋は LOGBOOK の帯の右端。構図・地図の履歴ボタンと同じ灰色の丸と線のアイコン（ユーザー「雰囲気は履歴ボタンと合わせたい」）
+  // 2026-10-21 ＋は撮影地点の操作行へ。タブで見出し高さを変えない。
+  actions.append(add);
   host.append(actions);
   const list = document.createElement('div'); list.className = 'al my-list'; host.append(list);
   const records = load();
@@ -712,7 +712,7 @@ style.textContent = `
 .my-places{margin:10px 0 4px;padding-top:8px;border-top:1px solid var(--line)}
 .my-head{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap;margin:4px 0}
 .my-status{margin:0;flex:1 1 180px}
-#recordsHeading .my-add-point{display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;min-width:44px;min-height:44px;padding:0;cursor:pointer}
+#myRecordsHub .my-head .my-add-point{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;min-width:44px;min-height:44px;padding:0;cursor:pointer}
 .my-title{font-size:.95rem;margin:10px 0 4px}
 .my-title .tiny{margin-left:4px;font-weight:normal}
 .my-list .my-place-row{display:block;width:100%;text-align:left}

@@ -59,7 +59,7 @@
 :is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head)::before{grid-column:2;grid-row:1;margin:0}
 :is(.aim-titlebar,#aimView .sky-map-head,#skyMapView .sky-map-head,#recordsView .sky-map-head)>button{grid-column:3;grid-row:1;justify-self:end}
 #skyMapView .sky-map-head{margin-bottom:8px}#recordsView .sky-map-head{margin-bottom:12px}
-/* 記録の＋は帯の右端（履歴ボタンと同じ灰色の丸。sorami-myplaces.js） */
+/* 記録の＋は撮影地点パネル内の操作行（sorami-myplaces.js）。帯とタブの位置は固定。 */
 /* 予測：地点カードの上の帯（地点カードを出す画面＝一覧・詳細・結果だけ） */
 #forecastBand{display:none;--flair:var(--flair-forecast);--kw:6.2em;margin:4px 0 10px;text-align:center;font-size:12px;font-weight:700;letter-spacing:.46em;padding-left:.46em;line-height:1.8;color:var(--flair);text-shadow:0 0 16px color-mix(in srgb,var(--flair) 45%,transparent);
  background:linear-gradient(90deg,transparent,var(--flair)) left center/calc(50% - var(--kw)) 1px no-repeat,linear-gradient(90deg,var(--flair),transparent) right center/calc(50% - var(--kw)) 1px no-repeat}
@@ -76,7 +76,7 @@ main:has(>#placeRow:not([hidden]))>#forecastBand{display:block}
 
 /* 2026-10-20 NOTEBOOK：撮影地点と予定のタブ。予定は構図の共有から足すので、予定のタブでは＋を出さない */
 #notebookTabs{--flair:var(--flair-records)}#notebookTabs [role=tab][aria-selected=true]{box-shadow:inset 0 -2px 0 var(--flair),0 1px 6px #00000012}
-#recordsView[data-tab=plans] #recordsHeading .my-add-point{display:none}
+/* 撮影地点の＋はパネル内。見出しは両タブで同じ高さ。 */
 #scheduleHub .schedule-row .list-item{display:flex;align-items:center;gap:12px;text-align:left}
 #scheduleHub .schedule-when{flex:none;min-width:4.6em;padding:6px 8px;border-radius:9px;text-align:center;font-size:.78rem;font-weight:700;color:var(--flair-records);background:color-mix(in srgb,var(--flair-records) 12%,transparent);font-variant-numeric:tabular-nums}
 #scheduleHub .schedule-text{display:flex;flex-direction:column;gap:2px;min-width:0}

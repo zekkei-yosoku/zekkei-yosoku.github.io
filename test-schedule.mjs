@@ -24,7 +24,8 @@ test('画面：NOTEBOOK の帯、撮影地点／予定のタブ、共有シー�
  assert.match(h,/role="tab" id="notebookPointsTab"[^>]*>撮影地点<\/button><button[^>]*id="notebookPlansTab"[^>]*>予定<\/button>/);
  assert.match(h,/<script src="sorami-schedule\.js\?v=\d+"><\/script>\s*<script src="sorami-plan\.js/);
  assert.match(p,/id="planKeep" hidden>NOTEBOOKの予定に保存<\/button>/);assert.match(p,/\$\('planKeep'\)\.hidden=!keep\|\|current\.payload\?\.kind!=='aim'/);
- assert.match(c,/content:"NOTEBOOK" \/ ""/);assert.doesNotMatch(c,/LOGBOOK/);assert.match(c,/#recordsView\[data-tab=plans\] #recordsHeading \.my-add-point\{display:none\}/);
+ assert.match(c,/content:"NOTEBOOK" \/ ""/);assert.doesNotMatch(c,/LOGBOOK/);// 2026-10-21: ＋を撮影地点パネル内へ移し、見出しの高さをタブで変えない。
+ const m=fs.readFileSync(new URL('./sorami-myplaces.js',import.meta.url),'utf8');assert.match(m,/actions\.append\(add\)/);assert.doesNotMatch(m,/heading\.append\(add\)/);
  assert.match(h,/撮影地点と見えたもの、これからの予定を残す/);
 });
 test('予定の使い方は0件のときだけ、保存先の説明はデータの控えの中（2026-10-20 ユーザー「出し方を変えた方がいいのも最適化して」）',()=>{
