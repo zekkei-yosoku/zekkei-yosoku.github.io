@@ -2,6 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';import vm f
 const require=createRequire(import.meta.url),A=require('./sorami-astro.js'),B=require('./sorami-bodies.js'),M=require('./sorami-sky-map.js'),TR=require('./sorami-terrain.js'),AL=require('./sorami-align.js'),MOON=require('./sorami-moon.js');
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8'),ui=/<script id="skyMapPresentation">([\s\S]*?)<\/script>/.exec(html)[1],day=Date.parse('2026-12-22T00:00:00+09:00');
 const flush=()=>new Promise(r=>setImmediate(r));
+export function transfer(f){if(f.c.SkyMapUI.prepareFraming())f.c.pushRoute('#/aim');}
 export function fixture({saved=null,selected=true,tools=['skymap','tower'],accessResult=null,accessWaiting=false,loggedIn=true,ground=5.5,waiting=false,datesSearch=async()=>[]}={}){
  const elements=new Map(),clicks=[],data=new Map(saved?[['sorami.skyMap:testuser',saved]]:[]),observer={name:'観測地点',latitude:35.64285,longitude:139.78291,groundManualM:null,standAglM:1.5};let moves=0,loads=0,calls=0,resolveGround,resolveAccess,accessCalls=0;
  if(selected)data.set('sorami.skyMap:testuser',{observer,...saved});
@@ -36,34 +37,34 @@ test('時間バー確定はrAF待ちでも反映、同日スクラブとパン�
  f.element('skyMapObserverTool').onclick();f.map.setCenter(35.66,139.79);f.element('skyMapObserverTool').onclick();await flush();assert.equal(f.data.get('sorami.skyMap:testuser').observer.latitude,35.66);assert.equal(f.loads,loads+1);
 });
 test('読込中の時刻操作を保持し、取得失敗は表示と再試行、失敗値は成功cacheに保存しない',async()=>{
- const f=fixture({waiting:true,saved:{at:day}});f.c.SkyMapUI.open();await flush();f.element('skyMapLater').onclick();assert.equal(f.element('skyMapTime').value,'00:01');assert.equal(f.element('skyMapUse').disabled,true);f.release(null);await flush();assert.match(f.element('skyMapStatus').textContent,/取得できません/);assert.equal(f.element('skyMapRetry').hidden,false);assert.equal(f.cache.size,0);
+ const f=fixture({waiting:true,saved:{at:day}});f.c.SkyMapUI.open();await flush();f.element('skyMapLater').onclick();assert.equal(f.element('skyMapTime').value,'00:01');assert.notEqual(f.c.SkyMapUI.prepareFraming(),true);f.release(null);await flush();assert.match(f.element('skyMapStatus').textContent,/取得できません/);assert.equal(f.element('skyMapRetry').hidden,false);assert.equal(f.cache.size,0);
  const p=f.element('skyMapRetry').onclick();await flush();f.release(8);await p;assert.equal(f.element('skyMapTime').value,'00:01');assert.equal(f.cache.get('35.642850,139.782910'),8);
 });
 test('手入力標高を自動標高cacheへ混ぜず、目標なしも閲覧できる',async()=>{
- const f=fixture({saved:{at:day,observer:{latitude:35.64,longitude:139.78,groundManualM:88,standAglM:351.5}}});await f.open();assert.equal(f.loads,0);assert.equal(f.cache.size,0);assert.match(f.element('skyMapTargetInfo').textContent,/対象なし/);f.element('skyMapUse').onclick();assert.match(f.element('skyMapStatus').textContent,/対象を選んで/);
+ const f=fixture({saved:{at:day,observer:{latitude:35.64,longitude:139.78,groundManualM:88,standAglM:351.5}}});await f.open();assert.equal(f.loads,0);assert.equal(f.cache.size,0);assert.match(f.element('skyMapTargetInfo').textContent,/対象なし/);transfer(f);assert.match(f.element('skyMapStatus').textContent,/対象を選んで/);
 });
 test('重ねる更新中の入口は保存済み天体より現在の天体・対象を優先、任意時刻を戻す',async()=>{
  const f=fixture({saved:{at:day,body:'moon'}});f.element('aimView').hidden=false;f.element('skyMapOpen').onclick();await flush();assert.equal(f.element('skyMapBody').value,'sun');assert.equal(f.element('skyMapTarget').value,f.aim.target.id);
- f.element('skyMapTime').value='12:34';f.element('skyMapTime').onchange();f.element('skyMapUse').onclick();assert.equal(f.c.hash,'#/aim');assert.equal(f.aim.plannerTransfer.at,day+45240000);assert.equal(f.aim.plannerTransfer.body,'sun');assert.equal(f.cache.get('35.642850,139.782910'),5.5);
+ f.element('skyMapTime').value='12:34';f.element('skyMapTime').onchange();transfer(f);assert.equal(f.c.hash,'#/aim');assert.equal(f.aim.plannerTransfer.at,day+45240000);assert.equal(f.aim.plannerTransfer.body,'sun');assert.equal(f.cache.get('35.642850,139.782910'),5.5);
  const capture=f.clicks[0];f.aim.plannerTransfer={at:1};capture({target:{closest:selector=>selector.includes('[data-cand]')?{}:null}});assert.equal(f.aim.plannerTransfer,null);
 });
 test('保存した自作目標は現在の許可に従い復元し、地図で置いた対象の切替復帰も同じ物になる',async()=>{
  const custom={name:'自作',latitude:35.65,longitude:139.79,heightM:100,groundM:5,topM:105};
- const f=fixture({tools:['skymap'],saved:{at:day,body:'sun',targetId:'custom',custom}});await f.open();assert.equal(f.element('skyMapBody').value,'sun');assert.equal(f.element('skyMapTarget').value,'custom');assert.equal(f.element('skyMapCustom').hidden,false);f.element('skyMapUse').onclick();assert.equal(f.c.hash,undefined);
- const g=fixture({saved:{at:day,targetId:'custom',custom}});await g.open();g.element('skyMapTarget').value='';g.element('skyMapTarget').onchange();await flush();g.element('skyMapTarget').value='custom';g.element('skyMapTarget').onchange();await flush();assert.match(g.element('skyMapTargetInfo').textContent,/自作/);g.element('skyMapUse').onclick();assert.equal(g.data.get('sorami.aimCustom').topM,105);
+ const f=fixture({tools:['skymap'],saved:{at:day,body:'sun',targetId:'custom',custom}});await f.open();assert.equal(f.element('skyMapBody').value,'sun');assert.equal(f.element('skyMapTarget').value,'custom');assert.equal(f.element('skyMapCustom').hidden,false);transfer(f);assert.equal(f.c.hash,undefined);
+ const g=fixture({saved:{at:day,targetId:'custom',custom}});await g.open();g.element('skyMapTarget').value='';g.element('skyMapTarget').onchange();await flush();g.element('skyMapTarget').value='custom';g.element('skyMapTarget').onchange();await flush();assert.match(g.element('skyMapTargetInfo').textContent,/自作/);transfer(g);assert.equal(g.data.get('sorami.aimCustom').topM,105);
 });
 test('地盤cacheは約11mのセルを混同せず、幾何専用天体stateは大気providerを呼ばない',async()=>{
  const fn=html.slice(html.indexOf('async function aimElevation('),html.indexOf('/// 自分で置いた目標',html.indexOf('async function aimElevation(')));let n=0;const c={Map,aimElevCache:new Map(),SoramiTerrain:{groundElevation:async lat=>{n++;return lat*1000}}};vm.createContext(c);vm.runInContext(fn,c);const a=await c.aimElevation(35.000001,139),b=await c.aimElevation(35.000009,139);assert.notEqual(a,b);assert.equal(n,2);await c.aimElevation(35.000001,139);assert.equal(n,2);
  const src=readFileSync(new URL('./sorami-bodies.js',import.meta.url),'utf8'),d={require,Date,SoramiAstro:A,SoramiAtmosphere:{apply:()=>{throw Error('refraction called')}},module:{exports:{}},globalThis:null};d.globalThis=d;vm.createContext(d);vm.runInContext(src,d);for(const body of B.definitions){const st=d.module.exports.state(body.id,day,{latitude:35,longitude:139,elevation:0},{refraction:false});assert.ok(Number.isFinite(st.altitude));assert.equal(st.apparentAltitude,st.altitude);}
 });
 test('見え方からの往復は自動標高を手入力へ変えず、既知の標高・目の高さをそのまま使う',async()=>{
- const f=fixture();const look=f.element('aimLook');look.hidden=false;look._planKey='current';look._lookAt=day+45240000;look._lookSpec={obs:{latitude:f.observer.latitude,longitude:f.observer.longitude,elevation:91},eyeM:1.5,observerName:'観測地点'};f.element('aimView').hidden=false;f.element('skyMapOpen').onclick();await flush();assert.equal(f.loads,0);assert.equal(f.element('skyMapTime').value,'12:34');assert.equal(f.data.get('sorami.skyMap:testuser').observer.groundManualM,null);assert.equal(f.cache.get('35.642850,139.782910'),91);f.element('skyMapUse').onclick();assert.equal(f.aim.plannerTransfer.at,day+45240000);
+ const f=fixture();const look=f.element('aimLook');look.hidden=false;look._planKey='current';look._lookAt=day+45240000;look._lookSpec={obs:{latitude:f.observer.latitude,longitude:f.observer.longitude,elevation:91},eyeM:1.5,observerName:'観測地点'};f.element('aimView').hidden=false;f.element('skyMapOpen').onclick();await flush();assert.equal(f.loads,0);assert.equal(f.element('skyMapTime').value,'12:34');assert.equal(f.data.get('sorami.skyMap:testuser').observer.groundManualM,null);assert.equal(f.cache.get('35.642850,139.782910'),91);transfer(f);assert.equal(f.aim.plannerTransfer.at,day+45240000);
 });
 test('三脚で観測点、ピンで登録済み目標または新しい位置を選び、高さ確定まで公式対象を保持する',async()=>{
  const f=fixture({saved:{at:day}});await f.open();f.element('skyMapObserverTool').onclick();assert.equal(f.element('skyMapObserverTool')['aria-pressed'],'true');const point={latitude:35.65,longitude:139.79};f.map.setCenter(point.latitude,point.longitude);f.element('skyMapObserverTool').onclick();await flush();assert.equal(f.data.get('sorami.skyMap:testuser').observer.latitude,35.65);assert.equal(f.element('skyMapObserverTool')['aria-pressed'],'false');
  f.element('skyMapTargetTool').onclick();const target=AL.TARGETS.find(t=>t.name.includes('森JP')),pixel=f.map.project(target.latitude,target.longitude);f.map.setCenter(target.latitude,target.longitude);f.element('skyMapTargetTool').onclick();await flush();assert.equal(f.element('skyMapTarget').value,target.id);assert.equal(f.element('skyMapTargetSheet').open,false);
  f.element('skyMapTargetTool').onclick();const newPoint={latitude:35.653,longitude:139.792},q=f.map.project(newPoint.latitude,newPoint.longitude);f.map.setCenter(newPoint.latitude,newPoint.longitude);f.element('skyMapTargetTool').onclick();assert.equal(f.element('skyMapTargetSheet').open,true);assert.equal(f.element('skyMapTarget').value,target.id);f.element('skyMapPickHeight').valueAsNumber=NaN;await f.element('skyMapPickSave').onclick();assert.match(f.element('skyMapPickError').textContent,/高さ/);assert.equal(f.element('skyMapTarget').value,target.id);
- f.element('skyMapPickHeight').valueAsNumber=120;f.element('skyMapPickName').value='撮影目標';await f.element('skyMapPickSave').onclick();await flush();assert.equal(f.element('skyMapTargetSheet').open,false);assert.equal(f.element('skyMapTarget').value,'custom');assert.match(f.element('skyMapTargetInfo').textContent,/撮影目標/);f.element('skyMapUse').onclick();assert.equal(f.data.get('sorami.aimCustom').topM,125.5);assert.equal(f.data.get('sorami.aimCustom').latitude,newPoint.latitude);
+ f.element('skyMapPickHeight').valueAsNumber=120;f.element('skyMapPickName').value='撮影目標';await f.element('skyMapPickSave').onclick();await flush();assert.equal(f.element('skyMapTargetSheet').open,false);assert.equal(f.element('skyMapTarget').value,'custom');assert.match(f.element('skyMapTargetInfo').textContent,/撮影目標/);transfer(f);assert.equal(f.data.get('sorami.aimCustom').topM,125.5);assert.equal(f.data.get('sorami.aimCustom').latitude,newPoint.latitude);
 });
 test('対象の高さ取得不能・閉じた入力・towerなしの自由配置は目標や公式座標を変更しない',async()=>{
  const f=fixture({ground:null,saved:{at:day,targetId:AL.TARGETS.find(t=>t.name.includes('森JP')).id}});await f.open();const before=f.element('skyMapTarget').value;f.element('skyMapTargetTool').onclick();f.map.setCenter(35.7,139.9);f.element('skyMapTargetTool').onclick();f.element('skyMapPickHeight').valueAsNumber=20;f.element('skyMapPickName').value='目標';await f.element('skyMapPickSave').onclick();assert.match(f.element('skyMapPickError').textContent,/取得できません/);assert.equal(f.element('skyMapTarget').value,before);f.element('skyMapTargetClose').onclick();assert.equal(f.element('skyMapTargetSheet').open,false);
@@ -76,7 +77,7 @@ test('高さの取得中にシートを閉じると遅い結果で対象を変�
  const target=AL.TARGETS.find(t=>t.name.includes('森JP'));const f=fixture({waiting:true,saved:{at:day,targetId:target.id}});f.c.SkyMapUI.open();await flush();f.release(5.5);await flush();f.element('skyMapTargetTool').onclick();f.map.setCenter(35.7,139.9);f.element('skyMapTargetTool').onclick();f.element('skyMapPickHeight').valueAsNumber=120;f.element('skyMapPickName').value='未確定';const save=f.element('skyMapPickSave').onclick();await flush();f.element('skyMapTargetClose').onclick();f.release(10);await save;assert.equal(f.element('skyMapTarget').value,target.id);assert.equal(f.element('skyMapTargetSheet').open,false);
 });
 test('入力中にtowerの許可がなくなった場合も確定・重ねる連携を拒否する',async()=>{
- const tools=['skymap','tower'],target=AL.TARGETS.find(t=>t.name.includes('森JP')),f=fixture({tools,saved:{at:day,targetId:target.id}});await f.open();f.element('skyMapTargetTool').onclick();f.map.setCenter(35.7,139.9);f.element('skyMapTargetTool').onclick();tools.splice(0,2,'pearl');f.element('skyMapPickHeight').valueAsNumber=100;f.element('skyMapPickName').value='拒否対象';await f.element('skyMapPickSave').onclick();assert.match(f.element('skyMapPickError').textContent,/現在使えません/);assert.equal(f.element('skyMapTarget').value,target.id);f.element('skyMapTargetClose').onclick();f.element('skyMapUse').onclick();assert.equal(f.c.hash,undefined);
+ const tools=['skymap','tower'],target=AL.TARGETS.find(t=>t.name.includes('森JP')),f=fixture({tools,saved:{at:day,targetId:target.id}});await f.open();f.element('skyMapTargetTool').onclick();f.map.setCenter(35.7,139.9);f.element('skyMapTargetTool').onclick();tools.splice(0,2,'pearl');f.element('skyMapPickHeight').valueAsNumber=100;f.element('skyMapPickName').value='拒否対象';await f.element('skyMapPickSave').onclick();assert.match(f.element('skyMapPickError').textContent,/現在使えません/);assert.equal(f.element('skyMapTarget').value,target.id);f.element('skyMapTargetClose').onclick();transfer(f);assert.equal(f.c.hash,undefined);
 });
 test('標高取得を待っている間にtowerの許可を失った場合も遅い結果を確定しない',async()=>{
  const tools=['skymap','tower'],target=AL.TARGETS.find(t=>t.name.includes('森JP')),f=fixture({waiting:true,tools,saved:{at:day,targetId:target.id}});f.c.SkyMapUI.open();await flush();f.release(5.5);await flush();f.element('skyMapTargetTool').onclick();f.map.setCenter(35.7,139.9);f.element('skyMapTargetTool').onclick();f.element('skyMapPickHeight').valueAsNumber=100;f.element('skyMapPickName').value='拒否対象';const saving=f.element('skyMapPickSave').onclick();await flush();tools.splice(0,2,'pearl');f.release(10);await saving;assert.equal(f.element('skyMapTarget').value,target.id);assert.equal(f.data.get('sorami.aimCustom'),undefined);
@@ -84,17 +85,17 @@ test('標高取得を待っている間にtowerの許可を失った場合も遅
 
 test('専用権限は未ログイン・旧権限・不正応答を拒否し、天体や地盤の計算を始めない',async()=>{for(const options of [{loggedIn:false},{tools:['tower','diamond','pearl']},{accessResult:{allowed:true,tool:'skymap',tools:[]}}]){const f=fixture(options);await f.open();assert.equal(f.loads,0);assert.equal(f.calls,0);assert.equal(f.element('skyMapContent').hidden,true);}});
 test('遅い許可応答は離脱・アカウント変更後の画面を開かない',async()=>{for(const change of ['leave','account']){const f=fixture({accessWaiting:true});f.c.SkyMapUI.open();await flush();if(change==='leave')f.c.SkyMapUI.leave();else{f.c.auth={token:'different',loginId:'other',tools:['skymap']};f.c.SkyMapUI.authChanged();}f.c.accessRequests[0]({allowed:true,tool:'skymap',tools:['skymap'],loginId:'testuser'});await flush();assert.equal(f.loads,0);assert.equal(f.element('skyMapContent').hidden,true);}});
-test('専用権限だけで8天体・建物・自作対象を使え、重ねるへの転送は別権限を必要とする',async()=>{const f=fixture({tools:['skymap'],saved:{at:day,targetId:'skytree'}});await f.open();assert.equal(f.element('skyMapBody').options.filter(o=>!o.disabled).length,8);assert.equal(f.element('skyMapCustom').hidden,false);f.element('skyMapUse').onclick();assert.equal(f.c.hash,undefined);const n=f.accessCalls;f.element('skyMapLater').onclick();f.element('skyMapTime').value='12:34';f.element('skyMapTime').onchange();assert.equal(f.accessCalls,n);});
+test('専用権限だけで8天体・建物・自作対象を使え、重ねるへの転送は別権限を必要とする',async()=>{const f=fixture({tools:['skymap'],saved:{at:day,targetId:'skytree'}});await f.open();assert.equal(f.element('skyMapBody').options.filter(o=>!o.disabled).length,8);assert.equal(f.element('skyMapCustom').hidden,false);transfer(f);assert.equal(f.c.hash,undefined);const n=f.accessCalls;f.element('skyMapLater').onclick();f.element('skyMapTime').value='12:34';f.element('skyMapTime').onchange();assert.equal(f.accessCalls,n);});
 
 // E202: 通過チップはselectとは別経路。太陽/月の移動先権限も毎回同期する。
-test('通過チップの天体変更で構図の2入口が権限に追従する',async()=>{
+test('通過チップの天体変更でメニューへの構図転送が権限に追従する',async()=>{
  const f=fixture({tools:['skymap','pearl'],saved:{at:Date.parse('2026-06-22T00:00:00+09:00'),body:'sun',targetId:'fuji',showSun:true,showMoon:true}});await f.open();
  const walk=e=>[e,...(e.children||[]).flatMap(walk)],buttons=walk(f.element('skyMapPassages')).filter(e=>e.type==='button');
  const moon=buttons.find(e=>e.textContent.startsWith('☾')),sun=buttons.find(e=>e.textContent.startsWith('☀'));assert.ok(moon);assert.ok(sun);
- for(const id of ['skyMapUse'])assert.equal(f.element(id).hidden,true);
+ assert.notEqual(f.c.SkyMapUI.prepareFraming(),true);
  moon.onclick();assert.equal(f.element('skyMapBody').value,'moon');
- for(const id of ['skyMapUse']){assert.equal(f.element(id).hidden,false);assert.equal(f.element(id).disabled,false);}
- sun.onclick();for(const id of ['skyMapUse'])assert.equal(f.element(id).hidden,true);
+ assert.equal(f.c.SkyMapUI.prepareFraming(),true);
+ sun.onclick();assert.notEqual(f.c.SkyMapUI.prepareFraming(),true);
 });
 // E202: 日付変更は配置している対象とは独立。閉じる/別対象選択は引き続き失効させる。
 test('対象の標高取得中に日付を変えても配置は完了する',async()=>{
@@ -138,7 +139,7 @@ test('メニュー向け準備も構図権限なし/離脱後は状態を転送�
 
 test('撮影地点なしで開き、予測地点を補完せず、日付・対象の編集と地図からの配置ができる',async()=>{
  const f=fixture({selected:false,saved:{at:day,targetId:'skytree'}});await f.open();
- assert.equal(f.data.get('sorami.skyMap:testuser').observer,null);assert.equal(f.loads,0);assert.equal(f.calls,0);assert.equal(f.element('skyMapObserverClear').hidden,true);assert.equal(f.element('skyMapUse').disabled,false);assert.equal(f.element('skyMapPassages').children.length,0);
+ assert.equal(f.data.get('sorami.skyMap:testuser').observer,null);assert.equal(f.loads,0);assert.equal(f.calls,0);assert.equal(f.element('skyMapObserverClear').hidden,true);assert.equal(f.c.SkyMapUI.prepareFraming(),true);assert.equal(f.element('skyMapPassages').children.length,0);
  f.element('skyMapNext').onclick();await flush();assert.equal(f.element('skyMapDate').value,'2026-12-23');assert.equal(f.loads,0);
  f.element('skyMapTargetTool').onclick();f.map.setCenter(35.7,139.9);f.element('skyMapTargetTool').onclick();assert.equal(f.element('skyMapTargetSheet').open,true);f.element('skyMapTargetClose').onclick();
  f.element('skyMapObserverTool').onclick();f.map.setCenter(35.65,139.79);f.element('skyMapObserverTool').onclick();await flush();assert.equal(f.data.get('sorami.skyMap:testuser').observer.latitude,35.65);assert.equal(f.element('skyMapObserverClear').hidden,false);assert.equal(f.loads,1);
@@ -175,18 +176,13 @@ test('地図共有は地点なし・離脱後を拒否し、計算済みの現�
  f.c.accessRequests.at(-1)({allowed:true,tool:'skymap',tools:['skymap','tower'],loginId:'other'});await flush();assert.equal(f.element('skyMapContent').hidden,false);assert.equal(f.c.SkyMapUI.snapshot(),null);assert.equal(f.element('skyMapObserver').textContent,'撮影地点を選ぶ');
  f.c.accessRequests[0]({allowed:true,tool:'skymap',tools:['skymap','tower'],loginId:'testuser'});await flush();assert.equal(f.element('skyMapContent').hidden,false);assert.equal(f.c.SkyMapUI.snapshot(),null);assert.equal(f.element('skyMapObserver').textContent,'撮影地点を選ぶ');
  });
-test('予測からの地図入口は地点・高さ・選択日を渡し、対象と天体は維持する',async()=>{
- const f=fixture({saved:{at:day,body:'moon',targetId:'skytree'}});const observer={name:'予測の場所',latitude:36,longitude:138,groundManualM:1665,eyeHeightAGL:4};
- assert.equal(f.c.SkyMapUI.enterForecast(observer,day+86400000),true);await flush();const state=f.c.SkyMapUI.snapshot();assert.equal(state.observer.name,observer.name);assert.equal(state.observer.groundManualM,1665);assert.equal(state.body,'moon');assert.equal(state.target.id,'skytree');assert.equal(state.at,day+86400000+43200000);
-});
-
 // 2026-10-18: 候補日の非同期探索は日付操作と独立し、別条件・離脱後の応答を破棄する。
 test('地図候補は構図の共通描画を使い、日付移動で再探索しない',async()=>{
  let searches=0;const at=Date.now()+86400000;
  const f=fixture({tools:['skymap','tower','pearl'],saved:{targetId:'fuji',body:'moon'},datesSearch:async()=>{searches++;return[{at,side:'set',illuminated:.5}]}});await f.open();await flush();
  assert.match(f.element('skyMapDates').innerHTML,/月の入/);assert.doesNotMatch(f.element('skyMapDates').innerHTML,/日の入/);assert.match(f.element('skyMapDates').innerHTML,new RegExp('data-from-at="'+at+'"'));
- f.c.SkyMapUI.setTime(at);await flush();assert.equal(searches,1);assert.equal(f.c.SkyMapUI.snapshot().at,at);assert.equal(f.element('skyMapUseBelow').hidden,false);
- f.element('skyMapUseBelow').onclick();assert.equal(f.c.hash,'#/aim');assert.equal(f.aim.plannerTransfer.at,at);
+ f.c.SkyMapUI.setTime(at);await flush();assert.equal(searches,1);assert.equal(f.c.SkyMapUI.snapshot().at,at);assert.equal(f.c.SkyMapUI.prepareFraming(),true);
+ transfer(f);assert.equal(f.c.hash,'#/aim');assert.equal(f.aim.plannerTransfer.at,at);
 });
 test('地図候補の旧探索と離脱後の応答は候補欄へ戻らない',async()=>{
  const pending=[];const f=fixture({saved:{targetId:'skytree'},datesSearch:(...args)=>new Promise(resolve=>pending.push({resolve,options:args[5]}))});await f.open();assert.equal(pending.length,1);

@@ -84,14 +84,6 @@ test('共通ピッカーは線・範囲を代表座標として即選択せず�
  assert.equal(c.selectShape({id:'shape'},'skymap'),true);assert.equal(c.selectShape({id:'point'},'aim'),false);assert.equal(c.selectShape({id:'shape'},'recordTarget'),false);
  assert.match(html,/function choosePlace\(p\) \{\s*if\(globalThis.MyPlacesUI\?\.selectShape/);
 });
-test('記録から地図へは非同期起動前に未選択と枠の中心を渡す',()=>{
- const previous={observer:ll(0),body:'sun',at,targetId:'skytree'},shapeValue=shape('area',[[0,0],[100,0],[100,100],[0,100]]);
- const c={auth:{token:'test'},toolAllowed:()=>true,validPoint:P.point,session:previous,store:{get:()=>previous},skyStoreKey:()=>'',SoramiShooting:P,aimSavedFrom:x=>x,pushRoute:()=>{}};vm.createContext(c);
- vm.runInContext('let pending;'+html.slice(html.indexOf(' function enterRecords('),html.indexOf(' function start(){',html.indexOf(' function enterRecords(')))+';this.pendingState=()=>pending;',c);
- assert(c.enterRecords({...ll(0),id:'shape'},{shape:shapeValue,targetIds:['skytree']}));
- assert.equal(c.pendingState().observer,null);assert.equal(c.pendingState().targetId,'skytree');assert(P.shapeContains(shapeValue,c.pendingState().mapCenter));
- c.enterRecords(ll(0));assert.equal(c.pendingState().observer.latitude,35);
-});
 test('既存の形を別画面で変更したら上書きせず開き直しを求める',()=>{
  const f={id:'p',...ll(0)},state={place:f,initialTargets:[],draftTargets:[],baseline:'[]',shapeBaseline:'null'},nodes=new Map();let commits=0;
  const c={sheetOwnerMatches:()=>true,sheetState:state,el:id=>{if(!nodes.has(id))nodes.set(id,{});return nodes.get(id)},placeOf:()=>f,shapeFor:()=>shape('line',[[0,0],[100,0]]),shapeKey:JSON.stringify,savedTargets:()=>[],targetSetKey:JSON.stringify,commitRecordDraft:()=>{commits++;return true;}};vm.createContext(c);

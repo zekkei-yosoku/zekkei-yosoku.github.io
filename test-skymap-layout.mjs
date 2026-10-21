@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import vm from 'node:vm';import {fixture} from './test-sky-map-ui.mjs';import {createRequire} from 'node:module';const createRequireFn=createRequire(import.meta.url);
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import vm from 'node:vm';import {fixture,transfer} from './test-sky-map-ui.mjs';import {createRequire} from 'node:module';const createRequireFn=createRequire(import.meta.url);
 const flush=()=>new Promise(r=>setImmediate(r));
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 test('観測点配置は中心固定のパンで候補だけ動き、確定まで観測点・計算を変えない',async()=>{
@@ -127,11 +127,11 @@ test('E198: 全画面の切替は通常・全画面とも右上の同じ位置�
  assert.match(html,/id="skyMapExpand" aria-label="地図を全画面表示"/);assert.match(html,/wide\?'全画面表示を終了':'地図を全画面表示'/);assert.doesNotMatch(html,/地図を拡大表示/);
 });
 // 2026-10-15: switches were replaced by three peer menu entries; retain the in-map transfer paths.
-test('構図への既存ボタンは条件を引き継ぎ、権限なしでは転送しない',async()=>{
- assert.match(html,/id="skyMapUseBelow"/);
- const f=fixture({saved:{at:day,targetId:'skytree'}});await f.open();assert.equal(f.element('skyMapUse').hidden,false);assert.equal(f.element('skyMapUse').disabled,false);
- f.element('skyMapUseBelow').onclick();assert.equal(f.c.hash,'#/aim');assert.equal(f.aim.plannerTransfer.body,'sun');
- const g=fixture({tools:['skymap'],saved:{at:day,targetId:'skytree'}});await g.open();assert.equal(g.element('skyMapUse').hidden,true);g.element('skyMapUseBelow').onclick();assert.equal(g.c.hash,undefined);
+test('メニューからの構図転送は条件を引き継ぎ、権限なしでは転送しない',async()=>{
+ assert.doesNotMatch(html,/id="skyMapUse(?:Below|Dates)?"/);
+ const f=fixture({saved:{at:day,targetId:'skytree'}});await f.open();assert.equal(f.c.SkyMapUI.prepareFraming(),true);assert.equal(f.c.SkyMapUI.prepareFraming(),true);
+ transfer(f);assert.equal(f.c.hash,'#/aim');assert.equal(f.aim.plannerTransfer.body,'sun');
+ const g=fixture({tools:['skymap'],saved:{at:day,targetId:'skytree'}});await g.open();assert.notEqual(g.c.SkyMapUI.prepareFraming(),true);transfer(g);assert.equal(g.c.hash,undefined);
 });
 test('条件3行は構図と共通の天体・対象・撮影地点ラベル、出入りの表記を維持する',async()=>{
  const block=html.slice(html.indexOf('<div class="sky-map-controls">'),html.indexOf('<div class="mapwrap sky-map-wrap">'));
@@ -195,12 +195,12 @@ test('追加天体の選択は権限失効/画面離脱後のイベントを拒�
 });
 
 test('月を主天体にしたまま追加天体を解除すると月へ戻り、構図の権限も戻る',async()=>{
- const f=fixture({tools:['skymap','pearl'],saved:{at:day,body:'moon',showSun:true,showMoon:true,targetId:'fuji'}});await f.open();assert.equal(f.element('skyMapUse').hidden,false);f.element('skyMapExtra-venus').onclick();await flush();assert.equal(f.element('skyMapUse').hidden,true);
- f.element('skyMapClearExtra').onclick();await flush();assert.equal(f.element('skyMapBody').value,'moon');assert.equal(f.element('skyMapUse').hidden,false);assert.equal(f.data.get('sorami.skyMap:testuser').primaryBody,'moon');
+ const f=fixture({tools:['skymap','pearl'],saved:{at:day,body:'moon',showSun:true,showMoon:true,targetId:'fuji'}});await f.open();assert.equal(f.c.SkyMapUI.prepareFraming(),true);f.element('skyMapExtra-venus').onclick();await flush();assert.notEqual(f.c.SkyMapUI.prepareFraming(),true);
+ f.element('skyMapClearExtra').onclick();await flush();assert.equal(f.element('skyMapBody').value,'moon');assert.equal(f.c.SkyMapUI.prepareFraming(),true);assert.equal(f.data.get('sorami.skyMap:testuser').primaryBody,'moon');
 });
 test('追加天体の取得不能でも太陽/月を描き、選択天体の構図は止めて再試行で復帰する',async()=>{
  const f=fixture({saved:{at:day,body:'moon',showSun:true,showMoon:true,targetId:'skytree'}});await f.open();const provider=f.c.SoramiBodies;
  f.c.SoramiBodies={...provider,ensure:async id=>{if(id==='saturn')throw Error('offline')}};f.element('skyMapExtra-saturn').onclick();await flush();
- const names=f.element('skyMapAngles').children.map(x=>x.textContent);assert.equal(names.length,2);assert.ok(names.some(x=>x.startsWith('太陽')));assert.ok(names.some(x=>x.includes('月')));assert.equal(f.element('skyMapUse').disabled,true);assert.match(f.element('skyMapTargetInfo').textContent,/選択天体は計算できません/);assert.match(f.element('skyMapStatus').textContent,/土星.*再試行/);assert.equal(f.element('skyMapBody').value,'saturn');f.element('skyMapUse').onclick();assert.equal(f.c.hash,undefined);
- f.c.SoramiBodies=provider;await f.element('skyMapRetry').onclick();assert.equal(f.element('skyMapAngles').children.length,3);assert.equal(f.element('skyMapUse').disabled,false);
+ const names=f.element('skyMapAngles').children.map(x=>x.textContent);assert.equal(names.length,2);assert.ok(names.some(x=>x.startsWith('太陽')));assert.ok(names.some(x=>x.includes('月')));assert.notEqual(f.c.SkyMapUI.prepareFraming(),true);assert.match(f.element('skyMapTargetInfo').textContent,/選択天体は計算できません/);assert.match(f.element('skyMapStatus').textContent,/土星.*再試行/);assert.equal(f.element('skyMapBody').value,'saturn');transfer(f);assert.equal(f.c.hash,undefined);
+ f.c.SoramiBodies=provider;await f.element('skyMapRetry').onclick();assert.equal(f.element('skyMapAngles').children.length,3);assert.equal(f.c.SkyMapUI.prepareFraming(),true);
 });

@@ -498,7 +498,7 @@ function buildSheet() {
     <p class="warn" id="myRecordError" role="status" hidden></p><button type="button" class="chip" id="myRecordReuse" hidden>登録済みの地点で編集を続ける</button><p class="tiny" id="myRecordSaved" role="status" hidden></p>
     <div class="my-actions"><button type="button" class="fav-btn primary" id="myRecordSave">まとめて保存</button><button type="button" class="chip" id="myRecordCancel">キャンセル</button></div>
     <p class="tiny muted">対象はこのブラウザに保存します。登録日は保存時に自動で残します。</p>
-    <details id="myPlacePlanning" class="my-secondary"><summary>この場所から撮る</summary><div class="my-actions"><button type="button" class="chip" id="myPlaceUse">ここから見る</button><button type="button" class="chip" id="myPlaceMap">地図でここから見る</button></div><fieldset class="my-body-options"><legend class="condition-label">${inputRoleIcon('body')}<span>天体</span><span class="tiny">複数選択可</span></legend><div id="myPlaceBodies"></div></fieldset><button type="button" class="chip" id="myPlaceFind">次に重なる日を探す</button><h3 class="my-title">次に重なる日</h3><div class="al my-list" id="myPlaceNext"></div></details>
+    <details id="myPlacePlanning" class="my-secondary"><summary>この場所から撮る</summary><fieldset class="my-body-options"><legend class="condition-label">${inputRoleIcon('body')}<span>天体</span><span class="tiny">複数選択可</span></legend><div id="myPlaceBodies"></div></fieldset><button type="button" class="chip" id="myPlaceFind">次に重なる日を探す</button><h3 class="my-title">次に重なる日</h3><div class="al my-list" id="myPlaceNext"></div></details>
     <details id="myPlaceDetails" class="my-secondary"><summary>場所の詳細</summary><p class="tiny" id="myPlaceSub"></p></details>
   </div>`;
   document.body.append(sheet);
@@ -529,12 +529,7 @@ function buildSheet() {
       if(!sheetOwnerMatches())return;sheetState.draftTargets=targets.map(targetData);sheetState.targetDrafts=drafts;el('myRecordSaved').hidden=true;renderSheet();
     }});
   };
-  el('myPlaceMap').onclick = () => {
-    if (!sheetOwnerMatches() || !toolAllowed('skymap')) return;
-    const saved = sheetState;
-    sheet.close(); SkyMapUI?.enterRecords?.(saved.place,{shape:shapeFor(saved.place),targetIds:savedTargets(saved.place.id).map(t=>t.key)});
-  };
-  el('myPlaceUse').onclick = () => { const s = sheetState; if (s.ctx === 'records') { void openFromRecords(s.place); return; } sheet.close(); if (s.ctx === 'sky') openInSky(s.place, null); else openInAim(s.place, null); };
+
 }
 const sheetOwnerMatches = () => !!auth?.token && sheetState?.ownerToken === auth.token;
 function openPlace(place, ctx, targetKey = null) {
@@ -548,10 +543,6 @@ function openPlace(place, ctx, targetKey = null) {
   el('myPlaceName').textContent = place.name||'撮影地点を選ぶ';el('myPlaceName').classList.toggle('is-empty',!place.id);
   for(const check of sheet.querySelectorAll('[data-planning-body]'))check.checked=sheetState.bodies.includes(check.value);
   el('myPlaceSub').textContent = [place.subtitle, finite(place.latitude)&&finite(place.longitude)?`${place.latitude.toFixed(5)}, ${place.longitude.toFixed(5)}`:'', finite(place.elevation) ? `標高 ${place.elevation}m` : '標高不明', `地上から ${place.eyeHeightAGL ?? 1.5}m` ].filter(Boolean).join(' ・ ');
-  el('myPlaceMap').hidden = ctx === 'sky' || !toolAllowed('skymap');
-  el('myPlaceUse').hidden = !!initialShape || ctx === 'records' && !screenAllowed('framing');
-  el('myPlaceMap').textContent=initialShape?'地図でこの'+shapeName(initialShape)+'から探す':'地図でここから見る';
-  el('myPlaceUse').textContent = ctx === 'sky' ? '地図で見る' : '構図で見る';
   const choices = targetChoices(), select = el('myRecordTarget');
   select.replaceChildren(new Option('対象を選ぶ', ''), ...choices.map((t) => new Option(t.name, t.id)));
   const want = targetKey || (ctx === 'records' ? null : current);
@@ -564,8 +555,6 @@ function openPlace(place, ctx, targetKey = null) {
 function renderSheet() {
   const { place, ctx } = sheetState, token = ++sheetToken, list = load();
   el('myPlaceSub').textContent=[place.subtitle,finite(place.latitude)&&finite(place.longitude)?`${place.latitude.toFixed(5)}, ${place.longitude.toFixed(5)}`:'',finite(place.elevation)?`標高 ${place.elevation}m`:'標高不明',`地上から ${place.eyeHeightAGL??1.5}m`].filter(Boolean).join(' ・ ');
-  el('myPlaceUse').hidden=!!sheetState.draftShape||ctx==='records'&&!screenAllowed('framing');
-  el('myPlaceMap').textContent=sheetState.draftShape?'地図でこの'+shapeName(sheetState.draftShape)+'から探す':'地図でここから見る';
   const recs=el('myPlaceRecords');recs.replaceChildren();
   el('myNewPlaceNameLabel').hidden=!!place.id||!draftPoint();el('myPlaceName').hidden=!el('myNewPlaceNameLabel').hidden;el('myNewPlaceName').value=place.name||'';
   el('myPlaceName').textContent=draftPoint()?(place.name||'名前未入力'):'撮影地点を選ぶ';el('myPlaceName').classList.toggle('is-empty',!draftPoint());
