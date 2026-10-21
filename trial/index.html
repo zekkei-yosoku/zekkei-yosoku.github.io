@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="11915862603242253620">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-oA/N7GXW+N+vOJMJfsQ6sAeI46mWcy69HnDlQYHbPgk=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-CAHcHfR6GPdKKIKv6rsWNAqpp6j2vrMCgFANF6B89Qk=' 'sha256-GMs2Gk94riewAJ1Ii7ria7EKlc9B2buPe0dc0EHmQkE=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-20oFMl7+c2PM1pgnt9MPUvoGq6lBf9aXpEv7mgrLhX4=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="17440585863611324722">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-oA/N7GXW+N+vOJMJfsQ6sAeI46mWcy69HnDlQYHbPgk=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-OouBfp4QPbv0eaF75Z60CsfbsOYdFbb9I/DSxIhAEwo=' 'sha256-GMs2Gk94riewAJ1Ii7ria7EKlc9B2buPe0dc0EHmQkE=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-20oFMl7+c2PM1pgnt9MPUvoGq6lBf9aXpEv7mgrLhX4=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -529,7 +529,7 @@
      折り返した上下の行と重なって隣を押してしまう。 */
   .chips button { flex: none; min-height: 36px; font-size: 0.75rem; font-weight: 500;
                   padding: 5px 12px; border-radius: 999px; background: var(--line); }
-  .chips button.on { background: var(--accent); color: var(--on-accent); }
+  .chips button.on,.chips button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
   .list-item { display: block; width: 100%; text-align: left; padding: 9px 2px; border-top: 1px solid var(--line); }
   /* 消したものを戻す行。トーストにして数秒で消すと、押す前に消えて戻せない。
      シートを閉じるまで残す。 */
@@ -1172,9 +1172,7 @@
 #previewTargetDialog .preview-body-choice[aria-pressed=true]:after,.preview-body-choice[aria-checked=true]:after{flex:none}
 .preview-body-choice[aria-pressed=true] .tiny,.preview-body-choice[aria-checked=true] .tiny{color:inherit}
 .target-search{width:100%;margin-bottom:12px;min-height:44px}
-.history-subnav{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
-.history-subnav button{min-height:44px;padding:8px 12px;border-radius:8px;background:var(--sunk);color:var(--text)}
-.history-subnav button[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}
+/* 一覧の下位選択は共通chips（現象/履歴の種類で別部品にしない）。 */
 .history-pages{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0}.history-pages .chip{min-height:44px}.history-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.history-heading button{min-height:44px;color:var(--accent)}
 .history-row{display:flex;align-items:center;border-bottom:1px solid var(--line)}.history-row .list-item{flex:1;min-width:0;overflow-wrap:anywhere}.history-row .history-remove{min-width:44px;min-height:44px;color:var(--secondary)}
 .history-list .list-item strong{display:block}.history-list .list-item{font-size:15px}.history-empty{padding:12px 0}
@@ -1421,6 +1419,7 @@ main:has(>#almanacView:not([hidden])){padding-bottom:calc(115px + env(safe-area-
 .place-search-actions button:focus-visible,.location-search-go:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .place-tabs{margin:12px 0}
 .fav-add-row{justify-content:flex-end}
+.fav-add-row:has(#favAdd[hidden]){display:none}
 .search-row .search-go{width:44px;min-width:44px;min-height:44px;padding:0;display:flex;align-items:center;justify-content:center}
 #aimView .preview-camera-dialog .camera-visual-row{display:block;font-size:14px}
 .camera-visual-choices{display:flex;gap:8px;margin-top:8px}
@@ -13636,7 +13635,7 @@ const recentHistory=(()=>{
  // 2026-10-21 ユーザー「お気に入り・履歴・候補地点はタブにして切り替え。現在地と地図は入力欄の中にGPSマークと地図マークのボタン」
  const sheet=$('placeSheet'),content=sheet.querySelector('.sheet-body'),nav=document.createElement('div');nav.className='forecast-tabs place-tabs';nav.setAttribute('role','tablist');nav.setAttribute('aria-label','地点の選び方');
  const historyPanel=document.createElement('section'),favPanel=document.createElement('section'),candidatePanel=document.createElement('section');historyPanel.id='recentPanel';favPanel.id='recentFavorites';candidatePanel.id='recentCandidates';
- historyPanel.innerHTML='<div class="history-subnav" role="group" aria-label="履歴の種類"><button type="button" data-recent-kind="places">場所</button><button type="button" data-recent-kind="plans">重ねる条件</button></div><div class="history-heading"><p class="tiny">このブラウザの最近30件</p><button type="button" data-recent-clear>履歴を消す</button></div><p class="tiny" data-recent-note></p><input type="search" class="fav-in" data-recent-search aria-label="履歴を検索" placeholder="場所・対象・天体・日付で絞り込む"><div class="history-list"></div><div class="history-pages"><button type="button" class="chip" data-recent-prev>前の5件</button><span class="tiny" data-recent-count role="status"></span><button type="button" class="chip" data-recent-next>次の5件</button></div><button type="button" class="chip" data-recent-undo hidden>消した履歴を戻す</button>';
+ historyPanel.innerHTML='<div class="chips history-subnav" role="group" aria-label="履歴の種類"><button type="button" data-recent-kind="places">場所</button><button type="button" data-recent-kind="plans">重ねる条件</button></div><div class="history-heading"><p class="tiny">このブラウザの最近30件</p><button type="button" data-recent-clear>履歴を消す</button></div><p class="tiny" data-recent-note></p><input type="search" class="fav-in" data-recent-search aria-label="履歴を検索" placeholder="場所・対象・天体・日付で絞り込む"><div class="history-list"></div><div class="history-pages"><button type="button" class="chip" data-recent-prev>前の5件</button><span class="tiny" data-recent-count role="status"></span><button type="button" class="chip" data-recent-next>次の5件</button></div><button type="button" class="chip" data-recent-undo hidden>消した履歴を戻す</button>';
  const err=document.createElement('p');err.className='warn';err.setAttribute('role','status');err.hidden=true;err.textContent='履歴を保存できませんでした。ブラウザの保存設定や空き容量を確認してください。';
  const favoritesStart=$('favAdd').parentElement;let n=favoritesStart;while(n){const next=n.nextSibling;favPanel.append(n);n=next;}
  content.append(favPanel.querySelector('#favUndo'));
