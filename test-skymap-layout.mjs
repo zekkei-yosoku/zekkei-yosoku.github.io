@@ -100,7 +100,7 @@ test('転送後の下部バーは軌道の配列番号を日秒として読ま�
  const d=dom(),c={document:d.document,Date,Number};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);
  const day=Date.parse('2026-11-03T00:00:00+09:00'),source={min:'0',max:'42',get value(){throw Error('配列番号を時刻へ使ってはいけない')}},range={setAttribute(){}};
  Object.assign(c,{state:{day,current:day+57840000,minSeconds:57300,maxSeconds:58200},mode:'scene',look:{_footerFrame:null,querySelector:()=>source},mapRange:source,footerRange:range,document:{...d.document,activeElement:null}});
- const start=html.indexOf("  const source=mode==='places'?mapRange:look.querySelector('[data-look-range]');"),end=html.indexOf('  if(state){footerRange.setAttribute',start);assert.ok(start>=0);const sync=html.slice(start,end);vm.runInContext('{'+sync+'}',c);assert.equal(range.value,'57840');assert.equal(range.min,'57300');assert.equal(range.max,'58200');
+ const start=html.indexOf("  const source=mode==='places'?mapRange:look.querySelector('[data-look-range]');"),end=html.indexOf('  if(!globalThis.TrialExplore?.active()){if(state){footerRange.setAttribute',start);assert.ok(start>=0);const sync=html.slice(start,end);vm.runInContext('{'+sync+'}',c);assert.equal(range.value,'57840');assert.equal(range.min,'57300');assert.equal(range.max,'58200');
  c.state.current=day+57900000;vm.runInContext('{'+sync+'}',c);assert.equal(range.value,'57900');
  const invalid={min:'old',max:'old',value:'old'};assert.equal(c.ToolDateTimeBar.syncTimeRange(invalid,{day,current:NaN,min:0,max:86400}),false);assert.equal(invalid.value,'old');
 });
