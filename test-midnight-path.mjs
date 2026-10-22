@@ -16,7 +16,7 @@ test('図は見ている時刻を含む1本の通り道だけを前日・翌日�
 test('構図の図の操作で触っていない部品を動かさない（2026-10-20 ユーザー「なんで触ってないボタンがズレるの?」）',()=>{
  const c=fs.readFileSync(new URL('./sorami-flair.css',import.meta.url),'utf8');
  assert.match(c,/#aimLook \.preview-figure-tools\{align-items:flex-end\}/);
-assert.match(c,/#aimLook \.aim-look-figure>\.preview-compose\{position:absolute;/);
+assert.match(c,/#aimLook \.preview-center\{display:grid;/);
  assert.doesNotMatch(html,/\.aim-look-figure'\)\?\.after\(actions\)/);assert.doesNotMatch(html,/data-look-undo|data-body-actions/);
 });
 test('旧逆算（1点を解く）は切り替え1つで止め、処理は残す（2026-10-20 ユーザー「外してしまおう。戻しやすいように」）',()=>{
@@ -24,14 +24,13 @@ test('旧逆算（1点を解く）は切り替え1つで止め、処理は残す
  assert.match(html,/function aimReverseClear\(/,'逆算の処理は残す');
  assert.match(fs.readFileSync(new URL('./sorami-flair.css',import.meta.url),'utf8'),/#aimLook \[data-look-pick\]\[hidden\]\{display:none!important\}/);
 });
-test('図内で直接調整でき、大気差は通常画面で確認できる。全画面表示は任意（2026-10-22）',()=>{
- assert.match(html,/const H = host\._full && host\._fullH \? Math\.round\(host\._fullH\)/);
- assert.match(html,/expand\.setAttribute\('aria-label','全画面で表示'\)/);
+test('図は直接panでき、図内は中央復帰1アイコン。大気差は通常画面（2026-10-22 最新指示）',()=>{
+ assert.match(html,/center\.setAttribute\('aria-label','構図を中央に戻す'\)/);
+ assert.match(html,/settings\.onclick=\(\)=>showSheet\(dialog\)/);
+ assert.doesNotMatch(html,/expand\.setAttribute\('aria-label','全画面で表示'\)/);
  assert.doesNotMatch(html,/content\.append\(airTitle,airControls\)/);
- const c=fs.readFileSync(new URL('./sorami-flair.css',import.meta.url),'utf8');
- assert.doesNotMatch(c,/preview-figure-tools>:is\(\[data-look-pick\],\.preview-compose-icon\)\{display:none\}/);
- assert.match(c,/#aimLook \.aim-look-figure\.look-full\{position:fixed;/);
- assert.doesNotMatch(html,/e\.target\.tagName==='CANVAS'[^\n]*openFull\(\)/);
+ assert.match(html,/cv\.style\.touchAction = "none"/);
+ assert.match(html,/gesture\.suppressClick/);
 });
 test('天体の位置調整と逆算入口を撤去し、Undoと残像を出さない（2026-10-22 最新指示）',()=>{
  assert.match(html,/const AIM_PLACE_ENABLED = false;/);

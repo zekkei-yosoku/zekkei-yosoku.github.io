@@ -305,3 +305,21 @@ test("2023写真の推定地点から、月の横径で縮尺を固定して5塔
  for(const q of [[646,724],[595,1084],[540,1140],[771,921],[827,949]])assert.ok(Math.min(...points.map(p=>Math.hypot(p[0]-q[0],p[1]-q[1])))<3,`photo landmark ${q}`);
  const balcony=points.filter(p=>p[1]>1030&&p[1]<1050);assert.ok(balcony.some(p=>p[0]<610));assert.ok(balcony.some(p=>p[0]>682));
 });
+
+test("常時panは枠なしでも四方向に動き、tapとdragを分け、終了時に保存可能へ戻る",()=>{
+ const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf('  const move = host.querySelector("[data-lens-move]")'),b=html.indexOf('  cur = timeIndex(selectedAt); draw(cur);',a),code="{ "+html.slice(a,b)+" }";
+ for(const frame of [null,{halfH:6}]){
+  let taps=0,changes=0,draws=0;const move={setAttribute(){}},center={},hint={},host={_pick:null,_lensOffset:[0,0],querySelector:q=>q.includes("hint")?hint:q.includes("center")?center:move};
+  const cv={style:{},onclick:()=>taps++,setPointerCapture(){},dispatchEvent(){changes++}};
+  const c=vm.createContext({host,cv,frame,panLimit:1,W:300,H:300,k:10,groundEdge:frame?214:250,cur:43,navigator:{},Math,Event,Map,aimLookRender(){},aimReverseClear(){},draw:()=>draws++,spec:{}});
+  vm.runInContext(code,c);
+  assert.equal(cv.style.touchAction,"none");assert.equal(host._lensMoving,false);assert.equal(center.disabled,false);
+  for(const [x,y] of [[60,0],[-60,0],[0,60],[0,-60]]){
+   center.onclick();cv.onpointerdown({pointerId:1,clientX:100,clientY:100,button:0});cv.onpointermove({pointerId:1,clientX:100+x,clientY:100+y});
+   assert(host._lensGesture.points.size);cv.onpointerup({pointerId:1});cv.onclick({});
+   assert.equal(host._lensGesture.points.size,0);assert.equal(taps,0);assert.equal(Math.sign(host._lensOffset[0]),Math.sign(x));assert.equal(Math.sign(host._lensOffset[1]),Math.sign(y));
+  }
+  cv.onpointerdown({pointerId:1,clientX:100,clientY:100,button:0});cv.onpointermove({pointerId:1,clientX:101,clientY:101});cv.onpointerup({pointerId:1});cv.onclick({});assert.equal(taps,1);
+  const old=changes;cv.onkeydown({key:"ArrowRight",preventDefault(){}});assert.equal(changes,old+1);assert(changes>=5);assert(draws>0);assert.equal(c.cur,43);
+ }
+});

@@ -3168,13 +3168,13 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(/時刻は図の下のoutputだけに表示/.test(html), "時刻は図の下に統一し図内で見切れない");
   const lookSrc = html.slice(html.indexOf("async function aimLookRender"), html.indexOf("function aimLookPick("));
   // 2026-10-03: 通常は道のclick、枠移動モードだけpointerを使う。
-  ok(/cv\.onclick = /.test(lookSrc) && /host\._lensMoving && frame && !host\._pick/.test(lookSrc) && /data-look-range/.test(lookSrc), "道をさわるか、つまみで時刻を選ぶ（iPhone の指のタップは click で受ける）");
+  ok(/cv\.onclick = /.test(lookSrc) && /!host\._pick/.test(lookSrc) && /data-look-range/.test(lookSrc), "道をさわるか、つまみで時刻を選ぶ（iPhone の指のタップは click で受ける）");
   // 逆引き（2026-10-03 ユーザー「見え方の月とか太陽の位置を調整したら、それがどこら辺の座標で撮れるのか逆引きできる？」→「円盤を置く」）
   const pickSrc = html.slice(html.indexOf("function aimLookPick("), html.indexOf("let aimLookResize"));
   ok(/class="aim-body-move"/.test(html) && /\$\{bodyName\}を移動/.test(pickSrc) && /data-look-cancel/.test(html),
     "図内アイコンから天体の相対移動を開始できる（同じボタンで調整を終了）");
-  ok(/settings\.dataset\.cameraSettings/.test(html) && /content\.append\(move\)/.test(html) && !/composeIcon\.onclick/.test(html),
-    "2026-10-22: 構図移動は画角調整へ集約し、図内の独立移動アイコンを撤去");
+  ok(/settings\.dataset\.cameraSettings/.test(html) && /tools\.append\(center\)/.test(html) && !/composeIcon\.onclick/.test(html),
+    "2026-10-22: 図は常時直接移動でき、既存アイコンを中央復帰へ置換");
   ok(/調整を終了/.test(pickSrc) && /if\(editing\.ghost\)\{const success=await solve\(\)/.test(pickSrc) && /ok\.hidden = true;cancel\.hidden=true/.test(pickSrc)
     && !/st\.upAt = Date\.now\(\); show\(xyOf\(ev\)\); solve\(\)/.test(pickSrc) && !/show\(xyOf\(ev\)\); solve\(\); \};/.test(pickSrc),
     "2026-10-19: 円盤を置いただけでは解かず、同じ移動ボタンで終了時に解く。独立の確定/キャンセルは表示しない");

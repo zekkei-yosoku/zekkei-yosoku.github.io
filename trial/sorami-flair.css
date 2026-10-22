@@ -97,24 +97,10 @@ main:has(>#placeRow:not([hidden]))>#forecastBand{display:block}
 #aimLook .aim-frame-info.has-share>.aim-frame-times{flex:1 1 auto;min-width:0;margin:0}
 #aimLook .aim-frame-info.has-share>.aim-figure-share{margin:0 0 0 auto;flex:none}
 
-/* 2026-10-20 ユーザー「なんで触ってないボタンがズレるの?」：
-   2026-10-22 最新: 図内は全画面表示のみ。調整の入口は下の画角調整へ集約。
-   「対象を中央に」は図の右下に重ねる。2026-10-22: Undo・移動後の残像は廃止 */
+/* 2026-10-22: 図は指で直接移動。旧全画面の位置を中央復帰アイコンへ置換。 */
 #aimLook .preview-figure-tools{align-items:flex-end}
-#aimLook .aim-look-figure>.preview-compose{position:absolute;right:8px;bottom:8px;z-index:2;margin:0}
-
-/* 2026-10-22: ページ上で直接調整。全画面表示は任意で、下の日時の欄の上まで図を広げる。 */
-#aimLook .aim-look-figure:not(.look-full) .preview-full-close{display:none}
-#aimLook .aim-look-figure:not(.look-full) canvas{cursor:default}
-#aimLook .preview-expand{display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:12px;background:color-mix(in srgb,var(--card) 82%,transparent);color:var(--text);box-shadow:0 2px 10px #0004}
-#aimLook .aim-look-figure.look-full{position:fixed;left:0;right:0;top:0;bottom:var(--full-bottom,0);z-index:34;margin:0;border-radius:0;background:#05070d;padding-top:env(safe-area-inset-top);overflow:hidden}
-#aimLook .aim-look-figure.look-full canvas{width:100%;border-radius:0}
-#aimLook .look-full .preview-figure-tools{top:calc(10px + env(safe-area-inset-top))}
-#aimLook .look-full .preview-figure-tools>.preview-expand{display:none}
-#aimLook .look-full .preview-full-close{position:absolute;z-index:3;left:10px;top:calc(10px + env(safe-area-inset-top));display:flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border:0;border-radius:12px;background:var(--accent);color:var(--on-accent,#fff);font-weight:700;box-shadow:0 2px 10px #0005}
-#aimLook .look-full .preview-full-close[hidden]{display:none}
-#aimLook .look-full [data-look-pick][aria-pressed=false]{width:auto;display:flex;align-items:center;gap:6px;padding:0 12px}
-#aimLook .look-full [data-look-pick][aria-pressed=false]::after{content:"天体を動かす";font-size:12px;font-weight:600}
+#aimLook .aim-look-figure canvas{cursor:grab}
+#aimLook .preview-center{display:grid;place-items:center;width:44px;height:44px;min-height:44px;padding:0;border:0;border-radius:12px;background:color-mix(in srgb,var(--card) 82%,transparent);color:var(--text);box-shadow:0 2px 10px #0004}
 html.look-full-open,html.look-full-open body{overflow:hidden}
 .preview-camera-dialog .preview-air-title{margin:14px 0 4px;font-size:.81rem;color:var(--secondary)}
 
