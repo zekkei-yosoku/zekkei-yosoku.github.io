@@ -2,9 +2,25 @@
 (function(g){
 'use strict';
 const DAY=86400000,OFFSET=32400000;
-function decorate({footer,row,date,time,prev,next,more,track}){
+function decorate({footer,row,date,time,prev,next,more,track,now}){
  for(const [node,name] of [[footer,'tool-datetime-footer'],[row,'tool-datetime-row'],[date,'tool-datetime-date'],[time,'tool-datetime-time'],[prev,'tool-datetime-nav'],[next,'tool-datetime-nav'],[more,'tool-datetime-nav'],[track,'tool-datetime-track']])node?.classList.add(name);
  time?.parentElement?.classList.add('tool-datetime-clock');
+ if(time)keepTime(time);
+ if(now&&time&&!row.querySelector('.tool-datetime-now')){const clock=time.parentElement,tail=more&&more.parentElement===row?more:null;if(clock?.parentElement===row)row.insertBefore(clock,tail);row.insertBefore(nowButton(now),tail);}
+}
+// iPhone の時刻入力の「リセット」は欄を空にする。空の時刻は無いので、開く前の時刻へ戻す（2026-10-22 ユーザー「リセットの動きは適切ではない」）
+function keepTime(time){
+ let before='';
+ time.addEventListener('focus',()=>{before=time.value;});
+ time.addEventListener('change',e=>{if(time.value)return;e.stopImmediatePropagation();time.value=before;},true);
+}
+// 日付と時刻をまとめて今へ。時刻の横に時計の絵で置く（2026-10-22 ユーザー「ここに現在時刻に飛ぶボタンがあるといい」）
+function nowButton(onNow){
+ const b=document.createElement('button');b.type='button';b.className='tool-datetime-nav tool-datetime-now';
+ b.setAttribute('aria-label','現在の日時へ');b.title='現在の日時へ';
+ b.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.6 9.2A8 8 0 1 1 4 12"/><path d="M4.4 4.8v4.6H9"/><path d="M12 7.5V12l3 2"/></svg>';
+ b.onclick=()=>onNow(Date.now());
+ return b;
 }
 function wireScrub({track,range,enabled=()=>true}){
  let pointer=null,grab=0;
