@@ -25,8 +25,8 @@ test('日時・観測座標から月相SVGを生成し、テキスト用出力�
  const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
  const src=html.slice(html.indexOf('function iconFor('),html.indexOf('/// 月を撮る時刻',html.indexOf('function iconFor(')));
  let fail=false;const calls=[],place={latitude:35,longitude:139};
- const {iconFor,moonGlyphAt}=new Function('S','SoramiMoon','SoramiIcons','SoramiAstro','place',src+';return {iconFor,moonGlyphAt};')(S,M,I,{moon:(at,obs)=>{calls.push([at,obs]);if(fail)throw Error('missing');return {illuminatedFraction:.15,waxing:true};}},place);
+ const {iconFor,moonGlyphAt}=new Function('S','SoramiMoon','SoramiIcons','SoramiAstro','place','SoramiCalendarMoon',src+';return {iconFor,moonGlyphAt};')(S,M,I,{moon:(at,obs)=>{calls.push([at,obs]);if(fail)throw Error('missing');return {illuminatedFraction:.15,waxing:true};}},place,{markup:()=>'<img data-moon-state="fixture">'});
  assert.match(iconFor('moon',123),/data-pictogram="moon-phase"/);assert.equal(calls[0][0],123);assert.deepEqual(calls[0][1],{...place,elevation:0});
- assert.match(moonGlyphAt(123),/data-pictogram="moon-phase"/);assert.equal(iconFor('moon',123,{text:true}),M.phaseOf({illuminatedFraction:.15,waxing:true}).name);assert.match(iconFor('sunset'),/data-pictogram="sunset"/);
+ assert.match(moonGlyphAt(123),/<img data-moon-state=/);assert.equal(iconFor('moon',123,{text:true}),M.phaseOf({illuminatedFraction:.15,waxing:true}).name);assert.match(iconFor('sunset'),/data-pictogram="sunset"/);
  fail=true;assert.equal(iconFor('moon',123),I.icon('moon'));assert.equal(iconFor('unknown'),'');
 });

@@ -825,7 +825,7 @@ console.log("== 地点カードで探せると分かる（2026-10-01） ==");
 
 console.log("== 月を表すところは全部、その時の満ち欠け（2026-10-01） ==");
 {
-  ok(/const moonGlyphAt = \(atMs, observer\) => iconFor\("moon", atMs, \{ observer \}\)/.test(html), "月の形は1つの関数（iconFor と同じ仕組み）");
+  ok(/const moonGlyphAt = \(atMs, observer\) => iconFor\("moon", atMs, \{ observer, portrait: true \}\)/.test(html), "月の形は1つの関数（iconFor と同じ仕組み）");
   ok(!/MOON_FACES = \[/.test(html) && !/moonFace\(/.test(html), "光の帯も同じ仕組み（月齢の別の表を持たない）");
   // 画面に固定の 🌙 を書くのは、初期表示のボタンの文字だけ（開いたら満ち欠けに差し替える）
   const fixed = [...html.matchAll(/🌙/g)].length;

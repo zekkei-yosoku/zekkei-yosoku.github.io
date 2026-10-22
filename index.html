@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="7175789911558005794">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-dICIkWmwfI9PQQwho/Ptf9U8I5IOmsGX9lNR6017zno=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-S1E/ujAT+z8rjZ+qGsPBfB7j1+qoB9frVtlBHUWY3yw=' 'sha256-ZDKdBZRA1vjQZedpay1K2xzsxnS/09zlWiJcRcIpU6s=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="12884756645869046245">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-4JsKsqF4qLVUQSAa7j6F1hFtY/pmfS2KyCtJ2bzlz/8=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-S1E/ujAT+z8rjZ+qGsPBfB7j1+qoB9frVtlBHUWY3yw=' 'sha256-ZDKdBZRA1vjQZedpay1K2xzsxnS/09zlWiJcRcIpU6s=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -3305,7 +3305,7 @@ async function loadExtras() {
 /// 満月か細い月かは「行くかどうか」を左右するので、装飾ではなく識別の一部
 /// （04_デザイン定義「絵文字は現象の識別にだけ使う」）。
 /// 名前が隣にあるので、絵文字が日によって変わっても行は見分けられる。
-function iconFor(id, atMs, { text = false, observer = null } = {}) {
+function iconFor(id, atMs, { text = false, observer = null, portrait = false } = {}) {
   const meta = S.PHENOMENA[id];
   if (!meta) return '';
   if (id === "moon" && typeof SoramiMoon !== "undefined") {
@@ -3314,14 +3314,14 @@ function iconFor(id, atMs, { text = false, observer = null } = {}) {
       const obs = { latitude: point.latitude, longitude: point.longitude, elevation: 0 };
       const moon = SoramiAstro.moon(atMs ?? Date.now(), obs);
       if (text) return SoramiMoon.phaseOf(moon).name;
-      if (typeof SoramiCalendarMoon !== "undefined") return SoramiCalendarMoon.markup(moon);
+      if (portrait && typeof SoramiCalendarMoon !== "undefined") return SoramiCalendarMoon.markup(moon);
       return typeof SoramiIcons === "undefined" ? "月" : SoramiIcons.moon(moon);
     } catch { /* Keep an unquantified moon, never invent a phase. */ }
   }
   return text || typeof SoramiIcons === "undefined" ? (id === "moon" ? "月" : meta.icon) : SoramiIcons.icon(id);
 }
 // Owned UI markup only. Text exports use iconFor(..., {text:true}) for phase names.
-const moonGlyphAt = (atMs, observer) => iconFor("moon", atMs, { observer });
+const moonGlyphAt = (atMs, observer) => iconFor("moon", atMs, { observer, portrait: true });
 /// 月を撮る時刻の空の明るさの手がかり。「日の入の25分後 ・ 月の出の1時間10分後」
 /// （2026-10-01 ユーザー「月系は空の明るさが重要だから、日の出何分後とか月の出何分後とかの情報をサクッと書いておいてほしい」）。
 /// 太陽は前後6時間の日の出入りからの差（20時台でも「日の入の3時間27分後」と言える。真夜中だけ「夜のまんなか」）、
