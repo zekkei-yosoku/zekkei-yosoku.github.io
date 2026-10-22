@@ -8,7 +8,7 @@ const html=readFileSync(new URL("./index.html",import.meta.url),"utf8");
 const code=html.slice(html.indexOf("const aimCal ="),html.indexOf("async function aimSetCustomTarget"));
 function setup(al=AL){
  const els=new Map(), buttons=[];
- const $=id=>{if(!els.has(id))els.set(id,{style:{},value:"",innerHTML:"",textContent:"",open:true,setAttribute(k,v){this[k]=v},querySelectorAll(){return buttons},addEventListener(){},focus(){},close(){this.open=false}});return els.get(id)};
+ const $=id=>{if(!els.has(id))els.set(id,{style:{},value:"",innerHTML:"",textContent:"",open:true,setAttribute(k,v){this[k]=v},querySelectorAll(selector){return selector==="[data-cal-moon]"?[]:buttons},addEventListener(){},focus(){},close(){this.open=false}});return els.get(id)};
  const aim={dayMs:Date.parse("2026-12-22T00:00:00+09:00"),body:"sun",partId:"summit",target:AL.targetById("fuji"),candSide:"set",spot:{}};
  const c=vm.createContext({aimShootingView:async()=>null,candidateWaitMarkup:()=>"待機中",SoramiAtmosphere:{dataKey:()=>"standard"},SoramiTerrain:{decksFor:()=>null},SoramiBodies:globalThis.SoramiBodies,SoramiMoon:MOON,$,aim,S,SoramiAlign:al,SoramiShooting:require("./sorami-shooting.js"),Date,Map,Number,String,Array,JSON,Error,Math,Promise,setTimeout,esc:s=>s.replaceAll('"','&quot;'),aimIsMountain:t=>t?.id!=="skytree",aimSideName:s=>s==="set"?"日の入":"日の出",aimFromPoint:()=>c.fromOverride||({name:"高尾山",latitude:35.6252,longitude:139.2436}),aimElevation:async()=>599,showSheet:e=>{e.open=true},aimCandidateMatch:e=>Number.isFinite(e.gap)&&Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0)),aimApply:()=>{c.applied=true}});
  vm.runInContext(readFileSync(new URL("./sorami-datetime-ui.js",import.meta.url),"utf8"),c);

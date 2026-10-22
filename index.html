@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="1951170479112498441">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-3UfMzAI28SY9ViD0Hp5vJ8pIgwj9VutfZ5Ugk4vQ2eI=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-S1E/ujAT+z8rjZ+qGsPBfB7j1+qoB9frVtlBHUWY3yw=' 'sha256-fuayCfGueOEEsICEl3S+mJ5JeeVWfQBU3czKmTxmibs=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="4652970350873828619">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-F4dN4Fb+6f00qVG1pPBWjpJ5wANz13YhphWRfN2xxqo=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-S1E/ujAT+z8rjZ+qGsPBfB7j1+qoB9frVtlBHUWY3yw=' 'sha256-fuayCfGueOEEsICEl3S+mJ5JeeVWfQBU3czKmTxmibs=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -44,6 +44,7 @@
 <link data-script-preload rel="preload" as="script" href="sorami-assets.js?v=2324625497146189621">
 <link data-script-preload rel="preload" as="script" href="sorami-solar-terms.js?v=4218489875242444556">
 <link data-script-preload rel="preload" as="script" href="sorami-sun-portrait.js?v=16548809566942201294">
+<link data-script-preload rel="preload" as="script" href="sorami-body-portrait.js?v=15049878113347164260">
 <link data-script-preload rel="preload" as="script" href="sorami-access.js?v=7730186755277214891">
 <link data-script-preload rel="preload" as="script" href="sorami-align.js?v=18362427956346772136">
 <link data-script-preload rel="preload" as="script" href="sorami-moon.js?v=10230678456179898054">
@@ -799,6 +800,7 @@
   .aim-cal-grid button[aria-current="date"] { box-shadow: inset 0 0 0 1px var(--accent); }
   .aim-cal-grid button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
   .aim-cal-grid button[aria-pressed="true"] .aim-cal-mark { color: var(--on-accent); }
+  .aim-cal-moon { width: 18px; height: 18px; vertical-align: middle; }
   #aimCalStatus { min-height: 22px; margin-top: 10px; }
   .aim-cal-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; }
   .aim-cal-foot button { width: auto; padding: 8px 16px; flex: 0 0 auto; white-space: nowrap; }
@@ -2470,10 +2472,11 @@ button.ui-icon-button::after { content: none; }
 
 <script src="sorami-assets.js?v=2324625497146189621"></script>
 <script src="sorami-home-time.js?v=10997162108071117525dc4abfcf7"></script>
-<script src="sorami-moon-portrait.js?v=18023309507494697202f724418b"></script>
+<script src="sorami-moon-portrait.js?v=9412453992674106394f724418b"></script>
 <script src="sorami-lunar-names.js?v=ce5d7091f2bc"></script>
 <script src="sorami-solar-terms.js?v=4218489875242444556"></script>
 <script src="sorami-sun-portrait.js?v=16548809566942201294"></script>
+<script src="sorami-body-portrait.js?v=15049878113347164260"></script>
 <script src="sorami-almanac-dashboard.js?v=11380390828679918324f319d8436b"></script>
 <script src="sorami-access.js?v=7730186755277214891"></script>
 <script src="sorami-align.js?v=18362427956346772136"></script>
@@ -8344,12 +8347,18 @@ function aimCalGridHtml(year, month, events, selected, today) {
     // 候補日はその時刻、他の日はJST正午の月の形。既存の月相判定を使う。
     const phase = aim.body === "moon" && aimFromPoint() ? SoramiMoon.phaseOf(SoramiBodies.state("moon", rows[0]?.at ?? at + 12 * 3600000, { ...aimFromPoint(), elevation: 0 })) : null;
     const label = `${year}年${month + 1}月${d}日${phase ? "、" + phase.name : ""}${rows.length ? (solid ? "、重なる日、" : "、近くを通る日、") + rows.map((e) => `${aimSideName(e.side)} ${S.JstCal.hhmm(e.at)}${!SoramiBodies.definition(aim.body).limbs ? " " + SoramiBodies.sky(e.sunAltitude) : ""}`).join("、") : ""}`;
-    html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span><span class="aim-cal-mark"${phase ? " data-moon-phase" : ""} aria-hidden="true">${phase ? phase.glyph + " " : ""}${rows.length ? (solid ? "●" : "○") : ""}</span>${rows.length ? `<span class="aim-cal-time">${S.JstCal.hhmm(rows[0].at)}</span><span class="aim-cal-sky">${!SoramiBodies.definition(aim.body).limbs ? SoramiBodies.sky(rows[0].sunAltitude) : ""}</span>` : ""}</button>`;
+    html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span><span class="aim-cal-mark"${phase ? " data-moon-phase" : ""} aria-hidden="true">${phase ? '<canvas class="aim-cal-moon" width="40" height="40" data-cal-moon="'+(rows[0]?.at ?? at + 12 * 3600000)+'"></canvas> ' : ""}${rows.length ? (solid ? "●" : "○") : ""}</span>${rows.length ? `<span class="aim-cal-time">${S.JstCal.hhmm(rows[0].at)}</span><span class="aim-cal-sky">${!SoramiBodies.definition(aim.body).limbs ? SoramiBodies.sky(rows[0].sunAltitude) : ""}</span>` : ""}</button>`;
   }
   return html;
 }
 function aimCalDraw() {
   $("aimCalGrid").innerHTML = aimCalGridHtml(aimCal.year, aimCal.month, aimCal.events, aim.dayMs, Date.now());
+  const moonObserver=aimFromPoint();
+  if(aim.body==="moon"&&moonObserver)for(const canvas of $("aimCalGrid").querySelectorAll("[data-cal-moon]")){
+    const state=SoramiBodies.state("moon",+canvas.dataset.calMoon,{...moonObserver,elevation:0});
+    const paint=()=>{if(canvas.isConnected&&$("aimCalendar").open){const image=SoramiCalendarMoon.request(state,paint);canvas.getContext("2d").drawImage(image.canvas,0,0,40,40);canvas.dataset.portraitStatus=image.status;}};
+    paint();
+  }
   for (const button of $("aimCalGrid").querySelectorAll("[data-cal-day]")) button.onclick = () => {
     const day = +button.dataset.calDay, rows = aimCal.events.get(day) || [];
     const event = rows.find((e) => e.side === aim.candSide) || rows[0];
