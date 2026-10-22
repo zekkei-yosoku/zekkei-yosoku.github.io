@@ -3,7 +3,7 @@
 'use strict';
 const $=id=>document.getElementById(id),mapView=$('skyMapView'),aimView=$('aimView'),look=$('aimLook');
 let mounted=false,mode='scene',epoch=0,scheduled=false,forceNext=false,frameKey='',pendingKey='',routing=false,intent=false;
-let aimHome=null,aimChildren=[],mapHomes=[],buffer=null,workspaceHome=null;
+let aimHome=null,aimChildren=[],mapHomes=[],buffer=null,workspaceHome=null,heightWasOpen=false,heightFields=null;
 const eligible=()=>screenAllowed('skymap')&&screenAllowed('framing');
 const active=()=>mounted&&atSkyMap&&!mapView.hidden&&eligible()&&!document.hidden;
 const node=(tag,props={},text)=>{const n=document.createElement(tag);Object.assign(n,props);if(text)n.textContent=text;return n;};
@@ -22,7 +22,7 @@ function menu(){
  else{f.dataset.tool='#/aim/tower';m.dataset.tool='#/skymap';m.querySelector('b').lastChild.textContent='地図';m.querySelector('span').textContent='撮影地点からの天体の方向と高度を調べる';}
 }
 function mount(){
- if(mounted)return;mounted=true;mapView.classList.add('explore-mounted');
+ if(mounted)return;mounted=true;heightWasOpen=$('skyMapObserverDetails').open;$('skyMapObserverDetails').open=true;mapView.classList.add('explore-mounted');heightFields=node('div',{id:'exploreHeightFields'});const heights=$('skyMapObserverDetails');for(const row of heights.querySelectorAll('.aim-observer-height'))heightFields.append(row);heights.insertBefore(heightFields,$('skyMapHeightError'));
  const candidates=mapView.querySelector('.sky-map-candidates');candidates.after(tabs,scene,map);
  aimHome={parent:aimView.parentNode,next:aimView.nextSibling};
  const workspace=aimView.querySelector('.preview-workspace');workspaceHome={node:workspace,parent:workspace.parentNode,next:workspace.nextSibling};aimView.append(workspace);
@@ -36,7 +36,7 @@ function mount(){
  $('skyMapTitle').textContent='探す';choose(mode);
 }
 function unmount(){
- if(!mounted)return;invalidate();mounted=false;
+ if(!mounted)return;invalidate();mounted=false;$('skyMapObserverDetails').open=heightWasOpen;for(const row of [...heightFields.children])heightFields.before(row);heightFields.remove();heightFields=null;scene.style.minHeight='';scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');
  for(const h of [...mapHomes].reverse())h.parent.insertBefore(h.n,h.next?.parentNode===h.parent?h.next:null);
  for(const child of aimChildren)aimView.append(child);
  buffer.remove();workspaceHome.parent.insertBefore(workspaceHome.node,workspaceHome.next?.parentNode===workspaceHome.parent?workspaceHome.next:null);aimHome.parent.insertBefore(aimView,aimHome.next?.parentNode===aimHome.parent?aimHome.next:null);
@@ -47,7 +47,7 @@ function choose(next,focus=false){
  mode=next==='map'?'map':'scene';
  for(const [tab,pane,name] of [[sceneTab,scene,'scene'],[mapTab,map,'map']]){const on=mode===name;tab.setAttribute('aria-selected',String(on));tab.tabIndex=on?0:-1;pane.hidden=!on;if(on&&focus)tab.focus();}
  mapView.dataset.exploreMode=mode;
- if(mode==='map'){if(pendingKey)invalidate();scene.removeAttribute('data-loading');SkyMapUI.redraw();}
+ if(mode==='map'){if(pendingKey)invalidate();scene.style.minHeight='';scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');SkyMapUI.redraw();}
  else sync();
 }
 sceneTab.onclick=()=>choose('scene');mapTab.onclick=()=>choose('map');
@@ -57,19 +57,20 @@ function project(s){
  aim.candPick=null;aim.wantSpot=null;aim.spot=null;aim.plannerTransfer=null;aimAirCompare=null;
  $('aimDate').value=new Date(s.at+32400000).toISOString().slice(0,10);$('aimBody').value=s.body;
 }
+function reserveScene(){const h=scene.getBoundingClientRect().height;if(h>0)scene.style.minHeight=h+'px';}
 function message(text){status.textContent=text;status.hidden=!text;retry.hidden=!text.includes('再試行');}
 async function paint(force=false){
  if(!active())return;let s;
- try{s=snapshot();}catch{invalidate();look.hidden=true;scene.removeAttribute('data-loading');message(SkyMapUI.snapshot()?.observer?'対象と日時を選ぶと見え方を確認できます':'撮影地点を選ぶと見え方を確認できます');return;}
+ try{s=snapshot();}catch{invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message(SkyMapUI.snapshot()?.observer?'対象と日時を選ぶと見え方を確認できます':'撮影地点を選ぶと見え方を確認できます');return;}
  const key=stamp(s);
  if(mode!=='scene'){if(frameKey&&frameKey!==key)invalidate();return;}
- if(!canFrame(s)){invalidate();look.hidden=true;message('この条件の見え方を利用する権限がありません');return;}
+ if(!canFrame(s)){invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message('この条件の見え方を利用する権限がありません');return;}
  if(pendingKey===key&&!force)return;
  if(!force&&frameKey===key&&look._uiTime&&!look.hidden){
   if(Math.abs(look._lookAt-s.at)>.5)look._uiTime.set(s.at);
   const cv=look.querySelector('[data-look-canvas]');if(cv&&Math.round(cv.clientWidth)===look._lookW){message('');return;}
  }
- invalidate();const run=epoch;pendingKey=key;project(s);look.hidden=true;scene.dataset.loading='true';scene.setAttribute('aria-busy','true');message('見え方を計算中…');
+ reserveScene();invalidate();const run=epoch;pendingKey=key;project(s);look.hidden=true;scene.dataset.loading='true';scene.setAttribute('aria-busy','true');message('見え方を計算中…');
  try{
   await SoramiAssets.ensureModels();await SoramiBodies.ensure(s.body);
   if(run!==epoch||!active()||mode!=='scene'||stamp(snapshot())!==key)return;
@@ -81,7 +82,7 @@ async function paint(force=false){
   const latest=snapshot();if(Math.abs(look._lookAt-latest.at)>.5)look._uiTime?.set(latest.at);
   frameKey=key;message('');
  }catch(e){if(run===epoch&&active()){look.hidden=true;message('見え方を計算できませんでした。条件を確認して再試行してください');}}
- finally{if(run===epoch){pendingKey='';scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');}}
+ finally{if(run===epoch){pendingKey='';scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');if(!look.hidden)scene.style.minHeight='';}}
 }
 function sync(force=false){
  forceNext=forceNext||force;if(scheduled)return;scheduled=true;
@@ -107,10 +108,19 @@ function assertScene(){SkyMapUI.shareState();const s=snapshot();if(!active()||mo
 const style=node('style');style.textContent=
 '#skyMapView.explore-mounted .sky-map-head::before{content:"EXPLORE" / "";--kw:6.6em}'+
 '.explore-tabs{margin:14px 0 12px;max-width:780px}.explore-tabs button{min-height:44px}'+
+'#skyMapView.explore-mounted #skyMapObserverDetails:not([hidden]){padding:8px 0 10px}'+
+'#exploreHeightFields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}'+
+'#skyMapView.explore-mounted #skyMapObserverDetails>summary{display:none}'+
+'#skyMapView.explore-mounted #skyMapObserverDetails .aim-observer-height{display:grid;grid-template-columns:minmax(0,1fr) auto 44px;gap:4px;min-width:0;margin:0}'+
+'#skyMapView.explore-mounted #skyMapObserverDetails .aim-observer-height label{grid-column:1/-1}'+
+'#skyMapView.explore-mounted #skyMapObserverDetails .aim-observer-height input{width:100%;min-width:0;padding:8px 4px;font-size:16px}'+
+'#skyMapView.explore-mounted #skyMapHeightError{grid-column:1/-1}'+
 '#exploreScenePanel,#exploreMapPanel{max-width:780px;min-width:0}#exploreScenePanel[hidden],#exploreMapPanel[hidden]{display:none!important}'+
 '#exploreScenePanel[data-loading=true] #aimLook{visibility:hidden;pointer-events:none}'+
 '#exploreScenePanel #aimView .preview-workspace{margin:0;max-width:none}#exploreScenePanel #previewScene:before{display:none}'+
 '#exploreScenePanel #aimView{padding:0}#exploreScenePanel #aimView .aim-look{margin:0}'+
+'#skyMapView.explore-mounted #shootingCandidatesOpen,#skyMapView.explore-mounted #shootingCandidateStatus{display:none!important}'+
+'.explore-mounted[data-explore-mode=scene] #mySkyPlaces .my-head{display:none!important}'+
 '.explore-mounted[data-explore-mode=scene] #skyMapBodyBar,.explore-mounted[data-explore-mode=scene] #shootingPins{display:none!important}'+
 'main:has(>#skyMapView.explore-mounted){max-width:1000px}';
 document.head.append(style);
