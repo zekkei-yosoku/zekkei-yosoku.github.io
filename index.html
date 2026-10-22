@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="13249663407974093711">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-vGKW+pez6dmwtbxp+Xo7hH/1tZfDG2L0V0L+7BdwMH4=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-9w5+qL15Q59Dm37KyCsj9COmuY11vVsKMcsnQeKfIqc=' 'sha256-fuayCfGueOEEsICEl3S+mJ5JeeVWfQBU3czKmTxmibs=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="1603210299058244093">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-nJmeFidV1+5r0VZofexMslN6zkcFBLzHFDiDH6ExycI=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-VO8d48YCZQ6fvzcvG37C2ohEpXeAJqIUzYlORtjGboE=' 'sha256-fuayCfGueOEEsICEl3S+mJ5JeeVWfQBU3czKmTxmibs=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -8416,13 +8416,61 @@ function aimCalMove(offset) {
   aimCal.year = date.getUTCFullYear(); aimCal.month = date.getUTCMonth();
   aimCalRender();
 }
+// Only the date grid handles month/year swipes; controls and the left-edge back gesture keep their existing behavior.
+function mountAimCalendarSwipe(grid, move, isOpen, now = () => Date.now()) {
+  grid.style.touchAction = "none";
+  let gesture = null, suppressUntil = 0, canceled = false;
+  const reset = () => { gesture = null; suppressUntil = 0; canceled = false; };
+  grid.addEventListener("touchstart", e => {
+    if (!isOpen() || e.touches.length !== 1) { canceled = true; suppressUntil = now() + 500; gesture = null; return; }
+    const t = e.touches[0];
+    if (t.clientX <= 28) { gesture = null; return; }
+    suppressUntil = 0; canceled = false;
+    gesture = { id: t.identifier, x: t.clientX, y: t.clientY, axis: null };
+  }, { passive: true });
+  grid.addEventListener("touchmove", e => {
+    if (!gesture) return;
+    if (!isOpen() || e.touches.length !== 1) { suppressUntil = now() + 500; canceled = true; gesture = null; return; }
+    const t = Array.from(e.touches).find(t => t.identifier === gesture.id);
+    if (!t) { gesture = null; return; }
+    const dx = Math.abs(t.clientX - gesture.x), dy = Math.abs(t.clientY - gesture.y);
+    if (!gesture.axis && Math.max(dx, dy) >= 12) {
+      if (dx >= dy * 1.35) gesture.axis = "x";
+      else if (dy >= dx * 1.35) gesture.axis = "y";
+      else { suppressUntil = now() + 500; canceled = true; gesture = null; return; }
+    }
+    if (gesture.axis && e.cancelable) e.preventDefault();
+  }, { passive: false });
+  grid.addEventListener("touchend", e => {
+    const g = gesture; gesture = null;
+    if (!g || !isOpen()) { if (canceled) suppressUntil = now() + 500; return; }
+    const t = Array.from(e.changedTouches).find(t => t.identifier === g.id);
+    if (!t || e.touches.length) return;
+    const dx = t.clientX - g.x, dy = t.clientY - g.y;
+    if (!g.axis) return;
+    suppressUntil = now() + 500;
+    if (e.cancelable) e.preventDefault();
+    const along = g.axis === "x" ? dx : dy, across = g.axis === "x" ? dy : dx;
+    if (Math.abs(along) < 40 || Math.abs(along) < Math.abs(across) * 1.35) return;
+    move((along < 0 ? 1 : -1) * (g.axis === "x" ? 1 : 12));
+  }, { passive: false });
+  grid.addEventListener("touchcancel", () => { if (gesture || canceled) suppressUntil = now() + 500; gesture = null; canceled = true; }, { passive: true });
+  grid.addEventListener("click", e => {
+    if (now() < suppressUntil) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+  return reset;
+}
+const resetAimCalSwipe = mountAimCalendarSwipe($("aimCalGrid"), offset => {
+  $("aimCalGrid").dispatchEvent(new Event("change", { bubbles: true }));
+  aimCalMove(offset);
+}, () => $("aimCalendar").open);
 $("aimCalendarOpen").onclick = () => {
   const date = new Date((aim.dayMs ?? Date.now()) + 9 * 3600000);
   aimCal.year = date.getUTCFullYear(); aimCal.month = date.getUTCMonth();
   showSheet($("aimCalendar")); aimCalRender();
 };
 $("aimCalClose").onclick = () => $("aimCalendar").close();
-$("aimCalendar").addEventListener("close", () => { aimCal.seq++; $("aimCalendarOpen").focus({ preventScroll: true }); });
+$("aimCalendar").addEventListener("close", () => { aimCal.seq++; resetAimCalSwipe(); $("aimCalendarOpen").focus({ preventScroll: true }); });
 $("aimCalPrev").onclick = () => aimCalMove(-1);
 $("aimCalNext").onclick = () => aimCalMove(1);
 for (const id of ["aimCalYear", "aimCalMonth"]) $(id).onchange = () => {
@@ -13461,6 +13509,7 @@ function uiVisualChoices(select, kind) {
  reference.onclick=()=>{const state=look._uiTime;if(state){look._uiAllDay=false;state.window();state.set(state.reference);}if(timeDialog.open)timeDialog.close();};
  const calChoices=document.createElement('div');calChoices.className='preview-calendar-choices';calChoices.hidden=true;el('aimCalGrid').after(calChoices);
  const hideCalChoices=()=>{calChoices.hidden=true;calChoices.replaceChildren();};
+ el('aimCalGrid').addEventListener('change',hideCalChoices);
  for(const id of ['aimCalPrev','aimCalNext','aimCalYear','aimCalMonth','aimCalToday'])el(id).addEventListener(id==='aimCalYear'||id==='aimCalMonth'?'change':'click',hideCalChoices);
  const timeContext=()=>`${aim.body}|${aim.target?.id}|${aim.partId}|${JSON.stringify(aimFromPoint())}`;
  el('aimCalendar').addEventListener('close',()=>{calChoices.hidden=true;calChoices.replaceChildren();});

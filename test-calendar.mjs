@@ -8,7 +8,7 @@ const html=readFileSync(new URL("./index.html",import.meta.url),"utf8");
 const code=html.slice(html.indexOf("const aimCal ="),html.indexOf("async function aimSetCustomTarget"));
 function setup(al=AL){
  const els=new Map(), buttons=[];
- const $=id=>{if(!els.has(id))els.set(id,{value:"",innerHTML:"",textContent:"",open:true,setAttribute(k,v){this[k]=v},querySelectorAll(){return buttons},addEventListener(){},focus(){},close(){this.open=false}});return els.get(id)};
+ const $=id=>{if(!els.has(id))els.set(id,{style:{},value:"",innerHTML:"",textContent:"",open:true,setAttribute(k,v){this[k]=v},querySelectorAll(){return buttons},addEventListener(){},focus(){},close(){this.open=false}});return els.get(id)};
  const aim={dayMs:Date.parse("2026-12-22T00:00:00+09:00"),body:"sun",partId:"summit",target:AL.targetById("fuji"),candSide:"set",spot:{}};
  const c=vm.createContext({aimShootingView:async()=>null,candidateWaitMarkup:()=>"待機中",SoramiAtmosphere:{dataKey:()=>"standard"},SoramiTerrain:{decksFor:()=>null},SoramiBodies:globalThis.SoramiBodies,SoramiMoon:MOON,$,aim,S,SoramiAlign:al,SoramiShooting:require("./sorami-shooting.js"),Date,Map,Number,String,Array,JSON,Error,Math,Promise,setTimeout,esc:s=>s.replaceAll('"','&quot;'),aimIsMountain:t=>t?.id!=="skytree",aimSideName:s=>s==="set"?"日の入":"日の出",aimFromPoint:()=>c.fromOverride||({name:"高尾山",latitude:35.6252,longitude:139.2436}),aimElevation:async()=>599,showSheet:e=>{e.open=true},aimCandidateMatch:e=>Number.isFinite(e.gap)&&Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0)),aimApply:()=>{c.applied=true}});
  vm.runInContext(html.slice(html.indexOf('function aimObserverEye('),html.indexOf('aim.from = aimSavedFrom'))+code+';this.cal=aimCal;this.rows=aimCalRows;this.grid=aimCalGridHtml;this.solid=aimCalSolid;this.render=aimCalRender;this.draw=aimCalDraw;',c);
@@ -88,4 +88,37 @@ test('指定なしの月カレンダーは円盤接触を採用し、縁指定�
  c.cal.year=2026;c.cal.month=9;aim.matchMode='overlap';await c.render();assert.equal(broad,31);assert.equal(c.cal.events.size,31);assert.match($('aimCalStatus').textContent,/重なる日 31日/);
  aim.matchMode='limb';await c.render();assert.equal(fine,1);assert.equal(c.cal.events.size,0);
  aim.matchMode='overlap';await c.render();assert.equal(broad,31);assert.equal(c.cal.events.size,31);
+});
+
+function swipeFixture() {
+ const a=html.indexOf("function mountAimCalendarSwipe("),b=html.indexOf("const resetAimCalSwipe",a),listeners={};let clock=1000,open=true;const moves=[];
+ const grid={style:{},addEventListener:(type,fn)=>listeners[type]=fn};const c=vm.createContext({Date,Array});vm.runInContext(html.slice(a,b)+";this.mount=mountAimCalendarSwipe;",c);const reset=c.mount(grid,n=>moves.push(n),()=>open,()=>clock);
+ const touch=(x,y,id=1)=>({clientX:x,clientY:y,identifier:id});
+ const fire=(type,touches=[],changedTouches=[])=>{const e={touches,changedTouches,cancelable:true,preventDefault(){this.prevented=true},stopImmediatePropagation(){this.stopped=true}};listeners[type](e);return e};
+ const swipe=(dx,dy)=>{fire('touchstart',[touch(150,200)]);fire('touchmove',[touch(150+dx,200+dy)]);return fire('touchend',[],[touch(150+dx,200+dy)])};
+ return {grid,moves,reset,fire,swipe,touch,advance:n=>clock+=n,setOpen:v=>open=v};
+}
+test("見た目を変えず日付gridの左右は月・上下は年、gesture一回につき一回だけ移動",()=>{
+ const f=swipeFixture();assert.equal(f.grid.style.touchAction,"none");
+ for(const [dx,dy,offset] of [[-80,0,1],[80,0,-1],[0,-80,12],[0,80,-12]]){
+  const n=f.moves.length;assert(f.swipe(dx,dy).prevented);assert.deepEqual(f.moves.slice(n),[offset]);assert(f.fire('click').stopped);
+  f.fire('touchend',[],[f.touch(70,200)]);assert.equal(f.moves.length,n+1);
+ }
+});
+test("tap/短距離/斜め/2指/cancel/左端/閉じた画面で年月を誤変更しない",()=>{
+ const f=swipeFixture();
+ f.fire('touchstart',[f.touch(150,200)]);f.fire('touchmove',[f.touch(152,202)]);f.fire('touchend',[],[f.touch(152,202)]);assert(!f.fire('click').stopped);assert.deepEqual(f.moves,[]);
+ f.swipe(-25,0);assert(f.fire('click').stopped);assert.deepEqual(f.moves,[]);
+ f.reset();f.fire('touchstart',[f.touch(150,200)]);f.fire('touchmove',[f.touch(70,120)]);f.advance(2000);f.fire('touchend',[],[f.touch(70,120)]);assert(f.fire('click').stopped);assert.deepEqual(f.moves,[]);
+ f.reset();f.fire('touchstart',[f.touch(150,200)]);f.fire('touchstart',[f.touch(150,200),f.touch(170,200,2)]);f.advance(2000);f.fire('touchend',[f.touch(150,200)],[f.touch(170,200,2)]);f.fire('touchend',[],[f.touch(70,200)]);assert(f.fire('click').stopped);assert.deepEqual(f.moves,[]);
+ f.reset();f.fire('touchstart',[f.touch(150,200)]);f.fire('touchmove',[f.touch(70,200)]);f.fire('touchcancel');f.fire('touchend',[],[f.touch(70,200)]);assert.deepEqual(f.moves,[]);
+ f.reset();f.fire('touchstart',[f.touch(20,200)]);assert(!f.fire('touchmove',[f.touch(120,200)]).prevented);f.fire('touchend',[],[f.touch(120,200)]);assert.deepEqual(f.moves,[]);
+ f.reset();f.setOpen(false);f.swipe(-80,0);assert.deepEqual(f.moves,[]);
+ f.setOpen(true);f.reset();assert(!f.fire('click').stopped);f.swipe(-80,0);f.advance(501);assert(!f.fire('click').stopped);
+ // A fresh deliberate tap immediately after a swipe remains available.
+ f.fire('touchstart',[f.touch(150,200)]);f.fire('touchend',[],[f.touch(150,200)]);assert(!f.fire('click').stopped);
+});
+test("月送りの年境界と年送りは選択中の日付を変更しない",()=>{
+ const {c,aim}=setup();const selected=aim.dayMs;c.cal.year=2027;c.cal.month=11;c.aimCalMove(1);assert.equal(c.cal.year,2028);assert.equal(c.cal.month,0);
+ c.aimCalMove(-1);assert.equal(c.cal.year,2027);assert.equal(c.cal.month,11);c.cal.month=1;c.aimCalMove(12);assert.equal(c.cal.year,2028);assert.equal(c.cal.month,1);c.aimCalMove(-12);assert.equal(c.cal.year,2027);assert.equal(c.cal.month,1);assert.equal(aim.dayMs,selected);
 });
