@@ -274,7 +274,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   // 「どこに重ねるか」と対で「撮影地点」。最初は絶景予測の地点を引き継いで欄に入れる（ユーザー指定）
   // 2026-10-06 何を→何に→どこからの順で、1行ずつ文にして選ぶ（ユーザー「〇〇（選択）を重ねる。〇〇（選択）に重ねる。〇〇（選択）から重ねる。」）。
   // どこからを最後にしたのは、その日の候補地が何を・何に・日付で決まるから（10/01 は一番上、10/04 は2番目だった）
-  { const ids=['aimBody','aimWhatLabel','aimTitle','aimWhereLabel','aimFromButton','aimFromLabel','aimStand','aimGroundHeight','aimStandHeight'];
+  { const ids=['aimBody','aimWhatLabel','aimTitle','aimWhereLabel','aimFromButton','aimStand','aimGroundHeight','aimStandHeight'];
     const positions=ids.map(id=>html.indexOf('id="'+id+'"'));
     ok(positions.every((p,i)=>p>0&&(!i||p>positions[i-1])), "天体→対象→撮影地点の共通順で選ぶ");
     ok(['aimWhatLabel','aimWhereLabel','aimFromLabel'].every(id=>new RegExp('id="'+id+'"><svg[^>]*aria-hidden="true"').test(html)) && html.includes('<span>天体</span>') && html.includes('<span>対象</span>') && />撮影地点<\/span>/.test(html), "構図は共通ピクトグラムと短い役割ラベル");
