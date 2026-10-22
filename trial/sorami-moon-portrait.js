@@ -41,11 +41,11 @@ function shade(base,size,f,angle){
 // 描く日時の首振り（librationLongitude/Latitude）と自転軸の向き（axisPositionAngle）で貼り直す。
 // 絵の月の北の向き PHOTO.theta は NASA SVS Dial-a-Moon の満月（2026-10-26 12:00 UTC）と照合して求めた（一致度 0.12→0.73）。NASA の画像は使っていない
 const PHOTO=Object.freeze({l:0.8898,b:-1.9765,theta:35.25});
-let globeKey=null,globeCanvas=null;
-function globe(pixels,l,b,P){
- const out=new Uint8ClampedArray(SIZE*SIZE*4),r=SIZE/2,a=-P*DEG,ca=Math.cos(a),sa=Math.sin(a),cb=Math.cos(b*DEG),sb=Math.sin(b*DEG);
+const globes=new Map();
+function globe(pixels,l,b,P,size=SIZE){
+ const out=new Uint8ClampedArray(size*size*4),r=size/2,a=-P*DEG,ca=Math.cos(a),sa=Math.sin(a),cb=Math.cos(b*DEG),sb=Math.sin(b*DEG);
  const cb0=Math.cos(PHOTO.b*DEG),sb0=Math.sin(PHOTO.b*DEG),ct=Math.cos(PHOTO.theta*DEG),st=Math.sin(PHOTO.theta*DEG);
- for(let py=0;py<SIZE;py++)for(let px=0;px<SIZE;px++){
+ for(let py=0;py<size;py++)for(let px=0;px<size;px++){
   const x=(px+.5-r)/r,y=-(py+.5-r)/r,rr=x*x+y*y;if(rr>=1)continue;
   const z=Math.sqrt(1-rr),xr=x*ca-y*sa,yr=x*sa+y*ca;
   const lat=Math.asin(Math.max(-1,Math.min(1,yr*cb+z*sb))),dl=(l-PHOTO.l)*DEG+Math.atan2(xr,z*cb-yr*sb);
@@ -53,19 +53,20 @@ function globe(pixels,l,b,P){
   // 写真に写っていない縁の外側（首振りで見える細い帯）は、写真の縁の色で埋める
   if(sl*sb0+cl*Math.cos(dl)*cb0<0){const h=Math.hypot(X,Y)||1;X*=.995/h;Y*=.995/h;}
   const u=X*ct-Y*st,v=X*st+Y*ct,fx=(u+1)/2*(SIZE-1),fy=(1-v)/2*(SIZE-1),x0=Math.floor(fx),y0=Math.floor(fy),tx=fx-x0,ty=fy-y0;
-  const x1=Math.min(SIZE-1,x0+1),y1=Math.min(SIZE-1,y0+1),o=(py*SIZE+px)*4;
+  const x1=Math.min(SIZE-1,x0+1),y1=Math.min(SIZE-1,y0+1),o=(py*size+px)*4;
   for(let k=0;k<3;k++){const p00=pixels[(y0*SIZE+x0)*4+k],p10=pixels[(y0*SIZE+x1)*4+k],p01=pixels[(y1*SIZE+x0)*4+k],p11=pixels[(y1*SIZE+x1)*4+k];
    out[o+k]=(p00*(1-tx)+p10*tx)*(1-ty)+(p01*(1-tx)+p11*tx)*ty;}
   out[o+3]=255;
  }
  return out;
 }
-function globeFor(surface,state){
+function globeFor(surface,state,size=SIZE){
  const l=Number.isFinite(state.librationLongitude)?state.librationLongitude:PHOTO.l,b=Number.isFinite(state.librationLatitude)?state.librationLatitude:PHOTO.b,P=Number.isFinite(state.axisPositionAngle)?state.axisPositionAngle:0;
- const key=[l,b,P].map(v=>v.toFixed(1)).join(',');
- if(globeKey!==key||!globeCanvas){globeCanvas=globeCanvas||document.createElement('canvas');globeCanvas.width=SIZE;globeCanvas.height=SIZE;
-  const c=globeCanvas.getContext('2d'),img=c.createImageData(SIZE,SIZE);img.data.set(globe(surface.pixels,l,b,P));c.putImageData(img,0,0);globeKey=key;}
- return globeCanvas;
+ const key=size+':'+[l,b,P].map(v=>v.toFixed(1)).join(',');
+ if(globes.has(key)){const c=globes.get(key);globes.delete(key);globes.set(key,c);return c;}
+ const canvas=document.createElement('canvas');canvas.width=size;canvas.height=size;
+ const c=canvas.getContext('2d'),img=c.createImageData(size,size);img.data.set(globe(surface.pixels,l,b,P,size));c.putImageData(img,0,0);
+ globes.set(key,canvas);while(globes.size>16)globes.delete(globes.keys().next().value);return canvas;
 }
 function source(){
  if(sourcePromise)return sourcePromise;
@@ -83,15 +84,16 @@ function source(){
   };image.onerror=()=>{if(done)return;done=true;clearTimeout(timer);reject(Error('Lunar surface unavailable'));};image.src='almanac-moon-surface-v1.png';
  }).catch(e=>{sourcePromise=null;throw e;});return sourcePromise;
 }
-async function draw(canvas,state){
- const token={};tokens.set(canvas,token);canvas.width=SIZE;canvas.height=SIZE;
+async function draw(canvas,state,{size=SIZE,detached=false}={}){
+ size=Math.max(16,Math.min(SIZE,Math.round(size)||SIZE));
+ const token={};tokens.set(canvas,token);canvas.width=size;canvas.height=size;
  let surface=null;try{surface=await source();}catch{/* A texture failure must not suppress the computed phase. */}
- if(tokens.get(canvas)!==token||canvas.isConnected===false)return {stale:true};
- const work=document.createElement('canvas');work.width=SIZE;work.height=SIZE;const ctx=work.getContext('2d',{willReadFrequently:true});
- ctx.save();ctx.translate(SIZE/2,SIZE/2);ctx.rotate((state.parallacticAngle||0)*DEG);
- if(surface)ctx.drawImage(globeFor(surface,state),-SIZE/2,-SIZE/2,SIZE,SIZE);
- else{ctx.fillStyle='#d1d0ca';ctx.beginPath();ctx.arc(0,0,SIZE/2,0,2*Math.PI);ctx.fill();}ctx.restore();
- const frame=ctx.getImageData(0,0,SIZE,SIZE);frame.data.set(shade(circularSurface(frame.data,SIZE),SIZE,state.illuminatedFraction,state.brightLimbZenithAngle));canvas.getContext('2d').putImageData(frame,0,0);
+ if(tokens.get(canvas)!==token||(!detached&&canvas.isConnected===false))return {stale:true};
+ const work=document.createElement('canvas');work.width=size;work.height=size;const ctx=work.getContext('2d',{willReadFrequently:true});
+ ctx.save();ctx.translate(size/2,size/2);ctx.rotate((state.parallacticAngle||0)*DEG);
+ if(surface)ctx.drawImage(globeFor(surface,state,size),-size/2,-size/2,size,size);
+ else{ctx.fillStyle='#d1d0ca';ctx.beginPath();ctx.arc(0,0,size/2,0,2*Math.PI);ctx.fill();}ctx.restore();
+ const frame=ctx.getImageData(0,0,size,size);frame.data.set(shade(circularSurface(frame.data,size),size,state.illuminatedFraction,state.brightLimbZenithAngle));canvas.getContext('2d').putImageData(frame,0,0);
  canvas.setAttribute('aria-label',`月の満ち欠け・輝面 ${(state.illuminatedFraction*100).toFixed(1)}%`);return {texture:!!surface};
 }
 const api={lightVector,incidence,circularSurface,shade,globe,PHOTO,draw};g.SoramiMoonPortrait=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;

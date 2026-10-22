@@ -28,13 +28,13 @@ function fallback(ctx) {
   disc.addColorStop(0, '#ffe896'); disc.addColorStop(0.55, '#fcb828'); disc.addColorStop(1, '#e07a10');
   ctx.fillStyle = disc; ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.fill();
 }
-async function draw(canvas) {
+async function draw(canvas, { detached = false } = {}) {
   const token = {}; tokens.set(canvas, token);
   canvas.width = SIZE; canvas.height = SIZE;
   const ctx = canvas.getContext('2d'); if (!ctx) return { texture: false };
   let image = null;
   try { image = await source(); } catch { /* 画像が無くても太陽は出す */ }
-  if (tokens.get(canvas) !== token || canvas.isConnected === false) return { stale: true };
+  if (tokens.get(canvas) !== token || (!detached && canvas.isConnected === false)) return { stale: true };
   ctx.clearRect(0, 0, SIZE, SIZE);
   if (image) ctx.drawImage(image, 0, 0, SIZE, SIZE); else fallback(ctx);
   return { texture: !!image };
