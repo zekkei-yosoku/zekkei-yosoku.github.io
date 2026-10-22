@@ -659,7 +659,7 @@ console.log("== 月の結果に日の出入り・月の出入りからの差（2
 {
   const uses = [
     ["パール富士（富士山の詳細）", /const twilight = isMoon \? lightTimingText\(e\.at, observerHere\(\)\) : "";/],
-    ["ねらう: 見え方の図の上の一行", /return \[`\$\{moonGlyphAt\(at\)\}\$\{lit\}`, lightTimingText\(at, o\)\]/],
+    ["ねらう: 見え方の図の上の一行", /return \[`\$\{iconFor\("moon", at, \{ text: true, observer: o \}\)\}\$\{lit\}`, lightTimingText\(at, o\)\]/],
     ["ねらう: 定番スポット", /lightTimingText\(e\.at, SoramiAlign\.spotObserver\(sp\)\)/],
     ["ねらう: その日の候補地（選んだ行）", /\(moon \? `<span class="tiny sub-line">\$\{esc\(lightTimingText\(c\.at, c\.stand\)\)\}<\/span>` : ""\)/],
     ["月丼: 一覧", /lightTimingText\(sp\.best\.at, sp\.spot\)/],
@@ -825,16 +825,16 @@ console.log("== 地点カードで探せると分かる（2026-10-01） ==");
 
 console.log("== 月を表すところは全部、その時の満ち欠け（2026-10-01） ==");
 {
-  ok(/const moonGlyphAt = \(atMs\) => iconFor\("moon", atMs, \{ text: true \}\)/.test(html), "月の形は1つの関数（iconFor と同じ仕組み）");
+  ok(/const moonGlyphAt = \(atMs, observer\) => iconFor\("moon", atMs, \{ observer \}\)/.test(html), "月の形は1つの関数（iconFor と同じ仕組み）");
   ok(!/MOON_FACES = \[/.test(html) && !/moonFace\(/.test(html), "光の帯も同じ仕組み（月齢の別の表を持たない）");
   // 画面に固定の 🌙 を書くのは、初期表示のボタンの文字だけ（開いたら満ち欠けに差し替える）
   const fixed = [...html.matchAll(/🌙/g)].length;
-  ok(/<option value="moon">月<\/option>/.test(html) && /\$\("issMoon"\)\.textContent = `\$\{moonGlyphAt\(/.test(html),
+  ok(/<option value="moon">月<\/option>/.test(html) && /\$\("issMoon"\)\.innerHTML = moonGlyphAt\(/.test(html),
     "天体選択は月の名前を表示し、ISS の月の切り替えはその日の月の形");
   ok(!/row\(e, i === 0 \? "パール富士" : "その次", "🌙"\)/.test(html), "富士山の詳細のパール富士の行も月の形");
-  ok(/\$\{moonGlyphAt\(e\.at\)\}\$\{Math\.round\(e\.illuminated \* 100\)\}%/.test(html) && /lit = ` 輝面 \$\{Math\.round\(SoramiAstro\.moon\(at, o\)\.illuminatedFraction \* 100\)\}%`/.test(html)
-    && /\$\{moon \? ` \$\{moonGlyphAt\(c\.at\)\}` : ""\}/.test(html), "重なる日の帯・見え方の一行・候補地に月の形（輝面は帯と一行）");
-  ok(/\$\{moonGlyphAt\(b\.at\)\} 月の輝面/.test(html) && /\$\{moonGlyphAt\(r\.at\)\} 輝面/.test(html), "月丼・ISS の輝面に月の形");
+  ok(/\$\{moonGlyphAt\(e\.at, plan\.observer \|\| plan\.from\)\}\$\{Math\.round\(e\.illuminated \* 100\)\}%/.test(html) && /lit = ` 輝面 \$\{Math\.round\(SoramiAstro\.moon\(at, o\)\.illuminatedFraction \* 100\)\}%`/.test(html)
+    && /\$\{moon \? ` \$\{moonGlyphAt\(c\.at, c\.stand\)\}` : ""\}/.test(html), "重なる日の帯・見え方の一行・候補地に月の形（輝面は帯と一行）");
+  ok(/\$\{moonGlyphAt\(b\.at, P\)\} 月の輝面/.test(html) && /\$\{moonGlyphAt\(r\.at, st \|\| r\.center\)\} 輝面/.test(html), "月丼・ISS の輝面に月の形");
   ok(fixed <= 4, `固定の 🌙 が増えていない（${fixed}か所）`);
 }
 

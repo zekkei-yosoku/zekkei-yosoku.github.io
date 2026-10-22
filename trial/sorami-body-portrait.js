@@ -1,4 +1,4 @@
-/* Calendar moon thumbnails only; framing and sun rendering remain unchanged. */
+/* Shared UI moon thumbnails; never the framing canvas. */
 (function(g){
 'use strict';
 const frames=new Map(),MAX=64,queue=[],watching=new WeakMap();let active=0;
@@ -31,5 +31,24 @@ function request(state,onReady){
  }});prune();pump();
  return entry;
 }
-g.SoramiCalendarMoon={request,stats:()=>({entries:frames.size,loading:[...frames.values()].filter(x=>x.status==='loading').length,max:MAX,active,queued:queue.length})};
+// Hydrate only generated numeric state, never arbitrary user text.
+const fields=['illuminatedFraction','brightLimbZenithAngle','parallacticAngle','librationLongitude','librationLatitude','axisPositionAngle'];
+function imageURL(e){if(e.urlStatus!==e.status){e.url=e.canvas.toDataURL();e.urlStatus=e.status;}return e.url;}
+function markup(state){
+ const values=fields.map(k=>Number.isFinite(state[k])?state[k]:0),e=request(state);
+ return '<img class="astro-icon moon-portrait" width="40" height="40" alt="月・輝面'+Math.round(values[0]*100)+'%" data-moon-state="'+values.join(',')+'" src="'+imageURL(e)+'">';
+}
+function hydrate(el){
+ if(el._moonState===el.dataset.moonState)return;
+ const key=el.dataset.moonState,values=key.split(',').map(Number);
+ if(values.length!==fields.length||!values.every(Number.isFinite)||values[0]<0||values[0]>1)return;
+ el._moonState=key;const state=Object.fromEntries(fields.map((k,i)=>[k,values[i]]));
+ const paint=()=>{if(!el.isConnected||el.dataset.moonState!==key)return;const e=request(state,paint);el.src=imageURL(e);el.dataset.portraitStatus=e.status;};paint();
+}
+function scan(node){if(node.nodeType!==1)return;if(node.matches('img[data-moon-state]'))hydrate(node);for(const el of node.querySelectorAll('img[data-moon-state]'))hydrate(el);}
+if(typeof MutationObserver!=='undefined'){
+ const observer=new MutationObserver(records=>{for(const r of records){if(r.type==='attributes')hydrate(r.target);else for(const n of r.addedNodes)scan(n);}});
+ observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['data-moon-state']});scan(document.documentElement);
+}
+g.SoramiCalendarMoon={request,markup,stats:()=>({entries:frames.size,loading:[...frames.values()].filter(x=>x.status==='loading').length,max:MAX,active,queued:queue.length})};
 })(typeof globalThis==='undefined'?window:globalThis);
