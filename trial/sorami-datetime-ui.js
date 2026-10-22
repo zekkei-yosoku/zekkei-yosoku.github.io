@@ -32,14 +32,71 @@ function dateText(button,at){
  main.className='preview-date-label';year.className='preview-date-year';year.textContent=iso.slice(0,4);slash.className='preview-date-year-sep';slash.textContent='/';year.append(slash);month.className='preview-date-month';month.textContent=iso.slice(5).replace('-','/');main.append(year,month);
  week.className='preview-date-weekday';week.textContent='('+WEEK[d.getUTCDay()]+')';button.append(main,week);
 }
+// Only the date grid handles month/year swipes; controls and the left-edge back gesture keep their existing behavior.
+function mountCalendarSwipe(grid, move, isOpen, now = () => Date.now()) {
+  grid.style.touchAction = "none";
+  let gesture = null, suppressUntil = 0, canceled = false;
+  const reset = () => { gesture = null; suppressUntil = 0; canceled = false; };
+  grid.addEventListener("touchstart", e => {
+    if (!isOpen() || e.touches.length !== 1) { canceled = true; suppressUntil = now() + 500; gesture = null; return; }
+    const t = e.touches[0];
+    if (t.clientX <= 28) { gesture = null; return; }
+    suppressUntil = 0; canceled = false;
+    gesture = { id: t.identifier, x: t.clientX, y: t.clientY, axis: null };
+  }, { passive: true });
+  grid.addEventListener("touchmove", e => {
+    if (!gesture) return;
+    if (!isOpen() || e.touches.length !== 1) { suppressUntil = now() + 500; canceled = true; gesture = null; return; }
+    const t = Array.from(e.touches).find(t => t.identifier === gesture.id);
+    if (!t) { gesture = null; return; }
+    const dx = Math.abs(t.clientX - gesture.x), dy = Math.abs(t.clientY - gesture.y);
+    if (!gesture.axis && Math.max(dx, dy) >= 12) {
+      if (dx >= dy * 1.35) gesture.axis = "x";
+      else if (dy >= dx * 1.35) gesture.axis = "y";
+      else { suppressUntil = now() + 500; canceled = true; gesture = null; return; }
+    }
+    if (gesture.axis && e.cancelable) e.preventDefault();
+  }, { passive: false });
+  grid.addEventListener("touchend", e => {
+    const g = gesture; gesture = null;
+    if (!g || !isOpen()) { if (canceled) suppressUntil = now() + 500; return; }
+    const t = Array.from(e.changedTouches).find(t => t.identifier === g.id);
+    if (!t || e.touches.length) return;
+    const dx = t.clientX - g.x, dy = t.clientY - g.y;
+    if (!g.axis) return;
+    suppressUntil = now() + 500;
+    if (e.cancelable) e.preventDefault();
+    const along = g.axis === "x" ? dx : dy, across = g.axis === "x" ? dy : dx;
+    if (Math.abs(along) < 40 || Math.abs(along) < Math.abs(across) * 1.35) return;
+    move((along < 0 ? 1 : -1) * (g.axis === "x" ? 1 : 12));
+  }, { passive: false });
+  grid.addEventListener("touchcancel", () => { if (gesture || canceled) suppressUntil = now() + 500; gesture = null; canceled = true; }, { passive: true });
+  grid.addEventListener("click", e => {
+    if (now() < suppressUntil) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+  return reset;
+}
+
+// Close only a deliberate tap on the backdrop, never an in-dialog drag.
+function mountCalendarDismiss(dialog) {
+ let start=null;
+ const outside=e=>{const r=dialog.getBoundingClientRect();return e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom);};
+ const reset=()=>{start=null;};
+ dialog.addEventListener('pointerdown',e=>{start=e.button<=0&&outside(e)?{x:e.clientX,y:e.clientY,id:e.pointerId}:null;});
+ dialog.addEventListener('pointermove',e=>{if(start&&(e.pointerId!==start.id||Math.hypot(e.clientX-start.x,e.clientY-start.y)>=10))reset();});
+ dialog.addEventListener('pointercancel',reset);
+ dialog.addEventListener('click',e=>{const p=start;reset();if(p&&outside(e)&&Math.hypot(e.clientX-p.x,e.clientY-p.y)<10){e.preventDefault();e.stopPropagation();dialog.close();}});
+ dialog.addEventListener('close',reset);
+ return reset;
+}
 function calendar({button,getAt,setDay,getNow=()=>Date.now()}){
  const dialog=document.createElement('dialog');dialog.className='sheet tool-date-calendar';dialog.tabIndex=-1;dialog.setAttribute('aria-label','日付を選ぶ');
  dialog.innerHTML='<div class="sheet-head"><strong>日付を選ぶ</strong><button type="button" data-close>閉じる</button></div><div class="sheet-body"><div class="aim-cal-nav"><button type="button" class="fav-btn" data-prev aria-label="前の月">←</button><select class="fav-in" data-year aria-label="カレンダーの年"></select><span class="aim-cal-separator" aria-hidden="true">/</span><select class="fav-in" data-month aria-label="カレンダーの月"></select><button type="button" class="fav-btn" data-next aria-label="次の月">→</button></div><div class="aim-cal-week">'+WEEK.map(x=>'<span>'+x+'</span>').join('')+'</div><div class="aim-cal-grid" data-grid></div><button type="button" class="chip" data-today>今日</button></div>';
- document.body.append(dialog);let year,month;
+ document.body.append(dialog);mountCalendarDismiss(dialog);let year,month;
  // 年月は重なる日カレンダーと同じ「年 / 月」の選択欄（数字と/）
  const paint=()=>{const grid=dialog.querySelector('[data-grid]');grid.replaceChildren();const base=new Date(getNow()+OFFSET).getUTCFullYear(),from=Math.min(base-2,year),to=Math.max(base+10,year+2),ys=dialog.querySelector('[data-year]'),ms=dialog.querySelector('[data-month]');ys.innerHTML=Array.from({length:to-from+1},(_,i)=>`<option value="${from+i}">${from+i}</option>`).join('');ys.value=String(year);ms.innerHTML=Array.from({length:12},(_,i)=>`<option value="${i}">${i+1}</option>`).join('');ms.value=String(month);const first=new Date(Date.UTC(year,month,1)),count=new Date(Date.UTC(year,month+1,0)).getUTCDate(),chosen=Math.floor((getAt()+OFFSET)/DAY),today=Math.floor((getNow()+OFFSET)/DAY);for(let i=0;i<first.getUTCDay();i++)grid.append(document.createElement('span'));for(let n=1;n<=count;n++){const day=Date.UTC(year,month,n)-OFFSET,b=document.createElement('button');b.type='button';b.textContent=String(n);b.setAttribute('aria-label',`${year}年${month+1}月${n}日`);b.setAttribute('aria-pressed',String(Math.floor((day+OFFSET)/DAY)===chosen));if(Math.floor((day+OFFSET)/DAY)===today)b.setAttribute('aria-current','date');b.onclick=()=>{setDay(day);dialog.close();};grid.append(b);}};
  button.onclick=()=>{const d=new Date(getAt()+OFFSET);year=d.getUTCFullYear();month=d.getUTCMonth();paint();dialog.showModal();dialog.focus();};
- const shift=delta=>{const d=new Date(Date.UTC(year,month+delta,1));if(d.getUTCFullYear()<100||d.getUTCFullYear()>9999)return;year=d.getUTCFullYear();month=d.getUTCMonth();paint();};dialog.querySelector('[data-prev]').onclick=()=>shift(-1);dialog.querySelector('[data-next]').onclick=()=>shift(1);for(const key of ['[data-year]','[data-month]'])dialog.querySelector(key).onchange=()=>{const y=Number(dialog.querySelector('[data-year]').value),m=Number(dialog.querySelector('[data-month]').value);if(!Number.isInteger(y)||!Number.isInteger(m)||m<0||m>11)return;year=y;month=m;paint();};dialog.querySelector('[data-close]').onclick=()=>dialog.close();dialog.querySelector('[data-today]').onclick=()=>{setDay(Math.floor((getNow()+OFFSET)/DAY)*DAY-OFFSET);dialog.close();};dialog.addEventListener('close',()=>button.focus({preventScroll:true}));return dialog;
+ const shift=delta=>{const d=new Date(Date.UTC(year,month+delta,1));if(d.getUTCFullYear()<100||d.getUTCFullYear()>9999)return;year=d.getUTCFullYear();month=d.getUTCMonth();paint();};dialog.querySelector('[data-prev]').onclick=()=>shift(-1);dialog.querySelector('[data-next]').onclick=()=>shift(1);for(const key of ['[data-year]','[data-month]'])dialog.querySelector(key).onchange=()=>{const y=Number(dialog.querySelector('[data-year]').value),m=Number(dialog.querySelector('[data-month]').value);if(!Number.isInteger(y)||!Number.isInteger(m)||m<0||m>11)return;year=y;month=m;paint();};dialog.querySelector('[data-close]').onclick=()=>dialog.close();dialog.querySelector('[data-today]').onclick=()=>{setDay(Math.floor((getNow()+OFFSET)/DAY)*DAY-OFFSET);dialog.close();};const resetSwipe=mountCalendarSwipe(dialog.querySelector('[data-grid]'),shift,()=>dialog.open);dialog.addEventListener('close',()=>{resetSwipe();button.focus({preventScroll:true});});return dialog;
 }
 // 入力方法を記録してダイアログ終了時の焦点を戻す。枠の表示は共通UIのCSSで制御する。
 let keyNav=false,listening=false;
@@ -47,5 +104,5 @@ function trackPointerFocus(...roots){
  if(!listening&&typeof g.addEventListener==='function'){listening=true;g.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey)return;keyNav=true;document.activeElement?.removeAttribute?.('data-pointer-focus');},true);g.addEventListener('pointerdown',()=>{keyNav=false;},true);}
  for(const root of roots){if(!root?.addEventListener)continue;root.addEventListener('focusin',e=>e.target.toggleAttribute?.('data-pointer-focus',!keyNav));root.addEventListener('focusout',e=>e.target.removeAttribute?.('data-pointer-focus'));}
 }
-g.ToolDateTimeBar={decorate,wireScrub,syncTimeRange,label,dateText,calendar,trackPointerFocus};
+g.ToolDateTimeBar={decorate,wireScrub,syncTimeRange,label,dateText,calendar,mountCalendarSwipe,mountCalendarDismiss,trackPointerFocus};
 })(typeof window==='undefined'?globalThis:window);

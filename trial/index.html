@@ -13,8 +13,8 @@
 <meta name="shape-city" content="sorami-city-models.js?v=7036813349923370215">
 <meta name="shape-tower-integrity" content="sha256-JkuG8K2+M50uSfAm6KE3D8X14n8Smqm8hOJYQYaEPew=">
 <meta name="shape-tower" content="sorami-tower-models.js?v=2759447564959757213">
-<meta name="app-version" content="1603210299058244093">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-nJmeFidV1+5r0VZofexMslN6zkcFBLzHFDiDH6ExycI=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-VO8d48YCZQ6fvzcvG37C2ohEpXeAJqIUzYlORtjGboE=' 'sha256-fuayCfGueOEEsICEl3S+mJ5JeeVWfQBU3czKmTxmibs=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="1951170479112498441">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-3UfMzAI28SY9ViD0Hp5vJ8pIgwj9VutfZ5Ugk4vQ2eI=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-S1E/ujAT+z8rjZ+qGsPBfB7j1+qoB9frVtlBHUWY3yw=' 'sha256-fuayCfGueOEEsICEl3S+mJ5JeeVWfQBU3czKmTxmibs=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-BVrZMwKXJvgb2LZBjzwjnDglMO3lNOzVqZdcl7grsp4=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="sorami-icons.js?v=7710713070885006918">
 <link data-script-preload rel="preload" as="script" href="sorami-core.js?v=11910929526926383329">
 <link data-script-preload rel="preload" as="script" href="sorami-search.js?v=17115894211073568200">
@@ -777,9 +777,6 @@
     .aim-date #aimCalendarOpen { font-size: 0.75rem; padding: 0 2px; }
     #aimCalendarOpen svg { display: none; }
   }
-  /* 月の週数で高さが変わっても上端を固定し、下側だけ伸縮する。 */
-  #aimCalendar { width: min(440px, calc(100vw - 24px)); max-width: calc(100vw - 24px);
-    top: max(16px, 8vh, env(safe-area-inset-top)); bottom: auto; margin: 0 auto; }
   .aim-cal-nav { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
   .aim-cal-nav button { flex: 0 0 44px; width: 44px; }
   .aim-cal-nav { gap: 4px; }
@@ -2182,7 +2179,7 @@ button.ui-icon-button::after { content: none; }
      採点基準を変えたときに付け直せるよう、そのときの現象と点数を一緒に残す。 -->
 <dialog class="sheet" id="skyMapBodiesSheet" aria-labelledby="skyMapBodiesTitle" tabindex="-1"><div class="sheet-head"><strong id="skyMapBodiesTitle">その他の天体</strong><button type="button" id="skyMapClearExtra" class="chip" aria-label="追加天体の表示を解除" hidden>解除</button><button type="button" id="skyMapBodiesClose">閉じる</button></div><div class="sheet-body sky-map-body-options"><button type="button" id="skyMapExtra-sirius" aria-pressed="false">シリウス</button><button type="button" id="skyMapExtra-mercury" aria-pressed="false">水星</button><button type="button" id="skyMapExtra-venus" aria-pressed="false">金星</button><button type="button" id="skyMapExtra-mars" aria-pressed="false">火星</button><button type="button" id="skyMapExtra-jupiter" aria-pressed="false">木星</button><button type="button" id="skyMapExtra-saturn" aria-pressed="false">土星</button><button type="button" id="skyMapExtra-none" aria-pressed="true">表示しない</button></div></dialog>
 <dialog class="sheet" id="skyMapTargetSheet" aria-labelledby="skyMapTargetTitle" tabindex="-1"><div class="sheet-head"><strong id="skyMapTargetTitle">対象</strong><button type="button" id="skyMapTargetClose">閉じる</button></div><div class="sheet-body"><p id="skyMapTargetCoord" class="tiny"></p><div class="sky-map-point-coordinates"><label>緯度<input type="number" id="skyMapPickLatitude" min="-90" max="90" step="any" inputmode="decimal"></label><label>経度<input type="number" id="skyMapPickLongitude" min="-180" max="180" step="any" inputmode="decimal"></label></div><label>名前<input type="text" id="skyMapPickName" maxlength="100" value="地図で置いた対象"></label><label>地上から（m）<input type="number" id="skyMapPickHeight" min="0" max="1000" step="any" inputmode="decimal"></label><p id="skyMapPickError" class="tiny" role="status"></p><button type="button" class="chip sky-map-use" id="skyMapPickSave">対象にする</button></div></dialog>
-<dialog class="sheet" id="aimCalendar" aria-labelledby="aimCalTitle" tabindex="-1">
+<dialog class="sheet tool-date-calendar" id="aimCalendar" aria-labelledby="aimCalTitle" tabindex="-1">
   <div class="sheet-head"><strong id="aimCalTitle">重なる日カレンダー</strong><button id="aimCalClose">閉じる</button></div>
   <div class="sheet-body">
     <div id="aimCalContext" class="tiny"></div>
@@ -8417,54 +8414,7 @@ function aimCalMove(offset) {
   aimCal.year = date.getUTCFullYear(); aimCal.month = date.getUTCMonth();
   aimCalRender();
 }
-// Only the date grid handles month/year swipes; controls and the left-edge back gesture keep their existing behavior.
-function mountAimCalendarSwipe(grid, move, isOpen, now = () => Date.now()) {
-  grid.style.touchAction = "none";
-  let gesture = null, suppressUntil = 0, canceled = false;
-  const reset = () => { gesture = null; suppressUntil = 0; canceled = false; };
-  grid.addEventListener("touchstart", e => {
-    if (!isOpen() || e.touches.length !== 1) { canceled = true; suppressUntil = now() + 500; gesture = null; return; }
-    const t = e.touches[0];
-    if (t.clientX <= 28) { gesture = null; return; }
-    suppressUntil = 0; canceled = false;
-    gesture = { id: t.identifier, x: t.clientX, y: t.clientY, axis: null };
-  }, { passive: true });
-  grid.addEventListener("touchmove", e => {
-    if (!gesture) return;
-    if (!isOpen() || e.touches.length !== 1) { suppressUntil = now() + 500; canceled = true; gesture = null; return; }
-    const t = Array.from(e.touches).find(t => t.identifier === gesture.id);
-    if (!t) { gesture = null; return; }
-    const dx = Math.abs(t.clientX - gesture.x), dy = Math.abs(t.clientY - gesture.y);
-    if (!gesture.axis && Math.max(dx, dy) >= 12) {
-      if (dx >= dy * 1.35) gesture.axis = "x";
-      else if (dy >= dx * 1.35) gesture.axis = "y";
-      else { suppressUntil = now() + 500; canceled = true; gesture = null; return; }
-    }
-    if (gesture.axis && e.cancelable) e.preventDefault();
-  }, { passive: false });
-  grid.addEventListener("touchend", e => {
-    const g = gesture; gesture = null;
-    if (!g || !isOpen()) { if (canceled) suppressUntil = now() + 500; return; }
-    const t = Array.from(e.changedTouches).find(t => t.identifier === g.id);
-    if (!t || e.touches.length) return;
-    const dx = t.clientX - g.x, dy = t.clientY - g.y;
-    if (!g.axis) return;
-    suppressUntil = now() + 500;
-    if (e.cancelable) e.preventDefault();
-    const along = g.axis === "x" ? dx : dy, across = g.axis === "x" ? dy : dx;
-    if (Math.abs(along) < 40 || Math.abs(along) < Math.abs(across) * 1.35) return;
-    move((along < 0 ? 1 : -1) * (g.axis === "x" ? 1 : 12));
-  }, { passive: false });
-  grid.addEventListener("touchcancel", () => { if (gesture || canceled) suppressUntil = now() + 500; gesture = null; canceled = true; }, { passive: true });
-  grid.addEventListener("click", e => {
-    if (now() < suppressUntil) { e.preventDefault(); e.stopImmediatePropagation(); }
-  }, true);
-  return reset;
-}
-const resetAimCalSwipe = mountAimCalendarSwipe($("aimCalGrid"), offset => {
-  $("aimCalGrid").dispatchEvent(new Event("change", { bubbles: true }));
-  aimCalMove(offset);
-}, () => $("aimCalendar").open);
+let resetAimCalSwipe = () => {};
 $("aimCalendarOpen").onclick = () => {
   const date = new Date((aim.dayMs ?? Date.now()) + 9 * 3600000);
   aimCal.year = date.getUTCFullYear(); aimCal.month = date.getUTCMonth();
@@ -11912,7 +11862,7 @@ function markToolsCurrent() {
 // 中身と処理は各 dialog のまま、開き方だけ変える。下の画面は残るので、戻ると入力と位置が残る。
 // 入力のページ（input）は、検索欄以外を書き換えたあとに戻ると「破棄しますか？」を出す。保存の釦で閉じるときは聞かない
 const PAGE_DIALOGS = {
-  placeSheet: {}, mapSheet: {}, aimLineSheet: {}, aimCalendar: {}, planSheet: {}, issPickSheet: {},
+  placeSheet: {}, mapSheet: {}, aimLineSheet: {}, planSheet: {}, issPickSheet: {},
   previewTargetDialog: { input: true }, photoSheet: { input: true }, skyMapTargetSheet: { input: true },
   favSheet: { ownConfirm: true }, myPlaceSheet: { ownConfirm: true }, myShapeSheet: { ownConfirm: true },
 };
@@ -13508,6 +13458,11 @@ function uiVisualChoices(select, kind) {
  const clock=el('previewTime'),reference=el('previewReference');
  clock.onchange=()=>{const m=/^(\d{2}):(\d{2})$/.exec(clock.value),state=look._uiTime;if(!m||!state||state.day!==aim.dayMs)return;const at=state.day+(+m[1]*60 + +m[2])*60000;if(at<state.day + +look.querySelector('[data-look-range]').min*1000||at>state.day + +look.querySelector('[data-look-range]').max*1000)look._uiAllDay=true;state.window();state.set(at);};
  reference.onclick=()=>{const state=look._uiTime;if(state){look._uiAllDay=false;state.window();state.set(state.reference);}if(timeDialog.open)timeDialog.close();};
+ ToolDateTimeBar.mountCalendarDismiss(el("aimCalendar"));
+ resetAimCalSwipe = ToolDateTimeBar.mountCalendarSwipe($("aimCalGrid"), offset => {
+  $("aimCalGrid").dispatchEvent(new Event("change", { bubbles: true }));
+  aimCalMove(offset);
+}, () => $("aimCalendar").open);
  const calChoices=document.createElement('div');calChoices.className='preview-calendar-choices';calChoices.hidden=true;el('aimCalGrid').after(calChoices);
  const hideCalChoices=()=>{calChoices.hidden=true;calChoices.replaceChildren();};
  el('aimCalGrid').addEventListener('change',hideCalChoices);

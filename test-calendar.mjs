@@ -11,6 +11,7 @@ function setup(al=AL){
  const $=id=>{if(!els.has(id))els.set(id,{style:{},value:"",innerHTML:"",textContent:"",open:true,setAttribute(k,v){this[k]=v},querySelectorAll(){return buttons},addEventListener(){},focus(){},close(){this.open=false}});return els.get(id)};
  const aim={dayMs:Date.parse("2026-12-22T00:00:00+09:00"),body:"sun",partId:"summit",target:AL.targetById("fuji"),candSide:"set",spot:{}};
  const c=vm.createContext({aimShootingView:async()=>null,candidateWaitMarkup:()=>"待機中",SoramiAtmosphere:{dataKey:()=>"standard"},SoramiTerrain:{decksFor:()=>null},SoramiBodies:globalThis.SoramiBodies,SoramiMoon:MOON,$,aim,S,SoramiAlign:al,SoramiShooting:require("./sorami-shooting.js"),Date,Map,Number,String,Array,JSON,Error,Math,Promise,setTimeout,esc:s=>s.replaceAll('"','&quot;'),aimIsMountain:t=>t?.id!=="skytree",aimSideName:s=>s==="set"?"日の入":"日の出",aimFromPoint:()=>c.fromOverride||({name:"高尾山",latitude:35.6252,longitude:139.2436}),aimElevation:async()=>599,showSheet:e=>{e.open=true},aimCandidateMatch:e=>Number.isFinite(e.gap)&&Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0)),aimApply:()=>{c.applied=true}});
+ vm.runInContext(readFileSync(new URL("./sorami-datetime-ui.js",import.meta.url),"utf8"),c);
  vm.runInContext(html.slice(html.indexOf('function aimObserverEye('),html.indexOf('aim.from = aimSavedFrom'))+code+';this.cal=aimCal;this.rows=aimCalRows;this.grid=aimCalGridHtml;this.solid=aimCalSolid;this.render=aimCalRender;this.draw=aimCalDraw;',c);
  return {c,$,aim,buttons};
 }
@@ -91,8 +92,8 @@ test('指定なしの月カレンダーは円盤接触を採用し、縁指定�
 });
 
 function swipeFixture() {
- const a=html.indexOf("function mountAimCalendarSwipe("),b=html.indexOf("const resetAimCalSwipe",a),listeners={};let clock=1000,open=true;const moves=[];
- const grid={style:{},addEventListener:(type,fn)=>listeners[type]=fn};const c=vm.createContext({Date,Array});vm.runInContext(html.slice(a,b)+";this.mount=mountAimCalendarSwipe;",c);const reset=c.mount(grid,n=>moves.push(n),()=>open,()=>clock);
+ const shared=readFileSync(new URL("./sorami-datetime-ui.js",import.meta.url),"utf8"),a=shared.indexOf("function mountCalendarSwipe("),b=shared.indexOf("function mountCalendarDismiss(",a),listeners={};let clock=1000,open=true;const moves=[];
+ const grid={style:{},addEventListener:(type,fn)=>listeners[type]=fn};const c=vm.createContext({Date,Array});vm.runInContext(shared.slice(a,b)+";this.mount=mountCalendarSwipe;",c);const reset=c.mount(grid,n=>moves.push(n),()=>open,()=>clock);
  const touch=(x,y,id=1)=>({clientX:x,clientY:y,identifier:id});
  const fire=(type,touches=[],changedTouches=[])=>{const e={touches,changedTouches,cancelable:true,preventDefault(){this.prevented=true},stopImmediatePropagation(){this.stopped=true}};listeners[type](e);return e};
  const swipe=(dx,dy)=>{fire('touchstart',[touch(150,200)]);fire('touchmove',[touch(150+dx,200+dy)]);return fire('touchend',[],[touch(150+dx,200+dy)])};

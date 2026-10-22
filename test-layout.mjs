@@ -995,8 +995,8 @@ ok(/found\.sort\(\(a, b\) => Math\.floor\(a\.pass\.visible\.start\.at \/ 60000\)
 {
   const m = /const PAGE_DIALOGS = \{([\s\S]*?)\n\};/.exec(html);
   const ids = m ? [...m[1].matchAll(/(\w+):\s*\{/g)].map((x) => x[1]).sort() : [];
-  ok(JSON.stringify(ids) === JSON.stringify(["aimCalendar", "aimLineSheet", "favSheet", "issPickSheet", "mapSheet", "myPlaceSheet", "myShapeSheet", "photoSheet", "placeSheet", "planSheet", "previewTargetDialog", "skyMapTargetSheet"]),
-    "ページで開く画面: 地点・地図で選ぶ・撮れる場所・重なる日カレンダー・共有・対象・お気に入りに登録・記録を足す・地図に置く対象・衛星を選ぶ", ids.join(","));
+  ok(JSON.stringify(ids) === JSON.stringify(["aimLineSheet", "favSheet", "issPickSheet", "mapSheet", "myPlaceSheet", "myShapeSheet", "photoSheet", "placeSheet", "planSheet", "previewTargetDialog", "skyMapTargetSheet"]),
+    "ページで開く画面: 地点・地図で選ぶ・撮れる場所・共有・対象・お気に入りに登録・記録を足す・地図に置く対象・衛星を選ぶ", ids.join(","));
   ok(!/(previewBodyDialog|skyMapBodyDialog|skyMapBodiesSheet|mapAppSheet|authSheet|accountSheet|appSettings)\s*:/.test(m ? m[1] : ""),
     "短いシートのまま: 天体を選ぶ・その他の天体・地図アプリで開く・ログイン・アカウント・設定");
   ok(/previewTargetDialog: \{ input: true \}, photoSheet: \{ input: true \}, skyMapTargetSheet: \{ input: true \}/.test(html) && /favSheet: \{ ownConfirm: true \}/.test(html),
@@ -2563,8 +2563,8 @@ ok(/scrollbar-gutter: stable/.test(html), "止めた瞬間に横幅が変わら�
 // 「ねらう」「空の見え方」「月丼」はポップアップではなく**ページ**にした
 // 2026-10-12 E184: スカイマップ本体は独立ページ。地図で置く目標の必須高さ入力シートを追加して9つ。
 // 2026-10-21: 人工衛星の「衛星を選ぶ」を、ほかの選ぶ画面と同じページの形（dialog＋PAGE_DIALOGS）にして11
-ok((html.match(/<dialog class="sheet"/g) || []).length === 11, "目標物の高さ入力・衛星を選ぶを含めシートは11個",
-  String((html.match(/<dialog class="sheet"/g) || []).length));
+ok((html.match(/<dialog class="sheet(?: tool-date-calendar)?"/g) || []).length === 11, "目標物の高さ入力・衛星を選ぶを含めシートは11個",
+  String((html.match(/<dialog class="sheet(?: tool-date-calendar)?"/g) || []).length));
 
 console.log("== 登録した直後に、パスキーの登録へ進める ==");
 // 2026-09-08 ユーザー「案内じゃなくてパスキーの登録を促したらどう？」。
@@ -2910,7 +2910,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
     && !/sheet-x/.test(html), "記録を足すの閉じるは題名の右の「閉じる」（指の的 44px）");
   ok(/\$\("photoClose"\)\.onclick = \(\) => \{ if \(!photoSaving\) \$\("photoSheet"\)\.close\(\); \};/.test(html), "閉じるで閉じる");
   // 開いたとき最初の釦を選んだ状態（青い枠）にしない（ユーザー「青くなって選択状態で開くのが気に入らない」）
-  const sheets = html.match(/<dialog class="sheet"[^>]*>/g) || [];
+  const sheets = html.match(/<dialog class="sheet(?: tool-date-calendar)?"[^>]*>/g) || [];
   ok(sheets.length === 11 && sheets.every((d) => / tabindex="-1">$/.test(d)), "シートはそのものに焦点を置ける", sheets.join(" "));
 }
 {

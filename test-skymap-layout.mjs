@@ -20,7 +20,7 @@ test('日時バーはAim/Sky双方で同じ部品を使い、場所枠と精密�
  assert.match(html,/ToolDateTimeBar.decorate\(\{footer,row:dateRow/);assert.match(html,/ToolDateTimeBar.decorate\(\{footer:skyFooter/);assert.match(html,/class="place-pick" id="skyMapChoose"/);assert.match(html,/pickMode\?\[width\/2,height\/2\]/);assert.doesNotMatch(html,/ctx.arc\(x,y,14,0,Math.PI\*2\)/);assert.match(html,/ctx.lineWidth=main\?6:5/);assert.match(html,/type="hidden" id="skyMapDate"/);
  for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))new vm.Script(m[1]);
 });
-function dom(){const nodes=[];const make=()=>{const n={children:[],attrs:{},classList:{add(){}},append(...items){this.children.push(...items)},replaceChildren(...items){this.children=items},setAttribute(k,v){this.attrs[k]=v},focus(){},listeners:{},addEventListener(k,f){this.listeners[k]=f},showModal(){this.open=true},close(){this.open=false;this.listeners.close?.()},querySelector(k){return this.parts[k]??=make()},parts:{}};nodes.push(n);return n;};return {nodes,document:{createElement:make,body:{append(){}}}};}
+function dom(){const nodes=[];const make=()=>{const n={style:{},children:[],attrs:{},classList:{add(){}},append(...items){this.children.push(...items)},replaceChildren(...items){this.children=items},setAttribute(k,v){this.attrs[k]=v},focus(){},listeners:{},addEventListener(k,f){this.listeners[k]=f},showModal(){this.open=true},close(){this.open=false;this.listeners.close?.()},querySelector(k){return this.parts[k]??=make()},parts:{}};nodes.push(n);return n;};return {nodes,document:{createElement:make,body:{append(){}}}};}
 test('共通カレンダーは月末の選択・年月送りを扱い、時刻の適用を道具側へ委ねる',()=>{
  const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);const button=d.document.createElement('button');let chosen;const at=Date.parse('2026-12-22T12:34:00+09:00'),dialog=c.ToolDateTimeBar.calendar({button,getAt:()=>at,setDay:x=>chosen=x});button.onclick();const grid=dialog.querySelector('[data-grid]');const last=grid.children.filter(x=>x.textContent==='31')[0];last.onclick();assert.equal(chosen,Date.parse('2026-12-31T00:00:00+09:00'));button.onclick();dialog.querySelector('[data-next]').onclick();assert.equal(dialog.querySelector('[data-year]').value,'2027');assert.equal(dialog.querySelector('[data-month]').value,'0');
  dialog.querySelector('[data-year]').value='2028';dialog.querySelector('[data-month]').value='2';dialog.querySelector('[data-month]').onchange();assert.equal(dialog.querySelector('[data-year]').value,'2028');assert.equal(dialog.querySelector('[data-month]').value,'2');assert.ok(grid.children.some(x=>x['aria-label']==='2028年3月1日'||x.attrs?.['aria-label']==='2028年3月1日'));
@@ -203,4 +203,29 @@ test('追加天体の取得不能でも太陽/月を描き、選択天体の構�
  f.c.SoramiBodies={...provider,ensure:async id=>{if(id==='saturn')throw Error('offline')}};f.element('skyMapExtra-saturn').onclick();await flush();
  const names=f.element('skyMapAngles').children.map(x=>x.textContent);assert.equal(names.length,2);assert.ok(names.some(x=>x.startsWith('太陽')));assert.ok(names.some(x=>x.includes('月')));assert.notEqual(f.c.SkyMapUI.prepareFraming(),true);assert.match(f.element('skyMapTargetInfo').textContent,/選択天体は計算できません/);assert.match(f.element('skyMapStatus').textContent,/土星.*再試行/);assert.equal(f.element('skyMapBody').value,'saturn');transfer(f);assert.equal(f.c.hash,undefined);
  f.c.SoramiBodies=provider;await f.element('skyMapRetry').onclick();assert.equal(f.element('skyMapAngles').children.length,3);assert.equal(f.c.SkyMapUI.prepareFraming(),true);
+});
+
+test('共通カレンダーの四方向・年境界・うるう年とtap/closeは同じ操作契約',()=>{
+ const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);
+ let chosen;const at=Date.parse('2027-12-22T12:34:00+09:00'),button=d.document.createElement('button'),dialog=c.ToolDateTimeBar.calendar({button,getAt:()=>at,setDay:x=>chosen=x});
+ button.onclick();const grid=dialog.querySelector('[data-grid]'),state=()=>[+dialog.querySelector('[data-year]').value,+dialog.querySelector('[data-month]').value];
+ const fire=(type,x,y)=>{const t={identifier:1,clientX:x,clientY:y},e={touches:type==='touchend'?[]:[t],changedTouches:[t],cancelable:true,preventDefault(){this.prevented=true},stopImmediatePropagation(){this.stopped=true}};grid.listeners[type](e);return e;};
+ const swipe=(dx,dy)=>{fire('touchstart',150,200);fire('touchmove',150+dx,200+dy);fire('touchend',150+dx,200+dy);};
+ swipe(-80,0);assert.deepEqual(state(),[2028,0]);swipe(80,0);assert.deepEqual(state(),[2027,11]);swipe(0,-80);assert.deepEqual(state(),[2028,11]);swipe(0,80);assert.deepEqual(state(),[2027,11]);assert.equal(chosen,undefined);
+ dialog.querySelector('[data-year]').value='2028';dialog.querySelector('[data-month]').value='1';dialog.querySelector('[data-month]').onchange();assert.equal(grid.children.filter(n=>n.textContent).length,29);
+ swipe(0,-80);assert.equal(grid.children.filter(n=>n.textContent).length,28);
+ swipe(-80,0);const blocked=fire('click',150,200);assert(blocked.stopped);dialog.close();assert(!fire('click',150,200).stopped);
+ button.onclick();assert.deepEqual(state(),[2027,11]);grid.children.find(n=>n.textContent==='10').onclick();assert.equal(chosen,Date.parse('2027-12-10T00:00:00+09:00'));assert.equal(dialog.open,false);
+});
+
+test('全カレンダーの枠外tapだけ閉じ、内部余白と内外dragやcancelは維持',()=>{
+ const c={};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);
+ const listeners={},dialog={getBoundingClientRect:()=>({left:20,top:100,right:320,bottom:600}),addEventListener:(k,f)=>listeners[k]=f,close(){this.closed=true;listeners.close();}};
+ c.ToolDateTimeBar.mountCalendarDismiss(dialog);
+ const fire=(type,x,y,target=dialog)=>listeners[type]({clientX:x,clientY:y,target,button:0,preventDefault(){},stopPropagation(){}});
+ for(const [sx,sy,ex,ey] of [[30,110,30,110],[30,110,10,90],[10,90,30,110],[10,90,10,70]]){dialog.closed=false;fire('pointerdown',sx,sy);fire('click',ex,ey);assert(!dialog.closed);}
+ fire('pointerdown',10,90);fire('pointermove',10,70);fire('pointermove',10,90);fire('click',10,90);assert(!dialog.closed);
+ fire('pointerdown',10,90);fire('pointercancel',10,90);fire('click',10,90);assert(!dialog.closed);
+ fire('pointerdown',10,90);fire('click',10,90);assert(dialog.closed);
+ assert.doesNotMatch(html,/aimLineSheet: \{\}, aimCalendar:/);assert.match(html,/<dialog class="sheet tool-date-calendar" id="aimCalendar"/);
 });
