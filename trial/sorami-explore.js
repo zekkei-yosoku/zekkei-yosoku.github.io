@@ -22,7 +22,7 @@ function menu(){
  else{f.dataset.tool='#/aim/tower';m.dataset.tool='#/skymap';m.querySelector('b').lastChild.textContent='地図';m.querySelector('span').textContent='撮影地点からの天体の方向と高度を調べる';}
 }
 function mount(){
- if(mounted)return;mounted=true;heightWasOpen=$('skyMapObserverDetails').open;$('skyMapObserverDetails').open=true;mapView.classList.add('explore-mounted');heightFields=node('div',{id:'exploreHeightFields'});const heights=$('skyMapObserverDetails');for(const row of heights.querySelectorAll('.aim-observer-height'))heightFields.append(row);heights.insertBefore(heightFields,$('skyMapHeightError'));
+ if(mounted)return;mounted=true;heightWasOpen=$('skyMapObserverDetails').open;$('skyMapObserverDetails').open=false;mapView.classList.add('explore-mounted');heightFields=node('div',{id:'exploreHeightFields'});const heights=$('skyMapObserverDetails');for(const row of heights.querySelectorAll('.aim-observer-height'))heightFields.append(row);heights.insertBefore(heightFields,$('skyMapHeightError'));
  const candidates=mapView.querySelector('.sky-map-candidates');candidates.after(tabs,scene,map);
  aimHome={parent:aimView.parentNode,next:aimView.nextSibling};
  const workspace=aimView.querySelector('.preview-workspace');workspaceHome={node:workspace,parent:workspace.parentNode,next:workspace.nextSibling};aimView.append(workspace);
@@ -108,9 +108,9 @@ function assertScene(){SkyMapUI.shareState();const s=snapshot();if(!active()||mo
 const style=node('style');style.textContent=
 '#skyMapView.explore-mounted .sky-map-head::before{content:"EXPLORE" / "";--kw:6.6em}'+
 '.explore-tabs{margin:14px 0 12px;max-width:780px}.explore-tabs button{min-height:44px}'+
-'#skyMapView.explore-mounted #skyMapObserverDetails:not([hidden]){padding:8px 0 10px}'+
-'#exploreHeightFields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}'+
-'#skyMapView.explore-mounted #skyMapObserverDetails>summary{display:none}'+
+'#skyMapView.explore-mounted #skyMapObserverDetails:not([hidden]){padding:0 0 6px}'+
+'#exploreHeightFields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:6px}'+
+'#skyMapView.explore-mounted #skyMapObserverDetails:not([open]) #exploreHeightFields{display:none}'+
 '#skyMapView.explore-mounted #skyMapObserverDetails .aim-observer-height{display:grid;grid-template-columns:minmax(0,1fr) auto 44px;gap:4px;min-width:0;margin:0}'+
 '#skyMapView.explore-mounted #skyMapObserverDetails .aim-observer-height label{grid-column:1/-1}'+
 '#skyMapView.explore-mounted #skyMapObserverDetails .aim-observer-height input{width:100%;min-width:0;padding:8px 4px;font-size:16px}'+
@@ -119,7 +119,7 @@ const style=node('style');style.textContent=
 '#exploreScenePanel[data-loading=true] #aimLook{visibility:hidden;pointer-events:none}'+
 '#exploreScenePanel #aimView .preview-workspace{margin:0;max-width:none}#exploreScenePanel #previewScene:before{display:none}'+
 '#exploreScenePanel #aimView{padding:0}#exploreScenePanel #aimView .aim-look{margin:0}'+
-'#skyMapView.explore-mounted #shootingCandidatesOpen,#skyMapView.explore-mounted #shootingCandidateStatus{display:none!important}'+
+'#skyMapView.explore-mounted #shootingCandidatesOpen,#skyMapView.explore-mounted #shootingCandidateStatus,#skyMapView.explore-mounted #shootingOverlap{display:none!important}'+
 '.explore-mounted[data-explore-mode=scene] #mySkyPlaces .my-head{display:none!important}'+
 '.explore-mounted[data-explore-mode=scene] #skyMapBodyBar,.explore-mounted[data-explore-mode=scene] #shootingPins{display:none!important}'+
 'main:has(>#skyMapView.explore-mounted){max-width:1000px}';
