@@ -488,8 +488,8 @@ function skyRender(s){
   const toggle=document.createElement('button');toggle.type='button';toggle.className='chip';toggle.id='shootingPins';toggle.setAttribute('role','switch');toggle.setAttribute('aria-label','候補ピンを地図に表示');toggle.textContent='候補ピン';toggle.onclick=()=>{pinsOn=!pinsOn;store.set('sorami.candidatePins',pinsOn);updateCandidateUI();SkyMapUI?.redraw?.();};
   controls.append(trigger,toggle);box.append(controls);
   const alignment=document.createElement('div');alignment.className='alignment-controls';
-  const broad=document.createElement('button');broad.type='button';broad.className='chip explore-overlap';broad.textContent='全体に重なる';broad.setAttribute('aria-pressed',String(s.matchMode==='overlap'));broad.onclick=()=>SkyMapUI?.setAlignment?.(s.partId,'center','overlap');alignment.append(broad);
   const mountain=aimIsMountain(t),parts=t.parts||[],whole=parts.length>0&&!mountain;
+  if(!whole){const broad=document.createElement('button');broad.type='button';broad.className='chip explore-overlap';broad.textContent='全体に重なる';broad.setAttribute('aria-pressed',String(s.matchMode==='overlap'));broad.onclick=()=>SkyMapUI?.setAlignment?.(s.partId,'center','overlap');alignment.append(broad);}
   const part=document.createElement('select');part.className='fav-in';part.setAttribute('aria-label','重ねる対象の部位');part.replaceChildren(...parts.map(p=>new Option(`${p.name} ${Math.round(p.m-(t.groundM||0))}m`,p.id)),...(whole?[new Option(t.wholeLabel||'建物全体に重なる','__whole')]:[]));part.value=s.partId??parts[0]?.id??'';part.hidden=parts.length+(whole?1:0)<2;
   part.onchange=()=>SkyMapUI?.setAlignment?.(part.value||null,s.limb||'center','limb');alignment.append(part);
   const limbs=document.createElement('div');limbs.className='aim-limb';limbs.setAttribute('role','group');limbs.setAttribute('aria-label','天体のどこを合わせるか');limbs.hidden=s.partId==='__whole';

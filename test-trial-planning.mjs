@@ -21,3 +21,13 @@ test('条件要約は建物全体と山頂指定を区別し、高さを維持�
  assert.match(c.conditionText(s).detail,/建物全体に重なる/);assert.doesNotMatch(c.conditionText(s).detail,/下の縁/);assert.match(c.conditionText(s).detail,/地上から80m/);
  s.partId=null;assert.match(c.conditionText(s).detail,/先端・下の縁/);s.matchMode='overlap';assert.match(c.conditionText(s).detail,/全体に重なる/);
 });
+test('建物全体は部位selectだけ、山の全体はボタンだけにして操作を重複させない',()=>{
+ const js=readFileSync(new URL('./trial/astronotes-myplaces.js',import.meta.url),'utf8'),code=js.slice(js.indexOf("  const alignment=document.createElement('div');"),js.indexOf("  const status=document.createElement('p');",js.indexOf("  const alignment=document.createElement('div');")));
+ function render(mountain){
+  const calls=[],host={replaceChildren(n){this.child=n;}},element=tag=>({tag,children:[],attrs:{},append(...n){this.children.push(...n);},replaceChildren(...n){this.children=n;},setAttribute(k,v){this.attrs[k]=v;}});
+  const t={parts:[{id:'tip',name:'先端',m:634}],groundM:0},s={body:'sun',partId:mountain?null:'__whole',limb:'center',matchMode:'overlap'};
+  const c=vm.createContext({document:{createElement:element},t,s,aimIsMountain:()=>mountain,AstroNotesBodies:{definition:()=>({limbs:true})},AstroNotesAlign:{LIMBS:[{id:'center',name:'真ん中',sign:0}]},SkyMapUI:{setAlignment:(...a)=>calls.push(a)},Option:function(text,value){return {tag:'option',text,value};},esc:x=>x,aimLimbSay:()=>'',aimLimbFigure:()=>'',el:()=>host});vm.runInContext(code,c);return {nodes:host.child.children,calls};
+ }
+ const building=render(false);assert.equal(building.nodes.filter(x=>x.textContent==='全体に重なる').length,0);const select=building.nodes.find(x=>x.tag==='select');assert.equal(select.children.filter(x=>x.value==='__whole').length,1);select.value='tip';select.onchange();assert.deepEqual(building.calls[0],['tip','center','limb']);
+ const mountain=render(true),broad=mountain.nodes.filter(x=>x.textContent==='全体に重なる');assert.equal(broad.length,1);assert.equal(mountain.nodes.find(x=>x.tag==='select').hidden,true);broad[0].onclick();assert.deepEqual(mountain.calls[0],[null,'center','overlap']);
+});
