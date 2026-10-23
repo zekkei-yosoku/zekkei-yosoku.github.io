@@ -18,6 +18,35 @@ function decorate({footer,row,date,time,prev,next,more,track,now,timeId,moreId})
  footer.dataset.datetimeComponent='shared';
  return {time,more,now:current};
 }
+// One elapsed-time clock per mounted bar. Rendering can sleep without losing elapsed time.
+function createClock({getAt,setAt,enabled=()=>true,visible=()=>!document.hidden,now=()=>performance.now(),request=fn=>requestAnimationFrame(fn),cancel=id=>cancelAnimationFrame(id),onState=()=>{},onStop=()=>{}}){
+ let running=false,base=0,started=0,frame=0,last=-Infinity;
+ const value=()=>base+Math.max(0,now()-started);
+ const publish=()=>{if(!running)return;setAt(value());};
+ const schedule=()=>{if(running&&visible()&&!frame)frame=request(tick);};
+ function tick(t){frame=0;if(!running)return;if(!enabled()){stop(false);return;}if(!visible())return;publish();schedule();}
+ function start(){if(running||!enabled())return;const at=getAt();if(!Number.isFinite(at))return;base=at;started=now();last=-Infinity;running=true;onState(true);schedule();}
+ function stop(commit=true){if(!running)return;if(commit&&enabled())publish();running=false;cancel(frame);frame=0;onState(false);onStop();}
+ function rebase(at){if(!Number.isFinite(at))return;base=at;started=now();}
+ function visibility(){cancel(frame);frame=0;if(running&&!enabled()){stop(false);return;}if(running&&visible()){publish();last=-Infinity;schedule();}}
+ return {start,stop,rebase,visibility,running:()=>running,at:()=>running?value():getAt()};
+}
+const playbackBars=new WeakMap();
+function playback({row,footer,getAt,setAt,enabled=()=>true,onStart=()=>{},onStop=()=>{}}){
+ if(playbackBars.has(row))return playbackBars.get(row);
+ const button=document.createElement('button');button.type='button';button.className='tool-datetime-nav tool-datetime-play';button.dataset.datetimeSlot='play';row.insertBefore(button,row.querySelector('[data-datetime-slot=more]'));
+ const icon=playing=>'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(playing?'<path d="M9 6v12M15 6v12"/>':'<path d="m9 6 9 6-9 6Z" fill="currentColor" stroke="none"/>')+'</svg>';
+ const state=playing=>{button.innerHTML=icon(playing);button.dataset.playing=String(playing);button.setAttribute('aria-label',playing?'時間の進行を一時停止':'時間を進める');button.title=playing?'時間の進行を一時停止':'時間を進める';};
+ const clock=createClock({getAt,setAt,enabled,onState:state,onStop});
+ button.onclick=()=>{if(clock.running())clock.stop();else{onStart();clock.start();}};
+ const manual=e=>{if(e.target.closest?.('.tool-datetime-now,.tool-datetime-play,[data-datetime-slot=more]'))return;clock.stop();};
+ for(const type of ['pointerdown','touchstart','wheel','keydown','change'])footer.addEventListener(type,manual,{capture:true,passive:true});
+ // Date/time clicks can be synthetic or keyboard-driven, without a pointerdown.
+ footer.addEventListener('click',manual,true);
+ const current=row.querySelector('.tool-datetime-now'),move=current.onclick;current.onclick=e=>{move?.call(current,e);clock.rebase(getAt());};
+ document.addEventListener('visibilitychange',()=>clock.visibility());
+ const api={...clock,button};state(false);playbackBars.set(row,api);return api;
+}
 function details({button,getText,title='日時の詳細'}){
  const dialog=document.createElement('dialog');dialog.className='sheet tool-date-calendar';dialog.tabIndex=-1;dialog.setAttribute('aria-label',title);
  const head=document.createElement('div');head.className='sheet-head';const label=document.createElement('strong');label.textContent=title;
@@ -168,5 +197,5 @@ function trackPointerFocus(...roots){
  if(!listening&&typeof g.addEventListener==='function'){listening=true;g.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey)return;keyNav=true;document.activeElement?.removeAttribute?.('data-pointer-focus');},true);g.addEventListener('pointerdown',()=>{keyNav=false;},true);}
  for(const root of roots){if(!root?.addEventListener)continue;root.addEventListener('focusin',e=>e.target.toggleAttribute?.('data-pointer-focus',!keyNav));root.addEventListener('focusout',e=>e.target.removeAttribute?.('data-pointer-focus'));}
 }
-g.ToolDateTimeBar={decorate,details,editor,nextMode,modeButton,modeLabel,wireScrub,syncTimeRange,label,dateText,calendar,mountCalendarSwipe,mountCalendarDismiss,trackPointerFocus};
+g.ToolDateTimeBar={createClock,playback,decorate,details,editor,nextMode,modeButton,modeLabel,wireScrub,syncTimeRange,label,dateText,calendar,mountCalendarSwipe,mountCalendarDismiss,trackPointerFocus};
 })(typeof window==='undefined'?globalThis:window);

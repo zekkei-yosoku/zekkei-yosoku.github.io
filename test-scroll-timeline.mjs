@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
 const src=readFileSync(new URL('./astronotes-scroll-timeline.js',import.meta.url),'utf8'),DAY=86400000;
 function setup(width=240,options={}){let next=0,simTime=0;const frames=new Map(),timers=new Map(),changes=[],state={at:Date.parse('2028-11-05T16:04:37.250+09:00'),mode:'date',enabled:true};
- const make=()=>({style:{setProperty(){}},dataset:{},children:[],listeners:{},scrollLeft:0,clientWidth:width,attrs:{},setAttribute(k,v){this.attrs[k]=v},replaceChildren(...c){this.children=c},addEventListener(k,f){this.listeners[k]=f}}),root=make();
+ const make=()=>({style:{setProperty(){}},dataset:{},children:[],listeners:{},scrollLeft:0,clientWidth:width,attrs:{},setAttribute(k,v){this.attrs[k]=v},getAttribute(k){return this.attrs[k]},replaceChildren(...c){this.children=c},addEventListener(k,f){this.listeners[k]=f}}),root=make();
  const c={performance:{now:()=>simTime},document:{createElement:make},requestAnimationFrame:f=>{frames.set(++next,f);return next},cancelAnimationFrame:i=>frames.delete(i),setTimeout:f=>{timers.set(++next,f);return next},clearTimeout:i=>timers.delete(i)};vm.createContext(c);vm.runInContext(src,c);
  const controller=c.AstroNotesScrollTimeline.mount({root,getAt:()=>state.at,getMode:()=>state.mode,enabled:()=>state.enabled,onChange:at=>{state.at=at;changes.push(at);controller.sync(at,state.mode)},format:at=>new Date(at).toISOString(),...options});controller.sync(state.at,state.mode);
  const flush=()=>{simTime+=16;for(const [id,f] of [...frames]){frames.delete(id);f();}};const settle=()=>{flush();for(const [id,f] of [...timers]){timers.delete(id);f();}};
@@ -71,7 +71,7 @@ test('地点変更でグラデーションを再生成し、日本語captionや�
 test('日付/分の線とラベルの原点を幅によらず一致させ、同じ時刻の空色はrebase/settleで跳ばない',()=>{
  const rgbAt=(image,x)=>{const stops=[...image.matchAll(/rgb\((\d+),(\d+),(\d+)\) (-?[\d.]+)px/g)].map(m=>({rgb:m.slice(1,4).map(Number),x:+m[4]}));for(let i=1;i<stops.length;i++)if(x<=stops[i].x){const a=stops[i-1],b=stops[i],t=(x-a.x)/(b.x-a.x);return a.rgb.map((v,j)=>v+(b.rgb[j]-v)*t);}throw Error('outside gradient');};
  for(const width of [160,223,240,340,780]){const f=setup(width,{getObserver:()=>({latitude:35}),sun:at=>({geometricAltitude:Math.sin(at/20000000)*15})});assert.equal(f.root.children[0].style.backgroundPosition,(4096+width/2)+'px 5px');f.state.mode='time';f.controller.sync(f.state.at,'time');const tape=f.root.children[0],initial=tape.style.backgroundImage;
- f.root.listeners.touchstart({timeStamp:1});f.root.scrollLeft+=2048;const before=rgbAt(initial,f.root.scrollLeft+width/2);f.root.listeners.scroll();f.flush();const after=rgbAt(tape.style.backgroundImage,f.root.scrollLeft+width/2);assert.ok(before.every((v,i)=>Math.abs(v-after[i])<.01));assert.equal(tape.style.backgroundPosition,(4096+width/2)+'px 5px,0 0');f.root.listeners.touchend({timeStamp:500});const settled=rgbAt(tape.style.backgroundImage,4096+width/2);assert.ok(after.every((v,i)=>Math.abs(v-settled[i])<.01));}
+ f.root.listeners.touchstart({timeStamp:1});f.root.scrollLeft+=2048;const before=rgbAt(initial,f.root.scrollLeft+width/2);f.root.listeners.scroll();f.flush();const after=rgbAt(tape.style.backgroundImage,f.root.scrollLeft+width/2);assert.ok(before.every((v,i)=>Math.abs(v-after[i])<.01));const fraction=(f.state.at/60000)%1;assert.ok(Math.abs(parseFloat(tape.style.backgroundPosition)-(4096+width/2-fraction*4))<.00001);f.root.listeners.touchend({timeStamp:500});const settled=rgbAt(tape.style.backgroundImage,4096+width/2);assert.ok(after.every((v,i)=>Math.abs(v-settled[i])<.01));}
 });
 test('慣性中の境界rebaseは速度を引き継ぎ、触り直すと代行慣性を即座に止める',()=>{
  const f=setup();f.state.mode='time';f.controller.sync(f.state.at,'time');f.root.listeners.touchstart({timeStamp:1});f.root.listeners.touchmove({timeStamp:10});f.root.scrollLeft+=2000;f.root.listeners.scroll();f.flush();f.root.listeners.touchend({timeStamp:20});f.flush();f.root.scrollLeft+=80;f.root.listeners.scroll();f.flush();const at=f.state.at;assert.equal(f.root.scrollLeft,4096);f.flush();assert.ok(f.root.scrollLeft>4096);f.root.listeners.scroll();f.flush();assert.ok(f.state.at>at);f.root.listeners.touchstart({timeStamp:100});f.flush();const left=f.root.scrollLeft;for(let i=0;i<10;i++)f.flush();assert.equal(f.root.scrollLeft,left);f.root.listeners.touchcancel({timeStamp:500});for(let i=0;i<12;i++)f.flush();f.settle();assert.equal(f.root.scrollLeft,4096);
@@ -124,4 +124,10 @@ test('時送りは24px=1時間、途中は連続、日/分と切り替えても�
  f.root.listeners.keydown({key:'ArrowRight',preventDefault(){}});assert.equal(f.state.at,at+7200000);
  f.root.listeners.keydown({key:'ArrowLeft',shiftKey:true,preventDefault(){}});assert.equal(f.state.at,at-14400000);
  for(const mode of ['date','time','hour']){const before=f.state.at;f.state.mode=mode;f.controller.sync(before,mode);assert.equal(f.state.at,before);}
+});
+
+test('再生追従は小数msをtransformへ反映し目盛りDOMを保持、停止と手操作で正しく戻る',()=>{
+ const f=setup();f.state.mode='time';f.controller.sync(f.state.at,'time');const tape=f.root.children[0],child=tape.children[0],start=f.state.at;
+ for(let i=1;i<=120;i++){f.state.at=start+i*16.625;f.controller.follow(f.state.at,'time');assert.equal(tape.children[0],child);assert.equal(Number(f.root.attrs['aria-valuenow']),f.state.at);}
+ assert.match(tape.style.transform,/translateX\(-0\./);const before=f.state.at;f.controller.sync(before,'time');assert.equal(tape.style.transform,'');f.scroll(4);assert.equal(f.state.at,before+60000);
 });

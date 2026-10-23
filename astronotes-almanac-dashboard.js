@@ -56,8 +56,8 @@ function render(root,day,p,events,astro,options={}){
  stop();root.replaceChildren();const end=T.addDays(day,1),minutes=Math.round((end-day)/60000);
  if(view.day!==null&&view.day!==date(day)){view.live=false;if(view.wallMinute!==null)view.minute=(T.atHour(day,Math.floor(view.wallMinute/60))+view.wallMinute%60*60000-day)/60000;}
  if(date(day)!==date(Date.now()))view.live=false;
- if(view.minute===null||view.live)view.minute=date(Date.now())===date(day)?Math.floor((Date.now()-day)/60000):(T.atHour(day,12)-day)/60000;
- view.day=date(day);view.minute=Math.max(0,Math.min(minutes-1,view.minute));
+ if(view.minute===null||view.live)view.minute=date(Date.now())===date(day)?(Date.now()-day)/60000:(T.atHour(day,12)-day)/60000;
+ view.day=date(day);view.minute=Math.max(0,Math.min(minutes-1/60000,view.minute));
  if(getAuto()&&!view.manual&&view.pick)view.body=preferredBody(day+view.minute*60000,p,astro)||view.body;
  view.pick=false;
  const body=view.body,name=body==='moon'?'月':'太陽';root.dataset.body=body;
@@ -105,9 +105,10 @@ function render(root,day,p,events,astro,options={}){
   label={'paint-order':'stroke',stroke:'var(--bg)','stroke-width':5,'stroke-linejoin':'round'},
   timeText=text(s,0,44,'',{'text-anchor':'middle',fill:'var(--text)','font-size':narrow()?30:22,'font-weight':700,...label}),altText=text(s,0,0,'',{fill:'var(--alm-active)','font-size':narrow()?28:21,'font-weight':600,...label}),halo=svg('circle',{r:13,fill:'var(--alm-active)',opacity:.3,filter:'url(#almChartGlow)','clip-path':'url(#almChartClip)'},s),dot=svg('circle',{r:6,fill:'var(--alm-active)',stroke:'var(--bg)','stroke-width':2,'clip-path':'url(#almChartClip)'},s);if(peakText&&s.insertBefore)s.insertBefore(peakText,halo);
   const dome=compass(body,info);
- let drawGeneration=0;
- const update=()=>{
-  const state=astro[body](at(),d.observer),t=time(at());view.wallMinute=new Date(at()).getHours()*60+new Date(at()).getMinutes();cursor.setAttribute('x1',x(at()));cursor.setAttribute('x2',x(at()));for(const e of [dot,halo]){e.setAttribute('cx',x(at()));e.setAttribute('cy',y(state.geometricAltitude));}dome.place(state.geometricAltitude,state.azimuth);
+ let drawGeneration=0,lastDetailAt=-Infinity;
+ const update=(smooth=false)=>{
+  const state=astro[body](at(),d.observer),t=time(at());view.wallMinute=new Date(at()).getHours()*60+new Date(at()).getMinutes()+new Date(at()).getSeconds()/60+new Date(at()).getMilliseconds()/60000;cursor.setAttribute('x1',x(at()));cursor.setAttribute('x2',x(at()));for(const e of [dot,halo]){e.setAttribute('cx',x(at()));e.setAttribute('cy',y(state.geometricAltitude));}dome.place(state.geometricAltitude,state.azimuth);
+  if(smooth&&Math.abs(at()-lastDetailAt)<1000)return;lastDetailAt=at();
   let lunar=null;if(body==='moon'){try{lunar=g.AstroNotesLunarNames?.describe(at(),state,astro);}catch{}if(!lunar)lunar={ja:phaseLabel(state),en:''};}
   let solar=null;if(body!=='moon'){try{solar=g.AstroNotesSolarTerms?.describe(at())||null;}catch{}}
   title.textContent=lunar?lunar.ja:solar?solar.sekki.ja:'この日の太陽';english.textContent=lunar?.en||solar?.sekki.en||'';names.replaceChildren();kicker.hidden=false;
@@ -150,12 +151,12 @@ function render(root,day,p,events,astro,options={}){
  const refresh=()=>{
   if(!view.live||root.isConnected===false||document.hidden||options.isActive&&!options.isActive())return;
   const now=Date.now();if(date(now)!==date(day)){view.day=null;view.minute=null;view.wallMinute=null;options.onLiveDay?.();return;}
-  view.minute=Math.max(0,Math.min(minutes-1,Math.floor((now-day)/60000)));
+  view.minute=Math.max(0,Math.min(minutes-1/60000,(now-day)/60000));
   update();options.onLive?.(at());
  };
  active={render:()=>render(root,day,p,events,astro,options),refresh,at:()=>at(),
   // 下のバー（時刻）から動かす。描き直さず、点と文字だけ動かす
-  setAt:t=>{if(!Number.isFinite(t))return;view.live=false;view.minute=Math.max(0,Math.min(minutes-1,Math.round((t-day)/60000)));update();}};
+  setAt:(t,smooth=false)=>{if(!Number.isFinite(t))return;view.live=false;view.minute=Math.max(0,Math.min(minutes-1/60000,(t-day)/60000));update(smooth);}};
  if(typeof document.addEventListener==='function')timer=setInterval(refresh,15000);
 }
 // 太陽の高さで空の色をなめらかに変える（夜→天文・航海薄明→ブルーアワー→ゴールデンアワー→昼）。光の時間の帯と空をたどるで共通
@@ -176,7 +177,7 @@ function twilightLines(day,d,astro){
  for(const[label,v]of [['ゴールデンアワー',`${range(cross(-4,true),cross(6,true))} / ${range(cross(6,false),cross(-4,false))}`],['ブルーアワー',`${range(cross(-6,true),cross(-4,true))} / ${range(cross(-4,false),cross(-6,false))}`]]){const row=el('p','alm-tw-row');row.append(el('b','',label),el('span','',v));legend.append(row);}
  return legend;
 }
-const api={data,render,phaseLabel,getAuto,setAuto,preferredBody,stop,enter,today,refresh:()=>active?.refresh(),at:()=>active?.at?.()??null,setAt:t=>active?.setAt?.(t)};g.AstroNotesAlmanacDashboard=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+const api={data,render,phaseLabel,getAuto,setAuto,preferredBody,stop,enter,today,refresh:()=>active?.refresh(),at:()=>active?.at?.()??null,setAt:(t,smooth=false)=>active?.setAt?.(t,smooth)};g.AstroNotesAlmanacDashboard=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:window);
 
 /* Legacy global names remain aliases for cached integrations. */

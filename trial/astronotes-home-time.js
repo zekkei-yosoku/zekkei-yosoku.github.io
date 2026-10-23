@@ -6,7 +6,7 @@ function parse(s){if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return NaN;const[y,m,d]=s.sp
 function start(t){return parse(date(t));}
 function addDays(t,n){const d=new Date(t);return new Date(d.getFullYear(),d.getMonth(),d.getDate()+n).getTime();}
 function atHour(t,h){const d=new Date(t);return new Date(d.getFullYear(),d.getMonth(),d.getDate(),h).getTime();}
-const time=t=>new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(t);
+const timeFormat=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'}),time=t=>timeFormat.format(t);
 const zone=()=>Intl.DateTimeFormat().resolvedOptions().timeZone||'Local';
 const zoneLabel=t=>zone()==='Asia/Tokyo'?'JST':new Intl.DateTimeFormat('en-US',{timeZoneName:'short'}).formatToParts(t).find(p=>p.type==='timeZoneName')?.value||zone();
 function withTime(at,value){

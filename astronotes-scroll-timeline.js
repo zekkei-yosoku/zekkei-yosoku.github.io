@@ -38,8 +38,8 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
  const flush=()=>{frame=0;if(!enabled()||!Number.isFinite(anchor))return;if(emit()&&Math.abs(root.scrollLeft-EXTENT)>=EXTENT/2)rebase();};
  function reset(at,nextMode){
   cancelGlide();cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;generation++;cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;blocked=true;anchor=lastAt=at;mode=nextMode;width=root.clientWidth;const nextContext=JSON.stringify(getObserver());if(context!==nextContext){colorCache.clear();context=nextContext;}
-  const s=scale(mode),origin=EXTENT+width/2,ordinal=Math.floor((at+(mode==='date'?OFFSET:0))/s.step),fraction=mode==='hour'?at/s.step-Math.floor(at/s.step):0,tickOrigin=origin-fraction*s.pixels,nodes=[];
-  tape.style.width=(EXTENT*2+width)+'px';tape.style.setProperty('--timeline-unit',s.pixels+'px');tape.style.backgroundPositionX=tickOrigin+'px';
+  const s=scale(mode),origin=EXTENT+width/2,ordinal=Math.floor((at+(mode==='date'?OFFSET:0))/s.step),fraction=mode!=='date'?at/s.step-Math.floor(at/s.step):0,tickOrigin=origin-fraction*s.pixels,nodes=[];
+  tape.style.transform='';tape.style.width=(EXTENT*2+width)+'px';tape.style.setProperty('--timeline-unit',s.pixels+'px');tape.style.backgroundPositionX=tickOrigin+'px';
   for(let u=-Math.ceil(EXTENT/s.pixels);u<=Math.ceil(EXTENT/s.pixels);u++)if(((ordinal+u)%s.labelEvery+s.labelEvery)%s.labelEvery===0){const tick=document.createElement('span');tick.className='sky-timeline-label';tick.style.left=(tickOrigin+u*s.pixels)+'px';tick.textContent=label(at+(u-fraction)*s.step);nodes.push(tick);}
   if(mode!=='date'){
    const stops=[],tickTime=mode==='hour'?1800000:300000,toPixel=t=>origin+(t-at)/s.step*s.pixels,first=Math.floor((at-origin/s.pixels*s.step)/tickTime)*tickTime;for(let t=first;toPixel(t)<=EXTENT*2+width+tickTime/s.step*s.pixels;t+=tickTime){const rgb=color(t);if(rgb)stops.push('rgb('+rgb.join(',')+') '+toPixel(t)+'px');}
@@ -79,7 +79,7 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
   snapFrame=requestAnimationFrame(step);
  }
  root.addEventListener('scroll',()=>{if(!enabled()){stop();return;}if(blocked||!enabled()||!Number.isFinite(anchor)||Math.abs(root.scrollLeft-EXTENT)<.1&&!moving)return;const time=now();if(lastScroll&&Math.abs(root.scrollLeft-lastScroll.left)>.1)velocity=(root.scrollLeft-lastScroll.left)/Math.max(1,time-lastScroll.time);lastScroll={left:root.scrollLeft,time};moving=true;if(!frame)frame=requestAnimationFrame(flush);clearTimeout(timer);const token=generation;timer=setTimeout(()=>settle(token),150);},{passive:true});
- function activate(kind){if(!enabled())return false;cancelGlide();if(snapFrame)done(snapTarget);velocity=0;inputKind=kind||inputKind;if(!Number.isFinite(anchor))reset(getAt(),getMode());else if(!moving&&Math.abs(root.scrollLeft-EXTENT)>=.1)reset(lastAt,mode);lastScroll={left:root.scrollLeft,time:now()};blocked=false;return true;}
+ function activate(kind){if(!enabled())return false;if(tape.style.transform){const at=getAt();reset(at,getMode());}cancelGlide();if(snapFrame)done(snapTarget);velocity=0;inputKind=kind||inputKind;if(!Number.isFinite(anchor))reset(getAt(),getMode());else if(!moving&&Math.abs(root.scrollLeft-EXTENT)>=.1)reset(lastAt,mode);lastScroll={left:root.scrollLeft,time:now()};blocked=false;return true;}
  root.addEventListener('touchstart',e=>{if(!activate('touch'))return;touching=true;pressed=true;lastTouchMove=e?.timeStamp||0;},{passive:true});
  root.addEventListener('touchmove',e=>{lastTouchMove=e.timeStamp;},{passive:true});
  for(const event of ['touchend','touchcancel'])root.addEventListener(event,e=>{touching=false;pressed=false;if(!enabled()){stop();return;}if(moving&&enabled()&&(!e||event==='touchcancel'||e.timeStamp-lastTouchMove>=120)){root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';finish();}},{passive:true});
@@ -91,7 +91,14 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
  function stop(){setBlend(null);cancelGlide();cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;velocity=0;lastScroll=null;generation++;cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;pressed=false;touching=false;mouse=null;blocked=true;anchor=null;}
  // 2026-10-20 ユーザー「日付をばーっと動かしてるときに今日を押しても止まらず動き続ける」：外から日時を替えるときは、指を離したあとの慣性スクロールも止める
  const halt=()=>{if(!(moving||glideFrame||Math.abs(root.scrollLeft-EXTENT)>=.1))return;root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';};
- const controller={sync(at,nextMode){if(!enabled()){stop();return;}if(!Number.isFinite(at))return;if((moving||pressed||touching)&&mode===nextMode&&at===lastAt&&width===root.clientWidth&&context===JSON.stringify(getObserver()))return;if(at===anchor&&nextMode===mode&&width===root.clientWidth&&Math.abs(root.scrollLeft-EXTENT)<.1&&context===JSON.stringify(getObserver()))return;halt();stop();reset(at,nextMode);},stop};
+ const controller={follow(at,nextMode){
+  if(!enabled()||!Number.isFinite(at))return;
+  const changed=mode!==nextMode||width!==root.clientWidth||context!==JSON.stringify(getObserver());
+  if(!Number.isFinite(anchor)||changed||moving||pressed||touching||Math.abs((at-anchor)/scale(nextMode).step*scale(nextMode).pixels)>512){halt();stop();reset(at,nextMode);}
+  const offset=(at-anchor)/scale(mode).step*scale(mode).pixels;
+  tape.style.transform='translateX('+(-offset)+'px)';lastAt=at;
+  const text=describe(at,mode);if(root.getAttribute('aria-valuetext')!==text)root.setAttribute('aria-valuetext',text);root.setAttribute('aria-valuenow',String(at));
+ },sync(at,nextMode){if(!enabled()){stop();return;}if(!Number.isFinite(at))return;if((moving||pressed||touching)&&mode===nextMode&&at===lastAt&&width===root.clientWidth&&context===JSON.stringify(getObserver()))return;if(!tape.style.transform&&at===anchor&&nextMode===mode&&width===root.clientWidth&&Math.abs(root.scrollLeft-EXTENT)<.1&&context===JSON.stringify(getObserver()))return;halt();stop();reset(at,nextMode);},stop};
  if(typeof ResizeObserver==='function')new ResizeObserver(()=>{if(enabled())controller.sync(getAt(),getMode());else stop();}).observe(root);
  return controller;
 }

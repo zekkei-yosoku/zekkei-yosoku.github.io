@@ -20,7 +20,7 @@ test('E79 総点検で見つけた下部欄まわりの不具合を戻さない'
  assert.match(css,/#aimView button\[data-pointer-focus\]:focus\{outline:none\}/);
  assert.match(p,/if\(\(!state\|\|look\.hidden\)&&clock\.value\)clock\.value='';/,'図が無い時に前の時刻を残さない');
  assert.match(p,/if\(dateValue&&Number\.isFinite\(aim\.dayMs\)\)/,'日付が入る前に曜日だけを出さない');
- const shared=readFileSync(new URL('./astronotes-datetime-ui.css',import.meta.url),'utf8');assert.match(shared,/grid-template-columns:44px max-content 44px 56px 40px 40px/,'全画面の6列は日付の文字幅に合わせる');
+ const shared=readFileSync(new URL('./astronotes-datetime-ui.css',import.meta.url),'utf8');assert.match(shared,/grid-template-columns:44px max-content 44px 56px 40px 44px 40px/,'全画面の6列は日付の文字幅に合わせる');
  assert.match(shared,/\.tool-datetime-clock>\.preview-footer-rel\{display:none/);
  const timeline=readFileSync(new URL('./astronotes-scroll-timeline.js',import.meta.url),'utf8');assert.match(timeline,/mode==='date'\?DAY:mode==='hour'\?3600000:MINUTE/,'共通目盛りの矢印は時刻1分・日付1日');
  assert.match(h,/if \(!bundle && route && !route\.id\) applyRoute\(\);\n    else \$\("placeName"\)\.textContent = place\.name;/,'予測の取得に失敗しても天体などの画面はURLどおり開く');

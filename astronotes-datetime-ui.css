@@ -1,6 +1,6 @@
 /* DateTimeBar owns all geometry. Consumers supply state and actions, never layout overrides. */
 :is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer{position:fixed;z-index:35;left:0;right:0;bottom:0;box-sizing:border-box;background:var(--card);border-top:1px solid var(--line);box-shadow:0 -4px 16px #0002;padding:0 max(12px,env(safe-area-inset-right)) env(safe-area-inset-bottom) max(12px,env(safe-area-inset-left))}
-:is(#aimView,#skyMapView,#almanacView) .tool-datetime-row{display:grid;grid-template-columns:44px max-content 44px 56px 40px 40px;justify-content:center;align-items:center;gap:0;min-height:44px;max-width:780px;margin:0 auto;padding:0;border:0;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-row{display:grid;grid-template-columns:44px max-content 44px 56px 40px 44px 40px;justify-content:center;align-items:center;gap:0;min-height:44px;max-width:780px;margin:0 auto;padding:0;border:0;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
 :is(#aimView,#skyMapView,#almanacView) .tool-datetime-row>button{box-sizing:border-box;min-height:44px;margin:0;border:0;border-radius:8px;background:transparent;color:var(--text);font:inherit;line-height:1.2;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
 :is(#aimView,#skyMapView,#almanacView) .tool-datetime-row>.tool-datetime-nav{width:40px;min-width:40px;font-size:24px}
 :is(#aimView,#skyMapView,#almanacView) .tool-datetime-row>[data-datetime-slot=previous],:is(#aimView,#skyMapView,#almanacView) .tool-datetime-row>[data-datetime-slot=next]{width:44px;min-width:44px}
@@ -22,5 +22,11 @@
 :is(#aimView,#skyMapView,#almanacView) .tool-datetime-track>.sky-map-timeline{height:52px}
 :is(#aimView,#skyMapView,#almanacView) .tool-datetime-track>input{display:none}
 @media(max-width:409px){:is(#aimView,#skyMapView,#almanacView) .tool-datetime-row{font-size:16px}}
-@media(max-width:389px){:is(#aimView,#skyMapView,#almanacView) .tool-datetime-row .preview-date-year{display:none}}
+@media(max-width:479px){:is(#aimView,#skyMapView,#almanacView) .tool-datetime-row .preview-date-year{display:none}}
 @media(min-width:960px){:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer{left:50%;right:auto;width:min(780px,calc(100vw - 40px));transform:translateX(-50%);border:1px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0}}
+
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-row>.tool-datetime-play{width:44px;min-width:44px}
+:is(#aimView,#skyMapView,#almanacView) .tool-datetime-play[data-playing=true]{color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,transparent)}
+@media(max-width:374px){:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer{padding-left:max(4px,env(safe-area-inset-left));padding-right:max(4px,env(safe-area-inset-right))}}
+@media(max-width:359px){:is(#aimView,#skyMapView,#almanacView) .tool-datetime-row{grid-template-columns:44px max-content 44px 48px 40px 44px 40px}:is(#aimView,#skyMapView,#almanacView) .tool-datetime-clock{width:48px;min-width:48px}:is(#aimView,#skyMapView,#almanacView) .tool-datetime-date .preview-date-weekday{display:none}}
+@media(max-width:359px){:is(#aimView,#skyMapView,#almanacView) .tool-datetime-row>.tool-datetime-date{font-size:14px}}
