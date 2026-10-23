@@ -25,7 +25,7 @@ function createClock({getAt,setAt,enabled=()=>true,visible=()=>!document.hidden,
  const publish=()=>{if(!running)return;setAt(value());};
  const schedule=()=>{if(running&&visible()&&!frame)frame=request(tick);};
  function tick(t){frame=0;if(!running)return;if(!enabled()){stop(false);return;}if(!visible())return;publish();schedule();}
- function start(){if(running||!enabled())return;const at=getAt();if(!Number.isFinite(at))return;base=at;started=now();last=-Infinity;running=true;onState(true);schedule();}
+ function start(at=getAt()){if(running||!enabled())return;if(!Number.isFinite(at))return;base=at;started=now();last=-Infinity;running=true;onState(true);schedule();}
  function stop(commit=true){if(!running)return;if(commit&&enabled())publish();running=false;cancel(frame);frame=0;onState(false);onStop();}
  function rebase(at){if(!Number.isFinite(at))return;base=at;started=now();}
  function visibility(){cancel(frame);frame=0;if(running&&!enabled()){stop(false);return;}if(running&&visible()){publish();last=-Infinity;schedule();}}
@@ -38,7 +38,7 @@ function playback({row,footer,getAt,setAt,enabled=()=>true,onStart=()=>{},onStop
  const icon=playing=>'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(playing?'<path d="M9 6v12M15 6v12"/>':'<path d="m9 6 9 6-9 6Z" fill="currentColor" stroke="none"/>')+'</svg>';
  const state=playing=>{button.innerHTML=icon(playing);button.dataset.playing=String(playing);button.setAttribute('aria-label',playing?'時間の進行を一時停止':'時間を進める');button.title=playing?'時間の進行を一時停止':'時間を進める';};
  const clock=createClock({getAt,setAt,enabled,onState:state,onStop});
- button.onclick=()=>{if(clock.running())clock.stop();else{onStart();clock.start();}};
+ button.onclick=()=>{if(clock.running())clock.stop();else{onStart();current.click();clock.start(Date.now());}};
  const manual=e=>{if(e.target.closest?.('.tool-datetime-now,.tool-datetime-play,[data-datetime-slot=more]'))return;clock.stop();};
  for(const type of ['pointerdown','touchstart','wheel','keydown','change'])footer.addEventListener(type,manual,{capture:true,passive:true});
  // Date/time clicks can be synthetic or keyboard-driven, without a pointerdown.
