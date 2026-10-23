@@ -33,26 +33,21 @@ function nowButton(onNow){
  b.onclick=()=>onNow(Date.now());
  return b;
 }
-// The bar displays values; a separate button opens the shared calendar/time editor.
+// Date opens its calendar; time remains a directly editable native time field.
 function editor({button,time,dialog,beforeOpen=()=>{}}){
- const row=button.closest('.tool-datetime-row'),display=document.createElement('output');
- display.id=button.id;display.className=button.className;display.replaceChildren(...button.childNodes);
- display.dataset.displayDate=button.dataset.displayDate||'';display.setAttribute('aria-live','off');button.replaceWith(display);
- const open=button.onclick,trigger=document.createElement('button');trigger.type='button';trigger.className='tool-datetime-nav tool-datetime-edit';
- trigger.setAttribute('aria-label',time?'日時を編集':'日付を編集');trigger.setAttribute('aria-haspopup','dialog');trigger.title=time?'日時を編集':'日付を編集';
- trigger.innerHTML='<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1 12-12a2.8 2.8 0 0 0-4-4L4 15Z"/></svg>';
- const now=row.querySelector('.tool-datetime-now');if(now)now.after(trigger);else row.append(trigger);
- dialog.dataset.datetimeEditor='true';dialog.setAttribute('aria-label',time?'日時を編集':'日付を編集');dialog.querySelector('.sheet-head strong').textContent=time?'日時を編集':'日付を編集';
+ const row=button.closest('.tool-datetime-row'),open=button.onclick;
+ row.classList.add('tool-datetime-direct');
+ button.setAttribute('aria-haspopup','dialog');button.title='日付を選ぶ';
+ delete dialog.dataset.datetimeEditor;
+ dialog.setAttribute('aria-label','日付を選ぶ');dialog.querySelector('.sheet-head strong').textContent='日付を選ぶ';
+ button.onclick=e=>{beforeOpen();open?.call(button,e);};
  if(time){
-  const clock=time.parentElement,face=clock.querySelector('.tool-datetime-face');
-  if(face){face.removeAttribute('aria-hidden');face.setAttribute('role','status');face.setAttribute('aria-live','off');face.setAttribute('aria-label','選択中の時刻');}
-  const field=document.createElement('label');field.className='tool-datetime-editor-time';field.append('時刻',time);time.classList.remove('tool-datetime-time');
-  time.setAttribute('aria-label','時刻');time.style.cssText='';dialog.querySelector('.sheet-body').append(field);
+  time.title='時刻を編集';time.setAttribute('aria-label','時刻を編集');
+  // Stop a running ruler before the native picker captures the current value.
+  time.addEventListener('pointerdown',beforeOpen);time.addEventListener('focus',beforeOpen);
  }
- trigger.onclick=()=>{beforeOpen();open?.();};
- dialog.addEventListener('close',()=>trigger.focus({preventScroll:true}));
- trackPointerFocus(dialog,trigger);
- return {display,trigger};
+ trackPointerFocus(dialog,button,time);
+ return {display:button,trigger:button};
 }
 const MODES=['date','hour','time'];
 const modeLabel=mode=>({date:'日',hour:'時',time:'分'})[mode]||'分';
