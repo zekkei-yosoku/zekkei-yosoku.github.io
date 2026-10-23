@@ -1,7 +1,6 @@
 /* Almanac home: one celestial body at a time, shared date footer unchanged. */
 main:has(#almanacView:not([hidden])){max-width:1000px}
 #almanacView{--alm-grid:color-mix(in srgb,var(--text) 13%,transparent);--alm-active:#7a8b9e;--alm-day:color-mix(in srgb,var(--alm-active) 5%,transparent);max-width:1000px;padding:14px 0 16px}
-#almanacView #almanacDateRow{display:grid;grid-template-columns:44px minmax(0,1fr) 44px auto;align-items:center;gap:4px;max-width:780px;margin:auto}#almanacDateRow button{min-height:44px;background:transparent;border:0}#almanacCalendarOpen{display:flex;justify-content:center;align-items:center;gap:4px;font-size:18px;font-weight:700}#almanacTrack{height:52px;position:relative}#almanacTimeline{height:52px}#almanacFooter #almanacTrack{padding:0}
 #almanacView #almanacTitle{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 #almanacDayLabel{font-size:11px;letter-spacing:.14em;color:var(--secondary);margin:0 0 7px;text-align:center}
 #almanacView #almanacPlace{display:block;width:100%;text-align:center;border:0;border-radius:0;padding:3px 0 14px;margin:0;background:transparent;box-shadow:none;font-size:17px;font-weight:600;min-height:44px}

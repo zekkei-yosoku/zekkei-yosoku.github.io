@@ -9,10 +9,19 @@ function atHour(t,h){const d=new Date(t);return new Date(d.getFullYear(),d.getMo
 const time=t=>new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(t);
 const zone=()=>Intl.DateTimeFormat().resolvedOptions().timeZone||'Local';
 const zoneLabel=t=>zone()==='Asia/Tokyo'?'JST':new Intl.DateTimeFormat('en-US',{timeZoneName:'short'}).formatToParts(t).find(p=>p.type==='timeZoneName')?.value||zone();
+function withTime(at,value){
+ if(!Number.isFinite(at)||!/^\d{2}:\d{2}$/.test(value))return NaN;
+ const [h,m]=value.split(':').map(Number),d=new Date(at);
+ if(h>23||m>59)return NaN;
+ // Keep the second occurrence of a repeated DST hour when unchanged.
+ if(d.getHours()===h&&d.getMinutes()===m)return at;
+ const next=new Date(d.getFullYear(),d.getMonth(),d.getDate(),h,m);
+ return next.getHours()===h&&next.getMinutes()===m?next.getTime():NaN;
+}
 // The shared date ruler/calendar accepts JST-encoded civil dates. Convert only at its boundary.
 function toRuler(t){const d=new Date(t);return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-OFFSET;}
 function fromRuler(t){return parse(new Date(t+OFFSET).toISOString().slice(0,10));}
-const api={date,parse,start,addDays,atHour,time,zone,zoneLabel,toRuler,fromRuler};g.AstroNotesHomeTime=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+const api={date,parse,start,addDays,atHour,time,zone,zoneLabel,withTime,toRuler,fromRuler};g.AstroNotesHomeTime=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:window);
 
 /* Legacy global names remain aliases for cached integrations. */

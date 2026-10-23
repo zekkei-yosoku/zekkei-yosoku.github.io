@@ -3,6 +3,7 @@ test('Home civil days, shared date-bar bridge and events follow viewer zones inc
  const script=String.raw`
  const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),T=require('./trial/astronotes-home-time.js'),N=require('./trial/astronotes-lunar-names.js'),A=require('./trial/astronotes-astro.js');
  for(const day of ['2026-03-08','2026-11-01','2026-10-19','2030-12-31']){const at=T.parse(day);assert.equal(T.date(at),day);assert.equal(T.fromRuler(T.toRuler(at)),at);assert.equal(T.date(T.addDays(T.addDays(at,1),-1)),day);assert.equal(T.time(T.atHour(at,12)),'12:00');}
+ assert.equal(T.time(T.withTime(T.parse('2026-10-23'),'21:42')),'21:42');assert.ok(Number.isNaN(T.withTime(T.parse('2026-10-23'),'25:00')));if(process.env.TZ==='America/New_York'){assert.ok(Number.isNaN(T.withTime(T.parse('2026-03-08'),'02:30')));const repeated=Date.parse('2026-11-01T01:30:00-05:00');assert.equal(T.withTime(repeated,'01:30'),repeated);}
  assert.ok(Number.isNaN(T.parse('2026-02-30')));assert.ok(Number.isNaN(T.parse('bad')));
  if(process.env.TZ==='America/New_York'){assert.equal((T.addDays(T.parse('2026-03-08'),1)-T.parse('2026-03-08'))/3600000,23);assert.equal((T.addDays(T.parse('2026-11-01'),1)-T.parse('2026-11-01'))/3600000,25);}
  const html=fs.readFileSync('trial/index.html','utf8'),c={AstroNotesHomeTime:T,AstroNotesAstro:A};vm.createContext(c);vm.runInContext(html.slice(html.indexOf('function almanacEvents('),html.indexOf('function routeFromHash()')),c);

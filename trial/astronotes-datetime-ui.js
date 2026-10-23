@@ -2,11 +2,28 @@
 (function(g){
 'use strict';
 const DAY=86400000,OFFSET=32400000;
-function decorate({footer,row,date,time,prev,next,more,track,now}){
+const preparedTimes=new WeakSet();
+function decorate({footer,row,date,time,prev,next,more,track,now,timeId,moreId}){
+ if(!time&&timeId)time=document.getElementById(timeId);
+ if(!more&&moreId)more=document.getElementById(moreId);
+ if(!more)more=row.querySelector('[data-datetime-slot=more]');
+ if(!time&&timeId){time=document.createElement('input');time.type='time';time.step='60';time.id=timeId;time.setAttribute('aria-label','時刻を編集');const clock=document.createElement('div');clock.append(time);row.append(clock);}
+ if(!more){more=document.createElement('button');more.type='button';more.id=moreId||'';more.textContent='⋯';more.setAttribute('aria-label','日時の詳細');more.setAttribute('aria-haspopup','dialog');}
  for(const [node,name] of [[footer,'tool-datetime-footer'],[row,'tool-datetime-row'],[date,'tool-datetime-date'],[time,'tool-datetime-time'],[prev,'tool-datetime-nav'],[next,'tool-datetime-nav'],[more,'tool-datetime-nav'],[track,'tool-datetime-track']])node?.classList.add(name);
  time?.parentElement?.classList.add('tool-datetime-clock');
- if(time){keepTime(time);timeFace(time);}
- if(now&&time&&!row.querySelector('.tool-datetime-now')){const clock=time.parentElement,tail=more&&more.parentElement===row?more:null;if(clock?.parentElement===row)row.insertBefore(clock,tail);row.insertBefore(nowButton(now),tail);}
+ if(time&&!preparedTimes.has(time)){keepTime(time);timeFace(time);preparedTimes.add(time);}
+ const current=row.querySelector('.tool-datetime-now')||nowButton(now||(()=>{}));current.onclick=()=>now?.(Date.now());
+ for(const [node,slot] of [[prev,'previous'],[date,'date'],[next,'next'],[time?.parentElement,'clock'],[current,'now'],[more,'more']]){if(!node)continue;node.dataset.datetimeSlot=slot;row.append(node);}
+ for(const [node,direction] of [[prev,-1],[next,1]])node.innerHTML='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+(direction<0?'m15 5-7 7 7 7':'m9 5 7 7-7 7')+'"/></svg>';
+ footer.dataset.datetimeComponent='shared';
+ return {time,more,now:current};
+}
+function details({button,getText,title='日時の詳細'}){
+ const dialog=document.createElement('dialog');dialog.className='sheet tool-date-calendar';dialog.tabIndex=-1;dialog.setAttribute('aria-label',title);
+ const head=document.createElement('div');head.className='sheet-head';const label=document.createElement('strong');label.textContent=title;
+ const close=document.createElement('button');close.type='button';close.dataset.close='';close.textContent='閉じる';close.onclick=()=>dialog.close();head.append(label,close);
+ const body=document.createElement('div');body.className='sheet-body';const text=document.createElement('p');text.style.whiteSpace='pre-line';body.append(text);dialog.append(head,body);document.body.append(dialog);
+ button.onclick=()=>{text.textContent=getText();dialog.showModal();dialog.focus();};mountCalendarDismiss(dialog);dialog.addEventListener('close',()=>button.focus({preventScroll:true}));trackPointerFocus(dialog,button);return dialog;
 }
 // iPhone の時刻入力の「リセット」は欄を空にする。空の時刻は無いので、開く前の時刻へ戻す（2026-10-22 ユーザー「リセットの動きは適切ではない」）
 function keepTime(time){
@@ -151,5 +168,5 @@ function trackPointerFocus(...roots){
  if(!listening&&typeof g.addEventListener==='function'){listening=true;g.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey)return;keyNav=true;document.activeElement?.removeAttribute?.('data-pointer-focus');},true);g.addEventListener('pointerdown',()=>{keyNav=false;},true);}
  for(const root of roots){if(!root?.addEventListener)continue;root.addEventListener('focusin',e=>e.target.toggleAttribute?.('data-pointer-focus',!keyNav));root.addEventListener('focusout',e=>e.target.removeAttribute?.('data-pointer-focus'));}
 }
-g.ToolDateTimeBar={decorate,editor,nextMode,modeButton,modeLabel,wireScrub,syncTimeRange,label,dateText,calendar,mountCalendarSwipe,mountCalendarDismiss,trackPointerFocus};
+g.ToolDateTimeBar={decorate,details,editor,nextMode,modeButton,modeLabel,wireScrub,syncTimeRange,label,dateText,calendar,mountCalendarSwipe,mountCalendarDismiss,trackPointerFocus};
 })(typeof window==='undefined'?globalThis:window);
