@@ -229,3 +229,10 @@ test('全カレンダーの枠外tapだけ閉じ、内部余白と内外dragやc
  fire('pointerdown',10,90);fire('click',10,90);assert(dialog.closed);
  assert.doesNotMatch(html,/aimLineSheet: \{\}, aimCalendar:/);assert.match(html,/<dialog class="sheet tool-date-calendar" id="aimCalendar"/);
 });
+
+test('日時editorの今日は別の年月から戻っても表示月と選択日を今日へ揃える',()=>{
+ const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);
+ const button=d.document.createElement('button'),today=Date.parse('2026-10-23T10:00:00+09:00');let at=Date.parse('2027-02-05T21:37:00+09:00');
+ const dialog=c.ToolDateTimeBar.calendar({button,getAt:()=>at,getNow:()=>today,setDay:d=>{at=d+21*3600000+37*60000}});dialog.dataset.datetimeEditor='true';button.onclick();dialog.querySelector('[data-today]').onclick();
+ assert.equal(dialog.open,true);assert.equal(dialog.querySelector('[data-year]').value,'2026');assert.equal(dialog.querySelector('[data-month]').value,'9');assert.equal(new Date(at+32400000).toISOString().slice(0,16),'2026-10-23T21:37');
+});
