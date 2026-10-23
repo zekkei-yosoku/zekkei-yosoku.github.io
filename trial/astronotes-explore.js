@@ -23,7 +23,8 @@ new MutationObserver(()=>{if(mounted)placePins();}).observe(mapView,{childList:t
 function snapshot(){return structuredClone(SkyMapUI.renderState());}
 function conditionText(s){
  const body=AstroNotesBodies.definition(s?.body)?.name||'天体を選ぶ',target=s?.target?.name||'対象を選ぶ';
- const alignment=s?.matchMode==='overlap'?'全体に重なる':`${s?.target?.parts?.find(p=>p.id===s.partId)?.name||''}・${AstroNotesAlign.limbById(s?.limb||'center').name}`;
+ const part=s?.target?.parts?.find(p=>p.id===s.partId)||s?.target?.parts?.[0];
+ const alignment=s?.matchMode==='overlap'?'全体に重なる':s?.partId==='__whole'?(s.target?.wholeLabel||'建物全体に重なる'):`${part?.name||'対象'}・${AstroNotesAlign.limbById(s?.limb||'center').name}`;
  const height=s?.observer?$('skyMapObserverSummary')?.textContent?.trim().replace(/^高さ\s*[:：]?\s*/,''):'';
  return {title:body+' × '+target,detail:(s?.observer?.name||'撮影地点を選ぶ')+(height?' · '+height:'')+(s?.target?' · '+alignment:'')};
 }

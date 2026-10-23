@@ -14,3 +14,10 @@ test('trial予定保存は開いた時のowner/世代/権限を固定し、切�
 test('保存失敗の結果をUIへ返し、成功へ偽装しない',()=>{
  const c=vm.createContext({auth:{token:'synthetic',loginId:'a'},authGeneration:1,toolAllowed:()=>true,schedule:()=>({add:()=>({ok:false})}),renderNotebook(){}});vm.runInContext(source,c);assert.equal(c.keepNotebookPlan({saveOwner:{generation:1,loginId:'a'},payload:{}},{title:'x',start:1,end:2}).ok,false);
 });
+test('条件要約は建物全体と山頂指定を区別し、高さを維持する',()=>{
+ const js=readFileSync(new URL('./trial/astronotes-explore.js',import.meta.url),'utf8'),code=js.slice(js.indexOf('function conditionText('),js.indexOf('function updateConditions('));
+ const c=vm.createContext({AstroNotesBodies:{definition:()=>({name:'太陽'})},AstroNotesAlign:{limbById:()=>({name:'下の縁'})},$:()=>({textContent:'高さ：標高40m・地上から80m'})});vm.runInContext(code,c);
+ const s={body:'sun',target:{name:'対象',parts:[{id:'tip',name:'先端'}]},observer:{name:'撮影地'},partId:'__whole',matchMode:'limb'};
+ assert.match(c.conditionText(s).detail,/建物全体に重なる/);assert.doesNotMatch(c.conditionText(s).detail,/下の縁/);assert.match(c.conditionText(s).detail,/地上から80m/);
+ s.partId=null;assert.match(c.conditionText(s).detail,/先端・下の縁/);s.matchMode='overlap';assert.match(c.conditionText(s).detail,/全体に重なる/);
+});
