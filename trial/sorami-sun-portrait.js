@@ -4,7 +4,7 @@
    画像を読めないときは、計算で描く簡単な太陽に切り替える（表示を空にしない）。 */
 (function (g) {
 'use strict';
-const SRC = 'almanac-sun-surface-v1.png', SIZE = 960, DISC = 0.415, TIMEOUT_MS = 10000, tokens = new WeakMap();
+const SRC = 'almanac-sun-surface-v2.webp', SIZE = 960, DISC = 0.415, TIMEOUT_MS = 10000, tokens = new WeakMap();
 let sourcePromise = null;
 function source() {
   if (sourcePromise) return sourcePromise;
@@ -32,6 +32,7 @@ async function draw(canvas) {
   const token = {}; tokens.set(canvas, token);
   canvas.width = SIZE; canvas.height = SIZE;
   const ctx = canvas.getContext('2d'); if (!ctx) return { texture: false };
+  fallback(ctx);
   let image = null;
   try { image = await source(); } catch { /* 画像が無くても太陽は出す */ }
   if (tokens.get(canvas) !== token || canvas.isConnected === false) return { stale: true };
@@ -39,6 +40,7 @@ async function draw(canvas) {
   if (image) ctx.drawImage(image, 0, 0, SIZE, SIZE); else fallback(ctx);
   return { texture: !!image };
 }
+source().catch(()=>{});
 const api = Object.freeze({ draw, SRC, SIZE, DISC });
 g.SoramiSunPortrait = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;

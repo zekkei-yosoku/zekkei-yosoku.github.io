@@ -29,7 +29,7 @@ test('図は直接panでき、図内は中央復帰1アイコン。大気差は�
  assert.match(html,/settings\.onclick=\(\)=>showSheet\(dialog\)/);
  assert.doesNotMatch(html,/expand\.setAttribute\('aria-label','全画面で表示'\)/);
  assert.doesNotMatch(html,/content\.append\(airTitle,airControls\)/);
- assert.match(html,/cv\.style\.touchAction = "none"/);
+ assert.match(html,/cv\.style\.touchAction = "pan-y"/);
  assert.match(html,/gesture\.suppressClick/);
 });
 test('天体の位置調整と逆算入口を撤去し、Undoと残像を出さない（2026-10-22 最新指示）',()=>{

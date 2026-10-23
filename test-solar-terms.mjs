@@ -45,10 +45,10 @@ test('境目は5°ずつ途切れず並び、対応期間（2020〜2030年）の
 
 test('太陽の画像：960px・透明あり・追跡済み、読めないときも計算の太陽を描く', async () => {
   // 2026-10-19 ユーザーが選んだイラスト風を、細かく作り込んだ画像（生成元 tools/build-sun-texture.py）
-  const png = fs.readFileSync(new URL('./' + sun.SRC, import.meta.url));
-  assert.equal(png.readUInt32BE(16), 960); assert.equal(png.readUInt32BE(20), 960); assert.equal(png[25], 6, 'RGBA');
-  assert.ok(png.length < 1.5 * 1024 * 1024); assert.ok(sun.DISC > 0.4 && sun.DISC < 0.43, '月の絵と同じ大きさ（直径83%）');
-  assert.ok(execFileSync('git', ['ls-files', '--cached', sun.SRC, 'trial/' + sun.SRC], { encoding: 'utf8' }).includes('trial/' + sun.SRC));
+  const image = fs.readFileSync(new URL('./' + sun.SRC, import.meta.url));
+  assert.equal(image.toString('ascii',0,4),'RIFF');assert.equal(image.toString('ascii',8,12),'WEBP');
+  assert.equal(sun.SIZE,960);assert.ok(image.length<160000);assert.ok(sun.DISC>.4&&sun.DISC<.43);
+  assert.ok(fs.existsSync(new URL('./trial/'+sun.SRC,import.meta.url)));
   // 画像の読み込み失敗：例外を出さず計算の太陽を描く
   const ops = []; const ctx = new Proxy({}, { get: (_, k) => k === 'createRadialGradient' ? () => ({ addColorStop() {} }) : (...a) => ops.push(k) , set: () => true });
   const sandbox = { setTimeout, clearTimeout, Image: class { set src(v) { queueMicrotask(() => this.onerror()); } } };

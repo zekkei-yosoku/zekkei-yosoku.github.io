@@ -86,7 +86,7 @@ test("自動表示の相当焦点距離を反映しても図の縮尺が変わ�
 test("山でも基準線に吸着・離脱し、構図の移動・復帰は時刻と天体逆引きを変えない",()=>{
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf('  const move = host.querySelector("[data-lens-move]")'),b=html.indexOf('  cur = timeIndex(selectedAt); draw(cur);',a);
  let draws=0,prevented=0,clears=0;const move={setAttribute:()=>{}},center={},hint={},host={_lensMoving:true,_pick:null,querySelector:q=>q.includes("hint")?hint:q.includes("center")?center:move};
- const cv={style:{},setPointerCapture:()=>{}},cur=43,W=316,H=284,k=10,frame={halfW:5,halfH:6};
+ const cv={addEventListener(){},style:{},setPointerCapture:()=>{}},cur=43,W=316,H=284,k=10,frame={halfW:5,halfH:6};
  const c=vm.createContext({aimLookKey:()=>'test',aim:{},SoramiBodies:globalThis.SoramiBodies,panLimit:1,host,cv,cur,W,H,k,frame,hiddenY:null,baseY:220,groundEdge:220,mountain:true,navigator:{vibrate:()=>{}},Math,draw:()=>draws++,aimLookRender:()=>{},aimReverseClear:()=>clears++,spec:{}});vm.runInContext(html.slice(a,b),c);
  cv.onpointerdown({clientX:100,clientY:100,pointerId:1});cv.onpointermove({pointerId:1,clientX:150,clientY:120});cv.onpointerup();
  assert.ok(host._lensOffset[0]>0);assert.ok(host._lensOffset[1]>0);assert.equal(c.cur,43);assert.equal(host._pick,null);
@@ -171,7 +171,7 @@ test("2本指のピンチは焦点距離と構図を連動し、再描画後も�
  let queued=null,renders=0,saved=0,draws=0;
  const controls={move:{setAttribute:()=>{}},center:{},hint:{}};
  const host={_lensMoving:true,_pick:null,_lensOffset:[.1,.1],querySelector:q=>q.includes("hint")?controls.hint:q.includes("center")?controls.center:controls.move};
- const cv={style:{},setPointerCapture:()=>{},getBoundingClientRect:()=>({left:0,top:0})};
+ const cv={addEventListener(){},style:{},setPointerCapture:()=>{},getBoundingClientRect:()=>({left:0,top:0})};
  const R=Math.PI/180,H=300,W=300,halfH=24/(2*200*R)*1.12,aimLens={mode:"manual",focal:200,on:true};
  const c=vm.createContext({SoramiBodies:globalThis.SoramiBodies,panLimit:1,host,cv,cur:43,W,H,k:H/2/halfH,frame:{halfH:24/(400*R)},win:{halfH},focal:200,sh:24,sw:36,hiddenY:null,baseY:250,groundEdge:250,mountain:false,navigator:{},Math,Map,aimLens,localStorage:{setItem:()=>saved++},spec:{},draw:()=>draws++,aimReverseClear:()=>{},requestAnimationFrame:fn=>{queued=fn;return 1;},cancelAnimationFrame:()=>{queued=null;},aimLookRender:()=>{renders++;c.focal=aimLens.focal;c.win={halfH:Math.max(24/(2*c.focal*R),36/(2*c.focal*R))*1.12};vm.runInContext(code,c);}});
  // 正方形では横寸法が画面範囲を決める。
@@ -310,10 +310,10 @@ test("常時panは枠なしでも四方向に動き、tapとdragを分け、終�
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf('  const move = host.querySelector("[data-lens-move]")'),b=html.indexOf('  cur = timeIndex(selectedAt); draw(cur);',a),code="{ "+html.slice(a,b)+" }";
  for(const frame of [null,{halfH:6}]){
   let taps=0,changes=0,draws=0;const move={setAttribute(){}},center={},hint={},host={_pick:null,_lensOffset:[0,0],querySelector:q=>q.includes("hint")?hint:q.includes("center")?center:move};
-  const cv={style:{},onclick:()=>taps++,setPointerCapture(){},dispatchEvent(){changes++}};
+  const cv={addEventListener(){},style:{},onclick:()=>taps++,setPointerCapture(){},dispatchEvent(){changes++}};
   const c=vm.createContext({host,cv,frame,panLimit:1,W:300,H:300,k:10,groundEdge:frame?214:250,cur:43,navigator:{},Math,Event,Map,aimLookRender(){},aimReverseClear(){},draw:()=>draws++,spec:{}});
   vm.runInContext(code,c);
-  assert.equal(cv.style.touchAction,"none");assert.equal(host._lensMoving,false);assert.equal(center.disabled,false);
+  assert.equal(cv.style.touchAction,"pan-y");assert.equal(host._lensMoving,false);assert.equal(center.disabled,false);
   for(const [x,y] of [[60,0],[-60,0],[0,60],[0,-60]]){
    center.onclick();cv.onpointerdown({pointerId:1,clientX:100,clientY:100,button:0});cv.onpointermove({pointerId:1,clientX:100+x,clientY:100+y});
    assert(host._lensGesture.points.size);cv.onpointerup({pointerId:1});cv.onclick({});
@@ -322,4 +322,12 @@ test("常時panは枠なしでも四方向に動き、tapとdragを分け、終�
   cv.onpointerdown({pointerId:1,clientX:100,clientY:100,button:0});cv.onpointermove({pointerId:1,clientX:101,clientY:101});cv.onpointerup({pointerId:1});cv.onclick({});assert.equal(taps,1);
   const old=changes;cv.onkeydown({key:"ArrowRight",preventDefault(){}});assert.equal(changes,old+1);assert(changes>=5);assert(draws>0);assert.equal(c.cur,43);
  }
+});
+
+test('1本指の見え方スワイプは図も時刻も動かさず、通常tapとマウスdragは維持',()=>{
+ const html=readFileSync(new URL('./index.html',import.meta.url),'utf8'),a=html.indexOf('  const move = host.querySelector("[data-lens-move]")'),b=html.indexOf('  cur = timeIndex(selectedAt); draw(cur);',a);
+ let taps=0;const host={_pick:null,_lensOffset:[0,0],querySelector:()=>({setAttribute(){}})},cv={style:{},addEventListener(){},onclick:()=>taps++,setPointerCapture(){},dispatchEvent(){}};
+ const c=vm.createContext({host,cv,frame:null,panLimit:1,W:300,H:300,k:10,groundEdge:250,cur:0,navigator:{},Event,Math,Map,aimLookRender(){},aimReverseClear(){},draw(){},spec:{}});vm.runInContext('{'+html.slice(a,b)+'}',c);
+ for(const [dx,dy] of [[80,0],[0,80],[40,40]]){cv.onpointerdown({pointerId:1,pointerType:'touch',clientX:100,clientY:100});cv.onpointermove({pointerId:1,pointerType:'touch',clientX:100+dx,clientY:100+dy});cv.onpointerup({pointerId:1});cv.onclick({});assert.deepEqual([...host._lensOffset],[0,0]);assert.equal(taps,0);}
+ cv.onpointerdown({pointerId:1,pointerType:'touch',clientX:100,clientY:100});cv.onpointerup({pointerId:1});cv.onclick({});assert.equal(taps,1);
 });

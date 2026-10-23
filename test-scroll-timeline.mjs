@@ -116,3 +116,12 @@ test('慣性で動いている最中に外から日時を替えると、慣性�
  // 止める前に届いた分の scroll が来ても日付は動かない
  f.root.scrollLeft+=24;f.root.listeners.scroll();f.flush();assert.equal(f.state.at,today);
 });
+
+test('時送りは24px=1時間、途中は連続、日/分と切り替えても日時を保持し午前0時を越える',()=>{
+ const f=setup(),at=Date.parse('2026-10-23T23:45:37.250+09:00');f.state.at=at;f.state.mode='hour';f.controller.sync(at,'hour');assert(f.root.children[0].children.every(t=>new Date(t.textContent).getUTCMinutes()===0));
+ f.scroll(6);assert.equal(f.state.at,at+900000);f.scroll(1);assert.equal(f.state.at,at+1050000);
+ f.scroll(17);assert.equal(f.state.at,at+3600000);f.settle();
+ f.root.listeners.keydown({key:'ArrowRight',preventDefault(){}});assert.equal(f.state.at,at+7200000);
+ f.root.listeners.keydown({key:'ArrowLeft',shiftKey:true,preventDefault(){}});assert.equal(f.state.at,at-14400000);
+ for(const mode of ['date','time','hour']){const before=f.state.at;f.state.mode=mode;f.controller.sync(before,mode);assert.equal(f.state.at,before);}
+});

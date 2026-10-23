@@ -4,7 +4,7 @@
 const frames=new Map(),MAX=64,queue=[],watching=new WeakMap();let active=0;
 function prune(){for(let i=queue.length-1;i>=0;i--){const e=queue[i].entry;if(frames.get(e.key)!==e||(e.observed&&!e.waiters.size)){queue.splice(i,1);if(frames.get(e.key)===e)frames.delete(e.key);}}}
 function watch(entry,fn){if(!fn)return;const old=watching.get(fn);if(old&&old!==entry)old.waiters.delete(fn);watching.set(fn,entry);entry.waiters.add(fn);prune();}
-function pump(){if(active||!queue.length)return;const job=queue.shift(),e=job.entry;if(frames.get(e.key)!==e||(e.observed&&!e.waiters.size)){if(frames.get(e.key)===e)frames.delete(e.key);setTimeout(pump,0);return;}active=1;job.run().finally(()=>{active=0;setTimeout(pump,0);});}
+function pump(){if(active||!queue.length)return;const job=queue.shift(),e=job.entry;if(frames.get(e.key)!==e||(e.observed&&!e.waiters.size)){if(frames.get(e.key)===e)frames.delete(e.key);queueMicrotask(pump);return;}active=1;job.run().finally(()=>{active=0;queueMicrotask(pump);});}
 const canvas=size=>{const c=document.createElement('canvas');c.width=c.height=size;return c;};
 function fallback(c,state){
  const size=c.width,ctx=c.getContext('2d'),base=new Uint8ClampedArray(size*size*4);

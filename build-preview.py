@@ -15,7 +15,7 @@ def emit(target,data):
  expected[target]=data
  if not check:target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data)
 # Only public app runtime assets, never repository metadata or development inputs.
-for pattern in ['sorami-*.js','spots.js','*-ui.js','icon-*.png','app-icon-*.png','astronotes-*.png','almanac-*.png','*.css']:
+for pattern in ['sorami-*.js','spots.js','*-ui.js','icon-*.png','app-icon-*.png','astronotes-*.png','almanac-*.png','almanac-*.webp','*.css']:
  for f in root.glob(pattern):emit(out/f.name,f.read_bytes())
 tracked=set(subprocess.check_output(['git','ls-files','data','vendor'],cwd=root,text=True).splitlines())
 for name in ['data','vendor']:

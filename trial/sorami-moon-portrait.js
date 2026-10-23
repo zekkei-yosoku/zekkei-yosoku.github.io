@@ -1,7 +1,7 @@
 /* Photo-inspired surface; phase geometry is computed, never baked into a generated image. */
 (function(g){
 'use strict';
-const DEG=Math.PI/180, SIZE=512, tokens=new WeakMap();let sourcePromise=null;
+const DEG=Math.PI/180, SIZE=512, tokens=new WeakMap();let sourcePromise=null,sourceRetryAt=0;
 function lightVector(f,angle){
  if(!Number.isFinite(f)||!Number.isFinite(angle)||f<0||f>1)throw Error('Invalid lunar phase');
  const z=2*f-1,s=Math.sqrt(Math.max(0,1-z*z)),a=angle*DEG;
@@ -69,6 +69,7 @@ function globeFor(surface,state,size=SIZE){
  globes.set(key,canvas);while(globes.size>16)globes.delete(globes.keys().next().value);return canvas;
 }
 function source(){
+ if(Date.now()<sourceRetryAt)return Promise.reject(Error('Lunar surface temporarily unavailable'));
  if(sourcePromise)return sourcePromise;
  sourcePromise=new Promise((resolve,reject)=>{
   const image=new Image();let done=false;const timer=setTimeout(()=>{if(done)return;done=true;reject(Error('Lunar surface timeout'));},10000);image.decoding='async';image.onload=()=>{
@@ -81,8 +82,8 @@ function source(){
     const flat=document.createElement('canvas');flat.width=SIZE;flat.height=SIZE;const fc=flat.getContext('2d',{willReadFrequently:true});fc.drawImage(image,x0,y0,x1-x0+1,y1-y0+1,0,0,SIZE,SIZE);
     resolve({image,x:x0,y:y0,width:x1-x0+1,height:y1-y0+1,pixels:circularSurface(fc.getImageData(0,0,SIZE,SIZE).data,SIZE)});
    }catch(e){reject(e);}
-  };image.onerror=()=>{if(done)return;done=true;clearTimeout(timer);reject(Error('Lunar surface unavailable'));};image.src='almanac-moon-surface-v1.png';
- }).catch(e=>{sourcePromise=null;throw e;});return sourcePromise;
+  };image.onerror=()=>{if(done)return;done=true;clearTimeout(timer);reject(Error('Lunar surface unavailable'));};image.src='almanac-moon-surface-v2.webp';
+ }).catch(e=>{sourcePromise=null;sourceRetryAt=Date.now()+15000;throw e;});return sourcePromise;
 }
 async function draw(canvas,state,{size=SIZE,detached=false}={}){
  size=Math.max(16,Math.min(SIZE,Math.round(size)||SIZE));
@@ -96,5 +97,6 @@ async function draw(canvas,state,{size=SIZE,detached=false}={}){
  const frame=ctx.getImageData(0,0,size,size);frame.data.set(shade(circularSurface(frame.data,size),size,state.illuminatedFraction,state.brightLimbZenithAngle));canvas.getContext('2d').putImageData(frame,0,0);
  canvas.setAttribute('aria-label',`月の満ち欠け・輝面 ${(state.illuminatedFraction*100).toFixed(1)}%`);return {texture:!!surface};
 }
-const api={lightVector,incidence,circularSurface,shade,globe,PHOTO,draw};g.SoramiMoonPortrait=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+if(typeof Image!=='undefined')source().catch(()=>{});
+const api={retry(){sourceRetryAt=0;},lightVector,incidence,circularSurface,shade,globe,PHOTO,draw};g.SoramiMoonPortrait=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:window);

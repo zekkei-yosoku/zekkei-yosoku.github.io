@@ -2,10 +2,62 @@
 (function(g){
 'use strict';
 const DAY=86400000,OFFSET=32400000;
-function decorate({footer,row,date,time,prev,next,more,track}){
+function decorate({footer,row,date,time,prev,next,more,track,now}){
  for(const [node,name] of [[footer,'tool-datetime-footer'],[row,'tool-datetime-row'],[date,'tool-datetime-date'],[time,'tool-datetime-time'],[prev,'tool-datetime-nav'],[next,'tool-datetime-nav'],[more,'tool-datetime-nav'],[track,'tool-datetime-track']])node?.classList.add(name);
  time?.parentElement?.classList.add('tool-datetime-clock');
+ if(time){keepTime(time);timeFace(time);}
+ if(now&&time&&!row.querySelector('.tool-datetime-now')){const clock=time.parentElement,tail=more&&more.parentElement===row?more:null;if(clock?.parentElement===row)row.insertBefore(clock,tail);row.insertBefore(nowButton(now),tail);}
 }
+// iPhone の時刻入力の「リセット」は欄を空にする。空の時刻は無いので、開く前の時刻へ戻す（2026-10-22 ユーザー「リセットの動きは適切ではない」）
+function keepTime(time){
+ let before='';
+ time.addEventListener('focus',()=>{before=time.value;});
+ time.addEventListener('change',e=>{if(time.value)return;e.stopImmediatePropagation();time.value=before;},true);
+}
+// iPhone の時刻欄は中の数字を独自の字体で描き、日付と字体・高さがそろわない。欄は押して選ぶためだけに残し（文字は透明）、
+// 見える数字は日付と同じ字体の文字で重ねる（2026-10-22 ユーザー「時間のフォントを日付と合わせてほしい」）
+function timeFace(time){
+ const clock=time.parentElement;if(!clock||clock.querySelector('.tool-datetime-face'))return;
+ const face=document.createElement('span');face.className='tool-datetime-face';face.setAttribute('aria-hidden','true');clock.append(face);
+ const own=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
+ const show=()=>{const v=own.get.call(time);if(face.textContent!==(v||'--:--'))face.textContent=v||'--:--';};
+ Object.defineProperty(time,'value',{configurable:true,get(){return own.get.call(time);},set(v){own.set.call(time,v);show();}});
+ for(const type of ['input','change','blur'])time.addEventListener(type,show);
+ show();
+}
+// 日付と時刻をまとめて今へ。時刻の横に時計の絵で置く（2026-10-22 ユーザー「ここに現在時刻に飛ぶボタンがあるといい」）
+function nowButton(onNow){
+ const b=document.createElement('button');b.type='button';b.className='tool-datetime-nav tool-datetime-now';
+ b.setAttribute('aria-label','現在の日時へ');b.title='現在の日時へ';
+ b.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.6 9.2A8 8 0 1 1 4 12"/><path d="M4.4 4.8v4.6H9"/><path d="M12 7.5V12l3 2"/></svg>';
+ b.onclick=()=>onNow(Date.now());
+ return b;
+}
+// The bar displays values; a separate button opens the shared calendar/time editor.
+function editor({button,time,dialog,beforeOpen=()=>{}}){
+ const row=button.closest('.tool-datetime-row'),display=document.createElement('output');
+ display.id=button.id;display.className=button.className;display.replaceChildren(...button.childNodes);
+ display.dataset.displayDate=button.dataset.displayDate||'';button.replaceWith(display);
+ const open=button.onclick,trigger=document.createElement('button');trigger.type='button';trigger.className='tool-datetime-nav tool-datetime-edit';
+ trigger.setAttribute('aria-label',time?'日時を編集':'日付を編集');trigger.setAttribute('aria-haspopup','dialog');trigger.title=time?'日時を編集':'日付を編集';
+ trigger.innerHTML='<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1 12-12a2.8 2.8 0 0 0-4-4L4 15Z"/></svg>';
+ const now=row.querySelector('.tool-datetime-now');if(now)now.after(trigger);else row.append(trigger);
+ dialog.dataset.datetimeEditor='true';dialog.setAttribute('aria-label',time?'日時を編集':'日付を編集');dialog.querySelector('.sheet-head strong').textContent=time?'日時を編集':'日付を編集';
+ if(time){
+  const clock=time.parentElement,face=clock.querySelector('.tool-datetime-face');
+  if(face){face.removeAttribute('aria-hidden');face.setAttribute('role','status');face.setAttribute('aria-label','選択中の時刻');}
+  const field=document.createElement('label');field.className='tool-datetime-editor-time';field.append('時刻',time);time.classList.remove('tool-datetime-time');
+  time.setAttribute('aria-label','時刻');time.style.cssText='';dialog.querySelector('.sheet-body').append(field);
+ }
+ trigger.onclick=()=>{beforeOpen();open?.();};
+ dialog.addEventListener('close',()=>trigger.focus({preventScroll:true}));
+ trackPointerFocus(dialog,trigger);
+ return {display,trigger};
+}
+const MODES=['date','hour','time'];
+const modeLabel=mode=>({date:'日',hour:'時',time:'分'})[mode]||'分';
+function nextMode(mode){return MODES[(MODES.indexOf(mode)+1)%MODES.length];}
+function modeButton(button,mode){const text=modeLabel(mode),next=modeLabel(nextMode(mode));if(button.textContent!==text)button.textContent=text;button.dataset.mode=mode;button.setAttribute('aria-label',text+'送り、'+next+'送りに切り替え');button.title=text+'送り（押すと'+next+'送り）';}
 function wireScrub({track,range,enabled=()=>true}){
  let pointer=null,grab=0;
  const geometry=()=>{const r=range.getBoundingClientRect(),pad=Math.min(12,r.width/4);return {left:r.left+pad,width:Math.max(1,r.width-pad*2),min:Number(range.min),max:Number(range.max)};};
@@ -94,9 +146,9 @@ function calendar({button,getAt,setDay,getNow=()=>Date.now()}){
  dialog.innerHTML='<div class="sheet-head"><strong>日付を選ぶ</strong><button type="button" data-close>閉じる</button></div><div class="sheet-body"><div class="aim-cal-nav"><button type="button" class="fav-btn" data-prev aria-label="前の月">←</button><select class="fav-in" data-year aria-label="カレンダーの年"></select><span class="aim-cal-separator" aria-hidden="true">/</span><select class="fav-in" data-month aria-label="カレンダーの月"></select><button type="button" class="fav-btn" data-next aria-label="次の月">→</button></div><div class="aim-cal-week">'+WEEK.map(x=>'<span>'+x+'</span>').join('')+'</div><div class="aim-cal-grid" data-grid></div><button type="button" class="chip" data-today>今日</button></div>';
  document.body.append(dialog);mountCalendarDismiss(dialog);let year,month;
  // 年月は重なる日カレンダーと同じ「年 / 月」の選択欄（数字と/）
- const paint=()=>{const grid=dialog.querySelector('[data-grid]');grid.replaceChildren();const base=new Date(getNow()+OFFSET).getUTCFullYear(),from=Math.min(base-2,year),to=Math.max(base+10,year+2),ys=dialog.querySelector('[data-year]'),ms=dialog.querySelector('[data-month]');ys.innerHTML=Array.from({length:to-from+1},(_,i)=>`<option value="${from+i}">${from+i}</option>`).join('');ys.value=String(year);ms.innerHTML=Array.from({length:12},(_,i)=>`<option value="${i}">${i+1}</option>`).join('');ms.value=String(month);const first=new Date(Date.UTC(year,month,1)),count=new Date(Date.UTC(year,month+1,0)).getUTCDate(),chosen=Math.floor((getAt()+OFFSET)/DAY),today=Math.floor((getNow()+OFFSET)/DAY);for(let i=0;i<first.getUTCDay();i++)grid.append(document.createElement('span'));for(let n=1;n<=count;n++){const day=Date.UTC(year,month,n)-OFFSET,b=document.createElement('button');b.type='button';b.textContent=String(n);b.setAttribute('aria-label',`${year}年${month+1}月${n}日`);b.setAttribute('aria-pressed',String(Math.floor((day+OFFSET)/DAY)===chosen));if(Math.floor((day+OFFSET)/DAY)===today)b.setAttribute('aria-current','date');b.onclick=()=>{setDay(day);dialog.close();};grid.append(b);}};
+ const paint=()=>{const grid=dialog.querySelector('[data-grid]');grid.replaceChildren();const base=new Date(getNow()+OFFSET).getUTCFullYear(),from=Math.min(base-2,year),to=Math.max(base+10,year+2),ys=dialog.querySelector('[data-year]'),ms=dialog.querySelector('[data-month]');ys.innerHTML=Array.from({length:to-from+1},(_,i)=>`<option value="${from+i}">${from+i}</option>`).join('');ys.value=String(year);ms.innerHTML=Array.from({length:12},(_,i)=>`<option value="${i}">${i+1}</option>`).join('');ms.value=String(month);const first=new Date(Date.UTC(year,month,1)),count=new Date(Date.UTC(year,month+1,0)).getUTCDate(),chosen=Math.floor((getAt()+OFFSET)/DAY),today=Math.floor((getNow()+OFFSET)/DAY);for(let i=0;i<first.getUTCDay();i++)grid.append(document.createElement('span'));for(let n=1;n<=count;n++){const day=Date.UTC(year,month,n)-OFFSET,b=document.createElement('button');b.type='button';b.textContent=String(n);b.setAttribute('aria-label',`${year}年${month+1}月${n}日`);b.setAttribute('aria-pressed',String(Math.floor((day+OFFSET)/DAY)===chosen));if(Math.floor((day+OFFSET)/DAY)===today)b.setAttribute('aria-current','date');b.onclick=()=>{setDay(day);if(!dialog.dataset?.datetimeEditor)dialog.close();else paint();};grid.append(b);}};
  button.onclick=()=>{const d=new Date(getAt()+OFFSET);year=d.getUTCFullYear();month=d.getUTCMonth();paint();dialog.showModal();dialog.focus();};
- const shift=delta=>{const d=new Date(Date.UTC(year,month+delta,1));if(d.getUTCFullYear()<100||d.getUTCFullYear()>9999)return;year=d.getUTCFullYear();month=d.getUTCMonth();paint();};dialog.querySelector('[data-prev]').onclick=()=>shift(-1);dialog.querySelector('[data-next]').onclick=()=>shift(1);for(const key of ['[data-year]','[data-month]'])dialog.querySelector(key).onchange=()=>{const y=Number(dialog.querySelector('[data-year]').value),m=Number(dialog.querySelector('[data-month]').value);if(!Number.isInteger(y)||!Number.isInteger(m)||m<0||m>11)return;year=y;month=m;paint();};dialog.querySelector('[data-close]').onclick=()=>dialog.close();dialog.querySelector('[data-today]').onclick=()=>{setDay(Math.floor((getNow()+OFFSET)/DAY)*DAY-OFFSET);dialog.close();};const resetSwipe=mountCalendarSwipe(dialog.querySelector('[data-grid]'),shift,()=>dialog.open);dialog.addEventListener('close',()=>{resetSwipe();button.focus({preventScroll:true});});return dialog;
+ const shift=delta=>{const d=new Date(Date.UTC(year,month+delta,1));if(d.getUTCFullYear()<100||d.getUTCFullYear()>9999)return;year=d.getUTCFullYear();month=d.getUTCMonth();paint();};dialog.querySelector('[data-prev]').onclick=()=>shift(-1);dialog.querySelector('[data-next]').onclick=()=>shift(1);for(const key of ['[data-year]','[data-month]'])dialog.querySelector(key).onchange=()=>{const y=Number(dialog.querySelector('[data-year]').value),m=Number(dialog.querySelector('[data-month]').value);if(!Number.isInteger(y)||!Number.isInteger(m)||m<0||m>11)return;year=y;month=m;paint();};dialog.querySelector('[data-close]').onclick=()=>dialog.close();dialog.querySelector('[data-today]').onclick=()=>{setDay(Math.floor((getNow()+OFFSET)/DAY)*DAY-OFFSET);if(!dialog.dataset?.datetimeEditor)dialog.close();else paint();};const resetSwipe=mountCalendarSwipe(dialog.querySelector('[data-grid]'),shift,()=>dialog.open);dialog.addEventListener('close',()=>{resetSwipe();button.focus({preventScroll:true});});return dialog;
 }
 // 入力方法を記録してダイアログ終了時の焦点を戻す。枠の表示は共通UIのCSSで制御する。
 let keyNav=false,listening=false;
@@ -104,5 +156,5 @@ function trackPointerFocus(...roots){
  if(!listening&&typeof g.addEventListener==='function'){listening=true;g.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey)return;keyNav=true;document.activeElement?.removeAttribute?.('data-pointer-focus');},true);g.addEventListener('pointerdown',()=>{keyNav=false;},true);}
  for(const root of roots){if(!root?.addEventListener)continue;root.addEventListener('focusin',e=>e.target.toggleAttribute?.('data-pointer-focus',!keyNav));root.addEventListener('focusout',e=>e.target.removeAttribute?.('data-pointer-focus'));}
 }
-g.ToolDateTimeBar={decorate,wireScrub,syncTimeRange,label,dateText,calendar,mountCalendarSwipe,mountCalendarDismiss,trackPointerFocus};
+g.ToolDateTimeBar={decorate,editor,nextMode,modeButton,modeLabel,wireScrub,syncTimeRange,label,dateText,calendar,mountCalendarSwipe,mountCalendarDismiss,trackPointerFocus};
 })(typeof window==='undefined'?globalThis:window);

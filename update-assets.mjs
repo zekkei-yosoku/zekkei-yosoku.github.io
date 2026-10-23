@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 const root=new URL('./',import.meta.url),path=new URL('index.html',root);
 let html=readFileSync(path,'utf8').replace(/\n?<link data-script-preload[^>]*>/g,'');
 // Numeric content ids retain compatibility with old cached HTML's update reader.
-html=html.replace(/([A-Za-z0-9_-]+\.js)\?v=\d+/g,(_,name)=>{
+html=html.replace(/([A-Za-z0-9_-]+\.js)\?v=[A-Za-z0-9]+/g,(_,name)=>{
  const hash=createHash('sha256').update(readFileSync(new URL(name,root))).digest('hex');
  return name+'?v='+BigInt('0x'+hash.slice(0,16)).toString();
 });

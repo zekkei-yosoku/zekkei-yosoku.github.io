@@ -20,7 +20,7 @@ test('日時バーはAim/Sky双方で同じ部品を使い、場所枠と精密�
  assert.match(html,/ToolDateTimeBar.decorate\(\{footer,row:dateRow/);assert.match(html,/ToolDateTimeBar.decorate\(\{footer:skyFooter/);assert.match(html,/class="place-pick" id="skyMapChoose"/);assert.match(html,/pickMode\?\[width\/2,height\/2\]/);assert.doesNotMatch(html,/ctx.arc\(x,y,14,0,Math.PI\*2\)/);assert.match(html,/ctx.lineWidth=main\?6:5/);assert.match(html,/type="hidden" id="skyMapDate"/);
  for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))new vm.Script(m[1]);
 });
-function dom(){const nodes=[];const make=()=>{const n={style:{},children:[],attrs:{},classList:{add(){}},append(...items){this.children.push(...items)},replaceChildren(...items){this.children=items},setAttribute(k,v){this.attrs[k]=v},focus(){},listeners:{},addEventListener(k,f){this.listeners[k]=f},showModal(){this.open=true},close(){this.open=false;this.listeners.close?.()},querySelector(k){return this.parts[k]??=make()},parts:{}};nodes.push(n);return n;};return {nodes,document:{createElement:make,body:{append(){}}}};}
+function dom(){const nodes=[];const make=()=>{const n={dataset:{},style:{},children:[],attrs:{},classList:{add(){}},append(...items){this.children.push(...items)},replaceChildren(...items){this.children=items},setAttribute(k,v){this.attrs[k]=v},focus(){},listeners:{},addEventListener(k,f){this.listeners[k]=f},showModal(){this.open=true},close(){this.open=false;this.listeners.close?.()},querySelector(k){return this.parts[k]??=make()},parts:{}};nodes.push(n);return n;};return {nodes,document:{createElement:make,body:{append(){}}}};}
 test('共通カレンダーは月末の選択・年月送りを扱い、時刻の適用を道具側へ委ねる',()=>{
  const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);const button=d.document.createElement('button');let chosen;const at=Date.parse('2026-12-22T12:34:00+09:00'),dialog=c.ToolDateTimeBar.calendar({button,getAt:()=>at,setDay:x=>chosen=x});button.onclick();const grid=dialog.querySelector('[data-grid]');const last=grid.children.filter(x=>x.textContent==='31')[0];last.onclick();assert.equal(chosen,Date.parse('2026-12-31T00:00:00+09:00'));button.onclick();dialog.querySelector('[data-next]').onclick();assert.equal(dialog.querySelector('[data-year]').value,'2027');assert.equal(dialog.querySelector('[data-month]').value,'0');
  dialog.querySelector('[data-year]').value='2028';dialog.querySelector('[data-month]').value='2';dialog.querySelector('[data-month]').onchange();assert.equal(dialog.querySelector('[data-year]').value,'2028');assert.equal(dialog.querySelector('[data-month]').value,'2');assert.ok(grid.children.some(x=>x['aria-label']==='2028年3月1日'||x.attrs?.['aria-label']==='2028年3月1日'));
@@ -48,7 +48,7 @@ test('日付バーは時刻を保持し、時刻バーは同じ日に戻り、�
  const at=Date.parse('2026-12-22T12:34:00+09:00'),f=fixture({saved:{at,targetId:'skytree'}});await f.open();const loads=f.loads;
  f.element('skyMapScrubMode').onclick();assert.equal(f.element('skyMapRange').min,-7);assert.equal(f.element('skyMapScrubMode').dataset.mode,'date');f.element('skyMapRange').value='2';f.element('skyMapRange').onchange();await flush();assert.equal(f.element('skyMapDate').value,'2026-12-24');assert.equal(f.element('skyMapTime').value,'12:34');assert.equal(f.loads,loads);
  f.element('skyMapRange').onkeydown({key:'ArrowLeft',shiftKey:false,preventDefault(){}});await flush();assert.equal(f.element('skyMapDate').value,'2026-12-23');assert.equal(f.element('skyMapTime').value,'12:34');
- f.element('skyMapScrubMode').onclick();assert.equal(f.element('skyMapRange').max,86399);f.element('skyMapRange').value='3600';f.element('skyMapRange').onchange();assert.equal(f.element('skyMapDate').value,'2026-12-23');assert.equal(f.element('skyMapTime').value,'01:00');
+ f.element('skyMapScrubMode').onclick();assert.equal(f.element('skyMapScrubMode').dataset.mode,'hour');f.element('skyMapScrubMode').onclick();assert.equal(f.element('skyMapRange').max,86399);f.element('skyMapRange').value='3600';f.element('skyMapRange').onchange();assert.equal(f.element('skyMapDate').value,'2026-12-23');assert.equal(f.element('skyMapTime').value,'01:00');
  f.element('skyMapRange').value='7200';f.element('skyMapRange').oninput();assert.ok(f.c.frame);f.element('skyMapScrubMode').onclick();assert.equal(f.c.frame,null);assert.equal(f.element('skyMapTime').value,'01:00');assert.equal(f.data.get('sorami.skyMap:testuser').scrubMode,'date');
  const g=fixture({saved:f.data.get('sorami.skyMap:testuser')});await g.open();assert.equal(g.element('skyMapScrubMode').dataset.mode,'date');assert.equal(g.element('skyMapTime').value,'01:00');
 });
@@ -145,7 +145,7 @@ test('条件3行は構図と共通の天体・対象・撮影地点ラベル、�
  assert.doesNotMatch(html,/太陽の出|太陽の入/);
 });
 test('E198: 日時の読み上げは画面と同じ表記、⋯は中身どおりの名前',()=>{
- assert.match(html,/setAttribute\('aria-label',`\$\{ToolDateTimeBar\.label\(session\.at\)\}、日付を選ぶ`\)/);
+ assert.match(html,/setAttribute\('aria-label',ToolDateTimeBar\.label\(session\.at\)\)/);
  assert.match(html,/session\.scrubMode==='date'\?ToolDateTimeBar\.label\(session\.at\)/);
  assert.match(html,/\$\("aimDate"\)\.value\.replaceAll\("-", "\/"\)/);
  assert.match(html,/id="skyMapTimeMore" aria-label="天体の位置と時刻"/);assert.match(html,/<strong>天体の位置と時刻<\/strong>/);
