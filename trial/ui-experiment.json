@@ -1,0 +1,18 @@
+{
+  "name": "探すの重ね方・予定保存・条件要約",
+  "baseCommit": "9dde54414fb3d6f01fc2b0902d5a6732b164d517",
+  "files": {
+    "astronotes-explore.js": {
+      "root": "a37923e5c51c152fc2883e2eeffdac954447310e08ff7769b8e889f69f8110f8",
+      "trial": "f295f114f5223ba4acb393e41cfefc1a9794f835a1c8da8a05f654b0b520307e"
+    },
+    "astronotes-myplaces.js": {
+      "root": "9cc1eea22bcb834a282e6908fa8b0e3500e3c450676dd465158c40dda802c137",
+      "trial": "683a279a76dc1e3e22a322ea9fb7e8655bd02561324c7367bd030980d4a7528d"
+    },
+    "astronotes-plan.js": {
+      "root": "128feeae151b1640ca3c7d96a06526b2c06972580f012245ec9aa0b4213a9ca2",
+      "trial": "f621baa5bd0ecb06e5afa58aff7b8e4b4190e0036e3dc35cc80f0840565b6e1d"
+    }
+  }
+}
