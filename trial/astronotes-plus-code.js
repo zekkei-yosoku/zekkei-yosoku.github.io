@@ -40,7 +40,7 @@
     return {name:code, latitude, longitude, scope:'point', source:'plus-code', kind:'Plus Code',
       plusCode:code, codeArea:{south:area.latitudeLo, west:area.longitudeLo, north:area.latitudeHi, east:area.longitudeHi},
       zoom:Math.max(2, Math.min(18, Math.floor(Math.log2(360 / Math.max(area.latitudeHi - area.latitudeLo, area.longitudeHi - area.longitudeLo))) - 2)),
-      detail:[reference ? `基準の地名：${reference.name} — ${reference.detail || reference.address || ''}` : '',
+      detail:[reference ? `基準の地名：${reference.name} — ${reference.source === 'gsi' ? '国土地理院' : reference.detail || reference.address || ''}` : '',
         `区画の中心・約${size(width)} × ${size(height)}。地図で位置を確認・調整できます。`].filter(Boolean).join(' ／ ')};
   }
   async function resolve(input, searchLocality) {

@@ -88,3 +88,17 @@ test('overseas locality with empty GSI and unavailable OSM is a connection failu
  const out=await P.resolve(P.parse('CWC8+R9 Mountain View'),q=>ctx.searchPlaces(q,{localityOnly:true}));
  assert.equal(out.results.length,0);assert.match(out.message,/接続できません/);
 });
+
+test('actual GSI Yokohama response does not turn fire stations into extra reference cities',async()=>{
+ const fixture=JSON.parse(read('fixtures/plus-code-gsi-yokohama.json'));assert.ok(fixture.length>100);
+ const ctx=vm.createContext({AstroNotesPlaceSearch:require('./astronotes-search.js'),AstroNotesTerrain:T,AstroNotesAlign:require('./astronotes-align.js'),URLSearchParams,AbortController,setTimeout,clearTimeout,favorites:[],place:{latitude:35.68,longitude:139.76},placeIndex:async()=>({places:[]}),fetch:async url=>({ok:true,json:async()=>url.startsWith('data/')?{places:[]}:url.includes('msearch')?fixture:[]})});
+ vm.runInContext(html.slice(html.indexOf('let searchSupplementPromise'),html.indexOf('/// 検索結果を並べる。')),ctx);
+ const refs=await ctx.searchPlaces('横浜市',{localityOnly:true});assert.equal(refs.length,1);assert.equal(refs[0].name,'神奈川県横浜市');
+ const out=await P.resolve(P.parse('CWC8+R9 横浜市'),async()=>refs);assert.equal(out.results.length,1);assert.match(out.results[0].detail,/基準の地名：神奈川県横浜市/);
+});
+
+test('an exact facility does not hide a qualified or translated regional reference',async()=>{
+ const ctx=vm.createContext({AstroNotesPlaceSearch:require('./astronotes-search.js'),AstroNotesTerrain:T,AstroNotesAlign:require('./astronotes-align.js'),URLSearchParams,AbortController,setTimeout,clearTimeout,favorites:[],place:{latitude:35.68,longitude:139.76},placeIndex:async()=>({places:[]}),fetch:async url=>({ok:true,json:async()=>url.startsWith('data/')?{places:[]}:url.includes('msearch')?[{properties:{title:'Foo'},geometry:{coordinates:[139.6,35.4]}}]:[{name:'Foo City',lat:'36.4',lon:'140.6',display_name:'Foo City, Japan',category:'place',type:'city'}]})});
+ vm.runInContext(html.slice(html.indexOf('let searchSupplementPromise'),html.indexOf('/// 検索結果を並べる。')),ctx);
+ const refs=await ctx.searchPlaces('Foo',{localityOnly:true});assert.deepEqual(Array.from(refs,r=>r.name),['Foo','Foo City']);
+});
