@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url),A=require('./sorami-align.js'),T=require('./sorami-terrain.js');
+const require=createRequire(import.meta.url),A=require('./astronotes-align.js'),T=require('./astronotes-terrain.js');
 const t=A.targetById('tinkerbell'),m=A.TINKERBELL_MODEL,ref=A.TOWER_SHAPES.tinkerbell.referenceView.observer;
 const width=o=>Math.max(...o.hitPoints.map(p=>p[0]))-Math.min(...o.hitPoints.map(p=>p[0]));
 test('像は別方位で厚みと翼の形が変わり、背景は接触対象にしない',()=>{
@@ -12,7 +12,7 @@ test('像は別方位で厚みと翼の形が変わり、背景は接触対象�
 });
 test('写真の像と杖の輪郭を保ち、凹部を凸包で埋めない',()=>{
  const poly=A.TOWER_SHAPES.tinkerbell.outline,o=A.towerOutline(ref,t),d=o.distanceKm*1000,eye=ref.elevation+ref.eyeM;
- const B=require('./sorami-astro.js'),P=A.viewProjector(o.azimuth,o.topAngle),polys=o.hitPolygons.map(p=>p.map(q=>P(...q)));
+ const B=require('./astronotes-astro.js'),P=A.viewProjector(o.azimuth,o.topAngle),polys=o.hitPolygons.map(p=>p.map(q=>P(...q)));
  for(const [x,depth] of poly.filter(p=>p[1]<=2.5)){
   const q=P(o.azimuth+Math.atan(x/d)*180/Math.PI,B.targetElevationAngle(o.distanceKm,eye,t.parts[0].m-depth));
   assert.ok(Math.min(...polys.map(p=>A.polygonDistance(q,p)))<.0002,'写真輪郭の最大角度差');
@@ -29,8 +29,8 @@ test('高さを変えても像を伸縮せず、写真参照情報を保持',()=
 
 test('像の輪郭生成に失敗しても他目標と旧2D判定を維持する',async()=>{
  const {readFileSync}=await import('node:fs'),vm=await import('node:vm');
- const source=readFileSync(new URL('./sorami-align.js',import.meta.url),'utf8').replace('function triangulate(poly){','function triangulate(poly){throw Error("injected contour failure");');
- const c=vm.createContext({require});vm.runInContext(source,c);assert.equal(c.SoramiAlign.TINKERBELL_MODEL,null);
- const o=c.SoramiAlign.towerOutline(ref,t);assert.equal(o.modelId,'tinkerbell-reference-2d-fallback');assert.ok(o.hitPoints.length>20);
- assert.ok(c.SoramiAlign.towerOutline(ref,c.SoramiAlign.targetById('skytree')).polygons.length>0);
+ const source=readFileSync(new URL('./astronotes-align.js',import.meta.url),'utf8').replace('function triangulate(poly){','function triangulate(poly){throw Error("injected contour failure");');
+ const c=vm.createContext({require});vm.runInContext(source,c);assert.equal(c.AstroNotesAlign.TINKERBELL_MODEL,null);
+ const o=c.AstroNotesAlign.towerOutline(ref,t);assert.equal(o.modelId,'tinkerbell-reference-2d-fallback');assert.ok(o.hitPoints.length>20);
+ assert.ok(c.AstroNotesAlign.towerOutline(ref,c.AstroNotesAlign.targetById('skytree')).polygons.length>0);
 });

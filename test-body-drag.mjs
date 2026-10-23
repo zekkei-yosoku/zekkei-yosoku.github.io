@@ -1,7 +1,7 @@
 import {createRequire} from "node:module";
 const require=createRequire(import.meta.url);
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
-const AL=require('./sorami-align.js');
+const AL=require('./astronotes-align.js');
 const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');const a=html.indexOf('function aimLookPick('),b=html.indexOf('\n/**',a);const code=html.slice(a,b);
 const element=()=>({hidden:false,disabled:false,textContent:'',attrs:{},classList:{toggle(){}},setAttribute(k,v){this.attrs[k]=v},removeAttribute(k){delete this.attrs[k]}});
 const els={};for(const key of ['pick','found','confirm','hint','controls','cancel','position'])els[`[data-look-${key}]`]=element();
@@ -9,7 +9,7 @@ const buttons=['-1,0','0,-1','0,1','1,0'].map(v=>Object.assign(element(),{datase
 const original={key:'previous',points:[{latitude:1}],at:{at:123}};const spec={at:123,obs:{},pick:true};const host={_lookSeq:1,_pick:{base:spec,reverseBefore:original,ghost:null},querySelector:q=>els[q],querySelectorAll:()=>buttons};
 const cv=Object.assign(element(),{getBoundingClientRect:()=>({left:10,top:20,width:200,height:150}),setPointerCapture(){}});
 let renders=[],draws=0;// 逆算は 2026-10-20 に止めた（AIM_REVERSE_ENABLED=false）。処理は残しているので、戻したとき用に有効にして検査する
-const c={AIM_REVERSE_ENABLED:true,AIM_PLACE_ENABLED:false,aimShift:{x:0,y:0},aim:{body:'moon',reverse:original},SoramiBodies:{definition:()=>({name:'月'})},SoramiAlign:AL,AimMap:{redraw(){}},aimLookRender:(h,s)=>renders.push(s),aimLookFound(){},requestAnimationFrame:f=>{f();return 1},Date,Math,Number,Array};vm.createContext(c);vm.runInContext(code+';this.pick=aimLookPick;',c);
+const c={AIM_REVERSE_ENABLED:true,AIM_PLACE_ENABLED:false,aimShift:{x:0,y:0},aim:{body:'moon',reverse:original},AstroNotesBodies:{definition:()=>({name:'月'})},AstroNotesAlign:AL,AimMap:{redraw(){}},aimLookRender:(h,s)=>renders.push(s),aimLookFound(){},requestAnimationFrame:f=>{f();return 1},Date,Math,Number,Array};vm.createContext(c);vm.runInContext(code+';this.pick=aimLookPick;',c);
 function mount(W=400,H=300,k=100){c.pick(host,{spec,cv,draw:()=>draws++,W,H,k,win:{az0:270,alt0:5},az:270,topAngle:5,D:1,path:[],toPx:xy=>xy?[W/2+xy[0]*k,H/2-xy[1]*k]:null,pan:()=>[0,0],pathTap(){},bodyPosition:()=>[80,90]});}
 const ev=(x,y,id=1)=>({clientX:x,clientY:y,pointerId:id,pointerType:'touch',button:0});
 mount();cv.onpointerdown(ev(150,100));cv.onpointerup(ev(150,100));assert.equal(host._pick.ghost,null,'tap must not teleport');
@@ -21,7 +21,7 @@ const angle=[...host._pick.ghostAngle];host._pick.busy=true;host._lookSeq++;moun
 els['[data-look-cancel]'].onclick();assert.equal(host._pick,null);assert.equal(c.aim.reverse,original);assert.equal(renders.at(-1),spec);assert.ok(draws>0);
 console.log('PASS: no tap teleport; drag delta and scale; threshold; pointer isolation; 1px/Shift10px; busy guard; angle resize; cancel preserves previous result');
 
-c.AIM_REVERSE_ENABLED=false;c.AIM_PLACE_ENABLED=true;c.SoramiBodies.definition=()=>({name:'月',limbs:true});
+c.AIM_REVERSE_ENABLED=false;c.AIM_PLACE_ENABLED=true;c.AstroNotesBodies.definition=()=>({name:'月',limbs:true});
 let placement=null,mapOpens=0;c.aimShiftFromPlacement=(x,y)=>{placement=[x,y]};c.aimLineSheetOpen=()=>mapOpens++;
 host.id='aimLook';host._bodyRadius=.25;host._pick={base:spec,initialBase:spec,ghost:null};mount();
 cv.onpointerdown(ev(80,80));cv.onpointermove(ev(100,60));cv.onpointerup(ev(100,60));

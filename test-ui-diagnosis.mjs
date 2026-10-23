@@ -1,10 +1,10 @@
-createRequire(import.meta.url)("./sorami-bodies.js");
+createRequire(import.meta.url)("./astronotes-bodies.js");
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {createRequire} from 'node:module';
-const S=createRequire(import.meta.url)('./sorami-core.js');
+const S=createRequire(import.meta.url)('./astronotes-core.js');
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 const grab=(name)=>{const i=html.indexOf(name);assert.ok(i>=0);return html.slice(i,html.indexOf('\n}\n',i)+2);};
 const H=3600000, today=S.Cal.startOfDay(Date.UTC(2026,9,3,2));
@@ -61,15 +61,15 @@ test('記録案内はピークではなく窓の終了時刻。翌日の日付�
 function redraw(line){
  const els=Object.fromEntries(['aimLineInfo','aimLineTable','aimCandList','aimSideSeg','aimCandInfo'].map(k=>[k,{hidden:false,textContent:'old',innerHTML:'old',querySelector(){return this;}}]));
  const aim={seq:0,candSeq:0,target:{id:'fuji'},body:'sun',dayMs:today,candPick:null,cands:[]};
- const fn=runInNewContext(grab('async function aimRedrawLine')+';aimRedrawLine',{aim,$:k=>els[k],SoramiAtmosphere:{dataKey:()=>"standard"},aimRenderCands(){},AimMap:{redraw(){}},SoramiAlign:{line},aimElevation(){},aimFindCandidates(){},aimRefreshSheetCands(){},S,esc:x=>x,aimSideLabel:x=>x,aimKm:x=>x});
+ const fn=runInNewContext(grab('async function aimRedrawLine')+';aimRedrawLine',{aim,$:k=>els[k],AstroNotesAtmosphere:{dataKey:()=>"standard"},aimRenderCands(){},AimMap:{redraw(){}},AstroNotesAlign:{line},aimElevation(){},aimFindCandidates(){},aimRefreshSheetCands(){},S,esc:x=>x,aimSideLabel:x=>x,aimKm:x=>x});
  return {fn,els,aim};
 }
 test('構図を開き直しても旧撮影地の線・候補・表を復活させない',async()=>{let calls=0;const r=redraw(()=>{calls++;throw Error('obsolete discovery');});await r.fn();assert.equal(calls,0);assert.equal(r.els.aimLineTable.hidden,true);assert.equal(r.els.aimLineTable.innerHTML,'');assert.equal(r.els.aimLineInfo.textContent,'');assert.equal(r.aim.cands.length,0);});
 test('同名の山頂は近くの駅に吸収されず、索引の市町村・標高・位置で出る（高尾山）',async()=>{
- const terrain=createRequire(import.meta.url)('./sorami-terrain.js');
+ const terrain=createRequire(import.meta.url)('./astronotes-terrain.js');
  const osm=[{name:'高尾山',display_name:'高尾山, 高尾山線, 高尾町, 八王子市, 東京都',type:'station',lat:'35.6311',lon:'139.2561',extratags:{}},{name:'高尾山',display_name:'高尾山, 東京都, 193-0841, 日本',type:'peak',lat:'35.62523',lon:'139.24369',extratags:{}}];
  const idx=[{name:'高尾山',muni:'東京都八王子市',elevation:599,kind:'山',latitude:35.6252267,longitude:139.2436878,score:100}];
- const search=runInNewContext(grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?[]:osm,photographicSearch:async()=>[],SoramiPlaceSearch:{search:()=>[],match:()=>false},searchSupplement:async()=>({places:[]}),favorites:[],SoramiAlign:{TARGETS:[]},placeIndex:async()=>({}),SoramiTerrain:{...terrain,searchPlaceIndex:()=>idx},place,URLSearchParams});
+ const search=runInNewContext(grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?[]:osm,photographicSearch:async()=>[],AstroNotesPlaceSearch:{search:()=>[],match:()=>false},searchSupplement:async()=>({places:[]}),favorites:[],AstroNotesAlign:{TARGETS:[]},placeIndex:async()=>({}),AstroNotesTerrain:{...terrain,searchPlaceIndex:()=>idx},place,URLSearchParams});
  const found=await search('高尾山',{near:{latitude:35.6812,longitude:139.7671}});
  const summit=found.find(r=>r.kind==='山'),station=found.find(r=>r.kind==='駅');
  assert.ok(summit&&station,'山頂と駅は別の候補');assert.match(summit.detail,/八王子市/);assert.match(summit.detail,/599m/);
@@ -77,10 +77,10 @@ test('同名の山頂は近くの駅に吸収されず、索引の市町村・�
  assert.equal(found.filter(r=>Math.abs(r.latitude-35.6252)<0.001).length,1,'山頂は1件にまとまる');
 });
 test('同名GSI地点は住所で区別できる。近いOSM住所は引き継ぐ',async()=>{
- const terrain=createRequire(import.meta.url)('./sorami-terrain.js');
+ const terrain=createRequire(import.meta.url)('./astronotes-terrain.js');
  const gsi=[139.76,140.5].map(lon=>({properties:{title:'新宿',addressCode:lon===139.76?'13104':'12211'},geometry:{coordinates:[lon,35.68]}}));
  const osm=[{name:'新宿',display_name:'新宿, 東京都',lat:'35.68001',lon:'139.76001',extratags:{}}];
- const search=runInNewContext(grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?gsi:osm,photographicSearch:async()=>[],SoramiPlaceSearch:{search:()=>[],match:()=>false},searchSupplement:async()=>({places:[],municipalities:{'13104':'東京都新宿区','12211':'千葉県成田市'}}),favorites:[],SoramiAlign:{TARGETS:[]},placeIndex:async()=>({}),SoramiTerrain:{...terrain,searchPlaceIndex:()=>[]},place,URLSearchParams});
+ const search=runInNewContext(grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?gsi:osm,photographicSearch:async()=>[],AstroNotesPlaceSearch:{search:()=>[],match:()=>false},searchSupplement:async()=>({places:[],municipalities:{'13104':'東京都新宿区','12211':'千葉県成田市'}}),favorites:[],AstroNotesAlign:{TARGETS:[]},placeIndex:async()=>({}),AstroNotesTerrain:{...terrain,searchPlaceIndex:()=>[]},place,URLSearchParams});
  const found=await search('新宿');assert.equal(found.length,2);assert.ok(found.some(r=>r.detail.includes('東京都')));assert.ok(found.some(r=>r.detail.includes('千葉県成田市')));
  assert.notEqual(found[0].detail,found[1].detail);assert.ok(found.every(r=>!r.detail.includes('km')));
 });
@@ -114,15 +114,15 @@ test('月の選択はメニュー再入場・再読込でも保持し、明示�
  const declaration=init.slice(0,init.indexOf('};')+2);
  const preset=html.slice(html.indexOf('const AIM_PRESETS = {'),html.indexOf('};',html.indexOf('const AIM_PRESETS = {'))+2);
  const start=html.indexOf('  if (pre) {',html.indexOf('const pre = preset && AIM_PRESETS[preset]'));
- const entry=html.slice(start,html.indexOf('  if (!SoramiBodies.definition(body).limbs',start));
+ const entry=html.slice(start,html.indexOf('  if (!AstroNotesBodies.definition(body).limbs',start));
  const sel={value:'skytree',selectedIndex:0};
- const c={store,$:()=>sel,SoramiBodies:globalThis.SoramiBodies,aimLimbValue:()=>"center"};
+ const c={store,$:()=>sel,AstroNotesBodies:globalThis.AstroNotesBodies,aimLimbValue:()=>"center"};
  runInNewContext(declaration+preset+'; aim.limbsByBody={};result={aim,AIM_PRESETS};',c);
  for(const name of ['tower','tower']){c.aim=c.result.aim;c.pre=c.result.AIM_PRESETS[name];runInNewContext(entry,c);assert.equal(c.aim.body,'moon');}
  c.pre=c.result.AIM_PRESETS.diamond;runInNewContext(entry,c);assert.equal(c.aim.body,'sun');
  c.pre=c.result.AIM_PRESETS.pearl;runInNewContext(entry,c);assert.equal(c.aim.body,'moon');
  runInNewContext('store.set("sorami.aimBody", aim.body);',c);
- const reloaded={store,SoramiBodies:globalThis.SoramiBodies};runInNewContext(declaration+';result=aim;',reloaded);assert.equal(reloaded.result.body,'moon');
+ const reloaded={store,AstroNotesBodies:globalThis.AstroNotesBodies};runInNewContext(declaration+';result=aim;',reloaded);assert.equal(reloaded.result.body,'moon');
 });
 
 

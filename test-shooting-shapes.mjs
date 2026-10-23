@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url),L=require('./sorami-library.js'),P=require('./sorami-shooting.js'),A=require('./sorami-align.js');
+const require=createRequire(import.meta.url),L=require('./astronotes-library.js'),P=require('./astronotes-shooting.js'),A=require('./astronotes-align.js');
 const ll=(x,y=0)=>({latitude:35+y/111195,longitude:139+x/(111195*Math.cos(35*Math.PI/180))});
 const shape=(type,coords)=>({type,vertices:coords.map(([x,y])=>ll(x,y))});
 const at=Date.parse('2026-10-24T12:00:00+09:00');
@@ -68,10 +68,10 @@ test('実天文計算でも線上・範囲内の選択位置と時刻で再計�
 
 import fs from 'node:fs';
 import vm from 'node:vm';
-const ui=fs.readFileSync(new URL('./sorami-myplaces.js',import.meta.url),'utf8'),html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const ui=fs.readFileSync(new URL('./astronotes-myplaces.js',import.meta.url),'utf8'),html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
 test('形はアカウントで隔離し、移動したお気に入りへ旧形状を付け替えない',()=>{
  const values=new Map(),auth={loginId:'first'},f={id:'same',...ll(0)};
- const c={auth,SoramiLibrary:L,store:{get:(k,d)=>values.get(k)??d},SoramiShooting:P};vm.createContext(c);
+ const c={auth,AstroNotesLibrary:L,store:{get:(k,d)=>values.get(k)??d},AstroNotesShooting:P};vm.createContext(c);
  vm.runInContext(ui.slice(ui.indexOf('const shapesKey='),ui.indexOf('let shapeDialog=')),c);
  values.set('sorami.placeShapes.v1:first',{same:{...ll(0),shape:shape('line',[[0,0],[100,0]])}});
  assert.equal(c.shapeFor(f).type,'line');auth.loginId='second';assert.equal(c.shapeFor(f),null);auth.loginId='first';assert.equal(c.shapeFor({...f,latitude:36}),null);
@@ -95,7 +95,7 @@ function newShapeHarness(){
  const nodes=new Map(),make=()=>({children:[],dataset:{},value:'',disabled:false,open:false,append(...v){this.children.push(...v)},replaceChildren(...v){this.children=v},setAttribute(k,v){this[k]=v},toggleAttribute(k,on){this.attributes??={};if(on)this.attributes[k]='';else delete this.attributes[k]},hasAttribute(k){return Object.hasOwn(this.attributes||{},k)},addEventListener(){},querySelectorAll(){return []},dispatchEvent(){},close(){this.open=false}});
  const state={place:{id:null,name:'',latitude:null,longitude:null},draftShape:null,draftTargets:[],targetDrafts:[],ctx:'records'};let picks,moveHandler,center=ll(0);
  const map={setOverlay(){},onPick(fn){picks=fn},onMove(fn){moveHandler=fn},open(p){center={...p}},setView(...v){this.view=v;center={latitude:v[0],longitude:v[1]};moveHandler?.(center)},pan(p){center={...p};moveHandler?.(center)},center:()=>center,project:(lat,lon)=>[lon,lat],redraw(){}};
- const c={shapeKey:JSON.stringify,confirm:()=>true,SoramiTerrain:require('./sorami-terrain.js'),SoramiLibrary:L,Event:class{},wireSearchBox:(a,b,fn)=>{map.move=fn},sheetState:state,sheetOwnerMatches:()=>true,auth:{token:'owner'},el:id=>{if(!nodes.has(id))nodes.set(id,make());return nodes.get(id)},document:{createElement:make,body:{append(){}}},PLACE_PICKERS:{},SoramiShooting:P,place:{...ll(0)},placeNear:()=>null,createMapView:()=>map,showSheet:d=>{d.open=true},renderSheet(){},openPlaceSheet(){},shapeName:s=>s?.type==='area'?'範囲':s?.type==='line'?'線':'点',structuredClone,Option:function(text,value){return {text,value}}};
+ const c={shapeKey:JSON.stringify,confirm:()=>true,AstroNotesTerrain:require('./astronotes-terrain.js'),AstroNotesLibrary:L,Event:class{},wireSearchBox:(a,b,fn)=>{map.move=fn},sheetState:state,sheetOwnerMatches:()=>true,auth:{token:'owner'},el:id=>{if(!nodes.has(id))nodes.set(id,make());return nodes.get(id)},document:{createElement:make,body:{append(){}}},PLACE_PICKERS:{},AstroNotesShooting:P,place:{...ll(0)},placeNear:()=>null,createMapView:()=>map,showSheet:d=>{d.open=true},renderSheet(){},openPlaceSheet(){},shapeName:s=>s?.type==='area'?'範囲':s?.type==='line'?'線':'点',structuredClone,Option:function(text,value){return {text,value}}};
  vm.createContext(c);vm.runInContext(ui.slice(ui.indexOf('let shapeDialog='),ui.indexOf('// ---------------------------------------------------------------- 記録：')),c);
  return {c,state,nodes,map,pick:(p)=>picks(p,{x:1000,y:1000}),value:()=>vm.runInContext('shapeEdit.value',c)};
 }

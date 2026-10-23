@@ -7,7 +7,7 @@ test('日時は下部固定欄に集約し、見え方と撮影地で同じ時�
  const p=h.slice(h.indexOf('<script id="previewPresentation">')),css=h.slice(h.indexOf('<style id="previewStyles">'),h.indexOf('</style></head>'));
  assert.match(h,/aria-controls="previewPlaces"[^>]*>撮影地点<\/button>/);
  assert.match(p,/footer\.className='preview-datetime-footer'/);assert.match(p,/footer\.append\(dateRow\)/);
- assert.match(p,/SoramiScrollTimeline.mount\(\{root:footerTimeline/,'共通部品でiPhoneの時刻目盛りを横スクロールできる');
+ assert.match(p,/AstroNotesScrollTimeline.mount\(\{root:footerTimeline/,'共通部品でiPhoneの時刻目盛りを横スクロールできる');
  assert.match(p,/mode==='places'\?mapRange:look\.querySelector\('\[data-look-range\]'\)/,'撮影地は出入線、見え方は図の時間幅');
  assert.match(p,/focusin',e=>e\.target\.toggleAttribute\('data-pointer-focus',!keyNav\)/,'指で閉じたカレンダーから戻っても日付に青枠を出さない');assert.match(css,/\[data-pointer-focus\]:focus\{outline:none\}/);
  assert.match(p,/state\.set\(state\.reference\);\}if\(timeDialog\.open\)timeDialog\.close\(\);/,'基準時刻へ移動したら設定を閉じる');
@@ -22,7 +22,7 @@ test('E79 総点検で見つけた下部欄まわりの不具合を戻さない'
  assert.match(p,/if\(dateValue&&Number\.isFinite\(aim\.dayMs\)\)/,'日付が入る前に曜日だけを出さない');
  assert.match(css,/\.tool-datetime-row\{display:grid;grid-template-columns:44px auto minmax\(0,1fr\) 44px 44px;/,'日付は内容幅、時刻と差は残りの幅');
  assert.match(css,/\.preview-footer-rel\{max-width:100%;overflow:hidden;text-overflow:ellipsis;/);
- const timeline=readFileSync(new URL('./sorami-scroll-timeline.js',import.meta.url),'utf8');assert.match(timeline,/mode==='date'\?DAY:mode==='hour'\?3600000:MINUTE/,'共通目盛りの矢印は時刻1分・日付1日');
+ const timeline=readFileSync(new URL('./astronotes-scroll-timeline.js',import.meta.url),'utf8');assert.match(timeline,/mode==='date'\?DAY:mode==='hour'\?3600000:MINUTE/,'共通目盛りの矢印は時刻1分・日付1日');
  assert.match(h,/if \(!bundle && route && !route\.id\) applyRoute\(\);\n    else \$\("placeName"\)\.textContent = place\.name;/,'予測の取得に失敗しても天体などの画面はURLどおり開く');
  assert.match(p,/focalInput\.value=button\.dataset\.focalPreset;focalInput\.onchange\(\);const sheet=button\.closest\('dialog'\);if\(sheet\?\.open\)sheet\.close\(\);/,'焦点距離の代表値を押したら画角調整を閉じる');
 });

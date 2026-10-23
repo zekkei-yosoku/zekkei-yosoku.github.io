@@ -4,7 +4,7 @@
 // に実測として残してある（新宿 31.3% が建物の裏、絞り方の比較など）。
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const T = require("./sorami-terrain.js");
+const T = require("./astronotes-terrain.js");
 
 let pass = 0, fail = 0;
 const ok = (c, name, extra = "") => { c ? pass++ : fail++; console.log(`  ${c ? "ok  " : "FAIL"} ${name}`, extra); };
@@ -144,7 +144,7 @@ console.log("\n== 建物だけで地平線を作っても壊れない ==");
   // 建物層だけで作ると壊れる。**必ず下敷きを敷く**
   const broken = T.combinedHorizon({ urban });
   ok(broken(270) === -90, "建物層だけだと地平線が −90 になる（だから下敷きが要る）");
-  const A = require("./sorami-astro.js");
+  const A = require("./astronotes-astro.js");
   const obs = { latitude: 35.6556, longitude: 139.7476, elevation: 10 };
   const day = Date.UTC(2026, 8, 14) - 9 * 3600000;
   const flat = A.moonEvents(day, day + 86400000, obs, {});
@@ -160,7 +160,7 @@ console.log("\n== 建物は時刻を動かす（点数ではない）==");
   // 観測者の西に高い建物を置くと、月の入りだけが早まる。東の月の出は動かない。
   // 実測（芝公園・西南西にザ・プリンス パークタワー 117.5m・24m先）:
   //   月の出 0〜5分の遅れ / **月の入り 80〜130分の早まり**
-  const A = require("./sorami-astro.js");
+  const A = require("./astronotes-astro.js");
   // **建物を置いた座標と、月を計算する座標を揃える。**
   // mkBox は OBS の周りに置くので、別の座標で月を出すと建物が効かない（実際に踏んだ）
   const obs = OBS;

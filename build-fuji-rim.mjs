@@ -1,5 +1,5 @@
 /*
- * 富士山の火口の縁（頂の形）を作る。**一度走らせて、結果を sorami-align.js に貼る。**
+ * 富士山の火口の縁（頂の形）を作る。**一度走らせて、結果を astronotes-align.js に貼る。**
  *
  *   node build-fuji-rim.mjs   → 標準出力に FUJI_RIM の文字列
  *

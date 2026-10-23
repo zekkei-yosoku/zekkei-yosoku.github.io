@@ -1,6 +1,6 @@
 // 日付をまたぐ通り道と画角内の時刻（2026-10-20 ユーザー「日付を跨ぐ際に線が途切れる問題に対処して」）
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url),Al=require('./sorami-align.js');
+const require=createRequire(import.meta.url),Al=require('./astronotes-align.js');
 const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
 test('frameDayPath は前日・翌日へ広げられ、既定はその日の0〜24時',()=>{
  const day=Date.parse('2026-10-20T00:00:00+09:00'),obs={latitude:35.74,longitude:139.93,elevation:20},proj=()=>[0,0];
@@ -14,7 +14,7 @@ test('図は見ている時刻を含む1本の通り道だけを前日・翌日�
  assert.match(html,/t < frameDay \? "前日" : t >= dayEnd \? "翌日" : ""/);assert.doesNotMatch(html,/"24:00まで枠内"|"0:00時点で枠内"/);
 });
 test('構図の図の操作で触っていない部品を動かさない（2026-10-20 ユーザー「なんで触ってないボタンがズレるの?」）',()=>{
- const c=fs.readFileSync(new URL('./sorami-flair.css',import.meta.url),'utf8');
+ const c=fs.readFileSync(new URL('./astronotes-flair.css',import.meta.url),'utf8');
  assert.match(c,/#aimLook \.preview-figure-tools\{align-items:flex-end\}/);
 assert.match(c,/#aimLook \.preview-center\{display:grid;/);
  assert.doesNotMatch(html,/\.aim-look-figure'\)\?\.after\(actions\)/);assert.doesNotMatch(html,/data-look-undo|data-body-actions/);
@@ -22,7 +22,7 @@ assert.match(c,/#aimLook \.preview-center\{display:grid;/);
 test('旧逆算（1点を解く）は切り替え1つで止め、処理は残す（2026-10-20 ユーザー「外してしまおう。戻しやすいように」）',()=>{
  assert.match(html,/const AIM_REVERSE_ENABLED = false;/);assert.match(html,/btn\.hidden = !\(AIM_REVERSE_ENABLED \|\| placeMode\)/);
  assert.match(html,/function aimReverseClear\(/,'逆算の処理は残す');
- assert.match(fs.readFileSync(new URL('./sorami-flair.css',import.meta.url),'utf8'),/#aimLook \[data-look-pick\]\[hidden\]\{display:none!important\}/);
+ assert.match(fs.readFileSync(new URL('./astronotes-flair.css',import.meta.url),'utf8'),/#aimLook \[data-look-pick\]\[hidden\]\{display:none!important\}/);
 });
 test('図は直接panでき、図内は中央復帰1アイコン。大気差は通常画面（2026-10-22 最新指示）',()=>{
  assert.match(html,/center\.setAttribute\('aria-label','構図を中央に戻す'\)/);

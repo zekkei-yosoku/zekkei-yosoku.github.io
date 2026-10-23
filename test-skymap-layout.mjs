@@ -22,11 +22,11 @@ test('日時バーはAim/Sky双方で同じ部品を使い、場所枠と精密�
 });
 function dom(){const nodes=[];const make=()=>{const n={dataset:{},style:{},children:[],attrs:{},classList:{add(){}},append(...items){this.children.push(...items)},replaceChildren(...items){this.children=items},setAttribute(k,v){this.attrs[k]=v},focus(){},listeners:{},addEventListener(k,f){this.listeners[k]=f},showModal(){this.open=true},close(){this.open=false;this.listeners.close?.()},querySelector(k){return this.parts[k]??=make()},parts:{}};nodes.push(n);return n;};return {nodes,document:{createElement:make,body:{append(){}}}};}
 test('共通カレンダーは月末の選択・年月送りを扱い、時刻の適用を道具側へ委ねる',()=>{
- const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);const button=d.document.createElement('button');let chosen;const at=Date.parse('2026-12-22T12:34:00+09:00'),dialog=c.ToolDateTimeBar.calendar({button,getAt:()=>at,setDay:x=>chosen=x});button.onclick();const grid=dialog.querySelector('[data-grid]');const last=grid.children.filter(x=>x.textContent==='31')[0];last.onclick();assert.equal(chosen,Date.parse('2026-12-31T00:00:00+09:00'));button.onclick();dialog.querySelector('[data-next]').onclick();assert.equal(dialog.querySelector('[data-year]').value,'2027');assert.equal(dialog.querySelector('[data-month]').value,'0');
+ const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./astronotes-datetime-ui.js',import.meta.url),'utf8'),c);const button=d.document.createElement('button');let chosen;const at=Date.parse('2026-12-22T12:34:00+09:00'),dialog=c.ToolDateTimeBar.calendar({button,getAt:()=>at,setDay:x=>chosen=x});button.onclick();const grid=dialog.querySelector('[data-grid]');const last=grid.children.filter(x=>x.textContent==='31')[0];last.onclick();assert.equal(chosen,Date.parse('2026-12-31T00:00:00+09:00'));button.onclick();dialog.querySelector('[data-next]').onclick();assert.equal(dialog.querySelector('[data-year]').value,'2027');assert.equal(dialog.querySelector('[data-month]').value,'0');
  dialog.querySelector('[data-year]').value='2028';dialog.querySelector('[data-month]').value='2';dialog.querySelector('[data-month]').onchange();assert.equal(dialog.querySelector('[data-year]').value,'2028');assert.equal(dialog.querySelector('[data-month]').value,'2');assert.ok(grid.children.some(x=>x['aria-label']==='2028年3月1日'||x.attrs?.['aria-label']==='2028年3月1日'));
 });
 test('共通時間バーはつまみを掴むと跳ばず、指を離して確定し、使用不可なら操作しない',()=>{
- const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);const track=d.document.createElement('div'),range=d.document.createElement('input');Object.assign(range,{min:0,max:86400,value:43200,getBoundingClientRect:()=>({left:0,width:200})});track.setPointerCapture=()=>{};let inputs=0,commits=0,enabled=true;range.oninput=()=>inputs++;range.onchange=()=>commits++;c.ToolDateTimeBar.wireScrub({track,range,enabled:()=>enabled});const e=(x)=>({pointerId:1,button:0,clientX:x,preventDefault(){}});track.listeners.pointerdown(e(100));assert.equal(inputs,0);track.listeners.pointermove(e(120));assert.ok(Number(range.value)>43200);track.listeners.pointerup(e(120));assert.equal(inputs,1);assert.equal(commits,1);enabled=false;track.listeners.pointerdown(e(10));assert.equal(inputs,1);
+ const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./astronotes-datetime-ui.js',import.meta.url),'utf8'),c);const track=d.document.createElement('div'),range=d.document.createElement('input');Object.assign(range,{min:0,max:86400,value:43200,getBoundingClientRect:()=>({left:0,width:200})});track.setPointerCapture=()=>{};let inputs=0,commits=0,enabled=true;range.oninput=()=>inputs++;range.onchange=()=>commits++;c.ToolDateTimeBar.wireScrub({track,range,enabled:()=>enabled});const e=(x)=>({pointerId:1,button:0,clientX:x,preventDefault(){}});track.listeners.pointerdown(e(100));assert.equal(inputs,0);track.listeners.pointermove(e(120));assert.ok(Number(range.value)>43200);track.listeners.pointerup(e(120));assert.equal(inputs,1);assert.equal(commits,1);enabled=false;track.listeners.pointerdown(e(10));assert.equal(inputs,1);
 });
 
 test('太陽・月の4表示状態は保存され、非表示でも日時と重ねる条件は変えない',async()=>{
@@ -78,7 +78,7 @@ test('紫の対象の方位を通過する時刻/高度は時計欄へ常時表�
 });
 
 test('通過の計算失敗は計算中のまま残らず再試行でき、天体を隠しても対象の仰角を保持する',async()=>{
- const f=fixture({saved:{at:Date.parse('2027-03-12T12:00:00+09:00'),targetId:'fuji'}});await f.open();const original=f.c.SoramiBodies;f.c.SoramiBodies={...original,ensure:async()=>{throw Error('fixture')}};f.element('skyMapBody').onchange();await flush();assert.ok(f.element('skyMapPassages').children.some(b=>b.textContent==='計算できません'));assert.equal(f.element('skyMapRetry').hidden,false);f.c.SoramiBodies=original;await f.element('skyMapRetry').onclick();assert.ok(f.element('skyMapPassages').children.some(n=>n.className==='sky-map-passages-values'&&n.children.some(b=>b.type==='button')));f.element('skyMapShowSun').onclick();await flush();assert.equal(f.element('skyMapShowSun')['aria-pressed'],'false');assert.equal(f.element('skyMapShowMoon')['aria-pressed'],'false');assert.equal(f.element('skyMapPassages').children.length,1);assert.match(f.element('skyMapPassages').children[0].children[1].textContent,/対象の仰角.*°/);
+ const f=fixture({saved:{at:Date.parse('2027-03-12T12:00:00+09:00'),targetId:'fuji'}});await f.open();const original=f.c.AstroNotesBodies;f.c.AstroNotesBodies={...original,ensure:async()=>{throw Error('fixture')}};f.element('skyMapBody').onchange();await flush();assert.ok(f.element('skyMapPassages').children.some(b=>b.textContent==='計算できません'));assert.equal(f.element('skyMapRetry').hidden,false);f.c.AstroNotesBodies=original;await f.element('skyMapRetry').onclick();assert.ok(f.element('skyMapPassages').children.some(n=>n.className==='sky-map-passages-values'&&n.children.some(b=>b.type==='button')));f.element('skyMapShowSun').onclick();await flush();assert.equal(f.element('skyMapShowSun')['aria-pressed'],'false');assert.equal(f.element('skyMapShowMoon')['aria-pressed'],'false');assert.equal(f.element('skyMapPassages').children.length,1);assert.match(f.element('skyMapPassages').children[0].children[1].textContent,/対象の仰角.*°/);
 });
 
 test('通常プレビューのタップは移動を開始せず、拡大後だけピンの移動を始める',async()=>{
@@ -97,7 +97,7 @@ test('通常地図で月/太陽を選ぶと実描画と表示フラグがその�
  const f=fixture({saved:{at:Date.parse('2026-11-03T16:22:00+09:00'),body:'sun',showSun:true,showMoon:false,targetId:'fuji'}});await f.open();for(const body of ['moon','sun','moon']){f.element('skyMapBody').value=body;f.element('skyMapBody').onchange();await flush();const saved=f.data.get('sorami.skyMap:testuser');assert.equal(saved.showSun,body==='sun');assert.equal(saved.showMoon,body==='moon');assert.equal(f.discs.at(-1).body,body);}
 });
 test('転送後の下部バーは軌道の配列番号を日秒として読まず、実時刻と秒scopeで同期する',()=>{
- const d=dom(),c={document:d.document,Date,Number};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);
+ const d=dom(),c={document:d.document,Date,Number};vm.createContext(c);vm.runInContext(readFileSync(new URL('./astronotes-datetime-ui.js',import.meta.url),'utf8'),c);
  const day=Date.parse('2026-11-03T00:00:00+09:00'),source={min:'0',max:'42',get value(){throw Error('配列番号を時刻へ使ってはいけない')}},range={setAttribute(){}};
  Object.assign(c,{state:{day,current:day+57840000,minSeconds:57300,maxSeconds:58200},mode:'scene',look:{_footerFrame:null,querySelector:()=>source},mapRange:source,footerRange:range,document:{...d.document,activeElement:null}});
  const start=html.indexOf("  const source=mode==='places'?mapRange:look.querySelector('[data-look-range]');"),end=html.indexOf('  if(!globalThis.TrialExplore?.active()){if(state){footerRange.setAttribute',start);assert.ok(start>=0);const sync=html.slice(start,end);vm.runInContext('{'+sync+'}',c);assert.equal(range.value,'57840');assert.equal(range.min,'57300');assert.equal(range.max,'58200');
@@ -112,7 +112,7 @@ test('重ねるから戻ると現在の選択天体を表示し以前の非表�
 });
 test('カレンダー指定時刻を微調整の秒範囲へ含め、表示の端への丸めを防ぐ',()=>{
  const start=html.indexOf('  const uiState = host._uiTime = {'),end=html.indexOf('  uiState.window();',start),day=Date.parse('2026-11-03T00:00:00+09:00'),range={setAttribute(){}},host={_lookAt:day+43200000};
- const c={host,range,uiDay:day,uiEnd:day+86400000-1,spec:{at:day+43200000},selectedAt:day+43200000,Number,Math,SoramiBodies:{state:()=>({azimuth:0,apparentAltitude:0})},body:'sun',eyeObs:{},proj:()=>[0,0],win:{halfW:100,halfH:100},aimLookHMS:()=>'',seq:1,timeIndex:x=>x,draw(){}};
+ const c={host,range,uiDay:day,uiEnd:day+86400000-1,spec:{at:day+43200000},selectedAt:day+43200000,Number,Math,AstroNotesBodies:{state:()=>({azimuth:0,apparentAltitude:0})},body:'sun',eyeObs:{},proj:()=>[0,0],win:{halfW:100,halfH:100},aimLookHMS:()=>'',seq:1,timeIndex:x=>x,draw(){}};
  vm.createContext(c);vm.runInContext(html.slice(start,end)+'host._uiTime.window('+String(day+64800000)+');',c);assert.ok(+range.max>=64800);assert.equal(+range.value,43200);assert.equal(host._uiTime.maxSeconds,+range.max);
 });
 
@@ -150,7 +150,7 @@ test('E198: 日時の読み上げは画面と同じ表記、⋯は中身どお�
  assert.match(html,/\$\("aimDate"\)\.value\.replaceAll\("-", "\/"\)/);
  assert.match(html,/id="skyMapTimeMore" aria-label="天体の位置と時刻"/);assert.match(html,/<strong>天体の位置と時刻<\/strong>/);
  assert.match(html,/id="skyMapEarlier">−1分<\/button>[\s\S]{0,80}id="skyMapLater">\+1分<\/button>/);
- const d={},c={document:{createElement:()=>d},Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);
+ const d={},c={document:{createElement:()=>d},Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./astronotes-datetime-ui.js',import.meta.url),'utf8'),c);
  assert.equal(c.ToolDateTimeBar.label(Date.parse('2026-10-03T23:59:00+09:00')),'2026/10/03(土)');
 });
 test('E198: 予測の取得状態は道具の画面の上に出さない',()=>{
@@ -164,7 +164,7 @@ test('E198: 月・富士山の信頼度の説明で、何日先かを二重に�
   assert.ok((text.match(new RegExp(d+'日先','g'))||[]).length<=1,text);assert.match(text,/点数は ±17点 ほど動く見込みです/);}
 });
 test('E198: 時刻は0を付けて桁を揃え、月丼の日付は今日と書かない',()=>{
- const S=createRequireFn('./sorami-core.js');S.setTimezoneOffset(9*3600);
+ const S=createRequireFn('./astronotes-core.js');S.setTimezoneOffset(9*3600);
  assert.equal(S.Cal.hhmm(Date.parse('2026-10-13T05:07:30+09:00')),'05:07');assert.equal(S.Cal.hhmmRounded(Date.parse('2026-10-13T09:59:40+09:00')),'10:00');
  assert.doesNotMatch(html,/・ 今日"/);assert.match(html,/\$\("planeWeekday"\)\.textContent = S\.Cal\.relativeDay\(ms\);/);
  assert.match(html,/月 方位\$\{Math\.round\(sp\.best\.moonAz\)\}°・高さ/);assert.match(html,/の方位\$\{Math\.round\(r\.azimuth\)\}°・高さ\$\{Math\.round\(r\.altitude\)\}°/);
@@ -177,7 +177,7 @@ test('追加6天体は太陽/月を維持して1つだけ表示し、選択/解�
   f.element('skyMapExtra-'+id).onclick();await flush();const s=f.data.get('sorami.skyMap:testuser');
   assert.equal(s.extraBody,id);assert.equal(s.body,id);assert.equal(s.showSun,true);assert.equal(s.showMoon,true);assert.equal(s.at,day);
   assert.equal(f.element('skyMapAngles').children.length,3);assert.equal(f.element('skyMapBodiesSheet').open,false);assert.equal(f.element('skyMapExtra-'+id)['aria-pressed'],'true');
-  assert.equal(f.element('skyMapExtraName').textContent,f.c.SoramiBodies.definitions.find(d=>d.id===id).name);
+  assert.equal(f.element('skyMapExtraName').textContent,f.c.AstroNotesBodies.definitions.find(d=>d.id===id).name);
  }
  const snapshot=f.data.get('sorami.skyMap:testuser'),g=fixture({saved:snapshot});await g.open();assert.equal(g.element('skyMapExtra-saturn')['aria-pressed'],'true');assert.equal(g.element('skyMapAngles').children.length,3);
  g.element('skyMapClearExtra').onclick();await flush();const cleared=g.data.get('sorami.skyMap:testuser');assert.equal(cleared.extraBody,null);assert.equal(cleared.showSun,true);assert.equal(cleared.showMoon,true);assert.equal(g.element('skyMapAngles').children.length,2);assert.equal(g.element('skyMapClearExtra').hidden,true);
@@ -191,7 +191,7 @@ test('追加天体は太陽/月を非表示にしても残り、全て解除す�
 test('追加天体の選択は権限失効/画面離脱後のイベントを拒否し、計算失敗は再試行できる',async()=>{
  const tools=['skymap','tower'],f=fixture({tools,saved:{at:day}});await f.open();const old=f.data.get('sorami.skyMap:testuser');tools.splice(0,2,'tower');f.element('skyMapExtra-jupiter').onclick();await flush();assert.equal(f.data.get('sorami.skyMap:testuser'),old);
  const g=fixture({saved:{at:day}});await g.open();g.c.SkyMapUI.leave();g.element('skyMapExtra-jupiter').onclick();assert.equal(g.element('skyMapBodiesSheet').open,false);
- const h=fixture({saved:{at:day}});await h.open();const b=h.c.SoramiBodies;h.c.SoramiBodies={...b,ensure:async id=>{if(id==='jupiter')throw Error('offline')}};h.element('skyMapExtra-jupiter').onclick();await flush();assert.match(h.element('skyMapStatus').textContent,/再試行/);assert.equal(h.element('skyMapRetry').hidden,false);h.c.SoramiBodies=b;await h.element('skyMapRetry').onclick();assert.ok(h.element('skyMapAngles').children.some(d=>d.textContent.includes('木星')));
+ const h=fixture({saved:{at:day}});await h.open();const b=h.c.AstroNotesBodies;h.c.AstroNotesBodies={...b,ensure:async id=>{if(id==='jupiter')throw Error('offline')}};h.element('skyMapExtra-jupiter').onclick();await flush();assert.match(h.element('skyMapStatus').textContent,/再試行/);assert.equal(h.element('skyMapRetry').hidden,false);h.c.AstroNotesBodies=b;await h.element('skyMapRetry').onclick();assert.ok(h.element('skyMapAngles').children.some(d=>d.textContent.includes('木星')));
 });
 
 test('月を主天体にしたまま追加天体を解除すると月へ戻り、構図の権限も戻る',async()=>{
@@ -199,14 +199,14 @@ test('月を主天体にしたまま追加天体を解除すると月へ戻り�
  f.element('skyMapClearExtra').onclick();await flush();assert.equal(f.element('skyMapBody').value,'moon');assert.equal(f.c.SkyMapUI.prepareFraming(),true);assert.equal(f.data.get('sorami.skyMap:testuser').primaryBody,'moon');
 });
 test('追加天体の取得不能でも太陽/月を描き、選択天体の構図は止めて再試行で復帰する',async()=>{
- const f=fixture({saved:{at:day,body:'moon',showSun:true,showMoon:true,targetId:'skytree'}});await f.open();const provider=f.c.SoramiBodies;
- f.c.SoramiBodies={...provider,ensure:async id=>{if(id==='saturn')throw Error('offline')}};f.element('skyMapExtra-saturn').onclick();await flush();
+ const f=fixture({saved:{at:day,body:'moon',showSun:true,showMoon:true,targetId:'skytree'}});await f.open();const provider=f.c.AstroNotesBodies;
+ f.c.AstroNotesBodies={...provider,ensure:async id=>{if(id==='saturn')throw Error('offline')}};f.element('skyMapExtra-saturn').onclick();await flush();
  const names=f.element('skyMapAngles').children.map(x=>x.textContent);assert.equal(names.length,2);assert.ok(names.some(x=>x.startsWith('太陽')));assert.ok(names.some(x=>x.includes('月')));assert.notEqual(f.c.SkyMapUI.prepareFraming(),true);assert.match(f.element('skyMapTargetInfo').textContent,/選択天体は計算できません/);assert.match(f.element('skyMapStatus').textContent,/土星.*再試行/);assert.equal(f.element('skyMapBody').value,'saturn');transfer(f);assert.equal(f.c.hash,undefined);
- f.c.SoramiBodies=provider;await f.element('skyMapRetry').onclick();assert.equal(f.element('skyMapAngles').children.length,3);assert.equal(f.c.SkyMapUI.prepareFraming(),true);
+ f.c.AstroNotesBodies=provider;await f.element('skyMapRetry').onclick();assert.equal(f.element('skyMapAngles').children.length,3);assert.equal(f.c.SkyMapUI.prepareFraming(),true);
 });
 
 test('共通カレンダーの四方向・年境界・うるう年とtap/closeは同じ操作契約',()=>{
- const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);
+ const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./astronotes-datetime-ui.js',import.meta.url),'utf8'),c);
  let chosen;const at=Date.parse('2027-12-22T12:34:00+09:00'),button=d.document.createElement('button'),dialog=c.ToolDateTimeBar.calendar({button,getAt:()=>at,setDay:x=>chosen=x});
  button.onclick();const grid=dialog.querySelector('[data-grid]'),state=()=>[+dialog.querySelector('[data-year]').value,+dialog.querySelector('[data-month]').value];
  const fire=(type,x,y)=>{const t={identifier:1,clientX:x,clientY:y},e={touches:type==='touchend'?[]:[t],changedTouches:[t],cancelable:true,preventDefault(){this.prevented=true},stopImmediatePropagation(){this.stopped=true}};grid.listeners[type](e);return e;};
@@ -219,7 +219,7 @@ test('共通カレンダーの四方向・年境界・うるう年とtap/close�
 });
 
 test('全カレンダーの枠外tapだけ閉じ、内部余白と内外dragやcancelは維持',()=>{
- const c={};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);
+ const c={};vm.createContext(c);vm.runInContext(readFileSync(new URL('./astronotes-datetime-ui.js',import.meta.url),'utf8'),c);
  const listeners={},dialog={getBoundingClientRect:()=>({left:20,top:100,right:320,bottom:600}),addEventListener:(k,f)=>listeners[k]=f,close(){this.closed=true;listeners.close();}};
  c.ToolDateTimeBar.mountCalendarDismiss(dialog);
  const fire=(type,x,y,target=dialog)=>listeners[type]({clientX:x,clientY:y,target,button:0,preventDefault(){},stopPropagation(){}});
@@ -231,7 +231,7 @@ test('全カレンダーの枠外tapだけ閉じ、内部余白と内外dragやc
 });
 
 test('日時editorの今日は別の年月から戻っても表示月と選択日を今日へ揃える',()=>{
- const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./sorami-datetime-ui.js',import.meta.url),'utf8'),c);
+ const d=dom(),c={document:d.document,Date};vm.createContext(c);vm.runInContext(readFileSync(new URL('./astronotes-datetime-ui.js',import.meta.url),'utf8'),c);
  const button=d.document.createElement('button'),today=Date.parse('2026-10-23T10:00:00+09:00');let at=Date.parse('2027-02-05T21:37:00+09:00');
  const dialog=c.ToolDateTimeBar.calendar({button,getAt:()=>at,getNow:()=>today,setDay:d=>{at=d+21*3600000+37*60000}});dialog.dataset.datetimeEditor='true';button.onclick();dialog.querySelector('[data-today]').onclick();
  assert.equal(dialog.open,true);assert.equal(dialog.querySelector('[data-year]').value,'2026');assert.equal(dialog.querySelector('[data-month]').value,'9');assert.equal(new Date(at+32400000).toISOString().slice(0,16),'2026-10-23T21:37');

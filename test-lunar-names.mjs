@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import{createRequire}from'node:module';
 process.env.TZ='Asia/Tokyo';
-const require=createRequire(import.meta.url),N=require('./trial/sorami-lunar-names.js'),A=require('./trial/sorami-astro.js'),E=require('./vendor/astronomy-engine-2.1.19.min.js'),P=require('./trial/sorami-moon-portrait.js');
+const require=createRequire(import.meta.url),N=require('./trial/astronotes-lunar-names.js'),A=require('./trial/astronotes-astro.js'),E=require('./vendor/astronomy-engine-2.1.19.min.js'),P=require('./trial/astronotes-moon-portrait.js');
 const jst=t=>new Date(t+32400000).toISOString().slice(0,10),full=y=>N.calendar(y,A).events.filter(e=>e.kind===2),tags=e=>e.tags.map(t=>t[1]);
 test('All four event times agree with independent engine across supported years',()=>{
  for(const y of [2020,2024,2026,2030]){const c=N.calendar(y,A);assert.ok(c.events.length>=48&&c.events.length<=51);for(const e of c.events){const found=E.SearchMoonPhase(e.kind*90,new Date(e.at-86400000),2);assert.ok(found);assert.ok(Math.abs(found.date.getTime()-e.at)<120000,`${y} ${e.kind} ${new Date(e.at).toISOString()}`);}}

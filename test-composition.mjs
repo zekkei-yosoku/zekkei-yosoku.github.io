@@ -2,14 +2,14 @@
  * 構図（パール富士・ダイヤモンド富士）の検査。**通信しない。**
  *
  * **構図が成立することと、撮れることは別**（§82）。ここは幾何だけを見る。
- * 天気は sorami-moon.js / sorami-fuji.js が別に持つ。
+ * 天気は astronotes-moon.js / astronotes-fuji.js が別に持つ。
  *
  * 太陽そのものの正しさは米海軍天文台と照合済み（日の出・日の入りが4日とも1分以内）。
  */
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const A = require("./sorami-astro.js");
-const C = require("./sorami-composition.js");
+const A = require("./astronotes-astro.js");
+const C = require("./astronotes-composition.js");
 
 let pass = 0, fail = 0;
 const ok = (c, name, extra = "") => { c ? pass++ : fail++; console.log(`  ${c ? "ok  " : "FAIL"} ${name}`, extra); };

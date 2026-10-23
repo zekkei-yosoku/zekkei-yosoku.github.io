@@ -3,7 +3,7 @@
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 require("./spots.js");
-const catalog = globalThis.SORAMI_SPOTS.spots;
+const catalog = globalThis.ASTRONOTES_SPOTS.spots;
 export const SITE_VERSION = "2026-09-06-tokyo-1";
 const addedLocations = [
   { id: "kasai-rinkai", name: "葛西臨海公園", prefecture: "東京都江戸川区",

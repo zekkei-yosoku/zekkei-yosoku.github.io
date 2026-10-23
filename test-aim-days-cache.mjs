@@ -13,8 +13,8 @@ function fixture(){
  const obs={latitude:point.latitude,longitude:point.longitude,elevation:5.5,eyeM:1.5};
  const aim={target:{id:'tower',latitude:35.66,longitude:139.74,parts:[{id:'tip',m:330}]},body:'moon',partId:'__whole',limb:'onTop',dayMs:start(now),fromSeq:1};
  const dom={innerHTML:'候補日',querySelectorAll:()=>[]};
- const c={Date:class extends Date{static now(){return now}},setTimeout,aim,fujiGrid:null,S:{Cal:{startOfDay:start},JstCal:{sameDay:(a,b)=>start(a)===start(b)}},SoramiAtmosphere:{dataKey:()=>air},$:()=>dom,esc:x=>x,aimFromPoint:()=>point,aimObserverEye:f=>f.standAglM,aimIsMountain:()=>false,
-  aimBuildingDays:async(o,t,b,p,s,options)=>{calls++;if(pending)await pending;return options.isCurrent()?[{at:now+3600000,intersects:true,sunAltitude:-10}]:[];},SoramiAlign:{upcoming:()=>{throw Error('wrong route')}}};
+ const c={Date:class extends Date{static now(){return now}},setTimeout,aim,fujiGrid:null,S:{Cal:{startOfDay:start},JstCal:{sameDay:(a,b)=>start(a)===start(b)}},AstroNotesAtmosphere:{dataKey:()=>air},$:()=>dom,esc:x=>x,aimFromPoint:()=>point,aimObserverEye:f=>f.standAglM,aimIsMountain:()=>false,
+  aimBuildingDays:async(o,t,b,p,s,options)=>{calls++;if(pending)await pending;return options.isCurrent()?[{at:now+3600000,intersects:true,sunAltitude:-10}]:[];},AstroNotesAlign:{upcoming:()=>{throw Error('wrong route')}}};
  vm.createContext(c);vm.runInContext(helpers,c);
  return {c,aim,point,obs,dom,get calls(){return calls},setNow:t=>now=t,setAir:x=>air=x,hold:()=>{let release;pending=new Promise(r=>release=r);return release},key:()=>c.aimDaysInputKey(point),run:()=>c.aimDaysFor(obs,c.aimDaysInputKey(point))};
 }
@@ -42,7 +42,7 @@ test('候補時刻を過ぎたときと日本時間の日付が変わったと�
 });
 test('大気データの鍵は取得失敗を除外し成功・期限切れ・設定変更を検知',async()=>{
  const require=createRequire(import.meta.url);let now=base;
- const c={require,Date:class extends Date{static now(){return now}},URLSearchParams,AbortController,setTimeout,clearTimeout};vm.createContext(c);vm.runInContext(fs.readFileSync(new URL('./sorami-atmosphere.js',import.meta.url),'utf8'),c);const M=c.SoramiAtmosphere,o={latitude:35,longitude:139,elevation:0};M.configure('auto');const initial=M.dataKey();
+ const c={require,Date:class extends Date{static now(){return now}},URLSearchParams,AbortController,setTimeout,clearTimeout};vm.createContext(c);vm.runInContext(fs.readFileSync(new URL('./astronotes-atmosphere.js',import.meta.url),'utf8'),c);const M=c.AstroNotesAtmosphere,o={latitude:35,longitude:139,elevation:0};M.configure('auto');const initial=M.dataKey();
  await M.load(o,base+30*DAY,{now,fetcher:async()=>{throw Error('must not fetch')}});assert.equal(M.dataKey(),initial);
  await M.load({...o,latitude:36},base,{now,fetcher:async()=>{throw Error('network')}});assert.equal(M.dataKey(),initial);
  const raw={hourly_units:{surface_pressure:'hPa',temperature_2m:'°C'},hourly:{time:[base/1000,(base+3600000)/1000],surface_pressure:[1010,1008],temperature_2m:[10,11]}};

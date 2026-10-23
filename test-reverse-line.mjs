@@ -2,8 +2,8 @@
 // 線の点から見ると、天体の中心が目標の先端から、指定した直径ぶん右・上にある
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const AL = require("./sorami-align.js");
-const A = require("./sorami-astro.js");
+const AL = require("./astronotes-align.js");
+const A = require("./astronotes-astro.js");
 
 let pass = 0, fail = 0;
 const ok = (c, name, extra = "") => { c ? pass++ : fail++; console.log(`  ${c ? "ok  " : "FAIL"} ${name}`, extra); };

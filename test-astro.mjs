@@ -13,7 +13,7 @@
  */
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const A = require("./sorami-astro.js");
+const A = require("./astronotes-astro.js");
 
 let pass = 0, fail = 0, skip = 0;
 const ok = (c, name, extra = "") => { c ? pass++ : fail++; console.log(`  ${c ? "ok  " : "FAIL"} ${name}`, extra); };

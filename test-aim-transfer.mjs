@@ -9,7 +9,7 @@ test('構図：図の描き直しは、自分が受け取った引き継ぎ時�
 });
 // 2026-10-21 総点検：同じ型の上書き（比べる時刻）、置いた位置の持ち越し、英語の通信失敗文、表記の揺れ
 test('総点検で直したところが戻っていない',()=>{
- const h=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),d=fs.readFileSync(new URL('./sorami-almanac-dashboard.js',import.meta.url),'utf8');
+ const h=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),d=fs.readFileSync(new URL('./astronotes-almanac-dashboard.js',import.meta.url),'utf8');
  assert.doesNotMatch(h,/if\(aimAirCompare\)aimAirCompare\.at=p\.at;/,'比べる時刻を別の日の図が書き戻さない');
  assert.match(h,/function aimShiftCheck\(\)/,'置いた位置は目標・天体を替えたら消す');
  assert.match(h,/通信できませんでした。電波の状態を確かめて、もう一度お試しください/,'電波が切れたときの英語の失敗文を出さない');

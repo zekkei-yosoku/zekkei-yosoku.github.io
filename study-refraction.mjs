@@ -16,8 +16,8 @@
 import { createRequire } from "node:module";
 import fs from "node:fs";
 const require = createRequire(import.meta.url);
-const RF = require("./sorami-refraction.js");
-const A = require("./sorami-astro.js");
+const RF = require("./astronotes-refraction.js");
+const A = require("./astronotes-astro.js");
 
 const [, , sondePath, outPath] = process.argv;
 if (!sondePath) { console.error("使い方: node study-refraction.mjs <IGRA2.txt> [out.json]"); process.exit(2); }

@@ -3,7 +3,7 @@ const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 const source=html.slice(html.indexOf('async function updateMoonPrediction'),html.indexOf('/// 富士山と月の行を作って'));
 const kick=html.slice(html.indexOf('function kickExtras()'),html.indexOf('function wireMoonTimeRetry'));
 const defer=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {resolve,promise};};
-function context(){const calls=[],x=vm.createContext({currentView:"list",predictionNeeded:()=>true,SoramiPrediction:{visibility(input){const d=defer();calls.push({input,...d});return d.promise;}},SoramiTerrain:{combinedHorizon:()=>()=>0,flatProfile:()=>[]},rerenderList(){},refreshLightTimes(){},console});vm.runInContext('let extraSeq=1,moonEvalSeq=0,moonWeeklySeq=0,moonAcceptedSeq=0,moonTerrainProfile=null,moonUrbanProfile=null,moonHorizon=null,moonPredictionPlace=null,moonDetailKey=null,moonObs={},forecastDays=[1],weeks={};const moonVisibility=new Map(),moonDetailPending=new Map();'+source,x);return {x,calls};}
+function context(){const calls=[],x=vm.createContext({currentView:"list",predictionNeeded:()=>true,AstroNotesPrediction:{visibility(input){const d=defer();calls.push({input,...d});return d.promise;}},AstroNotesTerrain:{combinedHorizon:()=>()=>0,flatProfile:()=>[]},rerenderList(){},refreshLightTimes(){},console});vm.runInContext('let extraSeq=1,moonEvalSeq=0,moonWeeklySeq=0,moonAcceptedSeq=0,moonTerrainProfile=null,moonUrbanProfile=null,moonHorizon=null,moonPredictionPlace=null,moonDetailKey=null,moonObs={},forecastDays=[1],weeks={};const moonVisibility=new Map(),moonDetailPending=new Map();'+source,x);return {x,calls};}
 const dto=label=>({visibilityKey:label,asOf:1,bundle:{fetchedAt:1},weeks:{moon:[label]}});
 test('先の地点の月が後から返っても、新地点の週間を上書きしない',async()=>{
  const {x,calls}=context();const old=vm.runInContext('updateMoonPrediction({}, {latitude:1},1)',x);vm.runInContext('extraSeq=2',x);const fresh=vm.runInContext('updateMoonPrediction({}, {latitude:2},2)',x);
@@ -38,7 +38,7 @@ test('非表示で期限到来しても予算を消費せず、復帰時に一�
  vm.runInContext('retry.reset()',x);assert.equal(listeners.size,0);
 });
 test('同じ地点で再読込しても都市地平線の進行中取得を共有し、古い地点の幾何を採用しない',async()=>{
- const d=defer();let calls=0;const x=vm.createContext({currentView:"list",predictionNeeded:()=>true,SoramiTerrain:{urbanCacheKey:o=>o.key},computeUrbanHorizon(){calls++;return d.promise;}});
+ const d=defer();let calls=0;const x=vm.createContext({currentView:"list",predictionNeeded:()=>true,AstroNotesTerrain:{urbanCacheKey:o=>o.key},computeUrbanHorizon(){calls++;return d.promise;}});
  const wrapper=html.slice(html.indexOf('const urbanPending'),html.indexOf('async function computeUrbanHorizon'));
  vm.runInContext(wrapper,x);const one=vm.runInContext('loadUrbanHorizon({key:"one"})',x),two=vm.runInContext('loadUrbanHorizon({key:"one"})',x);
  assert.equal(one,two);assert.equal(calls,1);d.resolve([]);await one;assert.equal(vm.runInContext('urbanPending.size',x),0);

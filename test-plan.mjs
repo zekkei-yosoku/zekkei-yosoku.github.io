@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const ctx=vm.createContext({TextEncoder,TextDecoder,URL,URLSearchParams,btoa,atob,Date,Uint8Array});
-vm.runInContext(fs.readFileSync(new URL('./sorami-plan.js',import.meta.url),'utf8')+';globalThis.P=SoramiPlan;',ctx);const P=ctx.P;
+vm.runInContext(fs.readFileSync(new URL('./astronotes-plan.js',import.meta.url),'utf8')+';globalThis.P=AstroNotesPlan;',ctx);const P=ctx.P;
 const payload={v:1,kind:'detail',id:'sunset',at:Date.parse('2026-10-31T23:59:00+09:00'),day:Date.parse('2026-10-31T00:00:00+09:00'),o:['日本語の山頂🌄',35.6,139.7,600,1.5,'summit']};
 const snapshot={title:'月, 富士; \\ 撮影',observer:{name:'場所\nBEGIN:VEVENT',latitude:35.6,longitude:139.7},rows:[['条件','a,b;c\\d\n次の行']],note:'予測',mapUrl:'https://example.org/map',url:'https://example.org/#/aim'};
 const edits={title:'月, 富士; \\ 撮影',start:'2026-10-31T23:59',end:'2026-11-01T01:00',reminder:30};
@@ -29,6 +29,6 @@ test('存在しない日付や24時を別の日時へ繰り上げず拒否する
 test('地図共有は現在の日時・天体・位置・高さ・重ね方を保持し、構図の状態に依存しない',()=>{
  const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),code=html.slice(html.indexOf('function planSnapshot(button)'),html.indexOf('let planRestoredFragment='));
  const at=Date.parse('2026-10-24T16:13:57+09:00'),state={body:'moon',at,observer:{name:'地図地点',latitude:35,longitude:139,groundManualM:30},ground:27.4,eyeM:5.5,target:{id:'tower',name:'目標',latitude:35.1,longitude:139.1,groundM:10,parts:[{id:'tip',name:'先端',m:330,latitude:35.1001,longitude:139.1001}]},partId:'tip',limb:'behind',matchMode:'limb'};
- let drawn=0;const run=new Function('SkyMapUI','$','SoramiPlan','SoramiBodies','aimAirSettings','document','aimM','SoramiAlign',code+';return planSnapshot;')({shareState:()=>state},()=>({width:600,height:400}),P,{state:()=>({azimuth:30,apparentAltitude:10}),definition:()=>({name:'月'})},{mode:'standard'},{createElement:()=>({getContext:()=>({drawImage:()=>drawn++})})},String,{limbById:()=>({name:'上の縁'})});
+ let drawn=0;const run=new Function('SkyMapUI','$','AstroNotesPlan','AstroNotesBodies','aimAirSettings','document','aimM','AstroNotesAlign',code+';return planSnapshot;')({shareState:()=>state},()=>({width:600,height:400}),P,{state:()=>({azimuth:30,apparentAltitude:10}),definition:()=>({name:'月'})},{mode:'standard'},{createElement:()=>({getContext:()=>({drawImage:()=>drawn++})})},String,{limbById:()=>({name:'上の縁'})});
  const snap=run({dataset:{planSource:'skymap'}});assert.equal(drawn,1);assert.equal(snap.payload.at,at);assert.equal(snap.payload.o[3],30);assert.equal(snap.payload.o[4],5.5);assert.equal(snap.payload.t.parts[0].latitude,35.1001);assert.equal(snap.payload.body,'moon');assert.equal(snap.payload.limb,'behind');assert.equal(snap.payload.matchMode,'limb');assert.equal(P.decode(P.encode(snap.payload)).at,at);
 });

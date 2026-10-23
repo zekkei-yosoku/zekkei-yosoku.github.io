@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url),root=new URL('./',import.meta.url).pathname,M=require(root+'sorami-atmosphere.js'),A=require(root+'sorami-astro.js'),B=require(root+'sorami-bodies.js'),L=require(root+'sorami-align.js');
+const require=createRequire(import.meta.url),root=new URL('./',import.meta.url).pathname,M=require(root+'astronotes-atmosphere.js'),A=require(root+'astronotes-astro.js'),B=require(root+'astronotes-bodies.js'),L=require(root+'astronotes-align.js');
 const obs={latitude:35.58426157,longitude:139.5685059,elevation:79},day=Date.parse('2026-10-03T00:00:00+09:00');
 const raw={hourly_units:{temperature_2m:'°C',surface_pressure:'hPa'},hourly:{time:[day/1000,day/1000+3600,day/1000+7200],temperature_2m:[10,20,30],surface_pressure:[1000,1020,null]}};
 test('独立のSæmundsson基準値と気圧温度感度',()=>{
@@ -48,7 +48,7 @@ test('予報の終了日はOpen-Meteoの上限（UTCの今日＋15日）を超�
 });
 
 // ---- 気象予報: 視線上の気温の柱（2026-10-05）
-const RF=require(root+'sorami-refraction.js'),LV=[1000,975,950,925,900,850,800,700,600,500],RG=287.05/9.80665;
+const RF=require(root+'astronotes-refraction.js'),LV=[1000,975,950,925,900,850,800,700,600,500],RG=287.05/9.80665;
 const sky=L.targetById('skytree'),skyT={latitude:sky.latitude,longitude:sky.longitude,topM:sky.parts[0].m};
 const zOf=p=>44330*(1-Math.pow(p/1013.25,0.1903));
 function lineRaw(ep,times,{t2=15,ps=1008,inversion=0,drop=null,peakAt=null}={}){

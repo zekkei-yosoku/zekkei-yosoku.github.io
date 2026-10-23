@@ -1,9 +1,9 @@
-// 太陽・月の通り道と、稜線より上の区間（`sorami-sky.js`）。**通信しない。**
+// 太陽・月の通り道と、稜線より上の区間（`astronotes-sky.js`）。**通信しない。**
 //
 // 答え合わせは国立天文台の値で行う（東京の日の出・日の入と、その方位）。
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const SK = require("./sorami-sky.js");
+const SK = require("./astronotes-sky.js");
 
 let pass = 0, fail = 0;
 const ok = (c, name, extra = "") => { c ? pass++ : fail++; console.log(`  ${c ? "ok  " : "FAIL"} ${name}`, extra); };

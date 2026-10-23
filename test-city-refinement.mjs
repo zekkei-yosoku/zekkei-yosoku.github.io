@@ -5,9 +5,9 @@ import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 const require=createRequire(import.meta.url);
 const original=JSON.parse(readFileSync(new URL('./tools/data/city-refinement-source.json',import.meta.url)));
-const candidate=require(resolve(process.env.ASTRONOTES_MODEL_CANDIDATE||'./sorami-city-models.js'));
-const A=require('./sorami-align.js'),T=require('./sorami-terrain.js');
-globalThis.SoramiCityModels=candidate;
+const candidate=require(resolve(process.env.ASTRONOTES_MODEL_CANDIDATE||'./astronotes-city-models.js'));
+const A=require('./astronotes-align.js'),T=require('./astronotes-terrain.js');
+globalThis.AstroNotesCityModels=candidate;
 
 function section(m,z){
  const result=[];

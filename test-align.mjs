@@ -1,4 +1,4 @@
-// 「ねらう」の計算（`sorami-align.js`）。**通信しない。**
+// 「ねらう」の計算（`astronotes-align.js`）。**通信しない。**
 //
 // 線: その日に重なって見える観測点の並び。
 //   目標までの距離が決まれば見上げ角が決まり、その高度を天体が通る時刻と方位が決まる。
@@ -6,8 +6,8 @@
 // 答え合わせは既知の名所で行う（高尾山の冬至のダイヤモンド富士）。
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const TR = require("./sorami-terrain.js");
-const AL = require("./sorami-align.js");
+const TR = require("./astronotes-terrain.js");
+const AL = require("./astronotes-align.js");
 
 let pass = 0, fail = 0;
 const ok = (c, name, extra = "") => { c ? pass++ : fail++; console.log(`  ${c ? "ok  " : "FAIL"} ${name}`, extra); };
@@ -167,7 +167,7 @@ console.log("== 線の上に立つと、本当に目標の方向に天体があ�
   // 以前は「目標から見て天体の反対の方位」に観測点を置いていた。球の上では行きと帰りの方位が
   // 子午線の収束ぶんずれるので、観測者から見た目標の方位は天体の方位にならなかった
   // （富士山から80kmで 0.44°＝太陽の半径より大きく、線が横に 0.6km、120kmで 1.4km ずれていた）。
-  const A = require("./sorami-astro.js");
+  const A = require("./astronotes-astro.js");
   const d0 = Date.parse("2026-12-22T00:00:00+09:00");
   for (const [target, body, dists] of [[fuji, "sun", [20, 50, 80, 120]], [fuji, "moon", [60, 100]], [skytree, "sun", [3, 8]]]) {
     for (const d of dists) {
@@ -309,7 +309,7 @@ console.log("== 地形で見通せるか（2026-09-30） ==");
 
 console.log("== 見え方の図（2026-10-02） ==");
 {
-  const A = require("./sorami-astro.js");
+  const A = require("./astronotes-astro.js");
   // 目標を真ん中にした接平面。右が方位の増える向き、上が高い向き
   const P = AL.viewProjector(90, 10);
   const c0 = P(90, 10), r1 = P(91, 10), u1 = P(90, 11);
@@ -524,7 +524,7 @@ console.log("== 写真と合う: 2026-10-03 鷺沼北公園の撮影地→スカ
 // 方位を球で解いていた頃は 20.4′ 下・66秒早いと予測していた（月が予測より約7′上を通った）
 {
   const obs = { latitude: 35.584055, longitude: 139.568552, elevation: 86.9 }, eye = { ...obs, elevation: 88.4 };
-  const A = require("./sorami-astro.js"), sky = AL.targetById("skytree"), g = AL.geometryFrom(obs, sky, { eyeM: 1.5 });
+  const A = require("./astronotes-astro.js"), sky = AL.targetById("skytree"), g = AL.geometryFrom(obs, sky, { eyeM: 1.5 });
   const rel = (t) => { const m = A.moon(t, eye); return ((m.azimuth - g.azimuth + 540) % 360) - 180; };
   let lo = Date.parse("2026-10-03T22:21:30+09:00"), hi = Date.parse("2026-10-03T22:23:30+09:00");
   for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (rel(mid) < 0) lo = mid; else hi = mid; }
@@ -538,7 +538,7 @@ console.log("== 候補地は選んだ合わせ方どおり（2026-10-02） ==");
 // ユーザー「上の縁を選んでるのに上の縁が先端に重ならなかったりする」: 半径の2倍ずれた所まで「重なる」として出していた
 {
   const fs = await import("node:fs");
-  const A = require("./sorami-astro.js");
+  const A = require("./astronotes-astro.js");
   const j = JSON.parse(fs.readFileSync(new URL("./data/aim-places.json", import.meta.url), "utf8"));
   const places = j.places.map((r, i) => ({ id: `p${i}`, name: r.n || "", kind: j.kinds[r.k] || "", shape: r.s === "a" ? "area" : r.s === "l" ? "line" : "point",
     latitude: r.p[0] / 1e5, longitude: r.p[1] / 1e5, elevationM: r.e, deckM: r.d || 0,

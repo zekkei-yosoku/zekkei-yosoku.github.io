@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const require=createRequire(import.meta.url),P=require('./sorami-prediction.js'),place={latitude:35,longitude:139,elevation:0,eyeHeightAGL:1.5,terrain:null},now=Date.now();
+const require=createRequire(import.meta.url),P=require('./astronotes-prediction.js'),place={latitude:35,longitude:139,elevation:0,eyeHeightAGL:1.5,terrain:null},now=Date.now();
 const dto=()=>({asOf:now,bundle:{fetchedAt:now,utcOffsetSeconds:32400},place,value:'雲と月'});
 const progress=(phase,completed,total)=>({type:'progress',phase,completed,total});
 const wire=rows=>rows.map(x=>JSON.stringify(x)+'\n').join('');

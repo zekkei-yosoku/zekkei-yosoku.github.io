@@ -1,14 +1,14 @@
-// ISS の月面通過（`sorami-iss.js`）。**通信しない**（軌道要素は fixtures に固定した 2026-09-29 のもの）。
+// ISS の月面通過（`astronotes-iss.js`）。**通信しない**（軌道要素は fixtures に固定した 2026-09-29 のもの）。
 //
 // 確かめること:
-//   1. 中心線の点・時刻で、衛星（satellite.js の見かけの方向）と天体（sorami-astro）が重なる
+//   1. 中心線の点・時刻で、衛星（satellite.js の見かけの方向）と天体（astronotes-astro）が重なる
 //   2. 帯の縁（半幅ずらした点）で、ISS がちょうど円盤の縁をかすめる
 //   3. 帯の幅と通過の長さが、ISS の距離から出る値と合う
 import { createRequire } from "node:module";
 import fs from "node:fs";
 const require = createRequire(import.meta.url);
-const A = require("./sorami-astro.js");
-const I = require("./sorami-iss.js");
+const A = require("./astronotes-astro.js");
+const I = require("./astronotes-iss.js");
 const io = await import("./vendor/satellite/io.js");
 const pr = await import("./vendor/satellite/propagation.js");
 const tr = await import("./vendor/satellite/transforms.js");
@@ -42,7 +42,7 @@ const sun = I.transits(sat, tle, { center, radiusKm: 300, fromMs: from, hours: 7
 ok(sun.length >= 1, "太陽の前を通る回が見つかる", `${sun.length}回`);
 for (const r of sun) {
   const when = new Date(r.at + 9 * 3600000).toISOString().slice(0, 19);
-  // 1. 中心線の点・時刻で、satellite.js の衛星の向きと sorami-astro の太陽の向き（大気差なし）が重なる
+  // 1. 中心線の点・時刻で、satellite.js の衛星の向きと astronotes-astro の太陽の向き（大気差なし）が重なる
   const rec = sat.twoline2satrec(tle.line1, tle.line2), date = new Date(r.at);
   const pv = sat.propagate(rec, date);
   const la = sat.ecfToLookAngles({ latitude: r.center.latitude * Math.PI / 180, longitude: r.center.longitude * Math.PI / 180, height: 0 },

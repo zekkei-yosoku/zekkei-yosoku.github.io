@@ -9,7 +9,7 @@ const html = fs.readFileSync(new URL('./index.html', import.meta.url), 'utf8');
 const src = html.slice(html.indexOf('const AIM_SUMMIT_CAP_M'), html.indexOf('async function aimShootingView'));
 
 function load(angle) {
-  const c = { SoramiTerrain: { distanceKm: () => 100 }, aimAirAngle: angle, Math };
+  const c = { AstroNotesTerrain: { distanceKm: () => 100 }, aimAirAngle: angle, Math };
   vm.createContext(c); vm.runInContext(src + ';globalThis.cap=aimSummitCap;globalThis.M=AIM_SUMMIT_CAP_M;', c); return c;
 }
 // 見かけの角度を標高に比例させた単純な換算（100km 先で 1000m ≒ 0.573°）
@@ -37,7 +37,7 @@ test('稜線が無い・頂が基準より低いときは切らない（全体�
 });
 
 test('山の候補の判定は下端の高さを使い、塔や既定の判定は地平線のまま', () => {
-  const align = require('./sorami-align.js'), s = fs.readFileSync(new URL('./sorami-align.js', import.meta.url), 'utf8');
+  const align = require('./astronotes-align.js'), s = fs.readFileSync(new URL('./astronotes-align.js', import.meta.url), 'utf8');
   assert.match(s, /const ridgeBase=Number\.isFinite\(opts\.ridgeBase\)\?opts\.ridgeBase:0;/);
   assert.match(html, /ridge:cap\.ridge,ridgeBase:cap\.base/);
   assert.equal(typeof align.prepareDailyView, 'function');

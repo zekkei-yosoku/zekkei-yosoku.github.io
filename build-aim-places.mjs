@@ -26,8 +26,8 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import * as DEM from "./dem-tile.mjs";
 const require = createRequire(import.meta.url);
-const TR = require("./sorami-terrain.js");
-const AL = require("./sorami-align.js");
+const TR = require("./astronotes-terrain.js");
+const AL = require("./astronotes-align.js");
 
 const CACHE = "data/aim-places-cache";
 const OUT = "data/aim-places.json";

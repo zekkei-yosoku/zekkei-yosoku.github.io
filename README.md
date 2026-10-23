@@ -6,11 +6,11 @@
 ## 構成
 
 - `index.html` — 画面と道具間の連携
-- `sorami-prediction.js` — 非公開予測APIの取得・条件照合・キャッシュ
-- `sorami-core.js` — 表示、暦、気象データの標準的な扱い
-- `sorami-astro.js` / `sorami-aim.js` — 天文計算、目標への幾何と見え方
-- `sorami-sky-map.js` — 地図上の天体の方位・高度と出入り
-- `sorami-datetime-ui.js` — 構図と地図で共有する日時操作
+- `astronotes-prediction.js` — 非公開予測APIの取得・条件照合・キャッシュ
+- `astronotes-core.js` — 表示、暦、気象データの標準的な扱い
+- `astronotes-astro.js` / `astronotes-align.js` — 天文計算、目標への幾何と見え方
+- `astronotes-sky-map.js` — 地図上の天体の方位・高度と出入り
+- `astronotes-datetime-ui.js` — 構図と地図で共有する日時操作
 
 独自の採点処理・学習係数・研究用コードは非公開APIリポジトリで管理します。
 過去に公開済みの版や、画面に表示する予測結果まで非公開にできるものではありません。
@@ -30,3 +30,9 @@
 
 気象: Open-Meteo、気象庁。地図: OpenStreetMap、国土地理院。
 光害: Lorenz Light Pollution Atlas 2025。建物形状の資料と使用条件は画面の出典および `tools/` に記載しています。
+
+## 資産名の互換性
+
+現行の実装は `astronotes-*.js` / `astronotes-*.css` と `AstroNotes*` を使用する。`sorami-*.js` / `sorami-*.css` は古いHTMLのURL互換用として元の内容で残し、現行実装の編集元にはしない。旧グローバル名は現行オブジェクトへの互換aliasとして公開する。
+
+既存利用者のデータと接続を保つため、`sorami.*` 保存キー、キャッシュ名、イベント名、通信ヘッダー、予定のUID、既存URLは互換識別子として維持する。過去の記録・引用・証跡は原文を保全する。

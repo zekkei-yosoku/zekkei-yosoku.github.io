@@ -7,12 +7,12 @@ const nodes=()=>new Proxy({}, {get:(o,k)=>o[k]??=(k==='photoSheet'?{open:true,cl
 function run(c,a,b){vm.createContext(c);vm.runInContext(source.slice(source.indexOf(a),source.indexOf(b,source.indexOf(a))),c);return c;}
 {
  const el=nodes(),a=deferred(),b=deferred();
- const c={photoDraft:{},auth:{token:"synthetic"},photoSaving:false,photoSheetGeneration:1,photoAttachGeneration:0,SoramiExif:{readFile:f=>f.name==='A'?a.promise:b.promise},makeThumb:async f=>({url:f.name,width:20,height:10}),$:id=>el[id]};
+ const c={photoDraft:{},auth:{token:"synthetic"},photoSaving:false,photoSheetGeneration:1,photoAttachGeneration:0,AstroNotesExif:{readFile:f=>f.name==='A'?a.promise:b.promise},makeThumb:async f=>({url:f.name,width:20,height:10}),$:id=>el[id]};
  run(c,'async function photoAttach(file)','\n/**');
  const pa=c.photoAttach({name:'A',size:1}),pb=c.photoAttach({name:'B',size:2});assert.equal(el.photoSave.disabled,true);assert.equal(c.photoDraft.thumb,null);
  b.resolve({name:'B'});assert.equal(await pb,true);a.resolve({name:'A'});assert.equal(await pa,false);
  assert.equal(c.photoDraft.file.name,'B');assert.equal(c.photoDraft.thumb,'B');assert.equal(c.photoDraft.exif.name,'B');assert.equal(c.photoDraft.original.bytes,2);assert.equal(el.photoSave.disabled,false);
- const late=deferred();c.SoramiExif.readFile=()=>late.promise;const pc=c.photoAttach({name:'C'});c.photoSheetGeneration++;late.resolve({});assert.equal(await pc,false);assert.equal(c.photoDraft.thumb,null);
+ const late=deferred();c.AstroNotesExif.readFile=()=>late.promise;const pc=c.photoAttach({name:'C'});c.photoSheetGeneration++;late.resolve({});assert.equal(await pc,false);assert.equal(c.photoDraft.thumb,null);
 }
 function saveFixture(){const el=nodes(),post=deferred(),analysis=deferred(),calls=[],sent=[];Object.assign(el.photoPhenom,{value:'sunset'});el.photoScore.value='80';
  const c={photoDraft:{thumb:'A',round:{pid:'sunset',peak:100},scoreMoved:true,exif:{id:'A'}},photoSaving:false,photoSheetGeneration:1,photoAttachGeneration:0,authGeneration:1,auth:{token:'synthetic'},$:id=>el[id],place:{name:'A',latitude:1,longitude:2},samePlaceAs:(a,b)=>a.latitude===b.latitude&&a.longitude===b.longitude,photoWhereAt:()=>null,photoWhenMs:()=>150,forecastCandidates:()=>[],photoAnalysisFor:async()=>analysis.promise,apiCall:async(m,p,b)=>{sent.push(b);return post.promise;},photoShot:async(b,e)=>({at:b.takenAt,exif:e.id}),recordAnswer:(...x)=>calls.push(x),findSighting:()=>null,loadPhotos:async()=>{}};

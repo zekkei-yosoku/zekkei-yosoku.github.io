@@ -1,4 +1,4 @@
-// 写真の保存時分析（sorami-photo-analysis.js）。
+// 写真の保存時分析（astronotes-photo-analysis.js）。
 //
 // 色の指標は Python（Pillow）の定点写真採点と同じ値を出す必要がある。後で残した写真から Python で計算し直すため。
 // 基準値は fixtures/photo-analysis-pillow.json（Vault 成果物/20261016_写真の保存時分析の設計案/写真分析の基準値を作る.py で作成）。
@@ -7,7 +7,7 @@ import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 const require = createRequire(import.meta.url);
-const A = require("./sorami-photo-analysis.js");
+const A = require("./astronotes-photo-analysis.js");
 const ref = JSON.parse(readFileSync(new URL("./fixtures/photo-analysis-pillow.json", import.meta.url), "utf8"));
 
 let pass = 0, fail = 0;

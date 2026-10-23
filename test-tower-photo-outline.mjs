@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';const require=createRequire(import.meta.url),M=require('./sorami-tower-models.js'),photo=require('./tools/スカイツリー_提供写真の輪郭.json'),A=require('./sorami-align.js'),T=require('./sorami-terrain.js');
+import test from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';const require=createRequire(import.meta.url),M=require('./astronotes-tower-models.js'),photo=require('./tools/スカイツリー_提供写真の輪郭.json'),A=require('./astronotes-align.js'),T=require('./astronotes-terrain.js');
 // Slice the actual convex components after orthographic projection. Source expectations
 // are independently measured photograph rows, rather than reusing the generator's stations.
 // The 434–443m join retains the directional structural contour; circular-width

@@ -50,5 +50,5 @@ for id,name,bid,ward,partZ in settings:
  parts=[{'id':'tip','name':'屋上（SKY STAGE）' if id=='shibuya-sky' else '頂部','m':partZ,'latitude':lat,'longitude':lon}]
  targets.append({'id':id,'name':name,'latitude':lat,'longitude':lon,'groundM':ground,'note':'PLATEAU LOD2の標高と輪郭。屋上付属物を含み、現地との高さ・細部の差はあります。','parts':parts})
  print(id,len(vv),len(tris),ground,partZ,lat,lon)
-Path('work/four-city-models.js').write_text('/* 出典: Project PLATEAU 港区・新宿区・渋谷区2025。建物抽出・座標変換・三角形化して作成。利用条件: https://www.mlit.go.jp/plateau/site-policy/ */\n(function(g){const models='+json.dumps(models,ensure_ascii=False,separators=(',',':'))+';if(typeof module!=="undefined"&&module.exports)module.exports=models;g.SoramiCityModels=models;})(typeof globalThis!=="undefined"?globalThis:this);\n')
+Path('work/four-city-models.js').write_text('/* 出典: Project PLATEAU 港区・新宿区・渋谷区2025。建物抽出・座標変換・三角形化して作成。利用条件: https://www.mlit.go.jp/plateau/site-policy/ */\n(function(g){const models='+json.dumps(models,ensure_ascii=False,separators=(',',':'))+';if(typeof module!=="undefined"&&module.exports)module.exports=models;g.AstroNotesCityModels=models;})(typeof globalThis!=="undefined"?globalThis:this);\n')
 Path('work/four-targets.json').write_text(json.dumps(targets,ensure_ascii=False,separators=(',',':')))

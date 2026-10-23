@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {createRequire} from "node:module";
-const require=createRequire(import.meta.url),A=require("./sorami-align.js"),T=require("./sorami-terrain.js");
+const require=createRequire(import.meta.url),A=require("./astronotes-align.js"),T=require("./astronotes-terrain.js");
 const target=A.targetById("tocho-building");
 test("都庁の南北塔は独立した位置で、PLATEAUの塔頂標高を二重加算しない",async()=>{
  assert.equal(target.name,"東京都庁 第一本庁舎");assert.ok(A.FUJI_SPOTS.find(s=>s.id==="tocho"));

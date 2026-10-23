@@ -10,7 +10,7 @@ html=html.replace(/([A-Za-z0-9_-]+\.js)\?v=[A-Za-z0-9]+/g,(_,name)=>{
 });
 // SRI rejects mixed generations when Pages has replaced a lazy asset under an old URL.
 for(const kind of ['city','tower']){
- const digest=createHash('sha256').update(readFileSync(new URL('sorami-'+kind+'-models.js',root))).digest('base64');
+ const digest=createHash('sha256').update(readFileSync(new URL('astronotes-'+kind+'-models.js',root))).digest('base64');
  html=html.replace(new RegExp('name="shape-'+kind+'-integrity" content="[^\"]*"'),'name="shape-'+kind+'-integrity" content="sha256-'+digest+'"');
 }
 for(const [,src] of html.matchAll(/<script src="([^"]+)"/g)){

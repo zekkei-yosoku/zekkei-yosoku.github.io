@@ -1,9 +1,9 @@
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
-const src=readFileSync(new URL('./sorami-scroll-timeline.js',import.meta.url),'utf8'),DAY=86400000;
+const src=readFileSync(new URL('./astronotes-scroll-timeline.js',import.meta.url),'utf8'),DAY=86400000;
 function setup(width=240,options={}){let next=0,simTime=0;const frames=new Map(),timers=new Map(),changes=[],state={at:Date.parse('2028-11-05T16:04:37.250+09:00'),mode:'date',enabled:true};
  const make=()=>({style:{setProperty(){}},dataset:{},children:[],listeners:{},scrollLeft:0,clientWidth:width,attrs:{},setAttribute(k,v){this.attrs[k]=v},replaceChildren(...c){this.children=c},addEventListener(k,f){this.listeners[k]=f}}),root=make();
  const c={performance:{now:()=>simTime},document:{createElement:make},requestAnimationFrame:f=>{frames.set(++next,f);return next},cancelAnimationFrame:i=>frames.delete(i),setTimeout:f=>{timers.set(++next,f);return next},clearTimeout:i=>timers.delete(i)};vm.createContext(c);vm.runInContext(src,c);
- const controller=c.SoramiScrollTimeline.mount({root,getAt:()=>state.at,getMode:()=>state.mode,enabled:()=>state.enabled,onChange:at=>{state.at=at;changes.push(at);controller.sync(at,state.mode)},format:at=>new Date(at).toISOString(),...options});controller.sync(state.at,state.mode);
+ const controller=c.AstroNotesScrollTimeline.mount({root,getAt:()=>state.at,getMode:()=>state.mode,enabled:()=>state.enabled,onChange:at=>{state.at=at;changes.push(at);controller.sync(at,state.mode)},format:at=>new Date(at).toISOString(),...options});controller.sync(state.at,state.mode);
  const flush=()=>{simTime+=16;for(const [id,f] of [...frames]){frames.delete(id);f();}};const settle=()=>{flush();for(const [id,f] of [...timers]){timers.delete(id);f();}};
  return {c,root,state,controller,changes,flush,settle,scroll(dx){root.listeners.wheel({deltaX:dx,deltaY:0});root.scrollLeft+=dx;root.listeners.scroll();flush();}};
 }
@@ -37,7 +37,7 @@ test('マウスのドラッグも同じ尺度で動き、日付モードは1日�
  const f=setup(),at=f.state.at;f.root.listeners.pointerdown({pointerType:'mouse',pointerId:1,clientX:100,preventDefault(){}});f.root.listeners.pointermove({clientX:76});f.root.listeners.scroll();f.flush();f.root.listeners.pointerup();f.settle();assert.equal(f.state.at,at+DAY);f.root.listeners.keydown({key:'ArrowLeft',preventDefault(){}});assert.equal(f.state.at,at);f.state.mode='time';f.controller.sync(at,'time');f.root.listeners.keydown({key:'ArrowRight',preventDefault(){}});assert.equal(f.state.at,at+60000);
 });
 test('朝焼け・日中・夕焼け・夜は観測地点の太陽高度で区別し、白夜・極夜にも対応',()=>{
- const f=setup(),phase=f.c.SoramiScrollTimeline.solarPhase,o={latitude:35,longitude:139};
+ const f=setup(),phase=f.c.AstroNotesScrollTimeline.solarPhase,o={latitude:35,longitude:139};
  assert.equal(phase(0,o,()=>({geometricAltitude:-10})),'night');assert.equal(phase(0,o,()=>({geometricAltitude:30})),'day');
  assert.equal(phase(0,o,t=>({geometricAltitude:t/60000})),'morning');assert.equal(phase(0,o,t=>({geometricAltitude:-t/60000})),'evening');
  assert.equal(phase(0,null,()=>{throw Error('unexpected')}),null);assert.equal(phase(0,o,()=>({geometricAltitude:NaN})),null);
@@ -60,7 +60,7 @@ test('指を離さず有限バッファの何十倍を送っても、前後と�
  f.root.listeners.touchend({timeStamp:500});f.settle();assert.equal(f.root.scrollLeft,4096);assert.equal(f.state.at,at-12000*step);}
 });
 test('空色は高度に連続で補間し、夜・blue hour・golden hour・昼の青を経て文字は4.5以上のcontrast',()=>{
- const {skyColor,skyInk}=setup().c.SoramiScrollTimeline,o={latitude:35,longitude:139};let prev;
+ const {skyColor,skyInk}=setup().c.AstroNotesScrollTimeline,o={latitude:35,longitude:139};let prev;
  for(let h=-25;h<=80;h+=.1){const rgb=skyColor(0,o,()=>({geometricAltitude:h}));assert.equal(rgb.length,3);assert.ok(rgb.every(v=>v>=0&&v<=255));if(prev)assert.ok(Math.max(...rgb.map((v,i)=>Math.abs(v-prev[i])))<=5);prev=rgb;
  const l=rgb.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4}).reduce((n,v,i)=>n+v*[.2126,.7152,.0722][i],0),ink=skyInk(rgb),ratio=ink==='#fff'?1.05/(l+.05):(l+.05)/.05;assert.ok(ratio>=4.5);}
  const golden=skyColor(0,o,()=>({geometricAltitude:2})),night=skyColor(0,o,()=>({geometricAltitude:-20}));assert.ok(golden[0]>golden[2]);assert.ok(night[2]>night[0]);

@@ -65,8 +65,8 @@ for section in model['volumeSections']:
 assert abs(total_area-abs(area))<1e-5, 'section cuts must preserve the complete structural profile'
 model['solids']=solids
 (repo/'tools/タワー・オブ・テラー_写真輪郭.json').write_text(json.dumps(model,ensure_ascii=False,indent=2))
-s=(repo/'sorami-align.js').read_text()
+s=(repo/'astronotes-align.js').read_text()
 s,n=re.subn(r'  const TERROR_MODEL = .*?;\n',lambda _: '  const TERROR_MODEL = '+json.dumps(model,ensure_ascii=False,separators=(',',':'))+';\n',s,count=1)
 assert n==1
-(repo/'sorami-align.js').write_text(s)
+(repo/'astronotes-align.js').write_text(s)
 print(len(p),len(solids))

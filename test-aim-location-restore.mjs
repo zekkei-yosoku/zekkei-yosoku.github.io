@@ -1,12 +1,12 @@
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 const a=html.indexOf('function aimSavedFrom('),b=html.indexOf('// 月の中の各日',a),src=html.slice(a,b);
-function boot(mem){const inherited={name:'現在地',latitude:35,longitude:139};const nodes=new Map();const c=vm.createContext({SoramiTerrain:{decksFor:n=>n==='渋谷スカイ'?[{name:'展望台',aglM:229}]:n==='東京スカイツリー'?[{name:'天望デッキ',aglM:350},{name:'天望回廊',aglM:450}]:null,deckLabel:d=>d},esc:x=>x,aim:{},store:{get:(k,d)=>mem[k]??d,set:(k,v)=>mem[k]=JSON.parse(JSON.stringify(v))},inheritedPoint:()=>inherited,aimRenderFrom(){},$:id=>{if(!nodes.has(id))nodes.set(id,{dataset:{},value:"",textContent:"",innerHTML:"",checkValidity:()=>true,querySelectorAll:()=>[]});return nodes.get(id)},AimMap:{open(){},zoom:()=>11,redraw(){}}});vm.runInContext(src,c);return c;}
+function boot(mem){const inherited={name:'現在地',latitude:35,longitude:139};const nodes=new Map();const c=vm.createContext({AstroNotesTerrain:{decksFor:n=>n==='渋谷スカイ'?[{name:'展望台',aglM:229}]:n==='東京スカイツリー'?[{name:'天望デッキ',aglM:350},{name:'天望回廊',aglM:450}]:null,deckLabel:d=>d},esc:x=>x,aim:{},store:{get:(k,d)=>mem[k]??d,set:(k,v)=>mem[k]=JSON.parse(JSON.stringify(v))},inheritedPoint:()=>inherited,aimRenderFrom(){},$:id=>{if(!nodes.has(id))nodes.set(id,{dataset:{},value:"",textContent:"",innerHTML:"",checkValidity:()=>true,querySelectorAll:()=>[]});return nodes.get(id)},AimMap:{open(){},zoom:()=>11,redraw(){}}});vm.runInContext(src,c);return c;}
 test('選択地点は更新後も復元し、継承の現在地では上書きしない',()=>{const mem={},c=boot(mem);assert.equal(c.aimFromPoint(),null);c.aimSetFrom({name:'鷺沼北公園',latitude:35.58386,longitude:139.56853});const re=boot(mem);assert.equal(re.aimFromPoint().name,'鷺沼北公園');assert.equal(re.aimFromPoint().latitude,35.58386);});
 test('未選択・壊れた保存座標・明示解除は予測地点を補完しない',()=>{for(const p of [null,{latitude:91,longitude:139},{latitude:35,longitude:181},{latitude:'35',longitude:139}])assert.equal(boot({'sorami.aimFrom':p}).aimFromPoint(),null);});
 
 // 2026-10-06 撮影位置の標高を「標高」（地面だけ）と「地上から」（目の高さ1.5m＋立つ所）に分けた（ユーザー「標高は標高だけ。展望台の高さは目線のところに」）。
-// 展望台は床の高さ＋1.5m（候補地を解く SoramiAlign と同じ）。それまでは普通の地点が0m、展望台は床の高さのままだった
+// 展望台は床の高さ＋1.5m（候補地を解く AstroNotesAlign と同じ）。それまでは普通の地点が0m、展望台は床の高さのままだった
 test('展望台は立つ所として保存・復元し、地上からは床の高さ＋目の高さ、標高は地面だけ',()=>{
  const mem={},c=boot(mem);c.aimSetFrom({name:'渋谷スカイ',latitude:35.65838,longitude:139.70222,decks:[{name:'展望台',aglM:229}],eyeHeightAGL:229});
  const re=boot(mem),f=re.aimFromPoint(),o=re.aimObserverAt(f,19);
@@ -107,6 +107,6 @@ test('明示的に解除すると候補・時刻転送を捨て、再読み込�
 test('構図の初回読込では保存された対象を復元し、現在の選択があれば優先する',()=>{
  const html=readFileSync(new URL('./index.html',import.meta.url),'utf8'),start=html.indexOf('function aimFillSelects()'),end=html.indexOf('/// いま押している',start),nodes=new Map();
  const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',options:[],innerHTML:''});return nodes.get(id);};
- const run=new Function('$','store','aimCustomTarget','aimLimbValue','aimTargetList','esc','aimIsMountain','SoramiBodies','SoramiAlign','aimLimbSay','aimLimbFigure','aim',html.slice(start,end)+';return aimFillSelects;')(node,{get:()=> 'skytree'},()=>null,()=>'',()=>[{id:'fuji',name:'富士山'},{id:'skytree',name:'東京スカイツリー'}],x=>x,()=>false,{definition:()=>({limbs:true})},{LIMBS:[{id:'center',sign:0,name:'真ん中'}]},()=>'',()=>'',{body:'sun',limb:'center',matchMode:'overlap'});
+ const run=new Function('$','store','aimCustomTarget','aimLimbValue','aimTargetList','esc','aimIsMountain','AstroNotesBodies','AstroNotesAlign','aimLimbSay','aimLimbFigure','aim',html.slice(start,end)+';return aimFillSelects;')(node,{get:()=> 'skytree'},()=>null,()=>'',()=>[{id:'fuji',name:'富士山'},{id:'skytree',name:'東京スカイツリー'}],x=>x,()=>false,{definition:()=>({limbs:true})},{LIMBS:[{id:'center',sign:0,name:'真ん中'}]},()=>'',()=>'',{body:'sun',limb:'center',matchMode:'overlap'});
  run();assert.equal(node('aimTarget').value,'skytree');node('aimTarget').value='fuji';run();assert.equal(node('aimTarget').value,'fuji');
 });

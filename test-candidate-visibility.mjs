@@ -6,7 +6,7 @@ import { runInNewContext } from 'node:vm';
 import { createRequire } from 'node:module';
 import { setImmediate } from 'node:timers/promises';
 const require = createRequire(import.meta.url);
-const AL = require('./sorami-align.js'), TR = require('./sorami-terrain.js');
+const AL = require('./astronotes-align.js'), TR = require('./astronotes-terrain.js');
 const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
 function grab(name) {
   const i = html.indexOf(name); assert.ok(i >= 0);
@@ -48,8 +48,8 @@ function harness(found, overrides = {}) {
   const ctx = { AIM_AUTO_CANDIDATES:true, aim, $: k => els[k] ||= { innerHTML: '', textContent: '' },
     aimRefreshSheetCands() {}, aimPlaces: async () => [], aimIsFuji: () => false, aimIsMountain: () => false,
     aimCandidateAccessible: () => true, aimCandidateEye: AL.placeEyeM, aimElevation() {}, aimCandScore: () => 1, aimCandidateSiteSupported: () => true,
-    aimOnLand: async c => c, SoramiAlign: { candidates: async () => found, lineOfSight: async () => ({ clear: true }) },
-    SoramiTerrain: TR, aimBuildingBlocks: async () => [false], AimMap: { redraw() {} }, aimUpdateLook() {},
+    aimOnLand: async c => c, AstroNotesAlign: { candidates: async () => found, lineOfSight: async () => ({ clear: true }) },
+    AstroNotesTerrain: TR, aimBuildingBlocks: async () => [false], AimMap: { redraw() {} }, aimUpdateLook() {},
     renders: [], aimRenderCands() { ctx.renders.push([...aim.cands]); }, ...overrides };
   ctx.find = runInNewContext(grab('async function aimFindCandidates') + ';aimFindCandidates', ctx);
   return ctx;
@@ -72,7 +72,7 @@ test('先の候補が隠れていても近くの代替候補を事前に間引�
 });
 test('地形欠測・建物取得不能・例外を見通せる候補として表示しない', async () => {
   for (const overrides of [
-    { SoramiAlign: { candidates: async () => [candidate('a')], lineOfSight: async () => null } },
+    { AstroNotesAlign: { candidates: async () => [candidate('a')], lineOfSight: async () => null } },
     { aimBuildingBlocks: async () => [null] },
     { aimBuildingBlocks: async () => { throw Error('offline'); } },
   ]) {
@@ -90,26 +90,26 @@ test('古い建物応答は新しい日付の一覧を上書きしない', async
   assert.equal(h.aim.cands[0].place.id, 'new'); assert.equal(h.renders.length, 0);
 });
 test('水域取得不能は陸上と読み替えない', async () => {
-  const ctx = { AIM_STAND_ON_WATER_OK: new Set(['橋', '桟橋']), SoramiTerrain: { waterAt: async () => [null] } };
+  const ctx = { AIM_STAND_ON_WATER_OK: new Set(['橋', '桟橋']), AstroNotesTerrain: { waterAt: async () => [null] } };
   const onLand = runInNewContext(grab('async function aimOnLand') + ';aimOnLand', ctx);
   assert.equal(await onLand(candidate('a'), [], {}), null);
   assert.equal((await onLand({ ...candidate('bridge'), place: { kind: '橋' } }, [], {})).place.kind, '橋');
 });
 test('建物は種別下限で遮る場合に除外し、高さ不明だけで候補を全滅させない', async () => {
   const ctx = { aim: { target, partId: 'tip' }, aimCandidateEye: AL.placeEyeM, aimIsFuji: () => true,
-    aimNearBuildings: async () => [{ heightUnknown: true }], SoramiAlign: { buildingBlock: () => ({ by: null }) } };
+    aimNearBuildings: async () => [{ heightUnknown: true }], AstroNotesAlign: { buildingBlock: () => ({ by: null }) } };
   const blocks = runInNewContext(grab('async function aimBuildingBlocks') + ';aimBuildingBlocks', ctx);
   const c = { ...candidate('a'), targetAngle: 5, altitude: 1 };
   assert.equal((await blocks([c]))[0], false);
-  ctx.SoramiAlign.buildingBlock = () => ({ by: { id: 'known-low-rise' }, marginDeg: 0 });
+  ctx.AstroNotesAlign.buildingBlock = () => ({ by: { id: 'known-low-rise' }, marginDeg: 0 });
   assert.equal((await blocks([c]))[0], true);
-  ctx.SoramiAlign.buildingBlock = () => ({ by: null });
+  ctx.AstroNotesAlign.buildingBlock = () => ({ by: null });
   ctx.aimNearBuildings = async () => [];
   assert.equal((await blocks([c]))[0], false);
 });
 test('地物の種類や名前だけでは推薦せず、対象別の確認済み点だけを通す', () => {
   const known = AL.targetById('fuji');
-  const ctx = {aim:{target:known},SoramiAlign:AL,SoramiTerrain:TR};
+  const ctx = {aim:{target:known},AstroNotesAlign:AL,AstroNotesTerrain:TR};
   const supported = runInNewContext(grab('function aimCandidateSiteSupported') + ';aimCandidateSiteSupported',ctx);
   for (const kind of ['公園','山頂','峠','桟橋','川岸','展望地','展望台','定番','橋','海岸']) assert.equal(supported({kind,name:'富士見展望公園'}),false);
   const point={shape:'point',heightKnown:true,sightline:{status:'verified'},targetIds:['fuji']};
@@ -122,11 +122,11 @@ test('地物の種類や名前だけでは推薦せず、対象別の確認済�
 });
 test('標高APIが応答しなくても打ち切り、後続地点で同じ失敗を繰り返さない', async () => {
   let calls = 0;
-  const ctx = { module: {exports:{}}, SoramiAstro: require('./sorami-astro.js'), AbortSignal: { timeout: () => AbortSignal.timeout(5) },
+  const ctx = { module: {exports:{}}, AstroNotesAstro: require('./astronotes-astro.js'), AbortSignal: { timeout: () => AbortSignal.timeout(5) },
     fetch: (_url, {signal}) => new Promise((_resolve, reject) => {
       calls++; signal.addEventListener('abort', () => reject(signal.reason));
     }) };
-  runInNewContext(readFileSync(new URL('./sorami-terrain.js', import.meta.url), 'utf8'), ctx);
+  runInNewContext(readFileSync(new URL('./astronotes-terrain.js', import.meta.url), 'utf8'), ctx);
   const terrain = ctx.module.exports;
   // Nodeの短いタイマーの間もイベントループを保つ。
   const keepAlive = setInterval(()=>{},10);

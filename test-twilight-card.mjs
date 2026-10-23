@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
 // 朝夕焼けの時間帯ごとの見込み（API の twilight-phase-v1、2026-10-20）
-const require=createRequire(import.meta.url),P=require('./sorami-prediction.js');
+const require=createRequire(import.meta.url),P=require('./astronotes-prediction.js');
 const at=Date.now(),place={latitude:35.7,longitude:139.7};
 const phases=()=>[{id:'before',label:'日の入前',window:[at,at+1500000],score:72,models:8},{id:'around',label:'日の入',window:[at+1500000,at+2700000],score:60,models:8},{id:'after',label:'日の入後',window:[at+2700000,at+3600000],score:null,models:0}];
 const dto=()=>({schemaVersion:1,algorithmVersion:P.VERSION,place:{...place,elevation:null,eyeHeightAGL:1.5,terrain:null},asOf:at,bundle:{fetchedAt:at,utcOffsetSeconds:32400,home:{byModel:{}}},
@@ -24,5 +24,5 @@ test('詳細に時間帯のカードを出し、注記・検証中・見頃の�
  assert.doesNotMatch(fn,/見頃|検証中|目安|tw-note|t\.best|verified/,'ユーザー指定で出さない');
  assert.match(html,/S\.phrasing\(ev\.phenomenon, r\)\.label/,'評価の語は上のカードと同じ');
  assert.match(html,/<span class="tw-score">\$\{ok \? Math\.round\(p\.score\) : "—"\}<\/span>/,'点数も出す');
- assert.match(readFileSync(new URL('./sorami-prediction.js',import.meta.url),'utf8'),/CACHE='sorami-predictions-twilight-v1'/);
+ assert.match(readFileSync(new URL('./astronotes-prediction.js',import.meta.url),'utf8'),/CACHE='sorami-predictions-twilight-v1'/);
 });

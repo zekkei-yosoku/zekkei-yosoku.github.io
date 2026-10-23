@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { execFileSync } from 'node:child_process';
 const require = createRequire(import.meta.url);
-const T = require('./sorami-solar-terms.js'), sun = require('./sorami-sun-portrait.js');
+const T = require('./astronotes-solar-terms.js'), sun = require('./astronotes-sun-portrait.js');
 
 // 国立天文台 令和8年(2026)暦要項 二十四節気（中央標準時）https://eco.mtk.nao.ac.jp/koyomi/yoko/2026/rekiyou262.html
 const NAO_2026 = [[285,'01-05T17:23'],[300,'01-20T10:45'],[315,'02-04T05:02'],[330,'02-19T00:52'],[345,'03-05T22:59'],[0,'03-20T23:46'],[15,'04-05T03:40'],[30,'04-20T10:39'],[45,'05-05T20:49'],[60,'05-21T09:37'],[75,'06-06T00:48'],[90,'06-21T17:25'],[105,'07-07T10:57'],[120,'07-23T04:13'],[135,'08-07T20:43'],[150,'08-23T11:19'],[165,'09-07T23:41'],[180,'09-23T09:05'],[195,'10-08T15:29'],[210,'10-23T18:38'],[225,'11-07T18:52'],[240,'11-22T16:23'],[255,'12-07T11:53'],[270,'12-22T05:50']];
@@ -52,18 +52,18 @@ test('太陽の画像：960px・透明あり・追跡済み、読めないとき
   // 画像の読み込み失敗：例外を出さず計算の太陽を描く
   const ops = []; const ctx = new Proxy({}, { get: (_, k) => k === 'createRadialGradient' ? () => ({ addColorStop() {} }) : (...a) => ops.push(k) , set: () => true });
   const sandbox = { setTimeout, clearTimeout, Image: class { set src(v) { queueMicrotask(() => this.onerror()); } } };
-  vm.createContext(sandbox); vm.runInContext(fs.readFileSync(new URL('./sorami-sun-portrait.js', import.meta.url), 'utf8'), sandbox);
+  vm.createContext(sandbox); vm.runInContext(fs.readFileSync(new URL('./astronotes-sun-portrait.js', import.meta.url), 'utf8'), sandbox);
   const canvas = { isConnected: true, getContext: () => ctx };
-  const result = await sandbox.SoramiSunPortrait.draw(canvas);
+  const result = await sandbox.AstroNotesSunPortrait.draw(canvas);
   assert.equal(result.texture, false); assert.ok(ops.includes('fill'), '計算の太陽を描いた');
 });
 
 test('ホームは太陽の絵と節気を使い、高度で絵を変えない', () => {
-  const d = fs.readFileSync(new URL('./sorami-almanac-dashboard.js', import.meta.url), 'utf8'), h = fs.readFileSync(new URL('./index.html', import.meta.url), 'utf8');
-  assert.match(d, /SoramiSunPortrait\.draw\(sunCanvas\)/); assert.match(d, /SoramiSolarTerms\?\.describe\(at\(\)\)/);
+  const d = fs.readFileSync(new URL('./astronotes-almanac-dashboard.js', import.meta.url), 'utf8'), h = fs.readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  assert.match(d, /AstroNotesSunPortrait\.draw\(sunCanvas\)/); assert.match(d, /AstroNotesSolarTerms\?\.describe\(at\(\)\)/);
   // 2026-10-19 ユーザー指摘：月にも LUNAR NOTES を出す。七十二候は漢字4文字ではなく読みで出す
   assert.match(d, /kicker\.hidden=false/); assert.match(d, /solar\.kou\.pos\}　\$\{solar\.kou\.kana\}/); assert.doesNotMatch(d, /solar\.kou\.ja\}/);
-  assert.doesNotMatch(d, /SoramiSunPortrait\.draw\([^)]*Altitude/);
-  const order = ['sorami-solar-terms.js', 'sorami-sun-portrait.js', 'sorami-almanac-dashboard.js'].map((f) => h.indexOf(f));
+  assert.doesNotMatch(d, /AstroNotesSunPortrait\.draw\([^)]*Altitude/);
+  const order = ['astronotes-solar-terms.js', 'astronotes-sun-portrait.js', 'astronotes-almanac-dashboard.js'].map((f) => h.indexOf(f));
   assert.ok(order.every((i) => i > 0) && order[0] < order[2] && order[1] < order[2]);
 });

@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url),RF=require('./sorami-refraction.js'),A=require('./sorami-astro.js'),M=require('./sorami-atmosphere.js');
+const require=createRequire(import.meta.url),RF=require('./astronotes-refraction.js'),A=require('./astronotes-astro.js'),M=require('./astronotes-atmosphere.js');
 
 // Python版 zekkei の Atmosphere(temperature_c=12, pressure_hpa=1015, observer_height_m=5, relative_humidity=0) と同じ柱
 const pyTemp=(T0,h0)=>{const off=T0+273.15-RF.us76(h0);return h=>RF.us76(h)+off*(h<=h0?1:Math.max(0,1-(h-h0)/Math.max(11000-h0,1000)))-273.15;};

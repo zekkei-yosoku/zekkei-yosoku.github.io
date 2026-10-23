@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url), A=require('./sorami-align.js'), T=require('./sorami-terrain.js');
+const require=createRequire(import.meta.url), A=require('./astronotes-align.js'), T=require('./astronotes-terrain.js');
 const target=A.targetById('tower-terror'),model=A.TERROR_MODEL;
 test('タワー・オブ・テラーを位置・標高・59mの目標として選択できる',()=>{
  assert.equal(target.name,'タワー・オブ・テラー');assert.equal(target.groundM,4.8);assert.equal(target.parts[0].m,63.8);

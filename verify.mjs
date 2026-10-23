@@ -17,7 +17,7 @@
  */
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const S = require("./sorami-core.js");
+const S = require("./astronotes-core.js");
 
 const MODELS = S.MODELS;
 const VARS = ["cloud_cover_low", "cloud_cover_mid", "cloud_cover_high", "precipitation"];

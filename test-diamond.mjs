@@ -1,15 +1,15 @@
-// ダイヤモンド富士・パール富士（`SoramiFuji.alignments`）。**通信しない。**
+// ダイヤモンド富士・パール富士（`AstroNotesFuji.alignments`）。**通信しない。**
 //
 // 太陽が山頂の方位を横切る瞬間の高度差で判定する。
 // 既知の名所の日付と突き合わせて固定する。地形（DEM）は使わず、
 // 距離と標高から出した見上げ角を渡す（判定そのものを見るため）。
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const A = require("./sorami-astro.js");
-const TR = require("./sorami-terrain.js");
-const F = require("./sorami-fuji.js");
-// 画面と同じく、火口の縁（sorami-align の FUJI_RIM）で判定させる（2026-09-30）
-require("./sorami-align.js");
+const A = require("./astronotes-astro.js");
+const TR = require("./astronotes-terrain.js");
+const F = require("./astronotes-fuji.js");
+// 画面と同じく、火口の縁（astronotes-align の FUJI_RIM）で判定させる（2026-09-30）
+require("./astronotes-align.js");
 
 let pass = 0, fail = 0;
 const ok = (c, name, extra = "") => { c ? pass++ : fail++; console.log(`  ${c ? "ok  " : "FAIL"} ${name}`, extra); };

@@ -11,7 +11,7 @@ test('3択は自動条件へ一意に対応し手入力はUIへ出さない',()=
 
 test('大気差は選択モードと取得結果を区別して表示する',()=>{
  const els={aimAirSummary:{textContent:''},aimAirStatus:{textContent:''}},settings={mode:'standard'};let air={temperatureC:10,pressureHPa:1010,source:'標準条件'};
- let line=null;const c=vm.createContext({aimAirSettings:settings,$:id=>els[id],SoramiAtmosphere:{at:()=>air,lineInfo:()=>line},S:{JstCal:{hhmm:()=> '22:21'}}});vm.runInContext(grab('aimAirDescribe'),c);
+ let line=null;const c=vm.createContext({aimAirSettings:settings,$:id=>els[id],AstroNotesAtmosphere:{at:()=>air,lineInfo:()=>line},S:{JstCal:{hhmm:()=> '22:21'}}});vm.runInContext(grab('aimAirDescribe'),c);
  c.aimAirDescribe(0,{});assert.equal(els.aimAirSummary.textContent,'標準値を使用');
  settings.mode='auto';air={temperatureC:17.5,pressureHPa:1012,source:'気象予報'};c.aimAirDescribe(0,{});assert.equal(els.aimAirSummary.textContent,'17.5℃ / 1012hPa');
  assert.match(els.aimAirStatus.textContent,/上空の気温なし（地上の値で計算）/);

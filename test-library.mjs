@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url),L=require('./sorami-library.js'),S=require('./sorami-shooting.js');
+const require=createRequire(import.meta.url),L=require('./astronotes-library.js'),S=require('./astronotes-shooting.js');
 const place={id:'p',name:'川沿い',latitude:35,longitude:139,elevation:12,eyeHeightAGL:1.5};
 const line={type:'line',vertices:[{latitude:35,longitude:139},{latitude:35.001,longitude:139}]};
 const target={key:'skytree',name:'東京スカイツリー',latitude:35.71,longitude:139.81};

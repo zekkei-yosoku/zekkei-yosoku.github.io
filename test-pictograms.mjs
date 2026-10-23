@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url),I=require('./sorami-icons.js'),S=require('./sorami-core.js'),M=require('./sorami-moon.js');
+const require=createRequire(import.meta.url),I=require('./astronotes-icons.js'),S=require('./astronotes-core.js'),M=require('./astronotes-moon.js');
 test('全予測現象に絵文字を含まない独自SVGがあり、未知IDは描画しない',()=>{
  for(const id of Object.keys(S.PHENOMENA)){const svg=I.icon(id);assert.match(svg,/<svg /);assert.match(svg,/aria-hidden="true"/);assert.doesNotMatch(svg,/\p{Extended_Pictographic}/u);}
  assert.equal(I.icon('<img src=x onerror=alert(1)>'),'');assert.equal(I.icon('toString'),'');
@@ -25,7 +25,7 @@ test('日時・観測座標から月相SVGを生成し、テキスト用出力�
  const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
  const src=html.slice(html.indexOf('function iconFor('),html.indexOf('/// 月を撮る時刻',html.indexOf('function iconFor(')));
  let fail=false;const calls=[],place={latitude:35,longitude:139};
- const {iconFor,moonGlyphAt}=new Function('S','SoramiMoon','SoramiIcons','SoramiAstro','place','SoramiCalendarMoon',src+';return {iconFor,moonGlyphAt};')(S,M,I,{moon:(at,obs)=>{calls.push([at,obs]);if(fail)throw Error('missing');return {illuminatedFraction:.15,waxing:true};}},place,{markup:()=>'<img data-moon-state="fixture">'});
+ const {iconFor,moonGlyphAt}=new Function('S','AstroNotesMoon','AstroNotesIcons','AstroNotesAstro','place','AstroNotesCalendarMoon',src+';return {iconFor,moonGlyphAt};')(S,M,I,{moon:(at,obs)=>{calls.push([at,obs]);if(fail)throw Error('missing');return {illuminatedFraction:.15,waxing:true};}},place,{markup:()=>'<img data-moon-state="fixture">'});
  assert.match(iconFor('moon',123),/data-pictogram="moon-phase"/);assert.equal(calls[0][0],123);assert.deepEqual(calls[0][1],{...place,elevation:0});
  assert.match(moonGlyphAt(123),/<img data-moon-state=/);assert.equal(iconFor('moon',123,{text:true}),M.phaseOf({illuminatedFraction:.15,waxing:true}).name);assert.match(iconFor('sunset'),/data-pictogram="sunset"/);
  fail=true;assert.equal(iconFor('moon',123),I.icon('moon'));assert.equal(iconFor('unknown'),'');

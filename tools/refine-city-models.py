@@ -346,13 +346,13 @@ if __name__ == '__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument('--output',type=Path,default=ROOT/'work/refined-city-models.js')
     args=parser.parse_args()
-    models=read_models(ROOT/'sorami-city-models.js')
+    models=read_models(ROOT/'astronotes-city-models.js')
     models.update({'azabudai-hills':mori(),'shibuya-sky':shibuya()})
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_text('/* PLATEAU 2025; Mori estimated correction; Shibuya original restored. '
         'Estimated geometry; see tools/2棟の形状補正.md. License: https://www.mlit.go.jp/plateau/site-policy/ */\n'
         '(function(g){const models='+json.dumps(models,ensure_ascii=False,separators=(',',':'))+
-        ';if(typeof module!=="undefined"&&module.exports)module.exports=models;g.SoramiCityModels=models;'
+        ';if(typeof module!=="undefined"&&module.exports)module.exports=models;g.AstroNotesCityModels=models;'
         '})(typeof globalThis!=="undefined"?globalThis:this);\n')
     args.output.with_suffix('.report.json').write_text(json.dumps(REPORT,ensure_ascii=False,indent=2)+'\n')
     for key in BASE:

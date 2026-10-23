@@ -10,7 +10,7 @@
 import fs from "node:fs";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const S = require("./sorami-core.js");
+const S = require("./astronotes-core.js");
 
 let pass = 0, fail = 0;
 const ok = (cond, label, detail = "") => {

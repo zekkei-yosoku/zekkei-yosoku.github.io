@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-const require=createRequire(import.meta.url),P=require('./trial/sorami-saved-rounds.js');
+const require=createRequire(import.meta.url),P=require('./trial/astronotes-saved-rounds.js');
 const now=Date.parse('2026-10-17T00:00:00Z'),H=3600000,version='v4';
 const spot={id:'takabotchi',name:'高ボッチ高原',latitude:36.13307,longitude:138.03936,elevation:1657.3,terrain:'summit'};
 const here={...spot,latitude:36.13807,name:'高ボッチ展望台'};

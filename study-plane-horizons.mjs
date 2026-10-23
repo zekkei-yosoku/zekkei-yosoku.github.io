@@ -3,15 +3,15 @@
 // 2026-09-30 に取り直したら、どこも半径1kmに建物は100〜190棟あるのに、**高さの入った建物は0棟**だった。
 // 「高さの分かる建物だけ」の決まり（urbanHorizon）では地形のままになるので、ここだけ
 // **高さの無い建物を種類ごとの目安の高さで数える**（工場・倉庫など 12m、そのほか 8m）。
-// 出た配列を sorami-routes.js の SPOT_HORIZONS へ入れる（地形の値と大きいほう）。
+// 出た配列を astronotes-routes.js の SPOT_HORIZONS へ入れる（地形の値と大きいほう）。
 //
 //   node study-plane-horizons.mjs
 //
 // 名乗り（User-Agent）を付けて、個別のサーバー（z・lz4）へ1本ずつ投げる（名乗りが無いと 406 で弾かれる）。
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const TR = require("./sorami-terrain.js");
-const RT = require("./sorami-routes.js");
+const TR = require("./astronotes-terrain.js");
+const RT = require("./astronotes-routes.js");
 const EP = ["https://z.overpass-api.de/api/interpreter", "https://lz4.overpass-api.de/api/interpreter"];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const INDUSTRIAL = /^(industrial|warehouse|factory|manufacture|storage_tank|hangar|commercial|retail|office)$/;

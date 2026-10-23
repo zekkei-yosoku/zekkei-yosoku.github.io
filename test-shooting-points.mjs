@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const require=createRequire(import.meta.url),P=require('./sorami-shooting.js'),A=require('./sorami-align.js');
+const require=createRequire(import.meta.url),P=require('./astronotes-shooting.js'),A=require('./astronotes-align.js');
 const at=Date.parse('2026-10-24T17:00:00+09:00'),start=P.day(at),DAY=86400000;
 const plan={observer:{latitude:35,longitude:139},target:{latitude:35.1,longitude:139.1,id:'tower',parts:[{id:'tip',m:600}]},body:'sun',partId:'tip',limb:'center',at};
 const point=id=>({place:{id,name:id,latitude:35,longitude:139,elevation:20},record:{result:'seen',updatedAt:1}});
@@ -79,6 +79,6 @@ test('実際のスカイツリーで先端の真ん中が外れる日も、建�
  const result=await P.candidates(p,[{place,record:{result:'seen'}}],d);assert.ok(result.rows.length);
  assert.equal((await P.candidates({...p,matchMode:'limb'},[{place,record:{result:'seen'}}],d)).rows.length,0);
  const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),fn=html.slice(html.indexOf('function aimCandidateMatch('),html.indexOf('// 400日探索',html.indexOf('function aimCandidateMatch(')));
- const match=new Function('aim','SoramiShooting','aimIsMountain',fn+';return aimCandidateMatch;')({...p},P,()=>false);
+ const match=new Function('aim','AstroNotesShooting','aimIsMountain',fn+';return aimCandidateMatch;')({...p},P,()=>false);
  assert.ok(result.rows.every(r=>match(r.event)));
 });

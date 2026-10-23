@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
-const require=createRequire(import.meta.url),S=require('./sorami-core.js'),P=require('./sorami-prediction.js');
+const require=createRequire(import.meta.url),S=require('./astronotes-core.js'),P=require('./astronotes-prediction.js');
 test('朝夕のカード説明は種類と強さの1文で、爆焼けは雲の最高評価だけ',()=>{
  for(const id of ['sunset','sunrise'])for(const style of ['gradient','clouds'])for(const score of [20,50,70,90]){
   const text=S.phrasing(id,S.rankOf(score),{style,descriptive:true}).say;

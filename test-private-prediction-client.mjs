@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {readFileSync,existsSync} from 'node:fs';
-const require=createRequire(import.meta.url),S=require('./sorami-core.js'),P=require('./sorami-prediction.js');
+const require=createRequire(import.meta.url),S=require('./astronotes-core.js'),P=require('./astronotes-prediction.js');
 const at=Date.parse('2026-10-12T14:50:00Z'),place={latitude:35.68,longitude:139.76,elevation:40.7,eyeHeightAGL:80,terrain:'plain'};
 function dto(){return {schemaVersion:1,algorithmVersion:P.VERSION,place,asOf:at,lightPollution:null,bundle:{utcOffsetSeconds:32400,fetchedAt:at,home:{byModel:{test:{times:[at],columns:{visibility:[null],precipitation:[0]}}}}},weeks:Object.fromEntries(P.IDS.map(id=>[id,[{dayMs:at,evaluation:{score:0,rank:{key:'poor'},factors:[],unavailable:null}}]]))};}
 test('0点と判定不能を混同せず、欠測・モデル別seriesを復元する',()=>{
@@ -31,7 +31,7 @@ test('API失敗を永久保存せず、保存領域が使えなくても再試�
 test('公開coreには8現象の採点器・係数書き出しを配信しない',()=>{
  assert.equal(typeof S.evaluate,'undefined');assert.equal(typeof S.evaluateWeek,'undefined');
  assert.ok(Object.values(S.SCORERS).every(s=>typeof s.score!=='function'));
- const source=readFileSync(new URL('./sorami-core.js',import.meta.url),'utf8');
+ const source=readFileSync(new URL('./astronotes-core.js',import.meta.url),'utf8');
  assert.doesNotMatch(source,/AFTERGLOW_MODEL|function afterglowScorer|function ensembleSpread/);
  assert.equal(existsSync(new URL('./fixtures/afterglow-model-export.json',import.meta.url)),false);
 });

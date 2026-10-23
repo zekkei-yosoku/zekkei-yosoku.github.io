@@ -12,7 +12,7 @@
  */
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const S = require("./sorami-core.js");
+const S = require("./astronotes-core.js");
 
 const LEADS = [0, 1, 2, 3, 4, 5, 6, 7];
 const VARS = ["cloud_cover", "precipitation"];

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url),A=require('./sorami-align.js'),T=require('./sorami-terrain.js');
+const require=createRequire(import.meta.url),A=require('./astronotes-align.js'),T=require('./astronotes-terrain.js');
 // Independent oracle: the photo volumes are triangular prisms / boxes.
 // Use their actual two face rings and corresponding connecting edges, rather
 // than the renderer's unordered-convex-solid pair traversal.
@@ -10,7 +10,7 @@ function upperVolumeBase(obs,target,heightM){
  const cutoff=Math.max(0,top-m.viewFromTopM),ref=m.calibration.observer;
  const bearing=T.bearing(target.latitude,target.longitude,ref.latitude,ref.longitude),rad=Math.PI/180;
  const axis=(bearing-90)*rad,depth=(bearing+180)*rad;
- const B=require('./sorami-astro.js'),ATM=require('./sorami-atmosphere.js');
+ const B=require('./astronotes-astro.js'),ATM=require('./astronotes-atmosphere.js');
  const project=p=>B.targetElevationAngle(T.distanceKm(obs.latitude,obs.longitude,p.latitude,p.longitude),(obs.elevation??0)+1.5,target.groundM+p.h,{k:ATM.targetK()});
  let minimum=Infinity;
  for(const solid of m.solids){

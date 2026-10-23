@@ -1,8 +1,8 @@
-// 画面ごとに要る許可（認可表 sorami-access.js）と、メニュー・画面・APIの名前が食い違わないこと（2026-10-15 総点検M04）。
+// 画面ごとに要る許可（認可表 astronotes-access.js）と、メニュー・画面・APIの名前が食い違わないこと（2026-10-15 総点検M04）。
 // 以前は「構図＝diamond・pearl・tower のどれか」が別々の場所に書かれ、直URLの月丼・ISS・記録だけ判定が抜けていた（A01）。
 import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';import assert from 'node:assert/strict';
 const require=createRequire(import.meta.url);
-const access=require('./sorami-access.js');
+const access=require('./astronotes-access.js');
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 const api=readFileSync(new URL('../api/src/index.js',import.meta.url),'utf8');
 
@@ -29,7 +29,7 @@ assert.ok(/data-open-answers/.test(html),'予測の中に予測の振り返り�
 for(const copy of ['toolAllowed("diamond") || toolAllowed("pearl") || toolAllowed("tower")',"['diamond','pearl','tower'].some(toolAllowed)",'RESTRICTED_TOOL_LABELS'])
  assert.ok(!html.includes(copy),`認可表の書き写しが残っていない: ${copy}`);
 for(const screen of ['plane','iss','records'])assert.ok(html.includes(`id="${screen}Access"`)&&html.includes(`id="${screen}AccessMessage"`),`${screen} に許可が無いときの案内がある`);
-assert.match(html,/<script src="sorami-access\.js\?v=\d+"><\/script>\s*\n(?:<script src="[^"]+"><\/script>\s*\n)*<script>/,'認可表は本体の前に読む');
+assert.match(html,/<script src="astronotes-access\.js\?v=\d+"><\/script>\s*\n(?:<script src="[^"]+"><\/script>\s*\n)*<script>/,'認可表は本体の前に読む');
 
 // 判定そのもの
 assert.equal(access.canOpen(['pearl'],'framing'),true);

@@ -14,9 +14,9 @@ const ok = (cond, label, detail = "") => {
 // 判定に使う正本を先に読む。あとから宣言すると、上のほうの検査から見えない。
 const { createRequire } = await import("node:module");
 const req = createRequire(import.meta.url);
-const coreMod = req("./sorami-core.js");
-const coreSrc = fs.readFileSync(new URL("./sorami-core.js", import.meta.url), "utf8");
-const predictionSrc = fs.readFileSync(new URL("./sorami-prediction.js", import.meta.url), "utf8");
+const coreMod = req("./astronotes-core.js");
+const coreSrc = fs.readFileSync(new URL("./astronotes-core.js", import.meta.url), "utf8");
+const predictionSrc = fs.readFileSync(new URL("./astronotes-prediction.js", import.meta.url), "utf8");
 
 // コメント内の文言を拾わないよう、判定前に /* */ を落とす。
 const code = html.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -161,13 +161,13 @@ ok(!/AIM_WORDS|SKY_WORDS|PLANE_WORDS/.test(html), "検索欄の合言葉で道�
 
 // ---- 展望台。**塔の先端の高さと、人が立つ展望台の高さは違う**
 ok(/extratags: "1"/.test(html), "検索で extratags を取る（height / levels / tower:type）");
-ok(/SoramiTerrain\.decksFor\(name\)/.test(html), "公表値の展望台を引く");
+ok(/AstroNotesTerrain\.decksFor\(name\)/.test(html), "公表値の展望台を引く");
 ok(/function lookoutTag/.test(html), "検索結果に高さの印を出す");
 ok(/先端/.test(html) && /屋上/.test(html), "塔は先端・建物は屋上と書き分ける");
 ok(/function eyeOptions/.test(html), "立つ高さの選択肢に展望台を足す");
 ok(/eyeOptions\(favDraft\)\.find/.test(html), "選んだときも同じ一覧から読む");
 {
-  const T = req("./sorami-terrain.js");
+  const T = req("./astronotes-terrain.js");
   const tower = T.decksFor("東京タワー");
   // 図面の物理床高を使用（現行の床高は推定）。
   ok(tower && tower.some((d) => d.aglM === 125) && tower.some((d) => d.aglM === 223.55),
@@ -180,7 +180,7 @@ ok(/eyeOptions\(favDraft\)\.find/.test(html), "選んだときも同じ一覧か
   ok(T.decksFor("高尾山") === null, "展望台でない場所は null");
   // 公称150/250で保存済みの展望台は物理床高へ引き直す
   const fdSrc = /function freshDecks\(f\) \{[\s\S]*?\n\}/.exec(html)[0];
-  const fresh = new Function("SoramiTerrain", `${fdSrc}; return freshDecks;`)(T);
+  const fresh = new Function("AstroNotesTerrain", `${fdSrc}; return freshDecks;`)(T);
   const old = fresh({ name: "東京タワー", decks: [{ name: "メインデッキ", aglM: 150 }, { name: "トップデッキ", aglM: 250 }], eyeHeightAGL: 250 });
   ok(old.eyeHeightAGL === 223.55 && old.decks[0].aglM === 125, "保存済み公称250mは図面の床高223.55mへ更新", JSON.stringify(old));
   const ground = fresh({ name: "東京タワー", decks: [{ name: "メインデッキ", aglM: 150 }], eyeHeightAGL: 1.5 });
@@ -211,14 +211,14 @@ ok(/id="deckRow"/.test(html), "展望台の選択が地点カードにある");
 ok(/function renderDeckRow/.test(html), "選択を描く");
 ok(/decks\.length < 1/.test(html), "展望台が無い場所では出さない");
 ok(/地面に立って 1\.5m/.test(html), "地面に戻す選択肢がある");
-ok(/SoramiTerrain\.deckLabel\(d\.name, place\.name\)/.test(html),
+ok(/AstroNotesTerrain\.deckLabel\(d\.name, place\.name\)/.test(html),
   "呼び名は地点名と突き合わせて出す");
 ok(/\$\("deckPick"\)\.onchange/.test(html), "選ぶと地点に反映する");
 
 // ---- 月丼。**名前のある場所から選ぶ**（格子で探すと東京湾の真ん中が上位に来る）
 ok(/id="planeView"/.test(html), "月丼のページがある");
 ok(/location\.hash === "#\/plane"/.test(html), "#/plane のルートがある");
-ok(/SoramiPlane\.rankSpots\(plane\.dayMs, paths, \[here, \.\.\.SoramiRoutes\.SPOTS\]/.test(html),
+ok(/AstroNotesPlane\.rankSpots\(plane\.dayMs, paths, \[here, \.\.\.AstroNotesRoutes\.SPOTS\]/.test(html),
   "いまの地点＋定番の場所の中から選ぶ");
 // 運用は**羽田の**風で、**時刻ごと**に決める（2026-09-28）。以前は地点の予報を流用し、
 // 12〜21時の風向を数字で平均していたので、350°と10°の北風が180°＝南風運用に化けた。
@@ -270,8 +270,8 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
       ["地図で選ぶ・緯度経度", /choosePlace\(\{ id: `map:\$\{lat\.toFixed\(5\)\}/], ["お気に入り", /el\.onclick = \(\) => choosePlace\(favorites\[/]]) {
     ok(re.test(html), `地点の画面の「${what}」も、開いた目的の方へ渡す`);
   }
-  ok(/addEventListener\("close", \(\) => \{\s+(?:geoRequest\+\+;\s+)?favUndo = \[\];[\s\S]{0,200}placeSheetFor = null;/.test(html), "閉じたら絶景予測の地点の画面に戻す（次に地点カードから開いたときに撮影地点を決めない）");
-  // 「どこに重ねるか」と対で「撮影地点」。最初は絶景予測の地点を引き継いで欄に入れる（ユーザー指定）
+  ok(/addEventListener\("close", \(\) => \{\s+(?:geoRequest\+\+;\s+)?favUndo = \[\];[\s\S]{0,200}placeSheetFor = null;/.test(html), "閉じたらAstroNotesの地点の画面に戻す（次に地点カードから開いたときに撮影地点を決めない）");
+  // 「どこに重ねるか」と対で「撮影地点」。最初はAstroNotesの地点を引き継いで欄に入れる（ユーザー指定）
   // 2026-10-06 何を→何に→どこからの順で、1行ずつ文にして選ぶ（ユーザー「〇〇（選択）を重ねる。〇〇（選択）に重ねる。〇〇（選択）から重ねる。」）。
   // どこからを最後にしたのは、その日の候補地が何を・何に・日付で決まるから（10/01 は一番上、10/04 は2番目だった）
   { const ids=['aimBody','aimWhatLabel','aimTitle','aimWhereLabel','aimFromButton','aimStand','aimGroundHeight','aimStandHeight'];
@@ -300,13 +300,13 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
   ok(/function aimFromPoint\(\) \{\s+return aim\.from \|\| null;/.test(html),
     "未選択では撮影地点を暗黙補完しない");
   ok(/renderPointCard\("aimFrom", f\);/.test(fn) && /\$\(nameId\)\.textContent = f \? f\.name/.test(html), "引き継いだ地点の名前をカードに入れておく（共通の renderPointCard）");
-  ok(/f\.inherited \? "絶景予測の地点" : ""/.test(html), "引き継いだ地点なら、そう書く");
+  ok(/f\.inherited \? "AstroNotesの地点" : ""/.test(html), "引き継いだ地点なら、そう書く");
   ok(/subtitle: aimAreaOf\(\{ detail: place\.subtitle \|\| "" \}\)/.test(html), "引き継いだ地点の住所も都道府県＋市区町村まで");
   ok(!/id="aimFromHere"/.test(html), "引き継ぐための別の釦は置かない（欄に入れておく）");
   ok(/\$\("aimPick"\)\.onclick = async \(\) => \{[\s\S]{0,300}aimSetFrom\(/.test(html), "地図の中心も同じ撮影地点にする（アプリ全体の地点は変えない）");
   ok(!/\$\("aimPick"\)\.hidden = aimIsFuji\(\)/.test(html), "富士山でも地図の中心で選べる");
   ok(/class="tiny aim-day" data-from-day=/.test(html) && /candidateDatesMarkup/.test(fn), "次に重なる日は日付の小さな釦で（押すとその日の線と候補地へ）");
-  ok(!/aimFromSight|aimSightBuildings\(obs, D,|SoramiAlign\.lineOfSight/.test(fn), "不十分な見通し推定を撮影地点で断定表示しない");
+  ok(!/aimFromSight|aimSightBuildings\(obs, D,|AstroNotesAlign\.lineOfSight/.test(fn), "不十分な見通し推定を撮影地点で断定表示しない");
   ok(/innerHTML = candidateDatesMarkup/.test(fn), "候補日を警告で分断せず日付直下に表示する");
   // 2026-10-10: 候補帯の探索入口は条件キャッシュの1か所へ移動した。
   ok((html.match(/ev = await aimDaysFor\(obs, aimDaysInputKey\(f\)\)/g) || []).length === 1, "ほかの所で見えない地点からの一覧を出さない");
@@ -321,7 +321,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
 ok(/deckM: agl/.test(html), "その地点の立つ高さを渡す");
 // 雲海は**見下ろせるか**なので目の高さで判定する（霧氷・ダイヤは地面の標高のまま）
 ok(/eyeHeightAGL:p\.eyeHeightAGL/.test(predictionSrc), "目の高さを非公開採点の条件へ渡す");
-ok(/SoramiPrediction\.fetch\(forPlace(?:,|\))/.test(html) && !/evaluateWeek\(/.test(html), "独自採点はサーバーで行い、結果で表示する");
+ok(/AstroNotesPrediction\.fetch\(forPlace(?:,|\))/.test(html) && !/evaluateWeek\(/.test(html), "独自採点はサーバーで行い、結果で表示する");
 {
   // 霧氷の採点の中だけを見る（木に着く話なので、目の高さは関係ない）
   const body = coreSrc.slice(coreSrc.indexOf("const rimeScorer"), coreSrc.indexOf("const rainbowScorer"));
@@ -331,7 +331,7 @@ ok(/SoramiPrediction\.fetch\(forPlace(?:,|\))/.test(html) && !/evaluateWeek\(/.t
 }
 ok(coreMod.PHENOMENA && /wind_direction_10m/.test(coreSrc), "風向を取得している");
 {
-  const R = req("./sorami-routes.js");
+  const R = req("./astronotes-routes.js");
   ok(R.SPOTS.length >= 15, "定番の場所を持っている", `${R.SPOTS.length}件`);
   ok(R.SPOTS.every((x) => x.name && Number.isFinite(x.latitude) && Number.isFinite(x.longitude)),
     "すべて名前と座標を持つ");
@@ -342,7 +342,7 @@ ok(coreMod.PHENOMENA && /wind_direction_10m/.test(coreSrc), "風向を取得し�
 
 // ---- 短縮リンク。**取り出しの規則は1か所**（サーバーは行き先を返すだけ）
 ok(/resolve-map-link\?u=\$\{encodeURIComponent\(q\)\}/.test(html), "短縮リンクは API に問い合わせる");
-ok(/SoramiTerrain\.parseMapLink\(body\.url\)/.test(html),
+ok(/AstroNotesTerrain\.parseMapLink\(body\.url\)/.test(html),
   "座標の取り出しは画面側の parseMapLink（規則を2か所に置かない）");
 ok(!/\.aim-k\.moon \{[^}]*dashed/.test(html),
   "凡例の月は実線（点線は「稜線の裏」に取ってある）");
@@ -444,9 +444,9 @@ console.log("== 使われていない見た目の決まりを残さない ==");
   const css = blocks.map((b) => b[1]).join("");
   let rest = html;
   for (const b of [...blocks].reverse()) rest = rest.slice(0, b.index) + rest.slice(b.index + b[0].length);
-  rest += fs.readFileSync(new URL("./sorami-plan.js", import.meta.url), "utf8");
-  rest += fs.readFileSync(new URL("./sorami-icons.js", import.meta.url), "utf8");
-  rest += fs.readFileSync(new URL("./sorami-target-ui.js",import.meta.url),"utf8");
+  rest += fs.readFileSync(new URL("./astronotes-plan.js", import.meta.url), "utf8");
+  rest += fs.readFileSync(new URL("./astronotes-icons.js", import.meta.url), "utf8");
+  rest += fs.readFileSync(new URL("./astronotes-target-ui.js",import.meta.url),"utf8");
   // 2026-10-19: image file extensions inside url() are not CSS class selectors.
   const classes = new Set([...css.replace(/url\([^)]*\)/g, "").matchAll(/\.([A-Za-z][A-Za-z0-9_-]+)/g)].map((m) => m[1]));
   const tokens = new Set(INTERPOLATED);
@@ -532,13 +532,13 @@ ok(/function planeOpAt\(at, \{ auto = false \} = \{\}\) \{\s+if \(plane\.op && !
 {
   const src = /function planeOpLabel\(ops\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
   const OPS = { north: { name: "北風運用" }, south: { name: "南風運用（都心上空）" }, southBay: { name: "南風運用（湾側）" } };
-  const label = new Function("SoramiRoutes", `${src}; return planeOpLabel;`)({ OPERATIONS: OPS });
+  const label = new Function("AstroNotesRoutes", `${src}; return planeOpLabel;`)({ OPERATIONS: OPS });
   ok(label(["north"]) === "北風運用" && label(["southBay", "south"]) === "南風運用（湾側・都心上空）", "月丼: 南風の日は「南風運用（湾側・都心上空）」とまとめる", label(["southBay", "south"]));
 }
 
 // ユーザー「その他の対象って自分でその建物の高さを入力する…海抜足さなくていいんだよね」「建物の高さがわかるなら自動で入力がいいな」
 ok(/const b = await aimBuildingAt\(p\.latitude, p\.longitude\);\s+if\(!current\(\)\)return;\s+if \(b\) \{ h = Math\.round\(b\.heightM\); auto = b\.from === "wikidata" \? "wikidata" : b\.estimated \? "estimated" : true; \}/.test(html), "他の対象: 建物の高さを自動で入れる（見積もり・Wikidata は分かるように）");
-ok(/for \(const b of await tallBuildings\(\)\)/.test(html) && /return await SoramiTerrain\.buildingAt\(lat, lon\);/.test(html), "まず同梱の高い建物の一覧、無ければ OpenStreetMap に問い合わせる");
+ok(/for \(const b of await tallBuildings\(\)\)/.test(html) && /return await AstroNotesTerrain\.buildingAt\(lat, lon\);/.test(html), "まず同梱の高い建物の一覧、無ければ OpenStreetMap に問い合わせる");
 ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM : typedNow \? typed : null;/.test(html), "お気に入り・検索の高さ、打ち込んだ高さを先に使う");
 ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れるのは地上からの高さ）");
 {
@@ -587,9 +587,9 @@ ok(/\$\("aimTargetSub"\)\.textContent = c\s+\? \[c\.subtitle, `標高 \$\{Math\.
   // 首都圏の外は、目標へ向かう線に掛かる建物を問い合わせる。一覧の外を「隠れない」と言わない
   const sb = html.slice(html.indexOf("async function aimSightBuildings"), html.indexOf("async function aimBuildingBlocks"));
   ok(/tallCovers\(all, obs\.latitude, obs\.longitude\) && tallCovers\(all, end\.latitude, end\.longitude\)/.test(sb)
-    && /SoramiTerrain\.buildingsAlong\(obs, end,/.test(sb), "首都圏の外は線に掛かる建物を OpenStreetMap に問い合わせる");
+    && /AstroNotesTerrain\.buildingsAlong\(obs, end,/.test(sb), "首都圏の外は線に掛かる建物を OpenStreetMap に問い合わせる");
   ok(/if \(!got\) return null;/.test(sb), "問い合わせられなければ「確かめられない」（null）");
-  ok(/SoramiTerrain\.buildingsAlong\(obs, end, \{ wanted \}\)/.test(sb) && !/await aimSightBuildings\(obs, D,/.test(html),
+  ok(/AstroNotesTerrain\.buildingsAlong\(obs, end, \{ wanted \}\)/.test(sb) && !/await aimSightBuildings\(obs, D,/.test(html),
     "撮影地点の断定警告のための建物問い合わせは行わない");
   // 2026-10-06 から候補地ごとに判定する（1か所でも首都圏の外なら全部を確かめずにいた）。近くの国土地理院の建物は全国で見る
   ok(/if \(!all \|\| !tallCovers\(all, c\.stand\.latitude, c\.stand\.longitude\)\) return null;/.test(html) && !/return "outside";/.test(html),
@@ -597,7 +597,7 @@ ok(/\$\("aimTargetSub"\)\.textContent = c\s+\? \[c\.subtitle, `標高 \$\{Math\.
   ok(/connect-src[^"]*https:\/\/maps\.mail\.ru/.test(html), "Overpass の予備（maps.mail.ru）へつなげる（CSP）");
 }
 // ユーザー「大平和祈念塔とか高さ出ないけど…検索したらその建物、目標物の高さを取得して出すとかだとダメなの？」
-ok(/https:\/\/www\.wikidata\.org/.test(html) && /const wd = await SoramiTerrain\.wikidataHeight\(p\.wikidata\);/.test(html), "検索した目標物に Wikidata の参照があれば、その高さを取る（OSM に高さが無くても）");
+ok(/https:\/\/www\.wikidata\.org/.test(html) && /const wd = await AstroNotesTerrain\.wikidataHeight\(p\.wikidata\);/.test(html), "検索した目標物に Wikidata の参照があれば、その高さを取る（OSM に高さが無くても）");
 ok(/wikidata: \(r\.extratags && r\.extratags\.wikidata\) \|\| null,/.test(html), "検索結果（OSM）から Wikidata の参照を持ち回る");
 ok(/if \(!dup\.wikidata && r\.wikidata\) dup\.wikidata = r\.wikidata;/.test(html), "地理院と OSM の同じ場所をまとめるとき、Wikidata の参照も引き継ぐ（大平和祈念塔で抜けていた）");
 ok(/if \(dup\.source === "gsi" && r\.source === "osm"\) \{ dup\.detail = r\.detail; dup\.detailFromOsm = true; \}\s+\/\/[^\n]*\n[^\n]*\n[^\n]*\n\s+if \(!dup\.decks && r\.decks\)/.test(html),
@@ -660,16 +660,16 @@ console.log("== 月の結果に日の出入り・月の出入りからの差（2
   const uses = [
     ["パール富士（富士山の詳細）", /const twilight = isMoon \? lightTimingText\(e\.at, observerHere\(\)\) : "";/],
     ["ねらう: 見え方の図の上の一行", /return \[`\$\{iconFor\("moon", at, \{ text: true, observer: o \}\)\}\$\{lit\}`, lightTimingText\(at, o\)\]/],
-    ["ねらう: 定番スポット", /lightTimingText\(e\.at, SoramiAlign\.spotObserver\(sp\)\)/],
+    ["ねらう: 定番スポット", /lightTimingText\(e\.at, AstroNotesAlign\.spotObserver\(sp\)\)/],
     ["ねらう: その日の候補地（選んだ行）", /\(moon \? `<span class="tiny sub-line">\$\{esc\(lightTimingText\(c\.at, c\.stand\)\)\}<\/span>` : ""\)/],
     ["月丼: 一覧", /lightTimingText\(sp\.best\.at, sp\.spot\)/],
     ["ISS: 月の回", /iss\.body === "moon" \? `<span class="tiny">\$\{esc\(lightTimingText\(r\.at, st \|\| r\.center\)\)\}<\/span>` : ""/],
   ];
   for (const [what, re] of uses) ok(re.test(html), `${what}に書く`);
   // 実際に動かす（東京 2026/9/20 の日の入 17:41 の25分後・月の出のあと）
-  const A = req("./sorami-astro.js");
+  const A = req("./astronotes-astro.js");
   const src = /function lightTimingText\(atMs, obs\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
-  const say = new Function("SoramiAstro", `${src}; return lightTimingText;`)(A);
+  const say = new Function("AstroNotesAstro", `${src}; return lightTimingText;`)(A);
   const obs = { latitude: 35.6581, longitude: 139.7414, elevation: 0 };
   const day = Date.UTC(2026, 8, 20) - 9 * 3600000;
   const set = A.findCrossing((t) => A.sun(t, obs).upperLimbAltitude, day + 15 * 3600000, day + 20 * 3600000);
@@ -699,7 +699,7 @@ console.log("== 選択肢を作り直す前に選んだ値を読む（2026-10-01
   const fillSel = /function aimFillSelects\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
   // 2026-10-21: 構図も対象を未選択にできる。初めては富士山（既定値）、解除した人は "" が保存されていて未選択のまま
   ok(/const keep = \{ target: \$\("aimTarget"\)\.options\.length \? \$\("aimTarget"\)\.value : \$\("aimTarget"\)\.value \|\| store\.get\("sorami\.aimTarget", "fuji"\), limb: aimLimbValue\(\) \};/.test(fillSel)
-    && /keep\.limb \|\| aim\.limb \|\| SoramiAlign\.LIMBS\[0\]\.id/.test(fillSel) && /aria-pressed="\$\{l\.id === cur && aim\.matchMode !== 'overlap'\}"/.test(fillSel), "ねらう: 選択肢を作り直しても合わせ方は残す");
+    && /keep\.limb \|\| aim\.limb \|\| AstroNotesAlign\.LIMBS\[0\]\.id/.test(fillSel) && /aria-pressed="\$\{l\.id === cur && aim\.matchMode !== 'overlap'\}"/.test(fillSel), "ねらう: 選択肢を作り直しても合わせ方は残す");
 }
 
 console.log("== 同じ名前の関数を2つ置かない・観測点は1つ（2026-10-01） ==");
@@ -713,9 +713,9 @@ console.log("== 同じ名前の関数を2つ置かない・観測点は1つ（20
   ok(/await measureGroundHere\(\);\s+if \(seq !== extraSeq\) return;\s+const obs = observerHere\(\);/.test(html),
     "富士山・月は DEM で地面を測ってから観測点を作る");
   // 実際に動かす
-  const T = req("./sorami-terrain.js");
+  const T = req("./astronotes-terrain.js");
   const src = /const groundDemCache = new Map\(\);[\s\S]*?\nfunction observerHere\(\) \{[\s\S]*?\n\}/.exec(html)?.[0] || "";
-  const run = (place, dem) => new Function("place", "bundle", "SoramiTerrain",
+  const run = (place, dem) => new Function("place", "bundle", "AstroNotesTerrain",
     `${src}; return { measureGroundHere, observerHere };`)(place, { home: { grid: { elevation: 400 } } },
     { ...T, groundElevation: async (la, lo, o) => dem === null ? null
       : (o?.withSource ? (dem === "sea" ? { elevation: 0, source: "海" } : { elevation: dem, source: "1m（レーザ）" }) : (dem === "sea" ? 0 : dem)) });
@@ -736,9 +736,9 @@ console.log("== 同じ名前の関数を2つ置かない・観測点は1つ（20
   ok(!/elevationFromTile\(/.test(html) && (html.match(/await groundAt\(/g) || []).length === 3,
     "立つ場所の地面（地点・地図で選んだ点・写真）は国土地理院の標高API（最も精度の高いDEM）。10mメッシュのタイル z13 に戻さない（2026-10-05）");
   // まとめて引く標高（地形の地平線・見通し・山の稜線）は、観測点を渡して近い点ほど細かく読む。建物の足もとは標高API（2026-10-05）
-  ok(/elevations: \(pts\) => SoramiTerrain\.elevations\(pts, \{ from: c\.stand \}\)/.test(html)
-    && /SoramiTerrain\.elevations\(pts, \{ zoom: D > 40 \? 12 : 13, from: obs \}\)/.test(html)
-    && /SoramiTerrain\.groundElevation\(x\.lat, x\.lon\)/.test(html),
+  ok(/elevations: \(pts\) => AstroNotesTerrain\.elevations\(pts, \{ from: c\.stand \}\)/.test(html)
+    && /AstroNotesTerrain\.elevations\(pts, \{ zoom: D > 40 \? 12 : 13, from: obs \}\)/.test(html)
+    && /AstroNotesTerrain\.groundElevation\(x\.lat, x\.lon\)/.test(html),
     "候補地の見通し・山の稜線は観測点からの距離でズームを上げ、建物の足もとは標高APIで読む");
 }
 
@@ -754,8 +754,8 @@ console.log("== ねらう: その日の候補地（2026-09-30） ==");
     ok(/^data\/\*$/m.test(gi) && !/^data\/$/m.test(gi) && /^!data\/aim-viewpoints\.json$/m.test(gi),
       "配信から外さない（.gitignore は data/* と例外）");
   }
-  ok(/SoramiAlign\.candidates\(lines, eligible/.test(html), "線に掛かる場所を解き直して選ぶ");
-  ok(/SoramiAlign\.lineOfSight\(/.test(html) && /if \(!los\.clear\) return null;/.test(html), "地形で隠れる場所は外す");
+  ok(/AstroNotesAlign\.candidates\(lines, eligible/.test(html), "線に掛かる場所を解き直して選ぶ");
+  ok(/AstroNotesAlign\.lineOfSight\(/.test(html) && /if \(!los\.clear\) return null;/.test(html), "地形で隠れる場所は外す");
   ok(/if \(aim\.body === "moon"\) found = found\.filter\(\(c\) => c\.sunAltitude < 0\)/.test(html), "パールは暗い空の回だけ");
   ok(/const pool = places/.test(html), "富士山は定番スポットも候補に入れる");
   ok(/latitude: c\.stand\.latitude, longitude: c\.stand\.longitude, name:/.test(html), "地図の番号は立つ位置に打つ");
@@ -801,10 +801,10 @@ console.log("== 地点検索: 山・峠・展望地の索引（2026-09-30） =="
   const gi = fs.readFileSync(new URL("./.gitignore", import.meta.url), "utf8");
   ok(fs.existsSync(new URL("./data/place-index.json", import.meta.url)) && /^!data\/place-index\.json$/m.test(gi),
     "data/place-index.json があり、配信から外さない");
-  ok(/fetch\("data\/place-index\.json"\)/.test(html) && /SoramiTerrain\.searchPlaceIndex\(j, q/.test(html), "検索で同梱の索引も引く");
+  ok(/fetch\("data\/place-index\.json"\)/.test(html) && /AstroNotesTerrain\.searchPlaceIndex\(j, q/.test(html), "検索で同梱の索引も引く");
   ok(/score\(a\) - score\(b\)/.test(html) && /r\.indexScore >= 60/.test(html), "全検索元を一致度で比較し、住所内地名の強い索引も維持する");
   const idx = JSON.parse(fs.readFileSync(new URL("./data/place-index.json", import.meta.url), "utf8"));
-  const T = (await import("node:module")).createRequire(import.meta.url)("./sorami-terrain.js");
+  const T = (await import("node:module")).createRequire(import.meta.url)("./astronotes-terrain.js");
   const r = T.searchPlaceIndex(idx, "群馬県桐生市富士見町赤城山鳥居峠");
   ok(r[0] && r[0].name === "赤城山", "住所まじりの「…赤城山鳥居峠」で赤城山が1位（2026-09-28 ユーザー指摘の例）", r.slice(0, 3).map((x) => x.name).join(" / "));
   ok(!r.some((x) => x.name === "城山"), "「赤城山」の中の「城山」で全国の城山を並べない");
@@ -832,7 +832,7 @@ console.log("== 月を表すところは全部、その時の満ち欠け（2026
   ok(/<option value="moon">月<\/option>/.test(html) && /\$\("issMoon"\)\.innerHTML = moonGlyphAt\(/.test(html),
     "天体選択は月の名前を表示し、ISS の月の切り替えはその日の月の形");
   ok(!/row\(e, i === 0 \? "パール富士" : "その次", "🌙"\)/.test(html), "富士山の詳細のパール富士の行も月の形");
-  ok(/\$\{moonGlyphAt\(e\.at, plan\.observer \|\| plan\.from\)\}\$\{Math\.round\(e\.illuminated \* 100\)\}%/.test(html) && /lit = ` 輝面 \$\{Math\.round\(SoramiAstro\.moon\(at, o\)\.illuminatedFraction \* 100\)\}%`/.test(html)
+  ok(/\$\{moonGlyphAt\(e\.at, plan\.observer \|\| plan\.from\)\}\$\{Math\.round\(e\.illuminated \* 100\)\}%/.test(html) && /lit = ` 輝面 \$\{Math\.round\(AstroNotesAstro\.moon\(at, o\)\.illuminatedFraction \* 100\)\}%`/.test(html)
     && /\$\{moon \? ` \$\{moonGlyphAt\(c\.at, c\.stand\)\}` : ""\}/.test(html), "重なる日の帯・見え方の一行・候補地に月の形（輝面は帯と一行）");
   ok(/\$\{moonGlyphAt\(b\.at, P\)\} 月の輝面/.test(html) && /\$\{moonGlyphAt\(r\.at, st \|\| r\.center\)\} 輝面/.test(html), "月丼・ISS の輝面に月の形");
   ok(fixed <= 4, `固定の 🌙 が増えていない（${fixed}か所）`);
@@ -868,8 +868,8 @@ ok(/openFavSheet\(-1, \{ after, target, shooting, point: \{\s+id: `map:\$\{f\.la
 ok(/if \(i >= 0\) \{ openFavSheet\(i, \{ after, target, shooting \}\); return; \}/.test(html), "登録済み（★）なら編集");
 ok(/if \(favDraft\.after\) favDraft\.after\(entry\);/.test(html), "保存したら、付けた名前で出し直す");
 ok(/if \(favDraft\.after\) \{ favDraft\.after\(null\); return; \}/.test(html), "道具から消したら、地点の一覧を開かずに道具の画面に残る");
-ok(/<button class="list-item" id="sheetInherit" hidden><\/button>/.test(html) && /絶景予測の地点（\$\{place\.name\}）にする/.test(html),
-  "別の点を選んでいるときは、地点の画面に絶景予測の地点へ戻る行も出す");
+ok(/<button class="list-item" id="sheetInherit" hidden><\/button>/.test(html) && /AstroNotesの地点（\$\{place\.name\}）にする/.test(html),
+  "別の点を選んでいるときは、地点の画面にAstroNotesの地点へ戻る行も出す");
 
 console.log("== ねらう・ISS・月丼の並びをそろえる（2026-10-01） ==");
 // ユーザー「月丼とかISSとかのレイアウトも統一感あるようにしよう」。題名の右に主な切り替え、その下に撮影地点（地点カードと同じ形）
@@ -902,7 +902,7 @@ ok(!/どこから見るか<\/p>|title: "どこから見るか"|>ここから見�
 ok(/renderPointCard\("issFrom", P, null, \{ elevation: false \}\);/.test(html), "ISS: 探す範囲の中心には標高を書かない（そこに立つわけではない）");
 ok(/立つ場所の例：/.test(html), "ISS: 一覧の立つ場所は例（帯の中なら見える）");
 ok(/function issFromPoint\(\) \{ return iss\.from \|\| inheritedPoint\(\); \}/.test(html) && /function planeFromPoint\(\) \{ return plane\.from \|\| inheritedPoint\(\); \}/.test(html),
-  "ISS・月丼も絶景予測の地点を引き継ぐ");
+  "ISS・月丼もAstroNotesの地点を引き継ぐ");
 ok(!/id="issPickHere"/.test(html) && /id="planePickHere"[^>]*>ここから重ねる<\/button>/.test(html), "月丼だけ地図のすぐ下に「ここから重ねる」（ISS は帯を見て自分で探す）");
 ok(/\.aim-place-card \.place-pick \{ min-height: 54px; \}/.test(html), "地点のカードは住所が無くても同じ高さ（押す所 44px 以上・下が動かない）");
 // 2026-10-21: 通過の地図は数千kmの通り道を見るので、いちばん広い縮尺（5）。月・太陽の前は従来どおり 8
@@ -940,9 +940,9 @@ console.log("== 撮影地点を水の上に置かない（2026-10-01） ==");
 ok(/const c = await aimOnLand\(k, lines, opts\);/.test(html), "ねらう: 候補ごとに水の上かを見る（見通しを確かめる前に）");
 ok(/const AIM_STAND_ON_WATER_OK = new Set\(\["橋", "桟橋"\]\);/.test(html), "ねらう: 水の上でも残すのは橋・桟橋だけ（人が立てる構造物）");
 ok(/return water === true \? aimMoveToLand\(c, lines, opts\) : water === false \? c : null;/.test(html), "ねらう: 水の上なら陸へ動かす（動かせなければ外す）");
-ok(/const hit = SoramiAlign\.crossingNear\(\{ latitude: pt\.latitude, longitude: pt\.longitude, elevation: ground \}/.test(html),
+ok(/const hit = AstroNotesAlign\.crossingNear\(\{ latitude: pt\.latitude, longitude: pt\.longitude, elevation: ground \}/.test(html),
   "ねらう: 動かした点で重なりを解き直す");
-ok(/const water = await SoramiTerrain\.waterAt\(picks\);\s+const onLand = picks\.filter\(\(n, i\) => water\[i\] !== true\);/.test(html),
+ok(/const water = await AstroNotesTerrain\.waterAt\(picks\);\s+const onLand = picks\.filter\(\(n, i\) => water\[i\] !== true\);/.test(html),
   "ISS: 立つ場所は水の上を外す（橋も外す）");
 ok(/iss\.result = rows\.filter\(\(r\) => r\.stand !== null\);/.test(html), "ISS: 帯が水の上だけを通る回は並べない");
 ok(/海や湖の上だけを通る回（\$\{iss\.overWater\}回）は除外/.test(html), "ISS: 外した回の数は一言で書く");
@@ -1013,7 +1013,7 @@ ok(/found\.sort\(\(a, b\) => Math\.floor\(a\.pass\.visible\.start\.at \/ 60000\)
   ok(/dialog\.sheet\.as-page\[open\] \{ display: flex; flex-direction: column; animation: none; \}/.test(html) && !/page-from-right/.test(html), "ページは右から動かして出さない");
   ok(/t\.clientX <= 24/.test(html) && /edge\.dx > Math\.min\(120, innerWidth \* 0\.3\)/.test(html), "左の縁から内側へスワイプしてページを閉じる");
   ok(/dialog\.sheet\.as-page > \.sheet-head > \[data-page-close\] \{ display: none !important; \}/.test(html), "隠した右上の×が残らない（観測地点で残っていた）");
-  const tui = fs.readFileSync(new URL("./sorami-target-ui.js", import.meta.url), "utf8");
+  const tui = fs.readFileSync(new URL("./astronotes-target-ui.js", import.meta.url), "utf8");
   ok(/<span class="page-actions" data-target-head-actions><button type="button" class="chip" data-target-clear aria-label="選択を解除">解除<\/button><button type="button" class="chip my-add-point" data-target-new aria-label="対象を追加"/.test(tui)
     && !/＋ 対象を追加/.test(tui), "対象を選ぶ: 解除と＋（記録と同じ）は上の右");
 }
@@ -1052,7 +1052,7 @@ ok(/renderTools\(\);[\s\S]*?redrawIfToolsChanged\(\);/.test(authButtonSource), "
 ok(!/wireOutcomes\(\$\("dayDetail"\)\);/.test(html) && !/wireOutcomes\(host\);\s+wireAlignmentJump\(host\);\s+\}/.test(html.replace(/function wireDayDetail[\s\S]*?\n\}/, "")),
   "詳細の下半分は wireDayDetail でつなぐ");
 ok([...html.matchAll(/wireDayDetail\(/g)].length >= 4, "最初の描画・日の切り替え・計算の到着のすべてでつなぐ");
-ok(!/SoramiComposition/.test(html), "画面に出していない構図の計算をしない（1回 約0.6秒）");
+ok(!/AstroNotesComposition/.test(html), "画面に出していない構図の計算をしない（1回 約0.6秒）");
 
 console.log("== 道具の名前は1か所から取る ==");
 // 管理画面に書き写していたため、ねらうを3つに分けた日に片方だけ古くなった。
@@ -1211,16 +1211,16 @@ ok(/function renderLightTimes/.test(html), "renderLightTimes がある");
 ok(/renderLightTimes\(sel\.dayMs, now, id\)/.test(html), "選んだ日と現象の日の出・日の入を出す");
 // 2026-09-07: 表から帯へ。朝夕2列×3行の数字を頭で1日に組み直す必要があった。
 // 2026-10-20 ユーザー「予報ならざっくり日の出日の入の時間を残すだけ」「夕焼けには日の入、朝焼けには日の出だけ」：
-// 帯（ゴールデン／ブルーアワー）はホームの太陽へ移した（sorami-almanac-dashboard.js の twilightPanel）
+// 帯（ゴールデン／ブルーアワー）はホームの太陽へ移した（astronotes-almanac-dashboard.js の twilightPanel）
 ok(!/class="lt-band"/.test(html) && /<span class="lt-simple" id="lightTimes">/.test(html) && /<span class="nm">\$\{S\.longNameOf\(id\)\}<\/span>\$\{renderLightTimes\(sel\.dayMs, now, id\)\}/.test(html), "予報の詳細は日の出・日の入の時刻だけ、カードの見出しの空きに");
 ok(/phenomenonId === "sunset" \? kind === "sunset" : phenomenonId === "sunrise" \? kind === "sunrise" : false/.test(html), "夕焼けは日の入だけ・朝焼けは日の出だけ・ほかは出さない");
 {
-  const home = fs.readFileSync(new URL("./sorami-almanac-dashboard.js", import.meta.url), "utf8");
+  const home = fs.readFileSync(new URL("./astronotes-almanac-dashboard.js", import.meta.url), "utf8");
   ok(/const viz=el\('div','alm-sky'\),light=body!=='moon'\?twilightLines\(day,d,astro\):null;/.test(home), "ホームの光の時間は空をたどるに一本化（太陽だけ）");
   ok(/\['ゴールデンアワー',/.test(home) && /\['ブルーアワー',/.test(home), "空をたどるのグラフの下にゴールデン・ブルーアワー");
 }
 ok(/lightWindows/.test(html), "太陽の高度から求めている");
-const core2 = fs.readFileSync(new URL("./sorami-core.js", import.meta.url), "utf8");
+const core2 = fs.readFileSync(new URL("./astronotes-core.js", import.meta.url), "utf8");
 // 写真分野の標準的な定義。ゴールデン −4°〜+6°、ブルー −6°〜−4°。
 ok(/goldenDawn: \{ zenith: 84/.test(core2), "ゴールデンアワーの上端は太陽高度 +6°");
 ok(/lowSunDawn: \{ zenith: 94/.test(core2), "ゴールデンアワーの下端は太陽高度 −4°");
@@ -1263,10 +1263,10 @@ ok(!/HIGHLIGHT_HEAD\s*=\s*\{[\s\S]*?poor:\s*"/.test(html),
 
 console.log("== 月の詳細に月の出・月の入りを出す ==");
 // 月の行で知りたいのは点数より「何時に出て、そのとき見えるか」（2026-09-14 ユーザー）。
-// timeline / markers は sorami-moon.js に前からあったが、画面へ繋いでいなかった。
+// timeline / markers は astronotes-moon.js に前からあったが、画面へ繋いでいなかった。
 ok(/function renderMoonTimes\(/.test(html), "renderMoonTimes がある");
 ok(/id === "moon" \? renderMoonTimes\(sel\.dayMs\) : ""/.test(html), "月の詳細から呼んでいる");
-ok(/SoramiAstro\.moonEvents\([\s\S]{0,120}horizonAt/.test(html),
+ok(/AstroNotesAstro\.moonEvents\([\s\S]{0,120}horizonAt/.test(html),
   "平らな地平線ではなく、測った地平線で月の出入りを出す");
 for (const label of ["暦の上では", "この場所では", "まるごと", "見え始め"]) {
   ok(html.includes(`"${label}"`) || html.includes(`["${label}"`),
@@ -1282,7 +1282,7 @@ ok(!/"地形から"/.test(html), "「地形から」という片方向の言い�
 ok(/見え始め」の時刻は出ませんでした/.test(html), "見え始めが出ないとき、ダッシュだけで終わらせない");
 
 console.log("== 同じ画面で月の出の時刻が食い違わない ==");
-// 光の時間の帯は core の地心計算、詳細の表は SoramiAstro（地平視差・大気差・視半径）で
+// 光の時間の帯は core の地心計算、詳細の表は AstroNotesAstro（地平視差・大気差・視半径）で
 // 出していたため、同じ画面に 8:22 と 8:21 が並んでいた。表示は精密なほうへ揃える。
 // core の Moon は星空の採点と Swift 版パリティで固定なので触らない。
 ok(!/S\.Moon\.state\(/.test(html), "core の地心計算を月の出入りの表示に呼んでいない");
@@ -1314,16 +1314,16 @@ ok(JSON.stringify(coreMod.PHENOMENA.capCloud.ranks) === JSON.stringify(["好条�
   "笠雲のランク名は出やすさで言う（2026-09-17 ユーザー選択）");
 ok(![...coreMod.PHENOMENA.capCloud.ranks, ...coreMod.PHENOMENA.capCloud.says].some((t) => /かか[りるっ]|みごと/.test(t)),
   "ランク名と説明文に「かかる」「みごと」を使わない");
-ok(/sorami-capcloud\.js/.test(html), "採点を読み込んでいる");
+ok(/astronotes-capcloud\.js/.test(html), "採点を読み込んでいる");
 ok(/kind: "fuji"/.test(html) && /dto.weeks.capCloud/.test(html), "非公開APIの笠雲週間を表示している");
 // 富士山が地形で見えない地点では笠雲も出さない
 ok(/delete weeks\.fuji; delete weeks\.capCloud/.test(html), "富士山が見えない地点では行ごと出さない");
 // 上空予報の取得・採点はサーバーで共有する。公開配信に採点実装を残さない。
-for (const name of ["sorami-moon.js", "sorami-fuji.js", "sorami-capcloud.js"]) {
+for (const name of ["astronotes-moon.js", "astronotes-fuji.js", "astronotes-capcloud.js"]) {
   const source = fs.readFileSync(new URL(name, import.meta.url), "utf8");
   ok(!/function (evaluateDay|evaluateAt|evaluateFuji|scoreOf)|fetchUpperAir|fetchFujiWeather/.test(source), `${name} に独自予測を配信しない`);
 }
-ok(!/SoramiCapCloud\.evaluateDay|SoramiFuji\.evaluateDay/.test(html), "画面の採点処理はAPIへ移した");
+ok(!/AstroNotesCapCloud\.evaluateDay|AstroNotesFuji\.evaluateDay/.test(html), "画面の採点処理はAPIへ移した");
 // 富士山の詳細からの導線
 ok(/function renderCapLine/.test(html), "富士山の詳細から笠雲へ1行");
 // 仕様書 §0 が最終出力に「発生予想時間帯・最盛予想時間帯・消滅予想時間帯」を挙げている。
@@ -1353,8 +1353,8 @@ console.log("== 写真から時刻を読む ==");
 // 3択より「いつ・どこで撮ったか」のほうが照合に使える。
 // 採点は時間帯に対して出しているので、その中で撮られたかが分からないと測れない
 // （雲海の正例162日のうち44日は窓の外で撮られていた）。
-ok(/sorami-exif\.js/.test(html), "EXIF の読み取りを読み込んでいる");
-ok(/SoramiExif\.readFile\(file\)/.test(html), "File から読む（先頭だけ）");
+ok(/astronotes-exif\.js/.test(html), "EXIF の読み取りを読み込んでいる");
+ok(/AstroNotesExif\.readFile\(file\)/.test(html), "File から読む（先頭だけ）");
 ok(/写真から時刻を読む/.test(html), "記録の画面に入口がある");
 // **画像を送らない。** 送る設計にすると保存先も費用も要る
 ok(!/FileReader\(\)[\s\S]{0,200}readAsDataURL/.test(html), "画像をデータURLにしていない");
@@ -1386,22 +1386,22 @@ console.log("== 建物の地平線（urban 層）==");
 // 地形だけだと市街地の地平線はほぼ 0度で、見えない時間を見えると言ってしまう。
 ok(/connect-src[^"]*https:\/\/overpass-api\.de/.test(html), "CSP に Overpass を通してある");
 {
-  // 問い合わせ先（SoramiTerrain.OVERPASS）は全部 CSP で通っていなければ、ブラウザが黙って止める
-  const T = (await import("node:module")).createRequire(import.meta.url)("./sorami-terrain.js");
+  // 問い合わせ先（AstroNotesTerrain.OVERPASS）は全部 CSP で通っていなければ、ブラウザが黙って止める
+  const T = (await import("node:module")).createRequire(import.meta.url)("./astronotes-terrain.js");
   const meta = (html.match(/http-equiv="Content-Security-Policy" content="([^"]*)"/) || [])[1] || "";
   const csp = (meta.match(/connect-src ([^;]*)/) || [])[1] || "";
   const missing = T.OVERPASS.map((u) => new URL(u).origin).filter((o) => !csp.split(/\s+/).includes(o));
   ok(missing.length === 0 && T.OVERPASS.length >= 3, "Overpass の問い合わせ先がすべて CSP で通っている", missing.join(" "));
-  const terrainSrc = fs.readFileSync(new URL("./sorami-terrain.js", import.meta.url), "utf8");
+  const terrainSrc = fs.readFileSync(new URL("./astronotes-terrain.js", import.meta.url), "utf8");
   ok(/\[out:json\]\[timeout:\d+\]\[maxsize:\d+\]/.test(terrainSrc),
     "Overpass への問い合わせは使うメモリを宣言する（既定の 512MB は混むと 504）");
 }
-ok(/SoramiTerrain\.urbanHorizon\(/.test(html), "建物の地平線を取りに行く");
+ok(/AstroNotesTerrain\.urbanHorizon\(/.test(html), "建物の地平線を取りに行く");
 // 建物は非同期。まず地形だけで地平線を作り、届いたら重ねて作り直す。
 // 取れなければ地形だけのまま（`.catch(() => {})` で黙って落ちない）
-ok(/fn = SoramiTerrain\.combinedHorizon\(\{ terrain: prof \}\)/.test(html),
+ok(/fn = AstroNotesTerrain\.combinedHorizon\(\{ terrain: prof \}\)/.test(html),
   "まず地形だけで地平線を作る");
-ok(/moonHorizon = SoramiTerrain\.combinedHorizon\(\{[\s\S]{0,120}urban \}\)/.test(html),
+ok(/moonHorizon = AstroNotesTerrain\.combinedHorizon\(\{[\s\S]{0,120}urban \}\)/.test(html),
   "建物が届いたら地平線を作り直す");
 ok(/loadUrbanHorizon\(obs\)[\s\S]{0,1800}\.catch\(\(\) => \{ if \(seq === extraSeq\) \{ moonUrbanTried = false; extrasRetry.schedule\(\); \} \}\)/.test(html),
   "建物が取れなくても地形だけで続ける");
@@ -1416,11 +1416,11 @@ ok(/moonUrbanTried = true;[\s\S]{0,200}loadUrbanHorizon/.test(html), "取得は�
 // 地形の測定は標高APIが混むと429で落ちる。市街地の地平線を決めているのは建物なので、
 // 地形が取れないことを理由に建物まで諦めない
 // 2026-09-17: 地域代表点だけ除外。具体地点はDEM失敗時も建物を取る。
-ok(/if \(\(!moonUrbanTried \|\| urbanPending.has\(SoramiTerrain.urbanCacheKey\(obs\)\)\) && !moonUrbanProfile && obs\.locationScope !== "area"\) \{/.test(html), "具体地点では地形が取れなくても建物は取りに行く");
+ok(/if \(\(!moonUrbanTried \|\| urbanPending.has\(AstroNotesTerrain.urbanCacheKey\(obs\)\)\) && !moonUrbanProfile && obs\.locationScope !== "area"\) \{/.test(html), "具体地点では地形が取れなくても建物は取りに行く");
 // 建物層は「建物の無い方位＝−90（何も言わない）」なので、**単独で使うと壊れる**。
 // 地形が測れていなければ平らな 0 を下敷きにする（実際に単独で使って、
 // 芝公園の月の出が暦より343分早い 2:38 と出た）
-ok(/terrain: moonTerrainProfile \|\| SoramiTerrain\.flatProfile\(\), urban/.test(html),
+ok(/terrain: moonTerrainProfile \|\| AstroNotesTerrain\.flatProfile\(\), urban/.test(html),
   "建物だけで地平線を作らず、平らな地形を下敷きにする");
 // 地点が変わったら建物も捨てる。残すと引っ越しても前の場所の地平線のままになる
 ok(/moonTerrainProfile = null; moonUrbanMeta = null; moonUrbanTried = false;/.test(html),
@@ -1502,7 +1502,7 @@ ok(!/onclick/.test(bestNoteFn), "いちばんの狙いめを押しても移動�
 
 console.log("== 14日ぶんを横に流す ==");
 // 7日では「来週の連休どうか」が見られない。14日に伸ばしたぶん、1画面には入らない。
-ok(/SoramiPrediction\.fetch\(forPlace(?:,|\))/.test(html), "週間予測は完成結果と表示用気象をまとめて取得する");
+ok(/AstroNotesPrediction\.fetch\(forPlace(?:,|\))/.test(html), "週間予測は完成結果と表示用気象をまとめて取得する");
 ok(/rows\.length>14/.test(predictionSrc), "14日ぶんの結果を検査して表示する");
 const daysCss = html.slice(html.indexOf(".days {"), html.indexOf(".days {") + 400);
 ok(/overflow-x: auto/.test(daysCss), "横スクロールにする");
@@ -1582,7 +1582,7 @@ console.log("== お気に入りを絶景スポットと同じ形で登録する 
 // 消したのは【一覧の表示】だけで、spots.js のデータは残している。
 // 元の期待値（spot-cat の見出し／主カテゴリで1回だけ／北から南へ）は、
 // 一覧そのものが無くなったので満たしようがない。データの健全性の検査だけ引き継ぐ。
-ok(!/id="spotList"|id="spotChips"|SORAMI_SPOTS/.test(html), "内蔵スポットの一覧を画面に出していない");
+ok(!/id="spotList"|id="spotChips"|ASTRONOTES_SPOTS/.test(html), "内蔵スポットの一覧を画面に出していない");
 ok(!/<script src="spots\.js/.test(html), "使わない spots.js を読み込まない");
 // データは消さない。戻すときに要るし、下の健全性検査もこれを読む。
 ok(fs.existsSync(new URL("./spots.js", import.meta.url)), "spots.js は残してある");
@@ -1615,8 +1615,8 @@ ok(/f\.note \? " ー " \+ esc\(f\.note\)/.test(html), "メモを出す");
 ok(/\(f\.phenomena \|\| \[\]\)/.test(html), "現象を持たない古いお気に入りでも落ちない");
 
 req("./spots.js");
-const spots = globalThis.SORAMI_SPOTS.spots;
-// 地形は飾りではない。sorami-core が雲海・霧氷の対象判定と鉛直分布の取得可否に使う。
+const spots = globalThis.ASTRONOTES_SPOTS.spots;
+// 地形は飾りではない。astronotes-core が雲海・霧氷の対象判定と鉛直分布の取得可否に使う。
 // フォームの選択肢が、コアとデータが知っている地形を網羅していなければ、
 // 表現できない地点が出る（山頂を選べなければ雲海が永遠に対象外になる）。
 const terrainBlock = html.slice(html.indexOf("const TERRAINS = ["), html.indexOf("];", html.indexOf("const TERRAINS = [")));
@@ -1669,7 +1669,7 @@ ok(/const tagged = \[\.\.\.new Set\(favorites[\s\S]{0,200}PHENOMENA\[a\]\.order/
   "お気に入りの絞り込みも同じ並び順");
 
 console.log("== 現象の並びが似たもの同士で隣り合う ==");
-const core = fs.readFileSync(new URL("./sorami-core.js", import.meta.url), "utf8");
+const core = fs.readFileSync(new URL("./astronotes-core.js", import.meta.url), "utf8");
 const orderOf = (key) => {
   const m = core.match(new RegExp(key + ': \\{ name: "[^"]+", icon: "[^"]+", order: (\\d+)'));
   return m ? Number(m[1]) : null;
@@ -1735,16 +1735,16 @@ ok(html.match(/data-answer="same"/g).length === 1, "選択肢を組み立てる�
   ok(/const existing = findSighting\(round\.pid, round\.peak\);\s+if \(existing\) recordAnswer\(round\.pid, round\.peak, existing\.actualScore, shot\);/.test(html),
     "予報の点のままなら、答え済みの回にだけ写真の時刻・位置を足す（答えは変えない）");
   ok(/body\.analysis = await photoAnalysisFor\(body, scoreSource, draft\);\s+if \(!current\(\)\) return;\s+await apiCall\("POST", "\/photos", body\);/.test(html), "保存時の分析を写真と一緒に送る");
-  ok(/<script src="sorami-photo-analysis\.js\?v=\d+"><\/script>/.test(html), "分析のモジュールを読み込む");
+  ok(/<script src="astronotes-photo-analysis\.js\?v=\d+"><\/script>/.test(html), "分析のモジュールを読み込む");
   // 分析が読めなくても、写真の読み込みと保存は止めない（2026-10-16 レビュー指摘）
-  ok(/analyzer = globalThis\.SoramiPhotoAnalysis;\s+if \(analyzer\) draft\.colorJob = analyzer\.analyzeDataUrl\(t\.url\)/.test(html), "分析のモジュールが無ければ計算しない");
+  ok(/analyzer = globalThis\.AstroNotesPhotoAnalysis;\s+if \(analyzer\) draft\.colorJob = analyzer\.analyzeDataUrl\(t\.url\)/.test(html), "分析のモジュールが無ければ計算しない");
   ok(/const scoreSource = draft\.scoreMoved \? "user_moved" : draft\.scoreInitial;/.test(html), "保存の流れは分析のモジュールに頼らない");
   const ra = html.slice(html.indexOf("function recordAnswer"), html.indexOf("function shotFields"));
   ok(/const record = \{ \.\.\.\(existing \|\| \{\}\),/.test(ra), "答え直しても、先に添えた写真の時刻・位置を消さない");
   ok(/actualScore: a, outcome: S\.outcomeFromActual\(pid, ev\.score, a\)/.test(ra), "帯グラフの答えは実際の点から出す");
   ok(/actualScore: Number\.isFinite\(r\.actualScore\) && r\.actualScore >= 0 && r\.actualScore <= 100/.test(html), "取り込んだ実際の点も確かめる");
   ok(/Number\.isFinite\(s\.actualScore\) \? `実際 \$\{s\.actualScore\}点`/.test(html), "記録の一覧は実際の点を出す");
-  const C = req("./sorami-core.js");
+  const C = req("./astronotes-core.js");
   ok(C.outcomeFromActual("sunset", 74, 74) === "asExpected" && C.outcomeFromActual("sunset", 74, 85) === "better"
     && C.outcomeFromActual("sunset", 74, 63) === "worse" && C.outcomeFromActual("sunset", 74, 64) === "asExpected", "質: 予測との差 ±10 で予測通り");
   ok(C.outcomeFromActual("seaOfClouds", 30, 30) === "missed" && C.outcomeFromActual("seaOfClouds", 55, 55) === "seen"
@@ -1828,7 +1828,7 @@ console.log("== 予報の応答が追い越しても混ざらない ==");
 // 連続で地点や地形を変えると、応答の順序は要求の順序と一致しない。
 ok(/let loadSeq = 0/.test(html) && /const seq = \+\+loadSeq/.test(html), "取得に連番を振る");
 ok(/if \(seq !== loadSeq\) return;/.test(html), "追い越された応答を捨てる");
-ok(/const forPlace = place;/.test(html) && /SoramiPrediction\.fetch\(forPlace(?:,|\))/.test(html),
+ok(/const forPlace = place;/.test(html) && /AstroNotesPrediction\.fetch\(forPlace(?:,|\))/.test(html),
   "取得開始時の観測条件でサーバーへ要求する");
 
 console.log("== 現象タグの選択が色だけになっていない ==");
@@ -1913,8 +1913,8 @@ console.log("== 手で入れたものを失わせない ==");
 // 地形・メモ・現象タグを手入力させるようにした以上、消えたら打ち直しになる。
 // iOS Safari は7日間サイトに触れないとスクリプトの保存領域を消す。霧氷やダイヤモンドダストは
 // 冬しか出ないので、「冬に行く場所を秋のうちに登録する」というこの機能が想定した使い方でちょうど消える。
-ok(/SoramiLibrary\.backup\(/.test(html), "書き出しは共通データ処理を通す（内容・旧形式・ID統合はtest-libraryで動作検証）");
-ok(/SoramiLibrary\.restore\(/.test(html), "読み込みは共通データ処理を通す（旧形式と失敗時復元も動作検証）");
+ok(/AstroNotesLibrary\.backup\(/.test(html), "書き出しは共通データ処理を通す（内容・旧形式・ID統合はtest-libraryで動作検証）");
+ok(/AstroNotesLibrary\.restore\(/.test(html), "読み込みは共通データ処理を通す（旧形式と失敗時復元も動作検証）");
 ok(/persistImportedData\(\[\["sorami.sightings"/.test(html), "読み込みの保存は一括処理を通す（失敗・復元の動作はtest-import-syncで検証）");
 // 保存領域の保護。**申請だけして結果は出さない**（消えても本体はアカウントにあり、
 // 利用者にできることが無い。2026-09-28）
@@ -2822,8 +2822,8 @@ console.log("== 更新の自動確認が、読み直しの繰り返しになら�
   const run = async (running, served, store) => {
     let reloaded = 0;
     const sandbox = {
-      document: { querySelector: () => ({ src: `sorami-core.js?v=${running}` }) },
-      fetch: async () => ({ text: async () => `<script src="sorami-core.js?v=${served}">` }),
+      document: { querySelector: () => ({ src: `astronotes-core.js?v=${running}` }) },
+      fetch: async () => ({ text: async () => `<script src="astronotes-core.js?v=${served}">` }),
       sessionStorage: {
         getItem: (k) => (k in store ? store[k] : null),
         setItem: (k, v) => { store[k] = String(v); },
@@ -2850,7 +2850,7 @@ console.log("== 更新の自動確認が、読み直しの繰り返しになら�
   try {
     const fn = new Function("document", "fetch", "sessionStorage", "location",
       `${body}; return checkForUpdate();`);
-    await fn({ querySelector: () => ({ src: "sorami-core.js?v=1" }) },
+    await fn({ querySelector: () => ({ src: "astronotes-core.js?v=1" }) },
       async () => { throw new Error("網が無い"); },
       { getItem: () => null, setItem: () => {} }, { pathname: "/", reload: () => {} });
   } catch { threw = true; }
@@ -2859,14 +2859,14 @@ console.log("== 更新の自動確認が、読み直しの繰り返しになら�
 
 console.log("== 月の代表地点・キャッシュ・保存経路 ==");
 {
-  const T = req("./sorami-terrain.js");
+  const T = req("./astronotes-terrain.js");
   const body = html.match(/async function computeUrbanHorizon\(obs\) \{([\s\S]*?)\n\}/)[1];
   let reads = 0;
-  const load = new Function("SoramiTerrain", "store", "URBAN_CACHE_KEY", "URBAN_CACHE_VERSION", "URBAN_MAX_AGE_MS",
+  const load = new Function("AstroNotesTerrain", "store", "URBAN_CACHE_KEY", "URBAN_CACHE_VERSION", "URBAN_MAX_AGE_MS",
     `return async function(obs){${body}}`)(T, {get(){reads++;throw Error("must not read")}}, "test", 2, 1);
   ok(await load({locationScope:"area"}) === null && reads === 0, "代表地点では旧建物キャッシュも読み込まない");
   ok(html.includes('&& !moonUrbanProfile && obs.locationScope !== "area")'), "代表地点は非同期の建物読込も開始しない");
-  ok(html.includes('${SoramiTerrain.urbanCacheKey(obs)}:${obs.locationScope}'), "同じ座標でも地点種別の変更で遮蔽をリセット");
+  ok(html.includes('${AstroNotesTerrain.urbanCacheKey(obs)}:${obs.locationScope}'), "同じ座標でも地点種別の変更で遮蔽をリセット");
   // 2026-09-24: 地図の中でも検索できる（だいたいの場所へ飛んでからピンを寄せる）。
   // **地点シートと同じ検索**を使う。別々に書くと片方だけ直す事故になる
   ok(/wireSearchBox\("searchBox", "searchResults"/.test(html)
@@ -2876,10 +2876,10 @@ console.log("== 月の代表地点・キャッシュ・保存経路 ==");
   ok(/addEventListener\("search", run\)/.test(html) && /addEventListener\("keydown", \(e\) => \{ if \(e\.key === "Enter" && !e\.isComposing && e\.keyCode !== 229\) run\(\); \}\)/.test(html),
     "確定は Enter と search の両方で拾う（変換を確定する Enter は除く）");
   // 2026-09-24: 検索は国土地理院とOSMの2本立てになった。種別はそれぞれの判定を通して持つ
-  ok(html.includes("scope: SoramiTerrain.searchLocationScope(r)")
-    && html.includes("scope: SoramiTerrain.gsiLocationScope(f.properties?.title)")
+  ok(html.includes("scope: AstroNotesTerrain.searchLocationScope(r)")
+    && html.includes("scope: AstroNotesTerrain.gsiLocationScope(f.properties?.title)")
     && html.includes("locationScope: r.scope"), "検索元の種別を保存");
-  ok(html.includes('locationScope: SoramiTerrain.locationScope(f)'), "既存のお気に入りは改名前に種別を確定");
+  ok(html.includes('locationScope: AstroNotesTerrain.locationScope(f)'), "既存のお気に入りは改名前に種別を確定");
   ok(html.includes('locationScope: favDraft.locationScope'), "お気に入り再保存で種別を落とさない");
   ok(html.includes('locationScope: entry.locationScope, eyeHeightAGL: entry.eyeHeightAGL'), "表示地点へ高さと種別を反映");
   ok(html.includes('近くの建物は含めていません（地域の代表地点）'), "地域の詳細で建物を含まない前提を一言で示す");
@@ -2890,12 +2890,12 @@ console.log("== 写真から記録する ==");
 ok(/id="photoSheet"/.test(html), "写真のシートがある");
 ok(/async function makeThumb\(file, max = 768/.test(html), "長辺768pxに縮めてから送る");
 ok(/c\.toDataURL\("image\/jpeg", quality\)/.test(html), "JPEGにして送る");
-ok(/SoramiExif\.readFile\(file\)/.test(html), "EXIFを読む");
+ok(/AstroNotesExif\.readFile\(file\)/.test(html), "EXIFを読む");
 // **写真から読めたものは初期値。入力欄が正本**なので、手で直したらそちらを使う
 ok(/id="photoWhen"/.test(html) && /id="photoWhere"/.test(html), "日時と場所は手で入れられる");
 ok(/takenAt: photoWhenMs\(\)/.test(html), "入力欄の日時を送る");
 ok(/latitude: where \? where\.latitude : null/.test(html), "入力欄の座標を送る");
-ok(/SoramiTerrain\.parseLatLon\(v\) \|\| SoramiTerrain\.parseMapLink\(v\)/.test(html),
+ok(/AstroNotesTerrain\.parseLatLon\(v\) \|\| AstroNotesTerrain\.parseMapLink\(v\)/.test(html),
   "緯度経度でも地図のURLでも受ける");
 ok(/\$\("photoWhen"\)\.value = iso\(at \?\? photoDraft\.round\?\.peak \?\? Date\.now\(\)\)/.test(html),
   "写真から読めたら先に入れる（無ければその回の時刻、それも無ければ「いま」）");
@@ -2931,11 +2931,11 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
 {
   // 建物の地面の標高を足して隠れるかを判定する（総点検 2026-10-02。丘の上から下の街の建物を「隠れる」と誤っていた）
   const src = /async function aimBuildingsOnLine\([\s\S]*?\n\}/.exec(html)[0];
-  const T = req("./sorami-terrain.js");
+  const T = req("./astronotes-terrain.js");
   const run = async (groundAtBuilding, standGround) => {
     // 建物の足もとは標高API（groundElevation）で1点ずつ（2026-10-05）。検査では通信しない
     const fake = { ...T, elevations: async () => { throw new Error("タイルで引かない"); }, groundElevation: async () => groundAtBuilding };
-    const fn = new Function("SoramiTerrain", `${src}; return aimBuildingsOnLine;`)(fake);
+    const fn = new Function("AstroNotesTerrain", `${src}; return aimBuildingsOnLine;`)(fake);
     const stand = { latitude: 35.6, longitude: 139.6 }, target = { latitude: 35.6, longitude: 139.75 };   // 真東へ約13.6km
     const onLine = { latitude: 35.6, longitude: 139.605, radiusM: 20, heightM: 40 };                     // 東へ450m、線の上
     const offLine = { latitude: 35.605, longitude: 139.605, radiusM: 20, heightM: 40 };                  // 北へ550mずれる
@@ -2997,7 +2997,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
 {
   // 今日の回の予測を残し、終わってから7日は写真なしで答えられる（2026-10-02 ユーザー「遡って記録とかできたら良い？」→「１も２もやろう」）
   ok(/keepRounds\(forPlace\);\n    \$\("status"\)\.hidden = true;/.test(html), "予報を計算したら今日の回を残す");
-  const C = req("./sorami-core.js");
+  const C = req("./astronotes-core.js");
   const grab = (name) => { const i = html.indexOf(name); return html.slice(i, html.indexOf("\n}\n", i) + 2); };
   const src = [grab("function samePlaceAs"), 'const savedRoundClient={state:()=>({rounds:[]})};\n'+html.slice(html.indexOf("const ROUND_KEEP_MS"), html.indexOf("function findSighting"))].join("\n");
   const mem = {};
@@ -3062,7 +3062,7 @@ ok(/fuji: \{ target: "fuji", body: "sun" \}/.test(html) && /diamond: \{ target: 
 ok(/function aimTitleFor/.test(html), "見出しを選択から決める");
 ok(/\^#\\\/aim\\\/\(fuji\|diamond\|pearl\|tower\)\$/.test(html), "#/aim/<なに> の道がある（前の URL も）");
 ok(/\$\("aimTargetLabel"\)\.textContent = aimTitleFor\(\)\.title;/.test(html)
-  && /if \(t && t\.id === "fuji" && SoramiBodies\.definition\(aim\.body\)\.limbs\) return \{ title: sun \? "ダイヤモンド富士" : "パール富士" \};/.test(html),
+  && /if \(t && t\.id === "fuji" && AstroNotesBodies\.definition\(aim\.body\)\.limbs\) return \{ title: sun \? "ダイヤモンド富士" : "パール富士" \};/.test(html),
   "枠の字は目標の名前。富士山のときはダイヤモンド富士／パール富士（有名な呼び名を残す）");
 // 画面は1つのまま（中身が同じなので、押した場所で初期値だけ変える）
 ok((html.match(/id="aimView"/g) || []).length === 1, "画面は1つのまま");
@@ -3081,7 +3081,7 @@ console.log("== 見え方の図（2026-10-02） ==");
   // 2026-10-03 ユーザー「同じ日で撮影地点をずらしたらその場所からの重なり方を出して欲しいだけ」「無理やり3択の場所に見え方を合わせてない？」
   ok(!/solvePoint/.test(look) && !/（計算上の位置）/.test(look), "撮影地点の図は、場所を動かさない（選んだ合わせ方になる計算上の地点へずらさない）");
   // 2026-10-03 追加依頼: 建物全体の通過を判定し、重ならない日も常に同じ図を出す。
-  ok(/SoramiAlign\.dailyView\(obs, t, aim\.body, aim\.dayMs, opts\)/.test(look)
+  ok(/AstroNotesAlign\.dailyView\(obs, t, aim\.body, aim\.dayMs, opts\)/.test(look)
     && /eyeM: obs.eyeM/.test(look), "実際の撮影地点で建物全体との重なりを描く");
   ok(!/重ならない日の通り方/.test(look) && /sub: ""/.test(look) && !/この日は、\$\{esc\(f\.name\)\}から見て/.test(look), "重ならない日も図を残し、重複する通り方の説明を省く");
   ok(/if \(aim\.wantSpot\) return;/.test(look), "選び直す候補地を待っている間は図を替えない（撮影地点へ飛んで戻らない）");
@@ -3192,9 +3192,9 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(/if \(fresh\(\)\) draw\(\);/.test(pickSrc) && /if \(host\._lookSeq === seq\) draw\(v\);/.test(lookSrc),
     "前の描画の待ちで現在の図を上書きしない");
   ok(/\[data-look-canvas\]\.picking \{[^}]*touch-action: none;/.test(html), "逆引きの間だけ、図の上で指を動かしてもページがスクロールしない");
-  ok(/SoramiAlign\.solveComposition\(aim\.target, aim\.body, \{ around: spec\.obs, distanceKm: D, at0, dx, dy,/.test(pickSrc),
+  ok(/AstroNotesAlign\.solveComposition\(aim\.target, aim\.body, \{ around: spec\.obs, distanceKm: D, at0, dx, dy,/.test(pickSrc),
     "同じ日・目標まで同じ距離で、置いた位置になる立つ点と時刻を解く");
-  ok(/SoramiAlign\.viewUnprojector\(win\.az0, win\.alt0\)/.test(pickSrc) && /SoramiAlign\.viewProjector\(az, topAngle\)\(pAz, pAlt\)/.test(pickSrc),
+  ok(/AstroNotesAlign\.viewUnprojector\(win\.az0, win\.alt0\)/.test(pickSrc) && /AstroNotesAlign\.viewProjector\(az, topAngle\)\(pAz, pAlt\)/.test(pickSrc),
     "置いた位置は、目標の先端を真ん中にした図の上のずれに直して解く");
   ok(/この日・この距離では、そこには来ません/.test(pickSrc), "解けなければそう書く");
   ok(/const stale = \(\) => seq !== st\.seq \|\| host\._pick !== st \|\| host\._lookSeq !== mySeq \|\| aimLookKey\(\) !== key \|\| context\(\)!==editingContext;/.test(pickSrc)
@@ -3211,10 +3211,10 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
   ok(/\.aim-look-time output \{ flex: 0 0 6\.6rem; width: 6\.6rem;[^}]*white-space: nowrap;/.test(html), "時刻の字の欄は幅を決めておく（つまみの長さが変わらない）");
   ok(/step="any" value="0" data-look-range/.test(html), "つまみは刻みなしで動く");
   const atSrc = /const pack = \(ms, st\) => \{[\s\S]*?\n  \};/.exec(html)[0] + "\n" + /const at = v => \{[\s\S]*?\n  \};/.exec(html)[0];
-  const bodies = req("./sorami-bodies.js"), align = req("./sorami-align.js");
+  const bodies = req("./astronotes-bodies.js"), align = req("./astronotes-align.js");
   const eye = {latitude:35.7479052, longitude:139.9301117, elevation:21.5}, day=Date.parse("2026-10-04T00:00:00+09:00");
   const path = [{at:day},{at:day+20000}], proj=align.viewProjector(245,5);
-  const atFn = new Function("path","SoramiBodies","body","eyeObs","proj",`${atSrc}; return at;`)(path,bodies,"moon",eye,proj);
+  const atFn = new Function("path","AstroNotesBodies","body","eyeObs","proj",`${atSrc}; return at;`)(path,bodies,"moon",eye,proj);
   const mid = atFn(.5), expected=bodies.state("moon",day+10000,eye), xy=proj(expected.azimuth,expected.apparentAltitude);
   ok(mid.at===day+10000 && mid.radius===expected.angularRadius && mid.brightLimbZenithAngle===expected.brightLimbZenithAngle && mid.x===(xy ? xy[0] : null) && mid.y===(xy ? xy[1] : null), "点の間は選択時刻の既存天体計算で位置・月の向きを直接評価");
   ok(atFn(1).at===day+20000 && atFn(0).at===day, "時間の両端はそのまま");
@@ -3253,7 +3253,7 @@ console.log("== 撮影地点で、この日の候補地から選ぶ（2026-10-06
   ok((html.match(/aim\.candBusy = true; aimRefreshSheetCands\(\);/g) || []).length === 2 && /aim\.cands = shown;\n  aim\.candUnknownSides = \[\.\.\.unknownSides\];\n  if \(unknownSides\.size\) aim\.lineWork = null;[^\n]*\n  aim\.candBusy = false;/.test(html),
     "探している印を立てて、終わったら下ろす");
   const pick = /function aimFromCandidate\(c\) \{[\s\S]*?\n\}/.exec(html)[0];
-  const alignSrc = fs.readFileSync(new URL("./sorami-align.js", import.meta.url), "utf8");
+  const alignSrc = fs.readFileSync(new URL("./astronotes-align.js", import.meta.url), "utf8");
   ok(/aim\.candPick = null;/.test(pick) && /latitude: c\.stand\.latitude, longitude: c\.stand\.longitude/.test(pick)
     && /name: c\.place\.name, aglM: c\.place\.deckM/.test(pick) && /heightBasis:c\.place\.heightBasis/.test(pick)
     && /decks: deck \? \[deck\] : \[\], stand: deck \? deck\.name : null/.test(pick) && /const AIM_EYE_M = 1\.5;/.test(html)

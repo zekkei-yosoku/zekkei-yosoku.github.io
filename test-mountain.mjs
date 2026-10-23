@@ -17,8 +17,8 @@
 import { createRequire } from "node:module";
 import fs from "node:fs";
 const require = createRequire(import.meta.url);
-const A = require("./sorami-astro.js");
-const M = require("./sorami-mountain.js");
+const A = require("./astronotes-astro.js");
+const M = require("./astronotes-mountain.js");
 
 let pass = 0, fail = 0;
 const ok = (c, name, extra = "") => { c ? pass++ : fail++; console.log(`  ${c ? "ok  " : "FAIL"} ${name}`, extra); };

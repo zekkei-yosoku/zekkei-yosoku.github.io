@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const source=fs.readFileSync(new URL('./sorami-myplaces.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('./astronotes-myplaces.js',import.meta.url),'utf8');
 function elements(){const map=new Map();return {map,el:id=>{if(!map.has(id))map.set(id,{classList:{toggle(){}},replaceChildren(){},append(){},focus(){}});return map.get(id);}};}
 test('記録追加は撮影地点が空のフォームで開き、既存の地点オブジェクトを変更しない',()=>{
  const {el}=elements();const sheet={open:false,querySelectorAll:()=>[]};let shown=0;

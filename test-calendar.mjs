@@ -3,20 +3,20 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {createRequire} from "node:module";
 import vm from "node:vm";
-const require=createRequire(import.meta.url), AL=require("./sorami-align.js"), S=require("./sorami-core.js"), MOON=require("./sorami-moon.js");
+const require=createRequire(import.meta.url), AL=require("./astronotes-align.js"), S=require("./astronotes-core.js"), MOON=require("./astronotes-moon.js");
 const html=readFileSync(new URL("./index.html",import.meta.url),"utf8");
 const code=html.slice(html.indexOf("const aimCal ="),html.indexOf("async function aimSetCustomTarget"));
 function setup(al=AL){
  const els=new Map(), buttons=[];
  const $=id=>{if(!els.has(id))els.set(id,{style:{},value:"",innerHTML:"",textContent:"",open:true,setAttribute(k,v){this[k]=v},querySelectorAll(selector){return selector==="[data-cal-moon]"?[]:buttons},addEventListener(){},focus(){},close(){this.open=false}});return els.get(id)};
  const aim={dayMs:Date.parse("2026-12-22T00:00:00+09:00"),body:"sun",partId:"summit",target:AL.targetById("fuji"),candSide:"set",spot:{}};
- const c=vm.createContext({aimShootingView:async()=>null,candidateWaitMarkup:()=>"待機中",SoramiAtmosphere:{dataKey:()=>"standard"},SoramiTerrain:{decksFor:()=>null},SoramiBodies:globalThis.SoramiBodies,SoramiMoon:MOON,$,aim,S,SoramiAlign:al,SoramiShooting:require("./sorami-shooting.js"),Date,Map,Number,String,Array,JSON,Error,Math,Promise,setTimeout,esc:s=>s.replaceAll('"','&quot;'),aimIsMountain:t=>t?.id!=="skytree",aimSideName:s=>s==="set"?"日の入":"日の出",aimFromPoint:()=>c.fromOverride||({name:"高尾山",latitude:35.6252,longitude:139.2436}),aimElevation:async()=>599,showSheet:e=>{e.open=true},aimCandidateMatch:e=>Number.isFinite(e.gap)&&Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0)),aimApply:()=>{c.applied=true}});
- vm.runInContext(readFileSync(new URL("./sorami-datetime-ui.js",import.meta.url),"utf8"),c);
+ const c=vm.createContext({aimShootingView:async()=>null,candidateWaitMarkup:()=>"待機中",AstroNotesAtmosphere:{dataKey:()=>"standard"},AstroNotesTerrain:{decksFor:()=>null},AstroNotesBodies:globalThis.AstroNotesBodies,AstroNotesMoon:MOON,$,aim,S,AstroNotesAlign:al,AstroNotesShooting:require("./astronotes-shooting.js"),Date,Map,Number,String,Array,JSON,Error,Math,Promise,setTimeout,esc:s=>s.replaceAll('"','&quot;'),aimIsMountain:t=>t?.id!=="skytree",aimSideName:s=>s==="set"?"日の入":"日の出",aimFromPoint:()=>c.fromOverride||({name:"高尾山",latitude:35.6252,longitude:139.2436}),aimElevation:async()=>599,showSheet:e=>{e.open=true},aimCandidateMatch:e=>Number.isFinite(e.gap)&&Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0)),aimApply:()=>{c.applied=true}});
+ vm.runInContext(readFileSync(new URL("./astronotes-datetime-ui.js",import.meta.url),"utf8"),c);
  vm.runInContext(html.slice(html.indexOf('function aimObserverEye('),html.indexOf('aim.from = aimSavedFrom'))+code+';this.cal=aimCal;this.rows=aimCalRows;this.grid=aimCalGridHtml;this.solid=aimCalSolid;this.render=aimCalRender;this.draw=aimCalDraw;',c);
  return {c,$,aim,buttons};
 }
 test('撮影地点なしの月カレンダーでも日付を選べ、座標なしの月相や標高を計算しない',async()=>{
- const {c,$,aim,buttons}=setup();c.aimFromPoint=()=>null;c.aimElevation=async()=>{throw Error('no observer elevation');};c.SoramiBodies={...c.SoramiBodies,state(){throw Error('no observer moon phase');}};aim.body='moon';c.cal.year=2026;c.cal.month=9;await c.render();
+ const {c,$,aim,buttons}=setup();c.aimFromPoint=()=>null;c.aimElevation=async()=>{throw Error('no observer elevation');};c.AstroNotesBodies={...c.AstroNotesBodies,state(){throw Error('no observer moon phase');}};aim.body='moon';c.cal.year=2026;c.cal.month=9;await c.render();
  assert.equal(($('aimCalGrid').innerHTML.match(/data-cal-day=/g)||[]).length,31);assert.doesNotMatch($('aimCalGrid').innerHTML,/NaN|data-moon-phase/);assert.match($('aimCalStatus').textContent,/日付を選んで/);assert.equal($('aimCalGrid')['aria-busy'],'false');
  buttons.push({dataset:{calDay:String(Date.parse('2026-10-24T00:00:00+09:00'))}});c.draw();buttons[0].onclick();assert.equal($('aimDate').value,'2026-10-24');assert.equal(c.applied,true);
 });
@@ -92,7 +92,7 @@ test('指定なしの月カレンダーは円盤接触を採用し、縁指定�
 });
 
 function swipeFixture() {
- const shared=readFileSync(new URL("./sorami-datetime-ui.js",import.meta.url),"utf8"),a=shared.indexOf("function mountCalendarSwipe("),b=shared.indexOf("function mountCalendarDismiss(",a),listeners={};let clock=1000,open=true;const moves=[];
+ const shared=readFileSync(new URL("./astronotes-datetime-ui.js",import.meta.url),"utf8"),a=shared.indexOf("function mountCalendarSwipe("),b=shared.indexOf("function mountCalendarDismiss(",a),listeners={};let clock=1000,open=true;const moves=[];
  const grid={style:{},addEventListener:(type,fn)=>listeners[type]=fn};const c=vm.createContext({Date,Array});vm.runInContext(shared.slice(a,b)+";this.mount=mountCalendarSwipe;",c);const reset=c.mount(grid,n=>moves.push(n),()=>open,()=>clock);
  const touch=(x,y,id=1)=>({clientX:x,clientY:y,identifier:id});
  const fire=(type,touches=[],changedTouches=[])=>{const e={touches,changedTouches,cancelable:true,preventDefault(){this.prevented=true},stopImmediatePropagation(){this.stopped=true}};listeners[type](e);return e};

@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import{createRequire}from'node:module';const require=createRequire(import.meta.url),S=require('./sorami-search.js'),T=require('./sorami-terrain.js'),A=require('./sorami-align.js');
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import{createRequire}from'node:module';const require=createRequire(import.meta.url),S=require('./astronotes-search.js'),T=require('./astronotes-terrain.js'),A=require('./astronotes-align.js');
 const data=JSON.parse(fs.readFileSync('data/aim-places.json')),rows=S.open(data),near={latitude:35.7,longitude:139.84};
 test('existing bridge and every bundled kind are searchable without the remote services',()=>{
  for(const kind of Object.values(data.kinds)){const r=rows.find(r=>r.kind===kind);assert.ok(S.search(rows,r.name).some(x=>x.latitude===r.latitude&&x.longitude===r.longitude),kind);}
@@ -13,7 +13,7 @@ test('river context uses segments near the bridge, not the distant label point o
 });
 function runtime({offline=false,failPhoto=false}={}){
  const html=fs.readFileSync('index.html','utf8'),src=html.slice(html.indexOf('let searchSupplementPromise'),html.indexOf('/// 検索結果を並べる。'));let loads=0;
- const ctx=vm.createContext({SoramiPlaceSearch:S,SoramiTerrain:T,SoramiAlign:A,URLSearchParams,AbortController,setTimeout,clearTimeout,favorites:[],place:near,placeIndex:async()=>({places:[]}),fetch:async u=>{
+ const ctx=vm.createContext({AstroNotesPlaceSearch:S,AstroNotesTerrain:T,AstroNotesAlign:A,URLSearchParams,AbortController,setTimeout,clearTimeout,favorites:[],place:near,placeIndex:async()=>({places:[]}),fetch:async u=>{
   if(u==='data/aim-places.json'){loads++;if(failPhoto)throw Error('unavailable');return{ok:true,json:async()=>data};}
   if(u.startsWith('data/'))return{ok:true,json:async()=>({places:[]})};
   if(offline)throw Error('offline');return{ok:true,json:async()=>u.includes('msearch')?[]:[{name:'ふれあい橋',lat:'35.7517',lon:'139.2488',display_name:'ふれあい橋, 日の出町, 東京都',type:'road'}]};

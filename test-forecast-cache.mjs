@@ -36,7 +36,7 @@ const fakeCache = {
 };
 globalThis.caches = { open: async () => fakeCache };
 
-const S = require("./sorami-core.js");
+const S = require("./astronotes-core.js");
 const OM = "https://api.open-meteo.com/v1/forecast?latitude=35.1&longitude=138.6";
 const settle = () => new Promise((r) => setTimeout(r, 0));   // 掃除（投げっぱなし）を待つ
 

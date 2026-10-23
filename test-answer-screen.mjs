@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url),access=require('./sorami-access.js'),html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const require=createRequire(import.meta.url),access=require('./astronotes-access.js'),html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
 const grab=name=>{const i=html.indexOf(name);assert.ok(i>=0);return html.slice(i,html.indexOf('\n}',i)+2);};
 function fixture({answer=true,allowed=true,status='ready',rounds=6}={}){
  const elements=new Map(),el=id=>{if(!elements.has(id))elements.set(id,{hidden:false,innerHTML:'',textContent:'',replaceChildren(){this.innerHTML='';}});return elements.get(id);};

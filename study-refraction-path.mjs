@@ -14,10 +14,10 @@
 import { createRequire } from "node:module";
 import fs from "node:fs";
 const require = createRequire(import.meta.url);
-const RF = require("./sorami-refraction.js");
-const A = require("./sorami-astro.js");
-const T = require("./sorami-terrain.js");
-const L = require("./sorami-align.js");
+const RF = require("./astronotes-refraction.js");
+const A = require("./astronotes-astro.js");
+const T = require("./astronotes-terrain.js");
+const L = require("./astronotes-align.js");
 
 const start = process.argv[2] || "2025-10-01", end = process.argv[3] || "2026-09-30", outPath = process.argv[4];
 const LEVELS = [1000, 975, 950, 925, 900, 850, 800, 700, 600, 500, 400, 300];

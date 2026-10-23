@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url),AL=require('./sorami-align.js'),TR=require('./sorami-terrain.js');
+const require=createRequire(import.meta.url),AL=require('./astronotes-align.js'),TR=require('./astronotes-terrain.js');
 const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),data=JSON.parse(fs.readFileSync(new URL('./data/aim-viewpoints.json',import.meta.url),'utf8'));
 const grab=name=>{const i=html.indexOf(name);assert.ok(i>=0);return html.slice(i,html.indexOf('\n}\n',i)+2)};
-const ctx={aim:{target:AL.targetById('fuji')},SoramiAlign:AL,SoramiTerrain:TR};
+const ctx={aim:{target:AL.targetById('fuji')},AstroNotesAlign:AL,AstroNotesTerrain:TR};
 vm.createContext(ctx);vm.runInContext(grab('function aimCandidateSiteSupported')+grab('function aimCandidateAccessible'),ctx);
 const at=(date,time)=>Date.parse(`${date}T${time}:00+09:00`);
 test('目標別に根拠のある登録点を選び、一般道路・未確認・高さ不明は推薦しない',()=>{
@@ -33,10 +33,10 @@ test('公称眺望80mと床78.5m＋目1.5mは実際の候補計算で同じ時�
 });
 test('見通しを確認した点を水面判定時に別の道へ移動しない',async()=>{
  let moves=0;const c={place:data.places[0],stand:{latitude:35,longitude:139}};
- const k={AIM_STAND_ON_WATER_OK:new Set(['橋']),SoramiTerrain:{waterAt:async()=>[true]},aimMoveToLand:()=>{moves++;return c;}};
+ const k={AIM_STAND_ON_WATER_OK:new Set(['橋']),AstroNotesTerrain:{waterAt:async()=>[true]},aimMoveToLand:()=>{moves++;return c;}};
  const f=vm.runInNewContext(grab('async function aimOnLand')+';aimOnLand',k);
  assert.equal(await f(c,[],{}),null);assert.equal(moves,0);
- k.SoramiTerrain.waterAt=async()=>[false];assert.equal(await f(c,[],{}),c);
+ k.AstroNotesTerrain.waterAt=async()=>[false];assert.equal(await f(c,[],{}),c);
 });
 test('登録点の読込失敗を保持せず、正常なデータは同時呼出しで再利用する',async()=>{
  let calls=0,bad=true;const k={aimPlacesPromise:null,fetch:async()=>{calls++;return{ok:true,json:async()=>bad?{version:9,places:[]} : data}}};

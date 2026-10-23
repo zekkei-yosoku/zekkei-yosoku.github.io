@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-const L=createRequire(import.meta.url)('./sorami-library.js');
+const L=createRequire(import.meta.url)('./astronotes-library.js');
 function catalog(rows){return {targetNameKey:L.nameKey,matchingTargetNames:(name,id)=>L.matchingNames(rows,name,id)};}
 test('同名判定は全角英数・空白・大小文字を揃え、別名を混ぜない',()=>{
  const api=catalog([{id:'fav:a',name:'ＡＢＣ 塔'},{id:'fav:b',name:'abc塔'},{id:'other',name:'別の塔'},{id:'custom',name:'ABC塔'}]);

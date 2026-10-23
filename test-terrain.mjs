@@ -4,7 +4,7 @@
 // Open-Meteo で埋め直し、100点ずつ 9回叩いて本番で 429 が続き、測定ごと失敗していた。
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const T = require("./sorami-terrain.js");
+const T = require("./astronotes-terrain.js");
 
 let pass = 0, fail = 0;
 const ok = (c, name, extra = "") => { c ? pass++ : fail++; console.log(`  ${c ? "ok  " : "FAIL"} ${name}`, extra); };
@@ -93,7 +93,7 @@ console.log("== 標高は画素ごとに最も精度の高いDEMから（1m→5m
 // ユーザー「標高は全て一番精度が高いやつを使うようにしてよ」。層ごとに値を変えたタイルで、どの層を読んだかを見る
 {
   const saveImage = globalThis.Image, saveDoc = globalThis.document;
-  const path = require.resolve("./sorami-terrain.js");
+  const path = require.resolve("./astronotes-terrain.js");
   // have: { 層: 値 | null（標高なし） }。無い層は404
   const run = async (have, points, opts) => {
     const urls = [];
@@ -114,7 +114,7 @@ console.log("== 標高は画素ごとに最も精度の高いDEMから（1m→5m
         return { width: w, height: h, data };
       } }) }; } };
     delete require.cache[path];
-    const M = require("./sorami-terrain.js");
+    const M = require("./astronotes-terrain.js");
     const v = await M.elevations(points, { fetchImpl: async () => { throw new Error("通信しない"); }, ...opts });
     return { v, urls, M };
   };
@@ -204,20 +204,20 @@ console.log("== 海の升目（404）を憶えて、開き直しても取りに�
   let fetched = 0;
   const realFetch = globalThis.fetch;
   globalThis.fetch = async () => { fetched++; return new Response("", { status: 404 }); };
-  const path = require.resolve("./sorami-terrain.js");
+  const path = require.resolve("./astronotes-terrain.js");
   const p = center(1818, 806);           // 日本の範囲の中（範囲の外は取りに行かない）
   delete require.cache[path];
-  const T1 = require("./sorami-terrain.js");
+  const T1 = require("./astronotes-terrain.js");
   ok(await T1.elevationFromTile(p.latitude, p.longitude) === null, "404 の升目は海（null）");
   delete require.cache[path];
-  const T2 = require("./sorami-terrain.js");      // 画面を開き直したのと同じ（手元の憶えは空）
+  const T2 = require("./astronotes-terrain.js");      // 画面を開き直したのと同じ（手元の憶えは空）
   // 1m（dem1a）・5m（dem5a）・10m（dem_png）を1回ずつ。10mも無ければ海なので写真測量の5mは取りに行かない（2026-10-05）
   ok(await T2.elevationFromTile(p.latitude, p.longitude) === null && fetched === 3,
     "開き直しても、同じ升目へは取りに行かない", `取得 ${fetched}回`);
   globalThis.fetch = realFetch;
   delete globalThis.caches;
   delete require.cache[path];
-  require("./sorami-terrain.js");
+  require("./astronotes-terrain.js");
 }
 
 console.log("== 地名索引（山・峠・展望地）（2026-09-30） ==");

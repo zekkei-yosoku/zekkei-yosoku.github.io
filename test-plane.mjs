@@ -1,11 +1,11 @@
-// 月丼（`sorami-routes.js` / `sorami-plane.js`）。**通信しない。**
+// 月丼（`astronotes-routes.js` / `astronotes-plane.js`）。**通信しない。**
 //
 // 滑走路の座標と真方位は OurAirports の実測値。そこから引いた進入経路が
 // 実際の位置に合うか、公表されている事実で答え合わせする。
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const RT = require("./sorami-routes.js");
-const P = require("./sorami-plane.js");
+const RT = require("./astronotes-routes.js");
+const P = require("./astronotes-plane.js");
 
 let pass = 0, fail = 0;
 const ok = (c, name, extra = "") => { c ? pass++ : fail++; console.log(`  ${c ? "ok  " : "FAIL"} ${name}`, extra); };
@@ -168,7 +168,7 @@ console.log("== 重なりは交点を解く（2026-09-28） ==");
 {
   // 以前は 0.5km 刻みの最寄り点と月の角度が 1° 以内なら「重なる」としていた。
   // 8km 先では点と点が空の上で 3.6° 離れ、真上を通っても外し、1° ずれても当たりにしていた。
-  const A = require("./sorami-astro.js");
+  const A = require("./astronotes-astro.js");
   const d0 = day("2026-11-24");
   let checked = 0, worst = 0;
   for (const spot of RT.SPOTS) {

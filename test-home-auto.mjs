@@ -1,12 +1,12 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import{createRequire}from'node:module';
-process.env.TZ='Asia/Tokyo';const require=createRequire(import.meta.url),T=require('./sorami-home-time.js'),A=require('./sorami-astro.js');
+process.env.TZ='Asia/Tokyo';const require=createRequire(import.meta.url),T=require('./astronotes-home-time.js'),A=require('./astronotes-astro.js');
 function setup(saved){
  let now=Date.parse('2026-10-19T16:00:00+09:00'),writesFail=false;const boundary=Date.parse('2026-10-19T17:00:00+09:00'),store=new Map(saved===undefined?[]:[['sorami.homeAutoBody',saved]]),timers=new Map();let sequence=0;
  class Element{children=[];attrs={};dataset={};isConnected=true;append(...n){this.children.push(...n);}prepend(...n){this.children.unshift(...n);}replaceChildren(){this.children=[];}setAttribute(k,v){this.attrs[k]=String(v);}focus(){}contains(){return true;}querySelector(s){return all(this).find(e=>s==='.alm-range'?e.type==='range':e.dataset.body===s.match(/data-body="([^"]+)/)?.[1]);}}
  const all=e=>[e,...e.children.flatMap(all)],root=new Element(),FakeDate=class extends Date{constructor(...args){super(...(args.length?args:[now]));}static now(){return now;}};
  const astro={sun:t=>({upperLimbAltitude:t<boundary?1:-1,geometricAltitude:t<boundary?1:-1,azimuth:180}),moon:()=>({upperLimbAltitude:1,geometricAltitude:1,azimuth:90,synodicAge:8,illuminatedFraction:.6,waxing:true,distanceKm:380000})};
- const context={Date:FakeDate,SoramiHomeTime:T,SoramiMoonPortrait:{draw:async()=>({texture:true})},document:{hidden:false,addEventListener(){},createElement:()=>new Element(),createElementNS:()=>new Element()},localStorage:{getItem:k=>store.get(k)??null,setItem(k,v){if(writesFail)throw Error('denied');store.set(k,v);}},setInterval:fn=>{const id=++sequence;timers.set(id,fn);return id;},clearInterval:id=>timers.delete(id)};
- vm.createContext(context);vm.runInContext(fs.readFileSync('sorami-almanac-dashboard.js','utf8'),context);const D=context.SoramiAlmanacDashboard,p={latitude:35.68,longitude:139.76};let day=T.start(now),enabled=true;
+ const context={Date:FakeDate,AstroNotesHomeTime:T,AstroNotesMoonPortrait:{draw:async()=>({texture:true})},document:{hidden:false,addEventListener(){},createElement:()=>new Element(),createElementNS:()=>new Element()},localStorage:{getItem:k=>store.get(k)??null,setItem(k,v){if(writesFail)throw Error('denied');store.set(k,v);}},setInterval:fn=>{const id=++sequence;timers.set(id,fn);return id;},clearInterval:id=>timers.delete(id)};
+ vm.createContext(context);vm.runInContext(fs.readFileSync('astronotes-almanac-dashboard.js','utf8'),context);const D=context.AstroNotesAlmanacDashboard,p={latitude:35.68,longitude:139.76};let day=T.start(now),enabled=true;
  const render=()=>D.render(root,day,p,()=>[],astro,{isActive:()=>enabled,onLiveDay:()=>{day=T.start(now);render();}});
  return{D,root,render,all,store,timers,context,enter:()=>{if(D.enter())day=T.start(now);render();},setNow:v=>now=Date.parse(v),fail:()=>writesFail=true,disable:()=>enabled=false,click:b=>all(root).find(e=>e.dataset.body===b).onclick()};
 }

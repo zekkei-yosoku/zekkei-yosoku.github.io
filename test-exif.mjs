@@ -4,7 +4,7 @@
 // ここで検査するのはバイト列の解釈だけ。
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const E = require("./sorami-exif.js");
+const E = require("./astronotes-exif.js");
 
 let pass = 0, fail = 0;
 const ok = (c, name, extra = "") => { c ? pass++ : fail++; console.log(`  ${c ? "ok  " : "FAIL"} ${name}`, extra); };

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-const T=createRequire(import.meta.url)('./sorami-terrain.js');
+const T=createRequire(import.meta.url)('./astronotes-terrain.js');
 const expected={latitude:35.6994541,longitude:139.5072732};
 for(const input of [
  '35.6994541,139.5072732',

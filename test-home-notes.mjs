@@ -1,12 +1,12 @@
 // ホームの NOTES 見出し・空をたどる・天球図（2026-10-20 ユーザー「出オチじゃダメ。空を辿るとか出入りの方向とか時間とかもっとカッコよく」）
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import{createRequire}from'node:module';
-process.env.TZ='Asia/Tokyo';const require=createRequire(import.meta.url),T=require('./sorami-home-time.js'),A=require('./sorami-astro.js');
+process.env.TZ='Asia/Tokyo';const require=createRequire(import.meta.url),T=require('./astronotes-home-time.js'),A=require('./astronotes-astro.js');
 function render(body,at){
  class Element{children=[];attrs={};dataset={};hidden=false;isConnected=true;constructor(tag){this.tag=tag;}append(...n){this.children.push(...n);}prepend(...n){this.children.unshift(...n);}replaceChildren(...n){this.children=n;}setAttribute(k,v){this.attrs[k]=String(v);}focus(){}contains(){return true;}querySelector(){return null;}}
  const all=e=>[e,...e.children.flatMap(all)],root=new Element('div'),now=Date.parse(at),store=new Map([['sorami.homeAutoBody','false']]);
- const context={Date:class extends Date{constructor(...a){super(...(a.length?a:[now]));}static now(){return now;}},SoramiHomeTime:T,SoramiMoonPortrait:{draw:async()=>({texture:true})},document:{hidden:false,addEventListener(){},createElement:t=>new Element(t),createElementNS:(_,t)=>new Element(t)},localStorage:{getItem:k=>store.get(k)??null,setItem(k,v){store.set(k,v);}},setInterval:()=>1,clearInterval(){},Promise};
- vm.createContext(context);vm.runInContext(fs.readFileSync(new URL('./sorami-almanac-dashboard.js',import.meta.url),'utf8'),context);
- const D=context.SoramiAlmanacDashboard,p={latitude:35.68,longitude:139.76},day=T.start(now);
+ const context={Date:class extends Date{constructor(...a){super(...(a.length?a:[now]));}static now(){return now;}},AstroNotesHomeTime:T,AstroNotesMoonPortrait:{draw:async()=>({texture:true})},document:{hidden:false,addEventListener(){},createElement:t=>new Element(t),createElementNS:(_,t)=>new Element(t)},localStorage:{getItem:k=>store.get(k)??null,setItem(k,v){store.set(k,v);}},setInterval:()=>1,clearInterval(){},Promise};
+ vm.createContext(context);vm.runInContext(fs.readFileSync(new URL('./astronotes-almanac-dashboard.js',import.meta.url),'utf8'),context);
+ const D=context.AstroNotesAlmanacDashboard,p={latitude:35.68,longitude:139.76},day=T.start(now);
  const events=b=>b==='sun'?[{kind:'rise',at:Date.parse('2026-10-20T05:51:00+09:00'),azimuth:102},{kind:'set',at:Date.parse('2026-10-20T17:00:00+09:00'),azimuth:257.8}]:[];
  D.setAuto(false);D.render(root,day,p,events,A,{});if(root.dataset.body!==body){all(root).find(e=>e.dataset.body===body).onclick();}
  return{root,all:()=>all(root),texts:()=>all(root).map(e=>e.textContent).filter(Boolean)};
@@ -36,7 +36,7 @@ test('天球図の今の位置は地平線より上だけ点を出し、下で�
  assert.ok(Number(noon.cy)>150&&Number(noon.cy)<150+112*0.6);
 });
 test('16方位の境目',()=>{
- const s=fs.readFileSync(new URL('./sorami-almanac-dashboard.js',import.meta.url),'utf8'),c={};vm.createContext(c);vm.runInContext(s.match(/const DIR16=[^\n]+/)[0].replace('const DIR16','globalThis.DIR16').replace(',dir16=',';globalThis.dir16='),c);
+ const s=fs.readFileSync(new URL('./astronotes-almanac-dashboard.js',import.meta.url),'utf8'),c={};vm.createContext(c);vm.runInContext(s.match(/const DIR16=[^\n]+/)[0].replace('const DIR16','globalThis.DIR16').replace(',dir16=',';globalThis.dir16='),c);
  assert.deepEqual([0,11.2,11.3,90,102,180,257.8,348.7,348.8,359.9,-10].map(c.dir16),['北','北','北北東','東','東南東','南','西南西','北北西','北','北','北']);
 });
 test('ホームに道具へのボタン（予測・構図・地図・記録）は置かない（2026-10-20 ユーザー「リンクを置くだけならいらない」）',()=>{
@@ -44,7 +44,7 @@ test('ホームに道具へのボタン（予測・構図・地図・記録）�
  assert.doesNotMatch(fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),/\{label:"構図",available:screenAllowed\("framing"\)/);
 });
 test('不要な説明文（NOTEBOOK・撮影地点の冒頭、構図の未選択時）は出さない（2026-10-20 ユーザー「消しといて」）',()=>{
- const h=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),m=fs.readFileSync(new URL('./sorami-myplaces.js',import.meta.url),'utf8');
+ const h=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),m=fs.readFileSync(new URL('./astronotes-myplaces.js',import.meta.url),'utf8');
  assert.doesNotMatch(h,/天体・対象・日付を選び、この日の候補から撮影地点を選べます/);assert.doesNotMatch(m,/どこから何が見えたかを残し、構図や地図で次の撮影につなげます/);
 });
 
