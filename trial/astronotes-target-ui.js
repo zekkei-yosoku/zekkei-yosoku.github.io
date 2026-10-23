@@ -114,7 +114,7 @@ function mount(deps){
  function leaveEditor(){if(editorChanged()&&!confirm('入力した内容を破棄しますか？'))return;listMode();q('[data-target-new]').focus({preventScroll:true});}
  function move(p){
   const s=state;if(!valid(s)||!p||!L.point(p))return;
-  request.cancel();s.searchPoint=p;map.setView(p.latitude,p.longitude,16);
+  request.cancel();s.searchPoint=p;map.setView(p.latitude,p.longitude,p.zoom??16);
   const input=q('[data-target-name]');if(!input.value.trim()||input.dataset.auto==='true'){input.value=p.name||'';input.dataset.auto='true';}
   const h=p.targetHeightM??p.structureM;if(L.height(h))q('[data-target-height]').value=String(h);
   q('[data-target-coordinate]').textContent=p.latitude.toFixed(5)+', '+p.longitude.toFixed(5);syncDirty();

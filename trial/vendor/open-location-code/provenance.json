@@ -1,0 +1,9 @@
+{
+  "upstream": "https://github.com/google/open-location-code",
+  "commit": "83986da0156bbf51fba33d0327d8ca4b7f955c89",
+  "source": "js/src/openlocationcode.js",
+  "local": "astronotes-open-location-code.js",
+  "sha256": "271165812e3007d71b025b518cb2c0424a2646cb94cb5751521f3313d4b1e505",
+  "license": "Apache-2.0",
+  "note": "Unmodified upstream JavaScript, bundled locally for offline full-code decoding. CSV test vectors from upstream test_data."
+}
