@@ -472,6 +472,21 @@ function checkOverlap(s){
  if(out.textContent!==text)out.textContent=text;
  out.classList.toggle('shooting-overlap-on',matched);
 }
+function mountainAlignment(s){
+ const menu=document.createElement('details');menu.className='alignment-dropdown';
+ const summary=document.createElement('summary');summary.className='fav-in';
+ const disc=!!AstroNotesBodies.definition(s.body)?.limbs;
+ const choices=[{id:'overlap',name:'全体に重なる'},...(disc?AstroNotesAlign.LIMBS:[])];
+ const current=s.matchMode==='overlap'?'overlap':disc?s.limb:'overlap';
+ const figure=(choice,where)=>choice.id==='overlap'?'<svg viewBox="0 0 40 28" width="40" height="28" aria-hidden="true"><path d="M2 28 15 13H25L38 28Z" fill="currentColor" opacity=".4"/><circle cx="29" cy="13" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>':aimLimbFigure(choice.sign,true,`skyAlign-${where}-${choice.id}`);
+ const selected=choices.find(c=>c.id===current)||choices[0];
+ summary.innerHTML=figure(selected,'current')+`<span>${esc(selected.name)}</span><svg class="alignment-chevron" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg>`;summary.setAttribute('aria-label',`重ね方：${selected.name}、選択を開く`);menu.append(summary);
+ const list=document.createElement('div');list.className='alignment-options';list.setAttribute('role','group');list.setAttribute('aria-label','重ね方の選択肢');const buttons=[];
+ for(const choice of choices){const b=document.createElement('button');b.type='button';const on=choice.id===current;b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-label',choice.id==='overlap'?choice.name:aimLimbSay(choice.id,true,s.body));b.innerHTML=figure(choice,'option')+`<span>${esc(choice.name)}</span>`;b.onclick=()=>{menu.open=false;if(on){summary.focus({preventScroll:true});return;}SkyMapUI?.setAlignment?.(s.partId,choice.id==='overlap'?'center':choice.id,choice.id==='overlap'?'overlap':'limb');queueMicrotask(()=>el('skyMapAlignmentControls')?.querySelector('.alignment-dropdown > summary')?.focus({preventScroll:true}));};buttons.push(b);list.append(b);}
+ menu.append(list);menu.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();menu.open=false;summary.focus({preventScroll:true});}else if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();menu.open=true;const at=buttons.indexOf(e.target),next=e.key==='Home'?0:e.key==='End'?buttons.length-1:at<0?Math.max(0,choices.findIndex(c=>c.id===current)):(at+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[next].focus();}};
+ menu.addEventListener('focusout',e=>{if(e.relatedTarget&&!menu.contains(e.relatedTarget))menu.open=false;});return menu;
+}
+document.addEventListener('click',e=>{for(const d of document.querySelectorAll('.alignment-dropdown[open]'))if(!d.contains(e.target))d.open=false;});
 function skyRender(s){
  if(skyOwner!==auth?.token){leaveSky();skyOwner=auth?.token;}
  skySession=s;if(!s||!auth?.token||!toolAllowed('skymap'))return;
@@ -489,10 +504,10 @@ function skyRender(s){
   controls.append(trigger,toggle);box.append(controls);
   const alignment=document.createElement('div');alignment.className='alignment-controls';
   const mountain=aimIsMountain(t),parts=t.parts||[],whole=parts.length>0&&!mountain;
-  if(!whole){const broad=document.createElement('button');broad.type='button';broad.className='chip explore-overlap';broad.textContent='全体に重なる';broad.setAttribute('aria-pressed',String(s.matchMode==='overlap'));broad.onclick=()=>SkyMapUI?.setAlignment?.(s.partId,'center','overlap');alignment.append(broad);}
-  const part=document.createElement('select');part.className='fav-in';part.setAttribute('aria-label','重ねる対象の部位');part.replaceChildren(...parts.map(p=>new Option(`${p.name} ${Math.round(p.m-(t.groundM||0))}m`,p.id)),...(whole?[new Option(t.wholeLabel||'建物全体に重なる','__whole')]:[]));part.value=s.partId??parts[0]?.id??'';part.hidden=parts.length+(whole?1:0)<2;
+  if(mountain)alignment.append(mountainAlignment(s));
+  const part=document.createElement('select');part.className='fav-in';part.setAttribute('aria-label','重ねる対象の部位');part.replaceChildren(...parts.map(p=>new Option(`${p.name} ${Math.round(p.m-(t.groundM||0))}m`,p.id)),...(whole?[new Option(t.wholeLabel||'建物全体に重なる','__whole')]:[]));part.value=s.partId??parts[0]?.id??'';part.hidden=mountain||parts.length+(whole?1:0)<2;
   part.onchange=()=>SkyMapUI?.setAlignment?.(part.value||null,s.limb||'center','limb');alignment.append(part);
-  const limbs=document.createElement('div');limbs.className='aim-limb';limbs.setAttribute('role','group');limbs.setAttribute('aria-label','天体のどこを合わせるか');limbs.hidden=s.partId==='__whole';
+  const limbs=document.createElement('div');limbs.className='aim-limb';limbs.setAttribute('role','group');limbs.setAttribute('aria-label','天体のどこを合わせるか');limbs.hidden=mountain||s.partId==='__whole';
   for(const l of AstroNotesBodies.definition(s.body)?.limbs?AstroNotesAlign.LIMBS:AstroNotesAlign.LIMBS.filter(l=>l.id==='center')){
    const button=document.createElement('button');button.type='button';button.disabled=!AstroNotesBodies.definition(s.body)?.limbs;const on=s.matchMode!=='overlap'&&s.limb===l.id;button.setAttribute('aria-pressed',String(on));button.setAttribute('aria-label',aimLimbSay(l.id,mountain,s.body));button.innerHTML=aimLimbFigure(l.sign,mountain,`skyLimbMask-${l.id}`)+`<span>${esc(l.name)}</span>`;button.onclick=()=>SkyMapUI?.setAlignment?.(s.partId,l.id,on?'overlap':'limb');limbs.append(button);
   }
@@ -799,6 +814,7 @@ style.textContent = `
 .my-actions{margin:6px 0}
 #myPlaceSheet .my-draft-target{align-items:center;gap:12px;padding:10px 0}#myPlaceSheet .my-draft-target .my-record{flex:1;min-width:0;overflow-wrap:anywhere}#myPlaceSheet .my-draft-target button{flex:none;min-width:60px;min-height:44px}
 #myRecordsHub .my-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}#myRecordsHub .my-actions select{flex:1 1 130px;width:0;min-width:0}
+.alignment-dropdown{width:100%;margin:0}.alignment-dropdown>summary.fav-in{display:flex;align-items:center;gap:12px;min-height:44px;padding:6px 10px;background:var(--sunk);border-radius:9px;list-style:none;cursor:pointer;color:var(--text);font-size:16px}.alignment-dropdown>summary::-webkit-details-marker{display:none}.alignment-dropdown svg{flex:none}.alignment-dropdown>summary span{flex:1;min-width:0}.alignment-dropdown .alignment-chevron{margin-left:auto;width:20px;height:20px}.alignment-options{margin-top:4px;padding:4px;background:var(--sunk);border:1px solid var(--line);border-radius:10px}.alignment-options button{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:8px 12px;border-radius:8px;background:transparent;color:var(--text);text-align:left;font:inherit}.alignment-options button[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}.alignment-dropdown:not([open])>.alignment-options{display:none}.alignment-options button:focus-visible,.alignment-dropdown>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .my-record{cursor:default}
 .my-picker{margin-bottom:8px}
 `;

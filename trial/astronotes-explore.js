@@ -148,7 +148,7 @@ const style=node('style');style.textContent=
 '.explore-conditions>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;min-height:64px;padding:12px 14px;cursor:pointer;list-style:none}.explore-conditions>summary::-webkit-details-marker{display:none}'+
 '#exploreConditionTitle{font-weight:600;grid-column:1;overflow-wrap:anywhere}#exploreConditionDetail{grid-column:1;font-size:12px;color:var(--secondary);overflow-wrap:anywhere}.explore-condition-edit{grid-column:2;grid-row:1/3;align-self:center;font-size:12px;color:var(--accent)}'+
 '.explore-condition-fields{padding:4px 14px 14px}.explore-conditions[open]>summary{border-bottom:1px solid var(--line)}.explore-conditions[open] #exploreConditionDetail{display:none}'+
-'.explore-show-result{width:100%;min-height:44px;margin-top:8px}.explore-overlap{width:100%;min-height:44px;margin-bottom:8px}.explore-overlap[aria-pressed=true]{background:var(--accent);color:var(--on-accent)}'+
+'.explore-show-result{width:100%;min-height:44px;margin-top:8px}'+
 '.explore-tabs{scroll-margin-top:12px}.explore-save{min-height:44px}.explore-mounted .aim-figure-share{gap:8px;align-items:center}.explore-mounted .aim-figure-share .explore-save{order:-1;margin-right:auto}'+
 '#skyMapView.explore-mounted .sky-map-head::before{content:"EXPLORE" / "";--kw:6.6em}'+
 '.explore-tabs{margin:14px 0 12px;max-width:780px}.explore-tabs button{min-height:44px}'+
