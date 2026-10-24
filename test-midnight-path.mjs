@@ -24,9 +24,9 @@ test('旧逆算（1点を解く）は切り替え1つで止め、処理は残す
  assert.match(html,/function aimReverseClear\(/,'逆算の処理は残す');
  assert.match(fs.readFileSync(new URL('./astronotes-flair.css',import.meta.url),'utf8'),/#aimLook \[data-look-pick\]\[hidden\]\{display:none!important\}/);
 });
-test('図は直接panでき、図内は中央復帰1アイコン。大気差は通常画面（2026-10-22 最新指示）',()=>{
+test('図は直接panでき、図内は撮影設定と中央復帰。大気差は通常画面（2026-10-22 最新指示）',()=>{
  assert.match(html,/center\.setAttribute\('aria-label','構図を中央に戻す'\)/);
- assert.match(html,/settings\.onclick=\(\)=>showSheet\(dialog\)/);
+ assert.match(html,/settings\.setAttribute\('aria-label','撮影設定'\)/);
  assert.doesNotMatch(html,/expand\.setAttribute\('aria-label','全画面で表示'\)/);
  assert.doesNotMatch(html,/content\.append\(airTitle,airControls\)/);
  assert.match(html,/cv\.style\.touchAction = "pan-y"/);

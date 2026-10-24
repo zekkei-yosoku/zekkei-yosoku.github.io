@@ -40,7 +40,7 @@ function showResult(){
 }
 function addSaveAction(row,source){
  if(!row||row.querySelector('[data-plan-action="keep"]'))return;
- const b=node('button',{type:'button',className:'chip primary explore-save'},'予定に保存');b.dataset.planAction='keep';b.dataset.planSource=source;row.append(b);updateConditions();
+ const b=node('button',{type:'button',className:'plan-trigger explore-save'});b.setAttribute('aria-label','予定に追加');b.title='予定に追加';b.innerHTML='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M7 2v4M17 2v4M3 9h18M18 14v8M14 18h8"/></svg>';b.dataset.planAction='keep';b.dataset.planSource=source;row.append(b);updateConditions();
 }
 function canFrame(s){if(!eligible())return false;if(s.target.id!=='fuji')return toolAllowed('tower');return s.body==='sun'?toolAllowed('diamond'):s.body==='moon'?toolAllowed('pearl'):toolAllowed('tower')&&(toolAllowed('diamond')||toolAllowed('pearl'));}
 function invalidate(){epoch++;frameKey='';frameBase='';pendingKey='';look._lookSeq=(look._lookSeq||0)+1;look._planKey=null;if(look._captionTimer){clearTimeout(look._captionTimer);look._captionTimer=0;}}
@@ -149,7 +149,7 @@ const style=node('style');style.textContent=
 '#exploreConditionTitle{font-weight:600;grid-column:1;overflow-wrap:anywhere}#exploreConditionDetail{grid-column:1;font-size:12px;color:var(--secondary);overflow-wrap:anywhere}.explore-condition-edit{grid-column:2;grid-row:1/3;align-self:center;font-size:12px;color:var(--accent)}'+
 '.explore-condition-fields{padding:4px 14px 14px}.explore-conditions[open]>summary{border-bottom:1px solid var(--line)}.explore-conditions[open] #exploreConditionDetail{display:none}'+
 '.explore-show-result{width:100%;min-height:44px;margin-top:8px}'+
-'.explore-tabs{scroll-margin-top:12px}.explore-save{min-height:44px}.explore-mounted .aim-figure-share{gap:8px;align-items:center}.explore-mounted .aim-figure-share .explore-save{order:-1;margin-right:auto}'+
+'.explore-tabs{scroll-margin-top:12px}.explore-save{min-height:44px}.explore-mounted .aim-figure-share{gap:8px;align-items:center}.explore-mounted .aim-figure-share .explore-save{order:-1;margin-right:0}'+
 '#skyMapView.explore-mounted .sky-map-head::before{content:"EXPLORE" / "";--kw:6.6em}'+
 '.explore-tabs{margin:14px 0 12px;max-width:780px}.explore-tabs button{min-height:44px}'+
 '#skyMapView.explore-mounted #skyMapObserverDetails:not([hidden]){padding:0 0 6px}'+
@@ -182,7 +182,7 @@ const style=node('style');style.textContent=
 'main:has(>#skyMapView.explore-mounted){max-width:1000px}';
 document.head.append(style);
 globalThis.TrialExplore={active,render,routeChanged,sync,invalidate:()=>{frameKey='';SkyMapUI.render();sync(true);},sceneDraw,assertScene,
- camera:()=>({l:{...aimLens},pan:[...(look._lensOffset||[0,0])]})};
+ camera:()=>{let timelapse=null;try{if(frameKey===stamp(snapshot())&&AstroNotesTimelapse.settings(look._timelapseConfig))timelapse={...look._timelapseConfig};}catch{}return {l:{...aimLens,focal:Number(look.querySelector('[data-lens-focal]')?.value)||aimLens.focal||50},pan:[...(look._lensOffset||[0,0])],timelapse};}};
 document.addEventListener('visibilitychange',()=>{if(document.hidden)invalidate();else sync();});
 window.addEventListener('resize',()=>{if(active())sync();});
 routeChanged();

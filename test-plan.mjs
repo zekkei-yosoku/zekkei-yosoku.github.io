@@ -32,3 +32,7 @@ test('地図共有は現在の日時・天体・位置・高さ・重ね方を�
  let drawn=0;const run=new Function('SkyMapUI','$','AstroNotesPlan','AstroNotesBodies','aimAirSettings','document','aimM','AstroNotesAlign',code+';return planSnapshot;')({shareState:()=>state},()=>({width:600,height:400}),P,{state:()=>({azimuth:30,apparentAltitude:10}),definition:()=>({name:'月'})},{mode:'standard'},{createElement:()=>({getContext:()=>({drawImage:()=>drawn++})})},String,{limbById:()=>({name:'上の縁'})});
  const snap=run({dataset:{planSource:'skymap'}});assert.equal(drawn,1);assert.equal(snap.payload.at,at);assert.equal(snap.payload.o[3],30);assert.equal(snap.payload.o[4],5.5);assert.equal(snap.payload.t.parts[0].latitude,35.1001);assert.equal(snap.payload.body,'moon');assert.equal(snap.payload.limb,'behind');assert.equal(snap.payload.matchMode,'limb');assert.equal(P.decode(P.encode(snap.payload)).at,at);
 });
+test('タイムラプスは任意の互換拡張として予定/共有を往復し不正設定を拒否',()=>{
+ const p={v:1,kind:'aim',at:payload.at,o:payload.o,body:'moon',part:'tip',limb:'center',t:{id:'custom',name:'目標',latitude:35,longitude:139,groundM:10,parts:[{id:'tip',name:'先端',m:636}]},l:{on:true,mode:'manual',focal:400,sensor:'aps',portrait:true,grid:'none'},pan:[.1,.2],air:'none'};
+ assert(P.valid(p));const config={interval:5,count:360,fps:24};assert.equal(JSON.stringify(P.decode(P.encode({...p,timelapse:config})).timelapse),JSON.stringify(config));for(const x of [{...config,count:2.5},{...config,interval:0},{...config,fps:23},{...config,interval:3600}])assert.equal(P.valid({...p,timelapse:x}),false);
+});

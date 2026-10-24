@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';const T=createRequire(import.meta.url)('./astronotes-timelapse.js');
+test('撮影開始間隔/写真1枚1frameと両端を区別',()=>{assert.deepEqual(T.summary({interval:5,count:360,fps:24}),{duration:1795,video:15,count:360});assert.equal(T.summary({interval:5,count:360,fps:30}).video,12);for(const v of [{interval:0,count:2,fps:24},{interval:1,count:2.5,fps:24},{interval:1,count:2,fps:29},{interval:3600,count:100,fps:24}])assert.throws(()=>T.summary(v));});
+test('球面円盤全体の画角・パン・境界を判定',()=>{const f={halfW:1,halfH:1};assert(T.margin({x:0,y:0,radius:.25},f)>0);assert(T.margin({x:.9,y:0,radius:.25},f)<0);assert(T.margin({x:0,y:0,radius:2},f)<0);assert(T.margin({x:2,y:0,radius:0},f,{x:-2,y:0})>0);assert(T.margin({x:NaN,y:0,radius:0},f)<0);});
+test('短い接触と日跨ぎを拾い約0.05秒まで境界を詰める',async()=>{const fn=t=>.00004-Math.abs(t-12345)*.000004;const rows=await T.passages(fn,0,60000,{yieldTask:async()=>{}});assert.equal(rows.length,1);assert(Math.abs(rows[0].start-12335)<50);assert(Math.abs(rows[0].end-12355)<50);const all=await T.passages(()=>1,0,86400000,{yieldTask:async()=>{}});assert(all[0].openStart&&all[0].openEnd);assert.deepEqual(await T.passages(()=>-5,0,60000),[]);assert.equal(await T.passages(()=>1,0,60000,{current:()=>false}),null);});
+test('画角から抜ける撮影番号を変更せず報告',()=>{const v={interval:5,count:10,fps:24};assert.equal(T.firstOutside(0,v,[{start:0,end:20000}]),6);assert.equal(T.firstOutside(0,v,[{start:0,end:45000}]),null);assert.equal(T.firstOutside(0,v,[]),1);});
+test('実天文の位置を使って望遠画角の枠内と30分後の枠外を確認',()=>{
+ const require=createRequire(import.meta.url),A=require('./astronotes-align.js'),B=require('./astronotes-bodies.js');
+ const obs={latitude:35.74,longitude:139.86,elevation:40},start=Date.parse('2026-10-25T16:30:00+09:00'),st=B.state('sun',start,obs),proj=A.viewProjector(st.azimuth,st.apparentAltitude),f=A.cameraFrame(400,36,24,false);
+ const xy=proj(st.azimuth,st.apparentAltitude);assert(T.margin({x:xy[0],y:xy[1],radius:st.angularRadius},f)>0);
+ const later=B.state('sun',start+1800000,obs),next=proj(later.azimuth,later.apparentAltitude);assert(T.margin({x:next[0],y:next[1],radius:later.angularRadius},f)<0);
+});
