@@ -141,12 +141,12 @@ test('新規の点から既存の線地点を再利用しても保存済みの�
  h.c.openShapeEditor();h.nodes.get('shapeApply').onclick();assert.equal(h.c.sheetState.draftShape,savedShape);
 });
 
-test('線/範囲で中央＋以外をタップしても頂点を追加せず、＋は中心にだけ追加する',()=>{
+test('線/範囲は地図内のどこをタップしても常に中央＋の座標に追加する',()=>{
  for(const type of ['line','area']){
   const h=newShapeHarness();h.c.openShapeEditor(type);h.map.pan(ll(50));
-  h.tap(ll(800),{x:280,y:250});assert.equal(h.value().vertices.length,0);
-  h.tap(ll(800),{x:160,y:160});assert.equal(h.value().vertices.length,1);
+  h.tap(ll(800),{x:280,y:250});assert.equal(h.value().vertices.length,1);
   assert.equal(h.value().vertices[0].longitude,ll(50).longitude);
-  h.map.pan(ll(100));h.nodes.get('shapeAddCenter').onclick();assert.equal(h.value().vertices.length,2);
+  h.map.pan(ll(100));h.tap(ll(-900),{x:20,y:20});assert.equal(h.value().vertices.length,2);assert.equal(h.value().vertices[1].longitude,ll(100).longitude);
+  h.map.pan(ll(150));h.nodes.get('shapeAddCenter').onclick();assert.equal(h.value().vertices.length,3);
  }
 });

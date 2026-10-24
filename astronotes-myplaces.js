@@ -90,7 +90,7 @@ function buildShapeEditor(){
  const change=fn=>{if(!shapeEditorCurrent())return;shapeEdit.undo.push(structuredClone(shapeEdit.value));fn();renderShapeEditor();};
  const add=p=>{change(()=>{if(shapeEdit.value.type==='point')shapeEdit.value.vertices=[p];else if(shapeEdit.value.vertices.length<200){const i=shapeEdit.selected;shapeEdit.value.vertices.splice(i>=0?i+1:shapeEdit.value.vertices.length,0,p);}shapeEdit.selected=-1;});};
  shapeMap.onMove(()=>shapePointAtCenter());
- shapeMap.onPick((p,pixel)=>{if(!shapeEditorCurrent())return;if(shapeEdit.value.type==='point')return;const canvas=el('shapeCanvas'),box=canvas.getBoundingClientRect();if(Math.hypot(pixel.x-box.width/2,pixel.y-box.height/2)<=22){add(shapeMap.center());return;}const i=shapeEdit.value.vertices.findIndex(v=>{const q=shapeMap.project(v.latitude,v.longitude);return Math.hypot(q[0]-pixel.x,q[1]-pixel.y)<16;});if(i>=0){shapeEdit.selected=i;renderShapeEditor();}});
+ shapeMap.onPick(()=>{if(!shapeEditorCurrent()||shapeEdit.value.type==='point')return;add(shapeMap.center());});
  el('shapeAddCenter').onclick=()=>{if(shapeEdit?.value.type==='point'&&sheetState.place.id)return;add(shapeMap.center());};
  el('shapeUndo').onclick=()=>{if(!shapeEditorCurrent()||!shapeEdit.undo.length)return;shapeEdit.value=shapeEdit.undo.pop();shapeEdit.selected=-1;renderShapeEditor();};
  el('shapeVertex').onchange=()=>{shapeEdit.selected=Number(el('shapeVertex').value);renderShapeEditor();};
@@ -144,7 +144,7 @@ function renderShapeEditor(){
  el('shapeCanvas').setAttribute('aria-label',type==='point'?'地図を動かして中央のピンに撮影地点を合わせる':'地図を動かして中央の＋に追加する点を合わせる');
  el('shapeTypeLabel').textContent=type==='point'?'線・範囲で指定':shapeName(s)+'で指定';el('shapeFixedPin').toggleAttribute('hidden',type!=='point'||!!sheetState.place.id);el('shapeLocationPanel').hidden=type==='point'&&!!sheetState.place.id;el('shapeVertexTools').hidden=type==='point';el('shapeStatus').hidden=type==='point';el('shapeApply').textContent=type==='point'?(sheetState.place.id?'この地点のまま戻る':'この地点にする'):'この'+shapeName(s)+'にする';
  for(const b of el('shapeModes').children)b.setAttribute('aria-pressed',String(b.dataset.shapeMode===type));
- el('shapeHelp').textContent=type==='point'?(sheetState.place.id?'登録済みの撮影地点です。線・範囲へ変更できます。':'地図を動かしてピンを撮影地点に合わせます。'):type==='line'?'地図を動かして中央の＋を合わせ、＋または「中心に点を追加」を押して順につなぎます。2点で直線、3点で折れ線。登録した点はタップで選べます。':'地図を動かして中央の＋を外周に合わせ、＋または「中心に点を追加」を押して囲みます。最後と最初の点をつないだ内側が範囲です。';
+ el('shapeHelp').textContent=type==='point'?(sheetState.place.id?'登録済みの撮影地点です。線・範囲へ変更できます。':'地図を動かしてピンを撮影地点に合わせます。'):type==='line'?'地図を動かして中央の＋を合わせ、地図内のどこかをタップして順につなぎます。点は常に＋の位置に追加します。編集する点は下の一覧で選べます。':'地図を動かして中央の＋を外周に合わせ、地図内のどこかをタップして囲みます。点は常に＋の位置に追加します。最後と最初の点をつないだ内側が範囲です。';
  const select=el('shapeVertex');select.disabled=type==='point';select.replaceChildren(new Option('点を選んで編集','-1'),...s.vertices.map((_,i)=>new Option('点 '+(i+1),String(i))));select.value=String(shapeEdit.selected);
  el('shapeMove').disabled=el('shapeRemove').disabled=shapeEdit.selected<0;el('shapeUndo').disabled=!shapeEdit.undo.length;
  el('shapeAddCenter').disabled=type==='point'?!!sheetState.place.id:s.vertices.length>=200;el('shapeAddCenter').textContent=type==='point'?'中心を撮影地点にする':'中心に点を追加';
