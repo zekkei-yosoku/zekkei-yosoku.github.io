@@ -92,12 +92,12 @@ test('既存の形を別画面で変更したら上書きせず開き直しを�
 });
 
 function newShapeHarness(){
- const nodes=new Map(),make=()=>({children:[],dataset:{},value:'',disabled:false,open:false,append(...v){this.children.push(...v)},replaceChildren(...v){this.children=v},setAttribute(k,v){this[k]=v},toggleAttribute(k,on){this.attributes??={};if(on)this.attributes[k]='';else delete this.attributes[k]},hasAttribute(k){return Object.hasOwn(this.attributes||{},k)},addEventListener(){},querySelectorAll(){return []},dispatchEvent(){},close(){this.open=false}});
+ const nodes=new Map(),make=()=>({getBoundingClientRect(){return {width:320,height:320}},children:[],dataset:{},value:'',disabled:false,open:false,append(...v){this.children.push(...v)},replaceChildren(...v){this.children=v},setAttribute(k,v){this[k]=v},toggleAttribute(k,on){this.attributes??={};if(on)this.attributes[k]='';else delete this.attributes[k]},hasAttribute(k){return Object.hasOwn(this.attributes||{},k)},addEventListener(){},querySelectorAll(){return []},dispatchEvent(){},close(){this.open=false}});
  const state={place:{id:null,name:'',latitude:null,longitude:null},draftShape:null,draftTargets:[],targetDrafts:[],ctx:'records'};let picks,moveHandler,center=ll(0);
  const map={setOverlay(){},onPick(fn){picks=fn},onMove(fn){moveHandler=fn},open(p){center={...p}},setView(...v){this.view=v;center={latitude:v[0],longitude:v[1]};moveHandler?.(center)},pan(p){center={...p};moveHandler?.(center)},center:()=>center,project:(lat,lon)=>[lon,lat],redraw(){}};
  const c={shapeKey:JSON.stringify,confirm:()=>true,AstroNotesTerrain:require('./astronotes-terrain.js'),AstroNotesLibrary:L,Event:class{},wireSearchBox:(a,b,fn)=>{map.move=fn},sheetState:state,sheetOwnerMatches:()=>true,auth:{token:'owner'},el:id=>{if(!nodes.has(id))nodes.set(id,make());return nodes.get(id)},document:{createElement:make,body:{append(){}}},PLACE_PICKERS:{},AstroNotesShooting:P,place:{...ll(0)},placeNear:()=>null,createMapView:()=>map,showSheet:d=>{d.open=true},renderSheet(){},openPlaceSheet(){},shapeName:s=>s?.type==='area'?'範囲':s?.type==='line'?'線':'点',structuredClone,Option:function(text,value){return {text,value}}};
  vm.createContext(c);vm.runInContext(ui.slice(ui.indexOf('let shapeDialog='),ui.indexOf('// ---------------------------------------------------------------- 記録：')),c);
- return {c,state,nodes,map,pick:(p)=>picks(p,{x:1000,y:1000}),value:()=>vm.runInContext('shapeEdit.value',c)};
+ return {c,state,nodes,map,pick:(p)=>{map.pan(p);picks(p,{x:160,y:160})},tap:(p,pixel)=>picks(p,pixel),value:()=>vm.runInContext('shapeEdit.value',c)};
 }
 test('地点0件から線を選び、検索は移動だけ、2点/3点を作って未保存の対象入力へ進む',()=>{
  const h=newShapeHarness();h.c.openShapeEditor('line');assert.equal(h.value().vertices.length,0);assert(h.nodes.get('shapeApply').disabled);
@@ -139,4 +139,14 @@ test('新規の点から既存の線地点を再利用しても保存済みの�
  const h=newShapeHarness(),existing={id:'line',name:'既存の線',...ll(0)},savedShape=shape('line',[[0,0],[100,0]]);h.c.placeNear=()=>existing;
  h.c.openPlace=p=>{h.c.sheetState={place:p,initialTargets:[],draftTargets:[],targetDrafts:[],draftShape:savedShape,ctx:'records'};};
  h.c.openShapeEditor();h.nodes.get('shapeApply').onclick();assert.equal(h.c.sheetState.draftShape,savedShape);
+});
+
+test('線/範囲で中央＋以外をタップしても頂点を追加せず、＋は中心にだけ追加する',()=>{
+ for(const type of ['line','area']){
+  const h=newShapeHarness();h.c.openShapeEditor(type);h.map.pan(ll(50));
+  h.tap(ll(800),{x:280,y:250});assert.equal(h.value().vertices.length,0);
+  h.tap(ll(800),{x:160,y:160});assert.equal(h.value().vertices.length,1);
+  assert.equal(h.value().vertices[0].longitude,ll(50).longitude);
+  h.map.pan(ll(100));h.nodes.get('shapeAddCenter').onclick();assert.equal(h.value().vertices.length,2);
+ }
 });

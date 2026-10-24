@@ -55,10 +55,11 @@ function prepareRecord({owner,favorites,observations,shapes,place,isNew,initialT
  const nextFavorites=applyDrafts(favorites,used),at=nextFavorites.findIndex(f=>f.id===place.id);
  if(isNew){if(at>=0)throw Error('同じ地点が登録されています');nextFavorites.push({...place});}
  else if(at<0)throw Error('この撮影地点は登録から外されています');
+ else if(nextFavorites[at].name!==place.name)nextFavorites[at]={...nextFavorites[at],name:place.name.trim()};
  const changes=registrationChanges(place,initialTargets,targets);if(changes.some(r=>!r))throw Error('対象の情報を確認してください');
  const nextShapes=Object.assign(Object.create(null),shapes);if(shape)nextShapes[place.id]={latitude:place.latitude,longitude:place.longitude,shape};else delete nextShapes[place.id];
  const k=keys(owner),nextObservations=[...observations,...changes];
- return {favorites:nextFavorites,observations:nextObservations,shapes:nextShapes,changedFavorites:[...new Set([...(isNew?[place.id]:[]),...used.map(x=>x.entry.id)])],entries:[[k.observations,nextObservations],[k.shapes,nextShapes],['sorami.favorites',nextFavorites]]};
+ return {favorites:nextFavorites,observations:nextObservations,shapes:nextShapes,changedFavorites:[...new Set([...(isNew||favorites.find(f=>f.id===place.id)?.name!==place.name?[place.id]:[]),...used.map(x=>x.entry.id)])],entries:[[k.observations,nextObservations],[k.shapes,nextShapes],['sorami.favorites',nextFavorites]]};
 }
 // Notebook membership is records/shapes; favorite locations remain picker candidates.
 function prepareNotebookBulk({owner,favorites,observations,shapes,placeIds,mode,targets=[],drafts=[],currentTargets}){

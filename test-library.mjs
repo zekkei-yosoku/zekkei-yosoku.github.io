@@ -80,3 +80,13 @@ test('一括操作の保存失敗は全地点の記録と形を復元する',()=
 test('一括操作は未選択・未登録・候補だけの地点を拒否する',()=>{
  assert.throws(()=>bulk({placeIds:[]}),/選んで/);assert.throws(()=>bulk({placeIds:['unknown']}),/変更/);assert.throws(()=>bulk({placeIds:['other']}),/変更/);assert.throws(()=>bulk({mode:'add',targets:[],currentTargets:()=>[]}),/対象/);
 });
+test('既存地点の名前だけの保存はID/座標/形/過去記録を保持して同期対象にする',()=>{
+ const original={...place,note:'保持',targetHeightM:15},other={...place,id:'other',name:'別地点'};
+ const observations=[{id:'past',placeId:place.id,note:'過去'}];
+ const p=plan({favorites:[original,other],observations,place:{...original,name:'川沿い東側'},isNew:false,initialTargets:[target]});
+ assert.equal(original.name,'川沿い');assert.deepEqual(p.favorites[0],{...original,name:'川沿い東側'});assert.deepEqual(p.favorites[1],other);
+ assert.deepEqual(p.changedFavorites,['p']);assert.deepEqual(p.observations,observations);assert.deepEqual(p.shapes.p.shape,line);
+ const unchanged=plan({favorites:[original],place:original,isNew:false});assert.deepEqual(unchanged.changedFavorites,[]);
+ assert.throws(()=>plan({favorites:[original],place:{...original,name:'  '},isNew:false}),/情報/);
+ const storage=disk();storage.setItem('sorami.favorites',JSON.stringify([original]));storage.fail(L.keys('owner').shapes);assert.throws(()=>L.transaction(storage,p.entries),/取り消しました/);assert.equal(JSON.parse(storage.getItem('sorami.favorites'))[0].name,'川沿い');
+});
