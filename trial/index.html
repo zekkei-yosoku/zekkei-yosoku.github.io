@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="6547379613318044664">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-02Q6HdKyv/A6aqONHV5tdWDcnR54nfBcW6BIdK9RWzM=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-UmH7YkFXrXhP1+Mwi5bi6L7r9sWbC9TSs2AQ9MzhsE0=' 'sha256-ydh5meDQCwaKh9K5lQ8lDZWHQbDjSU4RkmGoK3JloEo=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-vKtoN1pKZP276RC3xh0RdrZyYAccJhFvPhnmSrNtmn8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="9297959575920445214">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-dEuDYMWO63jQ+hVrfuKQKNGOfA/wZpQ1a9cMqoJ2bcw=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-KB5P8IOwmAFFkFm0ngJhcmQEOaC4YMtmPAUZckDoZ2o=' 'sha256-ydh5meDQCwaKh9K5lQ8lDZWHQbDjSU4RkmGoK3JloEo=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-vKtoN1pKZP276RC3xh0RdrZyYAccJhFvPhnmSrNtmn8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -1152,16 +1152,17 @@
 #planSummary,#planStatus {margin:0;overflow-wrap:anywhere}
 #planSheet a[aria-disabled=true] {color:var(--tertiary);pointer-events:none}
 
-/* E171: short celestial names in two columns; long target names in one row. */
+/* Trial: body and target selection share the page shell and choice rows. */
 @media(min-width:960px){#aimRecentOpen{position:absolute;right:54px;top:0;min-height:44px}}
-#previewBodyDialog .preview-body-group{padding:8px 0}#previewBodyDialog .preview-body-group h3{margin-bottom:6px}
-#previewBodyDialog .preview-body-choice{min-height:44px;padding:8px 12px}
+:is(#previewBodyDialog,#skyMapBodyDialog,#previewTargetDialog) .preview-body-choice{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:9px 12px;border-radius:8px;text-align:left}
+:is(#previewBodyDialog,#skyMapBodyDialog,#previewTargetDialog) .preview-body-choice::after{content:none;display:none}
+:is(#previewBodyDialog,#skyMapBodyDialog,#previewTargetDialog) .preview-body-choice[aria-pressed=true] .tiny,:is(#previewBodyDialog,#skyMapBodyDialog,#previewTargetDialog) .preview-body-choice[aria-checked=true] .tiny{color:inherit}
+:is(#previewBodyDialog,#skyMapBodyDialog) .preview-body-list,#previewTargetDialog .preview-target-list{grid-template-columns:1fr;gap:4px}
+:is(#previewBodyDialog,#skyMapBodyDialog) .preview-body-group{padding:0;border:0;margin:14px 0 0}
+:is(#previewBodyDialog,#skyMapBodyDialog) .preview-body-group h3{margin:0 0 6px;font-size:.81rem;color:var(--secondary)}
 #previewTargetDialog{width:min(480px,calc(100vw - 24px))}
-#previewTargetDialog .preview-target-list{grid-template-columns:1fr;gap:4px}
-#previewTargetDialog .preview-body-choice{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:9px 12px;border-radius:8px}
-#previewTargetDialog .preview-body-choice[aria-pressed=true]:after,.preview-body-choice[aria-checked=true]:after{flex:none}
-.preview-body-choice[aria-pressed=true] .tiny,.preview-body-choice[aria-checked=true] .tiny{color:inherit}
-#previewTargetDialog .preview-body-choice[role=checkbox]{display:grid;grid-template-columns:24px minmax(0,1fr);column-gap:12px;row-gap:2px;justify-content:normal}#previewTargetDialog .preview-body-choice[role=checkbox]::before{content:'';display:grid;place-items:center;grid-column:1;grid-row:1/3;width:20px;height:20px;box-sizing:border-box;border:1.8px solid currentColor;border-radius:4px;font-size:18px;line-height:1}#previewTargetDialog .preview-body-choice[role=checkbox][aria-checked=true]::before{content:'✓'}#previewTargetDialog .preview-body-choice[role=checkbox]::after{display:none;content:none}#previewTargetDialog .preview-body-choice[role=checkbox] .tiny{grid-column:2;grid-row:2;min-width:0;overflow-wrap:anywhere}
+#previewTargetDialog .preview-body-choice[role=checkbox]{display:flex;justify-content:space-between}
+#previewTargetDialog .preview-body-choice[role=checkbox]::before,#previewTargetDialog .preview-body-choice[role=checkbox]::after{content:none;display:none}
 .target-search{width:100%;margin-bottom:12px;min-height:44px}
 /* 一覧の下位選択は共通chips（現象/履歴の種類で別部品にしない）。 */
 .history-pages{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0}.history-pages .chip{min-height:44px}.history-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.history-heading button{min-height:44px;color:var(--accent)}
@@ -11894,12 +11895,13 @@ function markToolsCurrent() {
 //
 // ユーザー「メニューとかログインあたり以外はページ化するんじゃなかった？」→「ページ」と「短いシート」の2種類に決定。
 // ページ: 探す・見る・選ぶ・入力する画面。全画面で開き、左上の「戻る」・ブラウザの戻る（iPhone のスワイプ）で閉じる。
-// 短いシート: 数個から選ぶ・確認だけ（天体を選ぶ・その他の天体・地図アプリで開く・時刻の操作設定・画角調整・日付）。
+// 短いシート: 数個から選ぶ・確認だけ（その他の天体・地図アプリで開く・時刻の操作設定・画角調整・日付）。
 // メニュー・ログイン・アカウント・設定（メニューと対の右パネル）は今のまま。
 // 中身と処理は各 dialog のまま、開き方だけ変える。下の画面は残るので、戻ると入力と位置が残る。
 // 入力のページ（input）は、検索欄以外を書き換えたあとに戻ると「破棄しますか？」を出す。保存の釦で閉じるときは聞かない
 const PAGE_DIALOGS = {
   placeSheet: {}, mapSheet: {}, aimLineSheet: {}, planSheet: {}, issPickSheet: {},
+  previewBodyDialog: {}, skyMapBodyDialog: {},
   previewTargetDialog: { input: true }, photoSheet: { input: true }, skyMapTargetSheet: { input: true },
   favSheet: { ownConfirm: true }, myPlaceSheet: { ownConfirm: true }, myShapeSheet: { ownConfirm: true },
 };
@@ -13614,7 +13616,7 @@ function uiVisualChoices(select, kind) {
  root.addEventListener('click',e=>{const b=e.target.closest('button');if(b&&(b.matches('[data-cand-map],[data-day],[data-found-map]')))show('places');},true);
 })();
 
-// 天体を選ぶ（短いシート）。構図と地図で同じ部品（2026-10-21 ユーザー「これ揃えてって言わなかった？」。
+// 天体を選ぶ（対象と共通の全画面ページ）。構図と地図で同じ部品（2026-10-21 ユーザー「これ揃えてって言わなかった？」。
 // 10-18 の入力欄の統一は閉じた見た目だけで、地図は開くと端末のプルダウンのままだった）
 function mountBodyPicker(source, { pickerId, dialogId, titleId, wide, observe }) {
  const picker=document.createElement('button');picker.type='button';picker.id=pickerId;picker.className='condition-choice';if(wide)picker.classList.add("preview-body-open");picker.setAttribute('aria-haspopup','dialog');picker.setAttribute('aria-controls',dialogId);
