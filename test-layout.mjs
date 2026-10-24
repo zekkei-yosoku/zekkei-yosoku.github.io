@@ -995,10 +995,10 @@ ok(/found\.sort\(\(a, b\) => Math\.floor\(a\.pass\.visible\.start\.at \/ 60000\)
 {
   const m = /const PAGE_DIALOGS = \{([\s\S]*?)\n\};/.exec(html);
   const ids = m ? [...m[1].matchAll(/(\w+):\s*\{/g)].map((x) => x[1]).sort() : [];
-  ok(JSON.stringify(ids) === JSON.stringify(["aimLineSheet", "favSheet", "issPickSheet", "mapSheet", "myPlaceSheet", "myShapeSheet", "photoSheet", "placeSheet", "planSheet", "previewTargetDialog", "skyMapTargetSheet"]),
+  ok(JSON.stringify(ids) === JSON.stringify(["aimLineSheet", "favSheet", "issPickSheet", "mapSheet", "myPlaceSheet", "myShapeSheet", "photoSheet", "placeSheet", "planSheet", "previewBodyDialog", "previewTargetDialog", "skyMapBodyDialog", "skyMapTargetSheet"]),
     "ページで開く画面: 地点・地図で選ぶ・撮れる場所・共有・対象・お気に入りに登録・記録を足す・地図に置く対象・衛星を選ぶ", ids.join(","));
-  ok(!/(previewBodyDialog|skyMapBodyDialog|skyMapBodiesSheet|mapAppSheet|authSheet|accountSheet|appSettings)\s*:/.test(m ? m[1] : ""),
-    "短いシートのまま: 天体を選ぶ・その他の天体・地図アプリで開く・ログイン・アカウント・設定");
+  ok(!/(skyMapBodiesSheet|mapAppSheet|authSheet|accountSheet|appSettings)\s*:/.test(m ? m[1] : ""),
+    "短いシートのまま: その他の天体・地図アプリで開く・ログイン・アカウント・設定");
   ok(/previewTargetDialog: \{ input: true \}, photoSheet: \{ input: true \}, skyMapTargetSheet: \{ input: true \}/.test(html) && /favSheet: \{ ownConfirm: true \}/.test(html),
     "入力のページは途中で戻ると確かめる（お気に入りは自分で確かめる）");
   ok(/if \(!\(e\.target instanceof HTMLInputElement && e\.target\.type === "search"\) && !e\.target\.closest\?\.\("\[data-no-dirty\]"\)\) el\.dataset\.dirty = "1";/.test(html), "検索欄・その場で保存する欄に打っただけでは「破棄しますか」を出さない");

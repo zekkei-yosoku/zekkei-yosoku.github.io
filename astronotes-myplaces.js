@@ -476,8 +476,8 @@ function skyRender(s){
  if(skyOwner!==auth?.token){leaveSky();skyOwner=auth?.token;}
  skySession=s;if(!s||!auth?.token||!toolAllowed('skymap'))return;
  const box=skyBox(),t=s.target;
- const shareRow=el('skyMapShareRow');if(shareRow){shareRow.hidden=!s.observer||!t;const shareButton=shareRow.querySelector('button');if(shareButton)shareButton.disabled=!s.daily||!s.eye;}
- const detail=el('skyMapAlignmentDetails');detail.hidden=!t;el('skyMapAlignmentSummary').textContent='重ね方';box.hidden=!t;
+ const shareRow=el('skyMapShareRow');if(shareRow){shareRow.hidden=!s.observer||!t;for(const b of shareRow.querySelectorAll('[data-plan-action]'))b.disabled=!s.daily||!s.eye;}
+ const detail=el('skyMapAlignmentDetails');detail.hidden=true;el('skyMapAlignmentSummary').textContent='重ね方';box.hidden=!t;
  if(!t){skyKey='';candidateState={status:'idle',rows:[],failed:0};box.replaceChildren();candidateSheet?.close();return;}
  const key=currentSkyQuery(s);
  if(key!==skyKey){
@@ -487,15 +487,7 @@ function skyRender(s){
   const trigger=document.createElement('button');trigger.type='button';trigger.className='fav-btn primary';trigger.id='shootingCandidatesOpen';trigger.onclick=showCandidateList;
   const toggle=document.createElement('button');toggle.type='button';toggle.className='chip';toggle.id='shootingPins';toggle.setAttribute('role','switch');toggle.setAttribute('aria-label','候補ピンを地図に表示');toggle.textContent='候補ピン';toggle.onclick=()=>{pinsOn=!pinsOn;store.set('sorami.candidatePins',pinsOn);updateCandidateUI();SkyMapUI?.redraw?.();};
   controls.append(trigger,toggle);box.append(controls);
-  const alignment=document.createElement('div');alignment.className='alignment-controls';
-  const mountain=aimIsMountain(t),parts=t.parts||[],whole=parts.length>0&&!mountain;
-  const part=document.createElement('select');part.className='fav-in';part.setAttribute('aria-label','重ねる対象の部位');part.replaceChildren(...parts.map(p=>new Option(`${p.name} ${Math.round(p.m-(t.groundM||0))}m`,p.id)),...(whole?[new Option(t.wholeLabel||'建物全体に重なる','__whole')]:[]));part.value=s.partId??parts[0]?.id??'';part.hidden=parts.length+(whole?1:0)<2;
-  part.onchange=()=>SkyMapUI?.setAlignment?.(part.value||null,s.limb||'center','limb');alignment.append(part);
-  const limbs=document.createElement('div');limbs.className='aim-limb';limbs.setAttribute('role','group');limbs.setAttribute('aria-label','天体のどこを合わせるか');limbs.hidden=s.partId==='__whole';
-  for(const l of AstroNotesBodies.definition(s.body)?.limbs?AstroNotesAlign.LIMBS:AstroNotesAlign.LIMBS.filter(l=>l.id==='center')){
-   const button=document.createElement('button');button.type='button';button.disabled=!AstroNotesBodies.definition(s.body)?.limbs;const on=s.matchMode!=='overlap'&&s.limb===l.id;button.setAttribute('aria-pressed',String(on));button.setAttribute('aria-label',aimLimbSay(l.id,mountain,s.body));button.innerHTML=aimLimbFigure(l.sign,mountain,`skyLimbMask-${l.id}`)+`<span>${esc(l.name)}</span>`;button.onclick=()=>SkyMapUI?.setAlignment?.(s.partId,l.id,on?'overlap':'limb');limbs.append(button);
-  }
-  alignment.append(limbs);el('skyMapAlignmentControls').replaceChildren(alignment);
+  el('skyMapAlignmentControls').replaceChildren();
   const status=document.createElement('p');status.className='tiny';status.id='shootingCandidateStatus';status.setAttribute('role','status');
   const overlap=document.createElement('p');overlap.className='tiny shooting-overlap';overlap.id='shootingOverlap';overlap.setAttribute('role','status');box.append(status,overlap);
 

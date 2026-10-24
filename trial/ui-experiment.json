@@ -1,18 +1,5 @@
 {
-  "name": "探すの重ね方・予定保存・条件要約",
+  "name": "探すの改善は本番採用済み",
   "baseCommit": "9dde54414fb3d6f01fc2b0902d5a6732b164d517",
-  "files": {
-    "astronotes-explore.js": {
-      "root": "a37923e5c51c152fc2883e2eeffdac954447310e08ff7769b8e889f69f8110f8",
-      "trial": "7b495c9578b138a1affbb1bc623e518d27be2f70fd1ffcb6b7777860be7328ce"
-    },
-    "astronotes-myplaces.js": {
-      "root": "9cc1eea22bcb834a282e6908fa8b0e3500e3c450676dd465158c40dda802c137",
-      "trial": "8e3a84b94b1d557a585a1787c98170c8a85c76fa5375b88d4d32a434750ee55a"
-    },
-    "astronotes-plan.js": {
-      "root": "128feeae151b1640ca3c7d96a06526b2c06972580f012245ec9aa0b4213a9ca2",
-      "trial": "f621baa5bd0ecb06e5afa58aff7b8e4b4190e0036e3dc35cc80f0840565b6e1d"
-    }
-  }
+  "files": {}
 }
