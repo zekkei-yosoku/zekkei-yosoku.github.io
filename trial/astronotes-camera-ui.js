@@ -14,21 +14,11 @@ function read(s){return {interval:Number(s.box.querySelector('[name=interval]').
 function durationText(seconds){const value=Math.round(seconds*100)/100,h=Math.floor(value/3600),m=Math.floor(value%3600/60),sec=Number((value%60).toFixed(2));return (h?h+'時間':'')+(m?m+'分':'')+(sec||(!h&&!m)?sec+'秒':'');}
 function summaryText(v){const r=T().summary(v);return `最終撮影まで ${durationText(r.duration)} ・ 動画 ${durationText(r.video)}`+(v.count>61?'（図は61点に間引き表示）':'');}
 function changed(s,{activate=false}={}){try{const v=read(s);T().summary(v);s.config=v;s.host._timelapseConfig=v;if(activate)s.on=true;s.summary.textContent=summaryText(v);redraw(s);return true;}catch(e){s.on=false;s.config=null;s.host._timelapseConfig=null;const v=read(s);s.summary.textContent=!Number.isFinite(v.interval)||v.interval<.1||v.interval>3600?'撮影間隔は0.1〜3600秒で入力してください。':!Number.isInteger(v.count)||v.count<2||v.count>10000?'撮影枚数は2〜10000枚で入力してください。':(v.count-1)*v.interval>129600?'撮影時間が36時間以内になるよう、間隔か枚数を減らしてください。':'動画のフレームレートを選び直してください。';redraw(s);return false;}}
-function sceneExpansion(host,figure){
- if(figure.querySelector('.trial-scene-expand'))return;
- const b=document.createElement('button');b.type='button';b.className='trial-scene-expand';b.innerHTML='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M4 4l5 5M15 4h5v5m0-5-5 5M4 15v5h5m-5 0 5-5M15 20h5v-5m0 5-5-5"/></svg>';figure.append(b);
- const set=on=>{host._full=on;figure.classList.toggle('trial-scene-wide',on);host._fullH=on?Math.max(200,innerHeight-(document.querySelector('#skyMapView .sky-map-footer')?.offsetHeight||parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sky-footer-h'))||100)):null;b.querySelector('path').setAttribute('d',on?'M9 4v5H4m5 0L4 4m11 0v5h5m-5 0 5-5M4 15h5v5m0-5-5 5m16-5h-5v5m0-5 5 5':'M4 9V4h5M4 4l5 5M15 4h5v5m0-5-5 5M4 15v5h5m-5 0 5-5M15 20h5v-5m0 5-5-5');b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-label',on?'見え方の全画面表示を終了':'見え方を全画面表示');b.title=b.getAttribute('aria-label');if(host.isConnected&&!host.closest('[hidden]')&&host._lookSpec)root.aimLookRender(host,host._lookSpec);};
- b.onclick=()=>set(!host._full);b.setAttribute('aria-label','見え方を全画面表示');b.setAttribute('aria-pressed','false');
- document.addEventListener('keydown',e=>{if(e.key==='Escape'&&host._full&&!document.querySelector('dialog[open]')){e.preventDefault();set(false);}});
- root.addEventListener('resize',()=>{if(host._full)set(true);});root.addEventListener('hashchange',()=>{if(host._full)set(false);});
- document.querySelector('#exploreMapTab')?.addEventListener('click',()=>{if(host._full)set(false);});
- new MutationObserver(()=>{if(host._full&&(!figure.isConnected||host.closest('[hidden]')))set(false);}).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden']});
-}
 function mapToolbar(){const row=document.querySelector('#skyMapShareRow'),wrap=document.querySelector('#skyMapCanvas')?.closest('.mapwrap');if(row&&wrap&&row.nextElementSibling!==wrap)wrap.before(row);const keep=row?.querySelector('[data-plan-action=keep]'),send=row?.querySelector('[data-plan-action=share]');if(keep&&send&&keep.nextElementSibling!==send)row.insertBefore(keep,send);}
 function arrange(host){
- const figure=host.querySelector('.aim-look-figure');if(!figure)return;sceneExpansion(host,figure);mapToolbar();let tools=host.querySelector('.trial-scene-toolbar');
+ const figure=host.querySelector('.aim-look-figure');if(!figure)return;const center=host.querySelector('.preview-center');if(center){center.classList.add('trial-scene-center');if(center.parentElement!==figure)figure.append(center);}mapToolbar();let tools=host.querySelector('.trial-scene-toolbar');
  if(!tools){tools=document.createElement('div');tools.className='trial-scene-toolbar';tools.setAttribute('role','group');tools.setAttribute('aria-label','見え方の操作');figure.before(tools);}
- let slot=0;for(const sel of ['.trial-timelapse-toggle','[data-camera-settings]','.preview-center','.aim-figure-share']){const el=host.querySelector(sel);if(el){if(tools.children[slot]!==el)tools.insertBefore(el,tools.children[slot]||null);slot++;}}
+ let slot=0;for(const sel of ['.trial-timelapse-toggle','[data-camera-settings]','.aim-figure-share']){const el=host.querySelector(sel);if(el){if(tools.children[slot]!==el)tools.insertBefore(el,tools.children[slot]||null);slot++;}}
  const share=tools.querySelector('.aim-figure-share'),keep=share?.querySelector('[data-plan-action=keep]'),send=share?.querySelector('[data-plan-action=share]');if(keep&&send&&keep.nextElementSibling!==send)share.insertBefore(keep,send);
 }
 function mount(host,{owner,token}){
