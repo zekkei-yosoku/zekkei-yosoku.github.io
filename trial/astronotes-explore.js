@@ -13,6 +13,12 @@ const sceneTab=node('button',{id:'exploreSceneTab',type:'button'},'見え方'),m
 const scene=node('section',{id:'exploreScenePanel'}),map=node('section',{id:'exploreMapPanel'}),status=node('p',{className:'tiny',id:'exploreSceneStatus'});
 for(const [tab,pane] of [[sceneTab,scene],[mapTab,map]]){tab.setAttribute('role','tab');tab.setAttribute('aria-controls',pane.id);pane.setAttribute('role','tabpanel');pane.setAttribute('aria-labelledby',tab.id);tabs.append(tab);}
 status.setAttribute('role','status');const retry=node('button',{type:'button',className:'chip',hidden:true},'再試行');retry.onclick=()=>sync(true);scene.append(status,retry);
+const skyInfo=node('p',{id:'exploreSkyInfo',className:'tiny explore-sky-info',hidden:true});let skyInfoKey='';
+function updateSkyInfo(s){
+ if(!s?.observer||!Number.isFinite(s.at)){skyInfoKey='';skyInfo.hidden=true;skyInfo.textContent='';return;}
+ const o={latitude:s.observer.latitude,longitude:s.observer.longitude,elevation:(s.ground??s.observer.groundManualM??0)+(s.eyeM??1.5)},key=JSON.stringify([s.body,Math.floor(s.at/60000),o]);if(key===skyInfoKey)return;skyInfoKey=key;
+ try{let text='';if(s.body==='moon'){const moon=AstroNotesAstro.moon(s.at,o);text=moonGlyphAt(s.at,o)+' 輝面 '+Math.round(moon.illuminatedFraction*100)+'% ・ '+esc(lightTimingText(s.at,o));}else if(!AstroNotesBodies.definition(s.body).limbs){text=esc(AstroNotesBodies.sky(AstroNotesAstro.sun(s.at,o).geometricAltitude));}skyInfo.innerHTML=text;skyInfo.hidden=!text;}catch{skyInfoKey='';skyInfo.hidden=true;skyInfo.textContent='';}
+}
 function stamp(s){return JSON.stringify([authGeneration,s.body,s.target,s.observer,s.ground,s.eyeM,s.partId,s.limb,s.matchMode,AstroNotesSkyMap.dayStart(s.at),aimAirSettings.mode,AstroNotesAtmosphere.dataKey?.()]);}
 // 日付だけが変わったときは、前の見え方を出したまま描き直す（2026-10-22 ユーザー「ブラックアウトして全て再読み込みするのはやめて必要な箇所だけの更新で」）
 function baseStamp(s){return JSON.stringify([authGeneration,s.body,s.target,s.observer,s.ground,s.eyeM,s.partId,s.limb,s.matchMode,aimAirSettings.mode]);}
@@ -51,7 +57,7 @@ function menu(){
 }
 function mount(){
  if(mounted)return;mounted=true;heightWasOpen=$('skyMapObserverDetails').open;$('skyMapObserverDetails').open=false;mapView.classList.add('explore-mounted');heightFields=node('div',{id:'exploreHeightFields'});const heights=$('skyMapObserverDetails');for(const row of heights.querySelectorAll('.aim-observer-height')){const value=node('div',{className:'explore-height-value'}),input=row.querySelector('input'),unit=row.querySelector('span');input.before(value);value.append(input,unit);heightFields.append(row);}heights.insertBefore(heightFields,$('skyMapHeightError'));
- const candidates=mapView.querySelector('.sky-map-candidates');candidates.after(tabs,scene,map);
+ const candidates=mapView.querySelector('.sky-map-candidates');candidates.after(skyInfo,tabs,scene,map);
  conditions=node('details',{id:'exploreConditions',className:'explore-conditions',open:true});const summary=node('summary');summary.append(node('span',{id:'exploreConditionTitle'}),node('span',{id:'exploreConditionDetail'}),node('span',{className:'explore-condition-edit'},'条件を編集'));conditions.append(summary);
  const controls=mapView.querySelector('.sky-map-controls'),observer=$('skyMapChoose').closest('.aim-say-from'),alignment=$('skyMapAlignmentDetails');conditionHomes=[controls,observer,alignment].map(n=>({n,parent:n.parentNode,next:n.nextSibling}));controls.before(conditions);const fields=node('div',{className:'explore-condition-fields'});fields.append(controls,observer,alignment);conditions.append(fields);
  const confirm=node('button',{id:'exploreShowResult',type:'button',className:'chip explore-show-result'},'結果を確認');confirm.onclick=showResult;fields.append(confirm);conditions.addEventListener('toggle',()=>{summary.querySelector('.explore-condition-edit').textContent=conditions.open?'条件を閉じる':'条件を編集';});
@@ -75,7 +81,7 @@ function unmount(){
  for(const child of aimChildren)aimView.append(child);
  buffer.remove();workspaceHome.parent.insertBefore(workspaceHome.node,workspaceHome.next?.parentNode===workspaceHome.parent?workspaceHome.next:null);aimHome.parent.insertBefore(aimView,aimHome.next?.parentNode===aimHome.parent?aimHome.next:null);
  aimView.hidden=!atAim;$('previewScene').setAttribute('role','tabpanel');$('previewScene').setAttribute('aria-labelledby','previewSceneTab');
- tabs.remove();scene.remove();map.remove();mapView.classList.remove('explore-mounted');$('skyMapTitle').textContent='地図';
+ skyInfo.remove();updateSkyInfo(null);tabs.remove();scene.remove();map.remove();mapView.classList.remove('explore-mounted');$('skyMapTitle').textContent='地図';
 }
 function choose(next,focus=false){
  mode=next==='map'?'map':'scene';
@@ -96,7 +102,7 @@ function reserveScene(){const h=scene.getBoundingClientRect().height;if(h>0)scen
 function message(text){status.textContent=text;status.hidden=!text;retry.hidden=!text.includes('再試行');}
 async function paint(force=false){
  if(!active())return;updateConditions();let s;
- try{s=snapshot();}catch{invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message(SkyMapUI.snapshot()?.observer?'対象と日時を選ぶと見え方を確認できます':'撮影地点を選ぶと見え方を確認できます');return;}
+ try{s=snapshot();updateSkyInfo(s);}catch{updateSkyInfo(null);invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message(SkyMapUI.snapshot()?.observer?'対象と日時を選ぶと見え方を確認できます':'撮影地点を選ぶと見え方を確認できます');return;}
  const key=stamp(s);
  if(mode!=='scene'){if(frameKey&&frameKey!==key)invalidate();return;}
  if(!canFrame(s)){invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message('この条件の見え方を利用する権限がありません');return;}

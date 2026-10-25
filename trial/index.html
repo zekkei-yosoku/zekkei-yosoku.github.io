@@ -13,7 +13,7 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="7685460270358085545">
+<meta name="app-version" content="1664005583189423621">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-op7jWoUuik8UIO+Du4RM3GZbwVQpgJcJnEFhY8DX700=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-lbpjSlvW5YyUFzOM9VaUyUfjAeoX5IResBwsWh06shk=' 'sha256-FK5ZIiK0bsUrar0xtnxOXznE9BLxUz1v/smDEc/AOig=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-vKtoN1pKZP276RC3xh0RdrZyYAccJhFvPhnmSrNtmn8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
@@ -58,7 +58,7 @@
 <link data-script-preload rel="preload" as="script" href="astronotes-moon.js?v=6882039214904825134">
 <link data-script-preload rel="preload" as="script" href="astronotes-scroll-timeline.js?v=8753142350484650364">
 <link data-script-preload rel="preload" as="script" href="astronotes-datetime-ui.js?v=14645734646558097245">
-<link data-script-preload rel="preload" as="script" href="astronotes-explore.js?v=4141878725922965114">
+<link data-script-preload rel="preload" as="script" href="astronotes-explore.js?v=9489316312665375286">
 <link data-script-preload rel="preload" as="script" href="astronotes-myplaces.js?v=10205395523270778570">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
@@ -1272,6 +1272,9 @@ html:has(.trial-scene-wide),body:has(.trial-scene-wide){overflow:hidden}
 #skyMapView.explore-mounted #skyMapShareRow #shootingPins{grid-column:1 / 4;justify-self:start}
 #skyMapView.explore-mounted #skyMapShareRow [data-plan-action=keep]{grid-column:4;grid-row:1}
 #skyMapView.explore-mounted #skyMapShareRow [data-plan-action=share]{grid-column:5;grid-row:1}
+
+#skyMapView.explore-mounted .explore-sky-info{margin:4px 0 6px;line-height:1.5;color:var(--secondary)}
+#skyMapView.explore-mounted #aimLook [data-look-light]{display:none!important}
 
 </style>
 <script>(()=>{const root=document.documentElement,meta=document.querySelector('meta[name="theme-color"]');const sync=()=>{meta.content=getComputedStyle(root).getPropertyValue('--header-bg').trim();};sync();new MutationObserver(sync).observe(root,{attributes:true,attributeFilter:['data-theme']});})();</script>
@@ -14159,7 +14162,7 @@ ctx.lineWidth=1;
 })();</script>
 
 
-<script src="astronotes-explore.js?v=4141878725922965114"></script>
+<script src="astronotes-explore.js?v=9489316312665375286"></script>
 <script id="startupPreference">
 // A local device preference; explicit links always take precedence.
 (() => {
