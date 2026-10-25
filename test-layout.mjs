@@ -3163,7 +3163,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
     && /note\.textContent = shape \? "" : "稜線を読み込めませんでした";/.test(html), "図の下に説明を出さない（稜線の読込中・失敗時だけ）");
   ok(/const groundEdge = mountain \? toPx\(proj\(az, 0\)\)\[1\] : \(hiddenY !== null \? Math\.min\(hiddenY, baseY\) : baseY\);/.test(html) && !/globalAlpha = 0\.45; outlinePath/.test(html),
     "形の材料で見えない所は薄い形を描かず、地面の帯をその高さまで上げる（ユーザー「このグレーの下の部分って表示しなくて良い」）");
-  ok(/円盤は形の後ろ（形で隠れる）/.test(html) && /ctx\.setLineDash\(\[3, 3\]\)/.test(html), "円盤は形の後ろ、隠れた所は点線の輪");
+  ok(/円盤は形の後ろ（形で隠れる）/.test(html) && !/ctx\.ellipse\(c\[0\],diskCenter,rPx,[^;]+; ctx\.stroke\(\)/.test(html), "円盤は形の後ろに描き、縁に点線を重ねない");
   ok(/ctx\.fillStyle = "#020306";/.test(html) && /const rim = "rgba\(200,212,240,0\.28\)";/.test(html) && /mask\.rimCanvas/.test(html),
     "形と明るい輪郭は時刻から独立し、暗い空でも区別できる（ぼかさず固定して再利用）");
   // 2026-10-03: 画面外の天体で時刻が見切れるため、時刻は図の下のoutputへ統一。

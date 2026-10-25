@@ -1,16 +1,5 @@
 {
-  "name": "初見導線と図右上の中央配置",
-  "baseCommit": "119fc0002e414f55373e59bd11601980e1485eb2",
-  "rootHtmlSha256": "734f757c5407e927bcaae61cf9e90fb13ffc6d9162263dd3b0d0d1e542f4fddc",
-  "trialHtmlSha256": "52981e25c6743ce1751892bd8d5a13287fa2c5631d9ce4014a59ef7b904b5e0f",
-  "files": {
-    "astronotes-camera-ui.js": {
-      "root": "c528d6c7d8cb808c1ba6b8916ce8fae56c04ab810e46f3c1642957fd1e704743",
-      "trial": "eb3ad992b48ed8b3729f09b19298ff27d1edd85704189bb166b23b02f2351d90"
-    },
-    "astronotes-explore.js": {
-      "root": "83b0d2e8e9bd42368f0f7e3d0636718988f57f10ff2687ad77bbd37f026d23d7",
-      "trial": "ba5df7bf9cdd7ecdc372c1102466589e9f95e7944a3d8a4cb9c20c7937d45112"
-    }
-  }
+  "name": "初見導線・中央配置・歯車・天体輪郭は全て本番採用済み",
+  "baseCommit": "7307d8bccb0762b79594838f0e2b9d8339314632",
+  "files": {}
 }

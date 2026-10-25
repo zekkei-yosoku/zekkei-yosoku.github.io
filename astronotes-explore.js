@@ -35,13 +35,13 @@ function conditionText(s){
  return {title:body+' × '+target,detail:(s?.observer?.name||'撮影地点を選ぶ')+(height?' · '+height:'')+(s?.target?' · '+alignment:'')};
 }
 function updateConditions(){
- if(!mounted||!conditions)return;const s=SkyMapUI.snapshot(),text=conditionText(s);
+ if(!mounted||!conditions)return;const s=SkyMapUI.selectionState(),text=conditionText(s);
  for(const [id,value] of [['exploreConditionTitle',text.title],['exploreConditionDetail',text.detail]])if($(id).textContent!==value)$(id).textContent=value;
- $('exploreShowResult').disabled=!s?.observer||!s?.target;
+ const confirm=$('exploreShowResult');confirm.disabled=false;confirm.textContent=!s?.target?'対象を選ぶ':!s?.observer?'撮影地点を選ぶ':'結果を確認';
  for(const b of mapView.querySelectorAll('[data-plan-action="keep"]')){b.hidden=!toolAllowed('records');b.disabled=b.dataset.planSource==='skymap'?!!$('skyMapShareRow').querySelector('[data-plan-action="share"]')?.disabled:!!pendingKey||!frameKey||look.hidden;}
 }
 function showResult(){
- if(!mounted||$('exploreShowResult').disabled)return;conditions.open=false;
+ if(!mounted)return;const selected=SkyMapUI.selectionState();if(!selected?.target){$('skyMapTargetOpen').click();return;}if(!selected?.observer){$('skyMapChoose').click();return;}conditions.open=false;
  const tab=mode==='map'?mapTab:sceneTab;tab.focus({preventScroll:true});tabs.style.scrollMarginTop=(conditions.getBoundingClientRect().height+12)+'px';tabs.scrollIntoView({block:'start',behavior:'auto'});if(mode==='scene')sync();
 }
 function addSaveAction(row,source){
@@ -102,7 +102,7 @@ function reserveScene(){const h=scene.getBoundingClientRect().height;if(h>0)scen
 function message(text){status.textContent=text;status.hidden=!text;retry.hidden=!text.includes('再試行');}
 async function paint(force=false){
  if(!active())return;updateConditions();let s;
- try{s=snapshot();updateSkyInfo(s);}catch{updateSkyInfo(null);invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message(SkyMapUI.snapshot()?.observer?'対象と日時を選ぶと見え方を確認できます':'撮影地点を選ぶと見え方を確認できます');return;}
+ try{s=snapshot();updateSkyInfo(s);}catch{updateSkyInfo(null);invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message(!SkyMapUI.selectionState()?.target?'対象を選ぶと見え方を確認できます':'撮影地点を選ぶと見え方を確認できます');return;}
  const key=stamp(s);
  if(mode!=='scene'){if(frameKey&&frameKey!==key)invalidate();return;}
  if(!canFrame(s)){invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message('この条件の見え方を利用する権限がありません');return;}
