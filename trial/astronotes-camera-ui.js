@@ -14,8 +14,19 @@ function redraw(s){s.cache=null;sync(s,s.host._lookAt);s.host._redrawLook?.();}
 function fill(s,v){s.box.querySelector('[name=interval]').value=v.interval;s.box.querySelector('[name=count]').value=v.count;s.box.querySelector('select').value=String(v.fps);}
 function read(s){return {interval:Number(s.box.querySelector('[name=interval]').value),count:Number(s.box.querySelector('[name=count]').value),fps:Number(s.box.querySelector('select').value)};}
 function changed(s,{activate=false}={}){try{const v=read(s),r=T().summary(v);s.config=v;s.host._timelapseConfig=v;if(activate)s.on=true;s.summary.textContent=`最初から最後まで ${Number(r.duration.toFixed(2))}秒 ・ 完成動画 ${Number(r.video.toFixed(2))}秒`;redraw(s);return true;}catch(e){s.on=false;s.config=null;s.host._timelapseConfig=null;s.summary.textContent=e.message;redraw(s);return false;}}
+function sceneExpansion(host,figure){
+ if(figure.querySelector('.trial-scene-expand'))return;
+ const b=document.createElement('button');b.type='button';b.className='trial-scene-expand';b.innerHTML='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M4 4l5 5M15 4h5v5m0-5-5 5M4 15v5h5m-5 0 5-5M15 20h5v-5m0 5-5-5"/></svg>';figure.append(b);
+ const set=on=>{host._full=on;figure.classList.toggle('trial-scene-wide',on);host._fullH=on?Math.max(200,innerHeight-(document.querySelector('#skyMapView .sky-map-footer')?.offsetHeight||parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sky-footer-h'))||100)):null;b.querySelector('path').setAttribute('d',on?'M9 4v5H4m5 0L4 4m11 0v5h5m-5 0 5-5M4 15h5v5m0-5-5 5m16-5h-5v5m0-5 5 5':'M4 9V4h5M4 4l5 5M15 4h5v5m0-5-5 5M4 15v5h5m-5 0 5-5M15 20h5v-5m0 5-5-5');b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-label',on?'見え方の全画面表示を終了':'見え方を全画面表示');b.title=b.getAttribute('aria-label');if(host.isConnected&&!host.closest('[hidden]')&&host._lookSpec)root.aimLookRender(host,host._lookSpec);};
+ b.onclick=()=>set(!host._full);b.setAttribute('aria-label','見え方を全画面表示');b.setAttribute('aria-pressed','false');
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&host._full&&!document.querySelector('dialog[open]')){e.preventDefault();set(false);}});
+ root.addEventListener('resize',()=>{if(host._full)set(true);});root.addEventListener('hashchange',()=>{if(host._full)set(false);});
+ document.querySelector('#exploreMapTab')?.addEventListener('click',()=>{if(host._full)set(false);});
+ new MutationObserver(()=>{if(host._full&&(!figure.isConnected||host.closest('[hidden]')))set(false);}).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden']});
+}
+function mapToolbar(){const row=document.querySelector('#skyMapShareRow'),wrap=document.querySelector('#skyMapCanvas')?.closest('.mapwrap');if(row&&wrap&&row.nextElementSibling!==wrap)wrap.before(row);const keep=row?.querySelector('[data-plan-action=keep]'),send=row?.querySelector('[data-plan-action=share]');if(keep&&send&&keep.nextElementSibling!==send)row.insertBefore(keep,send);}
 function arrange(host){
- const figure=host.querySelector('.aim-look-figure');if(!figure)return;let tools=host.querySelector('.trial-scene-toolbar');
+ const figure=host.querySelector('.aim-look-figure');if(!figure)return;sceneExpansion(host,figure);mapToolbar();let tools=host.querySelector('.trial-scene-toolbar');
  if(!tools){tools=document.createElement('div');tools.className='trial-scene-toolbar';tools.setAttribute('role','group');tools.setAttribute('aria-label','見え方の操作');figure.before(tools);}
  let slot=0;for(const sel of ['.trial-timelapse-toggle','[data-camera-settings]','.preview-center','.aim-figure-share']){const el=host.querySelector(sel);if(el){if(tools.children[slot]!==el)tools.insertBefore(el,tools.children[slot]||null);slot++;}}
  const share=tools.querySelector('.aim-figure-share'),keep=share?.querySelector('[data-plan-action=keep]'),send=share?.querySelector('[data-plan-action=share]');if(keep&&send&&keep.nextElementSibling!==send)share.insertBefore(keep,send);
@@ -49,5 +60,5 @@ function drawRange(host,ctx,{at,seq,k,toPx,pack,disc}){
 }
 function stop(){} // Static overlay has no playback clock to stop.
 function invalidate(host){const s=states.get(host);if(s)s.cache=null;}
-const api={mount,drawRange,stop,invalidate,indices};root.AstroNotesCameraUI=api;if(typeof module==='object'&&module.exports)module.exports=api;
+const api={mount,drawRange,mapToolbar,stop,invalidate,indices};root.AstroNotesCameraUI=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(globalThis);
