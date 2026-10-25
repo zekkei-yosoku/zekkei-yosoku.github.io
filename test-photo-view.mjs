@@ -87,7 +87,7 @@ test("山でも基準線に吸着・離脱し、構図の移動・復帰は時�
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf('  const move = host.querySelector("[data-lens-move]")'),b=html.indexOf('  cur = timeIndex(selectedAt); draw(cur);',a);
  let draws=0,prevented=0,clears=0;const move={setAttribute:()=>{}},center={},hint={},host={_lensMoving:true,_pick:null,querySelector:q=>q.includes("hint")?hint:q.includes("center")?center:move};
  const cv={addEventListener(){},style:{},setPointerCapture:()=>{}},cur=43,W=316,H=284,k=10,frame={halfW:5,halfH:6};
- const c=vm.createContext({aimLookKey:()=>'test',aim:{},AstroNotesBodies:globalThis.AstroNotesBodies,panLimit:1,host,cv,cur,W,H,k,frame,hiddenY:null,baseY:220,groundEdge:220,mountain:true,navigator:{vibrate:()=>{}},Math,draw:()=>draws++,aimLookRender:()=>{},aimReverseClear:()=>clears++,spec:{}});vm.runInContext(html.slice(a,b),c);
+ const c=vm.createContext({aimLookKey:()=>'test',aim:{},AstroNotesBodies:globalThis.AstroNotesBodies,panLimit:1,host,cv,cur,W,H,k,frame,hiddenY:null,baseY:220,groundEdge:220,mountain:true,az:0,proj:()=>[0,0],toPx:()=>[0,202],navigator:{vibrate:()=>{}},Math,draw:()=>draws++,aimLookRender:()=>{},aimReverseClear:()=>clears++,spec:{}});vm.runInContext(html.slice(a,b),c);
  cv.onpointerdown({clientX:100,clientY:100,pointerId:1});cv.onpointermove({pointerId:1,clientX:150,clientY:120});cv.onpointerup();
  assert.ok(host._lensOffset[0]>0);assert.ok(host._lensOffset[1]>0);assert.equal(c.cur,43);assert.equal(host._pick,null);
  cv.onkeydown({key:"ArrowLeft",preventDefault:()=>prevented++});assert.equal(prevented,1);center.onclick();assert.deepEqual(Array.from(host._lensOffset),[0,0]);assert.ok(draws>=3);
@@ -311,7 +311,7 @@ test("常時panは枠なしでも四方向に動き、tapとdragを分け、終�
  for(const frame of [null,{halfH:6}]){
   let taps=0,changes=0,draws=0;const move={setAttribute(){}},center={},hint={},host={_pick:null,_lensOffset:[0,0],querySelector:q=>q.includes("hint")?hint:q.includes("center")?center:move};
   const cv={addEventListener(){},style:{},onclick:()=>taps++,setPointerCapture(){},dispatchEvent(){changes++}};
-  const c=vm.createContext({host,cv,frame,panLimit:1,W:300,H:300,k:10,groundEdge:frame?214:250,cur:43,navigator:{},Math,Event,Map,aimLookRender(){},aimReverseClear(){},draw:()=>draws++,spec:{}});
+  const c=vm.createContext({host,cv,frame,panLimit:1,W:300,H:300,k:10,groundEdge:frame?214:250,az:0,proj:()=>[0,0],toPx:()=>[0,frame?210:288],cur:43,navigator:{},Math,Event,Map,aimLookRender(){},aimReverseClear(){},draw:()=>draws++,spec:{}});
   vm.runInContext(code,c);
   assert.equal(cv.style.touchAction,"pan-y");assert.equal(host._lensMoving,false);assert.equal(center.disabled,false);
   for(const [x,y] of [[60,0],[-60,0],[0,60],[0,-60]]){

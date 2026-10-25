@@ -453,7 +453,7 @@ console.log("== 使われていない見た目の決まりを残さない ==");
   const classes = new Set([...css.replace(/url\([^)]*\)/g, "").matchAll(/\.([A-Za-z][A-Za-z0-9_-]+)/g)].map((m) => m[1]));
   const tokens = new Set(INTERPOLATED);
   for (const m of rest.matchAll(/class="([^"]*)"/g)) for (const t of m[1].split(/[\s${}()|?:+"'`]+/)) if (t) tokens.add(t);
-  for (const m of rest.matchAll(/classList\.(?:add|remove|toggle|contains)\("([^"]+)"/g)) tokens.add(m[1]);
+  for (const m of rest.matchAll(/classList\.(?:add|remove|toggle|contains)\(["']([^"']+)["']/g)) tokens.add(m[1]);
   for (const m of rest.matchAll(/querySelectorAll?\("\.([A-Za-z][\w-]+)/g)) tokens.add(m[1]);
   for (const m of rest.matchAll(/className\s*=\s*[\"\']([^\"\']*)[\"\']/g)) for (const t of m[1].split(/\s+/)) if (t) tokens.add(t);
   for(const m of rest.matchAll(/className:\s*['"]([^'"]*)['"]/g))for(const t of m[1].split(/\s+/))if(t)tokens.add(t);

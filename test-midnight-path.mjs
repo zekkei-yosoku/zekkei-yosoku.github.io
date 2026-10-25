@@ -7,11 +7,11 @@ test('frameDayPath は前日・翌日へ広げられ、既定はその日の0〜
  const d=Al.frameDayPath('moon',obs,day,proj);assert.equal(d[0].at,day);assert.equal(d.at(-1).at,day+86400000);
  const w=Al.frameDayPath('moon',obs,day,proj,{startMs:day-6*3600000,endMs:day+30*3600000});assert.equal(w[0].at,day-6*3600000);assert.equal(w.at(-1).at,day+30*3600000);
 });
-test('図は見ている時刻を含む1本の通り道だけを前日・翌日へつなげて描き、画角内は前日・翌を付けて書く',()=>{
+test('図は見ている時刻の通り道を日境界へつなげ、旧画角内時間の表示は撤去',()=>{
  assert.match(html,/const fullPath = \[\.\.\.pathBefore, \.\.\.path, \.\.\.pathAfter\];/);
  assert.match(html,/const run = runAt\(p\.at\)/);assert.match(html,/for \(const q of run \? fullPath\.slice\(run\[0\], run\[1\] \+ 1\) : path\)/);
  assert.match(html,/startMs: frameDay - 6 \* 3600000, endMs: frameDay \+ 30 \* 3600000/);
- assert.match(html,/t < frameDay \? "前日" : t >= dayEnd \? "翌日" : ""/);assert.doesNotMatch(html,/"24:00まで枠内"|"0:00時点で枠内"/);
+ assert.match(html,/times.hidden = true/);assert.doesNotMatch(html,/"24:00まで枠内"|"0:00時点で枠内"/);
 });
 test('構図の図の操作で触っていない部品を動かさない（2026-10-20 ユーザー「なんで触ってないボタンがズレるの?」）',()=>{
  const c=fs.readFileSync(new URL('./astronotes-flair.css',import.meta.url),'utf8');
@@ -24,12 +24,12 @@ test('旧逆算（1点を解く）は切り替え1つで止め、処理は残す
  assert.match(html,/function aimReverseClear\(/,'逆算の処理は残す');
  assert.match(fs.readFileSync(new URL('./astronotes-flair.css',import.meta.url),'utf8'),/#aimLook \[data-look-pick\]\[hidden\]\{display:none!important\}/);
 });
-test('図は直接panでき、図内は撮影設定と中央復帰。大気差は通常画面（2026-10-22 最新指示）',()=>{
+test('図は直接panでき、操作は図上の共通ツールバー。大気差は通常画面',()=>{
  assert.match(html,/center\.setAttribute\('aria-label','構図を中央に戻す'\)/);
- assert.match(html,/settings\.setAttribute\('aria-label','撮影設定'\)/);
+ assert.match(html,/settings\.setAttribute\('aria-label','画角設定'\)/);
  assert.doesNotMatch(html,/expand\.setAttribute\('aria-label','全画面で表示'\)/);
  assert.doesNotMatch(html,/content\.append\(airTitle,airControls\)/);
- assert.match(html,/cv\.style\.touchAction = "pan-y"/);
+ assert.match(html,/cv\.style\.touchAction = host\._full \? "none" : "pan-y"/);
  assert.match(html,/gesture\.suppressClick/);
 });
 test('天体の位置調整と逆算入口を撤去し、Undoと残像を出さない（2026-10-22 最新指示）',()=>{
