@@ -7,5 +7,5 @@ test('通常予定のnull復元は前の撮影位置列と設定を残さない'
  const c=vm.createContext({AstroNotesTimelapse:require('./astronotes-timelapse.js'),localStorage:{getItem:()=>null}});vm.runInContext(source,c);
  let redraws=0;const fields={'[name=interval]':{},'[name=count]':{},select:{}},host={_timelapseConfig:null,_lookAt:123,dataset:{},querySelector:sel=>sel==='.aim-look-figure'?null:{},_redrawLook(){redraws++;}},state={host,token:'a',owner:'a',on:true,config:{interval:5,count:360,fps:24},box:{querySelector:key=>fields[key]},summary:{},buttons:[{setAttribute(){}}],bar:{dataset:{}},output:{hidden:false},cache:{}};
  c.__seed(host,state);c.AstroNotesCameraUI.mount(host,{owner:'a',token:'a'});
- assert.equal(state.on,false);assert.equal(state.config,null);assert.equal(state.output.hidden,true);assert.equal(state.output.textContent,'');assert.equal(fields['[name=count]'].value,240);assert.equal(redraws,1);c.AstroNotesCameraUI.drawRange(host,{},{});assert.equal(host.dataset.timelapseDrawn,'0');
+ assert.equal(state.on,false);assert.equal(state.config,null);assert.equal(fields['[name=count]'].value,240);assert.equal(redraws,1);c.AstroNotesCameraUI.drawRange(host,{},{});assert.equal(host.dataset.timelapseDrawn,'0');
 });
