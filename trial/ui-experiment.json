@@ -2,11 +2,11 @@
   "name": "タイムラプス撮影幅の静的表示（trial限定）",
   "baseCommit": "928d2b2695dab483806bcd16a4f94af3136d7f98",
   "rootHtmlSha256": "1462de45698b9a37845a91782851f2c7bf8d8edf691b2e45dc52518a217be03a",
-  "trialHtmlSha256": "0036c9f94b0dd7684c17c288afbc118d3f9e3e315bdf87dbd68cb364a8897e07",
+  "trialHtmlSha256": "24f8520c7367852da812dcbfe2b0ce70e8bda56b4b2f9193f1847c8bfb22aa7f",
   "files": {
     "astronotes-camera-ui.js": {
       "root": "0f1a95ad28dced8352bc47dd18f3ae3570f1a41056010722511541e6a836417c",
-      "trial": "7c703dc55ed84bd2ca2ee6575cd213d1c12b34b013a10eeb5b4125458863c0b8"
+      "trial": "88ead9bb2b2fcda808426078a98ebc65443737671687a15c3806dda9b75800f2"
     }
   }
 }
