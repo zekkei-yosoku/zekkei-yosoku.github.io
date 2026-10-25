@@ -26,13 +26,13 @@ function mount(host,{owner,token}){
  passes.textContent=(relevant.length?relevant.slice(0,3).map(r=>`${r.openStart?'探索開始時から枠内':fmt(r.start)+'に入る'}〜${r.openEnd?'探索終了時も枠内':fmt(r.end)+'に外れる'}（${seconds((r.end-r.start)/1000)}）`).join(' / '):`${fmt(snapshot.start)}以降、${fmt(to)}までに天体全体が収まる区間は見つかりません。`)+(first?` ／ ${first}枚目は画角外です。`:' ／ 指定した撮影は全枚数が画角内です。')+(fitCount?` ／ ${v.interval}秒間隔なら${fit.openEnd?'探索範囲内で少なくとも':''}${fitCount}枚まで画角内。`:'')+'（天体全体・地平線より上・計算上の目安）';
  }catch(e){if(ticket===s.cancel)passes.textContent=e.message||'計算できませんでした。再試行してください。';}finally{if(ticket===s.cancel)button.disabled=false;}}
  box.querySelector('[data-tl-analyse]').onclick=analyse;
- play.onclick=()=>{stop(host);try{const v=read();T().summary(v);let a=adapter();a.pauseRealtime();a=adapter();const snap=a.snapshot();s.cancel++;s.running=true;s.original={a,start:snap.start,key:snap.key};host._timelapseConfig=s.config=v;strip.hidden=false;panel.hidden=true;host.querySelector('[data-camera-settings]').setAttribute('aria-expanded','false');host.querySelector('.aim-look-figure').scrollIntoView({block:'nearest'});
+ play.onclick=()=>{stop(host);try{const v=read();T().summary(v);let a=adapter();a.pauseRealtime();a=adapter();const snap=a.snapshot();s.cancel++;s.previewClosing=true;panel.close();s.running=true;s.original={a,start:snap.start,key:snap.key};host._timelapseConfig=s.config=v;strip.hidden=false;host.querySelector('[data-camera-settings]').setAttribute('aria-expanded','false');host.querySelector('.aim-look-figure').scrollIntoView({block:'nearest'});
  const begin=performance.now();let previous=-1;const tick=now=>{if(!s.running)return;if(!a.current()||a.key()!==snap.key||document.hidden){stop(host);return;}const index=Math.min(v.count-1,Math.floor((now-begin)*v.fps/1000));if(index!==previous){const at=snap.start+index*v.interval*1000;a.draw(at);const outside=snap.margin(at)<0?' ・ 画角外':'';strip.querySelector('output').textContent=`${index+1} / ${v.count}枚 ・ ${fmt(at)}${outside}`;previous=index;}
  if(now-begin>=v.count/v.fps*1000){stop(host);return;}s.raf=requestAnimationFrame(tick);};s.raf=requestAnimationFrame(tick);
  }catch(e){summary.textContent=e.message;}};
  strip.querySelector('button').onclick=()=>stop(host);
  const cancel=()=>{s.cancel++;box.querySelector('[data-tl-analyse]').disabled=false;stop(host);};
- panel.addEventListener('camera-close',cancel);
+ panel.addEventListener('camera-close',()=>{if(s.previewClosing){s.previewClosing=false;return;}cancel();});
  document.addEventListener('pointerdown',e=>{if(s.running&&!strip.contains(e.target))stop(host);},true);
  document.addEventListener('keydown',e=>{if(e.key==='Escape')cancel();else if(s.running&&!strip.contains(e.target)&&!box.contains(e.target))stop(host);},true);
  document.addEventListener('visibilitychange',()=>{if(document.hidden)cancel();});
