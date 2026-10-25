@@ -7,7 +7,7 @@ const require=createRequire(import.meta.url),read=name=>readFileSync(new URL(nam
 test('cached HTML legacy assets retain their original bytes and canonical assets exist in root and trial',()=>{
  const {sha256}=JSON.parse(read('legacy-assets.json'));
  const experiments=JSON.parse(read('trial/ui-experiment.json')).files;
- const allowed=new Set(['astronotes-explore.js','astronotes-myplaces.js','astronotes-plan.js']);
+ const allowed=new Set(['astronotes-explore.js','astronotes-myplaces.js','astronotes-plan.js','astronotes-camera-ui.js']);
  const digest=value=>createHash('sha256').update(value).digest('hex');
  for(const [old,hash] of Object.entries(sha256)){
   const name=old.replace(/^sorami-/,'astronotes-');
@@ -15,7 +15,8 @@ test('cached HTML legacy assets retain their original bytes and canonical assets
   if(experiments[name]){assert.equal(digest(read(name)),experiments[name].root,name+' base');assert.equal(digest(read('trial/'+name)),experiments[name].trial,name+' trial');}
   else assert.equal(read(name),read('trial/'+name),name);
  }
- for(const name of Object.keys(experiments)){assert.ok(allowed.has(name),name+' is approved for this trial');assert.ok(sha256[name.replace(/^astronotes-/,'sorami-')],name+' is a canonical legacy successor');}
+ for(const name of Object.keys(experiments)){assert.ok(allowed.has(name),name+' is approved for this trial');assert.ok(sha256[name.replace(/^astronotes-/,'sorami-')]||name==='astronotes-camera-ui.js',name+' is a canonical legacy successor or the approved camera trial');assert.equal(digest(read(name)),experiments[name].root,name+' base');assert.equal(digest(read('trial/'+name)),experiments[name].trial,name+' trial');}
+ const experiment=JSON.parse(read('trial/ui-experiment.json'));if(experiment.rootHtmlSha256){assert.equal(digest(read('index.html')),experiment.rootHtmlSha256);assert.equal(digest(read('trial/index.html')),experiment.trialHtmlSha256);}
  const html=read('index.html');assert.doesNotMatch(html,/(?:src|href)="sorami-[^"]+\.(?:js|css)/);
 });
 test('canonical globals publish legacy aliases with the same value',()=>{
