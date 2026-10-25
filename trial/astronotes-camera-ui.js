@@ -7,15 +7,23 @@ const fpsKey=o=>'astronotes.timelapse.fps:'+encodeURIComponent(o||'guest');
 function loadFps(o){try{const f=Number(localStorage.getItem(fpsKey(o)));return [24,25,30,60].includes(f)?f:24;}catch{return 24;}}
 function sync(s,at){
  for(const b of s.buttons){b.setAttribute('aria-checked',String(s.on));b.textContent=s.on?'ON':'OFF';}
- s.bar.dataset.on=String(s.on);s.bar.hidden=!s.on;s.output.hidden=!s.on;if(s.toggle)s.toggle.setAttribute('aria-checked',String(s.on));
+ s.bar.dataset.on=String(s.on);s.bar.hidden=false;s.output.hidden=false;if(!s.on)s.output.textContent="撮影範囲 OFF";if(s.toggle)s.toggle.setAttribute('aria-checked',String(s.on));
  if(s.on&&T().settings(s.config)&&Number.isFinite(at)){const v=s.config,text=`${fmt(at)} → ${fmt(at+(v.count-1)*v.interval*1000)} ・ ${v.count}枚${v.count>61?'（位置は61点に間引き表示）':''}`;if(s.output.textContent!==text)s.output.textContent=text;}
 }
 function redraw(s){s.cache=null;sync(s,s.host._lookAt);s.host._redrawLook?.();}
 function fill(s,v){s.box.querySelector('[name=interval]').value=v.interval;s.box.querySelector('[name=count]').value=v.count;s.box.querySelector('select').value=String(v.fps);}
 function read(s){return {interval:Number(s.box.querySelector('[name=interval]').value),count:Number(s.box.querySelector('[name=count]').value),fps:Number(s.box.querySelector('select').value)};}
 function changed(s,{activate=false}={}){try{const v=read(s),r=T().summary(v);s.config=v;s.host._timelapseConfig=v;if(activate)s.on=true;s.summary.textContent=`最初から最後まで ${Number(r.duration.toFixed(2))}秒 ・ 完成動画 ${Number(r.video.toFixed(2))}秒`;redraw(s);return true;}catch(e){s.on=false;s.config=null;s.host._timelapseConfig=null;s.summary.textContent=e.message;redraw(s);return false;}}
+function arrange(host){
+ const figure=host.querySelector('.aim-look-figure');if(!figure)return;let tools=host.querySelector('.trial-scene-toolbar');
+ if(!tools){tools=document.createElement('div');tools.className='trial-scene-toolbar';tools.setAttribute('role','group');tools.setAttribute('aria-label','見え方の操作');figure.before(tools);}
+ let slot=0;for(const sel of ['.trial-timelapse-toggle','[data-camera-settings]','.preview-center','.aim-figure-share']){const el=host.querySelector(sel);if(el){if(tools.children[slot]!==el)tools.insertBefore(el,tools.children[slot]||null);slot++;}}
+ const share=tools.querySelector('.aim-figure-share'),keep=share?.querySelector('[data-plan-action=keep]'),send=share?.querySelector('[data-plan-action=share]');if(keep&&send&&keep.nextElementSibling!==send)share.insertBefore(keep,send);
+ const bar=host.querySelector('.timelapse-mode-bar');if(bar&&tools.nextElementSibling!==bar)tools.after(bar);
+}
 function mount(host,{owner,token}){
  const camera=host.querySelector('[data-camera-panel]');if(!camera)return;
+ arrange(host);
  let s=states.get(host);
  if(s){if(s.token!==token){s.token=token;s.owner=owner;s.on=false;s.config=null;host._timelapseConfig=null;fill(s,{interval:5,count:240,fps:loadFps(owner)});s.summary.textContent='撮影間隔と回数を設定してください。';redraw(s);}const saved=host._timelapseConfig;if(T().settings(saved)&&saved!==s.config){fill(s,saved);s.config=saved;s.on=true;changed(s);}else if(!T().settings(saved)&&s.config){s.config=null;s.on=false;fill(s,{interval:5,count:240,fps:loadFps(owner)});s.summary.textContent='撮影間隔と回数を設定してください。';redraw(s);}return;}
  const bar=document.createElement('div');bar.className='timelapse-mode-bar';bar.innerHTML='<button type="button" class="timelapse-range-open" aria-label="タイムラプス設定" aria-haspopup="dialog" aria-controls="trialTimelapsePanel"><output class="tiny" aria-live="polite"></output><span aria-hidden="true">⌄</span></button>';const rangeOpen=bar.firstElementChild,output=bar.querySelector('output');output.hidden=true;
@@ -24,7 +32,7 @@ function mount(host,{owner,token}){
  const box=popup.querySelector('.timelapse-settings');s={host,owner,token,bar,output,popup,box,buttons:[],summary:box.querySelector('[data-tl-summary]'),toggle:settings,on:false,config:null,cache:null};states.set(host,s);
  function switchButton(parent){const b=document.createElement('button');b.type='button';b.className='timelapse-switch';b.setAttribute('role','switch');b.setAttribute('aria-label','タイムラプス表示');b.onclick=()=>{if(s.on){s.on=false;redraw(s);}else changed(s,{activate:true});};s.buttons.push(b);parent.append(b);}
  switchButton(popup.querySelector('.timelapse-mode-head'));
- const figure=host.querySelector('.aim-look-figure');figure.before(bar);figure.append(settings);host.append(popup);
+ const figure=host.querySelector('.aim-look-figure');figure.before(bar);figure.append(settings);host.append(popup);arrange(host);
  settings.onclick=()=>{if(s.on){s.on=false;redraw(s);}else if(!changed(s,{activate:true})){rangeOpen.setAttribute('aria-expanded','true');showSheet(popup);}};rangeOpen.onclick=()=>{rangeOpen.setAttribute('aria-expanded','true');showSheet(popup);};popup.querySelector('[data-tl-close]').onclick=()=>popup.close();popup.addEventListener('close',()=>rangeOpen.setAttribute('aria-expanded','false'));popup.addEventListener('click',e=>{if(e.target!==popup)return;const r=popup.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)popup.close();});
  for(const input of box.querySelectorAll('input,select'))input.addEventListener('input',()=>changed(s));
  box.querySelector('select').addEventListener('change',()=>{try{localStorage.setItem(fpsKey(s.owner),box.querySelector('select').value);}catch{s.summary.textContent+='（fpsを記憶できませんでした）';}});
