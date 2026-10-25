@@ -13,7 +13,7 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="1936343045289783038">
+<meta name="app-version" content="7685460270358085545">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-op7jWoUuik8UIO+Du4RM3GZbwVQpgJcJnEFhY8DX700=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-lbpjSlvW5YyUFzOM9VaUyUfjAeoX5IResBwsWh06shk=' 'sha256-FK5ZIiK0bsUrar0xtnxOXznE9BLxUz1v/smDEc/AOig=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-vKtoN1pKZP276RC3xh0RdrZyYAccJhFvPhnmSrNtmn8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
@@ -26,7 +26,7 @@
 <link data-script-preload rel="preload" as="script" href="astronotes-target-ui.js?v=9745762597171820638">
 <link data-script-preload rel="preload" as="script" href="astronotes-shooting.js?v=12827778162413116528">
 <link data-script-preload rel="preload" as="script" href="astronotes-timelapse.js?v=10492539977496612272">
-<link data-script-preload rel="preload" as="script" href="astronotes-camera-ui.js?v=2624977575004564604">
+<link data-script-preload rel="preload" as="script" href="astronotes-camera-ui.js?v=8731199473696234796">
 <link data-script-preload rel="preload" as="script" href="astronotes-astro.js?v=3149132929573944457">
 <link data-script-preload rel="preload" as="script" href="astronotes-exif.js?v=18155756275751526788">
 <link data-script-preload rel="preload" as="script" href="astronotes-photo-analysis.js?v=12339511566035565812">
@@ -1238,10 +1238,10 @@
 
 
 /* Trial-only, static exposure range controls above the scene. */
-#aimView .timelapse-mode-bar{margin:2px 0 4px}
-#aimView .timelapse-mode-bar{height:44px;min-height:44px;overflow:hidden}
+#aimView .timelapse-mode-bar{position:absolute;top:4px;left:8px;right:60px;height:44px;margin:0;z-index:3;overflow:hidden}
+#aimView .timelapse-mode-bar[hidden]{display:none}
 #aimView .timelapse-range-open output{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
-#aimView .trial-scene-toolbar{display:flex;align-items:center;justify-content:space-between;gap:6px;height:44px;margin:6px 0}
+#aimView .trial-scene-toolbar{display:flex;align-items:center;justify-content:space-between;gap:6px;height:44px;margin:2px 0}
 #aimView .trial-scene-toolbar .aim-figure-share{display:contents}
 #aimView .trial-scene-toolbar button{position:static;flex:0 0 44px;width:44px;min-width:44px;height:44px;min-height:44px;margin:0;padding:0;display:grid;place-items:center}
 #aimView .trial-scene-toolbar .trial-timelapse-toggle{order:0}
@@ -1249,7 +1249,7 @@
 #aimView .trial-scene-toolbar .preview-center{order:2}
 #aimView .trial-scene-toolbar [data-plan-action=keep]{order:3}
 #aimView .trial-scene-toolbar [data-plan-action=share]{order:4}
-#aimView .timelapse-range-open{display:flex;align-items:center;gap:6px;width:100%;min-height:44px;padding:4px 0;text-align:left;background:transparent;border:0;color:var(--secondary)}
+#aimView .timelapse-range-open{display:flex;align-items:center;gap:6px;width:100%;min-height:44px;padding:0 6px;text-align:left;background:color-mix(in srgb,var(--card) 80%,transparent);border:0;border-radius:8px;color:var(--text)}
 #aimView .trial-timelapse-toggle{box-shadow:none}
 #aimView .trial-timelapse-toggle[aria-checked=true]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 #aimView .timelapse-mode-head{display:flex;align-items:center;gap:10px;min-width:0;font-size:14px}
@@ -1265,7 +1265,7 @@
 #aimView .trial-scene-wide canvas{margin-top:0;border-radius:0}
 html:has(.trial-scene-wide),body:has(.trial-scene-wide){overflow:hidden}
 #aimView .trial-scene-wide .trial-scene-expand{top:calc(8px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right))}
-#skyMapView.explore-mounted #skyMapShareRow{min-height:44px;margin:6px 0;gap:6px}
+#skyMapView.explore-mounted #skyMapShareRow{min-height:44px;margin:2px 0;gap:6px}
 #skyMapView.explore-mounted #skyMapShareRow [data-plan-action]{width:44px;min-width:44px;height:44px;min-height:44px;padding:0;display:grid;place-items:center;flex:0 0 44px;order:3}
 #skyMapView.explore-mounted #skyMapShareRow [data-plan-action=share]{order:4}
 #skyMapView.explore-mounted #exploreMapPanel #skyMapShareRow:not([hidden]){display:grid;grid-template-columns:repeat(5,44px);justify-content:space-between;gap:6px}
@@ -2475,7 +2475,7 @@ button.ui-icon-button::after { content: none; }
 <script src="astronotes-target-ui.js?v=9745762597171820638"></script>
 <script src="astronotes-shooting.js?v=12827778162413116528"></script>
 <script src="astronotes-timelapse.js?v=10492539977496612272"></script>
-<script src="astronotes-camera-ui.js?v=2624977575004564604"></script>
+<script src="astronotes-camera-ui.js?v=8731199473696234796"></script>
 <!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
      星空の月明かりが依存している。触らずに足す）。 -->
 <script src="astronotes-astro.js?v=3149132929573944457"></script>

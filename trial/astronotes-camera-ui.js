@@ -7,7 +7,7 @@ const fpsKey=o=>'astronotes.timelapse.fps:'+encodeURIComponent(o||'guest');
 function loadFps(o){try{const f=Number(localStorage.getItem(fpsKey(o)));return [24,25,30,60].includes(f)?f:24;}catch{return 24;}}
 function sync(s,at){
  for(const b of s.buttons){b.setAttribute('aria-checked',String(s.on));b.textContent=s.on?'ON':'OFF';}
- s.bar.dataset.on=String(s.on);s.bar.hidden=false;s.output.hidden=false;if(!s.on)s.output.textContent="撮影範囲 OFF";if(s.toggle)s.toggle.setAttribute('aria-checked',String(s.on));
+ s.bar.dataset.on=String(s.on);s.bar.hidden=!s.on;s.output.hidden=!s.on;if(!s.on)s.output.textContent="";if(s.toggle)s.toggle.setAttribute('aria-checked',String(s.on));
  if(s.on&&T().settings(s.config)&&Number.isFinite(at)){const v=s.config,text=`${fmt(at)} → ${fmt(at+(v.count-1)*v.interval*1000)} ・ ${v.count}枚${v.count>61?'（位置は61点に間引き表示）':''}`;if(s.output.textContent!==text)s.output.textContent=text;}
 }
 function redraw(s){s.cache=null;sync(s,s.host._lookAt);s.host._redrawLook?.();}
@@ -30,7 +30,7 @@ function arrange(host){
  if(!tools){tools=document.createElement('div');tools.className='trial-scene-toolbar';tools.setAttribute('role','group');tools.setAttribute('aria-label','見え方の操作');figure.before(tools);}
  let slot=0;for(const sel of ['.trial-timelapse-toggle','[data-camera-settings]','.preview-center','.aim-figure-share']){const el=host.querySelector(sel);if(el){if(tools.children[slot]!==el)tools.insertBefore(el,tools.children[slot]||null);slot++;}}
  const share=tools.querySelector('.aim-figure-share'),keep=share?.querySelector('[data-plan-action=keep]'),send=share?.querySelector('[data-plan-action=share]');if(keep&&send&&keep.nextElementSibling!==send)share.insertBefore(keep,send);
- const bar=host.querySelector('.timelapse-mode-bar');if(bar&&tools.nextElementSibling!==bar)tools.after(bar);
+ const bar=host.querySelector('.timelapse-mode-bar');if(bar&&bar.parentNode!==figure)figure.prepend(bar);
 }
 function mount(host,{owner,token}){
  const camera=host.querySelector('[data-camera-panel]');if(!camera)return;
@@ -43,7 +43,7 @@ function mount(host,{owner,token}){
  const box=popup.querySelector('.timelapse-settings');s={host,owner,token,bar,output,popup,box,buttons:[],summary:box.querySelector('[data-tl-summary]'),toggle:settings,on:false,config:null,cache:null};states.set(host,s);
  function switchButton(parent){const b=document.createElement('button');b.type='button';b.className='timelapse-switch';b.setAttribute('role','switch');b.setAttribute('aria-label','タイムラプス表示');b.onclick=()=>{if(s.on){s.on=false;redraw(s);}else changed(s,{activate:true});};s.buttons.push(b);parent.append(b);}
  switchButton(popup.querySelector('.timelapse-mode-head'));
- const figure=host.querySelector('.aim-look-figure');figure.before(bar);figure.append(settings);host.append(popup);arrange(host);
+ const figure=host.querySelector('.aim-look-figure');figure.prepend(bar);figure.append(settings);host.append(popup);arrange(host);
  settings.onclick=()=>{if(s.on){s.on=false;redraw(s);}else if(!changed(s,{activate:true})){rangeOpen.setAttribute('aria-expanded','true');showSheet(popup);}};rangeOpen.onclick=()=>{rangeOpen.setAttribute('aria-expanded','true');showSheet(popup);};popup.querySelector('[data-tl-close]').onclick=()=>popup.close();popup.addEventListener('close',()=>rangeOpen.setAttribute('aria-expanded','false'));popup.addEventListener('click',e=>{if(e.target!==popup)return;const r=popup.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)popup.close();});
  for(const input of box.querySelectorAll('input,select'))input.addEventListener('input',()=>changed(s));
  box.querySelector('select').addEventListener('change',()=>{try{localStorage.setItem(fpsKey(s.owner),box.querySelector('select').value);}catch{s.summary.textContent+='（fpsを記憶できませんでした）';}});
