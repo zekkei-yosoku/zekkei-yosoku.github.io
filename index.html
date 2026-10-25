@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="11373904281205276019">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-op7jWoUuik8UIO+Du4RM3GZbwVQpgJcJnEFhY8DX700=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-lbpjSlvW5YyUFzOM9VaUyUfjAeoX5IResBwsWh06shk=' 'sha256-FK5ZIiK0bsUrar0xtnxOXznE9BLxUz1v/smDEc/AOig=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-vKtoN1pKZP276RC3xh0RdrZyYAccJhFvPhnmSrNtmn8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="8757240923490511752">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-cbRFHo8NKJ/sAc2mecf1Pmf1EvTCzH1Id7kqOf58/Ko=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-lbpjSlvW5YyUFzOM9VaUyUfjAeoX5IResBwsWh06shk=' 'sha256-FK5ZIiK0bsUrar0xtnxOXznE9BLxUz1v/smDEc/AOig=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-vKtoN1pKZP276RC3xh0RdrZyYAccJhFvPhnmSrNtmn8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -59,7 +59,7 @@
 <link data-script-preload rel="preload" as="script" href="astronotes-scroll-timeline.js?v=8753142350484650364">
 <link data-script-preload rel="preload" as="script" href="astronotes-datetime-ui.js?v=14645734646558097245">
 <link data-script-preload rel="preload" as="script" href="astronotes-explore.js?v=9489316312665375286">
-<link data-script-preload rel="preload" as="script" href="astronotes-myplaces.js?v=10205395523270778570">
+<link data-script-preload rel="preload" as="script" href="astronotes-myplaces.js?v=2796333963234985653">
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
      URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
      → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
@@ -11108,12 +11108,12 @@ const JP_PREFECTURES = ["北海道","青森県","岩手県","宮城県","秋田�
   "新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県",
   "鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
 /// 地図で選んだ点の名前（近くの地名）と住所（都道府県＋市区町村）。取れなければ座標を名前にする
-async function nearName(lat, lon) {
+async function nearName(lat, lon, { signal } = {}) {
   let name = `${lat.toFixed(4)}, ${lon.toFixed(4)}`, area = "";
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&accept-language=ja`
       + `&lat=${lat.toFixed(6)}&lon=${lon.toFixed(6)}`;
-    const r = await fetch(url, { headers: { accept: "application/json" } });
+    const r = await fetch(url, { signal, headers: { accept: "application/json" } });
     if (r.ok) {
       const a = (await r.json()).address || {};
       // 施設・公園・山などの名前 → 町名（丁目・字）→ 道路の順。道路名（「市川柏線」）は場所の名前として分かりにくい
@@ -14271,6 +14271,6 @@ ctx.lineWidth=1;
  new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node.nodeType===1)scan(node);}).observe(document.body,{childList:true,subtree:true});
 })();
 </script>
-<script src="astronotes-myplaces.js?v=10205395523270778570"></script>
+<script src="astronotes-myplaces.js?v=2796333963234985653"></script>
 </body>
 </html>

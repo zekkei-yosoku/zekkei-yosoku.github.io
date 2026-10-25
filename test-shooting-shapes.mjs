@@ -103,7 +103,7 @@ test('地点0件から線を選び、検索は移動だけ、2点/3点を作っ�
  const h=newShapeHarness();h.c.openShapeEditor('line');assert.equal(h.value().vertices.length,0);assert(h.nodes.get('shapeApply').disabled);
  h.map.move({...ll(500),name:'川沿い'});assert.equal(h.value().vertices.length,0);assert.equal(h.map.view[0],ll(500).latitude);assert.equal(h.state.place.id,null);
  h.pick(ll(0));h.pick(ll(100));assert.equal(h.value().vertices.length,2);assert.equal(h.nodes.get('shapeApply').disabled,false);
- h.pick(ll(100,100));h.nodes.get('shapeApply').onclick();assert.equal(h.state.draftShape.vertices.length,3);assert.equal(h.state.place.id,null);assert.equal(h.state.newPlace,true);assert.equal(h.state.place.name,'川沿い');
+ h.pick(ll(100,100));h.nodes.get('shapeApply').onclick();assert.equal(h.state.draftShape.vertices.length,3);assert.equal(h.state.place.id,null);assert.equal(h.state.newPlace,true);assert.equal(h.state.place.name,'');
 });
 test('範囲は3点で有効、取消では元の地点・形を変更しない。別所有者の適用も拒否',()=>{
  const h=newShapeHarness();h.c.openShapeEditor('area');h.pick(ll(0));h.pick(ll(100));assert(h.nodes.get('shapeApply').disabled);h.pick(ll(100,100));assert.equal(h.nodes.get('shapeApply').disabled,false);
@@ -126,7 +126,7 @@ test('形を変更して戻るときは破棄を拒否すれば残り、承認�
 test('新規地点は検索後も親を保存せず、パンした固定ピンの中心を1回で決定する',()=>{
  const h=newShapeHarness();h.c.openShapeEditor();assert.equal(h.nodes.get('shapeVertexTools').hidden,true);assert.equal(h.nodes.get('shapeLocationPanel').hidden,false);
  h.map.move({...ll(500),name:'検索地点',elevation:100});assert.equal(h.state.place.latitude,null);assert.equal(h.value().vertices[0].latitude,ll(500).latitude);
- h.map.pan(ll(800));h.nodes.get('shapeApply').onclick();assert.equal(h.state.place.latitude,ll(800).latitude);assert.equal(h.state.place.name,'地図で選んだ地点');assert.equal(h.state.place.elevation,null);assert.equal(h.state.newPlace,true);
+ h.map.pan(ll(800));h.nodes.get('shapeApply').onclick();assert.equal(h.state.place.latitude,ll(800).latitude);assert.equal(h.state.place.name,'');assert.equal(h.state.place.elevation,null);assert.equal(h.state.newPlace,true);
 });
 test('既存地点はパンしても代表点を変えず、保存座標のマーカーで扱う',()=>{
  const h=newShapeHarness();h.state.place={id:'saved',name:'既存',...ll(100)};h.c.openShapeEditor();assert.equal(h.nodes.get('shapeFixedPin').hasAttribute('hidden'),true);assert.equal(h.nodes.get('shapeLocationPanel').hidden,true);
