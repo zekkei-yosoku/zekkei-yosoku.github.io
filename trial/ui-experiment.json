@@ -2,7 +2,7 @@
   "name": "初見導線と図右上の中央配置",
   "baseCommit": "119fc0002e414f55373e59bd11601980e1485eb2",
   "rootHtmlSha256": "aae52c76c6d3d9e2c343e3f6d7c42f76a371936538fb0c937698806710355a52",
-  "trialHtmlSha256": "d043cf9d42a32a1c04731673168d2bce8e9237e32f6ade7d73e5782dfacc8020",
+  "trialHtmlSha256": "cb01a867dda8c66eff327ad57d90363318e9d4b8a79277424bc53cf925cf81c6",
   "files": {
     "astronotes-camera-ui.js": {
       "root": "c528d6c7d8cb808c1ba6b8916ce8fae56c04ab810e46f3c1642957fd1e704743",
