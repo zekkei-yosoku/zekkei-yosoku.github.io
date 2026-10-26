@@ -126,7 +126,7 @@ const AstroNotesPlan = (() => {
         const can=navigator.canShare?.({files:[file]})&&navigator.share;$('planShare').disabled=!can;status(can?'':'画像を保存して、好きなアプリで共有できます。');
       }catch(e){$('planCalendar').hidden=true;$('planImage').hidden=true;$('planSummary').textContent='';status(e.message||'撮影計画を作れませんでした。画面を開き直してください。');if(!d.open)show(d);}}
     document.addEventListener('click',e=>{const b=e.target.closest('[data-plan-action]');if(b)open(b.dataset.planAction,b);});
-    return {open,refreshPermissions:()=>{if(d.open&&current&&localSave)validate();}};
+    return {open,refreshPermissions:()=>{if(d.open&&current&&localSave){const hidden=$('planKeep').hidden;refreshKeep();if(hidden!==$('planKeep').hidden){if($('planKeep').hidden)clearSaved();validate();}}}};
   }
   return {valid,encode,decode,compactPoint,expandPoint,stamp,escapeIcs,fold,dateTime,event,ics,google,link,mapLink,image,mount};
 })();

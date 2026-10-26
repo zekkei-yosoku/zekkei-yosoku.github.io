@@ -8,7 +8,7 @@
     },
     "astronotes-plan.js": {
       "root": "b0e013ce9fb816a00b5ad39a01a1b088f66244e78af96635bd3a3ad3e3d1bd5d",
-      "trial": "d5983e93e33350b578cb76873777ff8f9ba4e7b5110cea2432ac423d24833750"
+      "trial": "df00c80800aded18bcb91b9d8ff63e05661ed182a88b73b1efbe2e805238ecce"
     },
     "astronotes-explore.js": {
       "root": "ba5df7bf9cdd7ecdc372c1102466589e9f95e7944a3d8a4cb9c20c7937d45112",
@@ -24,5 +24,5 @@
     "astronotes-shape-planner.js": "845754ff67285f88af928c60437f7ba4f2ee25281b742d812468d68b4cbebbee"
   },
   "rootHtmlSha256": "e9ddf6e1a342471b189947cbc4501ade589292efedc4bd6a2cb0e1240c50a005",
-  "trialHtmlSha256": "6f5d449b4b826aaaac7d37c505d02e07cae840d5115128f36faee8dd8f6ccc02"
+  "trialHtmlSha256": "f3574b71f846dd0cad773990cd02a81a17a9e178b3793610b37994bc4a3a6880"
 }
