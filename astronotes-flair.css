@@ -14,7 +14,7 @@
  background:linear-gradient(90deg,transparent,var(--flair)) left center/calc(50% - var(--kw,5em)) 1px no-repeat,linear-gradient(90deg,var(--flair),transparent) right center/calc(50% - var(--kw,5em)) 1px no-repeat}
 #aimView .aim-titlebar::before,#aimView .sky-map-head::before{content:"FRAMING" / "";--kw:5.3em}
 #skyMapView .sky-map-head::before{content:"MAP" / "";--kw:3em}
-#recordsView .sky-map-head::before{content:"NOTEBOOK" / "";--kw:5.9em}
+#recordsView .sky-map-head::before{content:"記録" / "";--kw:2.8em;letter-spacing:.2em;padding-left:.2em;font-size:14px}
 /* ホームの各欄：英字は帯に、日本語の題と説明も中央へ */
 #almanacDashboard{--flair:var(--alm-active)}
 #almanacView .alm-panel-kicker{--kw:7.6em;margin:0 0 10px}

@@ -293,7 +293,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
     ok(fs < cv && cv < pk && !/id="aimNear"/.test(html) && !/function aimUpdateNear/.test(html),
       "「ここから重ねる」は地図のすぐ下（中心から線までの説明は出さない。2026-10-03 ユーザーが選んだ「いらない説明文」）"); }
   // 重ならないなら言い切る（ユーザー「天体の動き的に絶対にないわけでしょ？」）。「この1年」と濁さない
-  ok(html.includes("この条件の候補日は見つかりません（") && html.includes('complete ? "2年先まで" : "今後400日"'), "候補なしは選択条件と400日探索の範囲を明示");
+  ok(html.includes('探索済みの期間には候補がありません。') && html.includes('まで探索済み') && html.includes('さらに先の候補を探す'), "候補なしは探索済みの期間を明示し、続きの検索を案内");
   ok(html.includes("aimCandidateMatch(e) && (!moon || e.sunAltitude < 0)"), "選択部位と月の暗い空の条件で候補を絞る");
   ok(/aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる<\/button>/.test(html), "釦の名前は「ここから重ねる」");
   // 引き継いだ地点も、地点カードの展望台・目の高さを立つ所に読み替える（2026-10-06）

@@ -19,7 +19,7 @@ export function fixture({saved=null,selected=true,tools=['skymap','tower'],acces
  c.$=element;c.favorites=[];c.bundle=null;c.queueMicrotask=queueMicrotask;
  vm.createContext(c);
  vm.runInContext(html.slice(html.indexOf('function renderPointCard('),html.indexOf('/// ☆ を押したら',html.indexOf('function renderPointCard('))),c);
- for(const [from,to] of [['function aimDaysInputKey(','function aimSyncFromDay()'],['function aimTwoYearEnd(','async function aimMoreDays()'],['function candidateDatesMarkup(','// The selected place is already known;']])vm.runInContext(html.slice(html.indexOf(from),html.indexOf(to,html.indexOf(from))),c);
+ for(const [from,to] of [['function aimDaysInputKey(','function aimSyncFromDay()'],['function aimCandidateSearchEnd(','async function aimMoreDays()'],['function candidateDatesMarkup(','// The selected place is already known;']])vm.runInContext(html.slice(html.indexOf(from),html.indexOf(to,html.indexOf(from))),c);
  vm.runInContext(html.match(/const aimSideName =[^\n]+/)[0],c);
  vm.runInContext(ui,c);return{c,element,data,aim,cache,map,clicks,discs,arcs,drawOps,observer,open:async()=>{c.SkyMapUI.open();await flush();},releaseAccess:v=>resolveAccess(v),get accessCalls(){return accessCalls},get calls(){return calls},get loads(){return loads},release:v=>resolveGround(v),get draws(){return moves}};
 }
@@ -192,7 +192,7 @@ test('地図候補の旧探索と離脱後の応答は候補欄へ戻らない',
 });
 test('地図候補の失敗は再試行でき、空結果は日付変更でも保持する',async()=>{
  let searches=0;const f=fixture({saved:{targetId:'skytree'},datesSearch:async()=>{if(++searches===1)throw Error('synthetic');return[]}});await f.open();await flush();assert.match(f.element('skyMapDates').innerHTML,/再試行/);
- f.element('skyMapDates[data-dates-retry]').onclick();await flush();assert.match(f.element('skyMapDates').innerHTML,/候補日は見つかりません/);
+ f.element('skyMapDates[data-dates-retry]').onclick();await flush();assert.match(f.element('skyMapDates').innerHTML,/探索済みの期間には候補がありません/);
  f.c.SkyMapUI.setTime(Date.now()+2*86400000);await flush();assert.equal(searches,2);
 });
 

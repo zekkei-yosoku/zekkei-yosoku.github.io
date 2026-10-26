@@ -4,7 +4,7 @@ import fs from 'node:fs';
 const source=fs.readFileSync(new URL('./astronotes-myplaces.js',import.meta.url),'utf8');
 function elements(){const map=new Map();return {map,el:id=>{if(!map.has(id))map.set(id,{classList:{toggle(){}},replaceChildren(){},append(){},focus(){},setAttribute(){}});return map.get(id);}};}
 test('記録追加は撮影地点が空のフォームで開き、既存の地点オブジェクトを変更しない',()=>{
- const {el}=elements();const sheet={open:false,querySelectorAll:()=>[]};let shown=0;
+ const {el}=elements();const sheet={open:false,dataset:{},querySelectorAll:()=>[]};let shown=0;
  const fragment=source.slice(source.indexOf('function openPlace('),source.indexOf('function renderSheet('));
  const api=new Function('sheet','el','aim','savedTargets','targetSetKey','targetChoices','resolveTarget','Option','finite','toolAllowed','screenAllowed','showSheet','renderSheet','addDraftTarget','const shapeFor=()=>null,shapeKey=JSON.stringify,shapeName=()=>"点";const auth={token:"test"};let sheetState=null;'+fragment+';return {openPlace,state:()=>sheetState};')(sheet,el,{target:null,body:'sun'},()=>[],JSON.stringify,()=>[],()=>null,function(text,value){return {text,value};},Number.isFinite,()=>true,()=>true,()=>shown++,()=>{},()=>{});
  api.openPlace(null,'records');assert.equal(api.state().place.id,null);assert.equal(el('myPlaceName').textContent,'撮影地点を選ぶ');assert.equal(el('myPlaceTitle').textContent,'記録を追加');assert.equal(shown,1);

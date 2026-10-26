@@ -19,12 +19,12 @@ test('壊れた行・検証に通らない値・開始日時の無い保存は�
  s.write(Sch.KEY+'x',[{id:'ok',value:plan(5),title:'t',start:5,end:4,savedAt:1},{id:1,value:plan(5),start:5,savedAt:1},{id:'bad',value:{kind:'x'},start:5,savedAt:1}]);
  const r=st.list();assert.equal(r.length,1);assert.equal(r[0].end,5,'終了が開始より前なら開始に揃える');
 });
-test('画面：NOTEBOOK の帯、撮影地点／予定のタブ、共有シートの保存ボタン、予定タブでは＋を隠す',()=>{
+test('画面：記録の帯、撮影地点／予定のタブ、予定シートの保存ボタン、予定タブでは＋を隠す',()=>{
  const h=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),p=fs.readFileSync(new URL('./astronotes-plan.js',import.meta.url),'utf8'),c=fs.readFileSync(new URL('./astronotes-flair.css',import.meta.url),'utf8');
  assert.match(h,/role="tab" id="notebookPointsTab"[^>]*>撮影地点<\/button><button[^>]*id="notebookPlansTab"[^>]*>予定<\/button>/);
  assert.match(h,/<script src="astronotes-schedule\.js\?v=\d+"><\/script>\s*<script src="astronotes-plan\.js/);
- assert.match(p,/id="planKeep" hidden>NOTEBOOKの予定に保存<\/button>/);assert.match(p,/\$\('planKeep'\)\.hidden=!keep\|\|current\.payload\?\.kind!=='aim'/);
- assert.match(c,/content:"NOTEBOOK" \/ ""/);assert.doesNotMatch(c,/LOGBOOK/);// 2026-10-21: ＋を撮影地点パネル内へ移し、見出しの高さをタブで変えない。
+ assert.match(p,/id="planKeep" hidden>記録の予定に保存<\/button>/);assert.match(p,/\$\('planKeep'\)\.hidden=!localSave\|\|!keep\|\|!canKeep\(\)\|\|current\?\.payload\?\.kind!=='aim'/);
+ assert.match(c,/content:"記録" \/ ""/);assert.doesNotMatch(c,/LOGBOOK/);// 2026-10-21: ＋を撮影地点パネル内へ移し、見出しの高さをタブで変えない。
  const m=fs.readFileSync(new URL('./astronotes-myplaces.js',import.meta.url),'utf8');assert.match(m,/actions\.append\(edit,add\)/);assert.doesNotMatch(m,/heading\.append\(add\)/);
  assert.match(h,/撮影地点と見えたもの、これからの予定を残す/);
 });
