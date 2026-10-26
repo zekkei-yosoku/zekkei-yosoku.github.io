@@ -17,7 +17,7 @@ test('cached HTML legacy assets retain their original bytes and canonical assets
  }
  for(const name of Object.keys(experiments)){assert.ok(allowed.has(name),name+' is approved for this trial');assert.ok(sha256[name.replace(/^astronotes-/,'sorami-')]||name==='astronotes-camera-ui.js',name+' is a canonical legacy successor or the approved camera trial');assert.equal(digest(read(name)),experiments[name].root,name+' base');assert.equal(digest(read('trial/'+name)),experiments[name].trial,name+' trial');}
  const experiment=JSON.parse(read('trial/ui-experiment.json'));if(experiment.rootHtmlSha256){assert.equal(digest(read('index.html')),experiment.rootHtmlSha256);assert.equal(digest(read('trial/index.html')),experiment.trialHtmlSha256);}
- const trialOnly=experiment.trialOnlyFiles||{};for(const [name,hash]of Object.entries(trialOnly)){assert.equal(name,'astronotes-journey.js','only the reviewed journey module may be trial-only');assert.equal(existsSync(new URL(name,import.meta.url)),false,'trial-only module is not promoted');assert.equal(digest(read('trial/'+name)),hash,name+' trial-only bytes');}
+ const trialOnly=experiment.trialOnlyFiles||{};for(const [name,hash]of Object.entries(trialOnly)){assert.ok(['astronotes-journey.js','astronotes-shape-planner.js'].includes(name),'only the reviewed journey/shape planner modules may be trial-only');assert.equal(existsSync(new URL(name,import.meta.url)),false,'trial-only module is not promoted');assert.equal(digest(read('trial/'+name)),hash,name+' trial-only bytes');}
  const html=read('index.html');assert.doesNotMatch(html,/(?:src|href)="sorami-[^"]+\.(?:js|css)/);
 });
 test('canonical globals publish legacy aliases with the same value',()=>{

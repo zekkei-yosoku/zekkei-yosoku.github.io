@@ -2,7 +2,7 @@
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id),mapView=$('skyMapView'),aimView=$('aimView'),look=$('aimLook');
-let mounted=false,mode='scene',epoch=0,scheduled=false,forceNext=false,frameKey='',pendingKey='',routing=false,intent=false;
+let mounted=false,mode='scene',epoch=0,scheduled=false,forceNext=false,frameKey='',pendingKey='',routing=false,intent=false,transferMode=null;
 let aimHome=null,aimChildren=[],mapHomes=[],buffer=null,workspaceHome=null,heightWasOpen=false,heightFields=null;
 let conditions=null,conditionHomes=[];
 const eligible=()=>screenAllowed('skymap')&&screenAllowed('framing');
@@ -138,8 +138,8 @@ function render(){
 function routeChanged(){
  render();
  if(atAim&&eligible()&&!routing){
-  routing=true;const owner=auth?.token,hash=location.hash,preset=routeFromHash()?.preset;
-  AstroNotesAssets.ensureModels().then(()=>{if(owner!==auth?.token||hash!==location.hash||!atAim||!eligible())return;const restored=aim.pendingPlan;openAim(preset||null);if(restored)aim.pendingPlan=restored;mode='scene';SkyMapUI.enter(true,restored?.at);}).finally(()=>{routing=false;});
+  routing=true;const desiredMode=transferMode||'scene';transferMode=null;const owner=auth?.token,hash=location.hash,preset=routeFromHash()?.preset;
+  AstroNotesAssets.ensureModels().then(()=>{if(owner!==auth?.token||hash!==location.hash||!atAim||!eligible())return;const restored=aim.pendingPlan;openAim(preset||null);if(restored)aim.pendingPlan=restored;mode=desiredMode;SkyMapUI.enter(true,restored?.at);}).finally(()=>{routing=false;if(transferMode&&atAim&&eligible())routeChanged();});
  }
 }
 function sceneDraw(host,at){
@@ -187,7 +187,7 @@ const style=node('style');style.textContent=
 '.explore-mounted[data-explore-mode=scene] #skyMapBodyBar,.explore-mounted[data-explore-mode=scene] #shootingPins{display:none!important}'+
 'main:has(>#skyMapView.explore-mounted){max-width:1000px}';
 document.head.append(style);
-globalThis.TrialExplore={active,render,routeChanged,sync,invalidate:()=>{frameKey='';SkyMapUI.render();sync(true);},sceneDraw,assertScene,
+globalThis.TrialExplore={active,render,routeChanged,preferMap:()=>{transferMode='map';if(active())choose('map');},sync,invalidate:()=>{frameKey='';SkyMapUI.render();sync(true);},sceneDraw,assertScene,
  camera:()=>{let timelapse=null;try{if(frameKey===stamp(snapshot())&&AstroNotesTimelapse.settings(look._timelapseConfig))timelapse={...look._timelapseConfig};}catch{}return {l:{...aimLens,focal:Number(look.querySelector('[data-lens-focal]')?.value)||aimLens.focal||50},pan:[...(look._lensOffset||[0,0])],timelapse};}};
 document.addEventListener('visibilitychange',()=>{if(document.hidden)invalidate();else sync();});
 window.addEventListener('resize',()=>{if(active())sync();});

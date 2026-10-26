@@ -274,7 +274,7 @@ function renderRecordsHub() {
     if(notebookEdit){const state=notebookEdit;row.setAttribute('role','checkbox');row.setAttribute('aria-checked',String(state.ids.has(f.id)));row.insertAdjacentHTML('beforeend',notebookCheck(state.ids.has(f.id)));}
     row.append(name, sub); row.onclick = () => {if(notebookEdit){const state=notebookEdit;if(state.ids.has(f.id))state.ids.delete(f.id);else state.ids.add(f.id);state.error='';state.targets=[];state.drafts=[];renderRecordsHub();[...el('myRecordsHub').querySelectorAll('[data-notebook-place]')].find(r=>r.dataset.notebookPlace===f.id)?.focus({preventScroll:true});return;}openPlace(f, 'records');if(recordsBodyFilter){sheetState.bodies=[recordsBodyFilter];for(const check of sheet.querySelectorAll('[data-planning-body]'))check.checked=check.value===recordsBodyFilter;}};
     const group=document.createElement('div');group.className='journey-place-row';group.append(row);
-    if(!notebookEdit&&!shapeFor(f)&&planningPairs(targets,recordsBodyFilter?[recordsBodyFilter]:['sun','moon']).length){const find=document.createElement('button');find.type='button';find.className='chip journey-place-find';find.textContent='次に重なる日';find.setAttribute('aria-label',f.name+'から次に重なる日を探す');find.onclick=()=>{if(!auth?.token||!toolAllowed('records')||!favorites.some(p=>p.id===f.id))return;openPlace(f,'records',null,{planningOnly:true});if(recordsBodyFilter)sheetState.bodies=[recordsBodyFilter];else sheetState.bodies=['sun','moon'].filter(body=>planningPairs(targets,[body]).length);for(const check of sheet.querySelectorAll('[data-planning-body]'))check.checked=sheetState.bodies.includes(check.value);sheetState.planningRequested=true;el('myPlacePlanning').open=true;renderSheet();requestAnimationFrame(()=>{el('myPlacePlanning').scrollIntoView({block:'start'});el('myPlaceFind').focus({preventScroll:true});});};group.append(find);}list.append(group);
+    if(!notebookEdit&&planningPairs(targets,recordsBodyFilter?[recordsBodyFilter]:['sun','moon']).length){const find=document.createElement('button');find.type='button';find.className='chip journey-place-find';find.textContent='次に重なる日';find.setAttribute('aria-label',f.name+'から次に重なる日を探す');find.onclick=()=>{if(!auth?.token||!toolAllowed('records')||!favorites.some(p=>p.id===f.id))return;openPlace(f,'records',null,{planningOnly:true});if(recordsBodyFilter)sheetState.bodies=[recordsBodyFilter];else sheetState.bodies=['sun','moon'].filter(body=>planningPairs(targets,[body]).length);for(const check of sheet.querySelectorAll('[data-planning-body]'))check.checked=sheetState.bodies.includes(check.value);sheetState.planningRequested=true;el('myPlacePlanning').open=true;renderSheet();requestAnimationFrame(()=>{el('myPlacePlanning').scrollIntoView({block:'start'});el('myPlaceFind').focus({preventScroll:true});});};group.append(find);}list.append(group);
   }
   if(recordedPlaces.length&&!matches){const empty=document.createElement('p');empty.className='tiny';empty.textContent='この条件の撮影地点はありません。';list.append(empty);}
   // 2026-10-20 ユーザー「出し方を変えた方がいいのも最適化して」：保存先の説明は常に出さず、データの控えの中へ
@@ -291,6 +291,7 @@ async function openFromRecords(place, target = null, row = null) {
     await AstroNotesAssets.ensureModels();
     if (token !== auth?.token || !screenAllowed('framing') || sheetState !== openedSheet || !sheet?.open || !atRecords) return false;
     if (sheet?.open && sheetState === openedSheet) sheet.close();
+    if(row?.shapeType)globalThis.TrialExplore?.preferMap();
     pushRoute('#/aim');
     if (target) openWith(place, target, row, 'aim'); else openInAim(place, row);
   } catch { const error = sheet?.open ? el('myRecordError') : document.createElement('p'); error.textContent = '構図を開けませんでした。もう一度お試しください'; error.hidden = false; error.setAttribute('role','status'); if (!sheet?.open) el('myRecordsHub')?.append(error); }
@@ -652,13 +653,13 @@ function renderSheet() {
   if(!el('myPlacePlanning').open)return;
   const seen = targetsSeenFrom(place.id).filter((r) => r.result !== 'hidden');
   const pairs=planningPairs(seen,sheetState.bodies);
-  el('myPlaceFind').disabled=!pairs.length||!!sheetState.initialShape;el('myPlaceFind').hidden=!!sheetState.initialShape;el('myPlaceBodies').closest('fieldset').hidden=!!sheetState.initialShape;el('myPlaceNext').previousElementSibling.hidden=!!sheetState.initialShape;
-  if(sheetState.initialShape){const hint=document.createElement('p');hint.className='tiny';hint.textContent='線・範囲の候補は、地図で対象・天体・日付を選んで探せます。';next.append(hint);return;}
+  el('myPlaceFind').disabled=!pairs.length;el('myPlaceFind').hidden=false;el('myPlaceBodies').closest('fieldset').hidden=false;el('myPlaceNext').previousElementSibling.hidden=false;
   if (!seen.length || !pairs.length || !sheetState.planningRequested) {
     const p=document.createElement('p');p.className='tiny';
     p.textContent=!seen.length?'見えた対象を追加すると、次に重なる日を探せます。':!sheetState.bodies.length?'調べたい天体を選んでください。':!pairs.length?'選んだ天体と対象は、現在の権限では構図に使えません。':'この場所から見えた対象ごとに、選んだ天体が重なる日を調べます。';
     next.append(p);return;
   }
+  if(sheetState.initialShape){renderShapeDates(next,pairs,token);return;}
   let pending=Promise.resolve();
   for (const {record:r,body} of pairs) {
     const t = resolveTarget(r.target.key);
@@ -682,6 +683,43 @@ function renderSheet() {
       }).catch(() => { if (token === sheetToken) sub.textContent = '計算できませんでした。もう一度探してください'; });
     });
   }
+}
+// A shape is searched spatially for each day. Keep matched coordinates, not its saved anchor.
+function renderShapeDates(host,pairs,token){
+ const state=sheetState,place=withShape(state.place),shape=place.shape;if(!shape)return;
+ state.shapePages||=new Map();let queue=Promise.resolve();
+ for(const {record,body}of pairs){
+  const target=resolveTarget(record.target.key),opts=matchOpts(target);
+  const key=JSON.stringify([auth?.loginId,place,record,target,body,opts,AstroNotesAtmosphere.dataKey()]);
+  let page=state.shapePages.get(key);if(!page){const now=Date.now();page={origin:now,cursor:now,end:S.Cal.startOfDay(now)+400*DAY,rows:[],partial:null,cache:{},unconfirmed:[]};state.shapePages.set(key,page);}
+  page.run=(page.run||0)+1;const run=page.run;page.loading=false;
+  const current=()=>sheetState===state&&sheetOwnerMatches()&&sheet.open&&token===sheetToken&&page.run===run&&state.planningRequested&&planningPairs([record],[body]).length&&statusOf(place.id,record.target.key)?.id===record.id&&shapeKey(shapeFor(place))===shapeKey(shape);
+  const section=document.createElement('section');section.className='shape-next-group';const heading=document.createElement('h3');heading.className='my-title';heading.textContent=record.target.name+' × '+AstroNotesBodies.definition(body).name;
+  const results=document.createElement('div'),status=document.createElement('p');status.className='tiny';status.setAttribute('role','status');const more=document.createElement('button');more.type='button';more.className='chip';const skip=document.createElement('button');skip.type='button';skip.className='chip';section.append(heading,results,status,more,skip);host.append(section);
+  function draw(){
+   if(!current())return;results.replaceChildren();
+   for(const row of page.rows){
+    const b=document.createElement('button');b.type='button';b.className='list-item my-place-row';b.dataset.shapeCandidate='';b.dataset.latitude=row.place.latitude;b.dataset.longitude=row.place.longitude;b.dataset.at=row.event.at;
+    const title=document.createElement('strong');title.textContent=dayText(row.event.at)+' '+S.JstCal.hhmm(row.event.at);
+    const sub=document.createElement('span');sub.className='tiny sub-line';sub.textContent=(shape.type==='line'?'線上':'範囲内')+' '+row.place.latitude.toFixed(5)+', '+row.place.longitude.toFixed(5)+' ・ 地図で確認';b.append(title,sub);
+    b.onclick=()=>{if(!current()||!AstroNotesShooting.shapeContains(shape,row.place))return;const point={...row.place,id:'shape-candidate:'+place.id+':'+row.place.latitude+','+row.place.longitude};delete point.shape;openWith(point,target,{...row.event,body,shapeType:shape.type},state.ctx);};results.append(b);
+   }
+   const last=page.cursor>page.origin?new Date(page.cursor-1+9*3600000).toISOString().slice(0,10).replaceAll('-','/'):'';
+   status.textContent=!target?'この対象は構図に使えません。':page.loading?'線上・範囲内を計算しています…':page.partial==='elevation'?'標高を取得できず、確認できていない位置があります。':page.partial==='invalid'?'線・範囲を編集して形を確認してください。':page.partial==='limit'?'広いため調べ切れていません。線・範囲を小さく分けて再試行してください。':page.partial?'候補を確認できませんでした。再試行してください。':(last?last+(page.unconfirmed.length?'まで探索（未確認日あり）。':'まで探索済み。'):'')+(!page.rows.length?'探索済みの期間では候補が見つかっていません。':'候補を押すと地図で位置を確認できます。');
+   more.disabled=page.loading||!target||page.partial==='invalid';skip.hidden=!target||page.loading||!page.partial||page.partial==='invalid';skip.textContent='この日を未確認のまま次の日から探す';more.hidden=page.cursor>=aimCandidateSearchEnd();more.textContent=page.loading?'計算中…':page.partial?'再試行':'さらに先の候補を探す';
+  }
+  async function search(){
+   if(!current()||page.loading||!target)return;page.loading=true;page.partial=null;if(page.cursor>=page.end)page.end=aimCandidatePageEnd(page.cursor);draw();
+   try{
+    const result=await AstroNotesShapePlanner.search({target,body,...opts}, {place,record},{from:page.cursor,end:page.end,limit:4,cache:page.cache,isCurrent:current,align:AstroNotesAlign,isMountain:aimIsMountain,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),elevationAt:candidateElevation,viewFor:(obs,p)=>aimShootingView(obs,p.target,p.body,p.partId,p.matchMode),ensure:b=>AstroNotesBodies.ensure(b),onProgress:p=>{if(current())status.textContent='線上・範囲内を確認中… '+dayText(p.day)+' ・ '+p.checked+'位置';}});
+    if(!current()||result.cancelled)return;
+    for(const row of result.rows){const i=page.rows.findIndex(r=>S.Cal.startOfDay(r.event.at)===S.Cal.startOfDay(row.event.at));if(i<0)page.rows.push(row);else if(row.event.at<page.rows[i].event.at)page.rows[i]=row;}page.rows.sort((a,b)=>a.event.at-b.event.at);
+    page.cursor=result.searchedUntil;page.partial=result.partial;
+   }catch{if(current())page.partial='calculation';}
+   finally{if(current()){page.loading=false;page.started=true;draw();}}
+  }
+  skip.onclick=()=>{if(!current()||page.loading||!page.partial)return;page.unconfirmed.push(S.Cal.startOfDay(page.cursor));page.cursor=S.Cal.startOfDay(page.cursor)+DAY;page.partial=null;draw();queue=queue.catch(()=>{}).then(search);};more.onclick=()=>{queue=queue.catch(()=>{}).then(search);};draw();if(!page.started)queue=queue.catch(()=>{}).then(search);
+ }
 }
 // 次に重なる日を押したら、その目標・日・地点で開く（構図ならその日の見え方、地図ならその時刻）
 function openWith(place, t, row, ctx) {

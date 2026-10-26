@@ -1,19 +1,24 @@
 {
-  "name": "地点・予定と候補日の継続検索（trial限定）",
+  "name": "地点・予定・継続検索・線と枠の次回候補（trial限定）",
   "baseCommit": "b8055c2",
   "files": {
     "astronotes-myplaces.js": {
       "root": "26ce92ec87fb46b5b3a26da3479519f99b17150e788952e05c33b699c6941de3",
-      "trial": "f01400dc36daeeed53b8132992a27614435f19b8c56e54cd07c2d7fa9866422d"
+      "trial": "c7f6071b0ac1f4d19f9b53ebf8a1fa3c05690f4f3460a5fc1244ca3ef392a784"
     },
     "astronotes-plan.js": {
       "root": "b0e013ce9fb816a00b5ad39a01a1b088f66244e78af96635bd3a3ad3e3d1bd5d",
       "trial": "1d0b12d87a6e163e00c84fa9ed8886e4a7a7147aa9977d577d1a1ec8a64de0a3"
+    },
+    "astronotes-explore.js": {
+      "root": "ba5df7bf9cdd7ecdc372c1102466589e9f95e7944a3d8a4cb9c20c7937d45112",
+      "trial": "d12e3536316df46db9da4fc741446a331508f2ead2f1c7c5be7372c38af2ba12"
     }
   },
   "trialOnlyFiles": {
-    "astronotes-journey.js": "d6a2a4ed4b75b7128b4e74dfcf131f64c4758ddea7b2c79dc3f466bdd48659b1"
+    "astronotes-journey.js": "d6a2a4ed4b75b7128b4e74dfcf131f64c4758ddea7b2c79dc3f466bdd48659b1",
+    "astronotes-shape-planner.js": "845754ff67285f88af928c60437f7ba4f2ee25281b742d812468d68b4cbebbee"
   },
   "rootHtmlSha256": "e9ddf6e1a342471b189947cbc4501ade589292efedc4bd6a2cb0e1240c50a005",
-  "trialHtmlSha256": "d601bbd7bce64a46ee096481e65871140863641c3e3f9b9bf492d29a173cdff4"
+  "trialHtmlSha256": "7bcb070d69cb9f0ff348409a6841305b4eee6f1b47eea1c3e1631ae2a11506b2"
 }
