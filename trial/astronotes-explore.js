@@ -38,7 +38,7 @@ function updateConditions(){
  if(!mounted||!conditions)return;const s=SkyMapUI.selectionState(),text=conditionText(s);
  for(const [id,value] of [['exploreConditionTitle',text.title],['exploreConditionDetail',text.detail]])if($(id).textContent!==value)$(id).textContent=value;
  const confirm=$('exploreShowResult');confirm.disabled=false;confirm.textContent=!s?.target?'対象を選ぶ':!s?.observer?'撮影地点を選ぶ':'結果を確認';
- for(const b of mapView.querySelectorAll('[data-plan-action="keep"]')){b.hidden=!toolAllowed('records');b.disabled=b.dataset.planSource==='skymap'?!!$('skyMapShareRow').querySelector('[data-plan-action="share"]')?.disabled:!!pendingKey||!frameKey||look.hidden;}
+ for(const b of mapView.querySelectorAll('[data-plan-action="keep"]')){b.hidden=false;b.disabled=b.dataset.planSource==='skymap'?!!$('skyMapShareRow').querySelector('[data-plan-action="share"]')?.disabled:!!pendingKey||!frameKey||look.hidden;}
 }
 function showResult(){
  if(!mounted)return;const selected=SkyMapUI.selectionState();if(!selected?.target){$('skyMapTargetOpen').click();return;}if(!selected?.observer){$('skyMapChoose').click();return;}conditions.open=false;
