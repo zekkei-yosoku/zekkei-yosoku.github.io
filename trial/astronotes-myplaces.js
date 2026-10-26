@@ -177,7 +177,7 @@ function notebookCommit(mode,state,ids,stamp,targets=[],drafts=[]){
   AstroNotesLibrary.transaction(localStorage,plan.entries);favorites=plan.favorites;
   if(typeof RecordSync!=='undefined')RecordSync.kick();
   for(const id of plan.changedFavorites)queuePush('fav',id);
-  notebookEdit=null;notebookGeneration++;notebookNotice=ids.length+'地点'+(mode==='delete'?'をNOTEBOOKから削除しました':'に対象を追加しました');
+  notebookEdit=null;notebookGeneration++;notebookNotice=ids.length+'地点'+(mode==='delete'?'を記録から削除しました':'に対象を追加しました');
   version++;candidateCache.clear();changed();aimFillSelects();SkyMapUI?.refreshTargets?.();return true;
  }catch(e){state.error=e.message||'保存できませんでした。もう一度お試しください';renderRecordsHub();return false;}
 }
@@ -250,7 +250,7 @@ function renderRecordsHub() {
    const remove=action('notebookDelete','削除',()=>{
     if(notebookEdit!==state||state.owner!==auth?.token||!state.ids.size)return;
     const ids=[...state.ids],stamp=notebookStamp(ids);
-    if(!confirm(ids.length+'地点をNOTEBOOKから削除しますか？\nこの地点の対象登録・観測記録・線と範囲を削除します。お気に入りの候補と予定は残ります。'))return;
+    if(!confirm(ids.length+'地点を記録から削除しますか？\nこの地点の対象登録・観測記録・線と範囲を削除します。お気に入りの候補と予定は残ります。'))return;
     notebookCommit('delete',state,ids,stamp);
    });remove.disabled=!state.ids.size;remove.style.color='var(--red)';
    host.append(bar);

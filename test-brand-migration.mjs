@@ -7,7 +7,7 @@ const require=createRequire(import.meta.url),read=name=>readFileSync(new URL(nam
 test('cached HTML legacy assets retain their original bytes and canonical assets exist in root and trial',()=>{
  const {sha256}=JSON.parse(read('legacy-assets.json'));
  const experiments=JSON.parse(read('trial/ui-experiment.json')).files;
- const allowed=new Set(['astronotes-explore.js','astronotes-myplaces.js','astronotes-plan.js','astronotes-camera-ui.js']);
+ const allowed=new Set(['astronotes-explore.js','astronotes-myplaces.js','astronotes-plan.js','astronotes-camera-ui.js','astronotes-flair.css']);
  const digest=value=>createHash('sha256').update(value).digest('hex');
  for(const [old,hash] of Object.entries(sha256)){
   const name=old.replace(/^sorami-/,'astronotes-');

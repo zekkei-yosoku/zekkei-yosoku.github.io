@@ -4,11 +4,11 @@
   "files": {
     "astronotes-myplaces.js": {
       "root": "26ce92ec87fb46b5b3a26da3479519f99b17150e788952e05c33b699c6941de3",
-      "trial": "c7f6071b0ac1f4d19f9b53ebf8a1fa3c05690f4f3460a5fc1244ca3ef392a784"
+      "trial": "7e6c8cde2da76f034432125dcbfb64a1897340dfc0315dca1e0f64c9efa4e347"
     },
     "astronotes-plan.js": {
       "root": "b0e013ce9fb816a00b5ad39a01a1b088f66244e78af96635bd3a3ad3e3d1bd5d",
-      "trial": "df00c80800aded18bcb91b9d8ff63e05661ed182a88b73b1efbe2e805238ecce"
+      "trial": "5ff8ca0239569513c6ce2b9812930131c3a2c2f61bd02a472ec10e8e652de4c5"
     },
     "astronotes-explore.js": {
       "root": "ba5df7bf9cdd7ecdc372c1102466589e9f95e7944a3d8a4cb9c20c7937d45112",
@@ -17,6 +17,10 @@
     "astronotes-camera-ui.js": {
       "root": "eb3ad992b48ed8b3729f09b19298ff27d1edd85704189bb166b23b02f2351d90",
       "trial": "2aea304f3046af2debbedbd0d973fd1cb4ee41688a92bccbf8b5b05716b25536"
+    },
+    "astronotes-flair.css": {
+      "root": "027fa536d37e790ad6833d2e1ac51e271e03027039eaa3a4cfd7a4cb22b676c7",
+      "trial": "f2bee153a2952b0406b49264779696ef30ea2c00db4b07343f8860af78bb8794"
     }
   },
   "trialOnlyFiles": {
@@ -24,5 +28,5 @@
     "astronotes-shape-planner.js": "845754ff67285f88af928c60437f7ba4f2ee25281b742d812468d68b4cbebbee"
   },
   "rootHtmlSha256": "e9ddf6e1a342471b189947cbc4501ade589292efedc4bd6a2cb0e1240c50a005",
-  "trialHtmlSha256": "f3574b71f846dd0cad773990cd02a81a17a9e178b3793610b37994bc4a3a6880"
+  "trialHtmlSha256": "64206e18a7bf035567a3287d6ea7b256c19afa0346adced8e026e4cccf027109"
 }
