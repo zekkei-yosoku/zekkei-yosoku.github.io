@@ -9,3 +9,12 @@ test('通常予定のnull復元は前の撮影位置列と設定を残さない'
  c.__seed(host,state);c.AstroNotesCameraUI.mount(host,{owner:'a',token:'a'});
  assert.equal(state.on,false);assert.equal(state.config,null);assert.equal(fields['[name=count]'].value,240);assert.equal(redraws,1);c.AstroNotesCameraUI.drawRange(host,{},{});assert.equal(host.dataset.timelapseDrawn,'0');
 });
+test('アカウント変更では別ユーザーの記憶タブとTL状態を混ぜない',()=>{
+ const source=fs.readFileSync(new URL('./trial/astronotes-camera-ui.js',import.meta.url),'utf8').replace('const api={mount,','root.__seed=(host,state)=>states.set(host,state);const api={mount,');
+ const prefs=new Map([['astronotes.captureTab:first','timelapse'],['astronotes.captureTab:second','angle']]);
+ const c=vm.createContext({AstroNotesTimelapse:require('./astronotes-timelapse.js'),localStorage:{getItem:k=>prefs.get(k),setItem:(k,v)=>prefs.set(k,v)}});vm.runInContext(source,c);
+ const button=()=>({attrs:{},setAttribute(k,v){this.attrs[k]=v}}),fields={'[name=interval]':{},'[name=count]':{},select:{}},tabs={angle:{button:button(),panel:{}},timelapse:{button:button(),panel:{}}};
+ const host={_timelapseConfig:null,_lookAt:123,querySelector:sel=>sel==='.aim-look-figure'?null:{},_redrawLook(){}},state={host,owner:'first',token:'one',tabs,on:true,config:{interval:10,count:120,fps:30},box:{querySelector:k=>fields[k]},summary:{},buttons:[]};c.__seed(host,state);
+ c.AstroNotesCameraUI.mount(host,{owner:'second',token:'two'});assert.equal(tabs.angle.button.attrs['aria-selected'],'true');assert.equal(tabs.timelapse.panel.hidden,true);assert.equal(state.on,false);assert.equal(state.config,null);
+ c.AstroNotesCameraUI.mount(host,{owner:'first',token:'three'});assert.equal(tabs.timelapse.button.attrs['aria-selected'],'true');assert.equal(tabs.angle.panel.hidden,true);assert.equal(prefs.get('astronotes.captureTab:first'),'timelapse');
+});

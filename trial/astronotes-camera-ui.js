@@ -6,7 +6,7 @@ const fpsKey=o=>'astronotes.timelapse.fps:'+encodeURIComponent(o||'guest');
 function loadFps(o){try{const f=Number(localStorage.getItem(fpsKey(o)));return [24,25,30,60].includes(f)?f:24;}catch{return 24;}}
 function sync(s,at){
  for(const b of s.buttons){b.setAttribute('aria-checked',String(s.on));b.textContent=s.on?'ON':'OFF';}
- if(s.toggle)s.toggle.dataset.enabled=String(s.on);
+ if(s.toggle){s.toggle.dataset.enabled=String(s.on);s.toggle.setAttribute('aria-label',s.on?'撮影設定（タイムラプス表示ON）':'撮影設定');s.toggle.title=s.on?'撮影設定（タイムラプス表示ON）':'撮影設定';}
 }
 function redraw(s){s.cache=null;sync(s,s.host._lookAt);s.host._redrawLook?.();}
 function fill(s,v){s.box.querySelector('[name=interval]').value=v.interval;s.box.querySelector('[name=count]').value=v.count;s.box.querySelector('select').value=String(v.fps);}
@@ -18,21 +18,40 @@ function mapToolbar(){const row=document.querySelector('#skyMapShareRow'),wrap=d
 function arrange(host){
  const figure=host.querySelector('.aim-look-figure');if(!figure)return;const center=host.querySelector('.preview-center');if(center){center.classList.add('trial-scene-center');if(center.parentElement!==figure)figure.append(center);}mapToolbar();let tools=host.querySelector('.trial-scene-toolbar');
  if(!tools){tools=document.createElement('div');tools.className='trial-scene-toolbar';tools.setAttribute('role','group');tools.setAttribute('aria-label','見え方の操作');figure.before(tools);}
- let slot=0;for(const sel of ['.trial-timelapse-toggle','[data-camera-settings]','.aim-figure-share']){const el=host.querySelector(sel);if(el){if(tools.children[slot]!==el)tools.insertBefore(el,tools.children[slot]||null);slot++;}}
+ let slot=0;for(const sel of ['[data-camera-settings]','.aim-figure-share']){const el=host.querySelector(sel);if(el){if(tools.children[slot]!==el)tools.insertBefore(el,tools.children[slot]||null);slot++;}}
  const share=tools.querySelector('.aim-figure-share'),keep=share?.querySelector('[data-plan-action=keep]'),send=share?.querySelector('[data-plan-action=share]');if(keep&&send&&keep.nextElementSibling!==send)share.insertBefore(keep,send);
+}
+const tabKey=o=>'astronotes.captureTab:'+encodeURIComponent(o||'guest');
+function loadTab(o){try{return localStorage.getItem(tabKey(o))==='timelapse'?'timelapse':'angle';}catch{return 'angle';}}
+function chooseTab(s,name,remember=true,focus=false){
+ const next=name==='timelapse'?'timelapse':'angle';
+ for(const [key,v]of Object.entries(s.tabs)){const on=key===next;v.button.setAttribute('aria-selected',String(on));v.button.tabIndex=on?0:-1;v.panel.hidden=!on;if(on&&focus)v.button.focus();}
+ if(remember)try{localStorage.setItem(tabKey(s.owner),next);}catch{}
+}
+function captureTabs(s,camera,popup){
+ const content=camera.querySelector('.sheet-body'),angle=document.createElement('section'),tl=document.createElement('section'),tabs=document.createElement('div');
+ angle.append(...content.childNodes);tl.append(...popup.querySelector('.sheet-body').childNodes);
+ tabs.className='capture-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','撮影設定の種類');s.tabs={};
+ for(const [key,label,panel]of [['angle','画角',angle],['timelapse','タイムラプス',tl]]){
+  const button=document.createElement('button');button.type='button';button.textContent=label;button.id='captureTab-'+key;button.setAttribute('role','tab');button.setAttribute('aria-controls','capturePanel-'+key);
+  panel.id='capturePanel-'+key;panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',button.id);panel.tabIndex=0;
+  button.onclick=()=>chooseTab(s,key);s.tabs[key]={button,panel};tabs.append(button);
+ }
+ tabs.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const current=s.tabs.angle.button.getAttribute('aria-selected')==='true'?'angle':'timelapse';chooseTab(s,e.key==='Home'?'angle':e.key==='End'?'timelapse':current==='angle'?'timelapse':'angle',true,true);};
+ content.append(tabs,angle,tl);camera.setAttribute('aria-label','撮影設定');camera.querySelector('.sheet-head strong').textContent='撮影設定';
+ s.toggle.setAttribute('aria-label','撮影設定');s.toggle.title='撮影設定';chooseTab(s,loadTab(s.owner),false);
 }
 function mount(host,{owner,token}){
  const camera=host.querySelector('[data-camera-panel]');if(!camera)return;
  arrange(host);
  let s=states.get(host);
- if(s){if(s.token!==token){s.token=token;s.owner=owner;s.on=false;s.config=null;host._timelapseConfig=null;fill(s,{interval:5,count:240,fps:loadFps(owner)});s.summary.textContent='撮影間隔と枚数を設定してください。';redraw(s);}const saved=host._timelapseConfig;if(T().settings(saved)&&saved!==s.config){fill(s,saved);s.config=saved;s.on=true;changed(s);}else if(!T().settings(saved)&&s.config){s.config=null;s.on=false;fill(s,{interval:5,count:240,fps:loadFps(owner)});s.summary.textContent='撮影間隔と枚数を設定してください。';redraw(s);}return;}
- const settings=document.createElement('button');settings.type='button';settings.className='aim-body-move trial-timelapse-toggle';settings.setAttribute('aria-label','タイムラプス設定');settings.title='タイムラプス設定';settings.setAttribute('aria-haspopup','dialog');settings.setAttribute('aria-controls','trialTimelapsePanel');settings.setAttribute('aria-expanded','false');settings.innerHTML='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5 9.5 3.5h5l1.5 2h3.5a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-15a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="4.5"/><path d="M12 10.5V13l2 1.2"/></svg>';
- const popup=document.createElement('dialog');popup.id='trialTimelapsePanel';popup.className='sheet preview-camera-dialog timelapse-dialog';popup.setAttribute('aria-label','タイムラプス設定');popup.innerHTML='<div class="sheet-head"><strong>タイムラプス</strong><button type="button" data-tl-close aria-label="閉じる">閉じる</button></div><div class="sheet-body"><div class="timelapse-mode-head"><span>天体の位置を図に表示</span></div><section class="timelapse-settings"><label>撮影間隔 <span><input name="interval" type="number" min="0.1" max="3600" step="0.1" value="5" aria-label="撮影間隔（秒）" title="撮影開始から次の開始まで"> 秒</span></label><label>撮影枚数 <span><input name="count" type="number" min="2" max="10000" step="1" value="240" aria-label="撮影枚数（枚）"> 枚</span></label><label>動画のフレームレート <select aria-label="動画のフレームレート（fps）"><option value="24">24 fps</option><option value="25">25 fps</option><option value="30">30 fps</option><option value="60">60 fps</option></select></label><p class="tiny" data-tl-summary role="status"></p><p class="tiny muted">選択中の日時から撮影開始。間隔は開始から次の開始まで。</p></section></div>';
+ if(s){if(s.token!==token||s.owner!==owner){s.token=token;s.owner=owner;if(s.tabs)chooseTab(s,loadTab(owner),false);s.on=false;s.config=null;host._timelapseConfig=null;fill(s,{interval:5,count:240,fps:loadFps(owner)});s.summary.textContent='撮影間隔と枚数を設定してください。';redraw(s);}const saved=host._timelapseConfig;if(T().settings(saved)&&saved!==s.config){fill(s,saved);s.config=saved;s.on=true;changed(s);}else if(!T().settings(saved)&&s.config){s.config=null;s.on=false;fill(s,{interval:5,count:240,fps:loadFps(owner)});s.summary.textContent='撮影間隔と枚数を設定してください。';redraw(s);}return;}
+ const settings=host.querySelector('[data-camera-settings]');
+ const popup=document.createElement('section');popup.className='timelapse-dialog';popup.innerHTML='<div class="sheet-body"><div class="timelapse-mode-head"><span>天体の位置を図に表示</span></div><section class="timelapse-settings"><label>撮影間隔 <span><input name="interval" type="number" min="0.1" max="3600" step="0.1" value="5" aria-label="撮影間隔（秒）" title="撮影開始から次の開始まで"> 秒</span></label><label>撮影枚数 <span><input name="count" type="number" min="2" max="10000" step="1" value="240" aria-label="撮影枚数（枚）"> 枚</span></label><label>動画のフレームレート <select aria-label="動画のフレームレート（fps）"><option value="24">24 fps</option><option value="25">25 fps</option><option value="30">30 fps</option><option value="60">60 fps</option></select></label><p class="tiny" data-tl-summary role="status"></p><p class="tiny muted">選択中の日時から撮影開始。間隔は開始から次の開始まで。</p></section></div>';
  const box=popup.querySelector('.timelapse-settings');s={host,owner,token,popup,box,buttons:[],summary:box.querySelector('[data-tl-summary]'),toggle:settings,on:false,config:null,cache:null};states.set(host,s);
  function switchButton(parent){const b=document.createElement('button');b.type='button';b.className='timelapse-switch';b.setAttribute('role','switch');b.setAttribute('aria-label','タイムラプス表示');b.onclick=()=>{if(s.on){s.on=false;redraw(s);}else changed(s,{activate:true});};s.buttons.push(b);parent.append(b);}
  switchButton(popup.querySelector('.timelapse-mode-head'));
- const figure=host.querySelector('.aim-look-figure');figure.append(settings);host.append(popup);arrange(host);
- settings.onclick=()=>{settings.setAttribute('aria-expanded','true');showSheet(popup);};popup.querySelector('[data-tl-close]').onclick=()=>popup.close();popup.addEventListener('close',()=>settings.setAttribute('aria-expanded','false'));popup.addEventListener('click',e=>{if(e.target!==popup)return;const r=popup.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)popup.close();});
+ captureTabs(s,camera,popup);arrange(host);
  for(const input of box.querySelectorAll('input,select'))input.addEventListener('input',()=>changed(s));
  box.querySelector('select').addEventListener('change',()=>{try{localStorage.setItem(fpsKey(s.owner),box.querySelector('select').value);}catch{s.summary.textContent+='（fpsを記憶できませんでした）';}});
  const saved=host._timelapseConfig;if(T().settings(saved)){fill(s,saved);s.config=saved;s.on=true;changed(s);}else{fill(s,{interval:5,count:240,fps:loadFps(owner)});s.summary.textContent=summaryText({interval:5,count:240,fps:loadFps(owner)});sync(s,host._lookAt);}

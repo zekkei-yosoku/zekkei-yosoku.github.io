@@ -13,6 +13,10 @@
     "astronotes-explore.js": {
       "root": "ba5df7bf9cdd7ecdc372c1102466589e9f95e7944a3d8a4cb9c20c7937d45112",
       "trial": "d12e3536316df46db9da4fc741446a331508f2ead2f1c7c5be7372c38af2ba12"
+    },
+    "astronotes-camera-ui.js": {
+      "root": "eb3ad992b48ed8b3729f09b19298ff27d1edd85704189bb166b23b02f2351d90",
+      "trial": "a9ff22f8a48b81721ca8aca25b307d1f9979a948888b6189433c537c89741c27"
     }
   },
   "trialOnlyFiles": {
@@ -20,5 +24,5 @@
     "astronotes-shape-planner.js": "845754ff67285f88af928c60437f7ba4f2ee25281b742d812468d68b4cbebbee"
   },
   "rootHtmlSha256": "e9ddf6e1a342471b189947cbc4501ade589292efedc4bd6a2cb0e1240c50a005",
-  "trialHtmlSha256": "731fadcc58d96a4ba0bfcf9d40a2f2335c8fcab7f53a86fc42d574a61559d2bc"
+  "trialHtmlSha256": "8d6ba792e9cc61a3ea75911722eec5de30287bd9fa19a0e3f1f1de33b88d5285"
 }
