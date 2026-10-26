@@ -12,18 +12,20 @@ function create({ read, write, validate, scope = () => 'guest', now = Date.now, 
     const title = typeof r.title === 'string' && r.title.length <= 200 ? r.title : '';
     return { id: r.id, value, title, start: r.start, end: Number.isFinite(r.end) && r.end >= r.start ? r.end : r.start, savedAt: r.savedAt };
   };
-  const list = () => { const s = read(key(), null); return (Array.isArray(s) ? s : []).map(clean).filter(Boolean).sort((a, b) => a.start - b.start); };
+  const stored = () => { const s = read(key(), null); return Array.isArray(s) ? s : []; };
+  const list = () => stored().map(clean).filter(Boolean).sort((a, b) => a.start - b.start);
   const same = (a, b) => JSON.stringify([a.t, a.o, a.body, a.part, a.limb, a.matchMode || 'limb', a.at]) === JSON.stringify([b.t, b.o, b.body, b.part, b.limb, b.matchMode || 'limb', b.at]);
   function add({ value, title, start, end }) {
     value = validate(value);
     if (!value || !Number.isFinite(start)) return { ok: false };
-    const rows = list(), old = rows.find((r) => same(r.value, value));
+    const raw = stored(), rows = list(), old = rows.find((r) => same(r.value, value));
+    if (!old && raw.length >= limit) return { ok: false, error: `予定は${limit}件まで保存できます。不要な予定を整理してから追加してください。` };
     const row = { id: old ? old.id : 's' + now().toString(36) + Math.random().toString(36).slice(2, 6), value, title: String(title || '').slice(0, 200),
       start, end: Number.isFinite(end) && end >= start ? end : start, savedAt: now() };
-    const next = [...rows.filter((r) => r !== old), row].sort((a, b) => a.start - b.start).slice(-limit);
+    const next = [...raw.filter((r) => !old || r?.id !== old.id), row];
     return { ok: !!write(key(), next), updated: !!old, row };
   }
-  const remove = (id) => !!write(key(), list().filter((r) => r.id !== id));
+  const remove = (id) => !!write(key(), stored().filter((r) => r?.id !== id));
   return { add, remove, list };
 }
 const api = { create, KEY };
