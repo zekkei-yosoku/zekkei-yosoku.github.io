@@ -24,8 +24,9 @@ function arrange(host){
 const tabKey=o=>'astronotes.captureTab:'+encodeURIComponent(o||'guest');
 function loadTab(o){try{return localStorage.getItem(tabKey(o))==='timelapse'?'timelapse':'angle';}catch{return 'angle';}}
 function chooseTab(s,name,remember=true,focus=false){
- const next=name==='timelapse'?'timelapse':'angle';
- for(const [key,v]of Object.entries(s.tabs)){const on=key===next;v.button.setAttribute('aria-selected',String(on));v.button.tabIndex=on?0:-1;v.panel.hidden=!on;if(on&&focus)v.button.focus();}
+ const next=name==='timelapse'?'timelapse':'angle',changed=s.activeTab!==next;
+ for(const [key,v]of Object.entries(s.tabs)){const on=key===next;v.button.setAttribute('aria-selected',String(on));v.button.tabIndex=on?0:-1;v.panel.hidden=!on;v.panel.inert=!on;v.panel.setAttribute('aria-hidden',String(!on));if(on&&focus)v.button.focus();}
+ if(changed)s.tabs[next].panel.scrollTop=0;s.activeTab=next;
  if(remember)try{localStorage.setItem(tabKey(s.owner),next);}catch{}
 }
 function captureTabs(s,camera,popup){
@@ -38,7 +39,7 @@ function captureTabs(s,camera,popup){
   button.onclick=()=>chooseTab(s,key);s.tabs[key]={button,panel};tabs.append(button);
  }
  tabs.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const current=s.tabs.angle.button.getAttribute('aria-selected')==='true'?'angle':'timelapse';chooseTab(s,e.key==='Home'?'angle':e.key==='End'?'timelapse':current==='angle'?'timelapse':'angle',true,true);};
- content.append(tabs,angle,tl);camera.setAttribute('aria-label','撮影設定');camera.querySelector('.sheet-head strong').textContent='撮影設定';
+ const panels=document.createElement('div');panels.className='capture-panels';panels.append(angle,tl);s.panels=panels;content.append(tabs,panels);camera.setAttribute('aria-label','撮影設定');camera.querySelector('.sheet-head strong').textContent='撮影設定';
  s.toggle.setAttribute('aria-label','撮影設定');s.toggle.title='撮影設定';chooseTab(s,loadTab(s.owner),false);
 }
 function mount(host,{owner,token}){
