@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="17856577284959198722">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-djSx+YPvYbWALeCkKjUM+cLegsvAhJkvQed8UtkQhLk=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-1tiNrGRb8DUZWiqhzKGKQ/durN5GIRvjtnW01/Xz0Q4=' 'sha256-JSsXio7SDPC9rxAJhfpjX7THSzMjr+FjdH5xCr4cg8Q=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-vKtoN1pKZP276RC3xh0RdrZyYAccJhFvPhnmSrNtmn8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="835657519491774613">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-DGkyRFPnYLQGz8XoADB9zZhOtN5DJQOcGr5GetAGeoE=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-1tiNrGRb8DUZWiqhzKGKQ/durN5GIRvjtnW01/Xz0Q4=' 'sha256-JSsXio7SDPC9rxAJhfpjX7THSzMjr+FjdH5xCr4cg8Q=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-vKtoN1pKZP276RC3xh0RdrZyYAccJhFvPhnmSrNtmn8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -1269,6 +1269,21 @@
 #aimView .trial-scene-toolbar button svg,#aimView .trial-scene-center svg,#skyMapShareRow [data-plan-action] svg,#skyMapExpand svg{width:24px;height:24px;stroke-width:1.8}
 #aimView .trial-scene-toolbar .trial-timelapse-toggle[data-enabled=true]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 
+/* Four equally sized, consistently labelled scene actions. */
+#aimView .trial-scene-toolbar{grid-template-columns:repeat(4,minmax(0,1fr));height:56px;justify-content:normal;gap:6px}
+#aimView .trial-scene-toolbar [data-plan-action=keep]{grid-column:3}
+#aimView .trial-scene-toolbar [data-plan-action=share]{grid-column:4}
+#aimView .trial-scene-toolbar button{width:100%;min-width:0;height:56px;min-height:56px;display:flex;flex-direction:column;justify-content:center;gap:3px;font-size:12px;line-height:1.2}
+#aimView .trial-scene-toolbar .trial-timelapse-toggle::after{content:'タイムラプス';font-size:11px}
+#aimView .trial-scene-toolbar [data-camera-settings]::after{content:'設定'}
+#aimView .trial-scene-toolbar [data-plan-action=keep]::after{content:'予定'}
+#aimView .trial-scene-toolbar [data-plan-action=share]::after{content:'共有'}
+.candidate-dates:has(>.candidate-heading){grid-template-rows:auto minmax(3.5rem,auto) minmax(2.75rem,auto)}
+.candidate-heading{display:flex;align-items:baseline;justify-content:space-between;gap:6px;margin:0;color:var(--secondary);font-size:12px;line-height:1.5}
+.candidate-heading>span:first-child{flex-shrink:0}
+.candidate-heading>[role=status]{text-align:right;min-width:0}
+
+
 </style>
 <script>(()=>{const root=document.documentElement,meta=document.querySelector('meta[name="theme-color"]');const sync=()=>{meta.content=getComputedStyle(root).getPropertyValue('--header-bg').trim();};sync();new MutationObserver(sync).observe(root,{attributes:true,attributeFilter:['data-theme']});})();</script>
 <style id="previewStyles">.preview-banner{margin:0 0 12px;color:var(--secondary);font-size:11px}
@@ -2077,7 +2092,7 @@ button.ui-icon-button::after { content: none; }
 <p id="skyMapHeightError" class="tiny" role="alert" hidden></p></details></div><span class="aim-say-v condition-label" id="skyMapChooseLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-observer"/></svg><span id="skyMapChooseLabelText">撮影地点</span><button type="button" id="skyMapObserverClear" class="condition-clear" aria-label="撮影地点の選択を解除" title="選択を解除" hidden><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg><span>解除</span></button></span></div>
 
   <section id="skyMapAlignmentDetails" class="alignment-details" hidden><p class="alignment-heading" id="skyMapAlignmentSummary">重ね方</p><div id="skyMapAlignmentControls"></div></section>
-  <section class="sky-map-candidates" aria-label="重なる日時の候補"><p class="tiny muted" style="margin:0 0 6px">重なる日時</p><div id="skyMapDates" class="candidate-dates"></div></section>
+  <section class="sky-map-candidates" aria-label="重なる日時の候補"><div id="skyMapDates" class="candidate-dates"></div></section>
   <div class="mapwrap sky-map-wrap"><span class="sr-only">地図は北が上</span><canvas id="skyMapCanvas" aria-label="撮影地点からの天体の方向と対象への線を示す地図"></canvas><div class="sky-map-point-tools"><button type="button" class="map-ctl" id="skyMapObserverTool" aria-label="撮影地点を地図で変更" title="撮影地点" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="7" rx="1.5"/><circle cx="13" cy="6.5" r="2"/><path d="M12 10v3m0 0L5 22m7-9 7 9m-7-9v9"/></svg></button><button type="button" class="map-ctl" id="skyMapTargetTool" aria-label="対象を地図で変更" title="対象" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z"/><circle cx="12" cy="9" r="2.5"/></svg></button></div><button type="button" class="map-ctl sky-map-expand" id="skyMapExpand" aria-label="地図を全画面表示" title="地図を全画面表示" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path data-map-expand d="M4 9V4h5M4 4l5 5M15 4h5v5m0-5-5 5M4 15v5h5m-5 0 5-5M15 20h5v-5m0 5-5-5"/><path data-map-contract d="M9 4v5H4m5 0L4 4m11 0v5h5m-5 0 5-5M4 15h5v5m0-5-5 5m16-5h-5v5m0-5 5 5"/></svg></button><div class="mappin" aria-hidden="true"></div><div class="mapzoom"><button id="skyMapIn" aria-label="地図を拡大">＋</button><button id="skyMapOut" aria-label="地図を縮小">−</button></div><div class="mapattr">国土地理院</div></div>
   <div class="aim-figure-share" id="skyMapShareRow"><button type="button" class="plan-trigger" aria-label="撮影計画を共有" title="共有" data-plan-action="share" data-plan-source="skymap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8v12M8.4 6.3 12 2.8l3.6 3.5M8.6 9.5H7.2A2.2 2.2 0 0 0 5 11.7v7.1A2.2 2.2 0 0 0 7.2 21h9.6a2.2 2.2 0 0 0 2.2-2.2v-7.1a2.2 2.2 0 0 0-2.2-2.2h-1.4"/></svg></button></div>
   <details id="skyMapCustom"><summary>地図内だけの対象を置く</summary><label>地上からの高さ <input type="number" id="skyMapHeight" min="0" max="1000" step="any" aria-label="対象の地上からの高さ"> m</label><button type="button" class="chip" id="skyMapPlaceTarget">中心に対象を置く</button></details>
@@ -8754,11 +8769,11 @@ function candidateDatesMarkup(ev, entry, plan, at) {
       + `<span class="sub-line">${aimSideName(e.side,plan.body)} ${S.JstCal.hhmm(e.at)}${!AstroNotesBodies.definition(plan.body).limbs ? " " + AstroNotesBodies.sky(e.sunAltitude) : ""}${lit}</span></button>`;
   }).join("");
   const complete=entry&&entry.searchedUntil>=aimCandidateSearchEnd();
-  const last=entry?.searchedUntil>S.Cal.startOfDay(entry.origin)?new Date(entry.searchedUntil-86400000+9*3600000).toISOString().slice(0,10).replaceAll('-','/'):'';
-  const scanned=last?`<p class="tiny" role="status">${last}まで探索済み</p>`:'';
+  const last=entry&&entry.searchedUntil>S.Cal.startOfDay(entry.origin)?new Date(entry.searchedUntil-86400000+9*3600000).toISOString().slice(0,10).replaceAll('-','/'):'';
+  const scanned=`<div class="candidate-heading"><span>重なる日時</span><span role="status">${last?last+"まで探索済み":""}</span></div>`;
   const none=ev.length?'':'<p class="tiny">探索済みの期間には候補がありません。</p>';
   const more=complete?'<p class="tiny">対応する日付の終わり（2100年）まで探索しました。</p>':`<button type="button" class="fav-btn tiny" data-from-more${entry?.morePromise?' disabled':''}>${entry?.morePromise?'先の候補を計算しています…':'さらに先の候補を探す'}</button>`;
-  return (chips?`<div class="aim-days strip">${chips}</div>`:none)+scanned+more;
+  return scanned+(chips?`<div class="aim-days strip">${chips}</div>`:none)+more;
 }
 // The selected place is already known; displaying it must not wait for models, weather or terrain.
 function aimRenderSelectedPoint() {
