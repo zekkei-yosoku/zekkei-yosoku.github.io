@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="14090535597211585188">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-YysxbIMYDvz/HyPIqrwiR4mVp85TDj+GLs79Zq9UavQ=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-1tiNrGRb8DUZWiqhzKGKQ/durN5GIRvjtnW01/Xz0Q4=' 'sha256-VxWBnqntO9QNL/8oPXBQ9ClTg6TjGw4g6maALPXjAzY=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-vKtoN1pKZP276RC3xh0RdrZyYAccJhFvPhnmSrNtmn8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="17270961921713877821">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-djSx+YPvYbWALeCkKjUM+cLegsvAhJkvQed8UtkQhLk=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-1tiNrGRb8DUZWiqhzKGKQ/durN5GIRvjtnW01/Xz0Q4=' 'sha256-JSsXio7SDPC9rxAJhfpjX7THSzMjr+FjdH5xCr4cg8Q=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-vKtoN1pKZP276RC3xh0RdrZyYAccJhFvPhnmSrNtmn8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -8701,16 +8701,22 @@ async function aimDaysFor(obs, inputKey) {
   })().catch(error => { if (aim.fromDays === entry) aim.fromDays = null; throw error; });
   return entry.promise;
 }
-// 今日から2暦年の終端。初期探索の続きだけを計算し、既存候補を残す。
-function aimTwoYearEnd(now) {
-  const date = new Date(S.Cal.startOfDay(now) + 9 * 3600000);
-  return Date.UTC(date.getUTCFullYear() + 2, date.getUTCMonth(), date.getUTCDate()) - 9 * 3600000;
+// 続きは未探索日から2暦年ずつ。終端は翌日0時(JST)で排他的。
+function aimCandidateSearchEnd(){return Date.UTC(2101,0,1)-9*3600000;}
+function aimCandidatePageEnd(from){
+  const d=new Date(S.Cal.startOfDay(from)+9*3600000),year=d.getUTCFullYear()+2,month=d.getUTCMonth();
+  const day=Math.min(d.getUTCDate(),new Date(Date.UTC(year,month+1,0)).getUTCDate());
+  return Math.min(Date.UTC(year,month,day)-9*3600000,aimCandidateSearchEnd());
+}
+function aimAppendCandidatePage(entry,rows,scanned){
+  entry.rows=[...entry.rows,...rows];entry.searchedUntil=scanned;
+  entry.until=Math.min(entry.until,...rows.map(e=>e.at));
 }
 async function aimMoreDays() {
   const entry = aim.fromDays, f = aimFromPoint();
   if (!entry?.rows || entry.morePromise || Date.now() >= entry.until || entry.inputKey !== aimDaysInputKey(f)) return aimRenderFrom();
   const current = () => aim.fromDays === entry && entry.inputKey === aimDaysInputKey(aimFromPoint()) && Date.now() < entry.until;
-  const end = aimTwoYearEnd(entry.origin), from = entry.searchedUntil, previousCount = entry.rows.length;
+  const from = entry.searchedUntil, end = aimCandidatePageEnd(from), previousCount = entry.rows.length;
   if (from >= end) return;
   const target = aim.target, body = aim.body, partId = aim.partId, limb = aim.limb, matchMode = aim.matchMode;
   const button = $("aimFrom").querySelector('[data-from-more]');
@@ -8723,8 +8729,7 @@ async function aimMoreDays() {
     const rows = await aimBuildingDays(obs, target, body, partId, null,
       { from, days, limit: 4, limb, matchMode, isCurrent: current, onScanned: value => { scanned = value; } });
     if (!current()) return;
-    entry.rows = [...entry.rows, ...rows]; entry.searchedUntil = scanned;
-    entry.until = Math.min(entry.until, ...rows.map(e => e.at));
+    aimAppendCandidatePage(entry,rows,scanned);
   })();
   try { await entry.morePromise; }
   catch { if (current()) { entry.morePromise = null; await aimRenderFrom(); const retry = $("aimFrom").querySelector('[data-from-more]'); if (retry) retry.textContent = "計算できませんでした。再試行"; } return; }
@@ -8747,10 +8752,12 @@ function candidateDatesMarkup(ev, entry, plan, at) {
       + `${y === thisYear ? "" : `${y}/`}${S.Cal.monthDay(e.at)}(${S.Cal.weekday(e.at)})`
       + `<span class="sub-line">${aimSideName(e.side,plan.body)} ${S.JstCal.hhmm(e.at)}${!AstroNotesBodies.definition(plan.body).limbs ? " " + AstroNotesBodies.sky(e.sunAltitude) : ""}${lit}</span></button>`;
   }).join("");
-  const complete = entry && entry.searchedUntil >= aimTwoYearEnd(entry.origin);
-  const none = ev.length ? "" : `<p class="tiny">この条件の候補日は見つかりません（${complete ? "2年先まで" : "今後400日"}）。</p>`;
-  const more = complete ? '<p class="tiny" role="status">2年先まで探索しました。</p>' : `<button type="button" class="fav-btn tiny" data-from-more${entry?.morePromise ? " disabled" : ""}>${entry?.morePromise ? "先の候補を計算しています…" : "さらに先の候補を探す（2年先まで）"}</button>`;
-  return (chips ? `<div class="aim-days strip">${chips}</div>` : none) + more;
+  const complete=entry&&entry.searchedUntil>=aimCandidateSearchEnd();
+  const last=entry?.searchedUntil>S.Cal.startOfDay(entry.origin)?new Date(entry.searchedUntil-86400000+9*3600000).toISOString().slice(0,10).replaceAll('-','/'):'';
+  const scanned=last?`<p class="tiny" role="status">${last}まで探索済み</p>`:'';
+  const none=ev.length?'':'<p class="tiny">探索済みの期間には候補がありません。</p>';
+  const more=complete?'<p class="tiny">対応する日付の終わり（2100年）まで探索しました。</p>':`<button type="button" class="fav-btn tiny" data-from-more${entry?.morePromise?' disabled':''}>${entry?.morePromise?'先の候補を計算しています…':'さらに先の候補を探す'}</button>`;
+  return (chips?`<div class="aim-days strip">${chips}</div>`:none)+scanned+more;
 }
 // The selected place is already known; displaying it must not wait for models, weather or terrain.
 function aimRenderSelectedPoint() {
@@ -13917,7 +13924,7 @@ ctx.lineWidth=1;
    if(!plan.dailies?.[plan.body]||!plan.eye){if(plan.passError)box.innerHTML='<p class="tiny" role="status">候補日時を計算できません。下の再試行からやり直してください。</p>';return;}
    const now=Date.now(),obs=aimObserverAt(f,plan.ground),snapshot={target:plan.target,body:plan.body,partId:plan.partId,limb:plan.limb,matchMode:plan.matchMode};
    const entry={key,inputKey,origin:now,until:Infinity,searchedUntil:S.Cal.startOfDay(now),rows:null,morePromise:null,error:false,obs,snapshot};dateEntry=entry;
-   const current=()=>session===plan&&hasAccess()&&active()&&dateEntry===entry&&entry.inputKey===aimDaysInputKey(session.observer,Date.now(),session);
+   const current=()=>session===plan&&hasAccess()&&active()&&dateEntry===entry&&Date.now()<entry.until&&entry.inputKey===aimDaysInputKey(session.observer,Date.now(),session);
    entry.current=current;
    entry.promise=aimBuildingDays(obs,snapshot.target,snapshot.body,snapshot.partId,null,{from:now,limb:snapshot.limb,matchMode:snapshot.matchMode,isCurrent:current,onScanned:end=>{entry.searchedUntil=end;}}).then(rows=>{
     if(!current())return;entry.rows=rows;entry.until=Math.min(S.Cal.startOfDay(now)+86400000,...rows.map(e=>e.at));renderCandidateDates();
@@ -13937,11 +13944,11 @@ ctx.lineWidth=1;
  }
  async function moreCandidateDates(){
   const entry=dateEntry;if(!entry?.rows||entry.morePromise||!entry.current()||Date.now()>=entry.until)return renderCandidateDates();
-  const end=aimTwoYearEnd(entry.origin),from=entry.searchedUntil;if(from>=end)return;
-  const p=entry.snapshot;entry.error=false;
-  entry.morePromise=aimBuildingDays(entry.obs,p.target,p.body,p.partId,null,{from,days:Math.ceil((end-from)/86400000),limit:4,limb:p.limb,matchMode:p.matchMode,isCurrent:entry.current,onScanned:value=>{entry.scanned=value;}});
+  const from=entry.searchedUntil,end=aimCandidatePageEnd(from);if(from>=end)return;
+  const p=entry.snapshot;entry.error=false;let scanned=from;
+  entry.morePromise=aimBuildingDays(entry.obs,p.target,p.body,p.partId,null,{from,days:Math.ceil((end-from)/86400000),limit:4,limb:p.limb,matchMode:p.matchMode,isCurrent:entry.current,onScanned:value=>{scanned=value;}});
   renderCandidateDates();
-  try{const rows=await entry.morePromise;if(entry.current()){entry.rows=[...entry.rows,...rows];entry.searchedUntil=entry.scanned??from;entry.until=Math.min(entry.until,...rows.map(e=>e.at));}}
+  try{const rows=await entry.morePromise;if(entry.current()){aimAppendCandidatePage(entry,rows,scanned);}}
   catch{if(entry.current())entry.moreError=true;}
   finally{entry.morePromise=null;if(entry.current()){renderCandidateDates();if(entry.moreError){const b=el('skyMapDates').querySelector('[data-from-more]');if(b)b.textContent='計算できませんでした。再試行';entry.moreError=false;}}}
  }
@@ -14012,7 +14019,7 @@ ctx.lineWidth=1;
   const custom=draft?.custom||null,customTarget=custom?{id:'custom',name:custom.name,...custom,parts:[{id:'tip',name:'てっぺん',m:custom.topM}]}:null;
   const target=customTarget&&draft?.targetId==='custom'?customTarget:list.find(t=>t.id===draft?.targetId)||null;
   session={sharedTarget,scrubMode:['date','hour','time'].includes(saved?.scrubMode)?saved.scrubMode:'time',dayAnchor:AstroNotesSkyMap.dayStart(Number.isFinite(draft?.at)?draft.at:Date.now()),showSun:typeof draft?.showSun==='boolean'?draft.showSun:saved?.showSun!==false,showMoon:typeof draft?.showMoon==='boolean'?draft.showMoon:saved?.showMoon!==false,observer:validPoint(draft?.observer)?{...draft.observer}:null,body:draft?.body||'sun',at:Number.isFinite(draft?.at)?draft.at:Date.now(),ground:Number.isFinite(draft?.ground)?draft.ground:null,target,partId:draft?.partId??null,limb:draft?.limb||'center',matchMode:draft?.matchMode==='limb'||(!draft?.matchMode&&(['onTop','behind'].includes(draft?.limb)||(draft?.partId&&draft.partId!=='__whole')))?'limb':'overlap',custom,customTarget,daily:null};
-  if(resume){session.at=resume.at+(resume.playing?Math.max(0,Date.now()-resume.wall):0);session.at=Math.max(Date.UTC(2020,0,1)-32400000,Math.min(Date.UTC(2031,0,1)-32400000-1,session.at));session.dayAnchor=AstroNotesSkyMap.dayStart(session.at);}
+  if(resume){session.at=resume.at+(resume.playing?Math.max(0,Date.now()-resume.wall):0);session.at=Math.max(Date.UTC(2020,0,1)-32400000,Math.min(aimCandidateSearchEnd()-1,session.at));session.dayAnchor=AstroNotesSkyMap.dayStart(session.at);}
   if(session.matchMode==='overlap'){session.partId=aimIsMountain(session.target)?null:'__whole';session.limb='center';}
   syncBodies();session.primaryBody=['sun','moon'].includes(draft?.primaryBody)?draft.primaryBody:['sun','moon'].includes(session.body)?session.body:session.showMoon&&!session.showSun?'moon':'sun';session.extraBody=extraIds.includes(draft?.extraBody)?draft.extraBody:draft?.extraBody===null?null:extraIds.includes(session.body)?session.body:null;if(extraIds.includes(session.body)&&!session.extraBody)session.body=session.primaryBody;el('skyMapBody').value=session.body;setPickMode(null);
   const targetSelect=el('skyMapTarget');targetSelect.replaceChildren(new Option('対象を選ぶ',''));
@@ -14043,7 +14050,7 @@ ctx.lineWidth=1;
  let lastPlaybackDetail=0;
  const skyPlayback=ToolDateTimeBar.playback({row:el('skyMapPrev').parentElement,footer:skyFooter,getAt:()=>session?.at,enabled:()=>hasAccess()&&!!session&&active(),onStart:()=>{globalThis.AstroNotesCameraUI?.stop(el('aimLook'));stopSkyScrub();if(session)session.blend=null;},onStop:()=>{if(hasAccess()&&session&&active())render();},setAt:at=>{
   if(!hasAccess()||!session||!active())return;
-  if(at<Date.UTC(2020,0,1)-32400000||at>=Date.UTC(2031,0,1)-32400000){skyPlayback.stop(false);return;}
+  if(at<Date.UTC(2020,0,1)-32400000||at>=aimCandidateSearchEnd()){skyPlayback.stop(false);return;}
   const changed=AstroNotesSkyMap.dayStart(at)!==AstroNotesSkyMap.dayStart(session.at);session.at=at;session.blend=null;
   if(changed){refresh();return;}
   const text=textAt(at);if(document.activeElement!==el('skyMapTime')&&el('skyMapTime').value!==text)el('skyMapTime').value=text;
