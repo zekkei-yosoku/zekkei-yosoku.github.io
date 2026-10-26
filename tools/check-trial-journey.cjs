@@ -1,0 +1,57 @@
+// Isolated end-to-end fixtures. Never sends user data to the production API.
+const {chromium}=require('playwright'),fs=require('fs'),assert=require('assert/strict');
+const base=process.env.JOURNEY_BASE||'http://127.0.0.1:8863/trial/index.html',out=process.env.JOURNEY_OUT||'/tmp/astronotes-trial-journey';fs.mkdirSync(out,{recursive:true});
+let currentPage;
+const tools=['diamond','pearl','tower','skymap','plane','iss','records'];
+(async()=>{const browser=await chromium.launch({channel:'chrome',headless:true}),results=[];
+for(const width of(process.env.JOURNEY_WIDTHS||'320,390,1280').split(',').map(Number))for(const theme of(process.env.JOURNEY_THEMES||'light,dark').split(',')){
+ const records=new Map();let rev=0;const posts=[];
+ async function context(){const c=await browser.newContext({viewport:{width,height:900},isMobile:width<500,hasTouch:width<500,colorScheme:theme,timezoneId:'Asia/Tokyo'});
+  await c.addInitScript(({tools,theme})=>{sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-journey',loginId:'journey-test',role:'user',tools}));localStorage.setItem('sorami.owner','journey-test');localStorage.setItem('sorami.theme',theme);},{tools,theme});
+  await c.route('**/*',r=>new URL(r.request().url()).origin===new URL(base).origin?r.continue():r.abort());
+  await c.route(/zekkei-api\.okayu-sorami\.workers\.dev|localhost:8787/,r=>{const req=r.request(),u=new URL(req.url()),path=u.pathname;
+   if(path==='/sync'&&req.method()==='POST'){const d=req.postDataJSON();posts.push(d);for(const item of d.records||[]){records.set(item.id,{...item,body:JSON.stringify(item.body),rev:++rev});}return r.fulfill({json:{accepted:Object.fromEntries(['favorites','sightings','records'].map(k=>[k,(d[k]||[]).map(x=>x.id)])),rev}});}
+   const json=path==='/me'?{loginId:'journey-test',role:'user',tools}:path==='/sync'?{favorites:[],sightings:[],records:[...records.values()].filter(r=>r.rev>Number(u.searchParams.get('since')||0)),rev,more:false}:path.includes('/access')?{allowed:true,tool:'skymap',tools}:{};
+   return r.fulfill({status:path.startsWith('/prediction')?503:200,json});});return c;}
+ const c=await context(),p=await c.newPage(),errors=[];currentPage=p;p.on('pageerror',e=>errors.push(e.message));p.setDefaultTimeout(12000);
+ await p.goto(base);await p.waitForFunction(()=>typeof AstroNotesJourney!=='undefined'&&auth?.loginId==='journey-test');
+ await p.evaluate(()=>{pushRoute('#/records');setNotebookTab('points');});await p.locator('#myRecordsHub').getByRole('button',{name:'撮影機会を探す',exact:true}).click();await p.locator('#exploreConditions').waitFor();await p.evaluate(()=>{pushRoute('#/records');setNotebookTab('plans');});await p.locator('#scheduleHub').getByRole('button',{name:'撮影機会を探す',exact:true}).click();await p.locator('#exploreConditions').waitFor();
+ // First use needs neither a stored point nor a stored observation.
+ assert.equal(await p.evaluate(()=>favorites.length),0);assert.equal(await p.evaluate(()=>schedule().list().length),0);
+ await p.evaluate(()=>{aimAirSettings.mode='standard';AstroNotesAtmosphere.configure('standard',aimAirSettings);SkyMapUI.setObserver({name:'合成テスト川岸',latitude:35.72,longitude:139.84,groundManualM:31,standAglM:18.5});SkyMapUI.setTarget('skytree');SkyMapUI.setTime(Date.parse('2027-02-01T17:30:00+09:00'));});
+ await p.waitForFunction(()=>!document.getElementById('aimLook').hidden&&document.getElementById('aimLook')._uiTime&&Math.abs(document.getElementById('aimLook')._lookAt-SkyMapUI.snapshot()?.at)<1);
+ await p.evaluate(()=>{aimLens.mode='manual';aimLens.focal=300;aimLens.sensor='aps';aimLens.portrait=true;aimLens.grid='thirds';const h=$('aimLook');h._lensOffset=[.12,-.21];h._timelapseConfig={interval:5,count:240,fps:30};TrialExplore.invalidate();});
+ await p.waitForFunction(()=>!document.getElementById('aimLook').hidden&&!document.getElementById('exploreScenePanel').hasAttribute('aria-busy'));
+ const original=await p.evaluate(()=>planSnapshot({dataset:{planSource:'aim'}}).payload);
+ await p.locator('#aimLook [data-plan-action="keep"]').click();await p.locator('#planKeep').click();await p.locator('#planOpenNotebook').waitFor({state:'visible'});assert.match(await p.locator('#planStatus').innerText(),/保存しました/);
+ await p.locator('#planOpenNotebook').click();await p.waitForFunction(()=>location.hash==='#/records'&&!document.getElementById('scheduleHub').hidden);assert.equal(await p.locator('#scheduleHub .schedule-row').count(),1);
+ await p.evaluate(()=>syncNow());assert(posts.some(x=>x.records?.some(r=>r.body?.kind==='plan')),'new plan travels through actual RecordSync transport');
+ const saved=await p.evaluate(()=>schedule().list()[0]);assert.deepEqual(saved.value,original);
+ // New context = separate device storage; only synthetic server transfers the plan.
+ const c2=await context(),q=await c2.newPage();currentPage=q;q.on('pageerror',e=>errors.push(e.message));q.setDefaultTimeout(15000);await q.goto(base);await q.waitForFunction(()=>typeof AstroNotesJourney!=='undefined'&&auth?.loginId==='journey-test');await q.evaluate(()=>syncNow());
+ await q.evaluate(()=>{pushRoute('#/records');setNotebookTab('plans');});await q.locator('#scheduleHub .schedule-row>.list-item').click();
+ await q.waitForFunction(at=>globalThis.TrialExplore?.active()&&!document.getElementById('aimLook').hidden&&Math.abs(SkyMapUI.snapshot()?.at-at)<1&&Math.abs(document.getElementById('aimLook')._lookAt-at)<1,original.at);
+ await q.locator('#journeyPlan').waitFor({state:'visible'});
+ const restored=await q.evaluate(()=>planSnapshot({dataset:{planSource:'aim'}}).payload);for(const k of['o','at','body','part','limb','matchMode','air','l','pan','timelapse'])assert.deepEqual(restored[k],original[k],k+' restored on second device');
+ await q.locator('.sky-map-footer .tool-datetime-now').click();await q.waitForFunction(()=>Math.abs(SkyMapUI.snapshot()?.at-Date.now())<5000);
+ await q.locator('#journeyPlan button',{hasText:'保存した構図へ戻る'}).click();await q.waitForFunction(at=>globalThis.TrialExplore?.active()&&Math.abs(SkyMapUI.snapshot()?.at-at)<1&&!document.getElementById('aimLook').hidden&&Math.abs(document.getElementById('aimLook')._lookAt-at)<1,original.at);
+ assert.deepEqual(await q.evaluate(()=>schedule().list()[0]),saved,'comparison never overwrites saved plan');
+ const after=await q.evaluate(()=>planSnapshot({dataset:{planSource:'aim'}}).payload);assert.deepEqual(after.pan,original.pan);assert.deepEqual(after.timelapse,original.timelapse);
+ // A failed restore reports an inline message in the visible explore screen.
+ await q.evaluate(()=>{window.__ensure=AstroNotesAssets.ensureModels;AstroNotesAssets.ensureModels=()=>Promise.reject(Error('synthetic failure'));});await q.locator('#journeyPlan button',{hasText:'保存した構図へ戻る'}).click();await q.locator('#journeyNotice').waitFor({state:'visible'});assert.match(await q.locator('#journeyNotice').innerText(),/予定を開けません/);assert.equal(await q.evaluate(()=>AstroNotesJourney.current()),null);await q.evaluate(()=>{AstroNotesAssets.ensureModels=window.__ensure;AstroNotesJourney.notice('');});
+ await q.locator('#journeyPlan button',{hasText:'予定を開く'}).click();await q.waitForFunction(()=>!!AstroNotesJourney.current());
+ await q.screenshot({path:out+'/'+width+'-'+theme+'-resume.png',fullPage:true});
+ const overflow=await q.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);assert.equal(overflow,false,'page width');
+ // Server-side change invalidates anchor instead of silently restoring its old version.
+ await q.evaluate(row=>RecordSync.apply([{id:'rec:plan:'+row.id,body:JSON.stringify({kind:'plan',value:{...row,title:'同期で更新された予定'}}),deleted:false}]),saved);assert.equal(await q.evaluate(()=>AstroNotesJourney.current()),null);
+ await q.evaluate(()=>{auth={...auth,tools:auth.tools.filter(t=>t!=='tower')};renderAuthButton();});assert.equal(await q.locator('#journeyPlan').isVisible(),false);assert.equal(await q.evaluate(()=>AstroNotesJourney.current()),null);
+ await q.evaluate(()=>{auth={...auth,loginId:'other-test'};authGeneration++;renderAuthButton();});assert.equal(await q.locator('#journeyPlan').isVisible(),false);assert.equal(await q.evaluate(()=>AstroNotesJourney.current()),null);
+ // Save failure is an actual storage failure, not a fake successful result.
+ await p.evaluate(()=>{pushRoute('#/explore');});await p.waitForFunction(()=>!document.getElementById('aimLook').hidden&&!document.getElementById('exploreScenePanel').hasAttribute('aria-busy'));
+ await p.locator('#aimLook [data-plan-action="keep"]').click();await p.evaluate(()=>{window.__storageSet=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k.startsWith('sorami.schedule.v1:'))throw new DOMException('Full','QuotaExceededError');return window.__storageSet.call(this,k,v);};});await p.locator('#planKeep').click();assert.match(await p.locator('#planStatus').innerText(),/保存できません/);assert.equal(await p.locator('#planOpenNotebook').isVisible(),false);await p.evaluate(()=>{Storage.prototype.setItem=window.__storageSet;});
+ await p.locator('#planClose').evaluate(b=>b.click());await p.waitForFunction(()=>!$('planSheet').open&&pagePop.n===0);
+ await p.evaluate(()=>{const f={id:'journey-point',name:'テスト撮影地点',latitude:35.72,longitude:139.84,elevation:31,eyeHeightAGL:18.5,groundManualM:31,standAglM:18.5};favorites.push(f);store.set('sorami.favorites',favorites);const obs=AstroNotesLibrary.registrationChanges(f,[],[{key:'skytree',name:'東京スカイツリー'}]);store.set(AstroNotesLibrary.keys(auth.loginId).observations,obs);MyPlacesUI.imported();pushRoute('#/records');setNotebookTab('points');});
+ await p.locator('[aria-label="テスト撮影地点から次に重なる日を探す"]').click();await p.waitForFunction(()=>$('myPlacePlanning').open);await p.waitForFunction(()=>[...$('myPlaceNext').querySelectorAll('.sub-line')].some(n=>/\d{1,2}[:/]\d{2}|400日以内/.test(n.textContent)),{},{timeout:30000});await p.waitForFunction(()=>[...$('myPlaceNext').querySelectorAll('.sub-line')].every(n=>!n.textContent.includes('計算しています')),{},{timeout:30000});assert.equal(await p.locator('#myRecordSave').isVisible(),false,'planning path hides editing controls');await p.screenshot({path:out+'/'+width+'-'+theme+'-point.png',fullPage:true});const next=p.locator('#myPlaceNext .list-item:not(:disabled)').first();if(await next.count()){await next.click();await p.waitForFunction(()=>globalThis.TrialExplore?.active()&&SkyMapUI.snapshot()?.target.id==='skytree');}
+ assert.deepEqual(errors,[]);results.push({width,theme,secondDeviceRestore:true,saveFailure:true,overflow,errors,posts:posts.length});console.log('PASS journey',width,theme);await c.close();await c2.close();
+}
+await browser.close();fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));})().catch(async e=>{console.error(e);if(currentPage){console.log(await currentPage.evaluate(()=>({hash:location.hash,tools:auth?.tools,atSkyMap,atAim,skyHidden:$('skyMapView').hidden,content:$('skyMapContent').hidden,access:$('skyMapAccess').innerText,body:document.body.innerText.slice(0,700),aimTarget:aim.target?.id,shared:aim.sharedTarget?.id,pending:aim.pendingPlan,sky:SkyMapUI.snapshot(),look:{hidden:$('aimLook').hidden,at:$('aimLook')._lookAt,spec:$('aimLook')._lookSpec?.at,status:$('exploreSceneStatus')?.textContent},plans:schedule().list()})));await currentPage.screenshot({path:out+'/failure.png',fullPage:true});}process.exit(1)});

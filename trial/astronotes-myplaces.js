@@ -257,7 +257,7 @@ function renderRecordsHub() {
    if(state.error){const error=document.createElement('p');error.id='notebookBulkError';error.className='warn';error.setAttribute('role','status');error.textContent=state.error;host.insertBefore(error,list);}
   }
   let matches=0;
-  if (!recordedPlaces.length) { const empty = document.createElement('p'); empty.className = 'tiny'; empty.textContent = '記録はまだありません。右上の＋から追加できます。'; list.append(empty); }
+  if (!recordedPlaces.length) { const empty = document.createElement('p'); empty.className = 'tiny'; empty.textContent = '撮影地点はまだありません。まず撮りたい場所と対象を探せます。'; list.append(empty);if(screenAllowed('framing')&&screenAllowed('skymap')){const find=document.createElement('button');find.type='button';find.className='chip';find.textContent='撮影機会を探す';find.onclick=()=>pushRoute('#/explore');list.append(find);} }
   for (const f of recordedPlaces) {
     const active=targetsSeenFrom(f.id).filter(r=>r.result!=='hidden');
     const matching=active.filter(r=>!recordsTargetFilter||r.target.key===recordsTargetFilter);
@@ -272,11 +272,13 @@ function renderRecordsHub() {
     sub.textContent=shapeFor(f)?shapeName(shapeFor(f))+' ・ ':'';sub.textContent+=targets.length?`対象${targets.length}件 ・ ${targets.map(r=>r.target.name).join('・')}`:'対象は未登録';
     row.dataset.notebookPlace=f.id;
     if(notebookEdit){const state=notebookEdit;row.setAttribute('role','checkbox');row.setAttribute('aria-checked',String(state.ids.has(f.id)));row.insertAdjacentHTML('beforeend',notebookCheck(state.ids.has(f.id)));}
-    row.append(name, sub); row.onclick = () => {if(notebookEdit){const state=notebookEdit;if(state.ids.has(f.id))state.ids.delete(f.id);else state.ids.add(f.id);state.error='';state.targets=[];state.drafts=[];renderRecordsHub();[...el('myRecordsHub').querySelectorAll('[data-notebook-place]')].find(r=>r.dataset.notebookPlace===f.id)?.focus({preventScroll:true});return;}openPlace(f, 'records');if(recordsBodyFilter){sheetState.bodies=[recordsBodyFilter];for(const check of sheet.querySelectorAll('[data-planning-body]'))check.checked=check.value===recordsBodyFilter;}}; list.append(row);
+    row.append(name, sub); row.onclick = () => {if(notebookEdit){const state=notebookEdit;if(state.ids.has(f.id))state.ids.delete(f.id);else state.ids.add(f.id);state.error='';state.targets=[];state.drafts=[];renderRecordsHub();[...el('myRecordsHub').querySelectorAll('[data-notebook-place]')].find(r=>r.dataset.notebookPlace===f.id)?.focus({preventScroll:true});return;}openPlace(f, 'records');if(recordsBodyFilter){sheetState.bodies=[recordsBodyFilter];for(const check of sheet.querySelectorAll('[data-planning-body]'))check.checked=check.value===recordsBodyFilter;}};
+    const group=document.createElement('div');group.className='journey-place-row';group.append(row);
+    if(!notebookEdit&&!shapeFor(f)&&planningPairs(targets,recordsBodyFilter?[recordsBodyFilter]:['sun','moon']).length){const find=document.createElement('button');find.type='button';find.className='chip journey-place-find';find.textContent='次に重なる日';find.setAttribute('aria-label',f.name+'から次に重なる日を探す');find.onclick=()=>{if(!auth?.token||!toolAllowed('records')||!favorites.some(p=>p.id===f.id))return;openPlace(f,'records',null,{planningOnly:true});if(recordsBodyFilter)sheetState.bodies=[recordsBodyFilter];else sheetState.bodies=['sun','moon'].filter(body=>planningPairs(targets,[body]).length);for(const check of sheet.querySelectorAll('[data-planning-body]'))check.checked=sheetState.bodies.includes(check.value);sheetState.planningRequested=true;el('myPlacePlanning').open=true;renderSheet();requestAnimationFrame(()=>{el('myPlacePlanning').scrollIntoView({block:'start'});el('myPlaceFind').focus({preventScroll:true});});};group.append(find);}list.append(group);
   }
   if(recordedPlaces.length&&!matches){const empty=document.createElement('p');empty.className='tiny';empty.textContent='この条件の撮影地点はありません。';list.append(empty);}
   // 2026-10-20 ユーザー「出し方を変えた方がいいのも最適化して」：保存先の説明は常に出さず、データの控えの中へ
-  const note = document.createElement('p'); note.className = 'tiny'; note.textContent = '見える対象と線・範囲はこのブラウザに保存します。撮影地点の名前・代表位置（お気に入り）は同期します。';
+  const note = document.createElement('p'); note.className = 'tiny'; note.textContent = '撮影地点・見える対象・線や範囲・予定はこの端末に保存し、ログイン中に同期します。書き出す控えに予定と写真ファイルは含みません。';
   const backup=document.createElement('details');backup.hidden=!!notebookEdit;backup.className='my-secondary';const summary=document.createElement('summary');summary.textContent='データの控え';backup.append(summary,note);
   const hint=document.createElement('p');hint.className='tiny';hint.textContent='撮影地点・対象・線/範囲・予測の結果を保存します。写真ファイルは含みません。';backup.append(hint);
   const exportButton=document.createElement('button');exportButton.type='button';exportButton.className='chip';exportButton.textContent='書き出す';exportButton.onclick=downloadLibraryBackup;
@@ -564,7 +566,7 @@ function buildSheet() {
   sheet = document.createElement('dialog'); sheet.className = 'sheet'; sheet.id = 'myPlaceSheet'; sheet.tabIndex = -1; sheet.setAttribute('aria-labelledby', 'myPlaceTitle');
   sheet.innerHTML = `<div class="sheet-head"><strong id="myPlaceTitle">記録を追加</strong><button type="button" data-close aria-label="閉じる">閉じる</button></div>
   <div class="sheet-body">
-
+    <p id="myPlanningPlace" class="journey-planning-place" hidden></p>
     <div class="my-input-field"><div class="condition-label">${inputRoleIcon('observer')}<span>撮影地点</span></div><button type="button" class="my-location-value" id="myPlaceName" aria-label="撮影地点を選ぶ"></button><label id="myNewPlaceNameLabel" hidden><span class="tiny">名前（任意）</span><input class="my-location-value" id="myNewPlaceName" maxlength="200" placeholder="空欄なら地点名を使います" aria-label="名前（任意）"></label></div>
     <div class="my-actions"><button type="button" class="chip" id="myShapeEdit">点・線・範囲</button><span class="tiny" id="myShapeSummary"></span></div><div id="myRecordLocationConfirm" hidden><p class="tiny">保存していない対象の編集を戻して、撮影地点を変更しますか？</p><button type="button" class="chip" id="myRecordLocationChange">変更する</button><button type="button" class="chip" id="myRecordLocationKeep">戻る</button></div>
     <div class="my-input-field"><div class="condition-label">${inputRoleIcon('target')}<span>対象</span></div><button type="button" class="my-location-value" id="myRecordPickTarget" aria-label="対象を選んで追加">対象を追加</button></div>
@@ -572,7 +574,7 @@ function buildSheet() {
     <div id="myPlaceRecords"></div>
     <p class="warn" id="myRecordError" role="status" hidden></p><button type="button" class="chip" id="myRecordReuse" hidden>登録済みの地点で編集を続ける</button><p class="tiny" id="myRecordSaved" role="status" hidden></p>
     <div class="my-actions"><button type="button" class="fav-btn primary" id="myRecordSave">まとめて保存</button><button type="button" class="chip" id="myRecordCancel">キャンセル</button></div>
-    <p class="tiny muted">対象はこのブラウザに保存します。登録日は保存時に自動で残します。</p>
+    <p class="tiny muted">対象はこの端末に保存し、ログイン中に同期します。登録日は保存時に自動で残します。</p>
     <details id="myPlacePlanning" class="my-secondary"><summary>この場所から撮る</summary><fieldset class="my-body-options"><legend class="condition-label">${inputRoleIcon('body')}<span>天体</span><span class="tiny">複数選択可</span></legend><div id="myPlaceBodies"></div></fieldset><button type="button" class="chip" id="myPlaceFind">次に重なる日を探す</button><h3 class="my-title">次に重なる日</h3><div class="al my-list" id="myPlaceNext"></div></details>
     <details id="myPlaceDetails" class="my-secondary"><summary>場所の詳細</summary><p class="tiny" id="myPlaceSub"></p></details>
   </div>`;
@@ -607,12 +609,13 @@ function buildSheet() {
 
 }
 const sheetOwnerMatches = () => !!auth?.token && sheetState?.ownerToken === auth.token;
-function openPlace(place, ctx, targetKey = null) {
+function openPlace(place, ctx, targetKey = null, options = {}) {
   if (!sheet) buildSheet();
+  sheet.dataset.planningOnly=String(!!options.planningOnly);
   place=place||{id:null,name:'',latitude:null,longitude:null};
   const current = ctx === 'sky' ? skySession?.target?.id : aim.target?.id;
   const initialTargets=savedTargets(place.id),initialShape=shapeFor(place);
-  sheetState = {initialName:(place.name||'').trim(),targetDrafts:[],initialShape,draftShape:initialShape,shapeBaseline:shapeKey(initialShape),initialTargets,baseline:targetSetKey(initialTargets),draftTargets:initialTargets.map(t=>({...t})),place:{...place,name:place.id?place.name:''},ctx, ownerToken: auth?.token, bodies:[ctx === 'sky' ? (skySession?.body || 'sun') : aim.body], planningRequested:false };
+  sheetState = {planningOnly:!!options.planningOnly,initialName:(place.name||'').trim(),targetDrafts:[],initialShape,draftShape:initialShape,shapeBaseline:shapeKey(initialShape),initialTargets,baseline:targetSetKey(initialTargets),draftTargets:initialTargets.map(t=>({...t})),place:{...place,name:place.id?place.name:''},ctx, ownerToken: auth?.token, bodies:[ctx === 'sky' ? (skySession?.body || 'sun') : aim.body], planningRequested:false };
   el('myPlaceTitle').textContent = initialTargets.length?'記録を編集':'記録を追加';
   el('myRecordLocationConfirm').hidden=true;
   el('myPlaceName').textContent = place.name||'撮影地点を選ぶ';el('myPlaceName').classList.toggle('is-empty',!place.id);
@@ -629,6 +632,7 @@ function openPlace(place, ctx, targetKey = null) {
 }
 function renderSheet() {
   const { place, ctx } = sheetState, token = ++sheetToken, list = load();
+  el('myPlanningPlace').hidden=!sheetState.planningOnly;if(sheetState.planningOnly){el('myPlaceTitle').textContent='次に重なる日';el('myPlanningPlace').textContent=place.name+' ・ 地上から '+(place.eyeHeightAGL??1.5)+'m';}
   el('myPlaceSub').textContent=[place.subtitle,finite(place.latitude)&&finite(place.longitude)?`${place.latitude.toFixed(5)}, ${place.longitude.toFixed(5)}`:'',finite(place.elevation)?`標高 ${place.elevation}m`:'標高不明',`地上から ${place.eyeHeightAGL??1.5}m`].filter(Boolean).join(' ・ ');
   const recs=el('myPlaceRecords');recs.replaceChildren();
   ensureRecordLocation();

@@ -1,5 +1,19 @@
 {
-  "name": "初見導線・中央配置・歯車・天体輪郭は全て本番採用済み",
-  "baseCommit": "7307d8bccb0762b79594838f0e2b9d8339314632",
-  "files": {}
+  "name": "自分の地点から撮影機会へ・保存と当日の再開（trial限定）",
+  "baseCommit": "b8055c2",
+  "files": {
+    "astronotes-myplaces.js": {
+      "root": "26ce92ec87fb46b5b3a26da3479519f99b17150e788952e05c33b699c6941de3",
+      "trial": "f01400dc36daeeed53b8132992a27614435f19b8c56e54cd07c2d7fa9866422d"
+    },
+    "astronotes-plan.js": {
+      "root": "b0e013ce9fb816a00b5ad39a01a1b088f66244e78af96635bd3a3ad3e3d1bd5d",
+      "trial": "1d0b12d87a6e163e00c84fa9ed8886e4a7a7147aa9977d577d1a1ec8a64de0a3"
+    }
+  },
+  "trialOnlyFiles": {
+    "astronotes-journey.js": "d6a2a4ed4b75b7128b4e74dfcf131f64c4758ddea7b2c79dc3f466bdd48659b1"
+  },
+  "rootHtmlSha256": "e9ddf6e1a342471b189947cbc4501ade589292efedc4bd6a2cb0e1240c50a005",
+  "trialHtmlSha256": "b61e09acd10ccf07c4dedcc310b0aa5b779b309440eb966e317f09c8c8d0fadf"
 }
