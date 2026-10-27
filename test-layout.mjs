@@ -2104,7 +2104,7 @@ ok(/id="retrySync"/.test(html) && /retry\.onclick = withPendingAction\(panel,ret
 ok(/id="deleteAccount"/.test(html), "アカウントを削除できる");
 ok(/「記録」の「データの控え」から書き出してください/.test(html), "消す前に控えを促す");
 ok((html.match(/if \(!confirm\([\s\S]{0,200}?\)\) return;/g) || []).length >= 2
-  && /最終確認です。すべて消えます。/.test(html), "取り消せない削除は二段で確かめる");
+  && /最終確認です。アカウントを削除しますか？/.test(html), "取り消せない削除は二段で確かめる");
 ok(/await apiCall\("DELETE", "\/me"\)[\s\S]{0,200}favorites = \[\]; sightings = \[\]/.test(html),
   "サーバーと手元の両方を消す");
 
