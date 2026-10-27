@@ -12,7 +12,7 @@ assert.match(html,/document\.getElementById\('accountBack'\)\.onclick=\(\)=>\{do
 
 const cut=(from,to)=>html.slice(html.indexOf(from),html.indexOf(to,html.indexOf(from)));
 const src=cut('async function openAccountSheet() {','// 履歴は開いたときだけ取りに行く')+cut('function nextStep(u) {','\n}\n')+'\n}';
-function el(){return {dataset:{},hidden:false,textContent:'',innerHTML:'',className:'',classes:new Set(),classList:{toggle(n,on){on?this.s.add(n):this.s.delete(n);},contains(n){return this.s.has(n);}},querySelectorAll(){return [];}};}
+function el(){return {dataset:{},hidden:false,textContent:'',innerHTML:'',className:'',classes:new Set(),setAttribute(){},classList:{toggle(n,on){on?this.s.add(n):this.s.delete(n);},contains(n){return this.s.has(n);}},querySelectorAll(){return [];}};}
 async function open(me){
  const els={};const $=id=>{if(!els[id]){const e=el();e.classList.s=e.classes;els[id]=e;}return els[id];};
  const c={$,me,auth:{token:'test-user'},esc:s=>String(s),syncError:null,pushQueue:[],RECOVERY_LOW:3,showSheet(){},renderPrivateEntry(){},adoptToken(){},accountFail(m){$('accountErr').textContent=m;$('accountErr').hidden=false;},syncNow:async()=>{},withPendingAction:(panel,button,action)=>action,apiCall:async()=>me};
