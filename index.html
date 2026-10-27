@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="6476243194752110814">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-Pd8yJ1BhnAg2vEtgMee7kbD3a0DhkFd1bqSfNhj7Vuw=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-JSsXio7SDPC9rxAJhfpjX7THSzMjr+FjdH5xCr4cg8Q=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-O6JwPvMwJvI9pu2ki3tQ/9OTIUsDSawMRHjt68WWMhE=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="15252695808420378890">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-2BRmEwXmOigmblNMurDzvn4fVKHF9o3gvJjHbbEJqMA=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-JSsXio7SDPC9rxAJhfpjX7THSzMjr+FjdH5xCr4cg8Q=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-83Cgnlo8en9j5JlmNrJn+YOM6QvJlWI7abcmYEF22EU=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -527,23 +527,20 @@ if(location.hash||location.search||preferred!=='forecast'){document.documentElem
   :is(#appSettings, #accountSheet) > .sheet-body { flex: 1; min-height: 0; max-height: none; overflow-y: auto; }
   @keyframes settings-from-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
   @media (prefers-reduced-motion: reduce) { :is(#appSettings, #accountSheet)[open] { animation: none; } }
-  /* アカウントは「ログイン方法」「安全」に分け、状態の右にそれを変える操作を置く（2026-10-15）。箱は作らず線で区切る */
-  #accountSheet .account-sec { margin: 22px 0 2px; font-size: 0.88rem; font-weight: 700; color: var(--secondary); }
-  #accountSheet .account-row { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 12px 0; border-top: 1px solid var(--line); }
-  #accountSheet .account-row > span { flex: 1; min-width: 0; }
-  #accountSheet .account-row .tiny { display: block; margin: 2px 0 0; }
-  #accountSheet .account-row .chip { flex: none; }
-  #accountSheet .chip.primary { background: var(--accent); color: var(--on-accent); }
-  #accountSheet summary.account-row { cursor: pointer; list-style: none; }
-  #accountSheet summary.account-row::-webkit-details-marker { display: none; }
-  #accountSheet details[open] > summary .account-chev { transform: rotate(180deg); }
+  /* アカウントの概要は共通の移動行、変更操作は項目ごとの詳細へ。 */
+  #accountSheet .account-sec { margin: 16px 0 4px; font-size: 0.81rem; font-weight: 700; color: var(--secondary); }
   #accountSheet .tiny { font-size: 0.81rem; line-height: 1.5; color: var(--secondary); }
-  #accountSheet .account-action-below { display: block; }
-  #accountSheet .account-action-below .chip { margin-top: 8px; }
   #accountSheet .account-identity { font-size: 1.1rem; font-weight: 700; overflow-wrap: anywhere; }
-  #accountLegal .list-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 12px 0; font-size: 0.88rem; font-weight: 700; color: var(--text); text-decoration: none; }
-  #accountLegal svg { flex: none; color: var(--secondary); }
-  #accountPasskeys .fav-row { padding-left: 12px; }
+  #accountSheet :is(.account-nav,#accountLegal .list-item) { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 14px 0; border-top: 1px solid var(--line); text-align: left; font-size: 0.94rem; font-weight: 600; color: var(--text); text-decoration: none; }
+  #accountSheet .account-nav > span:first-child, #accountLegal .list-item > span { flex: 1; min-width: 0; }
+  #accountSheet .account-state { color: var(--secondary); font-size: 0.88rem; font-weight: 400; }
+  #accountSheet :is(.account-nav,#accountLegal .list-item) > svg { flex: none; color: var(--secondary); }
+  #accountSheet [data-account-view] > p { margin: 12px 0 16px; }
+  #accountSheet [data-account-view] > .fav-btn { margin: 12px 0; }
+  #accountSheet #accountPasskeys .fav-row { align-items: flex-start; padding: 12px 0; }
+  #accountSheet #accountPasskeys .list-item { padding: 0; }
+  #accountSheet #accountPasskeys .tiny { margin-top: 4px; }
+  #accountSheet .account-empty { padding: 12px 0; }
   .sheet input[type=search] { width: 100%; font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 10px;
     border: 1px solid var(--line); background: var(--bg); color: var(--text); }
   /* 検索欄と「検索」釦（2026-10-01 ユーザー「検索開始のボタンも出しておいた方がいい」）。
@@ -1678,7 +1675,7 @@ button.ui-icon-button::after { content: none; }
 :is(#aimView .aim-titlebar,#skyMapView .sky-map-head){min-height:44px;margin-bottom:16px}
 :is(#aimView .aim-titlebar,#skyMapView .sky-map-head) h2{margin:0}
 #aimView :is(#aimTargetNote,#aimHeightNote):empty{display:none}
-#accountSheet:not([data-account-ready="true"]) .sheet-body > :not(#accountBody):not(#accountErr){display:none}
+#accountSheet:not([data-account-ready="true"]):not([data-codes-shown="true"]) .sheet-body > :not(#accountBody):not(#accountErr){display:none}
 </style>
   <div class="forecast-tabs" id="forecastTabs" role="tablist" aria-label="予測の表示" hidden>
     <button type="button" id="forecastTab" role="tab" aria-selected="true" aria-controls="listView">予測</button>
@@ -2422,16 +2419,36 @@ button.ui-icon-button::after { content: none; }
 </dialog>
 
 <dialog class="sheet" id="accountSheet" aria-labelledby="accountTitle" tabindex="-1">
-  <div class="sheet-head"><button type="button" class="panel-back" id="accountBack" aria-label="設定へ戻る"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg></button><strong id="accountTitle">アカウント</strong><button id="accountClose" aria-label="閉じる" title="閉じる"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+  <div class="sheet-head"><button type="button" class="panel-back" id="accountBack" aria-label="設定へ戻る"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg></button><strong id="accountTitle">アカウント</strong><button id="accountClose" aria-label="閉じる" title="閉じる"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
   <div class="sheet-body">
     <div id="accountBody"></div>
-    <p class="warn" id="accountErr" style="margin-top:10px" hidden></p>
-    <h3 class="account-sec">ログイン方法</h3>
-    <div class="account-row"><span>パスキー<span class="tiny" id="accountPasskeyState"></span></span><button id="addPasskey" class="chip">この端末を登録</button></div>
-    <div id="accountPasskeys"></div>
-    <div class="account-row"><span>パスワード<span class="tiny" id="accountPwState"></span></span><button id="disablePw" class="chip" hidden>パスワードを無効にする</button></div>
-    <details id="enablePwWay" style="margin:0 0 8px" hidden>
-      <summary class="tiny" style="cursor:pointer;color:var(--secondary)">パスワードでのログインを使う</summary>
+    <p class="warn" id="accountErr" role="alert" style="margin-top:10px" hidden></p>
+    <button id="accountRefreshRetry" class="chip" hidden>最新の情報を再取得</button>
+    <section data-account-view="overview" aria-label="アカウントの設定">
+      <p class="tiny" id="accountAdvice" hidden></p>
+      <h3 class="account-sec">ログイン方法</h3>
+<button type="button" class="list-item account-nav" data-account-open="passkeys"><span>パスキー</span><span class="account-state" id="accountPasskeyState"></span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+      <button type="button" class="list-item account-nav" data-account-open="password"><span>パスワード</span><span class="account-state" id="accountPwState"></span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+      <button type="button" class="list-item account-nav" data-account-open="recovery"><span>回復コード</span><span class="account-state" id="accountCodesState"></span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+      <h3 class="account-sec">安全</h3>
+<button type="button" class="list-item account-nav" data-account-open="history"><span>ログイン履歴</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+      <button type="button" class="list-item account-nav" data-account-open="sessions"><span>ほかの端末をログアウト</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+      <h3 class="account-sec">サービスについて</h3>
+    <nav id="accountLegal" aria-label="サービスについて"><a class="list-item" href="terms.html" target="_blank" rel="noopener" aria-label="利用規約（新しいタブで開く）"><span>利用規約</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7M21 3l-9 9M10 3H3v18h18v-7"/></svg></a><a class="list-item" href="privacy.html" target="_blank" rel="noopener" aria-label="プライバシーポリシー（新しいタブで開く）"><span>プライバシーポリシー</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7M21 3l-9 9M10 3H3v18h18v-7"/></svg></a></nav>
+
+      <button id="logout" class="fav-remove">ログアウト</button>
+      <button id="deleteAccount" class="fav-remove" style="color:var(--red)">アカウントを削除する</button>
+    </section>
+    <section data-account-view="passkeys" aria-label="パスキーの設定" hidden>
+      <p class="tiny">顔認証や指紋認証などでログインできます。</p>
+      <button id="addPasskey" class="fav-btn">この端末を登録</button>
+      <h3 class="account-sec">登録済みのパスキー</h3>
+      <div id="accountPasskeys"></div>
+    </section>
+    <section data-account-view="password" aria-label="パスワードの設定" hidden>
+      <p id="accountPwDetail"></p>
+      <p id="accountPwRequirement" class="tiny" hidden>パスワードを無効にするには、先にパスキーを登録してください。</p>
+    <div id="enablePwWay" hidden>
       <p class="tiny" style="margin-top:8px">パスキーを全部失くしたときの備えに。</p>
       <label class="fav-l" for="newAccPw">パスワード</label>
       <input type="password" id="newAccPw" class="fav-in" autocomplete="new-password" maxlength="128">
@@ -2439,9 +2456,15 @@ button.ui-icon-button::after { content: none; }
         大文字・小文字・記号を1つずつ以上。<br>
         IDと同じ文字・よくある言葉・連番は使えません。</p>
       <button id="enablePw" class="fav-btn" style="margin-top:10px">このパスワードを使う</button>
-    </details>
-    <div class="account-row account-action-below"><span>回復コード<span class="tiny" id="accountCodesState"></span></span><button id="newRecovery" class="chip" aria-label="回復コードを再発行">回復コードを再発行</button></div>
-    <div id="recoveryShown" hidden style="margin:0 0 8px;padding:12px;border-radius:10px;background:var(--sunk)">
+    </div>
+
+      <button id="disablePw" class="fav-btn" hidden>パスワードを無効にする</button>
+    </section>
+    <section data-account-view="recovery" aria-label="回復コードの設定" hidden>
+      <p id="accountCodesDetail"></p>
+      <p class="tiny">パスキーやパスワードが使えないときに、IDとコードでログインできます。</p>
+      <button id="newRecovery" class="fav-btn">回復コードを再発行</button>
+    <div id="recoveryShown" tabindex="-1" aria-live="polite" hidden style="margin:0 0 8px;padding:12px;border-radius:10px;background:var(--sunk)">
       <div class="tiny" style="font-weight:700">この回復コードは一度しか表示されません</div>
       <div id="recoveryCode" style="font-family:ui-monospace,monospace;font-size:0.81rem;font-weight:700;margin-top:6px;line-height:1.7;word-break:break-all"></div>
       <button id="copyCodes" class="fav-btn" style="margin-top:10px">すべてコピー</button>
@@ -2449,18 +2472,18 @@ button.ui-icon-button::after { content: none; }
         <strong>IDと一緒に</strong>パスワードマネージャへ保存してください。
         入るときは ID とコードの両方が要ります。</div>
     </div>
-    <p class="tiny" id="accountAdvice" style="margin-top:8px" hidden></p>
-    <h3 class="account-sec">安全</h3>
-    <details id="loginHistory">
-      <summary class="account-row"><span>ログインの履歴</span><span class="account-chev" aria-hidden="true" style="flex:none">▾</span></summary>
-      <p class="tiny" style="margin:0 0 8px">成功も失敗も記録されます。30日を過ぎた履歴は削除します。
-        <strong>身に覚えのない成功があれば、パスワードを変え、知らない端末のパスキーを消してください。</strong></p>
-      <div id="loginHistoryList" class="tiny"></div>
-    </details>
-    <div class="account-row account-action-below"><span>ほかの端末のログイン<span class="tiny">端末を失くしたときに。この端末は入ったままです</span></span><button id="logoutAll" class="chip">ほかの端末をログアウト</button></div>
-    <button id="logout" class="fav-remove">ログアウト</button>
-    <nav id="accountLegal" aria-label="サービスについて"><a class="list-item" href="terms.html" target="_blank" rel="noopener" aria-label="利用規約（新しいタブで開く）"><span>利用規約</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></a><a class="list-item" href="privacy.html" target="_blank" rel="noopener" aria-label="プライバシーポリシー（新しいタブで開く）"><span>プライバシーポリシー</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></a></nav>
-    <button id="deleteAccount" class="fav-remove" style="color:var(--red)">アカウントを削除する</button>
+
+    </section>
+    <section data-account-view="history" aria-label="ログイン履歴" hidden>
+      <p class="tiny">過去30日間のログイン履歴です。身に覚えのないログインがあれば、知らないパスキーを削除し、ほかの端末をログアウトしてください。</p>
+      <div id="loginHistory"><div id="loginHistoryList" aria-live="polite"></div></div>
+      <button id="accountHistoryRetry" class="chip">履歴を再取得</button>
+    </section>
+    <section data-account-view="sessions" aria-label="ほかの端末のログイン" hidden>
+      <p>ほかの端末のログインをまとめて終了できます。</p>
+      <p class="tiny">端末を失くしたときや、身に覚えのないログインがあったときに使えます。この端末はログインしたままです。</p>
+      <button id="logoutAll" class="fav-btn">ほかの端末をログアウト</button>
+    </section>
   </div>
 </dialog>
 
@@ -12718,7 +12741,17 @@ $("doSignupPasskey").onclick = async () => {
 $("goRecovery").onclick = () => showAuthPanel("recovery");
 for (const el of document.querySelectorAll("[data-back]")) el.onclick = () => showAuthPanel("login");
 $("authClose").onclick = () => $("authSheet").close();
-$("accountClose").onclick = () => $("accountSheet").close();
+$("accountClose").onclick = () => { if(leaveAccountCodes()) $("accountSheet").close(); };
+$("accountSheet").addEventListener('keydown',event=>{
+  if(event.key!=='Escape'||$("recoveryShown").hidden)return;
+  event.preventDefault();event.stopPropagation();
+  if(!pendingAccountPanels.has($("accountSheet")) && leaveAccountCodes())$("accountSheet").close();
+});
+$("accountSheet").addEventListener('cancel',event=>{ if(!leaveAccountCodes())event.preventDefault(); });
+$("accountSheet").addEventListener('close',()=>{
+  $("recoveryShown").hidden=true; $("recoveryCode").textContent=''; shownCodes=[]; $("accountSheet").dataset.codesShown='false';
+  $("newAccPw").value=''; $("loginHistoryList").textContent='';
+});
 
 // base64url ⇄ ArrayBuffer。WebAuthn の受け渡しで要る。
 const b64uToBuf = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
@@ -12863,19 +12896,65 @@ $("authId").addEventListener("input", () => {
   for (const id of ["newId", "codeId"]) if (!$(id).value) $(id).value = $("authId").value;
 });
 
+const ACCOUNT_VIEWS = { overview: "アカウント", passkeys: "パスキー", password: "パスワード", recovery: "回復コード", history: "ログイン履歴", sessions: "ほかの端末" };
+function leaveAccountCodes() {
+  if ($("recoveryShown").hidden) return true;
+  if (!confirm("回復コードを保存しましたか？\nこの画面を離れると、発行済みのコードは再表示できません。")) return false;
+  $("recoveryShown").hidden=true;
+  $("accountSheet").dataset.codesShown='false';
+  $("recoveryCode").textContent='';
+  shownCodes=[];
+  return true;
+}
+function showAccountView(view, focus = false) {
+  if (!Object.hasOwn(ACCOUNT_VIEWS, view)) view = 'overview';
+  const panel = $("accountSheet"), previous = panel.dataset.accountView;
+  if (focus && previous === 'overview') panel.dataset.overviewScroll=String(panel.querySelector('.sheet-body').scrollTop);
+  if (focus && previous === 'recovery' && view !== 'recovery' && !leaveAccountCodes()) return;
+  panel.dataset.accountView = view;
+  for (const section of panel.querySelectorAll('[data-account-view]')) section.hidden = section.dataset.accountView !== view;
+  $("accountBody").hidden = view !== 'overview';
+  $("accountTitle").textContent = ACCOUNT_VIEWS[view];
+  $("accountBack").setAttribute('aria-label', view === 'overview' ? '設定へ戻る' : 'アカウントへ戻る');
+  if (focus) {
+    $("accountErr").hidden=true;
+    $("accountRefreshRetry").hidden=true;
+    panel.querySelector('.sheet-body').scrollTop = view === 'overview' ? Number(panel.dataset.overviewScroll)||0 : 0;
+    const target = view === 'overview' ? panel.querySelector(`[data-account-open="${previous}"]`) : $("accountTitle");
+    target?.focus({preventScroll:true});
+  }
+}
+for (const button of $("accountSheet").querySelectorAll('[data-account-open]')) button.onclick = () => {
+  showAccountView(button.dataset.accountOpen, true);
+  if (button.dataset.accountOpen === 'history') loadAccountHistory();
+};
+$("accountTitle").tabIndex = -1;
+
 async function openAccountSheet() {
   const panel=$("accountSheet"),token=auth?.token,request=String((Number(panel.dataset.loadId)||0)+1);
-  panel.dataset.loadId=request;panel.dataset.accountReady='false';
-  $("accountBody").textContent='アカウント情報を確認しています…';
-  $("accountErr").hidden = true;
-  $("recoveryShown").hidden = true;
-  showSheet($("accountSheet"));
+  const refresh=panel.open && panel.dataset.accountReady==='true' && panel.dataset.accountOwner===auth?.loginId;
+  const view=panel.open && panel.dataset.accountOwner === auth?.loginId ? panel.dataset.accountView : 'overview';
+  panel.dataset.accountView=view||'overview';
+  panel.dataset.accountOwner=auth?.loginId ?? '';
+  panel.dataset.loadId=request;
+  $("accountErr").hidden=true;
+  $("accountRefreshRetry").hidden=true;
+  if (!refresh) {
+    panel.dataset.accountReady='false';
+    $("accountBody").hidden=false;
+    $("accountTitle").textContent='アカウント';
+    $("accountBody").textContent='アカウント情報を確認しています…';
+    $("recoveryShown").hidden=true;
+    panel.dataset.codesShown='false';
+  }
+  if (!panel.open) showSheet(panel);
   try {
     const me = await apiCall("GET", "/me");
     if(auth?.token!==token||panel.dataset.loadId!==request)return;
     if(!me||typeof me.loginId!=='string'||!Array.isArray(me.credentials)||typeof me.hasPassword!=='boolean'||!Number.isInteger(me.recoveryCodes)||me.recoveryCodes<0||me.credentials.some(c=>!c||typeof c.id!=='string'))throw new Error('invalid account');
     $("disablePw").hidden = !me.hasPassword || !me.credentials.length;
     $("enablePwWay").hidden = me.hasPassword;
+    $("accountPwRequirement").hidden = !me.hasPassword || !!me.credentials.length;
     $("deleteAccount").hidden = !!me.ownerAdmin;
     const when = (t) => (t ? new Date(t).toLocaleDateString("ja-JP") : "未使用");
     const passkeys = (me.credentials || []).length;
@@ -12885,21 +12964,22 @@ async function openAccountSheet() {
           : pushQueue.length ? `<span class="warn">未送信の変更が ${pushQueue.length}件 あります</span>`
           : "同期できています"}${(syncError || pushQueue.length)
           ? ` <button id="retrySync" style="color:var(--accent);font-weight:700">再試行</button>` : ""}</div>`;
-    // 状態は行の右に短く言い切る（2026-09-08 ユーザー「パスワード：無効 とかってできないの」）。
-    // 2026-10-15 から状態の横にそれを変える操作を置く形にした
+    // 概要では状態だけを示し、操作は各詳細へ分ける。
     $("accountPasskeyState").textContent = passkeys ? `${passkeys}台` : "未登録";
     $("accountPwState").textContent = me.hasPassword ? "有効" : "無効";
     $("accountCodesState").textContent = `${me.recoveryCodes}件`;
+    $("accountPwDetail").textContent = me.hasPassword ? 'パスワードでのログインは有効です。' : 'パスワードでのログインは無効です。';
+    $("accountCodesDetail").textContent = `使える回復コードは${me.recoveryCodes}件です。`;
     $("newRecovery").textContent = me.recoveryCodes ? "回復コードを再発行" : "回復コードを発行";
     $("newRecovery").setAttribute("aria-label", me.recoveryCodes ? "回復コードを再発行" : "回復コードを発行");
     // 塗るのは次にすべきこと1つだけ。パスキーが無ければ登録、あれば回復コードが無いときの発行
     $("addPasskey").classList.toggle("primary", !passkeys);
     $("newRecovery").classList.toggle("primary", !!passkeys && !me.recoveryCodes);
-    $("accountPasskeys").innerHTML = me.credentials.map((c) => `<div class="fav-row">
+    $("accountPasskeys").innerHTML = me.credentials.length ? me.credentials.map((c) => `<div class="fav-row">
             <div class="list-item" style="border-top:none">${esc(c.label || "名称なし")}
-              <div class="tiny">登録 ${when(c.created_at)} ・ 最終 ${when(c.last_used_at)}</div></div>
-            <button class="fav-del" data-delkey="${esc(c.id)}" aria-label="${esc(c.label || "この端末")}のパスキーを消す">✕</button>
-          </div>`).join("");
+              <div class="tiny">登録 ${when(c.created_at)}<br>最終利用 ${when(c.last_used_at)}</div></div>
+            <button class="fav-del" data-delkey="${esc(c.id)}" aria-label="${esc(c.label || "この端末")}のパスキーを消す" style="color:var(--red)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+          </div>`).join("") : `<p class="tiny account-empty">まだ登録されていません。</p>`;
     // 認証手段が1つだけだと、それを失った時点で自分のデータへ入れなくなる。
     // 起きてから言っても遅いので、そうなる前に言う。本人の画面には「薦め」も出す
     const s = nextStep({ passkeys: (me.credentials || []).length,
@@ -12917,7 +12997,7 @@ async function openAccountSheet() {
         // 断って終わりにしない。**その場で直せる場所を開いて指を置く。**
         // 「最後の1つだから消せません」と言われても、どうすればいいか分からなければ意味がない。
         if (/最後のパスキー/.test(e.message) && !$("enablePwWay").hidden) {
-          $("enablePwWay").open = true;
+          showAccountView("password");
           $("newAccPw").focus();
         }
       }
@@ -12925,19 +13005,36 @@ async function openAccountSheet() {
     const retry = $("retrySync");
     if (retry) retry.onclick = withPendingAction(panel,retry,async () => { await syncNow(); if(panel.open)openAccountSheet(); });
     panel.dataset.accountReady='true';
+    showAccountView(view);
+    if(refresh)$("accountTitle").focus?.({preventScroll:true});
+    if(view==='history')loadAccountHistory();
   } catch (e) {
     if(auth?.token!==token||panel.dataset.loadId!==request)return;
-    accountFail('アカウント情報を取得できませんでした。もう一度お試しください。');
-    $("accountBody").innerHTML='<button type="button" class="chip" id="accountRetry">再取得</button>';
-    $("accountRetry").onclick=openAccountSheet;
+    if (refresh) {
+      accountFail('最新のアカウント情報を確認できませんでした。表示は更新前の状態です。');
+      $("accountRefreshRetry").hidden=false;
+    } else {
+      showAccountView('overview');
+      accountFail('アカウント情報を取得できませんでした。もう一度お試しください。');
+      $("accountBody").innerHTML='<button type="button" class="chip" id="accountRetry">再取得</button>';
+      $("accountRetry").onclick=openAccountSheet;
+    }
   }
 }
 
-// 履歴は開いたときだけ取りに行く。毎回引くほどのものではない。
-$("loginHistory").ontoggle = async () => {
-  if (!$("loginHistory").open) return;
+$("accountRefreshRetry").onclick=openAccountSheet;
+
+// 履歴は詳細を開いたときだけ取得し、別利用者や閉じた画面へ書き戻さない。
+async function loadAccountHistory() {
+  const panel=$("accountSheet"),token=auth?.token,loadId=panel.dataset.loadId;
+  const request=String((Number(panel.dataset.historyRequest)||0)+1);
+  panel.dataset.historyRequest=request;
+  const current=()=>panel.open && auth?.token===token && panel.dataset.loadId===loadId && panel.dataset.historyRequest===request && panel.dataset.accountView==='history';
+  $("accountErr").hidden=true;
+  $("loginHistoryList").textContent='履歴を確認しています…';
   try {
     const { entries } = await apiCall("GET", "/me/logins");
+    if (!current()) return;
     const WAY = { password: "パスワード", passkey: "パスキー", recovery: "回復コード" };
     $("loginHistoryList").innerHTML = entries.length
       ? entries.map((e) => `<div class="list-item">
@@ -12947,8 +13044,9 @@ $("loginHistory").ontoggle = async () => {
           <div class="tiny">${new Date(e.created_at).toLocaleString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })}${e.ip ? ` ・ ${esc(e.ip)}` : ""}</div>
         </div>`).join("")
       : `<p class="tiny">まだありません。</p>`;
-  } catch (e) { accountFail(e.message); }
-};
+  } catch (e) { if(current()){ $("loginHistoryList").textContent='履歴を取得できませんでした。'; accountFail(e.message); } }
+}
+$("accountHistoryRetry").onclick=loadAccountHistory;
 
 // 鍵を作らせて、送り返せる形にするところまで。**新規登録と端末追加で同じものを使う。**
 // 別々に書くと、片方だけ直して食い違う。
@@ -13006,6 +13104,9 @@ const showCodes = (codes) => {
   $("recoveryCode").innerHTML = `<div style="font-weight:400;margin-bottom:6px">ID: ${esc(auth?.loginId ?? "")}</div>`
     + codes.map((c) => esc(c)).join("<br>");
   $("recoveryShown").hidden = false;
+  $("accountSheet").dataset.codesShown='true';
+  showAccountView("recovery");
+  $("recoveryShown").focus();
 };
 $("copyCodes").onclick = async () => {
   try {
@@ -13014,6 +13115,7 @@ $("copyCodes").onclick = async () => {
   } catch { $("copyCodes").textContent = "コピーできませんでした。選んで写してください"; }
 };
 $("newRecovery").onclick = async () => {
+  if (Number.parseInt($("accountCodesState").textContent,10)>0 && !confirm("回復コードを再発行します。\n以前の回復コードはすべて使えなくなります。続けますか？")) return;
   $("accountErr").hidden = true;
   try { showCodes((await apiCall("POST", "/recovery/issue", {})).codes); openAccountSheet2(); }
   catch (e) { accountFail(e.message); }
@@ -14340,7 +14442,7 @@ ctx.lineWidth=1;
  document.getElementById('settingsScreen').onclick=()=>{update();categories.hidden=true;row.hidden=false;back.hidden=false;document.getElementById('appSettingsTitle').textContent='画面';settings.focus({preventScroll:true});};
  document.getElementById('settingsAccount').onclick=()=>{settings.close();originalAccountOpen();};
  // The account page returns to the settings list the same way the screen page does.
- document.getElementById('accountBack').onclick=()=>{document.getElementById('accountSheet').close();openSettings(document.getElementById('authButton'));};
+ document.getElementById('accountBack').onclick=()=>{if(document.getElementById('accountSheet').dataset.accountView!=='overview'){showAccountView('overview',true);return;}document.getElementById('accountSheet').close();openSettings(document.getElementById('authButton'));};
  document.getElementById('authButton').onclick=()=>{if(auth)openSettings(document.getElementById('authButton'));else originalAccountOpen();};
  settings.querySelector('#appSettingsClose').onclick=()=>settings.close();
  settings.addEventListener('close',()=>{scrollLock.off();settingsOpener.focus({preventScroll:true});});
@@ -14350,7 +14452,7 @@ ctx.lineWidth=1;
   let start=null;
   panel.addEventListener('touchstart',event=>{start=null;if(!panel.open||event.touches.length!==1||event.target.closest('button,input,select,textarea,a,[contenteditable]'))return;const t=event.touches[0];start={id:t.identifier,x:t.clientX,y:t.clientY};},{passive:true});
   panel.addEventListener('touchcancel',()=>{start=null;},{passive:true});
-  panel.addEventListener('touchend',event=>{const from=start;start=null;if(!from||!panel.open)return;const t=Array.from(event.changedTouches).find(t=>t.identifier===from.id);if(!t)return;const dx=t.clientX-from.x,dy=t.clientY-from.y;if(dx>70&&Math.abs(dy)<dx*.5)panel.close();},{passive:true});
+  panel.addEventListener('touchend',event=>{const from=start;start=null;if(!from||!panel.open)return;const t=Array.from(event.changedTouches).find(t=>t.identifier===from.id);if(!t)return;const dx=t.clientX-from.x,dy=t.clientY-from.y;if(dx>70&&Math.abs(dy)<dx*.5 && (panel.id!=='accountSheet'||leaveAccountCodes()))panel.close();},{passive:true});
  }
  const update=()=>{updateTheme();updateAuto();select.value=get();for(const o of select.options)o.disabled=!permitted(o.value);status.textContent=!permitted(get())?'選択した画面は現在利用できないため、起動時はホームを開きます。':'';};
  // Refresh against live grants whenever settings is opened, including after a drawer swipe.

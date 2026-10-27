@@ -4,18 +4,21 @@ import {readFileSync} from 'node:fs';import vm from 'node:vm';import assert from
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 const sheet=html.slice(html.indexOf('<dialog class="sheet" id="accountSheet"'),html.indexOf('</dialog>',html.indexOf('id="accountSheet"')));
 
-// 並び：戻る→ID/同期→ログイン方法（パスキー・端末・パスワード・回復コード・薦め）→安全（履歴・ほかの端末）→ログアウト→削除（管理の入口は設定一覧）
-const order=['id="accountBack"','id="accountBody"','>ログイン方法</h3>','id="addPasskey"','id="accountPasskeys"','id="accountPwState"','id="disablePw"','id="enablePwWay"','id="accountCodesState"','id="newRecovery"','id="recoveryShown"','id="accountAdvice"','>安全</h3>','id="loginHistory"','id="logoutAll"','id="logout"','id="deleteAccount"'];
-let at=-1;for(const m of order){const i=sheet.indexOf(m);assert.ok(i>at,`並び順: ${m}`);at=i;}
-assert.ok(!/class="card"/.test(sheet),'行は線で区切り、箱を作らない');
-assert.match(html,/document\.getElementById\('accountBack'\)\.onclick=\(\)=>\{document\.getElementById\('accountSheet'\)\.close\(\);openSettings\(/,'←で設定一覧へ戻る');
+// 概要は状態と入口だけ。変更操作は項目ごとの詳細に分離する。
+const overview=sheet.slice(sheet.indexOf('data-account-view="overview"'),sheet.indexOf('data-account-view="passkeys"'));
+let at=-1;for(const view of ['passkeys','password','recovery','history','sessions']){const i=overview.indexOf(`data-account-open="${view}"`);assert.ok(i>at);at=i;}
+for(const id of ['addPasskey','enablePw','newRecovery','logoutAll','accountPasskeys']) assert.ok(!overview.includes(`id="${id}"`),`${id}は詳細だけに表示`);
+for(const view of ['passkeys','password','recovery','history','sessions']) assert.match(sheet,new RegExp(`data-account-view="${view}"[^>]+hidden`));
+assert.ok(!/class="card"/.test(sheet),'箱を重ねない');
+assert.match(html,/showAccountView\('overview',true\);return;/,'詳細の戻るは概要へ');
+assert.match(html,/accountSheet'\)\.close\(\);openSettings\(/,'概要から設定へ戻る');
 
 const cut=(from,to)=>html.slice(html.indexOf(from),html.indexOf(to,html.indexOf(from)));
-const src=cut('async function openAccountSheet() {','// 履歴は開いたときだけ取りに行く')+cut('function nextStep(u) {','\n}\n')+'\n}';
+const src=cut('async function openAccountSheet() {','// 履歴は詳細を開いたときだけ取得し')+cut('function nextStep(u) {','\n}\n')+'\n}';
 function el(){return {dataset:{},hidden:false,textContent:'',innerHTML:'',className:'',classes:new Set(),setAttribute(){},classList:{toggle(n,on){on?this.s.add(n):this.s.delete(n);},contains(n){return this.s.has(n);}},querySelectorAll(){return [];}};}
 async function open(me){
  const els={};const $=id=>{if(!els[id]){const e=el();e.classList.s=e.classes;els[id]=e;}return els[id];};
- const c={$,me,auth:{token:'test-user'},esc:s=>String(s),syncError:null,pushQueue:[],RECOVERY_LOW:3,showSheet(){},renderPrivateEntry(){},adoptToken(){},accountFail(m){$('accountErr').textContent=m;$('accountErr').hidden=false;},syncNow:async()=>{},withPendingAction:(panel,button,action)=>action,apiCall:async()=>me};
+ const c={$,me,auth:{token:'test-user'},esc:s=>String(s),syncError:null,pushQueue:[],RECOVERY_LOW:3,showAccountView(view){$('accountSheet').dataset.accountView=view;},showSheet(){},renderPrivateEntry(){},adoptToken(){},accountFail(m){$('accountErr').textContent=m;$('accountErr').hidden=false;},syncNow:async()=>{},withPendingAction:(panel,button,action)=>action,apiCall:async()=>me};
  vm.createContext(c);vm.runInContext(src,c);await c.openAccountSheet();$.context=c;return $;
 }
 const base={loginId:'fixture-user',role:'user',ownerAdmin:false};
@@ -25,7 +28,7 @@ const base={loginId:'fixture-user',role:'user',ownerAdmin:false};
  assert.equal($('accountPasskeyState').textContent,'未登録');assert.equal($('accountPwState').textContent,'有効');assert.equal($('accountCodesState').textContent,'9件');
  assert.ok($('addPasskey').classes.has('primary'));assert.ok(!$('newRecovery').classes.has('primary'));
  assert.equal($('newRecovery').textContent,'回復コードを再発行');assert.equal($('disablePw').hidden,true);assert.equal($('enablePwWay').hidden,true);
- assert.equal($('accountPasskeys').innerHTML,'');assert.equal($('accountAdvice').hidden,false);assert.match($('accountAdvice').textContent,/パスキーを登録すると/);
+ assert.match($('accountPasskeys').innerHTML,/まだ登録されていません/);assert.equal($('accountAdvice').hidden,false);assert.match($('accountAdvice').textContent,/パスキーを登録すると/);
  assert.match($('accountBody').innerHTML,/fixture-user/);assert.match($('accountBody').innerHTML,/同期できています/);}
 
 // パスキー2・パスワード無効・回復コード0：回復コードの発行だけを塗る。端末は2行、それぞれ消せる

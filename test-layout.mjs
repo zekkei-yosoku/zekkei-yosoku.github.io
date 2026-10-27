@@ -2200,8 +2200,8 @@ console.log("== ログインの履歴 ==");
 ok(/id="loginHistory"/.test(html) && /\/me\/logins/.test(html), "自分の履歴を見られる");
 // 成功しか出さないと「知らない端末から入られた」に気づけない
 ok(/e\.success \? "入れた" : "失敗"/.test(html), "成功と失敗を両方出す");
-ok(/身に覚えのない成功があれば/.test(html), "何をすればいいか書く");
-ok(/ontoggle = async/.test(html), "開いたときだけ取りに行く");
+ok(/身に覚えのないログインがあれば/.test(html), "何をすればいいか書く");
+ok(/function loadAccountHistory\(\)/.test(html), "開いたときだけ取りに行く");
 
 console.log("== 回復コードにはIDが要ることが見て分かる ==");
 // 2026-09-08 ユーザー指摘「回復コードだけでログインできる仕様になってるよね」。
@@ -2284,7 +2284,7 @@ console.log("== 状態は短く言い切る ==");
 // 2026-09-08 ユーザー「パスワード：無効にしてある なんで パスワード：無効 とかってできないの」。
 // 状態の表示に説明を混ぜない。**何をしたかではなく、いまどうかを出す。**
 // 2026-10-15 アカウント画面を行形式にした。「パスワード」の行の右に、有効／無効だけを出す
-ok(/<span>パスワード<span class="tiny" id="accountPwState"><\/span><\/span>/.test(html)
+ok(/<span>パスワード<\/span><span class="account-state" id="accountPwState"><\/span>/.test(html)
   && /\$\("accountPwState"\)\.textContent = me\.hasPassword \? "有効" : "無効";/.test(html), "有効／無効で言い切る");
 ok(!/無効にしてある/.test(html), "「無効にしてある」が残っていない");
 ok(!/hasPassword \? "使える"/.test(html), "「使える」が残っていない");
