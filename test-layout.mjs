@@ -639,7 +639,7 @@ ok(/太陽は必ず減光フィルターを付けて見てください。/.test(
 
 console.log("== 引き出しのスワイプ・地図のつまみ（2026-10-01） ==");
 // ユーザー「メニューについて左からスワイプで開くようにできたりしない？」
-ok(/const SWIPE_EDGE_PX = 28;/.test(html) && /t\.clientX > SWIPE_EDGE_PX \|\| \(isMenuPage\(\) && \$\("toolsButton"\)\.hidden\) \|\| document\.querySelector\("dialog\[open\]"\)/.test(html),
+ok(/const SWIPE_EDGE_PX = 28;/.test(html) && /t\.clientX > SWIPE_EDGE_PX \|\| \(isMenuPage\(\) && \$\("toolsButton"\)\.hidden && currentView !== "list"\) \|\| document\.querySelector\("dialog\[open\]"\)/.test(html),
   "左の端からだけ（☰ が無い・シートが開いているときは開かない）");
 ok(/e\.target\.closest\("\.mapwrap, canvas, input, select, textarea, \.preview-footer-track"\)/.test(html), "地図・3D・入力欄・下部の時間バーの上からは始めない（横に動かす部品と取り合わない）");
 ok(/menu\.style\.transform = `translateX\(\$\{\(swipe\.p - 1\) \* 100\}%\)`;/.test(html), "引き出しは指に付いてくる");

@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="9001993074251162821">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-2BRmEwXmOigmblNMurDzvn4fVKHF9o3gvJjHbbEJqMA=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-JSsXio7SDPC9rxAJhfpjX7THSzMjr+FjdH5xCr4cg8Q=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-83Cgnlo8en9j5JlmNrJn+YOM6QvJlWI7abcmYEF22EU=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="12712355187665965965">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-8k3c0cx0qRNsZsOwYCC0cd3JhPMsl58pqZjW0wpoPos=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-JSsXio7SDPC9rxAJhfpjX7THSzMjr+FjdH5xCr4cg8Q=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-83Cgnlo8en9j5JlmNrJn+YOM6QvJlWI7abcmYEF22EU=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -12214,12 +12214,15 @@ document.addEventListener("touchstart", (e) => {
   const open = !$("toolsMenu").hidden && $("toolsMenu").classList.contains("on");
   if (open) {
     if (!e.target.closest("#toolsMenu, #toolsScrim")) return;
-  } else if (t.clientX > SWIPE_EDGE_PX || (isMenuPage() && $("toolsButton").hidden) || document.querySelector("dialog[open]")
+  } else if (t.clientX > SWIPE_EDGE_PX || (isMenuPage() && $("toolsButton").hidden && currentView !== "list") || document.querySelector("dialog[open]")
              || e.target.closest(".mapwrap, canvas, input, select, textarea, .preview-footer-track")) {
     // ☰ が出ていない（使える道具が無い）ときは、なぞっても開かない
     return;
   }
-  swipe = { x0: t.clientX, y0: t.clientY, t0: e.timeStamp, open, back: !open && !isMenuPage(), active: false, p: open ? 1 : 0 };
+  const forecastTop = !open && currentView === "list";
+  // 予測一覧の左端は履歴移動ではなく一覧先頭へ。Safariの戻るにも渡さない。
+  if (forecastTop && t.clientX <= 8 && e.cancelable) e.preventDefault();
+  swipe = { x0: t.clientX, y0: t.clientY, t0: e.timeStamp, open, top: forecastTop, back: !open && (forecastTop || !isMenuPage()), active: false, p: open ? 1 : 0 };
 }, { passive: false });
 document.addEventListener("touchmove", (e) => {
   if (!swipe || e.touches.length !== 1) return;
@@ -12249,10 +12252,10 @@ document.addEventListener("touchmove", (e) => {
 }, { passive: true });
 const endSwipe = (e) => {
   if (!swipe || !swipe.active) { swipe = null; return; }
-  const { p, v = 0, open, back, dx = 0 } = swipe;
+  const { p, v = 0, open, back, top, dx = 0 } = swipe;
   swipe = null;
   if (back) {
-    if (e?.type !== "touchcancel" && (dx >= 64 || (dx >= 24 && v > 0.4))) { swipeEndedAt = performance.now(); goBack(); }
+    if (e?.type !== "touchcancel" && (dx >= 64 || (dx >= 24 && v > 0.4))) { swipeEndedAt = performance.now(); if(top){listScrollY=0;window.scrollTo(0,0);}else goBack(); }
     return;
   }
   const menu = $("toolsMenu"), scrim = $("toolsScrim");
