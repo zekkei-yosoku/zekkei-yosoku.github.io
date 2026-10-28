@@ -109,8 +109,9 @@ function buildShapeEditor(){
  el('shapeVertex').onchange=()=>{shapeEdit.selected=Number(el('shapeVertex').value);renderShapeEditor();};
  el('shapeMove').onclick=()=>change(()=>{if(shapeEdit.selected>=0)shapeEdit.value.vertices[shapeEdit.selected]=shapeMap.center();});
  el('shapeRemove').onclick=()=>change(()=>{if(shapeEdit.selected>=0)shapeEdit.value.vertices.splice(shapeEdit.selected,1);shapeEdit.selected=-1;});
- const move=p=>{if(!shapeEditorCurrent()||!AstroNotesLibrary.point(p))return;shapeEdit.searchName=p.name||'';shapeEdit.searchPlace=structuredClone(p);shapeMap.setView(p.latitude,p.longitude,p.zoom??16);shapePointAtCenter();el('shapeSavedMenu').open=false;};
- wireSearchBox('shapePlaceSearch','shapePlaceResults',move,move,{near:()=>shapeMap.center(),isCurrent:()=>shapeEditorCurrent()&&!el('shapeLocationPanel').hidden});
+ let clearSearch=null;
+ const move=p=>{if(!shapeEditorCurrent()||!AstroNotesLibrary.point(p))return;clearSearch?.();el('shapePlaceSearch').blur?.();shapeEdit.searchName=p.name||'';shapeEdit.searchPlace=structuredClone(p);shapeMap.setView(p.latitude,p.longitude,p.zoom??16);shapePointAtCenter();el('shapeSavedMenu').open=false;};
+ clearSearch=wireSearchBox('shapePlaceSearch','shapePlaceResults',move,move,{near:()=>shapeMap.center(),isCurrent:()=>shapeEditorCurrent()&&!el('shapeLocationPanel').hidden});
  el('shapeSavedMenu').addEventListener('toggle',renderLocations);
  function renderLocations(){
   if(!shapeEditorCurrent())return;
