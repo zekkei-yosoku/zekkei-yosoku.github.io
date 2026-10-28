@@ -80,7 +80,7 @@ function drawShape(ctx,project,s,{vertices=true,selected=-1}={}){
  if(vertices)s.vertices.forEach((p,i)=>{const q=project(p.latitude,p.longitude);ctx.beginPath();ctx.arc(...q,i===selected?9:6,0,Math.PI*2);ctx.fillStyle=i===selected?'#fff':'#9ebed5';ctx.fill();ctx.strokeStyle='#263441';ctx.lineWidth=2;ctx.stroke();ctx.font='bold 11px sans-serif';ctx.fillStyle='#fff';ctx.fillText(String(i+1),q[0]+10,q[1]-8);});ctx.restore();
 }
 function shapeModeMarkup(type){
- const path=type==='point'?'<circle cx="12" cy="12" r="4"/>':type==='line'?'<path d="M4 18L12 6l8 12"/><circle cx="4" cy="18" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="20" cy="18" r="2"/>':'<path d="M5 5h14v14H5z"/>';
+ const path=type==='point'?'<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.5"/>':type==='line'?'<path d="M4 18L12 6l8 12"/><circle cx="4" cy="18" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="20" cy="18" r="2"/>':'<rect x="5" y="5" width="14" height="14" rx="3"/>';
  return '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+path+'</svg>';
 }
 function buildShapeEditor(){
