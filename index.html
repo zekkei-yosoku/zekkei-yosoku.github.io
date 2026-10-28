@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="15999741827763999558">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-GGTGchRQbXBfOc/yq9C9ZjB1jqJxHBdKydSUDFt1tcw=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-JSsXio7SDPC9rxAJhfpjX7THSzMjr+FjdH5xCr4cg8Q=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-hXH1ODXFhATYuezFokHlWosR6ieNfnWfhlEjYeN/sr8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="4163165163209449839">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-Q3sgew0oq6d3X0XsLElG/a3lSWTF/Oh6AQnCS1f4Ijo=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-JSsXio7SDPC9rxAJhfpjX7THSzMjr+FjdH5xCr4cg8Q=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-hXH1ODXFhATYuezFokHlWosR6ieNfnWfhlEjYeN/sr8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -1465,6 +1465,18 @@ main:has(>#almanacView:not([hidden])){padding-bottom:calc(115px + env(safe-area-
 .sky-map-controls{display:flex;flex-direction:column;gap:0;margin:8px 0}.sky-map-controls label{flex:1;min-width:0;font-size:12px}.sky-map-controls select{display:block;width:100%;min-height:44px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px}
 .sky-map-angles{font-variant-numeric:tabular-nums;margin:12px 0}.sky-map-wrap{height:clamp(350px,55dvh,700px)}.sky-map-wrap canvas{width:100%;height:100%}
 /* Labels reserve the right control strip; an expanded map keeps time controls available. */
+/* A large location map keeps search, map controls and confirmation in view. */
+.location-map-expand{position:absolute;top:8px;right:8px;z-index:4;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text)}
+:is(#mapSheet,#myShapeSheet) .map-layers-btn{top:58px}
+:is(#mapSheet,#myShapeSheet) .map-layer-menu{top:104px;z-index:5}
+.location-map-expand svg{width:24px;height:24px;stroke-width:1.8}
+:is(#mapSheet,#myShapeSheet).location-map-wide>.sheet-body{display:flex;flex-direction:column;gap:6px;width:100%;min-height:0;max-height:none;overflow:hidden;padding:0 8px 8px}
+:is(#mapSheet,#myShapeSheet).location-map-wide>.sheet-body>*{flex:none;margin-block:0}
+:is(#mapSheet,#myShapeSheet).location-map-wide>.sheet-body>.mapwrap{flex:1;min-height:260px;border-radius:0;margin-inline:-8px}
+:is(#mapSheet,#myShapeSheet).location-map-wide .mapwrap canvas{height:100%;min-height:0;touch-action:none}
+:is(#mapSheet,#myShapeSheet).location-map-wide>.sheet-body>:not(.mapwrap):not(.search-row):not(#mapSearchResults):not(#shapeLocationPanel):not(#shapeVertexTools):not(#shapeStatus):not(#mapPick):not(#shapeApply){display:none}
+:is(#mapSearchResults,#shapePlaceResults,#shapeSavedLocations):not(:empty){max-height:25dvh;overflow:auto}
+@media(max-height:500px){:is(#mapSheet,#myShapeSheet).location-map-wide>.sheet-body{overflow-y:auto}.location-map-wide #shapeSavedMenu{display:none}}
 .sky-map-wrap.sky-map-wide{position:fixed;inset:0;height:auto;max-width:none;border:0;border-radius:0;z-index:30;margin:0}html:has(.sky-map-wide){scrollbar-gutter:auto;overflow:hidden}body:has(.sky-map-wide){overflow:hidden}.sky-map-wide .mapzoom{bottom:calc(var(--sky-footer-h,100px) + 8px)}.sky-map-wide .mapattr{bottom:calc(var(--sky-footer-h,100px) + 4px)}.sky-map-time-actions button{padding-inline:7px}.sky-map-time-actions{flex-wrap:wrap}
 .sky-map-actions,.sky-map-events{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
 #skyMapRange{width:100%;height:38px;accent-color:var(--accent)}.sky-map-use{width:100%;min-height:44px;background:var(--accent);color:var(--on-accent)}#skyMapCustom input{width:90px;min-height:44px;background:var(--card);color:var(--text);font-size:16px}#skyMapTargetInfo{margin:10px 0}#skyMapRetry[hidden]{display:none}
@@ -12144,9 +12156,31 @@ window.addEventListener("popstate", () => {
 /// シートを開く。**シートそのものに焦点を置く**（2026-10-02 ユーザー「なんか青くなって選択状態で開くのが気に入らない」）。
 /// showModal だけだと最初の釦（閉じる）に焦点が行き、選ばれた状態（青い枠）で開く。<dialog autofocus> は効かないブラウザがあった。
 /// 明示的な入力操作のときだけ、このあとで入力欄へ焦点を移す
+// Location picking uses the same map engine and expand control as Explore.
+function prepareLocationMap(el) {
+  if (!['mapSheet','myShapeSheet'].includes(el.id)) return;
+  const wrap=el.querySelector('.mapwrap');if(!wrap)return;
+  let button=wrap.querySelector('.location-map-expand');
+  if(!button){
+    button=document.createElement('button');button.type='button';button.className='map-ctl location-map-expand';
+    button.innerHTML=document.getElementById('skyMapExpand').innerHTML;
+    const update=wide=>{
+      el.classList.toggle('location-map-wide',wide);
+      button.setAttribute('aria-pressed',String(wide));
+      button.setAttribute('aria-label',wide?'全画面表示を終了':'地図を全画面表示');button.title=button.getAttribute('aria-label');
+      button.querySelector('[data-map-expand]').style.display=wide?'none':'';
+      button.querySelector('[data-map-contract]').style.display=wide?'':'none';
+      requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')));
+    };
+    button.onclick=()=>update(!el.classList.contains('location-map-wide'));
+    button._setWide=update;wrap.append(button);
+  }
+  button._setWide(true);
+}
 function showSheet(el) {
   const page = !!PAGE_DIALOGS[el.id];
   if (page) preparePage(el);
+  prepareLocationMap(el);
   el.showModal();
   el.focus({ preventScroll: true });
   if (page) pageOpened(el);
