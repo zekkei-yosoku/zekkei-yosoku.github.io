@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="7302204146958892945">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-6AGZHiCok0hYzAHPCMKRqXObvDsZKcSRz/z78uaVf4U=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-JSsXio7SDPC9rxAJhfpjX7THSzMjr+FjdH5xCr4cg8Q=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-hXH1ODXFhATYuezFokHlWosR6ieNfnWfhlEjYeN/sr8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="1285767016502681906">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-GGTGchRQbXBfOc/yq9C9ZjB1jqJxHBdKydSUDFt1tcw=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-JSsXio7SDPC9rxAJhfpjX7THSzMjr+FjdH5xCr4cg8Q=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-hXH1ODXFhATYuezFokHlWosR6ieNfnWfhlEjYeN/sr8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -63,7 +63,7 @@
 <link data-script-preload rel="preload" as="script" href="astronotes-myplaces.js?v=9109811032140246787">
 <link data-script-preload rel="preload" as="script" href="astronotes-journey.js?v=15466105409423914770">
 <style id="startupPaintStyle">
-html[data-startup-pending] main > :not(.masthead):not(#startupStatus),html[data-startup-pending] #mastheadCharacter{visibility:hidden!important}
+html[data-startup-pending] main > :not(.masthead):not(#startupStatus){visibility:hidden!important}
 html[data-startup-pending] #startupStatus{display:block!important;visibility:visible}
 /* Forecast improvement belongs below the forecast, immediately before sources. */
 #skyRatingInvite{display:none}main:has(>#listView:not([hidden]))>#skyRatingInvite{display:block}
@@ -157,7 +157,7 @@ if(location.hash||location.search||preferred!=='forecast'){document.documentElem
   /* [hidden] は display:none を弱い指定で当てるだけなので、display を持つクラスに負ける。
      .place-row の flex に負けて、記録画面で地点カードが消えなかった。 */
   [hidden] { display: none !important; }
-  .masthead { display: flex; align-items: center; gap: 6px; padding: 6px 2px 12px; }
+  .masthead { display: grid; grid-template-columns: minmax(44px,1fr) auto minmax(44px,1fr); align-items: center; gap: 6px; padding: 6px 2px 12px; }
   /* 全画面共通のブランド色。lightはロゴの白を受ける濃いheader、darkは本文へつなぐ。 */
   :root { --header-bg: #c5d3e0; --header-end: calc(74px + env(safe-area-inset-top)); }
   :root[data-theme="dark"] { --header-bg: var(--bg); }
@@ -171,7 +171,7 @@ if(location.hash||location.search||preferred!=='forecast'){document.documentElem
   :root[data-theme="dark"] .masthead #authButton { color: #dce8f3; }
   .masthead #toolsButton { color: #34495e; }
   :root[data-theme="dark"] .masthead #toolsButton { color: #c3c3ca; }
-  .masthead h1 { flex: 1; min-width: 0; }
+  .masthead h1 { grid-column: 2; grid-row: 1; min-width: 0; justify-self: center; }
   .masthead-mark { width: 20px; height: 20px; border-radius: 5px; display: block; }
   /* 丸み修正版v1の横組ロゴ。画像の縦横比を維持し、既存の題名と二重表示しない。 */
   #mastheadAstroMark { width: 140px; height: auto; aspect-ratio: 2172 / 490; border-radius: 0; flex: none; }
@@ -188,13 +188,13 @@ if(location.hash||location.search||preferred!=='forecast'){document.documentElem
        color: var(--secondary); text-align: left; }
   /* ログイン名は長いことがある（最大32字）。狭い画面で題名と重ならないよう、収まらなければ「…」で切る */
   #authButton { font-size: 0.75rem; font-weight: 700; color: var(--accent); min-height: 44px; padding: 0 2px;
-                flex: 0 1 auto; max-width: 34%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                grid-column: 3; grid-row: 1; justify-self: end; width: max-content; min-width: 44px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* メニューの引き出し。**左上の ☰ から左に出す。** ページの中へ差し込まない
      （差し込むと下の内容が飛び、読んでいた場所を失う）。
      動かすのは transform と不透明度だけ。幅や位置を動かすと毎フレーム組み直しになる。 */
   /* 押せる大きさは `.tap::after` が 44px で作るので、箱は字の大きさのままでよい。
      min-width を足すと、題名の印とのあいだに要らない隙間ができる（2026-09-28） */
-  #toolsButton { font-size: 1.1rem; line-height: 1; color: var(--secondary); padding: 0 2px; }
+  #toolsButton { grid-column: 1; grid-row: 1; justify-self: start; width: 44px; height: 44px; font-size: 1.1rem; line-height: 1; color: var(--secondary); padding: 0 2px; }
   #toolsButton[aria-expanded="true"] { color: var(--accent); }
   .drawer-scrim { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 40;
                   opacity: 0; transition: opacity .22s ease; }
@@ -1452,7 +1452,7 @@ main:has(>#aimView:not([hidden],[data-locked])){padding-bottom:calc(var(--aim-fo
 #aimView .preview-camera-dialog .aim-grid-control,#aimView .preview-camera-dialog .aim-lens-row{display:grid;grid-template-columns:7.5rem minmax(0,1fr);align-items:center;gap:10px}#aimView .preview-camera-dialog .preview-sensor-label{font-size:14px}#aimView .preview-camera-dialog .aim-lens-row select,#aimView .preview-camera-dialog .aim-grid-control select{width:100%;min-width:0}
   /* trial 2026-10-16: 構図の撮影地タブは地図へ集約（その日に重なる線・自分の地点は地図に出す） */
   #previewPlacesTab, #previewPlaces { display: none !important; }
-.masthead-character{display:block;width:36px;height:36px;flex:none;object-fit:contain;pointer-events:none;user-select:none}#homeLink{max-width:100%;min-width:0}#mastheadAstroMark{flex:0 1 140px;min-width:0}
+#homeLink{max-width:100%;min-width:0;min-height:44px}#mastheadAstroMark{flex:0 1 140px;min-width:0}
 .note-wait{display:flex;align-items:center;justify-content:center;gap:12px;min-height:56px}.note-wait-character{flex:0 0 56px;width:56px;height:56px;background:url("astronotes-note-computing-branded-v2.png") center/contain no-repeat}.note-wait-message{position:relative;min-width:0;flex:1;line-height:1.6;padding:12px 14px;border-radius:14px;background:var(--sunk);color:var(--text);font-size:14px}.note-wait-message::before{content:"";position:absolute;left:-7px;top:50%;transform:translateY(-50%);border-top:7px solid transparent;border-bottom:7px solid transparent;border-right:8px solid var(--sunk)}.note-progress{display:block;position:relative;overflow:hidden;width:100%;height:6px;margin-top:9px;border-radius:3px;background:var(--line)}.note-progress-fill{display:block;width:100%;height:100%;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform 450ms ease-out}.note-progress[data-indeterminate] .note-progress-fill{transform:scaleX(.3);animation:note-progress-wait 1.5s ease-in-out infinite}@keyframes note-progress-wait{0%,100%{transform:translateX(-30%) scaleX(.3)}50%{transform:translateX(100%) scaleX(.3)}}@media(prefers-reduced-motion:reduce){.note-progress-fill{transition:none}.note-progress[data-indeterminate] .note-progress-fill{animation:none}}
 
 </style><style id="skyMapStyles">
@@ -1606,7 +1606,7 @@ button.ui-icon-button::after { content: none; }
          **押したらホームへ戻る。** どの画面にも出ているので、ここが戻り道になる。
          `alt` は空にする（すぐ隣に「絶景予測」と書いてあるので二度言わせない） -->
     <h1><button id="homeLink" class="tap">
-      <img src="icon-32.png?v=20261015astro" class="masthead-mark" id="mastheadMark" alt="" width="20" height="20" hidden><img src="astronotes-wordmark-rounded-v1-480.png?v=1" class="masthead-mark" id="mastheadAstroMark" alt="" width="140" height="32"><img id="mastheadCharacter" class="masthead-character" src="astronotes-header-forecast-v1.png" width="36" height="36" alt="" aria-hidden="true" decoding="async"><span id="mastheadName" hidden>AstroNotes</span></button></h1>
+      <img src="icon-32.png?v=20261015astro" class="masthead-mark" id="mastheadMark" alt="" width="20" height="20" hidden><img src="astronotes-wordmark-rounded-v1-480.png?v=1" class="masthead-mark" id="mastheadAstroMark" alt="" width="140" height="32"><span id="mastheadName" hidden>AstroNotes</span></button></h1>
     <!-- ログインは任意。押さなくても予報は全部見られる。
          同期が失敗しているときは、それをここに出す（黙って同期されていないのは
          「黙って消える」と同じ種類の事故）。 -->
@@ -3514,12 +3514,6 @@ const VIEWS = [
 ];
 
 
-function renderMastheadCharacter(view) {
-  const character=$("mastheadCharacter");if(!character)return;
-  const poses={list:'forecast',detail:'forecast',answers:'forecast',aim:'framing',skymap:'map',records:'records'};
-  const pose=poses[view];character.hidden=!pose;
-  if(pose){const src=`astronotes-header-${pose}-v1.png`;if(character.getAttribute('src')!==src)character.setAttribute('src',src);}
-}
 function renderForecastTabs(view) {
   const visible=view==='list'||view==='answers';
   $("forecastTabs").hidden=!visible;
@@ -3618,7 +3612,6 @@ function render() {
   // それらの道具は自分のスポット一覧を持つ
   currentView = view;
   if (view === "almanac") renderAlmanac();
-  renderMastheadCharacter(view);
   $("placeRow").hidden = !placeCardShown();
   // 展望台の選択は地点カードの続き。地点を出さない画面では一緒に隠す
   if (!placeCardShown()) $("deckRow").hidden = true; else renderDeckRow();

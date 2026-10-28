@@ -2,16 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
-const fragment=html.slice(html.indexOf('function renderMastheadCharacter('),html.indexOf('function renderForecastTabs('));
-test('共通ロゴ横の1体を画面に応じて切替え、対象外の画面では隠す',()=>{
- const image={hidden:false,src:'',writes:0,getAttribute(){return this.src;},setAttribute(k,v){this.src=v;this.writes++;}};
- const render=new Function('$',fragment+';return renderMastheadCharacter;')(()=>image);
- for(const [view,pose] of [['list','forecast'],['aim','framing'],['skymap','map'],['records','records'],['answers','forecast'],['detail','forecast']]){render(view);assert.equal(image.hidden,false);assert.equal(image.src,`astronotes-header-${pose}-v1.png`);}
- const writes=image.writes;render('detail');assert.equal(image.writes,writes);render('iss');assert.equal(image.hidden,true);render('list');assert.equal(image.hidden,false);
+test('header keeps its home control and logo without the permanent character or view-switching code',()=>{
+ const header=html.slice(html.indexOf('<div class="masthead">'),html.indexOf('id="backBar"'));
+ assert.match(header,/id="homeLink"/);assert.match(header,/id="mastheadAstroMark"/);
+ assert.doesNotMatch(html,/mastheadCharacter|renderMastheadCharacter|masthead-character/);
 });
-test('ロゴ隣の装飾だけを持ち、画面見出しと予測タブにはキャラクターを置かない',()=>{
- assert.equal((html.match(/id="mastheadCharacter"/g)||[]).length,1);
- assert.match(html, /id="mastheadAstroMark"[^>]*><img id="mastheadCharacter"[^>]*alt="" aria-hidden="true"/);
- for(const id of ['aimFramingTitle','skyMapTitle','forecastTab'])assert.doesNotMatch(html,new RegExp(`id="${id}"[^>]*>\\s*<img`));
- assert.match(html,/id="recordsHeading"><h2>記録<\/h2>/);
+test('waiting characters and cached legacy artwork remain available',()=>{
+ assert.match(html,/class="note-wait-character"/);assert.match(html,/function candidateWaitMarkup/);
+ assert.match(html,/astronotes-note-computing-branded-v2\.png/);
+ for(const pose of ['forecast','framing','map','records'])assert(fs.existsSync(new URL(`astronotes-header-${pose}-v1.png`,import.meta.url)));
 });
