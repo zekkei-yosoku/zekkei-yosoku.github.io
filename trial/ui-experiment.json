@@ -3,7 +3,7 @@
   "rootHtmlSha256": "c5b78f12a83fa2ed6638010636cdfcb82cdc7a5e466fe725422ef70fb9a5a476",
   "files": {},
   "trialOnlyFiles": {
-    "sky-rating.html": "31bcc0db4f70b88f1e8d02968b10c1ae04e79ca5265c5d11a1f21d7e584296cd",
+    "sky-rating.html": "ff5cd6650890767e96303947fea3700252bd820a75db4f6d7a3c7cc62d2d7389",
     "sky-rating.css": "13cfc104173fe84f3e685bfc1005b39482dfb9120d908884ccb06a43ab718c9a",
     "sky-rating.js": "7613abc02db670586f289361dc5da1c4e076f6d196a883eb8aef0253842326d6",
     "sky-rating-theme.js": "bb29398a0f16e0252746d2e466a9c8289908968a671f81a8715cfcd502c01c4a",
@@ -27,5 +27,5 @@
     "data/sky-rating-v1/sky-06.jpg": "2cb846f61a6146ebaebb2d0a0e6bfe59b20a12ff58b271fb2767f2bf490af30f",
     "data/sky-rating-v1/catalog.json": "239caa4920d12ae625cdbd6d0b402bb2fc15a7b41188a3cc205291440d5f172a"
   },
-  "trialHtmlSha256": "57d461f56ee797a58666122a8359e4a9511805c89f88676d6dbbc5c434ec7562"
+  "trialHtmlSha256": "d31fea706c3589ebc620e773b36e69654655320ed47d179757a746041405ad4d"
 }
