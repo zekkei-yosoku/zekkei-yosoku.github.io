@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="6798399000935089927">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-0SjaIKXgYtnS/qU2bTeXM9/NkSeDqnZrFX8QDjr87Rw=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-JSsXio7SDPC9rxAJhfpjX7THSzMjr+FjdH5xCr4cg8Q=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-83Cgnlo8en9j5JlmNrJn+YOM6QvJlWI7abcmYEF22EU=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="5666521902173845916">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-dF4xXemN/TV1/teA4O0RWkq4r+ETHohjnsYPekva/fw=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-JSsXio7SDPC9rxAJhfpjX7THSzMjr+FjdH5xCr4cg8Q=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-83Cgnlo8en9j5JlmNrJn+YOM6QvJlWI7abcmYEF22EU=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -2099,10 +2099,10 @@ button.ui-icon-button::after { content: none; }
     </details>
 
     <section class="card" id="reviewPhotos" aria-labelledby="reviewPhotosTitle">
-      <div class="section-h"><h2 id="reviewPhotosTitle">空の写真</h2></div>
-      <p class="tiny">見た空を写真で残します。予測が残っていない日も保存できます。</p>
-      <div class="ph-add">
-        <button id="photoPick" class="fav-btn primary">写真を残す</button>
+      <div class="section-h"><h2 id="reviewPhotosTitle">以前提供した写真</h2></div>
+      <p class="tiny">この試用版では新しい写真のアップロードを受け付けません。以前提供した写真は確認・削除できます。</p>
+      <div class="ph-add" hidden>
+        <button id="photoPick" class="fav-btn primary" disabled>写真を残す</button>
         <input type="file" id="photoFile" accept="image/*" hidden>
       </div>
       <p id="photoListStatus" class="tiny" role="status" hidden></p>
@@ -4193,23 +4193,7 @@ function wireOutcomes(root) {
         recordAnswer(pid, peak, k === "same" ? pred : k === "save" ? +gauge.value : null);
       };
     }
-    const file = box.querySelector("[data-shot-pid]");
-    file.onchange = async () => {
-      const f = file.files && file.files[0];
-      file.value = "";                             // 同じ写真をもう一度選べるように
-      if (!f || !requireLogin("記録")) return;
-      // 点数は、ゲージを開いていればその値、答えていれば答えた点、無ければ予測の点
-      const s0 = findSighting(pid, peak);
-      // 点数と、その由来（2026-10-16）を同じ分岐で決める。予報の点のまま渡したものを、本人の答えと分ける。
-      // ゲージは、動かしたか・記録済みの答えを出しているときだけ本人の点
-      let score, scoreSource;
-      if (!box.querySelector(".answer-gauge").hidden) {
-        score = +gauge.value;
-        scoreSource = box.dataset.gaugeMoved === "1" || box.dataset.recorded !== "" ? "answered" : "prefilled_forecast";
-      } else if (Number.isFinite(s0?.actualScore)) { score = s0.actualScore; scoreSource = "answered"; }
-      else { score = pred; scoreSource = "prefilled_forecast"; }
-      await openPhotoSheet(f, { pid, peak, score, scoreSource });
-    };
+
   }
 }
 
@@ -5520,8 +5504,7 @@ function shotHeightNote(s) {
  * 実際はどうだったかを答える部品。ホームと詳細で同じものを使う（選択肢がずれると同じ回に別々の答えが入る）。
  * **「予測通り」は1回押すだけ。違ったときだけゲージで何点だったかを選ぶ**（2026-10-02 ユーザー「選択式じゃなくて何点だったかを
  * ゲージで選ばせたら」「予測通りってボタンと、違うならゲージ」）。ゲージは予測の点から始め、予測の位置に印を置く。
- * 写真は「記録を足す」の画面で、この回の現象・時刻・点数を入れて開く（「写真のアップロードも良い感じに組み合わせて」）。
- * 名前は「写真をアップロード」（ユーザー「添えるって変だよね」。写真はサーバーに上がる）。
+ * 2026-10-28 trial: 結果は点数評価を維持し、新規写真アップロード操作だけを外す。既存写真由来の記録は表示を維持する。
  */
 function outcomeButtons(id, peak, predicted, sighting = null) {
   const shot = sighting && Number.isFinite(sighting.observedAtMs)
@@ -5557,8 +5540,7 @@ function outcomeButtons(id, peak, predicted, sighting = null) {
       <div class="gauge-foot"><output data-gauge-out>${answerHtml(id, v, pred)}</output>
         <button data-answer="save" class="fav-btn primary"${saved ? " disabled" : ""}>${saved ? "記録済み" : "この点で記録"}</button></div>
     </div>
-    <label class="shot"><input type="file" accept="image/*" data-shot-pid="${id}" data-shot-peak="${peak}">
-      <span>📷 写真をアップロード</span></label>${shot}
+    ${shot}
   </div>`;
 }
 /// ゲージの読み: 「52点・まずまず」と、その下に小さく「予測 74」（320px でも折り返しの位置が変わらないよう2行に決めておく）
