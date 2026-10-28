@@ -82,7 +82,7 @@ test('共通ピッカーは線・範囲を代表座標として即選択せず�
  vm.createContext(c);vm.runInContext(ui.slice(ui.indexOf('let pickerToken ='),ui.indexOf('async function renderPickerPanel(')),c);
  assert.equal(c.selectShape({id:'shape'},'aim'),true);assert.equal(candidates,1);
  assert.equal(c.selectShape({id:'shape'},'skymap'),true);assert.equal(c.selectShape({id:'point'},'aim'),false);assert.equal(c.selectShape({id:'shape'},'recordTarget'),false);
- assert.match(html,/function choosePlace\(p\) \{\s*if\(globalThis.MyPlacesUI\?\.selectShape/);
+ assert.match(html,/function choosePlace\(p, \{ keepSheet = false \} = \{\}\) \{\s*if\(globalThis.MyPlacesUI\?\.selectShape/);
 });
 test('既存の形を別画面で変更したら上書きせず開き直しを求める',()=>{
  const f={id:'p',...ll(0)},state={place:f,initialTargets:[],draftTargets:[],baseline:'[]',shapeBaseline:'null'},nodes=new Map();let commits=0;

@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="5168969640301591789">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-KyDzS8f13bcM/fTfV4bQLSO91QyHVk/xu5jz7oQo2Ek=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-HZLGqItkNOaXdlP1VY2wKK+gZfKmpc1Svu2/lfBtA2o=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-hXH1ODXFhATYuezFokHlWosR6ieNfnWfhlEjYeN/sr8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="2941477906048692075">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-KDsC1unKfyua6ClGI3X/zxeGOfOv1j0AmX+BqROjZlw=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-HZLGqItkNOaXdlP1VY2wKK+gZfKmpc1Svu2/lfBtA2o=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-hXH1ODXFhATYuezFokHlWosR6ieNfnWfhlEjYeN/sr8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -1486,6 +1486,9 @@ main:has(>#almanacView:not([hidden])){padding-bottom:calc(115px + env(safe-area-
 .astro-map-wrap .shared-map-center:not(svg):before,.astro-map-wrap .shared-map-center:not(svg):after{content:'';position:absolute;background:var(--text);box-shadow:0 0 0 1px var(--card);border:0;border-radius:0;margin:0}
 .astro-map-wrap .shared-map-center:not(svg):before{left:9px;top:0;width:1px;height:20px}
 .astro-map-wrap .shared-map-center:not(svg):after{left:0;top:9px;width:20px;height:1px}
+.astro-map-wrap[data-selection-only]>.sky-map-expand{display:none!important}
+.astro-map-wrap[data-selection-only]>.map-layers-btn{top:calc(8px + env(safe-area-inset-top))}
+.astro-map-wrap[data-selection-only]>.map-layer-menu{top:calc(58px + env(safe-area-inset-top))}
 .shared-map-search{position:absolute;top:calc(8px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left));right:calc(60px + env(safe-area-inset-right));z-index:4;max-height:35dvh;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;background:var(--bg);border-radius:10px;padding:6px}
 .shared-map-search[hidden],.shared-map-search:not(:has(>:not([hidden]))),.shared-map-footer[hidden]{display:none}
 .shared-map-search :is(.search-row,.my-actions){margin:0}
@@ -5670,12 +5673,12 @@ function qualityCalibration(list) {
 /// 画面は1つを使い回す（検索・現在地・地図で選ぶ・お気に入り。2026-10-01 ユーザー「新しいレイアウト作る必要ないよね」）
 let placeSheetFor = null;
 /// 地点の画面で選んだ場所を、開いた目的の方へ渡す
-function choosePlace(p) {
+function choosePlace(p, { keepSheet = false } = {}) {
   if(globalThis.MyPlacesUI?.selectShape?.(p,placeSheetFor))return;
   try { recentHistory.rememberPlace(p,{observer:placeSheetFor==='aim'||(!placeSheetFor&&!aim.from)}); } catch { /* History must not prevent choosing a place. */ }
   const picker = placeSheetFor && PLACE_PICKERS[placeSheetFor];
   if (picker) {
-    $("placeSheet").close();          // 閉じると placeSheetFor は null に戻る
+    if (!keepSheet) $("placeSheet").close(); // Map confirmation returns to the existing place picker.
     // 地名の一覧の山・峠・岬・滝は、地面そのものが目標（建物を探さない）
     picker.set({ id: p.id, natural: /^(山|峠|岬|滝)( ・|$)/.test(p.subtitle || ""), wikidata: p.wikidata ?? null,
       // 階数からの見積もりは「分からない」として扱い、Wikidata・地図の建物で取り直す
@@ -5684,6 +5687,7 @@ function choosePlace(p) {
       latitude: p.latitude, longitude: p.longitude, elevation: Number.isFinite(p.elevation) ? p.elevation : null,
       structureM: p.structureM ?? null, targetHeightM: p.targetHeightM ?? null,
       decks: p.decks ?? null, eyeHeightAGL: p.eyeHeightAGL ?? null });
+    if (keepSheet) refreshPlacePickerActions(picker);
     return;
   }
   selectPlace(p);
@@ -6195,6 +6199,9 @@ function mountMapShell(wrap, ids, redraw) {
   if(ids.canvas==='skyMapCanvas'){const button=wrap.querySelector('.sky-map-expand');wireMapKeyboard(wrap,button,()=>wrap.classList.contains('sky-map-wide'),()=>button.click(),false);return;}
   const expand=document.createElement('button');expand.type='button';expand.className='map-ctl sky-map-expand';
   expand.innerHTML=document.getElementById('skyMapExpand').innerHTML;wrap.append(expand);
+  const selectionOnly=['mapCanvas','shapeCanvas'].includes(ids.canvas);
+  if(selectionOnly){expand.hidden=true;wrap.dataset.selectionOnly='';}
+  const leaveSelection=()=>wrap.closest('dialog')?.querySelector('.page-back')?.click();
   let moved=[],footer=null,search=null,observer=null,wide=false;
   const relocate=(node,host)=>{if(!node||node===wrap||wrap.contains(node))return;const marker=document.createComment('map-control-home');node.before(marker);host.append(node);moved.push({node,marker});};
   const setWide=on=>{
@@ -6231,7 +6238,7 @@ function mountMapShell(wrap, ids, redraw) {
   const dialog=wrap.closest('dialog');dialog?.addEventListener('close',()=>setWide(false));
   // Leaving a route must not leave a fixed map above the next page.
   window.addEventListener('hashchange',()=>{if(!dialog||!dialog.open)setWide(false);});
-  wireMapKeyboard(wrap,expand,()=>wide,()=>setWide(false));
+  wireMapKeyboard(wrap,expand,()=>wide,()=>selectionOnly?leaveSelection():setWide(false));
   wrap._mapShell={setWide,isWide:()=>wide};
   if(['mapCanvas','shapeCanvas','targetEditorCanvas','aimLineCanvas'].includes(ids.canvas))setWide(true);
 }
@@ -11265,7 +11272,6 @@ function aimMapView() {
 // 道具の観測地点・目標を決めるときは、いまのその点のところで地図を開く
 $("mapButton").onclick = () => MapPick.open(placeSheetFor && PLACE_PICKERS[placeSheetFor]
   ? (PLACE_PICKERS[placeSheetFor].point() || place) : place);
-$("mapClose").onclick = () => $("mapSheet").close();
 /// 都道府県（JIS X 0401 の番号順。ISO 3166-2:JP の JP-01〜JP-47 と同じ）
 const JP_PREFECTURES = ["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
   "新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県",
@@ -11295,23 +11301,28 @@ async function nearName(lat, lon, { signal } = {}) {
 /// 緯度経度の点を地点にする（地図の「この場所にする」と、検索欄に緯度経度を入れたとき）。
 /// 標高はその場所の値を読む（**地点検索の代表点と違い、ここが効く**）。取れなければ標高なしで進める。
 /// 名前は近くの地名を当てる。取れなければ座標そのものを名前にする。
-async function selectPointAt(lat, lon, subtitle) {
+async function selectPointAt(lat, lon, subtitle, options = {}) {
   const elevation = await groundAt(lat, lon);
   const { name } = await nearName(lat, lon);
+  if (options.isCurrent && !options.isCurrent()) return;
   choosePlace({ id: `map:${lat.toFixed(5)},${lon.toFixed(5)}`,
     name, subtitle, latitude: lat, longitude: lon,
     elevation: elevation === null || elevation === undefined ? null : Math.round(elevation * 10) / 10,
     // **点は代表点ではない。** ダイヤモンド富士や建物の地平線が出せる
-    locationScope: "point" });
+    locationScope: "point" }, options);
 }
 
+let mapPickRequest = 0;
+$("mapSheet").addEventListener("close", () => { mapPickRequest++; $("mapPick").disabled = false; $("mapPick").textContent = "この場所にする"; });
 $("mapPick").onclick = async () => {
+  const request = ++mapPickRequest, owner = auth?.token, mode = placeSheetFor;
   const c = MapPick.center();
   $("mapPick").disabled = true;
   $("mapPick").textContent = "標高を読んでいます…";
   if (favMapReturn && favDraft) {
-    const origin = favDraft.origin;
+    const draft = favDraft, origin = draft.origin;
     const [elevation, nearby] = await Promise.all([groundAt(c.latitude, c.longitude), nearName(c.latitude, c.longitude)]);
+    if (request !== mapPickRequest || !$("mapSheet").open || owner !== auth?.token || !favMapReturn || favDraft !== draft || draft.ownerToken !== owner) return;
     favDraft.latitude = c.latitude;
     favDraft.longitude = c.longitude;
     favDraft.subtitle = nearby.area || "地図で選んだ地点";
@@ -11326,17 +11337,16 @@ $("mapPick").onclick = async () => {
     favDraft.origin = origin;
     return;
   }
+  const keepSheet = $("placeSheet").open && !!(placeSheetFor && PLACE_PICKERS[placeSheetFor]);
+  await selectPointAt(c.latitude, c.longitude, "地図で選んだ地点", { keepSheet, isCurrent: () => request === mapPickRequest && $("mapSheet").open && owner === auth?.token && mode === placeSheetFor });
+  if (request !== mapPickRequest) return;
   $("mapSheet").close();
-  await selectPointAt(c.latitude, c.longitude, "地図で選んだ地点");
   $("mapPick").disabled = false;
   $("mapPick").textContent = "この場所にする";
 };
 
 /// 地点の画面を開く。mode は placeSheetFor（null＝AstroNotesの地点、"aim"＝ねらうの観測地点）
-function openPlaceSheet(mode = null, { focusSearch = false } = {}) {
-  placeSheetFor = mode;$("geoStatus").textContent = "";window.MyPlacesUI?.resetShapePicker?.();
-  const picker = mode && PLACE_PICKERS[mode];
-  $("placeSheetTitle").textContent = picker ? picker.title : "地点";
+function refreshPlacePickerActions(picker) {
   const back = !!(picker && picker.custom() && Number.isFinite(place.latitude));
   // 選択を外す（構図・地図の撮影地点。resetLabel がある）は、対象を選ぶと同じく見出しの右の「解除」（2026-10-21 ユーザー
   // 「この解除も撮影地点のなかの右上が自然じゃない？」）。予測の地点へ戻す（人工衛星・月丼・ホーム）は本文の行のまま
@@ -11344,6 +11354,12 @@ function openPlaceSheet(mode = null, { focusSearch = false } = {}) {
   $("placeHeadActions").hidden = !clearable;
   $("sheetInherit").hidden = !back || clearable;
   if (back) $("sheetInherit").textContent = picker.resetLabel || `📍 AstroNotesの地点（${place.name}）にする`;
+}
+function openPlaceSheet(mode = null, { focusSearch = false } = {}) {
+  placeSheetFor = mode;$("geoStatus").textContent = "";window.MyPlacesUI?.resetShapePicker?.();
+  const picker = mode && PLACE_PICKERS[mode];
+  $("placeSheetTitle").textContent = picker ? picker.title : "地点";
+  refreshPlacePickerActions(picker);
   $("favNotice").textContent = "";
   for (const el of document.querySelectorAll(".save-err")) el.hidden = true;
   renderSheet();
