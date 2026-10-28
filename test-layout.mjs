@@ -2987,7 +2987,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   ok(/if \(app\) openMapApp\(app, t\); else openMapAppSheet\(t\);/.test(html), "覚えていれば聞かずに開く");
   ok(/row\.querySelector\("\[data-map-app-change\]"\)\.hidden = !app;/.test(html), "覚えているときだけ選び直す釦");
   // 2026-10-21: ページとして開く画面は、開く前に形を整え（preparePage）、開いたあとに履歴を積む（pageOpened）
-  ok(/function showSheet\(el\) \{\s+const page = !!PAGE_DIALOGS\[el\.id\];\s+if \(page\) preparePage\(el\);\s+prepareLocationMap\(el\);\s+el\.showModal\(\);\s+el\.focus\(\{ preventScroll: true \}\);\s+if \(page\) pageOpened\(el\);/.test(html)
+  ok(/function showSheet\(el\) \{\s+const page = !!PAGE_DIALOGS\[el\.id\];\s+if \(page\) preparePage\(el\);\s+el\.showModal\(\);\s+el\.focus\(\{ preventScroll: true \}\);\s+if \(page\) pageOpened\(el\);/.test(html)
     && (html.match(/\.showModal\(\)/g) || []).length === 1, "シートはすべて showSheet で開き、シートそのものに焦点を置く");
   ok(/dialog:focus \{ outline: none; \}/.test(html), "シートそのものには枠を出さない");
   ok(!/gauge\.focus\(\)/.test(html), "違ったでゲージを選んだ状態にしない");
