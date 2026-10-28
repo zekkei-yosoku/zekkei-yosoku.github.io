@@ -3,8 +3,8 @@
   "rootHtmlSha256": "c5b78f12a83fa2ed6638010636cdfcb82cdc7a5e466fe725422ef70fb9a5a476",
   "files": {},
   "trialOnlyFiles": {
-    "sky-rating.html": "12e705f645f089c10f9012e1251dc9ca386eaa47a895dc944f4db67ce83f4679",
-    "sky-rating.css": "13cfc104173fe84f3e685bfc1005b39482dfb9120d908884ccb06a43ab718c9a",
+    "sky-rating.html": "0d58f6b07c137a7dd6c1c09c46f24ef5978da3f99ebc0a6ffe197cdc855d45dc",
+    "sky-rating.css": "24f35ecbbbb816a9b97a81dee56dce09432068f8a9b04202af3e4182be45b0ea",
     "sky-rating.js": "7613abc02db670586f289361dc5da1c4e076f6d196a883eb8aef0253842326d6",
     "sky-rating-theme.js": "bb29398a0f16e0252746d2e466a9c8289908968a671f81a8715cfcd502c01c4a",
     "data/sky-rating-v1/sky-08.jpg": "9df2826690c1216bc81fb710e2515f7855a986e5fa75dfb70a7329f370958628",
