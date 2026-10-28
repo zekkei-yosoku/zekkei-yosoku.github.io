@@ -311,6 +311,19 @@ function dayText(at) {
   const y = new Date(at + 9 * 3600000).getUTCFullYear(), now = new Date(Date.now() + 9 * 3600000).getUTCFullYear();
   return `${y === now ? '' : y + '/'}${S.Cal.monthDay(at)}(${S.Cal.weekday(at)})`;
 }
+// Reuse the app's original Moon portrait at this candidate's time and coordinates.
+function appendCandidateMoon(host, body, at, point) {
+  if (body !== 'moon') return;
+  const phase = document.createElement('span'); phase.className = 'record-candidate-moon';
+  try {
+    const moon = AstroNotesAstro.moon(at, {latitude:point.latitude, longitude:point.longitude, elevation:0});
+    if (!Number.isFinite(moon.illuminatedFraction)) return;
+    phase.innerHTML = moonGlyphAt(at, point);
+    phase.append(document.createTextNode(' ' + Math.round(moon.illuminatedFraction * 100) + '%'));
+    phase.setAttribute('aria-label', AstroNotesMoon.phaseOf(moon).name + '、輝面 ' + Math.round(moon.illuminatedFraction * 100) + '%');
+    host.append(phase);
+  } catch { /* Keep the candidate usable without inventing a phase. */ }
+}
 // 1組につき次の1回。400日で無ければ「重なりません」（既存の言い切りと同じ根拠）
 function nextFor(place, target, body, { partId = null, limb = 'center', matchMode = 'overlap' } = {}) {
   const from = aimSavedFrom(AstroNotesShooting.savedObserver(place));
@@ -355,6 +368,7 @@ function renderRows(box, rows, target, body, opts, onPick, token) {
       if (token && !token()) return;
       it.row = row; it.at = row ? row.at : Infinity;
       it.sub.textContent = row ? `${dayText(row.at)} ${sideName(body, row.side)} ${S.JstCal.hhmm(row.at)}` : '400日以内には重なりません';
+      if(row)appendCandidateMoon(it.sub,body,row.at,it.place);
       // 早い順に並べ直す（計算が終わった順に入れ替わる）
       const sorted = [...items].sort((a, b) => a.at - b.at);
       if (sorted.some((x, i) => box.children[i] !== x.b)) box.append(...sorted.map((x) => x.b));
@@ -675,6 +689,7 @@ function renderSheet() {
       sub.textContent = row ? `${dayText(row.at)} ${sideName(body, row.side)} ${S.JstCal.hhmm(row.at)}` : '400日以内には重なりません';
       b.disabled = !row || (ctx === 'records' && !screenAllowed('framing'));
       if (ctx === 'records' && !screenAllowed('framing')) sub.textContent += '（構図の利用権限が必要です）';
+      if(row)appendCandidateMoon(sub,body,row.at,place);
       b.onclick = () => {
         if(token!==sheetToken || !sheet.open || !sheetOwnerMatches() || !planningPairs([r],[body]).length)return;
         const current=statusOf(place.id,r.target.key);if(!current || current.id!==r.id || current.result==='hidden'){renderSheet();return;}
@@ -700,7 +715,7 @@ function renderShapeDates(host,pairs,token){
    if(!current())return;results.replaceChildren();
    for(const row of page.rows){
     const b=document.createElement('button');b.type='button';b.className='list-item my-place-row';b.dataset.shapeCandidate='';b.dataset.latitude=row.place.latitude;b.dataset.longitude=row.place.longitude;b.dataset.at=row.event.at;
-    const title=document.createElement('strong');title.textContent=dayText(row.event.at)+' '+S.JstCal.hhmm(row.event.at);
+    const title=document.createElement('strong');title.textContent=dayText(row.event.at)+' '+S.JstCal.hhmm(row.event.at);appendCandidateMoon(title,body,row.event.at,row.place);
     const sub=document.createElement('span');sub.className='tiny sub-line';sub.textContent=(shape.type==='line'?'線上':'範囲内')+' '+row.place.latitude.toFixed(5)+', '+row.place.longitude.toFixed(5)+' ・ 地図で確認';b.append(title,sub);
     b.onclick=()=>{if(!current()||!AstroNotesShooting.shapeContains(shape,row.place))return;const point={...row.place,id:'shape-candidate:'+place.id+':'+row.place.latitude+','+row.place.longitude};delete point.shape;openWith(point,target,{...row.event,body,shapeType:shape.type},state.ctx);};results.append(b);
    }
