@@ -55,6 +55,7 @@ function syncIntro(){
 }
 function syncManage(){
  const has=!!server?.assignment;
+ $('reviewBox').hidden=!account||!draft||orphan||unreadable||serverState==='loading'||!answered(draft);
  $('sentText').textContent=!account?'ログインすると、送信した回答を確認・取り下げできます。':serverState==='error'?'送信した回答の状態を確認できませんでした。':server?.submission?`送信した回答：${new Date(server.submission.updatedAt).toLocaleString('ja-JP')}に受け付け済み。`:has?'送信した回答はまだありません（写真10枚の割当だけがあります）。':'送信した回答はありません。';
  $('withdrawOpen').hidden=!account||!has;
  $('draftBox').hidden=!account;
@@ -179,8 +180,9 @@ for(const b of document.querySelectorAll('[data-value]'))b.onclick=e=>answer(Num
 $('skip').onclick=e=>{if(!locked)answer('skip',e.detail===0);};
 $('nextExisting').onclick=e=>{if(Object.hasOwn(draft.answers,draft.order[index]))nextOrComplete(e.detail===0);};
 $('previous').onclick=()=>{if(index===0)return;index--;showPhoto();$('reviewTitle').focus();};
-$('pause').onclick=()=>{imageEpoch++;panels('intro');render();setStatus('introStatus',`${answered(draft)} / 10枚をこの端末に保存しました（未送信）。いつでも再開できます。`);$('start').focus();};
-$('editLast').onclick=()=>{index=9;showPhoto();$('reviewTitle').focus();};
+$('pause').onclick=()=>{imageEpoch++;panels('intro');render();if(answered(draft)<10)setStatus('introStatus',`${answered(draft)} / 10枚をこの端末に保存しました（未送信）。いつでも再開できます。`);$('start').focus();};
+// Corrections after the finish screen start from the first photo of this account's own answers.
+$('reviewOpen').onclick=()=>{if(sending||!account||!draft||orphan||unreadable||!answered(draft))return;$('manage').open=false;index=0;showPhoto();$('reviewTitle').focus();};
 $('submit').onclick=()=>submit();
 $('loginAgain').onclick=()=>goLogin();
 $('imageRetry').onclick=()=>showPhoto();
@@ -215,7 +217,7 @@ document.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
 window.addEventListener('storage',e=>{
  if(e.key===TOKEN_KEY||e.key===null){if(storedAuth()?.loginId!==account?.loginId||!storedAuth()){panels('intro');setStatus('introStatus','');void refreshAccount();}return;}
  if(!account||e.key!==draftKey())return;
- imageEpoch++;draft=null;unreadable=true;panels('intro');$('start').disabled=true;
+ imageEpoch++;draft=null;unreadable=true;panels('intro');$('start').disabled=true;syncManage();
  setStatus('introStatus','別のタブで回答が変更されました。上書きを防ぐため、このページを再読み込みしてください。',true);
 });
 document.addEventListener('keydown',e=>{if(e.repeat&&['Enter',' '].includes(e.key)&&e.target.closest('button'))e.preventDefault();});
