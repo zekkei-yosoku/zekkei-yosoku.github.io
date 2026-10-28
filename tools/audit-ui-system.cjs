@@ -18,7 +18,7 @@ const out=process.env.UI_AUDIT_OUTPUT||'/tmp/astronotes-ui-audit';fs.mkdirSync(o
   await c.route(/(?:localhost:8787|zekkei-api\.okayu-sorami\.workers\.dev)/,async r=>{
    const pathname=new URL(r.request().url()).pathname;
    if(pathname==='/prediction'&&prediction){const dto=structuredClone(prediction);dto.place=r.request().postDataJSON();dto.asOf=dto.bundle.fetchedAt=Date.now();return r.fulfill({json:dto});}
-   const json=pathname==='/me'?{loginId:'owner-test',role:'user',ownerAdmin:true,tools}:pathname==='/admin/ui'&&admin?admin:pathname==='/admin/users'?users:pathname==='/admin/settings'?{openSignup:false}:pathname==='/admin/log'?{entries:[]}:pathname==='/sync'?{favorites:[],sightings:[],rev:0}:pathname.includes('/access')?{allowed:true,tools}:{};
+   const json=pathname==='/me'?{loginId:'owner-test',role:'user',ownerAdmin:true,tools,credentials:[],hasPassword:true,recoveryCodes:10}:pathname==='/admin/ui'&&admin?admin:pathname==='/admin/users'?users:pathname==='/admin/settings'?{openSignup:false}:pathname==='/admin/log'?{entries:[]}:pathname==='/sync'?{favorites:[],sightings:[],rev:0}:pathname.includes('/access')?{allowed:true,tools}:{};
    return r.fulfill({status:pathname.startsWith('/prediction')?503:200,json});
   });
   const p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));p.on('requestfailed',r=>{if(new URL(r.url()).origin===new URL(base).origin)errors.push(r.url()+': '+r.failure()?.errorText);});await p.goto(base,{waitUntil:'load'});await p.waitForTimeout(600);

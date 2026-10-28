@@ -1,6 +1,31 @@
 {
-  "name": "2026-10-26 全trialを本番採用・root/trial同一",
-  "promotedFrom": "ff52e07",
+  "name": "2026-10-28 10枚の写真評価UI（端末保存の操作試用）",
+  "rootHtmlSha256": "c5b78f12a83fa2ed6638010636cdfcb82cdc7a5e466fe725422ef70fb9a5a476",
   "files": {},
-  "trialOnlyFiles": {}
+  "trialOnlyFiles": {
+    "sky-rating.html": "fd4927557e61fe3e7df043b4a4caf15103f8082bff411aa4465df4106f796de0",
+    "sky-rating.css": "13cfc104173fe84f3e685bfc1005b39482dfb9120d908884ccb06a43ab718c9a",
+    "sky-rating.js": "75a1a30cfaf45908070a22245cd16a4d37aa9bda526a77a1e1c0ec8527a47dae",
+    "sky-rating-theme.js": "bb29398a0f16e0252746d2e466a9c8289908968a671f81a8715cfcd502c01c4a",
+    "data/sky-rating-v1/sky-08.jpg": "9df2826690c1216bc81fb710e2515f7855a986e5fa75dfb70a7329f370958628",
+    "data/sky-rating-v1/sky-09.jpg": "83cf7a34434c7dc9fead71c0625383cdb9c252e216dd171595edc7763fb90a01",
+    "data/sky-rating-v1/sky-18.jpg": "1e1467314ca5fc00b1c4e82c4e90dacc080f7c77974413797075877d1c03ce35",
+    "data/sky-rating-v1/sky-02.jpg": "bec15de5b4bf9cf84090afa323862400aa8da8f850a61ab5a7766b11a2d3bd72",
+    "data/sky-rating-v1/sky-16.jpg": "60bf1703a2a63d8347cb3589e6a9e8970a47e73bb8345188e432f4216774376c",
+    "data/sky-rating-v1/sky-17.jpg": "fa8a0c28f6ba50ab254169544c9e4ff3990dd804f3f865f2aff66a06b03aa2c5",
+    "data/sky-rating-v1/sky-03.jpg": "0cd738ea9b312a2e6768197986f732c4fba42e5d67a954bb6108cc6c269d2e8c",
+    "data/sky-rating-v1/sky-15.jpg": "82996dcdf2638b9745ec21124a71cde1a171559ea684696250bd01a4aa4c8dde",
+    "data/sky-rating-v1/sky-01.jpg": "d4105f454227f4b5b301dbd57d682517dafc8255fe2c445c7f69693c6476adb6",
+    "data/sky-rating-v1/sky-14.jpg": "5e60b9104eac25592aca63afc22b1b734034f84cc6ce36f3455e2d14e8a81a2a",
+    "data/sky-rating-v1/sky-10.jpg": "490e719bd436de660bc430876b67c9e6cdd9c89d892961acdcaf7792608f86f6",
+    "data/sky-rating-v1/sky-04.jpg": "c1c970fd19ea34dbd63f0a67bf009173b5538a380a11a2a979bb4c72ca483c88",
+    "data/sky-rating-v1/sky-05.jpg": "10ebdd289a38fadc4b4dc4af33accf9640423bc8454518bd85031ccb2f5c452a",
+    "data/sky-rating-v1/sky-11.jpg": "b98ac7f4195080cf0eaf4a34c7e77b561c0208c4924ba6038e68207e70dc769c",
+    "data/sky-rating-v1/sky-07.jpg": "29a2eb3c9e39ac887a6e41444eda0293a02c1617803ae73e0ac4eaf453fe6947",
+    "data/sky-rating-v1/sky-13.jpg": "af4121770f9aba55b55c2dcfdf27ce188b257f1f70996e68707fa8ebd687e91b",
+    "data/sky-rating-v1/sky-12.jpg": "be515d29c2b4ac431b49c3e67d63b43566e7dde1dd081742c13bd3ec837ecd29",
+    "data/sky-rating-v1/sky-06.jpg": "2cb846f61a6146ebaebb2d0a0e6bfe59b20a12ff58b271fb2767f2bf490af30f",
+    "data/sky-rating-v1/catalog.json": "239caa4920d12ae625cdbd6d0b402bb2fc15a7b41188a3cc205291440d5f172a"
+  },
+  "trialHtmlSha256": "57d461f56ee797a58666122a8359e4a9511805c89f88676d6dbbc5c434ec7562"
 }

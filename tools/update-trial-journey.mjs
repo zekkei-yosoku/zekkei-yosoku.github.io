@@ -16,6 +16,12 @@ for(const [file,from,to]of [
  const result=spawnSync(process.execPath,['--input-type=module'],{cwd:root,input:source.replace(from,to),encoding:'utf8'});
  if(result.status!==0)throw Error(result.stderr||'Trial update failed');process.stdout.write(result.stdout);
 }
+// Independent photo-rating page has its own CSP and external assets.
+if(ledger.trialOnlyFiles?.['sky-rating.html']){
+ let html=read('trial/sky-rating.html');
+ for(const name of ['sky-rating.js','sky-rating-theme.js','sky-rating.css'])html=html.replace(new RegExp(name.replaceAll('.','\\.')+'(?:\\?v=[0-9a-f]+)?','g'),name+'?v='+hash('trial/'+name).slice(0,16));
+ writeFileSync(root+'trial/sky-rating.html',html);
+}
 for(const [name,entry]of Object.entries(ledger.files))entry.trial=hash('trial/'+name);
 for(const name of Object.keys(ledger.trialOnlyFiles||{}))ledger.trialOnlyFiles[name]=hash('trial/'+name);
 ledger.trialHtmlSha256=hash('trial/index.html');writeFileSync(root+'trial/ui-experiment.json',JSON.stringify(ledger,null,2)+'\n');
