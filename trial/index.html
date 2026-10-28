@@ -13,7 +13,7 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="15392279927939962803">
+<meta name="app-version" content="9061372696478771538">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-KDsC1unKfyua6ClGI3X/zxeGOfOv1j0AmX+BqROjZlw=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-HZLGqItkNOaXdlP1VY2wKK+gZfKmpc1Svu2/lfBtA2o=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-hXH1ODXFhATYuezFokHlWosR6ieNfnWfhlEjYeN/sr8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
@@ -1474,10 +1474,10 @@ main:has(>#almanacView:not([hidden])){padding-bottom:calc(115px + env(safe-area-
 .astro-map-wrap .sky-map-expand{width:44px;height:44px;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text)}
 .astro-map-wrap .sky-map-expand svg{width:24px;height:24px;stroke-width:1.8}
 .astro-map-wrap .map-layer-menu{z-index:6}
-.map-shape-tools{position:absolute;top:8px;left:8px;z-index:7}
-.sky-map-wide .map-shape-tools{top:calc(8px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left))}
+.map-shape-tools{position:absolute;top:8px;right:8px;z-index:7}
+.sky-map-wide .map-shape-tools{top:calc(8px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right))}
 .map-shape-tools>.map-ctl{position:static;padding:0}
-.astro-map-wrap .map-shape-tools .map-shape-menu{top:50px;left:0;right:auto;min-width:0;width:max-content}
+.astro-map-wrap .map-shape-tools .map-shape-menu{top:0;left:auto;right:calc(100% + 8px);min-width:0;width:max-content}
 #myShapeSheet #shapeModes{display:flex;flex-direction:column;gap:0;align-items:stretch}
 #myShapeSheet #shapeModes>button{display:flex;align-items:center;gap:8px;border:0;background:transparent;text-align:left;border-radius:8px;padding:0 12px}
 #myShapeSheet #shapeModes>button[aria-checked=true]{background:var(--sunk);color:var(--accent)}
@@ -1490,6 +1490,8 @@ main:has(>#almanacView:not([hidden])){padding-bottom:calc(115px + env(safe-area-
 .astro-map-wrap[data-selection-only]>.sky-map-expand{display:none!important}
 .astro-map-wrap[data-selection-only]>.map-layers-btn{top:calc(8px + env(safe-area-inset-top))}
 .astro-map-wrap[data-selection-only]>.map-layer-menu{top:calc(58px + env(safe-area-inset-top))}
+.astro-map-wrap[data-selection-only]:has(.map-shape-tools)>.map-layers-btn{top:calc(58px + env(safe-area-inset-top))}
+.astro-map-wrap[data-selection-only]:has(.map-shape-tools)>.map-layer-menu{top:calc(104px + env(safe-area-inset-top))}
 .shared-map-search{position:absolute;top:calc(8px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left));right:calc(60px + env(safe-area-inset-right));z-index:4;max-height:35dvh;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;background:var(--bg);border-radius:10px;padding:6px}
 .shared-map-search[hidden],.shared-map-search:not(:has(>:not([hidden]))),.shared-map-footer[hidden]{display:none}
 .shared-map-search :is(.search-row,.my-actions){margin:0}
@@ -1498,7 +1500,6 @@ main:has(>#almanacView:not([hidden])){padding-bottom:calc(115px + env(safe-area-
 .shared-map-footer>.fav-btn{width:100%;margin:6px 0 0!important}
 .shared-map-footer .my-actions{flex-wrap:wrap}
 .shared-map-footer :is(.tiny,.maprow){margin:0}
-#myShapeSheet .sky-map-wide .shared-map-search{top:calc(58px + env(safe-area-inset-top))}
 #myShapeSheet .sky-map-wide .mapattr{bottom:calc(var(--sky-footer-h,60px) + 4px)}
 .astro-map-wrap.sky-map-wide{position:fixed!important;inset:0!important;width:100%!important;height:auto!important;max-width:none!important;max-height:none!important;border:0;border-radius:0!important;z-index:30;margin:0!important}html:has(.sky-map-wide){scrollbar-gutter:auto;overflow:hidden}body:has(.sky-map-wide){overflow:hidden}.sky-map-wide .mapzoom{bottom:calc(var(--sky-footer-h,100px) + 8px)}.sky-map-wide .mapattr{bottom:calc(var(--sky-footer-h,100px) + 4px)}.sky-map-time-actions button{padding-inline:7px}.sky-map-time-actions{flex-wrap:wrap}
 .sky-map-actions,.sky-map-events{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
