@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="74049280597873749">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-8k3c0cx0qRNsZsOwYCC0cd3JhPMsl58pqZjW0wpoPos=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-JSsXio7SDPC9rxAJhfpjX7THSzMjr+FjdH5xCr4cg8Q=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-83Cgnlo8en9j5JlmNrJn+YOM6QvJlWI7abcmYEF22EU=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="7302204146958892945">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-6AGZHiCok0hYzAHPCMKRqXObvDsZKcSRz/z78uaVf4U=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-JSsXio7SDPC9rxAJhfpjX7THSzMjr+FjdH5xCr4cg8Q=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-hXH1ODXFhATYuezFokHlWosR6ieNfnWfhlEjYeN/sr8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -65,6 +65,8 @@
 <style id="startupPaintStyle">
 html[data-startup-pending] main > :not(.masthead):not(#startupStatus),html[data-startup-pending] #mastheadCharacter{visibility:hidden!important}
 html[data-startup-pending] #startupStatus{display:block!important;visibility:visible}
+/* Forecast improvement belongs below the forecast, immediately before sources. */
+#skyRatingInvite{display:none}main:has(>#listView:not([hidden]))>#skyRatingInvite{display:block}
 </style>
 <script id="startupPaintGate">
 // Resolve the launch destination before exposing the default forecast markup.
@@ -309,10 +311,7 @@ if(location.hash||location.search||preferred!=='forecast'){document.documentElem
               font-size: 0.63rem; color: var(--tertiary); font-variant-numeric: tabular-nums; }
   .ft-ticks span { text-align: center; white-space: nowrap; }
 
-  /* 写真から時刻を読む。押す場所は他の選択肢と同じ高さに揃える。 */
-  .shot { display: inline-flex; align-items: center; min-height: 44px; margin-top: 6px;
-          color: var(--accent); font-size: 0.81rem; cursor: pointer; }
-  .shot input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  /* 写真の時刻の注記（結果の写真アップロードは2026-10-28に撤去） */
   .shot-note { color: var(--tertiary); margin-top: 2px; }
 
   /* まだ答えていない回。アプリを開いて1タップで済むようにする。 */
@@ -2077,6 +2076,7 @@ button.ui-icon-button::after { content: none; }
   </div>
 
   <div id="answersView" role="tabpanel" aria-labelledby="resultsTab" hidden>
+
     <div id="answersAccess" hidden><div class="card"><p id="answersAccessMessage"></p><button id="answersAccessLogin" class="fav-btn primary">ログイン</button></div></div>
     <section class="card" aria-labelledby="answersPendingTitle">
       <div class="section-h"><h2 id="answersPendingTitle">結果を残す</h2><span class="tiny muted" id="answersPendingCount"></span></div>
@@ -2093,11 +2093,12 @@ button.ui-icon-button::after { content: none; }
       </div>
       <details class="answer-analysis"><summary>データの控え</summary><p class="tiny">撮影地点・対象・線/範囲・予測の結果を保存します。写真ファイルは含みません。</p><div class="answer-data-actions"><button id="exportBtn" class="chip">書き出す</button><button id="importBtn" class="chip">読み込む</button><input type="file" id="importFile" accept=".json" hidden></div></details>
     </details>
+
     <section class="card" id="reviewPhotos" aria-labelledby="reviewPhotosTitle">
-      <div class="section-h"><h2 id="reviewPhotosTitle">空の写真</h2></div>
-      <p class="tiny">見た空を写真で残します。予測が残っていない日も保存できます。</p>
-      <div class="ph-add">
-        <button id="photoPick" class="fav-btn primary">写真を残す</button>
+      <div class="section-h"><h2 id="reviewPhotosTitle">以前提供した写真</h2></div>
+      <p class="tiny">新しい写真のアップロードは受け付けていません。以前提供した写真は確認・削除できます。</p>
+      <div class="ph-add" hidden>
+        <button id="photoPick" class="fav-btn primary" disabled>写真を残す</button>
         <input type="file" id="photoFile" accept="image/*" hidden>
       </div>
       <p id="photoListStatus" class="tiny" role="status" hidden></p>
@@ -2135,6 +2136,7 @@ button.ui-icon-button::after { content: none; }
   </footer>
  </div>
 </section>
+    <section class="card" id="skyRatingInvite"><div class="section-h"><h2>予測の精度向上にご協力いただけませんか？</h2></div><p class="tiny">空の写真10枚を見て、色づきの強さを教えてください。</p><a class="fav-btn" href="sky-rating.html" style="display:flex;align-items:center;justify-content:center;text-decoration:none;min-height:44px">写真を評価する</a><p class="tiny">回答はログインして送信し、予測の精度の検証と改善に使います。送信後も取り下げられます。</p></section>
   <details class="tiny fav-where" id="footer"><summary>出典</summary><div id="footerBody"></div></details>
 </main>
 
@@ -2151,6 +2153,7 @@ button.ui-icon-button::after { content: none; }
          （許可・管理画面の名前に混ぜない）。いちばん上に置き、道具と線で分ける。一覧にいるときは帯を付ける -->
     <button id="almanacMenu"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/><path d="M10 20v-5h4v5"/></svg>ホーム</b><span>この場所の太陽と月を眺める</span></button>
     <button id="toolsHome"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3"/><path d="M9 2v1m-6 5H2m3-4-1-1m9 1 1-1M5 19h12a4 4 0 0 0 .4-8 5 5 0 0 0-9.5-1.2A4.6 4.6 0 0 0 5 19Z"/></svg>予測</b><span>夕焼け・星空・雲海などが見られそうか</span></button>
+
     <!-- 天体を重ねる（2026-10-01）。もとは「富士山に重ねる」（ダイヤモンド富士・パール富士）と「塔に重ねる」の2つ。
          ユーザー「塔以外も重ねるじゃん」→ 名前を「天体を重ねる」に。「プルダウンで富士山を選んだら、その横の太陽・月の切り替えでできる」→ 富士山もここへ。
          何に重ねるかは開いた画面の題名の枠で選ぶ。説明は何が分かるかを書く（ユーザーと決めた文に、ダイヤモンド富士の名前を足した）。
@@ -2159,6 +2162,7 @@ button.ui-icon-button::after { content: none; }
     <section id="astroToolsGroup" aria-label="天体の道具">
     <button id="framingMenu" data-tool="#/aim/tower" data-id="diamond pearl tower" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m8 0h5v-5"/><path d="m6 17 4-5 3 3 3-5 3 7"/><circle cx="9" cy="8" r="1"/></svg>構図</b><span>天体と風景が重なる日時と見え方を確かめる</span></button>
     <button id="mapMenu" data-tool="#/skymap" data-id="skymap"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16"/></svg>地図</b><span>撮影地点からの天体の方向と高度を調べる</span></button>
+
     <button id="recordsMenu" data-tool="#/records" data-id="records"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>記録</b><span>撮影地点と見えたもの、これからの予定を残す</span></button>
 
     <button data-tool="#/plane" data-id="plane"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 4a7 7 0 1 0 5 12 6 6 0 0 1-5-12Z"/><path d="m3 13 7-2 4-4 1 1-2 4 4 1 1-1h1l-1 3-9 1Z"/></svg>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
@@ -4185,23 +4189,7 @@ function wireOutcomes(root) {
         recordAnswer(pid, peak, k === "same" ? pred : k === "save" ? +gauge.value : null);
       };
     }
-    const file = box.querySelector("[data-shot-pid]");
-    file.onchange = async () => {
-      const f = file.files && file.files[0];
-      file.value = "";                             // 同じ写真をもう一度選べるように
-      if (!f || !requireLogin("記録")) return;
-      // 点数は、ゲージを開いていればその値、答えていれば答えた点、無ければ予測の点
-      const s0 = findSighting(pid, peak);
-      // 点数と、その由来（2026-10-16）を同じ分岐で決める。予報の点のまま渡したものを、本人の答えと分ける。
-      // ゲージは、動かしたか・記録済みの答えを出しているときだけ本人の点
-      let score, scoreSource;
-      if (!box.querySelector(".answer-gauge").hidden) {
-        score = +gauge.value;
-        scoreSource = box.dataset.gaugeMoved === "1" || box.dataset.recorded !== "" ? "answered" : "prefilled_forecast";
-      } else if (Number.isFinite(s0?.actualScore)) { score = s0.actualScore; scoreSource = "answered"; }
-      else { score = pred; scoreSource = "prefilled_forecast"; }
-      await openPhotoSheet(f, { pid, peak, score, scoreSource });
-    };
+
   }
 }
 
@@ -4303,6 +4291,8 @@ function renderAlmanac() {
 
 }
 if(typeof document!=='undefined')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&atAlmanac)globalThis.AstroNotesAlmanacDashboard?.refresh();});
+function openSkyRating(){try{sessionStorage.setItem("astronotes.rating.return",location.pathname+location.hash.split("?")[0]);}catch{}location.href="sky-rating.html";}
+document.querySelector("#skyRatingInvite a").onclick=e=>{e.preventDefault();openSkyRating();};
 function routeFromHash() {
   if(location.hash === "#/explore") return {skymap:true};
   if (location.hash === "#/almanac") return { almanac: true };
@@ -5510,8 +5500,7 @@ function shotHeightNote(s) {
  * 実際はどうだったかを答える部品。ホームと詳細で同じものを使う（選択肢がずれると同じ回に別々の答えが入る）。
  * **「予測通り」は1回押すだけ。違ったときだけゲージで何点だったかを選ぶ**（2026-10-02 ユーザー「選択式じゃなくて何点だったかを
  * ゲージで選ばせたら」「予測通りってボタンと、違うならゲージ」）。ゲージは予測の点から始め、予測の位置に印を置く。
- * 写真は「記録を足す」の画面で、この回の現象・時刻・点数を入れて開く（「写真のアップロードも良い感じに組み合わせて」）。
- * 名前は「写真をアップロード」（ユーザー「添えるって変だよね」。写真はサーバーに上がる）。
+ * 2026-10-28: 結果は点数評価を維持し、新規写真アップロード操作だけを外す。既存写真由来の記録は表示を維持する。
  */
 function outcomeButtons(id, peak, predicted, sighting = null) {
   const shot = sighting && Number.isFinite(sighting.observedAtMs)
@@ -5547,8 +5536,7 @@ function outcomeButtons(id, peak, predicted, sighting = null) {
       <div class="gauge-foot"><output data-gauge-out>${answerHtml(id, v, pred)}</output>
         <button data-answer="save" class="fav-btn primary"${saved ? " disabled" : ""}>${saved ? "記録済み" : "この点で記録"}</button></div>
     </div>
-    <label class="shot"><input type="file" accept="image/*" data-shot-pid="${id}" data-shot-peak="${peak}">
-      <span>📷 写真をアップロード</span></label>${shot}
+    ${shot}
   </div>`;
 }
 /// ゲージの読み: 「52点・まずまず」と、その下に小さく「予測 74」（320px でも折り返しの位置が変わらないよう2行に決めておく）
@@ -12624,6 +12612,8 @@ async function restoreSession({ onAccessReady = () => {} } = {}) {
 
 /// ログインできたときの共通処理。初回は端末に残っているものを全部上げる。
 async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } = {}) {
+  loginSettling = true;
+  try {
   const sameOwnerDraft = auth?.loginId === res.loginId ? (adminUnmount?.snapshot?.() || privateDraft?.value) : null;
   authGeneration++; clearAdminView();
   if (sameOwnerDraft) privateDraft = {loginId:res.loginId,value:sameOwnerDraft};
@@ -12673,7 +12663,24 @@ async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } 
   // 件数のアラートは出さない。**取り込んだ結果はそのまま画面に出る**ので、
   // 同じことを数字で言い直すだけの割り込みになる。
   // 同期の状態（できている／未送信がある／失敗している）はアカウント画面に常時出す。
+  } finally { loginSettling = false; finishRatingLogin(); }
 }
+
+// 写真の評価（sky-rating.html）からログインに来たときは、ログインを終えたら評価へ戻す（2026-10-28）。
+// 同期を待ち、回復コードやパスキーの案内を開いている間は閉じるまで待つ。ログインせずに閉じたら戻らない。
+const RATING_LOGIN_KEY = "astronotes.rating.login";
+let loginSettling = false;
+const ratingLoginPending = () => { try { return sessionStorage.getItem(RATING_LOGIN_KEY) === "1"; } catch { return false; } };
+function finishRatingLogin() {
+  if (!ratingLoginPending()) return;
+  setTimeout(() => {
+    if (!ratingLoginPending() || loginSettling || document.querySelector("dialog[open]")) return;
+    try { sessionStorage.removeItem(RATING_LOGIN_KEY); } catch {}
+    if (auth) location.href = "sky-rating.html";
+  }, 0);
+}
+// 起動の画面選び（openStartup）が終わってから開く。先に開くと、起動時の画面の切り替えで閉じられる
+function resumeRatingLogin() { if (!ratingLoginPending()) return; if (auth) finishRatingLogin(); else $("authButton").click(); }
 
 const authFail = (el, msg) => {
   el.textContent=msg;el.hidden=false;el.setAttribute('role','alert');
@@ -12744,6 +12751,8 @@ $("doSignupPasskey").onclick = async () => {
 $("goRecovery").onclick = () => showAuthPanel("recovery");
 for (const el of document.querySelectorAll("[data-back]")) el.onclick = () => showAuthPanel("login");
 $("authClose").onclick = () => $("authSheet").close();
+// 写真の評価から来たログインは、ログインの画面（と続けて開く回復コードの画面）を閉じたときに評価へ戻す
+for (const id of ["authSheet", "accountSheet"]) $(id).addEventListener("close", finishRatingLogin);
 $("accountClose").onclick = () => { if(leaveAccountCodes()) $("accountSheet").close(); };
 $("accountSheet").addEventListener('keydown',event=>{
   if(event.key!=='Escape'||$("recoveryShown").hidden)return;
@@ -13133,7 +13142,7 @@ async function openAccountSheet2() {
 function clearRetiredStorage(loginId) {
   const suffix = encodeURIComponent(loginId);
   let cleared = true;
-  for (const prefix of ["sorami.observations.v1:", "sorami.placeShapes.v1:", "sorami.schedule.v1:", "sorami.recordSync.v1:", "sorami.skyMap:"]) {
+  for (const prefix of ["sorami.observations.v1:", "sorami.placeShapes.v1:", "sorami.schedule.v1:", "sorami.recordSync.v1:", "sorami.skyMap:", "astronotes.sky-ratings.v2:"]) {
     try { localStorage.removeItem(prefix + suffix); } catch { cleared = false; }
   }
   return cleared;
@@ -14480,7 +14489,7 @@ ctx.lineWidth=1;
    if(predictionDirty||!AstroNotesPrediction.fresh(acceptedPrediction,place,Date.now()))void load(false);
   }
  });
- void openStartup().finally(()=>{clearTimeout(globalThis.AstroNotesStartupPaintTimer);document.documentElement.removeAttribute('data-startup-pending');});
+ void openStartup().finally(()=>{clearTimeout(globalThis.AstroNotesStartupPaintTimer);document.documentElement.removeAttribute('data-startup-pending');resumeRatingLogin();});
 })();
 </script>
 

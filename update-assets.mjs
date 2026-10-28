@@ -1,4 +1,4 @@
-import {readFileSync,writeFileSync} from 'node:fs';
+import {readFileSync,writeFileSync,existsSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 const root=new URL('./',import.meta.url),path=new URL('index.html',root);
@@ -25,3 +25,7 @@ html=html.replace(/name="app-version" content="\d+"/,'name="app-version" content
 const id=BigInt('0x'+createHash('sha256').update(html.replace(/<meta http-equiv="Content-Security-Policy"[^>]+>/,'')).digest('hex').slice(0,16)).toString();
 html=html.replace('name="app-version" content="0"',`name="app-version" content="${id}"`);
 writeFileSync(path,html);console.log(`HTML ${id}; ${scripts.length} parallel critical scripts; content-versioned assets`);
+// 写真の評価ページ（2026-10-28）。読む3資産の内容版だけを付け直す
+const ratingPath=new URL('sky-rating.html',root);
+if(existsSync(ratingPath)){const rating=readFileSync(ratingPath,'utf8').replace(/(sky-rating(?:-theme)?\.(?:js|css))\?v=[A-Za-z0-9]+/g,(_,name)=>name+'?v='+createHash('sha256').update(readFileSync(new URL(name,root))).digest('hex').slice(0,16));
+writeFileSync(ratingPath,rating);}

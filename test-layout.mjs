@@ -97,8 +97,8 @@ ok(/return auth\?\.token && Array\.isArray\(auth\.tools\) \? auth\.tools : \[\];
 // **記録もお気に入りも、答える前にログインを求める。**
 // 端末にだけ貯めると、しばらく開かないと消える（iOS は7日）
 ok(/if \(!requireLogin\("記録"\)\) return;/.test(html), "答えるときにログインを求める");
-ok(/file\.value = "";[^\n]*\n\s+if \(!f \|\| !requireLogin\("記録"\)\) return;/.test(html),
-  "写真を選んだときも求める（選択を戻す）");
+// 2026-10-28 ユーザー指示で結果の新しい写真アップロードを撤去。結果の答えから写真を選ばせない
+ok(!/data-shot-pid/.test(html), "結果の答えに写真の選択を置かない");
 ok(/const requireLoginForFavorites = \(\) => requireLogin\("お気に入りの登録"\)/.test(html),
   "お気に入りと同じ入口を使う");
 // 文言が実態と食い違っていた（ログインすれば端末をまたいで共有される）
@@ -1357,7 +1357,8 @@ console.log("== 写真から時刻を読む ==");
 // （雲海の正例162日のうち44日は窓の外で撮られていた）。
 ok(/astronotes-exif\.js/.test(html), "EXIF の読み取りを読み込んでいる");
 ok(/AstroNotesExif\.readFile\(file\)/.test(html), "File から読む（先頭だけ）");
-ok(/写真から時刻を読む/.test(html), "記録の画面に入口がある");
+// 以前はCSSの注記「写真から時刻を読む」の有無だけを見ていた。2026-10-28 新しい写真の受付を撤去したので、入口が隠れて押せないことを見る
+ok(/<div class="ph-add" hidden>\s*<button id="photoPick" class="fav-btn primary" disabled>/.test(html), "新しい写真の入口は隠して押せない（以前の写真の一覧・削除は残す）");
 // **画像を送らない。** 送る設計にすると保存先も費用も要る
 ok(!/FileReader\(\)[\s\S]{0,200}readAsDataURL/.test(html), "画像をデータURLにしていない");
 ok(!/photoDataUrl|photoBase64|imageBlob/.test(html), "画像そのものを記録へ入れていない");
@@ -1713,8 +1714,8 @@ ok(html.match(/data-answer="same"/g).length === 1, "選択肢を組み立てる�
   ok(/<div class="answer-gauge"\$\{state === "diff" \? "" : " hidden"\}>/.test(ob) && /type="range" min="0" max="100" step="1" value="\$\{v\}" data-gauge/.test(ob),
     "ゲージは違ったときだけ出す（0〜100、予測の点から始める）");
   ok(/class="gauge-pred" style="left:\$\{at\}"/.test(ob) && /data-answer="save" class="fav-btn primary"/.test(ob), "予測の位置に印・この点で記録");
-  ok(/📷 写真をアップロード/.test(ob) && !/写真を添える/.test(ob) && !/撮った写真から時刻を読む/.test(html),
-    "写真は「写真をアップロード」1つ（ユーザー「添えるって変だよね」）");
+  ok(!/写真をアップロード/.test(ob) && !/写真を添える/.test(ob) && !/type="file"/.test(ob) && !/撮った写真から時刻を読む/.test(html),
+    "結果の答えに写真のアップロードを置かない（2026-10-28 撤去。点数の答えは残す）");
   // 記録しても詳細では同じ形で描き直されるので、記録したことを見せる（ユーザー「この点で記録を押しても何も変わらない」）
   ok(/const saved = state === "diff" && actual !== null;/.test(ob)
     && /\$\{saved \? " disabled" : ""\}>\$\{saved \? "記録済み" : "この点で記録"\}/.test(ob), "記録した点のままなら「記録済み」（押せない）");
@@ -1724,10 +1725,7 @@ ok(html.match(/data-answer="same"/g).length === 1, "選択肢を組み立てる�
   ok(/if \(k === "diff"\) \{[\s\S]{0,300}\.answer-gauge"\)\.hidden = false;[\s\S]{0,80}return;/.test(wo), "違ったを押してもまだ記録しない（ゲージを出す）");
   ok(/recordAnswer\(pid, peak, k === "same" \? pred : k === "save" \? \+gauge\.value : null\)/.test(wo), "予測通り＝予測の点・この点で記録＝ゲージの点・確認せず＝点なし");
   // 2026-10-16: 点数の由来（予報の点のままか・本人の答えか）も渡す。保存時の分析で、予報の点を本人の点と取り違えないため
-  ok(/await openPhotoSheet\(f, \{ pid, peak, score, scoreSource \}\)/.test(wo), "写真は「記録を足す」の画面を、この回の現象・時刻・点数（と点数の由来）で開く");
-  ok(/scoreSource = box\.dataset\.gaugeMoved === "1" \|\| box\.dataset\.recorded !== "" \? "answered" : "prefilled_forecast";/.test(wo)
-    && /else if \(Number\.isFinite\(s0\?\.actualScore\)\) \{ score = s0\.actualScore; scoreSource = "answered"; \}\s+else \{ score = pred; scoreSource = "prefilled_forecast"; \}/.test(wo),
-    "動かしたゲージ・記録済みの答えは本人の答え、それ以外は予報の点のまま（点数と由来を同じ分岐で決める）");
+  ok(!/openPhotoSheet\(f, \{ pid, peak/.test(wo) && !/data-shot-pid/.test(wo), "結果の答えから写真の保存画面を開かない（2026-10-28 撤去）");
   ok(/if \(round\) \$\("photoPhenom"\)\.value = round\.pid;/.test(html) && /\$\("photoWhen"\)\.value = iso\(at \?\? photoDraft\.round\?\.peak \?\? Date\.now\(\)\)/.test(html),
     "写真の画面に現象と時刻（写真に無ければその回）を入れる");
   // 2026-10-16: 予報の点数のまま保存したら答えにしない（以前は予報の点が本人の答えとして入っていた。設計案の未確定事項3）。

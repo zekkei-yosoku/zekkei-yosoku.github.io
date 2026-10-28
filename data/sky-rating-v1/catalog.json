@@ -1,0 +1,171 @@
+{
+  "version": "sky-rating-ui/1",
+  "purpose": "UI trial only; previously used research sample; not a held-out evaluation set",
+  "license": "PDL-1.0",
+  "licenseUrl": "https://www.biodic.go.jp/copyright/terms_of_service.html",
+  "attribution": "出典：環境省生物多様性センター インターネット自然研究所",
+  "items": [
+    {
+      "id": "sky-01",
+      "src": "data/sky-rating-v1/sky-01.jpg",
+      "camera": 70,
+      "capturedAt": 1537002000000.0,
+      "eventId": "70-2018-09-15",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=70",
+      "sha256": "d4105f454227f4b5b301dbd57d682517dafc8255fe2c445c7f69693c6476adb6"
+    },
+    {
+      "id": "sky-02",
+      "src": "data/sky-rating-v1/sky-02.jpg",
+      "camera": 52,
+      "capturedAt": 1534327200000.0,
+      "eventId": "52-2018-08-15",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=52",
+      "sha256": "bec15de5b4bf9cf84090afa323862400aa8da8f850a61ab5a7766b11a2d3bd72"
+    },
+    {
+      "id": "sky-03",
+      "src": "data/sky-rating-v1/sky-03.jpg",
+      "camera": 70,
+      "capturedAt": 1526378400000.0,
+      "eventId": "70-2018-05-15",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=70",
+      "sha256": "0cd738ea9b312a2e6768197986f732c4fba42e5d67a954bb6108cc6c269d2e8c"
+    },
+    {
+      "id": "sky-04",
+      "src": "data/sky-rating-v1/sky-04.jpg",
+      "camera": 70,
+      "capturedAt": 1541404800000.0,
+      "eventId": "70-2018-11-05",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=70",
+      "sha256": "c1c970fd19ea34dbd63f0a67bf009173b5538a380a11a2a979bb4c72ca483c88"
+    },
+    {
+      "id": "sky-05",
+      "src": "data/sky-rating-v1/sky-05.jpg",
+      "camera": 70,
+      "capturedAt": 1542268800000.0,
+      "eventId": "70-2018-11-15",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=70",
+      "sha256": "10ebdd289a38fadc4b4dc4af33accf9640423bc8454518bd85031ccb2f5c452a"
+    },
+    {
+      "id": "sky-06",
+      "src": "data/sky-rating-v1/sky-06.jpg",
+      "camera": 70,
+      "capturedAt": 1529056800000.0,
+      "eventId": "70-2018-06-15",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=70",
+      "sha256": "2cb846f61a6146ebaebb2d0a0e6bfe59b20a12ff58b271fb2767f2bf490af30f"
+    },
+    {
+      "id": "sky-07",
+      "src": "data/sky-rating-v1/sky-07.jpg",
+      "camera": 52,
+      "capturedAt": 1531648800000.0,
+      "eventId": "52-2018-07-15",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=52",
+      "sha256": "29a2eb3c9e39ac887a6e41444eda0293a02c1617803ae73e0ac4eaf453fe6947"
+    },
+    {
+      "id": "sky-08",
+      "src": "data/sky-rating-v1/sky-08.jpg",
+      "camera": 70,
+      "capturedAt": 1528192800000.0,
+      "eventId": "70-2018-06-05",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=70",
+      "sha256": "9df2826690c1216bc81fb710e2515f7855a986e5fa75dfb70a7329f370958628"
+    },
+    {
+      "id": "sky-09",
+      "src": "data/sky-rating-v1/sky-09.jpg",
+      "camera": 70,
+      "capturedAt": 1531648800000.0,
+      "eventId": "70-2018-07-15",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=70",
+      "sha256": "83cf7a34434c7dc9fead71c0625383cdb9c252e216dd171595edc7763fb90a01"
+    },
+    {
+      "id": "sky-10",
+      "src": "data/sky-rating-v1/sky-10.jpg",
+      "camera": 52,
+      "capturedAt": 1525514400000.0,
+      "eventId": "52-2018-05-05",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=52",
+      "sha256": "490e719bd436de660bc430876b67c9e6cdd9c89d892961acdcaf7792608f86f6"
+    },
+    {
+      "id": "sky-11",
+      "src": "data/sky-rating-v1/sky-11.jpg",
+      "camera": 52,
+      "capturedAt": 1515139200000.0,
+      "eventId": "52-2018-01-05",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=52",
+      "sha256": "b98ac7f4195080cf0eaf4a34c7e77b561c0208c4924ba6038e68207e70dc769c"
+    },
+    {
+      "id": "sky-12",
+      "src": "data/sky-rating-v1/sky-12.jpg",
+      "camera": 52,
+      "capturedAt": 1516003200000.0,
+      "eventId": "52-2018-01-15",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=52",
+      "sha256": "be515d29c2b4ac431b49c3e67d63b43566e7dde1dd081742c13bd3ec837ecd29"
+    },
+    {
+      "id": "sky-13",
+      "src": "data/sky-rating-v1/sky-13.jpg",
+      "camera": 52,
+      "capturedAt": 1544860800000.0,
+      "eventId": "52-2018-12-15",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=52",
+      "sha256": "af4121770f9aba55b55c2dcfdf27ce188b257f1f70996e68707fa8ebd687e91b"
+    },
+    {
+      "id": "sky-14",
+      "src": "data/sky-rating-v1/sky-14.jpg",
+      "camera": 70,
+      "capturedAt": 1544860800000.0,
+      "eventId": "70-2018-12-15",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=70",
+      "sha256": "5e60b9104eac25592aca63afc22b1b734034f84cc6ce36f3455e2d14e8a81a2a"
+    },
+    {
+      "id": "sky-15",
+      "src": "data/sky-rating-v1/sky-15.jpg",
+      "camera": 70,
+      "capturedAt": 1520240400000.0,
+      "eventId": "70-2018-03-05",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=70",
+      "sha256": "82996dcdf2638b9745ec21124a71cde1a171559ea684696250bd01a4aa4c8dde"
+    },
+    {
+      "id": "sky-16",
+      "src": "data/sky-rating-v1/sky-16.jpg",
+      "camera": 52,
+      "capturedAt": 1537002000000.0,
+      "eventId": "52-2018-09-15",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=52",
+      "sha256": "60bf1703a2a63d8347cb3589e6a9e8970a47e73bb8345188e432f4216774376c"
+    },
+    {
+      "id": "sky-17",
+      "src": "data/sky-rating-v1/sky-17.jpg",
+      "camera": 70,
+      "capturedAt": 1521968400000.0,
+      "eventId": "70-2018-03-25",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=70",
+      "sha256": "fa8a0c28f6ba50ab254169544c9e4ff3990dd804f3f865f2aff66a06b03aa2c5"
+    },
+    {
+      "id": "sky-18",
+      "src": "data/sky-rating-v1/sky-18.jpg",
+      "camera": 52,
+      "capturedAt": 1529056800000.0,
+      "eventId": "52-2018-06-15",
+      "source": "https://www.sizenken.biodic.go.jp/view_hour.php?no=52",
+      "sha256": "1e1467314ca5fc00b1c4e82c4e90dacc080f7c77974413797075877d1c03ce35"
+    }
+  ]
+}
