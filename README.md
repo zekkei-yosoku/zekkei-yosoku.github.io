@@ -23,7 +23,7 @@
 
 ## 確認
 
-編集入口は [sourceの編集と依存関係](src/00_編集と依存関係.md)。`./bump.sh` でsourceを組み立ててからcontent version/CSPを更新し、`python3 build-preview.py` でtrialを生成します。`node tools/build-index.mjs --check` は配信物とsourceの完全一致を確認します。
+編集入口は [sourceの編集と依存関係](src/00_編集と依存関係.md) と [AI向け設計索引](src/01_AIエージェント向け設計索引.md)。`./bump.sh` でsourceを組み立ててからcontent version/CSPを更新し、`python3 build-preview.py` でtrialを生成します。`node tools/build-index.mjs --check` は配信物とsourceの完全一致を確認します。
 
 各 `test-*.mjs` をNode.jsで実行します。HTML生成後は
 `node update-csp.mjs` でインラインスクリプトのCSPハッシュを更新します。
