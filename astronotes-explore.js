@@ -47,7 +47,7 @@ function showResult(){
 }
 function addSaveAction(row,source){
  if(!row||row.querySelector('[data-quick-save]'))return;
- const point=node('button',{type:'button',className:'plan-trigger explore-save'});point.setAttribute('aria-label','撮影地点に保存');point.title='撮影地点に保存';point.dataset.quickSave='place';point.dataset.planSource=source;point.innerHTML='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>';row.append(point);
+ const point=node('button',{type:'button',className:'plan-trigger explore-save'});point.setAttribute('aria-label','撮影地点に保存');point.title='撮影地点に保存';point.dataset.quickSave='place';point.dataset.planSource=source;point.innerHTML='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 10c0 5-6 11-6 11S3 15 3 10a6 6 0 1 1 12 0Z"/><circle cx="9" cy="10" r="2.5"/><path data-place-add d="M19 3v6m-3-3h6"/></svg>';row.append(point);
  const b=node('button',{type:'button',className:'plan-trigger explore-save'});b.setAttribute('aria-label','予定に追加');b.title='予定に追加';b.innerHTML='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M7 2v4M17 2v4M3 9h18M18 14v8M14 18h8"/></svg>';b.dataset.quickSave='plan';b.dataset.planSource=source;row.append(b);updateConditions();
 }
 function canFrame(s){if(!eligible())return false;if(s.target.id!=='fuji')return toolAllowed('tower');return s.body==='sun'?toolAllowed('diamond'):s.body==='moon'?toolAllowed('pearl'):toolAllowed('tower')&&(toolAllowed('diamond')||toolAllowed('pearl'));}
@@ -135,15 +135,16 @@ function sync(force=false){
 }
 function render(){
  menu();if(atSkyMap&&eligible()){mount();aimView.hidden=false;renderAimAccess();sync();}
- else unmount();
+ else{unmount();promote();}
 }
-function routeChanged(){
- render();
- if(atAim&&eligible()&&!routing){
-  routing=true;const desiredMode=transferMode||'scene';transferMode=null;const owner=auth?.token,hash=location.hash,preset=routeFromHash()?.preset;
-  AstroNotesAssets.ensureModels().then(()=>{if(owner!==auth?.token||hash!==location.hash||!atAim||!eligible())return;const restored=aim.pendingPlan;openAim(preset||null);if(restored)aim.pendingPlan=restored;mode=desiredMode;SkyMapUI.enter(true,restored?.at);}).finally(()=>{routing=false;if(transferMode&&atAim&&eligible())routeChanged();});
- }
+// Permission changes also render the current route. Promote once without requiring a navigation or reload.
+function promote(){
+ if(!atAim||!eligible()||routing)return;
+ routing=true;const desiredMode=transferMode||'scene';transferMode=null;const generation=authGeneration,loginId=auth?.loginId,hash=location.hash,preset=routeFromHash()?.preset,restored=aim.pendingPlan;
+ // Session renewal rotates the token without changing this authenticated account's generation.
+ AstroNotesAssets.ensureModels().then(()=>{if(generation!==authGeneration||loginId!==auth?.loginId||hash!==location.hash||!atAim||!eligible())return;openAim(preset||null);if(restored)aim.pendingPlan=restored;mode=desiredMode;SkyMapUI.enter(true,restored?.at);}).finally(()=>{routing=false;if(transferMode&&atAim&&eligible())routeChanged();});
 }
+function routeChanged(){render();}
 function sceneDraw(host,at){
  if(host!==look||!active()||mode!=='scene'||!intent||pendingKey||!frameKey)return;
  try{const s=snapshot();if(stamp(s)===frameKey&&Math.abs(s.at-at)>.5)SkyMapUI.setTime(at);}catch{}
