@@ -139,9 +139,10 @@ function aimSetFrom(p, { keepMap = false } = {}) {
 // 月の中の各日を計算する。帯の4件/連続期間の代表日で月を埋めない。
 const aimCal = { year: 0, month: 0, seq: 0, events: new Map(), cache: new Map() };
 function aimCalMonthStart(year, month) { return Date.UTC(year, month, 1) - 9 * 3600000; }
-function aimCalRows(obs, target, body, year, month, partId, view = null) {
-  if (aim.matchMode === "overlap") {
-    const rows=[], plan={target,body,partId,limb:aim.limb,matchMode:"overlap"};
+// owner（aimCalGridHtml は plan/observer）は探す画面など別の条件の持ち主。既定はねらうの条件と撮影地点。
+function aimCalRows(obs, target, body, year, month, partId, view = null, owner = aim) {
+  if (owner.matchMode === "overlap") {
+    const rows=[], plan={target,body,partId,limb:owner.limb,matchMode:"overlap"};
     for(let day=aimCalMonthStart(year,month),end=aimCalMonthStart(year,month+1);day<end;day+=86400000){
       for(const e of AstroNotesShooting.eventsFor(plan,obs,day,{align:AstroNotesAlign,isMountain:aimIsMountain,view})){
         if(e.at>=day&&e.at<day+86400000&&((body!=="sun"&&body!=="moon")||e.nearTarget)&&(body!=="moon"||e.sunAltitude<0))rows.push({...e,selectedMatch:AstroNotesShooting.matches(e,plan,aimIsMountain)});
@@ -153,7 +154,7 @@ function aimCalRows(obs, target, body, year, month, partId, view = null) {
   if (!aimIsMountain(target)) {
     const rows = [];
     for (let day = start; day < end; day += 86400000) rows.push(...AstroNotesAlign.dailyView(obs, target, body, day, { partId, eyeM: obs.eyeM }));
-    const selected = partId === "__whole" ? [] : AstroNotesAlign.upcoming(obs,target,body,{eyeM:obs.eyeM,from:start,days:Math.round((end-start)/86400000),limit:Infinity,groupDays:false,partId,limb:aim.limb,stepMs:3600000}).filter(e => aimCandidateMatch(e,false));
+    const selected = partId === "__whole" ? [] : AstroNotesAlign.upcoming(obs,target,body,{eyeM:obs.eyeM,from:start,days:Math.round((end-start)/86400000),limit:Infinity,groupDays:false,partId,limb:owner.limb,stepMs:3600000}).filter(e => aimCandidateMatch(e,false,owner));
     for (const row of rows) {
       const match = selected.find(e => S.JstCal.sameDay(e.at,row.at) && e.side === row.side);
       row.selectedMatch = partId === "__whole" ? row.intersects : !!match;
@@ -167,7 +168,9 @@ function aimCalRows(obs, target, body, year, month, partId, view = null) {
 }
 // 見え方と同じ2半径内の候補を扱い、円盤が届く日と近接通過を区別する。
 function aimCalSolid(e) { return e.selectedMatch ?? e.intersects ?? (Math.abs(e.gap) <= (e.radius === 0 ? 1e-5 : 1.2 * e.radius)); }
-function aimCalGridHtml(year, month, events, selected, today) {
+// observer 省略時の撮影地点は月の形を描くときだけ引く（null を渡せば地点なし）
+function aimCalGridHtml(year, month, events, selected, today, plan = aim, observer) {
+  const moonObserver = plan.body === "moon" ? (observer === undefined ? aimFromPoint() : observer) : null;
   const first = new Date(Date.UTC(year, month, 1)).getUTCDay();
   const days = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   let html = Array.from({ length: first }, () => '<span aria-hidden="true"></span>').join("");
@@ -176,9 +179,9 @@ function aimCalGridHtml(year, month, events, selected, today) {
     const rows = events.get(at) || [], on = S.JstCal.sameDay(at, selected), now = S.JstCal.sameDay(at, today);
     const solid = rows.some(aimCalSolid);
     // 候補日はその時刻、他の日はJST正午の月の形。既存の月相判定を使う。
-    const phase = aim.body === "moon" && aimFromPoint() ? AstroNotesMoon.phaseOf(AstroNotesBodies.state("moon", rows[0]?.at ?? at + 12 * 3600000, { ...aimFromPoint(), elevation: 0 })) : null;
-    const label = `${year}年${month + 1}月${d}日${phase ? "、" + phase.name : ""}${rows.length ? (solid ? "、重なる日、" : "、近くを通る日、") + rows.map((e) => `${aimSideName(e.side)} ${S.JstCal.hhmm(e.at)}${!AstroNotesBodies.definition(aim.body).limbs ? " " + AstroNotesBodies.sky(e.sunAltitude) : ""}`).join("、") : ""}`;
-    html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span><span class="aim-cal-mark"${phase ? " data-moon-phase" : ""} aria-hidden="true">${phase ? '<canvas class="aim-cal-moon" width="40" height="40" data-cal-moon="'+(rows[0]?.at ?? at + 12 * 3600000)+'"></canvas> ' : ""}${rows.length ? (solid ? "●" : "○") : ""}</span>${rows.length ? `<span class="aim-cal-time">${S.JstCal.hhmm(rows[0].at)}</span><span class="aim-cal-sky">${!AstroNotesBodies.definition(aim.body).limbs ? AstroNotesBodies.sky(rows[0].sunAltitude) : ""}</span>` : ""}</button>`;
+    const phase = moonObserver ? AstroNotesMoon.phaseOf(AstroNotesBodies.state("moon", rows[0]?.at ?? at + 12 * 3600000, { ...moonObserver, elevation: 0 })) : null;
+    const label = `${year}年${month + 1}月${d}日${phase ? "、" + phase.name : ""}${rows.length ? (solid ? "、重なる日、" : "、近くを通る日、") + rows.map((e) => `${plan === aim ? aimSideName(e.side) : aimSideName(e.side, plan.body)} ${S.JstCal.hhmm(e.at)}${!AstroNotesBodies.definition(plan.body).limbs ? " " + AstroNotesBodies.sky(e.sunAltitude) : ""}`).join("、") : ""}`;
+    html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span><span class="aim-cal-mark"${phase ? " data-moon-phase" : ""} aria-hidden="true">${phase ? '<canvas class="aim-cal-moon" width="40" height="40" data-cal-moon="'+(rows[0]?.at ?? at + 12 * 3600000)+'"></canvas> ' : ""}${rows.length ? (solid ? "●" : "○") : ""}</span>${rows.length ? `<span class="aim-cal-time">${S.JstCal.hhmm(rows[0].at)}</span><span class="aim-cal-sky">${!AstroNotesBodies.definition(plan.body).limbs ? AstroNotesBodies.sky(rows[0].sunAltitude) : ""}</span>` : ""}</button>`;
   }
   return html;
 }
@@ -415,7 +418,7 @@ async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now
   const cache=aimBuildingDays.cache||(aimBuildingDays.cache=new Map());
   const cacheKey=JSON.stringify([start,days,limit,obs,target,body,partId,limb,matchMode,typeof AstroNotesAtmosphere==='undefined'?null:AstroNotesAtmosphere.dataKey()]);
   const saved=cache.get(cacheKey);
-  if(saved&&from>=saved.from&&from<saved.until&&isCurrent()){onScanned(saved.scanned);return saved.rows.map(e=>({...e}));}
+  if(saved&&start>=saved.from&&start<saved.until&&isCurrent()){onScanned(saved.scanned);return saved.rows.map(e=>({...e}));}
   let scanned=start;
   const whole = partId === "__whole", mountain = typeof aimIsMountain === "function" && aimIsMountain(target);
   // Match eventsFor/searchOptions: overlap uses the whole building, or the mountain rim.
@@ -431,12 +434,13 @@ async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now
     const plan={target,body,partId,limb,matchMode};
     const events = matchMode === 'overlap' ? AstroNotesShooting.eventsFor(plan,obs,day,{align:AstroNotesAlign,isMountain:aimIsMountain,view}) : whole && !mountain ? (view?view(day):AstroNotesAlign.dailyView(obs, target, body, day, options))
       : AstroNotesAlign.upcoming(obs, target, body, {eyeM:obs.eyeM,from:day,days:1,limit:Infinity,groupDays:false,partId,limb,stepMs:3600000});
-    const row = events.find((e) => e.at >= from && (matchMode === 'overlap' ? AstroNotesShooting.matches(e,plan,aimIsMountain) : aimCandidateMatch(e,whole,plan)) && (body !== "moon" || e.sunAltitude < 0));
+    // 候補日はJST日単位。同じ日なら今の時刻に関係なく同じ日集合にする（その日の過ぎた時刻の候補も残す）
+    const row = events.find((e) => e.at >= start && (matchMode === 'overlap' ? AstroNotesShooting.matches(e,plan,aimIsMountain) : aimCandidateMatch(e,whole,plan)) && (body !== "moon" || e.sunAltitude < 0));
     if (row) rows.push(row);
     scanned=day+86400000;onScanned(scanned);
   }
   if(isCurrent()){
-    cache.delete(cacheKey);cache.set(cacheKey,{from,until:Math.min(start+86400000,...rows.map(e=>e.at)),scanned,rows:rows.map(e=>({...e}))});
+    cache.delete(cacheKey);cache.set(cacheKey,{from:start,until:start+86400000,scanned,rows:rows.map(e=>({...e}))});
     while(cache.size>8)cache.delete(cache.keys().next().value);
   }
   return rows;
@@ -476,9 +480,8 @@ async function aimDaysFor(obs, inputKey) {
     // 探索中のデータ更新・失効を混ぜた結果は再利用しない。
     if (aimDaysInputKey(aimFromPoint()) !== inputKey) { aim.fromDays = null; return null; }
     entry.rows = rows;
-    const nextDay = S.Cal.startOfDay(now) + 86400000;
-    // 候補の時刻を過ぎたら、次の候補を補充するため再探索する。
-    entry.until = Math.min(nextDay, ...rows.filter(e => e.at >= now).map(e => e.at));
+    // 候補日はJST日単位。候補の時刻では失効させず、日を跨いだら再探索する。
+    entry.until = S.Cal.startOfDay(now) + 86400000;
     return entry.rows;
   })().catch(error => { if (aim.fromDays === entry) aim.fromDays = null; throw error; });
   return entry.promise;
@@ -492,7 +495,6 @@ function aimCandidatePageEnd(from){
 }
 function aimAppendCandidatePage(entry,rows,scanned){
   entry.rows=[...entry.rows,...rows];entry.searchedUntil=scanned;
-  entry.until=Math.min(entry.until,...rows.map(e=>e.at));
 }
 async function aimMoreDays() {
   const entry = aim.fromDays, f = aimFromPoint();

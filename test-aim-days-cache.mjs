@@ -37,8 +37,8 @@ test('必要な再探索と古い非同期結果の破棄、実際の地面標�
 test('探索中の気象データ更新は結果をキャッシュしない',async()=>{
  const f=fixture(),release=f.hold(),task=f.run();await new Promise(r=>setTimeout(r,10));f.setAir('b');release();assert.equal(await task,null);assert.equal(f.aim.fromDays,null);await f.run();assert.equal(f.calls,2);
 });
-test('候補時刻を過ぎたときと日本時間の日付が変わったときは再探索',async()=>{
- const f=fixture();await f.run();f.setNow(base+3600000);await f.run();assert.equal(f.calls,2);f.setNow(start(base)+DAY);await f.run();assert.equal(f.calls,3);
+test('候補時刻を過ぎても同日は再利用し、日本時間の日付が変われば再探索',async()=>{
+ const f=fixture();await f.run();f.setNow(base+3600000);await f.run();assert.equal(f.calls,1);f.setNow(start(base)+DAY-1);await f.run();assert.equal(f.calls,1);f.setNow(start(base)+DAY);await f.run();assert.equal(f.calls,2);
 });
 test('大気データの鍵は取得失敗を除外し成功・期限切れ・設定変更を検知',async()=>{
  const require=createRequire(import.meta.url);let now=base;

@@ -115,7 +115,7 @@ ctx.lineWidth=1;
    const current=()=>session===plan&&hasAccess()&&active()&&dateEntry===entry&&Date.now()<entry.until&&entry.inputKey===aimDaysInputKey(session.observer,Date.now(),session);
    entry.current=current;
    entry.promise=aimBuildingDays(obs,snapshot.target,snapshot.body,snapshot.partId,null,{from:now,limb:snapshot.limb,matchMode:snapshot.matchMode,isCurrent:current,onScanned:end=>{entry.searchedUntil=end;}}).then(rows=>{
-    if(!current())return;entry.rows=rows;entry.until=Math.min(S.Cal.startOfDay(now)+86400000,...rows.map(e=>e.at));renderCandidateDates();
+    if(!current())return;entry.rows=rows;entry.until=S.Cal.startOfDay(now)+86400000;renderCandidateDates();
    }).catch(()=>{if(current()){entry.error=true;renderCandidateDates();}});
    return;
   }
@@ -252,7 +252,49 @@ ctx.lineWidth=1;
   if(skyTimeDialog.open&&at-lastPlaybackDetail>=1000){lastPlaybackDetail=at;const state=currentState();if(state)el('skyMapAngles').textContent=`${bodyName(session.body)} 方位 ${state.azimuth.toFixed(1)}°・高度 ${state.altitude.toFixed(2)}°`;}
  }});
  const stopSkyScrub=()=>{skyTimeline.stop();timelineMoving=false;};
- const skyCalendar=ToolDateTimeBar.calendar({button:el('skyMapCalendarOpen'),getAt:()=>session?.at??Date.now(),setDay:day=>{if(session)setTime(day+(session.at-AstroNotesSkyMap.dayStart(session.at)));}});
+ // 日付カレンダーはねらうと同じ重なる日●・近接○・時刻・月相の描画（aimCalRows/aimCalGridHtml）。月全体を計算し、帯の候補では埋めない。
+ const calendarCache=new Map();
+ function calendarMonth(args){
+  const {year,month,selected,today,grid,dialog,status,pickDay,isCurrent}=args;
+  const plan=session,f=validPoint(plan?.observer)?plan.observer:null;
+  const snap=plan?{target:plan.target,body:plan.body,partId:plan.partId,limb:plan.limb,matchMode:plan.matchMode}:{body:null};
+  const owner=auth?.token,condition=()=>JSON.stringify([auth?.token,session?.observer,session?.ground,session?.target,session?.body,session?.partId,session?.limb,session?.matchMode,AstroNotesAtmosphere.dataKey()]),started=condition();
+  const valid=()=>isCurrent()&&session===plan&&hasAccess()&&active()&&condition()===started;
+  // 条件が替わった応答は捨てる。開いている同じ月なら新しい条件で解き直し、待機のまま残さない
+  const stale=()=>{if(valid())return false;if(isCurrent()){if(session&&hasAccess()&&active())calendarMonth(args);else{status.textContent='';grid.setAttribute('aria-busy','false');}}return true;};
+  const draw=events=>{
+   grid.innerHTML=aimCalGridHtml(year,month,events,selected,today,snap,f);
+   if(snap.body==='moon'&&f)for(const canvas of grid.querySelectorAll('[data-cal-moon]')){
+    const state=AstroNotesBodies.state('moon',+canvas.dataset.calMoon,{...f,elevation:0});
+    const paint=()=>{if(canvas.isConnected&&dialog.open&&valid()){const image=AstroNotesCalendarMoon.request(state,paint);canvas.getContext('2d').drawImage(image.canvas,0,0,40,40);canvas.dataset.portraitStatus=image.status;}};
+    paint();
+   }
+   for(const button of grid.querySelectorAll('[data-cal-day]'))button.onclick=()=>pickDay(+button.dataset.calDay);
+  };
+  draw(new Map());
+  if(!plan||!hasAccess()){status.textContent='';grid.setAttribute('aria-busy','false');return;}
+  if(!f||!(snap.target?.parts||[]).length){status.textContent='撮影地点と対象を選んでください';grid.setAttribute('aria-busy','false');return;}
+  grid.setAttribute('aria-busy','true');status.innerHTML=candidateWaitMarkup('重なる日を計算中…');
+  (async()=>{
+   let ground=Number.isFinite(f.groundManualM)?f.groundManualM:plan.ground;
+   if(!Number.isFinite(ground)){ground=await AstroNotesTerrain.groundElevation(f.latitude,f.longitude);if(stale())return;if(!Number.isFinite(ground))throw Error('ground unavailable');}
+   const obs=aimObserverAt(f,ground),key=JSON.stringify([owner,obs,snap.target,snap.body,snap.partId,snap.limb,snap.matchMode,year,month,AstroNotesAtmosphere.dataKey()]);
+   let rows=calendarCache.get(key);
+   if(!rows){
+    await new Promise(resolve=>setTimeout(resolve,0));if(stale())return;
+    const view=await aimShootingView(obs,snap.target,snap.body,snap.partId,snap.matchMode);if(stale())return;
+    rows=aimCalRows(obs,snap.target,snap.body,year,month,snap.partId,view,snap);
+    calendarCache.set(key,rows);if(calendarCache.size>24)calendarCache.delete(calendarCache.keys().next().value);
+   }
+   if(stale())return;
+   const events=new Map();for(const row of rows){const day=S.Cal.startOfDay(row.at);if(!events.has(day))events.set(day,[]);events.get(day).push(row);}
+   draw(events);
+   const solidDays=[...events.values()].filter(rows=>rows.some(aimCalSolid)).length,nearDays=events.size-solidDays;
+   status.textContent=events.size?`重なる日 ${solidDays}日${nearDays?` ・ 近くを通る日 ${nearDays}日`:''}${snap.body==='moon'?'（暗い空の時間）':''}`:'この月は候補日がありません';
+   grid.setAttribute('aria-busy','false');
+  })().catch(()=>{if(stale())return;status.textContent='計算できませんでした。月を選び直して再試行してください';grid.setAttribute('aria-busy','false');});
+ }
+ const skyCalendar=ToolDateTimeBar.calendar({button:el('skyMapCalendarOpen'),getAt:()=>session?.at??Date.now(),setDay:day=>{if(session)setTime(day+(session.at-AstroNotesSkyMap.dayStart(session.at)));},renderMonth:calendarMonth});
  ToolDateTimeBar.editor({button:el('skyMapCalendarOpen'),time:el('skyMapTime'),dialog:skyCalendar,beforeOpen:stopSkyScrub});
  const skyTimeDialog=document.createElement('dialog');skyTimeDialog.className='sheet preview-time-dialog sky-map-time-dialog';skyTimeDialog.tabIndex=-1;skyTimeDialog.setAttribute('aria-label','天体の位置と時刻');skyTimeDialog.innerHTML='<div class="sheet-head"><strong>天体の位置と時刻</strong><button type="button" data-close>閉じる</button></div><div id="skyMapAngles" class="sky-map-angles"></div><p id="skyMapDetailInfo" class="sky-map-angles tiny"></p><div class="sheet-body sky-map-time-actions"><button type="button" id="skyMapEarlier">−1分</button><button type="button" id="skyMapNow">今</button><button type="button" id="skyMapLater">+1分</button></div>';document.body.append(skyTimeDialog);
  ToolDateTimeBar.trackPointerFocus(el('skyMapView'),skyTimeDialog,skyCalendar,targetSheet,bodiesSheet);
