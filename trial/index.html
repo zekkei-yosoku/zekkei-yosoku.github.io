@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="11035290423512491941">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-ITSmDf5j/IMR+3e9cpeZ+HfZO+fd6kFjvfPJeCN1LC0=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-yuuUi8hjHqsSsiYHPpCwlxlbDX7HwY146Bd4U0dAO4c=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-hXH1ODXFhATYuezFokHlWosR6ieNfnWfhlEjYeN/sr8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="3672992535670204110">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-CT1XCNa18p56uoNFZ14qqecJlOH644i6Q6UJ1Bq9NVg=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-yuuUi8hjHqsSsiYHPpCwlxlbDX7HwY146Bd4U0dAO4c=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-hXH1ODXFhATYuezFokHlWosR6ieNfnWfhlEjYeN/sr8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -2898,13 +2898,80 @@ function pickHighlight(weeks, now) {
  if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
 
-// ---------------------------------------------------------------- 永続化（localStorage）
-const store = {
-  get(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } },
-  // プライベートモードや容量超過で失敗する。黙って閉じると保存できたように見えるので、
-  // 成否を返して呼び出し側に判断させる。
-  set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } },
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesStorage=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
+'use strict';
+function create(storage){
+ let onWrite=null;
+ function get(key,fallback){try{const v=storage().getItem(key);return v?JSON.parse(v):fallback;}catch{return fallback;}}
+ function set(key,value){try{storage().setItem(key,JSON.stringify(value));}catch{return false;}if(onWrite)onWrite(key,value);return true;}
+ return {get,set,setWriteHook(fn){onWrite=fn;}};
+}
+return {create};
+});
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesAuthStorage=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
+'use strict';
+function create({session,local,boxStorage,key}){
+function save(a, remember) {
+  const payload = JSON.stringify(a);
+  try { session().setItem(key, payload); } catch { /* 使えなくても動く */ }
+  try {
+    if (remember) local().setItem(key, payload);
+    else local().removeItem(key);
+  } catch { /* 同上 */ }
+}
+function read() {
+  for (const box of ["localStorage", "sessionStorage"]) {
+    try {
+      const raw = boxStorage(box).getItem(key);
+      if (!raw) continue;
+      const a = JSON.parse(raw);
+      if (a && typeof a.token === "string" && typeof a.loginId === "string") {
+        return { auth: a, remembered: box === "localStorage" };
+      }
+    } catch { /* 壊れていたら次を見る */ }
+  }
+  return null;
+}
+function clear(){try{session().removeItem(key);}catch{}try{local().removeItem(key);}catch{}}
+return {save,read,clear};
+}
+return {create};
+});
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesHttpClient=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
+'use strict';
+function create({base,fetch,getAuth,getGeneration,onUnauthorized}){
+return async function apiCall(method, path, body, signal) {
+  const requestToken = getAuth()?.token, requestGeneration = getGeneration();
+  const headers = {};
+  if (body !== undefined) headers["content-type"] = "application/json";
+  if (getAuth()) headers.authorization = `Bearer ${getAuth().token}`;
+  // 電波が切れたときの英語の失敗文（Failed to fetch / Load failed）を画面に出さない（2026-10-21 総点検）
+  let res;
+  try {
+    res = await fetch(base + path, { method, headers, signal,
+      body: body === undefined ? undefined : JSON.stringify(body) });
+  } catch (e) {
+    if (e?.name === "AbortError") throw e;
+    const error = new Error("通信できませんでした。電波の状態を確かめて、もう一度お試しください"); error.network = true; throw error;
+  }
+  let data = null;
+  try { data = await res.json(); } catch { /* 本文が無いこともある */ }
+  if (!res.ok) {
+    // 401 はセッション切れ。**データは消さない。** 入り直せば続きから使える。
+    if (res.status === 401 && data?.code !== "reauth_required" && getAuth()?.token === requestToken && getGeneration() === requestGeneration) { onUnauthorized(); }
+    const error = new Error(data?.error || `通信できませんでした（${res.status}）`);
+    // 状態も渡す。権限が無い（403）ときに「再試行」を出さないための判定に使う（2026-10-15）
+    error.code = data?.code; error.status = res.status; throw error;
+  }
+  if (getGeneration() !== requestGeneration || getAuth()?.token !== requestToken) throw new Error("アカウントが変更されました。操作をやり直してください");
+  return data;
 };
+}
+return {create};
+});
+
+// ---------------------------------------------------------------- 永続化（localStorage）
+const store = AstroNotesStorage.create(()=>localStorage);
 // お気に入りは、内蔵スポットと同じ項目を自分で付けられる。
 // terrain は表示用ではない。astronotes-core の needsProfile（鉛直分布を取るか）と、
 // 雲海・霧氷の対象判定に使われる。ここで選び間違えると点数が変わる。
@@ -4352,36 +4419,133 @@ function renderAlmanac() {
 if(typeof document!=='undefined')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&atAlmanac)globalThis.AstroNotesAlmanacDashboard?.refresh();});
 function openSkyRating(){try{sessionStorage.setItem("astronotes.rating.return",location.pathname+location.hash.split("?")[0]);}catch{}location.href="sky-rating.html";}
 document.querySelector("#skyRatingInvite a").onclick=e=>{e.preventDefault();openSkyRating();};
-function routeFromHash() {
-  if(location.hash.startsWith('#p=')){
-    let token='';try{token=decodeURIComponent(location.hash.slice(3));}catch{/* Malformed escapes are not a shared route. */}
-    if(/^[\w.,\/-]{1,8000}$/.test(token))history.replaceState(history.state,'',location.pathname+location.search+'#/aim?plan='+token);
+/*
+ * AstroNotes — URLのhashから画面を決める（純粋関数。location/historyに触れない）
+ *
+ * 旧 routeFromHash の判定を同じ順序で移した（2026-10-29 構造整理）。
+ * 旧共有URL #p= の置換（replaceState）は呼出側の routeFromHash が行う。
+ */
+(function (global) {
+  "use strict";
+
+  /// #p=<token> を #/aim?plan=<token> へ。置き換えないときは null（壊れたescape・使えない文字・長すぎ）
+  function normalizeLegacyHash(hash) {
+    if (!hash.startsWith('#p=')) return null;
+    let token = ''; try { token = decodeURIComponent(hash.slice(3)); } catch { /* Malformed escapes are not a shared route. */ }
+    return /^[\w.,\/-]{1,8000}$/.test(token) ? '#/aim?plan=' + token : null;
   }
-  if(location.hash === "#/explore") return {skymap:true};
-  if (location.hash === "#/almanac") return { almanac: true };
-  if (location.hash.includes("?plan=")) {
-    const hash = location.hash.split("?")[0];
+
+  /// phenomena は表、または表を返す関数（必要になるまで読まない。旧の S.PHENOMENA と同じ時点）
+  function parseRoute(hash, phenomena) {
+    const known = (id) => (typeof phenomena === "function" ? phenomena() : phenomena)[id];
+    if (hash === "#/explore") return { skymap: true };
+    if (hash === "#/almanac") return { almanac: true };
+    if (hash.includes("?plan=")) {
+      const path = hash.split("?")[0];
+      if (path === "#/aim") return { aim: true };
+      const shared = /^#\/([A-Za-z]+)\/(\d+)$/.exec(path);
+      if (shared && known(shared[1])) return { id: shared[1], dayMs: Number(shared[2]) };
+    }
+    if (hash === "#/skymap") return { skymap: true };
+    if (hash === "#/records") return { records: true };
+    if (hash === "#/answers" || hash === "#/forecast/results") return { answers: true };
     if (hash === "#/aim") return { aim: true };
-    const shared = /^#\/([A-Za-z]+)\/(\d+)$/.exec(hash);
-    if (shared && S.PHENOMENA[shared[1]]) return { id: shared[1], dayMs: Number(shared[2]) };
+    const am = /^#\/aim\/(fuji|diamond|pearl|tower)$/.exec(hash);
+    if (am) return { aim: true, preset: am[1] };
+    if (hash === "#/plane") return { plane: true };
+    if (hash === "#/iss") return { iss: true };
+    if (hash === "#/iss/pick") return { iss: true, issPick: true };
+    if (hash === "#/admin") return { admin: true };
+    const m = /^#\/([A-Za-z]+)(?:\/(\d+))?$/.exec(hash);
+    // SCORERS ではなく PHENOMENA で見る（富士山と月は core が採点しないので SCORERS に無い）
+    if (!m || !known(m[1])) return null;
+    return { id: m[1], dayMs: m[2] ? Number(m[2]) : null };
   }
-  if (location.hash === "#/skymap") return { skymap: true };
-  if (location.hash === "#/records") return { records: true };
-  if (location.hash === "#/answers" || location.hash === "#/forecast/results") return { answers: true };
-  if (location.hash === "#/aim") return { aim: true };
-  // メニューから来たときは、何を狙うかが決まっている（目標と天体を先に入れる）
-  const am = /^#\/aim\/(fuji|diamond|pearl|tower)$/.exec(location.hash);
-  if (am) return { aim: true, preset: am[1] };
-  if (location.hash === "#/plane") return { plane: true };
-  if (location.hash === "#/iss") return { iss: true };
-  if (location.hash === "#/iss/pick") return { iss: true, issPick: true };   // 以前の衛星を選ぶの道（今はページを重ねる。openIss）
-  if (location.hash === "#/admin") return { admin: true };
-  const m = /^#\/([A-Za-z]+)(?:\/(\d+))?$/.exec(location.hash);
-  // **`SCORERS` ではなく `PHENOMENA` で見る。**
-  // 富士山と月は core が採点しない（astronotes-fuji / astronotes-moon が採点して
-  // `weeks` へ入れる）ので、`SCORERS` に無い。ここで弾くと詳細が開かない。
-  if (!m || !S.PHENOMENA[m[1]]) return null;
-  return { id: m[1], dayMs: m[2] ? Number(m[2]) : null };
+
+  const api = { normalizeLegacyHash, parseRoute };
+  global.AstroNotesNavigationRoutes = api;
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+})(typeof globalThis !== "undefined" ? globalThis : window);
+/*
+ * AstroNotes — 来た道（ブラウザ履歴の depth と、ホーム画面のiPhoneアプリの appTrail）
+ *
+ * pushRoute/goBack/goList と NO_HISTORY・appTrail・toListAfterBack をここだけが持つ（2026-10-29 構造整理）。
+ * create は何も呼ばない。location/history などは呼ぶたびに deps から読む（旧と同じ時点で解決する）。
+ * 判断理由は src/app/navigation.js の注記を正本とする。
+ */
+(function (global) {
+  "use strict";
+
+  function createHistory(deps) {
+    const NO_HISTORY = deps.noHistory;
+    const appTrail = [];   // NO_HISTORY のときの来た道（前の画面の hash。一覧は ""）
+    let toListAfterBack = false;
+
+    function pushRoute(hash) {
+      deps.closeTools();
+      if (deps.pagePop()?.n) { deps.afterPagePop(() => pushRoute(hash)); return; }
+      const location = deps.location, history = deps.history;
+      if (location.hash === hash) return;
+      if (NO_HISTORY) {
+        appTrail.push(location.hash);
+        history.replaceState({ depth: appTrail.length }, "", hash);
+      } else {
+        const depth = ((history.state && history.state.depth) || 0) + 1;
+        history.pushState({ depth }, "", hash);
+      }
+      deps.applyRoute();   // pushState・replaceState は hashchange を起こさない
+    }
+
+    function goBack() {
+      if (deps.pagePop()?.n) { deps.afterPagePop(goBack); return; }
+      const history = deps.history;
+      if (NO_HISTORY) {
+        const prev = appTrail.pop();
+        if (!prev) { goList(); return; }
+        history.replaceState({ depth: appTrail.length }, "", prev);
+        deps.applyRoute();
+        return;
+      }
+      if ((history.state && history.state.depth) > 0) history.back();
+      else goList();
+    }
+
+    function goList() {
+      if (NO_HISTORY) appTrail.length = 0;
+      const location = deps.location, history = deps.history;
+      const depth = NO_HISTORY ? 0 : (history.state && history.state.depth) || 0;
+      if (depth > 0) { toListAfterBack = true; history.go(-depth); return; }
+      if (deps.routeFromHash()) { history.replaceState(null, "", location.pathname + location.search); deps.applyRoute(); }
+    }
+
+    /// hashchange で applyRoute の前に呼ぶ。goList の go(-depth) で戻った先が一覧でなければ一覧に置き換える
+    function settleListAfterBack() {
+      if (!toListAfterBack) return;
+      toListAfterBack = false;
+      const location = deps.location, history = deps.history;
+      if (deps.routeFromHash()) history.replaceState(null, "", location.pathname + location.search);
+    }
+
+    return {
+      pushRoute, goBack, goList, settleListAfterBack,
+      get noHistory() { return NO_HISTORY; },
+      get appTrail() { return appTrail; },
+      get toListAfterBack() { return toListAfterBack; },
+    };
+  }
+
+  const api = { createHistory };
+  global.AstroNotesNavigationHistory = api;
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+})(typeof globalThis !== "undefined" ? globalThis : window);
+/// 判定は AstroNotesNavigationRoutes（純粋）。旧共有URL #p= は読むたびに #/aim?plan= へ置き換えてから判定する（置き換え後の hash を読む）
+/// メニューから来たときは、何を狙うかが決まっている（#/aim/fuji など。目標と天体を先に入れる）。#/iss/pick は以前の衛星を選ぶの道（今はページを重ねる。openIss）
+/// **`SCORERS` ではなく `PHENOMENA` で見る。** 富士山と月は core が採点しない（astronotes-fuji / astronotes-moon が採点して
+/// `weeks` へ入れる）ので、`SCORERS` に無い。ここで弾くと詳細が開かない。
+function routeFromHash() {
+  const legacy = AstroNotesNavigationRoutes.normalizeLegacyHash(location.hash);
+  if (legacy !== null) history.replaceState(history.state, '', location.pathname + location.search + legacy);
+  return AstroNotesNavigationRoutes.parseRoute(location.hash, () => S.PHENOMENA);
 }
 
 /// 詳細へ進む。日を指定しなければ直近の回に合わせる。
@@ -4403,22 +4567,21 @@ function pick(id, now, dayMs) {
 /// メニューが開かない（一覧では開く＝戻る先が無いとき）。ページから iOS の戻る・進むは止められないので、戻る先を作らない。
 /// ひとつ前の画面はアプリの中で覚える（appTrail）。Safari のタブでは今までどおり積む（Safari の戻るボタンで戻れるように）。
 /// Android はホーム画面のアプリでも端のなぞりが OS の「戻る」なので積む（積まないとアプリから出てしまう）
+/// 来た道は AstroNotesNavigationHistory が単独で持つ。下の NO_HISTORY / appTrail は同じ値・同じ配列を指す読取口（写しではない）
 const NO_HISTORY = navigator.standalone === true;
-const appTrail = [];   // NO_HISTORY のときの来た道（前の画面の hash。一覧は ""）
-function pushRoute(hash) {
-  closeTools();
+const navigationHistory = AstroNotesNavigationHistory.createHistory({
+  noHistory: NO_HISTORY,
+  get location() { return location; },
+  get history() { return history; },
+  closeTools: () => closeTools(),
   // 選択のページを閉じて戻している途中なら、戻し終えてから移る（globalThis: 検査で関数だけを取り出して動かすときにも落ちない）
-  if (globalThis.pagePop?.n) { afterPagePop(() => pushRoute(hash)); return; }
-  if (location.hash === hash) return;
-  if (NO_HISTORY) {
-    appTrail.push(location.hash);
-    history.replaceState({ depth: appTrail.length }, "", hash);
-  } else {
-    const depth = ((history.state && history.state.depth) || 0) + 1;
-    history.pushState({ depth }, "", hash);
-  }
-  applyRoute();   // pushState・replaceState は hashchange を起こさない
-}
+  pagePop: () => globalThis.pagePop,
+  afterPagePop: (run) => afterPagePop(run),
+  applyRoute: () => applyRoute(),
+  routeFromHash: () => routeFromHash(),
+});
+const appTrail = navigationHistory.appTrail;   // NO_HISTORY のときの来た道（前の画面の hash。一覧は ""）
+function pushRoute(hash) { navigationHistory.pushRoute(hash); }
 
 /// 一覧へ戻る。**何画面進んでいても一度で戻る**（2026-10-01）。
 /// 1つずつ戻していたので、一覧→詳細→道具と進んでから題名を押すと詳細で止まっていた。
@@ -4429,26 +4592,9 @@ function isMenuPage() {
   const r = routeFromHash();
   return !r || !!(r.almanac || r.aim || r.skymap || r.plane || r.iss || r.records || r.answers);
 }
-function goBack() {
-  if (globalThis.pagePop?.n) { afterPagePop(goBack); return; }
-  if (NO_HISTORY) {
-    const prev = appTrail.pop();
-    if (!prev) { goList(); return; }
-    history.replaceState({ depth: appTrail.length }, "", prev);
-    applyRoute();
-    return;
-  }
-  if ((history.state && history.state.depth) > 0) history.back();
-  else goList();
-}
+function goBack() { navigationHistory.goBack(); }
 
-let toListAfterBack = false;
-function goList() {
-  if (NO_HISTORY) appTrail.length = 0;
-  const depth = NO_HISTORY ? 0 : (history.state && history.state.depth) || 0;
-  if (depth > 0) { toListAfterBack = true; history.go(-depth); return; }
-  if (routeFromHash()) { history.replaceState(null, "", location.pathname + location.search); applyRoute(); }
-}
+function goList() { navigationHistory.goList(); }
 
 function applyRoute() {
   if (restoreSharedPlan() === "reload") { load(true); return; }
@@ -4509,10 +4655,7 @@ document.addEventListener("click", (e) => {
 });
 window.addEventListener("hashchange", () => {
   closeTools();
-  if (toListAfterBack) {
-    toListAfterBack = false;
-    if (routeFromHash()) history.replaceState(null, "", location.pathname + location.search);
-  }
+  navigationHistory.settleListAfterBack();
   applyRoute();
 });
 
@@ -9693,6 +9836,8 @@ function aimRenderCandList() {
   }
 }
 
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesSceneAppearance=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
+'use strict';
 // ---------------------------------------------------------------- 見え方（2026-10-02）
 //
 // ユーザー「その目標物に対して月、太陽がどのような軌道で動くのかを見たいなっていうのがこの機能を実装した最大の思いだった」。
@@ -9759,6 +9904,9 @@ function aimLookDisc(ctx, x, y, r, body, p) {
   ctx.restore();
 }
 
+return {AIM_LOOK_SKY,aimLookSky,aimLimbDir,aimLookDisc};
+});
+const {AIM_LOOK_SKY,aimLookSky,aimLimbDir,aimLookDisc}=AstroNotesSceneAppearance;
 /// 山の稜線（図の左から右へ [方位, 見上げ角]）。目標の前後の帯を標高データで引き、方位ごとに一番上を取る
 const aimRidgeCache = new Map(), aimRidgePending = new Map();
 // 2026-10-20 塔・建物の手前の地形（ユーザー「これ絶対に見えないであろう距離」。精進峠からスカイツリー112kmは御坂山地に隠れるのに、図にも文にも何も出なかった）。
@@ -11941,35 +12089,16 @@ let auth = null;                                   // { token, loginId, role }
 let accessCheckedAt = 0;                           // 最後に /me で権限を確かめた時刻（recheckAccess）
 
 // 置き場所は「保持する」を選んだかどうかで変わる。両方から消してから書く。
-function saveAuth(a, remember) {
-  const payload = JSON.stringify(a);
-  try { sessionStorage.setItem(TOKEN_KEY, payload); } catch { /* 使えなくても動く */ }
-  try {
-    if (remember) localStorage.setItem(TOKEN_KEY, payload);
-    else localStorage.removeItem(TOKEN_KEY);
-  } catch { /* 同上 */ }
-}
+const authStorage = AstroNotesAuthStorage.create({session:()=>sessionStorage,local:()=>localStorage,boxStorage:name=>window[name],key:TOKEN_KEY});
+function saveAuth(a,remember){return authStorage.save(a,remember);}
 function clearAuth() {
   authGeneration++;
   auth = null;
   clearAdminView();
-  try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
-  try { localStorage.removeItem(TOKEN_KEY); } catch {}
+  authStorage.clear();
 }
 // localStorage を先に見る。「保持する」を選んだ端末では、タブを閉じても続く。
-function storedAuth() {
-  for (const box of ["localStorage", "sessionStorage"]) {
-    try {
-      const raw = window[box].getItem(TOKEN_KEY);
-      if (!raw) continue;
-      const a = JSON.parse(raw);
-      if (a && typeof a.token === "string" && typeof a.loginId === "string") {
-        return { auth: a, remembered: box === "localStorage" };
-      }
-    } catch { /* 壊れていたら次を見る */ }
-  }
-  return null;
-}
+function storedAuth(){return authStorage.read();}
 let syncInfo = store.get("sorami.sync", null);     // { loginId, rev }。端末に残す
 let syncError = null;                              // 直近の同期の失敗
 let pushQueue = store.get("sorami.queue", []);     // 送れていない変更 [{kind,id}]
@@ -11993,32 +12122,8 @@ function migrationPlan(owner, loginId, hasLocal) {
   return "discard";                                          // 別の人。渡さない
 }
 
-async function apiCall(method, path, body, signal) {
-  const requestToken = auth?.token, requestGeneration = authGeneration;
-  const headers = {};
-  if (body !== undefined) headers["content-type"] = "application/json";
-  if (auth) headers.authorization = `Bearer ${auth.token}`;
-  // 電波が切れたときの英語の失敗文（Failed to fetch / Load failed）を画面に出さない（2026-10-21 総点検）
-  let res;
-  try {
-    res = await fetch(API + path, { method, headers, signal,
-      body: body === undefined ? undefined : JSON.stringify(body) });
-  } catch (e) {
-    if (e?.name === "AbortError") throw e;
-    const error = new Error("通信できませんでした。電波の状態を確かめて、もう一度お試しください"); error.network = true; throw error;
-  }
-  let data = null;
-  try { data = await res.json(); } catch { /* 本文が無いこともある */ }
-  if (!res.ok) {
-    // 401 はセッション切れ。**データは消さない。** 入り直せば続きから使える。
-    if (res.status === 401 && data?.code !== "reauth_required" && auth?.token === requestToken && authGeneration === requestGeneration) { clearAuth(); renderAuthButton(); }
-    const error = new Error(data?.error || `通信できませんでした（${res.status}）`);
-    // 状態も渡す。権限が無い（403）ときに「再試行」を出さないための判定に使う（2026-10-15）
-    error.code = data?.code; error.status = res.status; throw error;
-  }
-  if (authGeneration !== requestGeneration || auth?.token !== requestToken) throw new Error("アカウントが変更されました。操作をやり直してください");
-  return data;
-}
+const apiTransport = AstroNotesHttpClient.create({base:API,fetch:(...args)=>fetch(...args),getAuth:()=>auth,getGeneration:()=>authGeneration,onUnauthorized:()=>{clearAuth();renderAuthButton();}});
+function apiCall(method,path,body,signal){return apiTransport(method,path,body,signal);}
 
 // 長いセッションで、直前2時間より古いまま認証手段を変えようとすると、
 // サーバーが「確認のため、もう一度ログインしてください」と断る（判断1）。
@@ -12585,71 +12690,74 @@ const RecordSync = (() => {
   }
   return { touched, scan, item, accepted, apply, kick: () => { if (login()) touched(kinds.obs.key(login())); } };
 })();
-// 記録の保存（記録・予定の画面のどちらで書いても）を拾って送る
-{ const write = store.set; store.set = (key, value) => { const ok = write(key, value); if (ok) RecordSync.touched(key); return ok; }; }
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesAccountSync=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
+'use strict';
+// state は呼出時に現在の値を読み書きする。写しを持つと controller 側の代入と食い違う。
+// records は RecordSync 本体を移さず、呼出時に取る（未定義なら記録の同期を飛ばす）。
+function create({state,session,apiCall,store,toItem,cleanFavorite,cleanSighting,records,refresh,render}){
 
 /// 送れなかったものを覚えておく。次に繋がったときに送る。
 function queuePush(kind, id) {
-  if (!auth) return;
-  const at = pushQueue.findIndex(q => q.kind === kind && q.id === id);
+  if (!session.auth()) return;
+  const at = state.pushQueue.findIndex(q => q.kind === kind && q.id === id);
   const change = { kind, id };
-  if (at < 0) pushQueue.push(change); else pushQueue[at] = change;
-  store.set("sorami.queue", pushQueue);
-  renderAuthButton();
+  if (at < 0) state.pushQueue.push(change); else state.pushQueue[at] = change;
+  store.set("sorami.queue", state.pushQueue);
+  render();
   syncNow().catch(() => {});
 }
 
 async function syncNow() {
-  if (!auth) return;
-  const generation = authGeneration;
+  if (!session.auth()) return;
+  const generation = session.generation();
   if (syncNow.flight?.generation === generation) { syncNow.flight.again = true; return syncNow.flight.promise; }
   const job = { generation, again: false, promise: null };
   syncNow.flight = job;
-  const current = () => generation === authGeneration && !!auth;
+  const current = () => generation === session.generation() && !!session.auth();
   job.promise = (async () => {
     try {
       let sent = 0;
       do {
         job.again = false;
-        if (typeof RecordSync !== "undefined") RecordSync.scan();
+        if (records()) records().scan();
         // 同じアカウントの通信は直列化し、500件を超える取込も続けて送る。
-        while (pushQueue.length && sent++ < 40) {
-          const batch = pushQueue.slice(0, 500);
+        while (state.pushQueue.length && sent++ < 40) {
+          const batch = state.pushQueue.slice(0, 500);
           const favs = batch.filter(q => q.kind === "fav")
-            .map(q => { const f = favorites.find(x => x.id === q.id); return f ? toItem(f) : toItem({ id: q.id }, true); });
+            .map(q => { const f = state.favorites.find(x => x.id === q.id); return f ? toItem(f) : toItem({ id: q.id }, true); });
           const sights = batch.filter(q => q.kind === "sight")
-            .map(q => { const x = sightings.find(y => y.id === q.id); return x ? toItem(x) : toItem({ id: q.id }, true); });
-          const recs = typeof RecordSync !== "undefined" ? batch.filter(q => q.kind === "rec").map(q => RecordSync.item(q.id)) : [];
+            .map(q => { const x = state.sightings.find(y => y.id === q.id); return x ? toItem(x) : toItem({ id: q.id }, true); });
+          const recs = records() ? batch.filter(q => q.kind === "rec").map(q => records().item(q.id)) : [];
           const res = await apiCall("POST", "/sync", { favorites: favs, sightings: sights,
             ...(recs.length ? { records: recs.map(({ sent, ...r }) => r) } : {}) });
           if (!current()) return;
           const okFav = new Set(res?.accepted?.favorites ?? []), okSight = new Set(res?.accepted?.sightings ?? []), okRec = new Set(res?.accepted?.records ?? []);
           const accepted = q => (q.kind === "fav" ? okFav : q.kind === "rec" ? okRec : okSight).has(q.id);
-          if (recs.length) RecordSync.accepted(recs.filter(r => okRec.has(r.id)));
+          if (recs.length) records().accepted(recs.filter(r => okRec.has(r.id)));
           // IDが同じでも送信中に編集された項目は別のオブジェクト。新しい変更は消さない。
-          pushQueue = pushQueue.filter(q => !batch.includes(q) || !accepted(q));
-          store.set("sorami.queue", pushQueue);
+          state.pushQueue = state.pushQueue.filter(q => !batch.includes(q) || !accepted(q));
+          store.set("sorami.queue", state.pushQueue);
           if (!batch.some(accepted)) break;
         }
-        let since = syncInfo?.loginId === auth.loginId && syncInfo.records === 1 ? (syncInfo.rev || 0) : 0;
+        let since = state.syncInfo?.loginId === session.auth().loginId && state.syncInfo.records === 1 ? (state.syncInfo.rev || 0) : 0;
         for (let round = 0; round < 20; round++) {
           const got = await apiCall("GET", `/sync?since=${since}`);
           if (!current()) return;
           applyIncoming(got);
           const next = got.rev ?? since;
-          syncInfo = { loginId: auth.loginId, rev: next, records: 1 };
-          store.set("sorami.sync", syncInfo);
+          state.syncInfo = { loginId: session.auth().loginId, rev: next, records: 1 };
+          store.set("sorami.sync", state.syncInfo);
           if (!got.more || next <= since) break;
           since = next;
         }
-        syncError = pushQueue.length ? `未送信の変更が${pushQueue.length}件あります。同期を再試行してください` : null;
-        if (pushQueue.length && sent >= 40) break;
+        state.syncError = state.pushQueue.length ? `未送信の変更が${state.pushQueue.length}件あります。同期を再試行してください` : null;
+        if (state.pushQueue.length && sent >= 40) break;
       } while (job.again && current());
     } catch (e) {
       if (!current()) return;
-      syncError = e.message;
+      state.syncError = e.message;
     }
-    if (current()) renderAuthButton();
+    if (current()) render();
   })();
   try { return await job.promise; }
   finally { if (syncNow.flight === job) syncNow.flight = null; }
@@ -12659,7 +12767,7 @@ async function syncNow() {
 /// 通信相手を信用しないのは、取り込みファイルを信用しないのと同じ理由。
 function applyIncoming(got) {
   const put = (list, incoming, clean, kind) => {
-    const pending = new Set(pushQueue.filter(q => q.kind === kind).map(q => q.id));
+    const pending = new Set(state.pushQueue.filter(q => q.kind === kind).map(q => q.id));
     const byId = new Map(list.map((x) => [x.id, x]));
     for (const row of incoming || []) {
       if (pending.has(row.id)) continue;
@@ -12670,13 +12778,47 @@ function applyIncoming(got) {
     }
     return [...byId.values()];
   };
-  favorites = put(favorites, got.favorites, cleanFavorite, "fav");
-  sightings = put(sightings, got.sightings, cleanSighting, "sight");
-  if (typeof RecordSync !== "undefined") RecordSync.apply(got.records);
-  store.set("sorami.favorites", favorites);
-  store.set("sorami.sightings", sightings);
-  globalThis.AstroTargetPicker?.refresh?.();
+  state.favorites = put(state.favorites, got.favorites, cleanFavorite, "fav");
+  state.sightings = put(state.sightings, got.sightings, cleanSighting, "sight");
+  if (records()) records().apply(got.records);
+  store.set("sorami.favorites", state.favorites);
+  store.set("sorami.sightings", state.sightings);
+  refresh();
 }
+
+return {queuePush,syncNow,applyIncoming};
+}
+return {create};
+});
+// 記録の保存（記録・予定の画面のどちらで書いても）を拾って送る
+store.setWriteHook(key=>RecordSync.touched(key));
+
+// 送信待ち・同期・受信は src/services/account-sync.js。状態は写さず、毎回ここの変数を読み書きする。
+// 関数宣言の巻き上げを保つため、初回呼出しで1つだけ作る（作るだけでは保存・通信・描画をしない）。
+function accountSync() {
+  return accountSync.instance ??= AstroNotesAccountSync.create({
+    state: {
+      get pushQueue() { return pushQueue; }, set pushQueue(v) { pushQueue = v; },
+      get syncInfo() { return syncInfo; }, set syncInfo(v) { syncInfo = v; },
+      get syncError() { return syncError; }, set syncError(v) { syncError = v; },
+      get favorites() { return favorites; }, set favorites(v) { favorites = v; },
+      get sightings() { return sightings; }, set sightings(v) { sightings = v; },
+    },
+    session: { auth: () => auth, generation: () => authGeneration },
+    apiCall: (...args) => apiCall(...args),
+    store,
+    toItem, cleanFavorite, cleanSighting,
+    records: () => typeof RecordSync !== "undefined" ? RecordSync : undefined,
+    refresh: () => globalThis.AstroTargetPicker?.refresh?.(),
+    render: () => renderAuthButton(),
+  });
+}
+
+/// 送れなかったものを覚えておく。次に繋がったときに送る。
+function queuePush(kind, id) { return accountSync().queuePush(kind, id); }
+function syncNow() { return accountSync().syncNow(); }
+/// サーバーから来たものをローカルへ入れる。**サーバー側も外部データとして検査する。**
+function applyIncoming(got) { return accountSync().applyIncoming(got); }
 
 // 「保持する」の希望。**既定は外す**（2026-09-08 ユーザー判断）。
 // 30日残る鍵を、頼まれてもいないのに置かない。外したままでも

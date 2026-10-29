@@ -9,11 +9,16 @@
     "src/startup/theme-meta.js",
     "src/app/presentation-helpers.js",
     "src/app/state-owner.js",
+    "src/ports/storage.js",
+    "src/ports/auth-storage.js",
+    "src/ports/http-client.js",
     "src/app/browser-state.js",
     "src/features/forecast/load.js",
     "src/features/forecast/view.js",
     "src/features/photos/controller.js",
     "src/features/home/controller.js",
+    "src/domain/navigation/routes.js",
+    "src/domain/navigation/history.js",
     "src/app/navigation.js",
     "src/features/forecast/detail.js",
     "src/features/results/controller.js",
@@ -24,7 +29,14 @@
     "src/features/satellites/controller.js",
     "src/features/framing/observer.js",
     "src/features/framing/candidates.js",
-    "src/ui/scene/renderer.js",
+    "src/domain/scene/appearance.js",
+    "src/ui/scene/appearance-bridge.js",
+    "src/ui/scene/terrain.js",
+    "src/ui/scene/lens.js",
+    "src/ui/scene/silhouette.js",
+    "src/ui/scene/render.js",
+    "src/ui/scene/input.js",
+    "src/ui/scene/reverse.js",
     "src/features/framing/reverse-and-entry.js",
     "src/services/place-search.js",
     "src/features/account/session-and-access.js",
@@ -32,7 +44,22 @@
     "src/ui/gestures.js",
     "src/features/account/status.js",
     "src/services/record-sync.js",
-    "src/features/account/controller.js",
+    "src/services/account-sync.js",
+    "src/features/account/sync-bridge.js",
+    "src/features/account/remember-and-token.js",
+    "src/features/account/access-recheck.js",
+    "src/features/account/login-session.js",
+    "src/features/account/auth-panels.js",
+    "src/features/account/passkey-login.js",
+    "src/features/account/password-policy.js",
+    "src/features/account/account-actions.js",
+    "src/features/account/recovery-codes.js",
+    "src/features/account/retirement.js",
+    "src/features/account/admin-view.js",
+    "src/features/account/guidance.js",
+    "src/features/account/library-transfer.js",
+    "src/startup/runtime-effects.js",
+    "src/features/plans/share-button.js",
     "src/features/plans/controller.js",
     "src/ui/visual-primitives.js",
     "src/features/framing/presentation.js",
@@ -63,6 +90,18 @@
       "kind": "state-owner"
     },
     {
+      "path": "src/ports/storage.js",
+      "kind": "factory"
+    },
+    {
+      "path": "src/ports/auth-storage.js",
+      "kind": "factory"
+    },
+    {
+      "path": "src/ports/http-client.js",
+      "kind": "factory"
+    },
+    {
       "path": "src/app/browser-state.js",
       "kind": "classic-fragment"
     },
@@ -81,6 +120,14 @@
     {
       "path": "src/features/home/controller.js",
       "kind": "classic-fragment"
+    },
+    {
+      "path": "src/domain/navigation/routes.js",
+      "kind": "factory"
+    },
+    {
+      "path": "src/domain/navigation/history.js",
+      "kind": "factory"
     },
     {
       "path": "src/app/navigation.js",
@@ -123,7 +170,35 @@
       "kind": "classic-fragment"
     },
     {
-      "path": "src/ui/scene/renderer.js",
+      "path": "src/domain/scene/appearance.js",
+      "kind": "factory"
+    },
+    {
+      "path": "src/ui/scene/appearance-bridge.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/ui/scene/terrain.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/ui/scene/lens.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/ui/scene/silhouette.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/ui/scene/render.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/ui/scene/input.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/ui/scene/reverse.js",
       "kind": "classic-fragment"
     },
     {
@@ -155,7 +230,67 @@
       "kind": "classic-fragment"
     },
     {
-      "path": "src/features/account/controller.js",
+      "path": "src/services/account-sync.js",
+      "kind": "factory"
+    },
+    {
+      "path": "src/features/account/sync-bridge.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/account/remember-and-token.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/account/access-recheck.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/account/login-session.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/account/auth-panels.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/account/passkey-login.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/account/password-policy.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/account/account-actions.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/account/recovery-codes.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/account/retirement.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/account/admin-view.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/account/guidance.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/account/library-transfer.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/startup/runtime-effects.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/plans/share-button.js",
       "kind": "classic-fragment"
     },
     {
@@ -198,5 +333,1560 @@
       ],
       "legacyAccessPolicy": true
     }
-  ]
+  ],
+  "architecture": {
+    "schemaVersion": 1,
+    "units": [
+      {
+        "path": "src/startup/paint-gate.js",
+        "layer": "composition",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/startup/theme.js",
+        "layer": "composition",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/startup/theme-meta.js",
+        "layer": "composition",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/app/presentation-helpers.js",
+        "layer": "composition",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/app/state-owner.js",
+        "layer": "composition",
+        "scope": "factory",
+        "provides": [
+          "AstroNotesStateOwner"
+        ],
+        "requires": [],
+        "forbiddenAmbient": [
+          "document",
+          "window",
+          "localStorage",
+          "sessionStorage",
+          "auth",
+          "authGeneration",
+          "RecordSync",
+          "favorites",
+          "sightings",
+          "pushQueue",
+          "syncInfo",
+          "syncError"
+        ]
+      },
+      {
+        "path": "src/ports/storage.js",
+        "layer": "ports",
+        "scope": "factory",
+        "provides": [
+          "AstroNotesStorage"
+        ],
+        "requires": [],
+        "forbiddenAmbient": [
+          "document",
+          "window",
+          "localStorage",
+          "sessionStorage",
+          "auth",
+          "authGeneration",
+          "RecordSync",
+          "favorites",
+          "sightings",
+          "pushQueue",
+          "syncInfo",
+          "syncError"
+        ]
+      },
+      {
+        "path": "src/ports/auth-storage.js",
+        "layer": "ports",
+        "scope": "factory",
+        "provides": [
+          "AstroNotesAuthStorage"
+        ],
+        "requires": [],
+        "forbiddenAmbient": [
+          "document",
+          "window",
+          "localStorage",
+          "sessionStorage",
+          "auth",
+          "authGeneration",
+          "RecordSync",
+          "favorites",
+          "sightings",
+          "pushQueue",
+          "syncInfo",
+          "syncError"
+        ]
+      },
+      {
+        "path": "src/ports/http-client.js",
+        "layer": "ports",
+        "scope": "factory",
+        "provides": [
+          "AstroNotesHttpClient"
+        ],
+        "requires": [],
+        "forbiddenAmbient": [
+          "document",
+          "window",
+          "localStorage",
+          "sessionStorage",
+          "auth",
+          "authGeneration",
+          "RecordSync",
+          "favorites",
+          "sightings",
+          "pushQueue",
+          "syncInfo",
+          "syncError"
+        ]
+      },
+      {
+        "path": "src/app/browser-state.js",
+        "layer": "composition",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": [
+          "AstroNotesStateOwner",
+          "AstroNotesStorage"
+        ]
+      },
+      {
+        "path": "src/features/forecast/load.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/forecast/view.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/photos/controller.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/home/controller.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/domain/navigation/routes.js",
+        "layer": "domain",
+        "scope": "factory",
+        "provides": [
+          "AstroNotesNavigationRoutes"
+        ],
+        "requires": [],
+        "forbiddenAmbient": [
+          "document",
+          "window",
+          "localStorage",
+          "sessionStorage",
+          "auth",
+          "authGeneration",
+          "RecordSync",
+          "favorites",
+          "sightings",
+          "pushQueue",
+          "syncInfo",
+          "syncError",
+          "fetch",
+          "history",
+          "location"
+        ]
+      },
+      {
+        "path": "src/domain/navigation/history.js",
+        "layer": "ports",
+        "scope": "factory",
+        "provides": [
+          "AstroNotesNavigationHistory"
+        ],
+        "requires": [],
+        "forbiddenAmbient": [
+          "document",
+          "window",
+          "localStorage",
+          "sessionStorage",
+          "auth",
+          "authGeneration",
+          "RecordSync",
+          "favorites",
+          "sightings",
+          "pushQueue",
+          "syncInfo",
+          "syncError",
+          "fetch"
+        ]
+      },
+      {
+        "path": "src/app/navigation.js",
+        "layer": "composition",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": [
+          "AstroNotesNavigationRoutes",
+          "AstroNotesNavigationHistory"
+        ]
+      },
+      {
+        "path": "src/features/forecast/detail.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/results/controller.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/places/controller.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/ui/map/picker.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/framing/controller.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/aircraft/controller.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/satellites/controller.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/framing/observer.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/framing/candidates.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/domain/scene/appearance.js",
+        "layer": "domain",
+        "scope": "factory",
+        "provides": [
+          "AstroNotesSceneAppearance"
+        ],
+        "requires": [],
+        "forbiddenAmbient": [
+          "document",
+          "window",
+          "localStorage",
+          "sessionStorage",
+          "auth",
+          "authGeneration",
+          "RecordSync",
+          "favorites",
+          "sightings",
+          "pushQueue",
+          "syncInfo",
+          "syncError",
+          "fetch",
+          "history",
+          "location"
+        ]
+      },
+      {
+        "path": "src/ui/scene/appearance-bridge.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": [
+          "AstroNotesSceneAppearance"
+        ]
+      },
+      {
+        "path": "src/ui/scene/terrain.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/ui/scene/lens.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/ui/scene/silhouette.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/ui/scene/render.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/ui/scene/input.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/ui/scene/reverse.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/framing/reverse-and-entry.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/services/place-search.js",
+        "layer": "services",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/account/session-and-access.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": [
+          "AstroNotesStateOwner",
+          "AstroNotesAuthStorage",
+          "AstroNotesHttpClient"
+        ]
+      },
+      {
+        "path": "src/app/overlays.js",
+        "layer": "composition",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/ui/gestures.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/account/status.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/services/record-sync.js",
+        "layer": "services",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/services/account-sync.js",
+        "layer": "services",
+        "scope": "factory",
+        "provides": [
+          "AstroNotesAccountSync"
+        ],
+        "requires": [],
+        "forbiddenAmbient": [
+          "document",
+          "window",
+          "localStorage",
+          "sessionStorage",
+          "auth",
+          "authGeneration",
+          "RecordSync",
+          "favorites",
+          "sightings",
+          "pushQueue",
+          "syncInfo",
+          "syncError"
+        ]
+      },
+      {
+        "path": "src/features/account/sync-bridge.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": [
+          "AstroNotesAccountSync"
+        ]
+      },
+      {
+        "path": "src/features/account/remember-and-token.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/account/access-recheck.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/account/login-session.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/account/auth-panels.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/account/passkey-login.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/account/password-policy.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/account/account-actions.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/account/recovery-codes.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/account/retirement.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/account/admin-view.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/account/guidance.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/account/library-transfer.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/startup/runtime-effects.js",
+        "layer": "composition",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/plans/share-button.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/plans/controller.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/ui/visual-primitives.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/framing/presentation.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/explore/map-presentation.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/ui/intuitive-controls.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/startup/preferences.js",
+        "layer": "composition",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/ui/panel-controls.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/domain/planning/session.js",
+        "layer": "domain",
+        "scope": "factory",
+        "provides": [
+          "AstroNotesPlanningSession"
+        ],
+        "requires": [],
+        "forbiddenAmbient": [
+          "document",
+          "window",
+          "localStorage",
+          "sessionStorage",
+          "auth",
+          "authGeneration",
+          "RecordSync",
+          "favorites",
+          "sightings",
+          "pushQueue",
+          "syncInfo",
+          "syncError",
+          "fetch",
+          "history",
+          "location"
+        ]
+      },
+      {
+        "path": "src/features/explore/layout.js",
+        "layer": "presentation",
+        "scope": "factory",
+        "provides": [
+          "AstroNotesExploreLayout"
+        ],
+        "requires": [],
+        "forbiddenAmbient": [
+          "document",
+          "window",
+          "localStorage",
+          "sessionStorage",
+          "auth",
+          "authGeneration",
+          "RecordSync",
+          "favorites",
+          "sightings",
+          "pushQueue",
+          "syncInfo",
+          "syncError"
+        ]
+      },
+      {
+        "path": "src/features/explore/controller.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": [
+          "AstroNotesPlanningSession",
+          "AstroNotesExploreLayout"
+        ]
+      }
+    ],
+    "bridges": [
+      {
+        "name": "atSkyMap",
+        "owner": "viewStateOwner",
+        "definition": "src/app/browser-state.js",
+        "purpose": "地図/探すの表示中フラグを既存呼出先から単一ownerへ接続",
+        "retireWhen": "地図/探すの表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
+        "references": [
+          "src/features/forecast/view.js",
+          "src/app/navigation.js",
+          "src/app/overlays.js",
+          "src/features/account/admin-view.js",
+          "src/features/explore/controller.js"
+        ]
+      },
+      {
+        "name": "atAim",
+        "owner": "viewStateOwner",
+        "definition": "src/app/browser-state.js",
+        "purpose": "旧構図画面の表示中フラグを既存呼出先から単一ownerへ接続",
+        "retireWhen": "旧構図画面の表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
+        "references": [
+          "src/features/forecast/view.js",
+          "src/app/navigation.js",
+          "src/features/framing/observer.js",
+          "src/features/framing/reverse-and-entry.js",
+          "src/features/account/session-and-access.js",
+          "src/app/overlays.js",
+          "src/features/account/access-recheck.js",
+          "src/features/account/login-session.js",
+          "src/features/explore/controller.js"
+        ]
+      },
+      {
+        "name": "atPlane",
+        "owner": "viewStateOwner",
+        "definition": "src/app/browser-state.js",
+        "purpose": "飛行機画面の表示中フラグを既存呼出先から単一ownerへ接続",
+        "retireWhen": "飛行機画面の表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
+        "references": [
+          "src/features/forecast/view.js",
+          "src/app/navigation.js",
+          "src/features/aircraft/controller.js",
+          "src/features/account/session-and-access.js"
+        ]
+      },
+      {
+        "name": "atIss",
+        "owner": "viewStateOwner",
+        "definition": "src/app/browser-state.js",
+        "purpose": "人工衛星画面の表示中フラグを既存呼出先から単一ownerへ接続",
+        "retireWhen": "人工衛星画面の表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
+        "references": [
+          "src/features/forecast/view.js",
+          "src/app/navigation.js",
+          "src/features/satellites/controller.js",
+          "src/features/account/session-and-access.js"
+        ]
+      },
+      {
+        "name": "atAnswers",
+        "owner": "viewStateOwner",
+        "definition": "src/app/browser-state.js",
+        "purpose": "結果回答画面の表示中フラグを既存呼出先から単一ownerへ接続",
+        "retireWhen": "結果回答画面の表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
+        "references": [
+          "src/features/forecast/view.js",
+          "src/app/navigation.js",
+          "src/features/results/controller.js",
+          "src/features/places/controller.js",
+          "src/features/account/session-and-access.js"
+        ]
+      },
+      {
+        "name": "atAlmanac",
+        "owner": "viewStateOwner",
+        "definition": "src/app/browser-state.js",
+        "purpose": "ホーム暦画面と再生の表示中フラグを既存呼出先から単一ownerへ接続",
+        "retireWhen": "ホーム暦画面と再生の表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
+        "references": [
+          "src/features/forecast/view.js",
+          "src/features/home/controller.js",
+          "src/app/navigation.js"
+        ]
+      },
+      {
+        "name": "atRecords",
+        "owner": "viewStateOwner",
+        "definition": "src/app/browser-state.js",
+        "purpose": "記録画面の表示中フラグを既存呼出先から単一ownerへ接続",
+        "retireWhen": "記録画面の表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
+        "references": [
+          "src/features/forecast/view.js",
+          "src/app/navigation.js"
+        ]
+      },
+      {
+        "name": "atAdmin",
+        "owner": "viewStateOwner",
+        "definition": "src/app/browser-state.js",
+        "purpose": "管理画面と旧応答拒否の表示中フラグを既存呼出先から単一ownerへ接続",
+        "retireWhen": "管理画面と旧応答拒否の表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
+        "references": [
+          "src/features/forecast/view.js",
+          "src/app/navigation.js",
+          "src/features/account/status.js",
+          "src/features/account/access-recheck.js",
+          "src/features/account/admin-view.js"
+        ]
+      },
+      {
+        "name": "authGeneration",
+        "owner": "accessGenerationOwner",
+        "definition": "src/features/account/session-and-access.js",
+        "purpose": "認証変更世代による旧通信/描画/復元の拒否を既存呼出先から単一ownerへ接続",
+        "retireWhen": "認証変更世代による旧通信/描画/復元の拒否の全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
+        "references": [
+          "src/features/photos/controller.js",
+          "src/features/account/sync-bridge.js",
+          "src/features/account/access-recheck.js",
+          "src/features/account/login-session.js",
+          "src/features/account/library-transfer.js",
+          "src/features/plans/controller.js",
+          "src/features/explore/controller.js"
+        ]
+      }
+    ],
+    "classicComposition": "legacyRuntimeOrderは同期で実行する単一composition scope。UI fragmentsの既存共有識別子はこのscope内の接着。factory/pure境界への逆流は禁止。",
+    "compatibility": [
+      {
+        "name": "apiCall",
+        "kind": "function",
+        "owner": "apiTransport",
+        "definition": "src/features/account/session-and-access.js",
+        "implementation": "apiTransport(",
+        "purpose": "既存のapiCall利用先をapiTransportへ同じ値/関数/Promiseで接続",
+        "retireWhen": "apiCallの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
+        "readers": [
+          "src/features/photos/controller.js",
+          "src/features/account/sync-bridge.js",
+          "src/features/account/access-recheck.js",
+          "src/features/account/login-session.js",
+          "src/features/account/passkey-login.js",
+          "src/features/account/password-policy.js",
+          "src/features/account/account-actions.js",
+          "src/features/account/recovery-codes.js",
+          "src/features/account/retirement.js",
+          "src/features/account/admin-view.js",
+          "src/features/explore/map-presentation.js"
+        ]
+      },
+      {
+        "name": "saveAuth",
+        "kind": "function",
+        "owner": "authStorage",
+        "definition": "src/features/account/session-and-access.js",
+        "implementation": "authStorage.save(",
+        "purpose": "既存のsaveAuth利用先をauthStorageへ同じ値/関数/Promiseで接続",
+        "retireWhen": "saveAuthの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
+        "readers": [
+          "src/features/account/remember-and-token.js",
+          "src/features/account/access-recheck.js",
+          "src/features/account/login-session.js"
+        ]
+      },
+      {
+        "name": "storedAuth",
+        "kind": "function",
+        "owner": "authStorage",
+        "definition": "src/features/account/session-and-access.js",
+        "implementation": "authStorage.read(",
+        "purpose": "既存のstoredAuth利用先をauthStorageへ同じ値/関数/Promiseで接続",
+        "retireWhen": "storedAuthの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
+        "readers": [
+          "src/features/account/access-recheck.js"
+        ]
+      },
+      {
+        "name": "queuePush",
+        "kind": "function",
+        "owner": "accountSync singleton",
+        "definition": "src/features/account/sync-bridge.js",
+        "implementation": "accountSync().queuePush(",
+        "purpose": "既存のqueuePush利用先をaccountSync singletonへ同じ値/関数/Promiseで接続",
+        "retireWhen": "queuePushの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
+        "readers": [
+          "src/features/results/controller.js",
+          "src/features/places/controller.js",
+          "src/features/framing/controller.js",
+          "src/features/framing/reverse-and-entry.js"
+        ]
+      },
+      {
+        "name": "syncNow",
+        "kind": "function",
+        "owner": "accountSync singleton",
+        "definition": "src/features/account/sync-bridge.js",
+        "implementation": "accountSync().syncNow(",
+        "purpose": "既存のsyncNow利用先をaccountSync singletonへ同じ値/関数/Promiseで接続",
+        "retireWhen": "syncNowの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
+        "readers": [
+          "src/services/record-sync.js",
+          "src/features/account/access-recheck.js",
+          "src/features/account/login-session.js",
+          "src/features/account/account-actions.js",
+          "src/features/account/library-transfer.js"
+        ]
+      },
+      {
+        "name": "applyIncoming",
+        "kind": "function",
+        "owner": "accountSync singleton",
+        "definition": "src/features/account/sync-bridge.js",
+        "implementation": "accountSync().applyIncoming(",
+        "purpose": "既存のapplyIncoming利用先をaccountSync singletonへ同じ値/関数/Promiseで接続",
+        "retireWhen": "applyIncomingの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
+        "readers": []
+      },
+      {
+        "name": "routeFromHash",
+        "kind": "function",
+        "owner": "AstroNotesNavigationRoutes/navigationHistory",
+        "definition": "src/app/navigation.js",
+        "implementation": "AstroNotesNavigationRoutes",
+        "purpose": "既存のrouteFromHash利用先をAstroNotesNavigationRoutes/navigationHistoryへ同じ値/関数/Promiseで接続",
+        "retireWhen": "routeFromHashの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
+        "readers": [
+          "src/features/forecast/load.js",
+          "src/features/forecast/view.js",
+          "src/features/satellites/controller.js",
+          "src/features/account/session-and-access.js",
+          "src/features/account/login-session.js",
+          "src/features/plans/controller.js",
+          "src/features/explore/map-presentation.js",
+          "src/features/explore/controller.js"
+        ]
+      },
+      {
+        "name": "pushRoute",
+        "kind": "function",
+        "owner": "AstroNotesNavigationRoutes/navigationHistory",
+        "definition": "src/app/navigation.js",
+        "implementation": "navigationHistory.pushRoute(",
+        "purpose": "既存のpushRoute利用先をAstroNotesNavigationRoutes/navigationHistoryへ同じ値/関数/Promiseで接続",
+        "retireWhen": "pushRouteの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
+        "readers": [
+          "src/features/forecast/view.js",
+          "src/features/results/controller.js",
+          "src/app/overlays.js",
+          "src/features/account/admin-view.js",
+          "src/features/plans/controller.js",
+          "src/features/framing/presentation.js",
+          "src/features/explore/map-presentation.js"
+        ]
+      },
+      {
+        "name": "goBack",
+        "kind": "function",
+        "owner": "AstroNotesNavigationRoutes/navigationHistory",
+        "definition": "src/app/navigation.js",
+        "implementation": "navigationHistory.goBack(",
+        "purpose": "既存のgoBack利用先をAstroNotesNavigationRoutes/navigationHistoryへ同じ値/関数/Promiseで接続",
+        "retireWhen": "goBackの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
+        "readers": [
+          "src/app/overlays.js",
+          "src/ui/gestures.js"
+        ]
+      },
+      {
+        "name": "goList",
+        "kind": "function",
+        "owner": "AstroNotesNavigationRoutes/navigationHistory",
+        "definition": "src/app/navigation.js",
+        "implementation": "navigationHistory.goList(",
+        "purpose": "既存のgoList利用先をAstroNotesNavigationRoutes/navigationHistoryへ同じ値/関数/Promiseで接続",
+        "retireWhen": "goListの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
+        "readers": [
+          "src/features/results/controller.js",
+          "src/app/overlays.js"
+        ]
+      },
+      {
+        "name": "NO_HISTORY",
+        "kind": "alias",
+        "owner": "navigationHistory configuration",
+        "definition": "src/app/navigation.js",
+        "implementation": "navigator.standalone === true",
+        "purpose": "既存のNO_HISTORY利用先をnavigationHistory configurationへ同じ値/関数/Promiseで接続",
+        "retireWhen": "NO_HISTORYの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
+        "readers": [
+          "src/app/overlays.js"
+        ]
+      },
+      {
+        "name": "appTrail",
+        "kind": "alias",
+        "owner": "navigationHistory",
+        "definition": "src/app/navigation.js",
+        "implementation": "navigationHistory.appTrail",
+        "purpose": "既存のappTrail利用先をnavigationHistoryへ同じ値/関数/Promiseで接続",
+        "retireWhen": "appTrailの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
+        "readers": []
+      },
+      {
+        "name": "aimLookSky",
+        "kind": "alias",
+        "owner": "AstroNotesSceneAppearance",
+        "definition": "src/ui/scene/appearance-bridge.js",
+        "implementation": "AstroNotesSceneAppearance",
+        "purpose": "既存のaimLookSky利用先をAstroNotesSceneAppearanceへ同じ値/関数/Promiseで接続",
+        "retireWhen": "aimLookSkyの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
+        "readers": [
+          "src/ui/scene/render.js"
+        ]
+      },
+      {
+        "name": "aimLimbDir",
+        "kind": "alias",
+        "owner": "AstroNotesSceneAppearance",
+        "definition": "src/ui/scene/appearance-bridge.js",
+        "implementation": "AstroNotesSceneAppearance",
+        "purpose": "既存のaimLimbDir利用先をAstroNotesSceneAppearanceへ同じ値/関数/Promiseで接続",
+        "retireWhen": "aimLimbDirの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
+        "readers": []
+      },
+      {
+        "name": "aimLookDisc",
+        "kind": "alias",
+        "owner": "AstroNotesSceneAppearance",
+        "definition": "src/ui/scene/appearance-bridge.js",
+        "implementation": "AstroNotesSceneAppearance",
+        "purpose": "既存のaimLookDisc利用先をAstroNotesSceneAppearanceへ同じ値/関数/Promiseで接続",
+        "retireWhen": "aimLookDiscの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
+        "readers": [
+          "src/ui/scene/render.js",
+          "src/features/explore/map-presentation.js"
+        ]
+      },
+      {
+        "name": "accountSync",
+        "kind": "function",
+        "owner": "AstroNotesAccountSync single lazy instance",
+        "definition": "src/features/account/sync-bridge.js",
+        "implementation": "AstroNotesAccountSync.create(",
+        "purpose": "初回呼出し時に単一sync serviceを生成し旧関数hoistingの利用時点を維持",
+        "retireWhen": "全同期利用先がcomposition時に注入されたservice参照を受け取れる時",
+        "readers": []
+      },
+      {
+        "name": "AIM_LOOK_SKY",
+        "kind": "alias",
+        "owner": "AstroNotesSceneAppearance",
+        "definition": "src/ui/scene/appearance-bridge.js",
+        "implementation": "AstroNotesSceneAppearance",
+        "purpose": "既存描画の空色プリセットを純粋appearance正本から参照する。",
+        "retireWhen": "renderがappearanceの空色プリセットを明示引数で受け、AIM_LOOK_SKYのclassic参照がなくなった時。",
+        "readers": []
+      }
+    ],
+    "globalObjectReferences": [
+      {
+        "name": "AstroNotes",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-core.js"
+        ],
+        "readers": [
+          "src/app/presentation-helpers.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "AstroNotesAlmanacDashboard",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-almanac-dashboard.js"
+        ],
+        "readers": [
+          "src/features/home/controller.js",
+          "src/app/navigation.js",
+          "src/app/overlays.js",
+          "src/startup/preferences.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "AstroNotesCameraUI",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-camera-ui.js"
+        ],
+        "readers": [
+          "src/ui/scene/render.js",
+          "src/features/plans/controller.js",
+          "src/features/framing/presentation.js",
+          "src/features/explore/map-presentation.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "AstroNotesJourney",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-journey.js"
+        ],
+        "readers": [
+          "src/features/forecast/view.js",
+          "src/features/plans/controller.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "AstroNotesPhotoAnalysis",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-photo-analysis.js"
+        ],
+        "readers": [
+          "src/features/photos/controller.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "AstroNotesPlanUI",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/plans/controller.js"
+        ],
+        "readers": [
+          "src/features/account/status.js",
+          "src/features/plans/controller.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "AstroNotesPrediction",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-prediction.js"
+        ],
+        "readers": [
+          "src/features/results/controller.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "AstroNotesStartupPaintTimer",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/startup/paint-gate.js"
+        ],
+        "readers": [
+          "src/startup/paint-gate.js",
+          "src/startup/preferences.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "AstroTargetPicker",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/framing/presentation.js"
+        ],
+        "readers": [
+          "src/features/account/status.js",
+          "src/features/account/sync-bridge.js",
+          "src/features/framing/presentation.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "MyPlacesUI",
+        "category": "existing-public-bridge",
+        "owner": [
+          "sorami-myplaces.js",
+          "astronotes-myplaces.js"
+        ],
+        "readers": [
+          "src/features/results/controller.js",
+          "src/features/places/controller.js",
+          "src/features/framing/controller.js",
+          "src/features/framing/observer.js",
+          "src/services/place-search.js",
+          "src/features/account/library-transfer.js",
+          "src/features/framing/presentation.js",
+          "src/features/explore/map-presentation.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "PublicKeyCredential",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/features/account/session-and-access.js",
+          "src/features/account/auth-panels.js",
+          "src/features/account/password-policy.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "SoramiAssets",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/explore/controller.js"
+        ],
+        "readers": [
+          "src/features/explore/controller.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "SoramiAtmosphere",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/explore/controller.js"
+        ],
+        "readers": [
+          "src/features/explore/controller.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "SoramiBodies",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/explore/controller.js"
+        ],
+        "readers": [
+          "src/features/explore/controller.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "SoramiSkyMap",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/explore/controller.js"
+        ],
+        "readers": [
+          "src/features/explore/controller.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "TrialExplore",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/explore/controller.js"
+        ],
+        "readers": [
+          "src/features/forecast/view.js",
+          "src/app/navigation.js",
+          "src/features/satellites/controller.js",
+          "src/features/framing/observer.js",
+          "src/features/framing/candidates.js",
+          "src/ui/scene/render.js",
+          "src/features/account/session-and-access.js",
+          "src/features/plans/controller.js",
+          "src/features/framing/presentation.js",
+          "src/features/explore/map-presentation.js",
+          "src/features/explore/controller.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "_favFilter",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/places/controller.js"
+        ],
+        "readers": [
+          "src/features/places/controller.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "addEventListener",
+        "category": "browser-platform",
+        "owner": [
+          "sorami-datetime-ui.js",
+          "astronotes-datetime-ui.js"
+        ],
+        "readers": [
+          "src/app/navigation.js",
+          "src/ui/map/picker.js",
+          "src/features/framing/reverse-and-entry.js",
+          "src/app/overlays.js",
+          "src/features/account/access-recheck.js",
+          "src/features/account/admin-view.js",
+          "src/features/plans/controller.js",
+          "src/features/framing/presentation.js",
+          "src/features/explore/controller.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "devicePixelRatio",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/ui/map/picker.js",
+          "src/features/satellites/controller.js",
+          "src/ui/scene/render.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "dispatchEvent",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/services/record-sync.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "localStorage",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/features/forecast/view.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "matchMedia",
+        "category": "browser-platform",
+        "owner": [
+          "astronotes-almanac-dashboard.js",
+          "sorami-almanac-dashboard.js"
+        ],
+        "readers": [
+          "src/app/browser-state.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "pagePop",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/app/overlays.js"
+        ],
+        "readers": [
+          "src/app/navigation.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "scrollTo",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/app/navigation.js",
+          "src/features/satellites/controller.js",
+          "src/features/framing/candidates.js",
+          "src/features/framing/reverse-and-entry.js",
+          "src/ui/gestures.js",
+          "src/features/plans/controller.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "scrollY",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/app/navigation.js",
+          "src/features/satellites/controller.js",
+          "src/features/framing/candidates.js",
+          "src/features/framing/reverse-and-entry.js",
+          "src/features/plans/controller.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "self",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/features/account/admin-view.js",
+          "src/startup/runtime-effects.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "top",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/features/account/admin-view.js",
+          "src/startup/runtime-effects.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      }
+    ],
+    "externalProviders": [
+      {
+        "name": "AstroNotesAccess",
+        "source": "astronotes-access.js"
+      },
+      {
+        "name": "AstroNotesAlign",
+        "source": "astronotes-align.js"
+      },
+      {
+        "name": "AstroNotesAlmanacDashboard",
+        "source": "astronotes-almanac-dashboard.js"
+      },
+      {
+        "name": "AstroNotesAssets",
+        "source": "astronotes-assets.js"
+      },
+      {
+        "name": "AstroNotesAstro",
+        "source": "astronotes-astro.js"
+      },
+      {
+        "name": "AstroNotesAtmosphere",
+        "source": "astronotes-atmosphere.js"
+      },
+      {
+        "name": "AstroNotesBodies",
+        "source": "astronotes-bodies.js"
+      },
+      {
+        "name": "AstroNotesCalendarMoon",
+        "source": "astronotes-body-portrait.js"
+      },
+      {
+        "name": "AstroNotesCameraUI",
+        "source": "astronotes-camera-ui.js"
+      },
+      {
+        "name": "AstroNotesCapCloud",
+        "source": "astronotes-capcloud.js"
+      },
+      {
+        "name": "AstroNotesExif",
+        "source": "astronotes-exif.js"
+      },
+      {
+        "name": "AstroNotesFuji",
+        "source": "astronotes-fuji.js"
+      },
+      {
+        "name": "AstroNotesHomeTime",
+        "source": "astronotes-home-time.js"
+      },
+      {
+        "name": "AstroNotesIcons",
+        "source": "astronotes-icons.js"
+      },
+      {
+        "name": "AstroNotesISS",
+        "source": "astronotes-iss.js"
+      },
+      {
+        "name": "AstroNotesJourney",
+        "source": "astronotes-journey.js"
+      },
+      {
+        "name": "AstroNotesLibrary",
+        "source": "astronotes-library.js"
+      },
+      {
+        "name": "AstroNotesLunarNames",
+        "source": "astronotes-lunar-names.js"
+      },
+      {
+        "name": "AstroNotesMoonPortrait",
+        "source": "astronotes-moon-portrait.js"
+      },
+      {
+        "name": "AstroNotesMoon",
+        "source": "astronotes-moon.js"
+      },
+      {
+        "name": "AstroNotesMountain",
+        "source": "astronotes-mountain.js"
+      },
+      {
+        "name": "AstroNotesPhotoAnalysis",
+        "source": "astronotes-photo-analysis.js"
+      },
+      {
+        "name": "AstroNotesPlane",
+        "source": "astronotes-plane.js"
+      },
+      {
+        "name": "AstroNotesPlusCode",
+        "source": "astronotes-plus-code.js"
+      },
+      {
+        "name": "AstroNotesPrediction",
+        "source": "astronotes-prediction.js"
+      },
+      {
+        "name": "AstroNotesRefraction",
+        "source": "astronotes-refraction.js"
+      },
+      {
+        "name": "AstroNotesRoutes",
+        "source": "astronotes-routes.js"
+      },
+      {
+        "name": "AstroNotesSavedRounds",
+        "source": "astronotes-saved-rounds.js"
+      },
+      {
+        "name": "AstroNotesSchedule",
+        "source": "astronotes-schedule.js"
+      },
+      {
+        "name": "AstroNotesScrollTimeline",
+        "source": "astronotes-scroll-timeline.js"
+      },
+      {
+        "name": "AstroNotesPlaceSearch",
+        "source": "astronotes-search.js"
+      },
+      {
+        "name": "AstroNotesShapePlanner",
+        "source": "astronotes-shape-planner.js"
+      },
+      {
+        "name": "AstroNotesShooting",
+        "source": "astronotes-shooting.js"
+      },
+      {
+        "name": "AstroNotesSkyMap",
+        "source": "astronotes-sky-map.js"
+      },
+      {
+        "name": "AstroNotesSky",
+        "source": "astronotes-sky.js"
+      },
+      {
+        "name": "AstroNotesSolarTerms",
+        "source": "astronotes-solar-terms.js"
+      },
+      {
+        "name": "AstroNotesSunPortrait",
+        "source": "astronotes-sun-portrait.js"
+      },
+      {
+        "name": "AstroNotesTargetUI",
+        "source": "astronotes-target-ui.js"
+      },
+      {
+        "name": "AstroNotesTerrain",
+        "source": "astronotes-terrain.js"
+      },
+      {
+        "name": "AstroNotesTimelapse",
+        "source": "astronotes-timelapse.js"
+      }
+    ]
+  }
 }

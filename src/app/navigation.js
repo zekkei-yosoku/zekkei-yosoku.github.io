@@ -1,33 +1,11 @@
+/// 判定は AstroNotesNavigationRoutes（純粋）。旧共有URL #p= は読むたびに #/aim?plan= へ置き換えてから判定する（置き換え後の hash を読む）
+/// メニューから来たときは、何を狙うかが決まっている（#/aim/fuji など。目標と天体を先に入れる）。#/iss/pick は以前の衛星を選ぶの道（今はページを重ねる。openIss）
+/// **`SCORERS` ではなく `PHENOMENA` で見る。** 富士山と月は core が採点しない（astronotes-fuji / astronotes-moon が採点して
+/// `weeks` へ入れる）ので、`SCORERS` に無い。ここで弾くと詳細が開かない。
 function routeFromHash() {
-  if(location.hash.startsWith('#p=')){
-    let token='';try{token=decodeURIComponent(location.hash.slice(3));}catch{/* Malformed escapes are not a shared route. */}
-    if(/^[\w.,\/-]{1,8000}$/.test(token))history.replaceState(history.state,'',location.pathname+location.search+'#/aim?plan='+token);
-  }
-  if(location.hash === "#/explore") return {skymap:true};
-  if (location.hash === "#/almanac") return { almanac: true };
-  if (location.hash.includes("?plan=")) {
-    const hash = location.hash.split("?")[0];
-    if (hash === "#/aim") return { aim: true };
-    const shared = /^#\/([A-Za-z]+)\/(\d+)$/.exec(hash);
-    if (shared && S.PHENOMENA[shared[1]]) return { id: shared[1], dayMs: Number(shared[2]) };
-  }
-  if (location.hash === "#/skymap") return { skymap: true };
-  if (location.hash === "#/records") return { records: true };
-  if (location.hash === "#/answers" || location.hash === "#/forecast/results") return { answers: true };
-  if (location.hash === "#/aim") return { aim: true };
-  // メニューから来たときは、何を狙うかが決まっている（目標と天体を先に入れる）
-  const am = /^#\/aim\/(fuji|diamond|pearl|tower)$/.exec(location.hash);
-  if (am) return { aim: true, preset: am[1] };
-  if (location.hash === "#/plane") return { plane: true };
-  if (location.hash === "#/iss") return { iss: true };
-  if (location.hash === "#/iss/pick") return { iss: true, issPick: true };   // 以前の衛星を選ぶの道（今はページを重ねる。openIss）
-  if (location.hash === "#/admin") return { admin: true };
-  const m = /^#\/([A-Za-z]+)(?:\/(\d+))?$/.exec(location.hash);
-  // **`SCORERS` ではなく `PHENOMENA` で見る。**
-  // 富士山と月は core が採点しない（astronotes-fuji / astronotes-moon が採点して
-  // `weeks` へ入れる）ので、`SCORERS` に無い。ここで弾くと詳細が開かない。
-  if (!m || !S.PHENOMENA[m[1]]) return null;
-  return { id: m[1], dayMs: m[2] ? Number(m[2]) : null };
+  const legacy = AstroNotesNavigationRoutes.normalizeLegacyHash(location.hash);
+  if (legacy !== null) history.replaceState(history.state, '', location.pathname + location.search + legacy);
+  return AstroNotesNavigationRoutes.parseRoute(location.hash, () => S.PHENOMENA);
 }
 
 /// 詳細へ進む。日を指定しなければ直近の回に合わせる。
@@ -49,22 +27,21 @@ function pick(id, now, dayMs) {
 /// メニューが開かない（一覧では開く＝戻る先が無いとき）。ページから iOS の戻る・進むは止められないので、戻る先を作らない。
 /// ひとつ前の画面はアプリの中で覚える（appTrail）。Safari のタブでは今までどおり積む（Safari の戻るボタンで戻れるように）。
 /// Android はホーム画面のアプリでも端のなぞりが OS の「戻る」なので積む（積まないとアプリから出てしまう）
+/// 来た道は AstroNotesNavigationHistory が単独で持つ。下の NO_HISTORY / appTrail は同じ値・同じ配列を指す読取口（写しではない）
 const NO_HISTORY = navigator.standalone === true;
-const appTrail = [];   // NO_HISTORY のときの来た道（前の画面の hash。一覧は ""）
-function pushRoute(hash) {
-  closeTools();
+const navigationHistory = AstroNotesNavigationHistory.createHistory({
+  noHistory: NO_HISTORY,
+  get location() { return location; },
+  get history() { return history; },
+  closeTools: () => closeTools(),
   // 選択のページを閉じて戻している途中なら、戻し終えてから移る（globalThis: 検査で関数だけを取り出して動かすときにも落ちない）
-  if (globalThis.pagePop?.n) { afterPagePop(() => pushRoute(hash)); return; }
-  if (location.hash === hash) return;
-  if (NO_HISTORY) {
-    appTrail.push(location.hash);
-    history.replaceState({ depth: appTrail.length }, "", hash);
-  } else {
-    const depth = ((history.state && history.state.depth) || 0) + 1;
-    history.pushState({ depth }, "", hash);
-  }
-  applyRoute();   // pushState・replaceState は hashchange を起こさない
-}
+  pagePop: () => globalThis.pagePop,
+  afterPagePop: (run) => afterPagePop(run),
+  applyRoute: () => applyRoute(),
+  routeFromHash: () => routeFromHash(),
+});
+const appTrail = navigationHistory.appTrail;   // NO_HISTORY のときの来た道（前の画面の hash。一覧は ""）
+function pushRoute(hash) { navigationHistory.pushRoute(hash); }
 
 /// 一覧へ戻る。**何画面進んでいても一度で戻る**（2026-10-01）。
 /// 1つずつ戻していたので、一覧→詳細→道具と進んでから題名を押すと詳細で止まっていた。
@@ -75,26 +52,9 @@ function isMenuPage() {
   const r = routeFromHash();
   return !r || !!(r.almanac || r.aim || r.skymap || r.plane || r.iss || r.records || r.answers);
 }
-function goBack() {
-  if (globalThis.pagePop?.n) { afterPagePop(goBack); return; }
-  if (NO_HISTORY) {
-    const prev = appTrail.pop();
-    if (!prev) { goList(); return; }
-    history.replaceState({ depth: appTrail.length }, "", prev);
-    applyRoute();
-    return;
-  }
-  if ((history.state && history.state.depth) > 0) history.back();
-  else goList();
-}
+function goBack() { navigationHistory.goBack(); }
 
-let toListAfterBack = false;
-function goList() {
-  if (NO_HISTORY) appTrail.length = 0;
-  const depth = NO_HISTORY ? 0 : (history.state && history.state.depth) || 0;
-  if (depth > 0) { toListAfterBack = true; history.go(-depth); return; }
-  if (routeFromHash()) { history.replaceState(null, "", location.pathname + location.search); applyRoute(); }
-}
+function goList() { navigationHistory.goList(); }
 
 function applyRoute() {
   if (restoreSharedPlan() === "reload") { load(true); return; }
@@ -155,10 +115,7 @@ document.addEventListener("click", (e) => {
 });
 window.addEventListener("hashchange", () => {
   closeTools();
-  if (toListAfterBack) {
-    toListAfterBack = false;
-    if (routeFromHash()) history.replaceState(null, "", location.pathname + location.search);
-  }
+  navigationHistory.settleListAfterBack();
   applyRoute();
 });
 

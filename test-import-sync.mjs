@@ -1,14 +1,17 @@
 import {createRequire} from 'node:module';const require=createRequire(import.meta.url);
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
-const syncSource=html.slice(html.indexOf('const toItem ='),html.indexOf('// 「保持する」の希望。'));
+const syncSource=html.slice(html.indexOf('const toItem ='),html.indexOf('// 記録の保存（記録・予定の画面のどちらで書いても）を拾って送る'));
 const importSource=html.slice(html.indexOf('function persistImportedData('),html.indexOf('// ブラウザに「この保存領域を勝手に消さないでほしい」と申請する。'));
+const AccountSync=require('./src/services/account-sync.js');
+// 実factoryのportへfixtureをつなぐ。状態はcの現在値を毎回読み書きし、写しを持たない。
+function connectAccountSync(c,ports={}){const lexical=name=>vm.runInContext(`typeof ${name}!=="undefined"?${name}:undefined`,c);const sync=AccountSync.create({state:c,session:{auth:()=>c.auth,generation:()=>c.authGeneration},apiCall:(...a)=>c.apiCall(...a),store:{set:(k,v)=>c.store.set(k,v)},toItem:(...a)=>lexical('toItem')(...a),cleanFavorite:x=>c.cleanFavorite(x),cleanSighting:x=>c.cleanSighting(x),records:()=>lexical('RecordSync'),refresh:()=>c.AstroTargetPicker?.refresh?.(),render:()=>c.renderAuthButton(),...ports});Object.assign(c,sync);return sync;}
 function fixture(){const disk=new Map(),alerts=[],calls=[],els={importFile:{value:'fixture'}};let failure=null;
  const c={AstroNotesLibrary:require('./astronotes-library.js'),AstroNotesShooting:require('./astronotes-shooting.js'),aimFillSelects(){},SkyMapUI:null,auth:{loginId:'owner',token:'synthetic'},authGeneration:1,dataOwner:'owner',favorites:[],sightings:[],pushQueue:[],syncInfo:null,syncError:null,
  localStorage:{getItem:k=>disk.get(k)??null,setItem(k,v){if(failure===k){failure=null;throw Error('quota');}disk.set(k,v)},removeItem:k=>disk.delete(k)},
  $:id=>els[id]??={},cleanSighting:x=>x?.id?x:null,cleanFavorite:x=>x?.id?x:null,render(){},renderAuthButton(){},alert:x=>alerts.push(x),
  apiCall:async(m,p,body)=>{calls.push({m,p,body});return m==='POST'?{accepted:{favorites:body.favorites.map(x=>x.id),sightings:body.sightings.map(x=>x.id)}}:{favorites:[],sightings:[],rev:1};}};
- c.store={get(k,d){const v=disk.get(k);return v?JSON.parse(v):d;},set(k,v){disk.set(k,JSON.stringify(v));return true;}};vm.createContext(c);vm.runInContext(syncSource+'\n'+importSource,c);
+ c.store={get(k,d){const v=disk.get(k);return v?JSON.parse(v):d;},set(k,v){disk.set(k,JSON.stringify(v));return true;}};vm.createContext(c);vm.runInContext(syncSource+'\n'+importSource,c);connectAccountSync(c);
  const event=text=>({target:{files:[{text:typeof text==='function'?text:async()=>text}],value:'fixture'}});
  return {c,disk,alerts,calls,fail:k=>failure=k,import:text=>els.importFile.onchange(event(text))};}
 const backup=JSON.stringify({favorites:[{id:'fav',name:'new'}],sightings:[{id:'sight',actualScore:1}]});

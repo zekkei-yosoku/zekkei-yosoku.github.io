@@ -1,10 +1,5 @@
 // ---------------------------------------------------------------- 永続化（localStorage）
-const store = {
-  get(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } },
-  // プライベートモードや容量超過で失敗する。黙って閉じると保存できたように見えるので、
-  // 成否を返して呼び出し側に判断させる。
-  set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } },
-};
+const store = AstroNotesStorage.create(()=>localStorage);
 // お気に入りは、内蔵スポットと同じ項目を自分で付けられる。
 // terrain は表示用ではない。astronotes-core の needsProfile（鉛直分布を取るか）と、
 // 雲海・霧氷の対象判定に使われる。ここで選び間違えると点数が変わる。

@@ -1,11 +1,14 @@
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import fs from 'node:fs';import {createRequire} from 'node:module';const require=createRequire(import.meta.url);
-const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),source=html.slice(html.indexOf('const toItem ='),html.indexOf('// 「保持する」の希望。'));
+const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),source=html.slice(html.indexOf('const toItem ='),html.indexOf('// 記録の保存（記録・予定の画面のどちらで書いても）を拾って送る'));
+const AccountSync=require('./src/services/account-sync.js');
+// 実factoryのportへfixtureをつなぐ。状態はcの現在値を毎回読み書きし、写しを持たない。
+function connectAccountSync(c,ports={}){const lexical=name=>vm.runInContext(`typeof ${name}!=="undefined"?${name}:undefined`,c);const sync=AccountSync.create({state:c,session:{auth:()=>c.auth,generation:()=>c.authGeneration},apiCall:(...a)=>c.apiCall(...a),store:{set:(k,v)=>c.store.set(k,v)},toItem:(...a)=>lexical('toItem')(...a),cleanFavorite:x=>c.cleanFavorite(x),cleanSighting:x=>c.cleanSighting(x),records:()=>lexical('RecordSync'),refresh:()=>c.AstroTargetPicker?.refresh?.(),render:()=>c.renderAuthButton(),...ports});Object.assign(c,sync);return sync;}
 const key='sorami.schedule.v1:runtime',snapKey='sorami.recordSync.v1:runtime';
 const old={id:'p',title:'before',start:1900000000000,end:1900000000100,savedAt:1,value:{}};
 function fixture(disk=new Map()) { let failure=()=>false;const posts=[];
  const c={AstroNotesLibrary:require('./astronotes-library.js'),AstroNotesShooting:require('./astronotes-shooting.js'),auth:{loginId:'runtime',token:'synthetic'},authGeneration:1,favorites:[],sightings:[],pushQueue:[],syncInfo:disk.has('sorami.sync')?JSON.parse(disk.get('sorami.sync')):{loginId:'runtime',rev:1,records:1},syncError:null,
   localStorage:{getItem:k=>disk.get(k)??null,setItem(k,v){if(failure(k,v))throw Error('quota');disk.set(k,v)},removeItem:k=>disk.delete(k)},window:{dispatchEvent(){}},CustomEvent:class{},setTimeout:()=>1,clearTimeout(){},renderAuthButton(){},cleanFavorite:x=>x,cleanSighting:x=>x};
- c.store={get:(k,d)=>disk.has(k)?JSON.parse(disk.get(k)):d,set(k,v){try{c.localStorage.setItem(k,JSON.stringify(v));return true}catch{return false}}};vm.createContext(c);vm.runInContext(source+';globalThis.rec=RecordSync;',c);
+ c.store={get:(k,d)=>disk.has(k)?JSON.parse(disk.get(k)):d,set(k,v){try{c.localStorage.setItem(k,JSON.stringify(v));return true}catch{return false}}};vm.createContext(c);vm.runInContext(source+';globalThis.rec=RecordSync;',c);connectAccountSync(c);
  const baseline=()=>{c.store.set(key,[old]);c.rec.accepted([c.rec.item('rec:plan:p')]);c.pushQueue=[]};
  const remote=row=>({records:row?[{id:'rec:plan:p',body:JSON.stringify({kind:'plan',value:row}),rev:2}]:[],rev:2,more:false});
  return {c,disk,posts,baseline,remote,fail:f=>failure=f};

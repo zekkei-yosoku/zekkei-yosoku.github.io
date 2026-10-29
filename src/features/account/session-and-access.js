@@ -26,35 +26,16 @@ let auth = null;                                   // { token, loginId, role }
 let accessCheckedAt = 0;                           // 最後に /me で権限を確かめた時刻（recheckAccess）
 
 // 置き場所は「保持する」を選んだかどうかで変わる。両方から消してから書く。
-function saveAuth(a, remember) {
-  const payload = JSON.stringify(a);
-  try { sessionStorage.setItem(TOKEN_KEY, payload); } catch { /* 使えなくても動く */ }
-  try {
-    if (remember) localStorage.setItem(TOKEN_KEY, payload);
-    else localStorage.removeItem(TOKEN_KEY);
-  } catch { /* 同上 */ }
-}
+const authStorage = AstroNotesAuthStorage.create({session:()=>sessionStorage,local:()=>localStorage,boxStorage:name=>window[name],key:TOKEN_KEY});
+function saveAuth(a,remember){return authStorage.save(a,remember);}
 function clearAuth() {
   authGeneration++;
   auth = null;
   clearAdminView();
-  try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
-  try { localStorage.removeItem(TOKEN_KEY); } catch {}
+  authStorage.clear();
 }
 // localStorage を先に見る。「保持する」を選んだ端末では、タブを閉じても続く。
-function storedAuth() {
-  for (const box of ["localStorage", "sessionStorage"]) {
-    try {
-      const raw = window[box].getItem(TOKEN_KEY);
-      if (!raw) continue;
-      const a = JSON.parse(raw);
-      if (a && typeof a.token === "string" && typeof a.loginId === "string") {
-        return { auth: a, remembered: box === "localStorage" };
-      }
-    } catch { /* 壊れていたら次を見る */ }
-  }
-  return null;
-}
+function storedAuth(){return authStorage.read();}
 let syncInfo = store.get("sorami.sync", null);     // { loginId, rev }。端末に残す
 let syncError = null;                              // 直近の同期の失敗
 let pushQueue = store.get("sorami.queue", []);     // 送れていない変更 [{kind,id}]
@@ -78,32 +59,8 @@ function migrationPlan(owner, loginId, hasLocal) {
   return "discard";                                          // 別の人。渡さない
 }
 
-async function apiCall(method, path, body, signal) {
-  const requestToken = auth?.token, requestGeneration = authGeneration;
-  const headers = {};
-  if (body !== undefined) headers["content-type"] = "application/json";
-  if (auth) headers.authorization = `Bearer ${auth.token}`;
-  // 電波が切れたときの英語の失敗文（Failed to fetch / Load failed）を画面に出さない（2026-10-21 総点検）
-  let res;
-  try {
-    res = await fetch(API + path, { method, headers, signal,
-      body: body === undefined ? undefined : JSON.stringify(body) });
-  } catch (e) {
-    if (e?.name === "AbortError") throw e;
-    const error = new Error("通信できませんでした。電波の状態を確かめて、もう一度お試しください"); error.network = true; throw error;
-  }
-  let data = null;
-  try { data = await res.json(); } catch { /* 本文が無いこともある */ }
-  if (!res.ok) {
-    // 401 はセッション切れ。**データは消さない。** 入り直せば続きから使える。
-    if (res.status === 401 && data?.code !== "reauth_required" && auth?.token === requestToken && authGeneration === requestGeneration) { clearAuth(); renderAuthButton(); }
-    const error = new Error(data?.error || `通信できませんでした（${res.status}）`);
-    // 状態も渡す。権限が無い（403）ときに「再試行」を出さないための判定に使う（2026-10-15）
-    error.code = data?.code; error.status = res.status; throw error;
-  }
-  if (authGeneration !== requestGeneration || auth?.token !== requestToken) throw new Error("アカウントが変更されました。操作をやり直してください");
-  return data;
-}
+const apiTransport = AstroNotesHttpClient.create({base:API,fetch:(...args)=>fetch(...args),getAuth:()=>auth,getGeneration:()=>authGeneration,onUnauthorized:()=>{clearAuth();renderAuthButton();}});
+function apiCall(method,path,body,signal){return apiTransport(method,path,body,signal);}
 
 // 長いセッションで、直前2時間より古いまま認証手段を変えようとすると、
 // サーバーが「確認のため、もう一度ログインしてください」と断る（判断1）。

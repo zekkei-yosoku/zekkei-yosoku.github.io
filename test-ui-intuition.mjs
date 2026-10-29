@@ -1,3 +1,4 @@
+import {createRequire} from 'node:module';const require=createRequire(import.meta.url);
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -28,7 +29,7 @@ test('現在位置の帯は独立MAP・通常/共有/旧URLの重ねるでも一
  const nodes=new Map();const node=id=>{if(!nodes.has(id))nodes.set(id,{attrs:{},dataset:{},setAttribute(k,v){this.attrs[k]=v;},removeAttribute(k){delete this.attrs[k];}});return nodes.get(id);};
  // Current menu gives map its own entry.
  const tools=['#/skymap','#/aim/tower','#/plane','#/iss','#/records'].map(path=>{const n=node(path);n.dataset.tool=path;return n;});node('toolsMenu').querySelectorAll=()=>tools;
- const c=vm.createContext({$:node,location:{hash:''},S:{PHENOMENA:{}}});vm.runInContext(extract('routeFromHash')+'\n'+extract('markToolsCurrent'),c);
+ const c=vm.createContext({$:node,location:{hash:''},AstroNotesNavigationRoutes:require('./src/domain/navigation/routes.js'),S:{PHENOMENA:{}}});vm.runInContext(extract('routeFromHash')+'\n'+extract('markToolsCurrent'),c);
  for(const [hash,current] of [['','toolsHome'],['#/skymap','#/skymap'],['#/aim','#/aim/tower'],['#/aim?plan=example','#/aim/tower'],['#/aim/fuji','#/aim/tower'],['#/aim/pearl','#/aim/tower'],['#/plane','#/plane'],['#/iss','#/iss'],['#/records','#/records']]){c.location.hash=hash;c.markToolsCurrent();assert.equal(node(current).attrs['aria-current'],'page',hash);assert.equal([...nodes.values()].filter(n=>n.attrs['aria-current']==='page').length,1,hash);}
 });
 test('撮影地点を確定した確認表示と復帰表示の後にも三脚の形が残る',async()=>{

@@ -4,11 +4,11 @@ const grab=name=>{const i=html.indexOf(name);assert.ok(i>=0);return html.slice(i
 function fixture({answer=true,allowed=true,status='ready',rounds=6}={}){
  const elements=new Map(),el=id=>{if(!elements.has(id))elements.set(id,{hidden:false,innerHTML:'',textContent:'',replaceChildren(){this.innerHTML='';}});return elements.get(id);};
  const out=Array.from({length:rounds},(_,i)=>({pid:'sunset',ev:{peak:i,score:74,rank:{key:'good'}}}));
- const c={atAnswers:answer,toolAllowed:()=>allowed,$:el,answerableRounds:()=>out,findSighting:()=>null,savedRoundClient:{state:()=>({status,rounds:[]})},place:{name:'場所'},esc:x=>x,savedRoundUnavailable:()=>'<button data-retry-rounds>再取得</button>',savedPredictionNote:()=>'',RANK_COLOR:{good:'orange'},S:{PHENOMENA:{sunset:{}},longNameOf:()=> '夕焼け',Cal:{relativeDay:()=> '昨日',hhmmRounded:()=> '17:00'},phrasing:()=>({label:'よさそう'})},iconFor:()=>'',outcomeButtons:()=>'<div class="answer">answer form</div>'};
+ const c={atAnswers:answer,toolAllowed:()=>allowed,$:el,answerableRounds:()=>out,findSighting:()=>null,savedRoundClient:{state:()=>({status,rounds:[]})},place:{name:'場所'},esc:x=>x,savedRoundUnavailable:()=>'<button data-retry-rounds>再取得</button>',savedPredictionNote:()=>'',RANK_COLOR:{good:'orange'},AstroNotesNavigationRoutes:require('./src/domain/navigation/routes.js'),S:{PHENOMENA:{sunset:{}},longNameOf:()=> '夕焼け',Cal:{relativeDay:()=> '昨日',hhmmRounded:()=> '17:00'},phrasing:()=>({label:'よさそう'})},iconFor:()=>'',outcomeButtons:()=>'<div class="answer">answer form</div>'};
  vm.runInNewContext(grab('function renderPending(')+';renderPending(100,false)',c);return {c,el};
 }
 test('旧URLと結果URLを解決し、結果は既存records許可を参照する',()=>{
- for(const hash of ['#/answers','#/forecast/results']){const c={location:{hash},S:{PHENOMENA:{}}};vm.runInNewContext(grab('function routeFromHash()')+';this.route=routeFromHash()',c);assert.equal(c.route.answers,true);assert.equal(c.route.records,undefined);}
+ for(const hash of ['#/answers','#/forecast/results']){const c={location:{hash},AstroNotesNavigationRoutes:require('./src/domain/navigation/routes.js'),S:{PHENOMENA:{}}};vm.runInNewContext(grab('function routeFromHash()')+';this.route=routeFromHash()',c);assert.equal(c.route.answers,true);assert.equal(c.route.records,undefined);}
  assert.equal(access.canOpen(['records'],'answers'),true);assert.equal(access.canOpen(['skymap'],'answers'),false);assert.equal(access.canOpen([],'answers'),false);
 });
 test('結果では全件回答でき、予測には件数だけ表示する',()=>{
@@ -30,7 +30,7 @@ test('撮影ポイントと空の結果を別DOMへ分け、空の写真を予�
 test('結果は予測と同じ場所・メニューで使い、独立した画面見出しを置かない',()=>{
  const menu=html.slice(html.indexOf('<nav class="drawer-list">'),html.indexOf('</nav>',html.indexOf('<nav class="drawer-list">')));
  assert.doesNotMatch(menu,/data-tool="#\/(?:answers|forecast\/results)"/);
- for(const hash of ['#/answers','#/forecast/results','#/records']){const c={location:{hash},S:{PHENOMENA:{}}};vm.runInNewContext(grab('function routeFromHash()')+';'+grab('function isMenuPage()')+';this.menu=isMenuPage()',c);assert.equal(c.menu,true);}
+ for(const hash of ['#/answers','#/forecast/results','#/records']){const c={location:{hash},AstroNotesNavigationRoutes:require('./src/domain/navigation/routes.js'),S:{PHENOMENA:{}}};vm.runInNewContext(grab('function routeFromHash()')+';'+grab('function isMenuPage()')+';this.menu=isMenuPage()',c);assert.equal(c.menu,true);}
  assert.doesNotMatch(html,/id="answersPlace"|id="answersPlaceName"|<h2>予測の振り返り<\/h2>/);
  assert.match(html,/const placeCardShown = \(\) => \["list", "detail", "answers"\]/);
  const none=fixture({answer:false,rounds:0});assert.equal(none.el('recPending').hidden,true);assert.equal(none.el('forecastResultsCount').hidden,true);

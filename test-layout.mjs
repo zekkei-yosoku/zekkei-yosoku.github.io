@@ -14,6 +14,7 @@ const ok = (cond, label, detail = "") => {
 // 判定に使う正本を先に読む。あとから宣言すると、上のほうの検査から見えない。
 const { createRequire } = await import("node:module");
 const req = createRequire(import.meta.url);
+const HistoryOwner=req("./src/domain/navigation/history.js");
 const coreMod = req("./astronotes-core.js");
 const coreSrc = fs.readFileSync(new URL("./astronotes-core.js", import.meta.url), "utf8");
 const predictionSrc = fs.readFileSync(new URL("./astronotes-prediction.js", import.meta.url), "utf8");
@@ -152,7 +153,7 @@ ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待�
     "一覧と、その中の予測の振り返りにいるときは「予測」に帯");
   ok(/if \(focus\) \$\("toolsHome"\)\.focus\(\);/.test(html), "☰ で開いたら、いちばん上の項目へ焦点");
 }
-ok(/addEventListener\("hashchange", \(\) => \{\s+closeTools\(\);/.test(html) && /function pushRoute\(hash\) \{\s+closeTools\(\);/.test(html),
+ok(/addEventListener\("hashchange", \(\) => \{\s+closeTools\(\);/.test(html) && /function pushRoute\(hash\) \{\s+deps\.closeTools\(\);/.test(html),
   "画面が変わったら閉じる（進めたときも、戻る・進むでも）");
 // 検索欄に「ねらう」などを打って開く合言葉は**外した**（2026-09-30 ユーザー指摘「もういらないって言わなかったか」）。
 // 道具はメニューから開く。合言葉は、使える道具を人ごとに決めた仕組みを素通りする入口でもあった。
@@ -217,7 +218,7 @@ ok(/\$\("deckPick"\)\.onchange/.test(html), "選ぶと地点に反映する");
 
 // ---- 月丼。**名前のある場所から選ぶ**（格子で探すと東京湾の真ん中が上位に来る）
 ok(/id="planeView"/.test(html), "月丼のページがある");
-ok(/location\.hash === "#\/plane"/.test(html), "#/plane のルートがある");
+ok(/hash === "#\/plane"/.test(html), "#/plane のルートがある");
 ok(/AstroNotesPlane\.rankSpots\(plane\.dayMs, paths, \[here, \.\.\.AstroNotesRoutes\.SPOTS\]/.test(html),
   "いまの地点＋定番の場所の中から選ぶ");
 // 運用は**羽田の**風で、**時刻ごと**に決める（2026-09-28）。以前は地点の予報を流用し、
@@ -353,7 +354,7 @@ ok(/if \(!bundle\) \$\("cards"\)\.innerHTML = renderSkeleton/.test(html),
 // ラベルの列が切れ目のない帯に見えて行がどこで区切れるか読めない）。
 ok(/class="mxrow"/.test(html), "現象ごとに行を分ける");
 // 「ねらう」は戻れるページ。ポップアップだと戻るで閉じられず、URLでも開けない
-ok(/id="aimView"/.test(html) && /location\.hash === "#\/aim"/.test(html), "ねらうはページ（#/aim）");
+ok(/id="aimView"/.test(html) && /hash === "#\/aim"/.test(html), "ねらうはページ（#/aim）");
 // 2026-09-24: 富士山の朝／夕を一覧で2段にしたが、**一覧はその日のトータル1つに戻した**
 // （日中に見たい日が読めなくなるため。ユーザー選択）。朝・日中・夕は詳細の表で出す。
 ok(!/class="mxrow tiers"|grid-template-rows:repeat/.test(html), "一覧の行は1段だけ");
@@ -710,7 +711,9 @@ console.log("== 同じ名前の関数を2つ置かない・観測点は1つ（20
 // （後から書いた宣言が勝つ。文法の誤りにはならない）。富士山と月が予報の格子の標高に戻り、
 // 町の代表点でも近くの建物を取りに行っていた
 {
-  const names = [...html.matchAll(/^(?:async )?function\*? ?([A-Za-z_$][\w$]*)/gm)].map((m) => m[1]);
+  const manifest=JSON.parse(fs.readFileSync(new URL("./src/source-manifest.json",import.meta.url),"utf8"));
+  const globalSource=manifest.entries.filter(e=>!["factory","state-owner"].includes(e.kind)).map(e=>fs.readFileSync(new URL(e.path,import.meta.url),"utf8")).join("\n");
+  const names = [...globalSource.matchAll(/^(?:async )?function\*? ?([A-Za-z_$][\w$]*)/gm)].map((m) => m[1]);
   const dup = [...new Set(names.filter((n, i) => names.indexOf(n) !== i))];
   ok(names.length > 100 && !dup.length, "画面のいちばん外の関数名が重ならない（後の宣言が前のを黙って消す）", dup.join(", "));
   ok(/await measureGroundHere\(\);\s+if \(seq !== extraSeq\) return;\s+const obs = observerHere\(\);/.test(html),
@@ -967,7 +970,7 @@ ok(/<dialog class="sheet" id="issPickSheet"/.test(html) && !/id="issPickPage"/.t
 ok(/const issPick = \{ group: "all",/.test(html) && /\[\["all", "すべて"\], \["fav", "お気に入り"\], \.\.\.ISS_GROUPS\]/.test(html) && !/よく見る衛星です/.test(html),
   "人工衛星: ジャンルを選ばないときは「すべて」（よく見る3機だけにしない）");
 ok(/function issToggleFav\(catnr, name\)/.test(html) && /class="iss-star" data-star=/.test(html), "人工衛星: ☆でお気に入り（お気に入りは一覧の先頭とお気に入りのチップ）");
-ok(/if \(location\.hash === "#\/iss\/pick"\) return \{ iss: true, issPick: true \};/.test(html) && /if \(picking\) issPickOpen\(\);/.test(html), "人工衛星: 以前の道 #/iss/pick で来たら衛星を選ぶを重ねる");
+ok(/if \(hash === "#\/iss\/pick"\) return \{ iss: true, issPick: true \};/.test(html) && /if \(picking\) issPickOpen\(\);/.test(html), "人工衛星: 以前の道 #/iss/pick で来たら衛星を選ぶを重ねる");
 // 2026-10-21 ユーザー「お気に入り・履歴・候補地点はタブ。現在地と地図は入力欄の中にGPSマークと地図マークのボタン」
 ok(/nav\.className='forecast-tabs place-tabs';nav\.setAttribute\('role','tablist'\)/.test(html) && /b\.setAttribute\('role','tab'\)/.test(html) && /b\.setAttribute\('aria-selected',String\(on\)\)/.test(html),
   "地点の画面: お気に入り・履歴・この日の候補はタブ");
@@ -1008,7 +1011,7 @@ ok(/found\.sort\(\(a, b\) => Math\.floor\(a\.pass\.visible\.start\.at \/ 60000\)
   // 2026-10-21 構図も対象を外せる（地図と同じく「解除」が出る）。対象のカテゴリ
   ok(/\$\("aimTarget"\)\.innerHTML = `<option value="">対象を選ぶ<\/option>`/.test(html) && /aim\.target = !wanted \? \{ id: "", name: "", parts: \[\] \}/.test(html), "構図: 対象を未選択にできる");
   ok(/const TARGET_FIXED_CATEGORIES = \["山", "建物"\];/.test(html) && /categoryOf:targetCategoryOf,categoryList:targetCategoryList/.test(html) && /targetCategory: isText\(f\.targetCategory\)/.test(html), "対象のカテゴリ: 山・建物と自分のカテゴリ、お気に入りに保存");
-  ok(/if \(globalThis\.pagePop\?\.n\) \{ afterPagePop\(\(\) => pushRoute\(hash\)\); return; \}/.test(html), "ページの履歴を戻している途中に画面を移らない");
+  ok(/if \(deps\.pagePop\(\)\?\.n\) \{ deps\.afterPagePop\(\(\) => pushRoute\(hash\)\); return; \}/.test(html), "ページの履歴を戻している途中に画面を移らない");
   // ユーザー「これ揃えてって言わなかった？」: 地図の天体も構図と同じ「天体を選ぶ」シート
   ok(/mountBodyPicker\(document\.getElementById\('aimBody'\)/.test(html) && /mountBodyPicker\(document\.getElementById\('skyMapBody'\)/.test(html)
     && /<select class="condition-choice" id="skyMapBody"[^>]*><optgroup label="太陽・月">/.test(html), "天体を選ぶは構図と地図で同じ部品・同じ分け方");
@@ -1023,7 +1026,7 @@ ok(/found\.sort\(\(a, b\) => Math\.floor\(a\.pass\.visible\.start\.at \/ 60000\)
 ok(/if \(g\) g\.with\.push\(f\.tle\); else merged\.push\(\{ \.\.\.f, minute, with: \[\] \}\);/.test(html) && /ほか\$\{others\.length\}機が一緒に通る/.test(html),
   "人工衛星: 同じ分・同じ方角・同じ高さで通る機体は1行にまとめる");
 ok(!/等級/.test(new RegExp('function issRenderPasses[\\s\\S]*?\\n}').exec(html)[0]), "人工衛星: 出典の無い明るさ（等級）は出さない");
-ok(/location\.hash === "#\/iss"/.test(html), "#/iss の道がある");
+ok(/hash === "#\/iss"/.test(html), "#/iss の道がある");
 ok(/\{ id: "iss",\s+el: "issView"/.test(html), "画面の表に1行足した");
 ok(/https:\/\/celestrak\.org/.test(html), "軌道要素は CelesTrak から（CSP に足した）");
 ok(/import\("\.\/vendor\/satellite\/io\.js"\)/.test(html), "satellite.js は vendor から必要なときだけ読む");
@@ -1114,7 +1117,7 @@ ok(/\$\("homeLink"\)\.onclick = \(\) => \{ closeTools\(\);[^\n]*pushRoute\("#\/a
   ok(!/#backLink \{[^}]*(background|border)/.test(code), "囲わない（地も枠も付けない）");
   ok(/\$\("backBar"\)\.hidden = isMenuPage\(\);/.test(html), "メニューの主要ページでは戻るを隠す");
   ok(/\$\("backLink"\)\.onclick = \(\) => \{ closeTools\(\); goBack\(\); \}/.test(html), "ひとつ前の画面へ戻る");
-  ok(/  if \(\(history\.state && history\.state\.depth\) > 0\) history\.back\(\);\s+else goList\(\);\n\}/.test(html),
+  ok(/  if \(\(history\.state && history\.state\.depth\) > 0\) history\.back\(\);\s+else goList\(\);\n\s*\}/.test(html),
     "前がアプリの中に無ければ（URL を直接開いた画面）一覧へ");
   ok(!/\.masthead h1"\)\.hidden/.test(html), "題名は隠さない");
 }
@@ -1127,8 +1130,6 @@ ok(!/location\.hash = /.test(html), "画面を進めるのは pushRoute だけ�
 {
   // ホーム画面に置いた iPhone のアプリでは履歴を積まない（2026-10-02 ユーザー「縁を内側にスライドさせたら、戻る・進むを無効化しないと
   // メニューが開かないことあるぞ」）。偽の history・location で、pushRoute・goBack・goList を実際に動かす
-  const s0 = html.indexOf("const NO_HISTORY"), g0 = html.indexOf("function goList", s0);
-  const src = [html.slice(s0, html.indexOf("\n}", g0) + 2).replace(/^const NO_HISTORY[^\n]*\n/, "")];
   ok(/const NO_HISTORY = navigator\.standalone === true;/.test(html), "iPhone のホーム画面のアプリだけ（navigator.standalone）");
   const run = (noHistory) => {
     const log = [];
@@ -1137,9 +1138,8 @@ ok(!/location\.hash = /.test(html), "画面を進めるのは pushRoute だけ�
       pushState(st, _t, u) { log.push("push"); this.state = st; loc.hash = u; },
       replaceState(st, _t, u) { log.push("replace"); this.state = st; loc.hash = u.startsWith("#") ? u : ""; },
       back() { log.push("back"); }, go(n) { log.push(`go${n}`); } };
-    const f = new Function("NO_HISTORY", "history", "location", "closeTools", "applyRoute", "routeFromHash",
-      `${src.join("\n")}; return { pushRoute, goBack, goList, trail: appTrail };`);
-    const r = f(noHistory, hist, loc, () => {}, () => log.push(`show${loc.hash || "list"}`), () => (loc.hash ? {} : null));
+    const r = HistoryOwner.createHistory({noHistory,history:hist,location:loc,closeTools:()=>{},applyRoute:()=>log.push(`show${loc.hash || "list"}`),routeFromHash:()=>loc.hash?{}:null,pagePop:()=>null,afterPagePop:fn=>fn()});
+    r.trail=r.appTrail;
     return { r, log, loc };
   };
   const a = run(true);
@@ -1162,7 +1162,7 @@ ok(!/location\.hash = /.test(html), "画面を進めるのは pushRoute だけ�
 ok(!/この先7日/.test(html), "戻り先を日数で呼ばない（詳細にも同じ7日間がある）");
 
 // 記録はホームに置いていた。判断に使わないものを、判断する画面に混ぜない。
-ok(/location\.hash === "#\/records"/.test(html), "記録は自前のURLを持つ");
+ok(/hash === "#\/records"/.test(html), "記録は自前のURLを持つ");
 ok(/id="recordsView"/.test(html), "記録は別画面");
 ok(/\{ id: "records",\s+el: "recordsView"/.test(html), "3画面を出し分ける");
 // 2026-09-30: 地点カードは「その地点が主語の画面」（一覧・詳細）だけに出す（空の見え方は 2026-10-02 になくした）。
@@ -1800,7 +1800,7 @@ ok(/id="exportBtn"/.test(recCard) && /id="importBtn"/.test(recCard),
 console.log("== 登録の途中と失敗を落とさない ==");
 // localStorage は失敗する（プライベートブラウズ・容量超過）。黙って閉じると
 // 保存できたように見える。成否を返して呼び出し側で伝える。
-ok(/set\(key, value\) \{ try \{[\s\S]{0,90}return true; \} catch \{ return false; \} \}/.test(html),
+ok((()=>{const make=req('./src/ports/storage.js').create;return make(()=>({setItem(){}})).set('x',1)===true&&make(()=>{throw Error('blocked')}).set('x',1)===false;})(),
   "保存の成否を返す");
 ok(/function saveFavorites[\s\S]{0,220}querySelectorAll\("\.save-err"\)/.test(html), "保存できなければ画面で伝える");
 // 登録シートは地点シートの上に重なる。片方だけに置くと、前面に出ていない側では見えない。
@@ -1971,12 +1971,12 @@ ok(/id="authButton"/.test(html), "マストヘッドに入口がある");
 // 2026-09-08 まではメモリのみだった。読み込み直しで消えるので、
 // 自動更新のたびに再ログインが要る状態になり、保存する形へ変えた。
 // **Cookie は使わない。** 使うと CSRF を考えなければならなくなる。
-ok(/headers\.authorization = `Bearer \$\{auth\.token\}`/.test(html), "ヘッダで送る（Cookie を使わない）");
+ok(/headers\.authorization = `Bearer \$\{getAuth\(\)\.token\}`/.test(html), "ヘッダで送る（Cookie を使わない）");
 ok(!/document\.cookie/.test(html), "Cookie に入れない");
 // 401 でデータを消さない。消すと、サーバーが一時的に落ちただけで手元が空になる。
 // 401 で落とすのは「ログイン状態」と「管理画面に出ていた他人の情報」だけ。
 // **お気に入りと記録は残す**（サーバーが一時的に落ちただけで手元が空にならないように）
-ok(/res\.status === 401 && data\?\.code !== "reauth_required" && auth\?\.token === requestToken/.test(html),
+ok(/res\.status === 401 && data\?\.code !== "reauth_required" && getAuth\(\)\?\.token === requestToken/.test(html),
   "401 ではログイン状態と管理画面の中身だけ落とす");
 ok(!/401[\s\S]{0,120}favorites = \[\]/.test(html), "401 でデータを消さない");
 // 同期の失敗を黙って飲まない
@@ -2156,7 +2156,7 @@ ok(/>新規登録<\/button>/.test(html), "入口のラベルは「新規登録�
 
 console.log("== 管理者の画面 ==");
 ok(/id="adminView"/.test(html), "画面がある");
-ok(/location\.hash === "#\/admin"/.test(html), "URLで開ける");
+ok(/hash === "#\/admin"/.test(html), "URLで開ける");
 ok(/\{ id: "admin",\s+el: "adminView"/.test(html), "他の画面と出し分ける");
 // E186: authenticated private UI behavior is covered by API/UI runtime tests; no private implementation in public HTML.
 // 画面を隠すのは防御ではない。権限はサーバーが判定する。
@@ -2443,7 +2443,7 @@ ok(/res\?\.accepted\?\.favorites/.test(html) && /res\?\.accepted\?\.sightings/.t
   "受理されたIDを見る");
 ok(!/await apiCall\("POST", "\/sync"[\s\S]{0,120}pushQueue = \[\];/.test(html),
   "送信のあとに無条件でキューを空にしていない");
-ok(/pushQueue = pushQueue\.filter\(/.test(html), "受理された分だけ外す");
+ok(/state\.pushQueue = state\.pushQueue\.filter\(/.test(html), "受理された分だけ外す");
 // 1回の上限は500件。超える分を捨てずに次へ回す
 ok(/pushQueue\.slice\(0, 500\)/.test(html), "500件ずつ送る");
 
@@ -2745,10 +2745,10 @@ console.log("== ログインの保持 ==");
 // 2026-09-08 ユーザー「更新するたびにログインはだるいよねって」。
 // それまでトークンはメモリのみで、**読み込み直すたびに消えていた。**
 // 自動更新の読み直しを入れたことで、配信のたびに再ログインが要る状態になっていた。
-ok(/sessionStorage\.setItem\(TOKEN_KEY/.test(html), "読み込み直しで消えないよう sessionStorage へ置く");
-ok(/localStorage\.setItem\(TOKEN_KEY/.test(html), "「保持する」を選んだら localStorage へ置く");
-ok(/localStorage\.removeItem\(TOKEN_KEY/.test(html), "選んでいなければ localStorage から消す");
-ok(/function clearAuth[\s\S]{0,220}sessionStorage\.removeItem[\s\S]{0,120}localStorage\.removeItem/.test(html),
+ok(/session\(\)\.setItem\(key/.test(html), "読み込み直しで消えないよう sessionStorage へ置く");
+ok(/local\(\)\.setItem\(key/.test(html), "「保持する」を選んだら localStorage へ置く");
+ok(/local\(\)\.removeItem\(key/.test(html), "選んでいなければ localStorage から消す");
+ok(/function clearAuth[\s\S]{0,220}authStorage\.clear\(\)/.test(html)&&/function clear\(\)\{try\{session\(\)\.removeItem\(key\);\}catch\{\}try\{local\(\)\.removeItem\(key\)/.test(html),
   "ログアウトでは両方から消す");
 // 片方だけ消すと、閉じて開き直したときに死んだトークンで入り直そうとする
 ok(/res\.status === 401 && data\?\.code !== "reauth_required"/.test(html), "401 を受けたらトークンを捨てる");
@@ -2758,7 +2758,7 @@ ok(/<input type="checkbox" id="rememberMe"/.test(html), "保持するかを選�
 ok(!/id="rememberMe" checked/.test(html), "既定では保持しない");
 ok(/store\.get\("sorami\.remember", false\)/.test(html), "覚えていないときも保持しない");
 // 外していても読み込み直しでは切れない。**元の困りごとはこちらで解決している**
-ok(/sessionStorage\.setItem\(TOKEN_KEY/.test(html), "外していても読み込み直しでは保つ");
+ok(/session\(\)\.setItem\(key/.test(html), "外していても読み込み直しでは保つ");
 ok(/共用の端末では外してください/.test(html), "外すべき場面を書く");
 // チェックボックスは3画面共通。パネルの中に置くと3つ同時に存在する
 ok(html.indexOf('id="rememberMe"') < html.indexOf('id="panelLogin"'),
@@ -3271,6 +3271,6 @@ ok(!/id="toAdmin"|id="adminUsers"|id="adminCodes"/.test(html), "公開HTMLに管
 ok(!/POST.*\/admin\/(tools|recovery|delete-user|revoke-credential)/.test(html), "管理操作本体を公開Webへ配信しない");
 ok(/apiCall\("GET", "\/admin\/ui"\)/.test(html) && /bundle.version !== 1/.test(html), "認証必須APIから版を検査して私有UIを取得する");
 ok(/URL.revokeObjectURL\(url\)/.test(html) && !/new Function|eval\(/.test(html), "私有UIはES moduleで読み込みBlob URLを解放する");
-ok(/requestGeneration = authGeneration/.test(html) && /auth\?\.token === requestToken/.test(html), "古いアカウントの401で現在の認証を落とさない");
+ok(/requestGeneration = getGeneration\(\)/.test(html) && /getAuth\(\)\?\.token === requestToken/.test(html), "古いアカウントの401で現在の認証を落とさない");
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail === 0 ? 0 : 1);

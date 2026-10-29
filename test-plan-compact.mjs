@@ -1,3 +1,4 @@
+import {createRequire} from 'node:module';const require=createRequire(import.meta.url);
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -16,9 +17,9 @@ test('共有ルートはpercent encodingを含め復元し、不正escape/plus/�
  const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),code=html.slice(html.indexOf('function routeFromHash()'),html.indexOf('/// 詳細へ進む。'));
  const token=P.encodeLink(sample());
  for(const hash of ['#p='+token,'#p='+token.replaceAll(',','%2C').replaceAll('/','%2F'),'#/aim?plan='+P.encode(sample())]){
-  const location={hash,pathname:'/trial/',search:''},history={state:null,replaceState:(state,unused,url)=>location.hash=new URL(url,'https://example.org').hash},c=vm.createContext({location,history,S:{PHENOMENA:{}}});vm.runInContext(code,c);assert.equal(c.routeFromHash().aim,true);assert(location.hash.startsWith('#/aim?plan='));assert.deepEqual(plain(P.decode(new URLSearchParams(location.hash.split('?')[1]).get('plan'))),sample());
+  const location={hash,pathname:'/trial/',search:''},history={state:null,replaceState:(state,unused,url)=>location.hash=new URL(url,'https://example.org').hash},c=vm.createContext({location,history,AstroNotesNavigationRoutes:require('./src/domain/navigation/routes.js'),S:{PHENOMENA:{}}});vm.runInContext(code,c);assert.equal(c.routeFromHash().aim,true);assert(location.hash.startsWith('#/aim?plan='));assert.deepEqual(plain(P.decode(new URLSearchParams(location.hash.split('?')[1]).get('plan'))),sample());
  }
- for(const hash of ['#p=%ZZ','#p=3/moon/sky+tree/35,139/1793358900000','#p='+'a'.repeat(8001)]){const c=vm.createContext({location:{hash},history:{replaceState:()=>assert.fail('invalid token normalized')},S:{PHENOMENA:{}}});vm.runInContext(code,c);assert.equal(c.routeFromHash(),null);}
+ for(const hash of ['#p=%ZZ','#p=3/moon/sky+tree/35,139/1793358900000','#p='+'a'.repeat(8001)]){const c=vm.createContext({location:{hash},history:{replaceState:()=>assert.fail('invalid token normalized')},AstroNotesNavigationRoutes:require('./src/domain/navigation/routes.js'),S:{PHENOMENA:{}}});vm.runInContext(code,c);assert.equal(c.routeFromHash(),null);}
 });
 test('範囲外/片方だけ/文字列の部位座標は旧新codecとも拒否する',()=>{
  for(const coordinates of [{latitude:200,longitude:139},{latitude:35},{latitude:'35',longitude:139},{latitude:35,longitude:-181}]){

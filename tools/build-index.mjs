@@ -4,6 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {resolve,relative,sep} from 'node:path';
 import {versionAssets,hashCsp,versionRating} from './release-html.mjs';
 import vm from 'node:vm';
+import {checkArchitecture} from './check-architecture.mjs';
 export const root=fileURLToPath(new URL('../',import.meta.url));
 export function renderIndex({entry='src/index.html',directory=root,read=path=>readFileSync(path,'utf8')}={}){
  const base=resolve(directory),seen=[];
@@ -33,6 +34,7 @@ export function checkClassicScripts(html,readExternal){
 }
 export function releaseProducts(directory=root){
  const manifest=JSON.parse(readFileSync(resolve(directory,'src/source-manifest.json'),'utf8')),products=new Map(),sources=[];
+ checkArchitecture(manifest,name=>readFileSync(resolve(directory,name),'utf8'));
  for(const asset of manifest.generatedAssets){
   if(!/^astronotes-[\w-]+\.js$/.test(asset.output))throw Error('Invalid generated asset output');
   const result=renderIndex({entry:asset.entry,directory});
