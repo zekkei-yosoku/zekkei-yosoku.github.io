@@ -6,7 +6,8 @@ let mounted=false,mode='scene',epoch=0,scheduled=false,forceNext=false,frameKey=
 let aimHome=null,aimChildren=[],mapHomes=[],buffer=null,workspaceHome=null,heightWasOpen=false,heightFields=null;
 let conditions=null,conditionHomes=[];
 const eligible=()=>screenAllowed('skymap')&&screenAllowed('framing');
-const active=()=>mounted&&atSkyMap&&!mapView.hidden&&eligible()&&!document.hidden;
+const ownsScene=()=>mounted&&atSkyMap&&!mapView.hidden&&eligible();
+const active=()=>ownsScene()&&!document.hidden;
 const node=(tag,props={},text)=>{const n=document.createElement(tag);Object.assign(n,props);if(text)n.textContent=text;return n;};
 const tabs=node('div',{id:'exploreTabs',className:'forecast-tabs explore-tabs'});tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','探す結果の表示');
 const sceneTab=node('button',{id:'exploreSceneTab',type:'button'},'見え方'),mapTab=node('button',{id:'exploreMapTab',type:'button'},'地図');
@@ -57,7 +58,7 @@ function menu(){
  else{f.dataset.tool='#/aim/tower';m.dataset.tool='#/skymap';m.querySelector('b').lastChild.textContent='地図';m.querySelector('span').textContent='撮影地点からの天体の方向と高度を調べる';}
 }
 function mount(){
- if(mounted)return;mounted=true;heightWasOpen=$('skyMapObserverDetails').open;$('skyMapObserverDetails').open=false;mapView.classList.add('explore-mounted');heightFields=node('div',{id:'exploreHeightFields'});const heights=$('skyMapObserverDetails');for(const row of heights.querySelectorAll('.aim-observer-height')){const value=node('div',{className:'explore-height-value'}),input=row.querySelector('input'),unit=row.querySelector('span');input.before(value);value.append(input,unit);heightFields.append(row);}heights.insertBefore(heightFields,$('skyMapHeightError'));
+ if(mounted)return;mounted=true;aim.fromSeq++;aim.lookSeq++;heightWasOpen=$('skyMapObserverDetails').open;$('skyMapObserverDetails').open=false;mapView.classList.add('explore-mounted');heightFields=node('div',{id:'exploreHeightFields'});const heights=$('skyMapObserverDetails');for(const row of heights.querySelectorAll('.aim-observer-height')){const value=node('div',{className:'explore-height-value'}),input=row.querySelector('input'),unit=row.querySelector('span');input.before(value);value.append(input,unit);heightFields.append(row);}heights.insertBefore(heightFields,$('skyMapHeightError'));
  const candidates=mapView.querySelector('.sky-map-candidates');candidates.after(skyInfo,tabs,scene,map);
  conditions=node('details',{id:'exploreConditions',className:'explore-conditions',open:true});const summary=node('summary');summary.append(node('span',{id:'exploreConditionTitle'}),node('span',{id:'exploreConditionDetail'}),node('span',{className:'explore-condition-edit'},'条件を編集'));conditions.append(summary);
  const controls=mapView.querySelector('.sky-map-controls'),observer=$('skyMapChoose').closest('.aim-say-from'),alignment=$('skyMapAlignmentDetails');conditionHomes=[controls,observer,alignment].map(n=>({n,parent:n.parentNode,next:n.nextSibling}));controls.before(conditions);const fields=node('div',{className:'explore-condition-fields'});fields.append(controls,observer,alignment);conditions.append(fields);
@@ -188,7 +189,7 @@ const style=node('style');style.textContent=
 '.explore-mounted[data-explore-mode=scene] #skyMapBodyBar,.explore-mounted[data-explore-mode=scene] #shootingPins{display:none!important}'+
 'main:has(>#skyMapView.explore-mounted){max-width:1000px}';
 document.head.append(style);
-globalThis.TrialExplore={active,render,routeChanged,preferMap:()=>{transferMode='map';if(active())choose('map');},sync,invalidate:()=>{frameKey='';SkyMapUI.render();sync(true);},sceneDraw,assertScene,
+globalThis.TrialExplore={active,ownsScene,render,routeChanged,preferMap:()=>{transferMode='map';if(active())choose('map');},sync,invalidate:()=>{frameKey='';SkyMapUI.render();sync(true);},sceneDraw,assertScene,
  camera:()=>{let timelapse=null;try{if(frameKey===stamp(snapshot())&&AstroNotesTimelapse.settings(look._timelapseConfig))timelapse={...look._timelapseConfig};}catch{}return {l:{...aimLens,focal:Number(look.querySelector('[data-lens-focal]')?.value)||aimLens.focal||50},pan:[...(look._lensOffset||[0,0])],timelapse};}};
 document.addEventListener('visibilitychange',()=>{if(document.hidden)invalidate();else sync();});
 window.addEventListener('resize',()=>{if(active())sync();});

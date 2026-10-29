@@ -1,0 +1,543 @@
+[
+  {
+    "token": "3/moon/fuji/35.64,139.87/1793358900000",
+    "payload": {
+      "v": 1,
+      "kind": "aim",
+      "body": "moon",
+      "t": {
+        "id": "fuji",
+        "name": "富士山",
+        "latitude": 35.360555,
+        "longitude": 138.727363,
+        "groundM": 3776,
+        "parts": [
+          {
+            "id": "summit",
+            "name": "山頂",
+            "m": 3776
+          }
+        ]
+      },
+      "o": [
+        "撮影地点",
+        35.64,
+        139.87,
+        null,
+        1.5,
+        null
+      ],
+      "at": 1793358900000,
+      "part": "__whole",
+      "limb": "center",
+      "air": "auto",
+      "l": {
+        "on": true,
+        "mode": "manual",
+        "focal": 50,
+        "sensor": "full",
+        "portrait": false,
+        "grid": "none"
+      },
+      "pan": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "token": "3/moon/skytree/35.64,139.87/1793358900000",
+    "payload": {
+      "v": 1,
+      "kind": "aim",
+      "body": "moon",
+      "t": {
+        "id": "skytree",
+        "name": "東京スカイツリー",
+        "latitude": 35.710063,
+        "longitude": 139.8107,
+        "groundM": 2,
+        "parts": [
+          {
+            "id": "tip",
+            "name": "先端",
+            "m": 636
+          },
+          {
+            "id": "gallery",
+            "name": "天望回廊（第二展望台）",
+            "m": 452
+          },
+          {
+            "id": "deck",
+            "name": "天望デッキ",
+            "m": 352
+          }
+        ]
+      },
+      "o": [
+        "撮影地点",
+        35.64,
+        139.87,
+        null,
+        1.5,
+        null
+      ],
+      "at": 1793358900000,
+      "part": "__whole",
+      "limb": "center",
+      "air": "auto",
+      "l": {
+        "on": true,
+        "mode": "manual",
+        "focal": 50,
+        "sensor": "full",
+        "portrait": false,
+        "grid": "none"
+      },
+      "pan": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "token": "3/moon/tokyotower/35.64,139.87/1793358900000",
+    "payload": {
+      "v": 1,
+      "kind": "aim",
+      "body": "moon",
+      "t": {
+        "id": "tokyotower",
+        "name": "東京タワー",
+        "latitude": 35.65859131567304,
+        "longitude": 139.74544420093412,
+        "groundM": 18,
+        "parts": [
+          {
+            "id": "tip",
+            "name": "先端",
+            "m": 351
+          },
+          {
+            "id": "top",
+            "name": "トップデッキの上端",
+            "m": 247.55
+          },
+          {
+            "id": "main",
+            "name": "メインデッキの上端",
+            "m": 148.389
+          }
+        ]
+      },
+      "o": [
+        "撮影地点",
+        35.64,
+        139.87,
+        null,
+        1.5,
+        null
+      ],
+      "at": 1793358900000,
+      "part": "__whole",
+      "limb": "center",
+      "air": "auto",
+      "l": {
+        "on": true,
+        "mode": "manual",
+        "focal": 50,
+        "sensor": "full",
+        "portrait": false,
+        "grid": "none"
+      },
+      "pan": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "token": "3/moon/tocho-building/35.64,139.87/1793358900000",
+    "payload": {
+      "v": 1,
+      "kind": "aim",
+      "body": "moon",
+      "t": {
+        "id": "tocho-building",
+        "name": "東京都庁 第一本庁舎",
+        "latitude": 35.6895,
+        "longitude": 139.691694,
+        "groundM": 34.63,
+        "parts": [
+          {
+            "id": "north",
+            "name": "北塔の頂部",
+            "m": 277.68,
+            "latitude": 35.68978611899479,
+            "longitude": 139.69164621437966
+          },
+          {
+            "id": "south",
+            "name": "南塔の頂部",
+            "m": 277.68,
+            "latitude": 35.68921795263166,
+            "longitude": 139.6917781156376
+          }
+        ]
+      },
+      "o": [
+        "撮影地点",
+        35.64,
+        139.87,
+        null,
+        1.5,
+        null
+      ],
+      "at": 1793358900000,
+      "part": "__whole",
+      "limb": "center",
+      "air": "auto",
+      "l": {
+        "on": true,
+        "mode": "manual",
+        "focal": 50,
+        "sensor": "full",
+        "portrait": false,
+        "grid": "none"
+      },
+      "pan": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "token": "3/moon/shibuya-sky/35.64,139.87/1793358900000",
+    "payload": {
+      "v": 1,
+      "kind": "aim",
+      "body": "moon",
+      "t": {
+        "id": "shibuya-sky",
+        "name": "渋谷スカイ",
+        "latitude": 35.65838377760082,
+        "longitude": 139.70226592899252,
+        "groundM": 14.61,
+        "parts": [
+          {
+            "id": "tip",
+            "name": "屋上（SKY STAGE）",
+            "m": 243.637,
+            "latitude": 35.65838377760082,
+            "longitude": 139.70226592899252
+          }
+        ]
+      },
+      "o": [
+        "撮影地点",
+        35.64,
+        139.87,
+        null,
+        1.5,
+        null
+      ],
+      "at": 1793358900000,
+      "part": "__whole",
+      "limb": "center",
+      "air": "auto",
+      "l": {
+        "on": true,
+        "mode": "manual",
+        "focal": 50,
+        "sensor": "full",
+        "portrait": false,
+        "grid": "none"
+      },
+      "pan": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "token": "3/moon/azabudai-hills/35.64,139.87/1793358900000",
+    "payload": {
+      "v": 1,
+      "kind": "aim",
+      "body": "moon",
+      "t": {
+        "id": "azabudai-hills",
+        "name": "麻布台ヒルズ 森JPタワー",
+        "latitude": 35.6608543555483,
+        "longitude": 139.7406558121773,
+        "groundM": 18.74,
+        "parts": [
+          {
+            "id": "tip",
+            "name": "頂部",
+            "m": 349.558,
+            "latitude": 35.6608543555483,
+            "longitude": 139.7406558121773
+          }
+        ]
+      },
+      "o": [
+        "撮影地点",
+        35.64,
+        139.87,
+        null,
+        1.5,
+        null
+      ],
+      "at": 1793358900000,
+      "part": "__whole",
+      "limb": "center",
+      "air": "auto",
+      "l": {
+        "on": true,
+        "mode": "manual",
+        "focal": 50,
+        "sensor": "full",
+        "portrait": false,
+        "grid": "none"
+      },
+      "pan": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "token": "3/moon/kabukicho-tower/35.64,139.87/1793358900000",
+    "payload": {
+      "v": 1,
+      "kind": "aim",
+      "body": "moon",
+      "t": {
+        "id": "kabukicho-tower",
+        "name": "東急歌舞伎町タワー",
+        "latitude": 35.69610448807164,
+        "longitude": 139.70068955167807,
+        "groundM": 29.999,
+        "parts": [
+          {
+            "id": "tip",
+            "name": "頂部",
+            "m": 249.772,
+            "latitude": 35.69610448807164,
+            "longitude": 139.70068955167807
+          }
+        ]
+      },
+      "o": [
+        "撮影地点",
+        35.64,
+        139.87,
+        null,
+        1.5,
+        null
+      ],
+      "at": 1793358900000,
+      "part": "__whole",
+      "limb": "center",
+      "air": "auto",
+      "l": {
+        "on": true,
+        "mode": "manual",
+        "focal": 50,
+        "sensor": "full",
+        "portrait": false,
+        "grid": "none"
+      },
+      "pan": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "token": "3/moon/tower-terror/35.64,139.87/1793358900000",
+    "payload": {
+      "v": 1,
+      "kind": "aim",
+      "body": "moon",
+      "t": {
+        "id": "tower-terror",
+        "name": "タワー・オブ・テラー",
+        "latitude": 35.6240957,
+        "longitude": 139.8882684,
+        "groundM": 4.8,
+        "parts": [
+          {
+            "id": "tip",
+            "name": "頂部",
+            "m": 63.8
+          }
+        ]
+      },
+      "o": [
+        "撮影地点",
+        35.64,
+        139.87,
+        null,
+        1.5,
+        null
+      ],
+      "at": 1793358900000,
+      "part": "__whole",
+      "limb": "center",
+      "air": "auto",
+      "l": {
+        "on": true,
+        "mode": "manual",
+        "focal": 50,
+        "sensor": "full",
+        "portrait": false,
+        "grid": "none"
+      },
+      "pan": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "token": "3/moon/cinderella/35.64,139.87/1793358900000",
+    "payload": {
+      "v": 1,
+      "kind": "aim",
+      "body": "moon",
+      "t": {
+        "id": "cinderella",
+        "name": "シンデレラ城",
+        "latitude": 35.632104,
+        "longitude": 139.880834,
+        "groundM": 3,
+        "parts": [
+          {
+            "id": "tip",
+            "name": "てっぺん",
+            "m": 54
+          }
+        ]
+      },
+      "o": [
+        "撮影地点",
+        35.64,
+        139.87,
+        null,
+        1.5,
+        null
+      ],
+      "at": 1793358900000,
+      "part": "__whole",
+      "limb": "center",
+      "air": "auto",
+      "l": {
+        "on": true,
+        "mode": "manual",
+        "focal": 50,
+        "sensor": "full",
+        "portrait": false,
+        "grid": "none"
+      },
+      "pan": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "token": "3/moon/tinkerbell/35.64,139.87/1793358900000",
+    "payload": {
+      "v": 1,
+      "kind": "aim",
+      "body": "moon",
+      "t": {
+        "id": "tinkerbell",
+        "name": "ティンカーベル",
+        "latitude": 35.637031,
+        "longitude": 139.878077,
+        "groundM": 3,
+        "parts": [
+          {
+            "id": "tip",
+            "name": "杖の先",
+            "m": 56
+          }
+        ]
+      },
+      "o": [
+        "撮影地点",
+        35.64,
+        139.87,
+        null,
+        1.5,
+        null
+      ],
+      "at": 1793358900000,
+      "part": "__whole",
+      "limb": "center",
+      "air": "auto",
+      "l": {
+        "on": true,
+        "mode": "manual",
+        "focal": 50,
+        "sensor": "full",
+        "portrait": false,
+        "grid": "none"
+      },
+      "pan": [
+        0,
+        0
+      ]
+    }
+  },
+  {
+    "token": "3/moon/_/35.64,139.87/1793358900000/W251bGwsInJvb2YiLG51bGwsbnVsbCxudWxsLG51bGwsbnVsbCxudWxsLHsiaWQiOiLni6zoh6rjga7lr77osaEiLCJuYW1lIjoi5ZCI5oiQ44Gu5bGV5pyb5Y-w8J-MuCIsImxhdGl0dWRlIjozNS43LCJsb25naXR1ZGUiOjEzOS44LCJncm91bmRNIjoyLCJwYXJ0cyI6W3siaWQiOiJyb29mIiwibmFtZSI6IuWxi-aguSIsIm0iOjcwfV19XQ",
+    "payload": {
+      "v": 1,
+      "kind": "aim",
+      "body": "moon",
+      "t": {
+        "id": "独自の対象",
+        "name": "合成の展望台🌸",
+        "latitude": 35.7,
+        "longitude": 139.8,
+        "groundM": 2,
+        "parts": [
+          {
+            "id": "roof",
+            "name": "屋根",
+            "m": 70
+          }
+        ]
+      },
+      "o": [
+        "撮影地点",
+        35.64,
+        139.87,
+        null,
+        1.5,
+        null
+      ],
+      "at": 1793358900000,
+      "part": "roof",
+      "limb": "center",
+      "air": "auto",
+      "l": {
+        "on": true,
+        "mode": "manual",
+        "focal": 50,
+        "sensor": "full",
+        "portrait": false,
+        "grid": "none"
+      },
+      "pan": [
+        0,
+        0
+      ]
+    }
+  }
+]

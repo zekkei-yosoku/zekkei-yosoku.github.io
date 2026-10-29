@@ -1,6 +1,8 @@
 import test from 'node:test';import assert from 'node:assert/strict';import{readFileSync,existsSync}from'node:fs';import{createHash}from'node:crypto';import{execFileSync}from'node:child_process';
 // 2026-10-28 写真の評価を本番へ昇格。旧「root不変」検査を、承認した昇格の範囲と生成一致の検査へ置き換える（弱めない）。
 const BASE='772e3e79a2083864dbd4508717725a8d82fb0041',cwd=new URL('.',import.meta.url);
+// Audit the promotion against its own commit; later approved map/camera/sharing releases are independent.
+const PROMOTED='4efdd5c';
 const read=n=>readFileSync(new URL(n,import.meta.url)),text=n=>read(n).toString(),git=(...a)=>execFileSync('git',a,{cwd,encoding:'utf8',maxBuffer:64<<20});
 const tracked=new Set(git('ls-files').trim().split('\n')),catalog=JSON.parse(read('data/sky-rating-v1/catalog.json')),html=text('sky-rating.html'),js=text('sky-rating.js');
 const sha=b=>createHash('sha256').update(b).digest('hex');
@@ -21,21 +23,21 @@ test('画像台帳はAPIの信頼できる台帳と一致する（今回のAPI�
  assert.match(js,/'sky-rating-v1'/);assert.match(js,/'sky-colour-strength\/1'/);
 });
 
-test('基底からのroot変更は承認した昇格の範囲だけ、trialはrootからの生成と一致、独立台帳は空',()=>{
- const changed=git('diff',BASE,'--name-only').trim().split('\n').filter(Boolean);
+test('昇格コミットの変更は承認範囲だけ、現在のtrialはrootからの生成と一致、独立台帳は空',()=>{
+ const changed=git('diff',BASE,PROMOTED,'--name-only').trim().split('\n').filter(Boolean);
  const allowed=n=>['index.html','sky-rating.html','sky-rating.css','sky-rating.js','sky-rating-theme.js','privacy.html','build-preview.py','update-assets.mjs','.gitignore'].includes(n)||n.startsWith('data/sky-rating-v1/')||n.startsWith('trial/')||n.startsWith('tools/')||/^test-[a-z0-9-]+\.mjs$/.test(n);
  assert.deepEqual(changed.filter(n=>!allowed(n)),[]);
- assert.deepEqual(git('diff',BASE,'--name-only','--','terms.html','legal.css').trim(),'','利用規約は変えない');
+ assert.deepEqual(git('diff',BASE,PROMOTED,'--name-only','--','terms.html','legal.css').trim(),'','昇格時に利用規約は変えない');
  execFileSync('python3',['build-preview.py','--check'],{cwd});
  const ledger=JSON.parse(text('trial/ui-experiment.json'));assert.deepEqual(ledger.files,{});assert.deepEqual(ledger.trialOnlyFiles,{});assert.equal(ledger.promotedFrom,BASE);
  for(const n of['sky-rating.js','sky-rating.css','sky-rating-theme.js','privacy.html','terms.html'])assert.equal(sha(read('trial/'+n)),sha(read(n)),n);
  assert.match(text('trial/sky-rating.html'),/AstroNotes <span>試用版<\/span>/);
 });
 
-test('rootのindexは承認済みtrialの差分＋送信のためのログイン復帰だけを加える',()=>{
+test('昇格時のindex差分は承認範囲だけ、現在も協力入口と写真アップロード撤去を保つ',()=>{
  const norm=s=>s.split('\n').filter(l=>!/name="app-version"|http-equiv="Content-Security-Policy"|data-script-preload/.test(l)).map(l=>l.replace(/\?v=\d+/g,'?v='));
  const trial=git('show',BASE+':trial/index.html').replace('<title>AstroNotes 試用版</title>','<title>AstroNotes</title>').replace('content="AstroNotes 試用版"','content="AstroNotes"').replace(/  <p style="font-size:12px;padding:6px 2px;color:var\(--secondary\)">試用版 · 本番とアカウント・保存データ共通 <a href="\.\.\/">本番へ<\/a><\/p>\n/,'');
- const count=a=>a.reduce((m,l)=>m.set(l,(m.get(l)||0)+1),new Map()),A=count(norm(trial)),B=count(norm(text('index.html')));
+ const count=a=>a.reduce((m,l)=>m.set(l,(m.get(l)||0)+1),new Map()),A=count(norm(trial)),B=count(norm(git('show',PROMOTED+':index.html')));
  const added=[],removed=[];for(const[l,n]of B)for(let i=(A.get(l)||0);i<n;i++)added.push(l);for(const[l,n]of A)for(let i=(B.get(l)||0);i<n;i++)removed.push(l);
  const glue=/RATING_LOGIN|loginSettling|ratingLoginPending|finishRatingLogin|resumeRatingLogin|astronotes\.rating\.return|astronotes\.sky-ratings\.v2|ログインして送信|新しい写真のアップロードは受け付けていません|2026-10-28: 結果は点数評価|写真の評価（sky-rating\.html）|写真の評価から来たログイン|結果の写真アップロードは2026-10-28に撤去|回復コードやパスキーの案内|起動の画面選び|^  setTimeout\(\(\) => \{$|^  \}, 0\);$|^    if \(auth\) location\.href = "sky-rating\.html";$/;
  assert.deepEqual(added.filter(l=>!glue.test(l)&&!/^\s*(try \{|\}|)\s*$/.test(l)),[]);

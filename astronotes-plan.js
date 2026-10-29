@@ -13,7 +13,8 @@ const AstroNotesPlan = (() => {
     const t = p.t, l = p.l;
     return t && text(t.id, 80) && text(t.name) && num(t.latitude,-90,90) && num(t.longitude,-180,180)
       && num(t.groundM,-500,9000) && Array.isArray(t.parts) && t.parts.length > 0 && t.parts.length <= 16
-      && t.parts.every(q => q && text(q.id,40) && text(q.name) && num(q.m,-500,10000))
+      && t.parts.every(q => q && text(q.id,40) && text(q.name) && num(q.m,-500,10000)
+        && (q.latitude===undefined&&q.longitude===undefined || num(q.latitude,-90,90)&&num(q.longitude,-180,180)))
       && [null,undefined,'mountain','tower'].includes(t.kind) && (t.widthM === undefined || num(t.widthM,0,100000))
       && l && ['auto','manual'].includes(l.mode) && ['full','aps','canon','m43'].includes(l.sensor)
       && num(l.focal,0.01,100000) && typeof l.on === 'boolean' && typeof l.portrait === 'boolean'
@@ -26,7 +27,9 @@ const AstroNotesPlan = (() => {
     return btoa(Array.from(bytes,b=>String.fromCharCode(b)).join('')).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
   }
   function decode(s) {
-    if (!s || s.length > 8000 || !/^[\w-]+$/.test(s)) return null;
+    if (!s || s.length > 8000 || typeof s !== 'string') return null;
+    if(s.startsWith('3/'))return decodeCompact(s);
+    if(!/^[\w-]+$/.test(s))return null;
     try {
       let p = JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Uint8Array.from(atob(s.replaceAll('-','+').replaceAll('_','/')),c=>c.charCodeAt(0))));
       if(Array.isArray(p)&&p.length===11&&p[0]===2){
@@ -38,14 +41,61 @@ const AstroNotesPlan = (() => {
       return valid(p) ? p : null;
     } catch { return null; }
   }
-  function encodeLink(p){
+  const onlyLinkFields=(v,keys)=>v&&typeof v==='object'&&Object.keys(v).every(k=>keys.includes(k));
+  const compactable=p=>valid(p)&&p.kind==='aim'&&onlyLinkFields(p,['v','kind','o','at','t','body','part','limb','air','l','pan','matchMode','timelapse'])&&onlyLinkFields(p.t,['id','name','latitude','longitude','groundM','parts','kind','widthM'])&&p.t.parts.every(q=>onlyLinkFields(q,['id','name','m','latitude','longitude']))&&onlyLinkFields(p.l,['on','mode','focal','sensor','portrait','grid']);
+  function encodeTuple(p){
     // A lossless tuple removes repeated field names. Unknown future extensions keep the v1 codec.
-    const only=(v,keys)=>v&&typeof v==='object'&&Object.keys(v).every(k=>keys.includes(k));
-    if(!valid(p)||p.kind!=='aim'||!only(p,['v','kind','o','at','t','body','part','limb','air','l','pan','matchMode','timelapse'])||!only(p.t,['id','name','latitude','longitude','groundM','parts','kind','widthM'])||!p.t.parts.every(q=>only(q,['id','name','m','latitude','longitude']))||!only(p.l,['on','mode','focal','sensor','portrait','grid']))return encode(p);
+    if(!compactable(p))return encode(p);
     const optional=(v,keys)=>Object.fromEntries(keys.filter(k=>v[k]!==undefined).map(k=>[k,v[k]])),t=p.t,l=p.l;
     const packed=[2,p.o,p.at,[t.id,t.name,t.latitude,t.longitude,t.groundM,t.parts.map(q=>[q.id,q.name,q.m,...(q.latitude!==undefined||q.longitude!==undefined?[optional(q,['latitude','longitude'])]:[])]),optional(t,['kind','widthM'])],p.body,p.part,p.limb,p.air,[l.on,l.mode,l.focal,l.sensor,l.portrait,l.grid],p.pan,optional(p,['matchMode','timelapse'])];
     const bytes=new TextEncoder().encode(JSON.stringify(packed));
     return btoa(Array.from(bytes,b=>String.fromCharCode(b)).join('')).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
+  }
+  // Immutable v3 catalog: keep these definitions when adding a later codec version.
+  const LINK_CATALOG_3 = {"fuji":{"id":"fuji","name":"富士山","latitude":35.360555,"longitude":138.727363,"groundM":3776,"parts":[{"id":"summit","name":"山頂","m":3776}]},"skytree":{"id":"skytree","name":"東京スカイツリー","latitude":35.710063,"longitude":139.8107,"groundM":2,"parts":[{"id":"tip","name":"先端","m":636},{"id":"gallery","name":"天望回廊（第二展望台）","m":452},{"id":"deck","name":"天望デッキ","m":352}]},"tokyotower":{"id":"tokyotower","name":"東京タワー","latitude":35.65859131567304,"longitude":139.74544420093412,"groundM":18,"parts":[{"id":"tip","name":"先端","m":351},{"id":"top","name":"トップデッキの上端","m":247.55},{"id":"main","name":"メインデッキの上端","m":148.389}]},"tocho-building":{"id":"tocho-building","name":"東京都庁 第一本庁舎","latitude":35.6895,"longitude":139.691694,"groundM":34.63,"parts":[{"id":"north","name":"北塔の頂部","m":277.68,"latitude":35.68978611899479,"longitude":139.69164621437966},{"id":"south","name":"南塔の頂部","m":277.68,"latitude":35.68921795263166,"longitude":139.6917781156376}]},"shibuya-sky":{"id":"shibuya-sky","name":"渋谷スカイ","latitude":35.65838377760082,"longitude":139.70226592899252,"groundM":14.61,"parts":[{"id":"tip","name":"屋上（SKY STAGE）","m":243.637,"latitude":35.65838377760082,"longitude":139.70226592899252}]},"azabudai-hills":{"id":"azabudai-hills","name":"麻布台ヒルズ 森JPタワー","latitude":35.6608543555483,"longitude":139.7406558121773,"groundM":18.74,"parts":[{"id":"tip","name":"頂部","m":349.558,"latitude":35.6608543555483,"longitude":139.7406558121773}]},"kabukicho-tower":{"id":"kabukicho-tower","name":"東急歌舞伎町タワー","latitude":35.69610448807164,"longitude":139.70068955167807,"groundM":29.999,"parts":[{"id":"tip","name":"頂部","m":249.772,"latitude":35.69610448807164,"longitude":139.70068955167807}]},"tower-terror":{"id":"tower-terror","name":"タワー・オブ・テラー","latitude":35.6240957,"longitude":139.8882684,"groundM":4.8,"parts":[{"id":"tip","name":"頂部","m":63.8}]},"cinderella":{"id":"cinderella","name":"シンデレラ城","latitude":35.632104,"longitude":139.880834,"groundM":3,"parts":[{"id":"tip","name":"てっぺん","m":54}]},"tinkerbell":{"id":"tinkerbell","name":"ティンカーベル","latitude":35.637031,"longitude":139.878077,"groundM":3,"parts":[{"id":"tip","name":"杖の先","m":56}]}};
+  const freezeCatalog=v=>{for(const x of Object.values(v))if(x&&typeof x==='object')freezeCatalog(x);return Object.freeze(v);};
+  freezeCatalog(LINK_CATALOG_3);
+  // Version 3: body / target / observer coordinates / UTC milliseconds / optional deltas.
+  // Catalog definitions are frozen in this codec, never taken from the recipient's saved targets.
+  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+  const LENS_DEFAULT=[true,'manual',50,'full',false,'none'];
+  const OBS_DEFAULT=['撮影地点',null,1.5,null];
+  const trimDefaults=(a,d)=>{a=a.map((x,i)=>same(x,d[i])?null:x);while(a.length&&a.at(-1)===null)a.pop();return a.length?a:null;};
+  const packJson=v=>btoa(Array.from(new TextEncoder().encode(JSON.stringify(v)),b=>String.fromCharCode(b)).join('')).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
+  const unpackJson=s=>JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Uint8Array.from(atob(s.replaceAll('-','+').replaceAll('_','/')),c=>c.charCodeAt(0))));
+  function encodeLink(p){
+    const fallback=encodeTuple(p);
+    // Unknown extensions remain lossless in v1 rather than being silently discarded.
+    if(!compactable(p)||!/^[-\w]{1,32}$/.test(p.body))return fallback;
+    const known=Object.hasOwn(LINK_CATALOG_3,p.t.id),base=known?LINK_CATALOG_3[p.t.id]:null;
+    const target=base?Object.fromEntries(Object.entries(p.t).filter(([k,v])=>!same(v,base[k]))):p.t;
+    const l=p.l,o=p.o;
+    const delta=[trimDefaults([o[0],o[3],o[4],o[5]],OBS_DEFAULT),p.part==='__whole'?null:p.part,p.limb==='center'?null:p.limb,p.air==='auto'?null:p.air,
+      trimDefaults([l.on,l.mode,l.focal,l.sensor,l.portrait,l.grid],LENS_DEFAULT),same(p.pan,[0,0])?null:p.pan,p.matchMode??null,p.timelapse??null,Object.keys(target).length?target:null];
+    while(delta.length&&delta.at(-1)===null)delta.pop();
+    const token=['3',p.body,known?p.t.id:'_',`${o[1]},${o[2]}`,String(p.at),...(delta.length?[packJson(delta)]:[])].join('/');
+    return token.length<fallback.length?token:fallback;
+  }
+  function decodeCompact(s){
+    try{
+      const a=s.split('/');if(a.length<5||a.length>6||a[0]!=='3'||!/^[-\w]{1,32}$/.test(a[1]))return null;
+      const numeric=x=>/^-?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(x)?Number(x):NaN;
+      const xy=a[3].split(',');if(xy.length!==2)return null;
+      if(a[5]!==undefined&&!/^[\w-]+$/.test(a[5]))return null;
+      const d=a[5]?unpackJson(a[5]):[];if(!Array.isArray(d)||d.length>9)return null;
+      const arr=(v,n)=>v==null||Array.isArray(v)&&v.length<=n;
+      if(!arr(d[0],4)||!arr(d[4],6))return null;
+      const obj=v=>v&&typeof v==='object'&&!Array.isArray(v);
+      if(d[8]!=null&&(!obj(d[8])||Object.keys(d[8]).some(k=>!['id','name','latitude','longitude','groundM','parts','kind','widthM'].includes(k))))return null;
+      const base=Object.hasOwn(LINK_CATALOG_3,a[2])?LINK_CATALOG_3[a[2]]:null;
+      if(!base&&a[2]!=='_')return null;
+      const t=base?{...JSON.parse(JSON.stringify(base)),...(d[8]||{})}:d[8];
+      if(base&&t.id!==a[2])return null;
+      const o=OBS_DEFAULT.map((v,i)=>d[0]?.[i]??v),l=LENS_DEFAULT.map((v,i)=>d[4]?.[i]??v);
+      const p={v:1,kind:'aim',body:a[1],t,o:[o[0],numeric(xy[0]),numeric(xy[1]),o[1],o[2],o[3]],at:numeric(a[4]),part:d[1]??'__whole',limb:d[2]??'center',air:d[3]??'auto',
+        l:{on:l[0],mode:l[1],focal:l[2],sensor:l[3],portrait:l[4],grid:l[5]},pan:d[5]??[0,0],...(d[6]!=null?{matchMode:d[6]}:{}),...(d[7]!=null?{timelapse:d[7]}:{})};
+      return valid(p)?p:null;
+    }catch{return null;}
   }
   const compactPoint = (o,eye=1.5) => [String(o.name || '撮影地点').slice(0,100),o.latitude,o.longitude,Number.isFinite(o.elevation)?o.elevation:null,eye,o.terrain || null];
   const expandPoint = p => ({id:`shared:${p[1]},${p[2]}`,name:p[0],subtitle:'共有された撮影地点',latitude:p[1],longitude:p[2],elevation:p[3],eyeHeightAGL:p[4],terrain:p[5],locationScope:'point',decks:null});
