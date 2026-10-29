@@ -38,15 +38,16 @@ function updateConditions(){
  if(!mounted||!conditions)return;const s=SkyMapUI.selectionState(),text=conditionText(s);
  for(const [id,value] of [['exploreConditionTitle',text.title],['exploreConditionDetail',text.detail]])if($(id).textContent!==value)$(id).textContent=value;
  const confirm=$('exploreShowResult');confirm.disabled=false;confirm.textContent=!s?.target?'対象を選ぶ':!s?.observer?'撮影地点を選ぶ':'結果を確認';
- for(const b of mapView.querySelectorAll('[data-plan-action="keep"]')){b.hidden=false;b.disabled=b.dataset.planSource==='skymap'?!!$('skyMapShareRow').querySelector('[data-plan-action="share"]')?.disabled:!!pendingKey||!frameKey||look.hidden;}
+ for(const b of mapView.querySelectorAll('[data-quick-save]')){b.hidden=false;b.disabled=b.dataset.planSource==='skymap'?!!$('skyMapShareRow').querySelector('[data-plan-action="share"]')?.disabled:!!pendingKey||!frameKey||look.hidden;}
 }
 function showResult(){
  if(!mounted)return;const selected=SkyMapUI.selectionState();if(!selected?.target){$('skyMapTargetOpen').click();return;}if(!selected?.observer){$('skyMapChoose').click();return;}conditions.open=false;
  const tab=mode==='map'?mapTab:sceneTab;tab.focus({preventScroll:true});tabs.style.scrollMarginTop=(conditions.getBoundingClientRect().height+12)+'px';tabs.scrollIntoView({block:'start',behavior:'auto'});if(mode==='scene')sync();
 }
 function addSaveAction(row,source){
- if(!row||row.querySelector('[data-plan-action="keep"]'))return;
- const b=node('button',{type:'button',className:'plan-trigger explore-save'});b.setAttribute('aria-label','予定に追加');b.title='予定に追加';b.innerHTML='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M7 2v4M17 2v4M3 9h18M18 14v8M14 18h8"/></svg>';b.dataset.planAction='keep';b.dataset.planSource=source;row.append(b);updateConditions();
+ if(!row||row.querySelector('[data-quick-save]'))return;
+ const point=node('button',{type:'button',className:'plan-trigger explore-save'});point.setAttribute('aria-label','撮影地点に保存');point.title='撮影地点に保存';point.dataset.quickSave='place';point.dataset.planSource=source;point.innerHTML='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>';row.append(point);
+ const b=node('button',{type:'button',className:'plan-trigger explore-save'});b.setAttribute('aria-label','予定に追加');b.title='予定に追加';b.innerHTML='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M7 2v4M17 2v4M3 9h18M18 14v8M14 18h8"/></svg>';b.dataset.quickSave='plan';b.dataset.planSource=source;row.append(b);updateConditions();
 }
 function canFrame(s){if(!eligible())return false;if(s.target.id!=='fuji')return toolAllowed('tower');return s.body==='sun'?toolAllowed('diamond'):s.body==='moon'?toolAllowed('pearl'):toolAllowed('tower')&&(toolAllowed('diamond')||toolAllowed('pearl'));}
 function invalidate(){epoch++;frameKey='';frameBase='';pendingKey='';look._lookSeq=(look._lookSeq||0)+1;look._planKey=null;if(look._captionTimer){clearTimeout(look._captionTimer);look._captionTimer=0;}}
@@ -118,7 +119,7 @@ async function paint(force=false){
   await AstroNotesAssets.ensureModels();await AstroNotesBodies.ensure(s.body);
   if(run!==epoch||!active()||mode!=='scene'||stamp(snapshot())!==key)return;
   if(aimAirEnsure(aim.from,aim.dayMs))return;
-  const spec={obs:{latitude:s.observer.latitude,longitude:s.observer.longitude,elevation:s.ground??s.observer.groundManualM??0},eyeM:s.eyeM,at:s.at,observerName:s.observer.name,title:'',sub:'',light:''};
+  const spec={obs:{latitude:s.observer.latitude,longitude:s.observer.longitude,elevation:s.observer.groundManualM??s.ground??0},eyeM:s.eyeM,at:s.at,observerName:s.observer.name,title:'',sub:'',light:''};
   look._uiRequestedTime=null;look._lookAt=null;
   await aimLookRender(look,spec);
   if(run!==epoch||!active()||mode!=='scene'||stamp(snapshot())!==key)return;

@@ -5,6 +5,31 @@ const require=createRequire(import.meta.url),L=require('./astronotes-library.js'
 const place={id:'p',name:'川沿い',latitude:35,longitude:139,elevation:12,eyeHeightAGL:1.5};
 const line={type:'line',vertices:[{latitude:35,longitude:139},{latitude:35.001,longitude:139}]};
 const target={key:'skytree',name:'東京スカイツリー',latitude:35.71,longitude:139.81};
+const fullTarget={...target,id:target.key,groundM:10,parts:[{id:'tip',name:'先端',m:644}]};
+function quick(extra={}){return L.prepareQuickRecord({owner:'owner',favorites:[],observations:[],shapes:{},observer:place,target:fullTarget,knownTargets:[fullTarget],currentTargets:()=>[],cleanShape:S.cleanShape,...extra});}
+test('直接登録は地点・対象・高さを継承し実績や予定を作らず、同じ条件は書換不要',()=>{
+ const p=quick();assert.equal(p.favorites.length,1);assert.equal(p.place.name,place.name);assert.equal(p.place.eyeHeightAGL,1.5);assert.equal(p.observations.length,1);assert(p.observations[0].registration);assert.equal(p.observations[0].date,'');
+ const again=quick({favorites:p.favorites,observations:p.observations,currentTargets:()=>[target]});assert(again.already);assert.deepEqual(again.observations,p.observations);assert.deepEqual(again.favorites,p.favorites);
+ const high=quick({favorites:p.favorites,observer:{...place,eyeHeightAGL:229}});assert.equal(high.favorites.length,2);assert.equal(high.place.eyeHeightAGL,229);assert.equal(high.favorites[0].eyeHeightAGL,1.5);
+ const adjacent=quick({favorites:p.favorites,observer:{...place,latitude:place.latitude+.0001}});assert.equal(adjacent.favorites.length,2);assert.notEqual(adjacent.place.id,p.place.id);
+});
+test('直接登録は既存対象・形・名前を保持し、custom対象を近傍の既存地点へ吸収しない',()=>{
+ const draft={...fullTarget,id:'custom',name:'自分の対象',groundM:12,parts:[{id:'tip',name:'先端',m:42}]},existing={...place,id:'neighbor',latitude:draft.latitude,longitude:draft.longitude,note:'保持'};
+ const p=quick({favorites:[place,existing],shapes:{p:{latitude:35,longitude:139,shape:line}},target:draft,currentTargets:()=>[{...target,key:'fuji',name:'富士山'}]});
+ assert.deepEqual(p.favorites.find(f=>f.id==='neighbor'),existing);assert.deepEqual(p.shapes.p.shape,line);assert.equal(p.observations.length,1);assert(p.observations[0].target.key.startsWith('fav:target-'));
+ const again=quick({favorites:p.favorites,observations:p.observations,target:draft,currentTargets:()=>[p.observations[0].target]});assert(again.already);assert.equal(again.favorites.length,p.favorites.length);
+ assert.throws(()=>quick({target:{...draft,parts:[...draft.parts,{id:'other',m:20}]}}),/形/);assert.throws(()=>quick({target:{...draft,widthM:10}}),/形/);
+});
+test('直接登録の保存失敗は地点と登録の両方を復元する',()=>{
+ const p=quick();for(const failure of p.entries.map(([k])=>k)){const storage=disk();for(const[k]of p.entries)storage.setItem(k,'[]');const before=[...storage.values];storage.fail(failure);assert.throws(()=>L.transaction(storage,p.entries),/取り消しました/);assert.deepEqual([...storage.values],before);}
+});
+test('富士山は既知の形を保ち、自動標高の取得だけでは既存地点を増やさない',()=>{
+ const fuji={id:'fuji',name:'富士山',latitude:35.36,longitude:138.73,parts:[{id:'tip',name:'山頂',m:3776}]};
+ const f={...place,elevation:null},p=quick({favorites:[f],observer:{...place,groundManualM:null},target:{...fuji,groundM:3776},knownTargets:[fuji]});
+ assert.equal(p.favorites.length,1);assert.equal(p.place.id,f.id);assert.equal(p.observations[0].target.key,'fuji');assert.deepEqual(p.favorites[0],f);
+ const old={...target,name:'以前の名称',latitude:35.7},same=quick({favorites:[place],observations:L.registrationChanges(place,[],[old]),currentTargets:()=>[old]});
+ assert(same.already);assert.equal(same.observations.length,1);assert.equal(same.observations[0].target.name,'以前の名称');
+});
 function disk(){const values=new Map(),calls=[];let fail=null;return {values,calls,fail:k=>fail=k,getItem:k=>values.get(k)??null,setItem(k,v){calls.push(k);if(k===fail){fail=null;throw Error('quota');}values.set(k,v);},removeItem:k=>values.delete(k)};}
 function plan(extra={}){return L.prepareRecord({owner:'owner',favorites:[],observations:[],shapes:{},place,isNew:true,initialTargets:[],targets:[target],shape:line,cleanShape:S.cleanShape,...extra});}
 test('対象作成は下書きだけを返し、お気に入りを変更しない。20m以内の同一地点はIDを使う',()=>{

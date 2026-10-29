@@ -62,6 +62,31 @@ function prepareRecord({owner,favorites,observations,shapes,place,isNew,initialT
  return {favorites:nextFavorites,observations:nextObservations,shapes:nextShapes,changedFavorites:[...new Set([...(isNew||favorites.find(f=>f.id===place.id)?.name!==place.name?[place.id]:[]),...used.map(x=>x.entry.id)])],entries:[[k.observations,nextObservations],[k.shapes,nextShapes],['sorami.favorites',nextFavorites]]};
 }
 // Notebook membership is records/shapes; favorite locations remain picker candidates.
+function prepareQuickRecord({owner,favorites,observations,shapes,observer,target,knownTargets=[],currentTargets,cleanShape}){
+ if(!owner||!point(observer)||!point(target)||!target.name?.trim()||!target.parts?.length)throw Error('撮影地点と対象を選んでください');
+ const eye=observer.eyeHeightAGL??1.5,ground=Number.isFinite(observer.elevation)?observer.elevation:null;
+ if(!Number.isFinite(eye)||eye<0||eye>700)throw Error('撮影地点の高さを確認してください');
+ // Exact shooting position and height: nearby floors/points must not overwrite one another.
+ const same=p=>point(p)&&distance(p,observer)<.2&&Math.abs((p.eyeHeightAGL??1.5)-eye)<.01&&(Number.isFinite(p.elevation)&&Number.isFinite(ground)?Math.abs(p.elevation-ground)<.01:p.elevation==null&&(ground==null||observer.groundManualM==null));
+ const existing=favorites.find(p=>p.id===observer.id&&same(p))||favorites.find(same);
+ const uid=prefix=>prefix+(root.crypto?.randomUUID?.()||Date.now().toString(36)+Math.random().toString(36).slice(2));
+ const place=existing||{id:uid('point-'),name:String(observer.name||observer.latitude.toFixed(5)+', '+observer.longitude.toFixed(5)).slice(0,200),latitude:observer.latitude,longitude:observer.longitude,elevation:ground,eyeHeightAGL:eye,locationScope:'point',terrain:null,phenomena:[],note:''};
+ const geometry=t=>JSON.stringify([t.latitude,t.longitude,t.groundM??(t.id==='fuji'?3776:0),(t.parts||[]).map(p=>[p.id,p.m,p.latitude??null,p.longitude??null])]);
+ let chosen=knownTargets.find(t=>t.id===target.id&&geometry(t)===geometry(target)),drafts=[];
+ if(!chosen){
+  // A custom point target can use the existing favorite-target contract without losing geometry.
+  const part=target.parts[0],g=target.groundM??0,h=part.m-g;
+  if(target.parts.length!==1||target.kind||target.widthM||(part.latitude!=null&&part.latitude!==target.latitude)||(part.longitude!=null&&part.longitude!==target.longitude)||!height(h)||!Number.isFinite(g))throw Error('この対象の形は撮影地点へ直接保存できません。対象を登録してからお試しください');
+  const match=favorites.find(f=>point(f)&&distance(f,target)<.2&&f.name===target.name&&f.elevation===g&&f.targetHeightM===h);
+  if(match)chosen=targetFromFavorite(match);
+  else {const draft=targetDraft({...target,elevation:g},{name:target.name,heightM:h,favorites,id:uid('target-')});drafts=[draft];chosen=targetFromFavorite(draft.entry);}
+ }
+ const before=existing?currentTargets(existing.id):[],selected={key:chosen.key||chosen.id,name:chosen.name,latitude:chosen.latitude,longitude:chosen.longitude};
+ const targets=before.some(t=>(t.key||t.id)===selected.key)?before:[...before,selected];
+ const shape=existing?shapes[existing.id]?.shape||null:null;
+ const plan=prepareRecord({owner,favorites,observations,shapes,place,isNew:!existing,initialTargets:before,targets,shape,drafts,cleanShape});
+ return {...plan,place,already:!!existing&&!plan.changedFavorites.length&&plan.observations.length===observations.length};
+}
 function prepareNotebookBulk({owner,favorites,observations,shapes,placeIds,mode,targets=[],drafts=[],currentTargets}){
  if(!owner||!Array.isArray(placeIds)||!placeIds.length)throw Error('撮影地点を選んでください');
  const ids=new Set(placeIds),places=[...ids].map(id=>favorites.find(f=>f.id===id));
@@ -105,7 +130,7 @@ function restore(data,{favorites,sightings,observations,shapes,cleanFavorite,cle
  }
  return {favorites:nextFavorites,sightings:merge(sightings,goodRecs),observations:merge(observations,goodObs),shapes:nextShapes,goodRecs,goodFavs,observationCount:goodObs.length,shapeCount,dropped};
 }
-const api={point,nameKey,height,distance,nearby,matchingNames,keys,gate,transaction,targetFromFavorite,targetDraft,applyDrafts,cleanObservation,registrationChanges,prepareRecord,prepareNotebookBulk,backup,restore,merge};
+const api={point,nameKey,height,distance,nearby,matchingNames,keys,gate,transaction,targetFromFavorite,targetDraft,applyDrafts,cleanObservation,registrationChanges,prepareRecord,prepareQuickRecord,prepareNotebookBulk,backup,restore,merge};
 if(typeof module==='object'&&module.exports)module.exports=api;root.AstroNotesLibrary=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
 

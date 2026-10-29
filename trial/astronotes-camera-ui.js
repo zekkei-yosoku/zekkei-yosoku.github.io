@@ -1,6 +1,11 @@
 /* Trial: static capture range, never advances the selected date/time. */
 (function(root){'use strict';
 const states=new WeakMap(),T=()=>root.AstroNotesTimelapse;
+function snapPan(x,y,{width,height,bottom,line,limit=1,state={},horizontal=true,vertical=true}){
+ const snapY=(bottom-line)/height,canSnap=Number.isFinite(snapY)&&Math.abs(snapY)<=1;
+ const ground=vertical&&canSnap&&Math.abs((y-snapY)*height)<=(state.ground?18:9),center=horizontal&&Math.abs(x*width)<=(state.center?18:9);
+ return {offset:[Math.max(-limit,Math.min(limit,center?0:x)),Math.max(-1,Math.min(1,ground?snapY:y))],ground,center,entered:ground&&!state.ground||center&&!state.center};
+}
 function indices(count,max=61){if(!Number.isInteger(count)||count<2||count>10000||!Number.isInteger(max)||max<2||max>61)throw Error('invalid capture count');const n=Math.min(count,max);return Array.from({length:n},(_,i)=>Math.round(i*(count-1)/(n-1)));}
 const fpsKey=o=>'astronotes.timelapse.fps:'+encodeURIComponent(o||'guest');
 function loadFps(o){try{const f=Number(localStorage.getItem(fpsKey(o)));return [24,25,30,60].includes(f)?f:24;}catch{return 24;}}
@@ -68,5 +73,5 @@ function drawRange(host,ctx,{at,seq,k,toPx,pack,disc}){
 }
 function stop(){} // Static overlay has no playback clock to stop.
 function invalidate(host){const s=states.get(host);if(s)s.cache=null;}
-const api={mount,drawRange,mapToolbar,stop,invalidate,indices};root.AstroNotesCameraUI=api;if(typeof module==='object'&&module.exports)module.exports=api;
+const api={mount,drawRange,mapToolbar,stop,invalidate,indices,snapPan};root.AstroNotesCameraUI=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(globalThis);

@@ -4,6 +4,14 @@ const require=createRequire(import.meta.url),Sch=require('./astronotes-schedule.
 const mem=()=>{const m=new Map();return{read:(k,f)=>m.has(k)?JSON.parse(m.get(k)):f,write:(k,v)=>{m.set(k,JSON.stringify(v));return true;},m};};
 const plan=(at,o='曽谷')=>({v:1,kind:'aim',t:{id:'skytree',name:'東京スカイツリー'},o:[o,35.74,139.93],body:'moon',part:'top',limb:'center',matchMode:'overlap',at});
 const validate=p=>p?.kind==='aim'&&Number.isFinite(p.at)?p:null;
+test('直接保存は同じ全条件なら書込せず、編集済み件名・時間・保存日を維持する',()=>{
+ const m=mem();let writes=0;const s=Sch.create({...m,write:(...args)=>{writes++;return m.write(...args);},validate,now:()=>1000});
+ const p={...plan(2e12),l:{focal:50},pan:[0,0],air:'auto'};
+ s.add({value:p,title:'編集した件名',start:2e12-1000,end:2e12+2000});const before=JSON.stringify(s.list());assert(s.find(p));
+ const r=s.add({value:p,title:'自動件名',start:2e12-900000,end:2e12+900000,preserveExisting:true});assert(r.ok&&r.already);assert.equal(writes,1);assert.equal(JSON.stringify(s.list()),before);
+ for(const change of [{l:{focal:100}},{pan:[.2,0]},{air:'none'},{timelapse:{interval:5,count:10,fps:24}}]){const q={...p,...change};assert.equal(s.find(q),null);assert(s.add({value:q,start:2e12,end:2e12+1000,preserveExisting:true}).ok);}
+ assert.equal(s.list().length,5);assert.equal(s.list()[0].title,'編集した件名');
+});
 test('保存・同じ条件は更新・近い順・消す・アカウントごと',()=>{
  const s=mem();let who='a';const st=Sch.create({...s,validate,scope:()=>who,now:()=>1000});
  const a=st.add({value:plan(2e12),title:'満月とスカイツリー',start:2e12,end:2e12+1800000});assert.ok(a.ok&&!a.updated);

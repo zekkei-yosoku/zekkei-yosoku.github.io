@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {createRequire} from "node:module";
 import {readFileSync} from "node:fs";
 import vm from "node:vm";
-const require=createRequire(import.meta.url),AL=require("./astronotes-align.js"),S=require("./astronotes-core.js");
+const require=createRequire(import.meta.url),Camera=require("./astronotes-camera-ui.js"),AL=require("./astronotes-align.js"),S=require("./astronotes-core.js");
 // 10/3 に月が先端の約23′下を通る位置（2026-10-05、方位を楕円体にしたので元の 35.58386,139.56853 から視線に直角に52m動かした）
 const observer={latitude:35.583465,longitude:139.568839,elevation:83},target=AL.targetById("skytree");
 const day=d=>Date.parse(`2026-10-${d}T00:00:00+09:00`);
@@ -87,18 +87,18 @@ test("山でも基準線に吸着・離脱し、構図の移動・復帰は時�
  const html=readFileSync(new URL("./index.html",import.meta.url),"utf8"),a=html.indexOf('  const move = host.querySelector("[data-lens-move]")'),b=html.indexOf('  cur = timeIndex(selectedAt); draw(cur);',a);
  let draws=0,prevented=0,clears=0;const move={setAttribute:()=>{}},center={},hint={},host={_lensMoving:true,_pick:null,querySelector:q=>q.includes("hint")?hint:q.includes("center")?center:move};
  const cv={addEventListener(){},style:{},setPointerCapture:()=>{}},cur=43,W=316,H=284,k=10,frame={halfW:5,halfH:6};
- const c=vm.createContext({aimLookKey:()=>'test',aim:{},AstroNotesBodies:globalThis.AstroNotesBodies,panLimit:1,host,cv,cur,W,H,k,frame,hiddenY:null,baseY:220,groundEdge:220,mountain:true,az:0,proj:()=>[0,0],toPx:()=>[0,202],navigator:{vibrate:()=>{}},Math,draw:()=>draws++,aimLookRender:()=>{},aimReverseClear:()=>clears++,spec:{}});vm.runInContext(html.slice(a,b),c);
+ const c=vm.createContext({AstroNotesCameraUI:Camera,aimLookKey:()=>'test',aim:{},AstroNotesBodies:globalThis.AstroNotesBodies,panLimit:1,host,cv,cur,W,H,k,frame,hiddenY:null,baseY:220,groundEdge:202,mountain:true,az:0,proj:()=>[0,0],toPx:()=>[0,202],navigator:{vibrate:()=>{}},Math,draw:()=>draws++,aimLookRender:()=>{},aimReverseClear:()=>clears++,spec:{}});vm.runInContext(html.slice(a,b),c);
  cv.onpointerdown({clientX:100,clientY:100,pointerId:1});cv.onpointermove({pointerId:1,clientX:150,clientY:120});cv.onpointerup();
  assert.ok(host._lensOffset[0]>0);assert.ok(host._lensOffset[1]>0);assert.equal(c.cur,43);assert.equal(host._pick,null);
  cv.onkeydown({key:"ArrowLeft",preventDefault:()=>prevented++});assert.equal(prevented,1);center.onclick();assert.deepEqual(Array.from(host._lensOffset),[0,0]);assert.ok(draws>=3);
  // 下端202px、地面220px。吸着→近傍維持→離脱と横移動の独立性。
  cv.onpointerdown({clientX:100,clientY:100,pointerId:1});
- cv.onpointermove({pointerId:1,clientX:130,clientY:86});assert.equal(host._lensOffset[1],-18/H);
- cv.onpointermove({pointerId:1,clientX:140,clientY:94});assert.equal(host._lensOffset[1],-18/H);
- cv.onpointermove({pointerId:1,clientX:150,clientY:105});assert.equal(host._lensOffset[1],5/H);
+ cv.onpointermove({pointerId:1,clientX:130,clientY:105});assert.equal(host._lensOffset[1],0);
+ cv.onpointermove({pointerId:1,clientX:140,clientY:116});assert.equal(host._lensOffset[1],0);
+ cv.onpointermove({pointerId:1,clientX:150,clientY:125});assert.equal(host._lensOffset[1],25/H);
  cv.onpointerup();assert.equal(host._lensOffset[0],50/W);
- host._lensOffset=[0,(-18+4)/H];cv.onkeydown({key:"ArrowUp",preventDefault:()=>{}});assert.equal(host._lensOffset[1],-18/H);
- for(let i=0;i<10;i++)cv.onkeydown({key:"ArrowUp",preventDefault:()=>{}});assert.ok(host._lensOffset[1]<-36/H);
+ host._lensOffset=[0,4/H];cv.onkeydown({key:"ArrowUp",preventDefault:()=>{}});assert.equal(host._lensOffset[1],0);
+ for(let i=0;i<10;i++)cv.onkeydown({key:"ArrowUp",preventDefault:()=>{}});assert.ok(host._lensOffset[1]<-18/H);
  center.onclick();
  cv.onpointerdown({clientX:100,clientY:100,pointerId:1});
  cv.onpointermove({pointerId:1,clientX:107,clientY:150});assert.equal(host._lensOffset[0],0);assert.ok(host._lensOffset[1]>0);
@@ -173,7 +173,7 @@ test("2本指のピンチは焦点距離と構図を連動し、再描画後も�
  const host={_lensMoving:true,_pick:null,_lensOffset:[.1,.1],querySelector:q=>q.includes("hint")?controls.hint:q.includes("center")?controls.center:controls.move};
  const cv={addEventListener(){},style:{},setPointerCapture:()=>{},getBoundingClientRect:()=>({left:0,top:0})};
  const R=Math.PI/180,H=300,W=300,halfH=24/(2*200*R)*1.12,aimLens={mode:"manual",focal:200,on:true};
- const c=vm.createContext({AstroNotesBodies:globalThis.AstroNotesBodies,panLimit:1,host,cv,cur:43,W,H,k:H/2/halfH,frame:{halfH:24/(400*R)},win:{halfH},focal:200,sh:24,sw:36,hiddenY:null,baseY:250,groundEdge:250,mountain:false,navigator:{},Math,Map,aimLens,localStorage:{setItem:()=>saved++},spec:{},draw:()=>draws++,aimReverseClear:()=>{},requestAnimationFrame:fn=>{queued=fn;return 1;},cancelAnimationFrame:()=>{queued=null;},aimLookRender:()=>{renders++;c.focal=aimLens.focal;c.win={halfH:Math.max(24/(2*c.focal*R),36/(2*c.focal*R))*1.12};vm.runInContext(code,c);}});
+ const c=vm.createContext({AstroNotesCameraUI:Camera,toPx:()=>[0,250],proj:()=>[0,0],az:0,AstroNotesBodies:globalThis.AstroNotesBodies,panLimit:1,host,cv,cur:43,W,H,k:H/2/halfH,frame:{halfH:24/(400*R)},win:{halfH},focal:200,sh:24,sw:36,hiddenY:null,baseY:250,groundEdge:250,mountain:false,navigator:{},Math,Map,aimLens,localStorage:{setItem:()=>saved++},spec:{},draw:()=>draws++,aimReverseClear:()=>{},requestAnimationFrame:fn=>{queued=fn;return 1;},cancelAnimationFrame:()=>{queued=null;},aimLookRender:()=>{renders++;c.focal=aimLens.focal;c.win={halfH:Math.max(24/(2*c.focal*R),36/(2*c.focal*R))*1.12};vm.runInContext(code,c);}});
  // 正方形では横寸法が画面範囲を決める。
  c.win.halfH=36/(400*R)*1.12;c.k=H/2/c.win.halfH;
  vm.runInContext(code,c);
@@ -311,7 +311,7 @@ test("常時panは枠なしでも四方向に動き、tapとdragを分け、終�
  for(const frame of [null,{halfH:6}]){
   let taps=0,changes=0,draws=0;const move={setAttribute(){}},center={},hint={},host={_pick:null,_lensOffset:[0,0],querySelector:q=>q.includes("hint")?hint:q.includes("center")?center:move};
   const cv={addEventListener(){},style:{},onclick:()=>taps++,setPointerCapture(){},dispatchEvent(){changes++}};
-  const c=vm.createContext({host,cv,frame,panLimit:1,W:300,H:300,k:10,groundEdge:frame?214:250,az:0,proj:()=>[0,0],toPx:()=>[0,frame?210:288],cur:43,navigator:{},Math,Event,Map,aimLookRender(){},aimReverseClear(){},draw:()=>draws++,spec:{}});
+  const c=vm.createContext({AstroNotesCameraUI:Camera,host,cv,frame,panLimit:1,W:300,H:300,k:10,groundEdge:frame?210:288,az:0,proj:()=>[0,0],toPx:()=>[0,frame?210:288],cur:43,navigator:{},Math,Event,Map,aimLookRender(){},aimReverseClear(){},draw:()=>draws++,spec:{}});
   vm.runInContext(code,c);
   assert.equal(cv.style.touchAction,"pan-y");assert.equal(host._lensMoving,false);assert.equal(center.disabled,false);
   for(const [x,y] of [[60,0],[-60,0],[0,60],[0,-60]]){
@@ -327,7 +327,7 @@ test("常時panは枠なしでも四方向に動き、tapとdragを分け、終�
 test('1本指の見え方スワイプは図も時刻も動かさず、通常tapとマウスdragは維持',()=>{
  const html=readFileSync(new URL('./index.html',import.meta.url),'utf8'),a=html.indexOf('  const move = host.querySelector("[data-lens-move]")'),b=html.indexOf('  cur = timeIndex(selectedAt); draw(cur);',a);
  let taps=0;const host={_pick:null,_lensOffset:[0,0],querySelector:()=>({setAttribute(){}})},cv={style:{},addEventListener(){},onclick:()=>taps++,setPointerCapture(){},dispatchEvent(){}};
- const c=vm.createContext({host,cv,frame:null,panLimit:1,W:300,H:300,k:10,groundEdge:250,cur:0,navigator:{},Event,Math,Map,aimLookRender(){},aimReverseClear(){},draw(){},spec:{}});vm.runInContext('{'+html.slice(a,b)+'}',c);
+ const c=vm.createContext({AstroNotesCameraUI:Camera,toPx:()=>[0,250],proj:()=>[0,0],az:0,host,cv,frame:null,panLimit:1,W:300,H:300,k:10,groundEdge:250,cur:0,navigator:{},Event,Math,Map,aimLookRender(){},aimReverseClear(){},draw(){},spec:{}});vm.runInContext('{'+html.slice(a,b)+'}',c);
  for(const [dx,dy] of [[80,0],[0,80],[40,40]]){cv.onpointerdown({pointerId:1,pointerType:'touch',clientX:100,clientY:100});cv.onpointermove({pointerId:1,pointerType:'touch',clientX:100+dx,clientY:100+dy});cv.onpointerup({pointerId:1});cv.onclick({});assert.deepEqual([...host._lensOffset],[0,0]);assert.equal(taps,0);}
  cv.onpointerdown({pointerId:1,pointerType:'touch',clientX:100,clientY:100});cv.onpointerup({pointerId:1});cv.onclick({});assert.equal(taps,1);
 });

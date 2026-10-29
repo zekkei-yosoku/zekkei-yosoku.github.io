@@ -7,11 +7,11 @@ test('frameDayPath は前日・翌日へ広げられ、既定はその日の0〜
  const d=Al.frameDayPath('moon',obs,day,proj);assert.equal(d[0].at,day);assert.equal(d.at(-1).at,day+86400000);
  const w=Al.frameDayPath('moon',obs,day,proj,{startMs:day-6*3600000,endMs:day+30*3600000});assert.equal(w[0].at,day-6*3600000);assert.equal(w.at(-1).at,day+30*3600000);
 });
-test('図は見ている時刻の通り道を日境界へつなげ、旧画角内時間の表示は撤去',()=>{
+test('図は見ている時刻の通り道を日境界へつなげ、画角内時間を現在のpanへ追従して予定へ渡す',()=>{
  assert.match(html,/const fullPath = \[\.\.\.pathBefore, \.\.\.path, \.\.\.pathAfter\];/);
  assert.match(html,/const run = runAt\(p\.at\)/);assert.match(html,/for \(const q of run \? fullPath\.slice\(run\[0\], run\[1\] \+ 1\) : path\)/);
  assert.match(html,/startMs: frameDay - 6 \* 3600000, endMs: frameDay \+ 30 \* 3600000/);
- assert.match(html,/times.hidden = true/);assert.doesNotMatch(html,/"24:00まで枠内"|"0:00時点で枠内"/);
+ assert.match(html,/times.hidden = !frame/);assert.match(html,/AstroNotesAlign.framePassages\(framePoints,frame,\{x:panX\/k,y:-panY\/k\}\)/);assert.match(html,/host._uiTime.frameSpans=spans/);
 });
 test('構図の図の操作で触っていない部品を動かさない（2026-10-20 ユーザー「なんで触ってないボタンがズレるの?」）',()=>{
  const c=fs.readFileSync(new URL('./astronotes-flair.css',import.meta.url),'utf8');

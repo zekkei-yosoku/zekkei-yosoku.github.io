@@ -828,6 +828,16 @@ function recordFor(point, targetKey, ctx) {
   openPlace({...point,id:null},ctx,targetKey);sheetState.newPlace=true;renderSheet();
 }
 
+function quickRecord(observer,target){
+ if(!auth?.token||!toolAllowed('records'))return {ok:false,error:'撮影地点を保存するには、記録を利用できるアカウントでログインしてください'};
+ const owner={token:auth.token,loginId:auth.loginId,generation:authGeneration};
+ try{
+  const plan=AstroNotesLibrary.prepareQuickRecord({owner:auth.loginId,favorites,observations:load(),shapes:shapeData(),observer,target,knownTargets:[...AstroNotesAlign.TARGETS.map(aimWithHeights),...aimFavTargets().map(aimFavTarget)],currentTargets:savedTargets,cleanShape:AstroNotesShooting.cleanShape});
+  if(owner.token!==auth?.token||owner.loginId!==auth?.loginId||owner.generation!==authGeneration||!toolAllowed('records'))throw Error('アカウントまたは利用権限が変わりました。開き直してください');
+  if(!plan.already){AstroNotesLibrary.transaction(localStorage,plan.entries);favorites=plan.favorites;if(typeof RecordSync!=='undefined')RecordSync.kick();for(const id of plan.changedFavorites)queuePush('fav',id);version++;candidateCache.clear();changed();aimFillSelects();SkyMapUI?.refreshTargets?.();}
+  return {ok:true,already:plan.already,placeId:plan.place.id};
+ }catch(e){return {ok:false,error:e.message||'撮影地点を保存できませんでした'};}
+}
 function changed() {
   renderRecordsHub();
   skyKey = '';
@@ -893,7 +903,7 @@ style.textContent = `
 document.head.append(style);
 
 renderRecordsHub();
-window.MyPlacesUI = { backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{version++;candidateCache.clear();changed();},selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, leaveSky, pickSky, badge, openPlace, recordFor, load, renderRecordsHub };
+window.MyPlacesUI = { backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{version++;candidateCache.clear();changed();},selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, leaveSky, pickSky, badge, openPlace, recordFor, quickRecord, load, renderRecordsHub };
 // 読み込みより先に構図が描かれていたら、ここで一覧を出す
 if (el('aimView') && !el('aimView').hidden) { try { renderAim(); } catch { /* 構図を止めない */ } }
 // A map without an observer renders synchronously, before this deferred module arrives.
