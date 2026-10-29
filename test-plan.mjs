@@ -14,6 +14,15 @@ test('改行・区切り・バックスラッシュをICS injectionから守る'
 test('UTF8の75octet foldingは文字を壊さず復元できる',()=>{const line='DESCRIPTION:'+'日本語🌅'.repeat(80);const folded=P.fold(line);for(const s of folded.split('\r\n'))assert.ok(Buffer.byteLength(s)<=75);assert.equal(folded.replace(/\r\n /g,''),line);});
 test('終了<=開始・空件名・無効日時を拒否する',()=>{for(const x of [{end:edits.start},{title:' '},{start:'2026-99-01T23:00'}])assert.throws(()=>P.event(snapshot,{...edits,...x}));});
 test('通知なしはVALARMを作らず、同一予定UIDは安定',()=>{const e=P.event(snapshot,{...edits,reminder:0}),a=P.ics(e,0),b=P.ics(e,1000);assert.ok(!a.includes('VALARM'));assert.equal(a.match(/UID:.*\r/)[0],b.match(/UID:.*\r/)[0]);});
+test('短い共有URLはfragment内で全条件を損失なく往復し、旧リンクも保持する',()=>{
+ const p={v:1,kind:'aim',at:1793358933842.3608,o:['テスト地点',35.123456789,139.987654321,87.2,1.5,null],air:'auto',body:'moon',part:'tip',limb:'center',matchMode:'overlap',t:{id:'custom',name:'テスト対象',latitude:35.71,longitude:139.81,groundM:2,parts:[{id:'tip',name:'先端',m:636},{id:'deck',name:'展望台',m:352}]},l:{on:true,mode:'manual',focal:173.4,sensor:'full',portrait:false,grid:'none'},pan:[0,.125]};
+ const url=new URL(P.link(p));assert.equal(url.search,'');assert(url.hash.startsWith('#p='));const token=url.hash.slice(3);assert.deepEqual(JSON.parse(JSON.stringify(P.decode(token))),p);assert(token.length<P.encode(p).length*.8);assert.deepEqual(JSON.parse(JSON.stringify(P.decode(P.encode(p)))),p);
+ for(const change of [{timelapse:{interval:5,count:100,fps:30}},{t:{...p.t,kind:'tower',widthM:100,parts:[{id:'tip',name:'先端',m:636,latitude:35.7101,longitude:139.8101}]}}]){
+  const q={...p,...change};assert.deepEqual(JSON.parse(JSON.stringify(P.decode(P.encodeLink(q)))),q);
+ }
+ const extended={...p,future:{keep:true}};assert.deepEqual(JSON.parse(JSON.stringify(P.decode(P.encodeLink(extended)))),extended);
+ const malformed=[2,p.o,p.at,['x','x',35,139,0,[],{parts:'override'}],p.body,p.part,p.limb,p.air,[],[],{}];const bad=Buffer.from(JSON.stringify(malformed),'utf8').toString('base64url');assert.equal(P.decode(bad),null);
+});
 test('Googleの予定リンクは件名とUTCの日時を同じ値で保持',()=>{const e=P.event(snapshot,edits),u=new URL(P.google(e));assert.equal(u.hostname,'calendar.google.com');assert.equal(u.searchParams.get('text'),e.title);assert.equal(u.searchParams.get('dates'),'20261031T145900Z/20261031T160000Z');assert.equal(u.searchParams.get('details'),e.description);});
 test('天体共有の全条件を往復し危険な入力を拒否',()=>{const p={v:1,kind:'aim',at:payload.at,o:payload.o,body:'moon',part:'tip',limb:'onTop',t:{id:'custom',name:'自分の目標',latitude:35,longitude:139,groundM:10,parts:[{id:'tip',name:'先端',m:636}]},l:{on:true,mode:'manual',focal:400,sensor:'aps',portrait:true,grid:'thirds'},pan:[.1,.2],air:'none'};assert.equal(JSON.stringify(P.decode(P.encode(p))),JSON.stringify(p));for(const matchMode of ['overlap','limb'])assert.equal(P.decode(P.encode({...p,matchMode})).matchMode,matchMode);assert.equal(P.valid({...p,matchMode:'bad'}),false);for(const x of [{pan:[Infinity,0]},{l:{...p.l,sensor:'evil'}},{t:{...p.t,parts:[{id:'bad',name:'bad',m:Infinity}]}},{air:'evil'}])assert.equal(P.valid({...p,...x}),false);});
 
@@ -35,4 +44,16 @@ test('地図共有は現在の日時・天体・位置・高さ・重ね方を�
 test('タイムラプスは任意の互換拡張として予定/共有を往復し不正設定を拒否',()=>{
  const p={v:1,kind:'aim',at:payload.at,o:payload.o,body:'moon',part:'tip',limb:'center',t:{id:'custom',name:'目標',latitude:35,longitude:139,groundM:10,parts:[{id:'tip',name:'先端',m:636}]},l:{on:true,mode:'manual',focal:400,sensor:'aps',portrait:true,grid:'none'},pan:[.1,.2],air:'none'};
  assert(P.valid(p));const config={interval:5,count:360,fps:24};assert.equal(JSON.stringify(P.decode(P.encode({...p,timelapse:config})).timelapse),JSON.stringify(config));for(const x of [{...config,count:2.5},{...config,interval:0},{...config,fps:23},{...config,interval:3600}])assert.equal(P.valid({...p,timelapse:x}),false);
+});
+test('共有の計算待ちは自動取得し、close/owner変更は破棄、待機上限は再試行へ',async()=>{
+ const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),code=html.slice(html.indexOf('async function preparePlanShare('),html.indexOf('function initPlanSharing()'));
+ function fixture(mode){
+  let clock=0,calls=0,sync=0,paused=0;
+  const c=vm.createContext({auth:{token:'synthetic',loginId:'fixture'},authGeneration:1,Date:{now:()=>clock},document:{querySelectorAll:()=>[{click:()=>paused++}]},SkyMapUI:{selectionState:()=>({observer:{},target:{}})},TrialExplore:{sync:()=>sync++},planSnapshot:()=>{calls++;if(mode==='wait'&&calls<3||mode==='owner'||mode==='timeout')throw Error('見え方の更新が終わってから共有してください');return {payload:{kind:'aim'}};},setTimeout:resolve=>{clock+=50;if(mode==='owner')c.authGeneration++;resolve();}});
+  vm.runInContext(code,c);return {c,counts:()=>({calls,sync,paused})};
+ }
+ const a=fixture('wait'),r=await a.c.preparePlanShare({dataset:{planSource:'aim'}});assert.equal(r.payload.kind,'aim');assert.deepEqual(a.counts(),{calls:3,sync:2,paused:1});
+ const b=fixture('owner');await assert.rejects(b.c.preparePlanShare({dataset:{planSource:'aim'}}),/アカウント/);
+ const cancel=fixture('valid');await assert.rejects(cancel.c.preparePlanShare({dataset:{planSource:'aim'}},{current:()=>false}),/取り消/);assert.equal(cancel.counts().calls,0);
+ const timeout=fixture('timeout');await assert.rejects(timeout.c.preparePlanShare({dataset:{planSource:'aim'}}),/再試行/);
 });

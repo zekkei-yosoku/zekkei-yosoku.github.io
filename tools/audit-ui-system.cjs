@@ -21,7 +21,7 @@ const out=process.env.UI_AUDIT_OUTPUT||'/tmp/astronotes-ui-audit';fs.mkdirSync(o
    const json=pathname==='/me'?{loginId:'owner-test',role:'user',ownerAdmin:true,tools,credentials:[],hasPassword:true,recoveryCodes:10}:pathname==='/admin/ui'&&admin?admin:pathname==='/admin/users'?users:pathname==='/admin/settings'?{openSignup:false}:pathname==='/admin/log'?{entries:[]}:pathname==='/sync'?{favorites:[],sightings:[],rev:0}:pathname.includes('/access')?{allowed:true,tools}:{};
    return r.fulfill({status:pathname.startsWith('/prediction')?503:200,json});
   });
-  const p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));p.on('requestfailed',r=>{if(new URL(r.url()).origin===new URL(base).origin)errors.push(r.url()+': '+r.failure()?.errorText);});await p.goto(base,{waitUntil:'load'});await p.waitForTimeout(600);
+  const p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));p.on('requestfailed',r=>{if(new URL(r.url()).origin===new URL(base).origin)errors.push(r.url()+': '+r.failure()?.errorText);});await p.goto(base,{waitUntil:'load'});await p.waitForFunction(()=>{try{return typeof PAGE_DIALOGS==='object'}catch{return false}});await p.evaluate(()=>startupSessionReady);
   async function capture(screen){
    await p.waitForTimeout(80);
    await p.evaluate(()=>Promise.all(document.getAnimations().filter(a=>a.effect?.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));
