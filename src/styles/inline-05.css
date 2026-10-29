@@ -1,0 +1,5 @@
+
+
+/* Inline figures leave one-finger vertical gestures to the page. */
+.sky-map-wrap:not(.sky-map-wide),.sky-map-wrap:not(.sky-map-wide) canvas{touch-action:pan-y}
+.sky-map-wide,.sky-map-wide canvas{touch-action:none}

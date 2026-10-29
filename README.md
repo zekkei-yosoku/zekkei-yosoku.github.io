@@ -5,7 +5,8 @@
 
 ## 構成
 
-- `index.html` — 画面と道具間の連携
+- `src/index.html` / `src/` — 画面・操作・起動・同期の編集正本（機能別の責務と既存実行順）
+- `index.html` / `astronotes-explore.js` — `./bump.sh` で生成する公開用資産。直接編集しない
 - `astronotes-prediction.js` — 非公開予測APIの取得・条件照合・キャッシュ
 - `astronotes-core.js` — 表示、暦、気象データの標準的な扱い
 - `astronotes-astro.js` / `astronotes-align.js` — 天文計算、目標への幾何と見え方
@@ -22,7 +23,9 @@
 
 ## 確認
 
-各 `test-*.mjs` をNode.jsで実行します。HTML変更後は
+編集入口は [sourceの編集と依存関係](src/00_編集と依存関係.md)。`./bump.sh` でsourceを組み立ててからcontent version/CSPを更新し、`python3 build-preview.py` でtrialを生成します。`node tools/build-index.mjs --check` は配信物とsourceの完全一致を確認します。
+
+各 `test-*.mjs` をNode.jsで実行します。HTML生成後は
 `node update-csp.mjs` でインラインスクリプトのCSPハッシュを更新します。
 配信後は通常URLのファイル内容と、地図・日時・権限の実画面も確認します。
 

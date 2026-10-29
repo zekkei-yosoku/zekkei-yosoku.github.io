@@ -1,6 +1,5 @@
 #!/bin/sh
-# Update only changed resource ids, the HTML release id, and exact CSP hashes.
+# Assemble all source, validate classic scripts, and atomically write versioned/CSP delivery.
 set -eu
 cd "$(dirname "$0")"
-node update-assets.mjs
-node update-csp.mjs
+node tools/build-index.mjs

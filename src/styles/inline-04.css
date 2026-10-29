@@ -1,0 +1,162 @@
+
+.sky-map-point-tools{position:absolute;left:8px;top:8px;display:flex;flex-direction:column;gap:8px;z-index:4}.sky-map-point-tools .map-ctl{position:static;min-width:44px;min-height:44px}.sky-map-point-tools [aria-pressed="true"]{color:var(--on-accent);background:var(--accent)}.sky-map-expand{position:absolute;top:8px;right:8px;z-index:4;min-width:44px;min-height:44px}.sky-map-expand [data-map-contract]{display:none}.sky-map-expand[aria-pressed="true"] [data-map-expand]{display:none}.sky-map-expand[aria-pressed="true"] [data-map-contract]{display:block}.sky-map-wrap[data-pick-mode] canvas{cursor:crosshair}#skyMapTargetSheet input{font-size:16px;min-height:44px;width:100%;box-sizing:border-box}#skyMapTargetSheet label{display:block;margin:12px 0}
+
+main:has(>#skyMapView:not([hidden])){padding-bottom:calc(var(--sky-footer-h,100px) + 12px)}
+main:has(>#almanacView:not([hidden])){padding-bottom:calc(115px + env(safe-area-inset-bottom))}
+.sky-map-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.sky-map-head h2{font-size:22px;margin:12px 0}.astro-switch{display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:12px;margin:8px 0 12px}.astro-switch button{flex:1;min-width:0;min-height:44px;font-size:15px;font-weight:600;border-radius:9px;background:transparent;color:var(--secondary)}.astro-switch button[aria-pressed=true]{background:var(--card);color:var(--text);box-shadow:0 1px 4px #0001}.astro-switch button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sky-map-controls{display:flex;flex-direction:column;gap:0;margin:8px 0}.sky-map-controls label{flex:1;min-width:0;font-size:12px}.sky-map-controls select{display:block;width:100%;min-height:44px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px}
+.sky-map-angles{font-variant-numeric:tabular-nums;margin:12px 0}.astro-map-wrap:not(.sky-map-wide){height:clamp(350px,55dvh,700px)}.astro-map-wrap canvas{width:100%;height:100%!important}
+/* Labels reserve the right control strip; an expanded map keeps time controls available. */
+/* Shared with Explore: preview is scrollable; editing happens on the fullscreen map. */
+.astro-map-wrap{isolation:isolate}
+.astro-map-wrap:not(.sky-map-wide),.astro-map-wrap:not(.sky-map-wide) canvas{touch-action:pan-y!important}
+.astro-map-wrap.sky-map-wide,.astro-map-wrap.sky-map-wide canvas{touch-action:none!important}
+.astro-map-wrap:not(.sky-map-wide) .sky-map-expand{display:grid}
+.astro-map-wrap.sky-map-wide canvas{width:100%;height:100%!important;min-height:0!important}
+.astro-map-wrap .sky-map-expand{width:44px;height:44px;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text)}
+.astro-map-wrap .sky-map-expand svg{width:24px;height:24px;stroke-width:1.8}
+.astro-map-wrap .map-layer-menu{z-index:6}
+.map-shape-tools{position:absolute;top:8px;right:8px;z-index:7}
+.sky-map-wide .map-shape-tools{top:calc(8px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right))}
+.map-shape-tools>.map-ctl{position:static;padding:0}
+.astro-map-wrap .map-shape-tools .map-shape-menu{top:0;left:auto;right:calc(100% + 8px);min-width:0;width:max-content}
+#myShapeSheet #shapeModes{display:flex;flex-direction:column;gap:0;align-items:stretch}
+#myShapeSheet #shapeModes>button{display:flex;align-items:center;gap:8px;border:0;background:transparent;text-align:left;border-radius:8px;padding:0 12px}
+#myShapeSheet #shapeModes>button[aria-checked=true]{background:var(--sunk);color:var(--accent)}
+#myShapeSheet #shapeModes>button[aria-checked=true]::after{content:none}
+#myShapeSheet .sky-map-wide .mapzoom,#previewTargetDialog .sky-map-wide .mapzoom{display:flex;flex-direction:column;gap:4px;top:auto;bottom:calc(var(--sky-footer-h,60px) + 8px)}
+.astro-map-wrap .shared-map-center{position:absolute;left:50%;top:50%;width:20px!important;height:20px!important;transform:translate(-50%,-50%)!important;margin:0!important;border:0;background:none;box-shadow:none;pointer-events:none;color:var(--text)}
+.astro-map-wrap .shared-map-center:not(svg):before,.astro-map-wrap .shared-map-center:not(svg):after{content:'';position:absolute;background:var(--text);box-shadow:0 0 0 1px var(--card);border:0;border-radius:0;margin:0}
+.astro-map-wrap .shared-map-center:not(svg):before{left:9px;top:0;width:1px;height:20px}
+.astro-map-wrap .shared-map-center:not(svg):after{left:0;top:9px;width:20px;height:1px}
+.astro-map-wrap[data-selection-only]>.sky-map-expand{display:none!important}
+.astro-map-wrap[data-selection-only]>.map-layers-btn{top:calc(8px + env(safe-area-inset-top))}
+.astro-map-wrap[data-selection-only]>.map-layer-menu{top:calc(58px + env(safe-area-inset-top))}
+.astro-map-wrap[data-selection-only]:has(.map-shape-tools)>.map-layers-btn{top:calc(58px + env(safe-area-inset-top))}
+.astro-map-wrap[data-selection-only]:has(.map-shape-tools)>.map-layer-menu{top:calc(104px + env(safe-area-inset-top))}
+.shared-map-search{position:absolute;top:calc(8px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left));right:calc(60px + env(safe-area-inset-right));z-index:4;max-height:35dvh;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;background:var(--bg);border-radius:10px;padding:6px}
+.shared-map-search[hidden],.shared-map-search:not(:has(>:not([hidden]))),.shared-map-footer[hidden]{display:none}
+.shared-map-search :is(.search-row,.my-actions){margin:0}
+.shared-map-search input{min-width:0;width:0;flex:1;font-size:16px}
+.shared-map-footer{position:absolute;bottom:0;left:0;right:0;z-index:4;max-height:40dvh;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding:8px max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));background:var(--bg)}
+.shared-map-footer>.fav-btn{width:100%;margin:6px 0 0!important}
+.shared-map-footer .my-actions{flex-wrap:wrap}
+.shared-map-footer :is(.tiny,.maprow){margin:0}
+#myShapeSheet .sky-map-wide .mapattr{bottom:calc(var(--sky-footer-h,60px) + 4px)}
+.astro-map-wrap.sky-map-wide{position:fixed!important;inset:0!important;width:100%!important;height:auto!important;max-width:none!important;max-height:none!important;border:0;border-radius:0!important;z-index:30;margin:0!important}html:has(.sky-map-wide){scrollbar-gutter:auto;overflow:hidden}body:has(.sky-map-wide){overflow:hidden}.sky-map-wide .mapzoom{bottom:calc(var(--sky-footer-h,100px) + 8px)}.sky-map-wide .mapattr{bottom:calc(var(--sky-footer-h,100px) + 4px)}.sky-map-time-actions button{padding-inline:7px}.sky-map-time-actions{flex-wrap:wrap}
+.sky-map-actions,.sky-map-events{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+#skyMapRange{width:100%;height:38px;accent-color:var(--accent)}.sky-map-use{width:100%;min-height:44px;background:var(--accent);color:var(--on-accent)}#skyMapCustom input{width:90px;min-height:44px;background:var(--card);color:var(--text);font-size:16px}#skyMapTargetInfo{margin:10px 0}#skyMapRetry[hidden]{display:none}
+.sky-map-time-actions{display:flex;align-items:center;gap:8px;margin-bottom:4px}.sky-map-time-actions .tiny{margin-left:auto}.sky-map-time-actions button{min-width:44px;min-height:36px}.sky-map-definition{color:var(--secondary)}
+
+/* E185: recognisable shapes remain beside their subject and keep readable names. */
+.ui-icon-label{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+#aimView .preview-history-icon{width:44px;min-width:44px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.ui-icon-label svg,.place-row .pin svg{flex:none;vertical-align:middle}
+.place-row .pin{display:flex;align-items:center;justify-content:center;flex:none;width:24px}
+/* 地点検索: 入力→文字付きの選択方法→一覧。2026-10-21 採用画像に統一 */
+.sheet .sheet-body .location-search-row{display:flex;gap:6px;align-items:stretch;margin:0}
+.sheet .sheet-body .location-search-row>input{flex:1;min-width:0;width:0;font-size:16px;box-sizing:border-box}
+.sheet .sheet-body .location-search-row>.location-search-go{display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;min-width:44px;min-height:44px;padding:0;border:0;background:transparent;color:var(--location-action);border-radius:8px}
+.place-search-actions{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:2px 0 16px}
+.place-search-actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:44px;min-height:44px;padding:0 10px;border:0;background:transparent;color:var(--location-action);font-size:15px;font-weight:600;border-radius:8px}
+.place-search-actions button:first-child{padding-left:0}
+.place-search-actions svg,.location-search-go svg{flex:none;width:22px;height:22px}
+.place-search-actions button:active,.location-search-go:active{opacity:.65}
+.place-search-actions button:focus-visible,.location-search-go:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.place-tabs{margin:12px 0}
+#placeSheet>.sheet-body{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#placeSheet>.sheet-body>:not(.place-tab-panels){flex-shrink:0}
+#placeSheet #searchResults{max-height:20dvh;overflow-y:auto}
+#placeSheet .place-search-tools{max-height:35dvh;overflow-y:auto;overscroll-behavior:contain}
+@media(max-height:420px){#placeSheet>.sheet-body{padding-top:6px;padding-bottom:6px}#placeSheet .place-tabs{margin:6px 0}#placeSheet .place-search-tools{max-height:30dvh}}
+@media(max-height:320px){#placeSheet .place-search-tools{max-height:20dvh}}
+#placeSheet .place-tab-panels{display:flex;flex:1;min-height:0;overflow:hidden}
+#placeSheet .place-tab-panels>[role=tabpanel]{flex:1;min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;padding:2px;outline-offset:-2px}
+
+.search-row .search-go{width:44px;min-width:44px;min-height:44px;padding:0;display:flex;align-items:center;justify-content:center}
+#aimView .preview-camera-dialog .camera-visual-row{display:block;font-size:14px}
+.camera-visual-choices{display:flex;gap:8px;margin-top:8px}
+.camera-visual-choice{display:flex;flex:1;min-width:0;min-height:68px;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px 4px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--secondary);font-size:13px;line-height:1.3}
+.camera-visual-choice[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--sunk)}
+.camera-visual-choice span{white-space:nowrap}.camera-visual-choice small{display:block;font-size:inherit}
+.sky-map-wrap .mappin{display:none}.sky-map-wrap[data-pick-mode] .mappin{display:block;width:18px;height:18px;margin:0;border:0;border-radius:0;background:none;box-shadow:none;pointer-events:none}.sky-map-wrap[data-pick-mode] .mappin:before,.sky-map-wrap[data-pick-mode] .mappin:after{content:"";position:absolute;margin:0;background:var(--text);box-shadow:0 0 0 1px var(--card)}.sky-map-wrap[data-pick-mode] .mappin:before{left:8.5px;top:0;width:1px;height:18px}.sky-map-wrap[data-pick-mode] .mappin:after{left:0;top:8.5px;width:18px;height:1px}.tool-date-calendar .aim-cal-nav select{min-height:44px}.tool-date-calendar .aim-cal-nav [data-year]{flex:1.4;min-width:80px}/* The embedded map is a preview; editing tools appear in full-screen mode. */
+.astro-map-wrap:not(.sky-map-wide) :is(.sky-map-point-tools,.map-shape-tools,.mapzoom,.map-layers-btn){display:none!important}
+#skyMapView:not(:has(.sky-map-wide)) :is(#skyMapPassages,#skyMapEvents){display:none}
+/* E198: 全画面の切替は通常・全画面とも右上の同じ位置。押した所でそのまま戻せる */
+#skyMapView .aim-say-v{flex-basis:6.4em}.sky-map-use-below{display:flex;align-items:center;justify-content:center;gap:8px;margin:10px 0 0;max-width:780px}.sky-map-use-below[hidden]{display:none}#skyMapView button[data-pointer-focus]:focus,.tool-date-calendar button[data-pointer-focus]:focus,.sky-map-time-dialog button[data-pointer-focus]:focus{outline:none}
+/* 予測の取得状態は一覧・詳細のもの。道具の画面の上には出さない */
+main:has(>:is(#aimView,#planeView,#issView,#recordsView,#answersView,#skyMapView,#adminView,#almanacView):not([hidden]))>:is(#status,#predictionDataNotice){display:none}.sky-map-controls{max-width:780px}.sky-map-content>.place-row{max-width:780px}.aim-cal-mark{font-weight:700}.aim-cal-grid button:not([aria-pressed="true"]) .aim-cal-mark{color:var(--text)}.sky-map-content>.place-row .name{font-size:16px}.sky-map-content>.place-row{margin-bottom:10px}.sky-map-wrap[data-pick-mode] .mappin{transform:translate(-50%,-50%)}
+.sky-map-point-coordinates{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.sky-map-controls .aim-say select{font-size:16px;min-height:52px;padding:10px 12px;border-radius:12px}.sky-map-content>.aim-say{max-width:780px}.sky-map-content .aim-say .muted{font-size:11px}
+.sky-map-wrap .map-layer-menu{z-index:6}.sky-map-wide .sky-map-point-tools{top:calc(8px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left))}.sky-map-wide .sky-map-expand{top:calc(8px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right))}.sky-map-wide .map-layers-btn{top:calc(58px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right))}.sky-map-wide .map-layer-menu{top:calc(104px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right))}
+.sky-map-footer .sky-map-events{display:flex;flex-wrap:nowrap;gap:4px;overflow-x:auto;margin:0;max-width:780px;margin-inline:auto}.sky-map-footer .sky-map-events .chip{flex:none;padding:3px 8px;min-height:44px;font-size:12px;white-space:nowrap;background:transparent}.sky-map-passages{display:flex;flex-direction:column;gap:0;max-width:780px;margin:0 auto;color:var(--secondary);font-size:12px;min-height:0}.sky-map-passages:empty{display:none}.sky-map-passages .chip{flex:none;min-height:44px;padding:3px 8px;font-size:12px;white-space:nowrap;color:var(--text)}.sky-map-passages-head{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:12px;line-height:1.5}.sky-map-passages-label{color:#c876ff;white-space:nowrap}.sky-map-target-angle{white-space:nowrap}.sky-map-passages-values{display:flex;align-items:center;gap:4px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}.sky-map-status-row{display:flex;align-items:center;gap:6px;font-size:12px}.sky-map-status-row #skyMapStatus{flex:1;margin:0}.sky-map-status-row:has(#skyMapStatus:empty):has(#skyMapRetry[hidden]){display:none}.sky-map-status-row #skyMapRetry{min-height:44px;font-size:12px}.sky-map-footer .sky-map-events{overflow-y:hidden;scrollbar-width:thin}.sky-map-passages .tiny{white-space:nowrap;padding:6px 0}.sky-map-angles{padding:0 16px;font-size:14px}
+
+/* 地図: 太陽と月を主表示にし、追加天体も共通の下部欄を使う。 */
+.sky-map-body-bar{display:none;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px;max-width:780px;margin:0 auto;border-bottom:1px solid var(--line)}
+#skyMapView:has(.sky-map-wide) .sky-map-body-bar{display:grid}
+.sky-map-body-bar button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;min-width:0;width:auto;height:auto;padding:6px 12px;border:0;border-radius:0;background:transparent;color:var(--secondary);box-shadow:none;font-size:14px}
+.sky-map-body-bar button+button{border-left:1px solid var(--line)}
+.sky-map-body-bar button svg{flex:none;width:22px;height:22px}.sky-map-body-bar #skyMapMoreBodies{padding:0}
+.sky-map-body-bar #skyMapShowSun[aria-pressed="true"]{color:var(--ray-sun);background:color-mix(in srgb,var(--ray-sun) 12%,var(--card));box-shadow:inset 0 -2px var(--ray-sun)}
+.sky-map-body-bar #skyMapShowMoon[aria-pressed="true"]{color:var(--ray-moon);background:color-mix(in srgb,var(--ray-moon) 12%,var(--card));box-shadow:inset 0 -2px var(--ray-moon)}
+.sky-map-extra-active{display:none;align-items:center;justify-content:space-between;gap:8px;max-width:780px;margin:auto;min-height:36px;color:var(--ray-extra);font-size:12px;padding-left:12px}
+#skyMapView:has(.sky-map-wide) .sky-map-extra-active:not([hidden]){display:flex}
+.sky-map-extra-active button{border:0;background:transparent;color:var(--secondary);min-width:44px;min-height:44px;padding:0;font-size:20px}
+.sky-map-body-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+.sky-map-body-options button{min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:8px;border:0;border-radius:8px;background:transparent;color:var(--text);padding:10px 12px;font-size:16px}
+.sky-map-body-options button::after{content:'✓';visibility:hidden}
+.sky-map-body-options button[aria-pressed="true"]{color:var(--ray-extra);background:var(--sunk)}
+.sky-map-body-options button[aria-pressed="true"]::after{visibility:visible}
+:root{--ray-extra:#176b49}[data-theme=dark]{--ray-extra:#8ce5b0}
+/* Short landscape screens keep the map usable; the same readouts remain in the time details. */
+@media(max-height:500px) and (orientation:landscape){#skyMapView:has(.sky-map-wide) :is(#skyMapPassages,#skyMapEvents){display:none}}
+#skyMapDetailInfo{white-space:pre-line}
+
+/* Touch usability: four compact rows; narrow, relative date/time scrub. */
+#skyMapView .sky-map-footer{padding-top:0;padding-bottom:env(safe-area-inset-bottom);padding-inline:max(8px,env(safe-area-inset-left)) max(8px,env(safe-area-inset-right))}
+#skyMapView .sky-map-body-bar{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
+#skyMapView .sky-map-body-bar button{min-height:44px;padding-block:4px}
+#skyMapView #skyMapMoreBodies{min-width:44px;padding-inline:10px;gap:6px}
+#skyMapView #skyMapMoreBodies[data-active="true"]{color:var(--ray-extra);background:color-mix(in srgb,var(--ray-extra) 10%,var(--card));box-shadow:inset 0 -2px var(--ray-extra)}
+#skyMapView #skyMapExtraName:empty{display:none}
+#skyMapView .sky-map-readouts{display:flex;align-items:center;gap:8px;max-width:780px;margin:auto;min-height:44px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+#skyMapView:not(:has(.sky-map-wide)) .sky-map-readouts{display:none}
+#skyMapView .sky-map-readouts::-webkit-scrollbar{display:none}
+#skyMapView .sky-map-readouts .sky-map-passages-head{display:none}
+#skyMapView .sky-map-readouts .sky-map-passages:not(:has(.sky-map-passages-values)){display:none}
+#skyMapView .sky-map-readouts :is(.sky-map-passages,.sky-map-passages-values,.sky-map-events){display:flex;flex:none;flex-direction:row;align-items:center;gap:8px;margin:0;overflow:visible;white-space:nowrap}
+#skyMapView .sky-map-readouts .chip{min-height:44px;padding:0 4px;font-size:12px;border:0;border-radius:0;background:transparent;white-space:nowrap}
+#skyMapView .sky-map-readouts .tiny{font-size:12px;white-space:nowrap;padding:0}
+#skyMapView .sky-map-passage-prefix{font-size:12px;color:var(--sky-target-text)}
+:root{--sky-target-text:#8040b8}:root[data-theme=dark]{--sky-target-text:#d8a3ff}
+#skyMapView .sky-map-readouts:has(#skyMapPassages:empty):has(#skyMapEvents:empty){display:none}
+#skyMapView #skyMapTrack{max-width:240px;min-height:44px;display:flex;align-items:center;padding:0}
+#skyMapView #skyMapRange{height:24px;min-height:0;margin:0;padding:0}
+@media(max-height:500px) and (orientation:landscape){#skyMapView .sky-map-readouts{display:none}}
+
+#skyMapView #skyMapTrack{position:relative;display:block;max-width:240px;height:44px;min-width:0;touch-action:pan-x}
+#skyMapView #skyMapRange{display:none}
+.sky-map-timeline{height:44px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none;touch-action:pan-x;-webkit-overflow-scrolling:touch;border-radius:0;scroll-snap-type:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.sky-map-timeline::-webkit-scrollbar{display:none}
+.sky-timeline-tape{position:relative;height:100%;background-image:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px var(--timeline-unit));background-size:var(--timeline-unit) 8px;background-repeat:repeat-x;background-position-y:5px}
+.sky-timeline-label{position:absolute;top:19px;transform:translateX(-50%);font-size:11px;white-space:nowrap;color:var(--secondary);pointer-events:none}
+.sky-map-timeline-center{position:absolute;top:3px;bottom:3px;width:2px;left:50%;transform:translateX(-50%);background:var(--accent);pointer-events:none}
+
+#skyMapView #skyMapTrack{max-width:none;width:100%;height:52px}
+#skyMapView .sky-map-readouts{padding-inline:8px}
+
+/* 2026-10-15: 全画面・全入力方法でフォーカス枠とタップの強調を表示しない。
+   焦点移動、入力カーソル、選択済みの状態表示は維持する。 */
+* { -webkit-tap-highlight-color: transparent; }
+*:focus, *:focus-visible { outline: none !important; }
+
+/* 入力だけは図/PCの縮小文字規則より優先し、iOSの入力時拡大を防ぐ。 */
+input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color: var(--accent); }
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]), select, textarea { font-size: 16px !important; }
+/* 透明な代理select以外はWebKit/Chromeで同じ枠・角丸・開閉印にする。 */
+select:not(.mxsort select):not(.aim-pick select) { appearance: none; -webkit-appearance: none; min-height: 44px; border: 1px solid var(--line); border-radius: 9px; background-color: var(--sunk); color: var(--text); padding: 8px 32px 8px 10px; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
+/* 共通UIの実寸。用途別の小型chip/表セルは既存の専用基準を使う。 */
+:root { --ui-control-size: 44px; --ui-icon-size: 20px; --ui-icon-stroke: 1.8; }
+button.ui-icon-button { display: inline-grid !important; place-items: center; flex: none; width: var(--ui-control-size) !important; height: var(--ui-control-size) !important; min-width: var(--ui-control-size); min-height: var(--ui-control-size); padding: 0 !important; border: 0; border-radius: 0; background: transparent; color: var(--text); }
+button.ui-icon-button::after { content: none; }
+.ui-control-icon { display: block; width: var(--ui-icon-size); height: var(--ui-icon-size); fill: none; stroke: currentColor; stroke-width: var(--ui-icon-stroke); stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }

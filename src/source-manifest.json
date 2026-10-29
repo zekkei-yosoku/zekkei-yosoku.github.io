@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "entry": "src/index.html",
+  "output": "index.html",
+  "execution": "classic inline; original order and lexical scope preserved",
+  "legacyRuntimeOrder": [
+    "src/startup/paint-gate.js",
+    "src/startup/theme.js",
+    "src/startup/theme-meta.js",
+    "src/app/presentation-helpers.js",
+    "src/app/state-owner.js",
+    "src/app/browser-state.js",
+    "src/features/forecast/load.js",
+    "src/features/forecast/view.js",
+    "src/features/photos/controller.js",
+    "src/features/home/controller.js",
+    "src/app/navigation.js",
+    "src/features/forecast/detail.js",
+    "src/features/results/controller.js",
+    "src/features/places/controller.js",
+    "src/ui/map/picker.js",
+    "src/features/framing/controller.js",
+    "src/features/aircraft/controller.js",
+    "src/features/satellites/controller.js",
+    "src/features/framing/observer.js",
+    "src/features/framing/candidates.js",
+    "src/ui/scene/renderer.js",
+    "src/features/framing/reverse-and-entry.js",
+    "src/services/place-search.js",
+    "src/features/account/session-and-access.js",
+    "src/app/overlays.js",
+    "src/ui/gestures.js",
+    "src/features/account/status.js",
+    "src/services/record-sync.js",
+    "src/features/account/controller.js",
+    "src/features/plans/controller.js",
+    "src/ui/visual-primitives.js",
+    "src/features/framing/presentation.js",
+    "src/features/explore/map-presentation.js",
+    "src/ui/intuitive-controls.js",
+    "src/startup/preferences.js",
+    "src/ui/panel-controls.js"
+  ],
+  "entries": [
+    {
+      "path": "src/startup/paint-gate.js",
+      "kind": "inline-entry"
+    },
+    {
+      "path": "src/startup/theme.js",
+      "kind": "inline-entry"
+    },
+    {
+      "path": "src/startup/theme-meta.js",
+      "kind": "inline-entry"
+    },
+    {
+      "path": "src/app/presentation-helpers.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/app/state-owner.js",
+      "kind": "state-owner"
+    },
+    {
+      "path": "src/app/browser-state.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/forecast/load.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/forecast/view.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/photos/controller.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/home/controller.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/app/navigation.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/forecast/detail.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/results/controller.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/places/controller.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/ui/map/picker.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/framing/controller.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/aircraft/controller.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/satellites/controller.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/framing/observer.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/framing/candidates.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/ui/scene/renderer.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/framing/reverse-and-entry.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/services/place-search.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/account/session-and-access.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/app/overlays.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/ui/gestures.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/account/status.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/services/record-sync.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/account/controller.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/plans/controller.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/ui/visual-primitives.js",
+      "kind": "inline-entry"
+    },
+    {
+      "path": "src/features/framing/presentation.js",
+      "kind": "inline-entry"
+    },
+    {
+      "path": "src/features/explore/map-presentation.js",
+      "kind": "inline-entry"
+    },
+    {
+      "path": "src/ui/intuitive-controls.js",
+      "kind": "inline-entry"
+    },
+    {
+      "path": "src/startup/preferences.js",
+      "kind": "inline-entry"
+    },
+    {
+      "path": "src/ui/panel-controls.js",
+      "kind": "inline-entry"
+    }
+  ],
+  "generatedAssets": [
+    {
+      "entry": "src/features/explore/entry.inc",
+      "output": "astronotes-explore.js",
+      "sourceOrder": [
+        "src/domain/planning/session.js",
+        "src/features/explore/layout.js",
+        "src/features/explore/controller.js"
+      ],
+      "legacyAccessPolicy": true
+    }
+  ]
+}

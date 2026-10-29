@@ -1,0 +1,148 @@
+.preview-banner{margin:0 0 12px;color:var(--secondary);font-size:11px}
+.preview-title{font-size:20px;margin:8px 0 14px}
+#aimView>.card{padding:0;background:transparent;box-shadow:none;border:0}
+#aimView .aim-head{padding:10px 12px;border-radius:12px;background:var(--card);gap:16px}
+#aimView .aim-head #aimTitle{font-size:16px;flex:1}
+#aimView .aim-body-select{flex:1;width:100px}
+#aimView .fav-l{margin-top:10px;margin-bottom:4px;font-size:12px}
+.preview-map-time{margin:8px 0}.preview-map-time .aim-time-heading{display:flex;align-items:center;gap:10px;font-size:14px}.preview-map-time output{flex:1;font-variant-numeric:tabular-nums}.preview-map-time input{width:100%;height:32px;accent-color:var(--accent)}.preview-map-time .chip{min-height:44px;padding:8px 14px}
+.preview-camera-dialog .sheet-body{display:grid;gap:16px}.preview-camera-dialog .aim-lens-row{margin:0}.preview-camera-dialog .aim-lens-toggles{display:block}.preview-focal-tools{margin:6px 0 12px}.preview-focal-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--secondary)}#aimView .aim-lens-row>button[aria-haspopup=dialog]{min-width:88px;min-height:44px;padding:8px;font-size:13px}.preview-focal-tools input{width:100%;min-height:32px;accent-color:var(--accent)}.preview-focal-presets{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}.preview-focal-presets button{min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font-size:14px}@media(max-width:360px){.preview-focal-presets{grid-template-columns:repeat(3,minmax(0,1fr))}}
+#aimView .aim-grid-control{display:flex;align-items:center;gap:10px;width:100%;font-size:14px;color:var(--secondary)}
+#aimView .aim-grid-control select{flex:1;min-width:0;min-height:44px;padding:8px 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;font-size:16px}
+#aimView .aim-place-card{background:var(--card);margin-bottom:6px;padding:0 4px 0 10px}
+#aimView .aim-place-card .place-pick{min-height:52px}
+#aimView #aimFromSub{font-size:11px}
+:is(#aimView,#skyMapView) .aim-observer-card{background:var(--card);border-radius:14px;min-width:0}
+:is(#aimView,#skyMapView) .aim-observer-card>.place-row{margin-bottom:0}
+:is(#aimView,#skyMapView) .aim-observer-card :is(#aimObserverDetails,#skyMapObserverDetails){margin:0 12px;padding:0 0 6px}
+:is(#aimView,#skyMapView) .aim-observer-card :is(#aimObserverDetails,#skyMapObserverDetails)[hidden]{display:none}
+:is(#aimView #aimFromLabel,#skyMapView #skyMapChooseLabel)>svg{align-self:start;margin-top:16px}
+:is(#aimView,#skyMapView) .aim-observer-card .aim-observer-height input{flex:1;width:0}
+:is(#aimView,#skyMapView) .aim-observer-card .aim-observer-height label{flex-basis:4em}#aimView .preview-workspace{max-width:780px}
+
+#aimView .aim-limb{margin-bottom:0}
+#aimView .aim-shift{margin-top:10px;display:grid;gap:8px}
+#aimView #aimLineOpen{width:100%}
+.line-sheet[open]{position:fixed;inset:auto 0 0 0;margin:0 auto;width:min(100vw,640px);max-width:100vw;height:min(56dvh,600px);max-height:none;border-radius:16px 16px 0 0;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom);animation:line-sheet-up .24s ease-out}
+.line-sheet .sheet-body{flex:1;display:flex;flex-direction:column;min-height:0;max-height:none}
+.line-sheet .mapwrap{flex:1;min-height:0}
+.line-sheet .mapwrap canvas{height:100%;min-height:0}
+.line-sheet-note{min-height:2.8em;margin-bottom:6px;color:var(--secondary)}
+.line-sheet::backdrop{background:rgba(0,0,0,.2)}
+@keyframes line-sheet-up{from{transform:translateY(100%)}to{transform:none}}
+@media (prefers-reduced-motion:reduce){.line-sheet[open]{animation:none}}
+#aimView .aim-limb button{min-height:58px;flex-direction:row;justify-content:center;gap:6px;font-size:13px}
+#aimView .aim-limb svg{width:26px;height:26px}
+.preview-tabs{position:sticky;top:4px;z-index:5;display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:12px;margin:12px 0}
+.preview-tabs button{flex:1;min-height:48px;font-size:15px;font-weight:600;border-radius:9px;background:transparent;color:var(--secondary)}
+.preview-tabs button[aria-selected=true]{background:var(--card);color:var(--text);box-shadow:0 1px 4px #0001}
+.preview-tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#aimView .aim-look{margin-top:0}
+#aimView .aim-look-h{display:none}
+#aimView .aim-look-cap{margin:0 0 8px}
+#aimView .aim-look-time{margin:12px 0;display:flex;flex-direction:column;align-items:stretch;gap:4px}#aimView .aim-time-heading{display:flex;align-items:center;gap:12px;font-size:14px}#aimView .aim-look-time output{flex:1;width:auto;text-align:left;font-size:16px;font-variant-numeric:tabular-nums}#aimView .aim-look-time input{flex:none;width:100%;height:32px}
+#aimView .aim-lens{margin:10px 0 0}
+#aimView .aim-lens-row{gap:8px;flex-wrap:nowrap}
+#aimView .aim-lens-row label{min-width:0;flex:1;font-size:13px}
+#aimView .aim-lens-row label input{width:80px;flex:1;max-width:140px;min-width:0;min-height:48px}
+#aimView .aim-lens-row .chip{min-height:48px;flex:0 0 auto;padding:0 16px}
+.preview-camera{margin:8px 0 0;border-top:1px solid var(--line)}
+.preview-camera>summary{display:flex;align-items:center;justify-content:space-between;min-height:44px;cursor:pointer;font-size:12px;color:var(--secondary)}
+.preview-camera>summary:focus-visible{outline:2px solid var(--accent)}
+.preview-camera .aim-lens-row{margin:8px 0}
+.preview-camera .tiny{margin:8px 0}
+.preview-compose{display:flex;gap:8px;margin-top:8px}
+.preview-compose .chip{flex:1;min-height:48px;font-size:13px}
+.preview-reverse{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.preview-reverse h3{font-size:12px;font-weight:500;color:var(--secondary);margin:0 0 6px}
+#aimView .aim-look-pick{display:flex;flex-wrap:wrap;margin:0;gap:8px}
+#aimView .aim-look-pick .chip{flex:1;min-height:44px}
+#aimView .aim-look-pick [data-look-confirm]{flex-basis:100%}
+.preview-candidate-title{margin-top:18px;font-size:16px}
+#previewPlaces .aim-disclosure>summary{min-height:48px}
+#previewPlaces[hidden],#previewScene[hidden]{display:none}
+#previewPlaces .preview-show-scene{min-height:44px;flex:0 0 auto}
+@media(max-width:360px){#aimView .aim-limb button{font-size:12px;gap:3px}#aimView .aim-limb svg{width:23px;height:23px}}
+@media(min-width:960px){main:has(#aimView:not([hidden])){max-width:1120px}.preview-tabs{display:none}.preview-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:28px;margin-top:20px}#previewScene,#previewPlaces{min-width:0}#previewPlaces .mapwrap{margin-top:0!important}#previewScene:before{content:'見え方';display:block;font-weight:600;font-size:16px;margin-bottom:12px}#previewPlaces:before{content:'撮影地点';display:block;font-weight:600;font-size:16px;margin-bottom:12px}}
+.preview-quick{display:flex;gap:8px;margin:8px 0}.preview-quick .chip{flex:1;min-height:44px}
+.preview-return{min-height:44px;font-size:12px;margin-top:6px}
+
+#aimView .aim-look-found{scroll-margin-top:72px}#previewPlaces .cand-row{flex-wrap:wrap}#previewPlaces .cand-row .cand-pick{flex-basis:100%}#previewPlaces .cand-map,#previewPlaces .cand-from,#previewPlaces .preview-show-scene{flex:1}
+/* 同じ入力/選択は同じ面。選択中だけアクセント色。 */
+#aimView #aimPart,#aimView #aimCustomH,#aimView #aimHeightM,#aimView #aimBody,#aimView #previewTimeScope{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px}
+.preview-time-scope{display:flex;align-items:center;gap:8px;margin:4px 0}.preview-time-scope select{min-height:44px;padding:6px 10px;flex:1;min-width:0}.preview-time-scope span{font-size:11px;color:var(--secondary)}
+#aimView .preview-sensor-label{font-size:12px;flex:0 0 auto;color:var(--secondary)}#aimView [data-lens-sensor]{min-width:0;flex:1;min-height:44px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;font-size:14px;padding:8px}
+#aimView .aim-lens-row:has([data-lens-sensor]){margin:8px 0}#aimView [data-lens-info]{margin:8px 0;font-size:11px}
+#aimView .preview-quick{gap:6px;margin:8px 0}#aimView .preview-quick .chip{padding:8px 6px;font-size:12px;min-height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center}#aimView .preview-quick [data-lens-move][aria-pressed=true]{background:var(--accent);color:#171717}
+#aimView .preview-compose:has([data-lens-center][hidden]){display:none}#aimView .preview-compose [data-lens-center]{flex:none;margin-left:auto;border-radius:10px;min-height:44px}
+#aimView [data-lens-apply][hidden]{display:none}
+.preview-calendar-choices{margin:10px 0;padding:8px;border-top:1px solid var(--line)}.preview-calendar-choices p{margin:0 0 8px}.preview-calendar-choices .chip{min-height:44px;margin:0 6px 6px 0}#aimCalGrid .aim-cal-time{font-size:10px;white-space:nowrap}#aimView #previewReference{width:32px;min-width:32px;min-height:44px;padding:0;border-radius:0;background:transparent;display:flex;align-items:center;justify-content:center}
+@media(min-width:420px){#aimView #previewReference{width:44px;min-width:44px}}
+#aimView .aim-lens-row .preview-sensor-label{flex:0 0 auto}
+#aimView .aim-lens-row{display:flex;align-items:center}#aimView .aim-lens-row:has([data-lens-sensor]){gap:10px}
+#aimView .preview-body-native{display:none}#aimView .preview-body-open{flex:1;min-width:80px;min-height:44px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;font-size:16px}
+.preview-body-dialog{width:min(400px,calc(100vw - 24px))}.preview-body-group{padding:14px 0;border-bottom:1px solid var(--line)}.preview-body-group:first-child{padding-top:0}.preview-body-group:last-child{border:0}.preview-body-group h3{font-size:12px;font-weight:500;color:var(--secondary);margin:0 0 10px}.preview-body-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.preview-body-choice{min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--sunk);color:var(--text);font-size:16px;text-align:left}.preview-body-choice[aria-pressed=true],.preview-body-choice[aria-checked=true]{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}.preview-body-choice[aria-pressed=true]:after,.preview-body-choice[aria-checked=true]:after{content:'✓';float:right}.preview-body-choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+
+#aimView .aim-air-content{padding:4px 0}#aimView .aim-air p{margin:8px 0;color:var(--secondary)}
+/* 天体と目標は同じ選択操作なので、同じ外観と占有幅に揃える。 */
+#aimView .aim-head{display:grid;grid-template-columns:minmax(0,1fr);gap:0;padding:0;background:transparent}
+#aimView #aimTitle{min-width:0;margin-bottom:10px}
+#aimView #aimTargetPick{display:block;width:100%}
+#aimView .preview-body-open,#aimView #aimTargetPick .aim-pick{box-sizing:border-box;flex:1 1 0;min-width:0;width:100%;height:48px;min-height:48px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;font-size:16px;font-weight:400}
+#aimView .preview-body-open svg,#aimView #aimTargetPick .aim-pick svg{width:12px;height:12px;flex:none;color:var(--secondary)}
+#aimView [data-body-label],#aimView #aimTargetLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 文の形の3行（2026-10-06）。どこからの地点カードも、天体・目標の欄と同じ面・枠・字の大きさにする */
+#aimView .aim-say #aimTitle{margin-bottom:0}
+#aimView .aim-say-from{margin-top:14px}
+:is(#aimView,#skyMapView,#almanacView) .aim-say .aim-place-card{background:var(--card);margin-bottom:0;padding:0 2px 0 12px;border:1px solid var(--line);border-radius:12px}
+:is(#aimView,#skyMapView,#almanacView) .aim-say .aim-place-card .place-pick{min-height:52px;gap:8px}
+
+#aimView #aimTargetPick .aim-pick select{display:none}
+#aimView .preview-target-open{position:absolute;inset:0;width:100%;height:100%;min-height:0;padding:0;background:transparent;border:0;border-radius:inherit;cursor:pointer}
+#aimView .preview-target-open:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.preview-target-list .preview-body-choice{overflow-wrap:anywhere}
+
+#aimView #previewTimeScope{display:flex;width:max-content;max-width:100%;gap:0;padding:0;margin:2px 0 0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+#aimView #previewTimeScope button{width:auto;min-width:60px;min-height:44px;padding:0 10px;border:0;border-radius:0;font-size:12px;font-weight:400;background:transparent;color:var(--secondary)}
+#aimView #previewTimeScope button[aria-pressed=true]{background:var(--sunk);color:var(--text);font-weight:600}
+/* PCは図・文字・操作を同じ比率で拡張。スマホの密度と最小タップ領域は維持。 */
+@media(min-width:960px){
+ html{font-size:clamp(16px,1.1vw,20px)}
+ main:has(#aimView:not([hidden])){max-width:1440px;padding-inline:clamp(18px,2vw,36px)}
+ #aimView{--aim-control-font:clamp(15px,1.1vw,20px);--aim-small-font:clamp(13px,.9vw,16px)}
+ #aimView .tiny,#aimView .muted,#aimView .aim-look-cap,#aimView .aim-look-cap .sub-line,#aimView [data-lens-info],#aimView .aim-frame-times{font-size:var(--aim-small-font)}
+ #aimView button,#aimView select,#aimView input,#aimView .aim-limb button,#aimView .chip,#aimView .preview-body-open,#aimView #aimTargetPick .aim-pick,#aimView #previewTimeScope button{font-size:var(--aim-control-font)}
+ #aimView .aim-say,#aimView #aimPartRow,#aimView #aimLimb,#aimView #aimTargetCard,#aimView #aimCustomRow{max-width:720px}
+ #aimView .aim-limb button{min-height:clamp(58px,4.5vw,76px);gap:10px}
+ #aimView .aim-limb svg{width:clamp(30px,2.3vw,42px);height:clamp(30px,2.3vw,42px)}
+ #aimView .preview-workspace{grid-template-columns:minmax(0,1fr)}
+ #previewScene:before,#previewPlaces:before{font-size:1rem}
+ #aimView .aim-air select,#aimView .aim-air input{font-size:var(--aim-control-font)}
+}
+#aimView .aim-time-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:0 8px;margin:4px 0 8px}#aimView .aim-time-controls .aim-air{display:contents}#aimView .aim-time-controls .aim-air-row{grid-column:1;grid-row:1;gap:8px}#aimView .aim-time-controls #previewTimeScope{grid-column:2;grid-row:1;margin:0}#aimView .aim-time-controls #aimAirDetails{grid-column:1 / -1;grid-row:2}#aimView .aim-time-controls #aimAirDetails summary{justify-content:flex-start}#aimView .aim-time-controls #aimAirSummary{margin-left:0}#aimView .aim-frame-info{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}#aimView .aim-frame-info .aim-frame-times{flex:1 1 120px;min-width:120px}#aimView .aim-air{margin:0 0 8px auto;border-top:0;max-width:100%}#aimView .aim-air-row{display:flex;align-items:center;gap:12px}#aimView #aimAirMode{width:auto;min-width:112px;min-height:44px;font-size:0.81rem;padding:8px 32px 8px 12px}#aimAirLabel{font-size:0.81rem;color:var(--secondary);flex:none}#aimView .aim-air-options{display:flex;background:var(--sunk);border-radius:10px;padding:3px;flex:1;max-width:330px}#aimView .aim-air-options button{flex:1;min-width:0;min-height:44px;border:0;border-radius:8px;font-size:0.81rem;color:var(--secondary);background:transparent}#aimView .aim-air-options button[aria-pressed=true]{background:var(--accent);color:var(--on-accent);font-weight:600}#aimView #aimAirDetails summary{justify-content:flex-start;gap:8px;min-height:44px;font-size:0.75rem;color:var(--secondary)}#aimAirDetails summary::-webkit-details-marker{display:none}#aimAirSummary{margin-left:auto}#aimView .aim-air-chevron{font-size:18px}#aimAirDetails[open] .aim-air-chevron{transform:rotate(180deg)}
+/* 下の時刻欄の高さぶんは、ページの最後（出典の下）に空ける。#aimView の中で空けると出典の上に余白が出て、出典は時刻欄の裏に入っていた（2026-10-05 iPhone）。高さは時刻欄を測って --aim-footer-h に入れる */
+main:has(>#aimView:not([hidden],[data-locked])){padding-bottom:calc(var(--aim-footer-h,calc(84px + env(safe-area-inset-bottom))) + 12px)}
+/* 権限が無いときは案内カードだけを出す。地図の skyMapAccess と同じ形（2026-10-15） */
+#aimView[data-locked]>:not(#aimAccess){display:none!important}
+#planeView[data-locked]>:not(#planeAccess){display:none!important}
+#issView[data-locked]>:not(#issAccess){display:none!important}
+/* 人工衛星の一覧（2026-10-21）: 名前・説明・補足を1行ずつ。続けて流すと「ひまわりHimawari 1」のように名前と英語名がくっついた */
+#issPassList .al-w>*,#issPickList .al-w>*{display:block}
+/* 衛星を選ぶの1行: 選ぶ釦と☆（お気に入り） */
+.iss-pick-row{display:flex;gap:6px;align-items:stretch}.iss-pick-row>.al-row{flex:1;min-width:0}
+.iss-star{flex:none;width:48px;min-height:48px;border:0;border-radius:10px;background:none;color:var(--secondary);font-size:1.25rem;line-height:1}
+.iss-star[aria-pressed="true"]{color:var(--accent)}
+.iss-pick-groups{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}.iss-pick-groups::-webkit-scrollbar{display:none}.iss-pick-groups .chip{flex:none}
+#issPickSheet .iss-pick-groups .chip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.iss-pick-head{margin:12px 0 4px;font-size:0.81rem;color:var(--secondary)}
+#recordsView[data-locked]>:not(#recordsAccess),#answersView[data-locked]>:not(#answersAccess){display:none!important}#aimView button[data-pointer-focus]:focus{outline:none}
+:is(#aimView,#skyMapView,#almanacView) .preview-footer-rel{max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:10px;line-height:1.2;color:var(--secondary);white-space:nowrap}
+#aimView .aim-look-time,#aimView .preview-map-time>input,#aimView .preview-map-time output,#aimView .preview-map-time .aim-time-heading>span{display:none}#aimView .preview-map-time .aim-time-heading{justify-content:flex-end}
+#aimView .preview-time-dialog .sheet-body{display:grid;gap:8px}#aimView .preview-time-dialog .tiny{margin:8px 0 0;color:var(--secondary)}#aimView .preview-time-dialog #previewReference{width:100%;min-height:44px;border:1px solid var(--line);border-radius:8px;font-size:15px}#aimView .preview-time-dialog #previewTimeScope{width:100%;margin:0}#aimView .preview-time-dialog #previewTimeScope button{flex:1}
+/* 画角調整の各行は項目名の列幅をそろえ、選択欄の左端を一列にする（2026-10-05 総点検。名前の長さで72〜135pxにばらついていた） */
+#aimView .preview-camera-dialog .aim-grid-control,#aimView .preview-camera-dialog .aim-lens-row{display:grid;grid-template-columns:7.5rem minmax(0,1fr);align-items:center;gap:10px}#aimView .preview-camera-dialog .preview-sensor-label{font-size:14px}#aimView .preview-camera-dialog .aim-lens-row select,#aimView .preview-camera-dialog .aim-grid-control select{width:100%;min-width:0}
+  /* trial 2026-10-16: 構図の撮影地タブは地図へ集約（その日に重なる線・自分の地点は地図に出す） */
+  #previewPlacesTab, #previewPlaces { display: none !important; }
+#homeLink{max-width:100%;min-width:0;min-height:44px}#mastheadAstroMark{flex:0 1 140px;min-width:0}
+.note-wait{display:flex;align-items:center;justify-content:center;gap:12px;min-height:56px}.note-wait-character{flex:0 0 56px;width:56px;height:56px;background:url("astronotes-note-computing-branded-v2.png") center/contain no-repeat}.note-wait-message{position:relative;min-width:0;flex:1;line-height:1.6;padding:12px 14px;border-radius:14px;background:var(--sunk);color:var(--text);font-size:14px}.note-wait-message::before{content:"";position:absolute;left:-7px;top:50%;transform:translateY(-50%);border-top:7px solid transparent;border-bottom:7px solid transparent;border-right:8px solid var(--sunk)}.note-progress{display:block;position:relative;overflow:hidden;width:100%;height:6px;margin-top:9px;border-radius:3px;background:var(--line)}.note-progress-fill{display:block;width:100%;height:100%;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform 450ms ease-out}.note-progress[data-indeterminate] .note-progress-fill{transform:scaleX(.3);animation:note-progress-wait 1.5s ease-in-out infinite}@keyframes note-progress-wait{0%,100%{transform:translateX(-30%) scaleX(.3)}50%{transform:translateX(100%) scaleX(.3)}}@media(prefers-reduced-motion:reduce){.note-progress-fill{transition:none}.note-progress[data-indeterminate] .note-progress-fill{animation:none}}

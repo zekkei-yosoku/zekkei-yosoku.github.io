@@ -16,7 +16,7 @@ test('同じ地点の複数対象を独立に保持し、別の対象の不可�
 test('見えた対象×複数天体の全組を作り、見えない対象・未知天体・権限のない組を除く',()=>{
  const fn=source.slice(source.indexOf('function planningPairs('),source.indexOf('function buildSheet('));
  const grants=new Set(['tower','diamond','pearl']);
- const pairs=new Function('AstroNotesBodies','toolAllowed',fn+';return planningPairs;')({definition:id=>['sun','moon','sirius'].includes(id)},id=>grants.has(id));
+ const pairs=new Function('AstroNotesBodies','toolAllowed','AstroNotesAccess',fn+';return planningPairs;')({definition:id=>['sun','moon','sirius'].includes(id)},id=>grants.has(id),require('./astronotes-access.js'));
  const records=[{result:'seen',target:{key:'fuji'}},{result:'partial',target:{key:'tower'}},{result:'hidden',target:{key:'blocked'}}];
  assert.deepEqual(pairs(records,['sun','moon','unknown']).map(p=>[p.record.target.key,p.body]),[['fuji','sun'],['fuji','moon'],['tower','sun'],['tower','moon']]);
  assert.deepEqual(pairs(records,[]),[]);grants.delete('pearl');assert.deepEqual(pairs(records,['moon']).map(p=>p.record.target.key),['tower']);

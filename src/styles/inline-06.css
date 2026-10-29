@@ -1,0 +1,27 @@
+
+/* 「この点数のわけ」の内訳。**箱を作らず、行で揃える。** 左にラベル、右に数値。
+   もとは富士山と月の「重なる日」シート一式だったが、その画面は無くなり、
+   生き残ったのはこの2つだけ（2026-09-28 の総点検で残りを削除）。
+   → Vault のAstroNotesデザイン定義 */
+.pk-rows { margin-top: 10px; border-top: 1px solid var(--line); }
+.pk-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+          padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 0.81rem; }
+.pk-row > span:first-child { color: var(--secondary); white-space: nowrap; }
+.pk-row > span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; }
+/* Shared visible choices: hidden native sources must not occupy the input grid. */
+:is(#aimView,#skyMapView,#almanacView) .condition-field .condition-choice{box-sizing:border-box;min-width:0;width:100%;height:52px;min-height:52px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;background-color:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;font-size:16px;font-weight:400}
+:is(#aimView,#skyMapView,#almanacView) .condition-choice>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:is(#aimView,#skyMapView,#almanacView) .condition-choice>svg{width:12px;height:12px;flex:none;color:var(--secondary)}
+#skyMapView #skyMapTargetOpen{grid-column:2;grid-row:1}
+#skyMapView #skyMapTargetOpen[data-empty="true"]{color:var(--tertiary)}
+#skyMapView .sky-map-controls{margin:0}
+:is(#aimView,#skyMapView,#almanacView) .aim-say-from{margin-top:0}
+#skyMapView select.condition-choice{appearance:none;padding-right:36px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23aaa' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-position:right 12px center;background-size:12px 12px;background-repeat:no-repeat}
+
+#aimView #aimTargetPick .aim-pick{height:52px;min-height:52px}
+
+:is(#aimView,#skyMapView,#almanacView) .condition-field > :first-child{margin:0}
+:is(#aimView .aim-titlebar,#skyMapView .sky-map-head){min-height:44px;margin-bottom:16px}
+:is(#aimView .aim-titlebar,#skyMapView .sky-map-head) h2{margin:0}
+#aimView :is(#aimTargetNote,#aimHeightNote):empty{display:none}
+#accountSheet:not([data-account-ready="true"]):not([data-codes-shown="true"]) .sheet-body > :not(#accountBody):not(#accountErr){display:none}

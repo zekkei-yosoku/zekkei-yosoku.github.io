@@ -553,7 +553,7 @@ const inputRoleIcon = role => `<svg viewBox="0 0 24 24" width="22" height="22" a
 function planningPairs(records, bodies) {
   return records.filter(r => r.result !== 'hidden').flatMap(record => bodies.filter(body => {
     if (!AstroNotesBodies.definition(body)) return false;
-    return record.target.key === 'fuji' ? (body === 'sun' ? toolAllowed('diamond') : body === 'moon' ? toolAllowed('pearl') : toolAllowed('tower') && (toolAllowed('diamond') || toolAllowed('pearl'))) : toolAllowed('tower');
+    return AstroNotesAccess.canFrame(toolAllowed, record.target.key, body);
   }).map(body => ({record, body})));
 }
 function recordGroups(records) {

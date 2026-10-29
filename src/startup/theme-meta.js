@@ -1,0 +1,1 @@
+(()=>{const root=document.documentElement,meta=document.querySelector('meta[name="theme-color"]');const sync=()=>{meta.content=getComputedStyle(root).getPropertyValue('--header-bg').trim();};sync();new MutationObserver(sync).observe(root,{attributes:true,attributeFilter:['data-theme']});})();

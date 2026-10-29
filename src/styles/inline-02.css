@@ -1,0 +1,1219 @@
+
+  /* 配色はカード地に対するコントラストを実測して決めている。
+     文字として使う色は 4.5:1 以上（WCAG AA の本文基準）。
+     以前はライトモードで 良好 2.60・平凡 2.42・補助文 2.21 と、
+     大きな文字の基準 3.0 すら下回っていた。 */
+  :root {
+    /* secondary と tertiary が #6e6e73 / #6b6b71 で見分けが付かず、補助文の階層が
+       消えていた（コントラストを直したときに tertiary を暗くして寄せてしまった）。
+       secondary を本文寄りへ戻して 本文→補助→注記 の3段を作る。 */
+    color-scheme: light; --bg: #f1f4f8; --card: #ffffff; --text: #1c1c1e; --secondary: #4a4a4f; --tertiary: #6b6b71;
+    --accent: #426789; --location-action: #28669a; --line: rgba(0,0,0,.08);
+    /* 評価語の色。ライトでは「白地の上で 4.5:1」を満たす黄が存在せず、
+       #7d6516 のオリーブになる。しかも隣の --good #a04f09 と見分けが付かず、
+       灰→オリーブ→焦茶→赤 の中2つが同じ茶に潰れていた。
+       「ほんのり」は本文色にして、暖色の段はセルの塗りに任せる。
+       ダークは #d4b247 の金が成立するのでそのまま。 */
+    --spectacular: #c62c3c; --good: #a04f09; --fair: #1c1c1e; --poor: #6a6a6a;
+    --red: #d0342c; --orange: #8f6410;
+    /* セルの地に使う色。文字色（--good など）とは別に持つ。
+       文字色は「白地の上で 4.5:1 を満たす」ために暗く濁らせてあり、
+       それを薄めて塗りにすると全部くすんだベージュになって点数が読み取れない。
+       実測: 24点(209,206,195) 39点(202,195,171) 62点(204,173,143) と、
+       赤成分がほぼ動かず、明度差もほとんど無かった。
+       塗りには彩度のある色を使い、薄い黄→橙→赤で段を作る。 */
+    --t-poor: #9aa0a6; --t-fair: #e8b21a; --t-good: #f2711c; --t-spectacular: #e0243a;
+    /* 濃さの幅と立ち上がり。ライトは載る文字が黒に近いので強く塗れる。 */
+    --tint-span: 62; --tint-exp: 1.05;
+    /* 差し色を地にしたときに載せる文字。ライトは白で 5.81:1 だが、
+       ダークの差し色は明るい橙なので、白だと 2.60:1 まで落ちる。 */
+    --on-accent: #ffffff;
+    /* 地図に引く線（ねらう）。太陽は金、月は青。地図の地の上に乗るので、
+       本文の評価語の色（白地で 4.5:1 を満たすために濁らせてある）とは別に持つ。 */
+    --ray-sun: #e8820e; --ray-moon: #2f7fd0;
+  }
+  /* ダークは <html data-theme="dark"> のとき（2026-10-06 まで @media (prefers-color-scheme: dark)）。
+     iOS はアプリが裏へ回るとき外観をライト⇄ダークに往復させるので、メディアクエリに直接従うと戻った直後にライトで出る */
+  :root[data-theme="dark"] { color-scheme: dark; --bg: #000; --card: #1c1c1e; --text: #f2f2f7; --secondary: #c3c3ca; --tertiary: #93939a;
+            --line: rgba(255,255,255,.1);
+            --accent: #9bb8d3; --location-action: #80c7ff; --spectacular: #e97180; --good: #f08529; --fair: #d4b247;
+            --poor: #9a9a9a; --red: #db5b54; --orange: #d98a1f;
+            /* 暗い地の上では、色を足すほど明るくなるので明度が段の手がかりになる。
+               いまの文字色がそのまま塗りとしても働くので同じ値を使う。 */
+            --t-poor: #9a9a9a; --t-fair: #d4b247; --t-good: #f08529; --t-spectacular: #e97180;
+            /* ダークは明るい地に淡い文字が載るので 58%（=10+48）で頭打ち。実測値。 */
+            --tint-span: 48; --tint-exp: 0.75;
+            --on-accent: #142332;
+            --ray-sun: #ffb340; --ray-moon: #6ba6e0; }
+  /* AstroNotesの操作色。太陽/月・警告・予測評価の意味色は変えない。
+     既存の画面表示に追従するので、共通シートも同じ操作色を継承する。 */
+  :root:has(:is(#aimView, #skyMapView):not([hidden])) { --accent: #426789; --on-accent: #ffffff; }
+  :root[data-theme="dark"]:has(:is(#aimView, #skyMapView):not([hidden])) { --accent: #9bb8d3; --on-accent: #142332; }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+         color: var(--text); font-size: 0.94rem; line-height: 1.5; min-height: 100dvh;
+         padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+  /* 内容はぜんぶ同じ1本の列に置く。幅も中心もそろえる。
+     以前は main を 1060px にして中身を 760px 左寄せにしていたため、
+     全幅で中央寄せしていた見出しだけが 136px ずれていた。 */
+  main { max-width: 560px; margin: 0 auto; padding: 12px 14px 48px; }
+
+  /* PC・タブレット横向き: 左に一覧、右に詳細の2ペイン。
+     ただ幅を広げると1行が長くなって読みにくいので、列を分けて使う。 */
+  /* [hidden] は display:none を弱い指定で当てるだけなので、display を持つクラスに負ける。
+     .place-row の flex に負けて、記録画面で地点カードが消えなかった。 */
+  [hidden] { display: none !important; }
+  .masthead { display: grid; grid-template-columns: minmax(44px,1fr) auto minmax(44px,1fr); align-items: center; gap: 6px; padding: 6px 2px 12px; }
+  /* 全画面共通のブランド色。lightはロゴの白を受ける濃いheader、darkは本文へつなぐ。 */
+  :root { --header-bg: #c5d3e0; --header-end: calc(74px + env(safe-area-inset-top)); }
+  :root[data-theme="dark"] { --header-bg: var(--bg); }
+  /* iOSの上端もheader色で塗る。背景色の抽出先になるhtml/bodyの単色を揃え、
+     本文はgradientで従来色へ戻す。defaultの時計色とsafe-areaの余白は保つ。 */
+  html, body { background: linear-gradient(to bottom, var(--header-bg) 0, var(--header-bg) calc(var(--header-end) - 10px), var(--bg) var(--header-end)) var(--header-bg); }
+  html { min-height: 100%; }
+  .masthead { position: relative; isolation: isolate; }
+  .masthead::before { content: ""; position: absolute; z-index: -1; top: calc(-12px - env(safe-area-inset-top)); bottom: 0; left: 50%; width: 100vw; transform: translateX(-50%); background: linear-gradient(to bottom, var(--header-bg) 0, var(--header-bg) calc(100% - 10px), var(--bg) 100%); pointer-events: none; }
+  .masthead #authButton { color: #294862; }
+  :root[data-theme="dark"] .masthead #authButton { color: #dce8f3; }
+  .masthead #toolsButton { color: #34495e; }
+  :root[data-theme="dark"] .masthead #toolsButton { color: #c3c3ca; }
+  .masthead h1 { grid-column: 2; grid-row: 1; min-width: 0; justify-self: center; }
+  .masthead-mark { width: 20px; height: 20px; border-radius: 5px; display: block; }
+  /* 丸み修正版v1の横組ロゴ。画像の縦横比を維持し、既存の題名と二重表示しない。 */
+  #mastheadAstroMark { width: 140px; height: auto; aspect-ratio: 2172 / 490; border-radius: 0; flex: none; }
+  .sky-map-link { margin: 12px 0; }
+  /* 題名そのものが戻り道（YouTube・Gmail と同じ）。見た目は h1 のまま */
+  #homeLink { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  /* 題名の帯の2行目に置く「← 戻る」。囲わず文字だけ（ユーザー指定）。左端を ☰・題名とそろえ、
+     帯に寄せて（上を詰めて）題名の帯の一部に見せる。カードのあいだに浮かせない */
+  .backbar { margin: -10px 0 8px; padding: 0 2px; }
+  #backLink { display: inline-flex; align-items: center; gap: 4px; min-height: 32px;
+              color: var(--accent); font-size: 0.81rem; font-weight: 700; }
+  #backLink svg { flex: none; }
+  h1 { font-size: 0.94rem; font-weight: 700; letter-spacing: .18em;
+       color: var(--secondary); text-align: left; }
+  /* ログイン名は長いことがある（最大32字）。狭い画面で題名と重ならないよう、収まらなければ「…」で切る */
+  #authButton { font-size: 0.75rem; font-weight: 700; color: var(--accent); min-height: 44px; padding: 0 2px;
+                grid-column: 3; grid-row: 1; justify-self: end; width: max-content; min-width: 44px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* メニューの引き出し。**左上の ☰ から左に出す。** ページの中へ差し込まない
+     （差し込むと下の内容が飛び、読んでいた場所を失う）。
+     動かすのは transform と不透明度だけ。幅や位置を動かすと毎フレーム組み直しになる。 */
+  /* 押せる大きさは `.tap::after` が 44px で作るので、箱は字の大きさのままでよい。
+     min-width を足すと、題名の印とのあいだに要らない隙間ができる（2026-09-28） */
+  #toolsButton { grid-column: 1; grid-row: 1; justify-self: start; width: 44px; height: 44px; font-size: 1.1rem; line-height: 1; color: var(--secondary); padding: 0 2px; }
+  #toolsButton[aria-expanded="true"] { color: var(--accent); }
+  .drawer-scrim { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 40;
+                  opacity: 0; transition: opacity .22s ease; }
+  .drawer-scrim.on { opacity: 1; }
+  .drawer { position: fixed; top: 0; left: 0; bottom: 0; z-index: 41;
+            width: min(320px, 86vw); display: flex; flex-direction: column;
+            background: var(--card); border-radius: 0 16px 16px 0;
+            box-shadow: 0 0 40px rgba(0,0,0,.45);
+            padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+            transform: translateX(-100%); transition: transform .22s ease; }
+  .drawer.on { transform: translateX(0); }
+  @media (prefers-reduced-motion: reduce) {
+    .drawer, .drawer-scrim { transition: none; }
+  }
+  .drawer-head { display: flex; align-items: center; justify-content: space-between;
+                 padding: 14px 8px 10px 18px; font-size: 0.81rem; font-weight: 700;
+                 letter-spacing: .16em; color: var(--secondary); }
+  #toolsClose { min-height: 44px; min-width: 44px; color: var(--tertiary); font-size: 0.94rem; }
+  .drawer-list { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; overflow-y: auto; }
+  .drawer-list button { display: grid; grid-template-columns: 1fr auto; align-items: center;
+                        gap: 0 8px; width: 100%; text-align: left; min-height: 56px;
+                        padding: 9px 12px; border-radius: 12px; }
+  .drawer-list button b { grid-column: 1; font-size: 0.94rem; font-weight: 700; color: var(--text); }
+  /* 主要機能の線画アイコン。ラベルを残し、選択色にも追従する。 */
+  .drawer-list button:has(> b > .menu-feature-icon) b { display: flex; align-items: center; gap: 8px; }
+  .menu-feature-icon { width: 20px; height: 20px; flex: none; }
+  .drawer-list button:has(> b > .menu-feature-icon) > span { padding-left: 28px; }
+  .drawer-list button span { grid-column: 1; font-size: 0.72rem; color: var(--tertiary); line-height: 1.35; }
+  /* 押せることを右の「›」で示す。絵文字は使わない（現象の識別にだけ使う） */
+  .drawer-list button::after { content: "›"; grid-column: 2; grid-row: 1 / span 2;
+                               color: var(--tertiary); font-size: 1.1rem; }
+  .drawer-list button:hover, .drawer-list button:focus-visible { background: var(--sunk); }
+  /* いまいる画面は帯で示す。戻ってきたときにどこから来たか分かる */
+  .drawer-list button[aria-current="page"] { background: var(--sunk); }
+  .drawer-list button[aria-current="page"] b { color: var(--accent); }
+  /* 予測・構図・地図の各入口を同じ細い区切り線で揃える */
+  #toolsHome, #framingMenu, #mapMenu { position: relative; margin-bottom: 5px; }
+  #toolsHome::before, #framingMenu::before, #mapMenu::before { content: ""; position: absolute; left: 12px; right: 12px; bottom: -4px; border-bottom: 1px solid var(--line); }
+  #astroToolsGroup { padding-bottom: 7px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+  #authButton.warn { color: var(--red); }
+  .card { background: var(--card); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
+  .muted { color: var(--secondary); font-size: 0.75rem; }
+  .tiny { color: var(--tertiary); font-size: 0.69rem; }
+  button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+  .place-row { display: flex; align-items: center; gap: 2px; width: 100%; padding: 4px 2px 10px; }
+  .place-pick { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-align: left; }
+  .place-txt { min-width: 0; }
+  /* ボタンの中に置けるのは句だけなので span。2行目として折り返す */
+  #placeSub, #aimFromSub, #aimTargetSub, #issFromSub, #planeFromSub { display: block; }
+  .place-row .pin { color: var(--accent); font-size: 1.25rem; }
+  .place-row .name { font-size: 1.25rem; font-weight: 700; }
+  .place-row .chev { margin-left: auto; color: var(--secondary); display: flex; }
+  /* 兄弟になったので、疑似要素で当たり判定を作らず実寸で 44px を取れる。 */
+  #favToggle { flex: none; min-width: 44px; min-height: 44px; font-size: 1.1rem; }
+
+  .ens { display: flex; align-items: flex-end; gap: 2px; height: 44px; margin: 4px 0 2px; }
+  .ens-bar { flex: 1; display: flex; align-items: flex-end; height: 100%;
+             background: var(--line); border-radius: 2px; overflow: hidden; }
+  .ens-bar > div { width: 100%; border-radius: 2px; min-height: 1px; }
+  /* --muted は定義されていなかった（注記なので --tertiary が正しい）。
+     フォールバックが無いので、ここは色が効かずに親の色を継いでいた。 */
+  .ens-axis { display: flex; justify-content: space-between; font-size: 0.72rem;
+              color: var(--tertiary); margin-bottom: 4px; }
+  /* 小さな操作の当たり判定を広げる。見た目は変えず、押しやすさだけ上げる。
+     ☆ は 16×24px しかなく、隣の地点ボタンを誤爆しやすかった。 */
+  .tap { position: relative; }
+  .tap::after { content: ""; position: absolute; left: 50%; top: 50%;
+                transform: translate(-50%, -50%);
+                width: max(100%, 44px); height: 44px; }
+  .scorebar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .scorebar > div, .scorebar > span { display: block; height: 100%; border-radius: 4px; }
+
+  /* 見たいものを選ぶプルダウン。ネイティブの select を使う。
+     iOS ではホイール、Android ではリストと、端末に馴染んだ出方になるし、
+     キーボード操作も読み上げも自前で用意しなくて済む。 */
+  /* 「もっと詳しく」。決めるのに要らないものは畳んでおく。 */
+  .more > summary { list-style: none; cursor: pointer; font-weight: 700; font-size: 0.88rem;
+                    display: flex; align-items: center; gap: 6px; min-height: 32px; }
+  .more > summary::-webkit-details-marker { display: none; }
+  .more > summary::before { content: "▸"; color: var(--secondary); font-size: 0.81rem; }
+  .more[open] > summary::before { content: "▾"; }
+
+  /* 光の時間。朝と夕を2列に並べる。 */
+  .lt { display: grid; grid-template-columns: auto 1fr 1fr; gap: 4px 12px;
+        font-size: 0.81rem; font-variant-numeric: tabular-nums; align-items: baseline; }
+  .lt .lt-h { font-size: 0.72rem; color: var(--tertiary); }
+  .lt .lt-l { color: var(--secondary); white-space: nowrap; }
+
+  /* 富士山の詳細から笠雲へ。押せることが分かる形にする。 */
+  .cap-line { display: flex; align-items: center; gap: 8px; min-height: 44px;
+              color: var(--text); text-decoration: none; }
+  .cap-line .ic { font-size: 1.1rem; }
+  .cap-line .go { margin-left: auto; color: var(--secondary); }
+
+  /* 富士山の時刻帯。一覧のセルと同じ塗りを、横一列に並べるだけ。 */
+  .ft-band { display: grid; gap: 1px; }
+  /* 帯を朝・日中・夕で区切る。区切りは**隙間**で示す（線を足すと枠が増える）。
+     段の名前は帯の上に小さく、その段の幅の中央へ。 */
+  .ft-segs { display: grid; gap: 7px; margin-top: 8px; }
+  .ft-segs > span { font-size: 0.58rem; font-weight: 700; color: var(--secondary);
+                    text-align: center; }
+  .ft-bandwrap { margin-top: 2px; }
+  .ft-c { height: 26px; display: flex; align-items: center; justify-content: center;
+          font-size: 0.63rem; font-variant-numeric: tabular-nums; color: var(--text);
+          overflow: hidden; }
+  /* 狭い画面では数字が入らない。色だけにして、はみ出させない。
+     375px で14セルだと1セル約24px。2桁は入るが3桁（100点）は入らないので
+     小さめの字にしてある。 */
+  .ft-c > span { line-height: 1; }
+  .ft-band > .ft-c:first-child { border-radius: 4px 0 0 4px; }
+  .ft-band > .ft-c:last-child { border-radius: 0 4px 4px 0; }
+  .ft-ticks { display: grid; gap: 1px; margin-top: 2px;
+              font-size: 0.63rem; color: var(--tertiary); font-variant-numeric: tabular-nums; }
+  .ft-ticks span { text-align: center; white-space: nowrap; }
+
+  /* 写真の時刻の注記（結果の写真アップロードは2026-10-28に撤去） */
+  .shot-note { color: var(--tertiary); margin-top: 2px; }
+
+  /* まだ答えていない回。アプリを開いて1タップで済むようにする。 */
+  .pending { padding: 2px 0 4px; }
+  .pending-row { padding: 7px 0; border-top: 1px solid var(--line); }
+  .pending-row:first-of-type { border-top: none; }
+  .pending-row .outcome { margin-top: 6px; }
+
+  /* 現象ごとのカード。ひとつの表に全部を詰めると、49個の数字を
+     凡例と照らし合わせながら読むことになり、決める道具にならなかった。
+     現象ごとに分け、日の良し悪しは【棒の高さ】で示す。
+     色や数字を覚えなくても、どの日がいいかがそのまま見える。 */
+  .ph-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .twilight-card .tw-head { font-weight: 600; font-size: 15px; margin-bottom: 8px; }
+  .tw-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .tw-row { display: grid; grid-template-columns: 4.3em 7.3em 5.6em 1.8em minmax(0, 1fr); align-items: center; gap: 10px; font-size: 14px; }
+  @media (max-width: 360px) { .tw-row { gap: 6px; font-size: 13px; grid-template-columns: 4.3em 7.3em 5.6em 1.8em; } .tw-bar { display: none; } }
+  .tw-name { font-weight: 600; white-space: nowrap; }
+  .tw-time { color: var(--secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tw-score { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+  .tw-rank { font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+  .tw-bar { height: 6px; border-radius: 3px; background: var(--sunk); overflow: hidden; }
+  .tw-bar i { display: block; height: 100%; border-radius: 3px; }
+  .ph-head .nm { font-weight: 700; font-size: 1rem; }
+  .ph-head .ic { font-size: 1.25rem; }
+  .ph-out { color: var(--tertiary); font-size: 0.81rem; margin-top: 5px; }
+
+  /* 日を押すと詳しい画面へ。押せることが分かるよう、地の色と枠を付ける。 */
+  /* 14日ぶんは1画面に入らないので横へ流す。
+     右端で列を半分だけ見せて、続きがあることを形で示す（矢印や影は足さない）。 */
+  .days { display: flex; gap: 5px; margin-top: 10px; overflow-x: auto;
+          scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin; padding-bottom: 2px; }
+  .day { flex: 0 0 46px; scroll-snap-align: start;
+         display: flex; flex-direction: column; align-items: center; gap: 3px;
+         padding: 5px 2px; border-radius: 10px; min-height: 44px;
+         background: color-mix(in srgb, var(--text) 6%, transparent);
+         border: 1px solid color-mix(in srgb, var(--text) 9%, transparent); }
+  .day:active { background: color-mix(in srgb, var(--text) 14%, transparent); }
+  @media (hover: hover) { .day:hover { border-color: var(--accent); } }
+  .day .v { font-size: 0.72rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  /* 棒の高さが良し悪しを示す。凡例を見に行かなくても、どの日がいいか分かる。 */
+  /* 幅の広い画面で棒が横に間延びして「棒」に見えなくなるので上限を置く。 */
+  .day .col { width: 58%; max-width: 46px; height: 30px; display: flex; align-items: flex-end; }
+  .day .col i { display: block; width: 100%; border-radius: 3px; min-height: 3px; }
+  .day .d { font-size: 0.63rem; color: var(--tertiary); line-height: 1.1; text-align: center; }
+  /* 日のカードを3段（朝・日中・夕）にする。棒のかわりにこの3行が入る。
+     幅46pxなので、時間帯の字は数字より一段小さく、右端をそろえて縦に読めるようにする。 */
+  .day.bands { padding: 5px 3px; }
+  .day .bd { display: grid; grid-template-columns: auto 1fr; gap: 1px 3px; width: 100%;
+             align-items: center; }
+  .day .bd i { font-style: normal; font-size: 0.58rem; font-weight: 700; color: var(--tertiary);
+               line-height: 1.2; }
+  .day .bd b { font-size: 0.69rem; font-weight: 700; text-align: right; line-height: 1.2;
+               font-variant-numeric: tabular-nums; }
+  /* 信頼度の等級。
+     点数のすぐ横に置くと「78 C」が数字の続きに見えて、何の記号か分からなかった。
+     行を分け、枠で囲んでラベルの見た目にする。 */
+  .day .g { font-size: 0.58rem; font-weight: 700; color: var(--tertiary);
+            border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; line-height: 1.45; }
+  /* 凡例の中で、日のボタンに出るのと同じ見た目を見せる。 */
+  .g-inline { font-weight: 700; border: 1px solid var(--line); border-radius: 4px; padding: 0 3px; }
+  /* 見出しの等級。点数のすぐ後ろに小さく。 */
+  .grade { font-size: 0.69rem; font-weight: 700; color: var(--tertiary);
+           border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px;
+           vertical-align: middle; }
+  /* 次に来る回。どこから見ればいいかの起点を示す。 */
+  .day.next { border-color: var(--accent); }
+  /* もう終わった回。押せば記録できるので消しはしないが、目は引かせない。
+     20時に「今日の夕焼け」がいちばん高い棒として左端に出ていた。 */
+  .day.past { opacity: .42; }
+
+  /* 現象ごとのカード。ひとつの表に全部を詰めると、49個の数字を
+     凡例と照らし合わせながら読むことになり、決める道具にならなかった。
+     現象ごとに分け、日の良し悪しは【棒の高さ】で示す。
+     色や数字を覚えなくても、どの日がいいかがそのまま見える。 */
+  .ph-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .ph-head .nm { font-weight: 700; font-size: 1rem; }
+  .ph-head .ic { font-size: 1.25rem; }
+  .ph-out { color: var(--tertiary); font-size: 0.81rem; margin-top: 5px; }
+
+  /* 日を押すと詳しい画面へ。押せることが分かるよう、地の色と枠を付ける。 */
+  .days { display: flex; gap: 5px; margin-top: 11px; overflow-x: auto;
+          scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin; padding-bottom: 2px; }
+  .day { flex: 0 0 52px; scroll-snap-align: start;
+         display: flex; flex-direction: column; align-items: center; gap: 4px;
+         padding: 7px 2px 6px; border-radius: 10px; min-height: 44px;
+         background: color-mix(in srgb, var(--text) 6%, transparent);
+         border: 1px solid color-mix(in srgb, var(--text) 9%, transparent); }
+  .day:active { background: color-mix(in srgb, var(--text) 14%, transparent); }
+  @media (hover: hover) { .day:hover { border-color: var(--accent); } }
+  .day .v { font-size: 0.75rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .day .col { width: 60%; height: 26px; display: flex; align-items: flex-end; }
+  .day .col i { display: block; width: 100%; border-radius: 3px; min-height: 2px; }
+  .day .d { font-size: 0.63rem; color: var(--tertiary); line-height: 1.12; text-align: center; }
+  .day.next { border-color: var(--accent); }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .day[aria-pressed="true"] {
+    opacity: 1; border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+    background: var(--card);
+  }
+  .day[aria-pressed="true"] .d { color: var(--text); font-weight: 700; }
+  .day:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+
+  .highlight { border: 1px solid; }
+  /* 数字ではなく評価の言葉を主役にする。
+     スコアの実測誤差は ±9.5 点で、84 と 82 の差には意味がない。
+     以前は 38.4px の数字に対して「±8点」が 11px と 3.5 倍の差があり、
+     いちばん不確かなものがいちばん大きく出ていた。 */
+  .head-row { display: flex; align-items: baseline; justify-content: space-between;
+              gap: 10px; margin-top: 7px; }
+  .verdict-box { display: inline-flex; align-items: baseline; gap: 8px; flex: none;
+                 white-space: nowrap; }
+  .highlight .verdict { font-size: 1.44rem; font-weight: 800; line-height: 1.1; }
+  .highlight .big { font-size: 1rem; font-weight: 700; line-height: 1;
+                    font-variant-numeric: tabular-nums; }
+  .scorebar .band { position: absolute; top: 0; bottom: 0; opacity: .34; }
+  .scorebar.withband { position: relative; }
+  .badge { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
+
+  .factors .f { padding: 6px 0; }
+  .factors .fh { display: flex; justify-content: space-between; gap: 8px; font-size: 0.81rem; }
+  .factors .mark { display: inline-block; width: 1.2em; font-weight: 700; }
+  .factors .bar { position: relative; height: 6px; margin: 3px 0 2px; }
+  .factors .bar .mid { position: absolute; left: 50%; top: -1px; bottom: -1px; width: 1px; background: var(--line); }
+  .factors .bar .fill { position: absolute; top: 0; height: 6px; border-radius: 3px; }
+  .pm { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; padding: 2px 0; }
+  /* 文字サイズを大きくするとモデル名が折り返してバーと縦がずれる。
+     幅は下限として扱い、名前は折り返さない。 */
+  .pm .n { min-width: 86px; flex: none; white-space: nowrap; color: var(--secondary); }
+  .pm .v { width: 26px; text-align: right; color: var(--secondary); }
+  .pm .scorebar { flex: 1; height: 5px; }
+
+  table.numbers { border-collapse: collapse; font-size: 0.75rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.numbers th, table.numbers td { padding: 4px 7px; text-align: right; color: var(--secondary); }
+  table.numbers th { font-weight: 500; color: var(--tertiary); }
+  table.numbers td:first-child, table.numbers th:first-child { text-align: left; color: var(--text); }
+  .scrollx { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  .outcome { display: flex; gap: 8px; }
+  .outcome button { flex: 1; text-align: center; font-size: 0.81rem; font-weight: 500; padding: 9px 0; min-height: 44px;
+                    border-radius: 9px; background: var(--line); }
+  .outcome button.on { background: var(--accent); color: var(--on-accent); }
+  /* 違ったときのゲージ。予測の位置に細い印を置く（予測からどれだけ違ったかが見える） */
+  .answer-gauge { margin-top: 8px; }
+  .gauge-track { position: relative; }
+  .gauge-track input { width: 100%; height: 44px; accent-color: var(--accent); }
+  .gauge-pred { position: absolute; top: 6px; bottom: 6px; width: 2px; margin-left: -1px; border-radius: 1px;
+                background: var(--secondary); opacity: .55; pointer-events: none; }
+  .gauge-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .gauge-foot output { font-size: 0.94rem; font-weight: 700; color: var(--text); min-width: 0; }
+  .gauge-foot output .sub-line { font-weight: 400; }
+  .gauge-foot button { flex: 0 0 auto; width: auto; padding: 0 14px; min-height: 44px; }
+  .gauge-foot button:disabled { background: var(--line); color: var(--secondary); }
+
+  /* margin: auto は既定でモーダルを中央に置くための指定。38行目の `* { margin: 0 }` に
+     消されていて、PCでは左上に貼り付いていた。 */
+  dialog { border: none; border-radius: 16px; background: var(--card); color: var(--text);
+           width: min(92vw, 480px); max-height: 82vh; padding: 0; margin: auto; }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  /* ページとして開く選択画面（2026-10-21 ユーザー採用「ページ」と「短いシート」の2種類）。全画面で開き、左上の「戻る」で閉じる。
+     下の画面はそのまま残るので、戻ると入力と位置が残る（showSheet → showPage） */
+  /* 枠の大きさは !important: 対象を選ぶ（#previewTargetDialog）などが ID で幅を決めていて、ページなのに右に隙間が残った */
+  dialog.sheet.as-page { position: fixed !important; inset: 0 !important; width: 100% !important; max-width: none !important; height: 100% !important;
+    max-height: none !important; margin: 0 !important; border-radius: 0 !important; background: var(--bg); padding: 0 0 env(safe-area-inset-bottom); }
+  /* 開くときに右から動かさない（2026-10-21 ユーザー「右から出るようなモーションはやめてほしい」） */
+  dialog.sheet.as-page[open] { display: flex; flex-direction: column; animation: none; }
+  dialog.sheet.as-page::backdrop { background: var(--bg); }
+  dialog.sheet.as-page > .sheet-head { flex: none; display: grid; grid-template-columns: minmax(72px, 1fr) minmax(0, auto) minmax(72px, 1fr);
+    align-items: center; gap: 4px; padding: calc(env(safe-area-inset-top) + 6px) 8px 6px; border-bottom: 1px solid var(--line); }
+  dialog.sheet.as-page > .sheet-head > strong { grid-column: 2; grid-row: 1; text-align: center; }
+  dialog.sheet.as-page > .sheet-head > .page-back { grid-column: 1; grid-row: 1; justify-self: start; display: inline-flex; align-items: center;
+    gap: 2px; min-height: 44px; padding: 0 8px 0 2px; color: var(--accent); background: none; border: 0; font-size: 1rem; }
+  dialog.sheet.as-page > .sheet-head > .page-back svg { flex: none; }
+  dialog.sheet.as-page > .sheet-body { flex: 1; max-height: none; width: min(100%, 640px); margin: 0 auto; padding-top: 12px; }
+  /* 隠した右上の「閉じる」。×の絵に替える部品（ui-icon-button）が display を !important で決めていて、観測地点で×が残っていた */
+  dialog.sheet.as-page > .sheet-head > [data-page-close] { display: none !important; }
+  /* 右上の操作（対象を選ぶの「解除」「＋」など） */
+  dialog.sheet.as-page > .sheet-head > .page-actions { grid-column: 3; grid-row: 1; justify-self: end; display: inline-flex; align-items: center; gap: 6px; }
+  dialog.sheet.as-page > .sheet-head > .page-actions[hidden] { display: none; }
+  .page-actions .chip:not(.my-add-point) { width: auto !important; min-width: 0; padding: 0 14px; min-height: 44px; border-radius: 22px; }
+  .page-actions .my-add-point { display: inline-flex; align-items: center; justify-content: center; width: 44px; min-width: 44px; min-height: 44px; padding: 0; }
+  /* シートは開いたときシートそのものに焦点を置く（showSheet。tabindex="-1"）。置かないと最初の釦（閉じる）が選ばれた状態（青い枠）で開いた
+     （2026-10-02 ユーザー「なんか青くなって選択状態で開くのが気に入らない」）。キーボードなら Tab で中へ入れる */
+  dialog:focus { outline: none; }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 8px; }
+  .sheet-head button { min-height: 44px; padding: 0 4px; }
+  /* シートを開くと本文のスクロールを止めるので、その瞬間に横幅が変わらないよう溝を常に確保する */
+  html { scrollbar-gutter: stable; }
+  /* 狭い画面のoverlay scrollbarには予約帯を作らない。 */
+  @media (max-width: 600px) { html { scrollbar-gutter: auto; } }
+  /* **ページは拡大させない**（2026-10-01 ユーザー「拡大を禁止しておいて」）。縦横の送りだけ許し、つまむ拡大とダブルタップの拡大を止める。
+     地図は自分で拡大・縮小する（.mapwrap は touch-action: none）。iPhone 本体のズーム（3本指ダブルタップ）はこれと関係なく使える */
+  html { touch-action: pan-x pan-y; }
+  /* Safariの連打は操作として扱い、ページのダブルタップ拡大にしない。 */
+  button { touch-action: manipulation; }
+  [data-look-outside] { display: none; }
+  .sheet-body { overflow-y: auto; max-height: calc(82vh - 54px); padding: 0 16px 16px;
+                overscroll-behavior: contain; }
+  /* 設定はメニューと対になる右サイドパネル。枠を共通にして本文だけスクロールする。 */
+  :is(#appSettings, #accountSheet) { position: fixed; inset: 0 0 0 auto; width: min(480px, 92vw); max-width: 92vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 16px 0 0 16px; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); overflow: hidden; }
+  :is(#appSettings, #accountSheet)[open] { display: flex; flex-direction: column; animation: settings-from-right .22s ease-out; }
+  :is(#appSettings, #accountSheet) > .sheet-head { flex: none; }
+  :is(#appSettings, #accountSheet) > .sheet-head { display: grid; grid-template-columns: 44px minmax(0,1fr) 44px; align-items: center; }
+  :is(#appSettings, #accountSheet) > .sheet-head > strong { grid-column: 2; grid-row: 1; text-align: center; }
+  :is(#appSettings, #accountSheet) > .sheet-head > button:last-child { grid-column: 3; grid-row: 1; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; }
+  :is(#appSettings, #accountSheet) .panel-back { grid-column: 1; grid-row: 1; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--text); }
+
+  :is(#appSettings, #accountSheet) > .sheet-body { flex: 1; min-height: 0; max-height: none; overflow-y: auto; }
+  @keyframes settings-from-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
+  @media (prefers-reduced-motion: reduce) { :is(#appSettings, #accountSheet)[open] { animation: none; } }
+  /* アカウントの概要は共通の移動行、変更操作は項目ごとの詳細へ。 */
+  #accountSheet .account-sec { margin: 16px 0 4px; font-size: 0.81rem; font-weight: 700; color: var(--secondary); }
+  #accountSheet .tiny { font-size: 0.81rem; line-height: 1.5; color: var(--secondary); }
+  #accountSheet .account-identity { font-size: 1.1rem; font-weight: 700; overflow-wrap: anywhere; }
+  #accountSheet :is(.account-nav,#accountLegal .list-item) { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 14px 0; border-top: 1px solid var(--line); text-align: left; font-size: 0.94rem; font-weight: 600; color: var(--text); text-decoration: none; }
+  #accountSheet .account-nav > span:first-child, #accountLegal .list-item > span { flex: 1; min-width: 0; }
+  #accountSheet .account-state { color: var(--secondary); font-size: 0.88rem; font-weight: 400; }
+  #accountSheet :is(.account-nav,#accountLegal .list-item) > svg { flex: none; color: var(--secondary); }
+  #accountSheet [data-account-view] > p { margin: 12px 0 16px; }
+  #accountSheet [data-account-view] > .fav-btn { margin: 12px 0; }
+  #accountSheet #accountPasskeys .fav-row { align-items: flex-start; padding: 12px 0; }
+  #accountSheet #accountPasskeys .list-item { padding: 0; }
+  #accountSheet #accountPasskeys .tiny { margin-top: 4px; }
+  #accountSheet .account-empty { padding: 12px 0; }
+  .sheet input[type=search] { width: 100%; font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  /* 検索欄と「検索」釦（2026-10-01 ユーザー「検索開始のボタンも出しておいた方がいい」）。
+     Enter やキーボードの「検索」だけだと、押して何も起きないときに、始まっていないのか見つからないのか分からない */
+  .search-row { display: flex; gap: 6px; align-items: stretch; }
+  .search-row input[type=search] { flex: 1; min-width: 0; width: auto; }
+  /* .fav-btn（幅100%・縦の余白）が後ろにあるので、二重の指定で勝たせる */
+  .search-row .search-go { flex: 0 0 auto; width: auto; padding: 0 16px; }
+  .chips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0; }
+  /* 実寸で指の的を取る。密集したチップに疑似要素で 44px を被せると、
+     折り返した上下の行と重なって隣を押してしまう。 */
+  .chips button { flex: none; min-width: 44px; min-height: 36px; font-size: 0.75rem; font-weight: 500;
+                  padding: 5px 12px; border-radius: 999px; background: var(--line); }
+  .chips button.on,.chips button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  .list-item { display: block; width: 100%; text-align: left; padding: 9px 2px; border-top: 1px solid var(--line); }
+  /* 消したものを戻す行。トーストにして数秒で消すと、押す前に消えて戻せない。
+     シートを閉じるまで残す。 */
+  .undo-row { display: flex; align-items: center; gap: 8px; margin-top: 8px;
+              padding: 9px 10px; border-radius: 10px; background: var(--line); font-size: 0.75rem; }
+  .undo-row strong { font-weight: 700; }
+  .undo-row button { margin-left: auto; flex: none; min-height: 36px; padding: 0 10px;
+                     font-weight: 700; color: var(--accent); }
+  /* お気に入りの登録フォーム。項目は内蔵の絶景スポットと同じ（現象・地形・メモ）。 */
+  .fav-l { display: block; margin: 14px 0 5px; font-size: 0.81rem; font-weight: 700; color: var(--secondary); }
+  .fav-l .tiny { font-weight: 400; margin-left: 5px; }
+  /* **入力欄だけは 16px。** 本文は 0.94rem（15px）だが、iOS は 16px 未満の入力欄に触れると
+     画面を勝手に拡大し、**その拡大は指で戻すまで残る**。更新で読み直しても戻らないので
+     「更新したら少し拡大されている」になる（2026-09-24 ユーザー報告）。
+     （ページの拡大は 2026-10-01 に禁止したが、viewport の禁止は Safari が無視することがあるので、16px は保つ） */
+  .fav-in { width: 100%; font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 10px;
+            border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  textarea.fav-in { resize: vertical; line-height: 1.5; }
+  /* iPhone の日時の欄は中身の幅より狭くならず、記録を足すの「撮影日時」がシートの右へはみ出していた（2026-10-02 ユーザーの画面写し）。
+     外枠の幅に収める */
+  input.fav-in[type=datetime-local], input.fav-in[type=date] { min-width: 0; max-width: 100%; }
+  /* min-width だけでは縮まなかった（iOS 26 シミュレーターで確認）。シートの日時の欄は OS の見た目を外す（押せば日時の選択は出る）。
+     値はほかの欄と同じく左に寄せる */
+  .sheet input.fav-in[type=datetime-local] { -webkit-appearance: none; appearance: none; display: block; min-height: 44px; }
+  .sheet input.fav-in[type=datetime-local]::-webkit-date-and-time-value { text-align: left; }
+  /* 矢印は OS のものをそのまま出す。appearance を消すと矢印まで消え、
+     入力欄と見分けが付かなくなる。高さだけ指の的として確保する。 */
+  select.fav-in { min-height: 44px; }
+  /* 現象は7つ全部を一度に見せて選ばせる。横スクロールだと隠れた選択肢に気づけない。 */
+  /* 登録フォームでは現象チップが主役の入力なので、実寸で 44px を確保する。
+     折り返しの間隔（gap 6px）より高いので、上下の行と重ならない。 */
+  /* 入力の直下に置く規則の説明。ラベルより弱く、本文より小さく。 */
+  /* 説明文は句点で折る。**語の途中や助詞の頭で折れると読めない。**
+     line-break:strict で 。、 が行頭に来るのを防ぎ、まとまりは .nb で割らせない。 */
+  /* 説明文は**句読点でだけ**折る。日本語は既定でどこでも折れるので、
+     keep-all で自前の折り返しを止め、句点・読点・中黒の後ろにだけ
+     折り返し候補（<wbr>）を置く。置く処理は起動時にまとめてやる。
+     anywhere は逃げ道。1文が幅に収まらないときだけ働き、はみ出させない。 */
+  .hint { font-size:12px; line-height:1.6; color:var(--tertiary); margin:6px 0 0; }
+  /* シートの中の説明文はすべて同じ扱いにする。`.tiny` は本文でも使うので
+     シートの中だけに効かせる。 */
+  .sheet .hint, .sheet .tiny { line-break: strict; word-break: keep-all; overflow-wrap: anywhere; }
+  .nb { white-space: nowrap; }
+  .hint b { font-weight:600; color:var(--secondary);
+    background:var(--line); border-radius:3px; padding:0 4px; margin:0 1px;
+    font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
+  /* 利用者一覧の認証手段。名前のとなりに並べて、一目で見分ける */
+
+  .remember { display:flex; gap:12px; align-items:center; margin:0 0 16px;
+    min-height:44px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--sunk); cursor:pointer; }
+  .remember input { margin:0; width:22px; height:22px; flex:none; accent-color: var(--accent, #2f6fed); }
+  .remember span { min-width:0; font-size:15px; font-weight:600; color:var(--text); line-height:1.5; }
+  .remember em { display:block; font-style:normal; font-size:12px; font-weight:400; color:var(--secondary); margin-top:3px; }
+  .auth-links { display: flex; flex-direction: column; gap: 2px; margin-top: 18px;
+                padding-top: 12px; border-top: 1px solid var(--line); }
+  .auth-links button { text-align: left; min-height: 44px; font-size: 0.81rem;
+                       font-weight: 700; color: var(--accent); }
+  .auth-back { display: block; min-height: 44px; padding: 0 2px; margin-bottom: 6px;
+               font-size: 0.81rem; font-weight: 700; color: var(--accent); }
+  .or-line { display: flex; align-items: center; gap: 10px; margin: 16px 0 4px;
+             font-size: 0.72rem; color: var(--tertiary); }
+  .or-line::before, .or-line::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  #favPhenomena { flex-wrap: wrap; overflow: visible; }
+  #favPhenomena button { min-height: 44px; padding: 5px 14px; }
+  /* 指の的は 44px（§3）。padding だけで作ると、文字を入れる前（読み込み中）は
+     24px、入れても 42px にしかならない（2026-09-28 監査で発見） */
+  .fav-btn { display: block; width: 100%; min-height: 44px; padding: 12px 0; border-radius: 10px;
+             font-weight: 700; background: var(--line); color: var(--text); }
+  .fav-btn.primary { background: var(--accent); color: var(--on-accent); }
+  .fav-row { display: flex; align-items: flex-start; border-top: 1px solid var(--line); }
+  .fav-row .list-item { flex: 1; min-width: 0; border-top: none; }
+  /* メモが2行になると、上下中央では「編集」が文の途中に紛れて読めない。名前の行へ揃える。 */
+  .fav-row .fav-edit { flex: none; min-height: 44px; padding: 11px 2px 8px 10px;
+                       font-size: 0.75rem; color: var(--secondary); }
+  .fav-row .fav-del { flex: none; min-width: 44px; min-height: 44px; padding: 8px 4px;
+                      font-size: 0.94rem; color: var(--tertiary); }
+  .fav-req { font-weight: 400; color: var(--red); margin-left: 5px; }
+  .fav-opt { font-weight: 400; color: var(--tertiary); margin-left: 5px; }
+  #favSheet .fav-height-card {margin-top:16px;padding:12px 14px;border:1px solid var(--line);border-radius:12px}
+  #favSheet .fav-height-card .fav-l {margin:0 0 6px}
+  #favSheet .fav-height-value {margin:0;font-size:14px;line-height:1.6}
+  #favSheet .fav-height-card details {margin-top:8px}
+  #favSheet :is(.fav-height-card,.fav-extra) summary {min-height:36px;display:list-item;align-content:center;cursor:pointer;color:var(--secondary);font-size:13px}
+  #favSheet .fav-extra {margin-top:14px;border-top:1px solid var(--line);padding-top:8px}
+  .fav-where { margin-top: 2px; }
+  .fav-where summary { cursor: pointer; color: var(--secondary); }
+  /* 保存と並べると、削除が「もう片方の選択肢」に見える。離して弱く置く。 */
+  .fav-remove { display: block; width: 100%; min-height: 44px; margin-top: 20px; padding: 12px 0;
+                font-size: 0.75rem; color: var(--secondary); border-top: 1px solid var(--line); }
+  .warn { color: var(--red); font-size: 0.75rem; }
+  .section-h { display: flex; align-items: baseline; justify-content: space-between;
+               gap: 10px; flex-wrap: wrap; margin: 4px 0 6px; }
+  .section-h h2 { font-size: 0.94rem; }
+  .bins .bin { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; padding: 3px 0; }
+  .bins .lb { min-width: 48px; flex: none; white-space: nowrap; color: var(--secondary); font-variant-numeric: tabular-nums; }
+  .bins .bar { flex: 1; position: relative; height: 10px; border-radius: 5px; background: var(--line); }
+  .bins .bar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; }
+  .bins .bar .mark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: color-mix(in srgb, var(--text) 40%, transparent); }
+  .bins .pv { width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+  /* 質の現象は割合ひとつでは表せない。期待外れ／予測通り／期待以上を積む。 */
+  .bins .bar .seg { display: inline-block; height: 100%; vertical-align: top; }
+  .bins .bar .seg:first-child { border-radius: 5px 0 0 5px; }
+  .bins .bar .seg:last-child { border-radius: 0 5px 5px 0; }
+  .bins .bar .seg:only-child { border-radius: 5px; }
+  a { color: var(--accent); }
+
+  /* ============================================================
+     移植1: 14日 × 現象のマトリクス
+     現象ごとのカードは横スクロールが7本に分かれ、日付の列が揃わない。
+     軸を1本にすると、良い日が【縦の列】として見える。
+     ============================================================ */
+  :root { --sunk: #f2f3f5; --rail: 84px; --cell: 40px; }
+  :root[data-theme="dark"] { --sunk: #26262a; }
+
+  /* overscroll-behavior-x は【none】。contain は親への伝播を止めるだけで、
+     端での跳ね返り（ゴムバンド）は残る。跳ね返っている間は scrollLeft が 0 のまま
+     中身ごと平行移動されるので、貼り付けた現象名も一緒に動いて揺れて見える
+     （実測: 左端で最大27px 右へ動いて戻る。左へは一度も出ない）。 */
+  /* overflow-y は【hidden】を明示する。overflow-x だけ指定すると、
+     CSS の規定で y も auto になり、地の負のマージンが下へ出た3pxのために
+     縦のスクロールバーが出ていた。はみ出すのはカードと同色の地だけなので切ってよい。 */
+  /* 2026-10-20 「今日」の表記をやめて見出しが低くなった分、表のカードの上の余白を詰める（ユーザー「このカードの余白を少しキュッと」）。並び替えの44pxは保つ */
+  #cards > .card:has(> .mxscroll) { padding-top: 6px; } #cards > .card > .mxscroll { margin-top: 0; }
+  .mxscroll { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: none; scrollbar-width: thin;
+              -webkit-overflow-scrolling: touch; padding-bottom: 4px; margin-top: 8px; }
+  /* 現象ごとに枠を持たせたうえで、外側の1枚のカードでくくる。
+     「バラだけど、ひとまとまり」を形で示す。
+     日付の軸は1本のままなので、縦に見れば同じ日を比べられる。 */
+  .mxstack { display: flex; flex-direction: column; gap: 7px;
+             width: max-content; min-width: 100%; padding-right: 16px; }
+  .mxhead, .mxrow { display: grid; gap: 4px;
+                    grid-template-columns: var(--rail) repeat(var(--days), var(--cell)); }
+  /* 行の区切りは【線1本】。枠で囲うと大枠の中に小さい箱が並んで見える。 */
+  .mxrow { border-top: 1px solid var(--line); padding: 6px 5px 7px 0; align-items: center; }
+  /* 現象名の列は横スクロールしても残す。
+     地は【角丸なし・行の隙間まで覆う】。角丸にすると角の外が透け、
+     行と行の隙間（7px）ではスクロールしてきたセルが左へ抜けて見えていた。 */
+  .mxrail { position: sticky; left: 0; z-index: 2; background: var(--card);
+            padding-left: 16px; display: flex; align-items: center; gap: 5px;
+            font-size: 0.75rem; font-weight: 700; }
+  .mxhead .mxrail { margin-bottom: -7px; }              /* 見出しと1行目の隙間 */
+  /* 並び替えは【表の左上の空き】へ入れる。独立した行にすると、どのカードにも
+     属さない帯が1本浮いて見えた（2026-09-28 ユーザー指摘）。
+     ネイティブの select を使う（OSの選択UIがそのまま出るほうが片手で速い）が、
+     閉じているときの幅は 84px の列に収まらないので、**見た目は自前の札**にして
+     select は透明なまま札の上に重ねる。select は置換要素で ::after が効かないため、
+     指の的の 44px は札の実寸で確保する。 */
+  .mxsort { min-height: 44px; }
+  /* 押せるものを注記の大きさ（0.63rem）で置かない。小さいと飾りに見え、
+     押せることに気づかれない（2026-09-28 ユーザー指摘）。文字は 0.72rem、
+     枠は 84px の列に「信頼度」が収まる範囲でいっぱいに取る。 */
+  .mxsort-face { display: inline-flex; align-items: center; gap: 2px; max-width: 100%;
+                 font-size: 0.72rem; font-weight: 700; color: var(--text);
+                 background: var(--sunk); border-radius: 9px; padding: 7px 6px;
+                 white-space: nowrap; overflow: hidden; }
+  .mxsort-face i { font-style: normal; font-size: 0.81rem; color: var(--secondary); }
+  .mxsort select { position: absolute; inset: 0; width: 100%; height: 100%;
+                   opacity: 0; appearance: none; -webkit-appearance: none; border: none; }
+  .mxrow .mxrail { align-self: stretch; padding-left: 16px;
+                   margin: -7px 0 -14px 0; }            /* 上: padding+線 / 下: padding+隙間 */
+  /* 区切りの線を、現象名の列の下まで伸ばす。
+     地が行の上の線を覆ってしまうので、同じ位置に引き直しているだけ。
+     線は【地の側】に置く（行の側に置くと、横スクロールで地から離れていく）。
+     **top は 0。** 負のマージンで地の上端は行の上端と一致しているので、
+     ここをずらすと線が段違いになる（7px にしていて実際にずれた）。 */
+  .mxrow .mxrail::before { content: ""; position: absolute; left: 0; right: 0; top: 0;
+                           border-top: 1px solid var(--line); }
+  /* ラベルの右へ伸びるぼかし。セルが横スクロールでラベルの下へ潜り込んでいくのを、
+     線ではなくこの濃度の変化で示す。 */
+  .mxrail::after { content: ""; position: absolute; right: -18px; top: 0; bottom: 0; width: 18px;
+                   background: linear-gradient(90deg, var(--card), transparent); pointer-events: none;
+                   opacity: 0; }
+  /* ぼかしは【横スクロールしている間だけ】出す。
+     常に出していると、いちばん左（未スクロール）でも先頭の日が18px削られる。 */
+  .mxscroll.scrolled .mxrail::after { opacity: 1; }
+  /* ただし行の上端は塗り潰さない。ここを覆うと、ラベル側とセル側の線が
+     18px ぶん途切れてつながらなくなる。 */
+  .mxrow .mxrail::after { top: 1px; }
+  .mxrail .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 名前の下に時間帯。名前より弱く、注記より強い（読み飛ばしてよいが、探せば必ずある）。 */
+  .mxrail .nmw { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  /* 表の中でいちばん使う行（月の「見え始め」）。**強調は1つだけ**にして、他の段と差をつける。 */
+  .lt-key { font-weight: 700; color: var(--text); }
+  /* 地図（国土地理院タイル）。canvas にタイルを描くだけで、ライブラリは使わない。 */
+  .mapwrap { position: relative; border-radius: 12px; overflow: hidden; background: var(--sunk);
+             touch-action: none; }
+  .mapwrap canvas { display: block; width: 100%; height: 320px; }
+  /* 「ねらう」の地図は線を追うためのものなので、画面の高さを使って大きく出す */
+  #aimView .mapwrap canvas { height: min(52vh, 520px); min-height: 300px; }
+  /* 中心のピン。**地図のほうを動かして、ピンは固定**（指で置く先が常に中心で分かる）。 */
+  .mappin { position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px;
+            border: 2px solid var(--accent); border-radius: 50%; pointer-events: none;
+            box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+  .mappin::after { content: ""; position: absolute; left: 50%; top: 50%; width: 2px; height: 2px;
+                   margin: -1px 0 0 -1px; background: var(--accent); }
+  /* 地図の種類（右上の釦と、押すと出る一覧）。「地図／写真」の2択はどちらも地図だった（2026-10-02 ユーザー指摘）ので、
+     地図アプリと同じく重なりの記号の釦にした。標準・航空写真・地形 */
+  .map-ctl, .mapzoom .map-locate { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center;
+            background: var(--card); color: var(--text); border: 1px solid color-mix(in srgb, var(--text) 14%, transparent); }
+  .map-layers-btn { position: absolute; right: 8px; top: 8px; }
+  .map-layer-menu { position: absolute; right: 8px; top: 54px; z-index: 2; display: flex; flex-direction: column; min-width: 132px;
+                    padding: 4px; border-radius: 12px; background: var(--card); box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+  .map-layer-menu[hidden] { display: none; }
+  .map-layer-menu button { min-height: 44px; padding: 0 12px; border-radius: 8px; text-align: left; font-size: 0.81rem; font-weight: 700; }
+  .map-layer-menu button[aria-checked="true"] { color: var(--accent); background: var(--sunk); }
+  .map-layer-menu button[aria-checked="true"]::after { content: " ✓"; }
+  .mapzoom .map-locate.busy { color: var(--accent); }
+  .map-msg { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); margin: 0; padding: 6px 10px; border-radius: 8px;
+             font-size: 0.75rem; background: var(--card); color: var(--text); white-space: nowrap; }
+  .mapzoom { position: absolute; right: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .mapzoom button { width: 44px; height: 44px; border-radius: 10px; font-size: 1.1rem; font-weight: 700;
+                    background: var(--card); color: var(--text);
+                    border: 1px solid color-mix(in srgb, var(--text) 14%, transparent); }
+  .mapattr { position: absolute; left: 6px; bottom: 6px; font-size: 0.58rem; padding: 1px 5px;
+             border-radius: 4px; background: color-mix(in srgb, var(--card) 80%, transparent);
+             color: var(--secondary); }
+  /* 「ねらう」画面の選択欄。2つずつ横に並べる（幅が足りなければ縦に落ちる） */
+  .aim-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
+  .aim-row > * { flex: 1; min-width: 0; }
+  /* 横の余白だけを上書きすると、.fav-btn の縦の余白（12px）まで消えて 24px になる。
+     指の的は 44px（§3）。隣の入力欄と同じ高さにも揃う（2026-09-28 監査で発見） */
+  .aim-row > button { flex: 0 0 auto; width: auto; padding: 0 14px; min-height: 44px; }
+  /* 高さの欄は単位の「m」をいつも出す（2026-10-01 ユーザー「高さの入力の際にmが自動で表示されたほうがいい気がする」） */
+  .unit-in { position: relative; display: block; }
+  .unit-in .fav-in { padding-right: 34px; }
+  .unit-in .unit { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--secondary); pointer-events: none; }
+  /* どこに重ねるか（太陽・月のどの縁をてっぺんに合わせるか）。図の下に短い字の3つの釦。押している釦は橙 */
+  .aim-limb { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--sunk); margin-bottom: 8px; }
+  .aim-limb button { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px;
+                     min-height: 56px; padding: 6px 4px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; color: var(--secondary); }
+  .aim-limb button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  .aim-limb svg { display: block; }
+  /* 2択は押して選ぶ。選択肢が2つしかないものを select にすると、開かないと中身が見えない */
+  .aim-seg { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--sunk);
+             flex: 0 0 auto; }
+  .aim-seg button { min-height: 40px; padding: 0 12px; border-radius: 8px; font-size: 0.81rem;
+                    font-weight: 700; color: var(--secondary); white-space: nowrap; }
+  .aim-seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  .aim-cal-nav { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
+  .aim-cal-nav button { flex: 0 0 44px; width: 44px; }
+  .aim-cal-nav { gap: 4px; }
+  .aim-cal-nav select { flex: 1; min-width: 56px; margin: 0; padding: 8px 24px 8px 8px; font-size: 16px;
+    -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www%2Ew3%2Eorg/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23aaa' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center; background-size: 10px; }
+  .aim-cal-nav #aimCalYear { flex: 1.4; min-width: 80px; }
+  .aim-cal-nav #aimCalMonth { flex: 1; min-width: 58px; }
+  #aimCalendar .aim-cal-nav select.fav-in { padding: 0 24px 0 8px; background-position-x: calc(100% - 14px), calc(100% - 9px); }
+  .aim-cal-foot .nw { display: inline-block; white-space: nowrap; }
+  .aim-cal-separator { flex: 0 0 auto; color: var(--secondary); }
+  .aim-cal-week, .aim-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+  .aim-cal-week { text-align: center; color: var(--secondary); font-size: 0.75rem; padding-bottom: 6px; }
+  .aim-cal-grid button { min-height: 48px; padding: 4px 0; border-radius: 10px; font-size: 1rem;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .aim-cal-grid button.has-event { background: var(--sunk); font-weight: 700; }
+  .aim-cal-mark { font-size: 0.72rem; line-height: 1; height: 12px; color: var(--accent); }
+  .aim-cal-mark[data-moon-phase] { height: 18px; line-height: 18px; font-size: 1rem; white-space: nowrap; }
+  .aim-cal-grid button[aria-current="date"] { box-shadow: inset 0 0 0 1px var(--accent); }
+  .aim-cal-grid button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  .aim-cal-grid button[aria-pressed="true"] .aim-cal-mark { color: var(--on-accent); }
+  .aim-cal-moon { width: 18px; height: 18px; vertical-align: middle; }
+  #aimCalStatus { min-height: 22px; margin-top: 10px; }
+  .aim-cal-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; }
+  .aim-cal-foot button { width: auto; padding: 8px 16px; flex: 0 0 auto; white-space: nowrap; }
+  .aim-cal-foot > .tiny { flex: 1 1 auto; min-width: 0; }
+  /* 線の凡例。地図のすぐ下に置き、色と線種の意味をその場で言う */
+  .aim-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px;
+                font-size: 0.72rem; font-weight: 700; color: var(--secondary); }
+  .aim-legend .tiny { font-weight: 400; color: var(--tertiary); }
+  /* 観測スポットの行。日付は押すとその日の線と場所を出す */
+  .aim-spot { cursor: default; }
+  /* 題名と、その右の太陽／月の切り替え（絵文字だけ。ユーザー「太陽と月の絵文字で切り替え」）。
+     **切り替えは折り返さない。** 字の入った切り替えだと「東京スカイツリーに重ねる」と1行に入らず、切り替えが次の行に落ちて、
+     下の「撮影地点」が富士山の画面より 33px 下がっていた（道具ごとに位置が変わる）。長い題名は題名の側が折り返す */
+  .aim-head { align-items: center; flex-wrap: nowrap; }
+  /* 題名が2行に折れても（320px で「東京スカイツリーに重ねる」）帯の高さを切り替えの高さ（44px）に収め、下の位置を動かさない */
+  .aim-head { min-height: 44px; }
+  .aim-head h2 { min-width: 0; line-height: 1.3; }
+  .aim-body-select { flex: 0 0 106px; width: 106px; min-height: 44px; margin: 0; padding: 8px; font-size: 16px; border-radius: 10px; }
+  .aim-cal-time { font-size: 0.72rem; line-height: 1.25; white-space: nowrap; }
+  .aim-cal-sky { font-size: 0.72rem; line-height: 1.2; }
+  .aim-head .aim-seg button { min-width: 44px; padding: 0 8px; font-size: 1.1rem; }
+  /* 題名の中の目標。字は橙で▾つき、押せる高さは帯と同じ 44px。透明な select を重ねる（iOS で拡大されないよう字は 16px） */
+  /* 枠に入れて、押せる物と分かるように（2026-10-01 ユーザー「目標の切り替えのところはいい感じの枠に」）。
+     右の太陽／月の切り替えと同じ沈んだ地・角丸にそろえる */
+  .aim-pick { position: relative; display: inline-flex; align-items: center; gap: 4px; min-height: 40px;
+              padding: 0 10px; margin-right: 4px; border-radius: 10px; background: var(--sunk); color: var(--text); }
+  .aim-pick svg { color: var(--secondary); flex: none; }
+  .aim-pick select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; cursor: pointer; }
+  /* 選べる目標が1つしか無い（ダイヤモンド富士だけ許可されている人など）ときは、▾ を出さず選べないようにする */
+  .aim-pick.single svg { display: none; }
+  /* どこから重ねるか。地点カードと同じ形を、ねらうのカードの中に一段沈めて置く */
+  .aim-place-card { background: var(--sunk); border-radius: 12px; padding: 6px 2px 6px 10px; margin-bottom: 8px; }
+  /* 住所が無い地点（地理院の検索結果など）でもカードの高さを変えない。下の並びが動かず、押す所も 44px を割らない */
+  .aim-place-card .place-pick { min-height: 54px; }
+  /* どこから重ねるかの ☆（地点カードの ☆ と同じ大きさ） */
+  .aim-from-fav { flex: 0 0 auto; min-width: 44px; min-height: 44px; font-size: 1.1rem; color: var(--tertiary); }
+  .aim-from-fav.on { color: var(--accent); }
+  /* 文の形で選ぶ行（2026-10-06）。左が選ぶ欄、右が「を重ねる」など。右は「から重ねる」の幅で固定し、3行の欄の幅をそろえる。
+     右は折らず、長い名前は欄の側で省略する */
+  .aim-say { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+  .aim-say > :first-child { flex: 1 1 0; min-width: 0; margin-bottom: 0; }
+  .aim-say-v { flex: 0 0 5.2em; font-size: 1rem; font-weight: 700; white-space: nowrap; }
+  .aim-say .place-row .name, .aim-say .place-row .muted { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 欄の字は、天体・目標の欄と同じ大きさ（地点カードの 1.25rem・太字のままだと、どこからだけが大きく見える） */
+  .aim-say .place-row .name { font-size: 1rem; font-weight: 400; }
+  .aim-say .place-row .pin { font-size: 1rem; }
+  /* この日の候補地の入口。探している間・0か所でも同じ高さ（下の日付の帯を動かさない） */
+  .sheet-cands { margin: 12px 0 4px; }
+  .sheet-cands .aim-side-seg { margin-bottom: 6px; }
+  .sheet-cands .cand-row { display: flex; align-items: center; gap: 8px; }
+  .sheet-cands .cand-pick { flex: 1; width: auto; min-width: 0; min-height: 44px; }
+  .sheet-cands .cand-app { flex: none; }
+  /* どこから重ねるか（名前で探す欄）の下の、次に重なる日 */
+  .aim-from { margin: 2px 0 8px; }
+  /* 地図のすぐ下に「ここから重ねる」（字の分の幅）、その下に中心の説明を幅いっぱいに。
+     横に並べると説明が細く5行に折れていた */
+  /* 地図の下の小さな丸い釦（座標・地図アプリ・ここから重ねる）。2026-10-02 ユーザー「ボタンが余白多いしでかい」で、
+     幅いっぱいの大きな釦から字の幅の丸い釦に。見た目は 34px、押せる所は上下に 5px 足して 44px（::before） */
+  .chip { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 44px; min-height: 34px; padding: 0 12px;
+          border-radius: 999px; background: var(--line); color: var(--text); font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+  .chip::before { content: ""; position: absolute; left: 0; right: 0; top: -5px; bottom: -5px; }
+  .chip:disabled { opacity: .5; }
+  /* 座標の行。座標の釦（押すとコピー）・地図アプリの釦。覚えたアプリがあれば、釦の右端の ▾ で選び直す
+     （「変更」を別に置くと 390px で1行を丸ごと使った）。狭ければ折り返す */
+  .coord-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 6px; margin-top: 10px; }
+  .coord-row[hidden] { display: none; }
+  .coord-row .chip { padding: 0 10px; }
+  .coord-row .coord { font-variant-numeric: tabular-nums; }
+  .coord-label { font-size: 0.75rem; color: var(--secondary); }
+  .chip-split { display: inline-flex; gap: 1px; }
+  .chip.split { border-radius: 999px 0 0 999px; }
+  .coord-row .chip-more { padding: 0 9px 0 7px; border-radius: 0 999px 999px 0; }
+  .map-app-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .map-app-remember { display: flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 6px; font-size: 0.81rem; }
+  .map-app-remember input { width: 20px; height: 20px; accent-color: var(--accent); }
+  .aim-near-row { margin-top: 10px; }
+  .aim-near-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .aim-days { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .aim-disclosure { margin-top: 12px; border-top: 1px solid var(--line); }
+  .aim-disclosure > summary { display: flex; align-items: center; gap: 10px; min-height: 48px; cursor: pointer; list-style: none; }
+  .aim-disclosure > summary::-webkit-details-marker { display: none; }
+  .aim-disclosure > summary::before { content: "›"; font-size: 22px; color: var(--secondary); }
+  .aim-disclosure[open] > summary::before { transform: rotate(90deg); }
+  .aim-disclosure > summary h2 { margin: 0; font-size: 15px; }
+  .aim-disclosure > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .aim-days.strip { flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+                    padding-bottom: 2px; scrollbar-width: none; }
+  .aim-days.strip::-webkit-scrollbar { display: none; }
+  .aim-days.strip .aim-day { flex: 0 0 auto; min-height: 48px; padding: 5px 12px; text-align: center; scroll-snap-align: start; }
+  .aim-day[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  .aim-day[aria-pressed="true"] .sub-line { color: var(--on-accent); opacity: 0.85; }
+  /* 候補の有無・計算中でも2行を確保。文字拡大時は内容に応じて伸びる。 */
+  .candidate-dates { display:grid; grid-template-rows:minmax(3.5rem,auto) minmax(2.75rem,auto); gap:6px; min-width:0; }
+  .candidate-dates > :is(p,.aim-days.strip) { margin:0; }
+  .candidate-dates > p { display:flex; align-items:center; }
+  .candidate-dates > .aim-days.strip { min-width:0; align-items:stretch; }
+  .candidate-dates > button { width:100%; min-height:44px; padding:8px 0; }
+  .note-wait.candidate-wait { justify-content:flex-start; }
+  .candidate-wait .note-wait-character { flex-basis:48px; width:48px; height:48px; animation:none; }
+  .candidate-wait .note-wait-message { flex:0 1 auto; padding:8px 12px; font-size:13px; }
+  .candidate-dates > button[data-from-more]:disabled::before { content:"";display:inline-block;width:24px;height:24px;margin-right:8px;vertical-align:middle;background:url("astronotes-note-computing-branded-v2.png") center/contain no-repeat; }
+  .sky-map-candidates { margin:12px 0; }
+
+  /* 候補地の日の出／日の入の切り替え。時刻の幅と数を2段で */
+  .aim-side-seg { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--sunk); }
+  .aim-side-seg:empty { display: none; }
+  .aim-side-seg button { flex: 1; min-width: 0; min-height: 48px; padding: 4px 6px; border-radius: 8px; font-size: 0.81rem;
+                         font-weight: 700; color: var(--secondary); }
+  .aim-side-seg button .sub-line { font-size: 0.69rem; font-weight: 400; }
+  .aim-side-seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  .aim-side-seg button:disabled { opacity: 0.45; }
+  /* 候補地の行。押すと選んで、見え方がその候補地になる（地図は「地図で見る」で動かす） */
+  .cand-row .cand-pick { display: block; width: 100%; padding: 0; text-align: left; font: inherit; color: inherit; background: none; }
+  .cand-row .cand-map, .cand-row .cand-from { margin-top: 6px; }
+  /* 見通し。見えないときは日付より目立たせる（2026-10-02 ユーザー「そもそも目標物が見えませんとかって出した方がいい」） */
+  /* 見え方の図（2026-10-02）。空の色は太陽の高さで決まるので、明るい画面でも暗い画面でも同じ色で描く */
+  .aim-observer-height { display:flex; align-items:center; gap:8px; margin:6px 0; font-size:0.81rem; color:var(--secondary); }
+  /* 標高と地上からの2行で、欄の左端をそろえる（2026-10-06） */
+  .aim-observer-height label { flex: 0 0 4.5em; }
+  .aim-stand { margin: 8px 0 2px; }
+  .aim-observer-height input { min-width:0; width:7.5em; min-height:44px; padding:8px 10px; border:1px solid var(--separator); border-radius:10px; background:var(--card); color:var(--text); font:inherit; }
+  .aim-observer-height button { min-width:44px; min-height:44px; }
+  .aim-look { margin-top: 10px; }
+  .aim-look-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+                font-size: 0.81rem; font-weight: 700; }
+  .aim-look-h > span:first-child { flex: 0 0 auto; }
+  /* いま何を描いているか（どこから・いつ・どう重なるか）。図の上の一行（Codex: 図の中身だけで推測させない） */
+  .aim-look-cap { margin: 2px 0 0; font-size: 0.75rem; color: var(--text); }
+  .aim-look-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+  .aim-look-pick .chip { padding-inline: 4px; }
+  .aim-look-pick [data-look-confirm] { grid-column: 1 / -1; }
+  .aim-look-pick .chip { min-height: 44px; }
+  .aim-look-pick .chip.primary { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+  .aim-look-pick .chip.primary:disabled { opacity: 0.4; }
+  .aim-look-hint { margin: 6px 0 0; color: var(--secondary); }
+  .aim-look-pick .chip[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  .aim-look-found { margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--sunk); font-size: 0.81rem; }
+  .aim-look-found p { margin: 0 0 4px; }
+  .aim-look-found .sub-line { color: var(--secondary); }
+  .aim-look-found .chip { margin-top: 4px; min-height: 44px; }
+  .aim-look-figure { position: relative; }
+  .preview-figure-tools { position:absolute;top:10px;right:8px;z-index:2;display:flex;flex-direction:column;gap:10px; }
+  .aim-body-move { width:44px;height:44px;min-height:44px;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text); }
+  .aim-body-move.active { background:var(--accent);color:var(--on-accent); }
+  .aim-body-controls { position:absolute;left:8px;bottom:8px;pointer-events:none; }
+  .aim-body-directions { display:grid;grid-template:repeat(3,44px) / repeat(3,44px);gap:0; }
+  .aim-body-directions button { width:44px;min-height:44px;padding:0;pointer-events:auto;border-radius:50%;background:var(--card);border:1px solid var(--line);color:var(--text);font-size:1.25rem; }
+  .aim-body-directions [data-body-nudge="-1,0"] { grid-area:2 / 1; }
+  .aim-body-directions [data-body-nudge="0,-1"] { grid-area:1 / 2; }
+  .aim-body-directions [data-body-nudge="0,1"] { grid-area:3 / 2; }
+  .aim-body-directions [data-body-nudge="1,0"] { grid-area:2 / 3; }
+  [data-look-canvas].picking { cursor: crosshair; touch-action: none; }
+  .aim-look-cap .sub-line { color: var(--secondary); }
+  .aim-look canvas { display: block; width: 100%; margin-top: 4px; border-radius: 10px; background: var(--sunk);
+                     touch-action: pan-y; }
+  .aim-frame-times { margin-top: 6px; line-height: 1.5; }
+  .aim-lens { display: grid; gap: 8px; margin: 8px 0; }
+  .aim-lens-row { display: grid; grid-template-columns: minmax(0, 1fr) 76px; gap: 8px; align-items: center; }
+  .aim-lens-row label { min-width: 0; }
+  .aim-lens-row label input { flex: 1; min-width: 0; }
+  .aim-lens-row select { min-width: 0; width: 100%; }
+  .aim-lens-toggles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .aim-lens label { display: flex; align-items: center; gap: 4px; font-size: 0.75rem; }
+  .aim-lens input { width: 76px; min-height: 44px; padding: 6px; background: var(--sunk); color: var(--text); border: 1px solid var(--line); border-radius: 9px; font-size: 1rem; }
+  .aim-lens select { min-height: 44px; max-width: 100%; font-size: 1rem; background: var(--sunk); color: var(--text); border: 1px solid var(--line); border-radius: 9px; }
+  .aim-look-unavailable { min-height: 300px; display: flex; align-items: center; justify-content: center; }
+  .aim-look-time { display: flex; align-items: center; gap: 10px; }
+  .aim-look-time input { flex: 1; min-width: 0; height: 44px; accent-color: var(--accent); }
+  /* 字の欄は幅を決めておく。「重なる9分前」「重なる12分40秒後」で幅が変わり、つまみの棒が伸び縮みしていた（2026-10-02 ユーザー録画） */
+  .aim-look-time output { flex: 0 0 6.6rem; width: 6.6rem; font-size: 0.88rem; font-weight: 700; color: var(--text);
+                          text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .aim-look-time output .sub-line { display: block; font-size: 0.69rem; font-weight: 400; color: var(--secondary); }
+  .aim-look-note { margin-top: 0; color: var(--tertiary); }
+  .aim-day { min-height: 32px; padding: 4px 10px; border-radius: 9px; background: var(--sunk);
+             color: var(--accent); font-weight: 700; }
+  /* 月の日付の釦の2段目（日の入の◯分後・月の出の◯分後）。日付より控えめに */
+  .aim-day .sub-line { font-weight: 400; color: var(--secondary); }
+  /* 凡例の線は、地図に引く線と同じ色・同じ線種にする（太陽は金、月は青） */
+  .aim-k { display: inline-block; width: 22px; height: 0; margin-right: 5px; vertical-align: middle;
+           border-top: 3px solid var(--ray-sun); border-radius: 2px; }
+  #aimView.moon .aim-k { border-top-color: var(--ray-moon); }
+  .aim-k.rise, .aim-k.dash { border-top-style: dashed; }
+  /* 地図の中心が線からどれだけ離れているか。**動かしながら合わせるための数字** */
+  .aim-tab { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 0.75rem;
+             font-variant-numeric: tabular-nums; }
+  .aim-tab th, .aim-tab td { text-align: right; padding: 5px 0; border-top: 1px solid var(--line); }
+  .aim-tab th:first-child, .aim-tab td:first-child { text-align: left; }
+  .aim-tab thead th { border-top: 0; color: var(--tertiary); font-weight: 400; font-size: 0.72rem; }
+  .aim-tab tbody td:first-child { font-weight: 700; white-space: nowrap; }
+  .aim-tab .k { display: inline-block; width: 14px; height: 0; vertical-align: middle;
+                border-top: 3px solid var(--ray-sun); border-radius: 2px; margin-right: 6px; }
+  #aimView.moon .aim-tab .k { border-top-color: var(--ray-moon); }
+  .aim-tab .k.rise { border-top-style: dashed; }
+  .aim-k.sun { border-top-color: var(--ray-sun); }
+  /* 太陽と月は**色で分ける**。点線は「稜線の裏」の意味に取ってあるので、ここでは使わない */
+  .aim-k.moon { border-top-color: var(--ray-moon); }
+  /* 検索結果の高さの印。展望台かどうかは、その場で分からないと選べない */
+  .tag-lookout { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
+                 font-size: 0.69rem; font-weight: 700; vertical-align: middle;
+                 background: var(--sunk); color: var(--secondary); }
+  .deck-row { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  /* 管理画面の「使えるもの」。押しやすさ（44px）は行の高さで確保する */
+
+
+
+
+  /* 写真の記録。**原寸は持たない**ので、出すのは小さくした写しだけ */
+  .ph-add { margin-top: 10px; }
+  .ph-preview { width: 100%; max-height: 42vh; object-fit: contain; border-radius: 12px;
+                background: var(--sunk); margin-top: 8px; }
+  .ph-range { flex: 1; accent-color: var(--accent); height: 44px; }
+  .ph-score { flex: 0 0 auto; min-width: 2.6em; text-align: right;
+              font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ph-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+             gap: 8px; margin-top: 10px; }
+  .ph-card { position: relative; border-radius: 10px; overflow: hidden; background: var(--sunk); }
+  .ph-card > img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+  .ph-blank { aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center;
+              font-size: 1.44rem; opacity: .55; }
+  .ph-card .ph-tag { position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 6px;
+                     background: rgba(0,0,0,.6); color: #fff; font-size: 0.69rem; font-weight: 700;
+                     display: flex; justify-content: space-between; gap: 4px; pointer-events: none; }
+  .ph-card .ph-del { position: absolute; top: 2px; right: 2px; min-height: 32px; min-width: 32px;
+                     color: #fff; text-shadow: 0 0 4px rgba(0,0,0,.8); z-index: 1; }
+  .maprow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .maprow #mapCoord { flex: 1; font-variant-numeric: tabular-nums; color: var(--secondary); }
+  .maprow button { flex: none; width: auto; padding: 0 12px; min-height: 44px; }
+  /* ダイヤモンド富士の行。左に名前、右に日時と重なり具合。押せる行は矢印を出す。 */
+  .al { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+  .al-row { display: block; padding: 8px 10px; border-radius: 10px; background: var(--sunk);
+            text-align: left; width: 100%; font: inherit; color: var(--text); }
+  .al-row.jump { cursor: pointer; }
+  .al-row.jump:active { background: color-mix(in srgb, var(--text) 12%, transparent); }
+  @media (hover: hover) { .al-row.jump:hover { box-shadow: inset 0 0 0 1.5px var(--line); } }
+  /* 地図に出している候補地（ねらう）。いまどれを見ているかを縁で示す */
+  .al-row.jump.on { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  /* 行の段。ボタンの中に置けるのは句だけなので span で書き、ここで段にする（2026-10-01 HTML の検査） */
+  .al-l, .al-w, .sub-line { display: block; }   /* .sub-line は行の2段目（お気に入り・検索結果・記録の行でも使う） */
+  .al-l { font-size: 0.75rem; font-weight: 700; color: var(--secondary); }
+  .al-w { font-variant-numeric: tabular-nums; margin-top: 1px; }
+  .al-w .tiny { color: var(--secondary); }
+  .dhead { display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+           font-size: 0.63rem; color: var(--tertiary); line-height: 1.25; padding-bottom: 3px; }
+  /* 14列だと mm/dd が隣とくっつく。字間だけ詰める（0埋めは崩さない） */
+  .dhead .d { font-weight: 700; font-size: 0.69rem; letter-spacing: -.03em;
+              color: var(--secondary); font-variant-numeric: tabular-nums; }
+  .dhead.sat .d { color: #2f6fb5; } .dhead.sun .d { color: var(--red); }
+  /* 今日は曜日色と独立した中立の囲み＋文字で示す。青＝土曜と操作色を混同しない。 */
+  .dhead.today .d { color: var(--text); background: var(--sunk); border-radius: 4px; box-shadow: inset 0 0 0 1px var(--text); padding: 1px 4px; }
+  /* 2026-10-20 ユーザー「日付に枠がついてるから今日の表記もいらない」：見た目は日付の枠だけ。「今日」は読み上げ用（.sr-only）に残す */
+  .dhead.sat > span:last-child { color: var(--weekday-sat, #2f6fb5); }
+  .dhead.sun > span:last-child { color: var(--red); }
+  :root { --weekday-sat: #2f6fb5; }
+  :root[data-theme="dark"] { --weekday-sat: #6ba6e0; }
+
+  [data-theme="dark"] .dhead.sat:not(.today) .d { color: var(--weekday-sat); }
+
+  /* 良し悪しは【セルの地の色】で示す。色は 期待薄→絶景 の連続グラデーション
+     （凡例の帯と同じ並び）なので、塗りの高さや棒で重ねて言う必要がない。
+     棒を置くとセルが縦に伸びるぶん、表全体が長くなる。
+     信頼度を線の長さで示すのは読み取れなかったので A/B/C の文字へ戻した。
+     地の濃さは、上に載る文字が本文基準（4.5:1）を保てる範囲で決めている。 */
+  /* 予報を待っているあいだの空セル。**ちらつかせない**（明滅は待ち時間を長く感じさせる）。
+     地の色だけ薄く置いて、形が先に決まっていることを示す。 */
+  .cell.skel { background: var(--sunk); opacity: .5; }
+  .mxstack.skel .mxrail { opacity: .5; }
+  .cell { position: relative; height: 42px; border-radius: 9px; overflow: hidden;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 2px; padding: 4px 3px; background: var(--sunk);
+          font-size: 0.72rem; font-weight: 700; }
+  .cell .v { line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
+  /* 「78 C」と横に並べると数字の続きに見えるので、行を分けて枠で囲む（現行と同じ扱い）。 */
+  /* 地に色が乗るので、上の文字は本文色で通す。補助色にすると濃い地で 2:1 まで落ちる。 */
+  .cell .g { font-size: 0.58rem; font-weight: 700; color: var(--text); line-height: 1.4;
+             border: 1px solid color-mix(in srgb, var(--text) 30%, transparent);
+             border-radius: 4px; padding: 0 3px; }
+
+  .cell.next { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .cell.void { background: transparent; border: 1px dashed var(--line); }
+  .cell:active { background: color-mix(in srgb, var(--text) 14%, transparent); }
+  @media (hover: hover) { .cell:hover { box-shadow: inset 0 0 0 1.5px var(--line); }
+                          .cell.next:hover { box-shadow: inset 0 0 0 1.5px var(--accent); } }
+  .cell:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+  .mxlegend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.63rem;
+              color: var(--tertiary); padding: 8px 2px 0; }
+  .mxlegend .ramp { display: inline-flex; align-items: center; gap: 5px; }
+  .mxlegend .ramp i { display: block; width: 76px; height: 12px; border-radius: 3px; }
+  .mxlegend .ramp b { font-weight: 600; color: var(--secondary); }
+  .g-inline { font-weight: 700; border: 1px solid var(--line); border-radius: 4px; padding: 0 3px;
+              color: var(--secondary); }
+  .mxout { padding: 8px 2px 0; }
+  .mxout summary { list-style: none; cursor: pointer; font-size: 0.69rem; color: var(--tertiary); }
+  .mxout summary::-webkit-details-marker { display: none; }
+  .mxout summary::before { content: "▸ "; }
+  .mxout[open] summary::before { content: "▾ "; }
+  .mxout li { font-size: 0.69rem; color: var(--tertiary); margin-top: 4px; list-style: none; }
+
+  /* 予報の詳細の日の出・日の入（2026-10-20 から時刻だけ。帯はホームの太陽へ移した） */
+  .lt-simple { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-variant-numeric: tabular-nums; margin-left: 6px; align-self: center; }
+  .lt-item { display: inline-flex; align-items: center; gap: 6px; }
+  .lt-item b { font-weight: 600; color: var(--secondary); font-size: 0.81rem; }
+  .lt-item .v { font-weight: 700; font-size: 0.88rem; }
+
+  /* 広い画面。列を1本のまま少しだけ広げる。
+     ここは【基本ルールより後ろに置く】。同じ詳細度なら後勝ちなので、
+     前に置くと基本ルールに打ち消される（見出しの text-align が実際にそうなっていた）。 */
+  @media (min-width: 900px) {
+    main { max-width: 680px; }
+    /* 680px あれば数値表（約539px）は収まるので横スクロールを出さない */
+    .scrollx { overflow-x: visible; }
+    /* 14日ぶんも収まる（84 + 14列 + 隙間39 = 652px）。横スクロールを出さない。 */
+    /* 両方 visible にする。片方だけ visible にしても、
+       もう片方が hidden なら規定で auto へ戻り、切り抜きが残る。 */
+    .mxscroll { overflow: visible; }
+    .mxstack { width: auto; padding-right: 0; }
+    .mxhead, .mxrow { grid-template-columns: var(--rail) repeat(var(--days), minmax(0,1fr)); }
+    table.numbers { width: 100%; }
+  }
+
+/* 撮影計画の確認と画像プレビュー（E94）。既存のsheet/chipを使う。 */
+.plan-trigger {display:inline-flex;flex:0 0 44px;justify-content:center;width:44px;align-items:center;gap:7px;min-height:44px;padding:8px 12px;border:0;border-radius:10px;background:transparent;color:var(--secondary);font:inherit;font-size:0.88rem;cursor:pointer}
+.plan-trigger:hover {background:var(--sunk);color:var(--text)}
+.plan-trigger:focus-visible {outline:2px solid var(--accent);outline-offset:2px}
+.preview-toolbar{display:flex;align-items:center;gap:8px;margin:8px 0}
+.preview-toolbar>.preview-tabs{flex:1;margin:0;position:static}
+.preview-toolbar>.plan-trigger{margin-left:auto}
+.ph-head>.plan-trigger{margin-left:auto;margin-top:-8px;margin-bottom:-8px}
+#planSheet{width:min(94vw,560px);max-height:90dvh}
+#planSheet .sheet-head{gap:8px;padding:8px 12px}
+#planModes{display:flex;position:static;margin:0 0 12px;padding:4px;border-radius:12px}
+#planModes button{min-height:44px;font-size:14px;white-space:nowrap}
+#planSheet #planClose{flex:0 0 44px;width:44px;display:grid;place-items:center;border-radius:9px;color:var(--secondary)}
+#planSheet .sheet-body{padding:0 12px 12px;max-height:calc(90dvh - 66px)}
+#planSheet .plan-preview-frame{max-height:calc(90dvh - 206px);min-height:140px;overflow:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:10px;background:white}
+#planSheet .plan-actions{margin:10px 0 0;display:flex;gap:6px}
+#planImage .plan-actions>.chip{flex:1;justify-content:center;min-height:44px;padding:8px 6px;font-size:13px;white-space:nowrap}
+#planSheet #planStatus{font-size:12px;color:var(--secondary);margin-top:8px}
+#planSheet #planStatus:empty{display:none}
+#planSheet #planSummary{font-size:13px;color:var(--secondary);padding:4px 0 0}
+#planSheet label{margin:10px 0 4px}
+#planSheet #planCalendar .tiny{margin:8px 0 0}
+#planSheet input[type=datetime-local]{min-width:0;-webkit-appearance:none;appearance:none;display:block}
+#planSheet input[type=datetime-local]::-webkit-date-and-time-value{text-align:left}
+@media(min-width:960px){.preview-toolbar{margin:0;height:0;position:relative;z-index:6}.preview-toolbar>.plan-trigger{position:absolute;right:0;top:6px}}
+.plan-actions {display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+#planSheet .sheet-body {display:block}
+#planSheet label {display:block;margin:12px 0 4px;font-size:0.81rem;color:var(--secondary)}
+#planSheet input,#planSheet select {width:100%;box-sizing:border-box;font-size:16px;padding:10px;border:1px solid var(--line);border-radius:9px;color:var(--text);background:var(--sunk)}
+#planPreview {display:block;width:100%;height:auto;border-radius:9px}
+#planSummary,#planStatus {margin:0;overflow-wrap:anywhere}
+#planSheet a[aria-disabled=true] {color:var(--tertiary);pointer-events:none}
+
+/* Trial: body and target selection share the page shell and choice rows. */
+@media(min-width:960px){#aimRecentOpen{position:absolute;right:54px;top:0;min-height:44px}}
+:is(#previewBodyDialog,#skyMapBodyDialog,#previewTargetDialog) .preview-body-choice{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:9px 12px;border-radius:8px;text-align:left}
+:is(#previewBodyDialog,#skyMapBodyDialog,#previewTargetDialog) .preview-body-choice::after{content:none;display:none}
+:is(#previewBodyDialog,#skyMapBodyDialog,#previewTargetDialog) .preview-body-choice[aria-pressed=true] .tiny,:is(#previewBodyDialog,#skyMapBodyDialog,#previewTargetDialog) .preview-body-choice[aria-checked=true] .tiny{color:inherit}
+:is(#previewBodyDialog,#skyMapBodyDialog) .preview-body-list,#previewTargetDialog .preview-target-list{grid-template-columns:1fr;gap:4px}
+:is(#previewBodyDialog,#skyMapBodyDialog) .preview-body-group{padding:0;border:0;margin:14px 0 0}
+:is(#previewBodyDialog,#skyMapBodyDialog) .preview-body-group h3{margin:0 0 6px;font-size:0.81rem;color:var(--secondary)}
+#previewTargetDialog{width:min(480px,calc(100vw - 24px))}
+#previewTargetDialog .preview-body-choice[role=checkbox]{display:flex;justify-content:space-between}
+#previewTargetDialog .preview-body-choice[role=checkbox]::before,#previewTargetDialog .preview-body-choice[role=checkbox]::after{content:none;display:none}
+.target-search{width:100%;margin-bottom:12px;min-height:44px}
+/* 一覧の下位選択は共通chips（現象/履歴の種類で別部品にしない）。 */
+.history-pages{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0}.history-pages .chip{min-height:44px}.history-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}.history-heading button{min-height:44px;color:var(--accent)}
+.history-row{display:flex;align-items:center;border-bottom:1px solid var(--line)}.history-row .list-item{flex:1;min-width:0;overflow-wrap:anywhere}.history-row .history-remove{min-width:44px;min-height:44px;color:var(--secondary)}
+.history-list .list-item strong{display:block}.history-list .list-item{font-size:15px}.history-empty{padding:12px 0}
+
+
+#aimView .preview-footer-scrub{display:flex;align-items:center;justify-content:center;gap:8px;max-width:360px;min-height:44px;margin:0 auto}
+
+.answer-empty{padding:18px 0 6px}.answer-empty strong{font-size:0.88rem}.answer-empty p{max-width:36em;line-height:1.7}.answer-history>summary{min-height:32px;cursor:pointer;font-weight:700}.answer-history>summary .tiny{font-weight:400;margin-left:6px}.answer-analysis{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}.answer-analysis>summary{cursor:pointer;font-size:0.81rem;min-height:32px}.answer-data-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}#answersView .pending-row{padding:14px 0}#answersView .outcome{margin-top:10px}#answersView .outcome button{min-height:44px}
+
+#aimView:has(#aimLook[hidden]) [data-plan-source="aim"],#aimView:has(#aimLook[hidden]) #aimAir{display:none}
+.forecast-tabs{display:flex;gap:4px;padding:4px;margin:0 0 12px;border-radius:12px;background:var(--sunk)}.forecast-tabs[hidden]{display:none}.forecast-tabs [role="tab"]{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-height:44px;border:0;border-radius:9px;background:transparent;color:var(--secondary);font-size:0.88rem;font-weight:700}.forecast-tabs [aria-selected="true"]{background:var(--card);color:var(--text);box-shadow:0 1px 4px #0001}.forecast-tabs [role="tab"]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.forecast-results-count{font-size:0.69rem;font-variant-numeric:tabular-nums;background:var(--line);color:var(--text);border-radius:10px;padding:2px 6px;min-width:18px}
+
+  /* Shared input roles: celestial body, target, shooting location. */
+  :is(#aimView,#skyMapView,#almanacView) .condition-field{display:grid;grid-template-columns:22px minmax(0,1fr);align-items:center;gap:10px;margin-bottom:12px}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field > :first-child{grid-column:2;grid-row:1;min-width:0;width:100%;box-sizing:border-box}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field > .condition-label{display:contents}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field :is(select,.preview-body-open,.preview-target-open,.place-pick){min-height:52px}
+  .condition-label svg{flex:none;color:var(--accent)}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field .place-pick > .pin{display:none}
+  #skyMapView .condition-field{max-width:720px}
+
+  /* Selection clearing is separate from searching and never deletes a saved place. */
+  :is(#aimView,#skyMapView,#almanacView) .condition-field > .condition-label > svg{grid-column:1;grid-row:1}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field > .condition-label > span{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field:has(.condition-clear:not([hidden])){grid-template-columns:22px minmax(0,1fr) 76px}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field select:has(option:checked[value=""]),:is(#aimView,#skyMapView,#almanacView) .condition-field:has(.condition-clear[hidden]) .place-row .name{color:var(--tertiary)}
+  :is(#aimView,#skyMapView,#almanacView) .condition-field select option{color:var(--text)}
+  .condition-clear{grid-column:3;grid-row:1;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:76px;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:9px;background:var(--sunk);color:var(--secondary);font-size:13px;font-weight:600;cursor:pointer;box-sizing:border-box}
+  .condition-clear[hidden]{display:none}
+  /* 撮影地点の「× 解除」は撮影地点のページの見出しへ移した（2026-10-21）。欄の外には出さず、欄を横いっぱいに */
+  :is(#aimFromClear,#skyMapObserverClear){display:none!important}
+  :is(#aimView,#skyMapView) .condition-field:has(#aimFromClear,#skyMapObserverClear){grid-template-columns:22px minmax(0,1fr)!important}
+  .condition-clear svg{color:inherit}
+  .record-candidate-moon{display:inline-block;margin-left:6px;white-space:nowrap;font-size:0.81rem;font-weight:400}
+  .astro-icon{display:inline-block;width:1.15em;height:1.15em;vertical-align:-.18em;flex:none;color:var(--accent);overflow:visible}
+  [data-pictogram="moon-phase"]{color:#dbe7f2}
+
+  #aimView .aim-titlebar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+  #aimView .aim-titlebar .preview-title{margin:0}
+  #aimView .aim-titlebar #aimRecentOpen{position:relative;inset:auto;min-width:44px;min-height:44px;flex:none}
+  #aimView .preview-toolbar{display:none}
+  #skyMapView .sky-map-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  #skyMapRecentOpen{position:relative;min-width:44px;min-height:44px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+  .aim-figure-share{display:flex;justify-content:flex-end;margin:6px 0}.aim-figure-share .plan-trigger{min-width:44px;min-height:44px}
+  .alignment-details{margin:12px 0;border-top:1px solid var(--line);padding-top:6px}
+  .alignment-details > summary{min-height:44px;align-content:center;font-size:14px;color:var(--secondary);cursor:pointer}
+  .alignment-details .aim-limb,.alignment-details .aim-row{margin-top:10px}
+  .alignment-details[hidden]{display:none}
+
+
+/* Camera panel keeps focal length immediately beneath the scene. */
+#aimView #previewCameraPanel .aim-lens-row.preview-focal-entry{display:block}
+#aimView #previewCameraPanel .aim-lens-row.preview-focal-entry label input[data-lens-focal]{flex:1;min-width:0;width:100%;max-width:140px}
+#aimLook .preview-focal-bar{grid-template-columns:minmax(0,1fr) auto}
+#aimView .preview-camera-open{position:static;width:44px;height:44px;min-width:44px;box-shadow:none}
+#aimView .preview-camera-dialog{border:1px solid var(--line);border-radius:16px;background:var(--card);margin:auto;min-width:0;width:min(540px,calc(100vw - 24px));max-height:85dvh;padding:0}
+#aimView .preview-camera-dialog[open]{display:flex;flex-direction:column;overflow:hidden}
+#aimView .preview-camera-dialog .sheet-head{flex:none}
+#aimView .preview-camera-dialog[hidden]{display:none!important}
+#aimView .preview-camera-dialog .sheet-head{position:static;padding:12px 14px}
+#aimView .preview-camera-dialog .sheet-body{padding:14px;display:grid;gap:14px;overflow-y:auto;overflow-x:hidden;max-height:none;min-height:0;flex:1}
+#aimView .timelapse-settings{border-top:1px solid var(--line);padding-top:14px;min-width:0;display:grid;gap:12px}
+#aimView .timelapse-settings h3{margin:0;font-size:15px}
+#aimView .timelapse-settings label{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;font-size:14px}
+#aimView .timelapse-settings input,#aimView .timelapse-settings select{font-size:16px;min-height:44px;max-width:155px;width:125px;background:var(--sunk);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px}
+#aimView .timelapse-settings .tiny{margin:0;overflow-wrap:anywhere}
+.explore-save.plan-trigger{padding:8px;width:44px;min-width:44px;flex:0 0 44px}
+
+
+/* Trial-only, static exposure range controls above the scene. */
+#aimView .trial-scene-toolbar{display:grid;grid-template-columns:repeat(5,44px);align-items:center;justify-content:space-between;gap:6px;height:44px;margin:2px 0}
+#aimView .trial-scene-toolbar .aim-figure-share{display:contents}
+#aimView .trial-scene-toolbar button{position:static;flex:0 0 44px;width:44px;min-width:44px;height:44px;min-height:44px;margin:0;padding:0;display:grid;place-items:center}
+#aimView .trial-scene-toolbar [data-camera-settings]{grid-column:2;grid-row:1}
+#aimView .trial-scene-toolbar [data-plan-action=keep]{grid-column:4;grid-row:1}
+#aimView .trial-scene-toolbar [data-plan-action=share]{grid-column:5;grid-row:1}
+#aimView .timelapse-mode-head{display:flex;align-items:center;gap:10px;min-width:0;font-size:14px}
+#aimView .timelapse-mode-head>span{flex:1}
+#aimView .timelapse-switch{min-width:64px;min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:22px;background:var(--sunk);color:var(--secondary);font-size:14px;font-weight:600}
+#aimView .timelapse-switch[aria-checked=true]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+#aimView .timelapse-dialog .timelapse-settings{border-top:0;padding-top:0}
+
+#aimView .trial-scene-center{position:absolute;top:10px;right:8px;z-index:4;width:44px;height:44px;padding:0;display:grid;place-items:center;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--text)}
+#skyMapView.explore-mounted #skyMapShareRow{min-height:44px;margin:2px 0;gap:6px}
+#skyMapView.explore-mounted #skyMapShareRow [data-plan-action]{width:44px;min-width:44px;height:44px;min-height:44px;padding:0;display:grid;place-items:center;flex:0 0 44px;order:3}
+#skyMapView.explore-mounted #skyMapShareRow [data-plan-action=share]{order:4}
+#skyMapView.explore-mounted #exploreMapPanel #skyMapShareRow:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) repeat(3,44px);justify-content:space-between;gap:6px}
+#skyMapView.explore-mounted #skyMapShareRow #shootingPins{grid-column:1;justify-self:start}
+#skyMapView.explore-mounted #skyMapShareRow [data-quick-save=place]{grid-column:2;grid-row:1}
+#skyMapView.explore-mounted #skyMapShareRow [data-quick-save=plan]{grid-column:3;grid-row:1}
+#skyMapView.explore-mounted #skyMapShareRow [data-plan-action=share]{grid-column:4;grid-row:1}
+
+#skyMapView.explore-mounted .explore-sky-info{margin:4px 0 6px;line-height:1.5;color:var(--secondary)}
+#skyMapView.explore-mounted #aimLook [data-look-light]{display:none!important}
+
+#aimView .trial-scene-toolbar button,#aimView .trial-scene-center,#skyMapView.explore-mounted #skyMapShareRow [data-plan-action],#skyMapView.explore-mounted #skyMapShareRow [data-quick-save],#skyMapView #skyMapExpand{width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);box-shadow:none;display:grid;place-items:center}
+#aimView .trial-scene-toolbar button svg,#aimView .trial-scene-center svg,#skyMapShareRow [data-plan-action] svg,#skyMapExpand svg{width:24px;height:24px;stroke-width:1.8}
+
+/* Capture settings, shooting point, plan and share. */
+#aimView .trial-scene-toolbar{grid-template-columns:repeat(4,minmax(0,1fr));height:56px;justify-content:normal;gap:6px}
+#aimView .trial-scene-toolbar [data-quick-save=place]{grid-column:2;grid-row:1}
+#aimView .trial-scene-toolbar [data-quick-save=plan]{grid-column:3;grid-row:1}
+#aimView .trial-scene-toolbar [data-plan-action=share]{grid-column:4}
+#aimView .trial-scene-toolbar button{width:100%;min-width:0;height:56px;min-height:56px;display:flex;flex-direction:column;justify-content:center;gap:3px;font-size:12px;line-height:1.2}
+#aimView .trial-scene-toolbar [data-camera-settings]::after{content:'撮影設定'}
+#aimView .trial-scene-toolbar [data-quick-save=place]::after{content:'撮影地点'}
+#aimView .trial-scene-toolbar [data-quick-save=plan]::after{content:'予定'}
+#quickSaveNotice{position:fixed;z-index:1001;left:50%;bottom:calc(120px + env(safe-area-inset-bottom));transform:translateX(-50%);width:max-content;max-width:calc(100vw - 32px);padding:12px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--text);font-size:14px;box-shadow:0 4px 16px #0003;display:flex;align-items:center;gap:8px;pointer-events:none}
+#quickSaveNotice[data-error=true]{pointer-events:auto}
+#quickSaveNotice[hidden]{display:none}
+#quickSaveNotice button{min-width:44px;min-height:44px}
+#quickSaveNoticeText{overflow-wrap:anywhere}
+#aimView .trial-scene-toolbar [data-plan-action=share]::after{content:'共有'}
+.candidate-dates:has(>.candidate-heading){grid-template-rows:auto minmax(3.5rem,auto) minmax(2.75rem,auto)}
+#aimView .trial-scene-toolbar [data-camera-settings]{grid-column:1;grid-row:1}
+.capture-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--sunk);border-radius:12px;margin:0}
+.capture-tabs [role=tab]{min-width:0;min-height:44px;border:0;border-radius:9px;background:transparent;color:var(--secondary);font-size:14px;font-weight:600}
+.capture-tabs [aria-selected=true]{background:var(--card);color:var(--text);box-shadow:0 1px 3px #0002}
+#aimView .preview-camera-dialog [role=tabpanel]{display:grid;gap:16px}
+#aimView #previewCameraPanel>.sheet-body{display:flex;flex-direction:column;gap:16px;overflow:hidden}
+#previewCameraPanel .capture-tabs{flex:none}
+#previewCameraPanel .capture-panels{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);min-height:0;overflow:hidden}
+#previewCameraPanel .capture-panels>[role=tabpanel]{grid-area:1/1;min-width:0;min-height:0;align-self:stretch;align-content:start;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;padding:2px;outline-offset:-2px}
+#previewCameraPanel .capture-panels>[role=tabpanel][hidden]{display:grid!important;visibility:hidden;pointer-events:none}
+
+#aimView .trial-scene-toolbar [data-camera-settings][data-enabled=true]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.capture-tabs [role=tab]:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#capturePanel-timelapse .timelapse-settings{padding-top:0;border-top:0}
+.candidate-heading{display:flex;align-items:baseline;justify-content:space-between;gap:6px;margin:0;color:var(--secondary);font-size:12px;line-height:1.5}
+.candidate-heading>span:first-child{flex-shrink:0}
+.candidate-heading>[role=status]{text-align:right;min-width:0}

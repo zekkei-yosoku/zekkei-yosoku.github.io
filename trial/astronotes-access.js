@@ -8,7 +8,7 @@
  * **判定の正本はサーバー**（/me の tools と、保護APIの権限確認）。この表は
  * 「どの画面にどの許可が要るか」の正本。名前と並びはAPIの TOOLS と同じにする
  * （test-access-table.mjs が突き合わせる）。
- * 構図の中の目標×天体の判定（富士山×太陽＝diamond など）は画面側に残っている。次の段で移す。
+ * 目標×天体の判定も canFrame に集約する。画面全体の許可と本人確認は呼出側に残す。
  */
 (function (global) {
   "use strict";
@@ -32,7 +32,18 @@
     return Array.isArray(granted) && need.tools.some((tool) => granted.includes(tool));
   }
 
-  const api = { TOOLS, SCREENS, canOpen };
+  // Preserve the existing target/body rule, including short-circuit order.
+  // A predicate supports the existing authenticated toolAllowed boundary;
+  // an array supports isolated contract tests and other explicit callers.
+  function canFrame(granted, targetId, body) {
+    const allow = typeof granted === "function" ? granted
+      : (tool) => Array.isArray(granted) && granted.includes(tool);
+    if (targetId !== "fuji") return allow("tower");
+    return body === "sun" ? allow("diamond") : body === "moon" ? allow("pearl")
+      : allow("tower") && (allow("diamond") || allow("pearl"));
+  }
+
+  const api = { TOOLS, SCREENS, canOpen, canFrame };
   global.AstroNotesAccess = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : window);

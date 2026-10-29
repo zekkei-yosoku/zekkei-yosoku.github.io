@@ -1,0 +1,1036 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<link rel="preload" as="image" href="astronotes-note-computing-branded-v2.png" fetchpriority="high">
+<!-- 2026-09-07 に動く XSS があった（記録一覧の s.outcome）。直したが、
+     **再発したときに何も止めるものが無い**状態だった。
+     インライン script は配備時に生成したSHA-256ハッシュだけを許可する。
+     編集後はbump.shでハッシュを更新する。connect-srcも実際に使う相手だけに絞る。
+     ここに書く相手を1つ落とすと予報が壊れるので、test-layout が全部を数えている。
+     frame-ancestors は meta では効かないので、枠の検出は JS 側で行う。 -->
+<meta name="shape-city-integrity" content="GENERATED">
+<meta name="shape-city" content="astronotes-city-models.js?v=0">
+<meta name="shape-tower-integrity" content="GENERATED">
+<meta name="shape-tower" content="astronotes-tower-models.js?v=0">
+<meta name="app-version" content="0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<style id="startupPaintStyle">@@include:src/styles/inline-01.css@@</style>
+<script id="startupPaintGate">@@include:src/startup/paint-gate.js@@</script>
+<!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
+     URLを知っていれば誰でも読める状態は変わらない（気象業務法の論点は別途確認中。
+     → Vault 作業スレッド/2026-09-14_月と富士山の可視予測/02_気象業務法の確認）。
+     「拾われない仕組みを何も入れていない」状態だけは解消しておく。 -->
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="AstroNotes">
+<title>AstroNotes</title>
+<!-- ホーム画面に置いたとき、これが無いとOSがアプリ名の先頭文字で代用する（「絶」が出ていた）。
+     iOS は apple-touch-icon、Android はマニフェストの icons を見る。
+     角丸はOS側が付けるので、画像は正方形いっぱいに描いてある。 -->
+<link rel="apple-touch-icon" sizes="180x180" href="app-icon-180-v2.png">
+<link rel="icon" type="image/png" sizes="32x32" href="app-icon-32-v2.png">
+<link rel="manifest" href="manifest.json?v=0icons2">
+<meta name="theme-color" content="#c5d3e0">
+<!-- ライト・ダークは <html data-theme> で決める（2026-10-06）。最初の値は描く前にここで入れる。切り替えは本体の script（裏にいる間は替えない） -->
+<script>@@include:src/startup/theme.js@@</script>
+<style>@@include:src/styles/inline-02.css@@
+
+</style>
+<script>@@include:src/startup/theme-meta.js@@</script>
+<style id="previewStyles">@@include:src/styles/inline-03.css@@
+</style><style id="skyMapStyles">@@include:src/styles/inline-04.css@@</style><link rel="stylesheet" href="astronotes-almanac-home.css?v=0"><link rel="stylesheet" href="astronotes-flair.css?v=0">
+<link rel="preload" as="image" href="almanac-sun-surface-v2.webp" fetchpriority="high">
+<link rel="preload" as="image" href="almanac-moon-surface-v2.webp">
+<style id="datetimeEditingStyles">@@include:src/styles/inline-05.css@@
+</style>
+<link rel="stylesheet" href="astronotes-datetime-ui.css?v=0">
+</head>
+<body>
+<svg aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute;overflow:hidden"><defs><symbol id="input-icon-body" viewBox="0 0 24 24"><path d="M12 2C13.2 9 15 10.8 21 12C15 13.2 13.2 15 12 22C10.8 15 9 13.2 3 12C9 10.8 10.8 9 12 2Z" fill="currentColor" stroke="none"/></symbol><symbol id="input-icon-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 1v6m0 10v6M1 12h6m10 0h6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></symbol><symbol id="input-icon-observer" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="10" rx="1.5"/><circle cx="12" cy="10" r="2.5"/><path d="m8 5 1.5-2h5L16 5m-4 10v8m0-6-6 6m6-6 6 6"/></symbol></defs></svg>
+<main>
+  <div class="masthead">
+    <!-- メニュー。**題名の左**に置く（よくある位置。2026-09-28 ユーザー指定）。
+         表示はログイン名で絞っているが、**これは見た目だけ**で、
+         URL を直接開けば誰でも入れる。中身に秘密は無いのでそれでよい。 -->
+    <button id="toolsButton" class="tap" hidden aria-haspopup="true" aria-expanded="false"
+            aria-label="メニュー">☰</button>
+    <!-- ☰ と題名のあいだに印を置く（YouTube・Gmail と同じ並び）。
+         **押したらホームへ戻る。** どの画面にも出ているので、ここが戻り道になる。
+         `alt` は空にする（すぐ隣に「絶景予測」と書いてあるので二度言わせない） -->
+    <h1><button id="homeLink" class="tap">
+      <img src="icon-32.png?v=0astro" class="masthead-mark" id="mastheadMark" alt="" width="20" height="20" hidden><img src="astronotes-wordmark-rounded-v1-480.png?v=0" class="masthead-mark" id="mastheadAstroMark" alt="" width="140" height="32"><span id="mastheadName" hidden>AstroNotes</span></button></h1>
+    <!-- ログインは任意。押さなくても予報は全部見られる。
+         同期が失敗しているときは、それをここに出す（黙って同期されていないのは
+         「黙って消える」と同じ種類の事故）。 -->
+    <button id="authButton" class="tap"></button>
+  </div>
+  <!-- 戻る（2026-10-01 ユーザー「一覧に戻るボタンはあった方がいい」「☰ と絶景予測の下にいい感じに。
+       ボタンみたいに囲わなくていい。←戻る でいい」）。一覧以外の画面で、題名の帯のすぐ下に文字だけで出す。
+       **ひとつ前の画面へ戻る**（月の詳細 → 空の見え方 → 戻る で月の詳細）。一気に一覧へは題名を押す。
+       iPhone のホーム画面から開くとブラウザの戻るが無いので、画面の中に要る -->
+  <div class="backbar" id="backBar" hidden>
+    <button id="backLink" class="tap" aria-label="前の画面へ戻る"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3.5M7.5 3.5 3 8l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>戻る</button>
+  </div>
+
+  <p id="startupStatus" class="tiny" role="status" hidden>起動画面を開いています…</p>
+
+  <!-- ☆ は地点ボタンの中へ挿入していたが、button の中の button は不正で、
+       読み上げも click の伝播も壊れる。並べて置く。 -->
+  <p class="flair-band" id="forecastBand" aria-hidden="true">FORECAST</p>
+  <div class="place-row card" id="placeRow">
+    <!-- ここで地点を探せる合図は右端の虫眼鏡（2026-10-01）。下向きの三角だけだと「用意された中から選ぶ」に見え、
+         地名を打ち込んで探せると気づきにくかった（ユーザー指摘）。絵文字は現象の識別だけに使うので線で描く -->
+    <button class="place-pick" id="placeButton">
+      <span class="pin">📍</span>
+      <span class="place-txt">
+        <span class="name" id="placeName">…</span>
+        <span class="muted" id="placeSub"></span>
+      </span>
+      <span class="sr-only">（地点を探す）</span>
+      <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+        stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
+    </button>
+    <button class="tap" id="favToggle"></button>
+  </div>
+  <!-- 展望台が複数ある場所（東京タワーのメイン/トップ、スカイツリーの天望デッキ/回廊）は、
+       **どの観測地点に立つかで見え方が変わる**。地点カードからそのまま選べるようにする。 -->
+  <div class="card deck-row" id="deckRow" hidden>
+    <label class="fav-l" for="deckPick" style="margin:0">撮影地点</label>
+    <select id="deckPick" class="fav-in" aria-label="立つ展望台"></select>
+    <p class="tiny" id="deckNote" style="margin:0;color:var(--tertiary)"></p>
+  </div>
+
+<style>@@include:src/styles/inline-06.css@@</style>
+  <div class="forecast-tabs" id="forecastTabs" role="tablist" aria-label="予測の表示" hidden>
+    <button type="button" id="forecastTab" role="tab" aria-selected="true" aria-controls="listView">予測</button>
+    <button type="button" id="resultsTab" role="tab" aria-selected="false" aria-controls="answersView" tabindex="-1">結果<span id="forecastResultsCount" class="forecast-results-count" hidden></span></button>
+  </div>
+
+  <div id="status" class="card muted" hidden></div>
+  <div id="predictionDataNotice" class="card muted" hidden></div>
+
+  <!-- 一覧画面: この地点の全現象を、7日ぶんまとめて見る -->
+  <div id="listView" role="tabpanel" aria-labelledby="forecastTab">
+    <div class="card" id="bestNote" hidden></div>
+
+    <p id="listAnnouncement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+    <div id="cards"></div>
+  </div>
+
+  <!-- 詳細画面: 1つの現象・1つの日を読む。別画面にして、
+       スクロールで飛ばすのをやめた（表と詳細が混ざると読みにくい）。 -->
+  <div id="detailView" hidden>
+    <div id="detailPane"></div>
+  </div>
+
+  <!-- 記録画面: 点数が実際とどれだけ合っているかを見る。判断には使わないので別画面。 -->
+  <div id="adminView" hidden></div>
+
+  <!-- 月丼: 月と飛行機を重ねる。航路は決まっているので、月の道と突き合わせれば
+       立ち位置が解ける（「ねらう」と同じ形。目標が航路の上を動く点になっただけ）。 -->
+  <div id="planeView" hidden>
+    <div id="planeAccess" hidden><div class="sky-map-head"><h2>月丼</h2></div><div class="card"><p id="planeAccessMessage"></p><button id="planeAccessLogin" class="fav-btn primary">ログイン</button></div></div>
+    <div class="card">
+      <!-- 並びはねらうと同じ（2026-10-01 ユーザー「月丼とかISSとかのレイアウトも統一感あるように」）:
+           題名、道具の選ぶ欄（運用）、撮影地点（「〇〇から重ねる」。地点カードと同じ形・AstroNotesの地点を引き継ぐ。2026-10-06 に運用の下へ）、
+           日付、地図、地図のすぐ下に「ここから重ねる」、一覧。
+           **着陸と離陸は分けない**（ユーザー「着陸、離陸の両方狙うし、どっちかしか狙わないことってあんまりない」）。
+           両方の経路で数え、どちらの経路かは一覧に書き、地図では離陸を破線にする。
+           題名の行は切り替えが無くても同じ高さ（aim-head の min-height）なので、撮影地点の位置はほかの道具と同じ -->
+      <div class="section-h aim-head"><h2>月丼</h2></div>
+      <label class="fav-l" for="planeOp">運用</label>
+      <div class="aim-row">
+        <select id="planeOp" class="fav-in" aria-label="運用の向き"></select>
+      </div>
+      <p class="tiny" id="planeOpNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
+      <!-- 2026-10-06：天体を重ねると同じく、条件（運用）を先に、立つ場所を最後に文の形で「〇〇から重ねる」。
+           運用は重ねる相手ではなく飛行機の通り道の条件なので、文にせず名前のまま上に置く -->
+      <div class="aim-say aim-say-from">
+      <div class="place-row aim-place-card">
+        <button class="place-pick" id="planeFromButton" aria-describedby="planeFromLabel">
+          <span class="pin">📍</span>
+          <span class="place-txt">
+            <span class="name" id="planeFromName">…</span>
+            <span class="muted" id="planeFromSub"></span>
+          </span>
+          <span class="sr-only">（撮影地点を探す）</span>
+          <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+          stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
+        </button>
+        <button id="planeFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆</button>
+      </div>
+      <span class="aim-say-v" id="planeFromLabel">から重ねる</span>
+      </div>
+      <label class="fav-l" for="planeDate">日付</label>
+      <div class="aim-row aim-date">
+        <button id="planePrev" class="fav-btn" aria-label="前の日">←</button>
+        <input type="date" id="planeDate" class="fav-in" aria-label="日付">
+        <button id="planeNext" class="fav-btn" aria-label="次の日">→</button>
+      </div>
+      <div class="aim-row" style="margin-bottom:2px">
+        <span id="planeWeekday" class="tiny" style="flex:1"></span>
+        <button id="planeToday" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">今日</button>
+      </div>
+      <div class="mapwrap" style="margin-top:8px">
+        <canvas id="planeCanvas" aria-label="地図。狙い目と、着陸・離陸の経路です"></canvas>
+        <div class="mappin" aria-hidden="true"></div>
+        <div class="mapzoom">
+          <button id="planeIn" aria-label="拡大">＋</button>
+          <button id="planeOut" aria-label="縮小">−</button>
+        </div>
+        <div class="mapattr">国土地理院</div>
+      </div>
+      <div class="coord-row" data-map="plane">
+        <button class="chip" data-coord-copy aria-label="ピンの位置の座標をコピー"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span class="coord" id="planeCoord">—</span><span class="copied" hidden>コピーしました</span></button>
+        <span class="chip-split"><button class="chip" data-map-app-open><span data-map-app-label>地図アプリ</span><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg></button><button class="chip chip-more" data-map-app-change aria-label="開くアプリを変える" hidden><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
+      </div>
+      <div class="aim-near-row">
+        <div class="aim-near-btns">
+          <button id="planePickHere" class="chip" aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる</button>
+        </div>
+      </div>
+      <div class="aim-legend">
+        <span><i class="aim-k moon"></i>着陸</span>
+        <span><i class="aim-k moon dash"></i>離陸</span>
+        <span><i class="aim-k sun"></i>狙い目</span>
+      </div>
+      <div id="planePick" class="al" style="margin-top:8px"></div>
+      <div id="planeInfo" class="tiny" style="margin-top:6px;color:var(--secondary)">計算しています…</div>
+      <div id="planeList" class="al" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <div id="aimView" hidden>
+    <div id="aimAccess" hidden><div class="sky-map-head"><h2>構図</h2></div><div class="card"><p id="aimAccessMessage" role="status">ログインすると利用権限を確認できます</p><button type="button" class="chip" id="aimAccessLogin">ログイン</button></div></div>
+    <div class="card">
+      <!-- 2026-10-06：何を→何に→どこからの順で、1行ずつ文にして選ぶ（ユーザー「〇〇（選択）を重ねる。〇〇（選択）に重ねる。〇〇（選択）から重ねる。みたいに選ばせる」）。
+           どこからを最後にしたのは、その日の候補地が何を・何に・日付で決まるから（どこからの所で候補地を出すには、上の2つが決まっている必要がある）。
+           見出し（何を重ねるか…）は文の「を・に・から」が兼ねる。観測標高はどこからに、部位と縁は何にまとめる（縁は建物全体で消えるので、何にの下。2026-10-06 ユーザー「建物全体を選択した場合どうなるの」）。
+           2026-10-04 は何を→どこから→何に、2026-10-01 はどこからを一番上（道具ごとに位置を揃える）だった -->
+      <!-- 構図と地図はメニューの独立入口。条件の受渡しは画面内ボタンで行う。 -->
+      <div class="aim-titlebar"><h2 class="preview-title" id="aimFramingTitle">構図</h2></div>
+      <div class="aim-say condition-field">
+      <div class="section-h aim-head">
+        <select id="aimBody" class="aim-body-select" aria-label="天体">
+          <optgroup label="太陽・月"><option value="sun">太陽</option><option value="moon">月</option></optgroup>
+          <optgroup label="恒星"><option value="sirius">シリウス</option></optgroup>
+          <optgroup label="惑星"><option value="mercury">水星</option><option value="venus">金星</option><option value="mars">火星</option><option value="jupiter">木星</option><option value="saturn">土星</option></optgroup>
+        </select>
+      </div>
+      <span class="aim-say-v condition-label" id="aimWhatLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-body"/></svg><span>天体</span></span>
+      </div>
+    <!-- 文の右の「に重ねる」は欄の外に置き、欄の側を省略する（題名の中に「に重ねる」を入れたら 375px 以下で折れた） -->
+    <div class="aim-say condition-field">
+    <div id="aimTitle"><span id="aimTargetPick"><span class="aim-pick condition-choice"><span id="aimTargetLabel">対象を読み込み中…</span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><select id="aimTarget" aria-label="対象"></select></span></span></div>
+    <span class="aim-say-v condition-label" id="aimWhereLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-target"/></svg><span>対象</span></span>
+    </div>
+    <!-- 自分で置くときの目標の場所（2026-10-01 ユーザー「自分で置くを選んだ場合、どこに重ねるかの検索が必要なんじゃないの」）。
+         撮影地点と同じく地点カードの形で、押すと同じ「地点」の画面（検索・現在地・地図で選ぶ・お気に入り）。
+         地図を見ながら決めるときは、地図のすぐ下の「ここに重ねる」 -->
+    <div class="place-row aim-place-card" id="aimTargetCard" hidden>
+      <button class="place-pick" id="aimTargetButton">
+        <span class="pin">📍</span>
+        <span class="place-txt">
+          <span class="name" id="aimTargetName">…</span>
+          <span class="muted" id="aimTargetSub"></span>
+        </span>
+        <span class="sr-only">（重ねる対象の場所を探す）</span>
+        <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+          stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
+      </button>
+      <!-- 他の目標もお気に入りに（高さごと残す。ユーザー「自分で指定した重ねるもののお気に入りも必要じゃない？」） -->
+      <button id="aimTargetFav" class="tap aim-from-fav" aria-label="お気に入りに登録" hidden>☆</button>
+    </div>
+    <!-- 自分で置く目標の高さ（地上から）。検索で選んだ建物は、地図に高さがあれば最初から入る -->
+    <div class="aim-row" id="aimCustomRow" hidden>
+      <span class="unit-in"><input type="number" id="aimCustomH" class="fav-in" inputmode="decimal" min="0" max="1000"
+             placeholder="高さ（地上から）" aria-label="対象の高さ（地上から・メートル）"><span class="unit" aria-hidden="true">m</span></span>
+      <button id="aimCustomSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">この高さで</button>
+    </div>
+    <!-- 目標の高さの注記と、高さの入力（推定の塔・自分で置く目標のときだけ）。目標の行をやめたので、どこに重ねるかの下に -->
+    <p class="tiny" id="aimTargetNote" style="margin:-2px 0 8px"></p>
+    <div class="aim-row" id="aimHeightRow" hidden>
+      <span class="unit-in"><input type="number" id="aimHeightM" class="fav-in" inputmode="decimal" min="1" max="1000"
+             aria-label="先端の高さ（地上から・メートル）"><span class="unit" aria-hidden="true">m</span></span>
+      <button id="aimHeightSet" class="fav-btn" style="flex:0 0 auto;width:auto;padding:0 12px">この高さで</button>
+    </div>
+    <p class="tiny" id="aimHeightNote" style="margin:-4px 0 8px;color:var(--tertiary)"></p>
+    <!-- 撮影地点は任意。未選択でも対象・天体・日付から登録地点の候補を選べる。予測地域は暗黙補完しない。 -->
+    <div class="aim-say aim-say-from condition-field">
+    <div class="aim-observer-card">
+    <div class="place-row aim-place-card">
+      <button class="place-pick" id="aimFromButton" aria-describedby="aimFromLabelText">
+        <span class="pin">📍</span>
+        <span class="place-txt">
+          <span class="name" id="aimFromName">…</span>
+          <span class="muted" id="aimFromSub"></span>
+        </span>
+        <span class="sr-only">（撮影地点を探す）</span>
+        <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+          stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
+      </button>
+      <!-- 観測地点をお気に入りに（座標そのものに名前を付けて残す。ユーザー「座標ピンポイントに名前つけたりしたい」）。登録済みなら ★ で編集 -->
+      <button id="aimFromFav" class="tap aim-from-fav" aria-label="お気に入りに登録">☆</button>
+    </div>
+    <details id="aimObserverDetails" class="alignment-details" hidden><summary id="aimObserverSummary">撮影地点の高さ</summary>    <div class="aim-side-seg aim-stand" id="aimStand" role="group" aria-label="立つ所"></div>
+    <div class="aim-observer-height">
+      <label for="aimGroundHeight">標高</label>
+      <input id="aimGroundHeight" type="number" inputmode="decimal" min="-500" max="9000" step="any" placeholder="取得中…" aria-label="立つ場所の地面の標高（海抜メートル）" disabled><span>m</span>
+      <button type="button" class="tap" id="aimGroundAuto" aria-label="標高を自動値に戻す" title="自動値に戻す" disabled>↺</button>
+    </div>
+    <div class="aim-observer-height">
+      <label for="aimStandHeight">地上から</label>
+      <input id="aimStandHeight" type="number" inputmode="decimal" min="0" max="700" step="any" aria-label="地面からカメラまでの高さ（メートル）" aria-describedby="aimObserverHeightHint" disabled><span>m</span>
+      <button type="button" class="tap" id="aimStandAuto" aria-label="地上からを自動値に戻す" title="自動値に戻す" disabled>↺</button>
+    </div>
+    <p class="tiny muted" id="aimObserverHeightHint"></p>
+    <p id="aimObserverHeightError" class="tiny" role="alert" hidden></p>
+</details>
+    </div>
+    <span class="aim-say-v condition-label" id="aimFromLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-observer"/></svg><span id="aimFromLabelText">撮影地点</span><button type="button" id="aimFromClear" class="condition-clear" aria-label="撮影地点の選択を解除" title="選択を解除" hidden><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg><span>解除</span></button></span>
+    </div>
+    <!-- 観測標高を「標高」（地面だけ）と「地上から」（目の高さ1.5m＋立つ所の高さ）に分ける（2026-10-06 ユーザー「観測標高は枠分ける？標高と目線とで」
+         「標高は標高だけ。展望台の高さは目線のところに持っていくのがいいのか？」）。名前を「目線」にすると展望台の351.5mが目の高さに見えて迷うので「地上から」。
+         展望台の登録がある施設は、数字を打たずに立つ所を選ぶ（それまでは先頭の展望台に決め打ちで、天望回廊は観測標高を手で直すしかなかった） -->
+    <!-- 日付と観測地点の候補日は一つのセクション。図を見る前に選ぶ。 -->
+<section id="aimAlignmentDetails" class="alignment-details" hidden><p class="alignment-heading" id="aimAlignmentSummary">重ね方</p>    <div class="aim-row" id="aimPartRow">
+      <select id="aimPart" class="fav-in" aria-label="高さ"></select>
+    </div>
+    <!-- 太陽・月のどの縁をてっぺんに合わせるか。図と短い字の3つの釦（2026-10-02 ユーザー「もっと簡潔でわかりやすいのがあるんじゃないか」
+         →Codex と相談→ユーザーが選んだ）。select だと開かないと中身が見えず、字だけでは位置が伝わらない。中身は aimFillSelects で作る -->
+    <div class="aim-limb" id="aimLimb" role="group" aria-label="天体のどこを合わせるか"></div>
+    <!-- 逆算（2026-10-20 trial）: 重ね方＋少しずらす → その日にそう見える陸の上の線を地図で出し、線の上を選ぶと撮影地点と時刻になる -->
+    <div class="aim-shift" id="aimShift" hidden>
+      <p class="sr-only" id="aimShiftValue" aria-live="polite"></p>
+      <button type="button" class="fav-btn" id="aimLineOpen">この重ね方で撮れる場所を地図で探す</button>
+    </div>
+</section>
+    <section class="aim-date-section" aria-label="日付と候補日">
+    <div class="aim-row aim-date">
+      <button id="aimPrev" class="fav-btn" aria-label="前の日">‹</button>
+      <input type="hidden" id="aimDate">
+      <button type="button" id="aimCalendarOpen" class="fav-in" aria-label="重なる日カレンダーを開く" aria-haspopup="dialog" aria-controls="aimCalendar">日付を選ぶ</button>
+      <button id="aimNext" class="fav-btn" aria-label="次の日">›</button>
+    </div>
+    <div id="aimFrom" class="aim-from candidate-dates" aria-label="重なる日時の候補"></div>
+    </section>
+<div id="aimLineInfo" class="tiny" style="margin-top:4px;color:var(--secondary)">計算しています…</div><div class="sky-map-link"><button type="button" class="chip" id="skyMapOpen">撮影地点を地図で選ぶ</button></div><div class="preview-toolbar"><div class="preview-tabs" role="tablist" aria-label="撮影の確認"><button type="button" id="previewSceneTab" role="tab" aria-selected="true" aria-controls="previewScene">見え方</button><button type="button" id="previewPlacesTab" role="tab" aria-selected="false" aria-controls="previewPlaces" tabindex="-1">撮影地点</button></div></div><div class="preview-workspace"><section id="previewScene" role="tabpanel" aria-labelledby="previewSceneTab">    <div id="aimLook" class="aim-look" hidden></div>
+<div id="aimAir" class="aim-air"><div class="aim-air-row"><span id="aimAirLabel">大気差</span><select id="aimAirMode" aria-labelledby="aimAirLabel"><option value="standard">標準</option><option value="auto">気象予報</option><option value="none">なし</option></select></div>
+<details id="aimAirDetails"><summary>気象条件 <span id="aimAirSummary">気象を反映</span></summary><div class="aim-air-content">
+<p id="aimAirStatus" class="tiny" role="status"></p><p class="tiny">気象予報は、撮影地点から対象の先までの上空の気温（予報モデル）で光の曲がり方をたどり、天体と対象に同じ大気を使います。</p><p class="tiny">上空の予報が無い日時は地上の気温・気圧だけ、取得できないときは標準大気で計算します。地上2mより下の気温差（海面・放射冷却）は入りません。</p>
+</div></details></div>
+</section><section id="previewPlaces" role="tabpanel" aria-labelledby="previewPlacesTab"><div class="preview-map-time"><div class="aim-time-heading"><span>時刻</span><output id="previewMapTimeAt"></output><button type="button" class="chip" data-map-time-side="rise">出</button><button type="button" class="chip" data-map-time-side="set">入</button></div><input type="range" id="previewMapTime" min="0" max="86400" step="any" aria-label="地図の撮影位置の時刻を調整"></div>    <div class="mapwrap" style="margin-top:8px">
+      <canvas id="aimCanvas" aria-label="地図。線の上が、その日に重なって見える場所です"></canvas>
+      <div class="mappin" aria-hidden="true"></div>
+      <div class="mapzoom">
+        <button id="aimIn" aria-label="拡大">＋</button>
+        <button id="aimOut" aria-label="縮小">−</button>
+      </div>
+      <div class="mapattr">国土地理院</div>
+    </div>
+    <!-- ピンの位置の座標と、ほかの地図アプリへ（2026-10-02 ユーザー「撮影ポイントをピンポイントに知りたい場合、詳細な緯度経度が欲しい」
+         「他のMAPアプリに飛ばしたりとかってできるの？」）。候補地の「地図で見る」を押すとピンがその点に来る -->
+    <div class="coord-row" data-map="aim">
+        <button class="chip" data-coord-copy aria-label="ピンの位置の座標をコピー"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span class="coord" id="aimCoord">—</span><span class="copied" hidden>コピーしました</span></button>
+        <span class="chip-split"><button class="chip" data-map-app-open><span data-map-app-label>地図アプリ</span><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg></button><button class="chip chip-more" data-map-app-change aria-label="開くアプリを変える" hidden><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
+      </div>
+    <!-- 地図の中心（ピン）について。線までの距離と、そこを観測地点にする釦を並べる -->
+    <div class="aim-near-row">
+      <div class="aim-near-btns">
+        <button id="aimPick" class="chip" aria-label="地図の中心（ピンの位置）から重ねる">ここから重ねる</button>
+        <!-- 他の目標のときだけ。地図の中心（ピン）を目標の場所にする -->
+        <button id="aimPickTarget" class="chip" aria-label="地図の中心（ピンの位置）に重ねる" hidden>ここに重ねる</button>
+      </div>
+    </div>
+    <div class="aim-legend">
+      <span><i class="aim-k set"></i><span id="aimKeySet">日の入側</span></span>
+      <span><i class="aim-k rise"></i><span id="aimKeyRise">日の出側</span></span>
+    </div>
+
+    <table class="aim-tab" id="aimLineTable" hidden>
+      <thead><tr><th>側</th><th>対象から</th><th>時刻</th><th>天体の方位</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <!-- その日の候補地（2026-09-30）。月丼と同じく「この日はここ」を先に出し、線に掛かる立てる場所を並べる -->
+    <!-- 目標の場所が決まっていないときは見出しごと出さない（中身の無い見出しが残っていた。2026-10-02） -->
+    <div id="aimCandBox">
+    <h2 class="preview-candidate-title">この日の候補地</h2>
+    <!-- 日の出側と日の入側を切り替える（2026-10-03 ユーザー「日の出と日の入に関してはボタンで切り替えが良いと思う」
+         「候補地が何箇所かあるならそれを出したら？」）。釦に時刻の幅と数。線の無い側は押せない（線なし）。0か所の側は押せる -->
+    <div id="aimSideSeg" class="aim-side-seg" role="group" aria-label="日の出側か日の入側か"></div>
+    <div id="aimCandInfo" class="tiny" style="margin-top:6px;color:var(--secondary)"></div>
+    <div id="aimCandList" class="al" style="margin-top:8px"></div>
+    </div>
+    <!-- 富士山だけ、定番のスポットで次に見える日（2026-09-30） -->
+    <div id="aimListBox">
+    <details class="aim-disclosure"><summary><h2 id="aimListTitle">定番スポット</h2></summary>
+    <p class="tiny" id="aimListSub"></p>
+    <div id="aimList" class="al"></div>
+    </details>
+    </div>
+</section></div>      </div>
+  </div>
+
+  <!-- 人工衛星（2026-10-21、旧「ISSの月面通過」2026-09-30）。道・権限・保存キーは #/iss・iss のまま。
+       「通過」: 選んだ衛星が空を横切る回（出・最大・消、日が当たっていて空が暗い区間＝見える）と、空の方角図・地図の地上軌跡。
+       「月・太陽の前」: 月（太陽）の中心から衛星を通る直線が地面に当たる線＝中心線。その左右数kmの帯の中に立つと、
+       衛星が円盤の前を横切る。1秒に満たない -->
+  <div id="issView" hidden>
+    <div id="issAccess" hidden><div class="sky-map-head"><h2>人工衛星</h2></div><div class="card"><p id="issAccessMessage"></p><button id="issAccessLogin" class="fav-btn primary">ログイン</button></div></div>
+    <div class="card" id="issMain">
+      <!-- 並びはねらうと同じ（2026-10-01 ユーザー「月丼とかISSとかのレイアウトも統一感あるように」）:
+           題名、衛星、どこの近くで探すか（地点カードと同じ形）、表示の切り替え、地図、一覧。
+           月・太陽の前では題名の行の右に太陽／月（絵文字だけ・ねらうと同じ順）。
+           **月・太陽の前を横切る場所は先に決められない。** 見える帯は幅数kmで回ごとに場所が変わるので、決めるのは探す範囲の中心だけ。
+           帯は地図に出し、どこで見るかは帯を見て決める（ユーザー「どこから見るかは自分で選べなくない？その日見れる場所を地図見て自分で探すんだよね」）。
+           だから地図は帯を見るためのもので、中心のピンと「ここから…」の釦は置かない（中心は上のカードの「地点」の画面で決める）。
+           通過の時刻・方角は百km程度ずれてもほぼ同じなので、同じ地点をそのまま使う -->
+      <div class="section-h aim-head"><h2>人工衛星</h2>
+        <div class="aim-seg" role="group" aria-label="太陽か月" id="issBodySeg" hidden>
+          <button id="issSun" aria-pressed="false" aria-label="太陽" title="太陽">☀️</button>
+          <button id="issMoon" aria-pressed="true" aria-label="月" title="月">月</button>
+        </div>
+      </div>
+      <!-- 衛星は地点と同じ形のカード。押すと「衛星を選ぶ」（名前・番号の検索とジャンル。2026-10-21 ユーザー「衛星の中で選択できないの？ジャンル分けして検索も」） -->
+      <p class="fav-l" id="issSatLabel">衛星</p>
+      <div class="place-row aim-place-card">
+        <button class="place-pick" id="issSatButton" aria-describedby="issSatLabel">
+          <span class="pin" aria-hidden="true">🛰️</span>
+          <span class="place-txt">
+            <span class="name" id="issSatName">ISS（国際宇宙ステーション）</span>
+            <span class="muted" id="issSatSub"></span>
+          </span>
+          <span class="sr-only">（衛星を選ぶ）</span>
+          <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+          stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
+        </button>
+      </div>
+      <p class="fav-l" id="issFromLabel">どこの近くで探すか</p>
+      <div class="place-row aim-place-card">
+        <button class="place-pick" id="issFromButton" aria-describedby="issFromLabel">
+          <span class="pin">📍</span>
+          <span class="place-txt">
+            <span class="name" id="issFromName">…</span>
+            <span class="muted" id="issFromSub"></span>
+          </span>
+          <span class="sr-only">（探す範囲の中心を選ぶ）</span>
+          <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+          stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
+        </button>
+      </div>
+      <div class="forecast-tabs" id="issTabs" role="tablist" aria-label="人工衛星の表示" style="margin-top:12px"><button type="button" role="tab" id="issPassTab" aria-selected="true" aria-controls="issPassPanel">通過</button><button type="button" role="tab" id="issTransitTab" aria-selected="false" aria-controls="issTransitPanel" tabindex="-1">月・太陽の前</button></div>
+      <div id="issTransitRange" hidden>
+        <label class="fav-l" for="issRange">探す範囲</label>
+        <div class="aim-row">
+          <select id="issRange" class="fav-in" aria-label="探す範囲">
+            <option value="50">50km以内</option>
+            <option value="150" selected>150km以内</option>
+            <option value="400">400km以内</option>
+          </select>
+        </div>
+      </div>
+      <p class="tiny" id="issTle" style="margin:-2px 0 8px;color:var(--tertiary)"></p>
+      <!-- 地図の箱。月・太陽の前ではここ、通過では押した回の行のすぐ下（issPassDetail の中）へ動かす（2026-10-21 ユーザー「情報量が多くない？」） -->
+      <div id="issMapHome" hidden><div id="issMapBox">
+      <div class="mapwrap" style="margin-top:4px">
+        <canvas id="issCanvas" aria-label="地図。衛星の真下の通り道です"></canvas>
+        <div class="mapzoom">
+          <button id="issIn" aria-label="拡大">＋</button>
+          <button id="issOut" aria-label="縮小">−</button>
+        </div>
+        <div class="mapattr">国土地理院</div>
+      </div>
+      <!-- ISS の地図は帯を見るためのもので中心ピンは置かない（2026-10-01 決定）。座標は、選んでいる回の「立つ場所の例」 -->
+      <div class="coord-row" data-map="iss" hidden>
+        <span class="coord-label">立つ場所の例</span>
+        <button class="chip" data-coord-copy aria-label="立つ場所の例の座標をコピー"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span class="coord" id="issCoord">—</span><span class="copied" hidden>コピーしました</span></button>
+        <span class="chip-split"><button class="chip" data-map-app-open><span data-map-app-label>地図アプリ</span><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg></button><button class="chip chip-more" data-map-app-change aria-label="開くアプリを変える" hidden><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
+      </div>
+      <div class="aim-legend">
+        <span><i class="aim-k moon" id="issKey"></i><span id="issKeyText">見える帯</span></span>
+      </div>
+      </div></div>
+      <section id="issPassPanel" role="tabpanel" aria-labelledby="issPassTab">
+        <div class="section-h" style="margin-top:12px"><h2>これから7日</h2><span class="muted" id="issPassFrom"></span></div>
+        <label class="tiny" style="display:flex;align-items:center;gap:6px;min-height:32px"><input type="checkbox" id="issShowAll">見えない回も出す（日が当たらない・空が明るい）</label>
+        <div id="issPassList" class="al"></div>
+        <p class="tiny" style="margin-top:8px;color:var(--tertiary)">「見える」は、衛星に日が当たっていて空が暗いという意味です。暗い衛星は双眼鏡や望遠鏡が要ります。</p>
+        <!-- 押した回の詳しいこと。行のすぐ下へ動かして開く。空の方角図（真上が中心・外周が地平線・上が北）と地図 -->
+        <div id="issPassDetail" hidden style="padding:4px 0 12px">
+          <div id="issSkyWrap" style="display:flex;justify-content:center;margin:4px 0">
+            <canvas id="issSky" width="280" height="280" style="width:280px;height:280px;max-width:100%" role="img" aria-label="空の方角図"></canvas>
+          </div>
+          <p class="tiny" id="issPassDetailText" style="text-align:center;margin:0 0 8px"></p>
+        </div>
+      </section>
+      <section id="issTransitPanel" role="tabpanel" aria-labelledby="issTransitTab" hidden>
+        <div class="section-h" style="margin-top:12px"><h2>これから7日</h2><span class="muted" id="issFrom"></span></div>
+        <div id="issList" class="al"></div>
+        <p class="tiny" id="issSunWarn" style="margin-top:8px;color:var(--red)" hidden>太陽は必ず減光フィルターを付けて見てください。</p>
+      </section>
+    </div>
+  </div>
+
+  <section id="almanacView" aria-labelledby="almanacTitle" hidden>
+    <h1 id="almanacTitle">ホーム</h1>
+    <p id="almanacDayLabel"></p>
+    <button type="button" class="place-pick" id="almanacPlace"></button>
+    <input type="hidden" id="almanacDate">
+
+    <p id="almanacRangeNote" class="tiny" role="status" hidden></p>
+    <div id="almanacOutput" aria-live="polite"></div>
+    <div id="almanacDashboard"></div>
+    <footer id="almanacFooter" aria-label="観測の日付">
+      <div id="almanacDateRow">
+        <button type="button" id="almanacPrev" aria-label="前の日">‹</button>
+        <button type="button" id="almanacCalendarOpen" aria-label="日付を選ぶ" aria-haspopup="dialog"></button>
+        <button type="button" id="almanacNext" aria-label="次の日">›</button>
+      </div>
+      <div class="sky-map-scrub"><div class="sky-map-scrub-modes" role="group" aria-label="バーで動かす対象"><button type="button" class="chip" id="almanacScrubMode" aria-label="日付、時刻に切り替え" data-mode="date">日付</button></div><div id="almanacTrack" class="preview-footer-track"><div id="almanacTimeline" class="sky-map-timeline" tabindex="0" role="slider" aria-label="日付を横スクロールして調整"></div><span class="sky-map-timeline-center" aria-hidden="true"></span></div></div>
+    </footer>
+    <p class="alm-basis">時刻は端末のタイムゾーン。方位は北0°から時計回り。対応期間：2020〜2030年。出入りは標準大気差を含む上端と水平な地平線が基準です。山・建物・標高・雲の影響は含みません。</p>
+  </section>
+  <div id="recordsView" hidden>
+    <div id="recordsAccess" hidden><div class="sky-map-head"><h2>記録</h2></div><div class="card"><p id="recordsAccessMessage"></p><button id="recordsAccessLogin" class="fav-btn primary">ログイン</button></div></div>
+    <div class="sky-map-head" id="recordsHeading"><h2>記録</h2></div>
+    <!-- 2026-10-20 NOTEBOOK：撮影地点と予定のタブ（ユーザー「NOTEBOOK にして、タブは撮影地点と予定」） -->
+    <div class="forecast-tabs notebook-tabs" id="notebookTabs" role="tablist" aria-label="記録の表示"><button type="button" role="tab" id="notebookPointsTab" aria-selected="true" aria-controls="myRecordsHub">撮影地点</button><button type="button" role="tab" id="notebookPlansTab" aria-selected="false" aria-controls="scheduleHub" tabindex="-1">予定</button></div>
+    <div id="myRecordsHub" class="card" role="tabpanel" aria-labelledby="notebookPointsTab"></div>
+    <div id="scheduleHub" class="card" role="tabpanel" aria-labelledby="notebookPlansTab" hidden></div>
+
+  </div>
+
+  <div id="answersView" role="tabpanel" aria-labelledby="resultsTab" hidden>
+
+    <div id="answersAccess" hidden><div class="card"><p id="answersAccessMessage"></p><button id="answersAccessLogin" class="fav-btn primary">ログイン</button></div></div>
+    <section class="card" aria-labelledby="answersPendingTitle">
+      <div class="section-h"><h2 id="answersPendingTitle">結果を残す</h2><span class="tiny muted" id="answersPendingCount"></span></div>
+      <p class="tiny" id="recordsRoundPlace"></p>
+      <div id="recordsPending" hidden></div>
+      <div id="answersEmpty" class="answer-empty" hidden><strong>結果を残せる予測はまだありません</strong><p class="tiny">始まる前に保存した予測が対象です。終了後7日間、ここで結果を残せます。</p><button type="button" class="chip" data-open-forecast>予測を見る</button></div>
+    </section>
+    <details class="card answer-history" id="answerHistory">
+      <summary>これまでの結果 <span class="tiny muted" id="recCount"></span></summary>
+      <p id="recEmpty" class="tiny" hidden>まだ結果の記録はありません。</p>
+      <div id="recBody" hidden>
+        <div id="recList"></div>
+        <details class="answer-analysis"><summary>予測の傾向を見る</summary><div id="calibration"></div></details>
+      </div>
+      <details class="answer-analysis"><summary>データの控え</summary><p class="tiny">撮影地点・対象・線/範囲・予測の結果を保存します。写真ファイルは含みません。</p><div class="answer-data-actions"><button id="exportBtn" class="chip">書き出す</button><button id="importBtn" class="chip">読み込む</button><input type="file" id="importFile" accept=".json" hidden></div></details>
+    </details>
+
+    <section class="card" id="reviewPhotos" aria-labelledby="reviewPhotosTitle">
+      <div class="section-h"><h2 id="reviewPhotosTitle">以前提供した写真</h2></div>
+      <p class="tiny">新しい写真のアップロードは受け付けていません。以前提供した写真は確認・削除できます。</p>
+      <div class="ph-add" hidden>
+        <button id="photoPick" class="fav-btn primary" disabled>写真を残す</button>
+        <input type="file" id="photoFile" accept="image/*" hidden>
+      </div>
+      <p id="photoListStatus" class="tiny" role="status" hidden></p>
+  <button id="photoListRetry" class="chip" hidden>写真をもう一度読み込む</button>
+  <div id="photoList" class="ph-list"></div>
+      <button id="photoListMore" class="tap" hidden>さらに写真を表示</button>
+    </section>
+  </div>
+
+  <!-- 旧一覧用の描画先。結果フォームは予測内の「結果」タブに集約する。 -->
+  <div id="recPending" hidden></div>
+
+  <!-- 出典だけを畳んで置く（2026-10-01 ユーザー「出しておいた方がいいなら畳んでおいてほしい」）。出典の表示は利用の条件 -->
+<section id="skyMapView" aria-labelledby="skyMapTitle" hidden>
+ <!-- 2026-10-15 Framingを押したときの処理は旧「この条件の構図を確認」と同じ（引き継げないときはメニューと同じくFramingを開く） -->
+ <div class="sky-map-head"><h2 id="skyMapTitle">地図</h2><button type="button" class="chip preview-history-icon" id="skyMapRecentOpen" aria-label="場所の履歴" title="履歴"></button></div>
+ <div id="skyMapAccess" class="card"><p id="skyMapAccessMessage" role="status">利用権限を確認しています…</p><button type="button" class="chip" id="skyMapAccessRetry">再試行</button><button type="button" class="chip" id="skyMapAccessLogin">ログイン</button></div>
+ <div class="sky-map-content" id="skyMapContent" hidden>
+  <div class="sky-map-controls"><div class="aim-say condition-field"><select class="condition-choice" id="skyMapBody" aria-labelledby="skyMapBodyLabel"><optgroup label="太陽・月"><option value="sun">太陽</option><option value="moon">月</option></optgroup><optgroup label="恒星"><option value="sirius">シリウス</option></optgroup><optgroup label="惑星"><option value="mercury">水星</option><option value="venus">金星</option><option value="mars">火星</option><option value="jupiter">木星</option><option value="saturn">土星</option></optgroup></select><span class="aim-say-v condition-label" id="skyMapBodyLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-body"/></svg><span>天体</span></span></div><div class="aim-say condition-field"><select id="skyMapTarget" aria-labelledby="skyMapTargetLabel"></select><span class="aim-say-v condition-label" id="skyMapTargetLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-target"/></svg><span>対象</span></span></div></div>
+  <div class="aim-say aim-say-from condition-field"><div class="aim-observer-card"><div class="place-row aim-place-card"><button type="button" class="place-pick" id="skyMapChoose" aria-describedby="skyMapChooseLabelText"><span class="pin" aria-hidden="true"></span><span class="place-txt"><span class="name" id="skyMapObserver">撮影地点を選ぶ</span><span class="muted" id="skyMapObserverSub"></span></span><span class="chev" aria-hidden="true"></span></button><button type="button" id="skyMapObserverFav" class="tap aim-from-fav" aria-label="お気に入りに登録" hidden>☆</button></div><details id="skyMapObserverDetails" class="alignment-details" hidden><summary id="skyMapObserverSummary">撮影地点の高さ</summary>
+<div class="aim-observer-height"><label for="skyMapGroundHeight">標高</label><input id="skyMapGroundHeight" type="number" inputmode="decimal" min="-500" max="9000" step="any" aria-label="立つ場所の地面の標高（海抜メートル）"><span>m</span><button type="button" class="tap" id="skyMapGroundAuto" aria-label="標高を自動値に戻す" title="自動値に戻す">↺</button></div>
+<div class="aim-observer-height"><label for="skyMapStandHeight">地上から</label><input id="skyMapStandHeight" type="number" inputmode="decimal" min="0" max="700" step="any" aria-label="地面からカメラまでの高さ（メートル）"><span>m</span><button type="button" class="tap" id="skyMapStandAuto" aria-label="地上からを自動値に戻す" title="自動値に戻す">↺</button></div>
+<p id="skyMapHeightError" class="tiny" role="alert" hidden></p></details></div><span class="aim-say-v condition-label" id="skyMapChooseLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-observer"/></svg><span id="skyMapChooseLabelText">撮影地点</span><button type="button" id="skyMapObserverClear" class="condition-clear" aria-label="撮影地点の選択を解除" title="選択を解除" hidden><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg><span>解除</span></button></span></div>
+
+  <section id="skyMapAlignmentDetails" class="alignment-details" hidden><p class="alignment-heading" id="skyMapAlignmentSummary">重ね方</p><div id="skyMapAlignmentControls"></div></section>
+  <section class="sky-map-candidates" aria-label="重なる日時の候補"><div id="skyMapDates" class="candidate-dates"></div></section>
+  <div class="mapwrap sky-map-wrap"><span class="sr-only">地図は北が上</span><canvas id="skyMapCanvas" aria-label="撮影地点からの天体の方向と対象への線を示す地図"></canvas><div class="sky-map-point-tools"><button type="button" class="map-ctl" id="skyMapObserverTool" aria-label="撮影地点を地図で変更" title="撮影地点" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="7" rx="1.5"/><circle cx="13" cy="6.5" r="2"/><path d="M12 10v3m0 0L5 22m7-9 7 9m-7-9v9"/></svg></button><button type="button" class="map-ctl" id="skyMapTargetTool" aria-label="対象を地図で変更" title="対象" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z"/><circle cx="12" cy="9" r="2.5"/></svg></button></div><button type="button" class="map-ctl sky-map-expand" id="skyMapExpand" aria-label="地図を全画面表示" title="地図を全画面表示" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path data-map-expand d="M4 9V4h5M4 4l5 5M15 4h5v5m0-5-5 5M4 15v5h5m-5 0 5-5M15 20h5v-5m0 5-5-5"/><path data-map-contract d="M9 4v5H4m5 0L4 4m11 0v5h5m-5 0 5-5M4 15h5v5m0-5-5 5m16-5h-5v5m0-5 5 5"/></svg></button><div class="mappin" aria-hidden="true"></div><div class="mapzoom"><button id="skyMapIn" aria-label="地図を拡大">＋</button><button id="skyMapOut" aria-label="地図を縮小">−</button></div><div class="mapattr">国土地理院</div></div>
+  <div class="aim-figure-share" id="skyMapShareRow"><button type="button" class="plan-trigger" aria-label="撮影計画を共有" title="共有" data-plan-action="share" data-plan-source="skymap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8v12M8.4 6.3 12 2.8l3.6 3.5M8.6 9.5H7.2A2.2 2.2 0 0 0 5 11.7v7.1A2.2 2.2 0 0 0 7.2 21h9.6a2.2 2.2 0 0 0 2.2-2.2v-7.1a2.2 2.2 0 0 0-2.2-2.2h-1.4"/></svg></button></div>
+  <details id="skyMapCustom"><summary>地図内だけの対象を置く</summary><label>地上からの高さ <input type="number" id="skyMapHeight" min="0" max="1000" step="any" aria-label="対象の地上からの高さ"> m</label><button type="button" class="chip" id="skyMapPlaceTarget">中心に対象を置く</button></details>
+  <div id="skyMapTargetInfo" class="tiny"></div>
+  <p class="tiny sky-map-definition">出入りは天体の中心が高度0°を通る方向と時刻です（大気補正なし）。</p>
+  <details><summary class="tiny">地図の読み方</summary><p class="tiny">方位は真北0°・東90°。円弧は方向の目盛りです。出入りは天体の中心が高度0°を通る方向です。大気の屈折・地形・建物の遮りは補正しません。</p></details>
+
+  <footer class="sky-map-footer" aria-label="撮影の日時"><div class="sky-map-body-bar" id="skyMapBodyBar" role="group" aria-label="地図に表示する天体"><button type="button" class="map-ctl" id="skyMapShowSun" aria-label="太陽の表示" aria-pressed="true" title="太陽の表示を切り替え"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><span>太陽</span></button><button type="button" class="map-ctl" id="skyMapShowMoon" aria-label="月の表示" aria-pressed="true" title="月の表示を切り替え"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14a8.5 8.5 0 0 1-10-10A8.5 8.5 0 1 0 20 14Z"/></svg><span>月</span></button><button type="button" id="skyMapMoreBodies" aria-label="その他の天体を選ぶ" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="var(--card)"/><circle cx="15" cy="12" r="2" fill="var(--card)"/><circle cx="9" cy="18" r="2" fill="var(--card)"/></svg><span id="skyMapExtraName"></span></button></div><div class="sky-map-date"><button type="button" id="skyMapPrev" aria-label="前の日">‹</button><input type="hidden" id="skyMapDate"><button type="button" id="skyMapCalendarOpen" aria-label="日付を選ぶ" aria-haspopup="dialog"></button><button type="button" id="skyMapNext" aria-label="次の日">›</button><div class="preview-date-time"><input type="time" id="skyMapTime" aria-label="撮影時刻を入力"></div><button type="button" id="skyMapTimeMore" aria-label="天体の位置と時刻" aria-haspopup="dialog">⋯</button></div><div class="sky-map-status-row"><p id="skyMapStatus" class="tiny" role="status"></p><button type="button" class="chip" id="skyMapRetry" hidden>再試行</button></div><div class="sky-map-readouts" id="skyMapReadouts"><div id="skyMapPassages" class="sky-map-passages" aria-label="対象の方位を通過する時刻と高度"></div><div id="skyMapEvents" class="sky-map-events" aria-label="出入りの時刻"></div></div><div class="sky-map-scrub"><div class="sky-map-scrub-modes" role="group" aria-label="バーで動かす対象"><button type="button" class="chip" id="skyMapScrubMode" aria-label="時刻、日付に切り替え" data-mode="time">時刻</button></div><div id="skyMapTrack" class="preview-footer-track"><div id="skyMapTimeline" class="sky-map-timeline" tabindex="0" role="slider" aria-label="日時を横スクロールして調整"></div><span class="sky-map-timeline-center" aria-hidden="true"></span><input hidden type="range" id="skyMapRange" min="0" max="86399" step="1" aria-label="撮影時刻を滑らかに調整"></div></div>
+  </footer>
+ </div>
+</section>
+    <section class="card" id="skyRatingInvite"><div class="section-h"><h2>予測の精度向上にご協力いただけませんか？</h2></div><p class="tiny">空の写真10枚を見て、色づきの強さを教えてください。</p><a class="fav-btn" href="sky-rating.html" style="display:flex;align-items:center;justify-content:center;text-decoration:none;min-height:44px">写真を評価する</a><p class="tiny">回答はログインして送信し、予測の精度の検証と改善に使います。送信後も取り下げられます。</p></section>
+  <details class="tiny fav-where" id="footer"><summary>出典</summary><div id="footerBody"></div></details>
+</main>
+
+<!-- メニューの引き出し。**左上の ☰ から左に出す**（押した場所と出る場所を合わせる）。
+     正本: Vault のAstroNotesデザイン定義「4-4. メニュー（引き出し）」 -->
+<div id="toolsScrim" class="drawer-scrim" hidden></div>
+<aside id="toolsMenu" class="drawer" hidden role="dialog" aria-modal="true" aria-label="メニュー">
+  <div class="drawer-head">
+    <span>メニュー</span>
+    <button id="toolsClose" class="tap" aria-label="閉じる">✕</button>
+  </div>
+  <nav class="drawer-list">
+    <!-- 一覧へ（2026-10-02 ユーザー「メニューの中に絶景予測の一覧に戻るボタンがほしい」）。道具ではないので data-tool・data-id を持たない
+         （許可・管理画面の名前に混ぜない）。いちばん上に置き、道具と線で分ける。一覧にいるときは帯を付ける -->
+    <button id="almanacMenu"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/><path d="M10 20v-5h4v5"/></svg>ホーム</b><span>この場所の太陽と月を眺める</span></button>
+    <button id="toolsHome"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3"/><path d="M9 2v1m-6 5H2m3-4-1-1m9 1 1-1M5 19h12a4 4 0 0 0 .4-8 5 5 0 0 0-9.5-1.2A4.6 4.6 0 0 0 5 19Z"/></svg>予測</b><span>夕焼け・星空・雲海などが見られそうか</span></button>
+
+    <!-- 天体を重ねる（2026-10-01）。もとは「富士山に重ねる」（ダイヤモンド富士・パール富士）と「塔に重ねる」の2つ。
+         ユーザー「塔以外も重ねるじゃん」→ 名前を「天体を重ねる」に。「プルダウンで富士山を選んだら、その横の太陽・月の切り替えでできる」→ 富士山もここへ。
+         何に重ねるかは開いた画面の題名の枠で選ぶ。説明は何が分かるかを書く（ユーザーと決めた文に、ダイヤモンド富士の名前を足した）。
+         許可は3つのまま（data-id。どれかがあれば出す）。管理画面の名前は data-names から -->
+    <!-- AstroNotes内の機能を日本語で並べる。許可は構図と地図を個別に判定する。 -->
+    <section id="astroToolsGroup" aria-label="天体の道具">
+    <button id="framingMenu" data-tool="#/aim/tower" data-id="diamond pearl tower" data-names="ダイヤモンド富士 パール富士 スカイツリー・東京タワーなど"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m8 0h5v-5"/><path d="m6 17 4-5 3 3 3-5 3 7"/><circle cx="9" cy="8" r="1"/></svg>構図</b><span>天体と風景が重なる日時と見え方を確かめる</span></button>
+    <button id="mapMenu" data-tool="#/skymap" data-id="skymap"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16"/></svg>地図</b><span>撮影地点からの天体の方向と高度を調べる</span></button>
+
+    <button id="recordsMenu" data-tool="#/records" data-id="records"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>記録</b><span>撮影地点と見えたもの、これからの予定を残す</span></button>
+
+    <button data-tool="#/plane" data-id="plane"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 4a7 7 0 1 0 5 12 6 6 0 0 1-5-12Z"/><path d="m3 13 7-2 4-4 1 1-2 4 4 1 1-1h1l-1 3-9 1Z"/></svg>月丼</b><span>月と飛行機が重なる場所（羽田）</span></button>
+    <button data-tool="#/iss" data-id="iss"><b><svg class="menu-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M3 7h5v10H3zM16 7h5v10h-5zM8 12h1.5M14.5 12H16"/></svg>人工衛星</b><span>ISSなどが空を通る時刻と方角、月や太陽の前を横切る場所</span></button>
+    </section>
+  </nav>
+</aside>
+
+
+
+
+<dialog class="sheet" id="mapSheet" tabindex="-1">
+  <div class="sheet-head"><strong>地図で選ぶ</strong><button id="mapClose">閉じる</button></div>
+  <div class="sheet-body">
+    <!-- 地図は国土地理院のタイル。**ライブラリは使わない**（このアプリは依存パッケージを持たない）。
+         標高タイルを読むのと同じ配信元で、出典表示の条件も同じ。 -->
+    <div class="search-row">
+      <input type="search" id="mapSearch" enterkeyhint="search" placeholder="地名・緯度経度・地図のURLで動かす">
+      <button id="mapSearchGo" class="fav-btn search-go">検索</button>
+    </div>
+    <div id="mapSearchResults"></div>
+    <div class="mapwrap">
+      <canvas id="mapCanvas" aria-label="地図。指でずらして中心にピンを合わせます"></canvas>
+      <div class="mappin" aria-hidden="true"></div>
+      <div class="mapzoom">
+        <button id="mapIn" aria-label="拡大">＋</button>
+        <button id="mapOut" aria-label="縮小">−</button>
+      </div>
+      <div class="mapattr">国土地理院</div>
+    </div>
+    <!-- 現在地は地図の右下の釦（どの地図も同じ。前は下に「現在地へ」があった） -->
+    <div class="maprow">
+      <div id="mapCoord" class="tiny">—</div>
+    </div>
+    <button class="fav-btn primary" id="mapPick" style="width:100%;margin-top:8px">この場所にする</button>
+
+  </div>
+</dialog>
+
+<dialog class="sheet line-sheet" id="aimLineSheet" tabindex="-1" aria-labelledby="aimLineSheetTitle">
+  <div class="sheet-head"><strong id="aimLineSheetTitle">撮れる場所</strong><button id="aimLineClose">閉じる</button></div>
+  <div class="sheet-body">
+    <p class="tiny line-sheet-note" id="aimLineSheetNote" role="status">線を計算しています…</p>
+    <div class="mapwrap">
+      <canvas id="aimLineCanvas" aria-label="地図。線の上をタップすると、その撮影地点と時刻にします"></canvas>
+      <div class="mapzoom">
+        <button id="aimLineIn" aria-label="拡大">＋</button>
+        <button id="aimLineOut" aria-label="縮小">−</button>
+      </div>
+      <div class="mapattr">国土地理院</div>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="placeSheet" tabindex="-1">
+  <div class="sheet-head"><strong id="placeSheetTitle">地点</strong><span class="page-actions" id="placeHeadActions" hidden><button type="button" class="chip" id="placeClear" aria-label="撮影地点の選択を解除">解除</button></span><button id="placeClose">閉じる</button></div>
+  <div class="sheet-body">
+    <div class="search-row">
+      <input type="search" id="searchBox" enterkeyhint="search" placeholder="住所・地名・駅名・緯度経度・地図のURL">
+      <button id="searchBoxGo" class="fav-btn search-go">検索</button>
+    </div>
+    <div id="searchResults"></div>
+    <!-- 天体を重ねるの「どこから重ねるか」で開いたときだけ。撮影地の「この日の候補地」と同じ候補（計算し直さない）。
+         押すとそこが撮影地点になる（2026-10-06。撮影地の行は見え方を一時的に替えるだけで、どこからは変わらなかった） -->
+    <section id="sheetCands" class="sheet-cands" aria-labelledby="sheetCandsTitle" hidden>
+      <div class="section-h"><h2 id="sheetCandsTitle">この日の候補地</h2><span id="sheetCandsDay" class="tiny"></span></div>
+      <div id="sheetCandSide" class="aim-side-seg" role="group"></div>
+      <p id="sheetCandInfo" class="tiny" role="status"></p>
+      <div id="sheetCandList" class="al"></div>
+      <button type="button" class="list-item" id="sheetCandAll">地図で全部見る（撮影地点）</button>
+    </section>
+    <!-- ねらうの「どこから重ねるか」で別の点を選んでいるときだけ。AstroNotesの地点に戻す -->
+    <button class="list-item" id="sheetInherit" hidden></button>
+    <button class="list-item" id="geoButton">📡 現在地を使う</button>
+    <button class="list-item" id="mapButton">🗺️ 地図で選ぶ（ピンを置く）</button>
+    <div id="geoStatus" class="warn"></div>
+    <h2 id="placeFavoritesStart" class="sr-only">お気に入り</h2>
+    <p class="warn save-err" hidden>保存できませんでした。プライベートブラウズか、保存容量がいっぱいの可能性があります。</p>
+    <div id="favUndo"></div>
+    <div class="chips" id="favChips"></div>
+    <div id="favList"></div>
+    <p class="tiny" id="favNotice" role="status" aria-live="polite"></p>
+  </div>
+</dialog>
+
+<!-- 写真から記録する。**原寸は送らない**（小さくした写しと、EXIF の「いつ・どこ」だけ）。
+     採点基準を変えたときに付け直せるよう、そのときの現象と点数を一緒に残す。 -->
+<dialog class="sheet" id="skyMapBodiesSheet" aria-labelledby="skyMapBodiesTitle" tabindex="-1"><div class="sheet-head"><strong id="skyMapBodiesTitle">その他の天体</strong><button type="button" id="skyMapClearExtra" class="chip" aria-label="追加天体の表示を解除" hidden>解除</button><button type="button" id="skyMapBodiesClose">閉じる</button></div><div class="sheet-body sky-map-body-options"><button type="button" id="skyMapExtra-sirius" aria-pressed="false">シリウス</button><button type="button" id="skyMapExtra-mercury" aria-pressed="false">水星</button><button type="button" id="skyMapExtra-venus" aria-pressed="false">金星</button><button type="button" id="skyMapExtra-mars" aria-pressed="false">火星</button><button type="button" id="skyMapExtra-jupiter" aria-pressed="false">木星</button><button type="button" id="skyMapExtra-saturn" aria-pressed="false">土星</button><button type="button" id="skyMapExtra-none" aria-pressed="true">表示しない</button></div></dialog>
+<dialog class="sheet" id="skyMapTargetSheet" aria-labelledby="skyMapTargetTitle" tabindex="-1"><div class="sheet-head"><strong id="skyMapTargetTitle">対象</strong><button type="button" id="skyMapTargetClose">閉じる</button></div><div class="sheet-body"><p id="skyMapTargetCoord" class="tiny"></p><div class="sky-map-point-coordinates"><label>緯度<input type="number" id="skyMapPickLatitude" min="-90" max="90" step="any" inputmode="decimal"></label><label>経度<input type="number" id="skyMapPickLongitude" min="-180" max="180" step="any" inputmode="decimal"></label></div><label>名前<input type="text" id="skyMapPickName" maxlength="100" value="地図で置いた対象"></label><label>地上から（m）<input type="number" id="skyMapPickHeight" min="0" max="1000" step="any" inputmode="decimal"></label><p id="skyMapPickError" class="tiny" role="status"></p><button type="button" class="chip sky-map-use" id="skyMapPickSave">対象にする</button></div></dialog>
+<dialog class="sheet tool-date-calendar" id="aimCalendar" aria-labelledby="aimCalTitle" tabindex="-1">
+  <div class="sheet-head"><strong id="aimCalTitle">重なる日カレンダー</strong><button id="aimCalClose">閉じる</button></div>
+  <div class="sheet-body">
+    <div id="aimCalContext" class="tiny"></div>
+    <div class="aim-cal-nav">
+      <button id="aimCalPrev" class="fav-btn" aria-label="前の月">←</button>
+      <select id="aimCalYear" class="fav-in" aria-label="カレンダーの年"></select>
+      <span class="aim-cal-separator" aria-hidden="true">/</span>
+      <select id="aimCalMonth" class="fav-in" aria-label="カレンダーの月"></select>
+      <button id="aimCalNext" class="fav-btn" aria-label="次の月">→</button>
+    </div>
+    <div class="aim-cal-week" aria-hidden="true"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+    <div id="aimCalGrid" class="aim-cal-grid" role="group" aria-label="日付を選ぶ" aria-busy="false"></div>
+    <div id="aimCalStatus" class="tiny" role="status" aria-live="polite"></div>
+    <div class="aim-cal-foot"><span class="tiny"><span class="nw">● 選択条件に重なる日</span>　<span class="nw">○ 近くを通る日</span></span><button id="aimCalToday" class="fav-btn">今日</button></div>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="photoSheet" aria-labelledby="photoTitle" tabindex="-1">
+  <!-- 閉じるはほかのシートと同じく題名の右に「閉じる」（2026-10-02 ユーザー「この閉じるボタン小さいと思わない？」。小さな ✕ が左上にあった） -->
+  <div class="sheet-head"><strong id="photoTitle">記録を足す</strong><button id="photoClose">閉じる</button></div>
+  <div class="sheet-body">
+  <img id="photoPreview" alt="選んだ写真" class="ph-preview" hidden>
+  <button id="photoChoose" class="fav-btn" style="margin-top:8px">写真を選ぶ</button>
+  <p class="tiny" id="photoMeta" style="margin:6px 0 0;color:var(--tertiary)"></p>
+  <label class="fav-l" for="photoWhen">撮影日時</label>
+  <input type="datetime-local" id="photoWhen" class="fav-in">
+  <label class="fav-l" for="photoWhere">撮影場所<span class="fav-opt">緯度経度・地図のURL</span></label>
+  <input type="text" id="photoWhere" class="fav-in" inputmode="decimal"
+         placeholder="35.6581, 139.7414">
+  <label class="fav-l" for="photoPhenom">何の写真ですか</label>
+  <select id="photoPhenom" class="fav-in"></select>
+  <label class="fav-l" for="photoScore">100点満点で何点でしたか</label>
+  <div class="aim-row">
+    <input type="range" id="photoScore" class="ph-range" min="0" max="100" step="1" value="70"
+           aria-label="点数">
+    <output id="photoScoreOut" class="ph-score">70</output>
+  </div>
+  <label class="fav-l" for="photoNote">メモ<span class="fav-opt">任意</span></label>
+  <input type="text" id="photoNote" class="fav-in" maxlength="120" placeholder="気づいたこと">
+  <p class="warn" id="photoErr" hidden></p>
+  <button id="photoSave" class="fav-btn primary" style="margin-top:16px">保存</button>
+  <!-- 2026-10-16 記録した写真と点数を予報の改善の分析に使うことを、保存する場所で伝える（設計案の未確定事項5） -->
+  <p class="tiny" style="margin:8px 0 0;color:var(--tertiary)">保存した写真と点数は、予報を良くするための分析に使います</p>
+  </div>
+</dialog>
+
+<!-- 地図アプリで開く（2026-10-02）。選べるアプリは端末で変わる（mapAppChoices） -->
+<!-- 衛星を選ぶ（2026-10-21）。ほかの選ぶ画面と同じページの形（見出しの戻る・左の縁のスワイプ・ブラウザの戻る）。
+     初めは「すべて」（6ジャンルを合わせた一覧）、☆でお気に入り（ユーザー「ジャンルを選んでない時によく見る衛星にするのはやめて全表示に。お気に入りつけられるように」）。
+     日本語名は Wikidata（CC0）から作った表 -->
+<dialog class="sheet" id="issPickSheet" aria-labelledby="issPickTitle" tabindex="-1">
+  <div class="sheet-head"><strong id="issPickTitle">衛星を選ぶ</strong><button type="button" id="issPickClose">閉じる</button></div>
+  <div class="sheet-body">
+    <input id="issPickQuery" class="fav-in" type="search" enterkeyhint="search" autocomplete="off" placeholder="名前・衛星番号（ひまわり、HIMAWARI、25544）" aria-label="衛星を名前か番号で探す">
+    <div class="chips iss-pick-groups" id="issPickGroups" role="group" aria-label="ジャンル" style="margin-top:8px"></div>
+    <p class="tiny" id="issPickInfo" role="status"></p>
+    <button type="button" class="fav-btn" id="issPickVisible" hidden>このジャンルで今夜見える衛星を探す</button>
+    <div id="issPickList" class="al" style="margin-top:6px"></div>
+    <button type="button" class="chip" id="issPickMore" hidden>さらに表示</button>
+    <p class="tiny" style="margin-top:10px;color:var(--tertiary)">軌道要素は CelesTrak、日本語名は Wikidata（CC0）から。お気に入りはこの端末に保存します。</p>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="mapAppSheet" aria-labelledby="mapAppTitle" tabindex="-1">
+  <div class="sheet-head"><strong id="mapAppTitle">地図アプリで開く</strong><button id="mapAppClose">閉じる</button></div>
+  <div class="sheet-body">
+    <p class="tiny" id="mapAppCoord"></p>
+    <div id="mapAppList" class="map-app-list"></div>
+    <label class="map-app-remember"><input type="checkbox" id="mapAppRemember">次からもこのアプリで開く</label>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="authSheet" aria-labelledby="authTitle" tabindex="-1">
+  <div class="sheet-head"><strong id="authTitle">ログイン</strong><button id="authClose">閉じる</button></div>
+  <div class="sheet-body">
+    <!-- **1画面に1つの目的だけ置く。** 以前は同じシートに ログイン／新規登録／回復コード を
+         畳んで並べていたが、開くと画面の下端まで伸び、ID欄が3つ同時に存在して
+         パスワード管理アプリの自動入力が狂った。同じダイアログの中で差し替える。 -->
+    <!-- 全ログイン方法で共通の1個。操作を始める前に見える位置へ置く。 -->
+    <label class="remember">
+      <input type="checkbox" id="rememberMe">
+      <span>ログインしたままにする<em>この端末で30日間保持します。<br>共用の端末では外してください</em></span>
+    </label>
+    <div id="panelLogin">
+      <p class="tiny">お気に入りと記録を他の端末でも使えます。</p>
+      <button id="passkeyLogin" class="fav-btn primary" style="margin-top:14px" hidden>パスキーでログイン</button>
+      <p class="tiny" id="passkeyNote" style="margin-top:6px" hidden><span class="nb">Face ID / Touch ID</span> で入れます。</p>
+      <div class="or-line"><span>または</span></div>
+      <label class="fav-l" for="authId">ID</label>
+      <input type="text" id="authId" class="fav-in" autocomplete="username" maxlength="32">
+      <label class="fav-l" for="authPw">パスワード</label>
+      <input type="password" id="authPw" class="fav-in" autocomplete="current-password">
+      <button id="pwLogin" class="fav-btn" style="margin-top:12px">パスワードでログイン</button>
+      <div class="auth-links">
+        <button id="goSignup" class="tap">新規登録</button>
+        <button id="goRecovery" class="tap">アカウントの回復</button>
+      </div>
+    </div>
+
+    <div id="panelSignup" hidden>
+      <button class="auth-back tap" data-back>← ログインにもどる</button>
+      <p class="tiny">好きなIDを決めて登録できます。<strong class="nb">あとから変えられません。</strong></p>
+      <label class="fav-l" for="newId">ID</label>
+      <input type="text" id="newId" class="fav-in" autocomplete="username" maxlength="32">
+      <!-- 「英数字」とだけ書いていたが、実際は . _ - も使え、大文字は小文字になる。
+           規則を全部言わないと、弾かれてから理由を探すことになる。 -->
+      <p class="hint">半角英数と記号で6〜32桁。<span class="nb">使える記号は <b>.</b> <b>_</b> <b>-</b></span><br>
+        1文字目は英字か数字。<br>大文字で入れても小文字になります。</p>
+      <!-- **直した欄の下に出す。** エラーはシートの最下部に1つだけ置いていたが、
+           ID を入れずにパスキーを押すと、指の位置から遠い下端に理由が出ていた
+           （2026-09-22 ユーザー指摘）。**押したボタンのそばに出す**ほうが直せる。 -->
+      <p class="tiny" id="signupLegal">登録すると、<a href="terms.html" target="_blank" rel="noopener">利用規約</a>と<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>に同意したものとします。</p>
+      <p class="warn" id="newIdErr" style="margin-top:8px" hidden></p>
+
+      <!-- **パスキーを先に、主ボタンで出す。** パスワードを作らせてから
+           「あとでパスキーも登録できます」にすると、結局パスワードが残る。
+           覚える秘密をゼロにできるなら、最初から作らせないほうがいい。
+           対応していない端末では丸ごと隠し、これまでどおりパスワードで登録する。 -->
+      <div id="signupPasskeyWay" hidden>
+        <button id="doSignupPasskey" class="fav-btn primary" style="margin-top:14px">パスキーで登録</button>
+        <p class="tiny" style="margin-top:6px"><span class="nb">Face ID / Touch ID</span> で登録します。
+          覚えるパスワードはありません。<br>回復コードを10個お渡しするので、保存してください。</p>
+        <div class="or-line"><span>または</span></div>
+        <button id="showSignupPw" class="tap">パスワードで登録する</button>
+      </div>
+
+      <div id="signupPwWay">
+        <label class="fav-l" for="newPw">パスワード</label>
+        <input type="password" id="newPw" class="fav-in" autocomplete="new-password" maxlength="128">
+        <label class="fav-l" for="newPw2">もう一度</label>
+        <input type="password" id="newPw2" class="fav-in" autocomplete="new-password" maxlength="128">
+        <p class="hint">半角英数と記号で8〜128桁。<span class="nb">使える記号は <b>! # $ % &amp; * + - . = ? @ _</b></span><br>
+          大文字・小文字・記号を1つずつ以上。<br>
+          IDと同じ文字・よくある言葉・連番は使えません。</p>
+        <p class="warn" id="newPwErr" style="margin-top:8px" hidden></p>
+        <button id="doSignup" class="fav-btn primary" style="margin-top:14px">登録して始める</button>
+      </div>
+    </div>
+
+    <!-- 登録の直後に、その場で登録できるようにする。
+         「登録しておくと便利です」と書くだけでは、たいてい誰もやらない。 -->
+    <div id="panelPasskey" hidden>
+      <p class="tiny"><strong>アカウントを作りました。</strong>
+        この端末にパスキーを登録すると、<span class="nb">次から Face ID / Touch ID</span> だけで入れます。</p>
+      <!-- **どちらも選べることが見えるように、両方ボタンで出す。**
+           小さなリンクにすると「登録しろ」と迫っているように見える。 -->
+      <button id="signupPasskey" class="fav-btn primary" style="margin-top:14px">この端末にパスキーを登録</button>
+      <button id="skipPasskey" class="fav-btn" style="margin-top:8px">あとにする</button>
+      <p class="hint">あとからアカウント画面でも登録できます。</p>
+    </div>
+
+    <div id="panelRecovery" hidden>
+      <button class="auth-back tap" data-back>← ログインにもどる</button>
+      <p class="tiny">パスキーもパスワードも使えないときに。
+        <strong class="nb">IDとコードの両方が要ります。</strong>10個あるうちの1つを使い捨てます。</p>
+      <label class="fav-l" for="codeId">ID</label>
+      <input type="text" id="codeId" class="fav-in" autocomplete="username" maxlength="32">
+      <label class="fav-l" for="authCode">回復コード</label>
+      <input type="text" id="authCode" class="fav-in" placeholder="XXXXXXXX-XXXXXXXX-…" autocomplete="off">
+      <button id="codeLogin" class="fav-btn primary" style="margin-top:14px">回復コードでログイン</button>
+      <p class="tiny" style="margin-top:8px">どれも使えないときは、管理者に回復コードの発行を頼んでください。</p>
+    </div>
+
+    <p class="warn" id="authErr" style="margin-top:12px" hidden></p>
+
+
+  </div>
+</dialog>
+
+<dialog class="sheet" id="accountSheet" aria-labelledby="accountTitle" tabindex="-1">
+  <div class="sheet-head"><button type="button" class="panel-back" id="accountBack" aria-label="設定へ戻る"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg></button><strong id="accountTitle">アカウント</strong><button id="accountClose" aria-label="閉じる" title="閉じる"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+  <div class="sheet-body">
+    <div id="accountBody"></div>
+    <p class="warn" id="accountErr" role="alert" style="margin-top:10px" hidden></p>
+    <button id="accountRefreshRetry" class="chip" hidden>最新の情報を再取得</button>
+    <section data-account-view="overview" aria-label="アカウントの設定">
+      <p class="tiny" id="accountAdvice" hidden></p>
+      <h3 class="account-sec">ログイン方法</h3>
+<button type="button" class="list-item account-nav" data-account-open="passkeys"><span>パスキー</span><span class="account-state" id="accountPasskeyState"></span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+      <button type="button" class="list-item account-nav" data-account-open="password"><span>パスワード</span><span class="account-state" id="accountPwState"></span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+      <button type="button" class="list-item account-nav" data-account-open="recovery"><span>回復コード</span><span class="account-state" id="accountCodesState"></span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+      <h3 class="account-sec">ログイン管理</h3>
+<button type="button" class="list-item account-nav" data-account-open="history"><span>ログイン履歴</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+      <button type="button" class="list-item account-nav" data-account-open="sessions"><span>ほかの端末をログアウト</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+      <h3 class="account-sec">サービスについて</h3>
+    <nav id="accountLegal" aria-label="サービスについて"><a class="list-item" href="terms.html" target="_blank" rel="noopener" aria-label="利用規約（新しいタブで開く）"><span>利用規約</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7M21 3l-9 9M10 3H3v18h18v-7"/></svg></a><a class="list-item" href="privacy.html" target="_blank" rel="noopener" aria-label="プライバシーポリシー（新しいタブで開く）"><span>プライバシーポリシー</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7M21 3l-9 9M10 3H3v18h18v-7"/></svg></a></nav>
+
+      <button id="logout" class="fav-remove">ログアウト</button>
+      <button id="deleteAccount" class="fav-remove" style="color:var(--red)">アカウントを削除する</button>
+    </section>
+    <section data-account-view="passkeys" aria-label="パスキーの設定" hidden>
+      <p class="tiny">顔認証や指紋認証などでログインできます。</p>
+      <button id="addPasskey" class="fav-btn">この端末を登録</button>
+      <h3 class="account-sec">登録済みのパスキー</h3>
+      <div id="accountPasskeys"></div>
+    </section>
+    <section data-account-view="password" aria-label="パスワードの設定" hidden>
+      <p id="accountPwDetail"></p>
+      <p id="accountPwRequirement" class="tiny" hidden>パスワードを無効にするには、先にパスキーを登録してください。</p>
+    <div id="enablePwWay" hidden>
+      <p class="tiny" style="margin-top:8px">パスキーを全部失くしたときの備えに。</p>
+      <label class="fav-l" for="newAccPw">パスワード</label>
+      <input type="password" id="newAccPw" class="fav-in" autocomplete="new-password" maxlength="128">
+      <p class="hint">半角英数と記号で8〜128桁。<span class="nb">使える記号は <b>! # $ % &amp; * + - . = ? @ _</b></span><br>
+        大文字・小文字・記号を1つずつ以上。<br>
+        IDと同じ文字・よくある言葉・連番は使えません。</p>
+      <button id="enablePw" class="fav-btn" style="margin-top:10px">このパスワードを使う</button>
+    </div>
+
+      <button id="disablePw" class="fav-btn" hidden>パスワードを無効にする</button>
+    </section>
+    <section data-account-view="recovery" aria-label="回復コードの設定" hidden>
+      <p id="accountCodesDetail"></p>
+      <p class="tiny">パスキーやパスワードが使えないときに、IDとコードでログインできます。</p>
+      <button id="newRecovery" class="fav-btn">回復コードを再発行</button>
+    <div id="recoveryShown" tabindex="-1" aria-live="polite" hidden style="margin:0 0 8px;padding:12px;border-radius:10px;background:var(--sunk)">
+      <div class="tiny" style="font-weight:700">この回復コードは一度しか表示されません</div>
+      <div id="recoveryCode" style="font-family:ui-monospace,monospace;font-size:0.81rem;font-weight:700;margin-top:6px;line-height:1.7;word-break:break-all"></div>
+      <button id="copyCodes" class="fav-btn" style="margin-top:10px">すべてコピー</button>
+      <div class="tiny" style="margin-top:6px">1つずつ使い捨てです。期限はありません。
+        <strong>IDと一緒に</strong>パスワードマネージャへ保存してください。
+        入るときは ID とコードの両方が要ります。</div>
+    </div>
+
+    </section>
+    <section data-account-view="history" aria-label="ログイン履歴" hidden>
+      <p class="tiny">過去30日間のログイン履歴です。身に覚えのないログインがあれば、知らないパスキーを削除し、ほかの端末をログアウトしてください。</p>
+      <div id="loginHistory"><div id="loginHistoryList" aria-live="polite"></div></div>
+      <button id="accountHistoryRetry" class="chip">履歴を再取得</button>
+    </section>
+    <section data-account-view="sessions" aria-label="ほかの端末のログイン" hidden>
+      <p>ほかの端末のログインをまとめて終了できます。</p>
+      <p class="tiny">端末を失くしたときや、身に覚えのないログインがあったときに使えます。この端末はログインしたままです。</p>
+      <button id="logoutAll" class="fav-btn">ほかの端末をログアウト</button>
+    </section>
+  </div>
+</dialog>
+
+<!-- お気に入りの登録。項目は内蔵スポット（spots.js）と同じ形にしてある。
+     地形は飾りではなく、雲海（盆地の底・平地・海岸を除外）と霧氷（平地・海岸を除外）の
+     判定と、鉛直分布を取りに行くかどうかに直接効く。選び方で点数が変わる。 -->
+<dialog class="sheet" id="favSheet" aria-labelledby="favSheetTitle" tabindex="-1">
+  <div class="sheet-head"><strong id="favSheetTitle">お気に入りに登録</strong><button id="favCancel">閉じる</button></div>
+  <div class="sheet-body">
+    <label class="fav-l" for="favName">名前<span class="fav-req">必須</span></label>
+    <input type="text" id="favName" class="fav-in" maxlength="40" autocomplete="off">
+    <p class="warn" id="favNameErr" style="margin-top:5px" hidden>名前を入れてください</p>
+    <div class="tiny" id="favWhere"></div>
+    <details class="tiny fav-where" id="favCoordDetails"><summary>座標</summary><span id="favCoord"></span></details>
+    <button type="button" class="tap" id="favLocationEdit" hidden>地図で位置を変更</button>
+
+    <div id="favTargetBox" hidden>
+      <label class="fav-l" for="favTargetH">重ねる対象の高さ<span class="fav-opt">地上から・m</span></label>
+      <span class="unit-in"><input type="number" id="favTargetH" class="fav-in" inputmode="decimal" min="0" max="1000"><span class="unit" aria-hidden="true">m</span></span>
+    </div>
+
+    <div id="favStandBox" class="fav-height-card">
+    <div class="fav-l">撮影高さ</div>
+    <p id="favEyeNote" class="fav-height-value"></p>
+    <details id="favHeightDetails"><summary>高さを変更</summary>
+    <label class="fav-l" for="favEye">地上からの高さ</label>
+    <select id="favEye" class="fav-in" aria-describedby="favEyeNote"></select>
+    </details>
+    </div>
+
+    <details id="favOptionalDetails" class="fav-extra"><summary>メモ・分類</summary>
+    <label class="fav-l" for="favNote">メモ<span class="fav-opt">任意</span></label>
+    <textarea id="favNote" class="fav-in" rows="2" maxlength="120"
+              placeholder="狙い目の時期、駐車場、注意点など"></textarea>
+
+    <div id="favPhBox">
+    <div class="fav-l" id="favPhLabel">お気に入りの分類<span class="fav-opt">任意</span></div>
+    <p class="tiny">一覧の絞り込み用です。観測記録には追加されません。</p>
+    <div class="chips" id="favPhenomena" role="group" aria-labelledby="favPhLabel"></div>
+    </div>
+
+    </details>
+    <p class="warn save-err" style="margin-top:12px" hidden>保存できませんでした。プライベートブラウズか、保存容量がいっぱいの可能性があります。</p>
+    <button id="favSave" class="fav-btn primary" style="margin-top:20px">保存</button>
+    <button id="favDelete" class="fav-remove" hidden>お気に入りから外す</button>
+  </div>
+</dialog>
+
+<!-- 絶景スポットの一覧は 2026-09-07 に画面から外した（お気に入りを自分で登録する形へ）。
+     spots.js は消していない。test-layout.mjs が直接読んでいるし、戻すときに要る。 -->
+<script src="astronotes-icons.js?v=0"></script>
+<script src="astronotes-core.js?v=0"></script>
+<script src="astronotes-open-location-code.js?v=0"></script>
+<script src="astronotes-plus-code.js?v=0"></script>
+<script src="astronotes-search.js?v=0"></script>
+<script src="astronotes-prediction.js?v=0"></script>
+<script src="astronotes-saved-rounds.js?v=0"></script>
+<script src="astronotes-library.js?v=0"></script>
+<script src="astronotes-target-ui.js?v=0"></script>
+<script src="astronotes-shooting.js?v=0"></script>
+<script src="astronotes-timelapse.js?v=0"></script>
+<script src="astronotes-camera-ui.js?v=0"></script>
+<!-- 月と富士山の可視予測。core とは別にしてある（core の Moon は簡易式で、
+     星空の月明かりが依存している。触らずに足す）。 -->
+<script src="astronotes-astro.js?v=0"></script>
+<script src="astronotes-exif.js?v=0"></script>
+<script src="astronotes-photo-analysis.js?v=0"></script>
+<script src="astronotes-capcloud.js?v=0"></script>
+<script src="astronotes-terrain.js?v=0"></script>
+<script src="astronotes-mountain.js?v=0"></script>
+<script src="astronotes-fuji.js?v=0"></script>
+<script src="astronotes-sky.js?v=0"></script>
+
+<script src="astronotes-history.js?v=0"></script>
+<script src="astronotes-schedule.js?v=0"></script>
+<script src="astronotes-plan.js?v=0"></script>
+<script src="astronotes-routes.js?v=0"></script>
+<script src="astronotes-iss.js?v=0"></script>
+<script src="astronotes-plane.js?v=0"></script>
+<script src="astronotes-refraction.js?v=0"></script>
+<script src="astronotes-atmosphere.js?v=0"></script>
+<script src="astronotes-bodies.js?v=0"></script>
+<script src="astronotes-sky-map.js?v=0"></script>
+
+
+
+<script src="astronotes-assets.js?v=0"></script>
+<script src="astronotes-home-time.js?v=0"></script>
+<script src="astronotes-moon-portrait.js?v=0"></script>
+<script src="astronotes-lunar-names.js?v=0"></script>
+<script src="astronotes-solar-terms.js?v=0"></script>
+<script src="astronotes-sun-portrait.js?v=0"></script>
+<script src="astronotes-body-portrait.js?v=0"></script>
+<script src="astronotes-almanac-dashboard.js?v=0"></script>
+<script src="astronotes-access.js?v=0"></script>
+<script src="astronotes-align.js?v=0"></script>
+<script src="astronotes-moon.js?v=0"></script>
+<script>@@include:src/app/runtime.inc@@</script>
+<script src="astronotes-scroll-timeline.js?v=0"></script>
+<script src="astronotes-datetime-ui.js?v=0"></script>
+<script id="uiVisualPrimitives">@@include:src/ui/visual-primitives.js@@</script>
+<script id="previewPresentation">@@include:src/features/framing/presentation.js@@
+</script><script id="skyMapPresentation">@@include:src/features/explore/map-presentation.js@@</script>
+
+
+<script id="intuitiveControls">@@include:src/ui/intuitive-controls.js@@</script>
+
+
+<script src="astronotes-explore.js?v=0"></script>
+<script id="startupPreference">@@include:src/startup/preferences.js@@</script>
+
+
+<script id="sharedPanelControls">@@include:src/ui/panel-controls.js@@</script>
+<script src="astronotes-shape-planner.js?v=0"></script>
+<script src="astronotes-myplaces.js?v=0"></script>
+<script src="astronotes-journey.js?v=0"></script>
+</body>
+</html>

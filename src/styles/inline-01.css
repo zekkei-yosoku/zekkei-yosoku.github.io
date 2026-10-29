@@ -1,0 +1,5 @@
+
+html[data-startup-pending] main > :not(.masthead):not(#startupStatus){visibility:hidden!important}
+html[data-startup-pending] #startupStatus{display:block!important;visibility:visible}
+/* Forecast improvement belongs below the forecast, immediately before sources. */
+#skyRatingInvite{display:none}main:has(>#listView:not([hidden]))>#skyRatingInvite{display:block}
