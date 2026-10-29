@@ -1,10 +1,10 @@
-// sorami-solar-terms.js を作る（2026-10-19）。
+// astronotes-solar-terms.js を作る（2026-10-19）。
 // 二十四節気・七十二候の境目（太陽の視黄経が5°の倍数になる時刻）を astronomy-engine で前もって計算し、表として持たせる。
 // アプリの低精度の太陽計算（AA 25、0.01°）では節気の時刻が最大14分ずれるため（暦要項2026と比較）、実行時には使わない。
 // 候名・よみ：国立天文台 暦Wiki「季節/七十二候」の「宝暦暦以降」の列と「よみ」
 //   https://eco.mtk.nao.ac.jp/koyomi/wiki/B5A8C0E12FBCB7BDBDC6F3B8F5.html （2025-11-28 更新版を 2026-10-19 に照合）
 // 英語名は国立天文台の資料に無い、一般に使われる英訳。
-// 使い方：node tools/build-solar-terms.mjs  → ルートの sorami-solar-terms.js を書き換える
+// 使い方：node tools/build-solar-terms.mjs  → ルートの astronotes-solar-terms.js を書き換える
 import { createRequire } from 'node:module';
 import { writeFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
@@ -75,9 +75,12 @@ function describe(ms) {
 // 検査用：境目の時刻（黄経と時刻）
 const boundaries = () => MINUTES.map((m, i) => ({ longitude: lonOf(i), at: atOf(i) }));
 const api = Object.freeze({ describe, boundaries, SEKKI, KOU });
-g.SoramiSolarTerms = api;
+g.AstroNotesSolarTerms = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : window);
+
+/* Legacy global names remain aliases for cached integrations. */
+if(typeof AstroNotesSolarTerms!=='undefined')globalThis.SoramiSolarTerms=AstroNotesSolarTerms;
 `;
-writeFileSync(new URL('../sorami-solar-terms.js', import.meta.url), src);
-console.log(`sorami-solar-terms.js: ${minutes.length} boundaries from ${firstLon}°`);
+writeFileSync(new URL('../astronotes-solar-terms.js', import.meta.url), src);
+console.log(`astronotes-solar-terms.js: ${minutes.length} boundaries from ${firstLon}°`);

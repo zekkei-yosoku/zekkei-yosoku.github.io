@@ -6,7 +6,7 @@ process.env.TZ='Asia/Tokyo';
 const c={};vm.createContext(c);
 vm.runInContext(readFileSync(new URL('./trial/astronotes-home-time.js',import.meta.url),'utf8'),c);
 vm.runInContext(readFileSync(new URL('./astronotes-astro.js',import.meta.url),'utf8'),c);
-vm.runInContext(html.slice(html.indexOf('function almanacEvents('),html.indexOf('function routeFromHash()')),c);
+vm.runInContext(html.slice(html.indexOf('function almanacEvents('),html.indexOf("if(typeof document!=='undefined')document.addEventListener('visibilitychange'")),c);
 const day=Date.parse('2026-10-19T00:00:00+09:00'),point={name:'東京',latitude:35.68,longitude:139.76};
 for(const body of ['sun','moon']){
   const events=c.almanacEvents(body,day,point);assert.equal(events.length,2);

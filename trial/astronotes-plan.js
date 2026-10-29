@@ -106,7 +106,9 @@ const AstroNotesPlan = (() => {
     for (const ch of line) { const k=new TextEncoder().encode(ch).length; if(n+k>75){out+=row+'\r\n';row=' ';n=1;} row+=ch;n+=k; }
     return out+row;
   }
-  const dateTime = ms => new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(ms);
+  // Locale and timezone are fixed; reuse the formatter across notebook rows.
+  let dateTimeFormatter;
+  const dateTime = ms => (dateTimeFormatter ||= new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'})).format(ms);
   const localInput = ms => new Date(ms+32400000).toISOString().slice(0,19);
   const inputMs = s => {
     if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(s)) return NaN;

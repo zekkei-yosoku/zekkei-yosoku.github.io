@@ -15,15 +15,16 @@ def emit(target,data):
  expected[target]=data
  if not check:target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data)
 # Only public app runtime assets, never repository metadata or development inputs.
+runtime_assets=set()
 for pattern in ['astronotes-*.js','sorami-*.js','sky-rating*.js','spots.js','*-ui.js','icon-*.png','app-icon-*.png','astronotes-*.png','almanac-*.png','almanac-*.webp','*.css']:
- for f in root.glob(pattern):emit(out/f.name,f.read_bytes())
+ runtime_assets.update(root.glob(pattern))
+for f in sorted(runtime_assets):emit(out/f.name,f.read_bytes())
 tracked=set(subprocess.check_output(['git','ls-files','data','vendor'],cwd=root,text=True).splitlines())
 for name in ['data','vendor']:
  for f in (root/name).rglob('*'):
   if f.is_file() and str(f.relative_to(root)) in tracked:
    emit(out/f.relative_to(root),f.read_bytes())
 s=(root/'index.html').read_text().replace('<title>AstroNotes</title>','<title>AstroNotes 試用版</title>').replace('name="apple-mobile-web-app-title" content="AstroNotes"','name="apple-mobile-web-app-title" content="AstroNotes 試用版"')
-s=s.replace('  <div class="backbar"', '  <div class="backbar"',1)
 idx=s.index('  <div class="masthead">')
 s=s[:idx]+'  <p style="font-size:12px;padding:6px 2px;color:var(--secondary)">試用版 · 本番とアカウント・保存データ共通 <a href="../">本番へ</a></p>\n'+s[idx:]
 emit(out/'index.html',s.encode())

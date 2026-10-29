@@ -63,9 +63,10 @@
     const bins = new Map();
     let nearestKm = Infinity, farthestKm = 0;
     for (const [la, lo, el] of cellsOf(grid, minElevationM)) {
-      const d = TR.distanceKm(observer.latitude, observer.longitude, la, lo);
+      const geodesic = TR.inverse(observer.latitude, observer.longitude, la, lo);
+      const d = geodesic.km;
       if (d < 0.05) continue;                       // 山の上に立っている場合
-      const az = TR.bearing(observer.latitude, observer.longitude, la, lo);
+      const az = geodesic.azimuth;
       const ang = A.targetElevationAngle(d, observer.elevation ?? 0, el, opts);
       const k = Math.round(az / binDeg);
       const cur = bins.get(k);

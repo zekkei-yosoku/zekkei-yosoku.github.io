@@ -42,7 +42,7 @@ test('太陽・月の4表示状態は保存され、非表示でも日時と重�
 });
 test('太陽・月を隠しても選択した別の天体は表示できる',async()=>{
  const f=fixture({saved:{body:'sirius',showSun:false,showMoon:false}});await f.open();assert.equal(f.element('skyMapAngles').children.length,1);assert.match(f.element('skyMapAngles').children[0].textContent,/シリウス/);
- assert.match(html,/sky-map-wrap\.sky-map-wide\{position:fixed;inset:0;/);assert.doesNotMatch(html,/sky-map-wide\{[^}]*inset:64px/);
+ assert.match(html,/astro-map-wrap\.sky-map-wide\{position:fixed!important;inset:0!important;/);assert.doesNotMatch(html,/sky-map-wide\{[^}]*inset:64px/);
 });
 test('日付バーは時刻を保持し、時刻バーは同じ日に戻り、モード切替が保留中スクラブを止める',async()=>{
  const at=Date.parse('2026-12-22T12:34:00+09:00'),f=fixture({saved:{at,targetId:'skytree'}});await f.open();const loads=f.loads;
