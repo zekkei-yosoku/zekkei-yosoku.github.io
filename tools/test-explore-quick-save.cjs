@@ -17,6 +17,15 @@ const sizes=process.env.QUICK_WIDTH?[+process.env.QUICK_WIDTH]:[320,390,1280];
   await p.locator('#exploreConditions').waitFor();await p.evaluate(()=>{aimAirSettings.mode='standard';AstroNotesAtmosphere.configure('standard',aimAirSettings);SkyMapUI.setObserver({name:'Synthetic',latitude:35.583465,longitude:139.568839,groundManualM:83,standAglM:1.5});SkyMapUI.setTarget('skytree');document.getElementById('skyMapBody').value='moon';document.getElementById('skyMapBody').onchange();const at=AstroNotesAlign.dailyView({latitude:35.583465,longitude:139.568839,elevation:84.5},AstroNotesAlign.targetById('skytree'),'moon',Date.parse('2026-10-03T00:00:00+09:00'),{partId:'tip'})[0].at;SkyMapUI.setTime(at);});
   const point=p.locator('#aimView [data-quick-save=place]'),plan=p.locator('#aimView [data-quick-save=plan]');
   await point.waitFor();await p.waitForFunction(()=>{const b=document.querySelector('#aimView [data-quick-save=place]');return b&&!b.disabled;},{timeout:45000});
+  // Editing a sticky collapsed card must reveal its fields, including keyboard use.
+  await p.evaluate(()=>{document.getElementById('exploreConditions').open=false;window.scrollTo(0,600);});
+  const summary=p.locator('#exploreConditions > summary');
+  await summary.click();await p.waitForFunction(()=>document.getElementById('exploreConditions').open&&Math.abs(document.getElementById('skyMapView').getBoundingClientRect().top)<2);
+  assert(await p.locator('#exploreShowResult').isVisible());
+  await p.evaluate(()=>window.scrollTo(0,40));const closeY=await p.evaluate(()=>scrollY);
+  await summary.click();await p.waitForTimeout(100);assert.equal(await p.evaluate(()=>scrollY),closeY);
+  await p.evaluate(()=>window.scrollTo(0,600));await summary.focus();await p.keyboard.press('Enter');
+  await p.waitForFunction(()=>document.getElementById('exploreConditions').open&&Math.abs(document.getElementById('skyMapView').getBoundingClientRect().top)<2);
   await point.scrollIntoViewIfNeeded();await p.waitForFunction(()=>{try{TrialExplore.assertScene();return true}catch{return false}});
   const snap=await p.evaluate(async()=>{
    const h=document.getElementById('aimLook');aimLens.mode='manual';aimLens.focal=200;await aimLookRender(h,h._lookSpec);h.querySelector('[data-lens-center]').click();
