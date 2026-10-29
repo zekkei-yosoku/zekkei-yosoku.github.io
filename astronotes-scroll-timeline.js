@@ -67,22 +67,25 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
  function settle(token){
   if(token!==generation)return;if(!enabled()){stop();return;}
   if(pressed){timer=setTimeout(()=>settle(token),120);return;}
+  // Native scrolling can advance while the main thread delays its scroll event.
+  // Publish that position and wait again rather than stopping a live fling.
+  if(lastScroll&&Math.abs(root.scrollLeft-lastScroll.left)>.1){const time=now();velocity=(root.scrollLeft-lastScroll.left)/Math.max(1,time-lastScroll.time);lastScroll={left:root.scrollLeft,time};moving=true;cancelAnimationFrame(frame);flush();clearTimeout(timer);const next=generation;timer=setTimeout(()=>settle(next),150);return;}
   finish();
  }
  // 止めたら目盛り（1分・1日）へ寄せる。寄せる間も途中を渡し、指を離した瞬間に跳ばせない
  function done(target){setBlend(null);lastAt=target;onChange(target);reset(target,mode);onSettle(target);}
  function finish(){
-  clearTimeout(timer);timer=0;flush();const s=scale(mode),target=advance(anchor,root.scrollLeft-EXTENT,mode),startLeft=root.scrollLeft,endLeft=EXTENT+(target-anchor)/s.step*s.pixels;
+  clearTimeout(timer);timer=0;root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';flush();cancelGlide();clearTimeout(timer);timer=0;const s=scale(mode),target=advance(anchor,root.scrollLeft-EXTENT,mode),startLeft=root.scrollLeft,endLeft=EXTENT+(target-anchor)/s.step*s.pixels;
   if(!Number.isFinite(lastAt)||Math.abs(startLeft-endLeft)<.01){done(target);return;}
   const begin=now();blocked=true;moving=true;snapTarget=target;
   const step=()=>{snapFrame=0;if(!enabled()){stop();return;}const t=Math.min(1,(now()-begin)/160),e=1-(1-t)**3;if(t>=1){done(target);return;}root.scrollLeft=startLeft+(endLeft-startLeft)*e;emit();snapFrame=requestAnimationFrame(step);};
   snapFrame=requestAnimationFrame(step);
  }
  root.addEventListener('scroll',()=>{if(!enabled()){stop();return;}if(blocked||!enabled()||!Number.isFinite(anchor)||Math.abs(root.scrollLeft-EXTENT)<.1&&!moving)return;const time=now();if(lastScroll&&Math.abs(root.scrollLeft-lastScroll.left)>.1)velocity=(root.scrollLeft-lastScroll.left)/Math.max(1,time-lastScroll.time);lastScroll={left:root.scrollLeft,time};moving=true;if(!frame)frame=requestAnimationFrame(flush);clearTimeout(timer);const token=generation;timer=setTimeout(()=>settle(token),150);},{passive:true});
- function activate(kind){if(!enabled())return false;if(tape.style.transform){const at=getAt();reset(at,getMode());}cancelGlide();if(snapFrame)done(snapTarget);velocity=0;inputKind=kind||inputKind;if(!Number.isFinite(anchor))reset(getAt(),getMode());else if(!moving&&Math.abs(root.scrollLeft-EXTENT)>=.1)reset(lastAt,mode);lastScroll={left:root.scrollLeft,time:now()};blocked=false;return true;}
+ function activate(kind){if(!enabled())return false;if(tape.style.transform){const at=getAt();reset(at,getMode());}cancelGlide();if(snapFrame){cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;const token=generation;timer=setTimeout(()=>settle(token),150);}velocity=0;inputKind=kind||inputKind;if(!Number.isFinite(anchor))reset(getAt(),getMode());else if(!moving&&Math.abs(root.scrollLeft-EXTENT)>=.1)reset(lastAt,mode);lastScroll={left:root.scrollLeft,time:now()};blocked=false;return true;}
  root.addEventListener('touchstart',e=>{if(!activate('touch'))return;touching=true;pressed=true;lastTouchMove=e?.timeStamp||0;},{passive:true});
  root.addEventListener('touchmove',e=>{lastTouchMove=e.timeStamp;},{passive:true});
- for(const event of ['touchend','touchcancel'])root.addEventListener(event,e=>{touching=false;pressed=false;if(!enabled()){stop();return;}if(moving&&enabled()&&(!e||event==='touchcancel'||e.timeStamp-lastTouchMove>=120)){root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';finish();}},{passive:true});
+ for(const event of ['touchend','touchcancel'])root.addEventListener(event,e=>{touching=false;pressed=false;if(!enabled()){stop();return;}if(event==='touchcancel'&&moving){clearTimeout(timer);const token=generation;timer=setTimeout(()=>settle(token),150);return;}if(moving&&enabled()&&(!e||e.timeStamp-lastTouchMove>=120)){finish();}},{passive:true});
  root.addEventListener('pointerdown',e=>{if(!activate(e?.pointerType==='mouse'?'mouse':'touch'))return;pressed=true;if(e?.pointerType==='mouse'){mouse={x:e.clientX,left:root.scrollLeft};root.setPointerCapture?.(e.pointerId);e.preventDefault();}});
  root.addEventListener('pointermove',e=>{if(mouse&&enabled())root.scrollLeft=mouse.left+mouse.x-e.clientX;});
  root.addEventListener('wheel',e=>{if(!activate('wheel'))return;if(!e.deltaX&&e.deltaY){e.preventDefault();root.scrollLeft+=e.deltaY;}},{passive:false});

@@ -74,14 +74,14 @@ test('日付/分の線とラベルの原点を幅によらず一致させ、同�
  f.root.listeners.touchstart({timeStamp:1});f.root.scrollLeft+=2048;const before=rgbAt(initial,f.root.scrollLeft+width/2);f.root.listeners.scroll();f.flush();const after=rgbAt(tape.style.backgroundImage,f.root.scrollLeft+width/2);assert.ok(before.every((v,i)=>Math.abs(v-after[i])<.01));const fraction=(f.state.at/60000)%1;assert.ok(Math.abs(parseFloat(tape.style.backgroundPosition)-(4096+width/2-fraction*4))<.00001);f.root.listeners.touchend({timeStamp:500});const settled=rgbAt(tape.style.backgroundImage,4096+width/2);assert.ok(after.every((v,i)=>Math.abs(v-settled[i])<.01));}
 });
 test('慣性中の境界rebaseは速度を引き継ぎ、触り直すと代行慣性を即座に止める',()=>{
- const f=setup();f.state.mode='time';f.controller.sync(f.state.at,'time');f.root.listeners.touchstart({timeStamp:1});f.root.listeners.touchmove({timeStamp:10});f.root.scrollLeft+=2000;f.root.listeners.scroll();f.flush();f.root.listeners.touchend({timeStamp:20});f.flush();f.root.scrollLeft+=80;f.root.listeners.scroll();f.flush();const at=f.state.at;assert.equal(f.root.scrollLeft,4096);f.flush();assert.ok(f.root.scrollLeft>4096);f.root.listeners.scroll();f.flush();assert.ok(f.state.at>at);f.root.listeners.touchstart({timeStamp:100});f.flush();const left=f.root.scrollLeft;for(let i=0;i<10;i++)f.flush();assert.equal(f.root.scrollLeft,left);f.root.listeners.touchcancel({timeStamp:500});for(let i=0;i<12;i++)f.flush();f.settle();assert.equal(f.root.scrollLeft,4096);
+ const f=setup();f.state.mode='time';f.controller.sync(f.state.at,'time');f.root.listeners.touchstart({timeStamp:1});f.root.listeners.touchmove({timeStamp:10});f.root.scrollLeft+=2000;f.root.listeners.scroll();f.flush();f.root.listeners.touchend({timeStamp:20});f.flush();f.root.scrollLeft+=80;f.root.listeners.scroll();f.flush();const at=f.state.at;assert.equal(f.root.scrollLeft,4096);f.flush();assert.ok(f.root.scrollLeft>4096);f.root.listeners.scroll();f.flush();assert.ok(f.state.at>at);f.root.listeners.touchstart({timeStamp:100});f.flush();const left=f.root.scrollLeft;for(let i=0;i<10;i++)f.flush();assert.equal(f.root.scrollLeft,left);f.root.listeners.touchcancel({timeStamp:500});f.settle();for(let i=0;i<12;i++)f.flush();f.settle();assert.equal(f.root.scrollLeft,4096);
 });
 test('時刻モードは動かしている間を連続の時刻で描き、止めたら近い1分へ滑らかに寄せる',()=>{
  const f=setup();f.state.mode='time';f.controller.sync(f.state.at,'time');const at=f.state.at;let settled=null;
  f.root.listeners.touchstart({timeStamp:1});for(let i=1;i<=6;i++){f.root.scrollLeft+=1;f.root.listeners.scroll();f.flush();assert.equal(f.state.at,at+i*15000);}
  f.root.listeners.touchmove({timeStamp:2});f.root.listeners.touchend({timeStamp:500});const steps=[];for(let i=0;i<12;i++){f.flush();steps.push(f.state.at);}
  assert.equal(f.state.at,at+2*60000);assert.equal(f.root.scrollLeft,4096);assert.ok(steps.every((v,i)=>i===0||v>=steps[i-1]));assert.ok(new Set(steps).size>3,'寄せる間も途中の時刻を渡す');
- f.root.listeners.touchstart({timeStamp:600});f.root.scrollLeft+=5;f.root.listeners.scroll();f.flush();f.root.listeners.touchend({timeStamp:900});f.flush();f.root.listeners.touchstart({timeStamp:901});assert.equal(f.state.at,at+3*60000,'寄せている途中で触ると寄せ先で止めてから続ける');assert.equal(f.root.scrollLeft,4096);
+ f.root.listeners.touchstart({timeStamp:600});f.root.scrollLeft+=5;f.root.listeners.scroll();f.flush();f.root.listeners.touchend({timeStamp:900});f.flush();const visible=f.state.at,left=f.root.scrollLeft;f.root.listeners.touchstart({timeStamp:901});assert.equal(f.state.at,visible,'寄せている途中で触り直しても表示中の時刻を変えない');assert.equal(f.root.scrollLeft,left);
 });
 test('日付モードは従来どおり1日単位で、同じ時刻を保つ',()=>{
  const f=setup(),at=f.state.at;f.root.listeners.touchstart({timeStamp:1});f.root.scrollLeft+=10;f.root.listeners.scroll();f.flush();assert.equal(f.state.at,at);f.root.scrollLeft+=4;f.root.listeners.scroll();f.flush();assert.equal(f.state.at,at+DAY);
@@ -130,4 +130,62 @@ test('再生追従は小数msをtransformへ反映し目盛りDOMを保持、停
  const f=setup();f.state.mode='time';f.controller.sync(f.state.at,'time');const tape=f.root.children[0],child=tape.children[0],start=f.state.at;
  for(let i=1;i<=120;i++){f.state.at=start+i*16.625;f.controller.follow(f.state.at,'time');assert.equal(tape.children[0],child);assert.equal(Number(f.root.attrs['aria-valuenow']),f.state.at);}
  assert.match(tape.style.transform,/translateX\(-0\./);const before=f.state.at;f.controller.sync(before,'time');assert.equal(tape.style.transform,'');f.scroll(4);assert.equal(f.state.at,before+60000);
+});
+
+test('目盛りへ寄せる途中の再タッチは、古い停止目標へ時刻を跳ばさない',()=>{
+ for(const mode of ['time','hour','date']){
+  const f=setup();f.state.mode=mode;f.controller.sync(f.state.at,mode);
+  f.scroll(mode==='time'?1.2:7.2);f.settle();f.flush();
+  const visible=f.state.at,changes=f.changes.length,left=f.root.scrollLeft;
+  f.root.listeners.touchstart({timeStamp:200});
+  assert.equal(f.state.at,visible,mode+' must keep the currently displayed instant');
+  assert.equal(f.changes.length,changes,mode+' must not emit an old snap target');
+  assert.equal(f.root.scrollLeft,left,mode+' must keep the ruler under the finger');
+  f.root.listeners.touchmove({timeStamp:210});f.root.scrollLeft+=4;f.root.listeners.scroll();f.flush();
+  f.root.listeners.touchend({timeStamp:500});for(let i=0;i<20;i++)f.flush();f.settle();
+  assert(Number.isFinite(f.state.at));
+ }
+});
+
+test('寄せ途中の短い再タップとマウスクリックだけでも停止処理を完了する',()=>{
+ for(const kind of ['touch','mouse']){let settled=0;const f=setup(240,{onSettle:()=>settled++});f.state.mode='time';f.controller.sync(f.state.at,'time');f.scroll(1.2);f.settle();f.flush();const visible=f.state.at;
+  if(kind==='touch'){f.root.listeners.touchstart({timeStamp:200});f.root.listeners.touchend({timeStamp:201});}
+  else {f.root.listeners.pointerdown({pointerType:'mouse',pointerId:1,clientX:100,preventDefault(){}});f.root.listeners.pointerup();}
+  assert.equal(f.state.at,visible);for(let i=0;i<30;i++){f.settle();f.flush();}assert.equal(f.root.scrollLeft,4096);assert.equal(settled,1);
+ }
+});
+
+test('停止判定で残るnative慣性を止め、blocked後に目盛りだけが動かない',()=>{
+ for(const dx of [4,5]){
+  const f=setup();f.state.mode='time';f.controller.sync(f.state.at,'time');
+  let nativeMoving=true,ox='';Object.defineProperty(f.root.style,'overflowX',{get:()=>ox,set:v=>{ox=v;if(v==='hidden')nativeMoving=false;}});
+  f.root.listeners.touchstart({timeStamp:100});f.root.listeners.touchmove({timeStamp:110});f.root.scrollLeft+=dx;f.root.listeners.scroll();f.flush();f.root.listeners.touchend({timeStamp:120});
+  assert.equal(nativeMoving,true,'指を弾いた直後の慣性は維持');
+  // ネイティブ側は慣性中でも、重い処理などでscrollの通知が150ms空くことがある。
+  f.settle();for(let i=0;i<12;i++)f.flush();
+  const at=f.state.at,left=f.root.scrollLeft;
+  if(nativeMoving){f.root.scrollLeft+=24;f.root.listeners.scroll();f.flush();}
+  assert.equal(f.root.scrollLeft,left,'停止確定後の目盛りをnative慣性だけで動かさない');assert.equal(f.state.at,at);assert.equal(nativeMoving,false);
+ }
+});
+
+test('scroll通知より停止timerが先でも進んだnative位置を捨てず、静止してから確定する',()=>{
+ const f=setup();f.state.mode='time';f.controller.sync(f.state.at,'time');const at=f.state.at;
+ let halted=0,ox='';Object.defineProperty(f.root.style,'overflowX',{get:()=>ox,set:v=>{ox=v;if(v==='hidden')halted++;}});
+ f.root.listeners.touchstart({timeStamp:1});f.root.listeners.touchmove({timeStamp:10});f.root.scrollLeft+=4;f.root.listeners.scroll();f.flush();f.root.listeners.touchend({timeStamp:20});
+ f.root.scrollLeft+=24;f.settle();assert.equal(halted,0,'未通知の慣性移動中は止めない');assert.equal(f.state.at,at+7*60000);
+ f.settle();assert.equal(halted,1);assert.equal(f.root.scrollLeft,4096);assert.equal(f.state.at,at+7*60000);
+});
+test('touchcancelでnative panへ移った場合は即座に止めず、その後の移動を反映する',()=>{
+ const f=setup();f.state.mode='time';f.controller.sync(f.state.at,'time');const at=f.state.at;
+ let halted=0,ox='';Object.defineProperty(f.root.style,'overflowX',{get:()=>ox,set:v=>{ox=v;if(v==='hidden')halted++;}});
+ f.root.listeners.touchstart({timeStamp:1});f.root.scrollLeft+=4;f.root.listeners.scroll();f.flush();f.root.listeners.touchcancel({timeStamp:500});assert.equal(halted,0);assert.equal(f.root.scrollLeft,4100);
+ f.root.scrollLeft+=8;f.root.listeners.scroll();f.flush();assert.equal(f.state.at,at+3*60000);f.settle();assert.equal(halted,1);assert.equal(f.root.scrollLeft,4096);
+});
+
+test('未描画の境界越えを指離しで確定しても、rebaseの停止timerがsnapへ割り込まない',()=>{
+ let settled=0;const f=setup(240,{onSettle:()=>settled++});f.state.mode='time';f.controller.sync(f.state.at,'time');const at=f.state.at;
+ f.root.listeners.touchstart({timeStamp:1});f.root.scrollLeft+=2050;f.root.listeners.scroll();f.root.listeners.touchend({timeStamp:500});
+ f.settle();for(let i=0;i<12;i++)f.flush();f.settle();for(let i=0;i<12;i++)f.flush();
+ assert.equal(f.state.at,at+513*60000);assert.equal(f.root.scrollLeft,4096);assert.equal(settled,1);
 });

@@ -19,7 +19,7 @@ function updateSkyInfo(s){
  try{let text='';if(s.body==='moon'){const moon=AstroNotesAstro.moon(s.at,o);text=moonGlyphAt(s.at,o)+' 輝面 '+Math.round(moon.illuminatedFraction*100)+'% ・ '+esc(lightTimingText(s.at,o));}else if(!AstroNotesBodies.definition(s.body).limbs){text=esc(AstroNotesBodies.sky(AstroNotesAstro.sun(s.at,o).geometricAltitude));}skyInfo.innerHTML=text;skyInfo.hidden=!text;}catch{skyInfoKey='';skyInfo.hidden=true;skyInfo.textContent='';}
 }
 const plan=AstroNotesPlanningSession.create({readRenderState:()=>SkyMapUI.renderState(),clone:v=>structuredClone(v),getAuthGeneration:()=>authGeneration,dayStart:at=>AstroNotesSkyMap.dayStart(at),getAirMode:()=>aimAirSettings.mode,getAtmosphereKey:()=>AstroNotesAtmosphere.dataKey?.(),
- onInvalidate:()=>{look._lookSeq=(look._lookSeq||0)+1;look._planKey=null;if(look._captionTimer){clearTimeout(look._captionTimer);look._captionTimer=0;}}});
+ onInvalidate:(keepScene=false)=>{if(!keepScene)look._lookSeq=(look._lookSeq||0)+1;look._planKey=null;if(look._captionTimer){clearTimeout(look._captionTimer);look._captionTimer=0;}}});
 const stamp=plan.stamp,baseStamp=plan.baseStamp,snapshot=plan.snapshot,invalidate=plan.invalidate;
 // 候補ピンの切替は地図だけに効くので、地図の下（共有の行）へ置く（2026-10-22 ユーザー「候補ピンは下に下ろしてほしい」）
 function placePins(){const row=$('skyMapShareRow'),all=[...document.querySelectorAll('#shootingPins')],t=all.find(x=>x.parentNode!==row)||all[0];if(!t)return;for(const x of all)if(x!==t)x.remove();if(layout.mounted){if(row&&t.parentNode!==row)row.prepend(t);}else{const head=$('mySkyPlaces')?.querySelector('.my-head');if(head&&t.parentNode!==head)head.append(t);}}
@@ -71,22 +71,26 @@ function project(s){
 }
 function reserveScene(){const h=scene.getBoundingClientRect().height;if(h>0)scene.style.minHeight=h+'px';}
 function message(text){status.textContent=text;status.hidden=!text;retry.hidden=!text.includes('再試行');}
+function updateRetainedTime(s){
+ if(plan.frameBase===baseStamp(s)&&!look.hidden&&look._uiTime&&Math.abs(look._lookAt-s.at)>.5)look._uiTime.set(s.at);
+}
 async function paint(force=false){
  if(!active())return;updateConditions();let s;
  try{s=snapshot();updateSkyInfo(s);}catch{updateSkyInfo(null);invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message(!SkyMapUI.selectionState()?.target?'対象を選ぶと見え方を確認できます':'撮影地点を選ぶと見え方を確認できます');return;}
  const key=stamp(s);
  if(mode!=='scene'){if(plan.frameKey&&plan.frameKey!==key)invalidate();return;}
  if(!canFrame(s)){invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message('この条件の見え方を利用する権限がありません');return;}
- if(plan.pendingKey===key&&!force)return;
+ let run=null;
+ try{
+ if(plan.pendingKey===key&&!force){updateRetainedTime(s);return;}
  if(!force&&plan.frameKey===key&&look._uiTime&&!look.hidden){
   if(Math.abs(look._lookAt-s.at)>.5)look._uiTime.set(s.at);
   const cv=look.querySelector('[data-look-canvas]');if(cv&&Math.round(cv.clientWidth)===look._lookW){addSaveAction(look.querySelector('.aim-figure-share'),'aim');updateConditions();message('');return;}
  }
  // 日付だけが変わったときは、前の見え方を出したまま描き直す（2026-10-22 ユーザー「ブラックアウトして全て再読み込みするのはやめて必要な箇所だけの更新で」）
  const soft=!!plan.frameBase&&plan.frameBase===baseStamp(s)&&!look.hidden&&!!look.querySelector('[data-look-canvas]');
- reserveScene();const run=plan.begin(key,soft);project(s);scene.setAttribute('aria-busy','true');
+ reserveScene();run=plan.begin(key,soft);project(s);if(soft)updateRetainedTime(s);scene.setAttribute('aria-busy','true');
  if(!soft){look.hidden=true;scene.dataset.loading='true';message('見え方を計算中…');}
- try{
   await AstroNotesAssets.ensureModels();await AstroNotesBodies.ensure(s.body);
   if(!plan.current(run)||!active()||mode!=='scene'||!plan.matches(key))return;
   if(aimAirEnsure(aim.from,aim.dayMs))return;
@@ -96,8 +100,8 @@ async function paint(force=false){
   if(!plan.current(run)||!active()||mode!=='scene'||!plan.matches(key))return;
   const latest=snapshot();if(Math.abs(look._lookAt-latest.at)>.5)look._uiTime?.set(latest.at);
   plan.commit(key,s);message('');addSaveAction(look.querySelector('.aim-figure-share'),'aim');
- }catch(e){if(plan.current(run)&&active()){look.hidden=true;message('見え方を計算できませんでした。条件を確認して再試行してください');}}
- finally{if(plan.settle(run)){scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');if(!look.hidden)scene.style.minHeight='';updateConditions();}}
+ }catch(e){if((!run||plan.current(run))&&active()){invalidate();look.hidden=true;scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');scene.style.minHeight='';message('見え方を計算できませんでした。条件を確認して再試行してください');updateConditions();}}
+ finally{if(run&&plan.settle(run)){scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');if(!look.hidden)scene.style.minHeight='';updateConditions();}}
 }
 function sync(force=false){
  forceNext=forceNext||force;if(scheduled)return;scheduled=true;

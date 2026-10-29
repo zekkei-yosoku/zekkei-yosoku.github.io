@@ -99,3 +99,6 @@ const view=p=>({epoch:p.epoch,frameKey:p.frameKey,frameBase:p.frameBase,pendingK
  const soft=p.begin(k,true);assert.equal(seen.length,3);assert.equal(p.current(soft),true);
 }
 console.log('planning session ok');
+
+// soft更新だけが既存rendererを維持でき、通常invalidateとhard更新は維持しない。
+{const e=env(),flags=[],p=create({...e.deps,onInvalidate:keep=>flags.push(keep)});const key=p.stamp(p.snapshot()),a=p.begin(key,false);p.commit(key,p.snapshot());p.settle(a);const b=p.begin(key,true);p.invalidate();assert.deepEqual(flags,[false,true,false]);assert.equal(p.current(b),false);}

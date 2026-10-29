@@ -15,9 +15,9 @@
     function snapshot() { return clone(readRenderState()); }
     function stamp(s) { return JSON.stringify([getAuthGeneration(), s.body, s.target, s.observer, s.ground, s.eyeM, s.partId, s.limb, s.matchMode, dayStart(s.at), getAirMode(), getAtmosphereKey()]); }
     function baseStamp(s) { return JSON.stringify([getAuthGeneration(), s.body, s.target, s.observer, s.ground, s.eyeM, s.partId, s.limb, s.matchMode, getAirMode()]); }
-    function invalidate() { epoch++; frameKey = ""; frameBase = ""; pendingKey = ""; if (onInvalidate) onInvalidate(); }
+    function invalidate(keepScene = false) { epoch++; frameKey = ""; frameBase = ""; pendingKey = ""; if (onInvalidate) onInvalidate(keepScene); }
     // soft refreshは前の見え方を残すため、invalidate後もframeBaseを戻す
-    function begin(key, soft) { const keep = frameBase; invalidate(); if (soft) frameBase = keep; pendingKey = key; return epoch; }
+    function begin(key, soft) { const keep = frameBase; invalidate(soft); if (soft) frameBase = keep; pendingKey = key; return epoch; }
     function current(run) { return run === epoch; }
     function matches(key) { return stamp(snapshot()) === key; }
     function commit(key, s) { frameKey = key; frameBase = baseStamp(s); }
