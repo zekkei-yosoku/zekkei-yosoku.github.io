@@ -39,3 +39,8 @@ test('assembled classic scripts reject duplicate lexical declarations across fra
  assert.throws(()=>checkClassicScripts('<script>owner.defineLegacy("authGeneration",0);</script><script>var authGeneration;</script>'),SyntaxError);
  checkClassicScripts(readFileSync(new URL('index.html',import.meta.url),'utf8'));
 });
+
+test('non-generated manifest and image URL versions retain their existing values',()=>{
+ const html=releaseIndex().html;
+ for(const url of ['manifest.json?v=20261015icons2','icon-32.png?v=20261015astro','astronotes-wordmark-rounded-v1-480.png?v=1'])assert(html.includes('"'+url+'"'),url);
+});

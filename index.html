@@ -13,7 +13,7 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="9488912367142346271">
+<meta name="app-version" content="11035290423512491941">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-ITSmDf5j/IMR+3e9cpeZ+HfZO+fd6kFjvfPJeCN1LC0=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-oN6NRhcgYACHjrKnHvxf5am7EI4DFfvnI4OJztYAV0w=' 'sha256-yuuUi8hjHqsSsiYHPpCwlxlbDX7HwY146Bd4U0dAO4c=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-hXH1ODXFhATYuezFokHlWosR6ieNfnWfhlEjYeN/sr8=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
@@ -88,7 +88,7 @@ if(location.hash||location.search||preferred!=='forecast'){document.documentElem
      角丸はOS側が付けるので、画像は正方形いっぱいに描いてある。 -->
 <link rel="apple-touch-icon" sizes="180x180" href="app-icon-180-v2.png">
 <link rel="icon" type="image/png" sizes="32x32" href="app-icon-32-v2.png">
-<link rel="manifest" href="manifest.json?v=0icons2">
+<link rel="manifest" href="manifest.json?v=20261015icons2">
 <meta name="theme-color" content="#c5d3e0">
 <!-- ライト・ダークは <html data-theme> で決める（2026-10-06）。最初の値は描く前にここで入れる。切り替えは本体の script（裏にいる間は替えない） -->
 <script>(()=>{let mode;try{mode=localStorage.getItem('sorami.theme');}catch{}document.documentElement.dataset.theme = mode==='dark'||mode==='light'?mode:matchMedia("(prefers-color-scheme: dark)").matches?'dark':'light';})();</script>
@@ -1651,7 +1651,7 @@ button.ui-icon-button::after { content: none; }
          **押したらホームへ戻る。** どの画面にも出ているので、ここが戻り道になる。
          `alt` は空にする（すぐ隣に「絶景予測」と書いてあるので二度言わせない） -->
     <h1><button id="homeLink" class="tap">
-      <img src="icon-32.png?v=0astro" class="masthead-mark" id="mastheadMark" alt="" width="20" height="20" hidden><img src="astronotes-wordmark-rounded-v1-480.png?v=0" class="masthead-mark" id="mastheadAstroMark" alt="" width="140" height="32"><span id="mastheadName" hidden>AstroNotes</span></button></h1>
+      <img src="icon-32.png?v=20261015astro" class="masthead-mark" id="mastheadMark" alt="" width="20" height="20" hidden><img src="astronotes-wordmark-rounded-v1-480.png?v=1" class="masthead-mark" id="mastheadAstroMark" alt="" width="140" height="32"><span id="mastheadName" hidden>AstroNotes</span></button></h1>
     <!-- ログインは任意。押さなくても予報は全部見られる。
          同期が失敗しているときは、それをここに出す（黙って同期されていないのは
          「黙って消える」と同じ種類の事故）。 -->
