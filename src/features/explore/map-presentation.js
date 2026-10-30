@@ -123,8 +123,9 @@ ctx.lineWidth=1;
   if(entry.error){box.innerHTML='<p class="tiny" role="status">候補日時を計算できませんでした。</p><button type="button" class="fav-btn" data-dates-retry>再試行</button>';box.querySelector('[data-dates-retry]').onclick=()=>{dateEntry=null;renderCandidateDates();};return;}
   if(!entry.rows)return;
   // Timeline movement only updates selection; it does not replace buttons under a finger.
+  // A continuation of the same entry appends to the strip and keeps its scroll position.
   if(box._dateEntry!==entry||box._dateRows!==entry.rows||box._dateMore!==entry.morePromise){
-   box.innerHTML=candidateDatesMarkup(entry.rows,entry,plan,plan.at);box._dateEntry=entry;box._dateRows=entry.rows;box._dateMore=entry.morePromise;
+   if(box._dateEntry!==entry||!candidateDatesAppend(box,entry.rows,entry,plan,plan.at))box.innerHTML=candidateDatesMarkup(entry.rows,entry,plan,plan.at);box._dateEntry=entry;box._dateRows=entry.rows;box._dateMore=entry.morePromise;
    const more=box.querySelector('[data-from-more]');if(more)more.onclick=moreCandidateDates;
    for(const button of box.querySelectorAll('[data-from-day]'))button.onclick=()=>{if(entry.current())setTime(+button.dataset.fromAt);};
   }

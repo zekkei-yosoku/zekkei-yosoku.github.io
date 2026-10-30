@@ -27,3 +27,11 @@ test('実際の日走査は4候補で停止し、cache再利用も同じ未探�
  const rows=await c.aimBuildingDays(...args);assert.equal(rows.length,4);assert.equal(dailyCalls,4);assert.equal(scanned,from+4*D);scanned=0;
  const cached=await c.aimBuildingDays(...args);assert.equal(cached.length,4);assert.equal(dailyCalls,4);assert.equal(scanned,from+4*D);
 });
+test('末尾追加中のsnap停止は利用者のscroll終了でだけ解除し、プログラムのscrollでは戻さない',async()=>{
+ const c={setTimeout,clearTimeout};vm.createContext(c);vm.runInContext(extract('function candidateDatesHoldSnap(','// The selected place'),c);
+ const on=new Map(),strip={style:{scrollSnapType:''},addEventListener:(n,f)=>on.set(n,f),removeEventListener:(n,f)=>{if(on.get(n)===f)on.delete(n);}},fire=n=>on.get(n)?.();
+ c.candidateDatesHoldSnap(strip);assert.equal(strip.style.scrollSnapType,'none');const listeners=on.size;c.candidateDatesHoldSnap(strip);assert.equal(on.size,listeners);
+ fire('scroll');await new Promise(r=>setTimeout(r,200));assert.equal(strip.style.scrollSnapType,'none');
+ fire('wheel');fire('scroll');await new Promise(r=>setTimeout(r,80));fire('scroll');await new Promise(r=>setTimeout(r,80));assert.equal(strip.style.scrollSnapType,'none');
+ await new Promise(r=>setTimeout(r,120));assert.equal(strip.style.scrollSnapType,'');assert.equal(on.size,0);assert.equal(strip._snapHeld,false);
+});

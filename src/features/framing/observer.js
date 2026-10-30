@@ -56,6 +56,7 @@ function aimObserverAt(f, ground) {
 }
 aim.from = aimSavedFrom(store.get("sorami.aimFrom", null)); // 明示的な撮影地点は再読み込みでも保持
 aim.fromSeq = 0;
+aim.fromAppend = false;
 aim.fromGround = null;
 const aimM = (v) => String(Math.round(v * 10) / 10);
 function aimRenderObserverHeight(f, ground) {
@@ -500,7 +501,7 @@ async function aimMoreDays() {
   const entry = aim.fromDays, f = aimFromPoint();
   if (!entry?.rows || entry.morePromise || Date.now() >= entry.until || entry.inputKey !== aimDaysInputKey(f)) return aimRenderFrom();
   const current = () => aim.fromDays === entry && entry.inputKey === aimDaysInputKey(aimFromPoint()) && Date.now() < entry.until;
-  const from = entry.searchedUntil, end = aimCandidatePageEnd(from), previousCount = entry.rows.length;
+  const from = entry.searchedUntil, end = aimCandidatePageEnd(from);
   if (from >= end) return;
   const target = aim.target, body = aim.body, partId = aim.partId, limb = aim.limb, matchMode = aim.matchMode;
   const button = $("aimFrom").querySelector('[data-from-more]');
@@ -515,16 +516,13 @@ async function aimMoreDays() {
     if (!current()) return;
     aimAppendCandidatePage(entry,rows,scanned);
   })();
+  // aimRenderFromが開始時に消費する。trialで描画しなかった時も次の通常描画へ残さない。
+  const renderAppended = async () => { aim.fromAppend = true; try { await aimRenderFrom(); } finally { aim.fromAppend = false; } };
   try { await entry.morePromise; }
-  catch { if (current()) { entry.morePromise = null; await aimRenderFrom(); const retry = $("aimFrom").querySelector('[data-from-more]'); if (retry) retry.textContent = "計算できませんでした。再試行"; } return; }
+  catch { if (current()) { entry.morePromise = null; await renderAppended(); const retry = $("aimFrom").querySelector('[data-from-more]'); if (retry) retry.textContent = "計算できませんでした。再試行"; } return; }
   finally { entry.morePromise = null; }
-  if (current()) {
-    await aimRenderFrom();
-    if (current()) {
-      const added = $("aimFrom").querySelectorAll("[data-from-day]")[previousCount];
-      if (added) added.parentElement.scrollLeft = Math.max(0, added.offsetLeft - 8);
-    }
-  } else if (aim.fromDays === entry) await aimRenderFrom();
+  if (current()) await renderAppended();
+  else if (aim.fromDays === entry) await aimRenderFrom();
 }
 function candidateDatesMarkup(ev, entry, plan, at) {
   const thisYear = new Date(Date.now() + 9 * 3600000).getUTCFullYear();
@@ -543,6 +541,46 @@ function candidateDatesMarkup(ev, entry, plan, at) {
   const more=complete?'<p class="tiny">対応する日付の終わり（2100年）まで探索しました。</p>':`<button type="button" class="fav-btn tiny" data-from-more${entry?.morePromise?' disabled':''}>${entry?.morePromise?'先の候補を計算しています…':'さらに先の候補を探す'}</button>`;
   return scanned+(chips?`<div class="aim-days strip">${chips}</div>`:none)+more;
 }
+// 続きの候補は今の帯の末尾へ足す。帯を作り直すと横位置（待ち中の手動scrollも）と慣性scrollを失う。
+// 既存の釦が新しい並びの先頭と一致しなければ何もせずfalseを返し、呼出側が従来どおり作り直す。
+function candidateDatesAppend(box, ev, entry, plan, at) {
+  const strip = box.querySelector('.aim-days.strip');
+  if (!strip) return false;
+  const t = document.createElement('template');
+  t.innerHTML = candidateDatesMarkup(ev, entry, plan, at);
+  const next = t.content.querySelector('.aim-days.strip'), old = [...strip.querySelectorAll('[data-from-day]')];
+  const fresh = next ? [...next.querySelectorAll('[data-from-day]')] : [];
+  if (!next || old.length > fresh.length || old.some((b, i) => b.dataset.fromAt !== fresh[i].dataset.fromAt)) return false;
+  const before = [], after = [];
+  let seen = false;
+  for (const n of [...t.content.childNodes]) { if (n === next) seen = true; else (seen ? after : before).push(n); }
+  const left = strip.scrollLeft;
+  candidateDatesHoldSnap(strip);
+  for (const n of [...box.childNodes]) if (n !== strip) n.remove();
+  strip.before(...before); strip.after(...after);
+  strip.append(...fresh.slice(old.length));
+  strip.scrollLeft = left;
+  return true;
+}
+// 右端（scrollLeftが上限で止まった位置）では、x proximityのsnapが末尾追加後に先の釦の頭へ再snapして飛ぶ。
+// 追加の間はsnapを止め、利用者自身が次にscrollし終えた時だけ戻す（プログラムのscrollでは戻さない）。
+function candidateDatesHoldSnap(strip) {
+  if (strip._snapHeld) return;
+  strip._snapHeld = true;
+  strip.style.scrollSnapType = 'none';
+  const inputs = ['pointerdown', 'touchstart', 'wheel', 'keydown'];
+  let user = false, timer = 0;
+  const arm = () => { user = true; };
+  const release = () => {
+    for (const name of inputs) strip.removeEventListener(name, arm);
+    strip.removeEventListener('scroll', settle);
+    strip.style.scrollSnapType = '';
+    strip._snapHeld = false;
+  };
+  const settle = () => { if (!user) return; clearTimeout(timer); timer = setTimeout(release, 150); };
+  for (const name of inputs) strip.addEventListener(name, arm, { passive: true });
+  strip.addEventListener('scroll', settle, { passive: true });
+}
 // The selected place is already known; displaying it must not wait for models, weather or terrain.
 function aimRenderSelectedPoint() {
   const f=aimFromPoint();
@@ -559,6 +597,9 @@ function aimRenderSelectedPoint() {
 }
 async function aimRenderFrom() {
   if(globalThis.TrialExplore?.ownsScene?.()??globalThis.TrialExplore?.active()){globalThis.TrialExplore.sync();return;}
+  // aimMoreDaysの直後の1回だけ末尾追加にする。他の描画は従来どおり作り直す。
+  const append = aim.fromAppend === true;
+  aim.fromAppend = false;
   const seq = ++aim.fromSeq;
   const f = aimFromPoint();
   // 地点カードと同じ形: 名前と、住所・標高（標高は読めたら足す）
@@ -611,11 +652,14 @@ async function aimRenderFrom() {
   aim.fromEvents = ev;
   // 横に流す帯（2026-10-03 ユーザー「候補日はプルダウンにしたら？」→ Codex と相談し、4件ほどなら一目で比べて1回で選べる帯）。
   // 釦は日付と側の2段だけ。通り方・動き方は、選んだ日のぶんだけ見え方の図の上の一行に書く。押すとその日（図・日付・地図・候補地）
-  $("aimFrom").innerHTML = candidateDatesMarkup(ev, aim.fromDays, aim, aim.dayMs);
+  // 続きの探索結果は押した時の横位置・選択のまま末尾へ足す（2026-10-30）
+  const appended = append && candidateDatesAppend($("aimFrom"), ev, aim.fromDays, aim, aim.dayMs);
+  if (appended) aimSyncFromDay();
+  else $("aimFrom").innerHTML = candidateDatesMarkup(ev, aim.fromDays, aim, aim.dayMs);
   const moreButton = $("aimFrom").querySelector("[data-from-more]");
   if (moreButton) moreButton.onclick = aimMoreDays;
   // 選んでいる日の釦が見える所まで帯を送る
-  const onChip = $("aimFrom").querySelector('.aim-day[aria-pressed="true"]');
+  const onChip = appended ? null : $("aimFrom").querySelector('.aim-day[aria-pressed="true"]');
   if (onChip) onChip.parentElement.scrollLeft = Math.max(0, onChip.offsetLeft - 8);
   for (const el of $("aimFrom").querySelectorAll("[data-from-day]")) {
     el.onclick = () => {
