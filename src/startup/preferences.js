@@ -71,9 +71,17 @@
   const preferred=get();
   if(initialHash||initialSearch||preferred==='forecast') { applyRoute(); return; }
   if(preferred==='home'){history.replaceState(history.state,'','#/almanac');applyRoute();return;}
-  $("status").hidden=false; $("status").textContent="ログイン状態を確認しています…";
-  await startupSessionReady;
-  $("status").hidden=true;
+  $("startupMessage").textContent="ログイン状態を確認しています…";
+  // A deliberate route change already has its own access checks. Do not keep
+  // that screen hidden behind the old launch request; keep waiting otherwise.
+  await new Promise((resolve,reject)=>{
+   let frame=0,settled=false,forecastChosen=false;
+   const forecast=$("toolsHome"),chooseForecast=()=>{forecastChosen=true;startupInteracted=true;};
+   const finish=(failed=false,error)=>{if(settled)return;settled=true;cancelAnimationFrame(frame);forecast.removeEventListener('click',chooseForecast,true);if(failed)reject(error);else resolve();};
+   const check=()=>{if(settled)return;if(forecastChosen||location.hash!==initialHash||location.search!==initialSearch)finish();else frame=requestAnimationFrame(check);};
+   forecast.addEventListener('click',chooseForecast,true);
+   startupSessionReady.then(()=>finish(),error=>finish(true,error));check();
+  });
   update();
   // Hash routes, shared-plan query parameters and navigation during login are not replaced.
   if(startupInteracted||initialHash||initialSearch||location.hash!==initialHash||location.search!==initialSearch){applyRoute();return;}

@@ -75,7 +75,7 @@
     <button id="backLink" class="tap" aria-label="前の画面へ戻る"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3.5M7.5 3.5 3 8l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>戻る</button>
   </div>
 
-  <p id="startupStatus" class="tiny" role="status" hidden>起動画面を開いています…</p>
+  <div id="startupStatus" class="note-wait" role="status"><span class="note-wait-character" aria-hidden="true"></span><span id="startupMessage" class="note-wait-message">起動画面を開いています…</span></div>
 
   <!-- ☆ は地点ボタンの中へ挿入していたが、button の中の button は不正で、
        読み上げも click の伝播も壊れる。並べて置く。 -->
