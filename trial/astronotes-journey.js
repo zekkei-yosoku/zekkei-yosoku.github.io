@@ -27,7 +27,7 @@ const actions=document.createElement('div');actions.className='journey-actions';
 const resume=document.createElement('button');resume.type='button';resume.className='chip primary';
 const list=document.createElement('button');list.type='button';list.className='chip';list.textContent='予定一覧';actions.append(resume,list);card.append(head,title,detail,actions);
 let shown=null,cardKey='',dismissed='';
-const owner=()=>auth?.token&&toolAllowed('records')?{loginId:auth.loginId,generation:authGeneration}:null;
+const owner=()=>auth?.token&&toolAllowed('records')?{loginId:auth.loginId,generation:accessState.generation}:null;
 let cachedOwner='',cachedRaw=null,cachedRows=[];
 const rows=()=>{const who=owner();if(!who){cachedOwner='';cachedRaw=null;cachedRows=[];return cachedRows;}const key=JSON.stringify(who);let raw;try{raw=localStorage.getItem(AstroNotesSchedule.KEY+encodeURIComponent(who.loginId));}catch{raw=null;}if(key!==cachedOwner||raw!==cachedRaw){cachedRows=schedule().list();cachedRaw=raw;cachedOwner=key;}return cachedRows;};
 const notice=document.createElement('p');notice.id='journeyNotice';notice.className='warn';notice.hidden=true;notice.setAttribute('role','status');
