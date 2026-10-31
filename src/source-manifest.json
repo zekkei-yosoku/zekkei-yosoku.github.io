@@ -1677,7 +1677,6 @@
           "src/features/satellites/controller.js",
           "src/features/framing/candidates.js",
           "src/features/framing/reverse-and-entry.js",
-          "src/ui/gestures.js",
           "src/features/plans/controller.js"
         ],
         "purpose": "既存browser APIの明示adapter",

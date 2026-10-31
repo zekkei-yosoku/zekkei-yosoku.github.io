@@ -22,15 +22,14 @@ document.addEventListener("touchstart", (e) => {
   const open = !$("toolsMenu").hidden && $("toolsMenu").classList.contains("on");
   if (open) {
     if (!e.target.closest("#toolsMenu, #toolsScrim")) return;
-  } else if (t.clientX > SWIPE_EDGE_PX || (isMenuPage() && $("toolsButton").hidden && currentView !== "list") || document.querySelector("dialog[open]")
+  } else if (t.clientX > SWIPE_EDGE_PX || (isMenuPage() && $("toolsButton").hidden) || document.querySelector("dialog[open]")
              || e.target.closest(".mapwrap, canvas, input, select, textarea, .preview-footer-track")) {
     // ☰ が出ていない（使える道具が無い）ときは、なぞっても開かない
     return;
   }
-  const forecastTop = !open && currentView === "list";
-  // 予測一覧の左端は履歴移動ではなく一覧先頭へ。Safariの戻るにも渡さない。
-  if (forecastTop && t.clientX <= 8 && e.cancelable) e.preventDefault();
-  swipe = { x0: t.clientX, y0: t.clientY, t0: e.timeStamp, open, top: forecastTop, back: !open && (forecastTop || !isMenuPage()), active: false, p: open ? 1 : 0 };
+  // 予測一覧は主要ページなのでメニューを開く（2026-10-31 ユーザー「予測一覧の場合はメニュー。予測の詳細の場合は一覧に戻る」）。Safariの戻るに渡さない。
+  if (!open && currentView === "list" && t.clientX <= 8 && e.cancelable) e.preventDefault();
+  swipe = { x0: t.clientX, y0: t.clientY, t0: e.timeStamp, open, back: !open && !isMenuPage(), active: false, p: open ? 1 : 0 };
 }, { passive: false });
 document.addEventListener("touchmove", (e) => {
   if (!swipe || e.touches.length !== 1) return;
@@ -60,10 +59,10 @@ document.addEventListener("touchmove", (e) => {
 }, { passive: true });
 const endSwipe = (e) => {
   if (!swipe || !swipe.active) { swipe = null; return; }
-  const { p, v = 0, open, back, top, dx = 0 } = swipe;
+  const { p, v = 0, open, back, dx = 0 } = swipe;
   swipe = null;
   if (back) {
-    if (e?.type !== "touchcancel" && (dx >= 64 || (dx >= 24 && v > 0.4))) { swipeEndedAt = performance.now(); if(top){listScrollY=0;window.scrollTo(0,0);}else goBack(); }
+    if (e?.type !== "touchcancel" && (dx >= 64 || (dx >= 24 && v > 0.4))) { swipeEndedAt = performance.now(); goBack(); }
     return;
   }
   const menu = $("toolsMenu"), scrim = $("toolsScrim");
