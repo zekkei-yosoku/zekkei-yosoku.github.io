@@ -1,13 +1,25 @@
 /* 探す: portal adapter that moves the existing map/aim DOM into the explore layout and restores it. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesExploreLayout=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
+const DATES_OPEN_KEY='astronotes.exploreDatesOpen';
 function create(deps){
- const {$,node,mapView,aimView,skyInfo,tabs,scene,map,aimState,requestAnimationFrame,getMode,isAimActive,showResult,candidateChosen,addSaveAction,updateConditions,choose,invalidate,placePins,updateSkyInfo}=deps;
+ const {$,node,store,mapView,aimView,skyInfo,tabs,scene,map,aimState,requestAnimationFrame,getMode,isAimActive,showResult,candidateChosen,addSaveAction,updateConditions,choose,invalidate,placePins,updateSkyInfo}=deps;
  let mounted=false,aimHome=null,aimChildren=[],mapHomes=[],buffer=null,workspaceHome=null,heightWasOpen=false,heightFields=null;
  let conditions=null,conditionHomes=[];
+ // Candidate dates live in the fixed time bar so choosing one never scrolls them away from under the finger.
+ function mountDates(candidates){
+  const toggle=node('button',{type:'button',id:'exploreDatesToggle',className:'explore-dates-toggle'});toggle.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';toggle.setAttribute('aria-controls','skyMapDates');
+  const show=open=>{candidates.classList.toggle('dates-collapsed',!open);toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',open?'候補日を折りたたむ':'候補日を開く');};
+  toggle.onclick=()=>{const open=candidates.classList.contains('dates-collapsed');show(open);store.set(DATES_OPEN_KEY,open);};
+  show(store.get(DATES_OPEN_KEY,true)!==false);candidates.prepend(toggle);mapView.querySelector('.sky-map-footer').prepend(candidates);
+ }
+ function unmountDates(){
+  const candidates=mapView.querySelector('.sky-map-candidates');$('exploreDatesToggle').remove();candidates.classList.remove('dates-collapsed');mapView.querySelector('.sky-map-wrap').before(candidates);
+ }
  function mount(){
   if(mounted)return;mounted=true;const aim=aimState();aim.fromSeq++;aim.lookSeq++;heightWasOpen=$('skyMapObserverDetails').open;$('skyMapObserverDetails').open=false;mapView.classList.add('explore-mounted');heightFields=node('div',{id:'exploreHeightFields'});const heights=$('skyMapObserverDetails');for(const row of heights.querySelectorAll('.aim-observer-height')){const value=node('div',{className:'explore-height-value'}),input=row.querySelector('input'),unit=row.querySelector('span');input.before(value);value.append(input,unit);heightFields.append(row);}heights.insertBefore(heightFields,$('skyMapHeightError'));
   const candidates=mapView.querySelector('.sky-map-candidates');candidates.after(skyInfo,tabs,scene,map);
+  mountDates(candidates);
   conditions=node('details',{id:'exploreConditions',className:'explore-conditions',open:true});const summary=node('summary');summary.append(node('span',{id:'exploreConditionTitle'}),node('span',{id:'exploreConditionDetail'}),node('span',{className:'explore-condition-edit'},'条件を編集'));conditions.append(summary);
   // Wait for the native summary action to expand the fields before returning to them.
   summary.addEventListener('click',()=>requestAnimationFrame(()=>{if(mounted&&conditions?.open)mapView.scrollIntoView({block:'start',behavior:'auto'});}));
@@ -30,6 +42,7 @@ function create(deps){
   for(const h of [...conditionHomes].reverse())h.parent.insertBefore(h.n,h.next?.parentNode===h.parent?h.next:null);conditions.remove();conditions=null;conditionHomes=[];mapView.querySelectorAll('.explore-save').forEach(b=>b.remove());
   $('skyMapDates').removeEventListener('click',candidateChosen);
   for(const h of [...mapHomes].reverse())h.parent.insertBefore(h.n,h.next?.parentNode===h.parent?h.next:null);
+  unmountDates();
   for(const child of aimChildren)aimView.append(child);
   buffer.remove();workspaceHome.parent.insertBefore(workspaceHome.node,workspaceHome.next?.parentNode===workspaceHome.parent?workspaceHome.next:null);aimHome.parent.insertBefore(aimView,aimHome.next?.parentNode===aimHome.parent?aimHome.next:null);
   aimView.hidden=!isAimActive();$('previewScene').setAttribute('role','tabpanel');$('previewScene').setAttribute('aria-labelledby','previewSceneTab');

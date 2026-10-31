@@ -138,8 +138,12 @@ ctx.lineWidth=1;
   // Timeline movement only updates selection; it does not replace buttons under a finger.
   // A continuation of the same entry appends to the strip and keeps its scroll position.
   if(box._dateEntry!==entry||box._dateRows!==entry.rows||box._dateMore!==entry.morePromise){
+   const left=box._dateEntry===entry?box.querySelector('.aim-days.strip')?.scrollLeft:null;
    if(box._dateEntry!==entry||!candidateDatesAppend(box,entry.rows,entry,plan,plan.at))box.innerHTML=candidateDatesMarkup(entry.rows,entry,plan,plan.at);box._dateEntry=entry;box._dateRows=entry.rows;box._dateMore=entry.morePromise;
    const more=box.querySelector('[data-from-more]');if(more)more.onclick=moreCandidateDates;
+   // In the time bar the next search sits after the last date: it is reached by scrolling to the end.
+   const strip=box.querySelector('.aim-days.strip');
+   if(more&&strip&&box.closest('.tool-datetime-footer')){strip.append(more);if(Number.isFinite(left))strip.scrollLeft=left;}
    for(const button of box.querySelectorAll('[data-from-day]'))button.onclick=()=>{if(entry.current())setTime(+button.dataset.fromAt);};
   }
   for(const button of box.querySelectorAll('[data-from-day]'))button.setAttribute('aria-pressed',String(S.JstCal.sameDay(+button.dataset.fromDay,plan.at)));

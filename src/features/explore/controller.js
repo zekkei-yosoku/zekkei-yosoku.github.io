@@ -1,5 +1,5 @@
 import {esc} from '../../app/presentation-helpers.js';
-import {SkyMapUI,viewState} from '../../app/browser-state.js';
+import {SkyMapUI,store,viewState} from '../../app/browser-state.js';
 import {lightTimingText,moonGlyphAt} from '../forecast/view.js';
 import {routeFromHash} from '../../app/navigation.js';
 import {aim,aimWithHeights} from '../framing/controller.js';
@@ -62,7 +62,7 @@ function menu(){
  if(combined){f.hidden=true;m.hidden=false;m.dataset.tool='#/explore';m.querySelector('b').lastChild.textContent='探す';m.querySelector('span').textContent='条件を選び、見え方と地図で確かめる';}
  else{f.dataset.tool='#/aim/tower';m.dataset.tool='#/skymap';m.querySelector('b').lastChild.textContent='地図';m.querySelector('span').textContent='撮影地点からの天体の方向と高度を調べる';}
 }
-const layout=AstroNotesExploreLayout.create({$,node,mapView,aimView,skyInfo,tabs,scene,map,aimState:()=>aim,requestAnimationFrame:cb=>requestAnimationFrame(cb),getMode:()=>mode,isAimActive:()=>viewState.aim,
+const layout=AstroNotesExploreLayout.create({$,node,store,mapView,aimView,skyInfo,tabs,scene,map,aimState:()=>aim,requestAnimationFrame:cb=>requestAnimationFrame(cb),getMode:()=>mode,isAimActive:()=>viewState.aim,
  showResult,candidateChosen,addSaveAction,updateConditions,choose,invalidate,placePins,updateSkyInfo});
 function choose(next,focus=false){
  mode=next==='map'?'map':'scene';
@@ -72,7 +72,8 @@ function choose(next,focus=false){
  else sync();
 }
 sceneTab.onclick=()=>choose('scene');mapTab.onclick=()=>choose('map');
-function candidateChosen(e){if(e.target.closest('[data-from-day]'))showResult();}
+// Only the first choice has to reveal the result; after that the page stays where the user put it.
+function candidateChosen(e){if(e.target.closest('[data-from-day]')&&layout.conditions?.open)showResult();}
 tabs.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();choose(e.key==='Home'?'scene':e.key==='End'?'map':mode==='scene'?'map':'scene',true);};
 function project(s){
  aim.target=aimWithHeights(s.target);aim.body=s.body;aim.from=aimSavedFrom(s.observer);aim.dayMs=AstroNotesSkyMap.dayStart(s.at);aim.partId=s.partId;aim.limb=s.limb;aim.matchMode=s.matchMode||'overlap';
