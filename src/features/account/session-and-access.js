@@ -22,6 +22,8 @@ const TOKEN_KEY = "sorami.token";
 
 const accessGenerationOwner = AstroNotesStateOwner.create(globalThis);
 accessGenerationOwner.defineLegacy("authGeneration", 0);
+// 次の配信（互換層の撤去）の資産を、キャッシュに残ったこのHTMLでも動かすための受け口。撤去と同時に消す
+const accessState = { get generation() { return authGeneration; } };
 let auth = null;                                   // { token, loginId, role }
 let accessCheckedAt = 0;                           // 最後に /me で権限を確かめた時刻（recheckAccess）
 

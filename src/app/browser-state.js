@@ -133,6 +133,8 @@ let almanacPoint = null, almanacTimeline = null, almanacScrub = 'date', almanacD
 let almanacDay = AstroNotesHomeTime.start(Date.now());
 viewStateOwner.defineLegacy("atRecords", false);   // 記録画面を見ているか
 viewStateOwner.defineLegacy("atAdmin", false);     // 管理者画面を見ているか
+// 次の配信（互換層の撤去）の資産を、キャッシュに残ったこのHTMLでも動かすための受け口。撤去と同時に消す
+const viewState = { get skyMap() { return atSkyMap; }, get aim() { return atAim; }, get records() { return atRecords; } };
 let listScrollY = 0;     // 一覧へ戻ったときに元の位置へ戻す
 
 let bundle = null;       // 取得済みの予報
