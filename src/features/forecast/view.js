@@ -227,7 +227,7 @@ async function loadExtras() {
   if (!days.length) return;
 
   // ---- 月。地形の地平線は、月が出入りする方角だけ測る
-  if (!moonHorizon) {
+  if (!moonTerrainProfile) {
     let fn = () => 0;
     try {
       // 全周を1度刻みで測る。
@@ -247,7 +247,10 @@ async function loadExtras() {
 
       fn = AstroNotesTerrain.combinedHorizon({ terrain: prof });
       moonTerrainProfile = prof;
-    } catch { /* 測れなくても平らな地平線で出す。**黙って消さない** */ }
+    } catch {
+      // 測れなくても平らな地平線で出す。**黙って消さない**。測れたら差し替える
+      if (seq === extraSeq) extrasRetry.schedule();
+    }
     if (seq !== extraSeq) return;
     moonHorizon = fn;
   }
@@ -302,6 +305,7 @@ async function loadExtras() {
     catch { /* Geometry may be unavailable. */ }
     if (seq !== extraSeq) return;
     fujiGeom = resolved;
+    if (!resolved) extrasRetry.schedule();
   }
   // 地形で見えないなら行ごと出さない。「見えません」を14日ぶん並べても邪魔なだけ
   if (!fujiGeom || !fujiGeom.available || fujiGeom.classification === "NONE") { delete weeks.fuji; delete weeks.capCloud; return; }

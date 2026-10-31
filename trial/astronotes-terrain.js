@@ -195,7 +195,7 @@
       const img = new Image();
       let finished = false;
       const finish = (value) => { if (!finished) { finished = true; clearTimeout(timer); resolve(value); } };
-      const timer = setTimeout(() => finish(null), 8000);
+      const timer = setTimeout(() => finish(null), TILE_TIMEOUT_MS);
       img.crossOrigin = "anonymous";
       img.onload = () => {
         try {
@@ -215,6 +215,20 @@
   const TILE_MEM = 240;                      // 手元に持つ画素（1枚 約260KB）。古いものから手放し、要れば保存領域から読み直す
   // 標高タイルの無い升目（404＝陸の無い外洋）。水の判定で、海と分かっている所へ水域タイルを取りに行かないために憶える
   const demMissing = new Set();
+  /*
+   * タイルの通信は同時に数枚まで。時間切れは本文の受信まで含めて、順番が来てから数える。
+   * 2026-10-31 まで制限が無く、低速回線（1.6Mbps）では77枚が同時に流れて本文の途中で8秒を超えた。
+   * 地平線の測定ごと失敗して、富士山の行が出ず、月は平らな地平線のままになっていた。
+   */
+  const TILE_PARALLEL = 8;
+  const TILE_TIMEOUT_MS = 20000;
+  let tileActive = 0;
+  const tileWaiting = [];
+  async function tileLimited(fn) {
+    while (tileActive >= TILE_PARALLEL) await new Promise((ok) => tileWaiting.push(ok));
+    tileActive++;
+    try { return await fn(); } finally { tileActive--; const next = tileWaiting.shift(); if (next) next(); }
+  }
   /// タイルを1枚読む。**同じタイルは二度取りに行かない**（この画面でも、次に開いたときも）。
   /// layer は国土地理院の標高タイルの種類（既定は10mメッシュの dem_png）
   function loadTile(z, x, y, layer = "dem_png") {
@@ -238,9 +252,15 @@
           }
         } catch { cache = null; }       // 保存領域が使えなくても、取得は止めない
       }
-      if (!cache || typeof fetch !== "function") return loadTileByImage(url);
+      if (!cache || typeof fetch !== "function") return tileLimited(() => loadTileByImage(url));
+      return tileLimited(async () => {
       let res = null;
-      try { res = await fetch(url, { mode: "cors", signal: global.AbortSignal?.timeout(8000) }); } catch { return loadTileByImage(url); }
+      try { res = await fetch(url, { mode: "cors", signal: global.AbortSignal?.timeout(TILE_TIMEOUT_MS) }); }
+      catch (e) {
+        // 時間切れはタイルが無いのとは違う。下の層へ落とすと粗い値で測り、富士山の見え方として憶えてしまう
+        if (e?.name === "TimeoutError") throw e;
+        return loadTileByImage(url);
+      }
       if (!res.ok) {                    // 海など、タイルの無い区画は 404
         if (res.status === 404) {
           demMissing.add(key);
@@ -260,8 +280,11 @@
         pruneDemCache(cache);
       } catch { /* 容量超過など。使い回せないだけで、今回の結果は返す */ }
       return img;
+      });
     })();
     tiles.set(key, p);
+    // 失敗を憶えない。憶えると、同じ画面の次の測定まで試さずに失敗する
+    p.catch(() => { if (tiles.get(key) === p) tiles.delete(key); });
     while (tiles.size > TILE_MEM) tiles.delete(tiles.keys().next().value);
     return p;
   }
