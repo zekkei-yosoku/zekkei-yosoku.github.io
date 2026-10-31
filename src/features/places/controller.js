@@ -124,6 +124,7 @@ let favDraft = null;   // 編集中のお気に入り。index が -1 なら新�
 let favUndo = [];      // 消したものを戻すための控え。地点シートを閉じるまで持つ。
 let favMapReturn = false; // 位置変更の地図を閉じたら編集フォームへ戻す
 
+let favFilter = null;   // 地点の絞り込み（画面を開いている間だけ）
 function renderSheet() {
   // 消した直後の取り消し。数秒で消えるトーストにすると、押す前に消えて戻せない。
   $("favUndo").innerHTML = favUndo.map((u, i) =>
@@ -142,7 +143,7 @@ function renderSheet() {
 
   const tagged = [...new Set(favorites.flatMap((f) => f.phenomena || []))]
     .filter((p) => S.PHENOMENA[p]).sort((a, b) => S.PHENOMENA[a].order - S.PHENOMENA[b].order);
-  const filter = tagged.includes(window._favFilter) ? window._favFilter : (window._favFilter = null);
+  const filter = tagged.includes(favFilter) ? favFilter : (favFilter = null);
   // 絞り込み中はチップを必ず出す。タグが1種類に減ったからと隠すと、
   // 絞り込みだけ残ってタグ無しの地点が見えなくなる。
   $("favChips").innerHTML = tagged.length > 1 || filter
@@ -150,7 +151,7 @@ function renderSheet() {
       + tagged.map((p) => `<button class="${filter === p ? "on" : ""}" aria-pressed="${filter === p}" data-chip="${p}">${S.PHENOMENA[p].name}</button>`).join("")
     : "";
   for (const el of $("favChips").querySelectorAll("[data-chip]")) {
-    el.onclick = () => { window._favFilter = el.dataset.chip || null; renderSheet(); };
+    el.onclick = () => { favFilter = el.dataset.chip || null; renderSheet(); };
   }
 
   const shown = favorites.map((f, i) => ({ f, i }))

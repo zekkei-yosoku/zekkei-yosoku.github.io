@@ -1,6 +1,6 @@
 
 "use strict";
-const S = window.AstroNotes;
+const S = AstroNotes;
 const $ = (id) => document.getElementById(id);
 // シングルクォートも落とす。いまは属性を全部ダブルクォートで囲んでいるので
 // 実害は無いが、あとで `id='${...}'` と書いた誰か（自分）がそこで破る。

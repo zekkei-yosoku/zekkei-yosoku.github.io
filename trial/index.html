@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="2518026334810674815">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-5ov7s2iIm8dUOY/kKQLWXaKfMAqQ2noOTcsMHFnuKRw=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-AYIpUtS+i/kXA9eO93HawDaW7IR7TGxWrl5nMGYDKmE=' 'sha256-okx7zuxTyw5L/vVqNMEs9neeLRNC8JGOVMq+Lzr6BR8=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-wy58pa7yIe7Hvjp/V4YhEleE4bpkwFLt4L7e5QgUNgk=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="13772609139199309215">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-lUtMGwIU/VB6AAHnl/tcHDaWWj5mRUmCSpRWtGRAqyk=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-AYIpUtS+i/kXA9eO93HawDaW7IR7TGxWrl5nMGYDKmE=' 'sha256-okx7zuxTyw5L/vVqNMEs9neeLRNC8JGOVMq+Lzr6BR8=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-wy58pa7yIe7Hvjp/V4YhEleE4bpkwFLt4L7e5QgUNgk=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -2634,7 +2634,7 @@ button.ui-icon-button::after { content: none; }
 <script src="astronotes-moon.js?v=6882039214904825134"></script>
 <script>
 "use strict";
-const S = window.AstroNotes;
+const S = AstroNotes;
 const $ = (id) => document.getElementById(id);
 // シングルクォートも落とす。いまは属性を全部ダブルクォートで囲んでいるので
 // 実害は無いが、あとで `id='${...}'` と書いた誰か（自分）がそこで破る。
@@ -5953,6 +5953,7 @@ let favDraft = null;   // 編集中のお気に入り。index が -1 なら新�
 let favUndo = [];      // 消したものを戻すための控え。地点シートを閉じるまで持つ。
 let favMapReturn = false; // 位置変更の地図を閉じたら編集フォームへ戻す
 
+let favFilter = null;   // 地点の絞り込み（画面を開いている間だけ）
 function renderSheet() {
   // 消した直後の取り消し。数秒で消えるトーストにすると、押す前に消えて戻せない。
   $("favUndo").innerHTML = favUndo.map((u, i) =>
@@ -5971,7 +5972,7 @@ function renderSheet() {
 
   const tagged = [...new Set(favorites.flatMap((f) => f.phenomena || []))]
     .filter((p) => S.PHENOMENA[p]).sort((a, b) => S.PHENOMENA[a].order - S.PHENOMENA[b].order);
-  const filter = tagged.includes(window._favFilter) ? window._favFilter : (window._favFilter = null);
+  const filter = tagged.includes(favFilter) ? favFilter : (favFilter = null);
   // 絞り込み中はチップを必ず出す。タグが1種類に減ったからと隠すと、
   // 絞り込みだけ残ってタグ無しの地点が見えなくなる。
   $("favChips").innerHTML = tagged.length > 1 || filter
@@ -5979,7 +5980,7 @@ function renderSheet() {
       + tagged.map((p) => `<button class="${filter === p ? "on" : ""}" aria-pressed="${filter === p}" data-chip="${p}">${S.PHENOMENA[p].name}</button>`).join("")
     : "";
   for (const el of $("favChips").querySelectorAll("[data-chip]")) {
-    el.onclick = () => { window._favFilter = el.dataset.chip || null; renderSheet(); };
+    el.onclick = () => { favFilter = el.dataset.chip || null; renderSheet(); };
   }
 
   const shown = favorites.map((f, i) => ({ f, i }))

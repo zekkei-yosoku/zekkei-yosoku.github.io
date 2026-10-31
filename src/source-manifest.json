@@ -973,18 +973,6 @@
     ],
     "globalObjectReferences": [
       {
-        "name": "AstroNotes",
-        "category": "existing-public-bridge",
-        "owner": [
-          "astronotes-core.js"
-        ],
-        "readers": [
-          "src/app/presentation-helpers.js"
-        ],
-        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
-        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
-      },
-      {
         "name": "AstroNotesAlmanacDashboard",
         "category": "existing-public-bridge",
         "owner": [
@@ -1191,18 +1179,6 @@
           "src/features/framing/presentation.js",
           "src/features/explore/map-presentation.js",
           "src/features/explore/controller.js"
-        ],
-        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
-        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
-      },
-      {
-        "name": "_favFilter",
-        "category": "existing-public-bridge",
-        "owner": [
-          "src/features/places/controller.js"
-        ],
-        "readers": [
-          "src/features/places/controller.js"
         ],
         "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
         "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
