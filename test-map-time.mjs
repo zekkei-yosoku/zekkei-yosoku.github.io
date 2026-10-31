@@ -15,7 +15,7 @@ test('日時は下部固定欄に集約し、見え方と撮影地で同じ時�
 });
 test('E79 総点検で見つけた下部欄まわりの不具合を戻さない',()=>{
  const p=h.slice(h.indexOf('<script id="previewPresentation">')),css=h.slice(h.indexOf('<style id="previewStyles">'),h.indexOf('</style></head>'));
- assert.match(h,/e\.target\.closest\("\.mapwrap, canvas, input, select, textarea, \.preview-footer-track"\)/,'時間バーの左端からなぞってもメニューを開かない');
+ assert.match(h,/e\.target\.closest\("\.mapwrap, canvas, input, select:not\(#sortSelect\), textarea, \.preview-footer-track"\)/,'時間バーの左端からなぞってもメニューを開かない');
  assert.match(p,/root\.addEventListener\('focusin',e=>e\.target\.toggleAttribute\('data-pointer-focus',!keyNav\)\)/,'天体・目標の選択から戻っても青枠を出さない');
  assert.match(css,/#aimView button\[data-pointer-focus\]:focus\{outline:none\}/);
  assert.match(p,/if\(\(!state\|\|look\.hidden\)&&clock\.value\)clock\.value='';/,'図が無い時に前の時刻を残さない');
