@@ -1,3 +1,4 @@
+import './tools/test-owner-adapter.mjs';
 /*
  * レイアウトの回帰テスト。
  * 一度踏んだ構造上のバグを、CSS を触るたびに再発させないため。
@@ -76,7 +77,7 @@ ok(/const view = VIEWS\.find\(\(v\) => v\.on\(\)\)\.id/.test(html), "出す画�
 ok(/for \(const v of VIEWS\) \$\(v\.el\)\.hidden = v\.id !== view/.test(html), "ほかは全部隠す");
 {
   // 以前の書き方（条件を書き足す形）が残っていないこと
-  const bad = /atPlane && !inDetail/.test(html);
+  const bad = /viewState.plane && !inDetail/.test(html);
   ok(!bad, "条件を書き足す形が残っていない");
   const views = html.slice(html.indexOf("const VIEWS = ["), html.indexOf("];", html.indexOf("const VIEWS = [")));
   for (const id of ["detail", "admin", "records", "aim", "plane", "list"]) {
@@ -112,7 +113,7 @@ ok(!/ログインし直せば戻ります/.test(html), "消える話も書かな
 // **どの画面でも出す。** 画面を移ったり、ログインの復帰が遅れたりしても消えない
 ok(/renderTools\(\);\s*\n\s*renderDeckRow\(\)/.test(html), "描き直しのたびに見直す");
 // A bounded access request is created after rendering the saved session.
-{const restore=html.slice(html.indexOf('async function restoreSession('),html.indexOf('/// ログインできたとき'));ok(restore.indexOf('renderAuthButton();')<restore.indexOf('await apiCall("GET", "/me"'), "/me を待たずに出す");}
+{const restore=html.slice(html.indexOf('async function restoreSession('),html.indexOf('/// ログインできたとき'));ok(restore.indexOf('renderAuthButton();')<restore.indexOf('await apiTransport("GET", "/me"'), "/me を待たずに出す");}
 ok(/aria-haspopup="true"/.test(html) && /role="dialog" aria-modal="true"/.test(html),
   "開閉を読み上げへ伝える");
 // 引き出しの作り（正本: 04_デザイン定義「4-4. 道具のメニュー（引き出し）」）
@@ -148,7 +149,7 @@ ok(/void \$\("toolsMenu"\)\.offsetWidth/.test(html), "次のフレームを待�
   // 絶景予測への入口（2026-10-15 名称を「絶景予測」に統一）
   ok(menu.indexOf('id="almanacMenu"') < menu.indexOf('id="toolsHome"') && /<b>(<svg[^>]*>.*?<\/svg>)?ホーム<\/b>/.test(menu), "メニューの先頭にホーム、その次に予測");
   ok(!/id="toolsHome"[^>]*data-(tool|id)=/.test(menu), "一覧は道具ではない（許可・管理画面の名前に混ぜない）");
-  ok(/\$\("toolsHome"\)\.onclick = \(\) => \{ closeTools\(\); goList\(\); \};/.test(html), "押すと題名と同じく、何画面進んでいても1回で一覧へ");
+  ok(/\$\("toolsHome"\)\.onclick = \(\) => \{ closeTools\(\); navigationHistory.goList\(\); \};/.test(html), "押すと題名と同じく、何画面進んでいても1回で一覧へ");
   ok(/if \(!routeFromHash\(\) \|\| routeFromHash\(\)\.answers\) \$\("toolsHome"\)\.setAttribute\("aria-current", "page"\);\s+else \$\("toolsHome"\)\.removeAttribute\("aria-current"\);/.test(html),
     "一覧と、その中の予測の振り返りにいるときは「予測」に帯");
   ok(/if \(focus\) \$\("toolsHome"\)\.focus\(\);/.test(html), "☰ で開いたら、いちばん上の項目へ焦点");
@@ -1106,7 +1107,7 @@ ok(/addEventListener\("hashchange"/.test(html), "hashchange を見ている");
 // 2026-10-01: 題名だけでは戻れると気づけない（ユーザー「一覧に戻るボタンはあった方がいい」）。
 // 一覧以外の画面では、題名の帯のすぐ下に「← 戻る」を出す。どの画面でも同じ左上で、カードのあいだに浮かない。
 ok(/id="homeLink"/.test(html), "一覧では題名が戻り道");
-ok(/\$\("homeLink"\)\.onclick = \(\) => \{ closeTools\(\);[^\n]*pushRoute\("#\/almanac"\)/.test(html),
+ok(/\$\("homeLink"\)\.onclick = \(\) => \{ closeTools\(\);[^\n]*navigationHistory.pushRoute\("#\/almanac"\)/.test(html),
   "題名を押すとホームへ戻る（引き出しも閉じる）");
 {
   // 2026-10-01 ユーザー「☰ と絶景予測の下にいい感じに。ボタンみたいに囲わなくていい。←戻る でいい」
@@ -1116,7 +1117,7 @@ ok(/\$\("homeLink"\)\.onclick = \(\) => \{ closeTools\(\);[^\n]*pushRoute\("#\/a
   ok(/aria-hidden="true"><path d="M13 8H3\.5M7\.5 3\.5 3 8l4\.5 4\.5"[^>]*\/><\/svg>戻る<\/button>/.test(html), "文字は「← 戻る」");
   ok(!/#backLink \{[^}]*(background|border)/.test(code), "囲わない（地も枠も付けない）");
   ok(/\$\("backBar"\)\.hidden = isMenuPage\(\);/.test(html), "メニューの主要ページでは戻るを隠す");
-  ok(/\$\("backLink"\)\.onclick = \(\) => \{ closeTools\(\); goBack\(\); \}/.test(html), "ひとつ前の画面へ戻る");
+  ok(/\$\("backLink"\)\.onclick = \(\) => \{ closeTools\(\); navigationHistory.goBack\(\); \}/.test(html), "ひとつ前の画面へ戻る");
   ok(/  if \(\(history\.state && history\.state\.depth\) > 0\) history\.back\(\);\s+else goList\(\);\n\s*\}/.test(html),
     "前がアプリの中に無ければ（URL を直接開いた画面）一覧へ");
   ok(!/\.masthead h1"\)\.hidden/.test(html), "題名は隠さない");
@@ -1126,11 +1127,11 @@ ok(!/一覧にもどる<\/button>/.test(html), "画面ごとに戻るボタン�
 ok(!/pushedCount/.test(html), "進めた回数を変数で数えない");
 ok(/history\.pushState\(\{ depth \}, "", hash\)/.test(html), "履歴そのものに何画面目かを持たせる");
 ok(/if \(depth > 0\) \{ toListAfterBack = true; history\.go\(-depth\); return; \}/.test(html), "何画面進んでいても一度で一覧へ戻る");
-ok(!/location\.hash = /.test(html), "画面を進めるのは pushRoute だけ（深さを持たない履歴を作らない）");
+ok(!/location\.hash = /.test(html), "画面を進めるのは navigationHistory.pushRoute だけ（深さを持たない履歴を作らない）");
 {
   // ホーム画面に置いた iPhone のアプリでは履歴を積まない（2026-10-02 ユーザー「縁を内側にスライドさせたら、戻る・進むを無効化しないと
-  // メニューが開かないことあるぞ」）。偽の history・location で、pushRoute・goBack・goList を実際に動かす
-  ok(/const NO_HISTORY = navigator\.standalone === true;/.test(html), "iPhone のホーム画面のアプリだけ（navigator.standalone）");
+  // メニューが開かないことあるぞ」）。偽の history・location で、navigationHistory.pushRoute・navigationHistory.goBack・navigationHistory.goList を実際に動かす
+  ok(/noHistory: navigator\.standalone === true,/.test(html), "iPhone のホーム画面のアプリだけ（navigator.standalone）");
   const run = (noHistory) => {
     const log = [];
     const loc = { hash: "", pathname: "/", search: "" };
@@ -1156,8 +1157,8 @@ ok(!/location\.hash = /.test(html), "画面を進めるのは pushRoute だけ�
   ok(b.log.filter((x) => x === "push").length === 2 && b.r.trail.length === 0, "Safari のタブでは今までどおり履歴を積む（Safari の戻るボタン）");
   b.r.goBack();
   ok(b.log.at(-1) === "back", "Safari のタブの「← 戻る」は履歴をひとつ戻す");
-  ok(/document\.addEventListener\("click", \(e\) => \{\s+const a = e\.target\.closest && e\.target\.closest\('a\[href\^="#\/"\]'\);[\s\S]{0,200}pushRoute\(a\.getAttribute\("href"\)\);/.test(html),
-    "アプリの中のリンク（#/capCloud など）も pushRoute で進める");
+  ok(/document\.addEventListener\("click", \(e\) => \{\s+const a = e\.target\.closest && e\.target\.closest\('a\[href\^="#\/"\]'\);[\s\S]{0,200}navigationHistory.pushRoute\(a\.getAttribute\("href"\)\);/.test(html),
+    "アプリの中のリンク（#/capCloud など）も navigationHistory.pushRoute で進める");
 }
 ok(!/この先7日/.test(html), "戻り先を日数で呼ばない（詳細にも同じ7日間がある）");
 
@@ -1735,7 +1736,7 @@ ok(html.match(/data-answer="same"/g).length === 1, "選択肢を組み立てる�
     "写真を保存したら、本人の点ならその回の答えと写真の時刻・位置も記録する（現象を選び直したら答えにしない）");
   ok(/const existing = findSighting\(round\.pid, round\.peak\);\s+if \(existing\) recordAnswer\(round\.pid, round\.peak, existing\.actualScore, shot\);/.test(html),
     "予報の点のままなら、答え済みの回にだけ写真の時刻・位置を足す（答えは変えない）");
-  ok(/body\.analysis = await photoAnalysisFor\(body, scoreSource, draft\);\s+if \(!current\(\)\) return;\s+await apiCall\("POST", "\/photos", body\);/.test(html), "保存時の分析を写真と一緒に送る");
+  ok(/body\.analysis = await photoAnalysisFor\(body, scoreSource, draft\);\s+if \(!current\(\)\) return;\s+await apiTransport\("POST", "\/photos", body\);/.test(html), "保存時の分析を写真と一緒に送る");
   ok(/<script src="astronotes-photo-analysis\.js\?v=\d+"><\/script>/.test(html), "分析のモジュールを読み込む");
   // 分析が読めなくても、写真の読み込みと保存は止めない（2026-10-16 レビュー指摘）
   ok(/analyzer = globalThis\.AstroNotesPhotoAnalysis;\s+if \(analyzer\) draft\.colorJob = analyzer\.analyzeDataUrl\(t\.url\)/.test(html), "分析のモジュールが無ければ計算しない");
@@ -1986,8 +1987,8 @@ ok(/pushQueue/.test(html) && /store\.set\("sorami\.queue"/.test(html), "送れ�
 ok(/const cleaned = clean\(\{ \.\.\.body, id: row\.id \}\)/.test(html),
   "サーバーの応答も検査してから取り込む");
 // 消したことも同期する。しないと別端末から復活する。
-ok(/queuePush\("fav", entry\.id\);\s*\/\/ 消したことも同期する/.test(html), "削除も同期する");
-ok(/queuePush\("sight", record\.id\)/.test(html), "記録も同期する");
+ok(/accountSync\(\).queuePush\("fav", entry\.id\);\s*\/\/ 消したことも同期する/.test(html), "削除も同期する");
+ok(/accountSync\(\).queuePush\("sight", record\.id\)/.test(html), "記録も同期する");
 // 初回ログインのマージを黙ってやらない
 // 2026-09-08 ユーザー指摘「そもそも要らない」。
 // 取り込んだ結果はそのまま画面に出るので、件数を数えて言い直すのは割り込みでしかない。
@@ -2097,14 +2098,14 @@ ok(/res\.remaining <= RECOVERY_LOW/.test(html), "回復コードの残りが少�
 ok(/nextStep\(\{ passkeys: \(me\.credentials \|\| \[\]\)\.length/.test(html),
   "アカウント画面でも同じ判定を使う");
 // 同期が止まったときに、押せる手を出す
-ok(/id="retrySync"/.test(html) && /retry\.onclick = withPendingAction\(panel,retry,async \(\) => \{ await syncNow\(\)/.test(html),
+ok(/id="retrySync"/.test(html) && /retry\.onclick = withPendingAction\(panel,retry,async \(\) => \{ await accountSync\(\).syncNow\(\)/.test(html),
   "同期が失敗していたら再試行を出す");
 // 消す前に控えを促す。取り消せない操作なので二段で確かめる
 ok(/id="deleteAccount"/.test(html), "アカウントを削除できる");
 ok(/「記録」の「データの控え」から書き出してください/.test(html), "消す前に控えを促す");
 ok((html.match(/if \(!confirm\([\s\S]{0,200}?\)\) return;/g) || []).length >= 2
   && /最終確認です。アカウントを削除しますか？/.test(html), "取り消せない削除は二段で確かめる");
-ok(/await apiCall\("DELETE", "\/me"\)[\s\S]{0,200}favorites = \[\]; sightings = \[\]/.test(html),
+ok(/await apiTransport\("DELETE", "\/me"\)[\s\S]{0,200}favorites = \[\]; sightings = \[\]/.test(html),
   "サーバーと手元の両方を消す");
 
 console.log("== ログインは1画面に1つの目的 ==");
@@ -2441,7 +2442,7 @@ ok(/next <= since/.test(html), "カーソルが進まなければ止める");
 // C-3: 送っただけで消さない。サーバーが受理したIDだけ外す
 ok(/res\?\.accepted\?\.favorites/.test(html) && /res\?\.accepted\?\.sightings/.test(html),
   "受理されたIDを見る");
-ok(!/await apiCall\("POST", "\/sync"[\s\S]{0,120}pushQueue = \[\];/.test(html),
+ok(!/await apiTransport\("POST", "\/sync"[\s\S]{0,120}pushQueue = \[\];/.test(html),
   "送信のあとに無条件でキューを空にしていない");
 ok(/state\.pushQueue = state\.pushQueue\.filter\(/.test(html), "受理された分だけ外す");
 // 1回の上限は500件。超える分を捨てずに次へ回す
@@ -2735,7 +2736,7 @@ for (const el of ["listView", "detailView", "recordsView", "adminView", "aimView
 for (const id of ["placeRow"]) {
   ok(html.includes(`$("${id}").hidden`), `${id} の表示を切り替えている`);
 }
-ok(/atAnswers \? \$\("recPending"\) : \$\("recordsPending"\)/.test(html), "recPending の表示を切り替えている");
+ok(/viewState.answers \? \$\("recPending"\) : \$\("recordsPending"\)/.test(html), "recPending の表示を切り替えている");
 // 管理画面で隠すもの: 地点・実況・記録の問いかけ
 ok(!["admin", "records"].some((v) => ["list", "detail", "sky"].includes(v)), "地点を管理画面で隠す");
 // 2026-10-20 ユーザー「実況カードは完全に消していい」：カードも取得もない
@@ -2772,7 +2773,7 @@ ok((html.match(/remember: wantsRemember\(\)/g) || []).length === 4,
 
 // Startup may expose validated grants before background sync completes.
 ok(/restoreSession\(\{onAccessReady: resolveStartupAccess\}\)/.test(html), "開いたときに入り直す");
-ok(/async function restoreSession[\s\S]{0,1000}apiCall\("GET", "\/me", undefined, accessController.signal\)/.test(html),
+ok(/async function restoreSession[\s\S]{0,1000}apiTransport\("GET", "\/me", undefined, accessController.signal\)/.test(html),
   "通るかどうかはサーバーに訊く（手元で期限を判断しない）");
 ok(/session\/refresh/.test(html), "折り返しを過ぎたら出し直す（30日目に必ず切れるのを防ぐ）");
 
@@ -2782,9 +2783,9 @@ ok(/id="logoutAll"/.test(html), "すべての端末からログアウトでき�
 ok(/me\/logout-all/.test(html), "取り消しの経路を叩く");
 ok(/この端末は入ったまま/.test(html), "押した人が締め出されないと書いてある");
 // 認証手段を変える操作は新しいトークンを返す。受け取らないと自分が締め出される
-ok(/adoptToken\(await apiCall\("POST", "\/passkey\/delete"/.test(html), "パスキー削除で新しいトークンを受け取る");
-ok(/adoptToken\(await apiCall\("POST", "\/password\/enable"/.test(html), "パスワード有効化で受け取る");
-ok(/const r = await apiCall\("POST", "\/password\/disable", \{\}\); adoptToken\(r\)/.test(html),
+ok(/adoptToken\(await apiTransport\("POST", "\/passkey\/delete"/.test(html), "パスキー削除で新しいトークンを受け取る");
+ok(/adoptToken\(await apiTransport\("POST", "\/password\/enable"/.test(html), "パスワード有効化で受け取る");
+ok(/const r = await apiTransport\("POST", "\/password\/disable", \{\}\); adoptToken\(r\)/.test(html),
   "パスワード無効化で受け取る");
 
 console.log("== 横スクロールの跳ね返りを止めてある ==");
@@ -3269,7 +3270,7 @@ console.log("== 撮影地点で、この日の候補地から選ぶ（2026-10-06
 // E186: management UI and its button are delivered only after an owner API check.
 ok(!/id="toAdmin"|id="adminUsers"|id="adminCodes"/.test(html), "公開HTMLに管理者入口や管理者名簿を埋め込まない");
 ok(!/POST.*\/admin\/(tools|recovery|delete-user|revoke-credential)/.test(html), "管理操作本体を公開Webへ配信しない");
-ok(/apiCall\("GET", "\/admin\/ui"\)/.test(html) && /bundle.version !== 1/.test(html), "認証必須APIから版を検査して私有UIを取得する");
+ok(/apiTransport\("GET", "\/admin\/ui"\)/.test(html) && /bundle.version !== 1/.test(html), "認証必須APIから版を検査して私有UIを取得する");
 ok(/URL.revokeObjectURL\(url\)/.test(html) && !/new Function|eval\(/.test(html), "私有UIはES moduleで読み込みBlob URLを解放する");
 ok(/requestGeneration = getGeneration\(\)/.test(html) && /getAuth\(\)\?\.token === requestToken/.test(html), "古いアカウントの401で現在の認証を落とさない");
 console.log(`\n${fail === 0 ? "LAYOUT OK" : "FAILED"} — ${pass} 件成功 / ${fail} 件失敗`);

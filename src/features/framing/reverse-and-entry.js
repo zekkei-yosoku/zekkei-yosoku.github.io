@@ -339,9 +339,9 @@ function openAim(preset) {
     const token = auth?.token;
     $("aimLineInfo").textContent = "形状データを読み込んでいます…";
     AstroNotesAssets.ensureModels().then(() => {
-      if (entry === aim.bodySeq && atAim && token === auth?.token) { $("aimLineInfo").textContent = ""; openAim(preset); }
+      if (entry === aim.bodySeq && viewState.aim && token === auth?.token) { $("aimLineInfo").textContent = ""; openAim(preset); }
     }).catch(() => {
-      if (entry !== aim.bodySeq || !atAim || token !== auth?.token) return;
+      if (entry !== aim.bodySeq || !viewState.aim || token !== auth?.token) return;
       $("aimFrom").innerHTML = "";
       $("aimLineInfo").textContent = "形状データを取得できませんでした。";
       const retry = document.createElement("button"); retry.type = "button"; retry.className = "chip"; retry.textContent = "再試行";
@@ -412,7 +412,7 @@ function openAim(preset) {
         const before = favorites[i];
         favorites[i] = elev ? { ...before, elevation: h, targetHeightM: 0 } : { ...before, targetHeightM: h };
         if (!saveFavorites()) { favorites[i] = before; return; }
-        queuePush("fav", favorites[i].id);
+        accountSync().queuePush("fav", favorites[i].id);
         delete $("aimCustomH").dataset.edited;
         aimApply();
         return;

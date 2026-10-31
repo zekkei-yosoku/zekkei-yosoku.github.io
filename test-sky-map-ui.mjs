@@ -1,3 +1,4 @@
+import './tools/test-owner-adapter.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url),A=require('./astronotes-astro.js'),B=require('./astronotes-bodies.js'),M=require('./astronotes-sky-map.js'),TR=require('./astronotes-terrain.js'),AL=require('./astronotes-align.js'),MOON=require('./astronotes-moon.js');
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8'),ui=/<script id="skyMapPresentation">([\s\S]*?)<\/script>/.exec(html)[1],day=Date.parse('2026-12-22T00:00:00+09:00');

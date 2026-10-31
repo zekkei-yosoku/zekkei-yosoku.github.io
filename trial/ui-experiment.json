@@ -1,22 +1,6 @@
 {
-  "name": "2026-10-31 互換層の移行（9 bridge・16互換入口の撤去）trial限定・本番未採用",
-  "promotedFrom": null,
-  "files": {
-    "astronotes-explore.js": {
-      "root": "bb3b79ebf71f1de45d1f97bab6f514c7f48829421fa3d45c611b3b136f5b81ba",
-      "trial": "f733aae04126a20c3389f50e30a008d05d380b71dbe44d83c055e5150b9ae9be"
-    },
-    "astronotes-journey.js": {
-      "root": "d6a2a4ed4b75b7128b4e74dfcf131f64c4758ddea7b2c79dc3f466bdd48659b1",
-      "trial": "533c22c5ed2c6d30b2496acfbf1eed2b4b1f71744ac3bc7c456d5c3568d02716"
-    },
-    "astronotes-myplaces.js": {
-      "root": "59d0a015916be3c36ae866e6824b67b4bf8de446d2b8bff29e572ecd2a64e3c7",
-      "trial": "8a722fc86b7d68f92007cef41c65749f8c5790fad8a8a195a32194469341f301"
-    }
-  },
-  "trialOnlyFiles": {},
-  "sourceCommit": "161b13513a8d1a621cd5eeb590931d9e99f1a910",
-  "rootHtmlSha256": "d8e72fe9af136ec61125c925f1105b4f3ea66c73a06f3da6b162fc0be0e59648",
-  "trialHtmlSha256": "e49e17bd8be3ab25fd7331880b5fc4bc6249315decb647085b6c4b998e2c68cb"
+  "name": "2026-10-28 10枚の写真評価・協力入口・結果の写真アップロード撤去を本番採用・root/trial同一",
+  "promotedFrom": "772e3e79a2083864dbd4508717725a8d82fb0041",
+  "files": {},
+  "trialOnlyFiles": {}
 }

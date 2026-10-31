@@ -62,7 +62,7 @@ const endSwipe = (e) => {
   const { p, v = 0, open, back, dx = 0 } = swipe;
   swipe = null;
   if (back) {
-    if (e?.type !== "touchcancel" && (dx >= 64 || (dx >= 24 && v > 0.4))) { swipeEndedAt = performance.now(); goBack(); }
+    if (e?.type !== "touchcancel" && (dx >= 64 || (dx >= 24 && v > 0.4))) { swipeEndedAt = performance.now(); navigationHistory.goBack(); }
     return;
   }
   const menu = $("toolsMenu"), scrim = $("toolsScrim");

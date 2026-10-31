@@ -51,7 +51,7 @@ async function openAccountSheet() {
   }
   if (!panel.open) showSheet(panel);
   try {
-    const me = await apiCall("GET", "/me");
+    const me = await apiTransport("GET", "/me");
     if(auth?.token!==token||panel.dataset.loadId!==request)return;
     if(!me||typeof me.loginId!=='string'||!Array.isArray(me.credentials)||typeof me.hasPassword!=='boolean'||!Number.isInteger(me.recoveryCodes)||me.recoveryCodes<0||me.credentials.some(c=>!c||typeof c.id!=='string'))throw new Error('invalid account');
     $("disablePw").hidden = !me.hasPassword || !me.credentials.length;
@@ -93,7 +93,7 @@ async function openAccountSheet() {
       // 消したパスキーは戻せない。作り直しになるので確認する。
       if (!confirm("この端末のパスキーを消します。\nこの端末からは、パスワードか回復コードでしか入れなくなります。")) return;
       $("accountErr").hidden = true;
-      try { adoptToken(await apiCall("POST", "/passkey/delete", { credentialId: el.dataset.delkey })); if(panel.open)openAccountSheet(); }
+      try { adoptToken(await apiTransport("POST", "/passkey/delete", { credentialId: el.dataset.delkey })); if(panel.open)openAccountSheet(); }
       catch (e) {
         accountFail(e.message);
         // 断って終わりにしない。**その場で直せる場所を開いて指を置く。**
@@ -105,7 +105,7 @@ async function openAccountSheet() {
       }
     });
     const retry = $("retrySync");
-    if (retry) retry.onclick = withPendingAction(panel,retry,async () => { await syncNow(); if(panel.open)openAccountSheet(); });
+    if (retry) retry.onclick = withPendingAction(panel,retry,async () => { await accountSync().syncNow(); if(panel.open)openAccountSheet(); });
     panel.dataset.accountReady='true';
     showAccountView(view);
     if(refresh)$("accountTitle").focus?.({preventScroll:true});
@@ -135,7 +135,7 @@ async function loadAccountHistory() {
   $("accountErr").hidden=true;
   $("loginHistoryList").textContent='履歴を確認しています…';
   try {
-    const { entries } = await apiCall("GET", "/me/logins");
+    const { entries } = await apiTransport("GET", "/me/logins");
     if (!current()) return;
     const WAY = { password: "パスワード", passkey: "パスキー", recovery: "回復コード" };
     $("loginHistoryList").innerHTML = entries.length
@@ -169,18 +169,18 @@ async function createPasskey(options) {
 // 登録の中身は、アカウント画面からも新規登録の直後からも同じ。
 // **パスワードには触らない。** 鍵が増えるだけで、入り方は減らさない。
 async function registerPasskey(label) {
-  const { challengeId, options } = await apiCall("POST", "/passkey/register/begin", {});
+  const { challengeId, options } = await apiTransport("POST", "/passkey/register/begin", {});
   const response = await createPasskey(options);
-  await apiCall("POST", "/passkey/register/finish", { challengeId, label, response });
+  await apiTransport("POST", "/passkey/register/finish", { challengeId, label, response });
 }
 
 // パスワードを作らずに、パスキーだけでアカウントを作る。
 // 回復コードが一緒に返る。**パスキーは端末とドメインに紐づくので、それだけだと
 // 端末を失った時点で入る手段がゼロになる。** 必ず保存してもらう。
 async function signupWithPasskey(loginId, remember) {
-  const { challengeId, options } = await apiCall("POST", "/signup/passkey/begin", { loginId });
+  const { challengeId, options } = await apiTransport("POST", "/signup/passkey/begin", { loginId });
   const response = await createPasskey(options);
-  return apiCall("POST", "/signup/passkey/finish",
+  return apiTransport("POST", "/signup/passkey/finish",
     { challengeId, label: "この端末", remember, response });
 }
 

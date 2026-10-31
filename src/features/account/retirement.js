@@ -13,7 +13,7 @@ $("deleteAccount").onclick = async () => {
     + "取り消せません。\n\n先に「記録」の「データの控え」から書き出してください。写真ファイルは控えに含まれません。\n\n本当に削除しますか？")) return;
   if (!confirm("最終確認です。アカウントを削除しますか？")) return;
   try {
-    await apiCall("DELETE", "/me");
+    await apiTransport("DELETE", "/me");
     const cleared = clearRetiredStorage(retiringId);
     if (auth?.token !== retiringToken) return;
     clearAuth(); clearAdminView(); syncInfo = null; pushQueue = [];
@@ -31,14 +31,14 @@ $("enablePw").onclick = async () => {
   try {
     const weakAcc = checkPw($("newAccPw").value, auth?.loginId ?? "");
     if (weakAcc) { authFail($("accountErr"), weakAcc); return; }
-    adoptToken(await apiCall("POST", "/password/enable", { password: $("newAccPw").value }));
+    adoptToken(await apiTransport("POST", "/password/enable", { password: $("newAccPw").value }));
     $("newAccPw").value = "";
     if($("accountSheet").open)openAccountSheet();
   } catch (e) { accountFail(e.message); }
 };
 $("disablePw").onclick = async () => {
   if (!confirm("パスワードでのログインをやめます。\n代わりの回復コードを発行します。必ず保存してください。")) return;
-  try { const r = await apiCall("POST", "/password/disable", {}); adoptToken(r); showCodes(r.codes); openAccountSheet2(); }
+  try { const r = await apiTransport("POST", "/password/disable", {}); adoptToken(r); showCodes(r.codes); openAccountSheet2(); }
   catch (e) { accountFail(e.message); }
 };
 // **取り消しの唯一の手段。** トークンは署名だけで検証でき、サーバーに残らないので、
@@ -46,7 +46,7 @@ $("disablePw").onclick = async () => {
 $("logoutAll").onclick = async () => {
   if (!confirm("ほかの端末のログインをすべて切ります。\nこの端末は入ったままです。\n\n続けますか？")) return;
   try {
-    adoptToken(await apiCall("POST", "/me/logout-all"));
+    adoptToken(await apiTransport("POST", "/me/logout-all"));
     alert("ほかの端末のログインを切りました。");
   } catch (e) { accountFail(e.message); }
 };

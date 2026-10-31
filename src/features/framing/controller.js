@@ -88,7 +88,7 @@ function editTargetCategory(op, name, next) {
   const nextFavs = favorites.map((f) => (f.targetCategory === name ? { ...f, targetCategory: op === "rename" ? next : null } : f));
   AstroNotesLibrary.transaction(localStorage, [["sorami.favorites", nextFavs]]);
   favorites = nextFavs;
-  for (const f of changed) queuePush("fav", f.id);
+  for (const f of changed) accountSync().queuePush("fav", f.id);
   renderSheet();
   globalThis.MyPlacesUI?.renderRecordsHub?.();
 }
@@ -122,7 +122,7 @@ function matchingTargetNames(name, excludeId = null) { return AstroNotesLibrary.
 function persistTargetDraft(draft){
  if(!auth?.token)throw Error('ログインしてから登録してください');
  const next=AstroNotesLibrary.applyDrafts(favorites,[draft]);
- AstroNotesLibrary.transaction(localStorage,[['sorami.favorites',next]]);favorites=next;queuePush('fav',draft.entry.id);renderSheet();globalThis.MyPlacesUI?.renderRecordsHub?.();
+ AstroNotesLibrary.transaction(localStorage,[['sorami.favorites',next]]);favorites=next;accountSync().queuePush('fav',draft.entry.id);renderSheet();globalThis.MyPlacesUI?.renderRecordsHub?.();
 }
 // 対象の行の補足は住所（2026-10-21 ユーザー「組み込みはいらない。座標じゃなくて住所が出てほしい」）。
 // 組み込みの対象の住所は国土地理院の逆ジオコーダ（LonLatToAddress と市区町村コード表 muni.js、2026-10-21 取得）。

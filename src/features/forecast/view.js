@@ -410,15 +410,15 @@ function rerenderList() {
  * 画面を足すときは、ここに1行足して `routeFromHash` に道を足すだけにする。
  */
 const VIEWS = [
-  { id: "almanac", el: "almanacView", on: () => atAlmanac },
+  { id: "almanac", el: "almanacView", on: () => viewState.almanac },
   { id: "detail",  el: "detailView",  on: () => !!(picked && weeks[picked]) },
-  { id: "admin",   el: "adminView",   on: () => atAdmin },
-  { id: "records", el: "recordsView", on: () => atRecords },
-  { id: "answers", el: "answersView", on: () => atAnswers },
-  { id: "skymap",  el: "skyMapView",  on: () => atSkyMap },
-  { id: "aim",     el: "aimView",     on: () => atAim },
-  { id: "plane",   el: "planeView",   on: () => atPlane },
-  { id: "iss",     el: "issView",     on: () => atIss },
+  { id: "admin",   el: "adminView",   on: () => viewState.admin },
+  { id: "records", el: "recordsView", on: () => viewState.records },
+  { id: "answers", el: "answersView", on: () => viewState.answers },
+  { id: "skymap",  el: "skyMapView",  on: () => viewState.skyMap },
+  { id: "aim",     el: "aimView",     on: () => viewState.aim },
+  { id: "plane",   el: "planeView",   on: () => viewState.plane },
+  { id: "iss",     el: "issView",     on: () => viewState.iss },
   { id: "list",    el: "listView",    on: () => true },
 ];
 
@@ -430,8 +430,8 @@ function renderForecastTabs(view) {
 }
 function selectForecastTab(results){
   const hash=results?'#/forecast/results':'#/';
-  if((results&&atAnswers)||(!results&&currentView==='list'))return;
-  pushRoute(hash);
+  if((results&&viewState.answers)||(!results&&currentView==='list'))return;
+  navigationHistory.pushRoute(hash);
 }
 $("forecastTab").onclick=()=>selectForecastTab(false);
 $("resultsTab").onclick=()=>selectForecastTab(true);
@@ -442,7 +442,7 @@ $("forecastTabs").onkeydown=e=>{
 };
 
 function render() {
-  if (!routeFromHash() || routeFromHash().id || (atAnswers && toolAllowed("records"))) void savedRoundClient.ensure(place, () => render());
+  if (!routeFromHash() || routeFromHash().id || (viewState.answers && toolAllowed("records"))) void savedRoundClient.ensure(place, () => render());
   const now = Date.now();
   $("placeName").textContent = place.name;
   const subParts = [];

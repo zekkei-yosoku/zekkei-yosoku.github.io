@@ -64,7 +64,7 @@ $("doSignup").onclick = async () => {
   const weak = checkPw(pw, $("newId").value);
   if (weak) { authFail($("newPwErr"), weak); return; }
   try {
-    await onLoggedIn(await apiCall("POST", "/signup",
+    await onLoggedIn(await apiTransport("POST", "/signup",
       { loginId: $("newId").value, password: pw, remember: wantsRemember() }), undefined,
       { keepOpen: !!window.PublicKeyCredential });
     // 対応していない端末では出しても押せないので、そのまま閉じる
@@ -83,7 +83,7 @@ $("codeLogin").onclick = async () => {
   if (!who) { authFail($("authErr"), "IDを入れてください"); $("codeId").focus(); return; }
   if (!$("authCode").value.trim()) { authFail($("authErr"), "回復コードを入れてください"); return; }
   try {
-    const res = await apiCall("POST", "/recovery/use",
+    const res = await apiTransport("POST", "/recovery/use",
       { loginId: who, code: $("authCode").value, remember: wantsRemember() });
     await onLoggedIn(res);
     // 1つ使い捨てた。残りが少なくなったら作り直すよう促す。

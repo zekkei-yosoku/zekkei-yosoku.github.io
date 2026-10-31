@@ -12,7 +12,7 @@ const wantsRemember = () => {
 function adoptToken(res) {
   if (!res?.token || !auth || res.loginId !== auth.loginId) return res;
   auth = { ...auth, token: res.token };
-  saveAuth(auth, !!localStorageHasToken());
+  authStorage.save(auth, !!localStorageHasToken());
   return res;
 }
 const localStorageHasToken = () => {

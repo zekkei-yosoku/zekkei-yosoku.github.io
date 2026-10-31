@@ -9,11 +9,11 @@ $("rememberMe").onchange = (e) => store.set("sorami.remember", e.target.checked)
 $("passkeyLogin").onclick = async () => {
   $("authErr").hidden = true;
   try {
-    const { challengeId, options } = await apiCall("POST", "/passkey/login/begin", {});
+    const { challengeId, options } = await apiTransport("POST", "/passkey/login/begin", {});
     const cred = await navigator.credentials.get({ publicKey: {
       ...options, challenge: b64uToBuf(options.challenge),
       allowCredentials: (options.allowCredentials || []).map((c) => ({ ...c, id: b64uToBuf(c.id) })) } });
-    const res = await apiCall("POST", "/passkey/login/finish", { challengeId, remember: wantsRemember(), response: {
+    const res = await apiTransport("POST", "/passkey/login/finish", { challengeId, remember: wantsRemember(), response: {
       id: cred.id, rawId: bufToB64u(cred.rawId), type: cred.type,
       response: {
         clientDataJSON: bufToB64u(cred.response.clientDataJSON),
@@ -31,7 +31,7 @@ $("passkeyLogin").onclick = async () => {
 };
 $("pwLogin").onclick = async () => {
   $("authErr").hidden = true;
-  try { await onLoggedIn(await apiCall("POST", "/login",
+  try { await onLoggedIn(await apiTransport("POST", "/login",
     { loginId: $("authId").value, password: $("authPw").value, remember: wantsRemember() })); }
   catch (e) { authFail($("authErr"), e.message); }
   finally { $("authPw").value = ""; }

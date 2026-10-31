@@ -284,7 +284,7 @@ function openPlane() {
     };
   }
   requestAnimationFrame(() => {
-    if (!atPlane || !toolAllowed("plane")) return;
+    if (!viewState.plane || !toolAllowed("plane")) return;
     PlaneMap.open({ latitude: AstroNotesRoutes.RJTT.latitude, longitude: AstroNotesRoutes.RJTT.longitude }, 10);
     requestAnimationFrame(() => PlaneMap.redraw());
   });

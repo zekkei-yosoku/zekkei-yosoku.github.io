@@ -239,7 +239,7 @@ const recentHistory=(()=>{
   filtered.slice(start,start+5).forEach(({row,i})=>{const v=row.value,line=document.createElement('div');line.className='history-row';const b=document.createElement('button');b.type='button';b.className='list-item';const title=document.createElement('strong'),sub=document.createElement('span');sub.className='tiny sub-line';
    title.textContent=kind==='places'?v.name:`${v.t.name} × ${AstroNotesBodies.definition(v.body)?.name||v.body}`;
    sub.textContent=kind==='places'?v.subtitle||`緯度 ${v.latitude.toFixed(5)}・経度 ${v.longitude.toFixed(5)}`:`${v.o[0]} ・ ${AstroNotesPlan.dateTime(v.at)}`;
-   b.append(title,sub);b.onclick=()=>{if(kind==='places')choosePlace(v);else{sheet.close();blocked=false;restoreSharedPlan(v);if(location.hash!=='#/aim')pushRoute('#/aim');else openAim();}};
+   b.append(title,sub);b.onclick=()=>{if(kind==='places')choosePlace(v);else{sheet.close();blocked=false;restoreSharedPlan(v);if(location.hash!=='#/aim')navigationHistory.pushRoute('#/aim');else openAim();}};
    const del=document.createElement('button');del.type='button';del.className='history-remove';del.textContent='×';del.setAttribute('aria-label',`${title.textContent}を履歴から消す`);del.onclick=()=>{okay(history.remove(kind,row));render();};const star=document.createElement('button');star.type='button';star.className='history-remove';
    const point=kind==='places'?{...v}:{...AstroNotesPlan.expandPoint(v.o),subtitle:'履歴の撮影地点'};
    const fav=favorites.findIndex(f=>AstroNotesTerrain.distanceKm(f.latitude,f.longitude,point.latitude,point.longitude)<0.02);star.textContent=fav>=0?'★':'☆';

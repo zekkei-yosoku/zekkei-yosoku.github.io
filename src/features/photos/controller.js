@@ -302,11 +302,11 @@ $("photoSave").onclick = async (e) => {
     thumb: photoDraft.thumb, tile: photoDraft.tile,
     width: photoDraft.width, height: photoDraft.height,
   };
-  const generation = photoSheetGeneration, account = authGeneration, token = auth?.token;
+  const generation = photoSheetGeneration, account = accessState.generation, token = auth?.token;
   const draft = { ...photoDraft, round: photoDraft.round ? { ...photoDraft.round } : null,
     whenValue: $("photoWhen").value, whereValue: $("photoWhere").value,
     candidates: forecastCandidates(body.phenomenon, body.takenAt), place: { ...place } };
-  const current = () => generation === photoSheetGeneration && account === authGeneration && token === auth?.token;
+  const current = () => generation === photoSheetGeneration && account === accessState.generation && token === auth?.token;
   const controls = ["photoSave", "photoClose", "photoChoose", "photoFile", "photoWhen", "photoWhere", "photoPhenom", "photoScore", "photoNote"];
   photoSaving = true;
   for (const id of controls) $(id).disabled = true;
@@ -315,7 +315,7 @@ $("photoSave").onclick = async (e) => {
     const scoreSource = draft.scoreMoved ? "user_moved" : draft.scoreInitial;
     body.analysis = await photoAnalysisFor(body, scoreSource, draft);
     if (!current()) return;
-    await apiCall("POST", "/photos", body);
+    await apiTransport("POST", "/photos", body);
     // 「実際はどうでしたか？」から開いたときは、その回の答え（この点数）と写真の時刻・位置も記録する。
     // 現象を選び直したら、その回とは別の記録なので答えにしない。
     // **予報の点数のまま保存したら答えにしない**（2026-10-16。以前は予報の点が本人の答えとして入っていた）。
@@ -368,7 +368,7 @@ async function loadPhotos(append = false) {
   const cursor = append ? photosCursor : null;
   photosLoading = true; photosError = null; renderPhotoListState();
   try {
-    const response = await apiCall("GET", "/photos" + (cursor ? "?cursor=" + encodeURIComponent(cursor) : ""));
+    const response = await apiTransport("GET", "/photos" + (cursor ? "?cursor=" + encodeURIComponent(cursor) : ""));
     if (request !== photosRequest || token !== auth?.token || !toolAllowed("records")) return;
     const incoming = response.photos || [];
     photos = append ? [...new Map([...photos, ...incoming].map((p) => [p.id, p])).values()] : incoming;
@@ -404,7 +404,7 @@ function renderPhotos() {
   for (const el of host.querySelectorAll("[data-photo-del]")) {
     el.onclick = async () => {
       if (!confirm("この写真の記録を消します。よろしいですか？")) return;
-      try { await apiCall("POST", "/photos/delete", { id: el.dataset.photoDel }); await loadPhotos(); }
+      try { await apiTransport("POST", "/photos/delete", { id: el.dataset.photoDel }); await loadPhotos(); }
       catch (err) { alert(err.message || "消せませんでした"); }
     };
   }

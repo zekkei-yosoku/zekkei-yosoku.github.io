@@ -25,7 +25,7 @@
   if(!auth?.token){showAccess('ログインすると利用権限を確認できます');return;}
   const token=auth.token,request=++accessSeq;checkingToken=token;showAccess('利用権限を確認しています…');
   accessPromise=(async()=>{try{
-   const result=await apiCall('GET','/tools/skymap/access');
+   const result=await apiTransport('GET','/tools/skymap/access');
    if(request!==accessSeq||token!==auth?.token||!active())return;
    if(result?.allowed!==true||result.tool!=='skymap'||!Array.isArray(result.tools)||!result.tools.includes('skymap'))throw Error('利用権限を確認できません。再試行してください');
    auth={...auth,loginId:result.loginId||auth.loginId,role:result.role||auth.role,tools:result.tools};accessToken=token;accessTools=result.tools;lastAuthKey=authKey();renderTools();
@@ -55,7 +55,7 @@
   // Rise/set directions run past the ring so the landmarks along them can be read on the map.
   const far=Math.hypot(width,height),ray=(az,k)=>[x+Math.sin(az*Math.PI/180)*k,y-Math.cos(az*Math.PI/180)*k];
   for(const event of data.events){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(...ray(event.azimuth,far));ctx.globalAlpha=1;ctx.setLineDash(event.side==='rise'?[]:[9,6]);ctx.strokeStyle='rgba(0,0,0,.85)';ctx.lineWidth=main?6:5;ctx.stroke();ctx.strokeStyle=colour;ctx.lineWidth=main?3:2.5;ctx.stroke();ctx.setLineDash([]);}
-  const b=session.blend,st=b?blendBodyState(skyState(body,b.from,session.eye),skyState(body,b.to,session.eye),b.f):skyState(body,session.at,session.eye),p=xy(st.azimuth);ctx.lineWidth=main?3:2;ctx.setLineDash(st.altitude<0?[5,4]:[]);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(...p);ctx.stroke();ctx.setLineDash([]);aimLookDisc(ctx,p[0],p[1],main?9:7,body,{illuminated:st.illuminatedFraction,brightLimbZenithAngle:st.brightLimbZenithAngle});
+  const b=session.blend,st=b?blendBodyState(skyState(body,b.from,session.eye),skyState(body,b.to,session.eye),b.f):skyState(body,session.at,session.eye),p=xy(st.azimuth);ctx.lineWidth=main?3:2;ctx.setLineDash(st.altitude<0?[5,4]:[]);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(...p);ctx.stroke();ctx.setLineDash([]);AstroNotesSceneAppearance.aimLookDisc(ctx,p[0],p[1],main?9:7,body,{illuminated:st.illuminatedFraction,brightLimbZenithAngle:st.brightLimbZenithAngle});
   ctx.globalAlpha=1;
  }
  const bodyName=id=>(AstroNotesBodies.definitions.find(d=>d.id===id)||{}).name||(id==='sun'?'太陽':id==='moon'?'月':id);
@@ -202,7 +202,7 @@ ctx.lineWidth=1;
   const transferredAt=fromAim&&from&&transfer?.body===aim.body&&transfer.day===AstroNotesSkyMap.dayStart(aim.dayMs)&&Math.abs(transfer.latitude-from.latitude)<1e-7&&Math.abs(transfer.longitude-from.longitude)<1e-7?transfer.at:null;
   const live=fromAim&&!!from&&!look.hidden&&look._planKey===aimLookKey()&&spec&&Number.isFinite(look._lookAt);
   pending=fromAim?{ownerToken:auth?.token,sharedTarget:aim.sharedTarget?structuredClone(aim.sharedTarget):null,custom:aim.target?.id==='custom'?store.get('sorami.aimCustom',null):null,observer:live?{...from,latitude:spec.obs.latitude,longitude:spec.obs.longitude,groundManualM:from.groundManualM??null,standAglM:spec.eyeM===aimObserverEye(from)?from.standAglM??null:spec.eyeM,name:spec.observerName||from.name}:from,body:aim.body,showSun:aim.body==='sun',showMoon:aim.body==='moon',at:Number.isFinite(exactAt)?exactAt:Number.isFinite(aim.pendingPlan?.at)?aim.pendingPlan.at:live?look._lookAt:Number.isFinite(transferredAt)?transferredAt:Number.isFinite(aim.dayMs)?aim.dayMs+43200000:Date.now(),targetId:aim.target?.id||'',partId:aim.partId,limb:aim.partId==='__whole'?'center':aim.limb,matchMode:aim.matchMode||'limb',ground:live?spec.obs.elevation:null}:null;
-  pushRoute(globalThis.TrialExplore&&screenAllowed('skymap')&&screenAllowed('framing')?'#/explore':'#/skymap');
+  navigationHistory.pushRoute(globalThis.TrialExplore&&screenAllowed('skymap')&&screenAllowed('framing')?'#/explore':'#/skymap');
  }
  function start(){
   if(session&&active()&&!pending){map.redraw();return;}

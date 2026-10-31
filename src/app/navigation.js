@@ -12,7 +12,7 @@ function routeFromHash() {
 function pick(id, now, dayMs) {
   const u = upcoming(weeks[id], now);
   const day = dayMs !== undefined && dayMs !== null ? dayMs : (u ? u.dayMs : null);
-  pushRoute(day !== null ? `#/${id}/${day}` : `#/${id}`);
+  navigationHistory.pushRoute(day !== null ? `#/${id}/${day}` : `#/${id}`);
 }
 
 /// 画面を進める。**履歴の1つ1つに「一覧から何画面目か」（depth）を持たせる。**
@@ -28,9 +28,8 @@ function pick(id, now, dayMs) {
 /// ひとつ前の画面はアプリの中で覚える（appTrail）。Safari のタブでは今までどおり積む（Safari の戻るボタンで戻れるように）。
 /// Android はホーム画面のアプリでも端のなぞりが OS の「戻る」なので積む（積まないとアプリから出てしまう）
 /// 来た道は AstroNotesNavigationHistory が単独で持つ。下の NO_HISTORY / appTrail は同じ値・同じ配列を指す読取口（写しではない）
-const NO_HISTORY = navigator.standalone === true;
 const navigationHistory = AstroNotesNavigationHistory.createHistory({
-  noHistory: NO_HISTORY,
+  noHistory: navigator.standalone === true,
   get location() { return location; },
   get history() { return history; },
   closeTools: () => closeTools(),
@@ -40,8 +39,6 @@ const navigationHistory = AstroNotesNavigationHistory.createHistory({
   applyRoute: () => applyRoute(),
   routeFromHash: () => routeFromHash(),
 });
-const appTrail = navigationHistory.appTrail;   // NO_HISTORY のときの来た道（前の画面の hash。一覧は ""）
-function pushRoute(hash) { navigationHistory.pushRoute(hash); }
 
 /// 一覧へ戻る。**何画面進んでいても一度で戻る**（2026-10-01）。
 /// 1つずつ戻していたので、一覧→詳細→道具と進んでから題名を押すと詳細で止まっていた。
@@ -52,36 +49,34 @@ function isMenuPage() {
   const r = routeFromHash();
   return !r || !!(r.almanac || r.aim || r.skymap || r.plane || r.iss || r.records || r.answers);
 }
-function goBack() { navigationHistory.goBack(); }
 
-function goList() { navigationHistory.goList(); }
 
 function applyRoute() {
   if (restoreSharedPlan() === "reload") { load(true); return; }
   const route = routeFromHash();
-  const enteringHome=!!route?.almanac&&!atAlmanac;
-  atAlmanac = !!route?.almanac;
+  const enteringHome=!!route?.almanac&&!viewState.almanac;
+  viewState.almanac = !!route?.almanac;
   if(enteringHome&&globalThis.AstroNotesAlmanacDashboard?.enter())almanacDay=AstroNotesHomeTime.start(Date.now());
-  if(!atAlmanac){almanacPlayback?.stop(false);almanacTimeline?.stop();globalThis.AstroNotesAlmanacDashboard?.stop();}
+  if(!viewState.almanac){almanacPlayback?.stop(false);almanacTimeline?.stop();globalThis.AstroNotesAlmanacDashboard?.stop();}
   picked = route && route.id ? route.id : null;
-  const wasAnswers=atAnswers;
-  atRecords = !!(route && route.records);
-  atAnswers = !!route?.answers;
-  if(!wasAnswers||!atAnswers)$("answerHistory").open=false;
-  if (atAnswers) loadPhotos();
-  atAdmin = !!(route && route.admin);
-  if(atAim!==!!(route&&route.aim))aimCustomRequest++;
-  atAim = !!(route && route.aim);
-  if (!atAim) aim.pendingModelPreset = null;
-  atSkyMap = !!route?.skymap;
-  if (!atSkyMap) SkyMapUI?.leave();
-  atPlane = !!(route && route.plane);
-  atIss = !!(route && route.iss);
-  if (atAim) openAim(route.preset || null);
-  if (!atAdmin && typeof clearAdminView === "function") clearAdminView();
-  if (atPlane) openPlane();
-  if (atIss) openIss();
-  if (atAdmin) renderAdmin();
+  const wasAnswers=viewState.answers;
+  viewState.records = !!(route && route.records);
+  viewState.answers = !!route?.answers;
+  if(!wasAnswers||!viewState.answers)$("answerHistory").open=false;
+  if (viewState.answers) loadPhotos();
+  viewState.admin = !!(route && route.admin);
+  if(viewState.aim!==!!(route&&route.aim))aimCustomRequest++;
+  viewState.aim = !!(route && route.aim);
+  if (!viewState.aim) aim.pendingModelPreset = null;
+  viewState.skyMap = !!route?.skymap;
+  if (!viewState.skyMap) SkyMapUI?.leave();
+  viewState.plane = !!(route && route.plane);
+  viewState.iss = !!(route && route.iss);
+  if (viewState.aim) openAim(route.preset || null);
+  if (!viewState.admin && typeof clearAdminView === "function") clearAdminView();
+  if (viewState.plane) openPlane();
+  if (viewState.iss) openIss();
+  if (viewState.admin) renderAdmin();
   if (route && route.id) {
     // 日を含まない URL は「直近の回」を指す。前に見ていた日を残すと、
     // #/sunset を開いたのに数日先が出るという食い違いになる。
@@ -91,11 +86,11 @@ function applyRoute() {
   // 一覧を離れる前に位置を憶える（メニューから道具を開いたときも、ブラウザの戻る・進むでも）
   if (currentView === "list") listScrollY = window.scrollY;
   render();
-  if (atSkyMap) SkyMapUI?.open();
+  if (viewState.skyMap) SkyMapUI?.open();
   if (predictionNeeded() && (predictionDirty || !AstroNotesPrediction.fresh(acceptedPrediction, place, Date.now()))) void load(false);
   // 2026-10-15 ユーザー「AstroNotesに切り替えたら一番上のタイトルも変えて。ロゴもある」。FramingとMap（メニューのAstroNotes）を開いている間は題名とマークをAstroNotesに
-  const astroNotes = atAim || atSkyMap;
-  if (astroNotes) try { localStorage.setItem("sorami.astroLast", atSkyMap ? "skymap" : "aim"); } catch {}
+  const astroNotes = viewState.aim || viewState.skyMap;
+  if (astroNotes) try { localStorage.setItem("sorami.astroLast", viewState.skyMap ? "skymap" : "aim"); } catch {}
   $("mastheadName").textContent = "AstroNotes";
   $("mastheadMark").hidden = true; $("mastheadAstroMark").hidden = false;
   $("mastheadName").hidden = true;
@@ -111,7 +106,7 @@ document.addEventListener("click", (e) => {
   const a = e.target.closest && e.target.closest('a[href^="#/"]');
   if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
   e.preventDefault();
-  pushRoute(a.getAttribute("href"));
+  navigationHistory.pushRoute(a.getAttribute("href"));
 });
 window.addEventListener("hashchange", () => {
   closeTools();

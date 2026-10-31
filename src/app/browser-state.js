@@ -120,21 +120,21 @@ const WIDE = window.matchMedia("(min-width: 900px)");
 //   #/sunset     → 夕焼けの直近の回
 //   #/sunset/172… → 夕焼けの特定の日
 let picked = null;       // 詳細で見ている現象（一覧のときは null）
-const viewStateOwner = AstroNotesStateOwner.create(globalThis);
-viewStateOwner.defineLegacy("atSkyMap", false);
+// 今どの画面を見ているか。所有者はここだけで、読み書きは viewState 経由にする（2026-10-31 accessor bridge を撤去）
+const viewState = Object.seal({
+  skyMap: false,
+  aim: false,       // 「ねらう」のページを見ているか
+  plane: false,     // 「月丼」のページを見ているか
+  iss: false,       // 「人工衛星」（旧 ISSの月面通過）のページを見ているか
+  answers: false,
+  almanac: false,
+  records: false,   // 記録画面を見ているか
+  admin: false,     // 管理者画面を見ているか
+});
 let SkyMapUI = null;
 let aimCustomRequest = 0;
-viewStateOwner.defineLegacy("atAim", false);       // 「ねらう」のページを見ているか
-viewStateOwner.defineLegacy("atPlane", false);     // 「月丼」のページを見ているか
-viewStateOwner.defineLegacy("atIss", false);       // 「人工衛星」（旧 ISSの月面通過）のページを見ているか
-viewStateOwner.defineLegacy("atAnswers", false);
-viewStateOwner.defineLegacy("atAlmanac", false);
 let almanacPoint = null, almanacTimeline = null, almanacScrub = 'date', almanacDragAt = null, almanacPlayback = null;
 let almanacDay = AstroNotesHomeTime.start(Date.now());
-viewStateOwner.defineLegacy("atRecords", false);   // 記録画面を見ているか
-viewStateOwner.defineLegacy("atAdmin", false);     // 管理者画面を見ているか
-// 次の配信（互換層の撤去）の資産を、キャッシュに残ったこのHTMLでも動かすための受け口。撤去と同時に消す
-const viewState = { get skyMap() { return atSkyMap; }, get aim() { return atAim; }, get records() { return atRecords; } };
 let listScrollY = 0;     // 一覧へ戻ったときに元の位置へ戻す
 
 let bundle = null;       // 取得済みの予報

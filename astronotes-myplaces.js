@@ -184,13 +184,13 @@ function notebookCheck(state=false){return '<svg class="notebook-check" viewBox=
 let notebookEdit=null,notebookGeneration=0,notebookNotice='';
 function notebookStamp(ids){const selected=new Set(ids);return JSON.stringify([favorites.filter(f=>selected.has(f.id)),load().filter(r=>selected.has(r.placeId)),Object.entries(shapeData()).filter(([id])=>selected.has(id))]);}
 function notebookCommit(mode,state,ids,stamp,targets=[],drafts=[]){
- if(notebookEdit!==state||state.owner!==auth?.token||!toolAllowed('records')||!atRecords)return false;
+ if(notebookEdit!==state||state.owner!==auth?.token||!toolAllowed('records')||!viewState.records)return false;
  try{
   if(notebookStamp(ids)!==stamp)throw Error('選んだ地点が変更されました。選び直してください');
   const plan=AstroNotesLibrary.prepareNotebookBulk({owner:auth.loginId,favorites,observations:load(),shapes:shapeData(),placeIds:ids,mode,targets:targets.map(targetData),drafts,currentTargets:id=>savedTargets(id)});
   AstroNotesLibrary.transaction(localStorage,plan.entries);favorites=plan.favorites;
   if(typeof RecordSync!=='undefined')RecordSync.kick();
-  for(const id of plan.changedFavorites)queuePush('fav',id);
+  for(const id of plan.changedFavorites)accountSync().queuePush('fav',id);
   notebookEdit=null;notebookGeneration++;notebookNotice=ids.length+'地点'+(mode==='delete'?'を記録から削除しました':'に対象を追加しました');
   version++;candidateCache.clear();changed();aimFillSelects();SkyMapUI?.refreshTargets?.();return true;
  }catch(e){state.error=e.message||'保存できませんでした。もう一度お試しください';renderRecordsHub();return false;}
@@ -203,7 +203,7 @@ function notebookAddTargets(button){
  const selected=(state.targets||[]).map(t=>available.get(t.key||t.id)).filter(Boolean);
  const source=document.createElement('select');
  AstroTargetPicker.open(source,null,button,{multiple:true,selected,drafts:state.drafts||[],title:ids.length+'地点に追加する対象',doneLabel:'選んだ地点に追加',getTargets:()=>aimTargetList().filter(t=>t.id!=='custom'&&finite(t.latitude)&&(t.parts||[]).length),onDone:(targets,drafts)=>{
-  if(notebookEdit!==state||notebookGeneration!==generation||state.owner!==auth?.token||!atRecords)return;
+  if(notebookEdit!==state||notebookGeneration!==generation||state.owner!==auth?.token||!viewState.records)return;
   state.targets=targets;state.drafts=drafts;
   if(!targets.length)return;
   if(targets.some(t=>{const key=t.key||t.id;if(!key.startsWith('fav:')||drafts.some(d=>'fav:'+d.entry.id===key))return false;const id=key.slice(4),current=placeOf(id);return !current||JSON.stringify(current)!==targetBaselines.get(id);})){
@@ -226,7 +226,7 @@ function renderRecordsHub() {
   const actions = document.createElement('div'); actions.className = 'my-head';
   const add = document.createElement('button'); add.type = 'button'; add.className = 'chip my-add-point'; add.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';add.setAttribute('aria-label','記録を追加');add.title='記録を追加';
   add.onclick = () => { if (auth?.token && toolAllowed('records')) openPlace(null,'records'); };
-  if (toolAllowed('skymap')) { const map = document.createElement('button'); map.type = 'button'; map.className = 'chip'; map.textContent = '地図で場所を探す'; map.onclick = () => pushRoute('#/skymap'); actions.append(map); }
+  if (toolAllowed('skymap')) { const map = document.createElement('button'); map.type = 'button'; map.className = 'chip'; map.textContent = '地図で場所を探す'; map.onclick = () => navigationHistory.pushRoute('#/skymap'); actions.append(map); }
   // 2026-10-21 ＋は撮影地点の操作行へ。タブで見出し高さを変えない。
   const edit=document.createElement('button');edit.type='button';edit.className='chip';edit.id='notebookEdit';edit.textContent=notebookEdit?'完了':'編集';edit.setAttribute('aria-pressed',String(!!notebookEdit));edit.onclick=()=>{notebookGeneration++;notebookNotice='';notebookEdit=notebookEdit?null:{owner:auth.token,ids:new Set(),error:''};renderRecordsHub();};
   actions.append(edit,add);if(notebookEdit){add.hidden=true;for(const b of actions.children)if(b!==edit&&b!==add)b.hidden=true;actions.classList.add('notebook-edit-head');const count=document.createElement('strong');count.id='notebookCount';count.setAttribute('role','status');count.setAttribute('aria-live','polite');count.textContent=notebookEdit.ids.size+'地点を選択中';actions.prepend(count);}
@@ -271,7 +271,7 @@ function renderRecordsHub() {
    if(state.error){const error=document.createElement('p');error.id='notebookBulkError';error.className='warn';error.setAttribute('role','status');error.textContent=state.error;host.insertBefore(error,list);}
   }
   let matches=0;
-  if (!recordedPlaces.length) { const empty = document.createElement('p'); empty.className = 'tiny'; empty.textContent = '撮影地点はまだありません。まず撮りたい場所と対象を探せます。'; list.append(empty);if(screenAllowed('framing')&&screenAllowed('skymap')){const find=document.createElement('button');find.type='button';find.className='chip';find.textContent='撮影機会を探す';find.onclick=()=>pushRoute('#/explore');list.append(find);} }
+  if (!recordedPlaces.length) { const empty = document.createElement('p'); empty.className = 'tiny'; empty.textContent = '撮影地点はまだありません。まず撮りたい場所と対象を探せます。'; list.append(empty);if(screenAllowed('framing')&&screenAllowed('skymap')){const find=document.createElement('button');find.type='button';find.className='chip';find.textContent='撮影機会を探す';find.onclick=()=>navigationHistory.pushRoute('#/explore');list.append(find);} }
   for (const f of recordedPlaces) {
     const active=targetsSeenFrom(f.id).filter(r=>r.result!=='hidden');
     const matching=active.filter(r=>!recordsTargetFilter||r.target.key===recordsTargetFilter);
@@ -303,10 +303,10 @@ async function openFromRecords(place, target = null, row = null) {
   const token = auth?.token, openedSheet = sheetState;
   try {
     await AstroNotesAssets.ensureModels();
-    if (token !== auth?.token || !screenAllowed('framing') || sheetState !== openedSheet || !sheet?.open || !atRecords) return false;
+    if (token !== auth?.token || !screenAllowed('framing') || sheetState !== openedSheet || !sheet?.open || !viewState.records) return false;
     if (sheet?.open && sheetState === openedSheet) sheet.close();
     if(row?.shapeType)globalThis.TrialExplore?.preferMap();
-    pushRoute('#/aim');
+    navigationHistory.pushRoute('#/aim');
     if (target) openWith(place, target, row, 'aim'); else openInAim(place, row);
   } catch { const error = sheet?.open ? el('myRecordError') : document.createElement('p'); error.textContent = '構図を開けませんでした。もう一度お試しください'; error.hidden = false; error.setAttribute('role','status'); if (!sheet?.open) el('myRecordsHub')?.append(error); }
 }
@@ -775,7 +775,7 @@ function commitRecordDraft(current,isNew){
  try{
   const plan=AstroNotesLibrary.prepareRecord({owner:auth.loginId,favorites,observations:load(),shapes:shapeData(),place:current,isNew,initialTargets:s.initialTargets,targets:s.draftTargets,shape:s.draftShape,drafts:s.targetDrafts||[],cleanShape:AstroNotesShooting.cleanShape});
   AstroNotesLibrary.transaction(localStorage,plan.entries);favorites=plan.favorites;if(typeof RecordSync!=='undefined')RecordSync.kick();
-  for(const id of plan.changedFavorites)queuePush('fav',id);
+  for(const id of plan.changedFavorites)accountSync().queuePush('fav',id);
   s.place={...placeOf(current.id)};s.initialName=s.place.name;s.newPlace=false;s.targetDrafts=[];s.initialShape=s.draftShape;s.shapeBaseline=shapeKey(s.initialShape);s.initialTargets=s.draftTargets.map(targetData);s.baseline=targetSetKey(s.initialTargets);
   version++;candidateCache.clear();changed();aimFillSelects();SkyMapUI?.refreshTargets?.();
   err.hidden=true;sheet.close();return true;
@@ -830,11 +830,11 @@ function recordFor(point, targetKey, ctx) {
 
 function quickRecord(observer,target){
  if(!auth?.token||!toolAllowed('records'))return {ok:false,error:'撮影地点を保存するには、記録を利用できるアカウントでログインしてください'};
- const owner={token:auth.token,loginId:auth.loginId,generation:authGeneration};
+ const owner={token:auth.token,loginId:auth.loginId,generation:accessState.generation};
  try{
   const plan=AstroNotesLibrary.prepareQuickRecord({owner:auth.loginId,favorites,observations:load(),shapes:shapeData(),observer,target,knownTargets:[...AstroNotesAlign.TARGETS.map(aimWithHeights),...aimFavTargets().map(aimFavTarget)],currentTargets:savedTargets,cleanShape:AstroNotesShooting.cleanShape});
-  if(owner.token!==auth?.token||owner.loginId!==auth?.loginId||owner.generation!==authGeneration||!toolAllowed('records'))throw Error('アカウントまたは利用権限が変わりました。開き直してください');
-  if(!plan.already){AstroNotesLibrary.transaction(localStorage,plan.entries);favorites=plan.favorites;if(typeof RecordSync!=='undefined')RecordSync.kick();for(const id of plan.changedFavorites)queuePush('fav',id);version++;candidateCache.clear();changed();aimFillSelects();SkyMapUI?.refreshTargets?.();}
+  if(owner.token!==auth?.token||owner.loginId!==auth?.loginId||owner.generation!==accessState.generation||!toolAllowed('records'))throw Error('アカウントまたは利用権限が変わりました。開き直してください');
+  if(!plan.already){AstroNotesLibrary.transaction(localStorage,plan.entries);favorites=plan.favorites;if(typeof RecordSync!=='undefined')RecordSync.kick();for(const id of plan.changedFavorites)accountSync().queuePush('fav',id);version++;candidateCache.clear();changed();aimFillSelects();SkyMapUI?.refreshTargets?.();}
   return {ok:true,already:plan.already,placeId:plan.place.id};
  }catch(e){return {ok:false,error:e.message||'撮影地点を保存できませんでした'};}
 }

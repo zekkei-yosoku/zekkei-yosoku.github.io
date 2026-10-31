@@ -104,7 +104,7 @@ function recordAnswer(pid, peak, actual, shot = null) {
   if (existing) sightings = sightings.map((s) => (s.id === existing.id ? record : s));
   else sightings.push(record);
   store.set("sorami.sightings", sightings);
-  queuePush("sight", record.id);
+  accountSync().queuePush("sight", record.id);
   render();
 }
 /// 写真の時刻・位置から、記録に足す項目（地点からの距離・採点の時間帯の外か）
@@ -150,9 +150,9 @@ function collectObservations(pid, peak) {
 // それが主要な操作に見えていた（実際そう受け取られた）。
 // 答える場所をここに置く。アプリを開いて1タップで済む。
 function renderPending(now, hidden) {
-  const host = atAnswers ? $("recordsPending") : $("recPending");
-  (atAnswers ? $("recPending") : $("recordsPending")).hidden = true;
-  if (atAnswers) hidden = !toolAllowed("records");
+  const host = viewState.answers ? $("recordsPending") : $("recPending");
+  (viewState.answers ? $("recPending") : $("recordsPending")).hidden = true;
+  if (viewState.answers) hidden = !toolAllowed("records");
   if (!toolAllowed("records")) { host.hidden=true;host.innerHTML="";$("forecastResultsCount").hidden=true;$("forecastResultsCount").textContent="";return; }
   // 終わってから7日以内の回（端末に残した回を含む。keepRounds）。答えた回は出さない
   const out = answerableRounds(now).filter(({ pid, ev }) => !findSighting(pid, ev.peak))
@@ -161,7 +161,7 @@ function renderPending(now, hidden) {
   const state = savedRoundClient.state(place);
   const notice = (state.status === "loading" || state.status === "idle") ? `<p class="tiny" role="status">保存した予測を確認しています…</p>` : state.status === "error" ? `<p class="tiny" role="status">${savedRoundUnavailable()}${state.rounds.length ? "（取得済みの予測で結果を残せます）" : ""}</p>` : state.status === "ready" && !out.length && state.reason && state.reason !== "近くに保存対象の地点がありません" ? `<p class="tiny" role="status">${esc(state.reason)}</p>` : "";
   const count=$("forecastResultsCount");count.hidden=!out.length;count.textContent=out.length?String(out.length):"";
-  if (!atAnswers) { host.hidden=true;host.innerHTML="";return; }
+  if (!viewState.answers) { host.hidden=true;host.innerHTML="";return; }
   $("answersPendingCount").textContent=out.length?`${out.length}件`:"";
   $("answersEmpty").hidden=!!out.length||!!notice||state.status==='loading'||state.status==='idle';
   host.hidden = hidden || (!out.length && !notice);
@@ -187,8 +187,8 @@ function renderPending(now, hidden) {
 
 document.addEventListener("click", (e) => {
   const answerEntry=e.target.closest?.('[data-open-answers]');
-  if(answerEntry){pushRoute('#/forecast/results');if(toolAllowed('records')&&answerEntry.hasAttribute('data-answer-history')){$('answerHistory').open=true;$('answerHistory').querySelector('summary').focus();}return;}
-  if(e.target.closest?.('[data-open-forecast]')){goList();return;}
+  if(answerEntry){navigationHistory.pushRoute('#/forecast/results');if(toolAllowed('records')&&answerEntry.hasAttribute('data-answer-history')){$('answerHistory').open=true;$('answerHistory').querySelector('summary').focus();}return;}
+  if(e.target.closest?.('[data-open-forecast]')){navigationHistory.goList();return;}
   if (!e.target.closest?.("[data-retry-rounds]")) return;
   void savedRoundClient.ensure(place, () => render(), true);
   render();
@@ -287,7 +287,7 @@ function renderRecords(now, pendingHidden) {
   globalThis.MyPlacesUI?.renderRecordsHub?.();
   renderNotebook();
   renderPending(now ?? Date.now(), pendingHidden);
-  if (!atAnswers || !toolAllowed("records")) {
+  if (!viewState.answers || !toolAllowed("records")) {
     for (const id of ['recList','calibration','recordsPending']) $(id).replaceChildren();
     $("recordsRoundPlace").textContent='';$("recCount").textContent='';$("answersPendingCount").textContent="";
     for(const id of ["answersEmpty","recEmpty","recBody"])$(id).hidden=true;

@@ -1,3 +1,4 @@
+import './tools/test-owner-adapter.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';import fs from 'node:fs';import vm from 'node:vm';
 const require=createRequire(import.meta.url),J=require('./trial/astronotes-journey.js');
 const owner={loginId:'alice',generation:2};const row={id:'s1',value:{pan:[.2,-.3],timelapse:{interval:5,count:240,fps:30}},start:1800000000000,end:1800000001000,savedAt:1700000000000};

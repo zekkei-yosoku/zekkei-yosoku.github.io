@@ -101,7 +101,7 @@ function selectPlace(p) {
   store.set("sorami.place", p);
   $("placeSheet").close();
   selectedDay = {};
-  if(atAnswers)render();else load(true);
+  if(viewState.answers)render();else load(true);
 }
 // astronotes-core の閾値の写し。ずれると説明が嘘になるので test-layout.mjs で突き合わせている。
 //   雲海 T.seaOfClouds.minElevation = 250 ／ 霧氷 T.rime.minElevation = 500
@@ -134,7 +134,7 @@ function renderSheet() {
     const at = Math.min(u.index, favorites.length);
     favorites.splice(at, 0, u.entry);
     if (!saveFavorites()) { favorites.splice(at, 1); return; }
-    queuePush("fav", u.entry.id);
+    accountSync().queuePush("fav", u.entry.id);
     favUndo.splice(+el.dataset.undo, 1);
     renderFavToggle();
     renderSheet();
@@ -188,7 +188,7 @@ function removeFavorite(index) {
   const entry = favorites[index];
   favorites.splice(index, 1);
   if (!saveFavorites()) { favorites.splice(index, 0, entry); return false; }
-  queuePush("fav", entry.id);      // 消したことも同期する。しないと別端末から復活する
+  accountSync().queuePush("fav", entry.id);      // 消したことも同期する。しないと別端末から復活する
   favUndo.push({ entry, index });
   renderFavToggle();
   renderSheet();
@@ -414,7 +414,7 @@ function commitFavorite(approvedNames = null) {
     if (before) favorites[at] = before; else favorites.pop();
     return;   // 入力はそのまま残す。閉じてしまうと打ち直しになる。
   }
-  queuePush("fav", entry.id);
+  accountSync().queuePush("fav", entry.id);
   const moved = before ? renameSightings(before.name, name, entry.latitude, entry.longitude) : 0;
   $("favSheet").close();
   // 表示中の地点そのものを編集したなら、画面にも反映する。

@@ -3,24 +3,24 @@ async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } 
   loginSettling = true;
   try {
   const sameOwnerDraft = auth?.loginId === res.loginId ? (adminUnmount?.snapshot?.() || privateDraft?.value) : null;
-  authGeneration++; clearAdminView();
+  accessState.generation++; clearAdminView();
   if (sameOwnerDraft) privateDraft = {loginId:res.loginId,value:sameOwnerDraft};
   auth = { token: res.token, loginId: res.loginId, role: res.role, tools: res.tools };
   accessCheckedAt = Array.isArray(res.tools) ? Date.now() : 0;
-  const generation = authGeneration;
+  const generation = accessState.generation;
   lastLoginId = auth.loginId;
-  saveAuth(auth, remember);
+  authStorage.save(auth, remember);
   // **使えるメニューはサーバーが決める。** ログインの返りに入っていなければ聞きに行く
   if (!Array.isArray(auth.tools)) {
     try {
-      const me = await apiCall("GET", "/me");
+      const me = await apiTransport("GET", "/me");
       // /me と同じ項目を持つ。ownerAdmin が欠けると、次の確かめ直しで「変わった」と読んで管理画面を組み直す
       auth = { ...auth, tools: Array.isArray(me.tools) ? me.tools : [], role: me.role ?? auth.role, ownerAdmin: !!me.ownerAdmin };
       accessCheckedAt = Date.now();
-      saveAuth(auth, remember);
+      authStorage.save(auth, remember);
     } catch { /* 取れなければ許可なしで出す */ }
   }
-  if (generation !== authGeneration || auth?.loginId !== res.loginId) return;
+  if (generation !== accessState.generation || auth?.loginId !== res.loginId) return;
   if (!keepOpen) $("authSheet").close();
 
   const plan = migrationPlan(dataOwner, auth.loginId, favorites.length || sightings.length);
@@ -43,10 +43,10 @@ async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } 
     syncInfo = null; store.set("sorami.sync", null);
   }
   dataOwner = auth.loginId; store.set("sorami.owner", dataOwner);
-  await syncNow();
-  if (generation !== authGeneration || auth?.loginId !== res.loginId) return;
+  await accountSync().syncNow();
+  if (generation !== accessState.generation || auth?.loginId !== res.loginId) return;
   renderAuthButton();
-  if (atAim) openAim(routeFromHash()?.preset || null);
+  if (viewState.aim) openAim(routeFromHash()?.preset || null);
   render();
   // 件数のアラートは出さない。**取り込んだ結果はそのまま画面に出る**ので、
   // 同じことを数字で言い直すだけの割り込みになる。

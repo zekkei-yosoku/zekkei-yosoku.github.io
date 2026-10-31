@@ -8,7 +8,6 @@
     "src/startup/theme.js",
     "src/startup/theme-meta.js",
     "src/app/presentation-helpers.js",
-    "src/app/state-owner.js",
     "src/ports/storage.js",
     "src/ports/auth-storage.js",
     "src/ports/http-client.js",
@@ -30,7 +29,6 @@
     "src/features/framing/observer.js",
     "src/features/framing/candidates.js",
     "src/domain/scene/appearance.js",
-    "src/ui/scene/appearance-bridge.js",
     "src/ui/scene/terrain.js",
     "src/ui/scene/lens.js",
     "src/ui/scene/silhouette.js",
@@ -84,10 +82,6 @@
     {
       "path": "src/app/presentation-helpers.js",
       "kind": "classic-fragment"
-    },
-    {
-      "path": "src/app/state-owner.js",
-      "kind": "state-owner"
     },
     {
       "path": "src/ports/storage.js",
@@ -172,10 +166,6 @@
     {
       "path": "src/domain/scene/appearance.js",
       "kind": "factory"
-    },
-    {
-      "path": "src/ui/scene/appearance-bridge.js",
-      "kind": "classic-fragment"
     },
     {
       "path": "src/ui/scene/terrain.js",
@@ -366,29 +356,6 @@
         "requires": []
       },
       {
-        "path": "src/app/state-owner.js",
-        "layer": "composition",
-        "scope": "factory",
-        "provides": [
-          "AstroNotesStateOwner"
-        ],
-        "requires": [],
-        "forbiddenAmbient": [
-          "document",
-          "window",
-          "localStorage",
-          "sessionStorage",
-          "auth",
-          "authGeneration",
-          "RecordSync",
-          "favorites",
-          "sightings",
-          "pushQueue",
-          "syncInfo",
-          "syncError"
-        ]
-      },
-      {
         "path": "src/ports/storage.js",
         "layer": "ports",
         "scope": "factory",
@@ -463,7 +430,6 @@
         "scope": "classic-composition",
         "provides": [],
         "requires": [
-          "AstroNotesStateOwner",
           "AstroNotesStorage"
         ]
       },
@@ -645,15 +611,6 @@
         ]
       },
       {
-        "path": "src/ui/scene/appearance-bridge.js",
-        "layer": "presentation",
-        "scope": "classic-composition",
-        "provides": [],
-        "requires": [
-          "AstroNotesSceneAppearance"
-        ]
-      },
-      {
         "path": "src/ui/scene/terrain.js",
         "layer": "presentation",
         "scope": "classic-composition",
@@ -679,7 +636,9 @@
         "layer": "presentation",
         "scope": "classic-composition",
         "provides": [],
-        "requires": []
+        "requires": [
+          "AstroNotesSceneAppearance"
+        ]
       },
       {
         "path": "src/ui/scene/input.js",
@@ -715,7 +674,6 @@
         "scope": "classic-composition",
         "provides": [],
         "requires": [
-          "AstroNotesStateOwner",
           "AstroNotesAuthStorage",
           "AstroNotesHttpClient"
         ]
@@ -904,7 +862,9 @@
         "layer": "presentation",
         "scope": "classic-composition",
         "provides": [],
-        "requires": []
+        "requires": [
+          "AstroNotesSceneAppearance"
+        ]
       },
       {
         "path": "src/ui/intuitive-controls.js",
@@ -987,344 +947,9 @@
         ]
       }
     ],
-    "bridges": [
-      {
-        "name": "atSkyMap",
-        "owner": "viewStateOwner",
-        "definition": "src/app/browser-state.js",
-        "purpose": "地図/探すの表示中フラグを既存呼出先から単一ownerへ接続",
-        "retireWhen": "地図/探すの表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
-        "references": [
-          "src/features/forecast/view.js",
-          "src/app/navigation.js",
-          "src/app/overlays.js",
-          "src/features/account/admin-view.js",
-          "src/features/explore/controller.js"
-        ]
-      },
-      {
-        "name": "atAim",
-        "owner": "viewStateOwner",
-        "definition": "src/app/browser-state.js",
-        "purpose": "旧構図画面の表示中フラグを既存呼出先から単一ownerへ接続",
-        "retireWhen": "旧構図画面の表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
-        "references": [
-          "src/features/forecast/view.js",
-          "src/app/navigation.js",
-          "src/features/framing/observer.js",
-          "src/features/framing/reverse-and-entry.js",
-          "src/features/account/session-and-access.js",
-          "src/app/overlays.js",
-          "src/features/account/access-recheck.js",
-          "src/features/account/login-session.js",
-          "src/features/explore/controller.js"
-        ]
-      },
-      {
-        "name": "atPlane",
-        "owner": "viewStateOwner",
-        "definition": "src/app/browser-state.js",
-        "purpose": "飛行機画面の表示中フラグを既存呼出先から単一ownerへ接続",
-        "retireWhen": "飛行機画面の表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
-        "references": [
-          "src/features/forecast/view.js",
-          "src/app/navigation.js",
-          "src/features/aircraft/controller.js",
-          "src/features/account/session-and-access.js"
-        ]
-      },
-      {
-        "name": "atIss",
-        "owner": "viewStateOwner",
-        "definition": "src/app/browser-state.js",
-        "purpose": "人工衛星画面の表示中フラグを既存呼出先から単一ownerへ接続",
-        "retireWhen": "人工衛星画面の表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
-        "references": [
-          "src/features/forecast/view.js",
-          "src/app/navigation.js",
-          "src/features/satellites/controller.js",
-          "src/features/account/session-and-access.js"
-        ]
-      },
-      {
-        "name": "atAnswers",
-        "owner": "viewStateOwner",
-        "definition": "src/app/browser-state.js",
-        "purpose": "結果回答画面の表示中フラグを既存呼出先から単一ownerへ接続",
-        "retireWhen": "結果回答画面の表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
-        "references": [
-          "src/features/forecast/view.js",
-          "src/app/navigation.js",
-          "src/features/results/controller.js",
-          "src/features/places/controller.js",
-          "src/features/account/session-and-access.js"
-        ]
-      },
-      {
-        "name": "atAlmanac",
-        "owner": "viewStateOwner",
-        "definition": "src/app/browser-state.js",
-        "purpose": "ホーム暦画面と再生の表示中フラグを既存呼出先から単一ownerへ接続",
-        "retireWhen": "ホーム暦画面と再生の表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
-        "references": [
-          "src/features/forecast/view.js",
-          "src/features/home/controller.js",
-          "src/app/navigation.js"
-        ]
-      },
-      {
-        "name": "atRecords",
-        "owner": "viewStateOwner",
-        "definition": "src/app/browser-state.js",
-        "purpose": "記録画面の表示中フラグを既存呼出先から単一ownerへ接続",
-        "retireWhen": "記録画面の表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
-        "references": [
-          "src/features/forecast/view.js",
-          "src/app/navigation.js"
-        ]
-      },
-      {
-        "name": "atAdmin",
-        "owner": "viewStateOwner",
-        "definition": "src/app/browser-state.js",
-        "purpose": "管理画面と旧応答拒否の表示中フラグを既存呼出先から単一ownerへ接続",
-        "retireWhen": "管理画面と旧応答拒否の表示中フラグの全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
-        "references": [
-          "src/features/forecast/view.js",
-          "src/app/navigation.js",
-          "src/features/account/status.js",
-          "src/features/account/access-recheck.js",
-          "src/features/account/admin-view.js"
-        ]
-      },
-      {
-        "name": "authGeneration",
-        "owner": "accessGenerationOwner",
-        "definition": "src/features/account/session-and-access.js",
-        "purpose": "認証変更世代による旧通信/描画/復元の拒否を既存呼出先から単一ownerへ接続",
-        "retireWhen": "認証変更世代による旧通信/描画/復元の拒否の全referencesと旧外部asset利用先が、それぞれのview/session portへ移行し、cached旧版の接続を廃止できた時",
-        "references": [
-          "src/features/photos/controller.js",
-          "src/features/account/sync-bridge.js",
-          "src/features/account/access-recheck.js",
-          "src/features/account/login-session.js",
-          "src/features/account/library-transfer.js",
-          "src/features/plans/controller.js",
-          "src/features/explore/controller.js"
-        ]
-      }
-    ],
+    "bridges": [],
     "classicComposition": "legacyRuntimeOrderは同期で実行する単一composition scope。UI fragmentsの既存共有識別子はこのscope内の接着。factory/pure境界への逆流は禁止。",
     "compatibility": [
-      {
-        "name": "apiCall",
-        "kind": "function",
-        "owner": "apiTransport",
-        "definition": "src/features/account/session-and-access.js",
-        "implementation": "apiTransport(",
-        "purpose": "既存のapiCall利用先をapiTransportへ同じ値/関数/Promiseで接続",
-        "retireWhen": "apiCallの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
-        "readers": [
-          "src/features/photos/controller.js",
-          "src/features/account/sync-bridge.js",
-          "src/features/account/access-recheck.js",
-          "src/features/account/login-session.js",
-          "src/features/account/passkey-login.js",
-          "src/features/account/password-policy.js",
-          "src/features/account/account-actions.js",
-          "src/features/account/recovery-codes.js",
-          "src/features/account/retirement.js",
-          "src/features/account/admin-view.js",
-          "src/features/explore/map-presentation.js"
-        ]
-      },
-      {
-        "name": "saveAuth",
-        "kind": "function",
-        "owner": "authStorage",
-        "definition": "src/features/account/session-and-access.js",
-        "implementation": "authStorage.save(",
-        "purpose": "既存のsaveAuth利用先をauthStorageへ同じ値/関数/Promiseで接続",
-        "retireWhen": "saveAuthの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
-        "readers": [
-          "src/features/account/remember-and-token.js",
-          "src/features/account/access-recheck.js",
-          "src/features/account/login-session.js"
-        ]
-      },
-      {
-        "name": "storedAuth",
-        "kind": "function",
-        "owner": "authStorage",
-        "definition": "src/features/account/session-and-access.js",
-        "implementation": "authStorage.read(",
-        "purpose": "既存のstoredAuth利用先をauthStorageへ同じ値/関数/Promiseで接続",
-        "retireWhen": "storedAuthの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
-        "readers": [
-          "src/features/account/access-recheck.js"
-        ]
-      },
-      {
-        "name": "queuePush",
-        "kind": "function",
-        "owner": "accountSync singleton",
-        "definition": "src/features/account/sync-bridge.js",
-        "implementation": "accountSync().queuePush(",
-        "purpose": "既存のqueuePush利用先をaccountSync singletonへ同じ値/関数/Promiseで接続",
-        "retireWhen": "queuePushの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
-        "readers": [
-          "src/features/results/controller.js",
-          "src/features/places/controller.js",
-          "src/features/framing/controller.js",
-          "src/features/framing/reverse-and-entry.js"
-        ]
-      },
-      {
-        "name": "syncNow",
-        "kind": "function",
-        "owner": "accountSync singleton",
-        "definition": "src/features/account/sync-bridge.js",
-        "implementation": "accountSync().syncNow(",
-        "purpose": "既存のsyncNow利用先をaccountSync singletonへ同じ値/関数/Promiseで接続",
-        "retireWhen": "syncNowの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
-        "readers": [
-          "src/services/record-sync.js",
-          "src/features/account/access-recheck.js",
-          "src/features/account/login-session.js",
-          "src/features/account/account-actions.js",
-          "src/features/account/library-transfer.js"
-        ]
-      },
-      {
-        "name": "applyIncoming",
-        "kind": "function",
-        "owner": "accountSync singleton",
-        "definition": "src/features/account/sync-bridge.js",
-        "implementation": "accountSync().applyIncoming(",
-        "purpose": "既存のapplyIncoming利用先をaccountSync singletonへ同じ値/関数/Promiseで接続",
-        "retireWhen": "applyIncomingの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
-        "readers": []
-      },
-      {
-        "name": "routeFromHash",
-        "kind": "function",
-        "owner": "AstroNotesNavigationRoutes/navigationHistory",
-        "definition": "src/app/navigation.js",
-        "implementation": "AstroNotesNavigationRoutes",
-        "purpose": "既存のrouteFromHash利用先をAstroNotesNavigationRoutes/navigationHistoryへ同じ値/関数/Promiseで接続",
-        "retireWhen": "routeFromHashの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
-        "readers": [
-          "src/features/forecast/load.js",
-          "src/features/forecast/view.js",
-          "src/features/satellites/controller.js",
-          "src/features/account/session-and-access.js",
-          "src/features/account/login-session.js",
-          "src/features/plans/controller.js",
-          "src/features/explore/map-presentation.js",
-          "src/features/explore/controller.js"
-        ]
-      },
-      {
-        "name": "pushRoute",
-        "kind": "function",
-        "owner": "AstroNotesNavigationRoutes/navigationHistory",
-        "definition": "src/app/navigation.js",
-        "implementation": "navigationHistory.pushRoute(",
-        "purpose": "既存のpushRoute利用先をAstroNotesNavigationRoutes/navigationHistoryへ同じ値/関数/Promiseで接続",
-        "retireWhen": "pushRouteの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
-        "readers": [
-          "src/features/forecast/view.js",
-          "src/features/results/controller.js",
-          "src/app/overlays.js",
-          "src/features/account/admin-view.js",
-          "src/features/plans/controller.js",
-          "src/features/framing/presentation.js",
-          "src/features/explore/map-presentation.js"
-        ]
-      },
-      {
-        "name": "goBack",
-        "kind": "function",
-        "owner": "AstroNotesNavigationRoutes/navigationHistory",
-        "definition": "src/app/navigation.js",
-        "implementation": "navigationHistory.goBack(",
-        "purpose": "既存のgoBack利用先をAstroNotesNavigationRoutes/navigationHistoryへ同じ値/関数/Promiseで接続",
-        "retireWhen": "goBackの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
-        "readers": [
-          "src/app/overlays.js",
-          "src/ui/gestures.js"
-        ]
-      },
-      {
-        "name": "goList",
-        "kind": "function",
-        "owner": "AstroNotesNavigationRoutes/navigationHistory",
-        "definition": "src/app/navigation.js",
-        "implementation": "navigationHistory.goList(",
-        "purpose": "既存のgoList利用先をAstroNotesNavigationRoutes/navigationHistoryへ同じ値/関数/Promiseで接続",
-        "retireWhen": "goListの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
-        "readers": [
-          "src/features/results/controller.js",
-          "src/app/overlays.js"
-        ]
-      },
-      {
-        "name": "NO_HISTORY",
-        "kind": "alias",
-        "owner": "navigationHistory configuration",
-        "definition": "src/app/navigation.js",
-        "implementation": "navigator.standalone === true",
-        "purpose": "既存のNO_HISTORY利用先をnavigationHistory configurationへ同じ値/関数/Promiseで接続",
-        "retireWhen": "NO_HISTORYの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
-        "readers": [
-          "src/app/overlays.js"
-        ]
-      },
-      {
-        "name": "appTrail",
-        "kind": "alias",
-        "owner": "navigationHistory",
-        "definition": "src/app/navigation.js",
-        "implementation": "navigationHistory.appTrail",
-        "purpose": "既存のappTrail利用先をnavigationHistoryへ同じ値/関数/Promiseで接続",
-        "retireWhen": "appTrailの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
-        "readers": []
-      },
-      {
-        "name": "aimLookSky",
-        "kind": "alias",
-        "owner": "AstroNotesSceneAppearance",
-        "definition": "src/ui/scene/appearance-bridge.js",
-        "implementation": "AstroNotesSceneAppearance",
-        "purpose": "既存のaimLookSky利用先をAstroNotesSceneAppearanceへ同じ値/関数/Promiseで接続",
-        "retireWhen": "aimLookSkyの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
-        "readers": [
-          "src/ui/scene/render.js"
-        ]
-      },
-      {
-        "name": "aimLimbDir",
-        "kind": "alias",
-        "owner": "AstroNotesSceneAppearance",
-        "definition": "src/ui/scene/appearance-bridge.js",
-        "implementation": "AstroNotesSceneAppearance",
-        "purpose": "既存のaimLimbDir利用先をAstroNotesSceneAppearanceへ同じ値/関数/Promiseで接続",
-        "retireWhen": "aimLimbDirの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
-        "readers": []
-      },
-      {
-        "name": "aimLookDisc",
-        "kind": "alias",
-        "owner": "AstroNotesSceneAppearance",
-        "definition": "src/ui/scene/appearance-bridge.js",
-        "implementation": "AstroNotesSceneAppearance",
-        "purpose": "既存のaimLookDisc利用先をAstroNotesSceneAppearanceへ同じ値/関数/Promiseで接続",
-        "retireWhen": "aimLookDiscの全readerがownerの明示portを受け取り、旧assetとfixtureの接続を廃止できた時",
-        "readers": [
-          "src/ui/scene/render.js",
-          "src/features/explore/map-presentation.js"
-        ]
-      },
       {
         "name": "accountSync",
         "kind": "function",
@@ -1333,17 +958,17 @@
         "implementation": "AstroNotesAccountSync.create(",
         "purpose": "初回呼出し時に単一sync serviceを生成し旧関数hoistingの利用時点を維持",
         "retireWhen": "全同期利用先がcomposition時に注入されたservice参照を受け取れる時",
-        "readers": []
-      },
-      {
-        "name": "AIM_LOOK_SKY",
-        "kind": "alias",
-        "owner": "AstroNotesSceneAppearance",
-        "definition": "src/ui/scene/appearance-bridge.js",
-        "implementation": "AstroNotesSceneAppearance",
-        "purpose": "既存描画の空色プリセットを純粋appearance正本から参照する。",
-        "retireWhen": "renderがappearanceの空色プリセットを明示引数で受け、AIM_LOOK_SKYのclassic参照がなくなった時。",
-        "readers": []
+        "readers": [
+          "src/features/results/controller.js",
+          "src/features/places/controller.js",
+          "src/features/framing/controller.js",
+          "src/features/framing/reverse-and-entry.js",
+          "src/services/record-sync.js",
+          "src/features/account/access-recheck.js",
+          "src/features/account/login-session.js",
+          "src/features/account/account-actions.js",
+          "src/features/account/library-transfer.js"
+        ]
       }
     ],
     "globalObjectReferences": [

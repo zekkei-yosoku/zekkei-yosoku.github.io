@@ -286,7 +286,7 @@ $("aimCalToday").onclick = () => {
 /// （2026-10-01 ユーザー「建物なら元から情報を取っておけるよね？その建物の高さがわかるなら自動で入力がいいな」）
 async function aimSetCustomTarget(p, { keepMap = false } = {}) {
   const request=++aimCustomRequest,owner=auth?.token,selected=$("aimTarget").value;
-  const current=()=>request===aimCustomRequest&&owner===auth?.token&&atAim&&$("aimTarget").value===selected;
+  const current=()=>request===aimCustomRequest&&owner===auth?.token&&viewState.aim&&$("aimTarget").value===selected;
   const input = $("aimCustomH"), typed = Number(input.value);
   // 打ち込んだ値を使うのは、欄が「地上からの高さ」のときだけ（山のときの欄は標高）
   const typedNow = input.dataset.edited === "1" && input.dataset.mode !== "elev" && Number.isFinite(typed) && typed > 0;

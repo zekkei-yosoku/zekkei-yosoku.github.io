@@ -1,3 +1,4 @@
+import './tools/test-owner-adapter.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';import {readFileSync,writeFileSync,mkdtempSync,cpSync} from 'node:fs';import {tmpdir} from 'node:os';import {join} from 'node:path';import {execFileSync} from 'node:child_process';
 const require=createRequire(import.meta.url),{createLoader}=require('./astronotes-assets.js');
 function fixture(){const nodes=[],timers=new Map(),loaded=new Set();let n=0;const loader=createLoader({manifest:{'astronotes-city-models.js':'astronotes-city-models.js?v=1'},ready:k=>loaded.has(k),document:{createElement:()=>({remove(){this.removed=true;}}),head:{append:x=>nodes.push(x)}},setTimer:fn=>{timers.set(++n,fn);return n;},clearTimer:id=>timers.delete(id)});return {loader,nodes,timers,loaded};}

@@ -91,7 +91,7 @@ function pageOpened(el) {
   delete el.dataset.dirty;
   if (!pageStack.includes(el)) pageStack.push(el);
   // 前のページを閉じた直後（地点→地図で選ぶ、など）は、その履歴を戻し終えてから積む
-  if (!NO_HISTORY) afterPagePop(() => {
+  if (!navigationHistory.noHistory) afterPagePop(() => {
     if (!el.open) return;
     const depth = ((history.state && history.state.depth) || 0) + 1;
     history.pushState({ ...(history.state || {}), depth, page: el.id }, "", location.href);
@@ -110,7 +110,7 @@ function pageWillClose(el) {
   pageStack.splice(i, 1);
   if (el.pageClosedByHistory) { el.pageClosedByHistory = false; return; }
   // 釦で閉じた: 開いたときに積んだ履歴を戻す（同じ処理の中で続けて閉じたぶんはまとめて1回で）
-  if (NO_HISTORY) return;
+  if (navigationHistory.noHistory) return;
   pagePop.n++;
   if (!pagePop.queued) { pagePop.queued = true; queueMicrotask(() => { pagePop.queued = false; pagePopFlush(); }); }
 }
@@ -146,19 +146,19 @@ function showSheet(el) {
   if (page) pageOpened(el);
 }
 // 題名は一覧へ（何画面進んでいても1回で）。「← 戻る」はひとつ前の画面へ
-$("homeLink").onclick = () => { closeTools(); if(globalThis.AstroNotesAlmanacDashboard?.enter())almanacDay=AstroNotesHomeTime.start(Date.now()); pushRoute("#/almanac"); };
-$("toolsHome").onclick = () => { closeTools(); goList(); };
-$("almanacMenu").onclick = () => {if(globalThis.AstroNotesAlmanacDashboard?.enter())almanacDay=AstroNotesHomeTime.start(Date.now());pushRoute('#/almanac');};
-$("backLink").onclick = () => { closeTools(); goBack(); };
+$("homeLink").onclick = () => { closeTools(); if(globalThis.AstroNotesAlmanacDashboard?.enter())almanacDay=AstroNotesHomeTime.start(Date.now()); navigationHistory.pushRoute("#/almanac"); };
+$("toolsHome").onclick = () => { closeTools(); navigationHistory.goList(); };
+$("almanacMenu").onclick = () => {if(globalThis.AstroNotesAlmanacDashboard?.enter())almanacDay=AstroNotesHomeTime.start(Date.now());navigationHistory.pushRoute('#/almanac');};
+$("backLink").onclick = () => { closeTools(); navigationHistory.goBack(); };
 $("toolsButton").onclick = () => ($("toolsMenu").hidden ? openTools() : closeTools());
 $("toolsClose").onclick = () => closeTools({ restoreFocus: true });
 $("toolsScrim").onclick = () => closeTools({ restoreFocus: true });
 for (const el of $("toolsMenu").querySelectorAll("[data-tool]")) {
   el.onclick = () => {
-    if (el.dataset.tool === "#/skymap") { closeTools(); if (!atSkyMap) SkyMapUI?.enter(atAim); return; }
-    if (el.dataset.tool === "#/aim/tower" && atSkyMap && SkyMapUI?.prepareFraming()) { pushRoute("#/aim"); return; }
-    if (el.dataset.tool === "#/aim/tower" && atAim) { closeTools(); return; }
-    pushRoute(el.dataset.tool);
+    if (el.dataset.tool === "#/skymap") { closeTools(); if (!viewState.skyMap) SkyMapUI?.enter(viewState.aim); return; }
+    if (el.dataset.tool === "#/aim/tower" && viewState.skyMap && SkyMapUI?.prepareFraming()) { navigationHistory.pushRoute("#/aim"); return; }
+    if (el.dataset.tool === "#/aim/tower" && viewState.aim) { closeTools(); return; }
+    navigationHistory.pushRoute(el.dataset.tool);
   };
 }
 document.addEventListener("keydown", (e) => {

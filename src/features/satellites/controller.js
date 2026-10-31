@@ -894,9 +894,9 @@ function openIss() {
     $("issShowAll").onchange = () => { iss.showAll = $("issShowAll").checked; if (!iss.passesReady) return; iss.passPick = -1; iss.track = []; issRenderPasses(); };
   }
   // 日本語名の表は、読めたらカードと一覧の名前を差し替える（読めなくても英語名で動く）
-  issLoadNames().then(() => { if (atIss) { issRenderSatCard(); if (iss.tab === "pass" && iss.passes.length) issRenderPasses(); } });
+  issLoadNames().then(() => { if (viewState.iss) { issRenderSatCard(); if (iss.tab === "pass" && iss.passes.length) issRenderPasses(); } });
   requestAnimationFrame(() => {
-    if (!atIss || !toolAllowed("iss")) return;
+    if (!viewState.iss || !toolAllowed("iss")) return;
     // 通過の回をもう選んでいれば、その通り道に合わせた位置のまま（地点へ戻さない）
     if (iss.tab === "pass" && iss.track.length) return;
     const P = issFromPoint();

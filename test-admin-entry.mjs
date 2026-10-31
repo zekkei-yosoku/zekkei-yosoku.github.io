@@ -1,3 +1,4 @@
+import './tools/test-owner-adapter.mjs';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import assert from 'node:assert/strict';

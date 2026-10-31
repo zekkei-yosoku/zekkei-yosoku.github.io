@@ -20,24 +20,19 @@ const API = location.hostname === "localhost" || location.hostname === "127.0.0.
   ? "http://localhost:8787" : "https://zekkei-api.okayu-sorami.workers.dev";
 const TOKEN_KEY = "sorami.token";
 
-const accessGenerationOwner = AstroNotesStateOwner.create(globalThis);
-accessGenerationOwner.defineLegacy("authGeneration", 0);
-// 次の配信（互換層の撤去）の資産を、キャッシュに残ったこのHTMLでも動かすための受け口。撤去と同時に消す
-const accessState = { get generation() { return authGeneration; } };
+const accessState = { generation: 0 };             // 認証が切り替わるたびに増える世代。所有者はここだけ
 let auth = null;                                   // { token, loginId, role }
 let accessCheckedAt = 0;                           // 最後に /me で権限を確かめた時刻（recheckAccess）
 
 // 置き場所は「保持する」を選んだかどうかで変わる。両方から消してから書く。
 const authStorage = AstroNotesAuthStorage.create({session:()=>sessionStorage,local:()=>localStorage,boxStorage:name=>window[name],key:TOKEN_KEY});
-function saveAuth(a,remember){return authStorage.save(a,remember);}
 function clearAuth() {
-  authGeneration++;
+  accessState.generation++;
   auth = null;
   clearAdminView();
   authStorage.clear();
 }
 // localStorage を先に見る。「保持する」を選んだ端末では、タブを閉じても続く。
-function storedAuth(){return authStorage.read();}
 let syncInfo = store.get("sorami.sync", null);     // { loginId, rev }。端末に残す
 let syncError = null;                              // 直近の同期の失敗
 let pushQueue = store.get("sorami.queue", []);     // 送れていない変更 [{kind,id}]
@@ -61,8 +56,7 @@ function migrationPlan(owner, loginId, hasLocal) {
   return "discard";                                          // 別の人。渡さない
 }
 
-const apiTransport = AstroNotesHttpClient.create({base:API,fetch:(...args)=>fetch(...args),getAuth:()=>auth,getGeneration:()=>authGeneration,onUnauthorized:()=>{clearAuth();renderAuthButton();}});
-function apiCall(method,path,body,signal){return apiTransport(method,path,body,signal);}
+const apiTransport = AstroNotesHttpClient.create({base:API,fetch:(...args)=>fetch(...args),getAuth:()=>auth,getGeneration:()=>accessState.generation,onUnauthorized:()=>{clearAuth();renderAuthButton();}});
 
 // 長いセッションで、直前2時間より古いまま認証手段を変えようとすると、
 // サーバーが「確認のため、もう一度ログインしてください」と断る（判断1）。
@@ -151,11 +145,11 @@ function refreshRestrictedTools() {
   // 古いアカウント/権限で開始した処理を無効にし、記録を即座に消す。
   plane.seq++; iss.seq++; photosRequest++;
   photos = []; photosCursor = null; photosOwner = null; photosLoading = false; photosError = null; renderPhotos(); renderPhotoListState();
-  if (atAim) openAim(null);
-  if (atPlane) openPlane();
-  if (atIss) openIss();
-  if (atAnswers) loadPhotos();
-  if (atAnswers) {
+  if (viewState.aim) openAim(null);
+  if (viewState.plane) openPlane();
+  if (viewState.iss) openIss();
+  if (viewState.answers) loadPhotos();
+  if (viewState.answers) {
     $("answerHistory").open=false;
     renderRecords(Date.now(),true);
     if(toolAllowed("records"))void savedRoundClient.ensure(place,()=>render());

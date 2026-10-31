@@ -1,3 +1,4 @@
+import './tools/test-owner-adapter.mjs';
 import {createRequire} from 'node:module';const require=createRequire(import.meta.url),HttpClient=require('./src/ports/http-client.js');
 import {readFileSync} from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 function fixture(){let resolve,cleared=0;const c={auth:{token:'old-token',loginId:'old-user'},authGeneration:1,API:'https://fixture.test',fetch:()=>new Promise(r=>resolve=r),clearAuth:()=>{cleared++;c.auth=null;c.authGeneration++;},renderAuthButton(){},Error,JSON};vm.createContext(c);c.apiCall=HttpClient.create({base:c.API,fetch:c.fetch,getAuth:()=>c.auth,getGeneration:()=>c.authGeneration,onUnauthorized:()=>{c.clearAuth();c.renderAuthButton();}});return {c,reply:(status,data)=>resolve({ok:status<400,status,json:async()=>data}),get cleared(){return cleared;}};}

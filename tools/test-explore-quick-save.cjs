@@ -11,7 +11,7 @@ const sizes=process.env.QUICK_WIDTH?[+process.env.QUICK_WIDTH]:[320,390,1280];
   await p.goto(base);await p.waitForFunction(()=>{try{return typeof PAGE_DIALOGS==='object'}catch{return false}});
   await p.evaluate(async()=>{
    await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>83;
-   pushRoute('#/explore');
+   navigationHistory.pushRoute('#/explore');
 
   });
   await p.locator('#exploreConditions').waitFor();await p.evaluate(()=>{aimAirSettings.mode='standard';AstroNotesAtmosphere.configure('standard',aimAirSettings);SkyMapUI.setObserver({name:'Synthetic',latitude:35.583465,longitude:139.568839,groundManualM:83,standAglM:1.5});SkyMapUI.setTarget('skytree');document.getElementById('skyMapBody').value='moon';document.getElementById('skyMapBody').onchange();const at=AstroNotesAlign.dailyView({latitude:35.583465,longitude:139.568839,elevation:84.5},AstroNotesAlign.targetById('skytree'),'moon',Date.parse('2026-10-03T00:00:00+09:00'),{partId:'tip'})[0].at;SkyMapUI.setTime(at);});

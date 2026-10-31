@@ -134,7 +134,7 @@ function renderNotebook(){
   if(past.length){const det=document.createElement('details');det.className='schedule-past';const sum=document.createElement('summary');sum.textContent=`過ぎた予定 ${past.length}件`;det.append(sum);for(const r of past)det.append(row(r,true));host.append(det);}
 }
 function keepNotebookPlan(cur,e) {
-  if(!auth?.token||!toolAllowed('records')||cur.saveOwner?.generation!==authGeneration||cur.saveOwner?.loginId!==auth.loginId)return {ok:false,error:'アカウントまたは利用権限が変わりました。撮影条件を確認して開き直してください。'};
+  if(!auth?.token||!toolAllowed('records')||cur.saveOwner?.generation!==accessState.generation||cur.saveOwner?.loginId!==auth.loginId)return {ok:false,error:'アカウントまたは利用権限が変わりました。撮影条件を確認して開き直してください。'};
   const r=schedule().add({value:cur.payload,title:e.title,start:e.start,end:e.end,preserveExisting:cur.direct===true});renderNotebook();return {...r,saveOwner:cur.saveOwner};
 }
 let quickSaveNoticeTimer=0;
@@ -147,7 +147,7 @@ function quickSaveNotice(text,error=false){
 function quickSaveExplore(kind,source){
  try{
   if(!auth?.token||!toolAllowed('records'))throw Error('保存するには、記録を利用できるアカウントでログインしてください');
-  const cur={...planSnapshot(source),saveOwner:{generation:authGeneration,loginId:auth.loginId},direct:true};
+  const cur={...planSnapshot(source),saveOwner:{generation:accessState.generation,loginId:auth.loginId},direct:true};
   if(cur.payload?.kind!=='aim')throw Error('撮影地点と対象を選んでください');
   let result;
   if(kind==='place')result=MyPlacesUI.quickRecord({...SkyMapUI.selectionState()?.observer,...cur.observer,elevation:cur.payload.o[3],eyeHeightAGL:cur.payload.o[4]},cur.target);
@@ -164,28 +164,28 @@ function notebookPlanIssue(p){
   return '';
 }
 function notebookPlanNotice(text){if(globalThis.TrialExplore?.active()&&globalThis.AstroNotesJourney?.notice){AstroNotesJourney.notice(text);return;}let p=$('notebookPlanNotice');if(!p){p=document.createElement('p');p.id='notebookPlanNotice';p.className='warn';p.setAttribute('role','status');$('scheduleHub').prepend(p);}p.textContent=text;}
-function notebookSavedCurrent(saved){return !!saved?.ok&&saved.saveOwner?.generation===authGeneration&&saved.saveOwner?.loginId===auth?.loginId&&!!auth?.token&&toolAllowed('records')&&schedule().list().some(r=>r.id===saved.row?.id&&JSON.stringify(r)===JSON.stringify(saved.row));}
-function openNotebookExplore(){if(!screenAllowed('framing')||!screenAllowed('skymap'))return;pushRoute('#/explore');}
-function showNotebookPlans(){if(!auth?.token||!toolAllowed('records'))return;setNotebookTab('plans');pushRoute('#/records');}
+function notebookSavedCurrent(saved){return !!saved?.ok&&saved.saveOwner?.generation===accessState.generation&&saved.saveOwner?.loginId===auth?.loginId&&!!auth?.token&&toolAllowed('records')&&schedule().list().some(r=>r.id===saved.row?.id&&JSON.stringify(r)===JSON.stringify(saved.row));}
+function openNotebookExplore(){if(!screenAllowed('framing')||!screenAllowed('skymap'))return;navigationHistory.pushRoute('#/explore');}
+function showNotebookPlans(){if(!auth?.token||!toolAllowed('records'))return;setNotebookTab('plans');navigationHistory.pushRoute('#/records');}
 let notebookOpening=false;
 async function openNotebookPlan(row){
   if(notebookOpening)return false;globalThis.AstroNotesJourney?.notice('');const issue=notebookPlanIssue(row?.value);if(issue){notebookPlanNotice(issue);return false;}
-  const owner={loginId:auth.loginId,generation:authGeneration},stamp=JSON.stringify(row);notebookOpening=true;
+  const owner={loginId:auth.loginId,generation:accessState.generation},stamp=JSON.stringify(row);notebookOpening=true;
   try{
     await AstroNotesAssets.ensureModels();
-    if(owner.loginId!==auth?.loginId||owner.generation!==authGeneration||notebookPlanIssue(row.value)||!schedule().list().some(r=>r.id===row.id&&JSON.stringify(r)===stamp)){notebookPlanNotice('予定または利用権限が変わりました。予定一覧から開き直してください。');return false;}
+    if(owner.loginId!==auth?.loginId||owner.generation!==accessState.generation||notebookPlanIssue(row.value)||!schedule().list().some(r=>r.id===row.id&&JSON.stringify(r)===stamp)){notebookPlanNotice('予定または利用権限が変わりました。予定一覧から開き直してください。');return false;}
     restoreSharedPlan(structuredClone(row.value),{persist:false});aim.from={...aim.from,subtitle:'予定の撮影地点'};
-    if(location.hash!=='#/aim')pushRoute('#/aim');else if(globalThis.TrialExplore)globalThis.TrialExplore.routeChanged();else openAim();
+    if(location.hash!=='#/aim')navigationHistory.pushRoute('#/aim');else if(globalThis.TrialExplore)globalThis.TrialExplore.routeChanged();else openAim();
     globalThis.AstroNotesJourney?.remember(row,owner);globalThis.AstroNotesJourney?.render();return true;
   }catch{globalThis.AstroNotesJourney?.forget();notebookPlanNotice('予定を開けませんでした。通信状態を確認してもう一度お試しください。');return false;}
   finally{notebookOpening=false;}
 }
 async function preparePlanShare(button,{current=()=>true}={}){
- const owner={token:auth?.token,generation:authGeneration,loginId:auth?.loginId},source=button?.dataset?.planSource||'aim',started=Date.now();
+ const owner={token:auth?.token,generation:accessState.generation,loginId:auth?.loginId},source=button?.dataset?.planSource||'aim',started=Date.now();
  if(source!=='detail')for(const b of document.querySelectorAll('.tool-datetime-play[data-playing="true"]'))b.click();
  for(;;){
   if(!current())throw Error('共有の準備を取り消しました。');
-  if(owner.token!==auth?.token||owner.generation!==authGeneration||owner.loginId!==auth?.loginId)throw Error('アカウントが変わりました。共有画面を開き直してください。');
+  if(owner.token!==auth?.token||owner.generation!==accessState.generation||owner.loginId!==auth?.loginId)throw Error('アカウントが変わりました。共有画面を開き直してください。');
   try{return {...planSnapshot(button),saveOwner:{generation:owner.generation,loginId:owner.loginId}};}
   catch(e){
    const selection=SkyMapUI?.selectionState?.();

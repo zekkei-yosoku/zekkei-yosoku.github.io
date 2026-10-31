@@ -4,7 +4,7 @@
 const $=id=>document.getElementById(id),mapView=$('skyMapView'),aimView=$('aimView'),look=$('aimLook');
 let mode='scene',scheduled=false,forceNext=false,routing=false,intent=false,transferMode=null;
 const eligible=()=>screenAllowed('skymap')&&screenAllowed('framing');
-const ownsScene=()=>layout.mounted&&atSkyMap&&!mapView.hidden&&eligible();
+const ownsScene=()=>layout.mounted&&viewState.skyMap&&!mapView.hidden&&eligible();
 const active=()=>ownsScene()&&!document.hidden;
 const node=(tag,props={},text)=>{const n=document.createElement(tag);Object.assign(n,props);if(text)n.textContent=text;return n;};
 const tabs=node('div',{id:'exploreTabs',className:'forecast-tabs explore-tabs'});tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','探す結果の表示');
@@ -18,7 +18,7 @@ function updateSkyInfo(s){
  const o={latitude:s.observer.latitude,longitude:s.observer.longitude,elevation:(s.ground??s.observer.groundManualM??0)+(s.eyeM??1.5)},key=JSON.stringify([s.body,Math.floor(s.at/60000),o]);if(key===skyInfoKey)return;skyInfoKey=key;
  try{let text='';if(s.body==='moon'){const moon=AstroNotesAstro.moon(s.at,o);text=moonGlyphAt(s.at,o)+' 輝面 '+Math.round(moon.illuminatedFraction*100)+'% ・ '+esc(lightTimingText(s.at,o));}else if(!AstroNotesBodies.definition(s.body).limbs){text=esc(AstroNotesBodies.sky(AstroNotesAstro.sun(s.at,o).geometricAltitude));}skyInfo.innerHTML=text;skyInfo.hidden=!text;}catch{skyInfoKey='';skyInfo.hidden=true;skyInfo.textContent='';}
 }
-const plan=AstroNotesPlanningSession.create({readRenderState:()=>SkyMapUI.renderState(),clone:v=>structuredClone(v),getAuthGeneration:()=>authGeneration,dayStart:at=>AstroNotesSkyMap.dayStart(at),getAirMode:()=>aimAirSettings.mode,getAtmosphereKey:()=>AstroNotesAtmosphere.dataKey?.(),
+const plan=AstroNotesPlanningSession.create({readRenderState:()=>SkyMapUI.renderState(),clone:v=>structuredClone(v),getAuthGeneration:()=>accessState.generation,dayStart:at=>AstroNotesSkyMap.dayStart(at),getAirMode:()=>aimAirSettings.mode,getAtmosphereKey:()=>AstroNotesAtmosphere.dataKey?.(),
  onInvalidate:(keepScene=false)=>{if(!keepScene)look._lookSeq=(look._lookSeq||0)+1;look._planKey=null;if(look._captionTimer){clearTimeout(look._captionTimer);look._captionTimer=0;}}});
 const stamp=plan.stamp,baseStamp=plan.baseStamp,snapshot=plan.snapshot,invalidate=plan.invalidate;
 // 候補ピンの切替は地図だけに効くので、地図の下（共有の行）へ置く（2026-10-22 ユーザー「候補ピンは下に下ろしてほしい」）
@@ -52,7 +52,7 @@ function menu(){
  if(combined){f.hidden=true;m.hidden=false;m.dataset.tool='#/explore';m.querySelector('b').lastChild.textContent='探す';m.querySelector('span').textContent='条件を選び、見え方と地図で確かめる';}
  else{f.dataset.tool='#/aim/tower';m.dataset.tool='#/skymap';m.querySelector('b').lastChild.textContent='地図';m.querySelector('span').textContent='撮影地点からの天体の方向と高度を調べる';}
 }
-const layout=AstroNotesExploreLayout.create({$,node,mapView,aimView,skyInfo,tabs,scene,map,aimState:()=>aim,requestAnimationFrame:cb=>requestAnimationFrame(cb),getMode:()=>mode,isAimActive:()=>atAim,
+const layout=AstroNotesExploreLayout.create({$,node,mapView,aimView,skyInfo,tabs,scene,map,aimState:()=>aim,requestAnimationFrame:cb=>requestAnimationFrame(cb),getMode:()=>mode,isAimActive:()=>viewState.aim,
  showResult,candidateChosen,addSaveAction,updateConditions,choose,invalidate,placePins,updateSkyInfo});
 function choose(next,focus=false){
  mode=next==='map'?'map':'scene';
@@ -108,15 +108,15 @@ function sync(force=false){
  requestAnimationFrame(()=>{scheduled=false;const f=forceNext;forceNext=false;void paint(f);});
 }
 function render(){
- menu();if(atSkyMap&&eligible()){layout.mount();aimView.hidden=false;renderAimAccess();sync();}
+ menu();if(viewState.skyMap&&eligible()){layout.mount();aimView.hidden=false;renderAimAccess();sync();}
  else{layout.unmount();promote();}
 }
 // Permission changes also render the current route. Promote once without requiring a navigation or reload.
 function promote(){
- if(!atAim||!eligible()||routing)return;
- routing=true;const desiredMode=transferMode||'scene';transferMode=null;const generation=authGeneration,loginId=auth?.loginId,hash=location.hash,preset=routeFromHash()?.preset,restored=aim.pendingPlan;
+ if(!viewState.aim||!eligible()||routing)return;
+ routing=true;const desiredMode=transferMode||'scene';transferMode=null;const generation=accessState.generation,loginId=auth?.loginId,hash=location.hash,preset=routeFromHash()?.preset,restored=aim.pendingPlan;
  // Session renewal rotates the token without changing this authenticated account's generation.
- AstroNotesAssets.ensureModels().then(()=>{if(generation!==authGeneration||loginId!==auth?.loginId||hash!==location.hash||!atAim||!eligible())return;openAim(preset||null);if(restored)aim.pendingPlan=restored;mode=desiredMode;SkyMapUI.enter(true,restored?.at);}).finally(()=>{routing=false;if(transferMode&&atAim&&eligible())routeChanged();});
+ AstroNotesAssets.ensureModels().then(()=>{if(generation!==accessState.generation||loginId!==auth?.loginId||hash!==location.hash||!viewState.aim||!eligible())return;openAim(preset||null);if(restored)aim.pendingPlan=restored;mode=desiredMode;SkyMapUI.enter(true,restored?.at);}).finally(()=>{routing=false;if(transferMode&&viewState.aim&&eligible())routeChanged();});
 }
 function routeChanged(){render();}
 function sceneDraw(host,at){

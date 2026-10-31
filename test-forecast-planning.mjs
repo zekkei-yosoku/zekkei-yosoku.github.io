@@ -1,3 +1,4 @@
+import './tools/test-owner-adapter.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
 const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
 const start=html.indexOf('for (const el of $("toolsMenu").querySelectorAll("[data-tool]")) {',html.indexOf('$("toolsScrim").onclick')),end=html.indexOf('document.addEventListener("keydown"',start),source=html.slice(start,end);

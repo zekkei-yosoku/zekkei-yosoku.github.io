@@ -247,7 +247,7 @@ async function aimLookRender(host, spec) {
       }
     }
 
-    const [skyTop, skyLow] = aimLookSky(sunAlt);
+    const [skyTop, skyLow] = AstroNotesSceneAppearance.aimLookSky(sunAlt);
     const bright = (skyTop[0] * 0.3 + skyTop[1] * 0.59 + skyTop[2] * 0.11) > 120;
     const ink = bright ? "rgba(20,30,50,0.78)" : "rgba(255,255,255,0.82)";
     const nextSkyKey=skyTop.join(',')+'|'+skyLow.join(',');
@@ -297,8 +297,8 @@ async function aimLookRender(host, spec) {
     const c = movedBody ? [movedBody[0] - panX, movedBody[1] - panY] : p.x === null ? null : toPx([p.x, p.y]);
     // 円盤は形の後ろ（形で隠れる）。隠れた所も点線の輪で分かるようにする
     const upperPx=Math.max(1,(p.upperRadius??p.radius)*k),lowerPx=Math.max(1,(p.lowerRadius??p.radius)*k),diskY=(upperPx+lowerPx)/(2*rPx),diskCenter=c?c[1]+(lowerPx-upperPx)/2:0;
-    globalThis.AstroNotesCameraUI?.drawRange?.(host,ctx,{at:p.at,seq,k,toPx,pack:ms=>pack(ms,AstroNotesBodies.state(body,ms,eyeObs)),disc:(x,y,r,state)=>aimLookDisc(ctx,x,y,r,body,state)});
-    if (c){ctx.save();ctx.translate(c[0],diskCenter);ctx.scale(1,diskY);aimLookDisc(ctx,0,0,rPx,body,p);ctx.restore();}
+    globalThis.AstroNotesCameraUI?.drawRange?.(host,ctx,{at:p.at,seq,k,toPx,pack:ms=>pack(ms,AstroNotesBodies.state(body,ms,eyeObs)),disc:(x,y,r,state)=>AstroNotesSceneAppearance.aimLookDisc(ctx,x,y,r,body,state)});
+    if (c){ctx.save();ctx.translate(c[0],diskCenter);ctx.scale(1,diskY);AstroNotesSceneAppearance.aimLookDisc(ctx,0,0,rPx,body,p);ctx.restore();}
     host._bodyRadius = p.radius;
     host._placeXY = null;
     ctx.restore(); // End the independently updated body layer.

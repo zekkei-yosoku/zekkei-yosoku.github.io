@@ -13,7 +13,7 @@ async function ownerModule() {
   if (privateModule && privateModuleToken === token) return privateModule;
   if (privateModulePromise?.token === token) return privateModulePromise.promise;
   const promise = (async () => {
-    const bundle = await apiCall("GET", "/admin/ui");
+    const bundle = await apiTransport("GET", "/admin/ui");
     if (auth?.token !== token || !bundle || bundle.version !== 1 || typeof bundle.module !== "string") throw new Error("画面の確認をやり直してください");
     const url = URL.createObjectURL(new Blob([bundle.module], {type:"text/javascript"}));
     try {
@@ -33,14 +33,14 @@ async function renderPrivateEntry() {
   if (!box || !token) return;
   // ログイン直後でまだ所有者か分からなければ訊く。取れなければ入口を出さない（判定はサーバー）
   if (auth.ownerAdmin === undefined) {
-    try { const me = await apiCall("GET", "/me"); if (seq !== privateEntrySeq || token !== auth?.token) return; auth = { ...auth, ownerAdmin: !!me.ownerAdmin }; }
+    try { const me = await apiTransport("GET", "/me"); if (seq !== privateEntrySeq || token !== auth?.token) return; auth = { ...auth, ownerAdmin: !!me.ownerAdmin }; }
     catch { return; }
   }
   if (!auth.ownerAdmin) return;
   try {
     const module = await ownerModule();
     if (seq !== privateEntrySeq || token !== auth?.token || !$("appSettings").open) return;
-    box.append(module.entry({open:()=>{$("appSettings").close();pushRoute("#/admin");}}));
+    box.append(module.entry({open:()=>{$("appSettings").close();navigationHistory.pushRoute("#/admin");}}));
   } catch (e) {
     if (seq !== privateEntrySeq || token !== auth?.token || !$("appSettings").open) return;
     const reauth = e.code === "reauth_required";
@@ -71,23 +71,23 @@ async function renderAdmin() {
   if (!token) return;
   try {
     const module = await ownerModule();
-    if (seq !== adminRenderSeq || auth?.token !== token || !atAdmin) return;
+    if (seq !== adminRenderSeq || auth?.token !== token || !viewState.admin) return;
     $("adminView").replaceChildren();
     adminUnmount = module.mount($("adminView"), {nextStep,draft:privateDraft && privateDraft.loginId===auth.loginId?privateDraft.value:null,apiCall:async (...args)=>{
-      if (seq !== adminRenderSeq || auth?.token !== token || !atAdmin) throw new Error("画面の確認をやり直してください");
-      const result = await apiCall(...args);
-      if (seq !== adminRenderSeq || auth?.token !== token || !atAdmin) throw new Error("画面の確認をやり直してください");
+      if (seq !== adminRenderSeq || auth?.token !== token || !viewState.admin) throw new Error("画面の確認をやり直してください");
+      const result = await apiTransport(...args);
+      if (seq !== adminRenderSeq || auth?.token !== token || !viewState.admin) throw new Error("画面の確認をやり直してください");
       return result;
     }, onReauth:askReauth});
   } catch (e) {
-    if (seq !== adminRenderSeq || auth?.token !== token || !atAdmin) return;
+    if (seq !== adminRenderSeq || auth?.token !== token || !viewState.admin) return;
     status.textContent = e.message; $("adminView").replaceChildren(status);
     // 読めなかったときも、その場でやり直せるようにする（2026-10-15）
     const reauth = e.code === "reauth_required";
     if (e.status !== 403) {
       const again = document.createElement("button"); again.type = "button"; again.className = "chip";
       again.textContent = reauth ? "ログインし直す" : "再試行";
-      again.onclick = () => { if (seq === adminRenderSeq && auth?.token === token && atAdmin) { if (reauth) askReauth(); else renderAdmin(); } };
+      again.onclick = () => { if (seq === adminRenderSeq && auth?.token === token && viewState.admin) { if (reauth) askReauth(); else renderAdmin(); } };
       $("adminView").append(again);
     }
     if (reauth) askReauth();
@@ -99,13 +99,13 @@ document.addEventListener("visibilitychange", () => {
     clearAdminView(); if (draft && loginId) privateDraft = {loginId,value:draft};
     SkyMapUI?.suspend();
   } else {
-    if (atAdmin) renderAdmin();
-    if (atSkyMap) SkyMapUI?.open(true);
+    if (viewState.admin) renderAdmin();
+    if (viewState.skyMap) SkyMapUI?.open(true);
     void recheckAccess(30 * 1000);
   }
 });
 window.addEventListener("pagehide", clearAdminView);
-window.addEventListener("pageshow", e => { if (!e.persisted) return; if (atAdmin) renderAdmin(); void recheckAccess(30 * 1000); });
+window.addEventListener("pageshow", e => { if (!e.persisted) return; if (viewState.admin) renderAdmin(); void recheckAccess(30 * 1000); });
 
 // **次の一歩を示す。** 危なさを言うだけでは、何をすればいいか分からない。
 //

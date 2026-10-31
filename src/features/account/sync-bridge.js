@@ -12,8 +12,8 @@ function accountSync() {
       get favorites() { return favorites; }, set favorites(v) { favorites = v; },
       get sightings() { return sightings; }, set sightings(v) { sightings = v; },
     },
-    session: { auth: () => auth, generation: () => authGeneration },
-    apiCall: (...args) => apiCall(...args),
+    session: { auth: () => auth, generation: () => accessState.generation },
+    apiCall: (...args) => apiTransport(...args),
     store,
     toItem, cleanFavorite, cleanSighting,
     records: () => typeof RecordSync !== "undefined" ? RecordSync : undefined,
@@ -23,8 +23,5 @@ function accountSync() {
 }
 
 /// 送れなかったものを覚えておく。次に繋がったときに送る。
-function queuePush(kind, id) { return accountSync().queuePush(kind, id); }
-function syncNow() { return accountSync().syncNow(); }
 /// サーバーから来たものをローカルへ入れる。**サーバー側も外部データとして検査する。**
-function applyIncoming(got) { return accountSync().applyIncoming(got); }
 

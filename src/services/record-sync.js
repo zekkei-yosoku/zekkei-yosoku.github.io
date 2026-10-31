@@ -42,7 +42,7 @@ const RecordSync = (() => {
   function touched(key) {
     const id = login();
     if (writing || !id || !Object.values(kinds).some((k) => k.key(id) === key)) return;
-    clearTimeout(timer); timer = setTimeout(() => { syncNow().catch(() => {}); }, 800);
+    clearTimeout(timer); timer = setTimeout(() => { accountSync().syncNow().catch(() => {}); }, 800);
   }
   // 前回の同期と違うものを送信待ちに入れる。消えたものは削除として送る
   function scan() {

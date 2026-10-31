@@ -12,11 +12,11 @@ let importRequest = 0;
 $("importFile").onchange = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  const request = ++importRequest, generation = authGeneration, owner = dataOwner;
+  const request = ++importRequest, generation = accessState.generation, owner = dataOwner;
   try {
     const data = JSON.parse(await file.text());
     if (request !== importRequest) return;
-    if (generation !== authGeneration || owner !== dataOwner) throw new Error("ログイン状態が変わりました。取り込むアカウントを確認して、もう一度読み込んでください");
+    if (generation !== accessState.generation || owner !== dataOwner) throw new Error("ログイン状態が変わりました。取り込むアカウントを確認して、もう一度読み込んでください");
     if(data?.schemaVersion===2&&data.owner&&data.owner!==(auth?.loginId||dataOwner)&&!confirm('別のアカウントの控えです。現在のアカウントに読み込みますか？')){e.target.value='';return;}
     const local=globalThis.MyPlacesUI?.backupState?.()||{observations:[],shapes:{}};
     const restored=AstroNotesLibrary.restore(data,{favorites,sightings,...local,cleanFavorite,cleanSighting,cleanShape:AstroNotesShooting.cleanShape});
@@ -31,7 +31,7 @@ $("importFile").onchange = async (e) => {
     const libraryKeys=AstroNotesLibrary.keys(auth?.loginId||dataOwner);
     persistImportedData([["sorami.sightings",nextSightings],["sorami.favorites",nextFavorites],["sorami.queue",nextQueue],[libraryKeys.observations,restored.observations],[libraryKeys.shapes,restored.shapes]]);
     sightings = nextSightings; favorites = nextFavorites; pushQueue = nextQueue;
-    if (auth) { renderAuthButton(); void syncNow(); }
+    if (auth) { renderAuthButton(); void accountSync().syncNow(); }
     globalThis.MyPlacesUI?.imported?.();aimFillSelects();SkyMapUI?.refreshTargets?.();
     render();   // 押下の配線と画面の出し分けごとやり直す
     // 落としたものは黙って捨てない。何件・なぜ捨てたか分からないと、

@@ -41,7 +41,7 @@ function renderAlmanac() {
   if(typeof ToolDateTimeBar!=='undefined'&&typeof AstroNotesScrollTimeline!=='undefined'){
     if(!almanacTimeline){
       const bar=ToolDateTimeBar.decorate({footer:$("almanacFooter"),row:$("almanacDateRow"),date:$("almanacCalendarOpen"),prev:$("almanacPrev"),next:$("almanacNext"),track:$("almanacTrack"),timeId:'almanacTime',moreId:'almanacTimeMore',now:()=>{D()?.today();almanacDay=T.start(Date.now());renderAlmanac();}});
-      almanacPlayback=ToolDateTimeBar.playback({row:$("almanacDateRow"),footer:$("almanacFooter"),getAt:()=>D()?.at(),enabled:()=>atAlmanac, onStart:()=>{almanacTimeline?.stop();D()?.setAt(D()?.at());},onStop:()=>{if(atAlmanac){D()?.setAt(D()?.at());almanacTimeline?.sync(barAt(),almanacScrub);}},setAt:at=>{
+      almanacPlayback=ToolDateTimeBar.playback({row:$("almanacDateRow"),footer:$("almanacFooter"),getAt:()=>D()?.at(),enabled:()=>viewState.almanac, onStart:()=>{almanacTimeline?.stop();D()?.setAt(D()?.at());},onStop:()=>{if(viewState.almanac){D()?.setAt(D()?.at());almanacTimeline?.sync(barAt(),almanacScrub);}},setAt:at=>{
         if(at<lower||at>=T.addDays(upper,1)){almanacPlayback.stop(false);return;}
         const day=T.start(at);if(day!==almanacDay){almanacDay=day;renderAlmanac();}D()?.setAt(at,true);syncClock();
         const rulerAt=almanacScrub==='date'?T.toRuler(day)+(at-day)/(T.addDays(day,1)-day)*86400000:at;
@@ -53,7 +53,7 @@ function renderAlmanac() {
       const homeCalendar=ToolDateTimeBar.calendar({button:$("almanacCalendarOpen"),getAt:ruler,getNow:()=>T.toRuler(Date.now()),setDay:day=>{almanacDay=T.fromRuler(day);renderAlmanac();}});
       ToolDateTimeBar.editor({button:$("almanacCalendarOpen"),time:bar.time,dialog:homeCalendar,beforeOpen:()=>almanacTimeline?.stop()});
       ToolDateTimeBar.trackPointerFocus($("almanacFooter"));
-      almanacTimeline=AstroNotesScrollTimeline.mount({root:$("almanacTimeline"),getAt:barAt,getMode:()=>almanacScrub,enabled:()=>atAlmanac,getObserver:()=>({latitude:(almanacPoint||place).latitude,longitude:(almanacPoint||place).longitude,elevation:0}),sun:(at,o)=>AstroNotesAstro.sun(at,o),onChange:at=>{if(almanacScrub!=='date'){const day=T.start(at);if(day<lower||day>upper)return;if(day!==almanacDay){almanacDay=day;almanacDragAt=at;try{renderAlmanac();}finally{almanacDragAt=null;}}D()?.setAt(at);syncClock();return;}const day=T.fromRuler(at);const clamped=Math.max(lower,Math.min(upper,day));if(clamped!==almanacDay){almanacDay=clamped;renderAlmanac();}},onSettle:()=>almanacTimeline.sync(barAt(),almanacScrub),format:(at,mode)=>mode!=='date'?T.time(at):new Date(at+32400000).toISOString().slice(5,10).replace('-','/'),describe:(at,mode)=>mode!=='date'?ToolDateTimeBar.label(T.toRuler(T.start(at)))+' '+T.time(at):ToolDateTimeBar.label(at)});
+      almanacTimeline=AstroNotesScrollTimeline.mount({root:$("almanacTimeline"),getAt:barAt,getMode:()=>almanacScrub,enabled:()=>viewState.almanac,getObserver:()=>({latitude:(almanacPoint||place).latitude,longitude:(almanacPoint||place).longitude,elevation:0}),sun:(at,o)=>AstroNotesAstro.sun(at,o),onChange:at=>{if(almanacScrub!=='date'){const day=T.start(at);if(day<lower||day>upper)return;if(day!==almanacDay){almanacDay=day;almanacDragAt=at;try{renderAlmanac();}finally{almanacDragAt=null;}}D()?.setAt(at);syncClock();return;}const day=T.fromRuler(at);const clamped=Math.max(lower,Math.min(upper,day));if(clamped!==almanacDay){almanacDay=clamped;renderAlmanac();}},onSettle:()=>almanacTimeline.sync(barAt(),almanacScrub),format:(at,mode)=>mode!=='date'?T.time(at):new Date(at+32400000).toISOString().slice(5,10).replace('-','/'),describe:(at,mode)=>mode!=='date'?ToolDateTimeBar.label(T.toRuler(T.start(at)))+' '+T.time(at):ToolDateTimeBar.label(at)});
       $("almanacScrubMode").onclick=()=>{almanacTimeline.stop();almanacScrub=ToolDateTimeBar.nextMode(almanacScrub);renderAlmanac();};
     }
     ToolDateTimeBar.dateText($("almanacCalendarOpen"),ruler());
@@ -71,7 +71,7 @@ function renderAlmanac() {
   const out=$("almanacOutput");out.replaceChildren();
   out.hidden=!!globalThis.AstroNotesAlmanacDashboard;
   const syncBar=()=>{if(typeof almanacTimeline==='undefined'||!almanacTimeline)return;ToolDateTimeBar.modeButton($("almanacScrubMode"),almanacScrub);almanacTimeline.sync(barAt(),almanacScrub);syncClock();};
-  if(globalThis.AstroNotesAlmanacDashboard){AstroNotesAlmanacDashboard.render($("almanacDashboard"),almanacDay,p,almanacEvents,AstroNotesAstro,{isActive:()=>atAlmanac,onLiveDay:()=>{almanacDay=AstroNotesHomeTime.start(Date.now());renderAlmanac();},onLive:at=>{syncClock();if(typeof almanacTimeline!=='undefined'&&almanacScrub!=='date')almanacTimeline?.sync(at,almanacScrub);}});AstroNotesAlmanacDashboard.setAt(AstroNotesAlmanacDashboard.at());syncBar();return;}
+  if(globalThis.AstroNotesAlmanacDashboard){AstroNotesAlmanacDashboard.render($("almanacDashboard"),almanacDay,p,almanacEvents,AstroNotesAstro,{isActive:()=>viewState.almanac,onLiveDay:()=>{almanacDay=AstroNotesHomeTime.start(Date.now());renderAlmanac();},onLive:at=>{syncClock();if(typeof almanacTimeline!=='undefined'&&almanacScrub!=='date')almanacTimeline?.sync(at,almanacScrub);}});AstroNotesAlmanacDashboard.setAt(AstroNotesAlmanacDashboard.at());syncBar();return;}
   syncBar();
   for(const [body,name] of [['sun','太陽'],['moon','月']]){
     const card=document.createElement('div');card.className='card';
@@ -94,6 +94,6 @@ function renderAlmanac() {
   }
 
 }
-if(typeof document!=='undefined')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&atAlmanac)globalThis.AstroNotesAlmanacDashboard?.refresh();});
+if(typeof document!=='undefined')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&viewState.almanac)globalThis.AstroNotesAlmanacDashboard?.refresh();});
 function openSkyRating(){try{sessionStorage.setItem("astronotes.rating.return",location.pathname+location.hash.split("?")[0]);}catch{}location.href="sky-rating.html";}
 document.querySelector("#skyRatingInvite a").onclick=e=>{e.preventDefault();openSkyRating();};

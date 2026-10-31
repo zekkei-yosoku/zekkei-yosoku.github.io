@@ -13,7 +13,7 @@ for(const theme of ['light','dark'])for(const type of ['line','area']){
   favorites.push(f);store.set('sorami.favorites',favorites);const keys=AstroNotesLibrary.keys(auth.loginId);store.set(keys.shapes,{[f.id]:{latitude:f.latitude,longitude:f.longitude,shape}});store.set(keys.observations,AstroNotesLibrary.registrationChanges(f,[],[{key:'skytree',name:'東京スカイツリー'}]));
   window.__stored=JSON.stringify({favorites,shapes:store.get(keys.shapes),obs:store.get(keys.observations)});
   AstroNotesShooting.candidates=async(plan,entries,deps)=>{await deps.ensure(plan.body);const place={...entries[0].place,latitude:35.722,longitude:139.842,elevation:17,groundManualM:17};delete place.shape;return {rows:[{place,record:entries[0].record,event:{at:plan.at+17*3600000,side:'set',intersects:true,matchMode:'overlap',partId:'__whole'},shapeType:type}],checked:10,failed:window.__partial?1:0,issues:window.__partial?[{reason:'elevation'}]:[]};};
-  MyPlacesUI.imported();pushRoute('#/records');setNotebookTab('points');
+  MyPlacesUI.imported();navigationHistory.pushRoute('#/records');setNotebookTab('points');
  },type);
  await p.locator('[aria-label="合成の線と枠から次に重なる日を探す"]').click();const buttons=p.locator('[data-shape-candidate]');await buttons.first().waitFor();await p.waitForFunction(()=>[...document.querySelectorAll('.shape-next-group button.chip')].every(b=>!b.disabled));
  assert.equal(await buttons.count(),8);

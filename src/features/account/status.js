@@ -1,7 +1,7 @@
 function renderAuthButton() {
   globalThis.AstroNotesPlanUI?.refreshPermissions();
   try { recentHistory.accountChanged(); } catch { /* History is optional during startup. */ }
-  if (atAdmin && auth !== adminRenderAuth) renderAdmin();
+  if (viewState.admin && auth !== adminRenderAuth) renderAdmin();
   renderTools();
   SkyMapUI?.authChanged();
   window.AstroTargetPicker?.authChanged();

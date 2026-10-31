@@ -1,3 +1,4 @@
+import './tools/test-owner-adapter.mjs';
 import {readFileSync} from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
 const src=html.slice(html.indexOf('function allowedTools()'),html.indexOf('function renderTools()'));

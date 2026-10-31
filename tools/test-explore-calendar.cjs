@@ -6,7 +6,7 @@ for(const width of [320,390,1280])for(const theme of ['light','dark']){
  await c.addInitScript(tools=>sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-calendar',loginId:'calendar-test',tools})),tools);
  await c.route(/(?:zekkei-api|localhost:8787)/,r=>r.fulfill({status:200,json:{allowed:true,tool:'skymap',loginId:'calendar-test',tools,credentials:[],hasPassword:true,recoveryCodes:10,favorites:[],sightings:[],rev:1}}));
  const p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));await p.goto(base);await p.waitForFunction(()=>{try{return typeof PAGE_DIALOGS==='object'}catch{return false}});
- await p.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>83;pushRoute('#/explore');});
+ await p.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>83;navigationHistory.pushRoute('#/explore');});
  await p.locator('#exploreConditions').waitFor();await p.evaluate(()=>{aimAirSettings.mode='standard';AstroNotesAtmosphere.configure('standard',aimAirSettings);SkyMapUI.setObserver({name:'Synthetic',latitude:35.583465,longitude:139.568839,groundManualM:83,standAglM:1.5});SkyMapUI.setTarget('skytree');const body=document.getElementById('skyMapBody');body.value='moon';body.onchange();SkyMapUI.setTime(Date.parse('2026-10-03T23:00:00+09:00'));});
  await p.locator('#skyMapCalendarOpen').click();const d=p.locator('dialog.tool-date-calendar:visible');await d.waitFor();
  await p.waitForFunction(()=>{const d=document.querySelector('dialog.tool-date-calendar[open]');return d&&d.querySelector('[data-grid]').getAttribute('aria-busy')==='false';},null,{timeout:60000});

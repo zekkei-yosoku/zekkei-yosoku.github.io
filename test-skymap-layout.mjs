@@ -1,3 +1,4 @@
+import './tools/test-owner-adapter.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import vm from 'node:vm';import {fixture,transfer} from './test-sky-map-ui.mjs';import {createRequire} from 'node:module';const createRequireFn=createRequire(import.meta.url);
 const flush=()=>new Promise(r=>setImmediate(r));
 const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');

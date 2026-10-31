@@ -21,7 +21,7 @@ $("copyCodes").onclick = async () => {
 $("newRecovery").onclick = async () => {
   if (Number.parseInt($("accountCodesState").textContent,10)>0 && !confirm("回復コードを再発行します。\n以前の回復コードはすべて使えなくなります。続けますか？")) return;
   $("accountErr").hidden = true;
-  try { showCodes((await apiCall("POST", "/recovery/issue", {})).codes); openAccountSheet2(); }
+  try { showCodes((await apiTransport("POST", "/recovery/issue", {})).codes); openAccountSheet2(); }
   catch (e) { accountFail(e.message); }
 };
 // 発行の表示を消さずに中身だけ更新する

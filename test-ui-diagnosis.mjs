@@ -1,3 +1,4 @@
+import './tools/test-owner-adapter.mjs';
 createRequire(import.meta.url)("./astronotes-bodies.js");
 import {test} from 'node:test';
 import assert from 'node:assert/strict';

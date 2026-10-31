@@ -1,3 +1,4 @@
+import './tools/test-owner-adapter.mjs';
 import {execFileSync} from 'node:child_process';
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
@@ -145,7 +146,7 @@ test('controllerのwrapperは初回呼出しで1回だけ作り、同じPromise�
     AstroNotesAccountSync:{create(deps){created.push(deps);return {queuePush:(k,i)=>['q',k,i],syncNow:()=>result,applyIncoming:g=>['a',g]};}}};
   vm.createContext(c);vm.runInContext(newHead,c);
   assert.equal(hooks.length,1);assert.equal(created.length,0);
-  assert.equal(c.syncNow(),result);assert.equal(c.syncNow(),result);assert.deepEqual(c.queuePush('fav','x'),['q','fav','x']);
+  assert.equal(c.accountSync().syncNow(),result);assert.equal(c.accountSync().syncNow(),result);assert.deepEqual(c.accountSync().queuePush('fav','x'),['q','fav','x']);
   assert.equal(created.length,1);
   const {state,session,records}=created[0],next=[{kind:'fav',id:'y'}];
   assert.equal(state.pushQueue,c.pushQueue);state.pushQueue=next;assert.equal(c.pushQueue,next);
