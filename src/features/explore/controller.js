@@ -6,7 +6,7 @@ import {aim,aimWithHeights} from '../framing/controller.js';
 import {aimSavedFrom} from '../framing/observer.js';
 import {aimLens} from '../../ui/scene/lens.js';
 import {aimLookRender} from '../../ui/scene/render.js';
-import {aimAirCompare,aimAirEnsure,aimAirSettings,openAim,renderAimAccess} from '../framing/reverse-and-entry.js';
+import {aimAirEnsure,aimAirSettings,clearAimAirCompare,openAim,renderAimAccess} from '../framing/reverse-and-entry.js';
 import {accessState,auth,screenAllowed,toolAllowed} from '../account/session-and-access.js';
 /* 探す: one map-owned plan, two result panes (scene / map). */
 (()=>{
@@ -76,7 +76,7 @@ function candidateChosen(e){if(e.target.closest('[data-from-day]'))showResult();
 tabs.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();choose(e.key==='Home'?'scene':e.key==='End'?'map':mode==='scene'?'map':'scene',true);};
 function project(s){
  aim.target=aimWithHeights(s.target);aim.body=s.body;aim.from=aimSavedFrom(s.observer);aim.dayMs=AstroNotesSkyMap.dayStart(s.at);aim.partId=s.partId;aim.limb=s.limb;aim.matchMode=s.matchMode||'overlap';
- aim.candPick=null;aim.wantSpot=null;aim.spot=null;aim.plannerTransfer=null;aimAirCompare=null;
+ aim.candPick=null;aim.wantSpot=null;aim.spot=null;aim.plannerTransfer=null;clearAimAirCompare();
  $('aimDate').value=new Date(s.at+32400000).toISOString().slice(0,10);$('aimBody').value=s.body;
 }
 function reserveScene(){const h=scene.getBoundingClientRect().height;if(h>0)scene.style.minHeight=h+'px';}

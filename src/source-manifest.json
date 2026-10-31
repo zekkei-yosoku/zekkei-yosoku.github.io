@@ -1614,11 +1614,6 @@
           "owner": "src/features/account/session-and-access.js"
         },
         {
-          "name": "aimAirCompare",
-          "writer": "src/features/explore/controller.js",
-          "owner": "src/features/framing/reverse-and-entry.js"
-        },
-        {
           "name": "auth",
           "writer": "src/features/account/access-recheck.js",
           "owner": "src/features/account/session-and-access.js"
