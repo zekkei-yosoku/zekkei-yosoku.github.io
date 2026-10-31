@@ -23,7 +23,7 @@ document.addEventListener("touchstart", (e) => {
   if (open) {
     if (!e.target.closest("#toolsMenu, #toolsScrim")) return;
   } else if (t.clientX > SWIPE_EDGE_PX || (isMenuPage() && $("toolsButton").hidden) || document.querySelector("dialog[open]")
-             || e.target.closest(".mapwrap, canvas, input, select, textarea, .preview-footer-track")) {
+             || e.target.closest(".mapwrap, canvas, input, select:not(#sortSelect), textarea, .preview-footer-track")) {
     // ☰ が出ていない（使える道具が無い）ときは、なぞっても開かない
     return;
   }
