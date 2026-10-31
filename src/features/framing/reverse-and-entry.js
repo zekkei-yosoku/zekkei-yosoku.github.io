@@ -275,6 +275,7 @@ const aimAirSettings={mode:"auto",temperatureC:10,pressureHPa:1010,...(store.get
 if(!["auto","standard","none"].includes(aimAirSettings.mode))aimAirSettings.mode="auto";
 try{AstroNotesAtmosphere.configure(aimAirSettings.mode,aimAirSettings);}catch{aimAirSettings.mode="auto";AstroNotesAtmosphere.configure("auto");}
 let aimAirLoadKey="",aimAirLoadUntil=0,aimAirSeq=0,aimAirCompare=null;
+function resetAimAirLoad() { aimAirSeq++; aimAirLoadKey=""; }
 const aimAirAngle=(...args)=>AstroNotesAstro.targetElevationAngle(...args,{k:AstroNotesAtmosphere.targetK()});
 function aimAirDescribe(at,obs){
  const air=AstroNotesAtmosphere.at(at,obs),temp=Number.isFinite(air.temperatureC)?air.temperatureC.toFixed(1):"",pressure=Number.isFinite(air.pressureHPa)?Math.round(air.pressureHPa):"";
@@ -528,4 +529,4 @@ function aimMapView() {
 // 道具の観測地点・目標を決めるときは、いまのその点のところで地図を開く
 $("mapButton").onclick = () => MapPick.open(placeSheetFor && PLACE_PICKERS[placeSheetFor]
   ? (PLACE_PICKERS[placeSheetFor].point() || place) : place);
-export {aimAirAngle,aimAirCompare,aimAirDescribe,aimAirEnsure,aimAirLoadKey,aimAirSeq,aimAirSettings,aimAirSync,aimLookFound,aimLookKey,aimMapView,aimReverseClear,aimReverseShow,aimShiftFromPlacement,aimShiftSync,aimTitleFor,openAim,renderAimAccess};
+export {aimAirAngle,aimAirCompare,aimAirDescribe,aimAirEnsure,aimAirSettings,aimAirSync,aimLookFound,aimLookKey,aimMapView,aimReverseClear,aimReverseShow,aimShiftFromPlacement,aimShiftSync,aimTitleFor,openAim,renderAimAccess,resetAimAirLoad};

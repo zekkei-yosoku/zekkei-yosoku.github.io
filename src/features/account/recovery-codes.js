@@ -2,6 +2,7 @@ import {$,esc} from '../../app/presentation-helpers.js';
 import {accountFail,apiTransport,auth} from './session-and-access.js';
 import {openAccountSheet,showAccountView} from './account-actions.js';
 let shownCodes = [];
+function clearShownCodes() { shownCodes = []; }
 // **IDも一緒に見せて、コピーにも含める。** 回復コードで入るには ID が要るので、
 // コードだけ保存していると、IDを忘れたときに手詰まりになる。
 const codeBlock = (loginId, codes) =>
@@ -34,4 +35,4 @@ async function openAccountSheet2() {
   if (shown) showCodes(codes);
 }
 // 退会したIDの端末内コピーも消す。他の利用者のデータには触れない。
-export {openAccountSheet2,showCodes,shownCodes};
+export {clearShownCodes,openAccountSheet2,showCodes};

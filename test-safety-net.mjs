@@ -33,3 +33,9 @@ test('renderMoonTimes stays empty without an observer and shows times with one',
  const c=run(['renderMoonTimes'],{AstroNotesAstro:{moonEvents:()=>events},AstroNotesMoon:{},moonObs:{},moonHorizon:null,S,moonVisibility:new Map(),requestMoonDetails:d=>requested=d,esc:String,place:{},AstroNotesTerrain:{locationScope:()=>'point'}});
  const html=c.renderMoonTimes(day);assert.match(html,/id="moonTimes"/);assert.match(html,/この場所では/);assert.match(html,/月の出/);assert.equal(requested,day);
 });
+test('clearFavMapReturn ends the return-to-form state',()=>{
+ const c={};vm.createContext(c);vm.runInContext(decl('favMapReturn')+'\n'+decl('clearFavMapReturn')+'\nfavMapReturn=true;clearFavMapReturn();globalThis.after=favMapReturn;',c);assert.equal(c.after,false);
+});
+test('resetAimAirLoad invalidates the loading weather request',()=>{
+ const c={};vm.createContext(c);vm.runInContext(decl('aimAirLoadKey')+'\n'+decl('resetAimAirLoad')+'\naimAirLoadKey="key";resetAimAirLoad();globalThis.after=[aimAirSeq,aimAirLoadKey];',c);assert.deepEqual([...c.after],[1,'']);
+});

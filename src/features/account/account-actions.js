@@ -4,7 +4,7 @@ import {showSheet} from '../../app/overlays.js';
 import {accountSync} from './sync-bridge.js';
 import {adoptToken} from './remember-and-token.js';
 import {b64uToBuf,bufToB64u} from './passkey-login.js';
-import {shownCodes} from './recovery-codes.js';
+import {clearShownCodes} from './recovery-codes.js';
 import {nextStep} from './guidance.js';
 const ACCOUNT_VIEWS = { overview: "アカウント", passkeys: "パスキー", password: "パスワード", recovery: "回復コード", history: "ログイン履歴", sessions: "ほかの端末" };
 function leaveAccountCodes() {
@@ -13,7 +13,7 @@ function leaveAccountCodes() {
   $("recoveryShown").hidden=true;
   $("accountSheet").dataset.codesShown='false';
   $("recoveryCode").textContent='';
-  shownCodes=[];
+  clearShownCodes();
   return true;
 }
 function showAccountView(view, focus = false) {

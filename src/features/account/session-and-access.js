@@ -1,7 +1,7 @@
 import {$} from '../../app/presentation-helpers.js';
 import {place,store,viewState} from '../../app/browser-state.js';
 import {render} from '../forecast/view.js';
-import {loadPhotos,photos,photosCursor,photosError,photosLoading,photosOwner,photosRequest,renderPhotoListState,renderPhotos} from '../photos/controller.js';
+import {loadPhotos,resetPhotoList} from '../photos/controller.js';
 import {routeFromHash} from '../../app/navigation.js';
 import {renderRecords,savedRoundClient} from '../results/controller.js';
 import {openPlane,plane} from '../aircraft/controller.js';
@@ -156,8 +156,8 @@ function refreshRestrictedTools() {
   if (key === restrictedToolsKey) return;
   restrictedToolsKey = key;
   // 古いアカウント/権限で開始した処理を無効にし、記録を即座に消す。
-  plane.seq++; iss.seq++; photosRequest++;
-  photos = []; photosCursor = null; photosOwner = null; photosLoading = false; photosError = null; renderPhotos(); renderPhotoListState();
+  plane.seq++; iss.seq++;
+  resetPhotoList();
   if (viewState.aim) openAim(null);
   if (viewState.plane) openPlane();
   if (viewState.iss) openIss();

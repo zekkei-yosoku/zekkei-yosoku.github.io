@@ -2,7 +2,7 @@ import {$,esc} from '../app/presentation-helpers.js';
 import {favorites,place} from '../app/browser-state.js';
 import {bundle} from '../features/forecast/load.js';
 import {currentView,groundAt} from '../features/forecast/view.js';
-import {PLACE_PICKERS,choosePlace,favDraft,favMapReturn,openFavSheet,renderSheet,selectPlace} from '../features/places/controller.js';
+import {PLACE_PICKERS,choosePlace,clearFavMapReturn,favDraft,favMapReturn,openFavSheet,renderSheet,selectPlace} from '../features/places/controller.js';
 import {MapPick} from '../ui/map/picker.js';
 import {aimSetFrom} from '../features/framing/observer.js';
 import {aimRenderSheetCands} from '../features/framing/candidates.js';
@@ -68,7 +68,7 @@ $("mapPick").onclick = async () => {
     favDraft.elevation = elevation == null ? null : Math.round(elevation * 10) / 10;
     favDraft.locationScope = "point";
     $("mapSheet").close();
-    favMapReturn = false;
+    clearFavMapReturn();
     $("mapPick").disabled = false;
     $("mapPick").textContent = "この場所にする";
     openFavSheet(favDraft.index, { point: favDraft, replacePoint: true, after: favDraft.after,

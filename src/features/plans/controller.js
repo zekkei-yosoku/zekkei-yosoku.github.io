@@ -6,7 +6,7 @@ import {aim} from '../framing/controller.js';
 import {aimCal,aimFromPoint,aimM,aimSavedFrom} from '../framing/observer.js';
 import {aimRidgeCache} from '../../ui/scene/terrain.js';
 import {AIM_SENSOR,aimLens} from '../../ui/scene/lens.js';
-import {aimAirCompare,aimAirLoadKey,aimAirSeq,aimAirSettings,aimAirSync,aimLookKey,openAim} from '../framing/reverse-and-entry.js';
+import {aimAirCompare,aimAirSettings,aimAirSync,aimLookKey,openAim,resetAimAirLoad} from '../framing/reverse-and-entry.js';
 import {accessState,auth,screenAllowed,toolAllowed} from '../account/session-and-access.js';
 import {afterPagePop,showSheet} from '../../app/overlays.js';
 import {renderAuthButton} from '../account/status.js';
@@ -105,7 +105,7 @@ function restoreSharedPlan(recent = null, options = {}) {
   aim.matchMode=p.matchMode||'limb';aim.body=p.body;aim.limb=p.limb;aim.partId=p.part;aim.limbsByBody[p.body]=p.limb;
   aim.from={...aimSavedFrom(AstroNotesPlan.expandPoint(p.o)),...(arguments.length?{subtitle:'履歴の撮影地点'}:{}),groundManualM:p.o[3],standAglM:p.o[4]};
   aimLens.on=p.l.on;aimLens.mode='manual';aimLens.focal=p.l.focal;aimLens.sensor=p.l.sensor;aimLens.portrait=p.l.portrait;aimLens.grid=p.l.grid;
-  aimAirSettings.mode=p.air;aimAirSeq++;aimAirLoadKey='';aimCal.seq++;aimCal.cache.clear();aim.spotCache=null;aimRidgeCache.clear();
+  aimAirSettings.mode=p.air;resetAimAirLoad();aimCal.seq++;aimCal.cache.clear();aim.spotCache=null;aimRidgeCache.clear();
   AstroNotesAtmosphere.configure(p.air,aimAirSettings);if(options.persist!==false)store.set('sorami.aimAir',aimAirSettings);aimAirSync();
   if(arguments.length&&options.persist!==false){store.set('sorami.aimFrom',aim.from);store.set('sorami.lens',aimLens);}
   $('aimDate').value=new Date(p.at+32400000).toISOString().slice(0,10);

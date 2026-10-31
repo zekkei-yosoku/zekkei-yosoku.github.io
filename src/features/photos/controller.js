@@ -357,6 +357,10 @@ $("photoSave").onclick = async (e) => {
 let photos = [];
 let photosRequest = 0, photosCursor = null, photosLoading = false, photosError = null;
 let photosOwner = null, photosRetryAppend = false;
+function resetPhotoList() {
+  photosRequest++;
+  photos = []; photosCursor = null; photosOwner = null; photosLoading = false; photosError = null; renderPhotos(); renderPhotoListState();
+}
 $("photoListMore").onclick = () => loadPhotos(true);
 $("photoListRetry").onclick = () => loadPhotos(photosRetryAppend);
 function renderPhotoListState() {
@@ -450,4 +454,4 @@ function wireOutcomes(root) {
 
   }
 }
-export {loadPhotos,photos,photosCursor,photosError,photosLoading,photosOwner,photosRequest,renderPhotoListState,renderPhotos,wireOutcomes};
+export {loadPhotos,resetPhotoList,wireOutcomes};

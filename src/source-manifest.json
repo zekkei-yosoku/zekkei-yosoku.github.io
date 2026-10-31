@@ -1624,16 +1624,6 @@
           "owner": "src/features/framing/reverse-and-entry.js"
         },
         {
-          "name": "aimAirLoadKey",
-          "writer": "src/features/plans/controller.js",
-          "owner": "src/features/framing/reverse-and-entry.js"
-        },
-        {
-          "name": "aimAirSeq",
-          "writer": "src/features/plans/controller.js",
-          "owner": "src/features/framing/reverse-and-entry.js"
-        },
-        {
           "name": "aimCustomRequest",
           "writer": "src/app/navigation.js",
           "owner": "src/app/browser-state.js"
@@ -1704,11 +1694,6 @@
           "owner": "src/app/browser-state.js"
         },
         {
-          "name": "favMapReturn",
-          "writer": "src/services/place-search.js",
-          "owner": "src/features/places/controller.js"
-        },
-        {
           "name": "favorites",
           "writer": "src/features/account/library-transfer.js",
           "owner": "src/app/browser-state.js"
@@ -1749,36 +1734,6 @@
           "owner": "src/features/account/session-and-access.js"
         },
         {
-          "name": "photos",
-          "writer": "src/features/account/session-and-access.js",
-          "owner": "src/features/photos/controller.js"
-        },
-        {
-          "name": "photosCursor",
-          "writer": "src/features/account/session-and-access.js",
-          "owner": "src/features/photos/controller.js"
-        },
-        {
-          "name": "photosError",
-          "writer": "src/features/account/session-and-access.js",
-          "owner": "src/features/photos/controller.js"
-        },
-        {
-          "name": "photosLoading",
-          "writer": "src/features/account/session-and-access.js",
-          "owner": "src/features/photos/controller.js"
-        },
-        {
-          "name": "photosOwner",
-          "writer": "src/features/account/session-and-access.js",
-          "owner": "src/features/photos/controller.js"
-        },
-        {
-          "name": "photosRequest",
-          "writer": "src/features/account/session-and-access.js",
-          "owner": "src/features/photos/controller.js"
-        },
-        {
           "name": "place",
           "writer": "src/features/places/controller.js",
           "owner": "src/app/browser-state.js"
@@ -1817,16 +1772,6 @@
           "name": "pushQueue",
           "writer": "src/features/account/sync-bridge.js",
           "owner": "src/features/account/session-and-access.js"
-        },
-        {
-          "name": "shownCodes",
-          "writer": "src/features/account/account-actions.js",
-          "owner": "src/features/account/recovery-codes.js"
-        },
-        {
-          "name": "shownCodes",
-          "writer": "src/features/account/auth-panels.js",
-          "owner": "src/features/account/recovery-codes.js"
         },
         {
           "name": "sightings",

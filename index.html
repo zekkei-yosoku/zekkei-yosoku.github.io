@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="3020332725454936685">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-hsV/VAAK3Sj2A6edQfoHWOteWDLl1ekemFxd77K5bv8=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-YE2FvYuOUY58Yn1G4KSACCYK2Jw8Z9cWW70F3PqiiOE=' 'sha256-okx7zuxTyw5L/vVqNMEs9neeLRNC8JGOVMq+Lzr6BR8=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-wy58pa7yIe7Hvjp/V4YhEleE4bpkwFLt4L7e5QgUNgk=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="570991715715623652">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-aNfez0yts8tnrhGWAYS45Dutjtd1vFtETZZA8RqDKi4=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-YE2FvYuOUY58Yn1G4KSACCYK2Jw8Z9cWW70F3PqiiOE=' 'sha256-okx7zuxTyw5L/vVqNMEs9neeLRNC8JGOVMq+Lzr6BR8=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-wy58pa7yIe7Hvjp/V4YhEleE4bpkwFLt4L7e5QgUNgk=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -4208,6 +4208,10 @@ $("photoSave").onclick = async (e) => {
 let photos = [];
 let photosRequest = 0, photosCursor = null, photosLoading = false, photosError = null;
 let photosOwner = null, photosRetryAppend = false;
+function resetPhotoList() {
+  photosRequest++;
+  photos = []; photosCursor = null; photosOwner = null; photosLoading = false; photosError = null; renderPhotos(); renderPhotoListState();
+}
 $("photoListMore").onclick = () => loadPhotos(true);
 $("photoListRetry").onclick = () => loadPhotos(photosRetryAppend);
 function renderPhotoListState() {
@@ -5952,6 +5956,7 @@ const PHENOMENA_ORDER = Object.entries(S.PHENOMENA).sort((a, b) => a[1].order - 
 
 let favDraft = null;   // 編集中のお気に入り。index が -1 なら新規。
 let favMapReturn = false; // 位置変更の地図を閉じたら編集フォームへ戻す
+function clearFavMapReturn() { favMapReturn = false; }
 
 let favFilter = null;   // 地点の絞り込み（画面を開いている間だけ）
 function renderSheet() {
@@ -11235,6 +11240,7 @@ const aimAirSettings={mode:"auto",temperatureC:10,pressureHPa:1010,...(store.get
 if(!["auto","standard","none"].includes(aimAirSettings.mode))aimAirSettings.mode="auto";
 try{AstroNotesAtmosphere.configure(aimAirSettings.mode,aimAirSettings);}catch{aimAirSettings.mode="auto";AstroNotesAtmosphere.configure("auto");}
 let aimAirLoadKey="",aimAirLoadUntil=0,aimAirSeq=0,aimAirCompare=null;
+function resetAimAirLoad() { aimAirSeq++; aimAirLoadKey=""; }
 const aimAirAngle=(...args)=>AstroNotesAstro.targetElevationAngle(...args,{k:AstroNotesAtmosphere.targetK()});
 function aimAirDescribe(at,obs){
  const air=AstroNotesAtmosphere.at(at,obs),temp=Number.isFinite(air.temperatureC)?air.temperatureC.toFixed(1):"",pressure=Number.isFinite(air.pressureHPa)?Math.round(air.pressureHPa):"";
@@ -11547,7 +11553,7 @@ $("mapPick").onclick = async () => {
     favDraft.elevation = elevation == null ? null : Math.round(elevation * 10) / 10;
     favDraft.locationScope = "point";
     $("mapSheet").close();
-    favMapReturn = false;
+    clearFavMapReturn();
     $("mapPick").disabled = false;
     $("mapPick").textContent = "この場所にする";
     openFavSheet(favDraft.index, { point: favDraft, replacePoint: true, after: favDraft.after,
@@ -12233,8 +12239,8 @@ function refreshRestrictedTools() {
   if (key === restrictedToolsKey) return;
   restrictedToolsKey = key;
   // 古いアカウント/権限で開始した処理を無効にし、記録を即座に消す。
-  plane.seq++; iss.seq++; photosRequest++;
-  photos = []; photosCursor = null; photosOwner = null; photosLoading = false; photosError = null; renderPhotos(); renderPhotoListState();
+  plane.seq++; iss.seq++;
+  resetPhotoList();
   if (viewState.aim) openAim(null);
   if (viewState.plane) openPlane();
   if (viewState.iss) openIss();
@@ -13090,7 +13096,7 @@ $("accountSheet").addEventListener('keydown',event=>{
 });
 $("accountSheet").addEventListener('cancel',event=>{ if(!leaveAccountCodes())event.preventDefault(); });
 $("accountSheet").addEventListener('close',()=>{
-  $("recoveryShown").hidden=true; $("recoveryCode").textContent=''; shownCodes=[]; $("accountSheet").dataset.codesShown='false';
+  $("recoveryShown").hidden=true; $("recoveryCode").textContent=''; clearShownCodes(); $("accountSheet").dataset.codesShown='false';
   $("newAccPw").value=''; $("loginHistoryList").textContent='';
 });
 
@@ -13244,7 +13250,7 @@ function leaveAccountCodes() {
   $("recoveryShown").hidden=true;
   $("accountSheet").dataset.codesShown='false';
   $("recoveryCode").textContent='';
-  shownCodes=[];
+  clearShownCodes();
   return true;
 }
 function showAccountView(view, focus = false) {
@@ -13436,6 +13442,7 @@ $("addPasskey").onclick = async () => {
 };
 // まとめて発行するので、表示も一覧にする。1個ずつだと使った瞬間に手持ちがゼロになる。
 let shownCodes = [];
+function clearShownCodes() { shownCodes = []; }
 // **IDも一緒に見せて、コピーにも含める。** 回復コードで入るには ID が要るので、
 // コードだけ保存していると、IDを忘れたときに手詰まりになる。
 const codeBlock = (loginId, codes) =>
@@ -13938,7 +13945,7 @@ function restoreSharedPlan(recent = null, options = {}) {
   aim.matchMode=p.matchMode||'limb';aim.body=p.body;aim.limb=p.limb;aim.partId=p.part;aim.limbsByBody[p.body]=p.limb;
   aim.from={...aimSavedFrom(AstroNotesPlan.expandPoint(p.o)),...(arguments.length?{subtitle:'履歴の撮影地点'}:{}),groundManualM:p.o[3],standAglM:p.o[4]};
   aimLens.on=p.l.on;aimLens.mode='manual';aimLens.focal=p.l.focal;aimLens.sensor=p.l.sensor;aimLens.portrait=p.l.portrait;aimLens.grid=p.l.grid;
-  aimAirSettings.mode=p.air;aimAirSeq++;aimAirLoadKey='';aimCal.seq++;aimCal.cache.clear();aim.spotCache=null;aimRidgeCache.clear();
+  aimAirSettings.mode=p.air;resetAimAirLoad();aimCal.seq++;aimCal.cache.clear();aim.spotCache=null;aimRidgeCache.clear();
   AstroNotesAtmosphere.configure(p.air,aimAirSettings);if(options.persist!==false)store.set('sorami.aimAir',aimAirSettings);aimAirSync();
   if(arguments.length&&options.persist!==false){store.set('sorami.aimFrom',aim.from);store.set('sorami.lens',aimLens);}
   $('aimDate').value=new Date(p.at+32400000).toISOString().slice(0,10);

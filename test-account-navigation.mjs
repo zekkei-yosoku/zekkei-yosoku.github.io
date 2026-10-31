@@ -1,3 +1,4 @@
+import {sourceDeclaration} from './tools/test-source.mjs';
 import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import test from 'node:test';
@@ -12,7 +13,7 @@ function fixture(){
  const body={scrollTop:130};$('accountSheet').dataset.accountView='overview';$('accountSheet').querySelectorAll=()=>sections;
  $('accountSheet').querySelector=selector=>selector==='.sheet-body'?body:{focus(){context.focused=selector;}};
  $('recoveryShown').hidden=true;
- const context={$,shownCodes:['fixture-only'],confirm:()=>false};vm.createContext(context);vm.runInContext(source,context);
+ const context={$,shownCodes:['fixture-only'],confirm:()=>false};vm.createContext(context);vm.runInContext(sourceDeclaration('clearShownCodes'),context);vm.runInContext(source,context);
  return{$,context,sections,body};
 }
 test('details hide overview and unrelated forms; back restores opener and scroll',()=>{

@@ -5,7 +5,7 @@ import {wantsRemember} from './remember-and-token.js';
 import {loginSettling,onLoggedIn} from './login-session.js';
 import {ID_MSG,ID_RE} from './password-policy.js';
 import {leaveAccountCodes,openAccountSheet,signupWithPasskey} from './account-actions.js';
-import {openAccountSheet2,showCodes,shownCodes} from './recovery-codes.js';
+import {clearShownCodes,openAccountSheet2,showCodes} from './recovery-codes.js';
 const RATING_LOGIN_KEY = "astronotes.rating.login";
 const ratingLoginPending = () => { try { return sessionStorage.getItem(RATING_LOGIN_KEY) === "1"; } catch { return false; } };
 function finishRatingLogin() {
@@ -98,7 +98,7 @@ $("accountSheet").addEventListener('keydown',event=>{
 });
 $("accountSheet").addEventListener('cancel',event=>{ if(!leaveAccountCodes())event.preventDefault(); });
 $("accountSheet").addEventListener('close',()=>{
-  $("recoveryShown").hidden=true; $("recoveryCode").textContent=''; shownCodes=[]; $("accountSheet").dataset.codesShown='false';
+  $("recoveryShown").hidden=true; $("recoveryCode").textContent=''; clearShownCodes(); $("accountSheet").dataset.codesShown='false';
   $("newAccPw").value=''; $("loginHistoryList").textContent='';
 });
 

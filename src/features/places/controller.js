@@ -138,6 +138,7 @@ const PHENOMENA_ORDER = Object.entries(S.PHENOMENA).sort((a, b) => a[1].order - 
 
 let favDraft = null;   // 編集中のお気に入り。index が -1 なら新規。
 let favMapReturn = false; // 位置変更の地図を閉じたら編集フォームへ戻す
+function clearFavMapReturn() { favMapReturn = false; }
 
 let favFilter = null;   // 地点の絞り込み（画面を開いている間だけ）
 function renderSheet() {
@@ -464,4 +465,4 @@ $("favDelete").onclick = () => {
   // 取り消しは一覧の上に出る。★ から開いていた場合も、そこへ着地させる。
   if (!$("placeSheet").open) showSheet($("placeSheet"));
 };
-export {PLACE_PICKERS,almanacPoint,choosePlace,favDraft,favForPoint,favMapReturn,inheritedPoint,openFavSheet,renameFromAfterFav,renderFavStar,renderPointCard,renderSheet,requireLogin,requireLoginForFavorites,saveFavorites,selectPlace,selectedDay};
+export {PLACE_PICKERS,almanacPoint,choosePlace,clearFavMapReturn,favDraft,favForPoint,favMapReturn,inheritedPoint,openFavSheet,renameFromAfterFav,renderFavStar,renderPointCard,renderSheet,requireLogin,requireLoginForFavorites,saveFavorites,selectPlace,selectedDay};
