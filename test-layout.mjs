@@ -840,7 +840,7 @@ console.log("== 月を表すところは全部、その時の満ち欠け（2026
   ok(/<option value="moon">月<\/option>/.test(html) && /\$\("issMoon"\)\.innerHTML = moonGlyphAt\(/.test(html),
     "天体選択は月の名前を表示し、ISS の月の切り替えはその日の月の形");
   ok(!/row\(e, i === 0 \? "パール富士" : "その次", "🌙"\)/.test(html), "富士山の詳細のパール富士の行も月の形");
-  ok(/\$\{moonGlyphAt\(e\.at, plan\.observer \|\| plan\.from\)\}\$\{Math\.round\(e\.illuminated \* 100\)\}%/.test(html) && /lit = ` 輝面 \$\{Math\.round\(AstroNotesAstro\.moon\(at, o\)\.illuminatedFraction \* 100\)\}%`/.test(html)
+  ok(/\$\{moonGlyphAt\(e\.at, plan\.observer \|\| plan\.from\)\}<span class="aim-day-lit">\$\{Math\.round\(e\.illuminated \* 100\)\}%<\/span>/.test(html) && /lit = ` 輝面 \$\{Math\.round\(AstroNotesAstro\.moon\(at, o\)\.illuminatedFraction \* 100\)\}%`/.test(html)
     && /\$\{moon \? ` \$\{moonGlyphAt\(c\.at, c\.stand\)\}` : ""\}/.test(html), "重なる日の帯・見え方の一行・候補地に月の形（輝面は帯と一行）");
   ok(/\$\{moonGlyphAt\(b\.at, P\)\} 月の輝面/.test(html) && /\$\{moonGlyphAt\(r\.at, st \|\| r\.center\)\} 輝面/.test(html), "月丼・ISS の輝面に月の形");
   ok(fixed <= 4, `固定の 🌙 が増えていない（${fixed}か所）`);

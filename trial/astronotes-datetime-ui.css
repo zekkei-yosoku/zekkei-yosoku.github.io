@@ -30,3 +30,23 @@
 @media(max-width:374px){:is(#aimView,#skyMapView,#almanacView) .tool-datetime-footer{padding-left:max(4px,env(safe-area-inset-left));padding-right:max(4px,env(safe-area-inset-right))}}
 @media(max-width:359px){:is(#aimView,#skyMapView,#almanacView) .tool-datetime-row{grid-template-columns:44px max-content 44px 48px 40px 44px 40px}:is(#aimView,#skyMapView,#almanacView) .tool-datetime-clock{width:48px;min-width:48px}:is(#aimView,#skyMapView,#almanacView) .tool-datetime-date .preview-date-weekday{display:none}}
 @media(max-width:359px){:is(#aimView,#skyMapView,#almanacView) .tool-datetime-row>.tool-datetime-date{font-size:14px}}
+/* 探すの候補日。時間バーの中に置き、折りたたんでも見出しは残す */
+#skyMapView .tool-datetime-footer .sky-map-candidates { display:grid; grid-template-columns:40px minmax(0,1fr) auto; grid-template-rows:auto 52px; column-gap:4px; max-width:780px; margin:0 auto; padding:2px 0 4px; border-bottom:1px solid var(--line); }
+#skyMapView .tool-datetime-footer .sky-map-candidates[hidden] { display:none; }
+.explore-dates-toggle { grid-column:1; grid-row:1 / 3; align-self:stretch; display:grid; place-items:center; min-width:40px; min-height:44px; margin:0; padding:0; border:0; background:transparent; color:var(--secondary); }
+.explore-dates-toggle svg { transition:transform .15s; }
+.dates-collapsed .explore-dates-toggle svg { transform:rotate(-90deg); }
+#skyMapView .tool-datetime-footer .sky-map-candidates > .candidate-dates { display:contents; }
+#skyMapView .tool-datetime-footer .candidate-heading { grid-column:2 / 4; grid-row:1; font-size:11px; line-height:16px; }
+#skyMapView .tool-datetime-footer .aim-days.strip { grid-column:2 / 4; grid-row:2; margin:0; gap:4px; }
+#skyMapView .tool-datetime-footer .aim-day-lit { display:none; }
+#skyMapView .tool-datetime-footer .aim-days.strip [data-from-more] { flex:0 0 auto; width:96px; min-height:48px; margin:0; padding:2px 6px; font-size:11px; line-height:1.3; scroll-snap-align:end; }
+#skyMapView .tool-datetime-footer .aim-days.strip .aim-day { min-height:48px; padding:3px 8px; font-size:12px; line-height:1.3; }
+#skyMapView .tool-datetime-footer .candidate-dates > [data-from-more], #skyMapView .tool-datetime-footer .candidate-dates > [data-dates-retry] { grid-column:3; grid-row:2; width:96px; min-height:48px; padding:2px 4px; font-size:11px; line-height:1.3; }
+#skyMapView .tool-datetime-footer .candidate-dates > p, #skyMapView .tool-datetime-footer .candidate-wait { grid-column:2 / 4; grid-row:2; margin:0; font-size:12px; }
+#skyMapView .tool-datetime-footer .candidate-dates > [data-from-more] ~ p, #skyMapView .tool-datetime-footer .aim-days.strip ~ p { display:none; }
+#skyMapView .tool-datetime-footer .candidate-dates > p:has(~ [data-from-more]), #skyMapView .tool-datetime-footer .candidate-dates > p:has(~ [data-dates-retry]) { grid-column:2; }
+.dates-collapsed { grid-template-rows:44px !important; align-items:center; padding:0 !important; }
+.dates-collapsed .explore-dates-toggle { grid-row:1; }
+.dates-collapsed .aim-days.strip, .dates-collapsed .candidate-dates > :not(.candidate-heading) { display:none !important; }
+.dates-collapsed .candidate-heading { align-self:center; }

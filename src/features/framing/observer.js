@@ -539,7 +539,7 @@ function candidateDatesMarkup(ev, entry, plan, at) {
   const thisYear = new Date(Date.now() + 9 * 3600000).getUTCFullYear();
   const chips = ev.map((e) => {
     const y = new Date(e.at + 9 * 3600000).getUTCFullYear();
-    const lit = plan.body === "moon" ? ` ${moonGlyphAt(e.at, plan.observer || plan.from)}${Math.round(e.illuminated * 100)}%` : "";
+    const lit = plan.body === "moon" ? ` ${moonGlyphAt(e.at, plan.observer || plan.from)}<span class="aim-day-lit">${Math.round(e.illuminated * 100)}%</span>` : "";
     const on = S.JstCal.sameDay(e.at, at);
     return `<button type="button" class="tiny aim-day" data-from-day="${S.Cal.startOfDay(e.at)}" data-from-at="${e.at}" data-from-side="${e.side}" aria-pressed="${on}">`
       + `${y === thisYear ? "" : `${y}/`}${S.Cal.monthDay(e.at)}(${S.Cal.weekday(e.at)})`
@@ -567,6 +567,7 @@ function candidateDatesAppend(box, ev, entry, plan, at) {
   for (const n of [...t.content.childNodes]) { if (n === next) seen = true; else (seen ? after : before).push(n); }
   const left = strip.scrollLeft;
   candidateDatesHoldSnap(strip);
+  strip.querySelector('[data-from-more]')?.remove();
   for (const n of [...box.childNodes]) if (n !== strip) n.remove();
   strip.before(...before); strip.after(...after);
   strip.append(...fresh.slice(old.length));
