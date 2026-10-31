@@ -1,5 +1,6 @@
 import {$,S,esc} from '../../app/presentation-helpers.js';
-import {bundle,picked,place,store,weeks} from '../../app/browser-state.js';
+import {picked,place,store} from '../../app/browser-state.js';
+import {bundle,weeks} from '../forecast/load.js';
 import {groundAt,iconFor} from '../forecast/view.js';
 import {answerHtml,collectObservations,findSighting,recordAnswer,samePlaceAs} from '../results/controller.js';
 import {requireLogin} from '../places/controller.js';

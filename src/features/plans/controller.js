@@ -1,5 +1,6 @@
 import {$,S,confidenceText} from '../../app/presentation-helpers.js';
-import {SkyMapUI,bundle,place,store,weeks} from '../../app/browser-state.js';
+import {SkyMapUI,place,store} from '../../app/browser-state.js';
+import {bundle,weeks} from '../forecast/load.js';
 import {navigationHistory,routeFromHash} from '../../app/navigation.js';
 import {aim} from '../framing/controller.js';
 import {aimCal,aimFromPoint,aimM,aimSavedFrom} from '../framing/observer.js';

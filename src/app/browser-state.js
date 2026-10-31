@@ -111,7 +111,6 @@ const SORTS = {
     - u.evaluation.score },
   time: { label: "時刻", key: (u) => u.evaluation.peak || u.dayMs },
 };
-let sortMode = SORTS[store.get("sorami.sort", "standard")] ? store.get("sorami.sort", "standard") : "standard";
 
 const WIDE = window.matchMedia("(min-width: 900px)");
 
@@ -138,10 +137,7 @@ let aimCustomRequest = 0;
 let almanacPoint = null;
 let almanacDay = AstroNotesHomeTime.start(Date.now());
 
-let bundle = null;       // 取得済みの予報
-let weeks = {};          // phenomenon → [{dayMs, evaluation}]
-let forecastDays = [], predictionPlace = null;
-let predictionLoadSeq = -1, extrasLoadedSeq = -1;
+let extrasLoadedSeq = -1;
 // Hidden tabs wait for visibility without spending a retry. Each forecast generation
 // has a bounded retry budget; changing the place cancels all its timers/listeners.
 function createForecastRetry(run, maxAttempts = 3) {
@@ -168,4 +164,4 @@ function createForecastRetry(run, maxAttempts = 3) {
 }
 const extrasRetry = createForecastRetry(() => { extrasLoadedSeq = -1; kickExtras(); });
 let selectedDay = {};    // phenomenon → dayMs
-export {SORTS,SkyMapUI,WIDE,aimCustomRequest,almanacDay,almanacPoint,bundle,cleanFavorite,cleanSighting,extrasLoadedSeq,extrasRetry,favorites,forecastDays,picked,place,predictionLoadSeq,predictionPlace,selectedDay,sightings,sortMode,store,viewState,weeks};
+export {SORTS,SkyMapUI,WIDE,aimCustomRequest,almanacDay,almanacPoint,cleanFavorite,cleanSighting,extrasLoadedSeq,extrasRetry,favorites,picked,place,selectedDay,sightings,store,viewState};

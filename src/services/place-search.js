@@ -1,5 +1,6 @@
 import {$,esc} from '../app/presentation-helpers.js';
-import {bundle,favorites,place} from '../app/browser-state.js';
+import {favorites,place} from '../app/browser-state.js';
+import {bundle} from '../features/forecast/load.js';
 import {currentView,groundAt} from '../features/forecast/view.js';
 import {PLACE_PICKERS,choosePlace,favDraft,favMapReturn,favUndo,openFavSheet,placeSheetFor,renderSheet,selectPlace} from '../features/places/controller.js';
 import {MapPick} from '../ui/map/picker.js';

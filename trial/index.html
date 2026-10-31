@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="7338149500743800514">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-ZIJqU7pXF2nagcuGDGZNTrp0au/rhXbneYi9O4maS1Q=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-AYIpUtS+i/kXA9eO93HawDaW7IR7TGxWrl5nMGYDKmE=' 'sha256-okx7zuxTyw5L/vVqNMEs9neeLRNC8JGOVMq+Lzr6BR8=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-wy58pa7yIe7Hvjp/V4YhEleE4bpkwFLt4L7e5QgUNgk=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="11403239446824299462">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-fMjaTnGy1KZDc9Z4/3BlXiivI4mHjO22h4MGE3BhoTg=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-AYIpUtS+i/kXA9eO93HawDaW7IR7TGxWrl5nMGYDKmE=' 'sha256-okx7zuxTyw5L/vVqNMEs9neeLRNC8JGOVMq+Lzr6BR8=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-wy58pa7yIe7Hvjp/V4YhEleE4bpkwFLt4L7e5QgUNgk=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -3065,7 +3065,6 @@ const SORTS = {
     - u.evaluation.score },
   time: { label: "時刻", key: (u) => u.evaluation.peak || u.dayMs },
 };
-let sortMode = SORTS[store.get("sorami.sort", "standard")] ? store.get("sorami.sort", "standard") : "standard";
 
 const WIDE = window.matchMedia("(min-width: 900px)");
 
@@ -3092,10 +3091,7 @@ let aimCustomRequest = 0;
 let almanacPoint = null;
 let almanacDay = AstroNotesHomeTime.start(Date.now());
 
-let bundle = null;       // 取得済みの予報
-let weeks = {};          // phenomenon → [{dayMs, evaluation}]
-let forecastDays = [], predictionPlace = null;
-let predictionLoadSeq = -1, extrasLoadedSeq = -1;
+let extrasLoadedSeq = -1;
 // Hidden tabs wait for visibility without spending a retry. Each forecast generation
 // has a bounded retry budget; changing the place cancels all its timers/listeners.
 function createForecastRetry(run, maxAttempts = 3) {
@@ -3123,6 +3119,10 @@ function createForecastRetry(run, maxAttempts = 3) {
 const extrasRetry = createForecastRetry(() => { extrasLoadedSeq = -1; kickExtras(); });
 let selectedDay = {};    // phenomenon → dayMs
 
+let bundle = null;       // 取得済みの予報
+let weeks = {};          // phenomenon → [{dayMs, evaluation}]
+let forecastDays = [], predictionPlace = null;
+let predictionLoadSeq = -1;
 let extraSeq = 0;            // 地点を切り替えたときに、遅れて来た結果を捨てる
 // ---------------------------------------------------------------- 読み込み
 let predictionDirty = true, activePredictionKey = null, acceptedPrediction = null;
@@ -3208,6 +3208,7 @@ async function load(force) {
 
 // アメダス実況。2026-10-20 からカードも取得もしない（ユーザー「実況カードは完全に消していい」。点数には使っていない）
 
+let sortMode = SORTS[store.get("sorami.sort", "standard")] ? store.get("sorami.sort", "standard") : "standard";
 let currentView = "list";
 // ---------------------------------------------------------------- 描画
 function upcoming(entries, now) {

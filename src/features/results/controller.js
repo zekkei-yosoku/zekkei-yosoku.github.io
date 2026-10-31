@@ -1,5 +1,6 @@
 import {$,RANK_COLOR,S,esc} from '../../app/presentation-helpers.js';
-import {bundle,place,sightings,store,viewState,weeks} from '../../app/browser-state.js';
+import {place,sightings,store,viewState} from '../../app/browser-state.js';
+import {bundle,weeks} from '../forecast/load.js';
 import {iconFor,render} from '../forecast/view.js';
 import {navigationHistory} from '../../app/navigation.js';
 import {toolAllowed} from '../account/session-and-access.js';

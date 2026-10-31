@@ -1694,11 +1694,6 @@
           "owner": "src/features/account/session-and-access.js"
         },
         {
-          "name": "bundle",
-          "writer": "src/features/forecast/load.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
           "name": "dataOwner",
           "writer": "src/features/account/login-session.js",
           "owner": "src/features/account/session-and-access.js"
@@ -1747,11 +1742,6 @@
           "name": "favUndo",
           "writer": "src/services/place-search.js",
           "owner": "src/features/places/controller.js"
-        },
-        {
-          "name": "forecastDays",
-          "writer": "src/features/forecast/load.js",
-          "owner": "src/app/browser-state.js"
         },
         {
           "name": "lastLoginId",
@@ -1822,16 +1812,6 @@
           "name": "placeSheetFor",
           "writer": "src/services/place-search.js",
           "owner": "src/features/places/controller.js"
-        },
-        {
-          "name": "predictionLoadSeq",
-          "writer": "src/features/forecast/load.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
-          "name": "predictionPlace",
-          "writer": "src/features/forecast/load.js",
-          "owner": "src/app/browser-state.js"
         },
         {
           "name": "privateDraft",
@@ -1914,11 +1894,6 @@
           "owner": "src/app/browser-state.js"
         },
         {
-          "name": "sortMode",
-          "writer": "src/features/forecast/view.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
           "name": "syncError",
           "writer": "src/features/account/sync-bridge.js",
           "owner": "src/features/account/session-and-access.js"
@@ -1942,11 +1917,6 @@
           "name": "syncInfo",
           "writer": "src/services/record-sync.js",
           "owner": "src/features/account/session-and-access.js"
-        },
-        {
-          "name": "weeks",
-          "writer": "src/features/forecast/load.js",
-          "owner": "src/app/browser-state.js"
         }
       ]
     }

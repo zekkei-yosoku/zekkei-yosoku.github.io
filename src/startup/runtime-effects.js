@@ -1,4 +1,5 @@
-import {WIDE,bundle} from '../app/browser-state.js';
+import {WIDE} from '../app/browser-state.js';
+import {bundle} from '../features/forecast/load.js';
 import {render} from '../features/forecast/view.js';
 // 幅が閾値をまたいだら描画し直す（ウィンドウのリサイズ・画面回転）
 WIDE.addEventListener("change", () => { if (bundle) render(); });
