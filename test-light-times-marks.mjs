@@ -1,10 +1,11 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 // 光の時間（2026-10-20 ユーザー「予報ならざっくり日の出日の入の時間を残すだけ」「夕焼けには日の入、朝焼けには日の出だけ」
 // 「ホームの太陽のところにトワイライトタイムとかのバーを置くべき」）
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 test('予報の詳細は日の出・日の入の時刻だけ（夕焼けは日の入、朝焼けは日の出）',()=>{
  const src=html.slice(html.indexOf('function renderLightTimes('),html.indexOf('/// 選択中の現象の詳細'));
  const S={Sun:{lightWindows:()=>({sunrise:Date.parse('2026-10-21T05:52:00+09:00'),sunset:Date.parse('2026-10-21T16:58:00+09:00')})},JstCal:{hhmmRounded:x=>new Date(x+9*3600e3).toISOString().slice(11,16)}};

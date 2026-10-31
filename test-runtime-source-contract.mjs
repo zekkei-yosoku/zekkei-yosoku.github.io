@@ -1,6 +1,7 @@
+import {sourceHtml} from './tools/test-source.mjs';
 // Negative invariants must cover the actual delivered dependency graph, not just inline HTML.
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const scripts=[...html.matchAll(/<script\b[^>]*src="([^"?]+)(?:\?[^\"]*)?"/g)].map(m=>m[1]);
 const delivered=html+'\n'+scripts.map(name=>{assert(!/^[a-z]+:|^\/\//i.test(name));return readFileSync(new URL(name,import.meta.url),'utf8');}).join('\n');
 test('no client-side user grants table or removed independent sky screen is hidden in an extracted asset',()=>{

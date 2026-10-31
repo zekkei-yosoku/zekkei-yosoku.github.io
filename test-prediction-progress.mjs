@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
@@ -33,7 +34,7 @@ test('受信本文も45秒期限の対象で、止まったストリームを打
  const pending=c.request(place),rejected=assert.rejects(pending,{name:'AbortError'});while(!started)await Promise.resolve();t.mock.timers.tick(45000);await rejected;
 });
 test('古い画面を更新せず、文字の件数を出さず、バーは段階を跨いで後退しない',()=>{
- const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),start=html.indexOf('function renderPredictionProgress('),end=html.indexOf('let loadSeq =',start),nodes=new Map();let visible=true;
+ const html=sourceHtml(),start=html.indexOf('function renderPredictionProgress('),end=html.indexOf('let loadSeq =',start),nodes=new Map();let visible=true;
  const node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',setAttribute(k,v){this[k]=v;},removeAttribute(k){delete this[k];}});return nodes.get(id);};
  const c={loadSeq:2,predictionNeeded:()=>visible,$:node};vm.createContext(c);vm.runInContext(html.slice(start,end),c);
  const bar=node('predictionProgressBar'),fill=node('predictionProgressFill');node('predictionProgressMessage').textContent='予測中です';
@@ -47,4 +48,4 @@ test('古い画面を更新せず、文字の件数を出さず、バーは段�
  assert.equal(node('predictionProgressMessage').textContent,'予測中です');assert(!html.includes('id="predictionProgressDetail"'));assert.match(html,/transition:transform 450ms ease-out/);assert.match(html,/prefers-reduced-motion:reduce/);
 });
 
-test('予測未取得を見どころなしと表示せず、待機中の表を残す',()=>{const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');assert.match(html,/else if \(!bundle\) \{\s*\$\("bestNote"\)\.hidden = true;\s*\$\("cards"\)\.innerHTML = renderSkeleton\(now\);/);});
+test('予測未取得を見どころなしと表示せず、待機中の表を残す',()=>{const html=sourceHtml();assert.match(html,/else if \(!bundle\) \{\s*\$\("bestNote"\)\.hidden = true;\s*\$\("cards"\)\.innerHTML = renderSkeleton\(now\);/);});

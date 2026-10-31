@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -5,7 +6,7 @@ import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const require=createRequire(import.meta.url),B=require('./astronotes-bodies.js'),A=require('./astronotes-astro.js'),L=require('./astronotes-align.js');
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const spherical=(a,b)=>{
  const vector=p=>{const z=p.azimuth*Math.PI/180,h=p.altitude*Math.PI/180;return [Math.cos(h)*Math.sin(z),Math.cos(h)*Math.cos(z),Math.sin(h)]};
  const x=vector(a),y=vector(b),cross=[x[1]*y[2]-x[2]*y[1],x[2]*y[0]-x[0]*y[2],x[0]*y[1]-x[1]*y[0]];

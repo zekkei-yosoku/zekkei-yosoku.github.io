@@ -1,5 +1,6 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import vm from 'node:vm';
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');const grab=name=>{const a=html.indexOf('function '+name+'(');return html.slice(a,html.indexOf('\n}',a)+2)};
+const html=sourceHtml();const grab=name=>{const a=html.indexOf('function '+name+'(');return html.slice(a,html.indexOf('\n}',a)+2)};
 test('3択は自動条件へ一意に対応し手入力はUIへ出さない',()=>{
  const els={aimAirMode:{value:''}};
  const settings={mode:'auto',temperatureC:10,pressureHPa:1010},calls=[],c=vm.createContext({aimAirSettings:settings,$:id=>els[id],aimAirChange:()=>{calls.push({...settings});c.aimAirSync()}});vm.runInContext(grab('aimAirSync')+'\n'+grab('aimAirChoose'),c);

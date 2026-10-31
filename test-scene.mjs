@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -29,7 +30,7 @@ test('一日の軌道は画面外でも続き、4時間以上移した1秒時刻
  assert.throws(()=>AL.viewPath('moon',observer,at,proj,{},{dayMs:day,stepS:0}),RangeError);
 });
 test('実レンダーが周囲の東京タワーを描き、古い主目標への置換をしない',async()=>{
- const html=readFileSync(new URL('./index.html',import.meta.url),'utf8'),start=html.indexOf('async function aimLookRender('),end=html.indexOf('\n/**',start);
+ const html=sourceHtml(),start=html.indexOf('async function aimLookRender('),end=html.indexOf('\n/**',start);
  const operations=[],calls=[],makeCtx=()=>new Proxy({measureText:s=>({width:s.length*8}),getImageData:(x,y,w,h)=>({data:new Uint8ClampedArray(w*h*4)}),createLinearGradient:()=>({addColorStop(){}})}, {get:(o,k)=>k in o?o[k]:(...args)=>{operations.push({method:k,args});if(k==='fillText')calls.push(args[0]);}}),ctx=makeCtx();
  const canvas={addEventListener(){},clientWidth:600,style:{},getContext:()=>ctx,setAttribute:(k,v)=>{canvas[k]=v},getBoundingClientRect:()=>({left:0,top:0})};
  const els=new Map(),host={clientWidth:600,_lookSeq:0,_lensOffset:[0,0],querySelector:q=>q==='canvas'||q.includes('data-look-canvas')?canvas:els.get(q)||(()=>{const x={dataset:{},style:{},value:'',setAttribute(){},checkValidity:()=>true};els.set(q,x);return x})()};

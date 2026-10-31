@@ -1,8 +1,9 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 // アカウント画面は「ログイン方法」「安全」に分け、状態の右にそれを変える操作を置く（2026-10-15）。
 // 以前は状態の文・端末・大きな釦が見出しなしで一列に並び、状態と操作が離れていた。
 import {readFileSync} from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const sheet=html.slice(html.indexOf('<dialog class="sheet" id="accountSheet"'),html.indexOf('</dialog>',html.indexOf('id="accountSheet"')));
 
 // 概要は状態と入口だけ。変更操作は項目ごとの詳細に分離する。

@@ -1,9 +1,10 @@
+import {sourceHtml} from './tools/test-source.mjs';
 // 画面ごとに要る許可（認可表 astronotes-access.js）と、メニュー・画面・APIの名前が食い違わないこと（2026-10-15 総点検M04）。
 // 以前は「構図＝diamond・pearl・tower のどれか」が別々の場所に書かれ、直URLの月丼・ISS・記録だけ判定が抜けていた（A01）。
 import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';import assert from 'node:assert/strict';
 const require=createRequire(import.meta.url);
 const access=require('./astronotes-access.js');
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const api=readFileSync(new URL('../api/src/index.js',import.meta.url),'utf8');
 
 // 名前と並びはAPIの TOOLS が正本

@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
@@ -18,7 +19,7 @@ test('時間帯の見込みは形が合っているときだけ受け取る（�
  const other=dto();other.weeks.starrySky[0].evaluation.twilight={method:'twilight-phase-v1',phases:phases(),best:null};assert.throws(()=>P.validate(other,place),'朝夕以外には付かない');
 });
 test('詳細に時間帯のカードを出し、注記・検証中・見頃の文字は出さない。古い予測のキャッシュは読み直す',()=>{
- const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+ const html=sourceHtml();
  assert.match(html,/\$\{renderTwilight\(ev\)\}/);
  const fn=html.slice(html.indexOf('function renderTwilight('),html.indexOf('// 評価の言葉を主役'));
  assert.doesNotMatch(fn,/見頃|検証中|目安|tw-note|t\.best|verified/,'ユーザー指定で出さない');

@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 // E92: 欠測を見通せると扱わず、確認前に選べる候補を出さない。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,7 +8,7 @@ import { createRequire } from 'node:module';
 import { setImmediate } from 'node:timers/promises';
 const require = createRequire(import.meta.url);
 const AL = require('./astronotes-align.js'), TR = require('./astronotes-terrain.js');
-const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+const html = sourceHtml();
 function grab(name) {
   const i = html.indexOf(name); assert.ok(i >= 0);
   return html.slice(i, html.indexOf('\n}\n', i) + 2);

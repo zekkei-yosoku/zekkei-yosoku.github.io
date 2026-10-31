@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
@@ -41,7 +42,7 @@ test('現在時刻の判定は一日探索と同じ幾何を使い、方位が�
  const high={...target,parts:[{id:'tip',m:90000}]};assert.equal(A.alignmentAt(observer,high,'sun',at,{partId:'tip',eyeM:4}).matched,false);
 });
 test('富士山を選んでも構図から定番スポットの提案を起動しない',()=>{
- const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');const source=html.slice(html.indexOf('function aimRenderList()'),html.indexOf('function aimShowDay('));
+ const html=sourceHtml();const source=html.slice(html.indexOf('function aimRenderList()'),html.indexOf('function aimShowDay('));
  const nodes={aimListBox:{hidden:false},aimList:{replaceChildren(){this.cleared=true;}}};let calls=0;
  const c={$:id=>nodes[id],aimIsFuji:()=>true,aimRenderSpots:()=>calls++};vm.runInNewContext(source+';aimRenderList()',c);assert.equal(calls,0);assert.equal(nodes.aimListBox.hidden,true);assert.equal(nodes.aimList.cleared,true);
 });
@@ -78,7 +79,7 @@ test('実際のスカイツリーで先端の真ん中が外れる日も、建�
  const d={align:A,isMountain:()=>false,observerAt:(f,g)=>({...f,elevation:g,eyeM:4}),ensure:async()=>{}};
  const result=await P.candidates(p,[{place,record:{result:'seen'}}],d);assert.ok(result.rows.length);
  assert.equal((await P.candidates({...p,matchMode:'limb'},[{place,record:{result:'seen'}}],d)).rows.length,0);
- const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),fn=html.slice(html.indexOf('function aimCandidateMatch('),html.indexOf('// 400日探索',html.indexOf('function aimCandidateMatch(')));
+ const html=sourceHtml(),fn=html.slice(html.indexOf('function aimCandidateMatch('),html.indexOf('// 400日探索',html.indexOf('function aimCandidateMatch(')));
  const match=new Function('aim','AstroNotesShooting','aimIsMountain',fn+';return aimCandidateMatch;')({...p},P,()=>false);
  assert.ok(result.rows.every(r=>match(r.event)));
 });

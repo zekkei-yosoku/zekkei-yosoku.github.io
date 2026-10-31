@@ -1,8 +1,9 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
-const source=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const source=sourceHtml();
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
 const nodes=()=>new Proxy({}, {get:(o,k)=>o[k]??=(k==='photoSheet'?{open:true,close(){this.open=false;}}:{value:'',disabled:false,hidden:false})});
 function run(c,a,b){vm.createContext(c);vm.runInContext(source.slice(source.indexOf(a),source.indexOf(b,source.indexOf(a))),c);return c;}

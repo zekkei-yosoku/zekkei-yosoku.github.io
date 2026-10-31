@@ -1,7 +1,8 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import {createRequire} from 'node:module';const require=createRequire(import.meta.url);
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const syncSource=html.slice(html.indexOf('const toItem ='),html.indexOf('// 記録の保存（記録・予定の画面のどちらで書いても）を拾って送る'));
 const importSource=html.slice(html.indexOf('function persistImportedData('),html.indexOf('// ブラウザに「この保存領域を勝手に消さないでほしい」と申請する。'));
 const AccountSync=require('./src/services/account-sync.js');

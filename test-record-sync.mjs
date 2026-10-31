@@ -1,8 +1,9 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 // 2026-10-21 ユーザー「記録の見えたもの・線や範囲・予定もサーバー同期してアカウントに紐づけて」
 // 通しの確認（2台の端末・隔離API）は scratchpad の tools/recsync.cjs。ここでは組み込みが外れていないことを見る
 test('記録（見えたもの・線や範囲・予定）を同期の送受信に入れている',()=>{
- const h=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),m=fs.readFileSync(new URL('./astronotes-myplaces.js',import.meta.url),'utf8');
+ const h=sourceHtml(),m=fs.readFileSync(new URL('./astronotes-myplaces.js',import.meta.url),'utf8');
  assert.match(h,/const RecordSync = \(\(\) => \{/);
  for(const k of ['obs','shape','plan'])assert.match(h,new RegExp(`\\n    ${k}: \\{ key:`),'種類 '+k);
  assert.match(h,/records: recs\.map\(\(\{ sent, \.\.\.r \}\) => r\)/,'送る');

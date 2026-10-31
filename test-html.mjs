@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 // HTML としての検査（2026-10-01 ユーザー「UI でのチェックも必要だけど HTML でのチェックもしてね」）。
 //
 // 画面の見た目（test-layout・audit.js）とは別に、**書いた HTML が HTML として正しいか**を見る。
@@ -14,7 +15,7 @@ import fs from "node:fs";
 let pass = 0, fail = 0;
 const ok = (c, name, extra = "") => { c ? pass++ : fail++; console.log(`  ${c ? "ok  " : "FAIL"} ${name}`, extra); };
 
-const src = fs.readFileSync(new URL("./index.html", import.meta.url), "utf8");
+const src = sourceHtml();
 const scripts = [...src.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]).join("\n");
 
 const VOID = new Set("area base br col embed hr img input link meta source track wbr".split(" "));

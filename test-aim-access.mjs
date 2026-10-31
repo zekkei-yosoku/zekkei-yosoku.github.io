@@ -1,7 +1,8 @@
+import {sourceHtml} from './tools/test-source.mjs';
 // 未ログイン・権限なしで構図を直URLで開いたとき、本体ではなく案内を出す（2026-10-15）。
 // 以前は openAim が aimView ごと隠したあと、render() がルートだけで表示へ戻し、本体が「計算しています…」のまま止まっていた。
 import {readFileSync} from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 
 // 案内カードは構図画面の先頭。権限なしは本体カード・固定フッター・ダイアログを隠し、フッター分の余白も取らない
 assert.match(html.slice(html.indexOf('<div id="aimView" hidden>')),/^<div id="aimView" hidden>\s*<div id="aimAccess" hidden><div class="sky-map-head"><h2>構図<\/h2><\/div><div class="card">.*id="aimAccessMessage".*id="aimAccessLogin"/);

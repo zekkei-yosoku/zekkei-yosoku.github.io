@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import {createRequire} from 'node:module';const require=createRequire(import.meta.url);
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,7 +15,7 @@ test('固定済みのv3リンクはカタログの将来更新でも送信当時
  assert.equal(fixtures.length,11);for(const f of fixtures)assert.deepEqual(plain(P.decode(f.token)),f.payload,f.payload.t.id);
 });
 test('共有ルートはpercent encodingを含め復元し、不正escape/plus/長すぎるtokenを拒否',()=>{
- const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),code=html.slice(html.indexOf('function routeFromHash()'),html.indexOf('/// 詳細へ進む。'));
+ const html=sourceHtml(),code=html.slice(html.indexOf('function routeFromHash()'),html.indexOf('/// 詳細へ進む。'));
  const token=P.encodeLink(sample());
  for(const hash of ['#p='+token,'#p='+token.replaceAll(',','%2C').replaceAll('/','%2F'),'#/aim?plan='+P.encode(sample())]){
   const location={hash,pathname:'/trial/',search:''},history={state:null,replaceState:(state,unused,url)=>location.hash=new URL(url,'https://example.org').hash},c=vm.createContext({location,history,AstroNotesNavigationRoutes:require('./src/domain/navigation/routes.js'),S:{PHENOMENA:{}}});vm.runInContext(code,c);assert.equal(c.routeFromHash().aim,true);assert(location.hash.startsWith('#/aim?plan='));assert.deepEqual(plain(P.decode(new URLSearchParams(location.hash.split('?')[1]).get('plan'))),sample());

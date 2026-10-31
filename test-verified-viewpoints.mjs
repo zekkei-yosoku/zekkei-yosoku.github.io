@@ -1,10 +1,11 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url),AL=require('./astronotes-align.js'),TR=require('./astronotes-terrain.js');
-const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),data=JSON.parse(fs.readFileSync(new URL('./data/aim-viewpoints.json',import.meta.url),'utf8'));
+const html=sourceHtml(),data=JSON.parse(fs.readFileSync(new URL('./data/aim-viewpoints.json',import.meta.url),'utf8'));
 const grab=name=>{const i=html.indexOf(name);assert.ok(i>=0);return html.slice(i,html.indexOf('\n}\n',i)+2)};
 const ctx={aim:{target:AL.targetById('fuji')},AstroNotesAlign:AL,AstroNotesTerrain:TR};
 vm.createContext(ctx);vm.runInContext(grab('function aimCandidateSiteSupported')+grab('function aimCandidateAccessible'),ctx);

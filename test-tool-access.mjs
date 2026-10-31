@@ -1,6 +1,7 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import {readFileSync} from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const src=html.slice(html.indexOf('function allowedTools()'),html.indexOf('function renderTools()'));
 const access=readFileSync(new URL('./astronotes-access.js',import.meta.url),'utf8');
 function fixture(auth){const els={};const c={auth,$:id=>els[id]??={hidden:false,textContent:'',toggleAttribute(k,v){this[k]=v;}},plane:{seq:0},iss:{seq:0},photosRequest:0,photos:[],photosCursor:null,photosOwner:null,photosLoading:false,photosError:null,photosRetryAppend:false,renderPhotoListState(){},renderPhotos(){},atAim:false,atPlane:false,atIss:false,atRecords:false,atAnswers:false};vm.createContext(c);vm.runInContext(access,c);vm.runInContext(src,c);return c;}

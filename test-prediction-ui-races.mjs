@@ -1,5 +1,6 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const source=html.slice(html.indexOf('async function updateMoonPrediction'),html.indexOf('/// 富士山と月の行を作って'));
 const kick=html.slice(html.indexOf('function kickExtras()'),html.indexOf('function wireMoonTimeRetry'));
 const defer=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {resolve,promise};};

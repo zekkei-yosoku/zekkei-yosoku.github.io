@@ -1,8 +1,9 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 test('後から追加したdialogと入れ子も背景を固定し、最後を閉じるまで位置を戻さない',()=>{
  let openCount=0,observer,options;const restores=[],style={removeProperty(k){delete this[k];}};
  const c={document:{body:{style},querySelector:()=>openCount?{}:null},window:{scrollY:420,scrollTo:(x,y)=>restores.push([x,y])},MutationObserver:class{constructor(fn){observer=fn}observe(root,opts){options=opts;}}};

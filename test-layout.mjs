@@ -1,10 +1,11 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 /*
  * レイアウトの回帰テスト。
  * 一度踏んだ構造上のバグを、CSS を触るたびに再発させないため。
  */
 import fs from "node:fs";
-const html = fs.readFileSync(new URL("./index.html", import.meta.url), "utf8");
+const html = sourceHtml();
 
 let pass = 0, fail = 0;
 const ok = (cond, label, detail = "") => {

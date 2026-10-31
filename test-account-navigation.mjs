@@ -1,9 +1,10 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
-const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const source=html.slice(html.indexOf('const ACCOUNT_VIEWS ='),html.indexOf('for (const button of $("accountSheet").querySelectorAll'));
 function fixture(){
  const elements=new Map();const $=id=>{if(!elements.has(id))elements.set(id,{dataset:{},hidden:false,textContent:'',setAttribute(k,v){this[k]=v;},focus(){context.focused=id;}});return elements.get(id);};

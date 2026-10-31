@@ -1,5 +1,6 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import {createRequire} from 'node:module';
-const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),extract=(from,to)=>html.slice(html.indexOf(from),html.indexOf(to,html.indexOf(from)));
+const html=sourceHtml(),extract=(from,to)=>html.slice(html.indexOf(from),html.indexOf(to,html.indexOf(from)));
 const DAY=86400000,base=Date.parse('2026-10-10T12:00:00+09:00'),start=t=>Math.floor((t+32400000)/DAY)*DAY-32400000;
 function dom(){const nodes=new Map();return id=>{if(!nodes.has(id))nodes.set(id,{innerHTML:'',textContent:'',value:'2026-10-10',setAttribute(){},querySelector:()=>({innerHTML:'',parentElement:{scrollLeft:0},offsetLeft:0}),querySelectorAll:()=>[]});return nodes.get(id)};}
 test('探すが描画を所有している間は旧画面の描画と地点探索を始めない',async()=>{

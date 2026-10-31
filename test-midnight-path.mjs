@@ -1,7 +1,8 @@
+import {sourceHtml} from './tools/test-source.mjs';
 // 日付をまたぐ通り道と画角内の時刻（2026-10-20 ユーザー「日付を跨ぐ際に線が途切れる問題に対処して」）
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url),Al=require('./astronotes-align.js');
-const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 test('frameDayPath は前日・翌日へ広げられ、既定はその日の0〜24時',()=>{
  const day=Date.parse('2026-10-20T00:00:00+09:00'),obs={latitude:35.74,longitude:139.93,elevation:20},proj=()=>[0,0];
  const d=Al.frameDayPath('moon',obs,day,proj);assert.equal(d[0].at,day);assert.equal(d.at(-1).at,day+86400000);

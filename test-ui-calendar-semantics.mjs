@@ -1,9 +1,10 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 const S=createRequire(import.meta.url)('./astronotes-core.js');
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const source=html.slice(html.indexOf('function renderSkeleton(now)'),html.indexOf('// 一覧と詳細で、点数・棒・日付・信頼度'));
 const render=new Function('S','sortFace','iconFor','esc',source+';return renderSkeleton;')(S,()=>'',()=>'',s=>s);
 for(const [day,weekday,weekend] of [['2026-10-16','金',''],['2026-10-17','土','sat'],['2026-10-18','日','sun']])test('今日と曜日を両方保持する: '+day,()=>{

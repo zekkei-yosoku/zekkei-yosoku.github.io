@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,7 +6,7 @@ import vm from 'node:vm';
 import {createHash} from 'node:crypto';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url), O=require('./astronotes-open-location-code.js'), P=require('./astronotes-plus-code.js'), T=require('./astronotes-terrain.js');
-const read=name=>fs.readFileSync(new URL(name,import.meta.url),'utf8'), html=read('index.html');
+const read=name=>fs.readFileSync(new URL(name,import.meta.url),'utf8'), html=sourceHtml();
 const vectors=name=>read('vendor/open-location-code/'+name).split(/\r?\n/).filter(s=>s.trim()&&!s.startsWith('#')).map(s=>s.split(','));
 
 test('pinned upstream bytes and official validity, decoding, recovery vectors',async()=>{

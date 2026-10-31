@@ -1,6 +1,7 @@
+import {sourceHtml} from './tools/test-source.mjs';
 // 塔・建物の手前の地形と、浮いた建物の足元（2026-10-20 ユーザー「これ絶対に見えないであろう距離」「シルエットが浮いてたりして見栄えが悪い」）
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
-const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const src=html.slice(html.indexOf('const AIM_FRONT_SPAN'),html.indexOf('async function aimLookRidge('));
 function load(heightAt){
  const c={Math,Map,Number,AstroNotesAtmosphere:{targetK:()=>0.13},

@@ -1,10 +1,11 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {createRequire} from "node:module";
 import vm from "node:vm";
 const require=createRequire(import.meta.url), AL=require("./astronotes-align.js"), S=require("./astronotes-core.js"), MOON=require("./astronotes-moon.js");
-const html=readFileSync(new URL("./index.html",import.meta.url),"utf8");
+const html=sourceHtml();
 const code=html.slice(html.indexOf("const aimCal ="),html.indexOf("async function aimSetCustomTarget"));
 function setup(al=AL){
  const els=new Map(), buttons=[];

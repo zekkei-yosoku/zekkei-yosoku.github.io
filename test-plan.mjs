@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -37,7 +38,7 @@ test('存在しない日付や24時を別の日時へ繰り上げず拒否する
 });
 
 test('地図共有は現在の日時・天体・位置・高さ・重ね方を保持し、構図の状態に依存しない',()=>{
- const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),code=html.slice(html.indexOf('function planSnapshot(button)'),html.indexOf('let planRestoredFragment='));
+ const html=sourceHtml(),code=html.slice(html.indexOf('function planSnapshot(button)'),html.indexOf('let planRestoredFragment='));
  const at=Date.parse('2026-10-24T16:13:57+09:00'),state={body:'moon',at,observer:{name:'地図地点',latitude:35,longitude:139,groundManualM:30},ground:27.4,eyeM:5.5,target:{id:'tower',name:'目標',latitude:35.1,longitude:139.1,groundM:10,parts:[{id:'tip',name:'先端',m:330,latitude:35.1001,longitude:139.1001}]},partId:'tip',limb:'behind',matchMode:'limb'};
  let drawn=0;const run=new Function('SkyMapUI','$','AstroNotesPlan','AstroNotesBodies','aimAirSettings','document','aimM','AstroNotesAlign',code+';return planSnapshot;')({shareState:()=>state},()=>({width:600,height:400}),P,{state:()=>({azimuth:30,apparentAltitude:10}),definition:()=>({name:'月'})},{mode:'standard'},{createElement:()=>({getContext:()=>({drawImage:()=>drawn++})})},String,{limbById:()=>({name:'上の縁'})});
  const snap=run({dataset:{planSource:'skymap'}});assert.equal(drawn,1);assert.equal(snap.payload.at,at);assert.equal(snap.payload.o[3],30);assert.equal(snap.payload.o[4],5.5);assert.equal(snap.payload.t.parts[0].latitude,35.1001);assert.equal(snap.payload.body,'moon');assert.equal(snap.payload.limb,'behind');assert.equal(snap.payload.matchMode,'limb');assert.equal(P.decode(P.encode(snap.payload)).at,at);
@@ -47,7 +48,7 @@ test('タイムラプスは任意の互換拡張として予定/共有を往復�
  assert(P.valid(p));const config={interval:5,count:360,fps:24};assert.equal(JSON.stringify(P.decode(P.encode({...p,timelapse:config})).timelapse),JSON.stringify(config));for(const x of [{...config,count:2.5},{...config,interval:0},{...config,fps:23},{...config,interval:3600}])assert.equal(P.valid({...p,timelapse:x}),false);
 });
 test('共有の計算待ちは自動取得し、close/owner変更は破棄、待機上限は再試行へ',async()=>{
- const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),code=html.slice(html.indexOf('async function preparePlanShare('),html.indexOf('function initPlanSharing()'));
+ const html=sourceHtml(),code=html.slice(html.indexOf('async function preparePlanShare('),html.indexOf('function initPlanSharing()'));
  function fixture(mode){
   let clock=0,calls=0,sync=0,paused=0;
   const c=vm.createContext({auth:{token:'synthetic',loginId:'fixture'},authGeneration:1,Date:{now:()=>clock},document:{querySelectorAll:()=>[{click:()=>paused++}]},SkyMapUI:{selectionState:()=>({observer:{},target:{}})},TrialExplore:{sync:()=>sync++},planSnapshot:()=>{calls++;if(mode==='wait'&&calls<3||mode==='owner'||mode==='timeout')throw Error('見え方の更新が終わってから共有してください');return {payload:{kind:'aim'}};},setTimeout:resolve=>{clock+=50;if(mode==='owner')c.authGeneration++;resolve();}});

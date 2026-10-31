@@ -1,9 +1,10 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
-const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const source=html.slice(html.indexOf('function clearRetiredStorage('),html.indexOf('$("enablePw").onclick'));
 function setup(answers,{fail=false,change=false}={}){
  const elements=new Map(),calls=[],messages=[],data=new Map();

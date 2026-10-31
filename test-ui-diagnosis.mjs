@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 createRequire(import.meta.url)("./astronotes-bodies.js");
 import {test} from 'node:test';
@@ -6,7 +7,7 @@ import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {createRequire} from 'node:module';
 const S=createRequire(import.meta.url)('./astronotes-core.js');
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const grab=(name)=>{const i=html.indexOf(name);assert.ok(i>=0);return html.slice(i,html.indexOf('\n}\n',i)+2);};
 const H=3600000, today=S.Cal.startOfDay(Date.UTC(2026,9,3,2));
 const place={name:'東京',latitude:35.68,longitude:139.76};

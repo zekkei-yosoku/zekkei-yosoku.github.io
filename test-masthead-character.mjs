@@ -1,7 +1,8 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 test('header keeps its home control and logo without the permanent character or view-switching code',()=>{
  const header=html.slice(html.indexOf('<div class="masthead">'),html.indexOf('id="backBar"'));
  assert.match(header,/id="homeLink"/);assert.match(header,/id="mastheadAstroMark"/);

@@ -1,5 +1,6 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8'),source=html.slice(html.indexOf('$("geoButton").onclick ='),html.indexOf('/// 同梱の地名索引'));
+const html=sourceHtml(),source=html.slice(html.indexOf('$("geoButton").onclick ='),html.indexOf('/// 同梱の地名索引'));
 function fixture(supported=true){const els={geoButton:{},geoStatus:{textContent:''},placeSheet:{open:true}},calls=[],chosen=[];const c={geoRequest:0,$:id=>els[id],navigator:supported?{geolocation:{getCurrentPosition:(ok,fail,options)=>calls.push({ok,fail,options})}}:{},choosePlace:x=>chosen.push(x)};vm.createContext(c);vm.runInContext(source,c);return {c,els,calls,chosen,click:()=>els.geoButton.onclick()};}
 test('HTTPSでも許可拒否・timeout・取得不能を正しく案内する',()=>{for(const [code,expected] of [[1,/許可/],[2,/設定/],[3,/時間/],[99,/設定/]]){const f=fixture();f.click();f.calls[0].fail({code});assert.match(f.els.geoStatus.textContent,expected);assert.doesNotMatch(f.els.geoStatus.textContent,/HTTPS/);}});
 test('位置情報APIがない環境でも例外を出さず代替を案内する',()=>{const f=fixture(false);f.click();assert.match(f.els.geoStatus.textContent,/検索/);assert.equal(f.calls.length,0);});

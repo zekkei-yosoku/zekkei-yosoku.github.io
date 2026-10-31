@@ -1,9 +1,10 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import {createRequire} from 'node:module';const require=createRequire(import.meta.url);
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const source=/<script id="uiVisualPrimitives">([\s\S]*?)<\/script>/.exec(html)[1];
 function fixture(kind,value){
  let changes=0,mutations=0;

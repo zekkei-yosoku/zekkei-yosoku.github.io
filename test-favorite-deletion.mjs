@@ -1,9 +1,10 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const start=html.indexOf('function removeFavorite('),end=html.indexOf('// お気に入りはアカウント',start);
 function fixture(fail=false){
  const writes=[],queued=[],c={favorites:[{id:'one'},{id:'two'}],favUndo:[],saveFavorites:()=>{writes.push(JSON.stringify(c.favorites));return !fail;},queuePush:(...args)=>queued.push(args),renderFavToggle(){},renderSheet(){}};

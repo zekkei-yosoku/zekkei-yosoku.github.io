@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 // 二十四節気・七十二候と太陽の絵（2026-10-19）
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -59,7 +60,7 @@ test('太陽の画像：960px・透明あり・追跡済み、読めないとき
 });
 
 test('ホームは太陽の絵と節気を使い、高度で絵を変えない', () => {
-  const d = fs.readFileSync(new URL('./astronotes-almanac-dashboard.js', import.meta.url), 'utf8'), h = fs.readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const d = fs.readFileSync(new URL('./astronotes-almanac-dashboard.js', import.meta.url), 'utf8'), h = sourceHtml();
   assert.match(d, /AstroNotesSunPortrait\.draw\(sunCanvas\)/); assert.match(d, /AstroNotesSolarTerms\?\.describe\(at\(\)\)/);
   // 2026-10-19 ユーザー指摘：月にも LUNAR NOTES を出す。七十二候は漢字4文字ではなく読みで出す
   assert.match(d, /kicker\.hidden=false/); assert.match(d, /solar\.kou\.pos\}　\$\{solar\.kou\.kana\}/); assert.doesNotMatch(d, /solar\.kou\.ja\}/);

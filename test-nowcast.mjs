@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 /*
  * 実況表示の回帰テスト。
  *
@@ -48,7 +49,7 @@ ok(note(26.7, 10, station("東京", 25)) === null, "直していなければ注�
 
 console.log("== 突き合わせの警告は持たない ==");
 ok(S.Nowcast === undefined, "Nowcast.compare を持たない");
-const html = fs.readFileSync(new URL("./index.html", import.meta.url), "utf8");
+const html = sourceHtml();
 ok(!/disagree/.test(html), "画面に「ずれています」を出さない");
 // 2026-10-20 画面の実況カードは外した（ユーザー「実況カードは完全に消していい」）。sorami-core の実況の計算は残る
 ok(!html.includes('id="nowcast"'), "画面に実況カードを出さない");

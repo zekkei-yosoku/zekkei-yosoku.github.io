@@ -1,8 +1,9 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import assert from 'node:assert/strict';
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const start=html.indexOf('async function renderPrivateEntry(');
 const source=html.slice(start,html.indexOf('\nasync function renderAdmin()',start));
 // 2026-10-15 入口は設定一覧（右上のID→管理）。アカウント画面の奥から移した

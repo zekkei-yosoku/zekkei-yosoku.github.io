@@ -1,9 +1,10 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 // 権限の確かめ直し（2026-10-15 総点検A04）。起動時だけでなく、前景へ戻ったとき・回線が戻ったとき・
 // 表示中は5分ごとに /me を訊き直す。変わっていなければ描き直さない。取消しはその場で反映する。
 // 圏外で確かめられないときは、最後に確かめた権限のまま使える（2026-09-28 ユーザー指摘を維持）。
 import {readFileSync} from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
-const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const start=html.indexOf('const ACCESS_RECHECK_MS'),end=html.indexOf('// 開いたときに、残っているトークンで入り直す。',start);
 assert.ok(start>0&&end>start,'確かめ直しの処理がある');
 const src=html.slice(start,end);

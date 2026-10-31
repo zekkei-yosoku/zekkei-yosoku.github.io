@@ -1,8 +1,9 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import {createRequire} from "node:module";
 const require=createRequire(import.meta.url);
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
 const AL=require('./astronotes-align.js');
-const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');const a=html.indexOf('function aimLookPick('),b=html.indexOf('\n/**',a);const code=html.slice(a,b);
+const html=sourceHtml();const a=html.indexOf('function aimLookPick('),b=html.indexOf('\n/**',a);const code=html.slice(a,b);
 const element=()=>({hidden:false,disabled:false,textContent:'',attrs:{},classList:{toggle(){}},setAttribute(k,v){this.attrs[k]=v},removeAttribute(k){delete this.attrs[k]}});
 const els={};for(const key of ['pick','found','confirm','hint','controls','cancel','position'])els[`[data-look-${key}]`]=element();
 const buttons=['-1,0','0,-1','0,1','1,0'].map(v=>Object.assign(element(),{dataset:{bodyNudge:v}}));

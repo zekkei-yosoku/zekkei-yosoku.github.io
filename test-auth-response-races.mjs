@@ -1,6 +1,7 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import {createRequire} from 'node:module';const require=createRequire(import.meta.url),HttpClient=require('./src/ports/http-client.js');
-import {readFileSync} from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
+import {readFileSync} from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';const html=sourceHtml();
 function fixture(){let resolve,cleared=0;const c={auth:{token:'old-token',loginId:'old-user'},authGeneration:1,API:'https://fixture.test',fetch:()=>new Promise(r=>resolve=r),clearAuth:()=>{cleared++;c.auth=null;c.authGeneration++;},renderAuthButton(){},Error,JSON};vm.createContext(c);c.apiCall=HttpClient.create({base:c.API,fetch:c.fetch,getAuth:()=>c.auth,getGeneration:()=>c.authGeneration,onUnauthorized:()=>{c.clearAuth();c.renderAuthButton();}});return {c,reply:(status,data)=>resolve({ok:status<400,status,json:async()=>data}),get cleared(){return cleared;}};}
 for(const status of [200,401]){const f=fixture(),pending=f.c.apiCall('GET','/me').catch(e=>e);f.c.auth={token:'new-token',loginId:'new-user'};f.c.authGeneration++;f.reply(status,{error:'old request',loginId:'old-user',tools:['tower']});const error=await pending;assert.ok(error instanceof Error);assert.equal(f.c.auth.loginId,'new-user');assert.equal(f.cleared,0);}
 const r=fixture(),request=r.c.apiCall('POST','/admin/tools',{}).catch(e=>e);r.reply(401,{error:'確認のため、もう一度ログインしてください',code:'reauth_required'});assert.equal((await request).code,'reauth_required');assert.equal(r.cleared,0);assert.equal(r.c.auth.loginId,'old-user');

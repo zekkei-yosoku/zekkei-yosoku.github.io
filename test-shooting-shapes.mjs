@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
@@ -68,7 +69,7 @@ test('実天文計算でも線上・範囲内の選択位置と時刻で再計�
 
 import fs from 'node:fs';
 import vm from 'node:vm';
-const ui=fs.readFileSync(new URL('./astronotes-myplaces.js',import.meta.url),'utf8'),html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const ui=fs.readFileSync(new URL('./astronotes-myplaces.js',import.meta.url),'utf8'),html=sourceHtml();
 test('形はアカウントで隔離し、移動したお気に入りへ旧形状を付け替えない',()=>{
  const values=new Map(),auth={loginId:'first'},f={id:'same',...ll(0)};
  const c={auth,AstroNotesLibrary:L,store:{get:(k,d)=>values.get(k)??d},AstroNotesShooting:P};vm.createContext(c);

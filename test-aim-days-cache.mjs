@@ -1,9 +1,10 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
-const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
+const html=sourceHtml();
 const helpers=html.slice(html.indexOf('function aimDaysInputKey('),html.indexOf('async function aimRenderFrom()'));
 const DAY=86400000,base=Date.parse('2026-10-10T12:00:00+09:00');
 const start=t=>Math.floor((t+9*3600000)/DAY)*DAY-9*3600000;

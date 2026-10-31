@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
@@ -11,7 +12,7 @@ test('朝夕のカード説明は種類と強さの1文で、爆焼けは雲の�
   if(style==='clouds')assert.doesNotMatch(text,/赤|色|染ま|燃える/,'色名ではなく見え方と迫力で説明する');
   if(score>=40)assert.match(text,style==='gradient'?/グラデーション/:/雲|爆焼け/);
  }
- const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');assert.match(html,/S\.phrasing\(id, ev\.rank, ev\.afterglow\)\.say/);
+ const html=sourceHtml();assert.match(html,/S\.phrasing\(id, ev\.rank, ev\.afterglow\)\.say/);
 });
 test('種類のない過去データと未知の種類は空一面の雲と断定せず、他現象は不変',()=>{
  for(const id of ['sunset','sunrise'])for(const type of [null,{style:'unknown'},{style:'clouds'}])assert.doesNotMatch(S.phrasing(id,S.rankOf(90),type).say,/雲|爆焼け/);

@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 // 「指定なし」の山の候補を山頂付近だけで判定する（2026-10-20）
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -5,7 +6,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const html = fs.readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+const html = sourceHtml();
 const src = html.slice(html.indexOf('const AIM_SUMMIT_CAP_M'), html.indexOf('async function aimShootingView'));
 
 function load(angle) {

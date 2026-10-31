@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -22,7 +23,7 @@ test('新月と満月を区別し、不明・不正な輝面比は新月を捏�
  assert.equal(I.moon({illuminatedFraction:.5}),I.icon('moon'));
 });
 test('日時・観測座標から月相SVGを生成し、テキスト用出力を混ぜない',()=>{
- const html=fs.readFileSync(new URL('./index.html',import.meta.url),'utf8');
+ const html=sourceHtml();
  const src=html.slice(html.indexOf('function iconFor('),html.indexOf('/// 月を撮る時刻',html.indexOf('function iconFor(')));
  let fail=false;const calls=[],place={latitude:35,longitude:139};
  const {iconFor,moonGlyphAt}=new Function('S','AstroNotesMoon','AstroNotesIcons','AstroNotesAstro','place','AstroNotesCalendarMoon',src+';return {iconFor,moonGlyphAt};')(S,M,I,{moon:(at,obs)=>{calls.push([at,obs]);if(fail)throw Error('missing');return {illuminatedFraction:.15,waxing:true};}},place,{markup:()=>'<img data-moon-state="fixture">'});

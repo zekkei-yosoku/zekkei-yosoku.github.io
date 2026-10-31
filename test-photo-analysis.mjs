@@ -1,3 +1,4 @@
+import {sourceHtml} from './tools/test-source.mjs';
 // 写真の保存時分析（astronotes-photo-analysis.js）。
 //
 // 色の指標は Python（Pillow）の定点写真採点と同じ値を出す必要がある。後で残した写真から Python で計算し直すため。
@@ -103,7 +104,7 @@ ok(A.matchForecast([{ ...pre, algorithmVersion: "old" }], base).algorithmVersion
 
 console.log("撮影の日の予報の候補（index.html の forecastCandidates）");
 {
-  const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
+  const html = sourceHtml();
   const a = html.indexOf("function forecastCandidates"), b = html.indexOf("/**", a);
   const S = { PHENOMENA: { sunset: {} }, JstCal: { sameDay: (x, y) => Math.floor((x + 9 * 3600e3) / 864e5) === Math.floor((y + 9 * 3600e3) / 864e5) } };
   const day = Date.UTC(2026, 9, 16, 8);               // 17:00 JST
