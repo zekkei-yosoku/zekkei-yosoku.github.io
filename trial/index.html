@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="570991715715623652">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-aNfez0yts8tnrhGWAYS45Dutjtd1vFtETZZA8RqDKi4=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-YE2FvYuOUY58Yn1G4KSACCYK2Jw8Z9cWW70F3PqiiOE=' 'sha256-okx7zuxTyw5L/vVqNMEs9neeLRNC8JGOVMq+Lzr6BR8=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-wy58pa7yIe7Hvjp/V4YhEleE4bpkwFLt4L7e5QgUNgk=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="17233167338181643132">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-iowKIEKlsAW28/d5ySM2p/JODydb2vcI+ECRtRTz7lM=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-YE2FvYuOUY58Yn1G4KSACCYK2Jw8Z9cWW70F3PqiiOE=' 'sha256-6WbnGcTsjLtFsDbclwybUo0MYU/0VopBxEvfEVGKmps=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-wy58pa7yIe7Hvjp/V4YhEleE4bpkwFLt4L7e5QgUNgk=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -3086,10 +3086,14 @@ const viewState = Object.seal({
   admin: false,     // 管理者画面を見ているか
 });
 let SkyMapUI = null;
+function setSkyMapUI(ui) { SkyMapUI = ui; }
 let aimCustomRequest = 0;
+function nextAimCustomRequest() { return ++aimCustomRequest; }
 let almanacDay = AstroNotesHomeTime.start(Date.now());
+function setAlmanacDay(day) { almanacDay = day; }
 
 let extrasLoadedSeq = -1;
+function setExtrasLoadedSeq(seq) { extrasLoadedSeq = seq; }
 // Hidden tabs wait for visibility without spending a retry. Each forecast generation
 // has a bounded retry budget; changing the place cancels all its timers/listeners.
 function createForecastRetry(run, maxAttempts = 3) {
@@ -3827,7 +3831,7 @@ function kickExtras() {
   if (!["list", "detail"].includes(currentView) || !predictionNeeded()) return;
   if ((extrasRunning && extrasRunningSeq === predictionLoadSeq) || !bundle || extrasLoadedSeq === predictionLoadSeq) return;
   const started = predictionLoadSeq;
-  extrasLoadedSeq = started; extrasRunning = true; extrasRunningSeq = started;
+  setExtrasLoadedSeq(started); extrasRunning = true; extrasRunningSeq = started;
   loadExtras().catch((e) => console.warn("富士山・月の判定に失敗:", e))
     .finally(() => { if (extrasRunningSeq === started) extrasRunning = false; });
 }
@@ -4345,26 +4349,26 @@ function renderAlmanac() {
   const syncClock=()=>{const clock=$("almanacTime"),at=D()?.at();if(clock&&Number.isFinite(at)&&document.activeElement!==clock)clock.value=T.time(at);};
   const lower=T.parse('2020-01-01'), upper=T.parse('2030-12-31');
   const outOfRange=almanacDay<lower||almanacDay>upper;
-  almanacDay=Math.max(lower,Math.min(upper,almanacDay));
+  setAlmanacDay(Math.max(lower,Math.min(upper,almanacDay)));
   $("almanacRangeNote").hidden=!outOfRange;
   $("almanacRangeNote").textContent=outOfRange?"対応期間は2020〜2030年です。範囲内の最も近い日を表示しました。":"";
   input.value=date(almanacDay);
   if(typeof ToolDateTimeBar!=='undefined'&&typeof AstroNotesScrollTimeline!=='undefined'){
     if(!almanacTimeline){
-      const bar=ToolDateTimeBar.decorate({footer:$("almanacFooter"),row:$("almanacDateRow"),date:$("almanacCalendarOpen"),prev:$("almanacPrev"),next:$("almanacNext"),track:$("almanacTrack"),timeId:'almanacTime',moreId:'almanacTimeMore',now:()=>{D()?.today();almanacDay=T.start(Date.now());renderAlmanac();}});
+      const bar=ToolDateTimeBar.decorate({footer:$("almanacFooter"),row:$("almanacDateRow"),date:$("almanacCalendarOpen"),prev:$("almanacPrev"),next:$("almanacNext"),track:$("almanacTrack"),timeId:'almanacTime',moreId:'almanacTimeMore',now:()=>{D()?.today();setAlmanacDay(T.start(Date.now()));renderAlmanac();}});
       almanacPlayback=ToolDateTimeBar.playback({row:$("almanacDateRow"),footer:$("almanacFooter"),getAt:()=>D()?.at(),enabled:()=>viewState.almanac, onStart:()=>{almanacTimeline?.stop();D()?.setAt(D()?.at());},onStop:()=>{if(viewState.almanac){D()?.setAt(D()?.at());almanacTimeline?.sync(barAt(),almanacScrub);}},setAt:at=>{
         if(at<lower||at>=T.addDays(upper,1)){almanacPlayback.stop(false);return;}
-        const day=T.start(at);if(day!==almanacDay){almanacDay=day;renderAlmanac();}D()?.setAt(at,true);syncClock();
+        const day=T.start(at);if(day!==almanacDay){setAlmanacDay(day);renderAlmanac();}D()?.setAt(at,true);syncClock();
         const rulerAt=almanacScrub==='date'?T.toRuler(day)+(at-day)/(T.addDays(day,1)-day)*86400000:at;
         almanacTimeline?.follow(rulerAt,almanacScrub);
       }});
       bar.time.onchange=()=>{const before=D()?.at(),at=T.withTime(before,bar.time.value);if(!Number.isFinite(at)){bar.time.value=Number.isFinite(before)?T.time(before):'';bar.time.setCustomValidity('この日のその時刻は存在しません。別の時刻を選んでください。');bar.time.reportValidity();return;}bar.time.setCustomValidity('');D()?.setAt(at);syncClock();};
       bar.time.addEventListener('input',()=>bar.time.setCustomValidity(''));bar.time.addEventListener('blur',syncClock);
       ToolDateTimeBar.details({button:bar.more,getText:()=>{const at=D()?.at();if(!Number.isFinite(at))return '日時を取得できませんでした。';const point=almanacPoint||place,body=$('almanacDashboard').dataset.body==='moon'?'moon':'sun',state=AstroNotesAstro[body](at,{latitude:point.latitude,longitude:point.longitude,elevation:0});return `${T.date(at).replaceAll('-','/')} ${T.time(at)} ${T.zoneLabel(at)}\n${T.zone()}\n${body==='moon'?'月':'太陽'} 高度 ${state.geometricAltitude.toFixed(1)}°・方位 ${state.azimuth.toFixed(1)}°`;}});
-      const homeCalendar=ToolDateTimeBar.calendar({button:$("almanacCalendarOpen"),getAt:ruler,getNow:()=>T.toRuler(Date.now()),setDay:day=>{almanacDay=T.fromRuler(day);renderAlmanac();}});
+      const homeCalendar=ToolDateTimeBar.calendar({button:$("almanacCalendarOpen"),getAt:ruler,getNow:()=>T.toRuler(Date.now()),setDay:day=>{setAlmanacDay(T.fromRuler(day));renderAlmanac();}});
       ToolDateTimeBar.editor({button:$("almanacCalendarOpen"),time:bar.time,dialog:homeCalendar,beforeOpen:()=>almanacTimeline?.stop()});
       ToolDateTimeBar.trackPointerFocus($("almanacFooter"));
-      almanacTimeline=AstroNotesScrollTimeline.mount({root:$("almanacTimeline"),getAt:barAt,getMode:()=>almanacScrub,enabled:()=>viewState.almanac,getObserver:()=>({latitude:(almanacPoint||place).latitude,longitude:(almanacPoint||place).longitude,elevation:0}),sun:(at,o)=>AstroNotesAstro.sun(at,o),onChange:at=>{if(almanacScrub!=='date'){const day=T.start(at);if(day<lower||day>upper)return;if(day!==almanacDay){almanacDay=day;almanacDragAt=at;try{renderAlmanac();}finally{almanacDragAt=null;}}D()?.setAt(at);syncClock();return;}const day=T.fromRuler(at);const clamped=Math.max(lower,Math.min(upper,day));if(clamped!==almanacDay){almanacDay=clamped;renderAlmanac();}},onSettle:()=>almanacTimeline.sync(barAt(),almanacScrub),format:(at,mode)=>mode!=='date'?T.time(at):new Date(at+32400000).toISOString().slice(5,10).replace('-','/'),describe:(at,mode)=>mode!=='date'?ToolDateTimeBar.label(T.toRuler(T.start(at)))+' '+T.time(at):ToolDateTimeBar.label(at)});
+      almanacTimeline=AstroNotesScrollTimeline.mount({root:$("almanacTimeline"),getAt:barAt,getMode:()=>almanacScrub,enabled:()=>viewState.almanac,getObserver:()=>({latitude:(almanacPoint||place).latitude,longitude:(almanacPoint||place).longitude,elevation:0}),sun:(at,o)=>AstroNotesAstro.sun(at,o),onChange:at=>{if(almanacScrub!=='date'){const day=T.start(at);if(day<lower||day>upper)return;if(day!==almanacDay){setAlmanacDay(day);almanacDragAt=at;try{renderAlmanac();}finally{almanacDragAt=null;}}D()?.setAt(at);syncClock();return;}const day=T.fromRuler(at);const clamped=Math.max(lower,Math.min(upper,day));if(clamped!==almanacDay){setAlmanacDay(clamped);renderAlmanac();}},onSettle:()=>almanacTimeline.sync(barAt(),almanacScrub),format:(at,mode)=>mode!=='date'?T.time(at):new Date(at+32400000).toISOString().slice(5,10).replace('-','/'),describe:(at,mode)=>mode!=='date'?ToolDateTimeBar.label(T.toRuler(T.start(at)))+' '+T.time(at):ToolDateTimeBar.label(at)});
       $("almanacScrubMode").onclick=()=>{almanacTimeline.stop();almanacScrub=ToolDateTimeBar.nextMode(almanacScrub);renderAlmanac();};
     }
     ToolDateTimeBar.dateText($("almanacCalendarOpen"),ruler());
@@ -4375,14 +4379,14 @@ function renderAlmanac() {
   $("almanacDayLabel").textContent=typeof ToolDateTimeBar!=="undefined"?ToolDateTimeBar.label(ruler()):date(almanacDay);
   $("almanacPlace").onclick=()=>openPlaceSheet('almanac');
   $("almanacPrev").disabled=almanacDay<=lower;$("almanacNext").disabled=almanacDay>=upper;
-  const move=days=>{almanacDay=T.addDays(almanacDay,days);renderAlmanac();};
+  const move=days=>{setAlmanacDay(T.addDays(almanacDay,days));renderAlmanac();};
   $("almanacPrev").onclick=()=>move(-1);$("almanacNext").onclick=()=>move(1);
-  input.onchange=()=>{const n=T.parse(input.value);if(Number.isFinite(n)&&n>=lower&&n<=upper){almanacDay=n;renderAlmanac();}else{input.value=date(almanacDay);}};
+  input.onchange=()=>{const n=T.parse(input.value);if(Number.isFinite(n)&&n>=lower&&n<=upper){setAlmanacDay(n);renderAlmanac();}else{input.value=date(almanacDay);}};
   $("almanacMenu")?.setAttribute('aria-current','page');
   const out=$("almanacOutput");out.replaceChildren();
   out.hidden=!!globalThis.AstroNotesAlmanacDashboard;
   const syncBar=()=>{if(typeof almanacTimeline==='undefined'||!almanacTimeline)return;ToolDateTimeBar.modeButton($("almanacScrubMode"),almanacScrub);almanacTimeline.sync(barAt(),almanacScrub);syncClock();};
-  if(globalThis.AstroNotesAlmanacDashboard){AstroNotesAlmanacDashboard.render($("almanacDashboard"),almanacDay,p,almanacEvents,AstroNotesAstro,{isActive:()=>viewState.almanac,onLiveDay:()=>{almanacDay=AstroNotesHomeTime.start(Date.now());renderAlmanac();},onLive:at=>{syncClock();if(typeof almanacTimeline!=='undefined'&&almanacScrub!=='date')almanacTimeline?.sync(at,almanacScrub);}});AstroNotesAlmanacDashboard.setAt(AstroNotesAlmanacDashboard.at());syncBar();return;}
+  if(globalThis.AstroNotesAlmanacDashboard){AstroNotesAlmanacDashboard.render($("almanacDashboard"),almanacDay,p,almanacEvents,AstroNotesAstro,{isActive:()=>viewState.almanac,onLiveDay:()=>{setAlmanacDay(AstroNotesHomeTime.start(Date.now()));renderAlmanac();},onLive:at=>{syncClock();if(typeof almanacTimeline!=='undefined'&&almanacScrub!=='date')almanacTimeline?.sync(at,almanacScrub);}});AstroNotesAlmanacDashboard.setAt(AstroNotesAlmanacDashboard.at());syncBar();return;}
   syncBar();
   for(const [body,name] of [['sun','太陽'],['moon','月']]){
     const card=document.createElement('div');card.className='card';
@@ -4587,7 +4591,7 @@ function applyRoute() {
   const route = routeFromHash();
   const enteringHome=!!route?.almanac&&!viewState.almanac;
   viewState.almanac = !!route?.almanac;
-  if(enteringHome&&globalThis.AstroNotesAlmanacDashboard?.enter())almanacDay=AstroNotesHomeTime.start(Date.now());
+  if(enteringHome&&globalThis.AstroNotesAlmanacDashboard?.enter())setAlmanacDay(AstroNotesHomeTime.start(Date.now()));
   if(!viewState.almanac){almanacPlayback?.stop(false);almanacTimeline?.stop();globalThis.AstroNotesAlmanacDashboard?.stop();}
   picked = route && route.id ? route.id : null;
   const wasAnswers=viewState.answers;
@@ -4596,7 +4600,7 @@ function applyRoute() {
   if(!wasAnswers||!viewState.answers)$("answerHistory").open=false;
   if (viewState.answers) loadPhotos();
   viewState.admin = !!(route && route.admin);
-  if(viewState.aim!==!!(route&&route.aim))aimCustomRequest++;
+  if(viewState.aim!==!!(route&&route.aim))nextAimCustomRequest();
   viewState.aim = !!(route && route.aim);
   if (!viewState.aim) aim.pendingModelPreset = null;
   viewState.skyMap = !!route?.skymap;
@@ -8840,7 +8844,7 @@ $("aimCalToday").onclick = () => {
 ///   お気に入りに登録した高さ・検索で選んだ建物の地図の高さ → 先に打ち込んだ高さ → **その点に建つ建物の高さ（自動）** → 0（山の頂や地面そのもの）
 /// （2026-10-01 ユーザー「建物なら元から情報を取っておけるよね？その建物の高さがわかるなら自動で入力がいいな」）
 async function aimSetCustomTarget(p, { keepMap = false } = {}) {
-  const request=++aimCustomRequest,owner=auth?.token,selected=$("aimTarget").value;
+  const request=nextAimCustomRequest(),owner=auth?.token,selected=$("aimTarget").value;
   const current=()=>request===aimCustomRequest&&owner===auth?.token&&viewState.aim&&$("aimTarget").value===selected;
   const input = $("aimCustomH"), typed = Number(input.value);
   // 打ち込んだ値を使うのは、欄が「地上からの高さ」のときだけ（山のときの欄は標高）
@@ -11241,6 +11245,7 @@ const aimAirSettings={mode:"auto",temperatureC:10,pressureHPa:1010,...(store.get
 if(!["auto","standard","none"].includes(aimAirSettings.mode))aimAirSettings.mode="auto";
 try{AstroNotesAtmosphere.configure(aimAirSettings.mode,aimAirSettings);}catch{aimAirSettings.mode="auto";AstroNotesAtmosphere.configure("auto");}
 let aimAirLoadKey="",aimAirLoadUntil=0,aimAirSeq=0,aimAirCompare=null;
+function clearAimAirCompare() { aimAirCompare=null; }
 function resetAimAirLoad() { aimAirSeq++; aimAirLoadKey=""; }
 const aimAirAngle=(...args)=>AstroNotesAstro.targetElevationAngle(...args,{k:AstroNotesAtmosphere.targetK()});
 function aimAirDescribe(at,obs){
@@ -11339,7 +11344,7 @@ function openAim(preset) {
     aimReady = true;
     aimFillSelects();
     for (const id of ["aimTarget", "aimPart", "aimDate"]) {
-      $(id).onchange = () => {if(id==='aimPart')aim.matchMode='limb';if(id==='aimTarget'){aimCustomRequest++;aim.matchMode='overlap';}aim.plannerTransfer=null;aimApply({ recenter: id === "aimTarget" });};
+      $(id).onchange = () => {if(id==='aimPart')aim.matchMode='limb';if(id==='aimTarget'){nextAimCustomRequest();aim.matchMode='overlap';}aim.plannerTransfer=null;aimApply({ recenter: id === "aimTarget" });};
     }
     $("aimLimb").onclick = (e) => {
       const b = e.target.closest("[data-limb]");
@@ -12461,9 +12466,9 @@ function showSheet(el) {
   if (page) pageOpened(el);
 }
 // 題名は一覧へ（何画面進んでいても1回で）。「← 戻る」はひとつ前の画面へ
-$("homeLink").onclick = () => { closeTools(); if(globalThis.AstroNotesAlmanacDashboard?.enter())almanacDay=AstroNotesHomeTime.start(Date.now()); navigationHistory.pushRoute("#/almanac"); };
+$("homeLink").onclick = () => { closeTools(); if(globalThis.AstroNotesAlmanacDashboard?.enter())setAlmanacDay(AstroNotesHomeTime.start(Date.now())); navigationHistory.pushRoute("#/almanac"); };
 $("toolsHome").onclick = () => { closeTools(); navigationHistory.goList(); };
-$("almanacMenu").onclick = () => {if(globalThis.AstroNotesAlmanacDashboard?.enter())almanacDay=AstroNotesHomeTime.start(Date.now());navigationHistory.pushRoute('#/almanac');};
+$("almanacMenu").onclick = () => {if(globalThis.AstroNotesAlmanacDashboard?.enter())setAlmanacDay(AstroNotesHomeTime.start(Date.now()));navigationHistory.pushRoute('#/almanac');};
 $("backLink").onclick = () => { closeTools(); navigationHistory.goBack(); };
 $("toolsButton").onclick = () => ($("toolsMenu").hidden ? openTools() : closeTools());
 $("toolsClose").onclick = () => closeTools({ restoreFocus: true });
@@ -13941,7 +13946,7 @@ function restoreSharedPlan(recent = null, options = {}) {
   // Only known fields reach rendering; keep unknown protocol extensions in storage/codec for compatibility.
   const t=p.t,shared={id:t.id,name:t.name,latitude:t.latitude,longitude:t.longitude,groundM:t.groundM,parts:t.parts.map(q=>({id:q.id,name:q.name,m:q.m,...(q.latitude!==undefined?{latitude:q.latitude,longitude:q.longitude}:{})})),...(t.kind?{kind:t.kind}:{}),...(t.widthM!==undefined?{widthM:t.widthM}:{})};
   aim.sharedTarget={...(builtin || {}),...shared,id:builtin?.id || retainedId || 'shared'};
-  aim.candPick=null;aim.spot=null;aim.wantSpot=null;aim.wantKey=null;aim.candKey=null;aim.centerKey=null;aim.reverse=null;aimAirCompare=null;
+  aim.candPick=null;aim.spot=null;aim.wantSpot=null;aim.wantKey=null;aim.candKey=null;aim.centerKey=null;aim.reverse=null;clearAimAirCompare();
   $('aimLimb').innerHTML='';
   aim.matchMode=p.matchMode||'limb';aim.body=p.body;aim.limb=p.limb;aim.partId=p.part;aim.limbsByBody[p.body]=p.limb;
   aim.from={...aimSavedFrom(AstroNotesPlan.expandPoint(p.o)),...(arguments.length?{subtitle:'履歴の撮影地点'}:{}),groundManualM:p.o[3],standAglM:p.o[4]};
@@ -14802,13 +14807,13 @@ ctx.lineWidth=1;
   else{aim.plannerTransfer=null;aim.candPick=null;aim.spot=null;aim.wantSpot=null;aim.wantKey=null;}
   save();return true;
  }
- SkyMapUI={selectionState:()=>session&&({...AstroNotesShooting.conditions(session),body:session.body,target:session.target,observer:session.observer}),renderState:()=>{if(!hasAccess()||!active()||!session?.observer||!session?.target?.parts?.length||!session?.eye||pickMode)throw Error('見え方の条件を準備中');return {...AstroNotesShooting.conditions(session),ground:session.ground,eyeM:aimObserverAt(session.observer,session.ground).eyeM};},shareState:()=>{if(!hasAccess()||!active()||!session?.observer||!session?.target||!session?.target?.parts?.length||!session?.daily||!session?.eye||timelineMoving||session.timelinePending||pickMode)throw Error("撮影地点・対象・日時を選び、計算が終わってから開いてください。");return {...AstroNotesShooting.conditions(session),ground:session.ground,eyeM:aimObserverAt(session.observer,session.ground).eyeM};},snapshot:()=>session&&AstroNotesShooting.conditions(session),selectCandidate:(candidate,expected)=>{
+ setSkyMapUI({selectionState:()=>session&&({...AstroNotesShooting.conditions(session),body:session.body,target:session.target,observer:session.observer}),renderState:()=>{if(!hasAccess()||!active()||!session?.observer||!session?.target?.parts?.length||!session?.eye||pickMode)throw Error('見え方の条件を準備中');return {...AstroNotesShooting.conditions(session),ground:session.ground,eyeM:aimObserverAt(session.observer,session.ground).eyeM};},shareState:()=>{if(!hasAccess()||!active()||!session?.observer||!session?.target||!session?.target?.parts?.length||!session?.daily||!session?.eye||timelineMoving||session.timelinePending||pickMode)throw Error("撮影地点・対象・日時を選び、計算が終わってから開いてください。");return {...AstroNotesShooting.conditions(session),ground:session.ground,eyeM:aimObserverAt(session.observer,session.ground).eyeM};},snapshot:()=>session&&AstroNotesShooting.conditions(session),selectCandidate:(candidate,expected)=>{
   if(!hasAccess()||!session||!active()||!candidate?.event||!AstroNotesShooting.point(candidate.place))return false;
   const current=JSON.stringify([session.body,session.target,session.partId,session.limb,AstroNotesShooting.day(session.at),session.matchMode||'limb']);
   if(current!==expected)return false;
   skyPlayback.stop(false);
   session.observer=aimSavedFrom(AstroNotesShooting.savedObserver(candidate.place));session.ground=Number.isFinite(candidate.place.elevation)?candidate.place.elevation:null;if(candidate.event.matchMode){session.matchMode=candidate.event.matchMode;session.partId=candidate.event.partId;session.limb='center';}session.at=candidate.event.at;session.dayAnchor=AstroNotesShooting.day(session.at);map.setCenter(candidate.place.latitude,candidate.place.longitude);refresh();return true;
- },setAlignment:(partId,limb,matchMode='limb')=>{if(!hasAccess()||!session||!active())return;if(partId&&partId!=='__whole'&&!(session.target?.parts||[]).some(p=>p.id===partId))return;if(!AstroNotesAlign.LIMBS.some(x=>x.id===limb))return;session.matchMode=matchMode==='overlap'?'overlap':'limb';session.partId=session.matchMode==='overlap'?(aimIsMountain(session.target)?null:'__whole'):partId;session.limb=session.matchMode==='overlap'||partId==='__whole'?'center':limb;refresh();},open,leave,suspend,authChanged,prepareFraming,enter,refreshTargets,render,redraw:()=>map.redraw(),fitPoints:pts=>{const cv=el('skyMapCanvas'),la=pts.map(q=>q.latitude),lo=pts.map(q=>q.longitude),lat0=Math.min(...la),lat1=Math.max(...la),lon0=Math.min(...lo),lon1=Math.max(...lo),lat=(lat0+lat1)/2,lon=(lon0+lon1)/2,dx=Math.max(.00001,(lon1-lon0)/360),dy=Math.max(.00001,(lat1-lat0)/(360*Math.cos(lat*Math.PI/180)));map.setView(lat,lon,Math.min(Math.log2(Math.max(160,cv.clientWidth)*.8/(256*dx)),Math.log2(Math.max(200,cv.clientHeight)*.8/(256*dy))));},setTime:at=>setTime(at),setObserver:p=>PLACE_PICKERS.skymap.set(p),setTarget:id=>{if(!session||!hasAccess())return;const t=mapTargets().find(x=>x.id===id);if(!t)return;session.target=t;session.partId=null;targetOn=true;el('skyMapTarget').value=t.id;session.partId=aimIsMountain(t)?null:'__whole';session.limb='center';session.matchMode='overlap';syncBodies();refresh();}};if(routeFromHash()?.skymap)applyRoute();
+ },setAlignment:(partId,limb,matchMode='limb')=>{if(!hasAccess()||!session||!active())return;if(partId&&partId!=='__whole'&&!(session.target?.parts||[]).some(p=>p.id===partId))return;if(!AstroNotesAlign.LIMBS.some(x=>x.id===limb))return;session.matchMode=matchMode==='overlap'?'overlap':'limb';session.partId=session.matchMode==='overlap'?(aimIsMountain(session.target)?null:'__whole'):partId;session.limb=session.matchMode==='overlap'||partId==='__whole'?'center':limb;refresh();},open,leave,suspend,authChanged,prepareFraming,enter,refreshTargets,render,redraw:()=>map.redraw(),fitPoints:pts=>{const cv=el('skyMapCanvas'),la=pts.map(q=>q.latitude),lo=pts.map(q=>q.longitude),lat0=Math.min(...la),lat1=Math.max(...la),lon0=Math.min(...lo),lon1=Math.max(...lo),lat=(lat0+lat1)/2,lon=(lon0+lon1)/2,dx=Math.max(.00001,(lon1-lon0)/360),dy=Math.max(.00001,(lat1-lat0)/(360*Math.cos(lat*Math.PI/180)));map.setView(lat,lon,Math.min(Math.log2(Math.max(160,cv.clientWidth)*.8/(256*dx)),Math.log2(Math.max(200,cv.clientHeight)*.8/(256*dy))));},setTime:at=>setTime(at),setObserver:p=>PLACE_PICKERS.skymap.set(p),setTarget:id=>{if(!session||!hasAccess())return;const t=mapTargets().find(x=>x.id===id);if(!t)return;session.target=t;session.partId=null;targetOn=true;el('skyMapTarget').value=t.id;session.partId=aimIsMountain(t)?null:'__whole';session.limb='center';session.matchMode='overlap';syncBodies();refresh();}});if(routeFromHash()?.skymap)applyRoute();
 })();
 </script>
 

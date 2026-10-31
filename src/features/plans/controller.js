@@ -6,7 +6,7 @@ import {aim} from '../framing/controller.js';
 import {aimCal,aimFromPoint,aimM,aimSavedFrom} from '../framing/observer.js';
 import {aimRidgeCache} from '../../ui/scene/terrain.js';
 import {AIM_SENSOR,aimLens} from '../../ui/scene/lens.js';
-import {aimAirCompare,aimAirSettings,aimAirSync,aimLookKey,openAim,resetAimAirLoad} from '../framing/reverse-and-entry.js';
+import {aimAirSettings,aimAirSync,aimLookKey,clearAimAirCompare,openAim,resetAimAirLoad} from '../framing/reverse-and-entry.js';
 import {accessState,auth,screenAllowed,toolAllowed} from '../account/session-and-access.js';
 import {afterPagePop,showSheet} from '../../app/overlays.js';
 import {renderAuthButton} from '../account/status.js';
@@ -100,7 +100,7 @@ function restoreSharedPlan(recent = null, options = {}) {
   // Only known fields reach rendering; keep unknown protocol extensions in storage/codec for compatibility.
   const t=p.t,shared={id:t.id,name:t.name,latitude:t.latitude,longitude:t.longitude,groundM:t.groundM,parts:t.parts.map(q=>({id:q.id,name:q.name,m:q.m,...(q.latitude!==undefined?{latitude:q.latitude,longitude:q.longitude}:{})})),...(t.kind?{kind:t.kind}:{}),...(t.widthM!==undefined?{widthM:t.widthM}:{})};
   aim.sharedTarget={...(builtin || {}),...shared,id:builtin?.id || retainedId || 'shared'};
-  aim.candPick=null;aim.spot=null;aim.wantSpot=null;aim.wantKey=null;aim.candKey=null;aim.centerKey=null;aim.reverse=null;aimAirCompare=null;
+  aim.candPick=null;aim.spot=null;aim.wantSpot=null;aim.wantKey=null;aim.candKey=null;aim.centerKey=null;aim.reverse=null;clearAimAirCompare();
   $('aimLimb').innerHTML='';
   aim.matchMode=p.matchMode||'limb';aim.body=p.body;aim.limb=p.limb;aim.partId=p.part;aim.limbsByBody[p.body]=p.limb;
   aim.from={...aimSavedFrom(AstroNotesPlan.expandPoint(p.o)),...(arguments.length?{subtitle:'履歴の撮影地点'}:{}),groundManualM:p.o[3],standAglM:p.o[4]};

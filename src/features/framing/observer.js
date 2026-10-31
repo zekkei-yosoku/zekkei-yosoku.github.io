@@ -1,5 +1,5 @@
 import {$,S,esc} from '../../app/presentation-helpers.js';
-import {aimCustomRequest,store,viewState} from '../../app/browser-state.js';
+import {aimCustomRequest,nextAimCustomRequest,store,viewState} from '../../app/browser-state.js';
 import {moonGlyphAt} from '../forecast/view.js';
 import {favForPoint,renameFromAfterFav,renderFavStar,renderPointCard} from '../places/controller.js';
 import {AimMap,aim,aimElevCache,aimElevation,aimFillSelects,aimIsMountain,aimTargetInfo} from './controller.js';
@@ -296,7 +296,7 @@ $("aimCalToday").onclick = () => {
 ///   お気に入りに登録した高さ・検索で選んだ建物の地図の高さ → 先に打ち込んだ高さ → **その点に建つ建物の高さ（自動）** → 0（山の頂や地面そのもの）
 /// （2026-10-01 ユーザー「建物なら元から情報を取っておけるよね？その建物の高さがわかるなら自動で入力がいいな」）
 async function aimSetCustomTarget(p, { keepMap = false } = {}) {
-  const request=++aimCustomRequest,owner=auth?.token,selected=$("aimTarget").value;
+  const request=nextAimCustomRequest(),owner=auth?.token,selected=$("aimTarget").value;
   const current=()=>request===aimCustomRequest&&owner===auth?.token&&viewState.aim&&$("aimTarget").value===selected;
   const input = $("aimCustomH"), typed = Number(input.value);
   // 打ち込んだ値を使うのは、欄が「地上からの高さ」のときだけ（山のときの欄は標高）

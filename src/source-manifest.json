@@ -1619,41 +1619,6 @@
           "owner": "src/features/framing/reverse-and-entry.js"
         },
         {
-          "name": "aimAirCompare",
-          "writer": "src/features/plans/controller.js",
-          "owner": "src/features/framing/reverse-and-entry.js"
-        },
-        {
-          "name": "aimCustomRequest",
-          "writer": "src/app/navigation.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
-          "name": "aimCustomRequest",
-          "writer": "src/features/framing/observer.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
-          "name": "aimCustomRequest",
-          "writer": "src/features/framing/reverse-and-entry.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
-          "name": "almanacDay",
-          "writer": "src/app/navigation.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
-          "name": "almanacDay",
-          "writer": "src/app/overlays.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
-          "name": "almanacDay",
-          "writer": "src/features/home/controller.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
           "name": "auth",
           "writer": "src/features/account/access-recheck.js",
           "owner": "src/features/account/session-and-access.js"
@@ -1687,11 +1652,6 @@
           "name": "dataOwner",
           "writer": "src/features/account/retirement.js",
           "owner": "src/features/account/session-and-access.js"
-        },
-        {
-          "name": "extrasLoadedSeq",
-          "writer": "src/features/forecast/view.js",
-          "owner": "src/app/browser-state.js"
         },
         {
           "name": "favorites",
@@ -1796,11 +1756,6 @@
         {
           "name": "sightings",
           "writer": "src/features/results/controller.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
-          "name": "SkyMapUI",
-          "writer": "src/features/explore/map-presentation.js",
           "owner": "src/app/browser-state.js"
         },
         {

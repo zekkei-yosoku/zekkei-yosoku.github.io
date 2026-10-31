@@ -1,5 +1,5 @@
 import {$,S} from './presentation-helpers.js';
-import {SkyMapUI,aimCustomRequest,almanacDay,place,viewState} from './browser-state.js';
+import {SkyMapUI,nextAimCustomRequest,place,setAlmanacDay,viewState} from './browser-state.js';
 import {acceptedPrediction,load,predictionDirty,predictionNeeded,weeks} from '../features/forecast/load.js';
 import {currentView,render,upcoming} from '../features/forecast/view.js';
 import {loadPhotos} from '../features/photos/controller.js';
@@ -73,7 +73,7 @@ function applyRoute() {
   const route = routeFromHash();
   const enteringHome=!!route?.almanac&&!viewState.almanac;
   viewState.almanac = !!route?.almanac;
-  if(enteringHome&&globalThis.AstroNotesAlmanacDashboard?.enter())almanacDay=AstroNotesHomeTime.start(Date.now());
+  if(enteringHome&&globalThis.AstroNotesAlmanacDashboard?.enter())setAlmanacDay(AstroNotesHomeTime.start(Date.now()));
   if(!viewState.almanac){almanacPlayback?.stop(false);almanacTimeline?.stop();globalThis.AstroNotesAlmanacDashboard?.stop();}
   picked = route && route.id ? route.id : null;
   const wasAnswers=viewState.answers;
@@ -82,7 +82,7 @@ function applyRoute() {
   if(!wasAnswers||!viewState.answers)$("answerHistory").open=false;
   if (viewState.answers) loadPhotos();
   viewState.admin = !!(route && route.admin);
-  if(viewState.aim!==!!(route&&route.aim))aimCustomRequest++;
+  if(viewState.aim!==!!(route&&route.aim))nextAimCustomRequest();
   viewState.aim = !!(route && route.aim);
   if (!viewState.aim) aim.pendingModelPreset = null;
   viewState.skyMap = !!route?.skymap;

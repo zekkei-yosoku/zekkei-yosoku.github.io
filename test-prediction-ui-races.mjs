@@ -1,3 +1,4 @@
+import './tools/test-owner-adapter.mjs';
 import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
 const html=sourceHtml();

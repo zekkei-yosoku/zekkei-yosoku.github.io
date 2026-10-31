@@ -39,3 +39,11 @@ test('clearFavMapReturn ends the return-to-form state',()=>{
 test('resetAimAirLoad invalidates the loading weather request',()=>{
  const c={};vm.createContext(c);vm.runInContext(decl('aimAirLoadKey')+'\n'+decl('resetAimAirLoad')+'\naimAirLoadKey="key";resetAimAirLoad();globalThis.after=[aimAirSeq,aimAirLoadKey];',c);assert.deepEqual([...c.after],[1,'']);
 });
+const owned=(names,script)=>{const c={};vm.createContext(c);vm.runInContext(names.map(decl).join('\n')+'\n'+script,c);return c.after;};
+test('state owner functions write their own variable',()=>{
+ assert.equal(owned(['aimCustomRequest','nextAimCustomRequest'],'const a=nextAimCustomRequest();globalThis.after=[a,aimCustomRequest].join();'),'1,1');
+ assert.equal(owned(['setAlmanacDay'],'let almanacDay=0;setAlmanacDay(5);globalThis.after=almanacDay;'),5);
+ assert.equal(owned(['setExtrasLoadedSeq'],'let extrasLoadedSeq=-1;setExtrasLoadedSeq(7);globalThis.after=extrasLoadedSeq;'),7);
+ assert.equal(owned(['SkyMapUI','setSkyMapUI'],'setSkyMapUI("ui");globalThis.after=SkyMapUI;'),'ui');
+ assert.equal(owned(['aimAirLoadKey','clearAimAirCompare'],'aimAirCompare="x";clearAimAirCompare();globalThis.after=aimAirCompare;'),null);
+});

@@ -1,5 +1,5 @@
 import {$,S,pickHighlight} from '../../app/presentation-helpers.js';
-import {SORTS,extrasLoadedSeq,extrasRetry,place,store,viewState} from '../../app/browser-state.js';
+import {SORTS,extrasLoadedSeq,extrasRetry,place,setExtrasLoadedSeq,store,viewState} from '../../app/browser-state.js';
 import {bundle,extraSeq,forecastDays,predictionLoadSeq,predictionNeeded,predictionPlace,weeks} from './load.js';
 import {wireOutcomes} from '../photos/controller.js';
 import {renderAlmanac} from '../home/controller.js';
@@ -632,7 +632,7 @@ function kickExtras() {
   if (!["list", "detail"].includes(currentView) || !predictionNeeded()) return;
   if ((extrasRunning && extrasRunningSeq === predictionLoadSeq) || !bundle || extrasLoadedSeq === predictionLoadSeq) return;
   const started = predictionLoadSeq;
-  extrasLoadedSeq = started; extrasRunning = true; extrasRunningSeq = started;
+  setExtrasLoadedSeq(started); extrasRunning = true; extrasRunningSeq = started;
   loadExtras().catch((e) => console.warn("富士山・月の判定に失敗:", e))
     .finally(() => { if (extrasRunningSeq === started) extrasRunning = false; });
 }

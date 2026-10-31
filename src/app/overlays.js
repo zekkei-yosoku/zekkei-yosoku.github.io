@@ -1,5 +1,5 @@
 import {$} from './presentation-helpers.js';
-import {SkyMapUI,almanacDay,viewState} from './browser-state.js';
+import {SkyMapUI,setAlmanacDay,viewState} from './browser-state.js';
 import {navigationHistory} from './navigation.js';
 import {closeTools,openTools} from '../features/account/session-and-access.js';
 // ---------------------------------------------------------------- ページとして開く選択画面（2026-10-21）
@@ -150,9 +150,9 @@ function showSheet(el) {
   if (page) pageOpened(el);
 }
 // 題名は一覧へ（何画面進んでいても1回で）。「← 戻る」はひとつ前の画面へ
-$("homeLink").onclick = () => { closeTools(); if(globalThis.AstroNotesAlmanacDashboard?.enter())almanacDay=AstroNotesHomeTime.start(Date.now()); navigationHistory.pushRoute("#/almanac"); };
+$("homeLink").onclick = () => { closeTools(); if(globalThis.AstroNotesAlmanacDashboard?.enter())setAlmanacDay(AstroNotesHomeTime.start(Date.now())); navigationHistory.pushRoute("#/almanac"); };
 $("toolsHome").onclick = () => { closeTools(); navigationHistory.goList(); };
-$("almanacMenu").onclick = () => {if(globalThis.AstroNotesAlmanacDashboard?.enter())almanacDay=AstroNotesHomeTime.start(Date.now());navigationHistory.pushRoute('#/almanac');};
+$("almanacMenu").onclick = () => {if(globalThis.AstroNotesAlmanacDashboard?.enter())setAlmanacDay(AstroNotesHomeTime.start(Date.now()));navigationHistory.pushRoute('#/almanac');};
 $("backLink").onclick = () => { closeTools(); navigationHistory.goBack(); };
 $("toolsButton").onclick = () => ($("toolsMenu").hidden ? openTools() : closeTools());
 $("toolsClose").onclick = () => closeTools({ restoreFocus: true });

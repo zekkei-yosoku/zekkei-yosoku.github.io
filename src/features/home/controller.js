@@ -1,5 +1,5 @@
 import {$} from '../../app/presentation-helpers.js';
-import {almanacDay,place,viewState} from '../../app/browser-state.js';
+import {almanacDay,place,setAlmanacDay,viewState} from '../../app/browser-state.js';
 import {almanacPoint} from '../places/controller.js';
 import {openPlaceSheet} from '../../services/place-search.js';
 let almanacTimeline = null, almanacScrub = 'date', almanacDragAt = null, almanacPlayback = null;
@@ -39,26 +39,26 @@ function renderAlmanac() {
   const syncClock=()=>{const clock=$("almanacTime"),at=D()?.at();if(clock&&Number.isFinite(at)&&document.activeElement!==clock)clock.value=T.time(at);};
   const lower=T.parse('2020-01-01'), upper=T.parse('2030-12-31');
   const outOfRange=almanacDay<lower||almanacDay>upper;
-  almanacDay=Math.max(lower,Math.min(upper,almanacDay));
+  setAlmanacDay(Math.max(lower,Math.min(upper,almanacDay)));
   $("almanacRangeNote").hidden=!outOfRange;
   $("almanacRangeNote").textContent=outOfRange?"対応期間は2020〜2030年です。範囲内の最も近い日を表示しました。":"";
   input.value=date(almanacDay);
   if(typeof ToolDateTimeBar!=='undefined'&&typeof AstroNotesScrollTimeline!=='undefined'){
     if(!almanacTimeline){
-      const bar=ToolDateTimeBar.decorate({footer:$("almanacFooter"),row:$("almanacDateRow"),date:$("almanacCalendarOpen"),prev:$("almanacPrev"),next:$("almanacNext"),track:$("almanacTrack"),timeId:'almanacTime',moreId:'almanacTimeMore',now:()=>{D()?.today();almanacDay=T.start(Date.now());renderAlmanac();}});
+      const bar=ToolDateTimeBar.decorate({footer:$("almanacFooter"),row:$("almanacDateRow"),date:$("almanacCalendarOpen"),prev:$("almanacPrev"),next:$("almanacNext"),track:$("almanacTrack"),timeId:'almanacTime',moreId:'almanacTimeMore',now:()=>{D()?.today();setAlmanacDay(T.start(Date.now()));renderAlmanac();}});
       almanacPlayback=ToolDateTimeBar.playback({row:$("almanacDateRow"),footer:$("almanacFooter"),getAt:()=>D()?.at(),enabled:()=>viewState.almanac, onStart:()=>{almanacTimeline?.stop();D()?.setAt(D()?.at());},onStop:()=>{if(viewState.almanac){D()?.setAt(D()?.at());almanacTimeline?.sync(barAt(),almanacScrub);}},setAt:at=>{
         if(at<lower||at>=T.addDays(upper,1)){almanacPlayback.stop(false);return;}
-        const day=T.start(at);if(day!==almanacDay){almanacDay=day;renderAlmanac();}D()?.setAt(at,true);syncClock();
+        const day=T.start(at);if(day!==almanacDay){setAlmanacDay(day);renderAlmanac();}D()?.setAt(at,true);syncClock();
         const rulerAt=almanacScrub==='date'?T.toRuler(day)+(at-day)/(T.addDays(day,1)-day)*86400000:at;
         almanacTimeline?.follow(rulerAt,almanacScrub);
       }});
       bar.time.onchange=()=>{const before=D()?.at(),at=T.withTime(before,bar.time.value);if(!Number.isFinite(at)){bar.time.value=Number.isFinite(before)?T.time(before):'';bar.time.setCustomValidity('この日のその時刻は存在しません。別の時刻を選んでください。');bar.time.reportValidity();return;}bar.time.setCustomValidity('');D()?.setAt(at);syncClock();};
       bar.time.addEventListener('input',()=>bar.time.setCustomValidity(''));bar.time.addEventListener('blur',syncClock);
       ToolDateTimeBar.details({button:bar.more,getText:()=>{const at=D()?.at();if(!Number.isFinite(at))return '日時を取得できませんでした。';const point=almanacPoint||place,body=$('almanacDashboard').dataset.body==='moon'?'moon':'sun',state=AstroNotesAstro[body](at,{latitude:point.latitude,longitude:point.longitude,elevation:0});return `${T.date(at).replaceAll('-','/')} ${T.time(at)} ${T.zoneLabel(at)}\n${T.zone()}\n${body==='moon'?'月':'太陽'} 高度 ${state.geometricAltitude.toFixed(1)}°・方位 ${state.azimuth.toFixed(1)}°`;}});
-      const homeCalendar=ToolDateTimeBar.calendar({button:$("almanacCalendarOpen"),getAt:ruler,getNow:()=>T.toRuler(Date.now()),setDay:day=>{almanacDay=T.fromRuler(day);renderAlmanac();}});
+      const homeCalendar=ToolDateTimeBar.calendar({button:$("almanacCalendarOpen"),getAt:ruler,getNow:()=>T.toRuler(Date.now()),setDay:day=>{setAlmanacDay(T.fromRuler(day));renderAlmanac();}});
       ToolDateTimeBar.editor({button:$("almanacCalendarOpen"),time:bar.time,dialog:homeCalendar,beforeOpen:()=>almanacTimeline?.stop()});
       ToolDateTimeBar.trackPointerFocus($("almanacFooter"));
-      almanacTimeline=AstroNotesScrollTimeline.mount({root:$("almanacTimeline"),getAt:barAt,getMode:()=>almanacScrub,enabled:()=>viewState.almanac,getObserver:()=>({latitude:(almanacPoint||place).latitude,longitude:(almanacPoint||place).longitude,elevation:0}),sun:(at,o)=>AstroNotesAstro.sun(at,o),onChange:at=>{if(almanacScrub!=='date'){const day=T.start(at);if(day<lower||day>upper)return;if(day!==almanacDay){almanacDay=day;almanacDragAt=at;try{renderAlmanac();}finally{almanacDragAt=null;}}D()?.setAt(at);syncClock();return;}const day=T.fromRuler(at);const clamped=Math.max(lower,Math.min(upper,day));if(clamped!==almanacDay){almanacDay=clamped;renderAlmanac();}},onSettle:()=>almanacTimeline.sync(barAt(),almanacScrub),format:(at,mode)=>mode!=='date'?T.time(at):new Date(at+32400000).toISOString().slice(5,10).replace('-','/'),describe:(at,mode)=>mode!=='date'?ToolDateTimeBar.label(T.toRuler(T.start(at)))+' '+T.time(at):ToolDateTimeBar.label(at)});
+      almanacTimeline=AstroNotesScrollTimeline.mount({root:$("almanacTimeline"),getAt:barAt,getMode:()=>almanacScrub,enabled:()=>viewState.almanac,getObserver:()=>({latitude:(almanacPoint||place).latitude,longitude:(almanacPoint||place).longitude,elevation:0}),sun:(at,o)=>AstroNotesAstro.sun(at,o),onChange:at=>{if(almanacScrub!=='date'){const day=T.start(at);if(day<lower||day>upper)return;if(day!==almanacDay){setAlmanacDay(day);almanacDragAt=at;try{renderAlmanac();}finally{almanacDragAt=null;}}D()?.setAt(at);syncClock();return;}const day=T.fromRuler(at);const clamped=Math.max(lower,Math.min(upper,day));if(clamped!==almanacDay){setAlmanacDay(clamped);renderAlmanac();}},onSettle:()=>almanacTimeline.sync(barAt(),almanacScrub),format:(at,mode)=>mode!=='date'?T.time(at):new Date(at+32400000).toISOString().slice(5,10).replace('-','/'),describe:(at,mode)=>mode!=='date'?ToolDateTimeBar.label(T.toRuler(T.start(at)))+' '+T.time(at):ToolDateTimeBar.label(at)});
       $("almanacScrubMode").onclick=()=>{almanacTimeline.stop();almanacScrub=ToolDateTimeBar.nextMode(almanacScrub);renderAlmanac();};
     }
     ToolDateTimeBar.dateText($("almanacCalendarOpen"),ruler());
@@ -69,14 +69,14 @@ function renderAlmanac() {
   $("almanacDayLabel").textContent=typeof ToolDateTimeBar!=="undefined"?ToolDateTimeBar.label(ruler()):date(almanacDay);
   $("almanacPlace").onclick=()=>openPlaceSheet('almanac');
   $("almanacPrev").disabled=almanacDay<=lower;$("almanacNext").disabled=almanacDay>=upper;
-  const move=days=>{almanacDay=T.addDays(almanacDay,days);renderAlmanac();};
+  const move=days=>{setAlmanacDay(T.addDays(almanacDay,days));renderAlmanac();};
   $("almanacPrev").onclick=()=>move(-1);$("almanacNext").onclick=()=>move(1);
-  input.onchange=()=>{const n=T.parse(input.value);if(Number.isFinite(n)&&n>=lower&&n<=upper){almanacDay=n;renderAlmanac();}else{input.value=date(almanacDay);}};
+  input.onchange=()=>{const n=T.parse(input.value);if(Number.isFinite(n)&&n>=lower&&n<=upper){setAlmanacDay(n);renderAlmanac();}else{input.value=date(almanacDay);}};
   $("almanacMenu")?.setAttribute('aria-current','page');
   const out=$("almanacOutput");out.replaceChildren();
   out.hidden=!!globalThis.AstroNotesAlmanacDashboard;
   const syncBar=()=>{if(typeof almanacTimeline==='undefined'||!almanacTimeline)return;ToolDateTimeBar.modeButton($("almanacScrubMode"),almanacScrub);almanacTimeline.sync(barAt(),almanacScrub);syncClock();};
-  if(globalThis.AstroNotesAlmanacDashboard){AstroNotesAlmanacDashboard.render($("almanacDashboard"),almanacDay,p,almanacEvents,AstroNotesAstro,{isActive:()=>viewState.almanac,onLiveDay:()=>{almanacDay=AstroNotesHomeTime.start(Date.now());renderAlmanac();},onLive:at=>{syncClock();if(typeof almanacTimeline!=='undefined'&&almanacScrub!=='date')almanacTimeline?.sync(at,almanacScrub);}});AstroNotesAlmanacDashboard.setAt(AstroNotesAlmanacDashboard.at());syncBar();return;}
+  if(globalThis.AstroNotesAlmanacDashboard){AstroNotesAlmanacDashboard.render($("almanacDashboard"),almanacDay,p,almanacEvents,AstroNotesAstro,{isActive:()=>viewState.almanac,onLiveDay:()=>{setAlmanacDay(AstroNotesHomeTime.start(Date.now()));renderAlmanac();},onLive:at=>{syncClock();if(typeof almanacTimeline!=='undefined'&&almanacScrub!=='date')almanacTimeline?.sync(at,almanacScrub);}});AstroNotesAlmanacDashboard.setAt(AstroNotesAlmanacDashboard.at());syncBar();return;}
   syncBar();
   for(const [body,name] of [['sun','太陽'],['moon','月']]){
     const card=document.createElement('div');card.className='card';

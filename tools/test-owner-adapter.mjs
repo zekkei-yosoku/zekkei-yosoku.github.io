@@ -16,6 +16,11 @@ function adapt(ctx){
  define(ctx,'apiTransport',(...a)=>call(ctx,'apiCall',a));
  define(ctx,'authStorage',{save:(...a)=>call(ctx,'saveAuth',a),read:(...a)=>call(ctx,'storedAuth',a),clear:(...a)=>call(ctx,'clearStoredAuth',a)});
  define(ctx,'navigationHistory',{pushRoute:(...a)=>call(ctx,'pushRoute',a),goBack:(...a)=>call(ctx,'goBack',a),goList:(...a)=>call(ctx,'goList',a),settleListAfterBack:(...a)=>call(ctx,'settleListAfterBack',a),get noHistory(){return read(ctx,'NO_HISTORY');},get appTrail(){return read(ctx,'appTrail');}});
+ define(ctx,'setSkyMapUI',v=>write(ctx,'SkyMapUI',v));
+ define(ctx,'setAlmanacDay',v=>write(ctx,'almanacDay',v));
+ define(ctx,'setExtrasLoadedSeq',v=>write(ctx,'extrasLoadedSeq',v));
+ define(ctx,'clearAimAirCompare',()=>write(ctx,'aimAirCompare',null));
+ define(ctx,'nextAimCustomRequest',()=>{const n=(read(ctx,'aimCustomRequest')||0)+1;write(ctx,'aimCustomRequest',n);return n;});
  define(ctx,'accountSync',()=>({queuePush:(...a)=>call(ctx,'queuePush',a),syncNow:(...a)=>call(ctx,'syncNow',a),applyIncoming:(...a)=>call(ctx,'applyIncoming',a)}));
  const appearance=createContext({});runInContext(readFileSync(new URL('../src/domain/scene/appearance.js',import.meta.url),'utf8'),appearance);
  const real=appearance.AstroNotesSceneAppearance;

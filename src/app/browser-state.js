@@ -132,10 +132,14 @@ const viewState = Object.seal({
   admin: false,     // 管理者画面を見ているか
 });
 let SkyMapUI = null;
+function setSkyMapUI(ui) { SkyMapUI = ui; }
 let aimCustomRequest = 0;
+function nextAimCustomRequest() { return ++aimCustomRequest; }
 let almanacDay = AstroNotesHomeTime.start(Date.now());
+function setAlmanacDay(day) { almanacDay = day; }
 
 let extrasLoadedSeq = -1;
+function setExtrasLoadedSeq(seq) { extrasLoadedSeq = seq; }
 // Hidden tabs wait for visibility without spending a retry. Each forecast generation
 // has a bounded retry budget; changing the place cancels all its timers/listeners.
 function createForecastRetry(run, maxAttempts = 3) {
@@ -161,4 +165,4 @@ function createForecastRetry(run, maxAttempts = 3) {
   };
 }
 const extrasRetry = createForecastRetry(() => { extrasLoadedSeq = -1; kickExtras(); });
-export {SORTS,SkyMapUI,WIDE,aimCustomRequest,almanacDay,cleanFavorite,cleanSighting,extrasLoadedSeq,extrasRetry,favorites,place,sightings,store,viewState};
+export {SORTS,SkyMapUI,WIDE,aimCustomRequest,almanacDay,cleanFavorite,cleanSighting,extrasLoadedSeq,extrasRetry,favorites,nextAimCustomRequest,place,setAlmanacDay,setExtrasLoadedSeq,setSkyMapUI,sightings,store,viewState};

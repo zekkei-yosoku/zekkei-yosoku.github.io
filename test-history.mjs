@@ -1,3 +1,4 @@
+import './tools/test-owner-adapter.mjs';
 import {sourceDeclaration} from './tools/test-source.mjs';
 import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';

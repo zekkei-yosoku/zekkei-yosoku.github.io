@@ -1,5 +1,5 @@
 import {$,S,esc} from '../../app/presentation-helpers.js';
-import {aimCustomRequest,favorites,place,store,viewState} from '../../app/browser-state.js';
+import {favorites,nextAimCustomRequest,place,store,viewState} from '../../app/browser-state.js';
 import {PLACE_PICKERS,saveFavorites} from '../places/controller.js';
 import {MapPick,createMapView} from '../../ui/map/picker.js';
 import {AimMap,aim,aimElevation,aimFillParts,aimFillSelects,aimIsMountain,aimKm,aimLimbValue,aimRedrawLine,aimShift,aimZoomFor} from './controller.js';
@@ -275,6 +275,7 @@ const aimAirSettings={mode:"auto",temperatureC:10,pressureHPa:1010,...(store.get
 if(!["auto","standard","none"].includes(aimAirSettings.mode))aimAirSettings.mode="auto";
 try{AstroNotesAtmosphere.configure(aimAirSettings.mode,aimAirSettings);}catch{aimAirSettings.mode="auto";AstroNotesAtmosphere.configure("auto");}
 let aimAirLoadKey="",aimAirLoadUntil=0,aimAirSeq=0,aimAirCompare=null;
+function clearAimAirCompare() { aimAirCompare=null; }
 function resetAimAirLoad() { aimAirSeq++; aimAirLoadKey=""; }
 const aimAirAngle=(...args)=>AstroNotesAstro.targetElevationAngle(...args,{k:AstroNotesAtmosphere.targetK()});
 function aimAirDescribe(at,obs){
@@ -373,7 +374,7 @@ function openAim(preset) {
     aimReady = true;
     aimFillSelects();
     for (const id of ["aimTarget", "aimPart", "aimDate"]) {
-      $(id).onchange = () => {if(id==='aimPart')aim.matchMode='limb';if(id==='aimTarget'){aimCustomRequest++;aim.matchMode='overlap';}aim.plannerTransfer=null;aimApply({ recenter: id === "aimTarget" });};
+      $(id).onchange = () => {if(id==='aimPart')aim.matchMode='limb';if(id==='aimTarget'){nextAimCustomRequest();aim.matchMode='overlap';}aim.plannerTransfer=null;aimApply({ recenter: id === "aimTarget" });};
     }
     $("aimLimb").onclick = (e) => {
       const b = e.target.closest("[data-limb]");
@@ -529,4 +530,4 @@ function aimMapView() {
 // 道具の観測地点・目標を決めるときは、いまのその点のところで地図を開く
 $("mapButton").onclick = () => MapPick.open(placeSheetFor && PLACE_PICKERS[placeSheetFor]
   ? (PLACE_PICKERS[placeSheetFor].point() || place) : place);
-export {aimAirAngle,aimAirCompare,aimAirDescribe,aimAirEnsure,aimAirSettings,aimAirSync,aimLookFound,aimLookKey,aimMapView,aimReverseClear,aimReverseShow,aimShiftFromPlacement,aimShiftSync,aimTitleFor,openAim,renderAimAccess,resetAimAirLoad};
+export {aimAirAngle,aimAirCompare,aimAirDescribe,aimAirEnsure,aimAirSettings,aimAirSync,aimLookFound,aimLookKey,aimMapView,aimReverseClear,aimReverseShow,aimShiftFromPlacement,aimShiftSync,aimTitleFor,clearAimAirCompare,openAim,renderAimAccess,resetAimAirLoad};
