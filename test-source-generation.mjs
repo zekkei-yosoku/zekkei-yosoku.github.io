@@ -11,6 +11,12 @@ test('source reconstructs the complete versioned/CSP delivery byte for byte',()=
  assert.equal(new Set(output.sources).size,output.sources.length,'source units occur once, without hidden duplicate definitions');
  assert(!output.html.includes('@@include:'));
 });
+test('app-version.txt names the same version as the delivered HTML, in production and trial',()=>{
+ for(const dir of ['','trial/']){
+  const meta=readFileSync(new URL(dir+'index.html',import.meta.url),'utf8').match(/name="app-version" content="(\d+)"/)[1];
+  assert.equal(readFileSync(new URL(dir+'app-version.txt',import.meta.url),'utf8'),meta+'\n',dir||'root');
+ }
+});
 test('source manifest lists every classic JS unit in exact execution order',()=>{
  const {sources}=renderIndex(),manifest=JSON.parse(readFileSync(new URL('src/source-manifest.json',import.meta.url)));
  const actual=sources.filter(n=>n.endsWith('.js'));

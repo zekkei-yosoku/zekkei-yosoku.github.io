@@ -31,7 +31,7 @@ emit(out/'index.html',s.encode())
 # 2026-10-28 写真の評価と規約・プライバシーも本体から作る（試用版の表示だけ変える）
 r=(root/'sky-rating.html').read_text().replace('· AstroNotes</title>','· AstroNotes 試用版</title>').replace('<span class="brand">AstroNotes</span>','<span class="brand">AstroNotes <span>試用版</span></span>')
 emit(out/'sky-rating.html',r.encode())
-for name in ['privacy.html','terms.html']:emit(out/name,(root/name).read_bytes())
+for name in ['privacy.html','terms.html','app-version.txt']:emit(out/name,(root/name).read_bytes())
 m=json.loads((root/'manifest.json').read_text());m.update(name='AstroNotes 試用版',short_name='AstroNotes 試用版',id='./',scope='./',start_url='./')
 emit(out/'manifest.json',(json.dumps(m,ensure_ascii=False,indent=2)+'\n').encode())
 if check:

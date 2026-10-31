@@ -16,8 +16,15 @@ async function checkForUpdate() {
   const mine = release || (running.match(/[?&]v=(\d+)/) || [])[1];
   if (!mine) return;
   try {
-    const html = await (await fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" })).text();
-    const latest = (html.match(/name="app-version" content="(\d+)"/) || [])[1] || (html.match(/astronotes-core\.js\?v=(\d+)/) || [])[1];
+    // 版だけを読む。HTML全体は圧縮後でも約355KBあり、開くたびに取ると重い
+    const stamp = "?v=" + Date.now();
+    const file = await fetch("app-version.txt" + stamp, { cache: "no-store" });
+    let latest = file.ok ? ((await file.text()).trim().match(/^\d+$/) || [])[0] : null;
+    // 版ファイルが無い・壊れている時はHTMLで確かめる。ここで諦めると更新に気づけなくなる
+    if (!latest) {
+      const html = await (await fetch(location.pathname + stamp, { cache: "no-store" })).text();
+      latest = (html.match(/name="app-version" content="(\d+)"/) || [])[1] || (html.match(/astronotes-core\.js\?v=(\d+)/) || [])[1];
+    }
     if (!latest || latest === mine) return;
     // 読み直し済みの印は「読み直した先の版」で持つ。走っている版で持つと、
     // 同じセッション中の2回目の配信を拾えなくなる（1回で打ち止めになる）

@@ -2822,11 +2822,16 @@ console.log("== 更新の自動確認が、読み直しの繰り返しになら�
   const body = src.slice(0, end);
 
   // 配信された版を served、走っている版を running として動かし、読み直したか見る
-  const run = async (running, served, store) => {
+  const htmlFetches = [];
+  const run = async (running, served, store, versionFile = { ok: true, text: served }) => {
     let reloaded = 0;
     const sandbox = {
       document: { querySelector: () => ({ src: `astronotes-core.js?v=${running}` }) },
-      fetch: async () => ({ text: async () => `<script src="astronotes-core.js?v=${served}">` }),
+      fetch: async (url) => {
+        if (String(url).startsWith("app-version.txt?")) return { ok: versionFile.ok, text: async () => versionFile.text };
+        htmlFetches.push(url);
+        return { ok: true, text: async () => `<script src="astronotes-core.js?v=${served}">` };
+      },
       sessionStorage: {
         getItem: (k) => (k in store ? store[k] : null),
         setItem: (k, v) => { store[k] = String(v); },
@@ -2848,6 +2853,16 @@ console.log("== 更新の自動確認が、読み直しの繰り返しになら�
   // ここが壊れていた。同じセッション中に次の配信があったとき
   ok(await run("100", "300", store) === 1, "同じセッション中の2回目の配信も拾う");
   ok(await run("100", "", {}) === 0, "版が読めなければ何もしない");
+  ok(htmlFetches.length === 1, "版ファイルが読めれば版のためにHTMLを取らない");
+  htmlFetches.length = 0;
+  ok(await run("100", "200", {}, { ok: false, text: "Not Found" }) === 1 && htmlFetches.length === 1,
+    "版ファイルが404でもHTMLで新しい版に気づく");
+  ok(await run("100", "200", {}, { ok: true, text: "<!doctype html>" }) === 1 && htmlFetches.length === 2,
+    "版ファイルの中身が壊れていてもHTMLで新しい版に気づく");
+  ok(await run("100", "100", {}, { ok: false, text: "" }) === 0, "HTMLで確かめて同じ版なら読み直さない");
+  ok(await run("100", "100", {}, { ok: false, text: "200" }) === 0, "失敗応答の本文を版として扱わない");
+  htmlFetches.length = 0;
+  ok(await run("100", "200", {}, { ok: true, text: "200\n" }) === 1 && htmlFetches.length === 0, "末尾の改行は版に含めない");
 
   let threw = false;
   try {

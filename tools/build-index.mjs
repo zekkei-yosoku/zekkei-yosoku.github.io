@@ -56,6 +56,7 @@ export function releaseProducts(directory=root){
  const readAsset=name=>products.has(name)?products.get(name):readFileSync(resolve(directory,name));
  const versioned=versionAssets(rendered.html,readAsset),csp=hashCsp(versioned.html);
  checkClassicScripts(csp.html,readAsset);products.set('index.html',csp.html);
+ products.set('app-version.txt',versioned.id+'\n');
  products.set('sky-rating.html',versionRating(readFileSync(resolve(directory,'sky-rating.html'),'utf8'),readAsset));
  return {products,sources,hashes:csp.hashes};
 }
