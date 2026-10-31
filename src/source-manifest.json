@@ -1664,28 +1664,8 @@
           "owner": "src/app/browser-state.js"
         },
         {
-          "name": "almanacDragAt",
-          "writer": "src/features/home/controller.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
-          "name": "almanacPlayback",
-          "writer": "src/features/home/controller.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
           "name": "almanacPoint",
           "writer": "src/features/places/controller.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
-          "name": "almanacScrub",
-          "writer": "src/features/home/controller.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
-          "name": "almanacTimeline",
-          "writer": "src/features/home/controller.js",
           "owner": "src/app/browser-state.js"
         },
         {
@@ -1719,11 +1699,6 @@
           "owner": "src/app/browser-state.js"
         },
         {
-          "name": "currentView",
-          "writer": "src/features/forecast/view.js",
-          "owner": "src/services/place-search.js"
-        },
-        {
           "name": "dataOwner",
           "writer": "src/features/account/login-session.js",
           "owner": "src/features/account/session-and-access.js"
@@ -1732,11 +1707,6 @@
           "name": "dataOwner",
           "writer": "src/features/account/retirement.js",
           "owner": "src/features/account/session-and-access.js"
-        },
-        {
-          "name": "extraSeq",
-          "writer": "src/features/forecast/load.js",
-          "owner": "src/features/forecast/view.js"
         },
         {
           "name": "extrasLoadedSeq",
@@ -1797,11 +1767,6 @@
           "name": "lastLoginId",
           "writer": "src/features/account/retirement.js",
           "owner": "src/features/account/session-and-access.js"
-        },
-        {
-          "name": "listScrollY",
-          "writer": "src/app/navigation.js",
-          "owner": "src/app/browser-state.js"
         },
         {
           "name": "loginSettling",

@@ -1,6 +1,7 @@
 import {$} from '../../app/presentation-helpers.js';
-import {almanacDay,almanacDragAt,almanacPlayback,almanacPoint,almanacScrub,almanacTimeline,place,viewState} from '../../app/browser-state.js';
+import {almanacDay,almanacPoint,place,viewState} from '../../app/browser-state.js';
 import {openPlaceSheet} from '../../services/place-search.js';
+let almanacTimeline = null, almanacScrub = 'date', almanacDragAt = null, almanacPlayback = null;
 // ---------------------------------------------------------------- 画面の行き来
 //
 // 一覧（全現象×7日）と詳細（1現象・1日）の2画面。同じページにスクロールで
@@ -100,4 +101,4 @@ function renderAlmanac() {
 if(typeof document!=='undefined')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&viewState.almanac)globalThis.AstroNotesAlmanacDashboard?.refresh();});
 function openSkyRating(){try{sessionStorage.setItem("astronotes.rating.return",location.pathname+location.hash.split("?")[0]);}catch{}location.href="sky-rating.html";}
 document.querySelector("#skyRatingInvite a").onclick=e=>{e.preventDefault();openSkyRating();};
-export {renderAlmanac};
+export {almanacPlayback,almanacTimeline,renderAlmanac};

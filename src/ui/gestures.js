@@ -1,7 +1,6 @@
 import {$} from '../app/presentation-helpers.js';
-import {redrawDayDetail,startFujiAlign} from '../features/forecast/view.js';
+import {currentView,redrawDayDetail,startFujiAlign} from '../features/forecast/view.js';
 import {isMenuPage,navigationHistory} from '../app/navigation.js';
-import {currentView} from '../services/place-search.js';
 import {allowedTools,closeTools,markToolsCurrent,openTools,toolsAnim} from '../features/account/session-and-access.js';
 // ---------------------------------------------------------------- 指の操作（引き出しのスワイプ・地図のつまみ）
 //

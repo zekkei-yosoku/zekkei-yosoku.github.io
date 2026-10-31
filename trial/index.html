@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="13772609139199309215">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-lUtMGwIU/VB6AAHnl/tcHDaWWj5mRUmCSpRWtGRAqyk=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-AYIpUtS+i/kXA9eO93HawDaW7IR7TGxWrl5nMGYDKmE=' 'sha256-okx7zuxTyw5L/vVqNMEs9neeLRNC8JGOVMq+Lzr6BR8=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-wy58pa7yIe7Hvjp/V4YhEleE4bpkwFLt4L7e5QgUNgk=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="7338149500743800514">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-ZIJqU7pXF2nagcuGDGZNTrp0au/rhXbneYi9O4maS1Q=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-AYIpUtS+i/kXA9eO93HawDaW7IR7TGxWrl5nMGYDKmE=' 'sha256-okx7zuxTyw5L/vVqNMEs9neeLRNC8JGOVMq+Lzr6BR8=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-wy58pa7yIe7Hvjp/V4YhEleE4bpkwFLt4L7e5QgUNgk=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -3089,9 +3089,8 @@ const viewState = Object.seal({
 });
 let SkyMapUI = null;
 let aimCustomRequest = 0;
-let almanacPoint = null, almanacTimeline = null, almanacScrub = 'date', almanacDragAt = null, almanacPlayback = null;
+let almanacPoint = null;
 let almanacDay = AstroNotesHomeTime.start(Date.now());
-let listScrollY = 0;     // 一覧へ戻ったときに元の位置へ戻す
 
 let bundle = null;       // 取得済みの予報
 let weeks = {};          // phenomenon → [{dayMs, evaluation}]
@@ -3124,6 +3123,7 @@ function createForecastRetry(run, maxAttempts = 3) {
 const extrasRetry = createForecastRetry(() => { extrasLoadedSeq = -1; kickExtras(); });
 let selectedDay = {};    // phenomenon → dayMs
 
+let extraSeq = 0;            // 地点を切り替えたときに、遅れて来た結果を捨てる
 // ---------------------------------------------------------------- 読み込み
 let predictionDirty = true, activePredictionKey = null, acceptedPrediction = null;
 const predictionKeyFor = p => JSON.stringify([p.latitude,p.longitude,p.elevation??null,p.eyeHeightAGL??1.5,p.terrain??null]);
@@ -3208,6 +3208,7 @@ async function load(force) {
 
 // アメダス実況。2026-10-20 からカードも取得もしない（ユーザー「実況カードは完全に消していい」。点数には使っていない）
 
+let currentView = "list";
 // ---------------------------------------------------------------- 描画
 function upcoming(entries, now) {
   return entries.find((e) => !e.evaluation.unavailable && e.evaluation.window[1] > now)
@@ -3311,7 +3312,6 @@ async function computeUrbanHorizon(obs) {
 }
 let extrasRunning = false, extrasRunningSeq = -1;   // 再入を防ぐ（render は何度も呼ばれる）
 let extraKey = null;         // どの地点のものか
-let extraSeq = 0;            // 地点を切り替えたときに、遅れて来た結果を捨てる
 
 const groundDemCache = new Map();   // 地点の座標 → DEM の地面の標高（測れなければ null）
 // **地面の標高は DEM から取る。**
@@ -4306,6 +4306,7 @@ function wireOutcomes(root) {
 }
 
 
+let almanacTimeline = null, almanacScrub = 'date', almanacDragAt = null, almanacPlayback = null;
 // ---------------------------------------------------------------- 画面の行き来
 //
 // 一覧（全現象×7日）と詳細（1現象・1日）の2画面。同じページにスクロールで
@@ -4524,6 +4525,7 @@ document.querySelector("#skyRatingInvite a").onclick=e=>{e.preventDefault();open
   global.AstroNotesNavigationHistory = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : window);
+let listScrollY = 0;     // 一覧へ戻ったときに元の位置へ戻す
 /// 判定は AstroNotesNavigationRoutes（純粋）。旧共有URL #p= は読むたびに #/aim?plan= へ置き換えてから判定する（置き換え後の hash を読む）
 /// メニューから来たときは、何を狙うかが決まっている（#/aim/fuji など。目標と天体を先に入れる）。#/iss/pick は以前の衛星を選ぶの道（今はページを重ねる。openIss）
 /// **`SCORERS` ではなく `PHENOMENA` で見る。** 富士山と月は core が採点しない（astronotes-fuji / astronotes-moon が採点して
@@ -11878,7 +11880,6 @@ function lookoutTag(r) {
  * 東京タワーの メインデッキ150m / トップデッキ250m、
  * スカイツリーの 天望デッキ350m / 天望回廊450m は、立つ場所で地平線が変わる。
  */
-let currentView = "list";
 /// 地点カードを出す画面か（その地点が主語の画面だけ）
 const placeCardShown = () => ["list", "detail", "answers"].includes(currentView);
 function renderDeckRow() {

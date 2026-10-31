@@ -1,9 +1,9 @@
 import {$,S} from '../../app/presentation-helpers.js';
 import {bundle,extrasRetry,forecastDays,place,predictionLoadSeq,predictionPlace,weeks} from '../../app/browser-state.js';
-import {extraSeq} from './view.js';
 import {applyRoute,routeFromHash} from '../../app/navigation.js';
 import {renderSkeleton} from './detail.js';
 import {keepRounds} from '../results/controller.js';
+let extraSeq = 0;            // 地点を切り替えたときに、遅れて来た結果を捨てる
 // ---------------------------------------------------------------- 読み込み
 let predictionDirty = true, activePredictionKey = null, acceptedPrediction = null;
 const predictionKeyFor = p => JSON.stringify([p.latitude,p.longitude,p.elevation??null,p.eyeHeightAGL??1.5,p.terrain??null]);
@@ -87,4 +87,4 @@ async function load(force) {
 }
 
 // アメダス実況。2026-10-20 からカードも取得もしない（ユーザー「実況カードは完全に消していい」。点数には使っていない）
-export {acceptedPrediction,load,predictionDirty,predictionNeeded};
+export {acceptedPrediction,extraSeq,load,predictionDirty,predictionNeeded};

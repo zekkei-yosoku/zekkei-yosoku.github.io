@@ -1,6 +1,6 @@
 import {$,esc} from '../app/presentation-helpers.js';
 import {bundle,favorites,place} from '../app/browser-state.js';
-import {groundAt} from '../features/forecast/view.js';
+import {currentView,groundAt} from '../features/forecast/view.js';
 import {PLACE_PICKERS,choosePlace,favDraft,favMapReturn,favUndo,openFavSheet,placeSheetFor,renderSheet,selectPlace} from '../features/places/controller.js';
 import {MapPick} from '../ui/map/picker.js';
 import {aimSetFrom} from '../features/framing/observer.js';
@@ -397,7 +397,6 @@ function lookoutTag(r) {
  * 東京タワーの メインデッキ150m / トップデッキ250m、
  * スカイツリーの 天望デッキ350m / 天望回廊450m は、立つ場所で地平線が変わる。
  */
-let currentView = "list";
 /// 地点カードを出す画面か（その地点が主語の画面だけ）
 const placeCardShown = () => ["list", "detail", "answers"].includes(currentView);
 function renderDeckRow() {
@@ -606,4 +605,4 @@ $("favToggle").onclick = (e) => {
 // 未ログインのときは、押せない見た目にはせず、押したらログインへ案内する。
 // 隠すと「なぜ無いのか」が分からない。
 new MutationObserver(renderFavToggle).observe($("placeName"), { childList: true });
-export {currentView,nearName,openPlaceSheet,placeCardShown,placeIndex,refreshPlacePickerActions,renderDeckRow,renderFavToggle,wireSearchBox};
+export {nearName,openPlaceSheet,placeCardShown,placeIndex,refreshPlacePickerActions,renderDeckRow,renderFavToggle,wireSearchBox};

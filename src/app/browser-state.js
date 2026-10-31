@@ -135,9 +135,8 @@ const viewState = Object.seal({
 });
 let SkyMapUI = null;
 let aimCustomRequest = 0;
-let almanacPoint = null, almanacTimeline = null, almanacScrub = 'date', almanacDragAt = null, almanacPlayback = null;
+let almanacPoint = null;
 let almanacDay = AstroNotesHomeTime.start(Date.now());
-let listScrollY = 0;     // 一覧へ戻ったときに元の位置へ戻す
 
 let bundle = null;       // 取得済みの予報
 let weeks = {};          // phenomenon → [{dayMs, evaluation}]
@@ -169,4 +168,4 @@ function createForecastRetry(run, maxAttempts = 3) {
 }
 const extrasRetry = createForecastRetry(() => { extrasLoadedSeq = -1; kickExtras(); });
 let selectedDay = {};    // phenomenon → dayMs
-export {SORTS,SkyMapUI,WIDE,aimCustomRequest,almanacDay,almanacDragAt,almanacPlayback,almanacPoint,almanacScrub,almanacTimeline,bundle,cleanFavorite,cleanSighting,extrasLoadedSeq,extrasRetry,favorites,forecastDays,listScrollY,picked,place,predictionLoadSeq,predictionPlace,selectedDay,sightings,sortMode,store,viewState,weeks};
+export {SORTS,SkyMapUI,WIDE,aimCustomRequest,almanacDay,almanacPoint,bundle,cleanFavorite,cleanSighting,extrasLoadedSeq,extrasRetry,favorites,forecastDays,picked,place,predictionLoadSeq,predictionPlace,selectedDay,sightings,sortMode,store,viewState,weeks};
