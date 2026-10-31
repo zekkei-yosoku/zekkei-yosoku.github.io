@@ -1,3 +1,11 @@
+import {SkyMapUI,viewState} from '../../app/browser-state.js';
+import {render} from '../forecast/view.js';
+import {openAim} from '../framing/reverse-and-entry.js';
+import {accessCheckedAt,accessState,apiTransport,auth,authStorage,lastLoginId} from './session-and-access.js';
+import {renderAuthButton} from './status.js';
+import {accountSync} from './sync-bridge.js';
+import {adoptToken,localStorageHasToken} from './remember-and-token.js';
+import {adminUnmount,privateDraft} from './admin-view.js';
 const ACCESS_RECHECK_MS = 5 * 60 * 1000;
 let accessRecheck = null;
 const accessKey = (a) => JSON.stringify([a?.loginId, a?.role, !!a?.ownerAdmin, Array.isArray(a?.tools) ? a.tools : null]);
@@ -72,3 +80,4 @@ async function restoreSession({ onAccessReady = () => {} } = {}) {
   } finally { clearTimeout(accessTimer); }
 }
 
+export {recheckAccess,restoreSession};

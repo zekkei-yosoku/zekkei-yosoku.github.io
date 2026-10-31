@@ -1,3 +1,9 @@
+import {$,CONF_ICON,HIGHLIGHT_HEAD,RANK_COLOR,S,cellBg,confidenceText,esc,rampGradient,renderEnsemble} from '../../app/presentation-helpers.js';
+import {SORTS,bundle,place,selectedDay,sortMode,weeks} from '../../app/browser-state.js';
+import {fujiAlign,iconFor,lightTimingText,moonHorizon,moonObs,moonVisibility,observerHere,phaseNameFor,requestMoonDetails,upcoming} from './view.js';
+import {findSighting,roundOf,savedPredictionNote,savedRoundUnavailable} from '../results/controller.js';
+import {toolAllowed} from '../account/session-and-access.js';
+import {planButtons} from '../plans/share-button.js';
 function renderBestNote(best, now) {
   const el = $("bestNote");
   const ev = best ? best.u.evaluation : null;
@@ -794,3 +800,4 @@ function renderTable(id, entries) {
     <th>降水</th><th>湿度</th><th>気温</th><th>視程</th></tr>${rows}</table></div>
     ${hasSunward ? `<p class="tiny">陽＝太陽の方向の雲</p>` : ""}</div>`;
 }
+export {renderBestNote,renderDayDetail,renderDetailPane,renderLightTimes,renderMatrix,renderMoonTimes,renderSkeleton};

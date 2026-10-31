@@ -1,3 +1,7 @@
+import {$} from './presentation-helpers.js';
+import {SkyMapUI,almanacDay,viewState} from './browser-state.js';
+import {navigationHistory} from './navigation.js';
+import {closeTools,openTools} from '../features/account/session-and-access.js';
 // ---------------------------------------------------------------- ページとして開く選択画面（2026-10-21）
 //
 // ユーザー「メニューとかログインあたり以外はページ化するんじゃなかった？」→「ページ」と「短いシート」の2種類に決定。
@@ -164,3 +168,4 @@ for (const el of $("toolsMenu").querySelectorAll("[data-tool]")) {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("toolsMenu").hidden) { e.preventDefault(); closeTools({ restoreFocus: true }); }
 });
+export {afterPagePop,showSheet};

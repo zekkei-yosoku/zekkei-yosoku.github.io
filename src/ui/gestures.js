@@ -1,3 +1,8 @@
+import {$} from '../app/presentation-helpers.js';
+import {redrawDayDetail,startFujiAlign} from '../features/forecast/view.js';
+import {isMenuPage,navigationHistory} from '../app/navigation.js';
+import {currentView} from '../services/place-search.js';
+import {allowedTools,closeTools,markToolsCurrent,openTools,toolsAnim} from '../features/account/session-and-access.js';
 // ---------------------------------------------------------------- 指の操作（引き出しのスワイプ・地図のつまみ）
 //
 // **左の端から右へなぞると引き出しが開く**（2026-10-01 ユーザー「メニューについて左からスワイプで開くようにできたりしない？」）。
@@ -94,3 +99,4 @@ function redrawIfToolsChanged() {
   const key = allowedTools().join(",");
   if (key !== toolsDrawnKey) { toolsDrawnKey = key; startFujiAlign(); redrawDayDetail(); }
 }
+export {redrawIfToolsChanged};

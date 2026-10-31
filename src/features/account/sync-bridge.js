@@ -1,3 +1,7 @@
+import {cleanFavorite,cleanSighting,favorites,sightings,store} from '../../app/browser-state.js';
+import {accessState,apiTransport,auth,pushQueue,syncError,syncInfo} from './session-and-access.js';
+import {renderAuthButton,toItem} from './status.js';
+import {RecordSync} from '../../services/record-sync.js';
 // 記録の保存（記録・予定の画面のどちらで書いても）を拾って送る
 store.setWriteHook(key=>RecordSync.touched(key));
 
@@ -25,3 +29,4 @@ function accountSync() {
 /// 送れなかったものを覚えておく。次に繋がったときに送る。
 /// サーバーから来たものをローカルへ入れる。**サーバー側も外部データとして検査する。**
 
+export {accountSync};

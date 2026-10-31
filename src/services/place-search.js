@@ -1,3 +1,13 @@
+import {$,esc} from '../app/presentation-helpers.js';
+import {bundle,favorites,place} from '../app/browser-state.js';
+import {groundAt} from '../features/forecast/view.js';
+import {PLACE_PICKERS,choosePlace,favDraft,favMapReturn,favUndo,openFavSheet,placeSheetFor,renderSheet,selectPlace} from '../features/places/controller.js';
+import {MapPick} from '../ui/map/picker.js';
+import {aimSetFrom} from '../features/framing/observer.js';
+import {aimRenderSheetCands} from '../features/framing/candidates.js';
+import {API,auth} from '../features/account/session-and-access.js';
+import {showSheet} from '../app/overlays.js';
+import {recentHistory} from '../features/framing/presentation.js';
 /// 都道府県（JIS X 0401 の番号順。ISO 3166-2:JP の JP-01〜JP-47 と同じ）
 const JP_PREFECTURES = ["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
   "新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県",
@@ -596,3 +606,4 @@ $("favToggle").onclick = (e) => {
 // 未ログインのときは、押せない見た目にはせず、押したらログインへ案内する。
 // 隠すと「なぜ無いのか」が分からない。
 new MutationObserver(renderFavToggle).observe($("placeName"), { childList: true });
+export {currentView,nearName,openPlaceSheet,placeCardShown,placeIndex,refreshPlacePickerActions,renderDeckRow,renderFavToggle,wireSearchBox};

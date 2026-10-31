@@ -1,9 +1,10 @@
+import {sourceUnit} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import {execFileSync} from 'node:child_process';
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const AccountSync=require('./src/services/account-sync.js');
-const read=p=>readFileSync(new URL(p,import.meta.url),'utf8');
+const read=p=>p.startsWith('./src/')&&p.endsWith('.js')?sourceUnit(p):readFileSync(new URL(p,import.meta.url),'utf8');
 // 比較元はWeb97356e2のaccount controller実ソース。無ければ失敗させる（skipで合格にしない）。
 const OLD_CONTROLLER=process.env.ASTRONOTES_OLD_ACCOUNT_CONTROLLER??'/Users/okadayudai/Developer/AstroNotes/public-web/src/features/account/controller.js';
 const oldController=execFileSync('git',['show','97356e2:src/features/account/controller.js'],{cwd:new URL('.',import.meta.url),encoding:'utf8'});

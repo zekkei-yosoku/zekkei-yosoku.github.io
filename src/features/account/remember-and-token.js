@@ -1,3 +1,6 @@
+import {$} from '../../app/presentation-helpers.js';
+import {store} from '../../app/browser-state.js';
+import {TOKEN_KEY,auth,authStorage} from './session-and-access.js';
 // 「保持する」の希望。**既定は外す**（2026-09-08 ユーザー判断）。
 // 30日残る鍵を、頼まれてもいないのに置かない。外したままでも
 // sessionStorage には入るので、**読み込み直しで再ログインにはならない。**
@@ -24,3 +27,4 @@ const localStorageHasToken = () => {
 /// 反映し、開いている保護画面はその場で閉じる。**変わっていなければ何も描き直さない。**
 /// 圏外などで確かめられないときは、最後に確かめた権限のまま使える（起動時と同じ。
 /// 2026-09-28 ユーザー指摘「圏外でログイン済みなのにメニューが出ない」）。保護APIはサーバーが毎回判定する。
+export {adoptToken,localStorageHasToken,wantsRemember};

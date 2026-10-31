@@ -1,3 +1,14 @@
+import {$,S,pickHighlight} from '../../app/presentation-helpers.js';
+import {SORTS,bundle,extrasLoadedSeq,extrasRetry,forecastDays,picked,place,predictionLoadSeq,predictionPlace,selectedDay,sortMode,store,viewState,weeks} from '../../app/browser-state.js';
+import {predictionNeeded} from './load.js';
+import {wireOutcomes} from '../photos/controller.js';
+import {renderAlmanac} from '../home/controller.js';
+import {isMenuPage,navigationHistory,pick,routeFromHash} from '../../app/navigation.js';
+import {renderBestNote,renderDayDetail,renderDetailPane,renderLightTimes,renderMatrix,renderMoonTimes,renderSkeleton} from './detail.js';
+import {renderRecords,savedRoundClient} from '../results/controller.js';
+import {renderAimAccess} from '../framing/reverse-and-entry.js';
+import {currentView,placeCardShown,renderDeckRow} from '../../services/place-search.js';
+import {renderToolAccess,renderTools,toolAllowed} from '../account/session-and-access.js';
 // ---------------------------------------------------------------- 描画
 function upcoming(entries, now) {
   return entries.find((e) => !e.evaluation.unavailable && e.evaluation.window[1] > now)
@@ -651,3 +662,4 @@ function wireAlignmentJump(root) {
     };
   }
 }
+export {blendBodyState,extraSeq,fujiAlign,groundAt,iconFor,kickExtras,lightTimingText,moonGlyphAt,moonHorizon,moonObs,moonVisibility,observerHere,phaseNameFor,redrawDayDetail,render,requestMoonDetails,startFujiAlign,upcoming};

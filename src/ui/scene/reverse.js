@@ -1,3 +1,4 @@
+import {aim,aimElevation} from '../../features/framing/controller.js';
 async function aimReverseCurve(r, { dx, dy, D, dist, stale }) {
   const out = [{ ...r, distanceKm: D }];
   const run = async (list) => {
@@ -17,3 +18,4 @@ async function aimReverseCurve(r, { dx, dy, D, dist, stale }) {
   await run(dist.filter((d) => d < D - 1e-6).reverse());
   return out.sort((a, b) => a.distanceKm - b.distanceKm);
 }
+export {aimReverseCurve};

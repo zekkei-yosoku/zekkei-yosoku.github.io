@@ -1,3 +1,12 @@
+import {$,S,esc} from '../../app/presentation-helpers.js';
+import {viewState} from '../../app/browser-state.js';
+import {lightTimingText,moonGlyphAt,moonHorizon,observerHere} from '../forecast/view.js';
+import {favForPoint,inheritedPoint,renameFromAfterFav,renderPointCard} from '../places/controller.js';
+import {createMapView} from '../../ui/map/picker.js';
+import {aimElevation,aimMapLabel} from '../framing/controller.js';
+import {aimObserverAt,aimSavedFrom} from '../framing/observer.js';
+import {nearName,openPlaceSheet} from '../../services/place-search.js';
+import {renderToolAccess,toolAllowed} from '../account/session-and-access.js';
 // ---------------------------------------------------------------- 月丼
 //
 // 「ねらう」と同じ形。目標が**航路の上を動く点**になっただけ。
@@ -290,3 +299,4 @@ function openPlane() {
   });
   planeApply();
 }
+export {PlaneMap,openPlane,plane,planeFromPoint,planeSetFrom};

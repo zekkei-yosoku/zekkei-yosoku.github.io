@@ -1,3 +1,5 @@
+import {S} from './presentation-helpers.js';
+import {kickExtras} from '../features/forecast/view.js';
 // ---------------------------------------------------------------- 永続化（localStorage）
 const store = AstroNotesStorage.create(()=>localStorage);
 // お気に入りは、内蔵スポットと同じ項目を自分で付けられる。
@@ -167,3 +169,4 @@ function createForecastRetry(run, maxAttempts = 3) {
 }
 const extrasRetry = createForecastRetry(() => { extrasLoadedSeq = -1; kickExtras(); });
 let selectedDay = {};    // phenomenon → dayMs
+export {SORTS,SkyMapUI,WIDE,aimCustomRequest,almanacDay,almanacDragAt,almanacPlayback,almanacPoint,almanacScrub,almanacTimeline,bundle,cleanFavorite,cleanSighting,extrasLoadedSeq,extrasRetry,favorites,forecastDays,listScrollY,picked,place,predictionLoadSeq,predictionPlace,selectedDay,sightings,sortMode,store,viewState,weeks};

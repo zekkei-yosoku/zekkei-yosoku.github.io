@@ -1,3 +1,9 @@
+import {$} from '../../app/presentation-helpers.js';
+import {store} from '../../app/browser-state.js';
+import {apiTransport} from './session-and-access.js';
+import {wantsRemember} from './remember-and-token.js';
+import {onLoggedIn} from './login-session.js';
+import {authFail} from './auth-panels.js';
 const b64uToBuf = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 const bufToB64u = (b) => btoa(String.fromCharCode(...new Uint8Array(b)))
   .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -39,3 +45,4 @@ $("pwLogin").onclick = async () => {
 // サーバー（api/src/auth.js の checkPassword）と同じ規則。**判定の正本はサーバー。**
 // ここで見るのは、往復させる前に理由を言うため。文言も揃えてある。
 // サーバー（api/src/auth.js の LOGIN_ID_RE）と同じ。判定の正本はサーバー。
+export {b64uToBuf,bufToB64u};

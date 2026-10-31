@@ -1,3 +1,5 @@
+import {UI_ICONS} from './visual-primitives.js';
+import {recentHistory} from '../features/framing/presentation.js';
 (()=>{
  const el=id=>document.getElementById(id);
  const mark=(id,key)=>{const n=el(id)?.querySelector('.pin');if(n)n.innerHTML=UI_ICONS[key];};

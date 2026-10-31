@@ -1,3 +1,17 @@
+import {$,S,esc} from '../../app/presentation-helpers.js';
+import {store,viewState} from '../../app/browser-state.js';
+import {lightTimingText,moonGlyphAt} from '../forecast/view.js';
+import {routeFromHash} from '../../app/navigation.js';
+import {inheritedPoint,renderPointCard} from '../places/controller.js';
+import {createMapView} from '../../ui/map/picker.js';
+import {AimMap,aim,aimCustomTarget,aimFavTarget,aimFavTargets,aimFillParts,aimFillSelects,aimIsMountain,aimLimbValue,aimMapLabel,aimRedrawLine,aimSideLabel,aimWithHeights,aimZoomFor} from '../framing/controller.js';
+import {PlaneMap} from '../aircraft/controller.js';
+import {aimFromPoint,aimRenderFrom,aimRenderSelectedPoint,aimRenderTargetCard,candidateWaitMarkup} from '../framing/observer.js';
+import {aimCandidateAccessible,aimCandidateSiteSupported,aimPlaces,aimRefreshSheetCands,aimSideName} from '../framing/candidates.js';
+import {aimAirEnsure,aimMapView,aimTitleFor} from '../framing/reverse-and-entry.js';
+import {openPlaceSheet,placeIndex} from '../../services/place-search.js';
+import {renderToolAccess,screenAllowed,toolAllowed} from '../account/session-and-access.js';
+import {showSheet} from '../../app/overlays.js';
 // ---------------------------------------------------------------- 人工衛星（旧 ISS の月面通過）
 //
 // 衛星の位置は CelesTrak の軌道要素（TLE）を SGP4（satellite.js）で進める。
@@ -1125,3 +1139,4 @@ async function aimRenderSpots() {
     el.onclick = () => aimShowDay(+el.dataset.day, rows[+el.dataset.spot].sp);
   }
 }
+export {MAP_APPS,aimApply,aimDateLabel,aimIsFuji,aimRenderList,coordText,iss,issFromPoint,issSetFrom,openIss,openMapApp,openMapAppSheet,savedMapApp};

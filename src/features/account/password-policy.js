@@ -1,3 +1,10 @@
+import {$} from '../../app/presentation-helpers.js';
+import {apiTransport} from './session-and-access.js';
+import {wantsRemember} from './remember-and-token.js';
+import {onLoggedIn} from './login-session.js';
+import {authFail,clearAuthErrs,showAuthPanel} from './auth-panels.js';
+import {registerPasskey} from './account-actions.js';
+import {RECOVERY_LOW} from './guidance.js';
 const ID_RE = /^[a-z0-9][a-z0-9._-]{5,31}$/;
 const ID_MSG = "IDは6〜32文字。英字・数字と . _ - が使えます（1文字目は英字か数字）";
 
@@ -99,3 +106,4 @@ $("authId").addEventListener("input", () => {
   for (const id of ["newId", "codeId"]) if (!$(id).value) $(id).value = $("authId").value;
 });
 
+export {ID_MSG,ID_RE,checkPw};

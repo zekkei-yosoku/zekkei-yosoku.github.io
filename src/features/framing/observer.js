@@ -1,3 +1,15 @@
+import {$,S,esc} from '../../app/presentation-helpers.js';
+import {aimCustomRequest,store,viewState} from '../../app/browser-state.js';
+import {moonGlyphAt} from '../forecast/view.js';
+import {favForPoint,renameFromAfterFav,renderFavStar,renderPointCard} from '../places/controller.js';
+import {AimMap,aim,aimElevCache,aimElevation,aimFillSelects,aimIsMountain,aimTargetInfo} from './controller.js';
+import {aimApply} from '../satellites/controller.js';
+import {aimBuildingAt,aimSideName,aimUpdateLook} from './candidates.js';
+import {aimLookRidge} from '../../ui/scene/terrain.js';
+import {aimAirAngle} from './reverse-and-entry.js';
+import {auth} from '../account/session-and-access.js';
+import {showSheet} from '../../app/overlays.js';
+import {recentHistory} from './presentation.js';
 // ---------------------------------------------------------------- どこから重ねるか（観測地点・2026-10-01）
 //
 // 「曽谷から見て、スカイツリーに重なるのはいつか。富士山に重なるのはいつか」（ユーザー）。
@@ -675,3 +687,4 @@ async function aimRenderFrom() {
   // 候補帯の描画は見え方の条件を変えない。図は冒頭の1回で更新済み。
 
 }
+export {aimAppendCandidatePage,aimAreaOf,aimBuildingDays,aimCal,aimCalGridHtml,aimCalMove,aimCalRows,aimCalSolid,aimCandidateMatch,aimCandidatePageEnd,aimCandidateSearchEnd,aimDaysInputKey,aimFromPoint,aimM,aimObserverAt,aimObserverEye,aimRenderFrom,aimRenderSelectedPoint,aimRenderTargetCard,aimSavedFrom,aimSetCustomTarget,aimSetFrom,aimShootingView,candidateDatesAppend,candidateDatesMarkup,candidateWaitMarkup,resetAimCalSwipe};

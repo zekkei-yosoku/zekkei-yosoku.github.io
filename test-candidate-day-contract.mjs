@@ -1,3 +1,4 @@
+import {sourceUnit} from './tools/test-source.mjs';
 // 候補日はJST日単位（同じ日の0/17/18:30/23:59で同じ日集合）、cacheは日跨ぎで失効、ねらうの既定呼出は不変。
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,8 +6,8 @@ import vm from 'node:vm';
 import {execFileSync} from 'node:child_process';
 
 const root = new URL('.', import.meta.url);
-const observerSrc = fs.readFileSync(new URL('src/features/framing/observer.js', root), 'utf8');
-const mapSrc = fs.readFileSync(new URL('src/features/explore/map-presentation.js', root), 'utf8');
+const observerSrc = sourceUnit('src/features/framing/observer.js');
+const mapSrc = sourceUnit('src/features/explore/map-presentation.js');
 
 function extract(src, name) {
   const i = src.search(new RegExp(`(async )?function ${name}\\(`));

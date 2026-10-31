@@ -1,9 +1,10 @@
+import {sourceUnit} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 
-const source=readFileSync(new URL('./src/startup/preferences.js',import.meta.url),'utf8');
+const source=sourceUnit('src/startup/preferences.js');
 const begin=source.indexOf(' const openStartup = async()=>{');
 const end=source.indexOf(" document.addEventListener('visibilitychange'",begin);
 assert(begin>=0&&end>begin);

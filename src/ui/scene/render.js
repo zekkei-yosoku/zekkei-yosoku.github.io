@@ -1,3 +1,12 @@
+import {$,S,esc} from '../../app/presentation-helpers.js';
+import {blendBodyState,lightTimingText,moonGlyphAt} from '../../features/forecast/view.js';
+import {AimMap,aim,aimIsMountain,aimTargetList} from '../../features/framing/controller.js';
+import {aimLookRidge,aimTerrainFront} from './terrain.js';
+import {AIM_SENSOR,aimDrawGrid,aimLens,aimLookHMS,aimLookHosts,aimLookRel} from './lens.js';
+import {aimLookSolidSilhouette} from './silhouette.js';
+import {aimLookPick} from './input.js';
+import {aimAirAngle,aimAirCompare,aimAirDescribe,aimLookKey,aimReverseClear} from '../../features/framing/reverse-and-entry.js';
+import {auth} from '../../features/account/session-and-access.js';
 async function aimLookRender(host, spec) {
   if (!host) return;
   globalThis.AstroNotesCameraUI?.invalidate(host);
@@ -646,3 +655,4 @@ async function aimLookRender(host, spec) {
  */
 // 2026-10-20 ユーザー「天体を動かして撮れる場所を逆算する機能、外してしまおう。戻すって言った時に戻しやすいようにはしておいて」：
 // 旧自動逆算は停止したまま保持する。再開には旧地図アダプターを含む再接続と別途検証が必要。
+export {aimLookRender};

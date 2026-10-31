@@ -1,3 +1,4 @@
+import {applyRoute} from './navigation.js';
 
 "use strict";
 const S = AstroNotes;
@@ -247,3 +248,4 @@ function pickHighlight(weeks, now) {
   }
   return best;
 }
+export {$,CONF_ICON,HIGHLIGHT_HEAD,RANK_COLOR,S,cellBg,confidenceText,esc,getThemePreference,pickHighlight,rampGradient,renderEnsemble,setThemePreference};

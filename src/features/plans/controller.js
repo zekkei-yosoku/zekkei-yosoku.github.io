@@ -1,3 +1,16 @@
+import {$,S,confidenceText} from '../../app/presentation-helpers.js';
+import {SkyMapUI,bundle,place,store,weeks} from '../../app/browser-state.js';
+import {navigationHistory,routeFromHash} from '../../app/navigation.js';
+import {aim} from '../framing/controller.js';
+import {aimCal,aimFromPoint,aimM,aimSavedFrom} from '../framing/observer.js';
+import {aimRidgeCache} from '../../ui/scene/terrain.js';
+import {AIM_SENSOR,aimLens} from '../../ui/scene/lens.js';
+import {aimAirCompare,aimAirLoadKey,aimAirSeq,aimAirSettings,aimAirSync,aimLookKey,openAim} from '../framing/reverse-and-entry.js';
+import {accessState,auth,screenAllowed,toolAllowed} from '../account/session-and-access.js';
+import {afterPagePop,showSheet} from '../../app/overlays.js';
+import {renderAuthButton} from '../account/status.js';
+import {restoreSession} from '../account/access-recheck.js';
+import {checkForUpdate} from '../../startup/runtime-effects.js';
 function planSnapshot(button) {
   globalThis.AstroNotesCameraUI?.stop($('aimLook'));
   const kind=button.dataset.planSource || 'aim',created=Date.now();let payload,s;
@@ -245,3 +258,4 @@ let resolveStartupAccess;
 const startupSessionReady = new Promise(resolve => { resolveStartupAccess = resolve; });
 restoreSession({onAccessReady: resolveStartupAccess}).finally(resolveStartupAccess);
 checkForUpdate();
+export {planSnapshot,renderNotebook,restoreSharedPlan,scrollLock,startupSessionReady};

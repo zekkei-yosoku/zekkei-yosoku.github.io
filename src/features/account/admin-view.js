@@ -1,3 +1,9 @@
+import {$} from '../../app/presentation-helpers.js';
+import {SkyMapUI,viewState} from '../../app/browser-state.js';
+import {navigationHistory} from '../../app/navigation.js';
+import {apiTransport,askReauth,auth} from './session-and-access.js';
+import {recheckAccess} from './access-recheck.js';
+import {nextStep} from './guidance.js';
 let adminRenderSeq = 0, adminRenderAuth = null, privateModulePromise = null;
 let privateDraft = null;
 let privateEntrySeq = 0, adminUnmount = null, privateModule = null, privateModuleToken = null;
@@ -121,3 +127,4 @@ window.addEventListener("pageshow", e => { if (!e.persisted) return; if (viewSta
 // 足していたが、種類の違うものを足しても意味を持たない。パスキー2台は「2」だが
 // 同じキーチェーンなら実質1つで、**台数は端末を失う話の答えにならない。**
 // 残りがこれ以下になったら発行し直しを促す
+export {adminRenderAuth,adminUnmount,clearAdminView,privateDraft,renderAdmin,renderPrivateEntry};

@@ -1,3 +1,4 @@
+import {sourceUnit} from './tools/test-source.mjs';
 // 探すの日付カレンダー: renderMonth port で重なる日の描画を使い、他の共通カレンダーは従来どおり。
 // 依存なし（node:vm と最小の偽DOM）。実ブラウザの表示は別途確認する。
 import test from 'node:test';
@@ -8,8 +9,8 @@ import vm from 'node:vm';
 
 const require = createRequire(import.meta.url), S = require('./astronotes-core.js');
 const uiSrc = readFileSync(new URL('./astronotes-datetime-ui.js', import.meta.url), 'utf8');
-const mapSrc = readFileSync(new URL('./src/features/explore/map-presentation.js', import.meta.url), 'utf8');
-const obsSrc = readFileSync(new URL('./src/features/framing/observer.js', import.meta.url), 'utf8');
+const mapSrc = sourceUnit('src/features/explore/map-presentation.js');
+const obsSrc = sourceUnit('src/features/framing/observer.js');
 const slice = (src, from, to) => { const a = src.indexOf(from), b = src.indexOf(to, a); assert.ok(a >= 0 && b > a, `slice ${from}`); return src.slice(a, b); };
 const observerCode = slice(obsSrc, 'function aimObserverEye(', 'aim.from = aimSavedFrom') + slice(obsSrc, 'const aimCal = {', 'function aimCalDraw(');
 const mapCode = slice(mapSrc, ' const calendarCache=new Map();', '\n const skyCalendar=');

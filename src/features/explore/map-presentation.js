@@ -1,3 +1,16 @@
+import {S} from '../../app/presentation-helpers.js';
+import {SkyMapUI,place,store} from '../../app/browser-state.js';
+import {blendBodyState,moonGlyphAt} from '../forecast/view.js';
+import {applyRoute,navigationHistory,routeFromHash} from '../../app/navigation.js';
+import {PLACE_PICKERS,favForPoint,renderPointCard} from '../places/controller.js';
+import {createMapView} from '../../ui/map/picker.js';
+import {aim,aimElevCache,aimFavTarget,aimFavTargets,aimFillSelects,aimIsMountain,aimLimbValue,aimMapLabel,aimWithHeights} from '../framing/controller.js';
+import {aimAppendCandidatePage,aimBuildingDays,aimCalGridHtml,aimCalRows,aimCalSolid,aimCandidatePageEnd,aimCandidateSearchEnd,aimDaysInputKey,aimFromPoint,aimObserverAt,aimObserverEye,aimSavedFrom,aimShootingView,candidateDatesAppend,candidateDatesMarkup,candidateWaitMarkup} from '../framing/observer.js';
+import {aimLookKey} from '../framing/reverse-and-entry.js';
+import {openPlaceSheet} from '../../services/place-search.js';
+import {allowedTools,apiTransport,auth,renderTools,screenAllowed,toolAllowed} from '../account/session-and-access.js';
+import {showSheet} from '../../app/overlays.js';
+import {UI_ICONS} from '../../ui/visual-primitives.js';
 
 (()=>{
  document.addEventListener("click",e=>{if(e.target.closest("#aimView [data-cand],#aimView [data-day],#aimView [data-from-day],#aimCalendar [data-cal-day],#aimView [data-limb],#aimHeightSet,#aimCustomSet,#aimPrev,#aimNext"))aim.plannerTransfer=null;},true);

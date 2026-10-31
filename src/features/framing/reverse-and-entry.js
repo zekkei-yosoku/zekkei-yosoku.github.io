@@ -1,3 +1,18 @@
+import {$,S,esc} from '../../app/presentation-helpers.js';
+import {aimCustomRequest,favorites,place,store,viewState} from '../../app/browser-state.js';
+import {PLACE_PICKERS,placeSheetFor,saveFavorites} from '../places/controller.js';
+import {MapPick,createMapView} from '../../ui/map/picker.js';
+import {AimMap,aim,aimElevation,aimFillParts,aimFillSelects,aimIsMountain,aimKm,aimLimbValue,aimRedrawLine,aimShift,aimZoomFor} from './controller.js';
+import {aimApply,aimDateLabel,aimRenderList} from '../satellites/controller.js';
+import {aimCal,aimFromPoint,aimRenderFrom,aimRenderSelectedPoint,aimSetCustomTarget,aimSetFrom} from './observer.js';
+import {AIM_DIR8,aimSideName} from './candidates.js';
+import {aimRidgeCache} from '../../ui/scene/terrain.js';
+import {aimLookHMS,aimLookHosts} from '../../ui/scene/lens.js';
+import {aimLookRender} from '../../ui/scene/render.js';
+import {AIM_PLACE_ENABLED} from '../../ui/scene/input.js';
+import {nearName} from '../../services/place-search.js';
+import {auth,screenAllowed} from '../account/session-and-access.js';
+import {accountSync} from '../account/sync-bridge.js';
 // ---------------------------------------------------------------- 撮れる場所を地図で探す（逆算の作り直し・2026-10-20 trial）
 // 2026-10-20 ユーザー「逆算ってのがもっと簡単に今あるようにできたらいい」→「トライアルに作ってみて」：
 // 置き方（重ね方＋少しずらす）を決める → 地図が下からせり上がり、その日にそう見える**陸の上の**線が出る →
@@ -513,3 +528,4 @@ function aimMapView() {
 // 道具の観測地点・目標を決めるときは、いまのその点のところで地図を開く
 $("mapButton").onclick = () => MapPick.open(placeSheetFor && PLACE_PICKERS[placeSheetFor]
   ? (PLACE_PICKERS[placeSheetFor].point() || place) : place);
+export {aimAirAngle,aimAirCompare,aimAirDescribe,aimAirEnsure,aimAirLoadKey,aimAirSeq,aimAirSettings,aimAirSync,aimLookFound,aimLookKey,aimMapView,aimReverseClear,aimReverseShow,aimShiftFromPlacement,aimShiftSync,aimTitleFor,openAim,renderAimAccess};

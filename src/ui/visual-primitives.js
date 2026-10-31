@@ -31,3 +31,4 @@ function uiVisualChoices(select, kind) {
     if (b.getAttribute('aria-pressed') !== on) b.setAttribute('aria-pressed', on);
   }
 }
+export {UI_ICONS,uiVisualChoices};

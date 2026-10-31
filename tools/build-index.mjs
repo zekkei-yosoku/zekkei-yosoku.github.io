@@ -5,6 +5,8 @@ import {resolve,relative,sep} from 'node:path';
 import {versionAssets,hashCsp,versionRating} from './release-html.mjs';
 import vm from 'node:vm';
 import {checkArchitecture} from './check-architecture.mjs';
+import {checkModuleGraph} from './check-module-graph.mjs';
+import {stripModuleSyntax} from './source-modules.mjs';
 export const root=fileURLToPath(new URL('../',import.meta.url));
 export function renderIndex({entry='src/index.html',directory=root,read=path=>readFileSync(path,'utf8')}={}){
  const base=resolve(directory),seen=[];
@@ -13,7 +15,7 @@ export function renderIndex({entry='src/index.html',directory=root,read=path=>re
   if(!rel.startsWith('src'+sep)||rel.split(sep).includes('..'))throw Error('Source include outside src: '+name);
   if(stack.includes(target))throw Error('Circular source include: '+name);
   seen.push(rel.split(sep).join('/'));
-  return read(target).replace(/@@include:([^@]+)@@/g,(_,next)=>include(next,[...stack,target]));
+  return (rel.endsWith('.js')?stripModuleSyntax(read(target)):read(target)).replace(/@@include:([^@]+)@@/g,(_,next)=>include(next,[...stack,target]));
  }
  return {html:include(entry),sources:seen};
 }
@@ -34,7 +36,9 @@ export function checkClassicScripts(html,readExternal){
 }
 export function releaseProducts(directory=root){
  const manifest=JSON.parse(readFileSync(resolve(directory,'src/source-manifest.json'),'utf8')),products=new Map(),sources=[];
- checkArchitecture(manifest,name=>readFileSync(resolve(directory,name),'utf8'));
+ const readSource=name=>readFileSync(resolve(directory,name),'utf8');
+ checkArchitecture(manifest,name=>name.startsWith('src/')&&name.endsWith('.js')?stripModuleSyntax(readSource(name)):readSource(name));
+ checkModuleGraph(manifest,readSource);
  for(const asset of manifest.generatedAssets){
   if(!/^astronotes-[\w-]+\.js$/.test(asset.output))throw Error('Invalid generated asset output');
   const result=renderIndex({entry:asset.entry,directory});

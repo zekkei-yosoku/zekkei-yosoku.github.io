@@ -62,3 +62,4 @@ function authWays(u) {
 }
 
 // アカウント同期とは別に、記録とお気に入りのJSONの控えを書き出す。既存の控えも読み込める。
+export {RECOVERY_LOW,nextStep};

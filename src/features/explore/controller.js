@@ -1,3 +1,13 @@
+import {esc} from '../../app/presentation-helpers.js';
+import {SkyMapUI,viewState} from '../../app/browser-state.js';
+import {lightTimingText,moonGlyphAt} from '../forecast/view.js';
+import {routeFromHash} from '../../app/navigation.js';
+import {aim,aimWithHeights} from '../framing/controller.js';
+import {aimSavedFrom} from '../framing/observer.js';
+import {aimLens} from '../../ui/scene/lens.js';
+import {aimLookRender} from '../../ui/scene/render.js';
+import {aimAirCompare,aimAirEnsure,aimAirSettings,openAim,renderAimAccess} from '../framing/reverse-and-entry.js';
+import {accessState,auth,screenAllowed,toolAllowed} from '../account/session-and-access.js';
 /* 探す: one map-owned plan, two result panes (scene / map). */
 (()=>{
 'use strict';

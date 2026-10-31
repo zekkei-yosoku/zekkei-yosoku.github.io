@@ -1,3 +1,18 @@
+import {$,S,esc} from '../../app/presentation-helpers.js';
+import {almanacPoint,bundle,favorites,place,selectedDay,sightings,store,viewState} from '../../app/browser-state.js';
+import {load} from '../forecast/load.js';
+import {iconFor,render} from '../forecast/view.js';
+import {renderAlmanac} from '../home/controller.js';
+import {MapPick} from '../../ui/map/picker.js';
+import {AimMap,aim,aimElevation,aimFillSelects,matchingTargetNames,targetLocationLabel} from '../framing/controller.js';
+import {plane,planeFromPoint,planeSetFrom} from '../aircraft/controller.js';
+import {aimApply,iss,issFromPoint,issSetFrom} from '../satellites/controller.js';
+import {aimAreaOf,aimFromPoint,aimObserverEye,aimSetCustomTarget,aimSetFrom} from '../framing/observer.js';
+import {refreshPlacePickerActions,renderFavToggle} from '../../services/place-search.js';
+import {auth} from '../account/session-and-access.js';
+import {showSheet} from '../../app/overlays.js';
+import {accountSync} from '../account/sync-bridge.js';
+import {recentHistory} from '../framing/presentation.js';
 // ---------------------------------------------------------------- 地点
 /// 地点の画面を、何の地点を決めるために開いているか。null はAstroNotesの地点（地点カード）、"aim" はねらうの「どこから重ねるか」。
 /// 画面は1つを使い回す（検索・現在地・地図で選ぶ・お気に入り。2026-10-01 ユーザー「新しいレイアウト作る必要ないよね」）
@@ -449,3 +464,4 @@ $("favDelete").onclick = () => {
   // 取り消しは一覧の上に出る。★ から開いていた場合も、そこへ着地させる。
   if (!$("placeSheet").open) showSheet($("placeSheet"));
 };
+export {PLACE_PICKERS,choosePlace,favDraft,favForPoint,favMapReturn,favUndo,inheritedPoint,openFavSheet,placeSheetFor,renameFromAfterFav,renderFavStar,renderPointCard,renderSheet,requireLogin,requireLoginForFavorites,saveFavorites,selectPlace};

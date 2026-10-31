@@ -1,3 +1,10 @@
+import {$} from '../../app/presentation-helpers.js';
+import {SkyMapUI,viewState} from '../../app/browser-state.js';
+import {favDraft} from '../places/controller.js';
+import {auth,pushQueue,refreshRestrictedTools,renderTools,syncError} from './session-and-access.js';
+import {redrawIfToolsChanged} from '../../ui/gestures.js';
+import {adminRenderAuth,renderAdmin} from './admin-view.js';
+import {recentHistory} from '../framing/presentation.js';
 function renderAuthButton() {
   globalThis.AstroNotesPlanUI?.refreshPermissions();
   try { recentHistory.accountChanged(); } catch { /* History is optional during startup. */ }
@@ -24,3 +31,4 @@ const toItem = (o, deleted = false) => ({ id: o.id, body: o, updated_at: Date.no
 // 今の中身を比べて、違うものだけを送る（書く場所を1つずつ直さない。記録・予定・取り込みのどこで書いても送れる）。
 // サーバーでは favorites 表に id "rec:<種類>:<id>" で置き、GET /sync の records 欄で受け取る。
 // 初めてこの仕組みで同期するアカウントは、記録を最初から取り直す（旧画面が先に進めた rev より前の記録を取りこぼさない）。
+export {renderAuthButton,toItem};

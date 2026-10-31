@@ -1,3 +1,17 @@
+import {$,S} from './presentation-helpers.js';
+import {SkyMapUI,aimCustomRequest,almanacDay,almanacPlayback,almanacTimeline,listScrollY,picked,place,selectedDay,viewState,weeks} from './browser-state.js';
+import {acceptedPrediction,load,predictionDirty,predictionNeeded} from '../features/forecast/load.js';
+import {render,upcoming} from '../features/forecast/view.js';
+import {loadPhotos} from '../features/photos/controller.js';
+import {aim} from '../features/framing/controller.js';
+import {openPlane} from '../features/aircraft/controller.js';
+import {openIss} from '../features/satellites/controller.js';
+import {openAim} from '../features/framing/reverse-and-entry.js';
+import {currentView} from '../services/place-search.js';
+import {closeTools} from '../features/account/session-and-access.js';
+import {afterPagePop} from './overlays.js';
+import {clearAdminView,renderAdmin} from '../features/account/admin-view.js';
+import {restoreSharedPlan} from '../features/plans/controller.js';
 /// 判定は AstroNotesNavigationRoutes（純粋）。旧共有URL #p= は読むたびに #/aim?plan= へ置き換えてから判定する（置き換え後の hash を読む）
 /// メニューから来たときは、何を狙うかが決まっている（#/aim/fuji など。目標と天体を先に入れる）。#/iss/pick は以前の衛星を選ぶの道（今はページを重ねる。openIss）
 /// **`SCORERS` ではなく `PHENOMENA` で見る。** 富士山と月は core が採点しない（astronotes-fuji / astronotes-moon が採点して
@@ -121,3 +135,4 @@ window.addEventListener("hashchange", () => {
 // 以前はカードごと押すとその現象へ飛んでいたが、見た目が情報カードなので
 // 押すつもりのない場所で画面が変わっていた。押せるのは日のボタンだけにする。
 // 1行で「この現象・この日・この評価」を出す。見どころにも、先の予定にも使う。
+export {applyRoute,isMenuPage,navigationHistory,pick,routeFromHash};

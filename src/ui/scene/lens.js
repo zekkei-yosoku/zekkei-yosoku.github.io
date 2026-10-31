@@ -1,3 +1,4 @@
+import {S} from '../../app/presentation-helpers.js';
 const AIM_SENSOR = { full: [36, 24], aps: [23.5, 15.6], canon: [22.3, 14.9], m43: [17.3, 13] };
 // 旧版の固定200mmは引き継がず、見やすい自動表示を初期値にする。
 // グリッドは中央固定の撮影枠にだけ重ねる。実景や天体の座標は変更しない。
@@ -32,3 +33,4 @@ function aimLookRel(dt, name = "重なる") {
  */
 // 部品を別々に不透明マスクへ描き、外の空から届かない内部の穴だけ埋める。
 // 凸包ではないので、城の塔間・像の腕の外など、空へ開いた凹輪郭を保つ。
+export {AIM_SENSOR,aimDrawGrid,aimLens,aimLookHMS,aimLookHosts,aimLookRel};

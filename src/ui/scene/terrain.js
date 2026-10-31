@@ -1,3 +1,4 @@
+import {aimAirAngle} from '../../features/framing/reverse-and-entry.js';
 /// 山の稜線（図の左から右へ [方位, 見上げ角]）。目標の前後の帯を標高データで引き、方位ごとに一番上を取る
 const aimRidgeCache = new Map(), aimRidgePending = new Map();
 // 2026-10-20 塔・建物の手前の地形（ユーザー「これ絶対に見えないであろう距離」。精進峠からスカイツリー112kmは御坂山地に隠れるのに、図にも文にも何も出なかった）。
@@ -105,3 +106,4 @@ async function aimLookRidge(obs, eye, target, win) {
   return task;
 }
 
+export {aimLookRidge,aimRidgeCache,aimTerrainFront};

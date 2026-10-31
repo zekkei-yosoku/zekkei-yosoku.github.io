@@ -1,3 +1,7 @@
+import {store} from '../app/browser-state.js';
+import {auth,pushQueue,syncInfo} from '../features/account/session-and-access.js';
+import {toItem} from '../features/account/status.js';
+import {accountSync} from '../features/account/sync-bridge.js';
 const RecordSync = (() => {
   const SNAP = "sorami.recordSync.v1:", PREFIX = "rec:";
   const kinds = {
@@ -115,3 +119,4 @@ const RecordSync = (() => {
   }
   return { touched, scan, item, accepted, apply, kick: () => { if (login()) touched(kinds.obs.key(login())); } };
 })();
+export {RecordSync};

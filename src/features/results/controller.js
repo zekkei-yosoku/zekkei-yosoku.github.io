@@ -1,3 +1,10 @@
+import {$,RANK_COLOR,S,esc} from '../../app/presentation-helpers.js';
+import {bundle,place,sightings,store,viewState,weeks} from '../../app/browser-state.js';
+import {iconFor,render} from '../forecast/view.js';
+import {navigationHistory} from '../../app/navigation.js';
+import {toolAllowed} from '../account/session-and-access.js';
+import {accountSync} from '../account/sync-bridge.js';
+import {renderNotebook} from '../plans/controller.js';
 // ---------------------------------------------------------------- 記録・校正
 // 同じ地点かどうか。**名前では見分けられない。**「現在地」は移動先でも同じ名前になり、
 // 同名の別地点で同じ日・同じ現象を記録すると、前の記録が上書きされていた（調査 C-5）。
@@ -380,3 +387,4 @@ function qualityCalibration(list) {
       <span style="color:var(--spectacular)">■</span> 期待以上 が釣り合っていれば点数は合っています。
       期待外れ側に偏っていれば点数が甘く、期待以上側に偏っていれば辛いということ。</p>`;
 }
+export {answerHtml,collectObservations,findSighting,keepRounds,recordAnswer,renderRecords,roundOf,samePlaceAs,savedPredictionNote,savedRoundClient,savedRoundUnavailable};

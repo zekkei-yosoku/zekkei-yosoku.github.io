@@ -1,3 +1,10 @@
+import {$} from '../../app/presentation-helpers.js';
+import {SkyMapUI,cleanFavorite,cleanSighting,favorites,sightings} from '../../app/browser-state.js';
+import {render} from '../forecast/view.js';
+import {aimFillSelects} from '../framing/controller.js';
+import {accessState,auth,dataOwner,pushQueue} from './session-and-access.js';
+import {renderAuthButton} from './status.js';
+import {accountSync} from './sync-bridge.js';
 function downloadLibraryBackup(){
  const local=globalThis.MyPlacesUI?.backupState?.()||{observations:[],shapes:{}};
  const payload=AstroNotesLibrary.backup({favorites,sightings,...local,owner:auth?.loginId||dataOwner});

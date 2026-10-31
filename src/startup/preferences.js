@@ -1,3 +1,13 @@
+import {$,getThemePreference,setThemePreference} from '../app/presentation-helpers.js';
+import {place} from '../app/browser-state.js';
+import {acceptedPrediction,load,predictionDirty,predictionNeeded} from '../features/forecast/load.js';
+import {applyRoute} from '../app/navigation.js';
+import {auth,closeTools,screenAllowed} from '../features/account/session-and-access.js';
+import {showSheet} from '../app/overlays.js';
+import {resumeRatingLogin} from '../features/account/auth-panels.js';
+import {leaveAccountCodes,showAccountView} from '../features/account/account-actions.js';
+import {renderPrivateEntry} from '../features/account/admin-view.js';
+import {scrollLock,startupSessionReady} from '../features/plans/controller.js';
 
 // A local device preference; explicit links always take precedence.
 (() => {

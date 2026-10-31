@@ -1,3 +1,12 @@
+import {$,S,esc} from '../../app/presentation-helpers.js';
+import {favorites,store} from '../../app/browser-state.js';
+import {renderSheet} from '../places/controller.js';
+import {aimAreaOf,aimFromPoint} from './observer.js';
+import {aimCandName,aimFindCandidates,aimRefreshSheetCands,aimRenderCands,aimUpdateLook} from './candidates.js';
+import {aimLookHMS} from '../../ui/scene/lens.js';
+import {aimShiftSync} from './reverse-and-entry.js';
+import {auth,toolAllowed} from '../account/session-and-access.js';
+import {accountSync} from '../account/sync-bridge.js';
 // ---------------------------------------------------------------- ねらう（ダイヤモンド／パール）
 //
 // 目標（富士山・塔・城…）に太陽や月が重なる日と、**その日に見える場所の線**を出す。
@@ -491,3 +500,4 @@ function aimMapLabel(ctx, x, y, text, color, width, height, place = "right") {
 }
 
 /// 地図の中心が線からどれだけ離れているか。**動かしながら合わせる**ための数字
+export {AimMap,TARGET_FIXED_CATEGORIES,aim,aimCustomTarget,aimElevCache,aimElevation,aimFavTarget,aimFavTargets,aimFillParts,aimFillSelects,aimFitLines,aimIsMountain,aimKm,aimLimbValue,aimMapLabel,aimRedrawLine,aimShift,aimSideLabel,aimTargetInfo,aimTargetList,aimWithHeights,aimZoomFor,editTargetCategory,matchingTargetNames,persistTargetDraft,targetCategoryList,targetCategoryOf,targetLocationLabel};

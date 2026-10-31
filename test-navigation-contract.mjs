@@ -1,3 +1,4 @@
+import {sourceUnit} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -59,7 +60,7 @@ function browser(src, { standalone, hash = '', state = null, factories = false }
   };
 }
 
-const oldSrc = execFileSync('git',['show','97356e2:src/app/navigation.js'],{cwd:new URL('.',import.meta.url),encoding:'utf8'}), newSrc = fs.readFileSync(NEW, 'utf8')+'\nfunction pushRoute(h){navigationHistory.pushRoute(h);}function goBack(){navigationHistory.goBack();}function goList(){navigationHistory.goList();}const appTrail=navigationHistory.appTrail;const NO_HISTORY=navigationHistory.noHistory;';
+const oldSrc = execFileSync('git',['show','97356e2:src/app/navigation.js'],{cwd:new URL('.',import.meta.url),encoding:'utf8'}), newSrc = sourceUnit('src/app/navigation.js')+'\nfunction pushRoute(h){navigationHistory.pushRoute(h);}function goBack(){navigationHistory.goBack();}function goList(){navigationHistory.goList();}const appTrail=navigationHistory.appTrail;const NO_HISTORY=navigationHistory.noHistory;';
 // vm の context ごとに Object.prototype が違うので、比べる前に同じ realm の値へ写す
 const plain = v => JSON.parse(JSON.stringify(v));
 function both(opts, run) {

@@ -1,3 +1,11 @@
+import {$,esc} from '../../app/presentation-helpers.js';
+import {accountFail,apiTransport,auth,pushQueue,syncError,withPendingAction} from './session-and-access.js';
+import {showSheet} from '../../app/overlays.js';
+import {accountSync} from './sync-bridge.js';
+import {adoptToken} from './remember-and-token.js';
+import {b64uToBuf,bufToB64u} from './passkey-login.js';
+import {shownCodes} from './recovery-codes.js';
+import {nextStep} from './guidance.js';
 const ACCOUNT_VIEWS = { overview: "アカウント", passkeys: "パスキー", password: "パスワード", recovery: "回復コード", history: "ログイン履歴", sessions: "ほかの端末" };
 function leaveAccountCodes() {
   if ($("recoveryShown").hidden) return true;
@@ -196,3 +204,4 @@ $("addPasskey").onclick = async () => {
   }
 };
 // まとめて発行するので、表示も一覧にする。1個ずつだと使った瞬間に手持ちがゼロになる。
+export {leaveAccountCodes,openAccountSheet,registerPasskey,showAccountView,signupWithPasskey};

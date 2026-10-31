@@ -1,3 +1,6 @@
+import {$,esc} from '../../app/presentation-helpers.js';
+import {store} from '../../app/browser-state.js';
+import {showSheet} from '../../app/overlays.js';
 // ---------------------------------------------------------------- 地図で選ぶ
 //
 // **ライブラリは使わない。** このアプリは依存パッケージを持たない方針で、
@@ -352,3 +355,4 @@ function createMapView(ids) {
 
 const MapPick = createMapView({ canvas: "mapCanvas", coord: "mapCoord", sheet: "mapSheet",
   zoomIn: "mapIn", zoomOut: "mapOut" });
+export {MAP_ICON_LOCATE,MapPick,createMapView};

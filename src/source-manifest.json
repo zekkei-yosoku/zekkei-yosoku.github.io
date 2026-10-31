@@ -1487,6 +1487,503 @@
         "name": "AstroNotesTimelapse",
         "source": "astronotes-timelapse.js"
       }
-    ]
+    ],
+    "moduleGraph": {
+      "ambient": [
+        "AbortController",
+        "Array",
+        "AstroNotes",
+        "AstroNotesAccess",
+        "AstroNotesAccountSync",
+        "AstroNotesAlign",
+        "AstroNotesAlmanacDashboard",
+        "AstroNotesAssets",
+        "AstroNotesAstro",
+        "AstroNotesAtmosphere",
+        "AstroNotesAuthStorage",
+        "AstroNotesBodies",
+        "AstroNotesCalendarMoon",
+        "AstroNotesCameraUI",
+        "AstroNotesCapCloud",
+        "AstroNotesExif",
+        "AstroNotesExploreLayout",
+        "AstroNotesFuji",
+        "AstroNotesHistory",
+        "AstroNotesHomeTime",
+        "AstroNotesHttpClient",
+        "AstroNotesISS",
+        "AstroNotesIcons",
+        "AstroNotesJourney",
+        "AstroNotesLibrary",
+        "AstroNotesMoon",
+        "AstroNotesNavigationHistory",
+        "AstroNotesNavigationRoutes",
+        "AstroNotesPhotoAnalysis",
+        "AstroNotesPlaceSearch",
+        "AstroNotesPlan",
+        "AstroNotesPlane",
+        "AstroNotesPlanningSession",
+        "AstroNotesPlusCode",
+        "AstroNotesPrediction",
+        "AstroNotesRoutes",
+        "AstroNotesSavedRounds",
+        "AstroNotesSceneAppearance",
+        "AstroNotesSchedule",
+        "AstroNotesScrollTimeline",
+        "AstroNotesShooting",
+        "AstroNotesSkyMap",
+        "AstroNotesStorage",
+        "AstroNotesTargetUI",
+        "AstroNotesTerrain",
+        "AstroNotesTimelapse",
+        "AstroTargetPicker",
+        "Blob",
+        "Boolean",
+        "CustomEvent",
+        "Date",
+        "Error",
+        "Event",
+        "HTMLInputElement",
+        "HTMLSelectElement",
+        "Image",
+        "Infinity",
+        "Int32Array",
+        "JSON",
+        "Map",
+        "Math",
+        "MutationObserver",
+        "MyPlacesUI",
+        "NaN",
+        "NodeFilter",
+        "Number",
+        "Object",
+        "Option",
+        "Promise",
+        "ResizeObserver",
+        "SVGElement",
+        "Set",
+        "String",
+        "ToolDateTimeBar",
+        "URL",
+        "URLSearchParams",
+        "Uint8Array",
+        "WeakSet",
+        "addEventListener",
+        "alert",
+        "atob",
+        "btoa",
+        "cancelAnimationFrame",
+        "clearTimeout",
+        "confirm",
+        "console",
+        "createImageBitmap",
+        "crypto",
+        "document",
+        "encodeURIComponent",
+        "fetch",
+        "getComputedStyle",
+        "globalThis",
+        "history",
+        "innerHeight",
+        "innerWidth",
+        "localStorage",
+        "location",
+        "matchMedia",
+        "navigator",
+        "parseFloat",
+        "performance",
+        "prompt",
+        "queueMicrotask",
+        "requestAnimationFrame",
+        "sessionStorage",
+        "setInterval",
+        "setTimeout",
+        "structuredClone",
+        "undefined",
+        "window"
+      ],
+      "crossUnitWrites": [
+        {
+          "name": "accessCheckedAt",
+          "writer": "src/features/account/access-recheck.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "accessCheckedAt",
+          "writer": "src/features/account/login-session.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "aimAirCompare",
+          "writer": "src/features/explore/controller.js",
+          "owner": "src/features/framing/reverse-and-entry.js"
+        },
+        {
+          "name": "aimAirCompare",
+          "writer": "src/features/plans/controller.js",
+          "owner": "src/features/framing/reverse-and-entry.js"
+        },
+        {
+          "name": "aimAirLoadKey",
+          "writer": "src/features/plans/controller.js",
+          "owner": "src/features/framing/reverse-and-entry.js"
+        },
+        {
+          "name": "aimAirSeq",
+          "writer": "src/features/plans/controller.js",
+          "owner": "src/features/framing/reverse-and-entry.js"
+        },
+        {
+          "name": "aimCustomRequest",
+          "writer": "src/app/navigation.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "aimCustomRequest",
+          "writer": "src/features/framing/observer.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "aimCustomRequest",
+          "writer": "src/features/framing/reverse-and-entry.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "almanacDay",
+          "writer": "src/app/navigation.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "almanacDay",
+          "writer": "src/app/overlays.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "almanacDay",
+          "writer": "src/features/home/controller.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "almanacDragAt",
+          "writer": "src/features/home/controller.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "almanacPlayback",
+          "writer": "src/features/home/controller.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "almanacPoint",
+          "writer": "src/features/places/controller.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "almanacScrub",
+          "writer": "src/features/home/controller.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "almanacTimeline",
+          "writer": "src/features/home/controller.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "auth",
+          "writer": "src/features/account/access-recheck.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "auth",
+          "writer": "src/features/account/admin-view.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "auth",
+          "writer": "src/features/account/login-session.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "auth",
+          "writer": "src/features/account/remember-and-token.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "auth",
+          "writer": "src/features/explore/map-presentation.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "bundle",
+          "writer": "src/features/forecast/load.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "currentView",
+          "writer": "src/features/forecast/view.js",
+          "owner": "src/services/place-search.js"
+        },
+        {
+          "name": "dataOwner",
+          "writer": "src/features/account/login-session.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "dataOwner",
+          "writer": "src/features/account/retirement.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "extraSeq",
+          "writer": "src/features/forecast/load.js",
+          "owner": "src/features/forecast/view.js"
+        },
+        {
+          "name": "extrasLoadedSeq",
+          "writer": "src/features/forecast/view.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "favMapReturn",
+          "writer": "src/services/place-search.js",
+          "owner": "src/features/places/controller.js"
+        },
+        {
+          "name": "favorites",
+          "writer": "src/features/account/library-transfer.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "favorites",
+          "writer": "src/features/account/login-session.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "favorites",
+          "writer": "src/features/account/retirement.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "favorites",
+          "writer": "src/features/account/sync-bridge.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "favorites",
+          "writer": "src/features/framing/controller.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "favUndo",
+          "writer": "src/services/place-search.js",
+          "owner": "src/features/places/controller.js"
+        },
+        {
+          "name": "forecastDays",
+          "writer": "src/features/forecast/load.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "lastLoginId",
+          "writer": "src/features/account/access-recheck.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "lastLoginId",
+          "writer": "src/features/account/login-session.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "lastLoginId",
+          "writer": "src/features/account/retirement.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "listScrollY",
+          "writer": "src/app/navigation.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "loginSettling",
+          "writer": "src/features/account/login-session.js",
+          "owner": "src/features/account/auth-panels.js"
+        },
+        {
+          "name": "photos",
+          "writer": "src/features/account/session-and-access.js",
+          "owner": "src/features/photos/controller.js"
+        },
+        {
+          "name": "photosCursor",
+          "writer": "src/features/account/session-and-access.js",
+          "owner": "src/features/photos/controller.js"
+        },
+        {
+          "name": "photosError",
+          "writer": "src/features/account/session-and-access.js",
+          "owner": "src/features/photos/controller.js"
+        },
+        {
+          "name": "photosLoading",
+          "writer": "src/features/account/session-and-access.js",
+          "owner": "src/features/photos/controller.js"
+        },
+        {
+          "name": "photosOwner",
+          "writer": "src/features/account/session-and-access.js",
+          "owner": "src/features/photos/controller.js"
+        },
+        {
+          "name": "photosRequest",
+          "writer": "src/features/account/session-and-access.js",
+          "owner": "src/features/photos/controller.js"
+        },
+        {
+          "name": "picked",
+          "writer": "src/app/navigation.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "place",
+          "writer": "src/features/places/controller.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "place",
+          "writer": "src/features/plans/controller.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "placeSheetFor",
+          "writer": "src/services/place-search.js",
+          "owner": "src/features/places/controller.js"
+        },
+        {
+          "name": "predictionLoadSeq",
+          "writer": "src/features/forecast/load.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "predictionPlace",
+          "writer": "src/features/forecast/load.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "privateDraft",
+          "writer": "src/features/account/access-recheck.js",
+          "owner": "src/features/account/admin-view.js"
+        },
+        {
+          "name": "privateDraft",
+          "writer": "src/features/account/login-session.js",
+          "owner": "src/features/account/admin-view.js"
+        },
+        {
+          "name": "pushQueue",
+          "writer": "src/features/account/library-transfer.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "pushQueue",
+          "writer": "src/features/account/login-session.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "pushQueue",
+          "writer": "src/features/account/retirement.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "pushQueue",
+          "writer": "src/features/account/sync-bridge.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "resetAimCalSwipe",
+          "writer": "src/features/framing/presentation.js",
+          "owner": "src/features/framing/observer.js"
+        },
+        {
+          "name": "selectedDay",
+          "writer": "src/features/places/controller.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "shownCodes",
+          "writer": "src/features/account/account-actions.js",
+          "owner": "src/features/account/recovery-codes.js"
+        },
+        {
+          "name": "shownCodes",
+          "writer": "src/features/account/auth-panels.js",
+          "owner": "src/features/account/recovery-codes.js"
+        },
+        {
+          "name": "sightings",
+          "writer": "src/features/account/library-transfer.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "sightings",
+          "writer": "src/features/account/login-session.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "sightings",
+          "writer": "src/features/account/retirement.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "sightings",
+          "writer": "src/features/account/sync-bridge.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "sightings",
+          "writer": "src/features/results/controller.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "SkyMapUI",
+          "writer": "src/features/explore/map-presentation.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "sortMode",
+          "writer": "src/features/forecast/view.js",
+          "owner": "src/app/browser-state.js"
+        },
+        {
+          "name": "syncError",
+          "writer": "src/features/account/sync-bridge.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "syncInfo",
+          "writer": "src/features/account/login-session.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "syncInfo",
+          "writer": "src/features/account/retirement.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "syncInfo",
+          "writer": "src/features/account/sync-bridge.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "syncInfo",
+          "writer": "src/services/record-sync.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "weeks",
+          "writer": "src/features/forecast/load.js",
+          "owner": "src/app/browser-state.js"
+        }
+      ]
+    }
   }
 }

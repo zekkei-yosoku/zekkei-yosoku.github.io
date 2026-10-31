@@ -1,3 +1,11 @@
+import {$,S,esc} from '../../app/presentation-helpers.js';
+import {bundle,picked,place,store,weeks} from '../../app/browser-state.js';
+import {groundAt,iconFor} from '../forecast/view.js';
+import {answerHtml,collectObservations,findSighting,recordAnswer,samePlaceAs} from '../results/controller.js';
+import {requireLogin} from '../places/controller.js';
+import {accessState,apiTransport,auth,renderToolAccess,toolAllowed} from '../account/session-and-access.js';
+import {showSheet} from '../../app/overlays.js';
+import {recheckAccess} from '../account/access-recheck.js';
 // ---------------------------------------------------------------- 写真から記録する
 //
 // 原寸は送らず、端末で縮小した写し（長辺768px）と、EXIFから読んだ
@@ -440,3 +448,4 @@ function wireOutcomes(root) {
 
   }
 }
+export {loadPhotos,photos,photosCursor,photosError,photosLoading,photosOwner,photosRequest,renderPhotoListState,renderPhotos,wireOutcomes};

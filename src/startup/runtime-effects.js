@@ -1,3 +1,5 @@
+import {WIDE,bundle} from '../app/browser-state.js';
+import {render} from '../features/forecast/view.js';
 // 幅が閾値をまたいだら描画し直す（ウィンドウのリサイズ・画面回転）
 WIDE.addEventListener("change", () => { if (bundle) render(); });
 
@@ -60,3 +62,4 @@ for (const el of document.querySelectorAll(".sheet .hint, .sheet .tiny")) {
 // 開閉のたびに各所へ書き足すのではなく、dialog の open 属性を見て一括で扱う。
 // 呼び出し箇所は10か所以上あり、**書き忘れが必ず出る**（管理画面で同じ失敗をした）。
 // E94: calendar, image and shared link all use the same immutable plan snapshot.
+export {checkForUpdate};

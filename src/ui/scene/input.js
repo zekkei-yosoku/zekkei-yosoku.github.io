@@ -1,3 +1,10 @@
+import {AimMap,aim,aimElevation} from '../../features/framing/controller.js';
+import {aimDateLabel} from '../../features/satellites/controller.js';
+import {aimSideName} from '../../features/framing/candidates.js';
+import {aimLookRender} from './render.js';
+import {aimReverseCurve} from './reverse.js';
+import {aimLookFound,aimLookKey,aimReverseShow,aimShiftFromPlacement} from '../../features/framing/reverse-and-entry.js';
+import {auth} from '../../features/account/session-and-access.js';
 const AIM_REVERSE_ENABLED = false;
 // 2026-10-20 ユーザー「天体動かすとかは前の操作の方がしやすかった」→「やって」：動かし方は前のまま（図の釦・相対ドラッグ・方向の釦）。
 // 2026-10-22 最新指示: 天体の位置調整と配置からの逆算を撤去。計算コードは履歴復元用に保持し、入口/プログラム呼出しを停止。
@@ -173,3 +180,4 @@ function aimLookPick(host, { spec, cv, draw, W, H, k, win, az, topAngle, D, path
  * 確定した見え方になる場所は、目標までの距離を変えると線になる（同じ日・同じ円盤の位置で、近いほど時刻と立つ点が変わる）。
  * 確定した点から距離を変えながら解き、地図に引く線にする（2026-10-03 ユーザー「確定してその軌道を通る位置を地図で見れないの？」）
  */
+export {AIM_PLACE_ENABLED,aimLookPick};

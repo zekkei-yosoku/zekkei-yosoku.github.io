@@ -54,3 +54,4 @@ function aimLookSolidSilhouette(polygons,{closeBase=false,basePoints=[]}={}) {
   c.putImageData(image,0,0);return {canvas,x,y,width:w/scaleX,height:h/scaleY,filled};
 }
 
+export {aimLookSolidSilhouette};
