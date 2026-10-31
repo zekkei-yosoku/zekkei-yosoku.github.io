@@ -1,10 +1,10 @@
 import {$,S,esc} from '../../app/presentation-helpers.js';
 import {iconFor,lightTimingText,moonGlyphAt} from '../forecast/view.js';
-import {placeSheetFor} from '../places/controller.js';
 import {AimMap,aim,aimElevation,aimIsMountain,aimKm} from './controller.js';
 import {MAP_APPS,aimIsFuji,coordText,openMapApp,openMapAppSheet,savedMapApp} from '../satellites/controller.js';
 import {aimCalSolid,aimCandidateMatch,aimFromPoint,aimObserverAt,aimSetFrom,aimShootingView} from './observer.js';
 import {aimLookRender} from '../../ui/scene/render.js';
+import {placeSheetFor} from '../../services/place-search.js';
 // ---------------------------------------------------------------- その日の候補地（2026-09-30）
 //
 // 線だけでは「その日、どこへ行けばよいか」が分からない

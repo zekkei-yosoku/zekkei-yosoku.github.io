@@ -1,9 +1,10 @@
 import {$,S} from './presentation-helpers.js';
-import {SkyMapUI,aimCustomRequest,almanacDay,picked,place,selectedDay,viewState} from './browser-state.js';
+import {SkyMapUI,aimCustomRequest,almanacDay,place,viewState} from './browser-state.js';
 import {acceptedPrediction,load,predictionDirty,predictionNeeded,weeks} from '../features/forecast/load.js';
 import {currentView,render,upcoming} from '../features/forecast/view.js';
 import {loadPhotos} from '../features/photos/controller.js';
 import {almanacPlayback,almanacTimeline} from '../features/home/controller.js';
+import {selectedDay} from '../features/places/controller.js';
 import {aim} from '../features/framing/controller.js';
 import {openPlane} from '../features/aircraft/controller.js';
 import {openIss} from '../features/satellites/controller.js';
@@ -12,6 +13,7 @@ import {closeTools} from '../features/account/session-and-access.js';
 import {afterPagePop} from './overlays.js';
 import {clearAdminView,renderAdmin} from '../features/account/admin-view.js';
 import {restoreSharedPlan} from '../features/plans/controller.js';
+let picked = null;       // 詳細で見ている現象（一覧のときは null）
 let listScrollY = 0;     // 一覧へ戻ったときに元の位置へ戻す
 /// 判定は AstroNotesNavigationRoutes（純粋）。旧共有URL #p= は読むたびに #/aim?plan= へ置き換えてから判定する（置き換え後の hash を読む）
 /// メニューから来たときは、何を狙うかが決まっている（#/aim/fuji など。目標と天体を先に入れる）。#/iss/pick は以前の衛星を選ぶの道（今はページを重ねる。openIss）
@@ -136,4 +138,4 @@ window.addEventListener("hashchange", () => {
 // 以前はカードごと押すとその現象へ飛んでいたが、見た目が情報カードなので
 // 押すつもりのない場所で画面が変わっていた。押せるのは日のボタンだけにする。
 // 1行で「この現象・この日・この評価」を出す。見どころにも、先の予定にも使う。
-export {applyRoute,isMenuPage,navigationHistory,pick,routeFromHash};
+export {applyRoute,isMenuPage,navigationHistory,pick,picked,routeFromHash};

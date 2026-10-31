@@ -2,12 +2,11 @@ import {$} from '../../app/presentation-helpers.js';
 import {auth,pendingAccountPanels} from './session-and-access.js';
 import {showSheet} from '../../app/overlays.js';
 import {wantsRemember} from './remember-and-token.js';
-import {onLoggedIn} from './login-session.js';
+import {loginSettling,onLoggedIn} from './login-session.js';
 import {ID_MSG,ID_RE} from './password-policy.js';
 import {leaveAccountCodes,openAccountSheet,signupWithPasskey} from './account-actions.js';
 import {openAccountSheet2,showCodes,shownCodes} from './recovery-codes.js';
 const RATING_LOGIN_KEY = "astronotes.rating.login";
-let loginSettling = false;
 const ratingLoginPending = () => { try { return sessionStorage.getItem(RATING_LOGIN_KEY) === "1"; } catch { return false; } };
 function finishRatingLogin() {
   if (!ratingLoginPending()) return;
@@ -104,4 +103,4 @@ $("accountSheet").addEventListener('close',()=>{
 });
 
 // base64url ⇄ ArrayBuffer。WebAuthn の受け渡しで要る。
-export {authFail,clearAuthErrs,finishRatingLogin,loginSettling,resumeRatingLogin,showAuthPanel};
+export {authFail,clearAuthErrs,finishRatingLogin,resumeRatingLogin,showAuthPanel};

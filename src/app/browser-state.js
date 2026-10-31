@@ -120,7 +120,6 @@ const WIDE = window.matchMedia("(min-width: 900px)");
 //   #            → 一覧
 //   #/sunset     → 夕焼けの直近の回
 //   #/sunset/172… → 夕焼けの特定の日
-let picked = null;       // 詳細で見ている現象（一覧のときは null）
 // 今どの画面を見ているか。所有者はここだけで、読み書きは viewState 経由にする（2026-10-31 accessor bridge を撤去）
 const viewState = Object.seal({
   skyMap: false,
@@ -134,7 +133,6 @@ const viewState = Object.seal({
 });
 let SkyMapUI = null;
 let aimCustomRequest = 0;
-let almanacPoint = null;
 let almanacDay = AstroNotesHomeTime.start(Date.now());
 
 let extrasLoadedSeq = -1;
@@ -163,5 +161,4 @@ function createForecastRetry(run, maxAttempts = 3) {
   };
 }
 const extrasRetry = createForecastRetry(() => { extrasLoadedSeq = -1; kickExtras(); });
-let selectedDay = {};    // phenomenon → dayMs
-export {SORTS,SkyMapUI,WIDE,aimCustomRequest,almanacDay,almanacPoint,cleanFavorite,cleanSighting,extrasLoadedSeq,extrasRetry,favorites,picked,place,selectedDay,sightings,store,viewState};
+export {SORTS,SkyMapUI,WIDE,aimCustomRequest,almanacDay,cleanFavorite,cleanSighting,extrasLoadedSeq,extrasRetry,favorites,place,sightings,store,viewState};

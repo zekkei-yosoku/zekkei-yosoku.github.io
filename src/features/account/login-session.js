@@ -8,8 +8,9 @@ import {accessCheckedAt,accessState,apiTransport,auth,authStorage,dataOwner,last
 import {renderAuthButton} from './status.js';
 import {accountSync} from './sync-bridge.js';
 import {wantsRemember} from './remember-and-token.js';
-import {finishRatingLogin,loginSettling} from './auth-panels.js';
+import {finishRatingLogin} from './auth-panels.js';
 import {adminUnmount,clearAdminView,privateDraft} from './admin-view.js';
+let loginSettling = false;
 /// ログインできたときの共通処理。初回は端末に残っているものを全部上げる。
 async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } = {}) {
   loginSettling = true;
@@ -68,4 +69,4 @@ async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } 
 
 // 写真の評価（sky-rating.html）からログインに来たときは、ログインを終えたら評価へ戻す（2026-10-28）。
 // 同期を待ち、回復コードやパスキーの案内を開いている間は閉じるまで待つ。ログインせずに閉じたら戻らない。
-export {onLoggedIn};
+export {loginSettling,onLoggedIn};

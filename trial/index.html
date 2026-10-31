@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="11403239446824299462">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-fMjaTnGy1KZDc9Z4/3BlXiivI4mHjO22h4MGE3BhoTg=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-AYIpUtS+i/kXA9eO93HawDaW7IR7TGxWrl5nMGYDKmE=' 'sha256-okx7zuxTyw5L/vVqNMEs9neeLRNC8JGOVMq+Lzr6BR8=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-wy58pa7yIe7Hvjp/V4YhEleE4bpkwFLt4L7e5QgUNgk=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="3020332725454936685">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-hsV/VAAK3Sj2A6edQfoHWOteWDLl1ekemFxd77K5bv8=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-YE2FvYuOUY58Yn1G4KSACCYK2Jw8Z9cWW70F3PqiiOE=' 'sha256-okx7zuxTyw5L/vVqNMEs9neeLRNC8JGOVMq+Lzr6BR8=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-wy58pa7yIe7Hvjp/V4YhEleE4bpkwFLt4L7e5QgUNgk=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -3074,7 +3074,6 @@ const WIDE = window.matchMedia("(min-width: 900px)");
 //   #            → 一覧
 //   #/sunset     → 夕焼けの直近の回
 //   #/sunset/172… → 夕焼けの特定の日
-let picked = null;       // 詳細で見ている現象（一覧のときは null）
 // 今どの画面を見ているか。所有者はここだけで、読み書きは viewState 経由にする（2026-10-31 accessor bridge を撤去）
 const viewState = Object.seal({
   skyMap: false,
@@ -3088,7 +3087,6 @@ const viewState = Object.seal({
 });
 let SkyMapUI = null;
 let aimCustomRequest = 0;
-let almanacPoint = null;
 let almanacDay = AstroNotesHomeTime.start(Date.now());
 
 let extrasLoadedSeq = -1;
@@ -3117,7 +3115,6 @@ function createForecastRetry(run, maxAttempts = 3) {
   };
 }
 const extrasRetry = createForecastRetry(() => { extrasLoadedSeq = -1; kickExtras(); });
-let selectedDay = {};    // phenomenon → dayMs
 
 let bundle = null;       // 取得済みの予報
 let weeks = {};          // phenomenon → [{dayMs, evaluation}]
@@ -4526,6 +4523,7 @@ document.querySelector("#skyRatingInvite a").onclick=e=>{e.preventDefault();open
   global.AstroNotesNavigationHistory = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : window);
+let picked = null;       // 詳細で見ている現象（一覧のときは null）
 let listScrollY = 0;     // 一覧へ戻ったときに元の位置へ戻す
 /// 判定は AstroNotesNavigationRoutes（純粋）。旧共有URL #p= は読むたびに #/aim?plan= へ置き換えてから判定する（置き換え後の hash を読む）
 /// メニューから来たときは、何を狙うかが決まっている（#/aim/fuji など。目標と天体を先に入れる）。#/iss/pick は以前の衛星を選ぶの道（今はページを重ねる。openIss）
@@ -5830,10 +5828,11 @@ function qualityCalibration(list) {
       期待外れ側に偏っていれば点数が甘く、期待以上側に偏っていれば辛いということ。</p>`;
 }
 
+let almanacPoint = null;
+let selectedDay = {};    // phenomenon → dayMs
 // ---------------------------------------------------------------- 地点
 /// 地点の画面を、何の地点を決めるために開いているか。null はAstroNotesの地点（地点カード）、"aim" はねらうの「どこから重ねるか」。
 /// 画面は1つを使い回す（検索・現在地・地図で選ぶ・お気に入り。2026-10-01 ユーザー「新しいレイアウト作る必要ないよね」）
-let placeSheetFor = null;
 /// 地点の画面で選んだ場所を、開いた目的の方へ渡す
 function choosePlace(p, { keepSheet = false } = {}) {
   if(globalThis.MyPlacesUI?.selectShape?.(p,placeSheetFor))return;
@@ -5953,7 +5952,6 @@ function terrainEffect(terrain, elevation) {
 const PHENOMENA_ORDER = Object.entries(S.PHENOMENA).sort((a, b) => a[1].order - b[1].order);
 
 let favDraft = null;   // 編集中のお気に入り。index が -1 なら新規。
-let favUndo = [];      // 消したものを戻すための控え。地点シートを閉じるまで持つ。
 let favMapReturn = false; // 位置変更の地図を閉じたら編集フォームへ戻す
 
 let favFilter = null;   // 地点の絞り込み（画面を開いている間だけ）
@@ -8811,7 +8809,6 @@ function aimCalMove(offset) {
   aimCal.year = date.getUTCFullYear(); aimCal.month = date.getUTCMonth();
   aimCalRender();
 }
-let resetAimCalSwipe = () => {};
 $("aimCalendarOpen").onclick = () => {
   const date = new Date((aim.dayMs ?? Date.now()) + 9 * 3600000);
   aimCal.year = date.getUTCFullYear(); aimCal.month = date.getUTCMonth();
@@ -11492,6 +11489,8 @@ function aimMapView() {
 // 道具の観測地点・目標を決めるときは、いまのその点のところで地図を開く
 $("mapButton").onclick = () => MapPick.open(placeSheetFor && PLACE_PICKERS[placeSheetFor]
   ? (PLACE_PICKERS[placeSheetFor].point() || place) : place);
+let placeSheetFor = null;
+let favUndo = [];      // 消したものを戻すための控え。地点シートを閉じるまで持つ。
 /// 都道府県（JIS X 0401 の番号順。ISO 3166-2:JP の JP-01〜JP-47 と同じ）
 const JP_PREFECTURES = ["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
   "新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県",
@@ -12941,6 +12940,7 @@ async function restoreSession({ onAccessReady = () => {} } = {}) {
   } finally { clearTimeout(accessTimer); }
 }
 
+let loginSettling = false;
 /// ログインできたときの共通処理。初回は端末に残っているものを全部上げる。
 async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } = {}) {
   loginSettling = true;
@@ -13000,7 +13000,6 @@ async function onLoggedIn(res, remember = wantsRemember(), { keepOpen = false } 
 // 写真の評価（sky-rating.html）からログインに来たときは、ログインを終えたら評価へ戻す（2026-10-28）。
 // 同期を待ち、回復コードやパスキーの案内を開いている間は閉じるまで待つ。ログインせずに閉じたら戻らない。
 const RATING_LOGIN_KEY = "astronotes.rating.login";
-let loginSettling = false;
 const ratingLoginPending = () => { try { return sessionStorage.getItem(RATING_LOGIN_KEY) === "1"; } catch { return false; } };
 function finishRatingLogin() {
   if (!ratingLoginPending()) return;
@@ -14131,7 +14130,8 @@ function uiVisualChoices(select, kind) {
   }
 }
 </script>
-<script id="previewPresentation">(()=>{
+<script id="previewPresentation">let resetAimCalSwipe = () => {};
+(()=>{
  const el=id=>document.getElementById(id),root=el('aimView'),look=el('aimLook'),scene=el('previewScene'),places=el('previewPlaces'),tabs=[el('previewSceneTab'),el('previewPlacesTab')],wide=matchMedia('(min-width:960px)');
  const retired=document.createElement('div');retired.id='retiredShootingUI';retired.hidden=true;retired.inert=true;retired.append(places,tabs[1]);document.body.append(retired);
  let mode='scene',resultKey='';

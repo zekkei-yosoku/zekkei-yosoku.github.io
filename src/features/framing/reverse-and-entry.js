@@ -1,6 +1,6 @@
 import {$,S,esc} from '../../app/presentation-helpers.js';
 import {aimCustomRequest,favorites,place,store,viewState} from '../../app/browser-state.js';
-import {PLACE_PICKERS,placeSheetFor,saveFavorites} from '../places/controller.js';
+import {PLACE_PICKERS,saveFavorites} from '../places/controller.js';
 import {MapPick,createMapView} from '../../ui/map/picker.js';
 import {AimMap,aim,aimElevation,aimFillParts,aimFillSelects,aimIsMountain,aimKm,aimLimbValue,aimRedrawLine,aimShift,aimZoomFor} from './controller.js';
 import {aimApply,aimDateLabel,aimRenderList} from '../satellites/controller.js';
@@ -10,7 +10,7 @@ import {aimRidgeCache} from '../../ui/scene/terrain.js';
 import {aimLookHMS,aimLookHosts} from '../../ui/scene/lens.js';
 import {aimLookRender} from '../../ui/scene/render.js';
 import {AIM_PLACE_ENABLED} from '../../ui/scene/input.js';
-import {nearName} from '../../services/place-search.js';
+import {nearName,placeSheetFor} from '../../services/place-search.js';
 import {auth,screenAllowed} from '../account/session-and-access.js';
 import {accountSync} from '../account/sync-bridge.js';
 // ---------------------------------------------------------------- 撮れる場所を地図で探す（逆算の作り直し・2026-10-20 trial）

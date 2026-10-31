@@ -1,5 +1,6 @@
 import {$} from '../../app/presentation-helpers.js';
-import {almanacDay,almanacPoint,place,viewState} from '../../app/browser-state.js';
+import {almanacDay,place,viewState} from '../../app/browser-state.js';
+import {almanacPoint} from '../places/controller.js';
 import {openPlaceSheet} from '../../services/place-search.js';
 let almanacTimeline = null, almanacScrub = 'date', almanacDragAt = null, almanacPlayback = null;
 // ---------------------------------------------------------------- 画面の行き来

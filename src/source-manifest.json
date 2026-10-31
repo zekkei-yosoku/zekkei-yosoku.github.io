@@ -1664,11 +1664,6 @@
           "owner": "src/app/browser-state.js"
         },
         {
-          "name": "almanacPoint",
-          "writer": "src/features/places/controller.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
           "name": "auth",
           "writer": "src/features/account/access-recheck.js",
           "owner": "src/features/account/session-and-access.js"
@@ -1739,11 +1734,6 @@
           "owner": "src/app/browser-state.js"
         },
         {
-          "name": "favUndo",
-          "writer": "src/services/place-search.js",
-          "owner": "src/features/places/controller.js"
-        },
-        {
           "name": "lastLoginId",
           "writer": "src/features/account/access-recheck.js",
           "owner": "src/features/account/session-and-access.js"
@@ -1757,11 +1747,6 @@
           "name": "lastLoginId",
           "writer": "src/features/account/retirement.js",
           "owner": "src/features/account/session-and-access.js"
-        },
-        {
-          "name": "loginSettling",
-          "writer": "src/features/account/login-session.js",
-          "owner": "src/features/account/auth-panels.js"
         },
         {
           "name": "photos",
@@ -1794,11 +1779,6 @@
           "owner": "src/features/photos/controller.js"
         },
         {
-          "name": "picked",
-          "writer": "src/app/navigation.js",
-          "owner": "src/app/browser-state.js"
-        },
-        {
           "name": "place",
           "writer": "src/features/places/controller.js",
           "owner": "src/app/browser-state.js"
@@ -1807,11 +1787,6 @@
           "name": "place",
           "writer": "src/features/plans/controller.js",
           "owner": "src/app/browser-state.js"
-        },
-        {
-          "name": "placeSheetFor",
-          "writer": "src/services/place-search.js",
-          "owner": "src/features/places/controller.js"
         },
         {
           "name": "privateDraft",
@@ -1842,16 +1817,6 @@
           "name": "pushQueue",
           "writer": "src/features/account/sync-bridge.js",
           "owner": "src/features/account/session-and-access.js"
-        },
-        {
-          "name": "resetAimCalSwipe",
-          "writer": "src/features/framing/presentation.js",
-          "owner": "src/features/framing/observer.js"
-        },
-        {
-          "name": "selectedDay",
-          "writer": "src/features/places/controller.js",
-          "owner": "src/app/browser-state.js"
         },
         {
           "name": "shownCodes",

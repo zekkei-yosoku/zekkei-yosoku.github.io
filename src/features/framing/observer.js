@@ -9,7 +9,7 @@ import {aimLookRidge} from '../../ui/scene/terrain.js';
 import {aimAirAngle} from './reverse-and-entry.js';
 import {auth} from '../account/session-and-access.js';
 import {showSheet} from '../../app/overlays.js';
-import {recentHistory} from './presentation.js';
+import {recentHistory,resetAimCalSwipe} from './presentation.js';
 // ---------------------------------------------------------------- どこから重ねるか（観測地点・2026-10-01）
 //
 // 「曽谷から見て、スカイツリーに重なるのはいつか。富士山に重なるのはいつか」（ユーザー）。
@@ -270,7 +270,6 @@ function aimCalMove(offset) {
   aimCal.year = date.getUTCFullYear(); aimCal.month = date.getUTCMonth();
   aimCalRender();
 }
-let resetAimCalSwipe = () => {};
 $("aimCalendarOpen").onclick = () => {
   const date = new Date((aim.dayMs ?? Date.now()) + 9 * 3600000);
   aimCal.year = date.getUTCFullYear(); aimCal.month = date.getUTCMonth();
@@ -687,4 +686,4 @@ async function aimRenderFrom() {
   // 候補帯の描画は見え方の条件を変えない。図は冒頭の1回で更新済み。
 
 }
-export {aimAppendCandidatePage,aimAreaOf,aimBuildingDays,aimCal,aimCalGridHtml,aimCalMove,aimCalRows,aimCalSolid,aimCandidateMatch,aimCandidatePageEnd,aimCandidateSearchEnd,aimDaysInputKey,aimFromPoint,aimM,aimObserverAt,aimObserverEye,aimRenderFrom,aimRenderSelectedPoint,aimRenderTargetCard,aimSavedFrom,aimSetCustomTarget,aimSetFrom,aimShootingView,candidateDatesAppend,candidateDatesMarkup,candidateWaitMarkup,resetAimCalSwipe};
+export {aimAppendCandidatePage,aimAreaOf,aimBuildingDays,aimCal,aimCalGridHtml,aimCalMove,aimCalRows,aimCalSolid,aimCandidateMatch,aimCandidatePageEnd,aimCandidateSearchEnd,aimDaysInputKey,aimFromPoint,aimM,aimObserverAt,aimObserverEye,aimRenderFrom,aimRenderSelectedPoint,aimRenderTargetCard,aimSavedFrom,aimSetCustomTarget,aimSetFrom,aimShootingView,candidateDatesAppend,candidateDatesMarkup,candidateWaitMarkup};

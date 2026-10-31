@@ -1,20 +1,21 @@
 import {$,S} from '../../app/presentation-helpers.js';
 import {SkyMapUI,favorites,place,store} from '../../app/browser-state.js';
 import {navigationHistory} from '../../app/navigation.js';
-import {choosePlace,openFavSheet,placeSheetFor,requireLoginForFavorites} from '../places/controller.js';
+import {choosePlace,openFavSheet,requireLoginForFavorites} from '../places/controller.js';
 import {MAP_ICON_LOCATE,createMapView} from '../../ui/map/picker.js';
 import {AimMap,TARGET_FIXED_CATEGORIES,aim,aimElevation,aimFillSelects,aimFitLines,aimTargetList,editTargetCategory,persistTargetDraft,targetCategoryList,targetCategoryOf,targetLocationLabel} from './controller.js';
 import {aimApply} from '../satellites/controller.js';
-import {aimCal,aimCalMove,aimFromPoint,resetAimCalSwipe} from './observer.js';
+import {aimCal,aimCalMove,aimFromPoint} from './observer.js';
 import {aimSideName,aimUpdateLook} from './candidates.js';
 import {aimLens,aimLookHMS} from '../../ui/scene/lens.js';
 import {aimLookRender} from '../../ui/scene/render.js';
 import {aimAirSettings,aimLookKey,openAim} from './reverse-and-entry.js';
-import {nearName,openPlaceSheet,wireSearchBox} from '../../services/place-search.js';
+import {nearName,openPlaceSheet,placeSheetFor,wireSearchBox} from '../../services/place-search.js';
 import {auth} from '../account/session-and-access.js';
 import {showSheet} from '../../app/overlays.js';
 import {planSnapshot,restoreSharedPlan} from '../plans/controller.js';
 import {UI_ICONS,uiVisualChoices} from '../../ui/visual-primitives.js';
+let resetAimCalSwipe = () => {};
 (()=>{
  const el=id=>document.getElementById(id),root=el('aimView'),look=el('aimLook'),scene=el('previewScene'),places=el('previewPlaces'),tabs=[el('previewSceneTab'),el('previewPlacesTab')],wide=matchMedia('(min-width:960px)');
  const retired=document.createElement('div');retired.id='retiredShootingUI';retired.hidden=true;retired.inert=true;retired.append(places,tabs[1]);document.body.append(retired);
@@ -284,4 +285,4 @@ const recentHistory=(()=>{
  window.addEventListener('storage',e=>{if(e.key?.startsWith('sorami.recent.v1:')&&sheet.open)render();});
  return {accountChanged(){const next=auth?.loginId||'guest';if(next!==owner){owner=next;blocked=true;clearTimeout(timer);last='';if(sheet.open)render();}},observerSelected(){blocked=false;},rememberPlace(p,{observer=false}={}){if(observer)blocked=false;okay(history.add('places',p));},candidates(){active='candidates';render();for(const b of nav.children)if(b.dataset.historyPanel==='candidates')b.focus();},open(){page=0;active='favorites';render();},places(mode){openPlaceSheet(mode,{focusSearch:false});active='recent';kind='places';render();},history};
 })();
-export {recentHistory};
+export {recentHistory,resetAimCalSwipe};
