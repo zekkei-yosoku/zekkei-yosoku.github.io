@@ -121,7 +121,7 @@ function build(){
   +page(null,[cell('wsTarget','対象','#c876ff'),cell('wsGap','ずれ（方位）','#c876ff'),cell('wsPass','対象の通過','#c876ff',1)])
   +page(null,[cell('wsDawn','朝の薄明','#7d8fe6',1),cell('wsGolden','夕方の低い光','var(--ray-sun)',1),cell('wsDusk','夕方の薄明','#7d8fe6',1)]);
  const dots=document.createElement('div');dots.id='mapWsDots';dots.className='map-ws-dots';dots.setAttribute('aria-hidden','true');dots.innerHTML='<span></span>'.repeat(4);
- footer.prepend(info,dots);
+ footer.prepend(info,dots);placeInfo();
  const band=document.createElement('canvas');band.id='mapWsBand';band.className='map-ws-band';band.setAttribute('aria-hidden','true');$('skyMapTrack').append(band);
  $('mapWsTitle').onclick=()=>{if(conditionsOpen())closePanel();else openPanel();};
  $('exploreConditions')?.addEventListener('toggle',e=>{if(!e.target.open)closePanel();});
@@ -198,8 +198,10 @@ function evaluate(){if(sceneFull&&$('skyMapView').hidden)leaveScene();const show
 // 帯の幅がちょうど24時間になる縮尺
 function measureHours(){const width=$('skyMapTrack')?.clientWidth||0,next=width?Math.max(12,width/24):hourPixels;if(Math.abs(next-hourPixels)<.01)return false;hourPixels=next;return true;}
 function rebuildTimeline(h,mode){const other=mode==='time'?'hour':'time';h.setScrubMode(other);h.setScrubMode(mode);}
+// 下の欄は上から、重なる日時、情報欄、日付、時間バー。
+function placeInfo(){const footer=$('skyMapView').querySelector('.sky-map-footer'),dates=footer?.querySelector(':scope>.sky-map-candidates');if(dates&&dates.nextElementSibling!==$('mapWsInfo'))dates.after($('mapWsInfo'),$('mapWsDots'));}
 function enter(){
- const h=host();if(!h)return;build();if(sceneFull)leaveScene();active=true;h.map.allowRotate?.(true);const view=$('skyMapView');view.classList.add('map-ws');
+ const h=host();if(!h)return;build();placeInfo();if(sceneFull)leaveScene();active=true;h.map.allowRotate?.(true);const view=$('skyMapView');view.classList.add('map-ws');
  if(!view.querySelector('.sky-map-wrap').classList.contains('sky-map-wide'))$('skyMapExpand').click();
  scrubBefore=h.session.scrubMode;measureHours();rebuildTimeline(h,'hour');
  try{if(store.get('sorami.mapLayer',null)===null)h.map.setLayer?.('photo',false);}catch{}
