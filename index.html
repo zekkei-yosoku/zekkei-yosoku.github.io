@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="5400799164413789880">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-Vgr+TeF7u0zhumoqHxq3LhWW0o/3dBxGYVEFJGjx7O8=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-YE2FvYuOUY58Yn1G4KSACCYK2Jw8Z9cWW70F3PqiiOE=' 'sha256-I/YWc50pyHD0IeDNhxXaN4nsyKDagC/YjsgDGZBWqFo=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-wy58pa7yIe7Hvjp/V4YhEleE4bpkwFLt4L7e5QgUNgk=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="9590634656593890695">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-cl5tSkxhWl0KT4YC0uVqcuh/29xexXmngsQCNifgLuU=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-GSqAiMuDZqNLErG6nyzR6uEIGUnkOsffs0krvjJGC4g=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-YE2FvYuOUY58Yn1G4KSACCYK2Jw8Z9cWW70F3PqiiOE=' 'sha256-+R4e/9RI6l+MfEPSprbz5Nqs+kKZ945X31w4JYQC2rM=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-wy58pa7yIe7Hvjp/V4YhEleE4bpkwFLt4L7e5QgUNgk=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=4968433467213798824">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -6455,11 +6455,16 @@ function createMapView(ids) {
   let drag = null, pinch = null, raf = 0;
   // 重ね描き（ライン）と、動かしたときの通知。どちらも無くても地図は動く
   let overlay = null, onChange = null, onPick = null, onDoubleTap = null, lastTap = null;
+  // 画面の上が向く方位。回転を許した地図だけが 0 以外になる
+  let bearing = 0, canRotate = false;
+  const spin = (dx, dy) => { const b = bearing * Math.PI / 180, c = Math.cos(b), s = Math.sin(b); return [dx * c + dy * s, dy * c - dx * s]; };
+  const unspin = (dx, dy) => { const b = bearing * Math.PI / 180, c = Math.cos(b), s = Math.sin(b); return [dx * c - dy * s, dx * s + dy * c]; };
   /// 緯度経度 → 画面のピクセル。重ね描きから使う
   function project(lat, lon) {
     const z = Math.max(MIN_Z, Math.min(maxZoom(), Math.round(view.zoom)));
     const scale = 2 ** (view.zoom - z);
     const w = cv.clientWidth, h = cv.clientHeight;
+    if (bearing) { const q = spin(lonToX(lon, z) * scale - lonToX(view.lon, z) * scale, latToY(lat, z) * scale - latToY(view.lat, z) * scale); return [q[0] + w / 2, q[1] + h / 2]; }
     return [lonToX(lon, z) * scale - lonToX(view.lon, z) * scale + w / 2,
             latToY(lat, z) * scale - latToY(view.lat, z) * scale + h / 2];
   }
@@ -6502,8 +6507,11 @@ function createMapView(ids) {
     const scale = 2 ** (view.zoom - z);
     const size = TILE * scale;
     const cx = lonToX(view.lon, z) * scale, cy = latToY(view.lat, z) * scale;
-    const x0 = Math.floor((cx - w / 2) / size), x1 = Math.floor((cx + w / 2) / size);
-    const y0 = Math.floor((cy - h / 2) / size), y1 = Math.floor((cy + h / 2) / size);
+    const b = bearing * Math.PI / 180, c = Math.abs(Math.cos(b)), s = Math.abs(Math.sin(b));
+    const hw = bearing ? (w * c + h * s) / 2 : w / 2, hh = bearing ? (w * s + h * c) / 2 : h / 2;
+    const x0 = Math.floor((cx - hw) / size), x1 = Math.floor((cx + hw) / size);
+    const y0 = Math.floor((cy - hh) / size), y1 = Math.floor((cy + hh) / size);
+    if (bearing) { ctx.save(); ctx.translate(w / 2, h / 2); ctx.rotate(-b); ctx.translate(-w / 2, -h / 2); }
     const max = 2 ** z;
     for (let ty = y0; ty <= y1; ty++) {
       if (ty < 0 || ty >= max) continue;
@@ -6525,6 +6533,7 @@ function createMapView(ids) {
         }
       }
     }
+    if (bearing) ctx.restore();
     if (ids.coord) $(ids.coord).textContent = `${view.lat.toFixed(5)}, ${view.lon.toFixed(5)}`;
     if (overlay) { try { overlay(ctx, { project, view, width: w, height: h }); } catch { /* 重ね描きで落とさない */ } }
     drawMyPos(ctx, project, view);
@@ -6535,6 +6544,7 @@ function createMapView(ids) {
   function panBy(dx, dy) {
     const z = Math.max(MIN_Z, Math.min(maxZoom(), Math.round(view.zoom)));
     const scale = 2 ** (view.zoom - z);
+    if (bearing) [dx, dy] = unspin(dx, dy);
     view.lon = xToLon(lonToX(view.lon, z) - dx / scale, z);
     view.lat = yToLat(latToY(view.lat, z) - dy / scale, z);
     view.lat = Math.max(-85, Math.min(85, view.lat));
@@ -6545,8 +6555,9 @@ function createMapView(ids) {
   function coordinateAt(x,y) {
     if (!cv) return null;
     const z=Math.max(MIN_Z,Math.min(maxZoom(),Math.round(view.zoom))),scale=2**(view.zoom-z);
-    const lon=xToLon(lonToX(view.lon,z)+(x-cv.clientWidth/2)/scale,z);
-    const lat=yToLat(latToY(view.lat,z)+(y-cv.clientHeight/2)/scale,z);
+    const [ox,oy]=bearing?unspin(x-cv.clientWidth/2,y-cv.clientHeight/2):[x-cv.clientWidth/2,y-cv.clientHeight/2];
+    const lon=xToLon(lonToX(view.lon,z)+ox/scale,z);
+    const lat=yToLat(latToY(view.lat,z)+oy/scale,z);
     return {latitude:Math.max(-85,Math.min(85,lat)),longitude:((lon+180)%360+360)%360-180};
   }
   function attach() {
@@ -6572,6 +6583,13 @@ function createMapView(ids) {
         const [a, b] = [...pinch.points.values()];
         const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
         const mid=[(a.clientX+b.clientX)/2,(a.clientY+b.clientY)/2];if(pinch.mid)panBy(mid[0]-pinch.mid[0],mid[1]-pinch.mid[1]);pinch.mid=mid;
+        if (canRotate) {
+          // 拡大縮小の手ぶれで回らないよう、8°ひねるまでは向きを変えない
+          const angle = Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX) * 180 / Math.PI;
+          if (pinch.angle === undefined) { pinch.angle = angle; pinch.turned = 0; }
+          const step = ((angle - pinch.angle + 540) % 360) - 180; pinch.angle = angle; pinch.turned += step;
+          if (pinch.spinning || Math.abs(pinch.turned) > 8) { bearing = (bearing - (pinch.spinning ? step : pinch.turned) + 720) % 360; pinch.spinning = true; schedule(); }
+        }
         if (pinch.base === null) { pinch.base = dist; pinch.baseZoom = view.zoom; return; }
         if (dist > 0 && pinch.base > 0) {
           view.zoom = Math.max(MIN_Z, Math.min(maxViewZoom(), pinch.baseZoom + Math.log2(dist / pinch.base)));
@@ -6654,7 +6672,7 @@ function createMapView(ids) {
     // dialog が開いてから測る（閉じている間は幅が 0）
     requestAnimationFrame(() => { draw(); requestAnimationFrame(draw); });
   }
-  return { open, attach, setLayer, redraw: schedule, project, coordinateAt, onPick:fn=>{onPick=fn;},onDoubleTap:fn=>{onDoubleTap=fn;},
+  return { open, attach, setLayer, redraw: schedule, project, coordinateAt, rotation: () => bearing, setRotation: (deg) => { bearing = ((deg % 360) + 360) % 360; schedule(); }, allowRotate: (on) => { canRotate = !!on; if (!on) bearing = 0; schedule(); }, onPick:fn=>{onPick=fn;},onDoubleTap:fn=>{onDoubleTap=fn;},
            center: () => ({ latitude: view.lat, longitude: view.lon }),
            zoom: () => view.zoom,
            setOverlay: (fn) => { overlay = fn; schedule(); },
@@ -14637,7 +14655,7 @@ const recentHistory=(()=>{
   ctx.save();ctx.font='12px system-ui';ctx.textAlign='left';ctx.lineWidth=1;ctx.strokeStyle='rgba(0,0,0,.45)';ctx.fillStyle='#fff';
   ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.strokeStyle='rgba(0,0,0,.85)';ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=1.8;ctx.stroke();
 ctx.lineWidth=1;
-  for(const az of [0,90,180,270]){const a=az*Math.PI/180;ctx.beginPath();ctx.moveTo(x+Math.sin(a)*(r-4),y-Math.cos(a)*(r-4));ctx.lineTo(x+Math.sin(a)*(r+4),y-Math.cos(a)*(r+4));ctx.stroke();}
+  for(const az of [0,90,180,270]){const a=(az-(workspace?map.rotation():0))*Math.PI/180;ctx.beginPath();ctx.moveTo(x+Math.sin(a)*(r-4),y-Math.cos(a)*(r-4));ctx.lineTo(x+Math.sin(a)*(r+4),y-Math.cos(a)*(r+4));ctx.stroke();}
   if((!pickMode||workspace)&&session.eye&&session.eye.latitude===session.observer?.latitude&&session.eye.longitude===session.observer.longitude)for(const body of shownBodies().reverse())if(session.dailies?.[body]||body==='sun'||body==='moon'||AstroNotesBodies.ready())(workspace?workspace.body:drawBody)(ctx,body,session.dailies?.[body]||AstroNotesSkyMap.daily(body,AstroNotesSkyMap.dayStart(session.at),session.eye,skyState),x,y,r,width,height);
   if(pickMode==='target')for(const candidate of mapTargets().filter(validPoint)){const q=project(candidate.latitude,candidate.longitude);if(q[0]<0||q[0]>width||q[1]<0||q[1]>height||candidate.id===session.target?.id)continue;drawPin(ctx,...q,'#c876ff');mapLabel(ctx,q[0],q[1]-24,candidate.name,'#fff',width,height,'center');}
   const t=session.target;
@@ -14646,7 +14664,7 @@ ctx.lineWidth=1;
   }
   workspace?.overlay(ctx,x,y,r);
   if(workspace)workspace.center(ctx,x,y);else{
-  ctx.lineWidth=3;ctx.strokeStyle='#111';ctx.beginPath();ctx.moveTo(x-8,y);ctx.lineTo(x-2,y);ctx.moveTo(x+2,y);ctx.lineTo(x+8,y);ctx.moveTo(x,y-8);ctx.lineTo(x,y-2);ctx.moveTo(x,y+2);ctx.lineTo(x,y+8);ctx.stroke();ctx.lineWidth=1;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();ctx.arc(x,y,1,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();mapLabel(ctx,x,y+20,pickMode==='target'?'対象':'撮影地点','#fff',width,height,'center');}  for(const [name,az] of [['北',0],['東',90],['南',180],['西',270]]){const a=az*Math.PI/180,edge=workspace?r:r+10,tx=x+Math.sin(a)*edge,ty=y-Math.cos(a)*edge;ctx.save();ctx.font='bold 14px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.strokeStyle='rgba(0,0,0,.95)';ctx.lineWidth=4;ctx.strokeText(name,tx,ty);ctx.fillStyle='#fff';ctx.fillText(name,tx,ty);ctx.restore();}ctx.restore();
+  ctx.lineWidth=3;ctx.strokeStyle='#111';ctx.beginPath();ctx.moveTo(x-8,y);ctx.lineTo(x-2,y);ctx.moveTo(x+2,y);ctx.lineTo(x+8,y);ctx.moveTo(x,y-8);ctx.lineTo(x,y-2);ctx.moveTo(x,y+2);ctx.lineTo(x,y+8);ctx.stroke();ctx.lineWidth=1;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();ctx.arc(x,y,1,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();mapLabel(ctx,x,y+20,pickMode==='target'?'対象':'撮影地点','#fff',width,height,'center');}  for(const [name,az] of [['北',0],['東',90],['南',180],['西',270]]){const a=(az-(workspace?map.rotation():0))*Math.PI/180,edge=workspace?r:r+10,tx=x+Math.sin(a)*edge,ty=y-Math.cos(a)*edge;ctx.save();ctx.font='bold 14px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.strokeStyle='rgba(0,0,0,.95)';ctx.lineWidth=4;ctx.strokeText(name,tx,ty);ctx.fillStyle='#fff';ctx.fillText(name,tx,ty);ctx.restore();}ctx.restore();
  }
  // Sync may finish after the map is already usable. Refresh choices, not the observer or date.
  function refreshTargets(){

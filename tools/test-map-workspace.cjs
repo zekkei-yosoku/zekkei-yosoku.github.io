@@ -69,6 +69,11 @@ const rect=(p,s)=>p.evaluate(s=>{const e=document.querySelector(s);if(!e)return 
   if(out&&name==='chrome'&&w===390&&scheme==='dark')await p.screenshot({path:`${out}/ws-target.png`});
   await p.locator('#mapWsPickDone').click();await p.waitForTimeout(250);assert.equal(await p.locator('#skyMapTargetSheet').evaluate(e=>e.open),true,tag+' 対象の高さを聞く');await p.locator('#skyMapTargetSheet').evaluate(e=>e.close());await p.waitForTimeout(250);s1=await state();close(s1.clat,s2.lat,'対象を置いた後は撮影地点へ戻る');
   await p.locator('#skyMapTargetTool').click();await p.waitForTimeout(150);await p.locator('#mapWsPickCancel').click();await p.waitForTimeout(150);assert.equal(await p.locator('#mapWsPick').isVisible(),false,tag+' 取消');
+  // 回転: 方位の線と地図が揃ったまま回り、座標の変換も往復で合う。方位磁針で北へ戻る。本体の既定は回らない
+  const turned=await p.evaluate(async()=>{const h=SkyMapUI.workspaceHost(),o=h.session.observer;h.map.setCenter(o.latitude,o.longitude);h.map.setRotation(90);await new Promise(r=>setTimeout(r,120));const c=h.map.project(o.latitude,o.longitude),n=h.map.project(o.latitude+.01,o.longitude),back=h.map.coordinateAt(n[0],n[1]);return {left:n[0]<c[0]-5,level:Math.abs(n[1]-c[1])<1,lat:back.latitude-(o.latitude+.01),lon:back.longitude-o.longitude,rotation:h.map.rotation()};});assert.ok(turned.left&&turned.level,tag+' 東が上なら北は左');assert.ok(Math.abs(turned.lat)<1e-6&&Math.abs(turned.lon)<1e-6,tag+' 座標の往復');
+  if(out&&name==='chrome'&&w===390&&scheme==='dark')await p.screenshot({path:`${out}/ws-rotated.png`});
+  let beforeDrag=await state();await drag(0,-50);let afterDrag=await state();assert.ok(afterDrag.clon<beforeDrag.clon-1e-6,tag+' 回転中は指の向きに地図が動く');
+  await p.locator('#mapWsNorth').click();await p.waitForTimeout(150);assert.equal(await p.evaluate(()=>SkyMapUI.workspaceHost().map.rotation()),0,tag+' 北へ戻す');
   // 現在地ボタンは撮影地点を動かす操作に入る
   await p.locator('.sky-map-wrap .map-locate').click();await p.waitForTimeout(200);assert.equal(await p.locator('#mapWsPick').isVisible(),true,tag+' 現在地で動かす操作へ');await p.locator('#mapWsPickCancel').click();await p.waitForTimeout(300);
   // メニュー: 実際の釦へ渡す

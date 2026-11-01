@@ -141,11 +141,16 @@ function createMapView(ids) {
   let drag = null, pinch = null, raf = 0;
   // 重ね描き（ライン）と、動かしたときの通知。どちらも無くても地図は動く
   let overlay = null, onChange = null, onPick = null, onDoubleTap = null, lastTap = null;
+  // 画面の上が向く方位。回転を許した地図だけが 0 以外になる
+  let bearing = 0, canRotate = false;
+  const spin = (dx, dy) => { const b = bearing * Math.PI / 180, c = Math.cos(b), s = Math.sin(b); return [dx * c + dy * s, dy * c - dx * s]; };
+  const unspin = (dx, dy) => { const b = bearing * Math.PI / 180, c = Math.cos(b), s = Math.sin(b); return [dx * c - dy * s, dx * s + dy * c]; };
   /// 緯度経度 → 画面のピクセル。重ね描きから使う
   function project(lat, lon) {
     const z = Math.max(MIN_Z, Math.min(maxZoom(), Math.round(view.zoom)));
     const scale = 2 ** (view.zoom - z);
     const w = cv.clientWidth, h = cv.clientHeight;
+    if (bearing) { const q = spin(lonToX(lon, z) * scale - lonToX(view.lon, z) * scale, latToY(lat, z) * scale - latToY(view.lat, z) * scale); return [q[0] + w / 2, q[1] + h / 2]; }
     return [lonToX(lon, z) * scale - lonToX(view.lon, z) * scale + w / 2,
             latToY(lat, z) * scale - latToY(view.lat, z) * scale + h / 2];
   }
@@ -188,8 +193,11 @@ function createMapView(ids) {
     const scale = 2 ** (view.zoom - z);
     const size = TILE * scale;
     const cx = lonToX(view.lon, z) * scale, cy = latToY(view.lat, z) * scale;
-    const x0 = Math.floor((cx - w / 2) / size), x1 = Math.floor((cx + w / 2) / size);
-    const y0 = Math.floor((cy - h / 2) / size), y1 = Math.floor((cy + h / 2) / size);
+    const b = bearing * Math.PI / 180, c = Math.abs(Math.cos(b)), s = Math.abs(Math.sin(b));
+    const hw = bearing ? (w * c + h * s) / 2 : w / 2, hh = bearing ? (w * s + h * c) / 2 : h / 2;
+    const x0 = Math.floor((cx - hw) / size), x1 = Math.floor((cx + hw) / size);
+    const y0 = Math.floor((cy - hh) / size), y1 = Math.floor((cy + hh) / size);
+    if (bearing) { ctx.save(); ctx.translate(w / 2, h / 2); ctx.rotate(-b); ctx.translate(-w / 2, -h / 2); }
     const max = 2 ** z;
     for (let ty = y0; ty <= y1; ty++) {
       if (ty < 0 || ty >= max) continue;
@@ -211,6 +219,7 @@ function createMapView(ids) {
         }
       }
     }
+    if (bearing) ctx.restore();
     if (ids.coord) $(ids.coord).textContent = `${view.lat.toFixed(5)}, ${view.lon.toFixed(5)}`;
     if (overlay) { try { overlay(ctx, { project, view, width: w, height: h }); } catch { /* 重ね描きで落とさない */ } }
     drawMyPos(ctx, project, view);
@@ -221,6 +230,7 @@ function createMapView(ids) {
   function panBy(dx, dy) {
     const z = Math.max(MIN_Z, Math.min(maxZoom(), Math.round(view.zoom)));
     const scale = 2 ** (view.zoom - z);
+    if (bearing) [dx, dy] = unspin(dx, dy);
     view.lon = xToLon(lonToX(view.lon, z) - dx / scale, z);
     view.lat = yToLat(latToY(view.lat, z) - dy / scale, z);
     view.lat = Math.max(-85, Math.min(85, view.lat));
@@ -231,8 +241,9 @@ function createMapView(ids) {
   function coordinateAt(x,y) {
     if (!cv) return null;
     const z=Math.max(MIN_Z,Math.min(maxZoom(),Math.round(view.zoom))),scale=2**(view.zoom-z);
-    const lon=xToLon(lonToX(view.lon,z)+(x-cv.clientWidth/2)/scale,z);
-    const lat=yToLat(latToY(view.lat,z)+(y-cv.clientHeight/2)/scale,z);
+    const [ox,oy]=bearing?unspin(x-cv.clientWidth/2,y-cv.clientHeight/2):[x-cv.clientWidth/2,y-cv.clientHeight/2];
+    const lon=xToLon(lonToX(view.lon,z)+ox/scale,z);
+    const lat=yToLat(latToY(view.lat,z)+oy/scale,z);
     return {latitude:Math.max(-85,Math.min(85,lat)),longitude:((lon+180)%360+360)%360-180};
   }
   function attach() {
@@ -258,6 +269,13 @@ function createMapView(ids) {
         const [a, b] = [...pinch.points.values()];
         const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
         const mid=[(a.clientX+b.clientX)/2,(a.clientY+b.clientY)/2];if(pinch.mid)panBy(mid[0]-pinch.mid[0],mid[1]-pinch.mid[1]);pinch.mid=mid;
+        if (canRotate) {
+          // 拡大縮小の手ぶれで回らないよう、8°ひねるまでは向きを変えない
+          const angle = Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX) * 180 / Math.PI;
+          if (pinch.angle === undefined) { pinch.angle = angle; pinch.turned = 0; }
+          const step = ((angle - pinch.angle + 540) % 360) - 180; pinch.angle = angle; pinch.turned += step;
+          if (pinch.spinning || Math.abs(pinch.turned) > 8) { bearing = (bearing - (pinch.spinning ? step : pinch.turned) + 720) % 360; pinch.spinning = true; schedule(); }
+        }
         if (pinch.base === null) { pinch.base = dist; pinch.baseZoom = view.zoom; return; }
         if (dist > 0 && pinch.base > 0) {
           view.zoom = Math.max(MIN_Z, Math.min(maxViewZoom(), pinch.baseZoom + Math.log2(dist / pinch.base)));
@@ -340,7 +358,7 @@ function createMapView(ids) {
     // dialog が開いてから測る（閉じている間は幅が 0）
     requestAnimationFrame(() => { draw(); requestAnimationFrame(draw); });
   }
-  return { open, attach, setLayer, redraw: schedule, project, coordinateAt, onPick:fn=>{onPick=fn;},onDoubleTap:fn=>{onDoubleTap=fn;},
+  return { open, attach, setLayer, redraw: schedule, project, coordinateAt, rotation: () => bearing, setRotation: (deg) => { bearing = ((deg % 360) + 360) % 360; schedule(); }, allowRotate: (on) => { canRotate = !!on; if (!on) bearing = 0; schedule(); }, onPick:fn=>{onPick=fn;},onDoubleTap:fn=>{onDoubleTap=fn;},
            center: () => ({ latitude: view.lat, longitude: view.lon }),
            zoom: () => view.zoom,
            setOverlay: (fn) => { overlay = fn; schedule(); },

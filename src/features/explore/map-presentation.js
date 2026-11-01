@@ -82,7 +82,7 @@ import {UI_ICONS} from '../../ui/visual-primitives.js';
   ctx.save();ctx.font='12px system-ui';ctx.textAlign='left';ctx.lineWidth=1;ctx.strokeStyle='rgba(0,0,0,.45)';ctx.fillStyle='#fff';
   ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.strokeStyle='rgba(0,0,0,.85)';ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=1.8;ctx.stroke();
 ctx.lineWidth=1;
-  for(const az of [0,90,180,270]){const a=az*Math.PI/180;ctx.beginPath();ctx.moveTo(x+Math.sin(a)*(r-4),y-Math.cos(a)*(r-4));ctx.lineTo(x+Math.sin(a)*(r+4),y-Math.cos(a)*(r+4));ctx.stroke();}
+  for(const az of [0,90,180,270]){const a=(az-(workspace?map.rotation():0))*Math.PI/180;ctx.beginPath();ctx.moveTo(x+Math.sin(a)*(r-4),y-Math.cos(a)*(r-4));ctx.lineTo(x+Math.sin(a)*(r+4),y-Math.cos(a)*(r+4));ctx.stroke();}
   if((!pickMode||workspace)&&session.eye&&session.eye.latitude===session.observer?.latitude&&session.eye.longitude===session.observer.longitude)for(const body of shownBodies().reverse())if(session.dailies?.[body]||body==='sun'||body==='moon'||AstroNotesBodies.ready())(workspace?workspace.body:drawBody)(ctx,body,session.dailies?.[body]||AstroNotesSkyMap.daily(body,AstroNotesSkyMap.dayStart(session.at),session.eye,skyState),x,y,r,width,height);
   if(pickMode==='target')for(const candidate of mapTargets().filter(validPoint)){const q=project(candidate.latitude,candidate.longitude);if(q[0]<0||q[0]>width||q[1]<0||q[1]>height||candidate.id===session.target?.id)continue;drawPin(ctx,...q,'#c876ff');mapLabel(ctx,q[0],q[1]-24,candidate.name,'#fff',width,height,'center');}
   const t=session.target;
@@ -91,7 +91,7 @@ ctx.lineWidth=1;
   }
   workspace?.overlay(ctx,x,y,r);
   if(workspace)workspace.center(ctx,x,y);else{
-  ctx.lineWidth=3;ctx.strokeStyle='#111';ctx.beginPath();ctx.moveTo(x-8,y);ctx.lineTo(x-2,y);ctx.moveTo(x+2,y);ctx.lineTo(x+8,y);ctx.moveTo(x,y-8);ctx.lineTo(x,y-2);ctx.moveTo(x,y+2);ctx.lineTo(x,y+8);ctx.stroke();ctx.lineWidth=1;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();ctx.arc(x,y,1,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();mapLabel(ctx,x,y+20,pickMode==='target'?'対象':'撮影地点','#fff',width,height,'center');}  for(const [name,az] of [['北',0],['東',90],['南',180],['西',270]]){const a=az*Math.PI/180,edge=workspace?r:r+10,tx=x+Math.sin(a)*edge,ty=y-Math.cos(a)*edge;ctx.save();ctx.font='bold 14px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.strokeStyle='rgba(0,0,0,.95)';ctx.lineWidth=4;ctx.strokeText(name,tx,ty);ctx.fillStyle='#fff';ctx.fillText(name,tx,ty);ctx.restore();}ctx.restore();
+  ctx.lineWidth=3;ctx.strokeStyle='#111';ctx.beginPath();ctx.moveTo(x-8,y);ctx.lineTo(x-2,y);ctx.moveTo(x+2,y);ctx.lineTo(x+8,y);ctx.moveTo(x,y-8);ctx.lineTo(x,y-2);ctx.moveTo(x,y+2);ctx.lineTo(x,y+8);ctx.stroke();ctx.lineWidth=1;ctx.strokeStyle='#fff';ctx.stroke();ctx.beginPath();ctx.arc(x,y,1,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();mapLabel(ctx,x,y+20,pickMode==='target'?'対象':'撮影地点','#fff',width,height,'center');}  for(const [name,az] of [['北',0],['東',90],['南',180],['西',270]]){const a=(az-(workspace?map.rotation():0))*Math.PI/180,edge=workspace?r:r+10,tx=x+Math.sin(a)*edge,ty=y-Math.cos(a)*edge;ctx.save();ctx.font='bold 14px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.strokeStyle='rgba(0,0,0,.95)';ctx.lineWidth=4;ctx.strokeText(name,tx,ty);ctx.fillStyle='#fff';ctx.fillText(name,tx,ty);ctx.restore();}ctx.restore();
  }
  // Sync may finish after the map is already usable. Refresh choices, not the observer or date.
  function refreshTargets(){
