@@ -2,7 +2,7 @@
  * 計算と条件は既存の SkyMapUI のものを使い、ここは描き方と配置だけを持つ。 */
 (function(g){
 'use strict';
-const $=id=>document.getElementById(id),JST=32400000,HOUR=3600000,RAD=Math.PI/180,LOW_SKY=.6,PASS_STEP=300000,PASS_REACH=72;
+const $=id=>document.getElementById(id),JST=32400000,HOUR=3600000,RAD=Math.PI/180,LOW_SKY=.6,PASS_STEP=300000,PASS_REACH=288;
 let active=false,wanted=false,selfClick=false,fittedKey=null,emphasis=null,hits=[],built=false,scrubBefore=null,infoFrame=0,bearingCache=null,colours=null,hourPixels=16,passCache=new Map(),labels=[],sceneFull=false,sceneHidden=[],noticeTimer=0,lastBody=null;
 const pad=n=>String(n).padStart(2,'0');
 const hhmm=at=>{const d=new Date(at+JST);return pad(d.getUTCHours())+':'+pad(d.getUTCMinutes());};
