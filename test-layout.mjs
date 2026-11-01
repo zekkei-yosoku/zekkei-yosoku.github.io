@@ -167,8 +167,8 @@ ok(/extratags: "1"/.test(html), "検索で extratags を取る（height / levels
 ok(/AstroNotesTerrain\.decksFor\(name\)/.test(html), "公表値の展望台を引く");
 ok(/function lookoutTag/.test(html), "検索結果に高さの印を出す");
 ok(/先端/.test(html) && /屋上/.test(html), "塔は先端・建物は屋上と書き分ける");
-ok(/function eyeOptions/.test(html), "立つ高さの選択肢に展望台を足す");
-ok(/eyeOptions\(favDraft\)\.find/.test(html), "選んだときも同じ一覧から読む");
+ok(/const favDecks =/.test(html), "立つ高さに展望台の公表値を出す");
+ok(/id="favStandHeight"/.test(html), "地上からを数字で入れられる");
 {
   const T = req("./astronotes-terrain.js");
   const tower = T.decksFor("東京タワー");

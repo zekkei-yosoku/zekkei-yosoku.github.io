@@ -1,12 +1,13 @@
 import {$,S,esc} from '../../app/presentation-helpers.js';
 import {blendBodyState,lightTimingText,moonGlyphAt} from '../../features/forecast/view.js';
 import {AimMap,aim,aimIsMountain,aimTargetList} from '../../features/framing/controller.js';
-import {aimLookRidge,aimTerrainFront} from './terrain.js';
+import {aimLookRidge,aimTerrainBeyond,aimTerrainFront} from './terrain.js';
 import {AIM_SENSOR,aimDrawGrid,aimLens,aimLookHMS,aimLookHosts,aimLookRel} from './lens.js';
 import {aimLookSolidSilhouette} from './silhouette.js';
 import {aimLookPick} from './input.js';
 import {aimAirAngle,aimAirCompare,aimAirDescribe,aimLookKey,aimReverseClear} from '../../features/framing/reverse-and-entry.js';
 import {auth} from '../../features/account/session-and-access.js';
+const AIM_HORIZON_SPAN = 20, AIM_HORIZON_MIN_DEG = 0.2;
 async function aimLookRender(host, spec) {
   if (!host) return;
   globalThis.AstroNotesCameraUI?.invalidate(host);
@@ -118,6 +119,16 @@ async function aimLookRender(host, spec) {
   const frameDay = S.JstCal.startOfDay(spec.at);
   // 2026-10-20 ユーザー「日付を跨ぐ際に線が途切れる問題に対処して」：画角内の時刻は前日18時〜翌日6時で求め、図の線は前日の終わりと翌日のはじめ（3時間）をつなげて描く。時刻のバーは当日のまま
   const framePoints = frame ? AstroNotesAlign.frameDayPath(body, eyeObs, frameDay, proj, { startMs: frameDay - 6 * 3600000, endMs: frameDay + 30 * 3600000 }) : null;
+  // 実際の地平線。海の地平線を基準にし、遠くの地形が読めたらその高さまで上げる
+  const seaAngle = AstroNotesAstro.seaHorizonAngle(eye, { k: AstroNotesAtmosphere.targetK() });
+  let beyondRidge = null;
+  const horizonAt = (azimuth) => {
+    if (!beyondRidge) return seaAngle;
+    const rel = (((azimuth - az + 540) % 360) - 180 + AIM_HORIZON_SPAN) / (2 * AIM_HORIZON_SPAN) * (beyondRidge.length - 1);
+    if (rel < 0 || rel > beyondRidge.length - 1) return seaAngle;
+    const i = Math.min(beyondRidge.length - 2, Math.floor(rel)), f = rel - i;
+    return Math.max(seaAngle, beyondRidge[i][1] * (1 - f) + beyondRidge[i + 1][1] * f);
+  };
   const pathEdge = (at, keep) => { try { return AstroNotesAlign.viewPath(body, eyeObs, at, proj, win, { stepS: 60, maxMin: 180 }).filter(keep); } catch { return []; } };
   const pathBefore = pathEdge(frameDay, (q) => q.at < frameDay), pathAfter = pathEdge(frameDay + 86400000, (q) => q.at >= frameDay + 86400000);
   // 1日の中には前の晩と次の晩の通り道が両方入ることがある。地平線より上にいる間ごとに1本の通り道として区切り、
@@ -125,7 +136,7 @@ async function aimLookRender(host, spec) {
   const fullPath = [...pathBefore, ...path, ...pathAfter];
   const pathRuns = [];
   for (let i = 0, start = -1; i <= fullPath.length; i++) {
-    const up = i < fullPath.length && Number.isFinite(fullPath[i].altitude) && fullPath[i].altitude > -1;
+    const up = i < fullPath.length && Number.isFinite(fullPath[i].altitude) && fullPath[i].altitude > Math.min(-1, seaAngle - 0.3);
     if (up && start < 0) start = i;
     if (!up && start >= 0) { pathRuns.push([start, i - 1]); start = -1; }
   }
@@ -174,6 +185,15 @@ async function aimLookRender(host, spec) {
   const hiddenY = outline && outline.hiddenAngle !== null ? toPx(proj(az, outline.hiddenAngle))[1] : null;
   // 山は仮の表示下端でなく水平0度、建物は地上の基準へ吸着する。
   const groundEdge = mountain ? toPx(proj(az, 0))[1] : (hiddenY !== null ? Math.min(hiddenY, baseY) : baseY);
+  // 塔の足元を見下ろすほど高い所では、足元より上に地平線がある。天体はここから昇るので、線より下には描かない
+  // （2026-11-01 ユーザー「地上と地平線の間は別に塗りつぶさなくてもよくない？」。線だけにした）
+  const showHorizon = !mountain && seaAngle - Math.max(baseAngle, outline.hiddenAngle ?? baseAngle) >= AIM_HORIZON_MIN_DEG;
+  const beyondPending = showHorizon ? aimTerrainBeyond(spec.obs, eye, t) : null;
+  const horizonPoints = () => {
+    const span = Math.min(85, win.halfW * (1 + 2 * panLimit) + 5), pts = [];
+    for (let i = 0; i <= 240; i++) { const a = az - span + (2 * span * i) / 240, q = toPx(proj(a, horizonAt(a))); if (q) pts.push([q[0], Math.min(q[1], groundEdge)]); }
+    return pts;
+  };
   // 時刻の目盛り。道のりの長さに合わせて1〜60分ごとに、多くても10個
   const span = (path[path.length - 1].at - path[0].at) / 60000;
   const every = [1, 2, 5, 10, 15, 30, 60].find((m) => span / m <= 10) || 60;
@@ -269,10 +289,10 @@ async function aimLookRender(host, spec) {
     const times = host.querySelector("[data-look-frame-times]");
     times.hidden = !frame;
     if(!frame&&host._uiTime)host._uiTime.frameSpans=[];
-    const timesKey = `${panX},${panY}`;
+    const timesKey = `${panX},${panY},${sceneVersion}`;
     if(frame && timesKey!==frameTimesKey){
       frameTimesKey=timesKey;
-      const dayEnd=frameDay+86400000,spans=AstroNotesAlign.framePassages(framePoints,frame,{x:panX/k,y:-panY/k}).filter(row=>row.end>=frameDay&&row.start<dayEnd);
+      const dayEnd=frameDay+86400000,spans=AstroNotesAlign.framePassages(framePoints.map(q=>q.altitude+q.radius<horizonAt(q.azimuth)?{...q,x:null,y:null}:q),frame,{x:panX/k,y:-panY/k}).filter(row=>row.end>=frameDay&&row.start<dayEnd);
       if(host._uiTime){host._uiTime.frameSpans=spans;host._uiTime.window();}
       const when=ms=>`${ms<frameDay?'前日 ':ms>=dayEnd?'翌日 ':''}${aimLookHMS(ms)}`;
       times.textContent=spans.length?'画角内（天体の一部が入る目安）：'+spans.map(row=>`${row.openStart?when(row.start)+'時点で枠内':when(row.start)+'に入る'}〜${row.openEnd?when(row.end)+'まで枠内':when(row.end)+'に外れる'}`).join(' / '):'画角内：この日は入りません';
@@ -285,6 +305,14 @@ async function aimLookRender(host, spec) {
     host._lookSceneBottom = clipBottom;
     ctx=bodyLayer.ctx;resetLayer(ctx,bodyLayer.canvas);layerStats.body++;
     clipWorld(ctx,panX,panY,clipBottom);
+    if (showHorizon) {
+      const pts = horizonPoints();
+      if (pts.length >= 2) {
+        ctx.beginPath(); ctx.moveTo(pts[0][0], -panY - H);
+        for (const [x, y] of pts) ctx.lineTo(x, y);
+        ctx.lineTo(pts[pts.length - 1][0], -panY - H); ctx.closePath(); ctx.clip();
+      }
+    }
     // 道と時刻の目盛り
     ctx.strokeStyle = ink; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.5; ctx.setLineDash([]);
     ctx.beginPath();
@@ -321,6 +349,16 @@ async function aimLookRender(host, spec) {
     const rim = "rgba(200,212,240,0.28)";
     const groundY = groundEdge;
     const visibleTargets = [];
+    let horizonText = null;
+    if (showHorizon) {
+      const pts = horizonPoints();
+      if (pts.length >= 2) {
+        ctx.strokeStyle = "rgba(200,212,240,0.7)"; ctx.lineWidth = 1; ctx.lineJoin = "round";
+        ctx.beginPath(); pts.forEach(([x, y], i) => { i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+        const left = pts.reduce((best, q) => Math.abs(q[0] + panX - 8) < Math.abs(best[0] + panX - 8) ? q : best, pts[0]);
+        if (left[1] + panY >= 12 && left[1] + panY <= H - 4 && groundY - left[1] >= 18) horizonText = { str: "地平線", y: left[1] - 4 + panY };
+      }
+    }
     for (const item of scene) {
       const selected = item.target.id === t.id, points = selected ? shape : item.shape;
       if (!points || points.length < 2) continue;
@@ -392,9 +430,9 @@ async function aimLookRender(host, spec) {
       groundText = { str: mountain ? "水平（0°）" : "地上", y: groundY - 4 + panY };
     }
     // 図中に目標名は重ねない。visibleTargetsは読み上げに使用する。
-      ctx.restore();buildingCache={key:nextBuildingKey,visibleTargets,groundText};layerStats.buildings++;
+      ctx.restore();buildingCache={key:nextBuildingKey,visibleTargets,groundText,horizonText};layerStats.buildings++;
     }
-    const {visibleTargets,groundText}=buildingCache;
+    const {visibleTargets,groundText,horizonText}=buildingCache;
     ctx=displayCtx;resetLayer(ctx,cv);
     ctx.drawImage(skyLayer.canvas,0,0,W,H);ctx.drawImage(bodyLayer.canvas,0,0,W,H);ctx.drawImage(buildingLayer.canvas,0,0,W,H);
     clipWorld(ctx,panX,panY,clipBottom);
@@ -432,10 +470,11 @@ async function aimLookRender(host, spec) {
       ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(fx, fy, fw, fh);
     }
     // 地上の字は画角枠より後に描く。先に描くと枠の縦線が字を横切った（2026-10-05 総点検、200mmで「水平（0°）」の「平」が欠けた）
-    if (groundText) {
+    for (const label of [groundText, horizonText]) {
+      if (!label) continue;
       ctx.font = `600 ${Math.max(11, Math.min(16, W / 40))}px system-ui, sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.lineJoin = "round";
-      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.65)"; ctx.strokeText(groundText.str, 8, groundText.y);
-      ctx.fillStyle = "#fff"; ctx.fillText(groundText.str, 8, groundText.y);
+      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.65)"; ctx.strokeText(label.str, 8, label.y);
+      ctx.fillStyle = "#fff"; ctx.fillText(label.str, 8, label.y);
     }
     const outside = host.querySelector("[data-look-outside]");
     outside.hidden = !!c && c[0] + panX >= 0 && c[0] + panX <= W && c[1] + panY >= 0 && c[1] + panY <= clipBottom;
@@ -633,6 +672,11 @@ async function aimLookRender(host, spec) {
     note.dataset.primary = note.textContent;
     note.textContent = [note.dataset.primary, note.dataset.terrain || "", ...scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`)].filter(Boolean).join(" / ");
     note.hidden = !note.textContent;
+    draw(cur);
+  });
+  if (beyondPending) beyondPending.then((ridge) => {
+    if (seq !== host._lookSeq || !ridge) return;
+    beyondRidge = ridge; sceneVersion++;
     draw(cur);
   });
   if (frontPending) frontPending.then((r) => {

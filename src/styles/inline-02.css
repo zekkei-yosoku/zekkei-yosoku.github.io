@@ -540,9 +540,18 @@
   .fav-opt { font-weight: 400; color: var(--tertiary); margin-left: 5px; }
   #favSheet .fav-height-card {margin-top:16px;padding:12px 14px;border:1px solid var(--line);border-radius:12px}
   #favSheet .fav-height-card .fav-l {margin:0 0 6px}
-  #favSheet .fav-height-value {margin:0;font-size:14px;line-height:1.6}
-  #favSheet .fav-height-card details {margin-top:8px}
-  #favSheet :is(.fav-height-card,.fav-extra) summary {min-height:36px;display:list-item;align-content:center;cursor:pointer;color:var(--secondary);font-size:13px}
+  #favSheet .fav-height-value {margin:8px 0 0;font-size:13px;line-height:1.6;color:var(--secondary)}
+  #favSheet .fav-height-value:empty {display:none}
+  #favSheet .fav-heights {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  #favSheet .fav-height-field label {display:block;margin-bottom:4px;font-size:13px;color:var(--secondary)}
+  #favSheet .fav-height-row {display:flex;align-items:center;gap:2px}
+  #favSheet .fav-height-input {flex:1;min-width:0;display:flex;align-items:center;gap:4px;min-height:44px;padding:0 10px;border:1px solid var(--separator);border-radius:10px;background:var(--card);color:var(--secondary)}
+  #favSheet .fav-height-input input {flex:1;width:0;min-width:0;border:0;padding:0;background:none;color:var(--text);font-size:16px;appearance:textfield;outline-offset:4px}
+  #favSheet .fav-height-row button {flex:none;min-width:40px;min-height:44px}
+  #favSheet .fav-height-row button:disabled {opacity:.35}
+  #favSheet .fav-decks {display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  #favSheet .fav-decks[hidden] {display:none}
+  #favSheet .fav-extra summary {min-height:36px;display:list-item;align-content:center;cursor:pointer;color:var(--secondary);font-size:13px}
   #favSheet .fav-extra {margin-top:14px;border-top:1px solid var(--line);padding-top:8px}
   .fav-where { margin-top: 2px; }
   .fav-where summary { cursor: pointer; color: var(--secondary); }

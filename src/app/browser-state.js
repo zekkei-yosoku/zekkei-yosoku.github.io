@@ -57,6 +57,7 @@ function cleanFavorite(f) {
     note: isText(f.note) ? f.note : "",
     terrain: TERRAINS.some(([v]) => v === f.terrain) && f.terrain ? f.terrain : null,
     elevation: Number.isFinite(f.elevation) ? f.elevation : null,
+    groundManualM: Number.isFinite(f.groundManualM) && f.groundManualM >= -500 && f.groundManualM <= 9000 ? f.groundManualM : null,
     // 地面からの目の高さ。**地面の標高とは別物。** 展望台では数十〜数百m効く
     eyeHeightAGL: Number.isFinite(f.eyeHeightAGL) && f.eyeHeightAGL >= 0 && f.eyeHeightAGL <= 700
       ? f.eyeHeightAGL : null,

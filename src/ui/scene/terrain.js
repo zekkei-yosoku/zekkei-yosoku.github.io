@@ -42,6 +42,40 @@ async function aimTerrainFront(obs, eye, target) {
   try { return await task; } finally { aimFrontPending.delete(key); }
 }
 
+// 2026-11-01 高い所から塔を見ると、足元より上に地平線がある（ユーザー「月のラインが水平線より上にくる」）。
+// 目標より先の地形の見かけの高さを列ごとに取る。海の地平線より低い所は海の地平線まで見える（z9で実測0.07°以内。候補を外した1回あたり約50枚）
+const AIM_BEYOND_MAX_KM = 300, AIM_BEYOND_ZOOM = 9, aimBeyondCache = new Map(), aimBeyondPending = new Map();
+async function aimTerrainBeyond(obs, eye, target) {
+  const D = AstroNotesTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);
+  const az0 = AstroNotesTerrain.bearing(obs.latitude, obs.longitude, target.latitude, target.longitude);
+  const airK = AstroNotesAtmosphere.targetK();
+  const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude].map((v) => v.toFixed(5)).join(",") + "|" + airK;
+  if (aimBeyondCache.has(key)) return aimBeyondCache.get(key);
+  if (aimBeyondPending.has(key)) return aimBeyondPending.get(key);
+  const task = (async () => {
+    const cols = 80, n = 60, near = D + 0.3, far = Math.max(near + 1, AIM_BEYOND_MAX_KM), pts = [];
+    for (let i = 0; i <= cols; i++) {
+      const az = az0 - AIM_FRONT_SPAN + (2 * AIM_FRONT_SPAN * i) / cols;
+      for (let j = 0; j <= n; j++) { const d = near + (far - near) * j / n; pts.push({ ...AstroNotesTerrain.destination(obs.latitude, obs.longitude, az, d), az, d }); }
+    }
+    const el = await AstroNotesTerrain.tileElevations(pts, AIM_BEYOND_ZOOM);
+    if (airK !== AstroNotesAtmosphere.targetK()) return null;
+    const ridge = [];
+    for (let i = 0; i <= cols; i++) {
+      let best = -90;
+      for (let j = 0; j <= n; j++) {
+        const k = i * (n + 1) + j; best = Math.max(best, aimAirAngle(pts[k].d, eye, el[k]));
+      }
+      ridge.push([pts[i * (n + 1)].az, best]);
+    }
+    aimBeyondCache.set(key, ridge);
+    while (aimBeyondCache.size > 16) aimBeyondCache.delete(aimBeyondCache.keys().next().value);
+    return ridge;
+  })();
+  aimBeyondPending.set(key, task);
+  try { return await task; } finally { aimBeyondPending.delete(key); }
+}
+
 async function aimLookRidge(obs, eye, target, win) {
   const D = AstroNotesTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);
   // 山の地形範囲・解像度はレンズや構図から独立させる。広角でも山頂を粗くしない。
@@ -106,4 +140,4 @@ async function aimLookRidge(obs, eye, target, win) {
   return task;
 }
 
-export {aimLookRidge,aimRidgeCache,aimTerrainFront};
+export {aimLookRidge,aimRidgeCache,aimTerrainBeyond,aimTerrainFront};

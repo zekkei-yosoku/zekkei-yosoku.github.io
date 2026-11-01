@@ -32,7 +32,7 @@ function choosePlace(p, { keepSheet = false } = {}) {
       name: p.name, subtitle: aimAreaOf({ detail: p.subtitle || "" }) || p.subtitle || "",
       latitude: p.latitude, longitude: p.longitude, elevation: Number.isFinite(p.elevation) ? p.elevation : null,
       structureM: p.structureM ?? null, targetHeightM: p.targetHeightM ?? null,
-      decks: p.decks ?? null, eyeHeightAGL: p.eyeHeightAGL ?? null });
+      decks: p.decks ?? null, eyeHeightAGL: p.eyeHeightAGL ?? null, groundManualM: p.groundManualM ?? null });
     if (keepSheet) refreshPlacePickerActions(picker);
     return;
   }
@@ -104,7 +104,7 @@ async function favForPoint(f, after, { target = null, shooting = false } = {}) {
   openFavSheet(-1, { after, target, shooting, point: {
     id: `map:${f.latitude.toFixed(5)},${f.longitude.toFixed(5)}`, name: f.name, subtitle: f.subtitle || "",
     latitude: f.latitude, longitude: f.longitude, elevation: Number.isFinite(e) ? Math.round(e * 10) / 10 : null,
-    terrain: null, phenomena: [], eyeHeightAGL: Number.isFinite(f.eyeHeightAGL)?f.eyeHeightAGL:aimObserverEye(f), locationScope: "point" } });
+    terrain: null, phenomena: [], eyeHeightAGL: Number.isFinite(f.eyeHeightAGL)?f.eyeHeightAGL:aimObserverEye(f), groundManualM: f.groundManualM ?? null, locationScope: "point" } });
 }
 /// お気に入りを保存・削除したあと、道具の観測地点がその点なら付けた名前にする
 function renameFromAfterFav(holder, entry) {
@@ -242,13 +242,13 @@ function openFavSheet(index, { point = null, after = null, target = null, replac
     : point ? point
     : { ...place, elevation: place.elevation ?? gridElev };
   favDraft = { index, ...base, ownerToken:auth?.token, locationScope: AstroNotesTerrain.locationScope(base), phenomena: [...(base.phenomena || [])],
-               eyeHeightAGL: base.eyeHeightAGL ?? 1.5, after,
+               eyeHeightAGL: base.eyeHeightAGL ?? 1.5, groundManualM: base.groundManualM ?? null, groundLoading: false, after,
                // 目標の高さは、登録済みならその値、まだなら今ねらうで使っている高さ
                targetHeightM: base.targetHeightM ?? (target !== null ? target : null) };
   // 入力途中で閉じたときに「変えたかどうか」を判定するための元の値。
   favDraft.origin = { name: base.name || "", note: base.note || "",
     terrain: base.terrain || "", phenomena: [...(base.phenomena || [])].join(","),
-    eyeHeightAGL: base.eyeHeightAGL ?? 1.5, targetHeightM: favDraft.targetHeightM,
+    eyeHeightAGL: base.eyeHeightAGL ?? 1.5, groundManualM: base.groundManualM ?? null, targetHeightM: favDraft.targetHeightM,
     latitude: base.latitude, longitude: base.longitude };
   $("favSheetTitle").textContent = index >= 0 ? "お気に入りを編集" : "お気に入りに登録";
   $("favName").value = favDraft.name || "";
@@ -263,11 +263,9 @@ function openFavSheet(index, { point = null, after = null, target = null, replac
     .filter(Boolean).join(" ・ ");
   $("favCoord").textContent = `${favDraft.latitude.toFixed(4)}, ${favDraft.longitude.toFixed(4)}`;
   $("favCoordDetails").open = false;
-  $("favHeightDetails").open = false;
   $("favOptionalDetails").open = false;
   $("favLocationEdit").hidden = index < 0;
-  $("favEye").innerHTML = eyeOptions(favDraft).map(([v, label, m]) =>
-    `<option value="${v}"${(favDraft.eyeHeightAGL ?? 1.5) === m ? " selected" : ""}>${esc(label)}</option>`).join("");
+  $("favHeightError").hidden = true;
   $("favDelete").hidden = index < 0;
   // 目標として開いたら、立って見る場所の項目（地形・立つ高さ・狙う現象）は出さない。値は消さずに持っておく
   $("favTargetBox").hidden = target === null && favDraft.targetHeightM === null;
@@ -277,7 +275,7 @@ function openFavSheet(index, { point = null, after = null, target = null, replac
   $("favNote").hidden=shooting;document.querySelector('label[for="favNote"]').hidden=shooting;
   if(shooting)$("favSheetTitle").textContent="撮影地点を登録";
   renderFavPhenomena();
-  renderEyeNote();
+  if (Number.isFinite(favDraft.elevation)) renderFavHeights(); else favLoadGround();
   showSheet($("favSheet"));
 }
 // チップは innerHTML で作り直すと、押した瞬間にボタンが消えてフォーカスが飛ぶ。
@@ -306,48 +304,53 @@ function syncFavPhenomena() {
 // 標高は座標から分かるが、その上に何m立っているかは分からない。
 // 東京タワーの地面は18mで、メインデッキは+150m。ここを聞かないと、
 // 「山に隠れて見えない」と「展望台からなら見える」を取り違える。
-const EYE_HEIGHTS = [
-  ["", "地面に立って（既定）", 1.5],
-  ["car", "車の中から", 1.2],
-  ["roof2", "2階・低い展望台", 5],
-  ["roof5", "5階建ての屋上", 15],
-  ["tower50", "50m ほどの展望台", 50],
-  ["tower100", "100m ほどの展望台", 100],
-  ["tower150", "150m ほどの展望台", 150],
-  ["tower250", "250m ほどの展望台", 250],
-  ["tower350", "350m 以上の展望台", 350],
-];
-/**
- * 立つ高さの選択肢。**その地点に展望台があれば、公表値を先頭に足す。**
- * 「100mほどの展望台」ではなく「メインデッキ 150m」と書けるほうが選びやすいし、
- * 実際の高さがそのまま入る。
- */
-function eyeOptions(p) {
-  const decks = Array.isArray(p?.decks) ? p.decks : AstroNotesTerrain.decksFor(p?.name) || [];
-  const extra = decks.map((d, i) =>
-    [`deck${i}`, `${AstroNotesTerrain.deckLabel(d.name, p && p.name)} ${d.aglM}m`, d.aglM]);
-  // Keep the actual saved height visible even for renamed places or manual heights.
-  const current=p?.eyeHeightAGL;
-  if(Number.isFinite(current)&&!extra.some(([, ,m])=>m===current)&&!EYE_HEIGHTS.some(([, ,m])=>m===current))
-    extra.push(["saved", `地上から ${current}m（保存する高さ）`, current]);
-  // 同じ高さが既定の一覧にもあれば、重複を避ける
-  const base = EYE_HEIGHTS.filter(([, , m]) => !extra.some(([, , em]) => em === m));
-  return [...extra, ...base];
+// 2026-11-01 探すと同じ数字の入力へ（ユーザー「お気に入りはこんな画面の方がいい」）。展望台があれば公表値を押して入れられる
+const favM = (v) => String(Math.round(v * 10) / 10);
+const favDecks = (p) => (Array.isArray(p?.decks) ? p.decks : AstroNotesTerrain.decksFor(p?.name) || []).filter((d) => Number.isFinite(d?.aglM));
+const favDefaultEye = (p) => favDecks(p)[0]?.aglM ?? 1.5;
+function renderFavHeights() {
+  const eye = favDraft.eyeHeightAGL ?? 1.5, ground = favDraft.elevation, ready = Number.isFinite(ground);
+  const groundIn = $("favGroundHeight");
+  if (document.activeElement !== groundIn) groundIn.value = ready ? favM(ground) : "";
+  groundIn.placeholder = favDraft.groundLoading ? "取得中…" : "標高を入力";
+  if (document.activeElement !== $("favStandHeight")) $("favStandHeight").value = favM(eye);
+  $("favGroundAuto").disabled = !Number.isFinite(favDraft.groundManualM);
+  $("favStandAuto").disabled = eye === favDefaultEye(favDraft);
+  const decks = favDecks(favDraft), box = $("favDecks");
+  box.hidden = !decks.length;
+  box.replaceChildren(...(decks.length ? [...decks.map((d) => [`${AstroNotesTerrain.deckLabel(d.name, favDraft.name)} ${d.aglM}m`, d.aglM]), ["地面に立って 1.5m", 1.5]] : []).map(([label, m]) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = label; b.setAttribute("aria-pressed", String(eye === m));
+    b.onclick = () => { favDraft.eyeHeightAGL = m; $("favHeightError").hidden = true; renderFavHeights(); };
+    return b;
+  }));
+  $("favEyeNote").textContent = ready ? `撮影位置の標高 ${favM(ground + eye)}m` : "";
 }
-
-function eyeNote() {
-  const m = favDraft.eyeHeightAGL ?? 1.5;
-  const ground = favDraft.elevation;
-  const display=n=>String(Math.round(n*10)/10);
-  if (!Number.isFinite(ground)) return `地上から ${display(m)}m ・ 地面の標高は未取得`;
-  return `地上から ${display(m)}m ・ 撮影位置の標高 ${display(ground+m)}m`;
+function favLoadGround() {
+  const draft = favDraft;
+  draft.groundLoading = true; renderFavHeights();
+  const done = (v) => {
+    if (favDraft !== draft) return;
+    draft.groundLoading = false;
+    if (!Number.isFinite(draft.groundManualM) && Number.isFinite(v)) draft.elevation = Math.round(v * 10) / 10;
+    renderFavHeights();
+  };
+  AstroNotesTerrain.groundElevation(draft.latitude, draft.longitude).then(done, () => done(null));
 }
-function renderEyeNote() { $("favEyeNote").textContent = eyeNote(); }
-$("favEye").onchange = () => {
-  const found = eyeOptions(favDraft).find(([v]) => v === $("favEye").value);
-  favDraft.eyeHeightAGL = found ? found[2] : 1.5;
-  renderEyeNote();
-};
+for (const [id, min, max, message, set] of [
+  ["favGroundHeight", -500, 9000, "標高は-500〜9000mで入力してください。", (v) => { favDraft.groundManualM = v; favDraft.elevation = v; }],
+  ["favStandHeight", 0, 700, "地上からは0〜700mで入力してください。", (v) => { favDraft.eyeHeightAGL = v; }]]) {
+  const input = $(id);
+  input.onchange = () => {
+    const v = Number(input.value), error = $("favHeightError");
+    if (!input.value.trim() || !Number.isFinite(v) || v < min || v > max) { error.textContent = message; error.hidden = false; input.blur(); renderFavHeights(); return; }
+    error.hidden = true; set(v); renderFavHeights();
+  };
+  input.oninput = () => { $("favHeightError").hidden = true; };
+  input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); input.blur(); } };
+}
+$("favGroundAuto").onclick = () => { favDraft.groundManualM = null; favDraft.elevation = null; $("favHeightError").hidden = true; favLoadGround(); };
+$("favStandAuto").onclick = () => { favDraft.eyeHeightAGL = favDefaultEye(favDraft); $("favHeightError").hidden = true; renderFavHeights(); };
 
 // 入力途中で閉じたら黙って消える、を避ける。消した登録は戻せるが、打った文字は戻せない。
 function favDirty() {
@@ -355,6 +358,7 @@ function favDirty() {
   return $("favName").value.trim() !== o.name || $("favNote").value.trim() !== o.note
     || (favDraft.terrain || "") !== o.terrain || favDraft.phenomena.join(",") !== o.phenomena
     || (favDraft.eyeHeightAGL ?? 1.5) !== (o.eyeHeightAGL ?? 1.5)
+    || (favDraft.groundManualM ?? null) !== (o.groundManualM ?? null)
     || favTargetHeight() !== o.targetHeightM
     || favDraft.latitude !== o.latitude || favDraft.longitude !== o.longitude;
 }
@@ -423,7 +427,7 @@ function commitFavorite(approvedNames = null) {
   const entry = { ...(before || {}), id: before?.id || favDraft.id, name, subtitle: favDraft.subtitle || "",
     latitude: favDraft.latitude, longitude: favDraft.longitude,
     locationScope: favDraft.locationScope,
-    terrain: favDraft.terrain || null, elevation: favDraft.elevation ?? null,
+    terrain: favDraft.terrain || null, elevation: favDraft.elevation ?? null, groundManualM: favDraft.groundManualM ?? null,
     eyeHeightAGL: favDraft.eyeHeightAGL ?? null, targetHeightM: favTargetHeight() ?? before?.targetHeightM ?? null,
     phenomena: favDraft.phenomena, note: $("favNote").value.trim() };
   if (at >= 0) favorites[at] = entry; else favorites.push(entry);
@@ -443,7 +447,7 @@ function commitFavorite(approvedNames = null) {
       || (place.eyeHeightAGL ?? 1.5) !== (entry.eyeHeightAGL ?? 1.5);
     place = { ...place, name: entry.name, subtitle: entry.subtitle,
       latitude: entry.latitude, longitude: entry.longitude,
-      terrain: entry.terrain, elevation: entry.elevation,
+      terrain: entry.terrain, elevation: entry.elevation, groundManualM: entry.groundManualM,
       locationScope: entry.locationScope, eyeHeightAGL: entry.eyeHeightAGL };
     store.set("sorami.place", place);
     if (refetch) { $("placeSheet").close(); load(true); renderFavToggle(); return; }

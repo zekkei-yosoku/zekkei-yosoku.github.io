@@ -938,12 +938,14 @@
     </div>
 
     <div id="favStandBox" class="fav-height-card">
-    <div class="fav-l">撮影高さ</div>
+    <div class="fav-l">高さ</div>
+    <div class="fav-heights">
+      <div class="fav-height-field"><label for="favGroundHeight">標高</label><div class="fav-height-row"><span class="fav-height-input"><input id="favGroundHeight" type="number" inputmode="decimal" min="-500" max="9000" step="any" aria-label="立つ場所の地面の標高（海抜メートル）"><span>m</span></span><button type="button" class="tap" id="favGroundAuto" aria-label="標高を自動値に戻す" title="自動値に戻す">↺</button></div></div>
+      <div class="fav-height-field"><label for="favStandHeight">地上から</label><div class="fav-height-row"><span class="fav-height-input"><input id="favStandHeight" type="number" inputmode="decimal" min="0" max="700" step="any" aria-label="地面からカメラまでの高さ（メートル）" aria-describedby="favEyeNote"><span>m</span></span><button type="button" class="tap" id="favStandAuto" aria-label="地上からを自動値に戻す" title="自動値に戻す">↺</button></div></div>
+    </div>
+    <div id="favDecks" class="fav-decks" role="group" aria-label="展望台の高さ" hidden></div>
     <p id="favEyeNote" class="fav-height-value"></p>
-    <details id="favHeightDetails"><summary>高さを変更</summary>
-    <label class="fav-l" for="favEye">地上からの高さ</label>
-    <select id="favEye" class="fav-in" aria-describedby="favEyeNote"></select>
-    </details>
+    <p id="favHeightError" class="warn" style="margin-top:5px" role="alert" hidden></p>
     </div>
 
     <details id="favOptionalDetails" class="fav-extra"><summary>メモ・分類</summary>

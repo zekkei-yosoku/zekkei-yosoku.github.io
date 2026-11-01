@@ -498,7 +498,8 @@
           const j = judge(body, (lo + hi) / 2, obs, g.angle, sign, outline);
           const { at, gap, st } = j;
           const within = Math.abs(gap) <= (extended(body) ? st.angularRadius + 0.5 : 2 * st.angularRadius);
-          if (within && st.apparentAltitude > -1) {
+          // 地平線の下の天体は建物に重なって見えない（高い所では建物の足元が地平線より下に来る）
+          if (within && st.apparentAltitude > Math.max(-1, A.seaHorizonAngle(obs.elevation ?? 0) - st.angularRadius)) {
             const later = bodyAt(body, at + 60000, obs).apparentAltitude;
             const row = { at, gap, radius: st.angularRadius,
               rank: j.rank || rankOf(gap, st.angularRadius),
@@ -1630,7 +1631,7 @@
     for (let at = start; at <= end; at = Math.min(end, at + stepS * 1000)) {
       const st = bodyAt(body, at, observer);
       const xy = proj(st.azimuth, st.apparentAltitude);
-      out.push({ at, x: xy ? xy[0] : null, y: xy ? xy[1] : null, radius: st.angularRadius });
+      out.push({ at, x: xy ? xy[0] : null, y: xy ? xy[1] : null, radius: st.angularRadius, azimuth: st.azimuth, altitude: st.apparentAltitude });
       if (at === end) break;
     }
     return out;
