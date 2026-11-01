@@ -92,6 +92,8 @@ const api={
  // 描画のたびに呼ばれる。作業画面でないときは null を返し、既存の描き方に任せる。
  drawing(){if(!active){if(!dismissed)queueMicrotask(evaluate);return null;}hits=[];labels=[];colours={};schedule();return {radius:(width,height)=>Math.min(width-120,height-30)/2,body:drawBody,overlay:drawOverlay,center};},
  hits:()=>hits,
+ // 動かしている間の位置は仮。固定するまで保存しない。動いていなければ名前も地点もそのまま残す。
+ observerName(point){const h=host();if(!active||!h)return undefined;const s=h.session,o=s.observer;if(!h.pickMode){s.observerAnchor=null;pickStart=null;}return Math.abs(o.latitude-point.latitude)<1e-7&&Math.abs(o.longitude-point.longitude)<1e-7?false:'地図で置いた地点';},
  tap(pixel){if(!active)return false;let best=null,distance=22;for(const hit of hits){const d=Math.hypot(hit.x-pixel.x,hit.y-pixel.y);if(d<distance){distance=d;best=hit;}}if(best){host()?.setTime(best.at);return true;}return pinNear(pixel);},
 };
 g.AstroNotesMapWorkspace=api;
@@ -107,7 +109,7 @@ function build(){
  const menu=document.createElement('div');menu.id='mapWsMenu';menu.className='map-ws-menu';menu.setAttribute('role','menu');menu.hidden=true;view.append(menu);
  const bodies=document.createElement('button');bodies.type='button';bodies.id='mapWsBodies';bodies.className='map-ctl map-ws-bodies';bodies.textContent='天体';bodies.setAttribute('aria-label','表示する天体を選ぶ');bodies.setAttribute('aria-haspopup','menu');wrap.append(bodies);
  const pick=document.createElement('div');pick.id='mapWsPick';pick.className='map-ws-pick';pick.hidden=true;pick.innerHTML='<span role="status"><span></span><span></span></span><button type="button" id="mapWsPickCancel">取消</button><button type="button" id="mapWsPickDone">ここに置く</button>';wrap.append(pick);
- $('mapWsPickCancel').onclick=()=>{const h=host();if(!h)return;const before=h.pickMode==='observer'?pickStart:null;h.cancelPick();if(before&&before!==h.session.observer){h.restoreObserver(before);h.map.setCenter(before.latitude,before.longitude);}};$('mapWsPickDone').onclick=()=>{const mode=host()?.pickMode;if(mode)$(mode==='observer'?'skyMapObserverTool':'skyMapTargetTool').click();};
+ $('mapWsPickCancel').onclick=()=>{const h=host();if(!h)return;const moved=undoMove(h);h.cancelPick();if(moved)h.map.setCenter(moved.latitude,moved.longitude);};$('mapWsPickDone').onclick=()=>{const mode=host()?.pickMode;if(mode)$(mode==='observer'?'skyMapObserverTool':'skyMapTargetTool').click();};
  const north=document.createElement('button');north.type='button';north.id='mapWsNorth';north.className='map-ctl map-ws-north';north.setAttribute('aria-label','北を上に戻す');north.innerHTML='<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M12 3l4 9h-8z" fill="#e5484d"/><path d="M12 21l-4-9h8z" fill="currentColor" opacity=".7"/></svg>';north.onclick=()=>host()?.map.setRotation(0);wrap.append(north);
  const home=document.createElement('button');home.type='button';home.id='mapWsHome';home.className='map-ws-home';home.hidden=true;home.textContent='撮影地点へ戻る';home.onclick=()=>{const h=host(),o=h?.session.observer;if(validPoint(o))h.map.setCenter(o.latitude,o.longitude);};wrap.append(home);
  bindGestures(wrap);
@@ -148,10 +150,11 @@ function updateBody(h,body,prefix){
  setCell(prefix,st?degrees(st.azimuth):'—',st?'高度 '+signed(st.altitude):'',body==='sun'?(st&&st.altitude>.5?'影 '+(1/Math.tan(st.altitude*RAD)).toFixed(1)+'倍':'影 —'):(st?'輝面 '+Math.round(st.illuminatedFraction*100)+'%':''));
  const pass=data?passAt(h,body,data):null;for(const [side,id] of [['rise',prefix+'Rise'],['set',prefix+'Set']]){const e=pass?.[side];setCell(id,e?hhmm(e.at):'—',e?degrees(e.azimuth):'',e&&AstroNotesSkyMap.dayStart(e.at)!==AstroNotesSkyMap.dayStart(s.at)?monthDay(e.at):'',e?.at);}
 }
+function undoMove(h){const before=pickStart;pickStart=null;h.session.observerAnchor=null;if(before&&before!==h.session.observer){h.restoreObserver(before);return before;}return null;}
 function bearingText(from,to){if(!validPoint(from)||!validPoint(to))return '';const a=from.latitude*RAD,b=to.latitude*RAD,d=(to.longitude-from.longitude)*RAD,bearing=(Math.atan2(Math.sin(d)*Math.cos(b),Math.cos(a)*Math.sin(b)-Math.sin(a)*Math.cos(b)*Math.cos(d))/RAD+360)%360,km=AstroNotesTerrain.distanceKm(from.latitude,from.longitude,to.latitude,to.longitude);return (km<1?Math.round(km*1000)+'m':km.toFixed(2)+'km')+' ・ '+bearing.toFixed(1)+'°';}
 function updatePick(h){
  const bar=$('mapWsPick'),mode=h.pickMode||null,s=h.session;
- if(mode!==lastPick){if(lastPick==='target'&&!mode&&validPoint(s.observer))h.map.setCenter(s.observer.latitude,s.observer.longitude);pickStart=mode==='observer'?s.observer:null;lastPick=mode;}
+ if(mode!==lastPick){if(lastPick==='observer'&&!mode&&pickStart)undoMove(h);if(lastPick==='target'&&!mode&&validPoint(s.observer))h.map.setCenter(s.observer.latitude,s.observer.longitude);pickStart=mode==='observer'?s.observer:null;s.observerAnchor=pickStart;lastPick=mode;}
  // 地図は自由に動くので、撮影地点から離れたら戻る手段を出す。
  const canvas=$('skyMapCanvas'),o=s.observer,q=validPoint(o)?h.map.project(o.latitude,o.longitude):null,w=canvas.clientWidth,ht=canvas.clientHeight;$('mapWsHome').hidden=!!mode||!q||Math.hypot(q[0]-w/2,q[1]-ht/2)<=Math.min(w,ht)*.2;
  bar.hidden=!mode;if(!mode)return;
@@ -215,7 +218,7 @@ function enter(){
  h.redraw();schedule();
 }
 function exit(){
- active=false;datesOpen=false;emphasis=null;lastPick=null;pickStart=null;pointers.clear();if(host()?.pickMode)host().cancelPick();host()?.map.allowRotate?.(false);const view=$('skyMapView');view.classList.remove('map-ws','map-ws-dates-open');$('mapWsMenu').hidden=true;candidateKey=null;
+ active=false;datesOpen=false;emphasis=null;lastPick=null;pointers.clear();{const h=host();if(h){if(pickStart)undoMove(h);if(h.pickMode)h.cancelPick();}}host()?.map.allowRotate?.(false);const view=$('skyMapView');view.classList.remove('map-ws','map-ws-dates-open');$('mapWsMenu').hidden=true;candidateKey=null;
  const h=host();if(view.querySelector('.sky-map-wrap')?.classList.contains('sky-map-wide')&&h)$('skyMapExpand').click();
  if(h&&scrubBefore&&scrubBefore!==h.session.scrubMode)h.setScrubMode(scrubBefore);else if(h)rebuildTimeline(h,h.session.scrubMode);
  scrubBefore=null;h?.redraw();

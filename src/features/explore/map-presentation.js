@@ -54,7 +54,7 @@ import {UI_ICONS} from '../../ui/visual-primitives.js';
  const pointKey=o=>o?JSON.stringify([o.latitude,o.longitude,o.groundManualM??o.elevation,aimObserverEye(o)]):'';
  function skyState(body,at,o){const s=body==='sun'?AstroNotesAstro.sun(at,o):body==='moon'?AstroNotesAstro.moon(at,o):AstroNotesBodies.state(body,at,o,{refraction:false});return {...s,altitude:s.geometricAltitude??s.altitude};}
  const currentState=()=>session.dailies?.[session.body]?skyState(session.body,session.at,session.eye):null;
- function save(){if(!hasAccess()||timelineMoving)return;store.set(skyStoreKey(),{body:session.body,at:session.at,observer:session.observer,sharedTarget:session.sharedTarget||null,targetId:session.target?.id||'',partId:session.partId,limb:session.limb,matchMode:session.matchMode,showSun:session.showSun,showMoon:session.showMoon,extraBody:session.extraBody,primaryBody:session.primaryBody,scrubMode:session.scrubMode,custom:session.custom||null,mapCenter:map.center(),zoom:map.zoom()});}
+ function save(){if(!hasAccess()||timelineMoving)return;store.set(skyStoreKey(),{body:session.body,at:session.at,observer:session.observerAnchor||session.observer,sharedTarget:session.sharedTarget||null,targetId:session.target?.id||'',partId:session.partId,limb:session.limb,matchMode:session.matchMode,showSun:session.showSun,showMoon:session.showMoon,extraBody:session.extraBody,primaryBody:session.primaryBody,scrubMode:session.scrubMode,custom:session.custom||null,mapCenter:map.center(),zoom:map.zoom()});}
  const COLOURS={sun:'#ff981f',moon:'#aad8ff',extra:'#8ce5b0'};
  const extraIds=['sirius','mercury','venus','mars','jupiter','saturn'].filter(id=>AstroNotesBodies.definitions.some(d=>d.id===id));
  const bodiesSheet=el('skyMapBodiesSheet');
@@ -392,7 +392,7 @@ ctx.lineWidth=1;
  }
  function placePoint(mode,point){
   if(!hasAccess()||!session)return;
-  if(mode==='observer'){session.observer=aimSavedFrom({...point,name:`${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`});session.ground=null;refresh();return;}
+  if(mode==='observer'){const named=globalThis.AstroNotesMapWorkspace?.observerName?.(point);if(named===false){save();return;}session.observer=aimSavedFrom({...point,name:named||`${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`});session.ground=null;refresh();return;}
   const candidates=[session.target,...mapTargets().filter(t=>t.id!==session.target?.id)].filter(validPoint).map(t=>({t,distance:(()=>{const mark=t.id===session.target?.id?AstroNotesAlign.partTarget(t,session.partId):t;return AstroNotesTerrain.distanceKm(point.latitude,point.longitude,mark.latitude,mark.longitude);})()})).filter(v=>v.distance<.001).sort((a,b)=>a.distance-b.distance);
   if(candidates.length){if(session.target?.id!==candidates[0].t.id)session.partId=null;session.target=candidates[0].t;targetOn=true;el('skyMapTarget').value=session.target.id;syncBodies();refresh();return;}
   session.pendingTarget=point;targetSeq++;el('skyMapPickLatitude').value=String(point.latitude);el('skyMapPickLongitude').value=String(point.longitude);el('skyMapTargetCoord').textContent=`${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`;el('skyMapPickName').value='地図で置いた対象';el('skyMapPickHeight').value='';el('skyMapPickError').textContent='';showSheet(targetSheet);el('skyMapPickHeight').focus();

@@ -60,10 +60,11 @@ const rect=(p,s)=>p.evaluate(s=>{const e=document.querySelector(s);if(!e)return 
   assert.equal(await p.locator('#mapWsHome').isVisible(),true,tag+' 戻るの表示');await p.locator('#mapWsHome').click();await p.waitForTimeout(300);s1=await state();close(s1.clat,s0.lat,'撮影地点へ戻る');assert.equal(await p.locator('#mapWsHome').isVisible(),false,tag+' 戻った後は隠す');
   // 三脚: 地図を動かすと撮影地点が中央のまま移り、選んだ対象は残る。取消で元に戻る
   await p.locator('#skyMapObserverTool').click();await p.waitForTimeout(200);assert.equal(await p.locator('#mapWsPick').isVisible(),true,tag+' 案内');assert.match(await p.locator('#mapWsPick').innerText(),/km/,tag+' 対象までの距離');
-  await drag(40,-30);s1=await state();assert.notEqual(s1.lat,s0.lat,tag+' 撮影地点が動く');close(s1.lat,s1.clat,'撮影地点は中央');assert.equal(s1.target,s0.target,tag+' 対象が残る');
+  const saved=()=>p.evaluate(()=>store.get('sorami.skyMap:'+encodeURIComponent('ws-test'),null)?.observer);await drag(40,-30);s1=await state();assert.notEqual(s1.lat,s0.lat,tag+' 撮影地点が動く');await p.waitForTimeout(300);assert.equal((await saved())?.latitude,s0.lat,tag+' 固定前は保存しない');close(s1.lat,s1.clat,'撮影地点は中央');assert.equal(s1.target,s0.target,tag+' 対象が残る');
   if(out&&name==='chrome'&&w===390&&scheme==='dark')await p.screenshot({path:`${out}/ws-observer.png`});
   await p.locator('#mapWsPickCancel').click();await p.waitForTimeout(500);s1=await state();assert.equal(s1.lat,s0.lat,tag+' 取消で戻る');assert.equal(s1.name,s0.name,tag+' 取消で名前も戻る');
-  await p.locator('#skyMapObserverTool').click();await p.waitForTimeout(200);await drag(30,20);await p.locator('#mapWsPickDone').click();await p.waitForTimeout(500);assert.equal(await p.locator('#mapWsPick').isVisible(),false,tag+' 固定');const s2=await state();assert.notEqual(s2.lat,s0.lat,tag+' 固定後も新しい地点');assert.equal(s2.target,s0.target,tag+' 固定後も対象が残る');await drag(40,10);s1=await state();assert.equal(s1.lat,s2.lat,tag+' 固定に戻ると撮影地点は動かない');assert.notEqual(s1.clon,s2.lon,tag+' 固定に戻ると地図は動く');
+  await p.locator('#skyMapObserverTool').click();await p.waitForTimeout(200);await p.locator('#mapWsPickDone').click();await p.waitForTimeout(400);s1=await state();assert.equal(s1.name,s0.name,tag+' 動かさず固定なら名前は変わらない');assert.equal(s1.lat,s0.lat,tag);
+  await p.locator('#skyMapObserverTool').click();await p.waitForTimeout(200);await drag(30,20);await p.locator('#mapWsPickDone').click();await p.waitForTimeout(500);assert.equal(await p.locator('#mapWsPick').isVisible(),false,tag+' 固定');const s2=await state();assert.equal(s2.name,'地図で置いた地点',tag+' 座標を名前にしない');assert.equal((await saved())?.latitude,s2.lat,tag+' 固定で保存');assert.notEqual(s2.lat,s0.lat,tag+' 固定後も新しい地点');assert.equal(s2.target,s0.target,tag+' 固定後も対象が残る');await drag(40,10);s1=await state();assert.equal(s1.lat,s2.lat,tag+' 固定に戻ると撮影地点は動かない');assert.notEqual(s1.clon,s2.lon,tag+' 固定に戻ると地図は動く');
   // 的: 撮影地点は動かず、中央が新しい対象。距離と方位が読める
   await p.locator('#skyMapTargetTool').click();await p.waitForTimeout(250);await drag(-50,40);s1=await state();assert.equal(s1.lat,s2.lat,tag+' 対象の移動で撮影地点は動かない');assert.match(await p.locator('#mapWsPick').innerText(),/\d(km|m) ・ [\d.]+°/,tag+' 距離と方位');
   if(out&&name==='chrome'&&w===390&&scheme==='dark')await p.screenshot({path:`${out}/ws-target.png`});
@@ -74,6 +75,8 @@ const rect=(p,s)=>p.evaluate(s=>{const e=document.querySelector(s);if(!e)return 
   if(out&&name==='chrome'&&w===390&&scheme==='dark')await p.screenshot({path:`${out}/ws-rotated.png`});
   let beforeDrag=await state();await drag(0,-50);let afterDrag=await state();assert.ok(afterDrag.clon<beforeDrag.clon-1e-6,tag+' 回転中は指の向きに地図が動く');
   await p.locator('#mapWsNorth').click();await p.waitForTimeout(150);assert.equal(await p.evaluate(()=>SkyMapUI.workspaceHost().map.rotation()),0,tag+' 北へ戻す');
+  // 固定せずに閉じたら元の地点へ戻る
+  const kept=await state();await p.locator('#skyMapObserverTool').click();await p.waitForTimeout(200);await drag(30,20);await p.locator('#mapWsScene').click();await p.waitForTimeout(600);{const o=await p.evaluate(()=>SkyMapUI.selectionState().observer);assert.equal(o.latitude,kept.lat,tag+' 固定せず閉じると戻る');assert.equal(o.name,kept.name,tag+' 名前も戻る');}await p.locator('#exploreMapTab').click();await p.waitForTimeout(400);
   // 現在地ボタンは撮影地点を動かす操作に入る
   await p.locator('.sky-map-wrap .map-locate').click();await p.waitForTimeout(200);assert.equal(await p.locator('#mapWsPick').isVisible(),true,tag+' 現在地で動かす操作へ');await p.locator('#mapWsPickCancel').click();await p.waitForTimeout(300);
   // メニュー: 実際の釦へ渡す
