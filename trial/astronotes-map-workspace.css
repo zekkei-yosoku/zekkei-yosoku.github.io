@@ -1,10 +1,10 @@
 /* 探すの地図の作業画面（試用版だけ読み込む）。寸法の持ち主はここ。日時バーの共通部品の寸法は変えない。 */
-.map-ws-top,.map-ws-menu,.map-ws-info,.map-ws-dots,.map-ws-band,.map-ws-bodies{display:none}
+.map-ws-top,.map-ws-menu,.map-ws-info,.map-ws-dots,.map-ws-band,.map-ws-bodies,.map-ws-pick{display:none}
 #skyMapView.map-ws{--ws-top:calc(56px + env(safe-area-inset-top));--ws-rail-right:calc(6px + env(safe-area-inset-right))}
 #skyMapView.map-ws .map-ws-top{position:fixed;z-index:36;top:0;left:0;right:0;display:flex;align-items:center;gap:2px;height:var(--ws-top);padding:env(safe-area-inset-top) max(6px,env(safe-area-inset-right)) 0 max(6px,env(safe-area-inset-left));background:var(--card);border-bottom:1px solid var(--line);box-sizing:border-box}
 .map-ws-top button{min-width:44px;min-height:44px;border:0;background:none;color:var(--text);display:grid;place-items:center;padding:0;border-radius:10px;cursor:pointer}
 .map-ws-top .map-ws-title{flex:1;min-width:0;display:block;text-align:left;padding:0 2px;font:inherit}
-.map-ws-title strong,.map-ws-title span{display:block;text-align:left!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.map-ws-title strong,.map-ws-title span{display:block;width:100%;text-align:left!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .map-ws-title strong{font-size:16px;line-height:1.25}.map-ws-title span{font-size:12px;line-height:1.3;color:var(--secondary)}
 .map-ws-seg{display:flex;flex:none;background:var(--sunk);border-radius:9px;padding:2px}
 .map-ws-top .map-ws-seg button{min-width:0;min-height:40px;padding:0 9px;font-size:12.5px;font-weight:700;color:var(--secondary);border-radius:7px}
@@ -23,6 +23,11 @@
 .map-ws-menu button{min-height:44px;padding:0 14px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--text);text-align:left;font:inherit;font-size:14px;cursor:pointer}
 .map-ws-menu button:last-child{border-bottom:0}.map-ws-menu button[disabled]{opacity:.45}
 .map-ws-menu [aria-checked=true]{color:var(--accent);font-weight:700}.map-ws-menu [aria-checked=true]::after{content:" ✓"}
+#skyMapView.map-ws #skyMapCanvas{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+#skyMapView.map-ws .map-ws-pick:not([hidden]){display:flex;align-items:center;gap:6px;position:absolute;left:8px;right:var(--ws-rail-right);bottom:30px;z-index:5;padding:6px 6px 6px 12px;background:var(--card);border:1px solid var(--line);border-radius:12px;color:var(--text);font-size:13px}
+.map-ws-pick span{flex:1;min-width:0}
+.map-ws-pick button{flex:none;min-height:44px;padding:0 12px;border:0;border-radius:9px;background:var(--sunk);color:var(--text);font:inherit;font-weight:700;cursor:pointer}
+.map-ws-pick #mapWsPickDone{background:var(--accent);color:var(--on-accent)}
 /* 下部: 情報欄 → 日付 → 帯。既存の段は計算と権限のために残し、表示だけ隠す */
 #skyMapView.map-ws .sky-map-footer :is(.sky-map-body-bar,.sky-map-readouts,.sky-map-extra-active){display:none!important}
 #skyMapView.map-ws:not(.map-ws-dates-open) .sky-map-footer .sky-map-candidates{display:none!important}
@@ -41,10 +46,13 @@
 .map-ws-dots span{width:6px;height:6px;border-radius:50%;background:var(--line)}.map-ws-dots span.on{background:var(--accent)}
 #skyMapView.map-ws .map-ws-band{display:block;position:absolute;left:0;right:0;bottom:0;width:100%;height:16px;pointer-events:none;z-index:2}
 #skyMapView.map-ws .map-ws-band[hidden]{display:none}
-#skyMapView.map-ws #skyMapTrack{position:relative}
+#skyMapView.map-ws .sky-map-scrub{position:relative;display:block;margin-inline:calc(-1*max(8px,env(safe-area-inset-left)))}
+#skyMapView.map-ws .sky-map-scrub-modes{position:absolute;left:6px;top:50%;transform:translateY(-50%);z-index:3}
+#skyMapView.map-ws #skyMapScrubMode{min-width:48px;min-height:48px;border-radius:50%;background:rgba(0,0,0,.72);color:#fff;border:1px solid rgba(255,255,255,.35);padding:0}
+#skyMapView.map-ws #skyMapTrack{position:relative;width:100%}
 /* 共通部品の「時」送りを、この画面では1日が見渡せる帯として示す */
 #skyMapView.map-ws #skyMapScrubMode[data-mode=hour]{font-size:0}
-#skyMapView.map-ws #skyMapScrubMode[data-mode=hour]::after{content:"24時間";font-size:12px}
+#skyMapView.map-ws #skyMapScrubMode[data-mode=hour]::after{content:"24時間";font-size:11px;font-weight:700}
 /* 小さい画面: 拡大と縮小は2本指に任せる */
 @media(max-height:640px){#skyMapView.map-ws .sky-map-wide .mapzoom :is(#skyMapIn,#skyMapOut){display:none}
  #skyMapView.map-ws .sky-map-wide .map-layers-btn{top:54px}#skyMapView.map-ws .sky-map-wide .map-layer-menu{top:54px}#skyMapView.map-ws .map-ws-bodies{top:100px}#skyMapView.map-ws .sky-map-wide .sky-map-point-tools{top:146px}}
