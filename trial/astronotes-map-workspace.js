@@ -75,8 +75,6 @@ function drawBody(ctx,body,data,x,y,r,width,height){
  ctx.restore();
 }
 // 軌道がこの丸を通れば、天体は対象に重なる。
-// 撮影地点を固定している間は地図を動かさない。つまんでも指の中点でずれないよう中心へ戻す。
-function holdCenter(){const h=host();if(!h||h.pickMode||!validPoint(h.session.observer))return;const o=h.session.observer,c=h.map.center();if(Math.abs(c.latitude-o.latitude)>1e-9||Math.abs(c.longitude-o.longitude)>1e-9)h.map.setCenter(o.latitude,o.longitude);}
 // ピンの近くを押しても移動の操作に入らない。動かすのは右のボタンから。
 function pinNear(pixel){const h=host();if(!h)return false;const near=p=>{const q=h.map.project(p.latitude,p.longitude);return Math.hypot(q[0]-pixel.x,q[1]-pixel.y)<20;};return near(h.session.observer)||(validPoint(h.session.target)&&near(AstroNotesAlign.partTarget(h.session.target,h.session.partId)));}
 function drawOverlay(ctx,x,y,r){
@@ -90,7 +88,7 @@ function schedule(){if(infoFrame||!active)return;infoFrame=requestAnimationFrame
 const api={
  hourPixels:()=>active?hourPixels:0,
  // 描画のたびに呼ばれる。作業画面でないときは null を返し、既存の描き方に任せる。
- drawing(){if(!active){if(!dismissed)queueMicrotask(evaluate);return null;}holdCenter();hits=[];labels=[];colours={};schedule();return {radius:(width,height)=>Math.min(width-120,height-30)/2,body:drawBody,overlay:drawOverlay,center};},
+ drawing(){if(!active){if(!dismissed)queueMicrotask(evaluate);return null;}hits=[];labels=[];colours={};schedule();return {radius:(width,height)=>Math.min(width-120,height-30)/2,body:drawBody,overlay:drawOverlay,center};},
  hits:()=>hits,
  tap(pixel){if(!active)return false;let best=null,distance=22;for(const hit of hits){const d=Math.hypot(hit.x-pixel.x,hit.y-pixel.y);if(d<distance){distance=d;best=hit;}}if(best){host()?.setTime(best.at);return true;}return pinNear(pixel);},
 };
@@ -108,8 +106,9 @@ function build(){
  const bodies=document.createElement('button');bodies.type='button';bodies.id='mapWsBodies';bodies.className='map-ctl map-ws-bodies';bodies.textContent='天体';bodies.setAttribute('aria-label','表示する天体を選ぶ');bodies.setAttribute('aria-haspopup','menu');wrap.append(bodies);
  const pick=document.createElement('div');pick.id='mapWsPick';pick.className='map-ws-pick';pick.hidden=true;pick.innerHTML='<span role="status"><span></span><span></span></span><button type="button" id="mapWsPickCancel">取消</button><button type="button" id="mapWsPickDone">ここに置く</button>';wrap.append(pick);
  $('mapWsPickCancel').onclick=()=>{const h=host();if(!h)return;const before=h.pickMode==='observer'?pickStart:null;h.cancelPick();if(before&&before!==h.session.observer){h.restoreObserver(before);h.map.setCenter(before.latitude,before.longitude);}};$('mapWsPickDone').onclick=()=>{const mode=host()?.pickMode;if(mode)$(mode==='observer'?'skyMapObserverTool':'skyMapTargetTool').click();};
+ const home=document.createElement('button');home.type='button';home.id='mapWsHome';home.className='map-ws-home';home.hidden=true;home.textContent='撮影地点へ戻る';home.onclick=()=>{const h=host(),o=h?.session.observer;if(validPoint(o))h.map.setCenter(o.latitude,o.longitude);};wrap.append(home);
  bindGestures(wrap);
- // 現在地へ飛ぶのは撮影地点を動かす操作。固定のままだと中心へ戻される。
+ // 現在地へ飛ぶのは撮影地点をそこへ動かすため。
  wrap.querySelector('.map-locate')?.addEventListener('click',()=>{if(active&&!host()?.pickMode)$('skyMapObserverTool').click();},true);
  const info=document.createElement('div');info.id='mapWsInfo';info.className='map-ws-info';info.tabIndex=0;info.setAttribute('aria-label','天体と対象の情報。横にスワイプ');
  const page=(body,cells)=>`<div class="map-ws-page"${body?` data-body="${body}"`:''}>${cells.join('')}</div>`;
@@ -149,7 +148,9 @@ function updateBody(h,body,prefix){
 function bearingText(from,to){if(!validPoint(from)||!validPoint(to))return '';const a=from.latitude*RAD,b=to.latitude*RAD,d=(to.longitude-from.longitude)*RAD,bearing=(Math.atan2(Math.sin(d)*Math.cos(b),Math.cos(a)*Math.sin(b)-Math.sin(a)*Math.cos(b)*Math.cos(d))/RAD+360)%360,km=AstroNotesTerrain.distanceKm(from.latitude,from.longitude,to.latitude,to.longitude);return (km<1?Math.round(km*1000)+'m':km.toFixed(2)+'km')+' ・ '+bearing.toFixed(1)+'°';}
 function updatePick(h){
  const bar=$('mapWsPick'),mode=h.pickMode||null,s=h.session;
- if(mode!==lastPick){pickStart=mode==='observer'?s.observer:null;lastPick=mode;}
+ if(mode!==lastPick){if(lastPick==='target'&&!mode&&validPoint(s.observer))h.map.setCenter(s.observer.latitude,s.observer.longitude);pickStart=mode==='observer'?s.observer:null;lastPick=mode;}
+ // 地図は自由に動くので、撮影地点から離れたら戻る手段を出す。
+ const canvas=$('skyMapCanvas'),o=s.observer,q=validPoint(o)?h.map.project(o.latitude,o.longitude):null,w=canvas.clientWidth,ht=canvas.clientHeight;$('mapWsHome').hidden=!!mode||!q||Math.hypot(q[0]-w/2,q[1]-ht/2)<=Math.min(w,ht)*.2;
  bar.hidden=!mode;if(!mode)return;
  const center=h.map.center(),mark=validPoint(s.target)?AstroNotesAlign.partTarget(s.target,s.partId):null;
  const text=mode==='observer'?['地図を動かすと撮影地点が動きます',h.targetOn&&mark?bearingText(center,mark):'']:['地図を動かして対象を合わせる',bearingText(s.observer,center)];

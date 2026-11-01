@@ -1,5 +1,5 @@
 /* 探すの地図の作業画面（試用版だけ読み込む）。寸法の持ち主はここ。日時バーの共通部品の寸法は変えない。 */
-.map-ws-top,.map-ws-menu,.map-ws-info,.map-ws-dots,.map-ws-band,.map-ws-bodies,.map-ws-pick{display:none}
+.map-ws-top,.map-ws-menu,.map-ws-info,.map-ws-dots,.map-ws-band,.map-ws-bodies,.map-ws-pick,.map-ws-home{display:none}
 #skyMapView.map-ws{--ws-top:calc(56px + env(safe-area-inset-top));--ws-rail-right:calc(6px + env(safe-area-inset-right))}
 #skyMapView.map-ws .map-ws-top{position:fixed;z-index:36;top:0;left:0;right:0;display:flex;align-items:center;gap:2px;height:var(--ws-top);padding:env(safe-area-inset-top) max(6px,env(safe-area-inset-right)) 0 max(6px,env(safe-area-inset-left));background:var(--card);border-bottom:1px solid var(--line);box-sizing:border-box}
 .map-ws-top button{min-width:44px;min-height:44px;border:0;background:none;color:var(--text);display:grid;place-items:center;padding:0;border-radius:10px;cursor:pointer}
@@ -27,6 +27,7 @@
 .map-ws-pick>span{flex:1;min-width:0}.map-ws-pick span span{display:block}.map-ws-pick span span+span{font-weight:700;font-variant-numeric:tabular-nums}.map-ws-pick span span:empty{display:none}
 .map-ws-pick button{flex:none;min-height:44px;padding:0 12px;border:0;border-radius:9px;background:var(--sunk);color:var(--text);font:inherit;font-weight:700;cursor:pointer}
 .map-ws-pick #mapWsPickDone{background:var(--accent);color:var(--on-accent)}
+#skyMapView.map-ws .map-ws-home:not([hidden]){display:block;position:absolute;left:50%;bottom:30px;transform:translateX(-50%);z-index:5;min-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:22px;background:var(--card);color:var(--text);font:inherit;font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer}
 /* 下部: 情報欄 → 日付 → 帯。既存の段は計算と権限のために残し、表示だけ隠す */
 #skyMapView.map-ws .sky-map-footer :is(.sky-map-body-bar,.sky-map-readouts,.sky-map-extra-active){display:none!important}
 #skyMapView.map-ws:not(.map-ws-dates-open) .sky-map-footer .sky-map-candidates{display:none!important}
