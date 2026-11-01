@@ -60,6 +60,7 @@
 .map-ws-cell b{display:block;font-size:15.5px;line-height:1.35;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
 .map-ws-cell i{display:block;font-style:normal;font-size:12px;line-height:1.35;color:var(--secondary);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .map-ws-cell i:empty{display:none}
+.map-ws-cell[aria-pressed=false]{border-top-color:var(--line)}.map-ws-cell[aria-pressed=false] :is(b,i){opacity:.45}.map-ws-cell[aria-pressed=false] small::after{content:" 非表示"}
 #skyMapView.map-ws .map-ws-dots{display:flex;justify-content:center;gap:6px;padding:4px 0 2px}
 .map-ws-dots span{width:6px;height:6px;border-radius:50%;background:var(--line)}.map-ws-dots span.on{background:var(--accent)}
 #skyMapView.map-ws .map-ws-band{display:block;position:absolute;left:0;right:0;bottom:0;width:100%;height:16px;pointer-events:none;z-index:2}
