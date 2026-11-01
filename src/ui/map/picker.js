@@ -340,7 +340,7 @@ function createMapView(ids) {
     // dialog が開いてから測る（閉じている間は幅が 0）
     requestAnimationFrame(() => { draw(); requestAnimationFrame(draw); });
   }
-  return { open, attach, redraw: schedule, project, coordinateAt, onPick:fn=>{onPick=fn;},onDoubleTap:fn=>{onDoubleTap=fn;},
+  return { open, attach, setLayer, redraw: schedule, project, coordinateAt, onPick:fn=>{onPick=fn;},onDoubleTap:fn=>{onDoubleTap=fn;},
            center: () => ({ latitude: view.lat, longitude: view.lon }),
            zoom: () => view.zoom,
            setOverlay: (fn) => { overlay = fn; schedule(); },

@@ -2,7 +2,7 @@
 (function(g){
 'use strict';
 const DAY=86400000,MINUTE=60000,OFFSET=32400000,EXTENT=4096;
-const scale=mode=>mode==='date'?{step:DAY,pixels:24,labelEvery:2}:mode==='hour'?{step:3600000,pixels:24,labelEvery:2}:{step:MINUTE,pixels:4,labelEvery:15};
+const scale=mode=>mode==='date'?{step:DAY,pixels:24,labelEvery:2}:mode==='hour'?(g.AstroNotesMapWorkspace?.hourPixels?.()?{step:3600000,pixels:g.AstroNotesMapWorkspace.hourPixels(),labelEvery:3}:{step:3600000,pixels:24,labelEvery:2}):{step:MINUTE,pixels:4,labelEvery:15};
 const advance=(at,pixels,mode)=>{const s=scale(mode),units=pixels/s.pixels;return at+Math.sign(units)*Math.round(Math.abs(units))*s.step;};
 // Solar elevation drives a continuous sky palette, including blue and golden hours.
 const skyStops=[[-18,[9,18,47]],[-12,[20,38,85]],[-6,[67,84,138]],[-3,[160,109,145]],[-.833,[237,151,110]],[2,[246,188,112]],[6,[223,214,172]],[12,[145,197,223]],[30,[100,171,214]],[60,[64,145,197]]];

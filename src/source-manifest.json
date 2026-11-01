@@ -1064,6 +1064,18 @@
         "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
       },
       {
+        "name": "AstroNotesMapWorkspace",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-map-workspace.js"
+        ],
+        "readers": [
+          "src/features/explore/map-presentation.js"
+        ],
+        "purpose": "試用版だけが読み込む地図の作業画面の接続点。本体では未定義のまま動く",
+        "retireWhen": "本体へ採用して直接呼び出せるようにした時"
+      },
+      {
         "name": "AstroNotesPhotoAnalysis",
         "category": "existing-public-bridge",
         "owner": [
