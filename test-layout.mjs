@@ -810,7 +810,7 @@ console.log("== 地点検索: 山・峠・展望地の索引（2026-09-30） =="
   ok(fs.existsSync(new URL("./data/place-index.json", import.meta.url)) && /^!data\/place-index\.json$/m.test(gi),
     "data/place-index.json があり、配信から外さない");
   ok(/fetch\("data\/place-index\.json"\)/.test(html) && /AstroNotesTerrain\.searchPlaceIndex\(j, q/.test(html), "検索で同梱の索引も引く");
-  ok(/score\(a\) - score\(b\)/.test(html) && /r\.indexScore >= 60/.test(html), "全検索元を一致度で比較し、住所内地名の強い索引も維持する");
+  ok(/rank\(a\) - rank\(b\)/.test(html) && /r\.indexScore >= 60/.test(html), "全検索元を一致度で比較し、住所内地名の強い索引も維持する");
   const idx = JSON.parse(fs.readFileSync(new URL("./data/place-index.json", import.meta.url), "utf8"));
   const T = (await import("node:module")).createRequire(import.meta.url)("./astronotes-terrain.js");
   const r = T.searchPlaceIndex(idx, "群馬県桐生市富士見町赤城山鳥居峠");

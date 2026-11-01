@@ -180,21 +180,32 @@ function placeIndex() {
 // 検索元に未収録の施設と、利用者が名前を付けたお気に入りも検索する。
 let searchSupplementPromise = null;
 function searchSupplement() {
-  if (!searchSupplementPromise) searchSupplementPromise = fetch("data/search-supplement.json?v=20261019-address-1")
+  if (!searchSupplementPromise) searchSupplementPromise = fetch("data/search-supplement.json?v=20261101-places-1")
     .then(r => { if (!r.ok) throw new Error("補完索引の取得失敗"); return r.json(); })
     .catch(e => { searchSupplementPromise = null; throw e; });
   return searchSupplementPromise;
 }
+// 読み・英語名・略称では検索元に当たらない主要な場所。
+const PLACE_ALIASES = {
+  "東京スカイツリー": ["スカイツリー", "とうきょうスカイツリー", "skytree", "tokyo skytree"],
+  "東京タワー": ["とうきょうタワー", "tokyo tower"],
+  "東京都庁 第一本庁舎": ["東京都庁", "都庁", "とうきょうとちょう", "とちょう", "tokyo metropolitan government"],
+  "サンシャイン60 展望台": ["サンシャイン60", "サンシャインシティ", "池袋サンシャイン", "sunshine60", "sunshine city"],
+};
+// 地理院の施設名のうち、撮影地点として探す人がまずいないもの。
+const INSTITUTION_NAME = /郵便局|警察署|駐在所|交番|裁判所|検察庁|税務署|国税局|法務局|出入国|気象台|保健所|老人ホーム|年金事務所|労働基準|職業安定|消防署|消防団/;
+// 「城ケ島」と「城ヶ島」、「江ノ島」と「江の島」は地理院では別の語になる。
+const alternateSpelling = q => q.replace(/(\p{sc=Han})([ケヶガがノの])(?=\p{sc=Han})/gu, (_, han, c) => han + ({ケ: "ヶ", ヶ: "ケ", ガ: "ヶ", が: "ヶ", ノ: "の", の: "ノ"})[c]);
 // Load once on the first search; a failed load is retryable.
 let photographicSearchPromise = null;
 function photographicSearch() {
   if (!photographicSearchPromise) photographicSearchPromise = searchJson("data/aim-places.json")
-    .then(data => AstroNotesPlaceSearch.open(data))
+    .then(data => AstroNotesPlaceSearch.open(data).map(r => PLACE_ALIASES[r.name] ? {...r, aliases: PLACE_ALIASES[r.name]} : r))
     .catch(e => { photographicSearchPromise = null; throw e; });
   return photographicSearchPromise;
 }
 function namedPlaceMatches(q, rows) {
-  const norm = s => AstroNotesTerrain.normName(s).replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  const norm = AstroNotesPlaceSearch.norm;
   const query = norm(q);if (!query) return [];
   if (String(q).trim().split(/\s+/).length > 1) return rows
     .filter(r => AstroNotesPlaceSearch.match(q, {...r, address: r.address || r.detail || r.subtitle}))
@@ -221,15 +232,23 @@ function searchJson(url) {
   if (searchResponseCache.size > 40) searchResponseCache.delete(searchResponseCache.keys().next().value);
   return promise;
 }
+// OSM の住所は「名前, 番地, 町, 市, 県, 郵便番号, 日本」の順なので、日本語の住所の順に直す。
+const osmAddress = (display, name) => String(display).split(",").map(s => s.trim())
+  .filter((s, i) => s && !(i === 0 && s === name) && s !== "日本" && !/^\d{3}-?\d{4}$/.test(s)).reverse().join(" ");
 async function searchPlaces(q, {localOnly = false, near = place, localityOnly = false} = {}) {
   q = String(q).normalize("NFKC").trim().replace(/\s+/g, " ");
-  const gsiUrl = "https://msearch.gsi.go.jp/address-search/AddressSearch?q=" + encodeURIComponent(q);
+  const gsiUrl = s => "https://msearch.gsi.go.jp/address-search/AddressSearch?q=" + encodeURIComponent(s);
+  const alternate = alternateSpelling(q);
   // `extratags=1` で `height` / `building:levels` / `tower:type` が返る。
   // **展望台は立つ高さが効く**ので、検索の時点で持っておく
   const osmUrl = "https://nominatim.openstreetmap.org/search?" + new URLSearchParams(
     { q, format: "jsonv2", limit: "8", ...(localityOnly ? {} : {countrycodes: "jp"}), "accept-language": "ja", extratags: "1" });
   const [gsiRes, osmRes, idxRes, supplementRes, photoRes] = await Promise.allSettled([
-    localOnly ? Promise.resolve([]) : searchJson(gsiUrl),
+    localOnly ? Promise.resolve([]) : Promise.allSettled([searchJson(gsiUrl(q)), ...(alternate === q ? [] : [searchJson(gsiUrl(alternate))])]).then(found => {
+      const ok = found.filter(r => r.status === "fulfilled").flatMap(r => r.value);
+      if (found.every(r => r.status === "rejected")) throw found[0].reason;
+      return ok;
+    }),
     localOnly ? Promise.resolve([]) : searchJson(osmUrl),
     localityOnly ? Promise.resolve([]) : placeIndex().then((j) => AstroNotesTerrain.searchPlaceIndex(j, q, { near, limit: 8 })),
     searchSupplement(),
@@ -244,7 +263,7 @@ async function searchPlaces(q, {localOnly = false, near = place, localityOnly = 
       lookout: r.kind === "展望地" ? "viewpoint" : null};
   });
   const landmarkRows = AstroNotesAlign.TARGETS.filter(r => r.id !== "tinkerbell" && r.id !== "fuji").map(r => ({
-    ...r, aliases: r.id === "skytree" ? ["スカイツリー", "とうきょうスカイツリー"] : [],
+    ...r, aliases: PLACE_ALIASES[r.name] || [],
     kind: r.id === "fuji" ? "山" : "施設", detail: r.id === "skytree" ? "東京都墨田区押上" : r.id === "tokyotower" ? "東京都港区芝公園" : "施設・対象", scope: "point", source: "landmark", decks: AstroNotesTerrain.decksFor(r.name),
   }));
   const registeredLookouts = AstroNotesTerrain.OBSERVATION_DECKS.filter(r => r.place).map(r => ({
@@ -253,10 +272,13 @@ async function searchPlaces(q, {localOnly = false, near = place, localityOnly = 
   const landmarks = namedPlaceMatches(q, [...landmarkRows, ...registeredLookouts]);
   const saved = namedPlaceMatches(q, favorites).map(r => ({...r, detail: r.subtitle || "お気に入り", scope: r.locationScope || "point", source: "saved", kind: Number.isFinite(r.targetHeightM)?"登録済みの対象":"お気に入り", savedPlace: r}));
   const supplemented = namedPlaceMatches(q, supplementRes.status === "fulfilled" ? supplementRes.value.places || [] : [])
-    .map(r => ({...r, scope: "point", kind: "公園", source: "supplement"}));
+    .map(r => ({...r, scope: "point", kind: r.kind || "公園", source: "supplement", decks: AstroNotesTerrain.decksFor(r.name)}));
+  const fuji = AstroNotesAlign.TARGETS.find(r => r.id === "fuji");
+  const isFuji = r => r.name === fuji.name && AstroNotesTerrain.distanceKm(fuji.latitude, fuji.longitude, r.latitude, r.longitude) < 3;
   const local = (idxRes.status === "fulfilled" ? idxRes.value : []).map((r) => ({
     name: r.name,
-    detail: [r.muni, Number.isFinite(r.elevation) ? `標高${r.elevation}m` : null].filter(Boolean).join(" ・ "),
+    ...(isFuji(r) ? {address: "山梨県・静岡県"} : {}),
+    detail: [isFuji(r) ? "山梨県・静岡県" : r.muni, Number.isFinite(r.elevation) ? `標高${r.elevation}m` : null].filter(Boolean).join(" ・ "),
     latitude: r.latitude, longitude: r.longitude, scope: "point", source: "index",
     kind: r.kind, decks: AstroNotesTerrain.decksFor(r.name), lookout: r.kind === "展望地" ? "viewpoint" : null, elevation: r.elevation, indexScore: r.score,
   }));
@@ -283,11 +305,12 @@ async function searchPlaces(q, {localOnly = false, near = place, localityOnly = 
       const decks = AstroNotesTerrain.decksFor(name);
       const struct = AstroNotesTerrain.structureHeight(r.extratags);
       return {
-        name, detail: r.display_name,
+        name, detail: osmAddress(r.display_name, name),
         kind: /station|halt|stop/.test(r.type || "") || /駅(?:[（(].*)?$/.test(name) ? "駅" : r.type === "park" ? "公園" : null,
         latitude: +r.lat, longitude: +r.lon,
         scope: AstroNotesTerrain.searchLocationScope(r),
         source: "osm",
+        everydayFacility: /^(shop|amenity|office|craft|building|landuse)$/.test(r.category || ""),
         lookout: AstroNotesTerrain.isLookout(r),
         decks, structureM: struct ? struct.m : null, structureFrom: struct ? struct.from : null,
         wikidata: (r.extratags && r.extratags.wikidata) || null,
@@ -309,9 +332,10 @@ async function searchPlaces(q, {localOnly = false, near = place, localityOnly = 
   }
   // **名前が一致するものを上に。** そのうえで、**いま見ている地点から近い順**。
   // 「高尾山」は地理院に8件あり、距離を見ないと遠い同名が枠を埋めて八王子の高尾山が出ない
-  const normQuery = AstroNotesTerrain.normName(q);
+  const nameKey = AstroNotesPlaceSearch.norm;
+  const normQuery = nameKey(q);
   const score = (r) => {
-    const names = [r.name, ...(r.aliases || [])].map(n => AstroNotesTerrain.normName(n));
+    const names = [r.name, ...(r.aliases || [])].map(nameKey);
     if (names.includes(normQuery)) return 0;
     if (names.some(n => n.startsWith(normQuery))) return 1;
     if (names.some(n => n.includes(normQuery))) return 2;
@@ -320,16 +344,27 @@ async function searchPlaces(q, {localOnly = false, near = place, localityOnly = 
   };
   const away = (r) => AstroNotesTerrain.distanceKm(near.latitude, near.longitude, r.latitude, r.longitude);
   const merged = [];
+  const everyday = r => !r.kind && !r.decks?.length && (r.source === "gsi" ? INSTITUTION_NAME.test(r.name)
+    : r.source === "osm" && r.everydayFacility && !r.lookout && r.structureM == null && !r.wikidata);
+  const namedRegion = r => r.scope === "area" && /[都道府県市区町村郡]$/.test(r.name) && nameKey(r.name.slice(0, -1)).endsWith(normQuery);
   const hasLocalAnd = q.includes(" ") && [...saved, ...landmarks, ...supplemented, ...photos, ...local]
     .some(r => AstroNotesPlaceSearch.match(q, {...r, address: r.address || r.detail}));
   // 出典ごとの優先枠を廃止。一致の強さを全候補で比較し、眺望地が本体を追い越さない。
-  const priority = r => r.source === "saved" ? 0 : r.source === "landmark" ? 1 : r.source === "supplement" ? 2 : 3;
+  const priority = r => isFuji(r) ? -1 : r.source === "saved" ? 0 : r.source === "landmark" ? 1 : r.source === "supplement" ? 2
+    : everyday(r) ? 6 : ["gsi", "osm"].includes(r.source) ? 5 : r.lookout === "viewpoint" ? 4 : 3;
+  // 同じ名前の店や公的機関が、展望台・山・市町村を押し出さない（「サンシャイン」でサンシャイン60が、「札幌」で札幌市が消えた）。
+  const rank = r => isFuji(r) && normQuery.includes(nameKey(r.name)) ? -1 : everyday(r) ? (score(r) === 0 ? 1 : 2.5) : namedRegion(r) ? .5 : score(r);
   const ordered = [...saved, ...landmarks, ...supplemented, ...photos, ...local, ...gsi, ...osm]
-    .sort((a, b) => score(a) - score(b) || priority(a) - priority(b) || away(a) - away(b));
+    .sort((a, b) => rank(a) - rank(b) || priority(a) - priority(b) || away(a) - away(b));
+  // Enterの外部検索で、入力中に出ていた端末内の候補を枠から消さない。
+  const localHits = [...saved, ...landmarks, ...supplemented, ...photos, ...local].filter(r => score(r) <= 2).length;
+  const limit = localOnly ? 8 : 12;
+  const geocoderSlots = limit - Math.min(localHits, 8);
+  let geocoderCount = 0;
   const exactFacility = landmarks.some(r => score(r) === 0);
   for (const r of ordered) {
     // 施設名に完全一致したとき「役所」だけで当たった遠方の別施設を混ぜない。
-    if (exactFacility && ![r.name, ...(r.aliases || [])].map(AstroNotesTerrain.normName).some(n => n && (n.includes(normQuery) || normQuery.includes(n)))) continue;
+    if (exactFacility && ![r.name, ...(r.aliases || [])].map(nameKey).some(n => n && (n.includes(normQuery) || normQuery.includes(n)))) continue;
     if (!r.name || !Number.isFinite(r.latitude) || !Number.isFinite(r.longitude)) continue;
     // AND local terms across name, aliases and address. Geocoders also handle
     // translated names and address normalization, so trust their own query parsing.
@@ -373,8 +408,9 @@ async function searchPlaces(q, {localOnly = false, near = place, localityOnly = 
       continue;
     }
     // 並びには距離を使うが、画面には出さない（2026-10-01 ユーザー指摘「一つ前の検索の場所から何キロはいらない」）
+    if (["gsi", "osm"].includes(r.source) && ++geocoderCount > geocoderSlots) continue;
     merged.push(r);
-    if (merged.length >= 8) break;
+    if (merged.length >= limit) break;
   }
   merged.searchFailed = !localOnly && gsiRes.status === "rejected" && osmRes.status === "rejected";
   return merged;
@@ -473,13 +509,17 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord, options = {}) {
     // 入力中は端末内の候補だけ。外部の地名APIは検索ボタン/Enterで呼ぶ。
     localTimer = setTimeout(async () => {
       const found = await searchPlaces(q, {localOnly: true, near: searchNear()});
-      if (ticket === seq && box.value.trim() === q && (!options.isCurrent || options.isCurrent()) && found.length) renderSearchResults(results, found, r => pick(r, ticket));
+      if (ticket === seq && box.value.trim() === q && (!options.isCurrent || options.isCurrent())) {
+        if (found.length) renderSearchResults(results, found, r => pick(r, ticket));
+        else results.innerHTML = '<p class="tiny" role="status">手元の候補にはありません。検索すると地名や住所から探します。</p>';
+      }
     }, 200);
   });
   box.closest("dialog")?.addEventListener("close", invalidate);
   const run = async () => {
     const q = $(boxId).value.trim();
     if (!q) { invalidate(); return; }
+    box.blur?.();
     if (q === last) return;
     last = q;
     const ticket = ++seq;

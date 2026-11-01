@@ -47,3 +47,34 @@ ctx.fetch=async u=>u.startsWith('data/')?{ok:true,json:async()=>data}:u.includes
  {geometry:{coordinates:[140.5,36.3]},properties:{title:'ひたち海浜公園（住所不明）',addressCode:'unknown'}}]}:{ok:true,json:async()=>[]};
 const addressed=await ctx.searchPlaces('ひたち海浜公園');
 assert.equal(addressed[0].address,'茨城県ひたちなか市');assert.match(addressed[0].detail,/茨城県ひたちなか市/);assert.equal(addressed[0].latitude,36.4095667777778);assert.equal(addressed.find(r=>r.name==='ひたち海浜公園ＩＣ').address,'茨城県ひたちなか市');assert.match(addressed.find(r=>r.name.includes('住所不明')).detail,/住所を確認できません/);assert.ok(addressed.every(r=>!/[緯経]度/.test(r.detail)));console.log('GSI ADDRESS CODE: municipality, padded code, unknown fallback, coordinates preserved OK');
+
+// Enterの外部検索で、入力中に出ていた端末内の候補を日常施設の同名で押し出さない。
+const aim=JSON.parse(fs.readFileSync(repo+'data/aim-places.json'));
+const osmRow=(name,category,type,i,extra={})=>({name,category,type,display_name:`${name}, 町${i}, 日本`,lat:String(33+i/10),lon:String(131+i/10),...extra});
+const withOsm=(rows,gsi=[])=>{vm.runInContext('searchResponseCache.clear();photographicSearchPromise=null',ctx);ctx.fetch=async u=>u==='data/aim-places.json'?{ok:true,json:async()=>aim}:u.startsWith('data/')?{ok:true,json:async()=>data}:u.includes('msearch.gsi')?{ok:true,json:async()=>gsi}:{ok:true,json:async()=>rows};};
+const shops=[['landuse','residential'],['shop','laundry'],['amenity','cafe'],['amenity','cafe'],['amenity','social_facility'],['building','apartments'],['building','apartments'],['building','apartments']];
+withOsm(shops.map(([c,t],i)=>osmRow('サンシャイン',c,t,i)));
+const typed=await ctx.searchPlaces('サンシャイン',{localOnly:true});assert.ok(typed.some(r=>r.name==='サンシャイン60 展望台'));
+const entered=await ctx.searchPlaces('サンシャイン');assert.equal(entered[0].name,'サンシャイン60 展望台');assert.equal(entered[0].decks[0].aglM,221);assert.equal(entered[1].name,'サンシャイン');assert.ok(entered.length<=12);
+withOsm([],[{geometry:{coordinates:[139.71762,35.73053]},properties:{title:'サンシャイン60内郵便局',addressCode:'1'}}]);
+assert.equal((await ctx.searchPlaces('サンシャイン'))[0].name,'サンシャイン60 展望台');
+// 山や名所そのものは、同じ名前で始まる端末内の候補より上のままにする。
+withOsm([osmRow('サンシャイン','natural','peak',0)]);
+assert.equal((await ctx.searchPlaces('サンシャイン'))[0].source,'osm');
+// 地理院の同名が枠を埋めても、端末内の候補は消えない。
+withOsm([],Array.from({length:8},(_,i)=>({geometry:{coordinates:[131+i/10,33+i/10]},properties:{title:'サンシャイン',addressCode:'1'}})));
+const kept=await ctx.searchPlaces('サンシャイン');assert.ok(kept.some(r=>r.name==='サンシャイン60 展望台'));assert.ok(kept.length<=12);
+console.log('ENTER KEEPS LOCAL CANDIDATES OK');
+
+// 実利用で外せない検索。表記ゆれ・読み・本物の富士山・市町村名。
+withOsm([]);ctx.placeIndex=async()=>({kinds:{m:'山'},munis:['埼玉県小川町','神奈川県鎌倉市'],places:[['m','富士山','ふじさん',3604000,13924000,182,0],['m','富士山','ふじさん',3536056,13872736,3776,-1]]});
+const fujiRows=await ctx.searchPlaces('富士山');assert.equal(fujiRows[0].elevation,3776);assert.match(fujiRows[0].detail,/山梨県・静岡県/);assert.notEqual(fujiRows[1].lookout,'viewpoint');
+assert.equal((await ctx.searchPlaces('ふじさん'))[0].elevation,3776);ctx.placeIndex=async()=>({places:[]});
+for(const [q,name] of [['えのしま','江の島'],['じょうがしま','城ヶ島'],['城ケ島','城ヶ島'],['とちょう','東京都庁 第一本庁舎'],['都庁','東京都庁 第一本庁舎'],['skytree','東京スカイツリー'],['sunshine60','サンシャイン60 展望台'],['横浜ランドマーク','横浜ランドマークタワー'],['とうきょうタワー','東京タワー'],['tokyo tower','東京タワー']])assert.equal((await ctx.searchPlaces(q,{localOnly:true}))[0]?.name,name,q);
+assert.ok((await ctx.searchPlaces('由比ガ浜',{localOnly:true})).some(r=>r.name==='由比ヶ浜'));
+const gsiAsked=[];vm.runInContext('searchResponseCache.clear()',ctx);ctx.fetch=async u=>{if(u==='data/aim-places.json')return{ok:true,json:async()=>aim};if(u.startsWith('data/'))return{ok:true,json:async()=>data};if(u.includes('msearch.gsi'))gsiAsked.push(decodeURIComponent(u.split('q=')[1]));return{ok:true,json:async()=>[]}};await ctx.searchPlaces('城ケ島');assert.deepEqual(gsiAsked.sort(),['城ケ島','城ヶ島'].sort());
+withOsm([],[...['札幌出入国在留管理局函館出張所','札幌国税局函館税務署','札幌中央警察署'].map((title,i)=>({geometry:{coordinates:[140.7+i/10,41.7]},properties:{title,addressCode:'1'}})),{geometry:{coordinates:[141.35,43.06]},properties:{title:'北海道札幌市',addressCode:'1'}}]);
+const city=await ctx.searchPlaces('札幌');assert.equal(city[0].name,'北海道札幌市');
+withOsm([osmRow('店','shop','laundry',0,{display_name:'店, ベルソーレ, 天沼二丁目, 杉並区, 東京, 167-0032, 日本'})]);
+assert.equal((await ctx.searchPlaces('店')).find(r=>r.source==='osm').detail,'東京 杉並区 天沼二丁目 ベルソーレ');
+console.log('REAL WORLD NAMES OK');

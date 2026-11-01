@@ -2,7 +2,7 @@
  * Nearby river names are search context, never a claim about a crossing or access. */
 (function(root){
  'use strict';
- const norm=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-96)).replace(/[\s　・,，、。]/g,'');
+ const norm=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-96)).replace(/[\s　・,，、。]/g,'').replace(/(\p{sc=Han})[ゕゖけがの](?=\p{sc=Han})/gu,'$1が');
  const finitePoint=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=9000000&&Math.abs(p[1])<=18000000;
  function path(data,r){
   const points=[],g=r.g;

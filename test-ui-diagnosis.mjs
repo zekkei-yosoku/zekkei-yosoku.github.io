@@ -67,11 +67,12 @@ function redraw(line){
  return {fn,els,aim};
 }
 test('構図を開き直しても旧撮影地の線・候補・表を復活させない',async()=>{let calls=0;const r=redraw(()=>{calls++;throw Error('obsolete discovery');});await r.fn();assert.equal(calls,0);assert.equal(r.els.aimLineTable.hidden,true);assert.equal(r.els.aimLineTable.innerHTML,'');assert.equal(r.els.aimLineInfo.textContent,'');assert.equal(r.aim.cands.length,0);});
+const searchHelpers=()=>{const from=html.indexOf('const PLACE_ALIASES'),to=html.indexOf('// Load once on the first search');assert.ok(from>0&&to>from);const osm=html.indexOf('const osmAddress');return html.slice(from,to)+html.slice(osm,html.indexOf('async function searchPlaces'));};
 test('同名の山頂は近くの駅に吸収されず、索引の市町村・標高・位置で出る（高尾山）',async()=>{
  const terrain=createRequire(import.meta.url)('./astronotes-terrain.js');
  const osm=[{name:'高尾山',display_name:'高尾山, 高尾山線, 高尾町, 八王子市, 東京都',type:'station',lat:'35.6311',lon:'139.2561',extratags:{}},{name:'高尾山',display_name:'高尾山, 東京都, 193-0841, 日本',type:'peak',lat:'35.62523',lon:'139.24369',extratags:{}}];
  const idx=[{name:'高尾山',muni:'東京都八王子市',elevation:599,kind:'山',latitude:35.6252267,longitude:139.2436878,score:100}];
- const search=runInNewContext(grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?[]:osm,photographicSearch:async()=>[],AstroNotesPlaceSearch:{search:()=>[],match:()=>false},searchSupplement:async()=>({places:[]}),favorites:[],AstroNotesAlign:{TARGETS:[]},placeIndex:async()=>({}),AstroNotesTerrain:{...terrain,searchPlaceIndex:()=>idx},place,URLSearchParams});
+ const search=runInNewContext(searchHelpers()+grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?[]:osm,photographicSearch:async()=>[],AstroNotesPlaceSearch:{search:()=>[],match:()=>false,norm:s=>String(s)},searchSupplement:async()=>({places:[]}),favorites:[],AstroNotesAlign:{TARGETS:[{id:'fuji',name:'富士山',latitude:35.360555,longitude:138.727363}]},placeIndex:async()=>({}),AstroNotesTerrain:{...terrain,searchPlaceIndex:()=>idx},place,URLSearchParams});
  const found=await search('高尾山',{near:{latitude:35.6812,longitude:139.7671}});
  const summit=found.find(r=>r.kind==='山'),station=found.find(r=>r.kind==='駅');
  assert.ok(summit&&station,'山頂と駅は別の候補');assert.match(summit.detail,/八王子市/);assert.match(summit.detail,/599m/);
@@ -82,7 +83,7 @@ test('同名GSI地点は住所で区別できる。近いOSM住所は引き継�
  const terrain=createRequire(import.meta.url)('./astronotes-terrain.js');
  const gsi=[139.76,140.5].map(lon=>({properties:{title:'新宿',addressCode:lon===139.76?'13104':'12211'},geometry:{coordinates:[lon,35.68]}}));
  const osm=[{name:'新宿',display_name:'新宿, 東京都',lat:'35.68001',lon:'139.76001',extratags:{}}];
- const search=runInNewContext(grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?gsi:osm,photographicSearch:async()=>[],AstroNotesPlaceSearch:{search:()=>[],match:()=>false},searchSupplement:async()=>({places:[],municipalities:{'13104':'東京都新宿区','12211':'千葉県成田市'}}),favorites:[],AstroNotesAlign:{TARGETS:[]},placeIndex:async()=>({}),AstroNotesTerrain:{...terrain,searchPlaceIndex:()=>[]},place,URLSearchParams});
+ const search=runInNewContext(searchHelpers()+grab('function namedPlaceMatches')+'\n'+grab('async function searchPlaces')+';searchPlaces',{searchJson:async url=>url.includes('msearch')?gsi:osm,photographicSearch:async()=>[],AstroNotesPlaceSearch:{search:()=>[],match:()=>false,norm:s=>String(s)},searchSupplement:async()=>({places:[],municipalities:{'13104':'東京都新宿区','12211':'千葉県成田市'}}),favorites:[],AstroNotesAlign:{TARGETS:[{id:'fuji',name:'富士山',latitude:35.360555,longitude:138.727363}]},placeIndex:async()=>({}),AstroNotesTerrain:{...terrain,searchPlaceIndex:()=>[]},place,URLSearchParams});
  const found=await search('新宿');assert.equal(found.length,2);assert.ok(found.some(r=>r.detail.includes('東京都')));assert.ok(found.some(r=>r.detail.includes('千葉県成田市')));
  assert.notEqual(found[0].detail,found[1].detail);assert.ok(found.every(r=>!r.detail.includes('km')));
 });

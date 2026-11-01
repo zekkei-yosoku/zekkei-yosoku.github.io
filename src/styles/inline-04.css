@@ -66,10 +66,9 @@ main:has(>#almanacView:not([hidden])){padding-bottom:calc(115px + env(safe-area-
 .place-tabs{margin:12px 0}
 #placeSheet>.sheet-body{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 #placeSheet>.sheet-body>:not(.place-tab-panels){flex-shrink:0}
-#placeSheet #searchResults{max-height:20dvh;overflow-y:auto}
-#placeSheet .place-search-tools{max-height:35dvh;overflow-y:auto;overscroll-behavior:contain}
-@media(max-height:420px){#placeSheet>.sheet-body{padding-top:6px;padding-bottom:6px}#placeSheet .place-tabs{margin:6px 0}#placeSheet .place-search-tools{max-height:30dvh}}
-@media(max-height:320px){#placeSheet .place-search-tools{max-height:20dvh}}
+#placeSheet #searchResults{max-height:max(72px,calc(60dvh - 120px));overflow-y:auto}
+#placeSheet .place-search-tools{max-height:60dvh;overflow-y:auto;overscroll-behavior:contain}
+@media(max-height:420px){#placeSheet>.sheet-body{padding-top:6px;padding-bottom:6px}#placeSheet .place-tabs{margin:6px 0}}
 #placeSheet .place-tab-panels{display:flex;flex:1;min-height:0;overflow:hidden}
 #placeSheet .place-tab-panels>[role=tabpanel]{flex:1;min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;padding:2px;outline-offset:-2px}
 
