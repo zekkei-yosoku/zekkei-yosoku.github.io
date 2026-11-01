@@ -34,8 +34,10 @@ document.addEventListener("touchstart", (e) => {
   // 予測一覧は主要ページなのでメニューを開く（2026-10-31 ユーザー「予測一覧の場合はメニュー。予測の詳細の場合は一覧に戻る」）。Safariの戻るに渡さない。
   if (!open && currentView === "list" && t.clientX <= 8 && e.cancelable) e.preventDefault();
   swipe = { x0: t.clientX, y0: t.clientY, t0: e.timeStamp, open, back: !open && !isMenuPage(), active: false, p: open ? 1 : 0 };
+  if (e.target.addEventListener) followDetachedTouch(e.target);
 }, { passive: false });
-document.addEventListener("touchmove", (e) => {
+let moveSwipe = null;
+document.addEventListener("touchmove", moveSwipe = (e) => {
   if (!swipe || e.touches.length !== 1) return;
   const t = e.touches[0];
   const dx = t.clientX - swipe.x0, dy = t.clientY - swipe.y0;
@@ -85,6 +87,16 @@ document.addEventListener("click", (e) => {
   // 指を離した直後に来る click だけ（続けて ☰ を押したときまで止めない）
   if (performance.now() - swipeEndedAt < 120) { e.preventDefault(); e.stopPropagation(); }
 }, true);
+// 指の下の要素が描き直しで消えると、以後の touch はその要素にだけ届き document へ上がらない（予測一覧はデータ到着で作り直す）。
+// そのままでは引き出しが途中で止まるので、消えた要素からも受ける。
+function followDetachedTouch(el) {
+  const move = (e) => { if (!el.isConnected) moveSwipe(e); };
+  const end = (e) => {
+    el.removeEventListener("touchmove", move); el.removeEventListener("touchend", end); el.removeEventListener("touchcancel", end);
+    if (!el.isConnected) endSwipe(e);
+  };
+  el.addEventListener("touchmove", move, { passive: true }); el.addEventListener("touchend", end); el.addEventListener("touchcancel", end);
+}
 document.addEventListener("touchend", endSwipe);
 document.addEventListener("touchcancel", endSwipe);
 // Safari のつまむ拡大（gesture）も止める

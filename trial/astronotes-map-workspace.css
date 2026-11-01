@@ -15,6 +15,19 @@
 #skyMapView.map-ws-scene{padding-top:var(--ws-top)}
 #skyMapView.map-ws-scene :is(.sky-map-head,#exploreConditions,#exploreTabs){display:none!important}
 #skyMapView.map-ws-scene #mapWsShare{visibility:hidden}
+/* 地図の上のボタンを見え方と同じ4列に。候補ピンもその1つ */
+#skyMapView.explore-mounted[data-explore-mode=map] #exploreMapPanel #skyMapShareRow:not([hidden]),#skyMapView.explore-mounted[data-explore-mode=map] #skyMapShareRow:not([hidden]){display:grid;grid-template-columns:repeat(4,minmax(0,1fr));justify-content:normal;align-items:center;gap:6px;height:56px;margin:2px 0}
+#skyMapView.explore-mounted[data-explore-mode=map] #skyMapShareRow button{position:static;order:0;flex:none;width:100%;min-width:0;height:56px;min-height:56px;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);box-shadow:none;font-size:12px;line-height:1.2;grid-row:1}
+#skyMapView.explore-mounted[data-explore-mode=map] #skyMapShareRow #shootingPins{grid-column:1;justify-self:stretch;font-size:0;font-weight:inherit}
+#skyMapView.explore-mounted[data-explore-mode=map] #skyMapShareRow #shootingPins::before{content:"";position:static;display:block;flex:none;width:24px;height:24px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s-7-6.4-7-12a7 7 0 1 1 14 0c0 5.6-7 12-7 12Z'/%3E%3Ccircle cx='12' cy='9' r='2.5'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s-7-6.4-7-12a7 7 0 1 1 14 0c0 5.6-7 12-7 12Z'/%3E%3Ccircle cx='12' cy='9' r='2.5'/%3E%3C/svg%3E") center/contain no-repeat}
+#skyMapView.explore-mounted[data-explore-mode=map] #skyMapShareRow #shootingPins::after{content:'候補ピン';position:static;font-size:12px}
+#skyMapView.explore-mounted[data-explore-mode=map] #skyMapShareRow #shootingPins[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}
+#skyMapView.explore-mounted[data-explore-mode=map] #skyMapShareRow [data-quick-save=place]{grid-column:2}
+#skyMapView.explore-mounted[data-explore-mode=map] #skyMapShareRow [data-quick-save=plan]{grid-column:3}
+#skyMapView.explore-mounted[data-explore-mode=map] #skyMapShareRow [data-plan-action=share]{grid-column:4}
+#skyMapView.explore-mounted[data-explore-mode=map] #skyMapShareRow [data-quick-save=place]::after{content:'撮影地点'}
+#skyMapView.explore-mounted[data-explore-mode=map] #skyMapShareRow [data-quick-save=plan]::after{content:'予定'}
+#skyMapView.explore-mounted[data-explore-mode=map] #skyMapShareRow [data-plan-action=share]::after{content:'共有'}
 /* 右端の縦ボタン列 */
 #skyMapView.map-ws .sky-map-expand{display:none!important}
 #skyMapView.map-ws .sky-map-wide .mapzoom{display:flex;flex-direction:column;gap:2px;top:8px;bottom:auto;right:var(--ws-rail-right);left:auto}
