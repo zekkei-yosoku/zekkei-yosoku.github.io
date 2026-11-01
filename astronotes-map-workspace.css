@@ -59,6 +59,8 @@
  #skyMapView.map-ws .map-ws-info{flex:none;margin-inline:calc(-1*max(8px,env(safe-area-inset-left)))}
 }
 @media(min-width:900px){
+ #skyMapView.map-ws .map-ws-page[data-body]{cursor:pointer}
+ #skyMapView.map-ws .map-ws-page.map-ws-current{background:color-mix(in srgb,var(--accent) 12%,transparent)}
  #skyMapView.map-ws .map-ws-info{flex-direction:column;overflow:visible;scroll-snap-type:none;touch-action:auto}
  #skyMapView.map-ws .map-ws-dots{display:none}.map-ws-page{flex:none;border-bottom:1px solid var(--line)}
 }

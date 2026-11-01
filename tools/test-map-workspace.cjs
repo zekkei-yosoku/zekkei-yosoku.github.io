@@ -37,6 +37,13 @@ const rect=(p,s)=>p.evaluate(s=>{const e=document.querySelector(s);if(!e)return 
   await p.locator('#wsSunRise').click();await p.waitForTimeout(200);assert.equal(await p.evaluate(()=>document.getElementById('skyMapTime').value),riseText);
   assert.match(await p.locator('#wsTarget b').innerText(),/°/);
   if(w<900){await p.evaluate(()=>{const i=document.getElementById('mapWsInfo');i.scrollLeft=i.clientWidth*4;});await p.waitForTimeout(250);assert.equal(await p.evaluate(()=>[...document.querySelectorAll('#mapWsDots span')].findIndex(d=>d.classList.contains('on'))),4,tag+' ページの丸');await p.evaluate(()=>{document.getElementById('mapWsInfo').scrollLeft=0;});}
+  // 太陽と月は情報欄で切り替える。条件の天体は変えず、数字と見出しが主役に揃う。隠していた天体も出す
+  const pick=async i=>{if(w<900)await p.evaluate(i=>{const n=document.getElementById('mapWsInfo');n.scrollLeft=n.clientWidth*i;},i);else await p.locator('#mapWsInfo [data-body]').nth(i).locator('.map-ws-cell').first().click();await p.waitForTimeout(250);};
+  const condition=await p.evaluate(()=>SkyMapUI.selectionState().body);
+  await pick(1);assert.match(await p.locator('#mapWsTitle span').innerText(),/^月 ×/,tag+' 月へ切替');assert.match(await p.locator('#wsGap').innerText(),/月/,tag);assert.equal(await p.evaluate(()=>SkyMapUI.selectionState().body),condition,tag+' 条件は変えない');
+  await pick(0);assert.match(await p.locator('#mapWsTitle span').innerText(),/^太陽 ×/,tag+' 太陽へ切替');
+  await p.locator('#mapWsBodies').click();await p.locator('#mapWsMenu button').nth(1).click();await p.waitForTimeout(150);assert.equal(await p.locator('#skyMapShowMoon').getAttribute('aria-pressed'),'false',tag);
+  await pick(1);assert.equal(await p.locator('#skyMapShowMoon').getAttribute('aria-pressed'),'true',tag+' 隠した月を出す');await pick(0);
   // 帯は24時間の縮尺で、ボタンで切り替えられる
   assert.equal(await p.locator('#skyMapScrubMode').getAttribute('data-mode'),'hour',tag);
   // 軌道: 毎時の目盛りを押すと時刻が移る
