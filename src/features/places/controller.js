@@ -350,11 +350,19 @@ for (const [id, min, max, message, set] of [
   input.oninput = () => { $("favHeightError").hidden = true; };
   input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); input.blur(); } };
 }
+// iPhone は保存を押しても入力欄のフォーカスが外れず change が来ないことがあるので、保存・閉じる前に確定する
+function favFlushHeight() {
+  const input = document.activeElement;
+  if (input !== $("favGroundHeight") && input !== $("favStandHeight")) return true;
+  input.onchange();
+  return $("favHeightError").hidden;
+}
 $("favGroundAuto").onclick = () => { favDraft.groundManualM = null; favDraft.elevation = null; $("favHeightError").hidden = true; favLoadGround(); };
 $("favStandAuto").onclick = () => { favDraft.eyeHeightAGL = favDefaultEye(favDraft); $("favHeightError").hidden = true; renderFavHeights(); };
 
 // 入力途中で閉じたら黙って消える、を避ける。消した登録は戻せるが、打った文字は戻せない。
 function favDirty() {
+  favFlushHeight();
   const o = favDraft.origin;
   return $("favName").value.trim() !== o.name || $("favNote").value.trim() !== o.note
     || (favDraft.terrain || "") !== o.terrain || favDraft.phenomena.join(",") !== o.phenomena
@@ -403,6 +411,7 @@ function renameSightings(oldName, newName, lat, lon) {
 
 function commitFavorite(approvedNames = null) {
   if(!favDraft || favDraft.ownerToken!==auth?.token)return;
+  if (!favFlushHeight()) return;
   const name = $("favName").value.trim();
   $("favNameErr").hidden = !!name;
   if (!name) { $("favName").focus(); return; }

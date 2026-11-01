@@ -486,7 +486,7 @@ function showCandidateList(){
  el('shootingCandidatesCondition').textContent=`${S.Cal.monthDay(skySession.at)}・${AstroNotesBodies.definition(skySession.body)?.name}を${skySession.target.name}に`;
  showSheet(candidateSheet);drawCandidateList();
 }
-function skyBox(){let box=el('mySkyPlaces');if(!box){box=document.createElement('section');box.id='mySkyPlaces';box.className='my-places';box.setAttribute('aria-label','撮影地点');el('skyMapDates').closest('.sky-map-candidates').after(box);}return box;}
+function skyBox(){let box=el('mySkyPlaces');if(!box){box=document.createElement('section');box.id='mySkyPlaces';box.className='my-places';box.setAttribute('aria-label','撮影地点');const dates=el('skyMapDates').closest('.sky-map-candidates');dates.closest('.sky-map-footer')?dates.closest('#skyMapView').querySelector('.sky-map-wrap').before(box):dates.after(box);}return box;}
 function updateCandidateUI(){
  const trigger=el('shootingCandidatesOpen');if(!trigger)return;
  trigger.textContent=candidateState.status==='loading'?'撮影地点：候補を確認中…':candidateState.status==='error'?'撮影地点：確認できません':`撮影地点：候補${candidateState.rows.length}件`;

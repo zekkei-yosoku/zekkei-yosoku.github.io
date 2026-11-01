@@ -46,7 +46,9 @@
 #skyMapView .tool-datetime-footer .candidate-dates > p, #skyMapView .tool-datetime-footer .candidate-wait { grid-column:2 / 4; grid-row:2; margin:0; font-size:12px; }
 #skyMapView .tool-datetime-footer .candidate-dates > [data-from-more] ~ p, #skyMapView .tool-datetime-footer .aim-days.strip ~ p { display:none; }
 #skyMapView .tool-datetime-footer .candidate-dates > p:has(~ [data-from-more]), #skyMapView .tool-datetime-footer .candidate-dates > p:has(~ [data-dates-retry]) { grid-column:2; }
-.dates-collapsed { grid-template-rows:44px !important; align-items:center; padding:0 !important; }
-.dates-collapsed .explore-dates-toggle { grid-row:1; }
+.dates-collapsed { grid-template-rows:28px !important; align-items:center; padding:0 !important; }
+/* 行は28pxに詰め、押せる範囲だけ上へ広げて44pxを保つ。下は日付の矢印があるので広げない */
+.dates-collapsed .explore-dates-toggle { grid-row:1; position:relative; min-height:28px; }
+.dates-collapsed .explore-dates-toggle::after { content:""; position:absolute; inset:-16px 0 0; }
 .dates-collapsed .aim-days.strip, .dates-collapsed .candidate-dates > :not(.candidate-heading) { display:none !important; }
 .dates-collapsed .candidate-heading { align-self:center; }
