@@ -394,6 +394,12 @@
     return R * Math.acos(R / (R + h));
   }
 
+  /// 海の地平線の見かけの高度[度]（水平より下が負）。高い所ほど下がる
+  function seaHorizonAngle(observerHeightM, opts = {}) {
+    const h = Math.max(0, observerHeightM);
+    return targetElevationAngle(horizonDistanceKm(h, opts), h, 0, opts);
+  }
+
   /// 距離 d の地点が、観測者の水平面からどれだけ下がるか（丸みによる沈み込み）
   function curvatureDropM(distanceKm, { k = REFRACTION_K } = {}) {
     const R = EARTH_R_KM * k;
@@ -578,7 +584,7 @@
     findCrossing, moonCrossings, moonEvents, nearestRiseSet,
     // 幾何
     EARTH_R_KM, REFRACTION_K,
-    targetElevationAngle, horizonDistanceKm, curvatureDropM, terrainBlocks, withoutTargetSlope,
+    targetElevationAngle, horizonDistanceKm, seaHorizonAngle, curvatureDropM, terrainBlocks, withoutTargetSlope,
   };
 
   global.AstroNotesAstro = AstroNotesAstro;

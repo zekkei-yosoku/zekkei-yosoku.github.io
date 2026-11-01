@@ -369,6 +369,11 @@
     return v === undefined ? null : v;
   }
 
+  /// 標高タイルだけで多数の点を読む。海・国外・読めない点は海面（0m）。Open-Meteo へ落とさない（遠くの海まで引くと 429 になる）
+  async function tileElevations(points, z) {
+    return Promise.all(points.map((p) => elevationFromTile(p.latitude, p.longitude, z).then((v) => v ?? 0, () => 0)));
+  }
+
   /*
    * 立つ場所の地面の標高。国土地理院の標高API（その地点で最も精度の高いDEM: 1mメッシュ（航空レーザ）→ 5m → 10m を
    * 国土地理院の側で選ぶ）。出どころは hsrc（「1m（レーザ）」など）。海は "-----" で 0m とする。
@@ -1501,7 +1506,7 @@
   const AstroNotesTerrain = {
     MAX_POINTS, DEFAULT_STEPS, OBSERVATION_DECKS, decksFor, deckLabel, structureHeight, isLookout,
     destination, bearing, distanceKm, inverse,
-    fetchElevations, elevations, elevationFromTile, groundElevation, inJapan, resolveObserver,
+    fetchElevations, elevations, elevationFromTile, tileElevations, groundElevation, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
     urbanHorizon, buildingHeightM, buildingAt, buildingsAlong, gsiBuildingsAlong, GSI_BUILDING_MIN_M, wikidataHeight, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
     profileToward, stepsFor, EYE_HEIGHT_PRESETS, searchPlaceIndex, normName,
