@@ -230,7 +230,7 @@ function exit(){
 function init(){
  const view=$('skyMapView');if(!view)return;
  new MutationObserver(evaluate).observe(view,{attributes:true,attributeFilter:['hidden','class','data-explore-mode']});
- document.addEventListener('click',e=>{if(e.target.closest?.('#exploreMapTab,#exploreShowResult')){dismissed=false;queueMicrotask(evaluate);}if(e.target.closest?.('#exploreShowResult'))setTimeout(()=>{const s=host()?.session;if(!sceneFull&&!active&&view.dataset.exploreMode==='scene'&&validPoint(s?.observer)&&validPoint(s?.target)){sceneFull=true;if(!history.state?.mapWs)history.pushState({...(history.state||{}),mapWs:1},'',location.href);showScene();}},0);},true);
+ document.addEventListener('click',e=>{if(e.target.closest?.('#exploreMapTab,#exploreShowResult')){dismissed=false;queueMicrotask(evaluate);}if(e.target.closest?.('#exploreShowResult'))setTimeout(()=>{if(sceneFull)scrollTo(0,0);const h=host();if(active&&h&&!$('exploreConditions').open)h.map.setCenter(h.session.observer.latitude,h.session.observer.longitude);const s=h?.session;if(!sceneFull&&!active&&view.dataset.exploreMode==='scene'&&validPoint(s?.observer)&&validPoint(s?.target)){sceneFull=true;if(!history.state?.mapWs)history.pushState({...(history.state||{}),mapWs:1},'',location.href);showScene();}},0);},true);
  addEventListener('popstate',()=>{if(sceneFull&&!history.state?.mapWs){dismissed=true;leaveScene();openConditions();}else if(active&&!history.state?.mapWs){dismissed=true;exit();openConditions();}else if(!active&&history.state?.mapWs){dismissed=false;evaluate();}});
  evaluate();
 }

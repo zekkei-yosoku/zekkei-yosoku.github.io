@@ -36,10 +36,9 @@
 #skyMapView.map-ws .map-ws-north{display:grid;place-items:center;position:absolute;top:8px;left:8px;width:44px;height:44px;padding:0;z-index:4;border:1px solid var(--line);border-radius:50%;background:var(--card);color:var(--text)}
 /* 地点名から開く条件欄 */
 #skyMapView.map-ws-conditions :is(#exploreConditions){display:block!important;position:fixed;top:calc(var(--ws-top) + 6px);left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));max-width:640px;margin:0;max-height:calc(100dvh - var(--ws-top) - 20px);overflow:auto;z-index:38;box-shadow:0 8px 24px #0006}
-#skyMapView.map-ws-conditions #exploreShowResult{display:none}
 /* 下部: 情報欄 → 日付 → 帯。既存の段は計算と権限のために残し、表示だけ隠す */
 #skyMapView.map-ws .sky-map-footer :is(.sky-map-body-bar,.sky-map-readouts,.sky-map-extra-active){display:none!important}
-#skyMapView.map-ws:not(.map-ws-dates-open) .sky-map-footer .sky-map-candidates{display:none!important}
+#skyMapView.map-ws:not(.map-ws-dates-open,.map-ws-conditions) .sky-map-footer .sky-map-candidates{display:none!important}
 #skyMapView.map-ws .sky-map-candidates .explore-dates-toggle{display:none}
 #skyMapView.map-ws .sky-map-footer .sky-map-candidates{grid-template-columns:minmax(0,1fr) auto}
 #skyMapView.map-ws .map-ws-info{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin-inline:calc(-1*max(8px,env(safe-area-inset-left)));touch-action:pan-x;max-width:none}
