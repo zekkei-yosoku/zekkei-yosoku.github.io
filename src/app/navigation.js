@@ -1,4 +1,4 @@
-import {$,S} from './presentation-helpers.js';
+import {$,S} from '../ui/presentation-helpers.js';
 import {SkyMapUI,nextAimCustomRequest,place,setAlmanacDay,viewState} from './browser-state.js';
 import {acceptedPrediction,load,predictionDirty,predictionNeeded,weeks} from '../features/forecast/load.js';
 import {currentView,render,upcoming} from '../features/forecast/view.js';

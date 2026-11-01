@@ -1,4 +1,4 @@
-import {$} from '../../app/presentation-helpers.js';
+import {$} from '../../ui/presentation-helpers.js';
 import {auth,pendingAccountPanels} from './session-and-access.js';
 import {showSheet} from '../../app/overlays.js';
 import {wantsRemember} from './remember-and-token.js';

@@ -1,9 +1,9 @@
 import './tools/test-owner-adapter.mjs';
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
 const html=sourceHtml();
 const source=html.slice(html.indexOf('async function updateMoonPrediction'),html.indexOf('/// 富士山と月の行を作って'));
-const kick=html.slice(html.indexOf('function kickExtras()'),html.indexOf('function wireMoonTimeRetry'));
+const kick=sourceDeclaration("kickExtras");
 const defer=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {resolve,promise};};
 function context(){const calls=[],x=vm.createContext({currentView:"list",predictionNeeded:()=>true,AstroNotesPrediction:{visibility(input){const d=defer();calls.push({input,...d});return d.promise;}},AstroNotesTerrain:{combinedHorizon:()=>()=>0,flatProfile:()=>[]},rerenderList(){},refreshLightTimes(){},console});vm.runInContext('let extraSeq=1,moonEvalSeq=0,moonWeeklySeq=0,moonAcceptedSeq=0,moonTerrainProfile=null,moonUrbanProfile=null,moonHorizon=null,moonPredictionPlace=null,moonDetailKey=null,moonObs={},forecastDays=[1],weeks={};const moonVisibility=new Map(),moonDetailPending=new Map();'+source,x);return {x,calls};}
 const dto=label=>({visibilityKey:label,asOf:1,bundle:{fetchedAt:1},weeks:{moon:[label]}});
@@ -22,7 +22,7 @@ test('前地点の付随処理を待たず、新地点の処理を開始して�
  assert.match(html,/const seq = \+\+loadSeq;\s+\+\+extraSeq/);
 });
 test('可視時刻の更新は太陽イベントなしでも動き、再試行は時計ずれで連打しない',()=>{
- const refresh=html.slice(html.indexOf('function refreshLightTimes()'),html.indexOf('function redrawDayDetail()'));
+ const refresh=sourceDeclaration("refreshLightTimes");
  assert.doesNotMatch(refresh,/if \(!lt/);assert.match(refresh,/mt\.outerHTML = renderMoonTimes/);
  assert.match(html,/attempts >= maxAttempts/);assert.match(html,/dto\.retryAt - dto\.asOf/);assert.doesNotMatch(html,/dto\.retryAt - Date\.now/);
 });
@@ -31,7 +31,7 @@ test('非表示で期限到来しても予算を消費せず、復帰時に一�
  const timers=new Map(),listeners=new Set();let next=0,runs=0;
  const doc={hidden:true,addEventListener:(event,fn)=>listeners.add(fn),removeEventListener:(event,fn)=>listeners.delete(fn)};
  const x=vm.createContext({currentView:"list",predictionNeeded:()=>true,document:doc,setTimeout(fn){timers.set(++next,fn);return next;},clearTimeout(id){timers.delete(id);},run(){runs++;}});
- const retry=html.slice(html.indexOf('function createForecastRetry'),html.indexOf('const extrasRetry'));
+ const retry=sourceDeclaration("createForecastRetry");
  vm.runInContext(retry+';const retry=createForecastRetry(run,1);retry.schedule();',x);
  [...timers.values()][0]();assert.equal(runs,0);assert.equal(listeners.size,1);
  doc.hidden=false;[...listeners][0]();assert.equal(runs,1);assert.equal(listeners.size,0);

@@ -1,4 +1,4 @@
-import {S} from '../../app/presentation-helpers.js';
+import {S} from '../../ui/presentation-helpers.js';
 import {place,setSkyMapUI,store} from '../../app/browser-state.js';
 import {blendBodyState,moonGlyphAt} from '../forecast/view.js';
 import {applyRoute,navigationHistory,routeFromHash} from '../../app/navigation.js';
@@ -7,7 +7,7 @@ import {createMapView} from '../../ui/map/picker.js';
 import {aim,aimElevCache,aimFavTarget,aimFavTargets,aimFillSelects,aimIsMountain,aimLimbValue,aimMapLabel,aimWithHeights} from '../framing/controller.js';
 import {aimAppendCandidatePage,aimBuildingDays,aimCalGridHtml,aimCalRows,aimCalSolid,aimCandidatePageEnd,aimCandidateSearchEnd,aimDaysInputKey,aimFromPoint,aimObserverAt,aimObserverEye,aimSavedFrom,aimShootingView,candidateDatesAppend,candidateDatesMarkup,candidateWaitMarkup} from '../framing/observer.js';
 import {aimLookKey} from '../framing/reverse-and-entry.js';
-import {openPlaceSheet} from '../../services/place-search.js';
+import {openPlaceSheet} from '../places/search.js';
 import {allowedTools,apiTransport,auth,renderTools,screenAllowed,toolAllowed} from '../account/session-and-access.js';
 import {showSheet} from '../../app/overlays.js';
 import {UI_ICONS} from '../../ui/visual-primitives.js';

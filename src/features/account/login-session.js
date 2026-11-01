@@ -1,4 +1,4 @@
-import {$} from '../../app/presentation-helpers.js';
+import {$} from '../../ui/presentation-helpers.js';
 import {favorites,sightings,store,viewState} from '../../app/browser-state.js';
 import {render} from '../forecast/view.js';
 import {routeFromHash} from '../../app/navigation.js';

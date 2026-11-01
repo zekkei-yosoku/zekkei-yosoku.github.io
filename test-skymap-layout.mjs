@@ -1,4 +1,4 @@
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import vm from 'node:vm';import {fixture,transfer} from './test-sky-map-ui.mjs';import {createRequire} from 'node:module';const createRequireFn=createRequire(import.meta.url);
 const flush=()=>new Promise(r=>setImmediate(r));
@@ -160,7 +160,7 @@ test('E198: 予測の取得状態は道具の画面の上に出さない',()=>{
  assert.match(html,/main:has\(>:is\(#aimView,#planeView,#issView,#recordsView,#answersView,#skyMapView,#adminView,#almanacView\):not\(\[hidden\]\)\)>:is\(#status,#predictionDataNotice\)\{display:none\}/);
 });
 test('E198: 月・富士山の信頼度の説明で、何日先かを二重に言わない',()=>{
- const src=html.slice(html.indexOf('function confidenceText(ev)'),html.indexOf('// 51メンバーの散らばりを見せる。'));
+ const src=sourceDeclaration("confidenceText");
  const fn=vm.runInNewContext(src+';confidenceText',{S:{MODELS:Array(8)}});
  for(const d of [1,2,4,5,6]){const text=fn({daysAhead:d,uncertainty:{basis:'single',expectedError:17},confidence:{key:'high'},models:0});
   assert.ok((text.match(new RegExp(d+'日先','g'))||[]).length<=1,text);assert.match(text,/点数は ±17点 ほど動く見込みです/);}

@@ -1,4 +1,4 @@
-import {S} from '../../app/presentation-helpers.js';
+import {S} from '../../../ui/presentation-helpers.js';
 const AIM_SENSOR = { full: [36, 24], aps: [23.5, 15.6], canon: [22.3, 14.9], m43: [17.3, 13] };
 // 旧版の固定200mmは引き継がず、見やすい自動表示を初期値にする。
 // グリッドは中央固定の撮影枠にだけ重ねる。実景や天体の座標は変更しない。

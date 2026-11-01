@@ -1,4 +1,4 @@
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
@@ -21,7 +21,7 @@ test('時間帯の見込みは形が合っているときだけ受け取る（�
 test('詳細に時間帯のカードを出し、注記・検証中・見頃の文字は出さない。古い予測のキャッシュは読み直す',()=>{
  const html=sourceHtml();
  assert.match(html,/\$\{renderTwilight\(ev\)\}/);
- const fn=html.slice(html.indexOf('function renderTwilight('),html.indexOf('// 評価の言葉を主役'));
+ const fn=sourceDeclaration("renderTwilight");
  assert.doesNotMatch(fn,/見頃|検証中|目安|tw-note|t\.best|verified/,'ユーザー指定で出さない');
  assert.match(html,/S\.phrasing\(ev\.phenomenon, r\)\.label/,'評価の語は上のカードと同じ');
  assert.match(html,/<span class="tw-score">\$\{ok \? Math\.round\(p\.score\) : "—"\}<\/span>/,'点数も出す');

@@ -1,4 +1,4 @@
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -7,7 +7,7 @@ import {createRequire} from 'node:module';
 // 「ホームの太陽のところにトワイライトタイムとかのバーを置くべき」）
 const html=sourceHtml();
 test('予報の詳細は日の出・日の入の時刻だけ（夕焼けは日の入、朝焼けは日の出）',()=>{
- const src=html.slice(html.indexOf('function renderLightTimes('),html.indexOf('/// 選択中の現象の詳細'));
+ const src=sourceDeclaration("renderLightTimes");
  const S={Sun:{lightWindows:()=>({sunrise:Date.parse('2026-10-21T05:52:00+09:00'),sunset:Date.parse('2026-10-21T16:58:00+09:00')})},JstCal:{hhmmRounded:x=>new Date(x+9*3600e3).toISOString().slice(11,16)}};
  const render=new Function('S','place','AstroNotesIcons',src+';return renderLightTimes;')(S,{latitude:35,longitude:139},{icon:k=>`<svg data-k="${k}"></svg>`});
  const sunset=render(0,0,'sunset'),sunrise=render(0,0,'sunrise'),other=render(0,0,'starrySky');

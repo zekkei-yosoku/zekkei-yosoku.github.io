@@ -1,4 +1,4 @@
-import {$,S} from '../../app/presentation-helpers.js';
+import {$,S} from '../../ui/presentation-helpers.js';
 import {extrasRetry,place} from '../../app/browser-state.js';
 import {applyRoute,routeFromHash} from '../../app/navigation.js';
 import {renderSkeleton} from './detail.js';

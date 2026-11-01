@@ -1,10 +1,10 @@
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const html=sourceHtml();
-const code=html.slice(html.indexOf('function aimLookSolidSilhouette('),html.indexOf('async function aimLookRender('));
+const code=sourceDeclaration("aimLookSolidSilhouette");
 function run(size,pattern){let raw,out,width,height;
  const canvas={getContext(){return {setTransform(){},resetTransform(){},beginPath(){},moveTo(){},lineTo(){},closePath(){},fill(){},getImageData(){width=canvas.width;height=canvas.height;raw=new Uint8ClampedArray(width*height*4);for(let y=0;y<height;y++)for(let x=0;x<width;x++)raw[(y*width+x)*4+3]=pattern(x,y,width,height);return {data:raw.slice()};},putImageData(i){out=i.data;}};}};
  const ctx=vm.createContext({document:{createElement:()=>canvas}});vm.runInContext(code,ctx);

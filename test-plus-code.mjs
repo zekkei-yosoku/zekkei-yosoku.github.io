@@ -1,4 +1,4 @@
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -56,7 +56,7 @@ function wireRuntime(){
  const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',innerHTML:'',dataset:{},attrs:{},events:{},parentElement:{classList:{add(){}}},classList:{add(){}},getAttribute(){return null;},addEventListener(n,f){this.events[n]=f;},setAttribute(n,v){this.attrs[n]=v;},removeAttribute(n){delete this.attrs[n];},closest(){return dialog;},insertAdjacentHTML(_p,s){this.innerHTML+=s;}});return nodes.get(id);};
  const calls=[],picks=[],coords=[],pending=[];
  const ctx=vm.createContext({setTimeout,clearTimeout,AstroNotesPlusCode:P,AstroNotesTerrain:T,$:node,document:{getElementById:node},MapPick:{center:()=>({latitude:0,longitude:0})},placeSheetFor:null,place:{},esc:s=>String(s).replace(/</g,'&lt;'),searchPlaces:(q,o)=>{calls.push({q,o});return o.localOnly?Promise.resolve([]):new Promise(resolve=>pending.push(resolve));},renderSearchResults:(h,r,pick)=>{h.rows=r;h.pick=pick;h.innerHTML=r.map(x=>x.name).join(',');}});
- vm.runInContext(html.slice(html.indexOf('function wireSearchBox('),html.indexOf('wireSearchBox("searchBox"')),ctx);
+ vm.runInContext(sourceDeclaration("wireSearchBox"),ctx);
  ctx.wireSearchBox('searchBox','searchResults',r=>picks.push(r),c=>coords.push(c));
  return{node,dialog,calls,picks,coords,pending,box:node('searchBox'),out:node('searchResults'),go:node('searchBoxGo')};
 }

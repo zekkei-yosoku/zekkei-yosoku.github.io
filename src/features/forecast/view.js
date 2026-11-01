@@ -1,4 +1,5 @@
-import {$,S,pickHighlight} from '../../app/presentation-helpers.js';
+import {$,S} from '../../ui/presentation-helpers.js';
+import {pickHighlight} from './presentation.js';
 import {SORTS,extrasLoadedSeq,extrasRetry,place,setExtrasLoadedSeq,store,viewState} from '../../app/browser-state.js';
 import {bundle,extraSeq,forecastDays,predictionLoadSeq,predictionNeeded,predictionPlace,weeks} from './load.js';
 import {wireOutcomes} from '../photos/controller.js';
@@ -8,7 +9,7 @@ import {renderBestNote,renderDayDetail,renderDetailPane,renderLightTimes,renderM
 import {renderRecords,savedRoundClient} from '../results/controller.js';
 import {selectedDay} from '../places/controller.js';
 import {renderAimAccess} from '../framing/reverse-and-entry.js';
-import {placeCardShown,renderDeckRow} from '../../services/place-search.js';
+import {placeCardShown,renderDeckRow} from '../places/search.js';
 import {renderToolAccess,renderTools,toolAllowed} from '../account/session-and-access.js';
 let sortMode = SORTS[store.get("sorami.sort", "standard")] ? store.get("sorami.sort", "standard") : "standard";
 let currentView = "list";

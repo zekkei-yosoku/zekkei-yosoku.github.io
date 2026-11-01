@@ -1,4 +1,4 @@
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 createRequire(import.meta.url)("./astronotes-bodies.js");
 import {test} from 'node:test';
@@ -47,7 +47,7 @@ test('既存記録の答え直しは予測と写真情報を保持し、新規�
  ctx.findSighting=()=>null;record('sunrise',ev.peak,1);assert.equal(pushed,4);
 });
 test('単一モデルの説明は表示と同じexpectedErrorを使い、±0は出さない',()=>{
- const fn=runInNewContext(html.slice(html.indexOf('function confidenceText(ev)'),html.indexOf('// 51メンバーの散らばりを見せる。'))+';confidenceText',{S});
+ const fn=runInNewContext(sourceDeclaration("confidenceText")+';confidenceText',{S});
  const make=(e)=>({uncertainty:{basis:'single',expectedError:e,modelWidth:8},confidence:{key:'high'},models:0,daysAhead:0});
  assert.match(fn(make(5)),/±5点/);assert.doesNotMatch(fn(make(5)),/±8/);assert.doesNotMatch(fn(make(0)),/±0/);
 });
@@ -112,9 +112,9 @@ test('未設定の自由目標へ切り替えると前の目標の時刻表を�
 
 test('月の選択はメニュー再入場・再読込でも保持し、明示のダイヤモンドURLだけ太陽を指定する',()=>{
  const saved={'sorami.aimBody':'moon','sorami.aimTarget':'skytree'},store={get:(key,fallback)=>saved[key]??fallback,set:(key,value)=>saved[key]=value};
- const init=html.slice(html.indexOf('const aim = {'),html.indexOf('///',html.indexOf('const aim = {')));
+ const init=sourceDeclaration("aim");
  const declaration=init.slice(0,init.indexOf('};')+2);
- const preset=html.slice(html.indexOf('const AIM_PRESETS = {'),html.indexOf('};',html.indexOf('const AIM_PRESETS = {'))+2);
+ const preset=sourceDeclaration("AIM_PRESETS");
  const start=html.indexOf('  if (pre) {',html.indexOf('const pre = preset && AIM_PRESETS[preset]'));
  const entry=html.slice(start,html.indexOf('  if (!AstroNotesBodies.definition(body).limbs',start));
  const sel={value:'skytree',selectedIndex:0};

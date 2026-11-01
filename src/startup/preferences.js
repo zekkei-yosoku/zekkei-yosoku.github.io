@@ -1,4 +1,4 @@
-import {$,getThemePreference,setThemePreference} from '../app/presentation-helpers.js';
+import {$,getThemePreference,setThemePreference} from '../ui/presentation-helpers.js';
 import {place} from '../app/browser-state.js';
 import {acceptedPrediction,load,predictionDirty,predictionNeeded} from '../features/forecast/load.js';
 import {applyRoute} from '../app/navigation.js';

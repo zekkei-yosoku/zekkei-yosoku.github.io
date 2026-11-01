@@ -1,9 +1,9 @@
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import {createRequire} from 'node:module';const require=createRequire(import.meta.url);
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
 const html=sourceHtml();
-const syncSource=html.slice(html.indexOf('const toItem ='),html.indexOf('// 記録の保存（記録・予定の画面のどちらで書いても）を拾って送る'));
+const syncSource=sourceDeclaration("toItem");
 const importSource=html.slice(html.indexOf('function persistImportedData('),html.indexOf('// ブラウザに「この保存領域を勝手に消さないでほしい」と申請する。'));
 const AccountSync=require('./src/services/account-sync.js');
 // 実factoryのportへfixtureをつなぐ。状態はcの現在値を毎回読み書きし、写しを持たない。
@@ -29,6 +29,6 @@ test('旧アカウントの送信応答で新アカウントのキューを変�
 test('サーバーに拒否された項目は保持し、無限再送せず未送信を伝える',async()=>{const f=fixture();f.c.apiCall=async(m,p,body)=>{f.calls.push({m,p,body});return m==='POST'?{accepted:{favorites:[],sightings:[]}}:{favorites:[],sightings:[],rev:1};};f.c.pushQueue=[{kind:'fav',id:'f'}];await f.c.syncNow();assert.equal(f.c.pushQueue.length,1);assert.equal(f.calls.filter(x=>x.m==='POST').length,1);assert.match(f.c.syncError,/未送信/);});
 
 test('古いファイルの解析失敗は新しい選択にエラー通知を出さない',async()=>{const f=fixture();let done;const old=f.import(()=>new Promise(r=>done=r));await f.import(backup);const count=f.alerts.length;done('{invalid');await old;assert.equal(f.alerts.length,count);});
-test('バックアップの範囲外座標をお気に入りへ取り込まない',()=>{const source=html.slice(html.indexOf('function cleanFavorite(f)'),html.indexOf('const DEFAULT_PLACE'));const c={isText:v=>typeof v==='string',freshDecks:x=>x,AstroNotesTerrain:{locationScope:()=> 'point'},TERRAINS:[],S:{PHENOMENA:{}}};vm.createContext(c);vm.runInContext(source,c);for(const [latitude,longitude] of [[91,0],[-91,0],[0,181],[0,-181],[NaN,0]])assert.equal(c.cleanFavorite({id:'f',latitude,longitude}),null);for(const [latitude,longitude] of [[90,180],[-90,-180],[0,0]])assert.ok(c.cleanFavorite({id:'f',latitude,longitude}));});
+test('バックアップの範囲外座標をお気に入りへ取り込まない',()=>{const source=sourceDeclaration("cleanFavorite");const c={isText:v=>typeof v==='string',freshDecks:x=>x,AstroNotesTerrain:{locationScope:()=> 'point'},TERRAINS:[],S:{PHENOMENA:{}}};vm.createContext(c);vm.runInContext(source,c);for(const [latitude,longitude] of [[91,0],[-91,0],[0,181],[0,-181],[NaN,0]])assert.equal(c.cleanFavorite({id:'f',latitude,longitude}),null);for(const [latitude,longitude] of [[90,180],[-90,-180],[0,0]])assert.ok(c.cleanFavorite({id:'f',latitude,longitude}));});
 
 test('保存済み地点の範囲外座標は起動時に既定へ戻す',()=>{const source=html.slice(html.indexOf('const DEFAULT_PLACE'),html.indexOf('// 読み込み時にも同じ検査を通す。'));for(const point of [{latitude:91,longitude:139},{latitude:35,longitude:181},{latitude:NaN,longitude:139},null]){const c={store:{get:()=>point},freshDecks:x=>x,AstroNotesTerrain:{locationScope:()=> 'point'}};const place=vm.runInNewContext(source+';place',c);assert.equal(place.id,'default');}});

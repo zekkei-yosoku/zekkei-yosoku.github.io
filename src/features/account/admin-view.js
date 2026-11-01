@@ -1,4 +1,4 @@
-import {$} from '../../app/presentation-helpers.js';
+import {$} from '../../ui/presentation-helpers.js';
 import {SkyMapUI,viewState} from '../../app/browser-state.js';
 import {navigationHistory} from '../../app/navigation.js';
 import {apiTransport,askReauth,auth} from './session-and-access.js';

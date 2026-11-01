@@ -1,4 +1,4 @@
-import {$} from '../../app/presentation-helpers.js';
+import {$} from '../../ui/presentation-helpers.js';
 import {store} from '../../app/browser-state.js';
 import {apiTransport} from './session-and-access.js';
 import {wantsRemember} from './remember-and-token.js';

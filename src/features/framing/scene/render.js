@@ -1,12 +1,12 @@
-import {$,S,esc} from '../../app/presentation-helpers.js';
-import {blendBodyState,lightTimingText,moonGlyphAt} from '../../features/forecast/view.js';
-import {AimMap,aim,aimIsMountain,aimTargetList} from '../../features/framing/controller.js';
+import {$,S,esc} from '../../../ui/presentation-helpers.js';
+import {blendBodyState,lightTimingText,moonGlyphAt} from '../../forecast/view.js';
+import {AimMap,aim,aimIsMountain,aimTargetList} from '../controller.js';
 import {aimLookRidge,aimTerrainBeyond,aimTerrainFront} from './terrain.js';
 import {AIM_SENSOR,aimDrawGrid,aimLens,aimLookHMS,aimLookHosts,aimLookRel} from './lens.js';
 import {aimLookSolidSilhouette} from './silhouette.js';
 import {aimLookPick} from './input.js';
-import {aimAirAngle,aimAirCompare,aimAirDescribe,aimLookKey,aimReverseClear} from '../../features/framing/reverse-and-entry.js';
-import {auth} from '../../features/account/session-and-access.js';
+import {aimAirAngle,aimAirCompare,aimAirDescribe,aimLookKey,aimReverseClear} from '../reverse-and-entry.js';
+import {auth} from '../../account/session-and-access.js';
 const AIM_HORIZON_SPAN = 20, AIM_HORIZON_MIN_DEG = 0.2;
 async function aimLookRender(host, spec) {
   if (!host) return;

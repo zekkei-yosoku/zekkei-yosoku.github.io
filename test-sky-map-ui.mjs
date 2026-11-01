@@ -1,4 +1,4 @@
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url),A=require('./astronotes-astro.js'),B=require('./astronotes-bodies.js'),M=require('./astronotes-sky-map.js'),TR=require('./astronotes-terrain.js'),AL=require('./astronotes-align.js'),MOON=require('./astronotes-moon.js');
@@ -56,7 +56,7 @@ test('保存した自作目標は現在の許可に従い復元し、地図で�
  const g=fixture({saved:{at:day,targetId:'custom',custom}});await g.open();g.element('skyMapTarget').value='';g.element('skyMapTarget').onchange();await flush();g.element('skyMapTarget').value='custom';g.element('skyMapTarget').onchange();await flush();assert.match(g.element('skyMapTargetInfo').textContent,/自作/);transfer(g);assert.equal(g.data.get('sorami.aimCustom').topM,105);
 });
 test('地盤cacheは約11mのセルを混同せず、幾何専用天体stateは大気providerを呼ばない',async()=>{
- const fn=html.slice(html.indexOf('async function aimElevation('),html.indexOf('/// 自分で置いた目標',html.indexOf('async function aimElevation(')));let n=0;const c={Map,aimElevCache:new Map(),AstroNotesTerrain:{groundElevation:async lat=>{n++;return lat*1000}}};vm.createContext(c);vm.runInContext(fn,c);const a=await c.aimElevation(35.000001,139),b=await c.aimElevation(35.000009,139);assert.notEqual(a,b);assert.equal(n,2);await c.aimElevation(35.000001,139);assert.equal(n,2);
+ const fn=sourceDeclaration("aimElevation");let n=0;const c={Map,aimElevCache:new Map(),AstroNotesTerrain:{groundElevation:async lat=>{n++;return lat*1000}}};vm.createContext(c);vm.runInContext(fn,c);const a=await c.aimElevation(35.000001,139),b=await c.aimElevation(35.000009,139);assert.notEqual(a,b);assert.equal(n,2);await c.aimElevation(35.000001,139);assert.equal(n,2);
  const src=readFileSync(new URL('./astronotes-bodies.js',import.meta.url),'utf8'),d={require,Date,AstroNotesAstro:A,AstroNotesAtmosphere:{apply:()=>{throw Error('refraction called')}},module:{exports:{}},globalThis:null};d.globalThis=d;vm.createContext(d);vm.runInContext(src,d);for(const body of B.definitions){const st=d.module.exports.state(body.id,day,{latitude:35,longitude:139,elevation:0},{refraction:false});assert.ok(Number.isFinite(st.altitude));assert.equal(st.apparentAltitude,st.altitude);}
 });
 test('見え方からの往復は自動標高を手入力へ変えず、既知の標高・目の高さをそのまま使う',async()=>{

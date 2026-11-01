@@ -1,4 +1,4 @@
-import {UI_ICONS} from './visual-primitives.js';
+import {UI_ICONS} from '../ui/visual-primitives.js';
 import {recentHistory} from '../features/framing/presentation.js';
 (()=>{
  const el=id=>document.getElementById(id);

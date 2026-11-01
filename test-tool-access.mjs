@@ -12,7 +12,7 @@ for(const tools of [[],['plane'],['iss'],['records'],['plane','iss','records']])
 }
 const c=fixture({tools:['plane']});assert.equal(c.toolAllowed('plane'),false,'tools without authenticated session rejected');
 const f=fixture({token:'fixture',tools:['records']});const pending=[];f.apiCall=()=>new Promise((resolve,reject)=>pending.push({resolve,reject}));let displayed=[];f.renderPhotos=()=>displayed.push(f.photos);
-vm.runInContext(html.slice(html.indexOf('async function loadPhotos('),html.indexOf('function renderPhotos()')),f);
+vm.runInContext(sourceDeclaration("loadPhotos"),f);
 const old=f.loadPhotos(),fresh=f.loadPhotos();pending[1].resolve({photos:[{id:'fresh'}]});await fresh;pending[0].reject(Error('old error'));await old;assert.equal(f.photos[0].id,'fresh','late old error cannot clear newer photos');
 const revoked=f.loadPhotos();f.auth.tools=[];f.refreshRestrictedTools();pending[2].resolve({photos:[{id:'revoked'}]});await revoked;assert.equal(f.photos.length,0,'revoked response is discarded');assert.equal(f.$('recordsView')['data-locked'],true);
 for(const [name,id] of [['openPlane','plane'],['openIss','iss'],['planeApply','plane'],['issApply','iss']]){

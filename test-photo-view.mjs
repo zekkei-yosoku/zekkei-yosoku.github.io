@@ -1,4 +1,4 @@
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import {createRequire} from "node:module";
@@ -70,7 +70,7 @@ test("年間探索は途中で操作に戻り、古い地点の結果を破棄�
 test("自動表示は旧200mmを移行せず、手動指定だけ保持する",()=>{
  const html=sourceHtml(),a=html.indexOf("const AIM_SENSOR ="),b=html.indexOf("const aimLookHosts",a);
  for(const [saved,mode] of [[{},"auto"],[{on:true,focal:200},"auto"],[{mode:"manual",on:true,focal:700},"manual"]]) {
-  const c=vm.createContext({AstroNotesBodies:globalThis.AstroNotesBodies,localStorage:{getItem:()=>JSON.stringify(saved)}});vm.runInContext(html.slice(html.indexOf('function aimObserverEye('),html.indexOf('aim.from = aimSavedFrom'))+html.slice(a,b)+";this.lens=aimLens",c);
+  const c=vm.createContext({AstroNotesBodies:globalThis.AstroNotesBodies,localStorage:{getItem:()=>JSON.stringify(saved)}});vm.runInContext(sourceDeclaration("aimObserverEye")+html.slice(a,b)+";this.lens=aimLens",c);
   assert.equal(c.lens.mode,mode);assert.equal(c.lens.on,true);if(mode==="manual")assert.equal(c.lens.focal,700);
  }
 });

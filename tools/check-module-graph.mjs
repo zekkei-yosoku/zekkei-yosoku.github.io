@@ -8,9 +8,9 @@ export function checkModuleGraph(manifest,read){
  const paths=manifest.architecture.units.filter(u=>u.scope==='classic-composition'&&u.path.endsWith('.js')).map(u=>u.path),set=new Set(paths),info=new Map();
  for(const p of paths){let ast;try{ast=parse(read(p),'module');}catch(e){throw Error('Unit is not a valid module '+p+': '+e.message);}info.set(p,scan(ast));}
  const owner=new Map();for(const p of paths)for(const n of info.get(p).top){if(owner.has(n))throw Error('Duplicate top-level name '+n+' in '+p+' and '+owner.get(n));owner.set(n,p);}
- const used=new Map(paths.map(p=>[p,new Set()])),ambient=new Set(),writes=[];
+ const used=new Map(paths.map(p=>[p,new Set()])),ambient=new Set(),writes=[],shared=/^src\/(ui|services)\//;
  for(const p of paths){const u=info.get(p);
-  for(const [name,from] of u.imports){const target=normalize(join(dirname(p),from));if(!set.has(target))throw Error('Import from unknown unit '+from+' in '+p);if(owner.get(name)!==target)throw Error('Import of '+name+' in '+p+' does not match its owner');if(!info.get(target).exports.has(name))throw Error('Import of '+name+' in '+p+' is not exported by '+target);if(!u.free.has(name))throw Error('Unused import '+name+' in '+p);used.get(target).add(name);}
+  for(const [name,from] of u.imports){const target=normalize(join(dirname(p),from));if(shared.test(p)&&target.startsWith('src/features/'))throw Error('Shared layer imports a feature: '+name+' in '+p);if(!set.has(target))throw Error('Import from unknown unit '+from+' in '+p);if(owner.get(name)!==target)throw Error('Import of '+name+' in '+p+' does not match its owner');if(!info.get(target).exports.has(name))throw Error('Import of '+name+' in '+p+' is not exported by '+target);if(!u.free.has(name))throw Error('Unused import '+name+' in '+p);used.get(target).add(name);}
   for(const name of u.exports)if(!u.top.has(name))throw Error('Export of undeclared '+name+' in '+p);
   for(const name of u.free){if(u.imports.has(name))continue;if(owner.has(name))throw Error('Undeclared dependency '+name+' in '+p+' (owner '+owner.get(name)+')');ambient.add(name);}
   for(const name of u.writes)if(u.imports.has(name))writes.push({name,writer:p,owner:u.imports.get(name)&&owner.get(name)});

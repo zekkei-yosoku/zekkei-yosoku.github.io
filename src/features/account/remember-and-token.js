@@ -1,4 +1,4 @@
-import {$} from '../../app/presentation-helpers.js';
+import {$} from '../../ui/presentation-helpers.js';
 import {store} from '../../app/browser-state.js';
 import {TOKEN_KEY,auth,authStorage} from './session-and-access.js';
 // 「保持する」の希望。**既定は外す**（2026-09-08 ユーザー判断）。

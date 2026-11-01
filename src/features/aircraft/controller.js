@@ -1,11 +1,11 @@
-import {$,S,esc} from '../../app/presentation-helpers.js';
+import {$,S,esc} from '../../ui/presentation-helpers.js';
 import {viewState} from '../../app/browser-state.js';
 import {lightTimingText,moonGlyphAt,moonHorizon,observerHere} from '../forecast/view.js';
 import {favForPoint,inheritedPoint,renameFromAfterFav,renderPointCard} from '../places/controller.js';
 import {createMapView} from '../../ui/map/picker.js';
 import {aimElevation,aimMapLabel} from '../framing/controller.js';
 import {aimObserverAt,aimSavedFrom} from '../framing/observer.js';
-import {nearName,openPlaceSheet} from '../../services/place-search.js';
+import {nearName,openPlaceSheet} from '../places/search.js';
 import {renderToolAccess,toolAllowed} from '../account/session-and-access.js';
 // ---------------------------------------------------------------- 月丼
 //

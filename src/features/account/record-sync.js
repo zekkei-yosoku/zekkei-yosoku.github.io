@@ -1,7 +1,7 @@
-import {store} from '../app/browser-state.js';
-import {auth,pushQueue,syncInfo} from '../features/account/session-and-access.js';
-import {toItem} from '../features/account/status.js';
-import {accountSync} from '../features/account/sync-bridge.js';
+import {store} from '../../app/browser-state.js';
+import {auth,pushQueue,syncInfo} from './session-and-access.js';
+import {toItem} from './status.js';
+import {accountSync} from './sync-bridge.js';
 const RecordSync = (() => {
   const SNAP = "sorami.recordSync.v1:", PREFIX = "rec:";
   const kinds = {

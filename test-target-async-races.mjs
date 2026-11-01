@@ -1,11 +1,11 @@
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const html=sourceHtml();
-const source='let aimCustomRequest=0;'+html.slice(html.indexOf('async function aimSetCustomTarget('),html.indexOf('/// 目標の場所のカード',html.indexOf('async function aimSetCustomTarget(')));
+const source='let aimCustomRequest=0;'+sourceDeclaration("aimSetCustomTarget");
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
 function setup(){const pending=[],writes=[],nodes={aimTarget:{value:'skytree'},aimCustomH:{value:'',dataset:{}},aimTargetSub:{}};const ctx={auth:{token:'owner'},atAim:true,$:id=>nodes[id],store:{set:(key,value)=>writes.push(value)},AstroNotesTerrain:{wikidataHeight:async()=>null},aimBuildingAt:()=>null,aimElevation:()=>{const d=deferred();pending.push(d);return d.promise;},aimFillSelects:()=>{},aimApply:()=>{}};vm.createContext(ctx);vm.runInContext(source,ctx);return {ctx,pending,writes,nodes};}
 test('対象変更の応答順が逆転しても最後の対象だけを保存する',async()=>{const h=setup();const first=h.ctx.aimSetCustomTarget({name:'first',latitude:35,longitude:139,heightM:1});const last=h.ctx.aimSetCustomTarget({name:'last',latitude:36,longitude:140,heightM:2});h.pending[1].resolve(10);await last;h.pending[0].resolve(9);await first;assert.deepEqual(h.writes.map(x=>x.name),['last']);});

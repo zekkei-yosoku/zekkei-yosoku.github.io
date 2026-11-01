@@ -1,4 +1,4 @@
-import {$} from '../../app/presentation-helpers.js';
+import {$} from '../../ui/presentation-helpers.js';
 import {SkyMapUI,cleanFavorite,cleanSighting,favorites,sightings} from '../../app/browser-state.js';
 import {render} from '../forecast/view.js';
 import {aimFillSelects} from '../framing/controller.js';

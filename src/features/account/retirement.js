@@ -1,4 +1,4 @@
-import {$} from '../../app/presentation-helpers.js';
+import {$} from '../../ui/presentation-helpers.js';
 import {favorites,sightings,store} from '../../app/browser-state.js';
 import {render} from '../forecast/view.js';
 import {accountFail,apiTransport,auth,clearAuth,dataOwner,lastLoginId,pushQueue,syncInfo,withPendingAction} from './session-and-access.js';

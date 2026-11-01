@@ -1,4 +1,4 @@
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 // 権限の確かめ直し（2026-10-15 総点検A04）。起動時だけでなく、前景へ戻ったとき・回線が戻ったとき・
 // 表示中は5分ごとに /me を訊き直す。変わっていなければ描き直さない。取消しはその場で反映する。
@@ -48,7 +48,7 @@ function fixture({tools=['plane','records'],now=10*60*1000}={}){
 const vis=html.slice(html.indexOf('document.addEventListener("visibilitychange", () => {\n  if (document.hidden) {\n    const draft'));
 assert.match(vis.slice(0,600),/\} else \{[\s\S]*void recheckAccess\(30 \* 1000\);[\s\S]*\}\n\}\);/,'前景へ戻ったら確かめる');
 assert.match(html,/window\.addEventListener\("pageshow", e => \{ if \(!e\.persisted\) return; if \(viewState\.admin\) renderAdmin\(\); void recheckAccess\(30 \* 1000\); \}\);/,'履歴から戻ったときも確かめる');
-const restore=html.slice(html.indexOf('async function restoreSession('),html.indexOf('/// ログインできたときの共通処理。'));
+const restore=sourceDeclaration("restoreSession");
 assert.match(restore,/tools: Array\.isArray\(me\.tools\) \? me\.tools : \[\], ownerAdmin: !!me\.ownerAdmin \};\n    lastLoginId = auth\.loginId;\n    accessCheckedAt = Date\.now\(\);/,'起動時の確認でも、返事に無い権限は使わず時刻を残す');
 assert.match(restore,/catch \{\n    \/\/ 401 は apiCall 側で片付いている。それ以外（圏外など）はトークンを捨てない/,'圏外の起動ではログインを保つ');
 assert.ok(html.includes('accessCheckedAt = Array.isArray(res.tools) ? Date.now() : 0;'),'ログインの返事の権限も確認済みとして数える');
@@ -58,5 +58,5 @@ assert.match(login,/auth = \{ \.\.\.auth, tools: Array\.isArray\(me\.tools\) \? 
 {const c=fixture();const loggedIn={token:'fixture-token',loginId:'u1',role:'admin',tools:['diamond'],ownerAdmin:true};c.auth=loggedIn;c.answer=()=>Promise.resolve({loginId:'u1',role:'admin',tools:['diamond'],ownerAdmin:true});
  await c.recheckAccess();assert.equal(c.auth,loggedIn,'同じ権限なら auth を差し替えない（管理画面を組み直さない）');assert.equal(c.authButtons,0);}
 // 記録一覧が 403 なら、空の一覧ではなく確かめ直して案内を出す
-assert.match(html.slice(html.indexOf('async function loadPhotos('),html.indexOf('function renderPhotos()')),/if \(e\?\.status === 403\) void recheckAccess\(0\);/,'記録の403で権限を確かめ直す');
+assert.match(sourceDeclaration("loadPhotos"),/if \(e\?\.status === 403\) void recheckAccess\(0\);/,'記録の403で権限を確かめ直す');
 console.log('ACCESS REFRESH OK: unchanged no-op, revocation, missing tools, offline keep, hidden/coalesce, account switch, triggers');

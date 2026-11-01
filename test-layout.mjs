@@ -1,4 +1,4 @@
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 /*
  * レイアウトの回帰テスト。
@@ -114,7 +114,7 @@ ok(!/ログインし直せば戻ります/.test(html), "消える話も書かな
 // **どの画面でも出す。** 画面を移ったり、ログインの復帰が遅れたりしても消えない
 ok(/renderTools\(\);\s*\n\s*renderDeckRow\(\)/.test(html), "描き直しのたびに見直す");
 // A bounded access request is created after rendering the saved session.
-{const restore=html.slice(html.indexOf('async function restoreSession('),html.indexOf('/// ログインできたとき'));ok(restore.indexOf('renderAuthButton();')<restore.indexOf('await apiTransport("GET", "/me"'), "/me を待たずに出す");}
+{const restore=sourceDeclaration("restoreSession");ok(restore.indexOf('renderAuthButton();')<restore.indexOf('await apiTransport("GET", "/me"'), "/me を待たずに出す");}
 ok(/aria-haspopup="true"/.test(html) && /role="dialog" aria-modal="true"/.test(html),
   "開閉を読み上げへ伝える");
 // 引き出しの作り（正本: 04_デザイン定義「4-4. 道具のメニュー（引き出し）」）
@@ -370,7 +370,7 @@ ok(/const CELL_RAMP/.test(html), "色は評価4段ではなく点数の連続で
 // 2026-09-06: 共通描画へ移し、一覧はdata-cell、詳細はdata-dayを使う。
 // ボタンであることは生成したHTMLで検証する。
 const { runInNewContext } = await import("node:vm");
-const daysSource = html.slice(html.indexOf("function renderDays("), html.indexOf("// その日の光の時間。"));
+const daysSource = sourceDeclaration("renderDays");
 const sampleNow = Date.UTC(2026, 8, 6, 3);
 const sampleDays = Array.from({ length: 14 }, (_, i) => ({
   dayMs: sampleNow + i * 86400000,
@@ -549,7 +549,7 @@ ok(/let h = Number\.isFinite\(p\.heightM\) && p\.heightM >= 0 \? p\.heightM : ty
 ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れるのは地上からの高さ）");
 {
   // どこに重ねるかは図つきの3つの釦（2026-10-02 ユーザー「もっと簡潔でわかりやすいのが」→ Codex と相談 → ユーザーが選んだ）
-  const fill = html.slice(html.indexOf("function aimFillSelects"), html.indexOf("/// 天体で言い方を変える"));
+  const fill = sourceDeclaration("aimFillSelects");
   // 名前は aria-label（見出し「何に重ねるか」は文の「に重ねる」になったので、それを読ませない。2026-10-06）
   ok(/<div class="aim-limb" id="aimLimb" role="group" aria-label="天体のどこを合わせるか"><\/div>/.test(html) && !/<select id="aimLimb"/.test(html),
     "どこに重ねるかは select ではなく釦の組");
@@ -588,10 +588,10 @@ ok(/topM: ground \+ h/.test(html), "地面の標高は自動で足す（入れ�
   }
 }
 ok(/\$\("aimTargetSub"\)\.textContent = c\s+\? \[c\.subtitle, `標高 \$\{Math\.round\(c\.groundM \|\| 0\)\}m`\]\.filter/.test(html)
-  && !/地上 \$\{/.test(html.slice(html.indexOf("function aimRenderTargetCard"), html.indexOf("// 打ち込んだ高さは、次に場所を選んだときに使う"))), "目標のカードに地上の高さを重ねて書かない（下の欄に入っている。2026-10-02 ユーザー「自動入力で入ってるから不要」）");
+  && !/地上 \$\{/.test(sourceDeclaration("aimRenderTargetCard")), "目標のカードに地上の高さを重ねて書かない（下の欄に入っている。2026-10-02 ユーザー「自動入力で入ってるから不要」）");
 {
   // 首都圏の外は、目標へ向かう線に掛かる建物を問い合わせる。一覧の外を「隠れない」と言わない
-  const sb = html.slice(html.indexOf("async function aimSightBuildings"), html.indexOf("async function aimBuildingBlocks"));
+  const sb = sourceDeclaration("aimSightBuildings");
   ok(/tallCovers\(all, obs\.latitude, obs\.longitude\) && tallCovers\(all, end\.latitude, end\.longitude\)/.test(sb)
     && /AstroNotesTerrain\.buildingsAlong\(obs, end,/.test(sb), "首都圏の外は線に掛かる建物を OpenStreetMap に問い合わせる");
   ok(/if \(!got\) return null;/.test(sb), "問い合わせられなければ「確かめられない」（null）");
@@ -1277,8 +1277,7 @@ for (const label of ["暦の上では", "この場所では", "まるごと", "�
   ok(html.includes(`"${label}"`) || html.includes(`["${label}"`),
     `「${label}」の段がある`);
 }
-ok(/class="lt"/.test(html.slice(html.indexOf("function renderMoonTimes"),
-                                html.indexOf("function renderLightTimes"))),
+ok(/class="lt"/.test(sourceDeclaration("renderMoonTimes")),
   "既存の .lt を使い回す（新しい見た目を作らない）");
 ok(/この日は\$\{!astro\("rise"\) \? "月の出" : "月の入"\}がありません/.test(html), "出ない日・入らない日を黙って空欄にしない（理由の説明はしない）");
 // 高い場所では地平線が下がり、暦より**早く**出る（東京タワー150mで2分早い）。
@@ -1444,9 +1443,8 @@ console.log("== 月・富士山・笠雲を「次の見どころ」に出さな�
 // 雲海や虹のような「その日だけ」の現象を押し出す（2026-09-14 ユーザー指摘）。
 // 表の行としては残すので、除外は見どころの選定だけに効かせる。
 const pickHighlight = runInNewContext(
-  html.slice(html.indexOf("const LEAD_PENALTY"), html.indexOf("function pickHighlight"))
-  + html.slice(html.indexOf("function pickHighlight"),
-               html.indexOf("\n}", html.indexOf("function pickHighlight")) + 2)
+  sourceDeclaration("LEAD_PENALTY")
+  + sourceDeclaration("pickHighlight")
   + ";pickHighlight", { S: coreMod });
 
 const mkEv = (score) => ({ score, peak: 1000, window: [0, 9e15], unavailable: false,
@@ -1486,8 +1484,7 @@ console.log("== 「±0」を出さない ==");
 // 51通りが全部同じ値になることは珍しくない（上限や100点の頭打ちに張り付く）。
 // そのとき「±0」と出すと、点数が正確だという意味に読める。実測誤差は当日でも12.6点ある。
 ok(/const err = raw === 0 \? null : raw/.test(html), "誤差が0に丸まるときは付けない");
-const explainConfidence = runInNewContext(html.slice(html.indexOf("function confidenceText(ev)"),
-  html.indexOf("// 51メンバーの散らばりを見せる。")) + ";confidenceText", { S: coreMod });
+const explainConfidence = runInNewContext(sourceDeclaration("confidenceText") + ";confidenceText", { S: coreMod });
 const zeroErrorText = explainConfidence({uncertainty:{basis:"ensemble",expectedError:0,ensembleMembers:51},confidence:{key:"high"},models:8});
 ok(!zeroErrorText.includes("±0点") && zeroErrorText.includes("あまり動きません"), "説明文も「±0点」と言わない");
 
@@ -1710,7 +1707,7 @@ ok(/function outcomeButtons/.test(html), "選択肢を作る場所が1つ");
 ok(html.match(/data-answer="same"/g).length === 1, "選択肢を組み立てる箇所が1つだけ");
 {
   // 予測通りは1回押すだけ、違ったらゲージ（2026-10-02 ユーザー「選択式じゃなくて何点だったかをゲージで」「予測通りってボタンと、違うならゲージ」）
-  const ob = html.slice(html.indexOf("function outcomeButtons"), html.indexOf("const answerHtml"));
+  const ob = sourceDeclaration("outcomeButtons");
   ok(/<button data-answer="same"[^>]*>予測通り<\/button>\s*<button data-answer="diff"[^>]*>違った<\/button>\s*<button data-answer="none"[^>]*>確認せず<\/button>/.test(ob),
     "予測通り・違った・確認せず");
   ok(/\.outcome button \{[^}]*min-height: 44px/.test(html), "答えのボタンは指の的 44px");
@@ -1724,7 +1721,7 @@ ok(html.match(/data-answer="same"/g).length === 1, "選択肢を組み立てる�
     && /\$\{saved \? " disabled" : ""\}>\$\{saved \? "記録済み" : "この点で記録"\}/.test(ob), "記録した点のままなら「記録済み」（押せない）");
   ok(/save\.disabled = same;\s+save\.textContent = same \? "記録済み" : "この点で記録";/.test(html), "ゲージを動かすと「この点で記録」に戻る");
   ok(/\.gauge-foot button:disabled \{ background: var\(--line\)/.test(html), "記録済みは灰色");
-  const wo = html.slice(html.indexOf("function wireOutcomes"), html.indexOf("function wireOutcomes") + 2200);
+  const wo = sourceDeclaration("wireOutcomes");
   ok(/if \(k === "diff"\) \{[\s\S]{0,300}\.answer-gauge"\)\.hidden = false;[\s\S]{0,80}return;/.test(wo), "違ったを押してもまだ記録しない（ゲージを出す）");
   ok(/recordAnswer\(pid, peak, k === "same" \? pred : k === "save" \? \+gauge\.value : null\)/.test(wo), "予測通り＝予測の点・この点で記録＝ゲージの点・確認せず＝点なし");
   // 2026-10-16: 点数の由来（予報の点のままか・本人の答えか）も渡す。保存時の分析で、予報の点を本人の点と取り違えないため
@@ -1742,7 +1739,7 @@ ok(html.match(/data-answer="same"/g).length === 1, "選択肢を組み立てる�
   // 分析が読めなくても、写真の読み込みと保存は止めない（2026-10-16 レビュー指摘）
   ok(/analyzer = globalThis\.AstroNotesPhotoAnalysis;\s+if \(analyzer\) draft\.colorJob = analyzer\.analyzeDataUrl\(t\.url\)/.test(html), "分析のモジュールが無ければ計算しない");
   ok(/const scoreSource = draft\.scoreMoved \? "user_moved" : draft\.scoreInitial;/.test(html), "保存の流れは分析のモジュールに頼らない");
-  const ra = html.slice(html.indexOf("function recordAnswer"), html.indexOf("function shotFields"));
+  const ra = sourceDeclaration("recordAnswer");
   ok(/const record = \{ \.\.\.\(existing \|\| \{\}\),/.test(ra), "答え直しても、先に添えた写真の時刻・位置を消さない");
   ok(/actualScore: a, outcome: S\.outcomeFromActual\(pid, ev\.score, a\)/.test(ra), "帯グラフの答えは実際の点から出す");
   ok(/actualScore: Number\.isFinite\(r\.actualScore\) && r\.actualScore >= 0 && r\.actualScore <= 100/.test(html), "取り込んだ実際の点も確かめる");
@@ -1769,8 +1766,7 @@ console.log("== ホームで答えられる ==");
 // 記録カードからは辿れなかった。
 ok(/function renderPending/.test(html), "終わったのに未回答の回を出す");
 ok(/id="recPending"/.test(html), "#recPending がある");
-const pend = html.slice(html.indexOf("function renderPending"),
-                        html.indexOf("function outcomeButtons"));
+const pend = sourceDeclaration("renderPending");
 ok(/outcomeButtons\(id, ev\.peak/.test(pend), "ホームの一覧に押す場所が付く");
 ok(/host\.hidden = hidden \|\| \(!out\.length && !notice\)/.test(pend),
   "答える回も取得状態の案内も無ければホームに何も出さない");
@@ -2813,7 +2809,7 @@ console.log("== 更新の自動確認が、読み直しの繰り返しになら�
 //
 // 文字列一致では順序の誤りを捕まえられないので、実際に動かして確かめる。
 {
-  const src = html.slice(html.indexOf("async function checkForUpdate()"));
+  const src = sourceDeclaration("checkForUpdate");
   let depth = 0, end = 0;
   for (let i = src.indexOf("{"); i < src.length; i++) {
     if (src[i] === "{") depth++;
@@ -3045,7 +3041,7 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
   ok(f(C, store, { sunset: [] }, { id: "p2", name: "別", latitude: 34, longitude: 135 }, () => ({})).answerableRounds(today + DAY).length === 0,
     "別の地点の回は出さない");
   ok(/const out = answerableRounds\(now\)\.filter\(\(\{ pid, ev \}\) => !findSighting\(pid, ev\.peak\)\)/.test(html), "実際はどうでしたかは答えられる回から");
-  ok(/const round = roundOf\(pid, peak\);/.test(html.slice(html.indexOf("function recordAnswer"))), "記録も残した回の予測で");
+  ok(/const round = roundOf\(pid, peak\);/.test(sourceDeclaration("recordAnswer")), "記録も残した回の予測で");
   // 総点検（2026-10-02）: 詳細の画面も、残した回の予測で答える（予報が変わった回で「予測通り」が期待外れになっていた）
   ok(/data-open-answers/.test(html.slice(html.indexOf("const record = !toolAllowed"),html.indexOf("const record = !toolAllowed")+800)), "予測詳細から専用の答え合わせ画面へ案内する");
   // 明日の回も残す（明日の朝焼けを、明日アプリを開く前の予測で）・上限
@@ -3184,7 +3180,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
     "形と明るい輪郭は時刻から独立し、暗い空でも区別できる（ぼかさず固定して再利用）");
   // 2026-10-03: 画面外の天体で時刻が見切れるため、時刻は図の下のoutputへ統一。
   ok(/時刻は図の下のoutputだけに表示/.test(html), "時刻は図の下に統一し図内で見切れない");
-  const lookSrc = html.slice(html.indexOf("async function aimLookRender"), html.indexOf("function aimLookPick("));
+  const lookSrc = sourceDeclaration("aimLookRender");
   // 2026-10-03: 通常は道のclick、枠移動モードだけpointerを使う。
   ok(/cv\.onclick = /.test(lookSrc) && /!host\._pick/.test(lookSrc) && /data-look-range/.test(lookSrc), "道をさわるか、つまみで時刻を選ぶ（iPhone の指のタップは click で受ける）");
   // 逆引き（2026-10-03 ユーザー「見え方の月とか太陽の位置を調整したら、それがどこら辺の座標で撮れるのか逆引きできる？」→「円盤を置く」）

@@ -1,4 +1,4 @@
-import {aim,aimElevation} from '../../features/framing/controller.js';
+import {aim,aimElevation} from '../controller.js';
 async function aimReverseCurve(r, { dx, dy, D, dist, stale }) {
   const out = [{ ...r, distanceKm: D }];
   const run = async (list) => {

@@ -1,4 +1,4 @@
-import {$,esc} from '../../app/presentation-helpers.js';
+import {$,esc} from '../presentation-helpers.js';
 import {store} from '../../app/browser-state.js';
 import {showSheet} from '../../app/overlays.js';
 // ---------------------------------------------------------------- 地図で選ぶ

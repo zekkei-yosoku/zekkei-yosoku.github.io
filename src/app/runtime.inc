@@ -1,4 +1,4 @@
-@@include:src/app/presentation-helpers.js@@
+@@include:src/ui/presentation-helpers.js@@@@include:src/features/forecast/presentation.js@@
 @@include:src/ports/storage.js@@@@include:src/ports/auth-storage.js@@@@include:src/ports/http-client.js@@
 @@include:src/app/browser-state.js@@
 @@include:src/features/forecast/load.js@@
@@ -10,10 +10,10 @@
 @@include:src/features/places/controller.js@@@@include:src/ui/map/picker.js@@
 @@include:src/features/framing/controller.js@@
 @@include:src/features/aircraft/controller.js@@
-@@include:src/features/satellites/controller.js@@
+@@include:src/features/satellites/state.js@@@@include:src/features/places/map-apps.js@@@@include:src/features/satellites/controller.js@@@@include:src/features/framing/apply-and-list.js@@
 @@include:src/features/framing/observer.js@@
 @@include:src/features/framing/candidates.js@@
-@@include:src/ui/scene/renderer.inc@@
-@@include:src/features/framing/reverse-and-entry.js@@@@include:src/services/place-search.js@@
+@@include:src/features/framing/scene/renderer.inc@@
+@@include:src/features/framing/reverse-and-entry.js@@@@include:src/features/places/search.js@@
 @@include:src/features/account/session-and-access.js@@@@include:src/app/overlays.js@@
-@@include:src/ui/gestures.js@@@@include:src/features/account/status.js@@@@include:src/services/record-sync.js@@@@include:src/services/account-sync.js@@@@include:src/features/account/controller.inc@@@@include:src/features/plans/controller.js@@
+@@include:src/app/gestures.js@@@@include:src/features/account/status.js@@@@include:src/features/account/record-sync.js@@@@include:src/services/account-sync.js@@@@include:src/features/account/controller.inc@@@@include:src/features/plans/controller.js@@

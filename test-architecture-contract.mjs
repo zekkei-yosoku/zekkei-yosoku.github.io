@@ -23,6 +23,6 @@ test('bridge reader lists, wrapper definitions, ambient policy and external name
 
 test('actual factory assignments and forwarded aliases must match their registries',()=>{
  const path='src/domain/navigation/routes.js';assert.throws(()=>checkArchitecture(manifest,n=>n===path?read(n).replace('global.AstroNotesNavigationRoutes =','global.AstroNotesRoutes ='):read(n)),/Factory provider declaration mismatch/);
- assert.throws(()=>checkArchitecture(manifest,n=>read(n)+(n==='src/ui/scene/render.js'?'\nconst {AIM_LOOK_SKY}=AstroNotesSceneAppearance;':'')),/Unclassified adapter alias AIM_LOOK_SKY/);
- for(const extra of ['const unlistedAlias=AstroNotesSceneAppearance.aimLookSky;','const unlistedArrow=(x)=>AstroNotesSceneAppearance.aimLookSky(x);'])assert.throws(()=>checkArchitecture(manifest,n=>read(n)+(n==='src/ui/scene/render.js'?'\n'+extra:'')),/Unclassified adapter alias/);
+ assert.throws(()=>checkArchitecture(manifest,n=>read(n)+(n==='src/features/framing/scene/render.js'?'\nconst {AIM_LOOK_SKY}=AstroNotesSceneAppearance;':'')),/Unclassified adapter alias AIM_LOOK_SKY/);
+ for(const extra of ['const unlistedAlias=AstroNotesSceneAppearance.aimLookSky;','const unlistedArrow=(x)=>AstroNotesSceneAppearance.aimLookSky(x);'])assert.throws(()=>checkArchitecture(manifest,n=>read(n)+(n==='src/features/framing/scene/render.js'?'\n'+extra:'')),/Unclassified adapter alias/);
 });

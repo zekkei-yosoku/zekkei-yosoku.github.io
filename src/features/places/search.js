@@ -1,14 +1,14 @@
-import {$,esc} from '../app/presentation-helpers.js';
-import {favorites,place} from '../app/browser-state.js';
-import {bundle} from '../features/forecast/load.js';
-import {currentView,groundAt} from '../features/forecast/view.js';
-import {PLACE_PICKERS,choosePlace,clearFavMapReturn,favDraft,favMapReturn,openFavSheet,renderSheet,selectPlace} from '../features/places/controller.js';
-import {MapPick} from '../ui/map/picker.js';
-import {aimSetFrom} from '../features/framing/observer.js';
-import {aimRenderSheetCands} from '../features/framing/candidates.js';
-import {API,auth} from '../features/account/session-and-access.js';
-import {showSheet} from '../app/overlays.js';
-import {recentHistory} from '../features/framing/presentation.js';
+import {$,esc} from '../../ui/presentation-helpers.js';
+import {favorites,place} from '../../app/browser-state.js';
+import {bundle} from '../forecast/load.js';
+import {currentView,groundAt} from '../forecast/view.js';
+import {PLACE_PICKERS,choosePlace,clearFavMapReturn,favDraft,favMapReturn,openFavSheet,renderSheet,selectPlace} from './controller.js';
+import {MapPick} from '../../ui/map/picker.js';
+import {aimSetFrom} from '../framing/observer.js';
+import {aimRenderSheetCands} from '../framing/candidates.js';
+import {API,auth} from '../account/session-and-access.js';
+import {showSheet} from '../../app/overlays.js';
+import {recentHistory} from '../framing/presentation.js';
 let placeSheetFor = null;
 let favUndo = [];      // 消したものを戻すための控え。地点シートを閉じるまで持つ。
 /// 都道府県（JIS X 0401 の番号順。ISO 3166-2:JP の JP-01〜JP-47 と同じ）

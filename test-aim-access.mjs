@@ -1,4 +1,4 @@
-import {sourceHtml} from './tools/test-source.mjs';
+import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 // 未ログイン・権限なしで構図を直URLで開いたとき、本体ではなく案内を出す（2026-10-15）。
 // 以前は openAim が aimView ごと隠したあと、render() がルートだけで表示へ戻し、本体が「計算しています…」のまま止まっていた。
 import {readFileSync} from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
@@ -14,7 +14,7 @@ assert.ok(html.includes('$("aimAccessLogin").onclick = () => $("authButton").cli
 const renderStart=html.indexOf('function render() {');
 assert.match(html.slice(renderStart,html.indexOf('$("backBar").hidden',renderStart)),/for \(const v of VIEWS\) \$\(v\.el\)\.hidden = v\.id !== view;[\s\S]*if \(view === "aim"\) renderAimAccess\(\);/);
 
-const src=html.slice(html.indexOf('function renderAimAccess() {'),html.indexOf('$("aimAccessLogin").onclick'));
+const src=sourceDeclaration("renderAimAccess");
 const access=readFileSync(new URL('./astronotes-access.js',import.meta.url),'utf8');
 function fixture(auth){
  const els={};

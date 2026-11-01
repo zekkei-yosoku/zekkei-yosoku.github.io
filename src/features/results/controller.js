@@ -1,4 +1,4 @@
-import {$,RANK_COLOR,S,esc} from '../../app/presentation-helpers.js';
+import {$,RANK_COLOR,S,esc} from '../../ui/presentation-helpers.js';
 import {place,sightings,store,viewState} from '../../app/browser-state.js';
 import {bundle,weeks} from '../forecast/load.js';
 import {iconFor,render} from '../forecast/view.js';

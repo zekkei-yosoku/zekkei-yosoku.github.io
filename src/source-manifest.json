@@ -7,7 +7,8 @@
     "src/startup/paint-gate.js",
     "src/startup/theme.js",
     "src/startup/theme-meta.js",
-    "src/app/presentation-helpers.js",
+    "src/ui/presentation-helpers.js",
+    "src/features/forecast/presentation.js",
     "src/ports/storage.js",
     "src/ports/auth-storage.js",
     "src/ports/http-client.js",
@@ -25,23 +26,26 @@
     "src/ui/map/picker.js",
     "src/features/framing/controller.js",
     "src/features/aircraft/controller.js",
+    "src/features/satellites/state.js",
+    "src/features/places/map-apps.js",
     "src/features/satellites/controller.js",
+    "src/features/framing/apply-and-list.js",
     "src/features/framing/observer.js",
     "src/features/framing/candidates.js",
     "src/domain/scene/appearance.js",
-    "src/ui/scene/terrain.js",
-    "src/ui/scene/lens.js",
-    "src/ui/scene/silhouette.js",
-    "src/ui/scene/render.js",
-    "src/ui/scene/input.js",
-    "src/ui/scene/reverse.js",
+    "src/features/framing/scene/terrain.js",
+    "src/features/framing/scene/lens.js",
+    "src/features/framing/scene/silhouette.js",
+    "src/features/framing/scene/render.js",
+    "src/features/framing/scene/input.js",
+    "src/features/framing/scene/reverse.js",
     "src/features/framing/reverse-and-entry.js",
-    "src/services/place-search.js",
+    "src/features/places/search.js",
     "src/features/account/session-and-access.js",
     "src/app/overlays.js",
-    "src/ui/gestures.js",
+    "src/app/gestures.js",
     "src/features/account/status.js",
-    "src/services/record-sync.js",
+    "src/features/account/record-sync.js",
     "src/services/account-sync.js",
     "src/features/account/sync-bridge.js",
     "src/features/account/remember-and-token.js",
@@ -62,7 +66,7 @@
     "src/ui/visual-primitives.js",
     "src/features/framing/presentation.js",
     "src/features/explore/map-presentation.js",
-    "src/ui/intuitive-controls.js",
+    "src/app/intuitive-controls.js",
     "src/startup/preferences.js",
     "src/ui/panel-controls.js"
   ],
@@ -80,7 +84,11 @@
       "kind": "inline-entry"
     },
     {
-      "path": "src/app/presentation-helpers.js",
+      "path": "src/ui/presentation-helpers.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/forecast/presentation.js",
       "kind": "classic-fragment"
     },
     {
@@ -152,7 +160,19 @@
       "kind": "classic-fragment"
     },
     {
+      "path": "src/features/satellites/state.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/places/map-apps.js",
+      "kind": "classic-fragment"
+    },
+    {
       "path": "src/features/satellites/controller.js",
+      "kind": "classic-fragment"
+    },
+    {
+      "path": "src/features/framing/apply-and-list.js",
       "kind": "classic-fragment"
     },
     {
@@ -168,27 +188,27 @@
       "kind": "factory"
     },
     {
-      "path": "src/ui/scene/terrain.js",
+      "path": "src/features/framing/scene/terrain.js",
       "kind": "classic-fragment"
     },
     {
-      "path": "src/ui/scene/lens.js",
+      "path": "src/features/framing/scene/lens.js",
       "kind": "classic-fragment"
     },
     {
-      "path": "src/ui/scene/silhouette.js",
+      "path": "src/features/framing/scene/silhouette.js",
       "kind": "classic-fragment"
     },
     {
-      "path": "src/ui/scene/render.js",
+      "path": "src/features/framing/scene/render.js",
       "kind": "classic-fragment"
     },
     {
-      "path": "src/ui/scene/input.js",
+      "path": "src/features/framing/scene/input.js",
       "kind": "classic-fragment"
     },
     {
-      "path": "src/ui/scene/reverse.js",
+      "path": "src/features/framing/scene/reverse.js",
       "kind": "classic-fragment"
     },
     {
@@ -196,7 +216,7 @@
       "kind": "classic-fragment"
     },
     {
-      "path": "src/services/place-search.js",
+      "path": "src/features/places/search.js",
       "kind": "classic-fragment"
     },
     {
@@ -208,7 +228,7 @@
       "kind": "classic-fragment"
     },
     {
-      "path": "src/ui/gestures.js",
+      "path": "src/app/gestures.js",
       "kind": "classic-fragment"
     },
     {
@@ -216,7 +236,7 @@
       "kind": "classic-fragment"
     },
     {
-      "path": "src/services/record-sync.js",
+      "path": "src/features/account/record-sync.js",
       "kind": "classic-fragment"
     },
     {
@@ -300,7 +320,7 @@
       "kind": "inline-entry"
     },
     {
-      "path": "src/ui/intuitive-controls.js",
+      "path": "src/app/intuitive-controls.js",
       "kind": "inline-entry"
     },
     {
@@ -349,7 +369,14 @@
         "requires": []
       },
       {
-        "path": "src/app/presentation-helpers.js",
+        "path": "src/ui/presentation-helpers.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/forecast/presentation.js",
         "layer": "composition",
         "scope": "classic-composition",
         "provides": [],
@@ -564,7 +591,28 @@
         "requires": []
       },
       {
+        "path": "src/features/satellites/state.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/places/map-apps.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
         "path": "src/features/satellites/controller.js",
+        "layer": "presentation",
+        "scope": "classic-composition",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/framing/apply-and-list.js",
         "layer": "presentation",
         "scope": "classic-composition",
         "provides": [],
@@ -611,28 +659,28 @@
         ]
       },
       {
-        "path": "src/ui/scene/terrain.js",
+        "path": "src/features/framing/scene/terrain.js",
         "layer": "presentation",
         "scope": "classic-composition",
         "provides": [],
         "requires": []
       },
       {
-        "path": "src/ui/scene/lens.js",
+        "path": "src/features/framing/scene/lens.js",
         "layer": "presentation",
         "scope": "classic-composition",
         "provides": [],
         "requires": []
       },
       {
-        "path": "src/ui/scene/silhouette.js",
+        "path": "src/features/framing/scene/silhouette.js",
         "layer": "presentation",
         "scope": "classic-composition",
         "provides": [],
         "requires": []
       },
       {
-        "path": "src/ui/scene/render.js",
+        "path": "src/features/framing/scene/render.js",
         "layer": "presentation",
         "scope": "classic-composition",
         "provides": [],
@@ -641,14 +689,14 @@
         ]
       },
       {
-        "path": "src/ui/scene/input.js",
+        "path": "src/features/framing/scene/input.js",
         "layer": "presentation",
         "scope": "classic-composition",
         "provides": [],
         "requires": []
       },
       {
-        "path": "src/ui/scene/reverse.js",
+        "path": "src/features/framing/scene/reverse.js",
         "layer": "presentation",
         "scope": "classic-composition",
         "provides": [],
@@ -662,8 +710,8 @@
         "requires": []
       },
       {
-        "path": "src/services/place-search.js",
-        "layer": "services",
+        "path": "src/features/places/search.js",
+        "layer": "presentation",
         "scope": "classic-composition",
         "provides": [],
         "requires": []
@@ -686,8 +734,8 @@
         "requires": []
       },
       {
-        "path": "src/ui/gestures.js",
-        "layer": "presentation",
+        "path": "src/app/gestures.js",
+        "layer": "composition",
         "scope": "classic-composition",
         "provides": [],
         "requires": []
@@ -700,8 +748,8 @@
         "requires": []
       },
       {
-        "path": "src/services/record-sync.js",
-        "layer": "services",
+        "path": "src/features/account/record-sync.js",
+        "layer": "presentation",
         "scope": "classic-composition",
         "provides": [],
         "requires": []
@@ -867,8 +915,8 @@
         ]
       },
       {
-        "path": "src/ui/intuitive-controls.js",
-        "layer": "presentation",
+        "path": "src/app/intuitive-controls.js",
+        "layer": "composition",
         "scope": "classic-composition",
         "provides": [],
         "requires": []
@@ -963,7 +1011,7 @@
           "src/features/places/controller.js",
           "src/features/framing/controller.js",
           "src/features/framing/reverse-and-entry.js",
-          "src/services/record-sync.js",
+          "src/features/account/record-sync.js",
           "src/features/account/access-recheck.js",
           "src/features/account/login-session.js",
           "src/features/account/account-actions.js",
@@ -994,7 +1042,7 @@
           "astronotes-camera-ui.js"
         ],
         "readers": [
-          "src/ui/scene/render.js",
+          "src/features/framing/scene/render.js",
           "src/features/plans/controller.js",
           "src/features/framing/presentation.js",
           "src/features/explore/map-presentation.js"
@@ -1091,7 +1139,7 @@
           "src/features/places/controller.js",
           "src/features/framing/controller.js",
           "src/features/framing/observer.js",
-          "src/services/place-search.js",
+          "src/features/places/search.js",
           "src/features/account/library-transfer.js",
           "src/features/framing/presentation.js",
           "src/features/explore/map-presentation.js"
@@ -1170,10 +1218,10 @@
         "readers": [
           "src/features/forecast/view.js",
           "src/app/navigation.js",
-          "src/features/satellites/controller.js",
+          "src/features/framing/apply-and-list.js",
           "src/features/framing/observer.js",
           "src/features/framing/candidates.js",
-          "src/ui/scene/render.js",
+          "src/features/framing/scene/render.js",
           "src/features/account/session-and-access.js",
           "src/features/plans/controller.js",
           "src/features/framing/presentation.js",
@@ -1213,7 +1261,7 @@
         "readers": [
           "src/ui/map/picker.js",
           "src/features/satellites/controller.js",
-          "src/ui/scene/render.js"
+          "src/features/framing/scene/render.js"
         ],
         "purpose": "既存browser APIの明示adapter",
         "retireWhen": "platformとして維持"
@@ -1225,7 +1273,7 @@
           "browser"
         ],
         "readers": [
-          "src/services/record-sync.js"
+          "src/features/account/record-sync.js"
         ],
         "purpose": "既存browser APIの明示adapter",
         "retireWhen": "platformとして維持"
@@ -1275,7 +1323,7 @@
         ],
         "readers": [
           "src/app/navigation.js",
-          "src/features/satellites/controller.js",
+          "src/features/framing/apply-and-list.js",
           "src/features/framing/candidates.js",
           "src/features/framing/reverse-and-entry.js",
           "src/features/plans/controller.js"
@@ -1291,7 +1339,7 @@
         ],
         "readers": [
           "src/app/navigation.js",
-          "src/features/satellites/controller.js",
+          "src/features/framing/apply-and-list.js",
           "src/features/framing/candidates.js",
           "src/features/framing/reverse-and-entry.js",
           "src/features/plans/controller.js"
@@ -1765,17 +1813,17 @@
         },
         {
           "name": "syncInfo",
+          "writer": "src/features/account/record-sync.js",
+          "owner": "src/features/account/session-and-access.js"
+        },
+        {
+          "name": "syncInfo",
           "writer": "src/features/account/retirement.js",
           "owner": "src/features/account/session-and-access.js"
         },
         {
           "name": "syncInfo",
           "writer": "src/features/account/sync-bridge.js",
-          "owner": "src/features/account/session-and-access.js"
-        },
-        {
-          "name": "syncInfo",
-          "writer": "src/services/record-sync.js",
           "owner": "src/features/account/session-and-access.js"
         }
       ]

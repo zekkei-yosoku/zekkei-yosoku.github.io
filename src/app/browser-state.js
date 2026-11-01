@@ -1,4 +1,4 @@
-import {S} from './presentation-helpers.js';
+import {S} from '../ui/presentation-helpers.js';
 import {kickExtras} from '../features/forecast/view.js';
 // ---------------------------------------------------------------- 永続化（localStorage）
 const store = AstroNotesStorage.create(()=>localStorage);

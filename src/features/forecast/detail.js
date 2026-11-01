@@ -1,4 +1,5 @@
-import {$,CONF_ICON,HIGHLIGHT_HEAD,RANK_COLOR,S,cellBg,confidenceText,esc,rampGradient,renderEnsemble} from '../../app/presentation-helpers.js';
+import {$,RANK_COLOR,S,esc} from '../../ui/presentation-helpers.js';
+import {CONF_ICON,HIGHLIGHT_HEAD,cellBg,confidenceText,rampGradient,renderEnsemble} from './presentation.js';
 import {SORTS,place} from '../../app/browser-state.js';
 import {bundle,weeks} from './load.js';
 import {fujiAlign,iconFor,lightTimingText,moonHorizon,moonObs,moonVisibility,observerHere,phaseNameFor,requestMoonDetails,sortMode,upcoming} from './view.js';

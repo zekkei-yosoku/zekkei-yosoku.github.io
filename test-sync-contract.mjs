@@ -10,7 +10,7 @@ const OLD_CONTROLLER=process.env.ASTRONOTES_OLD_ACCOUNT_CONTROLLER??'/Users/okad
 const oldController=execFileSync('git',['show','97356e2:src/features/account/controller.js'],{cwd:new URL('.',import.meta.url),encoding:'utf8'});
 const oldSync=oldController.slice(oldController.indexOf('/// 送れなかったものを覚えておく。'),oldController.indexOf('// 「保持する」の希望。'));
 const status=read('./src/features/account/status.js'),toItemSource=status.slice(status.indexOf('const toItem ='));
-const recordSyncSource=read('./src/services/record-sync.js');
+const recordSyncSource=read('./src/features/account/record-sync.js');
 const newController=read('./src/features/account/sync-bridge.js'),newHead=newController;
 const tick=()=>new Promise(setImmediate);
 const strip=v=>v===undefined?v:JSON.parse(JSON.stringify(v,(k,x)=>k==='updated_at'?undefined:x));

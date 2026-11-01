@@ -9,6 +9,7 @@ test('a dependency without an import is rejected',()=>{assert.throws(()=>checkMo
 test('an unused import is rejected',()=>{assert.throws(()=>checkModuleGraph(manifest,withUnit(s=>s.replace(/^import \{\$\} from /m,"import {esc,$} from "))),/esc/);});
 test('a misspelled name is rejected as a new ambient name',()=>{assert.throws(()=>checkModuleGraph(manifest,withUnit(s=>s+'\nfunction broken(){return renderAuthButon();}\n')),/Ambient names changed: renderAuthButon/);});
 test('a new write to another unit\'s variable is rejected',()=>{assert.throws(()=>checkModuleGraph(manifest,withUnit(s=>s+'\nfunction broken(){$=null;}\n')),/Cross-unit writes changed.*\$ in src\/features\/account\/status\.js/);});
+test('a shared layer cannot import a feature',()=>{assert.throws(()=>checkModuleGraph(manifest,withUnit(s=>"import {toItem} from '../features/account/status.js';\n"+s+'\nfunction broken(){return toItem;}\n','src/ui/panel-controls.js')),/Shared layer imports a feature: toItem in src\/ui\/panel-controls\.js/);});
 test('a local variable that shadows a shared name is not a dependency',()=>{assert.ok(checkModuleGraph(manifest,withUnit(s=>s+'\nfunction fine(){const place=1;return place;}\n')));});
 test('assembly removes exactly the import and export lines',()=>{
  for(const body of ['const a=1;\n','const a=1;','\n']){for(const tail of body.endsWith('\n')?['export {a};\n']:['\nexport {a};'])assert.equal(stripModuleSyntax("import {b} from './b.js';\nimport {c} from './c.js';\n"+body+tail),body);}

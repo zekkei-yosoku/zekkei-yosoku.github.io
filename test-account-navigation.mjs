@@ -27,7 +27,7 @@ test('declining to leave one-time codes keeps them visible; accepting removes th
  f.context.confirm=()=>true;f.context.showAccountView('overview',true);assert.equal(f.$('accountSheet').dataset.accountView,'overview');assert.equal(f.$('recoveryShown').hidden,true);assert.equal(f.$('recoveryCode').textContent,'');assert.equal(f.context.shownCodes.length,0);
 });
 test('invalid destinations safely return to account overview',()=>{const f=fixture();f.context.showAccountView('toString');assert.equal(f.$('accountSheet').dataset.accountView,'overview');});
-const historySource=html.slice(html.indexOf('async function loadAccountHistory()'),html.indexOf('// 鍵を作らせて',html.indexOf('async function loadAccountHistory()')));
+const historySource=sourceDeclaration("loadAccountHistory");
 for(const change of ['owner','view','closed','newer request'])test(`history discards results after ${change}`,async()=>{
  const f=fixture(),c=f.context,p=f.$('accountSheet'),pending=[];p.open=true;p.dataset.loadId='1';p.dataset.accountView='history';
  c.auth={token:'old'};c.apiCall=()=>new Promise(resolve=>pending.push(resolve));c.esc=x=>String(x);c.accountFail=()=>assert.fail('stale failure must not render');vm.runInContext(historySource,c);

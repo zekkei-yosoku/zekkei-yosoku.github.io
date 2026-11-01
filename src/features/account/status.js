@@ -1,8 +1,8 @@
-import {$} from '../../app/presentation-helpers.js';
+import {$} from '../../ui/presentation-helpers.js';
 import {SkyMapUI,viewState} from '../../app/browser-state.js';
 import {favDraft} from '../places/controller.js';
 import {auth,pushQueue,refreshRestrictedTools,renderTools,syncError} from './session-and-access.js';
-import {redrawIfToolsChanged} from '../../ui/gestures.js';
+import {redrawIfToolsChanged} from '../../app/gestures.js';
 import {adminRenderAuth,renderAdmin} from './admin-view.js';
 import {recentHistory} from '../framing/presentation.js';
 function renderAuthButton() {

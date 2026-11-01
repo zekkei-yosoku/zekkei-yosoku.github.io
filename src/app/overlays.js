@@ -1,4 +1,4 @@
-import {$} from './presentation-helpers.js';
+import {$} from '../ui/presentation-helpers.js';
 import {SkyMapUI,setAlmanacDay,viewState} from './browser-state.js';
 import {navigationHistory} from './navigation.js';
 import {closeTools,openTools} from '../features/account/session-and-access.js';
