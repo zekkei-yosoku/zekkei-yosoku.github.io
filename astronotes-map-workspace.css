@@ -38,9 +38,6 @@
 #skyMapView.map-ws-conditions :is(#exploreConditions){display:block!important;position:fixed;top:calc(var(--ws-top) + 6px);left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));max-width:640px;margin:0;max-height:calc(100dvh - var(--ws-top) - 20px);overflow:auto;z-index:38;box-shadow:0 8px 24px #0006}
 /* 下部: 情報欄 → 日付 → 帯。既存の段は計算と権限のために残し、表示だけ隠す */
 #skyMapView.map-ws .sky-map-footer :is(.sky-map-body-bar,.sky-map-readouts,.sky-map-extra-active){display:none!important}
-#skyMapView.map-ws:not(.map-ws-dates-open,.map-ws-conditions) .sky-map-footer .sky-map-candidates{display:none!important}
-#skyMapView.map-ws .sky-map-candidates .explore-dates-toggle{display:none}
-#skyMapView.map-ws .sky-map-footer .sky-map-candidates{grid-template-columns:minmax(0,1fr) auto}
 #skyMapView.map-ws .map-ws-info{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin-inline:calc(-1*max(8px,env(safe-area-inset-left)));touch-action:pan-x;max-width:none}
 #skyMapView.map-ws .map-ws-info::-webkit-scrollbar{display:none}
 .map-ws-page{flex:0 0 100%;scroll-snap-align:start;display:grid;grid-template-columns:1.2fr 1fr 1fr;min-width:0;min-height:80px}
