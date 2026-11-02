@@ -17,7 +17,7 @@ test('保存失敗の結果をUIへ返し、成功へ偽装しない',()=>{
 });
 test('条件要約は建物全体と山頂指定を区別し、高さを維持する',()=>{
  const js=readFileSync(new URL('./trial/astronotes-explore.js',import.meta.url),'utf8'),code=js.slice(js.indexOf('function conditionText('),js.indexOf('function updateConditions('));
- const c=vm.createContext({AstroNotesBodies:{definition:()=>({name:'太陽'})},AstroNotesAlign:{limbById:()=>({name:'下の縁'})},$:()=>({textContent:'高さ：標高40m・地上から80m'})});vm.runInContext(code,c);
+ const c=vm.createContext({aimSceneExtraTargets:()=>[],AstroNotesBodies:{definition:()=>({name:'太陽'})},AstroNotesAlign:{limbById:()=>({name:'下の縁'})},$:()=>({textContent:'高さ：標高40m・地上から80m'})});vm.runInContext(code,c);
  const s={body:'sun',target:{name:'対象',parts:[{id:'tip',name:'先端'}]},observer:{name:'撮影地'},partId:'__whole',matchMode:'limb'};
  assert.match(c.conditionText(s).detail,/建物全体に重なる/);assert.doesNotMatch(c.conditionText(s).detail,/下の縁/);assert.match(c.conditionText(s).detail,/地上から80m/);
  s.partId=null;assert.match(c.conditionText(s).detail,/先端・下の縁/);s.matchMode='overlap';assert.match(c.conditionText(s).detail,/全体に重なる/);

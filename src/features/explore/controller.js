@@ -2,7 +2,7 @@ import {esc} from '../../ui/presentation-helpers.js';
 import {SkyMapUI,store,viewState} from '../../app/browser-state.js';
 import {lightTimingText,moonGlyphAt} from '../forecast/view.js';
 import {routeFromHash} from '../../app/navigation.js';
-import {aim,aimSceneExtras,aimSceneExtrasAllowed,aimSetSceneExtras,aimTargetList,aimWithHeights} from '../framing/controller.js';
+import {aim,aimSceneExtraTargets,aimWithHeights} from '../framing/controller.js';
 import {aimSavedFrom} from '../framing/observer.js';
 import {aimLens} from '../framing/scene/lens.js';
 import {aimLookRender} from '../framing/scene/render.js';
@@ -35,28 +35,17 @@ const stamp=plan.stamp,baseStamp=plan.baseStamp,snapshot=plan.snapshot,invalidat
 function placePins(){const row=$('skyMapShareRow'),all=[...document.querySelectorAll('#shootingPins')],t=all.find(x=>x.parentNode!==row)||all[0];if(!t)return;for(const x of all)if(x!==t)x.remove();if(layout.mounted){if(row&&t.parentNode!==row)row.prepend(t);}else{const head=$('mySkyPlaces')?.querySelector('.my-head');if(head&&t.parentNode!==head)head.append(t);}}
 new MutationObserver(()=>{if(layout.mounted)placePins();}).observe(mapView,{childList:true,subtree:true});
 function conditionText(s){
- const body=AstroNotesBodies.definition(s?.body)?.name||'天体を選ぶ',target=s?.target?.name||'対象を選ぶ';
+ const body=AstroNotesBodies.definition(s?.body)?.name||'天体を選ぶ',target=s?.target?.name||'対象を選ぶ',extras=s?.target?aimSceneExtraTargets(s.target.id).length:0;
  const part=s?.target?.parts?.find(p=>p.id===s.partId)||s?.target?.parts?.[0];
  const alignment=s?.matchMode==='overlap'?'全体に重なる':s?.partId==='__whole'?(s.target?.wholeLabel||'建物全体に重なる'):`${part?.name||'対象'}・${AstroNotesAlign.limbById(s?.limb||'center').name}`;
  const height=s?.observer?$('skyMapObserverSummary')?.textContent?.trim().replace(/^高さ\s*[:：]?\s*/,''):'';
- return {title:body+' × '+target,detail:(s?.observer?.name||'撮影地点を選ぶ')+(height?' · '+height:'')+(s?.target?' · '+alignment:'')};
+ return {title:body+' × '+target+(extras?'ほか'+extras+'件':''),detail:(s?.observer?.name||'撮影地点を選ぶ')+(height?' · '+height:'')+(s?.target?' · '+alignment:'')};
 }
 function updateConditions(){
  if(!layout.mounted||!layout.conditions)return;const s=SkyMapUI.selectionState(),text=conditionText(s);
  for(const [id,value] of [['exploreConditionTitle',text.title],['exploreConditionDetail',text.detail]])if($(id).textContent!==value)$(id).textContent=value;
- renderSceneExtras(s);
  const confirm=$('exploreShowResult');confirm.disabled=false;confirm.textContent=!s?.target?'対象を選ぶ':!s?.observer?'撮影地点を選ぶ':'結果を確認';
  for(const b of mapView.querySelectorAll('[data-quick-save]')){b.hidden=false;b.disabled=b.dataset.planSource==='skymap'?!!$('skyMapShareRow').querySelector('[data-plan-action="share"]')?.disabled:!!plan.pendingKey||!plan.frameKey||look.hidden;}
-}
-// 見え方の背景に足す建物。選んだものだけ描く。権限のある人にだけ条件欄へ出す。
-function renderSceneExtras(s){
- let box=$('exploreSceneExtras');const allowed=aimSceneExtrasAllowed();if(!allowed){if(box)box.hidden=true;return;}
- if(!box){box=node('details',{id:'exploreSceneExtras',className:'alignment-details explore-scene-extras'});box.append(node('summary'),node('div',{className:'explore-scene-extras-list'}));mapView.querySelector('.sky-map-controls').append(box);
-  box.addEventListener('change',e=>{if(!e.target.matches('input'))return;aimSetSceneExtras([...box.querySelectorAll('input:checked')].map(i=>i.value));renderSceneExtras(SkyMapUI.selectionState());TrialExplore.invalidate();});}
- box.hidden=false;const chosen=new Set(aimSceneExtras()),rows=aimTargetList().filter(t=>t.parts?.length&&t.id!==s?.target?.id),key=JSON.stringify(rows.map(t=>[t.id,t.name])),list=box.lastElementChild;
- if(list.dataset.key!==key){list.dataset.key=key;list.replaceChildren(...rows.map(t=>{const label=node('label'),input=node('input',{type:'checkbox',value:t.id});label.append(input,document.createTextNode(t.name));return label;}));}
- for(const input of list.querySelectorAll('input'))input.checked=chosen.has(input.value);
- const names=rows.filter(t=>chosen.has(t.id)).map(t=>t.name),text='背景に足す建物：'+(names.length?names[0]+(names.length>1?'ほか'+(names.length-1)+'件':''):'なし');if(box.firstElementChild.textContent!==text)box.firstElementChild.textContent=text;
 }
 function showResult(){
  if(!layout.mounted)return;const selected=SkyMapUI.selectionState();if(!selected?.target){$('skyMapTargetOpen').click();return;}if(!selected?.observer){$('skyMapChoose').click();return;}layout.conditions.open=false;
@@ -154,7 +143,6 @@ const style=node('style');style.textContent=
 '#exploreConditionTitle{font-weight:600;grid-column:1;overflow-wrap:anywhere}#exploreConditionDetail{grid-column:1;font-size:12px;color:var(--secondary);overflow-wrap:anywhere}.explore-condition-edit{grid-column:2;grid-row:1/3;align-self:center;font-size:12px;color:var(--accent)}'+
 '.explore-condition-fields{padding:4px 14px 14px}.explore-conditions[open]>summary{border-bottom:1px solid var(--line)}.explore-conditions[open] #exploreConditionDetail{display:none}'+
 '.explore-show-result{width:100%;min-height:44px;margin-top:8px}'+
-'.explore-scene-extras:not([hidden]){margin:0 0 6px 44px;border-top:0;padding-top:0}.explore-scene-extras-list{display:grid;gap:2px;max-height:40dvh;overflow:auto}.explore-scene-extras-list label{display:flex;align-items:center;gap:10px;min-height:44px;font-size:14px;overflow-wrap:anywhere}.explore-scene-extras-list input{flex:none;width:20px;height:20px;margin:0}'+
 '.explore-tabs{scroll-margin-top:12px}.explore-save{min-height:44px}.explore-mounted .aim-figure-share{gap:8px;align-items:center}.explore-mounted .aim-figure-share .explore-save{order:-1;margin-right:0}'+
 '#skyMapView.explore-mounted .sky-map-head::before{content:"EXPLORE" / "";--kw:6.6em}'+
 '.explore-tabs{margin:14px 0 12px;max-width:780px}.explore-tabs button{min-height:44px}'+

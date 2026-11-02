@@ -3,7 +3,7 @@ import {SkyMapUI,favorites,place,store} from '../../app/browser-state.js';
 import {navigationHistory} from '../../app/navigation.js';
 import {choosePlace,openFavSheet,requireLoginForFavorites} from '../places/controller.js';
 import {MAP_ICON_LOCATE,createMapView} from '../../ui/map/picker.js';
-import {AimMap,TARGET_FIXED_CATEGORIES,aim,aimElevation,aimFillSelects,aimFitLines,aimTargetList,editTargetCategory,persistTargetDraft,targetCategoryList,targetCategoryOf,targetLocationLabel} from './controller.js';
+import {AimMap,TARGET_FIXED_CATEGORIES,aim,aimElevation,aimFillSelects,aimFitLines,aimSceneExtraTargets,aimSceneExtrasAllowed,aimSetSceneExtras,aimTargetList,editTargetCategory,persistTargetDraft,targetCategoryList,targetCategoryOf,targetLocationLabel} from './controller.js';
 import {aimApply} from './apply-and-list.js';
 import {aimCal,aimCalMove,aimFromPoint} from './observer.js';
 import {aimSideName,aimUpdateLook} from './candidates.js';
@@ -213,9 +213,19 @@ document.getElementById('skyMapBody').hidden=true;   // 地図の欄の CSS が 
  const sync=()=>{picker.setAttribute('aria-label',`対象：${aimSource.selectedOptions[0]?.textContent||'読み込み中'}、選択を開く`);picker.disabled=aimSource.disabled||!aimSource.options.length;};
  picker.onclick=()=>AstroTargetPicker.open(aimSource,null,picker);
  const skySource=$('skyMapTarget'),skyButton=document.createElement('button');skyButton.type='button';skyButton.id='skyMapTargetOpen';skyButton.className='condition-choice';skyButton.innerHTML='<span data-target-label></span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';skyButton.setAttribute('aria-haspopup','dialog');skyButton.setAttribute('aria-controls','previewTargetDialog');skySource.hidden=true;
- const syncSky=()=>{const label=skySource.selectedOptions[0]?.textContent||'対象を選ぶ';skyButton.querySelector('[data-target-label]').textContent=label;skyButton.setAttribute('aria-label',`対象：${label}、選択を開く`);};
+ const syncSky=()=>{const label=[skySource.selectedOptions[0]?.textContent||'対象を選ぶ',...(skySource.value?aimSceneExtraTargets(skySource.value).map(t=>t.name):[])].join('、');skyButton.querySelector('[data-target-label]').textContent=label;skyButton.setAttribute('aria-label',`対象：${label}、選択を開く`);};
  const skyValue=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value');Object.defineProperty(skySource,'value',{configurable:true,get(){return skyValue.get.call(this);},set(v){skyValue.set.call(this,v);syncSky();}});
- new MutationObserver(syncSky).observe(skySource,{childList:true,subtree:true,attributes:true});skySource.addEventListener('change',syncSky);syncSky();skyButton.onclick=()=>AstroTargetPicker.open(skySource,null,skyButton);skySource.after(skyButton);
+ new MutationObserver(syncSky).observe(skySource,{childList:true,subtree:true,attributes:true});skySource.addEventListener('change',syncSky);syncSky();skyButton.onclick=()=>{if(!aimSceneExtrasAllowed()){AstroTargetPicker.open(skySource,null,skyButton);return;}openSkyTargets();};skySource.after(skyButton);
+ // 複数選択は既存の複数モードを使う。先頭が主の対象。地図で置いた対象も外せるよう一覧に出す。
+ const openSkyTargets=()=>{
+  const current=SkyMapUI?.selectionState?.()?.target,placed=current?.id==='custom'?[current]:[],choices=()=>[...placed,...aimTargetList().filter(t=>t.id!=='custom'&&(t.parts||[]).length)];
+  const selected=current?[current,...aimSceneExtraTargets(current.id)]:[];
+  AstroTargetPicker.open(skySource,null,skyButton,{multiple:true,selected,getTargets:choices,keepCustom:true,doneLabel:'選択を適用',onDone:(targets,drafts)=>{
+   for(const draft of drafts)persistTargetDraft(draft);if(drafts.length){aimFillSelects();SkyMapUI?.refreshTargets?.();}
+   const ordered=[...targets.filter(t=>t.id==='custom'),...targets.filter(t=>t.id!=='custom')],main=ordered[0]?.id??'';aimSetSceneExtras(ordered.slice(1).map(t=>t.id));
+   if(skySource.value!==main)select(skySource,main);else skySource.dispatchEvent(new Event('change',{bubbles:true}));syncSky();globalThis.TrialExplore?.invalidate?.();
+  }});
+ };
  aimSource.addEventListener('change',sync);new MutationObserver(sync).observe(aimSource,{childList:true,subtree:true,attributes:true});sync();
 })();
 
