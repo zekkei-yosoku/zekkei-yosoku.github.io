@@ -1,12 +1,12 @@
 // 探す→地図: 作業画面の配置、軌道、情報欄、戻る操作。本体と試用版で確かめる。
 const {chromium,webkit}=require('playwright'),assert=require('assert/strict');
-const base=process.env.MAP_WORKSPACE_BASE||'http://127.0.0.1:8897/',out=process.env.MAP_WORKSPACE_OUT||null,tools=['records','tower','diamond','pearl','skymap','framing'];
+const base=process.env.MAP_WORKSPACE_BASE||'http://127.0.0.1:8897/',out=process.env.MAP_WORKSPACE_OUT||null,tools=['records','tower','diamond','pearl','skymap','framing','multiscene'];
 const headers={'access-control-allow-origin':'*','access-control-allow-headers':'*','access-control-allow-methods':'*'};
 const ready=()=>{try{return typeof PAGE_DIALOGS==='object';}catch{return false;}};
-async function open(browser,url,width,height,scheme='dark'){
+async function open(browser,url,width,height,scheme='dark',granted=tools){
  const c=await browser.newContext({viewport:{width,height},colorScheme:scheme});
- await c.addInitScript(t=>sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-ws',loginId:'ws-test',tools:t})),tools);
- await c.route(/(?:zekkei-api|localhost:8787)/,r=>r.fulfill({status:200,headers,json:{allowed:true,tool:'skymap',loginId:'ws-test',tools,credentials:[],hasPassword:true,recoveryCodes:10,favorites:[],sightings:[],rev:1}}));
+ await c.addInitScript(t=>sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-ws',loginId:'ws-test',tools:t})),granted);
+ await c.route(/(?:zekkei-api|localhost:8787)/,r=>r.fulfill({status:200,headers,json:{allowed:true,tool:'skymap',loginId:'ws-test',tools:granted,credentials:[],hasPassword:true,recoveryCodes:10,favorites:[],sightings:[],rev:1}}));
  const p=await c.newPage();p.errors=[];p.on('pageerror',e=>p.errors.push(e.message));
  await p.goto(url);await p.waitForFunction(ready);
  await p.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>63;navigationHistory.pushRoute('#/explore');});
@@ -17,9 +17,16 @@ async function open(browser,url,width,height,scheme='dark'){
 }
 const rect=(p,s)=>p.evaluate(s=>{const e=document.querySelector(s);if(!e)return null;const r=e.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,w:r.width,h:r.height,hidden:getComputedStyle(e).display==='none'};},s);
 // 見え方: 登録済みの建物の近くに立っても、その建物で空を濁らせない（渋谷スカイから約20mで白くなっていた）
+const soyaScene=async p=>{
+ await p.evaluate(()=>{SkyMapUI.setObserver({name:'曽谷',latitude:35.7479052,longitude:139.9301117,standAglM:1.5});SkyMapUI.setTarget('fuji');SkyMapUI.setTime(Date.UTC(2026,10,2,7,30));});await p.locator('#exploreSceneTab').click();await p.waitForTimeout(3000);
+ await p.evaluate(()=>{const r=document.querySelector('[data-lens-focal]');r.value=200;r.dispatchEvent(new Event('input',{bubbles:true}));r.dispatchEvent(new Event('change',{bubbles:true}));});await p.waitForTimeout(1500);
+};
+const drawnNames=p=>p.evaluate(()=>document.querySelector('[data-look-canvas]').getAttribute('aria-label'));
 const skyStaysClear=async(p,tag)=>{
+   await p.evaluate(()=>store.set('sorami.sceneExtras:ws-test',['shibuya-sky']));
    await p.evaluate(()=>{const t=AstroNotesAlign.targetById('shibuya-sky');SkyMapUI.setObserver({name:'渋谷スカイ',latitude:t.latitude,longitude:t.longitude+.0002,groundManualM:14.9,standAglM:229});SkyMapUI.setTarget('fuji');const s=document.getElementById('skyMapBody');s.value='moon';s.dispatchEvent(new Event('change',{bubbles:true}));SkyMapUI.setTime(Date.UTC(2026,10,2,13,22));});
    for(const [dlat,dlon] of [[.0001,.0002],[0,.0003],[-.0001,.0002],[.0005,.0005],[.001,-.001]]){await p.evaluate(([a,o])=>{const t=AstroNotesAlign.targetById('shibuya-sky');SkyMapUI.setObserver({name:'渋谷スカイ',latitude:t.latitude+a,longitude:t.longitude+o,groundManualM:14.9,standAglM:229});},[dlat,dlon]);await p.locator('#exploreSceneTab').click();await p.waitForTimeout(3000);await p.evaluate(()=>{const r=document.querySelector('[data-lens-focal]');r.value=33.5;r.dispatchEvent(new Event('input',{bubbles:true}));r.dispatchEvent(new Event('change',{bubbles:true}));});await p.waitForTimeout(1500);
+    const semi=await p.evaluate(()=>{const b=document.getElementById('aimLook')._lookLayers.buildings,d=b.getContext('2d').getImageData(0,0,b.width,b.height).data;let n=0;for(let i=3;i<d.length;i+=4)if(d[i]>8&&d[i]<247)n++;return 100*n/(d.length/4);});assert.ok(semi<3,tag+' 建物の層に半透明の面が広がらない '+semi.toFixed(1)+'% '+JSON.stringify([dlat,dlon]));
     const sky=await p.evaluate(()=>{const c=document.querySelector('[data-look-canvas]'),x=c.getContext('2d');return [.1,.2,.3,.4].map(f=>[...x.getImageData(Math.round(c.width*.85),Math.round(c.height*f),1,1).data].slice(0,3));});for(const q of sky)assert.ok(q[0]<30&&q[1]<40&&q[2]<60,tag+' 空が濁らない '+JSON.stringify([dlat,dlon,sky]));}
 };
 (async()=>{
@@ -132,6 +139,21 @@ const skyStaysClear=async(p,tag)=>{
   {const end=await p.evaluate(()=>{const pin=getComputedStyle(document.getElementById('shootingPins'),'::before');return {w:[...document.querySelectorAll('#skyMapShareRow button')].filter(b=>!b.hidden).map(b=>Math.round(b.getBoundingClientRect().width)),pos:pin.position};});assert.ok(end.w.length===4&&end.w.every(v=>Math.abs(v-end.w[0])<=1),tag+' 戻っても4列が同じ幅 '+end.w);assert.equal(end.pos,'static',tag+' ピンの絵がボタンの中');}
   if(out&&name==='chrome')await p.screenshot({path:`${out}/ws-embed-${w}x${h}-${scheme}.png`});
   if(w===390&&scheme==='dark')await skyStaysClear(p,tag);
+  // 見え方の建物: 権限があれば選んだものだけ足せる。権限がなければ欄を出さず、選んだ対象だけ描く
+  if(w===390&&scheme==='dark'){
+   await p.evaluate(()=>store.set('sorami.sceneExtras:ws-test',[]));await soyaScene(p);assert.doesNotMatch(await drawnNames(p),/東京スカイツリー/,tag+' 選ばなければ描かない');
+   await p.locator('#exploreConditions').evaluate(e=>{e.open=true;});await p.locator('#exploreSceneExtras summary').click();await p.waitForTimeout(150);assert.match(await p.locator('#exploreSceneExtras summary').innerText(),/なし/,tag);assert.equal(await p.locator('#exploreSceneExtras input[value=fuji]').count(),0,tag+' 選択中の対象は一覧に出さない');
+   await p.locator('#exploreSceneExtras label',{hasText:'東京スカイツリー'}).click();await p.waitForTimeout(2500);assert.match(await drawnNames(p),/東京スカイツリー/,tag+' 選ぶと描く');assert.match(await p.locator('#exploreSceneExtras summary').innerText(),/東京スカイツリー/,tag);assert.deepEqual(await p.evaluate(()=>store.get('sorami.sceneExtras:ws-test',[])),['skytree'],tag+' 選択を保存');
+   if(out&&name==='chrome')await p.screenshot({path:`${out}/ws-extras.png`});
+   // 複数を同時に選んでも全部描き、濁らない。外すと順に消える
+   await p.locator('#exploreSceneExtras label',{hasText:'東京タワー'}).click();await p.waitForTimeout(2500);
+   {const label=await drawnNames(p);assert.match(label,/東京スカイツリー/,tag+' 複数選択の1つ目');assert.deepEqual((await p.evaluate(()=>store.get('sorami.sceneExtras:ws-test',[]))).sort(),['skytree','tokyotower'],tag+' 複数を保存');assert.match(await p.locator('#exploreSceneExtras summary').innerText(),/ほか1件/,tag+' 件数');}
+   for(const mm of [33.5,200,800]){await p.evaluate(mm=>{const r=document.querySelector('[data-lens-focal]');r.value=mm;r.dispatchEvent(new Event('input',{bubbles:true}));r.dispatchEvent(new Event('change',{bubbles:true}));},mm);await p.waitForTimeout(1200);const semi=await p.evaluate(()=>{const b=document.getElementById('aimLook')._lookLayers.buildings,d=b.getContext('2d').getImageData(0,0,b.width,b.height).data;let n=0;for(let i=3;i<d.length;i+=4)if(d[i]>8&&d[i]<247)n++;return 100*n/(d.length/4);});assert.ok(semi<3,tag+' 複数選択でも濁らない '+mm+'mm '+semi.toFixed(1)+'%');}
+   await p.evaluate(()=>{const all=AstroNotesAlign.TARGETS.filter(t=>t.id!=='fuji').map(t=>t.id);store.set('sorami.sceneExtras:ws-test',all);TrialExplore.invalidate();});await p.waitForTimeout(2500);{const semi=await p.evaluate(()=>{const b=document.getElementById('aimLook')._lookLayers.buildings,d=b.getContext('2d').getImageData(0,0,b.width,b.height).data;let n=0;for(let i=3;i<d.length;i+=4)if(d[i]>8&&d[i]<247)n++;return 100*n/(d.length/4);});assert.ok(semi<3,tag+' 全建物でも濁らない '+semi.toFixed(1)+'%');}
+   await p.evaluate(()=>{store.set('sorami.sceneExtras:ws-test',['skytree']);TrialExplore.invalidate();});await p.waitForTimeout(2500);await p.evaluate(()=>{const r=document.querySelector('[data-lens-focal]');r.value=200;r.dispatchEvent(new Event('input',{bubbles:true}));r.dispatchEvent(new Event('change',{bubbles:true}));});await p.waitForTimeout(1200);
+   await p.locator('#exploreSceneExtras label',{hasText:'東京スカイツリー'}).click();await p.waitForTimeout(2500);assert.doesNotMatch(await drawnNames(p),/東京スカイツリー/,tag+' 外すと消える');
+   const q=await open(browser,base,w,h,scheme,tools.filter(t=>t!=='multiscene'));await q.waitForTimeout(600);await soyaScene(q);assert.equal(await q.locator('#exploreSceneExtras').isVisible(),false,tag+' 権限がなければ欄を出さない');assert.doesNotMatch(await drawnNames(q),/東京スカイツリー/,tag+' 権限がなければ足さない');assert.deepEqual(q.errors,[],tag);await q.context().close();
+  }
   assert.deepEqual(p.errors,[],tag);await p.context().close();
  }
  await chrome.close();await wk.close();console.log('PASS map workspace');

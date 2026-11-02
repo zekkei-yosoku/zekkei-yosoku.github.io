@@ -1,8 +1,10 @@
-function aimLookSolidSilhouette(polygons,{closeBase=false,basePoints=[]}={}) {
+function aimLookSolidSilhouette(polygons,{closeBase=false,basePoints=[],view=null}={}) {
   polygons=polygons.filter(poly=>poly.length>=3&&poly.every(p=>p.every(Number.isFinite)));
   if(!polygons.length)return null;
   let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
   for(const poly of polygons)for(const [x,y]of poly){minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);}
+  // 図に入る範囲だけを画像にする。形全体を収めると近い建物では1画素が数十pxまで伸び、縁のぼかしが図を白く覆っていた。
+  if(view){minX=Math.max(minX,view.minX);minY=Math.max(minY,view.minY);maxX=Math.min(maxX,view.maxX);maxY=Math.min(maxY,view.maxY);if(!(maxX>minX&&maxY>minY))return null;}
   const scaleX=Math.min(2,2040/Math.max(1,maxX-minX)),scaleY=Math.min(2,2040/Math.max(1,maxY-minY));
   const x=minX-2/scaleX,y=minY-2/scaleY,w=Math.ceil((maxX-minX)*scaleX)+4,h=Math.ceil((maxY-minY)*scaleY)+4;
   const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;

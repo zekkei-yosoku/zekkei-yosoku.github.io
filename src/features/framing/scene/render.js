@@ -1,6 +1,6 @@
 import {$,S,esc} from '../../../ui/presentation-helpers.js';
 import {blendBodyState,lightTimingText,moonGlyphAt} from '../../forecast/view.js';
-import {AimMap,aim,aimIsMountain,aimTargetList} from '../controller.js';
+import {AimMap,aim,aimIsMountain,aimSceneBackdrop} from '../controller.js';
 import {aimLookRidge,aimTerrainBeyond,aimTerrainFront} from './terrain.js';
 import {AIM_SENSOR,aimDrawGrid,aimLens,aimLookHMS,aimLookHosts,aimLookRel} from './lens.js';
 import {aimLookSolidSilhouette} from './silhouette.js';
@@ -8,8 +8,6 @@ import {aimLookPick} from './input.js';
 import {aimAirAngle,aimAirCompare,aimAirDescribe,aimLookKey,aimReverseClear} from '../reverse-and-entry.js';
 import {auth} from '../../account/session-and-access.js';
 const AIM_HORIZON_SPAN = 20, AIM_HORIZON_MIN_DEG = 0.2;
-// 立っている建物を背景に描かない。内側から投影すると形が崩れ、図全体が白く濁る。選んだ対象は除外しない。
-const AIM_STANDING_KM = 0.2;
 async function aimLookRender(host, spec) {
   if (!host) return;
   globalThis.AstroNotesCameraUI?.invalidate(host);
@@ -147,7 +145,7 @@ async function aimLookRender(host, spec) {
   const i0 = path.reduce((best, p, i) => Math.abs(p.at - selectedAt) < Math.abs(path[best].at - selectedAt) ? i : best, 0);
   const k = (H / 2) / win.halfH;
   const toPx = (xy) => (xy ? [W / 2 + xy[0] * k, H / 2 - xy[1] * k] : null);
-  const scene = AstroNotesAlign.sceneTargets(spec.obs, [t, ...aimTargetList()], { eyeM: spec.eyeM }).filter((item) => item.target.id === t.id || !item.outline || item.distanceKm >= AIM_STANDING_KM);
+  const scene = AstroNotesAlign.sceneTargets(spec.obs, [t, ...aimSceneBackdrop()], { eyeM: spec.eyeM });
   const sceneCenters = scene.map(item => proj(item.azimuth, item.topAngle)).filter(p => p && Math.abs(p[0]) < 330);
   const panLimit = Math.max(1, ...sceneCenters.map(p => Math.abs(p[0]) / (2 * win.halfW) + .5));
   let sceneVersion=0;
@@ -159,7 +157,8 @@ async function aimLookRender(host, spec) {
     ridgePending = aimLookRidge(spec.obs, eye, t, { ...win, panLimit });
   }
   for (const item of scene) {
-    if (item.outline?.polygons) item.polygons=item.outline.polygons.map(poly=>poly.map(([a,h])=>toPx(proj(a,h))).filter(Boolean)).filter(poly=>poly.length>=3&&poly.every(p=>p.every(Number.isFinite)));
+    // 視線の後ろへ回る頂点を間引くと別の形になるので、その面は描かない。
+    if (item.outline?.polygons) item.polygons=item.outline.polygons.map(poly=>poly.map(([a,h])=>toPx(proj(a,h)))).filter(poly=>poly.length>=3&&poly.every(p=>p&&p.every(Number.isFinite)));
     item.basePoints=(item.outline?.basePoints||[]).map(([a,h])=>toPx(proj(a,h))).filter(Boolean);
     if (item.target.id === t.id) continue;
     if (item.outline) item.shape = item.outline.points.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
@@ -374,7 +373,7 @@ async function aimLookRender(host, spec) {
       if(item.polygons?.length){
         // 形は時刻/天体と独立。再生・ドラッグのたびに穴埋めを再計算しない。
         let mask=item.solidSilhouette;
-        if(!mask||mask.source!==item.polygons){mask=aimLookSolidSilhouette(item.polygons,{closeBase:item.target.id==="skytree",basePoints:item.basePoints});if(!mask)continue;mask.source=item.polygons;item.solidSilhouette=mask;}
+        if(!mask||mask.source!==item.polygons){mask=aimLookSolidSilhouette(item.polygons,{closeBase:item.target.id==="skytree",basePoints:item.basePoints,view:{minX:-panLimit*W,minY:-panLimit*H,maxX:W*(1+panLimit),maxY:H*(1+panLimit)}});if(!mask)continue;mask.source=item.polygons;item.solidSilhouette=mask;}
         ctx.save();
         // マスクに色を付けた別バッファを使い、空や月をsource-inで消さない。
         if(mask.ink!==ctx.fillStyle){const tinted=document.createElement('canvas');tinted.width=mask.canvas.width;tinted.height=mask.canvas.height;const c=tinted.getContext('2d');c.drawImage(mask.canvas,0,0);c.globalCompositeOperation='source-in';c.fillStyle=ctx.fillStyle;c.fillRect(0,0,tinted.width,tinted.height);mask.tinted=tinted;mask.ink=ctx.fillStyle;}

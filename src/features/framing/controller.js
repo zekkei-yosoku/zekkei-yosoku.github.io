@@ -107,6 +107,19 @@ function aimFavTarget(f) {
   return { id: `fav:${f.id}`, favId: f.id, name: f.name, latitude: f.latitude, longitude: f.longitude, groundM: ground,
     parts: [{ id: "tip", name: "てっぺん", m: ground + f.targetHeightM }] };
 }
+// 見え方の背景に足す建物。選んだものだけを描く。
+const aimSceneExtrasKey = () => "sorami.sceneExtras:" + encodeURIComponent(auth?.loginId || "guest");
+function aimSceneExtras() {
+  const ids = store.get(aimSceneExtrasKey(), []);
+  return Array.isArray(ids) ? ids.filter((id) => typeof id === "string") : [];
+}
+function aimSetSceneExtras(ids) { store.set(aimSceneExtrasKey(), ids); }
+const aimSceneExtrasAllowed = () => toolAllowed("multiscene");
+function aimSceneBackdrop() {
+  if (!aimSceneExtrasAllowed()) return [];
+  const ids = new Set(aimSceneExtras());
+  return aimTargetList().filter((t) => ids.has(t.id));
+}
 /// いま選んでいる他の目標・お気に入りの目標の中身（カードに出す形）。どちらでもなければ null
 function aimTargetInfo() {
   const v = $("aimTarget").value;
@@ -500,4 +513,4 @@ function aimMapLabel(ctx, x, y, text, color, width, height, place = "right") {
 }
 
 /// 地図の中心が線からどれだけ離れているか。**動かしながら合わせる**ための数字
-export {AimMap,TARGET_FIXED_CATEGORIES,aim,aimCustomTarget,aimElevCache,aimElevation,aimFavTarget,aimFavTargets,aimFillParts,aimFillSelects,aimFitLines,aimIsMountain,aimKm,aimLimbValue,aimMapLabel,aimRedrawLine,aimShift,aimSideLabel,aimTargetInfo,aimTargetList,aimWithHeights,aimZoomFor,editTargetCategory,matchingTargetNames,persistTargetDraft,targetCategoryList,targetCategoryOf,targetLocationLabel};
+export {AimMap,TARGET_FIXED_CATEGORIES,aim,aimCustomTarget,aimElevCache,aimElevation,aimFavTarget,aimFavTargets,aimFillParts,aimFillSelects,aimFitLines,aimIsMountain,aimKm,aimLimbValue,aimMapLabel,aimRedrawLine,aimSceneBackdrop,aimSceneExtras,aimSceneExtrasAllowed,aimSetSceneExtras,aimShift,aimSideLabel,aimTargetInfo,aimTargetList,aimWithHeights,aimZoomFor,editTargetCategory,matchingTargetNames,persistTargetDraft,targetCategoryList,targetCategoryOf,targetLocationLabel};

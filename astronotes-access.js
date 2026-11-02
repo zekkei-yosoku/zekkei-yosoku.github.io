@@ -13,7 +13,7 @@
 (function (global) {
   "use strict";
 
-  const TOOLS = Object.freeze(["diamond", "pearl", "tower", "skymap", "plane", "iss", "records"]);
+  const TOOLS = Object.freeze(["diamond", "pearl", "tower", "skymap", "plane", "iss", "records", "multiscene"]);
 
   /// 画面 → 開くのに要る許可（どれか1つ）と、許されていないときに出す名前
   const SCREENS = Object.freeze({
