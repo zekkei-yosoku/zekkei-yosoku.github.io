@@ -16,6 +16,7 @@ let almanacTimeline = null, almanacScrub = 'date', almanacDragAt = null, almanac
 function almanacEvents(body, day, point) {
   const observer = { latitude: point.latitude, longitude: point.longitude, elevation: 0 };
   if (!Number.isFinite(observer.latitude) || Math.abs(observer.latitude)>90 || !Number.isFinite(observer.longitude) || Math.abs(observer.longitude)>180) throw Error('Invalid observer');
+  if(body==='venus')return AstroNotesBodies.riseSet('venus',day,AstroNotesHomeTime.addDays(day,1),observer);
   const state = at => AstroNotesAstro[body](at, observer);
   const value = at => { const v=state(at).upperLimbAltitude; if(!Number.isFinite(v))throw Error('Unavailable state');return v; };
   const endDay=AstroNotesHomeTime.addDays(day,1),events=[]; let before=value(day);

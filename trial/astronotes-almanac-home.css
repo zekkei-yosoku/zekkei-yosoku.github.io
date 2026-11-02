@@ -4,15 +4,17 @@ main:has(#almanacView:not([hidden])){max-width:1000px}
 #almanacView #almanacTitle{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 #almanacDayLabel{font-size:11px;letter-spacing:.14em;color:var(--secondary);margin:0 0 7px;text-align:center}
 #almanacView #almanacPlace{display:block;width:100%;text-align:center;border:0;border-radius:0;padding:3px 0 14px;margin:0;background:transparent;box-shadow:none;font-size:17px;font-weight:600;min-height:44px}
-#almanacDashboard[data-body=moon]{--alm-active:#819abb}#almanacDashboard[data-body=sun]{--alm-active:#bf843d}
-[data-theme=dark] #almanacDashboard[data-body=moon]{--alm-active:#bacce4}[data-theme=dark] #almanacDashboard[data-body=sun]{--alm-active:#e9b86e}
+#almanacDashboard[data-body=moon]{--alm-active:#819abb}#almanacDashboard[data-body=sun]{--alm-active:#bf843d}#almanacDashboard[data-body=venus]{--alm-active:#8d80b5}
+[data-theme=dark] #almanacDashboard[data-body=moon]{--alm-active:#bacce4}[data-theme=dark] #almanacDashboard[data-body=sun]{--alm-active:#e9b86e}[data-theme=dark] #almanacDashboard[data-body=venus]{--alm-active:#cdc2ee}
 .alm-switch{display:flex;gap:4px;padding:4px;max-width:240px;margin:10px auto 12px;border:1px solid var(--alm-grid);border-radius:30px;background:var(--sunk)}
 .alm-switch button{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;border:0;border-radius:25px;min-height:44px;padding:0 18px;background:transparent;font-size:14px;color:var(--secondary)}
+.alm-switch:has(>:nth-child(3)){width:min(100%,320px);max-width:320px;box-sizing:border-box}.alm-switch:has(>:nth-child(3)) button{padding:0 6px;white-space:nowrap}
 .alm-switch button span{font-size:19px;line-height:1}.alm-switch button[aria-pressed=true]{background:var(--card);color:var(--text);box-shadow:0 1px 6px #00000012}
 .alm-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);align-items:center;gap:24px;padding:18px 0 32px;min-height:330px}
 .alm-orb-stage{position:relative;display:grid;place-items:center;width:min(100%,320px);aspect-ratio:1;margin:auto;isolation:isolate}
 .alm-orb-stage:before{content:"";position:absolute;inset:8%;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--alm-active) 6%,transparent),transparent 72%);z-index:-1}
 .alm-portrait{display:block;width:83%;height:83%;filter:drop-shadow(0 4px 22px #00000020)}
+#almanacDashboard[data-body=venus] .alm-portrait{border-radius:50%;background:radial-gradient(circle,#0c0f18 62%,#05070c)}
 .alm-orbit-rim{position:absolute;inset:2%;border:1px solid var(--alm-grid);border-radius:50%;pointer-events:none}
 .alm-orbit-rim:before,.alm-orbit-rim:after{content:"";position:absolute;background:var(--alm-active);opacity:.55;width:3px;height:3px;border-radius:50%;left:calc(50% - 1.5px)}.alm-orbit-rim:before{top:-2px}.alm-orbit-rim:after{bottom:-2px}
 .alm-solar-orb{width:68%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 42% 40%,#fff4c4 0%,#ffdd76 38%,#efad3f 75%,#dc7d26 100%);box-shadow:0 0 25px #ffb95130,0 0 65px #ffab2415}

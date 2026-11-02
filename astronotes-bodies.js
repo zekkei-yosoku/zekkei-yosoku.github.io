@@ -63,7 +63,20 @@
     return finish(result);
   }
   const sky = altitude => altitude < -18 ? '夜' : altitude < 0 ? '薄明' : '日中';
-  const api=Object.freeze({definitions,definition,ensure,ready:()=>!!engine,state,siriusCatalog,sky,nearAngle:id=>definition(id)?.limbs?null:0.5});
+  // 惑星の満ち欠けと太陽からの離れ
+  function light(id,ms){
+    if(!engine) throw new Error('天体計算を読み込めませんでした');
+    const body=engine.Body[definition(id).engine],when=new Date(ms),lit=engine.Illumination(body,when),far=engine.Elongation(body,when);
+    return {fraction:lit.phase_fraction,magnitude:lit.mag,elongation:far.elongation,visibility:far.visibility};
+  }
+  // 惑星の出入り（start から end まで）
+  function riseSet(id,start,end,observer){
+    if(!engine) throw new Error('天体計算を読み込めませんでした');
+    const site=new engine.Observer(observer.latitude,observer.longitude,observer.elevation??0),out=[];
+    for(const [direction,kind] of [[1,'rise'],[-1,'set']]){const hit=engine.SearchRiseSet(engine.Body[definition(id).engine],site,direction,new Date(start),(end-start)/86400000),at=hit?.date.getTime();if(Number.isFinite(at)&&at<end)out.push({at,kind,azimuth:state(id,at,observer,{refraction:false}).azimuth});}
+    return out.sort((a,b)=>a.at-b.at);
+  }
+  const api=Object.freeze({definitions,definition,ensure,ready:()=>!!engine,state,light,riseSet,siriusCatalog,sky,nearAngle:id=>definition(id)?.limbs?null:0.5});
   global.AstroNotesBodies=api;if(typeof module!=='undefined'&&module.exports) module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
 

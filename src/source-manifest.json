@@ -1550,6 +1550,10 @@
       {
         "name": "AstroNotesTimelapse",
         "source": "astronotes-timelapse.js"
+      },
+      {
+        "name": "AstroNotesVenusPortrait",
+        "source": "astronotes-venus-portrait.js"
       }
     ],
     "moduleGraph": {
