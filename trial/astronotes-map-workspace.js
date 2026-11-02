@@ -104,6 +104,8 @@ const api={
  // 動かしていなければ名前も地点もそのまま残す。
  // 全画面のピンは聞き返さず目の高さで置く。置いた対象を動かすときは決めた高さを保つ。
  targetHeight(){const s=host()?.session;return active?(s?.target?.id==='custom'&&Number.isFinite(s.custom?.heightM)?s.custom.heightM:EYE_HEIGHT):undefined;},
+ // 立っている建物を見え方の背景に描かない。内側から投影すると形が崩れ、図全体が白く濁る。選んだ対象は除外しない。
+ standingKm:()=>.2,
  observerName(point){const h=host();if(!active||!h)return undefined;const o=h.session.observer;return Math.abs(o.latitude-point.latitude)<1e-7&&Math.abs(o.longitude-point.longitude)<1e-7?false:PLACED;},
 };
 g.AstroNotesMapWorkspace=api;

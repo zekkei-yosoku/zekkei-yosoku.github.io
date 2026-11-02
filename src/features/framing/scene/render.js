@@ -145,7 +145,8 @@ async function aimLookRender(host, spec) {
   const i0 = path.reduce((best, p, i) => Math.abs(p.at - selectedAt) < Math.abs(path[best].at - selectedAt) ? i : best, 0);
   const k = (H / 2) / win.halfH;
   const toPx = (xy) => (xy ? [W / 2 + xy[0] * k, H / 2 - xy[1] * k] : null);
-  const scene = AstroNotesAlign.sceneTargets(spec.obs, [t, ...aimTargetList()], { eyeM: spec.eyeM });
+  const standingKm = globalThis.AstroNotesMapWorkspace?.standingKm?.() || 0;
+  const scene = AstroNotesAlign.sceneTargets(spec.obs, [t, ...aimTargetList()], { eyeM: spec.eyeM }).filter((item) => item.target.id === t.id || !item.outline || item.distanceKm >= standingKm);
   const sceneCenters = scene.map(item => proj(item.azimuth, item.topAngle)).filter(p => p && Math.abs(p[0]) < 330);
   const panLimit = Math.max(1, ...sceneCenters.map(p => Math.abs(p[0]) / (2 * win.halfW) + .5));
   let sceneVersion=0;
