@@ -1072,7 +1072,7 @@
         "readers": [
           "src/features/explore/map-presentation.js"
         ],
-        "purpose": "試用版だけが読み込む地図の作業画面の接続点。本体では未定義のまま動く",
+        "purpose": "地図の作業画面の接続点。未読込でも地図は動く",
         "retireWhen": "本体へ採用して直接呼び出せるようにした時"
       },
       {
@@ -1458,6 +1458,10 @@
       {
         "name": "AstroNotesLunarNames",
         "source": "astronotes-lunar-names.js"
+      },
+      {
+        "name": "AstroNotesMapWorkspace",
+        "source": "astronotes-map-workspace.js"
       },
       {
         "name": "AstroNotesMoonPortrait",
