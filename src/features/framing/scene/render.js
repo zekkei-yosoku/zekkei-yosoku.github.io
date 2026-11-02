@@ -7,7 +7,7 @@ import {aimLookSolidSilhouette} from './silhouette.js';
 import {aimLookPick} from './input.js';
 import {aimAirAngle,aimAirCompare,aimAirDescribe,aimLookKey,aimReverseClear} from '../reverse-and-entry.js';
 import {auth} from '../../account/session-and-access.js';
-const AIM_HORIZON_SPAN = 20, AIM_HORIZON_MIN_DEG = 0.2;
+const AIM_HORIZON_SPAN = 20, AIM_HORIZON_MIN_DEG = 0.2, AIM_MOUNTAIN_SKY_SPAN = 45;
 async function aimLookRender(host, spec) {
   if (!host) return;
   globalThis.AstroNotesCameraUI?.invalidate(host);
@@ -190,6 +190,20 @@ async function aimLookRender(host, spec) {
   // （2026-11-01 ユーザー「地上と地平線の間は別に塗りつぶさなくてもよくない？」。線だけにした）
   const showHorizon = !mountain && seaAngle - Math.max(baseAngle, outline.hiddenAngle ?? baseAngle) >= AIM_HORIZON_MIN_DEG;
   const beyondPending = showHorizon ? aimTerrainBeyond(spec.obs, eye, t) : null;
+  // 山の稜線は山の幅しか読まない。広角ではその外も実際の地形でつなぎ、山を黒い箱にしない。山の幅の内側は稜線のまま
+  const mountainHorizonY = mountain ? toPx(proj(az, seaAngle))[1] : null;
+  let skyline = null;
+  const loadSkyline = async (ridge) => {
+    const rel = (a) => ((a - az + 540) % 360) - 180, rels = ridge.map(([a]) => rel(a)), from = Math.min(...rels), to = Math.max(...rels);
+    // 構図を動かしても山の幅に収まる望遠なら読まない
+    if (win.halfW * (1 + 2 * panLimit) <= Math.min(-from, to)) return;
+    const [near, far] = await Promise.all([aimTerrainFront(spec.obs, eye, t, AIM_MOUNTAIN_SKY_SPAN), aimTerrainBeyond(spec.obs, eye, t, AIM_MOUNTAIN_SKY_SPAN).catch(() => null)]);
+    const rows = far || near?.ridge;
+    if (seq !== host._lookSeq || !rows?.length) return;
+    const merged = rows.map(([a, h], i) => [a, Math.max(seaAngle, h, near?.ridge?.[i]?.[1] ?? -90)]), side = (keep) => merged.filter(([a]) => keep(rel(a))).map(([a, h]) => toPx(proj(a, h))).filter(Boolean);
+    skyline = { left: side((r) => r < from), right: side((r) => r > to) };
+    sceneVersion++; draw(cur);
+  };
   const horizonPoints = () => {
     const span = Math.min(85, win.halfW * (1 + 2 * panLimit) + 5), pts = [];
     for (let i = 0; i <= 240; i++) { const a = az - span + (2 * span * i) / 240, q = toPx(proj(a, horizonAt(a))); if (q) pts.push([q[0], Math.min(q[1], groundEdge)]); }
@@ -351,6 +365,18 @@ async function aimLookRender(host, spec) {
     const groundY = groundEdge;
     const visibleTargets = [];
     let horizonText = null;
+    if (mountain) {
+      ctx.fillStyle = "#020306";
+      ctx.fillRect(-panX, mountainHorizonY, W, Math.max(0, sceneBottom - mountainHorizonY));
+      ctx.strokeStyle = rim; ctx.lineWidth = 1; ctx.lineJoin = "round";
+      if (skyline) for (const pts of [[...skyline.left, shape[0]], [shape[shape.length - 1], ...skyline.right]]) {
+        if (pts.length < 2) continue;
+        ctx.beginPath(); ctx.moveTo(pts[0][0], sceneBottom);
+        for (const [x, y] of pts) ctx.lineTo(x, y);
+        ctx.lineTo(pts[pts.length - 1][0], sceneBottom); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
+      }
+    }
     if (showHorizon) {
       const pts = horizonPoints();
       if (pts.length >= 2) {
@@ -385,9 +411,10 @@ async function aimLookRender(host, spec) {
         // 地上の線は選んだ目標の足元なので、それより近い建物の足元は線より上に来る。実際は手前の街並みに隠れる所
         if(!selected){
           let bottom=-Infinity;for(const poly of item.polygons)for(const q of poly)if(q[1]>bottom)bottom=q[1];
-          if(bottom<groundY-0.5){
+          const footY=mountain?mountainHorizonY:groundY;
+          if(bottom<footY-0.5){
             let l=Infinity,r=-Infinity;for(const poly of item.polygons)for(const q of poly)if(q[1]>=bottom-1.5){l=Math.min(l,q[0]);r=Math.max(r,q[0]);}
-            if(r>l){ctx.fillRect(l,bottom-0.5,r-l,groundY-bottom+0.5);ctx.strokeStyle=rim;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(l,bottom);ctx.lineTo(l,groundY);ctx.moveTo(r,bottom);ctx.lineTo(r,groundY);ctx.stroke();}
+            if(r>l){ctx.fillRect(l,bottom-0.5,r-l,footY-bottom+0.5);ctx.strokeStyle=rim;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(l,bottom);ctx.lineTo(l,footY);ctx.moveTo(r,bottom);ctx.lineTo(r,footY);ctx.stroke();}
           }
         }
       } else {
@@ -668,7 +695,7 @@ async function aimLookRender(host, spec) {
   cur = timeIndex(selectedAt); draw(cur);
   if (ridgePending) ridgePending.then((ridge) => {
     if (seq !== host._lookSeq) return;
-    if (ridge) { shape = ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);sceneVersion++; }
+    if (ridge) { shape = ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean);sceneVersion++; void loadSkyline(ridge); }
     note.textContent = shape ? "" : "稜線を読み込めませんでした";
     note.dataset.primary = note.textContent;
     note.textContent = [note.dataset.primary, note.dataset.terrain || "", ...scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`)].filter(Boolean).join(" / ");

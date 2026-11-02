@@ -4,24 +4,25 @@ const aimRidgeCache = new Map(), aimRidgePending = new Map();
 // 2026-10-20 塔・建物の手前の地形（ユーザー「これ絶対に見えないであろう距離」。精進峠からスカイツリー112kmは御坂山地に隠れるのに、図にも文にも何も出なかった）。
 // 目標の方位の左右 AIM_FRONT_SPAN° の扇で、観測点から目標の手前までの地形の見かけの高さを列ごとに取る。
 // 図の手前の山並みと、目標が地形に隠れるかの判定（真ん中の列＝目標の方位）に使う。取れなければ null
-const AIM_FRONT_SPAN = 20, aimFrontCache = new Map(), aimFrontPending = new Map();
-async function aimTerrainFront(obs, eye, target) {
+const AIM_FRONT_SPAN = 20, AIM_SKY_ZOOM = 10, aimFrontCache = new Map(), aimFrontPending = new Map();
+async function aimTerrainFront(obs, eye, target, span = AIM_FRONT_SPAN) {
   const D = AstroNotesTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);
   const az0 = AstroNotesTerrain.bearing(obs.latitude, obs.longitude, target.latitude, target.longitude);
   const near = 0.3, far = D - 0.3, airK = AstroNotesAtmosphere.targetK();
   if (!(far > near + 0.5)) return { ridge: [], block: null };
-  const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude].map((v) => v.toFixed(5)).join(",") + "|" + airK;
+  const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude, span].map((v) => v.toFixed(5)).join(",") + "|" + airK;
   if (aimFrontCache.has(key)) return aimFrontCache.get(key);
   if (aimFrontPending.has(key)) return aimFrontPending.get(key);
   const task = (async () => {
-    const cols = 80, n = 80, pts = [];
+    const cols = span > AIM_FRONT_SPAN ? 120 : 80, n = 80, pts = [];
     for (let i = 0; i <= cols; i++) {
-      const az = az0 - AIM_FRONT_SPAN + (2 * AIM_FRONT_SPAN * i) / cols;
+      const az = az0 - span + (2 * span * i) / cols;
       // 近いほど細かく（見かけの高さは近い地形ほど大きく変わる）
       for (let j = 0; j <= n; j++) { const d = near * Math.pow(far / near, j / n); pts.push({ ...AstroNotesTerrain.destination(obs.latitude, obs.longitude, az, d), az, d }); }
     }
     let el;
-    try { el = await AstroNotesTerrain.elevations(pts, { zoom: D > 40 ? 11 : 12, from: obs }); } catch { return null; }
+    // 広い幅は山の外をつなぐだけなので粗いズームで読む（細かいままだと1回で約350枚）
+    try { el = await (span > AIM_FRONT_SPAN ? AstroNotesTerrain.tileElevations(pts, AIM_SKY_ZOOM) : AstroNotesTerrain.elevations(pts, { zoom: D > 40 ? 11 : 12, from: obs })); } catch { return null; }
     if (airK !== AstroNotesAtmosphere.targetK()) return null;
     const ridge = []; let block = null;
     for (let i = 0; i <= cols; i++) {
@@ -45,17 +46,17 @@ async function aimTerrainFront(obs, eye, target) {
 // 2026-11-01 高い所から塔を見ると、足元より上に地平線がある（ユーザー「月のラインが水平線より上にくる」）。
 // 目標より先の地形の見かけの高さを列ごとに取る。海の地平線より低い所は海の地平線まで見える（z9で実測0.07°以内。候補を外した1回あたり約50枚）
 const AIM_BEYOND_MAX_KM = 300, AIM_BEYOND_ZOOM = 9, aimBeyondCache = new Map(), aimBeyondPending = new Map();
-async function aimTerrainBeyond(obs, eye, target) {
+async function aimTerrainBeyond(obs, eye, target, span = AIM_FRONT_SPAN) {
   const D = AstroNotesTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);
   const az0 = AstroNotesTerrain.bearing(obs.latitude, obs.longitude, target.latitude, target.longitude);
   const airK = AstroNotesAtmosphere.targetK();
-  const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude].map((v) => v.toFixed(5)).join(",") + "|" + airK;
+  const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude, span].map((v) => v.toFixed(5)).join(",") + "|" + airK;
   if (aimBeyondCache.has(key)) return aimBeyondCache.get(key);
   if (aimBeyondPending.has(key)) return aimBeyondPending.get(key);
   const task = (async () => {
-    const cols = 80, n = 60, near = D + 0.3, far = Math.max(near + 1, AIM_BEYOND_MAX_KM), pts = [];
+    const cols = span > AIM_FRONT_SPAN ? 120 : 80, n = 60, near = D + 0.3, far = Math.max(near + 1, AIM_BEYOND_MAX_KM), pts = [];
     for (let i = 0; i <= cols; i++) {
-      const az = az0 - AIM_FRONT_SPAN + (2 * AIM_FRONT_SPAN * i) / cols;
+      const az = az0 - span + (2 * span * i) / cols;
       for (let j = 0; j <= n; j++) { const d = near + (far - near) * j / n; pts.push({ ...AstroNotesTerrain.destination(obs.latitude, obs.longitude, az, d), az, d }); }
     }
     const el = await AstroNotesTerrain.tileElevations(pts, AIM_BEYOND_ZOOM);

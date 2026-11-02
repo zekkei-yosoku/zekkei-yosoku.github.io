@@ -358,7 +358,7 @@ function createMapView(ids) {
     // dialog が開いてから測る（閉じている間は幅が 0）
     requestAnimationFrame(() => { draw(); requestAnimationFrame(draw); });
   }
-  return { open, attach, setLayer, redraw: schedule, project, coordinateAt, rotation: () => bearing, setRotation: (deg) => { bearing = ((deg % 360) + 360) % 360; schedule(); }, allowRotate: (on) => { canRotate = !!on; if (!on) bearing = 0; schedule(); }, onPick:fn=>{onPick=fn;},onDoubleTap:fn=>{onDoubleTap=fn;},
+  return { open, attach, setLayer, layer: () => layer, redraw: schedule, project, coordinateAt, rotation: () => bearing, setRotation: (deg) => { bearing = ((deg % 360) + 360) % 360; schedule(); }, allowRotate: (on) => { canRotate = !!on; if (!on) bearing = 0; schedule(); }, onPick:fn=>{onPick=fn;},onDoubleTap:fn=>{onDoubleTap=fn;},
            center: () => ({ latitude: view.lat, longitude: view.lon }),
            zoom: () => view.zoom,
            setOverlay: (fn) => { overlay = fn; schedule(); },

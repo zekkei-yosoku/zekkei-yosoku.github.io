@@ -5,7 +5,7 @@ const html=sourceHtml();
 const src=html.slice(html.indexOf('const AIM_FRONT_SPAN'),html.indexOf('async function aimLookRidge('));
 function load(heightAt){
  const c={Math,Map,Number,AstroNotesAtmosphere:{targetK:()=>0.13},
-  AstroNotesTerrain:{distanceKm:()=>100,bearing:()=>90,destination:(lat,lon,az,d)=>({latitude:lat,longitude:lon+d/90,az,d}),elevations:async(pts)=>pts.map(p=>heightAt(p.d,p.az))},
+  AstroNotesTerrain:{distanceKm:()=>100,bearing:()=>90,destination:(lat,lon,az,d)=>({latitude:lat,longitude:lon+d/90,az,d}),elevations:async(pts)=>pts.map(p=>heightAt(p.d,p.az)),tileElevations:async(pts)=>pts.map(p=>heightAt(p.d,p.az))},
   // 曲率だけの簡単な見かけの高さ（度）
   aimAirAngle:(d,eye,h)=>Math.atan2(h-eye-(d*1000)**2/(2*6371000),d*1000)*180/Math.PI};
  vm.createContext(c);vm.runInContext(src+';globalThis.front=aimTerrainFront;',c);return c;
@@ -18,7 +18,13 @@ test('近すぎる目標は地形を読まない／読めなければ null',asyn
  const c=load(()=>0);c.AstroNotesTerrain.distanceKm=()=>0.5;assert.deepEqual(JSON.parse(JSON.stringify(await c.front({latitude:0,longitude:0},10,{latitude:0,longitude:0.001}))),{ridge:[],block:null});
  const e=load(()=>0);e.AstroNotesTerrain.elevations=async()=>{throw Error('x');};assert.equal(await e.front({latitude:1,longitude:1},10,{latitude:1,longitude:2}),null);
 });
-test('見え方：塔のときだけ手前の地形を取り、隠れる文を出し、選んでいない建物を地上まで下ろす',()=>{
+test('山の外の地形は広い幅で読む。幅を変えても既定の幅の結果を混ぜない',async()=>{
+ const c=load(()=>900),obs={latitude:35.5,longitude:138.6},target={latitude:35.7,longitude:139.8};
+ const wide=await c.front(obs,1261,target,45),base=await c.front(obs,1261,target);
+ assert.equal(wide.ridge.length,121);assert.equal(wide.ridge[0][0],45);assert.equal(wide.ridge[120][0],135);
+ assert.equal(base.ridge.length,81);assert.equal(base.ridge[0][0],70);
+});
+test('見え方：手前の地形から隠れる文を出し、選んでいない建物を地上まで下ろす',()=>{
  assert.match(html,/const frontPending = outline \? aimTerrainFront\(spec\.obs, eye, t\) : null;/);
  assert.match(html,/は約\$\{Math\.round\(b\.km\)\}km先の地形に隠れて見えません/);
  assert.match(html,/の下の部分は約\$\{Math\.round\(b\.km\)\}km先の地形に隠れます/);

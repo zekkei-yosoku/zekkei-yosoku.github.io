@@ -224,8 +224,10 @@ function fitTarget(h){
  const m=AstroNotesAlign.partTarget(t,s.partId),a=h.map.project(o.latitude,o.longitude),b=h.map.project(m.latitude,m.longitude),distance=Math.hypot(b[0]-a[0],b[1]-a[1]);if(!(distance>=1))return;
  fittedKey=key;h.map.setView(o.latitude,o.longitude,h.map.zoom()+Math.log2(radius(w,ht)/distance));
 }
-// 別のアプリから戻ると地図の処理が作り直され、全画面だけが解けて作業画面の部品が残る。描き直しの合図で元に戻す。
-function keepWide(){if(active&&!$('skyMapView').querySelector('.sky-map-wrap').classList.contains('sky-map-wide')){selfClick=true;$('skyMapExpand').click();selfClick=false;}}
+// 選んだ地図の種類が無ければ航空写真で開く。選択として保存しないので、地図を開き直すたびに当て直す。
+function applyDefaultLayer(h){try{if(h&&store.get('sorami.mapLayer',null)===null&&h.map.layer?.()!=='photo')h.map.setLayer?.('photo',false);}catch{}}
+// 別のアプリから戻ると地図の処理が作り直され、全画面と地図の種類が解けて作業画面の部品が残る。描き直しの合図で元に戻す。
+function keepWide(){if(!active)return;if(!$('skyMapView').querySelector('.sky-map-wrap').classList.contains('sky-map-wide')){selfClick=true;$('skyMapExpand').click();selfClick=false;}applyDefaultLayer(host());}
 // 別のアプリから戻る間は地図の処理が作り直されて権限確認を待つ。ここで閉じると開き直しで位置と縮尺が初期に戻る。
 const resuming=()=>{try{return !!SkyMapUI?.resuming?.();}catch{return false;}};
 function shouldShow(){const view=$('skyMapView');return wanted&&!!view&&!view.hidden&&view.classList.contains('explore-mounted')&&view.dataset.exploreMode==='map'&&!$('skyMapContent')?.hidden&&validPoint(host()?.session?.observer);}
@@ -243,7 +245,7 @@ function enter(){
  const h=host();if(!h)return;build();placeInfo();if(sceneFull)leaveScene();active=true;h.map.allowRotate?.(true);const view=$('skyMapView');view.classList.add('map-ws');
  if(!view.querySelector('.sky-map-wrap').classList.contains('sky-map-wide')){selfClick=true;$('skyMapExpand').click();selfClick=false;}
  scrubBefore=h.session.scrubMode;measureHours();rebuildTimeline(h,'hour');
- try{if(store.get('sorami.mapLayer',null)===null)h.map.setLayer?.('photo',false);}catch{}
+ applyDefaultLayer(h);
  // 撮影地点の周りを見る画面なので、遠くを見ていた続きで開いても円が地図に合う縮尺へ戻す。
  const o=h.session.observer;if(h.map.zoom()<12)h.map.setView(o.latitude,o.longitude,14);else h.map.setCenter(o.latitude,o.longitude);
  if(!history.state?.mapWs)history.pushState({...(history.state||{}),mapWs:1},'',location.href);
