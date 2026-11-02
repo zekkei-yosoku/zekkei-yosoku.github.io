@@ -209,7 +209,7 @@ function update(){
  fitTarget(h);updateHome(h);drawBand(h);
 }
 // 見え方も同じ上部バーの全画面にして、切替ボタンの位置を地図と揃える。条件を開いたままだと絵が画面の外へ出る。
-function setTitle(h,bodyId){const s=h.session,title=$('mapWsTitle'),body=AstroNotesBodies.definitions.find(d=>d.id===bodyId)?.name||'天体',name=(/^-?[\d.]+, -?[\d.]+$/.test(s.observer?.name||'')?'撮影地点':s.observer?.name||'撮影地点')+(Number.isFinite(s.ground)?' ・ '+Math.round(s.ground)+'m':''),sub=body+' × '+(s.target?.name||'対象なし');if(title.firstChild.textContent!==name)title.firstChild.textContent=name;if(title.lastChild.textContent!==sub)title.lastChild.textContent=sub;}
+function setTitle(h,bodyId){const s=h.session,title=$('mapWsTitle'),body=AstroNotesBodies.definitions.find(d=>d.id===bodyId)?.name||'天体',name=(/^-?[\d.]+, -?[\d.]+$/.test(s.observer?.name||'')?'撮影地点':s.observer?.name||'撮影地点')+(Number.isFinite(s.ground)?' ・ '+Math.round(s.ground)+'m':''),extras=h.extraCount?.()||0,sub=body+' × '+(s.target?.name||'対象なし')+(extras?'ほか'+extras+'件':'');if(title.firstChild.textContent!==name)title.firstChild.textContent=name;if(title.lastChild.textContent!==sub)title.lastChild.textContent=sub;}
 function showScene(){
  const view=$('skyMapView'),h=host();build();if(!h)return;view.classList.add('map-ws-scene');setTitle(h,h.session.body);$('mapWsScene').setAttribute('aria-pressed','true');$('mapWsMap').setAttribute('aria-pressed','false');
  for(let node=view;node&&node!==document.body;node=node.parentElement)for(let sibling=node.previousElementSibling;sibling;sibling=sibling.previousElementSibling){sibling.classList.add('map-ws-hide');sceneHidden.push(sibling);}

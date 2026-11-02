@@ -40,6 +40,7 @@ main:has(>#almanacView:not([hidden])){padding-bottom:calc(115px + env(safe-area-
 .shared-map-search input{min-width:0;width:0;flex:1;font-size:16px}
 .shared-map-footer{position:absolute;bottom:0;left:0;right:0;z-index:4;max-height:40dvh;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding:8px max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));background:var(--bg)}
 .shared-map-footer>.fav-btn{width:100%;margin:6px 0 0!important}
+#planePrev,#planeNext{min-width:44px}
 .shared-map-footer .my-actions{flex-wrap:wrap}
 .shared-map-footer :is(.tiny,.maprow){margin:0}
 #myShapeSheet .sky-map-wide .mapattr{bottom:calc(var(--sky-footer-h,60px) + 4px)}
