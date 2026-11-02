@@ -226,9 +226,11 @@ function fitTarget(h){
 }
 // 別のアプリから戻ると地図の処理が作り直され、全画面だけが解けて作業画面の部品が残る。描き直しの合図で元に戻す。
 function keepWide(){if(active&&!$('skyMapView').querySelector('.sky-map-wrap').classList.contains('sky-map-wide')){selfClick=true;$('skyMapExpand').click();selfClick=false;}}
+// 別のアプリから戻る間は地図の処理が作り直されて権限確認を待つ。ここで閉じると開き直しで位置と縮尺が初期に戻る。
+const resuming=()=>{try{return !!SkyMapUI?.resuming?.();}catch{return false;}};
 function shouldShow(){const view=$('skyMapView');return wanted&&!!view&&!view.hidden&&view.classList.contains('explore-mounted')&&view.dataset.exploreMode==='map'&&!$('skyMapContent')?.hidden&&validPoint(host()?.session?.observer);}
 function evaluate(){
- const view=$('skyMapView');if(view.hidden){wanted=false;if(sceneFull)leaveScene();}const show=shouldShow();if(show&&!active)enter();else if(!show&&active)exit();
+ const view=$('skyMapView');if(view.hidden){wanted=false;if(sceneFull)leaveScene();}const show=shouldShow();if(show&&!active)enter();else if(!show&&active&&(view.hidden||!resuming()))exit();
  if(view.dataset.exploreMode!=='map'){fittedKey=null;return;}
  const h=host();if(h&&!view.hidden&&view.classList.contains('explore-mounted')&&!$('skyMapContent')?.hidden)fitTarget(h);
 }
@@ -259,8 +261,9 @@ function exit(){
 function init(){
  const view=$('skyMapView');if(!view)return;
  new MutationObserver(evaluate).observe(view,{attributes:true,attributeFilter:['hidden','class','data-explore-mode']});
- // 地図タブでは大きくしない。全画面に入るのは地図の中の拡大ボタンだけ。
- view.querySelector('.sky-map-wrap')?.addEventListener('click',e=>{if(selfClick||!e.target.closest('#skyMapExpand')||!view.classList.contains('explore-mounted')||!host())return;e.stopPropagation();if(active){queueMicrotask(()=>$('mapWsBack').click());return;}wanted=true;evaluate();},true);
+ if($('skyMapContent'))new MutationObserver(evaluate).observe($('skyMapContent'),{attributes:true,attributeFilter:['hidden']});
+ // 地図タブでは大きくしない。全画面に入るのは地図の中の拡大ボタンだけ。撮影地点がまだ無ければ通常の全画面で開き、地点が決まると作業画面になる。
+ view.querySelector('.sky-map-wrap')?.addEventListener('click',e=>{if(selfClick||!e.target.closest('#skyMapExpand')||!view.classList.contains('explore-mounted')||!host())return;if(!active){const wide=e.currentTarget.classList.contains('sky-map-wide');if(wide||!validPoint(host().session?.observer)){wanted=!wide;return;}}e.stopPropagation();if(active){queueMicrotask(()=>$('mapWsBack').click());return;}wanted=true;evaluate();},true);
  document.addEventListener('click',e=>{if(e.target.closest?.('#exploreShowResult'))setTimeout(()=>{if(sceneFull)scrollTo(0,0);const h=host();if(active&&h&&!$('exploreConditions').open)h.map.setCenter(h.session.observer.latitude,h.session.observer.longitude);},0);},true);
  addEventListener('popstate',()=>{if(!history.state?.mapWs){if(sceneFull||active){wanted=false;if(sceneFull)leaveScene();if(active)exit();}}else if(!active&&!sceneFull){wanted=true;evaluate();}});
  evaluate();
