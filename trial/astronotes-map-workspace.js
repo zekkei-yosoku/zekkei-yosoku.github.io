@@ -2,7 +2,7 @@
  * 計算と条件は既存の SkyMapUI のものを使い、ここは描き方と配置だけを持つ。 */
 (function(g){
 'use strict';
-const $=id=>document.getElementById(id),JST=32400000,HOUR=3600000,RAD=Math.PI/180,LOW_SKY=.6,PASS_STEP=300000,PASS_REACH=288;
+const $=id=>document.getElementById(id),JST=32400000,HOUR=3600000,RAD=Math.PI/180,LOW_SKY=.6,PASS_STEP=300000,PASS_REACH=288,EYE_HEIGHT=1.5;
 let active=false,wanted=false,selfClick=false,fittedKey=null,emphasis=null,hits=[],built=false,scrubBefore=null,infoFrame=0,bearingCache=null,colours=null,hourPixels=16,passCache=new Map(),labels=[],sceneFull=false,sceneHidden=[],noticeTimer=0,lastBody=null;
 const pad=n=>String(n).padStart(2,'0');
 const hhmm=at=>{const d=new Date(at+JST);return pad(d.getUTCHours())+':'+pad(d.getUTCMinutes());};
@@ -23,7 +23,7 @@ const RISE={sun:'#ff9b3d',moon:'#6fb8ff'},SET={sun:'#e5484d',moon:'#2f6fe0'};
 function halo(ctx,text,x,y,fill,font){ctx.save();ctx.font=font;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineWidth=3.5;ctx.strokeStyle='rgba(0,0,0,.92)';ctx.strokeText(text,x,y);ctx.fillStyle=fill;ctx.fillText(text,x,y);ctx.restore();}
 function targetGeometry(h){
  const s=h.session,t=s.target;if(!h.targetOn||!validPoint(t)||!s.eye)return null;
- const key=JSON.stringify([t.id,t.latitude,t.longitude,s.partId,s.eye]);if(bearingCache?.key===key)return bearingCache.value;
+ const key=JSON.stringify([t.id,t.latitude,t.longitude,s.partId,s.eye,t.parts?.map(p=>p.m)]);if(bearingCache?.key===key)return bearingCache.value;
  let value=null;try{const geo=AstroNotesAlign.geometryFrom(s.eye,t,{partId:s.partId,eyeM:0});if(geo)value={azimuth:geo.azimuth,distanceKm:geo.distanceKm,elevation:AstroNotesAstro.targetElevationAngle(geo.distanceKm,s.eye.elevation,geo.topM,{k:1})};}catch{value=null;}
  bearingCache={key,value};return value;
 }
@@ -98,10 +98,12 @@ const radius=(width,height)=>active?Math.min(width-120,height-30)/2:Math.min(wid
 const api={
  hourPixels:()=>active?hourPixels:0,
  // 描画のたびに呼ばれる。ページ内の地図も同じ描き方にする。
- drawing(){if(!active)queueMicrotask(evaluate);else{queueMicrotask(keepWide);schedule();}hits=[];labels=[];colours={};return {radius,body:drawBody,overlay:drawOverlay,center};},
+ drawing(){if(!active)queueMicrotask(evaluate);else{queueMicrotask(keepWide);schedule();}renderTargetHeight();hits=[];labels=[];colours={};return {radius,body:drawBody,overlay:drawOverlay,center};},
  hits:()=>hits,
  tap(pixel){if(!active)return false;let best=null,distance=22;for(const hit of hits){const d=Math.hypot(hit.x-pixel.x,hit.y-pixel.y);if(d<distance){distance=d;best=hit;}}if(best){host()?.setTime(best.at);return true;}return pinNear(pixel);},
  // 動かしていなければ名前も地点もそのまま残す。
+ // 全画面のピンは聞き返さず目の高さで置く。置いた対象を動かすときは決めた高さを保つ。
+ targetHeight(){const s=host()?.session;return active?(s?.target?.id==='custom'&&Number.isFinite(s.custom?.heightM)?s.custom.heightM:EYE_HEIGHT):undefined;},
  observerName(point){const h=host();if(!active||!h)return undefined;const o=h.session.observer;return Math.abs(o.latitude-point.latitude)<1e-7&&Math.abs(o.longitude-point.longitude)<1e-7?false:PLACED;},
 };
 g.AstroNotesMapWorkspace=api;
@@ -168,8 +170,21 @@ function notice(text,undo){const bar=$('mapWsPick');clearTimeout(noticeTimer);ba
 function placeAtCenter(mode){
  const h=host();if(!h)return;const s=h.session,c=h.map.center(),o=s.observer,near=Math.abs(c.latitude-o.latitude)<1e-6&&Math.abs(c.longitude-o.longitude)<1e-6,label=mode==='observer'?'撮影地点':'対象';
  if(near){notice('地図を動かして、中央の十字を'+label+'にしたい場所へ合わせてください');return;}
- if(mode==='target'){$('mapWsPick').hidden=true;h.placePoint('target',c);return;}
+ if(mode==='target'){
+  $('mapWsPick').hidden=true;const before={target:s.target,custom:s.custom,customTarget:s.customTarget,partId:s.partId,matchMode:s.matchMode,limb:s.limb};
+  Promise.resolve(h.placePoint('target',c)).then(placed=>{if(placed===true)notice('ここを対象にしました',()=>{$('mapWsPick').hidden=true;host()?.restoreTarget(before);});else if(placed===false)notice('標高を取得できず置けませんでした。もう一度押してください');});return;
+ }
  const before=o;h.placePoint('observer',c);notice('ここを撮影地点にしました',()=>{$('mapWsPick').hidden=true;host()?.restoreObserver(before);});
+}
+// 地図で置いた対象の高さ。撮影地点の高さと同じ形で、条件欄の対象の下に出す。
+function renderTargetHeight(){
+ let row=$('mapWsTargetHeight');const field=$('skyMapTarget')?.closest('.condition-field'),s=host()?.session;if(!field||!s)return;
+ if(!row){
+  row=document.createElement('details');row.id='mapWsTargetHeight';row.className='alignment-details map-ws-target-height';row.hidden=true;row.innerHTML='<summary></summary><div class="map-ws-target-fields"><label for="mapWsTargetM">地上から</label><div class="explore-height-value"><input id="mapWsTargetM" type="number" inputmode="decimal" min="0" max="1000" step="any" aria-label="対象の地上からの高さ（メートル）"><span>m</span></div></div><p class="tiny" id="mapWsTargetError" role="status" hidden></p>';field.after(row);
+  $('mapWsTargetM').onchange=e=>{const input=e.target,value=input.valueAsNumber,error=$('mapWsTargetError'),ok=input.value.trim()&&value>=0&&value<=1000&&host()?.setTargetHeight(value);error.hidden=!!ok;if(!ok)error.textContent='地上からの高さを0〜1000mで入力してください';};
+ }
+ const custom=s.target?.id==='custom'&&Number.isFinite(s.custom?.heightM);row.hidden=!custom;if(!custom)return;
+ const text='対象の高さ：地上から '+s.custom.heightM+'m',summary=row.firstElementChild,input=$('mapWsTargetM');if(summary.textContent!==text)summary.textContent=text;if(document.activeElement!==input&&input.valueAsNumber!==s.custom.heightM)input.value=String(s.custom.heightM);
 }
 function updateHome(h){const canvas=$('skyMapCanvas'),o=h.session.observer,q=validPoint(o)?h.map.project(o.latitude,o.longitude):null;$('mapWsHome').hidden=!$('mapWsPick').hidden||!q||Math.hypot(q[0]-canvas.clientWidth/2,q[1]-canvas.clientHeight/2)<=Math.min(canvas.clientWidth,canvas.clientHeight)*.2;}
 function drawBand(h){
