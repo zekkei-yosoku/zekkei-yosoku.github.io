@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 const {chromium}=require('playwright'),assert=require('node:assert/strict');
 const base=process.env.PLAN_BASE||'http://127.0.0.1:8897/';
 (async()=>{

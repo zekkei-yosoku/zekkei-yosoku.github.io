@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 const{chromium}=require('playwright'),assert=require('assert/strict'),fs=require('fs');
 const base=process.env.BRAND_BASE||'http://127.0.0.1:8897/',out=process.env.BRAND_OUT||'/tmp/astronotes-centered-brand';fs.mkdirSync(out,{recursive:true});
 (async()=>{const b=await chromium.launch({channel:'chrome',headless:true}),results=[];for(const width of[320,390,1280])for(const theme of['light','dark']){const c=await b.newContext({viewport:{width,height:850},colorScheme:theme}),p=await c.newPage(),errors=[];let hold=false,release;

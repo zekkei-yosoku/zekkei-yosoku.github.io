@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // Synthetic account/API only. Inspect startup while JavaScript and /me are held.
 const {chromium, webkit} = require('playwright');
 const assert = require('node:assert/strict');

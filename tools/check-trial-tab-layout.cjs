@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // Tab layout audit with isolated accounts/API. No real records or external writes.
 const {chromium}=require('playwright'),fs=require('fs'),assert=require('assert/strict');
 const base=process.env.TAB_BASE||'http://127.0.0.1:8863/trial/index.html',out=process.env.TAB_OUT||'/tmp/astronotes-tab-audit',baseline=process.env.TAB_BASELINE==='1';fs.mkdirSync(out,{recursive:true});let page;

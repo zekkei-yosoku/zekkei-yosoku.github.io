@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // Whose data is whose. Drives the real login and logout screens and observes only storage and requests, so it stays
 // valid whatever the script packaging is. Passwords are synthetic and all API traffic is local.
 const {chromium}=require('playwright'),assert=require('assert/strict');

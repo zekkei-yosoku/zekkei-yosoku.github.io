@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // Synthetic search only. At the strip's right end, x proximity snap must not re-snap after appended candidates.
 const{chromium,webkit}=require('playwright'),fs=require('fs'),assert=require('assert/strict');
 const base=process.env.CANDIDATE_BASE||'http://127.0.0.1:8891/index.html',out=process.env.CANDIDATE_OUT||'/tmp/astronotes-candidate-scroll-end';fs.mkdirSync(out,{recursive:true});

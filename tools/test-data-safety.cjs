@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // User data must survive every structural change. Drives the real page and observes only storage, requests and the
 // download, never app internals, so the same test stays valid whatever the script packaging is. All API traffic is local.
 const {chromium}=require('playwright'),assert=require('assert/strict');

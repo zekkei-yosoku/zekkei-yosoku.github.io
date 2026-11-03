@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // Isolated dialog lifecycle fixtures; no account or API writes.
 const {chromium}=require('playwright'),fs=require('fs'),assert=require('assert/strict');
 const base=process.env.PLAN_BASE||'http://127.0.0.1:8897/';

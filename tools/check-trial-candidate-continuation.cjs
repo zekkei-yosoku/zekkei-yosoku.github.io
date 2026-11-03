@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // Synthetic search windows; real app date adoption/drawing and visibility resume.
 const{chromium}=require('playwright'),fs=require('fs'),assert=require('assert/strict');
 const base=process.env.CANDIDATE_BASE||'http://127.0.0.1:8863/trial/index.html',out=process.env.CANDIDATE_OUT||'/tmp/astronotes-candidate-continuation';fs.mkdirSync(out,{recursive:true});

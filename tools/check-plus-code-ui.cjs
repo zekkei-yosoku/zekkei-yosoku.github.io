@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // Synthetic UI checks. Production API/storage never receives requests.
 const {chromium}=require('playwright'),fs=require('fs'),assert=require('assert/strict');
 const base=process.env.PLUS_CODE_CHECK_BASE||'http://127.0.0.1:8863/';

@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // Synthetic account/API only; checks actual date/time controls and geometry.
 const{chromium}=require('playwright'),fs=require('fs'),assert=require('assert/strict');
 const base=process.env.DATETIME_CHECK_BASE||'http://127.0.0.1:8863/',out=process.env.DATETIME_CHECK_OUT||'/tmp/astronotes-playback';fs.mkdirSync(out,{recursive:true});

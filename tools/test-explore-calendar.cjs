@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 const {chromium}=require('playwright'),assert=require('assert/strict'),fs=require('fs');
 const base=process.env.CANDIDATE_BASE||'http://127.0.0.1:8885',out=process.env.CANDIDATE_OUT||require('os').tmpdir()+'/astronotes-candidate-calendar';fs.mkdirSync(out,{recursive:true});
 (async()=>{const browser=await chromium.launch({channel:'chrome',headless:true});const results=[];

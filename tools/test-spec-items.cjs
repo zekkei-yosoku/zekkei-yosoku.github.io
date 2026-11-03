@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // 概説書（Vault ドメイン/開発/AstroNotes/07_概説書）の項目IDごとに、実画面で期待する動きを1つずつ確かめる。
 // APIはすべて偽の応答に差し替える。実アカウント、実API、実機は見ていない。
 //   SPEC_BASE=http://127.0.0.1:8979/ SPEC_FORECAST=forecast.json [SPEC_ONLY=H-4,F-1] [SPEC_OUT=結果.json] node tools/test-spec-items.cjs [chrome|webkit]

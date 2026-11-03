@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // Real UI with synthetic search/auth only; no production API writes.
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),fs=require('fs');
 const base=process.env.CANDIDATE_BASE||'http://127.0.0.1:8891/index.html',out=process.env.CANDIDATE_OUT||'/tmp/astronotes-candidate-scroll';fs.mkdirSync(out,{recursive:true});

@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 const {chromium}=require('playwright'),fs=require('fs'),assert=require('assert/strict');
 const source=fs.readFileSync('astronotes-myplaces.js','utf8');const helper=source.slice(source.indexOf('function appendCandidateMoon('),source.indexOf('// 1組につき'));const shape=source.slice(source.indexOf('function renderShapeDates('),source.indexOf('// 次に重なる日を押したら'));
 (async()=>{const b=await chromium.launch({channel:'chrome',headless:true});for(const width of [320,390,1280])for(const theme of ['light','dark']){const p=await b.newPage({viewport:{width,height:900},colorScheme:theme});await p.route(/zekkei-api/,r=>r.fulfill({status:503,json:{error:'synthetic'}}));await p.goto(process.env.MOON_BASE||'http://127.0.0.1:8897/');await p.waitForFunction(()=>{try{return typeof PAGE_DIALOGS==='object'&&typeof startupSessionReady!=='undefined'}catch{return false}});await p.evaluate(()=>startupSessionReady);

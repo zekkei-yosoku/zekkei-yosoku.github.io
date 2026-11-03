@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // Run with NODE_PATH pointing to an installed Playwright package.
 // Uses only synthetic authentication and data; never calls the production API.
 const {chromium}=require('playwright');

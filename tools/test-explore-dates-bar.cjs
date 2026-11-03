@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // Choosing a candidate date must leave the dates under the finger and the page where the user put it.
 const {chromium}=require('playwright'),assert=require('assert/strict');
 const base=process.env.DATES_BAR_BASE||'http://127.0.0.1:8897/',tools=['records','tower','diamond','pearl','skymap'];

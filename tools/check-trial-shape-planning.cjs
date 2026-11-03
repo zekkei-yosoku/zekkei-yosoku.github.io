@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // Synthetic accounts and solver rows only; never reads or mutates user records.
 const {chromium}=require('playwright'),fs=require('fs'),assert=require('assert/strict');
 const base=process.env.SHAPE_BASE||'http://127.0.0.1:8863/trial/index.html',out=process.env.SHAPE_OUT||'/tmp/astronotes-trial-shapes';fs.mkdirSync(out,{recursive:true});let page;

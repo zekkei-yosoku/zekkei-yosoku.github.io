@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // From high up the horizon sits above a tower's foot: bodies rise from that line, and favorites take typed heights.
 const {chromium}=require('playwright'),assert=require('assert/strict');
 const base=process.env.HORIZON_BASE||'http://127.0.0.1:8931/',tools=['records','tower','diamond','pearl','skymap'],shots=process.env.HORIZON_SHOTS;

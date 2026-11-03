@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // 探す→地図: 作業画面の配置、軌道、情報欄、戻る操作。本体と試用版で確かめる。
 const {chromium,webkit}=require('playwright'),assert=require('assert/strict');
 const base=process.env.MAP_WORKSPACE_BASE||'http://127.0.0.1:8897/',out=process.env.MAP_WORKSPACE_OUT||null,tools=['records','tower','diamond','pearl','skymap','framing','multiscene'];

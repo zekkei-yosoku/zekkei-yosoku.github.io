@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // Tile timeouts on the first open must recover by themselves: the Fuji row appears and the moon row stops using a flat horizon.
 // Serves this checkout at the production origin so the real API accepts the requests. Needs network access.
 const {chromium}=require('playwright'),fs=require('fs'),path=require('path');

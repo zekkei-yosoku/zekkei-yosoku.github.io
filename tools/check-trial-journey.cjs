@@ -1,3 +1,4 @@
+require('./no-open-meteo.cjs');  // テストのブラウザから Open-Meteo へ出さない
 // Isolated end-to-end fixtures. Never sends user data to the production API.
 const {chromium}=require('playwright'),fs=require('fs'),assert=require('assert/strict');
 const base=process.env.JOURNEY_BASE||'http://127.0.0.1:8863/trial/index.html',out=process.env.JOURNEY_OUT||'/tmp/astronotes-trial-journey';fs.mkdirSync(out,{recursive:true});
