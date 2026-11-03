@@ -67,11 +67,13 @@ function problems(a,b,op,opt){
  if(opt.still&&a.center&&b.center&&(a.ws||a.mode==='map')&&(Math.abs(a.center[0]-b.center[0])>1e-6||Math.abs(a.zoom-b.zoom)>1e-6))out.push(`地図が動いた zoom ${a.zoom}→${b.zoom}`);
  return out;
 }
+// Open-Meteo は自宅回線の1日の上限を使う。テストからは出さず、出ようとした回数だけ数える（2026-11-03）
+let outside=0;
 (async()=>{
  const b=await (engine==='webkit'?webkit:chromium).launch(engine==='webkit'?{headless:true}:{channel:'chrome',headless:true});
  const c=await b.newContext({viewport:{width:W,height:H},colorScheme:'dark'});
  await c.addInitScript(t=>sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-ws',loginId:'matrix',tools:t})),tools);
- await c.route(/(?:zekkei-api|localhost:8787)/,r=>r.fulfill({status:200,headers,json:{allowed:true,tool:'skymap',loginId:'matrix',tools,credentials:[],hasPassword:true,recoveryCodes:10,favorites:[],sightings:[],rev:1}}));
+ await c.route(/open-meteo\.com/,r=>{outside++;return r.abort();});await c.route(/(?:zekkei-api|localhost:8787)/,r=>r.fulfill({status:200,headers,json:{allowed:true,tool:'skymap',loginId:'matrix',tools,credentials:[],hasPassword:true,recoveryCodes:10,favorites:[],sightings:[],rev:1}}));
  await c.route(/cyberjapandata|openstreetmap|gsi\.go\.jp/,r=>r.abort());
  const p=await c.newPage();let errors=[];p.on('pageerror',e=>errors.push(e.message));p.setDefaultTimeout(4000);
  await p.goto(base);await p.waitForFunction(ready);await p.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>63;AstroNotesTerrain.groundElevation=async()=>40;navigationHistory.pushRoute('#/explore');});await p.locator('#exploreMapTab').waitFor({state:'attached'});await p.waitForTimeout(500);
@@ -106,7 +108,7 @@ function problems(a,b,op,opt){
    }catch(e){note('操作で失敗 '+e.message.split('\n')[0].slice(0,100),st,name);}
   }
  }
- console.log(`${engine} ${W} cases ${cases} skipped ${skipped} problems ${seen.size} ${Math.round((Date.now()-started)/1000)}s`);
+ console.log(`${engine} ${W} cases ${cases} skipped ${skipped} problems ${seen.size} ${Math.round((Date.now()-started)/1000)}s open-meteo-blocked ${outside}`);
  for(const [k,v] of [...seen].sort((x,y)=>y[1].n-x[1].n))console.log(`${v.n}回 ${k}  例:${JSON.stringify({o:v.sample.observer,t:v.sample.target,e:v.sample.extras.length,v:v.sample.view,p:v.sample.panel})} ${v.sample.msg.slice(0,120)}`);
  await b.close();process.exit(seen.size?1:0);
 })().catch(e=>{console.error(e);process.exit(1);});

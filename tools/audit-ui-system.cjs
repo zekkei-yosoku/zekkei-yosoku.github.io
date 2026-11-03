@@ -49,7 +49,18 @@ const out=process.env.UI_AUDIT_OUTPUT||'/tmp/astronotes-ui-audit';fs.mkdirSync(o
   await p.evaluate(()=>{history.replaceState(null,'',location.pathname);applyRoute();});await p.locator('#authButton').click();await p.locator('#settingsScreen').click();await capture('settings');await p.locator('#settingsBack').click();await capture('settings-list');await p.locator('#settingsAccount').click();await capture('account');await p.locator('#accountBack').click();await p.locator('#appSettingsClose').click();
   await p.evaluate(()=>openTools());await capture('menu');await p.locator('#toolsClose').click();
   const dialogs=await p.locator('dialog').evaluateAll(ds=>ds.map((d,i)=>({id:d.id,index:i})));
-  for(const d of dialogs){await p.evaluate(i=>{document.querySelectorAll('dialog[open]').forEach(x=>x.close());document.querySelectorAll('dialog')[i].showModal()},d.index);await capture('dialog:'+(d.id||d.index));await p.evaluate(i=>document.querySelectorAll('dialog')[i].close(),d.index);}
+  // showModal() で直接開くとアプリの描画を通らず、タブの中身（tabpanel）が全部横に並んで潰れる（地点のシートで「履歴を消す」を誤って指摘していた）。
+  // 中身を1つずつ単独で表示して撮る。アプリの状態に頼らないので、予定が無いと開けないタブの中身も確かめられる（2026-11-03）
+  for(const d of dialogs){
+   await p.evaluate(i=>{document.querySelectorAll('dialog[open]').forEach(x=>x.close());document.querySelectorAll('dialog')[i].showModal()},d.index);
+   const panels=await p.evaluate(i=>{const ps=[...document.querySelectorAll('dialog')[i].querySelectorAll('[role=tabpanel]')];window.__auditHidden=ps.map(x=>x.hidden);const sel=ps.findIndex(x=>document.getElementById(x.getAttribute('aria-labelledby'))?.getAttribute('aria-selected')==='true');return (sel>0?[ps[sel],...ps.filter((_,k)=>k!==sel)]:ps).map(x=>x.id);},d.index);
+   if(!panels.length)await capture('dialog:'+(d.id||d.index));
+   for(const [k,id] of panels.entries()){
+    await p.evaluate(({i,id})=>{for(const x of document.querySelectorAll('dialog')[i].querySelectorAll('[role=tabpanel]'))x.hidden=x.id!==id;},{i:d.index,id});
+    await capture('dialog:'+(d.id||d.index)+(k?':'+id:''));
+   }
+   await p.evaluate(i=>{const ps=[...document.querySelectorAll('dialog')[i].querySelectorAll('[role=tabpanel]')];ps.forEach((x,k)=>{x.hidden=window.__auditHidden?.[k]??x.hidden;});document.querySelectorAll('dialog')[i].close();},d.index);
+  }
   assert.deepEqual(errors,[]);await c.close();
  }
  await b.close();fs.writeFileSync(path.join(out,'inventory.json'),JSON.stringify({snapshots,issues},null,2));console.log(JSON.stringify({snapshots:snapshots.length,controls:snapshots.reduce((n,s)=>n+s.controls.length,0),issues},null,2));assert.equal(issues.length,0,'UI audit findings must be resolved or explicitly classified before passing');
