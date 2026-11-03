@@ -16,7 +16,7 @@ function setup(){
  const forecast={addEventListener(type,fn,capture){assert.equal(type,'click');assert.equal(capture,true);listeners.add(fn);},removeEventListener(type,fn,capture){assert.equal(capture,true);listeners.delete(fn);}};
  const location={hash:'',search:''};
  const context={location,initialHash:'',initialSearch:'',startupInteracted:false,
-  get:()=> 'map',permitted:()=>true,update(){},
+  get:()=> 'explore',permitted:()=>true,screenAllowed:()=>true,update(){},
   $:id=>id==='toolsHome'?forecast:id==='startupMessage'?message:status,
   history:{state:null,replaceState(_state,_unused,hash){location.hash=hash;}},
   applyRoute(){routes.push(location.hash);},
@@ -39,7 +39,7 @@ test('launch waits for access, preserves forecast feedback, and releases its fra
  assert.equal(s.status.textContent,'Existing forecast feedback');assert.equal(s.status.hidden,false);
  s.frame();assert.equal(s.frames.size,1);assert.equal(s.routes.length,0);
  s.ready();await pending;
- assert.equal(s.location.hash,'#/skymap');assert.deepEqual(s.routes,['#/skymap']);
+ assert.equal(s.location.hash,'#/explore');assert.deepEqual(s.routes,['#/explore']);
  assert.equal(s.frames.size,0);assert.equal(s.listeners.size,0);
 });
 

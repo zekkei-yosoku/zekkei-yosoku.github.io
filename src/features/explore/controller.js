@@ -60,7 +60,7 @@ function canFrame(s){return eligible()&&AstroNotesAccess.canFrame(toolAllowed,s.
 function menu(){
  const combined=eligible(),f=$('framingMenu'),m=$('mapMenu');
  if(combined){f.hidden=true;m.hidden=false;m.dataset.tool='#/explore';m.querySelector('b').lastChild.textContent='探す';m.querySelector('span').textContent='条件を選び、見え方と地図で確かめる';}
- else{f.dataset.tool='#/aim/tower';m.dataset.tool='#/skymap';m.querySelector('b').lastChild.textContent='地図';m.querySelector('span').textContent='撮影地点からの天体の方向と高度を調べる';}
+ else{f.dataset.tool='#/aim/tower';m.dataset.tool='#/skymap';m.querySelector('b').lastChild.textContent='探す';m.querySelector('span').textContent='撮影地点からの天体の方向と高度を調べる';}
 }
 const layout=AstroNotesExploreLayout.create({$,node,store,mapView,aimView,skyInfo,tabs,scene,map,aimState:()=>aim,requestAnimationFrame:cb=>requestAnimationFrame(cb),getMode:()=>mode,isAimActive:()=>viewState.aim,
  showResult,candidateChosen,addSaveAction,updateConditions,choose,invalidate,placePins,updateSkyInfo});

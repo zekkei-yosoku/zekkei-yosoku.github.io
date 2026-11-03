@@ -35,7 +35,7 @@ test('Actual trial startup branch respects explicit routes and stored choices',a
  const h=fs.readFileSync(new URL('./trial/index.html',import.meta.url),'utf8'),script=h.match(/<script id="startupPreference">([\s\S]*?)<\/script>/)[1];
  const definitions=script.slice(script.indexOf(' const key='),script.indexOf(' const row='));
  const start=script.slice(script.indexOf(' const openStartup ='),script.indexOf(" document.addEventListener('visibilitychange'"));
- for(const [preference,hash,allowed,expected] of [[null,'',false,'#/almanac'],['forecast','',false,''],['home','#/records',false,'#/records'],['map','',true,'#/skymap'],['map','',false,'#/almanac'],['framing','',true,'#/aim/tower']]){
+ for(const [preference,hash,allowed,expected] of [[null,'',false,'#/almanac'],['forecast','',false,''],['home','#/records',false,'#/records'],['explore','',true,'#/explore'],['explore','',false,'#/almanac'],['map','',true,'#/explore'],['map','',false,'#/almanac'],['framing','',true,'#/explore']]){
   const location={hash,search:''},status={addEventListener(){},removeEventListener(){}},c={location,localStorage:{getItem:()=>preference},screenAllowed:()=>allowed,history:{state:null,replaceState(_state,_unused,url){location.hash=url;}},applyRoute(){},$:()=>status,update(){},startupSessionReady:Promise.resolve(),requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{}};vm.createContext(c);vm.runInContext(`const initialHash=location.hash,initialSearch=location.search;let startupInteracted=false;${definitions}${start};globalThis.run=openStartup;`,c);await c.run();assert.equal(location.hash,expected,`preference=${preference}, hash=${hash}, allowed=${allowed}`);
  }
 });

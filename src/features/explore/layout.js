@@ -46,7 +46,7 @@ function create(deps){
   for(const child of aimChildren)aimView.append(child);
   buffer.remove();workspaceHome.parent.insertBefore(workspaceHome.node,workspaceHome.next?.parentNode===workspaceHome.parent?workspaceHome.next:null);aimHome.parent.insertBefore(aimView,aimHome.next?.parentNode===aimHome.parent?aimHome.next:null);
   aimView.hidden=!isAimActive();$('previewScene').setAttribute('role','tabpanel');$('previewScene').setAttribute('aria-labelledby','previewSceneTab');
-  skyInfo.remove();updateSkyInfo(null);tabs.remove();scene.remove();map.remove();mapView.classList.remove('explore-mounted');$('skyMapTitle').textContent='地図';
+  skyInfo.remove();updateSkyInfo(null);tabs.remove();scene.remove();map.remove();mapView.classList.remove('explore-mounted');$('skyMapTitle').textContent='探す';
  }
  return {mount,unmount,get mounted(){return mounted;},get conditions(){return conditions;}};
 }

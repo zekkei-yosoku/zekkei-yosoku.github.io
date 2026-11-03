@@ -15,9 +15,10 @@ import {scrollLock,startupSessionReady} from '../features/plans/controller.js';
  let startupInteracted=false;
  for(const event of ['pointerdown','keydown','wheel','touchstart'])document.addEventListener(event,()=>{startupInteracted=true;},{once:true,passive:true,capture:true});
  const key='sorami.startupScreen';
- const choices=[['home','ホーム'],['forecast','予測'],['framing','構図'],['map','地図']];
- const permitted=id=>id==='home'||id==='forecast'||(id==='map'?screenAllowed('skymap'):id==='framing'&&screenAllowed('framing'));
- const get=()=>{try{const v=localStorage.getItem(key);return choices.some(([id])=>id===v)?v:'home';}catch{return 'home';}};
+ const choices=[['home','ホーム'],['forecast','予測'],['explore','探す']];
+ const permitted=id=>id==='home'||id==='forecast'||(id==='explore'&&(screenAllowed('skymap')||screenAllowed('framing')));
+ // 以前の「構図」「地図」を選んでいた端末は「探す」として開く
+ const get=()=>{try{const v=localStorage.getItem(key);if(v==='framing'||v==='map')return 'explore';return choices.some(([id])=>id===v)?v:'home';}catch{return 'home';}};
  const row=document.createElement('div');row.className='startup-setting';
  row.style.cssText='padding:12px 0';
  const label=document.createElement('label');label.htmlFor='startupScreen';label.textContent='起動画面';
@@ -96,7 +97,7 @@ import {scrollLock,startupSessionReady} from '../features/plans/controller.js';
   // Hash routes, shared-plan query parameters and navigation during login are not replaced.
   if(startupInteracted||initialHash||initialSearch||location.hash!==initialHash||location.search!==initialSearch){applyRoute();return;}
   const selected=get();if(!permitted(selected)){history.replaceState(history.state,'','#/almanac');applyRoute();return;}
-  const route=selected==='home'?'#/almanac':selected==='framing'?'#/aim/tower':selected==='map'?'#/skymap':null;
+  const route=selected==='home'?'#/almanac':selected==='explore'?(screenAllowed('skymap')?'#/explore':'#/aim/tower'):null;
   if(route)history.replaceState(history.state,'',route);
   applyRoute();
  };

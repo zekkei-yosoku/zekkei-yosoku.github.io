@@ -93,7 +93,7 @@ function create(deps){
   for(const child of aimChildren)aimView.append(child);
   buffer.remove();workspaceHome.parent.insertBefore(workspaceHome.node,workspaceHome.next?.parentNode===workspaceHome.parent?workspaceHome.next:null);aimHome.parent.insertBefore(aimView,aimHome.next?.parentNode===aimHome.parent?aimHome.next:null);
   aimView.hidden=!isAimActive();$('previewScene').setAttribute('role','tabpanel');$('previewScene').setAttribute('aria-labelledby','previewSceneTab');
-  skyInfo.remove();updateSkyInfo(null);tabs.remove();scene.remove();map.remove();mapView.classList.remove('explore-mounted');$('skyMapTitle').textContent='地図';
+  skyInfo.remove();updateSkyInfo(null);tabs.remove();scene.remove();map.remove();mapView.classList.remove('explore-mounted');$('skyMapTitle').textContent='探す';
  }
  return {mount,unmount,get mounted(){return mounted;},get conditions(){return conditions;}};
 }
@@ -151,7 +151,7 @@ function canFrame(s){return eligible()&&AstroNotesAccess.canFrame(toolAllowed,s.
 function menu(){
  const combined=eligible(),f=$('framingMenu'),m=$('mapMenu');
  if(combined){f.hidden=true;m.hidden=false;m.dataset.tool='#/explore';m.querySelector('b').lastChild.textContent='探す';m.querySelector('span').textContent='条件を選び、見え方と地図で確かめる';}
- else{f.dataset.tool='#/aim/tower';m.dataset.tool='#/skymap';m.querySelector('b').lastChild.textContent='地図';m.querySelector('span').textContent='撮影地点からの天体の方向と高度を調べる';}
+ else{f.dataset.tool='#/aim/tower';m.dataset.tool='#/skymap';m.querySelector('b').lastChild.textContent='探す';m.querySelector('span').textContent='撮影地点からの天体の方向と高度を調べる';}
 }
 const layout=AstroNotesExploreLayout.create({$,node,store,mapView,aimView,skyInfo,tabs,scene,map,aimState:()=>aim,requestAnimationFrame:cb=>requestAnimationFrame(cb),getMode:()=>mode,isAimActive:()=>viewState.aim,
  showResult,candidateChosen,addSaveAction,updateConditions,choose,invalidate,placePins,updateSkyInfo});

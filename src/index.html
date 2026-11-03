@@ -90,7 +90,7 @@
         <span class="name" id="placeName">…</span>
         <span class="muted" id="placeSub"></span>
       </span>
-      <span class="sr-only">（地点を探す）</span>
+      <span class="sr-only">（撮影地点を探す）</span>
       <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"
         stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></span>
     </button>
@@ -543,7 +543,7 @@
   <!-- 出典だけを畳んで置く（2026-10-01 ユーザー「出しておいた方がいいなら畳んでおいてほしい」）。出典の表示は利用の条件 -->
 <section id="skyMapView" aria-labelledby="skyMapTitle" hidden>
  <!-- 2026-10-15 Framingを押したときの処理は旧「この条件の構図を確認」と同じ（引き継げないときはメニューと同じくFramingを開く） -->
- <div class="sky-map-head"><h2 id="skyMapTitle">地図</h2><button type="button" class="chip preview-history-icon" id="skyMapRecentOpen" aria-label="場所の履歴" title="履歴"></button></div>
+ <div class="sky-map-head"><h2 id="skyMapTitle">探す</h2><button type="button" class="chip preview-history-icon" id="skyMapRecentOpen" aria-label="場所の履歴" title="履歴"></button></div>
  <div id="skyMapAccess" class="card"><p id="skyMapAccessMessage" role="status">利用権限を確認しています…</p><button type="button" class="chip" id="skyMapAccessRetry">再試行</button><button type="button" class="chip" id="skyMapAccessLogin">ログイン</button></div>
  <div class="sky-map-content" id="skyMapContent" hidden>
   <div class="sky-map-controls"><div class="aim-say condition-field"><select class="condition-choice" id="skyMapBody" aria-labelledby="skyMapBodyLabel"><optgroup label="太陽・月"><option value="sun">太陽</option><option value="moon">月</option></optgroup><optgroup label="恒星"><option value="sirius">シリウス</option></optgroup><optgroup label="惑星"><option value="mercury">水星</option><option value="venus">金星</option><option value="mars">火星</option><option value="jupiter">木星</option><option value="saturn">土星</option></optgroup></select><span class="aim-say-v condition-label" id="skyMapBodyLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-body"/></svg><span>天体</span></span></div><div class="aim-say condition-field"><select id="skyMapTarget" aria-labelledby="skyMapTargetLabel"></select><span class="aim-say-v condition-label" id="skyMapTargetLabel"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#input-icon-target"/></svg><span>対象</span></span></div></div>
@@ -647,7 +647,7 @@
 </dialog>
 
 <dialog class="sheet" id="placeSheet" tabindex="-1">
-  <div class="sheet-head"><strong id="placeSheetTitle">地点</strong><span class="page-actions" id="placeHeadActions" hidden><button type="button" class="chip" id="placeClear" aria-label="撮影地点の選択を解除">解除</button></span><button id="placeClose">閉じる</button></div>
+  <div class="sheet-head"><strong id="placeSheetTitle">撮影地点</strong><span class="page-actions" id="placeHeadActions" hidden><button type="button" class="chip" id="placeClear" aria-label="撮影地点の選択を解除">解除</button></span><button id="placeClose">閉じる</button></div>
   <div class="sheet-body">
     <div class="search-row">
       <input type="search" id="searchBox" enterkeyhint="search" placeholder="住所・地名・駅名・緯度経度・地図のURL">

@@ -26,7 +26,7 @@ for name in ['data','vendor']:
    emit(out/f.relative_to(root),f.read_bytes())
 s=(root/'index.html').read_text().replace('<title>AstroNotes</title>','<title>AstroNotes 試用版</title>').replace('name="apple-mobile-web-app-title" content="AstroNotes"','name="apple-mobile-web-app-title" content="AstroNotes 試用版"')
 idx=s.index('  <div class="masthead">')
-s=s[:idx]+'  <p style="font-size:12px;padding:6px 2px;color:var(--secondary)">試用版 · 本番とアカウント・保存データ共通 <a href="../">本番へ</a></p>\n'+s[idx:]
+s=s[:idx]+'  <p style="position:relative;z-index:1;font-size:12px;padding:6px 2px;color:var(--secondary)">試用版 · 本番とアカウント・保存データ共通 <a href="../">本番へ</a></p>\n'+s[idx:]
 emit(out/'index.html',s.encode())
 # 2026-10-28 写真の評価と規約・プライバシーも本体から作る（試用版の表示だけ変える）
 r=(root/'sky-rating.html').read_text().replace('· AstroNotes</title>','· AstroNotes 試用版</title>').replace('<span class="brand">AstroNotes</span>','<span class="brand">AstroNotes <span>試用版</span></span>')

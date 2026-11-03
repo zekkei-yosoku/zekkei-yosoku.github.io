@@ -46,7 +46,7 @@ function choosePlace(p, { keepSheet = false } = {}) {
 ///   point  … 地図で選ぶを開く場所
 ///   set    … 選んだ場所を渡す ／ reset … AstroNotesの地点に戻す
 const PLACE_PICKERS = {
-  almanac: { title: "観測地点", custom: () => almanacPoint, point: () => almanacPoint || place,
+  almanac: { title: "撮影地点", custom: () => almanacPoint, point: () => almanacPoint || place,
     set: p => { almanacPoint = p; renderAlmanac(); }, reset: () => { almanacPoint = null; renderAlmanac(); } },
   aim: { title: "撮影地点", custom: () => aim.from, point: () => aimFromPoint(),
     set: (p) => aimSetFrom(p),

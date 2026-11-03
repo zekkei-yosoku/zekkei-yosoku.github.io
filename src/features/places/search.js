@@ -97,7 +97,7 @@ function refreshPlacePickerActions(picker) {
 function openPlaceSheet(mode = null, { focusSearch = false } = {}) {
   placeSheetFor = mode;$("geoStatus").textContent = "";window.MyPlacesUI?.resetShapePicker?.();
   const picker = mode && PLACE_PICKERS[mode];
-  $("placeSheetTitle").textContent = picker ? picker.title : "地点";
+  $("placeSheetTitle").textContent = picker ? picker.title : "撮影地点";
   refreshPlacePickerActions(picker);
   $("favNotice").textContent = "";
   for (const el of document.querySelectorAll(".save-err")) el.hidden = true;
@@ -128,14 +128,14 @@ $("placeSheet").addEventListener("close", () => {
   favUndo = [];
   // 次に地点カードから開いたときに、ねらうの観測地点を決めてしまわないよう戻す
   placeSheetFor = null;
-  $("placeSheetTitle").textContent = "地点";
+  $("placeSheetTitle").textContent = "撮影地点";
   $("sheetInherit").hidden = true; $("placeHeadActions").hidden = true;
 });
 $("geoButton").onclick = () => {
   const request = ++geoRequest;
   $("geoStatus").textContent = "";
   if (!navigator.geolocation) {
-    $("geoStatus").textContent = "このブラウザでは現在地を取得できません。地点を検索するか、地図から選んでください";
+    $("geoStatus").textContent = "このブラウザでは現在地を取得できません。撮影地点を検索するか、地図から選んでください";
     return;
   }
   navigator.geolocation.getCurrentPosition(
@@ -156,8 +156,8 @@ $("geoButton").onclick = () => {
       if (request !== geoRequest || !$("placeSheet").open) return;
       $("geoStatus").textContent = error.code === 1
         ? "位置情報が許可されていません。端末とブラウザの位置情報の許可を確認してください"
-        : error.code === 3 ? "現在地の取得に時間がかかっています。もう一度試すか、地点を検索してください"
-        : "現在地を取得できませんでした。端末の位置情報の設定を確認するか、地点を検索してください";
+        : error.code === 3 ? "現在地の取得に時間がかかっています。もう一度試すか、撮影地点を検索してください"
+        : "現在地を取得できませんでした。端末の位置情報の設定を確認するか、撮影地点を検索してください";
     },
     { timeout: 10000 });
 };
@@ -476,7 +476,7 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord, options = {}) {
   const field = $(boxId), searchButton = $(`${boxId}Go`);
   if (field && searchButton) {
     field.parentElement.classList.add("location-search-row");
-    field.setAttribute("aria-label", field.getAttribute("aria-label") || "地点を検索（住所・地名・駅名・緯度経度・Plus Code・地図のURL）");
+    field.setAttribute("aria-label", field.getAttribute("aria-label") || "撮影地点を検索（住所・地名・駅名・緯度経度・Plus Code・地図のURL）");
     field.title = "住所・地名・駅名・緯度経度・Plus Code・地図のURL";
     field.placeholder = "住所・地名・座標・Plus Code";
     field.setAttribute("enterkeyhint", "search");

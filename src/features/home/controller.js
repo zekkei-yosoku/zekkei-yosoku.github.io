@@ -66,7 +66,7 @@ function renderAlmanac() {
     $("almanacCalendarOpen").setAttribute('aria-label',ToolDateTimeBar.label(ruler()));
   }
   $("almanacPlace").textContent=`${p.name}　⌄`;
-  $("almanacPlace").setAttribute("aria-label",`観測地点 ${p.name} を変更`);
+  $("almanacPlace").setAttribute("aria-label",`撮影地点 ${p.name} を変更`);
   $("almanacDayLabel").textContent=typeof ToolDateTimeBar!=="undefined"?ToolDateTimeBar.label(ruler()):date(almanacDay);
   $("almanacPlace").onclick=()=>openPlaceSheet('almanac');
   $("almanacPrev").disabled=almanacDay<=lower;$("almanacNext").disabled=almanacDay>=upper;
@@ -93,7 +93,7 @@ function renderAlmanac() {
         row.append(title,result);card.append(row);
       }
     }catch{
-      const message=document.createElement('p');message.textContent='時刻を計算できませんでした。地点と日付を確認してください。';
+      const message=document.createElement('p');message.textContent='時刻を計算できませんでした。撮影地点と日付を確認してください。';
       const retry=document.createElement('button');retry.type='button';retry.className='chip';retry.textContent='再計算';retry.onclick=renderAlmanac;card.append(message,retry);
     }
     out.append(card);
