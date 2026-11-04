@@ -16,7 +16,7 @@ const out=process.env.UI_AUDIT_OUTPUT||'/tmp/astronotes-ui-audit';fs.mkdirSync(o
  for(const width of [320,390,1280])for(const theme of ['light','dark']){
   const c=await b.newContext({viewport:{width,height:900},colorScheme:theme});
   await c.addInitScript(tools=>sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-ui-audit',loginId:'owner-test',role:'user',ownerAdmin:true,tools})),tools);
-  await c.route(/(?:localhost:8787|zekkei-api\.okayu-sorami\.workers\.dev)/,async r=>{
+  /* 飛行機の画面の羽田の風は固定の南風で返し、風が取れた状態を撮る（Open-Meteo へは出さない。2026-11-04） */await c.route(/api\.open-meteo\.com\/v1\/forecast\?.*hourly=wind_direction_10m/,r=>{const h=Math.floor(Date.now()/3600000)*3600,time=Array.from({length:18*24},(_,i)=>h-48*3600+i*3600);return r.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({hourly:{time,wind_direction_10m:time.map(()=>170),wind_speed_10m:time.map(()=>6)}})});});await c.route(/(?:localhost:8787|zekkei-api\.okayu-sorami\.workers\.dev)/,async r=>{
    const pathname=new URL(r.request().url()).pathname;
    if(pathname==='/prediction'&&prediction){const dto=structuredClone(prediction);dto.place=r.request().postDataJSON();dto.asOf=dto.bundle.fetchedAt=Date.now();return r.fulfill({json:dto});}
    const json=pathname==='/me'?{loginId:'owner-test',role:'user',ownerAdmin:true,tools,credentials:[],hasPassword:true,recoveryCodes:10}:pathname==='/admin/ui'&&admin?admin:pathname==='/admin/users'?users:pathname==='/admin/settings'?{openSignup:false}:pathname==='/admin/log'?{entries:[]}:pathname==='/sync'?{favorites:[],sightings:[],rev:0}:pathname.includes('/access')?{allowed:true,tools}:{};
