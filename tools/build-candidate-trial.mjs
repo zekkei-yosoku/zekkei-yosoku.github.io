@@ -15,7 +15,7 @@ const read=p=>{
 };
 const result=renderIndex({entry:'src/features/explore/entry.inc',read});
 const trialShooting=patch(patch(readFileSync('astronotes-shooting.js','utf8'),'event:e,shapeType:s.type','event:e,assumedObserver:obs,shapeType:s.type'),'record:entry.record,event:e});','record:entry.record,event:e,assumedObserver:obs});');
-const trialMyplaces=patch(patch(readFileSync('astronotes-myplaces.js','utf8'),'${result.rows.length}件','${result.rows.length}件（絞り込み前）'),'box.append(button);}'+'\n  if(result.failed)', 'box.append(button);}'+'\n  globalThis.AstroNotesCandidatePicker?.registerRegistered(box,result.rows,plan,current);\n  if(result.failed)');
+const trialMyplaces=patch(patch(patch(readFileSync('astronotes-myplaces.js','utf8'),'この日に重なる撮影地点はありません。日付や対象を変えるか、記録に撮影地点と見えた対象を追加してください。','登録した地点に候補がありません。日付や対象を変えてください。'),'${result.rows.length}件','${result.rows.length}件（絞り込み前）'),'box.append(button);}'+'\n  if(result.failed)', 'box.append(button);}'+'\n  globalThis.AstroNotesCandidatePicker?.registerRegistered(box,result.rows,plan,current);\n  if(result.failed)');
 const files={
  'astronotes-shooting.js':trialShooting,
  'astronotes-myplaces.js':trialMyplaces,
