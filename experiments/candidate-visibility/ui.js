@@ -42,7 +42,7 @@ function mount(){
  const p=snapshot(),id=key(p);if(section?.isConnected&&condition===id)return;
  stopWatch();run++;section?.remove();condition=id;section=document.createElement('section');section.id='additionalCandidateSearch';section.setAttribute('aria-label','ほかの候補地点');
  const description=document.createElement('p');description.className='tiny';description.textContent='登録した撮影地点の候補は上に表示します。追加探索は月・太陽 × 東京スカイツリーに対応し、四ツ谷・スカイツリー周辺の一部歩道で試用しています。選んだ日の0〜24時（日本時間）を調べます。';
- const scope=document.createElement('p');scope.className='tiny';scope.textContent='地形・建物モデルに基づく候補です。樹木などは未考慮で、現地の見え方を保証するものではありません。';
+ const scope=document.createElement('p');scope.className='tiny';scope.textContent='月の候補は太陽が地平線より下にある時間帯です。地形・建物モデルに基づく候補で、樹木などは未考慮です。現地の見え方を保証するものではありません。';
  const status=document.createElement('div');status.className='tiny';status.setAttribute('role','status');status.setAttribute('aria-live','polite');
  let waitMessage=null;
  const setStatus=(message,waiting=false)=>{status.className=waiting?'note-wait candidate-wait':'tiny';status.replaceChildren();waitMessage=null;if(waiting){const character=document.createElement('span');character.className='note-wait-character';character.setAttribute('aria-hidden','true');waitMessage=document.createElement('span');waitMessage.className='note-wait-message';waitMessage.textContent=message;status.append(character,waitMessage);}else status.textContent=message;};
