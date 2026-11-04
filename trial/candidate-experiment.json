@@ -4,12 +4,12 @@
   "visibilityCertified": false,
   "files": {
     "astronotes-explore-simple.js": "a579e1f139ad77930b27af8b8c3001942e56e854887a4725fba30e6b1f43d774",
-    "astronotes-candidate-search.js": "2afd2c3acdda88fe0dc15a74ae4d38a0f49844985b0bf5bb13146db315613f33",
-    "data/candidate-terrain.json": "6e9ec4e38293e15356b62578b60e762cda7c86f4db1e59fd426c330dad80dfcb",
+    "astronotes-candidate-search.js": "94bf32027d36063a7cf96fddc4ff09db2467c6d1ef5c2d8227107b8c06e608eb",
+    "data/candidate-terrain.json": "98350999c63eb8edb90c30e2e810c28a92b1c4a0c2d2c53002515b4dd87dbc0e",
     "data/candidate-buildings.json": "6c3ca4d6bd7decf61b068fde6115b3895bb83ebf6d516d2cad464db34fc355f8",
     "data/candidate-surfaces.json": "de16ae6e56aa05a1d4a7d6d0fa8974a4373183f35e8282f412f7fbd7c637751f",
     "data/candidate-sidewalks.json": "95a7e907dd67360391ae8b3b082e93c750ba8b460fda5eabb20b0e698695beaa",
-    "index.html": "8f33320a85945007c8c3fdedc4c1560f14aa3ae182e0d271cb77106fabb106bb",
-    "app-version.txt": "fa1112cf8a1b5b954aa3cec33fb00da6eac2d6c8213c1533ce0c5f3966364c43"
+    "index.html": "893ced3a1e2d10139fdf8319e87d5b71abd8074e5740ea36357f87b2202317ab",
+    "app-version.txt": "a5437c2f8944df14b557ba33fcbfd74cd907c2810ca7ca9e3833e603b49e00c3"
   }
 }

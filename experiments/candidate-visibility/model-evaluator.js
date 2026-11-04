@@ -1,7 +1,10 @@
 /* Model diagnostics only. Missing survey/standing/access evidence NEVER becomes clear. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesCandidateModel=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
-const R=6371008.8,rad=Math.PI/180;
+const R=6371008.8,rad=Math.PI/180,Geo=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../astronotes-terrain.js'):null);
+const cache=new WeakMap(),earthA=6378137,earthE2=6.6943799901413165e-3;
+function ecef(lat,lon,h){const a=lat*rad,b=lon*rad,n=earthA/Math.sqrt(1-earthE2*Math.sin(a)**2);return [(n+h)*Math.cos(a)*Math.cos(b),(n+h)*Math.cos(a)*Math.sin(b),(n*(1-earthE2)+h)*Math.sin(a)];}
+const reference=ecef(35.68626,139.73068,0),local=(lat,lon,h)=>ecef(lat,lon,h).map((v,i)=>v-reference[i]);
 const dot=(a,b)=>a.reduce((s,x,i)=>s+x*b[i],0),sub=(a,b)=>a.map((x,i)=>x-b[i]);
 function inside(r,p){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p[1])!==(r[j][1]>p[1])&&p[0]<(r[j][0]-r[i][0])*(p[1]-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;}
 function faceHit(rings,origin,direction,maxM){
@@ -11,13 +14,15 @@ function faceHit(rings,origin,direction,maxM){
  const p=origin.map((x,i)=>x+t*direction[i]),axis=normal.map(Math.abs).indexOf(Math.max(...normal.map(Math.abs))),project=q=>q.filter((_,i)=>i!==axis),pp=project(p);
  return inside(rings[0].map(project),pp)&&!rings.slice(1).some(r=>inside(r.map(project),pp))?{distanceM:t,point:p}:null;
 }
-function trace(index,observer,{azimuth,altitude,maxM=12000}){
+function trace(index,observer,{azimuth,altitude,maxM=12000,endpoint=null}){
  if(!Number.isFinite(observer.elevation)||!Number.isFinite(azimuth)||!Number.isFinite(altitude)||Math.abs(altitude)>=89||!Number.isFinite(maxM)||maxM<=0||maxM>20000)return {status:'unknown',recommend:false,reason:'invalid-height-or-ray'};
- const eye=observer.elevation+(observer.eyeM??1.5),lat=observer.latitude,lon=observer.longitude,scale=Math.cos(lat*rad),az=azimuth*rad,alt=altitude*rad;
- // Parameter t is horizontal metres, matching geometry distance and curvature.
- const direction=[Math.sin(az),Math.cos(az),Math.tan(alt)],end=[lon+direction[0]*maxM/(111195*scale),lat+direction[1]*maxM/111195];
- const ids=new Set();for(let x=Math.floor(Math.min(lon,end[0])*1000);x<=Math.floor(Math.max(lon,end[0])*1000);x++)for(let y=Math.floor(Math.min(lat,end[1])*1000);y<=Math.floor(Math.max(lat,end[1])*1000);y++)for(const id of index.grid[x+','+y]||[])ids.add(id);
- let hit=null,faces=0;for(const id of ids){const b=index.buildings[id];for(const poly of b.polygons){faces++;const rings=poly.rings.map(r=>r.map(p=>{const x=(p[0]-lon)*111195*scale,y=(p[1]-lat)*111195;return [x,y,p[2]-(x*x+y*y)/(2*R)];}));const h=faceHit(rings,[0,0,eye],direction,hit?.distanceM??maxM);if(h)hit={...h,buildingId:b.id,polygonId:poly.id,lod:b.lod};}}
+ const eye=observer.elevation+(observer.eyeM??1.5),lat=observer.latitude,lon=observer.longitude,az=azimuth*rad,alt=altitude*rad;
+ const end=endpoint||Geo().destination(lat,lon,azimuth,maxM/1000),origin=local(lat,lon,eye),a=lat*rad,b=lon*rad;
+ const east=[-Math.sin(b),Math.cos(b),0],north=[-Math.sin(a)*Math.cos(b),-Math.sin(a)*Math.sin(b),Math.cos(a)],up=[Math.cos(a)*Math.cos(b),Math.cos(a)*Math.sin(b),Math.sin(a)];
+ const direction=endpoint?local(endpoint.latitude,endpoint.longitude,endpoint.elevation).map((v,i)=>(v-origin[i])/maxM):east.map((v,i)=>v*Math.sin(az)+north[i]*Math.cos(az)+up[i]*Math.tan(alt));
+ const ids=new Set();for(let x=Math.floor(Math.min(lon,end.longitude)*1000)-1;x<=Math.floor(Math.max(lon,end.longitude)*1000)+1;x++)for(let y=Math.floor(Math.min(lat,end.latitude)*1000)-1;y<=Math.floor(Math.max(lat,end.latitude)*1000)+1;y++)for(const id of index.grid[x+','+y]||[])ids.add(id);
+ let compiled=cache.get(index);if(!compiled){compiled=new Map();cache.set(index,compiled);}
+ let hit=null,faces=0;for(const id of ids){const building=index.buildings[id];let polys=compiled.get(id);if(!polys){polys=building.polygons.map(poly=>({id:poly.id,rings:poly.rings.map(r=>r.map(p=>local(p[1],p[0],p[2])))}));compiled.set(id,polys);}for(const poly of polys){faces++;const h=faceHit(poly.rings,origin,direction,hit?.distanceM??maxM);if(h)hit={...h,pointFrame:'WGS84 ECEF offset from lon139.73068 lat35.68626 h0; geoid uncorrected diagnostic',buildingId:building.id,polygonId:poly.id,lod:building.lod};}}
  return {status:hit?'model-blocked':'unknown',recommend:false,hit,faces,buildingsChecked:ids.size,reason:hit?'conditional-model-intersection':'incomplete-coverage-or-uncertainty'};
 }
 function create({align,shooting,bodies,index,surfaceAt,terrain=null,prefilter=true,yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
@@ -36,8 +41,8 @@ function create({align,shooting,bodies,index,surfaceAt,terrain=null,prefilter=tr
   }
   const events=shooting.eventsFor(plan,obs,start,{align,isMountain:()=>false}).filter(e=>shooting.matches(e,plan,()=>false)&&e.at>=start&&e.at<start+86400000&&(plan.body!=='moon'||e.sunAltitude<0));
   const distance=geometry?.distanceKm*1000;
-  const targetRay=geometry&&events.length?trace(index,obs,{azimuth:geometry.azimuth,altitude:Math.atan2(geometry.topM-obs.elevation-obs.eyeM-distance*distance/(2*R),distance)/rad,maxM:distance}):null;
-  const targetTerrain=geometry&&events.length&&terrain?terrain.trace(obs,{azimuth:geometry.azimuth,altitude:Math.atan2(geometry.topM-obs.elevation-obs.eyeM-distance*distance/(2*R),distance)/rad,maxM:distance}):null;
+  const targetRay=geometry&&events.length?trace(index,obs,{azimuth:geometry.azimuth,altitude:Math.atan2(geometry.topM-obs.elevation-obs.eyeM-distance*distance/(2*R),distance)/rad,maxM:distance,endpoint:{...plan.target,elevation:geometry.topM}}):null;
+  const targetTerrain=geometry&&events.length&&terrain?terrain.trace(obs,{azimuth:geometry.azimuth,altitude:Math.atan2(geometry.topM-obs.elevation-obs.eyeM-distance*distance/(2*R),distance)/rad,maxM:distance,endpoint:{...plan.target,elevation:geometry.topM}}):null;
   const tested=[];for(const event of events){const st=bodies.state(plan.body,event.at,{...obs,elevation:obs.elevation+obs.eyeM});const rays=[0,-1,1].map(offset=>{const ray={azimuth:st.azimuth,altitude:(st.geometricAltitude??st.altitude??st.apparentAltitude)+offset*st.angularRadius,maxM:12000};return {...trace(index,obs,ray),terrain:terrain?.trace(obs,ray)??null};});tested.push({event,rays});}
   return {status:'unknown',recommend:false,aligned:events.length>0,events:tested,targetRay,targetTerrain,assumedObserver:obs,surface,reason:'estimated-surface-and-incomplete-3d-coverage'};
  };
