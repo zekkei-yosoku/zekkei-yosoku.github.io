@@ -34,6 +34,17 @@ function sampleSidewalks(data,limit=600){
  return {rows,limited};
 }
 function keyFor(plan,version,atmosphere){return JSON.stringify([version,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,day(plan.at),atmosphere]);}
+// OS location handlers; app identity is never embedded in Android/iOS default schemes.
+function mapLink(p,ua='',touchPoints=0){
+ if(!p||!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude)||Math.abs(p.latitude)>90||Math.abs(p.longitude)>180)return null;
+ const coord=p.latitude.toFixed(7)+','+p.longitude.toFixed(7);
+ if(/Android/i.test(ua))return {href:'geo:'+coord+'?q='+coord,native:true};
+ const ios=ua.match(/(?:iPhone|iPad|iPod).*?OS (\d+)[_.](\d+)/i);
+ const safari=ua.match(/Version\/(\d+)\.(\d+)/),modern=v=>v&&(Number(v[1])>26||Number(v[1])===26&&Number(v[2])>=2),appleMobile=/iPhone|iPad|iPod/.test(ua)||/Macintosh/.test(ua)&&touchPoints>1;
+ if(appleMobile&&(modern(ios)||modern(safari)))return {href:'geo-navigation:///place?coordinate='+coord,native:true};
+ if(/iPhone|iPad|iPod|Macintosh/i.test(ua))return {href:'https://maps.apple.com/?ll='+coord+'&q='+coord,native:false};
+ return {href:'geo:'+coord+'?q='+coord,native:true,choose:true};
+}
 function create({loadData,evaluate,clock=()=>performance.now(),yieldTask=()=>new Promise(r=>setTimeout(r,0)),diagnoseUnknown=false}){
  const cache=new Map(),jobs=new Map();
  async function search(plan,{onProgress=()=>{},isCurrent=()=>true,atmosphere='standard'}={}){
@@ -66,5 +77,5 @@ function create({loadData,evaluate,clock=()=>performance.now(),yieldTask=()=>new
  }
  return {search,clear:()=>cache.clear()};
 }
-return {create,sampleSidewalks,keyFor,day};
+return {create,sampleSidewalks,keyFor,day,mapLink};
 });
