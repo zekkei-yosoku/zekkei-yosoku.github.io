@@ -430,7 +430,30 @@ function kinds(row,facilities){
  return result.size?[...result]:['unknown'];
 }
 function accepts(row,time,kind,types,events){return (kind==='all'||types.includes(kind))&&(time==='all'||Number.isFinite(row.event?.at)&&!!events?.some(e=>e.kind===time&&Math.abs(row.event.at-e.at)<=3600000));}
-function compare(a,b,sort){return (sort==='kind'?Object.keys(names).indexOf(a.types[0])-Object.keys(names).indexOf(b.types[0]):0)||(a.row.event.at-b.row.event.at)||a.index-b.index;}
+function compare(a,b,sort){
+ const key=sort.replace(/-desc$/,''),direction=sort.endsWith('-desc')?-1:1;
+ const primary=key==='name'?String(a.row.place?.name||'').localeCompare(String(b.row.place?.name||''),'ja',{numeric:true}):key==='kind'?Object.keys(names).indexOf(a.types[0])-Object.keys(names).indexOf(b.types[0]):a.row.event.at-b.row.event.at;
+ return direction*primary||(a.row.event.at-b.row.event.at)||a.index-b.index;
+}
+const columns='minmax(0,1fr) 56px 76px';
+function formatRow(node,row,types){
+ if(!node.hasAttribute('data-candidate-columns')){
+  // Preserve the renderer's supplementary information and its click handler.
+  const notes=[...node.querySelectorAll('.sub-line')].filter(n=>!n.hasAttribute('data-place-kind')).map(n=>n.textContent.replace(/^\d{2}:\d{2}・/,'').replace(/ · \d{2}:\d{2}/,''));
+  node.replaceChildren();node.dataset.candidateColumns='';
+  Object.assign(node.style,{display:'grid',gridTemplateColumns:columns,columnGap:'8px',rowGap:'4px',alignItems:'start',textAlign:'left',padding:'12px 0',minHeight:'44px'});
+  const title=document.createElement('span');title.textContent=row.place.name;Object.assign(title.style,{minWidth:'0',overflowWrap:'anywhere',fontSize:'14px',fontWeight:'600'});
+  const clock=document.createElement('span');clock.textContent=new Date(row.event.at+32400000).toISOString().slice(11,16);Object.assign(clock.style,{fontSize:'14px',fontVariantNumeric:'tabular-nums',whiteSpace:'nowrap'});
+  const kind=document.createElement('span');kind.dataset.placeKind='';Object.assign(kind.style,{fontSize:'14px',minWidth:'0',overflowWrap:'anywhere'});node.append(title,clock,kind);
+  if(notes.length){const detail=document.createElement('span');detail.className='tiny sub-line';detail.textContent=notes.join(' · ');Object.assign(detail.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});node.append(detail);}
+ }
+ node.querySelector('[data-place-kind]').textContent=types.map(t=>names[t]).join('・');
+}
+function updateHeaders(){
+ const key=sort.replace(/-desc$/,''),descending=sort.endsWith('-desc');
+ for(const button of control?.querySelectorAll('[data-candidate-sort]')||[]){const active=button.dataset.candidateSort===key;button.textContent=button.dataset.label+(active?(descending?' ↓':' ↑'):' ↕');button.setAttribute('aria-label',button.dataset.label+(active?'、現在は'+(descending?'降順':'昇順')+'。':'。')+(active&&!descending?'降順':'昇順')+'に並べ替え');button.setAttribute('aria-pressed',String(active));button.style.color=active?'var(--accent)':'var(--secondary)';}
+}
+
 const groups=new Map(),windows=new Map();let control=null,scope='',revision=0,loadLabels=async()=>({}),time='all',kind='all',sort='time';
 function mount(panel,plan){
  const next=JSON.stringify([plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,plan.composition,plan.compositionInvalid,globalThis.AstroNotesCandidateDiscovery.day(plan.at),plan.atmosphere]);
@@ -439,8 +462,10 @@ function mount(panel,plan){
   const add=(label,id,options,value,change)=>{const l=document.createElement('label');l.className='tiny';Object.assign(l.style,{display:'grid',gridTemplateColumns:'76px minmax(0,1fr)',alignItems:'center',gap:'12px',margin:'0 0 8px',fontSize:'14px'});l.textContent=label;const s=document.createElement('select');s.id=id;s.setAttribute('aria-label',label);Object.assign(s.style,{width:'100%',minWidth:'0',maxWidth:'100%',minHeight:'44px',margin:'0',fontSize:'16px'});for(const [v,n]of options)s.add(new Option(n,v));s.value=value;s.onchange=()=>{change(s.value);apply();};l.append(s);control.append(l);};
   add('時間帯','candidateTimeFilter',[['all','すべての時間'],['rise','出の前後1時間'],['set','入の前後1時間']],time,v=>time=v);
   add('場所の種類','candidateKindFilter',[['all','すべての種類'],...Object.entries(names)],kind,v=>kind=v);
-  add('並び順','candidateListSort',[['time','時刻順'],['kind','種類順']],sort,v=>sort=v);
   const status=document.createElement('p');status.className='tiny';status.dataset.filterStatus='';status.setAttribute('role','status');status.style.margin='12px 0 0';control.append(status);
+  const header=document.createElement('div');header.dataset.candidateHeaders='';header.setAttribute('role','group');header.setAttribute('aria-label','候補の並べ替え');Object.assign(header.style,{display:'grid',gridTemplateColumns:columns,gap:'8px',borderBottom:'1px solid var(--line)',marginTop:'8px'});
+  for(const [key,label]of [['name','地点'],['time','時刻'],['kind','種類']]){const button=document.createElement('button');button.type='button';button.dataset.candidateSort=key;button.dataset.label=label;Object.assign(button.style,{minWidth:'0',minHeight:'44px',padding:'8px 0',border:'0',borderRadius:'0',background:'transparent',boxShadow:'none',textAlign:'left',fontSize:'14px',fontWeight:'600',whiteSpace:'nowrap'});button.onclick=()=>{sort=sort===key?key+'-desc':key;updateHeaders();apply();};header.append(button);}
+  control.append(header);updateHeaders();
  }
  if(panel.firstElementChild!==control)panel.prepend(control);
 }
@@ -461,8 +486,7 @@ async function apply(){
     }
     if(!events)unknownTime++;
    }
-   const show=accepts(row,selection.time,selection.kind,types,events);node.hidden=!show;node.style.display=show?'':'none';node.dataset.candidateKinds=types.join(',');
-   let tag=node.querySelector('[data-place-kind]');if(!tag){tag=document.createElement('span');tag.className='tiny sub-line';tag.dataset.placeKind='';node.append(tag);}tag.textContent=types.map(t=>names[t]).join('・');
+   formatRow(node,row,types);const show=accepts(row,selection.time,selection.kind,types,events);node.hidden=!show;node.style.display=show?'grid':'none';node.dataset.candidateKinds=types.join(',');
    entries.push({row,node,types,index:i});total++;if(show)visible++;
    if(i%12===11){await new Promise(r=>setTimeout(r,0));if(token!==revision||!g.current())return;}
   }

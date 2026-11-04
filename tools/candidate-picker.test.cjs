@@ -18,3 +18,10 @@ test('stable time/kind order does not mutate candidate evidence',()=>{
  const a={row:{event:{at:2}},types:['park'],index:0},b={row:{event:{at:1}},types:['road'],index:1},snapshot=JSON.stringify([a,b]);
  assert(F.compare(a,b,'time')>0);assert(F.compare(a,b,'kind')<0);assert.equal(JSON.stringify([a,b]),snapshot);
 });
+
+test('column headings support both directions, numeric Japanese names and stable ties',()=>{
+ const a={row:{place:{name:'地点2'},event:{at:2}},types:['park'],index:0},b={row:{place:{name:'地点10'},event:{at:1}},types:['road'],index:1};
+ assert(F.compare(a,b,'name')<0);assert(F.compare(a,b,'name-desc')>0);
+ assert(F.compare(a,b,'time-desc')<0);assert(F.compare(a,b,'kind-desc')>0);
+ const tied={...a,index:3};for(const sort of ['name','name-desc','time','time-desc','kind','kind-desc'])assert(F.compare(a,tied,sort)<0);
+});
