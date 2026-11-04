@@ -8,6 +8,7 @@ const readData=async(name,{signal}={})=>{const r=await fetch('data/'+name+'?v='+
 const labelPromises={};
 function loadLabel(name){if(!labelPromises[name]){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5000);labelPromises[name]=readData(name,{signal:controller.signal}).catch(()=>{delete labelPromises[name];return null;}).finally(()=>clearTimeout(timer));}return labelPromises[name];}
 const loadLabels=async()=>{const [addresses,facilities]=await Promise.all(['candidate-label-addresses.json','candidate-label-facilities.json'].map(loadLabel));return {addresses,facilities};};
+AstroNotesCandidatePicker.configure(loadLabels);
 const stopWatch=()=>{if(watch!==null){clearInterval(watch);watch=null;}};
 const loadData=()=>dataPromise||(dataPromise=readData('candidate-sidewalks.json').catch(e=>{dataPromise=null;throw e;}));
 let modelPromise=null;
@@ -42,7 +43,7 @@ function mount(){
  if(!panel||!sheet?.open||panel.hidden||typeof placeSheetFor==='undefined'||placeSheetFor!=='skymap'){
   if(section){stopWatch();run++;section.remove();section=null;condition='';}return;
  }
- const p=snapshot(),id=key(p);if(section?.isConnected&&condition===id)return;
+ const p=snapshot(),id=key(p);if(p)AstroNotesCandidatePicker.mount(panel,p);if(section?.isConnected&&condition===id)return;
  stopWatch();run++;section?.remove();condition=id;section=document.createElement('section');section.id='additionalCandidateSearch';section.setAttribute('aria-label','ほかの候補地点');
  const description=document.createElement('p');description.className='tiny';description.textContent='登録した撮影地点の候補は上に表示します。追加探索は月・太陽 × 東京スカイツリーに対応し、四ツ谷・スカイツリー周辺の一部歩道で試用しています。選んだ日の0〜24時（日本時間）を調べます。';
  const scope=document.createElement('p');scope.className='tiny';scope.textContent='追加探索は昼間の月も含みます。撮影地点から対象までの地形・建物モデルに基づく候補です。対象より遠方の遮蔽や樹木などは未判定です。現地の見え方を保証するものではありません。';
@@ -72,15 +73,16 @@ function mount(){
    const result=await engine.search(selected,{isCurrent:()=>current(token,selected,node),onProgress:counts=>{if(current(token,selected,node))if(waitMessage)waitMessage.textContent='天体の重なりと見通しを確認しています… '+counts.checked+'地点を確認';},atmosphere:selected.atmosphere});
    if(!current(token,selected,node)||result.cancelled)return;
    let labels={};if(result.rows.length){setStatus('候補地点の住所・施設名を確認しています…',true);labels=await loadLabels();if(!current(token,selected,node))return;const date=labels.facilities?.dataDate,credit=visibleCredits.querySelector('a[href="https://www.openstreetmap.org/copyright"]');if(credit&&typeof date==='string'&&/^\d{4}-\d{2}-\d{2}/.test(date))credit.textContent='© OpenStreetMap contributors（'+date.slice(0,10)+'）';}
-   for(const raw of result.rows){
-    const row=AstroNotesCandidateLabels.enrich(raw,labels),item=document.createElement('button');item.type='button';item.className='list-item';item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;
+   const pickerRows=[];for(const raw of result.rows){
+    const row=AstroNotesCandidateLabels.enrich(raw,labels),item=document.createElement('button');pickerRows.push(row);item.type='button';item.className='list-item';item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;
     const content=document.createElement('span');Object.assign(content.style,{minWidth:'0',whiteSpace:'normal',overflowWrap:'anywhere'});const title=document.createElement('span');title.style.display='block';title.textContent=row.place.name;content.append(title);
     const details=document.createElement('span');details.className='tiny sub-line';details.style.display='block';const a=row.labels.address,f=row.labels.facility;item.dataset.labelAddressStatus=a.status;item.dataset.labelFacilityStatus=f.status;
     details.textContent=(a.status==='matched'?(f.status==='matched'?'町丁目の目安：'+a.names[0]:'町丁目までの目安・番地なし'):a.status==='boundary'?'住所は境界付近のため未確認':'住所を確認できません')+' ／ '+(f.status==='matched'?'地図上の施設区域内':'施設名を確認できません');
     const coords=document.createElement('span');coords.className='tiny sub-line';coords.style.display='block';coords.textContent=row.labels.coordinate+' · '+new Date(row.event.at+32400000).toISOString().slice(11,16)+(row.event.at<Date.now()?'（過ぎた時刻）':'');content.append(details,coords);item.append(content);
     item.onclick=()=>{if(current(token,selected,node)&&SkyMapUI.selectCandidate(row,selected.expected))sheet.close();};resultList.append(item);
    }
-   setStatus('');visibleCredits.hidden=!result.rows.length;resultList.setAttribute('aria-busy','false');status.textContent=result.rows.length?result.rows.length+'件のモデル上の候補があります。':'この条件で、地形・建物モデル上の見通しを確認できた候補はありません。';
+   AstroNotesCandidatePicker.registerAdditional(resultList,pickerRows,selected,()=>current(token,selected,node));
+   setStatus('');visibleCredits.hidden=!result.rows.length;resultList.setAttribute('aria-busy','false');status.textContent=result.rows.length?result.rows.length+'件のモデル上の候補があります（絞り込み前）。':'この条件で、地形・建物モデル上の見通しを確認できた候補はありません。';
    if(result.counts.unknown)status.textContent+=' 範囲外や高さ不明など、判定できない地点は含めていません。';
    if(result.counts.deferred)status.textContent+=' 収束しない条件や先絞りなど、詳しく判定できていない範囲があります。';
    if(result.limited)status.textContent+=' 調べ切れていない範囲があります。';
@@ -90,8 +92,9 @@ function mount(){
  };
 }
 // Observe only the picker so progress and map rendering cannot create a busy loop.
-const picker=document.getElementById('placeSheet');if(picker){new MutationObserver(mount).observe(picker,{childList:true,subtree:true,attributes:true,attributeFilter:['open','hidden','aria-selected']});picker.addEventListener('close',()=>{stopWatch();run++;section?.remove();section=null;condition='';});}
-const scenePanel=document.getElementById('exploreScenePanel');if(scenePanel)new MutationObserver(syncObserverMap).observe(scenePanel,{childList:true,subtree:true});
+let mountFrame=null;const scheduleMount=()=>{if(mountFrame===null)mountFrame=requestAnimationFrame(()=>{mountFrame=null;mount();});};
+const picker=document.getElementById('placeSheet');if(picker){new MutationObserver(scheduleMount).observe(picker,{childList:true,subtree:true,attributes:true,attributeFilter:['open','hidden','aria-selected']});picker.addEventListener('close',()=>{stopWatch();run++;section?.remove();section=null;condition='';});}
+const scenePanel=document.getElementById('exploreScenePanel');if(scenePanel)new MutationObserver(()=>{syncObserverMap();scheduleMount();}).observe(scenePanel,{childList:true,subtree:true});
 document.addEventListener('astronotes-composition-change',mount);
 mount();
 })();

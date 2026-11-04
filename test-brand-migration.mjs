@@ -7,12 +7,15 @@ const require=createRequire(import.meta.url),read=name=>readFileSync(new URL(nam
 test('cached HTML legacy assets retain their original bytes and canonical assets exist in root and trial',()=>{
  const {sha256}=JSON.parse(read('legacy-assets.json'));
  const experiments=JSON.parse(read('trial/ui-experiment.json')).files;
+ const candidate=JSON.parse(read('trial/candidate-experiment.json'));
+ const candidateDerived=new Set(['astronotes-shooting.js','astronotes-myplaces.js']);
  const allowed=new Set(['astronotes-explore.js','astronotes-myplaces.js','astronotes-plan.js','astronotes-camera-ui.js','astronotes-flair.css']);
  const digest=value=>createHash('sha256').update(value).digest('hex');
  for(const [old,hash] of Object.entries(sha256)){
   const name=old.replace(/^sorami-/,'astronotes-');
   for(const prefix of ['','trial/'])assert.equal(createHash('sha256').update(readFileSync(new URL(prefix+old,import.meta.url))).digest('hex'),hash,prefix+old);
-  if(experiments[name]){assert.equal(digest(read(name)),experiments[name].root,name+' base');assert.equal(digest(read('trial/'+name)),experiments[name].trial,name+' trial');}
+  if(candidateDerived.has(name)){assert.equal(digest(read(name)),candidate.productionAssetsSha256[name],name+' production source');assert.equal(digest(read('trial/'+name)),candidate.files[name],name+' trial-only derivative');assert.equal(candidate.productionHtmlSha256,digest(read('index.html')));}
+  else if(experiments[name]){assert.equal(digest(read(name)),experiments[name].root,name+' base');assert.equal(digest(read('trial/'+name)),experiments[name].trial,name+' trial');}
   else assert.equal(read(name),read('trial/'+name),name);
  }
  for(const name of Object.keys(experiments)){assert.ok(allowed.has(name),name+' is approved for this trial');assert.ok(sha256[name.replace(/^astronotes-/,'sorami-')]||name==='astronotes-camera-ui.js',name+' is a canonical legacy successor or the approved camera trial');assert.equal(digest(read(name)),experiments[name].root,name+' base');assert.equal(digest(read('trial/'+name)),experiments[name].trial,name+' trial');}

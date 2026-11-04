@@ -93,7 +93,7 @@ async function shapeCandidates(p,entry,deps){
   const result={place:f,events,probes};memo.set(key,result);
   for(const e of events)if(e.at>=start&&e.at<start+DAY&&e.spatialMatched!==false&&(!Number.isFinite(e.altitude)||o.disc||e.altitude>0)&&matches(e,p,isMountain)&&(p.body!=='moon'||e.sunAltitude<0)&&shapeContains(s,f)){
    // Keep distinct positions, but avoid thousands of indistinguishable pins.
-   if(!rows.some(r=>r.event.side===e.side&&meters(r.place,f)<40&&Math.abs(r.event.at-e.at)<120000))rows.push({place:f,record:entry.record,event:e,shapeType:s.type});
+   if(!rows.some(r=>r.event.side===e.side&&meters(r.place,f)<40&&Math.abs(r.event.at-e.at)<120000))rows.push({place:f,record:entry.record,event:e,assumedObserver:obs,shapeType:s.type});
   }
   return result;
  };
@@ -132,7 +132,7 @@ async function candidates(plan,points,{align,isMountain,observerAt,elevationAt,e
    const events=eventsFor(p,obs,start,{align,isMountain,view});
    for(const e of events){
     if(e.at<start||e.at>=start+DAY||!matches(e,p,isMountain)||(p.body==='moon'&&!(e.sunAltitude<0)))continue;
-    rows.push({place:f,record:entry.record,event:e});
+    rows.push({place:f,record:entry.record,event:e,assumedObserver:obs});
    }
   }catch(e){if(!isCurrent()||e.message==='shape-cancelled')return {rows:[],failed:0,cancelled:true};failed++;issues.push({id:entry.place.id,reason:e.message==='shape-limit'?'limit':e.message==='shape-invalid'?'invalid':'calculation'});}
  }
