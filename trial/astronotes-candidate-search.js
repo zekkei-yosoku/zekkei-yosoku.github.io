@@ -449,9 +449,14 @@ function formatRow(node,row,types){
  }
  node.querySelector('[data-place-kind]').textContent=types.map(t=>names[t]).join('・');
 }
+function createHeader(){
+ const header=document.createElement('div');header.dataset.candidateHeaders='';header.setAttribute('role','group');header.setAttribute('aria-label','候補の並べ替え');Object.assign(header.style,{display:'grid',gridTemplateColumns:columns,gap:'8px',borderBottom:'1px solid var(--line)',marginTop:'8px'});
+  for(const [key,label]of [['name','地点'],['time','時刻'],['kind','種類']]){const button=document.createElement('button');button.type='button';button.dataset.candidateSort=key;button.dataset.label=label;Object.assign(button.style,{minWidth:'0',minHeight:'44px',padding:'8px 0',border:'0',borderRadius:'0',background:'transparent',boxShadow:'none',textAlign:'left',fontSize:'14px',fontWeight:'600',whiteSpace:'nowrap'});button.onclick=()=>{sort=sort===key?key+'-desc':key;updateHeaders();apply();};header.append(button);}
+ return header;
+}
 function updateHeaders(){
  const key=sort.replace(/-desc$/,''),descending=sort.endsWith('-desc');
- for(const button of control?.querySelectorAll('[data-candidate-sort]')||[]){const active=button.dataset.candidateSort===key;button.textContent=button.dataset.label+(active?(descending?' ↓':' ↑'):' ↕');button.setAttribute('aria-label',button.dataset.label+(active?'、現在は'+(descending?'降順':'昇順')+'。':'。')+(active&&!descending?'降順':'昇順')+'に並べ替え');button.setAttribute('aria-pressed',String(active));button.style.color=active?'var(--accent)':'var(--secondary)';}
+ for(const button of [control,...groups.keys()].flatMap(root=>root?[...root.querySelectorAll('[data-candidate-sort]')]:[])){const active=button.dataset.candidateSort===key;button.textContent=button.dataset.label+(active?(descending?' ↓':' ↑'):' ↕');button.setAttribute('aria-label',button.dataset.label+(active?'、現在は'+(descending?'降順':'昇順')+'。':'。')+(active&&!descending?'降順':'昇順')+'に並べ替え');button.setAttribute('aria-pressed',String(active));button.style.color=active?'var(--accent)':'var(--secondary)';}
 }
 
 const groups=new Map(),windows=new Map();let control=null,scope='',revision=0,loadLabels=async()=>({}),time='all',kind='all',sort='time';
@@ -463,9 +468,7 @@ function mount(panel,plan){
   add('時間帯','candidateTimeFilter',[['all','すべての時間'],['rise','出の前後1時間'],['set','入の前後1時間']],time,v=>time=v);
   add('場所の種類','candidateKindFilter',[['all','すべての種類'],...Object.entries(names)],kind,v=>kind=v);
   const status=document.createElement('p');status.className='tiny';status.dataset.filterStatus='';status.setAttribute('role','status');status.style.margin='12px 0 0';control.append(status);
-  const header=document.createElement('div');header.dataset.candidateHeaders='';header.setAttribute('role','group');header.setAttribute('aria-label','候補の並べ替え');Object.assign(header.style,{display:'grid',gridTemplateColumns:columns,gap:'8px',borderBottom:'1px solid var(--line)',marginTop:'8px'});
-  for(const [key,label]of [['name','地点'],['time','時刻'],['kind','種類']]){const button=document.createElement('button');button.type='button';button.dataset.candidateSort=key;button.dataset.label=label;Object.assign(button.style,{minWidth:'0',minHeight:'44px',padding:'8px 0',border:'0',borderRadius:'0',background:'transparent',boxShadow:'none',textAlign:'left',fontSize:'14px',fontWeight:'600',whiteSpace:'nowrap'});button.onclick=()=>{sort=sort===key?key+'-desc':key;updateHeaders();apply();};header.append(button);}
-  control.append(header);updateHeaders();
+  control.append(createHeader());updateHeaders();
  }
  if(panel.firstElementChild!==control)panel.prepend(control);
 }
@@ -494,7 +497,7 @@ async function apply(){
  }
  if(token===revision){status.hidden=!total;status.textContent=`${visible} / ${total}件を表示`+(unknownTime?`。出入り時刻を確認できない${unknownTime}件は時間帯の絞り込みから除外しています。`:'')+(total&&!labels.facilities?'。種類データを読み込めない地点は種類未確認です。':'');}
 }
-function register(box,rows,plan,current){groups.set(box,{rows,plan,current,nodes:[...box.children].filter(n=>n.tagName==='BUTTON'&&n.classList.contains('list-item'))});apply();}
+function register(box,rows,plan,current){groups.set(box,{rows,plan,current,nodes:[...box.children].filter(n=>n.tagName==='BUTTON'&&n.classList.contains('list-item'))});if(box.id==='additionalCandidateResults'&&rows.length){box.querySelector('[data-candidate-headers]')?.remove();box.prepend(createHeader());}updateHeaders();apply();}
 globalThis.AstroNotesCandidatePicker={mount,configure:f=>loadLabels=f,registerRegistered:register,registerAdditional:register,apply,kinds,accepts,compare};
 if(typeof module!=='undefined')module.exports={kinds,accepts,compare};
 })();
@@ -560,6 +563,7 @@ function mount(){
  const labelScope=document.createElement('p');labelScope.className='tiny';labelScope.textContent='住所は2020年国勢調査の町丁目境界による目安で、番地は含みません。施設名は地図の区域内と確認できたものを表示します。施設の利用可否はご自身で確認してください。';
  const labelCredits=document.createElement('p');labelCredits.className='tiny';labelCredits.append('地名出典：');
  for(const [title,url] of [['国勢調査町丁・字等別境界データセット（CODH作成、e-Stat加工・CC BY 4.0）','https://geoshape.ex.nii.ac.jp/ka/resource/'],['© OpenStreetMap contributors（ODbL）','https://www.openstreetmap.org/copyright'],['施設区域データ（ODbL）','data/candidate-label-facilities.json?v='+dataTag]]){const a=document.createElement('a');a.textContent=title;a.href=url;a.target='_blank';a.rel='noopener';labelCredits.append(a,' ');}evidence.append(labelScope,labelCredits);
+ const resultNotes=document.createElement('p');resultNotes.className='tiny';evidence.append(resultNotes);
  const visibleCredits=document.createElement('p');visibleCredits.className='tiny';visibleCredits.hidden=true;
  for(const [title,url] of [['町丁目：CODH/e-Stat（2020）','https://geoshape.ex.nii.ac.jp/ka/resource/'],['© OpenStreetMap contributors','https://www.openstreetmap.org/copyright']]){const a=document.createElement('a');a.textContent=title;a.href=url;a.target='_blank';a.rel='noopener';visibleCredits.append(a,' ');}
  section.append(button,cancel,status,visibleCredits,resultList,evidence);panel.append(section);
@@ -569,7 +573,7 @@ function mount(){
  button.onclick=async()=>{
   const selected=snapshot();if(!selected){mount();return;}
   if(condition!==key(selected)){mount();section?.querySelector('button')?.click();return;}
-  const node=section,token=++run;stopWatch();watch=setInterval(()=>{if(!current(token,selected,node)){stopWatch();mount();}},250);button.disabled=true;cancel.hidden=false;visibleCredits.hidden=true;resultList.replaceChildren();resultList.setAttribute('aria-busy','true');setStatus('ほかの候補地点を確認しています…',true);status.scrollIntoView({block:'nearest'});
+  const node=section,token=++run;stopWatch();watch=setInterval(()=>{if(!current(token,selected,node)){stopWatch();mount();}},250);button.disabled=true;cancel.hidden=false;visibleCredits.hidden=true;resultNotes.textContent='';resultList.replaceChildren();resultList.setAttribute('aria-busy','true');setStatus('ほかの候補地点を確認しています…',true);status.scrollIntoView({block:'nearest'});
   try{
    const result=await engine.search(selected,{isCurrent:()=>current(token,selected,node),onProgress:counts=>{if(current(token,selected,node))if(waitMessage)waitMessage.textContent='天体の重なりと見通しを確認しています… '+counts.checked+'地点を確認';},atmosphere:selected.atmosphere});
    if(!current(token,selected,node)||result.cancelled)return;
@@ -584,9 +588,10 @@ function mount(){
    }
    AstroNotesCandidatePicker.registerAdditional(resultList,pickerRows,selected,()=>current(token,selected,node));
    setStatus('');visibleCredits.hidden=!result.rows.length;resultList.setAttribute('aria-busy','false');status.textContent=result.rows.length?result.rows.length+'件のモデル上の候補があります（絞り込み前）。':'この条件で、地形・建物モデル上の見通しを確認できた候補はありません。';
-   if(result.counts.unknown)status.textContent+=' 範囲外や高さ不明など、判定できない地点は含めていません。';
-   if(result.counts.deferred)status.textContent+=' 収束しない条件や先絞りなど、詳しく判定できていない範囲があります。';
-   if(result.limited)status.textContent+=' 調べ切れていない範囲があります。';
+   resultNotes.textContent='';
+   if(result.counts.unknown)resultNotes.textContent+=' 範囲外や高さ不明など、判定できない地点は含めていません。';
+   if(result.counts.deferred)resultNotes.textContent+=' 収束しない条件や先絞りなど、詳しく判定できていない範囲があります。';
+   if(result.limited)resultNotes.textContent+=' 調べ切れていない範囲があります。';
    if(result.rows.length&&(!labels.addresses||!labels.facilities))status.textContent+=' 住所・施設名のデータを一部読み込めませんでした。もう一度探索するか、画面を再読み込みしてください。';
   }catch{if(current(token,selected,node)){resultList.setAttribute('aria-busy','false');setStatus('候補の情報を読み込めませんでした。もう一度お試しください。');}}
   finally{if(token===run){stopWatch();if(!current(token,selected,node))mount();}if(current(token,selected,node)){button.disabled=false;cancel.hidden=true;}}

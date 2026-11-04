@@ -28,9 +28,14 @@ function formatRow(node,row,types){
  }
  node.querySelector('[data-place-kind]').textContent=types.map(t=>names[t]).join('・');
 }
+function createHeader(){
+ const header=document.createElement('div');header.dataset.candidateHeaders='';header.setAttribute('role','group');header.setAttribute('aria-label','候補の並べ替え');Object.assign(header.style,{display:'grid',gridTemplateColumns:columns,gap:'8px',borderBottom:'1px solid var(--line)',marginTop:'8px'});
+  for(const [key,label]of [['name','地点'],['time','時刻'],['kind','種類']]){const button=document.createElement('button');button.type='button';button.dataset.candidateSort=key;button.dataset.label=label;Object.assign(button.style,{minWidth:'0',minHeight:'44px',padding:'8px 0',border:'0',borderRadius:'0',background:'transparent',boxShadow:'none',textAlign:'left',fontSize:'14px',fontWeight:'600',whiteSpace:'nowrap'});button.onclick=()=>{sort=sort===key?key+'-desc':key;updateHeaders();apply();};header.append(button);}
+ return header;
+}
 function updateHeaders(){
  const key=sort.replace(/-desc$/,''),descending=sort.endsWith('-desc');
- for(const button of control?.querySelectorAll('[data-candidate-sort]')||[]){const active=button.dataset.candidateSort===key;button.textContent=button.dataset.label+(active?(descending?' ↓':' ↑'):' ↕');button.setAttribute('aria-label',button.dataset.label+(active?'、現在は'+(descending?'降順':'昇順')+'。':'。')+(active&&!descending?'降順':'昇順')+'に並べ替え');button.setAttribute('aria-pressed',String(active));button.style.color=active?'var(--accent)':'var(--secondary)';}
+ for(const button of [control,...groups.keys()].flatMap(root=>root?[...root.querySelectorAll('[data-candidate-sort]')]:[])){const active=button.dataset.candidateSort===key;button.textContent=button.dataset.label+(active?(descending?' ↓':' ↑'):' ↕');button.setAttribute('aria-label',button.dataset.label+(active?'、現在は'+(descending?'降順':'昇順')+'。':'。')+(active&&!descending?'降順':'昇順')+'に並べ替え');button.setAttribute('aria-pressed',String(active));button.style.color=active?'var(--accent)':'var(--secondary)';}
 }
 
 const groups=new Map(),windows=new Map();let control=null,scope='',revision=0,loadLabels=async()=>({}),time='all',kind='all',sort='time';
@@ -42,9 +47,7 @@ function mount(panel,plan){
   add('時間帯','candidateTimeFilter',[['all','すべての時間'],['rise','出の前後1時間'],['set','入の前後1時間']],time,v=>time=v);
   add('場所の種類','candidateKindFilter',[['all','すべての種類'],...Object.entries(names)],kind,v=>kind=v);
   const status=document.createElement('p');status.className='tiny';status.dataset.filterStatus='';status.setAttribute('role','status');status.style.margin='12px 0 0';control.append(status);
-  const header=document.createElement('div');header.dataset.candidateHeaders='';header.setAttribute('role','group');header.setAttribute('aria-label','候補の並べ替え');Object.assign(header.style,{display:'grid',gridTemplateColumns:columns,gap:'8px',borderBottom:'1px solid var(--line)',marginTop:'8px'});
-  for(const [key,label]of [['name','地点'],['time','時刻'],['kind','種類']]){const button=document.createElement('button');button.type='button';button.dataset.candidateSort=key;button.dataset.label=label;Object.assign(button.style,{minWidth:'0',minHeight:'44px',padding:'8px 0',border:'0',borderRadius:'0',background:'transparent',boxShadow:'none',textAlign:'left',fontSize:'14px',fontWeight:'600',whiteSpace:'nowrap'});button.onclick=()=>{sort=sort===key?key+'-desc':key;updateHeaders();apply();};header.append(button);}
-  control.append(header);updateHeaders();
+  control.append(createHeader());updateHeaders();
  }
  if(panel.firstElementChild!==control)panel.prepend(control);
 }
@@ -73,7 +76,7 @@ async function apply(){
  }
  if(token===revision){status.hidden=!total;status.textContent=`${visible} / ${total}件を表示`+(unknownTime?`。出入り時刻を確認できない${unknownTime}件は時間帯の絞り込みから除外しています。`:'')+(total&&!labels.facilities?'。種類データを読み込めない地点は種類未確認です。':'');}
 }
-function register(box,rows,plan,current){groups.set(box,{rows,plan,current,nodes:[...box.children].filter(n=>n.tagName==='BUTTON'&&n.classList.contains('list-item'))});apply();}
+function register(box,rows,plan,current){groups.set(box,{rows,plan,current,nodes:[...box.children].filter(n=>n.tagName==='BUTTON'&&n.classList.contains('list-item'))});if(box.id==='additionalCandidateResults'&&rows.length){box.querySelector('[data-candidate-headers]')?.remove();box.prepend(createHeader());}updateHeaders();apply();}
 globalThis.AstroNotesCandidatePicker={mount,configure:f=>loadLabels=f,registerRegistered:register,registerAdditional:register,apply,kinds,accepts,compare};
 if(typeof module!=='undefined')module.exports={kinds,accepts,compare};
 })();

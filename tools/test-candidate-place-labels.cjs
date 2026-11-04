@@ -25,19 +25,19 @@ fs.mkdirSync(out,{recursive:true});
     const done=()=>page.waitForFunction(()=>{const n=document.querySelector('#additionalCandidateSearch');return !n?.querySelector('button')?.disabled&&n?.querySelector('[role=status]')?.textContent.includes('モデル上の候補があります');});
     await search.click();
     if(scenario==='cancel-stale'){
-     await held;await page.getByRole('button',{name:'探索を中止',exact:true}).click();releases.forEach(r=>r());await page.waitForTimeout(300);assert.equal(await page.locator('#additionalCandidateResults button').count(),0);assert((await page.locator('#additionalCandidateSearch [role=status]').innerText()).includes('中止しました'));await search.click();await done();
+     await held;await page.getByRole('button',{name:'探索を中止',exact:true}).click();releases.forEach(r=>r());await page.waitForTimeout(300);assert.equal(await page.locator('#additionalCandidateResults button.list-item').count(),0);assert((await page.locator('#additionalCandidateSearch [role=status]').innerText()).includes('中止しました'));await search.click();await done();
     }else if(scenario==='date-stale'){
-     await held;await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-11-29T12:00:00+09:00')));await page.waitForFunction(()=>!document.querySelector('#additionalCandidateSearch button')?.disabled&&document.querySelector('#additionalCandidateSearch [role=status]')?.textContent==='');releases.forEach(r=>r());await page.waitForTimeout(300);assert.equal(await page.locator('#additionalCandidateResults button').count(),0);await search.click();await done();
+     await held;await page.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-11-29T12:00:00+09:00')));await page.waitForFunction(()=>!document.querySelector('#additionalCandidateSearch button')?.disabled&&document.querySelector('#additionalCandidateSearch [role=status]')?.textContent==='');releases.forEach(r=>r());await page.waitForTimeout(300);assert.equal(await page.locator('#additionalCandidateResults button.list-item').count(),0);await search.click();await done();
     }else{
      await done();
      if(scenario==='failure-retry'||scenario==='timeout-retry'){
-      assert(await page.locator('#additionalCandidateResults button').count()>0);assert.equal(await page.locator('#additionalCandidateResults button[data-label-address-status="unavailable"]').count(),await page.locator('#additionalCandidateResults button').count());assert((await page.locator('#additionalCandidateSearch [role=status]').innerText()).includes('読み込めませんでした'));
+      assert(await page.locator('#additionalCandidateResults button.list-item').count()>0);assert.equal(await page.locator('#additionalCandidateResults button.list-item[data-label-address-status="unavailable"]').count(),await page.locator('#additionalCandidateResults button.list-item').count());assert((await page.locator('#additionalCandidateSearch [role=status]').innerText()).includes('読み込めませんでした'));
       if(scenario==='failure-retry'){await context.unroute(addressPattern);await context.unroute(facilityPattern);}releases.forEach(r=>r());await search.click();await done();
      }
     }
-    const rows=page.locator('#additionalCandidateResults button'),count=await rows.count();assert(count>0);assert(await page.locator('#additionalCandidateResults button[data-label-address-status="matched"]').count()>0);
+    const rows=page.locator('#additionalCandidateResults button.list-item'),count=await rows.count();assert(count>0);assert(await page.locator('#additionalCandidateResults button.list-item[data-label-address-status="matched"]').count()>0);
     assert(await page.locator('#additionalCandidateSearch a[href="https://www.openstreetmap.org/copyright"]:visible').count()>0);
-    const chosen=page.locator('#additionalCandidateResults button[data-label-address-status="matched"]').first(),expectedName=await chosen.getAttribute('data-candidate-name');assert(expectedName.includes('モデル候補'));assert((await chosen.innerText()).includes('町丁目'));
+    const chosen=page.locator('#additionalCandidateResults button.list-item[data-label-address-status="matched"]').first(),expectedName=await chosen.getAttribute('data-candidate-name');assert(expectedName.includes('モデル候補'));assert((await chosen.innerText()).includes('町丁目'));
     const checks=await page.evaluate(()=>window.labelChecks);assert(checks.length);for(const check of checks)assert.equal(check.before,check.after,'labels must preserve exact coordinates, time and LOS evidence');
     const metrics=await page.locator('#additionalCandidateSearch').evaluate(n=>({overflow:n.scrollWidth>n.clientWidth,bodyOverflow:document.documentElement.scrollWidth>innerWidth}));assert(!metrics.overflow&&!metrics.bodyOverflow);
     await page.locator('#additionalCandidateSearch').scrollIntoViewIfNeeded();await page.screenshot({path:out+'/'+engine+'-'+scenario+'-results.png'});
