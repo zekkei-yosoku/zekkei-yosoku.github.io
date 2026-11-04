@@ -27,11 +27,14 @@ for name in ['data','vendor']:
 s=(root/'index.html').read_text().replace('<title>AstroNotes</title>','<title>AstroNotes 試用版</title>').replace('name="apple-mobile-web-app-title" content="AstroNotes"','name="apple-mobile-web-app-title" content="AstroNotes 試用版"')
 idx=s.index('  <div class="masthead">')
 s=s[:idx]+'  <p style="position:relative;z-index:1;font-size:12px;padding:6px 2px;color:var(--secondary)">試用版 · 本番とアカウント・保存データ共通 <a href="../">本番へ</a></p>\n'+s[idx:]
-emit(out/'index.html',s.encode())
+# Independent candidate experiment is composed from the canonical Explore source.
+# It never writes production products and remains reproducible on every refresh.
+bundle=json.loads(subprocess.check_output(['node','tools/build-candidate-trial.mjs','--html'],cwd=root,input=s,text=True))
+for name,content in bundle.items():emit(out/name,content.encode())
 # 2026-10-28 写真の評価と規約・プライバシーも本体から作る（試用版の表示だけ変える）
 r=(root/'sky-rating.html').read_text().replace('· AstroNotes</title>','· AstroNotes 試用版</title>').replace('<span class="brand">AstroNotes</span>','<span class="brand">AstroNotes <span>試用版</span></span>')
 emit(out/'sky-rating.html',r.encode())
-for name in ['privacy.html','terms.html','app-version.txt']:emit(out/name,(root/name).read_bytes())
+for name in ['privacy.html','terms.html']:emit(out/name,(root/name).read_bytes())
 m=json.loads((root/'manifest.json').read_text());m.update(name='AstroNotes 試用版',short_name='AstroNotes 試用版',id='./',scope='./',start_url='./')
 emit(out/'manifest.json',(json.dumps(m,ensure_ascii=False,indent=2)+'\n').encode())
 if check:

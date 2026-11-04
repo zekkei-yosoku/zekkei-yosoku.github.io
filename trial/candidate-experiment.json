@@ -1,0 +1,12 @@
+{
+  "name": "2026-11-04 見え方中心・撮影地点内の追加探索trial",
+  "productionHtmlSha256": "218041d2f27983804ea579b0bb0875fa9e8bad45a9c426a8f5ecb177684b732d",
+  "visibilityCertified": false,
+  "files": {
+    "astronotes-explore-simple.js": "a579e1f139ad77930b27af8b8c3001942e56e854887a4725fba30e6b1f43d774",
+    "astronotes-candidate-search.js": "0ea12e67ca9be8d8d610995fbfbcbe5d540649aeb6550d9dc176b098d8fce8b4",
+    "data/candidate-sidewalks.json": "95a7e907dd67360391ae8b3b082e93c750ba8b460fda5eabb20b0e698695beaa",
+    "index.html": "709b5f1f518b0efc7c1a685e7efdedc86b7ed536371fcaa27e8f16947e2c9da4",
+    "app-version.txt": "67a2b5ec83f97cc20261149edf86255bf365396d8ecb4ea4dbfa510f2a2b970a"
+  }
+}
