@@ -12,7 +12,7 @@ function faceHit(rings,origin,direction,maxM){
  return inside(rings[0].map(project),pp)&&!rings.slice(1).some(r=>inside(r.map(project),pp))?{distanceM:t,point:p}:null;
 }
 function trace(index,observer,{azimuth,altitude,maxM=12000}){
- if(!Number.isFinite(observer.elevation)||!Number.isFinite(azimuth)||!Number.isFinite(altitude))return {status:'unknown',recommend:false,reason:'invalid-height-or-ray'};
+ if(!Number.isFinite(observer.elevation)||!Number.isFinite(azimuth)||!Number.isFinite(altitude)||Math.abs(altitude)>=89||!Number.isFinite(maxM)||maxM<=0||maxM>20000)return {status:'unknown',recommend:false,reason:'invalid-height-or-ray'};
  const eye=observer.elevation+(observer.eyeM??1.5),lat=observer.latitude,lon=observer.longitude,scale=Math.cos(lat*rad),az=azimuth*rad,alt=altitude*rad;
  // Parameter t is horizontal metres, matching geometry distance and curvature.
  const direction=[Math.sin(az),Math.cos(az),Math.tan(alt)],end=[lon+direction[0]*maxM/(111195*scale),lat+direction[1]*maxM/111195];
@@ -20,7 +20,7 @@ function trace(index,observer,{azimuth,altitude,maxM=12000}){
  let hit=null,faces=0;for(const id of ids){const b=index.buildings[id];for(const poly of b.polygons){faces++;const rings=poly.rings.map(r=>r.map(p=>{const x=(p[0]-lon)*111195*scale,y=(p[1]-lat)*111195;return [x,y,p[2]-(x*x+y*y)/(2*R)];}));const h=faceHit(rings,[0,0,eye],direction,hit?.distanceM??maxM);if(h)hit={...h,buildingId:b.id,polygonId:poly.id,lod:b.lod};}}
  return {status:hit?'model-blocked':'unknown',recommend:false,hit,faces,buildingsChecked:ids.size,reason:hit?'conditional-model-intersection':'incomplete-coverage-or-uncertainty'};
 }
-function create({align,shooting,bodies,index,surfaceAt,prefilter=true,yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
+function create({align,shooting,bodies,index,surfaceAt,terrain=null,prefilter=true,yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
  const paths=new Map();
  return async function evaluate(plan,point){
   await yieldTask();const surface=surfaceAt(point);if(!surface||!Number.isFinite(surface.estimateM))return {status:'unknown',recommend:false,reason:'no-standing-height-estimate'};
@@ -37,8 +37,9 @@ function create({align,shooting,bodies,index,surfaceAt,prefilter=true,yieldTask=
   const events=shooting.eventsFor(plan,obs,start,{align,isMountain:()=>false}).filter(e=>shooting.matches(e,plan,()=>false)&&e.at>=start&&e.at<start+86400000&&(plan.body!=='moon'||e.sunAltitude<0));
   const distance=geometry?.distanceKm*1000;
   const targetRay=geometry&&events.length?trace(index,obs,{azimuth:geometry.azimuth,altitude:Math.atan2(geometry.topM-obs.elevation-obs.eyeM-distance*distance/(2*R),distance)/rad,maxM:distance}):null;
-  const tested=[];for(const event of events){const st=bodies.state(plan.body,event.at,{...obs,elevation:obs.elevation+obs.eyeM});const rays=[0,-1,1].map(offset=>trace(index,obs,{azimuth:st.azimuth,altitude:(st.geometricAltitude??st.altitude??st.apparentAltitude)+offset*st.angularRadius,maxM:12000}));tested.push({event,rays});}
-  return {status:'unknown',recommend:false,aligned:events.length>0,events:tested,targetRay,assumedObserver:obs,surface,reason:'estimated-surface-and-incomplete-3d-coverage'};
+  const targetTerrain=geometry&&events.length&&terrain?terrain.trace(obs,{azimuth:geometry.azimuth,altitude:Math.atan2(geometry.topM-obs.elevation-obs.eyeM-distance*distance/(2*R),distance)/rad,maxM:distance}):null;
+  const tested=[];for(const event of events){const st=bodies.state(plan.body,event.at,{...obs,elevation:obs.elevation+obs.eyeM});const rays=[0,-1,1].map(offset=>{const ray={azimuth:st.azimuth,altitude:(st.geometricAltitude??st.altitude??st.apparentAltitude)+offset*st.angularRadius,maxM:12000};return {...trace(index,obs,ray),terrain:terrain?.trace(obs,ray)??null};});tested.push({event,rays});}
+  return {status:'unknown',recommend:false,aligned:events.length>0,events:tested,targetRay,targetTerrain,assumedObserver:obs,surface,reason:'estimated-surface-and-incomplete-3d-coverage'};
  };
 }
 return {faceHit,trace,create};

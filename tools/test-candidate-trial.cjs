@@ -15,7 +15,7 @@ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42
    await c.route(/(?:zekkei-api|localhost:8787)/,r=>{if(!['GET','OPTIONS'].includes(r.request().method()))writes++;return r.fulfill({status:200,json:{allowed:true,tool:'skymap',loginId:'candidate-test',tools,favorites:[],sightings:[],records:[],rev:1}});});
    await c.route(/cyberjapandata.*\.png/,r=>r.fulfill({status:200,contentType:'image/png',body:png}));
    const p=await c.newPage(),errors=[];p.setDefaultTimeout(120000);p.on('pageerror',e=>errors.push(e.message));
-   p.on('request',r=>{if(r.url().includes('candidate-sidewalks.json'))loads++;if(/candidate-(?:buildings|surfaces)\.json/.test(r.url()))modelLoads++;});
+   p.on('request',r=>{if(r.url().includes('candidate-sidewalks.json'))loads++;if(/candidate-(?:buildings|surfaces|terrain)\.json/.test(r.url()))modelLoads++;});
    await p.goto(base+'#/explore');await p.waitForFunction(()=>{try{return typeof MyPlacesUI==='object'&&typeof TrialExplore==='object'}catch{return false}});
    await p.evaluate(async(testDate)=>{await startupSessionReady;groundAt=async()=>30;aimBuildingDays=async()=>[];await AstroNotesAssets.ensureModels();navigationHistory.pushRoute('#/explore');SkyMapUI.setTarget('skytree');document.getElementById('skyMapBody').value='moon';document.getElementById('skyMapBody').onchange();SkyMapUI.setTime(Date.parse(testDate));},process.env.CANDIDATE_TRIAL_DATE||'2026-11-04T12:00:00+09:00');
    console.log(name,width,theme,'prepared');
