@@ -8,7 +8,7 @@ const loadData=()=>dataPromise||(dataPromise=fetch('data/candidate-sidewalks.jso
 let modelPromise=null;
 const loadModel=()=>modelPromise||(modelPromise=Promise.all(['candidate-buildings.json','candidate-surfaces.json'].map(n=>fetch('data/'+n+'?v='+dataTag).then(r=>{if(!r.ok)throw Error('model');return r.json();}))).then(([index,surface])=>AstroNotesCandidateModel.create({align:AstroNotesAlign,shooting:AstroNotesShooting,bodies:AstroNotesBodies,index,surfaceAt:p=>surface.samples[p.latitude.toFixed(7)+','+p.longitude.toFixed(7)]})).catch(e=>{modelPromise=null;throw e;}));
 const engine=AstroNotesCandidateDiscovery.create({loadData,diagnoseUnknown:true,
- // Real candidate astronomy and LOD2 faces are diagnostic; missing evidence stays unknown.
+ // Real candidate astronomy and LOD1/2 faces are diagnostic; missing evidence stays unknown.
  evaluate:async(plan,p)=>plan.target.id==='skytree'&&['moon','sun'].includes(plan.body)?(await loadModel())(plan,p):({status:'unknown',recommend:false,reason:'unsupported-pilot-condition'})});
 const context=s=>JSON.stringify([s.body,s.target,s.partId,s.limb,AstroNotesCandidateDiscovery.day(s.at),s.matchMode||'limb']);
 function snapshot(){
@@ -32,8 +32,8 @@ function mount(){
  const cancel=document.createElement('button');cancel.type='button';cancel.className='fav-btn';cancel.textContent='探索を中止';cancel.hidden=true;
  const resultList=document.createElement('div');resultList.id='additionalCandidateResults';
  const evidence=document.createElement('details'),summary=document.createElement('summary'),source=document.createElement('p'),link=document.createElement('a');
- summary.textContent='探索範囲・出典';source.className='tiny';source.textContent='四ツ谷周辺の歩道で試用しています。出典：PLATEAU 千代田区2025（歩道・LOD2建物を抽出して加工）、東京都 高密度点群データ（CC BY 4.0・地面高さ中央値を抽出して加工）。現地の見通しや立てる高さを確かめられない場所は推薦しません。 ';
- link.href='https://www.mlit.go.jp/plateau/site-policy/';link.target='_blank';link.rel='noopener';link.textContent='利用条件';source.append(link);evidence.append(summary,source);
+ summary.textContent='探索範囲・出典';source.className='tiny';source.textContent='四ツ谷周辺の歩道で試用しています。出典：PLATEAU 千代田区2025（歩道・LOD1/2建物を抽出して加工）、東京都デジタルサービス局 高密度点群データ（CC BY 4.0・地面高さ中央値を抽出して加工）。現地の見通しや立てる高さを確かめられない場所は推薦しません。 ';
+ link.href='https://www.mlit.go.jp/plateau/site-policy/';link.target='_blank';link.rel='noopener';link.textContent='利用条件';source.append(link);const tokyo=document.createElement('a');tokyo.href='https://catalog.data.metro.tokyo.lg.jp/dataset/t000029d0000000024';tokyo.target='_blank';tokyo.rel='noopener';tokyo.textContent='東京都の出典';const license=document.createElement('a');license.href='https://creativecommons.org/licenses/by/4.0/deed.ja';license.target='_blank';license.rel='noopener';license.textContent='CC BY 4.0';source.append(' ／ ',tokyo,'・',license);evidence.append(summary,source);
  section.append(description,button,cancel,status,resultList,evidence);panel.append(section);
  button.disabled=!p;status.textContent=p?'':'天体・対象・日付を選んでください。';
  cancel.onclick=()=>{stopWatch();run++;button.disabled=false;cancel.hidden=true;status.textContent='探索を中止しました。';};
