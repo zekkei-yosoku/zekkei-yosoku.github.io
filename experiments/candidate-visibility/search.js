@@ -9,7 +9,7 @@ function inside(ring,lat,lon){let on=false;for(let i=0,j=ring.length-1;i<ring.le
 // Generate positions inside sidewalk geometry, not a list of named viewpoints.
 // Heights of 0 in a 2D road model are deliberately not used as ground heights.
 function sampleSidewalks(data,limit=600){
- const rows=[],seen=new Set();let limited=false;
+ const rows=[],seen=new Set(),scanLimit=data.samplingStrategy==='even'?12000:limit;let limited=false;
  for(const feature of data.features||[]){
   if(!['2000','2010','2020'].includes(feature.function))continue;
   const ring=feature.coordinatesLonLatHeight;if(!Array.isArray(ring)||ring.length<4)continue;
@@ -19,17 +19,18 @@ function sampleSidewalks(data,limit=600){
   // Narrow sidewalks may fall between grid rows; edge midpoints remain inside
   // or on the source polygon and provide deterministic extra sampling positions.
   const candidates=[];
-  for(let lat=a+dy/2;lat<b;lat+=dy)for(let lon=lo+dx/2;lon<hi;lon+=dx)if(inside(ring,lat,lon))candidates.push(point(lat,lon));
+  for(let lat=a+dy/2;lat<b;lat+=dy)for(let lon=lo+dx/2;lon<hi;lon+=dx)if(inside(ring,lat,lon)&&!(feature.interiorRingsLonLatHeight||[]).some(hole=>inside(hole,lat,lon)))candidates.push(point(lat,lon));
   for(let i=1;i<ring.length;i++)candidates.push(point((ring[i-1][1]+ring[i][1])/2,(ring[i-1][0]+ring[i][0])/2));
   for(const p of candidates){
    const key=p.latitude.toFixed(7)+','+p.longitude.toFixed(7);if(seen.has(key))continue;seen.add(key);
-   if(rows.length>=limit){limited=true;break;}
+   if(rows.length>=scanLimit){limited=true;break;}
    rows.push({...p,sourceId:feature.sourceId,polygonId:feature.polygonId,
     groundKnown:feature.groundKnown===true,standingSurfaceKnown:feature.standingSurfaceKnown===true,
-    accessKnown:feature.accessKnown===true,groundM:feature.groundM??null});
+    accessKnown:feature.accessKnown===true,groundM:feature.groundM??null,region:feature.region,sourceMesh:feature.sourceMesh,nonTerrainStructure:feature.nonTerrainStructure===true,structureClassificationKnown:feature.structureClassificationKnown===true});
   }
   if(limited)break;
  }
+ if(rows.length>limit){const selected=Array.from({length:limit},(_,i)=>rows[Math.floor(i*(rows.length-1)/Math.max(1,limit-1))]);return {rows:selected,limited:true};}
  return {rows,limited};
 }
 function keyFor(plan,version,atmosphere){return JSON.stringify([version,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,day(plan.at),atmosphere]);}
@@ -40,7 +41,7 @@ function create({loadData,evaluate,clock=()=>performance.now(),yieldTask=()=>new
   const key=keyFor(plan,data.version,atmosphere);if(cache.has(key))return {...cache.get(key),cached:true};
   if(jobs.has(key)){const result=await jobs.get(key);return !isCurrent()?{cancelled:true}:result.cancelled?search(plan,{onProgress,isCurrent,atmosphere}):{...result,cached:true};}
   const work=(async()=>{
-   const start=clock(),generated=sampleSidewalks(data),counts={sampled:generated.rows.length,checked:0,aligned:0,blocked:0,unknown:0};const rows=[];
+   const start=clock(),generated=sampleSidewalks(data),counts={sampled:generated.rows.length,checked:0,aligned:0,blocked:0,unknown:0,noOverlap:0,deferred:0};const rows=[];
    for(const p of generated.rows){
     if(!isCurrent())return {cancelled:true};
     if(counts.checked%20===0)await yieldTask();if(!isCurrent())return {cancelled:true};
@@ -50,8 +51,10 @@ function create({loadData,evaluate,clock=()=>performance.now(),yieldTask=()=>new
      const result=await evaluate(plan,p,data);if(!isCurrent())return {cancelled:true};
      if(result?.aligned)counts.aligned++;
      if(result?.targetRay?.hit||result?.events?.some(e=>e.rays.some(r=>r.hit)))counts.modelBlocked=(counts.modelBlocked||0)+1;
-     if(result?.status==='blocked')counts.blocked++;
-     else if(result?.recommend===true&&result.status==='verified'&&p.groundKnown&&p.standingSurfaceKnown&&data.visibilityCertified===true&&result.event&&Number.isFinite(result.event.at)&&day(result.event.at)===day(plan.at))rows.push(result);
+     if(result?.deferred)counts.deferred++;
+     else if(result?.status==='no-overlap')counts.noOverlap++;
+     else if(result?.status==='blocked'||result?.status==='model-blocked')counts.blocked++;
+     else if(result?.recommend===true&&((result.status==='verified'&&p.groundKnown&&p.standingSurfaceKnown&&data.visibilityCertified===true)||(result.status==='model-visible'&&result.modelEvidence?.kind==='terrain-and-building-model-los'&&result.modelEvidence.scope==='observer-to-target'&&result.modelEvidence.buildingRangeComplete&&result.modelEvidence.terrainNumericComplete&&result.modelEvidence.actualVisibilityGuaranteed===false))&&result.event&&Number.isFinite(result.event.at)&&day(result.event.at)===day(plan.at))rows.push(result);
      else counts.unknown++;
     }
     if(counts.checked%25===0)onProgress({...counts});

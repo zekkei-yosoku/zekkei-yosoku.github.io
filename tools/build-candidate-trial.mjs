@@ -14,7 +14,7 @@ const read=p=>{
 const result=renderIndex({entry:'src/features/explore/entry.inc',read});
 const files={
  'astronotes-explore-simple.js':result.html,
- 'astronotes-candidate-search.js':readFileSync(new URL('../experiments/candidate-visibility/terrain-model.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/model-evaluator.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/search.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/ui.js',import.meta.url),'utf8'),
+ 'astronotes-candidate-search.js':readFileSync(new URL('../experiments/candidate-visibility/building-model.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/terrain-model.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/model-evaluator.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/search.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/ui.js',import.meta.url),'utf8'),
  'data/candidate-terrain.json':readFileSync(new URL('../experiments/candidate-visibility/terrain.json',import.meta.url),'utf8'),
  'data/candidate-buildings.json':readFileSync(new URL('../experiments/candidate-visibility/model-buildings.json',import.meta.url),'utf8'),
  'data/candidate-surfaces.json':readFileSync(new URL('../experiments/candidate-visibility/surface-samples.json',import.meta.url),'utf8'),

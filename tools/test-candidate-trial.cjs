@@ -39,12 +39,13 @@ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42
     await p.locator('#placeSheet .page-back').click();await p.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-11-04T12:00:00+09:00')));
     await p.locator('#skyMapChoose').click();await p.locator('#placeTab-candidates').click();await p.waitForFunction(()=>!document.querySelector('#additionalCandidateSearch button').disabled);console.log(name,'atmosphere change and close/reopen pass');
    }
-   const t=Date.now();await button.click();await p.waitForFunction(()=>document.querySelector('#additionalCandidateSearch [role=status]')?.textContent.includes('見通しを確かめられる候補がありません'));
-   const elapsedMs=Date.now()-t;assert.equal(await p.locator('#additionalCandidateResults button').count(),0);assert.equal(loads,1);
+   const t=Date.now();await button.click();await p.waitForFunction(()=>{const n=document.querySelector('#additionalCandidateSearch'),s=n?.querySelector('[role=status]')?.textContent||'';return !n?.querySelector('button')?.disabled&&(s.includes('モデル上の候補があります')||s.includes('見通しを確認できた候補はありません'));});
+   const elapsedMs=Date.now()-t,extraResults=await p.locator('#additionalCandidateResults button').count();assert.equal(loads,1);if(extraResults)assert.equal(await p.locator('#additionalCandidateResults button[data-model-basis="terrain-and-building-model-los"]').count(),extraResults);
    const beforeCached=loads;await button.click();await p.waitForFunction(()=>!document.querySelector('#additionalCandidateSearch button').disabled);assert.equal(loads,beforeCached);
    assert.equal(await p.evaluate(()=>JSON.stringify({favorites,observations:MyPlacesUI.load(),schedule:schedule().list()})),stateBefore);
    const metrics=await p.locator('#additionalCandidateSearch').evaluate(n=>({overflow:n.scrollWidth>n.clientWidth,buttonHeight:n.querySelector('button').getBoundingClientRect().height,width:innerWidth,bodyOverflow:document.documentElement.scrollWidth>innerWidth}));assert(!metrics.overflow&&!metrics.bodyOverflow);assert(metrics.buttonHeight>=43.9);
-   await p.screenshot({path:out+'/'+name+'-'+width+'-'+theme+'-unknown.png'});
+   await p.screenshot({path:out+'/'+name+'-'+width+'-'+theme+'-result.png'});
+   let modelSelection=false;if(extraResults){await p.locator('#additionalCandidateResults button').first().click();await p.waitForFunction(()=>!document.getElementById('placeSheet').open);const m=await p.evaluate(()=>SkyMapUI.selectionState());assert(m.observer.name.startsWith('モデル候補'));assert.equal(new Date(m.at+32400000).toISOString().slice(0,10),new Date(Date.parse(process.env.CANDIDATE_TRIAL_RACES==='1'?'2026-11-04T12:00:00+09:00':process.env.CANDIDATE_TRIAL_DATE||'2026-11-04T12:00:00+09:00')+32400000).toISOString().slice(0,10));assert(await p.locator('#exploreScenePanel').isVisible());assert.equal(await p.evaluate(()=>JSON.stringify({favorites,observations:MyPlacesUI.load(),schedule:schedule().list()})),stateBefore);modelSelection=true;await p.locator('#skyMapChoose').click();await p.locator('#placeTab-candidates').click();}
    await p.locator('#placeSheet .page-back').click();await p.waitForFunction(()=>!document.getElementById('placeSheet').open);
    // Keep existing registered places immediately available above the new section.
    await p.evaluate(()=>{
@@ -62,7 +63,7 @@ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42
    assert(await p.locator('#exploreTabs').isHidden());assert(await p.locator('#exploreScenePanel').isVisible());
    assert.equal(await p.evaluate(()=>JSON.stringify({favorites,observations:MyPlacesUI.load(),schedule:schedule().list()})),savedBefore);
    await p.screenshot({path:out+'/'+name+'-'+width+'-'+theme+'-scene.png'});
-   assert.deepEqual(errors,[]);results.push({engine:name,width,theme,elapsedMs,loads,modelLoads,extraResults:0,registeredSelection:true,storageUnchanged:true,apiWrites:writes});
+   assert.deepEqual(errors,[]);results.push({engine:name,width,theme,elapsedMs,loads,modelLoads,extraResults,modelSelection,registeredSelection:true,storageUnchanged:true,apiWrites:writes});
    await c.close();console.log(name,width,theme,'pass',elapsedMs+'ms');
   }
   await browser.close();
