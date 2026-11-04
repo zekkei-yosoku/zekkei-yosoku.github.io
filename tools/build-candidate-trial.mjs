@@ -14,9 +14,12 @@ const read=p=>{
 const result=renderIndex({entry:'src/features/explore/entry.inc',read});
 const files={
  'astronotes-explore-simple.js':result.html,
- 'astronotes-candidate-search.js':readFileSync(new URL('../experiments/candidate-visibility/search.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/ui.js',import.meta.url),'utf8'),
+ 'astronotes-candidate-search.js':readFileSync(new URL('../experiments/candidate-visibility/model-evaluator.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/search.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/ui.js',import.meta.url),'utf8'),
+ 'data/candidate-buildings.json':readFileSync(new URL('../experiments/candidate-visibility/model-buildings.json',import.meta.url),'utf8'),
+ 'data/candidate-surfaces.json':readFileSync(new URL('../experiments/candidate-visibility/surface-samples.json',import.meta.url),'utf8'),
  'data/candidate-sidewalks.json':readFileSync(new URL('../experiments/candidate-visibility/sidewalks.json',import.meta.url),'utf8')
 };
+files['astronotes-candidate-search.js']+='\n// data-release '+createHash('sha256').update(files['data/candidate-buildings.json']+files['data/candidate-surfaces.json']+files['data/candidate-sidewalks.json']).digest('hex')+'\n';
 if(process.argv.includes('--html')){
  let html=readFileSync(0,'utf8');
  html=patch(html,html.match(/<script src="astronotes-explore\.js\?v=\d+"><\/script>/)?.[0]||'missing-explore-script','<script src="astronotes-explore-simple.js?v=0"></script>');

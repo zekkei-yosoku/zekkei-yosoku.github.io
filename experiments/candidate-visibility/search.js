@@ -33,7 +33,7 @@ function sampleSidewalks(data,limit=600){
  return {rows,limited};
 }
 function keyFor(plan,version,atmosphere){return JSON.stringify([version,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,day(plan.at),atmosphere]);}
-function create({loadData,evaluate,clock=()=>performance.now(),yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
+function create({loadData,evaluate,clock=()=>performance.now(),yieldTask=()=>new Promise(r=>setTimeout(r,0)),diagnoseUnknown=false}){
  const cache=new Map(),jobs=new Map();
  async function search(plan,{onProgress=()=>{},isCurrent=()=>true,atmosphere='standard'}={}){
   const data=await loadData();if(!isCurrent())return {cancelled:true};
@@ -45,12 +45,13 @@ function create({loadData,evaluate,clock=()=>performance.now(),yieldTask=()=>new
     if(!isCurrent())return {cancelled:true};
     if(counts.checked%20===0)await yieldTask();if(!isCurrent())return {cancelled:true};
     counts.checked++;
-    if(!p.groundKnown||!p.standingSurfaceKnown||!p.accessKnown){counts.unknown++;}
+    if((!p.groundKnown||!p.standingSurfaceKnown||!p.accessKnown)&&!diagnoseUnknown){counts.unknown++;}
     else {
      const result=await evaluate(plan,p,data);if(!isCurrent())return {cancelled:true};
      if(result?.aligned)counts.aligned++;
+     if(result?.targetRay?.hit||result?.events?.some(e=>e.rays.some(r=>r.hit)))counts.modelBlocked=(counts.modelBlocked||0)+1;
      if(result?.status==='blocked')counts.blocked++;
-     else if(result?.recommend===true&&result.status==='verified'&&data.visibilityCertified===true&&result.event&&Number.isFinite(result.event.at)&&day(result.event.at)===day(plan.at))rows.push(result);
+     else if(result?.recommend===true&&result.status==='verified'&&p.groundKnown&&p.standingSurfaceKnown&&p.accessKnown&&data.visibilityCertified===true&&result.event&&Number.isFinite(result.event.at)&&day(result.event.at)===day(plan.at))rows.push(result);
      else counts.unknown++;
     }
     if(counts.checked%25===0)onProgress({...counts});

@@ -6,24 +6,39 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=','base64');
 (async()=>{
  const results=[];
- for(const [name,type] of [['chrome',chromium],['webkit',webkit]]){
+ for(const [name,type] of [['chrome',chromium],['webkit',webkit]].filter(([name])=>(process.env.CANDIDATE_TRIAL_ENGINES||'chrome,webkit').split(',').includes(name))){
   const browser=await type.launch(name==='chrome'?{channel:'chrome',headless:true}:{headless:true});
-  for(const width of [320,390,1280])for(const theme of ['light','dark']){
+  for(const width of (process.env.CANDIDATE_TRIAL_WIDTHS||'320,390,1280').split(',').map(Number))for(const theme of (process.env.CANDIDATE_TRIAL_THEMES||'light,dark').split(',')){
    const c=await browser.newContext({viewport:{width,height:width===320?568:900},colorScheme:theme});
    await c.addInitScript(tools=>sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-candidate',loginId:'candidate-test',tools})),tools);
-   let writes=0,loads=0;
+   let writes=0,loads=0,modelLoads=0;
    await c.route(/(?:zekkei-api|localhost:8787)/,r=>{if(!['GET','OPTIONS'].includes(r.request().method()))writes++;return r.fulfill({status:200,json:{allowed:true,tool:'skymap',loginId:'candidate-test',tools,favorites:[],sightings:[],records:[],rev:1}});});
    await c.route(/cyberjapandata.*\.png/,r=>r.fulfill({status:200,contentType:'image/png',body:png}));
-   const p=await c.newPage(),errors=[];p.setDefaultTimeout(15000);p.on('pageerror',e=>errors.push(e.message));
-   p.on('request',r=>{if(r.url().includes('candidate-sidewalks.json'))loads++;});
+   const p=await c.newPage(),errors=[];p.setDefaultTimeout(120000);p.on('pageerror',e=>errors.push(e.message));
+   p.on('request',r=>{if(r.url().includes('candidate-sidewalks.json'))loads++;if(/candidate-(?:buildings|surfaces)\.json/.test(r.url()))modelLoads++;});
    await p.goto(base+'#/explore');await p.waitForFunction(()=>{try{return typeof MyPlacesUI==='object'&&typeof TrialExplore==='object'}catch{return false}});
-   await p.evaluate(async()=>{await startupSessionReady;groundAt=async()=>30;aimBuildingDays=async()=>[];await AstroNotesAssets.ensureModels();navigationHistory.pushRoute('#/explore');SkyMapUI.setTarget('skytree');document.getElementById('skyMapBody').value='moon';document.getElementById('skyMapBody').onchange();SkyMapUI.setTime(Date.parse('2026-11-04T12:00:00+09:00'));});
+   await p.evaluate(async(testDate)=>{await startupSessionReady;groundAt=async()=>30;aimBuildingDays=async()=>[];await AstroNotesAssets.ensureModels();navigationHistory.pushRoute('#/explore');SkyMapUI.setTarget('skytree');document.getElementById('skyMapBody').value='moon';document.getElementById('skyMapBody').onchange();SkyMapUI.setTime(Date.parse(testDate));},process.env.CANDIDATE_TRIAL_DATE||'2026-11-04T12:00:00+09:00');
    console.log(name,width,theme,'prepared');
    await p.locator('#exploreConditions').waitFor();assert(await p.locator('#exploreTabs').isHidden());assert(await p.locator('#exploreScenePanel').isVisible());assert(await p.locator('#exploreMapPanel').isHidden());
    const stateBefore=await p.evaluate(()=>JSON.stringify({favorites,observations:MyPlacesUI.load(),schedule:schedule().list()}));
    await p.locator('#skyMapChoose').click();await p.locator('#placeTab-candidates').click();await p.locator('#additionalCandidateSearch').waitFor();
    const button=p.getByRole('button',{name:'ほかの候補地点を探す',exact:true});
    assert.equal(loads,0,'no extra search merely opening picker');
+   if(process.env.CANDIDATE_TRIAL_RACES==='1'){
+    await button.click();await p.waitForFunction(()=>document.querySelector('#additionalCandidateSearch [role=status]')?.textContent.includes('25地点'));
+    console.log(name,'race first progress');await p.getByRole('button',{name:'探索を中止',exact:true}).click();assert((await p.locator('#additionalCandidateSearch [role=status]').innerText()).includes('中止しました'));
+    await button.click();await p.waitForFunction(()=>document.querySelector('#additionalCandidateSearch [role=status]')?.textContent.includes('25地点'));
+    console.log(name,'race second progress');await p.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-11-04T12:00:00+09:00')));
+    await p.waitForFunction(()=>!document.querySelector('#additionalCandidateSearch button').disabled&&document.querySelector('#additionalCandidateSearch [role=status]').textContent==='');
+    assert.equal(await p.locator('#additionalCandidateResults button').count(),0);console.log(name,'cancel and condition-change pass');
+    await p.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-11-29T12:00:00+09:00')));
+    await button.click();await p.waitForFunction(()=>document.querySelector('#additionalCandidateSearch [role=status]')?.textContent.includes('25地点'));
+    await p.evaluate(()=>{aimAirSettings.mode='none';AstroNotesAtmosphere.configure('none');});
+    await p.waitForFunction(()=>!document.querySelector('#additionalCandidateSearch button').disabled&&document.querySelector('#additionalCandidateSearch [role=status]').textContent==='');
+    await button.click();await p.waitForFunction(()=>document.querySelector('#additionalCandidateSearch [role=status]')?.textContent.includes('25地点'));
+    await p.locator('#placeSheet .page-back').click();await p.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-11-04T12:00:00+09:00')));
+    await p.locator('#skyMapChoose').click();await p.locator('#placeTab-candidates').click();await p.waitForFunction(()=>!document.querySelector('#additionalCandidateSearch button').disabled);console.log(name,'atmosphere change and close/reopen pass');
+   }
    const t=Date.now();await button.click();await p.waitForFunction(()=>document.querySelector('#additionalCandidateSearch [role=status]')?.textContent.includes('見通しを確かめられる候補がありません'));
    const elapsedMs=Date.now()-t;assert.equal(await p.locator('#additionalCandidateResults button').count(),0);assert.equal(loads,1);
    const beforeCached=loads;await button.click();await p.waitForFunction(()=>!document.querySelector('#additionalCandidateSearch button').disabled);assert.equal(loads,beforeCached);
@@ -47,7 +62,7 @@ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42
    assert(await p.locator('#exploreTabs').isHidden());assert(await p.locator('#exploreScenePanel').isVisible());
    assert.equal(await p.evaluate(()=>JSON.stringify({favorites,observations:MyPlacesUI.load(),schedule:schedule().list()})),savedBefore);
    await p.screenshot({path:out+'/'+name+'-'+width+'-'+theme+'-scene.png'});
-   assert.deepEqual(errors,[]);results.push({engine:name,width,theme,elapsedMs,loads,extraResults:0,registeredSelection:true,storageUnchanged:true,apiWrites:writes});
+   assert.deepEqual(errors,[]);results.push({engine:name,width,theme,elapsedMs,loads,modelLoads,extraResults:0,registeredSelection:true,storageUnchanged:true,apiWrites:writes});
    await c.close();console.log(name,width,theme,'pass',elapsedMs+'ms');
   }
   await browser.close();

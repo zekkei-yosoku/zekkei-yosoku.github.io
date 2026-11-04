@@ -1,3 +1,49 @@
+/* Model diagnostics only. Missing survey/standing/access evidence NEVER becomes clear. */
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesCandidateModel=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
+'use strict';
+const R=6371008.8,rad=Math.PI/180;
+const dot=(a,b)=>a.reduce((s,x,i)=>s+x*b[i],0),sub=(a,b)=>a.map((x,i)=>x-b[i]);
+function inside(r,p){let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p[1])!==(r[j][1]>p[1])&&p[0]<(r[j][0]-r[i][0])*(p[1]-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;}
+function faceHit(rings,origin,direction,maxM){
+ if(!rings.length||rings[0].length<3)return null;const ring=rings[0],normal=[0,0,0];
+ for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length];normal[0]+=(a[1]-b[1])*(a[2]+b[2]);normal[1]+=(a[2]-b[2])*(a[0]+b[0]);normal[2]+=(a[0]-b[0])*(a[1]+b[1]);}
+ const den=dot(normal,direction);if(Math.abs(den)<1e-9)return null;const t=dot(normal,sub(ring[0],origin))/den;if(t<=.05||t>maxM)return null;
+ const p=origin.map((x,i)=>x+t*direction[i]),axis=normal.map(Math.abs).indexOf(Math.max(...normal.map(Math.abs))),project=q=>q.filter((_,i)=>i!==axis),pp=project(p);
+ return inside(rings[0].map(project),pp)&&!rings.slice(1).some(r=>inside(r.map(project),pp))?{distanceM:t,point:p}:null;
+}
+function trace(index,observer,{azimuth,altitude,maxM=12000}){
+ if(!Number.isFinite(observer.elevation)||!Number.isFinite(azimuth)||!Number.isFinite(altitude))return {status:'unknown',recommend:false,reason:'invalid-height-or-ray'};
+ const eye=observer.elevation+(observer.eyeM??1.5),lat=observer.latitude,lon=observer.longitude,scale=Math.cos(lat*rad),az=azimuth*rad,alt=altitude*rad;
+ // Parameter t is horizontal metres, matching geometry distance and curvature.
+ const direction=[Math.sin(az),Math.cos(az),Math.tan(alt)],end=[lon+direction[0]*maxM/(111195*scale),lat+direction[1]*maxM/111195];
+ const ids=new Set();for(let x=Math.floor(Math.min(lon,end[0])*1000);x<=Math.floor(Math.max(lon,end[0])*1000);x++)for(let y=Math.floor(Math.min(lat,end[1])*1000);y<=Math.floor(Math.max(lat,end[1])*1000);y++)for(const id of index.grid[x+','+y]||[])ids.add(id);
+ let hit=null,faces=0;for(const id of ids){const b=index.buildings[id];for(const poly of b.polygons){faces++;const rings=poly.rings.map(r=>r.map(p=>{const x=(p[0]-lon)*111195*scale,y=(p[1]-lat)*111195;return [x,y,p[2]-(x*x+y*y)/(2*R)];}));const h=faceHit(rings,[0,0,eye],direction,hit?.distanceM??maxM);if(h)hit={...h,buildingId:b.id,polygonId:poly.id,lod:b.lod};}}
+ return {status:hit?'model-blocked':'unknown',recommend:false,hit,faces,buildingsChecked:ids.size,reason:hit?'conditional-model-intersection':'incomplete-coverage-or-uncertainty'};
+}
+function create({align,shooting,bodies,index,surfaceAt,prefilter=true,yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
+ const paths=new Map();
+ return async function evaluate(plan,point){
+  await yieldTask();const surface=surfaceAt(point);if(!surface||!Number.isFinite(surface.estimateM))return {status:'unknown',recommend:false,reason:'no-standing-height-estimate'};
+  const obs={...point,elevation:surface.estimateM,eyeM:1.5};
+  const start=Math.floor((plan.at+32400000)/86400000)*86400000-32400000;
+  // Conservative pilot optimisation only: rejected positions remain UNKNOWN.
+  // This is not a proof that no astronomical opportunity exists.
+  const geometry=align.geometryFrom(obs,plan.target,{partId:plan.partId,eyeM:obs.eyeM});
+  if(prefilter&&geometry&&['moon','sun'].includes(plan.body)){
+   const key=plan.body+','+start+','+(plan.atmosphere||'standard');let path=paths.get(key);
+   if(!path){path=[];const ref={latitude:35.68626,longitude:139.73068,elevation:30};for(let t=start;t<=start+86400000;t+=60000){const st=bodies.state(plan.body,t,ref);path.push([st.azimuth,st.apparentAltitude]);}paths.set(key,path);while(paths.size>4)paths.delete(paths.keys().next().value);}
+   if(!path.some(([az,alt])=>Math.abs(((az-geometry.azimuth+540)%360)-180)<3&&alt>-3&&alt<geometry.angle+3))return {status:'unknown',recommend:false,deferred:true,assumedObserver:obs,surface,reason:'pilot-prefilter-deferred-not-certified-no-event'};
+  }
+  const events=shooting.eventsFor(plan,obs,start,{align,isMountain:()=>false}).filter(e=>shooting.matches(e,plan,()=>false)&&e.at>=start&&e.at<start+86400000&&(plan.body!=='moon'||e.sunAltitude<0));
+  const distance=geometry?.distanceKm*1000;
+  const targetRay=geometry&&events.length?trace(index,obs,{azimuth:geometry.azimuth,altitude:Math.atan2(geometry.topM-obs.elevation-obs.eyeM-distance*distance/(2*R),distance)/rad,maxM:distance}):null;
+  const tested=[];for(const event of events){const st=bodies.state(plan.body,event.at,{...obs,elevation:obs.elevation+obs.eyeM});const rays=[0,-1,1].map(offset=>trace(index,obs,{azimuth:st.azimuth,altitude:(st.geometricAltitude??st.altitude??st.apparentAltitude)+offset*st.angularRadius,maxM:12000}));tested.push({event,rays});}
+  return {status:'unknown',recommend:false,aligned:events.length>0,events:tested,targetRay,assumedObserver:obs,surface,reason:'estimated-surface-and-incomplete-3d-coverage'};
+ };
+}
+return {faceHit,trace,create};
+});
+
 /* Trial-only discovery. Existing registered-place search is not modified. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesCandidateDiscovery=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
@@ -33,7 +79,7 @@ function sampleSidewalks(data,limit=600){
  return {rows,limited};
 }
 function keyFor(plan,version,atmosphere){return JSON.stringify([version,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,day(plan.at),atmosphere]);}
-function create({loadData,evaluate,clock=()=>performance.now(),yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
+function create({loadData,evaluate,clock=()=>performance.now(),yieldTask=()=>new Promise(r=>setTimeout(r,0)),diagnoseUnknown=false}){
  const cache=new Map(),jobs=new Map();
  async function search(plan,{onProgress=()=>{},isCurrent=()=>true,atmosphere='standard'}={}){
   const data=await loadData();if(!isCurrent())return {cancelled:true};
@@ -45,12 +91,13 @@ function create({loadData,evaluate,clock=()=>performance.now(),yieldTask=()=>new
     if(!isCurrent())return {cancelled:true};
     if(counts.checked%20===0)await yieldTask();if(!isCurrent())return {cancelled:true};
     counts.checked++;
-    if(!p.groundKnown||!p.standingSurfaceKnown||!p.accessKnown){counts.unknown++;}
+    if((!p.groundKnown||!p.standingSurfaceKnown||!p.accessKnown)&&!diagnoseUnknown){counts.unknown++;}
     else {
      const result=await evaluate(plan,p,data);if(!isCurrent())return {cancelled:true};
      if(result?.aligned)counts.aligned++;
+     if(result?.targetRay?.hit||result?.events?.some(e=>e.rays.some(r=>r.hit)))counts.modelBlocked=(counts.modelBlocked||0)+1;
      if(result?.status==='blocked')counts.blocked++;
-     else if(result?.recommend===true&&result.status==='verified'&&data.visibilityCertified===true&&result.event&&Number.isFinite(result.event.at)&&day(result.event.at)===day(plan.at))rows.push(result);
+     else if(result?.recommend===true&&result.status==='verified'&&p.groundKnown&&p.standingSurfaceKnown&&p.accessKnown&&data.visibilityCertified===true&&result.event&&Number.isFinite(result.event.at)&&day(result.event.at)===day(plan.at))rows.push(result);
      else counts.unknown++;
     }
     if(counts.checked%25===0)onProgress({...counts});
@@ -68,12 +115,15 @@ return {create,sampleSidewalks,keyFor,day};
 // Trial adapter: one existing place picker, no new page, no saved-place writes.
 (()=>{
 'use strict';
-let dataPromise=null,run=0,section=null,condition='';
-const loadData=()=>dataPromise||(dataPromise=fetch('data/candidate-sidewalks.json').then(r=>{if(!r.ok)throw Error('data');return r.json();}).catch(e=>{dataPromise=null;throw e;}));
-const engine=AstroNotesCandidateDiscovery.create({loadData,
- // Current data cannot certify ground/standing surface/access/complete visibility.
- // No unverified row reaches selectCandidate or becomes a recommendation.
- evaluate:async()=>({status:'unknown',recommend:false})});
+let dataPromise=null,run=0,section=null,condition='',watch=null;
+const dataTag=new URL(document.currentScript.src,location.href).searchParams.get('v')||'0';
+const stopWatch=()=>{if(watch!==null){clearInterval(watch);watch=null;}};
+const loadData=()=>dataPromise||(dataPromise=fetch('data/candidate-sidewalks.json?v='+dataTag).then(r=>{if(!r.ok)throw Error('data');return r.json();}).catch(e=>{dataPromise=null;throw e;}));
+let modelPromise=null;
+const loadModel=()=>modelPromise||(modelPromise=Promise.all(['candidate-buildings.json','candidate-surfaces.json'].map(n=>fetch('data/'+n+'?v='+dataTag).then(r=>{if(!r.ok)throw Error('model');return r.json();}))).then(([index,surface])=>AstroNotesCandidateModel.create({align:AstroNotesAlign,shooting:AstroNotesShooting,bodies:AstroNotesBodies,index,surfaceAt:p=>surface.samples[p.latitude.toFixed(7)+','+p.longitude.toFixed(7)]})).catch(e=>{modelPromise=null;throw e;}));
+const engine=AstroNotesCandidateDiscovery.create({loadData,diagnoseUnknown:true,
+ // Real candidate astronomy and LOD2 faces are diagnostic; missing evidence stays unknown.
+ evaluate:async(plan,p)=>plan.target.id==='skytree'&&['moon','sun'].includes(plan.body)?(await loadModel())(plan,p):({status:'unknown',recommend:false,reason:'unsupported-pilot-condition'})});
 const context=s=>JSON.stringify([s.body,s.target,s.partId,s.limb,AstroNotesCandidateDiscovery.day(s.at),s.matchMode||'limb']);
 function snapshot(){
  if(typeof SkyMapUI==='undefined'||typeof auth==='undefined'||!auth||typeof screenAllowed!=='function'||!screenAllowed('skymap')||!screenAllowed('framing'))return null;
@@ -86,24 +136,25 @@ function current(token,p,node){const now=snapshot();return token===run&&node.isC
 function mount(){
  const panel=document.getElementById('recentCandidates'),sheet=document.getElementById('placeSheet');
  if(!panel||!sheet?.open||panel.hidden||typeof placeSheetFor==='undefined'||placeSheetFor!=='skymap'){
-  if(section){run++;section.remove();section=null;condition='';}return;
+  if(section){stopWatch();run++;section.remove();section=null;condition='';}return;
  }
  const p=snapshot(),id=key(p);if(section?.isConnected&&condition===id)return;
- run++;section?.remove();condition=id;section=document.createElement('section');section.id='additionalCandidateSearch';section.setAttribute('aria-label','ほかの候補地点');
- const description=document.createElement('p');description.className='tiny';description.textContent='登録した撮影地点の候補は上に表示します。追加の自動探索は四ツ谷周辺の歩道を試用しています。';
+ stopWatch();run++;section?.remove();condition=id;section=document.createElement('section');section.id='additionalCandidateSearch';section.setAttribute('aria-label','ほかの候補地点');
+ const description=document.createElement('p');description.className='tiny';description.textContent='登録した撮影地点の候補は上に表示します。追加の自動探索は四ツ谷周辺の歩道・月と太陽・スカイツリーで試用しています。確認に数十秒かかる場合があります。';
  const status=document.createElement('p');status.className='tiny';status.setAttribute('role','status');status.setAttribute('aria-live','polite');
  const button=document.createElement('button');button.type='button';button.className='fav-btn';button.textContent='ほかの候補地点を探す';
  const cancel=document.createElement('button');cancel.type='button';cancel.className='fav-btn';cancel.textContent='探索を中止';cancel.hidden=true;
  const resultList=document.createElement('div');resultList.id='additionalCandidateResults';
  const evidence=document.createElement('details'),summary=document.createElement('summary'),source=document.createElement('p'),link=document.createElement('a');
- summary.textContent='探索範囲・出典';source.className='tiny';source.textContent='四ツ谷周辺の歩道で試用しています。出典：PLATEAU 千代田区2025（歩道を抽出して加工）。現地の見通しや立てる高さを確かめられない場所は推薦しません。 ';
+ summary.textContent='探索範囲・出典';source.className='tiny';source.textContent='四ツ谷周辺の歩道で試用しています。出典：PLATEAU 千代田区2025（歩道・LOD2建物を抽出して加工）、東京都 高密度点群データ（CC BY 4.0・地面高さ中央値を抽出して加工）。現地の見通しや立てる高さを確かめられない場所は推薦しません。 ';
  link.href='https://www.mlit.go.jp/plateau/site-policy/';link.target='_blank';link.rel='noopener';link.textContent='利用条件';source.append(link);evidence.append(summary,source);
  section.append(description,button,cancel,status,resultList,evidence);panel.append(section);
  button.disabled=!p;status.textContent=p?'':'天体・対象・日付を選んでください。';
- cancel.onclick=()=>{run++;button.disabled=false;cancel.hidden=true;status.textContent='探索を中止しました。';};
+ cancel.onclick=()=>{stopWatch();run++;button.disabled=false;cancel.hidden=true;status.textContent='探索を中止しました。';};
  button.onclick=async()=>{
-  const selected=snapshot();if(!selected)return;
-  const node=section,token=++run;button.disabled=true;cancel.hidden=false;resultList.replaceChildren();status.textContent='ほかの候補地点を確認しています…';
+  const selected=snapshot();if(!selected){mount();return;}
+  if(condition!==key(selected)){mount();section?.querySelector('button')?.click();return;}
+  const node=section,token=++run;stopWatch();watch=setInterval(()=>{if(!current(token,selected,node)){stopWatch();mount();}},250);button.disabled=true;cancel.hidden=false;resultList.replaceChildren();status.textContent='ほかの候補地点を確認しています…';
   try{
    const result=await engine.search(selected,{isCurrent:()=>current(token,selected,node),onProgress:counts=>{if(current(token,selected,node))status.textContent='候補地点のデータを確認しています… '+counts.checked+'地点';},atmosphere:selected.atmosphere});
    if(!current(token,selected,node)||result.cancelled)return;
@@ -114,10 +165,12 @@ function mount(){
    status.textContent=result.rows.length?result.rows.length+'件の候補があります。':result.counts.unknown?'見通しを確かめられる候補がありません。高さや周囲の遮蔽物、立てる場所を確認できない地点は、候補に出していません。':'調べた範囲では、この日の条件に合う候補がありません。';
    if(result.limited)status.textContent+=' 調べ切れていない範囲があります。';
   }catch{if(current(token,selected,node))status.textContent='候補の情報を読み込めませんでした。もう一度お試しください。';}
-  finally{if(current(token,selected,node)){button.disabled=false;cancel.hidden=true;}}
+  finally{if(token===run){stopWatch();if(!current(token,selected,node))mount();}if(current(token,selected,node)){button.disabled=false;cancel.hidden=true;}}
  };
 }
 // Observe only the picker so progress and map rendering cannot create a busy loop.
-const picker=document.getElementById('placeSheet');if(picker){new MutationObserver(mount).observe(picker,{childList:true,subtree:true,attributes:true,attributeFilter:['open','hidden','aria-selected']});picker.addEventListener('close',()=>{run++;section?.remove();section=null;condition='';});}
+const picker=document.getElementById('placeSheet');if(picker){new MutationObserver(mount).observe(picker,{childList:true,subtree:true,attributes:true,attributeFilter:['open','hidden','aria-selected']});picker.addEventListener('close',()=>{stopWatch();run++;section?.remove();section=null;condition='';});}
 mount();
 })();
+
+// data-release b42fcf8360ddd45dbfcd0a38563e23f0d5e8006aefbf66a33ea063526299d9c3
