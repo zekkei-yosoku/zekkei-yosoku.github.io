@@ -245,9 +245,9 @@ function mapAnchor(point){
  return link;
 }
 function syncObserverMap(){
- const previous=document.getElementById('exploreExternalMap'),point=snapshot()?.observer,anchor=document.getElementById('skyMapObserverSummary');
+ const previous=document.getElementById('exploreExternalMap'),point=snapshot()?.observer,anchor=document.querySelector('#exploreScenePanel #aimLook .aim-look-figure');
  if(!anchor||!point){previous?.remove();return;}const next=mapAnchor(point);if(!next){previous?.remove();return;}
- if(previous?.href===next.href)return;previous?.remove();next.id='exploreExternalMap';anchor.after(next);
+ if(previous?.href===next.href)return;previous?.remove();next.id='exploreExternalMap';next.className='chip tiny';anchor.before(next);
 }
 function mount(){
  syncObserverMap();
@@ -280,7 +280,7 @@ function mount(){
    if(!current(token,selected,node)||result.cancelled)return;
    for(const row of result.rows){
     const item=document.createElement('button');item.type='button';item.className='list-item';item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.textContent=row.place.name+' '+new Date(row.event.at+32400000).toISOString().slice(11,16)+(row.event.at<Date.now()?'（過ぎた時刻）':'');
-    item.onclick=()=>{if(current(token,selected,node)&&SkyMapUI.selectCandidate(row,selected.expected))sheet.close();};const rowBox=document.createElement('div');rowBox.append(item);const map=mapAnchor(row.place);if(map)rowBox.append(map);resultList.append(rowBox);
+    item.onclick=()=>{if(current(token,selected,node)&&SkyMapUI.selectCandidate(row,selected.expected))sheet.close();};resultList.append(item);
    }
    setStatus('');resultList.setAttribute('aria-busy','false');status.textContent=result.rows.length?result.rows.length+'件のモデル上の候補があります。':'この条件で、地形・建物モデル上の見通しを確認できた候補はありません。';
    if(result.counts.unknown)status.textContent+=' 範囲外や高さ不明など、判定できない地点は含めていません。';
@@ -292,6 +292,7 @@ function mount(){
 }
 // Observe only the picker so progress and map rendering cannot create a busy loop.
 const picker=document.getElementById('placeSheet');if(picker){new MutationObserver(mount).observe(picker,{childList:true,subtree:true,attributes:true,attributeFilter:['open','hidden','aria-selected']});picker.addEventListener('close',()=>{stopWatch();run++;section?.remove();section=null;condition='';});}
+const scenePanel=document.getElementById('exploreScenePanel');if(scenePanel)new MutationObserver(syncObserverMap).observe(scenePanel,{childList:true,subtree:true});
 mount();
 })();
 
