@@ -62,11 +62,9 @@ AstroNotesCandidatePicker.registerRegisteredFromSession=(box,rows,legacyPlan,leg
 
 function current(token,p,node){return token===run&&node.isConnected&&document.getElementById('placeSheet')?.open&&!document.getElementById('recentCandidates')?.hidden&&key(snapshot())===key(p);}
 function mapAnchor(point){
- const data=AstroNotesCandidateDiscovery.mapLink(point,navigator.userAgent,navigator.maxTouchPoints||0);if(!data)return null;
- const link=document.createElement('a');link.className='fav-btn tiny';link.textContent='地図アプリで開く';link.href=data.href;
- if(!data.native){link.target='_blank';link.rel='noopener';}
- if(data.choose)link.onclick=e=>{if(typeof openMapAppSheet==='function'){e.preventDefault();openMapAppSheet(point.latitude.toFixed(7)+', '+point.longitude.toFixed(7));}};
- return link;
+ const apps=AstroNotesPlan.externalApps;if(!apps||!point||!Number.isFinite(point.latitude)||!Number.isFinite(point.longitude))return null;
+ const link=document.createElement('a');link.className='fav-btn tiny';link.textContent='地図アプリで開く';link.href=apps.mapApps.google.url(point.latitude.toFixed(7)+', '+point.longitude.toFixed(7));link.target='_blank';link.rel='noopener';
+ link.onclick=e=>{e.preventDefault();apps.requestMap(point,{source:link,isCurrent:()=>link.isConnected});};return link;
 }
 function syncObserverMap(){const old=document.getElementById('exploreExternalMap'),point=snapshot()?.observer,anchor=document.querySelector('#exploreScenePanel #aimLook .aim-look-figure');if(!anchor||!point){old?.remove();return;}const next=mapAnchor(point);if(!next){old?.remove();return;}if(old?.href===next.href)return;old?.remove();next.id='exploreExternalMap';next.className='chip tiny';anchor.before(next);}
 const dateValue=at=>new Date(at+32400000).toISOString().slice(0,10);

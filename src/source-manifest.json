@@ -1899,6 +1899,18 @@
         "requires": [
           "AstroNotesCandidateComposition"
         ]
+      },
+      {
+        "path": "experiments/external-apps/external-apps.js",
+        "output": "astronotes-plan.js",
+        "layer": "services",
+        "scope": "existing-provider-extension",
+        "provides": [
+          "AstroNotesPlan.createExternalApps"
+        ],
+        "requires": [
+          "AstroNotesPlan"
+        ]
       }
     ],
     "uiReads": [
@@ -1907,7 +1919,8 @@
       "AIM_SENSOR",
       "aimSceneExtraTargets",
       "createMapView",
-      "ToolDateTimeBar"
+      "ToolDateTimeBar",
+      "AstroNotesPlan"
     ],
     "newGlobals": []
   }

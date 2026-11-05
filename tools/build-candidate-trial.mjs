@@ -1,5 +1,6 @@
 // Derive a trial-only Explore from the same source; production bytes are untouched.
 import {readFileSync} from 'node:fs';
+import {externalAppsPlan,externalAppsHtml} from './build-external-apps-trial.mjs';
 import {renderIndex} from './build-index.mjs';
 import {versionAssets,hashCsp} from './release-html.mjs';
 import {createHash} from 'node:crypto';
@@ -19,6 +20,7 @@ let trialMyplaces=patch(patch(patch(readFileSync('astronotes-myplaces.js','utf8'
 trialMyplaces=patch(trialMyplaces,'plan=AstroNotesShooting.conditions(state()),selectedShape','plan=globalThis.AstroNotesCandidatePicker?.registeredPlan?.(AstroNotesShooting.conditions(state()))||AstroNotesShooting.conditions(state()),selectedShape');
 const trialAlign=patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge');
 const files={
+ 'astronotes-plan.js':externalAppsPlan(),
  'astronotes-align.js':trialAlign,
  'astronotes-shooting.js':trialShooting,
  'astronotes-myplaces.js':trialMyplaces,
@@ -35,11 +37,11 @@ const files={
 // Trial factory additions are registered beside the production architecture.
 const trialArchitecture=JSON.parse(readFileSync('src/source-manifest.json','utf8')).trialArchitecture;
 if(!trialArchitecture?.productionUnchanged||trialArchitecture.newGlobals?.length)throw Error('Invalid trial architecture boundary');
-for(const unit of trialArchitecture.units){const source=readFileSync(unit.path,'utf8');if(!files['astronotes-candidate-search.js'].includes(source))throw Error('Unbundled trial architecture unit: '+unit.path);}
+for(const unit of trialArchitecture.units){const source=readFileSync(unit.path,'utf8');if(!files[unit.output||'astronotes-candidate-search.js']?.includes(source))throw Error('Unbundled trial architecture unit: '+unit.path);}
 files['astronotes-candidate-search.js']=patch(files['astronotes-candidate-search.js'],'/* BUILD_DATA_HASHES */{}',JSON.stringify(Object.fromEntries(Object.entries(files).filter(([n])=>n.startsWith('data/')).map(([n,s])=>[n.slice(5),createHash('sha256').update(s).digest('hex')]))));
 files['astronotes-candidate-search.js']+='\n// data-release '+createHash('sha256').update(Object.entries(files).filter(([name])=>name.startsWith('data/')).map(([,value])=>value).join('')).digest('hex')+'\n';
 if(process.argv.includes('--html')){
- let html=readFileSync(0,'utf8');
+ let html=externalAppsHtml(readFileSync(0,'utf8'));
  // Map presentation and place-sheet ownership live in the inline document,
  // outside the Explore asset entry. Apply these contracts to that product.
  html=patch(html,'$("placeSheet").addEventListener("close", () => {','$("placeSheet").addEventListener("close", () => {\n  if ($("placeSheet").open) return;');
@@ -53,6 +55,6 @@ if(process.argv.includes('--html')){
  const versioned=versionAssets(html,name=>Object.hasOwn(files,name)?files[name]:readFileSync(new URL('../'+name,import.meta.url)));
  files['index.html']=hashCsp(versioned.html).html;files['app-version.txt']=versioned.id+'\n';
  const digest=v=>createHash('sha256').update(v).digest('hex');
- files['candidate-experiment.json']=JSON.stringify({name:'2026-11-05 全対象・全選択天体の撮影候補探索trial',productionHtmlSha256:digest(readFileSync(new URL('../index.html',import.meta.url))),visibilityCertified:false,productionAssetsSha256:Object.fromEntries(['astronotes-align.js','astronotes-shooting.js','astronotes-myplaces.js'].map(n=>[n,digest(readFileSync(new URL('../'+n,import.meta.url)))])),files:Object.fromEntries(Object.entries(files).map(([n,s])=>[n,digest(s)]))},null,2)+'\n';
+ files['candidate-experiment.json']=JSON.stringify({name:'2026-11-05 全対象・全選択天体の撮影候補探索trial',productionHtmlSha256:digest(readFileSync(new URL('../index.html',import.meta.url))),visibilityCertified:false,productionAssetsSha256:Object.fromEntries(['astronotes-align.js','astronotes-shooting.js','astronotes-myplaces.js','astronotes-plan.js'].map(n=>[n,digest(readFileSync(new URL('../'+n,import.meta.url)))])),files:Object.fromEntries(Object.entries(files).map(([n,s])=>[n,digest(s)]))},null,2)+'\n';
 }
 process.stdout.write(JSON.stringify(files));
