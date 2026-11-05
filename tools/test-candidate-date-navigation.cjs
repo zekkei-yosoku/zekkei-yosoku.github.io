@@ -44,12 +44,12 @@ async function searchCancellation(p,{dayValue,initialAt,out,engine,width,theme})
  await p.evaluate(()=>dateFixture.holdNext=true);await action.click();await p.waitForFunction(()=>dateFixture.holds.length===2);await actionState(p,'searching','キャンセル');
  await p.evaluate(()=>dateFixture.holds.shift().release());await p.waitForTimeout(100);await actionState(p,'searching','キャンセル');
  assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().filter(r=>r.id!=='registered').length),0);assert.equal(await p.locator('.candidate-wait').count(),1);
- await p.evaluate(()=>dateFixture.holds.shift().release());await settled(p,dayValue,3);await actionState(p,'idle','もう一度確認');await sameAction();
+ await p.evaluate(()=>dateFixture.holds.shift().release());await settled(p,dayValue,3);await actionState(p,'idle','候補を探し直す');await sameAction();
  // A failed fresh query must expose the same retry action without losing the
  // selected day or leaving an unclickable cancel state.
  await p.evaluate(()=>dateFixture.failNext=true);await action.click();await p.waitForFunction(()=>document.querySelector('#additionalCandidateSearch [role=status]')?.textContent.includes('取得できませんでした'));
  await actionState(p,'idle','続きを探す');assert.equal(await p.locator('.candidate-wait').count(),0);assert.equal((await current(p)).input,dayValue);
- await action.click();await settled(p,dayValue,3);await actionState(p,'idle','もう一度確認');
+ await action.click();await settled(p,dayValue,3);await actionState(p,'idle','候補を探し直す');
  // A fresh recheck clears the search engine's completed session. Cancelling it
  // must still preserve the previously displayed result across appearance/return.
  const fullRow=await p.evaluate(()=>structuredClone(AstroNotesCandidatePicker.visibleRows().find(r=>r.placeKind==='park')));
@@ -58,7 +58,7 @@ async function searchCancellation(p,{dayValue,initialAt,out,engine,width,theme})
  await p.locator('#candidateUnifiedResults .list-item').filter({hasText:fullRow.place.name}).click();await appearance(p,fullRow);
  await p.evaluate(()=>dateFixture.holds.shift().release());const cancelledRecheckLoads=(await current(p)).loads;
  await p.evaluate(at=>SkyMapUI.setTime(at),initialAt);await open(p);await settled(p,dayValue,3);
- assert.equal((await current(p)).loads,cancelledRecheckLoads,'returning after a cancelled fresh recheck restores rows without IO');await actionState(p,'idle','もう一度確認');
+ assert.equal((await current(p)).loads,cancelledRecheckLoads,'returning after a cancelled fresh recheck restores rows without IO');await actionState(p,'idle','候補を探し直す');
  // This request mount is new, so compare subsequent toggles with its own node.
  await action.evaluate(node=>window.originalSearchAction=node);
  // Keep a completed provider page while its continuation is cancelled, then
@@ -75,7 +75,7 @@ async function searchCancellation(p,{dayValue,initialAt,out,engine,width,theme})
  // resumes. The old presentation must not reset the new action or publish rows.
  await p.evaluate(at=>{SkyMapUI.setTime(at);dateFixture.startDuringRestore=true;dateFixture.holdNext=true;},initialAt);await open(p);await p.waitForFunction(()=>dateFixture.holds.length===1);
  await actionState(p,'searching','キャンセル');await p.waitForTimeout(100);await actionState(p,'searching','キャンセル');assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().filter(r=>r.id!=='registered').length),0);
- await p.evaluate(()=>dateFixture.holds.shift().release());await settled(p,dayValue);await actionState(p,'idle','もう一度確認');
+ await p.evaluate(()=>dateFixture.holds.shift().release());await settled(p,dayValue);await actionState(p,'idle','候補を探し直す');
 }
 (async()=>{
  const results=[];

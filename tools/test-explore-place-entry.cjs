@@ -46,6 +46,7 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
     await page.waitForFunction(()=>!document.getElementById('placeSheet').open);
     const selected=await page.evaluate(()=>{const s=SkyMapUI.selectionState();return {name:s.observer.name,at:s.at,body:s.body,target:s.target.id};});
     assert.deepEqual(selected,{name:'記録した河川敷',at:initial.at,body:initial.body,target:initial.target});
+    assert.equal(await page.locator('#exploreShowResult').innerText(),'この地点の見え方を確認');
     assert(await page.locator('#skyMapObserverFav').isVisible());
     await page.locator('#skyMapObserverDetails > summary').click();
     await page.locator('#skyMapGroundHeight').fill('42');await page.locator('#skyMapGroundHeight').dispatchEvent('change');

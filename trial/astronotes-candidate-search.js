@@ -1714,10 +1714,10 @@ function mount(){
  const resultNotes=document.createElement('p');resultNotes.className='tiny';evidence.append(resultNotes);
  const credits=document.createElement('p');credits.className='tiny';for(const [label,url]of [['© OpenStreetMap contributors (ODbL)','https://www.openstreetmap.org/copyright'],['国土地理院 標高タイル','https://maps.gsi.go.jp/development/demtile.html'],['PLATEAU 利用条件','https://www.mlit.go.jp/plateau/site-policy/'],['町丁目：CODH/e-Stat（2020）','https://geoshape.ex.nii.ac.jp/ka/resource/']]){const a=document.createElement('a');a.textContent=label;a.href=url;a.target='_blank';a.rel='noopener';credits.append(a,' ');}evidence.append(credits);
  const visibleCredits=document.createElement('p');visibleCredits.className='tiny';visibleCredits.hidden=true;const osm=document.createElement('a');osm.href='https://www.openstreetmap.org/copyright';osm.textContent='© OpenStreetMap contributors';osm.target='_blank';osm.rel='noopener';visibleCredits.append(osm);
- section.append(button,status,visibleCredits,resultList,evidence);panel.append(section);syncWorkspaceSection(panel);
+ if(mainWorkspace())section.append(evidence,button,status,visibleCredits,resultList);else section.append(button,status,visibleCredits,resultList,evidence);panel.append(section);syncWorkspaceSection(panel);
  const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&AstroNotesCandidateComposition.timeRange(p);button.disabled=!valid;status.textContent=!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
  let continuation=false,hasRun=false,searching=false;
- function renderAction(){button.dataset.state=searching?'searching':'idle';button.textContent=searching?'キャンセル':continuation?'続きを探す':hasRun?'もう一度確認':main?'候補を探す':'ほかの候補地点を探す';button.disabled=!valid;resultList.setAttribute('aria-busy',String(searching));}
+ function renderAction(){button.dataset.state=searching?'searching':'idle';button.textContent=searching?'キャンセル':continuation?'続きを探す':hasRun?(main?'候補を探し直す':'もう一度確認'):main?'候補を探す':'ほかの候補地点を探す';button.disabled=!valid;resultList.setAttribute('aria-busy',String(searching));}
  renderAction();
  async function present(result,selected,node,token,{cancelled=false}={}){
    const labels=result.rows.length?await loadLabels():{};if(!current(token,selected,node))return;

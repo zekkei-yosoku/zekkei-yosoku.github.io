@@ -7,17 +7,14 @@ const candidateWorkspaceSource=searchFlowSource;
 export function explorePlaceSource(path,source){
  if(path.endsWith('/features/explore/layout.js')){
   source=patch(source,"fields.append(controls,observer,alignment);conditions.append(fields);",`
-  const searchFields=node('section',{className:'explore-search-fields'});searchFields.setAttribute('aria-labelledby','exploreSearchHeading');
-  searchFields.append(node('h2',{id:'exploreSearchHeading',className:'explore-section-title'},'撮影条件'));
-  const knownPlace=node('section',{className:'explore-known-place'});knownPlace.setAttribute('aria-labelledby','explorePlaceHeading');
-  knownPlace.append(node('h2',{id:'explorePlaceHeading',className:'explore-section-title'},'撮影地点'),node('p',{className:'tiny'},'住所や記録から地点を指定して確認できます。'),observer);
+  fields.setAttribute('role','group');fields.setAttribute('aria-labelledby','exploreSearchHeading');
+  fields.append(node('h2',{id:'exploreSearchHeading',className:'explore-section-title'},'撮影条件'));
   const placeActions=node('div',{className:'explore-place-actions'});
   const recorded=node('button',{id:'exploreRecordedPlace',type:'button',className:'chip'},'記録から選ぶ');recorded.onclick=deps.openRecordedPlace;
   const date=node('div',{id:'candidateWorkspaceDate'});date.append(node('span',{className:'tiny'},'日付'));
   placeActions.append(recorded);observer.querySelector('.place-row').after(placeActions);
-  searchFields.append(controls,date,alignment,node('div',{id:'candidateWorkspaceAction'}));
-  fields.append(searchFields,knownPlace);conditions.append(fields);`);
-  source=patch(source,'fields.append(confirm);','knownPlace.append(confirm);');
+  fields.append(controls,date,observer,alignment,node('div',{id:'candidateWorkspaceAction'}));
+  conditions.append(fields);`);
   source=patch(source,'if(!mounted)return;invalidate();mounted=false;','if(!mounted)return;invalidate();mounted=false;mapView.querySelectorAll(\'.explore-place-actions\').forEach(n=>n.remove());');
  }
  if(path.endsWith('/features/explore/controller.js')){
@@ -27,6 +24,7 @@ export function explorePlaceSource(path,source){
   source=patch(source,'else{layout.unmount();promote();}',"else{leaveSearchFlow();layout.unmount();promote();}");
   source=patch(source,"const confirm=$('exploreShowResult');",`const records=$('exploreRecordedPlace');if(records)records.hidden=!toolAllowed('records');
  syncWorkspace();const confirm=$('exploreShowResult');`);
+  source=patch(source,"confirm.textContent=!s?.target?'対象を選ぶ':!s?.observer?'撮影地点を選ぶ':'結果を確認';","confirm.textContent=!s?.target?'対象を選んで見え方を確認':!s?.observer?'撮影地点を指定して確認':'この地点の見え方を確認';");
   source=patch(source,"'.explore-show-result{",`'.explore-place-actions{display:grid;gap:8px;margin-top:8px}.explore-place-actions>button{min-height:44px}.explore-show-result{`);
   source=patch(source,"'.explore-tabs{scroll-margin-top:12px}",JSON.stringify(searchFlowStyle)+"+\n'.explore-tabs{scroll-margin-top:12px}");
   // Last in this controller's stylesheet so legacy card rules cannot override it.
