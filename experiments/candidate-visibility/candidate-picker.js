@@ -141,14 +141,14 @@ async function apply(){
  status.hidden=!merged.length;status.textContent=`${visibleEntries.length} / ${merged.length}件を表示`+(unknownTime?`。出入り時刻を確認できない${unknownTime}件は時間帯の絞り込みから除外しています。`:'')+(merged.length&&!labels.facilities?'。種類データを読み込めない地点は種類未確認です。':'');
  const toggle=control.querySelector('#candidateMapToggle');toggle.disabled=!visibleEntries.length||typeof ports.createMapView!=='function';
  if(mapMode){if(!visibleEntries.length)showMap(false);else refreshMap();}updateHeaders();
- if(suspendedView?.scope===scope&&visibleEntries.length&&(!suspendedView.selectedId||visibleEntries.some(e=>e.id===suspendedView.selectedId))){const saved=suspendedView;suspendedView=null;selectedId=saved.selectedId;if(saved.mapMode)showMap(true);else requestAnimationFrame(()=>{if(scope===saved.scope&&control?.isConnected){const scroller=control.closest('.sheet-body')||control.closest('[role=tabpanel]');if(scroller)scroller.scrollTop=saved.scrollTop;}});}
- return visibleEntries.map(e=>e.row);
+ if(suspendedView?.scope===scope&&visibleEntries.length&&(!suspendedView.selectedId||visibleEntries.some(e=>e.id===suspendedView.selectedId))){const saved=suspendedView;suspendedView=null;selectedId=saved.selectedId;if(saved.mapMode)showMap(true);else requestAnimationFrame(()=>{if(scope===saved.scope&&control?.isConnected){const scroller=ports.getScroller?.()||control.closest('.sheet-body')||control.closest('[role=tabpanel]');if(scroller)scroller.scrollTop=saved.scrollTop;}});}
+ ports.onRendered?.(visibleEntries.length);return visibleEntries.map(e=>e.row);
 }
 function unregister(box){const g=groups.get(box);if(g){for(const node of g.nodes)node.remove();groups.delete(box);}return apply();}
 function register(box,rows,plan,current){
  // Registered results can resolve before the adapter's animation-frame mount.
  // Establish the same scope first so that the later mount cannot discard them.
- const panel=box.closest('[role=tabpanel]');if(panel&&box.isConnected)mount(panel,plan);
+ const panel=box.closest('#recentCandidates')||box.closest('[role=tabpanel]');if(panel&&box.isConnected)mount(panel,plan);
  const previous=groups.get(box);if(previous)for(const node of previous.nodes)if(!box.contains(node))node.remove();
  groups.set(box,{rows,plan,current:typeof current==='function'?current:()=>true,nodes:[...box.children].filter(n=>n.tagName==='BUTTON'&&n.classList.contains('list-item'))});
  box.querySelector('[data-candidate-headers]')?.remove();return apply();
@@ -177,7 +177,7 @@ function ensureMap(){
 }
 function showMap(on){
  if(!control)return false;if(on&&(!visibleEntries.length||typeof ports.createMapView!=='function'))return false;
- const scrollHost=control.closest('[role=tabpanel]')||control.closest('dialog'),toggle=control.querySelector('#candidateMapToggle');
+ const scrollHost=ports.getScroller?.()||control.closest('[role=tabpanel]')||control.closest('dialog'),toggle=control.querySelector('#candidateMapToggle');
  if(on){mapScroll={node:scrollHost,top:scrollHost?.scrollTop||0};ensureMap();mapMode=true;mapPanel.hidden=false;list.hidden=true;control.querySelector('[data-candidate-headers]').hidden=true;toggle.textContent='一覧に戻る';toggle.setAttribute('aria-expanded','true');mapFitPending=true;refreshMap();mapPanel.scrollIntoView?.({block:'nearest'});}
  else{mapMode=false;if(mapPanel){mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);mapPanel.hidden=true;}if(list)list.hidden=false;control.querySelector('[data-candidate-headers]').hidden=false;toggle.textContent='地図で見る';toggle.setAttribute('aria-expanded','false');const saved=mapScroll,expected=scope;if(saved?.node)requestAnimationFrame(()=>{if(!mapMode&&scope===expected&&saved.node.isConnected)saved.node.scrollTop=saved.top;});}
  return true;
@@ -207,7 +207,7 @@ function drawMap(ctx,{project,width,height}){
 // Keep UI preferences and a valid return position, never old executable rows.
 function suspend(){
  if(!control?.isConnected)return;
- const scroller=control.closest('.sheet-body')||control.closest('[role=tabpanel]');
+ const scroller=ports.getScroller?.()||control.closest('.sheet-body')||control.closest('[role=tabpanel]');
  suspendedView={scope,selectedId,mapMode,scrollTop:scroller?.scrollTop||0};
  if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);
  revision++;for(const g of groups.values())for(const node of g.nodes)node.remove();groups.clear();visibleEntries=[];mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control.remove();

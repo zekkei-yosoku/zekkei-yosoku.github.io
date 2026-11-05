@@ -31,7 +31,7 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
      RecordSync.accepted([RecordSync.item('rec:obs:entry-record')]);MyPlacesUI.imported();
      window.placeEntryNodes=Object.fromEntries(['skyMapCalendarOpen','skyMapRange','skyMapTimeline','skyMapTime'].map(id=>[id,document.getElementById(id)]));
     });
-    await page.locator('#exploreFindCandidates').waitFor();
+    await page.locator('#candidateSearchAction').waitFor();
     const initial=await page.evaluate(()=>({at:SkyMapUI.selectionState().at,body:SkyMapUI.selectionState().body,target:SkyMapUI.selectionState().target.id,saved:JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()})}));
     assert(await page.locator('#exploreRecordedPlace').isVisible());assert(await page.locator('#exploreShowResult').isVisible());
     assert(await page.locator('#skyMapChoose').evaluate(n=>n.closest('.place-row').nextElementSibling.classList.contains('explore-place-actions')));
@@ -48,11 +48,11 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
     assert.deepEqual(selected,{name:'記録した河川敷',at:initial.at,body:initial.body,target:initial.target});
     for(let visit=0;visit<2;visit++){
      await page.evaluate(()=>navigationHistory.pushRoute('#/records'));await page.waitForFunction(()=>!document.getElementById('exploreFindCandidates'));
-     await page.evaluate(()=>navigationHistory.pushRoute('#/explore'));await page.locator('#exploreFindCandidates').waitFor();
-     assert.equal(await page.locator('#exploreFindCandidates').count(),1);assert.equal(await page.locator('#exploreRecordedPlace').count(),1);
+     await page.evaluate(()=>navigationHistory.pushRoute('#/explore'));await page.locator('#candidateSearchAction').waitFor();
+     assert.equal(await page.locator('#candidateSearchAction').count(),1);assert.equal(await page.locator('#exploreRecordedPlace').count(),1);
     }
-    await page.locator('#exploreFindCandidates').click();await page.locator('#recentCandidates').waitFor({state:'visible'});await page.locator('#candidateSearchAction').waitFor();
-    await page.locator('#placeSheet .page-back').click();await page.locator('#exploreShowResult').click();await page.locator('#aimLook').waitFor({state:'visible'});
+    assert(await page.locator('#exploreScenePanel').isHidden());
+    await page.locator('#exploreShowResult').click();await page.locator('#aimLook').waitFor({state:'visible'});
     assert(await page.evaluate(()=>Object.entries(placeEntryNodes).every(([id,n])=>n===document.getElementById(id))),'existing calendar/time nodes remain owned by the original UI');
     await page.locator('#skyMapCalendarOpen').click();const calendar=page.locator('dialog[open]').filter({has:page.locator('[data-year]')});
     const dayButton=calendar.locator('[data-cal-day]').nth(5),pickedDay=Number(await dayButton.getAttribute('data-cal-day'));
@@ -64,7 +64,7 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
     await page.mouse.move(timeline.x+timeline.width*.65,timeline.y+timeline.height*.5);await page.mouse.down();await page.mouse.move(timeline.x+timeline.width*.35,timeline.y+timeline.height*.5,{steps:12});await page.mouse.up();
     await page.waitForFunction(old=>SkyMapUI.selectionState().at!==old,oldAt);
     assert.equal(await page.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()})),initial.saved);
-    if(!await page.locator('#exploreConditions').evaluate(n=>n.open))await page.locator('#exploreConditions > summary').click();
+    await page.locator('#exploreBackToCandidates').click();
     await page.locator('#exploreRecordedPlace').click();
     const observerBefore=await page.evaluate(()=>JSON.stringify(SkyMapUI.selectionState().observer));
     await page.evaluate(()=>{const stale=document.querySelector('[data-recorded-place]').onclick;auth.tools=auth.tools.filter(t=>t!=='records');recentHistory.records();stale();});
@@ -74,7 +74,7 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
     await page.screenshot({path:out+'/'+engine+'-'+width+'-scene.png'});
     results.push({engine,width,addressInput:true,recordsOnly:true,selectionPreservesConditions:true,candidateShortcut:true,remountWithoutDuplicateActions:true,existingCalendarAndTimebar:true,calendarAndTimelineOperable:true,revokedPermissionRefusesStaleSelection:true,savedDataUnchanged:true,writes});
     fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(engine,width,'place entry passed');
-   }catch(e){await page.screenshot({path:out+'/'+engine+'-'+width+'-failure.png'}).catch(()=>{});console.error(await page.locator('dialog[open]').evaluateAll(ns=>ns.map(n=>({label:n.getAttribute('aria-label'),year:n.querySelector('[data-year]')?.value,month:n.querySelector('[data-month]')?.value}))).catch(()=>[]));throw e;}finally{await context.close();}
+   }catch(e){console.error('page errors',errors);await page.screenshot({path:out+'/'+engine+'-'+width+'-failure.png'}).catch(()=>{});console.error(await page.locator('dialog[open]').evaluateAll(ns=>ns.map(n=>({label:n.getAttribute('aria-label'),year:n.querySelector('[data-year]')?.value,month:n.querySelector('[data-month]')?.value}))).catch(()=>[]));throw e;}finally{await context.close();}
   }}finally{await browser.close();}
  }
 })().catch(e=>{console.error(e);process.exit(1);});

@@ -2,6 +2,7 @@
 import {readFileSync} from 'node:fs';
 import {externalAppsPlan,externalAppsHtml} from './build-external-apps-trial.mjs';
 import {explorePlaceSource,explorePlaceHtml} from './build-explore-place-entry.mjs';
+import {registeredMainSearch} from './build-explore-search-flow.mjs';
 import {renderIndex} from './build-index.mjs';
 import {versionAssets,hashCsp} from './release-html.mjs';
 import {createHash} from 'node:crypto';
@@ -9,7 +10,7 @@ const patch=(s,from,to)=>{if(!s.includes(from))throw Error('Trial source boundar
 const read=p=>{
  let s=explorePlaceSource(p,readFileSync(p,'utf8'));if(!p.endsWith('/features/explore/controller.js'))return s;
  s=patch(s,"(s?.target?' · '+alignment:'')","(s?.target?' · '+(s.candidateOpportunity?.at===s.at&&s.candidateOpportunity?.targetId===s.target?.id&&s.candidateOpportunity?.relation==='near'?'候補の時刻':globalThis.AstroNotesTrialComposition?.label?.(s)||alignment):'')");
- s=patch(s,"globalThis.TrialExplore={active,","document.addEventListener('astronotes-composition-change',updateConditions);\nglobalThis.TrialExplore={active,");
+ s=patch(s,"globalThis.TrialExplore={candidateWorkspace:","document.addEventListener('astronotes-composition-change',updateConditions);\nglobalThis.TrialExplore={candidateWorkspace:");
  s=patch(s," mode=next==='map'?'map':'scene';"," mode='scene';\n tabs.hidden=true;scene.setAttribute('aria-label','見え方');scene.removeAttribute('aria-labelledby');scene.tabIndex=-1;");
  s=patch(s,"if(on&&focus)tab.focus();","if(on&&focus)scene.focus({preventScroll:true});");
  s=patch(s,"const tab=mode==='map'?mapTab:sceneTab;tab.focus({preventScroll:true});tabs.style.scrollMarginTop=(layout.conditions.getBoundingClientRect().height+12)+'px';tabs.scrollIntoView({block:'start',behavior:'auto'});","scene.tabIndex=-1;scene.focus({preventScroll:true});scene.style.scrollMarginTop=(layout.conditions.getBoundingClientRect().height+12)+'px';scene.scrollIntoView({block:'start',behavior:'auto'});");
@@ -19,6 +20,7 @@ const result=renderIndex({entry:'src/features/explore/entry.inc',read});
 const trialShooting=patch(patch(readFileSync('astronotes-shooting.js','utf8'),'event:e,shapeType:s.type','event:e,assumedObserver:obs,shapeType:s.type'),'record:entry.record,event:e});','record:entry.record,event:e,assumedObserver:obs});');
 let trialMyplaces=patch(patch(patch(readFileSync('astronotes-myplaces.js','utf8'),'この日に重なる撮影地点はありません。日付や対象を変えるか、記録に撮影地点と見えた対象を追加してください。','登録した地点に候補がありません。日付や対象を変えてください。'),'${result.rows.length}件','${result.rows.length}件（絞り込み前）'),'box.append(button);}'+'\n  if(result.failed)', 'box.append(button);}'+'\n  globalThis.AstroNotesCandidatePicker?.registerRegisteredFromSession(box,result.rows,plan,current);\n  if(result.failed)');
 trialMyplaces=patch(trialMyplaces,'plan=AstroNotesShooting.conditions(state()),selectedShape','plan=globalThis.AstroNotesCandidatePicker?.registeredPlan?.(AstroNotesShooting.conditions(state()))||AstroNotesShooting.conditions(state()),selectedShape');
+trialMyplaces=registeredMainSearch(trialMyplaces);
 const trialAlign=patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge');
 const files={
  'astronotes-plan.js':externalAppsPlan(),
