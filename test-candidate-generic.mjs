@@ -191,3 +191,43 @@ test('cancellation while static preparation is pending cannot advance past an un
   release();assert((await old).cancelled);assert.deepEqual(engine.cached(plan).rows.map(r=>r.id),['page0']);
  }finally{C.inverseSeeds=original;}
 });
+
+test('rechecking the same request reloads places while preserving its completed cache until a new result, including zero rows, completes',async()=>{
+ const original=C.inverseSeeds;let inverses=0;C.inverseSeeds=async()=>{inverses++;return {seeds:[{latitude:35,longitude:139,radiusM:300,priority:0}],partial:true};};
+ try{
+  let loads=0,empty=false;const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async()=>({points:empty?(loads++,[]):[{...point,id:'generation-'+(++loads)}],coverage:{nextCursor:null}})},evaluate:async(p,q)=>({recommend:true,id:q.id,place:q,event:{at:0}})});
+  const first=await engine.search(plan);assert.equal(first.canContinue,false);assert.equal(first.rows[0].id,'generation-1');
+  assert.equal(engine.restart(plan),true);assert.deepEqual(engine.cached(plan).rows,first.rows);assert.equal(loads,1);
+  const second=await engine.search(plan);assert.equal(loads,2);assert.equal(inverses,1);assert.equal(second.requestKey,first.requestKey);assert.deepEqual(second.rows.map(r=>r.id),['generation-2']);assert.equal(second.counts.checked,1);assert.deepEqual(engine.cached(plan).rows,second.rows);
+  empty=true;assert.equal(engine.restart(plan),true);assert.deepEqual(engine.cached(plan).rows,second.rows);
+  const none=await engine.search(plan);assert.equal(loads,3);assert.deepEqual(none.rows,[]);assert.equal(none.canContinue,false);assert.deepEqual(engine.cached(plan).rows,[]);assert.equal(engine.cached(plan).counts.checked,0);
+ }finally{C.inverseSeeds=original;}
+});
+
+test('provider and evaluation failures during a recheck retain the last completed result and permit another recheck',async()=>{
+ const original=C.inverseSeeds;C.inverseSeeds=async()=>({seeds:[{latitude:35,longitude:139,radiusM:300,priority:0}],partial:true});
+ try{
+  let failure=null,loads=0;const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async()=>{loads++;if(failure==='provider')throw Error('provider offline');return {points:[{...point,id:'generation-'+loads}],coverage:{nextCursor:null}};}},evaluate:async(p,q)=>{if(failure==='evaluate')throw Error('evaluation unavailable');return {recommend:true,id:q.id,place:q,event:{at:0}};}});
+  const completed=await engine.search(plan);
+  for(const stage of ['provider','evaluate']){
+   failure=stage;assert.equal(engine.restart(plan),true);await assert.rejects(engine.search(plan),stage==='provider'?/provider offline/:/evaluation unavailable/);assert.deepEqual(engine.cached(plan).rows,completed.rows);assert.equal(engine.cached(plan).counts.checked,1);
+  }
+  failure=null;assert.equal(engine.restart(plan),true);const recovered=await engine.search(plan);assert.equal(loads,4);assert.deepEqual(recovered.rows.map(r=>r.id),['generation-4']);assert.deepEqual(engine.cached(plan).rows,recovered.rows);
+ }finally{C.inverseSeeds=original;}
+});
+
+test('an active recheck cannot restart, and a cancelled old recheck cannot release a newer job lock or overwrite its cache', {timeout:5000}, async()=>{
+ const original=C.inverseSeeds;C.inverseSeeds=async()=>({seeds:[{latitude:35,longitude:139,radiusM:300,priority:0}],partial:true});
+ const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};},oldEntered=deferred(),newEntered=deferred(),oldGate=deferred(),newGate=deferred();
+ try{
+  let loads=0;const engine=createGenericSearch({bodies,yieldTask:async()=>{},provider:{load:async()=>{const generation=++loads;if(generation===2){oldEntered.resolve();await oldGate.promise;}if(generation===3){newEntered.resolve();await newGate.promise;}return {points:[{...point,id:'generation-'+generation}],coverage:{nextCursor:null}};}},evaluate:async(p,q)=>({recommend:true,id:q.id,place:q,event:{at:0}})});
+  const completed=await engine.search(plan);assert.equal(engine.restart(plan),true);
+  const oldController=new AbortController(),old=engine.search(plan,{signal:oldController.signal});await oldEntered.promise;
+  assert.equal(engine.restart(plan),false);assert.equal((await engine.search(plan)).reason,'busy');assert.equal(loads,2);assert.deepEqual(engine.cached(plan).rows,completed.rows);
+  oldController.abort();assert.equal(engine.restart(plan),true);assert.deepEqual(engine.cached(plan).rows,completed.rows);
+  const replacement=engine.search(plan);await newEntered.promise;
+  oldGate.resolve();assert.equal((await old).cancelled,true);assert.deepEqual(engine.cached(plan).rows,completed.rows);
+  assert.equal(engine.restart(plan),false);assert.equal((await engine.search(plan)).reason,'busy');assert.equal(loads,3);
+  newGate.resolve();const result=await replacement;assert.deepEqual(result.rows.map(r=>r.id),['generation-3']);assert.equal(result.counts.checked,1);assert.deepEqual(engine.cached(plan).rows,result.rows);
+ }finally{oldGate.resolve();newGate.resolve();C.inverseSeeds=original;}
+});

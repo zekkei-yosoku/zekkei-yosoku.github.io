@@ -24,6 +24,10 @@ function regionsFor(seeds){
 }
 function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=()=>new Promise(r=>setTimeout(r,0))}={}){
  const sessions=new Map();
+ const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,counts:{checked:0,unknown:0,blocked:0,noOverlap:0,deferred:0},coverage:[],busy:false});
+ // Rechecking the same conditions replaces only working progress. The last
+ // complete result remains available when a recheck fails or is cancelled.
+ function restart(plan){const key=requestKey(plan),previous=sessions.get(key);if(previous?.busy&&previous.current?.()!==false)return false;if(previous)sessions.set(key,fresh(key,previous.inverse,previous.lastResult));return true;}
  async function search(plan,{onProgress=()=>{},isCurrent=()=>true,signal,more=false}={}){
   const key=requestKey(plan);let session=sessions.get(key);
   const wanted=()=>!signal?.aborted&&isCurrent();
@@ -41,7 +45,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
    onProgress({stage:'inverse',checked:0});
    const inverse=await Composition.inverseSeeds(plan,{bodies,isCurrent:wanted,yieldTask,...inverseOptions});
    if(!wanted())return {cancelled:true};
-   session={key,regions:regionsFor(inverse.seeds),inverse,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,counts:{checked:0,unknown:0,blocked:0,noOverlap:0,deferred:0},coverage:[],busy:false};
+   session=fresh(key,inverse);
    sessions.set(key,session);while(sessions.size>4)sessions.delete(sessions.keys().next().value);
   }
   if(!more&&session.started)return {...result(session),cached:true};
@@ -83,7 +87,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
   }finally{session.busy=false;}
  }
  function result(s){return {rows:s.rows.slice(),counts:{...s.counts},requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',canContinue:s.queue.length>0||s.cursor!==null,coverage:{regions:s.regions.length,loaded:s.coverage,pendingPoints:s.queue.length,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
- return {search,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
+ return {search,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
 }
 api.requestKey=requestKey;api.regionsFor=regionsFor;api.createGenericSearch=createGenericSearch;
 if(typeof module==='object'&&module.exports)module.exports={requestKey,regionsFor,createGenericSearch};

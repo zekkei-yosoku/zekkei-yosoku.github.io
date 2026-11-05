@@ -7,21 +7,24 @@ const out=process.env.CANDIDATE_DATE_OUT||'/tmp/astronotes-candidate-date';fs.mk
 const granted=['records','tower','diamond','pearl','skymap','multiscene'];
 function fixture(tools){
  sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-date-test',loginId:'date-test',tools}));
- window.dateFixture={loads:[],aborted:[],holds:[],holdNext:false,windowOffsetHours:1};let discovery;
+ window.dateFixture={loads:[],aborted:[],holds:[],holdNext:false,failNext:false,nextCursor:null,startDuringRestore:false,windowOffsetHours:1};let discovery;
  Object.defineProperty(window,'AstroNotesCandidateDiscovery',{configurable:true,get:()=>discovery,set:api=>{
   discovery=api;let factory;Object.defineProperty(api,'createGenericSearch',{configurable:true,get:()=>factory,set:original=>{factory=options=>{
    AstroNotesCandidateComposition.inverseSeeds=async plan=>({seeds:[{latitude:35.69,longitude:139.73,at:plan.at,radiusM:500}],partial:true});
    AstroNotesCandidateComposition.windowEvents=plan=>[{at:AstroNotesCandidateDiscovery.day(plan.at)+12*3600000,kind:'rise'}];
    const points=[{id:'park',placeKind:'park',latitude:35.6903,longitude:139.7304},{id:'road',placeKind:'road',latitude:35.6900,longitude:139.7300}].map(p=>({...p,surfaceId:p.id,standingSurfaceKnown:true}));
-   return original({...options,loadStatic:null,provider:{load:async(plan,options)=>{
-    const day=new Date(plan.at+32400000).toISOString().slice(0,10);dateFixture.lastPlan=structuredClone(plan);dateFixture.loads.push({day,at:plan.at,timeSpec:structuredClone(plan.timeSpec)});options.signal?.addEventListener('abort',()=>dateFixture.aborted.push(day),{once:true});
+   const engine=original({...options,loadStatic:null,provider:{load:async(plan,options)=>{
+    const day=new Date(plan.at+32400000).toISOString().slice(0,10),nextCursor=dateFixture.nextCursor;dateFixture.lastPlan=structuredClone(plan);dateFixture.loads.push({day,at:plan.at,cursor:options.cursor,timeSpec:structuredClone(plan.timeSpec)});options.signal?.addEventListener('abort',()=>dateFixture.aborted.push(day),{once:true});
+    if(dateFixture.failNext){dateFixture.failNext=false;throw Error('synthetic provider failure');}
     // Intentionally non-abortable IO proves that a late result cannot revive an old day.
     if(dateFixture.holdNext){dateFixture.holdNext=false;await new Promise(release=>dateFixture.holds.push({day,release}));}
-    return {points,coverage:{nextCursor:null}};
+    return {points,coverage:{nextCursor}};
    }},evaluate:async(plan,point)=>{
     const range=AstroNotesCandidateComposition.timeRange(plan),at=range.start===range.end?range.start:Math.min(range.end,range.start+(plan.timeSpec?.kind==='window'?dateFixture.windowOffsetHours:12)*3600000),day=new Date(at+32400000).toISOString().slice(0,10);
     return {id:day+'-'+point.id,requestKey:plan.requestKey,recommend:true,placeKind:point.placeKind,rank:point.id==='park'?1:0,quality:{photographyClass:'normal',visibility:'model-clear'},place:{name:day+(point.id==='park'?' 公園':' 歩道'),latitude:point.latitude,longitude:point.longitude,elevation:25,groundManualM:25,standAglM:4,decks:[]},assumedObserver:{latitude:point.latitude,longitude:point.longitude,elevation:25,eyeM:4},event:{at,partId:plan.partId,side:'rise',relation:point.id==='park'?'near':'exact'}};
    }});
+   const cached=engine.cached.bind(engine);engine.cached=plan=>{const result=cached(plan);if(result&&dateFixture.startDuringRestore){dateFixture.startDuringRestore=false;queueMicrotask(()=>document.getElementById('candidateSearchAction')?.click());}return result;};
+   return engine;
   };}});
  }});
 }
@@ -40,12 +43,65 @@ async function appearance(p,row){
  const state=await p.evaluate(()=>{const s=SkyMapUI.selectionState(),h=document.getElementById('aimLook');return {at:s.at,latitude:s.observer.latitude,longitude:s.observer.longitude,elevation:h._lookSpec.obs.elevation,eyeM:h._lookSpec.eyeM};});
  assert.deepEqual(state,{at:row.event.at,latitude:row.place.latitude,longitude:row.place.longitude,elevation:row.assumedObserver.elevation,eyeM:row.assumedObserver.eyeM});
 }
-async function settled(p,value,count=1){await p.waitForFunction(({value,count})=>{const rows=AstroNotesCandidatePicker.visibleRows();return rows.length===count&&rows.every(r=>new Date(r.event.at+32400000).toISOString().slice(0,10)===value)&&!document.querySelector('#additionalCandidateSearch > button')?.disabled;},{value,count});}
+async function settled(p,value,count=1){await p.waitForFunction(({value,count})=>{const rows=AstroNotesCandidatePicker.visibleRows(),button=document.getElementById('candidateSearchAction');return rows.length===count&&rows.every(r=>new Date(r.event.at+32400000).toISOString().slice(0,10)===value)&&button?.dataset.state==='idle'&&!button.disabled&&document.getElementById('additionalCandidateResults')?.getAttribute('aria-busy')==='false';},{value,count});}
+async function actionState(p,state,label){
+ const action=p.locator('#candidateSearchAction');await p.waitForFunction(state=>document.getElementById('candidateSearchAction')?.dataset.state===state,state);
+ assert.equal(await action.innerText(),label);assert(await action.isEnabled());assert.equal(await p.locator('#additionalCandidateSearch > button').count(),1);assert.equal(await p.locator('#additionalCandidateResults').getAttribute('aria-busy'),String(state==='searching'));
+}
+async function searchCancellation(p,{dayValue,initialAt,out,engine,width,theme}){
+ const action=p.locator('#candidateSearchAction');await action.scrollIntoViewIfNeeded();
+ const initial=await action.evaluate(node=>{window.originalSearchAction=node;const r=node.getBoundingClientRect();return {width:r.width,height:r.height};});
+ assert(initial.height>=44);await actionState(p,'idle','ほかの候補地点を探す');
+ await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-search-idle.png'});
+ const sameAction=async()=>{const actual=await action.evaluate(node=>{const r=node.getBoundingClientRect();return {same:node===window.originalSearchAction,width:r.width,height:r.height};});assert(actual.same);assert(Math.abs(actual.width-initial.width)<.1);assert(Math.abs(actual.height-initial.height)<.1);};
+ await p.evaluate(()=>dateFixture.holdNext=true);await action.focus();await action.press('Enter');await p.waitForFunction(()=>dateFixture.holds.length===1);
+ await actionState(p,'searching','キャンセル');await sameAction();assert.equal((await current(p)).focus,'candidateSearchAction');
+ await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-searching.png'});
+ const aborted=await p.evaluate(()=>dateFixture.aborted.length);await action.press('Enter');await actionState(p,'idle','続きを探す');await sameAction();
+ assert.equal(await p.evaluate(()=>dateFixture.aborted.length),aborted+1);assert.equal(await p.locator('.candidate-wait').count(),0);assert((await p.locator('#additionalCandidateSearch [role=status]').innerText()).includes('キャンセルしました'));
+ // Restart before non-abortable IO settles. Its late result and finally must
+ // leave the replacement's cancel action and waiting status untouched.
+ await p.evaluate(()=>dateFixture.holdNext=true);await action.click();await p.waitForFunction(()=>dateFixture.holds.length===2);await actionState(p,'searching','キャンセル');
+ await p.evaluate(()=>dateFixture.holds.shift().release());await p.waitForTimeout(100);await actionState(p,'searching','キャンセル');
+ assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().filter(r=>r.id!=='registered').length),0);assert.equal(await p.locator('.candidate-wait').count(),1);
+ await p.evaluate(()=>dateFixture.holds.shift().release());await settled(p,dayValue,3);await actionState(p,'idle','もう一度確認');await sameAction();
+ // A failed fresh query must expose the same retry action without losing the
+ // selected day or leaving an unclickable cancel state.
+ await p.evaluate(()=>dateFixture.failNext=true);await action.click();await p.waitForFunction(()=>document.querySelector('#additionalCandidateSearch [role=status]')?.textContent.includes('取得できませんでした'));
+ await actionState(p,'idle','続きを探す');assert.equal(await p.locator('.candidate-wait').count(),0);assert.equal((await current(p)).input,dayValue);
+ await action.click();await settled(p,dayValue,3);await actionState(p,'idle','もう一度確認');
+ // A fresh recheck clears the search engine's completed session. Cancelling it
+ // must still preserve the previously displayed result across appearance/return.
+ const fullRow=await p.evaluate(()=>structuredClone(AstroNotesCandidatePicker.visibleRows().find(r=>r.placeKind==='park')));
+ await p.evaluate(()=>dateFixture.holdNext=true);await action.click();await p.waitForFunction(()=>dateFixture.holds.length===1);await actionState(p,'searching','キャンセル');
+ await action.click();await actionState(p,'idle','続きを探す');await settled(p,dayValue,3);
+ await p.locator('#candidateUnifiedResults .list-item').filter({hasText:fullRow.place.name}).click();await appearance(p,fullRow);
+ await p.evaluate(()=>dateFixture.holds.shift().release());const cancelledRecheckLoads=(await current(p)).loads;
+ await p.evaluate(at=>SkyMapUI.setTime(at),initialAt);await open(p);await settled(p,dayValue,3);
+ assert.equal((await current(p)).loads,cancelledRecheckLoads,'returning after a cancelled fresh recheck restores rows without IO');await actionState(p,'idle','もう一度確認');
+ // This request mount is new, so compare subsequent toggles with its own node.
+ await action.evaluate(node=>window.originalSearchAction=node);
+ // Keep a completed provider page while its continuation is cancelled, then
+ // select a retained row without having to reopen or re-run the search.
+ await p.evaluate(()=>dateFixture.nextCursor=7);await action.click();await settled(p,dayValue,3);await actionState(p,'idle','続きを探す');
+ await p.locator('#candidateKindFilter').selectOption('park');await p.locator('#candidateTimeFilter').selectOption('rise');await p.locator('[data-candidate-sort=time]').click();await settled(p,dayValue);
+ const row=await p.evaluate(()=>structuredClone(AstroNotesCandidatePicker.visibleRows()[0]));
+ await p.evaluate(()=>{dateFixture.nextCursor=null;dateFixture.holdNext=true;});await action.click();await p.waitForFunction(()=>dateFixture.holds.length===1);assert.equal(await p.evaluate(()=>dateFixture.loads.at(-1).cursor),7);
+ await actionState(p,'searching','キャンセル');await action.click();await actionState(p,'idle','続きを探す');await settled(p,dayValue);await sameAction();
+ assert.equal(await p.locator('#candidateKindFilter').inputValue(),'park');assert.equal(await p.locator('#candidateTimeFilter').inputValue(),'rise');assert.equal(await p.locator('[data-candidate-sort=time]').getAttribute('aria-pressed'),'true');
+ await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-search-cancelled.png'});
+ await p.locator('#candidateUnifiedResults .list-item:not([hidden])').click();await appearance(p,row);await p.evaluate(()=>dateFixture.holds.shift().release());
+ // Start a new search in the exact microtask gap before cached presentation
+ // resumes. The old presentation must not reset the new action or publish rows.
+ await p.evaluate(at=>{SkyMapUI.setTime(at);dateFixture.startDuringRestore=true;dateFixture.holdNext=true;},initialAt);await open(p);await p.waitForFunction(()=>dateFixture.holds.length===1);
+ await actionState(p,'searching','キャンセル');await p.waitForTimeout(100);await actionState(p,'searching','キャンセル');assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().filter(r=>r.id!=='registered').length),0);
+ await p.evaluate(()=>dateFixture.holds.shift().release());await settled(p,dayValue);await actionState(p,'idle','もう一度確認');
+}
 (async()=>{
  const results=[];
  for(const [engine,type]of [['chrome',chromium],['webkit',webkit]].filter(([n])=>(process.env.CANDIDATE_DATE_ENGINES||'chrome,webkit').split(',').includes(n))){
   const browser=await type.launch(engine==='chrome'?{channel:'chrome',headless:true}:{headless:true});
-  try{for(const width of(process.env.CANDIDATE_DATE_WIDTHS||'320,390').split(',').map(Number)){
+  try{for(const width of(process.env.CANDIDATE_DATE_WIDTHS||'320,390,1280').split(',').map(Number)){
    const theme=engine==='chrome'?'light':'dark',context=await browser.newContext({viewport:{width,height:900},colorScheme:theme,locale:'ja-JP',timezoneId:width===390?'America/Los_Angeles':'Asia/Tokyo',reducedMotion:'reduce'});let writes=0;
    await context.addInitScript(fixture,granted);await context.route('**/*',r=>{const u=new URL(r.request().url());if(u.origin===new URL(base).origin)return r.continue();if(/zekkei-api|localhost:8787/.test(u.origin)){if(!['GET','OPTIONS'].includes(r.request().method()))writes++;return r.fulfill({json:{allowed:true,tool:'skymap',loginId:'date-test',tools:granted,favorites:[],sightings:[],records:[],rev:1}});}return r.abort();});
    const p=await context.newPage(),errors=[];p.on('pageerror',e=>{errors.push(e.message);console.error('PAGE ERROR',e.message);});p.setDefaultTimeout(15000);
@@ -60,7 +116,7 @@ async function settled(p,value,count=1){await p.waitForFunction(({value,count})=
     await setDate(p,'2026-11-05');await p.waitForTimeout(450);assert.equal((await current(p)).loads,0,'opening or changing days before first search does not fetch places');assert(await p.evaluate(()=>dateNodes.bar===document.getElementById('candidateDateNavigation')&&dateNodes.input===document.getElementById('candidateDate')&&dateNodes.next===document.getElementById('candidateNextDay')));
     const previous=await current(p);await p.locator('#candidateDate').click();const calendar=p.locator('#candidateDateCalendar');await calendar.getByRole('button',{name:'次の月',exact:true}).click();await calendar.getByRole('button',{name:'前の月',exact:true}).click();await p.keyboard.press('Escape');await calendar.waitFor({state:'hidden'});assert.equal((await current(p)).at,previous.at);assert.equal((await current(p)).input,'2026-11-05');assert.equal((await current(p)).open,true);assert.equal((await current(p)).focus,'candidateDate');
     await p.locator('#candidateDate').click();await calendar.getByRole('button',{name:'次の月',exact:true}).click();await calendar.getByRole('button',{name:'閉じる',exact:true}).click();assert.equal((await current(p)).at,previous.at);assert.equal((await current(p)).loads,0);
-    await p.locator('#additionalCandidateSearch > button').first().click();await settled(p,'2026-11-05',3);
+    await searchCancellation(p,{dayValue:'2026-11-05',initialAt:start.at,out,engine,width,theme});
     await p.locator('#candidateKindFilter').selectOption('park');await p.locator('#candidateTimeFilter').selectOption('rise');await p.locator('[data-candidate-sort=time]').click();await settled(p,'2026-11-05');
     await p.evaluate(()=>window.oldCandidateClick=document.querySelector('#candidateUnifiedResults .list-item:not([hidden])').onclick);
     const calls=(await current(p)).loads;await p.locator('#candidateNextDay').focus();await p.locator('#candidateNextDay').press('Enter');const changed=await current(p);await p.evaluate(()=>oldCandidateClick());assert.equal((await current(p)).at,changed.at);assert.equal((await current(p)).open,true);await settled(p,'2026-11-06');assert.equal((await current(p)).loads,calls+1);
@@ -101,7 +157,7 @@ async function settled(p,value,count=1){await p.waitForFunction(({value,count})=
     await open(p);await p.locator('#candidateNextDay').click();await p.waitForTimeout(450);assert.equal((await current(p)).loads,closeCount,'closing resets auto-search intent');
     await p.evaluate(()=>dateFixture.holdNext=true);await p.locator('#additionalCandidateSearch > button').first().click();await p.waitForFunction(()=>dateFixture.holds.length===1);await p.locator('#placeSheet .page-back').click();await p.evaluate(()=>dateFixture.holds.shift().release());await p.waitForTimeout(100);assert.equal(await p.locator('#candidateUnifiedResults').count(),0);assert.equal(await p.locator('#candidateDateNavigation').count(),0);
     await open(p);await p.locator('#candidateDate').click();await p.goBack();await p.waitForFunction(()=>!document.getElementById('placeSheet').open&&!document.getElementById('candidateDateCalendar').open);
-    assert.equal(await p.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()})),before);assert.equal(writes,0);assert.deepEqual(errors,[]);results.push({engine,width,theme,monthYearLeapBoundary:true,exactTimePreserved:true,instantWindowPreserved:true,overnightSearchRestored:true,debounced:true,staleAndBusyRefused:true,filterSortAndFocusPreserved:true,appearanceAndMapRestored:true,nestedCalendar:true,closeCancels:true,writes});fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(engine,width,'date navigation passed');
+    assert.equal(await p.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()})),before);assert.equal(writes,0);assert.deepEqual(errors,[]);results.push({engine,width,theme,singleSearchCancelAction:true,sameActionDimensions:true,cancelImmediateResume:true,lateResultAndFinallyRefused:true,failureRetry:true,cancelledRecheckRestored:true,cancelledRowsSelectable:true,cachedRestoreSearchRace:true,monthYearLeapBoundary:true,exactTimePreserved:true,instantWindowPreserved:true,overnightSearchRestored:true,debounced:true,staleAndBusyRefused:true,filterSortAndFocusPreserved:true,appearanceAndMapRestored:true,nestedCalendar:true,closeCancels:true,writes});fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(engine,width,'date navigation passed');
    }catch(e){await p.screenshot({path:out+'/'+engine+'-'+width+'-failure.png'}).catch(()=>{});console.error(engine,width,await p.evaluate(()=>{const s=SkyMapUI.selectionState(),plan=AstroNotesCandidatePicker.registeredPlan?.(s),old=dateFixture.lastPlan&&JSON.parse(AstroNotesCandidateDiscovery.requestKey(dateFixture.lastPlan)),fresh=plan&&JSON.parse(AstroNotesCandidateDiscovery.requestKey(plan));return {at:s?.at,input:document.getElementById('candidateDate')?.dataset.date,opportunity:s.candidateOpportunity,focus:document.activeElement?.id,status:document.querySelector('#additionalCandidateSearch [role=status]')?.textContent,loads:dateFixture.loads,keyDiff:old?.map((v,i)=>JSON.stringify(v)===JSON.stringify(fresh?.[i])?null:{index:i,old:v,fresh:fresh?.[i]}).filter(Boolean),rows:AstroNotesCandidatePicker.visibleRows().map(r=>({name:r.place.name,at:r.event.at}))};}).catch(()=>null));throw e;}finally{await context.close();}
   }}finally{await browser.close();}
  }

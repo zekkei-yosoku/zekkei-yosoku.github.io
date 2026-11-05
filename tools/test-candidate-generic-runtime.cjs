@@ -36,12 +36,12 @@ const state=p=>p.evaluate(()=>{const s=SkyMapUI.selectionState(),o=s.observer,ey
 const saved=p=>p.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()}));
 async function openCandidates(p){
  if(!await p.locator('#exploreConditions').evaluate(n=>n.open))await p.locator('#exploreConditions > summary').click();
- await p.locator('#skyMapChoose').click();await p.locator('#placeTab-candidates').click();await p.waitForFunction(()=>!!document.querySelector('#additionalCandidateSearch button:not([disabled])'));
+ await p.locator('#skyMapChoose').click();await p.locator('#placeTab-candidates').click();await p.waitForFunction(()=>{const button=document.getElementById('candidateSearchAction');return button?.dataset.state==='idle'&&!button.disabled;});
 }
 async function search(p,visibleCount=4){
- await p.locator('#additionalCandidateSearch > button').first().click();
+ await p.locator('#candidateSearchAction').click();
  await p.waitForFunction(()=>document.querySelector('#additionalCandidateSearch [role=status]')?.textContent.includes('4件の候補があります'));
- await p.waitForFunction(n=>AstroNotesCandidatePicker.visibleRows().length===n,visibleCount);
+ await p.waitForFunction(n=>AstroNotesCandidatePicker.visibleRows().length===n&&document.getElementById('candidateSearchAction')?.dataset.state==='idle'&&document.getElementById('additionalCandidateResults')?.getAttribute('aria-busy')==='false',visibleCount);
 }
 async function prepare(p,body){
  await p.evaluate(body=>{
@@ -115,9 +115,9 @@ async function assertSelected(p,row,before,body,target='custom'){
     await p.evaluate(()=>{const d=document.querySelector('#additionalCandidateSearch details');d.open=true;const mode=document.getElementById('candidateSearchMode');mode.value='instant';mode.onchange();});await search(p);
     const instant=await state(p);await p.evaluate(()=>{const click=document.querySelector('#candidateUnifiedResults .list-item').onclick;SkyMapUI.setTime(SkyMapUI.selectionState().at+60000);click();});
     assert.equal((await state(p)).at,instant.at+60000);assert.equal(await p.locator('#placeSheet').evaluate(n=>n.open),true,'old instant candidate refused');
-    await p.waitForFunction(()=>!document.querySelector('#additionalCandidateSearch button').disabled);await search(p);
+    await p.waitForFunction(()=>{const button=document.getElementById('candidateSearchAction');return button?.dataset.state==='idle'&&!button.disabled;});await search(p);
     const lensBefore=await state(p);await p.evaluate(()=>{const click=document.querySelector('#candidateUnifiedResults .list-item').onclick;aimLens.on=true;aimLens.mode='manual';aimLens.focal=(aimLens.focal||200)+100;click();document.dispatchEvent(new Event('astronotes-composition-change'));});assert.deepEqual(await state(p),lensBefore,'lens changed candidate refused');
-    await p.waitForFunction(()=>!document.querySelector('#additionalCandidateSearch button').disabled);await search(p);
+    await p.waitForFunction(()=>{const button=document.getElementById('candidateSearchAction');return button?.dataset.state==='idle'&&!button.disabled;});await search(p);
     const rangeBefore=await state(p);await p.evaluate(()=>{const click=document.querySelector('#candidateUnifiedResults .list-item').onclick,mode=document.getElementById('candidateSearchMode');mode.value='window';mode.onchange();click();});assert.deepEqual(await state(p),rangeBefore,'changed time range candidate refused');
     await search(p);await p.evaluate(()=>{const mode=document.getElementById('candidateSearchMode');mode.value='day';mode.onchange();});
     assert.equal(await saved(p),before);assert.equal(writes,0,'no API writes');assert.deepEqual(errors,[]);

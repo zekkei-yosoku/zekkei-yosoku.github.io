@@ -74,7 +74,7 @@ function changeCandidateDay(value){
  const previous=AstroNotesCandidateDiscovery.day(selected.at);if(start===previous)return true;
  const repeat=hasSearched,family=filterKey(selected);returnSearch=null;stop();run++;
  SkyMapUI.setTime(start+(selected.at-previous));mount();
- if(repeat)autoSearchTimer=setTimeout(()=>{autoSearchTimer=null;const latest=snapshot();if(!latest||filterKey(latest)!==family||AstroNotesCandidateDiscovery.day(latest.at)!==start||!document.getElementById('placeSheet')?.open||document.getElementById('recentCandidates')?.hidden)return;const button=document.querySelector('#additionalCandidateSearch > button');if(button&&!button.disabled)button.click();},350);
+ if(repeat)autoSearchTimer=setTimeout(()=>{autoSearchTimer=null;const latest=snapshot();if(!latest||filterKey(latest)!==family||AstroNotesCandidateDiscovery.day(latest.at)!==start||!document.getElementById('placeSheet')?.open||document.getElementById('recentCandidates')?.hidden)return;const button=document.querySelector('#additionalCandidateSearch > button');if(button&&!button.disabled&&button.dataset.state!=='searching')button.click();},350);
  return true;
 }
 function syncCandidateDate(control,p){
@@ -96,8 +96,7 @@ function mount(){
  stop();run++;section?.remove();condition=id;section=document.createElement('section');section.id='additionalCandidateSearch';section.setAttribute('aria-label','撮影候補地点の探索');
  const status=document.createElement('div');status.className='tiny';status.setAttribute('role','status');status.setAttribute('aria-live','polite');
  function setStatus(text,waiting=false){status.className=waiting?'note-wait candidate-wait':'tiny';status.replaceChildren();if(waiting){const c=document.createElement('span');c.className='note-wait-character';c.setAttribute('aria-hidden','true');const message=document.createElement('span');message.className='note-wait-message';message.textContent=text;status.append(c,message);}else status.textContent=text;}
- const button=document.createElement('button');button.type='button';button.className='fav-btn';button.textContent='ほかの候補地点を探す';
- const cancel=document.createElement('button');cancel.type='button';cancel.className='fav-btn';cancel.textContent='探索を中止';cancel.hidden=true;
+ const button=document.createElement('button');button.type='button';button.className='fav-btn';button.id='candidateSearchAction';button.setAttribute('aria-controls','additionalCandidateResults');
  const resultList=document.createElement('div');resultList.id='additionalCandidateResults';
  const evidence=document.createElement('details');evidence.className='aim-disclosure';const summary=document.createElement('summary');summary.textContent='候補の条件・注意点・出典';evidence.append(summary);
  const description=document.createElement('p');description.className='tiny';description.textContent=(p?.extraTargets?.length?'複数対象では先頭の対象を主に探します。ほかの対象は見え方で一緒に確認できます。 ':'')+'選択した天体と登録対象の位置・高さから撮影する地域を逆算し、展望台・公園・広場・河川敷を優先して探します。建物は近くを通る構図も含みます。見え方で確認できます。';evidence.append(description);
@@ -107,32 +106,35 @@ function mount(){
  const resultNotes=document.createElement('p');resultNotes.className='tiny';evidence.append(resultNotes);
  const credits=document.createElement('p');credits.className='tiny';for(const [label,url]of [['© OpenStreetMap contributors (ODbL)','https://www.openstreetmap.org/copyright'],['国土地理院 標高タイル','https://maps.gsi.go.jp/development/demtile.html'],['PLATEAU 利用条件','https://www.mlit.go.jp/plateau/site-policy/'],['町丁目：CODH/e-Stat（2020）','https://geoshape.ex.nii.ac.jp/ka/resource/']]){const a=document.createElement('a');a.textContent=label;a.href=url;a.target='_blank';a.rel='noopener';credits.append(a,' ');}evidence.append(credits);
  const visibleCredits=document.createElement('p');visibleCredits.className='tiny';visibleCredits.hidden=true;const osm=document.createElement('a');osm.href='https://www.openstreetmap.org/copyright';osm.textContent='© OpenStreetMap contributors';osm.target='_blank';osm.rel='noopener';visibleCredits.append(osm);
- section.append(button,cancel,status,visibleCredits,resultList,evidence);panel.append(section);
+ section.append(button,status,visibleCredits,resultList,evidence);panel.append(section);
  const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&AstroNotesCandidateComposition.timeRange(p);button.disabled=!valid;status.textContent=!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
- let continuation=false,hasRun=false;
- cancel.onclick=()=>{stop();run++;hasSearched=false;continuation=true;button.disabled=false;cancel.hidden=true;resultList.setAttribute('aria-busy','false');setStatus('探索を中止しました。続きはもう一度探索できます。');};
- async function present(result,selected,node,token){
+ let continuation=false,hasRun=false,searching=false;
+ function renderAction(){button.dataset.state=searching?'searching':'idle';button.textContent=searching?'キャンセル':continuation?'続きを探す':hasRun?'もう一度確認':'ほかの候補地点を探す';button.disabled=!valid;resultList.setAttribute('aria-busy',String(searching));}
+ renderAction();
+ async function present(result,selected,node,token,{cancelled=false}={}){
    const labels=result.rows.length?await loadLabels():{};if(!current(token,selected,node))return;
    AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();const rows=[];
    for(const raw of result.rows){const row=AstroNotesCandidateLabels.enrich(raw,labels);if(raw.place.name&&!/^(?:撮影候補|モデル候補)/.test(raw.place.name))row.place.name=raw.place.name;rows.push(row);const item=document.createElement('button');item.type='button';item.className='list-item';item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;item.dataset.candidateId=row.id;item.textContent=row.place.name;
     item.onclick=()=>{if(!current(token,selected,node)||row.requestKey!==key(snapshot()))return;const event={...row.event};delete event.matchMode;const candidate={...row,event};if(SkyMapUI.selectCandidate(candidate,context(SkyMapUI.selectionState()))){returnSearch=selected.timeSpec?.kind==='window'&&AstroNotesCandidateDiscovery.day(row.event.at)!==AstroNotesCandidateDiscovery.day(selected.at)?{plan:selected,key:key(selected),rowId:row.id,viewAt:row.event.at}:null;sheet.close();}};resultList.append(item);
    }
    AstroNotesCandidatePicker.registerAdditional(resultList,rows,selected,()=>current(token,selected,node));
-   continuation=!!result.canContinue;button.textContent=continuation?'続きを探す':'もう一度確認';visibleCredits.hidden=!rows.length;
+   continuation=cancelled||!!result.canContinue;renderAction();visibleCredits.hidden=!rows.length;
    const unknown=rows.filter(r=>r.quality?.visibility!=='model-clear').length,unknownFrame=rows.some(r=>r.frame?.status==='unknown');
-   setStatus(rows.length?`${rows.length}件の候補があります。${unknown?'見通し未確認の候補を含みます。':''}${unknownFrame?'全体の画角を確認できない候補を含みます。':''}${continuation?'続きの地域・地点も探せます。':''}`:continuation?'今回確認した範囲では候補がありません。続きを探せます。':'今回確認した範囲では候補がありません。未取得・未判定の範囲があります。');
+   setStatus(cancelled?'探索をキャンセルしました。続きから探せます。':rows.length?`${rows.length}件の候補があります。${unknown?'見通し未確認の候補を含みます。':''}${unknownFrame?'全体の画角を確認できない候補を含みます。':''}${continuation?'続きの地域・地点も探せます。':''}`:continuation?'今回確認した範囲では候補がありません。続きを探せます。':'今回確認した範囲では候補がありません。未取得・未判定の範囲があります。');
    resultNotes.textContent=`${result.counts.checked}地点を確認。${result.counts.blocked}地点は遮蔽、${result.counts.unknown}地点は高さ等を確認できませんでした。探索地域 ${result.coverage.regions}区画。全地域・全時刻の網羅や実写成功は保証していません。`;
  }
  button.onclick=async()=>{
   const selected=snapshot();if(!selected)return;if(condition!==key(selected)){mount();return;}
-  if(hasRun&&!continuation)engine.clear();hasRun=true;hasSearched=true;const node=section,token=++run;stop();controller=new AbortController();const signal=controller.signal;live.resetBudget();evaluationBudgetStarted=false;watch=setInterval(()=>{if(!current(token,selected,node)){stop();mount();}},250);
-  button.disabled=true;cancel.hidden=false;resultList.setAttribute('aria-busy','true');setStatus('撮影できる地域を計算しています…',true);
+  if(!button.isConnected||!sheet.open||panel.hidden)return;
+  if(searching){stop();const token=++run;hasSearched=false;continuation=true;searching=false;renderAction();setStatus('探索をキャンセルしました。続きから探せます。');const completed=engine.cached(selected);if(completed)present(completed,selected,section,token,{cancelled:true}).catch(()=>{});return;}
+  if(hasRun&&!continuation&&!engine.restart(selected))return;hasRun=true;hasSearched=true;const node=section,token=++run;stop();controller=new AbortController();const signal=controller.signal;live.resetBudget();evaluationBudgetStarted=false;watch=setInterval(()=>{if(!current(token,selected,node)){stop();mount();}},250);
+  searching=true;renderAction();setStatus('撮影できる地域を計算しています…',true);
   try{
    const result=await engine.search(selected,{more:continuation,signal,isCurrent:()=>current(token,selected,node),onProgress:counts=>{if(!current(token,selected,node))return;const message=status.querySelector('.note-wait-message');if(message)message.textContent=counts.stage==='inverse'?'撮影できる地域を計算しています…':counts.stage==='evaluate'?'構図と見通しを確認しています… '+(counts.checked||0)+'地点':'撮影場所の情報を取得しています…';}});
    if(!current(token,selected,node))return;if(result.cancelled){setStatus('候補の確認をやり直してください。');return;}
    await present(result,selected,node,token);
-  }catch(e){if(current(token,selected,node)){setStatus(e.message==='candidate-cancelled'?'探索を中止しました。':'候補の情報を取得できませんでした。もう一度お試しください。');continuation=true;}}
-  finally{if(token===run){stop();if(current(token,selected,node)){button.disabled=false;cancel.hidden=true;resultList.setAttribute('aria-busy','false');}else mount();}}
+  }catch(e){if(current(token,selected,node)){setStatus(e.message==='candidate-cancelled'?'探索をキャンセルしました。':'候補の情報を取得できませんでした。もう一度お試しください。');continuation=true;}}
+  finally{if(token===run){stop();if(current(token,selected,node)){searching=false;renderAction();}else mount();}}
  };
  const cached=p&&engine.cached(p);if(cached){hasRun=true;hasSearched=true;const token=++run;present(cached,p,section,token).catch(()=>{});}
 }

@@ -22,13 +22,13 @@ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42
    await p.locator('#exploreConditions').waitFor();assert(await p.locator('#exploreTabs').isHidden());assert(await p.locator('#exploreScenePanel').isVisible());assert(await p.locator('#exploreMapPanel').isHidden());
    const stateBefore=await p.evaluate(()=>JSON.stringify({favorites,observations:MyPlacesUI.load(),schedule:schedule().list()}));
    await p.locator('#skyMapChoose').click();await p.locator('#placeTab-candidates').click();await p.locator('#additionalCandidateSearch').waitFor();
-   const button=p.getByRole('button',{name:'ほかの候補地点を探す',exact:true});
+   const button=p.locator('#candidateSearchAction');
    assert.equal(loads,0,'no extra search merely opening picker');
    await p.locator('#placeSheet .page-back').click();await p.evaluate(()=>SkyMapUI.setTarget('tokyotower'));await p.locator('#skyMapChoose').click();await p.locator('#placeTab-candidates').click();await p.waitForFunction(()=>document.querySelector('#additionalCandidateSearch button')?.disabled&&document.querySelector('#additionalCandidateSearch [role=status]')?.textContent.includes('東京スカイツリー'));assert.equal(loads,0);await p.locator('#placeSheet .page-back').click();await p.evaluate(()=>SkyMapUI.setTarget('skytree'));await p.locator('#skyMapChoose').click();await p.locator('#placeTab-candidates').click();await p.waitForFunction(()=>!document.querySelector('#additionalCandidateSearch button')?.disabled);
 
    if(process.env.CANDIDATE_TRIAL_RACES==='1'){
     await button.click();await p.waitForFunction(()=>document.querySelector('#additionalCandidateSearch [role=status]')?.textContent.includes('25地点'));
-    console.log(name,'race first progress');await p.getByRole('button',{name:'探索を中止',exact:true}).click();assert((await p.locator('#additionalCandidateSearch [role=status]').innerText()).includes('中止しました'));
+    console.log(name,'race first progress');await p.getByRole('button',{name:'キャンセル',exact:true}).click();assert((await p.locator('#additionalCandidateSearch [role=status]').innerText()).includes('キャンセルしました'));
     await button.click();await p.waitForFunction(()=>document.querySelector('#additionalCandidateSearch [role=status]')?.textContent.includes('25地点'));
     console.log(name,'race second progress');await p.evaluate(()=>SkyMapUI.setTime(Date.parse('2026-11-04T12:00:00+09:00')));
     await p.waitForFunction(()=>!document.querySelector('#additionalCandidateSearch button').disabled&&document.querySelector('#additionalCandidateSearch [role=status]').textContent==='');
