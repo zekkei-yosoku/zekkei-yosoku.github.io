@@ -1682,13 +1682,19 @@ function syncCandidateDate(control,p){
 
   dateNavigation.append(prev,input,next);
  }
- if(dateNavigation.parentNode!==control)control.prepend(dateNavigation);
+ const parent=document.getElementById('placeSheet')?.dataset.candidateWorkspace==='1'?document.getElementById('candidateWorkspaceDate')||control:control;
+ if(dateNavigation.parentNode!==parent){if(parent===control)parent.prepend(dateNavigation);else parent.append(dateNavigation);}
  const input=dateNavigation.querySelector('#candidateDate');input.dataset.date=dateValue(p.at);ToolDateTimeBar.dateText(input,p.at);
+}
+function syncWorkspaceSection(panel){
+ if(!section?.isConnected)return;
+ const dedicated=document.getElementById('placeSheet')?.dataset.candidateWorkspace==='1',parent=dedicated?document.getElementById('candidateWorkspaceAction'):panel;
+ if(parent&&section.parentNode!==parent)parent.append(section);
 }
 function mount(){
  syncObserverMap();const panel=document.getElementById('recentCandidates'),sheet=document.getElementById('placeSheet');
  if(!panel||!sheet?.open||panel.hidden||typeof placeSheetFor==='undefined'||placeSheetFor!=='skymap'){if(section){stop();run++;hasSearched=false;AstroNotesCandidatePicker.suspend?.();if(dateCalendar?.open)dateCalendar.close();section.remove();section=null;condition='';}return;}
- const p=snapshot(),id=key(p);if(p)syncCandidateDate(AstroNotesCandidatePicker.mount(panel,p),p);if(section?.isConnected&&condition===id)return;
+ const p=snapshot(),id=key(p);if(p)syncCandidateDate(AstroNotesCandidatePicker.mount(panel,p),p);if(section?.isConnected&&condition===id){syncWorkspaceSection(panel);return;}
  stop();run++;section?.remove();condition=id;section=document.createElement('section');section.id='additionalCandidateSearch';section.setAttribute('aria-label','撮影候補地点の探索');
  const status=document.createElement('div');status.className='tiny';status.setAttribute('role','status');status.setAttribute('aria-live','polite');
  function setStatus(text,waiting=false){status.className=waiting?'note-wait candidate-wait':'tiny';status.replaceChildren();if(waiting){const c=document.createElement('span');c.className='note-wait-character';c.setAttribute('aria-hidden','true');const message=document.createElement('span');message.className='note-wait-message';message.textContent=text;status.append(c,message);}else status.textContent=text;}
@@ -1702,10 +1708,10 @@ function mount(){
  const resultNotes=document.createElement('p');resultNotes.className='tiny';evidence.append(resultNotes);
  const credits=document.createElement('p');credits.className='tiny';for(const [label,url]of [['© OpenStreetMap contributors (ODbL)','https://www.openstreetmap.org/copyright'],['国土地理院 標高タイル','https://maps.gsi.go.jp/development/demtile.html'],['PLATEAU 利用条件','https://www.mlit.go.jp/plateau/site-policy/'],['町丁目：CODH/e-Stat（2020）','https://geoshape.ex.nii.ac.jp/ka/resource/']]){const a=document.createElement('a');a.textContent=label;a.href=url;a.target='_blank';a.rel='noopener';credits.append(a,' ');}evidence.append(credits);
  const visibleCredits=document.createElement('p');visibleCredits.className='tiny';visibleCredits.hidden=true;const osm=document.createElement('a');osm.href='https://www.openstreetmap.org/copyright';osm.textContent='© OpenStreetMap contributors';osm.target='_blank';osm.rel='noopener';visibleCredits.append(osm);
- section.append(button,status,visibleCredits,resultList,evidence);panel.append(section);
+ section.append(button,status,visibleCredits,resultList,evidence);panel.append(section);syncWorkspaceSection(panel);
  const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&AstroNotesCandidateComposition.timeRange(p);button.disabled=!valid;status.textContent=!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
  let continuation=false,hasRun=false,searching=false;
- function renderAction(){button.dataset.state=searching?'searching':'idle';button.textContent=searching?'キャンセル':continuation?'続きを探す':hasRun?'もう一度確認':'ほかの候補地点を探す';button.disabled=!valid;resultList.setAttribute('aria-busy',String(searching));}
+ function renderAction(){button.dataset.state=searching?'searching':'idle';button.textContent=searching?'キャンセル':continuation?'続きを探す':hasRun?'もう一度確認':sheet.dataset.candidateWorkspace==='1'?'候補を探す':'ほかの候補地点を探す';button.disabled=!valid;resultList.setAttribute('aria-busy',String(searching));}
  renderAction();
  async function present(result,selected,node,token,{cancelled=false}={}){
    const labels=result.rows.length?await loadLabels():{};if(!current(token,selected,node))return;
