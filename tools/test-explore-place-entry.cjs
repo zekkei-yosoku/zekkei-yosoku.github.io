@@ -46,8 +46,17 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
     await page.waitForFunction(()=>!document.getElementById('placeSheet').open);
     const selected=await page.evaluate(()=>{const s=SkyMapUI.selectionState();return {name:s.observer.name,at:s.at,body:s.body,target:s.target.id};});
     assert.deepEqual(selected,{name:'記録した河川敷',at:initial.at,body:initial.body,target:initial.target});
+    assert(await page.locator('#skyMapObserverFav').isVisible());
+    await page.locator('#skyMapObserverDetails > summary').click();
+    await page.locator('#skyMapGroundHeight').fill('42');await page.locator('#skyMapGroundHeight').dispatchEvent('change');
+    await page.locator('#skyMapStandHeight').fill('4');await page.locator('#skyMapStandHeight').dispatchEvent('change');
+    assert.deepEqual(await page.evaluate(()=>{const o=SkyMapUI.selectionState().observer;return [o.groundManualM,o.standAglM];}),[42,4]);
+    await page.locator('#skyMapGroundAuto').click();await page.locator('#skyMapStandAuto').click();
+    assert.deepEqual(await page.evaluate(()=>{const o=SkyMapUI.selectionState().observer;return [o.groundManualM,o.standAglM];}),[null,null]);
+    await page.locator('#skyMapObserverDetails > summary').click();
+    await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:out+'/'+engine+'-'+width+'-search.png',fullPage:true});
     for(let visit=0;visit<2;visit++){
-     await page.evaluate(()=>navigationHistory.pushRoute('#/records'));await page.waitForFunction(()=>!document.getElementById('exploreFindCandidates'));
+     await page.evaluate(()=>navigationHistory.pushRoute('#/records'));await page.waitForFunction(()=>!document.getElementById('candidateSearchAction'));
      await page.evaluate(()=>navigationHistory.pushRoute('#/explore'));await page.locator('#candidateSearchAction').waitFor();
      assert.equal(await page.locator('#candidateSearchAction').count(),1);assert.equal(await page.locator('#exploreRecordedPlace').count(),1);
     }
