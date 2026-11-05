@@ -1,12 +1,13 @@
 // Derive a trial-only Explore from the same source; production bytes are untouched.
 import {readFileSync} from 'node:fs';
 import {externalAppsPlan,externalAppsHtml} from './build-external-apps-trial.mjs';
+import {explorePlaceSource,explorePlaceHtml} from './build-explore-place-entry.mjs';
 import {renderIndex} from './build-index.mjs';
 import {versionAssets,hashCsp} from './release-html.mjs';
 import {createHash} from 'node:crypto';
 const patch=(s,from,to)=>{if(!s.includes(from))throw Error('Trial source boundary changed: '+from);return s.replace(from,to);};
 const read=p=>{
- let s=readFileSync(p,'utf8');if(!p.endsWith('/features/explore/controller.js'))return s;
+ let s=explorePlaceSource(p,readFileSync(p,'utf8'));if(!p.endsWith('/features/explore/controller.js'))return s;
  s=patch(s,"(s?.target?' · '+alignment:'')","(s?.target?' · '+(s.candidateOpportunity?.at===s.at&&s.candidateOpportunity?.targetId===s.target?.id&&s.candidateOpportunity?.relation==='near'?'候補の時刻':globalThis.AstroNotesTrialComposition?.label?.(s)||alignment):'')");
  s=patch(s,"globalThis.TrialExplore={active,","document.addEventListener('astronotes-composition-change',updateConditions);\nglobalThis.TrialExplore={active,");
  s=patch(s," mode=next==='map'?'map':'scene';"," mode='scene';\n tabs.hidden=true;scene.setAttribute('aria-label','見え方');scene.removeAttribute('aria-labelledby');scene.tabIndex=-1;");
@@ -41,7 +42,7 @@ for(const unit of trialArchitecture.units){const source=readFileSync(unit.path,'
 files['astronotes-candidate-search.js']=patch(files['astronotes-candidate-search.js'],'/* BUILD_DATA_HASHES */{}',JSON.stringify(Object.fromEntries(Object.entries(files).filter(([n])=>n.startsWith('data/')).map(([n,s])=>[n.slice(5),createHash('sha256').update(s).digest('hex')]))));
 files['astronotes-candidate-search.js']+='\n// data-release '+createHash('sha256').update(Object.entries(files).filter(([name])=>name.startsWith('data/')).map(([,value])=>value).join('')).digest('hex')+'\n';
 if(process.argv.includes('--html')){
- let html=externalAppsHtml(readFileSync(0,'utf8'));
+ let html=explorePlaceHtml(externalAppsHtml(readFileSync(0,'utf8')));
  // Map presentation and place-sheet ownership live in the inline document,
  // outside the Explore asset entry. Apply these contracts to that product.
  html=patch(html,'$("placeSheet").addEventListener("close", () => {','$("placeSheet").addEventListener("close", () => {\n  if ($("placeSheet").open) return;');

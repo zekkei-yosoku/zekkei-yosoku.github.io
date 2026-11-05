@@ -64,6 +64,9 @@ function create(deps){
   // Wait for the native summary action to expand the fields before returning to them.
   summary.addEventListener('click',()=>requestAnimationFrame(()=>{if(mounted&&conditions?.open)mapView.scrollIntoView({block:'start',behavior:'auto'});}));
   const controls=mapView.querySelector('.sky-map-controls'),observer=$('skyMapChoose').closest('.aim-say-from'),alignment=$('skyMapAlignmentDetails');conditionHomes=[controls,observer,alignment].map(n=>({n,parent:n.parentNode,next:n.nextSibling}));controls.before(conditions);const fields=node('div',{className:'explore-condition-fields'});fields.append(controls,observer,alignment);conditions.append(fields);
+  const placeActions=node('div',{className:'explore-place-actions'});
+  for(const [id,label,action] of [['exploreRecordedPlace','記録から選ぶ',deps.openRecordedPlace],['exploreFindCandidates','候補を探す',deps.openCandidates]]){const button=node('button',{id,type:'button',className:'chip'},label);button.onclick=action;placeActions.append(button);}
+  observer.querySelector('.place-row').after(placeActions);
   const confirm=node('button',{id:'exploreShowResult',type:'button',className:'chip explore-show-result'},'結果を確認');confirm.onclick=showResult;fields.append(confirm);conditions.addEventListener('toggle',()=>{summary.querySelector('.explore-condition-edit').textContent=conditions.open?'条件を閉じる':'条件を編集';});
   $('skyMapDates').addEventListener('click',candidateChosen);
   aimHome={parent:aimView.parentNode,next:aimView.nextSibling};
@@ -78,7 +81,7 @@ function create(deps){
   $('skyMapTitle').textContent='探す';addSaveAction($('skyMapShareRow'),'skymap');updateConditions();choose(getMode());
  }
  function unmount(){
-  if(!mounted)return;invalidate();mounted=false;placePins();$('skyMapObserverDetails').open=heightWasOpen;for(const value of heightFields.querySelectorAll('.explore-height-value')){for(const child of [...value.children])value.before(child);value.remove();}for(const row of [...heightFields.children])heightFields.before(row);heightFields.remove();heightFields=null;scene.style.minHeight='';scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');
+  if(!mounted)return;invalidate();mounted=false;mapView.querySelectorAll('.explore-place-actions').forEach(n=>n.remove());placePins();$('skyMapObserverDetails').open=heightWasOpen;for(const value of heightFields.querySelectorAll('.explore-height-value')){for(const child of [...value.children])value.before(child);value.remove();}for(const row of [...heightFields.children])heightFields.before(row);heightFields.remove();heightFields=null;scene.style.minHeight='';scene.removeAttribute('data-loading');scene.removeAttribute('aria-busy');
   for(const h of [...conditionHomes].reverse())h.parent.insertBefore(h.n,h.next?.parentNode===h.parent?h.next:null);conditions.remove();conditions=null;conditionHomes=[];mapView.querySelectorAll('.explore-save').forEach(b=>b.remove());
   $('skyMapDates').removeEventListener('click',candidateChosen);
   for(const h of [...mapHomes].reverse())h.parent.insertBefore(h.n,h.next?.parentNode===h.parent?h.next:null);
@@ -128,6 +131,8 @@ function conditionText(s){
 function updateConditions(){
  if(!layout.mounted||!layout.conditions)return;const s=SkyMapUI.selectionState(),text=conditionText(s);
  for(const [id,value] of [['exploreConditionTitle',text.title],['exploreConditionDetail',text.detail]])if($(id).textContent!==value)$(id).textContent=value;
+ const records=$('exploreRecordedPlace');if(records)records.hidden=!toolAllowed('records');
+ const candidates=$('exploreFindCandidates');if(candidates)candidates.disabled=!s?.target;
  const confirm=$('exploreShowResult');confirm.disabled=false;confirm.textContent=!s?.target?'対象を選ぶ':!s?.observer?'撮影地点を選ぶ':'結果を確認';
  for(const b of mapView.querySelectorAll('[data-quick-save]')){b.hidden=false;b.disabled=b.dataset.planSource==='skymap'?!!$('skyMapShareRow').querySelector('[data-plan-action="share"]')?.disabled:!!plan.pendingKey||!plan.frameKey||look.hidden;}
 }
@@ -147,7 +152,7 @@ function menu(){
  else{f.dataset.tool='#/aim/tower';m.dataset.tool='#/skymap';m.querySelector('b').lastChild.textContent='探す';m.querySelector('span').textContent='撮影地点からの天体の方向と高度を調べる';}
 }
 const layout=AstroNotesExploreLayout.create({$,node,store,mapView,aimView,skyInfo,tabs,scene,map,aimState:()=>aim,requestAnimationFrame:cb=>requestAnimationFrame(cb),getMode:()=>mode,isAimActive:()=>viewState.aim,
- showResult,candidateChosen,addSaveAction,updateConditions,choose,invalidate,placePins,updateSkyInfo});
+ openRecordedPlace:()=>{if(!active()||!toolAllowed('records'))return;openPlaceSheet('skymap');recentHistory.records();},openCandidates:()=>{if(!active())return;openPlaceSheet('skymap');recentHistory.candidates();},showResult,candidateChosen,addSaveAction,updateConditions,choose,invalidate,placePins,updateSkyInfo});
 function choose(next,focus=false){
  mode='scene';
  tabs.hidden=true;scene.setAttribute('aria-label','見え方');scene.removeAttribute('aria-labelledby');scene.tabIndex=-1;
@@ -227,7 +232,7 @@ const style=node('style');style.textContent=
 '.explore-conditions>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;min-height:64px;padding:12px 14px;cursor:pointer;list-style:none}.explore-conditions>summary::-webkit-details-marker{display:none}'+
 '#exploreConditionTitle{font-weight:600;grid-column:1;overflow-wrap:anywhere}#exploreConditionDetail{grid-column:1;font-size:12px;color:var(--secondary);overflow-wrap:anywhere}.explore-condition-edit{grid-column:2;grid-row:1/3;align-self:center;font-size:12px;color:var(--accent)}'+
 '.explore-condition-fields{padding:4px 14px 14px}.explore-conditions[open]>summary{border-bottom:1px solid var(--line)}.explore-conditions[open] #exploreConditionDetail{display:none}'+
-'.explore-show-result{width:100%;min-height:44px;margin-top:8px}'+
+'.explore-place-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.explore-place-actions>button{flex:1;min-width:120px;min-height:44px}.explore-show-result{width:100%;min-height:44px;margin-top:8px}'+
 '.explore-tabs{scroll-margin-top:12px}.explore-save{min-height:44px}.explore-mounted .aim-figure-share{gap:8px;align-items:center}.explore-mounted .aim-figure-share .explore-save{order:-1;margin-right:0}'+
 '#skyMapView.explore-mounted .sky-map-head::before{content:"EXPLORE" / "";--kw:6.6em}'+
 '.explore-tabs{margin:14px 0 12px;max-width:780px}.explore-tabs button{min-height:44px}'+
