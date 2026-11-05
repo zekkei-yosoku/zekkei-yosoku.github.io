@@ -431,7 +431,7 @@ async function renderPickerPanel(panel) {
  let box=panel.querySelector('.my-picker');if(!box){box=document.createElement('div');box.className='my-picker';panel.prepend(box);}box.replaceChildren();
  const mode=placeSheetFor,isSky=mode==='skymap';
  const state=()=>isSky?skySession:{target:aim.target,body:aim.body,partId:aim.partId,limb:aim.limb,matchMode:aim.matchMode,at:aim.dayMs};
- const t=state()?.target,plan=AstroNotesShooting.conditions(state()),selectedShape=pickerShapeId;
+ const t=state()?.target,plan=globalThis.AstroNotesCandidatePicker?.registeredPlan?.(AstroNotesShooting.conditions(state()))||AstroNotesShooting.conditions(state()),selectedShape=pickerShapeId;
  const pickerPoints=s=>pointsForPlan(s).filter(x=>!selectedShape||x.place.id===selectedShape);
  const note=document.createElement('p');note.className='tiny';box.append(note);
  if(!plan||t.id==='custom'){note.textContent='対象を選び、自分の対象に登録すると、その対象が見えた撮影地点から候補を探せます。';return;}

@@ -137,3 +137,57 @@ test('existing camera settings retain unknown whole-target framing without certi
  const r=await model.evaluate({...plan,lens},point,{});assert(r.recommend);assert.equal(r.frame.status,'unknown');assert.equal(r.quality.frame,'unknown');assert.equal(r.status,'geometry-only');
  const required=await model.evaluate({...plan,lens:{...lens,mode:'required'}},point,{});assert(!required.recommend);
 });
+
+test('returning to a date retires its cancelled in-flight owner without losing active same-key protection',async()=>{
+ const original=C.inverseSeeds;C.inverseSeeds=async()=>({seeds:[{latitude:35,longitude:139,radiusM:300,priority:0}],partial:true});
+ try{
+  let oldCurrent=true,release,entered;const started=new Promise(r=>entered=r);let loads=0;
+  const provider={load:async()=>{if(++loads===1){entered();await new Promise(r=>release=r);}return {points:[point],coverage:{nextCursor:null}};}};
+  const engine=createGenericSearch({provider,bodies,evaluate:async()=>({recommend:true,id:'new-owner',place:point,event:{at:0}}),yieldTask:async()=>{}});
+  const old=engine.search(plan,{isCurrent:()=>oldCurrent});await started;
+  const concurrent=await engine.search(plan);assert.equal(concurrent.reason,'busy');assert.equal(loads,1);
+  oldCurrent=false;const replacement=await engine.search(plan);assert.equal(replacement.rows.length,1);assert.equal(loads,2);
+  release();assert((await old).cancelled);const cached=await engine.search(plan);assert.equal(cached.rows.length,1);assert(cached.cached);
+ }finally{C.inverseSeeds=original;}
+});
+
+test('unspecified camera display geometry does not invalidate a search; an evaluated camera still does',()=>{
+ const a={...plan,lens:{mode:'unspecified',focal:50,aspect:1,pan:[0,0]}},b={...plan,lens:{mode:'unspecified',focal:300,aspect:1.111,pan:[.2,0]}};
+ assert.equal(requestKey(a),requestKey(b));assert.notEqual(requestKey({...a,lens:{...a.lens,mode:'evaluate'}}),requestKey({...b,lens:{...b.lens,mode:'evaluate'}}));
+});
+test('completed candidate batches can be restored without IO, while incomplete jobs and another request cannot',async()=>{
+ const original=C.inverseSeeds;C.inverseSeeds=async()=>({seeds:[{latitude:35,longitude:139,radiusM:300,priority:0}],partial:true});
+ try{let loads=0;const engine=createGenericSearch({provider:{load:async()=>{loads++;return {points:[point],coverage:{nextCursor:null}};}},bodies,evaluate:async()=>({recommend:true,id:'saved',place:point,event:{at:0}}),yieldTask:async()=>{}});
+  assert.equal(engine.cached(plan),null);await engine.search(plan);const restored=engine.cached(plan);assert.equal(restored.rows[0].id,'saved');assert.equal(loads,1);assert.equal(engine.cached({...plan,owner:'another'}),null);
+  restored.rows.pop();assert.equal(engine.cached(plan).rows.length,1);engine.clear();assert.equal(engine.cached(plan),null);
+ }finally{C.inverseSeeds=original;}
+});
+
+
+test('resuming a cancelled continuation preserves completed rows and pending work without restarting its provider cursor',async()=>{
+ const original=C.inverseSeeds;C.inverseSeeds=async()=>({seeds:[{latitude:35,longitude:139,radiusM:300,priority:0}],partial:true});
+ try{
+  let loads=0,active=true,release,entered,hold=true;const started=new Promise(r=>entered=r);
+  const points=[0,1,2].map(i=>({...point,id:'c'+i,surfaceId:'c'+i,longitude:point.longitude+i*.0001}));
+  const engine=createGenericSearch({maxPointsPerBatch:1,provider:{load:async()=>{loads++;return {points,coverage:{nextCursor:7}};}},bodies,yieldTask:async()=>{},evaluate:async(p,q)=>{
+   if(q.id==='c2'&&hold){hold=false;entered();await new Promise(r=>release=r);}return {recommend:true,id:q.id,place:q,event:{at:0}};
+  }});
+  await engine.search(plan);const completed=await engine.search(plan,{more:true});assert.deepEqual(completed.rows.map(r=>r.id),['c0','c1']);
+  const old=engine.search(plan,{more:true,isCurrent:()=>active});await started;active=false;
+  assert.deepEqual(engine.cached(plan).rows.map(r=>r.id),['c0','c1']);
+  const resumed=await engine.search(plan,{more:true});assert.deepEqual(resumed.rows.map(r=>r.id),['c0','c1','c2']);assert.equal(loads,1);assert.equal(resumed.coverage.nextCursor,7);assert.equal(resumed.counts.checked,3);
+  release();assert((await old).cancelled);assert.deepEqual(engine.cached(plan).rows.map(r=>r.id),['c0','c1','c2']);
+ }finally{C.inverseSeeds=original;}
+});
+
+
+test('cancellation while static preparation is pending cannot advance past an uncommitted provider page',async()=>{
+ const original=C.inverseSeeds;C.inverseSeeds=async()=>({seeds:[{latitude:35,longitude:139,radiusM:300,priority:0}],partial:true});
+ try{
+  const cursors=[];let active=true,entered,release,hold=true;const started=new Promise(r=>entered=r);
+  const engine=createGenericSearch({provider:{load:async(p,{cursor})=>{cursors.push(cursor);return {points:[{...point,id:'page'+cursor}],coverage:{nextCursor:cursor===0?7:null}};}},bodies,yieldTask:async()=>{},loadStatic:async()=>{if(hold){hold=false;entered();await new Promise(r=>release=r);}return null;},evaluate:async(p,q)=>({recommend:true,id:q.id,place:q,event:{at:0}})});
+  const old=engine.search(plan,{isCurrent:()=>active});await started;active=false;
+  const resumed=await engine.search(plan,{more:true});assert.deepEqual(cursors,[0,0]);assert.deepEqual(resumed.rows.map(r=>r.id),['page0']);assert.equal(resumed.coverage.nextCursor,7);assert.equal(resumed.coverage.loaded.length,1);
+  release();assert((await old).cancelled);assert.deepEqual(engine.cached(plan).rows.map(r=>r.id),['page0']);
+ }finally{C.inverseSeeds=original;}
+});

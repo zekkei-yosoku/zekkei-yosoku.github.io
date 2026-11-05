@@ -1906,7 +1906,8 @@
       "aimLens",
       "AIM_SENSOR",
       "aimSceneExtraTargets",
-      "createMapView"
+      "createMapView",
+      "ToolDateTimeBar"
     ],
     "newGlobals": []
   }

@@ -4,7 +4,7 @@
 const api=root.AstroNotesCandidateDiscovery||(typeof require==='function'?require('./search.js'):null);
 const Composition=root.AstroNotesCandidateComposition||(typeof require==='function'?require('./composition.js'):null);
 const allowedPoint=p=>p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<85&&Math.abs(p.longitude)<=180;
-function requestKey(p){return JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode,p.profile,p.strict,p.composition,p.timeWindow,p.timeSpec||{kind:'day',at:api.day(p.at)},p.atmosphere,p.lens,p.extraTargets,p.requireAllTargets]);}
+function requestKey(p){return JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode,p.profile,p.strict,p.composition,p.timeWindow,p.timeSpec||{kind:'day',at:api.day(p.at)},p.atmosphere,p.lens?.mode==='unspecified'?{mode:'unspecified'}:p.lens,p.extraTargets,p.requireAllTargets]);}
 function regionsFor(seeds){
  const map=new Map(),size=.005;
  for(const seed of seeds||[]){
@@ -28,7 +28,14 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
   const key=requestKey(plan);let session=sessions.get(key);
   const wanted=()=>!signal?.aborted&&isCurrent();
   if(!wanted())return {cancelled:true};
-  if(session?.busy)return {cancelled:true};
+  // A cancelled A job may still await shared IO when the user returns A→B→A.
+  // Retire only the obsolete owner; an active same-key job still owns its queue.
+  if(session?.busy&&session.current?.()===false){
+   // Detach mutable progress from the obsolete owner. Completed batches and
+   // the pending point/cursor survive even if its IO never acknowledges abort.
+   session={...session,rows:session.rows.slice(),queue:session.queue.slice(),seen:new Set(session.seen),seenRows:new Set(session.seenRows),counts:{...session.counts},coverage:session.coverage.slice(),busy:false,current:null};sessions.set(key,session);
+  }
+  if(session?.busy)return {cancelled:true,reason:'busy'};
   if(!session){
    await bodies.ensure(plan.body);if(!wanted())return {cancelled:true};
    onProgress({stage:'inverse',checked:0});
@@ -38,17 +45,19 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
    sessions.set(key,session);while(sessions.size>4)sessions.delete(sessions.keys().next().value);
   }
   if(!more&&session.started)return {...result(session),cached:true};
-  session.busy=true;
+  session.busy=true;session.current=wanted;
   try{
    if(!session.queue.length&&(session.cursor!==null||!session.started)){
     onProgress({stage:'places',...session.counts});
     const data=await provider.load(plan,{regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal});
     if(!wanted()||data.cancelled)return {cancelled:true};
-    session.coverage.push(data.coverage||{});session.cursor=data.coverage?.nextCursor??null;session.providerPartial=!!data.partial;
     const points=[...(data.points||[])];
     if(!session.started&&loadStatic){
      try{const legacy=await loadStatic();for(const p of api.sampleSidewalks(legacy).rows){if(!session.regions.some(r=>p.longitude>=r.bbox[0]&&p.longitude<=r.bbox[2]&&p.latitude>=r.bbox[1]&&p.latitude<=r.bbox[3]))continue;points.push({...p,surfaceId:p.polygonId||p.sourceId,placeKind:'road',standingSurfaceKnown:p.structureClassificationKnown&&!p.nonTerrainStructure,accessKnown:undefined,sourceEvidence:{kind:'PLATEAU-pedestrian-surface',sourceId:p.sourceId},name:'歩道の撮影候補'});}}catch{/* Live source remains usable. */}
     }
+    // Commit a provider page only after all awaited preparation is current.
+    if(!wanted())return {cancelled:true};
+    session.coverage.push(data.coverage||{});session.cursor=data.coverage?.nextCursor??null;session.providerPartial=!!data.partial;
     for(const p of points){if(!allowedPoint(p))continue;const id=[p.surfaceId||p.sourceId,p.latitude.toFixed(7),p.longitude.toFixed(7),p.surfaceHeightM??p.groundM].join(':');if(session.seen.has(id))continue;session.seen.add(id);session.queue.push(p);}
     const preferred=new Set(['park','viewpoint','plaza','riverbank']);session.queue.sort((a,b)=>Number(!preferred.has(a.placeKind))-Number(!preferred.has(b.placeKind)));
     session.data=data;
@@ -70,11 +79,11 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
     }
     await yieldTask();
    }
-   return result(session);
+   session.lastResult=result(session);return session.lastResult;
   }finally{session.busy=false;}
  }
  function result(s){return {rows:s.rows.slice(),counts:{...s.counts},requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',canContinue:s.queue.length>0||s.cursor!==null,coverage:{regions:s.regions.length,loaded:s.coverage,pendingPoints:s.queue.length,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
- return {search,clear:()=>sessions.clear()};
+ return {search,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
 }
 api.requestKey=requestKey;api.regionsFor=regionsFor;api.createGenericSearch=createGenericSearch;
 if(typeof module==='object'&&module.exports)module.exports={requestKey,regionsFor,createGenericSearch};

@@ -5,7 +5,7 @@ import {versionAssets,hashCsp} from './release-html.mjs';
 import {createHash} from 'node:crypto';
 const patch=(s,from,to)=>{if(!s.includes(from))throw Error('Trial source boundary changed: '+from);return s.replace(from,to);};
 const read=p=>{
- let s=readFileSync(p,'utf8');if(p.endsWith('/features/explore/map-presentation.js')){s=patch(s,"observer:session.observer}),renderState:","observer:session.observer,candidateOpportunity:session.candidateOpportunity}),renderState:");s=patch(s,"skyPlayback.stop(false);\n  session.observer=aimSavedFrom","skyPlayback.stop(false);\n  session.candidateOpportunity={id:candidate.id,relation:candidate.event.relation,at:candidate.event.at,targetId:session.target?.id};\n  session.observer=aimSavedFrom");return s;}if(!p.endsWith('/features/explore/controller.js'))return s;
+ let s=readFileSync(p,'utf8');if(!p.endsWith('/features/explore/controller.js'))return s;
  s=patch(s,"(s?.target?' · '+alignment:'')","(s?.target?' · '+(s.candidateOpportunity?.at===s.at&&s.candidateOpportunity?.targetId===s.target?.id&&s.candidateOpportunity?.relation==='near'?'候補の時刻':globalThis.AstroNotesTrialComposition?.label?.(s)||alignment):'')");
  s=patch(s,"globalThis.TrialExplore={active,","document.addEventListener('astronotes-composition-change',updateConditions);\nglobalThis.TrialExplore={active,");
  s=patch(s," mode=next==='map'?'map':'scene';"," mode='scene';\n tabs.hidden=true;scene.setAttribute('aria-label','見え方');scene.removeAttribute('aria-labelledby');scene.tabIndex=-1;");
@@ -15,7 +15,8 @@ const read=p=>{
 };
 const result=renderIndex({entry:'src/features/explore/entry.inc',read});
 const trialShooting=patch(patch(readFileSync('astronotes-shooting.js','utf8'),'event:e,shapeType:s.type','event:e,assumedObserver:obs,shapeType:s.type'),'record:entry.record,event:e});','record:entry.record,event:e,assumedObserver:obs});');
-const trialMyplaces=patch(patch(patch(readFileSync('astronotes-myplaces.js','utf8'),'この日に重なる撮影地点はありません。日付や対象を変えるか、記録に撮影地点と見えた対象を追加してください。','登録した地点に候補がありません。日付や対象を変えてください。'),'${result.rows.length}件','${result.rows.length}件（絞り込み前）'),'box.append(button);}'+'\n  if(result.failed)', 'box.append(button);}'+'\n  globalThis.AstroNotesCandidatePicker?.registerRegisteredFromSession(box,result.rows,plan,current);\n  if(result.failed)');
+let trialMyplaces=patch(patch(patch(readFileSync('astronotes-myplaces.js','utf8'),'この日に重なる撮影地点はありません。日付や対象を変えるか、記録に撮影地点と見えた対象を追加してください。','登録した地点に候補がありません。日付や対象を変えてください。'),'${result.rows.length}件','${result.rows.length}件（絞り込み前）'),'box.append(button);}'+'\n  if(result.failed)', 'box.append(button);}'+'\n  globalThis.AstroNotesCandidatePicker?.registerRegisteredFromSession(box,result.rows,plan,current);\n  if(result.failed)');
+trialMyplaces=patch(trialMyplaces,'plan=AstroNotesShooting.conditions(state()),selectedShape','plan=globalThis.AstroNotesCandidatePicker?.registeredPlan?.(AstroNotesShooting.conditions(state()))||AstroNotesShooting.conditions(state()),selectedShape');
 const trialAlign=patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge');
 const files={
  'astronotes-align.js':trialAlign,
@@ -39,6 +40,11 @@ files['astronotes-candidate-search.js']=patch(files['astronotes-candidate-search
 files['astronotes-candidate-search.js']+='\n// data-release '+createHash('sha256').update(Object.entries(files).filter(([name])=>name.startsWith('data/')).map(([,value])=>value).join('')).digest('hex')+'\n';
 if(process.argv.includes('--html')){
  let html=readFileSync(0,'utf8');
+ // Map presentation and place-sheet ownership live in the inline document,
+ // outside the Explore asset entry. Apply these contracts to that product.
+ html=patch(html,'$("placeSheet").addEventListener("close", () => {','$("placeSheet").addEventListener("close", () => {\n  if ($("placeSheet").open) return;');
+ html=patch(html,"observer:session.observer}),renderState:","observer:session.observer,candidateOpportunity:session.candidateOpportunity}),renderState:");
+ html=patch(html,"skyPlayback.stop(false);\n  session.observer=aimSavedFrom","skyPlayback.stop(false);\n  session.candidateOpportunity={id:candidate.id,relation:candidate.event.relation,at:candidate.event.at,targetId:session.target?.id};\n  session.observer=aimSavedFrom");
  html=html.replace(/connect-src ([^;]+)/,(_,orig)=>'connect-src '+orig+' https://api.openstreetmap.org');
  html=patch(html,html.match(/<script src="astronotes-explore\.js\?v=\d+"><\/script>/)?.[0]||'missing-explore-script','<script src="astronotes-explore-simple.js?v=0"></script>');
  html=patch(html,'host._bodyRadius = p.radius;','host._bodyRadius = p.radius; globalThis.AstroNotesTrialComposition?.redraw(host);');

@@ -46,8 +46,8 @@ function mergeEntries(entries,sort){
  return [...unique.values()].sort((a,b)=>compare(a,b,sort));
 }
 const groups=new Map(),windows=new Map(),boundNodes=new WeakSet();
-let control=null,list=null,scope='',revision=0,loadLabels=async()=>({}),ports={},time='all',kind='all',sort='recommended';
-let visibleEntries=[],selectedId=null,mapPanel=null,mapInstance=null,mapMode=false,mapHits=[],mapScroll=null,mapFitPending=false;
+let control=null,list=null,scope='',filterScope='',revision=0,loadLabels=async()=>({}),ports={},time='all',kind='all',sort='recommended';
+let visibleEntries=[],selectedId=null,mapPanel=null,mapInstance=null,mapMode=false,mapHits=[],mapScroll=null,mapFitPending=false,suspendedView=null;
 const columns='minmax(0,1fr) 56px 76px';
 const day=at=>globalThis.AstroNotesCandidateDiscovery?.day(at)??Math.floor((at+32400000)/86400000)*86400000-32400000;
 const clockText=at=>Number.isFinite(at)?new Date(at+32400000).toISOString().slice(11,16):'時刻未確認';
@@ -80,8 +80,17 @@ function updateHeaders(){
 }
 function button(label,handler){const b=document.createElement('button');b.type='button';b.className='fav-btn';b.textContent=label;b.style.minHeight='44px';b.onclick=handler;return b;}
 function mount(panel,plan){
- const next=planKey(plan);
- if(next!==scope){const previous=scope;if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);for(const g of groups.values())for(const node of g.nodes)node.remove();scope=next;time=kind='all';sort='recommended';groups.clear();windows.clear();visibleEntries=[];selectedId=null;revision++;mapMode=false;mapHits=[];control?.remove();control=null;list=null;if(mapPanel)mapPanel.hidden=true;if(previous)queueMicrotask(()=>{if(scope===next&&panel.isConnected)globalThis.MyPlacesUI?.renderPickerPanel(panel);});}
+ const next=planKey(plan),nextFilters=typeof ports.filterKey==='function'?ports.filterKey(plan):next;
+ if(next!==scope){
+  const previous=scope,keepFilters=nextFilters===filterScope;
+  if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);
+  for(const g of groups.values())for(const node of g.nodes)node.remove();
+  scope=next;filterScope=nextFilters;groups.clear();windows.clear();visibleEntries=[];selectedId=null;revision++;mapMode=false;mapHits=[];
+  if(!keepFilters){time=kind='all';sort='recommended';control?.remove();control=null;list=null;}
+  else if(control){list?.replaceChildren();const toggle=control.querySelector('#candidateMapToggle');toggle.textContent='地図で見る';toggle.setAttribute('aria-expanded','false');toggle.disabled=true;const status=control.querySelector('[data-filter-status]');status.textContent='';status.hidden=true;control.querySelector('[data-candidate-headers]').hidden=false;if(list)list.hidden=false;}
+  if(mapPanel)mapPanel.hidden=true;
+  if(previous)queueMicrotask(()=>{if(scope===next&&panel.isConnected)globalThis.MyPlacesUI?.renderPickerPanel(panel);});
+ }
  if(!control?.isConnected){
   control=document.createElement('section');control.id='candidateListControls';control.className='aim-disclosure';Object.assign(control.style,{padding:'12px 0',marginTop:'12px'});control.setAttribute('aria-label','この日の候補の絞り込みと並び順');
   const add=(label,id,options,value,change)=>{const l=document.createElement('label');l.className='tiny';Object.assign(l.style,{display:'grid',gridTemplateColumns:'76px minmax(0,1fr)',alignItems:'center',gap:'12px',margin:'0 0 8px',fontSize:'14px'});l.textContent=label;const s=document.createElement('select');s.id=id;s.setAttribute('aria-label',label);Object.assign(s.style,{width:'100%',minWidth:'0',maxWidth:'100%',minHeight:'44px',margin:'0',fontSize:'16px'});for(const [v,n]of options)s.add(new Option(n,v));s.value=value;s.onchange=()=>{change(s.value);apply();};l.append(s);control.append(l);};
@@ -132,6 +141,7 @@ async function apply(){
  status.hidden=!merged.length;status.textContent=`${visibleEntries.length} / ${merged.length}件を表示`+(unknownTime?`。出入り時刻を確認できない${unknownTime}件は時間帯の絞り込みから除外しています。`:'')+(merged.length&&!labels.facilities?'。種類データを読み込めない地点は種類未確認です。':'');
  const toggle=control.querySelector('#candidateMapToggle');toggle.disabled=!visibleEntries.length||typeof ports.createMapView!=='function';
  if(mapMode){if(!visibleEntries.length)showMap(false);else refreshMap();}updateHeaders();
+ if(suspendedView?.scope===scope&&visibleEntries.length&&(!suspendedView.selectedId||visibleEntries.some(e=>e.id===suspendedView.selectedId))){const saved=suspendedView;suspendedView=null;selectedId=saved.selectedId;if(saved.mapMode)showMap(true);else requestAnimationFrame(()=>{if(scope===saved.scope&&control?.isConnected){const scroller=control.closest('.sheet-body')||control.closest('[role=tabpanel]');if(scroller)scroller.scrollTop=saved.scrollTop;}});}
  return visibleEntries.map(e=>e.row);
 }
 function unregister(box){const g=groups.get(box);if(g){for(const node of g.nodes)node.remove();groups.delete(box);}return apply();}
@@ -194,8 +204,16 @@ function drawMap(ctx,{project,width,height}){
  }
  visibleEntries.map((e,i)=>({e,i})).sort((a,b)=>Number(a.e.id===selectedId)-Number(b.e.id===selectedId)).forEach(({e,i})=>{if(!currentEntry(e))return;const p=e.row.place;if(!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude))return;const [x,y]=project(p.latitude,p.longitude);if(x<-24||x>width+24||y<-24||y>height+24)return;mapHits.push({x,y,id:e.id});ctx.beginPath();ctx.arc(x,y,e.id===selectedId?16:13,0,Math.PI*2);ctx.fillStyle=e.id===selectedId?'#176cc5':'#273b52';ctx.fill();ctx.lineWidth=e.id===selectedId?3:2;ctx.strokeStyle='#fff';ctx.stroke();ctx.fillStyle='#fff';ctx.fillText(String(i+1),x,y);});ctx.restore();
 }
-function reset(){if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);revision++;groups.clear();windows.clear();visibleEntries=[];selectedId=null;mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control?.remove();control=null;list=null;scope='';mapScroll=null;}
-const api={mount,configure,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,showMap,reset,visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
+// Keep UI preferences and a valid return position, never old executable rows.
+function suspend(){
+ if(!control?.isConnected)return;
+ const scroller=control.closest('.sheet-body')||control.closest('[role=tabpanel]');
+ suspendedView={scope,selectedId,mapMode,scrollTop:scroller?.scrollTop||0};
+ if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);
+ revision++;for(const g of groups.values())for(const node of g.nodes)node.remove();groups.clear();visibleEntries=[];mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control.remove();
+}
+function reset(){if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);revision++;groups.clear();windows.clear();visibleEntries=[];selectedId=null;mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control?.remove();control=null;list=null;scope='';filterScope='';mapScroll=null;suspendedView=null;}
+const api={mount,configure,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,showMap,suspend,reset,visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
 globalThis.AstroNotesCandidatePicker=api;
 if(typeof module!=='undefined')module.exports={kinds,accepts,compare,candidateKey,mergeEntries,placePriority};
 })();
