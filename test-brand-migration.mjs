@@ -8,7 +8,7 @@ test('cached HTML legacy assets retain their original bytes and canonical assets
  const {sha256}=JSON.parse(read('legacy-assets.json'));
  const experiments=JSON.parse(read('trial/ui-experiment.json')).files;
  const candidate=JSON.parse(read('trial/candidate-experiment.json'));
- const candidateDerived=new Set(['astronotes-shooting.js','astronotes-myplaces.js']);
+ const candidateDerived=new Set(['astronotes-align.js','astronotes-shooting.js','astronotes-myplaces.js']);
  const allowed=new Set(['astronotes-explore.js','astronotes-myplaces.js','astronotes-plan.js','astronotes-camera-ui.js','astronotes-flair.css']);
  const digest=value=>createHash('sha256').update(value).digest('hex');
  for(const [old,hash] of Object.entries(sha256)){

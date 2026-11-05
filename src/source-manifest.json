@@ -1848,5 +1848,66 @@
         }
       ]
     }
+  },
+  "trialArchitecture": {
+    "owner": "AstroNotesCandidateDiscovery / AstroNotesCandidateModel / AstroNotesCandidatePicker",
+    "generator": "tools/build-candidate-trial.mjs",
+    "productionUnchanged": true,
+    "units": [
+      {
+        "path": "experiments/candidate-visibility/live-terrain.js",
+        "layer": "ports",
+        "scope": "existing-provider-extension",
+        "provides": [
+          "AstroNotesCandidateTerrain.createLive"
+        ],
+        "requires": [
+          "AstroNotesTerrain"
+        ]
+      },
+      {
+        "path": "experiments/candidate-visibility/place-provider.js",
+        "layer": "ports",
+        "scope": "existing-provider-extension",
+        "provides": [
+          "AstroNotesCandidateDiscovery.createPlaceProvider"
+        ],
+        "requires": [
+          "AstroNotesTerrain"
+        ]
+      },
+      {
+        "path": "experiments/candidate-visibility/generic-evaluator.js",
+        "layer": "domain",
+        "scope": "existing-provider-extension",
+        "provides": [
+          "AstroNotesCandidateModel.createGeneric"
+        ],
+        "requires": [
+          "AstroNotesCandidateComposition",
+          "AstroNotesAlign",
+          "AstroNotesBodies"
+        ]
+      },
+      {
+        "path": "experiments/candidate-visibility/generic-search.js",
+        "layer": "services",
+        "scope": "existing-provider-extension",
+        "provides": [
+          "AstroNotesCandidateDiscovery.createGenericSearch"
+        ],
+        "requires": [
+          "AstroNotesCandidateComposition"
+        ]
+      }
+    ],
+    "uiReads": [
+      "SkyMapUI",
+      "aimLens",
+      "AIM_SENSOR",
+      "aimSceneExtraTargets",
+      "createMapView"
+    ],
+    "newGlobals": []
   }
 }

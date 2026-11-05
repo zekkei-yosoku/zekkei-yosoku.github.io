@@ -12,7 +12,7 @@ async function decode(data){
  function sample(p){return lookup(...pixel(p.latitude,p.longitude));}
  function at(p){return sample(p).height;}
  function trace(observer,{azimuth,altitude,maxM,endpoint=null,refractionK=1}){
-  if(!Number.isFinite(observer.elevation)||!Number.isFinite(azimuth)||!Number.isFinite(altitude)||Math.abs(altitude)>=89||!Number.isFinite(maxM)||maxM<=0||maxM>20000)return {status:'unknown',recommend:false,reason:'invalid-terrain-ray'};
+  if(!Number.isFinite(observer.elevation)||!Number.isFinite(azimuth)||!Number.isFinite(altitude)||Math.abs(altitude)>=89||!Number.isFinite(maxM)||maxM<=0)return {status:'unknown',recommend:false,reason:'invalid-terrain-ray'};
   const segments=[];let lastPoint=null,previous={xy:pixel(observer.latitude,observer.longitude),d:0};
   for(let d=Math.min(100,maxM);;d=Math.min(d+100,maxM)){const p=d===maxM&&endpoint?endpoint:Geo().destination(observer.latitude,observer.longitude,azimuth,d/1000),next={xy:pixel(p.latitude,p.longitude),d};segments.push([previous,next]);previous=next;lastPoint=p;if(d===maxM)break;}
   let checked=0,missing=0,lowerResolutionCells=0,ignoredCells=0,hit=null,minMarginM=Infinity;const eye=observer.elevation+(observer.eyeM??1.5);

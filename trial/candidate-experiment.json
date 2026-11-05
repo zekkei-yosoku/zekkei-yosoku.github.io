@@ -1,23 +1,26 @@
 {
-  "name": "2026-11-04 見え方中心・撮影地点内の追加探索trial",
+  "name": "2026-11-05 全対象・全選択天体の撮影候補探索trial",
   "productionHtmlSha256": "218041d2f27983804ea579b0bb0875fa9e8bad45a9c426a8f5ecb177684b732d",
   "visibilityCertified": false,
   "productionAssetsSha256": {
+    "astronotes-align.js": "2d2d327f046d8fa54b00343c0105ef3aab066bd64f4359b578e2887ab30bb4a1",
     "astronotes-shooting.js": "b2056c4634259c708e55e88c79639cf56e4dde58c54273c92b4cc3ff12c3a0f5",
     "astronotes-myplaces.js": "6f2770fa310c07c0edf06265ff8f8d0f340ed27af7024bf610c5b9569c008010"
   },
   "files": {
+    "astronotes-align.js": "b4193c7a99db23964dfc378088de95f77497cdbcb7304d5fff6989ef1c2c2625",
     "astronotes-shooting.js": "ca0407aca1f0a3e29ae50d56bb9e1f989fd8104d777e068e608af419b1b831a1",
-    "astronotes-myplaces.js": "4be5274094b6601dde4c634d91502573d86f95cdf5e7c687fd6b8008b79b3c4b",
-    "astronotes-explore-simple.js": "fa54c356cd8069e4f079f130e0df0a1b406d4f7681bac04342f2b39f98778588",
-    "astronotes-candidate-search.js": "d28cabbcf30a89cc0a0dea2d271d1fc4ca53b52b722e95126842be714526f6a9",
+    "astronotes-myplaces.js": "c58932d63d5f97d4fc57a15c9e38e5bf8ffbe4cdcc28babb1c6cfd917b856230",
+    "astronotes-explore-simple.js": "c4b83ce3e043151fde49d2460a39656e80a1f3ee94207bd0a04725f3037b5594",
+    "astronotes-candidate-search.js": "12334d18ccbeefa4e8b1c726038f7f898562298c3f07a98df8bb62b6d87bb220",
+    "data/candidate-viewpoints.json": "f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5",
     "data/candidate-terrain.json": "5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779",
     "data/candidate-buildings.json": "e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a",
     "data/candidate-surfaces.json": "de16ae6e56aa05a1d4a7d6d0fa8974a4373183f35e8282f412f7fbd7c637751f",
     "data/candidate-sidewalks.json": "efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a",
     "data/candidate-label-addresses.json": "3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b",
     "data/candidate-label-facilities.json": "ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53",
-    "index.html": "79a54fcbd9588bf3225503708139675db3d43930c0798e31cef5d38ff04bd2f0",
-    "app-version.txt": "2ce43ddd15f0d02e3c9aea3d07f4f760e0187fb9273571333a18176f81a14669"
+    "index.html": "cec9c20fb41b5c627c623fb101a76426aac05740f82722a50701ff63152e4736",
+    "app-version.txt": "8247fef99f3752c851a5d235bd271b5bcf46cc2e1069f51fb5b8c37003b3c798"
   }
 }
