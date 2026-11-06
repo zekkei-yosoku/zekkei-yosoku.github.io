@@ -67,7 +67,16 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
     }
     assert(await page.locator('#exploreScenePanel').isHidden());
     await page.locator('#exploreShowResult').click();await page.locator('#aimLook').waitFor({state:'visible'});
-    await page.locator('#aimLook [data-quick-save=place]').waitFor({state:'visible'});assert(await page.locator('#aimLook [data-quick-save=plan]').isVisible());assert(await page.locator('#aimLook [data-plan-action=share]').isVisible());
+    const recordSave=page.locator('#trialRecordSave'),recordSheet=page.locator('#trialRecordSaveSheet');
+    await recordSave.waitFor({state:'visible'});assert(await page.locator('#aimLook [data-plan-action=share]').isVisible());
+    assert(await recordSheet.isHidden());assert.equal(await page.locator('#aimLook .trial-scene-toolbar [data-quick-save]:visible').count(),0,'save destinations are hidden until the record chooser opens');
+    const beforeRecordChooser=await page.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()}));
+    await recordSave.click();await recordSheet.waitFor({state:'visible'});
+    assert(await recordSheet.locator('[data-quick-save=place]').isVisible());assert(await recordSheet.locator('[data-quick-save=plan]').isVisible());
+    await page.screenshot({path:out+'/'+engine+'-'+width+'-record-choices.png'});
+    await page.keyboard.press('Escape');await recordSheet.waitFor({state:'hidden'});
+    assert.equal(await page.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()})),beforeRecordChooser,'opening and dismissing record choices never saves');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'trialRecordSave');
     assert(await page.evaluate(()=>Object.entries(placeEntryNodes).every(([id,n])=>n===document.getElementById(id))),'existing calendar/time nodes remain owned by the original UI');
     await page.locator('#skyMapCalendarOpen').click();const calendar=page.locator('dialog[open]').filter({has:page.locator('[data-year]')});
     const dayButton=calendar.locator('[data-cal-day]').nth(5),pickedDay=Number(await dayButton.getAttribute('data-cal-day'));
@@ -87,7 +96,7 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
     await page.locator('#placeSheet .page-back').click();
     assert.equal(writes,0);assert.deepEqual(errors,[]);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     await page.screenshot({path:out+'/'+engine+'-'+width+'-scene.png'});
-    results.push({engine,width,addressInput:true,recordsOnly:true,selectionPreservesConditions:true,recordTabInPlacePicker:true,removedRecordShortcut:true,noEmptyPlaceActions:true,remountWithoutDuplicateActions:true,sharedSearchAndPreviewDateTimeBar:true,existingCalendarAndTimebar:true,calendarAndTimelineOperable:true,revokedPermissionRefusesStaleSelection:true,savedDataUnchanged:true,writes});
+    results.push({engine,width,addressInput:true,recordsOnly:true,selectionPreservesConditions:true,recordTabInPlacePicker:true,removedRecordShortcut:true,noEmptyPlaceActions:true,remountWithoutDuplicateActions:true,recordChooserWithoutImplicitSave:true,sharedSearchAndPreviewDateTimeBar:true,existingCalendarAndTimebar:true,calendarAndTimelineOperable:true,revokedPermissionRefusesStaleSelection:true,savedDataUnchanged:true,writes});
     fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(engine,width,'place entry passed');
    }catch(e){console.error('page errors',errors);await page.screenshot({path:out+'/'+engine+'-'+width+'-failure.png'}).catch(()=>{});console.error(await page.locator('dialog[open]').evaluateAll(ns=>ns.map(n=>({label:n.getAttribute('aria-label'),year:n.querySelector('[data-year]')?.value,month:n.querySelector('[data-month]')?.value}))).catch(()=>[]));throw e;}finally{await context.close();}
   }}finally{await browser.close();}

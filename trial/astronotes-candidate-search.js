@@ -1196,7 +1196,7 @@ if(typeof module==='object'&&module.exports)module.exports={createGeneric,lensCh
 const api=root.AstroNotesCandidateDiscovery||(typeof require==='function'?require('./search.js'):null);
 const Composition=root.AstroNotesCandidateComposition||(typeof require==='function'?require('./composition.js'):null);
 const allowedPoint=p=>p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<85&&Math.abs(p.longitude)<=180;
-function requestKey(p){return JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode,p.profile,p.strict,p.composition,p.timeWindow,p.timeSpec||{kind:'day',at:api.day(p.at)},p.atmosphere,p.lens?.mode==='unspecified'?{mode:'unspecified'}:p.lens,p.extraTargets,p.requireAllTargets]);}
+function requestKey(p){return JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode,p.profile,p.strict,p.composition,!!p.compositionInvalid,p.timeWindow,p.timeSpec||{kind:'day',at:api.day(p.at)},p.atmosphere,p.lens?.mode==='unspecified'?{mode:'unspecified'}:p.lens,p.extraTargets,p.requireAllTargets]);}
 function regionsFor(seeds){
  const map=new Map(),size=.005;
  for(const seed of seeds||[]){
@@ -1221,6 +1221,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
  // complete result remains available when a recheck fails or is cancelled.
  function restart(plan){const key=requestKey(plan),previous=sessions.get(key);if(previous?.busy&&previous.current?.()!==false)return false;if(previous)sessions.set(key,fresh(key,previous.inverse,previous.lastResult));return true;}
  async function search(plan,{onProgress=()=>{},isCurrent=()=>true,signal,more=false}={}){
+  if(plan.compositionInvalid)throw Error('invalid-composition');
   const key=requestKey(plan);let session=sessions.get(key);
   const wanted=()=>!signal?.aborted&&isCurrent();
   if(!wanted())return {cancelled:true};
@@ -1289,7 +1290,7 @@ if(typeof module==='object'&&module.exports)module.exports={requestKey,regionsFo
 (()=>{
 'use strict';const C=AstroNotesCandidateComposition,S=AstroNotesTrialSurface,states=new WeakMap();let ownerKey='',config={composition:null,timeWindow:{kind:'none'},compositionInvalid:false,invalidDraft:null},editing=null;
 const current=()=>typeof SkyMapUI==='undefined'?null:SkyMapUI.selectionState(),owner=()=>typeof auth==='undefined'?'':auth?.loginId||'';
-function syncContext(s=current()){const key=JSON.stringify([owner(),s?.target,s?.body]);if(key!==ownerKey){ownerKey=key;config={composition:null,timeWindow:{kind:'none'},compositionInvalid:false,invalidDraft:null};for(const st of statesList){st.invalid=false;st.dragging=false;st.active=false;st.error='';}if(editing){editing.active=false;editing=null;}}return s;}
+function syncContext(s=current()){const key=JSON.stringify([owner(),s?.target,s?.body]);if(key!==ownerKey){ownerKey=key;config={composition:null,timeWindow:{kind:'none'},compositionInvalid:false,invalidDraft:null};for(const st of statesList){st.invalid=false;st.dragging=false;st.active=false;st.error='';closePanel(st,false);}if(editing){editing.active=false;editing=null;}}return s;}
 function notify(){document.dispatchEvent(new Event('astronotes-composition-change'));for(const st of statesList)update(st);}
 const statesList=new Set();
 function plan(s=current()){syncContext(s);return structuredClone(config);}
@@ -1300,7 +1301,7 @@ function capabilities(s,obs){
  return {surface:!!model,bounds,limbs,limbOptions:limbs?[['center','中心'],['upper','上の縁'],['lower','下の縁']]:[['center','中心']]};
 }
 function update(st){
- const s=syncContext(),t=s?.target;if(!t){st.button.disabled=true;st.fields.hidden=true;st.note.hidden=true;return;}
+ const s=syncContext(),t=s?.target;if(!t||!st.host.closest('#exploreScenePanel')){closePanel(st,false);st.button.hidden=st.adjust.hidden=st.note.hidden=true;return;}st.button.hidden=false;
  const obs=st.host._trialCompositionView?.spec.obs,cap=capabilities(s,obs),bearing=obs&&AstroNotesTerrain.inverse(t.latitude,t.longitude,obs.latitude,obs.longitude).azimuth*Math.PI/180;
  if(st.bodyKey!==s.body){st.bodyKey=s.body;st.limb.replaceChildren();for(const [v,n]of cap.limbOptions)st.limb.add(new Option(n,v));st.limb.value='center';}
  if(!cap.limbs&&config.composition?.limb!=='center'&&config.composition)config.composition={...config.composition,limb:'center'};
@@ -1308,42 +1309,48 @@ function update(st){
  if(st.partsKey!==pk){st.partsKey=pk;st.presets.replaceChildren();for(const p of t.parts||[]){if(!Number.isFinite(p.m))continue;const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=p.name||p.id||'指定位置';b.onclick=()=>setPreset(st,p.m,0);st.presets.append(b);}}
  for(const [field,min,max]of [[st.height,cap.bounds?.heightMinM-ground,cap.bounds?.heightMaxM-ground],[st.x,cap.bounds?.xMinM,cap.bounds?.xMaxM]]){if(Number.isFinite(min))field.min=String(min);else field.removeAttribute('min');if(Number.isFinite(max))field.max=String(max);else field.removeAttribute('max');}
  st.button.disabled=!cap.surface;st.button.setAttribute('aria-description',cap.surface?'':'この対象は面を指定できません。');if(!cap.surface){st.active=false;st.dragging=false;if(editing===st)editing=null;}
- st.button.textContent=st.active?'指定を終了':'重ねる位置を指定';st.button.setAttribute('aria-pressed',String(!!st.active));st.fields.hidden=!st.active;st.clear.hidden=!c;st.limb.disabled=!cap.limbs;
+ st.button.setAttribute('aria-label',st.active?'指定を終了':'重ねる位置を指定');st.button.title=st.active?'指定を終了':'重ねる位置を指定';st.button.setAttribute('aria-pressed',String(!!st.active));st.adjust.hidden=!st.active;st.clear.disabled=!c;st.limb.disabled=!cap.limbs;
  const message=st.error||(config.compositionInvalid?'対象の面を選び直してください。':'');
- if(st.note.textContent!==message)st.note.textContent=message;st.note.hidden=!message;
+ for(const note of [st.note,st.inputNote]){if(note.textContent!==message)note.textContent=message;note.hidden=!message;}
  for(const field of [st.height,st.x])field.setAttribute('aria-invalid',String(!!config.invalidDraft));
  if(c){if(document.activeElement!==st.height)st.height.value=config.invalidDraft?.height??(c.heightM-ground).toFixed(1);if(document.activeElement!==st.x)st.x.value=config.invalidDraft?.x??localX.toFixed(1);st.limb.value=c.limb;}redraw(st.host);
 }
 function setPreset(st,heightM,xM){const s=syncContext(),v=st.host._trialCompositionView,c=S.preset({obs:{...v.spec.obs,eyeM:v.spec.eyeM},target:s.target,align:AstroNotesAlign,heightM,xM,limb:st.limb.value});if(c){const g=S.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),visible=S.pick({obs:{...v.spec.obs,eyeM:v.spec.eyeM},target:s.target,align:AstroNotesAlign,azimuth:g.azimuth,altitude:g.angle,limb:st.limb.value});config.composition=visible||c;st.invalid=false;config.compositionInvalid=false;config.invalidDraft=null;st.error='';if(visible&&Math.abs(visible.heightM-heightM)>.1)st.error=`手前の面に調整しました（高さ${(visible.heightM-s.target.groundM).toFixed(1)}m）。`;}else {st.invalid=true;config.compositionInvalid=true;config.invalidDraft={height:st.height.value,x:st.x.value};st.error='この位置に対象の面がありません。';}notify();}
 function changed(st){const s=syncContext();setPreset(st,st.height.value===''?NaN:Number(st.height.value)+(s?.target?.groundM||0),st.x.value===''?NaN:Number(st.x.value));}
 function addLabel(parent,text,field){const l=document.createElement('label');l.className='tiny';l.style.display='block';Object.assign(field.style,{maxWidth:'100%',minWidth:'0',minHeight:'44px'});l.append(text,field);parent.append(l);return field;}
-function bind(host,view){host._trialCompositionView=view;let st=states.get(host);if(!host.closest('#exploreScenePanel')){if(st){st.panel.hidden=true;st.overlay.hidden=true;st.note.hidden=true;}return;}if(st&&(!st.panel.isConnected||st.cv!==view.cv)){st.panel.remove();st.overlay.remove();st.note.remove();statesList.delete(st);states.delete(host);st=null;}if(st){st.panel.hidden=false;update(st);return;}
- const panel=document.createElement('section');panel.id='trialComposition';panel.className='aim-disclosure';panel.setAttribute('aria-label','重ねる位置');
- const button=document.createElement('button');button.type='button';button.className='chip';const clear=button.cloneNode();clear.textContent='全体との重なりに戻す';clear.hidden=true;
- // Feedback belongs to the drawing: changing its text must never move the
- // canvas under the pointer or reserve an empty description row above it.
+function closePanel(st,restoreFocus=true){st.restoreFocus=restoreFocus;if(st.panel.open)st.panel.close();}
+function dispose(st){closePanel(st,false);for(const node of [st.panel,st.button,st.adjust,st.overlay,st.note])node.remove();statesList.delete(st);states.delete(st.host);}
+const icon=paths=>'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths+'</svg>';
+function bind(host,view){host._trialCompositionView=view;let st=states.get(host);if(!host.closest('#exploreScenePanel')){if(st){closePanel(st,false);st.button.hidden=st.adjust.hidden=st.overlay.hidden=st.note.hidden=true;}return;}if(st&&(!st.panel.isConnected||st.cv!==view.cv)){dispose(st);st=null;}if(st){update(st);return;}
+ const figure=host.querySelector('.aim-look-figure');
+ const button=document.createElement('button');button.type='button';button.id='trialCompositionToggle';button.className='trial-composition-tool';button.innerHTML=icon('<circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>');
+ const adjust=document.createElement('button');adjust.type='button';adjust.id='trialCompositionAdjust';adjust.className='trial-composition-tool';adjust.hidden=true;adjust.setAttribute('aria-label','重ねる位置を数値で指定');adjust.title='数値で指定';adjust.setAttribute('aria-haspopup','dialog');adjust.setAttribute('aria-expanded','false');adjust.setAttribute('aria-controls','trialComposition');adjust.innerHTML=icon('<path d="M4 7h5m4 0h7M4 17h9m4 0h3"/><circle cx="11" cy="7" r="2"/><circle cx="15" cy="17" r="2"/>');
+ const panel=document.createElement('dialog');panel.id='trialComposition';panel.className='sheet trial-composition-dialog';panel.setAttribute('aria-label','重ねる位置');panel.tabIndex=-1;
+ const head=document.createElement('div');head.className='sheet-head';const title=document.createElement('strong');title.textContent='重ねる位置';const close=document.createElement('button');close.type='button';close.textContent='閉じる';close.setAttribute('data-composition-close','');head.append(title,close);
+ const fields=document.createElement('div');fields.className='sheet-body';const presets=document.createElement('div');presets.className='trial-composition-presets';fields.append(presets);
+ const height=addLabel(fields,'高さ（地上から m）',document.createElement('input'));height.type='number';height.step='.1';height.className='fav-in';height.setAttribute('aria-label','重ねる対象の高さ（地上からm）');
+ const x=addLabel(fields,'左右（右＋ / 左− m）',document.createElement('input'));x.type='number';x.step='.1';x.className='fav-in';x.setAttribute('aria-label','対象の中心から左右の位置（m）');
+ const limb=addLabel(fields,'天体の合わせる位置',document.createElement('select'));limb.className='fav-in';limb.setAttribute('aria-label','天体の合わせる位置');for(const [v,n] of [['center','中心'],['upper','上の縁'],['lower','下の縁']])limb.add(new Option(n,v));
+ const inputNote=document.createElement('p');inputNote.id='trialCompositionInputStatus';inputNote.className='tiny';inputNote.hidden=true;inputNote.setAttribute('role','status');inputNote.setAttribute('aria-live','polite');for(const field of [height,x])field.setAttribute('aria-describedby',inputNote.id);
+ const clear=document.createElement('button');clear.type='button';clear.className='fav-btn';clear.textContent='指定を解除';fields.append(inputNote,clear);panel.append(head,fields);host.append(panel);
+ // Feedback never participates in the drawing's layout or intercepts a pick.
  const note=document.createElement('p');note.id='trialCompositionStatus';note.className='trial-composition-status';note.hidden=true;note.setAttribute('role','status');note.setAttribute('aria-live','polite');note.setAttribute('aria-atomic','true');Object.assign(note.style,{position:'absolute',left:'12px',right:'64px',top:'12px',zIndex:'3',margin:'0',padding:'8px 12px',border:'1px solid var(--line)',borderRadius:'10px',background:'var(--card)',color:'var(--text)',fontSize:'14px',lineHeight:'1.5',textAlign:'center',pointerEvents:'none'});
- const fields=document.createElement('details');fields.hidden=true;fields.className='aim-disclosure';const fieldSummary=document.createElement('summary');fieldSummary.textContent='先端・展望台や数値で指定';fields.append(fieldSummary);
- const height=addLabel(fields,'対象の地上からの高さ（m） ',document.createElement('input'));height.type='number';height.step='.1';height.setAttribute('aria-label','重ねる対象の高さ（地上からm）');
- height.setAttribute('aria-describedby',note.id);
- const x=addLabel(fields,'中心から左右（右が＋、m） ',document.createElement('input'));x.type='number';x.step='.1';x.setAttribute('aria-label','対象の中心から左右の位置（m）');
- x.setAttribute('aria-describedby',note.id);
- const limb=addLabel(fields,'天体の合わせる位置 ',document.createElement('select'));limb.setAttribute('aria-label','天体の合わせる位置');for(const [v,n] of [['center','中心'],['upper','上の縁'],['lower','下の縁']])limb.add(new Option(n,v));
- const presets=document.createElement('div');presets.className='aim-days strip';fieldSummary.after(presets);
- panel.append(button,clear,fields);
- const figure=host.querySelector('.aim-look-figure');figure.before(panel);const overlay=document.createElement('div');overlay.setAttribute('aria-hidden','true');Object.assign(overlay.style,{position:'absolute',inset:'0',pointerEvents:'none',overflow:'hidden'});const marker=document.createElement('span'),disc=document.createElement('span');Object.assign(marker.style,{position:'absolute',width:'12px',height:'12px',border:'2px solid var(--accent)',borderRadius:'50%',transform:'translate(-50%,-50%)'});Object.assign(disc.style,{position:'absolute',border:'2px dashed var(--accent)',borderRadius:'50%',transform:'translate(-50%,-50%)',background:'rgba(180,190,200,.12)'});overlay.append(disc,marker);figure.append(overlay);
- figure.append(note);
- st={normalTouchAction:view.cv.style.touchAction,host,cv:view.cv,panel,button,clear,note,fields,height,x,limb,presets,overlay,marker,disc,active:false};states.set(host,st);statesList.add(st);
-
- button.onclick=()=>{st.dragging=false;st.active=!st.active;if(!st.active&&!config.compositionInvalid)st.error='';editing=st.active?st:null;st.fields.open=false;if(st.active){const conditions=document.getElementById('exploreConditions');if(conditions)conditions.open=false;}if(st.active&&!config.composition){const s=syncContext();setPreset(st,s.target.parts[0].m,0);}notify();if(st.active)panel.scrollIntoView({block:'start'});};clear.onclick=()=>{config.composition=null;st.dragging=false;st.active=false;editing=null;st.invalid=false;config.compositionInvalid=false;config.invalidDraft=null;st.error='';notify();};height.onchange=x.onchange=()=>changed(st);limb.onchange=()=>{if(config.composition)config.composition={...config.composition,limb:limb.value};notify();};
+ const overlay=document.createElement('div');overlay.setAttribute('aria-hidden','true');Object.assign(overlay.style,{position:'absolute',inset:'0',pointerEvents:'none',overflow:'hidden'});const marker=document.createElement('span'),disc=document.createElement('span');Object.assign(marker.style,{position:'absolute',width:'12px',height:'12px',border:'2px solid var(--accent)',borderRadius:'50%',transform:'translate(-50%,-50%)'});Object.assign(disc.style,{position:'absolute',border:'2px dashed var(--accent)',borderRadius:'50%',transform:'translate(-50%,-50%)',background:'rgba(180,190,200,.12)'});overlay.append(disc,marker);figure.append(overlay,note,button,adjust);
+ st={normalTouchAction:view.cv.style.touchAction,host,cv:view.cv,panel,button,adjust,clear,note,inputNote,fields,height,x,limb,presets,overlay,marker,disc,active:false,restoreFocus:true};states.set(host,st);statesList.add(st);
+ button.onclick=()=>{st.dragging=false;st.active=!st.active;if(!st.active&&!config.compositionInvalid)st.error='';editing=st.active?st:null;if(st.active&&!config.composition){const s=syncContext();setPreset(st,s.target.parts[0].m,0);}notify();};
+ adjust.onclick=()=>{if(!st.active||panel.open&&panel.matches(':modal'))return;if(panel.open)panel.close();st.dragging=false;st.restoreFocus=true;adjust.setAttribute('aria-expanded','true');showSheet(panel);};
+ close.onclick=()=>closePanel(st);panel.addEventListener('close',()=>{if(panel.open)return;adjust.setAttribute('aria-expanded','false');if(st.restoreFocus&&button.isConnected&&!button.hidden)(st.active?adjust:button).focus({preventScroll:true});});
+ panel.addEventListener('click',e=>{if(e.target!==panel)return;const r=panel.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closePanel(st);});
+ clear.onclick=()=>{config.composition=null;st.dragging=false;st.active=false;editing=null;st.invalid=false;config.compositionInvalid=false;config.invalidDraft=null;st.error='';notify();closePanel(st);};height.onchange=x.onchange=()=>changed(st);limb.onchange=()=>{if(config.composition)config.composition={...config.composition,limb:limb.value};notify();};
  const cv=view.cv;
  function choose(ev){if(!st.active)return;const v=host._trialCompositionView,s=syncContext(),r=cv.getBoundingClientRect(),px=(ev.clientX-r.left)*v.W/r.width,py=(ev.clientY-r.top)*v.H/r.height,off=host._lensOffset||[0,0],angle=AstroNotesAlign.viewUnprojector(v.win.az0,v.win.alt0)((px-off[0]*v.W-v.W/2)/v.k,(v.H/2-py+off[1]*v.H)/v.k);if(!angle)return;const obs={...v.spec.obs,elevation:v.spec.obs.elevation??0,eyeM:v.spec.eyeM},c=S.pick({azimuth:angle[0],altitude:angle[1],obs,target:s.target,align:AstroNotesAlign,limb:config.composition?.limb||'center'});if(c){config.composition=c;st.invalid=false;config.compositionInvalid=false;config.invalidDraft=null;st.error='';}else {st.invalid=true;config.compositionInvalid=true;st.error='対象の面を選んでください。';}notify();}
- for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])cv.addEventListener(type,ev=>{if(!st.active)return;ev.preventDefault();ev.stopImmediatePropagation();if(type==='pointerdown'){st.dragging=true;try{cv.setPointerCapture(ev.pointerId);}catch{}}if(type==='pointerdown'||st.dragging&&type!=='pointercancel')choose(ev);if(type==='pointerup'||type==='pointercancel')st.dragging=false;},true);
- cv.addEventListener('click',e=>{if(st.active){e.preventDefault();e.stopImmediatePropagation();}},true);
- cv.addEventListener('keydown',e=>{if(!st.active)return;const dirs={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};if(e.key==='Escape'){st.dragging=false;st.active=false;editing=null;if(!config.compositionInvalid)st.error='';notify();return;}if(!dirs[e.key])return;e.preventDefault();e.stopImmediatePropagation();const c=config.composition,v=host._trialCompositionView,s=syncContext(),g=C.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),xy=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0)(g.azimuth,g.angle),off=host._lensOffset||[0,0],r=cv.getBoundingClientRect(),step=e.shiftKey?10:1;choose({clientX:r.left+(v.W/2+xy[0]*v.k+off[0]*v.W+dirs[e.key][0]*step)*r.width/v.W,clientY:r.top+(v.H/2-xy[1]*v.k+off[1]*v.H+dirs[e.key][1]*step)*r.height/v.H});},true);
+ for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])cv.addEventListener(type,ev=>{if(!st.active){if(type==='pointerdown')st.suppressClick=false;else if(st.suppressClick){ev.preventDefault();ev.stopImmediatePropagation();}return;}ev.preventDefault();ev.stopImmediatePropagation();if(type==='pointerdown'){st.dragging=true;try{cv.setPointerCapture(ev.pointerId);}catch{}}if(type==='pointerdown'||st.dragging&&type!=='pointercancel')choose(ev);if(type==='pointerup'||type==='pointercancel')st.dragging=false;},true);
+ cv.addEventListener('click',e=>{if(st.active||st.suppressClick){st.suppressClick=false;e.preventDefault();e.stopImmediatePropagation();}},true);
+ cv.addEventListener('keydown',e=>{if(!st.active)return;const dirs={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};if(e.key==='Escape'){st.suppressClick=!!st.dragging;st.dragging=false;st.active=false;editing=null;if(!config.compositionInvalid)st.error='';notify();return;}if(!dirs[e.key])return;e.preventDefault();e.stopImmediatePropagation();const c=config.composition,v=host._trialCompositionView,s=syncContext(),g=C.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),xy=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0)(g.azimuth,g.angle),off=host._lensOffset||[0,0],r=cv.getBoundingClientRect(),step=e.shiftKey?10:1;choose({clientX:r.left+(v.W/2+xy[0]*v.k+off[0]*v.W+dirs[e.key][0]*step)*r.width/v.W,clientY:r.top+(v.H/2-xy[1]*v.k+off[1]*v.H+dirs[e.key][1]*step)*r.height/v.H});},true);
  update(st);
 }
 function redraw(host){const st=states.get(host),v=host._trialCompositionView,c=config.composition;if(!st||!v)return;if(st.active){if(!st.wasEditing)st.normalTouchAction=v.cv.style.touchAction;v.cv.style.touchAction='none';st.wasEditing=true;}else if(st.wasEditing){v.cv.style.touchAction=st.normalTouchAction;st.wasEditing=false;}st.overlay.hidden=!c||!host.closest('#exploreScenePanel');if(st.overlay.hidden)return;if(!c)return;const s=current();if(!s?.target)return;const g=C.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),xy=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0)(g.azimuth,g.angle);if(!xy){st.overlay.hidden=true;return;}const r=v.cv.getBoundingClientRect(),off=host._lensOffset||[0,0],x=(v.W/2+xy[0]*v.k+off[0]*v.W)*r.width/v.W,y=(v.H/2-xy[1]*v.k+off[1]*v.H)*r.height/v.H,rad=Math.max(2,(host._bodyRadius||.25)*v.k*r.width/v.W);Object.assign(st.marker.style,{left:x+'px',top:y+'px'});Object.assign(st.disc.style,{left:x+'px',top:(y+(c.limb==='upper'?rad:c.limb==='lower'?-rad:0))+'px',width:2*rad+'px',height:2*rad+'px'});st.disc.hidden=!st.active||!capabilities(s,v.spec.obs).limbs;}
+document.addEventListener('astronotes-preview-leave',()=>{editing=null;for(const st of statesList){st.active=false;st.dragging=false;closePanel(st,false);update(st);}});
 globalThis.AstroNotesTrialComposition={bind,redraw,plan,label,capabilities};const host=document.getElementById('aimLook');if(host?._trialCompositionView)bind(host,host._trialCompositionView);
 })();
 
@@ -1675,7 +1682,34 @@ function mapAnchor(point){
  const link=document.createElement('a');link.className='fav-btn tiny';link.textContent='地図アプリで開く';link.href=apps.mapApps.google.url(point.latitude.toFixed(7)+', '+point.longitude.toFixed(7));link.target='_blank';link.rel='noopener';
  link.onclick=e=>{e.preventDefault();apps.requestMap(point,{source:link,isCurrent:()=>link.isConnected});};return link;
 }
-function syncObserverMap(){const old=document.getElementById('exploreExternalMap'),point=snapshot()?.observer,anchor=document.querySelector('#exploreScenePanel #aimLook .aim-look-figure');if(!anchor||!point){old?.remove();return;}const next=mapAnchor(point);if(!next){old?.remove();return;}if(old?.href===next.href)return;old?.remove();next.id='exploreExternalMap';next.className='chip tiny';anchor.before(next);}
+function syncRecordSave(host,toolbar){
+ const share=toolbar.querySelector('.aim-figure-share');if(!share)return;
+ const place=share.querySelector('[data-quick-save=place]'),plan=share.querySelector('[data-quick-save=plan]');if(!place||!plan)return;
+ let dialog=share.querySelector('#trialRecordSaveSheet'),button=share.querySelector('#trialRecordSave');
+ if(!dialog){
+  button=document.createElement('button');button.id='trialRecordSave';button.type='button';button.className='trial-record-action';button.setAttribute('aria-label','記録に保存');button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-expanded','false');button.setAttribute('aria-controls','trialRecordSaveSheet');
+  const svg=document.querySelector('#recordsMenu svg').cloneNode(true);svg.removeAttribute('class');svg.setAttribute('width','24');svg.setAttribute('height','24');
+  const plus=document.createElementNS('http://www.w3.org/2000/svg','path');plus.setAttribute('d','M19 13v8m-4-4h8');plus.setAttribute('data-record-add','');
+  const gap=document.createElementNS('http://www.w3.org/2000/svg','path');gap.setAttribute('d','M19 13v8m-4-4h8');gap.setAttribute('stroke','var(--card)');gap.setAttribute('stroke-width','5');svg.append(gap,plus);button.append(svg);const label=document.createElement('span');label.textContent='記録';button.append(label);
+  dialog=document.createElement('dialog');dialog.id='trialRecordSaveSheet';dialog.className='sheet trial-record-dialog';dialog.setAttribute('aria-label','記録に保存');dialog.tabIndex=-1;
+  const head=document.createElement('div');head.className='sheet-head';const title=document.createElement('strong');title.textContent='記録に保存';const close=document.createElement('button');close.type='button';close.textContent='閉じる';close.setAttribute('data-record-save-close','');head.append(title,close);
+  const choices=document.createElement('div');choices.className='sheet-body';for(const [option,text] of [[place,'撮影地点に保存'],[plan,'予定に保存']]){const label=document.createElement('span');label.setAttribute('data-save-choice-label','');label.textContent=text;option.append(label);option.setAttribute('aria-label',text);option.title=text;choices.append(option);}
+  dialog.append(head,choices);share.append(button,dialog);
+  button.onclick=()=>{if(!host.closest('#exploreScenePanel')||host.closest('#exploreScenePanel').hidden)return;if(dialog.open&&dialog.matches(':modal'))return;if(dialog.open)dialog.close();dialog.restoreRecordFocus=true;button.setAttribute('aria-expanded','true');showSheet(dialog);};
+  close.onclick=()=>dialog.close();dialog.addEventListener('close',()=>{if(dialog.open)return;button.setAttribute('aria-expanded','false');if(dialog.restoreRecordFocus&&button.isConnected&&host.closest('#exploreScenePanel'))button.focus({preventScroll:true});});
+  dialog.addEventListener('click',e=>{const choice=e.target.closest('[data-quick-save]');if(choice&&!choice.disabled){queueMicrotask(()=>{if(dialog.open)dialog.close();});return;}if(e.target!==dialog)return;const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();});
+ }
+ const choices=dialog.querySelector('.sheet-body');
+ for(const [option,text] of [[place,'撮影地点に保存'],[plan,'予定に保存']]){if(!option.querySelector('[data-save-choice-label]')){const label=document.createElement('span');label.setAttribute('data-save-choice-label','');label.textContent=text;option.append(label);option.setAttribute('aria-label',text);option.title=text;}if(option.parentElement!==choices)choices.append(option);}
+ const hidden=!!host.closest('#exploreScenePanel')?.hidden;if(button.hidden!==hidden)button.hidden=hidden;button.disabled=place.disabled&&plan.disabled;
+}
+function syncObserverMap(){
+ watchPreview();
+ const old=document.getElementById('exploreExternalMap'),point=snapshot()?.observer,toolbar=document.querySelector('#exploreScenePanel #aimLook .trial-scene-toolbar');
+ if(!toolbar||!point){old?.remove();return;}syncRecordSave(toolbar.closest('#aimLook'),toolbar);const next=mapAnchor(point);if(!next){old?.remove();return;}
+ if(old?.href===next.href){if(old.parentElement!==toolbar)toolbar.append(old);return;}
+ old?.remove();next.id='exploreExternalMap';next.className='trial-map-action';next.setAttribute('aria-label','撮影地点を地図アプリで開く');next.title='地図アプリで開く';next.innerHTML=UI_ICONS.map+'<span>地図</span>';toolbar.append(next);
+}
 const dateValue=at=>new Date(at+32400000).toISOString().slice(0,10);
 function changeCandidateDay(value){
  const selected=snapshot()||dateSelection();if(!selected||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
@@ -1758,7 +1792,8 @@ function mount(){
 }
 let mountFrame=null;const scheduleMount=()=>{if(mountFrame===null)mountFrame=requestAnimationFrame(()=>{mountFrame=null;mount();});};
 const picker=document.getElementById('placeSheet');if(picker){new MutationObserver(scheduleMount).observe(picker,{childList:true,subtree:true,attributes:true,attributeFilter:['open','hidden','aria-selected']});picker.addEventListener('close',()=>{if(picker.open)return;if(mainWorkspace()){scheduleMount();return;}stop();run++;hasSearched=false;if(dateCalendar?.open)dateCalendar.close();AstroNotesCandidatePicker.suspend?.();section?.remove();section=null;condition='';});}
-const scenePanel=document.getElementById('exploreScenePanel');if(scenePanel)new MutationObserver(()=>{syncObserverMap();scheduleMount();}).observe(scenePanel,{childList:true,subtree:true});
+let observedScene=null,previewObserver=null;
+function watchPreview(){const scenePanel=document.getElementById('exploreScenePanel');if(!scenePanel||scenePanel===observedScene)return;previewObserver?.disconnect();observedScene=scenePanel;previewObserver=new MutationObserver(()=>{const host=scenePanel.querySelector('#aimLook');if((scenePanel.hidden||scenePanel.hasAttribute('data-loading')||host?.hidden)&&scenePanel.querySelector('#trialComposition[open],#trialRecordSaveSheet[open]'))document.dispatchEvent(new Event('astronotes-preview-leave'));syncObserverMap();scheduleMount();});previewObserver.observe(scenePanel,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','data-loading']});}
 // The shared bar owns the selected instant. This adapter only owns cancellation
 // and the pending search intent while its native ruler is moving.
 document.addEventListener('astronotes-candidate-date-change',event=>{
@@ -1771,6 +1806,7 @@ document.addEventListener('astronotes-candidate-date-change',event=>{
  const selected=snapshot(),identity=uiKey(selected);
  autoSearchTimer=setTimeout(()=>{autoSearchTimer=null;const latest=snapshot();if(!selected||!contextActive()||uiKey(latest)!==identity||engine.cached(latest))return;const button=document.getElementById('candidateSearchAction');if(button&&!button.disabled&&button.dataset.state!=='searching')button.click();},350);
 });
+document.addEventListener('astronotes-preview-leave',()=>{const button=document.getElementById('trialRecordSave');if(button)button.hidden=true;const dialog=document.getElementById('trialRecordSaveSheet');if(dialog?.open){dialog.restoreRecordFocus=false;dialog.close();}});
 document.addEventListener('astronotes-search-state',scheduleMount);document.addEventListener('astronotes-composition-change',mount);mount();
 })();
 

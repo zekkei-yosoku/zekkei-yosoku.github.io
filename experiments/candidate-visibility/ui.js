@@ -72,7 +72,34 @@ function mapAnchor(point){
  const link=document.createElement('a');link.className='fav-btn tiny';link.textContent='地図アプリで開く';link.href=apps.mapApps.google.url(point.latitude.toFixed(7)+', '+point.longitude.toFixed(7));link.target='_blank';link.rel='noopener';
  link.onclick=e=>{e.preventDefault();apps.requestMap(point,{source:link,isCurrent:()=>link.isConnected});};return link;
 }
-function syncObserverMap(){const old=document.getElementById('exploreExternalMap'),point=snapshot()?.observer,anchor=document.querySelector('#exploreScenePanel #aimLook .aim-look-figure');if(!anchor||!point){old?.remove();return;}const next=mapAnchor(point);if(!next){old?.remove();return;}if(old?.href===next.href)return;old?.remove();next.id='exploreExternalMap';next.className='chip tiny';anchor.before(next);}
+function syncRecordSave(host,toolbar){
+ const share=toolbar.querySelector('.aim-figure-share');if(!share)return;
+ const place=share.querySelector('[data-quick-save=place]'),plan=share.querySelector('[data-quick-save=plan]');if(!place||!plan)return;
+ let dialog=share.querySelector('#trialRecordSaveSheet'),button=share.querySelector('#trialRecordSave');
+ if(!dialog){
+  button=document.createElement('button');button.id='trialRecordSave';button.type='button';button.className='trial-record-action';button.setAttribute('aria-label','記録に保存');button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-expanded','false');button.setAttribute('aria-controls','trialRecordSaveSheet');
+  const svg=document.querySelector('#recordsMenu svg').cloneNode(true);svg.removeAttribute('class');svg.setAttribute('width','24');svg.setAttribute('height','24');
+  const plus=document.createElementNS('http://www.w3.org/2000/svg','path');plus.setAttribute('d','M19 13v8m-4-4h8');plus.setAttribute('data-record-add','');
+  const gap=document.createElementNS('http://www.w3.org/2000/svg','path');gap.setAttribute('d','M19 13v8m-4-4h8');gap.setAttribute('stroke','var(--card)');gap.setAttribute('stroke-width','5');svg.append(gap,plus);button.append(svg);const label=document.createElement('span');label.textContent='記録';button.append(label);
+  dialog=document.createElement('dialog');dialog.id='trialRecordSaveSheet';dialog.className='sheet trial-record-dialog';dialog.setAttribute('aria-label','記録に保存');dialog.tabIndex=-1;
+  const head=document.createElement('div');head.className='sheet-head';const title=document.createElement('strong');title.textContent='記録に保存';const close=document.createElement('button');close.type='button';close.textContent='閉じる';close.setAttribute('data-record-save-close','');head.append(title,close);
+  const choices=document.createElement('div');choices.className='sheet-body';for(const [option,text] of [[place,'撮影地点に保存'],[plan,'予定に保存']]){const label=document.createElement('span');label.setAttribute('data-save-choice-label','');label.textContent=text;option.append(label);option.setAttribute('aria-label',text);option.title=text;choices.append(option);}
+  dialog.append(head,choices);share.append(button,dialog);
+  button.onclick=()=>{if(!host.closest('#exploreScenePanel')||host.closest('#exploreScenePanel').hidden)return;if(dialog.open&&dialog.matches(':modal'))return;if(dialog.open)dialog.close();dialog.restoreRecordFocus=true;button.setAttribute('aria-expanded','true');showSheet(dialog);};
+  close.onclick=()=>dialog.close();dialog.addEventListener('close',()=>{if(dialog.open)return;button.setAttribute('aria-expanded','false');if(dialog.restoreRecordFocus&&button.isConnected&&host.closest('#exploreScenePanel'))button.focus({preventScroll:true});});
+  dialog.addEventListener('click',e=>{const choice=e.target.closest('[data-quick-save]');if(choice&&!choice.disabled){queueMicrotask(()=>{if(dialog.open)dialog.close();});return;}if(e.target!==dialog)return;const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();});
+ }
+ const choices=dialog.querySelector('.sheet-body');
+ for(const [option,text] of [[place,'撮影地点に保存'],[plan,'予定に保存']]){if(!option.querySelector('[data-save-choice-label]')){const label=document.createElement('span');label.setAttribute('data-save-choice-label','');label.textContent=text;option.append(label);option.setAttribute('aria-label',text);option.title=text;}if(option.parentElement!==choices)choices.append(option);}
+ const hidden=!!host.closest('#exploreScenePanel')?.hidden;if(button.hidden!==hidden)button.hidden=hidden;button.disabled=place.disabled&&plan.disabled;
+}
+function syncObserverMap(){
+ watchPreview();
+ const old=document.getElementById('exploreExternalMap'),point=snapshot()?.observer,toolbar=document.querySelector('#exploreScenePanel #aimLook .trial-scene-toolbar');
+ if(!toolbar||!point){old?.remove();return;}syncRecordSave(toolbar.closest('#aimLook'),toolbar);const next=mapAnchor(point);if(!next){old?.remove();return;}
+ if(old?.href===next.href){if(old.parentElement!==toolbar)toolbar.append(old);return;}
+ old?.remove();next.id='exploreExternalMap';next.className='trial-map-action';next.setAttribute('aria-label','撮影地点を地図アプリで開く');next.title='地図アプリで開く';next.innerHTML=UI_ICONS.map+'<span>地図</span>';toolbar.append(next);
+}
 const dateValue=at=>new Date(at+32400000).toISOString().slice(0,10);
 function changeCandidateDay(value){
  const selected=snapshot()||dateSelection();if(!selected||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
@@ -155,7 +182,8 @@ function mount(){
 }
 let mountFrame=null;const scheduleMount=()=>{if(mountFrame===null)mountFrame=requestAnimationFrame(()=>{mountFrame=null;mount();});};
 const picker=document.getElementById('placeSheet');if(picker){new MutationObserver(scheduleMount).observe(picker,{childList:true,subtree:true,attributes:true,attributeFilter:['open','hidden','aria-selected']});picker.addEventListener('close',()=>{if(picker.open)return;if(mainWorkspace()){scheduleMount();return;}stop();run++;hasSearched=false;if(dateCalendar?.open)dateCalendar.close();AstroNotesCandidatePicker.suspend?.();section?.remove();section=null;condition='';});}
-const scenePanel=document.getElementById('exploreScenePanel');if(scenePanel)new MutationObserver(()=>{syncObserverMap();scheduleMount();}).observe(scenePanel,{childList:true,subtree:true});
+let observedScene=null,previewObserver=null;
+function watchPreview(){const scenePanel=document.getElementById('exploreScenePanel');if(!scenePanel||scenePanel===observedScene)return;previewObserver?.disconnect();observedScene=scenePanel;previewObserver=new MutationObserver(()=>{const host=scenePanel.querySelector('#aimLook');if((scenePanel.hidden||scenePanel.hasAttribute('data-loading')||host?.hidden)&&scenePanel.querySelector('#trialComposition[open],#trialRecordSaveSheet[open]'))document.dispatchEvent(new Event('astronotes-preview-leave'));syncObserverMap();scheduleMount();});previewObserver.observe(scenePanel,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','data-loading']});}
 // The shared bar owns the selected instant. This adapter only owns cancellation
 // and the pending search intent while its native ruler is moving.
 document.addEventListener('astronotes-candidate-date-change',event=>{
@@ -168,5 +196,6 @@ document.addEventListener('astronotes-candidate-date-change',event=>{
  const selected=snapshot(),identity=uiKey(selected);
  autoSearchTimer=setTimeout(()=>{autoSearchTimer=null;const latest=snapshot();if(!selected||!contextActive()||uiKey(latest)!==identity||engine.cached(latest))return;const button=document.getElementById('candidateSearchAction');if(button&&!button.disabled&&button.dataset.state!=='searching')button.click();},350);
 });
+document.addEventListener('astronotes-preview-leave',()=>{const button=document.getElementById('trialRecordSave');if(button)button.hidden=true;const dialog=document.getElementById('trialRecordSaveSheet');if(dialog?.open){dialog.restoreRecordFocus=false;dialog.close();}});
 document.addEventListener('astronotes-search-state',scheduleMount);document.addEventListener('astronotes-composition-change',mount);mount();
 })();

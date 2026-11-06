@@ -4,7 +4,7 @@
 const api=root.AstroNotesCandidateDiscovery||(typeof require==='function'?require('./search.js'):null);
 const Composition=root.AstroNotesCandidateComposition||(typeof require==='function'?require('./composition.js'):null);
 const allowedPoint=p=>p&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&Math.abs(p.latitude)<85&&Math.abs(p.longitude)<=180;
-function requestKey(p){return JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode,p.profile,p.strict,p.composition,p.timeWindow,p.timeSpec||{kind:'day',at:api.day(p.at)},p.atmosphere,p.lens?.mode==='unspecified'?{mode:'unspecified'}:p.lens,p.extraTargets,p.requireAllTargets]);}
+function requestKey(p){return JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode,p.profile,p.strict,p.composition,!!p.compositionInvalid,p.timeWindow,p.timeSpec||{kind:'day',at:api.day(p.at)},p.atmosphere,p.lens?.mode==='unspecified'?{mode:'unspecified'}:p.lens,p.extraTargets,p.requireAllTargets]);}
 function regionsFor(seeds){
  const map=new Map(),size=.005;
  for(const seed of seeds||[]){
@@ -29,6 +29,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
  // complete result remains available when a recheck fails or is cancelled.
  function restart(plan){const key=requestKey(plan),previous=sessions.get(key);if(previous?.busy&&previous.current?.()!==false)return false;if(previous)sessions.set(key,fresh(key,previous.inverse,previous.lastResult));return true;}
  async function search(plan,{onProgress=()=>{},isCurrent=()=>true,signal,more=false}={}){
+  if(plan.compositionInvalid)throw Error('invalid-composition');
   const key=requestKey(plan);let session=sessions.get(key);
   const wanted=()=>!signal?.aborted&&isCurrent();
   if(!wanted())return {cancelled:true};

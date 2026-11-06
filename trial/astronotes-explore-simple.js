@@ -190,6 +190,7 @@ function enterResult(){
  if(!selectionPending)captureSearch();selectionPending=false;resultRequested=true;syncWorkspace();
 }
 function showSearch(){
+ document.dispatchEvent(new Event('astronotes-preview-leave'));
  if(!returnIntent&&active())captureSearch();const saved=returnIntent;if(!active()||!saved||saved.owner!==auth?.loginId||saved.generation!==accessState.generation)return;
  resultRequested=false;selectionPending=true;invalidate();look.hidden=true;
  const s=saved.selection;SkyMapUI.setTarget(s.target.id);
@@ -199,6 +200,7 @@ function showSearch(){
  SkyMapUI.workspaceHost()?.restoreObserver(structuredClone(s.observer));selectionPending=false;searchStarted=saved.searched;pendingScroll={top:saved.scrollTop,count:saved.count};syncWorkspace();if(!searchStarted)restoreSearchScroll(0);
 }
 function leaveSearchFlow(){
+ document.dispatchEvent(new Event('astronotes-preview-leave'));
  resultRequested=false;selectionPending=false;searchStarted=false;returnIntent=null;pendingScroll=null;candidateBack.hidden=true;
  const panel=$('recentCandidates');if(candidatePanelHome&&panel){candidatePanelHome.parent.insertBefore(panel,candidatePanelHome.next?.parentNode===candidatePanelHome.parent?candidatePanelHome.next:null);panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby','placeTab-candidates');panel.removeAttribute('aria-label');candidatePanelHome=null;}
  searchRoot?.remove();delete mapView.dataset.exploreStage;

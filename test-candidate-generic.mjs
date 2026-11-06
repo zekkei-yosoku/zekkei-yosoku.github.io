@@ -72,6 +72,30 @@ test('generic queue is resumable and keeps event-position pairs; cancellation ne
  }finally{C.inverseSeeds=original;}
 });
 
+test('invalid composition cannot restore valid candidates or start IO, and recovery reuses the valid cache',async()=>{
+ const original=C.inverseSeeds,calls={inverse:0,body:0,provider:0,evaluate:0};
+ C.inverseSeeds=async()=>{calls.inverse++;return {seeds:[{latitude:35,longitude:139,radiusM:300}],partial:true};};
+ try{
+  const engine=createGenericSearch({
+   provider:{load:async()=>{calls.provider++;return {points:[point],coverage:{nextCursor:null}};}},
+   bodies:{...bodies,ensure:async()=>{calls.body++;}},
+   evaluate:async()=>{calls.evaluate++;return {recommend:true,id:'valid-composition',place:point,event:{at:0}};},
+   yieldTask:async()=>{}
+  });
+  const valid={...plan,composition:{heightM:110,xM:0,limb:'lower'}},first=await engine.search(valid);
+  assert.equal(first.rows.length,1);assert.deepEqual(calls,{inverse:1,body:1,provider:1,evaluate:1});
+  const invalid={...valid,compositionInvalid:true,invalidDraft:{height:'800',x:'0'}};
+  assert.notEqual(requestKey(invalid),requestKey(valid));assert.equal(engine.cached(invalid),null);
+  await assert.rejects(engine.search(invalid),/invalid-composition/);
+  await assert.rejects(engine.search(invalid,{more:true}),/invalid-composition/);
+  assert.deepEqual(calls,{inverse:1,body:1,provider:1,evaluate:1},'invalid input must not call any IO or evaluation port');
+  const recovered={...invalid,compositionInvalid:false,invalidDraft:null};
+  assert.equal(requestKey(recovered),requestKey(valid));assert.deepEqual(engine.cached(recovered).rows,first.rows);
+  const reused=await engine.search(recovered);assert(reused.cached);assert.deepEqual(reused.rows,first.rows);
+  assert.deepEqual(calls,{inverse:1,body:1,provider:1,evaluate:1},'recovery preserves the completed valid result');
+ }finally{C.inverseSeeds=original;}
+});
+
 const completeIndex={grid:{},buildings:[],coverageMeshes:[{provided:true,bbox:[138,34,140,36]}]};
 const clearTerrain={at:async()=>50,trace:async()=>({status:'model-clear',checked:1,missing:0})};
 const clearOutline={...align,towerOutline:()=>({known:true,schematic:false,polygons:[[[-1,8],[1,8],[1,9],[-1,9]]]})};
