@@ -1,5 +1,6 @@
 import {searchFlowSource,searchFlowStyle} from './build-explore-search-flow.mjs';
 import {explorePageStyle} from './build-explore-page-layout.mjs';
+import {exploreBarStyle} from './build-explore-bar-layout.mjs';
 // Trial-only adapters. The existing picker/session owns all selected places.
 const patch=(source,from,to)=>{if(source.split(from).length!==2)throw Error('Explore place trial boundary changed: '+from.slice(0,90));return source.replace(from,to);};
 const candidateWorkspaceSource=searchFlowSource;
@@ -23,7 +24,7 @@ export function explorePlaceSource(path,source){
  const actionLabel=!s?.target?'検索：対象を選ぶ':!s?.observer?'検索：撮影地点を選ぶ':'この撮影条件で検索';if(confirm.getAttribute('aria-label')!==actionLabel)confirm.setAttribute('aria-label',actionLabel);`);
   source=patch(source,"'.explore-tabs{scroll-margin-top:12px}",JSON.stringify(searchFlowStyle)+"+\n'.explore-tabs{scroll-margin-top:12px}");
   // Last in this controller's stylesheet so legacy card rules cannot override it.
-  source=patch(source,"document.head.append(style);","style.textContent+="+JSON.stringify(explorePageStyle)+";document.head.append(style);");
+  source=patch(source,"document.head.append(style);","style.textContent+="+JSON.stringify(explorePageStyle+exploreBarStyle)+";document.head.append(style);");
   source=patch(source,'layout.conditions.open=false;', 'enterResult();layout.conditions.open=false;');
   source=patch(source,'if(!active())return;updateConditions();let s;','if(!active())return;updateConditions();if(!resultRequested)return;let s;');
   source=source.replaceAll('!plan.current(run)||!active()', '!plan.current(run)||!resultActive()');
