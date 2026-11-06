@@ -64,7 +64,7 @@ export function explorePlaceHtml(html){
  html=patch(html,'  skyPlayback.stop(false);\n  session.observer=aimSavedFrom',"  document.dispatchEvent(new Event('astronotes-candidate-selecting'));\n  skyPlayback.stop(false);\n  session.observer=aimSavedFrom");
  html=patch(html,'map.setCenter(candidate.place.latitude,candidate.place.longitude);refresh();return true;','map.setCenter(candidate.place.latitude,candidate.place.longitude);refresh();document.dispatchEvent(new Event(\'astronotes-candidate-selected\'));return true;');
  html=patch(html,"const panels={recent:historyPanel,favorites:favPanel,candidates:candidatePanel};",`const recordsPanel=document.createElement('section');recordsPanel.id='recentRecordedPlaces';
- const recordSearch=document.createElement('input');recordSearch.type='search';recordSearch.className='fav-in';recordSearch.placeholder='記録の地点名で検索';recordSearch.setAttribute('aria-label','記録の撮影地点を検索');
+ const recordSearch=document.createElement('input');recordSearch.type='search';recordSearch.className='fav-in';recordSearch.placeholder='撮影地点を検索';recordSearch.setAttribute('aria-label','撮影地点を検索');
  const recordList=document.createElement('div');recordList.setAttribute('aria-live','polite');recordsPanel.append(recordSearch,recordList);let recordOwner=null;
  function renderRecordedPlaces(){
   recordList.replaceChildren();const owner=auth?.token;

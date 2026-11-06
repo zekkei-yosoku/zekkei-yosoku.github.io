@@ -57,8 +57,8 @@ async function assertPrimarySearch(page){
     assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().observer.latitude),35.642);
     await page.locator('#skyMapChoose').click();await page.locator('#placeTab-records').click();await page.locator('#recentRecordedPlaces').waitFor({state:'visible'});
     assert.equal(await page.locator('[data-recorded-place]').count(),1);assert.equal(await page.locator('[data-recorded-place=bare-favorite]').count(),0);
-    await page.getByRole('searchbox',{name:'記録の撮影地点を検索'}).fill('一致しない');assert.equal(await page.locator('[data-recorded-place]').count(),0);
-    await page.getByRole('searchbox',{name:'記録の撮影地点を検索'}).fill('河川敷');await page.locator('[data-recorded-place=recorded-place]').click();
+    await page.getByRole('searchbox',{name:'撮影地点を検索',exact:true}).fill('一致しない');assert.equal(await page.locator('[data-recorded-place]').count(),0);
+    await page.getByRole('searchbox',{name:'撮影地点を検索',exact:true}).fill('河川敷');await page.locator('[data-recorded-place=recorded-place]').click();
     await page.waitForFunction(()=>!document.getElementById('placeSheet').open);
     const selected=await page.evaluate(()=>{const s=SkyMapUI.selectionState();return {name:s.observer.name,at:s.at,body:s.body,target:s.target.id};});
     assert.deepEqual(selected,{name:'記録した河川敷',at:initial.at,body:initial.body,target:initial.target});
