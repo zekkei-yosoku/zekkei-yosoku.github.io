@@ -24,9 +24,11 @@ export function numericRulerTimeline(s){
  return s+String.raw`
 ;(function(g){
  const api=g.AstroNotesScrollTimeline;
+ api.focusEnd=input=>{if(input._focusEndBound)return;input._focusEndBound=true;let fresh=false;const end=()=>{if(document.activeElement===input&&input.selectionStart===input.selectionEnd)input.setSelectionRange(input.value.length,input.value.length);};input.addEventListener('pointerdown',()=>{fresh=document.activeElement!==input;});input.addEventListener('focus',()=>{fresh=true;end();});input.addEventListener('click',()=>{if(fresh){fresh=false;end();}});input.addEventListener('blur',()=>fresh=false);};
  api.mountNumeric=options=>api.mount({...options,getMode:()=> 'number'});
  api.mountFocal=(look,owner)=>{
   const input=look.querySelector('[data-lens-focal]'),range=look.querySelector('[data-focal-range]');if(!input||!range)return;
+  const entry=look.querySelector('[data-preview-focal-input]');if(entry&&!entry._focalBound){entry._focalBound=true;api.focusEnd(entry);const apply=()=>{const raw=entry.value.normalize('NFKC').trim(),v=Number(raw);if(!raw||!Number.isFinite(v)||v<8||v>2000){entry.setCustomValidity('8〜2000mmで入力してください');entry.reportValidity();return;}entry.setCustomValidity('');entry.value=String(Math.round(v*10)/10);input.value=entry.value;input.onchange?.();};entry.oninput=()=>entry.setCustomValidity('');entry.onchange=apply;entry.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();apply();}};}
   let state=look._numericFocal;
   if(state&&(!state.root.isConnected||state.range!==range||state.owner!==owner())){look._numericFocalMoving=false;state.controller.destroy();state.root.parentElement?.remove();state=null;}
   if(!state){
@@ -42,6 +44,8 @@ export function numericRulerTimeline(s){
 `;
 }
 export function numericRulerHtml(s){
+ s=patch(s,"const value=document.createElement('output');value.className='preview-focal-value';value.dataset.focalValue='';",`const value=document.createElement('label');value.className='preview-focal-value';value.dataset.focalValue='';value.innerHTML='<span data-focal-approx hidden>約</span><input type="text" inputmode="decimal" data-preview-focal-input aria-label="焦点距離（ミリメートル）"><span>mm</span>';`);
+ s=patch(s,'if(focalValue.textContent!==t)focalValue.textContent=t;',"const entry=focalValue.querySelector('[data-preview-focal-input]');if(entry&&document.activeElement!==entry){entry.value=String(Math.round(+focalInput.value*10)/10);entry.setCustomValidity('');}const approx=focalValue.querySelector('[data-focal-approx]');if(approx)approx.hidden=aimLens.mode!=='auto';");
  s=patch(s,'const saveLens = () => { try { localStorage.setItem("sorami.lens", JSON.stringify(aimLens)); } catch {} aimLookRender(host, spec); };','const saveLens = () => { if(!host._numericFocalMoving){try { localStorage.setItem("sorami.lens", JSON.stringify(aimLens)); } catch {}} aimLookRender(host, spec); };');
  return patch(s,"  const portraitButton=look.querySelector('[data-lens-portrait]');", "  globalThis.AstroNotesScrollTimeline?.mountFocal?.(look,()=>auth?.token);\n  const portraitButton=look.querySelector('[data-lens-portrait]');");
 }

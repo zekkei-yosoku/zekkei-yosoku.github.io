@@ -9,20 +9,23 @@ const style=String.raw`
 .record-alignment-limbs[hidden]{display:none!important}.record-alignment-limbs button{min-width:0;min-height:44px;font-size:13px;padding:6px}
 .record-alignment-limbs button[aria-pressed=true]{color:var(--accent);border-color:var(--accent)}
 #skyMapAlignmentControls{display:grid;gap:8px}
-#previewEyeHeightControls{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card);min-width:0}
+#previewEyeHeightControls{margin:0 0 6px;padding:0;border:0;background:none;min-width:0}
 #previewEyeHeightControls[hidden]{display:none!important}
-.preview-eye-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.preview-eye-row>label{font-size:13px;font-weight:600}.preview-eye-row>label>span{display:block;font-size:11px;font-weight:400;color:var(--secondary)}
-.preview-eye-value{display:flex;align-items:center;gap:4px;min-width:0}.preview-eye-value>label{display:flex;align-items:center;gap:4px;padding:0 6px;background:var(--sunk);border-radius:8px;font-size:13px}
-#previewEyeHeightControls button{min-width:44px;min-height:44px;padding:4px;border:0;border-radius:8px;background:var(--sunk);color:var(--accent);font-size:20px}
-#previewEyeValue{box-sizing:border-box;width:76px;min-width:0;min-height:44px;padding:6px 0;border:0;background:transparent;color:var(--text);text-align:right;font-size:16px}
- .numeric-ruler-track{position:relative;min-width:0;height:54px;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--sunk)}
-.numeric-ruler-track .numeric-ruler{height:54px;width:100%;cursor:ew-resize;direction:ltr}
-.numeric-ruler-track .sky-map-timeline-center{top:4px;bottom:4px}.numeric-ruler-track .sky-timeline-label{top:22px}
-#previewEyeHeightControls .numeric-ruler-track{margin-top:8px}
-.preview-focal-tools .numeric-ruler-track{width:100%;height:54px}
+.preview-eye-row{display:grid;grid-template-columns:minmax(0,1fr) 88px;column-gap:10px;align-items:end}
+.preview-eye-tools{min-width:0}.preview-eye-scale{display:block;font-size:11px;line-height:14px;color:var(--secondary);margin:0}
+.preview-eye-value,#aimLook .preview-focal-bar .preview-focal-value{display:flex;align-items:center;justify-content:flex-end;gap:2px;height:44px;min-width:0;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+#previewEyeValue,#aimLook .preview-focal-value [data-preview-focal-input]{box-sizing:border-box;width:0;flex:1;min-width:0;min-height:44px;padding:0;border:0;background:transparent;color:var(--text);text-align:right;font-size:15px;font-weight:600;appearance:textfield;border-radius:0}
+#previewEyeValue::-webkit-inner-spin-button,#previewEyeValue::-webkit-outer-spin-button{appearance:none;margin:0}
+.numeric-ruler-track{box-sizing:border-box;position:relative;min-width:0;height:46px;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--sunk)}
+.numeric-ruler-track .numeric-ruler{height:44px;width:100%;cursor:ew-resize;direction:ltr}
+.numeric-ruler-track .sky-map-timeline-center{top:4px;bottom:4px}.numeric-ruler-track .sky-timeline-label{top:20px}
+#previewEyeRuler .sky-timeline-tape{background-image:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px calc(var(--timeline-unit)*5));background-size:calc(var(--timeline-unit)*5) 8px!important}
+#aimLook .preview-focal-tools{margin:0}
+#aimLook .aim-lens .preview-focal-bar{grid-template-columns:minmax(0,1fr) 88px;margin:0;column-gap:10px}
+#aimLook .preview-focal-scale{font-size:11px;line-height:14px}
+.preview-focal-tools .numeric-ruler-track{width:100%;height:46px}
 [data-focal-range][hidden]{display:none!important}
-#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;width:88px;min-width:88px;max-width:88px;font-variant-numeric:tabular-nums}
+#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;width:88px;min-width:88px;max-width:88px;height:44px;line-height:normal;padding-bottom:0;font-variant-numeric:tabular-nums}
 #previewEyeError{margin:4px 0 0;color:var(--secondary)}
 `;
 export function recordAlignmentMyplaces(s){
