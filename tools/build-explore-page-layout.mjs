@@ -6,9 +6,7 @@ main:has(>${root}){max-width:1280px}
 ${root} #exploreConditions{max-width:none;margin:0;border:0;border-radius:0;background:transparent;position:static}
 ${root} #exploreConditions>summary{display:none}
 ${root} .explore-condition-fields{padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
-${root} .explore-section-title,${root} .explore-results-heading h2{font-size:1.1rem;font-weight:700;line-height:1.5;margin:0}
-${root} .explore-search-intro{padding:0 0 8px}
-${root} .explore-search-intro p{font-size:.75rem;line-height:1.6;margin:4px 0 0;color:var(--secondary)}
+${root} .explore-section-title{font-size:1.1rem;font-weight:700;line-height:1.5;margin:0}
 ${root} .sky-map-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin:0;max-width:none}
 ${root} #exploreConditions .condition-field,${root} #exploreConditions .condition-field:has(.condition-clear){grid-template-columns:80px minmax(0,1fr)!important;gap:10px;margin:0;max-width:none;align-items:start}
 ${root} .condition-field>.condition-label{display:flex;grid-column:1;grid-row:1;align-items:center;gap:6px;min-height:48px;font-size:.75rem;font-weight:600;color:var(--secondary);white-space:nowrap}
@@ -23,7 +21,10 @@ ${root} .aim-observer-card>.place-row{background:var(--card);border:1px solid va
 ${root} .condition-field .place-pick{min-height:48px;padding:8px 0;gap:8px}
 ${root} .place-row .name{font-size:16px;line-height:1.5;font-weight:600}
 ${root} .place-row .muted{font-size:.69rem;line-height:1.5}
-${root} .aim-observer-card #skyMapObserverDetails{margin:0;padding:0;border:0}
+${root} .explore-place-tools{display:grid;grid-template-columns:minmax(0,1fr) 96px;column-gap:12px;align-items:start}
+${root} .explore-place-tools>#skyMapObserverDetails{grid-area:1/1/2/3;margin:0;padding:0;border:0}
+${root} .explore-place-tools #skyMapObserverSummary{padding-right:calc(96px + 12px);list-style:none}
+${root} .explore-place-tools #skyMapObserverSummary::-webkit-details-marker{display:none}
 ${root} #skyMapObserverSummary{min-height:44px;display:flex;align-items:center;font-size:.75rem;color:var(--secondary)}
 ${root} #skyMapAlignmentDetails{margin:0 0 0 90px;padding:8px 0;border-top:1px solid var(--line)}
 ${root} #candidateWorkspaceAction{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:0}
@@ -36,30 +37,32 @@ ${root} #candidateWorkspaceAction .aim-disclosure>summary::-webkit-details-marke
 ${root} #candidateWorkspaceAction .aim-disclosure>p{font-size:.75rem;line-height:1.7;margin:8px 0}
 ${root} #candidateWorkspaceAction .aim-disclosure label{font-size:.75rem;line-height:1.7}
 ${root} #candidateWorkspaceAction :is(select,input){font-size:16px;min-height:44px;max-width:100%}
-${root} #candidateSearchAction,${root} .explore-show-result{width:100%;min-height:48px;margin:0;padding:12px;border-radius:10px;box-sizing:border-box;font-size:.88rem;font-weight:700;line-height:1.5;box-shadow:none}
+${root} #candidateSearchAction,${root} .explore-show-result{min-height:44px;margin:0;padding:10px 12px;border-radius:10px;box-sizing:border-box;font-size:.88rem;font-weight:700;line-height:1.5;box-shadow:none}
+${root} #candidateSearchAction{width:100%;min-height:48px}
 ${root} #candidateSearchAction{background:var(--accent);color:var(--on-accent);border:1px solid var(--accent)}
 ${root} #candidateSearchAction:disabled{opacity:.5;cursor:not-allowed}
 ${root} #candidateSearchAction[data-state="searching"]{background:var(--card);color:var(--accent);border-color:var(--accent)}
-${root} .explore-show-result{width:calc(100% - 90px);margin-left:90px;background:transparent;color:var(--accent);border:1px solid var(--line)}
-${root} #exploreSearchResults{width:100%;max-width:none;margin:16px 0 0;padding:16px 0 0;border-top:1px solid var(--line)}
-${root} .explore-results-heading{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 12px;margin:0 0 12px}
-${root} .explore-results-heading>.tiny{font-size:.69rem;color:var(--secondary)}
-${root} #candidateSearchEmpty{margin:0;padding:16px;background:transparent;border:1px dashed var(--line);border-radius:10px;font-size:.75rem;line-height:1.7;text-align:left;color:var(--secondary)}
+${root} .explore-show-result{grid-area:1/2;z-index:1;width:96px;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;background:var(--card);color:var(--accent);border:1px solid var(--line)}
+${root} .explore-show-result svg{flex:none;width:16px;height:16px}
+${root} #exploreSearchResults{width:100%;max-width:none;margin:12px 0 0;padding:0;border:0}
+${root} #exploreResultsHeading{margin:16px 0 12px}
+${root} #candidateSearchEmpty{margin:0;padding:0;background:transparent;border:0;border-radius:0;font-size:.75rem;line-height:1.7;text-align:left;color:var(--secondary)}
 ${root} #candidateSearchFeedback:empty,${root} #candidateSearchCredits:empty{display:none}
 ${root} #candidateSearchFeedback>[role="status"]:empty{display:none}
 ${root} #candidateSearchFeedback>[role="status"]{font-size:.75rem;line-height:1.7;margin:0 0 12px;color:var(--secondary)}
 ${root} #candidateSearchFeedback .candidate-wait{background:var(--sunk);border-radius:10px;padding:12px}
 ${root} #exploreSearchResults #recentCandidates{overflow:visible}
-${root} #candidateListControls{border:0;margin:0!important;padding:0!important}
-${root} .candidate-filter-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 8px}
+${root} #candidateListControls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:center;border:0;margin:0!important;padding:0!important}
+${root} .candidate-filter-fields{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0}
 ${root} .candidate-filter-fields>label{display:flex!important;flex-direction:column;align-items:stretch!important;gap:4px!important;margin:0!important;font-size:.72rem!important;color:var(--secondary)}
 ${root} .candidate-filter-fields select{background-color:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 28px 8px 10px;color:var(--text)}
-${root} .candidate-list-actions{align-items:center;justify-content:flex-end;gap:8px!important}
+${root} .candidate-list-actions{grid-column:2;grid-row:2;align-items:center;justify-content:flex-end;gap:8px!important}
 ${root} .candidate-list-actions button{flex:0 1 auto;width:auto;min-height:44px;padding:6px 10px;border:1px solid var(--line);border-radius:9px;background:transparent;font-size:.75rem;font-weight:700;color:var(--accent);box-shadow:none}
-${root} .candidate-filter-status{font-size:.72rem;line-height:1.6;color:var(--secondary);margin:8px 0!important;font-variant-numeric:tabular-nums}
-${root} .candidate-list-heading{margin:0!important;background:var(--sunk);border-radius:9px 9px 0 0;padding:0 10px;grid-template-columns:minmax(0,1fr) 52px 64px!important;gap:8px!important}
+${root} .candidate-filter-status{grid-column:1;grid-row:2;font-size:.72rem;line-height:1.6;color:var(--secondary);margin:0!important;font-variant-numeric:tabular-nums}
+${root} #candidateListControls>:is(.candidate-list-heading,#candidateUnifiedResults,#candidateMapPanel){grid-column:1/-1}
+${root} .candidate-list-heading{margin:0!important;background:var(--sunk);border-radius:9px 9px 0 0;padding:0 10px;grid-template-columns:minmax(0,1fr) 52px 80px!important;gap:8px!important}
 ${root} .candidate-list-heading button{font-size:.75rem!important;font-weight:700!important}
-${root} #candidateUnifiedResults>.list-item{grid-template-columns:minmax(0,1fr) 52px 64px!important;column-gap:8px!important;padding:12px 10px!important;border-bottom:1px solid var(--line);border-radius:0;background:transparent;box-shadow:none}
+${root} #candidateUnifiedResults>.list-item{grid-template-columns:minmax(0,1fr) 52px 80px!important;column-gap:8px!important;padding:12px 10px!important;border-bottom:1px solid var(--line);border-radius:0;background:transparent;box-shadow:none}
 ${root} #candidateUnifiedResults [data-candidate-place]{font-size:.88rem!important;line-height:1.5;font-weight:600!important}
 ${root} #candidateUnifiedResults :is([data-candidate-time],[data-place-kind]){font-size:.81rem!important;line-height:1.6}
 ${root} #candidateUnifiedResults .sub-line{font-size:.69rem;line-height:1.6;color:var(--secondary)}
@@ -70,13 +73,15 @@ ${root} :is(button,summary,select):focus-visible{outline:2px solid var(--accent)
  ${root} .explore-condition-fields{gap:14px}
  ${root} #exploreConditions .condition-field,${root} #exploreConditions .condition-field:has(.condition-clear){grid-template-columns:104px minmax(0,1fr)!important;gap:16px}
  ${root} #skyMapAlignmentDetails{margin-left:120px}
- ${root} .explore-show-result{width:calc(100% - 120px);margin-left:120px}
  ${root} #candidateWorkspaceAction .aim-disclosure{margin-left:120px}
- ${root} #candidateListControls{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px}
- ${root} .candidate-filter-fields{grid-column:1;margin:0}
  ${root} .candidate-filter-fields>label{display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;align-items:center!important;gap:10px!important}
- ${root} .candidate-list-actions{grid-column:2;align-self:end}
- ${root} #candidateListControls>:is(.candidate-filter-status,.candidate-list-heading,#candidateUnifiedResults,#candidateMapPanel){grid-column:1/-1}
  ${root} .candidate-list-heading,${root} #candidateUnifiedResults>.list-item{grid-template-columns:minmax(0,1fr) 96px 144px!important}
+}
+@media(max-width:359px){
+ ${root} .candidate-filter-status{grid-column:1/-1}
+ ${root} .candidate-list-actions{grid-column:1/-1;grid-row:3}
+}
+@media(prefers-reduced-motion:reduce){
+ ${root} #skyMapObserverDetails[open] #exploreHeightFields,${root} #skyMapObserverDetails:not([open]) .height-summary-values{animation:none}
 }
 `;

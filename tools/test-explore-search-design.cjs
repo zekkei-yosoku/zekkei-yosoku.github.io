@@ -23,12 +23,12 @@ async function assertFieldLayout(page){
   const search=document.getElementById('candidateSearchAction'),direct=document.getElementById('exploreShowResult'),action=document.getElementById('candidateWorkspaceAction'),results=document.getElementById('exploreSearchResults'),feedback=document.getElementById('candidateSearchFeedback');
   const conditions=document.querySelector('.explore-condition-fields'),observer=document.getElementById('skyMapChoose').closest('.aim-say-from'),card=observer.querySelector('.place-row'),detail=action.querySelector('.aim-disclosure');
   const before=(a,b)=>!!(a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING),o=observer.getBoundingClientRect(),c=card.getBoundingClientRect(),d=direct.getBoundingClientRect(),e=detail.getBoundingClientRect(),s=search.getBoundingClientRect();
-  return {labels,overflow:document.documentElement.scrollWidth>innerWidth+1,directInConditions:direct.parentElement===conditions&&!action.contains(direct),oneDirectAction:document.querySelectorAll('#exploreShowResult').length===1,directBesidePlace:Math.abs(c.left-d.left)<1&&Math.abs(c.width-d.width)<1,directAfterHeightBeforeSearch:o.bottom<=d.top&&d.bottom<=e.top&&e.bottom<=s.top,actionOrder:before(observer,direct)&&before(direct,detail)&&before(detail,search),searchInAction:search.closest('#candidateWorkspaceAction')===action,feedbackInResults:results.contains(feedback)&&!action.contains(feedback)};
+  return {labels,overflow:document.documentElement.scrollWidth>innerWidth+1,directInConditions:conditions.contains(direct)&&direct.parentElement.className==='explore-place-tools'&&!action.contains(direct),oneDirectAction:document.querySelectorAll('#exploreShowResult').length===1,directCompactAndAligned:Math.abs(c.right-d.right)<1&&d.width===96&&d.height>=44,directAfterPlaceBeforeSearch:o.bottom<=d.top&&d.bottom<=e.top&&e.bottom<=s.top,shortVisibleLabel:direct.innerText==='見え方'&&!!direct.querySelector('svg[aria-hidden=true]')&&direct.getAttribute('aria-label').startsWith('見え方'),actionOrder:before(observer,direct)&&before(direct,detail)&&before(detail,search),searchInAction:search.closest('#candidateWorkspaceAction')===action,feedbackInResults:results.contains(feedback)&&!action.contains(feedback)};
  });
  assert(metrics.labels.length>=3,JSON.stringify(metrics));
  assert(metrics.labels.some(l=>l.text.includes('撮影地点')),JSON.stringify(metrics));
  assert(metrics.labels.every(l=>!l.overlaps.length),'labels overlap controls: '+JSON.stringify(metrics));
- assert(!metrics.overflow&&metrics.directInConditions&&metrics.oneDirectAction&&metrics.directBesidePlace&&metrics.directAfterHeightBeforeSearch&&metrics.actionOrder&&metrics.searchInAction&&metrics.feedbackInResults,JSON.stringify(metrics));
+ assert(!metrics.overflow&&metrics.directInConditions&&metrics.oneDirectAction&&metrics.directCompactAndAligned&&metrics.directAfterPlaceBeforeSearch&&metrics.shortVisibleLabel&&metrics.actionOrder&&metrics.searchInAction&&metrics.feedbackInResults,JSON.stringify(metrics));
  return metrics;
 }
 
@@ -75,6 +75,7 @@ async function assertFooterClearance(page,selector='#candidateUnifiedResults>.li
     await page.goto(base+'#/explore');await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof AstroNotesCandidatePicker==='object');
     await page.evaluate(async theme=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>25;aimBuildingDays=async()=>[];document.documentElement.dataset.theme=theme;navigationHistory.pushRoute('#/explore');SkyMapUI.setTarget('skytree');const body=document.getElementById('skyMapBody');body.value='moon';body.onchange();SkyMapUI.setTime(Date.parse('2026-11-05T03:58:31+09:00'));},theme);
     await page.locator('#candidateSearchAction').waitFor();const layout=await assertFieldLayout(page);
+    assert(await page.locator('#exploreResultsHeading').isHidden());assert.equal(await page.locator('.explore-search-intro,.explore-results-heading').count(),0);
     assert(await page.locator('.sky-map-footer').isVisible());assert(await page.locator('.sky-map-footer .sky-map-candidates').isHidden());
     assert.equal(await page.locator('#candidateWorkspaceDate,#candidateDateNavigation,#candidateDate').count(),0);
     assert.deepEqual(await page.locator('.sky-map-footer .tool-datetime-row>[data-datetime-slot]').evaluateAll(ns=>ns.map(n=>n.dataset.datetimeSlot)),['previous','date','next','clock','now','play','more']);
@@ -93,6 +94,7 @@ async function assertFooterClearance(page,selector='#candidateUnifiedResults>.li
     await page.waitForFunction(()=>document.activeElement?.id==='candidateSearchMode');assert(await detail.evaluate(n=>n.open));await detail.locator('summary').click();
 
     await page.locator('#candidateSearchAction').click();await settled(page,2);await assertColumns(page);await assertFieldLayout(page);
+    assert(await page.locator('#exploreResultsHeading').isVisible());
     assert(await page.locator('#candidateSearchFeedback [role=status]').isVisible());
     assert((await page.locator('#candidateSearchFeedback [role=status]').innerText()).includes('新たな地点で2件'));
     const registeredText=await page.locator('#recentCandidates .my-picker').innerText();
@@ -116,7 +118,7 @@ async function assertFooterClearance(page,selector='#candidateUnifiedResults>.li
     await page.evaluate(async()=>{AstroNotesShooting.candidates=async()=>{throw Error('synthetic registered failure');};await MyPlacesUI.renderPickerPanel(document.getElementById('recentCandidates'));});
     assert((await registered.innerText()).includes('候補を確認できませんでした'));assert(await registered.getByRole('button',{name:'再試行',exact:true}).isVisible());
     assert.equal(writes,0);assert.deepEqual(errors,[]);
-    results.push({engine,width,theme,visibleLabels:layout.labels.map(l=>l.text),sharedDateTimeBar:true,noSeparateDateField:true,footerDoesNotCoverLastResult:true,labelsDoNotOverlap:true,directActionAfterPlaceAndHeight:true,directActionBeforeSearchDetails:true,actionDomAndVisualOrderMatch:true,feedbackInResults:true,detailOpenAndFocusPreserved:true,headerColumnsAligned:true,emptyFilterRecoverable:true,failedRecheckRemovesStaleRows:true,retryWorks:true,redundantRegisteredCountHidden:true,registeredFailuresRemainVisible:true,writes,errors});
+    results.push({engine,width,theme,visibleLabels:layout.labels.map(l=>l.text),sharedDateTimeBar:true,noSeparateDateField:true,footerDoesNotCoverLastResult:true,labelsDoNotOverlap:true,shortDirectActionInConditions:true,compactAccessibleButton:true,directActionBeforeSearchDetails:true,actionDomAndVisualOrderMatch:true,initialExplanationsReduced:true,feedbackInResults:true,detailOpenAndFocusPreserved:true,headerColumnsAligned:true,emptyFilterRecoverable:true,failedRecheckRemovesStaleRows:true,retryWorks:true,redundantRegisteredCountHidden:true,registeredFailuresRemainVisible:true,writes,errors});
     fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(tag+' search design passed');
    }catch(error){await page.screenshot({path:out+'/'+tag+'-failure.png',fullPage:true}).catch(()=>{});console.error(tag,errors);throw error;}finally{await context.close();}
   }}finally{await browser.close();}

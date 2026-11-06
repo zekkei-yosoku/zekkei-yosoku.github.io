@@ -9,8 +9,8 @@ function ensureSearchRoot(){
  if(!layout.mounted)return;
  if(!searchRoot){
   searchRoot=node('section',{id:'exploreSearchResults'});searchRoot.setAttribute('aria-labelledby','exploreResultsHeading');
-  const heading=node('div',{className:'explore-results-heading'});heading.append(node('h2',{id:'exploreResultsHeading'},'撮影候補'),node('span',{className:'tiny'},'場所と時刻を選んで、見え方へ'));
-  searchRoot.append(heading,node('p',{id:'candidateSearchEmpty',className:'tiny'},'条件を選んで「候補を探す」を押すと、ここに候補が出ます。'),node('div',{id:'candidateSearchFeedback'}),node('div',{id:'candidateSearchCredits'}));
+  const heading=node('h2',{id:'exploreResultsHeading',className:'explore-section-title'},'撮影候補');
+  searchRoot.append(node('p',{id:'candidateSearchEmpty',className:'tiny'},'天体と対象に合う撮影地点を探します。'),node('div',{id:'candidateSearchFeedback'}),heading,node('div',{id:'candidateSearchCredits'}));
  }
  if(!searchRoot.isConnected)layout.conditions.after(searchRoot);
  const panel=$('recentCandidates');if(panel.parentNode!==searchRoot){candidatePanelHome={parent:panel.parentNode,next:panel.nextSibling};searchRoot.insertBefore(panel,$('candidateSearchCredits'));panel.setAttribute('role','region');panel.setAttribute('aria-label','撮影候補の一覧');panel.removeAttribute('aria-labelledby');}
@@ -26,6 +26,7 @@ function syncWorkspace(){
  layout.conditions.hidden=resultRequested;if(!resultRequested)layout.conditions.open=true;
  searchRoot.hidden=resultRequested;scene.hidden=!resultRequested;candidateBack.hidden=!resultRequested;
  $('recentCandidates').hidden=resultRequested||!searchStarted;$('candidateSearchEmpty').hidden=searchStarted;
+ $('exploreResultsHeading').hidden=!searchStarted;
  candidateBack.textContent=returnIntent?.searched?'‹ 候補へ戻る':'‹ 探すへ戻る';
  document.dispatchEvent(new Event('astronotes-search-state'));
 }
@@ -51,8 +52,8 @@ function leaveSearchFlow(){
  searchRoot?.remove();delete mapView.dataset.exploreStage;
 }
 const mainCandidateWorkspace={epoch:()=>flowGeneration,previewWidth:()=>Math.max(200,Math.round(Math.min(780,mapView.clientWidth||320))),active:mainSearchActive,selectable:()=>mainSearchActive()&&!$('placeSheet').open,visible:()=>searchStarted,
- reveal(){if(!mainSearchActive())return;const first=!searchStarted;searchStarted=true;$('recentCandidates').hidden=false;$('candidateSearchEmpty').hidden=true;if(first)globalThis.MyPlacesUI?.renderPickerPanel($('recentCandidates'));},
- reset(){if(searchStarted)$('candidateSearchEmpty').textContent='条件を変更しました。「候補を探す」で新しい候補を確認できます。';searchStarted=false;$('recentCandidates').hidden=true;$('candidateSearchEmpty').hidden=false;},
+ reveal(){if(!mainSearchActive())return;const first=!searchStarted;searchStarted=true;$('recentCandidates').hidden=false;$('candidateSearchEmpty').hidden=true;$('exploreResultsHeading').hidden=false;if(first)globalThis.MyPlacesUI?.renderPickerPanel($('recentCandidates'));},
+ reset(){if(searchStarted)$('candidateSearchEmpty').textContent='条件を変更しました。もう一度候補を探してください。';searchStarted=false;$('recentCandidates').hidden=true;$('candidateSearchEmpty').hidden=false;$('exploreResultsHeading').hidden=true;},
  restoreScroll:restoreSearchScroll,scroller:()=>document.scrollingElement};
 candidateBack.onclick=showSearch;
 document.addEventListener('astronotes-candidate-selecting',()=>{if(mainCandidateWorkspace.selectable()){captureSearch();selectionPending=true;}});
@@ -60,7 +61,7 @@ document.addEventListener('astronotes-candidate-selected',()=>{if(selectionPendi
 `;
 // Structural stage visibility belongs here; visual search styling has one owner.
 export const searchFlowStyle=
- '#skyMapView[data-explore-stage="search"] #exploreScenePanel,#skyMapView[data-explore-stage="search"] #exploreMapPanel,#skyMapView[data-explore-stage="search"] #exploreSkyInfo,#skyMapView[data-explore-stage="search"] .sky-map-candidates{display:none!important}'+
+ '#skyMapView[data-explore-stage="search"] #exploreScenePanel,#skyMapView[data-explore-stage="search"] #exploreMapPanel,#skyMapView[data-explore-stage="search"] #exploreSkyInfo,#skyMapView[data-explore-stage="search"] .sky-map-candidates,#skyMapView[data-explore-stage="search"] #skyMapShareRow{display:none!important}'+
  '#skyMapView[data-explore-stage="preview"] #exploreConditions,#skyMapView[data-explore-stage="preview"] #exploreSearchResults{display:none!important}'+
  '#exploreBackToCandidates{min-height:44px;margin:0 0 12px}';
 

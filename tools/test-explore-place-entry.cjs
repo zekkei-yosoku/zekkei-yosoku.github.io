@@ -47,9 +47,11 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
     await page.waitForFunction(()=>!document.getElementById('placeSheet').open);
     const selected=await page.evaluate(()=>{const s=SkyMapUI.selectionState();return {name:s.observer.name,at:s.at,body:s.body,target:s.target.id};});
     assert.deepEqual(selected,{name:'記録した河川敷',at:initial.at,body:initial.body,target:initial.target});
-    assert.equal(await page.locator('#exploreShowResult').innerText(),'この地点の見え方を確認');
+    assert.equal(await page.locator('#exploreShowResult').innerText(),'見え方');assert.equal(await page.locator('#exploreShowResult').getAttribute('aria-label'),'見え方を表示');
+    assert(await page.locator('#skyMapShareRow').isHidden(),'place save/share belongs to the preview, not candidate search');
     assert(await page.locator('#skyMapObserverFav').isVisible());
     await page.locator('#skyMapObserverDetails > summary').click();
+    assert(await page.locator('#skyMapObserverDetails').evaluate(n=>{const b=document.getElementById('exploreShowResult').getBoundingClientRect(),r=n.getBoundingClientRect(),summary=n.querySelector('summary').getBoundingClientRect(),fields=document.getElementById('exploreHeightFields').getBoundingClientRect();return Math.abs(r.right-b.right)<1&&fields.top>=summary.bottom-1&&fields.top>=b.bottom-1&&fields.width>=r.width-2;}),'expanded height editor keeps full width below the compact action');
     await page.locator('#skyMapGroundHeight').fill('42');await page.locator('#skyMapGroundHeight').dispatchEvent('change');
     await page.locator('#skyMapStandHeight').fill('4');await page.locator('#skyMapStandHeight').dispatchEvent('change');
     assert.deepEqual(await page.evaluate(()=>{const o=SkyMapUI.selectionState().observer;return [o.groundManualM,o.standAglM];}),[42,4]);
@@ -59,11 +61,13 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
     await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:out+'/'+engine+'-'+width+'-search.png',fullPage:true});
     for(let visit=0;visit<2;visit++){
      await page.evaluate(()=>navigationHistory.pushRoute('#/records'));await page.waitForFunction(()=>!document.getElementById('candidateSearchAction'));
+     assert.equal(await page.locator('#exploreShowResult,.explore-place-tools').count(),0);assert.equal(await page.locator('.aim-observer-card #skyMapObserverDetails').count(),1);
      await page.evaluate(()=>navigationHistory.pushRoute('#/explore'));await page.locator('#candidateSearchAction').waitFor();
      assert.equal(await page.locator('#candidateSearchAction').count(),1);assert.equal(await page.locator('#exploreRecordedPlace,.explore-place-actions').count(),0);assert(await page.locator('.sky-map-footer').isVisible());assert(await page.evaluate(()=>Object.entries(placeEntryNodes).every(([id,n])=>n===document.getElementById(id))));
     }
     assert(await page.locator('#exploreScenePanel').isHidden());
     await page.locator('#exploreShowResult').click();await page.locator('#aimLook').waitFor({state:'visible'});
+    await page.locator('#aimLook [data-quick-save=place]').waitFor({state:'visible'});assert(await page.locator('#aimLook [data-quick-save=plan]').isVisible());assert(await page.locator('#aimLook [data-plan-action=share]').isVisible());
     assert(await page.evaluate(()=>Object.entries(placeEntryNodes).every(([id,n])=>n===document.getElementById(id))),'existing calendar/time nodes remain owned by the original UI');
     await page.locator('#skyMapCalendarOpen').click();const calendar=page.locator('dialog[open]').filter({has:page.locator('[data-year]')});
     const dayButton=calendar.locator('[data-cal-day]').nth(5),pickedDay=Number(await dayButton.getAttribute('data-cal-day'));
