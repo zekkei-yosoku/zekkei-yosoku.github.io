@@ -11,11 +11,12 @@
   "files": {
     "astronotes-datetime-ui.css": "9549b314efddc645788c760ea1fe8316ba424e50f943b45ba3184fd420e3a791",
     "astronotes-plan.js": "7f1f632f51284668bf3692190e77aaa23c94a0e5bed0bd828a9e07cdba443190",
-    "astronotes-align.js": "b4193c7a99db23964dfc378088de95f77497cdbcb7304d5fff6989ef1c2c2625",
+    "astronotes-align.js": "d701d6020e1288d3b835bc85b3d2e9c1867533245ff844c86a5a40b1a1420255",
+    "astronotes-atmosphere.js": "23c043d5fde85f3ed43958b21c0ea07362cb910db4f358d384eb08f80ae4f17b",
     "astronotes-shooting.js": "73f22ae94a60736b8b5c32922a137f56e4acdfa327bfad4348c72fe5756c8575",
-    "astronotes-myplaces.js": "9c7e19f4f6cdd41150f484dfb29325f112bd722df5f664680d91f9d394da128a",
-    "astronotes-explore-simple.js": "84d2bcd322a4ba8677e5bb4d919c503f2be9739f54f388f2b139103d349c3781",
-    "astronotes-candidate-search.js": "44c09dc489719898d0ec33501799e6d1fb700a92f484d63bda4835f4f6240977",
+    "astronotes-myplaces.js": "fb1bfd0a60615e7f2d031ff42dc874283c635b1694b4c6ab0fd359a8c3068bf6",
+    "astronotes-explore-simple.js": "a9065d34f7b038a9843b07008a35fbf9e1b8fba354e845dcbbfb9aa1dfdf8714",
+    "astronotes-candidate-search.js": "7bd345e30d211ed9a3dded0953de8693b56714ce5f30ac89ae9e6f32a369144d",
     "data/candidate-viewpoints.json": "f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5",
     "data/candidate-terrain.json": "5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779",
     "data/candidate-buildings.json": "e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a",
@@ -23,7 +24,7 @@
     "data/candidate-sidewalks.json": "efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a",
     "data/candidate-label-addresses.json": "3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b",
     "data/candidate-label-facilities.json": "ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53",
-    "index.html": "5d230267ba0797a30dea1fd0171e0177f99818433803d8fb63772d820f1e41c5",
-    "app-version.txt": "aafeb0da69986acb1d23229819219cda47b1bf7b5f486028f4657272efddbbb7"
+    "index.html": "0ec2c790b9ccecaa0783a0bf6718bc2260b84fafa56314356e4688c5e549fde2",
+    "app-version.txt": "fa90e5bfe6bd0faee385474777a4e36babd307cdab0951b76d5e1bf52cc77d75"
   }
 }

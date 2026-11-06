@@ -51,7 +51,7 @@ function renderRecordRows(request,result){
  const list=node('div',{id:'exploreRecordedResults'});recordPane.append(list);
  for(const row of rows){
   const b=node('button',{type:'button',className:'explore-record-row'}),name=node('strong',{},row.place.name),time=node('span',{className:'explore-record-time'},new Date(row.event.at+32400000).toISOString().slice(11,16)),sub=node('span',{className:'tiny'}),arrow=node('span',{className:'explore-record-arrow'},'›');arrow.setAttribute('aria-hidden','true');
-  if(rows.some(other=>(other.place.sourcePlaceId??other.place.id)===(row.place.sourcePlaceId??row.place.id)&&(other.assumedObserver?.eyeM??other.place.standAglM)!==(row.assumedObserver?.eyeM??row.place.standAglM)))sub.textContent='地上'+(row.assumedObserver?.eyeM??row.place.standAglM??row.place.eyeHeightAGL)+'m';b.append(name,time,arrow);if(sub.textContent){b.classList.add('has-height');b.append(sub);}b.onclick=()=>{if(!mainSearchActive()||recordState.key!==request.key||!recordCurrent(request)||!mainCandidateWorkspace.selectable()){syncRecordDiscovery();return;}const s=SkyMapUI.selectionState(),expected=JSON.stringify([s.body,s.target,s.partId,s.limb,AstroNotesShooting.day(s.at),s.matchMode||'limb']);SkyMapUI.selectCandidate(row,expected);};list.append(b);
+  if(row.heightSearch||rows.some(other=>(other.place.sourcePlaceId??other.place.id)===(row.place.sourcePlaceId??row.place.id)&&(other.assumedObserver?.eyeM??other.place.standAglM)!==(row.assumedObserver?.eyeM??row.place.standAglM)))sub.textContent='地上'+(row.assumedObserver?.eyeM??row.place.standAglM??row.place.eyeHeightAGL)+'m';b.append(name,time,arrow);if(sub.textContent){b.classList.add('has-height');b.append(sub);}b.onclick=()=>{if(!mainSearchActive()||recordState.key!==request.key||!recordCurrent(request)||!mainCandidateWorkspace.selectable()){syncRecordDiscovery();return;}const s=SkyMapUI.selectionState(),expected=JSON.stringify([s.body,s.target,s.partId,s.limb,AstroNotesShooting.day(s.at),s.matchMode||'limb']);SkyMapUI.selectCandidate(row,expected);};list.append(b);
  }
  if(!rows.length&&!result.failed){const p=node('p',{className:'tiny'},request.points.length?'この日に重なる記録の地点はありません':'記録の地点がありません');recordPane.append(p);if(!request.points.length){const link=node('a',{href:'#/records',className:'chip'},'記録を開く');recordPane.append(link);}}
  if(result.failed){const p=node('p',{className:'tiny'},rows.length?'確認できなかった地点があります':'記録の地点を確認できませんでした');p.setAttribute('role','status');const retry=node('button',{type:'button',className:'chip'},'再試行');retry.onclick=()=>{recordCache.delete(request.key);recordState.key='';syncRecordDiscovery();};recordPane.append(p,retry);}
@@ -114,11 +114,11 @@ function discoveryPoints(){
  for(const f of favorites){
   const shape=shapeFor(f),keys=[...new Set(records.filter(r=>r.placeId===f.id).map(r=>r.target.key))];
   const live=keys.flatMap(k=>{const group=records.filter(r=>r.placeId===f.id&&r.target.key===k).sort((a,b)=>Number(!!b.registration)-Number(!!a.registration)||when(b)-when(a)||b.updatedAt-a.updatedAt);return group[0]?.removed?[]:group.filter(r=>!r.removed);});
-  for(const r of live){
-   const o=r.observer||f,p={...withShape(f),latitude:o.latitude,longitude:o.longitude,elevation:o.elevation??f.elevation,groundManualM:o.elevation??f.groundManualM??f.elevation,eyeHeightAGL:o.eyeHeightAGL??f.eyeHeightAGL};
+  for(const r of (f.eyeHeightRangeAGL!=null?live.slice(0,1):live)){
+   const o=f.eyeHeightRangeAGL!=null?f:r.observer||f,p={...withShape(f),latitude:o.latitude,longitude:o.longitude,elevation:o.elevation??f.elevation,groundManualM:o.elevation??f.groundManualM??f.elevation,eyeHeightAGL:o.eyeHeightAGL??f.eyeHeightAGL};
    // Keep the actual recorded eye height, even if the current picker uses another floor.
    if(Number.isFinite(o.eyeHeightAGL)){p.standAglM=o.eyeHeightAGL;p.stand='ground';}
-   const key=p.shape?JSON.stringify([f.id,p.eyeHeightAGL,p.shape]):JSON.stringify([p.latitude,p.longitude,p.groundManualM,p.eyeHeightAGL]);if(seen.has(key)){seen.get(key).place.discoveryRecordIds.push(r.id);continue;}p.discoveryKey=key;p.discoveryRecordIds=[r.id];const entry={place:p,record:r};seen.set(key,entry);out.push(entry);
+   const key=p.shape?JSON.stringify([f.id,p.eyeHeightAGL,p.eyeHeightRangeAGL,p.shape]):JSON.stringify([p.latitude,p.longitude,p.groundManualM,p.eyeHeightAGL,p.eyeHeightRangeAGL]);if(seen.has(key)){seen.get(key).place.discoveryRecordIds.push(r.id);continue;}p.discoveryKey=key;p.discoveryRecordIds=[r.id];const entry={place:p,record:r};seen.set(key,entry);out.push(entry);
   }
   if(shape&&!live.length){const p=withShape(f),key=JSON.stringify([p.latitude,p.longitude,p.elevation,p.eyeHeightAGL,p.shape]);if(!seen.has(key)){p.discoveryKey=key;p.discoveryRecordIds=[];const entry={place:p,record:{result:'seen'}};seen.set(key,entry);out.push(entry);}}
  }
@@ -126,6 +126,6 @@ function discoveryPoints(){
 }
 function discoveryRevision(){return version;}
 async function discoverySearch(plan,points,isCurrent,terrainCache=new Map()){
- return AstroNotesShooting.candidates(plan,points,{align:AstroNotesAlign,isMountain:aimIsMountain,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),elevationAt:async(lat,lon)=>{const key=lat+','+lon;if(!terrainCache.has(key))terrainCache.set(key,candidateElevation(lat,lon).then(value=>{if(!Number.isFinite(value))terrainCache.delete(key);return value;}));return terrainCache.get(key);},viewFor:(obs,p)=>aimShootingView(obs,p.target,p.body,p.partId,p.matchMode),ensure:b=>AstroNotesBodies.ensure(b),isCurrent});
+ const solver=recordHeightSolver({align:AstroNotesAlign,isMountain:aimIsMountain,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),elevationAt:async(lat,lon)=>{const key=lat+','+lon;if(!terrainCache.has(key))terrainCache.set(key,candidateElevation(lat,lon).then(value=>{if(!Number.isFinite(value))terrainCache.delete(key);return value;}));return terrainCache.get(key);},viewFor:(obs,p)=>aimShootingView(obs,p.target,p.body,p.partId,p.matchMode),ensure:b=>AstroNotesBodies.ensure(b)});return solver.candidates(plan,points,{isCurrent});
 }
 `;

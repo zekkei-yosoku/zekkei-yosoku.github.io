@@ -595,7 +595,7 @@
     const complete = row => ({...row,
       sunAltitude: body === "sun" ? row.altitude : body === "moon" ? bodyAt("sun",row.at,obs).apparentAltitude : A.sun(row.at, obs).geometricAltitude,
       side: bodyAt(body,row.at+60000,obs).apparentAltitude < row.altitude ? "set" : "rise"});
-    return (dayMs, at = null) => {
+    const run = (dayMs, at = null) => {
     if(Number.isFinite(at))return [complete(evaluate(at))];
     const end = dayMs + 86400000, crossings = [];
     let previous = null, nearest = null;
@@ -648,6 +648,8 @@
     }
     return crossings.sort((a, b) => a.at - b.at).map(complete);
     };
+    run.heightGeometry=Object.freeze({azimuth:g.azimuth,angle:g.angle,centerAlt,ridge:!!mountainRidge,ridgeBase:mountainRidge?ridgeBase:null,outline:!!outline,partId:opts.partId??null,heightM:opts.heightM??null,eyeM:opts.eyeM??1.5});
+    return run;
   }
   function dailyView(observer, target, body, dayMs, opts = {}) {
     return prepareDailyView(observer,target,body,opts)(dayMs,opts.at);
@@ -1528,7 +1530,7 @@
       }
       viewBaseAngle=upper.length?upper.reduce((a,v)=>Math.min(a,v),Infinity):ang(cutoff);
     }
-    return {points,polygons,basePoints,hitPolygons,hitPoints: model.hitSolidCount?hitPolygons.flat():null,schematic:false,known:true,approximate:true,
+    return {vertices:world.flat().map(project),vertexPolygons:world.map(face=>face.map(project)),points,polygons,basePoints,hitPolygons,hitPoints: model.hitSolidCount?hitPolygons.flat():null,schematic:false,known:true,approximate:true,
       modelId:model.id,sourceLabel:model.sourceLabel,sourceUrl:model.sourceUrl,azimuth:az0,distanceKm:d,baseAngle,topAngle,viewBaseAngle,hiddenAngle:null};
   }
 
@@ -1840,7 +1842,14 @@
     const gap=limbAltitude(st,limbById(opts.limb||'center').sign)-g.angle,tolerance=Math.max(1/60,.2*st.angularRadius);
     return {...row,gap,matched:Math.abs(azDiff(st.azimuth,g.azimuth))<=tolerance&&Math.abs(gap)<=tolerance&&(st.upperAltitude??st.apparentAltitude+st.angularRadius)>0};
   }
-  const AstroNotesAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
+  // Raw directions that bound the outline prepareDailyView projects for this observer and eye height.
+  function heightVertices(observer, target, opts = {}) {
+    const outline = towerOutline(observer, target, opts);
+    if (!outline) { const g = geometryFrom(observer, target, opts); return g ? { vertices: [[g.azimuth, g.angle]], outline: false } : null; }
+    const vertices = outline.vertices || [...(outline.points || []), ...(outline.hitPoints || []), ...(outline.hitPolygons || []).flat()];
+    return { vertices, polygons:outline.vertexPolygons||outline.hitPolygons||[outline.points], outline: true };
+  }
+  const AstroNotesAlign = { heightVertices, TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, rimPoints, judge, buildingBlock,
                         viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};}, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, viewWindow, viewPath, sceneTargets };

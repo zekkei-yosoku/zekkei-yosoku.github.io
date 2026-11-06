@@ -1,3 +1,4 @@
+import {patchAlignHeightGeometry,patchAtmosphereHeightBounds} from './build-record-height-geometry.mjs';
 import {previewPathLifecycleHtml} from './build-preview-path-lifecycle.mjs';
 import {recordOpportunitiesMyplaces,recordOpportunitiesHtml} from './build-record-opportunities.mjs';
 import {registeredDiscoveryMethods} from './build-record-discovery.mjs';
@@ -30,12 +31,13 @@ trialMyplaces=registeredMainSearch(trialMyplaces);
 trialMyplaces=recordOpportunitiesMyplaces(trialMyplaces);
 trialMyplaces=patch(trialMyplaces,'window.MyPlacesUI = {',''+registeredDiscoveryMethods+'\nwindow.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision,');
 trialMyplaces=patch(trialMyplaces,'function changed() {',"function changed() {\n document.dispatchEvent(new Event('astronotes-records-change'));");
-const trialAlign=patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge');
+const trialAlign=patchAlignHeightGeometry(patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge'));const trialAtmosphere=patchAtmosphereHeightBounds(readFileSync('astronotes-atmosphere.js','utf8'));
 const files={
  // Common calendar geometry for every trial consumer; never a page-level override.
  'astronotes-datetime-ui.css':readFileSync(new URL('../astronotes-datetime-ui.css',import.meta.url),'utf8')+'\n.tool-date-calendar .aim-cal-nav select.fav-in{padding:0 24px 0 8px;background-position-x:calc(100% - 14px),calc(100% - 9px)}\n',
  'astronotes-plan.js':externalAppsPlan(),
  'astronotes-align.js':trialAlign,
+ 'astronotes-atmosphere.js':trialAtmosphere,
  'astronotes-shooting.js':trialShooting,
  'astronotes-myplaces.js':trialMyplaces,
  'astronotes-explore-simple.js':result.html,

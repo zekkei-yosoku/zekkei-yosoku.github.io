@@ -2,7 +2,7 @@
 (()=>{
 'use strict';const C=AstroNotesCandidateComposition,S=AstroNotesTrialSurface,states=new WeakMap();let ownerKey='',config={composition:null,timeWindow:{kind:'none'},compositionInvalid:false,invalidDraft:null},editing=null;
 const current=()=>typeof SkyMapUI==='undefined'?null:SkyMapUI.selectionState(),owner=()=>typeof auth==='undefined'?'':auth?.loginId||'';
-function syncContext(s=current()){const key=JSON.stringify([owner(),s?.target,s?.body]);if(key!==ownerKey){ownerKey=key;config={composition:null,timeWindow:{kind:'none'},compositionInvalid:false,invalidDraft:null};for(const st of statesList){st.invalid=false;st.dragging=false;st.active=false;st.error='';closePanel(st,false);}if(editing){editing.active=false;editing=null;}}return s;}
+function syncContext(s=current()){const key=JSON.stringify([owner(),s?.target,s?.body,s?.partId,s?.limb,s?.matchMode]);if(key!==ownerKey){ownerKey=key;config={composition:null,timeWindow:{kind:'none'},compositionInvalid:false,invalidDraft:null};for(const st of statesList){st.invalid=false;st.dragging=false;st.active=false;st.error='';closePanel(st,false);}if(editing){editing.active=false;editing=null;}}return s;}
 function notify(){document.dispatchEvent(new Event('astronotes-composition-change'));for(const st of statesList)update(st);}
 const statesList=new Set();
 function plan(s=current()){syncContext(s);return structuredClone(config);}

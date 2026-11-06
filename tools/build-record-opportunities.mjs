@@ -1,3 +1,5 @@
+import {recordAlignmentMyplaces} from './build-record-alignment.mjs';
+import {recordHeightMyplaces} from './build-record-heights.mjs';
 import {readFileSync} from 'node:fs';
 import {createOpportunityScan} from './record-opportunity-scan.mjs';
 const patch=(s,from,to)=>{if(s.split(from).length!==2)throw Error('Record opportunities boundary changed: '+from.slice(0,80));return s.replace(from,to);};
@@ -48,7 +50,7 @@ export function recordOpportunitiesMyplaces(s){
  s=s.slice(0,start)+`    if(!notebookEdit&&planningPairs(targets,recordsBodyFilter?[recordsBodyFilter]:['sun','moon']).length){const find=document.createElement('button');find.type='button';find.className='chip journey-place-find';find.textContent='重なる日';find.setAttribute('aria-label',f.name+'の重なる日を一覧で見る');find.onclick=()=>openOpportunityList(f.id,recordsBodyFilter?[recordsBodyFilter]:['sun','moon']);group.append(find);}`+s.slice(end);
  s=patch(s,"el('myPlaceFind').onclick=()=>{if(!sheetOwnerMatches())return;sheetState.planningRequested=true;renderSheet();};", "el('myPlaceFind').onclick=()=>{if(!sheetOwnerMatches())return;if(sheetState.ctx==='records'){if(draftChanged()||!sheetState.place.id)return;openOpportunityList(sheetState.place.id,sheetState.bodies);return;}sheetState.planningRequested=true;renderSheet();};");
  s=patch(s,"el('myPlaceNext').previousElementSibling.hidden=false;", "el('myPlaceNext').previousElementSibling.hidden=false;if(ctx==='records'){el('myPlaceFind').disabled=!pairs.length||draftChanged()||!place.id;el('myPlaceFind').textContent=draftChanged()?'保存後に確認':'重なる日';next.hidden=true;next.previousElementSibling.hidden=true;return;}el('myPlaceFind').textContent='次に重なる日を探す';next.hidden=false;");
- return s;
+ return recordAlignmentMyplaces(recordHeightMyplaces(s));
 }
 export function recordOpportunitiesHtml(html){
  html=patch(html,'if(seq!==aimAirSeq)return;aimApply();})();','if(seq!==aimAirSeq)return;document.dispatchEvent(new Event("astronotes-opportunity-input"));aimApply();})();');

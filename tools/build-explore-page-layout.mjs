@@ -26,7 +26,12 @@ ${root} .explore-place-tools>#skyMapObserverDetails{margin:0;padding:0;border:0}
 ${root} .explore-place-tools #skyMapObserverSummary{padding:0;list-style:none}
 ${root} .explore-place-tools #skyMapObserverSummary::-webkit-details-marker{display:none}
 ${root} #skyMapObserverSummary{min-height:44px;display:flex;align-items:center;font-size:.75rem;color:var(--secondary)}
-${root} #skyMapAlignmentDetails{margin:0 0 0 90px;padding:8px 0;border-top:1px solid var(--line)}
+${root} #skyMapAlignmentDetails{display:grid;grid-template-columns:80px minmax(0,1fr);gap:10px;margin:0;padding:0;border:0}
+${root} #skyMapAlignmentDetails[hidden]{display:none!important}
+${root} #skyMapAlignmentSummary{display:flex;align-items:center;gap:6px;min-height:48px;margin:0;font-size:.75rem;font-weight:600;color:var(--secondary)}
+${root} #skyMapAlignmentSummary svg{width:20px;height:20px;color:var(--accent);flex:none}
+${root} #skyMapAlignmentControls .record-alignment-position>.tiny{display:none}
+${root} #skyMapAlignmentControls select{min-height:48px;border-radius:10px;font-weight:600}
 ${root} #candidateWorkspaceAction{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:8px 0 0;padding:20px 0 0;border-top:1px solid var(--line)}
 ${root} #additionalCandidateSearch{display:contents}
 ${root} #candidateWorkspaceAction .aim-disclosure{grid-column:1/-1;margin:0;padding:0;border:0}
@@ -73,7 +78,7 @@ ${root} :is(button,summary,select):focus-visible{outline:2px solid var(--accent)
 @media(min-width:760px){
  ${root} .explore-condition-fields{gap:14px}
  ${root} #exploreConditions .condition-field,${root} #exploreConditions .condition-field:has(.condition-clear){grid-template-columns:104px minmax(0,1fr)!important;gap:16px}
- ${root} #skyMapAlignmentDetails{margin-left:120px}
+ ${root} #skyMapAlignmentDetails{grid-template-columns:104px minmax(0,1fr);gap:16px}
  ${root} .candidate-filter-fields>label{display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;align-items:center!important;gap:10px!important}
  ${root} .candidate-list-heading,${root} #candidateUnifiedResults>.list-item{grid-template-columns:minmax(0,1fr) 96px 144px!important}
 }
