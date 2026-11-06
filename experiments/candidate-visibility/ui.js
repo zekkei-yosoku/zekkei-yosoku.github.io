@@ -126,7 +126,7 @@ function syncCandidateDate(control,p){
 function syncWorkspaceSection(panel){
  if(!section?.isConnected)return;
  const dedicated=!!mainWorkspace(),parent=dedicated?document.getElementById('candidateWorkspaceAction'):panel;
- if(parent&&section.parentNode!==parent)parent.append(section);
+ if(parent&&section.parentNode!==parent){if(dedicated)parent.prepend(section);else parent.append(section);}
 }
 function mount(){
  syncObserverMap();const panel=document.getElementById('recentCandidates'),sheet=document.getElementById('placeSheet');

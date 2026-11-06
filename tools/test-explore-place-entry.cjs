@@ -39,7 +39,7 @@ async function assertPrimarySearch(page){
      RecordSync.accepted([RecordSync.item('rec:obs:entry-record')]);MyPlacesUI.imported();
      window.placeEntryNodes=Object.fromEntries(['skyMapCalendarOpen','skyMapRange','skyMapTimeline','skyMapTime'].map(id=>[id,document.getElementById(id)]));
     });
-    await page.locator('#candidateSearchAction').waitFor();
+    await page.locator('#exploreDiscovery-new').click();await page.locator('#candidateSearchAction').waitFor();
     assert(await page.locator('.sky-map-footer').isVisible());assert.equal(await page.locator('#candidateWorkspaceDate,#candidateDateNavigation,#candidateDate').count(),0);
     const initial=await page.evaluate(()=>({at:SkyMapUI.selectionState().at,body:SkyMapUI.selectionState().body,target:SkyMapUI.selectionState().target.id,saved:JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()})}));
     assert.equal(await page.locator('#exploreRecordedPlace,.explore-place-actions').count(),0);assert(await page.locator('#exploreShowResult').isVisible());

@@ -42,7 +42,7 @@ function ensureRecordDiscovery(){
  }
  if(recordTabs.parentNode!==parent)parent.append(recordTabs,recordPane,newPlacePane);
  if(searchRoot&&searchRoot.parentNode!==newPlacePane)newPlacePane.append(searchRoot);
- const additional=$('additionalCandidateSearch');if(additional&&additional.parentNode!==newPlacePane)newPlacePane.prepend(additional);
+ const additional=$('additionalCandidateSearch');if(additional&&newPlacePane.firstElementChild!==additional)newPlacePane.prepend(additional);
  chooseDiscoveryQuiet();
 }
 function chooseDiscoveryQuiet(){for(const [name,pane]of [['records',recordPane],['new',newPlacePane]]){if(!pane)continue;const button=$('exploreDiscovery-'+name),on=discoveryTab===name;button.setAttribute('aria-selected',String(on));button.tabIndex=on?0:-1;if(pane.hidden===on)pane.hidden=!on;}}
