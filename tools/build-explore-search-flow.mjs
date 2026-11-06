@@ -36,7 +36,7 @@ function captureSearch(){
  returnIntent={owner:auth.loginId,generation:accessState.generation,selection:structuredClone(s),custom:structuredClone(SkyMapUI.workspaceHost()?.session.custom??null),customTarget:structuredClone(SkyMapUI.workspaceHost()?.session.customTarget??null),searched:searchStarted,scrollTop:document.scrollingElement.scrollTop,count:globalThis.AstroNotesCandidatePicker?.visibleRows().length||0};
 }
 function enterResult(){
- if(!selectionPending)captureSearch();selectionPending=false;resultRequested=true;previewBackEpoch++;syncWorkspace();
+ if(!selectionPending)captureSearch();selectionPending=false;resultRequested=true;previewBackEpoch++;syncWorkspace();SkyMapUI.render();
 }
 function showSearch(){
  previewBackEpoch++;

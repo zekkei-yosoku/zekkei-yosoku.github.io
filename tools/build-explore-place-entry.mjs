@@ -46,7 +46,10 @@ export function explorePlaceHtml(html){
  html=patch(html,'session.at=at;timelineMoving=false;if(changed||session.timelinePending)refresh();render();}', 'session.at=at;timelineMoving=false;notifyCandidateDate(changed);if(changed||session.timelinePending)refresh();render();}');
  html=patch(html,"el('skyMapRetry').hidden=true;map.redraw();}render();},onBlend", "el('skyMapRetry').hidden=true;map.redraw();}notifyCandidateDate(changed,false);render();},onBlend");
  html=patch(html,"onSettle:()=>{timelineMoving=false;if(!hasAccess()||!session||!active())return;if(session.timelinePending)", "onSettle:()=>{timelineMoving=false;if(!hasAccess()||!session||!active())return;notifyCandidateDate(false);if(session.timelinePending)");
- html=patch(html,' function renderCandidateDates(){'," function renderCandidateDates(){\n  if(globalThis.TrialExplore?.candidateWorkspace?.()?.active())return;");
+ html=patch(html,' function renderCandidateDates(){'," function renderCandidateDates(){\n  if(globalThis.TrialExplore?.candidateWorkspace?.()?.active()){dateEntry=null;return;}");
+ // A cancelled pending entry must not remain rows=null/until=Infinity on re-entry.
+ html=patch(html,'if(!current())return;entry.rows=rows;entry.until=S.Cal.startOfDay(now)+86400000;renderCandidateDates();','if(!current()){if(dateEntry===entry)dateEntry=null;return;}entry.rows=rows;entry.until=S.Cal.startOfDay(now)+86400000;renderCandidateDates();');
+ html=patch(html,'}).catch(()=>{if(current()){entry.error=true;renderCandidateDates();}});','}).catch(()=>{if(current()){entry.error=true;renderCandidateDates();}else if(dateEntry===entry)dateEntry=null;});');
  // Search selects a date independently of a shooting place. Keep the existing
  // calendar's date grid/moon drawing, without preview-only alignment statuses.
  html=patch(html,"draw(new Map());\n  if(!plan||!hasAccess())", "draw(new Map());\n  if(globalThis.TrialExplore?.candidateWorkspace?.()?.active()){globalThis.TrialExplore.candidateWorkspace().calendarMonth({...args,draw,restart:()=>calendarMonth(args)});return;}\n  if(!plan||!hasAccess())");
