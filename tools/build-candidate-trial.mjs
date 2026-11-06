@@ -4,6 +4,7 @@ import {externalAppsPlan,externalAppsHtml} from './build-external-apps-trial.mjs
 import {explorePlaceSource,explorePlaceHtml} from './build-explore-place-entry.mjs';
 import {registeredMainSearch} from './build-explore-search-flow.mjs';
 import {explorePreviewControlsHtml} from './build-explore-preview-controls.mjs';
+import {exploreSwipeBackHtml} from './build-explore-swipe-back.mjs';
 import {renderIndex} from './build-index.mjs';
 import {versionAssets,hashCsp} from './release-html.mjs';
 import {createHash} from 'node:crypto';
@@ -47,7 +48,7 @@ for(const unit of trialArchitecture.units){const source=readFileSync(unit.path,'
 files['astronotes-candidate-search.js']=patch(files['astronotes-candidate-search.js'],'/* BUILD_DATA_HASHES */{}',JSON.stringify(Object.fromEntries(Object.entries(files).filter(([n])=>n.startsWith('data/')).map(([n,s])=>[n.slice(5),createHash('sha256').update(s).digest('hex')]))));
 files['astronotes-candidate-search.js']+='\n// data-release '+createHash('sha256').update(Object.entries(files).filter(([name])=>name.startsWith('data/')).map(([,value])=>value).join('')).digest('hex')+'\n';
 if(process.argv.includes('--html')){
- let html=explorePreviewControlsHtml(explorePlaceHtml(externalAppsHtml(readFileSync(0,'utf8'))));
+ let html=exploreSwipeBackHtml(explorePreviewControlsHtml(explorePlaceHtml(externalAppsHtml(readFileSync(0,'utf8')))));
  // Map presentation and place-sheet ownership live in the inline document,
  // outside the Explore asset entry. Apply these contracts to that product.
  html=patch(html,'$("placeSheet").addEventListener("close", () => {','$("placeSheet").addEventListener("close", () => {\n  if ($("placeSheet").open) return;');
