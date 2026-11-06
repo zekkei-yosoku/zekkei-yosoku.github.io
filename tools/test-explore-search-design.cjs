@@ -23,7 +23,7 @@ async function assertFieldLayout(page){
   const search=document.getElementById('candidateSearchAction'),direct=document.getElementById('exploreShowResult'),action=document.getElementById('candidateWorkspaceAction'),results=document.getElementById('exploreSearchResults'),feedback=document.getElementById('candidateSearchFeedback');
   return {labels,overflow:document.documentElement.scrollWidth>innerWidth+1,sameAction:search.closest('#candidateWorkspaceAction')===action&&direct.parentElement===action,searchBeforeDirect:!!(search.compareDocumentPosition(direct)&Node.DOCUMENT_POSITION_FOLLOWING),feedbackInResults:results.contains(feedback)&&!action.contains(feedback)};
  });
- assert(metrics.labels.length>=4,JSON.stringify(metrics));
+ assert(metrics.labels.length>=3,JSON.stringify(metrics));
  assert(metrics.labels.some(l=>l.text.includes('撮影地点')),JSON.stringify(metrics));
  assert(metrics.labels.every(l=>!l.overlaps.length),'labels overlap controls: '+JSON.stringify(metrics));
  assert(!metrics.overflow&&metrics.sameAction&&metrics.searchBeforeDirect&&metrics.feedbackInResults,JSON.stringify(metrics));
@@ -45,6 +45,16 @@ async function settled(page,count){
  await page.waitForFunction(count=>AstroNotesCandidatePicker.visibleRows().length===count&&document.getElementById('candidateSearchAction')?.dataset.state==='idle'&&document.getElementById('additionalCandidateResults')?.getAttribute('aria-busy')==='false',count);
 }
 
+async function assertFooterClearance(page,selector='#candidateUnifiedResults>.list-item'){
+ const clearance=await page.evaluate(selector=>{
+  window.scrollTo(0,document.scrollingElement.scrollHeight);
+  const rows=[...document.querySelectorAll(selector)].filter(n=>!n.hidden&&getComputedStyle(n).display!=='none');
+  const row=rows.at(-1).getBoundingClientRect(),footer=document.querySelector('.sky-map-footer').getBoundingClientRect();
+  return {lastRowBottom:row.bottom,footerTop:footer.top,footerBottom:footer.bottom,height:innerHeight};
+ },selector);
+ assert(clearance.lastRowBottom<=clearance.footerTop+1&&clearance.footerBottom<=clearance.height+1,JSON.stringify(clearance));
+}
+
 (async()=>{
  fs.mkdirSync(out,{recursive:true});const results=[];
  for(const [engine,type]of [['chrome',chromium],['webkit',webkit]].filter(([name])=>engines.includes(name))){
@@ -63,6 +73,10 @@ async function settled(page,count){
     await page.goto(base+'#/explore');await page.waitForFunction(()=>typeof SkyMapUI==='object'&&typeof AstroNotesCandidatePicker==='object');
     await page.evaluate(async theme=>{await startupSessionReady;await AstroNotesAssets.ensureModels();groundAt=async()=>25;aimBuildingDays=async()=>[];document.documentElement.dataset.theme=theme;navigationHistory.pushRoute('#/explore');SkyMapUI.setTarget('skytree');const body=document.getElementById('skyMapBody');body.value='moon';body.onchange();SkyMapUI.setTime(Date.parse('2026-11-05T03:58:31+09:00'));},theme);
     await page.locator('#candidateSearchAction').waitFor();const layout=await assertFieldLayout(page);
+    assert(await page.locator('.sky-map-footer').isVisible());assert(await page.locator('.sky-map-footer .sky-map-candidates').isHidden());
+    assert.equal(await page.locator('#candidateWorkspaceDate,#candidateDateNavigation,#candidateDate').count(),0);
+    assert.deepEqual(await page.locator('.sky-map-footer .tool-datetime-row>[data-datetime-slot]').evaluateAll(ns=>ns.map(n=>n.dataset.datetimeSlot)),['previous','date','next','clock','now','play','more']);
+    await assertFooterClearance(page,'#candidateWorkspaceAction');await page.evaluate(()=>window.scrollTo(0,0));
     await page.screenshot({path:out+'/'+tag+'-initial.png',fullPage:true});
 
     // Changing detail controls must keep the opened editor and keyboard focus.
@@ -81,7 +95,7 @@ async function settled(page,count){
     assert((await page.locator('#candidateSearchFeedback [role=status]').innerText()).includes('新たな地点で2件'));
     const registeredText=await page.locator('#recentCandidates .my-picker').innerText();
     assert(!registeredText.includes('登録した地点に候補がありません')&&!registeredText.includes('絞り込み前'),registeredText);
-    await page.screenshot({path:out+'/'+tag+'-results.png',fullPage:true});
+    await assertFooterClearance(page);await page.screenshot({path:out+'/'+tag+'-results.png',fullPage:true});
     // A filtered empty list remains recoverable without starting another search.
     const loads=await page.evaluate(()=>dateFixture.loads.length);await page.locator('#candidateKindFilter').selectOption('garden');
     await settled(page,0);assert((await page.locator('[data-filter-status]').innerText()).startsWith('0 / 2'));assert(await page.locator('#candidateMapToggle').isDisabled());
@@ -100,7 +114,7 @@ async function settled(page,count){
     await page.evaluate(async()=>{AstroNotesShooting.candidates=async()=>{throw Error('synthetic registered failure');};await MyPlacesUI.renderPickerPanel(document.getElementById('recentCandidates'));});
     assert((await registered.innerText()).includes('候補を確認できませんでした'));assert(await registered.getByRole('button',{name:'再試行',exact:true}).isVisible());
     assert.equal(writes,0);assert.deepEqual(errors,[]);
-    results.push({engine,width,theme,visibleLabels:layout.labels.map(l=>l.text),labelsDoNotOverlap:true,sharedActions:true,feedbackInResults:true,detailOpenAndFocusPreserved:true,headerColumnsAligned:true,emptyFilterRecoverable:true,failedRecheckRemovesStaleRows:true,retryWorks:true,redundantRegisteredCountHidden:true,registeredFailuresRemainVisible:true,writes,errors});
+    results.push({engine,width,theme,visibleLabels:layout.labels.map(l=>l.text),sharedDateTimeBar:true,noSeparateDateField:true,footerDoesNotCoverLastResult:true,labelsDoNotOverlap:true,sharedActions:true,feedbackInResults:true,detailOpenAndFocusPreserved:true,headerColumnsAligned:true,emptyFilterRecoverable:true,failedRecheckRemovesStaleRows:true,retryWorks:true,redundantRegisteredCountHidden:true,registeredFailuresRemainVisible:true,writes,errors});
     fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(tag+' search design passed');
    }catch(error){await page.screenshot({path:out+'/'+tag+'-failure.png',fullPage:true}).catch(()=>{});console.error(tag,errors);throw error;}finally{await context.close();}
   }}finally{await browser.close();}

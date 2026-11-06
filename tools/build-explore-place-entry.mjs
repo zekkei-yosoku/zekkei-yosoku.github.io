@@ -11,9 +11,8 @@ export function explorePlaceSource(path,source){
   const heading=node('div',{className:'explore-search-intro'});heading.append(node('h2',{id:'exploreSearchHeading',className:'explore-section-title'},'撮影条件'),node('p',{className:'tiny'},'天体と目標物を選んで、撮影できる場所を探す。'));fields.append(heading);
   const placeActions=node('div',{className:'explore-place-actions'});
   const recorded=node('button',{id:'exploreRecordedPlace',type:'button',className:'chip'},'記録から選ぶ');recorded.onclick=deps.openRecordedPlace;
-  const date=node('div',{id:'candidateWorkspaceDate',className:'condition-field'}),dateLabel=node('span',{id:'candidateWorkspaceDateLabel',className:'condition-label'});dateLabel.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>';dateLabel.append(node('span',{},'日付'));date.append(dateLabel);
   placeActions.append(recorded);observer.querySelector('.place-row').after(placeActions);
-  fields.append(controls,date,observer,alignment,node('div',{id:'candidateWorkspaceAction'}));
+  fields.append(controls,observer,alignment,node('div',{id:'candidateWorkspaceAction'}));
   conditions.append(fields);`);
   source=patch(source,'fields.append(confirm);',"fields.querySelector('#candidateWorkspaceAction').append(confirm);");
   source=patch(source,'if(!mounted)return;invalidate();mounted=false;','if(!mounted)return;invalidate();mounted=false;mapView.querySelectorAll(\'.explore-place-actions\').forEach(n=>n.remove());');
@@ -42,6 +41,19 @@ export function explorePlaceSource(path,source){
  return source;
 }
 export function explorePlaceHtml(html){
+ // Reuse the existing datetime bar. Only the trial search adapter receives
+ // semantic day-change/settle notifications; the common bar owns its DOM.
+ html=patch(html,' function setTime(at,preservePlayback=false){',` function notifyCandidateDate(changed,settled=true){
+  if(globalThis.TrialExplore?.candidateWorkspace?.()?.active())document.dispatchEvent(new CustomEvent('astronotes-candidate-date-change',{detail:{changed,settled}}));
+ }
+ function setTime(at,preservePlayback=false){`);
+ html=patch(html,'session.at=at;timelineMoving=false;if(changed||session.timelinePending)refresh();render();}', 'session.at=at;timelineMoving=false;notifyCandidateDate(changed);if(changed||session.timelinePending)refresh();render();}');
+ html=patch(html,"el('skyMapRetry').hidden=true;map.redraw();}render();},onBlend", "el('skyMapRetry').hidden=true;map.redraw();}notifyCandidateDate(changed,false);render();},onBlend");
+ html=patch(html,"onSettle:()=>{timelineMoving=false;if(!hasAccess()||!session||!active())return;if(session.timelinePending)", "onSettle:()=>{timelineMoving=false;if(!hasAccess()||!session||!active())return;notifyCandidateDate(false);if(session.timelinePending)");
+ html=patch(html,' function renderCandidateDates(){'," function renderCandidateDates(){\n  if(globalThis.TrialExplore?.candidateWorkspace?.()?.active())return;");
+ // Search selects a date independently of a shooting place. Keep the existing
+ // calendar's date grid/moon drawing, without preview-only alignment statuses.
+ html=patch(html,"draw(new Map());\n  if(!plan||!hasAccess())", "draw(new Map());\n  if(globalThis.TrialExplore?.candidateWorkspace?.()?.active()){status.textContent='';grid.setAttribute('aria-busy','false');return;}\n  if(!plan||!hasAccess())");
  html=patch(html,'  skyPlayback.stop(false);\n  session.observer=aimSavedFrom',"  document.dispatchEvent(new Event('astronotes-candidate-selecting'));\n  skyPlayback.stop(false);\n  session.observer=aimSavedFrom");
  html=patch(html,'map.setCenter(candidate.place.latitude,candidate.place.longitude);refresh();return true;','map.setCenter(candidate.place.latitude,candidate.place.longitude);refresh();document.dispatchEvent(new Event(\'astronotes-candidate-selected\'));return true;');
  html=patch(html,"const panels={recent:historyPanel,favorites:favPanel,candidates:candidatePanel};",`const recordsPanel=document.createElement('section');recordsPanel.id='recentRecordedPlaces';

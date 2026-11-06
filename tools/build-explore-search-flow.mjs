@@ -38,12 +38,12 @@ function enterResult(){
 }
 function showSearch(){
  if(!returnIntent&&active())captureSearch();const saved=returnIntent;if(!active()||!saved||saved.owner!==auth?.loginId||saved.generation!==accessState.generation)return;
- resultRequested=false;selectionPending=false;invalidate();look.hidden=true;
+ resultRequested=false;selectionPending=true;invalidate();look.hidden=true;
  const s=saved.selection;SkyMapUI.setTarget(s.target.id);
  // Restore the full target as well: custom target coordinates/heights are part of the search.
  SkyMapUI.workspaceHost()?.restoreTarget({target:structuredClone(s.target),custom:saved.custom,customTarget:saved.customTarget});
  const body=$('skyMapBody');body.value=s.body;body.dispatchEvent(new Event('change',{bubbles:true}));SkyMapUI.setAlignment(s.partId,s.limb,s.matchMode);SkyMapUI.setTime(s.at);
- SkyMapUI.workspaceHost()?.restoreObserver(structuredClone(s.observer));searchStarted=saved.searched;pendingScroll={top:saved.scrollTop,count:saved.count};syncWorkspace();if(!searchStarted)restoreSearchScroll(0);
+ SkyMapUI.workspaceHost()?.restoreObserver(structuredClone(s.observer));selectionPending=false;searchStarted=saved.searched;pendingScroll={top:saved.scrollTop,count:saved.count};syncWorkspace();if(!searchStarted)restoreSearchScroll(0);
 }
 function leaveSearchFlow(){
  resultRequested=false;selectionPending=false;searchStarted=false;returnIntent=null;pendingScroll=null;candidateBack.hidden=true;
@@ -60,7 +60,7 @@ document.addEventListener('astronotes-candidate-selected',()=>{if(selectionPendi
 `;
 // Structural stage visibility belongs here; visual search styling has one owner.
 export const searchFlowStyle=
- '#skyMapView[data-explore-stage="search"] #exploreScenePanel,#skyMapView[data-explore-stage="search"] #exploreMapPanel,#skyMapView[data-explore-stage="search"] #exploreSkyInfo,#skyMapView[data-explore-stage="search"] .sky-map-footer{display:none!important}'+
+ '#skyMapView[data-explore-stage="search"] #exploreScenePanel,#skyMapView[data-explore-stage="search"] #exploreMapPanel,#skyMapView[data-explore-stage="search"] #exploreSkyInfo,#skyMapView[data-explore-stage="search"] .sky-map-candidates{display:none!important}'+
  '#skyMapView[data-explore-stage="preview"] #exploreConditions,#skyMapView[data-explore-stage="preview"] #exploreSearchResults{display:none!important}'+
  '#exploreBackToCandidates{min-height:44px;margin:0 0 12px}';
 

@@ -1602,7 +1602,7 @@ let run=0,section=null,condition='',watch=null,controller=null,homeCondition='';
 const mainWorkspace=()=>globalThis.TrialExplore?.candidateWorkspace?.();
 const dateSelection=()=>{const s=SkyMapUI.selectionState();return Number.isFinite(s?.at)?s:SkyMapUI.workspaceHost()?.session;};
 const contextActive=()=>{const main=mainWorkspace();return main?main.active():document.getElementById('placeSheet')?.open&&typeof placeSheetFor!=='undefined'&&placeSheetFor==='skymap'&&!document.getElementById('recentCandidates')?.hidden;};
-let dateNavigation=null,dateCalendar=null,autoSearchTimer=null,hasSearched=false,returnSearch=null;
+let dateNavigation=null,dateCalendar=null,autoSearchTimer=null,dateRefreshPending=false,hasSearched=false,returnSearch=null;
 let timeChoice='day',windowStart='00:00',windowEnd='23:59';
 const dataTag=new URL(document.currentScript.src,location.href).searchParams.get('v')||'0';
 const dataHashes={"candidate-viewpoints.json":"f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5","candidate-terrain.json":"5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779","candidate-buildings.json":"e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a","candidate-surfaces.json":"de16ae6e56aa05a1d4a7d6d0fa8974a4373183f35e8282f412f7fbd7c637751f","candidate-sidewalks.json":"efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a","candidate-label-addresses.json":"3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b","candidate-label-facilities.json":"ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53"};
@@ -1681,17 +1681,16 @@ function changeCandidateDay(value){
  return true;
 }
 function syncCandidateDate(control,p){
+ if(mainWorkspace())return;
  if(!dateNavigation){
   dateNavigation=document.createElement('div');dateNavigation.id='candidateDateNavigation';dateNavigation.setAttribute('role','group');dateNavigation.setAttribute('aria-label','候補を探す日');Object.assign(dateNavigation.style,{display:'grid',gridTemplateColumns:'44px minmax(0,1fr) 44px',gap:'8px',marginBottom:'14px',alignItems:'center'});
   const prev=document.createElement('button'),next=document.createElement('button'),input=document.createElement('button');
   for(const [b,id,label,text,step]of [[prev,'candidatePreviousDay','前日の候補','‹',-1],[next,'candidateNextDay','翌日の候補','›',1]]){b.type='button';b.className='chip';b.id=id;b.textContent=text;b.setAttribute('aria-label',label);Object.assign(b.style,{width:'44px',height:'44px',padding:'0',fontSize:'26px',lineHeight:'1'});b.onclick=()=>{const current=snapshot()||dateSelection();if(current)changeCandidateDay(dateValue(current.at+step*86400000));};}
-  input.id='candidateDate';input.type='button';input.className='fav-btn';input.setAttribute('aria-label','カレンダーで候補日を選ぶ');input.setAttribute('aria-haspopup','dialog');Object.assign(input.style,{width:'100%',minWidth:'0',maxWidth:'100%',boxSizing:'border-box',height:'44px',minHeight:'44px',fontSize:'16px',textAlign:'center',padding:'8px'});dateCalendar=ToolDateTimeBar.calendar({button:input,getAt:()=>dateSelection()?.at??Date.now(),setDay:at=>changeCandidateDay(dateValue(at))});dateCalendar.id='candidateDateCalendar';for(const select of dateCalendar.querySelectorAll('.aim-cal-nav select'))Object.assign(select.style,{padding:'0 24px 0 8px',backgroundPositionX:'calc(100% - 14px), calc(100% - 9px)'});
+  input.id='candidateDate';input.type='button';input.className='fav-btn';input.setAttribute('aria-label','カレンダーで候補日を選ぶ');input.setAttribute('aria-haspopup','dialog');Object.assign(input.style,{width:'100%',minWidth:'0',maxWidth:'100%',boxSizing:'border-box',height:'44px',minHeight:'44px',fontSize:'16px',textAlign:'center',padding:'8px'});dateCalendar=ToolDateTimeBar.calendar({button:input,getAt:()=>dateSelection()?.at??Date.now(),setDay:at=>changeCandidateDay(dateValue(at))});dateCalendar.id='candidateDateCalendar';
 
   dateNavigation.append(prev,input,next);
  }
- const dedicated=!!mainWorkspace(),parent=dedicated?document.getElementById('candidateWorkspaceDate')||control:control;
- if(dedicated)dateNavigation.setAttribute('aria-describedby','candidateWorkspaceDateLabel');else dateNavigation.removeAttribute('aria-describedby');
- if(dateNavigation.parentNode!==parent){if(parent===control)parent.prepend(dateNavigation);else parent.append(dateNavigation);}
+ if(dateNavigation.parentNode!==control)control.prepend(dateNavigation);
  const input=dateNavigation.querySelector('#candidateDate');input.dataset.date=dateValue(p.at);ToolDateTimeBar.dateText(input,p.at);
 }
 function syncWorkspaceSection(panel){
@@ -1701,8 +1700,8 @@ function syncWorkspaceSection(panel){
 }
 function mount(){
  syncObserverMap();const panel=document.getElementById('recentCandidates'),sheet=document.getElementById('placeSheet');
- if(!panel||!contextActive()){if(section){stop();run++;hasSearched=false;AstroNotesCandidatePicker.suspend?.();if(dateCalendar?.open)dateCalendar.close();section.remove();section=null;condition='';}return;}
- const p=snapshot(),id=uiKey(p),main=mainWorkspace();if(main&&homeCondition&&homeCondition!==id)main.reset();homeCondition=id;if(p)syncCandidateDate(AstroNotesCandidatePicker.mount(panel,p),p);else if(main){const session=SkyMapUI.workspaceHost()?.session;syncCandidateDate(panel,{at:session?.at??Date.now()});}if(section?.isConnected&&condition===id){syncWorkspaceSection(panel);return;}
+ if(!panel||!contextActive()){dateRefreshPending=false;if(section){stop();run++;hasSearched=false;AstroNotesCandidatePicker.suspend?.();if(dateCalendar?.open)dateCalendar.close();section.remove();section=null;condition='';}return;}
+ const p=snapshot(),id=uiKey(p),main=mainWorkspace();if(main&&homeCondition&&homeCondition!==id)main.reset();homeCondition=id;if(p)syncCandidateDate(AstroNotesCandidatePicker.mount(panel,p),p);if(section?.isConnected&&condition===id){syncWorkspaceSection(panel);return;}
  const detailsOpen=!!section?.querySelector('details')?.open,editing=section?.contains(document.activeElement)?document.activeElement.id:null;
  stop();run++;section?.remove();condition=id;section=document.createElement('section');section.id='additionalCandidateSearch';section.setAttribute('aria-label','撮影候補地点の探索');
  const status=document.createElement('div');status.className='tiny';status.setAttribute('role','status');status.setAttribute('aria-live','polite');
@@ -1737,7 +1736,7 @@ function mount(){
  }
  button.onclick=async()=>{
   const selected=snapshot();if(!selected)return;if(condition!==uiKey(selected)){mount();return;}
-  if(!button.isConnected||!contextActive()||main&&!main.selectable())return;main?.reveal();
+  if(!button.isConnected||!contextActive()||main&&!main.selectable())return;dateRefreshPending=false;main?.reveal();
   if(searching){stop();const token=++run;hasSearched=false;continuation=true;searching=false;renderAction();setStatus('探索をキャンセルしました。続きから探せます。');const completed=engine.cached(selected);if(completed)present(completed,selected,section,token,{cancelled:true}).catch(()=>{});return;}
   if(hasRun&&!continuation&&!engine.restart(selected))return;AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();hasRun=true;hasSearched=true;const node=section,token=++run;stop();controller=new AbortController();const signal=controller.signal;live.resetBudget();evaluationBudgetStarted=false;watch=setInterval(()=>{if(!current(token,selected,node)){stop();mount();}},250);
   searching=true;renderAction();setStatus('撮影できる地域を計算しています…',true);
@@ -1754,6 +1753,18 @@ function mount(){
 let mountFrame=null;const scheduleMount=()=>{if(mountFrame===null)mountFrame=requestAnimationFrame(()=>{mountFrame=null;mount();});};
 const picker=document.getElementById('placeSheet');if(picker){new MutationObserver(scheduleMount).observe(picker,{childList:true,subtree:true,attributes:true,attributeFilter:['open','hidden','aria-selected']});picker.addEventListener('close',()=>{if(picker.open)return;if(mainWorkspace()){scheduleMount();return;}stop();run++;hasSearched=false;if(dateCalendar?.open)dateCalendar.close();AstroNotesCandidatePicker.suspend?.();section?.remove();section=null;condition='';});}
 const scenePanel=document.getElementById('exploreScenePanel');if(scenePanel)new MutationObserver(()=>{syncObserverMap();scheduleMount();}).observe(scenePanel,{childList:true,subtree:true});
+// The shared bar owns the selected instant. This adapter only owns cancellation
+// and the pending search intent while its native ruler is moving.
+document.addEventListener('astronotes-candidate-date-change',event=>{
+ if(!mainWorkspace()?.active())return;
+ const {changed,settled}=event.detail;
+ if(!changed&&!dateRefreshPending)return;
+ const repeat=hasSearched||dateRefreshPending;dateRefreshPending=repeat&&!settled;
+ returnSearch=null;stop();run++;mount();
+ if(!repeat||!settled)return;
+ const selected=snapshot(),identity=uiKey(selected);
+ autoSearchTimer=setTimeout(()=>{autoSearchTimer=null;const latest=snapshot();if(!selected||!contextActive()||uiKey(latest)!==identity||engine.cached(latest))return;const button=document.getElementById('candidateSearchAction');if(button&&!button.disabled&&button.dataset.state!=='searching')button.click();},350);
+});
 document.addEventListener('astronotes-search-state',scheduleMount);document.addEventListener('astronotes-composition-change',mount);mount();
 })();
 

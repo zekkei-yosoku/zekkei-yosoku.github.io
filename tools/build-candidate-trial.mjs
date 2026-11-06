@@ -23,6 +23,8 @@ trialMyplaces=patch(trialMyplaces,'plan=AstroNotesShooting.conditions(state()),s
 trialMyplaces=registeredMainSearch(trialMyplaces);
 const trialAlign=patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge');
 const files={
+ // Common calendar geometry for every trial consumer; never a page-level override.
+ 'astronotes-datetime-ui.css':readFileSync(new URL('../astronotes-datetime-ui.css',import.meta.url),'utf8')+'\n.tool-date-calendar .aim-cal-nav select.fav-in{padding:0 24px 0 8px;background-position-x:calc(100% - 14px),calc(100% - 9px)}\n',
  'astronotes-plan.js':externalAppsPlan(),
  'astronotes-align.js':trialAlign,
  'astronotes-shooting.js':trialShooting,

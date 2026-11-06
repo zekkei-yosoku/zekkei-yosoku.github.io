@@ -9,12 +9,13 @@
     "astronotes-plan.js": "359934acad00e9e3a7151ed07e2b5851139ad7ce263e1b0826dbd62c0fbce05b"
   },
   "files": {
+    "astronotes-datetime-ui.css": "9549b314efddc645788c760ea1fe8316ba424e50f943b45ba3184fd420e3a791",
     "astronotes-plan.js": "7f1f632f51284668bf3692190e77aaa23c94a0e5bed0bd828a9e07cdba443190",
     "astronotes-align.js": "b4193c7a99db23964dfc378088de95f77497cdbcb7304d5fff6989ef1c2c2625",
     "astronotes-shooting.js": "ca0407aca1f0a3e29ae50d56bb9e1f989fd8104d777e068e608af419b1b831a1",
     "astronotes-myplaces.js": "de66834dfaa9e89e0ca28a0e34ac7630df00b3f8b8f2d1e0b4b5e092dd91c1b0",
-    "astronotes-explore-simple.js": "52398846c704ce7c3b4bdfbd9be04d6d3a98169566a3cfc10dbdb3c6ba339f59",
-    "astronotes-candidate-search.js": "8a07e1b804eaaab6682306993f6774421bfc7bba10d66628de3adfcc787c315c",
+    "astronotes-explore-simple.js": "bc51c1979f56a82a13251b90dd0f5ac8f814c3a5a3f217723b06573bb017194f",
+    "astronotes-candidate-search.js": "ad0d1b5759c7cb259aa6a9c513440028ff5a5af59496709fa0ba3bf25d394ce2",
     "data/candidate-viewpoints.json": "f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5",
     "data/candidate-terrain.json": "5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779",
     "data/candidate-buildings.json": "e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a",
@@ -22,7 +23,7 @@
     "data/candidate-sidewalks.json": "efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a",
     "data/candidate-label-addresses.json": "3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b",
     "data/candidate-label-facilities.json": "ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53",
-    "index.html": "fcb4492d7220446d636e936697e5ece1fb48eef6ab62158abe7869ff4705c503",
-    "app-version.txt": "70bf5b5240040cc0abcb05c60abf04f8bd66793151132baaf1bd37bc229617de"
+    "index.html": "66f5ef60ab8ab4bbf59277bb9df5aeb75b466a1d0f814d38666d29df6f7cf2e4",
+    "app-version.txt": "035a04606ede5820668724131f8d185015bf3395a5b29d61bacf291808063f35"
   }
 }

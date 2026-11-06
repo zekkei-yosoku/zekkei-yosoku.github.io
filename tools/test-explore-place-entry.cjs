@@ -32,6 +32,7 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
      window.placeEntryNodes=Object.fromEntries(['skyMapCalendarOpen','skyMapRange','skyMapTimeline','skyMapTime'].map(id=>[id,document.getElementById(id)]));
     });
     await page.locator('#candidateSearchAction').waitFor();
+    assert(await page.locator('.sky-map-footer').isVisible());assert.equal(await page.locator('#candidateWorkspaceDate,#candidateDateNavigation,#candidateDate').count(),0);
     const initial=await page.evaluate(()=>({at:SkyMapUI.selectionState().at,body:SkyMapUI.selectionState().body,target:SkyMapUI.selectionState().target.id,saved:JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()})}));
     assert(await page.locator('#exploreRecordedPlace').isVisible());assert(await page.locator('#exploreShowResult').isVisible());
     assert(await page.locator('#skyMapChoose').evaluate(n=>n.closest('.place-row').nextElementSibling.classList.contains('explore-place-actions')));
@@ -59,7 +60,7 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
     for(let visit=0;visit<2;visit++){
      await page.evaluate(()=>navigationHistory.pushRoute('#/records'));await page.waitForFunction(()=>!document.getElementById('candidateSearchAction'));
      await page.evaluate(()=>navigationHistory.pushRoute('#/explore'));await page.locator('#candidateSearchAction').waitFor();
-     assert.equal(await page.locator('#candidateSearchAction').count(),1);assert.equal(await page.locator('#exploreRecordedPlace').count(),1);
+     assert.equal(await page.locator('#candidateSearchAction').count(),1);assert.equal(await page.locator('#exploreRecordedPlace').count(),1);assert(await page.locator('.sky-map-footer').isVisible());assert(await page.evaluate(()=>Object.entries(placeEntryNodes).every(([id,n])=>n===document.getElementById(id))));
     }
     assert(await page.locator('#exploreScenePanel').isHidden());
     await page.locator('#exploreShowResult').click();await page.locator('#aimLook').waitFor({state:'visible'});
@@ -82,7 +83,7 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
     await page.locator('#placeSheet .page-back').click();
     assert.equal(writes,0);assert.deepEqual(errors,[]);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     await page.screenshot({path:out+'/'+engine+'-'+width+'-scene.png'});
-    results.push({engine,width,addressInput:true,recordsOnly:true,selectionPreservesConditions:true,candidateShortcut:true,remountWithoutDuplicateActions:true,existingCalendarAndTimebar:true,calendarAndTimelineOperable:true,revokedPermissionRefusesStaleSelection:true,savedDataUnchanged:true,writes});
+    results.push({engine,width,addressInput:true,recordsOnly:true,selectionPreservesConditions:true,candidateShortcut:true,remountWithoutDuplicateActions:true,sharedSearchAndPreviewDateTimeBar:true,existingCalendarAndTimebar:true,calendarAndTimelineOperable:true,revokedPermissionRefusesStaleSelection:true,savedDataUnchanged:true,writes});
     fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(engine,width,'place entry passed');
    }catch(e){console.error('page errors',errors);await page.screenshot({path:out+'/'+engine+'-'+width+'-failure.png'}).catch(()=>{});console.error(await page.locator('dialog[open]').evaluateAll(ns=>ns.map(n=>({label:n.getAttribute('aria-label'),year:n.querySelector('[data-year]')?.value,month:n.querySelector('[data-month]')?.value}))).catch(()=>[]));throw e;}finally{await context.close();}
   }}finally{await browser.close();}

@@ -17,16 +17,6 @@ ${root} .condition-field>.condition-label>span{position:static;width:auto;height
 ${root} .condition-field>.condition-label{width:auto}
 ${root} .condition-field :is(.condition-choice,.preview-body-open,.preview-target-open){height:auto;min-height:48px;border-radius:10px;font-size:16px;font-weight:600;padding:10px 12px;box-shadow:none}
 ${root} .condition-choice>span{white-space:normal;overflow-wrap:anywhere;text-overflow:clip;line-height:1.5}
-${root} #candidateWorkspaceDate{margin:0}
-${root} #candidateDateNavigation{grid-column:2;grid-row:1;gap:0!important;margin:0!important;border:1px solid var(--line);border-radius:10px;background:var(--card);padding:0;min-height:48px;box-sizing:border-box}
-${root} #candidateDateNavigation button{background:transparent;border:0;border-radius:9px;box-shadow:none;color:var(--text)}
-${root} #candidateDateNavigation :is(#candidatePreviousDay,#candidateNextDay){font-size:1.44rem!important;color:var(--accent)}
-${root} #candidateDate{display:grid;grid-template-columns:auto auto;justify-content:center;align-content:center;column-gap:2px;padding:2px!important;line-height:1.2;font-variant-numeric:tabular-nums}
-${root} #candidateDate .preview-date-label{display:contents}
-${root} #candidateDate .preview-date-year{grid-column:1/-1;font-size:.63rem;line-height:1.3;font-weight:400;color:var(--secondary)}
-${root} #candidateDate .preview-date-year-sep{display:none}
-${root} #candidateDate .preview-date-month{font-size:1rem;font-weight:700;line-height:1.3}
-${root} #candidateDate .preview-date-weekday{font-size:.75rem;font-weight:600;align-self:center}
 ${root} .aim-say-from{margin:0;max-width:none}
 ${root} .aim-observer-card{background:transparent;border-radius:0}
 ${root} .aim-observer-card>.place-row{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:0 6px 0 12px;box-shadow:none}
@@ -77,15 +67,11 @@ ${root} #candidateUnifiedResults :is([data-candidate-time],[data-place-kind]){fo
 ${root} #candidateUnifiedResults .sub-line{font-size:.69rem;line-height:1.6;color:var(--secondary)}
 ${root} #candidateSearchCredits p{margin:8px 0 0;font-size:.63rem;color:var(--tertiary)}
 ${root} :is(button,summary,select):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-@media (hover:hover){${root} :is(.explore-show-result,#exploreRecordedPlace,.candidate-list-actions button,#candidateDateNavigation button):hover{background:var(--sunk)}${root} #candidateUnifiedResults>.list-item:hover{background:var(--sunk)}}
+@media (hover:hover){${root} :is(.explore-show-result,#exploreRecordedPlace,.candidate-list-actions button):hover{background:var(--sunk)}${root} #candidateUnifiedResults>.list-item:hover{background:var(--sunk)}}
 @media(min-width:760px){
  ${root} .explore-condition-fields{gap:14px}
  ${root} #exploreConditions .condition-field,${root} #exploreConditions .condition-field:has(.condition-clear){grid-template-columns:104px minmax(0,1fr)!important;gap:16px}
  ${root} #skyMapAlignmentDetails{margin-left:120px}
- ${root} #candidateDate{display:flex;gap:2px}
- ${root} #candidateDate .preview-date-label{display:inline-flex;align-items:baseline}
- ${root} #candidateDate .preview-date-year{font-size:1rem;font-weight:600;color:var(--text)}
- ${root} #candidateDate .preview-date-year-sep{display:inline}
  ${root} #candidateWorkspaceAction{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
  ${root} #candidateWorkspaceAction .aim-disclosure{margin-left:120px}
  ${root} #candidateListControls{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px}
