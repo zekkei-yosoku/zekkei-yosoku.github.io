@@ -60,5 +60,5 @@ test('composition UI enables every body by shape capability and uses model bound
  assert.equal(button.disabled,false);assert.equal(height.max,'900');assert.equal(x.max,'500');assert.equal(x.min,'-500');assert.equal(limb.children.length,3);
  button.onclick();assert(u.api.plan().composition);assert.equal(u.api.plan().composition.limb,'center');
  for(const body of B.definitions){u.select(body.id);assert.equal(button.disabled,false,body.id);assert.equal(limb.children.length,body.limbs?3:1,body.id);assert.equal(limb.disabled,!body.limbs,body.id);}
- u.select('sirius',false);assert.equal(button.disabled,true);assert.equal(u.api.plan().composition,null);assert.equal(u.api.plan().compositionInvalid,false);assert(u.all().some(e=>String(e.textContent).includes('基本位置から撮影候補を探せます')));
+ u.select('sirius',false);assert.equal(button.disabled,true);assert.equal(u.api.plan().composition,null);assert.equal(u.api.plan().compositionInvalid,false);assert.equal(button.attrs['aria-description'],'この対象は面を指定できません。');assert.equal(u.all().find(e=>e.id==='trialCompositionStatus').hidden,true,'unsupported surface does not cover the diagram');
 });
