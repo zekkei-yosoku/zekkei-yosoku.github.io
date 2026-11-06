@@ -34,7 +34,7 @@ for(const [engine,type]of [['chrome',chromium],['webkit',webkit]].filter(([e])=>
    assert(order.every((v,i)=>!i||v>order[i-1]),'target → overlap target → alignment → place');result.order=order.map(Math.round);
    const box=await page.locator('#skyMapOverlapTarget').boundingBox();assert(box.height>=44&&box.x+box.width<=width,'44px touch target within the viewport');
    // 個別：重ね先だけ切替。表示集合は保持し、部位は全体から。
-   await page.locator('#skyMapAlignmentControls select').selectOption({index:1});assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().matchMode),'limb');
+   await page.locator('#skyMapAlignmentControls .record-alignment-position select').selectOption({index:1});assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().matchMode),'limb');
    await page.locator('#skyMapOverlapTarget').selectOption('tokyotower');
    let s=await page.evaluate(()=>({id:SkyMapUI.selectionState().target.id,mode:SkyMapUI.selectionState().matchMode,part:SkyMapUI.selectionState().partId,extras:aimSceneExtraTargets(SkyMapUI.selectionState().target.id).map(t=>t.id),label:document.getElementById('skyMapTargetOpen').textContent}));
    assert.deepEqual([s.id,s.mode,s.part,s.extras.join()],['tokyotower','overlap','__whole','skytree'],'individual switch keeps the display set and resets the old part');assert.match(s.label,/東京タワー/);assert.match(s.label,/東京スカイツリー/);

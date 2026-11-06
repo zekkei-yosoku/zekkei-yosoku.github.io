@@ -4,10 +4,9 @@ const style=String.raw`
 .record-alignment-editor{flex-basis:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:6px 0 2px;min-width:0}
 #myPlaceSheet .my-draft-target:has(.record-alignment-editor){flex-wrap:wrap}
 .record-alignment-position{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}
-.record-alignment-position select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;margin:0;font-size:16px}
-.record-alignment-limbs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;min-width:0}
-.record-alignment-limbs[hidden]{display:none!important}.record-alignment-limbs button{min-width:0;min-height:44px;font-size:13px;padding:6px}
-.record-alignment-limbs button[aria-pressed=true]{color:var(--accent);border-color:var(--accent)}
+.record-alignment-position select,.record-alignment-limbs select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;margin:0;font-size:16px}
+.record-alignment-limbs{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;min-width:0}
+.record-alignment-limbs[hidden]{display:none!important}
 #skyMapAlignmentControls{display:grid;gap:8px}
 #previewEyeHeightControls{margin:0 0 6px;padding:0;border:0;background:none;min-width:0}
 #previewEyeHeightControls[hidden]{display:none!important}
