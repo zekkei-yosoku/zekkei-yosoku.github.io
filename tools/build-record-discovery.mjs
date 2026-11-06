@@ -47,9 +47,7 @@ function ensureRecordDiscovery(){
 }
 function chooseDiscoveryQuiet(){for(const [name,pane]of [['records',recordPane],['new',newPlacePane]]){if(!pane)continue;const button=$('exploreDiscovery-'+name),on=discoveryTab===name;button.setAttribute('aria-selected',String(on));button.tabIndex=on?0:-1;if(pane.hidden===on)pane.hidden=!on;}}
 function renderRecordRows(request,result){
- recordPane.replaceChildren();const rows=result.rows||[],head=node('div',{className:'explore-record-heading'}),label=node('strong',{},ToolDateTimeBar.dateText?new Date(request.plan.at+32400000).toLocaleDateString('ja-JP',{timeZone:'UTC',month:'numeric',day:'numeric',weekday:'short'}):'');
- const places=new Set(rows.map(r=>JSON.stringify([r.place.sourcePlaceId??r.place.id])));
- head.append(label,node('span',{className:'tiny'},rows.length?places.size+'地点・'+rows.length+'件':''));recordPane.append(head);
+ recordPane.replaceChildren();const rows=result.rows||[];
  const list=node('div',{id:'exploreRecordedResults'});recordPane.append(list);
  for(const row of rows){
   const b=node('button',{type:'button',className:'explore-record-row'}),name=node('strong',{},row.place.name),time=node('span',{className:'explore-record-time'},new Date(row.event.at+32400000).toISOString().slice(11,16)),sub=node('span',{className:'tiny'}),arrow=node('span',{className:'explore-record-arrow'},'›');arrow.setAttribute('aria-hidden','true');
@@ -102,7 +100,6 @@ export const recordDiscoveryStyle=String.raw`
 .explore-discovery-tabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
 #exploreNewPlaces:not([hidden]){display:grid;gap:12px}
 #exploreRecordedPlaces[hidden],#exploreNewPlaces[hidden]{display:none!important}
-.explore-record-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 8px;font-size:.85rem}
 .explore-record-row{display:grid;grid-template-columns:minmax(0,1fr) auto 14px;gap:4px 12px;align-items:center;text-align:left;width:100%;min-height:64px;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:12px 0;background:transparent;color:var(--text)}
 .explore-record-row strong{grid-column:1;grid-row:1/3;font-size:.9rem;overflow-wrap:anywhere}
 .explore-record-row.has-height{min-height:76px}.explore-record-row.has-height strong{grid-row:1}
