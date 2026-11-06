@@ -23,8 +23,6 @@ ${root} .aim-observer-card>.place-row{background:var(--card);border:1px solid va
 ${root} .condition-field .place-pick{min-height:48px;padding:8px 0;gap:8px}
 ${root} .place-row .name{font-size:16px;line-height:1.5;font-weight:600}
 ${root} .place-row .muted{font-size:.69rem;line-height:1.5}
-${root} .explore-place-actions{display:flex;margin:4px 0 0;gap:8px}
-${root} #exploreRecordedPlace{min-height:44px;width:auto;margin:0;padding:4px 0;background:transparent;border:0;border-radius:5px;color:var(--accent);font-size:.75rem;font-weight:700;text-align:left;box-shadow:none;display:inline-flex;align-items:center;gap:6px}
 ${root} .aim-observer-card #skyMapObserverDetails{margin:0;padding:0;border:0}
 ${root} #skyMapObserverSummary{min-height:44px;display:flex;align-items:center;font-size:.75rem;color:var(--secondary)}
 ${root} #skyMapAlignmentDetails{margin:0 0 0 90px;padding:8px 0;border-top:1px solid var(--line)}
@@ -67,7 +65,7 @@ ${root} #candidateUnifiedResults :is([data-candidate-time],[data-place-kind]){fo
 ${root} #candidateUnifiedResults .sub-line{font-size:.69rem;line-height:1.6;color:var(--secondary)}
 ${root} #candidateSearchCredits p{margin:8px 0 0;font-size:.63rem;color:var(--tertiary)}
 ${root} :is(button,summary,select):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-@media (hover:hover){${root} :is(.explore-show-result,#exploreRecordedPlace,.candidate-list-actions button):hover{background:var(--sunk)}${root} #candidateUnifiedResults>.list-item:hover{background:var(--sunk)}}
+@media (hover:hover){${root} :is(.explore-show-result,.candidate-list-actions button):hover{background:var(--sunk)}${root} #candidateUnifiedResults>.list-item:hover{background:var(--sunk)}}
 @media(min-width:760px){
  ${root} .explore-condition-fields{gap:14px}
  ${root} #exploreConditions .condition-field,${root} #exploreConditions .condition-field:has(.condition-clear){grid-template-columns:104px minmax(0,1fr)!important;gap:16px}

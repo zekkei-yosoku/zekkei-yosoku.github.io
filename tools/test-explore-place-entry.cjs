@@ -34,13 +34,13 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
     await page.locator('#candidateSearchAction').waitFor();
     assert(await page.locator('.sky-map-footer').isVisible());assert.equal(await page.locator('#candidateWorkspaceDate,#candidateDateNavigation,#candidateDate').count(),0);
     const initial=await page.evaluate(()=>({at:SkyMapUI.selectionState().at,body:SkyMapUI.selectionState().body,target:SkyMapUI.selectionState().target.id,saved:JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()})}));
-    assert(await page.locator('#exploreRecordedPlace').isVisible());assert(await page.locator('#exploreShowResult').isVisible());
-    assert(await page.locator('#skyMapChoose').evaluate(n=>n.closest('.place-row').nextElementSibling.classList.contains('explore-place-actions')));
+    assert.equal(await page.locator('#exploreRecordedPlace,.explore-place-actions').count(),0);assert(await page.locator('#exploreShowResult').isVisible());
+    await page.screenshot({path:out+'/'+engine+'-'+width+'-initial.png',fullPage:true});
     await page.locator('#skyMapChoose').click();await page.locator('#searchBox').fill('東京都江東区新木場四丁目');await page.locator('#searchBoxGo').click();
     await page.locator('#searchResults button').first().click();await page.waitForFunction(()=>!document.getElementById('placeSheet').open);
     assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().at),initial.at);
     assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().observer.latitude),35.642);
-    await page.locator('#exploreRecordedPlace').click();await page.locator('#recentRecordedPlaces').waitFor({state:'visible'});
+    await page.locator('#skyMapChoose').click();await page.locator('#placeTab-records').click();await page.locator('#recentRecordedPlaces').waitFor({state:'visible'});
     assert.equal(await page.locator('[data-recorded-place]').count(),1);assert.equal(await page.locator('[data-recorded-place=bare-favorite]').count(),0);
     await page.getByRole('searchbox',{name:'記録の撮影地点を検索'}).fill('一致しない');assert.equal(await page.locator('[data-recorded-place]').count(),0);
     await page.getByRole('searchbox',{name:'記録の撮影地点を検索'}).fill('河川敷');await page.locator('[data-recorded-place=recorded-place]').click();
@@ -60,7 +60,7 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
     for(let visit=0;visit<2;visit++){
      await page.evaluate(()=>navigationHistory.pushRoute('#/records'));await page.waitForFunction(()=>!document.getElementById('candidateSearchAction'));
      await page.evaluate(()=>navigationHistory.pushRoute('#/explore'));await page.locator('#candidateSearchAction').waitFor();
-     assert.equal(await page.locator('#candidateSearchAction').count(),1);assert.equal(await page.locator('#exploreRecordedPlace').count(),1);assert(await page.locator('.sky-map-footer').isVisible());assert(await page.evaluate(()=>Object.entries(placeEntryNodes).every(([id,n])=>n===document.getElementById(id))));
+     assert.equal(await page.locator('#candidateSearchAction').count(),1);assert.equal(await page.locator('#exploreRecordedPlace,.explore-place-actions').count(),0);assert(await page.locator('.sky-map-footer').isVisible());assert(await page.evaluate(()=>Object.entries(placeEntryNodes).every(([id,n])=>n===document.getElementById(id))));
     }
     assert(await page.locator('#exploreScenePanel').isHidden());
     await page.locator('#exploreShowResult').click();await page.locator('#aimLook').waitFor({state:'visible'});
@@ -76,14 +76,14 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
     await page.waitForFunction(old=>SkyMapUI.selectionState().at!==old,oldAt);
     assert.equal(await page.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()})),initial.saved);
     await page.locator('#exploreBackToCandidates').click();
-    await page.locator('#exploreRecordedPlace').click();
+    await page.locator('#skyMapChoose').click();await page.locator('#placeTab-records').click();
     const observerBefore=await page.evaluate(()=>JSON.stringify(SkyMapUI.selectionState().observer));
     await page.evaluate(()=>{const stale=document.querySelector('[data-recorded-place]').onclick;auth.tools=auth.tools.filter(t=>t!=='records');recentHistory.records();stale();});
     assert.equal(await page.locator('[data-recorded-place]').count(),0);assert(await page.locator('#placeTab-records').isHidden());assert.equal(await page.evaluate(()=>JSON.stringify(SkyMapUI.selectionState().observer)),observerBefore);
     await page.locator('#placeSheet .page-back').click();
     assert.equal(writes,0);assert.deepEqual(errors,[]);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     await page.screenshot({path:out+'/'+engine+'-'+width+'-scene.png'});
-    results.push({engine,width,addressInput:true,recordsOnly:true,selectionPreservesConditions:true,candidateShortcut:true,remountWithoutDuplicateActions:true,sharedSearchAndPreviewDateTimeBar:true,existingCalendarAndTimebar:true,calendarAndTimelineOperable:true,revokedPermissionRefusesStaleSelection:true,savedDataUnchanged:true,writes});
+    results.push({engine,width,addressInput:true,recordsOnly:true,selectionPreservesConditions:true,recordTabInPlacePicker:true,removedRecordShortcut:true,noEmptyPlaceActions:true,remountWithoutDuplicateActions:true,sharedSearchAndPreviewDateTimeBar:true,existingCalendarAndTimebar:true,calendarAndTimelineOperable:true,revokedPermissionRefusesStaleSelection:true,savedDataUnchanged:true,writes});
     fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(engine,width,'place entry passed');
    }catch(e){console.error('page errors',errors);await page.screenshot({path:out+'/'+engine+'-'+width+'-failure.png'}).catch(()=>{});console.error(await page.locator('dialog[open]').evaluateAll(ns=>ns.map(n=>({label:n.getAttribute('aria-label'),year:n.querySelector('[data-year]')?.value,month:n.querySelector('[data-month]')?.value}))).catch(()=>[]));throw e;}finally{await context.close();}
   }}finally{await browser.close();}

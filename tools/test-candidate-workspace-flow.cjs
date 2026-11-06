@@ -56,7 +56,7 @@ const tools=['records','tower','diamond','pearl','skymap','multiscene'];
     }
     await page.evaluate(()=>SkyMapUI.setTarget('tokyotower')); await page.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===0);
     assert(await page.locator('#exploreScenePanel').isHidden());
-    await page.locator('#exploreRecordedPlace').click();assert(await page.locator('#placeSheet .place-search-tools').isVisible());assert(await page.locator('#placeTab-records').isVisible());
+    await page.locator('#skyMapChoose').click();assert(await page.locator('#placeSheet .place-search-tools').isVisible());assert(await page.locator('#placeTab-records').isVisible());await page.locator('#placeTab-records').click();
     await page.locator('#placeSheet .page-back').click();assert.equal(await page.evaluate(()=>JSON.stringify({favorites,records:MyPlacesUI.load(),schedule:schedule().list()})),stored);
     await page.evaluate(()=>dateFixture.holdNext=true);await page.locator('#candidateSearchAction').click();await page.waitForFunction(()=>dateFixture.holds.length===1);
     await page.evaluate(()=>{accessState.generation++;TrialExplore.render();});await page.waitForFunction(()=>document.getElementById('candidateSearchAction')?.dataset.state==='idle');

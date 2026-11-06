@@ -9,21 +9,14 @@ export function explorePlaceSource(path,source){
   source=patch(source,"fields.append(controls,observer,alignment);conditions.append(fields);",`
   fields.setAttribute('role','group');fields.setAttribute('aria-labelledby','exploreSearchHeading');
   const heading=node('div',{className:'explore-search-intro'});heading.append(node('h2',{id:'exploreSearchHeading',className:'explore-section-title'},'撮影条件'),node('p',{className:'tiny'},'天体と目標物を選んで、撮影できる場所を探す。'));fields.append(heading);
-  const placeActions=node('div',{className:'explore-place-actions'});
-  const recorded=node('button',{id:'exploreRecordedPlace',type:'button',className:'chip'},'記録から選ぶ');recorded.onclick=deps.openRecordedPlace;
-  placeActions.append(recorded);observer.querySelector('.place-row').after(placeActions);
   fields.append(controls,observer,alignment,node('div',{id:'candidateWorkspaceAction'}));
   conditions.append(fields);`);
   source=patch(source,'fields.append(confirm);',"fields.querySelector('#candidateWorkspaceAction').append(confirm);");
-  source=patch(source,'if(!mounted)return;invalidate();mounted=false;','if(!mounted)return;invalidate();mounted=false;mapView.querySelectorAll(\'.explore-place-actions\').forEach(n=>n.remove());');
  }
  if(path.endsWith('/features/explore/controller.js')){
-  source="import {openPlaceSheet} from '../places/search.js';\nimport {recentHistory} from '../framing/presentation.js';\n"+source;
-  source=patch(source,' showResult,candidateChosen,addSaveAction,',' openRecordedPlace:()=>{if(!active()||!toolAllowed(\'records\'))return;openPlaceSheet(\'skymap\');recentHistory.records();},showResult,candidateChosen,addSaveAction,');
   source=patch(source,'const layout=AstroNotesExploreLayout.create(',candidateWorkspaceSource+'\nconst layout=AstroNotesExploreLayout.create(');
   source=patch(source,'else{layout.unmount();promote();}',"else{leaveSearchFlow();layout.unmount();promote();}");
-  source=patch(source,"const confirm=$('exploreShowResult');",`const records=$('exploreRecordedPlace');if(records)records.hidden=!toolAllowed('records');
- syncWorkspace();const confirm=$('exploreShowResult');`);
+  source=patch(source,"const confirm=$('exploreShowResult');","syncWorkspace();const confirm=$('exploreShowResult');");
   source=patch(source,"confirm.textContent=!s?.target?'対象を選ぶ':!s?.observer?'撮影地点を選ぶ':'結果を確認';","confirm.textContent=!s?.target?'対象を選んで見え方を確認':!s?.observer?'撮影地点を指定して確認':'この地点の見え方を確認';");
   source=patch(source,"'.explore-tabs{scroll-margin-top:12px}",JSON.stringify(searchFlowStyle)+"+\n'.explore-tabs{scroll-margin-top:12px}");
   // Last in this controller's stylesheet so legacy card rules cannot override it.
