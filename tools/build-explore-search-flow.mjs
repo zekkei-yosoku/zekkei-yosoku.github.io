@@ -10,7 +10,7 @@ function ensureSearchRoot(){
  if(!searchRoot){
   searchRoot=node('section',{id:'exploreSearchResults'});searchRoot.setAttribute('aria-labelledby','exploreResultsHeading');
   const heading=node('h2',{id:'exploreResultsHeading',className:'explore-section-title'},'撮影候補');
-  searchRoot.append(node('p',{id:'candidateSearchEmpty',className:'tiny'},'天体と対象に合う撮影地点を探します。'),node('div',{id:'candidateSearchFeedback'}),heading,node('div',{id:'candidateSearchCredits'}));
+  searchRoot.append(node('p',{id:'candidateSearchEmpty',className:'tiny'}),node('div',{id:'candidateSearchFeedback'}),heading,node('div',{id:'candidateSearchCredits'}));
  }
  if(!searchRoot.isConnected)layout.conditions.after(searchRoot);
  const panel=$('recentCandidates');if(panel.parentNode!==searchRoot){candidatePanelHome={parent:panel.parentNode,next:panel.nextSibling};searchRoot.insertBefore(panel,$('candidateSearchCredits'));panel.setAttribute('role','region');panel.setAttribute('aria-label','撮影候補の一覧');panel.removeAttribute('aria-labelledby');}
@@ -21,7 +21,7 @@ function restoreSearchScroll(count){
 }
 function syncWorkspace(){
  if(!layout.mounted)return;ensureSearchRoot();
- if(flowOwner!==auth?.loginId||flowGeneration!==accessState.generation){resultRequested=false;selectionPending=false;searchStarted=false;returnIntent=null;pendingScroll=null;flowOwner=auth?.loginId;flowGeneration=accessState.generation;invalidate();}
+ if(flowOwner!==auth?.loginId||flowGeneration!==accessState.generation){resultRequested=false;selectionPending=false;searchStarted=false;returnIntent=null;pendingScroll=null;$('candidateSearchEmpty').textContent='';flowOwner=auth?.loginId;flowGeneration=accessState.generation;invalidate();}
  mapView.dataset.exploreStage=resultRequested?'preview':'search';
  layout.conditions.hidden=resultRequested;if(!resultRequested)layout.conditions.open=true;
  searchRoot.hidden=resultRequested;scene.hidden=!resultRequested;candidateBack.hidden=!resultRequested;

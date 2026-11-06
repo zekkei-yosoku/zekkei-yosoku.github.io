@@ -21,16 +21,16 @@ ${root} .aim-observer-card>.place-row{background:var(--card);border:1px solid va
 ${root} .condition-field .place-pick{min-height:48px;padding:8px 0;gap:8px}
 ${root} .place-row .name{font-size:16px;line-height:1.5;font-weight:600}
 ${root} .place-row .muted{font-size:.69rem;line-height:1.5}
-${root} .explore-place-tools{display:grid;grid-template-columns:minmax(0,1fr) 96px;column-gap:12px;align-items:start}
-${root} .explore-place-tools>#skyMapObserverDetails{grid-area:1/1/2/3;margin:0;padding:0;border:0}
-${root} .explore-place-tools #skyMapObserverSummary{padding-right:calc(96px + 12px);list-style:none}
+${root} .explore-place-tools{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-items:start}
+${root} .explore-place-tools>#skyMapObserverDetails{margin:0;padding:0;border:0}
+${root} .explore-place-tools #skyMapObserverSummary{padding:0;list-style:none}
 ${root} .explore-place-tools #skyMapObserverSummary::-webkit-details-marker{display:none}
 ${root} #skyMapObserverSummary{min-height:44px;display:flex;align-items:center;font-size:.75rem;color:var(--secondary)}
 ${root} #skyMapAlignmentDetails{margin:0 0 0 90px;padding:8px 0;border-top:1px solid var(--line)}
-${root} #candidateWorkspaceAction{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:0}
+${root} #candidateWorkspaceAction{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:8px 0 0;padding:20px 0 0;border-top:1px solid var(--line)}
 ${root} #additionalCandidateSearch{display:contents}
 ${root} #candidateWorkspaceAction .aim-disclosure{grid-column:1/-1;margin:0;padding:0;border:0}
-${root} #candidateWorkspaceAction .aim-disclosure>summary{display:flex;align-items:center;gap:8px;min-height:44px;border-top:1px solid var(--line);font-size:.75rem;font-weight:600;color:var(--secondary);list-style:none;cursor:pointer}
+${root} #candidateWorkspaceAction .aim-disclosure>summary{display:flex;align-items:center;gap:8px;min-height:44px;font-size:.75rem;font-weight:600;color:var(--secondary);list-style:none;cursor:pointer}
 ${root} #candidateWorkspaceAction .aim-disclosure>summary::before{content:'›';display:inline-block;font-size:1.25rem;font-weight:400;color:var(--accent);transform-origin:center}
 ${root} #candidateWorkspaceAction .aim-disclosure[open]>summary::before{transform:rotate(90deg)}
 ${root} #candidateWorkspaceAction .aim-disclosure>summary::-webkit-details-marker{display:none}
@@ -39,13 +39,14 @@ ${root} #candidateWorkspaceAction .aim-disclosure label{font-size:.75rem;line-he
 ${root} #candidateWorkspaceAction :is(select,input){font-size:16px;min-height:44px;max-width:100%}
 ${root} #candidateSearchAction,${root} .explore-show-result{min-height:44px;margin:0;padding:10px 12px;border-radius:10px;box-sizing:border-box;font-size:.88rem;font-weight:700;line-height:1.5;box-shadow:none}
 ${root} #candidateSearchAction{width:100%;min-height:48px}
-${root} #candidateSearchAction{background:var(--accent);color:var(--on-accent);border:1px solid var(--accent)}
+${root} #candidateSearchAction{background:transparent;color:var(--accent);border:1px solid var(--line)}
 ${root} #candidateSearchAction:disabled{opacity:.5;cursor:not-allowed}
 ${root} #candidateSearchAction[data-state="searching"]{background:var(--card);color:var(--accent);border-color:var(--accent)}
-${root} .explore-show-result{grid-area:1/2;z-index:1;width:96px;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;background:var(--card);color:var(--accent);border:1px solid var(--line)}
-${root} .explore-show-result svg{flex:none;width:16px;height:16px}
+${root} .explore-show-result{width:100%;min-height:48px;display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;background:var(--accent);color:var(--on-accent);border:1px solid var(--accent)}
+${root} .explore-show-result svg{flex:none;width:20px;height:20px}
 ${root} #exploreSearchResults{width:100%;max-width:none;margin:12px 0 0;padding:0;border:0}
 ${root} #exploreResultsHeading{margin:16px 0 12px}
+${root} #candidateSearchEmpty:empty{display:none}
 ${root} #candidateSearchEmpty{margin:0;padding:0;background:transparent;border:0;border-radius:0;font-size:.75rem;line-height:1.7;text-align:left;color:var(--secondary)}
 ${root} #candidateSearchFeedback:empty,${root} #candidateSearchCredits:empty{display:none}
 ${root} #candidateSearchFeedback>[role="status"]:empty{display:none}
@@ -68,12 +69,11 @@ ${root} #candidateUnifiedResults :is([data-candidate-time],[data-place-kind]){fo
 ${root} #candidateUnifiedResults .sub-line{font-size:.69rem;line-height:1.6;color:var(--secondary)}
 ${root} #candidateSearchCredits p{margin:8px 0 0;font-size:.63rem;color:var(--tertiary)}
 ${root} :is(button,summary,select):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-@media (hover:hover){${root} :is(.explore-show-result,.candidate-list-actions button):hover{background:var(--sunk)}${root} #candidateUnifiedResults>.list-item:hover{background:var(--sunk)}}
+@media (hover:hover){${root} :is(#candidateSearchAction,.candidate-list-actions button):hover{background:var(--sunk)}${root} #candidateUnifiedResults>.list-item:hover{background:var(--sunk)}}
 @media(min-width:760px){
  ${root} .explore-condition-fields{gap:14px}
  ${root} #exploreConditions .condition-field,${root} #exploreConditions .condition-field:has(.condition-clear){grid-template-columns:104px minmax(0,1fr)!important;gap:16px}
  ${root} #skyMapAlignmentDetails{margin-left:120px}
- ${root} #candidateWorkspaceAction .aim-disclosure{margin-left:120px}
  ${root} .candidate-filter-fields>label{display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;align-items:center!important;gap:10px!important}
  ${root} .candidate-list-heading,${root} #candidateUnifiedResults>.list-item{grid-template-columns:minmax(0,1fr) 96px 144px!important}
 }

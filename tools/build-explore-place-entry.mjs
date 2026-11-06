@@ -10,7 +10,8 @@ export function explorePlaceSource(path,source){
   source=patch(source,"fields.append(controls,observer,alignment);conditions.append(fields);",`
   fields.setAttribute('role','group');fields.setAttribute('aria-labelledby','exploreSearchHeading');
   fields.append(node('h2',{id:'exploreSearchHeading',className:'explore-section-title'},'撮影条件'));
-  fields.append(controls,observer,alignment,node('div',{id:'candidateWorkspaceAction'}));
+  const discovery=node('section',{id:'candidateWorkspaceAction'});discovery.setAttribute('aria-labelledby','candidateWorkspaceHeading');discovery.append(node('h2',{id:'candidateWorkspaceHeading',className:'explore-section-title'},'撮影地点を探す'));
+  fields.append(controls,observer,alignment,discovery);
   conditions.append(fields);`);
   source=patch(source,'fields.append(confirm);',"const placeTools=node('div',{className:'explore-place-tools'});placeTools.append($('skyMapObserverDetails'),confirm);fields.insertBefore(placeTools,alignment);");
  }
@@ -18,8 +19,8 @@ export function explorePlaceSource(path,source){
   source=patch(source,'const layout=AstroNotesExploreLayout.create(',candidateWorkspaceSource+'\nconst layout=AstroNotesExploreLayout.create(');
   source=patch(source,'else{layout.unmount();promote();}',"else{leaveSearchFlow();layout.unmount();promote();}");
   source=patch(source,"const confirm=$('exploreShowResult');","syncWorkspace();const confirm=$('exploreShowResult');");
-  source=patch(source,"confirm.textContent=!s?.target?'対象を選ぶ':!s?.observer?'撮影地点を選ぶ':'結果を確認';",`if(!confirm.firstElementChild)confirm.innerHTML='<span>見え方</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>';
- const actionLabel=!s?.target?'見え方：対象を選ぶ':!s?.observer?'見え方：撮影地点を選ぶ':'見え方を表示';if(confirm.getAttribute('aria-label')!==actionLabel)confirm.setAttribute('aria-label',actionLabel);`);
+  source=patch(source,"confirm.textContent=!s?.target?'対象を選ぶ':!s?.observer?'撮影地点を選ぶ':'結果を確認';",`if(!confirm.firstElementChild)confirm.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><span>検索</span>';
+ const actionLabel=!s?.target?'検索：対象を選ぶ':!s?.observer?'検索：撮影地点を選ぶ':'この撮影条件で検索';if(confirm.getAttribute('aria-label')!==actionLabel)confirm.setAttribute('aria-label',actionLabel);`);
   source=patch(source,"'.explore-tabs{scroll-margin-top:12px}",JSON.stringify(searchFlowStyle)+"+\n'.explore-tabs{scroll-margin-top:12px}");
   // Last in this controller's stylesheet so legacy card rules cannot override it.
   source=patch(source,"document.head.append(style);","style.textContent+="+JSON.stringify(explorePageStyle)+";document.head.append(style);");
