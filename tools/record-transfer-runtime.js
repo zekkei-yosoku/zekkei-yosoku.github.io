@@ -73,10 +73,10 @@ function recordBodyKey(place){return JSON.stringify(recordSavedBodies(place));}
 function recordBodyDirty(){return sheetState?.ctx==='records'&&sheetState.bodyBaseline!==undefined&&recordBodyKey(sheetState.place)!==sheetState.bodyBaseline;}
 function renderRecordBodyPreferences(){
  const s=sheetState;if(!s)return;let details=el('myRecordBodies'),fieldset=el('myPlaceBodies')?.closest('fieldset');if(!fieldset)return;
- if(s.ctx!=='records'){if(details)details.hidden=true;el('myPlaceFind').before(fieldset);return;}
+ if(s.ctx!=='records'){if(details)details.hidden=true;if(fieldset.parentElement!==el('myPlacePlanning'))el('myPlaceFind').before(fieldset);return;}
  if(s.bodyBaseline===undefined)s.bodyBaseline=recordBodyKey(placeOf(s.place.id)||s.place);
  if(!details){details=transferNode('details',{id:'myRecordBodies',className:'my-secondary'});details.append(transferNode('summary'));el('myRecordPickTarget').closest('.my-input-field').before(details);}
- details.hidden=false;details.append(fieldset);fieldset.hidden=false;details.querySelector('summary').textContent='天体：'+(s.bodies.map(id=>AstroNotesBodies.definition(id)?.name).filter(Boolean).join('・')||'指定なし');
+ details.hidden=false;if(fieldset.parentElement!==details)details.append(fieldset);fieldset.hidden=false;details.querySelector('summary').textContent='天体：'+(s.bodies.map(id=>AstroNotesBodies.definition(id)?.name).filter(Boolean).join('・')||'指定なし');
 }
 function saveRecordBodyMetadata(plan,args){
  const next=plan.favorites.find(p=>p.id===args.place.id);if(!next)return plan;const bodies=recordSavedBodies(args.place);
