@@ -1,3 +1,4 @@
+import {registeredDiscoveryMethods} from './build-record-discovery.mjs';
 // Derive a trial-only Explore from the same source; production bytes are untouched.
 import {readFileSync} from 'node:fs';
 import {externalAppsPlan,externalAppsHtml} from './build-external-apps-trial.mjs';
@@ -19,10 +20,13 @@ const read=p=>{
  return s;
 };
 const result=renderIndex({entry:'src/features/explore/entry.inc',read});
-const trialShooting=patch(patch(readFileSync('astronotes-shooting.js','utf8'),'event:e,shapeType:s.type','event:e,assumedObserver:obs,shapeType:s.type'),'record:entry.record,event:e});','record:entry.record,event:e,assumedObserver:obs});');
+let trialShooting=patch(patch(readFileSync('astronotes-shooting.js','utf8'),'event:e,shapeType:s.type','event:e,assumedObserver:obs,shapeType:s.type'),'record:entry.record,event:e});','record:entry.record,event:e,assumedObserver:obs});');
+trialShooting=trialShooting.replaceAll("&&(p.body!=='moon'||e.sunAltitude<0)",'').replace("||(p.body==='moon'&&!(e.sunAltitude<0))",'');
 let trialMyplaces=patch(patch(patch(readFileSync('astronotes-myplaces.js','utf8'),'この日に重なる撮影地点はありません。日付や対象を変えるか、記録に撮影地点と見えた対象を追加してください。','登録した地点に候補がありません。日付や対象を変えてください。'),'${result.rows.length}件','${result.rows.length}件（絞り込み前）'),'box.append(button);}'+'\n  if(result.failed)', 'box.append(button);}'+'\n  globalThis.AstroNotesCandidatePicker?.registerRegisteredFromSession(box,result.rows,plan,current);\n  if(result.failed)');
 trialMyplaces=patch(trialMyplaces,'plan=AstroNotesShooting.conditions(state()),selectedShape','plan=globalThis.AstroNotesCandidatePicker?.registeredPlan?.(AstroNotesShooting.conditions(state()))||AstroNotesShooting.conditions(state()),selectedShape');
 trialMyplaces=registeredMainSearch(trialMyplaces);
+trialMyplaces=patch(trialMyplaces,'window.MyPlacesUI = {',''+registeredDiscoveryMethods+'\nwindow.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision,');
+trialMyplaces=patch(trialMyplaces,'function changed() {',"function changed() {\n document.dispatchEvent(new Event('astronotes-records-change'));");
 const trialAlign=patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge');
 const files={
  // Common calendar geometry for every trial consumer; never a page-level override.
@@ -32,7 +36,7 @@ const files={
  'astronotes-shooting.js':trialShooting,
  'astronotes-myplaces.js':trialMyplaces,
  'astronotes-explore-simple.js':result.html,
- 'astronotes-candidate-search.js':readFileSync(new URL('../experiments/candidate-visibility/building-model.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/terrain-model.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/live-terrain.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/scene-hulls.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/scene-surface.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/composition.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/model-evaluator.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/search.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/place-provider.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/generic-evaluator.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/generic-search.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/composition-ui.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/place-labels.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/candidate-picker.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/ui.js',import.meta.url),'utf8'),
+ 'astronotes-candidate-search.js':readFileSync(new URL('../experiments/candidate-visibility/building-model.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/terrain-model.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/live-terrain.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/scene-hulls.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/scene-surface.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/composition.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/model-evaluator.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/search.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/place-provider.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/generic-evaluator.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/generic-search.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/composition-ui.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/place-labels.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/candidate-picker.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/ui.js',import.meta.url),'utf8').replace("dedicated?document.getElementById('candidateWorkspaceAction'):panel","dedicated?(mainWorkspace().newPlacesHost?.()||document.getElementById('candidateWorkspaceAction')):panel").replace('if(!repeat||!settled)return;','if(mainWorkspace()?.separateRecords||!repeat||!settled)return;'),
  'data/candidate-viewpoints.json':readFileSync(new URL('../data/aim-viewpoints.json',import.meta.url),'utf8'),
  'data/candidate-terrain.json':readFileSync(new URL('../experiments/candidate-visibility/terrain.json',import.meta.url),'utf8'),
  'data/candidate-buildings.json':readFileSync(new URL('../experiments/candidate-visibility/model-buildings.json',import.meta.url),'utf8'),
@@ -49,6 +53,13 @@ files['astronotes-candidate-search.js']=patch(files['astronotes-candidate-search
 files['astronotes-candidate-search.js']+='\n// data-release '+createHash('sha256').update(Object.entries(files).filter(([name])=>name.startsWith('data/')).map(([,value])=>value).join('')).digest('hex')+'\n';
 if(process.argv.includes('--html')){
  let html=exploreSwipeBackHtml(explorePreviewControlsHtml(explorePlaceHtml(externalAppsHtml(readFileSync(0,'utf8')))));
+ // Include daytime lunar overlaps in the shared observer calendar/date strip.
+ for(const [start,end]of [['function aimCalRows(', 'function aimCalSolid('],['async function aimBuildingDays(', 'function aimDaysInputKey(']]){
+  const a=html.indexOf(start),b=html.indexOf(end,a);if(a<0||b<0)throw Error('Daylight observer boundary changed');
+  const part=html.slice(a,b).replaceAll('&&(body!=="moon"||e.sunAltitude<0)','').replaceAll('(body !== "moon" || e.sunAltitude < 0)','true');html=html.slice(0,a)+part+html.slice(b);
+ }
+ html=patch(html,'store.setWriteHook(key=>RecordSync.touched(key));','store.setWriteHook(key=>{RecordSync.touched(key);if(key==="sorami.favorites")document.dispatchEvent(new Event("astronotes-records-change"));});');
+ html=patch(html,"${snap.body==='moon'?'（暗い空の時間）':''}",'');
  // Map presentation and place-sheet ownership live in the inline document,
  // outside the Explore asset entry. Apply these contracts to that product.
  html=patch(html,'$("placeSheet").addEventListener("close", () => {','$("placeSheet").addEventListener("close", () => {\n  if ($("placeSheet").open) return;');

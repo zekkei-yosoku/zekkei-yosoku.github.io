@@ -49,7 +49,7 @@ export function explorePlaceHtml(html){
  html=patch(html,' function renderCandidateDates(){'," function renderCandidateDates(){\n  if(globalThis.TrialExplore?.candidateWorkspace?.()?.active())return;");
  // Search selects a date independently of a shooting place. Keep the existing
  // calendar's date grid/moon drawing, without preview-only alignment statuses.
- html=patch(html,"draw(new Map());\n  if(!plan||!hasAccess())", "draw(new Map());\n  if(globalThis.TrialExplore?.candidateWorkspace?.()?.active()){status.textContent='';grid.setAttribute('aria-busy','false');return;}\n  if(!plan||!hasAccess())");
+ html=patch(html,"draw(new Map());\n  if(!plan||!hasAccess())", "draw(new Map());\n  if(globalThis.TrialExplore?.candidateWorkspace?.()?.active()){globalThis.TrialExplore.candidateWorkspace().calendarMonth({...args,draw,restart:()=>calendarMonth(args)});return;}\n  if(!plan||!hasAccess())");
  html=patch(html,'  skyPlayback.stop(false);\n  session.observer=aimSavedFrom',"  document.dispatchEvent(new Event('astronotes-candidate-selecting'));\n  skyPlayback.stop(false);\n  session.observer=aimSavedFrom");
  html=patch(html,'map.setCenter(candidate.place.latitude,candidate.place.longitude);refresh();return true;','map.setCenter(candidate.place.latitude,candidate.place.longitude);refresh();document.dispatchEvent(new Event(\'astronotes-candidate-selected\'));return true;');
  html=patch(html,"const panels={recent:historyPanel,favorites:favPanel,candidates:candidatePanel};",`const recordsPanel=document.createElement('section');recordsPanel.id='recentRecordedPlaces';

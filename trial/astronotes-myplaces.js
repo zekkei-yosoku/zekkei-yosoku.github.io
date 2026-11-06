@@ -430,6 +430,7 @@ async function renderPickerPanel(panel) {
  const token=++pickerToken,owner=auth?.token;
  let box=panel.querySelector('.my-picker');if(!box){box=document.createElement('div');box.className='my-picker';panel.prepend(box);}box.replaceChildren();
  const workspace=globalThis.TrialExplore?.candidateWorkspace?.(),workspaceEpoch=workspace?.epoch(),mode=placeSheetFor,isSky=!!workspace||mode==='skymap';
+ if(workspace?.separateRecords)return;
  if(workspace&&(!workspace.active()||!workspace.visible()))return;
  const state=()=>isSky?skySession:{target:aim.target,body:aim.body,partId:aim.partId,limb:aim.limb,matchMode:aim.matchMode,at:aim.dayMs};
  const t=state()?.target,plan=globalThis.AstroNotesCandidatePicker?.registeredPlan?.(AstroNotesShooting.conditions(state()))||AstroNotesShooting.conditions(state()),selectedShape=pickerShapeId;
@@ -842,6 +843,7 @@ function quickRecord(observer,target){
  }catch(e){return {ok:false,error:e.message||'撮影地点を保存できませんでした'};}
 }
 function changed() {
+ document.dispatchEvent(new Event('astronotes-records-change'));
   renderRecordsHub();
   skyKey = '';
   if (!el('aimView')?.hidden) renderAim();
@@ -906,7 +908,29 @@ style.textContent = `
 document.head.append(style);
 
 renderRecordsHub();
-window.MyPlacesUI = { backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{version++;candidateCache.clear();changed();},selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, leaveSky, pickSky, badge, openPlace, recordFor, quickRecord, load, renderRecordsHub };
+
+function discoveryPoints(){
+ if(!auth?.token||!toolAllowed('records'))return [];
+ const records=load(),out=[],seen=new Map();
+ for(const f of favorites){
+  const shape=shapeFor(f),keys=[...new Set(records.filter(r=>r.placeId===f.id).map(r=>r.target.key))];
+  const live=keys.flatMap(k=>{const group=records.filter(r=>r.placeId===f.id&&r.target.key===k).sort((a,b)=>Number(!!b.registration)-Number(!!a.registration)||when(b)-when(a)||b.updatedAt-a.updatedAt);return group[0]?.removed?[]:group.filter(r=>!r.removed);});
+  for(const r of live){
+   const o=r.observer||f,p={...withShape(f),latitude:o.latitude,longitude:o.longitude,elevation:o.elevation??f.elevation,groundManualM:o.elevation??f.groundManualM??f.elevation,eyeHeightAGL:o.eyeHeightAGL??f.eyeHeightAGL};
+   // Keep the actual recorded eye height, even if the current picker uses another floor.
+   if(Number.isFinite(o.eyeHeightAGL)){p.standAglM=o.eyeHeightAGL;p.stand='ground';}
+   const key=p.shape?JSON.stringify([f.id,p.eyeHeightAGL,p.shape]):JSON.stringify([p.latitude,p.longitude,p.groundManualM,p.eyeHeightAGL]);if(seen.has(key)){seen.get(key).place.discoveryRecordIds.push(r.id);continue;}p.discoveryKey=key;p.discoveryRecordIds=[r.id];const entry={place:p,record:r};seen.set(key,entry);out.push(entry);
+  }
+  if(shape&&!live.length){const p=withShape(f),key=JSON.stringify([p.latitude,p.longitude,p.elevation,p.eyeHeightAGL,p.shape]);if(!seen.has(key)){p.discoveryKey=key;p.discoveryRecordIds=[];const entry={place:p,record:{result:'seen'}};seen.set(key,entry);out.push(entry);}}
+ }
+ return out;
+}
+function discoveryRevision(){return version;}
+async function discoverySearch(plan,points,isCurrent,terrainCache=new Map()){
+ return AstroNotesShooting.candidates(plan,points,{align:AstroNotesAlign,isMountain:aimIsMountain,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),elevationAt:async(lat,lon)=>{const key=lat+','+lon;if(!terrainCache.has(key))terrainCache.set(key,candidateElevation(lat,lon).then(value=>{if(!Number.isFinite(value))terrainCache.delete(key);return value;}));return terrainCache.get(key);},viewFor:(obs,p)=>aimShootingView(obs,p.target,p.body,p.partId,p.matchMode),ensure:b=>AstroNotesBodies.ensure(b),isCurrent});
+}
+
+window.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision, backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{version++;candidateCache.clear();changed();},selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, leaveSky, pickSky, badge, openPlace, recordFor, quickRecord, load, renderRecordsHub };
 // 読み込みより先に構図が描かれていたら、ここで一覧を出す
 if (el('aimView') && !el('aimView').hidden) { try { renderAim(); } catch { /* 構図を止めない */ } }
 // A map without an observer renders synchronously, before this deferred module arrives.

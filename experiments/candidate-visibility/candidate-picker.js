@@ -209,7 +209,7 @@ function drawMap(ctx,{project,width,height}){
 function suspend(){
  if(!control?.isConnected)return;
  const scroller=ports.getScroller?.()||control.closest('.sheet-body')||control.closest('[role=tabpanel]');
- suspendedView={scope,selectedId,mapMode,scrollTop:scroller?.scrollTop||0};
+ suspendedView={scope,selectedId,mapMode,scrollTop:ports.getReturnScroll?.()??scroller?.scrollTop??0};
  if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);
  revision++;for(const g of groups.values())for(const node of g.nodes)node.remove();groups.clear();visibleEntries=[];mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control.remove();
 }

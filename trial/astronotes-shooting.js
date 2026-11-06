@@ -91,7 +91,7 @@ async function shapeCandidates(p,entry,deps){
   const events=view?probes:(!o.disc||o.broad)&&align.dailyView?probes:eventsFor(p,obs,start,{align,isMountain});
   if(o.broad)for(const e of events){e.matchMode='overlap';e.partId=o.partId;}
   const result={place:f,events,probes};memo.set(key,result);
-  for(const e of events)if(e.at>=start&&e.at<start+DAY&&e.spatialMatched!==false&&(!Number.isFinite(e.altitude)||o.disc||e.altitude>0)&&matches(e,p,isMountain)&&(p.body!=='moon'||e.sunAltitude<0)&&shapeContains(s,f)){
+  for(const e of events)if(e.at>=start&&e.at<start+DAY&&e.spatialMatched!==false&&(!Number.isFinite(e.altitude)||o.disc||e.altitude>0)&&matches(e,p,isMountain)&&shapeContains(s,f)){
    // Keep distinct positions, but avoid thousands of indistinguishable pins.
    if(!rows.some(r=>r.event.side===e.side&&meters(r.place,f)<40&&Math.abs(r.event.at-e.at)<120000))rows.push({place:f,record:entry.record,event:e,assumedObserver:obs,shapeType:s.type});
   }
@@ -131,7 +131,7 @@ async function candidates(plan,points,{align,isMountain,observerAt,elevationAt,e
    if(!isCurrent())return {rows:[],failed:0,cancelled:true};
    const events=eventsFor(p,obs,start,{align,isMountain,view});
    for(const e of events){
-    if(e.at<start||e.at>=start+DAY||!matches(e,p,isMountain)||(p.body==='moon'&&!(e.sunAltitude<0)))continue;
+    if(e.at<start||e.at>=start+DAY||!matches(e,p,isMountain))continue;
     rows.push({place:f,record:entry.record,event:e,assumedObserver:obs});
    }
   }catch(e){if(!isCurrent()||e.message==='shape-cancelled')return {rows:[],failed:0,cancelled:true};failed++;issues.push({id:entry.place.id,reason:e.message==='shape-limit'?'limit':e.message==='shape-invalid'?'invalid':'calculation'});}

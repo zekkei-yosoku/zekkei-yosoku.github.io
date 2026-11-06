@@ -1,3 +1,4 @@
+import {recordDiscoverySource,recordDiscoveryStyle} from './build-record-discovery.mjs';
 // Injected inside the existing Explore controller; no new global or saved plan.
 export const searchFlowSource=`
 let resultRequested=false,selectionPending=false,flowOwner=null,flowGeneration=null,previewBackEpoch=0;
@@ -28,7 +29,7 @@ function syncWorkspace(){
  $('recentCandidates').hidden=resultRequested||!searchStarted;$('candidateSearchEmpty').hidden=searchStarted;
  $('exploreResultsHeading').hidden=!searchStarted;
  candidateBack.textContent=returnIntent?.searched?'‹ 候補へ戻る':'‹ 探すへ戻る';
- document.dispatchEvent(new Event('astronotes-search-state'));
+ syncRecordDiscovery();document.dispatchEvent(new Event('astronotes-search-state'));
 }
 function captureSearch(){
  const s=SkyMapUI.selectionState();if(!s)return;
@@ -46,16 +47,20 @@ function showSearch(){
  // Restore the full target as well: custom target coordinates/heights are part of the search.
  SkyMapUI.workspaceHost()?.restoreTarget({target:structuredClone(s.target),custom:saved.custom,customTarget:saved.customTarget});
  const body=$('skyMapBody');body.value=s.body;body.dispatchEvent(new Event('change',{bubbles:true}));SkyMapUI.setAlignment(s.partId,s.limb,s.matchMode);SkyMapUI.setTime(s.at);
- SkyMapUI.workspaceHost()?.restoreObserver(structuredClone(s.observer));selectionPending=false;searchStarted=saved.searched;pendingScroll={top:saved.scrollTop,count:saved.count};syncWorkspace();if(!searchStarted)restoreSearchScroll(0);
+ SkyMapUI.workspaceHost()?.restoreObserver(structuredClone(s.observer));selectionPending=false;searchStarted=saved.searched;pendingScroll={top:saved.scrollTop,count:saved.count};syncWorkspace();if(discoveryTab==='records'||!searchStarted)restoreSearchScroll(0);
 }
 function leaveSearchFlow(){
+ recordSeq++;recordCalendarSeq++;if(recordTimer!==null)clearTimeout(recordTimer);recordTimer=null;recordState={key:'',status:'idle'};recordPane?.replaceChildren();recordCache.clear();recordJobs.clear();recordTerrainCache.clear();recordMemo=null;recordCalendarArgs=null;
  previewBackEpoch++;
  document.dispatchEvent(new Event('astronotes-preview-leave'));
  resultRequested=false;selectionPending=false;searchStarted=false;returnIntent=null;pendingScroll=null;candidateBack.hidden=true;
  const panel=$('recentCandidates');if(candidatePanelHome&&panel){candidatePanelHome.parent.insertBefore(panel,candidatePanelHome.next?.parentNode===candidatePanelHome.parent?candidatePanelHome.next:null);panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby','placeTab-candidates');panel.removeAttribute('aria-label');candidatePanelHome=null;}
  searchRoot?.remove();delete mapView.dataset.exploreStage;
 }
-const mainCandidateWorkspace={epoch:()=>flowGeneration,previewWidth:()=>Math.max(200,Math.round(Math.min(780,mapView.clientWidth||320))),active:mainSearchActive,selectable:()=>mainSearchActive()&&!$('placeSheet').open,visible:()=>searchStarted,
+${recordDiscoverySource}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){syncRecordDiscovery();if(recordCalendarArgs?.isCurrent()&&mainSearchActive())recordCalendarArgs.restart();}});
+document.addEventListener('astronotes-records-change',()=>{recordMemo=null;recordState.key='';queueMicrotask(()=>{syncRecordDiscovery();if(recordCalendarArgs?.isCurrent()&&mainSearchActive())recordCalendarArgs.restart();});});
+const mainCandidateWorkspace={separateRecords:true,newPlacesHost:()=>newPlacePane,calendarMonth:recordCalendar,returnScroll:()=>returnIntent?.scrollTop,epoch:()=>flowGeneration,previewWidth:()=>Math.max(200,Math.round(Math.min(780,mapView.clientWidth||320))),active:mainSearchActive,selectable:()=>mainSearchActive()&&!$('placeSheet').open,visible:()=>searchStarted,
  beginBack(){
   if(!resultActive()||selectionPending||flowOwner!==auth?.loginId||flowGeneration!==accessState.generation)return null;
   const epoch=previewBackEpoch,owner=flowOwner,generation=flowGeneration,saved=returnIntent;let used=false;
@@ -75,11 +80,11 @@ document.addEventListener('astronotes-candidate-selected',()=>{if(selectionPendi
 export const searchFlowStyle=
  '#skyMapView[data-explore-stage="search"] #exploreScenePanel,#skyMapView[data-explore-stage="search"] #exploreMapPanel,#skyMapView[data-explore-stage="search"] #exploreSkyInfo,#skyMapView[data-explore-stage="search"] .sky-map-candidates,#skyMapView[data-explore-stage="search"] #skyMapShareRow{display:none!important}'+
  '#skyMapView[data-explore-stage="preview"] #exploreConditions,#skyMapView[data-explore-stage="preview"] #exploreSearchResults{display:none!important}'+
- '#exploreBackToCandidates{min-height:44px;margin:0 0 12px}';
+ '#exploreBackToCandidates{min-height:44px;margin:0 0 12px}'+recordDiscoveryStyle;
 
 const patch=(s,from,to)=>{if(s.split(from).length!==2)throw Error('Main search boundary changed: '+from.slice(0,80));return s.replace(from,to);};
 export function registeredMainSearch(s){
- s=patch(s,"const mode=placeSheetFor,isSky=mode==='skymap';","const workspace=globalThis.TrialExplore?.candidateWorkspace?.(),workspaceEpoch=workspace?.epoch(),mode=placeSheetFor,isSky=!!workspace||mode==='skymap';\n if(workspace&&(!workspace.active()||!workspace.visible()))return;");
+ s=patch(s,"const mode=placeSheetFor,isSky=mode==='skymap';","const workspace=globalThis.TrialExplore?.candidateWorkspace?.(),workspaceEpoch=workspace?.epoch(),mode=placeSheetFor,isSky=!!workspace||mode==='skymap';\n if(workspace?.separateRecords)return;\n if(workspace&&(!workspace.active()||!workspace.visible()))return;");
  s=patch(s,"&&el('placeSheet').open&&placeSheetFor===mode&&key===query();","&&(workspace?workspace.epoch()===workspaceEpoch&&workspace.active()&&workspace.visible():el('placeSheet').open&&placeSheetFor===mode)&&key===query();");
  s=patch(s,"button.onclick=()=>{if(!current())return;if(isSky)","button.onclick=()=>{if(!current()||workspace&&!workspace.selectable())return;if(isSky)");
  s=patch(s,"if(!current()||result.cancelled)return;\n  note.textContent=", "if(!current()||result.cancelled)return;\n  if(workspace)note.hidden=true;\n  note.textContent=");

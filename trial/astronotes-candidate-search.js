@@ -1598,7 +1598,7 @@ function drawMap(ctx,{project,width,height}){
 function suspend(){
  if(!control?.isConnected)return;
  const scroller=ports.getScroller?.()||control.closest('.sheet-body')||control.closest('[role=tabpanel]');
- suspendedView={scope,selectedId,mapMode,scrollTop:scroller?.scrollTop||0};
+ suspendedView={scope,selectedId,mapMode,scrollTop:ports.getReturnScroll?.()??scroller?.scrollTop??0};
  if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);
  revision++;for(const g of groups.values())for(const node of g.nodes)node.remove();groups.clear();visibleEntries=[];mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control.remove();
 }
@@ -1624,7 +1624,7 @@ const cachedData=new Map();
 function loaded(name){if(!cachedData.has(name)){const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),10000);cachedData.set(name,readData(name,{signal:ctrl.signal}).catch(e=>{cachedData.delete(name);throw e;}).finally(()=>clearTimeout(timer)));}return cachedData.get(name);}
 const loadLabels=async()=>{const [addresses,facilities]=await Promise.all(['candidate-label-addresses.json','candidate-label-facilities.json'].map(n=>loaded(n).catch(()=>null)));return {addresses,facilities};};
 const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode]);
-AstroNotesCandidatePicker.configure({loadLabels,createMapView,filterKey,getScroller:()=>mainWorkspace()?.scroller(),onRendered:count=>mainWorkspace()?.restoreScroll(count),requestKey:p=>AstroNotesCandidateDiscovery.requestKey(p)});
+AstroNotesCandidatePicker.configure({loadLabels,createMapView,filterKey,getScroller:()=>mainWorkspace()?.scroller(),getReturnScroll:()=>mainWorkspace()?.returnScroll?.(),onRendered:count=>mainWorkspace()?.restoreScroll(count),requestKey:p=>AstroNotesCandidateDiscovery.requestKey(p)});
 const live=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain});
 const groundPort={...AstroNotesTerrain,resetBudget:()=>live.resetBudget(),groundElevation:async(lat,lon,options={})=>{const r=await live.sample({latitude:lat,longitude:lon},options);return options.withSource?(Number.isFinite(r.height)?{elevation:r.height,source:r.layer}:null):r.height;}};
 const provider=AstroNotesCandidateDiscovery.createPlaceProvider({terrain:groundPort,fetchImpl:fetch.bind(globalThis),loadViewpoints:()=>loaded('candidate-viewpoints.json')});
@@ -1735,7 +1735,7 @@ function syncCandidateDate(control,p){
 }
 function syncWorkspaceSection(panel){
  if(!section?.isConnected)return;
- const dedicated=!!mainWorkspace(),parent=dedicated?document.getElementById('candidateWorkspaceAction'):panel;
+ const dedicated=!!mainWorkspace(),parent=dedicated?(mainWorkspace().newPlacesHost?.()||document.getElementById('candidateWorkspaceAction')):panel;
  if(parent&&section.parentNode!==parent)parent.append(section);
 }
 function mount(){
@@ -1802,7 +1802,7 @@ document.addEventListener('astronotes-candidate-date-change',event=>{
  if(!changed&&!dateRefreshPending)return;
  const repeat=hasSearched||dateRefreshPending;dateRefreshPending=repeat&&!settled;
  returnSearch=null;stop();run++;mount();
- if(!repeat||!settled)return;
+ if(mainWorkspace()?.separateRecords||!repeat||!settled)return;
  const selected=snapshot(),identity=uiKey(selected);
  autoSearchTimer=setTimeout(()=>{autoSearchTimer=null;const latest=snapshot();if(!selected||!contextActive()||uiKey(latest)!==identity||engine.cached(latest))return;const button=document.getElementById('candidateSearchAction');if(button&&!button.disabled&&button.dataset.state!=='searching')button.click();},350);
 });
