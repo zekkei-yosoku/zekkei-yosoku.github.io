@@ -7,19 +7,19 @@ function recordRequest(at){
  if(!selected?.target||!Number.isFinite(selected.at)||!api?.discoveryPoints||!toolAllowed('records'))return null;
  const revision=api.discoveryRevision(),owner=auth?.loginId;
  if(!recordMemo||recordMemo.revision!==revision||recordMemo.owner!==owner){recordMemo={owner,revision,epoch:++recordDataEpoch,points:api.discoveryPoints()};recordTerrainCache.clear();}
- const points=recordMemo.points,plan={...AstroNotesShooting.conditions(selected),observer:null,at:AstroNotesShooting.day(at??selected.at)};
- const condition=JSON.stringify([plan.target,plan.body,plan.partId,plan.limb,plan.matchMode]),identity=JSON.stringify([owner,accessState.generation,recordMemo.epoch,condition]);
+ const points=recordMemo.points,plan={...AstroNotesShooting.conditions(selected),observer:null,at:AstroNotesShooting.day(at??selected.at),...(globalThis.AstroNotesTrialOverlap?.searchPlan?.(selected)?{overlapMembers:globalThis.AstroNotesTrialOverlap.searchPlan(selected).overlapMembers}:{})};
+ const condition=JSON.stringify([plan.target,plan.body,plan.partId,plan.limb,plan.matchMode,globalThis.AstroNotesTrialOverlap?.key?.(selected)??null]),identity=JSON.stringify([owner,accessState.generation,recordMemo.epoch,condition]);
  return {plan,points,condition,owner,generation:accessState.generation,revision,epoch:recordMemo.epoch,atmosphere:AstroNotesAtmosphere.dataKey(plan.at),identity,key:identity+'|'+plan.at+'|'+AstroNotesAtmosphere.dataKey(plan.at)};
 }
 function recordCurrent(request,extra=()=>true){
- const s=AstroNotesShooting.conditions(SkyMapUI.selectionState());return active()&&toolAllowed('records')&&flowOwner===request.owner&&auth?.loginId===request.owner&&flowGeneration===request.generation&&accessState.generation===request.generation&&recordMemo?.epoch===request.epoch&&MyPlacesUI.discoveryRevision()===request.revision&&AstroNotesAtmosphere.dataKey(request.plan.at)===request.atmosphere&&extra()&&JSON.stringify([s?.target,s?.body,s?.partId,s?.limb,s?.matchMode])===request.condition;
+ const s=AstroNotesShooting.conditions(SkyMapUI.selectionState());return active()&&toolAllowed('records')&&flowOwner===request.owner&&auth?.loginId===request.owner&&flowGeneration===request.generation&&accessState.generation===request.generation&&recordMemo?.epoch===request.epoch&&MyPlacesUI.discoveryRevision()===request.revision&&AstroNotesAtmosphere.dataKey(request.plan.at)===request.atmosphere&&extra()&&JSON.stringify([s?.target,s?.body,s?.partId,s?.limb,s?.matchMode,globalThis.AstroNotesTrialOverlap?.key?.(SkyMapUI.selectionState())??null])===request.condition;
 }
 async function recordRows(request,current){
  if(recordCache.has(request.key))return recordCache.get(request.key);
  let job=recordJobs.get(request.key);
  if(!job){
   job={watchers:new Set()};recordJobs.set(request.key,job);
-  job.promise=Promise.resolve().then(()=>MyPlacesUI.discoverySearch(request.plan,request.points,()=>[...job.watchers].some(f=>f()),recordTerrainCache)).then(result=>{if([...job.watchers].some(f=>f())&&!result.cancelled&&!result.failed){recordCache.set(request.key,result);if(recordCache.size>96)recordCache.delete(recordCache.keys().next().value);}return result;}).finally(()=>{if(recordJobs.get(request.key)===job)recordJobs.delete(request.key);});
+  job.promise=Promise.resolve().then(()=>{const live=()=>[...job.watchers].some(f=>f()),run=p=>MyPlacesUI.discoverySearch(p,request.points,live,recordTerrainCache);return globalThis.AstroNotesTrialOverlap?.discovery?.(request.plan,run)??run(request.plan);}).then(result=>{if([...job.watchers].some(f=>f())&&!result.cancelled&&!result.failed){recordCache.set(request.key,result);if(recordCache.size>96)recordCache.delete(recordCache.keys().next().value);}return result;}).finally(()=>{if(recordJobs.get(request.key)===job)recordJobs.delete(request.key);});
  }
  job.watchers.add(current);try{const result=await job.promise;if(result.cancelled&&current())return recordRows(request,current);return result;}finally{job.watchers.delete(current);}
 }

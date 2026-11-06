@@ -1273,6 +1273,7 @@ function appendRecordAlignment(row,t){
 }
 function renderSkyAlignment(s){
  const detail=el('skyMapAlignmentDetails'),host=el('skyMapAlignmentControls');detail.hidden=!s?.target;if(!el('skyMapAlignmentSummary').firstElementChild)el('skyMapAlignmentSummary').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6.5"/><circle cx="15.5" cy="15.5" r="6.5"/></svg><span>重ね方</span>';if(!s?.target){host.replaceChildren();delete host.dataset.alignmentSignature;return;}
+ if(globalThis.AstroNotesTrialOverlap?.renderAlignment?.(host,s))return;
  alignmentControls(host,s.target,s,{body:s.body,change:next=>{if(skySession!==s||!auth?.token||!toolAllowed('skymap'))return;SkyMapUI.setAlignment(next.partId,next.limb,next.matchMode);}});
 }
 function recordMatchOpts(target,place,body){

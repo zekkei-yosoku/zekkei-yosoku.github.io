@@ -69,7 +69,7 @@ function create(deps){
   const discovery=node('section',{id:'candidateWorkspaceAction'});discovery.setAttribute('aria-labelledby','candidateWorkspaceHeading');discovery.append(node('h2',{id:'candidateWorkspaceHeading',className:'explore-section-title'},'撮影地点を探す'));
   fields.append(controls,observer,alignment,discovery);
   conditions.append(fields);
-  const confirm=node('button',{id:'exploreShowResult',type:'button',className:'chip explore-show-result'},'結果を確認');confirm.onclick=showResult;const placeTools=node('div',{className:'explore-place-tools'});placeTools.append($('skyMapObserverDetails'),alignment,confirm);fields.insertBefore(placeTools,discovery);conditions.addEventListener('toggle',()=>{summary.querySelector('.explore-condition-edit').textContent=conditions.open?'条件を閉じる':'条件を編集';});
+  const confirm=node('button',{id:'exploreShowResult',type:'button',className:'chip explore-show-result'},'結果を確認');confirm.onclick=showResult;const placeTools=node('div',{className:'explore-place-tools'});placeTools.append($('skyMapObserverDetails'),confirm);fields.insertBefore(placeTools,discovery);fields.insertBefore(alignment,observer);conditions.addEventListener('toggle',()=>{summary.querySelector('.explore-condition-edit').textContent=conditions.open?'条件を閉じる':'条件を編集';});
   $('skyMapDates').addEventListener('click',candidateChosen);
   aimHome={parent:aimView.parentNode,next:aimView.nextSibling};
   const workspace=aimView.querySelector('.preview-workspace');workspaceHome={node:workspace,parent:workspace.parentNode,next:workspace.nextSibling};aimView.append(workspace);
@@ -128,7 +128,7 @@ function conditionText(s){
  const part=s?.target?.parts?.find(p=>p.id===s.partId)||s?.target?.parts?.[0];
  const alignment=s?.matchMode==='overlap'?'全体に重なる':s?.partId==='__whole'?(s.target?.wholeLabel||'建物全体に重なる'):`${part?.name||'対象'}・${AstroNotesAlign.limbById(s?.limb||'center').name}`;
  const height=s?.observer?$('skyMapObserverSummary')?.textContent?.trim().replace(/^高さ\s*[:：]?\s*/,''):'';
- return {title:body+' × '+target+(extras?'ほか'+extras+'件':''),detail:(s?.observer?.name||'撮影地点を選ぶ')+(height?' · '+height:'')+(s?.target?' · '+(s.candidateOpportunity?.at===s.at&&s.candidateOpportunity?.targetId===s.target?.id&&s.candidateOpportunity?.relation==='near'?'候補の時刻':globalThis.AstroNotesTrialComposition?.label?.(s)||alignment):'')};
+ return {title:body+' × '+target+(extras?'ほか'+extras+'件':''),detail:(s?.observer?.name||'撮影地点を選ぶ')+(height?' · '+height:'')+(s?.target?' · '+(s.candidateOpportunity?.at===s.at&&s.candidateOpportunity?.targetId===s.target?.id&&s.candidateOpportunity?.relation==='near'?'候補の時刻':globalThis.AstroNotesTrialOverlap?.label?.(s)||globalThis.AstroNotesTrialComposition?.label?.(s)||alignment):'')};
 }
 function updateConditions(){
  if(!layout.mounted||!layout.conditions)return;const s=SkyMapUI.selectionState(),text=conditionText(s);
@@ -218,19 +218,19 @@ function recordRequest(at){
  if(!selected?.target||!Number.isFinite(selected.at)||!api?.discoveryPoints||!toolAllowed('records'))return null;
  const revision=api.discoveryRevision(),owner=auth?.loginId;
  if(!recordMemo||recordMemo.revision!==revision||recordMemo.owner!==owner){recordMemo={owner,revision,epoch:++recordDataEpoch,points:api.discoveryPoints()};recordTerrainCache.clear();}
- const points=recordMemo.points,plan={...AstroNotesShooting.conditions(selected),observer:null,at:AstroNotesShooting.day(at??selected.at)};
- const condition=JSON.stringify([plan.target,plan.body,plan.partId,plan.limb,plan.matchMode]),identity=JSON.stringify([owner,accessState.generation,recordMemo.epoch,condition]);
+ const points=recordMemo.points,plan={...AstroNotesShooting.conditions(selected),observer:null,at:AstroNotesShooting.day(at??selected.at),...(globalThis.AstroNotesTrialOverlap?.searchPlan?.(selected)?{overlapMembers:globalThis.AstroNotesTrialOverlap.searchPlan(selected).overlapMembers}:{})};
+ const condition=JSON.stringify([plan.target,plan.body,plan.partId,plan.limb,plan.matchMode,globalThis.AstroNotesTrialOverlap?.key?.(selected)??null]),identity=JSON.stringify([owner,accessState.generation,recordMemo.epoch,condition]);
  return {plan,points,condition,owner,generation:accessState.generation,revision,epoch:recordMemo.epoch,atmosphere:AstroNotesAtmosphere.dataKey(plan.at),identity,key:identity+'|'+plan.at+'|'+AstroNotesAtmosphere.dataKey(plan.at)};
 }
 function recordCurrent(request,extra=()=>true){
- const s=AstroNotesShooting.conditions(SkyMapUI.selectionState());return active()&&toolAllowed('records')&&flowOwner===request.owner&&auth?.loginId===request.owner&&flowGeneration===request.generation&&accessState.generation===request.generation&&recordMemo?.epoch===request.epoch&&MyPlacesUI.discoveryRevision()===request.revision&&AstroNotesAtmosphere.dataKey(request.plan.at)===request.atmosphere&&extra()&&JSON.stringify([s?.target,s?.body,s?.partId,s?.limb,s?.matchMode])===request.condition;
+ const s=AstroNotesShooting.conditions(SkyMapUI.selectionState());return active()&&toolAllowed('records')&&flowOwner===request.owner&&auth?.loginId===request.owner&&flowGeneration===request.generation&&accessState.generation===request.generation&&recordMemo?.epoch===request.epoch&&MyPlacesUI.discoveryRevision()===request.revision&&AstroNotesAtmosphere.dataKey(request.plan.at)===request.atmosphere&&extra()&&JSON.stringify([s?.target,s?.body,s?.partId,s?.limb,s?.matchMode,globalThis.AstroNotesTrialOverlap?.key?.(SkyMapUI.selectionState())??null])===request.condition;
 }
 async function recordRows(request,current){
  if(recordCache.has(request.key))return recordCache.get(request.key);
  let job=recordJobs.get(request.key);
  if(!job){
   job={watchers:new Set()};recordJobs.set(request.key,job);
-  job.promise=Promise.resolve().then(()=>MyPlacesUI.discoverySearch(request.plan,request.points,()=>[...job.watchers].some(f=>f()),recordTerrainCache)).then(result=>{if([...job.watchers].some(f=>f())&&!result.cancelled&&!result.failed){recordCache.set(request.key,result);if(recordCache.size>96)recordCache.delete(recordCache.keys().next().value);}return result;}).finally(()=>{if(recordJobs.get(request.key)===job)recordJobs.delete(request.key);});
+  job.promise=Promise.resolve().then(()=>{const live=()=>[...job.watchers].some(f=>f()),run=p=>MyPlacesUI.discoverySearch(p,request.points,live,recordTerrainCache);return globalThis.AstroNotesTrialOverlap?.discovery?.(request.plan,run)??run(request.plan);}).then(result=>{if([...job.watchers].some(f=>f())&&!result.cancelled&&!result.failed){recordCache.set(request.key,result);if(recordCache.size>96)recordCache.delete(recordCache.keys().next().value);}return result;}).finally(()=>{if(recordJobs.get(request.key)===job)recordJobs.delete(request.key);});
  }
  job.watchers.add(current);try{const result=await job.promise;if(result.cancelled&&current())return recordRows(request,current);return result;}finally{job.watchers.delete(current);}
 }

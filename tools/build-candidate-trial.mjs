@@ -13,6 +13,7 @@ import {exploreSwipeBackHtml} from './build-explore-swipe-back.mjs';
 import {renderIndex} from './build-index.mjs';
 import {versionAssets,hashCsp} from './release-html.mjs';
 import {createHash} from 'node:crypto';
+import {overlapCandidateSearch,overlapExploreController,overlapHtml} from './build-overlap-scope.mjs';
 const patch=(s,from,to)=>{if(!s.includes(from))throw Error('Trial source boundary changed: '+from);return s.replace(from,to);};
 const read=p=>{
  let s=explorePlaceSource(p,readFileSync(p,'utf8'));if(!p.endsWith('/features/explore/controller.js'))return s;
@@ -21,7 +22,7 @@ const read=p=>{
  s=patch(s," mode=next==='map'?'map':'scene';"," mode='scene';\n tabs.hidden=true;scene.setAttribute('aria-label','見え方');scene.removeAttribute('aria-labelledby');scene.tabIndex=-1;");
  s=patch(s,"if(on&&focus)tab.focus();","if(on&&focus)scene.focus({preventScroll:true});");
  s=patch(s,"const tab=mode==='map'?mapTab:sceneTab;tab.focus({preventScroll:true});tabs.style.scrollMarginTop=(layout.conditions.getBoundingClientRect().height+12)+'px';tabs.scrollIntoView({block:'start',behavior:'auto'});","scene.tabIndex=-1;scene.focus({preventScroll:true});scene.style.scrollMarginTop=(layout.conditions.getBoundingClientRect().height+12)+'px';scene.scrollIntoView({block:'start',behavior:'auto'});");
- return s;
+ return overlapExploreController(s);
 };
 const result=renderIndex({entry:'src/features/explore/entry.inc',read});
 let trialShooting=patch(patch(readFileSync('astronotes-shooting.js','utf8'),'event:e,shapeType:s.type','event:e,assumedObserver:obs,shapeType:s.type'),'record:entry.record,event:e});','record:entry.record,event:e,assumedObserver:obs});');
@@ -56,6 +57,8 @@ const files={
 const trialArchitecture=JSON.parse(readFileSync('src/source-manifest.json','utf8')).trialArchitecture;
 if(!trialArchitecture?.productionUnchanged||trialArchitecture.newGlobals?.length)throw Error('Invalid trial architecture boundary');
 for(const unit of trialArchitecture.units){const source=readFileSync(unit.path,'utf8');if(!files[unit.output||'astronotes-candidate-search.js']?.includes(source))throw Error('Unbundled trial architecture unit: '+unit.path);}
+// Overlap-scope hooks are applied after the unit inventory check (tools/build-overlap-scope.mjs).
+files['astronotes-candidate-search.js']=overlapCandidateSearch(files['astronotes-candidate-search.js']);
 files['astronotes-candidate-search.js']=patch(files['astronotes-candidate-search.js'],'/* BUILD_DATA_HASHES */{}',JSON.stringify(Object.fromEntries(Object.entries(files).filter(([n])=>n.startsWith('data/')).map(([n,s])=>[n.slice(5),createHash('sha256').update(s).digest('hex')]))));
 files['astronotes-candidate-search.js']+='\n// data-release '+createHash('sha256').update(Object.entries(files).filter(([name])=>name.startsWith('data/')).map(([,value])=>value).join('')).digest('hex')+'\n';
 if(process.argv.includes('--html')){
@@ -76,6 +79,7 @@ if(process.argv.includes('--html')){
  html=patch(html,html.match(/<script src="astronotes-explore\.js\?v=\d+"><\/script>/)?.[0]||'missing-explore-script','<script src="astronotes-explore-simple.js?v=0"></script>');
  html=patch(html,'host._bodyRadius = p.radius;','host._bodyRadius = p.radius; globalThis.AstroNotesTrialComposition?.redraw(host);');
  html=patch(html,'host._redrawLook = () => { if (host._lookSeq === seq) draw(cur); };','host._redrawLook = () => { if (host._lookSeq === seq) draw(cur); };\n host._trialCompositionView={spec,cv,W,H,k,win}; globalThis.AstroNotesTrialComposition?.bind(host,host._trialCompositionView);');
+ html=overlapHtml(html);
  html=patch(html,'</body>','<script src="astronotes-candidate-search.js?v=0"></script>\n</body>');
  const versioned=versionAssets(html,name=>Object.hasOwn(files,name)?files[name]:readFileSync(new URL('../'+name,import.meta.url)));
  files['index.html']=hashCsp(versioned.html).html;files['app-version.txt']=versioned.id+'\n';
