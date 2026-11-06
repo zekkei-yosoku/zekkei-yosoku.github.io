@@ -9,13 +9,14 @@
     "astronotes-plan.js": "359934acad00e9e3a7151ed07e2b5851139ad7ce263e1b0826dbd62c0fbce05b"
   },
   "files": {
+    "astronotes-library.js": "a854facc89521d3aab0527d5967d96d4aacd880ac0118a34240bed1fb2c60a77",
     "astronotes-scroll-timeline.js": "8c5cc47f5d1c50591a0bf714c6eada8639a5bb42b0afa41ad7966017f2a71647",
     "astronotes-datetime-ui.css": "9549b314efddc645788c760ea1fe8316ba424e50f943b45ba3184fd420e3a791",
     "astronotes-plan.js": "7f1f632f51284668bf3692190e77aaa23c94a0e5bed0bd828a9e07cdba443190",
     "astronotes-align.js": "d701d6020e1288d3b835bc85b3d2e9c1867533245ff844c86a5a40b1a1420255",
     "astronotes-atmosphere.js": "23c043d5fde85f3ed43958b21c0ea07362cb910db4f358d384eb08f80ae4f17b",
     "astronotes-shooting.js": "73f22ae94a60736b8b5c32922a137f56e4acdfa327bfad4348c72fe5756c8575",
-    "astronotes-myplaces.js": "83b7717453cab311b428f906fdca644ae2f4dda6dcea611c31fdce49f41cc1ca",
+    "astronotes-myplaces.js": "e11b270643c42f5173fa0386e622ddf4a4f030af8afdd550b10d5619501a087c",
     "astronotes-explore-simple.js": "bc671994faa6444504c1db8468cea6d877ae8346d18189b47074919e5807ad50",
     "astronotes-candidate-search.js": "625a02f13646139af4494308fd3a1ceb6b2c196ea046b7b9ecaf0816c1eed18f",
     "data/candidate-viewpoints.json": "f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5",
@@ -25,7 +26,7 @@
     "data/candidate-sidewalks.json": "efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a",
     "data/candidate-label-addresses.json": "3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b",
     "data/candidate-label-facilities.json": "ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53",
-    "index.html": "529c20e8f52e479e36e4df503bc7dcc84eaceb762b6af1708ca4bc2315589c4f",
-    "app-version.txt": "632f9ba338349a9165c6b1165135e15dbcee33082b88d65e8924f44640ffb969"
+    "index.html": "b2ba0921a03b7d97b1b031f3e26004fb907a6da841110080858f67e4d40a1b40",
+    "app-version.txt": "d8b42d03c4163b132edf11db79fbd14d7e6aaae17f41e796479aacb1466cbcc0"
   }
 }

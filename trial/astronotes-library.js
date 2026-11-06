@@ -90,11 +90,11 @@ function prepareQuickRecord({owner,favorites,observations,shapes,observer,target
 function prepareNotebookBulk({owner,favorites,observations,shapes,placeIds,mode,targets=[],drafts=[],currentTargets}){
  if(!owner||!Array.isArray(placeIds)||!placeIds.length)throw Error('撮影地点を選んでください');
  const ids=new Set(placeIds),places=[...ids].map(id=>favorites.find(f=>f.id===id));
- if(places.some(p=>!p)||places.some(p=>!observations.some(r=>r.placeId===p.id)&&!shapes[p.id]))throw Error('選んだ撮影地点が変更されました。選び直してください');
+ if(places.some(p=>!p)||places.some(p=>!observations.some(r=>r.placeId===p.id)&&!shapes[p.id]&&!p.recordRegistered))throw Error('選んだ撮影地点が変更されました。選び直してください');
  let nextFavorites=favorites,nextObservations=observations,nextShapes=Object.assign(Object.create(null),shapes),changedFavorites=[];
  if(mode==='delete'){
   nextObservations=observations.filter(r=>!ids.has(r.placeId));
-  for(const id of ids)delete nextShapes[id];
+  for(const id of ids)delete nextShapes[id];nextFavorites=favorites.map(f=>{if(!ids.has(f.id)||(!f.recordRegistered&&!f.recordAlignments&&!f.planningBodies))return f;const next={...f};delete next.recordRegistered;delete next.recordAlignments;delete next.planningBodies;changedFavorites.push(f.id);return next;});
  }else if(mode==='add'){
   if(!targets.length||typeof currentTargets!=='function')throw Error('追加する対象を選んでください');
   const chosen=[...new Map(targets.map(t=>[t.key||t.id,t])).values()],used=drafts.filter(d=>chosen.some(t=>(t.key||t.id)==='fav:'+d.entry.id));

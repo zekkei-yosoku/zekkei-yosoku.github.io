@@ -214,6 +214,7 @@ function notebookAddTargets(button){
 }
 let recordsTargetFilter = '', recordsBodyFilter = '', recordsFilterOwner = null;
 function renderRecordsHub() {
+  transferRefresh();
   renderOpportunities();
   const host = el('myRecordsHub'); if (!host) return;
   host.replaceChildren();
@@ -227,17 +228,17 @@ function renderRecordsHub() {
   const actions = document.createElement('div'); actions.className = 'my-head';
   const add = document.createElement('button'); add.type = 'button'; add.className = 'chip my-add-point'; add.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';add.setAttribute('aria-label','記録を追加');add.title='記録を追加';
   add.onclick = () => { if (auth?.token && toolAllowed('records')) openPlace(null,'records'); };
-  if (toolAllowed('skymap')) { const map = document.createElement('button'); map.type = 'button'; map.className = 'chip'; map.textContent = '地図で場所を探す'; map.onclick = () => navigationHistory.pushRoute('#/skymap'); actions.append(map); }
+  if (toolAllowed('skymap')) { const map = document.createElement('button'); map.type = 'button'; map.className = 'chip'; map.textContent = '地図';map.setAttribute('aria-label','地図で場所を探す'); map.onclick = () => navigationHistory.pushRoute('#/skymap'); actions.append(map); }
   // 2026-10-21 ＋は撮影地点の操作行へ。タブで見出し高さを変えない。
   const edit=document.createElement('button');edit.type='button';edit.className='chip';edit.id='notebookEdit';edit.textContent=notebookEdit?'完了':'編集';edit.setAttribute('aria-pressed',String(!!notebookEdit));edit.onclick=()=>{notebookGeneration++;notebookNotice='';notebookEdit=notebookEdit?null:{owner:auth.token,ids:new Set(),error:''};renderRecordsHub();};
-  actions.append(edit,add);if(notebookEdit){add.hidden=true;for(const b of actions.children)if(b!==edit&&b!==add)b.hidden=true;actions.classList.add('notebook-edit-head');const count=document.createElement('strong');count.id='notebookCount';count.setAttribute('role','status');count.setAttribute('aria-live','polite');count.textContent=notebookEdit.ids.size+'地点を選択中';actions.prepend(count);}
+  actions.append(edit);appendRecordTransfer(actions);actions.append(add);if(notebookEdit){add.hidden=true;for(const b of actions.children)if(b!==edit&&b!==add)b.hidden=true;actions.classList.add('notebook-edit-head');const count=document.createElement('strong');count.id='notebookCount';count.setAttribute('role','status');count.setAttribute('aria-live','polite');count.textContent=notebookEdit.ids.size+'地点を選択中';actions.prepend(count);}
   host.append(actions);
   const list = document.createElement('div'); list.className = 'al my-list'; host.append(list);
   const records = load();
   // Favorites are location candidates, not records. Keep historical records
   // and explicitly saved line/area locations visible without adding bare favorites.
   const recordedIds=new Set(records.map(r=>r.placeId));
-  const recordedPlaces=favorites.filter(f=>recordedIds.has(f.id)||!!shapeFor(f));
+  const recordedPlaces=favorites.filter(f=>f.recordRegistered||recordedIds.has(f.id)||!!shapeFor(f));
   if(recordsFilterOwner!==auth.token){recordsFilterOwner=auth.token;recordsTargetFilter='';recordsBodyFilter='';}
   if(notebookEdit)for(const id of notebookEdit.ids)if(!recordedPlaces.some(f=>f.id===id))notebookEdit.ids.delete(id);
   if(notebookEdit)el('notebookCount').textContent=notebookEdit.ids.size+'地点を選択中';
@@ -293,11 +294,7 @@ function renderRecordsHub() {
   }
   if(recordedPlaces.length&&!matches){const empty=document.createElement('p');empty.className='tiny';empty.textContent='この条件の撮影地点はありません。';list.append(empty);}
   // 2026-10-20 ユーザー「出し方を変えた方がいいのも最適化して」：保存先の説明は常に出さず、データの控えの中へ
-  const note = document.createElement('p'); note.className = 'tiny'; note.textContent = '撮影地点・見える対象・線や範囲・予定はこの端末に保存し、ログイン中に同期します。書き出す控えに予定と写真ファイルは含みません。';
-  const backup=document.createElement('details');backup.hidden=!!notebookEdit;backup.className='my-secondary';const summary=document.createElement('summary');summary.textContent='データの控え';backup.append(summary,note);
-  const hint=document.createElement('p');hint.className='tiny';hint.textContent='撮影地点・対象・線/範囲・予測の結果を保存します。写真ファイルは含みません。';backup.append(hint);
-  const exportButton=document.createElement('button');exportButton.type='button';exportButton.className='chip';exportButton.textContent='書き出す';exportButton.onclick=downloadLibraryBackup;
-  const importButton=document.createElement('button');importButton.type='button';importButton.className='chip';importButton.textContent='読み込む';importButton.onclick=()=>el('importFile').click();backup.append(exportButton,importButton);host.append(backup);
+
 }
 async function openFromRecords(place, target = null, row = null) {
   if (!screenAllowed('framing')) return;
@@ -569,7 +566,7 @@ function recordGroups(records) {
 const targetData=t=>({key:t.key||t.id,name:t.name,latitude:t.latitude,longitude:t.longitude});
 const targetSetKey=targets=>JSON.stringify(targets.map(targetData).sort((a,b)=>a.key.localeCompare(b.key)));
 const savedTargets=placeId=>targetsSeenFrom(placeId).filter(r=>r.result!=='hidden').map(r=>targetData(r.target));
-const draftChanged=()=>!!sheetState&&(recordHeightDirty()||recordAlignmentDirty()||(sheetState.targetDrafts||[]).length>0||sheetState.newPlace||(sheetState.place.name||'').trim()!==sheetState.initialName||targetSetKey(sheetState.draftTargets)!==sheetState.baseline||shapeKey(sheetState.draftShape)!==shapeKey(sheetState.initialShape));
+const draftChanged=()=>!!sheetState&&(recordBodyDirty()||recordHeightDirty()||recordAlignmentDirty()||(sheetState.targetDrafts||[]).length>0||sheetState.newPlace||(sheetState.place.name||'').trim()!==sheetState.initialName||targetSetKey(sheetState.draftTargets)!==sheetState.baseline||shapeKey(sheetState.draftShape)!==shapeKey(sheetState.initialShape));
 function addDraftTarget(t){
   if(!sheetOwnerMatches()||!t)return;
   if(!sheetState.draftTargets.some(x=>x.key===(t.key||t.id)))sheetState.draftTargets.push(targetData(t));
@@ -629,7 +626,7 @@ function buildSheet() {
   for (const body of AstroNotesBodies.definitions) {
     const label=document.createElement('label'),check=document.createElement('input');
     check.type='checkbox';check.value=body.id;check.dataset.planningBody=body.id;
-    check.onchange=()=>{if(!sheetOwnerMatches())return;sheetState.bodies=[...sheet.querySelectorAll('[data-planning-body]:checked')].map(n=>n.value);sheetState.planningRequested=false;renderSheet();};
+    check.onchange=()=>{if(!sheetOwnerMatches())return;sheetState.bodies=[...sheet.querySelectorAll('[data-planning-body]:checked')].map(n=>n.value);if(sheetState.ctx==='records'){if(sheetState.bodies.length)sheetState.place.planningBodies=sheetState.bodies.slice();else delete sheetState.place.planningBodies;}sheetState.planningRequested=false;renderSheet();};
     label.append(check,document.createTextNode(body.name));el('myPlaceBodies').append(label);
   }
   el('myPlaceFind').onclick=()=>{if(!sheetOwnerMatches())return;if(sheetState.ctx==='records'){if(draftChanged()||!sheetState.place.id)return;openOpportunityList(sheetState.place.id,sheetState.bodies);return;}sheetState.planningRequested=true;renderSheet();};
@@ -649,7 +646,8 @@ function openPlace(place, ctx, targetKey = null, options = {}) {
   place=place||{id:null,name:'',latitude:null,longitude:null};
   const current = ctx === 'sky' ? skySession?.target?.id : aim.target?.id;
   const initialTargets=savedTargets(place.id),initialShape=shapeFor(place);
-  sheetState = {planningOnly:!!options.planningOnly,initialName:(place.name||'').trim(),targetDrafts:[],initialShape,draftShape:initialShape,shapeBaseline:shapeKey(initialShape),initialTargets,baseline:targetSetKey(initialTargets),draftTargets:initialTargets.map(t=>({...t})),place:{...place,name:place.id?place.name:''},ctx, ownerToken: auth?.token, bodies:[ctx === 'sky' ? (skySession?.body || 'sun') : aim.body], planningRequested:false };
+  sheetState = {planningOnly:!!options.planningOnly,initialName:(place.name||'').trim(),targetDrafts:[],initialShape,draftShape:initialShape,shapeBaseline:shapeKey(initialShape),initialTargets,baseline:targetSetKey(initialTargets),draftTargets:initialTargets.map(t=>({...t})),place:{...place,name:place.id?place.name:''},ctx, ownerToken: auth?.token, bodies:ctx==='records'?(recordSavedBodies(place)||[aim.body]):[ctx === 'sky' ? (skySession?.body || 'sun') : aim.body], planningRequested:false };
+  if(el('myRecordBodies'))el('myRecordBodies').open=false;
   el('myPlaceTitle').textContent = initialTargets.length?'記録を編集':'記録を追加';
   el('myRecordLocationConfirm').hidden=true;
   el('myPlaceName').textContent = place.name||'撮影地点を選ぶ';el('myPlaceName').classList.toggle('is-empty',!place.id);
@@ -665,6 +663,7 @@ function openPlace(place, ctx, targetKey = null, options = {}) {
   if (!sheet.open) showSheet(sheet);
 }
 function renderSheet() {
+  renderRecordBodyPreferences();
   recordAlignmentInit();applyRecordAlignments();renderRecordHeight();
   const { place, ctx } = sheetState, token = ++sheetToken, list = load();
   el('myPlanningPlace').hidden=!sheetState.planningOnly;if(sheetState.planningOnly){el('myPlaceTitle').textContent='次に重なる日';el('myPlanningPlace').textContent=place.name+' ・ 地上から '+(place.eyeHeightAGL??1.5)+'m';}
@@ -813,7 +812,7 @@ function saveRecord() {
   if(!s.place.id)return saveNewRecord();
   const fail=text=>{err.textContent=text;err.hidden=false;return false;};
   if(!current)return fail('この撮影地点は登録から外されています');
-  if(s.ctx==='records'?(RecordHeight.key(current)!==s.heightBaseline||RecordAlignment.key(current)!==s.alignmentBaseline):(current.latitude!==s.place.latitude||current.longitude!==s.place.longitude||(current.eyeHeightAGL??1.5)!==(s.place.eyeHeightAGL??1.5)))return fail('地点が変更されました。開き直してください');
+  if(s.ctx==='records'?(RecordHeight.key(current)!==s.heightBaseline||RecordAlignment.key(current)!==s.alignmentBaseline||recordBodyKey(current)!==s.bodyBaseline):(current.latitude!==s.place.latitude||current.longitude!==s.place.longitude||(current.eyeHeightAGL??1.5)!==(s.place.eyeHeightAGL??1.5)))return fail('地点が変更されました。開き直してください');
   if(targetSetKey(savedTargets(s.place.id))!==s.baseline)return fail('別の画面で対象が変更されました。開き直してください');
   if(shapeKey(shapeFor(current))!==s.shapeBaseline)return fail('別の画面で場所の形が変わりました。開き直してください');
   if(s.locationPending)return fail('地点名を確認しています。少し待ってから保存してください');
@@ -907,7 +906,7 @@ style.textContent = `
 .my-record{cursor:default}
 .my-picker{margin-bottom:8px}
 `;
-style.textContent+="\n#recordOpportunities{max-width:780px;margin-inline:auto}\n.record-opportunity-controls{display:grid;gap:12px}\n.record-opportunity-period{display:grid;grid-template-columns:44px minmax(0,1fr) 44px 44px;gap:4px;align-items:center}\n.record-opportunity-period button{min-width:0;min-height:44px;padding:4px;font-size:14px}\n.record-opportunity-period button:is(#recordOpportunityPrev,#recordOpportunityNext){font-size:24px}\n.record-opportunity-month{position:relative;display:grid;place-items:center;min-width:0;height:44px;font-size:16px;font-weight:600;white-space:nowrap;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n.record-opportunity-month input{position:absolute;inset:0;width:100%;height:44px;min-width:0;margin:0;opacity:0;font-size:16px;cursor:pointer}\n.record-opportunity-month:focus-within{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}\n.record-opportunity-filter{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-opportunity-filters .record-opportunity-select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;font-size:16px;margin:0;background-color:var(--card)}\n.record-opportunity-select{text-align:left;position:relative;padding:10px 30px 10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);border:1px solid var(--line);border-radius:10px}\n.record-opportunity-select::after{content:'';position:absolute;right:13px;top:17px;width:7px;height:7px;border-right:2px solid var(--secondary);border-bottom:2px solid var(--secondary);transform:rotate(45deg)}\n.record-opportunity-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-picker{box-sizing:border-box;width:min(440px,calc(100vw - 28px));max-height:min(80dvh,640px);padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);overflow:hidden}\n.record-opportunity-picker[open]{display:flex;flex-direction:column;gap:12px}\n.record-opportunity-picker::backdrop{background:rgba(0,0,0,.6)}\n.record-opportunity-picker-head,.record-opportunity-picker-tools,.record-opportunity-picker-foot{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-shrink:0}\n.record-opportunity-picker h2{font-size:18px;margin:0}.record-opportunity-picker button{min-height:44px;font-size:14px}\n.record-opportunity-picker #recordOpportunityPickerSearch{box-sizing:border-box;width:100%;min-height:44px;font-size:16px;margin:0;flex-shrink:0}\n.record-opportunity-picker-tools{justify-content:flex-start}.record-opportunity-picker-tools button{flex:1}\n.record-opportunity-picker-list{overflow:auto;overscroll-behavior:contain;min-height:0;scroll-padding:6px}\n.record-opportunity-picker-item{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 4px;box-sizing:border-box;border-bottom:1px solid var(--line);overflow-wrap:anywhere;cursor:pointer}\n.record-opportunity-picker-item input{width:20px;height:20px;margin:0;flex-shrink:0;accent-color:var(--accent)}\n.record-opportunity-picker-foot #recordOpportunityPickerApply{min-width:96px;background:var(--accent);color:var(--accent-ink,var(--bg))}\n:is(#recordOpportunityStatus,#recordOpportunityNotice){margin:12px 0;color:var(--secondary)}:is(#recordOpportunityStatus,#recordOpportunityNotice):empty{display:none}\n.record-opportunity-day{margin-top:20px}.record-opportunity-day h3{font-size:16px;margin:0 0 6px;font-weight:600}\n.record-opportunity-row{display:grid;grid-template-columns:52px minmax(0,1fr) 12px;grid-template-rows:auto auto;gap:2px 12px;align-items:center;width:100%;min-height:64px;padding:12px 0;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;background:transparent;color:var(--text)}\n.record-opportunity-time{grid-column:1;grid-row:1;align-self:end;font-size:16px;font-variant-numeric:tabular-nums;color:var(--accent)}\n.record-opportunity-body{grid-column:1;grid-row:2;align-self:start;font-size:12px;color:var(--secondary)}\n.record-opportunity-row strong{grid-column:2;grid-row:1/3;font-size:14px;line-height:1.6;overflow-wrap:anywhere}\n.record-opportunity-arrow{grid-column:3;grid-row:1/3;color:var(--secondary)}\n.record-opportunity-row.has-height strong{grid-row:1}.record-opportunity-height{grid-column:2;grid-row:2;font-size:12px;color:var(--secondary)}\n.record-opportunity-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.record-opportunity-actions:has(>button:not([hidden])){padding-bottom:4px}\n.record-opportunity-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n";style.textContent+="\n#myRecordHeight{min-width:0;border:0;border-block:1px solid var(--line);padding:14px 0;margin:14px 0}\n#myRecordHeight legend{float:left;width:100%;padding:0;margin:0 0 12px;font-size:14px;font-weight:600}\n#myRecordHeight legend+label{clear:both}\n.record-height-label{display:block;font-size:12px;color:var(--secondary);margin:10px 0 6px}\n.record-height-ground{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}\n.record-height-number{display:flex;align-items:center;gap:8px;min-width:0;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n#myRecordHeight input{box-sizing:border-box;min-width:0;width:100%;min-height:44px;margin:0;padding:8px 0;border:0;background:transparent;font-size:16px;color:var(--text)}\n.record-height-number>span{font-size:13px;color:var(--secondary)}\n.record-height-modes,.record-height-values{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;min-width:0}\n.record-height-modes{padding:3px;background:var(--sunk);border-radius:10px;margin-bottom:8px}\n#myRecordHeight button{min-height:44px;font-size:14px}\n.record-height-modes button{border:0;border-radius:8px;background:transparent;color:var(--secondary)}\n.record-height-modes button[aria-pressed=true]{background:var(--card);color:var(--accent);box-shadow:0 1px 4px #0002}\n.record-height-values>label{min-width:0}.record-height-values .tiny{display:block;margin:0 0 4px}\n#myHeightFixedFields{grid-template-columns:minmax(0,1fr);padding-top:20px}\n#myHeightFixedFields[hidden],#myHeightRangeFields[hidden],#myRecordHeight[hidden]{display:none!important}\n#myRecordHeight .warn{font-size:12px;margin:8px 0 0}\n";style.textContent+="\n.record-alignment-editor{flex-basis:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:6px 0 2px;min-width:0}\n#myPlaceSheet .my-draft-target:has(.record-alignment-editor){flex-wrap:wrap}\n.record-alignment-position{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-alignment-position select,.record-alignment-limbs select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;margin:0;font-size:16px}\n.record-alignment-limbs{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;min-width:0}\n.record-alignment-limbs[hidden]{display:none!important}\n#skyMapAlignmentControls{display:grid;gap:8px}\n#previewEyeHeightControls{margin:0 0 6px;padding:0;border:0;background:none;min-width:0}\n#previewEyeHeightControls[hidden]{display:none!important}\n.preview-eye-row{display:grid;grid-template-columns:minmax(0,1fr) 96px;column-gap:10px;align-items:end}\n.preview-eye-tools{min-width:0}.preview-eye-scale{display:block;font-size:11px;line-height:14px;color:var(--secondary);margin:0}\n.preview-eye-value,#aimLook .preview-focal-bar .preview-focal-value{display:flex;align-items:center;justify-content:flex-end;gap:2px;height:44px;min-width:0;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}\n#previewEyeValue,#aimLook .preview-focal-value [data-preview-focal-input]{box-sizing:border-box;width:0;flex:1;min-width:0;min-height:44px;padding:0;border:0;background:transparent;color:var(--text);text-align:right;font-size:15px;font-weight:600;appearance:textfield;border-radius:0}\n.preview-eye-value,#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:var(--sunk);padding:0 6px;cursor:text}\n.preview-eye-value:focus-within,#aimLook .preview-focal-bar .preview-focal-value:focus-within{border-color:var(--accent);outline:2px solid color-mix(in srgb,var(--accent) 28%,transparent);outline-offset:1px}\n#previewEyeValue::-webkit-inner-spin-button,#previewEyeValue::-webkit-outer-spin-button{appearance:none;margin:0}\n.numeric-ruler-track{box-sizing:border-box;position:relative;min-width:0;height:46px;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--sunk)}\n.numeric-ruler-track .numeric-ruler{height:44px;width:100%;cursor:ew-resize;direction:ltr}\n.numeric-ruler-track .sky-map-timeline-center{top:4px;bottom:4px}.numeric-ruler-track .sky-timeline-label{top:20px}\n#previewEyeRuler .sky-timeline-tape{background-image:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px calc(var(--timeline-unit)*5));background-size:calc(var(--timeline-unit)*5) 8px!important}\n#aimLook .preview-focal-tools{margin:0}\n#aimLook .aim-lens .preview-focal-bar{grid-template-columns:minmax(0,1fr) 96px;margin:0;column-gap:10px}\n#aimLook .preview-focal-scale{font-size:11px;line-height:14px}\n.preview-focal-tools .numeric-ruler-track{width:100%;height:46px}\n[data-focal-range][hidden]{display:none!important}\n#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;width:96px;min-width:96px;max-width:96px;height:44px;line-height:normal;padding-bottom:0;font-variant-numeric:tabular-nums}\n#previewEyeError{margin:4px 0 0;color:var(--secondary)}\n";document.head.append(style);
+style.textContent+="\n#recordOpportunities{max-width:780px;margin-inline:auto}\n.record-opportunity-controls{display:grid;gap:12px}\n.record-opportunity-period{display:grid;grid-template-columns:44px minmax(0,1fr) 44px 44px;gap:4px;align-items:center}\n.record-opportunity-period button{min-width:0;min-height:44px;padding:4px;font-size:14px}\n.record-opportunity-period button:is(#recordOpportunityPrev,#recordOpportunityNext){font-size:24px}\n.record-opportunity-month{position:relative;display:grid;place-items:center;min-width:0;height:44px;font-size:16px;font-weight:600;white-space:nowrap;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n.record-opportunity-month input{position:absolute;inset:0;width:100%;height:44px;min-width:0;margin:0;opacity:0;font-size:16px;cursor:pointer}\n.record-opportunity-month:focus-within{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}\n.record-opportunity-filter{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-opportunity-filters .record-opportunity-select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;font-size:16px;margin:0;background-color:var(--card)}\n.record-opportunity-select{text-align:left;position:relative;padding:10px 30px 10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);border:1px solid var(--line);border-radius:10px}\n.record-opportunity-select::after{content:'';position:absolute;right:13px;top:17px;width:7px;height:7px;border-right:2px solid var(--secondary);border-bottom:2px solid var(--secondary);transform:rotate(45deg)}\n.record-opportunity-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-picker{box-sizing:border-box;width:min(440px,calc(100vw - 28px));max-height:min(80dvh,640px);padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);overflow:hidden}\n.record-opportunity-picker[open]{display:flex;flex-direction:column;gap:12px}\n.record-opportunity-picker::backdrop{background:rgba(0,0,0,.6)}\n.record-opportunity-picker-head,.record-opportunity-picker-tools,.record-opportunity-picker-foot{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-shrink:0}\n.record-opportunity-picker h2{font-size:18px;margin:0}.record-opportunity-picker button{min-height:44px;font-size:14px}\n.record-opportunity-picker #recordOpportunityPickerSearch{box-sizing:border-box;width:100%;min-height:44px;font-size:16px;margin:0;flex-shrink:0}\n.record-opportunity-picker-tools{justify-content:flex-start}.record-opportunity-picker-tools button{flex:1}\n.record-opportunity-picker-list{overflow:auto;overscroll-behavior:contain;min-height:0;scroll-padding:6px}\n.record-opportunity-picker-item{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 4px;box-sizing:border-box;border-bottom:1px solid var(--line);overflow-wrap:anywhere;cursor:pointer}\n.record-opportunity-picker-item input{width:20px;height:20px;margin:0;flex-shrink:0;accent-color:var(--accent)}\n.record-opportunity-picker-foot #recordOpportunityPickerApply{min-width:96px;background:var(--accent);color:var(--accent-ink,var(--bg))}\n:is(#recordOpportunityStatus,#recordOpportunityNotice){margin:12px 0;color:var(--secondary)}:is(#recordOpportunityStatus,#recordOpportunityNotice):empty{display:none}\n.record-opportunity-day{margin-top:20px}.record-opportunity-day h3{font-size:16px;margin:0 0 6px;font-weight:600}\n.record-opportunity-row{display:grid;grid-template-columns:52px minmax(0,1fr) 12px;grid-template-rows:auto auto;gap:2px 12px;align-items:center;width:100%;min-height:64px;padding:12px 0;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;background:transparent;color:var(--text)}\n.record-opportunity-time{grid-column:1;grid-row:1;align-self:end;font-size:16px;font-variant-numeric:tabular-nums;color:var(--accent)}\n.record-opportunity-body{grid-column:1;grid-row:2;align-self:start;font-size:12px;color:var(--secondary)}\n.record-opportunity-row strong{grid-column:2;grid-row:1/3;font-size:14px;line-height:1.6;overflow-wrap:anywhere}\n.record-opportunity-arrow{grid-column:3;grid-row:1/3;color:var(--secondary)}\n.record-opportunity-row.has-height strong{grid-row:1}.record-opportunity-height{grid-column:2;grid-row:2;font-size:12px;color:var(--secondary)}\n.record-opportunity-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.record-opportunity-actions:has(>button:not([hidden])){padding-bottom:4px}\n.record-opportunity-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n";style.textContent+="\n#myRecordHeight{min-width:0;border:0;border-block:1px solid var(--line);padding:14px 0;margin:14px 0}\n#myRecordHeight legend{float:left;width:100%;padding:0;margin:0 0 12px;font-size:14px;font-weight:600}\n#myRecordHeight legend+label{clear:both}\n.record-height-label{display:block;font-size:12px;color:var(--secondary);margin:10px 0 6px}\n.record-height-ground{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}\n.record-height-number{display:flex;align-items:center;gap:8px;min-width:0;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n#myRecordHeight input{box-sizing:border-box;min-width:0;width:100%;min-height:44px;margin:0;padding:8px 0;border:0;background:transparent;font-size:16px;color:var(--text)}\n.record-height-number>span{font-size:13px;color:var(--secondary)}\n.record-height-modes,.record-height-values{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;min-width:0}\n.record-height-modes{padding:3px;background:var(--sunk);border-radius:10px;margin-bottom:8px}\n#myRecordHeight button{min-height:44px;font-size:14px}\n.record-height-modes button{border:0;border-radius:8px;background:transparent;color:var(--secondary)}\n.record-height-modes button[aria-pressed=true]{background:var(--card);color:var(--accent);box-shadow:0 1px 4px #0002}\n.record-height-values>label{min-width:0}.record-height-values .tiny{display:block;margin:0 0 4px}\n#myHeightFixedFields{grid-template-columns:minmax(0,1fr);padding-top:20px}\n#myHeightFixedFields[hidden],#myHeightRangeFields[hidden],#myRecordHeight[hidden]{display:none!important}\n#myRecordHeight .warn{font-size:12px;margin:8px 0 0}\n";style.textContent+="\n.record-alignment-editor{flex-basis:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:6px 0 2px;min-width:0}\n#myPlaceSheet .my-draft-target:has(.record-alignment-editor){flex-wrap:wrap}\n.record-alignment-position{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-alignment-position select,.record-alignment-limbs select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;margin:0;font-size:16px}\n.record-alignment-limbs{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;min-width:0}\n.record-alignment-limbs[hidden]{display:none!important}\n#skyMapAlignmentControls{display:grid;gap:8px}\n#previewEyeHeightControls{margin:0 0 6px;padding:0;border:0;background:none;min-width:0}\n#previewEyeHeightControls[hidden]{display:none!important}\n.preview-eye-row{display:grid;grid-template-columns:minmax(0,1fr) 96px;column-gap:10px;align-items:end}\n.preview-eye-tools{min-width:0}.preview-eye-scale{display:block;font-size:11px;line-height:14px;color:var(--secondary);margin:0}\n.preview-eye-value,#aimLook .preview-focal-bar .preview-focal-value{display:flex;align-items:center;justify-content:flex-end;gap:2px;height:44px;min-width:0;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}\n#previewEyeValue,#aimLook .preview-focal-value [data-preview-focal-input]{box-sizing:border-box;width:0;flex:1;min-width:0;min-height:44px;padding:0;border:0;background:transparent;color:var(--text);text-align:right;font-size:15px;font-weight:600;appearance:textfield;border-radius:0}\n.preview-eye-value,#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:var(--sunk);padding:0 6px;cursor:text}\n.preview-eye-value:focus-within,#aimLook .preview-focal-bar .preview-focal-value:focus-within{border-color:var(--accent);outline:2px solid color-mix(in srgb,var(--accent) 28%,transparent);outline-offset:1px}\n#previewEyeValue::-webkit-inner-spin-button,#previewEyeValue::-webkit-outer-spin-button{appearance:none;margin:0}\n.numeric-ruler-track{box-sizing:border-box;position:relative;min-width:0;height:46px;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--sunk)}\n.numeric-ruler-track .numeric-ruler{height:44px;width:100%;cursor:ew-resize;direction:ltr}\n.numeric-ruler-track .sky-map-timeline-center{top:4px;bottom:4px}.numeric-ruler-track .sky-timeline-label{top:20px}\n#previewEyeRuler .sky-timeline-tape{background-image:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px calc(var(--timeline-unit)*5));background-size:calc(var(--timeline-unit)*5) 8px!important}\n#aimLook .preview-focal-tools{margin:0}\n#aimLook .aim-lens .preview-focal-bar{grid-template-columns:minmax(0,1fr) 96px;margin:0;column-gap:10px}\n#aimLook .preview-focal-scale{font-size:11px;line-height:14px}\n.preview-focal-tools .numeric-ruler-track{width:100%;height:46px}\n[data-focal-range][hidden]{display:none!important}\n#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;width:96px;min-width:96px;max-width:96px;height:44px;line-height:normal;padding-bottom:0;font-variant-numeric:tabular-nums}\n#previewEyeError{margin:4px 0 0;color:var(--secondary)}\n";style.textContent+="\n#myRecordsHub .my-head .record-transfer-more{display:grid;place-items:center;width:44px;min-width:44px;min-height:44px;padding:0;flex:none}\n.record-transfer-sheet{box-sizing:border-box;width:min(560px,calc(100vw - 24px));max-height:85dvh;border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--text);padding:0;overflow:auto}\n.record-transfer-sheet::backdrop{background:#0009}.record-transfer-sheet .sheet-head{position:sticky;top:0;z-index:1;background:var(--card);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}\n.record-transfer-sheet .sheet-head button{min-height:44px}.record-transfer-sheet .sheet-body{padding:12px 16px 16px;min-width:0}\n.record-transfer-sheet .transfer-menu-action{width:100%;min-height:52px;text-align:left;display:block;font-size:16px}\n.record-transfer-sheet .fav-btn{width:100%;min-height:44px;margin-top:12px}.record-transfer-sheet .transfer-select-tools{display:flex;gap:8px}.record-transfer-sheet .transfer-select-tools button{min-height:44px}\n.transfer-place-list{max-height:38dvh;overflow:auto;overscroll-behavior:contain;margin-top:8px}.transfer-place{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.transfer-place input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--accent)}\n.transfer-preview-place{display:grid;gap:4px;padding:12px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}#myRecordBodies{margin:12px 0}#myRecordBodies>summary{min-height:44px;display:list-item;align-content:center;color:var(--text);font-size:14px}\n";document.head.append(style);
 
 const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
  const {shooting,align,bodies,atmosphere,astro,terrain=null,scanHeights,rangeOf,isMountain,observerAt,elevationAt,ensure,viewFor=null,mountainRidge=null,summitCapM=300,yieldTask=()=>new Promise(r=>setTimeout(r,0)),clock=()=>Date.now(),limits={}}=deps;
@@ -1392,7 +1391,7 @@ function prepareHeightRecord(args){
  if(changed){next.elevation=args.place.elevation??null;next.groundManualM=args.place.groundManualM??null;next.eyeHeightAGL=args.place.eyeHeightAGL??1.5;if(policy)next.eyeHeightRangeAGL=policy;else delete next.eyeHeightRangeAGL;if(!plan.changedFavorites.includes(next.id))plan.changedFavorites.push(next.id);
   if(before&&(before.eyeHeightAGL!==next.eyeHeightAGL||before.elevation!==next.elevation)){const old=new Set(args.initialTargets.map(t=>t.key||t.id));plan.observations.push(...AstroNotesLibrary.registrationChanges(next,[],args.targets.filter(t=>old.has(t.key||t.id))));}
  }
- return saveRecordAlignmentMetadata(plan,args);
+ return saveRecordBodyMetadata(saveRecordAlignmentMetadata(plan,args),args);
 }
 
 function recordHeightText(p){const r=RecordHeight.range(p?.eyeHeightRangeAGL);return r?'地上から '+r.min+'〜'+r.max+'m':'地上から '+(p?.eyeHeightAGL??1.5)+'m';}
@@ -1400,6 +1399,201 @@ function recordHeightText(p){const r=RecordHeight.range(p?.eyeHeightRangeAGL);re
 // A solver belongs to one caller's job: its bounded memo must never cross owner/revision/air epochs.
 function recordHeightSolver(deps){
  return createRecordHeightCandidates({shooting:AstroNotesShooting,align:AstroNotesAlign,bodies:AstroNotesBodies,atmosphere:AstroNotesAtmosphere,astro:AstroNotesAstro,terrain:AstroNotesTerrain,scanHeights:scanRecordHeights,preferHeights:preferRecordHeight,rangeOf:p=>RecordHeight.range(p.eyeHeightRangeAGL),isMountain:aimIsMountain,ensureModels:()=>AstroNotesAssets.ensureModels(),mountainRidge:async(obs,target)=>{const eye=obs.elevation+obs.eyeM,ridge=await aimLookRidge(obs,eye,target,{});return ridge?{ridge,cap:aimSummitCap(ridge,obs,eye,target)}:null;},...deps});
+}
+
+const createRecordTransfer=function createRecordTransfer({library,cleanFavorite,cleanShape,cleanAlignment,rangeOf,bodyIds,builtins,currentStatus,makeId,now=()=>Date.now()}){
+ const FORMAT='astronotes.places',VERSION=1,LIMIT=5000;
+ const object=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
+ const text=(v,n=200)=>typeof v==='string'&&v.length<=n;
+ const number=(v,a,b)=>Number.isFinite(v)&&v>=a&&v<=b;
+ const fail=message=>{throw Error(message);};
+ const clone=v=>JSON.parse(JSON.stringify(v));
+ const bodyValues=value=>value==null?null:Array.isArray(value)&&value.length>0&&value.length<=bodyIds.length&&value.every(x=>bodyIds.includes(x))?[...new Set(value)].sort((a,b)=>bodyIds.indexOf(a)-bodyIds.indexOf(b)):fail('天体の指定を確認してください');
+ const savedBodyValues=value=>{try{return bodyValues(value);}catch{return null;}};
+ function location(raw){
+  if(!object(raw)||!library.point(raw)||!text(raw.name)||!raw.name.trim()||!text(raw.subtitle??'',2000)||!text(raw.note??'',2000))fail('撮影地点の名前・座標を確認してください');
+  for(const key of ['elevation','groundManualM'])if(raw[key]!=null&&!number(raw[key],-500,9000))fail('地面の標高を確認してください');
+  if(raw.eyeHeightAGL!=null&&!number(raw.eyeHeightAGL,0,700))fail('目線の高さを確認してください');
+  const range=raw.eyeHeightRangeAGL==null?null:rangeOf(raw.eyeHeightRangeAGL);if(raw.eyeHeightRangeAGL!=null&&!range)fail('目線の高さの範囲を確認してください');
+  const value={name:raw.name.trim(),subtitle:raw.subtitle??'',note:raw.note??'',latitude:raw.latitude,longitude:raw.longitude,elevation:raw.elevation??null,groundManualM:raw.groundManualM??null,eyeHeightAGL:raw.eyeHeightAGL??null,terrain:raw.terrain??null,phenomena:Array.isArray(raw.phenomena)?raw.phenomena:[],locationScope:raw.locationScope??'point',...(range?{eyeHeightRangeAGL:range}:{})};
+  const cleaned=cleanFavorite({...value,id:'portable-validation'});if(!cleaned)fail('撮影地点の情報を確認してください');
+  return Object.fromEntries(Object.keys(value).map(key=>[key,clone(Object.hasOwn(cleaned,key)?cleaned[key]:value[key])]));
+ }
+ function shapeValue(raw){if(raw==null)return null;const shape=cleanShape(raw);if(!shape)fail('線・範囲の形を確認してください');return shape;}
+ function customDefinition(raw){
+  if(!object(raw)||!number(raw.heightM,0,1000)||!text(raw.category??'',20))fail('独自対象の高さ・カテゴリを確認してください');
+  return {location:location(raw.location),heightM:raw.heightM,category:raw.category??''};
+ }
+ const targetIdentity=entry=>JSON.stringify([entry.name,entry.latitude,entry.longitude,entry.elevation??null,entry.targetHeightM,entry.targetCategory??'']);
+ const shapeAt=(place,shapes)=>{const row=shapes[place.id];return row&&row.latitude===place.latitude&&row.longitude===place.longitude?shapeValue(row.shape):null;};
+ const baseIdentity=(place,shape)=>JSON.stringify([location(place),shape]);
+ function validate(data){
+  if(!object(data)||data.format!==FORMAT||data.version!==VERSION)fail('この撮影地点ファイルには対応していません');
+  if(!Array.isArray(data.places)||!data.places.length||data.places.length>LIMIT||!Array.isArray(data.targets)||data.targets.length>LIMIT)fail('撮影地点ファイルの件数・形式を確認してください');
+  const targets=new Map();for(const row of data.targets){
+   if(!object(row)||!text(row.id)||!row.id||targets.has(row.id)||!text(row.name)||!row.name.trim())fail('対象の参照が重複・欠損しています');
+   if(row.kind==='builtin'){if(!text(row.key)||!row.key)fail('対象の参照を確認してください');targets.set(row.id,{id:row.id,kind:'builtin',key:row.key,name:row.name});}
+   else if(row.kind==='custom')targets.set(row.id,{id:row.id,kind:'custom',name:row.name,...customDefinition(row)});
+   else fail('対象の種類を確認してください');
+  }
+  const ids=new Set(),places=data.places.map(row=>{
+   if(!object(row)||!text(row.id)||!row.id||ids.has(row.id)||!Array.isArray(row.targets)||row.targets.length>500)fail('撮影地点の参照・対象を確認してください');ids.add(row.id);
+   const refs=new Set(),bindings=row.targets.map(binding=>{
+    if(!object(binding)||!targets.has(binding.ref)||refs.has(binding.ref)||!['seen','partial','hidden'].includes(binding.result))fail('撮影地点に結びつく対象を確認してください');refs.add(binding.ref);
+    const a=binding.alignment;if(!object(a)||!['overlap','limb'].includes(a.matchMode)||!['onTop','center','behind'].includes(a.limb)||!(a.partId===null||text(a.partId)))fail('重ね方の指定を確認してください');
+    return {ref:binding.ref,result:binding.result,alignment:{partId:a.partId,limb:a.limb,matchMode:a.matchMode}};
+   });
+   return {id:row.id,location:location(row.location),shape:shapeValue(row.shape),bodies:bodyValues(row.bodies),targets:bindings};
+  });
+  return {format:FORMAT,version:VERSION,places,targets:[...targets.values()]};
+ }
+ function exportPlaces({favorites,observations,shapes,placeIds}){
+  const selected=new Set(placeIds),places=[],targets=[],refs=new Map();
+  for(const favorite of favorites.filter(p=>selected.has(p.id))){
+   const bindings=[];for(const key of new Set(observations.filter(r=>r.placeId===favorite.id).map(r=>r.target.key))){
+    const record=currentStatus(favorite,key,observations);if(!record||record.removed)continue;
+    let ref=refs.get(key);if(!ref){
+     ref='t'+(targets.length+1);const builtin=builtins.find(t=>t.id===key);let definition;
+     if(builtin)definition={id:ref,kind:'builtin',key,name:builtin.name};
+     else {const f=key.startsWith('fav:')&&favorites.find(p=>p.id===key.slice(4));if(!f||!number(f.targetHeightM,0,1000))fail('対象「'+record.target.name+'」の定義がありません。対象を登録し直してください');definition={id:ref,kind:'custom',name:f.name,location:location(f),heightM:f.targetHeightM,category:f.targetCategory??''};}
+     refs.set(key,ref);targets.push(definition);
+    }
+    const target=key.startsWith('fav:')?library.targetFromFavorite(favorites.find(p=>p.id===key.slice(4))):builtins.find(t=>t.id===key),alignment=cleanAlignment(target,favorite.recordAlignments?.[key]);
+    if(!alignment)fail('「'+favorite.name+'」の重ね方を確認してください');bindings.push({ref,result:record.result,alignment});
+   }
+   places.push({id:'p'+(places.length+1),location:location(favorite),shape:shapeAt(favorite,shapes),bodies:savedBodyValues(favorite.planningBodies),targets:bindings});
+  }
+  if(!places.length)fail('撮影地点を選んでください');
+  const data={format:FORMAT,version:VERSION,exportedAt:new Date(now()).toISOString(),places,targets};validate(data);return data;
+ }
+ function prepareImport(data,{favorites,observations,shapes,owner}){
+  if(!owner)fail('記録を利用できるアカウントでログインしてください');
+  data=validate(data);const nextFavorites=favorites.map(p=>clone(p)),nextObservations=observations.map(r=>clone(r)),nextShapes=Object.assign(Object.create(null),clone(shapes)),changed=new Set(),resolved=new Map(),unresolved=[],report={addedPlaces:0,reusedPlaces:0,duplicatePlaces:0,addedTargets:0,reusedTargets:0,addedBindings:0,variantPlaces:0};
+  const used=new Set(data.places.flatMap(p=>p.targets.map(t=>t.ref))),ids=new Set([...favorites,...observations].map(x=>x.id));
+  const uid=prefix=>{for(let i=0;i<20;i++){const id=makeId(prefix);if(text(id,80)&&id&&!ids.has(id)){ids.add(id);return id;}}return fail('新しい登録IDを作れませんでした');};
+  const targetIndex=new Map();for(const p of nextFavorites)if(number(p.targetHeightM,0,1000)){const normalized=cleanFavorite(p);if(normalized&&!targetIndex.has(targetIdentity(normalized)))targetIndex.set(targetIdentity(normalized),p);}
+  for(const definition of data.targets.filter(t=>used.has(t.id))){
+   if(definition.kind==='builtin'){const target=builtins.find(t=>t.id===definition.key);if(!target){unresolved.push(definition.name);continue;}resolved.set(definition.id,target);}
+   else {
+    const f=cleanFavorite({...definition.location,id:'portable-validation',targetHeightM:definition.heightM,targetCategory:definition.category||null});if(!f)fail('独自対象の情報を確認してください');const same=targetIndex.get(targetIdentity(f));
+    if(same){resolved.set(definition.id,library.targetFromFavorite(same));report.reusedTargets++;}
+    else {f.id=uid('target-');nextFavorites.push(f);targetIndex.set(targetIdentity(f),f);changed.add(f.id);resolved.set(definition.id,library.targetFromFavorite(f));report.addedTargets++;}
+   }
+  }
+  // A preview may explain missing definitions; it must never silently discard them.
+  for(const place of data.places)for(const b of place.targets){const t=resolved.get(b.ref);if(t&&!cleanAlignment(t,b.alignment))unresolved.push(t.name+'：重ねる位置');}
+  if(unresolved.length)return {canImport:false,unresolved:[...new Set(unresolved)],report,places:data.places,changedFavorites:[]};
+  const placeIndex=new Map(),recordIndex=new Map(),statusCache=new Map(),originalPlaces=new Set(favorites.map(p=>p.id)),pairKey=(id,key)=>JSON.stringify([id,key]);
+  for(const p of nextFavorites){try{const signature=baseIdentity(p,shapeAt(p,nextShapes));if(!placeIndex.has(signature))placeIndex.set(signature,[]);placeIndex.get(signature).push(p);}catch{/* Unrelated legacy data is retained, never used as an identity. */}}
+  for(const r of nextObservations){const key=pairKey(r.placeId,r.target.key);if(!recordIndex.has(key))recordIndex.set(key,[]);recordIndex.get(key).push(r);}
+  const status=(p,key)=>{const pair=pairKey(p.id,key);if(!statusCache.has(pair))statusCache.set(pair,currentStatus(p,key,recordIndex.get(pair)||[]));return statusCache.get(pair);};
+  for(const input of data.places){
+   const bindings=input.targets.map(b=>({...b,target:resolved.get(b.ref),alignment:cleanAlignment(resolved.get(b.ref),b.alignment)})),signature=baseIdentity(input.location,input.shape);
+   const sameBase=placeIndex.get(signature)||[];
+   const matches=p=>{
+    try{if(JSON.stringify(bodyValues(p.planningBodies))!==JSON.stringify(input.bodies))return false;}catch{return false;}
+    return bindings.every(b=>{const key=b.target.key||b.target.id,r=status(p,key);return !r||(r.result===b.result&&JSON.stringify(cleanAlignment(b.target,p.recordAlignments?.[key]))===JSON.stringify(b.alignment));});
+   };
+   let place=sameBase.find(matches);
+   if(place){if(originalPlaces.has(place.id))report.reusedPlaces++;else report.duplicatePlaces++;}
+   else {place={...input.location,id:uid('point-'),recordRegistered:true,...(input.bodies?{planningBodies:input.bodies}:{})};nextFavorites.push(place);if(!placeIndex.has(signature))placeIndex.set(signature,[]);placeIndex.get(signature).push(place);changed.add(place.id);report.addedPlaces++;if(sameBase.length)report.variantPlaces++;if(input.shape)nextShapes[place.id]={latitude:place.latitude,longitude:place.longitude,shape:input.shape};}
+   if(!place.recordRegistered){place.recordRegistered=true;changed.add(place.id);}
+   const alignments={...(place.recordAlignments||{})};
+   for(const binding of bindings){
+    const t=binding.target,key=t.key||t.id;if(status(place,key))continue;
+    if(binding.alignment.matchMode==='overlap'){if(Object.hasOwn(alignments,key)){delete alignments[key];changed.add(place.id);}}else {alignments[key]=binding.alignment;changed.add(place.id);}
+    const pair=pairKey(place.id,key),previous=recordIndex.get(pair)||[],stamp=Math.max(now(),...previous.flatMap(r=>[r.createdAt||0,r.updatedAt||0]))+1,record=library.cleanObservation({id:uid('reg-'),placeId:place.id,target:{key,name:t.name,latitude:t.latitude,longitude:t.longitude},observer:place,registration:true,removed:false,result:binding.result,date:'',note:'',createdAt:stamp,updatedAt:stamp});if(!record)fail('対象の登録内容を確認してください');nextObservations.push(record);recordIndex.set(pair,[...previous,record]);statusCache.set(pair,record);report.addedBindings++;
+   }
+   if(Object.keys(alignments).length)place.recordAlignments=alignments;else delete place.recordAlignments;
+   if(JSON.stringify(place).length>20000)fail('撮影地点の設定が多すぎて保存できません');
+  }
+  const k=library.keys(owner);return {canImport:true,unresolved:[],report,places:data.places,favorites:nextFavorites,observations:nextObservations,shapes:nextShapes,changedFavorites:[...changed],entries:[['sorami.favorites',nextFavorites],[k.observations,nextObservations],[k.shapes,nextShapes]]};
+ }
+ return {format:FORMAT,version:VERSION,maxBytes:5*1024*1024,bodyValues,savedBodyValues,validate,exportPlaces,prepareImport};
+};
+// Inside MyPlacesUI: portable registrations share the existing atomic store/sync.
+let transferDialog=null,transferState=null,transferSequence=0;
+const transferNode=(tag,props={},text)=>{const n=document.createElement(tag);Object.assign(n,props);if(text!=null)n.textContent=text;return n;};
+const transferAllowed=()=>!!auth?.token&&toolAllowed('records')&&!!viewState.records&&(el('recordsView')?.dataset.tab||'points')==='points';
+const transferOwner=()=>JSON.stringify([auth?.loginId,auth?.token,accessState.generation,auth?.tools]);
+const transferStamp=()=>JSON.stringify([transferOwner(),favorites,load(),shapeData()]);
+function transferPolicy(){return createRecordTransfer({library:AstroNotesLibrary,cleanFavorite,cleanShape:AstroNotesShooting.cleanShape,cleanAlignment:RecordAlignment.clean,rangeOf:RecordHeight.range,bodyIds:AstroNotesBodies.definitions.map(b=>b.id),builtins:AstroNotesAlign.TARGETS.map(aimWithHeights),currentStatus:(p,key,rows)=>statusOf(p.id,key,rows),makeId:prefix=>prefix+crypto.randomUUID()});}
+function transferPlaces(){const ids=new Set(load().map(r=>r.placeId));return favorites.filter(p=>p.recordRegistered||ids.has(p.id)||!!shapeFor(p));}
+function transferRefresh(){if(transferDialog?.open&&(!transferAllowed()||transferState?.owner!==transferOwner()))transferDialog.close();}
+function transferBuild(){
+ if(transferDialog)return;transferDialog=transferNode('dialog',{id:'recordTransferDialog',className:'sheet record-transfer-sheet',tabIndex:-1});transferDialog.setAttribute('aria-labelledby','recordTransferTitle');
+ transferDialog.innerHTML='<div class="sheet-head"><strong id="recordTransferTitle">撮影地点の入出力</strong><button type="button" class="chip" data-transfer-close aria-label="閉じる">閉じる</button></div><div class="sheet-body" id="recordTransferContent"></div>';
+ document.body.append(transferDialog);transferDialog.querySelector('[data-transfer-close]').onclick=()=>transferDialog.close();
+ transferDialog.addEventListener('close',()=>{const opener=transferState?.opener;transferState=null;transferSequence++;el('recordTransferContent').replaceChildren();if(opener?.isConnected)opener.focus({preventScroll:true});});
+}
+function transferMessage(message,error=false){const n=transferNode('p',{className:error?'warn':'tiny'},message);n.setAttribute('role','status');el('recordTransferContent').append(n);return n;}
+function transferCurrent(state){return transferState===state&&transferDialog?.open&&transferAllowed()&&state.owner===transferOwner();}
+function openRecordTransfer(opener){
+ if(!transferAllowed())return;transferBuild();transferState={owner:transferOwner(),opener};el('recordTransferTitle').textContent='撮影地点の入出力';const content=el('recordTransferContent');content.replaceChildren();
+ const exportButton=transferNode('button',{type:'button',className:'list-item transfer-menu-action',id:'recordTransferExport'},'エクスポート'),importButton=transferNode('button',{type:'button',className:'list-item transfer-menu-action',id:'recordTransferImport'},'インポート');
+ exportButton.disabled=!transferPlaces().length;exportButton.onclick=()=>transferExport();importButton.onclick=()=>transferImport();content.append(exportButton,importButton);showSheet(transferDialog);
+}
+function appendRecordTransfer(actions){
+ const button=transferNode('button',{type:'button',className:'chip record-transfer-more',id:'recordTransferOpen',title:'撮影地点の入出力'});button.setAttribute('aria-label','撮影地点の入出力');button.setAttribute('aria-haspopup','dialog');button.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';button.onclick=()=>openRecordTransfer(button);actions.append(button);
+}
+async function transferExport(){
+ const state=transferState;if(!transferCurrent(state))return;el('recordTransferTitle').textContent='エクスポート';const content=el('recordTransferContent');content.replaceChildren();transferMessage('地点・高さ・対象・天体を保存します。');
+ const rows=transferPlaces(),chosen=new Set(rows.map(p=>p.id)),tools=transferNode('div',{className:'transfer-select-tools'}),all=transferNode('button',{type:'button',className:'chip'},'全選択'),none=transferNode('button',{type:'button',className:'chip'},'全解除'),list=transferNode('div',{className:'transfer-place-list',id:'recordTransferPlaces'}),save=transferNode('button',{type:'button',className:'fav-btn primary',id:'recordTransferDownload'},'保存');
+ const checks=[];const sync=()=>{for(const [id,check]of checks)check.checked=chosen.has(id);save.textContent=chosen.size+'地点を保存';save.disabled=!chosen.size;};
+ for(const p of rows){const label=transferNode('label',{className:'transfer-place'}),check=transferNode('input',{type:'checkbox',checked:true}),caption=transferNode('span',{},p.name);check.value=p.id;check.onchange=()=>{if(check.checked)chosen.add(p.id);else chosen.delete(p.id);sync();};label.append(check,caption);list.append(label);checks.push([p.id,check]);}
+ all.onclick=()=>{for(const p of rows)chosen.add(p.id);sync();};none.onclick=()=>{chosen.clear();sync();};tools.append(all,none);content.append(tools,list,save);sync();
+ save.onclick=async()=>{
+  if(!transferCurrent(state))return;save.disabled=true;
+  try{await AstroNotesAssets.ensureModels();if(!transferCurrent(state))return;const live=transferPlaces();if([...chosen].some(id=>!live.some(p=>p.id===id)))throw Error('撮影地点が変更されました。開き直してください');
+   const data=transferPolicy().exportPlaces({favorites,observations:load(),shapes:shapeData(),placeIds:[...chosen]}),blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='AstroNotes-撮影地点-'+new Date().toISOString().slice(0,10)+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);transferMessage(chosen.size+'地点をエクスポートしました。');
+  }catch(e){if(transferCurrent(state))transferMessage(e.message||'保存できませんでした',true);}finally{if(transferCurrent(state))sync();}
+ };
+}
+function transferImport(){
+ const state=transferState;if(!transferCurrent(state))return;el('recordTransferTitle').textContent='インポート';const content=el('recordTransferContent');content.replaceChildren();
+ const input=transferNode('input',{type:'file',id:'recordTransferFile',accept:'.json,application/json',hidden:true}),pick=transferNode('button',{type:'button',className:'fav-btn',id:'recordTransferChoose'},'ファイルを選ぶ'),preview=transferNode('div',{id:'recordTransferPreview'});pick.onclick=()=>input.click();content.append(pick,input,preview);
+ input.onchange=async()=>{
+  const file=input.files?.[0];if(!file)return;const sequence=++transferSequence;preview.replaceChildren();pick.disabled=true;const current=()=>transferCurrent(state)&&sequence===transferSequence;
+  try{
+   const policy=transferPolicy();if(file.size>policy.maxBytes)throw Error('ファイルは5MB以内にしてください');const raw=await file.text();if(!current())return;const data=JSON.parse(raw);await AstroNotesAssets.ensureModels();if(!current())return;
+   const readyPolicy=transferPolicy(),stamp=transferStamp(),plan=readyPolicy.prepareImport(data,{favorites,observations:load(),shapes:shapeData(),owner:auth.loginId});
+   const heading=transferNode('h3',{className:'my-title'},plan.places.length+'地点'),summary=transferNode('p',{className:'tiny',id:'recordTransferSummary'});preview.append(heading,summary);
+   if(!plan.canImport){summary.textContent='対象の情報が不足しているため取り込めません。';const missing=transferNode('ul');for(const name of plan.unresolved)missing.append(transferNode('li',{},name));preview.append(missing);return;}
+   const r=plan.report;summary.textContent='新しい地点 '+r.addedPlaces+'・登録済み '+r.reusedPlaces+'・対象を追加 '+r.addedTargets+'・対象の登録 '+r.addedBindings+(r.duplicatePlaces?'・ファイル内の重複 '+r.duplicatePlaces:'');
+   if(r.variantPlaces)preview.append(transferNode('p',{className:'tiny'},'設定が違う'+r.variantPlaces+'地点は、別の撮影地点として追加します。'));
+   if(r.addedTargets){const details=transferNode('details',{className:'my-secondary',id:'recordTransferNewTargets'});details.append(transferNode('summary',{},'追加する対象 '+r.addedTargets+'件'));for(const p of plan.favorites.filter(p=>Number.isFinite(p.targetHeightM)&&!favorites.some(f=>f.id===p.id))){const row=transferNode('div',{className:'transfer-preview-place'});row.append(transferNode('strong',{},p.name),transferNode('span',{className:'tiny'},'地上 '+p.targetHeightM+'m'+(Number.isFinite(p.elevation)?' ・ 標高 '+p.elevation+'m':'')));details.append(row);}preview.append(details);}
+   const list=transferNode('div',{className:'transfer-place-list'});for(const p of plan.places){const row=transferNode('div',{className:'transfer-preview-place'}),name=transferNode('strong',{},p.location.name),sub=transferNode('span',{className:'tiny'},[Number.isFinite(p.location.groundManualM??p.location.elevation)?'標高 '+(p.location.groundManualM??p.location.elevation)+'m':'標高未設定',p.location.eyeHeightRangeAGL?'地上 '+p.location.eyeHeightRangeAGL.min+'〜'+p.location.eyeHeightRangeAGL.max+'m':'地上 '+(p.location.eyeHeightAGL??1.5)+'m',p.bodies?.map(id=>AstroNotesBodies.definition(id)?.name).join('・'),p.targets.length+'対象'].filter(Boolean).join(' ・ '));row.append(name,sub);list.append(row);}preview.append(list);
+   const apply=transferNode('button',{type:'button',className:'fav-btn primary',id:'recordTransferApply'},'インポート');preview.append(apply);apply.onclick=()=>{
+    if(!current())return;
+    try{
+     if(stamp!==transferStamp())throw Error('登録内容が変わりました。ファイルを選び直してください');
+     if(!plan.changedFavorites.length&&!r.addedPlaces&&!r.addedBindings){notebookNotice='すべて登録済みです';transferDialog.close();renderRecordsHub();return;}
+     const queue=pushQueue.slice();for(const id of plan.changedFavorites){const at=queue.findIndex(q=>q.kind==='fav'&&q.id===id),change={kind:'fav',id};if(at<0)queue.push(change);else queue[at]=change;}
+     AstroNotesLibrary.transaction(localStorage,[...plan.entries,['sorami.queue',queue]]);favorites=plan.favorites;pushQueue=queue;
+    }catch(e){if(current()){apply.disabled=true;preview.append(transferNode('p',{className:'warn',role:'status'},e.message||'取り込めませんでした'));}return;}
+    // Storage has committed. A subsequent refresh/sync failure cannot undo it.
+    version++;candidateCache.clear();notebookNotice=plan.places.length+'地点をインポートしました';transferDialog.close();
+    try{if(typeof RecordSync!=='undefined')RecordSync.kick();changed();aimFillSelects();SkyMapUI?.refreshTargets?.();renderAuthButton();void accountSync().syncNow().catch(()=>{});}
+    catch{notebookNotice=plan.places.length+'地点を保存しました。画面を再読み込みしてください';renderRecordsHub();}
+   };
+  }catch(e){if(current())preview.append(transferNode('p',{className:'warn',role:'status'},e instanceof SyntaxError?'ファイルの形式を確認してください':e.message||'読み込めませんでした'));}
+  finally{if(current()){pick.disabled=false;input.value='';}}
+ };
+}
+window.addEventListener('hashchange',transferRefresh);window.addEventListener('popstate',transferRefresh);
+function recordSavedBodies(place){return transferPolicy().savedBodyValues(place?.planningBodies);}
+function recordBodyKey(place){return JSON.stringify(recordSavedBodies(place));}
+function recordBodyDirty(){return sheetState?.ctx==='records'&&sheetState.bodyBaseline!==undefined&&recordBodyKey(sheetState.place)!==sheetState.bodyBaseline;}
+function renderRecordBodyPreferences(){
+ const s=sheetState;if(!s)return;let details=el('myRecordBodies'),fieldset=el('myPlaceBodies')?.closest('fieldset');if(!fieldset)return;
+ if(s.ctx!=='records'){if(details)details.hidden=true;el('myPlaceFind').before(fieldset);return;}
+ if(s.bodyBaseline===undefined)s.bodyBaseline=recordBodyKey(placeOf(s.place.id)||s.place);
+ if(!details){details=transferNode('details',{id:'myRecordBodies',className:'my-secondary'});details.append(transferNode('summary'));el('myRecordPickTarget').closest('.my-input-field').before(details);}
+ details.hidden=false;details.append(fieldset);fieldset.hidden=false;details.querySelector('summary').textContent='天体：'+(s.bodies.map(id=>AstroNotesBodies.definition(id)?.name).filter(Boolean).join('・')||'指定なし');
+}
+function saveRecordBodyMetadata(plan,args){
+ const next=plan.favorites.find(p=>p.id===args.place.id);if(!next)return plan;const bodies=recordSavedBodies(args.place);
+ if(recordBodyKey(next)!==JSON.stringify(bodies)){if(bodies)next.planningBodies=bodies;else delete next.planningBodies;if(!plan.changedFavorites.includes(next.id))plan.changedFavorites.push(next.id);}return plan;
 }
 
 const createOpportunityScan=function createOpportunityScan({pairs,start,end,notBefore=start,solve,isCurrent,clock=Date.now,onProgress=()=>{},onDay=()=>{},yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
