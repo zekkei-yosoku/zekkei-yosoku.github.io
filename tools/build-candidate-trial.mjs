@@ -1,4 +1,5 @@
 import {patchAlignHeightGeometry,patchAtmosphereHeightBounds} from './build-record-height-geometry.mjs';
+import {numericRulerTimeline,numericRulerHtml} from './build-numeric-rulers.mjs';
 import {previewPathLifecycleHtml} from './build-preview-path-lifecycle.mjs';
 import {recordOpportunitiesMyplaces,recordOpportunitiesHtml} from './build-record-opportunities.mjs';
 import {registeredDiscoveryMethods} from './build-record-discovery.mjs';
@@ -33,6 +34,7 @@ trialMyplaces=patch(trialMyplaces,'window.MyPlacesUI = {',''+registeredDiscovery
 trialMyplaces=patch(trialMyplaces,'function changed() {',"function changed() {\n document.dispatchEvent(new Event('astronotes-records-change'));");
 const trialAlign=patchAlignHeightGeometry(patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge'));const trialAtmosphere=patchAtmosphereHeightBounds(readFileSync('astronotes-atmosphere.js','utf8'));
 const files={
+ 'astronotes-scroll-timeline.js':numericRulerTimeline(readFileSync('astronotes-scroll-timeline.js','utf8')),
  // Common calendar geometry for every trial consumer; never a page-level override.
  'astronotes-datetime-ui.css':readFileSync(new URL('../astronotes-datetime-ui.css',import.meta.url),'utf8')+'\n.tool-date-calendar .aim-cal-nav select.fav-in{padding:0 24px 0 8px;background-position-x:calc(100% - 14px),calc(100% - 9px)}\n',
  'astronotes-plan.js':externalAppsPlan(),
@@ -57,7 +59,7 @@ for(const unit of trialArchitecture.units){const source=readFileSync(unit.path,'
 files['astronotes-candidate-search.js']=patch(files['astronotes-candidate-search.js'],'/* BUILD_DATA_HASHES */{}',JSON.stringify(Object.fromEntries(Object.entries(files).filter(([n])=>n.startsWith('data/')).map(([n,s])=>[n.slice(5),createHash('sha256').update(s).digest('hex')]))));
 files['astronotes-candidate-search.js']+='\n// data-release '+createHash('sha256').update(Object.entries(files).filter(([name])=>name.startsWith('data/')).map(([,value])=>value).join('')).digest('hex')+'\n';
 if(process.argv.includes('--html')){
- let html=recordOpportunitiesHtml(previewPathLifecycleHtml(exploreSwipeBackHtml(explorePreviewControlsHtml(explorePlaceHtml(externalAppsHtml(readFileSync(0,'utf8')))))));
+ let html=numericRulerHtml(recordOpportunitiesHtml(previewPathLifecycleHtml(exploreSwipeBackHtml(explorePreviewControlsHtml(explorePlaceHtml(externalAppsHtml(readFileSync(0,'utf8'))))))));
  // Include daytime lunar overlaps in the shared observer calendar/date strip.
  for(const [start,end]of [['function aimCalRows(', 'function aimCalSolid('],['async function aimBuildingDays(', 'function aimDaysInputKey(']]){
   const a=html.indexOf(start),b=html.indexOf(end,a);if(a<0||b<0)throw Error('Daylight observer boundary changed');

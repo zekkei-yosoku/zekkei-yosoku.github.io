@@ -514,7 +514,7 @@ function skyRender(s){
  skySession=s;if(!s||!auth?.token||!toolAllowed('skymap'))return;
  const box=skyBox(),t=s.target;
  const shareRow=el('skyMapShareRow');if(shareRow){shareRow.hidden=!s.observer||!t;for(const b of shareRow.querySelectorAll('[data-plan-action]'))b.disabled=!s.daily||!s.eye;}
- const detail=el('skyMapAlignmentDetails');renderSkyAlignment(s);box.hidden=!t;
+ const detail=el('skyMapAlignmentDetails');renderSkyAlignment(s);renderPreviewEyeHeight(s);box.hidden=!t;
  if(!t){skyKey='';candidateState={status:'idle',rows:[],failed:0};box.replaceChildren();candidateSheet?.close();return;}
  const key=currentSkyQuery(s);
  if(key!==skyKey){
@@ -907,7 +907,7 @@ style.textContent = `
 .my-record{cursor:default}
 .my-picker{margin-bottom:8px}
 `;
-style.textContent+="\n#recordOpportunities{max-width:780px;margin-inline:auto}\n.record-opportunity-controls{display:grid;gap:12px}\n.record-opportunity-period{display:grid;grid-template-columns:44px minmax(0,1fr) 44px 44px;gap:4px;align-items:center}\n.record-opportunity-period button{min-width:0;min-height:44px;padding:4px;font-size:14px}\n.record-opportunity-period button:is(#recordOpportunityPrev,#recordOpportunityNext){font-size:24px}\n.record-opportunity-month{position:relative;display:grid;place-items:center;min-width:0;height:44px;font-size:16px;font-weight:600;white-space:nowrap;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n.record-opportunity-month input{position:absolute;inset:0;width:100%;height:44px;min-width:0;margin:0;opacity:0;font-size:16px;cursor:pointer}\n.record-opportunity-month:focus-within{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}\n.record-opportunity-filter{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-opportunity-filters .record-opportunity-select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;font-size:16px;margin:0;background-color:var(--card)}\n.record-opportunity-select{text-align:left;position:relative;padding:10px 30px 10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);border:1px solid var(--line);border-radius:10px}\n.record-opportunity-select::after{content:'';position:absolute;right:13px;top:17px;width:7px;height:7px;border-right:2px solid var(--secondary);border-bottom:2px solid var(--secondary);transform:rotate(45deg)}\n.record-opportunity-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-picker{box-sizing:border-box;width:min(440px,calc(100vw - 28px));max-height:min(80dvh,640px);padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);overflow:hidden}\n.record-opportunity-picker[open]{display:flex;flex-direction:column;gap:12px}\n.record-opportunity-picker::backdrop{background:rgba(0,0,0,.6)}\n.record-opportunity-picker-head,.record-opportunity-picker-tools,.record-opportunity-picker-foot{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-shrink:0}\n.record-opportunity-picker h2{font-size:18px;margin:0}.record-opportunity-picker button{min-height:44px;font-size:14px}\n.record-opportunity-picker #recordOpportunityPickerSearch{box-sizing:border-box;width:100%;min-height:44px;font-size:16px;margin:0;flex-shrink:0}\n.record-opportunity-picker-tools{justify-content:flex-start}.record-opportunity-picker-tools button{flex:1}\n.record-opportunity-picker-list{overflow:auto;overscroll-behavior:contain;min-height:0;scroll-padding:6px}\n.record-opportunity-picker-item{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 4px;box-sizing:border-box;border-bottom:1px solid var(--line);overflow-wrap:anywhere;cursor:pointer}\n.record-opportunity-picker-item input{width:20px;height:20px;margin:0;flex-shrink:0;accent-color:var(--accent)}\n.record-opportunity-picker-foot #recordOpportunityPickerApply{min-width:96px;background:var(--accent);color:var(--accent-ink,var(--bg))}\n:is(#recordOpportunityStatus,#recordOpportunityNotice){margin:12px 0;color:var(--secondary)}:is(#recordOpportunityStatus,#recordOpportunityNotice):empty{display:none}\n.record-opportunity-day{margin-top:20px}.record-opportunity-day h3{font-size:16px;margin:0 0 6px;font-weight:600}\n.record-opportunity-row{display:grid;grid-template-columns:52px minmax(0,1fr) 12px;grid-template-rows:auto auto;gap:2px 12px;align-items:center;width:100%;min-height:64px;padding:12px 0;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;background:transparent;color:var(--text)}\n.record-opportunity-time{grid-column:1;grid-row:1;align-self:end;font-size:16px;font-variant-numeric:tabular-nums;color:var(--accent)}\n.record-opportunity-body{grid-column:1;grid-row:2;align-self:start;font-size:12px;color:var(--secondary)}\n.record-opportunity-row strong{grid-column:2;grid-row:1/3;font-size:14px;line-height:1.6;overflow-wrap:anywhere}\n.record-opportunity-arrow{grid-column:3;grid-row:1/3;color:var(--secondary)}\n.record-opportunity-row.has-height strong{grid-row:1}.record-opportunity-height{grid-column:2;grid-row:2;font-size:12px;color:var(--secondary)}\n.record-opportunity-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.record-opportunity-actions:has(>button:not([hidden])){padding-bottom:4px}\n.record-opportunity-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n";style.textContent+="\n#myRecordHeight{min-width:0;border:0;border-block:1px solid var(--line);padding:14px 0;margin:14px 0}\n#myRecordHeight legend{float:left;width:100%;padding:0;margin:0 0 12px;font-size:14px;font-weight:600}\n#myRecordHeight legend+label{clear:both}\n.record-height-label{display:block;font-size:12px;color:var(--secondary);margin:10px 0 6px}\n.record-height-ground{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}\n.record-height-number{display:flex;align-items:center;gap:8px;min-width:0;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n#myRecordHeight input{box-sizing:border-box;min-width:0;width:100%;min-height:44px;margin:0;padding:8px 0;border:0;background:transparent;font-size:16px;color:var(--text)}\n.record-height-number>span{font-size:13px;color:var(--secondary)}\n.record-height-modes,.record-height-values{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;min-width:0}\n.record-height-modes{padding:3px;background:var(--sunk);border-radius:10px;margin-bottom:8px}\n#myRecordHeight button{min-height:44px;font-size:14px}\n.record-height-modes button{border:0;border-radius:8px;background:transparent;color:var(--secondary)}\n.record-height-modes button[aria-pressed=true]{background:var(--card);color:var(--accent);box-shadow:0 1px 4px #0002}\n.record-height-values>label{min-width:0}.record-height-values .tiny{display:block;margin:0 0 4px}\n#myHeightFixedFields{grid-template-columns:minmax(0,1fr);padding-top:20px}\n#myHeightFixedFields[hidden],#myHeightRangeFields[hidden],#myRecordHeight[hidden]{display:none!important}\n#myRecordHeight .warn{font-size:12px;margin:8px 0 0}\n";style.textContent+="\n.record-alignment-editor{flex-basis:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:6px 0 2px;min-width:0}\n#myPlaceSheet .my-draft-target:has(.record-alignment-editor){flex-wrap:wrap}\n.record-alignment-position{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-alignment-position select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;margin:0;font-size:16px}\n.record-alignment-limbs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;min-width:0}\n.record-alignment-limbs[hidden]{display:none!important}.record-alignment-limbs button{min-width:0;min-height:44px;font-size:13px;padding:6px}\n.record-alignment-limbs button[aria-pressed=true]{color:var(--accent);border-color:var(--accent)}\n#skyMapAlignmentControls{display:grid;gap:8px}\n";document.head.append(style);
+style.textContent+="\n#recordOpportunities{max-width:780px;margin-inline:auto}\n.record-opportunity-controls{display:grid;gap:12px}\n.record-opportunity-period{display:grid;grid-template-columns:44px minmax(0,1fr) 44px 44px;gap:4px;align-items:center}\n.record-opportunity-period button{min-width:0;min-height:44px;padding:4px;font-size:14px}\n.record-opportunity-period button:is(#recordOpportunityPrev,#recordOpportunityNext){font-size:24px}\n.record-opportunity-month{position:relative;display:grid;place-items:center;min-width:0;height:44px;font-size:16px;font-weight:600;white-space:nowrap;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n.record-opportunity-month input{position:absolute;inset:0;width:100%;height:44px;min-width:0;margin:0;opacity:0;font-size:16px;cursor:pointer}\n.record-opportunity-month:focus-within{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}\n.record-opportunity-filter{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-opportunity-filters .record-opportunity-select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;font-size:16px;margin:0;background-color:var(--card)}\n.record-opportunity-select{text-align:left;position:relative;padding:10px 30px 10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);border:1px solid var(--line);border-radius:10px}\n.record-opportunity-select::after{content:'';position:absolute;right:13px;top:17px;width:7px;height:7px;border-right:2px solid var(--secondary);border-bottom:2px solid var(--secondary);transform:rotate(45deg)}\n.record-opportunity-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-picker{box-sizing:border-box;width:min(440px,calc(100vw - 28px));max-height:min(80dvh,640px);padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);overflow:hidden}\n.record-opportunity-picker[open]{display:flex;flex-direction:column;gap:12px}\n.record-opportunity-picker::backdrop{background:rgba(0,0,0,.6)}\n.record-opportunity-picker-head,.record-opportunity-picker-tools,.record-opportunity-picker-foot{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-shrink:0}\n.record-opportunity-picker h2{font-size:18px;margin:0}.record-opportunity-picker button{min-height:44px;font-size:14px}\n.record-opportunity-picker #recordOpportunityPickerSearch{box-sizing:border-box;width:100%;min-height:44px;font-size:16px;margin:0;flex-shrink:0}\n.record-opportunity-picker-tools{justify-content:flex-start}.record-opportunity-picker-tools button{flex:1}\n.record-opportunity-picker-list{overflow:auto;overscroll-behavior:contain;min-height:0;scroll-padding:6px}\n.record-opportunity-picker-item{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 4px;box-sizing:border-box;border-bottom:1px solid var(--line);overflow-wrap:anywhere;cursor:pointer}\n.record-opportunity-picker-item input{width:20px;height:20px;margin:0;flex-shrink:0;accent-color:var(--accent)}\n.record-opportunity-picker-foot #recordOpportunityPickerApply{min-width:96px;background:var(--accent);color:var(--accent-ink,var(--bg))}\n:is(#recordOpportunityStatus,#recordOpportunityNotice){margin:12px 0;color:var(--secondary)}:is(#recordOpportunityStatus,#recordOpportunityNotice):empty{display:none}\n.record-opportunity-day{margin-top:20px}.record-opportunity-day h3{font-size:16px;margin:0 0 6px;font-weight:600}\n.record-opportunity-row{display:grid;grid-template-columns:52px minmax(0,1fr) 12px;grid-template-rows:auto auto;gap:2px 12px;align-items:center;width:100%;min-height:64px;padding:12px 0;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;background:transparent;color:var(--text)}\n.record-opportunity-time{grid-column:1;grid-row:1;align-self:end;font-size:16px;font-variant-numeric:tabular-nums;color:var(--accent)}\n.record-opportunity-body{grid-column:1;grid-row:2;align-self:start;font-size:12px;color:var(--secondary)}\n.record-opportunity-row strong{grid-column:2;grid-row:1/3;font-size:14px;line-height:1.6;overflow-wrap:anywhere}\n.record-opportunity-arrow{grid-column:3;grid-row:1/3;color:var(--secondary)}\n.record-opportunity-row.has-height strong{grid-row:1}.record-opportunity-height{grid-column:2;grid-row:2;font-size:12px;color:var(--secondary)}\n.record-opportunity-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.record-opportunity-actions:has(>button:not([hidden])){padding-bottom:4px}\n.record-opportunity-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n";style.textContent+="\n#myRecordHeight{min-width:0;border:0;border-block:1px solid var(--line);padding:14px 0;margin:14px 0}\n#myRecordHeight legend{float:left;width:100%;padding:0;margin:0 0 12px;font-size:14px;font-weight:600}\n#myRecordHeight legend+label{clear:both}\n.record-height-label{display:block;font-size:12px;color:var(--secondary);margin:10px 0 6px}\n.record-height-ground{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}\n.record-height-number{display:flex;align-items:center;gap:8px;min-width:0;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n#myRecordHeight input{box-sizing:border-box;min-width:0;width:100%;min-height:44px;margin:0;padding:8px 0;border:0;background:transparent;font-size:16px;color:var(--text)}\n.record-height-number>span{font-size:13px;color:var(--secondary)}\n.record-height-modes,.record-height-values{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;min-width:0}\n.record-height-modes{padding:3px;background:var(--sunk);border-radius:10px;margin-bottom:8px}\n#myRecordHeight button{min-height:44px;font-size:14px}\n.record-height-modes button{border:0;border-radius:8px;background:transparent;color:var(--secondary)}\n.record-height-modes button[aria-pressed=true]{background:var(--card);color:var(--accent);box-shadow:0 1px 4px #0002}\n.record-height-values>label{min-width:0}.record-height-values .tiny{display:block;margin:0 0 4px}\n#myHeightFixedFields{grid-template-columns:minmax(0,1fr);padding-top:20px}\n#myHeightFixedFields[hidden],#myHeightRangeFields[hidden],#myRecordHeight[hidden]{display:none!important}\n#myRecordHeight .warn{font-size:12px;margin:8px 0 0}\n";style.textContent+="\n.record-alignment-editor{flex-basis:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:6px 0 2px;min-width:0}\n#myPlaceSheet .my-draft-target:has(.record-alignment-editor){flex-wrap:wrap}\n.record-alignment-position{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-alignment-position select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;margin:0;font-size:16px}\n.record-alignment-limbs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;min-width:0}\n.record-alignment-limbs[hidden]{display:none!important}.record-alignment-limbs button{min-width:0;min-height:44px;font-size:13px;padding:6px}\n.record-alignment-limbs button[aria-pressed=true]{color:var(--accent);border-color:var(--accent)}\n#skyMapAlignmentControls{display:grid;gap:8px}\n#previewEyeHeightControls{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card);min-width:0}\n#previewEyeHeightControls[hidden]{display:none!important}\n.preview-eye-row{display:flex;align-items:center;justify-content:space-between;gap:8px}\n.preview-eye-row>label{font-size:13px;font-weight:600}.preview-eye-row>label>span{display:block;font-size:11px;font-weight:400;color:var(--secondary)}\n.preview-eye-value{display:flex;align-items:center;gap:4px;min-width:0}.preview-eye-value>label{display:flex;align-items:center;gap:4px;padding:0 6px;background:var(--sunk);border-radius:8px;font-size:13px}\n#previewEyeHeightControls button{min-width:44px;min-height:44px;padding:4px;border:0;border-radius:8px;background:var(--sunk);color:var(--accent);font-size:20px}\n#previewEyeValue{box-sizing:border-box;width:76px;min-width:0;min-height:44px;padding:6px 0;border:0;background:transparent;color:var(--text);text-align:right;font-size:16px}\n .numeric-ruler-track{position:relative;min-width:0;height:54px;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--sunk)}\n.numeric-ruler-track .numeric-ruler{height:54px;width:100%;cursor:ew-resize;direction:ltr}\n.numeric-ruler-track .sky-map-timeline-center{top:4px;bottom:4px}.numeric-ruler-track .sky-timeline-label{top:22px}\n#previewEyeHeightControls .numeric-ruler-track{margin-top:8px}\n.preview-focal-tools .numeric-ruler-track{width:100%;height:54px}\n[data-focal-range][hidden]{display:none!important}\n#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;width:88px;min-width:88px;max-width:88px;font-variant-numeric:tabular-nums}\n#previewEyeError{margin:4px 0 0;color:var(--secondary)}\n";document.head.append(style);
 
 const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
  const {shooting,align,bodies,atmosphere,astro,terrain=null,scanHeights,rangeOf,isMountain,observerAt,elevationAt,ensure,viewFor=null,mountainRidge=null,summitCapM=300,yieldTask=()=>new Promise(r=>setTimeout(r,0)),clock=()=>Date.now(),limits={}}=deps;
@@ -915,7 +915,7 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
  const DAY=86400000,RAD=Math.PI/180,DEG=180/Math.PI,MOON_KM=300000,EARTH_KM=6371.0088;
  const lru=n=>{const m=new Map();return {get(k){if(!m.has(k))return undefined;const v=m.get(k);m.delete(k);m.set(k,v);return v;},set(k,v){m.delete(k);m.set(k,v);while(m.size>n)m.delete(m.keys().next().value);return v;},delete(k){m.delete(k);},get size(){return m.size;}};};
  const views=lru(LIM.views),evals=lru(LIM.evaluations),regions=lru(LIM.regions),states=lru(LIM.states);
- const stats={realEvaluations:0,verifications:0,certificates:0,leafTests:0,bodyStates:0};
+ const stats={realEvaluations:0,verifications:0,certificates:0,geometryBuilds:0,leafTests:0,bodyStates:0};
  const unit=(az,alt)=>{const a=az*RAD,h=alt*RAD;return [Math.cos(h)*Math.sin(a),Math.cos(h)*Math.cos(a),Math.sin(h)];};
  const angle=(u,v)=>{const c=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]];return Math.atan2(Math.hypot(c[0],c[1],c[2]),u[0]*v[0]+u[1]*v[1]+u[2]*v[2])*DEG;};
  const altOf=u=>Math.asin(Math.max(-1,Math.min(1,u[2])))*DEG,azOf=u=>(Math.atan2(u[0],u[1])*DEG+360)%360;
@@ -930,9 +930,8 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
   return obs;
  }
  const viewOf=(obs,p)=>{
-  if(!viewFor)return Promise.resolve(null);
   const k=JSON.stringify([obs,p.target,p.body,p.partId,p.limb,p.matchMode??null,atmosphere.dataKey?.()??null]);let v=views.get(k);
-  if(!v){v=Promise.resolve().then(()=>viewFor(obs,p)).catch(e=>{views.delete(k);throw e;});views.set(k,v);}
+  if(!v){v=Promise.resolve().then(async()=>{const prepared=viewFor?await viewFor(obs,p):null;if(prepared)return prepared;const o=shooting.searchOptions(p,isMountain);return o.broad&&o.disc||o.partId==='__whole'&&!isMountain(p.target)?align.prepareDailyView(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM}):null;}).catch(e=>{views.delete(k);throw e;});views.set(k,v);}
   return v;
  };
  const closeness=(ctx,e)=>ctx.family==='overlap'?(Number.isFinite(e.distanceToTarget)?e.distanceToTarget-(e.radius||0):Infinity):(Number.isFinite(e.gap)?Math.abs(e.gap)-Math.max(1/60,.2*(e.radius||0)):Infinity);
@@ -962,8 +961,8 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
  }
  const geoUnit=p=>unit(p.longitude,p.latitude);
  async function regionOf(ctx,a,b){
-  const k=ctx.key+'|'+a+'|'+b;let r=regions.get(k);if(r!==undefined)return r;
-  r=(async()=>{
+  const k=ctx.geometryKey+'|'+a+'|'+b;let r=regions.get(k);if(r!==undefined)return r;
+  stats.geometryBuilds++;r=(async()=>{
    const oa=observer(ctx,a),ob=observer(ctx,b),t=ctx.p.target;
    if(ctx.family==='gap'){
     const ths=[],azs=[];
@@ -1096,16 +1095,28 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
   const out=[];for(const l of [...list].sort((x,y)=>x.t1-y.t1)){const w=out[out.length-1];if(w&&l.t1-w.to<=LIM.mergeMs){w.to=Math.max(w.to,l.t2);w.leaves.push(l);}else out.push({from:l.t1,to:l.t2,leaves:[l]});}
   return out;
  }
+ // Whole-object fit uses the normal view's visual vertical centre; named parts
+ // use the existing apparent limb gap. Feasibility is still the original match.
+ async function fitResidual(ctx,result,accept){
+  const matched=result.rows.filter(accept).map(r=>r.event),events=matched.length?matched:result.events.filter(e=>accept({event:e}));
+  let center=null;if(ctx.family==='overlap'){const obs=observer(ctx,result.height);center=isMountain(ctx.p.target)?align.geometryFrom(obs,ctx.p.target,{partId:ctx.o.partId,eyeM:obs.eyeM})?.angle:(await viewOf(obs,ctx.p))?.heightGeometry?.centerAlt;}
+  const values=events.map(e=>ctx.family==='overlap'?Number.isFinite(center)&&Number.isFinite(e.altitude)?e.altitude-center:null:Number.isFinite(e.gap)?e.gap:null).filter(Number.isFinite);
+  return values.length?values.reduce((a,b)=>Math.abs(a)<=Math.abs(b)?a:b):null;
+ }
  // A range returns verified representative heights for distinct possible time windows. Fixed mode is unchanged.
  async function solveMember(ctx,dayLeaves,issues,ctl){
   const rows=[],windows=windowsOf(dayLeaves),single=groupOf([ctx]);let checked=0;
   for(const w of windows){
    const accept=r=>r.event.at>=w.from&&r.event.at<=w.to;
-   const evaluate=async h=>{await yieldTask();if(!ctl.isCurrent())throw cancelled();const x=await real(ctx,h),inside=x.events.filter(e=>e.at>=w.from&&e.at<=w.to);return {rows:x.rows.filter(accept),score:Math.min(Infinity,...inside.map(e=>closeness(ctx,e))),height:h};};
+   const evaluate=async h=>{await yieldTask();if(!ctl.isCurrent())throw cancelled();const x=await real(ctx,h),inside=x.events.filter(e=>e.at>=w.from&&e.at<=w.to);return {rows:x.rows.filter(accept),score:Math.min(Infinity,...inside.map(e=>closeness(ctx,e))),height:h,residual:await fitResidual(ctx,x,accept)};};
    const mayOverlap=async(lo,hi)=>(await leaves(single,lo,hi,w.from,w.to,ctl)).length?null:false;
    try{
     const res=await scanHeights({min:ctx.range.min,max:ctx.range.max,evaluate,mayOverlap,isCurrent:ctl.isCurrent,limit:LIM.heights});checked+=res.checked||0;
-    if(res.rows?.length){const v=await verify(ctx,res.height,accept);if(v.length)rows.push(...v);else issues.push({id:ctx.id,reason:'height-verify',at:w.from});}
+    if(res.rows?.length){
+     let fit=deps.preferHeights?await deps.preferHeights({min:ctx.range.min,max:ctx.range.max,seed:res,evaluate,isCurrent:ctl.isCurrent,clock,deadline:clock()+6000}):res;
+     let v=await verify(ctx,fit.height,accept);if(!v.length&&fit.height!==res.height){fit=res;v=await verify(ctx,res.height,accept);}
+     if(v.length)rows.push(...v.map(row=>({...row,heightSearch:{...row.heightSearch,fit:fit.fit||'candidate',residualDeg:fit.residual??null,preferenceChecked:fit.fitChecked??0,preferenceIncomplete:!!fit.fitIncomplete}})));else issues.push({id:ctx.id,reason:'height-verify',at:w.from});
+    }
     else if(res.failed)issues.push({id:ctx.id,reason:'height-limit',from:w.from,to:w.to});
    }catch(error){if(!['height-limit','shape-limit'].includes(error.message))throw error;issues.push({id:ctx.id,reason:error.message==='shape-limit'?'limit':'height-limit'});break;}
   }
@@ -1114,8 +1125,10 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
  }
  function makeCtx(base,entry,place,ground,shape){
   const p=base.p;
-  return {...base,entry,place,ground,shape,id:entry.place.id,heights:new Set(),
-   key:JSON.stringify([entry.place.id,place.latitude,place.longitude,ground,p.body,p.target,p.partId,p.limb,p.matchMode??null,base.start,atmosphere.dataKey?.()??null])};
+  // Prepared target geometry is independent of the day; event evaluations are not.
+  // This memo remains private to one owner/revision/atmosphere job.
+  const geometryKey=JSON.stringify([entry.place.id,place.latitude,place.longitude,ground,p.body,p.target,p.partId,p.limb,p.matchMode??null,atmosphere.dataKey?.()??null]);
+  return {...base,entry,place,ground,shape,id:entry.place.id,heights:new Set(),geometryKey,key:geometryKey+'|'+base.start};
  }
  async function solvePoint(base,entry,range,ctl){
   const f=entry.place,ground=Number.isFinite(f.groundManualM)?f.groundManualM:Number.isFinite(f.elevation)?f.elevation:await elevationAt(f.latitude,f.longitude);
@@ -1129,21 +1142,28 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
  // No negative certificate is inferred from sampled positions. An unsearched height band stays incomplete.
  async function solveShape(base,entry,range,ctl){
   if(!shooting.cleanShape(entry.place.shape))throw Error('shape-invalid');
-  const deadline=clock()+LIM.shapeMs,issues=[];let checked=0;
+  const deadline=clock()+LIM.shapeMs,issues=[],memo=new Map();let checked=0,bestRows=[];
   const evaluate=async height=>{
-   if(clock()>deadline)throw Error('shape-limit');
+   if(memo.has(height))return memo.get(height);if(clock()>deadline)throw Error('shape-limit');
    const place={...entry.place,eyeHeightAGL:height,standAglM:height,stand:'ground'};
    const result=await shooting.candidates(base.plan,[{place,record:entry.record}],{align,isMountain,observerAt,elevationAt,ensure,viewFor:viewOf,isCurrent:ctl.isCurrent});
    if(result.cancelled||!ctl.isCurrent())throw cancelled();
    stats.realEvaluations++;checked+=result.checked||0;
    if(result.failed)issues.push(...(result.issues||[{id:entry.place.id,reason:'calculation'}]));
-   return {rows:result.rows.map(row=>({...row,heightSearch:{min:range.min,max:range.max,height}})),height,score:Infinity};
+   const rows=result.rows.map(row=>({...row,heightSearch:{min:range.min,max:range.max,height}})),values=[];
+   for(const row of rows){
+    const e=row.event,g=row.place.groundManualM??row.place.elevation,obs=row.assumedObserver||observerAt(row.place,g),view=await viewOf(obs,base.p),center=isMountain(base.p.target)?align.geometryFrom(obs,base.p.target,{partId:base.o.partId,eyeM:obs.eyeM})?.angle:view?.heightGeometry?.centerAlt;
+    const residual=base.family==='overlap'?Number.isFinite(center)&&Number.isFinite(e.altitude)?e.altitude-center:null:Number.isFinite(e.gap)?e.gap:null;
+    row.heightSearch.residualDeg=residual;if(Number.isFinite(residual))values.push(residual);
+   }
+   const value={rows,height,score:Infinity,residual:values.length?values.reduce((a,b)=>Math.abs(a)<=Math.abs(b)?a:b):null};memo.set(height,value);return value;
   };
   try{
-   const result=await scanHeights({min:range.min,max:range.max,evaluate,isCurrent:ctl.isCurrent,limit:LIM.heights});
+   let result=await scanHeights({min:range.min,max:range.max,evaluate,isCurrent:ctl.isCurrent,limit:LIM.heights});bestRows=result.rows;
+   if(result.rows?.length&&deps.preferHeights){result=await deps.preferHeights({min:range.min,max:range.max,seed:result,evaluate,isCurrent:ctl.isCurrent,clock,deadline});bestRows=result.rows;}
    if(result.failed)issues.push({id:entry.place.id,reason:'height-limit'});
-   return {rows:result.rows,checked,issues};
-  }catch(e){if(e.message!=='shape-limit')throw e;return {rows:[],checked,issues:[...issues,{id:entry.place.id,reason:'limit'}]};}
+   return {rows:bestRows.map(row=>({...row,heightSearch:{...row.heightSearch,fit:Number.isFinite(row.heightSearch.residualDeg)&&Math.abs(row.heightSearch.residualDeg)<=.01?'centered':result.fit==='range-edge'?'range-edge':'candidate',preferenceChecked:result.fitChecked??0,preferenceIncomplete:!!result.fitIncomplete}})),checked,issues};
+  }catch(e){if(e.message!=='shape-limit')throw e;return {rows:bestRows,checked,issues:[...issues,{id:entry.place.id,reason:'limit'}]};}
  }
  async function candidates(plan,entries,{isCurrent=()=>true,onProgress=()=>{}}={}){
   const fixed=[],ranged=[],invalid=[];
@@ -1194,6 +1214,32 @@ const scanRecordHeights=async function scanRecordHeights({min,max,evaluate,mayOv
   queue.push(...children);queue.sort((x,y)=>Math.min(x.a?.score??Infinity,x.b?.score??Infinity)-Math.min(y.a?.score??Infinity,y.b?.score??Infinity)||(y.hi-y.lo)-(x.hi-x.lo));
  }
  return {rows:[],checked,failed:incomplete?1:0,...(incomplete?{issues:[{reason:'height-limit'}]}:{})};
+};
+const preferRecordHeight=async function preferRecordHeight({min,max,seed,evaluate,isCurrent=()=>true,limit=18,clock=()=>Date.now(),deadline=Infinity}){
+ const lo=Math.round(min*10),hi=Math.round(max*10),memo=new Map(),valid=r=>r?.rows?.length&&Number.isFinite(r.residual),tick=h=>Math.max(lo,Math.min(hi,Math.round(h*10)));let best=seed,checked=0,incomplete=false;
+ const improve=r=>{if(valid(r)&&(!valid(best)||Math.abs(r.residual)<Math.abs(best.residual)-1e-12||Math.abs(Math.abs(r.residual)-Math.abs(best.residual))<=1e-12&&r.height<best.height))best=r;};
+ if(!Number.isFinite(seed?.residual))return {...seed,fit:'unavailable',fitChecked:0};
+ memo.set(tick(seed.height),seed);improve(seed);
+ const at=async k=>{if(!isCurrent())throw Error('height-cancelled');if(memo.has(k))return memo.get(k);if(checked>=limit||clock()>deadline){incomplete=true;return null;}checked++;const r=await evaluate(k/10);if(!isCurrent())throw Error('height-cancelled');memo.set(k,r);improve(r);return r;};
+ await at(lo);await at(hi);await at(Math.floor((lo+hi)/2));
+ const initial=[...memo.values()].filter(r=>Number.isFinite(r?.residual)).sort((a,b)=>a.height-b.height),sameSide=initial.length>=3&&initial.every(r=>r.residual>0)||initial.length>=3&&initial.every(r=>r.residual<0),deltas=initial.slice(1).map((r,i)=>r.residual-initial[i].residual),ordered=deltas.every(d=>d>=-1e-12)||deltas.every(d=>d<=1e-12);
+ // These are measured fit choices, not negative/existence certificates.
+ if(sameSide&&ordered&&(tick(best.height)===lo||tick(best.height)===hi))return {...best,fit:'range-edge',fitChecked:checked,fitIncomplete:incomplete};
+
+ // A sign-changing bracket is refined to adjacent 0.1m ticks. Other intervals
+ // stay eligible: discontinuous apparent limbs can make the closest tested fit differ.
+ const visited=new Set();
+ for(;;){
+  const items=[...memo].filter(([,r])=>Number.isFinite(r?.residual)).sort((a,b)=>a[0]-b[0]),bands=[];
+  for(let i=1;i<items.length;i++){const [a,A]=items[i-1],[b,B]=items[i];if(b-a<=1)continue;const k=a+':'+b;if(visited.has(k))continue;bands.push({a,b,k,sign:A.residual*B.residual<=0,score:Math.min(Math.abs(A.residual),Math.abs(B.residual))});}
+  if(!bands.length||incomplete)break;
+  bands.sort((a,b)=>Number(b.sign)-Number(a.sign)||a.score-b.score||(b.b-b.a)-(a.b-a.a));const band=bands[0];
+  // Once a crossing has adjacent grid samples, prefer their actual verified rows.
+  if(!band.sign&&items.some(([a,A],i)=>i&&a-items[i-1][0]<=1&&A.residual*items[i-1][1].residual<=0))break;
+  visited.add(band.k);if(!await at(Math.floor((band.a+band.b)/2)))break;
+ }
+ const edge=tick(best.height)===lo||tick(best.height)===hi,fit=Number.isFinite(best.residual)&&Math.abs(best.residual)<=.01?'centered':edge?'range-edge':'closest-tested';
+ return {...best,fit,fitChecked:checked,fitIncomplete:incomplete};
 };
 const RecordAlignment=(function createRecordAlignmentPolicy({isMountain,limbs}){
  const parts=t=>(t?.parts||[]).filter(p=>typeof p.id==='string'&&p.id!=='__whole'&&Number.isFinite(p.m));
@@ -1246,6 +1292,41 @@ function prepareAlignedQuickRecord(args){
 }
 
 function recordEventOptions(result,opts){const map=rows=>(rows||[]).map(row=>({...row,event:{...row.event,partId:opts.partId,limb:opts.limb,matchMode:opts.matchMode}}));return Array.isArray(result)?map(result):{...result,rows:map(result?.rows)};}
+
+// Temporary preview height. The registered height range remains a search condition.
+let previewEyePending=null,previewEyeFrame=0,previewEyeRuler=null,previewEyeAdjustmentStamp=null;
+function previewEyeStamp(s=SkyMapUI.selectionState()){return !s?.observer||!globalThis.TrialExplore?.active()||el('skyMapView').dataset.exploreStage!=='preview'||el('aimLook').hidden||!el('aimLook').querySelector('[data-look-canvas]')?null:JSON.stringify([auth?.token,auth?.loginId,accessState.generation,s.observer.latitude,s.observer.longitude,s.target?.id,s.body,s.partId,s.limb,s.matchMode]);}
+function eyeAdjustmentFor(s){return !!previewEyeAdjustmentStamp&&previewEyeAdjustmentStamp===previewEyeStamp(s);}
+function previewEyeValue(){const s=SkyMapUI.selectionState(),ground=SkyMapUI.workspaceHost()?.session.ground;return s?.observer?aimObserverAt(s.observer,ground).eyeM:NaN;}
+function applyPreviewEyeHeight(value){
+ const stamp=previewEyeStamp();if(!stamp)return;
+ if(value===''||!Number.isFinite(Number(value))||Number(value)<0||Number(value)>700){el('previewEyeError').textContent='0〜700mで入力してください';el('previewEyeError').hidden=false;return;}
+ const height=Number(value);el('previewEyeError').hidden=true;previewEyePending={height,stamp};el('previewEyeValue').value=String(height);
+ if(previewEyeFrame)cancelAnimationFrame(previewEyeFrame);
+ previewEyeFrame=requestAnimationFrame(()=>{previewEyeFrame=0;const next=previewEyePending;previewEyePending=null;if(next&&next.stamp===previewEyeStamp()){previewEyeAdjustmentStamp=next.stamp;SkyMapUI.setEyeHeight(next.height);}});
+}
+function renderPreviewEyeHeight(){
+ const look=el('aimLook'),scene=el('exploreScenePanel');if(!look||!scene)return;
+ let box=el('previewEyeHeightControls');
+ if(!box){
+  previewEyeRuler?.destroy();
+  box=document.createElement('section');box.id='previewEyeHeightControls';box.setAttribute('aria-label','目線の高さ');
+  box.innerHTML='<div class="preview-eye-row"><label for="previewEyeValue">目線<span>地上から</span></label><div class="preview-eye-value"><button type="button" id="previewEyeMinus" aria-label="目線を0.1m下げる">−</button><label><input type="number" id="previewEyeValue" inputmode="decimal" min="0" max="700" step="any" aria-label="目線の高さ（地上からメートル）"><span>m</span></label><button type="button" id="previewEyePlus" aria-label="目線を0.1m上げる">＋</button></div></div><div class="numeric-ruler-track"><div id="previewEyeRuler" class="sky-map-timeline numeric-ruler" role="slider" tabindex="0" aria-label="目線の高さを横スクロールして調整"></div><span class="sky-map-timeline-center" aria-hidden="true"></span></div><p id="previewEyeError" class="tiny" role="status" hidden></p>';
+  look.after(box);el('previewEyeValue').onchange=()=>applyPreviewEyeHeight(el('previewEyeValue').value);el('previewEyeValue').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();applyPreviewEyeHeight(el('previewEyeValue').value);}};
+  for(const [id,delta]of [['previewEyeMinus',-.1],['previewEyePlus',.1]])el(id).onclick=()=>{const h=previewEyePending?.height??previewEyeValue();applyPreviewEyeHeight(Math.min(700,Math.max(0,Math.round((h+delta)*10)/10)));};
+  const rulerRoot=el('previewEyeRuler');previewEyeRuler=AstroNotesScrollTimeline.mountNumeric({root:rulerRoot,numeric:{min:0,max:700,step:.1,precision:.001,pixels:4,labelEvery:10,label:'目線の高さを横スクロールして調整'},getAt:()=>previewEyePending?.height??previewEyeValue(),getObserver:previewEyeStamp,enabled:()=>rulerRoot.isConnected&&el('previewEyeRuler')===rulerRoot&&!!previewEyeStamp(),format:v=>String(Math.round(v*10)/10),describe:v=>v+'m',onChange:applyPreviewEyeHeight});
+ }
+ const stamp=previewEyeStamp();box.hidden=!stamp;
+ if(previewEyePending&&previewEyePending.stamp!==stamp){if(previewEyeFrame)cancelAnimationFrame(previewEyeFrame);previewEyeFrame=0;previewEyePending=null;previewEyeRuler?.stop();}
+ if(!stamp){if(previewEyeFrame)cancelAnimationFrame(previewEyeFrame);previewEyeFrame=0;previewEyePending=null;previewEyeRuler?.stop();previewEyeAdjustmentStamp=null;return;}
+ const anchor=look.querySelector('.aim-lens')||look;if(box.previousElementSibling!==anchor)anchor.after(box);
+ const height=previewEyePending?.height??previewEyeValue();if(Number.isFinite(height)){
+  if(document.activeElement!==el('previewEyeValue'))el('previewEyeValue').value=String(Math.round(height*1000)/1000);
+  el('previewEyeMinus').disabled=height<=0;el('previewEyePlus').disabled=height>=700;previewEyeRuler?.sync(height,'number');
+ }
+}
+document.addEventListener('astronotes-search-state',renderPreviewEyeHeight);
+document.addEventListener('astronotes-preview-leave',()=>{if(previewEyeFrame)cancelAnimationFrame(previewEyeFrame);previewEyeFrame=0;previewEyePending=null;previewEyeAdjustmentStamp=null;previewEyeRuler?.stop();if(el('previewEyeHeightControls'))el('previewEyeHeightControls').hidden=true;});
 
 const RecordHeight=(function createRecordHeightPolicy(){
  const finite=(n,min,max)=>Number.isFinite(n)&&n>=min&&n<=max;
@@ -1315,7 +1396,7 @@ function recordHeightText(p){const r=RecordHeight.range(p?.eyeHeightRangeAGL);re
 
 // A solver belongs to one caller's job: its bounded memo must never cross owner/revision/air epochs.
 function recordHeightSolver(deps){
- return createRecordHeightCandidates({shooting:AstroNotesShooting,align:AstroNotesAlign,bodies:AstroNotesBodies,atmosphere:AstroNotesAtmosphere,astro:AstroNotesAstro,terrain:AstroNotesTerrain,scanHeights:scanRecordHeights,rangeOf:p=>RecordHeight.range(p.eyeHeightRangeAGL),isMountain:aimIsMountain,ensureModels:()=>AstroNotesAssets.ensureModels(),mountainRidge:async(obs,target)=>{const eye=obs.elevation+obs.eyeM,ridge=await aimLookRidge(obs,eye,target,{});return ridge?{ridge,cap:aimSummitCap(ridge,obs,eye,target)}:null;},...deps});
+ return createRecordHeightCandidates({shooting:AstroNotesShooting,align:AstroNotesAlign,bodies:AstroNotesBodies,atmosphere:AstroNotesAtmosphere,astro:AstroNotesAstro,terrain:AstroNotesTerrain,scanHeights:scanRecordHeights,preferHeights:preferRecordHeight,rangeOf:p=>RecordHeight.range(p.eyeHeightRangeAGL),isMountain:aimIsMountain,ensureModels:()=>AstroNotesAssets.ensureModels(),mountainRidge:async(obs,target)=>{const eye=obs.elevation+obs.eyeM,ridge=await aimLookRidge(obs,eye,target,{});return ridge?{ridge,cap:aimSummitCap(ridge,obs,eye,target)}:null;},...deps});
 }
 
 const createOpportunityScan=function createOpportunityScan({pairs,start,end,notBefore=start,solve,isCurrent,clock=Date.now,onProgress=()=>{},onDay=()=>{},yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
@@ -1531,7 +1612,7 @@ async function discoverySearch(plan,points,isCurrent,terrainCache=new Map()){
  const solver=recordHeightSolver({align:AstroNotesAlign,isMountain:aimIsMountain,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),elevationAt:async(lat,lon)=>{const key=lat+','+lon;if(!terrainCache.has(key))terrainCache.set(key,candidateElevation(lat,lon).then(value=>{if(!Number.isFinite(value))terrainCache.delete(key);return value;}));return terrainCache.get(key);},viewFor:(obs,p)=>aimShootingView(obs,p.target,p.body,p.partId,p.matchMode),ensure:b=>AstroNotesBodies.ensure(b)});return solver.candidates(plan,points,{isCurrent});
 }
 
-window.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision, opportunities, backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{version++;candidateCache.clear();changed();},selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, leaveSky, pickSky, badge, openPlace, recordFor, quickRecord, load, renderRecordsHub };
+window.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision, eyeAdjustmentFor, opportunities, backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{version++;candidateCache.clear();changed();},selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, leaveSky, pickSky, badge, openPlace, recordFor, quickRecord, load, renderRecordsHub };
 // 読み込みより先に構図が描かれていたら、ここで一覧を出す
 if (el('aimView') && !el('aimView').hidden) { try { renderAim(); } catch { /* 構図を止めない */ } }
 // A map without an observer renders synchronously, before this deferred module arrives.

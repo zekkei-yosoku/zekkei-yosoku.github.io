@@ -360,7 +360,7 @@ async function paint(force=false){
   const cv=look.querySelector('[data-look-canvas]');if(cv&&Math.round(cv.clientWidth)===look._lookW){addSaveAction(look.querySelector('.aim-figure-share'),'aim');updateConditions();message('');return;}
  }
  // 日付だけが変わったときは、前の見え方を出したまま描き直す（2026-10-22 ユーザー「ブラックアウトして全て再読み込みするのはやめて必要な箇所だけの更新で」）
- const soft=!!plan.frameBase&&plan.frameBase===baseStamp(s)&&!look.hidden&&!!look.querySelector('[data-look-canvas]');
+ const soft=!!plan.frameBase&&(plan.frameBase===baseStamp(s)||globalThis.MyPlacesUI?.eyeAdjustmentFor?.(s))&&!look.hidden&&!!look.querySelector('[data-look-canvas]');
  reserveScene();run=plan.begin(key,soft);project(s);if(soft)updateRetainedTime(s);scene.setAttribute('aria-busy','true');
  if(!soft){look.hidden=true;scene.dataset.loading='true';message('見え方を計算中…');}
   await AstroNotesAssets.ensureModels();await AstroNotesBodies.ensure(s.body);

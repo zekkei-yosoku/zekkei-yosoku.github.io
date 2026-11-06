@@ -17,6 +17,7 @@ const ready=p=>p.waitForFunction(()=>document.getElementById('recordOpportunitie
  await page.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-all.png',fullPage:true});
  if(process.env.OPPORTUNITIES_ALIGNMENT==='1')result.alignment=await require('./check-record-alignment.cjs')(page,ready,out+'/'+engine+'-'+width+'-'+theme);
  if(process.env.OPPORTUNITIES_HEIGHT==='1')result.height=await require('./check-record-height-editor.cjs')(page,ready,out+'/'+engine+'-'+width+'-'+theme);
+ if(process.env.OPPORTUNITIES_FIT==='1')result.fit=await require('./check-record-height-preference.cjs')(page,ready,out+'/'+engine+'-'+width+'-'+theme);
  if(process.env.OPPORTUNITIES_RANGE==='1')result.range=await require('./check-record-height-range.cjs')(page,ready,out+'/'+engine+'-'+width+'-'+theme);
  result.multi=await require('./check-record-opportunity-multiselect.cjs')(page,ready,out+'/'+engine+'-'+width+'-'+theme);
  await page.locator('#notebookPointsTab').click();await page.locator('[data-notebook-place="p1"]').waitFor({state:'visible'});await page.locator('[data-notebook-place="p1"]').locator('..').locator('.journey-place-find').click();await ready(page);assert.equal(await page.locator('#recordOpportunityPlace').getAttribute('data-values'),'["p1"]');assert.equal(await page.locator('#myPlaceSheet[open]').count(),0,'place shortcut opens the shared tab without a planning sheet');assert(!(await page.locator('#recordOpportunityList').innerText()).includes('別の保存地点'));

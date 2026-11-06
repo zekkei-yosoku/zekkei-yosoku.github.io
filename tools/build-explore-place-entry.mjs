@@ -29,6 +29,7 @@ export function explorePlaceSource(path,source){
   source=patch(source,'if(!active())return;updateConditions();let s;','if(!active())return;updateConditions();if(!resultRequested)return;let s;');
   source=source.replaceAll('!plan.current(run)||!active()', '!plan.current(run)||!resultActive()');
   source=patch(source,'&&active()){invalidate();look.hidden=true;', '&&resultActive()){invalidate();look.hidden=true;');
+  source=patch(source,"const soft=!!plan.frameBase&&plan.frameBase===baseStamp(s)&&!look.hidden","const soft=!!plan.frameBase&&(plan.frameBase===baseStamp(s)||globalThis.MyPlacesUI?.eyeAdjustmentFor?.(s))&&!look.hidden");
   source=patch(source,'if(run&&plan.settle(run)){','if(run&&plan.settle(run)&&resultActive()){');
   source=patch(source,"if(host!==look||!active()||mode!=='scene'", "if(host!==look||!resultActive()||mode!=='scene'");
   source=patch(source,"if(!active()||mode!=='scene'||!canFrame(s)","if(!resultActive()||mode!=='scene'||!canFrame(s)");
@@ -38,6 +39,12 @@ export function explorePlaceSource(path,source){
  return source;
 }
 export function explorePlaceHtml(html){
+ // Complete both picker pages in the SAME turn. Closing the outer picker before
+ // awaiting selectPointAt's return would schedule two history.go calls and leave
+ // Explore altogether. Guard the request first, then close top map + parent.
+ html=patch(html,'  if (options.isCurrent && !options.isCurrent()) return;\n  choosePlace({ id:', '  if (options.isCurrent && !options.isCurrent()) return;\n  if (options.closeMap) $("mapSheet").close();\n  choosePlace({ id:');
+ html=patch(html,'  const keepSheet = $("placeSheet").open && !!(placeSheetFor && PLACE_PICKERS[placeSheetFor]);\n  await selectPointAt(c.latitude, c.longitude, "地図で選んだ地点", { keepSheet, isCurrent:', '  await selectPointAt(c.latitude, c.longitude, "地図で選んだ地点", { closeMap: true, isCurrent:');
+ html=patch(html,'setObserver:p=>PLACE_PICKERS.skymap.set(p),setTarget:id=>',"setObserver:p=>PLACE_PICKERS.skymap.set(p),setEyeHeight:value=>{if(!hasAccess()||!active()||!session?.observer||!Number.isFinite(value)||value<0||value>700)return false;changeObserverHeight({standAglM:value});return true;},setTarget:id=>");
  // Reuse the existing datetime bar. Only the trial search adapter receives
  // semantic day-change/settle notifications; the common bar owns its DOM.
  html=patch(html,' function setTime(at,preservePlayback=false){',` function notifyCandidateDate(changed,settled=true){

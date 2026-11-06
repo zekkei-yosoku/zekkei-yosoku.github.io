@@ -9,7 +9,7 @@ export function createRecordHeightCandidates(deps){
  const DAY=86400000,RAD=Math.PI/180,DEG=180/Math.PI,MOON_KM=300000,EARTH_KM=6371.0088;
  const lru=n=>{const m=new Map();return {get(k){if(!m.has(k))return undefined;const v=m.get(k);m.delete(k);m.set(k,v);return v;},set(k,v){m.delete(k);m.set(k,v);while(m.size>n)m.delete(m.keys().next().value);return v;},delete(k){m.delete(k);},get size(){return m.size;}};};
  const views=lru(LIM.views),evals=lru(LIM.evaluations),regions=lru(LIM.regions),states=lru(LIM.states);
- const stats={realEvaluations:0,verifications:0,certificates:0,leafTests:0,bodyStates:0};
+ const stats={realEvaluations:0,verifications:0,certificates:0,geometryBuilds:0,leafTests:0,bodyStates:0};
  const unit=(az,alt)=>{const a=az*RAD,h=alt*RAD;return [Math.cos(h)*Math.sin(a),Math.cos(h)*Math.cos(a),Math.sin(h)];};
  const angle=(u,v)=>{const c=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]];return Math.atan2(Math.hypot(c[0],c[1],c[2]),u[0]*v[0]+u[1]*v[1]+u[2]*v[2])*DEG;};
  const altOf=u=>Math.asin(Math.max(-1,Math.min(1,u[2])))*DEG,azOf=u=>(Math.atan2(u[0],u[1])*DEG+360)%360;
@@ -24,9 +24,8 @@ export function createRecordHeightCandidates(deps){
   return obs;
  }
  const viewOf=(obs,p)=>{
-  if(!viewFor)return Promise.resolve(null);
   const k=JSON.stringify([obs,p.target,p.body,p.partId,p.limb,p.matchMode??null,atmosphere.dataKey?.()??null]);let v=views.get(k);
-  if(!v){v=Promise.resolve().then(()=>viewFor(obs,p)).catch(e=>{views.delete(k);throw e;});views.set(k,v);}
+  if(!v){v=Promise.resolve().then(async()=>{const prepared=viewFor?await viewFor(obs,p):null;if(prepared)return prepared;const o=shooting.searchOptions(p,isMountain);return o.broad&&o.disc||o.partId==='__whole'&&!isMountain(p.target)?align.prepareDailyView(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM}):null;}).catch(e=>{views.delete(k);throw e;});views.set(k,v);}
   return v;
  };
  const closeness=(ctx,e)=>ctx.family==='overlap'?(Number.isFinite(e.distanceToTarget)?e.distanceToTarget-(e.radius||0):Infinity):(Number.isFinite(e.gap)?Math.abs(e.gap)-Math.max(1/60,.2*(e.radius||0)):Infinity);
@@ -56,8 +55,8 @@ export function createRecordHeightCandidates(deps){
  }
  const geoUnit=p=>unit(p.longitude,p.latitude);
  async function regionOf(ctx,a,b){
-  const k=ctx.key+'|'+a+'|'+b;let r=regions.get(k);if(r!==undefined)return r;
-  r=(async()=>{
+  const k=ctx.geometryKey+'|'+a+'|'+b;let r=regions.get(k);if(r!==undefined)return r;
+  stats.geometryBuilds++;r=(async()=>{
    const oa=observer(ctx,a),ob=observer(ctx,b),t=ctx.p.target;
    if(ctx.family==='gap'){
     const ths=[],azs=[];
@@ -190,16 +189,28 @@ export function createRecordHeightCandidates(deps){
   const out=[];for(const l of [...list].sort((x,y)=>x.t1-y.t1)){const w=out[out.length-1];if(w&&l.t1-w.to<=LIM.mergeMs){w.to=Math.max(w.to,l.t2);w.leaves.push(l);}else out.push({from:l.t1,to:l.t2,leaves:[l]});}
   return out;
  }
+ // Whole-object fit uses the normal view's visual vertical centre; named parts
+ // use the existing apparent limb gap. Feasibility is still the original match.
+ async function fitResidual(ctx,result,accept){
+  const matched=result.rows.filter(accept).map(r=>r.event),events=matched.length?matched:result.events.filter(e=>accept({event:e}));
+  let center=null;if(ctx.family==='overlap'){const obs=observer(ctx,result.height);center=isMountain(ctx.p.target)?align.geometryFrom(obs,ctx.p.target,{partId:ctx.o.partId,eyeM:obs.eyeM})?.angle:(await viewOf(obs,ctx.p))?.heightGeometry?.centerAlt;}
+  const values=events.map(e=>ctx.family==='overlap'?Number.isFinite(center)&&Number.isFinite(e.altitude)?e.altitude-center:null:Number.isFinite(e.gap)?e.gap:null).filter(Number.isFinite);
+  return values.length?values.reduce((a,b)=>Math.abs(a)<=Math.abs(b)?a:b):null;
+ }
  // A range returns verified representative heights for distinct possible time windows. Fixed mode is unchanged.
  async function solveMember(ctx,dayLeaves,issues,ctl){
   const rows=[],windows=windowsOf(dayLeaves),single=groupOf([ctx]);let checked=0;
   for(const w of windows){
    const accept=r=>r.event.at>=w.from&&r.event.at<=w.to;
-   const evaluate=async h=>{await yieldTask();if(!ctl.isCurrent())throw cancelled();const x=await real(ctx,h),inside=x.events.filter(e=>e.at>=w.from&&e.at<=w.to);return {rows:x.rows.filter(accept),score:Math.min(Infinity,...inside.map(e=>closeness(ctx,e))),height:h};};
+   const evaluate=async h=>{await yieldTask();if(!ctl.isCurrent())throw cancelled();const x=await real(ctx,h),inside=x.events.filter(e=>e.at>=w.from&&e.at<=w.to);return {rows:x.rows.filter(accept),score:Math.min(Infinity,...inside.map(e=>closeness(ctx,e))),height:h,residual:await fitResidual(ctx,x,accept)};};
    const mayOverlap=async(lo,hi)=>(await leaves(single,lo,hi,w.from,w.to,ctl)).length?null:false;
    try{
     const res=await scanHeights({min:ctx.range.min,max:ctx.range.max,evaluate,mayOverlap,isCurrent:ctl.isCurrent,limit:LIM.heights});checked+=res.checked||0;
-    if(res.rows?.length){const v=await verify(ctx,res.height,accept);if(v.length)rows.push(...v);else issues.push({id:ctx.id,reason:'height-verify',at:w.from});}
+    if(res.rows?.length){
+     let fit=deps.preferHeights?await deps.preferHeights({min:ctx.range.min,max:ctx.range.max,seed:res,evaluate,isCurrent:ctl.isCurrent,clock,deadline:clock()+6000}):res;
+     let v=await verify(ctx,fit.height,accept);if(!v.length&&fit.height!==res.height){fit=res;v=await verify(ctx,res.height,accept);}
+     if(v.length)rows.push(...v.map(row=>({...row,heightSearch:{...row.heightSearch,fit:fit.fit||'candidate',residualDeg:fit.residual??null,preferenceChecked:fit.fitChecked??0,preferenceIncomplete:!!fit.fitIncomplete}})));else issues.push({id:ctx.id,reason:'height-verify',at:w.from});
+    }
     else if(res.failed)issues.push({id:ctx.id,reason:'height-limit',from:w.from,to:w.to});
    }catch(error){if(!['height-limit','shape-limit'].includes(error.message))throw error;issues.push({id:ctx.id,reason:error.message==='shape-limit'?'limit':'height-limit'});break;}
   }
@@ -208,8 +219,10 @@ export function createRecordHeightCandidates(deps){
  }
  function makeCtx(base,entry,place,ground,shape){
   const p=base.p;
-  return {...base,entry,place,ground,shape,id:entry.place.id,heights:new Set(),
-   key:JSON.stringify([entry.place.id,place.latitude,place.longitude,ground,p.body,p.target,p.partId,p.limb,p.matchMode??null,base.start,atmosphere.dataKey?.()??null])};
+  // Prepared target geometry is independent of the day; event evaluations are not.
+  // This memo remains private to one owner/revision/atmosphere job.
+  const geometryKey=JSON.stringify([entry.place.id,place.latitude,place.longitude,ground,p.body,p.target,p.partId,p.limb,p.matchMode??null,atmosphere.dataKey?.()??null]);
+  return {...base,entry,place,ground,shape,id:entry.place.id,heights:new Set(),geometryKey,key:geometryKey+'|'+base.start};
  }
  async function solvePoint(base,entry,range,ctl){
   const f=entry.place,ground=Number.isFinite(f.groundManualM)?f.groundManualM:Number.isFinite(f.elevation)?f.elevation:await elevationAt(f.latitude,f.longitude);
@@ -223,21 +236,28 @@ export function createRecordHeightCandidates(deps){
  // No negative certificate is inferred from sampled positions. An unsearched height band stays incomplete.
  async function solveShape(base,entry,range,ctl){
   if(!shooting.cleanShape(entry.place.shape))throw Error('shape-invalid');
-  const deadline=clock()+LIM.shapeMs,issues=[];let checked=0;
+  const deadline=clock()+LIM.shapeMs,issues=[],memo=new Map();let checked=0,bestRows=[];
   const evaluate=async height=>{
-   if(clock()>deadline)throw Error('shape-limit');
+   if(memo.has(height))return memo.get(height);if(clock()>deadline)throw Error('shape-limit');
    const place={...entry.place,eyeHeightAGL:height,standAglM:height,stand:'ground'};
    const result=await shooting.candidates(base.plan,[{place,record:entry.record}],{align,isMountain,observerAt,elevationAt,ensure,viewFor:viewOf,isCurrent:ctl.isCurrent});
    if(result.cancelled||!ctl.isCurrent())throw cancelled();
    stats.realEvaluations++;checked+=result.checked||0;
    if(result.failed)issues.push(...(result.issues||[{id:entry.place.id,reason:'calculation'}]));
-   return {rows:result.rows.map(row=>({...row,heightSearch:{min:range.min,max:range.max,height}})),height,score:Infinity};
+   const rows=result.rows.map(row=>({...row,heightSearch:{min:range.min,max:range.max,height}})),values=[];
+   for(const row of rows){
+    const e=row.event,g=row.place.groundManualM??row.place.elevation,obs=row.assumedObserver||observerAt(row.place,g),view=await viewOf(obs,base.p),center=isMountain(base.p.target)?align.geometryFrom(obs,base.p.target,{partId:base.o.partId,eyeM:obs.eyeM})?.angle:view?.heightGeometry?.centerAlt;
+    const residual=base.family==='overlap'?Number.isFinite(center)&&Number.isFinite(e.altitude)?e.altitude-center:null:Number.isFinite(e.gap)?e.gap:null;
+    row.heightSearch.residualDeg=residual;if(Number.isFinite(residual))values.push(residual);
+   }
+   const value={rows,height,score:Infinity,residual:values.length?values.reduce((a,b)=>Math.abs(a)<=Math.abs(b)?a:b):null};memo.set(height,value);return value;
   };
   try{
-   const result=await scanHeights({min:range.min,max:range.max,evaluate,isCurrent:ctl.isCurrent,limit:LIM.heights});
+   let result=await scanHeights({min:range.min,max:range.max,evaluate,isCurrent:ctl.isCurrent,limit:LIM.heights});bestRows=result.rows;
+   if(result.rows?.length&&deps.preferHeights){result=await deps.preferHeights({min:range.min,max:range.max,seed:result,evaluate,isCurrent:ctl.isCurrent,clock,deadline});bestRows=result.rows;}
    if(result.failed)issues.push({id:entry.place.id,reason:'height-limit'});
-   return {rows:result.rows,checked,issues};
-  }catch(e){if(e.message!=='shape-limit')throw e;return {rows:[],checked,issues:[...issues,{id:entry.place.id,reason:'limit'}]};}
+   return {rows:bestRows.map(row=>({...row,heightSearch:{...row.heightSearch,fit:Number.isFinite(row.heightSearch.residualDeg)&&Math.abs(row.heightSearch.residualDeg)<=.01?'centered':result.fit==='range-edge'?'range-edge':'candidate',preferenceChecked:result.fitChecked??0,preferenceIncomplete:!!result.fitIncomplete}})),checked,issues};
+  }catch(e){if(e.message!=='shape-limit')throw e;return {rows:bestRows,checked,issues:[...issues,{id:entry.place.id,reason:'limit'}]};}
  }
  async function candidates(plan,entries,{isCurrent=()=>true,onProgress=()=>{}}={}){
   const fixed=[],ranged=[],invalid=[];

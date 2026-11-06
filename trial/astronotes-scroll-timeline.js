@@ -20,7 +20,12 @@ function solarPhase(at,observer,sun){
  if(h < -6)return 'night';if(h >= 6)return 'day';
  return sun(at+60000,observer).geometricAltitude>=sun(at-60000,observer).geometricAltitude?'morning':'evening';
 }
-function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onBlend=()=>{},format,describe=format,getObserver=()=>null,sun=()=>null}){
+function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onBlend=()=>{},format,describe=format,getObserver=()=>null,sun=()=>null,numeric=null}){
+ const clamp=v=>numeric?Math.max(numeric.min,Math.min(numeric.max,v)):v;
+ const rounded=v=>numeric?Number((Math.round(clamp(v)/(numeric.precision||numeric.step))*(numeric.precision||numeric.step)).toFixed(6)):v;
+ const ariaValue=v=>numeric?.ariaValue?numeric.ariaValue(v):v;
+ const rulerScale=mode=>numeric?{step:numeric.step,pixels:numeric.pixels,labelEvery:numeric.labelEvery}:scale(mode);
+ const rulerAdvance=(at,pixels,mode)=>numeric?numeric.snap?clamp(numeric.snap(at+pixels/numeric.pixels*numeric.step)):rounded(Math.round((at+pixels/numeric.pixels*numeric.step)/numeric.step)*numeric.step):advance(at,pixels,mode);
  const tape=document.createElement('div');tape.className='sky-timeline-tape';root.replaceChildren(tape);
  let blend=null,snapFrame=0,snapTarget=null,anchor=null,mode=null,lastAt=null,width=0,moving=false,pressed=false,touching=false,frame=0,timer=0,generation=0,blocked=true,mouse=null,context='',colorCache=new Map(),lastTouchMove=0,glideFrame=0,velocity=0,lastScroll=null,inputKind='';
  const label=at=>format(at,mode);
@@ -31,23 +36,24 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
  // 本当の時刻で日と日の間を動かすと、天体が1日分まわってしまうため
  const sameBlend=(a,b)=>a===b||!!a&&!!b&&a.from===b.from&&a.to===b.to&&a.f===b.f;
  const setBlend=next=>{if(sameBlend(next,blend))return;blend=next;onBlend(next);};
- const emit=()=>{const offset=root.scrollLeft-EXTENT,s=scale(mode),units=offset/s.pixels,at=mode!=='date'?Math.round(anchor+units*s.step):advance(anchor,offset,mode),changed=at!==lastAt;
-  if(changed){lastAt=at;root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(at));onChange(at);}
+ const emit=()=>{const offset=root.scrollLeft-EXTENT,s=rulerScale(mode),units=offset/s.pixels,at=numeric?rounded(anchor+units*s.step):mode!=='date'?Math.round(anchor+units*s.step):rulerAdvance(anchor,offset,mode),changed=at!==lastAt;
+  if(changed){lastAt=at;root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(ariaValue(at)));onChange(at);}
   if(mode==='date'){const k=Math.floor(units),f=Math.round((units-k)*1000)/1000;setBlend(f>0&&f<1?{from:anchor+k*s.step,to:anchor+(k+1)*s.step,f}:null);}
   return changed;};
- const flush=()=>{frame=0;if(!enabled()||!Number.isFinite(anchor))return;if(emit()&&Math.abs(root.scrollLeft-EXTENT)>=EXTENT/2)rebase();};
+ const flush=()=>{frame=0;if(!enabled()||!Number.isFinite(anchor))return;if(numeric){const s=rulerScale(mode),raw=anchor+(root.scrollLeft-EXTENT)/s.pixels*s.step,bounded=clamp(raw);if(raw!==bounded)root.scrollLeft=EXTENT+(bounded-anchor)/s.step*s.pixels;}if(emit()&&Math.abs(root.scrollLeft-EXTENT)>=EXTENT/2)rebase();};
  function reset(at,nextMode){
   cancelGlide();cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;generation++;cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;blocked=true;anchor=lastAt=at;mode=nextMode;width=root.clientWidth;const nextContext=JSON.stringify(getObserver());if(context!==nextContext){colorCache.clear();context=nextContext;}
-  const s=scale(mode),origin=EXTENT+width/2,ordinal=Math.floor((at+(mode==='date'?OFFSET:0))/s.step),fraction=mode!=='date'?at/s.step-Math.floor(at/s.step):0,tickOrigin=origin-fraction*s.pixels,nodes=[];
+  const s=rulerScale(mode),origin=EXTENT+width/2,ordinal=Math.floor((at+(mode==='date'?OFFSET:0))/s.step),fraction=mode!=='date'?at/s.step-Math.floor(at/s.step):0,tickOrigin=origin-fraction*s.pixels,nodes=[];
   tape.style.transform='';tape.style.width=(EXTENT*2+width)+'px';tape.style.setProperty('--timeline-unit',s.pixels+'px');tape.style.backgroundPositionX=tickOrigin+'px';
-  for(let u=-Math.ceil(EXTENT/s.pixels);u<=Math.ceil(EXTENT/s.pixels);u++)if(((ordinal+u)%s.labelEvery+s.labelEvery)%s.labelEvery===0){const tick=document.createElement('span');tick.className='sky-timeline-label';tick.style.left=(tickOrigin+u*s.pixels)+'px';tick.textContent=label(at+(u-fraction)*s.step);nodes.push(tick);}
+  for(let u=-Math.ceil(EXTENT/s.pixels);u<=Math.ceil(EXTENT/s.pixels);u++)if(!numeric?.ticks&&((ordinal+u)%s.labelEvery+s.labelEvery)%s.labelEvery===0&&(!numeric||(at+(u-fraction)*s.step>=numeric.min-1e-8&&at+(u-fraction)*s.step<=numeric.max+1e-8))){const tick=document.createElement('span');tick.className='sky-timeline-label';tick.style.left=(tickOrigin+u*s.pixels)+'px';tick.textContent=label(at+(u-fraction)*s.step);nodes.push(tick);}
+  if(numeric?.ticks)for(const t of numeric.ticks){const x=origin+(t.value-at)/s.step*s.pixels;if(x<0||x>EXTENT*2+width)continue;const tick=document.createElement('span');tick.className='sky-timeline-label';tick.style.left=x+'px';tick.textContent=t.label;nodes.push(tick);}
   if(mode!=='date'){
    const stops=[],tickTime=mode==='hour'?1800000:300000,toPixel=t=>origin+(t-at)/s.step*s.pixels,first=Math.floor((at-origin/s.pixels*s.step)/tickTime)*tickTime;for(let t=first;toPixel(t)<=EXTENT*2+width+tickTime/s.step*s.pixels;t+=tickTime){const rgb=color(t);if(rgb)stops.push('rgb('+rgb.join(',')+') '+toPixel(t)+'px');}
    tape.style.backgroundImage=stops.length?'repeating-linear-gradient(to right,rgba(0,0,0,.25) 0 1px,rgba(255,255,255,.28) 1px 2px,transparent 2px var(--timeline-unit)),linear-gradient(to right,'+stops.join(',')+')':'';
    tape.style.backgroundSize='var(--timeline-unit) 8px,100% 100%';tape.style.backgroundPosition=tickOrigin+'px 5px,0 0';
    for(const tick of nodes){const atTick=at+(parseFloat(tick.style.left)-origin)/s.pixels*s.step,rgb=color(atTick);if(rgb)tick.style.color=skyInk(rgb);}
   }else{tape.style.backgroundImage='';tape.style.backgroundSize='';tape.style.backgroundPosition=origin+'px 5px';}
-  tape.replaceChildren(...nodes);root.dataset.mode=mode;root.setAttribute('aria-label',mode==='date'?'日付を横スクロールして調整':'時刻を横スクロールして調整');root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(at));root.setAttribute('aria-valuemin',String(Date.UTC(100,0,1)-OFFSET));root.setAttribute('aria-valuemax',String(Date.UTC(10000,0,1)-OFFSET-1));root.scrollLeft=EXTENT;
+  tape.replaceChildren(...nodes);root.dataset.mode=mode;root.setAttribute('aria-label',numeric?numeric.label:mode==='date'?'日付を横スクロールして調整':'時刻を横スクロールして調整');root.setAttribute('aria-valuetext',describe(at,mode));root.setAttribute('aria-valuenow',String(ariaValue(at)));root.setAttribute('aria-valuemin',String(numeric?ariaValue(numeric.min):Date.UTC(100,0,1)-OFFSET));root.setAttribute('aria-valuemax',String(numeric?ariaValue(numeric.max):Date.UTC(10000,0,1)-OFFSET-1));root.scrollLeft=EXTENT;
  }
  const now=()=>typeof performance==='undefined'?Date.now():performance.now();
  function cancelGlide(){cancelAnimationFrame(glideFrame);glideFrame=0;}
@@ -57,7 +63,7 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
   glideFrame=requestAnimationFrame(step);
  }
  function rebase(){
-  const offset=root.scrollLeft-EXTENT,s=scale(mode),shift=Math.trunc(offset/s.pixels)*s.pixels;
+  const offset=root.scrollLeft-EXTENT,s=rulerScale(mode),shift=Math.trunc(offset/s.pixels)*s.pixels;
   if(!shift)return;
   const carry=!pressed&&inputKind==='touch'?velocity:0,keep={moving,pressed,touching,blocked,mouse},at=anchor+shift/s.pixels*s.step,current=lastAt;
   reset(at,mode);lastAt=current;moving=keep.moving;pressed=keep.pressed;touching=keep.touching;blocked=keep.blocked;mouse=keep.mouse;if(mouse)mouse.left-=shift;
@@ -75,7 +81,7 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
  // 止めたら目盛り（1分・1日）へ寄せる。寄せる間も途中を渡し、指を離した瞬間に跳ばせない
  function done(target){setBlend(null);lastAt=target;onChange(target);reset(target,mode);onSettle(target);}
  function finish(){
-  clearTimeout(timer);timer=0;root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';flush();cancelGlide();clearTimeout(timer);timer=0;const s=scale(mode),target=advance(anchor,root.scrollLeft-EXTENT,mode),startLeft=root.scrollLeft,endLeft=EXTENT+(target-anchor)/s.step*s.pixels;
+  clearTimeout(timer);timer=0;root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';flush();cancelGlide();clearTimeout(timer);timer=0;const s=rulerScale(mode),target=rulerAdvance(anchor,root.scrollLeft-EXTENT,mode),startLeft=root.scrollLeft,endLeft=EXTENT+(target-anchor)/s.step*s.pixels;
   if(!Number.isFinite(lastAt)||Math.abs(startLeft-endLeft)<.01){done(target);return;}
   const begin=now();blocked=true;moving=true;snapTarget=target;
   const step=()=>{snapFrame=0;if(!enabled()){stop();return;}const t=Math.min(1,(now()-begin)/160),e=1-(1-t)**3;if(t>=1){done(target);return;}root.scrollLeft=startLeft+(endLeft-startLeft)*e;emit();snapFrame=requestAnimationFrame(step);};
@@ -90,19 +96,19 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
  root.addEventListener('pointermove',e=>{if(mouse&&enabled())root.scrollLeft=mouse.left+mouse.x-e.clientX;});
  root.addEventListener('wheel',e=>{if(!activate('wheel'))return;if(!e.deltaX&&e.deltaY){e.preventDefault();root.scrollLeft+=e.deltaY;}},{passive:false});
  for(const event of ['pointerup','pointercancel','lostpointercapture'])root.addEventListener(event,()=>{if(!touching)pressed=false;mouse=null;},{passive:true});
- root.addEventListener('keydown',e=>{const dir={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1,PageUp:-1,PageDown:1}[e.key];if(!dir||!enabled())return;e.preventDefault();const large=e.shiftKey||e.key.startsWith('Page'),delta=(mode==='date'?DAY:mode==='hour'?3600000:MINUTE)*(large?(mode==='date'?7:mode==='hour'?6:15):1),at=getAt()+dir*delta;stop();reset(at,mode);onChange(at);onSettle(at);});
+ root.addEventListener('keydown',e=>{const dir={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1,PageUp:-1,PageDown:1}[e.key];if(!dir||!enabled())return;e.preventDefault();const large=e.shiftKey||e.key.startsWith('Page'),delta=numeric?numeric.step*(large?10:1):(mode==='date'?DAY:mode==='hour'?3600000:MINUTE)*(large?(mode==='date'?7:mode==='hour'?6:15):1),at=rounded(getAt()+dir*delta);stop();reset(at,mode);onChange(at);onSettle(at);});
  function stop(){setBlend(null);cancelGlide();cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;velocity=0;lastScroll=null;generation++;cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;pressed=false;touching=false;mouse=null;blocked=true;anchor=null;}
  // 2026-10-20 ユーザー「日付をばーっと動かしてるときに今日を押しても止まらず動き続ける」：外から日時を替えるときは、指を離したあとの慣性スクロールも止める
  const halt=()=>{if(!(moving||glideFrame||Math.abs(root.scrollLeft-EXTENT)>=.1))return;root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';};
  const controller={follow(at,nextMode){
   if(!enabled()||!Number.isFinite(at))return;
   const changed=mode!==nextMode||width!==root.clientWidth||context!==JSON.stringify(getObserver());
-  if(!Number.isFinite(anchor)||changed||moving||pressed||touching||Math.abs((at-anchor)/scale(nextMode).step*scale(nextMode).pixels)>512){halt();stop();reset(at,nextMode);}
-  const offset=(at-anchor)/scale(mode).step*scale(mode).pixels;
+  if(!Number.isFinite(anchor)||changed||moving||pressed||touching||Math.abs((at-anchor)/rulerScale(nextMode).step*rulerScale(nextMode).pixels)>512){halt();stop();reset(at,nextMode);}
+  const offset=(at-anchor)/rulerScale(mode).step*rulerScale(mode).pixels;
   tape.style.transform='translateX('+(-offset)+'px)';lastAt=at;
-  const text=describe(at,mode);if(root.getAttribute('aria-valuetext')!==text)root.setAttribute('aria-valuetext',text);root.setAttribute('aria-valuenow',String(at));
- },sync(at,nextMode){if(!enabled()){stop();return;}if(!Number.isFinite(at))return;if((moving||pressed||touching)&&mode===nextMode&&at===lastAt&&width===root.clientWidth&&context===JSON.stringify(getObserver()))return;if(!tape.style.transform&&at===anchor&&nextMode===mode&&width===root.clientWidth&&Math.abs(root.scrollLeft-EXTENT)<.1&&context===JSON.stringify(getObserver()))return;halt();stop();reset(at,nextMode);},stop};
- if(typeof ResizeObserver==='function')new ResizeObserver(()=>{if(enabled())controller.sync(getAt(),getMode());else stop();}).observe(root);
+  const text=describe(at,mode);if(root.getAttribute('aria-valuetext')!==text)root.setAttribute('aria-valuetext',text);root.setAttribute('aria-valuenow',String(ariaValue(at)));
+ },sync(at,nextMode){if(!enabled()){stop();return;}if(!Number.isFinite(at))return;if((moving||pressed||touching)&&mode===nextMode&&(at===lastAt||numeric&&Math.abs(at-lastAt)<(numeric.syncTolerance||0))&&width===root.clientWidth&&context===JSON.stringify(getObserver()))return;if(!tape.style.transform&&at===anchor&&nextMode===mode&&width===root.clientWidth&&Math.abs(root.scrollLeft-EXTENT)<.1&&context===JSON.stringify(getObserver()))return;halt();stop();reset(at,nextMode);},stop};
+ const observer=typeof ResizeObserver==='function'?new ResizeObserver(()=>{if(enabled())controller.sync(getAt(),getMode());else stop();}):null;observer?.observe(root);controller.destroy=()=>{stop();observer?.disconnect();};
  return controller;
 }
 const api={scale,advance,mount,solarPhase,skyColor,skyInk};g.AstroNotesScrollTimeline=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
@@ -110,3 +116,21 @@ const api={scale,advance,mount,solarPhase,skyColor,skyInk};g.AstroNotesScrollTim
 
 /* Legacy global names remain aliases for cached integrations. */
 if(typeof AstroNotesScrollTimeline!=='undefined')globalThis.SoramiScrollTimeline=AstroNotesScrollTimeline;
+
+;(function(g){
+ const api=g.AstroNotesScrollTimeline;
+ api.mountNumeric=options=>api.mount({...options,getMode:()=> 'number'});
+ api.mountFocal=(look,owner)=>{
+  const input=look.querySelector('[data-lens-focal]'),range=look.querySelector('[data-focal-range]');if(!input||!range)return;
+  let state=look._numericFocal;
+  if(state&&(!state.root.isConnected||state.range!==range||state.owner!==owner())){look._numericFocalMoving=false;state.controller.destroy();state.root.parentElement?.remove();state=null;}
+  if(!state){
+   const wrap=document.createElement('div');wrap.className='numeric-ruler-track numeric-focal';const root=document.createElement('div');root.className='sky-map-timeline numeric-ruler';root.tabIndex=0;root.setAttribute('role','slider');const center=document.createElement('span');center.className='sky-map-timeline-center';center.setAttribute('aria-hidden','true');wrap.append(root,center);range.before(wrap);range.hidden=true;
+   state={root,range,owner:owner(),controller:null};look._numericFocal=state;
+   const current=()=>root.isConnected&&look._numericFocal===state&&owner()===state.owner&&!!look.getClientRects().length;
+   const focal=v=>Math.round(Math.exp(v)*10)/10,ticks=[8,10,12,14,16,20,24,28,35,40,50,60,70,85,100,120,135,150,180,200,250,300,400,500,600,800,1000,1200,1600,2000].map(mm=>({value:Math.log(mm),label:String(mm)}));
+   state.controller=api.mountNumeric({root,numeric:{min:Math.log(8),max:Math.log(2000),step:.01,precision:.0001,pixels:8,labelEvery:10,ticks,syncTolerance:.01,ariaValue:focal,snap:v=>Math.log(focal(v)),label:'焦点距離を横スクロールして調整'},getAt:()=>Math.log(Number(input.value)),enabled:current,format:v=>String(focal(v)),describe:v=>focal(v)+'mm',onChange:value=>{if(!current())return;look._numericFocalMoving=true;input.value=String(focal(value));input.onchange?.();},onSettle:()=>{look._numericFocalMoving=false;if(current())input.onchange?.();}});
+  }
+  range.hidden=true;state.controller.sync(Math.log(Number(input.value)),'number');
+ };
+})(typeof window==='undefined'?globalThis:window);

@@ -1,5 +1,6 @@
 import {createRecordHeightCandidates} from './record-height-candidates.mjs';
 import {scanRecordHeights} from './record-height-scan.mjs';
+import {preferRecordHeight} from './record-height-preference.mjs';
 import {readFileSync} from 'node:fs';
 import {createRecordHeightPolicy} from './record-height-policy.mjs';
 const patch=(s,a,b)=>{if(s.split(a).length!==2)throw Error('Record height boundary changed: '+a.slice(0,100));return s.replace(a,b);};
@@ -24,7 +25,7 @@ const style=String.raw`
 `;
 export function recordHeightMyplaces(s){
  const runtime=readFileSync(new URL('./record-height-editor-runtime.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./record-height-runtime.js',import.meta.url),'utf8');
- s=patch(s,'const createOpportunityScan=','const createRecordHeightCandidates='+createRecordHeightCandidates.toString()+';\nconst scanRecordHeights='+scanRecordHeights.toString()+';\nconst RecordHeight=('+createRecordHeightPolicy.toString()+')();\n'+runtime+'\nconst createOpportunityScan=');
+ s=patch(s,'const createOpportunityScan=','const createRecordHeightCandidates='+createRecordHeightCandidates.toString()+';\nconst scanRecordHeights='+scanRecordHeights.toString()+';\nconst preferRecordHeight='+preferRecordHeight.toString()+';\nconst RecordHeight=('+createRecordHeightPolicy.toString()+')();\n'+runtime+'\nconst createOpportunityScan=');
  s=patch(s,'document.body.append(sheet);','document.body.append(sheet);buildRecordHeight();');
  s=patch(s,'function renderSheet() {','function renderSheet() {\n  renderRecordHeight();');
  s=patch(s,"const draftChanged=()=>!!sheetState&&(","const draftChanged=()=>!!sheetState&&(recordHeightDirty()||");
