@@ -11,7 +11,7 @@ export function explorePlaceSource(path,source){
   const heading=node('div',{className:'explore-search-intro'});heading.append(node('h2',{id:'exploreSearchHeading',className:'explore-section-title'},'撮影条件'),node('p',{className:'tiny'},'天体と目標物を選んで、撮影できる場所を探す。'));fields.append(heading);
   fields.append(controls,observer,alignment,node('div',{id:'candidateWorkspaceAction'}));
   conditions.append(fields);`);
-  source=patch(source,'fields.append(confirm);',"fields.querySelector('#candidateWorkspaceAction').append(confirm);");
+  source=patch(source,'fields.append(confirm);','fields.insertBefore(confirm,alignment);');
  }
  if(path.endsWith('/features/explore/controller.js')){
   source=patch(source,'const layout=AstroNotesExploreLayout.create(',candidateWorkspaceSource+'\nconst layout=AstroNotesExploreLayout.create(');

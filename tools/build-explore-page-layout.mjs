@@ -40,7 +40,7 @@ ${root} #candidateSearchAction,${root} .explore-show-result{width:100%;min-heigh
 ${root} #candidateSearchAction{background:var(--accent);color:var(--on-accent);border:1px solid var(--accent)}
 ${root} #candidateSearchAction:disabled{opacity:.5;cursor:not-allowed}
 ${root} #candidateSearchAction[data-state="searching"]{background:var(--card);color:var(--accent);border-color:var(--accent)}
-${root} .explore-show-result{background:transparent;color:var(--accent);border:1px solid var(--line)}
+${root} .explore-show-result{width:calc(100% - 90px);margin-left:90px;background:transparent;color:var(--accent);border:1px solid var(--line)}
 ${root} #exploreSearchResults{width:100%;max-width:none;margin:16px 0 0;padding:16px 0 0;border-top:1px solid var(--line)}
 ${root} .explore-results-heading{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 12px;margin:0 0 12px}
 ${root} .explore-results-heading>.tiny{font-size:.69rem;color:var(--secondary)}
@@ -70,7 +70,7 @@ ${root} :is(button,summary,select):focus-visible{outline:2px solid var(--accent)
  ${root} .explore-condition-fields{gap:14px}
  ${root} #exploreConditions .condition-field,${root} #exploreConditions .condition-field:has(.condition-clear){grid-template-columns:104px minmax(0,1fr)!important;gap:16px}
  ${root} #skyMapAlignmentDetails{margin-left:120px}
- ${root} #candidateWorkspaceAction{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ ${root} .explore-show-result{width:calc(100% - 120px);margin-left:120px}
  ${root} #candidateWorkspaceAction .aim-disclosure{margin-left:120px}
  ${root} #candidateListControls{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px}
  ${root} .candidate-filter-fields{grid-column:1;margin:0}

@@ -21,12 +21,14 @@ async function assertFieldLayout(page){
    return {text:label.textContent.trim(),overlaps};
   }).filter(Boolean);
   const search=document.getElementById('candidateSearchAction'),direct=document.getElementById('exploreShowResult'),action=document.getElementById('candidateWorkspaceAction'),results=document.getElementById('exploreSearchResults'),feedback=document.getElementById('candidateSearchFeedback');
-  return {labels,overflow:document.documentElement.scrollWidth>innerWidth+1,sameAction:search.closest('#candidateWorkspaceAction')===action&&direct.parentElement===action,searchBeforeDirect:!!(search.compareDocumentPosition(direct)&Node.DOCUMENT_POSITION_FOLLOWING),feedbackInResults:results.contains(feedback)&&!action.contains(feedback)};
+  const conditions=document.querySelector('.explore-condition-fields'),observer=document.getElementById('skyMapChoose').closest('.aim-say-from'),card=observer.querySelector('.place-row'),detail=action.querySelector('.aim-disclosure');
+  const before=(a,b)=>!!(a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING),o=observer.getBoundingClientRect(),c=card.getBoundingClientRect(),d=direct.getBoundingClientRect(),e=detail.getBoundingClientRect(),s=search.getBoundingClientRect();
+  return {labels,overflow:document.documentElement.scrollWidth>innerWidth+1,directInConditions:direct.parentElement===conditions&&!action.contains(direct),oneDirectAction:document.querySelectorAll('#exploreShowResult').length===1,directBesidePlace:Math.abs(c.left-d.left)<1&&Math.abs(c.width-d.width)<1,directAfterHeightBeforeSearch:o.bottom<=d.top&&d.bottom<=e.top&&e.bottom<=s.top,actionOrder:before(observer,direct)&&before(direct,detail)&&before(detail,search),searchInAction:search.closest('#candidateWorkspaceAction')===action,feedbackInResults:results.contains(feedback)&&!action.contains(feedback)};
  });
  assert(metrics.labels.length>=3,JSON.stringify(metrics));
  assert(metrics.labels.some(l=>l.text.includes('撮影地点')),JSON.stringify(metrics));
  assert(metrics.labels.every(l=>!l.overlaps.length),'labels overlap controls: '+JSON.stringify(metrics));
- assert(!metrics.overflow&&metrics.sameAction&&metrics.searchBeforeDirect&&metrics.feedbackInResults,JSON.stringify(metrics));
+ assert(!metrics.overflow&&metrics.directInConditions&&metrics.oneDirectAction&&metrics.directBesidePlace&&metrics.directAfterHeightBeforeSearch&&metrics.actionOrder&&metrics.searchInAction&&metrics.feedbackInResults,JSON.stringify(metrics));
  return metrics;
 }
 
@@ -114,7 +116,7 @@ async function assertFooterClearance(page,selector='#candidateUnifiedResults>.li
     await page.evaluate(async()=>{AstroNotesShooting.candidates=async()=>{throw Error('synthetic registered failure');};await MyPlacesUI.renderPickerPanel(document.getElementById('recentCandidates'));});
     assert((await registered.innerText()).includes('候補を確認できませんでした'));assert(await registered.getByRole('button',{name:'再試行',exact:true}).isVisible());
     assert.equal(writes,0);assert.deepEqual(errors,[]);
-    results.push({engine,width,theme,visibleLabels:layout.labels.map(l=>l.text),sharedDateTimeBar:true,noSeparateDateField:true,footerDoesNotCoverLastResult:true,labelsDoNotOverlap:true,sharedActions:true,feedbackInResults:true,detailOpenAndFocusPreserved:true,headerColumnsAligned:true,emptyFilterRecoverable:true,failedRecheckRemovesStaleRows:true,retryWorks:true,redundantRegisteredCountHidden:true,registeredFailuresRemainVisible:true,writes,errors});
+    results.push({engine,width,theme,visibleLabels:layout.labels.map(l=>l.text),sharedDateTimeBar:true,noSeparateDateField:true,footerDoesNotCoverLastResult:true,labelsDoNotOverlap:true,directActionAfterPlaceAndHeight:true,directActionBeforeSearchDetails:true,actionDomAndVisualOrderMatch:true,feedbackInResults:true,detailOpenAndFocusPreserved:true,headerColumnsAligned:true,emptyFilterRecoverable:true,failedRecheckRemovesStaleRows:true,retryWorks:true,redundantRegisteredCountHidden:true,registeredFailuresRemainVisible:true,writes,errors});
     fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(tag+' search design passed');
    }catch(error){await page.screenshot({path:out+'/'+tag+'-failure.png',fullPage:true}).catch(()=>{});console.error(tag,errors);throw error;}finally{await context.close();}
   }}finally{await browser.close();}
