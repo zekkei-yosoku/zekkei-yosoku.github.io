@@ -1,4 +1,5 @@
 import {previewPathLifecycleHtml} from './build-preview-path-lifecycle.mjs';
+import {recordOpportunitiesMyplaces,recordOpportunitiesHtml} from './build-record-opportunities.mjs';
 import {registeredDiscoveryMethods} from './build-record-discovery.mjs';
 // Derive a trial-only Explore from the same source; production bytes are untouched.
 import {readFileSync} from 'node:fs';
@@ -26,6 +27,7 @@ trialShooting=trialShooting.replaceAll("&&(p.body!=='moon'||e.sunAltitude<0)",''
 let trialMyplaces=patch(patch(patch(readFileSync('astronotes-myplaces.js','utf8'),'この日に重なる撮影地点はありません。日付や対象を変えるか、記録に撮影地点と見えた対象を追加してください。','登録した地点に候補がありません。日付や対象を変えてください。'),'${result.rows.length}件','${result.rows.length}件（絞り込み前）'),'box.append(button);}'+'\n  if(result.failed)', 'box.append(button);}'+'\n  globalThis.AstroNotesCandidatePicker?.registerRegisteredFromSession(box,result.rows,plan,current);\n  if(result.failed)');
 trialMyplaces=patch(trialMyplaces,'plan=AstroNotesShooting.conditions(state()),selectedShape','plan=globalThis.AstroNotesCandidatePicker?.registeredPlan?.(AstroNotesShooting.conditions(state()))||AstroNotesShooting.conditions(state()),selectedShape');
 trialMyplaces=registeredMainSearch(trialMyplaces);
+trialMyplaces=recordOpportunitiesMyplaces(trialMyplaces);
 trialMyplaces=patch(trialMyplaces,'window.MyPlacesUI = {',''+registeredDiscoveryMethods+'\nwindow.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision,');
 trialMyplaces=patch(trialMyplaces,'function changed() {',"function changed() {\n document.dispatchEvent(new Event('astronotes-records-change'));");
 const trialAlign=patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge');
@@ -53,7 +55,7 @@ for(const unit of trialArchitecture.units){const source=readFileSync(unit.path,'
 files['astronotes-candidate-search.js']=patch(files['astronotes-candidate-search.js'],'/* BUILD_DATA_HASHES */{}',JSON.stringify(Object.fromEntries(Object.entries(files).filter(([n])=>n.startsWith('data/')).map(([n,s])=>[n.slice(5),createHash('sha256').update(s).digest('hex')]))));
 files['astronotes-candidate-search.js']+='\n// data-release '+createHash('sha256').update(Object.entries(files).filter(([name])=>name.startsWith('data/')).map(([,value])=>value).join('')).digest('hex')+'\n';
 if(process.argv.includes('--html')){
- let html=previewPathLifecycleHtml(exploreSwipeBackHtml(explorePreviewControlsHtml(explorePlaceHtml(externalAppsHtml(readFileSync(0,'utf8'))))));
+ let html=recordOpportunitiesHtml(previewPathLifecycleHtml(exploreSwipeBackHtml(explorePreviewControlsHtml(explorePlaceHtml(externalAppsHtml(readFileSync(0,'utf8')))))));
  // Include daytime lunar overlaps in the shared observer calendar/date strip.
  for(const [start,end]of [['function aimCalRows(', 'function aimCalSolid('],['async function aimBuildingDays(', 'function aimDaysInputKey(']]){
   const a=html.indexOf(start),b=html.indexOf(end,a);if(a<0||b<0)throw Error('Daylight observer boundary changed');

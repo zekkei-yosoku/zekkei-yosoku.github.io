@@ -180,7 +180,7 @@ function syncWorkspace(){
  searchRoot.hidden=resultRequested;scene.hidden=!resultRequested;candidateBack.hidden=!resultRequested;
  $('recentCandidates').hidden=resultRequested||!searchStarted;$('candidateSearchEmpty').hidden=searchStarted;
  $('exploreResultsHeading').hidden=!searchStarted;
- candidateBack.textContent=returnIntent?.searched?'‹ 候補へ戻る':'‹ 探すへ戻る';
+ candidateBack.textContent=globalThis.MyPlacesUI?.opportunities?.hasReturn()?'‹ 重なる日へ戻る':returnIntent?.searched?'‹ 候補へ戻る':'‹ 探すへ戻る';
  syncRecordDiscovery();document.dispatchEvent(new Event('astronotes-search-state'));
 }
 function captureSearch(){
@@ -191,6 +191,7 @@ function enterResult(){
  if(!selectionPending)captureSearch();selectionPending=false;resultRequested=true;previewBackEpoch++;syncWorkspace();SkyMapUI.render();
 }
 function showSearch(){
+ if(globalThis.MyPlacesUI?.opportunities?.returnFromPreview())return;
  previewBackEpoch++;
  document.dispatchEvent(new Event('astronotes-preview-leave'));
  if(!returnIntent&&active())captureSearch();const saved=returnIntent;if(!active()||!saved||saved.owner!==auth?.loginId||saved.generation!==accessState.generation)return;
