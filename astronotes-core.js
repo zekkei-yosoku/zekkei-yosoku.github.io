@@ -395,7 +395,7 @@
     "cloud_cover", "cloud_cover_low", "cloud_cover_mid", "cloud_cover_high", "visibility",
     // 風向は**羽田の運用の向き（北風・南風）**を決めるのに使う（月丼）。
     // 採点には使わないが、1項目ぶんなので同じ取得に載せる
-    "wind_speed_10m", "wind_direction_10m", "surface_pressure", "direct_radiation", "showers",
+    "wind_speed_10m", "wind_direction_10m", "surface_pressure", "direct_radiation", "showers", "boundary_layer_height",
     "relative_humidity_925hPa", "relative_humidity_850hPa", "relative_humidity_700hPa",
     "relative_humidity_500hPa", "relative_humidity_300hPa", "relative_humidity_200hPa",
   ];

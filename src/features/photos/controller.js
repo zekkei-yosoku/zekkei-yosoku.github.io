@@ -233,7 +233,8 @@ function forecastCandidates(pid, takenAt) {
     if (!r || r.pid !== pid || !Number.isFinite(r.peak) || !S.JstCal.sameDay(r.peak, takenAt)) continue;
     out.push({ origin: "round", capturedAt: r.capturedAt, peak: r.peak, window: r.window, score: r.score, rank: r.rank,
       confidence: r.confidence, perModel: r.perModel, factors: r.factors, observations: r.observations || null,
-      placeId: r.placeId ?? null, latitude: r.latitude, longitude: r.longitude, algorithmVersion: r.algorithmVersion ?? null });
+      placeId: r.placeId ?? null, latitude: r.latitude, longitude: r.longitude, algorithmVersion: r.algorithmVersion ?? null,
+      scoringVersion: r.scoringVersion ?? null, predictionAsOf: r.predictionAsOf ?? null, fetchedAt: r.fetchedAt ?? null });
   }
   if (bundle && place) {
     const row = (weeks[pid] || []).find((e) => e && S.JstCal.sameDay(e.evaluation?.peak ?? e.dayMs, takenAt));
@@ -241,10 +242,12 @@ function forecastCandidates(pid, takenAt) {
     const obs = collectObservations(pid, takenAt);
     const hasObs = Object.keys(obs).some((k) => !k.startsWith("_"));
     if (ev || hasObs) {
-      out.push({ origin: "current", capturedAt: bundle.fetchedAt, peak: ev?.peak ?? null, window: ev?.window ?? null,
+      out.push({ origin: "current", capturedAt: ev?.predictionAsOf ?? null, peak: ev?.peak ?? null, window: ev?.window ?? null,
         score: Number.isFinite(ev?.score) ? ev.score : null, rank: ev?.rank?.key ?? null, confidence: ev?.confidence?.key ?? null,
         perModel: ev?.perModel ?? null, factors: ev?.factors ?? null, observations: hasObs ? obs : null,
-        placeId: place.id ?? null, latitude: place.latitude, longitude: place.longitude });
+        placeId: place.id ?? null, latitude: place.latitude, longitude: place.longitude,
+        algorithmVersion: ev?.algorithmVersion ?? null, scoringVersion: ev?.scoringVersion ?? null,
+        predictionAsOf: ev?.predictionAsOf ?? null, fetchedAt: bundle.fetchedAt ?? null });
     }
   }
   return out;
@@ -335,7 +338,8 @@ $("photoSave").onclick = async (e) => {
     if (round && body.phenomenon === round.pid && samePlaceAs(draft.place, place)) {
       const shot = await photoShot(body, draft.exif);
       if (!current() || !samePlaceAs(draft.place, place)) return;
-      if (scoreSource === "user_moved" || scoreSource === "answered") recordAnswer(round.pid, round.peak, body.score, shot);
+      if (scoreSource === "user_moved" || scoreSource === "answered") recordAnswer(round.pid, round.peak, body.score, shot,
+        scoreSource === "user_moved" ? "independent" : null);
       else {
         const existing = findSighting(round.pid, round.peak);
         if (existing) recordAnswer(round.pid, round.peak, existing.actualScore, shot);
@@ -448,7 +452,9 @@ function wireOutcomes(root) {
           box.querySelector(".answer-gauge").hidden = false;
           return;
         }
-        recordAnswer(pid, peak, k === "same" ? pred : k === "save" ? +gauge.value : null);
+        recordAnswer(pid, peak, k === "same" ? pred : k === "save" ? +gauge.value : null, null,
+          k === "same" || (k === "save" && box.dataset.gaugeMoved !== "1" && +gauge.value === pred)
+            ? "agreement" : k === "save" ? "independent" : "unchecked");
       };
     }
 

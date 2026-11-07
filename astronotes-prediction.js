@@ -4,12 +4,24 @@
  const IDS=['sunset','sunrise','starrySky','seaOfClouds','cityCloudSea','rainbow','rime','diamondDust'];
  const BASE='https://zekkei-api.okayu-sorami.workers.dev/prediction';
  const VERSION='e189-core-8e6930c-v4';
- const TTL=30*60*1000,CACHE='sorami-predictions-twilight-v1';
+ const TTL=30*60*1000,CACHE='sorami-predictions-quality-20261107-v1';
  // 予報の形を変えて名前を替えるたびに、古い名前の保存が端末に残り続けていた（2026-10-21 総点検で6個）。今の名前以外は消す
  try{if(typeof caches!=='undefined'&&caches&&typeof caches.keys==='function')caches.keys().then(ks=>{for(const k of ks)if(k.startsWith('sorami-predictions')&&k!==CACHE+'-main'&&k!==CACHE+'-visibility')caches.delete(k);}).catch(()=>{});}catch{}
  const conditions=p=>({latitude:p.latitude,longitude:p.longitude,elevation:p.elevation??null,eyeHeightAGL:p.eyeHeightAGL??1.5,terrain:p.terrain??null});
  const key=p=>JSON.stringify(conditions(p));
  const day=(ms,offset)=>Math.floor((ms+offset*1000)/86400000)*86400000-offset*1000;
+ // Preserve the server's actual scoring revision in saved pre-event rounds.
+ // Old servers remain readable during rollback; their legacy version is known.
+ function annotateVersion(dto){
+  if(dto.scoringVersion!==undefined&&(typeof dto.scoringVersion!=='string'||!dto.scoringVersion.length||dto.scoringVersion.length>100))throw Error('予測の版を確認できません');
+  for(const rows of Object.values(dto.weeks))for(const row of rows){
+   row.evaluation.algorithmVersion=dto.algorithmVersion;
+   row.evaluation.scoringVersion=dto.scoringVersion??dto.algorithmVersion;
+   row.evaluation.predictionAsOf=dto.asOf;
+   row.evaluation.fetchedAt=dto.bundle.fetchedAt;
+  }
+  return dto;
+ }
  function validate(dto,place){
   if(!dto||dto.schemaVersion!==1||dto.algorithmVersion!==VERSION||!dto.place||key(dto.place)!==key(place)||!Number.isFinite(dto.asOf)||!Number.isFinite(dto.bundle?.fetchedAt)||!Number.isFinite(dto.bundle?.utcOffsetSeconds)||Math.abs(dto.bundle.utcOffsetSeconds)>86400||!dto.bundle.home?.byModel||!dto.weeks)throw Error('予測データを確認できません');
   for(const id of IDS){const rows=dto.weeks[id];if(!Array.isArray(rows)||rows.length>14)throw Error('予測データを確認できません');for(const row of rows){const e=row?.evaluation;if(!Number.isFinite(row?.dayMs)||!e||!Number.isFinite(e.score)||e.score<0||e.score>100||(e.unavailable?typeof e.unavailable.kind!=='string':(!e.rank||!['spectacular','good','fair','poor'].includes(e.rank.key)))||!Array.isArray(e.factors)||e.factors.length>50)throw Error('予測データを確認できません');
@@ -18,7 +30,7 @@
    // 月の時間帯ごとの見込み（2026-10-21）。形が合わなければ捨てる（本体の予報は出し続ける）
    if(e.timeBands!==undefined){const t=e.timeBands,ok=id==='moon'&&t&&typeof t.method==='string'&&Array.isArray(t.phases)&&t.phases.length>=1&&t.phases.length<=3&&t.phases.every(p=>p&&typeof p.id==='string'&&typeof p.label==='string'&&p.label.length<=12&&(p.score===null||(Number.isFinite(p.score)&&p.score>=0&&p.score<=100))&&Array.isArray(p.window)&&p.window.length===2&&p.window.every(Number.isFinite)&&p.window[0]<=p.window[1]);if(!ok)delete e.timeBands;}
   }}
-  return dto;
+  return annotateVersion(dto);
  }
  function fresh(dto,place,now){try{validate(dto,place);return now>=dto.asOf&&now-dto.asOf<TTL&&now>=dto.bundle.fetchedAt&&now-dto.bundle.fetchedAt<TTL&&day(now,dto.bundle.utcOffsetSeconds)===day(dto.asOf,dto.bundle.utcOffsetSeconds);}catch{return false;}}
  function restore(value,S){
@@ -88,7 +100,7 @@
   for(const id of ids){const rows=dto.weeks[id];if(!Array.isArray(rows)||rows.length>14)throw Error('可視予測を確認できません');for(const row of rows){const e=row?.evaluation;if(!Number.isFinite(row?.dayMs)||!e||!Number.isFinite(e.score)||e.score<0||e.score>100||!Array.isArray(e.factors))throw Error('可視予測を確認できません');}}
   if(dto.visibilityKey!==await hashVisibility(input))throw Error('観測条件が一致しません');
   if(input.kind==='moonDetail'&&(!Array.isArray(dto.moonVisibility)||dto.moonVisibility.length!==1||dto.moonVisibility[0].dayMs!==input.dayMs))throw Error('月の可視予測を確認できません');
-  return dto;
+  return annotateVersion(dto);
  }
  const client=createClient();
  const visibilityClient=createClient({endpoint:BASE+'/visibility',makeInput:visibilityInput,identityOf:hashVisibility,verify:validateVisibility,cacheName:CACHE+'-visibility',maxEntries:64});

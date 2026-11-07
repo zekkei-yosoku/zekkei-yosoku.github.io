@@ -64,8 +64,9 @@ function confidenceText(ev) {
     // 「N つの予報モデルが…」と言うと嘘になる（実際 N=0 で「0つの」と出た）。
     // 何を根拠に幅を出しているかを、そのまま言う。
     // 何日先かは下の日数の注意で1回だけ言う。ここでも言うと「4日先なので…。4日先の予測です」と重なった（2026-10-13 総点検）
-    const w = Math.round(u.expectedError);
-    parts.push(w < 1 ? "点数はあまり動きません" : `点数は ±${w}点 ほど動く見込みです`);
+    const w = Number.isFinite(u.expectedError) ? Math.round(u.expectedError) : null;
+    parts.push(w === null ? "予報モデル間の比較ができないため、点数の誤差幅は未評価です"
+      : w < 1 ? "点数はあまり動きません" : `点数は ±${w}点 ほど動く見込みです`);
     if (ev.confidence.key === "medium") parts.push("評価が1段変わり得ます");
     else if (ev.confidence.key === "low") parts.push("評価はあてになりません");
   } else {
@@ -77,7 +78,8 @@ function confidenceText(ev) {
     if (u && u.ensembleBlind) parts.push(u.ensembleBlind);
     // 「ほぼ同じ」と言えるのは、評価の帯（20〜25点間隔）より明らかに狭いときだけ。
     // 20点の幅を「ほぼ同じ」と書くと、A の説明として強すぎる。
-    if (ev.confidence.key === "high") parts.push(hi - lo <= 10
+    if (n < 2) parts.push("利用できる予報モデルが1つのため、モデル間の一致は確認できません");
+    else if (ev.confidence.key === "high") parts.push(hi - lo <= 10
       ? `${n}つの予報モデルがほぼ同じ見立てです（${lo}〜${hi}点）`
       : `${n}つの予報モデルは ${lo}〜${hi}点 に収まっています`);
     else if (spreadWide) parts.push(`予報モデルの見立てが ${lo}〜${hi}点 と割れています`);
@@ -93,6 +95,9 @@ function confidenceText(ev) {
   // モデルが落ちる日は、同じ「中央値」でも土台が違う。何本で出した値かを言う。
   if (typeof ev.models === "number" && ev.models > 0 && ev.models < S.MODELS.length) {
     parts.push(`この日まで予報を出しているのは ${S.MODELS.length}モデル中 ${ev.models}つです`);
+  }
+  if (ev.dataQuality?.status === "partial" && Array.isArray(ev.dataQuality.reasons)) {
+    parts.push(...ev.dataQuality.reasons.filter(x => typeof x === "string"));
   }
   // 日数の注意は残す。1〜5日先はアンサンブルの見積もりが実測とよく一致することを
   // 確認したが（星空・288標本）、6日先から先は同じ手段で確かめられていない。

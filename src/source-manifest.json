@@ -1101,18 +1101,6 @@
         "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
       },
       {
-        "name": "AstroNotesPrediction",
-        "category": "existing-public-bridge",
-        "owner": [
-          "astronotes-prediction.js"
-        ],
-        "readers": [
-          "src/features/results/controller.js"
-        ],
-        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
-        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
-      },
-      {
         "name": "AstroNotesStartupPaintTimer",
         "category": "existing-public-bridge",
         "owner": [
@@ -1854,6 +1842,22 @@
     "generator": "tools/build-candidate-trial.mjs",
     "productionUnchanged": true,
     "units": [
+      {
+        "path": "experiments/forecast-summary/controller.js",
+        "output": "index.html",
+        "layer": "ui",
+        "scope": "forecast-view-local-factory",
+        "provides": [
+          "forecastSummary"
+        ],
+        "requires": [
+          "forecast view context",
+          "forecast detail time bands",
+          "navigation pick"
+        ],
+        "owner": "src/features/forecast/view.js",
+        "generator": "tools/build-forecast-summary.mjs"
+      },
       {
         "path": "experiments/candidate-visibility/live-terrain.js",
         "layer": "ports",

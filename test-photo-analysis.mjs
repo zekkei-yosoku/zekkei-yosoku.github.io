@@ -98,6 +98,9 @@ ok(A.matchForecast([{ ...pre, latitude: undefined }], base).reason === "out_of_r
   ok(g.kind === "pre_event", "画面の予報でも開始前に取っていれば事前");
 }
 ok(A.matchForecast([{ ...pre, capturedAt: 500 }], base).kind === "post_event", "保存が開始と同時刻なら事前にしない（isPreEventRound と同じ）");
+ok(A.matchForecast([pre],base).timeEligible===true, "撮影前に保存し対象窓内なら時間条件を満たす");
+ok(A.matchForecast([{...pre,capturedAt:900,window:[1100,1500]}],base).timeEligible===false, "事前予測でも窓外の写真は時間条件を満たさない");
+ok(A.matchForecast([{...pre,capturedAt:1100,window:[1200,1500]}],base).timeEligible===false, "撮影より後の予測は時間条件を満たさない");
 ok(A.matchForecast([pre], base).algorithmVersion === "v", "画面の予報（版の項目なし）は今の版");
 ok(A.matchForecast([{ ...pre, algorithmVersion: null }], base).algorithmVersion === null, "版を残す前の回は不明のまま");
 ok(A.matchForecast([{ ...pre, algorithmVersion: "old" }], base).algorithmVersion === "old", "残したときの版を使う");
@@ -115,10 +118,13 @@ console.log("撮影の日の予報の候補（index.html の forecastCandidates�
   const fc = make(html.slice(a, b));
   const store = { get: () => rounds };
   const place = { id: "here", latitude: 35.1, longitude: 139.1 };
-  const weeks = { sunset: [{ dayMs: day, evaluation: { peak: day, window: [day - 1200e3, day + 1200e3], score: 70, rank: { key: "good" }, confidence: { key: "high" } } }] };
+  const weeks = { sunset: [{ dayMs: day, evaluation: { peak: day, window: [day - 1200e3, day + 1200e3], score: 70, rank: { key: "good" }, confidence: { key: "high" },
+    predictionAsOf:day+600e3,scoringVersion:'quality-v1',algorithmVersion:'wire-v4' } }] };
   const got = fc(S, store, { fetchedAt: day - 3600e3 }, place, weeks, () => ({ "cloud_cover@m": 2, _grid_elevation: 9 }))("sunset", day + 600e3);
   ok(got.length === 2 && got[0].origin === "round" && got[0].score === 60, "同じ現象・同じ日の回だけ");
-  ok(got[1].origin === "current" && got[1].score === 70 && got[1].capturedAt === day - 3600e3 && got[1].rank === "good", "いまの予報は取得時刻を保存時刻として渡す");
+  ok(got[1].origin === "current" && got[1].score === 70 && got[1].capturedAt === day + 600e3 && got[1].rank === "good", "いまの予報は採点時刻を使い、気象取得時刻で事前予測に見せない");
+  const match=A.matchForecast([got[1]],{...base,takenAtMs:day+600e3});
+  ok(match.kind==='post_event' && match.scoringVersion==='quality-v1' && match.fetchedAt===day-3600e3, "写真との照合に採点版と気象取得時刻を別々に残す");
   const onlyGrid = fc(S, store, { fetchedAt: 0 }, place, {}, () => ({ _grid_elevation: 9 }))("sunset", day);
   ok(onlyGrid.length === 1, "気象の値が地点の標高だけなら、いまの予報は候補にしない");
   ok(fc(S, store, null, null, {}, () => ({}))("sunset", null).length === 0, "撮影時刻が無ければ候補なし");

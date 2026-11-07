@@ -31,5 +31,22 @@ test('trialは旧部位・縁指定も建物と山の全体へ正規化する',(
  assert.match(html.slice(start,html.indexOf(' function setTime(',start)),/function render\(\)\{\s*normalizeWholeAlignment\(\)/);
  assert.match(html.slice(html.indexOf(' async function refresh(){',start)),/normalizeWholeAlignment\(\)/);
  const js=readFileSync(new URL('./trial/astronotes-myplaces.js',import.meta.url),'utf8');
- assert.match(js,/detail.hidden=true;el\('skyMapAlignmentSummary'\)/);assert.doesNotMatch(js,/function mountainAlignment|alignment-dropdown|天体のどこを合わせるか/);
+ assert.doesNotMatch(js,/function mountainAlignment|alignment-dropdown|天体のどこを合わせるか/);
+});
+test('重ね方は対象未選択と全てscopeで隠し、単一対象では現在の権限に従って操作をつなぐ',()=>{
+ const js=readFileSync(new URL('./trial/astronotes-myplaces.js',import.meta.url),'utf8'),start=js.indexOf('function renderSkyAlignment(s){');assert(start>=0);
+ const code=js.slice(start,js.indexOf('\nfunction recordMatchOpts(',start));
+ const nodes={skyMapAlignmentDetails:{hidden:false},skyMapAlignmentControls:{dataset:{},replaceChildren(){this.cleared=true;}},skyMapAlignmentSummary:{firstElementChild:true}};
+ let binding=null,writes=0;
+ const c=vm.createContext({el:id=>nodes[id],AstroNotesTrialOverlap:{isAll:s=>s?.scope==='all'},alignmentControls:(host,target,state,options)=>{binding={host,target,state,options};},auth:{token:'synthetic'},toolAllowed:()=>true,SkyMapUI:{setAlignment(){writes++;}}});vm.runInContext(code,c);
+ for(const state of [null,{target:{id:'tower'},scope:'all'}]){
+  nodes.skyMapAlignmentControls.dataset.alignmentSignature='old';nodes.skyMapAlignmentControls.cleared=false;binding=null;c.renderSkyAlignment(state);
+  assert.equal(nodes.skyMapAlignmentDetails.hidden,true);assert.equal(nodes.skyMapAlignmentControls.cleared,true);assert.equal(nodes.skyMapAlignmentControls.dataset.alignmentSignature,undefined);assert.equal(binding,null);
+ }
+ const state={target:{id:'tower'},body:'sun',scope:'single'};c.skySession=state;c.renderSkyAlignment(state);
+ assert.equal(nodes.skyMapAlignmentDetails.hidden,false);assert.equal(binding.host,nodes.skyMapAlignmentControls);assert.equal(binding.target,state.target);assert.equal(binding.options.body,'sun');
+ const next={partId:'tip',limb:'center',matchMode:'limb'};binding.options.change(next);assert.equal(writes,1);
+ c.skySession={};binding.options.change(next);assert.equal(writes,1,'stale selection cannot change alignment');c.skySession=state;
+ c.auth=null;binding.options.change(next);assert.equal(writes,1,'logged-out selection cannot change alignment');c.auth={token:'synthetic'};
+ c.toolAllowed=()=>false;binding.options.change(next);assert.equal(writes,1,'revoked permission cannot change alignment');
 });

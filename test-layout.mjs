@@ -1075,8 +1075,9 @@ ok(!/TOOL_NAMES = \{/.test(html), "名前を書き写さない");
   ok(/el\.dataset\.id\.split\(" "\)\.some\(\(id\) => allowed\.includes\(id\)\)/.test(html), "どちらかの許可があればメニューに出す");
   const api = fs.readFileSync(new URL("../api/src/index.js", import.meta.url), "utf8");
   const tools = /const TOOLS = \[([^\]]+)\]/.exec(api)[1].match(/"([a-z]+)"/g).map((s) => s.replace(/"/g, ""));
-  ok(JSON.stringify([...new Set(menu)].sort()) === JSON.stringify(tools.slice().sort()),
-    "メニューと Worker の道具の一覧が一致する", `${menu.join("・")} / ${tools.join("・")}`);
+  ok(/const aimSceneExtrasAllowed = \(\) => toolAllowed\("multiscene"\)/.test(html), "複数対象は構図内の権限として検査する");
+  ok(JSON.stringify([...new Set([...menu,"multiscene"])].sort()) === JSON.stringify(tools.slice().sort()),
+    "メニューと構図内の複数対象を合わせて Worker の道具一覧と一致する", `${menu.join("・")} / ${tools.join("・")}`);
 }
 
 console.log("== 並び替えは表の左上に入れる ==");
@@ -1723,14 +1724,15 @@ ok(html.match(/data-answer="same"/g).length === 1, "選択肢を組み立てる�
   ok(/\.gauge-foot button:disabled \{ background: var\(--line\)/.test(html), "記録済みは灰色");
   const wo = sourceDeclaration("wireOutcomes");
   ok(/if \(k === "diff"\) \{[\s\S]{0,300}\.answer-gauge"\)\.hidden = false;[\s\S]{0,80}return;/.test(wo), "違ったを押してもまだ記録しない（ゲージを出す）");
-  ok(/recordAnswer\(pid, peak, k === "same" \? pred : k === "save" \? \+gauge\.value : null\)/.test(wo), "予測通り＝予測の点・この点で記録＝ゲージの点・確認せず＝点なし");
+  ok(/recordAnswer\(pid, peak, k === "same" \? pred : k === "save" \? \+gauge\.value : null, null,/.test(wo)
+    && /box\.dataset\.gaugeMoved !== "1"/.test(wo) && /"agreement" : k === "save" \? "independent" : "unchecked"/.test(wo), "回答の点数と、予測複写・手入力・未確認の由来を渡す");
   // 2026-10-16: 点数の由来（予報の点のままか・本人の答えか）も渡す。保存時の分析で、予報の点を本人の点と取り違えないため
   ok(!/openPhotoSheet\(f, \{ pid, peak/.test(wo) && !/data-shot-pid/.test(wo), "結果の答えから写真の保存画面を開かない（2026-10-28 撤去）");
   ok(/if \(round\) \$\("photoPhenom"\)\.value = round\.pid;/.test(html) && /\$\("photoWhen"\)\.value = iso\(at \?\? photoDraft\.round\?\.peak \?\? Date\.now\(\)\)/.test(html),
     "写真の画面に現象と時刻（写真に無ければその回）を入れる");
   // 2026-10-16: 予報の点数のまま保存したら答えにしない（以前は予報の点が本人の答えとして入っていた。設計案の未確定事項3）。
   // 本人の点なら従来どおり答えと写真の時刻・位置を記録し、そうでなければ答え済みの回にだけ写真の時刻・位置を足す
-  ok(/if \(round && body\.phenomenon === round\.pid && samePlaceAs\(draft\.place, place\)\) \{\s+const shot = await photoShot\(body, draft\.exif\);\s+if \(!current\(\) \|\| !samePlaceAs\(draft\.place, place\)\) return;\s+if \(scoreSource === "user_moved" \|\| scoreSource === "answered"\) recordAnswer\(round\.pid, round\.peak, body\.score, shot\);/.test(html),
+  ok(/if \(round && body\.phenomenon === round\.pid && samePlaceAs\(draft\.place, place\)\) \{\s+const shot = await photoShot\(body, draft\.exif\);\s+if \(!current\(\) \|\| !samePlaceAs\(draft\.place, place\)\) return;\s+if \(scoreSource === "user_moved" \|\| scoreSource === "answered"\) recordAnswer\(round\.pid, round\.peak, body\.score, shot,\s+scoreSource === "user_moved" \? "independent" : null\);/.test(html),
     "写真を保存したら、本人の点ならその回の答えと写真の時刻・位置も記録する（現象を選び直したら答えにしない）");
   ok(/const existing = findSighting\(round\.pid, round\.peak\);\s+if \(existing\) recordAnswer\(round\.pid, round\.peak, existing\.actualScore, shot\);/.test(html),
     "予報の点のままなら、答え済みの回にだけ写真の時刻・位置を足す（答えは変えない）");

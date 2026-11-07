@@ -5,6 +5,14 @@ import {readFileSync,existsSync} from 'node:fs';
 const require=createRequire(import.meta.url),S=require('./astronotes-core.js'),P=require('./astronotes-prediction.js');
 const at=Date.parse('2026-10-12T14:50:00Z'),place={latitude:35.68,longitude:139.76,elevation:40.7,eyeHeightAGL:80,terrain:'plain'};
 function dto(){return {schemaVersion:1,algorithmVersion:P.VERSION,place,asOf:at,lightPollution:null,bundle:{utcOffsetSeconds:32400,fetchedAt:at,home:{byModel:{test:{times:[at],columns:{visibility:[null],precipitation:[0]}}}}},weeks:Object.fromEntries(P.IDS.map(id=>[id,[{dayMs:at,evaluation:{score:0,rank:{key:'poor'},factors:[],unavailable:null}}]]))};}
+test('通信互換の版と採点版を分け、APIのロールバック時も元の版を保存できる',()=>{
+ const newer={...dto(),scoringVersion:'2026-11-07-weather-quality-v1'};
+ const ev=P.validate(newer,place).weeks.sunset[0].evaluation;
+ assert.equal(ev.algorithmVersion,P.VERSION);assert.equal(ev.scoringVersion,newer.scoringVersion);
+ assert.equal(ev.predictionAsOf,at);assert.equal(ev.fetchedAt,at);
+ assert.equal(P.validate(dto(),place).weeks.sunset[0].evaluation.scoringVersion,P.VERSION);
+ assert.throws(()=>P.validate({...dto(),scoringVersion:{}},place));
+});
 test('0点と判定不能を混同せず、欠測・モデル別seriesを復元する',()=>{
  const original=dto();original.weeks.rime[0].evaluation={score:0,factors:[],unavailable:{kind:'terrain',message:'山地ではありません'}};
  assert.equal(P.validate(original,place),original);

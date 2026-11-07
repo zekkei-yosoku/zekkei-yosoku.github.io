@@ -28,6 +28,12 @@ function cleanSighting(r) {
   return { ...r, placeName: isText(r.placeName) ? r.placeName : "",
     outcome: isText(r.outcome) ? r.outcome : "unchecked",
     actualScore: Number.isFinite(r.actualScore) && r.actualScore >= 0 && r.actualScore <= 100 ? Math.round(r.actualScore) : null,
+    answerKind: ["independent", "agreement", "unchecked"].includes(r.answerKind) ? r.answerKind : null,
+    capturedAt: num(r.capturedAt, 0, 4102444800000),
+    algorithmVersion: typeof r.algorithmVersion === "string" && r.algorithmVersion.length <= 100 ? r.algorithmVersion : null,
+    scoringVersion: typeof r.scoringVersion === "string" && r.scoringVersion.length <= 100 ? r.scoringVersion : null,
+    predictionAsOf: num(r.predictionAsOf, 0, 4102444800000),
+    fetchedAt: num(r.fetchedAt, 0, 4102444800000),
     score: Number.isFinite(r.score) ? r.score : 0,
     observedAtMs: num(r.observedAtMs, 0, 4102444800000),      // 2100年まで
     photoLatitude: num(r.photoLatitude, -90, 90),

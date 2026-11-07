@@ -40,7 +40,9 @@ function keepRounds(forPlace, now = Date.now()) {
       const snap = { pid, peak: ev.peak, capturedAt: now, latitude: forPlace.latitude, longitude: forPlace.longitude,
         placeName: forPlace.name, placeId: forPlace.id, score: ev.score, rank: ev.rank.key, confidence: ev.confidence.key,
         perModel: ev.perModel, factors: ev.factors, window: ev.window, specificTime: ev.specificTime,
-        observations: collectObservations(pid, ev.peak), algorithmVersion: globalThis.AstroNotesPrediction?.VERSION ?? null };
+        observations: collectObservations(pid, ev.peak), algorithmVersion: ev.algorithmVersion ?? null,
+        scoringVersion: ev.scoringVersion ?? null, predictionAsOf: ev.predictionAsOf ?? null, fetchedAt: ev.fetchedAt ?? null,
+        models: ev.models ?? null, dataQuality: ev.dataQuality ?? null, uncertainty: ev.uncertainty ?? null };
       if (i >= 0) list[i] = snap; else list.push(snap);
     }
   }
@@ -49,7 +51,10 @@ function keepRounds(forPlace, now = Date.now()) {
   store.set("sorami.rounds", list.slice(0, ROUND_MAX));
 }
 /// 残した回を、今の予報の回と同じ形に
-const roundFromSnap = (r) => ({ pid: r.pid, predictionSource: r.predictionSource || null, observations: r.observations || null, ev: {
+const roundFromSnap = (r) => ({ pid: r.pid, predictionSource: r.predictionSource || null, observations: r.observations || null,
+  capturedAt: r.capturedAt ?? null, algorithmVersion: r.algorithmVersion ?? null, scoringVersion: r.scoringVersion ?? null,
+  predictionAsOf: r.predictionAsOf ?? r.asOf ?? null, fetchedAt: r.fetchedAt ?? null,
+  models: r.models ?? null, dataQuality: r.dataQuality ?? null, uncertainty: r.uncertainty ?? null, ev: {
   peak: r.peak, score: r.score, rank: S.RANKS.find((x) => x.key === r.rank) || S.rankOf(r.score),
   confidence: { key: r.confidence }, perModel: r.perModel, factors: r.factors, window: r.window, specificTime: r.specificTime } });
 /// 保存時刻が開始前と確認できる予測だけを予測の振り返りに使う。
@@ -87,13 +92,13 @@ function findSighting(pid, peak) {
 }
 /// 答えを記録する。actual は実際の点（0〜100）、null は確認せず。帯グラフの答えは点から出す（S.outcomeFromActual）。
 /// **前の記録に付いている写真の時刻・位置は残す**（以前は答えるたびに作り直し、先に添えた写真の情報が消えていた）
-function recordAnswer(pid, peak, actual, shot = null) {
+function recordAnswer(pid, peak, actual, shot = null, answerKind = null) {
   const round = roundOf(pid, peak);
   const existing = findSighting(pid, peak);
   if (!round && !existing) return;
   if (!existing && (round.ev.window[1] > Date.now() || Date.now() - round.ev.window[1] > ROUND_ANSWER_MS)) return;
   // 答え直しでも記録済みの予測を変えない。旧版の記録・写真も保持する。
-  const ev = existing ? { ...round?.ev, ...existing, rank: S.rankOf(existing.score), confidence: { key: existing.confidence } } : round.ev;
+  const ev = existing ? { ...existing, rank: S.rankOf(existing.score), confidence: { key: existing.confidence } } : round.ev;
   const a = Number.isFinite(actual) ? Math.max(0, Math.min(100, Math.round(actual))) : null;
   const record = { ...(existing || {}),
     id: existing?.id || crypto.randomUUID(),
@@ -104,6 +109,17 @@ function recordAnswer(pid, peak, actual, shot = null) {
     peak: ev.peak, score: ev.score, rank: ev.rank.key, confidence: ev.confidence.key,
     perModel: ev.perModel, factors: ev.factors, window: ev.window,
     actualScore: a, outcome: S.outcomeFromActual(pid, ev.score, a),
+    // 予測のコピーを独立採点として校正に使わない。写真を足すだけなら回答の由来を保つ。
+    answerKind: a === null ? "unchecked" : ["independent", "agreement"].includes(answerKind) ? answerKind
+      : existing && existing.actualScore === a ? existing.answerKind ?? null : null,
+    capturedAt: existing ? existing.capturedAt ?? null : round.capturedAt,
+    algorithmVersion: existing ? existing.algorithmVersion ?? null : round.algorithmVersion,
+    scoringVersion: existing ? existing.scoringVersion ?? null : round.scoringVersion,
+    predictionAsOf: existing ? existing.predictionAsOf ?? null : round.predictionAsOf,
+    fetchedAt: existing ? existing.fetchedAt ?? null : round.fetchedAt,
+    models: existing ? existing.models ?? null : round.models,
+    dataQuality: existing ? existing.dataQuality ?? null : round.dataQuality,
+    uncertainty: existing ? existing.uncertainty ?? null : round.uncertainty,
     // 取得時の気象値だけを保持。旧記録の欠測を今の予報で埋めない。
     predictionSource: existing ? existing.predictionSource || null : round.predictionSource || null,
     observations: existing ? existing.observations || {} : round.observations || {},
@@ -303,7 +319,7 @@ function renderRecords(now, pendingHidden) {
     return;
   }
   $("recordsRoundPlace").textContent = "見た空に近いものを選んでください。";
-  const conclusive = sightings.filter((s) => s.outcome !== "unchecked");
+  const groups = calibrationGroups(sightings);
   $("recCount").textContent = `${sightings.length}件`;
   // 記録がゼロのうちは、空の帯グラフを毎回出しても読むものがない。
   // 何をすれば貯まるかだけ書く。
@@ -312,9 +328,10 @@ function renderRecords(now, pendingHidden) {
   $("recBody").hidden = empty;
   if (empty) return;
 
-  $("calibration").innerHTML =
-    qualityCalibration(conclusive.filter((s) => S.recordKind(s.phenomenon) === "quality"))
-    + occurrenceCalibration(conclusive.filter((s) => S.recordKind(s.phenomenon) === "occurrence"));
+  $("calibration").innerHTML = groups.length
+    ? '<p class="tiny muted">自分で点数を付けた回答と、開始前に保存した予測の比較です。現象・採点方式ごとに分けています。</p>'
+      + groups.map(list => S.recordKind(list[0].phenomenon) === "quality" ? qualityCalibration(list) : occurrenceCalibration(list)).join("")
+    : '<p class="tiny muted">比較できる記録はまだありません。開始前の予測と、自分で点数を付けた回答がそろうと表示します。</p>';
 
   const LABEL = Object.fromEntries(
     [...S.RECORD_OUTCOMES.quality, ...S.RECORD_OUTCOMES.occurrence]);
@@ -340,24 +357,40 @@ function renderRecords(now, pendingHidden) {
 const BANDS = [0, 20, 40, 60, 80];
 const inBand = (list, lo) => list.filter((s) => s.score >= lo && (s.score < lo + 20 || lo === 80));
 
-// 出るか出ないかの現象。点数どおりの割合で出ていれば較正できている。
+// 予測をコピーした回答や由来不明の旧記録は履歴に残し、比較の母数にしない。
+function calibrationGroups(records) {
+  const groups = new Map();
+  for (const r of records) {
+    const version = r.scoringVersion || r.algorithmVersion, timeWindow = r.window;
+    if (r.answerKind !== "independent" || r.outcome === "unchecked" || !isPreEventRound(r) || typeof version !== "string" || !version
+        || !S.PHENOMENA[r.phenomenon] || !Number.isFinite(r.score) || r.score < 0 || r.score > 100
+        || !Number.isFinite(r.actualScore) || r.actualScore < 0 || r.actualScore > 100
+        || timeWindow.length !== 2 || !timeWindow.every(Number.isFinite) || !Number.isFinite(r.peak) || timeWindow[0] > timeWindow[1]
+        || r.peak < timeWindow[0] || r.peak > timeWindow[1] || r.photoOutsideWindow === true) continue;
+    const key = JSON.stringify([r.phenomenon, version]);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push({ ...r, outcome: S.outcomeFromActual(r.phenomenon, r.score, r.actualScore) });
+  }
+  return [...groups.values()];
+}
+
+// 出るか出ないかの記録の内訳。未校正のスコアを発生確率として描かない。
 // 棒は単色。隣の質のグラフでは色が答えを表すので、同じ画面で色に2つの意味を持たせない。
 function occurrenceCalibration(list) {
   if (!list.length) return "";
   const rows = BANDS.map((lo) => {
     const bin = inBand(list, lo), seen = bin.filter((s) => s.outcome === "seen").length;
-    const rate = bin.length ? seen / bin.length : null, predicted = lo + 10;
+    const rate = bin.length ? seen / bin.length : null;
     return `<div class="bin"><span class="lb">${lo}–${lo + 20}</span>
-      <span class="bar">${rate !== null ? `<span class="fill" style="width:${rate * 100}%;background:var(--good)"></span>` : ""}
-        <span class="mark" style="left:${predicted}%"></span></span>
+      <span class="bar">${rate !== null ? `<span class="fill" style="width:${rate * 100}%;background:var(--good)"></span>` : ""}</span>
       <span class="pv">${rate !== null ? Math.round(rate * 100) + "%" : "—"}</span>
       <span class="tiny" style="width:20px;text-align:right">${bin.length}</span></div>`;
   }).join("");
   return `<div class="section-h" style="margin-top:4px"><h2>出たかどうか</h2>
       <span class="muted">${list.length}件</span></div>
-    <p class="tiny" style="margin:-2px 0 6px">雲海・霧氷・ダイヤモンドダスト・虹</p>
+    <p class="tiny" style="margin:-2px 0 6px">${esc(S.longNameOf(list[0].phenomenon))} · ${S.JstCal.monthDay(Math.min(...list.map(r => r.peak)))}〜${S.JstCal.monthDay(Math.max(...list.map(r => r.peak)))}</p>
     <div class="bins">${rows}</div>
-    <p class="tiny" style="margin-top:6px">棒＝実際に見えた割合 ／ 線＝点数どおりの水準</p>`;
+    <p class="tiny" style="margin-top:6px">棒＝この記録で見えた割合。予測の点数は発生確率ではありません。</p>`;
 }
 
 // 質の現象。「見えたか」では何点でもほぼ100%になるので、
@@ -380,12 +413,12 @@ function qualityCalibration(list) {
   }).join("");
   return `<div class="section-h" style="margin-top:4px"><h2>点数どおりだったか</h2>
       <span class="muted">${list.length}件</span></div>
-    <p class="tiny" style="margin:-2px 0 6px">朝焼け・夕焼け・星空</p>
+    <p class="tiny" style="margin:-2px 0 6px">${esc(S.longNameOf(list[0].phenomenon))} · ${S.JstCal.monthDay(Math.min(...list.map(r => r.peak)))}〜${S.JstCal.monthDay(Math.max(...list.map(r => r.peak)))}</p>
     <div class="bins">${rows}</div>
     <p class="tiny" style="margin-top:6px">
-      <span style="color:var(--good)">■</span> 予測通り が多く、
+      <span style="color:var(--good)">■</span> 予測通り ／
       <span style="color:var(--tertiary)">■</span> 期待外れ と
-      <span style="color:var(--spectacular)">■</span> 期待以上 が釣り合っていれば点数は合っています。
-      期待外れ側に偏っていれば点数が甘く、期待以上側に偏っていれば辛いということ。</p>`;
+      <span style="color:var(--spectacular)">■</span> 期待以上。自分で採点した記録の内訳です。
+      撮影場所や記録した日の偏りがあるため、これだけで予測精度は判断できません。</p>`;
 }
 export {answerHtml,collectObservations,findSighting,keepRounds,recordAnswer,renderRecords,roundOf,samePlaceAs,savedPredictionNote,savedRoundClient,savedRoundUnavailable};

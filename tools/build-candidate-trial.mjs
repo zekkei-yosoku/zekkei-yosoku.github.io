@@ -1,4 +1,5 @@
 import {patchAlignHeightGeometry,patchAtmosphereHeightBounds} from './build-record-height-geometry.mjs';
+import {forecastSummaryHtml} from './build-forecast-summary.mjs';
 import {patchExactEphemeris} from './build-exact-ephemeris.mjs';
 import {patchExactPolygonDistance} from './build-exact-polygon-distance.mjs';
 import {patchExactGeometry} from './build-exact-geometry.mjs';
@@ -74,7 +75,8 @@ const files={
 // Trial factory additions are registered beside the production architecture.
 const trialArchitecture=JSON.parse(readFileSync('src/source-manifest.json','utf8')).trialArchitecture;
 if(!trialArchitecture?.productionUnchanged||trialArchitecture.newGlobals?.length)throw Error('Invalid trial architecture boundary');
-for(const unit of trialArchitecture.units){const source=readFileSync(unit.path,'utf8');if(!files[unit.output||'astronotes-candidate-search.js']?.includes(source))throw Error('Unbundled trial architecture unit: '+unit.path);}
+const checkTrialUnits=includeHtml=>{for(const unit of trialArchitecture.units){if((unit.output==='index.html')!==includeHtml)continue;const source=readFileSync(unit.path,'utf8');if(!files[unit.output||'astronotes-candidate-search.js']?.includes(source))throw Error('Unbundled trial architecture unit: '+unit.path);}};
+checkTrialUnits(false);
 // Overlap-scope hooks are applied after the unit inventory check (tools/build-overlap-scope.mjs).
 files['astronotes-candidate-search.js']=overlapCandidateSearch(files['astronotes-candidate-search.js']);
 files['astronotes-candidate-search.js']=patch(files['astronotes-candidate-search.js'],'/* BUILD_DATA_HASHES */{}',JSON.stringify(Object.fromEntries(Object.entries(files).filter(([n])=>n.startsWith('data/')).map(([n,s])=>[n.slice(5),createHash('sha256').update(s).digest('hex')]))));
@@ -97,10 +99,11 @@ if(process.argv.includes('--html')){
  html=patch(html,html.match(/<script src="astronotes-explore\.js\?v=\d+"><\/script>/)?.[0]||'missing-explore-script','<script src="astronotes-explore-simple.js?v=0"></script>');
  html=patch(html,'host._bodyRadius = p.radius;','host._bodyRadius = p.radius; globalThis.AstroNotesTrialComposition?.redraw(host);');
  html=patch(html,'host._redrawLook = () => { if (host._lookSeq === seq) draw(cur); };','host._redrawLook = () => { if (host._lookSeq === seq) draw(cur); };\n host._trialCompositionView={spec,cv,W,H,k,win}; globalThis.AstroNotesTrialComposition?.bind(host,host._trialCompositionView);');
- html=patchExactRidgeHtml(recordSortHtml(recordTransferHtml(overlapHtml(html))));
+ html=forecastSummaryHtml(patchExactRidgeHtml(recordSortHtml(recordTransferHtml(overlapHtml(html)))));
  html=patch(html,'</body>','<script src="astronotes-candidate-search.js?v=0"></script>\n</body>');
  const versioned=versionAssets(html,name=>Object.hasOwn(files,name)?files[name]:readFileSync(new URL('../'+name,import.meta.url)));
  files['index.html']=hashCsp(versioned.html).html;files['app-version.txt']=versioned.id+'\n';
+ checkTrialUnits(true);
  const digest=v=>createHash('sha256').update(v).digest('hex');
  files['candidate-experiment.json']=JSON.stringify({name:'2026-11-05 全対象・全選択天体の撮影候補探索trial',productionHtmlSha256:digest(readFileSync(new URL('../index.html',import.meta.url))),visibilityCertified:false,productionAssetsSha256:Object.fromEntries(['astronotes-align.js','astronotes-shooting.js','astronotes-myplaces.js','astronotes-plan.js'].map(n=>[n,digest(readFileSync(new URL('../'+n,import.meta.url)))])),files:Object.fromEntries(Object.entries(files).map(([n,s])=>[n,digest(s)]))},null,2)+'\n';
 }

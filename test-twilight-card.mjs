@@ -25,5 +25,5 @@ test('詳細に時間帯のカードを出し、注記・検証中・見頃の�
  assert.doesNotMatch(fn,/見頃|検証中|目安|tw-note|t\.best|verified/,'ユーザー指定で出さない');
  assert.match(html,/S\.phrasing\(ev\.phenomenon, r\)\.label/,'評価の語は上のカードと同じ');
  assert.match(html,/<span class="tw-score">\$\{ok \? Math\.round\(p\.score\) : "—"\}<\/span>/,'点数も出す');
- assert.match(readFileSync(new URL('./astronotes-prediction.js',import.meta.url),'utf8'),/CACHE='sorami-predictions-twilight-v1'/);
+ assert.match(readFileSync(new URL('./astronotes-prediction.js',import.meta.url),'utf8'),/CACHE='sorami-predictions-quality-20261107-v1'/);
 });

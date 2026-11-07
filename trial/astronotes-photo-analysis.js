@@ -12,8 +12,9 @@
  * 範囲の取り方で値が大きく変わる（定点91枚で、上1/3だと順位相関0.24、地平線より上の帯だと0.99）。
  * 地平線の位置は後で決める。帯ごとに残せば、上から k 本の値は画素数の重み付けで正確に出せる。
  *
- * 予報は「事前」「事後」「なし」を分ける。予報が当たったかの評価に使えるのは事前だけ。
- * 判定は既存の isPreEventRound と同じ「保存した時刻が時間帯の開始より前」。
+ * 予報は「事前」「事後」「なし」を分ける。事前とは保存時刻が対象窓の開始より前。
+ * 評価ではさらに timeEligible（撮影前の保存かつ対象窓内の撮影）と、場所・回答由来を確認する。
+ * 事前という分類だけで学習や精度評価へ使わない。
  *
  * 設計: Vault 成果物/20261016_写真の保存時分析の設計案/00_設計案
  */
@@ -179,13 +180,21 @@
     // 予報の欄で選んだ回を優先し、次に事前、その中で一番近い地点
     withDistance.sort((a, b) => (selected(b.c) - selected(a.c)) || (PRE(b.c) - PRE(a.c)) || (a.d - b.d));
     const { c, d } = withDistance[0];
+    const timeWindow = c.window;
     return {
       kind: PRE(c) ? "pre_event" : "post_event",
       reason: null,
+      // A pre-event forecast may still be paired with a photo outside its target
+      // window or taken before the forecast existed. Keep that distinction explicit.
+      timeEligible: PRE(c) && c.capturedAt <= ctx.takenAtMs
+        && Array.isArray(timeWindow) && timeWindow.every(Number.isFinite)
+        && ctx.takenAtMs >= timeWindow[0] && ctx.takenAtMs <= timeWindow[1],
       origin: c.origin || null,
       selected: selected(c),
       // 端末に残した回は、残したときの版を使う。版を残す前（2026-10-16より前）の回は不明（null）で、今の版を書かない
       algorithmVersion: c.algorithmVersion !== undefined ? c.algorithmVersion : ctx.algorithmVersion || null,
+      scoringVersion: c.scoringVersion ?? null,
+      predictionAsOf: c.predictionAsOf ?? null, fetchedAt: c.fetchedAt ?? null,
       peak: c.peak ?? null, window: c.window ?? null,
       capturedAt: c.capturedAt ?? null,
       leadMs: Number.isFinite(c.capturedAt) ? ctx.takenAtMs - c.capturedAt : null,
