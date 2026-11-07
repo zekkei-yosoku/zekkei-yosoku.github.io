@@ -76,12 +76,12 @@ function shapePaths(value){
  return paths;
 }
 async function shapeCandidates(p,entry,deps){
- const {align,isMountain,observerAt,elevationAt,viewFor,isCurrent=()=>true,onProgress=()=>{}}=deps,s=cleanShape(entry.place.shape);
+ const {align,isMountain,observerAt,elevationAt,viewFor,yieldTask,isCurrent=()=>true,onProgress=()=>{}}=deps,s=cleanShape(entry.place.shape);
  if(!s)throw Error('shape-invalid');const paths=shapePaths(s),start=day(p.at),memo=new Map(),rows=[];let missing=0,steps=0;const began=Date.now();
  const check=()=>{if(!isCurrent())throw Error('shape-cancelled');if(Date.now()-began>45000)throw Error('shape-limit');};
  const evaluate=async position=>{
   check();const key=position.latitude.toFixed(9)+','+position.longitude.toFixed(9);if(memo.has(key))return memo.get(key);
-  if(++steps%8===0){onProgress({checked:steps});await new Promise(r=>setTimeout(r,0));check();}
+  if(++steps%8===0||yieldTask){if(steps%8===0)onProgress({checked:steps});await (yieldTask?yieldTask():new Promise(r=>setTimeout(r,0)));check();}
   // Every candidate has its own DEM. Anchor elevation/manual ground never leaks along a path.
   const ground=await elevationAt(position.latitude,position.longitude);check();
   if(!Number.isFinite(ground)){missing++;memo.set(key,null);return null;}
@@ -116,15 +116,15 @@ async function shapeCandidates(p,entry,deps){
  check();return {rows,missing,checked:memo.size,stepM:SHAPE_STEP_M};
 }
 
-async function candidates(plan,points,{align,isMountain,observerAt,elevationAt,ensure,viewFor,isCurrent=()=>true,onProgress=()=>{}}={}){
+async function candidates(plan,points,{align,isMountain,observerAt,elevationAt,ensure,viewFor,yieldTask,isCurrent=()=>true,onProgress=()=>{}}={}){
  const p=conditions(plan);if(!p)return {rows:[],failed:0};
  const issues=[];let checked=0;
  await ensure(p.body);const start=day(p.at),rows=[];let failed=0;
  for(const entry of points){
-  await new Promise(resolve=>setTimeout(resolve,0));if(!isCurrent())return {rows:[],failed:0,cancelled:true};
+  await (yieldTask?yieldTask():new Promise(resolve=>setTimeout(resolve,0)));if(!isCurrent())return {rows:[],failed:0,cancelled:true};
   try{
    const f=entry.place;
-   if(f.shape){const result=await shapeCandidates(p,entry,{align,isMountain,observerAt,elevationAt,viewFor,isCurrent,onProgress});rows.push(...result.rows);checked+=result.checked;if(result.missing){failed++;issues.push({id:f.id,reason:'elevation',count:result.missing});}continue;}
+   if(f.shape){const result=await shapeCandidates(p,entry,{align,isMountain,observerAt,elevationAt,viewFor,yieldTask,isCurrent,onProgress});rows.push(...result.rows);checked+=result.checked;if(result.missing){failed++;issues.push({id:f.id,reason:'elevation',count:result.missing});}continue;}
    const ground=Number.isFinite(f.groundManualM)?f.groundManualM:Number.isFinite(f.elevation)?f.elevation:await elevationAt(f.latitude,f.longitude);
    if(!Number.isFinite(ground))throw Error('missing elevation');
    const obs=observerAt(f,ground),view=viewFor?await viewFor(obs,p):null;

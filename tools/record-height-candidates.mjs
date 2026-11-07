@@ -32,9 +32,9 @@ export function createRecordHeightCandidates(deps){
  const shapeOk=(ctx,e)=>!ctx.shape||e.spatialMatched!==false&&(!Number.isFinite(e.altitude)||ctx.o.disc||e.altitude>0)&&shooting.shapeContains(ctx.shape,ctx.place);
  // Same point path as Shooting.candidates: observerAt → viewFor → eventsFor → day window → matches.
  function real(ctx,h){
-  const k=ctx.key+'|'+h.toFixed(1);let r=evals.get(k);if(r)return r;
+  const k=ctx.key+'|'+h.toFixed(1);ctx.heights.add(h);let r=evals.get(k);if(r)return r;
   r=(async()=>{
-   const obs=observer(ctx,h),view=await viewOf(obs,ctx.p);stats.realEvaluations++;ctx.heights.add(h);
+   const obs=observer(ctx,h),view=await viewOf(obs,ctx.p);stats.realEvaluations++;
    const events=shooting.eventsFor(ctx.p,obs,ctx.start,{align,isMountain,view}).filter(e=>e.at>=ctx.start&&e.at<ctx.start+DAY);
    const rows=events.filter(e=>shooting.matches(e,ctx.p,isMountain)&&shapeOk(ctx,e)).map(e=>({place:placeAt(ctx,h),record:ctx.entry.record,event:e,assumedObserver:obs}));
    return {rows,events,height:h};
@@ -43,7 +43,7 @@ export function createRecordHeightCandidates(deps){
  }
  async function verify(ctx,h,accept){
   stats.verifications++;
-  const result=await shooting.candidates(ctx.plan,[{place:placeAt(ctx,h),record:ctx.entry.record}],{align,isMountain,observerAt,elevationAt,ensure,viewFor:viewOf,isCurrent:ctx.isCurrent});
+  const result=await shooting.candidates(ctx.plan,[{place:placeAt(ctx,h),record:ctx.entry.record}],{align,isMountain,observerAt,elevationAt,ensure,viewFor:viewOf,yieldTask:deps.yieldTask,isCurrent:ctx.isCurrent});
   if(result.cancelled||!ctx.isCurrent())throw cancelled();
   return result.rows.filter(r=>accept(r)&&shapeOk(ctx,r.event)).map(r=>({...r,...(ctx.shape?{shapeType:ctx.shape.type}:{}),heightSearch:{min:ctx.range.min,max:ctx.range.max,height:h}}));
  }
@@ -240,7 +240,7 @@ export function createRecordHeightCandidates(deps){
   const evaluate=async height=>{
    if(memo.has(height))return memo.get(height);if(clock()>deadline)throw Error('shape-limit');
    const place={...entry.place,eyeHeightAGL:height,standAglM:height,stand:'ground'};
-   const result=await shooting.candidates(base.plan,[{place,record:entry.record}],{align,isMountain,observerAt,elevationAt,ensure,viewFor:viewOf,isCurrent:ctl.isCurrent});
+   const result=await shooting.candidates(base.plan,[{place,record:entry.record}],{align,isMountain,observerAt,elevationAt,ensure,viewFor:viewOf,yieldTask:deps.yieldTask,isCurrent:ctl.isCurrent});
    if(result.cancelled||!ctl.isCurrent())throw cancelled();
    stats.realEvaluations++;checked+=result.checked||0;
    if(result.failed)issues.push(...(result.issues||[{id:entry.place.id,reason:'calculation'}]));
@@ -262,7 +262,7 @@ export function createRecordHeightCandidates(deps){
  async function candidates(plan,entries,{isCurrent=()=>true,onProgress=()=>{}}={}){
   const fixed=[],ranged=[],invalid=[];
   for(const e of entries){const r=rangeOf(e.place);if(r)ranged.push({entry:e,range:r});else if(e.place.eyeHeightRangeAGL!=null)invalid.push(e);else fixed.push(e);}
-  const normal={align,isMountain,observerAt,elevationAt,ensure,viewFor,isCurrent,onProgress};
+  const normal={align,isMountain,observerAt,elevationAt,ensure,viewFor,yieldTask:deps.yieldTask,isCurrent,onProgress};
   if(!ranged.length&&!invalid.length)return shooting.candidates(plan,entries,normal);
   if(ranged.length&&deps.ensureModels){await deps.ensureModels();if(!isCurrent())return {rows:[],failed:0,cancelled:true};}
   const off={rows:[],failed:0,cancelled:true};

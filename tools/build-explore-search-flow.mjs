@@ -51,7 +51,7 @@ function showSearch(){
  SkyMapUI.workspaceHost()?.restoreObserver(structuredClone(s.observer));selectionPending=false;searchStarted=saved.searched;pendingScroll={top:saved.scrollTop,count:saved.count};syncWorkspace();if(discoveryTab==='records'||!searchStarted)restoreSearchScroll(0);
 }
 function leaveSearchFlow(){
- recordSeq++;recordCalendarSeq++;if(recordTimer!==null)clearTimeout(recordTimer);recordTimer=null;recordState={key:'',status:'idle'};recordPane?.replaceChildren();recordCache.clear();recordJobs.clear();recordTerrainCache.clear();recordMemo=null;recordCalendarArgs=null;
+ recordSeq++;recordCalendarSeq++;if(recordTimer!==null)clearTimeout(recordTimer);recordTimer=null;recordState={key:'',status:'idle'};recordPane?.replaceChildren();recordCache.clear();recordJobs.clear();recordMemo=null;recordCalendarArgs=null;
  previewBackEpoch++;
  document.dispatchEvent(new Event('astronotes-preview-leave'));
  resultRequested=false;selectionPending=false;searchStarted=false;returnIntent=null;pendingScroll=null;candidateBack.hidden=true;
@@ -59,7 +59,7 @@ function leaveSearchFlow(){
  searchRoot?.remove();delete mapView.dataset.exploreStage;
 }
 ${recordDiscoverySource}
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){syncRecordDiscovery();if(recordCalendarArgs?.isCurrent()&&mainSearchActive())recordCalendarArgs.restart();}});
+document.addEventListener('visibilitychange',()=>{syncRecordDiscovery();if(!document.hidden&&recordCalendarArgs?.isCurrent()&&mainSearchActive())recordCalendarArgs.restart();});
 document.addEventListener('astronotes-records-change',()=>{recordMemo=null;recordState.key='';queueMicrotask(()=>{syncRecordDiscovery();if(recordCalendarArgs?.isCurrent()&&mainSearchActive())recordCalendarArgs.restart();});});
 const mainCandidateWorkspace={separateRecords:true,newPlacesHost:()=>newPlacePane,calendarMonth:recordCalendar,returnScroll:()=>returnIntent?.scrollTop,epoch:()=>flowGeneration,previewWidth:()=>Math.max(200,Math.round(Math.min(780,mapView.clientWidth||320))),active:mainSearchActive,selectable:()=>mainSearchActive()&&!$('placeSheet').open,visible:()=>searchStarted,
  beginBack(){

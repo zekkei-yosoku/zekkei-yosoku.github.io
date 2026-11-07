@@ -29,6 +29,12 @@ const read=p=>{
 const result=renderIndex({entry:'src/features/explore/entry.inc',read});
 let trialShooting=patch(patch(readFileSync('astronotes-shooting.js','utf8'),'event:e,shapeType:s.type','event:e,assumedObserver:obs,shapeType:s.type'),'record:entry.record,event:e});','record:entry.record,event:e,assumedObserver:obs});');
 trialShooting=trialShooting.replaceAll("&&(p.body!=='moon'||e.sunAltitude<0)",'').replace("||(p.body==='moon'&&!(e.sunAltitude<0))",'');
+// Registered searches yield by elapsed work. Other callers retain the original timers.
+trialShooting=patch(trialShooting,'elevationAt,viewFor,isCurrent=()=>true,onProgress=()=>{}}=deps','elevationAt,viewFor,yieldTask,isCurrent=()=>true,onProgress=()=>{}}=deps');
+trialShooting=patch(trialShooting,'if(++steps%8===0){onProgress({checked:steps});await new Promise(r=>setTimeout(r,0));check();}','if(++steps%8===0||yieldTask){if(steps%8===0)onProgress({checked:steps});await (yieldTask?yieldTask():new Promise(r=>setTimeout(r,0)));check();}');
+trialShooting=patch(trialShooting,'ensure,viewFor,isCurrent=()=>true,onProgress=()=>{}}={})','ensure,viewFor,yieldTask,isCurrent=()=>true,onProgress=()=>{}}={})');
+trialShooting=patch(trialShooting,'await new Promise(resolve=>setTimeout(resolve,0));if(!isCurrent())','await (yieldTask?yieldTask():new Promise(resolve=>setTimeout(resolve,0)));if(!isCurrent())');
+trialShooting=patch(trialShooting,'elevationAt,viewFor,isCurrent,onProgress});rows.push','elevationAt,viewFor,yieldTask,isCurrent,onProgress});rows.push');
 let trialMyplaces=patch(patch(patch(readFileSync('astronotes-myplaces.js','utf8'),'この日に重なる撮影地点はありません。日付や対象を変えるか、記録に撮影地点と見えた対象を追加してください。','登録した地点に候補がありません。日付や対象を変えてください。'),'${result.rows.length}件','${result.rows.length}件（絞り込み前）'),'box.append(button);}'+'\n  if(result.failed)', 'box.append(button);}'+'\n  globalThis.AstroNotesCandidatePicker?.registerRegisteredFromSession(box,result.rows,plan,current);\n  if(result.failed)');
 trialMyplaces=patch(trialMyplaces,'plan=AstroNotesShooting.conditions(state()),selectedShape','plan=globalThis.AstroNotesCandidatePicker?.registeredPlan?.(AstroNotesShooting.conditions(state()))||AstroNotesShooting.conditions(state()),selectedShape');
 trialMyplaces=registeredMainSearch(trialMyplaces);

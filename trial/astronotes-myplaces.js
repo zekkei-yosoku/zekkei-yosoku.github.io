@@ -906,7 +906,7 @@ style.textContent = `
 .my-record{cursor:default}
 .my-picker{margin-bottom:8px}
 `;
-style.textContent+="\n#recordOpportunities{max-width:780px;margin-inline:auto}\n.record-opportunity-controls{display:grid;gap:12px}\n.record-opportunity-period{display:grid;grid-template-columns:44px minmax(0,1fr) 44px 44px;gap:4px;align-items:center}\n.record-opportunity-period button{min-width:0;min-height:44px;padding:4px;font-size:14px}\n.record-opportunity-period button:is(#recordOpportunityPrev,#recordOpportunityNext){font-size:24px}\n.record-opportunity-month{position:relative;display:grid;place-items:center;min-width:0;height:44px;font-size:16px;font-weight:600;white-space:nowrap;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n.record-opportunity-month input{position:absolute;inset:0;width:100%;height:44px;min-width:0;margin:0;opacity:0;font-size:16px;cursor:pointer}\n.record-opportunity-month:focus-within{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}\n.record-opportunity-filter{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-opportunity-filters .record-opportunity-select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;font-size:16px;margin:0;background-color:var(--card)}\n.record-opportunity-select{text-align:left;position:relative;padding:10px 30px 10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);border:1px solid var(--line);border-radius:10px}\n.record-opportunity-select::after{content:'';position:absolute;right:13px;top:17px;width:7px;height:7px;border-right:2px solid var(--secondary);border-bottom:2px solid var(--secondary);transform:rotate(45deg)}\n.record-opportunity-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-picker{box-sizing:border-box;width:min(440px,calc(100vw - 28px));max-height:min(80dvh,640px);padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);overflow:hidden}\n.record-opportunity-picker[open]{display:flex;flex-direction:column;gap:12px}\n.record-opportunity-picker::backdrop{background:rgba(0,0,0,.6)}\n.record-opportunity-picker-head,.record-opportunity-picker-tools,.record-opportunity-picker-foot{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-shrink:0}\n.record-opportunity-picker h2{font-size:18px;margin:0}.record-opportunity-picker button{min-height:44px;font-size:14px}\n.record-opportunity-picker #recordOpportunityPickerSearch{box-sizing:border-box;width:100%;min-height:44px;font-size:16px;margin:0;flex-shrink:0}\n.record-opportunity-picker-tools{justify-content:flex-start}.record-opportunity-picker-tools button{flex:1}\n.record-opportunity-picker-list{overflow:auto;overscroll-behavior:contain;min-height:0;scroll-padding:6px}\n.record-opportunity-picker-item{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 4px;box-sizing:border-box;border-bottom:1px solid var(--line);overflow-wrap:anywhere;cursor:pointer}\n.record-opportunity-picker-item input{width:20px;height:20px;margin:0;flex-shrink:0;accent-color:var(--accent)}\n.record-opportunity-picker-foot #recordOpportunityPickerApply{min-width:96px;background:var(--accent);color:var(--accent-ink,var(--bg))}\n:is(#recordOpportunityStatus,#recordOpportunityNotice){margin:12px 0;color:var(--secondary)}:is(#recordOpportunityStatus,#recordOpportunityNotice):empty{display:none}\n.record-opportunity-day{margin-top:20px}.record-opportunity-day h3{font-size:16px;margin:0 0 6px;font-weight:600}\n.record-opportunity-row{display:grid;grid-template-columns:52px minmax(0,1fr) 12px;grid-template-rows:auto auto;gap:2px 12px;align-items:center;width:100%;min-height:64px;padding:12px 0;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;background:transparent;color:var(--text)}\n.record-opportunity-time{grid-column:1;grid-row:1;align-self:end;font-size:16px;font-variant-numeric:tabular-nums;color:var(--accent)}\n.record-opportunity-body{grid-column:1;grid-row:2;align-self:start;font-size:12px;color:var(--secondary)}\n.record-opportunity-row strong{grid-column:2;grid-row:1/3;font-size:14px;line-height:1.6;overflow-wrap:anywhere}\n.record-opportunity-arrow{grid-column:3;grid-row:1/3;color:var(--secondary)}\n.record-opportunity-row.has-height strong{grid-row:1}.record-opportunity-height{grid-column:2;grid-row:2;font-size:12px;color:var(--secondary)}\n.record-opportunity-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.record-opportunity-actions:has(>button:not([hidden])){padding-bottom:4px}\n.record-opportunity-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n";style.textContent+="\n#myRecordHeight{min-width:0;border:0;border-block:1px solid var(--line);padding:14px 0;margin:14px 0}\n#myRecordHeight legend{float:left;width:100%;padding:0;margin:0 0 12px;font-size:14px;font-weight:600}\n#myRecordHeight legend+label{clear:both}\n.record-height-label{display:block;font-size:12px;color:var(--secondary);margin:10px 0 6px}\n.record-height-ground{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}\n.record-height-number{display:flex;align-items:center;gap:8px;min-width:0;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n#myRecordHeight input{box-sizing:border-box;min-width:0;width:100%;min-height:44px;margin:0;padding:8px 0;border:0;background:transparent;font-size:16px;color:var(--text)}\n.record-height-number>span{font-size:13px;color:var(--secondary)}\n.record-height-modes,.record-height-values{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;min-width:0}\n.record-height-modes{padding:3px;background:var(--sunk);border-radius:10px;margin-bottom:8px}\n#myRecordHeight button{min-height:44px;font-size:14px}\n.record-height-modes button{border:0;border-radius:8px;background:transparent;color:var(--secondary)}\n.record-height-modes button[aria-pressed=true]{background:var(--card);color:var(--accent);box-shadow:0 1px 4px #0002}\n.record-height-values>label{min-width:0}.record-height-values .tiny{display:block;margin:0 0 4px}\n#myHeightFixedFields{grid-template-columns:minmax(0,1fr);padding-top:20px}\n#myHeightFixedFields[hidden],#myHeightRangeFields[hidden],#myRecordHeight[hidden]{display:none!important}\n#myRecordHeight .warn{font-size:12px;margin:8px 0 0}\n";style.textContent+="\n.record-alignment-editor{flex-basis:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:6px 0 2px;min-width:0}\n#myPlaceSheet .my-draft-target:has(.record-alignment-editor){flex-wrap:wrap}\n.record-alignment-position{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-alignment-position select,.record-alignment-limbs select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;margin:0;font-size:16px}\n.record-alignment-limbs{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;min-width:0}\n.record-alignment-limbs[hidden]{display:none!important}\n#skyMapAlignmentControls{display:grid;gap:8px}\n#previewEyeHeightControls{margin:0 0 6px;padding:0;border:0;background:none;min-width:0}\n#previewEyeHeightControls[hidden]{display:none!important}\n.preview-eye-row{display:grid;grid-template-columns:minmax(0,1fr) 96px;column-gap:10px;align-items:end}\n.preview-eye-tools{min-width:0}.preview-eye-scale{display:block;font-size:11px;line-height:14px;color:var(--secondary);margin:0}\n.preview-eye-value,#aimLook .preview-focal-bar .preview-focal-value{display:flex;align-items:center;justify-content:flex-end;gap:2px;height:44px;min-width:0;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}\n#previewEyeValue,#aimLook .preview-focal-value [data-preview-focal-input]{box-sizing:border-box;width:0;flex:1;min-width:0;min-height:44px;padding:0;border:0;background:transparent;color:var(--text);text-align:right;font-size:15px;font-weight:600;appearance:textfield;border-radius:0}\n.preview-eye-value,#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:var(--sunk);padding:0 6px;cursor:text}\n.preview-eye-value:focus-within,#aimLook .preview-focal-bar .preview-focal-value:focus-within{border-color:var(--accent);outline:2px solid color-mix(in srgb,var(--accent) 28%,transparent);outline-offset:1px}\n#previewEyeValue::-webkit-inner-spin-button,#previewEyeValue::-webkit-outer-spin-button{appearance:none;margin:0}\n.numeric-ruler-track{box-sizing:border-box;position:relative;min-width:0;height:46px;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--sunk)}\n.numeric-ruler-track .numeric-ruler{height:44px;width:100%;cursor:ew-resize;direction:ltr}\n.numeric-ruler-track .sky-map-timeline-center{top:4px;bottom:4px}.numeric-ruler-track .sky-timeline-label{top:20px}\n#previewEyeRuler .sky-timeline-tape{background-image:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px calc(var(--timeline-unit)*5));background-size:calc(var(--timeline-unit)*5) 8px!important}\n#aimLook .preview-focal-tools{margin:0}\n#aimLook .aim-lens .preview-focal-bar{grid-template-columns:minmax(0,1fr) 96px;margin:0;column-gap:10px}\n#aimLook .preview-focal-scale{font-size:11px;line-height:14px}\n.preview-focal-tools .numeric-ruler-track{width:100%;height:46px}\n[data-focal-range][hidden]{display:none!important}\n#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;width:96px;min-width:96px;max-width:96px;height:44px;line-height:normal;padding-bottom:0;font-variant-numeric:tabular-nums}\n#previewEyeError{margin:4px 0 0;color:var(--secondary)}\n";style.textContent+="\n#myRecordsHub .my-head .record-transfer-more{display:grid;place-items:center;width:44px;min-width:44px;min-height:44px;padding:0;flex:none}\n.record-transfer-sheet{box-sizing:border-box;width:min(560px,calc(100vw - 24px));max-height:85dvh;border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--text);padding:0;overflow:auto}\n.record-transfer-sheet::backdrop{background:#0009}.record-transfer-sheet .sheet-head{position:sticky;top:0;z-index:1;background:var(--card);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}\n.record-transfer-sheet .sheet-head button{min-height:44px}.record-transfer-sheet .sheet-body{padding:12px 16px 16px;min-width:0}\n.record-transfer-sheet .transfer-menu-action{width:100%;min-height:52px;text-align:left;display:block;font-size:16px}\n.record-transfer-sheet .fav-btn{width:100%;min-height:44px;margin-top:12px}.record-transfer-sheet .transfer-select-tools{display:flex;gap:8px}.record-transfer-sheet .transfer-select-tools button{min-height:44px}\n.transfer-place-list{max-height:38dvh;overflow:auto;overscroll-behavior:contain;margin-top:8px}.transfer-place{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.transfer-place input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--accent)}\n.transfer-preview-place{display:grid;gap:4px;padding:12px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}#myRecordBodies{margin:12px 0}#myRecordBodies>summary{min-height:44px;display:list-item;align-content:center;color:var(--text);font-size:14px}\n";style.textContent+="\n#myRecordsHub .my-actions select.record-sort-select,.record-sort-row select.record-sort-select{flex:0 0 auto;width:auto;min-width:96px;min-height:44px}\n.record-sort-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}.record-sort-row input[type=search]{flex:1 1 160px;width:0;min-width:0}.record-sort-slot{display:contents}\n.record-sort-locate{min-height:44px}.record-sort-status{flex:1 0 100%;margin:0}\n";document.head.append(style);
+style.textContent+="\n#recordOpportunities{max-width:780px;margin-inline:auto}\n.record-opportunity-controls{display:grid;gap:12px}\n.record-opportunity-period{display:grid;grid-template-columns:44px minmax(0,1fr) 44px 44px;gap:4px;align-items:center}\n.record-opportunity-period button{min-width:0;min-height:44px;padding:4px;font-size:14px}\n.record-opportunity-period button:is(#recordOpportunityPrev,#recordOpportunityNext){font-size:24px}\n.record-opportunity-date{position:relative;display:grid;place-items:center;min-width:0;height:44px;font-size:16px;font-weight:600;white-space:nowrap;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n.record-opportunity-date input{position:absolute;inset:0;width:100%;height:44px;min-width:0;margin:0;opacity:0;font-size:16px;cursor:pointer}\n.record-opportunity-date:focus-within{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}\n.record-opportunity-filter{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-opportunity-filters .record-opportunity-select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;font-size:16px;margin:0;background-color:var(--card)}\n.record-opportunity-select{text-align:left;position:relative;padding:10px 30px 10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);border:1px solid var(--line);border-radius:10px}\n.record-opportunity-select::after{content:'';position:absolute;right:13px;top:17px;width:7px;height:7px;border-right:2px solid var(--secondary);border-bottom:2px solid var(--secondary);transform:rotate(45deg)}\n.record-opportunity-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-picker{box-sizing:border-box;width:min(440px,calc(100vw - 28px));max-height:min(80dvh,640px);padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);overflow:hidden}\n.record-opportunity-picker[open]{display:flex;flex-direction:column;gap:12px}\n.record-opportunity-picker::backdrop{background:rgba(0,0,0,.6)}\n.record-opportunity-picker-head,.record-opportunity-picker-tools,.record-opportunity-picker-foot{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-shrink:0}\n.record-opportunity-picker h2{font-size:18px;margin:0}.record-opportunity-picker button{min-height:44px;font-size:14px}\n.record-opportunity-picker #recordOpportunityPickerSearch{box-sizing:border-box;width:100%;min-height:44px;font-size:16px;margin:0;flex-shrink:0}\n.record-opportunity-picker-tools{justify-content:flex-start}.record-opportunity-picker-tools button{flex:1}\n.record-opportunity-picker-list{overflow:auto;overscroll-behavior:contain;min-height:0;scroll-padding:6px}\n.record-opportunity-picker-item{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 4px;box-sizing:border-box;border-bottom:1px solid var(--line);overflow-wrap:anywhere;cursor:pointer}\n.record-opportunity-picker-item input{width:20px;height:20px;margin:0;flex-shrink:0;accent-color:var(--accent)}\n.record-opportunity-picker-foot #recordOpportunityPickerApply{min-width:96px;background:var(--accent);color:var(--accent-ink,var(--bg))}\n:is(#recordOpportunityStatus,#recordOpportunityNotice){margin:12px 0;color:var(--secondary)}:is(#recordOpportunityStatus,#recordOpportunityNotice):empty{display:none}\n#recordOpportunityList:not(:empty){margin-top:12px;border-top:1px solid var(--line)}\n.record-progress-count{margin-inline-start:6px;color:var(--secondary);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}\n.record-opportunity-row{display:grid;grid-template-columns:52px minmax(0,1fr) 12px;grid-template-rows:auto auto;gap:2px 12px;align-items:center;width:100%;min-height:64px;padding:12px 0;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;background:transparent;color:var(--text)}\n.record-opportunity-time{grid-column:1;grid-row:1;align-self:end;font-size:16px;font-variant-numeric:tabular-nums;color:var(--accent)}\n.record-opportunity-body{grid-column:1;grid-row:2;align-self:start;font-size:12px;color:var(--secondary)}\n.record-opportunity-row strong{grid-column:2;grid-row:1/3;font-size:14px;line-height:1.6;overflow-wrap:anywhere}\n.record-opportunity-arrow{grid-column:3;grid-row:1/3;color:var(--secondary)}\n.record-opportunity-row.has-height strong{grid-row:1}.record-opportunity-height{grid-column:2;grid-row:2;font-size:12px;color:var(--secondary)}\n.record-opportunity-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.record-opportunity-actions:has(>button:not([hidden])){padding-bottom:4px}\n.record-opportunity-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n";style.textContent+="\n#myRecordHeight{min-width:0;border:0;border-block:1px solid var(--line);padding:14px 0;margin:14px 0}\n#myRecordHeight legend{float:left;width:100%;padding:0;margin:0 0 12px;font-size:14px;font-weight:600}\n#myRecordHeight legend+label{clear:both}\n.record-height-label{display:block;font-size:12px;color:var(--secondary);margin:10px 0 6px}\n.record-height-ground{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}\n.record-height-number{display:flex;align-items:center;gap:8px;min-width:0;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n#myRecordHeight input{box-sizing:border-box;min-width:0;width:100%;min-height:44px;margin:0;padding:8px 0;border:0;background:transparent;font-size:16px;color:var(--text)}\n.record-height-number>span{font-size:13px;color:var(--secondary)}\n.record-height-modes,.record-height-values{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;min-width:0}\n.record-height-modes{padding:3px;background:var(--sunk);border-radius:10px;margin-bottom:8px}\n#myRecordHeight button{min-height:44px;font-size:14px}\n.record-height-modes button{border:0;border-radius:8px;background:transparent;color:var(--secondary)}\n.record-height-modes button[aria-pressed=true]{background:var(--card);color:var(--accent);box-shadow:0 1px 4px #0002}\n.record-height-values>label{min-width:0}.record-height-values .tiny{display:block;margin:0 0 4px}\n#myHeightFixedFields{grid-template-columns:minmax(0,1fr);padding-top:20px}\n#myHeightFixedFields[hidden],#myHeightRangeFields[hidden],#myRecordHeight[hidden]{display:none!important}\n#myRecordHeight .warn{font-size:12px;margin:8px 0 0}\n";style.textContent+="\n.record-alignment-editor{flex-basis:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:6px 0 2px;min-width:0}\n#myPlaceSheet .my-draft-target:has(.record-alignment-editor){flex-wrap:wrap}\n.record-alignment-position{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-alignment-position select,.record-alignment-limbs select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;margin:0;font-size:16px}\n.record-alignment-limbs{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;min-width:0}\n.record-alignment-limbs[hidden]{display:none!important}\n#skyMapAlignmentControls{display:grid;gap:8px}\n#previewEyeHeightControls{margin:0 0 6px;padding:0;border:0;background:none;min-width:0}\n#previewEyeHeightControls[hidden]{display:none!important}\n.preview-eye-row{display:grid;grid-template-columns:minmax(0,1fr) 96px;column-gap:10px;align-items:end}\n.preview-eye-tools{min-width:0}.preview-eye-scale{display:block;font-size:11px;line-height:14px;color:var(--secondary);margin:0}\n.preview-eye-value,#aimLook .preview-focal-bar .preview-focal-value{display:flex;align-items:center;justify-content:flex-end;gap:2px;height:44px;min-width:0;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}\n#previewEyeValue,#aimLook .preview-focal-value [data-preview-focal-input]{box-sizing:border-box;width:0;flex:1;min-width:0;min-height:44px;padding:0;border:0;background:transparent;color:var(--text);text-align:right;font-size:15px;font-weight:600;appearance:textfield;border-radius:0}\n.preview-eye-value,#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:var(--sunk);padding:0 6px;cursor:text}\n.preview-eye-value:focus-within,#aimLook .preview-focal-bar .preview-focal-value:focus-within{border-color:var(--accent);outline:2px solid color-mix(in srgb,var(--accent) 28%,transparent);outline-offset:1px}\n#previewEyeValue::-webkit-inner-spin-button,#previewEyeValue::-webkit-outer-spin-button{appearance:none;margin:0}\n.numeric-ruler-track{box-sizing:border-box;position:relative;min-width:0;height:46px;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--sunk)}\n.numeric-ruler-track .numeric-ruler{height:44px;width:100%;cursor:ew-resize;direction:ltr}\n.numeric-ruler-track .sky-map-timeline-center{top:4px;bottom:4px}.numeric-ruler-track .sky-timeline-label{top:20px}\n#previewEyeRuler .sky-timeline-tape{background-image:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px calc(var(--timeline-unit)*5));background-size:calc(var(--timeline-unit)*5) 8px!important}\n#aimLook .preview-focal-tools{margin:0}\n#aimLook .aim-lens .preview-focal-bar{grid-template-columns:minmax(0,1fr) 96px;margin:0;column-gap:10px}\n#aimLook .preview-focal-scale{font-size:11px;line-height:14px}\n.preview-focal-tools .numeric-ruler-track{width:100%;height:46px}\n[data-focal-range][hidden]{display:none!important}\n#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;width:96px;min-width:96px;max-width:96px;height:44px;line-height:normal;padding-bottom:0;font-variant-numeric:tabular-nums}\n#previewEyeError{margin:4px 0 0;color:var(--secondary)}\n";style.textContent+="\n#myRecordsHub .my-head .record-transfer-more{display:grid;place-items:center;width:44px;min-width:44px;min-height:44px;padding:0;flex:none}\n.record-transfer-sheet{box-sizing:border-box;width:min(560px,calc(100vw - 24px));max-height:85dvh;border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--text);padding:0;overflow:auto}\n.record-transfer-sheet::backdrop{background:#0009}.record-transfer-sheet .sheet-head{position:sticky;top:0;z-index:1;background:var(--card);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}\n.record-transfer-sheet .sheet-head button{min-height:44px}.record-transfer-sheet .sheet-body{padding:12px 16px 16px;min-width:0}\n.record-transfer-sheet .transfer-menu-action{width:100%;min-height:52px;text-align:left;display:block;font-size:16px}\n.record-transfer-sheet .fav-btn{width:100%;min-height:44px;margin-top:12px}.record-transfer-sheet .transfer-select-tools{display:flex;gap:8px}.record-transfer-sheet .transfer-select-tools button{min-height:44px}\n.transfer-place-list{max-height:38dvh;overflow:auto;overscroll-behavior:contain;margin-top:8px}.transfer-place{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.transfer-place input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--accent)}\n.transfer-preview-place{display:grid;gap:4px;padding:12px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}#myRecordBodies{margin:12px 0}#myRecordBodies>summary{min-height:44px;display:list-item;align-content:center;color:var(--text);font-size:14px}\n";style.textContent+="\n#myRecordsHub .my-actions select.record-sort-select,.record-sort-row select.record-sort-select{flex:0 0 auto;width:auto;min-width:96px;min-height:44px}\n.record-sort-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}.record-sort-row input[type=search]{flex:1 1 160px;width:0;min-width:0}.record-sort-slot{display:contents}\n.record-sort-locate{min-height:44px}.record-sort-status{flex:1 0 100%;margin:0}\n";document.head.append(style);
 
 const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
  const {shooting,align,bodies,atmosphere,astro,terrain=null,scanHeights,rangeOf,isMountain,observerAt,elevationAt,ensure,viewFor=null,mountainRidge=null,summitCapM=300,yieldTask=()=>new Promise(r=>setTimeout(r,0)),clock=()=>Date.now(),limits={}}=deps;
@@ -937,9 +937,9 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
  const shapeOk=(ctx,e)=>!ctx.shape||e.spatialMatched!==false&&(!Number.isFinite(e.altitude)||ctx.o.disc||e.altitude>0)&&shooting.shapeContains(ctx.shape,ctx.place);
  // Same point path as Shooting.candidates: observerAt → viewFor → eventsFor → day window → matches.
  function real(ctx,h){
-  const k=ctx.key+'|'+h.toFixed(1);let r=evals.get(k);if(r)return r;
+  const k=ctx.key+'|'+h.toFixed(1);ctx.heights.add(h);let r=evals.get(k);if(r)return r;
   r=(async()=>{
-   const obs=observer(ctx,h),view=await viewOf(obs,ctx.p);stats.realEvaluations++;ctx.heights.add(h);
+   const obs=observer(ctx,h),view=await viewOf(obs,ctx.p);stats.realEvaluations++;
    const events=shooting.eventsFor(ctx.p,obs,ctx.start,{align,isMountain,view}).filter(e=>e.at>=ctx.start&&e.at<ctx.start+DAY);
    const rows=events.filter(e=>shooting.matches(e,ctx.p,isMountain)&&shapeOk(ctx,e)).map(e=>({place:placeAt(ctx,h),record:ctx.entry.record,event:e,assumedObserver:obs}));
    return {rows,events,height:h};
@@ -948,7 +948,7 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
  }
  async function verify(ctx,h,accept){
   stats.verifications++;
-  const result=await shooting.candidates(ctx.plan,[{place:placeAt(ctx,h),record:ctx.entry.record}],{align,isMountain,observerAt,elevationAt,ensure,viewFor:viewOf,isCurrent:ctx.isCurrent});
+  const result=await shooting.candidates(ctx.plan,[{place:placeAt(ctx,h),record:ctx.entry.record}],{align,isMountain,observerAt,elevationAt,ensure,viewFor:viewOf,yieldTask:deps.yieldTask,isCurrent:ctx.isCurrent});
   if(result.cancelled||!ctx.isCurrent())throw cancelled();
   return result.rows.filter(r=>accept(r)&&shapeOk(ctx,r.event)).map(r=>({...r,...(ctx.shape?{shapeType:ctx.shape.type}:{}),heightSearch:{min:ctx.range.min,max:ctx.range.max,height:h}}));
  }
@@ -1145,7 +1145,7 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
   const evaluate=async height=>{
    if(memo.has(height))return memo.get(height);if(clock()>deadline)throw Error('shape-limit');
    const place={...entry.place,eyeHeightAGL:height,standAglM:height,stand:'ground'};
-   const result=await shooting.candidates(base.plan,[{place,record:entry.record}],{align,isMountain,observerAt,elevationAt,ensure,viewFor:viewOf,isCurrent:ctl.isCurrent});
+   const result=await shooting.candidates(base.plan,[{place,record:entry.record}],{align,isMountain,observerAt,elevationAt,ensure,viewFor:viewOf,yieldTask:deps.yieldTask,isCurrent:ctl.isCurrent});
    if(result.cancelled||!ctl.isCurrent())throw cancelled();
    stats.realEvaluations++;checked+=result.checked||0;
    if(result.failed)issues.push(...(result.issues||[{id:entry.place.id,reason:'calculation'}]));
@@ -1167,7 +1167,7 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
  async function candidates(plan,entries,{isCurrent=()=>true,onProgress=()=>{}}={}){
   const fixed=[],ranged=[],invalid=[];
   for(const e of entries){const r=rangeOf(e.place);if(r)ranged.push({entry:e,range:r});else if(e.place.eyeHeightRangeAGL!=null)invalid.push(e);else fixed.push(e);}
-  const normal={align,isMountain,observerAt,elevationAt,ensure,viewFor,isCurrent,onProgress};
+  const normal={align,isMountain,observerAt,elevationAt,ensure,viewFor,yieldTask:deps.yieldTask,isCurrent,onProgress};
   if(!ranged.length&&!invalid.length)return shooting.candidates(plan,entries,normal);
   if(ranged.length&&deps.ensureModels){await deps.ensureModels();if(!isCurrent())return {rows:[],failed:0,cancelled:true};}
   const off={rows:[],failed:0,cancelled:true};
@@ -1741,29 +1741,164 @@ const createOpportunityScan=function createOpportunityScan({pairs,start,end,notB
  }
  return {state,advance};
 };
+const createRecordSearchCache=function createRecordSearchCache({limit=768,copy=structuredClone}={}){
+ const results=new Map(),jobs=new Map(),cancelled=()=>({rows:[],failed:0,cancelled:true});
+ const stats={hits:0,solves:0,joins:0};
+ async function read(key,solve,current){
+  if(!current())return cancelled();
+  if(results.has(key)){const value=results.get(key);results.delete(key);results.set(key,value);stats.hits++;return copy(value);}
+  let job=jobs.get(key),joined=!!job;
+  if(job)stats.joins++;
+  else{
+   job={watchers:new Set()};jobs.set(key,job);
+   const live=()=>[...job.watchers].some(w=>w());
+   job.promise=Promise.resolve().then(()=>{if(!live())return cancelled();stats.solves++;return solve(live);}).then(value=>{
+    if(live()&&!value.cancelled&&!value.failed&&!value.issues?.length&&value.rows.length<=256){results.set(key,copy(value));while(results.size>limit)results.delete(results.keys().next().value);}
+    return value;
+   }).finally(()=>{if(jobs.get(key)===job)jobs.delete(key);});
+  }
+  const watch=()=>current();job.watchers.add(watch);
+  try{const value=await job.promise;if(!current())return cancelled();return joined&&value.cancelled?read(key,solve,current):copy(value);}
+  finally{job.watchers.delete(watch);}
+ }
+ return {read,stats};
+};
+// One in-memory calculation session for both registered-place screens.
+let recordSearchSession=null,recordIndexMemo=null;
+const recordSearchFrame=()=>{
+ let yielded=performance.now(),pending=null,finish=null;
+ const channel=new MessageChannel();channel.port1.onmessage=()=>{const done=finish;finish=null;pending=null;yielded=performance.now();done?.();};
+ return ()=>{if(pending)return pending;if(performance.now()-yielded<8)return Promise.resolve();pending=new Promise(resolve=>{finish=resolve;channel.port2.postMessage(0);});return pending;};
+};
+const recordSearchYield=recordSearchFrame();
+const recordSearchScope=()=>[auth?.token,auth?.loginId,accessState.generation,version,JSON.stringify([auth?.tools,aimAirSettings]),AstroNotesAtmosphere.dataKey(),globalThis.AstroNotesTowerModels,globalThis.AstroNotesCityModels];
+const recordSameScope=(a,b)=>a?.length===b.length&&a.every((v,i)=>v===b[i]);
+function recordSearchIndex(){
+ const scope=[auth?.token,auth?.loginId,accessState.generation,version];
+ if(!recordSameScope(recordIndexMemo?.scope,scope)){
+  const records=load(),groups=new Map(),shapes=shapeData();
+  for(const record of records){
+   let targets=groups.get(record.placeId);if(!targets){targets=new Map();groups.set(record.placeId,targets);}
+   let group=targets.get(record.target.key);if(!group){group=[];targets.set(record.target.key,group);}group.push(record);
+  }
+  recordIndexMemo={scope,records,groups,shapes};
+ }
+ return recordIndexMemo;
+}
+function recordSearchShape(f,shapes){const r=shapes[f.id];return r&&r.latitude===f.latitude&&r.longitude===f.longitude?AstroNotesShooting.cleanShape(r.shape):null;}
+function recordBounded(map,key,build,limit){
+ if(map.has(key)){const value=map.get(key);map.delete(key);map.set(key,value);return value;}
+ const value=build();map.set(key,value);while(map.size>limit)map.delete(map.keys().next().value);return value;
+}
+function recordPrepared(session,shaped,obs,target,body,opts){
+ const views=shaped?session.shapeViews:session.pointViews,key=JSON.stringify([obs,target,body,opts]);
+ return recordBounded(views,key,()=>{session.prepares++;return AstroNotesAlign.prepareDailyView(obs,target,body,opts);},shaped?128:192);
+}
+function recordSolverFor(session,variant,shaped,override){
+ const terrain=override||session.terrain,align=Object.create(AstroNotesAlign);
+ align.prepareDailyView=(obs,target,body,opts)=>recordPrepared(session,shaped,obs,target,body,opts);
+ align.dailyView=(obs,target,body,day,{at,...opts}={})=>recordPrepared(session,shaped,obs,target,body,opts)(day,at);
+ const viewFor=(obs,p)=>{
+  if(p.matchMode==='overlap'&&aimIsMountain(p.target)){
+   const key=JSON.stringify([obs,p.target,p.body,p.partId,p.matchMode]);
+   return recordBounded(session.mountains,key,()=>aimShootingView(obs,p.target,p.body,p.partId,p.matchMode).catch(e=>{session.mountains.delete(key);throw e;}),96);
+  }
+  // Explore's original spatial branch computes an exact gap for its crossing probes.
+  // Keep that branch while sharing its prepareDailyView through align.dailyView.
+  if(shaped&&variant==='discovery')return null;
+  const o=AstroNotesShooting.searchOptions(p,aimIsMountain);
+  if(!(o.broad&&o.disc||o.partId==='__whole'&&!aimIsMountain(p.target)))return null;
+  return recordPrepared(session,shaped,obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM});
+ };
+ return recordHeightSolver({align,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),ensure:b=>AstroNotesBodies.ensure(b),viewFor,yieldTask:recordSearchYield,elevationAt:(lat,lon)=>{
+  const key=lat+','+lon;
+  return recordBounded(terrain,key,()=>candidateElevation(lat,lon).then(value=>{if(!Number.isFinite(value))terrain.delete(key);return value;}),12000);
+ }});
+}
+async function recordSearch(plan,entries,{isCurrent=()=>true,variant='discovery',terrainCache,onProgress=()=>{}}={}){
+ const cancelled=()=>({rows:[],failed:0,cancelled:true});
+ if(!isCurrent())return cancelled();
+ const owner=auth?.token,loginId=auth?.loginId,generation=accessState.generation,revision=version;
+ if(!owner||!toolAllowed('records'))return cancelled();
+ const p=AstroNotesShooting.conditions(plan);if(!p)return {rows:[],failed:0};
+ if(entries.length&&!AstroNotesAssets.modelsReady()){await AstroNotesAssets.ensureModels();if(!isCurrent()||owner!==auth?.token||loginId!==auth?.loginId||generation!==accessState.generation||revision!==version||!toolAllowed('records'))return cancelled();}
+ const start=AstroNotesShooting.day(p.at),scope=recordSearchScope(),air=AstroNotesAtmosphere.dataKey(start);
+ if(!recordSameScope(recordSearchSession?.scope,scope))recordSearchSession={scope,cache:createRecordSearchCache(),pointViews:new Map(),shapeViews:new Map(),mountains:new Map(),terrain:new Map(),solvers:new Map(),prepares:0};
+ const session=recordSearchSession,current=()=>isCurrent()&&recordSearchSession===session&&recordSameScope(scope,recordSearchScope())&&air===AstroNotesAtmosphere.dataKey(start)&&toolAllowed('records');
+ const planKey=JSON.stringify([start,air,p.target,p.body,p.partId,p.limb,p.matchMode]),rows=[],issues=[];
+ let failed=0,checked=0,processed=0,stepM;
+ for(const entry of entries){
+  if(!current())return cancelled();
+  const shaped=!!entry.place.shape,kind=shaped?variant:'point',solverKey=kind+(shaped?':shape':'');
+  let solver=terrainCache?null:session.solvers.get(solverKey);
+  if(!solver){solver=recordSolverFor(session,variant,shaped,terrainCache);if(!terrainCache)session.solvers.set(solverKey,solver);}
+  const {discoveryKey,discoveryRecordIds,...place}=entry.place;
+  const key=planKey+'|'+kind+'|'+JSON.stringify(Object.entries(place).sort(([a],[b])=>a.localeCompare(b)));
+  const solve=async live=>{
+   const value=await solver.candidates({...p,at:start},[{place,record:entry.record}],{isCurrent:live});
+   const result=Array.isArray(value)?{rows:value,failed:0}:value;
+   return {...result,rows:(result.rows||[]).map(({record,...row})=>row)};
+  };
+  const result=terrainCache?await solve(current):await session.cache.read(key,solve,current);
+  if(!current()||result.cancelled)return cancelled();
+  rows.push(...result.rows.map(row=>({...row,record:entry.record,...(discoveryKey?{place:{...row.place,discoveryKey,discoveryRecordIds}}:{})})));
+  failed+=result.failed||0;checked+=result.checked||0;stepM=result.stepM??stepM;issues.push(...(result.issues||[]));
+  onProgress({checked:++processed,total:entries.length});
+  await recordSearchYield();
+ }
+ if(!current())return cancelled();
+ rows.sort((a,b)=>a.event.at-b.event.at||a.place.name.localeCompare(b.place.name));
+ return {rows,failed,...(checked?{checked}:{}),...(stepM?{stepM}:{}),...(issues.length?{issues}:{})};
+}
+// Use the forecast's existing mascot, speech bubble, track and motion rules.
+function showRecordProgress(host,label,unit='件'){
+ const element=(tag,cls)=>{const n=document.createElement(tag);n.className=cls;return n;};
+ const node=element('div','note-wait record-search-progress'),character=element('span','note-wait-character'),bubble=element('div','note-wait-message'),headline=element('span','record-progress-title'),count=element('span','record-progress-count'),bar=element('div','note-progress'),fill=element('span','note-progress-fill');
+ character.setAttribute('aria-hidden','true');count.setAttribute('aria-hidden','true');fill.setAttribute('aria-hidden','true');
+ bar.setAttribute('role','progressbar');bar.setAttribute('aria-label','検索の進捗');bar.setAttribute('aria-valuemin','0');bar.setAttribute('aria-valuemax','100');
+ bar.append(fill);bubble.append(headline,count,bar);node.append(character,bubble);host.replaceChildren(node);
+ let last='';
+ function update(n,total,message=label){
+  const known=Number.isInteger(n)&&Number.isInteger(total)&&total>0&&n>=0&&n<=total,key=[n,total,message].join('|');if(last===key)return;last=key;
+  if(headline.textContent!==message)headline.textContent=message;
+  count.textContent=known?' '+n+' / '+total+unit:'';
+  if(known)bar.setAttribute('aria-valuetext',n+' / '+total+unit);else bar.removeAttribute('aria-valuetext');
+  if(known&&n>0){const percent=Math.min(99,Math.floor(n/total*100));bar.removeAttribute('data-indeterminate');bar.setAttribute('aria-valuenow',String(percent));fill.style.transform='scaleX('+percent/100+')';}
+  else{bar.setAttribute('data-indeterminate','');bar.removeAttribute('aria-valuenow');fill.style.removeProperty('transform');}
+ }
+ update(0,0);return {node,update};
+}
+function recordSearchReset(){
+ if(recordSearchSession&&!recordSameScope(recordSearchSession.scope,recordSearchScope()))recordSearchSession=null;
+ if(recordIndexMemo&&!recordSameScope(recordIndexMemo.scope,[auth?.token,auth?.loginId,accessState.generation,version]))recordIndexMemo=null;
+}
+
 // This code runs inside the existing MyPlacesUI closure in the trial only.
-const opportunityMonthAt=at=>new Date(at+32400000).toISOString().slice(0,7);
-const opportunityBounds=month=>{const [y,m]=month.split('-').map(Number);return [Date.UTC(y,m-1,1)-32400000,Date.UTC(y,m,1)-32400000];};
+const opportunityDateAt=at=>new Date(at+32400000).toISOString().slice(0,10);
+const opportunityBounds=date=>{const [y,m,d]=date.split('-').map(Number),start=Date.UTC(y,m-1,d)-32400000;return [start,start+86400000];};
+let opportunityDateChosen=false;
 let opportunityOwner=null,opportunityOwnerId=null,opportunityEpoch=0,opportunityJob=null,opportunityHost=null,opportunityDom=null,opportunityReturn=null,opportunityOpenSeq=0,opportunityInputEpoch=0;
 let opportunityPermittedBodies=[],opportunityPlaces=[],opportunityPicker=null,opportunityNotice='';
-let opportunityFilters={month:opportunityMonthAt(Date.now()),bodies:['sun','moon'],allBodies:false,places:[],allPlaces:true},opportunityRestore=null;
+let opportunityFilters={date:opportunityDateAt(Date.now()),bodies:['sun','moon'],allBodies:false,places:[],allPlaces:true},opportunityRestore=null;
 const opportunityCache=new Map();
+let opportunityPairMemo=null;
 const opportunityAirKey=()=>JSON.stringify([aimAirSettings,AstroNotesAtmosphere.dataKey()]);
 const opportunityAllowed=()=>!!auth?.token&&toolAllowed('records');
 const opportunityActive=()=>opportunityAllowed()&&!document.hidden&&!el('recordsView')?.hidden&&el('recordsView')?.dataset.tab==='opportunities';
 function opportunityPairs(bodies){
- const records=load(),pairs=[],unavailable=[];
+ const {groups,shapes}=recordSearchIndex(),pairs=[],unavailable=[];
  for(const favorite of favorites){
-  const keys=[...new Set(records.filter(r=>r.placeId===favorite.id).map(r=>r.target.key))];
-  for(const targetKey of keys){
-   const group=records.filter(r=>r.placeId===favorite.id&&r.target.key===targetKey).sort((a,b)=>Number(!!b.registration)-Number(!!a.registration)||when(b)-when(a)||b.updatedAt-a.updatedAt);
-   const best=statusOf(favorite.id,targetKey,records);if(!best||best.result==='hidden')continue;
+  const targets=groups.get(favorite.id);if(!targets)continue;
+  const shape=recordSearchShape(favorite,shapes),saved=shape?{...favorite,shape}:favorite;
+  for(const [targetKey,source] of targets){
+   const group=source.slice().sort((a,b)=>Number(!!b.registration)-Number(!!a.registration)||when(b)-when(a)||b.updatedAt-a.updatedAt);
+   const best=statusOf(favorite.id,targetKey,source);if(!best||best.result==='hidden')continue;
    const target=resolveTarget(targetKey),seen=new Set(),heightRange=RecordHeight.range(favorite.eyeHeightRangeAGL);if(favorite.eyeHeightRangeAGL!=null&&!heightRange){unavailable.push({placeId:favorite.id,targetKey,reason:'height'});continue;}if(target&&!recordMatchOpts(target,favorite)){unavailable.push({placeId:favorite.id,targetKey,reason:'alignment'});continue;}
    const savedTarget=best.target,targetMoved=target&&finite(savedTarget.latitude)&&finite(savedTarget.longitude)&&AstroNotesTerrain.distanceKm(savedTarget.latitude,savedTarget.longitude,target.latitude,target.longitude)>=NEAR_KM;
    if(!planningPairs([best],bodies).length){unavailable.push({placeId:favorite.id,targetKey,reason:'access'});continue;}if(!target||targetMoved){unavailable.push({placeId:favorite.id,targetKey,reason:'target'});continue;}
    for(const record of heightRange?[best]:group){
     if(record.removed||record.result==='hidden')continue;
-    const o=heightRange?favorite:record.observer||favorite;if(!shapeFor(favorite)&&AstroNotesTerrain.distanceKm(o.latitude,o.longitude,favorite.latitude,favorite.longitude)>=NEAR_KM){continue;}const place={...withShape(favorite),latitude:o.latitude,longitude:o.longitude,elevation:o.elevation??favorite.elevation,groundManualM:o.elevation??favorite.groundManualM??favorite.elevation,eyeHeightAGL:o.eyeHeightAGL??favorite.eyeHeightAGL??1.5};
+    const o=heightRange?favorite:record.observer||favorite;if(!shape&&AstroNotesTerrain.distanceKm(o.latitude,o.longitude,favorite.latitude,favorite.longitude)>=NEAR_KM){continue;}const place={...saved,latitude:o.latitude,longitude:o.longitude,elevation:o.elevation??favorite.elevation,groundManualM:o.elevation??favorite.groundManualM??favorite.elevation,eyeHeightAGL:o.eyeHeightAGL??favorite.eyeHeightAGL??1.5};
     place.standAglM=place.eyeHeightAGL;place.stand='ground';
     const observerKey=JSON.stringify([place.latitude,place.longitude,place.groundManualM,place.eyeHeightAGL,place.shape,heightRange]);
     if(seen.has(observerKey))continue;seen.add(observerKey);
@@ -1775,9 +1910,13 @@ function opportunityPairs(bodies){
  }
  return {pairs,unavailable};
 }
-function opportunitySignature(){return JSON.stringify([auth?.loginId,accessState.generation,version,favorites,load(),shapeData(),aimTargetList(),aimAirSettings,AstroNotesAtmosphere.dataKey(),auth?.tools]);}
+function opportunitySignature(){const {records,shapes}=recordSearchIndex();return JSON.stringify([auth?.loginId,accessState.generation,version,favorites,records,shapes,aimTargetList(),aimAirSettings,AstroNotesAtmosphere.dataKey(),auth?.tools]);}
+function opportunityPairSet(signature,bodies){
+ if(opportunityPairMemo?.signature!==signature)opportunityPairMemo={signature,sets:new Map()};
+ return recordBounded(opportunityPairMemo.sets,JSON.stringify(bodies),()=>opportunityPairs(bodies),4);
+}
 function opportunityRemember(job){if(!job?.scan||job.scan.state.failures.length||job.unavailable||job.signature!==opportunitySignature())return;opportunityCache.set(job.key,job.scan.state);while(opportunityCache.size>4)opportunityCache.delete(opportunityCache.keys().next().value);}
-function opportunityCancel(clear=false){if(clear)opportunityClosePicker();if(!clear)opportunityRemember(opportunityJob);opportunityEpoch++;opportunityJob=null;if(clear){opportunityCache.clear();opportunityHost?.replaceChildren();opportunityDom=null;opportunityReturn=null;opportunityRestore=null;opportunityNotice='';}}
+function opportunityCancel(clear=false){if(clear)opportunityClosePicker();if(!clear)opportunityRemember(opportunityJob);opportunityEpoch++;opportunityJob=null;if(clear){opportunityPairMemo=null;opportunityCache.clear();opportunityHost?.replaceChildren();opportunityDom=null;opportunityReturn=null;opportunityRestore=null;opportunityNotice='';}}
 function opportunityCurrent(job){return opportunityActive()&&opportunityJob===job&&job.epoch===opportunityEpoch&&job.owner===auth?.token&&job.loginId===auth?.loginId&&job.generation===accessState.generation&&job.inputEpoch===opportunityInputEpoch&&job.revision===version&&job.air===opportunityAirKey();}
 function opportunityNode(tag,attrs={},text=''){const n=document.createElement(tag);Object.assign(n,attrs);n.textContent=text;return n;}
 function opportunityClosePicker(){const picker=opportunityPicker;if(!picker)return;opportunityPicker=null;if(picker.dialog.open)picker.dialog.close();picker.dialog.remove();picker.trigger.setAttribute('aria-expanded','false');if(picker.trigger.isConnected&&opportunityActive())picker.trigger.focus({preventScroll:true});}
@@ -1806,34 +1945,36 @@ function opportunityBuild(){
  const host=el('recordOpportunities');if(!host)return false;opportunityHost=host;
  if(opportunityDom?.host===host&&host.firstChild)return true;
  host.replaceChildren();const controls=opportunityNode('div',{className:'record-opportunity-controls'}),period=opportunityNode('div',{className:'record-opportunity-period'});
- const prev=opportunityNode('button',{type:'button',className:'chip'},'‹'),month=opportunityNode('input',{type:'month',id:'recordOpportunityMonth',className:'fav-in'}),next=opportunityNode('button',{type:'button',className:'chip'},'›'),today=opportunityNode('button',{type:'button',className:'chip'},'今月');
- prev.id='recordOpportunityPrev';next.id='recordOpportunityNext';today.id='recordOpportunityToday';prev.setAttribute('aria-label','前の月');next.setAttribute('aria-label','次の月');month.setAttribute('aria-label','重なる日を調べる月');
- const change=delta=>{const [start]=opportunityBounds(opportunityFilters.month);const d=new Date(start+32400000);d.setUTCMonth(d.getUTCMonth()+delta);opportunitySet({month:d.toISOString().slice(0,7)});};prev.onclick=()=>change(-1);next.onclick=()=>change(1);month.onchange=()=>opportunitySet({month:month.value});today.onclick=()=>opportunitySet({month:opportunityMonthAt(Date.now())});const monthWrap=opportunityNode('label',{className:'record-opportunity-month'}),monthLabel=opportunityNode('span');monthLabel.setAttribute('aria-hidden','true');monthWrap.append(monthLabel,month);period.append(prev,monthWrap,next,today);
+ const prev=opportunityNode('button',{type:'button',className:'chip'},'‹'),date=opportunityNode('input',{type:'date',id:'recordOpportunityDate',className:'fav-in'}),next=opportunityNode('button',{type:'button',className:'chip'},'›'),today=opportunityNode('button',{type:'button',className:'chip'},'今日');
+ prev.id='recordOpportunityPrev';next.id='recordOpportunityNext';today.id='recordOpportunityToday';prev.setAttribute('aria-label','前の日');next.setAttribute('aria-label','次の日');date.setAttribute('aria-label','重なる日を調べる日付');
+ const change=delta=>{const [start]=opportunityBounds(opportunityFilters.date);opportunitySet({date:opportunityDateAt(start+delta*86400000)});};prev.onclick=()=>change(-1);next.onclick=()=>change(1);date.onchange=()=>opportunitySet({date:date.value});today.onclick=()=>opportunitySet({date:opportunityDateAt(Date.now())});const dateWrap=opportunityNode('label',{className:'record-opportunity-date'}),dateLabel=opportunityNode('span');dateLabel.setAttribute('aria-hidden','true');dateWrap.append(dateLabel,date);period.append(prev,dateWrap,next,today);
  const filters=opportunityNode('div',{className:'record-opportunity-filters'}),body=opportunityNode('button',{type:'button',id:'recordOpportunityBody',className:'fav-in record-opportunity-select'}),place=opportunityNode('button',{type:'button',id:'recordOpportunityPlace',className:'fav-in record-opportunity-select'});
  for(const [control,label,kind]of [[body,'天体','bodies'],[place,'撮影地点','places']]){const wrap=opportunityNode('div',{className:'record-opportunity-filter'}),caption=opportunityNode('span',{id:control.id+'Label'},label);control.setAttribute('aria-labelledby',caption.id+' '+control.id);control.setAttribute('aria-haspopup','dialog');control.setAttribute('aria-expanded','false');control.onclick=()=>opportunityOpenPicker(kind,control);wrap.append(caption,control);filters.append(wrap);}
- const notice=opportunityNode('p',{id:'recordOpportunityNotice',className:'tiny'});notice.setAttribute('role','status');const status=opportunityNode('p',{id:'recordOpportunityStatus',className:'tiny'});status.setAttribute('role','status');const list=opportunityNode('div',{id:'recordOpportunityList'}),actions=opportunityNode('div',{className:'record-opportunity-actions'}),more=opportunityNode('button',{type:'button',id:'recordOpportunityMore',className:'chip',hidden:true},'続きを確認'),retry=opportunityNode('button',{type:'button',id:'recordOpportunityRetry',className:'chip',hidden:true},'再試行');more.onclick=()=>opportunityAdvance(opportunityJob);retry.onclick=()=>{opportunityNotice='';if(opportunityJob)opportunityCache.delete(opportunityJob.key);opportunityCancel();renderOpportunities();};actions.append(more,retry);controls.append(period,filters);host.append(controls,notice,status,list,actions);opportunityDom={host,prev,month,monthLabel,next,today,body,place,notice,status,list,more,retry,rendered:0,groups:new Map(),first:null};return true;
+ const notice=opportunityNode('p',{id:'recordOpportunityNotice',className:'tiny'});notice.setAttribute('role','status');const status=opportunityNode('div',{id:'recordOpportunityStatus',className:'tiny'});status.setAttribute('role','status');const list=opportunityNode('div',{id:'recordOpportunityList'}),actions=opportunityNode('div',{className:'record-opportunity-actions'}),more=opportunityNode('button',{type:'button',id:'recordOpportunityMore',className:'chip',hidden:true},'続きを確認'),retry=opportunityNode('button',{type:'button',id:'recordOpportunityRetry',className:'chip',hidden:true},'再試行');more.onclick=()=>opportunityAdvance(opportunityJob);retry.onclick=()=>{opportunityNotice='';if(opportunityJob)opportunityCache.delete(opportunityJob.key);opportunityCancel();renderOpportunities();};actions.append(more,retry);controls.append(period,filters);host.append(controls,notice,status,list,actions);opportunityDom={host,prev,date,dateLabel,next,today,body,place,notice,status,list,more,retry,rendered:0};return true;
 }
 function opportunitySet(patch){
  if(!opportunityAllowed())return;opportunityClosePicker();
- const month=patch.month??opportunityFilters.month,current=opportunityMonthAt(Date.now());
- if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||month<current||month>'2100-12'){if(opportunityDom)opportunityDom.month.value=opportunityFilters.month;return;}
- opportunityOpenSeq++;opportunityNotice='';opportunityFilters={...opportunityFilters,...patch,month};opportunityCancel();renderOpportunities();
+ const date=patch.date??opportunityFilters.date;
+ if(!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(date)||date<'1900-01-01'||date>'2100-12-31'||opportunityDateAt(opportunityBounds(date)[0])!==date){if(opportunityDom)opportunityDom.date.value=opportunityFilters.date;return;}
+ opportunityDateChosen=true;opportunityOpenSeq++;opportunityNotice='';opportunityFilters={...opportunityFilters,...patch,date};opportunityCancel();renderOpportunities();
 }
 function opportunityDraw(job){
  if(!opportunityCurrent(job)||!opportunityDom)return;
- const d=opportunityDom,s=job.scan.state,rows=s.rows.filter(row=>row.event.at>=Date.now());
+ const d=opportunityDom,s=job.scan.state,rows=s.rows;
  d.host.setAttribute('aria-busy',String(s.running&&!s.paused&&!s.done));
- // Append completed days without replacing rows already under the pointer.
- const first=rows[0]?.id||null;
- if(d.rendered<0||d.first!==first){d.list.replaceChildren();d.groups.clear();d.rendered=0;}d.first=first;
+ // The chosen date is already visible above the results.
+ if(d.rendered<0){d.list.replaceChildren();d.rendered=0;}
  for(const row of s.rows.slice(d.rendered)){
-  if(row.event.at<Date.now())continue;
-  const atDay=AstroNotesShooting.day(row.event.at);let group=d.groups.get(atDay);
-  if(!group){group=opportunityNode('section',{className:'record-opportunity-day'});group.append(opportunityNode('h3',{},dayText(atDay)));d.groups.set(atDay,group);d.list.append(group);}
-  const button=opportunityNode('button',{type:'button',className:'record-opportunity-row'}),time=opportunityNode('span',{className:'record-opportunity-time'},S.JstCal.hhmm(row.event.at)),name=opportunityNode('strong',{},row.place.name+' → '+row.target.name),body=opportunityNode('span',{className:'record-opportunity-body'},AstroNotesBodies.definition(row.body)?.name||row.body),arrow=opportunityNode('span',{className:'record-opportunity-arrow'},'›');arrow.setAttribute('aria-hidden','true');button.append(time,name,body,arrow);const details=[];if(!row.place.eyeHeightRangeAGL&&job.pairs.some(p=>p.sourcePlaceId===row.sourcePlaceId&&p.target.id===row.target.id&&p.place.eyeHeightAGL!==row.place.eyeHeightAGL))details.push('地上'+row.place.eyeHeightAGL+'m');if(row.event.matchMode==='limb')details.push(RecordAlignment.text(row.target,row.event));if(row.place.eyeHeightRangeAGL)details.push('地上'+row.place.eyeHeightAGL+'m');if(row.shapeType)details.push((row.shapeType==='line'?'線上':'範囲内')+' '+row.place.latitude.toFixed(5)+', '+row.place.longitude.toFixed(5));if(details.length){button.classList.add('has-height');button.append(opportunityNode('span',{className:'record-opportunity-height'},details.join(' ・ ')));}button.dataset.opportunityId=row.id;button.onclick=()=>openOpportunity(row,job);group.append(button);
+  const button=opportunityNode('button',{type:'button',className:'record-opportunity-row'}),time=opportunityNode('span',{className:'record-opportunity-time'},S.JstCal.hhmm(row.event.at)),name=opportunityNode('strong',{},row.place.name+' → '+row.target.name),body=opportunityNode('span',{className:'record-opportunity-body'},AstroNotesBodies.definition(row.body)?.name||row.body),arrow=opportunityNode('span',{className:'record-opportunity-arrow'},'›');arrow.setAttribute('aria-hidden','true');button.append(time,name,body,arrow);const details=[];if(!row.place.eyeHeightRangeAGL&&job.pairs.some(p=>p.sourcePlaceId===row.sourcePlaceId&&p.target.id===row.target.id&&p.place.eyeHeightAGL!==row.place.eyeHeightAGL))details.push('地上'+row.place.eyeHeightAGL+'m');if(row.event.matchMode==='limb')details.push(RecordAlignment.text(row.target,row.event));if(row.place.eyeHeightRangeAGL)details.push('地上'+row.place.eyeHeightAGL+'m');if(row.shapeType)details.push((row.shapeType==='line'?'線上':'範囲内')+' '+row.place.latitude.toFixed(5)+', '+row.place.longitude.toFixed(5));if(details.length){button.classList.add('has-height');button.append(opportunityNode('span',{className:'record-opportunity-height'},details.join(' ・ ')));}button.dataset.opportunityId=row.id;button.onclick=()=>openOpportunity(row,job);d.list.append(button);
  }d.rendered=s.rows.length;
  const failures=s.failures.length+job.unavailable;
- d.notice.textContent=opportunityNotice;d.status.textContent=(!job.pairs.length?(!opportunityFilters.allPlaces&&!opportunityFilters.places.length?'撮影地点を選び直してください。':job.unavailable?(job.policyUnavailable?'撮影地点の高さや重ね方を確認してください。':job.accessUnavailable===job.unavailable?'現在の権限では、この組み合わせを確認できません':'対象の登録を確認してください。'):'この組み合わせで確認できる記録がありません'):s.done?(failures?(s.failures.length?'確認できなかった組み合わせがあります':job.accessUnavailable===job.unavailable?'現在の権限では確認できない組み合わせがあります':'対象の登録を確認してください。'):rows.length?'':'この期間に重なる日はありません'):s.paused?(s.through>job.start?S.Cal.monthDay(s.through-86400000)+'まで確認済み':'確認の続きがあります'):`確認中… ${Math.round(s.checked/Math.max(1,s.total)*100)}%`);
+ d.notice.textContent=opportunityNotice;
+ if(!s.done&&job.pairs.length){
+  if(job.progressUi?.node.parentNode!==d.status)job.progressUi=showRecordProgress(d.status,'重なりを確認中','組');
+  job.progressUi.update(s.checked,s.total,s.paused?'確認の続きがあります':undefined);
+ }else{
+  job.progressUi=null;d.status.textContent=!job.pairs.length?(!opportunityFilters.allPlaces&&!opportunityFilters.places.length?'撮影地点を選び直してください。':job.unavailable?(job.policyUnavailable?'撮影地点の高さや重ね方を確認してください。':job.accessUnavailable===job.unavailable?'現在の権限では、この組み合わせを確認できません':'対象の登録を確認してください。'):'この組み合わせで確認できる記録がありません'):failures?(s.failures.length?'確認できなかった組み合わせがあります':job.accessUnavailable===job.unavailable?'現在の権限では確認できない組み合わせがあります':'対象の登録を確認してください。'):rows.length?'':'この日に重なる組み合わせはありません';
+ }
  d.more.hidden=!s.paused;d.retry.hidden=!s.done||!s.failures.length;
  if(opportunityRestore!==null&&(s.done||document.scrollingElement.scrollHeight-innerHeight>=opportunityRestore)){const top=opportunityRestore;opportunityRestore=null;requestAnimationFrame(()=>{if(opportunityActive())scrollTo(0,top);});}
 }
@@ -1846,27 +1987,26 @@ async function opportunityAdvance(job){
  opportunityDraw(job);
 }
 function renderOpportunities(){
+ recordSearchReset();
  const owner=auth?.token;
- if(opportunityOwner!==owner||opportunityOwnerId!==auth?.loginId){opportunityCancel(true);opportunityOwner=owner;opportunityOwnerId=auth?.loginId;opportunityFilters={month:opportunityMonthAt(Date.now()),bodies:['sun','moon'],allBodies:false,places:[],allPlaces:true};}
+ if(opportunityOwner!==owner||opportunityOwnerId!==auth?.loginId){opportunityCancel(true);opportunityOwner=owner;opportunityOwnerId=auth?.loginId;opportunityDateChosen=false;opportunityFilters={date:opportunityDateAt(Date.now()),bodies:['sun','moon'],allBodies:false,places:[],allPlaces:true};}
  if(!opportunityActive()){opportunityClosePicker();if(opportunityJob)opportunityCancel();if(opportunityHost?.firstChild){opportunityHost.replaceChildren();opportunityDom=null;}return;}
- if(opportunityFilters.month<opportunityMonthAt(Date.now()))opportunityFilters.month=opportunityMonthAt(Date.now());
+ if(!opportunityDateChosen){const selected=typeof SkyMapUI!=='undefined'?SkyMapUI.selectionState?.():null;opportunityFilters.date=opportunityDateAt(Number.isFinite(selected?.at)?selected.at:Date.now());opportunityDateChosen=true;}
  if(!opportunityBuild())return;
  opportunityPermittedBodies=AstroNotesBodies.definitions.filter(b=>aimTargetList().some(t=>AstroNotesAccess.canFrame(toolAllowed,t.id,b.id))).map(b=>b.id);if(opportunityFilters.allBodies)opportunityFilters.bodies=opportunityPermittedBodies.slice();
  if(opportunityPicker&&opportunityPicker.signature!==opportunityPickerKey(opportunityPicker.kind)){opportunityClosePicker();opportunityNotice='登録内容や利用条件が変わりました。選択を開き直してください。';}
- const d=opportunityDom,{pairs:allPairs,unavailable}=opportunityPairs(opportunityFilters.bodies),available=opportunityPairs(opportunityPermittedBodies);
+ const signature=opportunitySignature(),d=opportunityDom,{pairs:allPairs,unavailable}=opportunityPairSet(signature,opportunityFilters.bodies),available=opportunityPairSet(signature,opportunityPermittedBodies);
  opportunityPlaces=[...new Map([...available.pairs.map(p=>[p.sourcePlaceId,p.place.name]),...available.unavailable.map(p=>[p.placeId,placeOf(p.placeId)?.name||'撮影地点'])]).entries()];
  if(opportunityFilters.allPlaces)opportunityFilters.places=opportunityPlaces.map(([id])=>id);else opportunityFilters.places=opportunityFilters.places.filter(id=>opportunityPlaces.some(([key])=>key===id));
  d.body.textContent=opportunityFilterLabel('bodies');d.place.textContent=opportunityFilterLabel('places');d.body.dataset.values=JSON.stringify(opportunityFilters.bodies);d.place.dataset.values=JSON.stringify(opportunityFilters.places);d.body.disabled=!opportunityPermittedBodies.length;d.place.disabled=!opportunityPlaces.length;
- d.month.value=opportunityFilters.month;d.monthLabel.textContent=opportunityFilters.month.slice(0,4)+'年'+Number(opportunityFilters.month.slice(5))+'月';d.month.min=opportunityMonthAt(Date.now());d.month.max='2100-12';d.prev.disabled=opportunityFilters.month===d.month.min;d.next.disabled=opportunityFilters.month===d.month.max;
- const [start,end]=opportunityBounds(opportunityFilters.month),signature=opportunitySignature(),key=JSON.stringify([signature,opportunityFilters,AstroNotesShooting.day(Date.now()),AstroNotesAtmosphere.dataKey(start)]);
+ d.date.value=opportunityFilters.date;d.dateLabel.textContent=opportunityFilters.date.replaceAll('-','/');d.date.min='1900-01-01';d.date.max='2100-12-31';d.prev.disabled=opportunityFilters.date===d.date.min;d.next.disabled=opportunityFilters.date===d.date.max;
+ const [start,end]=opportunityBounds(opportunityFilters.date),key=JSON.stringify([signature,opportunityFilters,AstroNotesAtmosphere.dataKey(start)]);
  if(opportunityJob?.key===key&&opportunityCurrent(opportunityJob)){opportunityDraw(opportunityJob);return;}
  opportunityCancel();d.list.replaceChildren();d.rendered=-1;
  const includesPlace=p=>opportunityFilters.places.includes(p.sourcePlaceId??p.placeId),pairs=allPairs.filter(includesPlace),missing=unavailable.filter(includesPlace).length;
- const scanStart=Math.max(start,AstroNotesShooting.day(Date.now())),job={key,signature,owner,loginId:auth?.loginId,generation:accessState.generation,epoch:opportunityEpoch,inputEpoch:opportunityInputEpoch,revision:version,air:opportunityAirKey(),pairs,unavailable:missing,accessUnavailable:unavailable.filter(p=>includesPlace(p)&&p.reason==='access').length,policyUnavailable:unavailable.filter(p=>includesPlace(p)&&['height','alignment'].includes(p.reason)).length,start:scanStart};opportunityJob=job;
- const terrain=new Map(),views=new Map();
- const deps={align:AstroNotesAlign,isMountain:aimIsMountain,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),elevationAt:async(lat,lon)=>{const k=lat+','+lon;if(!terrain.has(k))terrain.set(k,candidateElevation(lat,lon).then(value=>{if(!Number.isFinite(value))terrain.delete(k);return value;}));return terrain.get(k);},ensure:b=>AstroNotesBodies.ensure(b),viewFor:async(obs,p)=>{if(p.matchMode!=='overlap'&&p.partId!=='__whole')return null;const k=JSON.stringify([obs,p.target,p.body,p.partId,p.matchMode]);if(!views.has(k))views.set(k,aimShootingView(obs,p.target,p.body,p.partId,p.matchMode).then(view=>view||AstroNotesAlign.prepareDailyView(obs,p.target,p.body,{partId:p.partId,eyeM:obs.eyeM})).catch(error=>{views.delete(k);throw error;}));while(views.size>128)views.delete(views.keys().next().value);return views.get(k);}};
- const solver=recordHeightSolver(deps);job.heightStats=solver.stats;const solve=async(pair,day,isCurrent)=>recordEventOptions(await solver.candidates({target:pair.target,body:pair.body,at:day,partId:pair.partId,limb:pair.limb,matchMode:pair.matchMode},[{place:pair.place,record:pair.record}],{isCurrent}),pair);
- job.scan=createOpportunityScan({pairs,start:scanStart,end,notBefore:Math.max(start,Date.now()),solve,isCurrent:()=>opportunityCurrent(job),onDay:()=>opportunityDraw(job),onProgress:s=>{if(opportunityCurrent(job)&&opportunityDom)opportunityDom.status.textContent=`確認中… ${Math.round(s.checked/Math.max(1,s.total)*100)}%`;}});
+ const scanStart=start,job={key,signature,owner,loginId:auth?.loginId,generation:accessState.generation,epoch:opportunityEpoch,inputEpoch:opportunityInputEpoch,revision:version,air:opportunityAirKey(),pairs,unavailable:missing,accessUnavailable:unavailable.filter(p=>includesPlace(p)&&p.reason==='access').length,policyUnavailable:unavailable.filter(p=>includesPlace(p)&&['height','alignment'].includes(p.reason)).length,start:scanStart};opportunityJob=job;
+ const solve=async(pair,day,isCurrent)=>recordEventOptions(await recordSearch({target:pair.target,body:pair.body,at:day,partId:pair.partId,limb:pair.limb,matchMode:pair.matchMode},[{place:pair.place,record:pair.record}],{isCurrent,variant:'opportunity'}),pair);
+ job.scan=createOpportunityScan({pairs,start:scanStart,end,notBefore:start,solve,isCurrent:()=>opportunityCurrent(job),yieldTask:recordSearchYield,onDay:()=>opportunityDraw(job),onProgress:s=>{if(opportunityCurrent(job))job.progressUi?.update(s.checked,s.total);}});
  const cached=opportunityCache.get(key);if(cached){opportunityCache.delete(key);Object.assign(job.scan.state,cached,{running:false,cancelled:false});opportunityDraw(job);if(!job.scan.state.done)void opportunityAdvance(job);}else void opportunityAdvance(job);
 }
 function openOpportunityList(placeId='',bodies=null){
@@ -1876,7 +2016,7 @@ function openOpportunityList(placeId='',bodies=null){
  requestAnimationFrame(()=>{el('recordOpportunities')?.scrollIntoView({block:'start'});el('recordOpportunityPlace')?.focus({preventScroll:true});});
 }
 async function openOpportunity(row,job){
- if(!opportunityCurrent(job)){renderOpportunities();return;}if(row.event.at<Date.now()){renderOpportunities();return;}if(!job.scan.state.rows.includes(row)||!AstroNotesAccess.canFrame(toolAllowed,row.target.id,row.body))return;
+ if(!opportunityCurrent(job)){renderOpportunities();return;}if(!job.scan.state.rows.includes(row)||!AstroNotesAccess.canFrame(toolAllowed,row.target.id,row.body))return;
  opportunityNotice='';const ticket=++opportunityOpenSeq,owner=auth?.token,loginId=auth?.loginId,generation=accessState.generation,signature=job.signature,top=scrollY;
  try{
   await AstroNotesAssets.ensureModels();
@@ -1899,26 +2039,24 @@ renderRecordsHub();
 
 function discoveryPoints(){
  if(!auth?.token||!toolAllowed('records'))return [];
- const records=load(),out=[],seen=new Map();
+ const {groups,shapes}=recordSearchIndex(),out=[],seen=new Map();
  for(const f of favorites){
-  const shape=shapeFor(f),keys=[...new Set(records.filter(r=>r.placeId===f.id).map(r=>r.target.key))];
-  const live=keys.flatMap(k=>{const group=records.filter(r=>r.placeId===f.id&&r.target.key===k).sort((a,b)=>Number(!!b.registration)-Number(!!a.registration)||when(b)-when(a)||b.updatedAt-a.updatedAt);return group[0]?.removed?[]:group.filter(r=>!r.removed);});
+  const shape=recordSearchShape(f,shapes),saved=shape?{...f,shape}:f;
+  const live=[...(groups.get(f.id)?.values()||[])].flatMap(source=>{const group=source.slice().sort((a,b)=>Number(!!b.registration)-Number(!!a.registration)||when(b)-when(a)||b.updatedAt-a.updatedAt);return group[0]?.removed?[]:group.filter(r=>!r.removed);});
   for(const r of (f.eyeHeightRangeAGL!=null?live.slice(0,1):live)){
-   const o=f.eyeHeightRangeAGL!=null?f:r.observer||f,p={...withShape(f),latitude:o.latitude,longitude:o.longitude,elevation:o.elevation??f.elevation,groundManualM:o.elevation??f.groundManualM??f.elevation,eyeHeightAGL:o.eyeHeightAGL??f.eyeHeightAGL};
+   const o=f.eyeHeightRangeAGL!=null?f:r.observer||f,p={...saved,latitude:o.latitude,longitude:o.longitude,elevation:o.elevation??f.elevation,groundManualM:o.elevation??f.groundManualM??f.elevation,eyeHeightAGL:o.eyeHeightAGL??f.eyeHeightAGL};
    // Keep the actual recorded eye height, even if the current picker uses another floor.
    if(Number.isFinite(o.eyeHeightAGL)){p.standAglM=o.eyeHeightAGL;p.stand='ground';}
    const key=p.shape?JSON.stringify([f.id,p.eyeHeightAGL,p.eyeHeightRangeAGL,p.shape]):JSON.stringify([p.latitude,p.longitude,p.groundManualM,p.eyeHeightAGL,p.eyeHeightRangeAGL]);if(seen.has(key)){seen.get(key).place.discoveryRecordIds.push(r.id);continue;}p.discoveryKey=key;p.discoveryRecordIds=[r.id];const entry={place:p,record:r};seen.set(key,entry);out.push(entry);
   }
-  if(shape&&!live.length){const p=withShape(f),key=JSON.stringify([p.latitude,p.longitude,p.elevation,p.eyeHeightAGL,p.shape]);if(!seen.has(key)){p.discoveryKey=key;p.discoveryRecordIds=[];const entry={place:p,record:{result:'seen'}};seen.set(key,entry);out.push(entry);}}
+  if(shape&&!live.length){const p={...saved},key=JSON.stringify([p.latitude,p.longitude,p.elevation,p.eyeHeightAGL,p.shape]);if(!seen.has(key)){p.discoveryKey=key;p.discoveryRecordIds=[];const entry={place:p,record:{result:'seen'}};seen.set(key,entry);out.push(entry);}}
  }
  return out;
 }
 function discoveryRevision(){return version;}
-async function discoverySearch(plan,points,isCurrent,terrainCache=new Map()){
- const solver=recordHeightSolver({align:AstroNotesAlign,isMountain:aimIsMountain,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),elevationAt:async(lat,lon)=>{const key=lat+','+lon;if(!terrainCache.has(key))terrainCache.set(key,candidateElevation(lat,lon).then(value=>{if(!Number.isFinite(value))terrainCache.delete(key);return value;}));return terrainCache.get(key);},viewFor:(obs,p)=>aimShootingView(obs,p.target,p.body,p.partId,p.matchMode),ensure:b=>AstroNotesBodies.ensure(b)});return solver.candidates(plan,points,{isCurrent});
-}
+function discoverySearch(plan,points,isCurrent,terrainCache,onProgress){return recordSearch(plan,points,{isCurrent,terrainCache,onProgress});}
 
-window.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision, recordSortControl,sortRecordPlaces, eyeAdjustmentFor, opportunities, backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{version++;candidateCache.clear();changed();},selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, leaveSky, pickSky, badge, openPlace, recordFor, quickRecord, load, renderRecordsHub };
+window.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision, recordSortControl,sortRecordPlaces, eyeAdjustmentFor, opportunities,recordProgress:showRecordProgress, backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{version++;candidateCache.clear();changed();},selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, leaveSky, pickSky, badge, openPlace, recordFor, quickRecord, load, renderRecordsHub };
 // 読み込みより先に構図が描かれていたら、ここで一覧を出す
 if (el('aimView') && !el('aimView').hidden) { try { renderAim(); } catch { /* 構図を止めない */ } }
 // A map without an observer renders synchronously, before this deferred module arrives.

@@ -2,6 +2,7 @@ import {recordAlignmentMyplaces} from './build-record-alignment.mjs';
 import {recordHeightMyplaces} from './build-record-heights.mjs';
 import {readFileSync} from 'node:fs';
 import {createOpportunityScan} from './record-opportunity-scan.mjs';
+import {createRecordSearchCache} from './record-search-cache.mjs';
 const patch=(s,from,to)=>{if(s.split(from).length!==2)throw Error('Record opportunities boundary changed: '+from.slice(0,80));return s.replace(from,to);};
 const style=String.raw`
 #recordOpportunities{max-width:780px;margin-inline:auto}
@@ -9,9 +10,9 @@ const style=String.raw`
 .record-opportunity-period{display:grid;grid-template-columns:44px minmax(0,1fr) 44px 44px;gap:4px;align-items:center}
 .record-opportunity-period button{min-width:0;min-height:44px;padding:4px;font-size:14px}
 .record-opportunity-period button:is(#recordOpportunityPrev,#recordOpportunityNext){font-size:24px}
-.record-opportunity-month{position:relative;display:grid;place-items:center;min-width:0;height:44px;font-size:16px;font-weight:600;white-space:nowrap;border:1px solid var(--line);border-radius:10px;background:var(--card)}
-.record-opportunity-month input{position:absolute;inset:0;width:100%;height:44px;min-width:0;margin:0;opacity:0;font-size:16px;cursor:pointer}
-.record-opportunity-month:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.record-opportunity-date{position:relative;display:grid;place-items:center;min-width:0;height:44px;font-size:16px;font-weight:600;white-space:nowrap;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.record-opportunity-date input{position:absolute;inset:0;width:100%;height:44px;min-width:0;margin:0;opacity:0;font-size:16px;cursor:pointer}
+.record-opportunity-date:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 .record-opportunity-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .record-opportunity-filter{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}
 .record-opportunity-filters .record-opportunity-select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;font-size:16px;margin:0;background-color:var(--card)}
@@ -30,7 +31,8 @@ const style=String.raw`
 .record-opportunity-picker-item input{width:20px;height:20px;margin:0;flex-shrink:0;accent-color:var(--accent)}
 .record-opportunity-picker-foot #recordOpportunityPickerApply{min-width:96px;background:var(--accent);color:var(--accent-ink,var(--bg))}
 :is(#recordOpportunityStatus,#recordOpportunityNotice){margin:12px 0;color:var(--secondary)}:is(#recordOpportunityStatus,#recordOpportunityNotice):empty{display:none}
-.record-opportunity-day{margin-top:20px}.record-opportunity-day h3{font-size:16px;margin:0 0 6px;font-weight:600}
+#recordOpportunityList:not(:empty){margin-top:12px;border-top:1px solid var(--line)}
+.record-progress-count{margin-inline-start:6px;color:var(--secondary);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .record-opportunity-row{display:grid;grid-template-columns:52px minmax(0,1fr) 12px;grid-template-rows:auto auto;gap:2px 12px;align-items:center;width:100%;min-height:64px;padding:12px 0;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;background:transparent;color:var(--text)}
 .record-opportunity-time{grid-column:1;grid-row:1;align-self:end;font-size:16px;font-variant-numeric:tabular-nums;color:var(--accent)}
 .record-opportunity-body{grid-column:1;grid-row:2;align-self:start;font-size:12px;color:var(--secondary)}
@@ -42,7 +44,8 @@ const style=String.raw`
 `;
 export function recordOpportunitiesMyplaces(s){
  const runtime=readFileSync(new URL('./record-opportunities-runtime.js',import.meta.url),'utf8');
- s=patch(s,'renderRecordsHub();\nwindow.MyPlacesUI = {','const createOpportunityScan='+createOpportunityScan.toString()+';\n'+runtime+'\nrenderRecordsHub();\nwindow.MyPlacesUI = { opportunities,');
+ const search=readFileSync(new URL('./record-search-runtime.js',import.meta.url),'utf8');
+ s=patch(s,'renderRecordsHub();\nwindow.MyPlacesUI = {','const createOpportunityScan='+createOpportunityScan.toString()+';\nconst createRecordSearchCache='+createRecordSearchCache.toString()+';\n'+search+'\n'+runtime+'\nrenderRecordsHub();\nwindow.MyPlacesUI = { opportunities,recordProgress:showRecordProgress,');
  s=patch(s,'function renderRecordsHub() {','function renderRecordsHub() {\n  renderOpportunities();');
  s=patch(s,'document.head.append(style);','style.textContent+='+JSON.stringify(style)+';document.head.append(style);');
  const start=s.indexOf('    if(!notebookEdit&&planningPairs(targets,recordsBodyFilter?'),end=s.indexOf('list.append(group);',start);

@@ -1,26 +1,29 @@
 // This code runs inside the existing MyPlacesUI closure in the trial only.
-const opportunityMonthAt=at=>new Date(at+32400000).toISOString().slice(0,7);
-const opportunityBounds=month=>{const [y,m]=month.split('-').map(Number);return [Date.UTC(y,m-1,1)-32400000,Date.UTC(y,m,1)-32400000];};
+const opportunityDateAt=at=>new Date(at+32400000).toISOString().slice(0,10);
+const opportunityBounds=date=>{const [y,m,d]=date.split('-').map(Number),start=Date.UTC(y,m-1,d)-32400000;return [start,start+86400000];};
+let opportunityDateChosen=false;
 let opportunityOwner=null,opportunityOwnerId=null,opportunityEpoch=0,opportunityJob=null,opportunityHost=null,opportunityDom=null,opportunityReturn=null,opportunityOpenSeq=0,opportunityInputEpoch=0;
 let opportunityPermittedBodies=[],opportunityPlaces=[],opportunityPicker=null,opportunityNotice='';
-let opportunityFilters={month:opportunityMonthAt(Date.now()),bodies:['sun','moon'],allBodies:false,places:[],allPlaces:true},opportunityRestore=null;
+let opportunityFilters={date:opportunityDateAt(Date.now()),bodies:['sun','moon'],allBodies:false,places:[],allPlaces:true},opportunityRestore=null;
 const opportunityCache=new Map();
+let opportunityPairMemo=null;
 const opportunityAirKey=()=>JSON.stringify([aimAirSettings,AstroNotesAtmosphere.dataKey()]);
 const opportunityAllowed=()=>!!auth?.token&&toolAllowed('records');
 const opportunityActive=()=>opportunityAllowed()&&!document.hidden&&!el('recordsView')?.hidden&&el('recordsView')?.dataset.tab==='opportunities';
 function opportunityPairs(bodies){
- const records=load(),pairs=[],unavailable=[];
+ const {groups,shapes}=recordSearchIndex(),pairs=[],unavailable=[];
  for(const favorite of favorites){
-  const keys=[...new Set(records.filter(r=>r.placeId===favorite.id).map(r=>r.target.key))];
-  for(const targetKey of keys){
-   const group=records.filter(r=>r.placeId===favorite.id&&r.target.key===targetKey).sort((a,b)=>Number(!!b.registration)-Number(!!a.registration)||when(b)-when(a)||b.updatedAt-a.updatedAt);
-   const best=statusOf(favorite.id,targetKey,records);if(!best||best.result==='hidden')continue;
+  const targets=groups.get(favorite.id);if(!targets)continue;
+  const shape=recordSearchShape(favorite,shapes),saved=shape?{...favorite,shape}:favorite;
+  for(const [targetKey,source] of targets){
+   const group=source.slice().sort((a,b)=>Number(!!b.registration)-Number(!!a.registration)||when(b)-when(a)||b.updatedAt-a.updatedAt);
+   const best=statusOf(favorite.id,targetKey,source);if(!best||best.result==='hidden')continue;
    const target=resolveTarget(targetKey),seen=new Set(),heightRange=RecordHeight.range(favorite.eyeHeightRangeAGL);if(favorite.eyeHeightRangeAGL!=null&&!heightRange){unavailable.push({placeId:favorite.id,targetKey,reason:'height'});continue;}if(target&&!recordMatchOpts(target,favorite)){unavailable.push({placeId:favorite.id,targetKey,reason:'alignment'});continue;}
    const savedTarget=best.target,targetMoved=target&&finite(savedTarget.latitude)&&finite(savedTarget.longitude)&&AstroNotesTerrain.distanceKm(savedTarget.latitude,savedTarget.longitude,target.latitude,target.longitude)>=NEAR_KM;
    if(!planningPairs([best],bodies).length){unavailable.push({placeId:favorite.id,targetKey,reason:'access'});continue;}if(!target||targetMoved){unavailable.push({placeId:favorite.id,targetKey,reason:'target'});continue;}
    for(const record of heightRange?[best]:group){
     if(record.removed||record.result==='hidden')continue;
-    const o=heightRange?favorite:record.observer||favorite;if(!shapeFor(favorite)&&AstroNotesTerrain.distanceKm(o.latitude,o.longitude,favorite.latitude,favorite.longitude)>=NEAR_KM){continue;}const place={...withShape(favorite),latitude:o.latitude,longitude:o.longitude,elevation:o.elevation??favorite.elevation,groundManualM:o.elevation??favorite.groundManualM??favorite.elevation,eyeHeightAGL:o.eyeHeightAGL??favorite.eyeHeightAGL??1.5};
+    const o=heightRange?favorite:record.observer||favorite;if(!shape&&AstroNotesTerrain.distanceKm(o.latitude,o.longitude,favorite.latitude,favorite.longitude)>=NEAR_KM){continue;}const place={...saved,latitude:o.latitude,longitude:o.longitude,elevation:o.elevation??favorite.elevation,groundManualM:o.elevation??favorite.groundManualM??favorite.elevation,eyeHeightAGL:o.eyeHeightAGL??favorite.eyeHeightAGL??1.5};
     place.standAglM=place.eyeHeightAGL;place.stand='ground';
     const observerKey=JSON.stringify([place.latitude,place.longitude,place.groundManualM,place.eyeHeightAGL,place.shape,heightRange]);
     if(seen.has(observerKey))continue;seen.add(observerKey);
@@ -32,9 +35,13 @@ function opportunityPairs(bodies){
  }
  return {pairs,unavailable};
 }
-function opportunitySignature(){return JSON.stringify([auth?.loginId,accessState.generation,version,favorites,load(),shapeData(),aimTargetList(),aimAirSettings,AstroNotesAtmosphere.dataKey(),auth?.tools]);}
+function opportunitySignature(){const {records,shapes}=recordSearchIndex();return JSON.stringify([auth?.loginId,accessState.generation,version,favorites,records,shapes,aimTargetList(),aimAirSettings,AstroNotesAtmosphere.dataKey(),auth?.tools]);}
+function opportunityPairSet(signature,bodies){
+ if(opportunityPairMemo?.signature!==signature)opportunityPairMemo={signature,sets:new Map()};
+ return recordBounded(opportunityPairMemo.sets,JSON.stringify(bodies),()=>opportunityPairs(bodies),4);
+}
 function opportunityRemember(job){if(!job?.scan||job.scan.state.failures.length||job.unavailable||job.signature!==opportunitySignature())return;opportunityCache.set(job.key,job.scan.state);while(opportunityCache.size>4)opportunityCache.delete(opportunityCache.keys().next().value);}
-function opportunityCancel(clear=false){if(clear)opportunityClosePicker();if(!clear)opportunityRemember(opportunityJob);opportunityEpoch++;opportunityJob=null;if(clear){opportunityCache.clear();opportunityHost?.replaceChildren();opportunityDom=null;opportunityReturn=null;opportunityRestore=null;opportunityNotice='';}}
+function opportunityCancel(clear=false){if(clear)opportunityClosePicker();if(!clear)opportunityRemember(opportunityJob);opportunityEpoch++;opportunityJob=null;if(clear){opportunityPairMemo=null;opportunityCache.clear();opportunityHost?.replaceChildren();opportunityDom=null;opportunityReturn=null;opportunityRestore=null;opportunityNotice='';}}
 function opportunityCurrent(job){return opportunityActive()&&opportunityJob===job&&job.epoch===opportunityEpoch&&job.owner===auth?.token&&job.loginId===auth?.loginId&&job.generation===accessState.generation&&job.inputEpoch===opportunityInputEpoch&&job.revision===version&&job.air===opportunityAirKey();}
 function opportunityNode(tag,attrs={},text=''){const n=document.createElement(tag);Object.assign(n,attrs);n.textContent=text;return n;}
 function opportunityClosePicker(){const picker=opportunityPicker;if(!picker)return;opportunityPicker=null;if(picker.dialog.open)picker.dialog.close();picker.dialog.remove();picker.trigger.setAttribute('aria-expanded','false');if(picker.trigger.isConnected&&opportunityActive())picker.trigger.focus({preventScroll:true});}
@@ -63,34 +70,36 @@ function opportunityBuild(){
  const host=el('recordOpportunities');if(!host)return false;opportunityHost=host;
  if(opportunityDom?.host===host&&host.firstChild)return true;
  host.replaceChildren();const controls=opportunityNode('div',{className:'record-opportunity-controls'}),period=opportunityNode('div',{className:'record-opportunity-period'});
- const prev=opportunityNode('button',{type:'button',className:'chip'},'‹'),month=opportunityNode('input',{type:'month',id:'recordOpportunityMonth',className:'fav-in'}),next=opportunityNode('button',{type:'button',className:'chip'},'›'),today=opportunityNode('button',{type:'button',className:'chip'},'今月');
- prev.id='recordOpportunityPrev';next.id='recordOpportunityNext';today.id='recordOpportunityToday';prev.setAttribute('aria-label','前の月');next.setAttribute('aria-label','次の月');month.setAttribute('aria-label','重なる日を調べる月');
- const change=delta=>{const [start]=opportunityBounds(opportunityFilters.month);const d=new Date(start+32400000);d.setUTCMonth(d.getUTCMonth()+delta);opportunitySet({month:d.toISOString().slice(0,7)});};prev.onclick=()=>change(-1);next.onclick=()=>change(1);month.onchange=()=>opportunitySet({month:month.value});today.onclick=()=>opportunitySet({month:opportunityMonthAt(Date.now())});const monthWrap=opportunityNode('label',{className:'record-opportunity-month'}),monthLabel=opportunityNode('span');monthLabel.setAttribute('aria-hidden','true');monthWrap.append(monthLabel,month);period.append(prev,monthWrap,next,today);
+ const prev=opportunityNode('button',{type:'button',className:'chip'},'‹'),date=opportunityNode('input',{type:'date',id:'recordOpportunityDate',className:'fav-in'}),next=opportunityNode('button',{type:'button',className:'chip'},'›'),today=opportunityNode('button',{type:'button',className:'chip'},'今日');
+ prev.id='recordOpportunityPrev';next.id='recordOpportunityNext';today.id='recordOpportunityToday';prev.setAttribute('aria-label','前の日');next.setAttribute('aria-label','次の日');date.setAttribute('aria-label','重なる日を調べる日付');
+ const change=delta=>{const [start]=opportunityBounds(opportunityFilters.date);opportunitySet({date:opportunityDateAt(start+delta*86400000)});};prev.onclick=()=>change(-1);next.onclick=()=>change(1);date.onchange=()=>opportunitySet({date:date.value});today.onclick=()=>opportunitySet({date:opportunityDateAt(Date.now())});const dateWrap=opportunityNode('label',{className:'record-opportunity-date'}),dateLabel=opportunityNode('span');dateLabel.setAttribute('aria-hidden','true');dateWrap.append(dateLabel,date);period.append(prev,dateWrap,next,today);
  const filters=opportunityNode('div',{className:'record-opportunity-filters'}),body=opportunityNode('button',{type:'button',id:'recordOpportunityBody',className:'fav-in record-opportunity-select'}),place=opportunityNode('button',{type:'button',id:'recordOpportunityPlace',className:'fav-in record-opportunity-select'});
  for(const [control,label,kind]of [[body,'天体','bodies'],[place,'撮影地点','places']]){const wrap=opportunityNode('div',{className:'record-opportunity-filter'}),caption=opportunityNode('span',{id:control.id+'Label'},label);control.setAttribute('aria-labelledby',caption.id+' '+control.id);control.setAttribute('aria-haspopup','dialog');control.setAttribute('aria-expanded','false');control.onclick=()=>opportunityOpenPicker(kind,control);wrap.append(caption,control);filters.append(wrap);}
- const notice=opportunityNode('p',{id:'recordOpportunityNotice',className:'tiny'});notice.setAttribute('role','status');const status=opportunityNode('p',{id:'recordOpportunityStatus',className:'tiny'});status.setAttribute('role','status');const list=opportunityNode('div',{id:'recordOpportunityList'}),actions=opportunityNode('div',{className:'record-opportunity-actions'}),more=opportunityNode('button',{type:'button',id:'recordOpportunityMore',className:'chip',hidden:true},'続きを確認'),retry=opportunityNode('button',{type:'button',id:'recordOpportunityRetry',className:'chip',hidden:true},'再試行');more.onclick=()=>opportunityAdvance(opportunityJob);retry.onclick=()=>{opportunityNotice='';if(opportunityJob)opportunityCache.delete(opportunityJob.key);opportunityCancel();renderOpportunities();};actions.append(more,retry);controls.append(period,filters);host.append(controls,notice,status,list,actions);opportunityDom={host,prev,month,monthLabel,next,today,body,place,notice,status,list,more,retry,rendered:0,groups:new Map(),first:null};return true;
+ const notice=opportunityNode('p',{id:'recordOpportunityNotice',className:'tiny'});notice.setAttribute('role','status');const status=opportunityNode('div',{id:'recordOpportunityStatus',className:'tiny'});status.setAttribute('role','status');const list=opportunityNode('div',{id:'recordOpportunityList'}),actions=opportunityNode('div',{className:'record-opportunity-actions'}),more=opportunityNode('button',{type:'button',id:'recordOpportunityMore',className:'chip',hidden:true},'続きを確認'),retry=opportunityNode('button',{type:'button',id:'recordOpportunityRetry',className:'chip',hidden:true},'再試行');more.onclick=()=>opportunityAdvance(opportunityJob);retry.onclick=()=>{opportunityNotice='';if(opportunityJob)opportunityCache.delete(opportunityJob.key);opportunityCancel();renderOpportunities();};actions.append(more,retry);controls.append(period,filters);host.append(controls,notice,status,list,actions);opportunityDom={host,prev,date,dateLabel,next,today,body,place,notice,status,list,more,retry,rendered:0};return true;
 }
 function opportunitySet(patch){
  if(!opportunityAllowed())return;opportunityClosePicker();
- const month=patch.month??opportunityFilters.month,current=opportunityMonthAt(Date.now());
- if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||month<current||month>'2100-12'){if(opportunityDom)opportunityDom.month.value=opportunityFilters.month;return;}
- opportunityOpenSeq++;opportunityNotice='';opportunityFilters={...opportunityFilters,...patch,month};opportunityCancel();renderOpportunities();
+ const date=patch.date??opportunityFilters.date;
+ if(!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(date)||date<'1900-01-01'||date>'2100-12-31'||opportunityDateAt(opportunityBounds(date)[0])!==date){if(opportunityDom)opportunityDom.date.value=opportunityFilters.date;return;}
+ opportunityDateChosen=true;opportunityOpenSeq++;opportunityNotice='';opportunityFilters={...opportunityFilters,...patch,date};opportunityCancel();renderOpportunities();
 }
 function opportunityDraw(job){
  if(!opportunityCurrent(job)||!opportunityDom)return;
- const d=opportunityDom,s=job.scan.state,rows=s.rows.filter(row=>row.event.at>=Date.now());
+ const d=opportunityDom,s=job.scan.state,rows=s.rows;
  d.host.setAttribute('aria-busy',String(s.running&&!s.paused&&!s.done));
- // Append completed days without replacing rows already under the pointer.
- const first=rows[0]?.id||null;
- if(d.rendered<0||d.first!==first){d.list.replaceChildren();d.groups.clear();d.rendered=0;}d.first=first;
+ // The chosen date is already visible above the results.
+ if(d.rendered<0){d.list.replaceChildren();d.rendered=0;}
  for(const row of s.rows.slice(d.rendered)){
-  if(row.event.at<Date.now())continue;
-  const atDay=AstroNotesShooting.day(row.event.at);let group=d.groups.get(atDay);
-  if(!group){group=opportunityNode('section',{className:'record-opportunity-day'});group.append(opportunityNode('h3',{},dayText(atDay)));d.groups.set(atDay,group);d.list.append(group);}
-  const button=opportunityNode('button',{type:'button',className:'record-opportunity-row'}),time=opportunityNode('span',{className:'record-opportunity-time'},S.JstCal.hhmm(row.event.at)),name=opportunityNode('strong',{},row.place.name+' → '+row.target.name),body=opportunityNode('span',{className:'record-opportunity-body'},AstroNotesBodies.definition(row.body)?.name||row.body),arrow=opportunityNode('span',{className:'record-opportunity-arrow'},'›');arrow.setAttribute('aria-hidden','true');button.append(time,name,body,arrow);const details=[];if(!row.place.eyeHeightRangeAGL&&job.pairs.some(p=>p.sourcePlaceId===row.sourcePlaceId&&p.target.id===row.target.id&&p.place.eyeHeightAGL!==row.place.eyeHeightAGL))details.push('地上'+row.place.eyeHeightAGL+'m');if(row.event.matchMode==='limb')details.push(RecordAlignment.text(row.target,row.event));if(row.place.eyeHeightRangeAGL)details.push('地上'+row.place.eyeHeightAGL+'m');if(row.shapeType)details.push((row.shapeType==='line'?'線上':'範囲内')+' '+row.place.latitude.toFixed(5)+', '+row.place.longitude.toFixed(5));if(details.length){button.classList.add('has-height');button.append(opportunityNode('span',{className:'record-opportunity-height'},details.join(' ・ ')));}button.dataset.opportunityId=row.id;button.onclick=()=>openOpportunity(row,job);group.append(button);
+  const button=opportunityNode('button',{type:'button',className:'record-opportunity-row'}),time=opportunityNode('span',{className:'record-opportunity-time'},S.JstCal.hhmm(row.event.at)),name=opportunityNode('strong',{},row.place.name+' → '+row.target.name),body=opportunityNode('span',{className:'record-opportunity-body'},AstroNotesBodies.definition(row.body)?.name||row.body),arrow=opportunityNode('span',{className:'record-opportunity-arrow'},'›');arrow.setAttribute('aria-hidden','true');button.append(time,name,body,arrow);const details=[];if(!row.place.eyeHeightRangeAGL&&job.pairs.some(p=>p.sourcePlaceId===row.sourcePlaceId&&p.target.id===row.target.id&&p.place.eyeHeightAGL!==row.place.eyeHeightAGL))details.push('地上'+row.place.eyeHeightAGL+'m');if(row.event.matchMode==='limb')details.push(RecordAlignment.text(row.target,row.event));if(row.place.eyeHeightRangeAGL)details.push('地上'+row.place.eyeHeightAGL+'m');if(row.shapeType)details.push((row.shapeType==='line'?'線上':'範囲内')+' '+row.place.latitude.toFixed(5)+', '+row.place.longitude.toFixed(5));if(details.length){button.classList.add('has-height');button.append(opportunityNode('span',{className:'record-opportunity-height'},details.join(' ・ ')));}button.dataset.opportunityId=row.id;button.onclick=()=>openOpportunity(row,job);d.list.append(button);
  }d.rendered=s.rows.length;
  const failures=s.failures.length+job.unavailable;
- d.notice.textContent=opportunityNotice;d.status.textContent=(!job.pairs.length?(!opportunityFilters.allPlaces&&!opportunityFilters.places.length?'撮影地点を選び直してください。':job.unavailable?(job.policyUnavailable?'撮影地点の高さや重ね方を確認してください。':job.accessUnavailable===job.unavailable?'現在の権限では、この組み合わせを確認できません':'対象の登録を確認してください。'):'この組み合わせで確認できる記録がありません'):s.done?(failures?(s.failures.length?'確認できなかった組み合わせがあります':job.accessUnavailable===job.unavailable?'現在の権限では確認できない組み合わせがあります':'対象の登録を確認してください。'):rows.length?'':'この期間に重なる日はありません'):s.paused?(s.through>job.start?S.Cal.monthDay(s.through-86400000)+'まで確認済み':'確認の続きがあります'):`確認中… ${Math.round(s.checked/Math.max(1,s.total)*100)}%`);
+ d.notice.textContent=opportunityNotice;
+ if(!s.done&&job.pairs.length){
+  if(job.progressUi?.node.parentNode!==d.status)job.progressUi=showRecordProgress(d.status,'重なりを確認中','組');
+  job.progressUi.update(s.checked,s.total,s.paused?'確認の続きがあります':undefined);
+ }else{
+  job.progressUi=null;d.status.textContent=!job.pairs.length?(!opportunityFilters.allPlaces&&!opportunityFilters.places.length?'撮影地点を選び直してください。':job.unavailable?(job.policyUnavailable?'撮影地点の高さや重ね方を確認してください。':job.accessUnavailable===job.unavailable?'現在の権限では、この組み合わせを確認できません':'対象の登録を確認してください。'):'この組み合わせで確認できる記録がありません'):failures?(s.failures.length?'確認できなかった組み合わせがあります':job.accessUnavailable===job.unavailable?'現在の権限では確認できない組み合わせがあります':'対象の登録を確認してください。'):rows.length?'':'この日に重なる組み合わせはありません';
+ }
  d.more.hidden=!s.paused;d.retry.hidden=!s.done||!s.failures.length;
  if(opportunityRestore!==null&&(s.done||document.scrollingElement.scrollHeight-innerHeight>=opportunityRestore)){const top=opportunityRestore;opportunityRestore=null;requestAnimationFrame(()=>{if(opportunityActive())scrollTo(0,top);});}
 }
@@ -103,27 +112,26 @@ async function opportunityAdvance(job){
  opportunityDraw(job);
 }
 function renderOpportunities(){
+ recordSearchReset();
  const owner=auth?.token;
- if(opportunityOwner!==owner||opportunityOwnerId!==auth?.loginId){opportunityCancel(true);opportunityOwner=owner;opportunityOwnerId=auth?.loginId;opportunityFilters={month:opportunityMonthAt(Date.now()),bodies:['sun','moon'],allBodies:false,places:[],allPlaces:true};}
+ if(opportunityOwner!==owner||opportunityOwnerId!==auth?.loginId){opportunityCancel(true);opportunityOwner=owner;opportunityOwnerId=auth?.loginId;opportunityDateChosen=false;opportunityFilters={date:opportunityDateAt(Date.now()),bodies:['sun','moon'],allBodies:false,places:[],allPlaces:true};}
  if(!opportunityActive()){opportunityClosePicker();if(opportunityJob)opportunityCancel();if(opportunityHost?.firstChild){opportunityHost.replaceChildren();opportunityDom=null;}return;}
- if(opportunityFilters.month<opportunityMonthAt(Date.now()))opportunityFilters.month=opportunityMonthAt(Date.now());
+ if(!opportunityDateChosen){const selected=typeof SkyMapUI!=='undefined'?SkyMapUI.selectionState?.():null;opportunityFilters.date=opportunityDateAt(Number.isFinite(selected?.at)?selected.at:Date.now());opportunityDateChosen=true;}
  if(!opportunityBuild())return;
  opportunityPermittedBodies=AstroNotesBodies.definitions.filter(b=>aimTargetList().some(t=>AstroNotesAccess.canFrame(toolAllowed,t.id,b.id))).map(b=>b.id);if(opportunityFilters.allBodies)opportunityFilters.bodies=opportunityPermittedBodies.slice();
  if(opportunityPicker&&opportunityPicker.signature!==opportunityPickerKey(opportunityPicker.kind)){opportunityClosePicker();opportunityNotice='登録内容や利用条件が変わりました。選択を開き直してください。';}
- const d=opportunityDom,{pairs:allPairs,unavailable}=opportunityPairs(opportunityFilters.bodies),available=opportunityPairs(opportunityPermittedBodies);
+ const signature=opportunitySignature(),d=opportunityDom,{pairs:allPairs,unavailable}=opportunityPairSet(signature,opportunityFilters.bodies),available=opportunityPairSet(signature,opportunityPermittedBodies);
  opportunityPlaces=[...new Map([...available.pairs.map(p=>[p.sourcePlaceId,p.place.name]),...available.unavailable.map(p=>[p.placeId,placeOf(p.placeId)?.name||'撮影地点'])]).entries()];
  if(opportunityFilters.allPlaces)opportunityFilters.places=opportunityPlaces.map(([id])=>id);else opportunityFilters.places=opportunityFilters.places.filter(id=>opportunityPlaces.some(([key])=>key===id));
  d.body.textContent=opportunityFilterLabel('bodies');d.place.textContent=opportunityFilterLabel('places');d.body.dataset.values=JSON.stringify(opportunityFilters.bodies);d.place.dataset.values=JSON.stringify(opportunityFilters.places);d.body.disabled=!opportunityPermittedBodies.length;d.place.disabled=!opportunityPlaces.length;
- d.month.value=opportunityFilters.month;d.monthLabel.textContent=opportunityFilters.month.slice(0,4)+'年'+Number(opportunityFilters.month.slice(5))+'月';d.month.min=opportunityMonthAt(Date.now());d.month.max='2100-12';d.prev.disabled=opportunityFilters.month===d.month.min;d.next.disabled=opportunityFilters.month===d.month.max;
- const [start,end]=opportunityBounds(opportunityFilters.month),signature=opportunitySignature(),key=JSON.stringify([signature,opportunityFilters,AstroNotesShooting.day(Date.now()),AstroNotesAtmosphere.dataKey(start)]);
+ d.date.value=opportunityFilters.date;d.dateLabel.textContent=opportunityFilters.date.replaceAll('-','/');d.date.min='1900-01-01';d.date.max='2100-12-31';d.prev.disabled=opportunityFilters.date===d.date.min;d.next.disabled=opportunityFilters.date===d.date.max;
+ const [start,end]=opportunityBounds(opportunityFilters.date),key=JSON.stringify([signature,opportunityFilters,AstroNotesAtmosphere.dataKey(start)]);
  if(opportunityJob?.key===key&&opportunityCurrent(opportunityJob)){opportunityDraw(opportunityJob);return;}
  opportunityCancel();d.list.replaceChildren();d.rendered=-1;
  const includesPlace=p=>opportunityFilters.places.includes(p.sourcePlaceId??p.placeId),pairs=allPairs.filter(includesPlace),missing=unavailable.filter(includesPlace).length;
- const scanStart=Math.max(start,AstroNotesShooting.day(Date.now())),job={key,signature,owner,loginId:auth?.loginId,generation:accessState.generation,epoch:opportunityEpoch,inputEpoch:opportunityInputEpoch,revision:version,air:opportunityAirKey(),pairs,unavailable:missing,accessUnavailable:unavailable.filter(p=>includesPlace(p)&&p.reason==='access').length,policyUnavailable:unavailable.filter(p=>includesPlace(p)&&['height','alignment'].includes(p.reason)).length,start:scanStart};opportunityJob=job;
- const terrain=new Map(),views=new Map();
- const deps={align:AstroNotesAlign,isMountain:aimIsMountain,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),elevationAt:async(lat,lon)=>{const k=lat+','+lon;if(!terrain.has(k))terrain.set(k,candidateElevation(lat,lon).then(value=>{if(!Number.isFinite(value))terrain.delete(k);return value;}));return terrain.get(k);},ensure:b=>AstroNotesBodies.ensure(b),viewFor:async(obs,p)=>{if(p.matchMode!=='overlap'&&p.partId!=='__whole')return null;const k=JSON.stringify([obs,p.target,p.body,p.partId,p.matchMode]);if(!views.has(k))views.set(k,aimShootingView(obs,p.target,p.body,p.partId,p.matchMode).then(view=>view||AstroNotesAlign.prepareDailyView(obs,p.target,p.body,{partId:p.partId,eyeM:obs.eyeM})).catch(error=>{views.delete(k);throw error;}));while(views.size>128)views.delete(views.keys().next().value);return views.get(k);}};
- const solver=recordHeightSolver(deps);job.heightStats=solver.stats;const solve=async(pair,day,isCurrent)=>recordEventOptions(await solver.candidates({target:pair.target,body:pair.body,at:day,partId:pair.partId,limb:pair.limb,matchMode:pair.matchMode},[{place:pair.place,record:pair.record}],{isCurrent}),pair);
- job.scan=createOpportunityScan({pairs,start:scanStart,end,notBefore:Math.max(start,Date.now()),solve,isCurrent:()=>opportunityCurrent(job),onDay:()=>opportunityDraw(job),onProgress:s=>{if(opportunityCurrent(job)&&opportunityDom)opportunityDom.status.textContent=`確認中… ${Math.round(s.checked/Math.max(1,s.total)*100)}%`;}});
+ const scanStart=start,job={key,signature,owner,loginId:auth?.loginId,generation:accessState.generation,epoch:opportunityEpoch,inputEpoch:opportunityInputEpoch,revision:version,air:opportunityAirKey(),pairs,unavailable:missing,accessUnavailable:unavailable.filter(p=>includesPlace(p)&&p.reason==='access').length,policyUnavailable:unavailable.filter(p=>includesPlace(p)&&['height','alignment'].includes(p.reason)).length,start:scanStart};opportunityJob=job;
+ const solve=async(pair,day,isCurrent)=>recordEventOptions(await recordSearch({target:pair.target,body:pair.body,at:day,partId:pair.partId,limb:pair.limb,matchMode:pair.matchMode},[{place:pair.place,record:pair.record}],{isCurrent,variant:'opportunity'}),pair);
+ job.scan=createOpportunityScan({pairs,start:scanStart,end,notBefore:start,solve,isCurrent:()=>opportunityCurrent(job),yieldTask:recordSearchYield,onDay:()=>opportunityDraw(job),onProgress:s=>{if(opportunityCurrent(job))job.progressUi?.update(s.checked,s.total);}});
  const cached=opportunityCache.get(key);if(cached){opportunityCache.delete(key);Object.assign(job.scan.state,cached,{running:false,cancelled:false});opportunityDraw(job);if(!job.scan.state.done)void opportunityAdvance(job);}else void opportunityAdvance(job);
 }
 function openOpportunityList(placeId='',bodies=null){
@@ -133,7 +141,7 @@ function openOpportunityList(placeId='',bodies=null){
  requestAnimationFrame(()=>{el('recordOpportunities')?.scrollIntoView({block:'start'});el('recordOpportunityPlace')?.focus({preventScroll:true});});
 }
 async function openOpportunity(row,job){
- if(!opportunityCurrent(job)){renderOpportunities();return;}if(row.event.at<Date.now()){renderOpportunities();return;}if(!job.scan.state.rows.includes(row)||!AstroNotesAccess.canFrame(toolAllowed,row.target.id,row.body))return;
+ if(!opportunityCurrent(job)){renderOpportunities();return;}if(!job.scan.state.rows.includes(row)||!AstroNotesAccess.canFrame(toolAllowed,row.target.id,row.body))return;
  opportunityNotice='';const ticket=++opportunityOpenSeq,owner=auth?.token,loginId=auth?.loginId,generation=accessState.generation,signature=job.signature,top=scrollY;
  try{
   await AstroNotesAssets.ensureModels();
