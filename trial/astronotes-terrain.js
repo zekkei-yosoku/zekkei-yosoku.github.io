@@ -249,6 +249,7 @@
   }
 
   const tiles = new Map();
+  const tileAvailability = new WeakMap();
   const TILE_MEM = 240;                      // 手元に持つ画素（1枚 約260KB）。古いものから手放し、要れば保存領域から読み直す
   // 標高タイルの無い升目（404＝陸の無い外洋）。水の判定で、海と分かっている所へ水域タイルを取りに行かないために憶える
   const demMissing = new Set();
@@ -268,10 +269,13 @@
   }
   /// タイルを1枚読む。**同じタイルは二度取りに行かない**（この画面でも、次に開いたときも）。
   /// layer は国土地理院の標高タイルの種類（既定は10mメッシュの dem_png）
-  function loadTile(z, x, y, layer = "dem_png") {
+  function loadTile(z, x, y, layer = "dem_png", strict = false) {
     const key = layer === "dem_png" ? `${z}/${x}/${y}` : `${layer}/${z}/${x}/${y}`;
     if (tiles.has(key)) return tiles.get(key);
     const url = `${GSI_TILE.replace(/dem_png$/, layer)}/${z}/${x}/${y}.png`;
+    const availability={missing:false,verified:false};
+    // Image success confirms this exact layer. Image failure never confirms 404.
+    const verifiedImage=async(url)=>{const image=await loadTileByImage(url);if(image)availability.verified=true;return image;};
     const p = (async () => {
       const store = demStore();
       let cache = null;
@@ -283,23 +287,24 @@
           if (hit && Date.now() - at < DEM_TTL_MS && Date.now() >= at) {
             // **海など、タイルの無い区画も憶えておく。** 開くたびに同じ升目へ取りに行って
             // 404 を並べていた（2026-09-30 総点検。ねらうの線が相模湾・東京湾の上を通るたびに十数枚）
-            if (hit.headers.get(DEM_MISSING)) { demMissing.add(key); return null; }
+            if (hit.headers.get(DEM_MISSING)) { availability.missing=true;demMissing.add(key); return null; }
             const img = await decodeTile(await hit.blob());
-            if (img) return img;
+            if (img) { availability.verified=true;return img; }
           }
         } catch { cache = null; }       // 保存領域が使えなくても、取得は止めない
       }
-      if (!cache || typeof fetch !== "function") return tileLimited(() => loadTileByImage(url));
+      if (typeof fetch !== "function" || (!cache && !strict)) return tileLimited(() => verifiedImage(url));
       return tileLimited(async () => {
       let res = null;
       try { res = await fetch(url, { mode: "cors", signal: global.AbortSignal?.timeout(TILE_TIMEOUT_MS) }); }
       catch (e) {
         // 時間切れはタイルが無いのとは違う。下の層へ落とすと粗い値で測り、富士山の見え方として憶えてしまう
         if (e?.name === "TimeoutError") throw e;
-        return loadTileByImage(url);
+        return verifiedImage(url);
       }
       if (!res.ok) {                    // 海など、タイルの無い区画は 404
         if (res.status === 404) {
+          availability.missing=true;
           demMissing.add(key);
           try {
             await cache.put(url, new Response("", { status: 200,
@@ -309,8 +314,20 @@
         return null;
       }
       const blob = await res.blob();
-      const img = await decodeTile(blob);
-      if (!img) return loadTileByImage(url);
+      let img = await decodeTile(blob);
+      if(!img){
+        if(!strict)return verifiedImage(url);
+        // HTTP 200 is confirmed. Decode those exact bytes through a local blob
+        // when ImageBitmap is unavailable; do not issue an unverified image GET.
+        if(typeof global.URL?.createObjectURL==='function'){
+          let local;
+          try{local=global.URL.createObjectURL(blob);img=await loadTileByImage(local);}
+          catch{/* Keep the legacy Image retry if local blob decoding is unavailable. */}
+          finally{if(local)global.URL.revokeObjectURL(local);}
+        }
+        if(!img)return verifiedImage(url);
+      }
+      availability.verified=true;
       try {
         await cache.put(url, new Response(blob, { status: 200,
           headers: { "content-type": "image/png", [DEM_AT]: String(Date.now()) } }));
@@ -319,6 +336,7 @@
       return img;
       });
     })();
+    tileAvailability.set(p,availability);
     tiles.set(key, p);
     // 失敗を憶えない。憶えると、同じ画面の次の測定まで試さずに失敗する
     p.catch(() => { if (tiles.get(key) === p) tiles.delete(key); });
@@ -434,6 +452,49 @@
     if (j && j.elevation === "-----") return { elevation: 0, source: "海" };
     return null;
   }
+  // Trial: share native-resolution PNGs for dense path/area samples. The 2026-10-05
+  // decision above is retained: isolated points can cost more initial tile requests.
+  // Confirmed source/pixel rounding matches the point API; unknown tiles use that API.
+  const nativeGroundPoint=(function createNativeGroundPoint({readTile,clock=()=>Date.now()}){
+ const layers=[['dem1a_png',17,'1m（レーザ）',10],['dem5a_png',15,'5m（レーザ）',10],['dem5b_png',15,'5m（写真測量）',10],['dem5c_png',15,'5m（写真測量5C）',10],['dem_png',14,'10m',100]];
+ let retryAfter=0;
+ const unavailable=()=>{retryAfter=clock()+30000;return null;};
+ return async (latitude,longitude)=>{
+  if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||clock()<retryAfter)return null;
+  // Match the existing point request, not the unrounded caller coordinate.
+  const lat=Number(latitude.toFixed(6)),lon=Number(longitude.toFixed(6));
+  const positions=new Map();
+  for(const [layer,z,hsrc,quantumCm] of layers){
+   let p=positions.get(z);
+   if(!p){
+    // Keep the official client's operation order, including floor at tile edges.
+    const R=128/Math.PI,x=R*(lon*Math.PI/180+Math.PI)*Math.pow(2,z),r=lat*Math.PI/180,y=(-R/2*Math.log((1+Math.sin(r))/(1-Math.sin(r)))+128)*Math.pow(2,z);
+    const tx=Math.floor(x/256),ty=Math.floor(y/256);
+    p={x:tx,y:ty,px:Math.floor(x-tx*256),py:Math.floor(y-ty*256)};positions.set(z,p);
+   }
+   let result;try{result=await readTile(z,p.x,p.y,layer);}catch{return unavailable();}
+   if(result?.missing===true)continue;
+   const image=result?.image;
+   if(!image||image.width!==256||image.height!==256||p.px<0||p.px>=256||p.py<0||p.py>=256)return unavailable();
+   const offset=(p.py*256+p.px)*4,a=image.data?.[offset],b=image.data?.[offset+1],c=image.data?.[offset+2];
+   if(![a,b,c].every(n=>Number.isInteger(n)&&n>=0&&n<=255))return unavailable();
+   const encoded=a*65536+b*256+c;
+   if(encoded===8388608)continue;
+   const cm=encoded<8388608?encoded:encoded-16777216;
+   // Round integer centimetres before dividing: binary *.01 + toFixed differs
+   // at exact halves. The point API reports decimetres, or metres for 10m DEM.
+   const rounded=Math.floor((Math.abs(cm)+quantumCm/2)/quantumCm)/(100/quantumCm);
+   // Preserve the API's negative zero for a negative centimetre value rounding
+   // to zero; JSON serialization of the existing disk cache still normalizes it.
+   return {elevation:cm<0?-rounded:rounded,hsrc};
+  }
+  // Only all five confirmed absent/nodata sources establish the API's no-data.
+  return {elevation:'-----',hsrc:''};
+ };
+})({readTile:async(z,x,y,layer)=>{
+    const pending=loadTile(z,x,y,layer,true),image=await pending,availability=tileAvailability.get(pending);
+    return image&&availability?.verified?{image}:{missing:availability?.missing===true};
+  }});
   async function groundElevation(lat, lon, { withSource = false, fetchImpl = global.fetch } = {}) {
     if (!inJapan(lat, lon)) return null;
     const key = `${lat.toFixed(5)},${lon.toFixed(5)}`;
@@ -448,6 +509,18 @@
             const hit = await cache.match(url), at = hit ? Number(hit.headers.get(DEM_AT)) : NaN;
             if (hit && Date.now() - at < DEM_TTL_MS && Date.now() >= at) { const v = parsePoint(await hit.json()); if (v) return v; }
           } catch { cache = null; }
+        }
+        // Preserve explicit injected point providers. Normal callers first share
+        // native-resolution PNGs, and keep the same point URL/cache/source contract.
+        if(typeof fetchImpl==='function'&&fetchImpl===global.fetch){
+          const j=await nativeGroundPoint(lat,lon),v=j?parsePoint(j):null;
+          if(v){
+            if(cache){try{
+              await cache.put(url,new Response(JSON.stringify(j),{status:200,headers:{"content-type":"application/json",[DEM_AT]:String(Date.now())}}));
+              pruneDemCache(cache);
+            }catch{/* A cache write failure must not discard a verified value. */}}
+            return v;
+          }
         }
         try {
           const res = typeof fetchImpl === "function" ? await pointLimited(async () => {

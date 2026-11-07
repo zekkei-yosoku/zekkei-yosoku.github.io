@@ -4,6 +4,7 @@ import {patchExactEphemeris} from './build-exact-ephemeris.mjs';
 import {patchExactPolygonDistance,patchPreparedOutlineRetention} from './build-exact-polygon-distance.mjs';
 import {patchExactGeometry} from './build-exact-geometry.mjs';
 import {patchExactTerrain} from './build-exact-terrain.mjs';
+import {patchNativeGroundPoint} from './build-native-ground-point.mjs';
 import {patchExactRidgeTerrain,patchExactRidgeHtml} from './build-exact-ridge.mjs';
 import {numericRulerTimeline,numericRulerHtml} from './build-numeric-rulers.mjs';
 import {previewPathLifecycleHtml} from './build-preview-path-lifecycle.mjs';
@@ -51,7 +52,7 @@ trialMyplaces=patch(trialMyplaces,'window.MyPlacesUI = {',''+registeredDiscovery
 trialMyplaces=patch(trialMyplaces,'function changed() {',"function changed() {\n document.dispatchEvent(new Event('astronotes-records-change'));");
 const trialAlign=patchPreparedOutlineRetention(patchAlignHeightGeometry(patchExactPolygonDistance(patchExactGeometry(patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge')))));const trialAtmosphere=patchAtmosphereHeightBounds(readFileSync('astronotes-atmosphere.js','utf8'));
 const files={
- 'astronotes-terrain.js':patchExactRidgeTerrain(patchExactTerrain(readFileSync('astronotes-terrain.js','utf8'))),
+ 'astronotes-terrain.js':patchNativeGroundPoint(patchExactRidgeTerrain(patchExactTerrain(readFileSync('astronotes-terrain.js','utf8')))),
  'astronotes-astro.js':patchExactEphemeris(readFileSync('astronotes-astro.js','utf8')),
  'astronotes-library.js':recordTransferLibrary(readFileSync('astronotes-library.js','utf8')),
  'astronotes-scroll-timeline.js':numericRulerTimeline(readFileSync('astronotes-scroll-timeline.js','utf8')),
