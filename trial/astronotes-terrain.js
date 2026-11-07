@@ -88,6 +88,43 @@
     return { latitude: p2 / DEG, longitude: lo };
   }
 
+  function prepareRidgeDestination(lat, lon, bearingDeg) {
+    const a1 = bearingDeg * DEG, sa1 = Math.sin(a1), ca1 = Math.cos(a1);
+    const tU1 = (1 - WGS_F) * Math.tan(lat * DEG), cU1 = 1 / Math.sqrt(1 + tU1 * tU1), sU1 = tU1 * cU1;
+    const sig1 = Math.atan2(tU1, ca1), sinA = cU1 * sa1, cos2a = 1 - sinA * sinA;
+    const u2 = cos2a * (WGS_A * WGS_A - WGS_B * WGS_B) / (WGS_B * WGS_B);
+    const A_ = 1 + u2 / 16384 * (4096 + u2 * (-768 + u2 * (320 - 175 * u2))), B_ = u2 / 1024 * (256 + u2 * (-128 + u2 * (74 - 47 * u2)));
+    return distanceKm => {
+    const s = distanceKm * 1000;
+    let sig = s / (WGS_B * A_), cos2sm, sinS, cosS;
+    for (let i = 0; i < 100; i++) {
+      cos2sm = Math.cos(2 * sig1 + sig); sinS = Math.sin(sig); cosS = Math.cos(sig);
+      const dS = B_ * sinS * (cos2sm + B_ / 4 * (cosS * (-1 + 2 * cos2sm * cos2sm) - B_ / 6 * cos2sm * (-3 + 4 * sinS * sinS) * (-3 + 4 * cos2sm * cos2sm)));
+      const next = s / (WGS_B * A_) + dS;
+      if (Math.abs(next - sig) < 1e-12) { sig = next; break; }
+      sig = next;
+    }
+    cos2sm = Math.cos(2 * sig1 + sig); sinS = Math.sin(sig); cosS = Math.cos(sig);
+    const x = sU1 * sinS - cU1 * cosS * ca1;
+    const p2 = Math.atan2(sU1 * cosS + cU1 * sinS * ca1, (1 - WGS_F) * Math.hypot(sinA, x));
+    const lam = Math.atan2(sinS * sa1, cU1 * cosS - sU1 * sinS * ca1);
+    const C = WGS_F / 16 * cos2a * (4 + WGS_F * (4 - 3 * cos2a));
+    const L = lam - (1 - C) * WGS_F * sinA * (sig + C * sinS * (cos2sm + C * cosS * (-1 + 2 * cos2sm * cos2sm)));
+    let lo = (lon + L / DEG) % 360; if (lo > 180) lo -= 360; if (lo < -180) lo += 360;
+    return { latitude: p2 / DEG, longitude: lo };
+    };
+  }
+
+  function prepareRidgeElevation(distanceKm, observerHeightM, { k = A.REFRACTION_K } = {}) {
+    const R = A.EARTH_R_KM * k;
+    const ro = R + observerHeightM / 1000;
+    const theta = distanceKm / R, cosTheta = Math.cos(theta), sinTheta = Math.sin(theta);
+    return targetHeightM => {
+      const rt = R + targetHeightM / 1000;
+      return Math.atan2(rt * cosTheta - ro, rt * sinTheta) / DEG;
+    };
+  }
+
   /// 2点間の方位角（北から東回り、出発点での測地線の向き）
   const bearing = (aLat, aLon, bLat, bLon) => inverse(aLat, aLon, bLat, bLon).azimuth;
   /// 測地線の長さ[km]
@@ -452,11 +489,54 @@
    * タイルは1枚65536点ぶんなので、まとまった範囲を見るときに桁違いに速い。
    * `from`（観測点）を渡すと、近い点ほど細かいズームで読む（zoomFor）。
    */
+// Keep every requested coordinate, zoom, pixel and DEM fallback. Await once per
+// tile, rather than creating several promises for each of its sampled pixels.
+function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevation}) {
+ return async function sampleTiles(points,zooms) {
+  const out=new Array(points.length).fill(undefined),ten=new Array(points.length);
+  let pending=[];
+  for(let i=0;i<points.length;i++)if(inJapan(points[i].latitude,points[i].longitude))pending.push(i);
+  for(const [layer,maxZ] of [['dem1a_png',17],['dem5a_png',15],['dem_png',14],['dem5b_png',15],['dem5c_png',15]]) {
+   if(!pending.length)break;
+   const groups=new Map(),values=new Array(points.length);
+   for(const i of pending) {
+    const p=points[i],z=Math.min(zooms[i],maxZ),fx=tileXf(p.longitude,z),fy=tileYf(p.latitude,z),x=Math.floor(fx),y=Math.floor(fy),key=z+'/'+x+'/'+y;
+    let group=groups.get(key);if(!group){group={z,x,y,points:[]};groups.set(key,group);}
+    group.points.push(i,fx,fy);
+   }
+   await Promise.all([...groups.values()].map(async group=>{
+    const img=await loadTile(group.z,group.x,group.y,layer);
+    if(!img)return;
+    for(let at=0;at<group.points.length;at+=3){
+     const i=group.points[at],fx=group.points[at+1],fy=group.points[at+2];
+     const px=Math.min(img.width-1,Math.floor((fx%1)*img.width));
+     const py=Math.min(img.height-1,Math.floor((fy%1)*img.height));
+     const n=(py*img.width+px)*4;
+     values[i]=pixelToElevation(img.data[n],img.data[n+1],img.data[n+2]);
+    }
+   }));
+   const next=[];
+   for(const i of pending){
+    const v=values[i];
+    if(layer==='dem_png'){
+     if(!Number.isFinite(v)){out[i]=v;continue;}
+     ten[i]=v;next.push(i);
+    }else if(Number.isFinite(v))out[i]=v;
+    else if(layer==='dem5c_png')out[i]=ten[i];
+    else next.push(i);
+   }
+   pending=next;
+  }
+  return out;
+ };
+}
+
+  const sampleTiles=createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevation});
   async function elevations(points, opts = {}) {
     if (!points.length) return [];
     if (points.every((p) => inJapan(p.latitude, p.longitude)) && typeof Image !== "undefined") {
       const base = opts.zoom ?? 11;
-      const raw = await Promise.all(points.map((p) => sampleTile(p.latitude, p.longitude, zoomFor(opts.from, p, base))));
+      const raw = points.length<32 ? await Promise.all(points.map((p) => sampleTile(p.latitude, p.longitude, zoomFor(opts.from, p, base)))) : await sampleTiles(points,points.map(p=>zoomFor(opts.from,p,base)));
       // 読めたタイルの「標高なし」画素は海なので 0m（海面）とする。
       // 以前は Open-Meteo で埋め直していて、富士市では全周 816点が海で 100点ずつ 9回叩き、
       // 本番で 429 が続いて地形の地平線ごと失敗していた（2026-09-22）。
@@ -1505,7 +1585,7 @@
 
   const AstroNotesTerrain = {
     MAX_POINTS, DEFAULT_STEPS, OBSERVATION_DECKS, decksFor, deckLabel, structureHeight, isLookout,
-    destination, bearing, distanceKm, inverse,
+    destination, prepareRidgeDestination, prepareRidgeElevation, bearing, distanceKm, inverse,
     fetchElevations, elevations, elevationFromTile, tileElevations, groundElevation, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
     urbanHorizon, buildingHeightM, buildingAt, buildingsAlong, gsiBuildingsAlong, GSI_BUILDING_MIN_M, wikidataHeight, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,

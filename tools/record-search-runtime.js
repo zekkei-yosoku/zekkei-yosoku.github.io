@@ -35,8 +35,13 @@ function recordSolverFor(session,variant,shaped,override){
  align.dailyView=(obs,target,body,day,{at,...opts}={})=>recordPrepared(session,shaped,obs,target,body,opts)(day,at);
  const viewFor=(obs,p)=>{
   if(p.matchMode==='overlap'&&aimIsMountain(p.target)){
-   const key=JSON.stringify([obs,p.target,p.body,p.partId,p.matchMode]);
-   return recordBounded(session.mountains,key,()=>aimShootingView(obs,p.target,p.body,p.partId,p.matchMode).catch(e=>{session.mountains.delete(key);throw e;}),96);
+   // Keep the registered-point set across date/body switches. Dense line/area
+   // samples have a separate, smaller budget and cannot evict these views.
+   const views=shaped?session.shapeMountains:session.mountains,key=JSON.stringify([obs,p.target,p.body,p.partId,p.matchMode]);
+   return recordBounded(views,key,()=>{
+    const pending=aimShootingView(obs,p.target,p.body,p.partId,p.matchMode).catch(e=>{if(views.get(key)===pending)views.delete(key);throw e;});
+    return pending;
+   },shaped?96:384);
   }
   // Explore's original spatial branch computes an exact gap for its crossing probes.
   // Keep that branch while sharing its prepareDailyView through align.dailyView.
@@ -58,7 +63,7 @@ async function recordSearch(plan,entries,{isCurrent=()=>true,variant='discovery'
  const p=AstroNotesShooting.conditions(plan);if(!p)return {rows:[],failed:0};
  if(entries.length&&!AstroNotesAssets.modelsReady()){await AstroNotesAssets.ensureModels();if(!isCurrent()||owner!==auth?.token||loginId!==auth?.loginId||generation!==accessState.generation||revision!==version||!toolAllowed('records'))return cancelled();}
  const start=AstroNotesShooting.day(p.at),scope=recordSearchScope(),air=AstroNotesAtmosphere.dataKey(start);
- if(!recordSameScope(recordSearchSession?.scope,scope))recordSearchSession={scope,cache:createRecordSearchCache(),pointViews:new Map(),shapeViews:new Map(),mountains:new Map(),terrain:new Map(),solvers:new Map(),prepares:0};
+ if(!recordSameScope(recordSearchSession?.scope,scope))recordSearchSession={scope,cache:createRecordSearchCache(),pointViews:new Map(),shapeViews:new Map(),mountains:new Map(),shapeMountains:new Map(),terrain:new Map(),solvers:new Map(),prepares:0};
  const session=recordSearchSession,current=()=>isCurrent()&&recordSearchSession===session&&recordSameScope(scope,recordSearchScope())&&air===AstroNotesAtmosphere.dataKey(start)&&toolAllowed('records');
  const planKey=JSON.stringify([start,air,p.target,p.body,p.partId,p.limb,p.matchMode]),rows=[],issues=[];
  let failed=0,checked=0,processed=0,stepM;
