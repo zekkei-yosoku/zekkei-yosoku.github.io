@@ -4,6 +4,7 @@ import {previewPathLifecycleHtml} from './build-preview-path-lifecycle.mjs';
 import {recordOpportunitiesMyplaces,recordOpportunitiesHtml} from './build-record-opportunities.mjs';
 import {recordTransferMyplaces,recordTransferLibrary,recordTransferHtml} from './build-record-transfer.mjs';
 import {registeredDiscoveryMethods} from './build-record-discovery.mjs';
+import {recordSortMyplaces,recordSortHtml} from './build-record-sort.mjs';
 // Derive a trial-only Explore from the same source; production bytes are untouched.
 import {readFileSync} from 'node:fs';
 import {externalAppsPlan,externalAppsHtml} from './build-external-apps-trial.mjs';
@@ -33,6 +34,7 @@ trialMyplaces=patch(trialMyplaces,'plan=AstroNotesShooting.conditions(state()),s
 trialMyplaces=registeredMainSearch(trialMyplaces);
 trialMyplaces=recordOpportunitiesMyplaces(trialMyplaces);
 trialMyplaces=recordTransferMyplaces(trialMyplaces);
+trialMyplaces=recordSortMyplaces(trialMyplaces);
 trialMyplaces=patch(trialMyplaces,'window.MyPlacesUI = {',''+registeredDiscoveryMethods+'\nwindow.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision,');
 trialMyplaces=patch(trialMyplaces,'function changed() {',"function changed() {\n document.dispatchEvent(new Event('astronotes-records-change'));");
 const trialAlign=patchAlignHeightGeometry(patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge'));const trialAtmosphere=patchAtmosphereHeightBounds(readFileSync('astronotes-atmosphere.js','utf8'));
@@ -82,7 +84,7 @@ if(process.argv.includes('--html')){
  html=patch(html,html.match(/<script src="astronotes-explore\.js\?v=\d+"><\/script>/)?.[0]||'missing-explore-script','<script src="astronotes-explore-simple.js?v=0"></script>');
  html=patch(html,'host._bodyRadius = p.radius;','host._bodyRadius = p.radius; globalThis.AstroNotesTrialComposition?.redraw(host);');
  html=patch(html,'host._redrawLook = () => { if (host._lookSeq === seq) draw(cur); };','host._redrawLook = () => { if (host._lookSeq === seq) draw(cur); };\n host._trialCompositionView={spec,cv,W,H,k,win}; globalThis.AstroNotesTrialComposition?.bind(host,host._trialCompositionView);');
- html=recordTransferHtml(overlapHtml(html));
+ html=recordSortHtml(recordTransferHtml(overlapHtml(html)));
  html=patch(html,'</body>','<script src="astronotes-candidate-search.js?v=0"></script>\n</body>');
  const versioned=versionAssets(html,name=>Object.hasOwn(files,name)?files[name]:readFileSync(new URL('../'+name,import.meta.url)));
  files['index.html']=hashCsp(versioned.html).html;files['app-version.txt']=versioned.id+'\n';
