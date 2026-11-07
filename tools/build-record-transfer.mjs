@@ -1,5 +1,6 @@
 import {readFileSync} from 'node:fs';
 import {createRecordTransfer} from './record-transfer-policy.mjs';
+import {createRecordCsv} from './record-transfer-csv.mjs';
 const patch=(s,a,b)=>{if(s.split(a).length!==2)throw Error('Record transfer boundary changed: '+a.slice(0,95));return s.replace(a,b);};
 const style=String.raw`
 #myRecordsHub .my-head .record-transfer-more{display:grid;place-items:center;width:44px;min-width:44px;min-height:44px;padding:0;flex:none}
@@ -13,7 +14,7 @@ const style=String.raw`
 `;
 export function recordTransferMyplaces(s){
  const runtime=readFileSync(new URL('./record-transfer-runtime.js',import.meta.url),'utf8');
- s=patch(s,'const createOpportunityScan=','const createRecordTransfer='+createRecordTransfer.toString()+';\n'+runtime+'\nconst createOpportunityScan=');
+ s=patch(s,'const createOpportunityScan=','const createRecordCsv='+createRecordCsv.toString()+';\nconst createRecordTransfer='+createRecordTransfer.toString()+';\n'+runtime+'\nconst createOpportunityScan=');
  s=patch(s,'function renderRecordsHub() {','function renderRecordsHub() {\n  transferRefresh();');
  s=patch(s,'actions.append(edit,add);if(notebookEdit)','actions.append(edit);appendRecordTransfer(actions);actions.append(add);if(notebookEdit)');
  s=patch(s,"map.textContent = '地図で場所を探す';", "map.textContent = '地図';map.setAttribute('aria-label','地図で場所を探す');");

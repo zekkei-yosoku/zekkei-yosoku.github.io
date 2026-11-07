@@ -87,6 +87,7 @@ export function createRecordTransfer({library,cleanFavorite,cleanShape,cleanAlig
   const status=(p,key)=>{const pair=pairKey(p.id,key);if(!statusCache.has(pair))statusCache.set(pair,currentStatus(p,key,recordIndex.get(pair)||[]));return statusCache.get(pair);};
   for(const input of data.places){
    const bindings=input.targets.map(b=>({...b,target:resolved.get(b.ref),alignment:cleanAlignment(resolved.get(b.ref),b.alignment)})),signature=baseIdentity(input.location,input.shape);
+   const keys=bindings.map(b=>b.target.key||b.target.id);if(new Set(keys).size!==keys.length)fail('「'+input.location.name+'」の対象が重複しています');
    const sameBase=placeIndex.get(signature)||[];
    const matches=p=>{
     try{if(JSON.stringify(bodyValues(p.planningBodies))!==JSON.stringify(input.bodies))return false;}catch{return false;}

@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';import {readFileSync} from 'node:fs';import vm from 'node:vm';
 import {createRecordTransfer} from './tools/record-transfer-policy.mjs';import {createRecordHeightPolicy} from './tools/record-height-policy.mjs';import {createRecordAlignmentPolicy} from './tools/record-alignment-policy.mjs';import {recordTransferLibrary} from './tools/build-record-transfer.mjs';
+import {createRecordCsv} from './tools/record-transfer-csv.mjs';
 const require=createRequire(import.meta.url),library=require('./astronotes-library.js');require('./astronotes-shooting.js');const shooting=globalThis.AstroNotesShooting;
 const builtins=[{id:'skytree',name:'東京スカイツリー',latitude:35.71,longitude:139.81,parts:[{id:'tip',name:'先端',m:634}]}],bodies=['sun','moon','sirius'],alignment=createRecordAlignmentPolicy({isMountain:t=>t?.id==='fuji',limbs:[{id:'onTop'},{id:'center'},{id:'behind'}]});
 const currentStatus=(p,key,rows)=>{const group=rows.filter(r=>r.placeId===p.id&&r.target.key===key).sort((a,b)=>Number(!!b.registration)-Number(!!a.registration)||(b.updatedAt-a.updatedAt));return group[0]?.removed?null:group[0]||null;};
@@ -12,6 +13,44 @@ const custom={id:'sender-target',name:'独自の塔',latitude:35.75,longitude:13
 const record=(place,key,result='seen',id=key)=>({id,placeId:place.id,target:{key,name:key==='skytree'?'東京スカイツリー':custom.name,latitude:35.75,longitude:139.92},observer:place,result,registration:true,removed:false,createdAt:1,updatedAt:1});
 function source(){const p=structuredClone(favorite);p.recordAlignments={'fav:sender-target':{partId:'tip',limb:'onTop',matchMode:'limb'}};return {favorites:[p,structuredClone(custom)],observations:[record(p,'skytree'),record(p,'fav:sender-target','partial')],shapes:{[p.id]:{latitude:p.latitude,longitude:p.longitude,shape:{type:'line',vertices:[{latitude:p.latitude,longitude:p.longitude},{latitude:p.latitude+.001,longitude:p.longitude}]}}},placeIds:[p.id]};}
 const empty=()=>({favorites:[],observations:[],shapes:{},owner:'recipient'});
+const csv=createRecordCsv(),encodeCsv=rows=>'\uFEFF'+rows.map(row=>row.map(x=>'"'+String(x??'').replaceAll('"','""')+'"').join(',')).join('\r\n');
+test('CSV RFC4180 quotes, commas and multiline notes survive preview/import/repeat',()=>{
+ const raw=encodeCsv([['地点ID','地点名','緯度','経度','標高_m','目線_m','対象','天体','メモ','根拠URL'],['p1','公園,"西"',35,139,0,1.5,'スカイツリー','太陽|月','改行\nも保存','https://example.test/sky'],['p1','公園,"西"',35,139,0,1.5,'東京スカイツリー','太陽|月','改行\nも保存','https://example.test/other']]);
+ const data=csv.parse(raw),first=policy().prepareImport(data,empty());assert(first.canImport);assert.equal(first.report.addedPlaces,1);assert.equal(first.report.addedBindings,1);assert.equal(data.targets.length,1);assert.equal(data.places[0].location.elevation,0);assert(data.places[0].location.note.includes('改行\nも保存'));assert(data.places[0].location.note.includes('https://example.test/other'));assert.equal(policy().prepareImport(data,{favorites:first.favorites,observations:first.observations,shapes:first.shapes,owner:'recipient'}).report.addedPlaces,0);
+});
+test('CSV blank optional heights remain unknown, zero stays zero and ranges survive',()=>{
+ const data=csv.parse(encodeCsv([['地点名','緯度','経度','標高_m','目線_m','目線下限_m','目線上限_m'],['公園',35,139,'',0,20,150]])),p=policy().validate(data).places[0];assert.equal(p.location.elevation,null);assert.equal(p.location.eyeHeightAGL,0);assert.deepEqual(p.location.eyeHeightRangeAGL,{min:20,max:150});
+});
+test('CSV custom target is created with coordinates/elevation/height and linked to its place',()=>{
+ const data=csv.parse(encodeCsv([['地点名','緯度','経度','対象','対象名','対象緯度','対象経度','対象標高_m','対象高_m','天体','重ねる位置','天体の縁'],['公園',35,139,'custom','独自の塔',35.1,139.1,8.2,87,'月','tip','下の縁']])),plan=policy().prepareImport(data,empty());assert(plan.canImport);assert.equal(plan.report.addedTargets,1);assert.equal(plan.report.addedBindings,1);const t=plan.favorites.find(f=>f.targetHeightM===87),p=plan.favorites.find(f=>f.recordRegistered);assert.equal(t.elevation,8.2);assert.equal(p.recordAlignments['fav:'+t.id].limb,'onTop');
+});
+test('CSV rejects inconsistent place settings and conflicting repeated bindings',()=>{
+ assert.throws(()=>csv.parse('地点ID,地点名,緯度,経度,目線_m\na,公園,35,139,20\na,公園,35,139,50'),/一致/);
+ assert.throws(()=>csv.parse('地点名,緯度,経度,対象,結果\n公園,35,139,skytree,seen\n公園,35,139,skytree,hidden'),/一致/);
+});
+test('CSV rejects malformed quoting, missing coordinates, unknown or duplicate columns and incomplete ranges',()=>{
+ for(const raw of ['地点名,緯度,経度\n"閉じない,35,139','地点名,緯度,経度\n"公園"x,35,139','地点名,緯度,経度\n公園,,139','地点名,緯度,経度,注釈\n公園,35,139,x','地点名,緯度,緯度\n公園,35,35','地点名,緯度,経度,目線下限_m\n公園,35,139,20'])assert.throws(()=>csv.parse(raw),/CSV/);
+});
+test('CSV unknown bodies, unknown targets and invalid ranges go through existing strict validation',()=>{
+ assert.throws(()=>policy().validate(csv.parse('地点名,緯度,経度,天体\n公園,35,139,bad')),/天体/);
+ assert.throws(()=>policy().validate(csv.parse('地点名,緯度,経度,目線下限_m,目線上限_m\n公園,35,139,150,20')),/範囲/);
+ assert.equal(policy().prepareImport(csv.parse('地点名,緯度,経度,対象\n公園,35,139,unknown'),empty()).canImport,false);
+});
+test('reordering evidence rows leaves the same place identity and CSV rejects orphan target data',()=>{
+ const header=['地点名','緯度','経度','対象','根拠URL'],a=['公園',35,139,'skytree','https://example.test/z'],b=['公園',35,139,'東京スカイツリー','https://example.test/a'];assert.deepEqual(csv.parse(encodeCsv([header,a,b])).places,csv.parse(encodeCsv([header,b,a])).places);
+ assert.throws(()=>csv.parse('地点名,緯度,経度,対象名\n公園,35,139,独自の塔'),/対象/);assert.throws(()=>csv.parse('地点名,緯度,経度,対象,対象高_m\n公園,35,139,skytree,100'),/custom/);
+});
+test('CSV trailing empty spreadsheet columns are tolerated without ignoring populated cells',()=>{
+ assert.equal(csv.parse('地点名,緯度,経度,,\n公園,35,139,,\n').places.length,1);assert.throws(()=>csv.parse('地点名,緯度,経度,,\n公園,35,139,,lost\n'),/列数/);
+});
+test('resolved duplicate custom definitions cannot silently discard a conflicting binding',()=>{
+ const data=policy().exportPlaces(source()),t=structuredClone(data.targets[1]);t.id='duplicate-target';data.targets.push(t);data.places[0].targets.push({...structuredClone(data.places[0].targets[1]),ref:t.id,result:'hidden'});assert.throws(()=>policy().prepareImport(data,empty()),/重複/);
+});
+for(const type of ['point','line','area'])test(type+' geometry and height range survive JSON export/import/re-export and CSV import',()=>{
+ const p=policy(),s=source();s.favorites[0].recordAlignments={};const vertices=[{latitude:35.73874,longitude:139.90204},{latitude:35.73974,longitude:139.90204},{latitude:35.73974,longitude:139.90304}];s.shapes=type==='point'?{}:{[favorite.id]:{latitude:favorite.latitude,longitude:favorite.longitude,shape:{type,vertices:vertices.slice(0,type==='line'?2:3)}}};
+ const json=p.exportPlaces(s),first=p.prepareImport(json,empty()),point=first.favorites.find(f=>f.recordRegistered),again=p.exportPlaces({favorites:first.favorites,observations:first.observations,shapes:first.shapes,placeIds:[point.id]});assert.deepEqual(again.places[0].shape,json.places[0].shape);assert.deepEqual(again.places[0].location.eyeHeightRangeAGL,{min:20,max:150});
+ const raw=encodeCsv([['地点名','緯度','経度','標高_m','目線_m','目線下限_m','目線上限_m','形状','対象'],['CSV'+type,35.73874,139.90204,5,20,20,150,json.places[0].shape?JSON.stringify(json.places[0].shape):'','skytree']]),plan=p.prepareImport(csv.parse(raw),empty()),cp=plan.favorites.find(f=>f.recordRegistered);assert(plan.canImport);assert.deepEqual(cp.eyeHeightRangeAGL,{min:20,max:150});assert.deepEqual(plan.shapes[cp.id]?.shape??null,json.places[0].shape);assert.equal(p.prepareImport(csv.parse(raw),{favorites:plan.favorites,observations:plan.observations,shapes:plan.shapes,owner:'recipient'}).report.addedPlaces,0);
+});
 const state=plan=>({favorites:plan.favorites,observations:plan.observations,shapes:plan.shapes,owner:'recipient'});
 test('portable export contains the selected place, both elevations, range, bodies and target definitions without account or history',()=>{
  const p=policy(),s=source();s.favorites.push({...favorite,id:'other-place',token:'never export'});s.observations.push({...record(favorite,'skytree'),id:'old',registration:false,note:'historic detail',date:'2025-01-01'});

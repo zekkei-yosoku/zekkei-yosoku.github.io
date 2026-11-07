@@ -47,6 +47,10 @@ test('地点ごとの標高を使い、標高欠測は部分的な取得不能�
  d.elevationAt=async(lat,lon)=>{calls++;return lon>ll(50).longitude?null:17;};
  const result=await P.candidates(plan,[entry(s)],d);assert(calls>2);assert.equal(result.failed,1);assert.equal(result.issues[0].reason,'elevation');assert(result.rows.every(r=>r.place.elevation===17));
 });
+for(const type of ['line','area'])test(type+' uses varying terrain at every position while preserving eye height above each ground',async()=>{
+ const s=shape(type,type==='line'?[[0,0],[120,0]]:[[0,0],[120,0],[120,120],[0,120]]),d=deps(()=>0),ground=(lat,lon)=>5+(lon-ll(0).longitude)*10000+(lat-ll(0).latitude)*5000,seen=[];
+ d.elevationAt=async(lat,lon)=>ground(lat,lon);d.observerAt=(p,g)=>{assert.equal(g,ground(p.latitude,p.longitude));assert.equal(p.groundManualM,g);assert.equal(p.eyeHeightAGL,20);seen.push({g,absolute:g+p.eyeHeightAGL});return {...p,elevation:g,eyeM:p.eyeHeightAGL};};const e=entry(s);e.place.eyeHeightAGL=20;const result=await P.candidates(plan,[e],d);assert.equal(result.failed,0);assert(seen.length>3);assert(new Set(seen.map(p=>p.g.toFixed(3))).size>3);assert(result.rows.length);for(const r of result.rows){assert.equal(r.place.elevation,ground(r.place.latitude,r.place.longitude));assert.equal(r.place.eyeHeightAGL,20);assert.notEqual(r.place.elevation,999);}
+});
 test('巨大形状の上限と取消を、候補0件の成功へ変換しない',async()=>{
  const d=deps(()=>0),large=shape('area',[[0,0],[10000,0],[10000,10000],[0,10000]]);
  const result=await P.candidates(plan,[entry(large)],d);assert.equal(result.failed,1);assert.equal(result.issues[0].reason,'limit');
