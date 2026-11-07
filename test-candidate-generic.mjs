@@ -255,3 +255,14 @@ test('an active recheck cannot restart, and a cancelled old recheck cannot relea
   newGate.resolve();const result=await replacement;assert.deepEqual(result.rows.map(r=>r.id),['generation-3']);assert.equal(result.counts.checked,1);assert.deepEqual(engine.cached(plan).rows,result.rows);
  }finally{oldGate.resolve();newGate.resolve();C.inverseSeeds=original;}
 });
+test('one search drains multiple provider pages and small evaluation batches, without retrying a failed tile',async()=>{
+ const original=C.inverseSeeds;C.inverseSeeds=async()=>({seeds:[{latitude:35,longitude:139,radiusM:300}],partial:true});
+ try{
+  const loads=[],checked=[],provider={load:async(_,o)=>{
+   assert.equal(o.retryFailed,false);loads.push(o.cursor);
+   return {points:[{...point,latitude:35+.001*o.cursor},{...point,latitude:35+.001*(o.cursor+1)}],coverage:{nextCursor:o.cursor===0?2:null,failedRegions:o.cursor===0?[{id:'tile-missing'}]:[]}};
+  }};
+  const engine=createGenericSearch({provider,bodies,maxPointsPerBatch:1,evaluate:async(_,pt)=>{checked.push(pt.latitude);return {recommend:true,id:String(pt.latitude),place:pt,event:{at:0}};}});
+  const result=await engine.searchAll(plan);assert.equal(result.canContinue,false);assert.deepEqual(loads,[0,2]);assert.equal(checked.length,4);assert.equal(result.rows.length,4);assert.equal(result.coverage.loaded[0].failedRegions[0].id,'tile-missing');
+ }finally{C.inverseSeeds=original;}
+});

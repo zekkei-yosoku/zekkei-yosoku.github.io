@@ -937,8 +937,8 @@ function publishedViewpoints(data,regions){
 return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,isCurrent:providerCurrent=()=>true,maxTiles=12,maxPoints=480,timeoutMs=12000,maxDurationMs=55000,spacingM=30,endpoints}={}){
  if(!terrain)throw Error('terrain provider is required');
  const servers=endpoints||terrain.OVERPASS||[],cache=new Map(),heightCache=new Map();
- let endpointCursor=0,overpassRetryAfter=0;
- async function load(plan,{regions=plan?.regions||plan?.searchRegions||[],isCurrent=()=>true,onProgress=()=>{},signal,maxTiles:tileBudget=maxTiles,maxPoints:pointBudget=maxPoints,cursor,offset=0}={}){
+ let endpointCursor=0,overpassRetryAfter=0,overpassNextRequest=0;
+ async function load(plan,{regions=plan?.regions||plan?.searchRegions||[],isCurrent=()=>true,onProgress=()=>{},signal,maxTiles:tileBudget=maxTiles,maxPoints:pointBudget=maxPoints,cursor,offset=0,retryFailed=true}={}){
   offset=Math.max(0,Number(cursor?.offset??cursor??offset)||0);const retryTiles=Array.isArray(cursor?.retryTiles)?cursor.retryTiles:[],batchTiles=Array.isArray(cursor?.batchTiles)?cursor.batchTiles:null,pointOffset=Math.max(0,Number(cursor?.pointOffset)||0);
   const requested=regionsFor(regions),started=Date.now(),current=()=>!signal?.aborted&&providerCurrent()&&isCurrent(),controller=new AbortController();
   let timedOut=false;const cancel=()=>controller.abort(),timer=setInterval(()=>{if(!current())cancel();if(Date.now()-started>maxDurationMs){timedOut=true;cancel();}},100);signal?.addEventListener('abort',cancel,{once:true});
@@ -955,16 +955,23 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    // Expand for containing parks/river edges, but select only inside requested
    // regions. out geom without an output bbox preserves full returned rings.
    const b=tile.bbox.map((v,i)=>v+(i<2?-.0003:.0003));b[0]=Math.max(-180,b[0]);b[1]=Math.max(-90,b[1]);b[2]=Math.min(180,b[2]);b[3]=Math.min(90,b[3]);
-   let reason='no-overpass-endpoint',overpassAttempted=false;
+   let reason=Date.now()<overpassRetryAfter?'overpass-cooldown':'no-overpass-endpoint',overpassAttempted=false;
    for(let attempt=0;attempt<Math.min(2,servers.length)&&current()&&!controller.signal.aborted&&(tile.retry||Date.now()>=overpassRetryAfter);attempt++){
     overpassAttempted=true;
     const endpoint=servers[(endpointCursor+attempt)%servers.length];
-    try{const res=await request(endpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(query(b))});if(!res.ok)throw Error('HTTP '+res.status);const data=await bounded(res.json(),timeoutMs);
+    try{
+     if(!retryFailed){
+      const delay=overpassNextRequest-Date.now();if(delay>0){let wait;try{await bounded(new Promise(resolve=>{wait=setTimeout(resolve,delay);}),delay+250);}finally{clearTimeout(wait);}}
+      if(!current()||controller.signal.aborted)throw Error('cancelled');
+      overpassNextRequest=Date.now()+1000;
+     }
+     const res=await request(endpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(query(b))});if(!res.ok)throw Error('HTTP '+res.status);const data=await bounded(res.json(),timeoutMs);
      if(data.remark||!Array.isArray(data.elements)||!data.elements.some(e=>e.type==='count'))throw Error(data.remark||'incomplete-overpass-response');
      const value={features:parseElements(data.elements),at:Date.now(),timestamp:data.osm3s?.timestamp_osm_base||null,endpoint,version:hash(JSON.stringify(data.elements))};cache.set(tile.id,value);while(cache.size>120)cache.delete(cache.keys().next().value);endpointCursor=(endpointCursor+attempt)%Math.max(1,servers.length);overpassRetryAfter=0;return value;
-    }catch(e){reason=String(e.message||e);}
-   }endpointCursor=(endpointCursor+1)%Math.max(1,servers.length);if(overpassAttempted)overpassRetryAfter=Date.now()+60000;
-   if(current()&&!controller.signal.aborted)try{const endpoint='https://api.openstreetmap.org/api/0.6/map',res=await request(endpoint+'?bbox='+b.join(','));if(!res.ok)throw Error('HTTP '+res.status);const xml=await bounded(res.text(),timeoutMs),elements=mapElements(xml),value={features:parseElements(elements),at:Date.now(),timestamp:null,endpoint,version:hash(xml),fallback:true};cache.set(tile.id,value);return value;}catch(e){reason+='; map '+String(e.message||e);}
+    }catch(e){reason=String(e.message||e);if(!retryFailed&&reason==='HTTP 429')break;}
+   }if(!current()||controller.signal.aborted)throw Error('cancelled');
+   endpointCursor=(endpointCursor+1)%Math.max(1,servers.length);if(overpassAttempted)overpassRetryAfter=Date.now()+60000;
+   if(retryFailed&&current()&&!controller.signal.aborted)try{const endpoint='https://api.openstreetmap.org/api/0.6/map',res=await request(endpoint+'?bbox='+b.join(','));if(!res.ok)throw Error('HTTP '+res.status);const xml=await bounded(res.text(),timeoutMs),elements=mapElements(xml),value={features:parseElements(elements),at:Date.now(),timestamp:null,endpoint,version:hash(xml),fallback:true};cache.set(tile.id,value);return value;}catch(e){reason+='; map '+String(e.message||e);}
    throw Error(reason);
   }
   try{
@@ -979,12 +986,15 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
     onProgress({phase:'places',fetched:coverage.fetchedRegions.length,failed:coverage.failedRegions.length,points:0});
    }
    const attemptedIds=new Set([...coverage.fetchedRegions,...coverage.failedRegions].map(r=>r.id));for(const tile of retryTiles)if(!attemptedIds.has(tile.id))deferredRetries.push(tile);
-   coverage.evaluatedRegionIds=coverage.fetchedRegions.map(r=>r.id);coverage.nextCursor=batchTiles?cursor.afterCursor||null:hasPending||coverage.failedRegions.length?{offset:nextOffset,retryTiles:[...deferredRetries,...coverage.failedRegions]}:null;
+   coverage.evaluatedRegionIds=coverage.fetchedRegions.map(r=>r.id);coverage.nextCursor=batchTiles?cursor.afterCursor||null:hasPending||retryFailed&&coverage.failedRegions.length?{offset:nextOffset,retryTiles:retryFailed?[...deferredRetries,...coverage.failedRegions]:[]}:null;
    coverage.osmComplete=requested.length>0&&!hasPending&&!coverage.failedRegions.length&&offset===0&&current()&&!timedOut;
    const selectionRegions=[];for(const r of requested)for(const tile of coverage.fetchedRegions){const b=[Math.max(r.bbox[0],tile.bbox[0]),Math.max(r.bbox[1],tile.bbox[1]),Math.min(r.bbox[2],tile.bbox[2]),Math.min(r.bbox[3],tile.bbox[3])];if(b[0]<b[2]&&b[1]<b[3])selectionRegions.push({...r,bbox:b});}
-   const features=[...merged.values()],sampled=sampleFeatures(features,selectionRegions,{spacingM,maxPoints:Math.max(1,pointBudget),skipPoints:pointOffset}),points=sampled.rows;
+   const features=[...merged.values()],sampled=batchTiles&&coverage.failedRegions.length
+    // A point offset is only valid for the same complete set of tiles.
+    ?{rows:[],limited:true,omittedPoints:0,unknownGeometry:[]}
+    :sampleFeatures(features,selectionRegions,{spacingM,maxPoints:Math.max(1,pointBudget),skipPoints:pointOffset}),points=sampled.rows;
    if(sampled.limited&&points.length)coverage.nextCursor={offset,pointOffset:pointOffset+points.length,batchTiles:coverage.fetchedRegions.map(r=>({id:r.id,bbox:r.bbox,regionId:r.regionId})),afterCursor:coverage.nextCursor};
-   else if(batchTiles&&coverage.failedRegions.length)coverage.nextCursor={...cursor};
+   else if(batchTiles&&retryFailed&&coverage.failedRegions.length)coverage.nextCursor={...cursor};
    coverage.samplingComplete=!sampled.limited;coverage.omittedPoints=sampled.omittedPoints;coverage.incompleteGeometry=sampled.unknownGeometry;
    if(sampled.limited)coverage.missing.push('point-budget');if(hasPending)coverage.missing.push('tile-budget-or-timeout');if(sampled.unknownGeometry.length)coverage.missing.push('incomplete-osm-geometry');
    // A small documented viewpoint supplement is independent of OSM availability.
@@ -1220,7 +1230,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
  // Rechecking the same conditions replaces only working progress. The last
  // complete result remains available when a recheck fails or is cancelled.
  function restart(plan){const key=requestKey(plan),previous=sessions.get(key);if(previous?.busy&&previous.current?.()!==false)return false;if(previous)sessions.set(key,fresh(key,previous.inverse,previous.lastResult));return true;}
- async function search(plan,{onProgress=()=>{},isCurrent=()=>true,signal,more=false}={}){
+ async function search(plan,{onProgress=()=>{},isCurrent=()=>true,signal,more=false,retryFailed=true}={}){
   if(plan.compositionInvalid)throw Error('invalid-composition');
   const key=requestKey(plan);let session=sessions.get(key);
   const wanted=()=>!signal?.aborted&&isCurrent();
@@ -1246,7 +1256,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
   try{
    if(!session.queue.length&&(session.cursor!==null||!session.started)){
     onProgress({stage:'places',...session.counts});
-    const data=await provider.load(plan,{regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal});
+    const data=await provider.load(plan,{regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal,retryFailed});
     if(!wanted()||data.cancelled)return {cancelled:true};
     const points=[...(data.points||[])];
     if(!session.started&&loadStatic){
@@ -1279,8 +1289,26 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
    session.lastResult=result(session);return session.lastResult;
   }finally{session.busy=false;}
  }
+ // Drain scheduled pages and point batches as one cancellable foreground search.
+ async function searchAll(plan,{onBatchStart=()=>{},...options}={}){
+  const wanted=()=>!options.signal?.aborted&&(options.isCurrent?.()??true);
+  const cursors=new Set();let more=!!options.more;
+  while(wanted()){
+   onBatchStart();
+   const page=await search(plan,{...options,more,retryFailed:false});
+   if(!wanted()||page.cancelled)return {cancelled:true};
+   if(!page.canContinue)return page;
+   if(!page.coverage.pendingPoints){
+    const cursor=JSON.stringify(page.coverage.nextCursor);
+    if(cursors.has(cursor)){const stalled={...page,stalled:true};sessions.get(page.requestKey).lastResult=stalled;return stalled;}
+    cursors.add(cursor);
+   }
+   more=true;await yieldTask();
+  }
+  return {cancelled:true};
+ }
  function result(s){return {rows:s.rows.slice(),counts:{...s.counts},requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',canContinue:s.queue.length>0||s.cursor!==null,coverage:{regions:s.regions.length,loaded:s.coverage,pendingPoints:s.queue.length,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
- return {search,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
+ return {search,searchAll,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
 }
 api.requestKey=requestKey;api.regionsFor=regionsFor;api.createGenericSearch=createGenericSearch;
 if(typeof module==='object'&&module.exports)module.exports={requestKey,regionsFor,createGenericSearch};
@@ -1634,7 +1662,7 @@ async function loadModel(){
  return modelPromise;
 }
 let evaluationBudgetStarted=false;
-const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,loadStatic:()=>loaded('candidate-sidewalks.json'),evaluate:async(p,point,data,options)=>{const model=await loadModel();if(!evaluationBudgetStarted){live.resetBudget();evaluationBudgetStarted=true;}return model.evaluate(p,point,data,options);}});
+const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,loadStatic:()=>loaded('candidate-sidewalks.json'),evaluate:async(p,point,data,options)=>{const model=await loadModel();if(!options.isCurrent())throw Error('candidate-cancelled');if(!evaluationBudgetStarted){live.resetBudget();evaluationBudgetStarted=true;}return model.evaluate(p,point,data,options);}});
 const stop=()=>{if(autoSearchTimer!==null)clearTimeout(autoSearchTimer);autoSearchTimer=null;if(watch!==null)clearInterval(watch);watch=null;controller?.abort();controller=null;};
 const air=()=>JSON.stringify([typeof aimAirSettings==='undefined'?'standard':aimAirSettings,AstroNotesAtmosphere?.dataKey?.()??null]);
 const context=s=>JSON.stringify([s.body,s.target,s.partId,s.limb,AstroNotesCandidateDiscovery.day(s.at),s.matchMode||'limb']);
@@ -1745,46 +1773,50 @@ function mount(){
  const detailsOpen=!!section?.querySelector('details')?.open,editing=section?.contains(document.activeElement)?document.activeElement.id:null;
  stop();run++;section?.remove();condition=id;section=document.createElement('section');section.id='additionalCandidateSearch';section.setAttribute('aria-label','撮影候補地点の探索');
  const status=document.createElement('div');status.className='tiny';status.setAttribute('role','status');status.setAttribute('aria-live','polite');
- function setStatus(text,waiting=false){status.className=waiting?'note-wait candidate-wait':'tiny';status.replaceChildren();if(waiting){const c=document.createElement('span');c.className='note-wait-character';c.setAttribute('aria-hidden','true');const message=document.createElement('span');message.className='note-wait-message';message.textContent=text;status.append(c,message);}else status.textContent=text;}
+ function setStatus(text){status.textContent=text;}
  const button=document.createElement('button');button.type='button';button.className='fav-btn';button.id='candidateSearchAction';button.setAttribute('aria-controls',main?'exploreSearchResults':'additionalCandidateResults');
  const resultList=document.createElement('div');resultList.id='additionalCandidateResults';
  const evidence=document.createElement('details');evidence.className='aim-disclosure';evidence.open=detailsOpen;const summary=document.createElement('summary');summary.textContent=main?'探索の詳細条件':'候補の条件・注意点・出典';evidence.append(summary);
  const description=document.createElement('p');description.className='tiny';description.textContent=(p?.overlapMembers?'全ての対象を合わせた輪郭に重なる地点を探します。':p?.extraTargets?.length?'重ねる対象で探します。ほかの対象は見え方で一緒に確認できます。 ':'')+'選択した天体と登録対象の位置・高さから撮影する地域を逆算し、展望台・公園・広場・河川敷を優先して探します。建物は近くを通る構図も含みます。見え方で確認できます。';evidence.append(description);
  const timeLabel=document.createElement('label');timeLabel.className='tiny';timeLabel.textContent='探索する日時 ';const mode=document.createElement('select');mode.id='candidateSearchMode';mode.setAttribute('aria-label','探索する日時');for(const [value,label]of [['day','この日全体'],['instant','選択した時刻'],['window','時間帯を指定']])mode.add(new Option(label,value));mode.value=timeChoice;timeLabel.append(mode);evidence.append(timeLabel);
  const times=document.createElement('div');times.hidden=timeChoice!=='window';for(const [label,id,value]of [['開始','candidateSearchStart',windowStart],['終了','candidateSearchEnd',windowEnd]]){const l=document.createElement('label');l.textContent=label+' ';const input=document.createElement('input');input.type='time';input.id=id;input.value=value;input.style.minHeight='44px';input.onchange=()=>{returnSearch=null;if(id.endsWith('Start'))windowStart=input.value;else windowEnd=input.value;mount();};l.append(input);times.append(l);}evidence.append(times);mode.onchange=()=>{returnSearch=null;timeChoice=mode.value;mount();};
- const notes=document.createElement('p');notes.className='tiny';notes.textContent='地形・建物の収録範囲や高さの精度に限界があります。未確認の見通しを撮影可能と保証しません。樹木・現地の変化・営業時間等は現地条件も確認してください。探索は段階的に進み、未探索の範囲を残す場合があります。';evidence.append(notes);
+ const notes=document.createElement('p');notes.className='tiny';notes.textContent='地形・建物の収録範囲や高さの精度に限界があります。未確認の見通しを撮影可能と保証しません。樹木・現地の変化・営業時間等は現地条件も確認してください。取得できない情報がある場合は、結果に表示します。';evidence.append(notes);
  const resultNotes=document.createElement('p');resultNotes.className='tiny';evidence.append(resultNotes);
  const credits=document.createElement('p');credits.className='tiny';for(const [label,url]of [['© OpenStreetMap contributors (ODbL)','https://www.openstreetmap.org/copyright'],['国土地理院 標高タイル','https://maps.gsi.go.jp/development/demtile.html'],['PLATEAU 利用条件','https://www.mlit.go.jp/plateau/site-policy/'],['町丁目：CODH/e-Stat（2020）','https://geoshape.ex.nii.ac.jp/ka/resource/']]){const a=document.createElement('a');a.textContent=label;a.href=url;a.target='_blank';a.rel='noopener';credits.append(a,' ');}evidence.append(credits);
  const visibleCredits=document.createElement('p');visibleCredits.className='tiny';visibleCredits.hidden=true;const osm=document.createElement('a');osm.href='https://www.openstreetmap.org/copyright';osm.textContent='© OpenStreetMap contributors';osm.target='_blank';osm.rel='noopener';visibleCredits.append(osm);
  if(main){section.append(evidence,button);document.getElementById('candidateSearchFeedback').replaceChildren(status,resultList);document.getElementById('candidateSearchCredits').replaceChildren(visibleCredits);}else section.append(button,status,visibleCredits,resultList,evidence);panel.append(section);syncWorkspaceSection(panel);
  if(editing&&['candidateSearchMode','candidateSearchStart','candidateSearchEnd'].includes(editing))section.querySelector('#'+editing)?.focus({preventScroll:true});
  const valid=p&&AstroNotesBodies.definition(p.body)&&!p.compositionInvalid&&AstroNotesCandidateComposition.timeRange(p);button.disabled=!valid;status.textContent=!p?'天体・対象・日付を選んでください。':!valid?'指定した日時と構図を確認してください。':'';
- let continuation=false,hasRun=false,searching=false;
- function renderAction(){button.dataset.state=searching?'searching':'idle';button.textContent=searching?'キャンセル':continuation?'続きを探す':hasRun?(main?'候補を探し直す':'もう一度確認'):main?'候補を探す':'ほかの候補地点を探す';button.disabled=!valid;resultList.setAttribute('aria-busy',String(searching));}
+ let continuation=false,hasRun=false,searching=false,failed=false;
+ function renderAction(){button.dataset.state=searching?'searching':'idle';button.textContent=searching?'キャンセル':failed?'再試行':continuation?'続きを探す':hasRun?(main?'候補を探し直す':'もう一度確認'):main?'候補を探す':'ほかの候補地点を探す';button.disabled=!valid;resultList.setAttribute('aria-busy',String(searching));}
  renderAction();
- async function present(result,selected,node,token,{cancelled=false}={}){
+ async function present(result,selected,node,token,{cancelled=false,interrupted=false}={}){
    const labels=result.rows.length?await loadLabels():{};if(!current(token,selected,node))return;
    AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();const rows=[];
    for(const raw of result.rows){const row=AstroNotesCandidateLabels.enrich(raw,labels);if(raw.place.name&&!/^(?:撮影候補|モデル候補)/.test(raw.place.name))row.place.name=raw.place.name;rows.push(row);const item=document.createElement('button');item.type='button';item.className='list-item';item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;item.dataset.candidateId=row.id;item.textContent=row.place.name;
     item.onclick=()=>{if(mainWorkspace()&&!mainWorkspace().selectable()||!current(token,selected,node)||row.requestKey!==key(snapshot()))return;const event={...row.event};delete event.matchMode;const candidate={...row,event};if(SkyMapUI.selectCandidate(candidate,context(SkyMapUI.selectionState()))){returnSearch=selected.timeSpec?.kind==='window'&&AstroNotesCandidateDiscovery.day(row.event.at)!==AstroNotesCandidateDiscovery.day(selected.at)?{plan:selected,key:key(selected),rowId:row.id,viewAt:row.event.at}:null;sheet.close();}};resultList.append(item);
    }
    AstroNotesCandidatePicker.registerAdditional(resultList,rows,selected,()=>current(token,selected,node));
-   continuation=cancelled||!!result.canContinue;renderAction();visibleCredits.hidden=!rows.length;
-   const unknown=rows.filter(r=>r.quality?.visibility!=='model-clear').length,unknownFrame=rows.some(r=>r.frame?.status==='unknown');
-   setStatus(cancelled?'探索をキャンセルしました。続きから探せます。':rows.length?`新たな地点で${rows.length}件の候補があります。${unknown?'見通し未確認の候補を含みます。':''}${unknownFrame?'全体の画角を確認できない候補を含みます。':''}${continuation?'続きの地域・地点も探せます。':''}`:continuation?'新たな地点は、今回確認した範囲では見つかりませんでした。続きを探せます。':'今回確認した範囲では候補がありません。未取得・未判定の範囲があります。');
+   const incomplete=!!result.stalled||interrupted||result.coverage.loaded?.some(c=>c.failedRegions?.length||c.missing?.includes('time-budget'));
+   continuation=cancelled||interrupted||!!result.canContinue;failed=!cancelled&&incomplete;
+   renderAction();visibleCredits.hidden=!rows.length;
+   const unknown=rows.some(r=>r.quality?.visibility!=='model-clear'),unknownFrame=rows.some(r=>r.frame?.status==='unknown');
+   setStatus(cancelled?'探索をキャンセルしました。続きから探せます。':(rows.length?`新たな地点で${rows.length}件の候補があります。${unknown?'見通し未確認の候補を含みます。':''}${unknownFrame?'全体の画角を確認できない候補を含みます。':''}`:incomplete?'確認できた範囲には候補がありません。':'今回確認した範囲では候補がありません。')+(incomplete?'取得できなかった範囲があります。':result.canContinue?'探索を再開できます。':''));
    resultNotes.textContent=`${result.counts.checked}地点を確認。${result.counts.blocked}地点は遮蔽、${result.counts.unknown}地点は高さ等を確認できませんでした。探索地域 ${result.coverage.regions}区画。全地域・全時刻の網羅や実写成功は保証していません。`;
  }
  button.onclick=async()=>{
   const selected=snapshot();if(!selected)return;if(condition!==uiKey(selected)){mount();return;}
   if(!button.isConnected||!contextActive()||main&&!main.selectable())return;dateRefreshPending=false;main?.reveal();
-  if(searching){stop();const token=++run;hasSearched=false;continuation=true;searching=false;renderAction();setStatus('探索をキャンセルしました。続きから探せます。');const completed=engine.cached(selected);if(completed)present(completed,selected,section,token,{cancelled:true}).catch(()=>{});return;}
+  if(searching){stop();const token=++run;hasSearched=false;continuation=true;failed=false;searching=false;renderAction();setStatus('探索をキャンセルしました。続きから探せます。');const completed=engine.cached(selected);if(completed)present(completed,selected,section,token,{cancelled:true}).catch(()=>{});return;}
   if(hasRun&&!continuation&&!engine.restart(selected))return;AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();hasRun=true;hasSearched=true;const node=section,token=++run;stop();controller=new AbortController();const signal=controller.signal;live.resetBudget();evaluationBudgetStarted=false;watch=setInterval(()=>{if(!current(token,selected,node)){stop();mount();}},250);
-  searching=true;renderAction();setStatus('撮影できる地域を計算しています…',true);
+  searching=true;failed=false;renderAction();
+  const label='撮影できる地域を計算しています…',progress=globalThis.MyPlacesUI.recordProgress(status,label);
+  progress.node.classList.add('candidate-wait');
   try{
-   const result=await engine.search(selected,{more:continuation,signal,isCurrent:()=>current(token,selected,node),onProgress:counts=>{if(!current(token,selected,node))return;const message=status.querySelector('.note-wait-message');if(message)message.textContent=counts.stage==='inverse'?'撮影できる地域を計算しています…':counts.stage==='evaluate'?'構図と見通しを確認しています… '+(counts.checked||0)+'地点':'撮影場所の情報を取得しています…';}});
-   if(!current(token,selected,node))return;if(result.cancelled){setStatus('候補の確認をやり直してください。');return;}
+   const result=await engine.searchAll(selected,{more:continuation,signal,isCurrent:()=>current(token,selected,node),onBatchStart:()=>{live.resetBudget();evaluationBudgetStarted=false;},onProgress:counts=>{if(!current(token,selected,node))return;const checked=counts.checked||0;const message=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中 ・ '+checked+'地点':'撮影場所の情報を取得中'+(checked?' ・ '+checked+'地点確認済み':'');progress.update(undefined,undefined,message);}});
+   if(!current(token,selected,node))return;if(result.cancelled){failed=true;continuation=true;setStatus('候補の情報を取得できませんでした。');return;}
    await present(result,selected,node,token);
-  }catch(e){if(current(token,selected,node)){setStatus(e.message==='candidate-cancelled'?'探索をキャンセルしました。':'候補の情報を取得できませんでした。もう一度お試しください。');continuation=true;}}
+  }catch(e){if(current(token,selected,node)){const completed=engine.cached(selected);if(completed)await present(completed,selected,node,token,{interrupted:true});else{setStatus('候補の情報を取得できませんでした。');failed=true;continuation=true;}}}
   finally{if(token===run){stop();if(current(token,selected,node)){searching=false;renderAction();}else mount();}}
  };
  if(main?.visible())globalThis.MyPlacesUI?.renderPickerPanel(panel);

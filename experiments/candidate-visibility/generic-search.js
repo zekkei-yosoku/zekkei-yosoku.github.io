@@ -28,7 +28,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
  // Rechecking the same conditions replaces only working progress. The last
  // complete result remains available when a recheck fails or is cancelled.
  function restart(plan){const key=requestKey(plan),previous=sessions.get(key);if(previous?.busy&&previous.current?.()!==false)return false;if(previous)sessions.set(key,fresh(key,previous.inverse,previous.lastResult));return true;}
- async function search(plan,{onProgress=()=>{},isCurrent=()=>true,signal,more=false}={}){
+ async function search(plan,{onProgress=()=>{},isCurrent=()=>true,signal,more=false,retryFailed=true}={}){
   if(plan.compositionInvalid)throw Error('invalid-composition');
   const key=requestKey(plan);let session=sessions.get(key);
   const wanted=()=>!signal?.aborted&&isCurrent();
@@ -54,7 +54,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
   try{
    if(!session.queue.length&&(session.cursor!==null||!session.started)){
     onProgress({stage:'places',...session.counts});
-    const data=await provider.load(plan,{regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal});
+    const data=await provider.load(plan,{regions:session.regions,cursor:session.cursor??0,isCurrent:wanted,onProgress,signal,retryFailed});
     if(!wanted()||data.cancelled)return {cancelled:true};
     const points=[...(data.points||[])];
     if(!session.started&&loadStatic){
@@ -87,8 +87,26 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
    session.lastResult=result(session);return session.lastResult;
   }finally{session.busy=false;}
  }
+ // Drain scheduled pages and point batches as one cancellable foreground search.
+ async function searchAll(plan,{onBatchStart=()=>{},...options}={}){
+  const wanted=()=>!options.signal?.aborted&&(options.isCurrent?.()??true);
+  const cursors=new Set();let more=!!options.more;
+  while(wanted()){
+   onBatchStart();
+   const page=await search(plan,{...options,more,retryFailed:false});
+   if(!wanted()||page.cancelled)return {cancelled:true};
+   if(!page.canContinue)return page;
+   if(!page.coverage.pendingPoints){
+    const cursor=JSON.stringify(page.coverage.nextCursor);
+    if(cursors.has(cursor)){const stalled={...page,stalled:true};sessions.get(page.requestKey).lastResult=stalled;return stalled;}
+    cursors.add(cursor);
+   }
+   more=true;await yieldTask();
+  }
+  return {cancelled:true};
+ }
  function result(s){return {rows:s.rows.slice(),counts:{...s.counts},requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',canContinue:s.queue.length>0||s.cursor!==null,coverage:{regions:s.regions.length,loaded:s.coverage,pendingPoints:s.queue.length,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
- return {search,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
+ return {search,searchAll,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
 }
 api.requestKey=requestKey;api.regionsFor=regionsFor;api.createGenericSearch=createGenericSearch;
 if(typeof module==='object'&&module.exports)module.exports={requestKey,regionsFor,createGenericSearch};

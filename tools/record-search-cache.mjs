@@ -5,7 +5,10 @@ export function createRecordSearchCache({limit=768,copy=structuredClone}={}){
  async function read(key,solve,current){
   if(!current())return cancelled();
   if(results.has(key)){const value=results.get(key);results.delete(key);results.set(key,value);stats.hits++;return copy(value);}
-  let job=jobs.get(key),joined=!!job;
+  let job=jobs.get(key);
+  // An obsolete caller may still await I/O. It cannot hold a new search open.
+  if(job&&![...job.watchers].some(w=>w()))job=null;
+  const joined=!!job;
   if(job)stats.joins++;
   else{
    job={watchers:new Set()};jobs.set(key,job);

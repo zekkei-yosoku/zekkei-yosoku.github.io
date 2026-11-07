@@ -28,3 +28,11 @@ test('failed, cancelled and rejected work can be retried',async()=>{
  assert.deepEqual(await c.read('partial',()=>result(4),alive),result(4));
  assert.deepEqual(await c.read('cancelled',()=>result(5),alive),result(5),'LRU cap evicts prior success');
 });
+test('returning starts the interrupted pair without waiting for an obsolete solver', {timeout:1000},async()=>{
+ const c=createRecordSearchCache();let keep=true,release;
+ const old=c.read('day',()=>new Promise(r=>release=r),()=>keep);
+ await Promise.resolve();keep=false;
+ assert.deepEqual(await c.read('day',()=>result(2),alive),result(2));
+ release(result(9));assert.equal((await old).cancelled,true);
+ assert.deepEqual(await c.read('day',()=>{throw Error('must reuse the new result');},alive),result(2));
+});

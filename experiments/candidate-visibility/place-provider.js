@@ -156,8 +156,8 @@ function publishedViewpoints(data,regions){
 return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,isCurrent:providerCurrent=()=>true,maxTiles=12,maxPoints=480,timeoutMs=12000,maxDurationMs=55000,spacingM=30,endpoints}={}){
  if(!terrain)throw Error('terrain provider is required');
  const servers=endpoints||terrain.OVERPASS||[],cache=new Map(),heightCache=new Map();
- let endpointCursor=0,overpassRetryAfter=0;
- async function load(plan,{regions=plan?.regions||plan?.searchRegions||[],isCurrent=()=>true,onProgress=()=>{},signal,maxTiles:tileBudget=maxTiles,maxPoints:pointBudget=maxPoints,cursor,offset=0}={}){
+ let endpointCursor=0,overpassRetryAfter=0,overpassNextRequest=0;
+ async function load(plan,{regions=plan?.regions||plan?.searchRegions||[],isCurrent=()=>true,onProgress=()=>{},signal,maxTiles:tileBudget=maxTiles,maxPoints:pointBudget=maxPoints,cursor,offset=0,retryFailed=true}={}){
   offset=Math.max(0,Number(cursor?.offset??cursor??offset)||0);const retryTiles=Array.isArray(cursor?.retryTiles)?cursor.retryTiles:[],batchTiles=Array.isArray(cursor?.batchTiles)?cursor.batchTiles:null,pointOffset=Math.max(0,Number(cursor?.pointOffset)||0);
   const requested=regionsFor(regions),started=Date.now(),current=()=>!signal?.aborted&&providerCurrent()&&isCurrent(),controller=new AbortController();
   let timedOut=false;const cancel=()=>controller.abort(),timer=setInterval(()=>{if(!current())cancel();if(Date.now()-started>maxDurationMs){timedOut=true;cancel();}},100);signal?.addEventListener('abort',cancel,{once:true});
@@ -174,16 +174,23 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    // Expand for containing parks/river edges, but select only inside requested
    // regions. out geom without an output bbox preserves full returned rings.
    const b=tile.bbox.map((v,i)=>v+(i<2?-.0003:.0003));b[0]=Math.max(-180,b[0]);b[1]=Math.max(-90,b[1]);b[2]=Math.min(180,b[2]);b[3]=Math.min(90,b[3]);
-   let reason='no-overpass-endpoint',overpassAttempted=false;
+   let reason=Date.now()<overpassRetryAfter?'overpass-cooldown':'no-overpass-endpoint',overpassAttempted=false;
    for(let attempt=0;attempt<Math.min(2,servers.length)&&current()&&!controller.signal.aborted&&(tile.retry||Date.now()>=overpassRetryAfter);attempt++){
     overpassAttempted=true;
     const endpoint=servers[(endpointCursor+attempt)%servers.length];
-    try{const res=await request(endpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(query(b))});if(!res.ok)throw Error('HTTP '+res.status);const data=await bounded(res.json(),timeoutMs);
+    try{
+     if(!retryFailed){
+      const delay=overpassNextRequest-Date.now();if(delay>0){let wait;try{await bounded(new Promise(resolve=>{wait=setTimeout(resolve,delay);}),delay+250);}finally{clearTimeout(wait);}}
+      if(!current()||controller.signal.aborted)throw Error('cancelled');
+      overpassNextRequest=Date.now()+1000;
+     }
+     const res=await request(endpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(query(b))});if(!res.ok)throw Error('HTTP '+res.status);const data=await bounded(res.json(),timeoutMs);
      if(data.remark||!Array.isArray(data.elements)||!data.elements.some(e=>e.type==='count'))throw Error(data.remark||'incomplete-overpass-response');
      const value={features:parseElements(data.elements),at:Date.now(),timestamp:data.osm3s?.timestamp_osm_base||null,endpoint,version:hash(JSON.stringify(data.elements))};cache.set(tile.id,value);while(cache.size>120)cache.delete(cache.keys().next().value);endpointCursor=(endpointCursor+attempt)%Math.max(1,servers.length);overpassRetryAfter=0;return value;
-    }catch(e){reason=String(e.message||e);}
-   }endpointCursor=(endpointCursor+1)%Math.max(1,servers.length);if(overpassAttempted)overpassRetryAfter=Date.now()+60000;
-   if(current()&&!controller.signal.aborted)try{const endpoint='https://api.openstreetmap.org/api/0.6/map',res=await request(endpoint+'?bbox='+b.join(','));if(!res.ok)throw Error('HTTP '+res.status);const xml=await bounded(res.text(),timeoutMs),elements=mapElements(xml),value={features:parseElements(elements),at:Date.now(),timestamp:null,endpoint,version:hash(xml),fallback:true};cache.set(tile.id,value);return value;}catch(e){reason+='; map '+String(e.message||e);}
+    }catch(e){reason=String(e.message||e);if(!retryFailed&&reason==='HTTP 429')break;}
+   }if(!current()||controller.signal.aborted)throw Error('cancelled');
+   endpointCursor=(endpointCursor+1)%Math.max(1,servers.length);if(overpassAttempted)overpassRetryAfter=Date.now()+60000;
+   if(retryFailed&&current()&&!controller.signal.aborted)try{const endpoint='https://api.openstreetmap.org/api/0.6/map',res=await request(endpoint+'?bbox='+b.join(','));if(!res.ok)throw Error('HTTP '+res.status);const xml=await bounded(res.text(),timeoutMs),elements=mapElements(xml),value={features:parseElements(elements),at:Date.now(),timestamp:null,endpoint,version:hash(xml),fallback:true};cache.set(tile.id,value);return value;}catch(e){reason+='; map '+String(e.message||e);}
    throw Error(reason);
   }
   try{
@@ -198,12 +205,15 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
     onProgress({phase:'places',fetched:coverage.fetchedRegions.length,failed:coverage.failedRegions.length,points:0});
    }
    const attemptedIds=new Set([...coverage.fetchedRegions,...coverage.failedRegions].map(r=>r.id));for(const tile of retryTiles)if(!attemptedIds.has(tile.id))deferredRetries.push(tile);
-   coverage.evaluatedRegionIds=coverage.fetchedRegions.map(r=>r.id);coverage.nextCursor=batchTiles?cursor.afterCursor||null:hasPending||coverage.failedRegions.length?{offset:nextOffset,retryTiles:[...deferredRetries,...coverage.failedRegions]}:null;
+   coverage.evaluatedRegionIds=coverage.fetchedRegions.map(r=>r.id);coverage.nextCursor=batchTiles?cursor.afterCursor||null:hasPending||retryFailed&&coverage.failedRegions.length?{offset:nextOffset,retryTiles:retryFailed?[...deferredRetries,...coverage.failedRegions]:[]}:null;
    coverage.osmComplete=requested.length>0&&!hasPending&&!coverage.failedRegions.length&&offset===0&&current()&&!timedOut;
    const selectionRegions=[];for(const r of requested)for(const tile of coverage.fetchedRegions){const b=[Math.max(r.bbox[0],tile.bbox[0]),Math.max(r.bbox[1],tile.bbox[1]),Math.min(r.bbox[2],tile.bbox[2]),Math.min(r.bbox[3],tile.bbox[3])];if(b[0]<b[2]&&b[1]<b[3])selectionRegions.push({...r,bbox:b});}
-   const features=[...merged.values()],sampled=sampleFeatures(features,selectionRegions,{spacingM,maxPoints:Math.max(1,pointBudget),skipPoints:pointOffset}),points=sampled.rows;
+   const features=[...merged.values()],sampled=batchTiles&&coverage.failedRegions.length
+    // A point offset is only valid for the same complete set of tiles.
+    ?{rows:[],limited:true,omittedPoints:0,unknownGeometry:[]}
+    :sampleFeatures(features,selectionRegions,{spacingM,maxPoints:Math.max(1,pointBudget),skipPoints:pointOffset}),points=sampled.rows;
    if(sampled.limited&&points.length)coverage.nextCursor={offset,pointOffset:pointOffset+points.length,batchTiles:coverage.fetchedRegions.map(r=>({id:r.id,bbox:r.bbox,regionId:r.regionId})),afterCursor:coverage.nextCursor};
-   else if(batchTiles&&coverage.failedRegions.length)coverage.nextCursor={...cursor};
+   else if(batchTiles&&retryFailed&&coverage.failedRegions.length)coverage.nextCursor={...cursor};
    coverage.samplingComplete=!sampled.limited;coverage.omittedPoints=sampled.omittedPoints;coverage.incompleteGeometry=sampled.unknownGeometry;
    if(sampled.limited)coverage.missing.push('point-budget');if(hasPending)coverage.missing.push('tile-budget-or-timeout');if(sampled.unknownGeometry.length)coverage.missing.push('incomplete-osm-geometry');
    // A small documented viewpoint supplement is independent of OSM availability.

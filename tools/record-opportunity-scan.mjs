@@ -1,12 +1,13 @@
 // Cooperative day-first scan. Publish a day only after every registered pair
 // has been checked, so already visible rows do not move under the user's finger.
-export function createOpportunityScan({pairs,start,end,notBefore=start,solve,isCurrent,clock=Date.now,onProgress=()=>{},onDay=()=>{},yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
- const state={day:start,index:0,checked:0,total:Math.ceil((end-start)/86400000)*pairs.length,through:start,rows:[],pending:[],failures:[],done:false,running:false,paused:false,cancelled:false};
+export function createOpportunityScan({pairs,start,end,notBefore=start,solve,isCurrent,onStart=()=>{},onProgress=()=>{},onDay=()=>{},yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
+ const state={day:start,index:0,checked:0,total:Math.ceil((end-start)/86400000)*pairs.length,through:start,rows:[],pending:[],failures:[],done:false,running:false,cancelled:false};
  const seen=new Set();
- async function advance(budgetMs=8000){
+ async function advance(){
   if(state.running||state.done||state.cancelled)return state;
-  state.running=true;state.paused=false;const began=clock();
+  state.running=true;
   try{
+   onStart(state);
    if(!pairs.length){state.done=true;state.through=end;onDay(state);return state;}
    while(state.day<end){
     if(!isCurrent()){state.cancelled=true;return state;}
@@ -29,7 +30,6 @@ export function createOpportunityScan({pairs,start,end,notBefore=start,solve,isC
     if(state.day>=end){state.done=true;return state;}
     await yieldTask();
     if(!isCurrent()){state.cancelled=true;return state;}
-    if(clock()-began>=budgetMs){state.paused=true;return state;}
    }
    state.done=true;return state;
   }finally{state.running=false;}

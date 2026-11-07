@@ -87,3 +87,10 @@ test('施設名だけの未知高さを昇格せず、OSM障害時も既設展�
  const loadViewpoints=async()=>({places:[{id:'known',kind:'展望台',name:'既設点',latitude:35.002,longitude:139.002,deckM:40,heightKnown:true,heightBasis:'floor',source:'survey:floor'},{id:'unknown',kind:'展望台',name:'未知点',latitude:35.003,longitude:139.003,deckM:100,heightKnown:false}]}),p=provider([],{loadViewpoints,fetchImpl:async()=>{throw Error('offline');}});
  const r=await p.load({}, {regions:[region]});assert(r.partial);assert.equal(r.points.length,1);assert.equal(r.points[0].eyeM,1.5);assert.equal(r.points[0].surfaceElevationM,52);
 });
+test('automatic pages advance past failed tiles and respect cooldown without falling back to the editing API',async()=>{
+ const requests=[],regions=[{bbox:[139.001,35.001,139.009,35.004]}];
+ const p=provider([],{maxTiles:1,fetchImpl:async url=>{requests.push(url);return {ok:false,status:429};}});
+ const a=await p.load({}, {regions,retryFailed:false});assert.equal(a.coverage.failedRegions[0].reason,'HTTP 429');assert.deepEqual(a.coverage.nextCursor.retryTiles,[]);
+ const b=await p.load({}, {regions,cursor:a.coverage.nextCursor,retryFailed:false});assert.notEqual(b.coverage.failedRegions[0].id,a.coverage.failedRegions[0].id);assert.equal(b.coverage.nextCursor,null);assert.equal(b.coverage.failedRegions[0].reason,'overpass-cooldown');
+ assert.deepEqual(requests,terrain.OVERPASS);
+});
