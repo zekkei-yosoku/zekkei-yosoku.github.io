@@ -561,11 +561,16 @@
     if(mountainRidge&&(mountainRidge.length<2||mountainRidge.some(p=>!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite))))throw Error('山の稜線を取得できません');
     // ridgeBase：山頂付近だけで判定するときの下端の高さ（既定は地平線0°。2026-10-20）
     const ridgeBase=Number.isFinite(opts.ridgeBase)?opts.ridgeBase:0;
+    const hasMountainRidge=!!mountainRidge;
+    let centerAlt,project,polygons,hasOutline,approximate;
+    {
     const outline = mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} : towerOutline(observer, target, opts);
-    const centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
-    const project = viewProjector(g.azimuth, centerAlt);
-    const polygons = outline ? (outline.hitPolygons || [outline.hitPoints || outline.points]).map(poly=>poly.map(([a,h])=>project(a,h)).filter(Boolean)).filter(poly=>poly.length>=3) : null;
-    const distanceToPolygons=polygons?(function prepareExactPolygonDistance(polygons,polygonDistance){
+    centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
+    project = viewProjector(g.azimuth, centerAlt);
+    polygons = outline ? (outline.hitPolygons || [outline.hitPoints || outline.points]).map(poly=>poly.map(([a,h])=>project(a,h)).filter(Boolean)).filter(poly=>poly.length>=3) : null;
+    hasOutline=!!outline;approximate=!!outline?.approximate;
+    }
+    const distanceToPolygons=polygons?(function prepareExactPolygonDistance(polygons,polygonDistance,scaledDistance){
  const boxes=polygons.map(poly=>({minX:Math.min(...poly.map(p=>p[0])),maxX:Math.max(...poly.map(p=>p[0])),minY:Math.min(...poly.map(p=>p[1])),maxY:Math.max(...poly.map(p=>p[1]))}));
  const combine=indices=>{
   const out={minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity};
@@ -592,8 +597,11 @@
   };
   const evaluate=i=>{
    if(lower(boxes[i])>nearest+1e-10)return;
-   const poly=ratio===1?polygons[i]:polygons[i].map(p=>[p[0],p[1]/ratio]);
-   nearest=Math.min(nearest,polygonDistance(point,poly));
+   if(ratio!==1&&scaledDistance)nearest=Math.min(nearest,scaledDistance(point,polygons[i],ratio));
+   else{
+    const poly=ratio===1?polygons[i]:polygons[i].map(p=>[p[0],p[1]/ratio]);
+    nearest=Math.min(nearest,polygonDistance(point,poly));
+   }
   };
   function visit(node,bound){
    if(bound>nearest+1e-10||nearest===0)return;
@@ -604,7 +612,20 @@
   else for(let i=0;i<polygons.length;i++){evaluate(i);if(nearest===0)break;}
   return nearest;
  };
-})(polygons,polygonDistance):null;
+})(polygons,polygonDistance,function exactScaledPolygonDistance(point,polygon,ratio){
+ let inside=false,distance=Infinity;
+ if(!polygon.length)return distance;
+ let ax=polygon[polygon.length-1][0],ay=polygon[polygon.length-1][1]/ratio;
+ for(let i=0;i<polygon.length;i++){
+  const bx=polygon[i][0],by=polygon[i][1]/ratio;
+  if((ay>point[1])!==(by>point[1])&&point[0]<(bx-ax)*(point[1]-ay)/(by-ay)+ax)inside=!inside;
+  const dx=bx-ax,dy=by-ay,len=dx*dx+dy*dy;
+  const u=len?Math.max(0,Math.min(1,((point[0]-ax)*dx+(point[1]-ay)*dy)/len)):0;
+  distance=Math.min(distance,Math.hypot(point[0]-ax-u*dx,point[1]-ay-u*dy));
+  ax=bx;ay=by;
+ }
+ return inside?0:distance;
+}):null;
     const evaluate = (at, st = bodyAt(body, at, obs)) => {
       const xy = project(st.azimuth, st.apparentAltitude);
       const radius = Math.tan(st.angularRadius * R) / R;
@@ -612,7 +633,7 @@
       const ratio=Number.isFinite(st.upperRadius)&&radius>0&&upper&&lower?Math.max(.1,Math.abs(upper[1]-lower[1])/(2*radius)):1;
       const center=xy?[xy[0],Number.isFinite(st.upperRadius)&&upper&&lower?(upper[1]+lower[1])/2:xy[1]]:null;
       const distance = center ? (polygons ? distanceToPolygons(center,ratio) : Math.hypot(center[0],center[1]/ratio)) : Infinity;
-      return { at, gap: st.apparentAltitude - g.angle, radius: st.angularRadius, distanceToTarget: distance, approximate: !!outline?.approximate,
+      return { at, gap: st.apparentAltitude - g.angle, radius: st.angularRadius, distanceToTarget: distance, approximate,
         intersects: distance <= radius && (st.upperAltitude??st.apparentAltitude+st.angularRadius) > 0,
         nearTarget: distance <= (extended(body) ? radius + 0.5 : 2 * radius) && st.apparentAltitude + st.angularRadius > 0,
         altitude: st.apparentAltitude, illuminated: body === "moon" ? st.illuminatedFraction : null,
@@ -639,7 +660,7 @@
         }
         let best = evaluate((lo + hi) / 2);
         // 横切る瞬間の前後も見る。円盤が建物の横の縁だけに掛かる日を落とさない。
-        if (outline) for (let dt = -600000; dt <= 600000; dt += 20000) {
+        if (hasOutline) for (let dt = -600000; dt <= 600000; dt += 20000) {
           const t = (lo + hi) / 2 + dt;
           if (t < dayMs || t >= end) continue;
           const e = evaluate(t);
@@ -649,10 +670,10 @@
       }
       previous = { at, diff };
     }
-    if ((!crossings.length || mountainRidge) && nearest) {
+    if ((!crossings.length || hasMountainRidge) && nearest) {
       const lo = Math.max(dayMs, nearest.at - 600000), hi = Math.min(end - 1, nearest.at + 600000);
       for (let at = lo; at <= hi; at += 20000) { const e = evaluate(at); if (e.distanceToTarget < nearest.distanceToTarget) nearest = e; }
-      if(mountainRidge){
+      if(hasMountainRidge){
         // The sloping skyline can intersect far from the summit's azimuth crossing.
         const i=crossings.findIndex(row=>Math.abs(row.at-nearest.at)<3*3600000);
         if(i<0)crossings.push(nearest);
@@ -675,7 +696,7 @@
     }
     return crossings.sort((a, b) => a.at - b.at).map(complete);
     };
-    run.heightGeometry=Object.freeze({azimuth:g.azimuth,angle:g.angle,centerAlt,ridge:!!mountainRidge,ridgeBase:mountainRidge?ridgeBase:null,outline:!!outline,partId:opts.partId??null,heightM:opts.heightM??null,eyeM:opts.eyeM??1.5});
+    run.heightGeometry=Object.freeze({azimuth:g.azimuth,angle:g.angle,centerAlt,ridge:hasMountainRidge,ridgeBase:hasMountainRidge?ridgeBase:null,outline:hasOutline,partId:opts.partId??null,heightM:opts.heightM??null,eyeM:opts.eyeM??1.5});
     return run;
   }
   function dailyView(observer, target, body, dayMs, opts = {}) {

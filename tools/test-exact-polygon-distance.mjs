@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {prepareExactPolygonDistance} from './exact-polygon-distance.mjs';
-import {patchExactPolygonDistance} from './build-exact-polygon-distance.mjs';
+import {prepareExactPolygonDistance,exactScaledPolygonDistance} from './exact-polygon-distance.mjs';
+import {patchExactPolygonDistance,patchPreparedOutlineRetention} from './build-exact-polygon-distance.mjs';
+import {patchAlignHeightGeometry} from './build-record-height-geometry.mjs';
 const require=createRequire(import.meta.url),align=require('../astronotes-align.js');
 const source=readFileSync(new URL('../astronotes-align.js',import.meta.url),'utf8');
 // Load the actual unchanged production evaluator as the reference, not a reimplementation.
@@ -18,9 +19,22 @@ function exact(a,b){
 }
 let seed=918723;const random=()=>((seed=Math.imul(seed,1664525)+1013904223>>>0)/2**32);
 const compare=(polys,points,ratios)=>{
- const old=original(polys,align.polygonDistance),next=prepareExactPolygonDistance(polys,align.polygonDistance);
- for(const point of points)for(const ratio of ratios)assert(Object.is(next(point,ratio),old(point,ratio)),JSON.stringify({point,ratio,next:next(point,ratio),old:old(point,ratio)}));
+ const old=original(polys,align.polygonDistance),next=prepareExactPolygonDistance(polys,align.polygonDistance),scaled=prepareExactPolygonDistance(polys,align.polygonDistance,exactScaledPolygonDistance);
+ for(const point of points)for(const ratio of ratios){const expected=old(point,ratio);exact(next(point,ratio),expected);exact(scaled(point,ratio),expected);}
 };
+test('optional scalar ellipse evaluator preserves edge arithmetic and callback compatibility',()=>{
+ const polygons=[[],[[0,0]],[[0,-0],[0,-0]],[[0,0],[1,0],[1,1],[1,1],[0,1]],[[1e160,-1e160],[-1e160,1e160],[1,0]],[[Number.MIN_VALUE,-Number.MIN_VALUE],[0,0],[1,1]]];
+ const points=[[0,0],[-0,-0],[1,1],[1+Number.EPSILON,1],[1e307,1e308],[NaN,0],[Infinity,0]];
+ const ratios=[0,-0,-1,Number.MIN_VALUE,.1,.9999999999999,1,1.0000000000001,2,1e307,Infinity,NaN];
+ for(const polygon of polygons)for(const point of points)for(const ratio of ratios)exact(exactScaledPolygonDistance(point,polygon,ratio),align.polygonDistance(point,polygon.map(p=>[p[0],p[1]/ratio])));
+ compare(polygons,points,ratios);
+ const faces=[[[0,0],[1,0],[0,1]],[[5,0],[6,0],[5,1]]],before=[],after=[];
+ const a=original(faces,(p,poly)=>{before.push([p,poly]);return align.polygonDistance(p,poly);});
+ const b=prepareExactPolygonDistance(faces,(p,poly)=>{after.push([p,poly]);return align.polygonDistance(p,poly);},undefined);
+ for(const ratio of [.1,1,2])exact(b([-1,-1],ratio),a([-1,-1],ratio));
+ exact(after,before);
+ assert.equal(after[1][1],faces[0],'ratio 1 passes the original polygon reference');
+});
 test('hierarchy keeps exact distances for disconnected, concave, thin and random polygons',()=>{
  const polys=Array.from({length:180},()=>{const x=random()*40-20,y=random()*40-20;return Array.from({length:3+Math.floor(random()*9)},()=>[x+random()*3,y+random()*3]);});
  polys.push([[0,0],[1e-12,0],[1e-12,30],[0,30]],[[30,0],[35,0],[35,8],[33,8],[33,2],[32,2],[32,8],[30,8]]);
@@ -76,14 +90,16 @@ test('every skipped group contains only polygons that the original bounds would 
 });
 test('patched prepared views retain all event fields for towers, mountains and every body',()=>{
  const load=s=>{const c=vm.createContext({require:createRequire(new URL('../astronotes-align.js',import.meta.url))});vm.runInContext(s,c);return c.AstroNotesAlign;};
- const old=load(source),next=load(patchExactPolygonDistance(source));
+ const old=load(patchAlignHeightGeometry(source)),next=load(patchPreparedOutlineRetention(patchAlignHeightGeometry(patchExactPolygonDistance(source))));
  const observers=[{latitude:35.58386,longitude:139.56853,elevation:87.2},{latitude:35.73874,longitude:139.90204,elevation:5}];
- for(const observer of observers)for(const target of old.TARGETS.filter(t=>['skytree','tokyotower','fuji'].includes(t.id)))for(const body of ['sun','moon','sirius','mercury','venus','mars','jupiter','saturn']){
-  const opts={eyeM:20,partId:'__whole',...(target.id==='fuji'?{ridge:[[245,1],[246,2],[247,4],[248,2],[249,1]],ridgeBase:0}:{})};
+ for(const observer of observers)for(const target of old.TARGETS.filter(t=>['skytree','tokyotower','fuji'].includes(t.id)))for(const body of ['sun','moon','sirius','mercury','venus','mars','jupiter','saturn'])for(const eyeM of [0,1.5,149,700]){
+  const opts={eyeM,partId:'__whole',...(target.id==='fuji'?{ridge:[[245,1],[246,2],[247,4],[248,2],[249,1]],ridgeBase:0}:{})};
   const a=old.prepareDailyView(observer,target,body,opts),b=next.prepareDailyView(observer,target,body,opts);
+  exact(b.heightGeometry,a.heightGeometry);
   for(const date of ['2026-11-07','2026-11-25']){
-   const at=Date.parse(date+'T00:00:00+09:00');exact(b(at),a(at));
+   const at=Date.parse(date+'T00:00:00+09:00');exact(b(at),a(at));exact(b(at,at+12345678.125),a(at,at+12345678.125));
   }
  }
  assert.throws(()=>patchExactPolygonDistance(patchExactPolygonDistance(source)),/boundary changed/);
+ assert.throws(()=>patchPreparedOutlineRetention(patchPreparedOutlineRetention(patchAlignHeightGeometry(patchExactPolygonDistance(source)))),/contract changed/);
 });

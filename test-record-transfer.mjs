@@ -13,6 +13,47 @@ const custom={id:'sender-target',name:'独自の塔',latitude:35.75,longitude:13
 const record=(place,key,result='seen',id=key)=>({id,placeId:place.id,target:{key,name:key==='skytree'?'東京スカイツリー':custom.name,latitude:35.75,longitude:139.92},observer:place,result,registration:true,removed:false,createdAt:1,updatedAt:1});
 function source(){const p=structuredClone(favorite);p.recordAlignments={'fav:sender-target':{partId:'tip',limb:'onTop',matchMode:'limb'}};return {favorites:[p,structuredClone(custom)],observations:[record(p,'skytree'),record(p,'fav:sender-target','partial')],shapes:{[p.id]:{latitude:p.latitude,longitude:p.longitude,shape:{type:'line',vertices:[{latitude:p.latitude,longitude:p.longitude},{latitude:p.latitude+.001,longitude:p.longitude}]}}},placeIds:[p.id]};}
 const empty=()=>({favorites:[],observations:[],shapes:{},owner:'recipient'});
+// Exercise the actual file-selection handler without a browser or persistence.
+// The policy is real; these nodes supply only the preview DOM used by that handler.
+async function importPreview(raw){
+ const nodes=new Map();
+ class Node{
+  constructor(tag){this.tagName=tag;this.children=[];this.textContent='';}
+  set id(value){this._id=value;nodes.set(value,this);}get id(){return this._id;}
+  append(...children){this.children.push(...children);}replaceChildren(...children){this.children=children;}
+  setAttribute(name,value){this[name]=value;}
+ }
+ for(const id of ['recordTransferTitle','recordTransferContent']){const n=new Node('div');n.id=id;}
+ let plan=null,modelLoads=0,writes=0;const actual=policy();
+ const testPolicy={...actual,prepareImport:(...args)=>(plan=actual.prepareImport(...args))};
+ const context=vm.createContext({document:{createElement:tag=>new Node(tag)},window:{addEventListener(){}},el:id=>nodes.get(id),
+  testPolicy,auth:{loginId:'recipient'},accessState:{generation:0},favorites:[],load:()=>[],shapeData:()=>({}),
+  AstroNotesAssets:{ensureModels:async()=>{modelLoads++;}},
+  AstroNotesBodies:{definition:id=>({name:id})},
+  AstroNotesLibrary:{...library,transaction:()=>{writes++;throw Error('preview must not write');}}});
+ vm.runInContext(readFileSync('tools/record-transfer-runtime.js','utf8')+
+  '\ntransferState={};transferDialog={open:true};transferCurrent=()=>true;transferPolicy=()=>testPolicy;transferImport();',context);
+ const input=nodes.get('recordTransferFile');input.files=[{size:Buffer.byteLength(raw),text:async()=>raw}];
+ await input.onchange();
+ return {plan,modelLoads,writes,input,apply:nodes.get('recordTransferApply'),
+  messages:nodes.get('recordTransferPreview').children.filter(n=>n.role==='status').map(n=>n.textContent)};
+}
+test('native JSON file handler accepts normal and BOM exports without writing during preview',async()=>{
+ const data=policy().exportPlaces(source());
+ for(const prefix of ['', '\uFEFF \r\n']){
+  const result=await importPreview(prefix+JSON.stringify(data));
+  assert.equal(result.input.accept,'.json,application/json');assert(result.apply,JSON.stringify(result.messages));assert.equal(result.modelLoads,1);assert.equal(result.writes,0);assert.deepEqual(result.messages,[]);
+  const point=result.plan.favorites.find(f=>f.recordRegistered),again=policy().exportPlaces({...result.plan,placeIds:[point.id]});
+  assert.deepEqual(JSON.parse(JSON.stringify(again)),data,'location, heights, shapes, bodies, target definitions and bindings survive');
+ }
+});
+test('native JSON file handler rejects CSV and malformed or incompatible JSON without an apply action',async()=>{
+ for(const raw of ['地点名,緯度,経度\n公園,35,139','\uFEFF地点名,緯度,経度\n公園,35,139','{bad','',JSON.stringify({format:'astronotes.places',version:9,places:[],targets:[]})]){
+  const result=await importPreview(raw);assert.equal(result.apply,undefined);assert.equal(result.writes,0);assert(result.messages.length);
+  if(!raw.startsWith('{"format"')){assert.equal(result.modelLoads,0);assert.match(result.messages[0],/JSONファイル/);}
+ }
+});
+// Kept as offline legacy-parser coverage. The trial generator no longer bundles it.
 const csv=createRecordCsv(),encodeCsv=rows=>'\uFEFF'+rows.map(row=>row.map(x=>'"'+String(x??'').replaceAll('"','""')+'"').join(',')).join('\r\n');
 test('CSV RFC4180 quotes, commas and multiline notes survive preview/import/repeat',()=>{
  const raw=encodeCsv([['地点ID','地点名','緯度','経度','標高_m','目線_m','対象','天体','メモ','根拠URL'],['p1','公園,"西"',35,139,0,1.5,'スカイツリー','太陽|月','改行\nも保存','https://example.test/sky'],['p1','公園,"西"',35,139,0,1.5,'東京スカイツリー','太陽|月','改行\nも保存','https://example.test/other']]);

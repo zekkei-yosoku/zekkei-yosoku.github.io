@@ -1,7 +1,7 @@
 // A hierarchy of the SAME bounding rectangles used by the linear evaluator.
 // It only skips polygons whose lower distance bound exceeds the current minimum.
 // Leaves use the original polygons and distance function, including ellipse scaling.
-export function prepareExactPolygonDistance(polygons,polygonDistance){
+export function prepareExactPolygonDistance(polygons,polygonDistance,scaledDistance){
  const boxes=polygons.map(poly=>({minX:Math.min(...poly.map(p=>p[0])),maxX:Math.max(...poly.map(p=>p[0])),minY:Math.min(...poly.map(p=>p[1])),maxY:Math.max(...poly.map(p=>p[1]))}));
  const combine=indices=>{
   const out={minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity};
@@ -28,8 +28,11 @@ export function prepareExactPolygonDistance(polygons,polygonDistance){
   };
   const evaluate=i=>{
    if(lower(boxes[i])>nearest+1e-10)return;
-   const poly=ratio===1?polygons[i]:polygons[i].map(p=>[p[0],p[1]/ratio]);
-   nearest=Math.min(nearest,polygonDistance(point,poly));
+   if(ratio!==1&&scaledDistance)nearest=Math.min(nearest,scaledDistance(point,polygons[i],ratio));
+   else{
+    const poly=ratio===1?polygons[i]:polygons[i].map(p=>[p[0],p[1]/ratio]);
+    nearest=Math.min(nearest,polygonDistance(point,poly));
+   }
   };
   function visit(node,bound){
    if(bound>nearest+1e-10||nearest===0)return;
@@ -40,4 +43,22 @@ export function prepareExactPolygonDistance(polygons,polygonDistance){
   else for(let i=0;i<polygons.length;i++){evaluate(i);if(nearest===0)break;}
   return nearest;
  };
+}
+
+// Same operations as polygonDistance(point, polygon.map(([x,y])=>[x,y/ratio])).
+// Divide each endpoint before subtracting; algebraic reassociation changes rounding.
+// The caller opts in explicitly, so the two-argument callback contract stays intact.
+export function exactScaledPolygonDistance(point,polygon,ratio){
+ let inside=false,distance=Infinity;
+ if(!polygon.length)return distance;
+ let ax=polygon[polygon.length-1][0],ay=polygon[polygon.length-1][1]/ratio;
+ for(let i=0;i<polygon.length;i++){
+  const bx=polygon[i][0],by=polygon[i][1]/ratio;
+  if((ay>point[1])!==(by>point[1])&&point[0]<(bx-ax)*(point[1]-ay)/(by-ay)+ax)inside=!inside;
+  const dx=bx-ax,dy=by-ay,len=dx*dx+dy*dy;
+  const u=len?Math.max(0,Math.min(1,((point[0]-ax)*dx+(point[1]-ay)*dy)/len)):0;
+  distance=Math.min(distance,Math.hypot(point[0]-ax-u*dx,point[1]-ay-u*dy));
+  ax=bx;ay=by;
+ }
+ return inside?0:distance;
 }

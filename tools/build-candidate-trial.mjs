@@ -1,7 +1,7 @@
 import {patchAlignHeightGeometry,patchAtmosphereHeightBounds} from './build-record-height-geometry.mjs';
 import {forecastSummaryHtml} from './build-forecast-summary.mjs';
 import {patchExactEphemeris} from './build-exact-ephemeris.mjs';
-import {patchExactPolygonDistance} from './build-exact-polygon-distance.mjs';
+import {patchExactPolygonDistance,patchPreparedOutlineRetention} from './build-exact-polygon-distance.mjs';
 import {patchExactGeometry} from './build-exact-geometry.mjs';
 import {patchExactTerrain} from './build-exact-terrain.mjs';
 import {patchExactRidgeTerrain,patchExactRidgeHtml} from './build-exact-ridge.mjs';
@@ -49,7 +49,7 @@ trialMyplaces=recordTransferMyplaces(trialMyplaces);
 trialMyplaces=recordSortMyplaces(trialMyplaces);
 trialMyplaces=patch(trialMyplaces,'window.MyPlacesUI = {',''+registeredDiscoveryMethods+'\nwindow.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision,');
 trialMyplaces=patch(trialMyplaces,'function changed() {',"function changed() {\n document.dispatchEvent(new Event('astronotes-records-change'));");
-const trialAlign=patchAlignHeightGeometry(patchExactPolygonDistance(patchExactGeometry(patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge'))));const trialAtmosphere=patchAtmosphereHeightBounds(readFileSync('astronotes-atmosphere.js','utf8'));
+const trialAlign=patchPreparedOutlineRetention(patchAlignHeightGeometry(patchExactPolygonDistance(patchExactGeometry(patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge')))));const trialAtmosphere=patchAtmosphereHeightBounds(readFileSync('astronotes-atmosphere.js','utf8'));
 const files={
  'astronotes-terrain.js':patchExactRidgeTerrain(patchExactTerrain(readFileSync('astronotes-terrain.js','utf8'))),
  'astronotes-astro.js':patchExactEphemeris(readFileSync('astronotes-astro.js','utf8')),

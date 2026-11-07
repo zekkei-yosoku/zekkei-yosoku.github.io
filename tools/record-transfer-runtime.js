@@ -38,11 +38,11 @@ async function transferExport(){
 }
 function transferImport(){
  const state=transferState;if(!transferCurrent(state))return;el('recordTransferTitle').textContent='インポート';const content=el('recordTransferContent');content.replaceChildren();
- const input=transferNode('input',{type:'file',id:'recordTransferFile',accept:'.json,.csv,application/json,text/csv',hidden:true}),pick=transferNode('button',{type:'button',className:'fav-btn',id:'recordTransferChoose'},'ファイルを選ぶ'),preview=transferNode('div',{id:'recordTransferPreview'});pick.onclick=()=>input.click();content.append(pick,input,transferNode('p',{className:'tiny'},'CSV・JSONに対応しています。'),preview);
+ const input=transferNode('input',{type:'file',id:'recordTransferFile',accept:'.json,application/json',hidden:true}),pick=transferNode('button',{type:'button',className:'fav-btn',id:'recordTransferChoose'},'ファイルを選ぶ'),preview=transferNode('div',{id:'recordTransferPreview'});pick.onclick=()=>input.click();content.append(pick,input,transferNode('p',{className:'tiny'},'AstroNotesでエクスポートしたJSONファイルに対応しています。'),preview);
  input.onchange=async()=>{
   const file=input.files?.[0];if(!file)return;const sequence=++transferSequence;preview.replaceChildren();pick.disabled=true;const current=()=>transferCurrent(state)&&sequence===transferSequence;
   try{
-   const policy=transferPolicy();if(file.size>policy.maxBytes)throw Error('ファイルは5MB以内にしてください');const raw=await file.text();if(!current())return;const source=raw.replace(/^\uFEFF/,'').trimStart(),data=source.startsWith('{')?JSON.parse(source):createRecordCsv().parse(raw);await AstroNotesAssets.ensureModels();if(!current())return;
+   const policy=transferPolicy();if(file.size>policy.maxBytes)throw Error('ファイルは5MB以内にしてください');const raw=await file.text();if(!current())return;const source=raw.replace(/^\uFEFF/,'').trimStart(),data=JSON.parse(source);await AstroNotesAssets.ensureModels();if(!current())return;
    const readyPolicy=transferPolicy(),stamp=transferStamp(),plan=readyPolicy.prepareImport(data,{favorites,observations:load(),shapes:shapeData(),owner:auth.loginId});
    const heading=transferNode('h3',{className:'my-title'},plan.places.length+'地点'),summary=transferNode('p',{className:'tiny',id:'recordTransferSummary'});preview.append(heading,summary);
    if(!plan.canImport){summary.textContent='対象の情報が不足しているため取り込めません。';const missing=transferNode('ul');for(const name of plan.unresolved)missing.append(transferNode('li',{},name));preview.append(missing);return;}
@@ -63,7 +63,7 @@ function transferImport(){
     try{if(typeof RecordSync!=='undefined')RecordSync.kick();changed();aimFillSelects();SkyMapUI?.refreshTargets?.();renderAuthButton();void accountSync().syncNow().catch(()=>{});}
     catch{notebookNotice=plan.places.length+'地点を保存しました。画面を再読み込みしてください';renderRecordsHub();}
    };
-  }catch(e){if(current())preview.append(transferNode('p',{className:'warn',role:'status'},e instanceof SyntaxError?'ファイルの形式を確認してください':e.message||'読み込めませんでした'));}
+  }catch(e){if(current())preview.append(transferNode('p',{className:'warn',role:'status'},e instanceof SyntaxError?'ファイルの形式を確認してください。AstroNotesでエクスポートしたJSONファイルを選んでください。':e.message||'読み込めませんでした'));}
   finally{if(current()){pick.disabled=false;input.value='';}}
  };
 }
