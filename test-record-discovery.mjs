@@ -6,7 +6,13 @@ import {registeredDiscoveryMethods} from './tools/build-record-discovery.mjs';
 const shooting=()=>{const context=vm.createContext({setTimeout});vm.runInContext(readFileSync('trial/astronotes-shooting.js','utf8'),context);return context.AstroNotesShooting;};
 const point=(id,height=1.5)=>({id,name:id,latitude:35.5,longitude:139.5,elevation:87.2,eyeHeightAGL:height});
 const record=(id,placeId,height=1.5,target='past-target')=>({id,placeId,target:{key:target},observer:{latitude:35.5,longitude:139.5,elevation:87.2,eyeHeightAGL:height},registration:true,removed:false,result:'seen',createdAt:1,updatedAt:1});
-function points(favorites,records,allowed=true){const c=vm.createContext({auth:{token:'synthetic'},toolAllowed:()=>allowed,favorites,load:()=>records,shapeFor:()=>null,withShape:p=>({...p}),when:r=>r.createdAt});vm.runInContext(registeredDiscoveryMethods+';globalThis.result=discoveryPoints();',c);return JSON.parse(JSON.stringify(c.result));}
+const searchRuntime=readFileSync('tools/record-search-runtime.js','utf8');
+const indexRuntime=searchRuntime.slice(searchRuntime.indexOf('const recordSameScope='),searchRuntime.indexOf('function recordBounded('));
+function points(favorites,records,allowed=true){
+ const c=vm.createContext({auth:{token:'synthetic'},accessState:{generation:0},version:0,toolAllowed:()=>allowed,favorites,load:()=>records,shapeData:()=>({}),when:r=>r.createdAt});
+ vm.runInContext('let recordIndexMemo=null;'+indexRuntime+registeredDiscoveryMethods+';globalThis.result=discoveryPoints();',c);
+ return JSON.parse(JSON.stringify(c.result));
+}
 test('all registered targets are eligible, without using the currently selected observer height',()=>{const result=points([point('a',100),point('b')],[record('1','a',4,'unrelated'),record('2','b',1.5,'another')]);assert.equal(result.length,2);assert.equal(result[0].place.standAglM,4);assert.equal(result[0].place.groundManualM,87.2);});
 test('identical positions/heights merge, different recorded heights remain distinct',()=>{const result=points([point('a')],[record('1','a'),record('2','a',1.5,'other'),record('3','a',4)]);assert.equal(result.length,2);assert.deepEqual(result.map(r=>r.place.standAglM),[1.5,4]);});
 test('latest tombstone removes that registration but preserves another active target',()=>{const removed={...record('2','a'),removed:true,updatedAt:2};assert.equal(points([point('a')],[record('1','a'),removed]).length,0);assert.equal(points([point('a')],[record('1','a'),removed,record('3','a',1.5,'active')]).length,1);});

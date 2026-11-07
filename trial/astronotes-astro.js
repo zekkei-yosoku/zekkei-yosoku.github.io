@@ -15,6 +15,22 @@
 (function (global) {
   "use strict";
 
+  const memoExactTime=function createExactTimeMemo(compute,limit=4096){
+ const values=new Map();
+ return ms=>{
+  // Keep the original coercion/error behavior for Date, strings and invalid input.
+  if(!Number.isFinite(ms)||Object.is(ms,-0))return compute(ms);
+  let value=values.get(ms);
+  if(value!==undefined)values.delete(ms);
+  else value=compute(ms);
+  values.set(ms,value);
+  while(values.size>limit)values.delete(values.keys().next().value);
+  return {...value};
+ };
+};
+  const cachedSunPosition=memoExactTime(uncachedSunPosition),cachedMoonGeocentric=memoExactTime(uncachedMoonGeocentric);
+  function sunPosition(ms){return cachedSunPosition(ms);}
+  function moonGeocentric(ms){return cachedMoonGeocentric(ms);}
   const DEG = Math.PI / 180;
   const sin = (d) => Math.sin(d * DEG);
   const cos = (d) => Math.cos(d * DEG);
@@ -64,7 +80,7 @@
   }
 
   /// 太陽。AA 25（低精度式。0.01°）
-  function sunPosition(ms) {
+  function uncachedSunPosition(ms) {
     const T = centuries(ms);
     const L0 = norm(280.46646 + 36000.76983 * T + 0.0003032 * T * T);
     const M = norm(357.52911 + 35999.05029 * T - 0.0001537 * T * T);
@@ -123,7 +139,7 @@
   ];
 
   /// 月の地心位置。AA 47
-  function moonGeocentric(ms) {
+  function uncachedMoonGeocentric(ms) {
     const T = centuries(ms);
     const Lp = norm(218.3164477 + 481267.88123421 * T - 0.0015786 * T ** 2
                     + T ** 3 / 538841 - T ** 4 / 65194000);

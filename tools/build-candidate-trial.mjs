@@ -1,4 +1,7 @@
 import {patchAlignHeightGeometry,patchAtmosphereHeightBounds} from './build-record-height-geometry.mjs';
+import {patchExactEphemeris} from './build-exact-ephemeris.mjs';
+import {patchExactPolygonDistance} from './build-exact-polygon-distance.mjs';
+import {patchExactGeometry} from './build-exact-geometry.mjs';
 import {numericRulerTimeline,numericRulerHtml} from './build-numeric-rulers.mjs';
 import {previewPathLifecycleHtml} from './build-preview-path-lifecycle.mjs';
 import {recordOpportunitiesMyplaces,recordOpportunitiesHtml} from './build-record-opportunities.mjs';
@@ -43,8 +46,9 @@ trialMyplaces=recordTransferMyplaces(trialMyplaces);
 trialMyplaces=recordSortMyplaces(trialMyplaces);
 trialMyplaces=patch(trialMyplaces,'window.MyPlacesUI = {',''+registeredDiscoveryMethods+'\nwindow.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision,');
 trialMyplaces=patch(trialMyplaces,'function changed() {',"function changed() {\n document.dispatchEvent(new Event('astronotes-records-change'));");
-const trialAlign=patchAlignHeightGeometry(patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge'));const trialAtmosphere=patchAtmosphereHeightBounds(readFileSync('astronotes-atmosphere.js','utf8'));
+const trialAlign=patchAlignHeightGeometry(patchExactPolygonDistance(patchExactGeometry(patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge'))));const trialAtmosphere=patchAtmosphereHeightBounds(readFileSync('astronotes-atmosphere.js','utf8'));
 const files={
+ 'astronotes-astro.js':patchExactEphemeris(readFileSync('astronotes-astro.js','utf8')),
  'astronotes-library.js':recordTransferLibrary(readFileSync('astronotes-library.js','utf8')),
  'astronotes-scroll-timeline.js':numericRulerTimeline(readFileSync('astronotes-scroll-timeline.js','utf8')),
  // Common calendar geometry for every trial consumer; never a page-level override.

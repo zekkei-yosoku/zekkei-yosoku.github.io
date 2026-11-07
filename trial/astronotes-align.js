@@ -375,10 +375,10 @@
     const { eyeM = 1.5, partId = null, heightM = null } = opts;
     const topM = heightM !== null ? heightM : (partOf(target, partId) || {}).m;
     if (!Number.isFinite(topM)) return null;
-    const distanceKm = TR.distanceKm(observer.latitude, observer.longitude, target.latitude, target.longitude);
+    const {km:distanceKm,azimuth} = TR.inverse(observer.latitude, observer.longitude, target.latitude, target.longitude);
     return {
       distanceKm,
-      azimuth: TR.bearing(observer.latitude, observer.longitude, target.latitude, target.longitude),
+      azimuth,
       angle: targetAngle(distanceKm, (observer.elevation ?? 0) + eyeM, topM),
       topM,
     };
@@ -394,11 +394,10 @@
   function rimOutline(obs, target) {
     const rim = target && target.rim;
     if (!rim) return null;
-    const d0 = TR.distanceKm(obs.latitude, obs.longitude, rim.latitude, rim.longitude);
-    const az0 = TR.bearing(obs.latitude, obs.longitude, rim.latitude, rim.longitude);
+    const {km:d0,azimuth:az0} = TR.inverse(obs.latitude, obs.longitude, rim.latitude, rim.longitude);
     const list = rimPoints(rim).map((p) => {
-      const d = TR.distanceKm(obs.latitude, obs.longitude, p.latitude, p.longitude);
-      return { rel: azDiff(TR.bearing(obs.latitude, obs.longitude, p.latitude, p.longitude), az0),
+      const {km:d,azimuth} = TR.inverse(obs.latitude, obs.longitude, p.latitude, p.longitude);
+      return { rel: azDiff(azimuth, az0),
                ang: targetAngle(d, obs.elevation ?? 0, p.m) };
     }).sort((a, b) => a.rel - b.rel);
     // 20m 格子なので、その距離で 15m ぶんの幅の中の一番上を取る
@@ -566,18 +565,46 @@
     const centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
     const project = viewProjector(g.azimuth, centerAlt);
     const polygons = outline ? (outline.hitPolygons || [outline.hitPoints || outline.points]).map(poly=>poly.map(([a,h])=>project(a,h)).filter(Boolean)).filter(poly=>poly.length>=3) : null;
-    const bounds=polygons?.map(poly=>({minX:Math.min(...poly.map(p=>p[0])),maxX:Math.max(...poly.map(p=>p[0])),minY:Math.min(...poly.map(p=>p[1])),maxY:Math.max(...poly.map(p=>p[1]))}));
-    const distanceToPolygons=(center,ratio)=>{
-      const point=[center[0],center[1]/ratio];let nearest=Infinity;
-      for(let i=0;i<polygons.length;i++){
-        const box=bounds[i],dx=Math.max(box.minX-point[0],0,point[0]-box.maxX),dy=Math.max(box.minY/ratio-point[1],0,point[1]-box.maxY/ratio);
-        // A polygon cannot be closer than its bounding rectangle. Keep a numerical margin.
-        if(Math.hypot(dx,dy)>nearest+1e-10)continue;
-        const poly=ratio===1?polygons[i]:polygons[i].map(p=>[p[0],p[1]/ratio]);
-        nearest=Math.min(nearest,polygonDistance(point,poly));if(nearest===0)break;
-      }
-      return nearest;
-    };
+    const distanceToPolygons=polygons?(function prepareExactPolygonDistance(polygons,polygonDistance){
+ const boxes=polygons.map(poly=>({minX:Math.min(...poly.map(p=>p[0])),maxX:Math.max(...poly.map(p=>p[0])),minY:Math.min(...poly.map(p=>p[1])),maxY:Math.max(...poly.map(p=>p[1]))}));
+ const combine=indices=>{
+  const out={minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity};
+  for(const i of indices){const b=boxes[i];out.minX=Math.min(out.minX,b.minX);out.maxX=Math.max(out.maxX,b.maxX);out.minY=Math.min(out.minY,b.minY);out.maxY=Math.max(out.maxY,b.maxY);}
+  return out;
+ };
+ function build(indices){
+  const box=combine(indices);
+  if(indices.length<=8)return {box,indices};
+  // Preserve original face order. Reordering can change legacy floating-point
+  // cancellation and the running minimum used by the existing skip condition.
+  const mid=Math.floor(indices.length/2);
+  return {box,left:build(indices.slice(0,mid)),right:build(indices.slice(mid))};
+ }
+ const tree=polygons.length>16&&boxes.every(b=>Object.values(b).every(Number.isFinite))?build(polygons.map((_,i)=>i)):null;
+ return (center,ratio)=>{
+  const point=[center[0],center[1]/ratio];let nearest=Infinity;
+  const lower=(box,group=false)=>{
+   const dx=Math.max(box.minX-point[0],0,point[0]-box.maxX),dy=Math.max(box.minY/ratio-point[1],0,point[1]-box.maxY/ratio);
+   const distance=Math.hypot(dx,dy);
+   // Leave a generous rounding cushion ONLY in the group rejection bound.
+   // This can visit extra faces; the original leaf bound/distance stays exact.
+   return group?(Number.isFinite(distance)?distance*(1-1e-12):Math.max(dx,dy)):distance;
+  };
+  const evaluate=i=>{
+   if(lower(boxes[i])>nearest+1e-10)return;
+   const poly=ratio===1?polygons[i]:polygons[i].map(p=>[p[0],p[1]/ratio]);
+   nearest=Math.min(nearest,polygonDistance(point,poly));
+  };
+  function visit(node,bound){
+   if(bound>nearest+1e-10||nearest===0)return;
+   if(node.indices){for(const i of node.indices){evaluate(i);if(nearest===0)break;}return;}
+   visit(node.left,lower(node.left.box,true));visit(node.right,lower(node.right.box,true));
+  }
+  if(tree&&ratio>0&&Number.isFinite(ratio)&&point.every(Number.isFinite))visit(tree,lower(tree.box,true));
+  else for(let i=0;i<polygons.length;i++){evaluate(i);if(nearest===0)break;}
+  return nearest;
+ };
+})(polygons,polygonDistance):null;
     const evaluate = (at, st = bodyAt(body, at, obs)) => {
       const xy = project(st.azimuth, st.apparentAltitude);
       const radius = Math.tan(st.angularRadius * R) / R;
@@ -1493,14 +1520,13 @@
       world=model.vertices?(model.faces||model.triangles).map(face=>face.map(i=>mapVertex(model.vertices[i],i))):model.solids.map(solid=>solid.map(mapVertex));
       if(castleWorldCache.size>=16)castleWorldCache.clear();castleWorldCache.set(key,world);
     }
-    const d=TR.distanceKm(observer.latitude,observer.longitude,target.latitude,target.longitude);
-    const az0=TR.bearing(observer.latitude,observer.longitude,target.latitude,target.longitude),eye=(observer.elevation??0)+eyeM;
+    const {km:d,azimuth:az0}=TR.inverse(observer.latitude,observer.longitude,target.latitude,target.longitude),eye=(observer.elevation??0)+eyeM;
     const sight=new Map(),projected=new Map();
     const height=z=>model.heightMode==="translate-top"?(model.groundAnchored&&z===0?0:z+top-model.heightM):z*top/model.heightM;
     const project=vertex=>{
       if(projected.has(vertex))return projected.get(vertex);
       const {place,z}=vertex;
-      let g=sight.get(place);if(!g){g={d:TR.distanceKm(observer.latitude,observer.longitude,place.latitude,place.longitude),az:TR.bearing(observer.latitude,observer.longitude,place.latitude,place.longitude)};sight.set(place,g);}
+      let g=sight.get(place);if(!g){const ray=TR.inverse(observer.latitude,observer.longitude,place.latitude,place.longitude);g={d:ray.km,az:ray.azimuth};sight.set(place,g);}
       const result=[az0+azDiff(g.az,az0),targetAngle(g.d,eye,ground+height(z))];projected.set(vertex,result);return result;
     };
     const projectedParts=world.map(solid=>convexHull(solid.map(project)));
@@ -1550,8 +1576,7 @@
     const ground = target.groundM ?? 0;
     const top = heightM !== null ? heightM : ((partOf(target, "tip") || (target.parts || [])[0] || {}).m ?? ground) - ground;
     if (!(top > 0.5)) return null;
-    const d = TR.distanceKm(observer.latitude, observer.longitude, target.latitude, target.longitude);
-    const az0 = TR.bearing(observer.latitude, observer.longitude, target.latitude, target.longitude);
+    const {km:d,azimuth:az0} = TR.inverse(observer.latitude, observer.longitude, target.latitude, target.longitude);
     const eye = (observer.elevation ?? 0) + eyeM;
     let shape = TOWER_SHAPES[target.id] || null, schematic = false, outline = null;
     if (shape && shape.outline && shape.fromTop) {
