@@ -1768,9 +1768,19 @@ const createRecordSearchCache=function createRecordSearchCache({limit=768,copy=s
 // One in-memory calculation session for both registered-place screens.
 let recordSearchSession=null,recordIndexMemo=null;
 const recordSearchFrame=()=>{
- let yielded=performance.now(),pending=null,finish=null;
- const channel=new MessageChannel();channel.port1.onmessage=()=>{const done=finish;finish=null;pending=null;yielded=performance.now();done?.();};
- return ()=>{if(pending)return pending;if(performance.now()-yielded<8)return Promise.resolve();pending=new Promise(resolve=>{finish=resolve;channel.port2.postMessage(0);});return pending;};
+ let yielded=performance.now(),pending=null,finish=null,timer=null,ticket=0;
+ const wake=id=>{if(!pending||id!==ticket)return;const done=finish;finish=null;pending=null;if(timer!==null)clearTimeout(timer);timer=null;yielded=performance.now();done();};
+ const channel=new MessageChannel();channel.port1.onmessage=e=>wake(e.data);
+ // A mobile page can suspend while its posted task is still pending. Neither
+ // all future searches nor foreground recovery may depend on that one task.
+ const resume=()=>{if(typeof document==='undefined'||!document.hidden)wake(ticket);};
+ if(typeof document!=='undefined')document.addEventListener('visibilitychange',resume);
+ globalThis.addEventListener?.('pageshow',resume);globalThis.addEventListener?.('focus',resume);
+ return ()=>{
+  if(pending)return pending;if(performance.now()-yielded<8)return Promise.resolve();
+  const id=++ticket;pending=new Promise(resolve=>{finish=resolve;});
+  timer=setTimeout(()=>wake(id),50);channel.port2.postMessage(id);return pending;
+ };
 };
 const recordSearchYield=recordSearchFrame();
 const recordSearchScope=()=>[auth?.token,auth?.loginId,accessState.generation,version,JSON.stringify([auth?.tools,aimAirSettings]),AstroNotesAtmosphere.dataKey(),globalThis.AstroNotesTowerModels,globalThis.AstroNotesCityModels];
@@ -2038,6 +2048,7 @@ function opportunityReturnFromPreview(){if(!opportunityHasReturn()||!globalThis.
 for(const type of ['pointerdown','wheel'])el('recordOpportunities').addEventListener(type,()=>{opportunityRestore=null;},{passive:true});
 const opportunityWatch=new MutationObserver(()=>{renderOpportunities();});opportunityWatch.observe(el('recordsView'),{attributes:true,attributeFilter:['hidden','data-tab']});
 document.addEventListener('astronotes-records-change',()=>{opportunityInputEpoch++;if(opportunityActive())renderOpportunities();});document.addEventListener('visibilitychange',renderOpportunities);document.addEventListener('astronotes-opportunity-input',()=>{opportunityInputEpoch++;if(opportunityActive())renderOpportunities();});window.addEventListener('focus',renderOpportunities);
+window.addEventListener('pagehide',()=>{if(opportunityJob)opportunityCancel();});window.addEventListener('pageshow',renderOpportunities);
 window.addEventListener('hashchange',()=>{if(viewState.records&&opportunityHasReturn()){opportunityRestore=opportunityReturn.top;opportunityReturn=null;}else if(!viewState.records&&!globalThis.TrialExplore?.active())opportunityReturn=null;renderOpportunities();});
 const opportunities={render:renderOpportunities,open:openOpportunityList,hasReturn:opportunityHasReturn,returnFromPreview:opportunityReturnFromPreview};
 

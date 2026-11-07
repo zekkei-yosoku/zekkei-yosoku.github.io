@@ -19,10 +19,13 @@ const recordWorkCount=request=>request.points.length*Math.max(1,request.plan.ove
 async function recordRows(request,current,progress=()=>{}){
  if(recordCache.has(request.key))return recordCache.get(request.key);
  let job=recordJobs.get(request.key);
+ // A hidden/obsolete caller can still be awaiting suspended work. Do not
+ // attach the foreground search to it; completed per-place values stay cached.
+ if(job&&![...job.watchers].some(w=>w.current()))job=null;
  if(!job){
   job={watchers:new Set(),checked:0};recordJobs.set(request.key,job);
-  const live=()=>[...job.watchers].some(w=>w.current()),total=recordWorkCount(request);
-  const publish=n=>{job.checked=Math.max(job.checked,n);for(const w of job.watchers)if(w.current())w.progress(job.checked,total);};
+  const live=()=>recordJobs.get(request.key)===job&&[...job.watchers].some(w=>w.current()),total=recordWorkCount(request);
+  const publish=n=>{if(!live())return;job.checked=Math.max(job.checked,n);for(const w of job.watchers)if(w.current())w.progress(job.checked,total);};
   job.promise=Promise.resolve().then(()=>{
    let batch=0;
    const run=p=>{const offset=batch++*request.points.length;return MyPlacesUI.discoverySearch(p,request.points,live,undefined,step=>publish(offset+step.checked));};

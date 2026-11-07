@@ -60,6 +60,16 @@ function leaveSearchFlow(){
 }
 ${recordDiscoverySource}
 document.addEventListener('visibilitychange',()=>{syncRecordDiscovery();if(!document.hidden&&recordCalendarArgs?.isCurrent()&&mainSearchActive())recordCalendarArgs.restart();});
+window.addEventListener('pagehide',stopRecordLoading);
+// The normal hidden handler suspends the map's selection session as well.
+// Restore it through its existing access check before reading the search plan.
+// open() coalesces repeated foreground signals; live searches stay running.
+function resumeRecordDiscovery(){
+ if(document.hidden||!active())return;
+ if(SkyMapUI.resuming?.()){void SkyMapUI.open();return;}
+ syncRecordDiscovery();
+}
+for(const type of ['pageshow','focus'])window.addEventListener(type,resumeRecordDiscovery);
 document.addEventListener('astronotes-records-change',()=>{recordMemo=null;recordState.key='';queueMicrotask(()=>{syncRecordDiscovery();if(recordCalendarArgs?.isCurrent()&&mainSearchActive())recordCalendarArgs.restart();});});
 const mainCandidateWorkspace={separateRecords:true,newPlacesHost:()=>newPlacePane,calendarMonth:recordCalendar,returnScroll:()=>returnIntent?.scrollTop,epoch:()=>flowGeneration,previewWidth:()=>Math.max(200,Math.round(Math.min(780,mapView.clientWidth||320))),active:mainSearchActive,selectable:()=>mainSearchActive()&&!$('placeSheet').open,visible:()=>searchStarted,
  beginBack(){
