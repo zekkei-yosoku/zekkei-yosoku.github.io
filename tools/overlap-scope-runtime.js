@@ -48,8 +48,7 @@ function ensureField(){
  select.onchange=()=>choose(select.value);
  const style=document.createElement('style');style.textContent=`#skyMapOverlapField[hidden]{display:none!important}
 #skyMapOverlapField .overlap-target-select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;margin:0;font-size:16px}
-#skyMapOverlapField .overlap-target-notice{grid-column:1/-1;margin:2px 0 0;color:var(--secondary)}
-.overlap-alignment-all{margin:4px 0;color:var(--text)}`;document.head.append(style);
+#skyMapOverlapField .overlap-target-notice{grid-column:1/-1;margin:2px 0 0;color:var(--secondary)}`;document.head.append(style);
  return field;
 }
 function choose(value){
@@ -81,13 +80,6 @@ function sync(){
   }
   noticeNode.textContent=state.notice;noticeNode.hidden=!state.notice||list.length<1;
  }finally{syncing=false;}
-}
-// 全て: only the union's whole silhouette has a defined meaning. Parts and limbs
-// of one member are not reused, and the in-figure position editor is disabled.
-function renderAlignment(host,s){
- if(!isAll(s)){if(host.dataset.alignmentSignature==='overlap-all'){delete host.dataset.alignmentSignature;host.replaceChildren();}return false;}
- if(host.dataset.alignmentSignature!=='overlap-all'){host.dataset.alignmentSignature='overlap-all';host.replaceChildren();const label=document.createElement('label');label.className='record-alignment-position';const title=document.createElement('span');title.className='tiny';title.textContent='重ねる位置';const p=document.createElement('select');p.className='fav-in';p.id='skyMapOverlapAlignment';p.setAttribute('aria-label','全てに重ねる位置');p.add(new Option('全体','__whole'));p.disabled=true;label.append(title,p);host.append(label);}
- return true;
 }
 // Candidate dates: union of each member's own day scan.
 function buildingDays(fn,plan){
@@ -158,6 +150,6 @@ function quickRecord(cur){
  return {ok:true,already,placeId};
 }
 for(const type of ['astronotes-search-state','astronotes-composition-change','astronotes-records-change'])document.addEventListener(type,()=>queueMicrotask(sync));
-globalThis.AstroNotesTrialOverlap={policy:P,members,isAll,key,label,searchPlan,chooseMain,custom,sync,renderAlignment,buildingDays,inverse,evaluate,discovery,accent,annotate,restore,quickRecord,get lastAccent(){return state.lastAccent;}};
+globalThis.AstroNotesTrialOverlap={policy:P,members,isAll,key,label,searchPlan,chooseMain,custom,sync,buildingDays,inverse,evaluate,discovery,accent,annotate,restore,quickRecord,get lastAccent(){return state.lastAccent;}};
 sync();
 })();

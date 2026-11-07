@@ -43,10 +43,21 @@ for(const [engine,type]of [['chrome',chromium],['webkit',webkit]].filter(([e])=>
    await pick(page,['skytree','tocho-building']);s=await page.evaluate(()=>({id:SkyMapUI.selectionState().target.id,notice:document.getElementById('skyMapOverlapNotice').textContent}));
    assert.notEqual(s.id,'tokyotower');assert.match(s.notice,/重ねる対象を外したため/);result.fallback=s;
    await pick(page,['skytree','tokyotower']);await page.locator('#skyMapOverlapTarget').selectOption('skytree');
-   // 全て：重ね方は合成輪郭の全体だけ。部位/縁は出さない。
+   // 全てでは行が詰まり、部位を選ぶ入力も読み上げ対象から外れる。
+   const alignment=page.locator('#skyMapAlignmentDetails');
+   const beforeAll=await page.locator('#skyMapChoose').boundingBox();
    await page.locator('#skyMapOverlapTarget').selectOption('__all');
-   s=await page.evaluate(()=>({all:AstroNotesTrialOverlap.isAll(),mode:SkyMapUI.selectionState().matchMode,align:document.querySelector('#skyMapAlignmentControls select')?.selectedOptions[0]?.textContent||document.getElementById('skyMapAlignmentControls').innerText,limbs:document.querySelectorAll('#skyMapAlignmentControls [data-alignment-limb]').length,detail:document.getElementById('exploreConditionDetail').textContent}));
-   assert.equal(s.all,true);assert.equal(s.mode,'overlap');assert.match(s.align,/全体/);assert.equal(s.limbs,0);assert.match(s.detail,/全てに重なる/);
+   await alignment.waitFor({state:'hidden'});
+   assert.equal(await alignment.boundingBox(),null);
+   const afterAll=await page.locator('#skyMapChoose').boundingBox();
+   assert(afterAll.y<beforeAll.y,'the empty alignment row takes no space');
+   s=await page.evaluate(()=>({all:AstroNotesTrialOverlap.isAll(),mode:SkyMapUI.selectionState().matchMode}));
+   assert.equal(s.all,true);assert.equal(s.mode,'overlap');result.alignmentRowHidden=true;
+   await page.locator('#skyMapOverlapTarget').selectOption('skytree');
+   await alignment.locator('select').first().waitFor({state:'visible'});
+   result.alignmentRowRestored=true;
+   await page.locator('#skyMapOverlapTarget').selectOption('__all');
+   await alignment.waitFor({state:'hidden'});
    // 両方が同じ方向に見える地点。候補日は各対象の全体走査の和。
    await page.evaluate(()=>{overlapCalls.length=0;SkyMapUI.setObserver({name:'重ね試験地点',latitude:35.80,longitude:139.86,elevation:5});});
    await page.waitForFunction(()=>SkyMapUI.selectionState().observer?.name==='重ね試験地点');await shot('search-all');

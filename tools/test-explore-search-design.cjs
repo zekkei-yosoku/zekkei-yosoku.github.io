@@ -116,10 +116,10 @@ async function assertFooterClearance(page,selector='#candidateUnifiedResults>.li
     await page.evaluate(()=>{window.registeredFailureCalls=0;MyPlacesUI.discoverySearch=async()=>{registeredFailureCalls++;return {rows:[],failed:1};};MyPlacesUI.imported();});
     await page.locator('#exploreDiscovery-records').click();const registered=page.locator('#exploreRecordedPlaces');
     await page.waitForFunction(()=>registeredFailureCalls===1&&document.getElementById('exploreRecordedPlaces').getAttribute('aria-busy')==='false');
-    assert((await registered.innerText()).includes('記録の地点を確認できませんでした'));assert(await registered.getByRole('button',{name:'再試行',exact:true}).isVisible());
+    assert((await registered.innerText()).includes('記録の撮影地点を確認できませんでした'));assert(await registered.getByRole('button',{name:'再試行',exact:true}).isVisible());
     await page.evaluate(()=>{MyPlacesUI.discoverySearch=async()=>{registeredFailureCalls++;throw Error('synthetic registered failure');};MyPlacesUI.imported();});
     await page.waitForFunction(()=>registeredFailureCalls===2&&document.getElementById('exploreRecordedPlaces').getAttribute('aria-busy')==='false');
-    assert((await registered.innerText()).includes('記録の地点を確認できませんでした'));assert(await registered.getByRole('button',{name:'再試行',exact:true}).isVisible());
+    assert((await registered.innerText()).includes('記録の撮影地点を確認できませんでした'));assert(await registered.getByRole('button',{name:'再試行',exact:true}).isVisible());
     assert.equal(writes,0);assert.deepEqual(errors,[]);
     results.push({engine,width,theme,visibleLabels:layout.labels.map(l=>l.text),sharedDateTimeBar:true,noSeparateDateField:true,footerDoesNotCoverLastResult:true,labelsDoNotOverlap:true,primarySearchInConditions:true,fullWidthAccessibleButton:true,separateAlternativeLocationSection:true,directActionBeforeCandidateDetails:true,actionDomAndVisualOrderMatch:true,initialExplanationsReduced:true,feedbackInResults:true,detailOpenAndFocusPreserved:true,headerColumnsAligned:true,emptyFilterRecoverable:true,failedRecheckRemovesStaleRows:true,retryWorks:true,redundantRegisteredCountHidden:true,registeredFailuresRemainVisible:true,writes,errors});
     fs.writeFileSync(out+'/results.json',JSON.stringify(results,null,2));console.log(tag+' search design passed');

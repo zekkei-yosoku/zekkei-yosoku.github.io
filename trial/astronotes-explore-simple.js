@@ -255,7 +255,7 @@ function ensureRecordDiscovery(){
  if(!recordPane){
   recordTabs=node('div',{className:'explore-discovery-tabs'});recordTabs.setAttribute('role','tablist');recordTabs.setAttribute('aria-label','撮影地点の検索範囲');
   recordPane=node('section',{id:'exploreRecordedPlaces'});recordPane.setAttribute('aria-live','polite');newPlacePane=node('section',{id:'exploreNewPlaces'});
-  for(const [name,pane,label]of [['records',recordPane,'記録の地点'],['new',newPlacePane,'新しい地点']]){
+  for(const [name,pane,label]of [['records',recordPane,'記録の撮影地点'],['new',newPlacePane,'新しい地点']]){
    const button=node('button',{id:'exploreDiscovery-'+name,type:'button'},label);button.setAttribute('role','tab');button.setAttribute('aria-controls',pane.id);pane.setAttribute('role','tabpanel');pane.setAttribute('aria-labelledby',button.id);button.onclick=()=>chooseDiscovery(name);recordTabs.append(button);
   }
   recordTabs.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();chooseDiscovery(e.key==='Home'?'records':e.key==='End'?'new':discoveryTab==='records'?'new':'records',true);};
@@ -273,8 +273,8 @@ function renderRecordRows(request,result){
   const b=node('button',{type:'button',className:'explore-record-row'}),name=node('strong',{},row.place.name),time=node('span',{className:'explore-record-time'},new Date(row.event.at+32400000).toISOString().slice(11,16)),sub=node('span',{className:'tiny'}),arrow=node('span',{className:'explore-record-arrow'},'›');arrow.setAttribute('aria-hidden','true');
   if(row.heightSearch||rows.some(other=>(other.place.sourcePlaceId??other.place.id)===(row.place.sourcePlaceId??row.place.id)&&(other.assumedObserver?.eyeM??other.place.standAglM)!==(row.assumedObserver?.eyeM??row.place.standAglM)))sub.textContent='地上'+(row.assumedObserver?.eyeM??row.place.standAglM??row.place.eyeHeightAGL)+'m';b.append(name,time,arrow);if(sub.textContent){b.classList.add('has-height');b.append(sub);}b.onclick=()=>{if(!mainSearchActive()||recordState.key!==request.key||!recordCurrent(request)||!mainCandidateWorkspace.selectable()){syncRecordDiscovery();return;}const s=SkyMapUI.selectionState(),expected=JSON.stringify([s.body,s.target,s.partId,s.limb,AstroNotesShooting.day(s.at),s.matchMode||'limb']);SkyMapUI.selectCandidate(row,expected);};list.append(b);
  }
- if(!rows.length&&!result.failed){const p=node('p',{className:'tiny'},request.points.length?'この日に重なる記録の地点はありません':'記録の地点がありません');recordPane.append(p);if(!request.points.length){const link=node('a',{href:'#/records',className:'chip'},'記録を開く');recordPane.append(link);}}
- if(result.failed){const p=node('p',{className:'tiny'},rows.length?'確認できなかった地点があります':'記録の地点を確認できませんでした');p.setAttribute('role','status');const retry=node('button',{type:'button',className:'chip'},'再試行');retry.onclick=()=>{recordCache.delete(request.key);recordState.key='';syncRecordDiscovery();};recordPane.append(p,retry);}
+ if(!rows.length&&!result.failed){const p=node('p',{className:'tiny'},request.points.length?'この日に重なる記録の撮影地点はありません':'記録の撮影地点がありません');recordPane.append(p);if(!request.points.length){const link=node('a',{href:'#/records',className:'chip'},'記録を開く');recordPane.append(link);}}
+ if(result.failed){const p=node('p',{className:'tiny'},rows.length?'確認できなかった地点があります':'記録の撮影地点を確認できませんでした');p.setAttribute('role','status');const retry=node('button',{type:'button',className:'chip'},'再試行');retry.onclick=()=>{recordCache.delete(request.key);recordState.key='';syncRecordDiscovery();};recordPane.append(p,retry);}
 }
 function stopRecordLoading(){
  if(recordState.status!=='loading')return;
@@ -294,12 +294,12 @@ function syncRecordDiscovery(){
  if(!request.points.length){recordState={key:request.key,status:'complete'};recordPane.setAttribute('aria-busy','false');renderRecordRows(request,{rows:[],failed:0});return;}
  if(cached&&recordCurrent(request)){recordState={key:request.key,status:'complete'};recordPane.setAttribute('aria-busy','false');renderRecordRows(request,cached);return;}
  recordState={key:request.key,status:'loading'};recordPane.setAttribute('aria-busy','true');
- const progress=MyPlacesUI.recordProgress?.(recordPane,'記録の地点を確認中');
- if(progress)progress.update(0,recordWorkCount(request));else recordPane.replaceChildren(node('p',{className:'tiny'},'記録の地点を確認中…'));
+ const progress=MyPlacesUI.recordProgress?.(recordPane,'記録の撮影地点を確認中');
+ if(progress)progress.update(0,recordWorkCount(request));else recordPane.replaceChildren(node('p',{className:'tiny'},'記録の撮影地点を確認中…'));
  recordTimer=setTimeout(async()=>{
   recordTimer=null;const current=()=>seq===recordSeq&&recordDiscoveryActive()&&AstroNotesShooting.day(SkyMapUI.selectionState()?.at)===request.plan.at&&recordCurrent(request);
   try{const result=await recordRows(request,current,(n,total)=>progress?.update(n,total));if(!current()||result.cancelled)return;recordState.status='complete';renderRecordRows(request,result);}
-  catch{if(current()){recordState.status='error';recordPane.replaceChildren(node('p',{className:'tiny'},'記録の地点を確認できませんでした'));const retry=node('button',{type:'button',className:'chip'},'再試行');retry.onclick=()=>{recordState.key='';syncRecordDiscovery();};recordPane.append(retry);}}
+  catch{if(current()){recordState.status='error';recordPane.replaceChildren(node('p',{className:'tiny'},'記録の撮影地点を確認できませんでした'));const retry=node('button',{type:'button',className:'chip'},'再試行');retry.onclick=()=>{recordState.key='';syncRecordDiscovery();};recordPane.append(retry);}}
   finally{if(seq===recordSeq){recordPane.setAttribute('aria-busy','false');if(recordState.status==='loading'){recordState={key:'',status:'idle'};if(recordDiscoveryActive())queueMicrotask(syncRecordDiscovery);}}}
  },180);
 }
@@ -307,7 +307,7 @@ async function recordCalendar(args,scanMonth=false){
  const calendarSeq=++recordCalendarSeq;recordCalendarArgs=args;const {year,month,grid,status,draw,pickDay,isCurrent}=args,request=recordRequest();
  if(!toolAllowed('records')){status.textContent='記録の利用権限を確認してください';grid.setAttribute('aria-busy','false');return;}
  if(!request){status.textContent='天体と対象を選んでください';grid.setAttribute('aria-busy','false');return;}
- if(!request.points.length){draw(new Map());status.textContent='記録の地点がありません';grid.setAttribute('aria-busy','false');return;}
+ if(!request.points.length){draw(new Map());status.textContent='記録の撮影地点がありません';grid.setAttribute('aria-busy','false');return;}
  const current=()=>calendarSeq===recordCalendarSeq&&isCurrent()&&mainSearchActive()&&!document.hidden&&recordCurrent(request);
  if(!scanMonth){
   grid.setAttribute('aria-busy','false');
@@ -315,7 +315,7 @@ async function recordCalendar(args,scanMonth=false){
   return;
  }
  const progress=MyPlacesUI.recordProgress?.(status,'この月を確認中','日');
- if(!progress)status.textContent='記録の地点・重なる日を確認中…';grid.setAttribute('aria-busy','true');
+ if(!progress)status.textContent='記録の撮影地点・重なる日を確認中…';grid.setAttribute('aria-busy','true');
  try{
   const events=new Map(),days=[];let failed=0;
   for(let at=Date.UTC(year,month,1)-32400000,end=Date.UTC(year,month+1,1)-32400000;at<end;at+=86400000)days.push(at);
@@ -328,8 +328,8 @@ async function recordCalendar(args,scanMonth=false){
   }
   if(!current())return;draw(events);
   for(const b of grid.querySelectorAll('[data-cal-day]'))b.onclick=()=>{if(!current())return;chooseDiscovery('records');pickDay(+b.dataset.calDay);};
-  status.textContent='記録の地点・'+(events.size?'重なる日 '+events.size+'日':request.points.length?'この月は重なる日がありません':'記録の地点がありません')+(failed?'・確認できなかった地点があります':'');
- }catch{if(current()){status.textContent='記録の地点を確認できませんでした。';const retry=node('button',{type:'button',className:'chip record-calendar-scan'},'再試行');retry.onclick=()=>{if(current())void recordCalendar(args,true);};status.append(retry);}}
+  status.textContent='記録の撮影地点・'+(events.size?'重なる日 '+events.size+'日':request.points.length?'この月は重なる日がありません':'記録の撮影地点がありません')+(failed?'・確認できなかった地点があります':'');
+ }catch{if(current()){status.textContent='記録の撮影地点を確認できませんでした。';const retry=node('button',{type:'button',className:'chip record-calendar-scan'},'再試行');retry.onclick=()=>{if(current())void recordCalendar(args,true);};status.append(retry);}}
  finally{if(calendarSeq===recordCalendarSeq){if(current())grid.setAttribute('aria-busy','false');else if(isCurrent()&&mainSearchActive()){if(toolAllowed('records')&&recordRequest()?.key!==request.key)setTimeout(()=>{if(calendarSeq===recordCalendarSeq&&isCurrent()&&mainSearchActive())args.restart();},0);else{status.textContent=toolAllowed('records')?'条件を確認して月を選び直してください':'記録の利用権限を確認してください';grid.setAttribute('aria-busy','false');}}}}
 }
 
