@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="2922806831387926589">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-XuYLUqxvjfq9BP5Kb+5gJQxgH+/o2Al8M3tKcVCWaLQ=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-XO+ETYe6dmdlepD2q0VTH9JbsMUqzBeSA/WBQCIVO7U=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-XKNvXmjfIB/gdINxRjuz1FoWwprIps9dgRZpYwoNyoU=' 'sha256-tTFeMMm+G9PpeBJGmcEjzljAAQHv3AG//rlXLYKx8aU=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-OhqT/24bjp3zo1SLrCE+zMEI+qbgL5SvAmkuX9/WATU=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="11695989511476579191">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-XuYLUqxvjfq9BP5Kb+5gJQxgH+/o2Al8M3tKcVCWaLQ=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-8fgmcMvs+UJYuGaHAdWi3WXCwu6GicL7ZjLiJUVRiJY=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-XKNvXmjfIB/gdINxRjuz1FoWwprIps9dgRZpYwoNyoU=' 'sha256-tTFeMMm+G9PpeBJGmcEjzljAAQHv3AG//rlXLYKx8aU=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-OhqT/24bjp3zo1SLrCE+zMEI+qbgL5SvAmkuX9/WATU=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=17512682572335991690">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -3698,7 +3698,11 @@ function redrawDayDetail() {
 function rerenderList() {
   if (!bundle) return;
   const inDetail = !!document.querySelector("#detailView:not([hidden])");
-  if (inDetail) return;
+  if (inDetail) {
+    const reference = picked === "fuji" && document.querySelector("#dayDetail .cap-reference");
+    if (reference) reference.outerHTML = renderCapLine(Number(reference.dataset.day));
+    return;
+  }
   render();
 }
 
@@ -3870,7 +3874,7 @@ function render() {
   // ログインの復帰がいつ終わっても、画面を移っても、取りこぼさない
   renderTools();
   renderDeckRow();
-  const best = pickHighlight(Object.fromEntries(Object.entries(weeks).filter(([id]) => id !== "rainbow")), now);
+  const best = pickHighlight(Object.fromEntries(Object.entries(weeks).filter(([id]) => id !== "rainbow" && id !== "capCloud")), now);
   // 並び: 見られる見込みのあるものが先 → あとは PHENOMENA.order（似たものが隣）。
   //
   // 以前は「直近に起きる順」で並べていたが、7日ぶんを一度に見る表では
@@ -3884,7 +3888,7 @@ function render() {
   // 並び替えを選んでいるときも、この「対象外は最後」だけは変えない。
   // 点数の付かない行を点数順の途中へ挟むと、並べた意味が消える。
   const key = SORTS[sortMode] && SORTS[sortMode].key;
-  const order = Object.keys(weeks).filter(id => id !== "rainbow").sort((a, b) => {
+  const order = Object.keys(weeks).filter(id => id !== "rainbow" && id !== "capCloud").sort((a, b) => {
     const ua = upcoming(weeks[a], now), ub = upcoming(weeks[b], now);
     const aOk = ua && !ua.evaluation.unavailable, bOk = ub && !ub.evaluation.unavailable;
     if (aOk !== bOk) return aOk ? -1 : 1;
@@ -4988,7 +4992,7 @@ function renderSkeleton(now) {
   const today = S.Cal.startOfDay(now);
   const days = Array.from({ length: 14 }, (_, i) => today + i * 86400000);
   const order = Object.entries(S.PHENOMENA)
-    .filter(([id]) => id !== "rainbow")
+    .filter(([id]) => id !== "rainbow" && id !== "capCloud")
     .sort((a, b) => (a[1].order ?? 99) - (b[1].order ?? 99));
   // 骨組みにも同じ札を置く。置かないと、予報が届いた瞬間に見出しの高さが変わる
   let head = `<div class="mxrail mxsort">${sortFace()}</div>`;
@@ -5296,18 +5300,27 @@ function renderFujiTimes(ev) {
 // `<details>` を置いていた（確率は出さない内部版）。点数を出すようになったので、
 // 条件は詳細の「この点数のわけ」に内訳として出る。表を二重に持たない。
 function renderCapLine(dayMs) {
-  const rows = weeks.capCloud;
-  if (!rows || typeof AstroNotesCapCloud === "undefined") return "";
-  const hit = rows.find((r) => S.JstCal.sameDay(r.dayMs, dayMs));
-  if (!hit || hit.evaluation.unavailable) return "";
-  const ev = hit.evaluation;
-  const label = S.phrasing("capCloud", ev.rank).label;
-  const type = ev.detail ? AstroNotesCapCloud.TYPE_LABEL[ev.detail.type] : "";
-  return `<a class="card cap-line" href="#/capCloud">
-    <span class="ic">${iconFor("capCloud")}</span>
-    <span><strong>笠雲</strong> ${esc(label)} ${Math.round(ev.score)}
-      <span class="tiny" style="color:var(--tertiary)">${esc(type)}・${S.JstCal.hhmmRounded(ev.peak)}ごろ</span></span>
-    <span class="go">›</span></a>`;
+  const hit = weeks.capCloud?.find((r) => S.JstCal.sameDay(r.dayMs, dayMs));
+  const ev = hit?.evaluation;
+  let text = "この日の条件データはありません。";
+  let note = "";
+  if (ev?.unavailable) text = "この地点・日では条件を判定できません。";
+  else if (ev) {
+    const t = ev.timing;
+    const partial = ev.dataQuality?.status === "partial";
+    if (!t) text = partial ? "判定材料が一部不足しており、時間帯を示せません。" : "この日のデータでは時間帯を示せません。";
+    else if (t.allDay) text = "条件が整う時間が広く、時間帯を絞れません。";
+    else {
+      text = `条件の時間帯 ${t.openStart ? "〜" : ""}${S.JstCal.hhmmRounded(t.from)}–${S.JstCal.hhmmRounded(t.to)}${t.openEnd ? "〜" : ""}`;
+      note = `1時間きざみの参考です。${t.spans > 1 ? "ほかにも条件に届く時間帯があります。" : ""}${t.openStart || t.openEnd ? "前後の日へ続く可能性があります。" : ""}`;
+    }
+    if (t && partial) note += "判定材料が一部不足しています。";
+    note += "発生・見え始めの時刻は予測していません。時間帯は未検証の参考です。";
+  }
+  return `<section class="card cap-reference" data-day="${dayMs}" aria-label="笠雲の条件（参考）">
+    <div class="tiny" style="font-weight:700">笠雲の条件（参考）</div>
+    <div style="margin-top:6px">${esc(text)}</div>
+    ${note ? `<div class="tiny" style="margin-top:6px;color:var(--tertiary)">${esc(note)}</div>` : ""}</section>`;
 }
 
 // 笠雲の条件がいちばん整う時間帯。

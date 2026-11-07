@@ -28,10 +28,55 @@ const style=String.raw`
 `;
 export function forecastSummaryHtml(html){
  const factory=readFileSync(new URL('../experiments/forecast-summary/controller.js',import.meta.url),'utf8');
- // Trial presentation only: retain the rainbow DTO, metadata, saved results, and direct detail routes.
- html=patch(html,'  const best = pickHighlight(weeks, now);','  const best = pickHighlight(Object.fromEntries(Object.entries(weeks).filter(([id]) => id !== "rainbow")), now);');
- html=patch(html,'  const order = Object.keys(weeks).sort((a, b) => {','  const order = Object.keys(weeks).filter(id => id !== "rainbow").sort((a, b) => {');
- html=patch(html,'  const order = Object.entries(S.PHENOMENA)\n    .sort','  const order = Object.entries(S.PHENOMENA)\n    .filter(([id]) => id !== "rainbow")\n    .sort');
+ // Trial presentation only: retain both DTOs, metadata, saved results, and direct detail routes.
+ // capCloud already has highlight:false; its conditions now supplement the selected Fuji day.
+ html=patch(html,'  const best = pickHighlight(weeks, now);','  const best = pickHighlight(Object.fromEntries(Object.entries(weeks).filter(([id]) => id !== "rainbow" && id !== "capCloud")), now);');
+ html=patch(html,'  const order = Object.keys(weeks).sort((a, b) => {','  const order = Object.keys(weeks).filter(id => id !== "rainbow" && id !== "capCloud").sort((a, b) => {');
+ html=patch(html,'  const order = Object.entries(S.PHENOMENA)\n    .sort','  const order = Object.entries(S.PHENOMENA)\n    .filter(([id]) => id !== "rainbow" && id !== "capCloud")\n    .sort');
+ html=patch(html,`function renderCapLine(dayMs) {
+  const rows = weeks.capCloud;
+  if (!rows || typeof AstroNotesCapCloud === "undefined") return "";
+  const hit = rows.find((r) => S.JstCal.sameDay(r.dayMs, dayMs));
+  if (!hit || hit.evaluation.unavailable) return "";
+  const ev = hit.evaluation;
+  const label = S.phrasing("capCloud", ev.rank).label;
+  const type = ev.detail ? AstroNotesCapCloud.TYPE_LABEL[ev.detail.type] : "";
+  return \`<a class="card cap-line" href="#/capCloud">
+    <span class="ic">\${iconFor("capCloud")}</span>
+    <span><strong>笠雲</strong> \${esc(label)} \${Math.round(ev.score)}
+      <span class="tiny" style="color:var(--tertiary)">\${esc(type)}・\${S.JstCal.hhmmRounded(ev.peak)}ごろ</span></span>
+    <span class="go">›</span></a>\`;
+}`,`function renderCapLine(dayMs) {
+  const hit = weeks.capCloud?.find((r) => S.JstCal.sameDay(r.dayMs, dayMs));
+  const ev = hit?.evaluation;
+  let text = "この日の条件データはありません。";
+  let note = "";
+  if (ev?.unavailable) text = "この地点・日では条件を判定できません。";
+  else if (ev) {
+    const t = ev.timing;
+    const partial = ev.dataQuality?.status === "partial";
+    if (!t) text = partial ? "判定材料が一部不足しており、時間帯を示せません。" : "この日のデータでは時間帯を示せません。";
+    else if (t.allDay) text = "条件が整う時間が広く、時間帯を絞れません。";
+    else {
+      text = \`条件の時間帯 \${t.openStart ? "〜" : ""}\${S.JstCal.hhmmRounded(t.from)}–\${S.JstCal.hhmmRounded(t.to)}\${t.openEnd ? "〜" : ""}\`;
+      note = \`1時間きざみの参考です。\${t.spans > 1 ? "ほかにも条件に届く時間帯があります。" : ""}\${t.openStart || t.openEnd ? "前後の日へ続く可能性があります。" : ""}\`;
+    }
+    if (t && partial) note += "判定材料が一部不足しています。";
+    note += "発生・見え始めの時刻は予測していません。時間帯は未検証の参考です。";
+  }
+  return \`<section class="card cap-reference" data-day="\${dayMs}" aria-label="笠雲の条件（参考）">
+    <div class="tiny" style="font-weight:700">笠雲の条件（参考）</div>
+    <div style="margin-top:6px">\${esc(text)}</div>
+    \${note ? \`<div class="tiny" style="margin-top:6px;color:var(--tertiary)">\${esc(note)}</div>\` : ""}</section>\`;
+}`);
+ // Fuji/capCloud arrive together, but a later retry may add missing capCloud data.
+ // Refresh only this supplement for the rendered day; keep the open detail and scroll untouched.
+ html=patch(html,'  if (inDetail) return;\n  render();',String.raw`  if (inDetail) {
+    const reference = picked === "fuji" && document.querySelector("#dayDetail .cap-reference");
+    if (reference) reference.outerHTML = renderCapLine(Number(reference.dataset.day));
+    return;
+  }
+  render();`);
  html=patch(html,'let currentView = "list";','let currentView = "list";\nlet forecastSummary = null;');
  // Create the view owner on the first render, not during classic-script startup.
  html=patch(html,'function render() {\n  if (!routeFromHash()', 'function render() {\n  forecastSummary ||= '+factory+`({
