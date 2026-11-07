@@ -13,8 +13,8 @@
 <meta name="shape-city" content="astronotes-city-models.js?v=10453527431149785881">
 <meta name="shape-tower-integrity" content="sha256-3/4vB6FbCsbCUDUPvwbUteQe/O8aihNwGzEHPcNcSIQ=">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=16140389824360811206">
-<meta name="app-version" content="12777982026064199522">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-XuYLUqxvjfq9BP5Kb+5gJQxgH+/o2Al8M3tKcVCWaLQ=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-RHCa78Q1mvoSdhfMg7GAaVIN0rhDvnHd2y5OEWuH84Q=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-XKNvXmjfIB/gdINxRjuz1FoWwprIps9dgRZpYwoNyoU=' 'sha256-tTFeMMm+G9PpeBJGmcEjzljAAQHv3AG//rlXLYKx8aU=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-OhqT/24bjp3zo1SLrCE+zMEI+qbgL5SvAmkuX9/WATU=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="app-version" content="2922806831387926589">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'sha256-XuYLUqxvjfq9BP5Kb+5gJQxgH+/o2Al8M3tKcVCWaLQ=' 'sha256-B+Fxmp+kxJr8daVHxAbu0eKnZQrt+PeAgkUuCxgtNcc=' 'sha256-NtA/uk33SVj91ozptvw49sz3mfv4sTPocS50w9xJpbI=' 'sha256-XO+ETYe6dmdlepD2q0VTH9JbsMUqzBeSA/WBQCIVO7U=' 'sha256-Ee7XvtmTUh9g5MELBIrEPm74sHLv+a6nhYyIG7joEyQ=' 'sha256-XKNvXmjfIB/gdINxRjuz1FoWwprIps9dgRZpYwoNyoU=' 'sha256-tTFeMMm+G9PpeBJGmcEjzljAAQHv3AG//rlXLYKx8aU=' 'sha256-imuJKoxZMjt0nv5ASuk8RfY2JVuRGCgvGXkrVisntDA=' 'sha256-OhqT/24bjp3zo1SLrCE+zMEI+qbgL5SvAmkuX9/WATU=' 'sha256-ZhxbDK4ALUMRsyG7mFRnDzTsT+bN5g1/Vl6B8qgs3IM='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link data-script-preload rel="preload" as="script" href="astronotes-icons.js?v=3426077809046103708">
 <link data-script-preload rel="preload" as="script" href="astronotes-core.js?v=17512682572335991690">
 <link data-script-preload rel="preload" as="script" href="astronotes-open-location-code.js?v=2815142847583356887">
@@ -3870,7 +3870,7 @@ function render() {
   // ログインの復帰がいつ終わっても、画面を移っても、取りこぼさない
   renderTools();
   renderDeckRow();
-  const best = pickHighlight(weeks, now);
+  const best = pickHighlight(Object.fromEntries(Object.entries(weeks).filter(([id]) => id !== "rainbow")), now);
   // 並び: 見られる見込みのあるものが先 → あとは PHENOMENA.order（似たものが隣）。
   //
   // 以前は「直近に起きる順」で並べていたが、7日ぶんを一度に見る表では
@@ -3884,7 +3884,7 @@ function render() {
   // 並び替えを選んでいるときも、この「対象外は最後」だけは変えない。
   // 点数の付かない行を点数順の途中へ挟むと、並べた意味が消える。
   const key = SORTS[sortMode] && SORTS[sortMode].key;
-  const order = Object.keys(weeks).sort((a, b) => {
+  const order = Object.keys(weeks).filter(id => id !== "rainbow").sort((a, b) => {
     const ua = upcoming(weeks[a], now), ub = upcoming(weeks[b], now);
     const aOk = ua && !ua.evaluation.unavailable, bOk = ub && !ub.evaluation.unavailable;
     if (aOk !== bOk) return aOk ? -1 : 1;
@@ -4988,6 +4988,7 @@ function renderSkeleton(now) {
   const today = S.Cal.startOfDay(now);
   const days = Array.from({ length: 14 }, (_, i) => today + i * 86400000);
   const order = Object.entries(S.PHENOMENA)
+    .filter(([id]) => id !== "rainbow")
     .sort((a, b) => (a[1].order ?? 99) - (b[1].order ?? 99));
   // 骨組みにも同じ札を置く。置かないと、予報が届いた瞬間に見出しの高さが変わる
   let head = `<div class="mxrail mxsort">${sortFace()}</div>`;

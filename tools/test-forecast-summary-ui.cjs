@@ -15,7 +15,7 @@ async function seed(page){
   S.setTimezoneOffset(32400);
   const day=S.Cal.startOfDay(Date.now()),hour=3600000;
   const make=(id,index)=>{
-   const dayMs=day+index*86400000,peak=dayMs+(id==='sunrise'?6:id==='sunset'?16:20)*hour,score=index===0?0:Math.min(99,35+index*4);
+   const dayMs=day+index*86400000,peak=dayMs+(id==='sunrise'?6:id==='sunset'?16:20)*hour,score=id==='rainbow'?99:index===0?0:Math.min(99,35+index*4);
    const ev={phenomenon:id,score,base:score,rank:S.rankOf(score),confidence:{key:index>5?'medium':'high'},models:8,perModel:{ecmwf_ifs025:score},spread:[score,score],factors:[],peak,window:[peak-hour,peak+hour],specificTime:true,daysAhead:index,source:'合成予測',uncertainty:{basis:'single',expectedError:5}};
    if(id==='sunrise'||id==='sunset')ev.twilight={phases:[{id:'before',label:'前',window:[peak-hour,peak],score},{id:'after',label:'後',window:[peak,peak+hour],score:Math.max(0,score-10)}]};
    if(id==='moon')ev.timeBands={phases:[{id:'rise',label:'月の出のころ',window:[peak-hour,peak],score},{id:'high',label:'高く昇ったころ',window:[peak,peak+hour],score}]};
@@ -50,7 +50,11 @@ async function seed(page){
    const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(15000);const tag=engine+'-'+width+'-'+theme;
    try{
     await page.goto(base+'#/almanac');await page.waitForFunction(()=>typeof render==='function'&&typeof startupSessionReady!=='undefined');await seed(page);
-    const phenomena=await page.evaluate(()=>forecastTest.allIds.length),count=await page.locator('#cards .cell[data-cell]').count();assert.equal(count,(phenomena-2)*14,'all ordinary phenomena and all 14 days');
+    const phenomena=await page.evaluate(()=>forecastTest.allIds.length-1),count=await page.locator('#cards .cell[data-cell]').count();assert.equal(count,(phenomena-2)*14,'all offered ordinary phenomena and all 14 days');
+    assert.equal(await page.locator('#cards [data-cell^="rainbow|"]').count(),0,'rainbow is absent from the trial comparison');
+    assert.equal(await page.locator('#bestNote [data-cell^="rainbow|"]').count(),0,'even the highest rainbow score is not recommended');
+    assert.equal(await page.evaluate(()=>pickHighlight(weeks,Date.now()).id),'rainbow','fixture would recommend rainbow without the presentation filter');
+    assert(await page.evaluate(()=>!!S.PHENOMENA.rainbow&&AstroNotesPrediction.IDS.includes('rainbow')&&weeks.rainbow.length===14),'metadata and accepted rainbow forecast remain complete');
     assert.equal(await page.locator('#forecastSelection').count(),0,'no second prediction until a cell is selected');
     const day=await page.evaluate(()=>forecastTest.day),target=day+10*86400000,selector=`#cards .cell[data-cell="sunset|${target}"]`;
     await page.locator(selector).focus();const vertical=await page.evaluate(()=>scrollY);await page.locator(selector).press('Enter');assert.equal(await page.evaluate(()=>location.hash),'#/','keyboard selection stays on the matrix');
@@ -64,6 +68,8 @@ async function seed(page){
     if(width<500)assert(horizontal>0,'mobile preservation uses a nonzero horizontal position');
     await page.evaluate(()=>{weeks.moon=Array.from({length:14},(_,i)=>forecastTest.make('moon',i));weeks.fuji=Array.from({length:14},(_,i)=>forecastTest.make('fuji',i));render();});
     assert.equal(await page.locator('#cards .cell[data-cell]').count(),phenomena*14,'late moon and Fuji are retained');
+    assert.equal(phenomena,10,'the other ten phenomena remain available');
+    assert.equal(await page.locator('#cards [data-cell^="rainbow|"]').count(),0,'late arrivals do not revive the rainbow row');
     assert.equal(await page.locator(selector).getAttribute('aria-pressed'),'true');assert(Math.abs(await page.locator('#cards .mxscroll').evaluate(n=>n.scrollLeft)-horizontal)<1,'late arrivals preserve horizontal position');
     assert.equal(await page.evaluate(()=>document.activeElement.dataset.cell),'sunset|'+target,'late arrivals preserve keyboard focus');
     await page.locator('#sortSelect').selectOption('score');
@@ -80,16 +86,29 @@ async function seed(page){
     await page.locator('#forecastSelection .forecast-selection-close').click();assert.equal(await page.locator('#forecastSelection').count(),0,'preview can be closed');assert.equal(await page.locator(selector).getAttribute('aria-pressed'),'false');
     await page.locator(selector).press('Enter');assert.equal(await page.locator(selector).getAttribute('aria-pressed'),'true','keyboard can reopen the preview');
     await page.evaluate(()=>{bundle=null;render();});assert.equal(await page.locator('#forecastSelection').count(),0,'waiting hides the old summary');
+    assert.equal(await page.locator('#cards .mxrow').count(),phenomena,'loading skeleton uses the same ten phenomena');
+    assert(!(await page.locator('#cards').innerText()).includes('虹'),'rainbow is absent while loading');
     await seed(page);assert.equal(await page.locator(selector).getAttribute('aria-pressed'),'true','same-place prediction restores selection');
     assert(Math.abs(await page.locator('#cards .mxscroll').evaluate(n=>n.scrollLeft)-horizontal)<1,'same-place prediction restores horizontal position');
-    await page.locator(`#cards .cell[data-cell="rainbow|${day}"]`).click();assert((await page.locator('#forecastSelection').innerText()).includes('0'),'low scores remain selectable');
-    await page.evaluate(day=>{weeks.rainbow.find(x=>x.dayMs===day).evaluation.unavailable={message:'データ不足'};render();},day);assert((await page.locator('#forecastSelection').innerText()).includes('データ不足'),'selected missing data is explicit');
-    await page.evaluate(day=>{weeks.rainbow=weeks.rainbow.filter(x=>x.dayMs!==day);render();},day);assert.equal(await page.locator('#forecastSelection').count(),0,'expired selection is discarded');
+    await page.locator(`#cards .cell[data-cell="starrySky|${day}"]`).click();assert((await page.locator('#forecastSelection').innerText()).includes('0'),'low scores remain selectable');
+    await page.evaluate(day=>{weeks.starrySky.find(x=>x.dayMs===day).evaluation.unavailable={message:'データ不足'};render();},day);assert((await page.locator('#forecastSelection').innerText()).includes('データ不足'),'selected missing data is explicit');
+    await page.evaluate(day=>{weeks.starrySky=weeks.starrySky.filter(x=>x.dayMs!==day);render();},day);assert.equal(await page.locator('#forecastSelection').count(),0,'expired selection is discarded');
     await page.locator(selector).click();await page.evaluate(()=>{place={...place,latitude:35.7};bundle=null;weeks={};render();});assert.equal(await page.locator('#forecastSelection').count(),0,'new location waiting clears selection');
     assert.equal(await page.locator('#cards .skel').count()>0,true,'loading matrix retained');
     await seed(page);await page.locator(selector).click();await page.evaluate(()=>{for(const rows of Object.values(weeks))for(const row of rows)row.evaluation.unavailable={message:'データ不足'};render();});
     assert((await page.locator('#forecastSelection').innerText()).includes('データ不足'),'all unavailable updates the selected summary');
     assert.equal(await page.locator('#forecastSelection .forecast-selection-score').count(),0,'all unavailable never displays the previous score');
+    await seed(page);await page.evaluate(target=>{history.replaceState(history.state,'','#/rainbow/'+target);applyRoute();},target);
+    await page.locator('#detailView').waitFor({state:'visible'});assert((await page.locator('#detailView').innerText()).includes('虹'),'existing direct rainbow detail remains readable');
+    const saved=await page.evaluate(day=>{
+     auth={token:'synthetic-rainbow',loginId:'rainbow-fixture',tools:['records']};savedRoundClient.ensure=async()=>{};
+     sightings=[{id:'legacy-rainbow',phenomenon:'rainbow',placeName:'東京',peak:day-86400000,score:65,actualScore:40,confidence:'high',outcome:'some'}];
+     store.set('sorami.sightings',sightings);const before=JSON.stringify(store.get('sorami.sightings',[]));
+     history.replaceState(history.state,'','#/forecast/results');applyRoute();return before;
+    },day);
+    await page.locator('#answerHistory > summary').click();await page.locator('#recList').waitFor({state:'visible'});
+    assert((await page.locator('#recList').innerText()).includes('虹'),'existing rainbow result remains visible');
+    assert.equal(await page.evaluate(()=>JSON.stringify(store.get('sorami.sightings',[]))),saved,'showing results preserves the stored rainbow record');
     assert.deepEqual(errors,[]);assert.equal(externalWrites,0);results.push({engine,width,theme,passed:true,phenomena,days:14,externalWrites});console.log(tag+' forecast summary passed');
    }catch(error){console.error(tag,errors,await page.evaluate(()=>({hash:location.hash,picked,currentView})).catch(()=>null));await page.screenshot({path:path.join(out,tag+'-failure.png'),fullPage:true}).catch(()=>{});throw error;}finally{await context.close();}
   }}finally{await browser.close();}

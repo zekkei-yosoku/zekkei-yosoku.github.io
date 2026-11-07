@@ -17,6 +17,10 @@ test('trial transformation preserves production source and existing comparison/n
  assert(trial.includes('forecastSummary.capture()')&&trial.includes('forecastSummary.restore()'));
  assert.equal((trial.match(/function renderMatrix\(/g)||[]).length,1);
  assert.equal((trial.match(/function renderTwilight\(/g)||[]).length,1);
+ assert(production.includes('const best = pickHighlight(weeks, now);'),'production recommendations remain unchanged');
+ assert.equal((trial.match(/id !== "rainbow"/g)||[]).length,3,'trial filters only recommendation, matrix, and loading skeleton');
+ assert(trial.includes('weeks = prediction.weeks;'),'the accepted forecast remains complete');
+ assert(trial.includes('parseRoute(location.hash, () => S.PHENOMENA)'),'existing rainbow detail routes remain valid');
  checkClassicScripts(trial,name=>readFileSync(new URL('../'+name,import.meta.url),'utf8'));
 });
 
@@ -24,6 +28,7 @@ test('changed or duplicated generator boundaries stop before producing a partial
  const source=renderIndex().html;
  assert.throws(()=>forecastSummaryHtml(source.replace('let currentView = "list";','let currentView = null;')),/boundary changed/);
  assert.throws(()=>forecastSummaryHtml(source+'\nlet currentView = "list";'),/boundary changed/);
+ assert.throws(()=>forecastSummaryHtml(source.replace('const best = pickHighlight(weeks, now);','const best = null;')),/boundary changed/);
 });
 
 test('constructing the list owner does not read DOM, predictions, storage, or navigate',()=>{

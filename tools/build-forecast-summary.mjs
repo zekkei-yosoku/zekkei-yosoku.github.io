@@ -28,6 +28,10 @@ const style=String.raw`
 `;
 export function forecastSummaryHtml(html){
  const factory=readFileSync(new URL('../experiments/forecast-summary/controller.js',import.meta.url),'utf8');
+ // Trial presentation only: retain the rainbow DTO, metadata, saved results, and direct detail routes.
+ html=patch(html,'  const best = pickHighlight(weeks, now);','  const best = pickHighlight(Object.fromEntries(Object.entries(weeks).filter(([id]) => id !== "rainbow")), now);');
+ html=patch(html,'  const order = Object.keys(weeks).sort((a, b) => {','  const order = Object.keys(weeks).filter(id => id !== "rainbow").sort((a, b) => {');
+ html=patch(html,'  const order = Object.entries(S.PHENOMENA)\n    .sort','  const order = Object.entries(S.PHENOMENA)\n    .filter(([id]) => id !== "rainbow")\n    .sort');
  html=patch(html,'let currentView = "list";','let currentView = "list";\nlet forecastSummary = null;');
  // Create the view owner on the first render, not during classic-script startup.
  html=patch(html,'function render() {\n  if (!routeFromHash()', 'function render() {\n  forecastSummary ||= '+factory+`({
