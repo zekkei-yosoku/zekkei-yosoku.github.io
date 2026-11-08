@@ -22,11 +22,17 @@ test('条件要約は建物全体と山頂指定を区別し、高さを維持�
  assert.match(c.conditionText(s).detail,/建物全体に重なる/);assert.doesNotMatch(c.conditionText(s).detail,/下の縁/);assert.match(c.conditionText(s).detail,/地上から80m/);
  s.partId=null;assert.match(c.conditionText(s).detail,/先端・下の縁/);s.matchMode='overlap';assert.match(c.conditionText(s).detail,/全体に重なる/);
 });
-test('trialは旧部位・縁指定も建物と山の全体へ正規化する',()=>{
+test('trialの山単体は山頂固定、建物の指定と複数対象の全体は維持する',()=>{
  const start=html.indexOf(' function normalizeWholeAlignment('),code=html.slice(start,html.indexOf(' function render(){',start));
- for(const mountain of [false,true])for(const mode of ['limb','overlap']){
-  const c=vm.createContext({session:{target:{id:mountain?'fuji':'tower'},partId:'tip',limb:'behind',matchMode:mode,at:123},aimIsMountain:t=>t.id==='fuji'});vm.runInContext(code,c);c.normalizeWholeAlignment();
-  assert.equal(c.session.matchMode,'overlap');assert.equal(c.session.partId,mountain?null:'__whole');assert.equal(c.session.limb,'center');assert.equal(c.session.at,123);
+ for(const [id,part,mode,all,expected] of [
+  ['tower','tip','limb',false,['tip','behind','limb']],
+  ['tower',null,'overlap',false,['__whole','center','overlap']],
+  ['fuji','summit','limb',false,['summit','behind','limb']],
+  ['fuji',null,'overlap',false,['summit','center','limb']],
+  ['fuji',null,'overlap',true,[null,'center','overlap']],
+ ]){
+  const c=vm.createContext({session:{target:{id,parts:[{id:id==='fuji'?'summit':'tip'}]},partId:part,limb:'behind',matchMode:mode,at:123},aimIsMountain:t=>t.id==='fuji',AstroNotesTrialOverlap:{isAll:()=>all},AstroNotesBodies:{definition:()=>({limbs:true})},AstroNotesAlign:{limbById:id=>({id})}});vm.runInContext(code,c);c.normalizeWholeAlignment();
+  assert.deepEqual([c.session.partId,c.session.limb,c.session.matchMode],expected);assert.equal(c.session.at,123);
  }
  assert.match(html.slice(start,html.indexOf(' function setTime(',start)),/function render\(\)\{\s*normalizeWholeAlignment\(\)/);
  assert.match(html.slice(html.indexOf(' async function refresh(){',start)),/normalizeWholeAlignment\(\)/);
@@ -38,13 +44,14 @@ test('重ね方は対象未選択と全てscopeで隠し、単一対象では現
  const code=js.slice(start,js.indexOf('\nfunction recordMatchOpts(',start));
  const nodes={skyMapAlignmentDetails:{hidden:false},skyMapAlignmentControls:{dataset:{},replaceChildren(){this.cleared=true;}},skyMapAlignmentSummary:{firstElementChild:true}};
  let binding=null,writes=0;
- const c=vm.createContext({el:id=>nodes[id],AstroNotesTrialOverlap:{isAll:s=>s?.scope==='all'},alignmentControls:(host,target,state,options)=>{binding={host,target,state,options};},auth:{token:'synthetic'},toolAllowed:()=>true,SkyMapUI:{setAlignment(){writes++;}}});vm.runInContext(code,c);
+ const c=vm.createContext({el:id=>nodes[id],aimIsMountain:t=>t?.id==='fuji',AstroNotesBodies:{definition:body=>({limbs:['sun','moon'].includes(body)})},AstroNotesTrialOverlap:{isAll:s=>s?.scope==='all'},alignmentControls:(host,target,state,options)=>{binding={host,target,state,options};},auth:{token:'synthetic'},toolAllowed:()=>true,SkyMapUI:{setAlignment(){writes++;}}});vm.runInContext(code,c);
  for(const state of [null,{target:{id:'tower'},scope:'all'}]){
   nodes.skyMapAlignmentControls.dataset.alignmentSignature='old';nodes.skyMapAlignmentControls.cleared=false;binding=null;c.renderSkyAlignment(state);
   assert.equal(nodes.skyMapAlignmentDetails.hidden,true);assert.equal(nodes.skyMapAlignmentControls.cleared,true);assert.equal(nodes.skyMapAlignmentControls.dataset.alignmentSignature,undefined);assert.equal(binding,null);
  }
  const state={target:{id:'tower'},body:'sun',scope:'single'};c.skySession=state;c.renderSkyAlignment(state);
  assert.equal(nodes.skyMapAlignmentDetails.hidden,false);assert.equal(binding.host,nodes.skyMapAlignmentControls);assert.equal(binding.target,state.target);assert.equal(binding.options.body,'sun');
+ assert.equal(binding.options.summitOnly,false);
  const next={partId:'tip',limb:'center',matchMode:'limb'};binding.options.change(next);assert.equal(writes,1);
  c.skySession={};binding.options.change(next);assert.equal(writes,1,'stale selection cannot change alignment');c.skySession=state;
  c.auth=null;binding.options.change(next);assert.equal(writes,1,'logged-out selection cannot change alignment');c.auth={token:'synthetic'};
