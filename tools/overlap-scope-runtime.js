@@ -61,7 +61,7 @@ function choose(value){
   // The display set is unchanged; only the solver's main target moves. Its alignment restarts at 全体.
   ref('aimSetSceneExtras')?.(list.map(t=>t.id).filter(id=>id!==next.id));SkyMapUI.setTarget(next.id);
   if(SkyMapUI.selectionState()?.target?.id!==next.id){ref('aimSetSceneExtras')?.(list.filter(t=>t.id!==s.target.id).map(t=>t.id));setNotice('この対象を重ねる対象にできませんでした');}
- }
+ }else if(isMountain(next)&&s.matchMode==='overlap')SkyMapUI.setTarget(next.id);
  notify();sync();
 }
 function sync(){

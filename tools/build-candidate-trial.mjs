@@ -23,7 +23,7 @@ import {exploreSwipeBackHtml} from './build-explore-swipe-back.mjs';
 import {renderIndex} from './build-index.mjs';
 import {versionAssets,hashCsp} from './release-html.mjs';
 import {createHash} from 'node:crypto';
-import {overlapCandidateSearch,overlapExploreController,overlapHtml} from './build-overlap-scope.mjs';
+import {overlapCandidateSearch,overlapExploreController,overlapHtml,overlapMyplaces} from './build-overlap-scope.mjs';
 const patch=(s,from,to)=>{if(!s.includes(from))throw Error('Trial source boundary changed: '+from);return s.replace(from,to);};
 const read=p=>{
  let s=explorePlaceSource(p,readFileSync(p,'utf8'));if(!p.endsWith('/features/explore/controller.js'))return s;
@@ -63,7 +63,7 @@ const files={
  'astronotes-align.js':trialAlign,
  'astronotes-atmosphere.js':trialAtmosphere,
  'astronotes-shooting.js':trialShooting,
- 'astronotes-myplaces.js':patchIndexedRidgeRecordSearch(trialMyplaces),
+ 'astronotes-myplaces.js':overlapMyplaces(patchIndexedRidgeRecordSearch(trialMyplaces)),
  'astronotes-explore-simple.js':result.html,
  'astronotes-candidate-search.js':readFileSync(new URL('../experiments/candidate-visibility/building-model.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/terrain-model.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/live-terrain.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/scene-hulls.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/scene-surface.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/composition.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/model-evaluator.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/search.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/place-provider.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/generic-evaluator.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/generic-search.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/composition-ui.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/place-labels.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/candidate-picker.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/ui.js',import.meta.url),'utf8').replace("dedicated?document.getElementById('candidateWorkspaceAction'):panel","dedicated?(mainWorkspace().newPlacesHost?.()||document.getElementById('candidateWorkspaceAction')):panel").replace('if(!repeat||!settled)return;','if(mainWorkspace()?.separateRecords||!repeat||!settled)return;'),
  'data/candidate-viewpoints.json':readFileSync(new URL('../data/aim-viewpoints.json',import.meta.url),'utf8'),

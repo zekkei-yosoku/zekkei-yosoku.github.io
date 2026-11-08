@@ -25,8 +25,34 @@ for(const [engine,type]of [['chrome',chromium],['webkit',webkit]].filter(([e])=>
     window.overlapCalls=[];const days=aimBuildingDays;aimBuildingDays=(obs,t,body,partId,seq,o)=>{overlapCalls.push([t.id,partId,o?.matchMode]);return days(obs,t,body,partId,seq,o);};
     navigationHistory.pushRoute('#/explore');await SkyMapUI.open();});
    await page.locator('#exploreShowResult').waitFor({state:'visible'});
+   await pick(page,['fuji']);
+   const setBody=value=>page.evaluate(value=>{const input=document.getElementById('skyMapBody');input.value=value;input.dispatchEvent(new Event('change',{bubbles:true}));},value);
+   await setBody('sun');
+   const partField=page.locator('#skyMapAlignmentControls .record-alignment-position');
+   const limbField=page.locator('#skyMapAlignmentControls .record-alignment-limbs select');
+   await limbField.waitFor({state:'visible'});
+   assert(await partField.isHidden(),'mountains fix the target at its summit');
+   assert.deepEqual(await limbField.locator('option').allTextContents(),['下の縁','真ん中','上の縁']);
+   const alignmentState=()=>page.evaluate(()=>{const s=SkyMapUI.selectionState();return [s.target.id,s.partId,s.limb,s.matchMode];});
+   assert.deepEqual(await alignmentState(),['fuji','summit','center','limb']);
+   await limbField.selectOption('behind');
+   assert.deepEqual(await alignmentState(),['fuji','summit','behind','limb']);
+   await setBody('moon');
+   assert.deepEqual(await alignmentState(),['fuji','summit','behind','limb']);
+   await page.evaluate(()=>SkyMapUI.setAlignment(null,'center','overlap'));
+   assert.deepEqual(await alignmentState(),['fuji','summit','center','limb'],'saved mountain overlap falls back to the summit center');
+   await shot('summit-alignment');
+   await setBody('sun');
+   await pick(page,['fuji','skytree']);
+   await page.locator('#skyMapOverlapTarget').selectOption('__all');
+   await page.locator('#skyMapAlignmentDetails').waitFor({state:'hidden'});
+   assert.equal((await alignmentState())[3],'overlap');
+   await page.locator('#skyMapOverlapTarget').selectOption('fuji');
+   assert.deepEqual(await alignmentState(),['fuji','summit','center','limb']);
+   await limbField.waitFor({state:'visible'});
    // 1件：自動。選択欄は出さない。
    await pick(page,['skytree']);assert.equal(await page.locator('#skyMapOverlapField').isHidden(),true,'one target hides the overlap choice');
+   assert(await partField.isVisible(),'buildings still offer whole and individual parts');
    // 2件：個別名と「全て」。順序は 対象→重ねる対象→重ね方→撮影地点。
    await pick(page,['skytree','tokyotower']);const field=page.locator('#skyMapOverlapField');await field.waitFor({state:'visible'});
    assert.deepEqual(await page.locator('#skyMapOverlapTarget option').allTextContents(),['東京スカイツリー','東京タワー','全て']);

@@ -22,8 +22,27 @@ export function overlapCandidateSearch(s){
 export function overlapExploreController(s){
  return patch(s,'globalThis.AstroNotesTrialComposition?.label?.(s)||alignment',O+'?.label?.(s)||globalThis.AstroNotesTrialComposition?.label?.(s)||alignment');
 }
+export function overlapMyplaces(s){
+ s=patch(s,"{body=null,key='',change}","{body=null,key='',summitOnly=false,change}");
+ s=patch(s,'host.append(label,limbs);','if(summitOnly)label.style.display="none";host.append(label,limbs);');
+ s=patch(s,'JSON.stringify([target?.id,options,!!AstroNotesBodies.definition(body)?.limbs])',
+  'JSON.stringify([target?.id,options,!!AstroNotesBodies.definition(body)?.limbs,summitOnly])');
+ s=patch(s,"detail.hidden=!s?.target||"+O+"?.isAll(s)===true;",
+  "const summitOnly=aimIsMountain(s?.target);detail.hidden=!s?.target||"+O+"?.isAll(s)===true||summitOnly&&!AstroNotesBodies.definition(s.body)?.limbs;");
+ return patch(s,'alignmentControls(host,s.target,s,{body:s.body,change:',
+  'alignmentControls(host,s.target,s,{body:s.body,summitOnly,change:');
+}
 // Inline document: picker, backdrop, candidate dates, figure accent, share/plan/record.
 export function overlapHtml(html){
+ html=patch(html,'  // Explicit shared/history/manual alignment must survive map refresh and scene projection.',`  if(aimIsMountain(session.target)&&!${O}?.isAll(session)){
+   session.partId=session.target.parts[0].id;
+   session.limb=session.matchMode==='limb'&&AstroNotesBodies.definition(session.body)?.limbs
+    ?AstroNotesAlign.limbById(session.limb).id:'center';
+   session.matchMode='limb';
+   return;
+  }
+  // Explicit shared/history/manual alignment must survive map refresh and scene projection.`);
+ html=patch(html,"session.matchMode='overlap';session.body=body;","if(!aimIsMountain(session.target))session.matchMode='overlap';session.body=body;");
  html=patch(html,'return aimTargetList().filter((t) => ids.has(t.id));','return aimTargetList().map((t) => t.id === "custom" && '+O+'?.custom?.() || t).filter((t) => ids.has(t.id));');
  html=patch(html,"main=ordered[0]?.id??'';aimSetSceneExtras(ordered.slice(1).map(t=>t.id));","main="+O+"?.chooseMain?.(ordered.map(t=>t.id),current?.id)??ordered[0]?.id??'';aimSetSceneExtras(ordered.map(t=>t.id).filter(id=>id!==main));");
  html=patch(html,'const syncSky=()=>{','const syncSky=()=>{queueMicrotask(()=>'+O+'?.sync?.());');
