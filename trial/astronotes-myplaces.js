@@ -1167,7 +1167,7 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
  async function candidates(plan,entries,{isCurrent=()=>true,onProgress=()=>{}}={}){
   const fixed=[],ranged=[],invalid=[];
   for(const e of entries){const r=rangeOf(e.place);if(r)ranged.push({entry:e,range:r});else if(e.place.eyeHeightRangeAGL!=null)invalid.push(e);else fixed.push(e);}
-  const normal={align,isMountain,observerAt,elevationAt,ensure,viewFor,yieldTask:deps.yieldTask,isCurrent,onProgress};
+  const normal={align,isMountain,observerAt,elevationAt,ensure,viewFor:deps.fixedViewFor??viewFor,yieldTask:deps.yieldTask,isCurrent,onProgress};
   if(!ranged.length&&!invalid.length)return shooting.candidates(plan,entries,normal);
   if(ranged.length&&deps.ensureModels){await deps.ensureModels();if(!isCurrent())return {rows:[],failed:0,cancelled:true};}
   const off={rows:[],failed:0,cancelled:true};
@@ -1761,8 +1761,9 @@ function recordSolverFor(session,variant,shaped,override){
  const terrain=override||session.terrain,align=Object.create(AstroNotesAlign);
  align.prepareDailyView=(obs,target,body,opts)=>recordPrepared(session,shaped,obs,target,body,opts);
  align.dailyView=(obs,target,body,day,{at,...opts}={})=>recordPrepared(session,shaped,obs,target,body,opts)(day,at);
- const viewFor=(obs,p)=>{
+ const viewFor=(obs,p,indexed=false)=>{
   if(p.matchMode==='overlap'&&aimIsMountain(p.target)){
+   if(indexed&&p.target.id==='fuji')return aimShootingView(obs,p.target,p.body,p.partId,p.matchMode,true);
    // Keep the registered-point set across date/body switches. Dense line/area
    // samples have a separate, smaller budget and cannot evict these views.
    const views=shaped?session.shapeMountains:session.mountains,key=JSON.stringify([obs,p.target,p.body,p.partId,p.matchMode]);
@@ -1778,7 +1779,7 @@ function recordSolverFor(session,variant,shaped,override){
   if(!(o.broad&&o.disc||o.partId==='__whole'&&!aimIsMountain(p.target)))return null;
   return recordPrepared(session,shaped,obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM});
  };
- return recordHeightSolver({align,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),ensure:b=>AstroNotesBodies.ensure(b),viewFor,yieldTask:recordSearchYield,elevationAt:(lat,lon)=>{
+ return recordHeightSolver({align,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),ensure:b=>AstroNotesBodies.ensure(b),viewFor,fixedViewFor:(obs,p)=>viewFor(obs,p,true),yieldTask:recordSearchYield,elevationAt:(lat,lon)=>{
   const key=lat+','+lon;
   return recordBounded(terrain,key,()=>candidateElevation(lat,lon).then(value=>{if(!Number.isFinite(value))terrain.delete(key);return value;}),12000);
  }});

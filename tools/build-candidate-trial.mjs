@@ -6,6 +6,7 @@ import {patchExactGeometry} from './build-exact-geometry.mjs';
 import {patchExactTerrain} from './build-exact-terrain.mjs';
 import {patchNativeGroundPoint} from './build-native-ground-point.mjs';
 import {patchExactRidgeTerrain,patchExactRidgeHtml} from './build-exact-ridge.mjs';
+import {patchIndexedRidgeTerrain,patchIndexedRidgeHtml,patchIndexedRidgeRecordSearch} from './build-indexed-search-ridge.mjs';
 import {numericRulerTimeline,numericRulerHtml} from './build-numeric-rulers.mjs';
 import {previewPathLifecycleHtml} from './build-preview-path-lifecycle.mjs';
 import {recordOpportunitiesMyplaces,recordOpportunitiesHtml} from './build-record-opportunities.mjs';
@@ -52,7 +53,7 @@ trialMyplaces=patch(trialMyplaces,'window.MyPlacesUI = {',''+registeredDiscovery
 trialMyplaces=patch(trialMyplaces,'function changed() {',"function changed() {\n document.dispatchEvent(new Event('astronotes-records-change'));");
 const trialAlign=patchPreparedOutlineRetention(patchAlignHeightGeometry(patchExactPolygonDistance(patchExactGeometry(patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge')))));const trialAtmosphere=patchAtmosphereHeightBounds(readFileSync('astronotes-atmosphere.js','utf8'));
 const files={
- 'astronotes-terrain.js':patchNativeGroundPoint(patchExactRidgeTerrain(patchExactTerrain(readFileSync('astronotes-terrain.js','utf8')))),
+ 'astronotes-terrain.js':patchIndexedRidgeTerrain(patchNativeGroundPoint(patchExactRidgeTerrain(patchExactTerrain(readFileSync('astronotes-terrain.js','utf8'))))),
  'astronotes-astro.js':patchExactEphemeris(readFileSync('astronotes-astro.js','utf8')),
  'astronotes-library.js':recordTransferLibrary(readFileSync('astronotes-library.js','utf8')),
  'astronotes-scroll-timeline.js':numericRulerTimeline(readFileSync('astronotes-scroll-timeline.js','utf8')),
@@ -62,7 +63,7 @@ const files={
  'astronotes-align.js':trialAlign,
  'astronotes-atmosphere.js':trialAtmosphere,
  'astronotes-shooting.js':trialShooting,
- 'astronotes-myplaces.js':trialMyplaces,
+ 'astronotes-myplaces.js':patchIndexedRidgeRecordSearch(trialMyplaces),
  'astronotes-explore-simple.js':result.html,
  'astronotes-candidate-search.js':readFileSync(new URL('../experiments/candidate-visibility/building-model.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/terrain-model.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/live-terrain.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/scene-hulls.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/scene-surface.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/composition.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/model-evaluator.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/search.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/place-provider.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/generic-evaluator.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/generic-search.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/composition-ui.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/place-labels.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/candidate-picker.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../experiments/candidate-visibility/ui.js',import.meta.url),'utf8').replace("dedicated?document.getElementById('candidateWorkspaceAction'):panel","dedicated?(mainWorkspace().newPlacesHost?.()||document.getElementById('candidateWorkspaceAction')):panel").replace('if(!repeat||!settled)return;','if(mainWorkspace()?.separateRecords||!repeat||!settled)return;'),
  'data/candidate-viewpoints.json':readFileSync(new URL('../data/aim-viewpoints.json',import.meta.url),'utf8'),
@@ -100,7 +101,7 @@ if(process.argv.includes('--html')){
  html=patch(html,html.match(/<script src="astronotes-explore\.js\?v=\d+"><\/script>/)?.[0]||'missing-explore-script','<script src="astronotes-explore-simple.js?v=0"></script>');
  html=patch(html,'host._bodyRadius = p.radius;','host._bodyRadius = p.radius; globalThis.AstroNotesTrialComposition?.redraw(host);');
  html=patch(html,'host._redrawLook = () => { if (host._lookSeq === seq) draw(cur); };','host._redrawLook = () => { if (host._lookSeq === seq) draw(cur); };\n host._trialCompositionView={spec,cv,W,H,k,win}; globalThis.AstroNotesTrialComposition?.bind(host,host._trialCompositionView);');
- html=forecastSummaryHtml(patchExactRidgeHtml(recordSortHtml(recordTransferHtml(overlapHtml(html)))));
+ html=forecastSummaryHtml(patchIndexedRidgeHtml(patchExactRidgeHtml(recordSortHtml(recordTransferHtml(overlapHtml(html))))));
  html=patch(html,'</body>','<script src="astronotes-candidate-search.js?v=0"></script>\n</body>');
  const versioned=versionAssets(html,name=>Object.hasOwn(files,name)?files[name]:readFileSync(new URL('../'+name,import.meta.url)));
  files['index.html']=hashCsp(versioned.html).html;files['app-version.txt']=versioned.id+'\n';

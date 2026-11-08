@@ -337,6 +337,7 @@
       });
     })();
     tileAvailability.set(p,availability);
+    p.then(image=>{ availability.image=image; },()=>{});
     tiles.set(key, p);
     // 失敗を憶えない。憶えると、同じ画面の次の測定まで試さずに失敗する
     p.catch(() => { if (tiles.get(key) === p) tiles.delete(key); });
@@ -604,12 +605,28 @@ function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevatio
  };
 }
 
+  function currentRidgeTile(layer,z,x,y) {
+    const key=(layer==='dem_png'?'':layer+'/')+z+'/'+x+'/'+y;
+    const pending=tiles.get(key),entry=pending&&tileAvailability.get(pending);
+    return entry?.image||entry?.missing===true?entry:null;
+  }
+  function ridgeSampleCoverage(from,box,range,base) {
+    const x0=tileXf(box.west,0),x1=tileXf(box.east,0);
+    const y0=tileYf(box.north,0),y1=tileYf(box.south,0);
+    return point=>{
+      if(!inJapan(point.latitude,point.longitude))return false;
+      const x=tileXf(point.longitude,0),y=tileYf(point.latitude,0);
+      if(!(x>=x0&&x<=x1&&y>=y0&&y<=y1))return false;
+      const z=zoomFor(from,point,base);
+      return z>=range.min&&z<=range.max;
+    };
+  }
   const sampleTiles=createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevation});
   async function elevations(points, opts = {}) {
     if (!points.length) return [];
     if (points.every((p) => inJapan(p.latitude, p.longitude)) && typeof Image !== "undefined") {
       const base = opts.zoom ?? 11;
-      const raw = points.length<32 ? await Promise.all(points.map((p) => sampleTile(p.latitude, p.longitude, zoomFor(opts.from, p, base)))) : await sampleTiles(points,points.map(p=>zoomFor(opts.from,p,base)));
+      const raw = points.length<32 && !opts.indexedExactBatch ? await Promise.all(points.map((p) => sampleTile(p.latitude, p.longitude, zoomFor(opts.from, p, base)))) : await sampleTiles(points,points.map(p=>zoomFor(opts.from,p,base)));
       // 読めたタイルの「標高なし」画素は海なので 0m（海面）とする。
       // 以前は Open-Meteo で埋め直していて、富士市では全周 816点が海で 100点ずつ 9回叩き、
       // 本番で 429 が続いて地形の地平線ごと失敗していた（2026-09-22）。
@@ -1658,7 +1675,7 @@ function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevatio
 
   const AstroNotesTerrain = {
     MAX_POINTS, DEFAULT_STEPS, OBSERVATION_DECKS, decksFor, deckLabel, structureHeight, isLookout,
-    destination, prepareRidgeDestination, prepareRidgeElevation, bearing, distanceKm, inverse,
+    destination, currentRidgeTile, ridgeSampleCoverage, prepareRidgeDestination, prepareRidgeElevation, bearing, distanceKm, inverse,
     fetchElevations, elevations, elevationFromTile, tileElevations, groundElevation, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
     urbanHorizon, buildingHeightM, buildingAt, buildingsAlong, gsiBuildingsAlong, GSI_BUILDING_MIN_M, wikidataHeight, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
