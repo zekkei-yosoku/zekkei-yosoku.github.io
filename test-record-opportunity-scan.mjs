@@ -12,3 +12,24 @@ test('automatically yields and completes all 460 checks with one advance',async(
 });
 test('filters elapsed times, wrong-day results and duplicate rows without discarding distinct observers',async()=>{const scan=createOpportunityScan({...options,pairs:pairs.slice(0,1),end:day+DAY,notBefore:day+7200000,solve:async()=>({rows:[row(day+3600000),row(day+7200000),row(day+7200000),{...row(day+7200000),place:{...row(0).place,eyeHeightAGL:10}},row(day+DAY)]})});await scan.advance(Infinity);assert.equal(scan.state.rows.length,2);assert.deepEqual(scan.state.rows.map(r=>r.place.eyeHeightAGL),[1.5,10]);});
 test('an empty registered set is a completed empty scope without any solver calls',async()=>{const scan=createOpportunityScan({...options,pairs:[],solve:async()=>{throw Error('must not run')}});await scan.advance();assert.equal(scan.state.done,true);assert.equal(scan.state.through,day+2*DAY);assert.equal(scan.state.checked,0);});
+test('extends from the first unchecked day and keeps the full final day of each page',async()=>{
+ const called=[];
+ const scan=createOpportunityScan({...options,pageRows:1,solve:async(p,d)=>{
+  called.push([p.id,d]);
+  return {rows:[row(d+3600000)]};
+ }});
+ assert.equal(scan.extend(day+DAY),false);
+ await scan.advance();
+ assert.equal(scan.state.through,day+DAY);
+ const first=scan.state.rows.map(r=>r.id);
+ assert.equal(first.length,2);
+ for(let i=1;i<=2;i++){
+  assert.equal(scan.extend(day+(i+2)*DAY),true);
+  assert.equal(scan.extend(day+(i+3)*DAY),false);
+  await scan.advance();
+  assert.equal(scan.state.through,day+(i+1)*DAY);
+ }
+ assert.deepEqual(scan.state.rows.slice(0,2).map(r=>r.id),first);
+ assert.equal(new Set(scan.state.rows.map(r=>r.id)).size,6);
+ assert.deepEqual(called,[0,1,2].flatMap(i=>pairs.map(p=>[p.id,day+i*DAY])));
+});

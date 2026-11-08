@@ -32,6 +32,10 @@ const style=String.raw`
 .record-opportunity-picker-foot #recordOpportunityPickerApply{min-width:96px;background:var(--accent);color:var(--accent-ink,var(--bg))}
 :is(#recordOpportunityStatus,#recordOpportunityNotice){margin:12px 0;color:var(--secondary)}:is(#recordOpportunityStatus,#recordOpportunityNotice):empty{display:none}
 #recordOpportunityList:not(:empty){margin-top:12px;border-top:1px solid var(--line)}
+.record-opportunity-day{margin:0;padding:12px 0 5px;font-size:14px;color:var(--secondary)}
+.record-opportunity-through{margin:10px 0 0;color:var(--secondary)}
+.record-opportunity-through:empty{display:none}
+#recordOpportunityMore{min-height:44px}
 .record-progress-count{margin-inline-start:6px;color:var(--secondary);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .record-opportunity-row{display:grid;grid-template-columns:52px minmax(0,1fr) 12px;grid-template-rows:auto auto;gap:2px 12px;align-items:center;width:100%;min-height:64px;padding:12px 0;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;background:transparent;color:var(--text)}
 .record-opportunity-time{grid-column:1;grid-row:1;align-self:end;font-size:16px;font-variant-numeric:tabular-nums;color:var(--accent)}
