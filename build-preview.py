@@ -6,7 +6,7 @@ The preview shares the production account/API/storage. Review before deployment.
                                      trial を本体へ揃えたあとの確認に使う（2026-10-15 総点検M06）
 """
 from pathlib import Path
-import json,subprocess,sys
+import hashlib,json,subprocess,sys,tempfile
 check='--check' in sys.argv[1:]
 root=Path(__file__).resolve().parent
 out=root/'trial'
@@ -31,6 +31,20 @@ s=s[:idx]+'  <p style="position:relative;z-index:1;font-size:12px;padding:6px 2p
 # It never writes production products and remains reproducible on every refresh.
 bundle=json.loads(subprocess.check_output(['node','tools/build-candidate-trial.mjs','--html'],cwd=root,input=s,text=True))
 for name,content in bundle.items():emit(out/name,content.encode())
+# 2026-11-09 端末の重なる日一覧は、サーバーと同じ幾何計算本体（大気差なし）を別frameで動かす。
+# 本体は生成後のtrialから抽出するため、書き込まない--checkでも一時領域で同じ入力を再現する。
+with tempfile.TemporaryDirectory() as staged:
+ staged_trial=Path(staged)/'trial'
+ for p,data in expected.items():
+  q=staged_trial/p.relative_to(out);q.parent.mkdir(parents=True,exist_ok=True);q.write_bytes(data)
+ subprocess.check_call(['node','tools/build-overlap-calculation.cjs',str(root),staged,str(staged_trial)],cwd=root,stdout=subprocess.DEVNULL)
+ engine=(Path(staged)/'calculation.js').read_bytes();engine_sha=json.loads((Path(staged)/'manifest.json').read_text())['sha256']
+frame=(root/'tools/overlap-calculation-frame.js').read_bytes()
+emit(out/'overlap-calculation.js',engine);emit(out/'overlap-calculation-frame.js',frame)
+emit(out/'overlap-calculation.html',(f'<!doctype html>\n<html lang="ja" data-engine="{engine_sha}">\n<meta charset="utf-8">\n'
+ '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'self\'; connect-src https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp; img-src blob: data: https://cyberjapandata.gsi.go.jp; base-uri \'none\'; form-action \'none\'">\n'
+ f'<title>AstroNotes calculation</title>\n<script src="overlap-calculation.js?v={engine_sha[:16]}"></script>\n'
+ f'<script src="overlap-calculation-frame.js?v={hashlib.sha256(frame).hexdigest()[:16]}"></script>\n</html>\n').encode())
 # 2026-10-28 写真の評価と規約・プライバシーも本体から作る（試用版の表示だけ変える）
 r=(root/'sky-rating.html').read_text().replace('· AstroNotes</title>','· AstroNotes 試用版</title>').replace('<span class="brand">AstroNotes</span>','<span class="brand">AstroNotes <span>試用版</span></span>')
 emit(out/'sky-rating.html',r.encode())

@@ -42,7 +42,8 @@ const ready=p=>p.waitForFunction(()=>document.getElementById('recordOpportunitie
  // Keep the real-data checks above, then guarantee future matches on every
  // page so an empty continuation cannot pass the append regression by itself.
  await chooseFilter(page,'Body','moon');await chooseFilter(page,'Place','p1');await ready(page);
- await page.evaluate(()=>{AstroNotesShooting.candidates=async (p,entries)=>({rows:entries.map(({place,record})=>({place,record,event:{at:p.at+43200000}})),failed:0});});
+ // The list runs the geometric engine in its own frame; give that frame the fixture.
+ await page.evaluate(()=>{const fixture=async (p,entries)=>({rows:entries.map(({place,record})=>({place,record,event:{at:p.at+43200000}})),failed:0});AstroNotesShooting.candidates=fixture;document.querySelector('iframe[src^="overlap-calculation.html"]').contentWindow.AstroNotesShooting.candidates=fixture;});
  await page.locator('#recordOpportunityDate').fill('2027-01-20');await ready(page);
  let appended=await ids();assert(appended.length>0);
  for(let i=0;i<2;i++){

@@ -1980,7 +1980,9 @@ const opportunityCache=new Map();
 let opportunityPairMemo=null;
 const opportunityListSettings=()=>geometricOpportunitySettings({targetHeights:store.get('sorami.aimHeightsOwner',null)===auth?.loginId?store.get('sorami.aimHeights',{}):{}});
 let opportunityListSettingsKey=JSON.stringify(opportunityListSettings());
-const opportunityAirKey=(remote=opportunityServer.state.enabled===true)=>remote?JSON.stringify(opportunityListSettings()):JSON.stringify([aimAirSettings,store.get('sorami.aimHeights',{}),AstroNotesAtmosphere.dataKey()]);
+// Server and device lists both use the geometric candidate model. The
+// appearance view applies this device's refraction when a row is opened.
+const opportunityAirKey=()=>JSON.stringify(opportunityListSettings());
 const opportunityAllowed=()=>!!auth?.token&&toolAllowed('records');
 const opportunityActive=()=>opportunityAllowed()&&!document.hidden&&!el('recordsView')?.hidden&&el('recordsView')?.dataset.tab==='opportunities';
 let opportunityApplyingPreferences=false,opportunityWarmupKey='',opportunityWarmupFlight=null;
@@ -1991,11 +1993,139 @@ const opportunityServer=createServerOpportunityPreferences({
  sync:async()=>{await accountSync().syncNow();if(syncError||pushQueue.length)throw Error('記録を同期できていません。通信を確認して再試行してください。');}
 });
 function opportunityWarmup(){
+ if(opportunityAllowed()&&!document.hidden&&opportunityServer.state.enabled===false)opportunityDeviceBackground();
  if(!opportunityAllowed()||document.hidden||opportunityWarmupFlight)return;
  const key=JSON.stringify([auth?.token,auth?.loginId,accessState.generation,opportunityDateAt(Date.now()),opportunityAirKey(true)]);
  if(opportunityWarmupKey===key)return;opportunityWarmupKey=key;
  const owner=auth.token,generation=accessState.generation;
- opportunityWarmupFlight=(async()=>{try{const prefs=await opportunityServer.ready();if(owner!==auth?.token||generation!==accessState.generation||!opportunityAllowed())return;if(prefs.enabled)await apiTransport('POST','/overlaps/ensure',{environment:'trial',intent:'background',startDay:opportunityDateAt(Date.now()),bodies:['sun','moon'],placeIds:null,sourceRev:prefs.sourceRev});opportunityWarmupKey=JSON.stringify([auth?.token,auth?.loginId,accessState.generation,opportunityDateAt(Date.now()),opportunityAirKey(true)]);}catch{/* The visible list reports failures and offers retry. */}finally{opportunityWarmupFlight=null;if(opportunityActive())renderOpportunities();}})();
+ opportunityWarmupFlight=(async()=>{try{const prefs=await opportunityServer.ready();if(owner!==auth?.token||generation!==accessState.generation||!opportunityAllowed())return;if(!prefs.enabled)opportunityDeviceBackground();else await apiTransport('POST','/overlaps/ensure',{environment:'trial',intent:'background',startDay:opportunityDateAt(Date.now()),bodies:['sun','moon'],placeIds:null,sourceRev:prefs.sourceRev});opportunityWarmupKey=JSON.stringify([auth?.token,auth?.loginId,accessState.generation,opportunityDateAt(Date.now()),opportunityAirKey(true)]);}catch{/* The visible list reports failures and offers retry. */}finally{opportunityWarmupFlight=null;if(opportunityActive())renderOpportunities();}})();
+}
+// Device geometric engine: the same extracted bundle as the server, in a
+// hidden same-origin frame. Complete results persist per account, engine,
+// settings, pair and day, so closing the app resumes from the next pair.
+const opportunityDeviceStats={hits:0,solves:0,failures:0,solveMs:0,frameMs:0,background:0};
+globalThis.AstroNotesOverlapStats=opportunityDeviceStats;
+let opportunityFrame=null,opportunityFrameSeq=0,opportunityDb=null,opportunityBackgroundFlight=null;
+const opportunityDeviceQueue={high:[],low:[],busy:false};
+const opportunityDeviceFlights=new Map();
+function opportunityFrameOpen(){
+ if(opportunityFrame)return opportunityFrame.ready;
+ const frame=document.createElement('iframe'),calls=new Map(),began=performance.now();
+ frame.hidden=true;frame.setAttribute('aria-hidden','true');frame.tabIndex=-1;
+ frame.src='overlap-calculation.html?v='+(document.querySelector('meta[name="app-version"]')?.content||'0');
+ const state={frame,calls,engine:null};
+ state.ready=new Promise((resolve,reject)=>{
+  const timer=setTimeout(()=>reject(Error('calculation frame unavailable')),60000);
+  state.listener=event=>{
+   const message=event.data;if(event.source!==frame.contentWindow||event.origin!==location.origin||message?.type!=='astronotes-overlap')return;
+   if('ready' in message){clearTimeout(timer);opportunityDeviceStats.frameMs=Math.round(performance.now()-began);if(message.ready&&/^[a-f0-9]{64}$/.test(message.engine||'')){state.engine=message.engine;resolve(state);}else reject(Error('calculation engine unavailable'));return;}
+   const call=calls.get(message.id);if(!call)return;calls.delete(message.id);
+   if(message.error)call.reject(Error(message.error));else call.resolve(message.result);
+  };
+  addEventListener('message',state.listener);
+ });
+ state.ready.catch(()=>{if(opportunityFrame===state)opportunityFrameClose();});
+ opportunityFrame=state;document.body.append(frame);return state.ready;
+}
+function opportunityFrameClose(){
+ const state=opportunityFrame;if(!state)return;opportunityFrame=null;removeEventListener('message',state.listener);state.frame.remove();
+ for(const call of state.calls.values())call.reject(Error('calculation frame closed'));state.calls.clear();
+}
+// The frame runs one check at a time. A check that never settles would hold
+// every later one, so it is abandoned with its frame and reported unchecked.
+async function opportunityFrameSolve(input){
+ const state=await opportunityFrameOpen(),id=++opportunityFrameSeq;
+ return new Promise((resolve,reject)=>{
+  const timer=setTimeout(()=>{if(opportunityFrame===state)opportunityFrameClose();},120000);
+  state.calls.set(id,{resolve:v=>{clearTimeout(timer);resolve(v);},reject:e=>{clearTimeout(timer);reject(e);}});
+  state.frame.contentWindow.postMessage({type:'astronotes-overlap',id,op:'solve',input},location.origin);
+ });
+}
+function opportunityDbOpen(){
+ if(opportunityDb)return opportunityDb;
+ opportunityDb=new Promise((resolve,reject)=>{
+  if(typeof indexedDB==='undefined'){reject(Error('indexedDB unavailable'));return;}
+  const request=indexedDB.open('astronotes-overlap-device',1);
+  request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains('results'))db.createObjectStore('results',{keyPath:'key'}).createIndex('day','day');};
+  request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+ });
+ opportunityDb.catch(()=>{opportunityDb=null;});
+ return opportunityDb;
+}
+function opportunityDbDo(mode,work){
+ return opportunityDbOpen().then(db=>new Promise((resolve,reject)=>{const tx=db.transaction('results',mode),store=tx.objectStore('results');let value;const request=work(store);if(request)request.onsuccess=()=>{value=request.result;};tx.oncomplete=()=>resolve(value);tx.onerror=tx.onabort=()=>reject(tx.error);}));
+}
+// Results belong to the signed-in account and the engine that made them.
+// Anything else, and past days, is removed instead of being reused.
+async function opportunityDbPrune(owner,engine){
+ const today=opportunityDateAt(Date.now());
+ await opportunityDbDo('readwrite',store=>{const request=store.openCursor();request.onsuccess=()=>{const cursor=request.result;if(!cursor)return;const v=cursor.value;if(v.owner!==owner||v.engine!==engine||v.day<today)cursor.delete();cursor.continue();};return null;}).catch(()=>{});
+}
+function opportunityDeviceForget(){opportunityDbDo('readwrite',store=>store.clear()).catch(()=>{});}
+async function opportunityDigest(value){const bytes=new TextEncoder().encode(JSON.stringify(value)),digest=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');}
+function opportunitySemantic(pair){
+ // The same fields the server's inputHash ignores: labels, record metadata.
+ const value=structuredClone({...pair,id:undefined,record:undefined,sourcePlaceId:undefined});
+ for(const obj of [value.place,value.target])for(const k of ['name','subtitle','note','phenomena','updatedAt','createdAt'])delete obj?.[k];
+ return value;
+}
+function opportunityDeviceInput(pair,day){
+ return {input:{...pair,contextFavorites:favorites.filter(f=>f.id===pair.target.favId).map(f=>({id:f.id,targetCategory:f.targetCategory}))},day:opportunityDateAt(day),pairId:pair.id,preferences:opportunityListSettings(),tools:(auth?.tools||[]).slice(),generation:accessState.generation,evaluationNow:Date.now()};
+}
+function opportunityDeviceRun(priority,work){
+ return new Promise((resolve,reject)=>{opportunityDeviceQueue[priority].push({work,resolve,reject});opportunityDevicePump();});
+}
+async function opportunityDevicePump(){
+ const q=opportunityDeviceQueue;if(q.busy)return;q.busy=true;
+ try{for(let item;(item=q.high.shift()||q.low.shift());){try{item.resolve(await item.work());}catch(error){item.reject(error);}}}
+ finally{q.busy=false;}
+}
+// One (pair, day) check. Rows carry the current labels on a stored hit,
+// since labels are not part of the calculation key.
+async function opportunityDeviceSolve(pair,day,{priority='high',isCurrent=()=>true}={}){
+ const owner=auth?.loginId;if(!owner)return {rows:[],failed:1};
+ const state=await opportunityFrameOpen(),settings=opportunityListSettings();
+ const key=await opportunityDigest(['astronotes.device-overlap.v1',state.engine,owner,(auth?.tools||[]).slice().sort(),settings,opportunitySemantic(pair),opportunityDateAt(day)]);
+ const relabel=rows=>rows.map(row=>({...row,place:{...row.place,name:pair.place.name},target:pair.target}));
+ let flight=opportunityDeviceFlights.get(key);
+ if(!flight){
+  flight=(async()=>{
+   const saved=await opportunityDbDo('readonly',store=>store.get(key)).catch(()=>null);
+   if(saved?.owner===owner&&saved.engine===state.engine){opportunityDeviceStats.hits++;return {rows:saved.rows,stored:true};}
+   return opportunityDeviceRun(priority,async()=>{
+    if(!isCurrent()||owner!==auth?.loginId)return {rows:[],cancelled:true};
+    const began=performance.now(),result=await opportunityFrameSolve(opportunityDeviceInput(pair,day));
+    opportunityDeviceStats.solves++;opportunityDeviceStats.solveMs+=Math.round(performance.now()-began);
+    if(result.status!=='complete'){opportunityDeviceStats.failures++;return {rows:result.rows||[],failed:1};}
+    if(owner===auth?.loginId)await opportunityDbDo('readwrite',store=>store.put({key,owner,engine:state.engine,day:opportunityDateAt(day),savedAt:Date.now(),rows:result.rows})).catch(()=>{});
+    return {rows:result.rows};
+   });
+  })().finally(()=>{if(opportunityDeviceFlights.get(key)===flight)opportunityDeviceFlights.delete(key);});
+  opportunityDeviceFlights.set(key,flight);
+ }
+ const result=await flight;
+ if(result.cancelled)return isCurrent()?opportunityDeviceSolve(pair,day,{priority,isCurrent}):{rows:[],cancelled:true};
+ return {...result,rows:relabel(result.rows)};
+}
+// While the app is in front, the next seven days of sun/moon pairs fill in
+// behind whatever screen is open. A visible list always runs first.
+function opportunityDeviceBackground(){
+ if(opportunityBackgroundFlight)return;
+ const owner=auth?.loginId,token=auth?.token,generation=accessState.generation;
+ const live=()=>!document.hidden&&opportunityAllowed()&&owner===auth?.loginId&&token===auth?.token&&generation===accessState.generation&&opportunityServer.state.enabled===false;
+ opportunityBackgroundFlight=(async()=>{
+  try{
+   const state=await opportunityFrameOpen();await opportunityDbPrune(owner,state.engine);
+   const signature=opportunitySignature(),{pairs}=opportunityPairSet(signature,['sun','moon']),[start]=opportunityBounds(opportunityDateAt(Date.now()));
+   for(let i=0;i<7;i++)for(const pair of pairs){
+    if(!live()||signature!==opportunitySignature())return;
+    const result=await opportunityDeviceSolve(pair,start+i*86400000,{priority:'low',isCurrent:live});
+    if(!result.stored&&!result.cancelled)opportunityDeviceStats.background++;
+    await recordSearchYield();
+   }
+  }catch{/* The visible list reports calculation failures. */}
+  finally{opportunityBackgroundFlight=null;}
+ })();
 }
 function opportunityPairs(bodies){
  const {groups,shapes}=recordSearchIndex(),pairs=[],unavailable=[];
@@ -2070,7 +2200,7 @@ function opportunityBuild(){
  const notice=opportunityNode('p',{id:'recordOpportunityNotice',className:'tiny'});notice.setAttribute('role','status');
  const modelNotice=opportunityNode('p',{id:'recordOpportunityModelNotice',className:'tiny',hidden:true},'軌道上の候補。大気差は見え方で確認');
  const status=opportunityNode('div',{id:'recordOpportunityStatus',className:'tiny'});status.setAttribute('role','status');
- const list=opportunityNode('div',{id:'recordOpportunityList'}),actions=opportunityNode('div',{className:'record-opportunity-actions'});
+ const list=opportunityNode('div',{id:'recordOpportunityList'}),pending=opportunityNode('div',{id:'recordOpportunityPending'}),actions=opportunityNode('div',{className:'record-opportunity-actions'});
  const through=opportunityNode('p',{id:'recordOpportunityThrough',className:'tiny record-opportunity-through'});
  const retry=opportunityNode('button',{type:'button',id:'recordOpportunityRetry',className:'chip',hidden:true},'再試行');
  const more=opportunityNode('button',{type:'button',id:'recordOpportunityMore',className:'chip',hidden:true},'さらに先を探す');
@@ -2082,8 +2212,8 @@ function opportunityBuild(){
   const job=opportunityJob;if(!job||!opportunityCurrent(job))return;
   if(job.scan.extend(opportunityPageEnd(job.scan.state.through),opportunityPageRows))void opportunityAdvance(job);
  };
- actions.append(retry,more);controls.append(period,filters);host.append(controls,modelNotice,notice,status,list,through,actions);
- opportunityDom={host,prev,date,dateLabel,next,today,body,place,modelNotice,notice,status,list,through,retry,more,rendered:0,lastDay:null};return true;
+ actions.append(retry,more);controls.append(period,filters);host.append(controls,modelNotice,notice,status,list,pending,through,actions);
+ opportunityDom={host,prev,date,dateLabel,next,today,body,place,modelNotice,notice,status,list,pending,through,retry,more,rendered:0,lastDay:null};return true;
 }
 function opportunitySet(patch){
  if(!opportunityAllowed())return;opportunityClosePicker();
@@ -2091,16 +2221,28 @@ function opportunitySet(patch){
  if(!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(date)||date<'1900-01-01'||date>'2100-12-31'||opportunityDateAt(opportunityBounds(date)[0])!==date){if(opportunityDom)opportunityDom.date.value=opportunityFilters.date;return;}
  opportunityDateChosen=true;opportunityOpenSeq++;opportunityNotice='';opportunityFilters={...opportunityFilters,...patch,date};opportunityCancel();renderOpportunities();
 }
+function opportunityRow(row,job){
+ const button=opportunityNode('button',{type:'button',className:'record-opportunity-row'}),time=opportunityNode('span',{className:'record-opportunity-time'},S.JstCal.hhmm(row.event.at)),name=opportunityNode('strong',{},row.place.name+' → '+row.target.name),body=opportunityNode('span',{className:'record-opportunity-body'},AstroNotesBodies.definition(row.body)?.name||row.body),arrow=opportunityNode('span',{className:'record-opportunity-arrow'},'›');arrow.setAttribute('aria-hidden','true');button.append(time,name,body,arrow);const details=[];if(!row.place.eyeHeightRangeAGL&&job.pairs.some(p=>p.sourcePlaceId===row.sourcePlaceId&&p.target.id===row.target.id&&p.place.eyeHeightAGL!==row.place.eyeHeightAGL))details.push('地上'+row.place.eyeHeightAGL+'m');if(row.event.matchMode==='limb')details.push(RecordAlignment.text(row.target,row.event));if(row.place.eyeHeightRangeAGL)details.push('地上'+row.place.eyeHeightAGL+'m');if(row.shapeType)details.push((row.shapeType==='line'?'線上':'範囲内')+' '+row.place.latitude.toFixed(5)+', '+row.place.longitude.toFixed(5));if(details.length){button.classList.add('has-height');button.append(opportunityNode('span',{className:'record-opportunity-height'},details.join(' ・ ')));}button.dataset.opportunityId=row.id;button.onclick=()=>openOpportunity(row,job);return button;
+}
+// Rows of the day still being checked appear below the confirmed days, so
+// confirmed rows never move. They join the list in order once the day ends.
+function opportunityDrawPending(job){
+ const d=opportunityDom,s=job.scan.state,pending=!s.done&&!job.remote?(s.pending||[]).slice().sort((a,b)=>a.event.at-b.event.at):[];
+ job.pendingDrawn=pending.length;d.pending.replaceChildren();if(!pending.length)return;
+ d.pending.append(opportunityNode('h3',{className:'record-opportunity-day'},dayText(pending[0].event.at)+'（確認中）'));
+ for(const row of pending)d.pending.append(opportunityRow(row,job));
+}
 function opportunityDraw(job){
  if(!opportunityCurrent(job)||!opportunityDom)return;
  const d=opportunityDom,s=job.scan.state,rows=s.rows;
- d.modelNotice.hidden=!(job.remote&&opportunityServer.state.enabled===true);
+ d.modelNotice.hidden=false;
  d.host.setAttribute('aria-busy',String(s.running&&!s.done));
  if(d.rendered<0){d.list.replaceChildren();d.rendered=0;d.lastDay=null;}
  for(const row of s.rows.slice(d.rendered)){
   const date=opportunityDateAt(row.event.at);if(d.lastDay!==date){d.lastDay=date;d.list.append(opportunityNode('h3',{className:'record-opportunity-day'},dayText(row.event.at)));}
-  const button=opportunityNode('button',{type:'button',className:'record-opportunity-row'}),time=opportunityNode('span',{className:'record-opportunity-time'},S.JstCal.hhmm(row.event.at)),name=opportunityNode('strong',{},row.place.name+' → '+row.target.name),body=opportunityNode('span',{className:'record-opportunity-body'},AstroNotesBodies.definition(row.body)?.name||row.body),arrow=opportunityNode('span',{className:'record-opportunity-arrow'},'›');arrow.setAttribute('aria-hidden','true');button.append(time,name,body,arrow);const details=[];if(!row.place.eyeHeightRangeAGL&&job.pairs.some(p=>p.sourcePlaceId===row.sourcePlaceId&&p.target.id===row.target.id&&p.place.eyeHeightAGL!==row.place.eyeHeightAGL))details.push('地上'+row.place.eyeHeightAGL+'m');if(row.event.matchMode==='limb')details.push(RecordAlignment.text(row.target,row.event));if(row.place.eyeHeightRangeAGL)details.push('地上'+row.place.eyeHeightAGL+'m');if(row.shapeType)details.push((row.shapeType==='line'?'線上':'範囲内')+' '+row.place.latitude.toFixed(5)+', '+row.place.longitude.toFixed(5));if(details.length){button.classList.add('has-height');button.append(opportunityNode('span',{className:'record-opportunity-height'},details.join(' ・ ')));}button.dataset.opportunityId=row.id;button.onclick=()=>openOpportunity(row,job);d.list.append(button);
+  d.list.append(opportunityRow(row,job));
  }d.rendered=s.rows.length;
+ opportunityDrawPending(job);
  const failures=s.failures.length+job.unavailable;
  d.notice.textContent=opportunityNotice;
  if(s.error){job.progressUi=null;d.status.textContent=s.error.message||'サーバーに接続できません。再試行してください。';}
@@ -2127,7 +2269,7 @@ async function opportunityAdvance(job){
 function renderOpportunities(retryEnd){
  recordSearchReset();
  const owner=auth?.token;
- if(opportunityOwner!==owner||opportunityOwnerId!==auth?.loginId){opportunityCancel(true);opportunityServer.cancel();opportunityWarmupKey='';opportunityOwner=owner;opportunityOwnerId=auth?.loginId;opportunityDateChosen=false;opportunityFilters={date:opportunityDateAt(Date.now()),bodies:['sun','moon'],allBodies:false,places:[],allPlaces:true};}
+ if(opportunityOwner!==owner||opportunityOwnerId!==auth?.loginId){if(opportunityOwnerId&&opportunityOwnerId!==auth?.loginId){opportunityBackgroundFlight=null;opportunityDeviceFlights.clear();opportunityDeviceForget();}opportunityCancel(true);opportunityServer.cancel();opportunityWarmupKey='';opportunityOwner=owner;opportunityOwnerId=auth?.loginId;opportunityDateChosen=false;opportunityFilters={date:opportunityDateAt(Date.now()),bodies:['sun','moon'],allBodies:false,places:[],allPlaces:true};}
  if(!opportunityActive()){if(opportunityAllowed())setTimeout(opportunityWarmup,0);opportunityClosePicker();if(opportunityJob)opportunityCancel();if(opportunityHost?.firstChild){opportunityHost.replaceChildren();opportunityDom=null;}return;}
  if(!opportunityDateChosen){const selected=typeof SkyMapUI!=='undefined'?SkyMapUI.selectionState?.():null;opportunityFilters.date=opportunityDateAt(Number.isFinite(selected?.at)?selected.at:Date.now());opportunityDateChosen=true;}
  if(!opportunityBuild())return;
@@ -2138,7 +2280,7 @@ function renderOpportunities(retryEnd){
  if(opportunityFilters.allPlaces)opportunityFilters.places=opportunityPlaces.map(([id])=>id);else opportunityFilters.places=opportunityFilters.places.filter(id=>opportunityPlaces.some(([key])=>key===id));
  d.body.textContent=opportunityFilterLabel('bodies');d.place.textContent=opportunityFilterLabel('places');d.body.dataset.values=JSON.stringify(opportunityFilters.bodies);d.place.dataset.values=JSON.stringify(opportunityFilters.places);d.body.disabled=!opportunityPermittedBodies.length;d.place.disabled=!opportunityPlaces.length;
  d.date.value=opportunityFilters.date;d.dateLabel.textContent=opportunityFilters.date.replaceAll('-','/');d.date.min='1900-01-01';d.date.max='2100-12-31';d.prev.disabled=opportunityFilters.date===d.date.min;d.next.disabled=opportunityFilters.date===d.date.max;
- const [start]=opportunityBounds(opportunityFilters.date),end=Number.isFinite(retryEnd)?retryEnd:opportunityPageEnd(start),key=JSON.stringify([signature,opportunityFilters,opportunityServer.state.enabled===true?null:AstroNotesAtmosphere.dataKey(start)]);
+ const [start]=opportunityBounds(opportunityFilters.date),end=Number.isFinite(retryEnd)?retryEnd:opportunityPageEnd(start),key=JSON.stringify([signature,opportunityFilters]);
  if(opportunityJob?.key===key&&opportunityCurrent(opportunityJob)){opportunityDraw(opportunityJob);return;}
  opportunityCancel();d.list.replaceChildren();d.rendered=-1;
  const includesPlace=p=>opportunityFilters.places.includes(p.sourcePlaceId??p.placeId),pairs=allPairs.filter(includesPlace),missing=unavailable.filter(includesPlace).length;
@@ -2156,8 +2298,8 @@ async function opportunityStart(job,end,retryEnd){
   job.remote=prefs.enabled;job.air=opportunityAirKey(job.remote);
   if(job.remote){const cached=opportunityCache.get(job.key);if(cached?.remote){job.restoreThrough=cached.through;opportunityCache.delete(job.key);}job.scan=createServerOpportunityScan({api:(...args)=>apiTransport(...args),start:job.start,end,bodies:opportunityFilters.bodies.slice(),placeIds:opportunityFilters.allPlaces?null:opportunityFilters.places.slice(),sourceRev:prefs.sourceRev,isCurrent:()=>opportunityCurrent(job),onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:()=>opportunityDraw(job)});}
   else{
-   const solve=async(pair,day,isCurrent)=>recordEventOptions(await recordSearch({target:pair.target,body:pair.body,at:day,partId:pair.partId,limb:pair.limb,matchMode:pair.matchMode},[{place:pair.place,record:pair.record}],{isCurrent,variant:'opportunity'}),pair);
-   job.scan=createOpportunityScan({pairs:job.pairs,start:job.start,end,notBefore:job.start,pageRows:Number.isFinite(retryEnd)?Infinity:opportunityPageRows,solve,isCurrent:()=>opportunityCurrent(job),yieldTask:recordSearchYield,onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:s=>{if(opportunityCurrent(job))job.progressUi?.update(s.checked,s.total);}});
+   const solve=(pair,day,isCurrent)=>opportunityDeviceSolve(pair,day,{isCurrent});
+   job.scan=createOpportunityScan({pairs:job.pairs,start:job.start,end,notBefore:job.start,pageRows:Number.isFinite(retryEnd)?Infinity:opportunityPageRows,solve,isCurrent:()=>opportunityCurrent(job),yieldTask:recordSearchYield,onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:s=>{if(!opportunityCurrent(job))return;job.progressUi?.update(s.checked,s.total);if(s.pending.length!==job.pendingDrawn)opportunityDraw(job);}});
    const cached=opportunityCache.get(job.key);if(cached){opportunityCache.delete(job.key);Object.assign(job.scan.state,cached,{running:false,cancelled:false});opportunityDraw(job);}
   }
   if(!job.scan.state.done)void opportunityAdvance(job);
@@ -2176,7 +2318,7 @@ function openOpportunityList(placeId='',bodies=null){
  requestAnimationFrame(()=>{el('recordOpportunities')?.scrollIntoView({block:'start'});el('recordOpportunityPlace')?.focus({preventScroll:true});});
 }
 async function openOpportunity(row,job){
- if(!opportunityCurrent(job)){renderOpportunities();return;}if(!job.scan.state.rows.includes(row)||!AstroNotesAccess.canFrame(toolAllowed,row.target.id,row.body))return;
+ if(!opportunityCurrent(job)){renderOpportunities();return;}if(!job.scan.state.rows.includes(row)&&!job.scan.state.pending?.includes(row)||!AstroNotesAccess.canFrame(toolAllowed,row.target.id,row.body))return;
  opportunityNotice='';const ticket=++opportunityOpenSeq,owner=auth?.token,loginId=auth?.loginId,generation=accessState.generation,signature=job.signature,top=scrollY;
  try{
   await AstroNotesAssets.ensureModels();
