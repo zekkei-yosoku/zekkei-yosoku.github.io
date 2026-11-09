@@ -37,7 +37,7 @@ function opportunityWarmup(){
 const opportunityDeviceStats={hits:0,solves:0,failures:0,solveMs:0,frameMs:0,background:0};
 globalThis.AstroNotesOverlapStats=opportunityDeviceStats;
 let opportunityFrame=null,opportunityFrameSeq=0,opportunityDb=null,opportunityBackgroundFlight=null;
-const opportunityDeviceQueue={high:[],low:[],busy:false};
+const opportunityDeviceQueue={high:[],low:[],running:0};
 const opportunityDeviceFlights=new Map();
 function opportunityFrameOpen(){
  if(opportunityFrame)return opportunityFrame.ready;
@@ -72,6 +72,57 @@ async function opportunityFrameSolve(input){
   state.frame.contentWindow.postMessage({type:'astronotes-overlap',id,op:'solve',input},location.origin);
  });
 }
+// 2026-11-09 Where the browser can decode terrain tiles off the main thread,
+// the same engine runs in several workers and checks pairs in parallel. The
+// frame remains the path for older browsers and for test fixtures, which
+// substitute functions inside it (AstroNotesOverlapEngine='frame').
+let opportunityWorkers=null,opportunityWorkerSeq=0,opportunityEngineMode=null;
+function opportunityWorkerCount(){
+ if(globalThis.AstroNotesOverlapEngine==='frame'||typeof Worker!=='function'||typeof OffscreenCanvas!=='function'||typeof createImageBitmap!=='function')return 0;
+ const cores=Number(navigator.hardwareConcurrency)||2;return Math.max(1,Math.min(3,cores-1));
+}
+function opportunityWorkersOpen(){
+ if(opportunityWorkers)return opportunityWorkers.ready;
+ const count=opportunityWorkerCount(),began=performance.now(),url='overlap-calculation-worker.js?v='+(document.querySelector('meta[name="app-version"]')?.content||'0');
+ const pool={slots:[],engine:null};
+ pool.ready=Promise.all(Array.from({length:count},()=>new Promise((resolve,reject)=>{
+  const worker=new Worker(url),slot={worker,calls:new Map(),engine:null};pool.slots.push(slot);
+  const timer=setTimeout(()=>reject(Error('calculation worker unavailable')),60000);
+  worker.onmessage=event=>{
+   const message=event.data;if(message?.type!=='astronotes-overlap')return;
+   if('ready' in message){clearTimeout(timer);if(message.ready&&/^[a-f0-9]{64}$/.test(message.engine||'')){slot.engine=message.engine;resolve(slot);}else reject(Error('calculation engine unavailable'));return;}
+   const call=slot.calls.get(message.id);if(!call)return;slot.calls.delete(message.id);
+   if(message.error)call.reject(Error(message.error));else call.resolve(message.result);
+  };
+  worker.onerror=event=>{event.preventDefault?.();clearTimeout(timer);reject(Error('calculation worker failed'));if(opportunityWorkers===pool)opportunityWorkersClose();};
+ }))).then(slots=>{
+  if(new Set(slots.map(slot=>slot.engine)).size!==1)throw Error('calculation engines differ');
+  pool.engine=slots[0].engine;opportunityDeviceStats.frameMs=Math.round(performance.now()-began);opportunityDeviceStats.workers=slots.length;return pool;
+ });
+ pool.ready.catch(()=>{if(opportunityWorkers===pool)opportunityWorkersClose();});
+ opportunityWorkers=pool;return pool.ready;
+}
+function opportunityWorkersClose(){
+ const pool=opportunityWorkers;if(!pool)return;opportunityWorkers=null;
+ for(const slot of pool.slots){slot.worker.terminate();for(const call of slot.calls.values())call.reject(Error('calculation worker closed'));slot.calls.clear();}
+}
+async function opportunityWorkerSolve(input){
+ const pool=await opportunityWorkersOpen(),slot=pool.slots.reduce((a,b)=>b.calls.size<a.calls.size?b:a),id=++opportunityWorkerSeq;
+ return new Promise((resolve,reject)=>{
+  // A check that never settles is abandoned with the pool and reported unchecked.
+  const timer=setTimeout(()=>{if(opportunityWorkers===pool)opportunityWorkersClose();},120000);
+  slot.calls.set(id,{resolve:v=>{clearTimeout(timer);resolve(v);},reject:e=>{clearTimeout(timer);reject(e);}});
+  slot.worker.postMessage({type:'astronotes-overlap',id,op:'solve',input});
+ });
+}
+// Workers first; if they cannot start here, the frame for the rest of the session.
+async function opportunityEngineOpen(){
+ if(opportunityEngineMode===null)opportunityEngineMode=opportunityWorkerCount()?'workers':'frame';
+ if(opportunityEngineMode==='workers'){try{return await opportunityWorkersOpen();}catch{opportunityEngineMode='frame';}}
+ return opportunityFrameOpen();
+}
+const opportunityEngineSlots=()=>opportunityEngineMode==='workers'&&opportunityWorkers?Math.max(1,opportunityWorkers.slots.length):1;
+function opportunityEngineSolve(input){return opportunityEngineMode==='workers'?opportunityWorkerSolve(input):opportunityFrameSolve(input);}
 function opportunityDbOpen(){
  if(opportunityDb)return opportunityDb;
  opportunityDb=new Promise((resolve,reject)=>{
@@ -106,16 +157,19 @@ function opportunityDeviceInput(pair,day){
 function opportunityDeviceRun(priority,work){
  return new Promise((resolve,reject)=>{opportunityDeviceQueue[priority].push({work,resolve,reject});opportunityDevicePump();});
 }
-async function opportunityDevicePump(){
- const q=opportunityDeviceQueue;if(q.busy)return;q.busy=true;
- try{for(let item;(item=q.high.shift()||q.low.shift());){try{item.resolve(await item.work());}catch(error){item.reject(error);}}}
- finally{q.busy=false;}
+// As many checks run at once as the engine has workers (one for the frame).
+function opportunityDevicePump(){
+ const q=opportunityDeviceQueue;
+ while(q.running<opportunityEngineSlots()){
+  const item=q.high.shift()||q.low.shift();if(!item)return;q.running++;
+  Promise.resolve().then(item.work).then(item.resolve,item.reject).finally(()=>{q.running--;opportunityDevicePump();});
+ }
 }
 // One (pair, day) check. Rows carry the current labels on a stored hit,
 // since labels are not part of the calculation key.
 async function opportunityDeviceSolve(pair,day,{priority='high',isCurrent=()=>true}={}){
  const owner=auth?.loginId;if(!owner)return {rows:[],failed:1};
- const state=await opportunityFrameOpen(),settings=opportunityListSettings();
+ const state=await opportunityEngineOpen(),settings=opportunityListSettings();
  const key=await opportunityDigest(['astronotes.device-overlap.v1',state.engine,owner,(auth?.tools||[]).slice().sort(),settings,opportunitySemantic(pair),opportunityDateAt(day)]);
  const relabel=rows=>rows.map(row=>({...row,place:{...row.place,name:pair.place.name},target:pair.target}));
  let flight=opportunityDeviceFlights.get(key);
@@ -125,7 +179,7 @@ async function opportunityDeviceSolve(pair,day,{priority='high',isCurrent=()=>tr
    if(saved?.owner===owner&&saved.engine===state.engine){opportunityDeviceStats.hits++;return {rows:saved.rows,stored:true};}
    return opportunityDeviceRun(priority,async()=>{
     if(!isCurrent()||owner!==auth?.loginId)return {rows:[],cancelled:true};
-    const began=performance.now(),result=await opportunityFrameSolve(opportunityDeviceInput(pair,day));
+    const began=performance.now(),result=await opportunityEngineSolve(opportunityDeviceInput(pair,day));
     opportunityDeviceStats.solves++;opportunityDeviceStats.solveMs+=Math.round(performance.now()-began);
     if(result.status!=='complete'){opportunityDeviceStats.failures++;return {rows:result.rows||[],failed:1};}
     if(owner===auth?.loginId)await opportunityDbDo('readwrite',store=>store.put({key,owner,engine:state.engine,day:opportunityDateAt(day),savedAt:Date.now(),rows:result.rows})).catch(()=>{});
@@ -146,7 +200,7 @@ function opportunityDeviceBackground(){
  const live=()=>!document.hidden&&opportunityAllowed()&&owner===auth?.loginId&&token===auth?.token&&generation===accessState.generation&&opportunityServer.state.enabled===false;
  opportunityBackgroundFlight=(async()=>{
   try{
-   const state=await opportunityFrameOpen();await opportunityDbPrune(owner,state.engine);
+   const state=await opportunityEngineOpen();await opportunityDbPrune(owner,state.engine);
    const signature=opportunitySignature(),{pairs}=opportunityPairSet(signature,['sun','moon']),[start]=opportunityBounds(opportunityDateAt(Date.now()));
    for(let i=0;i<7;i++)for(const pair of pairs){
     if(!live()||signature!==opportunitySignature())return;

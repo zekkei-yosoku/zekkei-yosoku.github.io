@@ -41,6 +41,20 @@ with tempfile.TemporaryDirectory() as staged:
  engine=(Path(staged)/'calculation.js').read_bytes();engine_sha=json.loads((Path(staged)/'manifest.json').read_text())['sha256']
 frame=(root/'tools/overlap-calculation-frame.js').read_bytes()
 emit(out/'overlap-calculation.js',engine);emit(out/'overlap-calculation-frame.js',frame)
+# 2026-11-09 同じ本体を複数のWorkerでも動かす（並列化）。WebKitのWorkerはスタックが小さく、
+# 数MBの建物モデルのオブジェクト直書きを読むと溢れる。その直書きだけを同じ中身のJSON.parseに
+# 置き換えたWorker用の本体を作る（JSONとして読めることを確かめてから置き換える）。
+def worker_engine(source):
+ lines=source.decode().split('\n')
+ for i,line in enumerate(lines):
+  if len(line)<100000 or 'const models=' not in line:continue
+  a=line.index('const models=')+len('const models=');b=line.index(';if(typeof module',a)
+  literal=line[a:b];json.loads(literal)
+  lines[i]=line[:a]+'JSON.parse('+json.dumps(literal)+')'+line[b:]
+ return '\n'.join(lines).encode()
+worker_body=worker_engine(engine)
+emit(out/'overlap-calculation-worker-engine.js',worker_body)
+emit(out/'overlap-calculation-worker.js',(f"const OVERLAP_ENGINE='{engine_sha}',OVERLAP_SOURCE='overlap-calculation-worker-engine.js?v={hashlib.sha256(worker_body).hexdigest()[:16]}';\n").encode()+(root/'tools/overlap-calculation-worker.js').read_bytes())
 emit(out/'overlap-calculation.html',(f'<!doctype html>\n<html lang="ja" data-engine="{engine_sha}">\n<meta charset="utf-8">\n'
  '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'self\'; connect-src https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp; img-src blob: data: https://cyberjapandata.gsi.go.jp; base-uri \'none\'; form-action \'none\'">\n'
  f'<title>AstroNotes calculation</title>\n<script src="overlap-calculation.js?v={engine_sha[:16]}"></script>\n'
