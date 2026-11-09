@@ -1,6 +1,7 @@
 // Geometry made on one device is sent with the records (rec:geom:) and lets a
 // second device produce the same overlap list without rebuilding it, including a
-// line place whose positions' ground and summit ridges continue over several rows.
+// line place whose positions' ground and summit ridges continue over several rows. When a record goes away,
+// its geometry rows are removed from the account (deleted rec:geom rows) and nothing else is.
 // Public places only; real GSI terrain over the network. NODE_PATH must reach playwright.
 require('./no-open-meteo.cjs');
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict');
@@ -14,6 +15,8 @@ async function device(type,incoming){
    sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-geometry',loginId:'geometry-test',tools:grants}));
    Date.now=()=>Date.parse('2026-12-20T09:00:00+09:00');
   },grants);
+  // The first device removes a record within the test: geometry it made seconds ago may go at once.
+  if(!incoming.length)await context.addInitScript(()=>{globalThis.AstroNotesGeometryGraceMs=-1;});
   await context.route('**/*',route=>{
    const request=route.request(),u=new URL(request.url());
    if(u.origin===new URL(base).origin)return route.continue();
@@ -44,14 +47,29 @@ async function device(type,incoming){
   const uploaded=()=>page.evaluate(()=>new Promise(r=>{const o=indexedDB.open('astronotes-overlap-geometry');o.onsuccess=()=>{try{const q=o.result.transaction('groups').objectStore('groups').getAll();q.onsuccess=()=>{r(q.result.length>=4&&q.result.every(g=>g.uploaded));o.result.close();};}catch{r(false);}};o.onerror=()=>r(false);}));
   if(!incoming.length)for(let i=0;i<120&&!(await uploaded());i++)await page.waitForTimeout(1000);
   const stats=await page.evaluate(()=>({...globalThis.AstroNotesOverlapStats}));
+  const built=sent.filter(r=>/^rec:geom:/.test(r.id)&&!r.deleted).map(r=>Object.keys(r.body.value.entries).map(k=>k.slice(0,4))).flat();
+  let removed=null;
+  if(!incoming.length){
+   // Remove the park's record: its pair goes, so its geometry group must go from the account too.
+   const before=sent.length,groups=()=>page.evaluate(()=>new Promise(r=>{const o=indexedDB.open('astronotes-overlap-geometry');o.onsuccess=()=>{const q=o.result.transaction('groups').objectStore('groups').getAll();q.onsuccess=()=>{r(q.result.map(g=>g.id));o.result.close();};};}));
+   const kept=await groups();
+   await page.evaluate(()=>{const key=AstroNotesLibrary.keys(auth.loginId).observations;store.set(key,store.get(key,[]).filter(r=>r.id!=='r01'));MyPlacesUI.imported();document.dispatchEvent(new Event('astronotes-records-change'));});
+   for(let i=0;i<120&&!sent.slice(before).some(r=>r.deleted&&/^rec:geom:/.test(r.id));i++)await page.waitForTimeout(1000);
+   removed={deleted:sent.slice(before).filter(r=>r.deleted&&/^rec:geom:/.test(r.id)).map(r=>r.id),kept,after:await groups()};
+  }
   assert.deepEqual(errors,[]);
-  return {rows,stats,sent};
+  return {rows,stats,sent,removed,built};
  }finally{await browser.close();}
 }
 (async()=>{
  for(const type of (process.env.OVERLAP_GEOMETRY_ENGINE||'chrome,webkit').split(',').map(e=>e==='webkit'?webkit:chromium)){
   const first=await device(type,[]);
-  const geometry=first.sent.filter(r=>/^rec:geom:[a-f0-9]{40}$/.test(r.id));
+  const geometry=first.sent.filter(r=>/^rec:geom:[a-f0-9]{40}$/.test(r.id)&&!r.deleted);
+  const {deleted,kept,after}=first.removed;
+  assert(deleted.length>=1,'the removed record\'s geometry is deleted from the account');
+  assert(deleted.every(id=>geometry.some(r=>r.id===id)),'only rows that were sent are deleted');
+  assert.equal(after.length,kept.length-1,'exactly one geometry group goes from the device');
+  assert(after.every(id=>kept.includes(id))&&!deleted.some(id=>after.includes(id)),'the other groups stay');
   if(process.env.OVERLAP_GEOMETRY_DEBUG)console.log(JSON.stringify({sent:first.sent.map(r=>[r.id,JSON.stringify(r.body||{}).length]),stats:first.stats,rows:first.rows.length}));
   assert(geometry.length>=2,'both pairs send their geometry');
   assert(geometry.every(r=>r.body?.kind==='geom'&&r.body.value?.v===1&&JSON.stringify(r.body).length<=20000&&Object.keys(r.body.value.entries).every(k=>/^(sil|cap|shp):/.test(k))),'geometry rows fit the sync contract');
@@ -61,6 +79,7 @@ async function device(type,incoming){
   assert(Object.keys(Object.assign({},...geometry.map(r=>r.body.value.entries))).some(k=>k.startsWith('cap:'))&&Object.keys(Object.assign({},...geometry.map(r=>r.body.value.entries))).some(k=>k.startsWith('sil:')),'a summit ridge and a building outline are synced');
   assert(first.stats.geometry>0,'the first device built geometry');
   const second=await device(type,geometry);
+  if(process.env.OVERLAP_GEOMETRY_DEBUG)console.log(JSON.stringify({second:second.stats,secondGeometry:second.built,geometryIds:geometry.map(r=>[r.id,Object.keys(r.body.value.entries).length,r.body.value.group||null])}));
   assert.equal(second.stats.geometry||0,0,'the second device rebuilt no geometry');
   assert.deepEqual(second.rows,first.rows,'the same list from synced geometry');
   console.log('PASS',type.name(),'geometry rows',geometry.length,'list rows',first.rows.length);

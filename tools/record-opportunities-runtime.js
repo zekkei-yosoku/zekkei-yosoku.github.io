@@ -207,7 +207,7 @@ async function opportunityGeometryUpload(){
     const ok=new Set();
     for(let j=0;j<rows.length;j+=100){const res=await apiTransport('POST','/sync',{records:rows.slice(j,j+100)});for(const id of res?.accepted?.records||[])ok.add(id);}
     // A group that gained entries while sending stays pending for the next round.
-    await opportunityGeometryDo('readwrite',store=>{for(const {g,ids} of batch){if(!ids.every(id=>ok.has(id)))continue;const request=store.get(g.id);request.onsuccess=()=>{const now=request.result;if(now&&now.updatedAt===g.updatedAt)store.put({...now,uploaded:true});};}return null;});
+    await opportunityGeometryDo('readwrite',store=>{for(const {g,ids} of batch){if(!ids.every(id=>ok.has(id)))continue;const request=store.get(g.id);request.onsuccess=()=>{const now=request.result;if(now&&now.updatedAt===g.updatedAt)store.put({...now,uploaded:true,parts:[...new Set([...(now.parts||[]),...ids.slice(1)])]});};}return null;});
    }
   }catch{/* Kept on this device and sent after the next check. */}
   finally{opportunityGeometryFlight=null;}
@@ -218,20 +218,20 @@ function opportunityGeometryReceive(rows){
  const owner=auth?.loginId;if(!owner||!Array.isArray(rows))return;
  const list=rows.filter(row=>row&&typeof row.id==='string'&&opportunityGeometryRow.test(row.id));if(!list.length)return;
  // Rows of one group are merged before writing; two reads of one record in a transaction see the same old value.
- const groups=new Map(),gone=[];
+ const groups=new Map(),parts=new Map(),gone=[];
  for(const row of list){
   if(row.deleted){gone.push(row.id);continue;}
   let body;try{body=JSON.parse(row.body);}catch{continue;}
   const value=body?.kind==='geom'?body.value:null;
   if(value?.v!==OPPORTUNITY_GEOMETRY_VERSION||!value.entries||typeof value.entries!=='object'||Array.isArray(value.entries))continue;
   const id=typeof value.group==='string'&&opportunityGeometryRow.test(value.group)?value.group:row.id;
-  groups.set(id,{...(groups.get(id)||{}),...value.entries});
+  groups.set(id,{...(groups.get(id)||{}),...value.entries});if(id!==row.id)(parts.get(id)||parts.set(id,new Set()).get(id)).add(row.id);
  }
  void opportunityGeometryDo('readwrite',store=>{
   for(const id of gone)if(!groups.has(id))store.delete(id);
   for(const [id,entries] of groups){
    const request=store.get(id);
-   request.onsuccess=()=>{const now=request.result?.owner===owner?request.result:null;store.put({id,owner,entries:{...entries,...(now?.entries||{})},uploaded:now?now.uploaded:true,updatedAt:now?now.updatedAt:Date.now()});};
+   request.onsuccess=()=>{const now=request.result?.owner===owner?request.result:null;store.put({id,owner,entries:{...entries,...(now?.entries||{})},uploaded:now?now.uploaded:true,updatedAt:now?now.updatedAt:Date.now(),parts:[...new Set([...(now?.parts||[]),...(parts.get(id)||[])])]});};
   }
   return null;
  }).catch(()=>{});
@@ -242,6 +242,35 @@ function opportunityGeometryHook(){
  const apply=RecordSync.apply;RecordSync.apply=rows=>{opportunityGeometryReceive(rows);return apply(rows);};RecordSync.opportunityGeometry=true;
 }
 opportunityGeometryHook();
+// 2026-11-10 Geometry of a pair that no longer exists (a removed record or place, a changed eye height or
+// shape, the representative-point rows of C17) is removed from this device and from the account as
+// deleted rec:geom rows (ユーザー「全部対処してよ」). Only once this login has completed a records sync and
+// nothing waits to be sent, so a device that has not yet received the account's records never removes what
+// another device uses; never with no pair at all, never geometry made or received in the last 10 minutes,
+// and not while a pair is unavailable for want of permission. After each change of the records, otherwise
+// at most hourly.
+let opportunityGeometryPruned={at:0,signature:null},opportunityGeometryPruning=false;
+async function opportunityGeometryPrune(){
+ const owner=auth?.loginId,token=auth?.token;if(!owner||!token||opportunityGeometryPruning||opportunityGeometryPruned.signature===opportunitySignature()&&Date.now()-opportunityGeometryPruned.at<3600000)return;
+ opportunityGeometryPruning=true;
+ try{
+  // The last account sync's own record (no sync is started here: it would redraw the screen).
+  const queue=store.get('sorami.queue',[]),synced=store.get('sorami.sync',null);
+  if(!Array.isArray(queue)||queue.length||synced?.loginId!==owner||synced.records!==1)return;
+  const signature=opportunitySignature(),{pairs,unavailable}=opportunityPairSet(signature,['sun','moon']);
+  if(!pairs.length||unavailable.some(u=>u.reason==='access'))return;
+  const keep=new Set(await Promise.all(pairs.map(opportunityGeometryId)));opportunityGeometryPruned={at:Date.now(),signature};
+  // Geometry made or received in the last 10 minutes stays: the records that use it may still be arriving.
+  const grace=Number.isFinite(globalThis.AstroNotesGeometryGraceMs)?globalThis.AstroNotesGeometryGraceMs:600000;
+  const stale=((await opportunityGeometryDo('readonly',db=>db.getAll()).catch(()=>null))||[]).filter(g=>g.owner===owner&&!keep.has(g.id)&&Date.now()-(g.updatedAt||0)>grace);
+  if(!stale.length||auth?.loginId!==owner)return;
+  const ids=g=>[...new Set([g.id,...(g.parts||[])])],rows=stale.flatMap(g=>ids(g).map(id=>({id,body:{},updated_at:Date.now(),deleted:true}))),ok=new Set();
+  for(let i=0;i<rows.length;i+=100){const res=await apiTransport('POST','/sync',{records:rows.slice(i,i+100)});for(const id of res?.accepted?.records||[])ok.add(id);if(auth?.loginId!==owner)return;}
+  await opportunityGeometryDo('readwrite',db=>{for(const g of stale)if(ids(g).every(id=>ok.has(id)))db.delete(g.id);return null;});
+  opportunityDeviceStats.geometryPruned=(opportunityDeviceStats.geometryPruned||0)+stale.length;
+ }catch{/* Tried again on a later pass. */}
+ finally{opportunityGeometryPruning=false;}
+}
 const opportunityGeometryTurns=new Map();
 async function opportunityGeometryTurn(id){
  const before=opportunityGeometryTurns.get(id);let release;const mine=new Promise(resolve=>{release=resolve;}),chain=(before||Promise.resolve()).then(()=>mine);
@@ -323,6 +352,7 @@ function opportunityDeviceBackground(){
     }
    };
    await Promise.all(Array.from({length:opportunityEngineSlots()},lane));
+   if(!restart&&live())void opportunityGeometryPrune();
   }catch{/* The visible list reports calculation failures. */}
   finally{opportunityBackgroundFlight=null;if(restart&&live())setTimeout(opportunityDeviceBackground,0);}
  })();

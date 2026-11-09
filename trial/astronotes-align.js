@@ -553,6 +553,7 @@
       horizontalDeg: 2 * Math.atan(w / (2 * focalMm)) / R, verticalDeg: 2 * Math.atan(h / (2 * focalMm)) / R };
   }
   // Observer/target geometry is invariant across a candidate search. Prepare once per search.
+  const visibleBetter = (e, b) => e.intersects !== b.intersects ? e.intersects : e.distanceToTarget < b.distanceToTarget;
   function prepareDailyView(observer, target, body, opts = {}) {
     const g = geometryFrom(observer, target, opts);
     if (!g) return () => [];
@@ -650,7 +651,7 @@
     // 全天の軌道も確認し、目標の方位を横切らない日にも最接近を返す。
     for (let at = dayMs; at <= end; at += 600000) {
       const st = bodyAt(body, at, obs), diff = azDiff(st.azimuth, g.azimuth), row = evaluate(at, st);
-      if (at < end && (!nearest || row.distanceToTarget < nearest.distanceToTarget)) nearest = row;
+      if (at < end && (!nearest || visibleBetter(row, nearest))) nearest = row;
       if (at === dayMs && Math.abs(diff) < 1e-9) crossings.push(row);
       if (previous && Math.abs(previous.diff) > 1e-9 && (at < end || Math.abs(diff) > 1e-9) && Math.sign(diff) !== Math.sign(previous.diff) && Math.abs(diff - previous.diff) < 90) {
         let lo = previous.at, hi = at, sign = previous.diff;
@@ -664,7 +665,7 @@
           const t = (lo + hi) / 2 + dt;
           if (t < dayMs || t >= end) continue;
           const e = evaluate(t);
-          if (e.distanceToTarget < best.distanceToTarget) best = e;
+          if (visibleBetter(e, best)) best = e;
         }
         if (best.at >= dayMs && best.at < end) crossings.push(best);
       }
@@ -672,12 +673,12 @@
     }
     if ((!crossings.length || hasMountainRidge) && nearest) {
       const lo = Math.max(dayMs, nearest.at - 600000), hi = Math.min(end - 1, nearest.at + 600000);
-      for (let at = lo; at <= hi; at += 20000) { const e = evaluate(at); if (e.distanceToTarget < nearest.distanceToTarget) nearest = e; }
+      for (let at = lo; at <= hi; at += 20000) { const e = evaluate(at); if (visibleBetter(e, nearest)) nearest = e; }
       if(hasMountainRidge){
         // The sloping skyline can intersect far from the summit's azimuth crossing.
         const i=crossings.findIndex(row=>Math.abs(row.at-nearest.at)<3*3600000);
         if(i<0)crossings.push(nearest);
-        else if(nearest.distanceToTarget<crossings[i].distanceToTarget||(nearest.distanceToTarget===crossings[i].distanceToTarget&&nearest.at<crossings[i].at))crossings[i]=nearest;
+        else if(visibleBetter(nearest,crossings[i])||(nearest.intersects===crossings[i].intersects&&nearest.distanceToTarget===crossings[i].distanceToTarget&&nearest.at<crossings[i].at))crossings[i]=nearest;
       }else crossings.push(nearest);
     }
     if (extended(body)) {

@@ -11,6 +11,20 @@ const signals=(process.env.RECORD_RESUME_SIGNALS||'visibilitychange,pageshow,foc
 const screens=(process.env.RECORD_RESUME_SCREENS||'explore,opportunities').split(',');
 const expectedStall=process.env.RECORD_RESUME_EXPECT_STALL==='1',grants=['records','tower','diamond','pearl','skymap','multiscene'];
 function suspendedOS(grants){
+ // 2026-11-10 The 重なる日 list computes in the engine frame (pinned below; workers would not see the
+ // fixture). The frame gets the same astronomy fixture; the scheduler under test stays the page's.
+ if(location.pathname.endsWith('/overlap-calculation.html')){
+  let shooting;
+  Object.defineProperty(window,'AstroNotesShooting',{configurable:true,get:()=>shooting,set:value=>{
+   shooting=value;if(!value)return;
+   value.candidates=async(plan,entries,{isCurrent=()=>true}={})=>{
+    if(!isCurrent())return {rows:[],failed:0,cancelled:true};
+    return {rows:entries.map(entry=>{try{parent.resumeFixture?.solves.push(entry.place.id);}catch{/* Fixture bookkeeping only. */}return {...entry,assumedObserver:{latitude:entry.place.latitude,longitude:entry.place.longitude,elevation:entry.place.groundManualM,eyeM:entry.place.standAglM},event:{at:value.day(plan.at)+12*3600000,intersects:true,sunAltitude:20,side:'set',gap:0,radius:.25,distanceToTarget:0,matchMode:'overlap',partId:'__whole',limb:'center'}};}),failed:0};
+   };
+  }});
+  return;
+ }
+ window.AstroNotesOverlapEngine='frame';
  sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-record-resume',loginId:'resume-test',tools:grants}));
  Date.now=()=>Date.parse('2026-11-07T16:29:00+09:00');
  const state=window.resumeFixture={hidden:false,armed:false,dropNext:false,reached:0,dropped:0,channels:0,progress:[],solves:[],started:false};
@@ -39,7 +53,8 @@ function suspendedOS(grants){
    const match=String(value).match(/^(\d+)\s*\/\s*(\d+)/);
    if(match){
     const checked=+match[1],total=+match[2];state.progress.push({checked,total,hidden:state.hidden});
-    if(state.armed&&checked===63&&total===174){
+    // Explore counts the 174 places; 重なる日 counts a page of days (174 pairs × 7 days).
+    if(state.armed&&checked===63&&total%174===0){
      state.armed=false;state.dropNext=true;state.reached=checked;state.condition=window.readResumeCondition?.()??null;
      // Ensure this exact progress update reaches the real cooperative yield.
      const until=performance.now()+20;while(performance.now()<until){}

@@ -49,11 +49,15 @@ async function shared(page){
  assert(await page.locator('[data-opportunity-id]').count()>0);
  const d=await page.evaluate(async at=>{
   const plan={target:dailyBench.target,body:'moon',at,partId:'__whole',limb:'center',matchMode:'overlap'},points=MyPlacesUI.discoveryPoints(),before=dailyBench.calls;
-  const r=await MyPlacesUI.discoverySearch(plan,points,()=>true),reused=dailyBench.calls-before;
+  const r=await MyPlacesUI.discoverySearch(plan,points,()=>true),first=dailyBench.calls-before,again=dailyBench.calls;
+  await MyPlacesUI.discoverySearch(plan,points,()=>true);const reused=dailyBench.calls-again;
   aimAirSettings.dailyPerf=1;const earlier=dailyBench.calls;const afterAir=await MyPlacesUI.discoverySearch(plan,points,()=>true);delete aimAirSettings.dailyPerf;
-  return {reused,newAfterAir:dailyBench.calls-earlier,rows:r.rows.length,airRows:afterAir.rows.length};
+  return {first,reused,newAfterAir:dailyBench.calls-earlier,rows:r.rows.length,airRows:afterAir.rows.length};
  },at);
- assert.equal(d.reused,0,'the same exact day/point from 重なる日 is reused by the Explore port');
+ // 2026-11-10 重なる日 computes in its own engine with the geometric model (no refraction); Explore keeps the
+ // app's atmosphere. Explore therefore computes the day/point once itself and reuses that for the same input.
+ assert.equal(d.first,1,'Explore computes the day/point with its own atmosphere');
+ assert.equal(d.reused,0,'the same exact day/point is reused by the Explore port');
  assert.equal(d.newAfterAir,1,'a changed atmosphere does not reuse numerical results');assert(d.rows>0);
  return d;
 }

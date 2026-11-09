@@ -1210,6 +1210,109 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
   const out=[];for(const l of [...list].sort((x,y)=>x.t1-y.t1)){const w=out[out.length-1];if(w&&l.t1-w.to<=LIM.mergeMs){w.to=Math.max(w.to,l.t2);w.leaves.push(l);}else out.push({from:l.t1,to:l.t2,leaves:[l]});}
   return out;
  }
+ // 2026-11-09 Exact exclusion of an overlap height band when the leaf certificate cannot prove it
+ // (its refraction and 20 s time slack exceed a low sun that misses a summit by 0.2°, or a limb that passes a
+ // tower's side by 0.001°). Every outline point's angle falls as the eye rises along its own azimuth, so at any
+ // height in [a,b] the outline lies inside one fixed region: for a building the spherical hull of its hit
+ // faces at a and b, for a mountain the ridge at a down to the lower cap base (as regionOf). The body is
+ // measured to that region exactly as prepareDailyView measures it (its projector, limb midpoint, limb ratio
+ // and tan(radius)), at both ends of the band and at the instants it decides at; what moves inside the band
+ // (the projector centre, the body's refraction) is added before a band is dropped.
+ const envelopes=lru(LIM.regions);
+ function hull(points){
+  const pts=points.filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)).sort((a,b)=>a.x-b.x||a.y-b.y);if(pts.length<3)return pts;
+  const cross=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x),lower=[],upper=[];
+  for(const q of pts){while(lower.length>=2&&cross(lower[lower.length-2],lower[lower.length-1],q)<=0)lower.pop();lower.push(q);}
+  for(const q of pts.slice().reverse()){while(upper.length>=2&&cross(upper[upper.length-2],upper[upper.length-1],q)<=0)upper.pop();upper.push(q);}
+  return lower.slice(0,-1).concat(upper.slice(0,-1));
+ }
+ function envelopeOf(ctx,a,b){
+  const k=ctx.geometryKey+'|envelope|'+a+'|'+b;let r=envelopes.get(k);if(r!==undefined)return r;
+  r=(async()=>{
+   if(ctx.family!=='overlap')return null;
+   const t=ctx.p.target,ends=[a,b].map(h=>({obs:observer(ctx,h)})),regions=[];let bulge=0;
+   for(const e of ends){e.eye={...e.obs,elevation:e.obs.elevation+e.obs.eyeM};e.g=align.geometryFrom(e.obs,t,{partId:ctx.o.partId,eyeM:e.obs.eyeM});if(!e.g)return null;}
+   if(isMountain(t)){
+    if(!mountainRidge)return null;
+    const [ra,rb]=[await mountainRidge(ends[0].obs,t),await mountainRidge(ends[1].obs,t)],A=ra?.ridge,B=rb?.ridge;
+    if(!Array.isArray(A)||!Array.isArray(B)||A.length!==B.length||A.length<2||A.some((p,i)=>Math.abs(azDiff(p[0],B[i][0]))>1e-9))return null;
+    ends[0].centerAlt=((ra.cap?ra.cap.base:0)+ends[0].g.angle)/2;ends[1].centerAlt=((rb.cap?rb.cap.base:0)+ends[1].g.angle)/2;
+    const tops=(t.parts||[]).map(x=>x.m).filter(Number.isFinite),proven=!!ra.cap&&!!rb.cap&&tops.length&&t.parts[0].m>Math.max(...tops)-summitCapM;
+    const bottom=proven?Math.min(ra.cap.base,rb.cap.base):Math.min(0,ra.cap?.base??0,rb.cap?.base??0);
+    // One polygon per run of columns above the bottom, with one neighbour on each side clamped to the
+    // bottom: a cap cut between a column and its neighbour lies under the line joining their upper ends.
+    const ref=A[0][0],top=A.map((p,i)=>[ref+azDiff(p[0],ref),Math.max(p[1],B[i][1])]),above=top.map(p=>p[1]>bottom);
+    for(let i=0;i<top.length;i++){
+     if(!above[i]||i&&above[i-1])continue;let j=i;while(j+1<top.length&&above[j+1])j++;
+     const lo=Math.max(0,i-1),hi=Math.min(top.length-1,j+1),run=top.slice(lo,hi+1).map(p=>[p[0],Math.max(p[1],bottom)]);
+     regions.push([...run,[run[run.length-1][0],bottom],[run[0][0],bottom]]);
+     // The bottom is a great circle in the projector, not the altitude line: it rises by ≤ sin(2h)/2·(Δaz)²/8.
+     const w=(run[run.length-1][0]-run[0][0])*RAD;bulge=Math.max(bulge,w*w/8*Math.abs(Math.sin(2*bottom*RAD))/2*DEG);
+    }
+   }else{
+    const hits=ends.map(e=>{const out=align.towerOutline(e.obs,t,{eyeM:e.obs.eyeM,heightM:null});e.centerAlt=out?(out.viewBaseAngle+out.topAngle)/2:e.g.angle;if(!out)return [[e.g.azimuth,e.g.angle]];return out.hitPolygons?out.hitPolygons.flat():out.hitPoints||out.points||null;});
+    if(hits.some(x=>!x?.length))return null;
+    // Spherical hull: the planar hull in one gnomonic plane (great circles are its straight lines).
+    const project=align.viewProjector(ends[0].g.azimuth,ends[0].centerAlt),all=[...hits[0],...hits[1]].map(v=>{const xy=project(v[0],v[1]);return xy?{x:xy[0],y:xy[1],v}:null;});
+    if(all.some(p=>!p))return null;regions.push(hull(all).map(p=>p.v));
+   }
+   if(!regions.length||regions.some(poly=>!poly.length||poly.some(v=>!v.every(Number.isFinite))||Math.max(...poly.map(v=>Math.abs(v[1])))>=80)||![ends[0].centerAlt,ends[1].centerAlt].every(Number.isFinite))return null;
+   for(const e of ends){e.project=align.viewProjector(e.g.azimuth,e.centerAlt);e.polygons=regions.map(poly=>poly.map(v=>e.project(v[0],v[1])));if(e.polygons.some(poly=>poly.some(v=>!v)))return null;e.c=unit(e.g.azimuth,e.centerAlt);}
+   return {ends,bulge,shift:Math.abs(ends[0].centerAlt-ends[1].centerAlt)*RAD};
+  })().catch(e=>{envelopes.delete(k);throw e;});
+  envelopes.set(k,r);return r;
+ }
+ async function envelopeClear(ctx,a,b,w){
+  const env=await envelopeOf(ctx,a,b);if(!env)return false;stats.envelopes=(stats.envelopes||0)+1;
+  const from=w.from-20000,to=w.to+20000;if(!(to>from)||(to-from)/2000>20000)return false;
+  // prepareDailyView's evaluate(): limb midpoint, limb ratio, tan(radius), in that projector.
+  const measure=(e,st)=>{
+   const radius=Math.tan((st.angularRadius||0)*RAD)*DEG,xy=e.project(st.azimuth,st.apparentAltitude);
+   const upper=e.project(st.azimuth,st.upperAltitude??st.apparentAltitude+st.angularRadius),lower=e.project(st.azimuth,st.lowerAltitude??st.apparentAltitude-st.angularRadius);
+   const limbs=Number.isFinite(st.upperRadius)&&upper&&lower,ratio=limbs&&radius>0?Math.max(.1,Math.abs(upper[1]-lower[1])/(2*radius)):1;
+   return xy?{x:xy[0],y:limbs?(upper[1]+lower[1])/2:xy[1],ratio,radius}:null;
+  };
+  const sample=t=>{
+   const states=env.ends.map(e=>bodies.state(ctx.p.body,t,e.eye)),out={t,u:unit(states[0].azimuth,states[0].apparentAltitude),up:Math.max(...states.map(st=>st.upperAltitude??st.apparentAltitude+st.angularRadius)),lower:-Infinity,at:[]};
+   for(let i=0;i<2;i++){
+    const e=env.ends[i],m=measure(e,states[i]),other=measure(e,states[1-i]);
+    // Behind the projector the distance is Infinity: no overlap from this end's view.
+    if(!m){out.at.push(null);out.lower=Math.max(out.lower,Infinity);continue;}
+    let d=Infinity;for(const poly of e.polygons)d=Math.min(d,align.polygonDistance([m.x,m.y/m.ratio],poly.map(p=>[p[0],p[1]/m.ratio])));
+    const th=angle(out.u,e.c)*RAD;if(th>=1.4)return {...out,lower:-Infinity};
+    // Moving the projector centre by s changes plane lengths by ≤ 2 sinθ/cos³θ·s (the limb ratio as much again).
+    const centre=4*(d+m.radius)*Math.sin(th)/Math.cos(th)**3*env.shift,body=other?Math.hypot(other.x-m.x,(other.y-m.y)/m.ratio):Infinity;
+    out.at.push(m);out.lower=Math.max(out.lower,d-m.radius-centre-body-env.bulge/Math.cos(th)**2-1e-9);
+   }
+   return out;
+  };
+  // prepareDailyView decides an overlap only at fixed instants: the day's 10-minute samples, the crossings of
+  // the target's azimuth (bisected) and 20 s steps either side of them, and 20 s steps around the nearest
+  // 10-minute sample — all on the day's 20 s grid or on a crossing's. The target's azimuth does not depend on
+  // the eye height, so those instants are the same at every height in the band (the Moon's parallax moves a
+  // crossing by microseconds: 1 ms of motion is added). An overlap there also needs the upper limb above 0°.
+  const day=ctx.start,end=day+DAY,times=new Set();
+  for(let t=Math.ceil((from-day)/20000)*20000+day;t<=to;t+=20000)times.add(t);
+  for(const e of env.ends){
+   const azAt=t=>azDiff(bodies.state(ctx.p.body,t,e.eye).azimuth,e.g.azimuth);let previous=null;
+   for(let t=day;t<=end;t+=600000){
+    const diff=azAt(t);
+    if(previous&&Math.abs(previous.diff)>1e-9&&(t<end||Math.abs(diff)>1e-9)&&Math.sign(diff)!==Math.sign(previous.diff)&&Math.abs(diff-previous.diff)<90){
+     let lo=previous.t,hi=t;const sign=previous.diff;for(let k=0;k<28;k++){const mid=(lo+hi)/2;if(Math.sign(azAt(mid))===Math.sign(sign))lo=mid;else hi=mid;}
+     const c=(lo+hi)/2;for(let k=-30;k<=30;k++){const x=c+k*20000;if(x>=from&&x<=to&&x>=day&&x<end)times.add(x);}
+    }
+    previous={t,diff};
+   }
+  }
+  let n=0;
+  for(const t of [...times].sort((x,y)=>x-y)){
+   if(++n%128===0){await yieldTask();if(!ctx.isCurrent())throw cancelled();}
+   const x=sample(t);if(x.up<=0)continue;
+   const y=sample(t+1),jitter=x.at.some((m,i)=>m&&y.at[i])?Math.max(...x.at.map((m,i)=>m&&y.at[i]?Math.hypot(y.at[i].x-m.x,(y.at[i].y-m.y)/m.ratio):0)):0;
+   if(!(x.lower>jitter+1e-9))return false;
+  }
+  return true;
+ }
  // Whole-object fit uses the normal view's visual vertical centre; named parts
  // use the existing apparent limb gap. Feasibility is still the original match.
  async function fitResidual(ctx,result,accept){
@@ -1224,7 +1327,7 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
   for(const w of windows){
    const accept=r=>r.event.at>=w.from&&r.event.at<=w.to;
    const evaluate=async h=>{await yieldTask();if(!ctl.isCurrent())throw cancelled();const x=await real(ctx,h),inside=x.events.filter(e=>e.at>=w.from&&e.at<=w.to);return {rows:x.rows.filter(accept),score:Math.min(Infinity,...inside.map(e=>closeness(ctx,e))),height:h,residual:await fitResidual(ctx,x,accept)};};
-   const mayOverlap=async(lo,hi)=>(await leaves(single,lo,hi,w.from,w.to,ctl)).length?null:false;
+   const mayOverlap=async(lo,hi)=>(await leaves(single,lo,hi,w.from,w.to,ctl)).length?(await envelopeClear(ctx,lo,hi,w)?false:null):false;
    try{
     const res=await scanHeights({min:ctx.range.min,max:ctx.range.max,evaluate,mayOverlap,isCurrent:ctl.isCurrent,limit:LIM.heights});checked+=res.checked||0;
     if(res.rows?.length){
@@ -2403,7 +2506,7 @@ async function opportunityGeometryUpload(){
     const ok=new Set();
     for(let j=0;j<rows.length;j+=100){const res=await apiTransport('POST','/sync',{records:rows.slice(j,j+100)});for(const id of res?.accepted?.records||[])ok.add(id);}
     // A group that gained entries while sending stays pending for the next round.
-    await opportunityGeometryDo('readwrite',store=>{for(const {g,ids} of batch){if(!ids.every(id=>ok.has(id)))continue;const request=store.get(g.id);request.onsuccess=()=>{const now=request.result;if(now&&now.updatedAt===g.updatedAt)store.put({...now,uploaded:true});};}return null;});
+    await opportunityGeometryDo('readwrite',store=>{for(const {g,ids} of batch){if(!ids.every(id=>ok.has(id)))continue;const request=store.get(g.id);request.onsuccess=()=>{const now=request.result;if(now&&now.updatedAt===g.updatedAt)store.put({...now,uploaded:true,parts:[...new Set([...(now.parts||[]),...ids.slice(1)])]});};}return null;});
    }
   }catch{/* Kept on this device and sent after the next check. */}
   finally{opportunityGeometryFlight=null;}
@@ -2414,20 +2517,20 @@ function opportunityGeometryReceive(rows){
  const owner=auth?.loginId;if(!owner||!Array.isArray(rows))return;
  const list=rows.filter(row=>row&&typeof row.id==='string'&&opportunityGeometryRow.test(row.id));if(!list.length)return;
  // Rows of one group are merged before writing; two reads of one record in a transaction see the same old value.
- const groups=new Map(),gone=[];
+ const groups=new Map(),parts=new Map(),gone=[];
  for(const row of list){
   if(row.deleted){gone.push(row.id);continue;}
   let body;try{body=JSON.parse(row.body);}catch{continue;}
   const value=body?.kind==='geom'?body.value:null;
   if(value?.v!==OPPORTUNITY_GEOMETRY_VERSION||!value.entries||typeof value.entries!=='object'||Array.isArray(value.entries))continue;
   const id=typeof value.group==='string'&&opportunityGeometryRow.test(value.group)?value.group:row.id;
-  groups.set(id,{...(groups.get(id)||{}),...value.entries});
+  groups.set(id,{...(groups.get(id)||{}),...value.entries});if(id!==row.id)(parts.get(id)||parts.set(id,new Set()).get(id)).add(row.id);
  }
  void opportunityGeometryDo('readwrite',store=>{
   for(const id of gone)if(!groups.has(id))store.delete(id);
   for(const [id,entries] of groups){
    const request=store.get(id);
-   request.onsuccess=()=>{const now=request.result?.owner===owner?request.result:null;store.put({id,owner,entries:{...entries,...(now?.entries||{})},uploaded:now?now.uploaded:true,updatedAt:now?now.updatedAt:Date.now()});};
+   request.onsuccess=()=>{const now=request.result?.owner===owner?request.result:null;store.put({id,owner,entries:{...entries,...(now?.entries||{})},uploaded:now?now.uploaded:true,updatedAt:now?now.updatedAt:Date.now(),parts:[...new Set([...(now?.parts||[]),...(parts.get(id)||[])])]});};
   }
   return null;
  }).catch(()=>{});
@@ -2438,6 +2541,35 @@ function opportunityGeometryHook(){
  const apply=RecordSync.apply;RecordSync.apply=rows=>{opportunityGeometryReceive(rows);return apply(rows);};RecordSync.opportunityGeometry=true;
 }
 opportunityGeometryHook();
+// 2026-11-10 Geometry of a pair that no longer exists (a removed record or place, a changed eye height or
+// shape, the representative-point rows of C17) is removed from this device and from the account as
+// deleted rec:geom rows (ユーザー「全部対処してよ」). Only once this login has completed a records sync and
+// nothing waits to be sent, so a device that has not yet received the account's records never removes what
+// another device uses; never with no pair at all, never geometry made or received in the last 10 minutes,
+// and not while a pair is unavailable for want of permission. After each change of the records, otherwise
+// at most hourly.
+let opportunityGeometryPruned={at:0,signature:null},opportunityGeometryPruning=false;
+async function opportunityGeometryPrune(){
+ const owner=auth?.loginId,token=auth?.token;if(!owner||!token||opportunityGeometryPruning||opportunityGeometryPruned.signature===opportunitySignature()&&Date.now()-opportunityGeometryPruned.at<3600000)return;
+ opportunityGeometryPruning=true;
+ try{
+  // The last account sync's own record (no sync is started here: it would redraw the screen).
+  const queue=store.get('sorami.queue',[]),synced=store.get('sorami.sync',null);
+  if(!Array.isArray(queue)||queue.length||synced?.loginId!==owner||synced.records!==1)return;
+  const signature=opportunitySignature(),{pairs,unavailable}=opportunityPairSet(signature,['sun','moon']);
+  if(!pairs.length||unavailable.some(u=>u.reason==='access'))return;
+  const keep=new Set(await Promise.all(pairs.map(opportunityGeometryId)));opportunityGeometryPruned={at:Date.now(),signature};
+  // Geometry made or received in the last 10 minutes stays: the records that use it may still be arriving.
+  const grace=Number.isFinite(globalThis.AstroNotesGeometryGraceMs)?globalThis.AstroNotesGeometryGraceMs:600000;
+  const stale=((await opportunityGeometryDo('readonly',db=>db.getAll()).catch(()=>null))||[]).filter(g=>g.owner===owner&&!keep.has(g.id)&&Date.now()-(g.updatedAt||0)>grace);
+  if(!stale.length||auth?.loginId!==owner)return;
+  const ids=g=>[...new Set([g.id,...(g.parts||[])])],rows=stale.flatMap(g=>ids(g).map(id=>({id,body:{},updated_at:Date.now(),deleted:true}))),ok=new Set();
+  for(let i=0;i<rows.length;i+=100){const res=await apiTransport('POST','/sync',{records:rows.slice(i,i+100)});for(const id of res?.accepted?.records||[])ok.add(id);if(auth?.loginId!==owner)return;}
+  await opportunityGeometryDo('readwrite',db=>{for(const g of stale)if(ids(g).every(id=>ok.has(id)))db.delete(g.id);return null;});
+  opportunityDeviceStats.geometryPruned=(opportunityDeviceStats.geometryPruned||0)+stale.length;
+ }catch{/* Tried again on a later pass. */}
+ finally{opportunityGeometryPruning=false;}
+}
 const opportunityGeometryTurns=new Map();
 async function opportunityGeometryTurn(id){
  const before=opportunityGeometryTurns.get(id);let release;const mine=new Promise(resolve=>{release=resolve;}),chain=(before||Promise.resolve()).then(()=>mine);
@@ -2519,6 +2651,7 @@ function opportunityDeviceBackground(){
     }
    };
    await Promise.all(Array.from({length:opportunityEngineSlots()},lane));
+   if(!restart&&live())void opportunityGeometryPrune();
   }catch{/* The visible list reports calculation failures. */}
   finally{opportunityBackgroundFlight=null;if(restart&&live())setTimeout(opportunityDeviceBackground,0);}
  })();
