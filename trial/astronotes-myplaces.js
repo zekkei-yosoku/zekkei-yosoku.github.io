@@ -1894,6 +1894,214 @@ function recordSilhouette(obs,target,opts){
  if(outline){const polygon=AstroNotesAlign.convexHull(outline.hitPolygons?outline.hitPolygons.flat():outline.hitPoints||outline.points||[]);if(polygon.length>=3&&Number.isFinite(outline.viewBaseAngle)&&Number.isFinite(outline.topAngle))value={viewBaseAngle:outline.viewBaseAngle,topAngle:outline.topAngle,approximate:!!outline.approximate,polygon};}
  recordGeometry.known.set(key,value);recordGeometry.used.set(key,value);return value;
 }
+// 2026-11-09 線・範囲の地点も一覧に出す（ユーザー「範囲とか線の時も出るようにできないの？」）。
+// 立ち位置ごとの地面の高さと、そこから見た稜線・建物の外形は日付に依存しないので、範囲ごとに一度
+// 作り、記録と一緒に同期する（"shp:"、立ち位置16個ずつ）。太陽・月の通り道は範囲内のどこでも
+// ほぼ同じ（1km動いても月の直径の約3500分の1）なので、日ごとには代表点で1本だけ求め、
+// 通り道が外形の近くを通る立ち位置だけを1点ずつの判定（見え方と同じ計算）で確かめる。
+// 立ち位置の間隔は見え方の25mが基準で、対象が遠いほど広げる（対象の向きの変化が太陽の直径の1/4以内）。
+const RECORD_SHAPE_MIN_STEP_M=25,RECORD_SHAPE_MAX_STEP_M=400,RECORD_SHAPE_STEP_RAD=.0023,RECORD_SHAPE_LIMIT=12000,RECORD_SHAPE_BLOCK=16,RECORD_SHAPE_UNIT=1e-4,RECORD_SHAPE_TOLERANCE=1e-3,RECORD_SHAPE_TRACK_MS=240000;
+const recordShapeMemo=new Map();
+function recordHash(text){
+ let a=0x811c9dc5,b=0x9747b28c;
+ for(let i=0;i<text.length;i++){const c=text.charCodeAt(i);a=Math.imul(a^c,0x01000193);b=Math.imul(b^c,0x5bd1e995);b^=b>>>15;}
+ return (a>>>0).toString(16).padStart(8,'0')+(b>>>0).toString(16).padStart(8,'0');
+}
+function recordShapeStep(s,target){
+ const v=s.vertices,k=Math.cos(target.latitude*Math.PI/180),xy=p=>[(p.longitude-target.longitude)*111195*k,(p.latitude-target.latitude)*111195];
+ let near=Infinity;
+ const edge=(a,b)=>{const [ax,ay]=xy(a),[bx,by]=xy(b),dx=bx-ax,dy=by-ay,t=Math.max(0,Math.min(1,-(ax*dx+ay*dy)/(dx*dx+dy*dy||1)));near=Math.min(near,Math.hypot(ax+t*dx,ay+t*dy));};
+ for(let i=1;i<v.length;i++)edge(v[i-1],v[i]);
+ if(s.type==='area'){edge(v[v.length-1],v[0]);if(AstroNotesShooting.shapeContains(s,target))near=0;}
+ return Math.round(Math.max(RECORD_SHAPE_MIN_STEP_M,Math.min(RECORD_SHAPE_MAX_STEP_M,near*RECORD_SHAPE_STEP_RAD)));
+}
+// The preview's sampling (AstroNotesShooting.shapePaths) with a given step; 25 m gives the same points.
+function recordShapePoints(s,step){
+ const S=AstroNotesShooting,v=s.vertices,paths=[];let total=0;
+ const add=(a,b)=>{const n=Math.max(1,Math.ceil(S.meters(a,b)/step));total+=n+1;if(total>RECORD_SHAPE_LIMIT)throw Error('shape-limit');paths.push(Array.from({length:n+1},(_,i)=>S.interpolate(a,b,i/n)));};
+ for(let i=1;i<v.length;i++)add(v[i-1],v[i]);
+ if(s.type==='area'){
+  add(v[v.length-1],v[0]);
+  const low=Math.min(...v.map(p=>p.latitude)),high=Math.max(...v.map(p=>p.latitude)),n=Math.max(1,Math.ceil((high-low)*111195/step));
+  if(n>RECORD_SHAPE_LIMIT)throw Error('shape-limit');
+  for(let row=1;row<n;row++){
+   const latitude=low+(high-low)*row/n,x=[];
+   for(let i=0,j=v.length-1;i<v.length;j=i++)if((v[i].latitude>latitude)!==(v[j].latitude>latitude))x.push(v[i].longitude+(v[j].longitude-v[i].longitude)*(latitude-v[i].latitude)/(v[j].latitude-v[i].latitude));
+   x.sort((a,b)=>a-b);for(let i=0;i+1<x.length;i+=2)add({latitude,longitude:x[i]},{latitude,longitude:x[i+1]});
+  }
+ }
+ const seen=new Map(),points=[];
+ const order=paths.map(path=>path.map(q=>{const key=q.latitude.toFixed(9)+','+q.longitude.toFixed(9);if(!seen.has(key)){seen.set(key,points.length);points.push(q);}return seen.get(key);}));
+ return {points,paths:order};
+}
+// Douglas-Peucker within 0.001° (0.4% of the sun's radius), then integers of 0.0001°.
+function recordSimplify(points,closed){
+ if(points.length<=3)return points.slice();
+ const ref=points[0][0],k=Math.cos(points.reduce((s,p)=>s+p[1],0)/points.length*Math.PI/180),xy=points.map(([a,h])=>[(((a-ref)%360+540)%360-180)*k,h]),keep=new Uint8Array(points.length);
+ const rdp=(i,j)=>{
+  let best=-1,far=0;const [ax,ay]=xy[i],[bx,by]=xy[j],dx=bx-ax,dy=by-ay,len=Math.hypot(dx,dy);
+  for(let m=i+1;m<j;m++){const [px,py]=xy[m],d=len?Math.abs(dx*(ay-py)-dy*(ax-px))/len:Math.hypot(px-ax,py-ay);if(d>far){far=d;best=m;}}
+  if(best>=0&&far>RECORD_SHAPE_TOLERANCE){keep[best]=1;rdp(i,best);rdp(best,j);}
+ };
+ keep[0]=keep[points.length-1]=1;
+ if(closed){let far=-1,m=1;for(let i=1;i<points.length;i++){const d=Math.hypot(xy[i][0]-xy[0][0],xy[i][1]-xy[0][1]);if(d>far){far=d;m=i;}}keep[m]=1;rdp(0,m);rdp(m,points.length-1);}
+ else rdp(0,points.length-1);
+ return points.filter((_,i)=>keep[i]);
+}
+const recordQ=v=>Math.round(v/RECORD_SHAPE_UNIT);
+// 'r' summit ridge (or the whole ridge when the summit is hidden), 's' building outline,
+// 'p' a target without an outline (a point), 'm' the full model (outline could not be reduced).
+function recordShapeEncode(geo){
+ if(geo.kind==='p'||geo.kind==='m')return geo.kind;
+ const out=geo.kind==='r'?['r',recordQ(geo.base)]:['s',recordQ(geo.viewBaseAngle),recordQ(geo.topAngle),geo.approximate?1:0];
+ let pa=0,ph=0;for(const [a,h] of recordSimplify(geo.points,geo.kind==='s')){const qa=recordQ(a),qh=recordQ(h);out.push(qa-pa,qh-ph);pa=qa;ph=qh;}
+ return out;
+}
+function recordShapeDecode(q){
+ if(q==='p'||q==='m')return {kind:q};
+ if(!Array.isArray(q)||q.length>4000||(q[0]!=='r'&&q[0]!=='s'))return null;
+ const head=q[0]==='r'?2:4,min=q[0]==='r'?2:3;
+ if(q.length<head+2*min||(q.length-head)%2||!q.slice(1).every(Number.isSafeInteger)||(head===4&&q[3]!==0&&q[3]!==1))return null;
+ const U=RECORD_SHAPE_UNIT,points=[];let a=0,h=0;for(let i=head;i<q.length;i+=2){a+=q[i];h+=q[i+1];points.push([a*U,h*U]);}
+ return q[0]==='r'?{kind:'r',base:q[1]*U,points}:{kind:'s',viewBaseAngle:q[1]*U,topAngle:q[2]*U,approximate:q[3]===1,points};
+}
+function recordShapeBlockValid(value){
+ if(!value||!Number.isInteger(value.i0)||value.i0<0||!Array.isArray(value.g)||!Array.isArray(value.q)||!value.g.length||value.g.length>RECORD_SHAPE_BLOCK||value.g.length!==value.q.length)return false;
+ return value.g.every((g,i)=>Number.isFinite(g)&&!!recordShapeDecode(value.q[i]));
+}
+// Angular region holding the outline as seen from one position: azimuth span about c, altitude lo..hi.
+// Great-circle edges bulge past their end points by at most (span)^2/16 radians.
+function recordShapeBox(geo,g){
+ if(geo.kind==='m')return null;
+ if(geo.kind==='p')return {c:g.azimuth,w:0,lo:g.angle,hi:g.angle};
+ const ref=geo.points[0][0];let a0=Infinity,a1=-Infinity,lo=geo.kind==='r'?geo.base:Infinity,hi=-Infinity;
+ for(const [a,h] of geo.points){const d=(((a-ref)%360+540)%360)-180;a0=Math.min(a0,d);a1=Math.max(a1,d);lo=Math.min(lo,h);hi=Math.max(hi,h);}
+ const w=(a1-a0)/2,bulge=(w*Math.PI/90)**2/16*180/Math.PI;
+ return {c:ref+(a0+a1)/2,w,lo:lo-bulge,hi:hi+bulge};
+}
+// Exact spherical distance (degrees) from a direction to that region.
+function recordBoxDistance(az,alt,b){
+ const da=Math.abs((((az-b.c)%360+540)%360)-180)-b.w;
+ if(da<=0)return alt>b.hi?alt-b.hi:alt<b.lo?b.lo-alt:0;
+ if(da>=90)return 90;
+ const D=Math.PI/180,phi=alt*D,dz=da*D,foot=Math.atan2(Math.sin(phi),Math.cos(phi)*Math.cos(dz))/D;
+ if(foot>=b.lo&&foot<=b.hi)return Math.asin(Math.min(1,Math.cos(phi)*Math.sin(dz)))/D;
+ const a2=(foot>b.hi?b.hi:b.lo)*D;
+ return Math.acos(Math.max(-1,Math.min(1,Math.sin(phi)*Math.sin(a2)+Math.cos(phi)*Math.cos(a2)*Math.cos(dz))))/D;
+}
+const recordArc=(a,b)=>{const D=Math.PI/180;return Math.acos(Math.max(-1,Math.min(1,Math.sin(a.alt*D)*Math.sin(b.alt*D)+Math.cos(a.alt*D)*Math.cos(b.alt*D)*Math.cos((a.az-b.az)*D))))/D;};
+// What one position's daily check uses (aimShootingView's summit cap, recordSilhouette's outline),
+// without adding per-position entries to the synced geometry.
+async function recordShapeGeometry(obs,target){
+ if(aimIsMountain(target)){
+  const eye=obs.elevation+obs.eyeM,fuji=target.id==='fuji';let cap=null;
+  if(fuji){const collect=recordGeometry.collect;let pending;recordGeometry.collect=false;try{pending=aimIndexedCap(obs,eye,target);}finally{recordGeometry.collect=collect;}try{cap=await pending;}catch{/* The original sampler below. */}}
+  if(!cap){const ridge=await aimLookRidge(obs,eye,target,{exactSearch:fuji});if(!ridge)throw Error('山の稜線を取得できませんでした');cap=aimSummitCap(ridge,obs,eye,target)||{ridge,base:0};}
+  return {kind:'r',base:cap.base,points:cap.ridge};
+ }
+ const outline=AstroNotesAlign.towerOutline(obs,target,{eyeM:obs.eyeM??1.5,heightM:null});
+ if(!outline)return {kind:'p'};
+ const polygon=AstroNotesAlign.convexHull(outline.hitPolygons?outline.hitPolygons.flat():outline.hitPoints||outline.points||[]);
+ return polygon.length>=3&&Number.isFinite(outline.viewBaseAngle)&&Number.isFinite(outline.topAngle)?{kind:'s',viewBaseAngle:outline.viewBaseAngle,topAngle:outline.topAngle,approximate:!!outline.approximate,points:polygon}:{kind:'m'};
+}
+async function recordShapeOpportunity(session,p,place,record,solver,live){
+ const S=AstroNotesShooting,DAY=86400000,s=S.cleanShape(place.shape),target=p.target,o=S.searchOptions(p,aimIsMountain),start=S.day(p.at);
+ if(!s)return {rows:[],failed:1,issues:[{id:place.id,reason:'invalid'}]};
+ const cancelled={rows:[],failed:0,cancelled:true};
+ try{
+  const step=recordShapeStep(s,target),{points,paths}=recordShapePoints(s,step),mountain=aimIsMountain(target);
+  const base=recordHash(JSON.stringify(['astronotes.shape-geometry.v1',s.type,s.vertices,step,target.id??null,target.latitude,target.longitude,target.groundM??null,(target.parts||[]).map(x=>[x.id,x.m]),!!target.rim,place.eyeHeightAGL??null,place.standAglM??null,place.stand??null,o.partId,aimIsMountain(target),AstroNotesAtmosphere.targetK()]));
+  let memo=recordShapeMemo.get(base);
+  if(!memo||memo.count!==points.length){
+   const blocks=[];
+   for(let i0=0;i0<points.length;i0+=RECORD_SHAPE_BLOCK){
+    const key='shp:'+base+':'+i0,known=recordGeometry.known.get(key);
+    if(recordShapeBlockValid(known)&&known.i0===i0&&known.g.length===Math.min(RECORD_SHAPE_BLOCK,points.length-i0)){blocks.push([key,known,true]);continue;}
+    // A position whose ground could not be read is retried later and never kept or synced.
+    const value={i0,g:[],q:[]};let complete=true;
+    for(let i=i0;i<Math.min(points.length,i0+RECORD_SHAPE_BLOCK);i++){
+     if(!live())return cancelled;
+     const ground=await solver.elevationAt(points[i].latitude,points[i].longitude);
+     if(!Number.isFinite(ground)){complete=false;value.g.push(null);value.q.push(null);continue;}
+     const f={...place,...points[i],elevation:ground,groundManualM:ground,sourcePlaceId:place.id};delete f.shape;
+     value.g.push(ground);value.q.push(recordShapeEncode(await recordShapeGeometry(aimObserverAt(aimSavedFrom(f),ground),target)));
+     await recordSearchYield();
+    }
+    if(complete)recordGeometry.known.set(key,value);blocks.push([key,value,complete]);
+   }
+   memo={count:points.length,blocks,geometry:blocks.flatMap(([,value])=>value.q.map(q=>q===null?null:recordShapeDecode(q)))};
+   if(blocks.every(b=>b[2])){recordShapeMemo.set(base,memo);while(recordShapeMemo.size>64)recordShapeMemo.delete(recordShapeMemo.keys().next().value);}
+  }
+  for(const [key,value,complete] of memo.blocks)if(complete)recordGeometry.used.set(key,value);
+  const grounds=memo.blocks.flatMap(([,value])=>value.g),samples=[];let missing=0;
+  for(let i=0;i<points.length;i++){
+   const ground=grounds[i],geo=memo.geometry[i];if(ground===null||!geo){missing++;continue;}
+   const f={...place,...points[i],elevation:ground,groundManualM:ground,sourcePlaceId:place.id};delete f.shape;
+   const obs=aimObserverAt(aimSavedFrom(f),ground),g=AstroNotesAlign.geometryFrom(obs,target,{partId:o.partId,eyeM:obs.eyeM});
+   // A narrow alignment between two positions is refined from both (below), so each position's
+   // margin also covers how far the outline moves to the next position.
+   const shift=g&&!mountain?Math.min(10,step/(g.distanceKm*1000)*(1+Math.abs(Math.tan(g.angle*Math.PI/180)))*180/Math.PI):0;
+   samples.push({i,f,obs,geo,shift,box:g?recordShapeBox(geo,g):null});
+  }
+  if(!samples.length)return {rows:[],failed:missing?1:0,checked:0,stepM:step,...(missing?{issues:[{id:place.id,reason:'elevation',count:missing}]}:{})};
+  await AstroNotesBodies.ensure(p.body);if(!live())return cancelled;
+  // One path of the body per day, from the first position.
+  const anchor=samples[0].obs,eyeObs={...anchor,elevation:anchor.elevation+anchor.eyeM},track=[];
+  for(let at=start-RECORD_SHAPE_TRACK_MS;at<=start+DAY+RECORD_SHAPE_TRACK_MS;at+=RECORD_SHAPE_TRACK_MS){
+   const st=AstroNotesBodies.state(p.body,at,eyeObs),up=st.upperAltitude??st.apparentAltitude+st.angularRadius,low=st.lowerAltitude??st.apparentAltitude-st.angularRadius;
+   track.push({az:st.azimuth,alt:st.apparentAltitude,up,r:Math.max(st.angularRadius,up-st.apparentAltitude,st.apparentAltitude-low)+.01});
+  }
+  for(let i=0;i<track.length;i++)track[i].half=Math.max(i?recordArc(track[i-1],track[i]):0,i+1<track.length?recordArc(track[i],track[i+1]):0)/2;
+  // Directions differ between positions by the vertical's tilt (0.009°/km), the moon's parallax
+  // and refraction at another height; the margin covers all of them.
+  const best=new Map(),evaluated=new Map();let checked=0;
+  const optsOf=(obs,geo)=>geo.kind==='r'?{partId:null,eyeM:obs.eyeM,ridge:geo.points,ridgeBase:geo.base}:{partId:o.partId,eyeM:obs.eyeM,...(geo.kind==='s'?{silhouette:{viewBaseAngle:geo.viewBaseAngle,topAngle:geo.topAngle,approximate:geo.approximate,polygon:geo.points}}:{})};
+  const consider=(events,f,obs)=>{
+   for(const e of events){
+    if(o.broad){e.matchMode='overlap';e.partId=o.partId;}
+    if(!(e.at>=start&&e.at<start+DAY&&e.spatialMatched!==false&&(!Number.isFinite(e.altitude)||o.disc||e.altitude>0)&&S.matches(e,p,aimIsMountain)&&S.shapeContains(s,f)))continue;
+    // The trial keeps daytime moons (build-candidate-trial). One row per side of the day:
+    // the position where the body sits deepest in the outline.
+    const now=best.get(e.side);
+    if(!now||e.distanceToTarget<now.event.distanceToTarget||e.distanceToTarget===now.event.distanceToTarget&&e.at<now.event.at)best.set(e.side,{place:f,record,event:e,assumedObserver:obs,shapeType:s.type});
+   }
+  };
+  for(const sample of samples){
+   const margin=.05+sample.shift+.015*AstroNotesTerrain.distanceKm(anchor.latitude,anchor.longitude,sample.obs.latitude,sample.obs.longitude)+1e-4*Math.abs(sample.obs.elevation+sample.obs.eyeM-eyeObs.elevation);
+   if(sample.box&&!track.some(t=>t.up+t.half+margin>0&&recordBoxDistance(t.az,t.alt,sample.box)<=t.r+t.half+margin))continue;
+   if(!live())return cancelled;
+   const {f,obs,geo}=sample,view=recordBounded(session.shapeSamples,base+':'+sample.i+':'+p.body,()=>AstroNotesAlign.prepareDailyView(obs,target,p.body,optsOf(obs,geo)),4096);
+   const events=view(start);checked++;evaluated.set(sample.i,{f,events});consider(events,f,obs);
+   if(checked%16===0)await recordSearchYield();
+  }
+  // As the preview does: where the body passes the top between two neighbouring positions
+  // (its height minus the top's changes sign), halve the gap and check there. A narrow figure
+  // can be met only between positions. Only for a side of the day still without a match, and
+  // not for mountains, whose positions are spaced well inside the summit's width.
+  if(!mountain)for(const path of paths)for(let k=1;k<path.length;k++){
+   const A=evaluated.get(path[k-1]),B=evaluated.get(path[k]);if(!A||!B)continue;
+   for(const a of A.events){
+    if(best.has(a.side))continue;
+    const near=list=>list.find(e=>e.side===a.side&&Math.abs(e.at-a.at)<3*3600000),b=near(B.events);
+    if(!b||!Number.isFinite(a.gap)||!Number.isFinite(b.gap)||a.gap*b.gap>=0)continue;
+    let left=A.f,right=B.f,le=a;
+    for(let n=0;n<20&&S.meters(left,right)>.05&&!best.has(a.side);n++){
+     if(!live())return cancelled;
+     const position=S.interpolate(left,right,.5),ground=await solver.elevationAt(position.latitude,position.longitude);if(!Number.isFinite(ground))break;
+     const f={...place,...position,elevation:ground,groundManualM:ground,sourcePlaceId:place.id};delete f.shape;
+     const obs=aimObserverAt(aimSavedFrom(f),ground),geo=recordShapeDecode(recordShapeEncode(await recordShapeGeometry(obs,target)));
+     const events=AstroNotesAlign.prepareDailyView(obs,target,p.body,optsOf(obs,geo))(start);consider(events,f,obs);checked++;
+     const me=near(events);if(!me||!Number.isFinite(me.gap))break;
+     if(le.gap*me.gap<=0)right=f;else{left=f;le=me;}
+    }
+   }
+  }
+  return {rows:[...best.values()].sort((a,b)=>a.event.at-b.event.at),failed:missing?1:0,checked:samples.length,candidates:checked,stepM:step,...(missing?{issues:[{id:place.id,reason:'elevation',count:missing}]}:{})};
+ }catch(e){
+  if(!live())return cancelled;
+  return {rows:[],failed:1,issues:[{id:place.id,reason:e.message==='shape-limit'?'limit':'calculation'}]};
+ }
+}
 function recordPrepared(session,shaped,obs,target,body,opts){
  const views=shaped?session.shapeViews:session.pointViews,key=JSON.stringify([obs,target,body,opts]);
  return recordBounded(views,key,()=>{session.prepares++;return AstroNotesAlign.prepareDailyView(obs,target,body,opts);},shaped?128:192);
@@ -1921,10 +2129,12 @@ function recordSolverFor(session,variant,shaped,override){
   if(!(o.broad&&o.disc||o.partId==='__whole'&&!aimIsMountain(p.target)))return null;
   return prepare(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM});
  };
- return recordHeightSolver({align,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),ensure:b=>AstroNotesBodies.ensure(b),viewFor,fixedViewFor:(obs,p)=>viewFor(obs,p,true),yieldTask:recordSearchYield,elevationAt:(lat,lon)=>{
+ const elevationAt=(lat,lon)=>{
   const key=lat+','+lon;
   return recordBounded(terrain,key,()=>candidateElevation(lat,lon).then(value=>{if(!Number.isFinite(value))terrain.delete(key);return value;}),12000);
- }});
+ };
+ const solver=recordHeightSolver({align,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),ensure:b=>AstroNotesBodies.ensure(b),viewFor,fixedViewFor:(obs,p)=>viewFor(obs,p,true),yieldTask:recordSearchYield,elevationAt});
+ solver.elevationAt=elevationAt;return solver;
 }
 async function recordSearch(plan,entries,{isCurrent=()=>true,variant='discovery',terrainCache,onProgress=()=>{}}={}){
  const cancelled=()=>({rows:[],failed:0,cancelled:true});
@@ -1934,7 +2144,7 @@ async function recordSearch(plan,entries,{isCurrent=()=>true,variant='discovery'
  const p=AstroNotesShooting.conditions(plan);if(!p)return {rows:[],failed:0};
  if(entries.length&&!AstroNotesAssets.modelsReady()){await AstroNotesAssets.ensureModels();if(!isCurrent()||owner!==auth?.token||loginId!==auth?.loginId||generation!==accessState.generation||revision!==version||!toolAllowed('records'))return cancelled();}
  const start=AstroNotesShooting.day(p.at),scope=recordSearchScope(),air=AstroNotesAtmosphere.dataKey(start);
- if(!recordSameScope(recordSearchSession?.scope,scope))recordSearchSession={scope,cache:createRecordSearchCache(),pointViews:new Map(),shapeViews:new Map(),mountains:new Map(),shapeMountains:new Map(),terrain:new Map(),solvers:new Map(),prepares:0};
+ if(!recordSameScope(recordSearchSession?.scope,scope))recordSearchSession={scope,cache:createRecordSearchCache(),pointViews:new Map(),shapeViews:new Map(),mountains:new Map(),shapeMountains:new Map(),shapeSamples:new Map(),terrain:new Map(),solvers:new Map(),prepares:0};
  const session=recordSearchSession,current=()=>isCurrent()&&recordSearchSession===session&&recordSameScope(scope,recordSearchScope())&&air===AstroNotesAtmosphere.dataKey(start)&&toolAllowed('records');
  const planKey=JSON.stringify([start,air,p.target,p.body,p.partId,p.limb,p.matchMode]),rows=[],issues=[];
  let failed=0,checked=0,processed=0,stepM;
@@ -1946,7 +2156,7 @@ async function recordSearch(plan,entries,{isCurrent=()=>true,variant='discovery'
   const {discoveryKey,discoveryRecordIds,...place}=entry.place;
   const key=planKey+'|'+kind+'|'+JSON.stringify(Object.entries(place).sort(([a],[b])=>a.localeCompare(b)));
   const solve=async live=>{
-   const value=await solver.candidates({...p,at:start},[{place,record:entry.record}],{isCurrent:live});
+   const value=variant==='opportunity'&&place.shape&&place.eyeHeightRangeAGL==null?await recordShapeOpportunity(session,{...p,at:start},place,entry.record,solver,live):await solver.candidates({...p,at:start},[{place,record:entry.record}],{isCurrent:live});
    const result=Array.isArray(value)?{rows:value,failed:0}:value;
    return {...result,rows:(result.rows||[]).map(({record,...row})=>row)};
   };
@@ -2163,24 +2373,37 @@ async function opportunityGeometryKeep(id,entries){
  await opportunityGeometryDo('readwrite',store=>{const request=store.get(id);request.onsuccess=()=>{const old=request.result?.owner===owner?request.result.entries:{};store.put({id,owner,entries:{...old,...entries},uploaded:false,updatedAt:Date.now()});};return null;}).catch(()=>{});
  clearTimeout(opportunityGeometryTimer);opportunityGeometryTimer=setTimeout(()=>void opportunityGeometryUpload(),3000);
 }
-// One synced row holds at most what fits the server's 20,000-character body.
-function opportunityGeometryFit(entries){
- const out={};let size=60;
- for(const key of Object.keys(entries).sort()){const add=JSON.stringify(key).length+JSON.stringify(entries[key]).length+2;if(size+add>OPPORTUNITY_GEOMETRY_BODY)continue;out[key]=entries[key];size+=add;}
- return out;
+// One synced row holds at most what fits the server's 20,000-character body. A larger
+// group (a line or area: many positions) continues in rows that name it as their group.
+function opportunityGeometryChunks(entries){
+ const chunks=[];let chunk={},size=120;
+ for(const key of Object.keys(entries).sort()){
+  const add=JSON.stringify(key).length+JSON.stringify(entries[key]).length+2;if(120+add>OPPORTUNITY_GEOMETRY_BODY)continue;
+  if(size+add>OPPORTUNITY_GEOMETRY_BODY){chunks.push(chunk);chunk={};size=120;}
+  chunk[key]=entries[key];size+=add;
+ }
+ if(Object.keys(chunk).length||!chunks.length)chunks.push(chunk);
+ return chunks;
 }
+async function opportunityGeometryPart(id,k){return k?'rec:geom:'+(await opportunityDigest(['astronotes.overlap-geometry-part.v1',id,k])).slice(0,40):id;}
 async function opportunityGeometryUpload(){
  if(opportunityGeometryFlight)return opportunityGeometryFlight;
  const owner=auth?.loginId,token=auth?.token;if(!owner||!token)return;
  opportunityGeometryFlight=(async()=>{
   try{
    const pending=((await opportunityGeometryDo('readonly',store=>store.getAll()).catch(()=>[]))||[]).filter(g=>g.owner===owner&&!g.uploaded);
-   for(let i=0;i<pending.length;i+=100){
+   for(let i=0;i<pending.length;){
     if(auth?.loginId!==owner||auth?.token!==token)return;
-    const batch=pending.slice(i,i+100),res=await apiTransport('POST','/sync',{records:batch.map(g=>({id:g.id,body:{kind:'geom',value:{v:OPPORTUNITY_GEOMETRY_VERSION,entries:opportunityGeometryFit(g.entries)}},updated_at:Date.now(),deleted:false}))});
-    const ok=new Set(res?.accepted?.records||[]);
+    const batch=[],rows=[];
+    for(;i<pending.length&&(rows.length<80||!batch.length);i++){
+     const g=pending[i],chunks=opportunityGeometryChunks(g.entries),ids=[];
+     for(let k=0;k<chunks.length;k++){const id=await opportunityGeometryPart(g.id,k);ids.push(id);rows.push({id,body:{kind:'geom',value:{v:OPPORTUNITY_GEOMETRY_VERSION,entries:chunks[k],...(k?{group:g.id}:{})}},updated_at:Date.now(),deleted:false});}
+     batch.push({g,ids});
+    }
+    const ok=new Set();
+    for(let j=0;j<rows.length;j+=100){const res=await apiTransport('POST','/sync',{records:rows.slice(j,j+100)});for(const id of res?.accepted?.records||[])ok.add(id);}
     // A group that gained entries while sending stays pending for the next round.
-    await opportunityGeometryDo('readwrite',store=>{for(const g of batch){if(!ok.has(g.id))continue;const request=store.get(g.id);request.onsuccess=()=>{const now=request.result;if(now&&now.updatedAt===g.updatedAt)store.put({...now,uploaded:true});};}return null;});
+    await opportunityGeometryDo('readwrite',store=>{for(const {g,ids} of batch){if(!ids.every(id=>ok.has(id)))continue;const request=store.get(g.id);request.onsuccess=()=>{const now=request.result;if(now&&now.updatedAt===g.updatedAt)store.put({...now,uploaded:true});};}return null;});
    }
   }catch{/* Kept on this device and sent after the next check. */}
   finally{opportunityGeometryFlight=null;}
@@ -2190,14 +2413,21 @@ async function opportunityGeometryUpload(){
 function opportunityGeometryReceive(rows){
  const owner=auth?.loginId;if(!owner||!Array.isArray(rows))return;
  const list=rows.filter(row=>row&&typeof row.id==='string'&&opportunityGeometryRow.test(row.id));if(!list.length)return;
+ // Rows of one group are merged before writing; two reads of one record in a transaction see the same old value.
+ const groups=new Map(),gone=[];
+ for(const row of list){
+  if(row.deleted){gone.push(row.id);continue;}
+  let body;try{body=JSON.parse(row.body);}catch{continue;}
+  const value=body?.kind==='geom'?body.value:null;
+  if(value?.v!==OPPORTUNITY_GEOMETRY_VERSION||!value.entries||typeof value.entries!=='object'||Array.isArray(value.entries))continue;
+  const id=typeof value.group==='string'&&opportunityGeometryRow.test(value.group)?value.group:row.id;
+  groups.set(id,{...(groups.get(id)||{}),...value.entries});
+ }
  void opportunityGeometryDo('readwrite',store=>{
-  for(const row of list){
-   if(row.deleted){store.delete(row.id);continue;}
-   let body;try{body=JSON.parse(row.body);}catch{continue;}
-   const value=body?.kind==='geom'?body.value:null;
-   if(value?.v!==OPPORTUNITY_GEOMETRY_VERSION||!value.entries||typeof value.entries!=='object'||Array.isArray(value.entries))continue;
-   const request=store.get(row.id);
-   request.onsuccess=()=>{const now=request.result?.owner===owner?request.result:null;store.put({id:row.id,owner,entries:{...value.entries,...(now?.entries||{})},uploaded:now?now.uploaded:true,updatedAt:now?now.updatedAt:Date.now()});};
+  for(const id of gone)if(!groups.has(id))store.delete(id);
+  for(const [id,entries] of groups){
+   const request=store.get(id);
+   request.onsuccess=()=>{const now=request.result?.owner===owner?request.result:null;store.put({id,owner,entries:{...entries,...(now?.entries||{})},uploaded:now?now.uploaded:true,updatedAt:now?now.updatedAt:Date.now()});};
   }
   return null;
  }).catch(()=>{});
@@ -2208,6 +2438,12 @@ function opportunityGeometryHook(){
  const apply=RecordSync.apply;RecordSync.apply=rows=>{opportunityGeometryReceive(rows);return apply(rows);};RecordSync.opportunityGeometry=true;
 }
 opportunityGeometryHook();
+const opportunityGeometryTurns=new Map();
+async function opportunityGeometryTurn(id){
+ const before=opportunityGeometryTurns.get(id);let release;const mine=new Promise(resolve=>{release=resolve;}),chain=(before||Promise.resolve()).then(()=>mine);
+ opportunityGeometryTurns.set(id,chain);if(before)await before;
+ return ()=>{release();if(opportunityGeometryTurns.get(id)===chain)opportunityGeometryTurns.delete(id);};
+}
 async function opportunityDigest(value){const bytes=new TextEncoder().encode(JSON.stringify(value)),digest=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');}
 function opportunitySemantic(pair){
  // The same fields the server's inputHash ignores: labels, record metadata.
@@ -2241,16 +2477,19 @@ async function opportunityDeviceSolve(pair,day,{priority='high',isCurrent=()=>tr
   flight=(async()=>{
    const saved=await opportunityDbDo('readonly',store=>store.get(key)).catch(()=>null);
    if(saved?.owner===owner&&saved.engine===state.engine){opportunityDeviceStats.hits++;return {rows:saved.rows,stored:true};}
-   return opportunityDeviceRun(priority,async()=>{
+   // A pair whose geometry is not built yet waits for the other body's check of the same
+   // place and target, then uses what that check built instead of building it twice.
+   const turn=Object.keys((await opportunityGeometryFor(pair)).entries).length?null:await opportunityGeometryTurn(await opportunityGeometryId(pair));
+   try{return await opportunityDeviceRun(priority,async()=>{
     if(!isCurrent()||owner!==auth?.loginId)return {rows:[],cancelled:true};
     const geometry=await opportunityGeometryFor(pair);
     const began=performance.now(),result=await opportunityEngineSolve({...opportunityDeviceInput(pair,day),geometry:geometry.entries});
     opportunityDeviceStats.solves++;opportunityDeviceStats.solveMs+=Math.round(performance.now()-began);
-    if(result.geometry&&typeof result.geometry==='object'&&Object.keys(result.geometry).length&&owner===auth?.loginId){opportunityDeviceStats.geometry=(opportunityDeviceStats.geometry||0)+Object.keys(result.geometry).length;void opportunityGeometryKeep(geometry.id,result.geometry);}
+    if(result.geometry&&typeof result.geometry==='object'&&Object.keys(result.geometry).length&&owner===auth?.loginId){opportunityDeviceStats.geometry=(opportunityDeviceStats.geometry||0)+Object.keys(result.geometry).length;await opportunityGeometryKeep(geometry.id,result.geometry);}
     if(result.status!=='complete'){opportunityDeviceStats.failures++;return {rows:result.rows||[],failed:1};}
     if(owner===auth?.loginId)await opportunityDbDo('readwrite',store=>store.put({key,owner,engine:state.engine,day:opportunityDateAt(day),savedAt:Date.now(),rows:result.rows})).catch(()=>{});
     return {rows:result.rows};
-   });
+   });}finally{turn?.();}
   })().finally(()=>{if(opportunityDeviceFlights.get(key)===flight)opportunityDeviceFlights.delete(key);});
   opportunityDeviceFlights.set(key,flight);
  }
@@ -2288,9 +2527,9 @@ function opportunityPairs(bodies){
  const {groups,shapes}=recordSearchIndex(),pairs=[],unavailable=[];
  for(const favorite of favorites){
   const targets=groups.get(favorite.id);if(!targets)continue;
-  // 2026-11-09 一覧は線・範囲の地点も登録した代表の1点で判定する（ユーザー「計算で使うのは一つの地点で
-  // 一つの建物の縁とか稜線でいい。正確な見え方は見え方でわかる」）。範囲内の位置は見え方で確かめる。
-  const shape=recordSearchShape(favorite,shapes),saved=favorite;
+  // 2026-11-09 線・範囲の地点は範囲内の立ち位置で確かめる（ユーザー「範囲とか線の時も出るようにできないの？」）。
+  // 立ち位置ごとの地面・稜線・外形は一度作って同期し、日ごとには太陽・月の通り道の近くだけを確かめる。
+  const shape=recordSearchShape(favorite,shapes),saved=shape?{...favorite,shape}:favorite;
   for(const [targetKey,source] of targets){
    const group=source.slice().sort((a,b)=>Number(!!b.registration)-Number(!!a.registration)||when(b)-when(a)||b.updatedAt-a.updatedAt);
    const best=statusOf(favorite.id,targetKey,source);if(!best||best.result==='hidden')continue;

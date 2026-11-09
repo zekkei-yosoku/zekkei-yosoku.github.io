@@ -177,24 +177,37 @@ async function opportunityGeometryKeep(id,entries){
  await opportunityGeometryDo('readwrite',store=>{const request=store.get(id);request.onsuccess=()=>{const old=request.result?.owner===owner?request.result.entries:{};store.put({id,owner,entries:{...old,...entries},uploaded:false,updatedAt:Date.now()});};return null;}).catch(()=>{});
  clearTimeout(opportunityGeometryTimer);opportunityGeometryTimer=setTimeout(()=>void opportunityGeometryUpload(),3000);
 }
-// One synced row holds at most what fits the server's 20,000-character body.
-function opportunityGeometryFit(entries){
- const out={};let size=60;
- for(const key of Object.keys(entries).sort()){const add=JSON.stringify(key).length+JSON.stringify(entries[key]).length+2;if(size+add>OPPORTUNITY_GEOMETRY_BODY)continue;out[key]=entries[key];size+=add;}
- return out;
+// One synced row holds at most what fits the server's 20,000-character body. A larger
+// group (a line or area: many positions) continues in rows that name it as their group.
+function opportunityGeometryChunks(entries){
+ const chunks=[];let chunk={},size=120;
+ for(const key of Object.keys(entries).sort()){
+  const add=JSON.stringify(key).length+JSON.stringify(entries[key]).length+2;if(120+add>OPPORTUNITY_GEOMETRY_BODY)continue;
+  if(size+add>OPPORTUNITY_GEOMETRY_BODY){chunks.push(chunk);chunk={};size=120;}
+  chunk[key]=entries[key];size+=add;
+ }
+ if(Object.keys(chunk).length||!chunks.length)chunks.push(chunk);
+ return chunks;
 }
+async function opportunityGeometryPart(id,k){return k?'rec:geom:'+(await opportunityDigest(['astronotes.overlap-geometry-part.v1',id,k])).slice(0,40):id;}
 async function opportunityGeometryUpload(){
  if(opportunityGeometryFlight)return opportunityGeometryFlight;
  const owner=auth?.loginId,token=auth?.token;if(!owner||!token)return;
  opportunityGeometryFlight=(async()=>{
   try{
    const pending=((await opportunityGeometryDo('readonly',store=>store.getAll()).catch(()=>[]))||[]).filter(g=>g.owner===owner&&!g.uploaded);
-   for(let i=0;i<pending.length;i+=100){
+   for(let i=0;i<pending.length;){
     if(auth?.loginId!==owner||auth?.token!==token)return;
-    const batch=pending.slice(i,i+100),res=await apiTransport('POST','/sync',{records:batch.map(g=>({id:g.id,body:{kind:'geom',value:{v:OPPORTUNITY_GEOMETRY_VERSION,entries:opportunityGeometryFit(g.entries)}},updated_at:Date.now(),deleted:false}))});
-    const ok=new Set(res?.accepted?.records||[]);
+    const batch=[],rows=[];
+    for(;i<pending.length&&(rows.length<80||!batch.length);i++){
+     const g=pending[i],chunks=opportunityGeometryChunks(g.entries),ids=[];
+     for(let k=0;k<chunks.length;k++){const id=await opportunityGeometryPart(g.id,k);ids.push(id);rows.push({id,body:{kind:'geom',value:{v:OPPORTUNITY_GEOMETRY_VERSION,entries:chunks[k],...(k?{group:g.id}:{})}},updated_at:Date.now(),deleted:false});}
+     batch.push({g,ids});
+    }
+    const ok=new Set();
+    for(let j=0;j<rows.length;j+=100){const res=await apiTransport('POST','/sync',{records:rows.slice(j,j+100)});for(const id of res?.accepted?.records||[])ok.add(id);}
     // A group that gained entries while sending stays pending for the next round.
-    await opportunityGeometryDo('readwrite',store=>{for(const g of batch){if(!ok.has(g.id))continue;const request=store.get(g.id);request.onsuccess=()=>{const now=request.result;if(now&&now.updatedAt===g.updatedAt)store.put({...now,uploaded:true});};}return null;});
+    await opportunityGeometryDo('readwrite',store=>{for(const {g,ids} of batch){if(!ids.every(id=>ok.has(id)))continue;const request=store.get(g.id);request.onsuccess=()=>{const now=request.result;if(now&&now.updatedAt===g.updatedAt)store.put({...now,uploaded:true});};}return null;});
    }
   }catch{/* Kept on this device and sent after the next check. */}
   finally{opportunityGeometryFlight=null;}
@@ -204,14 +217,21 @@ async function opportunityGeometryUpload(){
 function opportunityGeometryReceive(rows){
  const owner=auth?.loginId;if(!owner||!Array.isArray(rows))return;
  const list=rows.filter(row=>row&&typeof row.id==='string'&&opportunityGeometryRow.test(row.id));if(!list.length)return;
+ // Rows of one group are merged before writing; two reads of one record in a transaction see the same old value.
+ const groups=new Map(),gone=[];
+ for(const row of list){
+  if(row.deleted){gone.push(row.id);continue;}
+  let body;try{body=JSON.parse(row.body);}catch{continue;}
+  const value=body?.kind==='geom'?body.value:null;
+  if(value?.v!==OPPORTUNITY_GEOMETRY_VERSION||!value.entries||typeof value.entries!=='object'||Array.isArray(value.entries))continue;
+  const id=typeof value.group==='string'&&opportunityGeometryRow.test(value.group)?value.group:row.id;
+  groups.set(id,{...(groups.get(id)||{}),...value.entries});
+ }
  void opportunityGeometryDo('readwrite',store=>{
-  for(const row of list){
-   if(row.deleted){store.delete(row.id);continue;}
-   let body;try{body=JSON.parse(row.body);}catch{continue;}
-   const value=body?.kind==='geom'?body.value:null;
-   if(value?.v!==OPPORTUNITY_GEOMETRY_VERSION||!value.entries||typeof value.entries!=='object'||Array.isArray(value.entries))continue;
-   const request=store.get(row.id);
-   request.onsuccess=()=>{const now=request.result?.owner===owner?request.result:null;store.put({id:row.id,owner,entries:{...value.entries,...(now?.entries||{})},uploaded:now?now.uploaded:true,updatedAt:now?now.updatedAt:Date.now()});};
+  for(const id of gone)if(!groups.has(id))store.delete(id);
+  for(const [id,entries] of groups){
+   const request=store.get(id);
+   request.onsuccess=()=>{const now=request.result?.owner===owner?request.result:null;store.put({id,owner,entries:{...entries,...(now?.entries||{})},uploaded:now?now.uploaded:true,updatedAt:now?now.updatedAt:Date.now()});};
   }
   return null;
  }).catch(()=>{});
@@ -222,6 +242,12 @@ function opportunityGeometryHook(){
  const apply=RecordSync.apply;RecordSync.apply=rows=>{opportunityGeometryReceive(rows);return apply(rows);};RecordSync.opportunityGeometry=true;
 }
 opportunityGeometryHook();
+const opportunityGeometryTurns=new Map();
+async function opportunityGeometryTurn(id){
+ const before=opportunityGeometryTurns.get(id);let release;const mine=new Promise(resolve=>{release=resolve;}),chain=(before||Promise.resolve()).then(()=>mine);
+ opportunityGeometryTurns.set(id,chain);if(before)await before;
+ return ()=>{release();if(opportunityGeometryTurns.get(id)===chain)opportunityGeometryTurns.delete(id);};
+}
 async function opportunityDigest(value){const bytes=new TextEncoder().encode(JSON.stringify(value)),digest=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');}
 function opportunitySemantic(pair){
  // The same fields the server's inputHash ignores: labels, record metadata.
@@ -255,16 +281,19 @@ async function opportunityDeviceSolve(pair,day,{priority='high',isCurrent=()=>tr
   flight=(async()=>{
    const saved=await opportunityDbDo('readonly',store=>store.get(key)).catch(()=>null);
    if(saved?.owner===owner&&saved.engine===state.engine){opportunityDeviceStats.hits++;return {rows:saved.rows,stored:true};}
-   return opportunityDeviceRun(priority,async()=>{
+   // A pair whose geometry is not built yet waits for the other body's check of the same
+   // place and target, then uses what that check built instead of building it twice.
+   const turn=Object.keys((await opportunityGeometryFor(pair)).entries).length?null:await opportunityGeometryTurn(await opportunityGeometryId(pair));
+   try{return await opportunityDeviceRun(priority,async()=>{
     if(!isCurrent()||owner!==auth?.loginId)return {rows:[],cancelled:true};
     const geometry=await opportunityGeometryFor(pair);
     const began=performance.now(),result=await opportunityEngineSolve({...opportunityDeviceInput(pair,day),geometry:geometry.entries});
     opportunityDeviceStats.solves++;opportunityDeviceStats.solveMs+=Math.round(performance.now()-began);
-    if(result.geometry&&typeof result.geometry==='object'&&Object.keys(result.geometry).length&&owner===auth?.loginId){opportunityDeviceStats.geometry=(opportunityDeviceStats.geometry||0)+Object.keys(result.geometry).length;void opportunityGeometryKeep(geometry.id,result.geometry);}
+    if(result.geometry&&typeof result.geometry==='object'&&Object.keys(result.geometry).length&&owner===auth?.loginId){opportunityDeviceStats.geometry=(opportunityDeviceStats.geometry||0)+Object.keys(result.geometry).length;await opportunityGeometryKeep(geometry.id,result.geometry);}
     if(result.status!=='complete'){opportunityDeviceStats.failures++;return {rows:result.rows||[],failed:1};}
     if(owner===auth?.loginId)await opportunityDbDo('readwrite',store=>store.put({key,owner,engine:state.engine,day:opportunityDateAt(day),savedAt:Date.now(),rows:result.rows})).catch(()=>{});
     return {rows:result.rows};
-   });
+   });}finally{turn?.();}
   })().finally(()=>{if(opportunityDeviceFlights.get(key)===flight)opportunityDeviceFlights.delete(key);});
   opportunityDeviceFlights.set(key,flight);
  }
@@ -302,9 +331,9 @@ function opportunityPairs(bodies){
  const {groups,shapes}=recordSearchIndex(),pairs=[],unavailable=[];
  for(const favorite of favorites){
   const targets=groups.get(favorite.id);if(!targets)continue;
-  // 2026-11-09 一覧は線・範囲の地点も登録した代表の1点で判定する（ユーザー「計算で使うのは一つの地点で
-  // 一つの建物の縁とか稜線でいい。正確な見え方は見え方でわかる」）。範囲内の位置は見え方で確かめる。
-  const shape=recordSearchShape(favorite,shapes),saved=favorite;
+  // 2026-11-09 線・範囲の地点は範囲内の立ち位置で確かめる（ユーザー「範囲とか線の時も出るようにできないの？」）。
+  // 立ち位置ごとの地面・稜線・外形は一度作って同期し、日ごとには太陽・月の通り道の近くだけを確かめる。
+  const shape=recordSearchShape(favorite,shapes),saved=shape?{...favorite,shape}:favorite;
   for(const [targetKey,source] of targets){
    const group=source.slice().sort((a,b)=>Number(!!b.registration)-Number(!!a.registration)||when(b)-when(a)||b.updatedAt-a.updatedAt);
    const best=statusOf(favorite.id,targetKey,source);if(!best||best.result==='hidden')continue;

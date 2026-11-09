@@ -1,5 +1,6 @@
 // Geometry made on one device is sent with the records (rec:geom:) and lets a
-// second device produce the same overlap list without rebuilding it.
+// second device produce the same overlap list without rebuilding it, including a
+// line place whose positions' ground and summit ridges continue over several rows.
 // Public places only; real GSI terrain over the network. NODE_PATH must reach playwright.
 require('./no-open-meteo.cjs');
 const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict');
@@ -29,15 +30,18 @@ async function device(type,incoming){
    // Receive the account's rows (geometry from the other device) before any check starts.
    await accountSync().syncNow().catch(()=>{});await new Promise(r=>setTimeout(r,300));
    const takao={latitude:35.62523,longitude:139.24369,elevation:599,eyeHeightAGL:1.5},park={latitude:35.58386,longitude:139.56853,elevation:87.2,eyeHeightAGL:1.5};
-   favorites=[{id:'p1',name:'高尾山山頂',...takao},{id:'p2',name:'鷺沼北公園',...park}];localStorage.setItem('sorami.favorites',JSON.stringify(favorites));
-   const records=[{id:'r00',placeId:'p1',target:{key:'fuji',name:'富士山'},observer:takao},{id:'r01',placeId:'p2',target:{key:'skytree',name:'東京スカイツリー'},observer:park}].map(r=>({...r,result:'seen',registration:true,createdAt:1,updatedAt:1,date:'',note:''}));
-   const touched=RecordSync.touched;RecordSync.touched=()=>{};store.set(AstroNotesLibrary.keys(auth.loginId).observations,records);RecordSync.touched=touched;MyPlacesUI.imported();
+   const ridge={latitude:35.62523,longitude:139.24369,elevation:599,eyeHeightAGL:1.5},line={type:'line',vertices:[{latitude:35.62523,longitude:139.24369},{latitude:35.6266,longitude:139.2449}]};
+   // A park area near the tower: many positions, so its geometry continues over several rows.
+   const sumida={latitude:35.7135,longitude:139.803,elevation:3,eyeHeightAGL:1.5},area={type:'area',vertices:[{latitude:35.7135,longitude:139.803},{latitude:35.7135,longitude:139.806},{latitude:35.711,longitude:139.806},{latitude:35.711,longitude:139.803}]};
+   favorites=[{id:'p1',name:'高尾山山頂',...takao},{id:'p2',name:'鷺沼北公園',...park},{id:'p3',name:'高尾山の尾根',...ridge},{id:'p4',name:'隅田公園',...sumida}];localStorage.setItem('sorami.favorites',JSON.stringify(favorites));
+   const records=[{id:'r00',placeId:'p1',target:{key:'fuji',name:'富士山'},observer:takao},{id:'r01',placeId:'p2',target:{key:'skytree',name:'東京スカイツリー'},observer:park},{id:'r02',placeId:'p3',target:{key:'fuji',name:'富士山'},observer:ridge},{id:'r03',placeId:'p4',target:{key:'skytree',name:'東京スカイツリー'},observer:sumida}].map(r=>({...r,result:'seen',registration:true,createdAt:1,updatedAt:1,date:'',note:''}));
+   const touched=RecordSync.touched;RecordSync.touched=()=>{};store.set(AstroNotesLibrary.keys(auth.loginId).observations,records);store.set(AstroNotesLibrary.keys(auth.loginId).shapes,{p3:{latitude:ridge.latitude,longitude:ridge.longitude,shape:line},p4:{latitude:sumida.latitude,longitude:sumida.longitude,shape:area}});RecordSync.touched=touched;MyPlacesUI.imported();
    location.hash='#/records';
   });
   await page.waitForFunction(()=>!document.getElementById('recordsView').hidden);await page.locator('#notebookOpportunitiesTab').click();await ready(page);
   const rows=await page.evaluate(()=>[...document.querySelectorAll('[data-opportunity-id]')].map(n=>n.dataset.opportunityId+'|'+n.textContent));
   // Uploads are debounced after the checks; wait for the geometry rows of both pairs.
-  const uploaded=()=>page.evaluate(()=>new Promise(r=>{const o=indexedDB.open('astronotes-overlap-geometry');o.onsuccess=()=>{try{const q=o.result.transaction('groups').objectStore('groups').getAll();q.onsuccess=()=>{r(q.result.length>=2&&q.result.every(g=>g.uploaded));o.result.close();};}catch{r(false);}};o.onerror=()=>r(false);}));
+  const uploaded=()=>page.evaluate(()=>new Promise(r=>{const o=indexedDB.open('astronotes-overlap-geometry');o.onsuccess=()=>{try{const q=o.result.transaction('groups').objectStore('groups').getAll();q.onsuccess=()=>{r(q.result.length>=4&&q.result.every(g=>g.uploaded));o.result.close();};}catch{r(false);}};o.onerror=()=>r(false);}));
   if(!incoming.length)for(let i=0;i<120&&!(await uploaded());i++)await page.waitForTimeout(1000);
   const stats=await page.evaluate(()=>({...globalThis.AstroNotesOverlapStats}));
   assert.deepEqual(errors,[]);
@@ -50,7 +54,10 @@ async function device(type,incoming){
   const geometry=first.sent.filter(r=>/^rec:geom:[a-f0-9]{40}$/.test(r.id));
   if(process.env.OVERLAP_GEOMETRY_DEBUG)console.log(JSON.stringify({sent:first.sent.map(r=>[r.id,JSON.stringify(r.body||{}).length]),stats:first.stats,rows:first.rows.length}));
   assert(geometry.length>=2,'both pairs send their geometry');
-  assert(geometry.every(r=>r.body?.kind==='geom'&&r.body.value?.v===1&&JSON.stringify(r.body).length<=20000&&Object.keys(r.body.value.entries).every(k=>/^(sil|cap):/.test(k))),'geometry rows fit the sync contract');
+  assert(geometry.every(r=>r.body?.kind==='geom'&&r.body.value?.v===1&&JSON.stringify(r.body).length<=20000&&Object.keys(r.body.value.entries).every(k=>/^(sil|cap|shp):/.test(k))),'geometry rows fit the sync contract');
+  assert(geometry.some(r=>Object.keys(r.body.value.entries).some(k=>k.startsWith('shp:'))),'the line place sends its positions');
+  assert(geometry.some(r=>/^rec:geom:[a-f0-9]{40}$/.test(r.body.value.group||'')&&r.body.value.group!==r.id),'a large area continues in rows naming its group');
+  assert(first.rows.some(r=>/線上 35\./.test(r)),'the line place has an overlap at a position on the line');
   assert(Object.keys(Object.assign({},...geometry.map(r=>r.body.value.entries))).some(k=>k.startsWith('cap:'))&&Object.keys(Object.assign({},...geometry.map(r=>r.body.value.entries))).some(k=>k.startsWith('sil:')),'a summit ridge and a building outline are synced');
   assert(first.stats.geometry>0,'the first device built geometry');
   const second=await device(type,geometry);

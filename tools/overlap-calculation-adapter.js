@@ -34,6 +34,8 @@ const geometryPoints=(list,min)=>Array.isArray(list)&&list.length>=min&&list.len
 function geometryValid(key,value){
  if(key.startsWith('sil:'))return value===null||!!value&&Number.isFinite(value.viewBaseAngle)&&Number.isFinite(value.topAngle)&&geometryPoints(value.polygon,3);
  if(key.startsWith('cap:'))return !!value&&Number.isFinite(value.base)&&geometryPoints(value.ridge,2);
+ // Ground and outline per position of a registered line/area, 16 positions per entry.
+ if(key.startsWith('shp:'))return /^shp:[0-9a-f]{16}:\d{1,5}$/.test(key)&&recordShapeBlockValid(value)&&key.endsWith(':'+value.i0);
  return false;
 }
 async function solve(input){
