@@ -1,9 +1,12 @@
 // Cooperative day-first scan. Publish a day only after every registered pair
 // has been checked, so already visible rows do not move under the user's finger.
-export function createOpportunityScan({pairs,start,end,notBefore=start,pageRows=Infinity,solve,isCurrent,onStart=()=>{},onProgress=()=>{},onDay=()=>{},yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
+// ahead: how many checks of the same day may be in flight at once (parallel
+// engines). Results are still consumed in pair order, so the day publishes the same.
+export function createOpportunityScan({pairs,start,end,notBefore=start,pageRows=Infinity,solve,isCurrent,ahead=()=>1,onStart=()=>{},onProgress=()=>{},onDay=()=>{},yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
  const dayMs=86400000;
  const state={day:start,end,rowLimit:pageRows,index:0,checked:0,total:Math.ceil((end-start)/dayMs)*pairs.length,through:start,rows:[],pending:[],failures:[],done:false,running:false,cancelled:false};
- const seen=new Set();
+ const seen=new Set(),flights=new Map();
+ const started=(day,index)=>{const key=day+':'+index;if(!flights.has(key)){let p;try{p=Promise.resolve(solve(pairs[index],day,isCurrent));}catch(error){p=Promise.reject(error);}p.catch(()=>{});flights.set(key,p);}return flights.get(key);};
  async function advance(){
   if(state.running||state.done||state.cancelled)return state;
   state.running=true;
@@ -13,7 +16,9 @@ export function createOpportunityScan({pairs,start,end,notBefore=start,pageRows=
    while(state.day<state.end){
     if(!isCurrent()){state.cancelled=true;return state;}
     const pair=pairs[state.index];let result;
-    try{result=await solve(pair,state.day,isCurrent);}catch(error){if(!isCurrent()){state.cancelled=true;return state;}result={rows:[],failed:1};}
+    for(let k=state.index,last=Math.min(pairs.length,state.index+Math.max(1,ahead()|0));k<last;k++)started(state.day,k);
+    const flight=started(state.day,state.index);flights.delete(state.day+':'+state.index);
+    try{result=await flight;}catch(error){if(!isCurrent()){state.cancelled=true;return state;}result={rows:[],failed:1};}
     if(!isCurrent()||result?.cancelled){state.cancelled=true;return state;}
     if(result?.failed)state.failures.push({pairId:pair.id,day:state.day});
     for(const row of result?.rows||[]){

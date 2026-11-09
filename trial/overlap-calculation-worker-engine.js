@@ -3895,7 +3895,7 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
     const hasMountainRidge=!!mountainRidge;
     let centerAlt,project,polygons,hasOutline,approximate;
     {
-    const outline = mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} : towerOutline(observer, target, opts);
+    const outline = mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} : opts.silhouette ? {viewBaseAngle:opts.silhouette.viewBaseAngle,topAngle:opts.silhouette.topAngle,approximate:!!opts.silhouette.approximate,hitPolygons:[opts.silhouette.polygon]} : towerOutline(observer, target, opts);
     centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
     project = viewProjector(g.azimuth, centerAlt);
     polygons = outline ? (outline.hitPolygons || [outline.hitPoints || outline.points]).map(poly=>poly.map(([a,h])=>project(a,h)).filter(Boolean)).filter(poly=>poly.length>=3) : null;
@@ -6099,10 +6099,14 @@ const aimCapStore=(()=>{
 })();
 function aimIndexedCap(obs,eye,target){
   const key=JSON.stringify([obs.latitude,obs.longitude,eye,target.id,target.latitude,target.longitude,target.parts?.[0]?.m,target.rim||null,AstroNotesAtmosphere.targetK()]);
-  if(aimIndexedCaps.has(key)){const hit=aimIndexedCaps.get(key);aimIndexedCaps.delete(key);aimIndexedCaps.set(key,hit);return hit;}
-  const pending=(async()=>{const saved=await aimCapStore?.get(key);if(saved)return saved;const cap=await trialSearchRidge(obs,eye,target);if(cap)void aimCapStore?.put(key,cap);return cap;})().then(cap=>{if(!cap&&aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);return cap;},error=>{if(aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);throw error;});
+  // The overlap list passes caps it already holds (synced with the records) and collects the ones it used.
+  const shared=typeof recordGeometry!=='undefined'&&recordGeometry.collect?recordGeometry:null,sharedKey='cap:'+key;
+  const note=cap=>{if(cap&&shared)shared.used.set(sharedKey,{ridge:cap.ridge,base:cap.base});return cap;};
+  if(aimIndexedCaps.has(key)){const hit=aimIndexedCaps.get(key);aimIndexedCaps.delete(key);aimIndexedCaps.set(key,hit);return hit.then(note);}
+  const known=shared?.known.get(sharedKey);
+  const pending=(async()=>{if(Array.isArray(known?.ridge)&&Number.isFinite(known?.base))return known;const saved=await aimCapStore?.get(key);if(saved)return saved;const cap=await trialSearchRidge(obs,eye,target);if(cap)void aimCapStore?.put(key,cap);return cap;})().then(cap=>{if(!cap&&aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);return cap;},error=>{if(aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);throw error;});
   aimIndexedCaps.set(key,pending);while(aimIndexedCaps.size>AIM_INDEXED_CAP_LIMIT)aimIndexedCaps.delete(aimIndexedCaps.keys().next().value);
-  return pending;
+  return pending.then(note);
 }
 async function aimShootingView(obs, target, body, partId, matchMode, indexed=false) {
   if(matchMode!=='overlap'||!aimIsMountain(target))return null;
@@ -6632,14 +6636,24 @@ function recordBounded(map,key,build,limit){
  if(map.has(key)){const value=map.get(key);map.delete(key);map.set(key,value);return value;}
  const value=build();map.set(key,value);while(map.size>limit)map.delete(map.keys().next().value);return value;
 }
+const recordGeometry={known:new Map(),used:new Map(),collect:false};
+function recordSilhouette(obs,target,opts){
+ const key='sil:'+JSON.stringify([obs.latitude,obs.longitude,obs.elevation??0,opts.eyeM??1.5,target.id??null,target.latitude,target.longitude,target.groundM??null,(target.parts||[]).map(p=>[p.id,p.m]),opts.heightM??null,AstroNotesAtmosphere.targetK()]);
+ if(recordGeometry.known.has(key)){const hit=recordGeometry.known.get(key);recordGeometry.used.set(key,hit);return hit;}
+ const outline=AstroNotesAlign.towerOutline(obs,target,{eyeM:opts.eyeM??1.5,heightM:opts.heightM??null});
+ let value=null;
+ if(outline){const polygon=AstroNotesAlign.convexHull(outline.hitPolygons?outline.hitPolygons.flat():outline.hitPoints||outline.points||[]);if(polygon.length>=3&&Number.isFinite(outline.viewBaseAngle)&&Number.isFinite(outline.topAngle))value={viewBaseAngle:outline.viewBaseAngle,topAngle:outline.topAngle,approximate:!!outline.approximate,polygon};}
+ recordGeometry.known.set(key,value);recordGeometry.used.set(key,value);return value;
+}
 function recordPrepared(session,shaped,obs,target,body,opts){
  const views=shaped?session.shapeViews:session.pointViews,key=JSON.stringify([obs,target,body,opts]);
  return recordBounded(views,key,()=>{session.prepares++;return AstroNotesAlign.prepareDailyView(obs,target,body,opts);},shaped?128:192);
 }
 function recordSolverFor(session,variant,shaped,override){
  const terrain=override||session.terrain,align=Object.create(AstroNotesAlign);
- align.prepareDailyView=(obs,target,body,opts)=>recordPrepared(session,shaped,obs,target,body,opts);
- align.dailyView=(obs,target,body,day,{at,...opts}={})=>recordPrepared(session,shaped,obs,target,body,opts)(day,at);
+ const prepare=(obs,target,body,opts)=>{const silhouette=variant==='opportunity'&&!aimIsMountain(target)?recordSilhouette(obs,target,opts):null;return recordPrepared(session,shaped,obs,target,body,silhouette?{...opts,silhouette}:opts);};
+ align.prepareDailyView=prepare;
+ align.dailyView=(obs,target,body,day,{at,...opts}={})=>prepare(obs,target,body,opts)(day,at);
  const viewFor=(obs,p,indexed=false)=>{
   if(p.matchMode==='overlap'&&aimIsMountain(p.target)){
    if(indexed&&p.target.id==='fuji')return aimShootingView(obs,p.target,p.body,p.partId,p.matchMode,true);
@@ -6656,7 +6670,7 @@ function recordSolverFor(session,variant,shaped,override){
   if(shaped&&variant==='discovery')return null;
   const o=AstroNotesShooting.searchOptions(p,aimIsMountain);
   if(!(o.broad&&o.disc||o.partId==='__whole'&&!aimIsMountain(p.target)))return null;
-  return recordPrepared(session,shaped,obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM});
+  return prepare(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM});
  };
  return recordHeightSolver({align,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),ensure:b=>AstroNotesBodies.ensure(b),viewFor,fixedViewFor:(obs,p)=>viewFor(obs,p,true),yieldTask:recordSearchYield,elevationAt:(lat,lon)=>{
   const key=lat+','+lon;
@@ -6702,7 +6716,9 @@ function opportunityPairs(bodies){
  const {groups,shapes}=recordSearchIndex(),pairs=[],unavailable=[];
  for(const favorite of favorites){
   const targets=groups.get(favorite.id);if(!targets)continue;
-  const shape=recordSearchShape(favorite,shapes),saved=shape?{...favorite,shape}:favorite;
+  // 2026-11-09 一覧は線・範囲の地点も登録した代表の1点で判定する（ユーザー「計算で使うのは一つの地点で
+  // 一つの建物の縁とか稜線でいい。正確な見え方は見え方でわかる」）。範囲内の位置は見え方で確かめる。
+  const shape=recordSearchShape(favorite,shapes),saved=favorite;
   for(const [targetKey,source] of targets){
    const group=source.slice().sort((a,b)=>Number(!!b.registration)-Number(!!a.registration)||when(b)-when(a)||b.updatedAt-a.updatedAt);
    const best=statusOf(favorite.id,targetKey,source);if(!best||best.result==='hidden')continue;
@@ -6711,7 +6727,7 @@ function opportunityPairs(bodies){
    if(!planningPairs([best],bodies).length){unavailable.push({placeId:favorite.id,targetKey,reason:'access'});continue;}if(!target||targetMoved){unavailable.push({placeId:favorite.id,targetKey,reason:'target'});continue;}
    for(const record of heightRange?[best]:group){
     if(record.removed||record.result==='hidden')continue;
-    const o=heightRange?favorite:record.observer||favorite;if(!shape&&AstroNotesTerrain.distanceKm(o.latitude,o.longitude,favorite.latitude,favorite.longitude)>=NEAR_KM){continue;}const place={...saved,latitude:o.latitude,longitude:o.longitude,elevation:o.elevation??favorite.elevation,groundManualM:o.elevation??favorite.groundManualM??favorite.elevation,eyeHeightAGL:o.eyeHeightAGL??favorite.eyeHeightAGL??1.5};
+    const o=heightRange||shape?favorite:record.observer||favorite;if(!shape&&AstroNotesTerrain.distanceKm(o.latitude,o.longitude,favorite.latitude,favorite.longitude)>=NEAR_KM){continue;}const place={...saved,latitude:o.latitude,longitude:o.longitude,elevation:o.elevation??favorite.elevation,groundManualM:o.elevation??favorite.groundManualM??favorite.elevation,eyeHeightAGL:o.eyeHeightAGL??favorite.eyeHeightAGL??1.5};
     place.standAglM=place.eyeHeightAGL;place.stand='ground';
     const observerKey=JSON.stringify([place.latitude,place.longitude,place.groundManualM,place.eyeHeightAGL,place.shape,heightRange]);
     if(seen.has(observerKey))continue;seen.add(observerKey);
@@ -6755,8 +6771,19 @@ function normalize(snapshot){
  const keys=AstroNotesLibrary.keys(auth.loginId);values[keys.observations]=records;values[keys.shapes]=shapes;recordIndexMemo=null;
  const result={pairs:[],unavailable:[]};for(const {id:body} of AstroNotesBodies.definitions){const found=opportunityPairs([body]);result.pairs.push(...found.pairs);result.unavailable.push(...found.unavailable.map(item=>({...item,body})));}const blocked=new Set(invalid.filter(x=>x.reason==='shape-invalid'||x.reason==='favorite-invalid').map(x=>x.placeId));result.pairs=result.pairs.filter(p=>!blocked.has(p.sourcePlaceId));result.unavailable.push(...invalid);return result;
 }
+const geometryPoints=(list,min)=>Array.isArray(list)&&list.length>=min&&list.length<=20000&&list.every(p=>Array.isArray(p)&&p.length===2&&Number.isFinite(p[0])&&Number.isFinite(p[1]));
+function geometryValid(key,value){
+ if(key.startsWith('sil:'))return value===null||!!value&&Number.isFinite(value.viewBaseAngle)&&Number.isFinite(value.topAngle)&&geometryPoints(value.polygon,3);
+ if(key.startsWith('cap:'))return !!value&&Number.isFinite(value.base)&&geometryPoints(value.ridge,2);
+ return false;
+}
 async function solve(input){
  configure(input);const pair=input.input,day=Date.parse(input.day+'T00:00:00+09:00');
+ // Date-independent geometry the caller already holds (synced with the records). What this
+ // check used and was not given is returned so the caller can keep and sync it.
+ const given=new Set();if(recordGeometry.known.size>5000)recordGeometry.known.clear();
+ if(input.geometry&&typeof input.geometry==='object')for(const [key,value] of Object.entries(input.geometry))if(geometryValid(key,value)){recordGeometry.known.set(key,value);given.add(key);}
+ recordGeometry.used=new Map();recordGeometry.collect=true;
  if(!pair||!Number.isFinite(day)||!AstroNotesShooting.point(pair.place)||!AstroNotesShooting.point(pair.target)||!AstroNotesBodies.definition(pair.body)||!AstroNotesAccess.canFrame(toolAllowed,pair.target.id,pair.body))throw Error('invalid calculation input');
  // Category checks for saved mountain targets need the original favorite metadata.
  favorites=pair.contextFavorites||[];AstroNotesAtmosphere.resetSnapshot();
@@ -6775,7 +6802,8 @@ async function solve(input){
  const started=performance.now();
  const result=recordEventOptions(await recordSearch(plan,[{place,record}],{isCurrent:()=>true,variant:input.variant||'opportunity'}),pair);
  const rows=(result.rows||[]).map(row=>({...row,pairId:input.pairId,body:pair.body,target:pair.target,sourcePlaceId:pair.sourcePlaceId||place.id}));
- return {rows,issues:result.issues||[],status:result.failed||result.cancelled||result.issues?.length?'partial':'complete',checked:result.checked||0,stepM:result.stepM,expiresAt:Number.isFinite(refreshAt)?refreshAt:null,calculationMs:performance.now()-started,atmosphereResolution,atmosphereKey:AstroNotesAtmosphere.dataKey()};
+ const geometry={};for(const [key,value] of recordGeometry.used)if(!given.has(key))geometry[key]=value;recordGeometry.used=new Map();
+ return {geometry,rows,issues:result.issues||[],status:result.failed||result.cancelled||result.issues?.length?'partial':'complete',checked:result.checked||0,stepM:result.stepM,expiresAt:Number.isFinite(refreshAt)?refreshAt:null,calculationMs:performance.now()-started,atmosphereResolution,atmosphereKey:AstroNotesAtmosphere.dataKey()};
 }
 // Private fixture verification only; the daemon never dispatches this operation.
 async function reference(input){

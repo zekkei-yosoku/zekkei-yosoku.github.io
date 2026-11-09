@@ -30,8 +30,19 @@ function normalize(snapshot){
  const keys=AstroNotesLibrary.keys(auth.loginId);values[keys.observations]=records;values[keys.shapes]=shapes;recordIndexMemo=null;
  const result={pairs:[],unavailable:[]};for(const {id:body} of AstroNotesBodies.definitions){const found=opportunityPairs([body]);result.pairs.push(...found.pairs);result.unavailable.push(...found.unavailable.map(item=>({...item,body})));}const blocked=new Set(invalid.filter(x=>x.reason==='shape-invalid'||x.reason==='favorite-invalid').map(x=>x.placeId));result.pairs=result.pairs.filter(p=>!blocked.has(p.sourcePlaceId));result.unavailable.push(...invalid);return result;
 }
+const geometryPoints=(list,min)=>Array.isArray(list)&&list.length>=min&&list.length<=20000&&list.every(p=>Array.isArray(p)&&p.length===2&&Number.isFinite(p[0])&&Number.isFinite(p[1]));
+function geometryValid(key,value){
+ if(key.startsWith('sil:'))return value===null||!!value&&Number.isFinite(value.viewBaseAngle)&&Number.isFinite(value.topAngle)&&geometryPoints(value.polygon,3);
+ if(key.startsWith('cap:'))return !!value&&Number.isFinite(value.base)&&geometryPoints(value.ridge,2);
+ return false;
+}
 async function solve(input){
  configure(input);const pair=input.input,day=Date.parse(input.day+'T00:00:00+09:00');
+ // Date-independent geometry the caller already holds (synced with the records). What this
+ // check used and was not given is returned so the caller can keep and sync it.
+ const given=new Set();if(recordGeometry.known.size>5000)recordGeometry.known.clear();
+ if(input.geometry&&typeof input.geometry==='object')for(const [key,value] of Object.entries(input.geometry))if(geometryValid(key,value)){recordGeometry.known.set(key,value);given.add(key);}
+ recordGeometry.used=new Map();recordGeometry.collect=true;
  if(!pair||!Number.isFinite(day)||!AstroNotesShooting.point(pair.place)||!AstroNotesShooting.point(pair.target)||!AstroNotesBodies.definition(pair.body)||!AstroNotesAccess.canFrame(toolAllowed,pair.target.id,pair.body))throw Error('invalid calculation input');
  // Category checks for saved mountain targets need the original favorite metadata.
  favorites=pair.contextFavorites||[];AstroNotesAtmosphere.resetSnapshot();
@@ -50,7 +61,8 @@ async function solve(input){
  const started=performance.now();
  const result=recordEventOptions(await recordSearch(plan,[{place,record}],{isCurrent:()=>true,variant:input.variant||'opportunity'}),pair);
  const rows=(result.rows||[]).map(row=>({...row,pairId:input.pairId,body:pair.body,target:pair.target,sourcePlaceId:pair.sourcePlaceId||place.id}));
- return {rows,issues:result.issues||[],status:result.failed||result.cancelled||result.issues?.length?'partial':'complete',checked:result.checked||0,stepM:result.stepM,expiresAt:Number.isFinite(refreshAt)?refreshAt:null,calculationMs:performance.now()-started,atmosphereResolution,atmosphereKey:AstroNotesAtmosphere.dataKey()};
+ const geometry={};for(const [key,value] of recordGeometry.used)if(!given.has(key))geometry[key]=value;recordGeometry.used=new Map();
+ return {geometry,rows,issues:result.issues||[],status:result.failed||result.cancelled||result.issues?.length?'partial':'complete',checked:result.checked||0,stepM:result.stepM,expiresAt:Number.isFinite(refreshAt)?refreshAt:null,calculationMs:performance.now()-started,atmosphereResolution,atmosphereKey:AstroNotesAtmosphere.dataKey()};
 }
 // Private fixture verification only; the daemon never dispatches this operation.
 async function reference(input){

@@ -564,7 +564,7 @@
     const hasMountainRidge=!!mountainRidge;
     let centerAlt,project,polygons,hasOutline,approximate;
     {
-    const outline = mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} : towerOutline(observer, target, opts);
+    const outline = mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} : opts.silhouette ? {viewBaseAngle:opts.silhouette.viewBaseAngle,topAngle:opts.silhouette.topAngle,approximate:!!opts.silhouette.approximate,hitPolygons:[opts.silhouette.polygon]} : towerOutline(observer, target, opts);
     centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
     project = viewProjector(g.azimuth, centerAlt);
     polygons = outline ? (outline.hitPolygons || [outline.hitPoints || outline.points]).map(poly=>poly.map(([a,h])=>project(a,h)).filter(Boolean)).filter(poly=>poly.length>=3) : null;

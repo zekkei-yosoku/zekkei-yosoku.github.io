@@ -15,10 +15,10 @@
     "astronotes-scroll-timeline.js": "8c5cc47f5d1c50591a0bf714c6eada8639a5bb42b0afa41ad7966017f2a71647",
     "astronotes-datetime-ui.css": "9549b314efddc645788c760ea1fe8316ba424e50f943b45ba3184fd420e3a791",
     "astronotes-plan.js": "7f1f632f51284668bf3692190e77aaa23c94a0e5bed0bd828a9e07cdba443190",
-    "astronotes-align.js": "b585df9e6bb98c5c58b415865df5febd6e9385269bd2b963d4ce1bbfd358669f",
+    "astronotes-align.js": "cddccb09d743dbe5011e699f978d5698bcc3a5909d2d2827c16e71241ea57627",
     "astronotes-atmosphere.js": "23c043d5fde85f3ed43958b21c0ea07362cb910db4f358d384eb08f80ae4f17b",
     "astronotes-shooting.js": "dbc3f425776403e6beeb784a529215343f76c7384a33e4bc1454d4ef5d39397f",
-    "astronotes-myplaces.js": "725b71bf6ab8fb74967567e6a787a51033e49f91e20b8703e6a36256b0f148e6",
+    "astronotes-myplaces.js": "165a3233ed315e95f3bf109b40f5acd78a303b03db54275a1574f86d47473616",
     "astronotes-explore-simple.js": "edd2e286ea4446c362fe989068c6aa7e96205b961e4b49ad61190a11bc1e70ba",
     "astronotes-candidate-search.js": "dd96b8173226788306dd4db0b9f656b40007fa9ee51b202d43a33533cea5e482",
     "data/candidate-viewpoints.json": "f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5",
@@ -28,7 +28,7 @@
     "data/candidate-sidewalks.json": "efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a",
     "data/candidate-label-addresses.json": "3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b",
     "data/candidate-label-facilities.json": "ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53",
-    "index.html": "5a770268887dfb6c127456eaa53916b5a11aa90f11e2ac3dffeca9d854a46456",
-    "app-version.txt": "1f3ff99126c08c6d626f0c7ddc2e38e380c133077d020997e446a7bbd9eede4e"
+    "index.html": "817d24701b51eaf3500eada80e9473d3885e11762a4b3850ed0f28dcc36bdabc",
+    "app-version.txt": "edaeab5bfa4f1697f2cc3a2519a1e75628cda50348290ec027935189ad7a5f19"
   }
 }

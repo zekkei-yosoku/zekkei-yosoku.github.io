@@ -85,10 +85,14 @@ const aimCapStore=(()=>{
 })();
 function aimIndexedCap(obs,eye,target){
   const key=JSON.stringify([obs.latitude,obs.longitude,eye,target.id,target.latitude,target.longitude,target.parts?.[0]?.m,target.rim||null,AstroNotesAtmosphere.targetK()]);
-  if(aimIndexedCaps.has(key)){const hit=aimIndexedCaps.get(key);aimIndexedCaps.delete(key);aimIndexedCaps.set(key,hit);return hit;}
-  const pending=(async()=>{const saved=await aimCapStore?.get(key);if(saved)return saved;const cap=await trialSearchRidge(obs,eye,target);if(cap)void aimCapStore?.put(key,cap);return cap;})().then(cap=>{if(!cap&&aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);return cap;},error=>{if(aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);throw error;});
+  // The overlap list passes caps it already holds (synced with the records) and collects the ones it used.
+  const shared=typeof recordGeometry!=='undefined'&&recordGeometry.collect?recordGeometry:null,sharedKey='cap:'+key;
+  const note=cap=>{if(cap&&shared)shared.used.set(sharedKey,{ridge:cap.ridge,base:cap.base});return cap;};
+  if(aimIndexedCaps.has(key)){const hit=aimIndexedCaps.get(key);aimIndexedCaps.delete(key);aimIndexedCaps.set(key,hit);return hit.then(note);}
+  const known=shared?.known.get(sharedKey);
+  const pending=(async()=>{if(Array.isArray(known?.ridge)&&Number.isFinite(known?.base))return known;const saved=await aimCapStore?.get(key);if(saved)return saved;const cap=await trialSearchRidge(obs,eye,target);if(cap)void aimCapStore?.put(key,cap);return cap;})().then(cap=>{if(!cap&&aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);return cap;},error=>{if(aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);throw error;});
   aimIndexedCaps.set(key,pending);while(aimIndexedCaps.size>AIM_INDEXED_CAP_LIMIT)aimIndexedCaps.delete(aimIndexedCaps.keys().next().value);
-  return pending;
+  return pending.then(note);
 }
 async function aimShootingView(obs, target, body, partId, matchMode, indexed=false) {
   if(matchMode!=='overlap'||!aimIsMountain(target))return null;

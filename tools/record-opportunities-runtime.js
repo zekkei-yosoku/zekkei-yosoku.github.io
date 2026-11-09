@@ -24,6 +24,7 @@ const opportunityServer=createServerOpportunityPreferences({
  sync:async()=>{await accountSync().syncNow();if(syncError||pushQueue.length)throw Error('記録を同期できていません。通信を確認して再試行してください。');}
 });
 function opportunityWarmup(){
+ opportunityGeometryHook();
  if(opportunityAllowed()&&!document.hidden&&opportunityServer.state.enabled===false)opportunityDeviceBackground();
  if(!opportunityAllowed()||document.hidden||opportunityWarmupFlight)return;
  const key=JSON.stringify([auth?.token,auth?.loginId,accessState.generation,opportunityDateAt(Date.now()),opportunityAirKey(true)]);
@@ -143,7 +144,84 @@ async function opportunityDbPrune(owner,engine){
  const today=opportunityDateAt(Date.now());
  await opportunityDbDo('readwrite',store=>{const request=store.openCursor();request.onsuccess=()=>{const cursor=request.result;if(!cursor)return;const v=cursor.value;if(v.owner!==owner||v.engine!==engine||v.day<today)cursor.delete();cursor.continue();};return null;}).catch(()=>{});
 }
-function opportunityDeviceForget(){opportunityDbDo('readwrite',store=>store.clear()).catch(()=>{});try{indexedDB.deleteDatabase('astronotes-ridge-caps');}catch{/* Unavailable storage has nothing to forget. */}}
+function opportunityDeviceForget(){opportunityDbDo('readwrite',store=>store.clear()).catch(()=>{});opportunityGeometryDo('readwrite',store=>store.clear()).catch(()=>{});try{indexedDB.deleteDatabase('astronotes-ridge-caps');}catch{/* Unavailable storage has nothing to forget. */}}
+// 2026-11-09 Date-independent geometry (one building outline or summit ridge per
+// point, target and eye height) is kept per pair, sent with the records as
+// rec:geom:<id> and received from them, so a later day or another device does not
+// rebuild it from terrain and 3D models (ユーザー「記録に保存する時に稜線とか建物の縁とか
+// 保持しておけば取りに行く必要はなくなる」「絶対に同期して」). Production ignores this kind.
+const OPPORTUNITY_GEOMETRY_VERSION=1,opportunityGeometryRow=/^rec:geom:[a-f0-9]{40}$/,OPPORTUNITY_GEOMETRY_BODY=19000;
+let opportunityGeometryDb=null,opportunityGeometryTimer=null,opportunityGeometryFlight=null;
+function opportunityGeometryOpen(){
+ if(opportunityGeometryDb)return opportunityGeometryDb;
+ opportunityGeometryDb=new Promise((resolve,reject)=>{
+  if(typeof indexedDB==='undefined'){reject(Error('indexedDB unavailable'));return;}
+  const request=indexedDB.open('astronotes-overlap-geometry',1);
+  request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains('groups'))db.createObjectStore('groups',{keyPath:'id'});};
+  request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+ });
+ opportunityGeometryDb.catch(()=>{opportunityGeometryDb=null;});
+ return opportunityGeometryDb;
+}
+function opportunityGeometryDo(mode,work){
+ return opportunityGeometryOpen().then(db=>new Promise((resolve,reject)=>{const tx=db.transaction('groups',mode),store=tx.objectStore('groups');let value;const request=work(store);if(request)request.onsuccess=()=>{value=request.result;};tx.oncomplete=()=>resolve(value);tx.onerror=tx.onabort=()=>reject(tx.error);}));
+}
+// Body and labels do not change the geometry: the sun and moon pairs share one group.
+async function opportunityGeometryId(pair){return 'rec:geom:'+(await opportunityDigest(['astronotes.overlap-geometry.v'+OPPORTUNITY_GEOMETRY_VERSION,{...opportunitySemantic(pair),body:undefined}])).slice(0,40);}
+async function opportunityGeometryFor(pair){
+ const id=await opportunityGeometryId(pair),owner=auth?.loginId,group=await opportunityGeometryDo('readonly',store=>store.get(id)).catch(()=>null);
+ return {id,entries:group?.owner===owner&&group.entries&&typeof group.entries==='object'?group.entries:{}};
+}
+async function opportunityGeometryKeep(id,entries){
+ const owner=auth?.loginId;if(!owner||!Object.keys(entries).length)return;
+ await opportunityGeometryDo('readwrite',store=>{const request=store.get(id);request.onsuccess=()=>{const old=request.result?.owner===owner?request.result.entries:{};store.put({id,owner,entries:{...old,...entries},uploaded:false,updatedAt:Date.now()});};return null;}).catch(()=>{});
+ clearTimeout(opportunityGeometryTimer);opportunityGeometryTimer=setTimeout(()=>void opportunityGeometryUpload(),3000);
+}
+// One synced row holds at most what fits the server's 20,000-character body.
+function opportunityGeometryFit(entries){
+ const out={};let size=60;
+ for(const key of Object.keys(entries).sort()){const add=JSON.stringify(key).length+JSON.stringify(entries[key]).length+2;if(size+add>OPPORTUNITY_GEOMETRY_BODY)continue;out[key]=entries[key];size+=add;}
+ return out;
+}
+async function opportunityGeometryUpload(){
+ if(opportunityGeometryFlight)return opportunityGeometryFlight;
+ const owner=auth?.loginId,token=auth?.token;if(!owner||!token)return;
+ opportunityGeometryFlight=(async()=>{
+  try{
+   const pending=((await opportunityGeometryDo('readonly',store=>store.getAll()).catch(()=>[]))||[]).filter(g=>g.owner===owner&&!g.uploaded);
+   for(let i=0;i<pending.length;i+=100){
+    if(auth?.loginId!==owner||auth?.token!==token)return;
+    const batch=pending.slice(i,i+100),res=await apiTransport('POST','/sync',{records:batch.map(g=>({id:g.id,body:{kind:'geom',value:{v:OPPORTUNITY_GEOMETRY_VERSION,entries:opportunityGeometryFit(g.entries)}},updated_at:Date.now(),deleted:false}))});
+    const ok=new Set(res?.accepted?.records||[]);
+    // A group that gained entries while sending stays pending for the next round.
+    await opportunityGeometryDo('readwrite',store=>{for(const g of batch){if(!ok.has(g.id))continue;const request=store.get(g.id);request.onsuccess=()=>{const now=request.result;if(now&&now.updatedAt===g.updatedAt)store.put({...now,uploaded:true});};}return null;});
+   }
+  }catch{/* Kept on this device and sent after the next check. */}
+  finally{opportunityGeometryFlight=null;}
+ })();
+ return opportunityGeometryFlight;
+}
+function opportunityGeometryReceive(rows){
+ const owner=auth?.loginId;if(!owner||!Array.isArray(rows))return;
+ const list=rows.filter(row=>row&&typeof row.id==='string'&&opportunityGeometryRow.test(row.id));if(!list.length)return;
+ void opportunityGeometryDo('readwrite',store=>{
+  for(const row of list){
+   if(row.deleted){store.delete(row.id);continue;}
+   let body;try{body=JSON.parse(row.body);}catch{continue;}
+   const value=body?.kind==='geom'?body.value:null;
+   if(value?.v!==OPPORTUNITY_GEOMETRY_VERSION||!value.entries||typeof value.entries!=='object'||Array.isArray(value.entries))continue;
+   const request=store.get(row.id);
+   request.onsuccess=()=>{const now=request.result?.owner===owner?request.result:null;store.put({id:row.id,owner,entries:{...value.entries,...(now?.entries||{})},uploaded:now?now.uploaded:true,updatedAt:now?now.updatedAt:Date.now()});};
+  }
+  return null;
+ }).catch(()=>{});
+}
+// Rows of this kind arrive through the account sync; production code skips them.
+function opportunityGeometryHook(){
+ if(typeof RecordSync==='undefined'||RecordSync.opportunityGeometry)return;
+ const apply=RecordSync.apply;RecordSync.apply=rows=>{opportunityGeometryReceive(rows);return apply(rows);};RecordSync.opportunityGeometry=true;
+}
+opportunityGeometryHook();
 async function opportunityDigest(value){const bytes=new TextEncoder().encode(JSON.stringify(value)),digest=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');}
 function opportunitySemantic(pair){
  // The same fields the server's inputHash ignores: labels, record metadata.
@@ -179,8 +257,10 @@ async function opportunityDeviceSolve(pair,day,{priority='high',isCurrent=()=>tr
    if(saved?.owner===owner&&saved.engine===state.engine){opportunityDeviceStats.hits++;return {rows:saved.rows,stored:true};}
    return opportunityDeviceRun(priority,async()=>{
     if(!isCurrent()||owner!==auth?.loginId)return {rows:[],cancelled:true};
-    const began=performance.now(),result=await opportunityEngineSolve(opportunityDeviceInput(pair,day));
+    const geometry=await opportunityGeometryFor(pair);
+    const began=performance.now(),result=await opportunityEngineSolve({...opportunityDeviceInput(pair,day),geometry:geometry.entries});
     opportunityDeviceStats.solves++;opportunityDeviceStats.solveMs+=Math.round(performance.now()-began);
+    if(result.geometry&&typeof result.geometry==='object'&&Object.keys(result.geometry).length&&owner===auth?.loginId){opportunityDeviceStats.geometry=(opportunityDeviceStats.geometry||0)+Object.keys(result.geometry).length;void opportunityGeometryKeep(geometry.id,result.geometry);}
     if(result.status!=='complete'){opportunityDeviceStats.failures++;return {rows:result.rows||[],failed:1};}
     if(owner===auth?.loginId)await opportunityDbDo('readwrite',store=>store.put({key,owner,engine:state.engine,day:opportunityDateAt(day),savedAt:Date.now(),rows:result.rows})).catch(()=>{});
     return {rows:result.rows};
@@ -198,25 +278,33 @@ function opportunityDeviceBackground(){
  if(opportunityBackgroundFlight)return;
  const owner=auth?.loginId,token=auth?.token,generation=accessState.generation;
  const live=()=>!document.hidden&&opportunityAllowed()&&owner===auth?.loginId&&token===auth?.token&&generation===accessState.generation&&opportunityServer.state.enabled===false;
+ let restart=false;
  opportunityBackgroundFlight=(async()=>{
   try{
    const state=await opportunityEngineOpen();await opportunityDbPrune(owner,state.engine);
    const signature=opportunitySignature(),{pairs}=opportunityPairSet(signature,['sun','moon']),[start]=opportunityBounds(opportunityDateAt(Date.now()));
-   for(let i=0;i<7;i++)for(const pair of pairs){
-    if(!live()||signature!==opportunitySignature())return;
-    const result=await opportunityDeviceSolve(pair,start+i*86400000,{priority:'low',isCurrent:live});
-    if(!result.stored&&!result.cancelled)opportunityDeviceStats.background++;
-    await recordSearchYield();
-   }
+   const tasks=[];for(let i=0;i<7;i++)for(const pair of pairs)tasks.push([pair,start+i*86400000]);
+   let next=0;
+   const lane=async()=>{
+    for(let task;(task=tasks[next++]);){
+     if(!live())return;if(signature!==opportunitySignature()){restart=true;return;}
+     const result=await opportunityDeviceSolve(task[0],task[1],{priority:'low',isCurrent:live});
+     if(!result.stored&&!result.cancelled)opportunityDeviceStats.background++;
+     await recordSearchYield();
+    }
+   };
+   await Promise.all(Array.from({length:opportunityEngineSlots()},lane));
   }catch{/* The visible list reports calculation failures. */}
-  finally{opportunityBackgroundFlight=null;}
+  finally{opportunityBackgroundFlight=null;if(restart&&live())setTimeout(opportunityDeviceBackground,0);}
  })();
 }
 function opportunityPairs(bodies){
  const {groups,shapes}=recordSearchIndex(),pairs=[],unavailable=[];
  for(const favorite of favorites){
   const targets=groups.get(favorite.id);if(!targets)continue;
-  const shape=recordSearchShape(favorite,shapes),saved=shape?{...favorite,shape}:favorite;
+  // 2026-11-09 一覧は線・範囲の地点も登録した代表の1点で判定する（ユーザー「計算で使うのは一つの地点で
+  // 一つの建物の縁とか稜線でいい。正確な見え方は見え方でわかる」）。範囲内の位置は見え方で確かめる。
+  const shape=recordSearchShape(favorite,shapes),saved=favorite;
   for(const [targetKey,source] of targets){
    const group=source.slice().sort((a,b)=>Number(!!b.registration)-Number(!!a.registration)||when(b)-when(a)||b.updatedAt-a.updatedAt);
    const best=statusOf(favorite.id,targetKey,source);if(!best||best.result==='hidden')continue;
@@ -225,7 +313,7 @@ function opportunityPairs(bodies){
    if(!planningPairs([best],bodies).length){unavailable.push({placeId:favorite.id,targetKey,reason:'access'});continue;}if(!target||targetMoved){unavailable.push({placeId:favorite.id,targetKey,reason:'target'});continue;}
    for(const record of heightRange?[best]:group){
     if(record.removed||record.result==='hidden')continue;
-    const o=heightRange?favorite:record.observer||favorite;if(!shape&&AstroNotesTerrain.distanceKm(o.latitude,o.longitude,favorite.latitude,favorite.longitude)>=NEAR_KM){continue;}const place={...saved,latitude:o.latitude,longitude:o.longitude,elevation:o.elevation??favorite.elevation,groundManualM:o.elevation??favorite.groundManualM??favorite.elevation,eyeHeightAGL:o.eyeHeightAGL??favorite.eyeHeightAGL??1.5};
+    const o=heightRange||shape?favorite:record.observer||favorite;if(!shape&&AstroNotesTerrain.distanceKm(o.latitude,o.longitude,favorite.latitude,favorite.longitude)>=NEAR_KM){continue;}const place={...saved,latitude:o.latitude,longitude:o.longitude,elevation:o.elevation??favorite.elevation,groundManualM:o.elevation??favorite.groundManualM??favorite.elevation,eyeHeightAGL:o.eyeHeightAGL??favorite.eyeHeightAGL??1.5};
     place.standAglM=place.eyeHeightAGL;place.stand='ground';
     const observerKey=JSON.stringify([place.latitude,place.longitude,place.groundManualM,place.eyeHeightAGL,place.shape,heightRange]);
     if(seen.has(observerKey))continue;seen.add(observerKey);
@@ -384,7 +472,7 @@ async function opportunityStart(job,end,retryEnd){
   if(job.remote){const cached=opportunityCache.get(job.key);if(cached?.remote){job.restoreThrough=cached.through;opportunityCache.delete(job.key);}job.scan=createServerOpportunityScan({api:(...args)=>apiTransport(...args),start:job.start,end,bodies:opportunityFilters.bodies.slice(),placeIds:opportunityFilters.allPlaces?null:opportunityFilters.places.slice(),sourceRev:prefs.sourceRev,isCurrent:()=>opportunityCurrent(job),onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:()=>opportunityDraw(job)});}
   else{
    const solve=(pair,day,isCurrent)=>opportunityDeviceSolve(pair,day,{isCurrent});
-   job.scan=createOpportunityScan({pairs:job.pairs,start:job.start,end,notBefore:job.start,pageRows:Number.isFinite(retryEnd)?Infinity:opportunityPageRows,solve,isCurrent:()=>opportunityCurrent(job),yieldTask:recordSearchYield,onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:s=>{if(!opportunityCurrent(job))return;job.progressUi?.update(s.checked,s.total);if(s.pending.length!==job.pendingDrawn)opportunityDraw(job);}});
+   job.scan=createOpportunityScan({pairs:job.pairs,start:job.start,end,notBefore:job.start,pageRows:Number.isFinite(retryEnd)?Infinity:opportunityPageRows,solve,ahead:()=>opportunityEngineSlots()*2,isCurrent:()=>opportunityCurrent(job),yieldTask:recordSearchYield,onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:s=>{if(!opportunityCurrent(job))return;job.progressUi?.update(s.checked,s.total);if(s.pending.length!==job.pendingDrawn)opportunityDraw(job);}});
    const cached=opportunityCache.get(job.key);if(cached){opportunityCache.delete(job.key);Object.assign(job.scan.state,cached,{running:false,cancelled:false});opportunityDraw(job);}
   }
   if(!job.scan.state.done)void opportunityAdvance(job);
@@ -418,7 +506,7 @@ function opportunityHasReturn(){return !!opportunityReturn&&opportunityReturn.ow
 function opportunityReturnFromPreview(){if(!opportunityHasReturn()||!globalThis.TrialExplore?.active())return false;opportunityRestore=opportunityReturn.top;opportunityReturn=null;navigationHistory.goBack();return true;}
 for(const type of ['pointerdown','wheel'])el('recordOpportunities').addEventListener(type,()=>{opportunityRestore=null;},{passive:true});
 const opportunityWatch=new MutationObserver(()=>{renderOpportunities();});opportunityWatch.observe(el('recordsView'),{attributes:true,attributeFilter:['hidden','data-tab']});
-document.addEventListener('astronotes-records-change',()=>{if(opportunityJob?.remote&&opportunityJob.signature===opportunitySignature())return;opportunityInputEpoch++;if(opportunityActive())renderOpportunities();});document.addEventListener('visibilitychange',renderOpportunities);document.addEventListener('astronotes-opportunity-input',()=>{if(opportunityApplyingPreferences)return;if(opportunityJob?.remote&&opportunityJob.air===opportunityAirKey(true))return;opportunityInputEpoch++;if(opportunityActive())renderOpportunities();});document.addEventListener('astronotes-opportunity-settings',()=>{if(opportunityApplyingPreferences)return;const key=JSON.stringify(opportunityListSettings()),changed=key!==opportunityListSettingsKey;opportunityListSettingsKey=key;if(changed)opportunityServer.changed();if(!changed&&opportunityServer.state.enabled===true)return;opportunityInputEpoch++;opportunityWarmupKey='';if(opportunityActive())renderOpportunities();else opportunityWarmup();});window.addEventListener('focus',renderOpportunities);
+document.addEventListener('astronotes-records-change',()=>{setTimeout(()=>{if(opportunityAllowed()&&!document.hidden&&opportunityServer.state.enabled===false)opportunityDeviceBackground();},0);if(opportunityJob?.remote&&opportunityJob.signature===opportunitySignature())return;opportunityInputEpoch++;if(opportunityActive())renderOpportunities();});document.addEventListener('visibilitychange',renderOpportunities);document.addEventListener('astronotes-opportunity-input',()=>{if(opportunityApplyingPreferences)return;if(opportunityJob?.remote&&opportunityJob.air===opportunityAirKey(true))return;opportunityInputEpoch++;if(opportunityActive())renderOpportunities();});document.addEventListener('astronotes-opportunity-settings',()=>{if(opportunityApplyingPreferences)return;const key=JSON.stringify(opportunityListSettings()),changed=key!==opportunityListSettingsKey;opportunityListSettingsKey=key;if(changed)opportunityServer.changed();if(!changed&&opportunityServer.state.enabled===true)return;opportunityInputEpoch++;opportunityWarmupKey='';if(opportunityActive())renderOpportunities();else opportunityWarmup();});window.addEventListener('focus',renderOpportunities);
 window.addEventListener('pagehide',()=>{if(opportunityJob)opportunityCancel();});window.addEventListener('pageshow',renderOpportunities);
 window.addEventListener('hashchange',()=>{if(viewState.records&&opportunityHasReturn()){opportunityRestore=opportunityReturn.top;opportunityReturn=null;}else if(!viewState.records&&!globalThis.TrialExplore?.active())opportunityReturn=null;renderOpportunities();});
 setTimeout(()=>{startupSessionReady.then(opportunityWarmup);},0);

@@ -35,14 +35,28 @@ function recordBounded(map,key,build,limit){
  if(map.has(key)){const value=map.get(key);map.delete(key);map.set(key,value);return value;}
  const value=build();map.set(key,value);while(map.size>limit)map.delete(map.keys().next().value);return value;
 }
+// 2026-11-09 重なる日の一覧（opportunity）は、建物を位置ごとに1つの外形（輪郭点の凸包）で判定する
+// （ユーザー「計算で使うのは一つの地点で一つの建物の縁とか稜線でいい。正確な見え方は見え方でわかる」）。
+// 外形と山頂の稜線は日付・天体に依存しない。渡された分を使い、新しく作った分は呼び出し元へ返して
+// 記録と一緒に同期する。見え方・探すの計算はこれを使わない。
+const recordGeometry={known:new Map(),used:new Map(),collect:false};
+function recordSilhouette(obs,target,opts){
+ const key='sil:'+JSON.stringify([obs.latitude,obs.longitude,obs.elevation??0,opts.eyeM??1.5,target.id??null,target.latitude,target.longitude,target.groundM??null,(target.parts||[]).map(p=>[p.id,p.m]),opts.heightM??null,AstroNotesAtmosphere.targetK()]);
+ if(recordGeometry.known.has(key)){const hit=recordGeometry.known.get(key);recordGeometry.used.set(key,hit);return hit;}
+ const outline=AstroNotesAlign.towerOutline(obs,target,{eyeM:opts.eyeM??1.5,heightM:opts.heightM??null});
+ let value=null;
+ if(outline){const polygon=AstroNotesAlign.convexHull(outline.hitPolygons?outline.hitPolygons.flat():outline.hitPoints||outline.points||[]);if(polygon.length>=3&&Number.isFinite(outline.viewBaseAngle)&&Number.isFinite(outline.topAngle))value={viewBaseAngle:outline.viewBaseAngle,topAngle:outline.topAngle,approximate:!!outline.approximate,polygon};}
+ recordGeometry.known.set(key,value);recordGeometry.used.set(key,value);return value;
+}
 function recordPrepared(session,shaped,obs,target,body,opts){
  const views=shaped?session.shapeViews:session.pointViews,key=JSON.stringify([obs,target,body,opts]);
  return recordBounded(views,key,()=>{session.prepares++;return AstroNotesAlign.prepareDailyView(obs,target,body,opts);},shaped?128:192);
 }
 function recordSolverFor(session,variant,shaped,override){
  const terrain=override||session.terrain,align=Object.create(AstroNotesAlign);
- align.prepareDailyView=(obs,target,body,opts)=>recordPrepared(session,shaped,obs,target,body,opts);
- align.dailyView=(obs,target,body,day,{at,...opts}={})=>recordPrepared(session,shaped,obs,target,body,opts)(day,at);
+ const prepare=(obs,target,body,opts)=>{const silhouette=variant==='opportunity'&&!aimIsMountain(target)?recordSilhouette(obs,target,opts):null;return recordPrepared(session,shaped,obs,target,body,silhouette?{...opts,silhouette}:opts);};
+ align.prepareDailyView=prepare;
+ align.dailyView=(obs,target,body,day,{at,...opts}={})=>prepare(obs,target,body,opts)(day,at);
  const viewFor=(obs,p)=>{
   if(p.matchMode==='overlap'&&aimIsMountain(p.target)){
    // Keep the registered-point set across date/body switches. Dense line/area
@@ -58,7 +72,7 @@ function recordSolverFor(session,variant,shaped,override){
   if(shaped&&variant==='discovery')return null;
   const o=AstroNotesShooting.searchOptions(p,aimIsMountain);
   if(!(o.broad&&o.disc||o.partId==='__whole'&&!aimIsMountain(p.target)))return null;
-  return recordPrepared(session,shaped,obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM});
+  return prepare(obs,p.target,p.body,{partId:o.partId,eyeM:obs.eyeM});
  };
  return recordHeightSolver({align,observerAt:(f,g)=>aimObserverAt(aimSavedFrom(f),g),ensure:b=>AstroNotesBodies.ensure(b),viewFor,yieldTask:recordSearchYield,elevationAt:(lat,lon)=>{
   const key=lat+','+lon;
