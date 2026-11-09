@@ -5686,7 +5686,7 @@ function aimObserverAt(f, ground) {
   const elevation = Number.isFinite(f.groundManualM) ? f.groundManualM : Number.isFinite(ground) ? ground : 0;
   return { latitude: f.latitude, longitude: f.longitude, elevation, eyeM: aimLegacyHeight(f) ? f.observationElevationM - elevation : aimObserverEye(f) };
 }
-const AIM_SUMMIT_CAP_M = 300;
+const AIM_SUMMIT_CAP_M = 100;
 function aimSummitCap(ridge, obs, eye, target) {
   if (!Array.isArray(ridge) || ridge.length < 2) return null;
   const D = AstroNotesTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);

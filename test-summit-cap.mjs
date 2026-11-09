@@ -17,16 +17,16 @@ function load(angle) {
 const angle = (d, eye, h) => Math.atan2(h - eye, d * 1000) * 180 / Math.PI;
 const target = { latitude: 0, longitude: 0, parts: [{ id: 'top', m: 3776 }] };
 
-test('山頂から標高差300mより上の部分だけを切り出し、境目は基準の高さで切る', () => {
+test('山頂から標高差100mより上の部分だけを切り出し、境目は基準の高さで切る', () => {
   const c = load(angle);
-  assert.equal(c.M, 300);
+  assert.equal(c.M, 100);
   // 左右に裾が広がる山。頂は 3776m
-  const ridge = [[-3, angle(100, 0, 1000)], [-2, angle(100, 0, 2500)], [-1, angle(100, 0, 3400)], [0, angle(100, 0, 3776)], [1, angle(100, 0, 3300)], [2, angle(100, 0, 2000)]];
-  const out = c.cap(ridge, { latitude: 0, longitude: 0 }, 0, target), base = angle(100, 0, 3476);
+  const ridge = [[-3, angle(100, 0, 1000)], [-2, angle(100, 0, 2500)], [-1, angle(100, 0, 3650)], [0, angle(100, 0, 3776)], [1, angle(100, 0, 3600)], [2, angle(100, 0, 2000)]];
+  const out = c.cap(ridge, { latitude: 0, longitude: 0 }, 0, target), base = angle(100, 0, 3676);
   assert.ok(Math.abs(out.base - base) < 1e-9);
   assert.equal(out.ridge[0][1], base); assert.equal(out.ridge.at(-1)[1], base);
   assert.ok(out.ridge.every(([, a]) => a >= base - 1e-9), '山頂付近より低い稜線を含まない');
-  assert.ok(out.ridge[0][0] > -1 && out.ridge[0][0] < 0, '左の境目は -1〜0 の間（-1 の 3400m も基準より低い）');
+  assert.ok(out.ridge[0][0] > -1 && out.ridge[0][0] < 0, '左の境目は -1〜0 の間（-1 の 3650m も基準より低い）');
   assert.ok(out.ridge.at(-1)[0] > 0 && out.ridge.at(-1)[0] < 1, '右の境目は 0〜1 の間');
   assert.ok(out.ridge.some(([a, h]) => a === 0 && Math.abs(h - angle(100, 0, 3776)) < 1e-9), '山頂を含む');
 });

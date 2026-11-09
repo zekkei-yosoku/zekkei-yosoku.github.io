@@ -399,7 +399,8 @@ function aimCandidateMatch(e, whole = aim.partId === "__whole", plan = aim) {
 // 「指定なし」の山の候補は山頂付近だけで判定する（2026-10-20 ユーザー「マジの稜線を全部入れてるでしょ。ここら辺（山頂の周り）を想定してる」）。
 // 山頂から標高差 AIM_SUMMIT_CAP_M までの稜線を見かけの角度に直し、その上の部分（山頂の帽子）に天体が掛かる日だけを候補にする。
 // 描く稜線（見た目）は全体のまま。
-const AIM_SUMMIT_CAP_M = 300;
+// 2026-11-09 ユーザー「全体ってのが山頂だって話だよ」: 300mでは近い撮影地（西湖など）で肩まで入るため、火口縁ほどの100mに絞る。
+const AIM_SUMMIT_CAP_M = 100;
 function aimSummitCap(ridge, obs, eye, target) {
   if (!Array.isArray(ridge) || ridge.length < 2) return null;
   const D = AstroNotesTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);

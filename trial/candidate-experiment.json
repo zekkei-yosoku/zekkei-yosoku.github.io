@@ -1,6 +1,6 @@
 {
   "name": "2026-11-05 全対象・全選択天体の撮影候補探索trial",
-  "productionHtmlSha256": "fe523713adb04be01c5ba004fd04e2cdd44e570e2e1f5e291eb550811375fd3e",
+  "productionHtmlSha256": "faff77303fb544121b47354b1e45467fb4579e3f7e7e0e0d7fcb649145fe586c",
   "visibilityCertified": false,
   "productionAssetsSha256": {
     "astronotes-align.js": "2d2d327f046d8fa54b00343c0105ef3aab066bd64f4359b578e2887ab30bb4a1",
@@ -28,7 +28,7 @@
     "data/candidate-sidewalks.json": "efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a",
     "data/candidate-label-addresses.json": "3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b",
     "data/candidate-label-facilities.json": "ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53",
-    "index.html": "6496e1dbf3ac160b16be6781411b294e54170ab7ffc839e3473e045b5a009fa0",
-    "app-version.txt": "1b727728e606135e089961920add7c5a17e6913b4ab257b8ff2d439ec18b8945"
+    "index.html": "5e0c054844cb6810a098ebeee7b41eb2bade1be6adcd0ef2fbd6cae8bd385c70",
+    "app-version.txt": "89d937f53a38586211b01a1145b09dc3a472c95dd9d407c2425faf3462b39e65"
   }
 }
