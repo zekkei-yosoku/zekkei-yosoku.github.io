@@ -1,6 +1,8 @@
 import {recordAlignmentMyplaces} from './build-record-alignment.mjs';
 import {recordHeightMyplaces} from './build-record-heights.mjs';
 import {readFileSync} from 'node:fs';
+import {createServerOpportunityScan} from './server-opportunity-scan.mjs';
+import {createServerOpportunityPreferences,geometricOpportunitySettings} from './server-opportunity-preferences.mjs';
 import {createOpportunityScan} from './record-opportunity-scan.mjs';
 import {createRecordSearchCache} from './record-search-cache.mjs';
 const patch=(s,from,to)=>{if(s.split(from).length!==2)throw Error('Record opportunities boundary changed: '+from.slice(0,80));return s.replace(from,to);};
@@ -49,7 +51,7 @@ const style=String.raw`
 export function recordOpportunitiesMyplaces(s){
  const runtime=readFileSync(new URL('./record-opportunities-runtime.js',import.meta.url),'utf8');
  const search=readFileSync(new URL('./record-search-runtime.js',import.meta.url),'utf8');
- s=patch(s,'renderRecordsHub();\nwindow.MyPlacesUI = {','const createOpportunityScan='+createOpportunityScan.toString()+';\nconst createRecordSearchCache='+createRecordSearchCache.toString()+';\n'+search+'\n'+runtime+'\nrenderRecordsHub();\nwindow.MyPlacesUI = { opportunities,recordProgress:showRecordProgress,');
+ s=patch(s,'renderRecordsHub();\nwindow.MyPlacesUI = {','const createServerOpportunityScan='+createServerOpportunityScan.toString()+';\nconst geometricOpportunitySettings='+geometricOpportunitySettings.toString()+';\nconst createServerOpportunityPreferences='+createServerOpportunityPreferences.toString()+';\nconst createOpportunityScan='+createOpportunityScan.toString()+';\nconst createRecordSearchCache='+createRecordSearchCache.toString()+';\n'+search+'\n'+runtime+'\nrenderRecordsHub();\nwindow.MyPlacesUI = { opportunities,recordProgress:showRecordProgress,');
  s=patch(s,'function renderRecordsHub() {','function renderRecordsHub() {\n  renderOpportunities();');
  s=patch(s,'document.head.append(style);','style.textContent+='+JSON.stringify(style)+';document.head.append(style);');
  const start=s.indexOf('    if(!notebookEdit&&planningPairs(targets,recordsBodyFilter?'),end=s.indexOf('list.append(group);',start);
@@ -60,8 +62,13 @@ export function recordOpportunitiesMyplaces(s){
  return recordAlignmentMyplaces(recordHeightMyplaces(s));
 }
 export function recordOpportunitiesHtml(html){
+ // Capture the persisted owner before login can replace sorami.owner. An
+ // unowned legacy setting remains unowned until the user explicitly edits it.
+ html=patch(html,'const store = AstroNotesStorage.create(()=>localStorage);','const store = AstroNotesStorage.create(()=>localStorage);\nif(store.get("sorami.aimHeightsOwner",undefined)===undefined)store.set("sorami.aimHeightsOwner",store.get("sorami.owner",null));');
+ html=patch(html,'      const hs = store.get("sorami.aimHeights", {});','      const hs = store.get("sorami.aimHeightsOwner",null)===(auth?.loginId??null)?store.get("sorami.aimHeights", {}):{};');
+ html=patch(html,'store.set(\"sorami.aimHeights\", hs);','store.set(\"sorami.aimHeights\", hs);store.set("sorami.aimHeightsOwner",auth?.loginId??null);document.dispatchEvent(new Event(\"astronotes-opportunity-settings\"));');
  html=patch(html,'if(seq!==aimAirSeq)return;aimApply();})();','if(seq!==aimAirSeq)return;document.dispatchEvent(new Event("astronotes-opportunity-input"));aimApply();})();');
- html=patch(html,'AstroNotesAtmosphere.configure(aimAirSettings.mode,aimAirSettings);store.set("sorami.aimAir",aimAirSettings);','AstroNotesAtmosphere.configure(aimAirSettings.mode,aimAirSettings);store.set("sorami.aimAir",aimAirSettings);document.dispatchEvent(new Event("astronotes-opportunity-input"));');
+ html=patch(html,'AstroNotesAtmosphere.configure(aimAirSettings.mode,aimAirSettings);store.set("sorami.aimAir",aimAirSettings);','AstroNotesAtmosphere.configure(aimAirSettings.mode,aimAirSettings);store.set("sorami.aimAir",aimAirSettings);document.dispatchEvent(new Event("astronotes-opportunity-settings"));');
  html=patch(html,'<div id="myRecordsHub" class="card" role="tabpanel" aria-labelledby="notebookPointsTab"></div>','<div id="recordOpportunities" class="card" role="tabpanel" aria-labelledby="notebookOpportunitiesTab" hidden></div>\n    <div id="myRecordsHub" class="card" role="tabpanel" aria-labelledby="notebookPointsTab"></div>');
  html=patch(html,'<button type="button" role="tab" id="notebookPlansTab"', '<button type="button" role="tab" id="notebookOpportunitiesTab" aria-selected="false" aria-controls="recordOpportunities" tabindex="-1">重なる日</button><button type="button" role="tab" id="notebookPlansTab"');
  html=patch(html,"notebookTab=tab==='plans'?'plans':'points';", "notebookTab=['points','opportunities','plans'].includes(tab)?tab:'points';");

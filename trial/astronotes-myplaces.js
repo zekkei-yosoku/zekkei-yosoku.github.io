@@ -908,6 +908,122 @@ style.textContent = `
 `;
 style.textContent+="\n#recordOpportunities{max-width:780px;margin-inline:auto}\n.record-opportunity-controls{display:grid;gap:12px}\n.record-opportunity-period{display:grid;grid-template-columns:44px minmax(0,1fr) 44px 44px;gap:4px;align-items:center}\n.record-opportunity-period button{min-width:0;min-height:44px;padding:4px;font-size:14px}\n.record-opportunity-period button:is(#recordOpportunityPrev,#recordOpportunityNext){font-size:24px}\n.record-opportunity-date{position:relative;display:grid;place-items:center;min-width:0;height:44px;font-size:16px;font-weight:600;white-space:nowrap;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n.record-opportunity-date input{position:absolute;inset:0;width:100%;height:44px;min-width:0;margin:0;opacity:0;font-size:16px;cursor:pointer}\n.record-opportunity-date:focus-within{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}\n.record-opportunity-filter{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-opportunity-filters .record-opportunity-select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;font-size:16px;margin:0;background-color:var(--card)}\n.record-opportunity-select{text-align:left;position:relative;padding:10px 30px 10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);border:1px solid var(--line);border-radius:10px}\n.record-opportunity-select::after{content:'';position:absolute;right:13px;top:17px;width:7px;height:7px;border-right:2px solid var(--secondary);border-bottom:2px solid var(--secondary);transform:rotate(45deg)}\n.record-opportunity-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-picker{box-sizing:border-box;width:min(440px,calc(100vw - 28px));max-height:min(80dvh,640px);padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);overflow:hidden}\n.record-opportunity-picker[open]{display:flex;flex-direction:column;gap:12px}\n.record-opportunity-picker::backdrop{background:rgba(0,0,0,.6)}\n.record-opportunity-picker-head,.record-opportunity-picker-tools,.record-opportunity-picker-foot{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-shrink:0}\n.record-opportunity-picker h2{font-size:18px;margin:0}.record-opportunity-picker button{min-height:44px;font-size:14px}\n.record-opportunity-picker #recordOpportunityPickerSearch{box-sizing:border-box;width:100%;min-height:44px;font-size:16px;margin:0;flex-shrink:0}\n.record-opportunity-picker-tools{justify-content:flex-start}.record-opportunity-picker-tools button{flex:1}\n.record-opportunity-picker-list{overflow:auto;overscroll-behavior:contain;min-height:0;scroll-padding:6px}\n.record-opportunity-picker-item{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 4px;box-sizing:border-box;border-bottom:1px solid var(--line);overflow-wrap:anywhere;cursor:pointer}\n.record-opportunity-picker-item input{width:20px;height:20px;margin:0;flex-shrink:0;accent-color:var(--accent)}\n.record-opportunity-picker-foot #recordOpportunityPickerApply{min-width:96px;background:var(--accent);color:var(--accent-ink,var(--bg))}\n:is(#recordOpportunityStatus,#recordOpportunityNotice){margin:12px 0;color:var(--secondary)}:is(#recordOpportunityStatus,#recordOpportunityNotice):empty{display:none}\n#recordOpportunityList:not(:empty){margin-top:12px;border-top:1px solid var(--line)}\n.record-opportunity-day{margin:0;padding:12px 0 5px;font-size:14px;color:var(--secondary)}\n.record-opportunity-through{margin:10px 0 0;color:var(--secondary)}\n.record-opportunity-through:empty{display:none}\n#recordOpportunityMore{min-height:44px}\n.record-progress-count{margin-inline-start:6px;color:var(--secondary);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}\n.record-opportunity-row{display:grid;grid-template-columns:52px minmax(0,1fr) 12px;grid-template-rows:auto auto;gap:2px 12px;align-items:center;width:100%;min-height:64px;padding:12px 0;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;background:transparent;color:var(--text)}\n.record-opportunity-time{grid-column:1;grid-row:1;align-self:end;font-size:16px;font-variant-numeric:tabular-nums;color:var(--accent)}\n.record-opportunity-body{grid-column:1;grid-row:2;align-self:start;font-size:12px;color:var(--secondary)}\n.record-opportunity-row strong{grid-column:2;grid-row:1/3;font-size:14px;line-height:1.6;overflow-wrap:anywhere}\n.record-opportunity-arrow{grid-column:3;grid-row:1/3;color:var(--secondary)}\n.record-opportunity-row.has-height strong{grid-row:1}.record-opportunity-height{grid-column:2;grid-row:2;font-size:12px;color:var(--secondary)}\n.record-opportunity-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.record-opportunity-actions:has(>button:not([hidden])){padding-bottom:4px}\n.record-opportunity-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n";style.textContent+="\n#myRecordHeight{min-width:0;border:0;border-block:1px solid var(--line);padding:14px 0;margin:14px 0}\n#myRecordHeight legend{float:left;width:100%;padding:0;margin:0 0 12px;font-size:14px;font-weight:600}\n#myRecordHeight legend+label{clear:both}\n.record-height-label{display:block;font-size:12px;color:var(--secondary);margin:10px 0 6px}\n.record-height-ground{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}\n.record-height-number{display:flex;align-items:center;gap:8px;min-width:0;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n#myRecordHeight input{box-sizing:border-box;min-width:0;width:100%;min-height:44px;margin:0;padding:8px 0;border:0;background:transparent;font-size:16px;color:var(--text)}\n.record-height-number>span{font-size:13px;color:var(--secondary)}\n.record-height-modes,.record-height-values{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;min-width:0}\n.record-height-modes{padding:3px;background:var(--sunk);border-radius:10px;margin-bottom:8px}\n#myRecordHeight button{min-height:44px;font-size:14px}\n.record-height-modes button{border:0;border-radius:8px;background:transparent;color:var(--secondary)}\n.record-height-modes button[aria-pressed=true]{background:var(--card);color:var(--accent);box-shadow:0 1px 4px #0002}\n.record-height-values>label{min-width:0}.record-height-values .tiny{display:block;margin:0 0 4px}\n#myHeightFixedFields{grid-template-columns:minmax(0,1fr);padding-top:20px}\n#myHeightFixedFields[hidden],#myHeightRangeFields[hidden],#myRecordHeight[hidden]{display:none!important}\n#myRecordHeight .warn{font-size:12px;margin:8px 0 0}\n";style.textContent+="\n.record-alignment-editor{flex-basis:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:6px 0 2px;min-width:0}\n#myPlaceSheet .my-draft-target:has(.record-alignment-editor){flex-wrap:wrap}\n.record-alignment-position{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-alignment-position select,.record-alignment-limbs select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;margin:0;font-size:16px}\n.record-alignment-limbs{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;min-width:0}\n.record-alignment-limbs[hidden]{display:none!important}\n#skyMapAlignmentControls{display:grid;gap:8px}\n#previewEyeHeightControls{margin:0 0 6px;padding:0;border:0;background:none;min-width:0}\n#previewEyeHeightControls[hidden]{display:none!important}\n.preview-eye-row{display:grid;grid-template-columns:minmax(0,1fr) 96px;column-gap:10px;align-items:end}\n.preview-eye-tools{min-width:0}.preview-eye-scale{display:block;font-size:11px;line-height:14px;color:var(--secondary);margin:0}\n.preview-eye-value,#aimLook .preview-focal-bar .preview-focal-value{display:flex;align-items:center;justify-content:flex-end;gap:2px;height:44px;min-width:0;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}\n#previewEyeValue,#aimLook .preview-focal-value [data-preview-focal-input]{box-sizing:border-box;width:0;flex:1;min-width:0;min-height:44px;padding:0;border:0;background:transparent;color:var(--text);text-align:right;font-size:15px;font-weight:600;appearance:textfield;border-radius:0}\n.preview-eye-value,#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:var(--sunk);padding:0 6px;cursor:text}\n.preview-eye-value:focus-within,#aimLook .preview-focal-bar .preview-focal-value:focus-within{border-color:var(--accent);outline:2px solid color-mix(in srgb,var(--accent) 28%,transparent);outline-offset:1px}\n#previewEyeValue::-webkit-inner-spin-button,#previewEyeValue::-webkit-outer-spin-button{appearance:none;margin:0}\n.numeric-ruler-track{box-sizing:border-box;position:relative;min-width:0;height:46px;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--sunk)}\n.numeric-ruler-track .numeric-ruler{height:44px;width:100%;cursor:ew-resize;direction:ltr}\n.numeric-ruler-track .sky-map-timeline-center{top:4px;bottom:4px}.numeric-ruler-track .sky-timeline-label{top:20px}\n#previewEyeRuler .sky-timeline-tape{background-image:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px calc(var(--timeline-unit)*5));background-size:calc(var(--timeline-unit)*5) 8px!important}\n#aimLook .preview-focal-tools{margin:0}\n#aimLook .aim-lens .preview-focal-bar{grid-template-columns:minmax(0,1fr) 96px;margin:0;column-gap:10px}\n#aimLook .preview-focal-scale{font-size:11px;line-height:14px}\n.preview-focal-tools .numeric-ruler-track{width:100%;height:46px}\n[data-focal-range][hidden]{display:none!important}\n#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;width:96px;min-width:96px;max-width:96px;height:44px;line-height:normal;padding-bottom:0;font-variant-numeric:tabular-nums}\n#previewEyeError{margin:4px 0 0;color:var(--secondary)}\n";style.textContent+="\n#myRecordsHub .my-head .record-transfer-more{display:grid;place-items:center;width:44px;min-width:44px;min-height:44px;padding:0;flex:none}\n.record-transfer-sheet{box-sizing:border-box;width:min(560px,calc(100vw - 24px));max-height:85dvh;border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--text);padding:0;overflow:auto}\n.record-transfer-sheet::backdrop{background:#0009}.record-transfer-sheet .sheet-head{position:sticky;top:0;z-index:1;background:var(--card);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}\n.record-transfer-sheet .sheet-head button{min-height:44px}.record-transfer-sheet .sheet-body{padding:12px 16px 16px;min-width:0}\n.record-transfer-sheet .transfer-menu-action{width:100%;min-height:52px;text-align:left;display:block;font-size:16px}\n.record-transfer-sheet .fav-btn{width:100%;min-height:44px;margin-top:12px}.record-transfer-sheet .transfer-select-tools{display:flex;gap:8px}.record-transfer-sheet .transfer-select-tools button{min-height:44px}\n.transfer-place-list{max-height:38dvh;overflow:auto;overscroll-behavior:contain;margin-top:8px}.transfer-place{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.transfer-place input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--accent)}\n.transfer-preview-place{display:grid;gap:4px;padding:12px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}#myRecordBodies{margin:12px 0}#myRecordBodies>summary{min-height:44px;display:list-item;align-content:center;color:var(--text);font-size:14px}\n";style.textContent+="\n#myRecordsHub .my-actions select.record-sort-select,.record-sort-row select.record-sort-select{flex:0 0 auto;width:auto;min-width:96px;min-height:44px}\n.record-sort-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}.record-sort-row input[type=search]{flex:1 1 160px;width:0;min-width:0}.record-sort-slot{display:contents}\n.record-sort-locate{min-height:44px}.record-sort-status{flex:1 0 100%;margin:0}\n";document.head.append(style);
 
+const createServerOpportunityScan=function createServerOpportunityScan({api,start,end,bodies,placeIds,sourceRev,isCurrent,onStart=()=>{},onProgress=()=>{},onDay=()=>{},pollDelay=ms=>new Promise(r=>setTimeout(r,ms)),initialView=null}){
+ const dayMs=86400000,date=at=>new Date(at+32400000).toISOString().slice(0,10),at=value=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(value||''))throw Error('invalid overlap day');const n=Date.parse(value+'T00:00:00+09:00');if(!Number.isFinite(n)||date(n)!==value)throw Error('invalid overlap day');return n;};
+ const model='geometric-candidate-v1',state={model,day:start,end,through:start,rows:[],pending:[],failures:[],checked:0,total:0,done:false,running:false,cancelled:false,error:null,status:'preparing',viewId:null,nextCursor:null};
+ let controller=new AbortController(),cursor=date(start),action='ensure',initial=initialView,generation=null,completedChecked=0;
+ const seen=new Set(),settled=new Set();
+ const current=()=>!state.cancelled&&!controller.signal.aborted&&isCurrent();
+ const request=(method,path,body)=>api(method,path,body,controller.signal);
+ function cancel(){state.cancelled=true;controller.abort();}
+ async function assemble(response){
+  if(!response?.transport)return response;
+  const anchor=response,first=anchor.transport,invalid=()=>Error('計算結果の受信を確認できません。再試行してください。');
+  if(typeof anchor.viewId!=='string'||typeof anchor.generation!=='string'||!['ready','partial'].includes(anchor.status)||!first||typeof first.id!=='string'||!/^([a-f0-9]{64})$/.test(first.id)||!Number.isInteger(first.count)||first.count<2||first.count>2048||first.index!==0)throw invalid();
+  if(generation!==null&&generation!==anchor.generation)throw Object.assign(invalid(),{code:'overlap_stale'});
+  const chunks=[],encoder=new TextEncoder();let bytes=0;
+  for(let index=0;index<first.count;index++){
+   if(!current())throw new DOMException('cancelled','AbortError');
+   if(index)response=await request('GET','/overlaps?viewId='+encodeURIComponent(anchor.viewId)+'&cursor='+encodeURIComponent(cursor)+'&part='+index);
+   if(!current())throw new DOMException('cancelled','AbortError');
+   const part=response?.transport;
+   if(response?.viewId!==anchor.viewId||response?.generation!==anchor.generation||response?.status!==anchor.status||!part||part.id!==first.id||part.index!==index||part.count!==first.count||part.nextPart!==(index+1<first.count?index+1:null)||typeof part.text!=='string')throw invalid();
+   const size=encoder.encode(part.text).byteLength;bytes+=size;if(size>48*1024||bytes>64*1024*1024)throw invalid();chunks.push(part.text);
+  }
+  const raw=chunks.join(''),digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',encoder.encode(raw)))].map(n=>n.toString(16).padStart(2,'0')).join('');
+  if(!current())throw new DOMException('cancelled','AbortError');if(digest!==first.id)throw invalid();
+  let page;try{page=JSON.parse(raw);}catch{throw invalid();}
+  if(page?.transport||page?.viewId!==anchor.viewId||page?.generation!==anchor.generation||page?.status!==anchor.status)throw invalid();return page;
+ }
+ function ingest(response){
+  if(!response||!['preparing','ready','partial','failed'].includes(response.status)||typeof response.viewId!=='string'||!Array.isArray(response.days)||response.days.length>7)throw Error('invalid overlap response');
+  if(response.model!==model)throw Object.assign(Error('一覧の計算条件が更新されました。再試行してください。'),{code:'overlap_model_mismatch'});
+  if(generation!==null&&generation!==response.generation)throw Object.assign(Error('結果の条件が変わりました。再試行してください。'),{code:'overlap_stale'});
+  generation=response.generation;state.viewId=response.viewId;state.status=response.status;state.nextCursor=response.nextCursor??null;
+  if(response.status==='failed')throw Object.assign(Error(response.error?.message||'計算の準備を完了できませんでした。再試行してください。'),{code:response.error?.code||'overlap_plan_failed'});
+  let through=state.through;const accepted=[];
+  for(const day of response.days){
+   const stamp=at(day.day);if(stamp<start||stamp>=end||settled.has(day.day))continue;
+   if(stamp!==through)throw Error('overlap days are not contiguous');
+   // The API exposes only settled days. complete=false means unknown pairs,
+   // not an unfinished day; keep these visible with an explicit warning.
+   if(!Array.isArray(day.rows)||!Number.isFinite(day.unknownPairs)||!Number.isFinite(day.checkedPairs))throw Error('invalid overlap coverage');
+   const rows=day.rows.map(row=>{if(!Number.isFinite(row.event?.at)||row.event.at<stamp||row.event.at>=stamp+dayMs||!row.place||!row.target||!bodies.includes(row.body)||(placeIds&&!placeIds.includes(row.sourcePlaceId)))throw Error('invalid overlap row');return {...row,id:row.id||JSON.stringify([row.pairId,row.event.at,row.place.latitude,row.place.longitude,row.place.groundManualM,row.place.eyeHeightAGL])};}).sort((a,b)=>a.event.at-b.event.at||String(a.place.name).localeCompare(String(b.place.name),'ja')||String(a.target.name).localeCompare(String(b.target.name),'ja'));
+   accepted.push({day,stamp,rows});through=stamp+dayMs;
+  }
+  if(response.days.length){
+   const boundary=at(response.coverage?.attemptedThroughExclusive);
+   if(boundary!==through||response.nextCursor!==date(through))throw Error('invalid overlap cursor');
+   // Validate the entire page before publishing any of its rows.
+   for(const {day,stamp,rows}of accepted){for(const row of rows){if(seen.has(row.id))continue;seen.add(row.id);state.rows.push(row);}if(day.unknownPairs)state.failures.push({day:stamp,count:day.unknownPairs});settled.add(day.day);}
+   completedChecked+=accepted.reduce((n,d)=>n+d.day.checkedPairs,0);state.checked=completedChecked;state.through=state.day=through;
+   state.done=true;state.end=through;state.total=state.checked;onDay(state);
+  }else{state.checked=completedChecked+(Number(response.coverage?.checkedPairs)||0);state.total=Math.max(state.checked,completedChecked+(Number(response.coverage?.totalPairs)||0));}
+  onProgress(state);
+ }
+ async function advance(){
+  if(state.running||state.done||!current())return state;
+  state.running=true;state.error=null;
+  try{
+   onStart(state);
+   while(current()){
+    let response;
+    if(initial){response=initial;initial=null;}
+    else if(action==='ensure')response=await request('POST','/overlaps/ensure',{environment:'trial',startDay:date(start),bodies,placeIds,sourceRev});
+    else if(action==='extend')response=await request('POST','/overlaps/extend',{viewId:state.viewId,cursor});
+    else if(action==='retry')response=await request('POST','/overlaps/retry',{viewId:state.viewId});
+    else response=await request('GET','/overlaps?viewId='+encodeURIComponent(state.viewId)+'&cursor='+encodeURIComponent(cursor));
+    if(!current()){cancel();return state;}
+    response=await assemble(response);if(!current()){cancel();return state;}
+    ingest(response);action='poll';if(state.done)return state;
+    // Cancellation releases the waiter immediately even if a custom clock is used.
+    await new Promise(resolve=>{const finish=()=>{controller.signal.removeEventListener('abort',finish);resolve();};controller.signal.addEventListener('abort',finish,{once:true});Promise.resolve(pollDelay(Math.max(250,Math.min(10000,response.retryAfterMs||2000)))).then(finish,finish);});
+   }
+  }catch(error){if(!current()){cancel();return state;}state.error=error;state.done=true;state.status='error';}
+  finally{state.running=false;}
+  return state;
+ }
+ function extend(nextEnd){if(!state.done||state.running||state.error||state.cancelled||!state.nextCursor||nextEnd<=state.through)return false;cursor=state.nextCursor;state.end=nextEnd;end=nextEnd;state.done=false;action='extend';return true;}
+ function retry(){if(state.running||state.cancelled)return false;state.rows=[];state.failures=[];state.checked=0;completedChecked=0;state.through=state.day=start;state.end=end=Math.max(end,start+7*dayMs);state.error=null;state.done=false;seen.clear();settled.clear();cursor=date(start);generation=null;action=state.viewId?'retry':'ensure';return true;}
+ return {state,advance,extend,retry,cancel};
+};
+const geometricOpportunitySettings=function geometricOpportunitySettings(value={}){
+ return {model:'geometric-candidate-v1',mode:'none',refractionCoefficient:0,effectiveEarthRadiusFactor:1,targetHeights:Object.fromEntries(Object.entries(value.targetHeights??{}).sort(([a],[b])=>a.localeCompare(b)).map(([key,height])=>[key,height]))};
+};
+const createServerOpportunityPreferences=function createServerOpportunityPreferences({api,getSession,getSettings,applySettings,sync,canUse=()=>true}){
+ const state={enabled:null,prepare:false,settings:null,prefRev:null,sourceRev:null,error:null};
+ const currentModel=value=>value?.model==='geometric-candidate-v1'&&value.mode==='none'&&value.refractionCoefficient===0&&value.effectiveEarthRadiusFactor===1&&Object.keys(value).every(k=>['model','mode','refractionCoefficient','effectiveEarthRadiusFactor','targetHeights'].includes(k));
+ let owner=null,controller=null,flight=null,loaded=false,dirty=null,edit=0,epoch=0;
+ const key=()=>JSON.stringify(getSession());
+ function reset(){controller?.abort();controller=new AbortController();owner=key();flight=null;loaded=false;dirty=null;edit++;epoch++;Object.assign(state,{enabled:null,prepare:false,settings:null,prefRev:null,sourceRev:null,error:null});}
+ function changed(){if(owner!==key())reset();const next=geometricOpportunitySettings(getSettings());if(state.settings&&JSON.stringify(next)===JSON.stringify(geometricOpportunitySettings(state.settings))&&!dirty)return false;dirty=next;edit++;return true;}
+ async function prepare({refresh=false}={}){
+  if(owner!==key())reset();if(!canUse())return state;if(flight)return flight;
+  const ticket=owner,ticketEpoch=epoch,signal=controller.signal,current=()=>epoch===ticketEpoch&&owner===ticket&&key()===ticket&&!signal.aborted&&canUse();
+  const call=(method,path,body)=>api(method,path,body,signal);
+  flight=(async()=>{
+   try{
+    if(!loaded||refresh){const data=await call('GET','/overlap-preferences');if(!current())throw new DOMException('cancelled','AbortError');
+     // The old API/test fixture omits enabled; only that explicit compatibility
+     // response, or enabled=false, permits the on-device solver.
+     if(!data||typeof data!=='object'||(state.enabled===true&&typeof data.enabled!=='boolean'))throw Error('サーバーの設定を確認できません。再試行してください。');
+     Object.assign(state,{enabled:data.enabled===true,prepare:data.prepare===true,settings:data.settings??null,prefRev:data.prefRev??0,sourceRev:data.sourceRev??null});loaded=true;
+     if((state.enabled||state.prepare)&&state.settings&&!dirty)applySettings(structuredClone(state.settings));
+    }
+    // During rollout the server may prepare results while the existing local
+    // list remains active. Sync preferences without enabling remote reads.
+    if(!state.enabled&&!state.prepare)return state;
+    const migration=state.settings&&!currentModel(state.settings);
+    if(!state.settings||dirty||migration){const value=dirty||geometricOpportunitySettings(state.settings||getSettings()),revision=edit;const data=await call('POST','/overlap-preferences',{environment:'trial',settings:value,expectedPrefRev:state.prefRev||0});if(!current())throw new DOMException('cancelled','AbortError');Object.assign(state,data);if(revision===edit){dirty=null;applySettings(structuredClone(state.settings));}else return await saveLatest();}
+    if(!currentModel(state.settings))throw Error('一覧の計算条件を更新できません。再試行してください。');state.error=null;return state;
+   }catch(error){if(current()){state.error=error;if(error.status===409){dirty=null;loaded=false;}}throw error;}
+  })().finally(()=>{if(epoch===ticketEpoch&&owner===ticket)flight=null;});return flight;
+  async function saveLatest(){while(dirty){const value=dirty,revision=edit;const data=await call('POST','/overlap-preferences',{environment:'trial',settings:value,expectedPrefRev:state.prefRev});if(!current())throw new DOMException('cancelled','AbortError');Object.assign(state,data);if(revision===edit){dirty=null;applySettings(structuredClone(state.settings));}}if(!currentModel(state.settings))throw Error('一覧の計算条件を更新できません。再試行してください。');state.error=null;return state;}
+ }
+ async function ready(){await prepare();if(!state.enabled)return state;const ticket=key();await sync();if(ticket!==key()||!canUse())throw new DOMException('cancelled','AbortError');return prepare({refresh:true});}
+ function cancel(){reset();}
+ return {state,prepare,ready,changed,cancel};
+};
 const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
  const {shooting,align,bodies,atmosphere,astro,terrain=null,scanHeights,rangeOf,isMountain,observerAt,elevationAt,ensure,viewFor=null,mountainRidge=null,summitCapM=300,yieldTask=()=>new Promise(r=>setTimeout(r,0)),clock=()=>Date.now(),limits={}}=deps;
  const LIM={heights:48,positions:12000,shapeMs:45000,views:64,evaluations:512,regions:512,states:40000,coarseMs:600000,leafMs:20000,mergeMs:1800000,pointMs:15000,...limits};
@@ -1862,9 +1978,25 @@ let opportunityPermittedBodies=[],opportunityPlaces=[],opportunityPicker=null,op
 let opportunityFilters={date:opportunityDateAt(Date.now()),bodies:['sun','moon'],allBodies:false,places:[],allPlaces:true},opportunityRestore=null;
 const opportunityCache=new Map();
 let opportunityPairMemo=null;
-const opportunityAirKey=()=>JSON.stringify([aimAirSettings,AstroNotesAtmosphere.dataKey()]);
+const opportunityListSettings=()=>geometricOpportunitySettings({targetHeights:store.get('sorami.aimHeightsOwner',null)===auth?.loginId?store.get('sorami.aimHeights',{}):{}});
+let opportunityListSettingsKey=JSON.stringify(opportunityListSettings());
+const opportunityAirKey=(remote=opportunityServer.state.enabled===true)=>remote?JSON.stringify(opportunityListSettings()):JSON.stringify([aimAirSettings,store.get('sorami.aimHeights',{}),AstroNotesAtmosphere.dataKey()]);
 const opportunityAllowed=()=>!!auth?.token&&toolAllowed('records');
 const opportunityActive=()=>opportunityAllowed()&&!document.hidden&&!el('recordsView')?.hidden&&el('recordsView')?.dataset.tab==='opportunities';
+let opportunityApplyingPreferences=false,opportunityWarmupKey='',opportunityWarmupFlight=null;
+const opportunityServer=createServerOpportunityPreferences({
+ api:(...args)=>apiTransport(...args),getSession:()=>[auth?.token,auth?.loginId,accessState.generation],canUse:opportunityAllowed,
+ getSettings:opportunityListSettings,
+ applySettings:settings=>{opportunityApplyingPreferences=true;try{store.set('sorami.aimHeights',settings.targetHeights??{});store.set('sorami.aimHeightsOwner',auth?.loginId??null);opportunityListSettingsKey=JSON.stringify(opportunityListSettings());}finally{opportunityApplyingPreferences=false;}},
+ sync:async()=>{await accountSync().syncNow();if(syncError||pushQueue.length)throw Error('記録を同期できていません。通信を確認して再試行してください。');}
+});
+function opportunityWarmup(){
+ if(!opportunityAllowed()||document.hidden||opportunityWarmupFlight)return;
+ const key=JSON.stringify([auth?.token,auth?.loginId,accessState.generation,opportunityDateAt(Date.now()),opportunityAirKey(true)]);
+ if(opportunityWarmupKey===key)return;opportunityWarmupKey=key;
+ const owner=auth.token,generation=accessState.generation;
+ opportunityWarmupFlight=(async()=>{try{const prefs=await opportunityServer.ready();if(owner!==auth?.token||generation!==accessState.generation||!opportunityAllowed())return;if(prefs.enabled)await apiTransport('POST','/overlaps/ensure',{environment:'trial',intent:'background',startDay:opportunityDateAt(Date.now()),bodies:['sun','moon'],placeIds:null,sourceRev:prefs.sourceRev});opportunityWarmupKey=JSON.stringify([auth?.token,auth?.loginId,accessState.generation,opportunityDateAt(Date.now()),opportunityAirKey(true)]);}catch{/* The visible list reports failures and offers retry. */}finally{opportunityWarmupFlight=null;if(opportunityActive())renderOpportunities();}})();
+}
 function opportunityPairs(bodies){
  const {groups,shapes}=recordSearchIndex(),pairs=[],unavailable=[];
  for(const favorite of favorites){
@@ -1890,7 +2022,7 @@ function opportunityPairs(bodies){
  }
  return {pairs,unavailable};
 }
-function opportunitySignature(){const {records,shapes}=recordSearchIndex();return JSON.stringify([auth?.loginId,accessState.generation,version,favorites,records,shapes,aimTargetList(),aimAirSettings,AstroNotesAtmosphere.dataKey(),auth?.tools]);}
+function opportunitySignature(){const {records,shapes}=recordSearchIndex();return JSON.stringify([auth?.loginId,accessState.generation,version,favorites,records,shapes,aimTargetList(),opportunityAirKey(),auth?.tools]);}
 function opportunityPairSet(signature,bodies){
  if(opportunityPairMemo?.signature!==signature)opportunityPairMemo={signature,sets:new Map()};
  return recordBounded(opportunityPairMemo.sets,JSON.stringify(bodies),()=>opportunityPairs(bodies),4);
@@ -1898,11 +2030,11 @@ function opportunityPairSet(signature,bodies){
 function opportunityRemember(job){
  if(!job?.scan||job.signature!==opportunitySignature())return;
  const {state}=job.scan;
- opportunityCache.set(job.key,{...state,rows:state.rows.slice(),pending:state.pending.slice(),failures:state.failures.slice()});
+ opportunityCache.set(job.key,job.remote?{remote:true,through:state.through}:{...state,rows:state.rows.slice(),pending:state.pending.slice(),failures:state.failures.slice()});
  while(opportunityCache.size>4)opportunityCache.delete(opportunityCache.keys().next().value);
 }
-function opportunityCancel(clear=false){if(clear)opportunityClosePicker();if(!clear)opportunityRemember(opportunityJob);opportunityEpoch++;opportunityJob=null;if(clear){opportunityPairMemo=null;opportunityCache.clear();opportunityHost?.replaceChildren();opportunityDom=null;opportunityReturn=null;opportunityRestore=null;opportunityNotice='';}}
-function opportunityCurrent(job){return opportunityActive()&&opportunityJob===job&&job.epoch===opportunityEpoch&&job.owner===auth?.token&&job.loginId===auth?.loginId&&job.generation===accessState.generation&&job.inputEpoch===opportunityInputEpoch&&job.revision===version&&job.air===opportunityAirKey();}
+function opportunityCancel(clear=false){if(clear)opportunityClosePicker();if(!clear)opportunityRemember(opportunityJob);opportunityJob?.scan?.cancel?.();opportunityJob?.controller?.abort();opportunityEpoch++;opportunityJob=null;if(clear){opportunityPairMemo=null;opportunityCache.clear();opportunityHost?.replaceChildren();opportunityDom=null;opportunityReturn=null;opportunityRestore=null;opportunityNotice='';}}
+function opportunityCurrent(job){return opportunityActive()&&opportunityJob===job&&job.epoch===opportunityEpoch&&job.owner===auth?.token&&job.loginId===auth?.loginId&&job.generation===accessState.generation&&job.inputEpoch===opportunityInputEpoch&&job.revision===version&&job.air===opportunityAirKey(job.remote);}
 function opportunityNode(tag,attrs={},text=''){const n=document.createElement(tag);Object.assign(n,attrs);n.textContent=text;return n;}
 function opportunityClosePicker(){const picker=opportunityPicker;if(!picker)return;opportunityPicker=null;if(picker.dialog.open)picker.dialog.close();picker.dialog.remove();picker.trigger.setAttribute('aria-expanded','false');if(picker.trigger.isConnected&&opportunityActive())picker.trigger.focus({preventScroll:true});}
 function opportunityPickerOptions(kind){return kind==='bodies'?AstroNotesBodies.definitions.filter(b=>opportunityPermittedBodies.includes(b.id)).map(b=>[b.id,b.name]):opportunityPlaces;}
@@ -1936,6 +2068,7 @@ function opportunityBuild(){
  const filters=opportunityNode('div',{className:'record-opportunity-filters'}),body=opportunityNode('button',{type:'button',id:'recordOpportunityBody',className:'fav-in record-opportunity-select'}),place=opportunityNode('button',{type:'button',id:'recordOpportunityPlace',className:'fav-in record-opportunity-select'});
  for(const [control,label,kind]of [[body,'天体','bodies'],[place,'撮影地点','places']]){const wrap=opportunityNode('div',{className:'record-opportunity-filter'}),caption=opportunityNode('span',{id:control.id+'Label'},label);control.setAttribute('aria-labelledby',caption.id+' '+control.id);control.setAttribute('aria-haspopup','dialog');control.setAttribute('aria-expanded','false');control.onclick=()=>opportunityOpenPicker(kind,control);wrap.append(caption,control);filters.append(wrap);}
  const notice=opportunityNode('p',{id:'recordOpportunityNotice',className:'tiny'});notice.setAttribute('role','status');
+ const modelNotice=opportunityNode('p',{id:'recordOpportunityModelNotice',className:'tiny',hidden:true},'軌道上の候補。大気差は見え方で確認');
  const status=opportunityNode('div',{id:'recordOpportunityStatus',className:'tiny'});status.setAttribute('role','status');
  const list=opportunityNode('div',{id:'recordOpportunityList'}),actions=opportunityNode('div',{className:'record-opportunity-actions'});
  const through=opportunityNode('p',{id:'recordOpportunityThrough',className:'tiny record-opportunity-through'});
@@ -1943,14 +2076,14 @@ function opportunityBuild(){
  const more=opportunityNode('button',{type:'button',id:'recordOpportunityMore',className:'chip',hidden:true},'さらに先を探す');
  retry.onclick=()=>{
   const job=opportunityJob;if(!job||!opportunityCurrent(job)||job.scan.state.running)return;
-  opportunityNotice='';const end=job.scan.state.end;opportunityCancel();opportunityCache.delete(job.key);renderOpportunities(end);
+  opportunityNotice='';if(job.remote&&(!job.scan.state.error||job.scan.state.error.code==='overlap_plan_failed')&&job.scan.retry?.()){opportunityDom.rendered=-1;void opportunityAdvance(job);return;}const end=job.scan.state.end;opportunityCancel();opportunityCache.delete(job.key);renderOpportunities(end);
  };
  more.onclick=()=>{
   const job=opportunityJob;if(!job||!opportunityCurrent(job))return;
   if(job.scan.extend(opportunityPageEnd(job.scan.state.through),opportunityPageRows))void opportunityAdvance(job);
  };
- actions.append(retry,more);controls.append(period,filters);host.append(controls,notice,status,list,through,actions);
- opportunityDom={host,prev,date,dateLabel,next,today,body,place,notice,status,list,through,retry,more,rendered:0,lastDay:null};return true;
+ actions.append(retry,more);controls.append(period,filters);host.append(controls,modelNotice,notice,status,list,through,actions);
+ opportunityDom={host,prev,date,dateLabel,next,today,body,place,modelNotice,notice,status,list,through,retry,more,rendered:0,lastDay:null};return true;
 }
 function opportunitySet(patch){
  if(!opportunityAllowed())return;opportunityClosePicker();
@@ -1961,6 +2094,7 @@ function opportunitySet(patch){
 function opportunityDraw(job){
  if(!opportunityCurrent(job)||!opportunityDom)return;
  const d=opportunityDom,s=job.scan.state,rows=s.rows;
+ d.modelNotice.hidden=!(job.remote&&opportunityServer.state.enabled===true);
  d.host.setAttribute('aria-busy',String(s.running&&!s.done));
  if(d.rendered<0){d.list.replaceChildren();d.rendered=0;d.lastDay=null;}
  for(const row of s.rows.slice(d.rendered)){
@@ -1969,30 +2103,32 @@ function opportunityDraw(job){
  }d.rendered=s.rows.length;
  const failures=s.failures.length+job.unavailable;
  d.notice.textContent=opportunityNotice;
- if(!s.done&&job.pairs.length){
-  if(job.progressUi?.node.parentNode!==d.status)job.progressUi=showRecordProgress(d.status,'確認中','組');
+ if(s.error){job.progressUi=null;d.status.textContent=s.error.message||'サーバーに接続できません。再試行してください。';}
+ else if(!s.done&&(job.remote||job.pairs.length)){
+  if(job.progressUi?.node.parentNode!==d.status)job.progressUi=showRecordProgress(d.status,job.remote?'サーバーで確認中':'確認中','組');
   job.progressUi.update(s.checked,s.total);
  }else{
   job.progressUi=null;d.status.textContent=!job.pairs.length?(!opportunityFilters.allPlaces&&!opportunityFilters.places.length?'撮影地点を選び直してください。':job.unavailable?(job.policyUnavailable?'撮影地点の高さや重ね方を確認してください。':job.accessUnavailable===job.unavailable?'現在の権限では、この組み合わせを確認できません':'対象の登録を確認してください。'):'この組み合わせで確認できる記録がありません'):failures?(s.failures.length?'確認できなかった組み合わせがあります':job.accessUnavailable===job.unavailable?'現在の権限では確認できない組み合わせがあります':'対象の登録を確認してください。'):rows.length?'':'確認した期間に重なる組み合わせはありません';
  }
  d.through.textContent=job.pairs.length&&s.through>job.start?opportunityDateAt(s.through-1).replaceAll('-','/')+(failures?'まで探索（未確認あり）':'まで確認'):'';
- d.retry.hidden=!s.done||!s.failures.length;
+ d.retry.hidden=!s.done||(!s.failures.length&&!s.error);
  d.more.hidden=!job.pairs.length||s.done&&s.through>=aimCandidateSearchEnd();
- d.more.disabled=!s.done||s.running;d.more.textContent=s.running?'計算中…':'さらに先を探す';
+ d.more.disabled=!s.done||s.running||!!s.error;d.more.textContent=s.running?'計算中…':'さらに先を探す';
  if(opportunityRestore!==null&&(s.done||document.scrollingElement.scrollHeight-innerHeight>=opportunityRestore)){const top=opportunityRestore;opportunityRestore=null;requestAnimationFrame(()=>{if(opportunityActive())scrollTo(0,top);});}
 }
 async function opportunityAdvance(job){
  if(!job||!opportunityCurrent(job)||job.scan.state.running)return;
- await job.scan.advance();if(!opportunityCurrent(job)){if(opportunityJob===job&&opportunityActive()&&job.air!==opportunityAirKey()){opportunityCancel();renderOpportunities();}return;}
+ await job.scan.advance();if(!opportunityCurrent(job)){if(opportunityJob===job&&opportunityActive()&&job.air!==opportunityAirKey(job.remote)){opportunityCancel();renderOpportunities();}return;}
  if(job.scan.state.cancelled){opportunityCancel();renderOpportunities();return;}
+ if(job.remote&&job.scan.state.done&&!job.scan.state.error&&job.restoreThrough>job.scan.state.through&&job.scan.extend(opportunityPageEnd(job.scan.state.through))){void opportunityAdvance(job);return;}
  if(job.scan.state.done)opportunityRemember(job);
  opportunityDraw(job);
 }
 function renderOpportunities(retryEnd){
  recordSearchReset();
  const owner=auth?.token;
- if(opportunityOwner!==owner||opportunityOwnerId!==auth?.loginId){opportunityCancel(true);opportunityOwner=owner;opportunityOwnerId=auth?.loginId;opportunityDateChosen=false;opportunityFilters={date:opportunityDateAt(Date.now()),bodies:['sun','moon'],allBodies:false,places:[],allPlaces:true};}
- if(!opportunityActive()){opportunityClosePicker();if(opportunityJob)opportunityCancel();if(opportunityHost?.firstChild){opportunityHost.replaceChildren();opportunityDom=null;}return;}
+ if(opportunityOwner!==owner||opportunityOwnerId!==auth?.loginId){opportunityCancel(true);opportunityServer.cancel();opportunityWarmupKey='';opportunityOwner=owner;opportunityOwnerId=auth?.loginId;opportunityDateChosen=false;opportunityFilters={date:opportunityDateAt(Date.now()),bodies:['sun','moon'],allBodies:false,places:[],allPlaces:true};}
+ if(!opportunityActive()){if(opportunityAllowed())setTimeout(opportunityWarmup,0);opportunityClosePicker();if(opportunityJob)opportunityCancel();if(opportunityHost?.firstChild){opportunityHost.replaceChildren();opportunityDom=null;}return;}
  if(!opportunityDateChosen){const selected=typeof SkyMapUI!=='undefined'?SkyMapUI.selectionState?.():null;opportunityFilters.date=opportunityDateAt(Number.isFinite(selected?.at)?selected.at:Date.now());opportunityDateChosen=true;}
  if(!opportunityBuild())return;
  opportunityPermittedBodies=AstroNotesBodies.definitions.filter(b=>aimTargetList().some(t=>AstroNotesAccess.canFrame(toolAllowed,t.id,b.id))).map(b=>b.id);if(opportunityFilters.allBodies)opportunityFilters.bodies=opportunityPermittedBodies.slice();
@@ -2002,14 +2138,36 @@ function renderOpportunities(retryEnd){
  if(opportunityFilters.allPlaces)opportunityFilters.places=opportunityPlaces.map(([id])=>id);else opportunityFilters.places=opportunityFilters.places.filter(id=>opportunityPlaces.some(([key])=>key===id));
  d.body.textContent=opportunityFilterLabel('bodies');d.place.textContent=opportunityFilterLabel('places');d.body.dataset.values=JSON.stringify(opportunityFilters.bodies);d.place.dataset.values=JSON.stringify(opportunityFilters.places);d.body.disabled=!opportunityPermittedBodies.length;d.place.disabled=!opportunityPlaces.length;
  d.date.value=opportunityFilters.date;d.dateLabel.textContent=opportunityFilters.date.replaceAll('-','/');d.date.min='1900-01-01';d.date.max='2100-12-31';d.prev.disabled=opportunityFilters.date===d.date.min;d.next.disabled=opportunityFilters.date===d.date.max;
- const [start]=opportunityBounds(opportunityFilters.date),end=Number.isFinite(retryEnd)?retryEnd:opportunityPageEnd(start),key=JSON.stringify([signature,opportunityFilters,AstroNotesAtmosphere.dataKey(start)]);
+ const [start]=opportunityBounds(opportunityFilters.date),end=Number.isFinite(retryEnd)?retryEnd:opportunityPageEnd(start),key=JSON.stringify([signature,opportunityFilters,opportunityServer.state.enabled===true?null:AstroNotesAtmosphere.dataKey(start)]);
  if(opportunityJob?.key===key&&opportunityCurrent(opportunityJob)){opportunityDraw(opportunityJob);return;}
  opportunityCancel();d.list.replaceChildren();d.rendered=-1;
  const includesPlace=p=>opportunityFilters.places.includes(p.sourcePlaceId??p.placeId),pairs=allPairs.filter(includesPlace),missing=unavailable.filter(includesPlace).length;
- const scanStart=start,job={key,signature,owner,loginId:auth?.loginId,generation:accessState.generation,epoch:opportunityEpoch,inputEpoch:opportunityInputEpoch,revision:version,air:opportunityAirKey(),pairs,unavailable:missing,accessUnavailable:unavailable.filter(p=>includesPlace(p)&&p.reason==='access').length,policyUnavailable:unavailable.filter(p=>includesPlace(p)&&['height','alignment'].includes(p.reason)).length,start:scanStart};opportunityJob=job;
- const solve=async(pair,day,isCurrent)=>recordEventOptions(await recordSearch({target:pair.target,body:pair.body,at:day,partId:pair.partId,limb:pair.limb,matchMode:pair.matchMode},[{place:pair.place,record:pair.record}],{isCurrent,variant:'opportunity'}),pair);
- job.scan=createOpportunityScan({pairs,start:scanStart,end,notBefore:start,pageRows:Number.isFinite(retryEnd)?Infinity:opportunityPageRows,solve,isCurrent:()=>opportunityCurrent(job),yieldTask:recordSearchYield,onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:s=>{if(opportunityCurrent(job))job.progressUi?.update(s.checked,s.total);}});
- const cached=opportunityCache.get(key);if(cached){opportunityCache.delete(key);Object.assign(job.scan.state,cached,{running:false,cancelled:false});opportunityDraw(job);if(!job.scan.state.done)void opportunityAdvance(job);}else void opportunityAdvance(job);
+ const scanStart=start,job={remote:opportunityServer.state.enabled!==false,key,signature,owner,loginId:auth?.loginId,generation:accessState.generation,epoch:opportunityEpoch,inputEpoch:opportunityInputEpoch,revision:version,air:opportunityAirKey(opportunityServer.state.enabled!==false),pairs,unavailable:missing,accessUnavailable:unavailable.filter(p=>includesPlace(p)&&p.reason==='access').length,policyUnavailable:unavailable.filter(p=>includesPlace(p)&&['height','alignment'].includes(p.reason)).length,start:scanStart};opportunityJob=job;
+ job.controller=new AbortController();
+ job.scan={state:{day:start,end,through:start,rows:[],pending:[],failures:[],checked:0,total:0,done:false,running:true,error:null},cancel:()=>job.controller.abort()};
+ opportunityDraw(job);void opportunityStart(job,end,retryEnd);
+}
+async function opportunityStart(job,end,retryEnd){
+ try{
+  const prefs=await opportunityServer.ready();if(opportunityJob!==job||job.controller.signal.aborted||!opportunityActive()||job.owner!==auth?.token||job.loginId!==auth?.loginId||job.generation!==accessState.generation)return;
+  // Applying an existing account preference can change targets and the cache
+  // signature. Rebuild pair metadata before accepting any server results.
+  if(job.signature!==opportunitySignature()){opportunityCancel();renderOpportunities(retryEnd);return;}
+  job.remote=prefs.enabled;job.air=opportunityAirKey(job.remote);
+  if(job.remote){const cached=opportunityCache.get(job.key);if(cached?.remote){job.restoreThrough=cached.through;opportunityCache.delete(job.key);}job.scan=createServerOpportunityScan({api:(...args)=>apiTransport(...args),start:job.start,end,bodies:opportunityFilters.bodies.slice(),placeIds:opportunityFilters.allPlaces?null:opportunityFilters.places.slice(),sourceRev:prefs.sourceRev,isCurrent:()=>opportunityCurrent(job),onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:()=>opportunityDraw(job)});}
+  else{
+   const solve=async(pair,day,isCurrent)=>recordEventOptions(await recordSearch({target:pair.target,body:pair.body,at:day,partId:pair.partId,limb:pair.limb,matchMode:pair.matchMode},[{place:pair.place,record:pair.record}],{isCurrent,variant:'opportunity'}),pair);
+   job.scan=createOpportunityScan({pairs:job.pairs,start:job.start,end,notBefore:job.start,pageRows:Number.isFinite(retryEnd)?Infinity:opportunityPageRows,solve,isCurrent:()=>opportunityCurrent(job),yieldTask:recordSearchYield,onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:s=>{if(opportunityCurrent(job))job.progressUi?.update(s.checked,s.total);}});
+   const cached=opportunityCache.get(job.key);if(cached){opportunityCache.delete(job.key);Object.assign(job.scan.state,cached,{running:false,cancelled:false});opportunityDraw(job);}
+  }
+  if(!job.scan.state.done)void opportunityAdvance(job);
+ }catch(error){
+  if(opportunityJob!==job||job.controller.signal.aborted||!opportunityActive()||job.owner!==auth?.token||job.loginId!==auth?.loginId||job.generation!==accessState.generation||job.epoch!==opportunityEpoch||job.inputEpoch!==opportunityInputEpoch||job.revision!==version)return;
+  // The GET may have applied the account's target heights before a migration
+  // CAS failed. Keep that error visible instead of leaving the old key loading.
+  job.air=opportunityAirKey(job.remote);job.signature=opportunitySignature();Object.assign(job.scan.state,{running:false,done:true,error});opportunityDraw(job);
+ }
+
 }
 function openOpportunityList(placeId='',bodies=null){
  if(!opportunityAllowed())return;
@@ -2033,9 +2191,10 @@ function opportunityHasReturn(){return !!opportunityReturn&&opportunityReturn.ow
 function opportunityReturnFromPreview(){if(!opportunityHasReturn()||!globalThis.TrialExplore?.active())return false;opportunityRestore=opportunityReturn.top;opportunityReturn=null;navigationHistory.goBack();return true;}
 for(const type of ['pointerdown','wheel'])el('recordOpportunities').addEventListener(type,()=>{opportunityRestore=null;},{passive:true});
 const opportunityWatch=new MutationObserver(()=>{renderOpportunities();});opportunityWatch.observe(el('recordsView'),{attributes:true,attributeFilter:['hidden','data-tab']});
-document.addEventListener('astronotes-records-change',()=>{opportunityInputEpoch++;if(opportunityActive())renderOpportunities();});document.addEventListener('visibilitychange',renderOpportunities);document.addEventListener('astronotes-opportunity-input',()=>{opportunityInputEpoch++;if(opportunityActive())renderOpportunities();});window.addEventListener('focus',renderOpportunities);
+document.addEventListener('astronotes-records-change',()=>{if(opportunityJob?.remote&&opportunityJob.signature===opportunitySignature())return;opportunityInputEpoch++;if(opportunityActive())renderOpportunities();});document.addEventListener('visibilitychange',renderOpportunities);document.addEventListener('astronotes-opportunity-input',()=>{if(opportunityApplyingPreferences)return;if(opportunityJob?.remote&&opportunityJob.air===opportunityAirKey(true))return;opportunityInputEpoch++;if(opportunityActive())renderOpportunities();});document.addEventListener('astronotes-opportunity-settings',()=>{if(opportunityApplyingPreferences)return;const key=JSON.stringify(opportunityListSettings()),changed=key!==opportunityListSettingsKey;opportunityListSettingsKey=key;if(changed)opportunityServer.changed();if(!changed&&opportunityServer.state.enabled===true)return;opportunityInputEpoch++;opportunityWarmupKey='';if(opportunityActive())renderOpportunities();else opportunityWarmup();});window.addEventListener('focus',renderOpportunities);
 window.addEventListener('pagehide',()=>{if(opportunityJob)opportunityCancel();});window.addEventListener('pageshow',renderOpportunities);
 window.addEventListener('hashchange',()=>{if(viewState.records&&opportunityHasReturn()){opportunityRestore=opportunityReturn.top;opportunityReturn=null;}else if(!viewState.records&&!globalThis.TrialExplore?.active())opportunityReturn=null;renderOpportunities();});
+setTimeout(()=>{startupSessionReady.then(opportunityWarmup);},0);
 const opportunities={render:renderOpportunities,open:openOpportunityList,hasReturn:opportunityHasReturn,returnFromPreview:opportunityReturnFromPreview};
 
 renderRecordsHub();
