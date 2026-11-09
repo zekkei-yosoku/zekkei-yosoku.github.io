@@ -6068,11 +6068,47 @@ function createIndexedSearchRidge({terrain,align,atmosphere,angle,capOf,index,ma
     return solve(obs,eye,target);
   };
 })();
+const aimIndexedCaps=new Map();
+const AIM_INDEXED_CAP_LIMIT=6000;
+const aimCapStore=(()=>{
+  const engine=globalThis.document?.documentElement?.dataset?.engine,idb=globalThis.indexedDB;
+  if(!engine||!idb)return null;
+  const LIMIT=20000;let db=null,pruned=false;
+  const open=()=>db??=new Promise((resolve,reject)=>{
+    const request=idb.open('astronotes-ridge-caps',1);
+    request.onupgradeneeded=()=>request.result.createObjectStore('caps',{keyPath:'key'}).createIndex('savedAt','savedAt');
+    request.onsuccess=()=>{const opened=request.result;opened.onversionchange=()=>{opened.close();db=null;};resolve(opened);};
+    request.onerror=()=>reject(request.error);request.onblocked=()=>reject(Error('blocked'));
+  }).catch(()=>{db=null;return null;});
+  const run=(mode,work)=>open().then(opened=>opened&&new Promise(resolve=>{
+    let value=null;try{const tx=opened.transaction('caps',mode),request=work(tx.objectStore('caps'));if(request)request.onsuccess=()=>{value=request.result;};tx.oncomplete=()=>resolve(value);tx.onerror=tx.onabort=()=>resolve(null);}catch{resolve(null);}
+  })).catch(()=>null);
+  const prune=()=>{
+    if(pruned)return;pruned=true;
+    void run('readwrite',store=>{
+      const request=store.openCursor();let kept=0;
+      request.onsuccess=()=>{const cursor=request.result;if(cursor){if(cursor.value.engine!==engine)cursor.delete();else kept++;cursor.continue();return;}
+        if(kept<=LIMIT)return;let extra=kept-LIMIT;const oldest=store.index('savedAt').openCursor();oldest.onsuccess=()=>{const c=oldest.result;if(!c||extra<=0)return;c.delete();extra--;c.continue();};};
+      return null;
+    });
+  };
+  return {
+    get:key=>{prune();return run('readonly',store=>store.get(key)).then(v=>v?.engine===engine&&Array.isArray(v.cap?.ridge)&&Number.isFinite(v.cap?.base)?v.cap:null);},
+    put:(key,cap)=>run('readwrite',store=>store.put({key,engine,savedAt:Date.now(),cap:{ridge:cap.ridge,base:cap.base}})),
+  };
+})();
+function aimIndexedCap(obs,eye,target){
+  const key=JSON.stringify([obs.latitude,obs.longitude,eye,target.id,target.latitude,target.longitude,target.parts?.[0]?.m,target.rim||null,AstroNotesAtmosphere.targetK()]);
+  if(aimIndexedCaps.has(key)){const hit=aimIndexedCaps.get(key);aimIndexedCaps.delete(key);aimIndexedCaps.set(key,hit);return hit;}
+  const pending=(async()=>{const saved=await aimCapStore?.get(key);if(saved)return saved;const cap=await trialSearchRidge(obs,eye,target);if(cap)void aimCapStore?.put(key,cap);return cap;})().then(cap=>{if(!cap&&aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);return cap;},error=>{if(aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);throw error;});
+  aimIndexedCaps.set(key,pending);while(aimIndexedCaps.size>AIM_INDEXED_CAP_LIMIT)aimIndexedCaps.delete(aimIndexedCaps.keys().next().value);
+  return pending;
+}
 async function aimShootingView(obs, target, body, partId, matchMode, indexed=false) {
   if(matchMode!=='overlap'||!aimIsMountain(target))return null;
   const eye=obs.elevation+obs.eyeM;
   let cap=null,ridge;
-  if(indexed)try { cap=await trialSearchRidge(obs,eye,target); } catch { /* Try the original sampler. */ }
+  if(indexed)try { cap=await aimIndexedCap(obs,eye,target); } catch { /* Try the original sampler. */ }
   if(!cap) {
     ridge=await aimLookRidge(obs,eye,target,{exactSearch:indexed&&target.id==='fuji'});
     if(!ridge)throw Error('山の稜線を取得できませんでした。再試行してください');

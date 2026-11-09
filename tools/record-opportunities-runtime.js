@@ -92,7 +92,7 @@ async function opportunityDbPrune(owner,engine){
  const today=opportunityDateAt(Date.now());
  await opportunityDbDo('readwrite',store=>{const request=store.openCursor();request.onsuccess=()=>{const cursor=request.result;if(!cursor)return;const v=cursor.value;if(v.owner!==owner||v.engine!==engine||v.day<today)cursor.delete();cursor.continue();};return null;}).catch(()=>{});
 }
-function opportunityDeviceForget(){opportunityDbDo('readwrite',store=>store.clear()).catch(()=>{});}
+function opportunityDeviceForget(){opportunityDbDo('readwrite',store=>store.clear()).catch(()=>{});try{indexedDB.deleteDatabase('astronotes-ridge-caps');}catch{/* Unavailable storage has nothing to forget. */}}
 async function opportunityDigest(value){const bytes=new TextEncoder().encode(JSON.stringify(value)),digest=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');}
 function opportunitySemantic(pair){
  // The same fields the server's inputHash ignores: labels, record metadata.
