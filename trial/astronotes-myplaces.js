@@ -2474,8 +2474,8 @@ function opportunityWorkersClose(){
  const pool=opportunityWorkers;if(!pool)return;opportunityWorkers=null;
  for(const slot of pool.slots){slot.worker.terminate();for(const call of slot.calls.values())call.reject(Error('calculation worker closed'));slot.calls.clear();}
 }
-async function opportunityWorkerSolve(input,op='solve'){
- const pool=await opportunityWorkersOpen(),slot=pool.slots.reduce((a,b)=>b.calls.size<a.calls.size?b:a),id=++opportunityWorkerSeq;
+async function opportunityWorkerSolve(input,op='solve',fixed=null){
+ const pool=await opportunityWorkersOpen(),slot=Number.isInteger(fixed)?pool.slots[fixed%pool.slots.length]:pool.slots.reduce((a,b)=>b.calls.size<a.calls.size?b:a),id=++opportunityWorkerSeq;
  return new Promise((resolve,reject)=>{
   // A check that never settles is abandoned with the pool and reported unchecked.
   const timer=setTimeout(()=>{if(opportunityWorkers===pool)opportunityWorkersClose();},120000);
@@ -2490,7 +2490,7 @@ async function opportunityEngineOpen(){
  return opportunityFrameOpen();
 }
 const opportunityEngineSlots=()=>opportunityEngineMode==='workers'&&opportunityWorkers?Math.max(1,opportunityWorkers.slots.length):1;
-function opportunityEngineSolve(input,op='solve'){return opportunityEngineMode==='workers'?opportunityWorkerSolve(input,op):opportunityFrameSolve(input,op);}
+function opportunityEngineSolve(input,op='solve',slot=null){return opportunityEngineMode==='workers'?opportunityWorkerSolve(input,op,slot):opportunityFrameSolve(input,op);}
 // 2026-11-10 探す（記録の撮影地点）も重なる日と同じ計算本体で、地点ごとに並列に確かめる（ユーザー「同じ作りにして」）。
 // 大気差はこの端末の設定のまま本体へ渡し、計算は今までと同じ recordSearch（discovery）。この端末が読み込んだ気象が
 // 効く地点（気象の地点から3km以内。効く範囲は2km）だけは、本体に気象が無いので今までどおりこの画面で計算する。
@@ -2525,16 +2525,20 @@ async function recordEngineDiscover(plan,points,isCurrent,onProgress){
  const live=()=>isCurrent()&&owner===auth?.token&&generation===accessState.generation&&revision===version&&air===AstroNotesAtmosphere.dataKey(start)&&toolAllowed('records');
  const local=[],remote=[];for(const [i,e] of points.entries())(recordWeatherNear(e.place,sources)?local:remote).push(i);
  const base={plan,preferences:{mode,...(mode==='manual'?{pressureHPa:manual.pressureHPa,temperatureC:manual.temperatureC}:{}),targetHeights:store.get('sorami.aimHeights',{})},tools:auth.tools.slice(),generation,evaluationNow:Date.now(),favorites};
- const results=new Array(points.length);let processed=0,next=0,broken=null;
+ const results=new Array(points.length);let processed=0,broken=null;
  const done=i=>{processed++;onProgress?.({checked:processed,total:points.length});};
- const lane=async()=>{
-  for(let k;!broken&&(k=next++)<remote.length;){
-   if(!live())return;const i=remote[k];
-   try{results[i]=await opportunityEngineSolve({...base,entries:[points[i]]},'discover');}catch(e){broken=e;return;}
+ // Each place always goes to the same worker, which keeps its ground heights and outlines from the
+ // previous days (a place sent to another worker would read every terrain tile again).
+ const queues=Array.from({length:opportunityEngineSlots()},()=>[]);
+ for(const i of remote)queues[parseInt(recordHash(points[i].place.discoveryKey||points[i].place.id||String(i)).slice(0,8),16)%queues.length].push(i);
+ const lane=async(queue,slot)=>{
+  for(const i of queue){
+   if(broken||!live())return;
+   try{results[i]=await opportunityEngineSolve({...base,entries:[points[i]]},'discover',slot);}catch(e){broken=e;return;}
    done(i);
   }
  };
- await Promise.all(Array.from({length:opportunityEngineSlots()},lane));
+ await Promise.all(queues.map(lane));
  if(!live())return {rows:[],failed:0,cancelled:true};
  // The engine could not finish: the rest is computed here as before.
  const rest=[...local,...remote.filter(i=>!results[i])];
