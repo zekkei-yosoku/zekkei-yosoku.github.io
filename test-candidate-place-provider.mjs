@@ -18,6 +18,16 @@ test('公園ポリゴン全体を歩行面とせず、園路geometry上に任意
  assert(result.points.length>3);assert(result.points.every(p=>p.placeKind==='park'&&p.longitude===139.002));assert(result.points.every(p=>p.groundKnown&&p.standingSurfaceKnown&&p.surfaceHeightM===0));assert.equal(result.points[0].placeId,'osm/way/1');assert.equal(result.visibilityCertified,false);
  assert.equal(result.points[0].surfaceAglM,0);assert.equal(result.points[0].surfaceElevationM,12);assert.equal(result.points[0].surfaceGeometry.polygons.length,0);assert.equal(result.points[0].surfaceGeometry.lines.length,1);
 });
+test('堤防の上の道は広い川の河川敷、堤防の外の道は河川敷にしない',async()=>{
+ // A wide river (centre line at 139.0010) with its water 0.0012 deg (~110 m) wide; levee path ~100 m from the water,
+ // a street ~300 m from the water and ~350 m from the centre line.
+ const river=way(11,{waterway:'river',name:'江戸川'},[[139.0010,35.000],[139.0010,35.005]]);
+ const water=way(12,{natural:'water',water:'river'},ring(139.0004,35.000,139.0016,35.005));
+ const levee=line(13,{},35.0015,35.0035,139.0027),street=line(14,{},35.0015,35.0035,139.0049);
+ const result=await provider([river,water,levee,street]).load({}, {regions:[{id:'r',bbox:[139.0001,35.001,139.006,35.004]}]});
+ const kind=lon=>new Set(result.points.filter(p=>Math.abs(p.longitude-lon)<1e-6).map(p=>p.placeKind));
+ assert.deepEqual(kind(139.0027),new Set(['riverbank']));assert.deepEqual(kind(139.0049),new Set(['sidewalk']));
+});
 test('広場・河川敷・展望地点を独立geometryから作り、歩道より先に選ぶ',async()=>{
  const square=way(2,{highway:'pedestrian',area:'yes',place:'square',name:'広場'},ring(139.0011,35.0011,139.0018,35.0018));
  const riverPark=way(3,{leisure:'park',name:'川テラス'},ring(139.0021,35.0021,139.0028,35.0028));
@@ -87,10 +97,12 @@ test('施設名だけの未知高さを昇格せず、OSM障害時も既設展�
  const loadViewpoints=async()=>({places:[{id:'known',kind:'展望台',name:'既設点',latitude:35.002,longitude:139.002,deckM:40,heightKnown:true,heightBasis:'floor',source:'survey:floor'},{id:'unknown',kind:'展望台',name:'未知点',latitude:35.003,longitude:139.003,deckM:100,heightKnown:false}]}),p=provider([],{loadViewpoints,fetchImpl:async()=>{throw Error('offline');}});
  const r=await p.load({}, {regions:[region]});assert(r.partial);assert.equal(r.points.length,1);assert.equal(r.points[0].eyeM,1.5);assert.equal(r.points[0].surfaceElevationM,52);
 });
-test('automatic pages advance past failed tiles and respect cooldown without falling back to the editing API',async()=>{
+test('automatic pages leave tiles for later during cooldown, say how long to wait, and never fall back to the editing API',async()=>{
  const requests=[],regions=[{bbox:[139.001,35.001,139.009,35.004]}];
  const p=provider([],{maxTiles:1,fetchImpl:async url=>{requests.push(url);return {ok:false,status:429};}});
  const a=await p.load({}, {regions,retryFailed:false});assert.equal(a.coverage.failedRegions[0].reason,'HTTP 429');assert.deepEqual(a.coverage.nextCursor.retryTiles,[]);
- const b=await p.load({}, {regions,cursor:a.coverage.nextCursor,retryFailed:false});assert.notEqual(b.coverage.failedRegions[0].id,a.coverage.failedRegions[0].id);assert.equal(b.coverage.nextCursor,null);assert.equal(b.coverage.failedRegions[0].reason,'overpass-cooldown');
+ // During the cooldown the next tile is not failed: it stays pending at the same cursor, with the wait the search should observe.
+ const b=await p.load({}, {regions,cursor:a.coverage.nextCursor,retryFailed:false});assert.equal(b.coverage.failedRegions.length,0);assert.equal(b.coverage.pendingRegions.length,1);
+ assert(b.coverage.retryAfterMs>20000&&b.coverage.retryAfterMs<=60000);assert.equal(b.coverage.nextCursor.offset,a.coverage.nextCursor.offset);
  assert.deepEqual(requests,terrain.OVERPASS);
 });

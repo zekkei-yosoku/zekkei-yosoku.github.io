@@ -42,15 +42,32 @@ function cells(p0,p1,d0,d1,visit){
  }
  return true;
 }
-function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):null),base='data/candidate-heights/',loadIndex=null,gsiAlong=null,groundAt=null}={}){
- let indexPromise=null;const meshes=new Map(),ready=new Map(),overlays=new Map();
+const sha=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):null),base='data/building-heights/',loadIndex=null,gsiAlong=null,groundAt=null,ownFootprint=null}={}){
+ let indexPromise=null;const meshes=new Map(),ready=new Map(),overlays=new Map(),partLoads=new Map(),parts=new Map(),ownCells=new Map();
+ // Cells of a user's target building (lat/lon rings), widened by one cell: that building is the target, not an obstacle.
+ function ownSet(targetKey){
+  if(!ownFootprint||!targetKey)return null;if(ownCells.has(targetKey))return ownCells.get(targetKey);
+  const rings=ownFootprint(targetKey);let set=null;
+  if(rings?.length){set=new Set();for(const ring of rings){const xs=ring.map(p=>p[1]*LON),ys=ring.map(p=>p[0]*LAT);
+   for(let gy=Math.floor(Math.min(...ys))-1;gy<=Math.floor(Math.max(...ys))+1;gy++)for(let gx=Math.floor(Math.min(...xs))-1;gx<=Math.floor(Math.max(...xs))+1;gx++){
+    let on=false;const x=gx+.5,y=gy+.5;for(let i=0,j=xs.length-1;i<xs.length;j=i++)if((ys[i]>y)!==(ys[j]>y)&&x<(xs[j]-xs[i])*(y-ys[i])/(ys[j]-ys[i])+xs[i])on=!on;
+    if(on)for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)set.add((gx+dx)+','+(gy+dy));}}}
+  ownCells.set(targetKey,set);if(ownCells.size>32)ownCells.delete(ownCells.keys().next().value);return set;
+ }
+ // The main index lists one part per 1st-order mesh (about 80 km); a part lists its meshes. Only parts a line reaches are read.
  const index=()=>indexPromise||(indexPromise=(async()=>{const data=loadIndex?structuredClone(await loadIndex()):await (async()=>{const r=await fetchImpl(base+'index.json');if(!r.ok)throw Error('height-index');return r.json();})();
-  data.highestM=Math.max(...Object.values(data.meshes).map(v=>v[1]??0),...Object.values(data.targets||{}).flatMap(t=>Object.values(t).map(v=>v.topM)));return data;})().catch(e=>{indexPromise=null;throw e;}));
- async function mesh(code,data){
-  if(!data.meshes[code])return null;
-  if(!meshes.has(code))meshes.set(code,(async()=>{const r=await fetchImpl(base+code+'.bin?v='+data.meshes[code][0]);if(!r.ok)throw Error('height-mesh');
-   // The index names each file by its SHA-256; a different file is not used.
-   const packed=await r.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',packed)),v=>v.toString(16).padStart(2,'0')).join('');if(!hash.startsWith(data.meshes[code][0]))throw Error('height-mesh-version');
+  data.highestM=Math.max(0,...Object.values(data.parts||{}).map(v=>v[2]??0),...Object.values(data.targets||{}).flatMap(t=>Object.values(t).map(v=>v.topM)));return data;})().catch(e=>{indexPromise=null;throw e;}));
+ function part(p4,data){
+  if(!partLoads.has(p4))partLoads.set(p4,(async()=>{const r=await fetchImpl(base+p4+'/index.json?v='+data.parts[p4][0]);if(!r.ok)throw Error('height-part');
+   const bytes=await r.arrayBuffer();if(!(await sha(bytes)).startsWith(data.parts[p4][0]))throw Error('height-part-version');
+   const list=JSON.parse(new TextDecoder().decode(bytes)).meshes;parts.set(p4,list);return list;})().catch(e=>{partLoads.delete(p4);throw e;}));
+  return partLoads.get(p4);
+ }
+ async function mesh(code,entry){
+  if(!meshes.has(code))meshes.set(code,(async()=>{const r=await fetchImpl(base+code.slice(0,4)+'/'+code+'.bin?v='+entry[0]);if(!r.ok)throw Error('height-mesh');
+   // The part index names each file by its SHA-256; a different file is not used.
+   const packed=await r.arrayBuffer();if(!(await sha(packed)).startsWith(entry[0]))throw Error('height-mesh-version');
    const grid=decode(new Uint8Array(await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()));ready.set(code,grid);return grid;})().catch(e=>{meshes.delete(code);throw e;}));
   if(meshes.size>160){const old=meshes.keys().next().value;meshes.delete(old);ready.delete(old);}
   return meshes.get(code);
@@ -68,11 +85,15 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   const stopAt=Math.max(data.highestM+MARGIN_M,observer.elevation+GSI_MAX_M[3103]+GROUND_RISE_M);
   const az=ray.endpoint?bearingM(observer,ray.endpoint).azimuth:ray.azimuth;
   const known=[],uncovered=[];let status='clear',hit=null,cellsChecked=0,reach=0;
-  let pending=null,lastKey=null,code=null;
+  let pending=null,lastKey=null,code=null;const own=ownSet(ray.targetKey);
   const visit=(gx,gy,a,z)=>{
+   if(own?.has(gx+','+gy)){known.push([a,z]);return;}
    const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS);if(my*1e5+mx!==lastKey){lastKey=my*1e5+mx;code=meshCode(my,mx);}
-   if(!data.meshes[code]){const last=uncovered[uncovered.length-1];if(last&&last[1]>=a-.01)last[1]=Math.max(last[1],z);else uncovered.push([a,z]);return;}
-   const grid=ready.get(code);if(!grid){pending=code;return false;}
+   const p4=code.slice(0,4),list=data.parts?.[p4]?parts.get(p4):null;
+   if(data.parts?.[p4]&&!list){pending={part:p4};return false;}
+   const entry=list?.[code];
+   if(!entry){const last=uncovered[uncovered.length-1];if(last&&last[1]>=a-.01)last[1]=Math.max(last[1],z);else uncovered.push([a,z]);return;}
+   const grid=ready.get(code);if(!grid){pending={code,entry};return false;}
    const i=(gy-my*ROWS)*COLS+(gx-mx*COLS),others=overlay(code,data,ray.targetKey),v=Math.max(grid[i],others.get(i)||0);cellsChecked++;
    // Over the aimed target's own building: its outline is judged by the caller, and its GSI footprint is not an unknown building.
    if(others.own.has(i))known.push([a,z]);
@@ -93,7 +114,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
     pending=null;const done=cells(from,to,d,e,visit);
     if(done!==false||!pending)break;
     known.length=mark[0];uncovered.length=mark[1];status=mark[2];hit=mark[3];cellsChecked=mark[4];
-    try{await mesh(pending,data);}catch{return {status:'unknown',reason:'height-data-unavailable',source:'plateau-grid'};}
+    try{if(pending.part)await part(pending.part,data);else await mesh(pending.code,pending.entry);}catch{return {status:'unknown',reason:'height-data-unavailable',source:'plateau-grid'};}
    }
    from=to;d=e;reach=e;
   }

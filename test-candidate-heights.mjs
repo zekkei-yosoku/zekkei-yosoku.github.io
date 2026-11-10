@@ -19,9 +19,11 @@ function world({buildings=[],target=[],gsi=[]}={}){
  const grid=new Uint16Array(ROWS*COLS),put=(list,into)=>{for(const {north,top,width=2,depth=3} of list){const [r,c]=cell(observer.latitude+north/110540,observer.longitude);for(let y=r;y<r+depth;y++)for(let x=c-width;x<=c+width;x++)into(y*COLS+x,top+20);}};
  put(buildings,(i,v)=>{grid[i]=Math.max(grid[i],v);});
  const own=[];put(target,(i,v)=>own.push([i,v]));
- const body=pack(grid),sha=createHash('sha256').update(body).digest('hex');
- const index={grid:{offsetM:20},meshes:{[CODE]:[sha.slice(0,16),Math.max(0,...buildings.map(b=>b.top))]},targets:own.length?{tower:{[CODE]:{cells:own,topM:Math.max(...target.map(t=>t.top))}}}:{}};
- const fetchImpl=async url=>url.includes(CODE+'.bin')?new Response(body):new Response('missing',{status:404});
+ const body=pack(grid),sha=createHash('sha256').update(body).digest('hex'),top=Math.max(0,...buildings.map(b=>b.top));
+ // Layout v2: <first 4 digits>/index.json lists the part's meshes; the main index lists parts by the SHA-256 of that list.
+ const part=Buffer.from(JSON.stringify({meshes:{[CODE]:[sha.slice(0,16),top]}})),partSha=createHash('sha256').update(part).digest('hex');
+ const index={grid:{offsetM:20},parts:{[CODE.slice(0,4)]:[partSha.slice(0,16),1,top]},targets:own.length?{tower:{[CODE]:{cells:own,topM:Math.max(...target.map(t=>t.top))}}}:{}};
+ const fetchImpl=async url=>url.includes(CODE.slice(0,4)+'/'+CODE+'.bin')?new Response(body):url.includes(CODE.slice(0,4)+'/index.json')?new Response(part):new Response('missing',{status:404});
  return H.create({fetchImpl,loadIndex:async()=>index,gsiAlong:async()=>gsi,groundAt:async()=>5});
 }
 const north=altitude=>({azimuth:0,altitude,maxM:1500,refractionK:7/6});
@@ -63,11 +65,14 @@ test('a GSI footprint without a PLATEAU height is clear only above the tallest o
  // The same footprint is not counted twice when PLATEAU holds it.
  // (Kept inside the one mesh: beyond it, low lines over ground without PLATEAU data are only estimated.)
  const held=await world({buildings:[{north:198,top:8,depth:6}],gsi:[house]}).trace(observer,{...north(4),maxM:600});assert.equal(held.status,'clear');assert.equal(held.heights,'plateau');
- assert.equal((await H.create({loadIndex:async()=>({grid:{offsetM:20},meshes:{},targets:{}}),gsiAlong:async()=>null}).trace(observer,north(4))).status,'unknown');
+ assert.equal((await H.create({loadIndex:async()=>({grid:{offsetM:20},parts:{},targets:{}}),gsiAlong:async()=>null}).trace(observer,north(4))).status,'unknown');
 });
 
-test('a mesh file that does not match the index is not used',async()=>{
- const index={grid:{offsetM:20},meshes:{[CODE]:['0000000000000000',10]},targets:{}};
- const h=H.create({fetchImpl:async()=>new Response(pack(new Uint16Array(ROWS*COLS))),loadIndex:async()=>index,gsiAlong:async()=>[]});
- const r=await h.trace(observer,north(5));assert.equal(r.status,'unknown');assert.equal(r.reason,'height-data-unavailable');
+test('a part list or mesh file that does not match its index is not used',async()=>{
+ const part=Buffer.from(JSON.stringify({meshes:{[CODE]:['0000000000000000',10]}})),partSha=createHash('sha256').update(part).digest('hex').slice(0,16);
+ const serve=list=>async url=>url.endsWith('.bin')||url.includes('.bin?')?new Response(pack(new Uint16Array(ROWS*COLS))):new Response(list);
+ const badMesh=H.create({fetchImpl:serve(part),loadIndex:async()=>({grid:{offsetM:20},parts:{[CODE.slice(0,4)]:[partSha,1,10]},targets:{}}),gsiAlong:async()=>[]});
+ const r=await badMesh.trace(observer,north(5));assert.equal(r.status,'unknown');assert.equal(r.reason,'height-data-unavailable');
+ const badPart=H.create({fetchImpl:serve(part),loadIndex:async()=>({grid:{offsetM:20},parts:{[CODE.slice(0,4)]:['ffffffffffffffff',1,10]},targets:{}}),gsiAlong:async()=>[]});
+ assert.equal((await badPart.trace(observer,north(5))).reason,'height-data-unavailable');
 });

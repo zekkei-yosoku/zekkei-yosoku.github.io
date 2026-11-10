@@ -56,15 +56,32 @@ function cells(p0,p1,d0,d1,visit){
  }
  return true;
 }
-function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):null),base='data/candidate-heights/',loadIndex=null,gsiAlong=null,groundAt=null}={}){
- let indexPromise=null;const meshes=new Map(),ready=new Map(),overlays=new Map();
+const sha=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):null),base='data/building-heights/',loadIndex=null,gsiAlong=null,groundAt=null,ownFootprint=null}={}){
+ let indexPromise=null;const meshes=new Map(),ready=new Map(),overlays=new Map(),partLoads=new Map(),parts=new Map(),ownCells=new Map();
+ // Cells of a user's target building (lat/lon rings), widened by one cell: that building is the target, not an obstacle.
+ function ownSet(targetKey){
+  if(!ownFootprint||!targetKey)return null;if(ownCells.has(targetKey))return ownCells.get(targetKey);
+  const rings=ownFootprint(targetKey);let set=null;
+  if(rings?.length){set=new Set();for(const ring of rings){const xs=ring.map(p=>p[1]*LON),ys=ring.map(p=>p[0]*LAT);
+   for(let gy=Math.floor(Math.min(...ys))-1;gy<=Math.floor(Math.max(...ys))+1;gy++)for(let gx=Math.floor(Math.min(...xs))-1;gx<=Math.floor(Math.max(...xs))+1;gx++){
+    let on=false;const x=gx+.5,y=gy+.5;for(let i=0,j=xs.length-1;i<xs.length;j=i++)if((ys[i]>y)!==(ys[j]>y)&&x<(xs[j]-xs[i])*(y-ys[i])/(ys[j]-ys[i])+xs[i])on=!on;
+    if(on)for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)set.add((gx+dx)+','+(gy+dy));}}}
+  ownCells.set(targetKey,set);if(ownCells.size>32)ownCells.delete(ownCells.keys().next().value);return set;
+ }
+ // The main index lists one part per 1st-order mesh (about 80 km); a part lists its meshes. Only parts a line reaches are read.
  const index=()=>indexPromise||(indexPromise=(async()=>{const data=loadIndex?structuredClone(await loadIndex()):await (async()=>{const r=await fetchImpl(base+'index.json');if(!r.ok)throw Error('height-index');return r.json();})();
-  data.highestM=Math.max(...Object.values(data.meshes).map(v=>v[1]??0),...Object.values(data.targets||{}).flatMap(t=>Object.values(t).map(v=>v.topM)));return data;})().catch(e=>{indexPromise=null;throw e;}));
- async function mesh(code,data){
-  if(!data.meshes[code])return null;
-  if(!meshes.has(code))meshes.set(code,(async()=>{const r=await fetchImpl(base+code+'.bin?v='+data.meshes[code][0]);if(!r.ok)throw Error('height-mesh');
-   // The index names each file by its SHA-256; a different file is not used.
-   const packed=await r.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',packed)),v=>v.toString(16).padStart(2,'0')).join('');if(!hash.startsWith(data.meshes[code][0]))throw Error('height-mesh-version');
+  data.highestM=Math.max(0,...Object.values(data.parts||{}).map(v=>v[2]??0),...Object.values(data.targets||{}).flatMap(t=>Object.values(t).map(v=>v.topM)));return data;})().catch(e=>{indexPromise=null;throw e;}));
+ function part(p4,data){
+  if(!partLoads.has(p4))partLoads.set(p4,(async()=>{const r=await fetchImpl(base+p4+'/index.json?v='+data.parts[p4][0]);if(!r.ok)throw Error('height-part');
+   const bytes=await r.arrayBuffer();if(!(await sha(bytes)).startsWith(data.parts[p4][0]))throw Error('height-part-version');
+   const list=JSON.parse(new TextDecoder().decode(bytes)).meshes;parts.set(p4,list);return list;})().catch(e=>{partLoads.delete(p4);throw e;}));
+  return partLoads.get(p4);
+ }
+ async function mesh(code,entry){
+  if(!meshes.has(code))meshes.set(code,(async()=>{const r=await fetchImpl(base+code.slice(0,4)+'/'+code+'.bin?v='+entry[0]);if(!r.ok)throw Error('height-mesh');
+   // The part index names each file by its SHA-256; a different file is not used.
+   const packed=await r.arrayBuffer();if(!(await sha(packed)).startsWith(entry[0]))throw Error('height-mesh-version');
    const grid=decode(new Uint8Array(await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()));ready.set(code,grid);return grid;})().catch(e=>{meshes.delete(code);throw e;}));
   if(meshes.size>160){const old=meshes.keys().next().value;meshes.delete(old);ready.delete(old);}
   return meshes.get(code);
@@ -82,11 +99,15 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
   const stopAt=Math.max(data.highestM+MARGIN_M,observer.elevation+GSI_MAX_M[3103]+GROUND_RISE_M);
   const az=ray.endpoint?bearingM(observer,ray.endpoint).azimuth:ray.azimuth;
   const known=[],uncovered=[];let status='clear',hit=null,cellsChecked=0,reach=0;
-  let pending=null,lastKey=null,code=null;
+  let pending=null,lastKey=null,code=null;const own=ownSet(ray.targetKey);
   const visit=(gx,gy,a,z)=>{
+   if(own?.has(gx+','+gy)){known.push([a,z]);return;}
    const my=Math.floor(gy/ROWS),mx=Math.floor(gx/COLS);if(my*1e5+mx!==lastKey){lastKey=my*1e5+mx;code=meshCode(my,mx);}
-   if(!data.meshes[code]){const last=uncovered[uncovered.length-1];if(last&&last[1]>=a-.01)last[1]=Math.max(last[1],z);else uncovered.push([a,z]);return;}
-   const grid=ready.get(code);if(!grid){pending=code;return false;}
+   const p4=code.slice(0,4),list=data.parts?.[p4]?parts.get(p4):null;
+   if(data.parts?.[p4]&&!list){pending={part:p4};return false;}
+   const entry=list?.[code];
+   if(!entry){const last=uncovered[uncovered.length-1];if(last&&last[1]>=a-.01)last[1]=Math.max(last[1],z);else uncovered.push([a,z]);return;}
+   const grid=ready.get(code);if(!grid){pending={code,entry};return false;}
    const i=(gy-my*ROWS)*COLS+(gx-mx*COLS),others=overlay(code,data,ray.targetKey),v=Math.max(grid[i],others.get(i)||0);cellsChecked++;
    // Over the aimed target's own building: its outline is judged by the caller, and its GSI footprint is not an unknown building.
    if(others.own.has(i))known.push([a,z]);
@@ -107,7 +128,7 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
     pending=null;const done=cells(from,to,d,e,visit);
     if(done!==false||!pending)break;
     known.length=mark[0];uncovered.length=mark[1];status=mark[2];hit=mark[3];cellsChecked=mark[4];
-    try{await mesh(pending,data);}catch{return {status:'unknown',reason:'height-data-unavailable',source:'plateau-grid'};}
+    try{if(pending.part)await part(pending.part,data);else await mesh(pending.code,pending.entry);}catch{return {status:'unknown',reason:'height-data-unavailable',source:'plateau-grid'};}
    }
    from=to;d=e;reach=e;
   }
@@ -141,6 +162,73 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
  return {trace,index};
 }
 return {create,decode,meshCode,profile,cells,GSI_MAX_M,MARGIN_M};
+});
+
+/* PLATEAU building shapes (tools/build-plateau-models.py) for targets the user adds. A saved target that stands
+   on a PLATEAU building of about its height takes that building's shape on this page (見え方 and new places);
+   calculation workers keep their own models. */
+(function(root,factory){const api=factory(root);if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesPlateauBuildings=api;})(typeof globalThis!=='undefined'?globalThis:this,function(root){
+'use strict';
+const RAD=Math.PI/180;
+// Files are per 2nd-order mesh (6 digits, about 10 km).
+function part(lat,lon){const my=Math.floor(lat*120),mx=Math.floor(lon*80);return ''+Math.floor(my/80)+(Math.floor(mx/80)-100)+Math.floor(my%80/10)+Math.floor(mx%80/10);}
+function inside(ring,x,y){let on=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++)if((ring[i][1]>y)!==(ring[j][1]>y)&&x<(ring[j][0]-ring[i][0])*(y-ring[i][1])/(ring[j][1]-ring[i][1])+ring[i][0])on=!on;return on;}
+const sha=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+// A row: [id, name, aim latitude, aim longitude, ground m, height m, LOD, columns]; a column: [top dm, east/north dm pairs].
+function shape(row){
+ const [id,name,lat,lon,groundM,heightM,lod,cols]=row,kx=111320*Math.cos(lat*RAD),ky=110540;
+ const rings=cols.map(([top,flat])=>{const r=[];for(let i=0;i<flat.length;i+=2)r.push([flat[i]/10,flat[i+1]/10]);return {top:top/10,ring:r};});
+ return {id,name,latitude:lat,longitude:lon,groundM,heightM,lod,rings,geo:p=>[lat+p[1]/ky,lon+p[0]/kx]};
+}
+// The app's city-model form: every column is one face of its ground and roof corners, placed by absolute position.
+function cityModel(b){
+ const vertices=[],geoVertices=[],faces=[];
+ for(const {top,ring} of b.rings){const face=[];for(const z of [0,top])for(const p of ring){face.push(vertices.length);vertices.push([p[0],p[1],z]);geoVertices.push(b.geo(p));}faces.push(face);}
+ return {id:'plateau-'+b.id,buildingId:b.id,heightM:b.heightM,groundM:b.groundM,vertices,geoVertices,faces,approximate:true,
+  sourceLabel:'PLATEAU（加工）・LOD'+b.lod,sourceUrl:'https://www.mlit.go.jp/plateau/site-policy/'};
+}
+function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(root):null),base='data/building-shapes/'}={}){
+ let indexPromise=null;const parts=new Map(),ready=new Map(),attached=new Map();
+ const index=()=>indexPromise||(indexPromise=(load?load('building-shapes/index.json'):fetchImpl(base+'index.json').then(r=>{if(!r.ok)throw Error('shape-index');return r.json();})).catch(e=>{indexPromise=null;throw e;}));
+ async function partAt(lat,lon){
+  const data=await index(),p=part(lat,lon),entry=data.parts?.[p];if(!entry)return [];
+  if(!parts.has(p))parts.set(p,(async()=>{const r=await fetchImpl(base+p+'.json.gz?v='+entry[0]);if(!r.ok)throw Error('shape-part');
+   const bytes=await r.arrayBuffer();if(!(await sha(bytes)).startsWith(entry[0]))throw Error('shape-part-version');
+   const json=JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
+   const list=json.buildings.map(shape);ready.set(p,list);return list;})().catch(e=>{parts.delete(p);throw e;}));
+  return parts.get(p);
+ }
+ const metres=(b,lat,lon)=>{const kx=111320*Math.cos(lat*RAD),ky=110540;return [(lon-b.longitude)*kx,(lat-b.latitude)*ky];};
+ const onFootprint=(b,lat,lon)=>{const [x,y]=metres(b,lat,lon);return b.rings.some(({ring})=>inside(ring,x,y));};
+ const distance=(b,lat,lon)=>{if(onFootprint(b,lat,lon))return 0;const [x,y]=metres(b,lat,lon);let best=Infinity;for(const {ring} of b.rings)for(let i=0,j=ring.length-1;i<ring.length;j=i++){const [x1,y1]=ring[j],[x2,y2]=ring[i],dx=x2-x1,dy=y2-y1,l=dx*dx+dy*dy,t=l?Math.max(0,Math.min(1,((x-x1)*dx+(y-y1)*dy)/l)):0;best=Math.min(best,Math.hypot(x-x1-t*dx,y-y1-t*dy));}return best;};
+ // Buildings within radiusM of a point, nearest first (a point on a footprint is at 0 m).
+ async function near(lat,lon,{radiusM=300,limit=8,minHeightM=0}={}){
+  const list=await partAt(lat,lon);
+  return list.filter(b=>b.heightM>=minHeightM).map(b=>({b,d:distance(b,lat,lon)})).filter(x=>x.d<=radiusM).sort((a,c)=>a.d-c.d||c.b.heightM-a.b.heightM).slice(0,limit)
+   .map(({b,d})=>({id:b.id,name:b.name,latitude:b.latitude,longitude:b.longitude,groundM:b.groundM,heightM:b.heightM,lod:b.lod,distanceM:Math.round(d)}));
+ }
+ // A saved target (id "fav:…") on a PLATEAU building whose height is within 15% (5 m) of the target's takes its shape.
+ function match(target){
+  if(!target||!String(target.id||'').startsWith('fav:')||target.rim)return null;
+  const top=(target.parts?.find(p=>p.id==='tip')||target.parts?.[0])?.m,h=Number.isFinite(top)?top-(target.groundM??0):NaN;if(!(h>0))return null;
+  const list=ready.get(part(target.latitude,target.longitude));if(!list)return null;
+  let best=null;for(const b of list){if(Math.abs(b.heightM-h)>Math.max(5,b.heightM*.15))continue;const d=distance(b,target.latitude,target.longitude);if(d<=3&&(!best||d<best.d))best={b,d};}
+  return best?.b||null;
+ }
+ // Register shapes for saved targets on this page. Returns the ids that changed.
+ async function prepare(targets){
+  const changed=[],models=root.AstroNotesCityModels||(root.AstroNotesCityModels={});
+  for(const t of targets||[]){if(!String(t?.id||'').startsWith('fav:'))continue;try{await partAt(t.latitude,t.longitude);}catch{continue;}
+   const b=match(t),prev=attached.get(t.id);
+   if(b&&prev?.id!==b.id){models[t.id]=cityModel(b);attached.set(t.id,b);changed.push(t.id);}
+   else if(!b&&prev){delete models[t.id];attached.delete(t.id);changed.push(t.id);}}
+  return changed;
+ }
+ // Footprint of the building a target stands on (lat/lon rings), for leaving it out of its own sight lines.
+ function footprint(targetId){const b=attached.get(targetId);return b?b.rings.map(({ring})=>ring.map(p=>b.geo(p))):null;}
+ return {near,prepare,match,footprint,attachedTo:id=>attached.get(id)||null};
+}
+return {create,part,shape,cityModel};
 });
 
 /* Native GSI DEM samples: terrain diagnostics, never standing surface/visibility proof. */
@@ -1039,7 +1127,10 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
    const river=rivers.find(a=>a.lines.some(line=>edgeDistance(line,p)<=80));
    const riverArea=containers.find(a=>/河川敷|川テラス|川緑道|riverbank|riverside/i.test(a.name));
    const riverPath=/河川敷|川.*テラス|riverside|riverbank/i.test(f.name)&&waters.some(a=>a.lines.some(line=>edgeDistance(line,p)<=80));
-   const riverside=riverArea||riverPath||river&&waters.some(a=>a.lines.some(line=>edgeDistance(line,p)<=80));
+   // A levee-top path stands well back from a wide river's centre line: within 150 m of its water and
+   // 300 m of the centre line it is the riverbank, while streets behind the levee are not.
+   const wideRiver=rivers.find(a=>a.tags.waterway==='river'&&a.lines.some(line=>edgeDistance(line,p)<=300))&&waters.some(a=>a.lines.some(line=>edgeDistance(line,p)<=150));
+   const riverside=riverArea||riverPath||river&&waters.some(a=>a.lines.some(line=>edgeDistance(line,p)<=80))||wideRiver;
    const area=viewpoint||square||riverArea||park;
    const placeKind=f.kind==='viewpoint'||viewpoint?'viewpoint':square||f.tags.highway==='pedestrian'&&(f.tags.area==='yes'||f.tags['area:highway'])?'plaza':riverside?'riverbank':park?'park':'sidewalk';
    const elevated=nonGround(f.tags)||!!roofArea||!!building;
@@ -1081,7 +1172,7 @@ function publishedViewpoints(data,regions){
   });
  }return points;
 }
-return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,isCurrent:providerCurrent=()=>true,maxTiles=12,maxPoints=480,timeoutMs=12000,maxDurationMs=55000,spacingM=30,endpoints}={}){
+return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,isCurrent:providerCurrent=()=>true,maxTiles=12,maxPoints=480,timeoutMs=25000,maxDurationMs=55000,spacingM=30,endpoints}={}){
  if(!terrain)throw Error('terrain provider is required');
  const servers=endpoints||terrain.OVERPASS||[],cache=new Map(),heightCache=new Map();
  let endpointCursor=0,overpassRetryAfter=0,overpassNextRequest=0;
@@ -1117,7 +1208,8 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
      const value={features:parseElements(data.elements),at:Date.now(),timestamp:data.osm3s?.timestamp_osm_base||null,endpoint,version:hash(JSON.stringify(data.elements))};cache.set(tile.id,value);while(cache.size>120)cache.delete(cache.keys().next().value);endpointCursor=(endpointCursor+attempt)%Math.max(1,servers.length);overpassRetryAfter=0;return value;
     }catch(e){reason=String(e.message||e);if(!retryFailed&&reason==='HTTP 429')break;}
    }if(!current()||controller.signal.aborted)throw Error('cancelled');
-   endpointCursor=(endpointCursor+1)%Math.max(1,servers.length);if(overpassAttempted)overpassRetryAfter=Date.now()+60000;
+   // A refusal (429) waits a minute; a slow answer only briefly, as a dense Tokyo tile can take Overpass 10-20 s.
+   endpointCursor=(endpointCursor+1)%Math.max(1,servers.length);if(overpassAttempted)overpassRetryAfter=Date.now()+(/429/.test(reason)?60000:20000);
    if(retryFailed&&current()&&!controller.signal.aborted)try{const endpoint='https://api.openstreetmap.org/api/0.6/map',res=await request(endpoint+'?bbox='+b.join(','));if(!res.ok)throw Error('HTTP '+res.status);const xml=await bounded(res.text(),timeoutMs),elements=mapElements(xml),value={features:parseElements(elements),at:Date.now(),timestamp:null,endpoint,version:hash(xml),fallback:true};cache.set(tile.id,value);return value;}catch(e){reason+='; map '+String(e.message||e);}
    throw Error(reason);
   }
@@ -1127,6 +1219,9 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    function* queue(){if(batchTiles){for(const tile of batchTiles)yield {...tile,page:true};return;}for(const tile of retryTiles)yield {...tile,retry:true};for(const tile of tileQueue(requested)){if(visited++<offset)continue;yield tile;}}
    for(const tile of queue()){
     if(!current()||controller.signal.aborted||used>=Math.max(1,tileBudget,batchTiles?.length||0)||used>0&&Date.now()-started>maxDurationMs*.55){coverage.pendingRegions.push(tile);hasPending=true;break;}
+    // While Overpass is cooling down, a tile is left for the next page instead of failing, so one slow
+    // answer does not turn the rest of a drained search into failed regions.
+    if(!retryFailed&&!tile.retry&&!tile.page&&servers.length&&Date.now()<overpassRetryAfter&&!(cache.get(tile.id)&&Date.now()-cache.get(tile.id).at<86400000)){coverage.pendingRegions.push(tile);hasPending=true;coverage.retryAfterMs=overpassRetryAfter-Date.now();break;}
     used++;if(!tile.retry&&!tile.page)nextOffset=visited;
     try{const data=await acquire(tile);if(!current())break;coverage.fetchedRegions.push({...tile,timestamp:data.timestamp,endpoint:data.endpoint,cached:!!data.cached,version:data.version,fallback:!!data.fallback});for(const f of data.features)merged.set(f.id,f);}
     catch(e){coverage.failedRegions.push({...tile,reason:String(e.message||e)});}
@@ -1339,7 +1434,8 @@ function createGeneric({align,bodies,geo,terrain,index=null,heights=null,staticT
     let up=null,ground=-Infinity;if(movable&&terrain?.at)for(let m=3;m<=60;m+=3){const q=geo.destination(obs.latitude,obs.longitude,inv.azimuth,m/1000),h=await terrain.at(q,options);if(Number.isFinite(h)&&h>ground+.05){ground=h;up=q;}}
     const meta=up&&ground>obs.elevation+.3?standingMetadata({...up,elevation:ground},data,point):false;
     if(!meta)return {status:'model-blocked',recommend:false,reason:'target-line-terrain',partial:true};
-    obs={...obs,...meta,latitude:up.latitude,longitude:up.longitude,groundM:ground,elevation:ground,surfaceAglM:0,surfaceHeightM:0,surfaceId:(point.surfaceId||'ground')+':up'+(step+1),movedUpFrom:{latitude:point.latitude,longitude:point.longitude,elevation:floor}};
+    // The step stays in the same park or riverbank, which keeps the point's kind and name.
+    obs={...obs,...meta,placeKind:point.placeKind,name:point.name||meta.name,latitude:up.latitude,longitude:up.longitude,groundM:ground,elevation:ground,surfaceAglM:0,surfaceHeightM:0,surfaceId:(point.surfaceId||'ground')+':up'+(step+1),movedUpFrom:{latitude:point.latitude,longitude:point.longitude,elevation:floor}};
    }
   }
   const solved=await Composition.opportunities(plan,obs,{align,bodies,terrain,sidewalks,groundAt:p=>terrain?.at(p,options),standingAt:p=>standingMetadata(p,data,point),isCurrent:options.isCurrent,yieldTask});
@@ -1414,6 +1510,7 @@ function regionsFor(seeds){
  }
  return [...map.values()].sort((a,b)=>a.priority-b.priority||a.id.localeCompare(b.id));
 }
+const placeKinds=new Set(['viewpoint','plaza','park','riverbank']);
 function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=()=>new Promise(r=>setTimeout(r,0))}={}){
  const sessions=new Map();
  const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,outsideFrame:0,deferred:0},coverage:[],busy:false});
@@ -1455,8 +1552,10 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
     // Commit a provider page only after all awaited preparation is current.
     if(!wanted())return {cancelled:true};
     session.coverage.push(data.coverage||{});session.cursor=data.coverage?.nextCursor??null;session.providerPartial=!!data.partial;
-    for(const p of points){if(!allowedPoint(p))continue;const id=[p.surfaceId||p.sourceId,p.latitude.toFixed(7),p.longitude.toFixed(7),p.surfaceHeightM??p.groundM].join(':');if(session.seen.has(id))continue;session.seen.add(id);session.queue.push(p);}
-    const preferred=new Set(['park','viewpoint','plaza','riverbank']);session.queue.sort((a,b)=>Number(!preferred.has(a.placeKind))-Number(!preferred.has(b.placeKind)));
+    session.retryAt=data.coverage?.retryAfterMs>0?Date.now()+data.coverage.retryAfterMs:0;
+    // New places are squares, viewpoints and observation decks, parks and riverbanks; plain walkways are not offered.
+    for(const p of points){if(!allowedPoint(p)||!placeKinds.has(p.placeKind))continue;const id=[p.surfaceId||p.sourceId,p.latitude.toFixed(7),p.longitude.toFixed(7),p.surfaceHeightM??p.groundM].join(':');if(session.seen.has(id))continue;session.seen.add(id);session.queue.push(p);}
+    const order=['viewpoint','riverbank','plaza','park'];session.queue.sort((a,b)=>order.indexOf(a.placeKind)-order.indexOf(b.placeKind));
     session.data=data;
    }
    session.started=true;let count=0;
@@ -1484,12 +1583,16 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
  // Drain scheduled pages and point batches as one cancellable foreground search.
  async function searchAll(plan,{onBatchStart=()=>{},...options}={}){
   const wanted=()=>!options.signal?.aborted&&(options.isCurrent?.()??true);
-  const cursors=new Set();let more=!!options.more;
+  const cursors=new Set();let more=!!options.more,waits=0;
   while(wanted()){
    onBatchStart();
    const page=await search(plan,{...options,more,retryFailed:false});
    if(!wanted()||page.cancelled)return {cancelled:true};
    if(!page.canContinue)return page;
+   // The place source asked to wait (Overpass cooling down): wait, then fetch the regions it left. Three waits at most;
+   // a busier Overpass ends the search with its regions reported as not fetched.
+   const waitMs=(page.retryAt||0)-Date.now();
+   if(!page.coverage.pendingPoints&&waitMs>0&&waits<3){waits++;options.onProgress?.({stage:'places-wait',waitMs,...page.counts});for(const end=Date.now()+waitMs+250;Date.now()<end;){if(!wanted())return {cancelled:true};await new Promise(r=>setTimeout(r,Math.min(250,end-Date.now())));}more=true;continue;}
    if(!page.coverage.pendingPoints){
     const cursor=JSON.stringify(page.coverage.nextCursor);
     if(cursors.has(cursor)){const stalled={...page,stalled:true};sessions.get(page.requestKey).lastResult=stalled;return stalled;}
@@ -1499,7 +1602,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
   }
   return {cancelled:true};
  }
- function result(s){return {rows:s.rows.slice(),counts:{...s.counts},requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',canContinue:s.queue.length>0||s.cursor!==null,coverage:{regions:s.regions.length,loaded:s.coverage,pendingPoints:s.queue.length,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
+ function result(s){return {rows:s.rows.slice(),counts:{...s.counts},retryAt:s.retryAt||0,requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',canContinue:s.queue.length>0||s.cursor!==null,coverage:{regions:s.regions.length,loaded:s.coverage,pendingPoints:s.queue.length,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
  return {search,searchAll,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
 }
 api.requestKey=requestKey;api.regionsFor=regionsFor;api.createGenericSearch=createGenericSearch;
@@ -1840,10 +1943,18 @@ const contextActive=()=>{const main=mainWorkspace();return main?main.active():do
 let dateNavigation=null,dateCalendar=null,autoSearchTimer=null,dateRefreshPending=false,hasSearched=false,returnSearch=null;
 let timeChoice='day',windowStart='00:00',windowEnd='23:59';
 const dataTag=new URL(document.currentScript.src,location.href).searchParams.get('v')||'0';
-const dataHashes={"candidate-viewpoints.json":"f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5","candidate-terrain.json":"5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779","candidate-buildings.json":"e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a","candidate-heights/index.json":"9bcbbd7805055158978bd0c7bf1ec533fd3a4cca8d03210d3317ec9ea64ac2e1","candidate-surfaces.json":"de16ae6e56aa05a1d4a7d6d0fa8974a4373183f35e8282f412f7fbd7c637751f","candidate-sidewalks.json":"efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a","candidate-label-addresses.json":"3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b","candidate-label-facilities.json":"ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53"};
+const dataHashes={"candidate-viewpoints.json":"f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5","candidate-terrain.json":"5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779","candidate-buildings.json":"e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a","building-heights/index.json":"c5de84afbac82b7695db3aaf5e7b4438ac62dd3f5e6ea0fe0175991566af5b7d","building-shapes/index.json":"fcc31ed5f2a652083f143832a88a35d0ea645059ffbcbe9a18149f56ed1853f8","candidate-surfaces.json":"de16ae6e56aa05a1d4a7d6d0fa8974a4373183f35e8282f412f7fbd7c637751f","candidate-sidewalks.json":"efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a","candidate-label-addresses.json":"3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b","candidate-label-facilities.json":"ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53"};
 const readData=async(name,{signal}={})=>{const r=await fetch('data/'+name+'?v='+dataTag,{signal});if(!r.ok)throw Error('data');const bytes=await r.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');if(hash!==dataHashes[name])throw Error('data-version');return JSON.parse(new TextDecoder().decode(bytes));};
 const cachedData=new Map();
 function loaded(name){if(!cachedData.has(name)){const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),10000);cachedData.set(name,readData(name,{signal:ctrl.signal}).catch(e=>{cachedData.delete(name);throw e;}).finally(()=>clearTimeout(timer)));}return cachedData.get(name);}
+// Saved targets standing on a PLATEAU building take its shape on this page (見え方 and new places).
+const plateauShapes=globalThis.AstroNotesPlateauBuildings?.create({load:loaded})||null;globalThis.AstroNotesPlateauShapes=plateauShapes;
+async function refreshShapes(){
+ if(!plateauShapes||typeof aimTargetList!=='function')return;
+ try{const changed=await plateauShapes.prepare(aimTargetList());if(changed.includes(SkyMapUI?.selectionState?.()?.target?.id))SkyMapUI.render?.();}catch{/* Shapes are an enhancement; the outline estimate stays. */}
+}
+document.addEventListener('astronotes-records-change',refreshShapes);
+(globalThis.startupSessionReady||Promise.resolve()).then(refreshShapes,()=>{});
 const loadLabels=async()=>{const [addresses,facilities]=await Promise.all(['candidate-label-addresses.json','candidate-label-facilities.json'].map(n=>loaded(n).catch(()=>null)));return {addresses,facilities};};
 const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode]);
 AstroNotesCandidatePicker.configure({loadLabels,createMapView,filterKey,getScroller:()=>mainWorkspace()?.scroller(),getReturnScroll:()=>mainWorkspace()?.returnScroll?.(),onRendered:count=>mainWorkspace()?.restoreScroll(count),requestKey:p=>AstroNotesCandidateDiscovery.requestKey(p)});
@@ -1855,14 +1966,14 @@ const groundPort={...AstroNotesTerrain,resetBudget:()=>live.resetBudget(),ground
 const provider=AstroNotesCandidateDiscovery.createPlaceProvider({terrain:groundPort,fetchImpl:fetch.bind(globalThis),loadViewpoints:()=>loaded('candidate-viewpoints.json')});
 let modelPromise=null;
 async function loadModel(){
- // Buildings: PLATEAU top heights (23 wards) along each line, GSI footprints elsewhere; the 3D band model is no longer loaded.
+ // Buildings: PLATEAU top heights (every city PLATEAU covers) along each line, GSI footprints elsewhere; the 3D band model is no longer loaded.
  if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await loaded('candidate-terrain.json').catch(()=>null);
-  const heights=AstroNotesCandidateHeights.create({loadIndex:()=>loaded('candidate-heights/index.json'),gsiAlong:(a,b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
+  const heights=AstroNotesCandidateHeights.create({loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,gsiAlong:(a,b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
   return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights,staticTerrain:dem?await AstroNotesCandidateTerrain.decode(dem):null,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null)});})().catch(e=>{modelPromise=null;throw e;});
  return modelPromise;
 }
 let evaluationBudgetStarted=false;
-const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,loadStatic:()=>loaded('candidate-sidewalks.json'),evaluate:async(p,point,data,options)=>{const model=await loadModel();if(!options.isCurrent())throw Error('candidate-cancelled');if(!evaluationBudgetStarted){live.resetBudget();footprintGround.resetBudget();evaluationBudgetStarted=true;}return model.evaluate(p,point,data,options);}});
+const engine=AstroNotesCandidateDiscovery.createGenericSearch({provider,bodies:AstroNotesBodies,loadStatic:()=>loaded('candidate-sidewalks.json'),evaluate:async(p,point,data,options)=>{const model=await loadModel();if(plateauShapes&&String(p.target?.id||'').startsWith('fav:')&&!plateauShapes.attachedTo(p.target.id))await plateauShapes.prepare([p.target]).catch(()=>{});if(!options.isCurrent())throw Error('candidate-cancelled');if(!evaluationBudgetStarted){live.resetBudget();footprintGround.resetBudget();evaluationBudgetStarted=true;}return model.evaluate(p,point,data,options);}});
 const stop=()=>{if(autoSearchTimer!==null)clearTimeout(autoSearchTimer);autoSearchTimer=null;if(watch!==null)clearInterval(watch);watch=null;controller?.abort();controller=null;};
 const air=()=>JSON.stringify([typeof aimAirSettings==='undefined'?'standard':aimAirSettings,AstroNotesAtmosphere?.dataKey?.()??null]);
 const context=s=>JSON.stringify([s.body,s.target,s.partId,s.limb,AstroNotesCandidateDiscovery.day(s.at),s.matchMode||'limb']);
@@ -1982,7 +2093,7 @@ function mount(){
  const times=document.createElement('div');times.hidden=timeChoice!=='window';for(const [label,id,value]of [['開始','candidateSearchStart',windowStart],['終了','candidateSearchEnd',windowEnd]]){const l=document.createElement('label');l.textContent=label+' ';const input=document.createElement('input');input.type='time';input.id=id;input.value=value;input.style.minHeight='44px';input.onchange=()=>{returnSearch=null;if(id.endsWith('Start'))windowStart=input.value;else windowEnd=input.value;mount();};l.append(input);times.append(l);}evidence.append(times);mode.onchange=()=>{returnSearch=null;timeChoice=mode.value;mount();};
  const notes=document.createElement('p');notes.className='tiny';notes.textContent='地形・建物の収録範囲や高さの精度に限界があります。未確認の見通しを撮影可能と保証しません。樹木・現地の変化・営業時間等は現地条件も確認してください。取得できない情報がある場合は、結果に表示します。';evidence.append(notes);
  const resultNotes=document.createElement('p');resultNotes.className='tiny';evidence.append(resultNotes);
- const credits=document.createElement('p');credits.className='tiny';for(const [label,url]of [['© OpenStreetMap contributors (ODbL)','https://www.openstreetmap.org/copyright'],['国土地理院 標高タイル','https://maps.gsi.go.jp/development/demtile.html'],['3D都市モデル（Project PLATEAU）東京都23区（2025年度・国土交通省）を加工して作成','https://www.mlit.go.jp/plateau/site-policy/'],['国土地理院 ベクトルタイル（建物）','https://maps.gsi.go.jp/development/vt.html'],['町丁目：CODH/e-Stat（2020）','https://geoshape.ex.nii.ac.jp/ka/resource/']]){const a=document.createElement('a');a.textContent=label;a.href=url;a.target='_blank';a.rel='noopener';credits.append(a,' ');}evidence.append(credits);
+ const credits=document.createElement('p');credits.className='tiny';for(const [label,url]of [['© OpenStreetMap contributors (ODbL)','https://www.openstreetmap.org/copyright'],['国土地理院 標高タイル','https://maps.gsi.go.jp/development/demtile.html'],['3D都市モデル（Project PLATEAU）全国の整備都市（2020〜2025年度・国土交通省）を加工して作成','https://www.mlit.go.jp/plateau/site-policy/'],['国土地理院 ベクトルタイル（建物）','https://maps.gsi.go.jp/development/vt.html'],['町丁目：CODH/e-Stat（2020）','https://geoshape.ex.nii.ac.jp/ka/resource/']]){const a=document.createElement('a');a.textContent=label;a.href=url;a.target='_blank';a.rel='noopener';credits.append(a,' ');}evidence.append(credits);
  const visibleCredits=document.createElement('p');visibleCredits.className='tiny';visibleCredits.hidden=true;const osm=document.createElement('a');osm.href='https://www.openstreetmap.org/copyright';osm.textContent='© OpenStreetMap contributors';osm.target='_blank';osm.rel='noopener';const plateau=document.createElement('a');plateau.href='https://www.mlit.go.jp/plateau/site-policy/';plateau.textContent='3D都市モデル（Project PLATEAU）国土交通省 を加工';plateau.target='_blank';plateau.rel='noopener';visibleCredits.append(osm,' ',plateau);
  if(main){section.append(evidence,button);document.getElementById('candidateSearchFeedback').replaceChildren(status,resultList);document.getElementById('candidateSearchCredits').replaceChildren(visibleCredits);}else section.append(button,status,visibleCredits,resultList,evidence);panel.append(section);syncWorkspaceSection(panel);
  if(editing&&['candidateSearchMode','candidateSearchStart','candidateSearchEnd'].includes(editing))section.querySelector('#'+editing)?.focus({preventScroll:true});
@@ -2002,7 +2113,7 @@ function mount(){
    renderAction();visibleCredits.hidden=!rows.length;
    const unknown=rows.some(r=>r.quality?.buildingHeights==='estimated'),unknownFrame=rows.some(r=>r.frame?.status==='unknown');
    setStatus(cancelled?'探索をキャンセルしました。続きから探せます。':(rows.length?`新たな地点で${rows.length}件の候補があります。${unknown?'建物の高さを推定した候補を含みます。':''}${unknownFrame?'全体の画角を確認できない候補を含みます。':''}`:incomplete?'確認できた範囲には候補がありません。':'今回確認した範囲では候補がありません。')+(incomplete?'取得できなかった範囲があります。':result.canContinue?'探索を再開できます。':''));
-   const c=result.counts;resultNotes.textContent=`見通しを地形と建物で確かめられた地点だけを候補にしています。${c.checked}地点を確認：遮られる${c.blocked}、見通しを確かめられない${c.unverified||0}${c.nearBuilding||c.heightUnknown?`（うち${[c.nearBuilding?`立つ点のすぐ脇に建物${c.nearBuilding}`:'',c.heightUnknown?`建物の高さが分からない${c.heightUnknown}`:''].filter(Boolean).join('・')}）`:''}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。建物の高さはPLATEAU（東京23区）、ほかは国土地理院の建物の形と種類から見積もります。木・橋・高架は判定に入っていません。探索地域 ${result.coverage.regions}区画。全地域・全時刻の網羅や実写成功は保証していません。`;
+   const c=result.counts;resultNotes.textContent=`見通しを地形と建物で確かめられた地点だけを候補にしています。${c.checked}地点を確認：遮られる${c.blocked}、見通しを確かめられない${c.unverified||0}${c.nearBuilding||c.heightUnknown?`（うち${[c.nearBuilding?`立つ点のすぐ脇に建物${c.nearBuilding}`:'',c.heightUnknown?`建物の高さが分からない${c.heightUnknown}`:''].filter(Boolean).join('・')}）`:''}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。建物の高さはPLATEAUを整備した都市はその高さ、ほかは国土地理院の建物の形と種類から見積もります。木・橋・高架は判定に入っていません。探索地域 ${result.coverage.regions}区画。全地域・全時刻の網羅や実写成功は保証していません。`;
  }
  button.onclick=async()=>{
   const selected=snapshot();if(!selected)return;if(condition!==uiKey(selected)){mount();return;}
@@ -2262,4 +2373,4 @@ sync();
 })();
 
 
-// data-release 6b372645eac855c97513b500e98a6919bb8675ee8a10f42b201fbc90d15e8c5f
+// data-release 3f0cdac3853f0d2322038fc10499ed61f2a577ed1d2790a9ea80cd80f62775cf

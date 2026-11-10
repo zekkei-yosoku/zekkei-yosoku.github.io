@@ -26,6 +26,7 @@ function regionsFor(seeds){
  }
  return [...map.values()].sort((a,b)=>a.priority-b.priority||a.id.localeCompare(b.id));
 }
+const placeKinds=new Set(['viewpoint','plaza','park','riverbank']);
 function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=()=>new Promise(r=>setTimeout(r,0))}={}){
  const sessions=new Map();
  const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,outsideFrame:0,deferred:0},coverage:[],busy:false});
@@ -67,8 +68,10 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
     // Commit a provider page only after all awaited preparation is current.
     if(!wanted())return {cancelled:true};
     session.coverage.push(data.coverage||{});session.cursor=data.coverage?.nextCursor??null;session.providerPartial=!!data.partial;
-    for(const p of points){if(!allowedPoint(p))continue;const id=[p.surfaceId||p.sourceId,p.latitude.toFixed(7),p.longitude.toFixed(7),p.surfaceHeightM??p.groundM].join(':');if(session.seen.has(id))continue;session.seen.add(id);session.queue.push(p);}
-    const preferred=new Set(['park','viewpoint','plaza','riverbank']);session.queue.sort((a,b)=>Number(!preferred.has(a.placeKind))-Number(!preferred.has(b.placeKind)));
+    session.retryAt=data.coverage?.retryAfterMs>0?Date.now()+data.coverage.retryAfterMs:0;
+    // New places are squares, viewpoints and observation decks, parks and riverbanks; plain walkways are not offered.
+    for(const p of points){if(!allowedPoint(p)||!placeKinds.has(p.placeKind))continue;const id=[p.surfaceId||p.sourceId,p.latitude.toFixed(7),p.longitude.toFixed(7),p.surfaceHeightM??p.groundM].join(':');if(session.seen.has(id))continue;session.seen.add(id);session.queue.push(p);}
+    const order=['viewpoint','riverbank','plaza','park'];session.queue.sort((a,b)=>order.indexOf(a.placeKind)-order.indexOf(b.placeKind));
     session.data=data;
    }
    session.started=true;let count=0;
@@ -96,12 +99,16 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
  // Drain scheduled pages and point batches as one cancellable foreground search.
  async function searchAll(plan,{onBatchStart=()=>{},...options}={}){
   const wanted=()=>!options.signal?.aborted&&(options.isCurrent?.()??true);
-  const cursors=new Set();let more=!!options.more;
+  const cursors=new Set();let more=!!options.more,waits=0;
   while(wanted()){
    onBatchStart();
    const page=await search(plan,{...options,more,retryFailed:false});
    if(!wanted()||page.cancelled)return {cancelled:true};
    if(!page.canContinue)return page;
+   // The place source asked to wait (Overpass cooling down): wait, then fetch the regions it left. Three waits at most;
+   // a busier Overpass ends the search with its regions reported as not fetched.
+   const waitMs=(page.retryAt||0)-Date.now();
+   if(!page.coverage.pendingPoints&&waitMs>0&&waits<3){waits++;options.onProgress?.({stage:'places-wait',waitMs,...page.counts});for(const end=Date.now()+waitMs+250;Date.now()<end;){if(!wanted())return {cancelled:true};await new Promise(r=>setTimeout(r,Math.min(250,end-Date.now())));}more=true;continue;}
    if(!page.coverage.pendingPoints){
     const cursor=JSON.stringify(page.coverage.nextCursor);
     if(cursors.has(cursor)){const stalled={...page,stalled:true};sessions.get(page.requestKey).lastResult=stalled;return stalled;}
@@ -111,7 +118,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
   }
   return {cancelled:true};
  }
- function result(s){return {rows:s.rows.slice(),counts:{...s.counts},requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',canContinue:s.queue.length>0||s.cursor!==null,coverage:{regions:s.regions.length,loaded:s.coverage,pendingPoints:s.queue.length,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
+ function result(s){return {rows:s.rows.slice(),counts:{...s.counts},retryAt:s.retryAt||0,requestKey:s.key,cached:false,limited:true,coverageStatus:'partial',jobStatus:'complete',canContinue:s.queue.length>0||s.cursor!==null,coverage:{regions:s.regions.length,loaded:s.coverage,pendingPoints:s.queue.length,nextCursor:s.cursor,approximateInverse:true},dataVersion:'generic-v1'};}
  return {search,searchAll,restart,cached:plan=>{const s=sessions.get(requestKey(plan));return s?.lastResult?{...s.lastResult,rows:s.lastResult.rows.slice(),cached:true}:null;},clear:()=>sessions.clear()};
 }
 api.requestKey=requestKey;api.regionsFor=regionsFor;api.createGenericSearch=createGenericSearch;

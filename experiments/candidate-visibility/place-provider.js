@@ -111,7 +111,10 @@ function sampleFeatures(features,regions,{spacingM=30,maxPoints=480,skipPoints=0
    const river=rivers.find(a=>a.lines.some(line=>edgeDistance(line,p)<=80));
    const riverArea=containers.find(a=>/河川敷|川テラス|川緑道|riverbank|riverside/i.test(a.name));
    const riverPath=/河川敷|川.*テラス|riverside|riverbank/i.test(f.name)&&waters.some(a=>a.lines.some(line=>edgeDistance(line,p)<=80));
-   const riverside=riverArea||riverPath||river&&waters.some(a=>a.lines.some(line=>edgeDistance(line,p)<=80));
+   // A levee-top path stands well back from a wide river's centre line: within 150 m of its water and
+   // 300 m of the centre line it is the riverbank, while streets behind the levee are not.
+   const wideRiver=rivers.find(a=>a.tags.waterway==='river'&&a.lines.some(line=>edgeDistance(line,p)<=300))&&waters.some(a=>a.lines.some(line=>edgeDistance(line,p)<=150));
+   const riverside=riverArea||riverPath||river&&waters.some(a=>a.lines.some(line=>edgeDistance(line,p)<=80))||wideRiver;
    const area=viewpoint||square||riverArea||park;
    const placeKind=f.kind==='viewpoint'||viewpoint?'viewpoint':square||f.tags.highway==='pedestrian'&&(f.tags.area==='yes'||f.tags['area:highway'])?'plaza':riverside?'riverbank':park?'park':'sidewalk';
    const elevated=nonGround(f.tags)||!!roofArea||!!building;
@@ -153,7 +156,7 @@ function publishedViewpoints(data,regions){
   });
  }return points;
 }
-return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,isCurrent:providerCurrent=()=>true,maxTiles=12,maxPoints=480,timeoutMs=12000,maxDurationMs=55000,spacingM=30,endpoints}={}){
+return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,isCurrent:providerCurrent=()=>true,maxTiles=12,maxPoints=480,timeoutMs=25000,maxDurationMs=55000,spacingM=30,endpoints}={}){
  if(!terrain)throw Error('terrain provider is required');
  const servers=endpoints||terrain.OVERPASS||[],cache=new Map(),heightCache=new Map();
  let endpointCursor=0,overpassRetryAfter=0,overpassNextRequest=0;
@@ -189,7 +192,8 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
      const value={features:parseElements(data.elements),at:Date.now(),timestamp:data.osm3s?.timestamp_osm_base||null,endpoint,version:hash(JSON.stringify(data.elements))};cache.set(tile.id,value);while(cache.size>120)cache.delete(cache.keys().next().value);endpointCursor=(endpointCursor+attempt)%Math.max(1,servers.length);overpassRetryAfter=0;return value;
     }catch(e){reason=String(e.message||e);if(!retryFailed&&reason==='HTTP 429')break;}
    }if(!current()||controller.signal.aborted)throw Error('cancelled');
-   endpointCursor=(endpointCursor+1)%Math.max(1,servers.length);if(overpassAttempted)overpassRetryAfter=Date.now()+60000;
+   // A refusal (429) waits a minute; a slow answer only briefly, as a dense Tokyo tile can take Overpass 10-20 s.
+   endpointCursor=(endpointCursor+1)%Math.max(1,servers.length);if(overpassAttempted)overpassRetryAfter=Date.now()+(/429/.test(reason)?60000:20000);
    if(retryFailed&&current()&&!controller.signal.aborted)try{const endpoint='https://api.openstreetmap.org/api/0.6/map',res=await request(endpoint+'?bbox='+b.join(','));if(!res.ok)throw Error('HTTP '+res.status);const xml=await bounded(res.text(),timeoutMs),elements=mapElements(xml),value={features:parseElements(elements),at:Date.now(),timestamp:null,endpoint,version:hash(xml),fallback:true};cache.set(tile.id,value);return value;}catch(e){reason+='; map '+String(e.message||e);}
    throw Error(reason);
   }
@@ -199,6 +203,9 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    function* queue(){if(batchTiles){for(const tile of batchTiles)yield {...tile,page:true};return;}for(const tile of retryTiles)yield {...tile,retry:true};for(const tile of tileQueue(requested)){if(visited++<offset)continue;yield tile;}}
    for(const tile of queue()){
     if(!current()||controller.signal.aborted||used>=Math.max(1,tileBudget,batchTiles?.length||0)||used>0&&Date.now()-started>maxDurationMs*.55){coverage.pendingRegions.push(tile);hasPending=true;break;}
+    // While Overpass is cooling down, a tile is left for the next page instead of failing, so one slow
+    // answer does not turn the rest of a drained search into failed regions.
+    if(!retryFailed&&!tile.retry&&!tile.page&&servers.length&&Date.now()<overpassRetryAfter&&!(cache.get(tile.id)&&Date.now()-cache.get(tile.id).at<86400000)){coverage.pendingRegions.push(tile);hasPending=true;coverage.retryAfterMs=overpassRetryAfter-Date.now();break;}
     used++;if(!tile.retry&&!tile.page)nextOffset=visited;
     try{const data=await acquire(tile);if(!current())break;coverage.fetchedRegions.push({...tile,timestamp:data.timestamp,endpoint:data.endpoint,cached:!!data.cached,version:data.version,fallback:!!data.fallback});for(const f of data.features)merged.set(f.id,f);}
     catch(e){coverage.failedRegions.push({...tile,reason:String(e.message||e)});}
