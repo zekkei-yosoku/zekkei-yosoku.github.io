@@ -2406,6 +2406,7 @@ const opportunityDeviceStats={hits:0,solves:0,failures:0,solveMs:0,frameMs:0,bac
 globalThis.AstroNotesOverlapStats=opportunityDeviceStats;
 let opportunityFrame=null,opportunityFrameSeq=0,opportunityDb=null,opportunityBackgroundFlight=null;
 const opportunityDeviceQueue={high:[],low:[],running:0};
+let recordDiscoveryBusy=0;
 const opportunityDeviceFlights=new Map();
 function opportunityFrameOpen(){
  if(opportunityFrame)return opportunityFrame.ready;
@@ -2524,7 +2525,10 @@ async function recordEngineDiscover(plan,points,isCurrent,onProgress){
  const owner=auth?.token,generation=accessState.generation,revision=version;
  const live=()=>isCurrent()&&owner===auth?.token&&generation===accessState.generation&&revision===version&&air===AstroNotesAtmosphere.dataKey(start)&&toolAllowed('records');
  const local=[],remote=[];for(const [i,e] of points.entries())(recordWeatherNear(e.place,sources)?local:remote).push(i);
- const base={plan,preferences:{mode,...(mode==='manual'?{pressureHPa:manual.pressureHPa,temperatureC:manual.temperatureC}:{}),targetHeights:store.get('sorami.aimHeights',{})},tools:auth.tools.slice(),generation,evaluationNow:Date.now(),favorites};
+ // The engine reads favorites only for saved targets and for a place by its id; send just those.
+ const savedTargets=favorites.filter(f=>Number.isFinite(f.targetHeightM)||f.id===plan.target?.favId);
+ const favoritesFor=e=>{const own=favorites.filter(f=>(f.id===e.place.id||f.id===e.place.sourcePlaceId)&&!savedTargets.includes(f));return own.length?[...savedTargets,...own]:savedTargets;};
+ const base={plan,preferences:{mode,...(mode==='manual'?{pressureHPa:manual.pressureHPa,temperatureC:manual.temperatureC}:{}),targetHeights:store.get('sorami.aimHeights',{})},tools:auth.tools.slice(),generation,evaluationNow:Date.now()};
  const results=new Array(points.length);let processed=0,broken=null;
  const done=i=>{processed++;onProgress?.({checked:processed,total:points.length});};
  // Each place always goes to the same worker, which keeps its ground heights and outlines from the
@@ -2534,11 +2538,11 @@ async function recordEngineDiscover(plan,points,isCurrent,onProgress){
  const lane=async(queue,slot)=>{
   for(const i of queue){
    if(broken||!live())return;
-   try{results[i]=await opportunityEngineSolve({...base,entries:[points[i]]},'discover',slot);}catch(e){broken=e;return;}
+   try{results[i]=await opportunityEngineSolve({...base,favorites:favoritesFor(points[i]),entries:[points[i]]},'discover',slot);}catch(e){broken=e;return;}
    done(i);
   }
  };
- await Promise.all(queues.map(lane));
+ recordDiscoveryBusy++;try{await Promise.all(queues.map(lane));}finally{recordDiscoveryBusy--;opportunityDevicePump();}
  if(!live())return {rows:[],failed:0,cancelled:true};
  // The engine could not finish: the rest is computed here as before.
  const rest=[...local,...remote.filter(i=>!results[i])];
@@ -2726,7 +2730,8 @@ function opportunityDeviceRun(priority,work){
 function opportunityDevicePump(){
  const q=opportunityDeviceQueue;
  while(q.running<opportunityEngineSlots()){
-  const item=q.high.shift()||q.low.shift();if(!item)return;q.running++;
+  // 探す's registered-place search goes first: background days wait while it runs.
+  const item=q.high.shift()||(recordDiscoveryBusy?null:q.low.shift());if(!item)return;q.running++;
   Promise.resolve().then(item.work).then(item.resolve,item.reject).finally(()=>{q.running--;opportunityDevicePump();});
  }
 }
