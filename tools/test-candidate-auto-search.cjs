@@ -27,6 +27,8 @@ const grants=['records','tower','diamond','pearl','skymap','multiscene'];
    await state('候補を探す');assert.deepEqual(await loads(),[]);
    await button.click();await waitHold();assert.deepEqual(await loads(),[0,7]);await state('キャンセル');
    assert(await progress.isVisible());assert(await feedback.locator('.note-wait-character').isVisible());assert.match(await feedback.innerText(),/2地点確認済み/);
+   // 2026-11-11 the first page's rows show while the next page is still being searched; progress and cancel stay.
+   await p.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2);assert(await progress.isVisible());await state('キャンセル');
    await progress.scrollIntoViewIfNeeded();await p.screenshot({path:out+'/'+engine+'-auto-progress.png'});
    await release();await state('候補を探し直す');assert.equal(await progress.count(),0);const first=await shown();assert.equal(first.length,2);assert.equal(new Set(first).size,2);
    await p.evaluate(()=>dateFixture.repeatCursor=true);await button.click();await state('再試行');assert.match(await feedback.innerText(),/取得できなかった/);assert.deepEqual(await loads(),[0,7,0,7]);assert.deepEqual(await shown(),first);

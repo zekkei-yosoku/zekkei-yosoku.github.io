@@ -97,7 +97,8 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
   }finally{session.busy=false;}
  }
  // Drain scheduled pages and point batches as one cancellable foreground search.
- async function searchAll(plan,{onBatchStart=()=>{},...options}={}){
+ // onPage(page): each finished page with every row found so far, so a long search can show its rows as it goes.
+ async function searchAll(plan,{onBatchStart=()=>{},onPage=()=>{},...options}={}){
   const wanted=()=>!options.signal?.aborted&&(options.isCurrent?.()??true);
   const cursors=new Set();let more=!!options.more,waits=0;
   while(wanted()){
@@ -105,6 +106,7 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
    const page=await search(plan,{...options,more,retryFailed:false});
    if(!wanted()||page.cancelled)return {cancelled:true};
    if(!page.canContinue)return page;
+   onPage(page);
    // The place source asked to wait (Overpass cooling down): wait, then fetch the regions it left. Three waits at most;
    // a busier Overpass ends the search with its regions reported as not fetched.
    const waitMs=(page.retryAt||0)-Date.now();
