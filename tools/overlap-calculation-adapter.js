@@ -97,4 +97,20 @@ async function reference(input){
  const value=await recordSearch({...input.plan,target},input.entries,{isCurrent:()=>true,variant:input.variant||'discovery'});
  return {value,ms:performance.now()-start};
 }
-globalThis.__overlap={normalize,solve,discover,reference};
+// 2026-11-11 見え方の「重なる日時」（aimBuildingDays）: one stretch of days for one place and pair, checked as the page
+// checks them (whole-target overlap for buildings and towers; mountains stay on the page), with the device's refraction.
+async function days(input){
+ configure(input);AstroNotesAtmosphere.resetSnapshot();
+ const {obs,target,body,partId,limb,start,count,from,limit}=input;
+ if(!obs||typeof target!=='object'||target.rim||!Number.isFinite(start)||!Number.isFinite(from)||!(count>0)||count>120||!(limit>0))throw Error('invalid days input');
+ await AstroNotesBodies.ensure?.(body);
+ const plan={target,body,partId,limb,matchMode:'overlap'},flat=()=>false,started=performance.now();
+ const view=AstroNotesAlign.prepareDailyView(obs,target,body,{partId:'__whole',eyeM:obs.eyeM}),rows=[];
+ for(let i=0;i<count&&rows.length<limit;i++){
+  const events=AstroNotesShooting.eventsFor(plan,obs,start+i*86400000,{align:AstroNotesAlign,isMountain:flat,view});
+  // As the trial's observer calendar: daytime moon overlaps are kept.
+  const row=events.find(e=>e.at>=from&&AstroNotesShooting.matches(e,plan,flat));if(row)rows.push(row);
+ }
+ return {rows,calculationMs:performance.now()-started};
+}
+globalThis.__overlap={normalize,solve,discover,reference,days};

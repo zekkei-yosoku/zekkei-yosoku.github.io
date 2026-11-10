@@ -18,6 +18,14 @@ test('live DEM preserves missing pixels, true zero, lower-resolution provenance 
  let failed=true;const retry=createLive({geo:G,fetchImpl:async()=>{if(failed)throw Error('offline');return {ok:true,text:async()=>dem('12')};}});assert.equal((await retry.sample({latitude:35,longitude:139})).height,null);failed=false;assert.equal((await retry.sample({latitude:35,longitude:139})).height,12);
 });
 
+test('a line over water pixels (no value in any layer) takes the last bank height instead of failing',async()=>{
+ // Each tile: the north half has no value (a river surface), the south half is ground at 5 m.
+ const half=Array.from({length:256},(_,r)=>Array(256).fill(r<128?'e':'5').join(',')).join('\n');
+ const t=createLive({geo:G,fetchImpl:async()=>({ok:true,text:async()=>half})}),p={latitude:35.0001,longitude:139.0001,elevation:5,eyeM:1.5};
+ const r=await t.trace(p,{azimuth:0,altitude:1,maxM:3000});
+ assert.notEqual(r.status,undefined);assert(r.checked>0);assert.equal(r.status,'model-clear');
+});
+
 test('terrain budget and cancellation do not turn unread terrain into a clear ray',async()=>{
  const t=createLive({geo:G,maxTiles:0,fetchImpl:async()=>{throw Error('must not call');}}),p={latitude:35,longitude:139,elevation:30,eyeM:1.5};
  const r=await t.trace(p,{azimuth:0,altitude:10,maxM:1000});assert.equal(r.status,'unknown');assert(r.partial);

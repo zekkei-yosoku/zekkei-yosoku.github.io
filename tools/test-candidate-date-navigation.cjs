@@ -9,7 +9,9 @@ const {fixture}=require('./candidate-date-fixture.cjs');
 
 const day=at=>new Date(at+32400000).toISOString().slice(0,10),offset=at=>((at+32400000)%86400000+86400000)%86400000;
 async function current(p){return p.evaluate(()=>({at:SkyMapUI.selectionState().at,input:document.getElementById('skyMapCalendarOpen')?.dataset.displayDate,open:!!TrialExplore.candidateWorkspace()?.active(),focus:document.activeElement?.id,loads:dateFixture.loads.length}));}
-async function open(p){if(await p.locator('#exploreBackToCandidates').isVisible())await p.locator('#exploreBackToCandidates').click();else if(!await p.locator('#candidateSearchAction').count())await p.evaluate(()=>navigationHistory.pushRoute('#/explore'));await p.locator('#skyMapCalendarOpen').waitFor({state:'visible'});}
+async function open(p){if(await p.locator('#exploreBackToCandidates').isVisible())await p.locator('#exploreBackToCandidates').click();else if(await p.evaluate(()=>location.hash!=='#/explore'))await p.evaluate(()=>navigationHistory.pushRoute('#/explore'));await p.locator('#skyMapCalendarOpen').waitFor({state:'visible'});
+ // New places are their own tab of the search (records first).
+ const tab=p.locator('#exploreDiscovery-new');if(await tab.count()&&await tab.getAttribute('aria-selected')!=='true')await tab.click();}
 
 async function setDate(p,value){
  const [year,month,date]=value.split('-').map(Number);await p.locator('#skyMapCalendarOpen').click();
@@ -28,6 +30,10 @@ async function actionState(p,state,label){
  const action=p.locator('#candidateSearchAction');await p.waitForFunction(state=>document.getElementById('candidateSearchAction')?.dataset.state===state,state);
  assert.equal(await action.innerText(),label);assert(await action.isEnabled());assert.equal(await p.locator('#additionalCandidateSearch > button').count(),1);assert.equal(await p.locator('#additionalCandidateResults').getAttribute('aria-busy'),String(state==='searching'));
 }
+// Since 2026-11-06 (114bad2d, records and new places apart) a new day does not search new places by itself: the list
+// empties and the search waits for the button (test-candidate-auto-search.cjs).
+async function searchNow(p,label='候補を探す'){await actionState(p,'idle',label);await p.locator('#candidateSearchAction').click();}
+// Registered places are listed in their own tab (exploreRecordedPlaces), so the new-place list holds the two fixture places.
 async function searchCancellation(p,{dayValue,initialAt,out,engine,width,theme}){
  const action=p.locator('#candidateSearchAction');await action.scrollIntoViewIfNeeded();
  const initial=await action.evaluate(node=>{window.originalSearchAction=node;const r=node.getBoundingClientRect();return {width:r.width,height:r.height};});
@@ -44,26 +50,28 @@ async function searchCancellation(p,{dayValue,initialAt,out,engine,width,theme})
  await p.evaluate(()=>dateFixture.holdNext=true);await action.click();await p.waitForFunction(()=>dateFixture.holds.length===2);await actionState(p,'searching','キャンセル');
  await p.evaluate(()=>dateFixture.holds.shift().release());await p.waitForTimeout(100);await actionState(p,'searching','キャンセル');
  assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().filter(r=>r.id!=='registered').length),0);assert.equal(await p.locator('.candidate-wait').count(),1);
- await p.evaluate(()=>dateFixture.holds.shift().release());await settled(p,dayValue,3);await actionState(p,'idle','候補を探し直す');await sameAction();
+ await p.evaluate(()=>dateFixture.holds.shift().release());await settled(p,dayValue,2);await actionState(p,'idle','候補を探し直す');await sameAction();
  // A failed fresh query must expose the same retry action without losing the
  // selected day or leaving an unclickable cancel state.
- await p.evaluate(()=>dateFixture.failNext=true);await action.click();await p.waitForFunction(()=>document.querySelector('#candidateSearchFeedback [role=status]')?.textContent.includes('取得できませんでした'));
- await actionState(p,'idle','続きを探す');assert.equal(await p.locator('.candidate-wait').count(),0);assert.equal((await current(p)).input,dayValue);
- await action.click();await settled(p,dayValue,3);await actionState(p,'idle','候補を探し直す');
+ // 2026-11-10 (C22) a failed region is retried within the run, so every load fails here; the found rows stay and a retry is offered.
+ await p.evaluate(()=>dateFixture.failAlways=true);await action.click();await p.waitForFunction(()=>document.querySelector('#candidateSearchFeedback [role=status]')?.textContent.includes('取得できなかった範囲があります'));
+ await actionState(p,'idle','再試行');assert.equal(await p.locator('.candidate-wait').count(),0);assert.equal((await current(p)).input,dayValue);
+ await p.evaluate(()=>dateFixture.failAlways=false);await action.click();await settled(p,dayValue,2);await actionState(p,'idle','候補を探し直す');
  // A fresh recheck clears the search engine's completed session. Cancelling it
  // must still preserve the previously displayed result across appearance/return.
  const fullRow=await p.evaluate(()=>structuredClone(AstroNotesCandidatePicker.visibleRows().find(r=>r.placeKind==='park')));
  await p.evaluate(()=>dateFixture.holdNext=true);await action.click();await p.waitForFunction(()=>dateFixture.holds.length===1);await actionState(p,'searching','キャンセル');
- await action.click();await actionState(p,'idle','続きを探す');await settled(p,dayValue,3);
+ await action.click();await actionState(p,'idle','続きを探す');await settled(p,dayValue,2);
  await p.locator('#candidateUnifiedResults .list-item').filter({hasText:fullRow.place.name}).click();await appearance(p,fullRow);
  await p.evaluate(()=>dateFixture.holds.shift().release());const cancelledRecheckLoads=(await current(p)).loads;
- await p.evaluate(at=>SkyMapUI.setTime(at),initialAt);await open(p);await settled(p,dayValue,3);
+ await p.evaluate(at=>SkyMapUI.setTime(at),initialAt);await open(p);await settled(p,dayValue,2);
  assert.equal((await current(p)).loads,cancelledRecheckLoads,'returning after a cancelled fresh recheck restores rows without IO');await actionState(p,'idle','候補を探し直す');
  // This request mount is new, so compare subsequent toggles with its own node.
  await action.evaluate(node=>window.originalSearchAction=node);
  // Keep a completed provider page while its continuation is cancelled, then
  // select a retained row without having to reopen or re-run the search.
- await p.evaluate(()=>dateFixture.nextCursor=7);await action.click();await settled(p,dayValue,3);await actionState(p,'idle','続きを探す');
+ // A search runs every page itself (searchAll, 2026-11-07); a provider repeating the same cursor is reported as a stall to retry.
+ await p.evaluate(()=>dateFixture.nextCursor=7);await action.click();await settled(p,dayValue,2);await actionState(p,'idle','再試行');
  await p.locator('#candidateKindFilter').selectOption('park');await p.locator('#candidateTimeFilter').selectOption('rise');await p.locator('[data-candidate-sort=time]').click();await settled(p,dayValue);
  const row=await p.evaluate(()=>structuredClone(AstroNotesCandidatePicker.visibleRows()[0]));
  await p.evaluate(()=>{dateFixture.nextCursor=null;dateFixture.holdNext=true;});await action.click();await p.waitForFunction(()=>dateFixture.holds.length===1);assert.equal(await p.evaluate(()=>dateFixture.loads.at(-1).cursor),7);
@@ -128,15 +136,15 @@ async function cancelBeforeRulerSettles(p,dayValue){
     await cancelBeforeRulerSettles(p,'2026-11-05');
     await p.locator('#candidateKindFilter').selectOption('park');await p.locator('#candidateTimeFilter').selectOption('rise');await p.locator('[data-candidate-sort=time]').click();await settled(p,'2026-11-05');
     await p.evaluate(()=>window.oldCandidateClick=document.querySelector('#candidateUnifiedResults .list-item:not([hidden])').onclick);
-    const calls=(await current(p)).loads;await p.locator('#skyMapNext').focus();await p.locator('#skyMapNext').press('Enter');const changed=await current(p);await p.evaluate(()=>oldCandidateClick());assert.equal((await current(p)).at,changed.at);assert.equal((await current(p)).open,true);await settled(p,'2026-11-06');assert.equal((await current(p)).loads,calls+1);
-    assert.equal(await p.locator('#candidateKindFilter').inputValue(),'park');assert.equal(await p.locator('#candidateTimeFilter').inputValue(),'rise');assert.equal(await p.locator('[data-candidate-sort=time]').getAttribute('aria-pressed'),'true');assert.equal((await current(p)).focus,'skyMapNext');
-    const rapid=(await current(p)).loads;await p.evaluate(()=>{const next=document.getElementById('skyMapNext');for(let i=0;i<5;i++)next.click();});await settled(p,'2026-11-11');assert.equal((await current(p)).loads,rapid+1,'rapid next-day clicks coalesce into one discovery job');
+    const calls=(await current(p)).loads;await p.locator('#skyMapNext').focus();await p.locator('#skyMapNext').press('Enter');const changed=await current(p);await p.evaluate(()=>oldCandidateClick());assert.equal((await current(p)).at,changed.at);assert.equal((await current(p)).open,true);assert.equal((await current(p)).focus,'skyMapNext');assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().length),0);await searchNow(p);await settled(p,'2026-11-06');assert.equal((await current(p)).loads,calls+1);
+    assert.equal(await p.locator('#candidateKindFilter').inputValue(),'park');assert.equal(await p.locator('#candidateTimeFilter').inputValue(),'rise');assert.equal(await p.locator('[data-candidate-sort=time]').getAttribute('aria-pressed'),'true');
+    const rapid=(await current(p)).loads;await p.evaluate(()=>{const next=document.getElementById('skyMapNext');for(let i=0;i<5;i++)next.click();});await searchNow(p);await settled(p,'2026-11-11');assert.equal((await current(p)).loads,rapid+1,'rapid next-day clicks coalesce into one discovery job');
     // Old A remains blocked in IO while B→A causes a fresh A search.
-    await p.evaluate(()=>dateFixture.holdNext=true);await p.locator('#skyMapNext').click();await p.waitForFunction(()=>dateFixture.holds.length===1);assert.equal(day((await current(p)).at),'2026-11-12');
-    await p.evaluate(()=>{document.getElementById('skyMapNext').click();document.getElementById('skyMapPrev').click();});await settled(p,'2026-11-12');assert.equal(await p.locator('.candidate-wait').count(),0,'retired busy job must not leave a waiting character');
+    await p.evaluate(()=>dateFixture.holdNext=true);await p.locator('#skyMapNext').click();await searchNow(p);await p.waitForFunction(()=>dateFixture.holds.length===1);assert.equal(day((await current(p)).at),'2026-11-12');
+    await p.evaluate(()=>{document.getElementById('skyMapNext').click();document.getElementById('skyMapPrev').click();});await searchNow(p);await settled(p,'2026-11-12');assert.equal(await p.locator('.candidate-wait').count(),0,'retired busy job must not leave a waiting character');
     await p.evaluate(()=>dateFixture.holds.shift().release());await p.waitForTimeout(100);await settled(p,'2026-11-12');assert.equal(offset((await current(p)).at),timeOfDay);
     // Current rows disappear from both list/map and cannot select the previous date.
-    await p.locator('#candidateMapToggle').click();assert(await p.locator('#candidateMapPanel').isVisible());await p.locator('#skyMapNext').click();assert(await p.locator('#candidateMapPanel').isHidden());await settled(p,'2026-11-13');
+    await p.locator('#candidateMapToggle').click();assert(await p.locator('#candidateMapPanel').isVisible());await p.locator('#skyMapNext').click();assert(await p.locator('#candidateMapPanel').isHidden());await searchNow(p);await settled(p,'2026-11-13');
     const metrics=await p.locator('.sky-map-footer .tool-datetime-row').evaluate(n=>({overflow:n.scrollWidth>n.clientWidth+1,bodyOverflow:document.documentElement.scrollWidth>innerWidth+1,count:document.querySelectorAll('.sky-map-footer .tool-datetime-row').length}));assert(!metrics.overflow&&!metrics.bodyOverflow);assert.equal(metrics.count,1);await p.locator('.sky-map-footer .tool-datetime-row').scrollIntoViewIfNeeded();await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'.png'});
     // Changing the calendar date preserves fixed-time and cross-midnight window intent.
     await p.locator('#candidateTimeFilter').selectOption('all');await p.evaluate(()=>{const m=document.getElementById('candidateSearchMode');m.value='instant';m.onchange();});await p.locator('#additionalCandidateSearch > button').first().click();await settled(p,'2026-11-13');
@@ -146,8 +154,8 @@ async function cancelBeforeRulerSettles(p,dayValue){
     await p.locator('#skyMapTimeline').press('ArrowRight');
     await p.locator('#candidateSearchAction').click();
     await p.waitForFunction(at=>SkyMapUI.selectionState().at===at&&AstroNotesCandidatePicker.visibleRows()[0]?.event.at===at&&document.getElementById('candidateSearchAction')?.dataset.state==='idle',instantAt);
-    await p.locator('#skyMapNext').click();await settled(p,'2026-11-14');assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows()[0].event.at),(await current(p)).at);
-    await p.evaluate(()=>{const m=document.getElementById('candidateSearchMode');m.value='window';m.onchange();let s=document.getElementById('candidateSearchStart');s.value='22:00';s.onchange();let e=document.getElementById('candidateSearchEnd');e.value='02:00';e.onchange();});await p.locator('#additionalCandidateSearch > button').first().click();await settled(p,'2026-11-14');await p.locator('#skyMapNext').click();await settled(p,'2026-11-15');
+    await p.locator('#skyMapNext').click();await searchNow(p);await settled(p,'2026-11-14');assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows()[0].event.at),(await current(p)).at);
+    await p.evaluate(()=>{const m=document.getElementById('candidateSearchMode');m.value='window';m.onchange();let s=document.getElementById('candidateSearchStart');s.value='22:00';s.onchange();let e=document.getElementById('candidateSearchEnd');e.value='02:00';e.onchange();});await p.locator('#additionalCandidateSearch > button').first().click();await settled(p,'2026-11-14');await p.locator('#skyMapNext').click();await searchNow(p);await settled(p,'2026-11-15');
     const window=await p.evaluate(()=>dateFixture.loads.at(-1).timeSpec);assert.equal(window.kind,'window');assert.equal(window.start,Date.parse('2026-11-15T22:00:00+09:00'));assert.equal(window.end,Date.parse('2026-11-16T02:00:00+09:00'));assert.equal(offset((await current(p)).at),timeOfDay);
     // The actual appearance renderer changes time/observer; returning must restore
     // results and fresh selection handlers without another place-provider call.

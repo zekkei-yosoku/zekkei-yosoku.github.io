@@ -11,8 +11,21 @@ const sha=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA
 // A row: [id, name, aim latitude, aim longitude, ground m, height m, LOD, columns]; a column: [top dm, east/north dm pairs].
 function shape(row){
  const [id,name,lat,lon,groundM,heightM,lod,cols]=row,kx=111320*Math.cos(lat*RAD),ky=110540;
- const rings=cols.map(([top,flat])=>{const r=[];for(let i=0;i<flat.length;i+=2)r.push([flat[i]/10,flat[i+1]/10]);return {top:top/10,ring:r};});
- return {id,name,latitude:lat,longitude:lon,groundM,heightM,lod,rings,geo:p=>[lat+p[1]/ky,lon+p[0]/kx]};
+ const rings=cols.map(([top,flat])=>{const r=[];for(let i=0;i<flat.length;i+=2)r.push([flat[i]/10,flat[i+1]/10]);return {top:top/10,ring:r};}),geo=p=>[lat+p[1]/ky,lon+p[0]/kx];
+ const aim=aimPoint(rings);
+ return {id,name,latitude:aim?+geo(aim)[0].toFixed(7):lat,longitude:aim?+geo(aim)[1].toFixed(7):lon,originLatitude:lat,originLongitude:lon,groundM,heightM,lod,rings,geo};
+}
+// The packed aim point is the middle of every roof within 1.5 m of the top. Twin towers of one height put that in the
+// gap between them (都庁第一本庁舎), so aim at the middle of the tower that holds the highest roof instead.
+function aimPoint(rings){
+ if(!rings.length)return null;
+ const box=r=>{let a=Infinity,b=Infinity,c=-Infinity,d=-Infinity;for(const [x,y] of r.ring){a=Math.min(a,x);b=Math.min(b,y);c=Math.max(c,x);d=Math.max(d,y);}return [a,b,c,d];};
+ const top=Math.max(...rings.map(r=>r.top)),high=rings.filter(r=>r.top>=top-1.5).map(r=>({r,b:box(r)}));
+ const first=high.reduce((a,c)=>c.r.top>a.r.top?c:a),group=[first],rest=high.filter(x=>x!==first),near=(p,q)=>p[0]<=q[2]+3&&q[0]<=p[2]+3&&p[1]<=q[3]+3&&q[1]<=p[3]+3;
+ for(let grew=true;grew;){grew=false;for(let i=rest.length-1;i>=0;i--)if(group.some(g=>near(g.b,rest[i].b))){group.push(...rest.splice(i,1));grew=true;}}
+ if(!rest.length)return null;
+ const a=Math.min(...group.map(g=>g.b[0])),b=Math.min(...group.map(g=>g.b[1])),c=Math.max(...group.map(g=>g.b[2])),d=Math.max(...group.map(g=>g.b[3]));
+ return [(a+c)/2,(b+d)/2];
 }
 // The app's city-model form: every column is one face of its ground and roof corners, placed by absolute position.
 function cityModel(b){
@@ -32,7 +45,7 @@ function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(root)
    const list=json.buildings.map(shape);ready.set(p,list);return list;})().catch(e=>{parts.delete(p);throw e;}));
   return parts.get(p);
  }
- const metres=(b,lat,lon)=>{const kx=111320*Math.cos(lat*RAD),ky=110540;return [(lon-b.longitude)*kx,(lat-b.latitude)*ky];};
+ const metres=(b,lat,lon)=>{const kx=111320*Math.cos(lat*RAD),ky=110540;return [(lon-b.originLongitude)*kx,(lat-b.originLatitude)*ky];};
  const onFootprint=(b,lat,lon)=>{const [x,y]=metres(b,lat,lon);return b.rings.some(({ring})=>inside(ring,x,y));};
  const distance=(b,lat,lon)=>{if(onFootprint(b,lat,lon))return 0;const [x,y]=metres(b,lat,lon);let best=Infinity;for(const {ring} of b.rings)for(let i=0,j=ring.length-1;i<ring.length;j=i++){const [x1,y1]=ring[j],[x2,y2]=ring[i],dx=x2-x1,dy=y2-y1,l=dx*dx+dy*dy,t=l?Math.max(0,Math.min(1,((x-x1)*dx+(y-y1)*dy)/l)):0;best=Math.min(best,Math.hypot(x-x1-t*dx,y-y1-t*dy));}return best;};
  // Buildings within radiusM of a point, nearest first (a point on a footprint is at 0 m).
@@ -62,5 +75,5 @@ function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(root)
  function footprint(targetId){const b=attached.get(targetId);return b?b.rings.map(({ring})=>ring.map(p=>b.geo(p))):null;}
  return {near,prepare,match,footprint,attachedTo:id=>attached.get(id)||null};
 }
-return {create,part,shape,cityModel};
+return {create,part,shape,cityModel,aimPoint};
 });

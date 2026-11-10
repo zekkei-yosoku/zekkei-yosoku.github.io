@@ -49,7 +49,9 @@
   if(message?.type!==channel||!Number.isSafeInteger(message.id))return;
   tail=tail.then(async()=>{
    try{
-    if(message.op!=='solve'&&message.op!=='discover')throw Error('unknown operation');
+    if(message.op!=='solve'&&message.op!=='discover'&&message.op!=='days')throw Error('unknown operation');
+   // A saved target can carry its PLATEAU shape (cityModel); the engine reads models by target id.
+   (function register(x,depth,seen){if(!x||typeof x!=='object'||depth>5||seen.has(x))return;seen.add(x);if(typeof x.id==='string'&&x.cityModel&&String(x.cityModel.id||'').startsWith('plateau-'))(globalThis.AstroNotesCityModels||(globalThis.AstroNotesCityModels={}))[x.id]=x.cityModel;for(const k in x)register(x[k],depth+1,seen);})(message.input,0,new Set());
     postMessage({type:channel,id:message.id,result:await globalThis.__overlap[message.op](message.input)});
    }catch(error){postMessage({type:channel,id:message.id,error:String(error?.message||error)});}
   });

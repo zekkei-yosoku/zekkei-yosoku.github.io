@@ -125,6 +125,31 @@ async function opportunityEngineOpen(){
 }
 const opportunityEngineSlots=()=>opportunityEngineMode==='workers'&&opportunityWorkers?Math.max(1,opportunityWorkers.slots.length):1;
 function opportunityEngineSolve(input,op='solve',slot=null){return opportunityEngineMode==='workers'?opportunityWorkerSolve(input,op,slot):opportunityFrameSolve(input,op);}
+// 2026-11-11 見え方の「重なる日時」（ユーザー「計算が遅いこと」）: 400日を40日ずつに分け、計算本体のWorkerで並行して解く。
+// 早い日から順に確定し、求める件数（4件）が前の区間だけで揃えば後ろは解かない。全体に重なる（建物・塔）だけ。山、ほかの
+// 重ね方、この端末が読み込んだ気象が効く地点（3km以内）は、今までどおりこの画面で計算する（nullを返す）。
+async function aimDaysEngine(obs,target,body,partId,{from,limb,matchMode,days=400,limit=4,isCurrent=()=>true,onScanned=()=>{}}={}){
+ if(matchMode!=='overlap'||!target||target.rim||typeof aimIsMountain==='function'&&aimIsMountain(target)||globalThis.AstroNotesDaysEngineMode==='page'||!toolAllowed('records'))return null;
+ const air=AstroNotesAtmosphere.dataKey(from);let state;try{state=JSON.parse(air);}catch{return null;}
+ const [enabled,mode,manual]=Array.isArray(state)?state:[];
+ if(enabled!==true||!['auto','standard','manual','none'].includes(mode)||mode==='manual'&&!manual)return null;
+ if(recordWeatherNear({latitude:obs.latitude,longitude:obs.longitude},mode==='auto'?AstroNotesAtmosphere.sources?.()||[]:[]))return null;
+ try{await opportunityEngineOpen();}catch{return null;}
+ if(!isCurrent())return [];
+ const owner=auth?.token,generation=accessState.generation,live=()=>isCurrent()&&owner===auth?.token&&generation===accessState.generation&&air===AstroNotesAtmosphere.dataKey(from);
+ const CHUNK=40,chunks=[];for(let d=0;d<days;d+=CHUNK)chunks.push({start:from+d*86400000,count:Math.min(CHUNK,days-d)});
+ const base={obs,target,body,partId,limb,from,limit,preferences:{mode,...(mode==='manual'?{pressureHPa:manual.pressureHPa,temperatureC:manual.temperatureC}:{}),targetHeights:store.get('sorami.aimHeights',{})},tools:auth.tools.slice(),generation,evaluationNow:Date.now()};
+ const results=new Array(chunks.length);let next=0,broken=false;
+ // Rows of the finished chunks in front, and whether they already hold the wanted count.
+ const front=()=>{const rows=[];for(let i=0;i<chunks.length&&results[i];i++){rows.push(...results[i]);if(rows.length>=limit)return {rows:rows.slice(0,limit),done:true,end:i};}let i=0;while(i<chunks.length&&results[i])i++;return {rows,done:i===chunks.length,end:i-1};};
+ const lane=async slot=>{while(!broken&&live()){if(front().done)return;const i=next++;if(i>=chunks.length)return;
+  try{results[i]=(await opportunityEngineSolve({...base,...chunks[i]},'days',slot)).rows||[];}catch{broken=true;return;}
+  const f=front();onScanned(f.done&&f.rows.length>=limit?S.Cal.startOfDay(f.rows[limit-1].at)+86400000:f.end>=0?chunks[f.end].start+chunks[f.end].count*86400000:from);}};
+ await Promise.all(Array.from({length:opportunityEngineSlots()},(_,k)=>lane(k)));
+ if(broken)return null;if(!live())return [];
+ return front().rows;
+}
+globalThis.AstroNotesDaysEngine=aimDaysEngine;
 // 2026-11-10 探す（記録の撮影地点）も重なる日と同じ計算本体で、地点ごとに並列に確かめる（ユーザー「同じ作りにして」）。
 // 大気差はこの端末の設定のまま本体へ渡し、計算は今までと同じ recordSearch（discovery）。この端末が読み込んだ気象が
 // 効く地点（気象の地点から3km以内。効く範囲は2km）だけは、本体に気象が無いので今までどおりこの画面で計算する。

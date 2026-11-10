@@ -2,6 +2,7 @@
 
   python3 tools/build-plateau-models.py SCAN.jsonl --scan [--jobs 8]      CityGMLを読み、高さ30m以上の建物の形を1行ずつ書く
   python3 tools/build-plateau-models.py SCAN.jsonl --pack OUT_DIR --min 30 2次メッシュ（約10km）ごとの一覧にまとめる
+  python3 tools/build-plateau-models.py ZIP.jsonl --scan --zip-cities 02321,13421,21201  目録に無い市の一括zipから（--pack は SCAN.jsonl,ZIP.jsonl）
 
 形は屋根の面ごとに「その面を地面から屋根の高さまで伸ばした柱」の集まり（LOD2/3の屋根面。屋根面が無ければLOD1の外形を
 計測高さまで伸ばした柱1本）。遠くから見た輪郭は柱の集まりの投影で、アプリの都市モデル（AstroNotesCityModels の solids）と
@@ -74,8 +75,10 @@ def scan_mesh(job):
   return code,out,None
  except Exception as e:return code,out,str(e)[:200]
 
-def scan(path,jobs):
- codes=H.city_codes();meshes={};cities=[]
+def scan(path,jobs,zipped=None):
+ # --zip-cities: the cities the catalog API does not list, read from their per-city zips by byte range.
+ codes=[] if zipped else H.city_codes();meshes={};cities=[]
+ if zipped:cities,meshes=H.zip_cities(set(zipped))
  for c in codes:
   try:body,gz=H.fetch(f'{H.API}{c}?types=bldg',tries=2);cat=json.loads(gzip.decompress(body) if gz else body)
   except Exception as e:print('catalog unavailable',c,str(e)[:80],flush=True);continue
@@ -93,13 +96,17 @@ def scan(path,jobs):
  print('done buildings',n,'failed',len(failed),flush=True)
 
 def pack(path,out,min_m):
- os.makedirs(out,exist_ok=True);parts={};cities=None
- with open(path) as f:
-  for i,line in enumerate(f):
-   r=json.loads(line)
-   if i==0:cities=r['cities'];continue
-   if r['heightM']<min_m:continue
-   parts.setdefault(r['mesh'][:6],[]).append([r['id'],r['name'],r['lat'],r['lon'],r['groundM'],r['heightM'],r['lod'],r['cols']])
+ # PATH may list several scans (a full scan and a --zip-cities scan) separated by commas.
+ os.makedirs(out,exist_ok=True);parts={};cities=[];ids=set()
+ for one in path.split(','):
+  with open(one) as f:
+   for i,line in enumerate(f):
+    r=json.loads(line)
+    if i==0:cities+=[c for c in r['cities'] if c not in cities];continue
+    if r['id'] in ids:continue
+    ids.add(r['id'])
+    if r['heightM']<min_m:continue
+    parts.setdefault(r['mesh'][:6],[]).append([r['id'],r['name'],r['lat'],r['lon'],r['groundM'],r['heightM'],r['lod'],r['cols']])
  index={'format':'AstroNotes PLATEAU building shapes v1','built':time.strftime('%Y-%m-%d'),'minHeightM':min_m,
   'attribution':'3D都市モデル（Project PLATEAU）国土交通省 を加工して作成','license':'PDL1.0 https://www.digital.go.jp/resources/open_data/public_data_license_v1.0',
   'row':'[PLATEAU building id, name or null, aim latitude, aim longitude, ground T.P. m, height m, LOD, columns]; a column is [top dm above ground, flat east/north dm pairs from the aim point]',
@@ -114,5 +121,5 @@ def pack(path,out,min_m):
 
 if __name__=='__main__':
  a=sys.argv[1:];path=a[0];jobs=int(a[a.index('--jobs')+1]) if '--jobs' in a else 8
- if '--scan' in a:scan(path,jobs)
+ if '--scan' in a:scan(path,jobs,a[a.index('--zip-cities')+1].split(',') if '--zip-cities' in a else None)
  elif '--pack' in a:pack(path,a[a.index('--pack')+1],float(a[a.index('--min')+1]) if '--min' in a else 45)

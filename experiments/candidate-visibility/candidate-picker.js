@@ -151,7 +151,8 @@ function unregister(box){const g=groups.get(box);if(g){for(const node of g.nodes
 function register(box,rows,plan,current){
  // Registered results can resolve before the adapter's animation-frame mount.
  // Establish the same scope first so that the later mount cannot discard them.
- const panel=box.closest('#recentCandidates')||box.closest('[role=tabpanel]');if(panel&&box.isConnected)mount(panel,plan);
+ // The same panel the page mounts (ui.js): in 探す the results list sits under the tab panel's #recentCandidates.
+ const tab=box.closest('[role=tabpanel]'),panel=box.closest('#recentCandidates')||tab?.querySelector('#recentCandidates')||tab;if(panel&&box.isConnected)mount(panel,plan);
  const previous=groups.get(box);if(previous)for(const node of previous.nodes)if(!box.contains(node))node.remove();
  groups.set(box,{rows,plan,current:typeof current==='function'?current:()=>true,nodes:[...box.children].filter(n=>n.tagName==='BUTTON'&&n.classList.contains('list-item'))});
  box.querySelector('[data-candidate-headers]')?.remove();return apply();

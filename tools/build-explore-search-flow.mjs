@@ -3,7 +3,13 @@ import {recordDiscoverySource,recordDiscoveryStyle} from './build-record-discove
 export const searchFlowSource=`
 let resultRequested=false,selectionPending=false,flowOwner=null,flowGeneration=null,previewBackEpoch=0;
 let searchRoot=null,candidatePanelHome=null,searchStarted=false,returnIntent=null,pendingScroll=null;
-const candidateBack=node('button',{id:'exploreBackToCandidates',type:'button',className:'chip',hidden:true},'‹ 探すへ戻る');scene.prepend(candidateBack);
+// 2026-11-11 ユーザー「探すへ戻るのボタンの形状と配置場所」「見え方に入ったらなんの条件の見え方なのかがわからない」
+// 「重ねる天体とかの条件が気軽に変えられない」: 見え方でも条件の欄をたたんで先頭に残し（何×何・撮影地点・重ね方）、
+// 戻るは右上の履歴と同じ丸いボタンにしてその左端に置く。条件を開けば、その場で天体・対象・重ね方を変えられる。
+const candidateBack=node('button',{id:'exploreBackToCandidates',type:'button',className:'explore-back',hidden:true});
+candidateBack.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// Inside the summary: a click goes back and never toggles the conditions.
+candidateBack.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();});scene.prepend(candidateBack);
 const resultActive=()=>active()&&resultRequested;
 const mainSearchActive=()=>active()&&!resultRequested&&!selectionPending&&flowOwner===auth?.loginId&&flowGeneration===accessState.generation;
 function ensureSearchRoot(){
@@ -20,15 +26,21 @@ function restoreSearchScroll(count){
  if(!pendingScroll||!mainSearchActive()||count<pendingScroll.count)return;
  const saved=pendingScroll;pendingScroll=null;requestAnimationFrame(()=>{if(mainSearchActive())document.scrollingElement.scrollTop=saved.top;});
 }
+function foldConditions(){if(layout.conditions)layout.conditions.removeAttribute('open');}
+function placeBack(){
+ const summary=layout.conditions?.querySelector('summary');
+ if(resultRequested&&summary&&candidateBack.parentNode!==summary)summary.prepend(candidateBack);
+ else if(!resultRequested&&candidateBack.parentNode!==scene)scene.prepend(candidateBack);
+}
 function syncWorkspace(){
  if(!layout.mounted)return;ensureSearchRoot();
  if(flowOwner!==auth?.loginId||flowGeneration!==accessState.generation){resultRequested=false;selectionPending=false;searchStarted=false;returnIntent=null;pendingScroll=null;$('candidateSearchEmpty').textContent='';flowOwner=auth?.loginId;flowGeneration=accessState.generation;invalidate();}
  mapView.dataset.exploreStage=resultRequested?'preview':'search';
- layout.conditions.hidden=resultRequested;if(!resultRequested)layout.conditions.open=true;
+ layout.conditions.hidden=false;if(!resultRequested)layout.conditions.open=true;placeBack();
  searchRoot.hidden=resultRequested;scene.hidden=!resultRequested;candidateBack.hidden=!resultRequested;
  $('recentCandidates').hidden=resultRequested||!searchStarted;$('candidateSearchEmpty').hidden=searchStarted;
  $('exploreResultsHeading').hidden=!searchStarted;
- candidateBack.textContent=globalThis.MyPlacesUI?.opportunities?.hasReturn()?'‹ 重なる日へ戻る':returnIntent?.searched?'‹ 候補へ戻る':'‹ 探すへ戻る';
+ const backLabel=globalThis.MyPlacesUI?.opportunities?.hasReturn()?'重なる日へ戻る':returnIntent?.searched?'候補へ戻る':'探すへ戻る';candidateBack.setAttribute('aria-label',backLabel);candidateBack.title=backLabel;
  syncRecordDiscovery();document.dispatchEvent(new Event('astronotes-search-state'));
 }
 function captureSearch(){
@@ -36,7 +48,7 @@ function captureSearch(){
  returnIntent={owner:auth.loginId,generation:accessState.generation,selection:structuredClone(s),custom:structuredClone(SkyMapUI.workspaceHost()?.session.custom??null),customTarget:structuredClone(SkyMapUI.workspaceHost()?.session.customTarget??null),searched:searchStarted,scrollTop:document.scrollingElement.scrollTop,count:globalThis.AstroNotesCandidatePicker?.visibleRows().length||0};
 }
 function enterResult(){
- if(!selectionPending)captureSearch();selectionPending=false;resultRequested=true;previewBackEpoch++;syncWorkspace();SkyMapUI.render();
+ if(!selectionPending)captureSearch();selectionPending=false;resultRequested=true;previewBackEpoch++;foldConditions();syncWorkspace();SkyMapUI.render();
 }
 function showSearch(){
  if(globalThis.MyPlacesUI?.opportunities?.returnFromPreview())return;
@@ -84,14 +96,21 @@ const mainCandidateWorkspace={separateRecords:true,newPlacesHost:()=>newPlacePan
  reset(){if(searchStarted)$('candidateSearchEmpty').textContent='条件を変更しました。もう一度候補を探してください。';searchStarted=false;$('recentCandidates').hidden=true;$('candidateSearchEmpty').hidden=false;$('exploreResultsHeading').hidden=true;},
  restoreScroll:restoreSearchScroll,scroller:()=>document.scrollingElement};
 candidateBack.onclick=showSearch;
+// Conditions changed in the view: showing the result again folds them back above the view.
+document.addEventListener('click',e=>{if(e.target.closest?.('#exploreShowResult')&&resultRequested&&layout.conditions)requestAnimationFrame(()=>{if(resultRequested)foldConditions();});},true);
 document.addEventListener('astronotes-candidate-selecting',()=>{if(mainCandidateWorkspace.selectable()){captureSearch();selectionPending=true;}});
 document.addEventListener('astronotes-candidate-selected',()=>{if(selectionPending&&returnIntent?.owner===auth?.loginId&&returnIntent.generation===accessState.generation)showResult();});
 `;
 // Structural stage visibility belongs here; visual search styling has one owner.
 export const searchFlowStyle=
+ // 2026-11-11 ユーザー「過去の履歴ボタンってもう要らないのでは?」「見えない文字があってここ消せば間隔狭められる」:
+ // 探すの見出しから場所の履歴を外し、行を低くする。読み上げ用の見出しは残すが選べないようにする。
+ '#skyMapView.explore-mounted #skyMapRecentOpen{display:none!important}#skyMapView.explore-mounted .sky-map-head{min-height:0!important;margin-bottom:4px!important}#skyMapView.explore-mounted #skyMapTitle{-webkit-user-select:none;user-select:none;pointer-events:none}'+
  '#skyMapView[data-explore-stage="search"] #exploreScenePanel,#skyMapView[data-explore-stage="search"] #exploreMapPanel,#skyMapView[data-explore-stage="search"] #exploreSkyInfo,#skyMapView[data-explore-stage="search"] .sky-map-candidates,#skyMapView[data-explore-stage="search"] #skyMapShareRow{display:none!important}'+
- '#skyMapView[data-explore-stage="preview"] #exploreConditions,#skyMapView[data-explore-stage="preview"] #exploreSearchResults{display:none!important}'+
- '#exploreBackToCandidates{min-height:44px;margin:0 0 12px}'+recordDiscoveryStyle;
+ '#skyMapView[data-explore-stage="preview"] #exploreSearchResults{display:none!important}'+
+ '#skyMapView[data-explore-stage="preview"] .explore-conditions>summary{grid-template-columns:auto minmax(0,1fr) auto}'+
+ '#skyMapView[data-explore-stage="preview"] #exploreConditionTitle,#skyMapView[data-explore-stage="preview"] #exploreConditionDetail{grid-column:2}#skyMapView[data-explore-stage="preview"] .explore-condition-edit{grid-column:3}'+
+ '#exploreBackToCandidates{grid-column:1;grid-row:1/3;align-self:center;width:44px;height:44px;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--sunk);color:var(--text);display:grid;place-items:center;cursor:pointer}#exploreBackToCandidates[hidden]{display:none}'+recordDiscoveryStyle;
 
 const patch=(s,from,to)=>{if(s.split(from).length!==2)throw Error('Main search boundary changed: '+from.slice(0,80));return s.replace(from,to);};
 export function registeredMainSearch(s){

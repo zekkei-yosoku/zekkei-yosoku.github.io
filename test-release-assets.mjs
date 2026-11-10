@@ -5,7 +5,7 @@ import {readFileSync as read,existsSync as exists} from 'node:fs';import {execFi
 // どこから走らせても、このファイルのある公開元を見る
 const root=fileURLToPath(new URL('./',import.meta.url));
 const readFileSync=(f,e)=>read(root+f,e),existsSync=f=>exists(root+f);
-const tracked=new Set(execFileSync('git',['-C',root,'ls-files','--cached'],{encoding:'utf8'}).split('\n').filter(Boolean));
+const tracked=new Set(execFileSync('git',['-C',root,'ls-files','--cached'],{encoding:'utf8',maxBuffer:256*1024*1024}).split('\n').filter(Boolean));
 const local=u=>!/^(?:[a-z]+:|\/\/|#|\$\{|data:)/i.test(u);
 let checked=0;
 for(const dir of ['','trial/']){

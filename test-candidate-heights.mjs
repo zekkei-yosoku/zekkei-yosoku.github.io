@@ -68,6 +68,19 @@ test('a GSI footprint without a PLATEAU height is clear only above the tallest o
  assert.equal((await H.create({loadIndex:async()=>({grid:{offsetM:20},parts:{},targets:{}}),gsiAlong:async()=>null}).trace(observer,north(4))).status,'unknown');
 });
 
+test('trees and elevated structures of unknown height: the line must clear the tallest of their kind',async()=>{
+ const at=(d,dx=0)=>[observer.latitude+d/110540,observer.longitude+dx/90000];
+ const wood=[at(100,-30),at(100,30),at(140,30),at(140,-30),at(100,-30)],rail=[at(300,-200),at(300,200)];
+ const h=list=>H.create({fetchImpl:async()=>new Response('',{status:404}),loadIndex:async()=>({grid:{offsetM:20},parts:{},targets:{}}),gsiAlong:async()=>[],groundAt:async()=>5,obstacles:async()=>{if(list instanceof Error)throw list;return list;}});
+ const low=await h([{kind:'tree',capM:25,rings:[wood]}]).trace(observer,{...north(6),maxM:600});assert.equal(low.status,'unknown');assert.equal(low.reason,'trees');assert(Math.abs(low.hit.distanceM-100)<2);
+ assert.equal((await h([{kind:'tree',capM:25,rings:[wood]}]).trace(observer,{...north(25),maxM:600})).status,'clear');
+ const viaduct=await h([{kind:'railway',capM:15,lines:[rail],halfWidthM:8}]).trace(observer,{...north(2),maxM:600});assert.equal(viaduct.reason,'elevated-structure');
+ assert.equal((await h([{kind:'railway',capM:15,lines:[rail],halfWidthM:8}]).trace(observer,{...north(5),maxM:600})).status,'clear');
+ // Standing inside a wood: every line starts among the trees.
+ assert.equal((await h([{kind:'tree',capM:25,rings:[[at(-20,-20),at(-20,20),at(20,20),at(20,-20),at(-20,-20)]]}]).trace(observer,{...north(30),maxM:600})).reason,'trees');
+ assert.equal((await h(Error('unavailable')).trace(observer,{...north(6),maxM:600})).reason,'obstacles-unavailable');
+});
+
 test('a part list or mesh file that does not match its index is not used',async()=>{
  const part=Buffer.from(JSON.stringify({meshes:{[CODE]:['0000000000000000',10]}})),partSha=createHash('sha256').update(part).digest('hex').slice(0,16);
  const serve=list=>async url=>url.endsWith('.bin')||url.includes('.bin?')?new Response(pack(new Uint16Array(ROWS*COLS))):new Response(list);

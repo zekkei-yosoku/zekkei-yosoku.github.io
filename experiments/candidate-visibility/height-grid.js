@@ -43,7 +43,7 @@ function cells(p0,p1,d0,d1,visit){
  return true;
 }
 const sha=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
-function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):null),base='data/building-heights/',loadIndex=null,gsiAlong=null,groundAt=null,ownFootprint=null}={}){
+function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):null),base='data/building-heights/',loadIndex=null,gsiAlong=null,groundAt=null,ownFootprint=null,obstacles=null}={}){
  let indexPromise=null;const meshes=new Map(),ready=new Map(),overlays=new Map(),partLoads=new Map(),parts=new Map(),ownCells=new Map();
  // Cells of a user's target building (lat/lon rings), widened by one cell: that building is the target, not an obstacle.
  function ownSet(targetKey){
@@ -138,6 +138,28 @@ function create({fetchImpl=(typeof fetch==='function'?fetch.bind(globalThis):nul
     if(!Number.isFinite(ground))return {status:'unknown',reason:'footprint-ground-unknown',cellsChecked,source:'gsi-type-bound'};
     if(low>ground+cap+MARGIN_M){estimated=true;continue;}
     return {status:'unknown',reason:'building-height-unknown',hit:{distanceM:a,code:b.code,rayAboveGroundM:low-ground},cellsChecked,source:'gsi-type-bound'};
+   }
+  }
+  // Trees and elevated structures (bundled OSM) have no height: the line must clear the tallest of their kind.
+  if(obstacles&&reach>0){
+   const capMax=30,obsEnd=(()=>{let x=0;while(x<reach&&!pr.beyond(observer.elevation+capMax+GROUND_RISE_M,x))x+=NODE_M/5;return Math.min(reach,x);})();
+   if(obsEnd>0){
+    const end=destination(observer.latitude,observer.longitude,az,obsEnd);let list;try{list=await obstacles(observer,end);}catch{return {status:'unknown',reason:'obstacles-unavailable',cellsChecked,source:'osm'};}
+    const cos=Math.cos(observer.latitude*RAD),ux=Math.sin(az*RAD),uy=Math.cos(az*RAD),xy=([la,lo])=>[(lo-observer.longitude)*111320*cos,(la-observer.latitude)*110540];
+    for(const o of list||[]){let a=Infinity,z=-Infinity;
+     const take=t=>{if(t>=0&&t<=obsEnd){a=Math.min(a,t);z=Math.max(z,t);}};
+     for(const ring of o.rings||[]){const p=ring.map(xy);let inside=false;
+      for(let i=0,j=p.length-1;i<p.length;j=i++){const [x1,y1]=p[j],[x2,y2]=p[i];if((y1>0)!==(y2>0)&&0<(x2-x1)*(0-y1)/(y2-y1)+x1)inside=!inside;const ex=x2-x1,ey=y2-y1,den=ux*ey-uy*ex;if(Math.abs(den)<1e-9)continue;const t=(x1*ey-y1*ex)/den,u=(x1*uy-y1*ux)/den;if(u>=0&&u<=1)take(t);}
+      if(inside)take(0);}
+     const near=(x,y,w)=>{const t=x*ux+y*uy,d=Math.abs(x*uy-y*ux);if(d<=w)take(t);};
+     for(const line of o.lines||[]){const p=line.map(xy);for(let i=1;i<p.length;i++){const [x1,y1]=p[i-1],[x2,y2]=p[i],n=Math.max(1,Math.ceil(Math.hypot(x2-x1,y2-y1)/3));for(let k=0;k<=n;k++)near(x1+(x2-x1)*k/n,y1+(y2-y1)*k/n,o.halfWidthM);}}
+     for(const pt of o.points||[]){const [x,y]=xy(pt);near(x,y,o.halfWidthM);}
+     if(!Number.isFinite(a))continue;const low=pr.min(a,z);
+     if(low>observer.elevation+o.capM+GROUND_RISE_M)continue;
+     const ground=groundAt?await groundAt(destination(observer.latitude,observer.longitude,az,a)):null;
+     if(!Number.isFinite(ground))return {status:'unknown',reason:'obstacle-ground-unknown',cellsChecked,source:'osm'};
+     if(low<=ground+o.capM+MARGIN_M)return {status:'unknown',reason:o.kind==='tree'?'trees':'elevated-structure',hit:{distanceM:a,kind:o.kind,id:o.id,rayAboveGroundM:low-ground},cellsChecked,source:'osm'};
+    }
    }
   }
   // Outside the grid, a building missing from the GSI footprints would go unseen: say so where low buildings could reach the ray.

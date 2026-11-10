@@ -14,9 +14,15 @@ const cachedData=new Map();
 function loaded(name){if(!cachedData.has(name)){const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),10000);cachedData.set(name,readData(name,{signal:ctrl.signal}).catch(e=>{cachedData.delete(name);throw e;}).finally(()=>clearTimeout(timer)));}return cachedData.get(name);}
 // Saved targets standing on a PLATEAU building take its shape on this page (見え方 and new places).
 const plateauShapes=globalThis.AstroNotesPlateauBuildings?.create({load:loaded})||null;globalThis.AstroNotesPlateauShapes=plateauShapes;
+// The targets the app lists carry their PLATEAU shape, so the overlap list and registered places (calculation
+// workers) use it too; it is part of a pair's geometry key, so geometry made with the estimate is not reused.
+if(typeof globalThis.aimTargetList==='function'&&!globalThis.aimTargetList.plateauShapes){
+ const listed=globalThis.aimTargetList,withShape=function(){return listed.apply(this,arguments).map(t=>{const m=String(t?.id||'').startsWith('fav:')&&globalThis.AstroNotesCityModels?.[t.id];return m&&String(m.id).startsWith('plateau-')?{...t,cityModel:m}:t;});};
+ withShape.plateauShapes=true;globalThis.aimTargetList=withShape;
+}
 async function refreshShapes(){
  if(!plateauShapes||typeof aimTargetList!=='function')return;
- try{const changed=await plateauShapes.prepare(aimTargetList());if(changed.includes(SkyMapUI?.selectionState?.()?.target?.id))SkyMapUI.render?.();}catch{/* Shapes are an enhancement; the outline estimate stays. */}
+ try{const changed=await plateauShapes.prepare(aimTargetList());if(!changed.length)return;if(changed.includes(SkyMapUI?.selectionState?.()?.target?.id))SkyMapUI.render?.();document.dispatchEvent(new Event('astronotes-records-change'));}catch{/* Shapes are an enhancement; the outline estimate stays. */}
 }
 document.addEventListener('astronotes-records-change',refreshShapes);
 (globalThis.startupSessionReady||Promise.resolve()).then(refreshShapes,()=>{});
@@ -28,12 +34,14 @@ const live=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxDurat
  // tile budget, so it never starves the sight-line terrain. A search step longer than 35 s no longer runs out of time.
  const footprintGround=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxTiles:160,maxDurationMs:120000,layers:[['dem',14]]});
 const groundPort={...AstroNotesTerrain,resetBudget:()=>live.resetBudget(),groundElevation:async(lat,lon,options={})=>{const r=await live.sample({latitude:lat,longitude:lon},options);return options.withSource?(Number.isFinite(r.height)?{elevation:r.height,source:r.layer}:null):r.height;}};
-const provider=AstroNotesCandidateDiscovery.createPlaceProvider({terrain:groundPort,fetchImpl:fetch.bind(globalThis),loadViewpoints:()=>loaded('candidate-viewpoints.json')});
+// Places, woods and bridges from the bundled OSM extract (Overpass only if it cannot be read).
+ const osmPlaces=globalThis.AstroNotesOsmPlaces?.create({load:loaded})||null;
+ const provider=AstroNotesCandidateDiscovery.createPlaceProvider({terrain:groundPort,fetchImpl:fetch.bind(globalThis),loadViewpoints:()=>loaded('candidate-viewpoints.json'),places:osmPlaces});
 let modelPromise=null;
 async function loadModel(){
  // Buildings: PLATEAU top heights (every city PLATEAU covers) along each line, GSI footprints elsewhere; the 3D band model is no longer loaded.
  if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await loaded('candidate-terrain.json').catch(()=>null);
-  const heights=AstroNotesCandidateHeights.create({loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,gsiAlong:(a,b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
+  const heights=AstroNotesCandidateHeights.create({loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,obstacles:osmPlaces?(a,b)=>osmPlaces.obstaclesAlong(a,b):null,gsiAlong:(a,b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
   return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights,staticTerrain:dem?await AstroNotesCandidateTerrain.decode(dem):null,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null)});})().catch(e=>{modelPromise=null;throw e;});
  return modelPromise;
 }
@@ -178,7 +186,7 @@ function mount(){
    renderAction();visibleCredits.hidden=!rows.length;
    const unknown=rows.some(r=>r.quality?.buildingHeights==='estimated'),unknownFrame=rows.some(r=>r.frame?.status==='unknown');
    setStatus(cancelled?'探索をキャンセルしました。続きから探せます。':(rows.length?`新たな地点で${rows.length}件の候補があります。${unknown?'建物の高さを推定した候補を含みます。':''}${unknownFrame?'全体の画角を確認できない候補を含みます。':''}`:incomplete?'確認できた範囲には候補がありません。':'今回確認した範囲では候補がありません。')+(incomplete?'取得できなかった範囲があります。':result.canContinue?'探索を再開できます。':''));
-   const c=result.counts;resultNotes.textContent=`見通しを地形と建物で確かめられた地点だけを候補にしています。${c.checked}地点を確認：遮られる${c.blocked}、見通しを確かめられない${c.unverified||0}${c.nearBuilding||c.heightUnknown?`（うち${[c.nearBuilding?`立つ点のすぐ脇に建物${c.nearBuilding}`:'',c.heightUnknown?`建物の高さが分からない${c.heightUnknown}`:''].filter(Boolean).join('・')}）`:''}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。建物の高さはPLATEAUを整備した都市はその高さ、ほかは国土地理院の建物の形と種類から見積もります。木・橋・高架は判定に入っていません。探索地域 ${result.coverage.regions}区画。全地域・全時刻の網羅や実写成功は保証していません。`;
+   const c=result.counts;resultNotes.textContent=`見通しを地形と建物で確かめられた地点だけを候補にしています。${c.checked}地点を確認：遮られる${c.blocked}、見通しを確かめられない${c.unverified||0}${c.nearBuilding||c.heightUnknown||c.obstacle?`（うち${[c.nearBuilding?`立つ点のすぐ脇に建物${c.nearBuilding}`:'',c.heightUnknown?`建物の高さが分からない${c.heightUnknown}`:'',c.obstacle?`木・橋・高架${c.obstacle}`:''].filter(Boolean).join('・')}）`:''}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。建物の高さはPLATEAUを整備した都市はその高さ、ほかは国土地理院の建物の形と種類から見積もります。木・橋・高架はOpenStreetMapにあるものだけ、高さが分からないものとして判定します。探索地域 ${result.coverage.regions}区画。全地域・全時刻の網羅や実写成功は保証していません。`;
  }
  button.onclick=async()=>{
   const selected=snapshot();if(!selected)return;if(condition!==uiKey(selected)){mount();return;}

@@ -70,7 +70,8 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
    marks.sort((x,y)=>x-y);
    for(let i=1;i<marks.length;i++){
     if(marks[i]-marks[i-1]<1e-12)continue;
-    const lo=d+marks[i-1]*(next-d),hi=d+marks[i]*(next-d),middle=(lo+hi)/2,p=geo.destination(observer.latitude,observer.longitude,azimuth,middle/1000),value=far?await sampleFar(p,options):await sample(p,options);
+    const lo=d+marks[i-1]*(next-d),hi=d+marks[i]*(next-d),middle=(lo+hi)/2,p=geo.destination(observer.latitude,observer.longitude,azimuth,middle/1000);
+    let value=far?await sampleFar(p,options):await sample(p,options);
     if(value.reason==='terrain-budget')return {status:'unknown',checked,missing,partial:true,reason:value.reason,hit};
     // A pixel with no value in any layer (a river or lake surface) lies below its banks: the last bank
     // read on the line stands in for it, which can only make the line look more hidden, never clearer.

@@ -1,4 +1,4 @@
-const OVERLAP_ENGINE='bd47aa0191f150aeddb9313240591241fedcebb9f02a73e44d54197fd3b995f0',OVERLAP_SOURCE='overlap-calculation-worker-engine.js?v=bcee2ceb7f3f25fd';
+const OVERLAP_ENGINE='6cf19394b3f4a2a9c37c622cce055972d22ae7b3683c703820db61185e8bfe18',OVERLAP_SOURCE='overlap-calculation-worker-engine.js?v=165fc017dce40e07';
 // Runs the same geometric overlap engine as overlap-calculation.html, but in a
 // dedicated worker so several pairs are checked at once on separate cores.
 // build-preview.py prepends OVERLAP_ENGINE (SHA-256) and OVERLAP_SOURCE.
@@ -50,7 +50,9 @@ const OVERLAP_ENGINE='bd47aa0191f150aeddb9313240591241fedcebb9f02a73e44d54197fd3
   if(message?.type!==channel||!Number.isSafeInteger(message.id))return;
   tail=tail.then(async()=>{
    try{
-    if(message.op!=='solve'&&message.op!=='discover')throw Error('unknown operation');
+    if(message.op!=='solve'&&message.op!=='discover'&&message.op!=='days')throw Error('unknown operation');
+   // A saved target can carry its PLATEAU shape (cityModel); the engine reads models by target id.
+   (function register(x,depth,seen){if(!x||typeof x!=='object'||depth>5||seen.has(x))return;seen.add(x);if(typeof x.id==='string'&&x.cityModel&&String(x.cityModel.id||'').startsWith('plateau-'))(globalThis.AstroNotesCityModels||(globalThis.AstroNotesCityModels={}))[x.id]=x.cityModel;for(const k in x)register(x[k],depth+1,seen);})(message.input,0,new Set());
     postMessage({type:channel,id:message.id,result:await globalThis.__overlap[message.op](message.input)});
    }catch(error){postMessage({type:channel,id:message.id,error:String(error?.message||error)});}
   });

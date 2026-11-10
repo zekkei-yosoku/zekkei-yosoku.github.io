@@ -50,3 +50,14 @@ test('a part file that does not match its index is not used',async()=>{
  const s=P.create({load:async()=>({parts:{[P.part(lat,lon)]:['0000000000000000',1,part.length]}}),fetchImpl:async()=>new Response(part)});
  await assert.rejects(s.near(lat,lon));
 });
+
+test('twin towers of one height: the aim point is the middle of the tower with the highest roof, not the gap',async()=>{
+ // Two 20 x 20 m towers 60 m apart (north 243 m, south 242.5 m) on a 100 x 40 m podium; the packed aim point is the gap.
+ const twin=['bldg_twin','双子の塔',lat,lon,36,243,2,[[2430,[-100,200,100,200,100,400,-100,400]],[2425,[-100,-400,100,-400,100,-200,-100,-200]],[300,[-500,-200,500,-200,500,200,-500,200]]]];
+ const b=P.shape(twin);
+ assert(Math.abs((b.latitude-lat)*110540-30)<.01,'north tower centre');assert(Math.abs(b.longitude-lon)<1e-9);
+ assert.equal(b.originLatitude,lat);assert.deepEqual(P.cityModel(b).vertices[4],[-10,20,243]);
+ assert.equal(P.shape(tower).latitude,lat,'one tower keeps the packed point');
+ const s=source([twin]);const [row]=await s.near(lat+30/110540,lon,{radiusM:10});
+ assert.equal(row.distanceM,0);assert(Math.abs((row.latitude-lat)*110540-30)<.01);
+});

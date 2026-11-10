@@ -10,7 +10,8 @@ test('cached HTML legacy assets retain their original bytes and canonical assets
  const experiments=JSON.parse(read('trial/ui-experiment.json')).files;
  const candidate=JSON.parse(read('trial/candidate-experiment.json'));
  const candidateDerived=new Set(['astronotes-align.js','astronotes-shooting.js','astronotes-myplaces.js','astronotes-plan.js']);
- const candidateGenerated=new Set(['astronotes-astro.js','astronotes-atmosphere.js','astronotes-library.js','astronotes-scroll-timeline.js','astronotes-terrain.js']);
+ // 2026-11-10/11 the trial also generates the target editor (PLATEAU buildings list) and the page title bands (EXPLORE/NOTES).
+ const candidateGenerated=new Set(['astronotes-astro.js','astronotes-atmosphere.js','astronotes-library.js','astronotes-scroll-timeline.js','astronotes-terrain.js','astronotes-target-ui.js','astronotes-flair.css']);
  let generated;
  const allowed=new Set(['astronotes-explore.js','astronotes-myplaces.js','astronotes-plan.js','astronotes-camera-ui.js','astronotes-flair.css']);
  const digest=value=>createHash('sha256').update(value).digest('hex');

@@ -156,7 +156,7 @@ function publishedViewpoints(data,regions){
   });
  }return points;
 }
-return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,isCurrent:providerCurrent=()=>true,maxTiles=12,maxPoints=480,timeoutMs=25000,maxDurationMs=55000,spacingM=30,endpoints}={}){
+return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadViewpoints,isCurrent:providerCurrent=()=>true,maxTiles=12,maxPoints=480,timeoutMs=25000,maxDurationMs=55000,spacingM=30,endpoints,places=null}={}){
  if(!terrain)throw Error('terrain provider is required');
  const servers=endpoints||terrain.OVERPASS||[],cache=new Map(),heightCache=new Map();
  let endpointCursor=0,overpassRetryAfter=0,overpassNextRequest=0;
@@ -177,6 +177,8 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    // Expand for containing parks/river edges, but select only inside requested
    // regions. out geom without an output bbox preserves full returned rings.
    const b=tile.bbox.map((v,i)=>v+(i<2?-.0003:.0003));b[0]=Math.max(-180,b[0]);b[1]=Math.max(-90,b[1]);b[2]=Math.min(180,b[2]);b[3]=Math.min(90,b[3]);
+   // Bundled OSM places first (no Overpass round trip); Overpass only if they cannot be read.
+   if(places)try{const value={features:parseElements(await places.elementsIn(b)),at:Date.now(),timestamp:null,endpoint:'bundled-osm',version:'bundled',local:true};cache.set(tile.id,value);while(cache.size>120)cache.delete(cache.keys().next().value);return value;}catch{/* Overpass below. */}
    let reason=Date.now()<overpassRetryAfter?'overpass-cooldown':'no-overpass-endpoint',overpassAttempted=false;
    for(let attempt=0;attempt<Math.min(2,servers.length)&&current()&&!controller.signal.aborted&&(tile.retry||Date.now()>=overpassRetryAfter);attempt++){
     overpassAttempted=true;

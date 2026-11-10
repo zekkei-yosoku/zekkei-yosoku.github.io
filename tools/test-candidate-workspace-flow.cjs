@@ -39,7 +39,9 @@ async function assertIdleSearch(page){
     const candidate=await page.evaluate(()=>structuredClone(AstroNotesCandidatePicker.visibleRows()[0]));
     await page.screenshot({path:out+'/'+engine+'-'+width+'-candidates.png'});await row.click();
     await page.waitForFunction(()=>!document.getElementById('placeSheet').open&&!document.getElementById('exploreBackToCandidates').hidden);
-    await page.locator('#aimLook').waitFor({state:'visible'});assert(await page.locator('#exploreConditions').isHidden());
+    await page.locator('#aimLook').waitFor({state:'visible'});
+    // 2026-11-11 見え方でも条件は折りたたんで出す（何の条件の見え方か分かり、その場で変えられる）。戻るボタンはその行の左。
+    assert(await page.locator('#exploreConditions').isVisible());assert.equal(await page.locator('#exploreConditions').getAttribute('open'),null);assert(await page.locator('#exploreConditions > summary #exploreBackToCandidates').isVisible());
     const actual=await page.evaluate(()=>{const s=SkyMapUI.selectionState();return {at:s.at,latitude:s.observer.latitude,longitude:s.observer.longitude};});
     assert.deepEqual(actual,{at:candidate.event.at,latitude:candidate.place.latitude,longitude:candidate.place.longitude});
     assert(await page.evaluate(()=>Object.entries(flowDateNodes).every(([id,n])=>n===document.getElementById(id))));
@@ -53,7 +55,8 @@ async function assertIdleSearch(page){
     assert.equal(await page.evaluate(()=>dateFixture.loads.length),search.loads,'back restores cached candidates without searching again');assert(await page.locator('.sky-map-footer').isVisible());assert(await page.evaluate(()=>Object.entries(flowDateNodes).every(([id,n])=>n===document.getElementById(id))));
     await page.waitForFunction(top=>Math.abs(document.scrollingElement.scrollTop-top)<2,search.scroll);
     if(process.env.CANDIDATE_FLOW_LENS!=='manual'){
-    await page.evaluate(()=>{AstroNotesShooting.candidates=async plan=>({failed:0,rows:plan.target.id==='skytree'?[{id:'registered-flow',record:{result:'seen'},placeKind:'park',quality:{photographyClass:'normal'},place:{name:'登録した公園',latitude:35.692,longitude:139.732,elevation:25,groundManualM:25,eyeHeightAGL:2,decks:[]},assumedObserver:{latitude:35.692,longitude:139.732,elevation:25,eyeM:2},event:{at:AstroNotesCandidateDiscovery.day(plan.at)+13*3600000,side:'rise'}}]:[]});MyPlacesUI.discoveryPoints=()=>[{place:{id:'registered-flow',name:'登録した公園',latitude:35.692,longitude:139.732,elevation:25,eyeHeightAGL:2},record:{result:'seen'}}];MyPlacesUI.imported();});
+    // The records tab runs in the calculation workers (C20); keep it on this page so the stub below is used.
+    await page.evaluate(()=>{globalThis.AstroNotesDiscoveryEngine='page';AstroNotesShooting.candidates=async plan=>({failed:0,rows:plan.target.id==='skytree'?[{id:'registered-flow',record:{result:'seen'},placeKind:'park',quality:{photographyClass:'normal'},place:{name:'登録した公園',latitude:35.692,longitude:139.732,elevation:25,groundManualM:25,eyeHeightAGL:2,decks:[]},assumedObserver:{latitude:35.692,longitude:139.732,elevation:25,eyeM:2},event:{at:AstroNotesCandidateDiscovery.day(plan.at)+13*3600000,side:'rise'}}]:[]});MyPlacesUI.discoveryPoints=()=>[{place:{id:'registered-flow',name:'登録した公園',latitude:35.692,longitude:139.732,elevation:25,eyeHeightAGL:2},record:{result:'seen'}}];MyPlacesUI.imported();});
     await page.locator('#exploreDiscovery-records').click();await page.locator('#exploreRecordedResults .explore-record-row').filter({hasText:'登録した公園'}).click();await page.waitForFunction(()=>!document.getElementById('placeSheet').open);
     assert.equal(await page.evaluate(()=>SkyMapUI.selectionState().observer.name),'登録した公園');assert(await page.locator('#exploreBackToCandidates').isVisible());
     await page.locator('#exploreBackToCandidates').click();await page.locator('#exploreDiscovery-new').click();await page.locator('#candidateSearchAction').waitFor({state:'visible'});assert.equal(await page.locator('#skyMapCalendarOpen').getAttribute('data-display-date'),'2026-11-16');

@@ -106,14 +106,15 @@ async function assertFooterClearance(page,selector='#candidateUnifiedResults>.li
     await settled(page,0);assert((await page.locator('[data-filter-status]').innerText()).startsWith('0 / 2'));assert(await page.locator('#candidateMapToggle').isDisabled());
     await page.locator('#candidateKindFilter').selectOption('all');await settled(page,2);assert.equal(await page.evaluate(()=>dateFixture.loads.length),loads);
 
-    // Rechecking invalidates the previous generated rows; failure cannot leave dead choices.
-    await page.evaluate(()=>dateFixture.failNext=true);await page.locator('#candidateSearchAction').click();
-    await page.waitForFunction(()=>document.querySelector('#candidateSearchFeedback [role=status]')?.textContent.includes('取得できませんでした'));
-    await settled(page,0);await page.waitForFunction(()=>![...document.querySelectorAll('#candidateUnifiedResults>.list-item')].some(n=>!n.hidden&&getComputedStyle(n).display!=='none'));
-    assert(await page.locator('#candidateMapToggle').isDisabled());assert(await page.locator('#candidateSearchAction').isEnabled());
-    await page.locator('#candidateSearchAction').click();await settled(page,2);await assertColumns(page);
+    // 2026-11-10 (C22) a re-check of the same condition that cannot fetch keeps that condition's rows (still current,
+    // so selectable, never dead choices) and offers a retry; rows of a changed condition are covered by the date test.
+    await page.evaluate(()=>dateFixture.failAlways=true);await page.locator('#candidateSearchAction').click();
+    await page.waitForFunction(()=>document.querySelector('#candidateSearchFeedback [role=status]')?.textContent.includes('取得できなかった範囲があります')&&document.getElementById('candidateSearchAction').textContent==='再試行');
+    assert.equal(await page.evaluate(()=>AstroNotesCandidatePicker.visibleRows().length),2,'rows of the current condition stay selectable');assert(await page.locator('#candidateSearchAction').isEnabled());
+    await page.evaluate(()=>dateFixture.failAlways=false);await page.locator('#candidateSearchAction').click();await settled(page,2);await assertColumns(page);
     // Record failures belong to the dedicated record tab, never the new-place panel.
-    await page.evaluate(()=>{window.registeredFailureCalls=0;MyPlacesUI.discoverySearch=async()=>{registeredFailureCalls++;return {rows:[],failed:1};};MyPlacesUI.imported();});
+    // One recorded place so the record tab searches (it runs in the workers since C20; keep it on this page for the stub).
+    await page.evaluate(()=>{globalThis.AstroNotesDiscoveryEngine='page';MyPlacesUI.discoveryPoints=()=>[{place:{id:'registered-failure',name:'登録した地点',latitude:35.692,longitude:139.732,elevation:25,eyeHeightAGL:2},record:{result:'seen'}}];window.registeredFailureCalls=0;MyPlacesUI.discoverySearch=async()=>{registeredFailureCalls++;return {rows:[],failed:1};};MyPlacesUI.imported();});
     await page.locator('#exploreDiscovery-records').click();const registered=page.locator('#exploreRecordedPlaces');
     await page.waitForFunction(()=>registeredFailureCalls===1&&document.getElementById('exploreRecordedPlaces').getAttribute('aria-busy')==='false');
     assert((await registered.innerText()).includes('記録の撮影地点を確認できませんでした'));assert(await registered.getByRole('button',{name:'再試行',exact:true}).isVisible());

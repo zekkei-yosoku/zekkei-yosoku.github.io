@@ -1,6 +1,8 @@
 """2026-11-10 Trial only. PLATEAUを整備した全国の都市（既定。--cities で絞れる）の建物の「上面の高さ」格子を国土交通省 PLATEAU の公式CityGML（2025年度）から作る。
 
   python3 tools/build-plateau-heights.py trial/data/candidate-heights [--jobs 8] [--cities 13101,13102] [--only 53394654,...]
+  python3 tools/build-plateau-heights.py OUT --zip-cities 02321,13421,21201 --catalog-dir SAVED_CATALOGS   目録に無い市の一括zipから
+  python3 tools/build-plateau-heights.py --merge trial/data/building-heights OUT                           その結果を全国の格子へ足す
 
 3次メッシュ（緯度30秒×経度45秒）を 185×225 マス（約5m）に分け、マスに少しでも掛かる建物の一番高い上面の
 標高（T.P.、切り上げ）を持つ。高さは計測高さ（地表から最高点）を使う。LOD1の高さは点群の中央値で低めに出るため、
@@ -23,6 +25,7 @@ TARGETS={'skytree':(35.710063,139.8107),'tokyotower':(35.65859131567304,139.7454
 B='{http://www.opengis.net/citygml/building/2.0}';G='{http://www.opengis.net/gml}'
 
 def fetch(url,tries=5):
+ if url.startswith('zip:'):return zip_read(url,tries),False
  for i in range(tries):
   try:
    req=urllib.request.Request(url,headers={'User-Agent':UA,'Accept-Encoding':'gzip'})
@@ -32,6 +35,68 @@ def fetch(url,tries=5):
   except Exception as e:
    if i==tries-1:raise
    time.sleep(3*(i+1))
+
+# 2026-11-11 Cities whose CityGML the catalog API does not list (鰺ヶ沢町 02321, 小笠原村 13421, 岐阜市 21201 return 404) are
+# published only as one zip per city (岐阜市 4.5 GB with every feature type). The zip's central directory is read from its
+# end and each building file is fetched by byte range, so only the bldg files cross the wire.
+import struct,zlib
+def http_range(url,a,b,tries=5):
+ for i in range(tries):
+  try:
+   req=urllib.request.Request(url,headers={'User-Agent':UA,'Range':f'bytes={a}-{b}' if a>=0 else f'bytes={a}'})
+   with urllib.request.urlopen(req,timeout=300) as r:
+    if r.status!=206:raise IOError(f'range not served ({r.status})')
+    return r.read(),r.headers.get('Content-Range')
+  except Exception:
+   if i==tries-1:raise
+   time.sleep(3*(i+1))
+
+def zip_entries(url):
+ tail,cr=http_range(url,-65557,None);size=int(cr.rsplit('/',1)[1]);base=size-len(tail)
+ e=tail.rfind(b'PK\x05\x06')
+ if e<0:raise IOError('zip end not found')
+ n,cd_size,cd_off=struct.unpack('<HII',tail[e+10:e+20])
+ if cd_off==0xFFFFFFFF or n==0xFFFF or cd_size==0xFFFFFFFF:
+  l=tail.rfind(b'PK\x06\x07',0,e);z64=struct.unpack('<Q',tail[l+8:l+16])[0]
+  rec=tail[z64-base:z64-base+56] if z64>=base else http_range(url,z64,z64+55)[0]
+  n,cd_size,cd_off=struct.unpack('<QQQ',rec[32:56])
+ cd=http_range(url,cd_off,cd_off+cd_size-1)[0];out=[];p=0
+ for _ in range(n):
+  if cd[p:p+4]!=b'PK\x01\x02':raise IOError('bad central directory')
+  method,=struct.unpack('<H',cd[p+10:p+12]);csize,usize=struct.unpack('<II',cd[p+20:p+28]);nl,xl,cl=struct.unpack('<HHH',cd[p+28:p+34]);off,=struct.unpack('<I',cd[p+42:p+46])
+  name=cd[p+46:p+46+nl].decode('utf8','replace');extra=cd[p+46+nl:p+46+nl+xl];q=0
+  while q+4<=len(extra):
+   hid,hl=struct.unpack('<HH',extra[q:q+4]);body=extra[q+4:q+4+hl]
+   if hid==1:
+    vals=list(struct.unpack('<'+'Q'*(hl//8),body[:hl//8*8]));
+    if usize==0xFFFFFFFF:usize=vals.pop(0)
+    if csize==0xFFFFFFFF:csize=vals.pop(0)
+    if off==0xFFFFFFFF:off=vals.pop(0)
+   q+=4+hl
+  out.append({'name':name,'method':method,'csize':csize,'usize':usize,'offset':off});p+=46+nl+xl+cl
+ return out
+
+def zip_read(spec,tries=5):
+ url,entry=spec[4:].split('#',1);e=json.loads(entry)
+ head,_=http_range(url,e['offset'],e['offset']+29,tries)
+ if head[:4]!=b'PK\x03\x04':raise IOError('bad local header')
+ nl,xl=struct.unpack('<HH',head[26:30]);start=e['offset']+30+nl+xl
+ data,_=http_range(url,start,start+e['csize']-1,tries) if e['csize'] else (b'',None)
+ return zlib.decompress(data,-15) if e['method']==8 else data
+
+def zip_cities(codes):
+ """(cities, {mesh: [zip: urls]}) for the given city codes from the published per-city CityGML zips."""
+ body,gz=fetch(API.replace('citygml/','plateau-datasets'));d=json.loads(gzip.decompress(body) if gz else body)
+ cities=[];meshes={}
+ for c in d['citygml']:
+  if c['city_code'] not in codes or 'bldg' not in (c.get('feature_types') or []):continue
+  n=0
+  for e in zip_entries(c['url']):
+   leaf=e['name'].rsplit('/',1)[-1]
+   if '/udx/bldg/' not in '/'+e['name'] or not leaf.endswith('.gml') or not leaf[:8].isdigit():continue
+   meshes.setdefault(leaf[:8],[]).append('zip:'+c['url']+'#'+json.dumps(e,separators=(',',':')));n+=1
+  cities.append({'cityCode':c['city_code'],'cityName':c['city'],'year':c['year']});print('zip',c['city_code'],c['city'],c['year'],'bldg files',n,flush=True)
+ return cities,meshes
 
 def mesh_origin(code):
  p,u,q,v,r,w=int(code[0:2]),int(code[2:4]),int(code[4]),int(code[5]),int(code[6]),int(code[7])
@@ -150,13 +215,27 @@ def main():
  if '--only' in a:only=set(a[a.index('--only')+1].split(','))
  if '--cities' in a:codes=a[a.index('--cities')+1].split(',')
  os.makedirs(out,exist_ok=True)
- codes=codes or city_codes();cities=[];meshes={}
+ # --zip-cities: build only the meshes of those cities' zips, each with every other city's files of the same mesh
+ # (from --catalog-dir, the catalogs saved by a full build), for merging into a full build with merge_into().
+ zipped=a[a.index('--zip-cities')+1].split(',') if '--zip-cities' in a else None
+ catdir=a[a.index('--catalog-dir')+1] if '--catalog-dir' in a else None
+ if catdir and codes is None:codes=sorted(f[:-5] for f in os.listdir(catdir) if f.endswith('.json'))
+ codes=codes if codes is not None else city_codes();cities=[];meshes={}
+ zc,zm=zip_cities(set(zipped)) if zipped else ([],{})
+ if zipped:only=set(zm) if only is None else only&set(zm)
  for c in codes:
-  try:body,gz=fetch(f'{API}{c}?types=bldg',tries=2);cat=json.loads(gzip.decompress(body) if gz else body)
+  if c in (zipped or ()):continue
+  try:
+   if catdir:raw=open(os.path.join(catdir,c+'.json'),'rb').read();cat=json.loads(gzip.decompress(raw) if raw[:2]==b'\x1f\x8b' else raw)
+   else:body,gz=fetch(f'{API}{c}?types=bldg',tries=2);cat=json.loads(gzip.decompress(body) if gz else body)
   except Exception as e:print('catalog unavailable',c,str(e)[:80],flush=True);continue
   for city in cat.get('cities',[]):
+   files=[f for f in city['files'].get('bldg',[]) if not only or f['code'] in only]
+   if zipped and not files:continue
    cities.append({'cityCode':city['cityCode'],'cityName':city['cityName'],'year':city['year']})
-   for f in city['files'].get('bldg',[]):meshes.setdefault(f['code'],[]).append(f['url'])
+   for f in files:meshes.setdefault(f['code'],[]).append(f['url'])
+ cities+=zc
+ for k,v in zm.items():meshes.setdefault(k,[]).extend(v)
  todo=sorted((k,v) for k,v in meshes.items() if not only or k in only)
  print('cities',len(cities),'meshes',len(todo),'files',sum(len(v) for _,v in todo),flush=True)
  index={'format':'AstroNotes PLATEAU top heights v2','built':time.strftime('%Y-%m-%d'),
@@ -189,4 +268,28 @@ def main():
  with open(os.path.join(out,'build-report.json'),'w') as f:json.dump({'parts':report,'failed':failed,'seconds':round(time.time()-t0)},f,ensure_ascii=False,separators=(',',':'))
  print('meshes',sum(len(v) for v in parts.values()),'bytes',sum(r['bytes'] for r in report.values()),'wire',sum(r['wireBytes'] for r in report.values()),'failed',len(failed),'targets',{k:list(v) for k,v in index['targets'].items()})
 
-if __name__=='__main__':main()
+def merge_into(full,add):
+ """Add the meshes of a --zip-cities build (add) to a full build (full): mesh files, part indexes, cities, report."""
+ F=json.load(open(os.path.join(full,'index.json')));A=json.load(open(os.path.join(add,'index.json')))
+ for part in A['parts']:
+  ms=json.load(open(os.path.join(add,part,'index.json')))['meshes'];os.makedirs(os.path.join(full,part),exist_ok=True)
+  p=os.path.join(full,part,'index.json');cur=json.load(open(p))['meshes'] if os.path.exists(p) else {}
+  for code,v in ms.items():
+   with open(os.path.join(add,part,code+'.bin'),'rb') as src,open(os.path.join(full,part,code+'.bin'),'wb') as dst:dst.write(src.read())
+   cur[code]=v
+  data=json.dumps({'meshes':dict(sorted(cur.items()))},separators=(',',':')).encode()
+  with open(p,'wb') as f:f.write(data)
+  F['parts'][part]=[hashlib.sha256(data).hexdigest()[:16],len(cur),max((v[1] or 0) for v in cur.values())]
+ F['parts']=dict(sorted(F['parts'].items()))
+ have={c['cityCode'] for c in F['cities']};F['cities']=sorted(F['cities']+[c for c in A['cities'] if c['cityCode'] not in have],key=lambda c:c['cityCode'])
+ for k,v in A['targets'].items():F['targets'].setdefault(k,{}).update(v)
+ F['built']=time.strftime('%Y-%m-%d')
+ with open(os.path.join(full,'index.json'),'w') as f:json.dump(F,f,ensure_ascii=False,separators=(',',':'))
+ R=json.load(open(os.path.join(full,'build-report.json')));AR=json.load(open(os.path.join(add,'build-report.json')))
+ R.setdefault('added',[]).append({'cities':[c['cityCode'] for c in A['cities']],'meshes':sum(v['meshes'] for v in AR['parts'].values()),'failed':AR['failed'],'seconds':AR['seconds']})
+ with open(os.path.join(full,'build-report.json'),'w') as f:json.dump(R,f,ensure_ascii=False,separators=(',',':'))
+ print('merged',sum(len(json.load(open(os.path.join(add,p,'index.json')))['meshes']) for p in A['parts']),'meshes into',full)
+
+if __name__=='__main__':
+ if sys.argv[1]=='--merge':merge_into(sys.argv[2],sys.argv[3])
+ else:main()
