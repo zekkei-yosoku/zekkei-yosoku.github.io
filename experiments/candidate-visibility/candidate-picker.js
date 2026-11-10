@@ -29,8 +29,10 @@ function candidateKey(row){
 function compare(a,b,sort='recommended'){
  let primary=0;
  if(sort==='recommended'){
+  // Looking up steeply from close by comes after level views from further away (90% of recorded shots are below 11.5 deg).
+  const steep=r=>Number(r.quality?.targetAngleDeg>12);
   primary=(photoOrder[a.row.quality?.photographyClass]??3)-(photoOrder[b.row.quality?.photographyClass]??3)
-   ||placePriority(a.types)-placePriority(b.types)||rankCompare(a.row,b.row);
+   ||steep(a.row)-steep(b.row)||placePriority(a.types)-placePriority(b.types)||rankCompare(a.row,b.row);
  }else{
   const key=sort.replace(/-desc$/,''),direction=sort.endsWith('-desc')?-1:1;
   primary=direction*(key==='name'?String(a.row.place?.name||'').localeCompare(String(b.row.place?.name||''),'ja',{numeric:true}):key==='kind'?Object.keys(names).indexOf(a.types[0])-Object.keys(names).indexOf(b.types[0]):a.row.event.at-b.row.event.at);
@@ -51,7 +53,7 @@ let visibleEntries=[],selectedId=null,mapPanel=null,mapInstance=null,mapMode=fal
 const columns='minmax(0,1fr) 56px 76px';
 const day=at=>globalThis.AstroNotesCandidateDiscovery?.day(at)??Math.floor((at+32400000)/86400000)*86400000-32400000;
 const clockText=at=>Number.isFinite(at)?new Date(at+32400000).toISOString().slice(11,16):'時刻未確認';
-const uncertainty=row=>[row.quality?.visibility==='unknown'?'見通し未確認':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
+const uncertainty=row=>[row.quality?.visibility==='unknown'?'見通し未確認':'',row.quality?.buildingHeights==='estimated'?'建物の高さは推定':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
 function configure(value){if(typeof value==='function')loadLabels=value;else if(value){ports={...ports,...value};if(typeof value.loadLabels==='function')loadLabels=value.loadLabels;}}
 function planKey(plan){return typeof ports.requestKey==='function'?ports.requestKey(plan):JSON.stringify([plan.requestKey,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,plan.composition,plan.compositionInvalid,plan.timeSpec||null,day(plan.at),plan.atmosphere,plan.cameraHeight]);}
 function formatRow(node,row,types){

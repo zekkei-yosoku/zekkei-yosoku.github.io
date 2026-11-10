@@ -16,7 +16,11 @@ function regionsFor(seeds){
   for(let x=cx-nx;x<=cx+nx;x++)for(let y=cy-ny;y<=cy+ny;y++){
    const bbox=[x*size,y*size,(x+1)*size,(y+1)*size];if(bbox[0]<-180||bbox[2]>180||bbox[1]<-85||bbox[3]>85)continue;
    const near=Math.hypot(((x+.5)*size-seed.longitude)*Math.cos(seed.latitude*Math.PI/180),(y+.5)*size-seed.latitude)*111195;
-   const priority=(seed.priority||0)+near/radius,id=x+','+y;
+   // A low body is seen from far away, nearly level; a high one only from close by, looking up.
+   // Recorded shots centre on 2-6 deg (median 2.9, 75% under 5.8). Below 2 deg the line rises
+   // under 35 m per km, so the first house in front decides; those seeds come after the 2-6 deg band.
+   const alt=Math.max(0,seed.bodyAltitude||0),preferAngle=alt<2?(2-alt)*1.5:alt<6?0:(alt-6)/4;
+   const priority=(seed.priority||0)+near/radius+preferAngle,id=x+','+y;
    const previous=map.get(id);if(!previous||priority<previous.priority)map.set(id,{id,bbox,priority,source:'inverse-celestial-rays',seedAt:seed.at,seedRadiusM:radius,localEnvelopeIncomplete:dx>3*size||dy>3*size});
   }
  }
@@ -24,7 +28,7 @@ function regionsFor(seeds){
 }
 function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=()=>new Promise(r=>setTimeout(r,0))}={}){
  const sessions=new Map();
- const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,counts:{checked:0,unknown:0,blocked:0,noOverlap:0,deferred:0},coverage:[],busy:false});
+ const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,outsideFrame:0,deferred:0},coverage:[],busy:false});
  // Rechecking the same conditions replaces only working progress. The last
  // complete result remains available when a recheck fails or is cancelled.
  function restart(plan){const key=requestKey(plan),previous=sessions.get(key);if(previous?.busy&&previous.current?.()!==false)return false;if(previous)sessions.set(key,fresh(key,previous.inverse,previous.lastResult));return true;}
@@ -75,7 +79,9 @@ function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPoints
     if(!wanted())return {cancelled:true};
     session.queue.shift();count++;session.counts.checked++;
     if(tested.partial)session.counts.deferred++;
-    if(tested.status==='model-blocked')session.counts.blocked++;else if(tested.status==='no-overlap')session.counts.noOverlap++;else if(!tested.recommend)session.counts.unknown++;
+    if(tested.status==='model-blocked')session.counts.blocked++;else if(tested.status==='no-overlap')session.counts.noOverlap++;
+    else if(tested.status==='unverified'){session.counts.unverified++;if(tested.heightUnknown)session.counts.heightUnknown++;if(tested.nearBuilding)session.counts.nearBuilding++;}
+    else if(tested.status==='outside-frame')session.counts.outsideFrame++;else if(!tested.recommend)session.counts.unknown++;
     for(const row of [tested,...tested.additionalCandidates||[]]){
      if(!row.recommend||!allowedPoint(row.place)||!Number.isFinite(row.event?.at))continue;
      const range=Composition.timeRange(plan);if(!range||row.event.at<range.start||row.event.at>range.end)continue;

@@ -10,8 +10,9 @@ const M=require('./experiments/candidate-visibility/model-evaluator.js'),A=requi
 const dem=value=>Array(65536).fill(value).join(',');
 
 test('live DEM preserves missing pixels, true zero, lower-resolution provenance and retries',async()=>{
- let calls=0;const t=createLive({geo:G,fetchImpl:async url=>{calls++;return {ok:true,text:async()=>dem(url.includes('dem10b')?'0':'e')};}});
- const s=await t.sample({latitude:35,longitude:139});assert.equal(s.height,0);assert.equal(s.layer,'dem10b');assert.equal(calls,4);
+ let calls=0;const t=createLive({geo:G,fetchImpl:async url=>{calls++;return {ok:true,text:async()=>dem(url.includes('/dem/')?'0':'e')};}});
+ // GSI names the 10 m layer "dem" (xyz/dem/14); "dem10b" is not served (404).
+ const s=await t.sample({latitude:35,longitude:139});assert.equal(s.height,0);assert.equal(s.layer,'dem');assert(!/dem10b/.test(String(t.stats?.())));assert.equal(calls,4);
  await t.sample({latitude:35,longitude:139});assert.equal(calls,4);
  const unknown=createLive({geo:G,fetchImpl:async()=>({ok:true,text:async()=>dem('e')})});assert.equal((await unknown.sample({latitude:35,longitude:139})).height,null);
  let failed=true;const retry=createLive({geo:G,fetchImpl:async()=>{if(failed)throw Error('offline');return {ok:true,text:async()=>dem('12')};}});assert.equal((await retry.sample({latitude:35,longitude:139})).height,null);failed=false;assert.equal((await retry.sample({latitude:35,longitude:139})).height,12);
@@ -43,9 +44,14 @@ const bodies={definition:id=>({id,limbs:['sun','moon'].includes(id)}),ensure:asy
 const plan={target,body:'moon',at:0,timeSpec:{kind:'instant',at:0},partId:'tip'};
 const point={latitude:35,longitude:139,groundM:50,surfaceAglM:20,surfaceElevationM:70,eyeM:1.5,standingSurfaceKnown:true,accessKnown:false,surfaceId:'deck',placeKind:'viewpoint',nonTerrainStructure:true,surfaceHeightM:20};
 const unknownTerrain={at:async()=>50,trace:async()=>({status:'unknown',missing:1})};
-test('arbitrary anchor survives missing building model with explicit unknown quality and correct floor height',async()=>{
- const model=createGeneric({align,bodies,geo:G,terrain:unknownTerrain,yieldTask:async()=>{}}),r=await model.evaluate(plan,point,{});
- assert(r.recommend);assert.equal(r.status,'geometry-only');assert.equal(r.quality.visibility,'unknown');assert.equal(r.assumedObserver.elevation,70);assert.equal(r.place.groundManualM,50);assert.equal(r.place.standAglM,21.5);assert.deepEqual(r.place.decks,[]);assert.equal(r.event.at,0);
+// A clear line needs every part known: terrain, building heights and the target's outline.
+const openTerrain={at:async()=>50,trace:async()=>({status:'model-clear',checked:1,missing:0})},openHeights={trace:async()=>({status:'clear',heights:'plateau'})};
+const outlined={...align,towerOutline:()=>({known:true,polygons:[[[-.001,0],[.001,0],[.001,10],[-.001,10]]]})};
+test('an unconfirmed line is not a candidate; a confirmed one keeps the arbitrary anchor and floor height',async()=>{
+ const unknown=await createGeneric({align,bodies,geo:G,terrain:unknownTerrain,yieldTask:async()=>{}}).evaluate(plan,point,{});
+ assert.equal(unknown.recommend,false);assert.equal(unknown.status,'unverified');
+ const model=createGeneric({align:outlined,bodies,geo:G,terrain:openTerrain,heights:openHeights,yieldTask:async()=>{}}),r=await model.evaluate(plan,point,{});
+ assert(r.recommend);assert.equal(r.status,'model-visible');assert.equal(r.quality.visibility,'model-clear');assert.equal(r.quality.buildingHeights,'plateau');assert.equal(r.quality.targetAngleDeg,10);assert.equal(r.assumedObserver.elevation,70);assert.equal(r.place.groundManualM,50);assert.equal(r.place.standAglM,21.5);assert.deepEqual(r.place.decks,[]);assert.equal(r.event.at,0);
  assert.equal((await model.evaluate(plan,{...point,access:'private'},{})).recommend,false);
 });
 test('a point star hidden by the actual outline cannot be recommended as a visible alignment',async()=>{
@@ -54,7 +60,8 @@ test('a point star hidden by the actual outline cannot be recommended as a visib
 });
 test('terrain behind the target is evaluated for the celestial rays',async()=>{
  const lengths=[],terrain={at:async()=>50,trace:async(o,r)=>{lengths.push(r.maxM);return r.endpoint?{status:'model-clear'}:{status:'blocked',hit:{distanceM:2000}};}};
- const model=createGeneric({align,bodies,geo:G,terrain,yieldTask:async()=>{}});assert.equal((await model.evaluate(plan,point,{})).recommend,false);assert(lengths.some(m=>m>1000));
+ // The sky lines are traced once the line to the target itself is confirmed.
+ const model=createGeneric({align:outlined,bodies,geo:G,terrain,heights:openHeights,yieldTask:async()=>{}});assert.equal((await model.evaluate(plan,point,{})).recommend,false);assert(lengths.some(m=>m>1000));
 });
 test('FOV uses actual sensor, rotation and crop without changing celestial geometry',()=>{
  const geometry=align.geometryFrom(),state={azimuth:2,apparentAltitude:10,angularRadius:.25},p={...plan,lens:{mode:'required',sensorWidth:36,sensorHeight:24,focal:200,targetExtent:'anchor'}};
@@ -131,19 +138,29 @@ test('scene FOV shares the renderer target-centred window and normalized pan rat
  const expected=A.viewUnprojector(win.az0,win.alt0)(-2*halfH*1.1*.1,2*halfH*.2);assert(Math.abs(moved.axis.azimuth-expected[0])<1e-10);assert(Math.abs(moved.axis.altitude-expected[1])<1e-10);
 });
 test('secondary targets use the primary camera axis and cannot each centre a different photograph',async()=>{
- const extra={...target,id:'second',longitude:139.01},testAlign={...align,geometryFrom:(o,t)=>({azimuth:t.id==='second'?5.2:0,angle:10,topM:110,distanceKm:1})},testBodies={...bodies,state:()=>({azimuth:.5,apparentAltitude:10,angularRadius:.25})};
- const model=createGeneric({align:testAlign,bodies:testBodies,geo:G,terrain:unknownTerrain,yieldTask:async()=>{}}),p={...plan,extraTargets:[extra],lens:{mode:'required',sensorWidth:36,sensorHeight:24,focal:36/(10*Math.PI/180),targetExtent:'anchor'}};
+ const extra={...target,id:'second',longitude:139.01},testAlign={...outlined,geometryFrom:(o,t)=>({azimuth:t.id==='second'?5.2:0,angle:10,topM:110,distanceKm:1})},testBodies={...bodies,state:()=>({azimuth:.5,apparentAltitude:10,angularRadius:.25})};
+ const model=createGeneric({align:testAlign,bodies:testBodies,geo:G,terrain:openTerrain,heights:openHeights,yieldTask:async()=>{}}),p={...plan,extraTargets:[extra],lens:{mode:'required',sensorWidth:36,sensorHeight:24,focal:36/(10*Math.PI/180),targetExtent:'anchor'}};
  const optional=await model.evaluate(p,point,{});assert(optional.recommend);assert.equal(optional.extraTargets[0].frame.status,'outside');assert.deepEqual(optional.extraTargets[0].frame.axis,optional.frame.axis);
  const required=await model.evaluate({...p,requireAllTargets:true},point,{});assert.equal(required.recommend,false);assert.equal(required.status,'outside-frame');
 });
 test('secondary obstruction is evaluated at the same event and observer; required blocked target is excluded',async()=>{
  const extra={...target,id:'second',longitude:139.01},seen=[],terrain={...clearTerrain,trace:async(o,r)=>{seen.push({observer:o,ray:r});return r.endpoint?.longitude===extra.longitude?{status:'blocked',hit:{distanceM:500}}:{status:'model-clear',checked:1,missing:0};}};
- const model=createGeneric({align,bodies,geo:G,terrain,yieldTask:async()=>{}}),p={...plan,extraTargets:[extra]};
- const r=await model.evaluate(p,point,{});assert(r.recommend);assert.equal(r.extraTargets[0].visibility,'blocked');assert.equal(r.extraTargets[0].at,r.event.at);assert.equal(r.extraTargets[0].observer.elevation,r.assumedObserver.elevation);assert(seen.some(x=>x.ray.endpoint?.longitude===extra.longitude));assert.equal(r.status,'geometry-only');
+ const model=createGeneric({align:outlined,bodies,geo:G,terrain,heights:openHeights,yieldTask:async()=>{}}),p={...plan,extraTargets:[extra]};
+ const r=await model.evaluate(p,point,{});assert(r.recommend);assert.equal(r.extraTargets[0].visibility,'blocked');assert.equal(r.extraTargets[0].at,r.event.at);assert.equal(r.extraTargets[0].observer.elevation,r.assumedObserver.elevation);assert(seen.some(x=>x.ray.endpoint?.longitude===extra.longitude));assert.equal(r.status,'visible-partial');
  assert.equal((await model.evaluate({...p,requireAllTargets:true},point,{})).status,'model-blocked');
 });
+test('a point whose line to the target top is blocked or unconfirmed is ruled out before any event search',async()=>{
+ const seen=[],heights=status=>({trace:async(o,ray)=>{seen.push(ray);return {status,reason:status==='unknown'?'building-height-unknown':null};}});
+ const blocked=await createGeneric({align:outlined,bodies,geo:G,terrain:openTerrain,heights:heights('blocked'),yieldTask:async()=>{}}).evaluate(plan,point,{});
+ assert.equal(blocked.status,'model-blocked');assert.equal(blocked.reason,'target-line-blocked');assert.equal(seen.length,1);assert.equal(seen[0].endpoint.elevation,110);assert.equal(seen[0].targetKey,target.id);
+ const unknown=await createGeneric({align:outlined,bodies,geo:G,terrain:openTerrain,heights:heights('unknown'),yieldTask:async()=>{}}).evaluate(plan,point,{});
+ assert.equal(unknown.status,'unverified');assert.equal(unknown.heightUnknown,true);
+ // A composition may move the observer over its surface, so its events are still searched.
+ const moved=await createGeneric({align:outlined,bodies,geo:G,terrain:openTerrain,heights:heights('blocked'),yieldTask:async()=>{}}).evaluate({...plan,strict:true},point,{});
+ assert.notEqual(moved.reason,'target-line-blocked');
+});
 test('a valid absolute or AGL standing height does not depend on the deprecated surfaceHeightM alias',async()=>{
- const model=createGeneric({align,bodies,geo:G,terrain:unknownTerrain,yieldTask:async()=>{}}),p={...point};delete p.surfaceHeightM;
+ const model=createGeneric({align:outlined,bodies,geo:G,terrain:openTerrain,heights:openHeights,yieldTask:async()=>{}}),p={...point};delete p.surfaceHeightM;
  const r=await model.evaluate(plan,p,{});assert(r.recommend);assert.equal(r.assumedObserver.elevation,70);assert.equal(r.place.standAglM,21.5);
 });
 test('surface movement rechecks actual areas, drops the old park label and refuses private, water, unknown roof/building or unfetched positions',()=>{
@@ -156,9 +173,10 @@ test('surface movement rechecks actual areas, drops the old park label and refus
  for(const lon of [139.0065,139.0085,139.0098,139.0052,139.03])assert.equal(at(lon),false);
 });
 
-test('existing camera settings retain unknown whole-target framing without certifying it',async()=>{
- const model=createGeneric({align,bodies,geo:G,terrain:unknownTerrain,yieldTask:async()=>{}}),lens={mode:'evaluate',sensorWidth:36,sensorHeight:24,focal:200,targetExtent:'whole'};
- const r=await model.evaluate({...plan,lens},point,{});assert(r.recommend);assert.equal(r.frame.status,'unknown');assert.equal(r.quality.frame,'unknown');assert.equal(r.status,'geometry-only');
+test('an unknown whole-target outline is never certified: neither its framing nor the line past it',async()=>{
+ // Without the outline, rays beside the target cannot be told from rays through it, so the line stays unconfirmed.
+ const model=createGeneric({align,bodies,geo:G,terrain:openTerrain,heights:openHeights,yieldTask:async()=>{}}),lens={mode:'evaluate',sensorWidth:36,sensorHeight:24,focal:200,targetExtent:'whole'};
+ const r=await model.evaluate({...plan,lens},point,{});assert.equal(r.recommend,false);assert.equal(r.status,'unverified');
  const required=await model.evaluate({...plan,lens:{...lens,mode:'required'}},point,{});assert(!required.recommend);
 });
 
