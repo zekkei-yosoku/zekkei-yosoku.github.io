@@ -7246,9 +7246,10 @@ async function discover(input){
  if(!input.plan||typeof input.plan.target!=='object'||!Array.isArray(input.entries)||!input.entries.length||input.entries.length>64)throw Error('invalid discovery input');
  favorites=Array.isArray(input.favorites)?input.favorites:[];AstroNotesAtmosphere.resetSnapshot();
  recordGeometry.collect=false;recordGeometry.used=new Map();
- const started=performance.now(),before=recordSearchSession?.far||0;
- const value=await recordSearch(input.plan,input.entries,{isCurrent:()=>true,variant:'discovery'});
- return {...value,far:(recordSearchSession?.far||0)-before,calculationMs:performance.now()-started};
+ const started=performance.now(),before=recordSearchSession?.far||0,results=[];
+ // One result per place, as if each were sent alone (several are sent together to save round trips).
+ for(const entry of input.entries)results.push(await recordSearch(input.plan,[entry],{isCurrent:()=>true,variant:'discovery'}));
+ return {results,far:(recordSearchSession?.far||0)-before,calculationMs:performance.now()-started};
 }
 // Private fixture verification only; the daemon never dispatches this operation.
 async function reference(input){

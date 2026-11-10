@@ -2535,11 +2535,13 @@ async function recordEngineDiscover(plan,points,isCurrent,onProgress){
  // previous days (a place sent to another worker would read every terrain tile again).
  const queues=Array.from({length:opportunityEngineSlots()},()=>[]);
  for(const i of remote)queues[parseInt(recordHash(points[i].place.discoveryKey||points[i].place.id||String(i)).slice(0,8),16)%queues.length].push(i);
+ // Places go in groups of 8: on an iPhone each round trip to a worker costs about 0.1 s.
  const lane=async(queue,slot)=>{
-  for(const i of queue){
+  for(let k=0;k<queue.length;k+=8){
    if(broken||!live())return;
-   try{results[i]=await opportunityEngineSolve({...base,favorites:favoritesFor(points[i]),entries:[points[i]]},'discover',slot);}catch(e){broken=e;return;}
-   done(i);
+   const group=queue.slice(k,k+8),own=[...new Set(group.flatMap(i=>favoritesFor(points[i])))];
+   try{const r=await opportunityEngineSolve({...base,favorites:own,entries:group.map(i=>points[i])},'discover',slot);if(!Array.isArray(r?.results)||r.results.length!==group.length)throw Error('discovery result');group.forEach((i,n)=>{results[i]=r.results[n];});}catch(e){broken=e;return;}
+   for(const i of group)done(i);
   }
  };
  recordDiscoveryBusy++;try{await Promise.all(queues.map(lane));}finally{recordDiscoveryBusy--;opportunityDevicePump();}
