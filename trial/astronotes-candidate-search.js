@@ -176,7 +176,7 @@ return {decode};
 'use strict';
 const api=root.AstroNotesCandidateTerrain||(typeof require==='function'?require('./terrain-model.js'):null);
 const RAD=Math.PI/180,R=6371008.8;
-function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96,timeoutMs=7000,maxDurationMs=35000}={}){
+function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96,timeoutMs=7000,maxDurationMs=35000,layers=[['dem5a',15],['dem5b',15],['dem5c',15],['dem',14]]}={}){
  const cache=new Map();let fetched=0,started=Date.now();
  const pixel=(p,z)=>[(p.longitude+180)/360*256*2**z,(1-Math.asinh(Math.tan(p.latitude*RAD))/Math.PI)/2*256*2**z];
  async function tile(layer,z,x,y,options){
@@ -207,7 +207,7 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
  async function sample(point,options={}){
   if(!Number.isFinite(point?.latitude)||!Number.isFinite(point?.longitude)||Math.abs(point.latitude)>=85)return {height:null,reason:'invalid-dem-position'};
   let reason='missing-dem';
-  for(const [layer,z]of [['dem5a',15],['dem5b',15],['dem5c',15],['dem',14]]){
+  for(const [layer,z]of layers){
    const [px,py]=pixel(point,z),x=Math.floor(px/256),y=Math.floor(py/256),data=await tile(layer,z,x,y,options);
    if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
    if(data.missing){reason=data.reason;if(reason==='terrain-budget')break;continue;}
@@ -1847,9 +1847,10 @@ function loaded(name){if(!cachedData.has(name)){const ctrl=new AbortController()
 const loadLabels=async()=>{const [addresses,facilities]=await Promise.all(['candidate-label-addresses.json','candidate-label-facilities.json'].map(n=>loaded(n).catch(()=>null)));return {addresses,facilities};};
 const filterKey=p=>JSON.stringify([p.owner,p.body,p.target,p.partId,p.limb,p.matchMode]);
 AstroNotesCandidatePicker.configure({loadLabels,createMapView,filterKey,getScroller:()=>mainWorkspace()?.scroller(),getReturnScroll:()=>mainWorkspace()?.returnScroll?.(),onRendered:count=>mainWorkspace()?.restoreScroll(count),requestKey:p=>AstroNotesCandidateDiscovery.requestKey(p)});
-const live=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain});
- // Ground under GSI footprints the height grid lacks: its own tile budget, so it never starves the sight-line terrain.
- const footprintGround=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxTiles:160});
+const live=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxDurationMs:120000});
+ // Ground under GSI footprints the height grid lacks: the 10 m DEM (a building's base, not a sight line) on its own
+ // tile budget, so it never starves the sight-line terrain. A search step longer than 35 s no longer runs out of time.
+ const footprintGround=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxTiles:160,maxDurationMs:120000,layers:[['dem',14]]});
 const groundPort={...AstroNotesTerrain,resetBudget:()=>live.resetBudget(),groundElevation:async(lat,lon,options={})=>{const r=await live.sample({latitude:lat,longitude:lon},options);return options.withSource?(Number.isFinite(r.height)?{elevation:r.height,source:r.layer}:null):r.height;}};
 const provider=AstroNotesCandidateDiscovery.createPlaceProvider({terrain:groundPort,fetchImpl:fetch.bind(globalThis),loadViewpoints:()=>loaded('candidate-viewpoints.json')});
 let modelPromise=null;

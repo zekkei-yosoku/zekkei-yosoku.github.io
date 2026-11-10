@@ -3,7 +3,7 @@
 'use strict';
 const api=root.AstroNotesCandidateTerrain||(typeof require==='function'?require('./terrain-model.js'):null);
 const RAD=Math.PI/180,R=6371008.8;
-function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96,timeoutMs=7000,maxDurationMs=35000}={}){
+function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96,timeoutMs=7000,maxDurationMs=35000,layers=[['dem5a',15],['dem5b',15],['dem5c',15],['dem',14]]}={}){
  const cache=new Map();let fetched=0,started=Date.now();
  const pixel=(p,z)=>[(p.longitude+180)/360*256*2**z,(1-Math.asinh(Math.tan(p.latitude*RAD))/Math.PI)/2*256*2**z];
  async function tile(layer,z,x,y,options){
@@ -34,7 +34,7 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
  async function sample(point,options={}){
   if(!Number.isFinite(point?.latitude)||!Number.isFinite(point?.longitude)||Math.abs(point.latitude)>=85)return {height:null,reason:'invalid-dem-position'};
   let reason='missing-dem';
-  for(const [layer,z]of [['dem5a',15],['dem5b',15],['dem5c',15],['dem',14]]){
+  for(const [layer,z]of layers){
    const [px,py]=pixel(point,z),x=Math.floor(px/256),y=Math.floor(py/256),data=await tile(layer,z,x,y,options);
    if(options.isCurrent?.()===false)throw Error('candidate-cancelled');
    if(data.missing){reason=data.reason;if(reason==='terrain-budget')break;continue;}
