@@ -119,7 +119,9 @@ async function aimShootingView(obs, target, body, partId, matchMode, indexed=fal
 export function patchIndexedRidgeRecordSearch(source) {
   source=patch(source,'const viewFor=(obs,p)=>{','const viewFor=(obs,p,indexed=false)=>{');
   source=patch(source,"if(p.matchMode==='overlap'&&aimIsMountain(p.target)){",`if(p.matchMode==='overlap'&&aimIsMountain(p.target)){
-   if(indexed&&p.target.id==='fuji')return aimShootingView(obs,p.target,p.body,p.partId,p.matchMode,true);`);
+   if(indexed&&p.target.id==='fuji'&&variant!=='discovery')return aimShootingView(obs,p.target,p.body,p.partId,p.matchMode,true);`);
+  // 探す (discovery) keeps each position's summit cap; the same indexed cap for Fuji as below.
+  source=patch(source,"if(variant==='discovery')return recordMountainView(session,shaped,obs,p,false);","if(variant==='discovery')return recordMountainView(session,shaped,obs,p,indexed&&p.target.id==='fuji');");
   source=patch(source,'ensure:b=>AstroNotesBodies.ensure(b),viewFor,yieldTask:recordSearchYield',
     'ensure:b=>AstroNotesBodies.ensure(b),viewFor,fixedViewFor:(obs,p)=>viewFor(obs,p,true),yieldTask:recordSearchYield');
   return patch(source,'const normal={align,isMountain,observerAt,elevationAt,ensure,viewFor,yieldTask:',

@@ -26,6 +26,7 @@ import {createHash} from 'node:crypto';
 import {overlapCandidateSearch,overlapExploreController,overlapHtml,overlapMyplaces} from './build-overlap-scope.mjs';
 import {patchSilhouetteOutline} from './build-overlap-silhouette.mjs';
 import {patchVisibleBest} from './build-overlap-visible.mjs';
+import {patchOutlineBounds,patchAtmosphereSources} from './build-overlap-bounds.mjs';
 const patch=(s,from,to)=>{if(!s.includes(from))throw Error('Trial source boundary changed: '+from);return s.replace(from,to);};
 const read=p=>{
  let s=explorePlaceSource(p,readFileSync(p,'utf8'));if(!p.endsWith('/features/explore/controller.js'))return s;
@@ -53,7 +54,7 @@ trialMyplaces=recordTransferMyplaces(trialMyplaces);
 trialMyplaces=recordSortMyplaces(trialMyplaces);
 trialMyplaces=patch(trialMyplaces,'window.MyPlacesUI = {',''+registeredDiscoveryMethods+'\nwindow.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision,');
 trialMyplaces=patch(trialMyplaces,'function changed() {',"function changed() {\n document.dispatchEvent(new Event('astronotes-records-change'));");
-const trialAlign=patchVisibleBest(patchSilhouetteOutline(patchPreparedOutlineRetention(patchAlignHeightGeometry(patchExactPolygonDistance(patchExactGeometry(patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge')))))));const trialAtmosphere=patchAtmosphereHeightBounds(readFileSync('astronotes-atmosphere.js','utf8'));
+const trialAlign=patchOutlineBounds(patchVisibleBest(patchSilhouetteOutline(patchPreparedOutlineRetention(patchAlignHeightGeometry(patchExactPolygonDistance(patchExactGeometry(patch(readFileSync('astronotes-align.js','utf8'),'rimOutline, judge','rimOutline, rimPoints, judge'))))))));const trialAtmosphere=patchAtmosphereSources(patchAtmosphereHeightBounds(readFileSync('astronotes-atmosphere.js','utf8')));
 const files={
  'astronotes-terrain.js':patchIndexedRidgeTerrain(patchNativeGroundPoint(patchExactRidgeTerrain(patchExactTerrain(readFileSync('astronotes-terrain.js','utf8'))))),
  'astronotes-astro.js':patchExactEphemeris(readFileSync('astronotes-astro.js','utf8')),

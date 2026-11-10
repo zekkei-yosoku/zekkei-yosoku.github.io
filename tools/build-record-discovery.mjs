@@ -158,5 +158,8 @@ function discoveryPoints(){
  return out;
 }
 function discoveryRevision(){return version;}
-function discoverySearch(plan,points,isCurrent,terrainCache,onProgress){return recordSearch(plan,points,{isCurrent,terrainCache,onProgress});}
+async function discoverySearch(plan,points,isCurrent,terrainCache,onProgress){
+ if(!terrainCache){const value=await recordEngineDiscover(plan,points,isCurrent,onProgress);if(value)return value;}
+ return recordSearch(plan,points,{isCurrent,terrainCache,onProgress});
+}
 `;

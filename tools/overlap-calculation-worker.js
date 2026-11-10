@@ -49,8 +49,8 @@
   if(message?.type!==channel||!Number.isSafeInteger(message.id))return;
   tail=tail.then(async()=>{
    try{
-    if(message.op!=='solve')throw Error('unknown operation');
-    postMessage({type:channel,id:message.id,result:await globalThis.__overlap.solve(message.input)});
+    if(message.op!=='solve'&&message.op!=='discover')throw Error('unknown operation');
+    postMessage({type:channel,id:message.id,result:await globalThis.__overlap[message.op](message.input)});
    }catch(error){postMessage({type:channel,id:message.id,error:String(error?.message||error)});}
   });
  });

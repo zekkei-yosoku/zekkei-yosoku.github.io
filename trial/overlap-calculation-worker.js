@@ -1,4 +1,4 @@
-const OVERLAP_ENGINE='995697a055323df25c5ad943aaee95aa8d4ed046a4afe2bd82794007530a9bc3',OVERLAP_SOURCE='overlap-calculation-worker-engine.js?v=153181613a7f9425';
+const OVERLAP_ENGINE='1005cd97b383eef436c1d1052ca217ac68da2c510ea536bbc21f77e9633eff27',OVERLAP_SOURCE='overlap-calculation-worker-engine.js?v=1569f561177dfdf4';
 // Runs the same geometric overlap engine as overlap-calculation.html, but in a
 // dedicated worker so several pairs are checked at once on separate cores.
 // build-preview.py prepends OVERLAP_ENGINE (SHA-256) and OVERLAP_SOURCE.
@@ -50,8 +50,8 @@ const OVERLAP_ENGINE='995697a055323df25c5ad943aaee95aa8d4ed046a4afe2bd8279400753
   if(message?.type!==channel||!Number.isSafeInteger(message.id))return;
   tail=tail.then(async()=>{
    try{
-    if(message.op!=='solve')throw Error('unknown operation');
-    postMessage({type:channel,id:message.id,result:await globalThis.__overlap.solve(message.input)});
+    if(message.op!=='solve'&&message.op!=='discover')throw Error('unknown operation');
+    postMessage({type:channel,id:message.id,result:await globalThis.__overlap[message.op](message.input)});
    }catch(error){postMessage({type:channel,id:message.id,error:String(error?.message||error)});}
   });
  });

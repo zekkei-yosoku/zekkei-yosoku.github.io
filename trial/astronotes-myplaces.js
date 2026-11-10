@@ -226,12 +226,12 @@ function renderRecordsHub() {
   if (!auth?.token || !toolAllowed('records')) return;
   // 2026-10-20 ユーザー「不要な説明は消しといて」：冒頭の使い方の一文は出さない（タブ名と中身で分かる）
   const actions = document.createElement('div'); actions.className = 'my-head';
-  const add = document.createElement('button'); add.type = 'button'; add.className = 'chip my-add-point'; add.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';add.setAttribute('aria-label','記録を追加');add.title='記録を追加';
+  const add = document.createElement('button'); add.type = 'button'; add.className = 'chip my-add-point'; add.textContent = '追加';add.setAttribute('aria-label','記録を追加');add.title='記録を追加';
   add.onclick = () => { if (auth?.token && toolAllowed('records')) openPlace(null,'records'); };
   if (toolAllowed('skymap')) { const map = document.createElement('button'); map.type = 'button'; map.className = 'chip'; map.textContent = '地図';map.setAttribute('aria-label','地図で場所を探す'); map.onclick = () => navigationHistory.pushRoute('#/skymap'); actions.append(map); }
   // 2026-10-21 ＋は撮影地点の操作行へ。タブで見出し高さを変えない。
   const edit=document.createElement('button');edit.type='button';edit.className='chip';edit.id='notebookEdit';edit.textContent=notebookEdit?'完了':'編集';edit.setAttribute('aria-pressed',String(!!notebookEdit));edit.onclick=()=>{notebookGeneration++;notebookNotice='';notebookEdit=notebookEdit?null:{owner:auth.token,ids:new Set(),error:''};renderRecordsHub();};
-  actions.append(edit);appendRecordTransfer(actions);actions.append(add);if(notebookEdit){add.hidden=true;for(const b of actions.children)if(b!==edit&&b!==add)b.hidden=true;actions.classList.add('notebook-edit-head');const count=document.createElement('strong');count.id='notebookCount';count.setAttribute('role','status');count.setAttribute('aria-live','polite');count.textContent=notebookEdit.ids.size+'地点を選択中';actions.prepend(count);}
+  actions.append(edit,add);appendRecordTransfer(actions);if(notebookEdit){add.hidden=true;for(const b of actions.children)if(b!==edit&&b!==add)b.hidden=true;actions.classList.add('notebook-edit-head');const count=document.createElement('strong');count.id='notebookCount';count.setAttribute('role','status');count.setAttribute('aria-live','polite');count.textContent=notebookEdit.ids.size+'地点を選択中';actions.prepend(count);}
   host.append(actions);
   const list = document.createElement('div'); list.className = 'al my-list'; host.append(list);
   const records = load();
@@ -906,7 +906,7 @@ style.textContent = `
 .my-record{cursor:default}
 .my-picker{margin-bottom:8px}
 `;
-style.textContent+="\n#recordOpportunities{max-width:780px;margin-inline:auto}\n.record-opportunity-controls{display:grid;gap:12px}\n.record-opportunity-period{display:grid;grid-template-columns:44px minmax(0,1fr) 44px 44px;gap:4px;align-items:center}\n.record-opportunity-period button{min-width:0;min-height:44px;padding:4px;font-size:14px}\n.record-opportunity-period button:is(#recordOpportunityPrev,#recordOpportunityNext){font-size:24px}\n.record-opportunity-date{position:relative;display:grid;place-items:center;min-width:0;height:44px;font-size:16px;font-weight:600;white-space:nowrap;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n.record-opportunity-date input{position:absolute;inset:0;width:100%;height:44px;min-width:0;margin:0;opacity:0;font-size:16px;cursor:pointer}\n.record-opportunity-date:focus-within{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}\n.record-opportunity-filter{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-opportunity-filters .record-opportunity-select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;font-size:16px;margin:0;background-color:var(--card)}\n.record-opportunity-select{text-align:left;position:relative;padding:10px 30px 10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);border:1px solid var(--line);border-radius:10px}\n.record-opportunity-select::after{content:'';position:absolute;right:13px;top:17px;width:7px;height:7px;border-right:2px solid var(--secondary);border-bottom:2px solid var(--secondary);transform:rotate(45deg)}\n.record-opportunity-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-picker{box-sizing:border-box;width:min(440px,calc(100vw - 28px));max-height:min(80dvh,640px);padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);overflow:hidden}\n.record-opportunity-picker[open]{display:flex;flex-direction:column;gap:12px}\n.record-opportunity-picker::backdrop{background:rgba(0,0,0,.6)}\n.record-opportunity-picker-head,.record-opportunity-picker-tools,.record-opportunity-picker-foot{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-shrink:0}\n.record-opportunity-picker h2{font-size:18px;margin:0}.record-opportunity-picker button{min-height:44px;font-size:14px}\n.record-opportunity-picker #recordOpportunityPickerSearch{box-sizing:border-box;width:100%;min-height:44px;font-size:16px;margin:0;flex-shrink:0}\n.record-opportunity-picker-tools{justify-content:flex-start}.record-opportunity-picker-tools button{flex:1}\n.record-opportunity-picker-list{overflow:auto;overscroll-behavior:contain;min-height:0;scroll-padding:6px}\n.record-opportunity-picker-item{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 4px;box-sizing:border-box;border-bottom:1px solid var(--line);overflow-wrap:anywhere;cursor:pointer}\n.record-opportunity-picker-item input{width:20px;height:20px;margin:0;flex-shrink:0;accent-color:var(--accent)}\n.record-opportunity-picker-foot #recordOpportunityPickerApply{min-width:96px;background:var(--accent);color:var(--accent-ink,var(--bg))}\n:is(#recordOpportunityStatus,#recordOpportunityNotice){margin:12px 0;color:var(--secondary)}:is(#recordOpportunityStatus,#recordOpportunityNotice):empty{display:none}\n#recordOpportunityList:not(:empty){margin-top:12px;border-top:1px solid var(--line)}\n.record-opportunity-day{margin:0;padding:12px 0 5px;font-size:14px;color:var(--secondary)}\n.record-opportunity-through{margin:10px 0 0;color:var(--secondary)}\n.record-opportunity-through:empty{display:none}\n#recordOpportunityMore{min-height:44px}\n.record-progress-count{margin-inline-start:6px;color:var(--secondary);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}\n.record-opportunity-row{display:grid;grid-template-columns:52px minmax(0,1fr) 12px;grid-template-rows:auto auto;gap:2px 12px;align-items:center;width:100%;min-height:64px;padding:12px 0;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;background:transparent;color:var(--text)}\n.record-opportunity-time{grid-column:1;grid-row:1;align-self:end;font-size:16px;font-variant-numeric:tabular-nums;color:var(--accent)}\n.record-opportunity-body{grid-column:1;grid-row:2;align-self:start;font-size:12px;color:var(--secondary)}\n.record-opportunity-row strong{grid-column:2;grid-row:1/3;font-size:14px;line-height:1.6;overflow-wrap:anywhere}\n.record-opportunity-arrow{grid-column:3;grid-row:1/3;color:var(--secondary)}\n.record-opportunity-row.has-height strong{grid-row:1}.record-opportunity-height{grid-column:2;grid-row:2;font-size:12px;color:var(--secondary)}\n.record-opportunity-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.record-opportunity-actions:has(>button:not([hidden])){padding-bottom:4px}\n.record-opportunity-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n";style.textContent+="\n#myRecordHeight{min-width:0;border:0;border-block:1px solid var(--line);padding:14px 0;margin:14px 0}\n#myRecordHeight legend{float:left;width:100%;padding:0;margin:0 0 12px;font-size:14px;font-weight:600}\n#myRecordHeight legend+label{clear:both}\n.record-height-label{display:block;font-size:12px;color:var(--secondary);margin:10px 0 6px}\n.record-height-ground{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}\n.record-height-number{display:flex;align-items:center;gap:8px;min-width:0;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n#myRecordHeight input{box-sizing:border-box;min-width:0;width:100%;min-height:44px;margin:0;padding:8px 0;border:0;background:transparent;font-size:16px;color:var(--text)}\n.record-height-number>span{font-size:13px;color:var(--secondary)}\n.record-height-modes,.record-height-values{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;min-width:0}\n.record-height-modes{padding:3px;background:var(--sunk);border-radius:10px;margin-bottom:8px}\n#myRecordHeight button{min-height:44px;font-size:14px}\n.record-height-modes button{border:0;border-radius:8px;background:transparent;color:var(--secondary)}\n.record-height-modes button[aria-pressed=true]{background:var(--card);color:var(--accent);box-shadow:0 1px 4px #0002}\n.record-height-values>label{min-width:0}.record-height-values .tiny{display:block;margin:0 0 4px}\n#myHeightFixedFields{grid-template-columns:minmax(0,1fr);padding-top:20px}\n#myHeightFixedFields[hidden],#myHeightRangeFields[hidden],#myRecordHeight[hidden]{display:none!important}\n#myRecordHeight .warn{font-size:12px;margin:8px 0 0}\n";style.textContent+="\n.record-alignment-editor{flex-basis:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:6px 0 2px;min-width:0}\n#myPlaceSheet .my-draft-target:has(.record-alignment-editor){flex-wrap:wrap}\n.record-alignment-position{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-alignment-position select,.record-alignment-limbs select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;margin:0;font-size:16px}\n.record-alignment-limbs{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;min-width:0}\n.record-alignment-limbs[hidden]{display:none!important}\n#skyMapAlignmentControls{display:grid;gap:8px}\n#previewEyeHeightControls{margin:0 0 6px;padding:0;border:0;background:none;min-width:0}\n#previewEyeHeightControls[hidden]{display:none!important}\n.preview-eye-row{display:grid;grid-template-columns:minmax(0,1fr) 96px;column-gap:10px;align-items:end}\n.preview-eye-tools{min-width:0}.preview-eye-scale{display:block;font-size:11px;line-height:14px;color:var(--secondary);margin:0}\n.preview-eye-value,#aimLook .preview-focal-bar .preview-focal-value{display:flex;align-items:center;justify-content:flex-end;gap:2px;height:44px;min-width:0;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}\n#previewEyeValue,#aimLook .preview-focal-value [data-preview-focal-input]{box-sizing:border-box;width:0;flex:1;min-width:0;min-height:44px;padding:0;border:0;background:transparent;color:var(--text);text-align:right;font-size:15px;font-weight:600;appearance:textfield;border-radius:0}\n.preview-eye-value,#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:var(--sunk);padding:0 6px;cursor:text}\n.preview-eye-value:focus-within,#aimLook .preview-focal-bar .preview-focal-value:focus-within{border-color:var(--accent);outline:2px solid color-mix(in srgb,var(--accent) 28%,transparent);outline-offset:1px}\n#previewEyeValue::-webkit-inner-spin-button,#previewEyeValue::-webkit-outer-spin-button{appearance:none;margin:0}\n.numeric-ruler-track{box-sizing:border-box;position:relative;min-width:0;height:46px;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--sunk)}\n.numeric-ruler-track .numeric-ruler{height:44px;width:100%;cursor:ew-resize;direction:ltr}\n.numeric-ruler-track .sky-map-timeline-center{top:4px;bottom:4px}.numeric-ruler-track .sky-timeline-label{top:20px}\n#previewEyeRuler .sky-timeline-tape{background-image:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px calc(var(--timeline-unit)*5));background-size:calc(var(--timeline-unit)*5) 8px!important}\n#aimLook .preview-focal-tools{margin:0}\n#aimLook .aim-lens .preview-focal-bar{grid-template-columns:minmax(0,1fr) 96px;margin:0;column-gap:10px}\n#aimLook .preview-focal-scale{font-size:11px;line-height:14px}\n.preview-focal-tools .numeric-ruler-track{width:100%;height:46px}\n[data-focal-range][hidden]{display:none!important}\n#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;width:96px;min-width:96px;max-width:96px;height:44px;line-height:normal;padding-bottom:0;font-variant-numeric:tabular-nums}\n#previewEyeError{margin:4px 0 0;color:var(--secondary)}\n";style.textContent+="\n#myRecordsHub .my-head .record-transfer-more{display:grid;place-items:center;width:44px;min-width:44px;min-height:44px;padding:0;flex:none}\n.record-transfer-sheet{box-sizing:border-box;width:min(560px,calc(100vw - 24px));max-height:85dvh;border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--text);padding:0;overflow:auto}\n.record-transfer-sheet::backdrop{background:#0009}.record-transfer-sheet .sheet-head{position:sticky;top:0;z-index:1;background:var(--card);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}\n.record-transfer-sheet .sheet-head button{min-height:44px}.record-transfer-sheet .sheet-body{padding:12px 16px 16px;min-width:0}\n.record-transfer-sheet .transfer-menu-action{width:100%;min-height:52px;text-align:left;display:block;font-size:16px}\n.record-transfer-sheet .fav-btn{width:100%;min-height:44px;margin-top:12px}.record-transfer-sheet .transfer-select-tools{display:flex;gap:8px}.record-transfer-sheet .transfer-select-tools button{min-height:44px}\n.transfer-place-list{max-height:38dvh;overflow:auto;overscroll-behavior:contain;margin-top:8px}.transfer-place{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.transfer-place input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--accent)}\n.transfer-preview-place{display:grid;gap:4px;padding:12px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}#myRecordBodies{margin:12px 0}#myRecordBodies>summary{min-height:44px;display:list-item;align-content:center;color:var(--text);font-size:14px}\n";style.textContent+="\n#myRecordsHub .my-actions select.record-sort-select,.record-sort-row select.record-sort-select{flex:0 0 auto;width:auto;min-width:96px;min-height:44px}\n.record-sort-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}.record-sort-row input[type=search]{flex:1 1 160px;width:0;min-width:0}.record-sort-slot{display:contents}\n.record-sort-locate{min-height:44px}.record-sort-status{flex:1 0 100%;margin:0}\n";document.head.append(style);
+style.textContent+="\n#recordOpportunities{max-width:780px;margin-inline:auto}\n.record-opportunity-controls{display:grid;gap:12px}\n.record-opportunity-period{display:grid;grid-template-columns:44px minmax(0,1fr) 44px 44px;gap:4px;align-items:center}\n.record-opportunity-period button{min-width:0;min-height:44px;padding:4px;font-size:14px}\n.record-opportunity-period button:is(#recordOpportunityPrev,#recordOpportunityNext){font-size:24px}\n.record-opportunity-date{position:relative;display:grid;place-items:center;min-width:0;height:44px;font-size:16px;font-weight:600;white-space:nowrap;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n.record-opportunity-date input{position:absolute;inset:0;width:100%;height:44px;min-width:0;margin:0;opacity:0;font-size:16px;cursor:pointer}\n.record-opportunity-date:focus-within{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}\n.record-opportunity-filter{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-opportunity-filters .record-opportunity-select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;font-size:16px;margin:0;background-color:var(--card)}\n.record-opportunity-select{text-align:left;position:relative;padding:10px 30px 10px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);border:1px solid var(--line);border-radius:10px}\n.record-opportunity-select::after{content:'';position:absolute;right:13px;top:17px;width:7px;height:7px;border-right:2px solid var(--secondary);border-bottom:2px solid var(--secondary);transform:rotate(45deg)}\n.record-opportunity-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n.record-opportunity-picker{box-sizing:border-box;width:min(440px,calc(100vw - 28px));max-height:min(80dvh,640px);padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);overflow:hidden}\n.record-opportunity-picker[open]{display:flex;flex-direction:column;gap:12px}\n.record-opportunity-picker::backdrop{background:rgba(0,0,0,.6)}\n.record-opportunity-picker-head,.record-opportunity-picker-tools,.record-opportunity-picker-foot{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-shrink:0}\n.record-opportunity-picker h2{font-size:18px;margin:0}.record-opportunity-picker button{min-height:44px;font-size:14px}\n.record-opportunity-picker #recordOpportunityPickerSearch{box-sizing:border-box;width:100%;min-height:44px;font-size:16px;margin:0;flex-shrink:0}\n.record-opportunity-picker-tools{justify-content:flex-start}.record-opportunity-picker-tools button{flex:1}\n.record-opportunity-picker-list{overflow:auto;overscroll-behavior:contain;min-height:0;scroll-padding:6px}\n.record-opportunity-picker-item{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 4px;box-sizing:border-box;border-bottom:1px solid var(--line);overflow-wrap:anywhere;cursor:pointer}\n.record-opportunity-picker-item input{width:20px;height:20px;margin:0;flex-shrink:0;accent-color:var(--accent)}\n.record-opportunity-picker-foot #recordOpportunityPickerApply{min-width:96px;background:var(--accent);color:var(--accent-ink,var(--bg))}\n:is(#recordOpportunityStatus,#recordOpportunityNotice){margin:12px 0;color:var(--secondary)}:is(#recordOpportunityStatus,#recordOpportunityNotice):empty{display:none}\n#recordOpportunityList:not(:empty){margin-top:12px;border-top:1px solid var(--line)}\n.record-opportunity-day{margin:0;padding:12px 0 5px;font-size:14px;color:var(--secondary)}\n.record-opportunity-through{margin:10px 0 0;color:var(--secondary)}\n.record-opportunity-through:empty{display:none}\n#recordOpportunityMore{min-height:44px}\n.record-progress-count{margin-inline-start:6px;color:var(--secondary);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}\n.record-opportunity-row{display:grid;grid-template-columns:52px minmax(0,1fr) 12px;grid-template-rows:auto auto;gap:2px 12px;align-items:center;width:100%;min-height:64px;padding:12px 0;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;background:transparent;color:var(--text)}\n.record-opportunity-time{grid-column:1;grid-row:1;align-self:end;font-size:16px;font-variant-numeric:tabular-nums;color:var(--accent)}\n.record-opportunity-body{grid-column:1;grid-row:2;align-self:start;font-size:12px;color:var(--secondary)}\n.record-opportunity-row strong{grid-column:2;grid-row:1/3;font-size:14px;line-height:1.6;overflow-wrap:anywhere}\n.record-opportunity-arrow{grid-column:3;grid-row:1/3;color:var(--secondary)}\n.record-opportunity-row.has-height strong{grid-row:1}.record-opportunity-height{grid-column:2;grid-row:2;font-size:12px;color:var(--secondary)}\n.record-opportunity-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.record-opportunity-actions:has(>button:not([hidden])){padding-bottom:4px}\n.record-opportunity-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n";style.textContent+="\n#myRecordHeight{min-width:0;border:0;border-block:1px solid var(--line);padding:14px 0;margin:14px 0}\n#myRecordHeight legend{float:left;width:100%;padding:0;margin:0 0 12px;font-size:14px;font-weight:600}\n#myRecordHeight legend+label{clear:both}\n.record-height-label{display:block;font-size:12px;color:var(--secondary);margin:10px 0 6px}\n.record-height-ground{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}\n.record-height-number{display:flex;align-items:center;gap:8px;min-width:0;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}\n#myRecordHeight input{box-sizing:border-box;min-width:0;width:100%;min-height:44px;margin:0;padding:8px 0;border:0;background:transparent;font-size:16px;color:var(--text)}\n.record-height-number>span{font-size:13px;color:var(--secondary)}\n.record-height-modes,.record-height-values{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;min-width:0}\n.record-height-modes{padding:3px;background:var(--sunk);border-radius:10px;margin-bottom:8px}\n#myRecordHeight button{min-height:44px;font-size:14px}\n.record-height-modes button{border:0;border-radius:8px;background:transparent;color:var(--secondary)}\n.record-height-modes button[aria-pressed=true]{background:var(--card);color:var(--accent);box-shadow:0 1px 4px #0002}\n.record-height-values>label{min-width:0}.record-height-values .tiny{display:block;margin:0 0 4px}\n#myHeightFixedFields{grid-template-columns:minmax(0,1fr);padding-top:20px}\n#myHeightFixedFields[hidden],#myHeightRangeFields[hidden],#myRecordHeight[hidden]{display:none!important}\n#myRecordHeight .warn{font-size:12px;margin:8px 0 0}\n";style.textContent+="\n.record-alignment-editor{flex-basis:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:6px 0 2px;min-width:0}\n#myPlaceSheet .my-draft-target:has(.record-alignment-editor){flex-wrap:wrap}\n.record-alignment-position{display:grid;gap:4px;min-width:0;font-size:12px;color:var(--secondary)}\n.record-alignment-position select,.record-alignment-limbs select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;margin:0;font-size:16px}\n.record-alignment-limbs{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;min-width:0}\n.record-alignment-limbs[hidden]{display:none!important}\n#skyMapAlignmentControls{display:grid;gap:8px}\n#previewEyeHeightControls{margin:0 0 6px;padding:0;border:0;background:none;min-width:0}\n#previewEyeHeightControls[hidden]{display:none!important}\n.preview-eye-row{display:grid;grid-template-columns:minmax(0,1fr) 96px;column-gap:10px;align-items:end}\n.preview-eye-tools{min-width:0}.preview-eye-scale{display:block;font-size:11px;line-height:14px;color:var(--secondary);margin:0}\n.preview-eye-value,#aimLook .preview-focal-bar .preview-focal-value{display:flex;align-items:center;justify-content:flex-end;gap:2px;height:44px;min-width:0;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}\n#previewEyeValue,#aimLook .preview-focal-value [data-preview-focal-input]{box-sizing:border-box;width:0;flex:1;min-width:0;min-height:44px;padding:0;border:0;background:transparent;color:var(--text);text-align:right;font-size:15px;font-weight:600;appearance:textfield;border-radius:0}\n.preview-eye-value,#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:var(--sunk);padding:0 6px;cursor:text}\n.preview-eye-value:focus-within,#aimLook .preview-focal-bar .preview-focal-value:focus-within{border-color:var(--accent);outline:2px solid color-mix(in srgb,var(--accent) 28%,transparent);outline-offset:1px}\n#previewEyeValue::-webkit-inner-spin-button,#previewEyeValue::-webkit-outer-spin-button{appearance:none;margin:0}\n.numeric-ruler-track{box-sizing:border-box;position:relative;min-width:0;height:46px;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--sunk)}\n.numeric-ruler-track .numeric-ruler{height:44px;width:100%;cursor:ew-resize;direction:ltr}\n.numeric-ruler-track .sky-map-timeline-center{top:4px;bottom:4px}.numeric-ruler-track .sky-timeline-label{top:20px}\n#previewEyeRuler .sky-timeline-tape{background-image:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px calc(var(--timeline-unit)*5));background-size:calc(var(--timeline-unit)*5) 8px!important}\n#aimLook .preview-focal-tools{margin:0}\n#aimLook .aim-lens .preview-focal-bar{grid-template-columns:minmax(0,1fr) 96px;margin:0;column-gap:10px}\n#aimLook .preview-focal-scale{font-size:11px;line-height:14px}\n.preview-focal-tools .numeric-ruler-track{width:100%;height:46px}\n[data-focal-range][hidden]{display:none!important}\n#aimLook .preview-focal-bar .preview-focal-value{box-sizing:border-box;width:96px;min-width:96px;max-width:96px;height:44px;line-height:normal;padding-bottom:0;font-variant-numeric:tabular-nums}\n#previewEyeError{margin:4px 0 0;color:var(--secondary)}\n";style.textContent+="\n/* 2026-11-10 ユーザー「ボタン逆の方がいい」「+を追加に」「…も他と同じように楕円で」: 地図・編集・追加の楕円、右端に…の楕円 */\n#myRecordsHub .my-head .my-add-point{margin-left:0;width:auto;min-width:44px;min-height:34px;padding:0 12px}\n#myRecordsHub .my-head .record-transfer-more{display:inline-flex;align-items:center;justify-content:center;margin-left:auto;width:auto;min-width:44px;min-height:34px;padding:0 12px;flex:none}\n.record-transfer-sheet{box-sizing:border-box;width:min(560px,calc(100vw - 24px));max-height:85dvh;border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--text);padding:0;overflow:auto}\n.record-transfer-sheet::backdrop{background:#0009}.record-transfer-sheet .sheet-head{position:sticky;top:0;z-index:1;background:var(--card);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}\n.record-transfer-sheet .sheet-head button{min-height:44px}.record-transfer-sheet .sheet-body{padding:12px 16px 16px;min-width:0}\n.record-transfer-sheet .transfer-menu-action{width:100%;min-height:52px;text-align:left;display:block;font-size:16px}\n.record-transfer-sheet .fav-btn{width:100%;min-height:44px;margin-top:12px}.record-transfer-sheet .transfer-select-tools{display:flex;gap:8px}.record-transfer-sheet .transfer-select-tools button{min-height:44px}\n.transfer-place-list{max-height:38dvh;overflow:auto;overscroll-behavior:contain;margin-top:8px}.transfer-place{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.transfer-place input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--accent)}\n.transfer-preview-place{display:grid;gap:4px;padding:12px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}#myRecordBodies{margin:12px 0}#myRecordBodies>summary{min-height:44px;display:list-item;align-content:center;color:var(--text);font-size:14px}\n";style.textContent+="\n#myRecordsHub .my-actions select.record-sort-select,.record-sort-row select.record-sort-select{flex:0 0 auto;width:auto;min-width:96px;min-height:44px}\n.record-sort-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}.record-sort-row input[type=search]{flex:1 1 160px;width:0;min-width:0}.record-sort-slot{display:contents}\n.record-sort-locate{min-height:44px}.record-sort-status{flex:1 0 100%;margin:0}\n";document.head.append(style);
 
 const createServerOpportunityScan=function createServerOpportunityScan({api,start,end,bodies,placeIds,sourceRev,isCurrent,onStart=()=>{},onProgress=()=>{},onDay=()=>{},pollDelay=ms=>new Promise(r=>setTimeout(r,ms)),initialView=null}){
  const dayMs=86400000,date=at=>new Date(at+32400000).toISOString().slice(0,10),at=value=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(value||''))throw Error('invalid overlap day');const n=Date.parse(value+'T00:00:00+09:00');if(!Number.isFinite(n)||date(n)!==value)throw Error('invalid overlap day');return n;};
@@ -1101,11 +1101,12 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
     const used=new Set();A.forEach((p,i)=>{if(!proven||p[1]>bottom){used.add(i);if(i)used.add(i-1);if(i<A.length-1)used.add(i+1);}});
     if(!used.size)return null;
     for(const i of used)verts.push(A[i],B[i],[A[i][0],bottom]);
-    verts.push([ga.azimuth,bottom],[ga.azimuth,Math.max(...verts.map(v=>v[1]))]);
+    verts.push([ga.azimuth,bottom],[ga.azimuth,verts.reduce((m,v)=>Math.max(m,v[1]),-Infinity)]);
     if(!proven)centers.push(ga.angle/2,gb.angle/2,(bottom+ga.angle)/2,(bottom+gb.angle)/2);
    }else for(const [o,g] of [[oa,ga],[ob,gb]]){
     const hv=align.heightVertices(o,t,{partId:g.partId,eyeM:g.eyeM,...(g.heightM!=null?{heightM:g.heightM}:{})});
-    if(!hv?.vertices?.length)return null;verts.push(...hv.vertices);if(hv.polygons)facePairs.push(hv.polygons);
+    // 2026-11-10 A detailed model (麻布台ヒルズ) has more vertices than a call may take as arguments.
+    if(!hv?.vertices?.length)return null;for(const v of hv.vertices)verts.push(v);if(hv.polygons)facePairs.push(hv.polygons);
    }
    if(!centers.every(Number.isFinite))return null;
    const cLo=Math.min(...centers),cHi=Math.max(...centers),cq=(cLo+cHi)/2,project=align.viewProjector(ga.azimuth,cq);
@@ -2205,18 +2206,85 @@ async function recordShapeOpportunity(session,p,place,record,solver,live){
   return {rows:[],failed:1,issues:[{id:place.id,reason:e.message==='shape-limit'?'limit':'calculation'}]};
  }
 }
+// 2026-11-10 探す（記録の撮影地点）も重なる日と同じ作りに（ユーザー「同じ作りにして」）。今までは立ち位置ごと・
+// 日ごとに建物の外形を作ってから判定していた（外形づくり1か所約20ms、判定そのものは約0.5ms。範囲の地点は
+// 立ち位置が数百あり、外形の覚え置き128か所からあふれて毎日作り直していた）。外形を作る前に、その日の
+// 天体の通り道（その立ち位置から、この端末の大気差で4分ごと）が外形を必ず含む枠
+// （AstroNotesAlign.outlineBounds）の近くを通るかを調べ、通らない日は外形を作らずに重ならないとする。
+// 通る日は今までと同じ計算。余裕は円盤の半径、4分の間の動きの半分、投影と縦横比の差0.02°。線・範囲では
+// 隣の立ち位置との間（25m以内）を二分して調べるので、その間で外形が動く分（25mと地面の差30mを最寄りの
+// 外形までの距離で割った角度）も足す。
+const RECORD_FAR_STEP_MS=240000;
+function recordFar(obs,target,body,opts,day,spaced){
+ const box=AstroNotesAlign.outlineBounds?.(obs,target,opts);if(!box||!Number.isFinite(box.nearKm))return false;
+ const D=Math.PI/180,shift=spaced?Math.atan(55/Math.max(1,box.nearKm*1000))/D:0;if(shift>5)return false;
+ return recordTrackFar(obs,body,opts.eyeM,box,day,shift);
+}
+function recordTrackFar(obs,body,eyeM,box,day,shift){
+ const D=Math.PI/180,eye={...obs,elevation:(obs.elevation??0)+(eyeM??1.5)},track=[];
+ for(let at=day-RECORD_FAR_STEP_MS;at<=day+86400000+RECORD_FAR_STEP_MS;at+=RECORD_FAR_STEP_MS){
+  const st=AstroNotesBodies.state(body,at,eye),r=st.angularRadius||0,up=st.upperAltitude??st.apparentAltitude+r,low=st.lowerAltitude??st.apparentAltitude-r;
+  if(![st.azimuth,st.apparentAltitude,up,low].every(Number.isFinite))return false;
+  track.push({az:st.azimuth,alt:(up+low)/2,r:Math.tan(Math.max(r,up-st.apparentAltitude,st.apparentAltitude-low)*D)/D});
+ }
+ for(let i=0;i<track.length;i++){
+  const t=track[i],half=Math.max(i?recordArc(track[i-1],t):0,i+1<track.length?recordArc(t,track[i+1]):0)/2;
+  if(recordBoxDistance(t.az,t.alt,box)<=t.r+half+.02+shift)return false;
+ }
+ return true;
+}
+// 2026-11-10 山（重ね方が全体）: 山頂付近の稜線は日付・天体に依存しないので立ち位置ごとに覚えておき
+// （今までは日ごとの判定を覚え置き、範囲の地点では96か所を超えると毎日作り直していた）、その日の判定だけを
+// 作る。稜線の作り方は aimShootingView と同じ。点の地点は建物と同じく、通り道が稜線の枠から遠い日は判定を
+// 作らない。線・範囲は隣の立ち位置との間を二分するので、手前の地形までの距離が分からない稜線では外さない。
+async function recordMountainView(session,shaped,obs,p,indexed){
+ const key=JSON.stringify([obs,p.target,indexed]),geometry=session.mountainGeometry||(session.mountainGeometry=new Map());
+ const geo=await recordBounded(geometry,key,()=>{
+  const pending=(async()=>{
+   const eye=obs.elevation+obs.eyeM;let cap=null,ridge;
+   if(indexed)try{cap=await aimIndexedCap(obs,eye,p.target);}catch{/* The original sampler follows. */}
+   if(!cap){ridge=await aimLookRidge(obs,eye,p.target,{exactSearch:indexed&&p.target.id==='fuji'});if(!ridge)throw Error('山の稜線を取得できませんでした。再試行してください');cap=aimSummitCap(ridge,obs,eye,p.target);}
+   return cap?{ridge:cap.ridge,base:cap.base,opts:{partId:null,eyeM:obs.eyeM,ridge:cap.ridge,ridgeBase:cap.base}}:{ridge,base:0,opts:{partId:null,eyeM:obs.eyeM,ridge}};
+  })();
+  pending.catch(()=>{if(geometry.get(key)===pending)geometry.delete(key);});return pending;
+ },20000);
+ const full=()=>recordBounded(shaped?session.shapeMountains:session.mountains,JSON.stringify([obs,p.target,p.body,indexed]),()=>{session.prepares++;return AstroNotesAlign.prepareDailyView(obs,p.target,p.body,geo.opts);},shaped?96:384);
+ let box;
+ const far=day=>{
+  if(shaped)return false;
+  if(box===undefined){
+   const g=AstroNotesAlign.geometryFrom(obs,p.target,{partId:null,eyeM:obs.eyeM});box=null;
+   if(g&&Array.isArray(geo.ridge)&&geo.ridge.length&&geo.ridge.every(q=>Number.isFinite(q[0])&&Number.isFinite(q[1]))&&Number.isFinite(geo.base)){
+    const ref=g.azimuth;let a0=0,a1=0,lo=Math.min(geo.base,g.angle),hi=g.angle;
+    for(const [a,h] of geo.ridge){const d=(((a-ref)%360+540)%360)-180;a0=Math.min(a0,d);a1=Math.max(a1,d);lo=Math.min(lo,h);hi=Math.max(hi,h);}
+    const w=(a1-a0)/2,bulge=(w*Math.PI/90)**2/16*180/Math.PI;box={c:ref+(a0+a1)/2,w:w+.002,lo:lo-bulge-.002,hi:hi+bulge+.002};
+   }
+  }
+  return !!box&&recordTrackFar(obs,p.body,obs.eyeM,box,day,0);
+ };
+ const view=(day,at)=>{if(Number.isFinite(at)||!far(day))return full()(day,at);session.far=(session.far||0)+1;return [];};
+ Object.defineProperty(view,'heightGeometry',{get:()=>full().heightGeometry});
+ return view;
+}
+function recordDiscoveryView(session,shaped,obs,target,body,opts){
+ const full=()=>recordPrepared(session,shaped,obs,target,body,opts);
+ const view=(day,at)=>{if(Number.isFinite(at)||!recordFar(obs,target,body,opts,day,shaped))return full()(day,at);session.far=(session.far||0)+1;return [];};
+ Object.defineProperty(view,'heightGeometry',{get:()=>full().heightGeometry});
+ return view;
+}
 function recordPrepared(session,shaped,obs,target,body,opts){
  const views=shaped?session.shapeViews:session.pointViews,key=JSON.stringify([obs,target,body,opts]);
  return recordBounded(views,key,()=>{session.prepares++;return AstroNotesAlign.prepareDailyView(obs,target,body,opts);},shaped?128:192);
 }
 function recordSolverFor(session,variant,shaped,override){
  const terrain=override||session.terrain,align=Object.create(AstroNotesAlign);
- const prepare=(obs,target,body,opts)=>{const silhouette=variant==='opportunity'&&!aimIsMountain(target)?recordSilhouette(obs,target,opts):null;return recordPrepared(session,shaped,obs,target,body,silhouette?{...opts,silhouette}:opts);};
+ const prepare=(obs,target,body,opts)=>{const silhouette=variant==='opportunity'&&!aimIsMountain(target)?recordSilhouette(obs,target,opts):null;if(variant==='discovery'&&!opts.ridge&&!opts.silhouette)return recordDiscoveryView(session,shaped,obs,target,body,opts);return recordPrepared(session,shaped,obs,target,body,silhouette?{...opts,silhouette}:opts);};
  align.prepareDailyView=prepare;
  align.dailyView=(obs,target,body,day,{at,...opts}={})=>prepare(obs,target,body,opts)(day,at);
  const viewFor=(obs,p,indexed=false)=>{
   if(p.matchMode==='overlap'&&aimIsMountain(p.target)){
-   if(indexed&&p.target.id==='fuji')return aimShootingView(obs,p.target,p.body,p.partId,p.matchMode,true);
+   if(indexed&&p.target.id==='fuji'&&variant!=='discovery')return aimShootingView(obs,p.target,p.body,p.partId,p.matchMode,true);
+   if(variant==='discovery')return recordMountainView(session,shaped,obs,p,indexed&&p.target.id==='fuji');
    // Keep the registered-point set across date/body switches. Dense line/area
    // samples have a separate, smaller budget and cannot evict these views.
    const views=shaped?session.shapeMountains:session.mountains,key=JSON.stringify([obs,p.target,p.body,p.partId,p.matchMode]);
@@ -2364,12 +2432,12 @@ function opportunityFrameClose(){
 }
 // The frame runs one check at a time. A check that never settles would hold
 // every later one, so it is abandoned with its frame and reported unchecked.
-async function opportunityFrameSolve(input){
+async function opportunityFrameSolve(input,op='solve'){
  const state=await opportunityFrameOpen(),id=++opportunityFrameSeq;
  return new Promise((resolve,reject)=>{
   const timer=setTimeout(()=>{if(opportunityFrame===state)opportunityFrameClose();},120000);
   state.calls.set(id,{resolve:v=>{clearTimeout(timer);resolve(v);},reject:e=>{clearTimeout(timer);reject(e);}});
-  state.frame.contentWindow.postMessage({type:'astronotes-overlap',id,op:'solve',input},location.origin);
+  state.frame.contentWindow.postMessage({type:'astronotes-overlap',id,op,input},location.origin);
  });
 }
 // 2026-11-09 Where the browser can decode terrain tiles off the main thread,
@@ -2406,13 +2474,13 @@ function opportunityWorkersClose(){
  const pool=opportunityWorkers;if(!pool)return;opportunityWorkers=null;
  for(const slot of pool.slots){slot.worker.terminate();for(const call of slot.calls.values())call.reject(Error('calculation worker closed'));slot.calls.clear();}
 }
-async function opportunityWorkerSolve(input){
+async function opportunityWorkerSolve(input,op='solve'){
  const pool=await opportunityWorkersOpen(),slot=pool.slots.reduce((a,b)=>b.calls.size<a.calls.size?b:a),id=++opportunityWorkerSeq;
  return new Promise((resolve,reject)=>{
   // A check that never settles is abandoned with the pool and reported unchecked.
   const timer=setTimeout(()=>{if(opportunityWorkers===pool)opportunityWorkersClose();},120000);
   slot.calls.set(id,{resolve:v=>{clearTimeout(timer);resolve(v);},reject:e=>{clearTimeout(timer);reject(e);}});
-  slot.worker.postMessage({type:'astronotes-overlap',id,op:'solve',input});
+  slot.worker.postMessage({type:'astronotes-overlap',id,op,input});
  });
 }
 // Workers first; if they cannot start here, the frame for the rest of the session.
@@ -2422,7 +2490,68 @@ async function opportunityEngineOpen(){
  return opportunityFrameOpen();
 }
 const opportunityEngineSlots=()=>opportunityEngineMode==='workers'&&opportunityWorkers?Math.max(1,opportunityWorkers.slots.length):1;
-function opportunityEngineSolve(input){return opportunityEngineMode==='workers'?opportunityWorkerSolve(input):opportunityFrameSolve(input);}
+function opportunityEngineSolve(input,op='solve'){return opportunityEngineMode==='workers'?opportunityWorkerSolve(input,op):opportunityFrameSolve(input,op);}
+// 2026-11-10 探す（記録の撮影地点）も重なる日と同じ計算本体で、地点ごとに並列に確かめる（ユーザー「同じ作りにして」）。
+// 大気差はこの端末の設定のまま本体へ渡し、計算は今までと同じ recordSearch（discovery）。この端末が読み込んだ気象が
+// 効く地点（気象の地点から3km以内。効く範囲は2km）だけは、本体に気象が無いので今までどおりこの画面で計算する。
+// 本体を使えないときは null を返し、呼び出し側が今までの計算をする。
+function recordWeatherNear(place,sources){
+ if(!sources.length)return false;
+ const s=place.shape?AstroNotesShooting.cleanShape(place.shape):null,v=s?s.vertices:[place];
+ return sources.some(o=>{
+  const k=111.2*Math.cos(o.latitude*Math.PI/180),xy=p=>[(p.longitude-o.longitude)*k,(p.latitude-o.latitude)*111.2];
+  if(!s)return Math.hypot(...xy(place))<=3;
+  let inside=false,d=Infinity;const pts=v.map(xy),n=pts.length,closed=s.type==='area';
+  for(let i=closed?0:1,j=closed?n-1:0;i<n;j=i++){
+   const a=pts[j],b=pts[i];if(closed&&(a[1]>0)!==(b[1]>0)&&0<(b[0]-a[0])*(0-a[1])/(b[1]-a[1])+a[0])inside=!inside;
+   const dx=b[0]-a[0],dy=b[1]-a[1],len=dx*dx+dy*dy,t=len?Math.max(0,Math.min(1,-(a[0]*dx+a[1]*dy)/len)):0;d=Math.min(d,Math.hypot(a[0]+t*dx,a[1]+t*dy));
+  }
+  if(n===1)d=Math.hypot(...pts[0]);
+  return inside||d<=3;
+ });
+}
+async function recordEngineDiscover(plan,points,isCurrent,onProgress){
+ if(!points.length||globalThis.AstroNotesDiscoveryEngine==='page'||!opportunityAllowed())return null;
+ const p=AstroNotesShooting.conditions(plan);if(!p)return null;
+ try{await opportunityEngineOpen();}catch{return null;}
+ if(!isCurrent())return {rows:[],failed:0,cancelled:true};
+ const start=AstroNotesShooting.day(p.at),air=AstroNotesAtmosphere.dataKey(start);
+ // The refraction the page's calculation actually uses (its atmosphere state), not the saved setting.
+ let state;try{state=JSON.parse(air);}catch{return null;}
+ const [enabled,mode,manual]=Array.isArray(state)?state:[];
+ if(enabled!==true||!['auto','standard','manual','none'].includes(mode)||mode==='manual'&&!manual)return null;
+ const sources=mode==='auto'?AstroNotesAtmosphere.sources?.()||[]:[];
+ const owner=auth?.token,generation=accessState.generation,revision=version;
+ const live=()=>isCurrent()&&owner===auth?.token&&generation===accessState.generation&&revision===version&&air===AstroNotesAtmosphere.dataKey(start)&&toolAllowed('records');
+ const local=[],remote=[];for(const [i,e] of points.entries())(recordWeatherNear(e.place,sources)?local:remote).push(i);
+ const base={plan,preferences:{mode,...(mode==='manual'?{pressureHPa:manual.pressureHPa,temperatureC:manual.temperatureC}:{}),targetHeights:store.get('sorami.aimHeights',{})},tools:auth.tools.slice(),generation,evaluationNow:Date.now(),favorites};
+ const results=new Array(points.length);let processed=0,next=0,broken=null;
+ const done=i=>{processed++;onProgress?.({checked:processed,total:points.length});};
+ const lane=async()=>{
+  for(let k;!broken&&(k=next++)<remote.length;){
+   if(!live())return;const i=remote[k];
+   try{results[i]=await opportunityEngineSolve({...base,entries:[points[i]]},'discover');}catch(e){broken=e;return;}
+   done(i);
+  }
+ };
+ await Promise.all(Array.from({length:opportunityEngineSlots()},lane));
+ if(!live())return {rows:[],failed:0,cancelled:true};
+ // The engine could not finish: the rest is computed here as before.
+ const rest=[...local,...remote.filter(i=>!results[i])];
+ if(rest.length){
+  const value=await recordSearch(plan,rest.map(i=>points[i]),{isCurrent:live,onProgress:step=>onProgress?.({checked:processed+step.checked,total:points.length})});
+  if(value.cancelled||!live())return {rows:[],failed:0,cancelled:true};
+  processed+=rest.length;results.push(value);
+ }
+ const rows=[],issues=[];let failed=0,checked=0,stepM;
+ for(const [i,r] of results.entries()){
+  if(!r)continue;
+  for(const row of r.rows||[])rows.push(i<points.length?{...row,record:points[i].record}:row);
+  failed+=r.failed||0;checked+=r.checked||0;stepM=r.stepM??stepM;issues.push(...(r.issues||[]));
+ }
+ rows.sort((a,b)=>a.event.at-b.event.at||a.place.name.localeCompare(b.place.name));
+ return {rows,failed,...(checked?{checked}:{}),...(stepM?{stepM}:{}),...(issues.length?{issues}:{})};
+}
 function opportunityDbOpen(){
  if(opportunityDb)return opportunityDb;
  opportunityDb=new Promise((resolve,reject)=>{
@@ -2755,6 +2884,14 @@ function opportunitySet(patch){
 function opportunityRow(row,job){
  const button=opportunityNode('button',{type:'button',className:'record-opportunity-row'}),time=opportunityNode('span',{className:'record-opportunity-time'},S.JstCal.hhmm(row.event.at)),name=opportunityNode('strong',{},row.place.name+' → '+row.target.name),body=opportunityNode('span',{className:'record-opportunity-body'},AstroNotesBodies.definition(row.body)?.name||row.body),arrow=opportunityNode('span',{className:'record-opportunity-arrow'},'›');arrow.setAttribute('aria-hidden','true');button.append(time,name,body,arrow);const details=[];if(!row.place.eyeHeightRangeAGL&&job.pairs.some(p=>p.sourcePlaceId===row.sourcePlaceId&&p.target.id===row.target.id&&p.place.eyeHeightAGL!==row.place.eyeHeightAGL))details.push('地上'+row.place.eyeHeightAGL+'m');if(row.event.matchMode==='limb')details.push(RecordAlignment.text(row.target,row.event));if(row.place.eyeHeightRangeAGL)details.push('地上'+row.place.eyeHeightAGL+'m');if(row.shapeType)details.push((row.shapeType==='line'?'線上':'範囲内')+' '+row.place.latitude.toFixed(5)+', '+row.place.longitude.toFixed(5));if(details.length){button.classList.add('has-height');button.append(opportunityNode('span',{className:'record-opportunity-height'},details.join(' ・ ')));}button.dataset.opportunityId=row.id;button.onclick=()=>openOpportunity(row,job);return button;
 }
+// 2026-11-10 The device checks one day at a time (every pair of a day, then the next day) and stops
+// once the page has enough rows. The bar shows the day being checked and its pairs, not every day the
+// page might reach (ユーザー「進捗バーの分母がおかしくない？」: 82 / 3220組 = 460組 × 7日).
+function opportunityProgress(job,s){
+ if(!job.progressUi)return;
+ if(job.remote){job.progressUi.update(s.checked,s.total);return;}
+ const n=job.pairs.length;job.progressUi.update(Math.max(0,Math.min(n,s.index|0)),n,dayText(s.day)+'を確認中');
+}
 // Rows of the day still being checked appear below the confirmed days, so
 // confirmed rows never move. They join the list in order once the day ends.
 function opportunityDrawPending(job){
@@ -2779,7 +2916,7 @@ function opportunityDraw(job){
  if(s.error){job.progressUi=null;d.status.textContent=s.error.message||'サーバーに接続できません。再試行してください。';}
  else if(!s.done&&(job.remote||job.pairs.length)){
   if(job.progressUi?.node.parentNode!==d.status)job.progressUi=showRecordProgress(d.status,job.remote?'サーバーで確認中':'確認中','組');
-  job.progressUi.update(s.checked,s.total);
+  opportunityProgress(job,s);
  }else{
   job.progressUi=null;d.status.textContent=!job.pairs.length?(!opportunityFilters.allPlaces&&!opportunityFilters.places.length?'撮影地点を選び直してください。':job.unavailable?(job.policyUnavailable?'撮影地点の高さや重ね方を確認してください。':job.accessUnavailable===job.unavailable?'現在の権限では、この組み合わせを確認できません':'対象の登録を確認してください。'):'この組み合わせで確認できる記録がありません'):failures?(s.failures.length?'確認できなかった組み合わせがあります':job.accessUnavailable===job.unavailable?'現在の権限では確認できない組み合わせがあります':'対象の登録を確認してください。'):rows.length?'':'確認した期間に重なる組み合わせはありません';
  }
@@ -2830,7 +2967,7 @@ async function opportunityStart(job,end,retryEnd){
   if(job.remote){const cached=opportunityCache.get(job.key);if(cached?.remote){job.restoreThrough=cached.through;opportunityCache.delete(job.key);}job.scan=createServerOpportunityScan({api:(...args)=>apiTransport(...args),start:job.start,end,bodies:opportunityFilters.bodies.slice(),placeIds:opportunityFilters.allPlaces?null:opportunityFilters.places.slice(),sourceRev:prefs.sourceRev,isCurrent:()=>opportunityCurrent(job),onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:()=>opportunityDraw(job)});}
   else{
    const solve=(pair,day,isCurrent)=>opportunityDeviceSolve(pair,day,{isCurrent});
-   job.scan=createOpportunityScan({pairs:job.pairs,start:job.start,end,notBefore:job.start,pageRows:Number.isFinite(retryEnd)?Infinity:opportunityPageRows,solve,ahead:()=>opportunityEngineSlots()*2,isCurrent:()=>opportunityCurrent(job),yieldTask:recordSearchYield,onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:s=>{if(!opportunityCurrent(job))return;job.progressUi?.update(s.checked,s.total);if(s.pending.length!==job.pendingDrawn)opportunityDraw(job);}});
+   job.scan=createOpportunityScan({pairs:job.pairs,start:job.start,end,notBefore:job.start,pageRows:Number.isFinite(retryEnd)?Infinity:opportunityPageRows,solve,ahead:()=>opportunityEngineSlots()*2,isCurrent:()=>opportunityCurrent(job),yieldTask:recordSearchYield,onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:s=>{if(!opportunityCurrent(job))return;opportunityProgress(job,s);if(s.pending.length!==job.pendingDrawn)opportunityDraw(job);}});
    const cached=opportunityCache.get(job.key);if(cached){opportunityCache.delete(job.key);Object.assign(job.scan.state,cached,{running:false,cancelled:false});opportunityDraw(job);}
   }
   if(!job.scan.state.done)void opportunityAdvance(job);
@@ -2889,7 +3026,10 @@ function discoveryPoints(){
  return out;
 }
 function discoveryRevision(){return version;}
-function discoverySearch(plan,points,isCurrent,terrainCache,onProgress){return recordSearch(plan,points,{isCurrent,terrainCache,onProgress});}
+async function discoverySearch(plan,points,isCurrent,terrainCache,onProgress){
+ if(!terrainCache){const value=await recordEngineDiscover(plan,points,isCurrent,onProgress);if(value)return value;}
+ return recordSearch(plan,points,{isCurrent,terrainCache,onProgress});
+}
 
 window.MyPlacesUI = { discoveryPoints,discoverySearch,discoveryRevision, recordSortControl,sortRecordPlaces, eyeAdjustmentFor, opportunities,recordProgress:showRecordProgress, backupState:()=>({observations:load(),shapes:shapeData()}),imported:()=>{version++;candidateCache.clear();changed();},selectShape, resetShapePicker, shapeFor, withShape, drawShape, renderAim, renderPickerPanel, skyDraw, skyRender, leaveSky, pickSky, badge, openPlace, recordFor, quickRecord, load, renderRecordsHub };
 // 読み込みより先に構図が描かれていたら、ここで一覧を出す

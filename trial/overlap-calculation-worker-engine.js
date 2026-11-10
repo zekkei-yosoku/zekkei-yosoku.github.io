@@ -1274,8 +1274,9 @@ if(typeof AstroNotes!=='undefined')globalThis.Sorami=AstroNotes;if(typeof AstroN
     }catch{return null;}
     return Number.isFinite(lo)&&Number.isFinite(hi)?{lo:lo-1e-6,hi:hi+1e-6}:null;
   }
+  function sources(){const now=globalThis.__overlapClock(),out=[];for(const r of records.values())if(r.rows&&now-r.loadedAt<HOUR)out.push({...r.observer});for(const r of lines.values())if(r.times&&now-r.loadedAt<HOUR)out.push({...r.observer});return out;}
   function resetSnapshot(){if(pending.size||linePending.size)throw Error('atmosphere fetch pending');records.clear();lines.clear();lineList=[];lineVersion++;lineListVersion=-1;}
-  global.AstroNotesAtmosphere={resetSnapshot,refractionBounds,dataKey,configure,correction,unrefract,load,parse,sample,at,apply,limbAltitude,endpoint,lineEndpoint,parseLine,lineInfo,standardAir,mode:()=>mode,enabled:()=>enabled,targetK:()=>enabled&&mode==='none'?1:7/6};
+  global.AstroNotesAtmosphere={resetSnapshot,sources,refractionBounds,dataKey,configure,correction,unrefract,load,parse,sample,at,apply,limbAltitude,endpoint,lineEndpoint,parseLine,lineInfo,standardAir,mode:()=>mode,enabled:()=>enabled,targetK:()=>enabled&&mode==='none'?1:7/6};
   if(typeof module!=='undefined'&&module.exports)module.exports=global.AstroNotesAtmosphere;
 })(typeof window!=='undefined'?window:globalThis);
 
@@ -4852,9 +4853,7 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
     const lo=half(p),hi=half(p.slice().reverse());lo.pop();hi.pop();return lo.concat(hi);
   }
   const castleWorldCache = new Map();
-  function modelOutline(observer,target,model,{eyeM=1.5,heightM=null}={}) {
-    const ground=target.groundM??0,top=heightM??((partOf(target,"tip")||target.parts[0]).m-ground);
-    if(!(top>.5))return null;
+  function modelWorld(target,model){
     const ref=model.calibration?.observer;
     const bearing=ref?TR.bearing(target.latitude,target.longitude,ref.latitude,ref.longitude):model.referenceBearing;
     const key=`${model.id},${target.latitude},${target.longitude},${bearing}`;
@@ -4873,9 +4872,16 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
       world=model.vertices?(model.faces||model.triangles).map(face=>face.map(i=>mapVertex(model.vertices[i],i))):model.solids.map(solid=>solid.map(mapVertex));
       if(castleWorldCache.size>=16)castleWorldCache.clear();castleWorldCache.set(key,world);
     }
+    return world;
+  }
+  const modelHeight=(model,top,z)=>model.heightMode==="translate-top"?(model.groundAnchored&&z===0?0:z+top-model.heightM):z*top/model.heightM;
+  function modelOutline(observer,target,model,{eyeM=1.5,heightM=null}={}) {
+    const ground=target.groundM??0,top=heightM??((partOf(target,"tip")||target.parts[0]).m-ground);
+    if(!(top>.5))return null;
+    const world=modelWorld(target,model);
     const {km:d,azimuth:az0}=TR.inverse(observer.latitude,observer.longitude,target.latitude,target.longitude),eye=(observer.elevation??0)+eyeM;
     const sight=new Map(),projected=new Map();
-    const height=z=>model.heightMode==="translate-top"?(model.groundAnchored&&z===0?0:z+top-model.heightM):z*top/model.heightM;
+    const height=z=>modelHeight(model,top,z);
     const project=vertex=>{
       if(projected.has(vertex))return projected.get(vertex);
       const {place,z}=vertex;
@@ -5227,10 +5233,64 @@ if(typeof AstroNotesCityModels!=='undefined')globalThis.SoramiCityModels=AstroNo
     const vertices = outline.vertices || [...(outline.points || []), ...(outline.hitPoints || []), ...(outline.hitPolygons || []).flat()];
     return { vertices, polygons:outline.vertexPolygons||outline.hitPolygons||[outline.points], outline: true };
   }
+
+  // Footprint (convex hull on the ground, metres east/north of the target) and height range of a model.
+  const modelFootprints=new WeakMap();
+  function modelFootprint(target,model,top){
+    const world=modelWorld(target,model);let byTop=modelFootprints.get(world);if(!byTop){byTop=new Map();modelFootprints.set(world,byTop);}
+    if(byTop.has(top))return byTop.get(top);
+    const places=new Set();let zlo=Infinity,zhi=-Infinity;
+    for(const solid of world)for(const v of solid){places.add(v.place);const h=modelHeight(model,top,v.z);if(h<zlo)zlo=h;if(h>zhi)zhi=h;}
+    const of=new Map(),xy=[...places].map(p=>{const r=TR.inverse(target.latitude,target.longitude,p.latitude,p.longitude),q=[r.km*1000*Math.sin(r.azimuth*R),r.km*1000*Math.cos(r.azimuth*R)];of.set(q,p);return q;});
+    const hull=convexHull(xy),out=hull.length&&Number.isFinite(zlo)&&Number.isFinite(zhi)?{hull,places:hull.map(q=>of.get(q)),zlo,zhi,radius:xy.reduce((m,q)=>Math.max(m,Math.hypot(q[0],q[1])),0)}:null;
+    if(byTop.size>=8)byTop.clear();byTop.set(top,out);return out;
+  }
+  const boxOf=(az,ref,lo,hi,near)=>{
+    let a0=Infinity,a1=-Infinity;for(const a of az){const d=azDiff(a,ref);if(d<a0)a0=d;if(d>a1)a1=d;}
+    const w=(a1-a0)/2,bulge=(w*Math.PI/90)**2/16*180/Math.PI;
+    return {c:ref+(a0+a1)/2,w:w+.002,lo:lo-bulge-.002,hi:hi+bulge+.002,nearKm:near};
+  };
+  // Every direction prepareDailyView measures against for this observer, as an azimuth/altitude box
+  // {c,w,lo,hi} (exact spherical bounds plus the great-circle bulge of the outline's edges), with the
+  // distance to its nearest point. Null where it cannot be bounded cheaply (the caller then computes).
+  function outlineBounds(observer,target,opts={}){
+    const g=geometryFrom(observer,target,opts);if(!g)return null;
+    const eyeM=opts.eyeM??1.5,heightM=opts.heightM??null,eye=(observer.elevation??0)+eyeM;
+    const CMs=global.AstroNotesCityModels||AstroNotesAlign.CITY_MODELS,TMs=global.AstroNotesTowerModels||AstroNotesAlign.TOWER_MODELS;
+    const model=target.id==="tower-terror"?TERROR_MODEL:target.id==="tinkerbell"&&TINKERBELL_MODEL?TINKERBELL_MODEL:target.id==="cinderella"?CASTLE_MODEL:target.id==="tocho-building"?TOCHO_MODEL:CMs?.[target.id]||TMs?.[target.id]||null;
+    if(!model){
+      const outline=target.rim?null:towerOutline(observer,target,{eyeM,heightM});
+      if(!outline)return boxOf([g.azimuth],g.azimuth,g.angle,g.angle,g.distanceKm);
+      const pts=(outline.hitPolygons||[outline.hitPoints||outline.points]).flat().filter(p=>p&&Number.isFinite(p[0])&&Number.isFinite(p[1]));
+      if(!pts.length)return null;
+      return boxOf([g.azimuth,...pts.map(p=>p[0])],g.azimuth,Math.min(g.angle,...pts.map(p=>p[1])),Math.max(g.angle,...pts.map(p=>p[1])),Math.max(0,g.distanceKm-.05));
+    }
+    const ground=target.groundM??0,top=heightM??((partOf(target,"tip")||target.parts[0]).m-ground);
+    if(!(top>.5))return boxOf([g.azimuth],g.azimuth,g.angle,g.angle,g.distanceKm);
+    const fp=modelFootprint(target,model,top);if(!fp)return null;
+    const rel=TR.inverse(target.latitude,target.longitude,observer.latitude,observer.longitude),ox=rel.km*1000*Math.sin(rel.azimuth*R),oy=rel.km*1000*Math.cos(rel.azimuth*R);
+    // Inside or next to the building: no cheap bound.
+    if(rel.km*1000<=fp.radius+50)return null;
+    let inside=false,dmin=Infinity;const h=fp.hull;
+    for(let i=0,j=h.length-1;i<h.length;j=i++){
+      const p=h[j],q=h[i];if((p[1]>oy)!==(q[1]>oy)&&ox<(q[0]-p[0])*(oy-p[1])/(q[1]-p[1])+p[0])inside=!inside;
+      const dx=q[0]-p[0],dy=q[1]-p[1],len=dx*dx+dy*dy,t=len?Math.max(0,Math.min(1,((ox-p[0])*dx+(oy-p[1])*dy)/len)):0;dmin=Math.min(dmin,Math.hypot(ox-p[0]-t*dx,oy-p[1]-t*dy));
+    }
+    if(inside||h.length<3)return null;
+    const rays=fp.places.map(p=>TR.inverse(observer.latitude,observer.longitude,p.latitude,p.longitude));
+    // Plane geometry around the target versus the geodesic: a relative 1e-4 and 1 m cover it.
+    const dLo=Math.max(.001,Math.min(dmin/1000,...rays.map(r=>r.km))*(1-1e-4)-.001),dHi=Math.max(...rays.map(r=>r.km))*(1+1e-4)+.001;
+    const hLo=ground+fp.zlo,hHi=ground+fp.zhi;
+    // The elevation angle rises with the target height; along the distance it has at most one
+    // maximum (a target below the eye), so its minimum is at an end and its maximum is found here.
+    let lo=Math.min(targetAngle(dLo,eye,hLo),targetAngle(dHi,eye,hLo)),hi=Math.max(targetAngle(dLo,eye,hHi),targetAngle(dHi,eye,hHi));
+    {let x=dLo,y=dHi;for(let k=0;k<60;k++){const m1=x+(y-x)/3,m2=y-(y-x)/3;if(targetAngle(m1,eye,hHi)<targetAngle(m2,eye,hHi))x=m1;else y=m2;}hi=Math.max(hi,targetAngle((x+y)/2,eye,hHi)+1e-9);}
+    return boxOf([g.azimuth,...rays.map(r=>r.azimuth)],g.azimuth,Math.min(lo,g.angle),Math.max(hi,g.angle),dLo);
+  }
   const AstroNotesAlign = { heightVertices, TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, rimPoints, judge, buildingBlock,
-                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};}, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, viewWindow, viewPath, sceneTargets };
+                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};}, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, outlineBounds, viewWindow, viewPath, sceneTargets };
   global.AstroNotesAlign = AstroNotesAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);
@@ -6290,11 +6350,12 @@ const createRecordHeightCandidates=function createRecordHeightCandidates(deps){
     const used=new Set();A.forEach((p,i)=>{if(!proven||p[1]>bottom){used.add(i);if(i)used.add(i-1);if(i<A.length-1)used.add(i+1);}});
     if(!used.size)return null;
     for(const i of used)verts.push(A[i],B[i],[A[i][0],bottom]);
-    verts.push([ga.azimuth,bottom],[ga.azimuth,Math.max(...verts.map(v=>v[1]))]);
+    verts.push([ga.azimuth,bottom],[ga.azimuth,verts.reduce((m,v)=>Math.max(m,v[1]),-Infinity)]);
     if(!proven)centers.push(ga.angle/2,gb.angle/2,(bottom+ga.angle)/2,(bottom+gb.angle)/2);
    }else for(const [o,g] of [[oa,ga],[ob,gb]]){
     const hv=align.heightVertices(o,t,{partId:g.partId,eyeM:g.eyeM,...(g.heightM!=null?{heightM:g.heightM}:{})});
-    if(!hv?.vertices?.length)return null;verts.push(...hv.vertices);if(hv.polygons)facePairs.push(hv.polygons);
+    // 2026-11-10 A detailed model (麻布台ヒルズ) has more vertices than a call may take as arguments.
+    if(!hv?.vertices?.length)return null;for(const v of hv.vertices)verts.push(v);if(hv.polygons)facePairs.push(hv.polygons);
    }
    if(!centers.every(Number.isFinite))return null;
    const cLo=Math.min(...centers),cHi=Math.max(...centers),cq=(cLo+cHi)/2,project=align.viewProjector(ga.azimuth,cq);
@@ -6949,18 +7010,73 @@ async function recordShapeOpportunity(session,p,place,record,solver,live){
   return {rows:[],failed:1,issues:[{id:place.id,reason:e.message==='shape-limit'?'limit':'calculation'}]};
  }
 }
+const RECORD_FAR_STEP_MS=240000;
+function recordFar(obs,target,body,opts,day,spaced){
+ const box=AstroNotesAlign.outlineBounds?.(obs,target,opts);if(!box||!Number.isFinite(box.nearKm))return false;
+ const D=Math.PI/180,shift=spaced?Math.atan(55/Math.max(1,box.nearKm*1000))/D:0;if(shift>5)return false;
+ return recordTrackFar(obs,body,opts.eyeM,box,day,shift);
+}
+function recordTrackFar(obs,body,eyeM,box,day,shift){
+ const D=Math.PI/180,eye={...obs,elevation:(obs.elevation??0)+(eyeM??1.5)},track=[];
+ for(let at=day-RECORD_FAR_STEP_MS;at<=day+86400000+RECORD_FAR_STEP_MS;at+=RECORD_FAR_STEP_MS){
+  const st=AstroNotesBodies.state(body,at,eye),r=st.angularRadius||0,up=st.upperAltitude??st.apparentAltitude+r,low=st.lowerAltitude??st.apparentAltitude-r;
+  if(![st.azimuth,st.apparentAltitude,up,low].every(Number.isFinite))return false;
+  track.push({az:st.azimuth,alt:(up+low)/2,r:Math.tan(Math.max(r,up-st.apparentAltitude,st.apparentAltitude-low)*D)/D});
+ }
+ for(let i=0;i<track.length;i++){
+  const t=track[i],half=Math.max(i?recordArc(track[i-1],t):0,i+1<track.length?recordArc(t,track[i+1]):0)/2;
+  if(recordBoxDistance(t.az,t.alt,box)<=t.r+half+.02+shift)return false;
+ }
+ return true;
+}
+async function recordMountainView(session,shaped,obs,p,indexed){
+ const key=JSON.stringify([obs,p.target,indexed]),geometry=session.mountainGeometry||(session.mountainGeometry=new Map());
+ const geo=await recordBounded(geometry,key,()=>{
+  const pending=(async()=>{
+   const eye=obs.elevation+obs.eyeM;let cap=null,ridge;
+   if(indexed)try{cap=await aimIndexedCap(obs,eye,p.target);}catch{/* The original sampler follows. */}
+   if(!cap){ridge=await aimLookRidge(obs,eye,p.target,{exactSearch:indexed&&p.target.id==='fuji'});if(!ridge)throw Error('山の稜線を取得できませんでした。再試行してください');cap=aimSummitCap(ridge,obs,eye,p.target);}
+   return cap?{ridge:cap.ridge,base:cap.base,opts:{partId:null,eyeM:obs.eyeM,ridge:cap.ridge,ridgeBase:cap.base}}:{ridge,base:0,opts:{partId:null,eyeM:obs.eyeM,ridge}};
+  })();
+  pending.catch(()=>{if(geometry.get(key)===pending)geometry.delete(key);});return pending;
+ },20000);
+ const full=()=>recordBounded(shaped?session.shapeMountains:session.mountains,JSON.stringify([obs,p.target,p.body,indexed]),()=>{session.prepares++;return AstroNotesAlign.prepareDailyView(obs,p.target,p.body,geo.opts);},shaped?96:384);
+ let box;
+ const far=day=>{
+  if(shaped)return false;
+  if(box===undefined){
+   const g=AstroNotesAlign.geometryFrom(obs,p.target,{partId:null,eyeM:obs.eyeM});box=null;
+   if(g&&Array.isArray(geo.ridge)&&geo.ridge.length&&geo.ridge.every(q=>Number.isFinite(q[0])&&Number.isFinite(q[1]))&&Number.isFinite(geo.base)){
+    const ref=g.azimuth;let a0=0,a1=0,lo=Math.min(geo.base,g.angle),hi=g.angle;
+    for(const [a,h] of geo.ridge){const d=(((a-ref)%360+540)%360)-180;a0=Math.min(a0,d);a1=Math.max(a1,d);lo=Math.min(lo,h);hi=Math.max(hi,h);}
+    const w=(a1-a0)/2,bulge=(w*Math.PI/90)**2/16*180/Math.PI;box={c:ref+(a0+a1)/2,w:w+.002,lo:lo-bulge-.002,hi:hi+bulge+.002};
+   }
+  }
+  return !!box&&recordTrackFar(obs,p.body,obs.eyeM,box,day,0);
+ };
+ const view=(day,at)=>{if(Number.isFinite(at)||!far(day))return full()(day,at);session.far=(session.far||0)+1;return [];};
+ Object.defineProperty(view,'heightGeometry',{get:()=>full().heightGeometry});
+ return view;
+}
+function recordDiscoveryView(session,shaped,obs,target,body,opts){
+ const full=()=>recordPrepared(session,shaped,obs,target,body,opts);
+ const view=(day,at)=>{if(Number.isFinite(at)||!recordFar(obs,target,body,opts,day,shaped))return full()(day,at);session.far=(session.far||0)+1;return [];};
+ Object.defineProperty(view,'heightGeometry',{get:()=>full().heightGeometry});
+ return view;
+}
 function recordPrepared(session,shaped,obs,target,body,opts){
  const views=shaped?session.shapeViews:session.pointViews,key=JSON.stringify([obs,target,body,opts]);
  return recordBounded(views,key,()=>{session.prepares++;return AstroNotesAlign.prepareDailyView(obs,target,body,opts);},shaped?128:192);
 }
 function recordSolverFor(session,variant,shaped,override){
  const terrain=override||session.terrain,align=Object.create(AstroNotesAlign);
- const prepare=(obs,target,body,opts)=>{const silhouette=variant==='opportunity'&&!aimIsMountain(target)?recordSilhouette(obs,target,opts):null;return recordPrepared(session,shaped,obs,target,body,silhouette?{...opts,silhouette}:opts);};
+ const prepare=(obs,target,body,opts)=>{const silhouette=variant==='opportunity'&&!aimIsMountain(target)?recordSilhouette(obs,target,opts):null;if(variant==='discovery'&&!opts.ridge&&!opts.silhouette)return recordDiscoveryView(session,shaped,obs,target,body,opts);return recordPrepared(session,shaped,obs,target,body,silhouette?{...opts,silhouette}:opts);};
  align.prepareDailyView=prepare;
  align.dailyView=(obs,target,body,day,{at,...opts}={})=>prepare(obs,target,body,opts)(day,at);
  const viewFor=(obs,p,indexed=false)=>{
   if(p.matchMode==='overlap'&&aimIsMountain(p.target)){
-   if(indexed&&p.target.id==='fuji')return aimShootingView(obs,p.target,p.body,p.partId,p.matchMode,true);
+   if(indexed&&p.target.id==='fuji'&&variant!=='discovery')return aimShootingView(obs,p.target,p.body,p.partId,p.matchMode,true);
+   if(variant==='discovery')return recordMountainView(session,shaped,obs,p,indexed&&p.target.id==='fuji');
    // Keep the registered-point set across date/body switches. Dense line/area
    // samples have a separate, smaller budget and cannot evict these views.
    const views=shaped?session.shapeMountains:session.mountains,key=JSON.stringify([obs,p.target,p.body,p.partId,p.matchMode]);
@@ -7046,7 +7162,10 @@ function opportunityPairs(bodies){
  return {pairs,unavailable};
 }
 // Runs inside the isolated calculation page. No account credential is available here.
-let contextKey=null;
+let contextKey=null,contextSeq=0;
+// 2026-11-10 The list (geometric) and 探す (this device's refraction) share these workers. Switching
+// between them keeps each one's calculation session instead of starting it cold every time.
+const contexts=new Map();
 const decode=value=>typeof value==='string'?JSON.parse(value):value;
 function configure(input){
  const prefs=input.preferences?.settings||input.preferences||{};
@@ -7054,7 +7173,13 @@ function configure(input){
  auth.tools=Array.isArray(input.tools)?input.tools.slice():[];
  if(!auth.tools.includes('records'))throw Error('records permission');
  const key=JSON.stringify([input.generation,prefs,auth.tools]);
- if(key!==contextKey){version++;accessState.generation++;recordSearchSession=null;recordIndexMemo=null;contextKey=key;}
+ if(key!==contextKey){
+  if(contextKey!==null){contexts.delete(contextKey);contexts.set(contextKey,{version,generation:accessState.generation,session:recordSearchSession});while(contexts.size>2)contexts.delete(contexts.keys().next().value);}
+  const saved=contexts.get(key);contexts.delete(key);
+  if(saved){version=saved.version;accessState.generation=saved.generation;recordSearchSession=saved.session;}
+  else{version=Math.max(version,contextSeq)+1;contextSeq=version;accessState.generation++;recordSearchSession=null;}
+  recordIndexMemo=null;contextKey=key;
+ }
  aimAirSettings={...prefs,mode:['auto','none','standard','manual'].includes(prefs.mode)?prefs.mode:'auto'};
  AstroNotesAtmosphere.configure(aimAirSettings.mode,aimAirSettings);
  if(prefs.model==='geometric-candidate-v1'&&AstroNotesAtmosphere.targetK()!==1)throw Error('invalid geometric radius model');
@@ -7113,6 +7238,18 @@ async function solve(input){
  const geometry={};for(const [key,value] of recordGeometry.used)if(!given.has(key))geometry[key]=value;recordGeometry.used=new Map();
  return {geometry,rows,issues:result.issues||[],status:result.failed||result.cancelled||result.issues?.length?'partial':'complete',checked:result.checked||0,stepM:result.stepM,expiresAt:Number.isFinite(refreshAt)?refreshAt:null,calculationMs:performance.now()-started,atmosphereResolution,atmosphereKey:AstroNotesAtmosphere.dataKey()};
 }
+// 2026-11-10 探す（記録の撮影地点）: the registered places the device hands over, checked with the
+// device's own refraction settings (input.preferences) exactly as on the page. Weather the device has
+// loaded is not available here; the page keeps places near it.
+async function discover(input){
+ configure(input);
+ if(!input.plan||typeof input.plan.target!=='object'||!Array.isArray(input.entries)||!input.entries.length||input.entries.length>64)throw Error('invalid discovery input');
+ favorites=Array.isArray(input.favorites)?input.favorites:[];AstroNotesAtmosphere.resetSnapshot();
+ recordGeometry.collect=false;recordGeometry.used=new Map();
+ const started=performance.now(),before=recordSearchSession?.far||0;
+ const value=await recordSearch(input.plan,input.entries,{isCurrent:()=>true,variant:'discovery'});
+ return {...value,far:(recordSearchSession?.far||0)-before,calculationMs:performance.now()-started};
+}
 // Private fixture verification only; the daemon never dispatches this operation.
 async function reference(input){
  configure(input);favorites=[];
@@ -7122,6 +7259,6 @@ async function reference(input){
  const value=await recordSearch({...input.plan,target},input.entries,{isCurrent:()=>true,variant:input.variant||'discovery'});
  return {value,ms:performance.now()-start};
 }
-globalThis.__overlap={normalize,solve,reference};
+globalThis.__overlap={normalize,solve,discover,reference};
 
 })();

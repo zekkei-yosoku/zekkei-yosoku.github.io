@@ -2,7 +2,9 @@ import {readFileSync} from 'node:fs';
 import {createRecordTransfer} from './record-transfer-policy.mjs';
 const patch=(s,a,b)=>{if(s.split(a).length!==2)throw Error('Record transfer boundary changed: '+a.slice(0,95));return s.replace(a,b);};
 const style=String.raw`
-#myRecordsHub .my-head .record-transfer-more{display:grid;place-items:center;width:44px;min-width:44px;min-height:44px;padding:0;flex:none}
+/* 2026-11-10 ユーザー「ボタン逆の方がいい」「+を追加に」「…も他と同じように楕円で」: 地図・編集・追加の楕円、右端に…の楕円 */
+#myRecordsHub .my-head .my-add-point{margin-left:0;width:auto;min-width:44px;min-height:34px;padding:0 12px}
+#myRecordsHub .my-head .record-transfer-more{display:inline-flex;align-items:center;justify-content:center;margin-left:auto;width:auto;min-width:44px;min-height:34px;padding:0 12px;flex:none}
 .record-transfer-sheet{box-sizing:border-box;width:min(560px,calc(100vw - 24px));max-height:85dvh;border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--text);padding:0;overflow:auto}
 .record-transfer-sheet::backdrop{background:#0009}.record-transfer-sheet .sheet-head{position:sticky;top:0;z-index:1;background:var(--card);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}
 .record-transfer-sheet .sheet-head button{min-height:44px}.record-transfer-sheet .sheet-body{padding:12px 16px 16px;min-width:0}
@@ -15,7 +17,8 @@ export function recordTransferMyplaces(s){
  const runtime=readFileSync(new URL('./record-transfer-runtime.js',import.meta.url),'utf8');
  s=patch(s,'const createOpportunityScan=','const createRecordTransfer='+createRecordTransfer.toString()+';\n'+runtime+'\nconst createOpportunityScan=');
  s=patch(s,'function renderRecordsHub() {','function renderRecordsHub() {\n  transferRefresh();');
- s=patch(s,'actions.append(edit,add);if(notebookEdit)','actions.append(edit);appendRecordTransfer(actions);actions.append(add);if(notebookEdit)');
+ s=patch(s,'actions.append(edit,add);if(notebookEdit)','actions.append(edit,add);appendRecordTransfer(actions);if(notebookEdit)');
+ s=patch(s,`add.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';add.setAttribute('aria-label','記録を追加');`,`add.textContent = '追加';add.setAttribute('aria-label','記録を追加');`);
  s=patch(s,"map.textContent = '地図で場所を探す';", "map.textContent = '地図';map.setAttribute('aria-label','地図で場所を探す');");
  s=patch(s,'favorites.filter(f=>recordedIds.has(f.id)||!!shapeFor(f))','favorites.filter(f=>f.recordRegistered||recordedIds.has(f.id)||!!shapeFor(f))');
  const a=s.indexOf('  const note = document.createElement(\'p\'); note.className = \'tiny\'; note.textContent = \'撮影地点・見える対象'),b=s.indexOf('host.append(backup);',a);if(a<0||b<0)throw Error('Record backup footer changed');s=s.slice(0,a)+s.slice(b+'host.append(backup);'.length);

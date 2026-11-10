@@ -10,8 +10,8 @@
   if(event.origin!==origin||event.source!==parent||message?.type!==channel||!Number.isSafeInteger(message.id))return;
   tail=tail.then(async()=>{
    try{
-    if(message.op!=='solve')throw Error('unknown operation');
-    const result=await globalThis.__overlap.solve(message.input);
+    if(message.op!=='solve'&&message.op!=='discover')throw Error('unknown operation');
+    const result=await globalThis.__overlap[message.op](message.input);
     parent.postMessage({type:channel,id:message.id,result},origin);
    }catch(error){parent.postMessage({type:channel,id:message.id,error:String(error?.message||error)},origin);}
   });

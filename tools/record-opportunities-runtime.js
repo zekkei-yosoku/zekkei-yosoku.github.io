@@ -65,12 +65,12 @@ function opportunityFrameClose(){
 }
 // The frame runs one check at a time. A check that never settles would hold
 // every later one, so it is abandoned with its frame and reported unchecked.
-async function opportunityFrameSolve(input){
+async function opportunityFrameSolve(input,op='solve'){
  const state=await opportunityFrameOpen(),id=++opportunityFrameSeq;
  return new Promise((resolve,reject)=>{
   const timer=setTimeout(()=>{if(opportunityFrame===state)opportunityFrameClose();},120000);
   state.calls.set(id,{resolve:v=>{clearTimeout(timer);resolve(v);},reject:e=>{clearTimeout(timer);reject(e);}});
-  state.frame.contentWindow.postMessage({type:'astronotes-overlap',id,op:'solve',input},location.origin);
+  state.frame.contentWindow.postMessage({type:'astronotes-overlap',id,op,input},location.origin);
  });
 }
 // 2026-11-09 Where the browser can decode terrain tiles off the main thread,
@@ -107,13 +107,13 @@ function opportunityWorkersClose(){
  const pool=opportunityWorkers;if(!pool)return;opportunityWorkers=null;
  for(const slot of pool.slots){slot.worker.terminate();for(const call of slot.calls.values())call.reject(Error('calculation worker closed'));slot.calls.clear();}
 }
-async function opportunityWorkerSolve(input){
+async function opportunityWorkerSolve(input,op='solve'){
  const pool=await opportunityWorkersOpen(),slot=pool.slots.reduce((a,b)=>b.calls.size<a.calls.size?b:a),id=++opportunityWorkerSeq;
  return new Promise((resolve,reject)=>{
   // A check that never settles is abandoned with the pool and reported unchecked.
   const timer=setTimeout(()=>{if(opportunityWorkers===pool)opportunityWorkersClose();},120000);
   slot.calls.set(id,{resolve:v=>{clearTimeout(timer);resolve(v);},reject:e=>{clearTimeout(timer);reject(e);}});
-  slot.worker.postMessage({type:'astronotes-overlap',id,op:'solve',input});
+  slot.worker.postMessage({type:'astronotes-overlap',id,op,input});
  });
 }
 // Workers first; if they cannot start here, the frame for the rest of the session.
@@ -123,7 +123,68 @@ async function opportunityEngineOpen(){
  return opportunityFrameOpen();
 }
 const opportunityEngineSlots=()=>opportunityEngineMode==='workers'&&opportunityWorkers?Math.max(1,opportunityWorkers.slots.length):1;
-function opportunityEngineSolve(input){return opportunityEngineMode==='workers'?opportunityWorkerSolve(input):opportunityFrameSolve(input);}
+function opportunityEngineSolve(input,op='solve'){return opportunityEngineMode==='workers'?opportunityWorkerSolve(input,op):opportunityFrameSolve(input,op);}
+// 2026-11-10 探す（記録の撮影地点）も重なる日と同じ計算本体で、地点ごとに並列に確かめる（ユーザー「同じ作りにして」）。
+// 大気差はこの端末の設定のまま本体へ渡し、計算は今までと同じ recordSearch（discovery）。この端末が読み込んだ気象が
+// 効く地点（気象の地点から3km以内。効く範囲は2km）だけは、本体に気象が無いので今までどおりこの画面で計算する。
+// 本体を使えないときは null を返し、呼び出し側が今までの計算をする。
+function recordWeatherNear(place,sources){
+ if(!sources.length)return false;
+ const s=place.shape?AstroNotesShooting.cleanShape(place.shape):null,v=s?s.vertices:[place];
+ return sources.some(o=>{
+  const k=111.2*Math.cos(o.latitude*Math.PI/180),xy=p=>[(p.longitude-o.longitude)*k,(p.latitude-o.latitude)*111.2];
+  if(!s)return Math.hypot(...xy(place))<=3;
+  let inside=false,d=Infinity;const pts=v.map(xy),n=pts.length,closed=s.type==='area';
+  for(let i=closed?0:1,j=closed?n-1:0;i<n;j=i++){
+   const a=pts[j],b=pts[i];if(closed&&(a[1]>0)!==(b[1]>0)&&0<(b[0]-a[0])*(0-a[1])/(b[1]-a[1])+a[0])inside=!inside;
+   const dx=b[0]-a[0],dy=b[1]-a[1],len=dx*dx+dy*dy,t=len?Math.max(0,Math.min(1,-(a[0]*dx+a[1]*dy)/len)):0;d=Math.min(d,Math.hypot(a[0]+t*dx,a[1]+t*dy));
+  }
+  if(n===1)d=Math.hypot(...pts[0]);
+  return inside||d<=3;
+ });
+}
+async function recordEngineDiscover(plan,points,isCurrent,onProgress){
+ if(!points.length||globalThis.AstroNotesDiscoveryEngine==='page'||!opportunityAllowed())return null;
+ const p=AstroNotesShooting.conditions(plan);if(!p)return null;
+ try{await opportunityEngineOpen();}catch{return null;}
+ if(!isCurrent())return {rows:[],failed:0,cancelled:true};
+ const start=AstroNotesShooting.day(p.at),air=AstroNotesAtmosphere.dataKey(start);
+ // The refraction the page's calculation actually uses (its atmosphere state), not the saved setting.
+ let state;try{state=JSON.parse(air);}catch{return null;}
+ const [enabled,mode,manual]=Array.isArray(state)?state:[];
+ if(enabled!==true||!['auto','standard','manual','none'].includes(mode)||mode==='manual'&&!manual)return null;
+ const sources=mode==='auto'?AstroNotesAtmosphere.sources?.()||[]:[];
+ const owner=auth?.token,generation=accessState.generation,revision=version;
+ const live=()=>isCurrent()&&owner===auth?.token&&generation===accessState.generation&&revision===version&&air===AstroNotesAtmosphere.dataKey(start)&&toolAllowed('records');
+ const local=[],remote=[];for(const [i,e] of points.entries())(recordWeatherNear(e.place,sources)?local:remote).push(i);
+ const base={plan,preferences:{mode,...(mode==='manual'?{pressureHPa:manual.pressureHPa,temperatureC:manual.temperatureC}:{}),targetHeights:store.get('sorami.aimHeights',{})},tools:auth.tools.slice(),generation,evaluationNow:Date.now(),favorites};
+ const results=new Array(points.length);let processed=0,next=0,broken=null;
+ const done=i=>{processed++;onProgress?.({checked:processed,total:points.length});};
+ const lane=async()=>{
+  for(let k;!broken&&(k=next++)<remote.length;){
+   if(!live())return;const i=remote[k];
+   try{results[i]=await opportunityEngineSolve({...base,entries:[points[i]]},'discover');}catch(e){broken=e;return;}
+   done(i);
+  }
+ };
+ await Promise.all(Array.from({length:opportunityEngineSlots()},lane));
+ if(!live())return {rows:[],failed:0,cancelled:true};
+ // The engine could not finish: the rest is computed here as before.
+ const rest=[...local,...remote.filter(i=>!results[i])];
+ if(rest.length){
+  const value=await recordSearch(plan,rest.map(i=>points[i]),{isCurrent:live,onProgress:step=>onProgress?.({checked:processed+step.checked,total:points.length})});
+  if(value.cancelled||!live())return {rows:[],failed:0,cancelled:true};
+  processed+=rest.length;results.push(value);
+ }
+ const rows=[],issues=[];let failed=0,checked=0,stepM;
+ for(const [i,r] of results.entries()){
+  if(!r)continue;
+  for(const row of r.rows||[])rows.push(i<points.length?{...row,record:points[i].record}:row);
+  failed+=r.failed||0;checked+=r.checked||0;stepM=r.stepM??stepM;issues.push(...(r.issues||[]));
+ }
+ rows.sort((a,b)=>a.event.at-b.event.at||a.place.name.localeCompare(b.place.name));
+ return {rows,failed,...(checked?{checked}:{}),...(stepM?{stepM}:{}),...(issues.length?{issues}:{})};
+}
 function opportunityDbOpen(){
  if(opportunityDb)return opportunityDb;
  opportunityDb=new Promise((resolve,reject)=>{
@@ -456,6 +517,14 @@ function opportunitySet(patch){
 function opportunityRow(row,job){
  const button=opportunityNode('button',{type:'button',className:'record-opportunity-row'}),time=opportunityNode('span',{className:'record-opportunity-time'},S.JstCal.hhmm(row.event.at)),name=opportunityNode('strong',{},row.place.name+' → '+row.target.name),body=opportunityNode('span',{className:'record-opportunity-body'},AstroNotesBodies.definition(row.body)?.name||row.body),arrow=opportunityNode('span',{className:'record-opportunity-arrow'},'›');arrow.setAttribute('aria-hidden','true');button.append(time,name,body,arrow);const details=[];if(!row.place.eyeHeightRangeAGL&&job.pairs.some(p=>p.sourcePlaceId===row.sourcePlaceId&&p.target.id===row.target.id&&p.place.eyeHeightAGL!==row.place.eyeHeightAGL))details.push('地上'+row.place.eyeHeightAGL+'m');if(row.event.matchMode==='limb')details.push(RecordAlignment.text(row.target,row.event));if(row.place.eyeHeightRangeAGL)details.push('地上'+row.place.eyeHeightAGL+'m');if(row.shapeType)details.push((row.shapeType==='line'?'線上':'範囲内')+' '+row.place.latitude.toFixed(5)+', '+row.place.longitude.toFixed(5));if(details.length){button.classList.add('has-height');button.append(opportunityNode('span',{className:'record-opportunity-height'},details.join(' ・ ')));}button.dataset.opportunityId=row.id;button.onclick=()=>openOpportunity(row,job);return button;
 }
+// 2026-11-10 The device checks one day at a time (every pair of a day, then the next day) and stops
+// once the page has enough rows. The bar shows the day being checked and its pairs, not every day the
+// page might reach (ユーザー「進捗バーの分母がおかしくない？」: 82 / 3220組 = 460組 × 7日).
+function opportunityProgress(job,s){
+ if(!job.progressUi)return;
+ if(job.remote){job.progressUi.update(s.checked,s.total);return;}
+ const n=job.pairs.length;job.progressUi.update(Math.max(0,Math.min(n,s.index|0)),n,dayText(s.day)+'を確認中');
+}
 // Rows of the day still being checked appear below the confirmed days, so
 // confirmed rows never move. They join the list in order once the day ends.
 function opportunityDrawPending(job){
@@ -480,7 +549,7 @@ function opportunityDraw(job){
  if(s.error){job.progressUi=null;d.status.textContent=s.error.message||'サーバーに接続できません。再試行してください。';}
  else if(!s.done&&(job.remote||job.pairs.length)){
   if(job.progressUi?.node.parentNode!==d.status)job.progressUi=showRecordProgress(d.status,job.remote?'サーバーで確認中':'確認中','組');
-  job.progressUi.update(s.checked,s.total);
+  opportunityProgress(job,s);
  }else{
   job.progressUi=null;d.status.textContent=!job.pairs.length?(!opportunityFilters.allPlaces&&!opportunityFilters.places.length?'撮影地点を選び直してください。':job.unavailable?(job.policyUnavailable?'撮影地点の高さや重ね方を確認してください。':job.accessUnavailable===job.unavailable?'現在の権限では、この組み合わせを確認できません':'対象の登録を確認してください。'):'この組み合わせで確認できる記録がありません'):failures?(s.failures.length?'確認できなかった組み合わせがあります':job.accessUnavailable===job.unavailable?'現在の権限では確認できない組み合わせがあります':'対象の登録を確認してください。'):rows.length?'':'確認した期間に重なる組み合わせはありません';
  }
@@ -531,7 +600,7 @@ async function opportunityStart(job,end,retryEnd){
   if(job.remote){const cached=opportunityCache.get(job.key);if(cached?.remote){job.restoreThrough=cached.through;opportunityCache.delete(job.key);}job.scan=createServerOpportunityScan({api:(...args)=>apiTransport(...args),start:job.start,end,bodies:opportunityFilters.bodies.slice(),placeIds:opportunityFilters.allPlaces?null:opportunityFilters.places.slice(),sourceRev:prefs.sourceRev,isCurrent:()=>opportunityCurrent(job),onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:()=>opportunityDraw(job)});}
   else{
    const solve=(pair,day,isCurrent)=>opportunityDeviceSolve(pair,day,{isCurrent});
-   job.scan=createOpportunityScan({pairs:job.pairs,start:job.start,end,notBefore:job.start,pageRows:Number.isFinite(retryEnd)?Infinity:opportunityPageRows,solve,ahead:()=>opportunityEngineSlots()*2,isCurrent:()=>opportunityCurrent(job),yieldTask:recordSearchYield,onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:s=>{if(!opportunityCurrent(job))return;job.progressUi?.update(s.checked,s.total);if(s.pending.length!==job.pendingDrawn)opportunityDraw(job);}});
+   job.scan=createOpportunityScan({pairs:job.pairs,start:job.start,end,notBefore:job.start,pageRows:Number.isFinite(retryEnd)?Infinity:opportunityPageRows,solve,ahead:()=>opportunityEngineSlots()*2,isCurrent:()=>opportunityCurrent(job),yieldTask:recordSearchYield,onStart:()=>opportunityDraw(job),onDay:()=>opportunityDraw(job),onProgress:s=>{if(!opportunityCurrent(job))return;opportunityProgress(job,s);if(s.pending.length!==job.pendingDrawn)opportunityDraw(job);}});
    const cached=opportunityCache.get(job.key);if(cached){opportunityCache.delete(job.key);Object.assign(job.scan.state,cached,{running:false,cancelled:false});opportunityDraw(job);}
   }
   if(!job.scan.state.done)void opportunityAdvance(job);

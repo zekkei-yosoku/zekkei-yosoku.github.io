@@ -15,7 +15,7 @@ async function run(browser,url,profile=false){
  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(120000);
  try{
   await page.goto(url+'#/records');await page.waitForFunction(()=>typeof MyPlacesUI==='object'&&typeof SkyMapUI==='object');
-  await page.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();AstroNotesAtmosphere.configure('standard');RecordSync.kick=()=>{};RecordSync.touched=()=>{};accountSync().syncNow=async()=>{};accountSync().queuePush=()=>{};AstroNotesTerrain.groundElevation=async()=>87.2;});
+  await page.evaluate(async()=>{await startupSessionReady;await AstroNotesAssets.ensureModels();AstroNotesAtmosphere.configure('standard');RecordSync.kick=()=>{};RecordSync.touched=()=>{};accountSync().syncNow=async()=>{};accountSync().queuePush=()=>{};AstroNotesTerrain.groundElevation=async()=>87.2;window.AstroNotesDiscoveryEngine='page';});
   const cdp=profile&&engine==='chrome'?await context.newCDPSession(page):null;
   if(cdp){await cdp.send('Profiler.enable');await cdp.send('Profiler.start');}
   const result=await page.evaluate(async count=>{

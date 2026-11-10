@@ -1,5 +1,8 @@
 // Runs inside the isolated calculation page. No account credential is available here.
-let contextKey=null;
+let contextKey=null,contextSeq=0;
+// 2026-11-10 The list (geometric) and 探す (this device's refraction) share these workers. Switching
+// between them keeps each one's calculation session instead of starting it cold every time.
+const contexts=new Map();
 const decode=value=>typeof value==='string'?JSON.parse(value):value;
 function configure(input){
  const prefs=input.preferences?.settings||input.preferences||{};
@@ -7,7 +10,13 @@ function configure(input){
  auth.tools=Array.isArray(input.tools)?input.tools.slice():[];
  if(!auth.tools.includes('records'))throw Error('records permission');
  const key=JSON.stringify([input.generation,prefs,auth.tools]);
- if(key!==contextKey){version++;accessState.generation++;recordSearchSession=null;recordIndexMemo=null;contextKey=key;}
+ if(key!==contextKey){
+  if(contextKey!==null){contexts.delete(contextKey);contexts.set(contextKey,{version,generation:accessState.generation,session:recordSearchSession});while(contexts.size>2)contexts.delete(contexts.keys().next().value);}
+  const saved=contexts.get(key);contexts.delete(key);
+  if(saved){version=saved.version;accessState.generation=saved.generation;recordSearchSession=saved.session;}
+  else{version=Math.max(version,contextSeq)+1;contextSeq=version;accessState.generation++;recordSearchSession=null;}
+  recordIndexMemo=null;contextKey=key;
+ }
  aimAirSettings={...prefs,mode:['auto','none','standard','manual'].includes(prefs.mode)?prefs.mode:'auto'};
  AstroNotesAtmosphere.configure(aimAirSettings.mode,aimAirSettings);
  if(prefs.model==='geometric-candidate-v1'&&AstroNotesAtmosphere.targetK()!==1)throw Error('invalid geometric radius model');
@@ -66,6 +75,18 @@ async function solve(input){
  const geometry={};for(const [key,value] of recordGeometry.used)if(!given.has(key))geometry[key]=value;recordGeometry.used=new Map();
  return {geometry,rows,issues:result.issues||[],status:result.failed||result.cancelled||result.issues?.length?'partial':'complete',checked:result.checked||0,stepM:result.stepM,expiresAt:Number.isFinite(refreshAt)?refreshAt:null,calculationMs:performance.now()-started,atmosphereResolution,atmosphereKey:AstroNotesAtmosphere.dataKey()};
 }
+// 2026-11-10 探す（記録の撮影地点）: the registered places the device hands over, checked with the
+// device's own refraction settings (input.preferences) exactly as on the page. Weather the device has
+// loaded is not available here; the page keeps places near it.
+async function discover(input){
+ configure(input);
+ if(!input.plan||typeof input.plan.target!=='object'||!Array.isArray(input.entries)||!input.entries.length||input.entries.length>64)throw Error('invalid discovery input');
+ favorites=Array.isArray(input.favorites)?input.favorites:[];AstroNotesAtmosphere.resetSnapshot();
+ recordGeometry.collect=false;recordGeometry.used=new Map();
+ const started=performance.now(),before=recordSearchSession?.far||0;
+ const value=await recordSearch(input.plan,input.entries,{isCurrent:()=>true,variant:'discovery'});
+ return {...value,far:(recordSearchSession?.far||0)-before,calculationMs:performance.now()-started};
+}
 // Private fixture verification only; the daemon never dispatches this operation.
 async function reference(input){
  configure(input);favorites=[];
@@ -75,4 +96,4 @@ async function reference(input){
  const value=await recordSearch({...input.plan,target},input.entries,{isCurrent:()=>true,variant:input.variant||'discovery'});
  return {value,ms:performance.now()-start};
 }
-globalThis.__overlap={normalize,solve,reference};
+globalThis.__overlap={normalize,solve,discover,reference};

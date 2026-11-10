@@ -256,17 +256,84 @@ async function recordShapeOpportunity(session,p,place,record,solver,live){
   return {rows:[],failed:1,issues:[{id:place.id,reason:e.message==='shape-limit'?'limit':'calculation'}]};
  }
 }
+// 2026-11-10 探す（記録の撮影地点）も重なる日と同じ作りに（ユーザー「同じ作りにして」）。今までは立ち位置ごと・
+// 日ごとに建物の外形を作ってから判定していた（外形づくり1か所約20ms、判定そのものは約0.5ms。範囲の地点は
+// 立ち位置が数百あり、外形の覚え置き128か所からあふれて毎日作り直していた）。外形を作る前に、その日の
+// 天体の通り道（その立ち位置から、この端末の大気差で4分ごと）が外形を必ず含む枠
+// （AstroNotesAlign.outlineBounds）の近くを通るかを調べ、通らない日は外形を作らずに重ならないとする。
+// 通る日は今までと同じ計算。余裕は円盤の半径、4分の間の動きの半分、投影と縦横比の差0.02°。線・範囲では
+// 隣の立ち位置との間（25m以内）を二分して調べるので、その間で外形が動く分（25mと地面の差30mを最寄りの
+// 外形までの距離で割った角度）も足す。
+const RECORD_FAR_STEP_MS=240000;
+function recordFar(obs,target,body,opts,day,spaced){
+ const box=AstroNotesAlign.outlineBounds?.(obs,target,opts);if(!box||!Number.isFinite(box.nearKm))return false;
+ const D=Math.PI/180,shift=spaced?Math.atan(55/Math.max(1,box.nearKm*1000))/D:0;if(shift>5)return false;
+ return recordTrackFar(obs,body,opts.eyeM,box,day,shift);
+}
+function recordTrackFar(obs,body,eyeM,box,day,shift){
+ const D=Math.PI/180,eye={...obs,elevation:(obs.elevation??0)+(eyeM??1.5)},track=[];
+ for(let at=day-RECORD_FAR_STEP_MS;at<=day+86400000+RECORD_FAR_STEP_MS;at+=RECORD_FAR_STEP_MS){
+  const st=AstroNotesBodies.state(body,at,eye),r=st.angularRadius||0,up=st.upperAltitude??st.apparentAltitude+r,low=st.lowerAltitude??st.apparentAltitude-r;
+  if(![st.azimuth,st.apparentAltitude,up,low].every(Number.isFinite))return false;
+  track.push({az:st.azimuth,alt:(up+low)/2,r:Math.tan(Math.max(r,up-st.apparentAltitude,st.apparentAltitude-low)*D)/D});
+ }
+ for(let i=0;i<track.length;i++){
+  const t=track[i],half=Math.max(i?recordArc(track[i-1],t):0,i+1<track.length?recordArc(t,track[i+1]):0)/2;
+  if(recordBoxDistance(t.az,t.alt,box)<=t.r+half+.02+shift)return false;
+ }
+ return true;
+}
+// 2026-11-10 山（重ね方が全体）: 山頂付近の稜線は日付・天体に依存しないので立ち位置ごとに覚えておき
+// （今までは日ごとの判定を覚え置き、範囲の地点では96か所を超えると毎日作り直していた）、その日の判定だけを
+// 作る。稜線の作り方は aimShootingView と同じ。点の地点は建物と同じく、通り道が稜線の枠から遠い日は判定を
+// 作らない。線・範囲は隣の立ち位置との間を二分するので、手前の地形までの距離が分からない稜線では外さない。
+async function recordMountainView(session,shaped,obs,p,indexed){
+ const key=JSON.stringify([obs,p.target,indexed]),geometry=session.mountainGeometry||(session.mountainGeometry=new Map());
+ const geo=await recordBounded(geometry,key,()=>{
+  const pending=(async()=>{
+   const eye=obs.elevation+obs.eyeM;let cap=null,ridge;
+   if(indexed)try{cap=await aimIndexedCap(obs,eye,p.target);}catch{/* The original sampler follows. */}
+   if(!cap){ridge=await aimLookRidge(obs,eye,p.target,{exactSearch:indexed&&p.target.id==='fuji'});if(!ridge)throw Error('山の稜線を取得できませんでした。再試行してください');cap=aimSummitCap(ridge,obs,eye,p.target);}
+   return cap?{ridge:cap.ridge,base:cap.base,opts:{partId:null,eyeM:obs.eyeM,ridge:cap.ridge,ridgeBase:cap.base}}:{ridge,base:0,opts:{partId:null,eyeM:obs.eyeM,ridge}};
+  })();
+  pending.catch(()=>{if(geometry.get(key)===pending)geometry.delete(key);});return pending;
+ },20000);
+ const full=()=>recordBounded(shaped?session.shapeMountains:session.mountains,JSON.stringify([obs,p.target,p.body,indexed]),()=>{session.prepares++;return AstroNotesAlign.prepareDailyView(obs,p.target,p.body,geo.opts);},shaped?96:384);
+ let box;
+ const far=day=>{
+  if(shaped)return false;
+  if(box===undefined){
+   const g=AstroNotesAlign.geometryFrom(obs,p.target,{partId:null,eyeM:obs.eyeM});box=null;
+   if(g&&Array.isArray(geo.ridge)&&geo.ridge.length&&geo.ridge.every(q=>Number.isFinite(q[0])&&Number.isFinite(q[1]))&&Number.isFinite(geo.base)){
+    const ref=g.azimuth;let a0=0,a1=0,lo=Math.min(geo.base,g.angle),hi=g.angle;
+    for(const [a,h] of geo.ridge){const d=(((a-ref)%360+540)%360)-180;a0=Math.min(a0,d);a1=Math.max(a1,d);lo=Math.min(lo,h);hi=Math.max(hi,h);}
+    const w=(a1-a0)/2,bulge=(w*Math.PI/90)**2/16*180/Math.PI;box={c:ref+(a0+a1)/2,w:w+.002,lo:lo-bulge-.002,hi:hi+bulge+.002};
+   }
+  }
+  return !!box&&recordTrackFar(obs,p.body,obs.eyeM,box,day,0);
+ };
+ const view=(day,at)=>{if(Number.isFinite(at)||!far(day))return full()(day,at);session.far=(session.far||0)+1;return [];};
+ Object.defineProperty(view,'heightGeometry',{get:()=>full().heightGeometry});
+ return view;
+}
+function recordDiscoveryView(session,shaped,obs,target,body,opts){
+ const full=()=>recordPrepared(session,shaped,obs,target,body,opts);
+ const view=(day,at)=>{if(Number.isFinite(at)||!recordFar(obs,target,body,opts,day,shaped))return full()(day,at);session.far=(session.far||0)+1;return [];};
+ Object.defineProperty(view,'heightGeometry',{get:()=>full().heightGeometry});
+ return view;
+}
 function recordPrepared(session,shaped,obs,target,body,opts){
  const views=shaped?session.shapeViews:session.pointViews,key=JSON.stringify([obs,target,body,opts]);
  return recordBounded(views,key,()=>{session.prepares++;return AstroNotesAlign.prepareDailyView(obs,target,body,opts);},shaped?128:192);
 }
 function recordSolverFor(session,variant,shaped,override){
  const terrain=override||session.terrain,align=Object.create(AstroNotesAlign);
- const prepare=(obs,target,body,opts)=>{const silhouette=variant==='opportunity'&&!aimIsMountain(target)?recordSilhouette(obs,target,opts):null;return recordPrepared(session,shaped,obs,target,body,silhouette?{...opts,silhouette}:opts);};
+ const prepare=(obs,target,body,opts)=>{const silhouette=variant==='opportunity'&&!aimIsMountain(target)?recordSilhouette(obs,target,opts):null;if(variant==='discovery'&&!opts.ridge&&!opts.silhouette)return recordDiscoveryView(session,shaped,obs,target,body,opts);return recordPrepared(session,shaped,obs,target,body,silhouette?{...opts,silhouette}:opts);};
  align.prepareDailyView=prepare;
  align.dailyView=(obs,target,body,day,{at,...opts}={})=>prepare(obs,target,body,opts)(day,at);
  const viewFor=(obs,p)=>{
   if(p.matchMode==='overlap'&&aimIsMountain(p.target)){
+   if(variant==='discovery')return recordMountainView(session,shaped,obs,p,false);
    // Keep the registered-point set across date/body switches. Dense line/area
    // samples have a separate, smaller budget and cannot evict these views.
    const views=shaped?session.shapeMountains:session.mountains,key=JSON.stringify([obs,p.target,p.body,p.partId,p.matchMode]);

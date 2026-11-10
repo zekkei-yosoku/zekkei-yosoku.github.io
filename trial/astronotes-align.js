@@ -1521,9 +1521,7 @@
     const lo=half(p),hi=half(p.slice().reverse());lo.pop();hi.pop();return lo.concat(hi);
   }
   const castleWorldCache = new Map();
-  function modelOutline(observer,target,model,{eyeM=1.5,heightM=null}={}) {
-    const ground=target.groundM??0,top=heightM??((partOf(target,"tip")||target.parts[0]).m-ground);
-    if(!(top>.5))return null;
+  function modelWorld(target,model){
     const ref=model.calibration?.observer;
     const bearing=ref?TR.bearing(target.latitude,target.longitude,ref.latitude,ref.longitude):model.referenceBearing;
     const key=`${model.id},${target.latitude},${target.longitude},${bearing}`;
@@ -1542,9 +1540,16 @@
       world=model.vertices?(model.faces||model.triangles).map(face=>face.map(i=>mapVertex(model.vertices[i],i))):model.solids.map(solid=>solid.map(mapVertex));
       if(castleWorldCache.size>=16)castleWorldCache.clear();castleWorldCache.set(key,world);
     }
+    return world;
+  }
+  const modelHeight=(model,top,z)=>model.heightMode==="translate-top"?(model.groundAnchored&&z===0?0:z+top-model.heightM):z*top/model.heightM;
+  function modelOutline(observer,target,model,{eyeM=1.5,heightM=null}={}) {
+    const ground=target.groundM??0,top=heightM??((partOf(target,"tip")||target.parts[0]).m-ground);
+    if(!(top>.5))return null;
+    const world=modelWorld(target,model);
     const {km:d,azimuth:az0}=TR.inverse(observer.latitude,observer.longitude,target.latitude,target.longitude),eye=(observer.elevation??0)+eyeM;
     const sight=new Map(),projected=new Map();
-    const height=z=>model.heightMode==="translate-top"?(model.groundAnchored&&z===0?0:z+top-model.heightM):z*top/model.heightM;
+    const height=z=>modelHeight(model,top,z);
     const project=vertex=>{
       if(projected.has(vertex))return projected.get(vertex);
       const {place,z}=vertex;
@@ -1896,10 +1901,64 @@
     const vertices = outline.vertices || [...(outline.points || []), ...(outline.hitPoints || []), ...(outline.hitPolygons || []).flat()];
     return { vertices, polygons:outline.vertexPolygons||outline.hitPolygons||[outline.points], outline: true };
   }
+
+  // Footprint (convex hull on the ground, metres east/north of the target) and height range of a model.
+  const modelFootprints=new WeakMap();
+  function modelFootprint(target,model,top){
+    const world=modelWorld(target,model);let byTop=modelFootprints.get(world);if(!byTop){byTop=new Map();modelFootprints.set(world,byTop);}
+    if(byTop.has(top))return byTop.get(top);
+    const places=new Set();let zlo=Infinity,zhi=-Infinity;
+    for(const solid of world)for(const v of solid){places.add(v.place);const h=modelHeight(model,top,v.z);if(h<zlo)zlo=h;if(h>zhi)zhi=h;}
+    const of=new Map(),xy=[...places].map(p=>{const r=TR.inverse(target.latitude,target.longitude,p.latitude,p.longitude),q=[r.km*1000*Math.sin(r.azimuth*R),r.km*1000*Math.cos(r.azimuth*R)];of.set(q,p);return q;});
+    const hull=convexHull(xy),out=hull.length&&Number.isFinite(zlo)&&Number.isFinite(zhi)?{hull,places:hull.map(q=>of.get(q)),zlo,zhi,radius:xy.reduce((m,q)=>Math.max(m,Math.hypot(q[0],q[1])),0)}:null;
+    if(byTop.size>=8)byTop.clear();byTop.set(top,out);return out;
+  }
+  const boxOf=(az,ref,lo,hi,near)=>{
+    let a0=Infinity,a1=-Infinity;for(const a of az){const d=azDiff(a,ref);if(d<a0)a0=d;if(d>a1)a1=d;}
+    const w=(a1-a0)/2,bulge=(w*Math.PI/90)**2/16*180/Math.PI;
+    return {c:ref+(a0+a1)/2,w:w+.002,lo:lo-bulge-.002,hi:hi+bulge+.002,nearKm:near};
+  };
+  // Every direction prepareDailyView measures against for this observer, as an azimuth/altitude box
+  // {c,w,lo,hi} (exact spherical bounds plus the great-circle bulge of the outline's edges), with the
+  // distance to its nearest point. Null where it cannot be bounded cheaply (the caller then computes).
+  function outlineBounds(observer,target,opts={}){
+    const g=geometryFrom(observer,target,opts);if(!g)return null;
+    const eyeM=opts.eyeM??1.5,heightM=opts.heightM??null,eye=(observer.elevation??0)+eyeM;
+    const CMs=global.AstroNotesCityModels||AstroNotesAlign.CITY_MODELS,TMs=global.AstroNotesTowerModels||AstroNotesAlign.TOWER_MODELS;
+    const model=target.id==="tower-terror"?TERROR_MODEL:target.id==="tinkerbell"&&TINKERBELL_MODEL?TINKERBELL_MODEL:target.id==="cinderella"?CASTLE_MODEL:target.id==="tocho-building"?TOCHO_MODEL:CMs?.[target.id]||TMs?.[target.id]||null;
+    if(!model){
+      const outline=target.rim?null:towerOutline(observer,target,{eyeM,heightM});
+      if(!outline)return boxOf([g.azimuth],g.azimuth,g.angle,g.angle,g.distanceKm);
+      const pts=(outline.hitPolygons||[outline.hitPoints||outline.points]).flat().filter(p=>p&&Number.isFinite(p[0])&&Number.isFinite(p[1]));
+      if(!pts.length)return null;
+      return boxOf([g.azimuth,...pts.map(p=>p[0])],g.azimuth,Math.min(g.angle,...pts.map(p=>p[1])),Math.max(g.angle,...pts.map(p=>p[1])),Math.max(0,g.distanceKm-.05));
+    }
+    const ground=target.groundM??0,top=heightM??((partOf(target,"tip")||target.parts[0]).m-ground);
+    if(!(top>.5))return boxOf([g.azimuth],g.azimuth,g.angle,g.angle,g.distanceKm);
+    const fp=modelFootprint(target,model,top);if(!fp)return null;
+    const rel=TR.inverse(target.latitude,target.longitude,observer.latitude,observer.longitude),ox=rel.km*1000*Math.sin(rel.azimuth*R),oy=rel.km*1000*Math.cos(rel.azimuth*R);
+    // Inside or next to the building: no cheap bound.
+    if(rel.km*1000<=fp.radius+50)return null;
+    let inside=false,dmin=Infinity;const h=fp.hull;
+    for(let i=0,j=h.length-1;i<h.length;j=i++){
+      const p=h[j],q=h[i];if((p[1]>oy)!==(q[1]>oy)&&ox<(q[0]-p[0])*(oy-p[1])/(q[1]-p[1])+p[0])inside=!inside;
+      const dx=q[0]-p[0],dy=q[1]-p[1],len=dx*dx+dy*dy,t=len?Math.max(0,Math.min(1,((ox-p[0])*dx+(oy-p[1])*dy)/len)):0;dmin=Math.min(dmin,Math.hypot(ox-p[0]-t*dx,oy-p[1]-t*dy));
+    }
+    if(inside||h.length<3)return null;
+    const rays=fp.places.map(p=>TR.inverse(observer.latitude,observer.longitude,p.latitude,p.longitude));
+    // Plane geometry around the target versus the geodesic: a relative 1e-4 and 1 m cover it.
+    const dLo=Math.max(.001,Math.min(dmin/1000,...rays.map(r=>r.km))*(1-1e-4)-.001),dHi=Math.max(...rays.map(r=>r.km))*(1+1e-4)+.001;
+    const hLo=ground+fp.zlo,hHi=ground+fp.zhi;
+    // The elevation angle rises with the target height; along the distance it has at most one
+    // maximum (a target below the eye), so its minimum is at an end and its maximum is found here.
+    let lo=Math.min(targetAngle(dLo,eye,hLo),targetAngle(dHi,eye,hLo)),hi=Math.max(targetAngle(dLo,eye,hHi),targetAngle(dHi,eye,hHi));
+    {let x=dLo,y=dHi;for(let k=0;k<60;k++){const m1=x+(y-x)/3,m2=y-(y-x)/3;if(targetAngle(m1,eye,hHi)<targetAngle(m2,eye,hHi))x=m1;else y=m2;}hi=Math.max(hi,targetAngle((x+y)/2,eye,hHi)+1e-9);}
+    return boxOf([g.azimuth,...rays.map(r=>r.azimuth)],g.azimuth,Math.min(lo,g.angle),Math.max(hi,g.angle),dLo);
+  }
   const AstroNotesAlign = { heightVertices, TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, rimPoints, judge, buildingBlock,
-                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};}, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, viewWindow, viewPath, sceneTargets };
+                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};}, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, outlineBounds, viewWindow, viewPath, sceneTargets };
   global.AstroNotesAlign = AstroNotesAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);

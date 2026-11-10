@@ -21,6 +21,8 @@ async function fixture(browser,url){
   A.dailyView=(...args)=>{dailyBench.prepared++;return originalDaily(...args);};
   AstroNotesShooting.candidates=(...args)=>{dailyBench.calls++;return originalCandidates(...args);};
   AstroNotesTerrain.groundElevation=async()=>{dailyBench.dem++;return 87.2;};
+  // The counters watch this page's functions; 探す's search runs in the calculation workers otherwise (same code).
+  window.AstroNotesDiscoveryEngine='page';
  });
  return {c,page,verify:()=>{assert.equal(writes,0);assert.deepEqual(errors,[]);}};
 }

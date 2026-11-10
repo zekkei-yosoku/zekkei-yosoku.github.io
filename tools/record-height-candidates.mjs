@@ -80,11 +80,12 @@ export function createRecordHeightCandidates(deps){
     const used=new Set();A.forEach((p,i)=>{if(!proven||p[1]>bottom){used.add(i);if(i)used.add(i-1);if(i<A.length-1)used.add(i+1);}});
     if(!used.size)return null;
     for(const i of used)verts.push(A[i],B[i],[A[i][0],bottom]);
-    verts.push([ga.azimuth,bottom],[ga.azimuth,Math.max(...verts.map(v=>v[1]))]);
+    verts.push([ga.azimuth,bottom],[ga.azimuth,verts.reduce((m,v)=>Math.max(m,v[1]),-Infinity)]);
     if(!proven)centers.push(ga.angle/2,gb.angle/2,(bottom+ga.angle)/2,(bottom+gb.angle)/2);
    }else for(const [o,g] of [[oa,ga],[ob,gb]]){
     const hv=align.heightVertices(o,t,{partId:g.partId,eyeM:g.eyeM,...(g.heightM!=null?{heightM:g.heightM}:{})});
-    if(!hv?.vertices?.length)return null;verts.push(...hv.vertices);if(hv.polygons)facePairs.push(hv.polygons);
+    // 2026-11-10 A detailed model (麻布台ヒルズ) has more vertices than a call may take as arguments.
+    if(!hv?.vertices?.length)return null;for(const v of hv.vertices)verts.push(v);if(hv.polygons)facePairs.push(hv.polygons);
    }
    if(!centers.every(Number.isFinite))return null;
    const cLo=Math.min(...centers),cHi=Math.max(...centers),cq=(cLo+cHi)/2,project=align.viewProjector(ga.azimuth,cq);

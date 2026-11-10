@@ -383,7 +383,8 @@
     }catch{return null;}
     return Number.isFinite(lo)&&Number.isFinite(hi)?{lo:lo-1e-6,hi:hi+1e-6}:null;
   }
-  global.AstroNotesAtmosphere={refractionBounds,dataKey,configure,correction,unrefract,load,parse,sample,at,apply,limbAltitude,endpoint,lineEndpoint,parseLine,lineInfo,standardAir,mode:()=>mode,enabled:()=>enabled,targetK:()=>enabled&&mode==='none'?1:7/6};
+  function sources(){const now=Date.now(),out=[];for(const r of records.values())if(r.rows&&now-r.loadedAt<HOUR)out.push({...r.observer});for(const r of lines.values())if(r.times&&now-r.loadedAt<HOUR)out.push({...r.observer});return out;}
+  global.AstroNotesAtmosphere={sources,refractionBounds,dataKey,configure,correction,unrefract,load,parse,sample,at,apply,limbAltitude,endpoint,lineEndpoint,parseLine,lineInfo,standardAir,mode:()=>mode,enabled:()=>enabled,targetK:()=>enabled&&mode==='none'?1:7/6};
   if(typeof module!=='undefined'&&module.exports)module.exports=global.AstroNotesAtmosphere;
 })(typeof window!=='undefined'?window:globalThis);
 

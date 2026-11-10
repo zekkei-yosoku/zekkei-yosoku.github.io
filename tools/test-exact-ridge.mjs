@@ -65,36 +65,38 @@ test('bounded ridge LRU retains the recent recorded set without unbounded growth
  for(let i=0;i<256;i++)fixture.cache.set('fixture-'+i,[]);
  await fixture.run(obs,88.7,target,{});assert.equal(fixture.cache.size,256);assert(!fixture.cache.has('fixture-0'));
 });
-test('174 point mountains across both bodies survive dense shape samples and invalidate by inputs',async()=>{
+// 2026-11-10 探す (discovery) keeps each position's summit cap, independent of the body and the day.
+const mountainContext=(extra={})=>{
  const runtime=readFileSync(new URL('./record-search-runtime.js',import.meta.url),'utf8');
- let calls=0,failed=false;const c=vm.createContext({performance:{now:()=>0},MessageChannel:class{constructor(){this.port1={};this.port2={postMessage(){}};}},AstroNotesAlign:{},AstroNotesShooting:{},AstroNotesBodies:{},recordHeightSolver:x=>x,aimIsMountain:()=>true,aimShootingView:async()=>{calls++;if(failed){failed=false;throw Error('retry');}return ()=>[];}});
- vm.runInContext(runtime+'\nglobalThis.make=recordSolverFor;',c);
- const session={mountains:new Map(),shapeMountains:new Map(),terrain:new Map()},point=c.make(session,'discovery',false),shape=c.make(session,'discovery',true),target=align.targetById('fuji');
+ const state={calls:0,failed:false,prepared:0},c=vm.createContext({performance:{now:()=>0},MessageChannel:class{constructor(){this.port1={};this.port2={postMessage(){}};}},
+  AstroNotesAlign:{geometryFrom:()=>null,prepareDailyView:()=>{state.prepared++;return ()=>[];}},AstroNotesShooting:{},AstroNotesBodies:{},recordHeightSolver:x=>x,aimIsMountain:()=>true,
+  aimShootingView:async()=>{throw Error('discovery must not rebuild a view per day');},
+  aimLookRidge:async()=>{state.calls++;if(state.failed){state.failed=false;throw Error('retry');}return [[0,1],[1,2],[2,1]];},
+  aimSummitCap:ridge=>({ridge,base:0}),...extra});
+ vm.runInContext(runtime+'\nglobalThis.make=recordSolverFor;',c);return {c,state};
+};
+test('174 point mountains across both bodies keep one cap per position, survive dense shape samples and invalidate by inputs',async()=>{
+ const {c,state}=mountainContext(),session={mountains:new Map(),shapeMountains:new Map(),terrain:new Map()},point=c.make(session,'discovery',false),shape=c.make(session,'discovery',true),target=align.targetById('fuji');
  const plan=body=>({target,body,partId:null,matchMode:'overlap'}),observer=i=>({latitude:35+i*.0001,longitude:139,elevation:10,eyeM:1.5});
- for(const body of ['sun','moon'])for(let i=0;i<174;i++)await point.viewFor(observer(i),plan(body));
- assert.equal(calls,348);assert.equal(session.mountains.size,348);
- for(let i=0;i<200;i++)await shape.viewFor(observer(i+1000),plan('sun'));
- assert.equal(session.shapeMountains.size,96);assert.equal(session.mountains.size,348);
- for(const body of ['sun','moon'])for(let i=0;i<174;i++)await point.viewFor(observer(i),plan(body));
- assert.equal(calls,548,'next day reuses the complete registered-point set');
- await point.viewFor({...observer(0),eyeM:20},plan('sun'));assert.equal(calls,549);
- failed=true;await assert.rejects(point.viewFor(observer(999),plan('sun')),/retry/);await point.viewFor(observer(999),plan('sun'));assert.equal(calls,551);
- for(let i=0;i<100;i++)await point.viewFor(observer(i+2000),plan('sun'));assert.equal(session.mountains.size,384);
+ for(const body of ['sun','moon'])for(let i=0;i<174;i++)(await point.viewFor(observer(i),plan(body)))(0);
+ assert.equal(state.calls,174,'the cap does not depend on the body');assert.equal(session.mountainGeometry.size,174);assert.equal(session.mountains.size,348);
+ for(let i=0;i<200;i++)(await shape.viewFor(observer(i+1000),plan('sun')))(0);
+ assert.equal(session.shapeMountains.size,96);assert.equal(session.mountains.size,348);assert.equal(session.mountainGeometry.size,374);
+ for(const body of ['sun','moon'])for(let i=0;i<174;i++)(await point.viewFor(observer(i),plan(body)))(86400000);
+ for(let i=0;i<200;i++)(await shape.viewFor(observer(i+1000),plan('sun')))(86400000);
+ assert.equal(state.calls,374,'next day reuses every cap, including dense shape samples beyond the view budget');
+ await point.viewFor({...observer(0),eyeM:20},plan('sun'));assert.equal(state.calls,375);
+ state.failed=true;await assert.rejects(point.viewFor(observer(999),plan('sun')),/retry/);await point.viewFor(observer(999),plan('sun'));assert.equal(state.calls,377);
 });
-test('an evicted mountain promise cannot remove its newer cached replacement on failure',async()=>{
- const runtime=readFileSync(new URL('./record-search-runtime.js',import.meta.url),'utf8');
- for(const shaped of [false,true]){
-  let calls=0,rejectOld;
-  const c=vm.createContext({performance:{now:()=>0},MessageChannel:class{constructor(){this.port1={};this.port2={postMessage(){}};}},AstroNotesAlign:{},AstroNotesShooting:{},AstroNotesBodies:{},recordHeightSolver:x=>x,aimIsMountain:()=>true,aimShootingView:()=>{calls++;return calls===1?new Promise((_,reject)=>{rejectOld=reject;}):Promise.resolve(()=>[]);}});
-  vm.runInContext(runtime+'\nglobalThis.make=recordSolverFor;',c);
-  const session={mountains:new Map(),shapeMountains:new Map(),terrain:new Map()},solver=c.make(session,'discovery',shaped),views=shaped?session.shapeMountains:session.mountains,limit=shaped?96:384;
-  const plan={target:align.targetById('fuji'),body:'sun',partId:null,matchMode:'overlap'},observer=i=>({latitude:35+i*.0001,longitude:139,elevation:10,eyeM:1.5});
-  const old=solver.viewFor(observer(0),plan),failure=assert.rejects(old,/evicted request failed/);
-  for(let i=1;i<=limit;i++)await solver.viewFor(observer(i),plan);
-  assert.equal(views.size,limit);assert(![...views.values()].includes(old));
-  const replacement=solver.viewFor(observer(0),plan);await replacement;
-  rejectOld(Error('evicted request failed'));await failure;
-  assert.equal(solver.viewFor(observer(0),plan),replacement,'old failure must preserve the new value');
-  assert.equal(calls,limit+2);assert.equal(views.size,limit);
- }
+test('an evicted cap promise cannot remove its newer cached replacement on failure',async()=>{
+ let rejectOld,calls=0;
+ const {c}=mountainContext({aimLookRidge:()=>{calls++;return calls===1?new Promise((_,reject)=>{rejectOld=reject;}):Promise.resolve([[0,1],[1,2]]);}});
+ const session={mountains:new Map(),shapeMountains:new Map(),terrain:new Map()},solver=c.make(session,'discovery',false);
+ const plan={target:align.targetById('fuji'),body:'sun',partId:null,matchMode:'overlap'},observer=i=>({latitude:35+i*.0001,longitude:139,elevation:10,eyeM:1.5});
+ const old=solver.viewFor(observer(0),plan),failure=assert.rejects(old,/evicted request failed/);
+ for(let i=1;i<=20000;i++)await solver.viewFor(observer(i),plan);
+ const key=JSON.stringify([observer(0),plan.target,false]);assert(!session.mountainGeometry.has(key));
+ await solver.viewFor(observer(0),plan);const replacement=session.mountainGeometry.get(key);
+ rejectOld(Error('evicted request failed'));await failure;
+ assert.equal(session.mountainGeometry.get(key),replacement,'old failure must preserve the new value');assert.equal(calls,20002);
 });
