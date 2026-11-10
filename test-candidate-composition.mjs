@@ -28,3 +28,15 @@ test('surface hulls are bound to the exact drawing geometry and reject a mixed m
 
 
 test('invalid composition is distinct from the previous valid search and never loads data',async()=>{const D=require('./experiments/candidate-visibility/search.js'),plan={target,body:'moon',at:0},key=p=>D.keyFor(p,1,'standard');assert.notEqual(key(plan),key({...plan,compositionInvalid:true}));let loads=0;const engine=D.create({loadData:async()=>{loads++;return {};},evaluate:async()=>({})});await assert.rejects(engine.search({...plan,compositionInvalid:true}),/invalid-composition/);assert.equal(loads,0);});
+
+test('closest point on an outline: the boxed rings give the same answer as checking every edge',()=>{
+ const C=createRequire(import.meta.url)('./experiments/candidate-visibility/composition.js');
+ const inside=(r,x,y)=>{let on=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>y)!==(r[j][1]>y)&&x<(r[j][0]-r[i][0])*(y-r[i][1])/(r[j][1]-r[i][1])+r[i][0])on=!on;return on;};
+ const every=(p,polygons)=>{let nearest=null,distance=Infinity;for(const ring of polygons){if(inside(ring,p[0],p[1]))return {point:p,distance:0};for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length],dx=b[0]-a[0],dy=b[1]-a[1],u=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/(dx*dx+dy*dy||1))),q=[a[0]+u*dx,a[1]+u*dy],d=Math.hypot(p[0]-q[0],p[1]-q[1]);if(d<distance){distance=d;nearest=q;}}}return {point:nearest||[0,0],distance};};
+ let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+ for(let t=0;t<300;t++){
+  const polygons=Array.from({length:1+Math.floor(rnd()*12)},()=>{const cx=rnd()*20-10,cy=rnd()*20-10,n=1+Math.floor(rnd()*9);return Array.from({length:n},(_,i)=>{const a=2*Math.PI*i/n,r=.2+rnd()*3;return [cx+r*Math.cos(a),cy+r*Math.sin(a)];});});
+  for(let k=0;k<20;k++){const p=[rnd()*30-15,rnd()*30-15],a=C.closestPoint(p,polygons),b=every(p,polygons);assert.equal(a.distance,b.distance);assert.deepEqual(a.point,b.point);}
+ }
+ assert.deepEqual(C.closestPoint([1,1],[]),{point:[0,0],distance:Infinity});
+});

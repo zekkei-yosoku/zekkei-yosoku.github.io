@@ -60,3 +60,10 @@ test('a part is read once and its hash is checked',async()=>{
  const bad=O.create({load:async()=>({parts:{[code]:['0000000000000000',1,1]}}),fetchImpl:async()=>new Response(gzipSync(Buffer.from('[]')))});
  await assert.rejects(bad.elementsIn([lon,lat,lon+.001,lat+.001]),/osm-part-version/);
 });
+
+test('a long diagonal track reads the cells it passes through: a tree off the track inside its box is not an obstacle',async()=>{
+ const near={t:'n',i:21,k:{natural:'tree'},a:E7(lat+.03),o:E7(lon+.03)},off={t:'n',i:22,k:{natural:'tree'},a:E7(lat+.05),o:E7(lon+.005)};
+ const {places}=source({[code]:[near,off]});
+ const got=await places.obstaclesAlong({latitude:lat,longitude:lon},{latitude:lat+.06,longitude:lon+.06});
+ assert.deepEqual(got.map(o=>o.id),['node/21']);
+});

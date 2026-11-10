@@ -1,4 +1,4 @@
-const OVERLAP_ENGINE='6cf19394b3f4a2a9c37c622cce055972d22ae7b3683c703820db61185e8bfe18',OVERLAP_SOURCE='overlap-calculation-worker-engine.js?v=165fc017dce40e07';
+const OVERLAP_ENGINE='362cd222d31a8795a1a34ab89568c19fbe91b3c4c29e5be81dfca04b16913cad',OVERLAP_SOURCE='overlap-calculation-worker-engine.js?v=3eec2cacd0ef2072';
 // Runs the same geometric overlap engine as overlap-calculation.html, but in a
 // dedicated worker so several pairs are checked at once on separate cores.
 // build-preview.py prepends OVERLAP_ENGINE (SHA-256) and OVERLAP_SOURCE.

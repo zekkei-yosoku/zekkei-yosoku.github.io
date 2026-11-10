@@ -197,14 +197,21 @@ function mount(){
   const label='撮影できる地域を計算しています…',progress=globalThis.MyPlacesUI.recordProgress(status,label);
   progress.node.classList.add('candidate-wait');
   try{
-   const result=await engine.searchAll(selected,{more:continuation,signal,isCurrent:()=>current(token,selected,node),onBatchStart:()=>{live.resetBudget();footprintGround.resetBudget();evaluationBudgetStarted=false;},onProgress:counts=>{if(!current(token,selected,node))return;const checked=counts.checked||0;const message=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中 ・ '+checked+'地点':'撮影場所の情報を取得中'+(checked?' ・ '+checked+'地点確認済み':'');progress.update(undefined,undefined,message);}});
+   // The search asks this between every few calculations; rebuilding the page snapshot each time took about a quarter of
+   // a phone's search time (2026-11-11). The run and the section are checked every time, the page conditions at most
+   // every 250 ms (a change of conditions also restarts the search through mount()).
+   let checkedAt=-Infinity,stillCurrent=true;const searchCurrent=()=>{if(token!==run||!node.isConnected)return false;const now=performance.now();if(now-checkedAt>=250){checkedAt=now;stillCurrent=current(token,selected,node);}return stillCurrent;};
+   const result=await engine.searchAll(selected,{more:continuation,signal,isCurrent:searchCurrent,onBatchStart:()=>{live.resetBudget();footprintGround.resetBudget();evaluationBudgetStarted=false;},onProgress:counts=>{if(!searchCurrent())return;const checked=counts.checked||0;const message=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中 ・ '+checked+'地点':'撮影場所の情報を取得中'+(checked?' ・ '+checked+'地点確認済み':'');progress.update(undefined,undefined,message);}});
    if(!current(token,selected,node))return;if(result.cancelled){failed=true;continuation=true;setStatus('候補の情報を取得できませんでした。');return;}
    await present(result,selected,node,token);
   }catch(e){if(current(token,selected,node)){const completed=engine.cached(selected);if(completed)await present(completed,selected,node,token,{interrupted:true});else{setStatus('候補の情報を取得できませんでした。');failed=true;continuation=true;}}}
   finally{if(token===run){stop();if(current(token,selected,node)){searching=false;renderAction();}else mount();}}
  };
  if(main?.visible())globalThis.MyPlacesUI?.renderPickerPanel(panel);
- const cached=p&&engine.cached(p);if(cached){main?.reveal();hasRun=true;hasSearched=true;const token=++run;present(cached,p,section,token).catch(()=>{});}
+ // Returning from another page can build the section before its place is back on the page (seen on wide screens):
+ // show the cached results once it is attached, or they would be dropped as stale.
+ const cached=p&&engine.cached(p);if(cached){main?.reveal();hasRun=true;hasSearched=true;const token=++run,node=section;let frames=0;
+  const show=()=>{if(token!==run||node!==section)return;if(node.isConnected)present(cached,p,node,token).catch(()=>{});else if(++frames<300)requestAnimationFrame(show);};show();}
 }
 let mountFrame=null;const scheduleMount=()=>{if(mountFrame===null)mountFrame=requestAnimationFrame(()=>{mountFrame=null;mount();});};
 const picker=document.getElementById('placeSheet');if(picker){new MutationObserver(scheduleMount).observe(picker,{childList:true,subtree:true,attributes:true,attributeFilter:['open','hidden','aria-selected']});picker.addEventListener('close',()=>{if(picker.open)return;if(mainWorkspace()){scheduleMount();return;}stop();run++;hasSearched=false;if(dateCalendar?.open)dateCalendar.close();AstroNotesCandidatePicker.suspend?.();section?.remove();section=null;condition='';});}

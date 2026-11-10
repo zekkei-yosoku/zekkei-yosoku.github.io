@@ -286,6 +286,10 @@ function bbox(row){let s=Infinity,w=Infinity,n=-Infinity,e=-Infinity;const add=g
 // Lines are stored as the first pair and then differences from the previous pair.
 const undelta=g=>{for(let i=2;i<g.length;i++)g[i]+=g[i-2];return g;};
 function decode(row){if(row.t==='w')undelta(row.g);else if(row.t==='r')for(const m of row.m)undelta(m.g);return row;}
+// Rows of a part on 0.01 deg cells (about 1 km), so a query reads only the cells it touches (2026-11-11: a sight line
+// used to scan every row of its parts).
+const CELL=.01,cellOf=v=>Math.floor(v/CELL);
+function indexed(rows){const cells=new Map();for(const row of rows){const [w,s,e,n]=row.b;for(let x=cellOf(w);x<=cellOf(e);x++)for(let y=cellOf(s);y<=cellOf(n);y++){const k=x*100000+y;let c=cells.get(k);if(!c)cells.set(k,c=[]);c.push(row);}}rows.cells=cells;return rows;}
 const overlaps=(a,b)=>a[0]<=b[2]&&a[2]>=b[0]&&a[1]<=b[3]&&a[3]>=b[1];
 // Obstacles of unknown height: the line must pass this far above the ground at them to be clear.
 function obstacle(row){
@@ -303,17 +307,23 @@ function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(globa
   const data=await index(),entry=data.parts?.[code];if(!entry)return [];
   if(!parts.has(code))parts.set(code,(async()=>{const r=await fetchImpl(base+code+'.json.gz?v='+entry[0]);if(!r.ok)throw Error('osm-part');
    const bytes=await r.arrayBuffer();if(!(await sha(bytes)).startsWith(entry[0]))throw Error('osm-part-version');
-   const rows=JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());for(const row of rows){decode(row);row.b=bbox(row);}return rows;})().catch(e=>{parts.delete(code);throw e;}));
+   const rows=JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());for(const row of rows){decode(row);row.b=bbox(row);}return indexed(rows);})().catch(e=>{parts.delete(code);throw e;}));
   if(parts.size>48)parts.delete(parts.keys().next().value);
   return parts.get(code);
  }
- async function rowsIn(box){const seen=new Set(),out=[];for(const code of meshesIn(box))for(const row of await part(code)){const key=row.t+row.i+'/'+(row.s??'');if(seen.has(key)||!overlaps(row.b,box))continue;seen.add(key);out.push(row);}return out;}
+ async function rowsIn(box,cells=null){const seen=new Set(),out=[];
+  const keys=cells||(()=>{const k=[];for(let x=cellOf(box[0]);x<=cellOf(box[2]);x++)for(let y=cellOf(box[1]);y<=cellOf(box[3]);y++)k.push(x*100000+y);return k;})();
+  for(const code of meshesIn(box)){const rows=await part(code);for(const k of keys)for(const row of rows.cells?.get(k)||[]){const key=row.t+row.i+'/'+(row.s??'');if(seen.has(key)||!overlaps(row.b,box))continue;seen.add(key);out.push(row);}}
+  return out;}
  // Elements for a place-provider tile.
  async function elementsIn(box){return (await rowsIn(box)).map(element);}
  // Trees and elevated structures near the ground track from a to b (lat/lon), as rings [[lat,lon]], lines or points.
  async function obstaclesAlong(a,b){
   const pad=40/110540,box=[Math.min(a.longitude,b.longitude)-pad/Math.cos(a.latitude*RAD),Math.min(a.latitude,b.latitude)-pad,Math.max(a.longitude,b.longitude)+pad/Math.cos(a.latitude*RAD),Math.max(a.latitude,b.latitude)+pad];
-  const out=[];for(const row of await rowsIn(box)){const o=obstacle(row);if(!o)continue;
+  // Only the cells the track passes through (and their neighbours, wider than the 40 m pad), not its whole box.
+  const cells=new Set(),steps=Math.max(1,Math.ceil(Math.max(Math.abs(b.latitude-a.latitude),Math.abs(b.longitude-a.longitude))/(CELL/2)));
+  for(let i=0;i<=steps;i++){const la=a.latitude+(b.latitude-a.latitude)*i/steps,lo=a.longitude+(b.longitude-a.longitude)*i/steps;for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)cells.add((cellOf(lo)+dx)*100000+cellOf(la)+dy);}
+  const out=[];for(const row of await rowsIn(box,[...cells])){const o=obstacle(row);if(!o)continue;
    if(row.t==='n')out.push({...o,id:'node/'+row.i,points:[[row.a/1e7,row.o/1e7]]});
    else if(row.t==='w'){const p=[];for(let i=0;i<row.g.length;i+=2)p.push([row.g[i]/1e7,row.g[i+1]/1e7]);const closed=p.length>3&&p[0][0]===p[p.length-1][0]&&p[0][1]===p[p.length-1][1];
     out.push({...o,id:'way/'+row.i,...(closed&&!o.halfWidthM?{rings:[p]}:{lines:[p],halfWidthM:o.halfWidthM||4})});}
@@ -634,13 +644,30 @@ function nearPolicy(plan,bodies,state){
  const radius=Number.isFinite(state.angularRadius)?state.angularRadius:NaN;
  return {disc,radius,tolerance:disc?2*radius:(bodies.nearAngle?.(plan.body)??.5)};
 }
+// One point evaluation asks this thousands of times against the same projected outline (2026-11-11: about half the
+// search time on a phone). The rings are flattened with their boxes once; a ring whose box is no nearer than the
+// best edge so far cannot hold a nearer edge, so the answer is the same as checking every edge.
+const flatRings=new WeakMap();
+function flat(polygons){
+ let rings=flatRings.get(polygons);if(rings)return rings;
+ rings=polygons.map(ring=>{const n=ring.length,xs=new Float64Array(n),ys=new Float64Array(n);let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for(let i=0;i<n;i++){const x=ring[i][0],y=ring[i][1];xs[i]=x;ys[i]=y;if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;}return {n,xs,ys,minX,minY,maxX,maxY};});
+ flatRings.set(polygons,rings);return rings;
+}
 function closestPoint(p,polygons){
- let nearest=null,distance=Infinity;
- for(const ring of polygons){
-  if(inside(ring,{longitude:p[0],latitude:p[1]}))return {point:p,distance:0};
-  for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length],dx=b[0]-a[0],dy=b[1]-a[1],u=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/(dx*dx+dy*dy||1))),q=[a[0]+u*dx,a[1]+u*dy],d=Math.hypot(p[0]-q[0],p[1]-q[1]);if(d<distance){distance=d;nearest=q;}}
+ const px=p[0],py=p[1],rings=flat(polygons);
+ for(const r of rings){
+  if(px<r.minX||px>r.maxX||py<r.minY||py>r.maxY)continue;
+  const {n,xs,ys}=r;let on=false;for(let i=0,j=n-1;i<n;j=i++)if((ys[i]>py)!==(ys[j]>py)&&px<(xs[j]-xs[i])*(py-ys[i])/(ys[j]-ys[i])+xs[i])on=!on;
+  if(on)return {point:p,distance:0};
  }
- return {point:nearest||[0,0],distance};
+ let distance=Infinity,nx=0,ny=0,found=false;
+ for(const r of rings){
+  const gx=Math.max(r.minX-px,0,px-r.maxX),gy=Math.max(r.minY-py,0,py-r.maxY);if(Math.hypot(gx,gy)>=distance)continue;
+  const {n,xs,ys}=r;
+  for(let i=0;i<n;i++){const k=i+1===n?0:i+1,ax=xs[i],ay=ys[i],dx=xs[k]-ax,dy=ys[k]-ay,u=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1))),qx=ax+u*dx,qy=ay+u*dy,d=Math.hypot(px-qx,py-qy);if(d<distance){distance=d;nx=qx;ny=qy;found=true;}}
+ }
+ return {point:found?[nx,ny]:[0,0],distance};
 }
 function ridgeGeometry(observer,target,align){
  const raw=target.rim?.points||align.rimPoints?.(target.rim);if(!Array.isArray(raw)||!raw.length)return null;
@@ -899,7 +926,7 @@ async function inverseSeeds(plan,{bodies,isCurrent=()=>true,yieldTask=()=>new Pr
  seeds.sort((a,b)=>a.priority-b.priority||a.at-b.at||a.distanceM-b.distanceM);
  return {seeds,partial:true,reason:exhausted?'seed-budget-exhausted':unknown?'some-ephemeris-unknown':'approximate-terrain-hypotheses'};
 }
-return {valid,windowValid,limb,anchorAt,geometry,roadAt,riseSet,inWindow,windowEvents,screenAnchor,make,timeRange,opportunities,inverseSeeds};
+return {valid,windowValid,limb,anchorAt,geometry,roadAt,riseSet,inWindow,windowEvents,screenAnchor,make,timeRange,opportunities,inverseSeeds,closestPoint};
 });
 
 /* Terrain/building MODEL LOS. Missing model range or standing height never becomes model-visible. */
@@ -1446,7 +1473,23 @@ function standingMetadata(position,data,seed){
  return {placeKind,name,placeId:area?.sourceId||source?.sourceId||seed.placeId,accessKnown:!![source,...areas].find(f=>['yes','public','permissive','designated'].includes(f?.tags?.foot)||['yes','public','permissive'].includes(f?.tags?.access)),
   sourceEvidence:{...seed.sourceEvidence,placeOsmId:area?.id||source?.id||null,areaTags:area?.tags||null,classification:area?'mapped-area-at-resolved-position':'walkway-at-resolved-position',resolvedPositionAreaChecked:true,actualVisibilityGuaranteed:false}};
 }
-function createGeneric({align,bodies,geo,terrain,index=null,heights=null,staticTerrain=null,sidewalks=null,yieldTask=()=>new Promise(r=>setTimeout(r,0))}={}){
+// One point evaluation builds the same target outline (every model vertex projected from the observer) in the solver,
+// the line-of-sight check and the frame check; on a phone that was about a quarter of the search (2026-11-11). Keep the
+// last outlines for a few seconds, keyed by everything the outline depends on (a later model registration changes the
+// model key). Callers only read the outline.
+function memoOutlines(align){
+ if(!align?.towerOutline||align.__memoOutlines)return align;
+ const memo=new Map(),models=()=>globalThis.AstroNotesCityModels||null,ids=new WeakMap();let nextId=0;
+ const modelKey=target=>{const m=models()?.[target?.id];if(!m)return 0;if(!ids.has(m))ids.set(m,++nextId);return ids.get(m);};
+ const towerOutline=(observer,target,options={})=>{
+  const key=JSON.stringify([observer?.latitude,observer?.longitude,observer?.elevation,observer?.eyeM,target?.id,target?.latitude,target?.longitude,target?.groundM,target?.parts,target?.heightM,options,modelKey(target),!!globalThis.AstroNotesTowerModels,!!globalThis.AstroNotesCityModels]),now=Date.now(),hit=memo.get(key);
+  if(hit&&now-hit.at<3000){memo.delete(key);memo.set(key,hit);return hit.value;}
+  const value=align.towerOutline(observer,target,options);memo.set(key,{at:now,value});while(memo.size>32)memo.delete(memo.keys().next().value);return value;
+ };
+ return Object.assign(Object.create(align),{towerOutline,__memoOutlines:true});
+}
+function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,staticTerrain=null,sidewalks=null,yieldTask=()=>new Promise(r=>setTimeout(r,0))}={}){
+ const align=memoOutlines(rawAlign);
  const visibilityCache=new Map(),targetLines=new Map();
  async function terrainRay(observer,ray,options){
   if(staticTerrain){const tested=staticTerrain.trace(observer,ray);if(tested.hit||tested.checked>0&&tested.missing===0)return {...tested,status:tested.hit?'blocked':'model-clear',nativeRaster:true};}
@@ -2230,14 +2273,21 @@ function mount(){
   const label='撮影できる地域を計算しています…',progress=globalThis.MyPlacesUI.recordProgress(status,label);
   progress.node.classList.add('candidate-wait');
   try{
-   const result=await engine.searchAll(selected,{more:continuation,signal,isCurrent:()=>current(token,selected,node),onBatchStart:()=>{live.resetBudget();footprintGround.resetBudget();evaluationBudgetStarted=false;},onProgress:counts=>{if(!current(token,selected,node))return;const checked=counts.checked||0;const message=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中 ・ '+checked+'地点':'撮影場所の情報を取得中'+(checked?' ・ '+checked+'地点確認済み':'');progress.update(undefined,undefined,message);}});
+   // The search asks this between every few calculations; rebuilding the page snapshot each time took about a quarter of
+   // a phone's search time (2026-11-11). The run and the section are checked every time, the page conditions at most
+   // every 250 ms (a change of conditions also restarts the search through mount()).
+   let checkedAt=-Infinity,stillCurrent=true;const searchCurrent=()=>{if(token!==run||!node.isConnected)return false;const now=performance.now();if(now-checkedAt>=250){checkedAt=now;stillCurrent=current(token,selected,node);}return stillCurrent;};
+   const result=await engine.searchAll(selected,{more:continuation,signal,isCurrent:searchCurrent,onBatchStart:()=>{live.resetBudget();footprintGround.resetBudget();evaluationBudgetStarted=false;},onProgress:counts=>{if(!searchCurrent())return;const checked=counts.checked||0;const message=counts.stage==='inverse'?label:counts.stage==='evaluate'?'構図と見通しを確認中 ・ '+checked+'地点':'撮影場所の情報を取得中'+(checked?' ・ '+checked+'地点確認済み':'');progress.update(undefined,undefined,message);}});
    if(!current(token,selected,node))return;if(result.cancelled){failed=true;continuation=true;setStatus('候補の情報を取得できませんでした。');return;}
    await present(result,selected,node,token);
   }catch(e){if(current(token,selected,node)){const completed=engine.cached(selected);if(completed)await present(completed,selected,node,token,{interrupted:true});else{setStatus('候補の情報を取得できませんでした。');failed=true;continuation=true;}}}
   finally{if(token===run){stop();if(current(token,selected,node)){searching=false;renderAction();}else mount();}}
  };
  if(main?.visible())globalThis.MyPlacesUI?.renderPickerPanel(panel);
- const cached=p&&engine.cached(p);if(cached){main?.reveal();hasRun=true;hasSearched=true;const token=++run;present(cached,p,section,token).catch(()=>{});}
+ // Returning from another page can build the section before its place is back on the page (seen on wide screens):
+ // show the cached results once it is attached, or they would be dropped as stale.
+ const cached=p&&engine.cached(p);if(cached){main?.reveal();hasRun=true;hasSearched=true;const token=++run,node=section;let frames=0;
+  const show=()=>{if(token!==run||node!==section)return;if(node.isConnected)present(cached,p,node,token).catch(()=>{});else if(++frames<300)requestAnimationFrame(show);};show();}
 }
 let mountFrame=null;const scheduleMount=()=>{if(mountFrame===null)mountFrame=requestAnimationFrame(()=>{mountFrame=null;mount();});};
 const picker=document.getElementById('placeSheet');if(picker){new MutationObserver(scheduleMount).observe(picker,{childList:true,subtree:true,attributes:true,attributeFilter:['open','hidden','aria-selected']});picker.addEventListener('close',()=>{if(picker.open)return;if(mainWorkspace()){scheduleMount();return;}stop();run++;hasSearched=false;if(dateCalendar?.open)dateCalendar.close();AstroNotesCandidatePicker.suspend?.();section?.remove();section=null;condition='';});}

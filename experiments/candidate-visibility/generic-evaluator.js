@@ -77,7 +77,23 @@ function standingMetadata(position,data,seed){
  return {placeKind,name,placeId:area?.sourceId||source?.sourceId||seed.placeId,accessKnown:!![source,...areas].find(f=>['yes','public','permissive','designated'].includes(f?.tags?.foot)||['yes','public','permissive'].includes(f?.tags?.access)),
   sourceEvidence:{...seed.sourceEvidence,placeOsmId:area?.id||source?.id||null,areaTags:area?.tags||null,classification:area?'mapped-area-at-resolved-position':'walkway-at-resolved-position',resolvedPositionAreaChecked:true,actualVisibilityGuaranteed:false}};
 }
-function createGeneric({align,bodies,geo,terrain,index=null,heights=null,staticTerrain=null,sidewalks=null,yieldTask=()=>new Promise(r=>setTimeout(r,0))}={}){
+// One point evaluation builds the same target outline (every model vertex projected from the observer) in the solver,
+// the line-of-sight check and the frame check; on a phone that was about a quarter of the search (2026-11-11). Keep the
+// last outlines for a few seconds, keyed by everything the outline depends on (a later model registration changes the
+// model key). Callers only read the outline.
+function memoOutlines(align){
+ if(!align?.towerOutline||align.__memoOutlines)return align;
+ const memo=new Map(),models=()=>globalThis.AstroNotesCityModels||null,ids=new WeakMap();let nextId=0;
+ const modelKey=target=>{const m=models()?.[target?.id];if(!m)return 0;if(!ids.has(m))ids.set(m,++nextId);return ids.get(m);};
+ const towerOutline=(observer,target,options={})=>{
+  const key=JSON.stringify([observer?.latitude,observer?.longitude,observer?.elevation,observer?.eyeM,target?.id,target?.latitude,target?.longitude,target?.groundM,target?.parts,target?.heightM,options,modelKey(target),!!globalThis.AstroNotesTowerModels,!!globalThis.AstroNotesCityModels]),now=Date.now(),hit=memo.get(key);
+  if(hit&&now-hit.at<3000){memo.delete(key);memo.set(key,hit);return hit.value;}
+  const value=align.towerOutline(observer,target,options);memo.set(key,{at:now,value});while(memo.size>32)memo.delete(memo.keys().next().value);return value;
+ };
+ return Object.assign(Object.create(align),{towerOutline,__memoOutlines:true});
+}
+function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,staticTerrain=null,sidewalks=null,yieldTask=()=>new Promise(r=>setTimeout(r,0))}={}){
+ const align=memoOutlines(rawAlign);
  const visibilityCache=new Map(),targetLines=new Map();
  async function terrainRay(observer,ray,options){
   if(staticTerrain){const tested=staticTerrain.trace(observer,ray);if(tested.hit||tested.checked>0&&tested.missing===0)return {...tested,status:tested.hit?'blocked':'model-clear',nativeRaster:true};}

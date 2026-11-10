@@ -86,13 +86,30 @@ function nearPolicy(plan,bodies,state){
  const radius=Number.isFinite(state.angularRadius)?state.angularRadius:NaN;
  return {disc,radius,tolerance:disc?2*radius:(bodies.nearAngle?.(plan.body)??.5)};
 }
+// One point evaluation asks this thousands of times against the same projected outline (2026-11-11: about half the
+// search time on a phone). The rings are flattened with their boxes once; a ring whose box is no nearer than the
+// best edge so far cannot hold a nearer edge, so the answer is the same as checking every edge.
+const flatRings=new WeakMap();
+function flat(polygons){
+ let rings=flatRings.get(polygons);if(rings)return rings;
+ rings=polygons.map(ring=>{const n=ring.length,xs=new Float64Array(n),ys=new Float64Array(n);let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for(let i=0;i<n;i++){const x=ring[i][0],y=ring[i][1];xs[i]=x;ys[i]=y;if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;}return {n,xs,ys,minX,minY,maxX,maxY};});
+ flatRings.set(polygons,rings);return rings;
+}
 function closestPoint(p,polygons){
- let nearest=null,distance=Infinity;
- for(const ring of polygons){
-  if(inside(ring,{longitude:p[0],latitude:p[1]}))return {point:p,distance:0};
-  for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length],dx=b[0]-a[0],dy=b[1]-a[1],u=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/(dx*dx+dy*dy||1))),q=[a[0]+u*dx,a[1]+u*dy],d=Math.hypot(p[0]-q[0],p[1]-q[1]);if(d<distance){distance=d;nearest=q;}}
+ const px=p[0],py=p[1],rings=flat(polygons);
+ for(const r of rings){
+  if(px<r.minX||px>r.maxX||py<r.minY||py>r.maxY)continue;
+  const {n,xs,ys}=r;let on=false;for(let i=0,j=n-1;i<n;j=i++)if((ys[i]>py)!==(ys[j]>py)&&px<(xs[j]-xs[i])*(py-ys[i])/(ys[j]-ys[i])+xs[i])on=!on;
+  if(on)return {point:p,distance:0};
  }
- return {point:nearest||[0,0],distance};
+ let distance=Infinity,nx=0,ny=0,found=false;
+ for(const r of rings){
+  const gx=Math.max(r.minX-px,0,px-r.maxX),gy=Math.max(r.minY-py,0,py-r.maxY);if(Math.hypot(gx,gy)>=distance)continue;
+  const {n,xs,ys}=r;
+  for(let i=0;i<n;i++){const k=i+1===n?0:i+1,ax=xs[i],ay=ys[i],dx=xs[k]-ax,dy=ys[k]-ay,u=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1))),qx=ax+u*dx,qy=ay+u*dy,d=Math.hypot(px-qx,py-qy);if(d<distance){distance=d;nx=qx;ny=qy;found=true;}}
+ }
+ return {point:found?[nx,ny]:[0,0],distance};
 }
 function ridgeGeometry(observer,target,align){
  const raw=target.rim?.points||align.rimPoints?.(target.rim);if(!Array.isArray(raw)||!raw.length)return null;
@@ -351,5 +368,5 @@ async function inverseSeeds(plan,{bodies,isCurrent=()=>true,yieldTask=()=>new Pr
  seeds.sort((a,b)=>a.priority-b.priority||a.at-b.at||a.distanceM-b.distanceM);
  return {seeds,partial:true,reason:exhausted?'seed-budget-exhausted':unknown?'some-ephemeris-unknown':'approximate-terrain-hypotheses'};
 }
-return {valid,windowValid,limb,anchorAt,geometry,roadAt,riseSet,inWindow,windowEvents,screenAnchor,make,timeRange,opportunities,inverseSeeds};
+return {valid,windowValid,limb,anchorAt,geometry,roadAt,riseSet,inWindow,windowEvents,screenAnchor,make,timeRange,opportunities,inverseSeeds,closestPoint};
 });
