@@ -38,6 +38,8 @@ const base=process.env.COMPOSE_BASE||'http://127.0.0.1:8992/trial/',tools=['reco
    await p.locator('#aimLook [data-lens-compose]').click();await p.waitForFunction(()=>{const h=document.getElementById('aimLook');return h._compose?.mode==='whole'&&!h._compose.apply&&h.querySelector('[data-lens-compose]').getAttribute('aria-pressed')==='false';});
    const wholeHere=await p.evaluate(()=>{const s=SkyMapUI.selectionState(),h=document.getElementById('aimLook'),spec=h._lookSpec,o=AstroNotesAlign.towerOutline(spec.obs,s.target,{eyeM:spec.eyeM}),ground=o.hiddenAngle!==null?Math.max(o.hiddenAngle,o.baseAngle):o.baseAngle;return 24/(2*Math.tan((o.topAngle-ground)/0.6/2*Math.PI/180));});
    l=await lens();assert(Math.abs(l.focal-wholeHere)<0.11,JSON.stringify([l,wholeHere]));assert.equal(l.pressed,'false');
+   // The view loads weather for the chosen place on a phone (気象予報); that must not discard the found places.
+   await p.evaluate(()=>{const key=AstroNotesAtmosphere.dataKey;AstroNotesAtmosphere.dataKey=(...a)=>key(...a)+'+weather-loaded-in-view';});
    await p.locator('#exploreBackToCandidates').click();await p.waitForFunction(()=>document.getElementById('skyMapView').dataset.exploreStage==='search');
    await p.waitForFunction(()=>AstroNotesCandidatePicker.visibleRows().length===2);assert.equal(await p.evaluate(()=>dateFixture.loads.length),loads,'the list stays without searching again');
    assert.equal(writes,0);assert.deepEqual(errors,[]);console.log('PASS',engine,width,JSON.stringify({whole:+expect.whole.toFixed(1),body:+expect.body.toFixed(1)}));
