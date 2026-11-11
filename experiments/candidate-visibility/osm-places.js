@@ -37,7 +37,7 @@ function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(globa
  const index=()=>indexPromise||(indexPromise=(load?load('osm-places/index.json'):fetchImpl(base+'index.json').then(r=>{if(!r.ok)throw Error('osm-index');return r.json();})).catch(e=>{indexPromise=null;throw e;}));
  async function part(code){
   const data=await index(),entry=data.parts?.[code];if(!entry)return [];
-  if(!parts.has(code))parts.set(code,(async()=>{const r=await fetchImpl(base+code+'.json.gz?v='+entry[0]);if(!r.ok)throw Error('osm-part');
+  if(!parts.has(code))parts.set(code,(async()=>{const r=await fetchImpl(base+code+'.json.gz?v='+entry[0],{signal:globalThis.AbortSignal?.timeout?.(20000)});if(!r.ok)throw Error('osm-part');
    const bytes=await r.arrayBuffer();if(!(await sha(bytes)).startsWith(entry[0]))throw Error('osm-part-version');
    const rows=JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());for(const row of rows){decode(row);row.b=bbox(row);}return indexed(rows);})().catch(e=>{parts.delete(code);throw e;}));
   if(parts.size>48)parts.delete(parts.keys().next().value);

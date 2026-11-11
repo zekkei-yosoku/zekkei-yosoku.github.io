@@ -28,8 +28,8 @@ ${root} .explore-place-tools #skyMapObserverSummary::-webkit-details-marker{disp
 ${root} #skyMapObserverSummary{min-height:44px;display:flex;align-items:center;font-size:.75rem;color:var(--secondary)}
 ${root} #skyMapAlignmentDetails{display:grid;grid-template-columns:80px minmax(0,1fr);gap:10px;margin:0;padding:0;border:0}
 ${root} #skyMapAlignmentDetails[hidden]{display:none!important}
-${root} #skyMapAlignmentSummary{display:flex;align-items:center;gap:6px;min-height:48px;margin:0;font-size:.75rem;font-weight:600;color:var(--secondary)}
-${root} #skyMapAlignmentSummary svg{width:20px;height:20px;color:var(--accent);flex:none}
+#skyMapView #skyMapAlignmentSummary{display:flex;align-items:center;gap:6px;min-height:48px;margin:0;font-size:.75rem;font-weight:600;color:var(--secondary)}
+#skyMapView #skyMapAlignmentSummary svg{width:20px;height:20px;color:var(--accent);flex:none}
 ${root} #skyMapAlignmentControls .record-alignment-position>.tiny{display:none}
 ${root} #skyMapAlignmentControls select{min-height:48px;border-radius:10px;font-weight:600}
 ${root} #candidateWorkspaceAction{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:8px 0 0;padding:20px 0 0;border-top:1px solid var(--line)}

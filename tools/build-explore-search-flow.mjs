@@ -5,9 +5,9 @@ let resultRequested=false,selectionPending=false,flowOwner=null,flowGeneration=n
 let searchRoot=null,candidatePanelHome=null,searchStarted=false,returnIntent=null,pendingScroll=null;
 // 2026-11-11 ユーザー「探すへ戻るのボタンの形状と配置場所」「見え方に入ったらなんの条件の見え方なのかがわからない」
 // 「重ねる天体とかの条件が気軽に変えられない」: 見え方でも条件の欄をたたんで先頭に残し（何×何・撮影地点・重ね方）、
-// 戻るは右上の履歴と同じ丸いボタンにしてその左端に置く。条件を開けば、その場で天体・対象・重ね方を変えられる。
+// 戻るは丸い枠なしの ＜ だけにしてその左端に置く（2026-11-11 ユーザー「戻るボタンがなんかダサい」→「丸をやめて ＜ だけ」）。条件を開けば、その場で天体・対象・重ね方を変えられる。
 const candidateBack=node('button',{id:'exploreBackToCandidates',type:'button',className:'explore-back',hidden:true});
-candidateBack.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+candidateBack.innerHTML='<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 // Inside the summary: a click goes back and never toggles the conditions.
 candidateBack.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();});scene.prepend(candidateBack);
 const resultActive=()=>active()&&resultRequested;
@@ -110,7 +110,7 @@ export const searchFlowStyle=
  '#skyMapView[data-explore-stage="preview"] #exploreSearchResults{display:none!important}'+
  '#skyMapView[data-explore-stage="preview"] .explore-conditions>summary{grid-template-columns:auto minmax(0,1fr) auto}'+
  '#skyMapView[data-explore-stage="preview"] #exploreConditionTitle,#skyMapView[data-explore-stage="preview"] #exploreConditionDetail{grid-column:2}#skyMapView[data-explore-stage="preview"] .explore-condition-edit{grid-column:3}'+
- '#exploreBackToCandidates{grid-column:1;grid-row:1/3;align-self:center;width:44px;height:44px;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--sunk);color:var(--text);display:grid;place-items:center;cursor:pointer}#exploreBackToCandidates[hidden]{display:none}'+recordDiscoveryStyle;
+ '#exploreBackToCandidates{grid-column:1;grid-row:1/3;align-self:center;width:30px;height:44px;margin:0 2px 0 -8px;padding:0;border:0;border-radius:8px;background:none;color:var(--secondary);display:grid;place-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent}#exploreBackToCandidates:active{color:var(--text)}#exploreBackToCandidates[hidden]{display:none}'+recordDiscoveryStyle;
 
 const patch=(s,from,to)=>{if(s.split(from).length!==2)throw Error('Main search boundary changed: '+from.slice(0,80));return s.replace(from,to);};
 export function registeredMainSearch(s){

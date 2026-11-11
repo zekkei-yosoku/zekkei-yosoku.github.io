@@ -33,10 +33,13 @@ const patch=(s,from,to)=>{if(!s.includes(from))throw Error('Trial source boundar
 const read=p=>{
  let s=explorePlaceSource(p,readFileSync(p,'utf8'));if(!p.endsWith('/features/explore/controller.js'))return s;
  s=patch(s,"(s?.target?' · '+alignment:'')","(s?.target?' · '+(s.candidateOpportunity?.at===s.at&&s.candidateOpportunity?.targetId===s.target?.id&&s.candidateOpportunity?.relation==='near'?'候補の時刻':globalThis.AstroNotesTrialComposition?.label?.(s)||alignment):'')");
- s=patch(s,"globalThis.TrialExplore={candidateWorkspace:","document.addEventListener('astronotes-composition-change',updateConditions);\nglobalThis.TrialExplore={candidateWorkspace:");
+ s=patch(s,"globalThis.TrialExplore={candidateWorkspace:","document.addEventListener('astronotes-composition-change',updateConditions);\n// 探すを開いた時点で塔の模型を読み始め、地点を選んだ後の待ちから外す。\nconst warmModels=()=>{if(/^#\\/explore/.test(location.hash)&&eligible())AstroNotesAssets.ensureModels().catch(()=>{});};addEventListener('hashchange',warmModels);setTimeout(warmModels,0);\nglobalThis.TrialExplore={candidateWorkspace:");
  s=patch(s," mode=next==='map'?'map':'scene';"," mode='scene';\n tabs.hidden=true;scene.setAttribute('aria-label','見え方');scene.removeAttribute('aria-labelledby');scene.tabIndex=-1;");
  s=patch(s,"if(on&&focus)tab.focus();","if(on&&focus)scene.focus({preventScroll:true});");
  s=patch(s,"const tab=mode==='map'?mapTab:sceneTab;tab.focus({preventScroll:true});tabs.style.scrollMarginTop=(layout.conditions.getBoundingClientRect().height+12)+'px';tabs.scrollIntoView({block:'start',behavior:'auto'});","scene.tabIndex=-1;scene.focus({preventScroll:true});scene.style.scrollMarginTop=(layout.conditions.getBoundingClientRect().height+12)+'px';scene.scrollIntoView({block:'start',behavior:'auto'});");
+ // 2026-11-11 ユーザー「まだ計算が遅いよ」: 気象の取得を待たずに今の大気で先に描く。取得は模型の読み込みと並行し、
+ // 届いたら大気のキーが変わって、絵を出したまま描き直される（baseStamp は大気を含まない）。
+ s=patch(s,"  await AstroNotesAssets.ensureModels();await AstroNotesBodies.ensure(s.body);\n  if(!plan.current(run)||!resultActive()||mode!=='scene'||!plan.matches(key))return;\n  if(aimAirEnsure(aim.from,aim.dayMs))return;","  aimAirEnsure(aim.from,aim.dayMs);\n  await AstroNotesAssets.ensureModels();await AstroNotesBodies.ensure(s.body);\n  if(!plan.current(run)||!resultActive()||mode!=='scene'||!plan.matches(key))return;");
  return overlapExploreController(s);
 };
 const result=renderIndex({entry:'src/features/explore/entry.inc',read});
