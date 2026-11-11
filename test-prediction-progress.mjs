@@ -1,3 +1,4 @@
+import {createRequire as __req} from 'node:module';const __L=__req(import.meta.url)('./astronotes-library.js'),__gate=(n=0)=>{const g=__L.gate();while(n-->0)g.cancel();return g;};
 import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -36,7 +37,7 @@ test('受信本文も45秒期限の対象で、止まったストリームを打
 test('古い画面を更新せず、文字の件数を出さず、バーは段階を跨いで後退しない',()=>{
  const html=sourceHtml(),start=html.indexOf('function renderPredictionProgress('),end=html.indexOf('let loadSeq =',start),nodes=new Map();let visible=true;
  const node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',setAttribute(k,v){this[k]=v;},removeAttribute(k){delete this[k];}});return nodes.get(id);};
- const c={loadSeq:2,predictionNeeded:()=>visible,$:node};vm.createContext(c);vm.runInContext(html.slice(start,end),c);
+ const c={loadSeq:__gate(2),predictionNeeded:()=>visible,$:node};vm.createContext(c);c.AstroNotesLibrary=__L;vm.runInContext(html.slice(start,end),c);
  const bar=node('predictionProgressBar'),fill=node('predictionProgressFill');node('predictionProgressMessage').textContent='予測中です';
  c.renderPredictionProgress({phase:'fetch',completed:6,total:6},2);const fetched=+bar['aria-valuenow'];assert.equal(fetched,43);
  c.renderPredictionProgress({phase:'calculate',completed:0,total:8},2);assert.equal(+bar['aria-valuenow'],fetched);

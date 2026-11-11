@@ -19,13 +19,13 @@ const AimMap = (() => { let center=null,zoom=14;return {center:()=>center,zoom:(
 
 // 逆算の「少しずらす」。半直径きざみ（1 = 直径の半分）。右・上が正。aimFillSelects から読むので aim と一緒に先に置く
 const aimShift = { x: 0, y: 0 };
-const aim = { target: null, body: AstroNotesBodies.definition(store.get("sorami.aimBody", "sun")) ? store.get("sorami.aimBody", "sun") : "sun", partId: null, limb: "center", matchMode: "overlap", dayMs: null, lines: [], seq: 0,
-              spotSeq: 0, spotCache: null, spot: null, preset: null,
-              cands: [], candSeq: 0, candPick: null, wantSpot: null,
+const aim = { target: null, body: AstroNotesBodies.definition(store.get("sorami.aimBody", "sun")) ? store.get("sorami.aimBody", "sun") : "sun", partId: null, limb: "center", matchMode: "overlap", dayMs: null, lines: [], seq: AstroNotesLibrary.gate(),
+              spotSeq: AstroNotesLibrary.gate(), spotCache: null, spot: null, preset: null,
+              cands: [], candSeq: AstroNotesLibrary.gate(), candPick: null, wantSpot: null,
               // 候補地で見ている側（rise / set）、見え方の図の描き直しの番号、この地点で重なる日（帯）
-              candSide: null, lookSeq: 0, fromEvents: [] };
+              candSide: null, lookSeq: AstroNotesLibrary.gate(), fromEvents: [] };
 
-aim.bodySeq = 0; aim.limbsByBody = {};
+aim.bodySeq = AstroNotesLibrary.gate(); aim.limbsByBody = {};
 
 /// 目標の高さで線の長さが変わる（富士山は150km、避雷針は3km）ので、地図の倍率も合わせる
 function aimZoomFor(target, partId) {
@@ -252,7 +252,7 @@ async function aimRedrawLine() {
   // Historical implementation retained for rollback; no map/line discovery is run.
 
   const key = JSON.stringify([aim.target, aim.body, aim.dayMs, aim.partId, aim.limb, AstroNotesAtmosphere.dataKey()]);
-  if (aim.lineWork?.key === key && aim.lineWork.seq === aim.seq && Date.now() < aim.lineWork.until) {
+  if (aim.lineWork?.key === key && aim.seq.current(aim.lineWork.seq) && Date.now() < aim.lineWork.until) {
     // 再タップで候補選択が解除されても、同じ線/見通しを解き直さない。
     if (aim.wantSpot && !aim.candBusy) {
       const want = (aim.cands || []).findIndex(c => c.place.id === aim.wantSpot);
@@ -265,13 +265,13 @@ async function aimRedrawLine() {
   const work = { key, until: Infinity, promise: null };
   aim.lineWork = work;
   work.promise = (async () => {
-  const seq = ++aim.seq; work.seq = seq;
+  const seq = aim.seq.next(); work.seq = seq;
   $("aimLineInfo").textContent = "線を計算しています…";
   $("aimLineTable").hidden = true;
   $("aimLineTable").querySelector("tbody").innerHTML = "";
   // **前の線の候補地を残さない。** 線を解き直す数秒のあいだ、前の画面（ダイヤモンド富士）の候補が
   // 新しい見出し（パール富士）の下に見えていた（2026-10-01 本番で確認）。探している途中の計算も捨てる
-  aim.candSeq++;
+  aim.candSeq.cancel();
   // 合わせ方・高さだけを替えたとき（同じ目標・天体・日）は、選んでいた候補地が新しい候補にもあれば選び直す
   // （図が観測地点へ飛んで戻らないように。日付を替えたときは選び直さない）
   const keyNow = `${aim.target.id}|${aim.body}|${aim.dayMs}`;
@@ -290,16 +290,16 @@ async function aimRedrawLine() {
   let lines = [];
   try {
     lines = await AstroNotesAlign.line(aim.target, aim.body, aim.dayMs,
-      { partId: aim.partId, limb: aim.limb, elevationAt: aimElevation, isCurrent: () => seq === aim.seq });
+      { partId: aim.partId, limb: aim.limb, elevationAt: aimElevation, isCurrent: () => aim.seq.current(seq) });
   } catch {
-    if (seq !== aim.seq) return;
+    if (!aim.seq.current(seq)) return;
     if (aim.lineWork === work) aim.lineWork = null;
     $("aimLineInfo").textContent = "線を計算できませんでした。条件を選び直して再試行してください。";
     $("aimCandInfo").textContent = "";
     aim.candBusy = false; aimRefreshSheetCands();
     return;
   }
-  if (seq !== aim.seq) return;
+  if (!aim.seq.current(seq)) return;
   aim.lines = lines;
   AimMap.redraw();
   aimFindCandidates();

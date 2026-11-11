@@ -67,7 +67,7 @@ ok(!/cdn\.|unpkg|jsdelivr|skypack/.test(html), "CDN からは読まない");
 ok(/script-src 'self'/.test(html), "CSP の script-src は self のまま");
 // 光の時間の「この場所では 日の出・日の入」（山・建物込み）は 2026-10-20 にユーザー指定で外した（「これはいらないよね」）
 ok(!/<b>この場所では<\/b><span class="v">日の出/.test(html), "光の時間に「この場所では」の行は出さない");
-ok(/if \(seq !== extraSeq \|\| mine !== moonEvalSeq\) return;/.test(html)
+ok(/if \(!extraSeq\.current\(seq\) \|\| !moonEvalSeq\.current\(mine\)\) return;/.test(html)
   && /function refreshLightTimes\(\)/.test(html) && /lt\.outerHTML = html;/.test(html)
   && /wireMoonTimeRetry\(\$\("lightTimes"\)\)/.test(html),
   "稜線・月の可視時刻が届いたら光の時間だけ更新し、再試行ボタンもつなぐ");
@@ -718,7 +718,7 @@ console.log("== 同じ名前の関数を2つ置かない・観測点は1つ（20
   const names = [...globalSource.matchAll(/^(?:async )?function\*? ?([A-Za-z_$][\w$]*)/gm)].map((m) => m[1]);
   const dup = [...new Set(names.filter((n, i) => names.indexOf(n) !== i))];
   ok(names.length > 100 && !dup.length, "画面のいちばん外の関数名が重ならない（後の宣言が前のを黙って消す）", dup.join(", "));
-  ok(/await measureGroundHere\(\);\s+if \(seq !== extraSeq\) return;\s+const obs = observerHere\(\);/.test(html),
+  ok(/await measureGroundHere\(\);\s+if \(!extraSeq\.current\(seq\)\) return;\s+const obs = observerHere\(\);/.test(html),
     "富士山・月は DEM で地面を測ってから観測点を作る");
   // 実際に動かす
   const T = req("./astronotes-terrain.js");
@@ -786,7 +786,7 @@ ok(/\$\("aimListBox"\)\.hidden = true/.test(html), "構図の旧定番スポッ�
   ok(/fetch\("data\/tall-buildings\.json"\)/.test(html) && !/poly:"\$\{p\}"/.test(html), "塔の建物の判定は同梱データで（Overpass に問い合わせない）");
   {
     const redraw = (html.match(/async function aimRedrawLine\(\) \{[\s\S]*?const lines = await|async function aimRedrawLine\(\) \{[\s\S]*?lines = await/) || [""])[0];
-    ok(/aim\.candSeq\+\+;/.test(redraw) && /\$\("aimCandList"\)\.innerHTML = ""/.test(redraw),
+    ok(/aim\.candSeq\.cancel\(\);/.test(redraw) && /\$\("aimCandList"\)\.innerHTML = ""/.test(redraw),
       "線を解き直すあいだ、前の画面の候補地を残さない");
   }
   {
@@ -1409,7 +1409,7 @@ ok(/fn = AstroNotesTerrain\.combinedHorizon\(\{ terrain: prof \}\)/.test(html),
   "まず地形だけで地平線を作る");
 ok(/moonHorizon = AstroNotesTerrain\.combinedHorizon\(\{[\s\S]{0,120}urban \}\)/.test(html),
   "建物が届いたら地平線を作り直す");
-ok(/loadUrbanHorizon\(obs\)[\s\S]{0,1800}\.catch\(\(\) => \{ if \(seq === extraSeq\) \{ moonUrbanTried = false; extrasRetry.schedule\(\); \} \}\)/.test(html),
+ok(/loadUrbanHorizon\(obs\)[\s\S]{0,1800}\.catch\(\(\) => \{ if \(extraSeq\.current\(seq\)\) \{ moonUrbanTried = false; extrasRetry.schedule\(\); \} \}\)/.test(html),
   "建物が取れなくても地形だけで続ける");
 ok(/URBAN_CACHE_KEY/.test(html) && /URBAN_CACHE_VERSION/.test(html),
   "地点ごとにキャッシュする（毎回 410KB 引かない）");
@@ -1827,8 +1827,8 @@ ok(/id: `geo:\$\{pos\.coords\.latitude\.toFixed\(4\)\}/.test(html), "現在地�
 
 console.log("== 予報の応答が追い越しても混ざらない ==");
 // 連続で地点や地形を変えると、応答の順序は要求の順序と一致しない。
-ok(/let loadSeq = 0/.test(html) && /const seq = \+\+loadSeq/.test(html), "取得に連番を振る");
-ok(/if \(seq !== loadSeq\) return;/.test(html), "追い越された応答を捨てる");
+ok(/let loadSeq = AstroNotesLibrary\.gate\(\)/.test(html) && /const seq = loadSeq\.next\(\)/.test(html), "取得に連番を振る");
+ok(/if \(!loadSeq\.current\(seq\)\) return;/.test(html), "追い越された応答を捨てる");
 ok(/const forPlace = place;/.test(html) && /AstroNotesPrediction\.fetch\(forPlace(?:,|\))/.test(html),
   "取得開始時の観測条件でサーバーへ要求する");
 
@@ -3129,7 +3129,7 @@ console.log("== 重なる日の帯・候補地の切り替え（2026-10-03） ==
     "合わせ方・高さだけ替えたら、同じ候補地を選び直す（日付を替えたときは選び直さない）");
   ok(/if \(aim\.wantKey && aim\.wantKey !== keyNow\) \{ aim\.wantSpot = null; aim\.wantKey = null; \}/.test(html),
     "選び直しを待つ間に日付・天体・目標を替えたら、その待ちは捨てる（Codex の点検）");
-  ok(/if \(!\(aim\.target\.parts \|\| \[\]\)\.length\) \{\s*aim\.seq\+\+; aim\.candSeq\+\+;[\s\S]{0,160}aimRenderFrom\(\);/.test(html),
+  ok(/if \(!\(aim\.target\.parts \|\| \[\]\)\.length\) \{\s*aim\.seq\.cancel\(\); aim\.candSeq\.cancel\(\);[\s\S]{0,160}aimRenderFrom\(\);/.test(html),
     "高さの無い目標へ替えたら、進んでいる計算を捨て、図も消す");
   ok(!/if \(!all\.length\) \{ seg\.innerHTML = ""/.test(cands) && /if \(!sides\.some\(\(x\) => x\.has\)\) \{ seg\.innerHTML = ""/.test(cands),
     "候補地が0か所でも、線のある側の切り替えは出す（Codex の点検）");

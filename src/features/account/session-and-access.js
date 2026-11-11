@@ -157,7 +157,7 @@ function refreshRestrictedTools() {
   if (key === restrictedToolsKey) return;
   restrictedToolsKey = key;
   // 古いアカウント/権限で開始した処理を無効にし、記録を即座に消す。
-  plane.seq++; iss.seq++;
+  plane.seq.cancel(); iss.seq.cancel();
   resetPhotoList();
   if (viewState.aim) openAim(null);
   if (viewState.plane) openPlane();

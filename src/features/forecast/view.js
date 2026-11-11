@@ -67,7 +67,7 @@ let moonObs = null;      // 地平線を測ったときの観測者。詳細の�
 let moonUrbanMeta = null; // 建物層の内訳（何棟・推定が何棟・いちばん高いもの）
 let moonTerrainProfile = null; // 地形だけの地平線。建物が届いたら重ねて作り直す
 let moonUrbanTried = false;    // 建物の取得は地点ごとに1回だけ
-let moonUrbanProfile = null, moonPredictionPlace = null, moonEvalSeq = 0, moonWeeklySeq = 0, moonAcceptedSeq = 0;
+let moonUrbanProfile = null, moonPredictionPlace = null, moonEvalSeq = AstroNotesLibrary.gate(), moonWeeklySeq = AstroNotesLibrary.gate(), moonAcceptedSeq = 0;
 const moonVisibility = new Map(), moonDetailPending = new Map();
 let moonDetailKey = null;
 
@@ -176,31 +176,31 @@ const airFor = (t) => (bundle.air
   : null);
 
 async function updateMoonPrediction(obs, forPlace, seq) {
-  const mine = ++moonWeeklySeq, terrain = moonTerrainProfile, urban = moonUrbanProfile;
+  const mine = moonWeeklySeq.next(), terrain = moonTerrainProfile, urban = moonUrbanProfile;
   const dto = await AstroNotesPrediction.visibility({ kind: "moon", place: forPlace, observer: obs,
     terrain, urban, geometry: null });
-  if (seq !== extraSeq || mine < moonAcceptedSeq) return;
+  if (!extraSeq.current(seq) || mine < moonAcceptedSeq) return;
   moonAcceptedSeq = mine; moonTerrainProfile = terrain; moonUrbanProfile = urban;
   moonHorizon = AstroNotesTerrain.combinedHorizon({ terrain: terrain || AstroNotesTerrain.flatProfile(), urban });
   moonPredictionPlace = forPlace;
   weeks.moon = dto.weeks.moon;
   const detailKey = `${dto.visibilityKey}:${dto.asOf}:${dto.bundle.fetchedAt}`;
-  if (moonDetailKey !== detailKey) { moonDetailKey = detailKey; ++moonEvalSeq; moonVisibility.clear(); moonDetailPending.clear(); }
+  if (moonDetailKey !== detailKey) { moonDetailKey = detailKey; moonEvalSeq.cancel(); moonVisibility.clear(); moonDetailPending.clear(); }
   rerenderList(); refreshLightTimes();
 }
 
 function requestMoonDetails(dayMs) {
   if (!moonObs || !moonPredictionPlace || !forecastDays.includes(dayMs)) return;
   if (moonVisibility.has(dayMs) || moonDetailPending.has(dayMs)) return;
-  const seq = extraSeq, mine = moonEvalSeq, obs = moonObs, forPlace = moonPredictionPlace;
+  const seq = extraSeq.ticket(), mine = moonEvalSeq.ticket(), obs = moonObs, forPlace = moonPredictionPlace;
   const job = AstroNotesPrediction.visibility({ kind: "moonDetail", place: forPlace, observer: obs,
     terrain: moonTerrainProfile, urban: moonUrbanProfile, geometry: null, dayMs });
   moonDetailPending.set(dayMs, job);
   job.then(dto => {
-    if (seq !== extraSeq || mine !== moonEvalSeq) return;
+    if (!extraSeq.current(seq) || !moonEvalSeq.current(mine)) return;
     moonVisibility.set(dayMs, dto.moonVisibility[0]); refreshLightTimes();
   }).catch(() => {
-    if (seq !== extraSeq || mine !== moonEvalSeq) return;
+    if (!extraSeq.current(seq) || !moonEvalSeq.current(mine)) return;
     moonVisibility.set(dayMs, { failed: true }); refreshLightTimes();
   }).finally(() => { if (moonDetailPending.get(dayMs) === job) moonDetailPending.delete(dayMs); });
 }
@@ -208,9 +208,9 @@ function requestMoonDetails(dayMs) {
 /// 富士山と月の行を作って `weeks` へ入れ、表を描き直す
 async function loadExtras() {
   if (!bundle) return;
-  const seq = extraSeq;
+  const seq = extraSeq.ticket();
   await measureGroundHere();
-  if (seq !== extraSeq) return;
+  if (!extraSeq.current(seq)) return;
   const obs = observerHere();
   const forPlace = predictionPlace || place;
   const key = `${AstroNotesTerrain.urbanCacheKey(obs)}:${obs.locationScope}`;
@@ -221,7 +221,7 @@ async function loadExtras() {
     fujiAlign = null; fujiAlignKey = null; fujiAlignObs = null;
     moonHorizon = null; moonObs = null;
     moonTerrainProfile = null; moonUrbanMeta = null; moonUrbanTried = false;
-    moonUrbanProfile = null; moonPredictionPlace = null; moonEvalSeq++;
+    moonUrbanProfile = null; moonPredictionPlace = null; moonEvalSeq.cancel();
     moonVisibility.clear(); moonDetailPending.clear();
     extraKey = key;
   }
@@ -245,18 +245,18 @@ async function loadExtras() {
       const azs = [];
       for (let a = 0; a < 360; a += 1) azs.push(a);
       const prof = await AstroNotesTerrain.measureHorizon(obs, azs, { maxKm: 40 });
-      if (seq !== extraSeq) return;
+      if (!extraSeq.current(seq)) return;
 
       fn = AstroNotesTerrain.combinedHorizon({ terrain: prof });
       moonTerrainProfile = prof;
     } catch {
       // 測れなくても平らな地平線で出す。**黙って消さない**。測れたら差し替える
-      if (seq === extraSeq) extrasRetry.schedule();
+      if (extraSeq.current(seq)) extrasRetry.schedule();
     }
-    if (seq !== extraSeq) return;
+    if (!extraSeq.current(seq)) return;
     moonHorizon = fn;
   }
-  if (seq !== extraSeq) return;
+  if (!extraSeq.current(seq)) return;
   moonObs = obs;
   const savedUrban = cachedUrbanHorizon(obs);
   if (savedUrban) { moonUrbanTried = true; moonUrbanMeta = savedUrban.meta; moonUrbanProfile = savedUrban; }
@@ -275,7 +275,7 @@ async function loadExtras() {
   if ((!moonUrbanTried || urbanPending.has(AstroNotesTerrain.urbanCacheKey(obs))) && !moonUrbanProfile && obs.locationScope !== "area") {
     moonUrbanTried = true;
     loadUrbanHorizon(obs).then(async (urban) => {
-      if (seq !== extraSeq) return;
+      if (!extraSeq.current(seq)) return;
       if (!urban) { moonUrbanTried = false; extrasRetry.schedule(); return; }
       // **建物だけで地平線を作らない。** 建物の無い方位は −90（何も言わない）なので、
       // 下敷きが無いと月が常に地平線の上になる。地形が測れていなければ平らな 0 を敷く。
@@ -291,21 +291,21 @@ async function loadExtras() {
       // 点数が動くのは「その日ずっと建物の裏」のときだけ。それでも付け直すのは、
       // 代表時刻（peak）が変わるのと、その「ずっと裏」の日を拾うため。
       await updateMoonPrediction(obs, forPlace, seq);
-    }).catch(() => { if (seq === extraSeq) { moonUrbanTried = false; extrasRetry.schedule(); } });
+    }).catch(() => { if (extraSeq.current(seq)) { moonUrbanTried = false; extrasRetry.schedule(); } });
   }
-  try { await updateMoonPrediction(obs, forPlace, seq); } catch { if (seq === extraSeq) extrasRetry.schedule(); }
-  if (seq !== extraSeq) return;
+  try { await updateMoonPrediction(obs, forPlace, seq); } catch { if (extraSeq.current(seq)) extrasRetry.schedule(); }
+  if (!extraSeq.current(seq)) return;
 
   // ---- 富士山。日本の外なら出さない
   if (!AstroNotesTerrain.inJapan(obs.latitude, obs.longitude)) { delete weeks.fuji; delete weeks.capCloud; return; }
   const grid = await loadFujiGrid();
-  if (seq !== extraSeq) return;
+  if (!extraSeq.current(seq)) return;
   if (!grid) { extrasRetry.schedule(); return; }
   if (!fujiGeom) {
     let resolved = null;
     try { resolved = await AstroNotesFuji.resolveGeometry(obs, grid, { store: window.localStorage }); }
     catch { /* Geometry may be unavailable. */ }
-    if (seq !== extraSeq) return;
+    if (!extraSeq.current(seq)) return;
     fujiGeom = resolved;
     if (!resolved) extrasRetry.schedule();
   }
@@ -320,16 +320,16 @@ async function loadExtras() {
   try {
     const dto = await AstroNotesPrediction.visibility({ kind: "fuji", place: forPlace, observer: obs,
       terrain: null, urban: null, geometry: fujiGeom });
-    if (seq !== extraSeq) return;
+    if (!extraSeq.current(seq)) return;
     weeks.fuji = dto.weeks.fuji;
     if (dto.weeks.capCloud) weeks.capCloud = dto.weeks.capCloud;
     else {
       delete weeks.capCloud;
       if (dto.retryAt) extrasRetry.schedule(dto.retryAt - dto.asOf);
     }
-  } catch { if (seq === extraSeq) extrasRetry.schedule(); }
+  } catch { if (extraSeq.current(seq)) extrasRetry.schedule(); }
 
-  if (seq === extraSeq) rerenderList();
+  if (extraSeq.current(seq)) rerenderList();
 }
 
 /// 一覧の表だけ描き直す。**詳細を開いている最中は触らない**（読んでいる画面を奪わない）

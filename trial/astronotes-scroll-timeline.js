@@ -27,7 +27,7 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
  const rulerScale=mode=>numeric?{step:numeric.step,pixels:numeric.pixels,labelEvery:numeric.labelEvery}:scale(mode);
  const rulerAdvance=(at,pixels,mode)=>numeric?numeric.snap?clamp(numeric.snap(at+pixels/numeric.pixels*numeric.step)):rounded(Math.round((at+pixels/numeric.pixels*numeric.step)/numeric.step)*numeric.step):advance(at,pixels,mode);
  const tape=document.createElement('div');tape.className='sky-timeline-tape';root.replaceChildren(tape);
- let blend=null,snapFrame=0,snapTarget=null,anchor=null,mode=null,lastAt=null,width=0,moving=false,pressed=false,touching=false,frame=0,timer=0,generation=0,blocked=true,mouse=null,context='',colorCache=new Map(),lastTouchMove=0,glideFrame=0,velocity=0,lastScroll=null,inputKind='';
+ let blend=null,snapFrame=0,snapTarget=null,anchor=null,mode=null,lastAt=null,width=0,moving=false,pressed=false,touching=false,frame=0,timer=0,generation=AstroNotesLibrary.gate(),blocked=true,mouse=null,context='',colorCache=new Map(),lastTouchMove=0,glideFrame=0,velocity=0,lastScroll=null,inputKind='';
  const label=at=>format(at,mode);
  const cachedColor=key=>{if(!colorCache.has(key)){if(colorCache.size>1600)colorCache.clear();colorCache.set(key,skyColor(key*300000,getObserver(),sun));}return colorCache.get(key);};
  const color=at=>{const key=Math.floor(at/300000),a=cachedColor(key),t=(at-key*300000)/300000;if(!a||!t)return a;const b=cachedColor(key+1);return b?a.map((v,i)=>Math.round(v+(b[i]-v)*t)):a;};
@@ -42,7 +42,7 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
   return changed;};
  const flush=()=>{frame=0;if(!enabled()||!Number.isFinite(anchor))return;if(numeric){const s=rulerScale(mode),raw=anchor+(root.scrollLeft-EXTENT)/s.pixels*s.step,bounded=clamp(raw);if(raw!==bounded)root.scrollLeft=EXTENT+(bounded-anchor)/s.step*s.pixels;}if(emit()&&Math.abs(root.scrollLeft-EXTENT)>=EXTENT/2)rebase();};
  function reset(at,nextMode){
-  cancelGlide();cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;generation++;cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;blocked=true;anchor=lastAt=at;mode=nextMode;width=root.clientWidth;const nextContext=JSON.stringify(getObserver());if(context!==nextContext){colorCache.clear();context=nextContext;}
+  cancelGlide();cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;generation.cancel();cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;blocked=true;anchor=lastAt=at;mode=nextMode;width=root.clientWidth;const nextContext=JSON.stringify(getObserver());if(context!==nextContext){colorCache.clear();context=nextContext;}
   const s=rulerScale(mode),origin=EXTENT+width/2,ordinal=Math.floor((at+(mode==='date'?OFFSET:0))/s.step),fraction=mode!=='date'?at/s.step-Math.floor(at/s.step):0,tickOrigin=origin-fraction*s.pixels,nodes=[];
   tape.style.transform='';tape.style.width=(EXTENT*2+width)+'px';tape.style.setProperty('--timeline-unit',s.pixels+'px');tape.style.backgroundPositionX=tickOrigin+'px';
   for(let u=-Math.ceil(EXTENT/s.pixels);u<=Math.ceil(EXTENT/s.pixels);u++)if(!numeric?.ticks&&((ordinal+u)%s.labelEvery+s.labelEvery)%s.labelEvery===0&&(!numeric||(at+(u-fraction)*s.step>=numeric.min-1e-8&&at+(u-fraction)*s.step<=numeric.max+1e-8))){const tick=document.createElement('span');tick.className='sky-timeline-label';tick.style.left=(tickOrigin+u*s.pixels)+'px';tick.textContent=label(at+(u-fraction)*s.step);nodes.push(tick);}
@@ -68,14 +68,14 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
   const carry=!pressed&&inputKind==='touch'?velocity:0,keep={moving,pressed,touching,blocked,mouse},at=anchor+shift/s.pixels*s.step,current=lastAt;
   reset(at,mode);lastAt=current;moving=keep.moving;pressed=keep.pressed;touching=keep.touching;blocked=keep.blocked;mouse=keep.mouse;if(mouse)mouse.left-=shift;
   if(Math.abs(carry)>.02){root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';}
-  root.scrollLeft=EXTENT+offset-shift;lastScroll={left:root.scrollLeft,time:now()};const token=generation;timer=setTimeout(()=>settle(token),150);if(Math.abs(carry)>.02)glide(carry);
+  root.scrollLeft=EXTENT+offset-shift;lastScroll={left:root.scrollLeft,time:now()};const token=generation.ticket();timer=setTimeout(()=>settle(token),150);if(Math.abs(carry)>.02)glide(carry);
  }
  function settle(token){
-  if(token!==generation)return;if(!enabled()){stop();return;}
+  if(!generation.current(token))return;if(!enabled()){stop();return;}
   if(pressed){timer=setTimeout(()=>settle(token),120);return;}
   // Native scrolling can advance while the main thread delays its scroll event.
   // Publish that position and wait again rather than stopping a live fling.
-  if(lastScroll&&Math.abs(root.scrollLeft-lastScroll.left)>.1){const time=now();velocity=(root.scrollLeft-lastScroll.left)/Math.max(1,time-lastScroll.time);lastScroll={left:root.scrollLeft,time};moving=true;cancelAnimationFrame(frame);flush();clearTimeout(timer);const next=generation;timer=setTimeout(()=>settle(next),150);return;}
+  if(lastScroll&&Math.abs(root.scrollLeft-lastScroll.left)>.1){const time=now();velocity=(root.scrollLeft-lastScroll.left)/Math.max(1,time-lastScroll.time);lastScroll={left:root.scrollLeft,time};moving=true;cancelAnimationFrame(frame);flush();clearTimeout(timer);const next=generation.ticket();timer=setTimeout(()=>settle(next),150);return;}
   finish();
  }
  // 止めたら目盛り（1分・1日）へ寄せる。寄せる間も途中を渡し、指を離した瞬間に跳ばせない
@@ -87,17 +87,17 @@ function mount({root,getAt,getMode,enabled=()=>true,onChange,onSettle=()=>{},onB
   const step=()=>{snapFrame=0;if(!enabled()){stop();return;}const t=Math.min(1,(now()-begin)/160),e=1-(1-t)**3;if(t>=1){done(target);return;}root.scrollLeft=startLeft+(endLeft-startLeft)*e;emit();snapFrame=requestAnimationFrame(step);};
   snapFrame=requestAnimationFrame(step);
  }
- root.addEventListener('scroll',()=>{if(!enabled()){stop();return;}if(blocked||!enabled()||!Number.isFinite(anchor)||Math.abs(root.scrollLeft-EXTENT)<.1&&!moving)return;const time=now();if(lastScroll&&Math.abs(root.scrollLeft-lastScroll.left)>.1)velocity=(root.scrollLeft-lastScroll.left)/Math.max(1,time-lastScroll.time);lastScroll={left:root.scrollLeft,time};moving=true;if(!frame)frame=requestAnimationFrame(flush);clearTimeout(timer);const token=generation;timer=setTimeout(()=>settle(token),150);},{passive:true});
- function activate(kind){if(!enabled())return false;if(tape.style.transform){const at=getAt();reset(at,getMode());}cancelGlide();if(snapFrame){cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;const token=generation;timer=setTimeout(()=>settle(token),150);}velocity=0;inputKind=kind||inputKind;if(!Number.isFinite(anchor))reset(getAt(),getMode());else if(!moving&&Math.abs(root.scrollLeft-EXTENT)>=.1)reset(lastAt,mode);lastScroll={left:root.scrollLeft,time:now()};blocked=false;return true;}
+ root.addEventListener('scroll',()=>{if(!enabled()){stop();return;}if(blocked||!enabled()||!Number.isFinite(anchor)||Math.abs(root.scrollLeft-EXTENT)<.1&&!moving)return;const time=now();if(lastScroll&&Math.abs(root.scrollLeft-lastScroll.left)>.1)velocity=(root.scrollLeft-lastScroll.left)/Math.max(1,time-lastScroll.time);lastScroll={left:root.scrollLeft,time};moving=true;if(!frame)frame=requestAnimationFrame(flush);clearTimeout(timer);const token=generation.ticket();timer=setTimeout(()=>settle(token),150);},{passive:true});
+ function activate(kind){if(!enabled())return false;if(tape.style.transform){const at=getAt();reset(at,getMode());}cancelGlide();if(snapFrame){cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;const token=generation.ticket();timer=setTimeout(()=>settle(token),150);}velocity=0;inputKind=kind||inputKind;if(!Number.isFinite(anchor))reset(getAt(),getMode());else if(!moving&&Math.abs(root.scrollLeft-EXTENT)>=.1)reset(lastAt,mode);lastScroll={left:root.scrollLeft,time:now()};blocked=false;return true;}
  root.addEventListener('touchstart',e=>{if(!activate('touch'))return;touching=true;pressed=true;lastTouchMove=e?.timeStamp||0;},{passive:true});
  root.addEventListener('touchmove',e=>{lastTouchMove=e.timeStamp;},{passive:true});
- for(const event of ['touchend','touchcancel'])root.addEventListener(event,e=>{touching=false;pressed=false;if(!enabled()){stop();return;}if(event==='touchcancel'&&moving){clearTimeout(timer);const token=generation;timer=setTimeout(()=>settle(token),150);return;}if(moving&&enabled()&&(!e||e.timeStamp-lastTouchMove>=120)){finish();}},{passive:true});
+ for(const event of ['touchend','touchcancel'])root.addEventListener(event,e=>{touching=false;pressed=false;if(!enabled()){stop();return;}if(event==='touchcancel'&&moving){clearTimeout(timer);const token=generation.ticket();timer=setTimeout(()=>settle(token),150);return;}if(moving&&enabled()&&(!e||e.timeStamp-lastTouchMove>=120)){finish();}},{passive:true});
  root.addEventListener('pointerdown',e=>{if(!activate(e?.pointerType==='mouse'?'mouse':'touch'))return;pressed=true;if(e?.pointerType==='mouse'){mouse={x:e.clientX,left:root.scrollLeft};root.setPointerCapture?.(e.pointerId);e.preventDefault();}});
  root.addEventListener('pointermove',e=>{if(mouse&&enabled())root.scrollLeft=mouse.left+mouse.x-e.clientX;});
  root.addEventListener('wheel',e=>{if(!activate('wheel'))return;if(!e.deltaX&&e.deltaY){e.preventDefault();root.scrollLeft+=e.deltaY;}},{passive:false});
  for(const event of ['pointerup','pointercancel','lostpointercapture'])root.addEventListener(event,()=>{if(!touching)pressed=false;mouse=null;},{passive:true});
  root.addEventListener('keydown',e=>{const dir={ArrowLeft:-1,ArrowDown:-1,ArrowRight:1,ArrowUp:1,PageUp:-1,PageDown:1}[e.key];if(!dir||!enabled())return;e.preventDefault();const large=e.shiftKey||e.key.startsWith('Page'),delta=numeric?numeric.step*(large?10:1):(mode==='date'?DAY:mode==='hour'?3600000:MINUTE)*(large?(mode==='date'?7:mode==='hour'?6:15):1),at=rounded(getAt()+dir*delta);stop();reset(at,mode);onChange(at);onSettle(at);});
- function stop(){setBlend(null);cancelGlide();cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;velocity=0;lastScroll=null;generation++;cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;pressed=false;touching=false;mouse=null;blocked=true;anchor=null;}
+ function stop(){setBlend(null);cancelGlide();cancelAnimationFrame(snapFrame);snapFrame=0;snapTarget=null;velocity=0;lastScroll=null;generation.cancel();cancelAnimationFrame(frame);frame=0;clearTimeout(timer);timer=0;moving=false;pressed=false;touching=false;mouse=null;blocked=true;anchor=null;}
  // 2026-10-20 ユーザー「日付をばーっと動かしてるときに今日を押しても止まらず動き続ける」：外から日時を替えるときは、指を離したあとの慣性スクロールも止める
  const halt=()=>{if(!(moving||glideFrame||Math.abs(root.scrollLeft-EXTENT)>=.1))return;root.style.overflowX='hidden';void root.offsetWidth;root.style.overflowX='';};
  const controller={follow(at,nextMode){

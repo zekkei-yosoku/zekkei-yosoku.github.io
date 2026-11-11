@@ -1,3 +1,4 @@
+import {createRequire as __req} from 'node:module';const __L=__req(import.meta.url)('./astronotes-library.js'),__gate=(n=0)=>{const g=__L.gate();while(n-->0)g.cancel();return g;};
 import {sourceDeclaration} from './tools/test-source.mjs';
 import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
@@ -5,7 +6,7 @@ import {readFileSync} from 'node:fs';import vm from 'node:vm';import assert from
 const html=sourceHtml();
 const src=html.slice(html.indexOf('function allowedTools()'),html.indexOf('function renderTools()'));
 const access=readFileSync(new URL('./astronotes-access.js',import.meta.url),'utf8');
-function fixture(auth){const els={};const c={auth,$:id=>els[id]??={hidden:false,textContent:'',toggleAttribute(k,v){this[k]=v;}},plane:{seq:0},iss:{seq:0},photosRequest:0,photos:[],photosCursor:null,photosOwner:null,photosLoading:false,photosError:null,photosRetryAppend:false,renderPhotoListState(){},renderPhotos(){},atAim:false,atPlane:false,atIss:false,atRecords:false,atAnswers:false};vm.createContext(c);vm.runInContext(sourceDeclaration('resetPhotoList'),c);vm.runInContext(access,c);vm.runInContext(src,c);return c;}
+function fixture(auth){const els={};const c={auth,$:id=>els[id]??={hidden:false,textContent:'',toggleAttribute(k,v){this[k]=v;}},plane:{seq:__gate(0)},iss:{seq:__gate(0)},photosRequest:0,photos:[],photosCursor:null,photosOwner:null,photosLoading:false,photosError:null,photosRetryAppend:false,renderPhotoListState(){},renderPhotos(){},atAim:false,atPlane:false,atIss:false,atRecords:false,atAnswers:false};vm.createContext(c);vm.runInContext(sourceDeclaration('resetPhotoList'),c);vm.runInContext(access,c);vm.runInContext(src,c);return c;}
 for(const tools of [[],['plane'],['iss'],['records'],['plane','iss','records']]){
  const c=fixture({token:'fixture',tools});for(const t of ['plane','iss','records']){assert.equal(c.renderToolAccess(t),tools.includes(t));assert.equal(c.$(t+'View')['data-locked'],!tools.includes(t));if(!tools.includes(t)) assert.equal(c.$(t+'AccessLogin').hidden,true);}
  c.auth=null;for(const t of ['plane','iss','records']){assert.equal(c.renderToolAccess(t),false);assert.equal(c.$(t+'AccessLogin').hidden,false);}

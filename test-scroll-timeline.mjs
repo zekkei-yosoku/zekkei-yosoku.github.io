@@ -1,8 +1,9 @@
+import {createRequire as __req} from 'node:module';const __L=__req(process.cwd()+'/x')('./astronotes-library.js'),__gate=(n=0)=>{const g=__L.gate();while(n-->0)g.cancel();return g;};
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
 const src=readFileSync(new URL('./astronotes-scroll-timeline.js',import.meta.url),'utf8'),DAY=86400000;
 function setup(width=240,options={}){let next=0,simTime=0;const frames=new Map(),timers=new Map(),changes=[],state={at:Date.parse('2028-11-05T16:04:37.250+09:00'),mode:'date',enabled:true};
  const make=()=>({style:{setProperty(){}},dataset:{},children:[],listeners:{},scrollLeft:0,clientWidth:width,attrs:{},setAttribute(k,v){this.attrs[k]=v},getAttribute(k){return this.attrs[k]},replaceChildren(...c){this.children=c},addEventListener(k,f){this.listeners[k]=f}}),root=make();
- const c={performance:{now:()=>simTime},document:{createElement:make},requestAnimationFrame:f=>{frames.set(++next,f);return next},cancelAnimationFrame:i=>frames.delete(i),setTimeout:f=>{timers.set(++next,f);return next},clearTimeout:i=>timers.delete(i)};vm.createContext(c);vm.runInContext(src,c);
+ const c={performance:{now:()=>simTime},document:{createElement:make},requestAnimationFrame:f=>{frames.set(++next,f);return next},cancelAnimationFrame:i=>frames.delete(i),setTimeout:f=>{timers.set(++next,f);return next},clearTimeout:i=>timers.delete(i)};vm.createContext(c);c.AstroNotesLibrary=__L;vm.runInContext(src,c);
  const controller=c.AstroNotesScrollTimeline.mount({root,getAt:()=>state.at,getMode:()=>state.mode,enabled:()=>state.enabled,onChange:at=>{state.at=at;changes.push(at);controller.sync(at,state.mode)},format:at=>new Date(at).toISOString(),...options});controller.sync(state.at,state.mode);
  const flush=()=>{simTime+=16;for(const [id,f] of [...frames]){frames.delete(id);f();}};const settle=()=>{flush();for(const [id,f] of [...timers]){timers.delete(id);f();}};
  return {c,root,state,controller,changes,flush,settle,scroll(dx){root.listeners.wheel({deltaX:dx,deltaY:0});root.scrollLeft+=dx;root.listeners.scroll();flush();}};

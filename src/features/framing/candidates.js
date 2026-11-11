@@ -108,7 +108,7 @@ const AIM_DIR8 = ["北", "北東", "東", "南東", "南", "南西", "西", "北
  */
 async function aimUpdateLook() {
   if(globalThis.TrialExplore?.ownsScene?.()??globalThis.TrialExplore?.active()){globalThis.TrialExplore.sync();return;}
-  const seq = ++aim.lookSeq;
+  const seq = aim.lookSeq.next();
   const host = $("aimLook"), t = aim.target;
   host._planKey = null;
   if (!t || !(t.parts || []).length) { host.hidden = true; return; }
@@ -136,15 +136,15 @@ async function aimUpdateLook() {
   if (!f) { host.hidden = true; return; }
   // 選択地点の実際の目の高さで描く。
   const ground = await aimElevation(f.latitude, f.longitude);
-  if (seq !== aim.lookSeq || (globalThis.TrialExplore?.ownsScene?.()??globalThis.TrialExplore?.active())) return;
+  if (!aim.lookSeq.current(seq) || (globalThis.TrialExplore?.ownsScene?.()??globalThis.TrialExplore?.active())) return;
   const obs = aimObserverAt(f, ground);
   // **観測地点そのものの、その日の実際の通り方を出す**（2026-10-03 ユーザー「同じ日で観測地点をずらしたらその場所からの重なり方を出して欲しいだけ」
   // 「無理やり3択の場所に見え方を合わせてない？」）。選んだ縁が合わなくても、場所を動かさず、本当の通り方（中心が先端の◯°上を通る）で描く。
   // 合わせ方（下の縁・真ん中・上の縁）は、日付の帯・地図の線・候補地を決めるもので、ここでは通り方を変えない
   const opts = { partId: aim.partId, limb: "center", eyeM: obs.eyeM, stepMs: 3600000 };
   let rows = [];
-  try { const view=await aimShootingView(obs,t,aim.body,aim.partId,aim.matchMode);if(seq!==aim.lookSeq)return;rows = view?view(aim.dayMs):AstroNotesAlign.dailyView(obs, t, aim.body, aim.dayMs, opts); } catch { rows = []; }
-  if(seq!==aim.lookSeq)return;
+  try { const view=await aimShootingView(obs,t,aim.body,aim.partId,aim.matchMode);if(!aim.lookSeq.current(seq))return;rows = view?view(aim.dayMs):AstroNotesAlign.dailyView(obs, t, aim.body, aim.dayMs, opts); } catch { rows = []; }
+  if(!aim.lookSeq.current(seq))return;
   const dayRows = rows.filter((e) => S.JstCal.sameDay(e.at, aim.dayMs));
   const e = dayRows.find((x) => x.side === aim.candSide && dayRows.length > 1) || dayRows.sort((x, y) => Math.abs(x.gap) - Math.abs(y.gap))[0];
   if (!e) {
@@ -171,12 +171,12 @@ const aimCandSide = (c) => aimSideName(c.side);
 
 const AIM_AUTO_CANDIDATES = false;
 async function aimFindCandidates() {
-  const seq = ++aim.candSeq;
+  const seq = aim.candSeq.next();
   const lines = aim.lines || [];
   aim.cands = []; aim.candPick = null; aim.blockedAll = false; aim.brightSides = []; aim.candUnknownSides = []; aim.candClosedSides = [];
   $("aimCandList").innerHTML = ""; $("aimSideSeg").innerHTML = "";
   // 選ぶ候補地を待っている間、見え方の図はそのまま（aimUpdateLook が待つ）。見つからなくても待ちをやめて描き直す
-  const giveUp = () => { if (seq === aim.candSeq && aim.wantSpot) { aim.wantSpot = null; aim.wantKey = null; aimUpdateLook(); } };
+  const giveUp = () => { if (aim.candSeq.current(seq) && aim.wantSpot) { aim.wantSpot = null; aim.wantKey = null; aimUpdateLook(); } };
   // trial 2026-10-16: 自動候補地は外す（撮影候補は自分の地点の見えた記録から出す。仕様書 02_観測記録と自分の地点）
   if (AIM_AUTO_CANDIDATES === false) { $("aimCandInfo").textContent = ""; aim.candBusy = false; aimRefreshSheetCands(); giveUp(); return; }
   if (!lines.length) { $("aimCandInfo").textContent = "この日は線が無いので、候補地もありません。"; aim.candBusy = false; aimRefreshSheetCands(); giveUp(); return; }
@@ -184,20 +184,20 @@ async function aimFindCandidates() {
   aim.candBusy = true; aimRefreshSheetCands();
   let places = [];
   try { places = await aimPlaces(); } catch {
-    if (seq === aim.candSeq) { aim.lineWork = null; $("aimCandInfo").textContent = "候補地を読み込めませんでした。"; aim.candBusy = false; aimRefreshSheetCands(); }
+    if (aim.candSeq.current(seq)) { aim.lineWork = null; $("aimCandInfo").textContent = "候補地を読み込めませんでした。"; aim.candBusy = false; aimRefreshSheetCands(); }
     giveUp();
     return;
   }
-  if (seq !== aim.candSeq) return;
+  if (!aim.candSeq.current(seq)) return;
   const pool = places; // 目標別の視認根拠を持つ登録点だけ。OSM分類や地名は根拠にしない。
   // 候補地では取得失敗を海抜0mへ置き換えない（線を引くための概算とは分ける）。
-  const opts = { partId: aim.partId, limb: aim.limb, requireFreshElevation: true, isCurrent: () => seq === aim.candSeq,
+  const opts = { partId: aim.partId, limb: aim.limb, requireFreshElevation: true, isCurrent: () => aim.candSeq.current(seq),
     elevationAt: (lat, lon) => AstroNotesTerrain.groundElevation(lat, lon) };
   let found = [];
   // 地物の種類や名称では視認を保証できない。目標別の根拠がある点だけを解く。
   const eligible = pool.filter(aimCandidateSiteSupported);
   try { found = await AstroNotesAlign.candidates(lines, eligible, aim.target, aim.body, opts); } catch {
-    if (seq === aim.candSeq) {
+    if (aim.candSeq.current(seq)) {
       aim.candBusy = false;
       aim.lineWork = null;
       $("aimCandInfo").textContent = "候補地を計算できませんでした。もう一度お試しください。";
@@ -205,7 +205,7 @@ async function aimFindCandidates() {
     }
     giveUp(); return;
   }
-  if (seq !== aim.candSeq) return;
+  if (!aim.candSeq.current(seq)) return;
   // パールは月が暗い空にあるときだけ（昼の月は重なっても写らない）
   const all = found.length;
   // 明るい空でだけ重なる側 = 明るい空の候補はあるが、暗い空の候補が初めから無い側（見通しなどで落ちた側は別の理由。Codex の点検）
@@ -227,22 +227,22 @@ async function aimFindCandidates() {
     const checked = await Promise.all(found.slice(offset, offset + 4).map(async (k) => {
       try {
         const c = await aimOnLand(k, lines, opts);
-        if (seq !== aim.candSeq || !c) return null;
+        if (!aim.candSeq.current(seq) || !c) return null;
         const los = await AstroNotesAlign.lineOfSight(
           { latitude: c.stand.latitude, longitude: c.stand.longitude, elevation: c.stand.elevationM + aimCandidateEye(c.place) - 1.5 },
           aim.target, { partId: aim.partId, maxAngleDeg: c.altitude,
             endSkipKm: aimIsMountain(aim.target) ? 1 : 0.01,
             elevations: (pts) => AstroNotesTerrain.elevations(pts, { from: c.stand }) });
-        if (seq !== aim.candSeq) return null;
+        if (!aim.candSeq.current(seq)) return null;
         if (!los) { unknownSides.add(c.side); return null; }
         if (!los.clear) return null;
         const [blocked] = await aimBuildingBlocks([c]);
-        if (seq !== aim.candSeq) return null;
+        if (!aim.candSeq.current(seq)) return null;
         if (blocked === null) { unknownSides.add(c.side); return null; }
         return blocked === false ? c : null;
       } catch { unknownSides.add(k.side); return null; }
     }));
-    if (seq !== aim.candSeq) return;
+    if (!aim.candSeq.current(seq)) return;
     for (const c of checked) {
       if (!c || shown.length >= 12) continue;
       if (shown.some((k) => k.side === c.side && AstroNotesTerrain.distanceKm(k.stand.latitude, k.stand.longitude,

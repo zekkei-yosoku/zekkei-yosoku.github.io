@@ -8,13 +8,13 @@ let bundle = null;       // 取得済みの予報
 let weeks = {};          // phenomenon → [{dayMs, evaluation}]
 let forecastDays = [], predictionPlace = null;
 let predictionLoadSeq = -1;
-let extraSeq = 0;            // 地点を切り替えたときに、遅れて来た結果を捨てる
+let extraSeq = AstroNotesLibrary.gate();            // 地点を切り替えたときに、遅れて来た結果を捨てる
 // ---------------------------------------------------------------- 読み込み
 let predictionDirty = true, activePredictionKey = null, acceptedPrediction = null;
 const predictionKeyFor = p => JSON.stringify([p.latitude,p.longitude,p.elevation??null,p.eyeHeightAGL??1.5,p.terrain??null]);
 const predictionNeeded = () => { const r = routeFromHash(); return !r || !!r.id; };
 function renderPredictionProgress(progress,seq){
- if(seq!==loadSeq||!predictionNeeded())return;
+ if(!loadSeq.current(seq)||!predictionNeeded())return;
  const message=$("predictionProgressMessage"),bar=$("predictionProgressBar"),fill=$("predictionProgressFill");if(!message||!bar||!fill)return;
  if(!['prepare','fetch','calculate','finish','cached'].includes(progress?.phase))return;
  const n=progress.completed,total=progress.total,known=['fetch','calculate'].includes(progress.phase)&&Number.isInteger(n)&&Number.isInteger(total)&&total>0&&n>=0&&n<=total;
@@ -22,21 +22,21 @@ function renderPredictionProgress(progress,seq){
  else if(progress.phase==='finish'){bar.removeAttribute('data-indeterminate');bar.setAttribute('aria-valuenow','100');fill.setAttribute('style','transform:scaleX(1)');}
  else{bar.setAttribute('data-indeterminate','');bar.removeAttribute('aria-valuenow');}
 }
-let loadSeq = 0;         // 連続で地点や地形を変えたとき、古い応答を捨てるための連番
+let loadSeq = AstroNotesLibrary.gate();         // 連続で地点や地形を変えたとき、古い応答を捨てるための連番
 async function load(force) {
   const requestKey = predictionKeyFor(place);
   if (acceptedPrediction && predictionKeyFor(acceptedPrediction.place) !== requestKey) {
     bundle = null; weeks = {}; forecastDays = []; predictionPlace = null; acceptedPrediction = null;
   }
   if (!predictionNeeded()) {
-    ++loadSeq; ++extraSeq; extrasRetry.reset(); activePredictionKey = null; predictionDirty = true;
+    loadSeq.cancel(); extraSeq.cancel(); extrasRetry.reset(); activePredictionKey = null; predictionDirty = true;
     return;
   }
   if (activePredictionKey === requestKey) return;
   activePredictionKey = requestKey;
   predictionDirty = true;
-  const seq = ++loadSeq;
-  ++extraSeq; extrasRetry.reset();
+  const seq = loadSeq.next();
+  extraSeq.cancel(); extrasRetry.reset();
   const forPlace = place;   // 取得開始時の地点で最後まで一貫して評価する
   $("status").hidden = false;
   // 実際の取得・計算の完了項目数を表示。残り時間の推定％は使わない。
@@ -47,7 +47,7 @@ async function load(force) {
   try {
     // 光害はその地点の素質なので予報と並行に取得する。取れなくても致命的ではない。
     const prediction = await AstroNotesPrediction.fetch(forPlace,S,{onProgress:progress=>renderPredictionProgress(progress,seq)});
-    if (seq !== loadSeq) return;
+    if (!loadSeq.current(seq)) return;
     predictionDirty = false; acceptedPrediction = prediction;
     bundle = prediction.bundle;
     S.setTimezoneOffset(bundle.utcOffsetSeconds);
@@ -66,7 +66,7 @@ async function load(force) {
     // ここで初めてその現象を描ける。
     applyRoute();
   } catch (e) {
-    if (seq !== loadSeq) return;
+    if (!loadSeq.current(seq)) return;
     $("status").hidden = false;
     // **短く書いて、押すものを大きく出す。** 以前は API の英語の理由をそのまま
     // 括弧に入れて出し（"Minutely API request limit exceeded..."）、再試行は
@@ -87,7 +87,7 @@ async function load(force) {
     if (!bundle && route && !route.id) applyRoute();
     else $("placeName").textContent = place.name;
   } finally {
-    if (seq === loadSeq) activePredictionKey = null;
+    if (loadSeq.current(seq)) activePredictionKey = null;
   }
 }
 

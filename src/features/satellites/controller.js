@@ -81,7 +81,7 @@ async function issApply() {
   if (!toolAllowed("iss")) return;
   const P = issFromPoint();
   if (!P) return;
-  const seq = ++iss.seq;
+  const seq = iss.seq.next();
   const name = issSatName();
   const pass = iss.tab === "pass";
   // 開いていた回の方角図と地図は一覧の中（行の下）にある。一覧を書き換える前に退避しないと地図ごと消える
@@ -105,7 +105,7 @@ async function issApply() {
   $("issPassFrom").textContent = `${P.name}で`;
   let sat, tle;
   try { [sat, tle] = await Promise.all([issLoadSat(), issLoadTle()]); } catch { sat = null; }
-  if (seq !== iss.seq) return;
+  if (!iss.seq.current(seq)) return;
   if (!sat || !tle) {
     issParkDetail();
     $(pass ? "issPassList" : "issList").innerHTML = `<p class="tiny">${esc(name)}の軌道要素を取れませんでした。時間をおいて開き直してください。落下や運用終了で軌道要素が配られていない衛星もあります。</p>`;
@@ -118,7 +118,7 @@ async function issApply() {
   $("issTle").textContent = ageH > 24 ? `軌道要素が${Math.round(ageH / 24)}日前のため目安` : "";
   // 画面を止めないよう、次の描画を待ってから解く（3日ぶんで0.2秒ほど）
   await new Promise((r) => setTimeout(r, 0));
-  if (seq !== iss.seq) return;
+  if (!iss.seq.current(seq)) return;
   if (pass) return issApplyPasses(seq, sat, tle, P);
   return issApplyTransits(seq, sat, tle, P);
 }
@@ -130,7 +130,7 @@ async function issApplyTransits(seq, sat, tle, P) {
     rows = AstroNotesISS.transits(sat, tle, { center: { latitude: P.latitude, longitude: P.longitude },
       radiusKm: iss.rangeKm, fromMs: Date.now(), hours: 168, body: iss.body });
   } catch { rows = []; }
-  if (seq !== iss.seq) return;
+  if (!iss.seq.current(seq)) return;
   // 昼の月も残す。高く昇った昼の月は見えていて、ISS の影は望遠で写る（月面通過の写真の多くは昼）。
   // 空の明るさは行に「昼・薄明・夜」で添える
   iss.result = rows; iss.pick = 0; iss.overWater = 0; iss.standsDone = false;
@@ -142,7 +142,7 @@ async function issApplyTransits(seq, sat, tle, P) {
   // 立つ場所（陸の上）。地名の表と水域のタイルを読むので、行を先に出してから足す
   for (const r of rows) {
     try { r.stand = await issStand(r); } catch { r.stand = undefined; }
-    if (seq !== iss.seq) return;
+    if (!iss.seq.current(seq)) return;
   }
   // 帯が水の上だけを通る回は、陸から見られないので並べない（何回外したかは書く）
   const pickedAt = rows[iss.pick] && rows[iss.pick].at;
@@ -311,7 +311,7 @@ function issApplyPasses(seq, sat, tle, P) {
     rows = AstroNotesISS.passes(sat, tle, { observer: { latitude: P.latitude, longitude: P.longitude, elevation: P.elevation || 0 },
       fromMs: Date.now(), hours: 168 });
   } catch { rows = []; }
-  if (seq !== iss.seq) return;
+  if (!iss.seq.current(seq)) return;
   iss.passes = rows; iss.tle = tle; iss.passPick = -1; iss.track = []; iss.passesReady = true;
   issRenderPasses();
 }
@@ -489,7 +489,7 @@ function issDrawTrack(ctx, project, color, ink, width, height) {
 const ISS_GROUPS = [
   ["stations", "宇宙ステーション", true], ["visual", "明るい衛星", true], ["weather", "気象", false],
   ["gnss", "測位（GPS・みちびき など）", false], ["science", "科学", false], ["amateur", "アマチュア無線", false]];
-const issPick = { group: "all", list: [], remote: null, seq: 0, remoteSeq: 0, visSeq: 0, visible: null, timer: 0, limit: 200 };
+const issPick = { group: "all", list: [], remote: null, seq: AstroNotesLibrary.gate(), remoteSeq: AstroNotesLibrary.gate(), visSeq: AstroNotesLibrary.gate(), visible: null, timer: 0, limit: 200 };
 /// お気に入りの衛星（この端末に保存。{ catnr, name }）
 const issFavSats = () => { const v = store.get("sorami.issFavSats", []); return Array.isArray(v) ? v.filter((x) => x && Number.isInteger(x.catnr)) : []; };
 function issToggleFav(catnr, name) {
@@ -547,8 +547,8 @@ async function issLoadGroup(g) {
 
 /// ジャンルを開く。all は6ジャンルを合わせた一覧、fav はお気に入り（取得しない）
 async function issPickGroup(g) {
-  const seq = ++issPick.seq;
-  issPick.group = g; issPick.list = []; issPick.visible = null; issPick.visSeq++; issPick.limit = 200;
+  const seq = issPick.seq.next();
+  issPick.group = g; issPick.list = []; issPick.visible = null; issPick.visSeq.cancel(); issPick.limit = 200;
   for (const b of $("issPickGroups").querySelectorAll("[data-group]")) b.setAttribute("aria-pressed", String(b.dataset.group === g));
   $("issPickVisible").hidden = true;
   if (g === "fav") { issPick.loading = false; issPickRender(); return; }
@@ -556,7 +556,7 @@ async function issPickGroup(g) {
   issPick.loading = true; issPickRender();
   const groups = g === "all" ? ISS_GROUPS.map(([k]) => k) : [g];
   const lists = await Promise.all(groups.map(issLoadGroup));
-  if (seq !== issPick.seq) return;
+  if (!issPick.seq.current(seq)) return;
   issPick.loading = false;
   const seen = new Set(), list = [];
   for (const l of lists) for (const t of l || []) if (!seen.has(t.catnr)) { seen.add(t.catnr); list.push(t); }
@@ -568,13 +568,13 @@ async function issPickGroup(g) {
 
 /// CelesTrak の名前（英語）で探す。日本語名の表に無い衛星もこれで見つかる
 async function issPickRemote(q) {
-  const seq = ++issPick.remoteSeq;
+  const seq = issPick.remoteSeq.next();
   issPick.remote = { q, list: undefined };
   issPickRender();
   let list = null;
   try { list = AstroNotesISS.parseTleList(await issFetchText(`https://celestrak.org/NORAD/elements/gp.php?NAME=${encodeURIComponent(q)}&FORMAT=TLE`)); }
   catch { list = null; }
-  if (seq !== issPick.remoteSeq) return;
+  if (!issPick.remoteSeq.current(seq)) return;
   issPick.remote = { q, list };
   issPickRender();
 }
@@ -657,11 +657,11 @@ function issChoose(catnr, tle) {
 
 /// 開いているジャンルで、これから24時間に見える回。全機を順に解くので押したときだけ
 async function issPickFindVisible() {
-  const seq = ++issPick.visSeq, P = issFromPoint(), list = issPick.list;
+  const seq = issPick.visSeq.next(), P = issFromPoint(), list = issPick.list;
   $("issPickVisible").disabled = true;   // 押した瞬間に止める（計算の部品を読む間に2回目が走らないように）
   let sat = null;
   try { sat = await issLoadSat(); } catch { sat = null; }
-  if (seq !== issPick.visSeq || !P || !list.length) { $("issPickVisible").disabled = false; return; }
+  if (!issPick.visSeq.current(seq) || !P || !list.length) { $("issPickVisible").disabled = false; return; }
   if (!sat) { $("issPickInfo").textContent = "計算の部品を読めませんでした。もう一度押してください。"; $("issPickVisible").disabled = false; return; }
   $("issPickQuery").value = "";
   const found = [], from = Date.now();
@@ -675,7 +675,7 @@ async function issPickFindVisible() {
     if (i % 15 === 14) {
       $("issPickInfo").textContent = `計算しています…（${i + 1}/${list.length}機）`;
       await new Promise((r) => setTimeout(r, 0));
-      if (seq !== issPick.visSeq) return;
+      if (!issPick.visSeq.current(seq)) return;
     }
   }
   // 並びは「見え始めの分」→ よく見る3機 → 日本語名のある衛星 → 衛星番号。
@@ -743,7 +743,7 @@ IssMap.setOverlay((ctx, { project, width, height }) => {
 });
 
 function openIss() {
-  if (!renderToolAccess("iss")) { iss.seq++; return; }
+  if (!renderToolAccess("iss")) { iss.seq.cancel(); return; }
   // 以前の「衛星を選ぶ」の道（#/iss/pick）で開かれたら、人工衛星の画面にして衛星を選ぶページを重ねる
   const picking = !!routeFromHash()?.issPick;
   if (picking) history.replaceState(history.state, "", "#/iss");

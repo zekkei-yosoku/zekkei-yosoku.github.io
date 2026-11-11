@@ -1,3 +1,4 @@
+import {createRequire as __req} from 'node:module';const __L=__req(import.meta.url)('./astronotes-library.js'),__gate=(n=0)=>{const g=__L.gate();while(n-->0)g.cancel();return g;};
 import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 // 未ログイン・権限なしで構図を直URLで開いたとき、本体ではなく案内を出す（2026-10-15）。
 // 以前は openAim が aimView ごと隠したあと、render() がルートだけで表示へ戻し、本体が「計算しています…」のまま止まっていた。
@@ -20,7 +21,7 @@ function fixture(auth){
  const els={};
  const c={auth,$:id=>els[id]??={hidden:false,textContent:'',attrs:new Set(),toggleAttribute(n,on){on?this.attrs.add(n):this.attrs.delete(n);}}};
  c.toolAllowed=id=>(c.auth?.tools||[]).includes(id);
- vm.createContext(c);vm.runInContext(access,c);c.screenAllowed=s=>c.AstroNotesAccess.canOpen(c.auth?.tools||[],s);vm.runInContext(src,c);return c;
+ vm.createContext(c);c.AstroNotesLibrary=__L;vm.runInContext(access,c);c.screenAllowed=s=>c.AstroNotesAccess.canOpen(c.auth?.tools||[],s);vm.runInContext(src,c);return c;
 }
 const locked=c=>c.$('aimView').attrs.has('data-locked');
 
@@ -43,7 +44,7 @@ for(const tool of ['tower','diamond','pearl']){
 const openStart=html.indexOf('function openAim(preset) {');
 const gate=html.slice(openStart,html.indexOf('if (preset) aim.pendingModelPreset = preset;',openStart));
 assert.ok(!gate.includes('$("aimView").hidden'),'aimView の表示は render() に任せる');
-const g={aim:{bodySeq:3,pendingModelPreset:null},renderAimAccess:()=>false};vm.createContext(g);vm.runInContext(gate+'}',g);
-g.openAim('tower');assert.equal(g.aim.bodySeq,4);assert.equal(g.aim.pendingModelPreset,null);
+const g={aim:{bodySeq:__gate(3),pendingModelPreset:null},renderAimAccess:()=>false};vm.createContext(g);g.AstroNotesLibrary=__L;vm.runInContext(gate+'}',g);
+g.openAim('tower');assert.equal(g.aim.bodySeq.ticket(),4);assert.equal(g.aim.pendingModelPreset,null);
 
 console.log('AIM ACCESS OK: guest/denied/allowed/logout states, render re-check, openAim gate');

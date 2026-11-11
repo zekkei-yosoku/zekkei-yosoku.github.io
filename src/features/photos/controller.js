@@ -15,7 +15,7 @@ import {recheckAccess} from '../account/access-recheck.js';
 //
 // 小さくても残す意味はある。**採点のしかたを変えたとき、付け直せるのは写真だけ**で、
 // 「あの日は何点だった」という記憶は残らない。
-let photoSheetGeneration = 0, photoAttachGeneration = 0, photoSaving = false;
+let photoSheetGeneration = AstroNotesLibrary.gate(), photoAttachGeneration = AstroNotesLibrary.gate(), photoSaving = false;
 const photoDraft = { file: null, thumb: null, tile: null, exif: null, width: 0, height: 0, round: null,
   // 保存時の分析（2026-10-16）。色の帯は写真を選んだ直後に計算を始める。入力欄は「開いたときに入れた値と由来」を覚え、保存時に比べる
   color: null, colorJob: null, original: null, filled: null, scoreInitial: "default_70", scoreMoved: false };
@@ -44,8 +44,8 @@ async function makeThumb(file, max = 768, quality = 0.72) {
 /// 写真を読み込んで下書きへ入れる。**写真は必須**（2026-10-02 ユーザー「遡って記録…それは写真をアップロードが必須」）
 async function photoAttach(file) {
   if (photoSaving) return false;
-  const generation = ++photoAttachGeneration, sheet = photoSheetGeneration, token = auth?.token;
-  const current = () => generation === photoAttachGeneration && sheet === photoSheetGeneration && token === auth?.token;
+  const generation = photoAttachGeneration.next(), sheet = photoSheetGeneration.ticket(), token = auth?.token;
+  const current = () => photoAttachGeneration.current(generation) && photoSheetGeneration.current(sheet) && token === auth?.token;
   photoDraft.file = file;
   photoDraft.thumb = null; photoDraft.tile = null; photoDraft.exif = null;
   photoDraft.loading = true;
@@ -86,8 +86,8 @@ async function photoAttach(file) {
 /// 保存したらその回の答えと写真の時刻・位置も記録する
 async function openPhotoSheet(file, round = null) {
   if (photoSaving || !requireLogin("記録")) return;
-  const generation = ++photoSheetGeneration;
-  ++photoAttachGeneration;
+  const generation = photoSheetGeneration.next();
+  photoAttachGeneration.cancel();
   photoDraft.loading = false;
   photoDraft.ownerToken = auth?.token;
   $("photoSave").disabled = false;
@@ -101,7 +101,7 @@ async function openPhotoSheet(file, round = null) {
   $("photoPreview").hidden = true;
   $("photoChoose").textContent = "写真を選ぶ";
   if (file) await photoAttach(file);
-  if (generation !== photoSheetGeneration || photoDraft.ownerToken !== auth?.token) return;
+  if (!photoSheetGeneration.current(generation) || photoDraft.ownerToken !== auth?.token) return;
   $("photoErr").hidden = true;
 
   // 現象の一覧。**この画面の順で出す**（一覧と同じ並びなら迷わない）
@@ -277,7 +277,7 @@ async function photoShot(body, r = photoDraft.exif) {
 $("photoPick").onclick = () => openPhotoSheet(null);
 $("photoClose").onclick = () => { if (!photoSaving) $("photoSheet").close(); };
 $("photoSheet").addEventListener("cancel", (e) => { if (photoSaving) e.preventDefault(); });
-$("photoSheet").addEventListener("close", () => { ++photoSheetGeneration; ++photoAttachGeneration; photoDraft.round = null; });
+$("photoSheet").addEventListener("close", () => { photoSheetGeneration.cancel(); photoAttachGeneration.cancel(); photoDraft.round = null; });
 $("photoChoose").onclick = (e) => { e.preventDefault(); $("photoFile").click(); };
 $("photoFile").onchange = async () => {
   const f = $("photoFile").files && $("photoFile").files[0];
@@ -315,11 +315,11 @@ $("photoSave").onclick = async (e) => {
     thumb: photoDraft.thumb, tile: photoDraft.tile,
     width: photoDraft.width, height: photoDraft.height,
   };
-  const generation = photoSheetGeneration, account = accessState.generation, token = auth?.token;
+  const generation = photoSheetGeneration.ticket(), account = accessState.generation, token = auth?.token;
   const draft = { ...photoDraft, round: photoDraft.round ? { ...photoDraft.round } : null,
     whenValue: $("photoWhen").value, whereValue: $("photoWhere").value,
     candidates: forecastCandidates(body.phenomenon, body.takenAt), place: { ...place } };
-  const current = () => generation === photoSheetGeneration && account === accessState.generation && token === auth?.token;
+  const current = () => photoSheetGeneration.current(generation) && account === accessState.generation && token === auth?.token;
   const controls = ["photoSave", "photoClose", "photoChoose", "photoFile", "photoWhen", "photoWhere", "photoPhenom", "photoScore", "photoNote"];
   photoSaving = true;
   for (const id of controls) $(id).disabled = true;

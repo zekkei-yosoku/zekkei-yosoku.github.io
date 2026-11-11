@@ -1,3 +1,4 @@
+import {createRequire as __req} from 'node:module';const __L=__req(import.meta.url)('./astronotes-library.js'),__gate=(n=0)=>{const g=__L.gate();while(n-->0)g.cancel();return g;};
 import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import test from 'node:test';
@@ -69,7 +70,7 @@ test('シリウス・小惑星半径でも山の自動表示範囲は旧縮尺�
 test('天体変更の遅い返答は最新選択を上書きせず、合わせ方を天体ごとに保持する',async()=>{
  const start=html.indexOf('    $("aimBody").onchange = async () => {'),end=html.indexOf('    $("aimHeightSet").onclick',start);assert.ok(start>0&&end>start);
  const waits={},els={aimBody:{value:'sirius'},aimLineInfo:{},aimLimb:{innerHTML:'old'},aimAlignmentDetails:{open:true}};
- const aim={body:'moon',bodySeq:0,limb:'behind',limbsByBody:{sun:'onTop'}};
+ const aim={body:'moon',bodySeq:__gate(),limb:'behind',limbsByBody:{sun:'onTop'}};
  const c={AstroNotesAssets:{modelsReady:()=>true},aim,$:id=>els[id],AstroNotesBodies:{ensure:id=>new Promise((resolve,reject)=>waits[id]={resolve,reject})},aimLimbValue:()=>aim.limb,aimApply(){c.applied=aim.body}};
  vm.runInNewContext(html.slice(start,end),c);const first=els.aimBody.onchange();els.aimBody.value='sun';const second=els.aimBody.onchange();waits.sun.resolve();await second;waits.sirius.resolve();await first;
  assert.equal(aim.body,'sun');assert.equal(aim.limb,'onTop');assert.equal(aim.limbsByBody.moon,'behind');assert.equal(c.applied,'sun');assert.equal(aim.matchMode,'overlap');
@@ -80,7 +81,7 @@ test('初回読込中の太陽選択と明示URLは旧入口の完了で上書�
  function setup(){
   let done;const pending=new Promise(r=>done=r),els=new Map();
   const $=id=>{if(!els.has(id))els.set(id,{value:id==='aimTarget'?'skytree':'',innerHTML:'',textContent:''});return els.get(id)};
-  const aim={body:'sirius',bodySeq:0,limb:'center',limbsByBody:{},target:null};
+  const aim={body:'sirius',bodySeq:__gate(),limb:'center',limbsByBody:{},target:null};
   const c={AstroNotesAssets:{modelsReady:()=>true},aim,$,toolAllowed:()=>true,renderAimAccess:()=>true,aimRenderSelectedPoint(){},AIM_PRESETS:{tower:{body:null,target:null},diamond:{body:'sun',target:'fuji'}},AstroNotesBodies:{definition:B.definition,ready:()=>false,ensure:id=>id==='sun'?Promise.resolve():pending},AstroNotesAlign:{targetById:()=>({id:'fuji',parts:[{id:'summit',m:3776}]})},aimFillSelects(){},aimFillParts(){},aimLimbValue:()=>aim.limb,store:{get:()=> 'skytree'},Date,Number,requestAnimationFrame(){},aimApply(){c.applied=aim.body},aimRedrawLine(){},aimRenderList(){},aimRenderFrom(){}};
   vm.runInNewContext('let aimReady=false;'+code+';this.open=openAim;',c);return {c,$,aim,done};
  }
@@ -95,7 +96,7 @@ test('固有運動をAstropyの空間運動とJ2000/2026/2036で独立照合',()
 });
 
 test('モデル待ち中の同期更新は未適用プリセットを落とさず、新しい入口が優先する',async()=>{
- const start=html.indexOf('function openAim(preset) {'),end=html.indexOf('/// 地図を開く中心と倍率',start),code=html.slice(start,end);let ready=false,release;const pending=new Promise(r=>release=r),els=new Map(),aim={bodySeq:0,body:'moon',limbsByBody:{},limb:'center'};
+ const start=html.indexOf('function openAim(preset) {'),end=html.indexOf('/// 地図を開く中心と倍率',start),code=html.slice(start,end);let ready=false,release;const pending=new Promise(r=>release=r),els=new Map(),aim={bodySeq:__gate(),body:'moon',limbsByBody:{},limb:'center'};
  const $=id=>{if(!els.has(id))els.set(id,{value:id==='aimTarget'?'fuji':'',innerHTML:'',textContent:''});return els.get(id)};
  const c={aim,$,auth:{token:'test'},atAim:true,AstroNotesAssets:{modelsReady:()=>ready,ensureModels:()=>pending},toolAllowed:()=>true,renderAimAccess:()=>true,aimRenderSelectedPoint(){},AIM_PRESETS:{diamond:{body:'sun',target:'fuji'},pearl:{body:'moon',target:'fuji'}},AstroNotesBodies:{definition:B.definition,ready:()=>true},AstroNotesAlign:{targetById:()=>({id:'fuji',parts:[{}]})},aimFillSelects(){},aimFillParts(){},aimLimbValue:()=>aim.limb,store:{get:()=> 'fuji'},Date,Number,requestAnimationFrame(){},aimApply(){return false;}};
  vm.runInNewContext('let aimReady=false;'+code+';this.open=openAim;',c);c.open('diamond');c.open(null);ready=true;release();await new Promise(setImmediate);assert.equal(aim.body,'sun');assert.equal(aim.pendingModelPreset,null);

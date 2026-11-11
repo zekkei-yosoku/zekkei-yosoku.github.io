@@ -1,3 +1,4 @@
+import {createRequire as __req} from 'node:module';const __L=__req(import.meta.url)('./astronotes-library.js'),__gate=(n=0)=>{const g=__L.gate();while(n-->0)g.cancel();return g;};
 import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 createRequire(import.meta.url)("./astronotes-bodies.js");
@@ -62,7 +63,7 @@ test('記録案内はピークではなく窓の終了時刻。翌日の日付�
 });
 function redraw(line){
  const els=Object.fromEntries(['aimLineInfo','aimLineTable','aimCandList','aimSideSeg','aimCandInfo'].map(k=>[k,{hidden:false,textContent:'old',innerHTML:'old',querySelector(){return this;}}]));
- const aim={seq:0,candSeq:0,target:{id:'fuji'},body:'sun',dayMs:today,candPick:null,cands:[]};
+ const aim={seq:__gate(0),candSeq:__gate(),target:{id:'fuji'},body:'sun',dayMs:today,candPick:null,cands:[]};
  const fn=runInNewContext(grab('async function aimRedrawLine')+';aimRedrawLine',{aim,$:k=>els[k],AstroNotesAtmosphere:{dataKey:()=>"standard"},aimRenderCands(){},AimMap:{redraw(){}},AstroNotesAlign:{line},aimElevation(){},aimFindCandidates(){},aimRefreshSheetCands(){},S,esc:x=>x,aimSideLabel:x=>x,aimKm:x=>x});
  return {fn,els,aim};
 }
@@ -103,7 +104,7 @@ test('未設定の自由目標へ切り替えると前の目標の時刻表を�
  const b=html.indexOf('  $("aimCandBox").hidden = false;',a);
  const body={innerHTML:'前の目標の時刻'},elements=new Map();
  const $=id=>{if(!elements.has(id)) elements.set(id,{hidden:false,innerHTML:'old',querySelector:()=>body,replaceChildren(node){body.innerHTML='';this.child=node;}});return elements.get(id);};
- const aim={target:{parts:[]},seq:3,candSeq:3,lines:[1],cands:[1]};
+ const aim={target:{parts:[]},seq:__gate(3),candSeq:__gate(3),lines:[1],cands:[1]};
  runInNewContext('(function(){'+html.slice(a,b)+'})()',{$,aim,document:{createElement:tag=>({tagName:tag})},aimRenderFrom:()=>{},aimRefreshSheetCands:()=>{},AimMap:{center:()=>({latitude:35}),redraw:()=>{}},Number});
  assert.equal($('aimLineTable').hidden,true);assert.equal(body.innerHTML,'');assert.equal($('aimLineInfo').textContent,'');assert.equal(aim.lines.length,0);
  // 撮影地点の地点の画面に、前の目標の候補地を残さない（2026-10-06）
@@ -131,7 +132,7 @@ test('月の選択はメニュー再入場・再読込でも保持し、明示�
 
 test('管理者直リンクは認証済みモジュールだけを表示し、旧応答・離脱時の私有DOMを破棄する',async()=>{
  const els={};const $=id=>els[id]||(els[id]={children:[],append(...v){this.children.push(...v);},replaceChildren(...v){this.children=v;}});let calls=0;
- const ctx={auth:null,$,atAdmin:true,adminRenderSeq:0,adminRenderAuth:null,adminUnmount:null,privateDraft:null,privateEntrySeq:0,privateModule:null,privateModuleToken:null,privateModulePromise:null,document:{createElement:()=>({setAttribute(){},textContent:''})},nextStep(){},askReauth(){},ownerModule:async()=>{calls++;throw Error('権限がありません');}};
+ const ctx={auth:null,$,atAdmin:true,adminRenderSeq:__gate(),adminRenderAuth:null,adminUnmount:null,privateDraft:null,privateEntrySeq:__gate(),privateModule:null,privateModuleToken:null,privateModulePromise:null,document:{createElement:()=>({setAttribute(){},textContent:''})},nextStep(){},askReauth(){},ownerModule:async()=>{calls++;throw Error('権限がありません');}};
  const api=runInNewContext(grab('function clearAdminView')+'\n'+grab('async function renderAdmin')+';({render:renderAdmin,clear:clearAdminView})',ctx);
  await api.render();assert.equal(calls,0);assert.equal($('adminView').children[0].textContent,'ログインしてください');
  ctx.auth={token:'ordinary',role:'admin'};await api.render();assert.equal($('adminView').children[0].textContent,'権限がありません');

@@ -1,3 +1,4 @@
+import {createRequire as __req} from 'node:module';const __L=__req(import.meta.url)('./astronotes-library.js'),__gate=(n=0)=>{const g=__L.gate();while(n-->0)g.cancel();return g;};
 import './tools/test-owner-adapter.mjs';
 import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
@@ -5,10 +6,10 @@ const html=sourceHtml();
 const source=html.slice(html.indexOf('async function updateMoonPrediction'),html.indexOf('/// 富士山と月の行を作って'));
 const kick=sourceDeclaration("kickExtras");
 const defer=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {resolve,promise};};
-function context(){const calls=[],x=vm.createContext({currentView:"list",predictionNeeded:()=>true,AstroNotesPrediction:{visibility(input){const d=defer();calls.push({input,...d});return d.promise;}},AstroNotesTerrain:{combinedHorizon:()=>()=>0,flatProfile:()=>[]},rerenderList(){},refreshLightTimes(){},console});vm.runInContext('let extraSeq=1,moonEvalSeq=0,moonWeeklySeq=0,moonAcceptedSeq=0,moonTerrainProfile=null,moonUrbanProfile=null,moonHorizon=null,moonPredictionPlace=null,moonDetailKey=null,moonObs={},forecastDays=[1],weeks={};const moonVisibility=new Map(),moonDetailPending=new Map();'+source,x);return {x,calls};}
+function context(){const calls=[],x=vm.createContext({AstroNotesLibrary:__L,currentView:"list",predictionNeeded:()=>true,AstroNotesPrediction:{visibility(input){const d=defer();calls.push({input,...d});return d.promise;}},AstroNotesTerrain:{combinedHorizon:()=>()=>0,flatProfile:()=>[]},rerenderList(){},refreshLightTimes(){},console});vm.runInContext('let extraSeq=AstroNotesLibrary.gate(),moonEvalSeq=AstroNotesLibrary.gate(),moonWeeklySeq=AstroNotesLibrary.gate(),moonAcceptedSeq=0,__one=extraSeq.cancel(),moonTerrainProfile=null,moonUrbanProfile=null,moonHorizon=null,moonPredictionPlace=null,moonDetailKey=null,moonObs={},forecastDays=[1],weeks={};const moonVisibility=new Map(),moonDetailPending=new Map();'+source,x);return {x,calls};}
 const dto=label=>({visibilityKey:label,asOf:1,bundle:{fetchedAt:1},weeks:{moon:[label]}});
 test('先の地点の月が後から返っても、新地点の週間を上書きしない',async()=>{
- const {x,calls}=context();const old=vm.runInContext('updateMoonPrediction({}, {latitude:1},1)',x);vm.runInContext('extraSeq=2',x);const fresh=vm.runInContext('updateMoonPrediction({}, {latitude:2},2)',x);
+ const {x,calls}=context();const old=vm.runInContext('updateMoonPrediction({}, {latitude:1},1)',x);vm.runInContext('extraSeq.cancel()',x);const fresh=vm.runInContext('updateMoonPrediction({}, {latitude:2},2)',x);
  calls[1].resolve(dto('new'));await fresh;calls[0].resolve(dto('old'));await old;assert.equal(vm.runInContext('weeks.moon[0]',x),'new');assert.equal(vm.runInContext('moonPredictionPlace.latitude',x),2);
 });
 test('同じ週間の再表示が進行中の月詳細を無効にせず、取得後に採用する',async()=>{
@@ -17,9 +18,9 @@ test('同じ週間の再表示が進行中の月詳細を無効にせず、取�
  calls[1].resolve({moonVisibility:[{dayMs:1,rise:{at:123}}]});await calls[1].promise;await Promise.resolve();await Promise.resolve();assert.equal(vm.runInContext('moonVisibility.get(1).rise.at',x),123);
 });
 test('前地点の付随処理を待たず、新地点の処理を開始して新しい実行状態を保持する',async()=>{
- const calls=[],x=vm.createContext({currentView:"list",predictionNeeded:()=>true,console,loadExtras(){const d=defer();calls.push(d);return d.promise;}});vm.runInContext('let bundle={},extrasRunning=false,extrasRunningSeq=-1,extrasLoadedSeq=-1,predictionLoadSeq=1;'+kick,x);
+ const calls=[],x=vm.createContext({AstroNotesLibrary:__L,currentView:"list",predictionNeeded:()=>true,console,loadExtras(){const d=defer();calls.push(d);return d.promise;}});vm.runInContext('let bundle={},extrasRunning=false,extrasRunningSeq=-1,extrasLoadedSeq=-1,predictionLoadSeq=1;'+kick,x);
  vm.runInContext('kickExtras();predictionLoadSeq=2;kickExtras()',x);assert.equal(calls.length,2);calls[0].resolve();await calls[0].promise;await Promise.resolve();await Promise.resolve();assert.equal(calls.length,2);assert.equal(vm.runInContext('extrasRunning',x),true);calls[1].resolve();
- assert.match(html,/const seq = \+\+loadSeq;\s+\+\+extraSeq/);
+ assert.match(html,/const seq = loadSeq\.next\(\);\s+extraSeq\.cancel\(\)/);
 });
 test('可視時刻の更新は太陽イベントなしでも動き、再試行は時計ずれで連打しない',()=>{
  const refresh=sourceDeclaration("refreshLightTimes");
@@ -30,7 +31,7 @@ test('可視時刻の更新は太陽イベントなしでも動き、再試行�
 test('非表示で期限到来しても予算を消費せず、復帰時に一度だけ再試行しresetで解除する',()=>{
  const timers=new Map(),listeners=new Set();let next=0,runs=0;
  const doc={hidden:true,addEventListener:(event,fn)=>listeners.add(fn),removeEventListener:(event,fn)=>listeners.delete(fn)};
- const x=vm.createContext({currentView:"list",predictionNeeded:()=>true,document:doc,setTimeout(fn){timers.set(++next,fn);return next;},clearTimeout(id){timers.delete(id);},run(){runs++;}});
+ const x=vm.createContext({AstroNotesLibrary:__L,currentView:"list",predictionNeeded:()=>true,document:doc,setTimeout(fn){timers.set(++next,fn);return next;},clearTimeout(id){timers.delete(id);},run(){runs++;}});
  const retry=sourceDeclaration("createForecastRetry");
  vm.runInContext(retry+';const retry=createForecastRetry(run,1);retry.schedule();',x);
  [...timers.values()][0]();assert.equal(runs,0);assert.equal(listeners.size,1);
@@ -40,9 +41,9 @@ test('非表示で期限到来しても予算を消費せず、復帰時に一�
  vm.runInContext('retry.reset()',x);assert.equal(listeners.size,0);
 });
 test('同じ地点で再読込しても都市地平線の進行中取得を共有し、古い地点の幾何を採用しない',async()=>{
- const d=defer();let calls=0;const x=vm.createContext({currentView:"list",predictionNeeded:()=>true,AstroNotesTerrain:{urbanCacheKey:o=>o.key},computeUrbanHorizon(){calls++;return d.promise;}});
+ const d=defer();let calls=0;const x=vm.createContext({AstroNotesLibrary:__L,currentView:"list",predictionNeeded:()=>true,AstroNotesTerrain:{urbanCacheKey:o=>o.key},computeUrbanHorizon(){calls++;return d.promise;}});
  const wrapper=html.slice(html.indexOf('const urbanPending'),html.indexOf('async function computeUrbanHorizon'));
  vm.runInContext(wrapper,x);const one=vm.runInContext('loadUrbanHorizon({key:"one"})',x),two=vm.runInContext('loadUrbanHorizon({key:"one"})',x);
  assert.equal(one,two);assert.equal(calls,1);d.resolve([]);await one;assert.equal(vm.runInContext('urbanPending.size',x),0);
- assert.match(html,/moonUrbanTried \|\| urbanPending.has/);assert.match(html,/if \(seq !== extraSeq\) return;\s+fujiGeom = resolved/);
+ assert.match(html,/moonUrbanTried \|\| urbanPending.has/);assert.match(html,/if \(!extraSeq\.current\(seq\)\) return;\s+fujiGeom = resolved/);
 });

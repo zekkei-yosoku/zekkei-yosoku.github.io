@@ -4,12 +4,12 @@ import {navigationHistory} from '../../app/navigation.js';
 import {apiTransport,askReauth,auth} from './session-and-access.js';
 import {recheckAccess} from './access-recheck.js';
 import {nextStep} from './guidance.js';
-let adminRenderSeq = 0, adminRenderAuth = null, privateModulePromise = null;
+let adminRenderSeq = AstroNotesLibrary.gate(), adminRenderAuth = null, privateModulePromise = null;
 let privateDraft = null;
-let privateEntrySeq = 0, adminUnmount = null, privateModule = null, privateModuleToken = null;
+let privateEntrySeq = AstroNotesLibrary.gate(), adminUnmount = null, privateModule = null, privateModuleToken = null;
 function clearAdminView() {
   privateDraft = null;
-  adminRenderSeq++; privateEntrySeq++; adminUnmount?.(); adminUnmount = null;
+  adminRenderSeq.cancel(); privateEntrySeq.cancel(); adminUnmount?.(); adminUnmount = null;
   privateModule = null; privateModuleToken = null; privateModulePromise = null;
   $("adminView").replaceChildren(); $("settingsPrivateEntry")?.replaceChildren();
 }
@@ -34,21 +34,21 @@ async function ownerModule() {
 // 管理の入口は設定一覧に置く（2026-10-15 ユーザー「右上→設定→アカウント→管理者の画面、と入るのが深すぎる」）。
 // 入口の部品も所有者の確認を通ったあとに非公開APIから受け取る（E186）。
 async function renderPrivateEntry() {
-  const seq = ++privateEntrySeq, token = auth?.token, box = $("settingsPrivateEntry");
+  const seq = privateEntrySeq.next(), token = auth?.token, box = $("settingsPrivateEntry");
   box?.replaceChildren();
   if (!box || !token) return;
   // ログイン直後でまだ所有者か分からなければ訊く。取れなければ入口を出さない（判定はサーバー）
   if (auth.ownerAdmin === undefined) {
-    try { const me = await apiTransport("GET", "/me"); if (seq !== privateEntrySeq || token !== auth?.token) return; auth = { ...auth, ownerAdmin: !!me.ownerAdmin }; }
+    try { const me = await apiTransport("GET", "/me"); if (!privateEntrySeq.current(seq) || token !== auth?.token) return; auth = { ...auth, ownerAdmin: !!me.ownerAdmin }; }
     catch { return; }
   }
   if (!auth.ownerAdmin) return;
   try {
     const module = await ownerModule();
-    if (seq !== privateEntrySeq || token !== auth?.token || !$("appSettings").open) return;
+    if (!privateEntrySeq.current(seq) || token !== auth?.token || !$("appSettings").open) return;
     box.append(module.entry({open:()=>{$("appSettings").close();navigationHistory.pushRoute("#/admin");}}));
   } catch (e) {
-    if (seq !== privateEntrySeq || token !== auth?.token || !$("appSettings").open) return;
+    if (!privateEntrySeq.current(seq) || token !== auth?.token || !$("appSettings").open) return;
     const reauth = e.code === "reauth_required";
     const denied = e.status === 403;
     const status = document.createElement("p");
@@ -62,14 +62,14 @@ async function renderPrivateEntry() {
     retry.type = "button"; retry.className = "fav-btn"; retry.style.marginTop = "8px";
     retry.textContent = reauth ? "ログインして管理者の画面を確認" : "管理者の画面を再試行";
     retry.onclick = () => {
-      if (seq !== privateEntrySeq || token !== auth?.token || !$("appSettings").open) return;
+      if (!privateEntrySeq.current(seq) || token !== auth?.token || !$("appSettings").open) return;
       if (reauth) askReauth(); else renderPrivateEntry();
     };
     box.append(retry);
   }
 }
 async function renderAdmin() {
-  const seq = ++adminRenderSeq, token = auth?.token;
+  const seq = adminRenderSeq.next(), token = auth?.token;
   adminRenderAuth = auth; adminUnmount?.(); adminUnmount = null;
   $("adminView").replaceChildren();
   const status = document.createElement("p"); status.className = "warn"; status.setAttribute("role","status");
@@ -77,23 +77,23 @@ async function renderAdmin() {
   if (!token) return;
   try {
     const module = await ownerModule();
-    if (seq !== adminRenderSeq || auth?.token !== token || !viewState.admin) return;
+    if (!adminRenderSeq.current(seq) || auth?.token !== token || !viewState.admin) return;
     $("adminView").replaceChildren();
     adminUnmount = module.mount($("adminView"), {nextStep,draft:privateDraft && privateDraft.loginId===auth.loginId?privateDraft.value:null,apiCall:async (...args)=>{
-      if (seq !== adminRenderSeq || auth?.token !== token || !viewState.admin) throw new Error("画面の確認をやり直してください");
+      if (!adminRenderSeq.current(seq) || auth?.token !== token || !viewState.admin) throw new Error("画面の確認をやり直してください");
       const result = await apiTransport(...args);
-      if (seq !== adminRenderSeq || auth?.token !== token || !viewState.admin) throw new Error("画面の確認をやり直してください");
+      if (!adminRenderSeq.current(seq) || auth?.token !== token || !viewState.admin) throw new Error("画面の確認をやり直してください");
       return result;
     }, onReauth:askReauth});
   } catch (e) {
-    if (seq !== adminRenderSeq || auth?.token !== token || !viewState.admin) return;
+    if (!adminRenderSeq.current(seq) || auth?.token !== token || !viewState.admin) return;
     status.textContent = e.message; $("adminView").replaceChildren(status);
     // 読めなかったときも、その場でやり直せるようにする（2026-10-15）
     const reauth = e.code === "reauth_required";
     if (e.status !== 403) {
       const again = document.createElement("button"); again.type = "button"; again.className = "chip";
       again.textContent = reauth ? "ログインし直す" : "再試行";
-      again.onclick = () => { if (seq === adminRenderSeq && auth?.token === token && viewState.admin) { if (reauth) askReauth(); else renderAdmin(); } };
+      again.onclick = () => { if (adminRenderSeq.current(seq) && auth?.token === token && viewState.admin) { if (reauth) askReauth(); else renderAdmin(); } };
       $("adminView").append(again);
     }
     if (reauth) askReauth();

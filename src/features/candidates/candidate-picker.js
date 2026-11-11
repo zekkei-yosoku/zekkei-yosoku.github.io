@@ -50,7 +50,7 @@ function mergeEntries(entries,sort){
 }
 const groups=new Map(),windows=new Map(),boundNodes=new WeakSet();
 // The list opens in time order (2026-11-11 ユーザー「並びのデフォルトを時刻順で」); おすすめ順 stays one tap away.
-let control=null,list=null,scope='',filterScope='',revision=0,loadLabels=async()=>({}),ports={},time='all',kind='all',sort='time';
+let control=null,list=null,scope='',filterScope='',revision=AstroNotesLibrary.gate(),loadLabels=async()=>({}),ports={},time='all',kind='all',sort='time';
 let visibleEntries=[],selectedId=null,mapPanel=null,mapInstance=null,mapMode=false,mapHits=[],mapScroll=null,mapFitPending=false,suspendedView=null;
 const columns='minmax(0,1fr) 50px 64px 40px';
 const day=at=>globalThis.AstroNotesCandidateDiscovery?.day(at)??Math.floor((at+32400000)/86400000)*86400000-32400000;
@@ -91,7 +91,7 @@ function mount(panel,plan){
   const previous=scope,keepFilters=nextFilters===filterScope;
   if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);
   for(const g of groups.values())for(const node of g.nodes)node.remove();
-  scope=next;filterScope=nextFilters;groups.clear();windows.clear();visibleEntries=[];selectedId=null;revision++;mapMode=false;mapHits=[];
+  scope=next;filterScope=nextFilters;groups.clear();windows.clear();visibleEntries=[];selectedId=null;revision.cancel();mapMode=false;mapHits=[];
   if(!keepFilters){time=kind='all';sort='time';control?.remove();control=null;list=null;}
   else if(control){list?.replaceChildren();const toggle=control.querySelector('#candidateMapToggle');toggle.textContent='地図で見る';toggle.setAttribute('aria-expanded','false');toggle.disabled=true;const status=control.querySelector('[data-filter-status]');status.textContent='';status.hidden=true;control.querySelector('[data-candidate-headers]').hidden=false;if(list)list.hidden=false;}
   if(mapPanel)mapPanel.hidden=true;
@@ -114,10 +114,10 @@ function mount(panel,plan){
 }
 function currentEntry(e){return !!e&&e.group===groups.get(e.box)&&e.box.isConnected&&e.group.current()&&control?.isConnected;}
 async function apply(){
- const token=++revision,selection={time,kind,sort},status=control?.querySelector('[data-filter-status]');if(!status||!list)return;
+ const token=revision.next(),selection={time,kind,sort},status=control?.querySelector('[data-filter-status]');if(!status||!list)return;
  status.hidden=false;status.textContent='候補の絞り込みを確認しています…';
  let labels={};try{if([...groups.values()].some(g=>g.rows.length))labels=await loadLabels()||{};}catch(e){globalThis.AstroNotesErrors?.note('candidates.labels',e);}
- if(token!==revision||!control?.isConnected)return;
+ if(!revision.current(token)||!control?.isConnected)return;
  const entries=[];let unknownTime=0,index=0;
  for(const [box,g]of groups){
   if(!box.isConnected||!g.current()){for(const node of g.nodes)node.remove();groups.delete(box);continue;}
@@ -126,7 +126,7 @@ async function apply(){
    if(selection.time!=='all'){
     const obs=row.assumedObserver,key=JSON.stringify([g.plan.body,day(g.plan.at),obs,g.plan.atmosphere]);
     if(obs&&[obs.latitude,obs.longitude,obs.elevation].every(Number.isFinite)){
-     if(!windows.has(key)){try{await AstroNotesBodies.ensure(g.plan.body);if(token!==revision||!g.current())return;windows.set(key,AstroNotesCandidateComposition.windowEvents({...g.plan,timeWindow:{kind:'both',beforeMin:60,afterMin:60}},obs,AstroNotesBodies));}catch{windows.set(key,null);}}
+     if(!windows.has(key)){try{await AstroNotesBodies.ensure(g.plan.body);if(!revision.current(token)||!g.current())return;windows.set(key,AstroNotesCandidateComposition.windowEvents({...g.plan,timeWindow:{kind:'both',beforeMin:60,afterMin:60}},obs,AstroNotesBodies));}catch{windows.set(key,null);}}
      events=windows.get(key);
     }
     if(!events)unknownTime++;
@@ -134,10 +134,10 @@ async function apply(){
    const id=candidateKey(row);formatRow(node,row,types);node.dataset.candidateKinds=types.join(',');node.dataset.candidateId=id;
    if(!boundNodes.has(node)){boundNodes.add(node);node.addEventListener('click',()=>{selectedId=node.dataset.candidateId;},true);}
    entries.push({row,node,types,index:index++,id,box,group:g,show:accepts(row,selection.time,selection.kind,types,events)});
-   if(i%12===11){await new Promise(r=>setTimeout(r,0));if(token!==revision||!g.current())return;}
+   if(i%12===11){await new Promise(r=>setTimeout(r,0));if(!revision.current(token)||!g.current())return;}
   }
  }
- if(token!==revision)return;
+ if(!revision.current(token))return;
  const merged=mergeEntries(entries,selection.sort),chosen=new Set(merged.map(e=>e.node));
  for(const e of entries)if(!chosen.has(e.node))e.node.remove();
  for(const e of merged){e.node.hidden=!e.show;e.node.style.display=e.show?'grid':'none';list.append(e.node);}
@@ -218,9 +218,9 @@ function suspend(){
  const scroller=ports.getScroller?.()||control.closest('.sheet-body')||control.closest('[role=tabpanel]');
  suspendedView={scope,selectedId,mapMode,scrollTop:ports.getReturnScroll?.()??scroller?.scrollTop??0};
  if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);
- revision++;for(const g of groups.values())for(const node of g.nodes)node.remove();groups.clear();visibleEntries=[];mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control.remove();
+ revision.cancel();for(const g of groups.values())for(const node of g.nodes)node.remove();groups.clear();visibleEntries=[];mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control.remove();
 }
-function reset(){if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);revision++;groups.clear();windows.clear();visibleEntries=[];selectedId=null;mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control?.remove();control=null;list=null;scope='';filterScope='';mapScroll=null;suspendedView=null;}
+function reset(){if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);revision.cancel();groups.clear();windows.clear();visibleEntries=[];selectedId=null;mapHits=[];mapMode=false;if(mapPanel)mapPanel.hidden=true;control?.remove();control=null;list=null;scope='';filterScope='';mapScroll=null;suspendedView=null;}
 const api={mount,configure,registerRegistered:register,registerAdditional:register,unregister,apply,kinds,accepts,compare,showMap,suspend,reset,visibleRows:()=>visibleEntries.filter(currentEntry).map(e=>e.row)};
 globalThis.AstroNotesCandidatePicker=api;
 if(typeof module!=='undefined')module.exports={kinds,accepts,compare,candidateKey,mergeEntries,placePriority};

@@ -127,14 +127,14 @@ function mount(deps){
   const h=p.targetHeightM??p.structureM;if(L.height(h))q('[data-target-height]').value=String(h);
   q('[data-target-coordinate]').textContent=p.latitude.toFixed(5)+', '+p.longitude.toFixed(5);syncDirty();
  }
- let plateauTimer=0,plateauSeq=0;
+ let plateauTimer=0,plateauSeq=AstroNotesLibrary.gate();
  function plateauNear(){
   clearTimeout(plateauTimer);
   plateauTimer=setTimeout(async()=>{
    const box=q('[data-target-plateau]'),host=q('[data-target-plateau-list]'),api=globalThis.AstroNotesPlateauShapes,c=map?.center?.();
    if(!box||!host||!api||editor.hidden||!c||!L.point(c)){if(box)box.hidden=true;return;}
-   const seq=++plateauSeq;let list=[];try{list=await api.near(c.latitude,c.longitude,{radiusM:250,limit:6});}catch{list=[];}
-   if(seq!==plateauSeq||editor.hidden||!valid(state))return;
+   const seq=plateauSeq.next();let list=[];try{list=await api.near(c.latitude,c.longitude,{radiusM:250,limit:6});}catch{list=[];}
+   if(!plateauSeq.current(seq)||editor.hidden||!valid(state))return;
    host.replaceChildren(...list.map(b=>{const button=d.createElement('button');button.type='button';button.className='list-item';button.dataset.plateauBuilding=b.id;
     button.textContent=(b.name||'名前のない建物')+' ・ 高さ'+Math.round(b.heightM)+'m'+(b.distanceM?' ・ '+b.distanceM+'m先':'');
     button.onclick=()=>move({latitude:b.latitude,longitude:b.longitude,name:b.name||'',targetHeightM:Math.round(b.heightM*10)/10,zoom:18});return button;}));

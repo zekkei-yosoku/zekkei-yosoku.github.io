@@ -151,17 +151,17 @@ function setExtrasLoadedSeq(seq) { extrasLoadedSeq = seq; }
 // Hidden tabs wait for visibility without spending a retry. Each forecast generation
 // has a bounded retry budget; changing the place cancels all its timers/listeners.
 function createForecastRetry(run, maxAttempts = 3) {
-  let attempts = 0, timer = null, resume = null, generation = 0;
+  let attempts = 0, timer = null, resume = null, generation = AstroNotesLibrary.gate();
   const clear = () => { if (timer !== null) clearTimeout(timer); timer = null;
     if (resume) document.removeEventListener("visibilitychange", resume); resume = null; };
   return {
-    reset() { clear(); attempts = 0; ++generation; },
+    reset() { clear(); attempts = 0; generation.cancel(); },
     schedule(baseDelay = 60000) {
       if (attempts >= maxAttempts || timer !== null || resume) return;
-      const mine = generation;
+      const mine = generation.ticket();
       const fire = () => {
         timer = null;
-        if (mine !== generation) return;
+        if (!generation.current(mine)) return;
         if (document.hidden) {
           resume = () => { if (!document.hidden) { document.removeEventListener("visibilitychange", resume); resume = null; fire(); } };
           document.addEventListener("visibilitychange", resume); return;

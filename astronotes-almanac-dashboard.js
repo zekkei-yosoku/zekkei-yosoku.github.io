@@ -116,7 +116,7 @@ function render(root,day,p,events,astro,options={}){
   label={'paint-order':'stroke',stroke:'var(--bg)','stroke-width':5,'stroke-linejoin':'round'},
   timeText=text(s,0,44,'',{'text-anchor':'middle',fill:'var(--text)','font-size':narrow()?30:22,'font-weight':700,...label}),altText=text(s,0,0,'',{fill:'var(--alm-active)','font-size':narrow()?28:21,'font-weight':600,...label}),halo=svg('circle',{r:13,fill:'var(--alm-active)',opacity:.3,filter:'url(#almChartGlow)','clip-path':'url(#almChartClip)'},s),dot=svg('circle',{r:6,fill:'var(--alm-active)',stroke:'var(--bg)','stroke-width':2,'clip-path':'url(#almChartClip)'},s);if(peakText&&s.insertBefore)s.insertBefore(peakText,halo);
   const dome=compass(body,info);
- let drawGeneration=0,lastDetailAt=-Infinity;
+ let drawGeneration=AstroNotesLibrary.gate(),lastDetailAt=-Infinity;
  const update=(smooth=false)=>{
   const state=stateOf(body,at(),d.observer,astro),t=time(at());view.wallMinute=new Date(at()).getHours()*60+new Date(at()).getMinutes()+new Date(at()).getSeconds()/60+new Date(at()).getMilliseconds()/60000;cursor.setAttribute('x1',x(at()));cursor.setAttribute('x2',x(at()));for(const e of [dot,halo]){e.setAttribute('cx',x(at()));e.setAttribute('cy',y(state.geometricAltitude));}dome.place(state.geometricAltitude,state.azimuth);
   if(smooth&&Math.abs(at()-lastDetailAt)<1000)return;lastDetailAt=at();
@@ -143,9 +143,9 @@ function render(root,day,p,events,astro,options={}){
    s.setAttribute('aria-label',`${name}の0時から24時までの高度グラフ。${t} 高度 ${num(state.geometricAltitude)}°・方位 ${dir16(state.azimuth)} ${num(state.azimuth)}°`);}
   if(body==='venus'){if(!g.AstroNotesVenusPortrait)textureStatus.textContent='金星の描画を読み込めませんでした。ページを再読み込みしてください。';else g.AstroNotesVenusPortrait.draw(portrait,state).then(result=>{if(result.stale||!root.contains(portrait))return;if(result.texture){textureStatus.replaceChildren();return;}textureStatus.textContent='金星の画像を読み込めないため、満ち欠けの形だけを表示しています。';const retry=el('button','chip','画像を再試行');retry.type='button';retry.onclick=()=>{g.AstroNotesVenusPortrait.retry();update();};textureStatus.append(retry);}).catch(()=>{textureStatus.textContent='金星の描画を更新できませんでした。時刻を動かして再試行してください。';});portrait.setAttribute('aria-label',`金星の形。輝面 ${(state.illuminatedFraction*100).toFixed(1)}%`);}
   if(body==='moon'){
-   const generation=++drawGeneration;
+   const generation=drawGeneration.next();
    if(!g.AstroNotesMoonPortrait){textureStatus.textContent='月の描画を読み込めませんでした。ページを再読み込みしてください。';return;}
-   g.AstroNotesMoonPortrait.draw(portrait,state).then(result=>{if(generation!==drawGeneration||!root.contains(portrait))return;if(result.texture){textureStatus.replaceChildren();return;}textureStatus.textContent='月面画像を読み込めないため、満ち欠けの形だけを表示しています。';const retry=el('button','chip','画像を再試行');retry.type='button';retry.onclick=()=>{g.AstroNotesMoonPortrait.retry?.();update();};textureStatus.append(retry);}).catch(()=>{if(generation===drawGeneration)textureStatus.textContent='月の描画を更新できませんでした。時刻を動かして再試行してください。';});
+   g.AstroNotesMoonPortrait.draw(portrait,state).then(result=>{if(!drawGeneration.current(generation)||!root.contains(portrait))return;if(result.texture){textureStatus.replaceChildren();return;}textureStatus.textContent='月面画像を読み込めないため、満ち欠けの形だけを表示しています。';const retry=el('button','chip','画像を再試行');retry.type='button';retry.onclick=()=>{g.AstroNotesMoonPortrait.retry?.();update();};textureStatus.append(retry);}).catch(()=>{if(drawGeneration.current(generation))textureStatus.textContent='月の描画を更新できませんでした。時刻を動かして再試行してください。';});
   }
  };
  const domeBox=el('div','alm-dome-box');domeBox.append(dome);

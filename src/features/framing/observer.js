@@ -67,7 +67,7 @@ function aimObserverAt(f, ground) {
   return { latitude: f.latitude, longitude: f.longitude, elevation, eyeM: aimLegacyHeight(f) ? f.observationElevationM - elevation : aimObserverEye(f) };
 }
 aim.from = aimSavedFrom(store.get("sorami.aimFrom", null)); // 明示的な撮影地点は再読み込みでも保持
-aim.fromSeq = 0;
+aim.fromSeq = AstroNotesLibrary.gate();
 aim.fromAppend = false;
 aim.fromGround = null;
 const aimM = (v) => String(Math.round(v * 10) / 10);
@@ -139,7 +139,7 @@ function aimFromPoint() {
 }
 function aimSetFrom(p, { keepMap = false } = {}) {
   aim.plannerTransfer=null;
-  aim.candPick=null;aim.spot=null;aim.wantSpot=null;aim.wantKey=null;aim.fromEvents=[];aim.fromDays=null;aim.lookSeq++;
+  aim.candPick=null;aim.spot=null;aim.wantSpot=null;aim.wantKey=null;aim.fromEvents=[];aim.fromDays=null;aim.lookSeq.cancel();
   aim.from = aimSavedFrom(p);
   try { if(aim.from)recentHistory.rememberPlace({...aim.from,elevation:p.groundManualM??p.elevation??null,eyeHeightAGL:aimObserverEye(aim.from)},{observer:true}); } catch { /* Keep observer selection independent of history. */ }
   store.set("sorami.aimFrom", aim.from);
@@ -150,7 +150,7 @@ function aimSetFrom(p, { keepMap = false } = {}) {
   else AimMap.redraw();
 }
 // 月の中の各日を計算する。帯の4件/連続期間の代表日で月を埋めない。
-const aimCal = { year: 0, month: 0, seq: 0, events: new Map(), cache: new Map() };
+const aimCal = { year: 0, month: 0, seq: AstroNotesLibrary.gate(), events: new Map(), cache: new Map() };
 function aimCalMonthStart(year, month) { return Date.UTC(year, month, 1) - 9 * 3600000; }
 // owner（aimCalGridHtml は plan/observer）は探す画面など別の条件の持ち主。既定はねらうの条件と撮影地点。
 function aimCalRows(obs, target, body, year, month, partId, view = null, owner = aim) {
@@ -218,7 +218,7 @@ function aimCalDraw() {
   };
 }
 async function aimCalRender() {
-  const seq = ++aimCal.seq, year = aimCal.year, month = aimCal.month;
+  const seq = aimCal.seq.next(), year = aimCal.year, month = aimCal.month;
   aimCal.events = new Map();
   const baseYear = new Date(Date.now() + 9 * 3600000).getUTCFullYear();
   const years = Array.from({ length: Math.max(baseYear + 10, year + 2) - Math.min(baseYear - 2, year) + 1 }, (_, i) => Math.min(baseYear - 2, year) + i);
@@ -231,7 +231,7 @@ async function aimCalRender() {
   $("aimCalGrid").setAttribute("aria-busy", "true");
   $("aimCalStatus").innerHTML = candidateWaitMarkup("重なる日を計算中…");
   aimCalDraw();
-  const valid = () => seq === aimCal.seq && $("aimCalendar").open;
+  const valid = () => aimCal.seq.current(seq) && $("aimCalendar").open;
   try {
     if (!f) {$("aimCalStatus").textContent="日付を選んで、この日の候補から撮影地点を探せます。";return;}
     if (!(target?.parts || []).length) throw new Error("対象を選んでください");
@@ -276,7 +276,7 @@ $("aimCalendarOpen").onclick = () => {
   showSheet($("aimCalendar")); aimCalRender();
 };
 $("aimCalClose").onclick = () => $("aimCalendar").close();
-$("aimCalendar").addEventListener("close", () => { aimCal.seq++; resetAimCalSwipe(); $("aimCalendarOpen").focus({ preventScroll: true }); });
+$("aimCalendar").addEventListener("close", () => { aimCal.seq.cancel(); resetAimCalSwipe(); $("aimCalendarOpen").focus({ preventScroll: true }); });
 $("aimCalPrev").onclick = () => aimCalMove(-1);
 $("aimCalNext").onclick = () => aimCalMove(1);
 for (const id of ["aimCalYear", "aimCalMonth"]) $(id).onchange = () => {
@@ -837,7 +837,7 @@ async function aimShootingView(obs, target, body, partId, matchMode, indexed=fal
   }
   return AstroNotesAlign.prepareDailyView(obs,target,body,cap?{partId:null,eyeM:obs.eyeM,ridge:cap.ridge,ridgeBase:cap.base}:{partId:null,eyeM:obs.eyeM,ridge});
 }
-async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now(), limb = aim.limb, matchMode = aim.matchMode || 'limb', isCurrent = () => seq === aim.fromSeq, days = 400, limit = 4, onScanned = () => {} } = {}) {
+async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now(), limb = aim.limb, matchMode = aim.matchMode || 'limb', isCurrent = () => aim.fromSeq.current(seq), days = 400, limit = 4, onScanned = () => {} } = {}) {
   const start = S.Cal.startOfDay(from), rows = [];
   const cache=aimBuildingDays.cache||(aimBuildingDays.cache=new Map());
   const cacheKey=JSON.stringify([start,days,limit,obs,target,body,partId,limb,matchMode,typeof AstroNotesAtmosphere==='undefined'?null:AstroNotesAtmosphere.dataKey()]);
@@ -1026,7 +1026,7 @@ async function aimRenderFrom() {
   // aimMoreDaysの直後の1回だけ末尾追加にする。他の描画は従来どおり作り直す。
   const append = aim.fromAppend === true;
   aim.fromAppend = false;
-  const seq = ++aim.fromSeq;
+  const seq = aim.fromSeq.next();
   const f = aimFromPoint();
   // 地点カードと同じ形: 名前と、住所・標高（標高は読めたら足す）
   $("aimAlignmentDetails").hidden = !(aim.target?.parts||[]).length;
@@ -1049,11 +1049,11 @@ async function aimRenderFrom() {
     $("aimFrom").innerHTML = candidateWaitMarkup("候補日時を計算中…");
   }
   await new Promise((r) => setTimeout(r, 0));
-  if (seq !== aim.fromSeq) return;
+  if (!aim.fromSeq.current(seq)) return;
   // The selected day's diagram still does not wait for the long candidate search.
   aimUpdateLook();
   const ground = await aimElevation(f.latitude, f.longitude);
-  if (seq !== aim.fromSeq) return;
+  if (!aim.fromSeq.current(seq)) return;
   const obs = aimObserverAt(f, ground);
   if (Number.isFinite(ground)) renderPointCard("aimFrom", f, ground);
   aimRenderObserverHeight(f, ground);
@@ -1063,13 +1063,13 @@ async function aimRenderFrom() {
   try {
     ev = await aimDaysFor(obs, aimDaysInputKey(f));
   } catch {
-    if (seq !== aim.fromSeq) return;
+    if (!aim.fromSeq.current(seq)) return;
     aim.fromEvents = [];
     $("aimFrom").innerHTML = '<p class="tiny" role="status">候補日を計算できませんでした。</p><button type="button" class="fav-btn" data-from-retry>再試行</button>';
     $("aimFrom").querySelector('[data-from-retry]').onclick = () => aimRenderFrom();
     return;
   }
-  if (seq !== aim.fromSeq) return;
+  if (!aim.fromSeq.current(seq)) return;
   if (ev === null) return aimRenderFrom();
   const all = ev;
   // 明るい空の月は出さない

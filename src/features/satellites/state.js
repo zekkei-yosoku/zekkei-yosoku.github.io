@@ -11,7 +11,7 @@ import {issApply,issPick} from './controller.js';
 // 2026-10-21 ユーザー「ISSを衛星を探す系のページにしたい」。ISS 専用だったのは取ってくる衛星番号だけなので、
 // 衛星を選べるようにし、空を横切る「通過」の表示を足した。道・権限ID・保存キー（sorami.iss*）は互換のため変えない。
 const ISS_PRESETS = [[25544, "ISS（国際宇宙ステーション）"], [48274, "天宮（中国の宇宙ステーション）"], [20580, "ハッブル宇宙望遠鏡"]];
-const iss = { body: "moon", rangeKm: 150, sat: null, tle: null, result: [], pick: 0, seq: 0, wired: false,
+const iss = { body: "moon", rangeKm: 150, sat: null, tle: null, result: [], pick: 0, seq: AstroNotesLibrary.gate(), wired: false,
               from: null,   // 探す範囲の中心。null ならAstroNotesの地点を引き継ぐ（ねらうと同じ。2026-10-01）
               tab: "pass", catnr: Number(store.get("sorami.issSat", 25544)) || 25544,
               extra: store.get("sorami.issSatExtra", null),   // 「衛星を選ぶ」で選んだ、よく見る3機以外の衛星 { catnr, name（CelesTrak の名前） }
@@ -42,7 +42,7 @@ function issSetFrom(p) {
   const P = issFromPoint();
   IssMap.open({ latitude: P.latitude, longitude: P.longitude }, iss.tab === "pass" ? 5 : 8);
   // 「今夜見える」は前の地点で解いたものなので消す
-  issPick.visSeq++; issPick.visible = null;
+  issPick.visSeq.cancel(); issPick.visible = null;
   issApply();
 }
 const IssMap = createMapView({ canvas: "issCanvas", zoomIn: "issIn", zoomOut: "issOut" });

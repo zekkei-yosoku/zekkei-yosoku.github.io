@@ -1,3 +1,4 @@
+import {createRequire as __req} from 'node:module';const __L=__req(import.meta.url)('./astronotes-library.js'),__gate=(n=0)=>{const g=__L.gate();while(n-->0)g.cancel();return g;};
 import {sourceUnit} from './tools/test-source.mjs';
 // 探すの日付カレンダー: renderMonth port で重なる日の描画を使い、他の共通カレンダーは従来どおり。
 // 依存なし（node:vm と最小の偽DOM）。実ブラウザの表示は別途確認する。
@@ -131,7 +132,7 @@ function mount() {
     aimShootingView: (...a) => { ctx.viewCalls.push(a); return ctx.viewGate ? new Promise((r, j) => ctx.viewGate.push({ r, j })) : Promise.resolve('view'); },
     rowCalls: [],
   };
-  vm.createContext(ctx);
+  vm.createContext(ctx);ctx.AstroNotesLibrary=__L;
   vm.runInContext(uiSrc, ctx);
   vm.runInContext(observerCode + mapCode + ';this.calendarMonth=calendarMonth;this.calendarCache=calendarCache;this.grid=aimCalGridHtml;', ctx);
   ctx.aimCalRows = (...a) => { ctx.rowCalls.push(a); return rowsFor(a[3], a[4]); };

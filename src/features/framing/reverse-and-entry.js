@@ -17,7 +17,7 @@ import {accountSync} from '../account/sync-bridge.js';
 // 2026-10-20 ユーザー「逆算ってのがもっと簡単に今あるようにできたらいい」→「トライアルに作ってみて」：
 // 置き方（重ね方＋少しずらす）を決める → 地図が下からせり上がり、その日にそう見える**陸の上の**線が出る →
 // 線の上をタップすると、その撮影地点・その時刻の構図に戻る。選ばずに閉じれば何も変わらない
-let aimLineSheetView = null, aimLineSheetSeq = 0;
+let aimLineSheetView = null, aimLineSheetSeq = AstroNotesLibrary.gate();
 const aimLineSheetCache = { key: null, runs: null };
 function aimShiftSay() {
   if (!aimShift.x && !aimShift.y) return "ずらさない";
@@ -130,7 +130,7 @@ async function aimLineSheetPick(c, at) {
   if (!at || !aimLineSheetCache.runs?.length) return;
   const note = $("aimLineSheetNote"), hit = aimLineNearest(at.x, at.y);
   if (!hit) { note.textContent = "線の上をタップしてください"; return; }
-  const seq = ++aimLineSheetSeq;
+  const seq = aimLineSheetSeq.next();
   note.textContent = "この地点の時刻を求めています…";
   const [sx, sy] = aimPlacement(), d = 2 * hit.radius;
   let r = null;
@@ -140,10 +140,10 @@ async function aimLineSheetPick(c, at) {
       dx: sx * d, dy: sy * d, eyeM: 1.5, groundM: hit.elevationM, elevationAt: aimElevation, dayMs: aim.dayMs,
       partId: aim.partId === "__whole" ? null : aim.partId });
   } catch { r = null; }
-  if (seq !== aimLineSheetSeq || !$("aimLineSheet").open) return;
+  if (!aimLineSheetSeq.current(seq) || !$("aimLineSheet").open) return;
   const p = r ? { latitude: r.latitude, longitude: r.longitude, at: r.at, side: r.side } : { ...hit, at: Math.round(hit.at) };
   const { name } = await nearName(p.latitude, p.longitude);
-  if (seq !== aimLineSheetSeq || !$("aimLineSheet").open) return;
+  if (!aimLineSheetSeq.current(seq) || !$("aimLineSheet").open) return;
   $("aimLineSheet").close();
   aimSetFrom({ latitude: p.latitude, longitude: p.longitude, name, subtitle: "撮れる場所から選んだ地点", locationScope: "point" }, { keepMap: true });
   aim.candSide = p.side;
@@ -158,25 +158,25 @@ async function aimLineSheetOpen() {
     aimLineSheetView.setOverlay(aimLineSheetDraw);
     aimLineSheetView.onPick(aimLineSheetPick);
   }
-  const seq = ++aimLineSheetSeq, note = $("aimLineSheetNote");
+  const seq = aimLineSheetSeq.next(), note = $("aimLineSheetNote");
   $("aimLineSheetTitle").textContent = `撮れる場所 ・ ${aimPlacementSay()}`;
   note.textContent = "線を計算しています…";
   aimLineSheetView.open({ latitude: aim.target.latitude, longitude: aim.target.longitude }, 9);
   let runs = null;
-  try { runs = await aimLineRuns(() => seq === aimLineSheetSeq); } catch { runs = null; }
-  if (seq !== aimLineSheetSeq) return;
+  try { runs = await aimLineRuns(() => aimLineSheetSeq.current(seq)); } catch { runs = null; }
+  if (!aimLineSheetSeq.current(seq)) return;
   if (runs === null) { note.textContent = "線を計算できませんでした。閉じてもう一度お試しください。"; return; }
   if (!runs.length) note.textContent = "この日・この重ね方では、陸の上から撮れる場所がありません。";
   else {
     const t = runs.flatMap((r) => r.points.map((p) => p.at));
     note.textContent = `${aimDateLabel(Math.min(...t)).replace(/\s.*$/, "")} ${S.JstCal.hhmm(Math.min(...t))}〜${S.JstCal.hhmm(Math.max(...t))} ・ 線の上をタップすると、その地点と時刻にします`;
   }
-  requestAnimationFrame(() => { if (seq === aimLineSheetSeq) { if (runs.length) aimLineSheetFit(runs); aimLineSheetView.redraw(); } });
+  requestAnimationFrame(() => { if (aimLineSheetSeq.current(seq)) { if (runs.length) aimLineSheetFit(runs); aimLineSheetView.redraw(); } });
 }
 if ($("aimShift")) {
   $("aimLineOpen").onclick = aimLineSheetOpen;
-  $("aimLineClose").onclick = () => { aimLineSheetSeq++; $("aimLineSheet").close(); };
-  $("aimLineSheet").addEventListener("click", (e) => { if (e.target === $("aimLineSheet")) { aimLineSheetSeq++; $("aimLineSheet").close(); } });
+  $("aimLineClose").onclick = () => { aimLineSheetSeq.cancel(); $("aimLineSheet").close(); };
+  $("aimLineSheet").addEventListener("click", (e) => { if (e.target === $("aimLineSheet")) { aimLineSheetSeq.cancel(); $("aimLineSheet").close(); } });
 }
 
 function aimReverseClear() {
@@ -274,9 +274,9 @@ function aimTitleFor() {
 const aimAirSettings={mode:"auto",temperatureC:10,pressureHPa:1010,...(store.get("sorami.aimAir",null)||{})};
 if(!["auto","standard","none"].includes(aimAirSettings.mode))aimAirSettings.mode="auto";
 try{AstroNotesAtmosphere.configure(aimAirSettings.mode,aimAirSettings);}catch{aimAirSettings.mode="auto";AstroNotesAtmosphere.configure("auto");}
-let aimAirLoadKey="",aimAirLoadUntil=0,aimAirSeq=0,aimAirCompare=null;
+let aimAirLoadKey="",aimAirLoadUntil=0,aimAirSeq=AstroNotesLibrary.gate(),aimAirCompare=null;
 function clearAimAirCompare() { aimAirCompare=null; }
-function resetAimAirLoad() { aimAirSeq++; aimAirLoadKey=""; }
+function resetAimAirLoad() { aimAirSeq.cancel(); aimAirLoadKey=""; }
 const aimAirAngle=(...args)=>AstroNotesAstro.targetElevationAngle(...args,{k:AstroNotesAtmosphere.targetK()});
 function aimAirDescribe(at,obs){
  const air=AstroNotesAtmosphere.at(at,obs),temp=Number.isFinite(air.temperatureC)?air.temperatureC.toFixed(1):"",pressure=Number.isFinite(air.pressureHPa)?Math.round(air.pressureHPa):"";
@@ -299,24 +299,24 @@ function aimAirEnsure(f,day){
  const target=aimAirTarget();
  const key=`${f.latitude},${f.longitude}|${day}|${target?`${target.latitude},${target.longitude},${target.topM}`:""}`;
  if(aimAirLoadKey===key&&Date.now()<aimAirLoadUntil)return false;
- aimAirLoadKey=key;aimAirLoadUntil=Infinity;const seq=++aimAirSeq;
+ aimAirLoadKey=key;aimAirLoadUntil=Infinity;const seq=aimAirSeq.next();
  $("aimAirSummary").textContent="気象を取得中…"; $("aimAirStatus").textContent="選択地点・日時の気象を取得しています…";
- aim.seq++;aim.lineWork=null;aim.fromSeq++;aim.candSeq++;aim.lookSeq++;aim.spotSeq++;aimCal.seq++;
+ aim.seq.cancel();aim.lineWork=null;aim.fromSeq.cancel();aim.candSeq.cancel();aim.lookSeq.cancel();aim.spotSeq.cancel();aimCal.seq.cancel();
  (async()=>{try{
- const ground=await aimElevation(f.latitude,f.longitude);if(seq!==aimAirSeq)return;
+ const ground=await aimElevation(f.latitude,f.longitude);if(!aimAirSeq.current(seq))return;
  const result=await AstroNotesAtmosphere.load({latitude:f.latitude,longitude:f.longitude,elevation:ground},day,{target});
- if(seq!==aimAirSeq)return;
+ if(!aimAirSeq.current(seq))return;
  aimAirLoadUntil=result.refreshAt??(result.loadedAt+(result.error&&result.error!=="予報期間外"?60000:3600000));
  // 長時間かかった取得でも、この完了描画で直ちに再取得をループしない。
  aimAirLoadUntil=Math.max(Date.now()+1000,aimAirLoadUntil);
- }catch{if(seq!==aimAirSeq)return;aimAirLoadUntil=Date.now()+60000;}
- if(seq!==aimAirSeq)return;document.dispatchEvent(new Event("astronotes-opportunity-input"));aimApply();})();
+ }catch{if(!aimAirSeq.current(seq))return;aimAirLoadUntil=Date.now()+60000;}
+ if(!aimAirSeq.current(seq))return;document.dispatchEvent(new Event("astronotes-opportunity-input"));aimApply();})();
  return true;
 }
 function aimAirChange(){
  const look=$("aimLook"),spec=look._lookSpec;
  if(spec&&Number.isFinite(look._lookAt))aimAirCompare={at:look._lookAt,latitude:spec.obs.latitude,longitude:spec.obs.longitude,day:S.JstCal.startOfDay(spec.at)};
- aimAirSeq++;aimAirLoadKey="";aimCal.seq++;aimCal.cache.clear();aim.spotCache=null;aimRidgeCache.clear();
+ aimAirSeq.cancel();aimAirLoadKey="";aimCal.seq.cancel();aimCal.cache.clear();aim.spotCache=null;aimRidgeCache.clear();
  AstroNotesAtmosphere.configure(aimAirSettings.mode,aimAirSettings);store.set("sorami.aimAir",aimAirSettings);document.dispatchEvent(new Event("astronotes-opportunity-settings"));
  aimAirSync();
  aimApply();
@@ -348,17 +348,17 @@ $("aimAccessLogin").onclick = () => $("authButton").click();
 function aimResetAlignment(){aim.matchMode='overlap';aim.limb='center';aim.partId=aimIsMountain(aim.target)?null:'__whole';$('aimPart').value=aim.partId||'';aim.plannerTransfer=null;aimApply();}
 
 function openAim(preset) {
-  if (!renderAimAccess()) { aim.bodySeq++; return; }
+  if (!renderAimAccess()) { aim.bodySeq.cancel(); return; }
   aimRenderSelectedPoint();
   if (preset) aim.pendingModelPreset = preset;
-  const entry = ++aim.bodySeq;
+  const entry = aim.bodySeq.next();
   if (!AstroNotesAssets.modelsReady()) {
     const token = auth?.token;
     $("aimLineInfo").textContent = "形状データを読み込んでいます…";
     AstroNotesAssets.ensureModels().then(() => {
-      if (entry === aim.bodySeq && viewState.aim && token === auth?.token) { $("aimLineInfo").textContent = ""; openAim(preset); }
+      if (aim.bodySeq.current(entry) && viewState.aim && token === auth?.token) { $("aimLineInfo").textContent = ""; openAim(preset); }
     }).catch(() => {
-      if (entry !== aim.bodySeq || !viewState.aim || token !== auth?.token) return;
+      if (!aim.bodySeq.current(entry) || !viewState.aim || token !== auth?.token) return;
       $("aimFrom").innerHTML = "";
       $("aimLineInfo").textContent = "形状データを取得できませんでした。";
       const retry = document.createElement("button"); retry.type = "button"; retry.className = "chip"; retry.textContent = "再試行";
@@ -387,19 +387,19 @@ function openAim(preset) {
     $("aimBody").onchange = async () => {
       aim.matchMode='overlap';
       aim.plannerTransfer=null;
-      const id = $("aimBody").value, request = ++aim.bodySeq;
+      const id = $("aimBody").value, request = aim.bodySeq.next();
       aim.limbsByBody[aim.body] = aimLimbValue() || aim.limb;
       $("aimLineInfo").textContent = "天体を読み込んでいます…";
       try {
         await AstroNotesBodies.ensure(id);
-        if (request !== aim.bodySeq) return;
+        if (!aim.bodySeq.current(request)) return;
         aim.body = id; aim.limb = aim.limbsByBody[id] || "center";
         aim.candPick = null; aim.wantSpot = null; aim.wantKey = null; aim.spot = null;
         // Previous body's pressed button must not leak into the next body's controls.
         $("aimLimb").innerHTML = "";
         aimApply();
       } catch {
-        if (request !== aim.bodySeq) return;
+        if (!aim.bodySeq.current(request)) return;
         $("aimBody").value = aim.body;
         $("aimLineInfo").textContent = "天体計算を読み込めませんでした。天体を選び直して再試行してください";
       }
@@ -493,8 +493,8 @@ function openAim(preset) {
     const request = entry;
     $("aimBody").value = body;
     $("aimLineInfo").textContent = "天体を読み込んでいます…";
-    AstroNotesBodies.ensure(body).then(() => { if(request === aim.bodySeq) openAim(preset); }).catch(() => {
-      if(request === aim.bodySeq) {
+    AstroNotesBodies.ensure(body).then(() => { if(aim.bodySeq.current(request)) openAim(preset); }).catch(() => {
+      if(aim.bodySeq.current(request)) {
         $("aimFrom").innerHTML = "";
         $("aimLineInfo").textContent = "天体計算を読み込めませんでした。ページを再読み込みして再試行してください";
       }

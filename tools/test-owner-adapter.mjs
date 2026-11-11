@@ -2,7 +2,8 @@
 // the assertions stay unchanged. Never imported by the app.
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-import {syncBuiltinESMExports} from 'node:module';
+import {createRequire,syncBuiltinESMExports} from 'node:module';
+const library=createRequire(import.meta.url)('../astronotes-library.js');
 const VIEW={skyMap:'atSkyMap',aim:'atAim',plane:'atPlane',iss:'atIss',answers:'atAnswers',almanac:'atAlmanac',records:'atRecords',admin:'atAdmin'};
 const {createContext,isContext,runInContext,runInNewContext}=vm;
 const read=(ctx,n)=>runInContext(`typeof ${n}==='undefined'?undefined:${n}`,ctx);
@@ -12,6 +13,7 @@ const define=(ctx,name,value)=>{if(!Object.prototype.hasOwnProperty.call(ctx,nam
 function adapt(ctx){
  const viewState={};for(const [key,name] of Object.entries(VIEW))Object.defineProperty(viewState,key,{enumerable:true,get:()=>read(ctx,name),set:v=>write(ctx,name,v)});
  define(ctx,'viewState',viewState);
+ define(ctx,'AstroNotesLibrary',library);
  define(ctx,'accessState',{get generation(){return read(ctx,'authGeneration');},set generation(v){write(ctx,'authGeneration',v);}});
  define(ctx,'apiTransport',(...a)=>call(ctx,'apiCall',a));
  define(ctx,'authStorage',{save:(...a)=>call(ctx,'saveAuth',a),read:(...a)=>call(ctx,'storedAuth',a),clear:(...a)=>call(ctx,'clearStoredAuth',a)});

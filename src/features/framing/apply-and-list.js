@@ -10,9 +10,9 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   if(globalThis.TrialExplore?.ownsScene?.()??globalThis.TrialExplore?.active()){globalThis.TrialExplore.invalidate();return false;}
   aimRenderSelectedPoint();
   if (!AstroNotesBodies.definition(aim.body).limbs && !AstroNotesBodies.ready()) {
-    const request = ++aim.bodySeq;
-    AstroNotesBodies.ensure(aim.body).then(() => { if(request === aim.bodySeq) aimApply({redraw,recenter}); }).catch(() => {
-      if(request === aim.bodySeq) $("aimLineInfo").textContent = "天体計算を読み込めませんでした。天体を選び直して再試行してください";
+    const request = aim.bodySeq.next();
+    AstroNotesBodies.ensure(aim.body).then(() => { if(aim.bodySeq.current(request)) aimApply({redraw,recenter}); }).catch(() => {
+      if(aim.bodySeq.current(request)) $("aimLineInfo").textContent = "天体計算を読み込めませんでした。天体を選び直して再試行してください";
     });
     return false;
   }
@@ -93,7 +93,7 @@ function aimApply({ redraw = true, recenter = false } = {}) {
   $("aimCalendarOpen").setAttribute("aria-label", `${$("aimDate").value.replaceAll("-", "/")}(${S.Cal.weekday(aim.dayMs)})、重なる日カレンダーを開く`);
   // 目標が決まっていなければ線は引けない（高さが無い）
   if (!(aim.target.parts || []).length) {
-    aim.seq++; aim.candSeq++;
+    aim.seq.cancel(); aim.candSeq.cancel();
     aim.cands = []; aim.candPick = null; aim.wantSpot = null; aim.wantKey = null;
     aim.lines = [];
     aimRenderFrom();
@@ -191,19 +191,19 @@ async function aimSpotRows() {
   return work.promise;
 }
 async function aimRenderSpots() {
-  const seq = ++aim.spotSeq;
+  const seq = aim.spotSeq.next();
   const moon = aim.body === "moon";
   $("aimListTitle").textContent = "定番スポット";
   $("aimListSub").textContent = !AstroNotesBodies.definition(aim.body).limbs ? "次に富士山を通る日" : moon ? "次にパール富士が見える日" : "次にダイヤモンド富士が見える日";
   $("aimList").innerHTML = candidateWaitMarkup("計算中です…");
   let rows;
   try { rows = await aimSpotRows(); } catch {
-    if (seq !== aim.spotSeq || !aimIsFuji()) return;
+    if (!aim.spotSeq.current(seq) || !aimIsFuji()) return;
     $("aimList").innerHTML = '<p class="tiny" role="status">定番スポットの候補日を計算できませんでした。</p><button type="button" class="fav-btn" data-spot-retry>再試行</button>';
     $("aimList").querySelector('[data-spot-retry]').onclick = () => aimRenderSpots();
     return;
   }
-  if (seq !== aim.spotSeq || !aimIsFuji()) return;
+  if (!aim.spotSeq.current(seq) || !aimIsFuji()) return;
   if (rows === null) { aim.spotWork = null; return aimRenderSpots(); }
   if (!rows.length) { $("aimList").innerHTML = `<p class="tiny">この1年、見通しを確認したスポットで重なる日は見つかりません。</p>`; return; }
   $("aimList").innerHTML = rows.map(({ sp, ev }, i) => {

@@ -106,7 +106,7 @@ function restoreSharedPlan(recent = null, options = {}) {
   aim.matchMode=p.matchMode||'limb';aim.body=p.body;aim.limb=p.limb;aim.partId=p.part;aim.limbsByBody[p.body]=p.limb;
   aim.from={...aimSavedFrom(AstroNotesPlan.expandPoint(p.o)),...(arguments.length?{subtitle:'履歴の撮影地点'}:{}),groundManualM:p.o[3],standAglM:p.o[4]};
   aimLens.on=p.l.on;aimLens.mode='manual';aimLens.focal=p.l.focal;aimLens.sensor=p.l.sensor;aimLens.portrait=p.l.portrait;aimLens.grid=p.l.grid;
-  aimAirSettings.mode=p.air;resetAimAirLoad();aimCal.seq++;aimCal.cache.clear();aim.spotCache=null;aimRidgeCache.clear();
+  aimAirSettings.mode=p.air;resetAimAirLoad();aimCal.seq.cancel();aimCal.cache.clear();aim.spotCache=null;aimRidgeCache.clear();
   AstroNotesAtmosphere.configure(p.air,aimAirSettings);if(options.persist!==false)store.set('sorami.aimAir',aimAirSettings);aimAirSync();
   if(arguments.length&&options.persist!==false){store.set('sorami.aimFrom',aim.from);store.set('sorami.lens',aimLens);}
   $('aimDate').value=new Date(p.at+32400000).toISOString().slice(0,10);

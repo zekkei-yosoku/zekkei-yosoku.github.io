@@ -1,8 +1,9 @@
+import {createRequire as __req} from 'node:module';const __L=__req(import.meta.url)('./astronotes-library.js'),__gate=(n=0)=>{const g=__L.gate();while(n-->0)g.cancel();return g;};
 import {sourceHtml} from './tools/test-source.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
 const html=sourceHtml();
 const a=html.indexOf('function aimSavedFrom('),b=html.indexOf('// 月の中の各日',a),src=html.slice(a,b);
-function boot(mem){const inherited={name:'現在地',latitude:35,longitude:139};const nodes=new Map();const c=vm.createContext({AstroNotesTerrain:{decksFor:n=>n==='渋谷スカイ'?[{name:'展望台',aglM:229}]:n==='東京スカイツリー'?[{name:'天望デッキ',aglM:350},{name:'天望回廊',aglM:450}]:null,deckLabel:d=>d},esc:x=>x,aim:{},store:{get:(k,d)=>mem[k]??d,set:(k,v)=>mem[k]=JSON.parse(JSON.stringify(v))},inheritedPoint:()=>inherited,aimRenderFrom(){},$:id=>{if(!nodes.has(id))nodes.set(id,{dataset:{},value:"",textContent:"",innerHTML:"",checkValidity:()=>true,querySelectorAll:()=>[]});return nodes.get(id)},AimMap:{open(){},zoom:()=>11,redraw(){}}});vm.runInContext(src,c);return c;}
+function boot(mem){const inherited={name:'現在地',latitude:35,longitude:139};const nodes=new Map();const c=vm.createContext({AstroNotesLibrary:__L,AstroNotesTerrain:{decksFor:n=>n==='渋谷スカイ'?[{name:'展望台',aglM:229}]:n==='東京スカイツリー'?[{name:'天望デッキ',aglM:350},{name:'天望回廊',aglM:450}]:null,deckLabel:d=>d},esc:x=>x,aim:{fromSeq:__gate(),candSeq:__gate(),lookSeq:__gate(),spotSeq:__gate()},store:{get:(k,d)=>mem[k]??d,set:(k,v)=>mem[k]=JSON.parse(JSON.stringify(v))},inheritedPoint:()=>inherited,aimRenderFrom(){},$:id=>{if(!nodes.has(id))nodes.set(id,{dataset:{},value:"",textContent:"",innerHTML:"",checkValidity:()=>true,querySelectorAll:()=>[]});return nodes.get(id)},AimMap:{open(){},zoom:()=>11,redraw(){}}});vm.runInContext(src,c);return c;}
 test('選択地点は更新後も復元し、継承の現在地では上書きしない',()=>{const mem={},c=boot(mem);assert.equal(c.aimFromPoint(),null);c.aimSetFrom({name:'鷺沼北公園',latitude:35.58386,longitude:139.56853});const re=boot(mem);assert.equal(re.aimFromPoint().name,'鷺沼北公園');assert.equal(re.aimFromPoint().latitude,35.58386);});
 test('未選択・壊れた保存座標・明示解除は予測地点を補完しない',()=>{for(const p of [null,{latitude:91,longitude:139},{latitude:35,longitude:181},{latitude:'35',longitude:139}])assert.equal(boot({'sorami.aimFrom':p}).aimFromPoint(),null);});
 
@@ -32,7 +33,7 @@ test('展望台が2つある施設は立つ所を選べ、選んだ展望台で�
 
 test('地点選択の共通経路も展望台データを保ってねらうへ渡す',()=>{
  let selected, remembered;const picker={set:p=>selected=p};
- const c=vm.createContext({recentHistory:{rememberPlace:p=>remembered=p},placeSheetFor:'aim',PLACE_PICKERS:{aim:picker},$(){return {close(){}}},aimAreaOf:()=>'',selectPlace(){throw Error('別の経路へ渡してはいけない')}});
+ const c=vm.createContext({AstroNotesLibrary:__L,recentHistory:{rememberPlace:p=>remembered=p},placeSheetFor:'aim',PLACE_PICKERS:{aim:picker},$(){return {close(){}}},aimAreaOf:()=>'',selectPlace(){throw Error('別の経路へ渡してはいけない')}});
  const start=html.indexOf('function choosePlace('),end=html.indexOf('/// 地点の画面を道具',start);
  vm.runInContext(html.slice(start,end),c);
  c.choosePlace({name:'渋谷スカイ',latitude:35.65838,longitude:139.70222,elevation:19,decks:[{name:'展望台',aglM:229}],eyeHeightAGL:229});
@@ -81,7 +82,7 @@ test('空欄と範囲外は表示を有効値へ戻し、計算に残る値と�
 
 test('未設定のその他目標でも観測地点の標高を取得して表示する',async()=>{
  const nodes=new Map(),calls=[];const from={name:'公園',latitude:35,longitude:139};
- const c=vm.createContext({candidateWaitMarkup:()=>"待機中",aim:{fromSeq:0,target:{parts:[]},body:'moon'},aimFromPoint:()=>from,
+ const c=vm.createContext({AstroNotesLibrary:__L,candidateWaitMarkup:()=>"待機中",aim:{fromSeq:__gate(),target:{parts:[]},body:'moon'},aimFromPoint:()=>from,
  $:id=>{if(!nodes.has(id))nodes.set(id,{querySelectorAll:()=>[]});return nodes.get(id)},renderPointCard(){},
  aimRenderObserverHeight:(f,g)=>calls.push(g),aimUpdateLook(){},esc:s=>s,setTimeout,
  aimElevation:async()=>83,aimObserverAt:()=>({elevation:83,eyeM:0})});
@@ -91,7 +92,7 @@ test('未設定のその他目標でも観測地点の標高を取得して表�
 });
 
 test('継承観測地点の標高カードは撮影位置の標高と同じ座標DEMを使う',()=>{
- const nodes=new Map(),c=vm.createContext({place:{elevation:10},bundle:null,
+ const nodes=new Map(),c=vm.createContext({AstroNotesLibrary:__L,place:{elevation:10},bundle:null,
  $:id=>{if(!nodes.has(id))nodes.set(id,{});return nodes.get(id)},renderFavStar(){}});
  const a=html.indexOf('function renderPointCard('),b=html.indexOf('function renderFavStar(',a);
  vm.runInContext(html.slice(a,b),c);const f={name:'東京',subtitle:'東京都',inherited:true};

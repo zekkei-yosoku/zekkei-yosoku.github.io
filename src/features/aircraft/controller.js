@@ -13,7 +13,7 @@ import {renderToolAccess,toolAllowed} from '../account/session-and-access.js';
 // 航路は `astronotes-routes.js` に形として持ってある（通信しない）。
 // 運用の向き（北風・南風）はその日の風の予報から決める。
 const plane = { dayMs: null, op: null, wind: null,
-                result: null, seq: 0, wired: false, pick: 0,
+                result: null, seq: AstroNotesLibrary.gate(), wired: false, pick: 0,
                 from: null };   // 撮影地点。null ならAstroNotesの地点を引き継ぐ（ねらうと同じ。2026-10-01）
 /// 月丼の観測地点（候補の「ここ」）。替えていなければAstroNotesの地点
 function planeFromPoint() { return plane.from || inheritedPoint(); }
@@ -83,13 +83,13 @@ function planeOpSpans(dayMs, opts) {
 
 async function planeApply() {
   if (!toolAllowed("plane")) return;
-  const seq = ++plane.seq;
+  const seq = plane.seq.next();
   $("planeInfo").textContent = "狙い目を探しています…";
   $("planeList").innerHTML = "";
   const P = planeFromPoint();
   renderPointCard("planeFrom", P, Number.isFinite(P.groundManualM) ? P.groundManualM : P.elevation);
   await planeLoadWind();
-  if (seq !== plane.seq) return;
+  if (!plane.seq.current(seq)) return;
   // その日に使われうる経路を全部並べ、**その時刻に使われている経路だけ**を数える
   const spans = planeOpSpans(plane.dayMs);
   const kind = { landing: true, takeoff: true };
@@ -116,7 +116,7 @@ async function planeApply() {
     const measured = Number.isFinite(saved.groundManualM) ? saved.groundManualM : await aimElevation(P.latitude, P.longitude);
     const obs = aimObserverAt(saved, measured);
     ground = obs.elevation; agl = obs.eyeM; horizonAt = null;
-    if (seq !== plane.seq) return;
+    if (!plane.seq.current(seq)) return;
   }
   renderPointCard("planeFrom", P, ground);
   const here = {
@@ -129,7 +129,7 @@ async function planeApply() {
   };
   const spots = AstroNotesPlane.rankSpots(plane.dayMs, paths, [here, ...AstroNotesRoutes.SPOTS],
     { stepMin: 2, limit: 8, activeAt });
-  if (seq !== plane.seq) return;
+  if (!plane.seq.current(seq)) return;
   const moon = AstroNotesAstro.moon(S.Cal.setHour(plane.dayMs, 21),
     { latitude: AstroNotesRoutes.RJTT.latitude, longitude: AstroNotesRoutes.RJTT.longitude, elevation: 0 });
   plane.result = { spots, paths, spans, illuminated: moon.illuminatedFraction };
@@ -256,7 +256,7 @@ PlaneMap.setOverlay((ctx, { project, width, height }) => {
 });
 
 function openPlane() {
-  if (!renderToolAccess("plane")) { plane.seq++; return; }
+  if (!renderToolAccess("plane")) { plane.seq.cancel(); return; }
   if (!plane.dayMs) plane.dayMs = S.Cal.startOfDay(Date.now());
   $("planeDate").value = new Date(plane.dayMs + 9 * 3600000).toISOString().slice(0, 10);
   $("planeWeekday").textContent = S.Cal.relativeDay(plane.dayMs);

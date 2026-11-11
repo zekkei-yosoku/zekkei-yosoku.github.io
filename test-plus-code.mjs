@@ -1,3 +1,4 @@
+import {createRequire as __req} from 'node:module';const __L=__req(import.meta.url)('./astronotes-library.js'),__gate=(n=0)=>{const g=__L.gate();while(n-->0)g.cancel();return g;};
 import {sourceHtml,sourceDeclaration} from './tools/test-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -55,7 +56,7 @@ function wireRuntime(){
  const nodes=new Map(),dialog={events:{},addEventListener(n,f){this.events[n]=f;}};
  const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',innerHTML:'',dataset:{},attrs:{},events:{},parentElement:{classList:{add(){}}},classList:{add(){}},getAttribute(){return null;},addEventListener(n,f){this.events[n]=f;},setAttribute(n,v){this.attrs[n]=v;},removeAttribute(n){delete this.attrs[n];},closest(){return dialog;},insertAdjacentHTML(_p,s){this.innerHTML+=s;}});return nodes.get(id);};
  const calls=[],picks=[],coords=[],pending=[];
- const ctx=vm.createContext({setTimeout,clearTimeout,AstroNotesPlusCode:P,AstroNotesTerrain:T,$:node,document:{getElementById:node},MapPick:{center:()=>({latitude:0,longitude:0})},placeSheetFor:null,place:{},esc:s=>String(s).replace(/</g,'&lt;'),searchPlaces:(q,o)=>{calls.push({q,o});return o.localOnly?Promise.resolve([]):new Promise(resolve=>pending.push(resolve));},renderSearchResults:(h,r,pick)=>{h.rows=r;h.pick=pick;h.innerHTML=r.map(x=>x.name).join(',');}});
+ const ctx=vm.createContext({AstroNotesLibrary:__L,setTimeout,clearTimeout,AstroNotesPlusCode:P,AstroNotesTerrain:T,$:node,document:{getElementById:node},MapPick:{center:()=>({latitude:0,longitude:0})},placeSheetFor:null,place:{},esc:s=>String(s).replace(/</g,'&lt;'),searchPlaces:(q,o)=>{calls.push({q,o});return o.localOnly?Promise.resolve([]):new Promise(resolve=>pending.push(resolve));},renderSearchResults:(h,r,pick)=>{h.rows=r;h.pick=pick;h.innerHTML=r.map(x=>x.name).join(',');}});
  vm.runInContext(sourceDeclaration("wireSearchBox"),ctx);
  ctx.wireSearchBox('searchBox','searchResults',r=>picks.push(r),c=>coords.push(c));
  return{node,dialog,calls,picks,coords,pending,box:node('searchBox'),out:node('searchResults'),go:node('searchBoxGo')};
@@ -77,14 +78,14 @@ test('short input only calls locality lookup on submit; clearing, switching and 
 });
 
 test('locality lookup keeps remote regional alternatives and allows overseas references without changing ordinary search JP restriction',async()=>{
- const urls=[];const ctx=vm.createContext({AstroNotesPlaceSearch:require('./astronotes-search.js'),AstroNotesTerrain:T,AstroNotesAlign:require('./astronotes-align.js'),URLSearchParams,AbortController,setTimeout,clearTimeout,favorites:[],place:{latitude:35.68,longitude:139.76},placeIndex:async()=>({places:[]}),fetch:async url=>{urls.push(url);return{ok:true,json:async()=>url.startsWith('data/')?{places:[]}:url.includes('msearch')?[]:[{name:'Mountain View',lat:'37.4',lon:'-122.1',display_name:'Mountain View, California'},{name:'Mountain View',lat:'20.5',lon:'-155.2',display_name:'Mountain View, Hawaii'}]};}});
+ const urls=[];const ctx=vm.createContext({AstroNotesLibrary:__L,AstroNotesPlaceSearch:require('./astronotes-search.js'),AstroNotesTerrain:T,AstroNotesAlign:require('./astronotes-align.js'),URLSearchParams,AbortController,setTimeout,clearTimeout,favorites:[],place:{latitude:35.68,longitude:139.76},placeIndex:async()=>({places:[]}),fetch:async url=>{urls.push(url);return{ok:true,json:async()=>url.startsWith('data/')?{places:[]}:url.includes('msearch')?[]:[{name:'Mountain View',lat:'37.4',lon:'-122.1',display_name:'Mountain View, California'},{name:'Mountain View',lat:'20.5',lon:'-155.2',display_name:'Mountain View, Hawaii'}]};}});
  vm.runInContext(html.slice(html.indexOf('let searchSupplementPromise'),html.indexOf('/// 検索結果を並べる。')),ctx);
  const refs=await ctx.searchPlaces('Mountain View',{localityOnly:true});assert.equal(refs.length,2);assert.ok(urls.some(u=>u.includes('nominatim')&&!u.includes('countrycodes')));
  urls.length=0;await ctx.searchPlaces('Mountain View');assert.ok(urls.some(u=>u.includes('nominatim')&&u.includes('countrycodes=jp')));
 });
 
 test('overseas locality with empty GSI and unavailable OSM is a connection failure, not absence',async()=>{
- const ctx=vm.createContext({AstroNotesPlaceSearch:require('./astronotes-search.js'),AstroNotesTerrain:T,AstroNotesAlign:require('./astronotes-align.js'),URLSearchParams,AbortController,setTimeout,clearTimeout,favorites:[],place:{latitude:35.68,longitude:139.76},placeIndex:async()=>({places:[]}),fetch:async url=>{if(url.includes('nominatim'))throw Error('unavailable');return{ok:true,json:async()=>url.startsWith('data/')?{places:[]}:[]};}});
+ const ctx=vm.createContext({AstroNotesLibrary:__L,AstroNotesPlaceSearch:require('./astronotes-search.js'),AstroNotesTerrain:T,AstroNotesAlign:require('./astronotes-align.js'),URLSearchParams,AbortController,setTimeout,clearTimeout,favorites:[],place:{latitude:35.68,longitude:139.76},placeIndex:async()=>({places:[]}),fetch:async url=>{if(url.includes('nominatim'))throw Error('unavailable');return{ok:true,json:async()=>url.startsWith('data/')?{places:[]}:[]};}});
  vm.runInContext(html.slice(html.indexOf('let searchSupplementPromise'),html.indexOf('/// 検索結果を並べる。')),ctx);
  const out=await P.resolve(P.parse('CWC8+R9 Mountain View'),q=>ctx.searchPlaces(q,{localityOnly:true}));
  assert.equal(out.results.length,0);assert.match(out.message,/接続できません/);
@@ -92,14 +93,14 @@ test('overseas locality with empty GSI and unavailable OSM is a connection failu
 
 test('actual GSI Yokohama response does not turn fire stations into extra reference cities',async()=>{
  const fixture=JSON.parse(read('fixtures/plus-code-gsi-yokohama.json'));assert.ok(fixture.length>100);
- const ctx=vm.createContext({AstroNotesPlaceSearch:require('./astronotes-search.js'),AstroNotesTerrain:T,AstroNotesAlign:require('./astronotes-align.js'),URLSearchParams,AbortController,setTimeout,clearTimeout,favorites:[],place:{latitude:35.68,longitude:139.76},placeIndex:async()=>({places:[]}),fetch:async url=>({ok:true,json:async()=>url.startsWith('data/')?{places:[]}:url.includes('msearch')?fixture:[]})});
+ const ctx=vm.createContext({AstroNotesLibrary:__L,AstroNotesPlaceSearch:require('./astronotes-search.js'),AstroNotesTerrain:T,AstroNotesAlign:require('./astronotes-align.js'),URLSearchParams,AbortController,setTimeout,clearTimeout,favorites:[],place:{latitude:35.68,longitude:139.76},placeIndex:async()=>({places:[]}),fetch:async url=>({ok:true,json:async()=>url.startsWith('data/')?{places:[]}:url.includes('msearch')?fixture:[]})});
  vm.runInContext(html.slice(html.indexOf('let searchSupplementPromise'),html.indexOf('/// 検索結果を並べる。')),ctx);
  const refs=await ctx.searchPlaces('横浜市',{localityOnly:true});assert.equal(refs.length,1);assert.equal(refs[0].name,'神奈川県横浜市');
  const out=await P.resolve(P.parse('CWC8+R9 横浜市'),async()=>refs);assert.equal(out.results.length,1);assert.match(out.results[0].detail,/基準の地名：神奈川県横浜市/);
 });
 
 test('an exact facility does not hide a qualified or translated regional reference',async()=>{
- const ctx=vm.createContext({AstroNotesPlaceSearch:require('./astronotes-search.js'),AstroNotesTerrain:T,AstroNotesAlign:require('./astronotes-align.js'),URLSearchParams,AbortController,setTimeout,clearTimeout,favorites:[],place:{latitude:35.68,longitude:139.76},placeIndex:async()=>({places:[]}),fetch:async url=>({ok:true,json:async()=>url.startsWith('data/')?{places:[]}:url.includes('msearch')?[{properties:{title:'Foo'},geometry:{coordinates:[139.6,35.4]}}]:[{name:'Foo City',lat:'36.4',lon:'140.6',display_name:'Foo City, Japan',category:'place',type:'city'}]})});
+ const ctx=vm.createContext({AstroNotesLibrary:__L,AstroNotesPlaceSearch:require('./astronotes-search.js'),AstroNotesTerrain:T,AstroNotesAlign:require('./astronotes-align.js'),URLSearchParams,AbortController,setTimeout,clearTimeout,favorites:[],place:{latitude:35.68,longitude:139.76},placeIndex:async()=>({places:[]}),fetch:async url=>({ok:true,json:async()=>url.startsWith('data/')?{places:[]}:url.includes('msearch')?[{properties:{title:'Foo'},geometry:{coordinates:[139.6,35.4]}}]:[{name:'Foo City',lat:'36.4',lon:'140.6',display_name:'Foo City, Japan',category:'place',type:'city'}]})});
  vm.runInContext(html.slice(html.indexOf('let searchSupplementPromise'),html.indexOf('/// 検索結果を並べる。')),ctx);
  const refs=await ctx.searchPlaces('Foo',{localityOnly:true});assert.deepEqual(Array.from(refs,r=>r.name),['Foo','Foo City']);
 });

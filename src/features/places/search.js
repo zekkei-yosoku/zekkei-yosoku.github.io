@@ -491,12 +491,12 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord, options = {}) {
   // **確定の拾い方は2通り持つ。** iOS のキーボードの「検索」では keydown の Enter が
   // 届かないことがあり、`input[type=search]` の `search` イベントでしか拾えない。
   // 同じ語で二重に走らないよう、直前の語を憶えておく。
-  let last = null, seq = 0, lastTimer = 0, localTimer = 0;
+  let last = null, seq = AstroNotesLibrary.gate(), lastTimer = 0, localTimer = 0;
   const box = $(boxId), results = $(resultsId);
   const searchNear = () => options.near ? options.near() : boxId === "mapSearch" ? MapPick.center() : placeSheetFor && PLACE_PICKERS[placeSheetFor] ? PLACE_PICKERS[placeSheetFor].point() || place : place;
-  const invalidate = () => { ++seq; last = null; clearTimeout(lastTimer); clearTimeout(localTimer); results.removeAttribute("aria-busy"); results.innerHTML = ""; };
+  const invalidate = () => { seq.cancel(); last = null; clearTimeout(lastTimer); clearTimeout(localTimer); results.removeAttribute("aria-busy"); results.innerHTML = ""; };
   const pick = (result, ticket) => {
-    if (ticket !== seq) return;
+    if (!seq.current(ticket)) return;
     if (options.isCurrent && !options.isCurrent()) return;
     invalidate();
     box.blur?.();
@@ -505,12 +505,12 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord, options = {}) {
   // 消去/入力変更で表示と待機中の結果を同時に無効化。遅い旧検索を復活させない。
   results.setAttribute("aria-live", "polite");
   box.addEventListener("input", () => {
-    invalidate();const q = box.value.trim(), ticket = seq;
+    invalidate();const q = box.value.trim(), ticket = seq.ticket();
     if (q.length < 2 || AstroNotesTerrain.parseLatLon(q) || AstroNotesPlusCode.parse(q) || /^https?:/.test(q)) return;
     // 入力中は端末内の候補だけ。外部の地名APIは検索ボタン/Enterで呼ぶ。
     localTimer = setTimeout(async () => {
       const found = await searchPlaces(q, {localOnly: true, near: searchNear()});
-      if (ticket === seq && box.value.trim() === q && (!options.isCurrent || options.isCurrent())) {
+      if (seq.current(ticket) && box.value.trim() === q && (!options.isCurrent || options.isCurrent())) {
         if (found.length) renderSearchResults(results, found, r => pick(r, ticket));
         else results.innerHTML = '<p class="tiny" role="status">手元の候補にはありません。検索すると地名や住所から探します。</p>';
       }
@@ -523,10 +523,10 @@ function wireSearchBox(boxId, resultsId, onPick, onCoord, options = {}) {
     box.blur?.();
     if (q === last) return;
     last = q;
-    const ticket = ++seq;
-    const current = () => ticket === seq && box.value.trim() === q && (!options.isCurrent || options.isCurrent());
+    const ticket = seq.next();
+    const current = () => seq.current(ticket) && box.value.trim() === q && (!options.isCurrent || options.isCurrent());
     clearTimeout(lastTimer); clearTimeout(localTimer);
-    lastTimer = setTimeout(() => { if (ticket === seq) last = null; }, 800);
+    lastTimer = setTimeout(() => { if (seq.current(ticket)) last = null; }, 800);
     // **緯度経度を入れたらそこへ。** 地図アプリからの貼り付け（度分秒・全角）も読む。
     // 検索に投げても地名としては当たらないので、先にこちらで拾う（2026-09-24 ユーザー依頼）。
     const coord = AstroNotesTerrain.parseLatLon(q);

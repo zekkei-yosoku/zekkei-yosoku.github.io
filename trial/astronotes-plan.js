@@ -163,7 +163,7 @@ const AstroNotesPlan = (() => {
       <div class="plan-actions"><button type="button" class="chip primary" id="planKeep" hidden>記録の予定に保存</button></div>
       <div id="planExport"><div class="plan-actions"><button type="button" class="chip primary" id="planCalendarAdd" style="min-height:44px">カレンダーに追加</button></div></div></section>
       <section id="planImage" aria-label="画像とリンクの共有" hidden><div class="plan-preview-frame" tabindex="0" aria-label="共有画像を確認"><img id="planPreview" alt="撮影計画の共有画像"></div><div class="plan-actions"><button type="button" class="chip primary" id="planShare" aria-label="画像を共有" disabled>共有</button><button type="button" class="chip" id="planSave" aria-label="画像を保存" disabled>保存</button><button type="button" class="chip" id="planCopy" disabled>リンクをコピー</button></div></section><p id="planStatus" class="tiny" role="status" aria-live="polite"></p><button type="button" id="planOpenNotebook" class="chip" hidden>予定を見る</button></div>`;
-    document.body.append(d);const $=id=>document.getElementById(id);let current=null,file=null,url=null,seq=0,back=null,localSave=false,saved=null,requested='share';
+    document.body.append(d);const $=id=>document.getElementById(id);let current=null,file=null,url=null,seq=AstroNotesLibrary.gate(),back=null,localSave=false,saved=null,requested='share';
     const retry=document.createElement('button');retry.id='planRetry';retry.type='button';retry.className='chip';retry.textContent='再試行';retry.hidden=true;retry.onclick=()=>open(requested,back,!!current);$('planStatus').after(retry);
     const waiting=document.createElement('div');waiting.id='planWaiting';waiting.className='note-wait';waiting.hidden=true;waiting.innerHTML='<span class="note-wait-character" aria-hidden="true"></span><span class="note-wait-message" id="planWaitingMessage" role="status" aria-live="polite"></span>';$('planStatus').before(waiting);
     const tabs=document.createElement('div');tabs.id='planSharingTabs';tabs.className='forecast-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','共有する内容');tabs.innerHTML='<button type="button" id="planImageTab" role="tab" aria-controls="planImage">画像・リンク</button><button type="button" id="planCalendarTab" role="tab" aria-controls="planCalendar">カレンダーに追加</button>';$('planSummary').before(tabs);
@@ -177,12 +177,12 @@ const AstroNotesPlan = (() => {
     const validate=()=>{refreshKeep();try{if(!current)throw Error('共有する撮影条件を準備しています。');const e=event(current,edits());$('planCalendarAdd').disabled=false;$('planKeep').disabled=false;status(!$('planKeep').hidden?'記録に保存するか、カレンダーへ追加できます。記録の予定はログイン中に同期します。':'');return e;}catch(e){$('planCalendarAdd').disabled=true;$('planKeep').disabled=true;status(e.message);return null;}};
     const download=(blob,name)=>{const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);};
     for(const id of ['planEventTitle','planStart','planEnd'])$(id).oninput=validate;
-    $('planClose').onclick=()=>d.close();d.addEventListener('close',()=>{if(d.open)return;AstroNotesPlan.externalApps?.cancelCalendar();seq++;clearSaved();if(url)URL.revokeObjectURL(url);url=null;file=null;current=null;back?.focus({preventScroll:true});});
+    $('planClose').onclick=()=>d.close();d.addEventListener('close',()=>{if(d.open)return;AstroNotesPlan.externalApps?.cancelCalendar();seq.cancel();clearSaved();if(url)URL.revokeObjectURL(url);url=null;file=null;current=null;back?.focus({preventScroll:true});});
     $('planCalendarAdd').onclick=()=>{
       const e=validate();if(!e)return;
-      const button=$('planCalendarAdd'),token=seq,captured=current;
+      const button=$('planCalendarAdd'),token=seq.ticket(),captured=current;
       if(typeof AstroNotesPlan.externalApps?.requestCalendar!=='function'){status('カレンダーを開けませんでした。画面を開き直してください。');return;}
-      try{AstroNotesPlan.externalApps.requestCalendar(e,{source:button,isCurrent:()=>d.open&&token===seq&&current===captured,onStatus:status});}
+      try{AstroNotesPlan.externalApps.requestCalendar(e,{source:button,isCurrent:()=>d.open&&seq.current(token)&&current===captured,onStatus:status});}
       catch{status('カレンダーを開けませんでした。もう一度お試しください。');}
     };
     // 2026-10-20 構図の重なりは AstroNotes の NOTEBOOK の予定にも残せる（件名・日時はこの欄の値）
@@ -191,19 +191,19 @@ const AstroNotesPlan = (() => {
     $('planSave').onclick=()=>{if(file){download(file,file.name);status('画像の保存を開始しました。保存先から共有できます。');}};
     $('planCopy').onclick=async()=>{const copiedUrl=current?.url;if(!copiedUrl)return;try{await navigator.clipboard.writeText(copiedUrl);status('同じ撮影条件のリンクをコピーしました。');}catch{status('コピーできませんでした。下のリンクを選んでコピーしてください。');const a=document.createElement('a');a.href=copiedUrl;a.textContent=copiedUrl;$('planStatus').append(document.createElement('br'),a);}};
     $('planShare').onclick=async()=>{if(!file)return;const data={files:[file],title:current.title};try{if(!navigator.canShare?.({files:[file]})||!navigator.share){status('この端末では画像共有を使えません。「保存」から共有してください。');return;}await navigator.share(data);status('共有画面を閉じました。');}catch(e){status(e.name==='AbortError'?'共有を取り消しました。': '共有できませんでした。「保存」から共有してください。');}};
-    async function open(kind,source,reuse=false){AstroNotesPlan.externalApps?.cancelCalendar();requested=kind;localSave=kind==='keep'||kind==='calendar';kind=localSave||kind==='export'?'calendar':'image';back=source;seq++;const token=seq;retry.hidden=true;clearSaved();file=null;if(url)URL.revokeObjectURL(url);url=null;$('planPreview').removeAttribute('src');for(const id of ['planSave','planShare','planCopy'])$(id).disabled=true;
+    async function open(kind,source,reuse=false){AstroNotesPlan.externalApps?.cancelCalendar();requested=kind;localSave=kind==='keep'||kind==='calendar';kind=localSave||kind==='export'?'calendar':'image';back=source;seq.cancel();const token=seq.ticket();retry.hidden=true;clearSaved();file=null;if(url)URL.revokeObjectURL(url);url=null;$('planPreview').removeAttribute('src');for(const id of ['planSave','planShare','planCopy'])$(id).disabled=true;
       tabs.hidden=localSave;for(const [id,selected]of[['planImageTab',kind==='image'],['planCalendarTab',kind==='calendar']]){$(id).setAttribute('aria-selected',String(selected));$(id).tabIndex=selected?0:-1;}
       $('planTitle').textContent=localSave?'予定':'共有';$('planExport').hidden=false;$('planKeep').textContent='記録の予定に保存';$('planSummary').hidden=kind!=='calendar';$('planCalendar').hidden=kind!=='calendar';$('planImage').hidden=kind!=='image';
       const fresh=!reuse||!current;
       if(fresh){current=null;$('planCalendar').hidden=true;$('planImage').hidden=true;$('planSummary').textContent='';busy('共有する内容を準備しています…');}
-      try{if(!d.open)show(d);if(fresh){const next=await snapshot(source,{current:()=>token===seq&&d.open});if(token!==seq||!d.open)return;current=next;}if(!current?.payload||!current.observer){current=null;throw Error('共有する撮影条件を確認できませんでした。「再試行」を押してください。');}$('planKeep').hidden=!localSave||!keep||!canKeep()||current.payload.kind!=='aim';$('planSummary').textContent=current.observer.name;status('');$('planCalendar').hidden=kind!=='calendar';$('planImage').hidden=kind!=='image';
+      try{if(!d.open)show(d);if(fresh){const next=await snapshot(source,{current:()=>seq.current(token)&&d.open});if(!seq.current(token)||!d.open)return;current=next;}if(!current?.payload||!current.observer){current=null;throw Error('共有する撮影条件を確認できませんでした。「再試行」を押してください。');}$('planKeep').hidden=!localSave||!keep||!canKeep()||current.payload.kind!=='aim';$('planSummary').textContent=current.observer.name;status('');$('planCalendar').hidden=kind!=='calendar';$('planImage').hidden=kind!=='image';
         if(fresh){$('planEventTitle').value=current.title;$('planStart').value=localInput(current.start);$('planEnd').value=localInput(Math.ceil(Math.max(current.end,current.start+1000)/1000)*1000);}if(kind==='calendar'){validate();return;}
         const captured=current;
-        busy('共有する画像を作っています…');await document.fonts.ready;if(token!==seq||!d.open)return;
+        busy('共有する画像を作っています…');await document.fonts.ready;if(!seq.current(token)||!d.open)return;
         const cv=image(captured),blob=await new Promise((resolve,reject)=>cv.toBlob(b=>b?resolve(b):reject(new Error('画像を作れませんでした。画面を開き直してください。')),'image/png'));
-        if(token!==seq||!d.open)return;file=new File([blob],'AstroNotes_撮影計画.png',{type:'image/png'});url=URL.createObjectURL(file);$('planPreview').src=url;for(const id of ['planSave','planCopy'])$(id).disabled=false;
+        if(!seq.current(token)||!d.open)return;file=new File([blob],'AstroNotes_撮影計画.png',{type:'image/png'});url=URL.createObjectURL(file);$('planPreview').src=url;for(const id of ['planSave','planCopy'])$(id).disabled=false;
         const can=navigator.canShare?.({files:[file]})&&navigator.share;$('planShare').disabled=!can;status(can?'':'画像を保存して、好きなアプリで共有できます。');
-      }catch(e){if(token!==seq||!d.open)return;$('planCalendar').hidden=true;$('planImage').hidden=true;$('planSummary').textContent='';status(e instanceof TypeError?'共有する撮影条件を準備できませんでした。「再試行」を押してください。':e.message||'撮影計画を作れませんでした。「再試行」を押してください。');retry.hidden=false;}}
+      }catch(e){if(!seq.current(token)||!d.open)return;$('planCalendar').hidden=true;$('planImage').hidden=true;$('planSummary').textContent='';status(e instanceof TypeError?'共有する撮影条件を準備できませんでした。「再試行」を押してください。':e.message||'撮影計画を作れませんでした。「再試行」を押してください。');retry.hidden=false;}}
     document.addEventListener('click',e=>{const quick=e.target.closest('[data-quick-save]');if(quick){if(!quick.disabled)quickSave?.(quick.dataset.quickSave,quick);return;}const b=e.target.closest('[data-plan-action]');if(b)open(b.dataset.planAction,b);});
     return {open,refreshPermissions:()=>{if(d.open&&current&&localSave){const hidden=$('planKeep').hidden;refreshKeep();if(hidden!==$('planKeep').hidden){if($('planKeep').hidden)clearSaved();validate();}}}};
   }

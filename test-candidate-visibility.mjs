@@ -1,3 +1,4 @@
+import {createRequire as __req} from 'node:module';const __L=__req(import.meta.url)('./astronotes-library.js'),__gate=(n=0)=>{const g=__L.gate();while(n-->0)g.cancel();return g;};
 import {sourceHtml} from './tools/test-source.mjs';
 // E92: 欠測を見通せると扱わず、確認前に選べる候補を出さない。
 import { test } from 'node:test';
@@ -43,7 +44,7 @@ function candidate(id, lon = 139.6) {
     score: 1, distanceKm: 3, altitude: 1, targetAngle: 1, sunAltitude: -10 };
 }
 function harness(found, overrides = {}) {
-  const aim = { candSeq: 0, lines: [{ side: 'set', points: [{ distanceKm: 3 }] }], body: 'sun', target,
+  const aim = { candSeq:__gate(), lines: [{ side: 'set', points: [{ distanceKm: 3 }] }], body: 'sun', target,
     candPick: null, candSide: 'set', cands: [] };
   const els = {};
   const ctx = { AIM_AUTO_CANDIDATES:true, aim, $: k => els[k] ||= { innerHTML: '', textContent: '' },
@@ -87,7 +88,7 @@ test('古い建物応答は新しい日付の一覧を上書きしない', async
   const h = harness([candidate('old')], { aimBuildingBlocks: () => new Promise(r => release = r) });
   const pending = h.find();
   await setImmediate();
-  h.aim.candSeq++; h.aim.cands = [candidate('new')]; release([false]); await pending;
+  h.aim.candSeq.cancel(); h.aim.cands = [candidate('new')]; release([false]); await pending;
   assert.equal(h.aim.cands[0].place.id, 'new'); assert.equal(h.renders.length, 0);
 });
 test('水域取得不能は陸上と読み替えない', async () => {

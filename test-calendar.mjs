@@ -1,3 +1,4 @@
+import {createRequire as __req} from 'node:module';const __L=__req(import.meta.url)('./astronotes-library.js'),__gate=(n=0)=>{const g=__L.gate();while(n-->0)g.cancel();return g;};
 import {sourceHtml} from './tools/test-source.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +12,7 @@ function setup(al=AL){
  const els=new Map(), buttons=[];
  const $=id=>{if(!els.has(id))els.set(id,{style:{},value:"",innerHTML:"",textContent:"",open:true,setAttribute(k,v){this[k]=v},querySelectorAll(selector){return selector==="[data-cal-moon]"?[]:buttons},addEventListener(){},focus(){},close(){this.open=false}});return els.get(id)};
  const aim={dayMs:Date.parse("2026-12-22T00:00:00+09:00"),body:"sun",partId:"summit",target:AL.targetById("fuji"),candSide:"set",spot:{}};
- const c=vm.createContext({aimShootingView:async()=>null,candidateWaitMarkup:()=>"待機中",AstroNotesAtmosphere:{dataKey:()=>"standard"},AstroNotesTerrain:{decksFor:()=>null},AstroNotesBodies:globalThis.AstroNotesBodies,AstroNotesMoon:MOON,$,aim,S,AstroNotesAlign:al,AstroNotesShooting:require("./astronotes-shooting.js"),Date,Map,Number,String,Array,JSON,Error,Math,Promise,setTimeout,esc:s=>s.replaceAll('"','&quot;'),aimIsMountain:t=>t?.id!=="skytree",aimSideName:s=>s==="set"?"日の入":"日の出",aimFromPoint:()=>c.fromOverride||({name:"高尾山",latitude:35.6252,longitude:139.2436}),aimElevation:async()=>599,showSheet:e=>{e.open=true},aimCandidateMatch:e=>Number.isFinite(e.gap)&&Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0)),aimApply:()=>{c.applied=true}});
+ const c=vm.createContext({AstroNotesLibrary:__L,aimShootingView:async()=>null,candidateWaitMarkup:()=>"待機中",AstroNotesAtmosphere:{dataKey:()=>"standard"},AstroNotesTerrain:{decksFor:()=>null},AstroNotesBodies:globalThis.AstroNotesBodies,AstroNotesMoon:MOON,$,aim,S,AstroNotesAlign:al,AstroNotesShooting:require("./astronotes-shooting.js"),Date,Map,Number,String,Array,JSON,Error,Math,Promise,setTimeout,esc:s=>s.replaceAll('"','&quot;'),aimIsMountain:t=>t?.id!=="skytree",aimSideName:s=>s==="set"?"日の入":"日の出",aimFromPoint:()=>c.fromOverride||({name:"高尾山",latitude:35.6252,longitude:139.2436}),aimElevation:async()=>599,showSheet:e=>{e.open=true},aimCandidateMatch:e=>Number.isFinite(e.gap)&&Math.abs(e.gap)<=Math.max(1/60,.2*(e.radius||0)),aimApply:()=>{c.applied=true}});
  vm.runInContext(readFileSync(new URL("./astronotes-datetime-ui.js",import.meta.url),"utf8"),c);
  vm.runInContext(html.slice(html.indexOf('function aimObserverEye('),html.indexOf('aim.from = aimSavedFrom'))+code+';this.cal=aimCal;this.rows=aimCalRows;this.grid=aimCalGridHtml;this.solid=aimCalSolid;this.render=aimCalRender;this.draw=aimCalDraw;',c);
  return {c,$,aim,buttons};

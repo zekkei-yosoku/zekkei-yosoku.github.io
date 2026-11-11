@@ -1,3 +1,4 @@
+import {createRequire as __req} from 'node:module';const __L=__req(import.meta.url)('./astronotes-library.js'),__gate=(n=0)=>{const g=__L.gate();while(n-->0)g.cancel();return g;};
 import {sourceHtml} from './tools/test-source.mjs';
 import './tools/test-owner-adapter.mjs';
 import {readFileSync} from 'node:fs';
@@ -17,7 +18,7 @@ function fixture(load,{ownerAdmin=true,unknown=false,me}={}){
   const entry={children:[],replaceChildren(...v){this.children=v;},append(...v){this.children.push(...v);}};
   const settings={open:true,close(){this.open=false;}};
   let calls=0,reauth=0,opened=0,meCalls=0;
-  const c={auth:{token:'fixture-token',...(unknown?{}:{ownerAdmin})},privateEntrySeq:0,
+  const c={auth:{token:'fixture-token',...(unknown?{}:{ownerAdmin})},privateEntrySeq:__gate(),
     $:id=>id==='appSettings'?settings:id==='settingsPrivateEntry'?entry:null,
     document:{createElement:tag=>({tag,style:{},setAttribute(){}})},
     apiCall:async(m,p)=>{assert.equal(p,'/me');meCalls++;return me();},
@@ -57,7 +58,7 @@ for(const change of ['token','closed','sequence']){
   const pending=race.render();
   if(change==='token')race.c.auth={token:'another-token',ownerAdmin:true};
   if(change==='closed')race.settings.open=false;
-  if(change==='sequence')race.c.privateEntrySeq++;
+  if(change==='sequence')race.c.privateEntrySeq.cancel();
   reject(Object.assign(new Error('old'),{code:'reauth_required'}));await pending;
   assert.equal(race.entry.children.length,0);
 }
@@ -66,7 +67,7 @@ for(const change of ['token','closed','sequence']){
   const oldButton=stale.entry.children[1];
   if(change==='token')stale.c.auth={token:'another-token',ownerAdmin:true};
   if(change==='closed')stale.settings.open=false;
-  if(change==='sequence')stale.c.privateEntrySeq++;
+  if(change==='sequence')stale.c.privateEntrySeq.cancel();
   oldButton.onclick();assert.equal(stale.reauth,0);
 }
 console.log('ADMIN ENTRY OK: settings-list entry, owner success, reauth, retry, non-owner, unknown owner via /me, forbidden, late responses and stale actions');

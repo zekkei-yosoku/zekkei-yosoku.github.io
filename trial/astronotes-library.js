@@ -8,7 +8,7 @@ const distance=(a,b)=>Math.hypot((a.latitude-b.latitude)*111195,(a.longitude-b.l
 const nearby=(rows,p)=>point(p)?rows.find(t=>point(t)&&distance(t,p)<20):null;
 const matchingNames=(rows,name,exclude)=>{const key=nameKey(name);return key?rows.filter(t=>t.id!=='custom'&&t.id!==exclude&&nameKey(t.name)===key):[];};
 const keys=owner=>({observations:'sorami.observations.v1:'+encodeURIComponent(owner||'guest'),shapes:'sorami.placeShapes.v1:'+encodeURIComponent(owner||'guest')});
-function gate(){let generation=0;return {next:()=>++generation,current:ticket=>ticket===generation,cancel:()=>{generation++;}};}
+function gate(){let generation=0;return {next:()=>++generation,ticket:()=>generation,current:ticket=>ticket===generation,cancel:()=>{generation++;}};}
 function transaction(storage,entries){
  const before=new Map(entries.map(([k])=>[k,storage.getItem(k)])),written=[];
  try{for(const [k,v]of entries){storage.setItem(k,JSON.stringify(v));written.push(k);}}
