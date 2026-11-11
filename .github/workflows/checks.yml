@@ -1,0 +1,41 @@
+# push のたびに公開前の確認（tools/run-trial-checks.sh）を回す。公開（Pages）とは別で、落ちても配信は止めない。
+name: checks
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      - name: 単体テストと生成物の一致
+        run: OUT="$RUNNER_TEMP/checks" SKIP_BROWSER=1 tools/run-trial-checks.sh
+      - if: failure()
+        run: tail -n 80 "$RUNNER_TEMP"/checks/*.log
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      - name: Playwright（ブラウザは runner の Chrome を使う）
+        run: mkdir -p "$RUNNER_TEMP/pw" && cd "$RUNNER_TEMP/pw" && npm init -y >/dev/null && npm install --no-audit --no-fund playwright@1
+      - name: 探すの実ブラウザ確認
+        run: |
+          python3 -m http.server 8992 --bind 127.0.0.1 >/dev/null 2>&1 &
+          sleep 2
+          NODE_PATH="$RUNNER_TEMP/pw/node_modules" OUT="$RUNNER_TEMP/checks" SKIP_UNIT=1 tools/run-trial-checks.sh
+      - if: failure()
+        run: tail -n 60 "$RUNNER_TEMP"/checks/*.log

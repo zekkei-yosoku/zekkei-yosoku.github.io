@@ -22,7 +22,7 @@
     "astronotes-shooting.js": "dbc3f425776403e6beeb784a529215343f76c7384a33e4bc1454d4ef5d39397f",
     "astronotes-myplaces.js": "53b041f3ba8edb8673fefddb63c30637e24ab31d471a18743254be71f22d841b",
     "astronotes-explore-simple.js": "2a9d269ea80612e72b6bf94827e020bb37be97bdb0f9908166fefa485c395eee",
-    "astronotes-candidate-search.js": "50ca6d744cc0a6a7d1eb630cadc9abef25d2091244d0edea1c2d1ed82393817c",
+    "astronotes-candidate-search.js": "ad1eaf1123e47dfcc9e0ab6b24996c78f245a5388d67d7bb181eaf34fbb2dd9e",
     "data/candidate-viewpoints.json": "f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5",
     "data/candidate-terrain.json": "5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779",
     "data/candidate-buildings.json": "e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a",
@@ -33,7 +33,7 @@
     "data/candidate-sidewalks.json": "efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a",
     "data/candidate-label-addresses.json": "3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b",
     "data/candidate-label-facilities.json": "ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53",
-    "index.html": "7424f05e55d68a3e1de992123739271a840bd966d63d4eed167da46260c1efc5",
-    "app-version.txt": "a32a819037b28218ad82c6f093587ab90a46a15745b328f60857d10cf6b192d6"
+    "index.html": "4dab5ecbc11eaad2f3752b493a9cdf92948983383150879090e7ae0c269db82c",
+    "app-version.txt": "351059b8c33f07fd936156339b957aa45201ccd18b5e132d3ce595fde1276431"
   }
 }

@@ -231,7 +231,8 @@ function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(root)
    const bytes=await r.arrayBuffer();if(!(await sha(bytes)).startsWith(entry[0]))throw Error('shape-part-version');
    const json=JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
    const list=json.buildings.map(shape);ready.set(p,list);return list;})().catch(e=>{parts.delete(p);throw e;}));
-  return parts.get(p);
+  const wanted=parts.get(p);if(parts.size>24){const old=parts.keys().next().value;parts.delete(old);ready.delete(old);}
+  return wanted;
  }
  const metres=(b,lat,lon)=>{const kx=111320*Math.cos(lat*RAD),ky=110540;return [(lon-b.originLongitude)*kx,(lat-b.originLatitude)*ky];};
  const onFootprint=(b,lat,lon)=>{const [x,y]=metres(b,lat,lon);return b.rings.some(({ring})=>inside(ring,x,y));};
@@ -1372,7 +1373,7 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    terrain.resetBudget?.();
    let index=0;
    await Promise.all(Array.from({length:Math.min(4,points.length)},async()=>{while(index<points.length&&current()&&!controller.signal.aborted){const p=points[index++],k=key(p);let g=heightCache.get(k)||null;
-    try{if(!g&&typeof terrain.groundElevation==='function')g=await bounded(terrain.groundElevation(p.latitude,p.longitude,{withSource:true,fetchImpl:request}),timeoutMs+250);if(g&&finite(g.elevation)&&g.source&&g.source!=='海')heightCache.set(k,g);else g=null;}catch{g=null;}
+    try{if(!g&&typeof terrain.groundElevation==='function')g=await bounded(terrain.groundElevation(p.latitude,p.longitude,{withSource:true,fetchImpl:request}),timeoutMs+250);if(g&&finite(g.elevation)&&g.source&&g.source!=='海'){heightCache.set(k,g);if(heightCache.size>20000)heightCache.delete(heightCache.keys().next().value);}else g=null;}catch{g=null;}
     if(!current())break;if(g){p.groundM=g.elevation;p.groundKnown=true;p.surfaceElevationM=finite(p.surfaceAglM)?g.elevation+p.surfaceAglM:null;p.standingSurfaceKnown=p.structureClassificationKnown&&finite(p.surfaceAglM);p.sourceEvidence.ground={source:g.source,heightM:g.elevation,kind:'dem'};}
    }}));
    // Worldwide data remains usable as a coarse model, with its resolution
@@ -2552,5 +2553,20 @@ globalThis.AstroNotesTrialOverlap={policy:P,members,isAll,key,label,searchPlan,c
 sync();
 })();
 
+
+// 試用版だけ: 画面で起きた異常の直近20件をこの端末の中に残す（外へは送らない。同期・書き出しの対象外の鍵）。
+// 利用者の報告だけでは分からない端末側の不具合を、後から端末をつないで読むため。
+(()=>{
+ const KEY='astronotes.trial.errors',MAX=20;
+ const version=()=>{try{return document.querySelector('meta[name="app-version"]')?.content||'';}catch{return '';}};
+ const file=s=>String(s||'').split(/[?#]/)[0].split('/').pop().slice(0,60);
+ const keep=(kind,message,source,line)=>{try{
+  const list=JSON.parse(localStorage.getItem(KEY)||'[]'),row={at:new Date().toISOString(),v:version(),kind,message:String(message||'').slice(0,200),source:file(source),line:Number(line)||0,page:String(location.hash||'').split('?')[0].slice(0,40)};
+  const last=list[list.length-1];if(last&&last.message===row.message&&last.source===row.source&&last.line===row.line){last.count=(last.count||1)+1;last.at=row.at;}else list.push(row);
+  localStorage.setItem(KEY,JSON.stringify(list.slice(-MAX)));
+ }catch{/* 保存できない端末では何も残さない */}};
+ addEventListener('error',e=>{if(e&&(e.message||e.error))keep('error',e.message||e.error?.message,e.filename,e.lineno);});
+ addEventListener('unhandledrejection',e=>{const r=e?.reason;if(r?.name==='AbortError')return;const where=/([\w.-]+\.js)[^:\s]*:(\d+)/.exec(String(r?.stack||''));keep('rejection',r?.message||r,where?.[1],where?.[2]);});
+})();
 
 // data-release 1c8ad7e458e8ac81afc8cf2b9430cad56f5414be32ae1e565240daa5901ae325

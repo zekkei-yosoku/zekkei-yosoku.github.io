@@ -43,7 +43,8 @@ function create({load=null,fetchImpl=(typeof fetch==='function'?fetch.bind(root)
    const bytes=await r.arrayBuffer();if(!(await sha(bytes)).startsWith(entry[0]))throw Error('shape-part-version');
    const json=JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
    const list=json.buildings.map(shape);ready.set(p,list);return list;})().catch(e=>{parts.delete(p);throw e;}));
-  return parts.get(p);
+  const wanted=parts.get(p);if(parts.size>24){const old=parts.keys().next().value;parts.delete(old);ready.delete(old);}
+  return wanted;
  }
  const metres=(b,lat,lon)=>{const kx=111320*Math.cos(lat*RAD),ky=110540;return [(lon-b.originLongitude)*kx,(lat-b.originLatitude)*ky];};
  const onFootprint=(b,lat,lon)=>{const [x,y]=metres(b,lat,lon);return b.rings.some(({ring})=>inside(ring,x,y));};

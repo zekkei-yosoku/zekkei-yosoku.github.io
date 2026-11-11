@@ -101,6 +101,7 @@ checkTrialUnits(false);
 // Overlap-scope hooks are applied after the unit inventory check (tools/build-overlap-scope.mjs).
 files['astronotes-candidate-search.js']=overlapCandidateSearch(files['astronotes-candidate-search.js']);
 files['astronotes-candidate-search.js']=patch(files['astronotes-candidate-search.js'],'/* BUILD_DATA_HASHES */{}',JSON.stringify(Object.fromEntries(Object.entries(files).filter(([n])=>n.startsWith('data/')).map(([n,s])=>[n.slice(5),createHash('sha256').update(s).digest('hex')]))));
+files['astronotes-candidate-search.js']+='\n'+readFileSync(new URL('./trial-error-log-runtime.js',import.meta.url),'utf8');
 files['astronotes-candidate-search.js']+='\n// data-release '+createHash('sha256').update(Object.entries(files).filter(([name])=>name.startsWith('data/')).map(([,value])=>value).join('')).digest('hex')+'\n';
 if(process.argv.includes('--html')){
  let html=numericRulerHtml(recordOpportunitiesHtml(previewPathLifecycleHtml(exploreSwipeBackHtml(explorePreviewControlsHtml(explorePlaceHtml(externalAppsHtml(readFileSync(0,'utf8'))))))));

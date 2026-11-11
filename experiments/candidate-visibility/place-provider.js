@@ -234,7 +234,7 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    terrain.resetBudget?.();
    let index=0;
    await Promise.all(Array.from({length:Math.min(4,points.length)},async()=>{while(index<points.length&&current()&&!controller.signal.aborted){const p=points[index++],k=key(p);let g=heightCache.get(k)||null;
-    try{if(!g&&typeof terrain.groundElevation==='function')g=await bounded(terrain.groundElevation(p.latitude,p.longitude,{withSource:true,fetchImpl:request}),timeoutMs+250);if(g&&finite(g.elevation)&&g.source&&g.source!=='海')heightCache.set(k,g);else g=null;}catch{g=null;}
+    try{if(!g&&typeof terrain.groundElevation==='function')g=await bounded(terrain.groundElevation(p.latitude,p.longitude,{withSource:true,fetchImpl:request}),timeoutMs+250);if(g&&finite(g.elevation)&&g.source&&g.source!=='海'){heightCache.set(k,g);if(heightCache.size>20000)heightCache.delete(heightCache.keys().next().value);}else g=null;}catch{g=null;}
     if(!current())break;if(g){p.groundM=g.elevation;p.groundKnown=true;p.surfaceElevationM=finite(p.surfaceAglM)?g.elevation+p.surfaceAglM:null;p.standingSurfaceKnown=p.structureClassificationKnown&&finite(p.surfaceAglM);p.sourceEvidence.ground={source:g.source,heightM:g.elevation,kind:'dem'};}
    }}));
    // Worldwide data remains usable as a coarse model, with its resolution
