@@ -7,7 +7,10 @@
 cd "$(dirname "$0")/.." || exit 2
 B=${BASE:-http://127.0.0.1:8992/trial/}; OUT=${OUT:-${TMPDIR:-/tmp}/astronotes-checks}; mkdir -p "$OUT"; failed=0
 run(){ name=$1; shift; start=$(date +%s); env "$@" > "$OUT/$name.log" 2>&1; code=$?; echo "$name exit $code $(( $(date +%s)-start ))s"; [ $code -eq 0 ] || failed=1; }
-if [ -z "$SKIP_UNIT" ]; then run unit node --test test-*.mjs; fi
+# API のソース（../api、非公開）と突き合わせる2本は、それが無い場所（GitHub）では回せない。
+units=(test-*.mjs)
+if [ ! -f ../api/src/index.js ]; then units=(); for f in test-*.mjs; do case $f in test-access-table.mjs|test-layout.mjs) echo "skip $f (../api が無い)";; *) units+=("$f");; esac; done; fi
+if [ -z "$SKIP_UNIT" ]; then run unit node --test "${units[@]}"; fi
 run build-check python3 build-preview.py --check
 [ -n "$SKIP_BROWSER" ] && exit $failed
 run generic CANDIDATE_GENERIC_BASE=$B CANDIDATE_GENERIC_OUT="$OUT/generic" node tools/test-candidate-generic-runtime.cjs
