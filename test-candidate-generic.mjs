@@ -292,3 +292,18 @@ test('one search drains multiple provider pages and small evaluation batches, wi
   const result=await engine.searchAll(plan);assert.equal(result.canContinue,false);assert.deepEqual(loads,[0,2]);assert.equal(checked.length,4);assert.equal(result.rows.length,4);assert.equal(result.coverage.loaded[0].failedRegions[0].id,'tile-missing');
  }finally{C.inverseSeeds=original;}
 });
+
+test('a set lens does not require the whole target: a near tall view (the sun on the gain tower) keeps the body in frame',()=>{
+ globalThis.AstroNotesTowerModels??=require('./astronotes-tower-models.js');
+ const B=require('./astronotes-bodies.js'),target=A.targetById('skytree');
+ const lens={mode:'evaluate',focal:130.2,sensorWidth:36,sensorHeight:24,portrait:false,crop:1,viewModel:'scene',aspect:1.11,pan:[0,0],targetExtent:'whole'};
+ const check=(obs,at,extent)=>{const st=B.state('sun',at,{...obs,elevation:obs.elevation+obs.eyeM}),g=A.geometryFrom(obs,target,{eyeM:obs.eyeM});return lensCheck({target,body:'sun',lens:{...lens,targetExtent:extent}},obs,st,g,A);};
+ // About 4 km west of the tower near its sunset line (the tower is about 9 deg tall); about 8.5 km (Shibamata, 4.2 deg).
+ const near={latitude:35.7311009,longitude:139.85286,elevation:0.37,eyeM:1.5},far={latitude:35.745342,longitude:139.893711,elevation:9.7,eyeM:1.5};
+ const at=Date.parse('2026-11-20T16:05:00+09:00');
+ assert.equal(check(near,at,'whole').fits,false);
+ const o=check(near,at,'overlap');assert.equal(o.fits,true);assert.equal(o.overflow,true);assert.equal(o.status,'fits');
+ assert(Math.abs(o.axis.altitude-B.state('sun',at,{...near,elevation:near.elevation+near.eyeM}).apparentAltitude)<1e-9,'aimed at the body');
+ // Where the whole target fits, the usual frame (axis on the target extent) is kept, as before.
+ const w=check(far,at,'whole'),f=check(far,at,'overlap');assert.equal(w.fits,true);assert.equal(f.overflow,false);assert.deepEqual(f.axis,w.axis);
+});

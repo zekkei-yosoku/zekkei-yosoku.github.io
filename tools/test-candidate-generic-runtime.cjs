@@ -82,7 +82,8 @@ async function assertSelected(p,row,before,body,target='custom'){
     for(const [index,body]of bodies.entries()){
      await prepare(p,body);await openCandidates(p);assert.equal(await p.evaluate(()=>SkyMapUI.selectionState().body),body);
      const beforeLoads=await p.evaluate(()=>candidateFixture.loads);await search(p);assert.equal(await p.evaluate(()=>candidateFixture.loads),beforeLoads+1);
-     const names=await p.locator('#candidateUnifiedResults .list-item').evaluateAll(ns=>ns.map(n=>n.firstElementChild.textContent));assert.deepEqual(names,['任意対象の公園','同じ展望地点 下層','同じ展望地点 上層'],'only parks, plazas, viewpoints and riverbanks are new places');
+     const names=await p.locator('#candidateUnifiedResults .list-item').evaluateAll(ns=>ns.map(n=>n.firstElementChild.textContent));// The list opens in time order (all three at 12:00 here); the new places are only parks, plazas, viewpoints and riverbanks.
+     assert.deepEqual([...names].sort(),['任意対象の公園','同じ展望地点 下層','同じ展望地点 上層'].sort(),'only parks, plazas, viewpoints and riverbanks are new places');
      assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().filter(r=>r.place.latitude===35.6906).length),2,'same point different height preserved');
      const metrics=await p.locator('#candidateListControls').evaluate(n=>({overflow:n.scrollWidth>n.clientWidth+1,bodyOverflow:document.documentElement.scrollWidth>innerWidth+1}));assert(!metrics.overflow&&!metrics.bodyOverflow,JSON.stringify(metrics));
      if(index===0)await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-list.png'});
@@ -102,12 +103,14 @@ async function assertSelected(p,row,before,body,target='custom'){
     const instant=await state(p);await p.evaluate(()=>{const click=document.querySelector('#candidateUnifiedResults .list-item').onclick;SkyMapUI.setTime(SkyMapUI.selectionState().at+60000);click();});
     assert.equal((await state(p)).at,instant.at+60000);assert.equal(await p.evaluate(()=>document.getElementById('skyMapView').dataset.exploreStage),'search','old instant candidate refused');
     await p.waitForFunction(()=>{const button=document.getElementById('candidateSearchAction');return button?.dataset.state==='idle'&&!button.disabled;});await search(p);
-    const lensBefore=await state(p);await p.evaluate(()=>{const click=document.querySelector('#candidateUnifiedResults .list-item').onclick;aimLens.on=true;aimLens.mode='manual';aimLens.focal=(aimLens.focal||200)+100;click();document.dispatchEvent(new Event('astronotes-composition-change'));});assert.deepEqual(await state(p),lensBefore,'lens changed candidate refused');
+    // 2026-11-11: with one target overlapped as a whole the lens does not decide the places (ユーザー「天体と重なる所だけ確認」),
+    // so a lens change keeps the list and its rows stay current.
+    const lensRows=await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().length);await p.evaluate(()=>{aimLens.on=true;aimLens.mode='manual';aimLens.focal=(aimLens.focal||200)+100;document.dispatchEvent(new Event('astronotes-composition-change'));});await p.waitForTimeout(300);assert.equal(await p.evaluate(()=>AstroNotesCandidatePicker.visibleRows().length),lensRows,'a lens change keeps single-target rows');
     await p.waitForFunction(()=>{const button=document.getElementById('candidateSearchAction');return button?.dataset.state==='idle'&&!button.disabled;});await search(p);
     const rangeBefore=await state(p);await p.evaluate(()=>{const click=document.querySelector('#candidateUnifiedResults .list-item').onclick,mode=document.getElementById('candidateSearchMode');mode.value='window';mode.onchange();click();});assert.deepEqual(await state(p),rangeBefore,'changed time range candidate refused');
     await search(p);await p.evaluate(()=>{const mode=document.getElementById('candidateSearchMode');mode.value='day';mode.onchange();});
     assert.equal(await saved(p),before);assert.equal(writes,0,'no API writes');assert.deepEqual(errors,[]);
-    results.push({engine,width,theme,bodies:bodies.length,arbitraryTarget:true,distinctHeights:[2,4,101.5],exactMapToAppearance:true,placeKindsOnly:true,staleInstantLensRangeRefused:true,personalDataUnchanged:true,writes,externalBlocked:external});console.log(engine,width,theme,'passed');
+    results.push({engine,width,theme,bodies:bodies.length,arbitraryTarget:true,distinctHeights:[2,4,101.5],exactMapToAppearance:true,placeKindsOnly:true,staleInstantRangeRefusedLensKept:true,personalDataUnchanged:true,writes,externalBlocked:external});console.log(engine,width,theme,'passed');
    }catch(e){await p.screenshot({path:out+'/'+engine+'-'+width+'-'+theme+'-failure.png'}).catch(()=>{});console.error('fixture failure',engine,width,theme,await p.evaluate(()=>({status:document.querySelector('#candidateSearchFeedback [role=status]')?.textContent,rows:globalThis.AstroNotesCandidatePicker?.visibleRows?.().length,fixture:globalThis.candidateFixture,selection:typeof SkyMapUI==='object'?SkyMapUI.selectionState():null})).catch(()=>null));throw e;}
    finally{await context.close();}
   }}finally{await browser.close();}

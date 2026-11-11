@@ -1422,7 +1422,17 @@ function lensCheck(plan,observer,state,geometry,align){
  const lens=plan.lens;if(!lens||lens.mode==='unspecified'||!Number.isFinite(lens.focal))return {status:'unspecified',fits:true};
  let w=lens.sensorWidth,h=lens.sensorHeight;if(!(w>0&&h>0&&lens.focal>0))return {status:'unknown',fits:lens.mode!=='required'};
  const crop=Number.isFinite(lens.crop)&&lens.crop>0?lens.crop:1;w/=crop;h/=crop;if(lens.portrait)[w,h]=[h,w];
- const halfX=w/(2*lens.focal)/D,halfY=h/(2*lens.focal)/D,axis=cameraAxis(plan,observer,state,geometry,align,halfX,halfY);
+ const halfX=w/(2*lens.focal)/D,halfY=h/(2*lens.focal)/D;
+ // 'overlap' (the whole target, 2026-11-11): whether the whole target fits depends on the lens and on how one shoots — a
+ // telephoto of the sun sitting on the Skytree's gain tower is the shot itself (ユーザー). So only the body and what it
+ // overlaps have to fit. Where the whole target fits, the frame is the usual one (as before); where it does not, the
+ // camera is on the body and overflow tells the first view to put its frame there.
+ if(lens.targetExtent==='overlap'){
+  const whole=lensCheck({...plan,lens:{...lens,targetExtent:'whole'}},observer,state,geometry,align);if(whole.fits)return {...whole,overflow:false};
+  const r=Math.tan((state.angularRadius||0)*D)/D,fits=r<=Math.min(halfX,halfY);
+  return {status:fits?'fits':'outside',fits,horizontalFov:2*Math.atan(w/(2*lens.focal))/D,verticalFov:2*Math.atan(h/(2*lens.focal))/D,targetKnown:true,axis:{azimuth:state.azimuth,altitude:state.apparentAltitude},overflow:true};
+ }
+ const axis=cameraAxis(plan,observer,state,geometry,align,halfX,halfY);
  if(!axis||![axis.azimuth,axis.altitude].every(Number.isFinite))return {status:'unknown',fits:lens.mode!=='required',reason:'camera-axis-unavailable'};
  const project=align.viewProjector(axis.azimuth,axis.altitude);
  const target=project(geometry.azimuth,geometry.angle),centre=project(state.azimuth,state.apparentAltitude);
@@ -1880,16 +1890,17 @@ function candidateKey(row){
  // Preserve height and exact time: different decks or different opportunities do not merge.
  return JSON.stringify([p.latitude,p.longitude,p.surfaceId??row.surfaceId??null,p.groundManualM??p.elevation??o.elevation??null,p.standAglM??p.eyeHeightAGL??o.eyeM??null,p.stand??null,row.event?.at,row.event?.partId??null,row.event?.matchMode??null]);
 }
+// How far one looks up at the target from the place (deg); unknown last.
+const angleOf=row=>Number.isFinite(row.quality?.targetAngleDeg)?row.quality.targetAngleDeg:Infinity;
 function compare(a,b,sort='recommended'){
  let primary=0;
  if(sort==='recommended'){
-  // Looking up steeply from close by comes after level views from further away (90% of recorded shots are below 11.5 deg).
-  const steep=r=>Number(r.quality?.targetAngleDeg>12);
+  // 2026-11-11 ユーザー「高いのも出て欲しい時はある」「他と混ぜて並べる」: views looking up steeply are no longer put last.
   primary=(photoOrder[a.row.quality?.photographyClass]??3)-(photoOrder[b.row.quality?.photographyClass]??3)
-   ||steep(a.row)-steep(b.row)||placePriority(a.types)-placePriority(b.types)||rankCompare(a.row,b.row);
+   ||placePriority(a.types)-placePriority(b.types)||rankCompare(a.row,b.row);
  }else{
   const key=sort.replace(/-desc$/,''),direction=sort.endsWith('-desc')?-1:1;
-  primary=direction*(key==='name'?String(a.row.place?.name||'').localeCompare(String(b.row.place?.name||''),'ja',{numeric:true}):key==='kind'?Object.keys(names).indexOf(a.types[0])-Object.keys(names).indexOf(b.types[0]):a.row.event.at-b.row.event.at);
+  primary=direction*(key==='name'?String(a.row.place?.name||'').localeCompare(String(b.row.place?.name||''),'ja',{numeric:true}):key==='kind'?Object.keys(names).indexOf(a.types[0])-Object.keys(names).indexOf(b.types[0]):key==='angle'?angleOf(a.row)-angleOf(b.row):a.row.event.at-b.row.event.at);
  }
  return primary||(a.row.event.at-b.row.event.at)||String(a.id||'').localeCompare(String(b.id||''))||a.index-b.index;
 }
@@ -1902,9 +1913,10 @@ function mergeEntries(entries,sort){
  return [...unique.values()].sort((a,b)=>compare(a,b,sort));
 }
 const groups=new Map(),windows=new Map(),boundNodes=new WeakSet();
-let control=null,list=null,scope='',filterScope='',revision=0,loadLabels=async()=>({}),ports={},time='all',kind='all',sort='recommended';
+// The list opens in time order (2026-11-11 ユーザー「並びのデフォルトを時刻順で」); おすすめ順 stays one tap away.
+let control=null,list=null,scope='',filterScope='',revision=0,loadLabels=async()=>({}),ports={},time='all',kind='all',sort='time';
 let visibleEntries=[],selectedId=null,mapPanel=null,mapInstance=null,mapMode=false,mapHits=[],mapScroll=null,mapFitPending=false,suspendedView=null;
-const columns='minmax(0,1fr) 56px 76px';
+const columns='minmax(0,1fr) 50px 64px 40px';
 const day=at=>globalThis.AstroNotesCandidateDiscovery?.day(at)??Math.floor((at+32400000)/86400000)*86400000-32400000;
 const clockText=at=>Number.isFinite(at)?new Date(at+32400000).toISOString().slice(11,16):'時刻未確認';
 const uncertainty=row=>[row.quality?.visibility==='unknown'?'見通し未確認':'',row.quality?.buildingHeights==='estimated'?'建物の高さは推定':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
@@ -1917,17 +1929,19 @@ function formatRow(node,row,types){
   Object.assign(node.style,{display:'grid',gridTemplateColumns:columns,columnGap:'8px',rowGap:'4px',alignItems:'start',textAlign:'left',padding:'12px 0',minHeight:'44px'});
   const title=document.createElement('span');title.dataset.candidatePlace='';title.textContent=row.place.name;Object.assign(title.style,{minWidth:'0',overflowWrap:'anywhere',fontSize:'14px',fontWeight:'600'});
   const clock=document.createElement('span');clock.dataset.candidateTime='';clock.textContent=clockText(row.event?.at);Object.assign(clock.style,{fontSize:'14px',fontVariantNumeric:'tabular-nums',whiteSpace:'nowrap'});
-  const kind=document.createElement('span');kind.dataset.placeKind='';Object.assign(kind.style,{fontSize:'14px',minWidth:'0',overflowWrap:'anywhere'});node.append(title,clock,kind);
+  const kind=document.createElement('span');kind.dataset.placeKind='';Object.assign(kind.style,{fontSize:'14px',minWidth:'0',overflowWrap:'anywhere'});
+  const angle=document.createElement('span');angle.dataset.candidateAngle='';Object.assign(angle.style,{fontSize:'14px',fontVariantNumeric:'tabular-nums',whiteSpace:'nowrap',textAlign:'right'});node.append(title,clock,kind,angle);
   if(notes.length){const detail=document.createElement('span');detail.className='tiny sub-line';detail.textContent=notes.join(' · ');Object.assign(detail.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});node.append(detail);}
  }
  node.querySelector('[data-place-kind]').textContent=types.map(t=>names[t]).join('・');
  node.querySelector('[data-candidate-time]').textContent=clockText(row.event?.at);
+ const angleCell=node.querySelector('[data-candidate-angle]');if(angleCell){const a=angleOf(row);angleCell.textContent=Number.isFinite(a)?Math.round(a)+'°':'—';angleCell.setAttribute('aria-label',Number.isFinite(a)?'見上げる角度 '+Math.round(a)+'度':'見上げる角度 不明');}
  const unconfirmed=uncertainty(row);let note=node.querySelector('[data-candidate-uncertainty]');
  if(unconfirmed.length){if(!note){note=document.createElement('span');note.dataset.candidateUncertainty='';note.className='tiny sub-line';Object.assign(note.style,{gridColumn:'1 / -1',whiteSpace:'normal',overflowWrap:'anywhere'});node.append(note);}note.textContent=unconfirmed.join(' ・ ');}else note?.remove();
 }
 function createHeader(){
  const header=document.createElement('div');header.className='candidate-list-heading';header.dataset.candidateHeaders='';header.setAttribute('role','group');header.setAttribute('aria-label','候補の並べ替え');Object.assign(header.style,{display:'grid',gridTemplateColumns:columns,gap:'8px',borderBottom:'1px solid var(--line)',marginTop:'8px'});
- for(const [key,label]of [['name','地点'],['time','時刻'],['kind','種類']]){const button=document.createElement('button');button.type='button';button.dataset.candidateSort=key;button.dataset.label=label;Object.assign(button.style,{minWidth:'0',minHeight:'44px',padding:'8px 0',border:'0',borderRadius:'0',background:'transparent',boxShadow:'none',textAlign:'left',fontSize:'14px',fontWeight:'600',whiteSpace:'nowrap'});button.onclick=()=>{sort=sort===key?key+'-desc':key;updateHeaders();apply();};header.append(button);}return header;
+ for(const [key,label]of [['name','地点'],['time','時刻'],['kind','種類'],['angle','角度']]){const button=document.createElement('button');button.type='button';button.dataset.candidateSort=key;button.dataset.label=label;Object.assign(button.style,{minWidth:'0',minHeight:'44px',padding:'8px 0',border:'0',borderRadius:'0',background:'transparent',boxShadow:'none',textAlign:'left',fontSize:'14px',fontWeight:'600',whiteSpace:'nowrap'});button.onclick=()=>{sort=sort===key?key+'-desc':key;updateHeaders();apply();};header.append(button);}return header;
 }
 function updateHeaders(){
  if(!control)return;const key=sort.replace(/-desc$/,''),descending=sort.endsWith('-desc');
@@ -1942,7 +1956,7 @@ function mount(panel,plan){
   if(mapPanel)mapPanel.querySelector('.mapwrap')?._mapShell?.setWide(false);
   for(const g of groups.values())for(const node of g.nodes)node.remove();
   scope=next;filterScope=nextFilters;groups.clear();windows.clear();visibleEntries=[];selectedId=null;revision++;mapMode=false;mapHits=[];
-  if(!keepFilters){time=kind='all';sort='recommended';control?.remove();control=null;list=null;}
+  if(!keepFilters){time=kind='all';sort='time';control?.remove();control=null;list=null;}
   else if(control){list?.replaceChildren();const toggle=control.querySelector('#candidateMapToggle');toggle.textContent='地図で見る';toggle.setAttribute('aria-expanded','false');toggle.disabled=true;const status=control.querySelector('[data-filter-status]');status.textContent='';status.hidden=true;control.querySelector('[data-candidate-headers]').hidden=false;if(list)list.hidden=false;}
   if(mapPanel)mapPanel.hidden=true;
   if(previous)queueMicrotask(()=>{if(scope===next&&panel.isConnected)globalThis.MyPlacesUI?.renderPickerPanel(panel);});
@@ -1954,7 +1968,7 @@ function mount(panel,plan){
   add('時間帯','candidateTimeFilter',[['all','すべての時間'],['rise','出の前後1時間'],['set','入の前後1時間']],time,v=>time=v);
   add('場所の種類','candidateKindFilter',[['all','すべての種類'],...Object.entries(names)],kind,v=>kind=v);
   const actions=document.createElement('div');actions.className='candidate-list-actions';Object.assign(actions.style,{display:'flex',gap:'8px',flexWrap:'wrap'});
-  const reset=button('おすすめ順に戻す',()=>{sort='recommended';updateHeaders();apply();});reset.dataset.candidateRecommended='';
+  const reset=button('おすすめ順にする',()=>{sort='recommended';updateHeaders();apply();});reset.dataset.candidateRecommended='';
   const toggle=button('地図で見る',()=>showMap(!mapMode));toggle.id='candidateMapToggle';toggle.disabled=true;actions.append(toggle,reset);control.append(actions);
   const status=document.createElement('p');status.className='tiny candidate-filter-status';status.dataset.filterStatus='';status.setAttribute('role','status');status.style.margin='12px 0 0';control.append(status);
   control.append(createHeader());list=document.createElement('div');list.id='candidateUnifiedResults';control.append(list);
@@ -2139,9 +2153,13 @@ function snapshot(){
  const host=document.querySelector('#exploreScenePanel #aimLook'),view=host?._trialCompositionView;
  // The preview fills the same map-owned content width (max 780px); derive its dimensions without revealing or painting it.
  const W=mainWorkspace()?.previewWidth(),H=W?(host?._full&&host._fullH?Math.round(host._fullH):Math.round(Math.min(W>=640?620:440,W*(aimIsMountain(s.target)?.66:.9)))):null;
- const lens=typeof aimLens==='undefined'?null:{mode:aimLens.on&&aimLens.mode==='manual'?'evaluate':'unspecified',focal:aimLens.focal,sensorWidth:AIM_SENSOR[aimLens.sensor]?.[0],sensorHeight:AIM_SENSOR[aimLens.sensor]?.[1],portrait:aimLens.portrait,crop:1,viewModel:'scene',aspect:W&&H?W/H:view?.W&&view?.H?view.W/view.H:1,pan:[...(host?._lensOffset||[0,0])],targetExtent:s.partId==='__whole'?'whole':'anchor'};
+ const lens=typeof aimLens==='undefined'?null:{mode:aimLens.on&&aimLens.mode==='manual'?'evaluate':'unspecified',focal:aimLens.focal,sensorWidth:AIM_SENSOR[aimLens.sensor]?.[0],sensorHeight:AIM_SENSOR[aimLens.sensor]?.[1],portrait:aimLens.portrait,crop:1,viewModel:'scene',aspect:W&&H?W/H:view?.W&&view?.H?view.W/view.H:1,pan:[...(host?._lensOffset||[0,0])],targetExtent:s.partId==='__whole'?'overlap':'anchor'};
  const extraTargets=typeof aimSceneExtraTargets==='function'?aimSceneExtraTargets(s.target.id):[];
- const selected={...s,authGeneration:mainWorkspace()?.epoch(),owner:auth.loginId,expected:context(s),atmosphere:air(),lens,extraTargets,timeSpec:timeSpec(s.at),profile:typeof aimIsMountain==='function'&&aimIsMountain(s.target)?'summit-contact':'building-near',...(globalThis.AstroNotesTrialComposition?.plan(s)||{}),...(globalThis.AstroNotesTrialOverlap?.searchPlan?.(s)||{})};
+ // With one target overlapped as a whole, only the body and what it overlaps have to fit (2026-11-11 ユーザー「天体と重なる所
+ // だけ確認」): no lens drops a place then, so the lens stays out of the search. Choosing a place sets the focal length and the
+ // frame for its view; leaving the lens in the key would drop the found places on the way back.
+ const searchLens=s.partId==='__whole'&&!extraTargets.length?{mode:'unspecified'}:lens;
+ const selected={...s,authGeneration:mainWorkspace()?.epoch(),owner:auth.loginId,expected:context(s),atmosphere:air(),lens:searchLens,extraTargets,timeSpec:timeSpec(s.at),profile:typeof aimIsMountain==='function'&&aimIsMountain(s.target)?'summit-contact':'building-near',...(globalThis.AstroNotesTrialComposition?.plan(s)||{}),...(globalThis.AstroNotesTrialOverlap?.searchPlan?.(s)||{})};
  // A next-day event in an overnight window does not change the search day.
  if(returnSearch&&s.candidateOpportunity?.id===returnSearch.rowId&&s.at===returnSearch.viewAt){const restored={...selected,at:returnSearch.plan.at,timeSpec:returnSearch.plan.timeSpec};if(AstroNotesCandidateDiscovery.requestKey(restored)===returnSearch.key)return restored;}
  return selected;
@@ -2257,7 +2275,7 @@ function mount(){
    const labels=result.rows.length?await loadLabels():{};if(!current(token,selected,node)||partial&&!searching)return;
    AstroNotesCandidatePicker.unregister?.(resultList);resultList.replaceChildren();const rows=[];
    for(const raw of result.rows){const row=AstroNotesCandidateLabels.enrich(raw,labels);if(raw.place.name&&!/^(?:撮影候補|モデル候補)/.test(raw.place.name))row.place.name=raw.place.name;rows.push(row);const item=document.createElement('button');item.type='button';item.className='list-item';item.dataset.modelBasis=row.modelEvidence?.kind||'unknown';item.dataset.candidateName=row.place.name;item.dataset.candidateId=row.id;item.textContent=row.place.name;
-    item.onclick=()=>{if(mainWorkspace()&&!mainWorkspace().selectable()||!current(token,selected,node)||row.requestKey!==key(snapshot()))return;const event={...row.event};delete event.matchMode;const candidate={...row,event};if(SkyMapUI.selectCandidate(candidate,context(SkyMapUI.selectionState()))){returnSearch=selected.timeSpec?.kind==='window'&&AstroNotesCandidateDiscovery.day(row.event.at)!==AstroNotesCandidateDiscovery.day(selected.at)?{plan:selected,key:key(selected),rowId:row.id,viewAt:row.event.at}:null;sheet.close();}};resultList.append(item);
+    item.onclick=()=>{if(mainWorkspace()&&!mainWorkspace().selectable()||!current(token,selected,node)||row.requestKey!==key(snapshot()))return;const event={...row.event};delete event.matchMode;const candidate={...row,event};const host=document.getElementById('aimLook'),previous=host?._compose;if(host)host._compose={mode:'whole',apply:true};if(SkyMapUI.selectCandidate(candidate,context(SkyMapUI.selectionState()))){returnSearch=selected.timeSpec?.kind==='window'&&AstroNotesCandidateDiscovery.day(row.event.at)!==AstroNotesCandidateDiscovery.day(selected.at)?{plan:selected,key:key(selected),rowId:row.id,viewAt:row.event.at}:null;sheet.close();}else if(host)host._compose=previous;};resultList.append(item);
    }
    AstroNotesCandidatePicker.registerAdditional(resultList,rows,selected,()=>current(token,selected,node));
    if(partial){visibleCredits.hidden=!rows.length;main?.reveal();return;}

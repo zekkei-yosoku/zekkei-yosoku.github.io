@@ -26,7 +26,17 @@ function lensCheck(plan,observer,state,geometry,align){
  const lens=plan.lens;if(!lens||lens.mode==='unspecified'||!Number.isFinite(lens.focal))return {status:'unspecified',fits:true};
  let w=lens.sensorWidth,h=lens.sensorHeight;if(!(w>0&&h>0&&lens.focal>0))return {status:'unknown',fits:lens.mode!=='required'};
  const crop=Number.isFinite(lens.crop)&&lens.crop>0?lens.crop:1;w/=crop;h/=crop;if(lens.portrait)[w,h]=[h,w];
- const halfX=w/(2*lens.focal)/D,halfY=h/(2*lens.focal)/D,axis=cameraAxis(plan,observer,state,geometry,align,halfX,halfY);
+ const halfX=w/(2*lens.focal)/D,halfY=h/(2*lens.focal)/D;
+ // 'overlap' (the whole target, 2026-11-11): whether the whole target fits depends on the lens and on how one shoots — a
+ // telephoto of the sun sitting on the Skytree's gain tower is the shot itself (ユーザー). So only the body and what it
+ // overlaps have to fit. Where the whole target fits, the frame is the usual one (as before); where it does not, the
+ // camera is on the body and overflow tells the first view to put its frame there.
+ if(lens.targetExtent==='overlap'){
+  const whole=lensCheck({...plan,lens:{...lens,targetExtent:'whole'}},observer,state,geometry,align);if(whole.fits)return {...whole,overflow:false};
+  const r=Math.tan((state.angularRadius||0)*D)/D,fits=r<=Math.min(halfX,halfY);
+  return {status:fits?'fits':'outside',fits,horizontalFov:2*Math.atan(w/(2*lens.focal))/D,verticalFov:2*Math.atan(h/(2*lens.focal))/D,targetKnown:true,axis:{azimuth:state.azimuth,altitude:state.apparentAltitude},overflow:true};
+ }
+ const axis=cameraAxis(plan,observer,state,geometry,align,halfX,halfY);
  if(!axis||![axis.azimuth,axis.altitude].every(Number.isFinite))return {status:'unknown',fits:lens.mode!=='required',reason:'camera-axis-unavailable'};
  const project=align.viewProjector(axis.azimuth,axis.altitude);
  const target=project(geometry.azimuth,geometry.angle),centre=project(state.azimuth,state.apparentAltitude);

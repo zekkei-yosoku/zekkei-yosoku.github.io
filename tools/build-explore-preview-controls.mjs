@@ -18,6 +18,11 @@ export function explorePreviewControlsHtml(html){
 #exploreScenePanel #trialCompositionAdjust{top:118px}
 #exploreScenePanel #trialCompositionToggle[aria-pressed=true]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 #exploreScenePanel .trial-composition-tool[hidden]{display:none}
+/* 2026-11-11 ユーザー「右上のアイコンに並べる」: 天体に寄る／全体を入れる sits under 重ねる位置を指定 (and its numeric editor when shown). */
+#exploreScenePanel .preview-compose-toggle{position:absolute;top:118px;right:8px;z-index:4;width:44px;min-width:44px;height:44px;min-height:44px;margin:0;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);box-shadow:none}
+#exploreScenePanel .aim-look-figure:has(#trialCompositionAdjust:not([hidden])) .preview-compose-toggle{top:172px}
+#exploreScenePanel .preview-compose-toggle[aria-pressed=true]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+#exploreScenePanel .preview-compose-toggle svg{width:24px;height:24px;stroke-width:1.8}
 #trialComposition:not([open]){display:none}
 #trialComposition .sheet-body{display:grid;gap:14px;max-height:calc(82dvh - 54px)}
 #trialComposition .sheet-body>label{font-size:14px;line-height:1.5}

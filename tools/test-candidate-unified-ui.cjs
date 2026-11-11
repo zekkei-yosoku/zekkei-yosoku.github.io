@@ -25,8 +25,11 @@ const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict
     await AstroNotesCandidatePicker.registerAdditional(render('additionalCandidateResults',additionalRows),additionalRows,testPlan,()=>live.additional);
    });
    const rows=page.locator('#candidateUnifiedResults .list-item:visible'),names=()=>rows.evaluateAll(ns=>ns.map(n=>n.children[0].textContent));
-   assert.deepEqual(await names(),['新規公園','登録歩道','条件付き広場','記録だけの公園']);
-   assert.equal(await rows.first().locator('[data-candidate-uncertainty]').innerText(),'見通し未確認 ・ 全体の画角未確認');assert.equal(await rows.nth(1).locator('[data-candidate-uncertainty]').count(),0);
+   // 2026-11-11 ユーザー「並びのデフォルトを時刻順で」「列を1つ足す」: the list opens in time order with an angle column; おすすめ順 is one tap away.
+   assert.deepEqual(await names(),['登録歩道','記録だけの公園','新規公園','条件付き広場']);
+   assert.deepEqual(await page.locator('[data-candidate-sort]').evaluateAll(ns=>ns.map(n=>n.dataset.label)),['地点','時刻','種類','角度']);
+   assert.equal(await rows.filter({hasText:'新規公園'}).locator('[data-candidate-uncertainty]').innerText(),'見通し未確認 ・ 全体の画角未確認');assert.equal(await rows.filter({hasText:'登録歩道'}).locator('[data-candidate-uncertainty]').count(),0);
+   await page.locator('[data-candidate-recommended]').click();assert.deepEqual(await names(),['新規公園','登録歩道','条件付き広場','記録だけの公園']);
    await page.locator('[data-candidate-sort=time]').click();assert.deepEqual(await names(),['登録歩道','記録だけの公園','新規公園','条件付き広場']);
    await page.locator('[data-candidate-sort=time]').click();assert.equal((await names())[0],'条件付き広場');
    await page.locator('[data-candidate-recommended]').click();assert.equal((await names())[0],'新規公園');
