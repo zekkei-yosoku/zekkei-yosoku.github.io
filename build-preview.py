@@ -6,7 +6,7 @@ The preview shares the production account/API/storage. Review before deployment.
                                      trial を本体へ揃えたあとの確認に使う（2026-10-15 総点検M06）
 """
 from pathlib import Path
-import hashlib,json,subprocess,sys,tempfile
+import json,subprocess,sys
 check='--check' in sys.argv[1:]
 root=Path(__file__).resolve().parent
 out=root/'trial'
@@ -16,49 +16,24 @@ def emit(target,data):
  if not check:target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data)
 # Only public app runtime assets, never repository metadata or development inputs.
 runtime_assets=set()
-for pattern in ['astronotes-*.js','sorami-*.js','sky-rating*.js','spots.js','*-ui.js','icon-*.png','app-icon-*.png','astronotes-*.png','almanac-*.png','almanac-*.webp','*.css']:
+for pattern in ['astronotes-*.js','overlap-calculation*.js','sorami-*.js','sky-rating*.js','spots.js','*-ui.js','icon-*.png','app-icon-*.png','astronotes-*.png','almanac-*.png','almanac-*.webp','*.css']:
  runtime_assets.update(root.glob(pattern))
 for f in sorted(runtime_assets):emit(out/f.name,f.read_bytes())
+# 探すの大きなデータは本体の data/ に1つだけ置き、試用版は ../data/ から読む（Pages の容量。上の meta で指す）。
+shared=lambda p:p.parts[1] in ('building-heights','building-shapes','osm-places') or p.parts[1].startswith('candidate-')
 tracked=set(subprocess.check_output(['git','ls-files','data','vendor'],cwd=root,text=True).splitlines())
 for name in ['data','vendor']:
  for f in (root/name).rglob('*'):
-  if f.is_file() and str(f.relative_to(root)) in tracked:
+  if f.is_file() and str(f.relative_to(root)) in tracked and not shared(f.relative_to(root)):
    emit(out/f.relative_to(root),f.read_bytes())
-s=(root/'index.html').read_text().replace('<title>AstroNotes</title>','<title>AstroNotes 試用版</title>').replace('name="apple-mobile-web-app-title" content="AstroNotes"','name="apple-mobile-web-app-title" content="AstroNotes 試用版"')
+s=(root/'index.html').read_text().replace('<title>AstroNotes</title>','<title>AstroNotes 試用版</title>\n<meta name="astronotes-data-base" content="../data/">').replace('name="apple-mobile-web-app-title" content="AstroNotes"','name="apple-mobile-web-app-title" content="AstroNotes 試用版"')
 idx=s.index('  <div class="masthead">')
 s=s[:idx]+'  <p style="position:relative;z-index:1;font-size:12px;padding:6px 2px;color:var(--secondary)">試用版 · 本番とアカウント・保存データ共通 <a href="../">本番へ</a></p>\n'+s[idx:]
-# Independent candidate experiment is composed from the canonical Explore source.
-# It never writes production products and remains reproducible on every refresh.
-bundle=json.loads(subprocess.check_output(['node','tools/build-candidate-trial.mjs','--html'],cwd=root,input=s,text=True))
+# The title and banner change the page, so its versions and inline-script hashes are stamped again.
+bundle=json.loads(subprocess.check_output(['node','tools/build-trial-html.mjs'],cwd=root,input=s,text=True))
 for name,content in bundle.items():emit(out/name,content.encode())
-# 2026-11-09 端末の重なる日一覧は、サーバーと同じ幾何計算本体（大気差なし）を別frameで動かす。
-# 本体は生成後のtrialから抽出するため、書き込まない--checkでも一時領域で同じ入力を再現する。
-with tempfile.TemporaryDirectory() as staged:
- staged_trial=Path(staged)/'trial'
- for p,data in expected.items():
-  q=staged_trial/p.relative_to(out);q.parent.mkdir(parents=True,exist_ok=True);q.write_bytes(data)
- subprocess.check_call(['node','tools/build-overlap-calculation.cjs',str(root),staged,str(staged_trial)],cwd=root,stdout=subprocess.DEVNULL)
- engine=(Path(staged)/'calculation.js').read_bytes();engine_sha=json.loads((Path(staged)/'manifest.json').read_text())['sha256']
-frame=(root/'tools/overlap-calculation-frame.js').read_bytes()
-emit(out/'overlap-calculation.js',engine);emit(out/'overlap-calculation-frame.js',frame)
-# 2026-11-09 同じ本体を複数のWorkerでも動かす（並列化）。WebKitのWorkerはスタックが小さく、
-# 数MBの建物モデルのオブジェクト直書きを読むと溢れる。その直書きだけを同じ中身のJSON.parseに
-# 置き換えたWorker用の本体を作る（JSONとして読めることを確かめてから置き換える）。
-def worker_engine(source):
- lines=source.decode().split('\n')
- for i,line in enumerate(lines):
-  if len(line)<100000 or 'const models=' not in line:continue
-  a=line.index('const models=')+len('const models=');b=line.index(';if(typeof module',a)
-  literal=line[a:b];json.loads(literal)
-  lines[i]=line[:a]+'JSON.parse('+json.dumps(literal)+')'+line[b:]
- return '\n'.join(lines).encode()
-worker_body=worker_engine(engine)
-emit(out/'overlap-calculation-worker-engine.js',worker_body)
-emit(out/'overlap-calculation-worker.js',(f"const OVERLAP_ENGINE='{engine_sha}',OVERLAP_SOURCE='overlap-calculation-worker-engine.js?v={hashlib.sha256(worker_body).hexdigest()[:16]}';\n").encode()+(root/'tools/overlap-calculation-worker.js').read_bytes())
-emit(out/'overlap-calculation.html',(f'<!doctype html>\n<html lang="ja" data-engine="{engine_sha}">\n<meta charset="utf-8">\n'
- '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'self\'; connect-src https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp; img-src blob: data: https://cyberjapandata.gsi.go.jp; base-uri \'none\'; form-action \'none\'">\n'
- f'<title>AstroNotes calculation</title>\n<script src="overlap-calculation.js?v={engine_sha[:16]}"></script>\n'
- f'<script src="overlap-calculation-frame.js?v={hashlib.sha256(frame).hexdigest()[:16]}"></script>\n</html>\n').encode())
+# 重なる日の計算本体（overlap-calculation*）は本体側で tools/build-overlap-products.py が作り、上の複写でそのまま来る。
+emit(out/'overlap-calculation.html',(root/'overlap-calculation.html').read_bytes())
 # 2026-10-28 写真の評価と規約・プライバシーも本体から作る（試用版の表示だけ変える）
 r=(root/'sky-rating.html').read_text().replace('· AstroNotes</title>','· AstroNotes 試用版</title>').replace('<span class="brand">AstroNotes</span>','<span class="brand">AstroNotes <span>試用版</span></span>')
 emit(out/'sky-rating.html',r.encode())

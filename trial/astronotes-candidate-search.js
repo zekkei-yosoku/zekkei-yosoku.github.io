@@ -339,7 +339,7 @@ return {create,mesh,meshesIn,element,obstacle,decode};
 /* Native GSI DEM samples: terrain diagnostics, never standing surface/visibility proof. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesCandidateTerrain=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
-const R=6371008.8,rad=Math.PI/180,MISSING=-2147483648,Geo=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../astronotes-terrain.js'):null);
+const R=6371008.8,rad=Math.PI/180,MISSING=-2147483648,Geo=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../../astronotes-terrain.js'):null);
 async function decode(data){
  const unpack=async encoded=>new Response(new Blob([Uint8Array.from(atob(encoded),c=>c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
  const buffer=await unpack(data.heightsGzipBase64),view=new DataView(buffer),sources=data.sourceCodesGzipBase64?new Uint8Array(await unpack(data.sourceCodesGzipBase64)):null,tiles=new Map(data.tiles.map(t=>[t.x+','+t.y,t]));
@@ -468,7 +468,7 @@ if(typeof module==='object'&&module.exports)module.exports={createLive};
 /* Trial picking on the existing drawing's convex volumes. This is approximate drawing geometry, not surveyed PLATEAU geometry. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesTrialSurface=api;})(globalThis,function(){
 'use strict';
-const rad=Math.PI/180,G=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../astronotes-terrain.js'):null),hulls=globalThis.AstroNotesTrialSurfaceHulls||(typeof require==='function'?require('./scene-hulls.js'):null);
+const rad=Math.PI/180,G=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../../astronotes-terrain.js'):null),hulls=globalThis.AstroNotesTrialSurfaceHulls||(typeof require==='function'?require('./scene-hulls.js'):null);
 let cached=null;const modelChecks=new WeakMap(),compiled=new WeakMap();
 const targetFrame=t=>JSON.stringify([t.id,t.latitude,t.longitude,t.groundM,t.parts]);
 const hash=value=>{const text=JSON.stringify(value);let h=2166136261;for(let i=0;i<text.length;i++)h=Math.imul(h^text.charCodeAt(i),16777619);return h>>>0;};
@@ -521,8 +521,8 @@ function model(align,target){
  const signature=hash({vertices,triangles}),m={...raw,id:raw.id||'registered-shape-'+signature,vertices,faces:triangles.map(ts=>[...new Set(ts.flat())]),surfaceTriangles:triangles,signature,approximate:true};
  if(!byFrame){byFrame=new Map();compiled.set(raw,byFrame);}if(byFrame.size>=8)byFrame.clear();byFrame.set(frameKey,m);return m;
 }
-function compatible(c,t,align=globalThis.AstroNotesAlign||(typeof require==='function'?require('../../astronotes-align.js'):null)){const m=model(align,t);return !!m&&c.modelId===m.id&&c.modelSignature===m.signature&&c.targetFrame===targetFrame(t);}
-function bounds({target,align=globalThis.AstroNotesAlign||(typeof require==='function'?require('../../astronotes-align.js'):null),obs}){
+function compatible(c,t,align=globalThis.AstroNotesAlign||(typeof require==='function'?require('../../../astronotes-align.js'):null)){const m=model(align,t);return !!m&&c.modelId===m.id&&c.modelSignature===m.signature&&c.targetFrame===targetFrame(t);}
+function bounds({target,align=globalThis.AstroNotesAlign||(typeof require==='function'?require('../../../astronotes-align.js'):null),obs}){
  const m=model(align,target);if(!m)return null;const bearing=obs?G().inverse(target.latitude,target.longitude,obs.latitude,obs.longitude).azimuth*rad:0,b={heightMinM:Infinity,heightMaxM:-Infinity,eastMinM:Infinity,eastMaxM:-Infinity,northMinM:Infinity,northMaxM:-Infinity,xMinM:Infinity,xMaxM:-Infinity};
  for(const [east,north,height]of m.vertices){const x=-Math.cos(bearing)*east+Math.sin(bearing)*north;b.heightMinM=Math.min(b.heightMinM,height);b.heightMaxM=Math.max(b.heightMaxM,height);b.eastMinM=Math.min(b.eastMinM,east);b.eastMaxM=Math.max(b.eastMaxM,east);b.northMinM=Math.min(b.northMinM,north);b.northMaxM=Math.max(b.northMaxM,north);b.xMinM=Math.min(b.xMinM,x);b.xMaxM=Math.max(b.xMaxM,x);}return b;
 }
@@ -561,7 +561,7 @@ return {model,bounds,compatible,anchor,geometry,pick,preset,visible};
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.AstroNotesCandidateComposition=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
 const Surface=globalThis.AstroNotesTrialSurface||(typeof require==='function'?require('./scene-surface.js'):null);
-const rad=Math.PI/180,DAY=86400000,R=6371008.8,Geo=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../astronotes-terrain.js'):null),inside=(r,p)=>{let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;};
+const rad=Math.PI/180,DAY=86400000,R=6371008.8,Geo=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../../astronotes-terrain.js'):null),inside=(r,p)=>{let yes=false;for(let i=0,j=r.length-1;i<r.length;j=i++)if((r[i][1]>p.latitude)!==(r[j][1]>p.latitude)&&p.longitude<(r[j][0]-r[i][0])*(p.latitude-r[i][1])/(r[j][1]-r[i][1])+r[i][0])yes=!yes;return yes;};
 function valid(c,target){
  if(!c||![c.heightM,c.xM].every(Number.isFinite)||!['center','upper','lower'].includes(c.limb))return false;
  if(!c.basis)return c.heightM>=(target.groundM??0)&&c.heightM<=Math.max(...target.parts.map(p=>p.m));
@@ -935,7 +935,7 @@ return {valid,windowValid,limb,anchorAt,geometry,roadAt,riseSet,inWindow,windowE
 'use strict';
 const Surface=globalThis.AstroNotesTrialSurface||(typeof require==='function'?require('./scene-surface.js'):null);
 const Composition=globalThis.AstroNotesCandidateComposition||(typeof require==='function'?require('./composition.js'):null);
-const R=6371008.8,rad=Math.PI/180,Geo=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../astronotes-terrain.js'):null);
+const R=6371008.8,rad=Math.PI/180,Geo=()=>globalThis.AstroNotesTerrain||(typeof require==='function'?require('../../../astronotes-terrain.js'):null);
 const cache=new WeakMap(),earthA=6378137,earthE2=6.6943799901413165e-3;
 function ecef(lat,lon,h){const a=lat*rad,b=lon*rad,n=earthA/Math.sqrt(1-earthE2*Math.sin(a)**2);return [(n+h)*Math.cos(a)*Math.cos(b),(n+h)*Math.cos(a)*Math.sin(b),(n*(1-earthE2)+h)*Math.sin(a)];}
 const reference=ecef(35.68626,139.73068,0),local=(lat,lon,h)=>ecef(lat,lon,h).map((v,i)=>v-reference[i]);
@@ -2102,11 +2102,13 @@ let dateNavigation=null,dateCalendar=null,autoSearchTimer=null,dateRefreshPendin
 let timeChoice='day',windowStart='00:00',windowEnd='23:59';
 const dataTag=new URL(document.currentScript.src,location.href).searchParams.get('v')||'0';
 const dataHashes={"candidate-viewpoints.json":"f9496da00f09be194ea770c3c7e851afd84f388fe5fa388922635e53c86950c5","candidate-terrain.json":"5c78165203510383eab45feb0e2195a06c6f4d8ec5f3e682db941ca705279779","candidate-buildings.json":"e4ec51ed732be60108959a7854cdd5ae8aab46a94aaa026f0d5094101e1f4c8a","building-heights/index.json":"6c50fb9f8e0792f34d99cefb9b5aeb300a5a43f722bd0b0aa4ba8572c2676e19","building-shapes/index.json":"0298fc54cd928ed403b637b456b0871fe984d3978a02961a40e89e07c7d6c10c","osm-places/index.json":"101f0c969fcfdf205b775f6dad761b00b99264fd4c6905a751da38de859a4bdc","candidate-surfaces.json":"de16ae6e56aa05a1d4a7d6d0fa8974a4373183f35e8282f412f7fbd7c637751f","candidate-sidewalks.json":"efc42ec01902232f52ec36e84808dc3400892d91c5ddf663d91ef34bb123e48a","candidate-label-addresses.json":"3919fc5e919863ba593174cdd805f860d41882938667055ab456b9abe33d869b","candidate-label-facilities.json":"ca92359defa9b765fe86db8bf5053cd5921182a39af1975b9324274615efdf53"};
-const readData=async(name,{signal}={})=>{const r=await fetch('data/'+name+'?v='+dataTag,{signal});if(!r.ok)throw Error('data');const bytes=await r.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');if(hash!==dataHashes[name])throw Error('data-version');return JSON.parse(new TextDecoder().decode(bytes));};
+// The trial keeps no copy of this data: its page points at the production folder (build-preview.py).
+const dataBase=document.querySelector('meta[name="astronotes-data-base"]')?.content||'data/';
+const readData=async(name,{signal}={})=>{const r=await fetch(dataBase+name+'?v='+dataTag,{signal});if(!r.ok)throw Error('data');const bytes=await r.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');if(hash!==dataHashes[name])throw Error('data-version');return JSON.parse(new TextDecoder().decode(bytes));};
 const cachedData=new Map();
 function loaded(name){if(!cachedData.has(name)){const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),10000);cachedData.set(name,readData(name,{signal:ctrl.signal}).catch(e=>{cachedData.delete(name);throw e;}).finally(()=>clearTimeout(timer)));}return cachedData.get(name);}
 // Saved targets standing on a PLATEAU building take its shape on this page (見え方 and new places).
-const plateauShapes=globalThis.AstroNotesPlateauBuildings?.create({load:loaded})||null;globalThis.AstroNotesPlateauShapes=plateauShapes;
+const plateauShapes=globalThis.AstroNotesPlateauBuildings?.create({load:loaded,base:dataBase+'building-shapes/'})||null;globalThis.AstroNotesPlateauShapes=plateauShapes;
 // The targets the app lists carry their PLATEAU shape, so the overlap list and registered places (calculation
 // workers) use it too; it is part of a pair's geometry key, so geometry made with the estimate is not reused.
 if(typeof globalThis.aimTargetList==='function'&&!globalThis.aimTargetList.plateauShapes){
@@ -2128,13 +2130,13 @@ const live=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxDurat
  const footprintGround=AstroNotesCandidateTerrain.createLive({geo:AstroNotesTerrain,maxTiles:160,maxDurationMs:120000,layers:[['dem',14]]});
 const groundPort={...AstroNotesTerrain,resetBudget:()=>live.resetBudget(),groundElevation:async(lat,lon,options={})=>{const r=await live.sample({latitude:lat,longitude:lon},options);return options.withSource?(Number.isFinite(r.height)?{elevation:r.height,source:r.layer}:null):r.height;}};
 // Places, woods and bridges from the bundled OSM extract (Overpass only if it cannot be read).
- const osmPlaces=globalThis.AstroNotesOsmPlaces?.create({load:loaded})||null;
+ const osmPlaces=globalThis.AstroNotesOsmPlaces?.create({load:loaded,base:dataBase+'osm-places/'})||null;
  const provider=AstroNotesCandidateDiscovery.createPlaceProvider({terrain:groundPort,fetchImpl:fetch.bind(globalThis),loadViewpoints:()=>loaded('candidate-viewpoints.json'),places:osmPlaces});
 let modelPromise=null;
 async function loadModel(){
  // Buildings: PLATEAU top heights (every city PLATEAU covers) along each line, GSI footprints elsewhere; the 3D band model is no longer loaded.
  if(!modelPromise)modelPromise=(async()=>{await AstroNotesAssets.ensureModels();const dem=await loaded('candidate-terrain.json').catch(()=>null);
-  const heights=AstroNotesCandidateHeights.create({loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,obstacles:osmPlaces?(a,b)=>osmPlaces.obstaclesAlong(a,b):null,gsiAlong:(a,b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
+  const heights=AstroNotesCandidateHeights.create({base:dataBase+'building-heights/',loadIndex:()=>loaded('building-heights/index.json'),ownFootprint:key=>plateauShapes?.footprint(key)||null,obstacles:osmPlaces?(a,b)=>osmPlaces.obstaclesAlong(a,b):null,gsiAlong:(a,b)=>AstroNotesTerrain.gsiBuildingsAlong(a,b),groundAt:p=>footprintGround.sample(p).then(r=>r.height)});
   return AstroNotesCandidateModel.createGeneric({align:AstroNotesAlign,bodies:AstroNotesBodies,geo:AstroNotesTerrain,terrain:live,heights,staticTerrain:dem?await AstroNotesCandidateTerrain.decode(dem):null,sidewalks:await loaded('candidate-sidewalks.json').catch(()=>null)});})().catch(e=>{modelPromise=null;throw e;});
  return modelPromise;
 }

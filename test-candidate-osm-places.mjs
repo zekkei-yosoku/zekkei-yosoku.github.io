@@ -4,7 +4,7 @@ import {createRequire} from 'node:module';
 import {gzipSync} from 'node:zlib';
 import {createHash} from 'node:crypto';
 const require=createRequire(import.meta.url);
-const O=require('./experiments/candidate-visibility/osm-places.js');
+const O=require('./src/features/candidates/osm-places.js');
 const E7=v=>Math.round(v*1e7);
 // Lines are stored as the first pair and then differences (tools/build-osm-places.mjs).
 const delta=g=>g.map((v,i)=>i<2?v:v-g[i-2]);

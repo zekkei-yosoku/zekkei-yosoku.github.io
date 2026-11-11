@@ -14,7 +14,7 @@
 <meta name="shape-tower-integrity" content="GENERATED">
 <meta name="shape-tower" content="astronotes-tower-models.js?v=0">
 <meta name="app-version" content="0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cyberjapandata.gsi.go.jp; font-src 'self'; connect-src 'self' https://cyberjapandata.gsi.go.jp https://cyberjapandata2.gsi.go.jp https://msearch.gsi.go.jp https://overpass-api.de https://z.overpass-api.de https://lz4.overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.open-meteo.com https://historical-forecast-api.open-meteo.com https://ensemble-api.open-meteo.com https://air-quality-api.open-meteo.com https://www.jma.go.jp https://nominatim.openstreetmap.org https://www.wikidata.org https://djlorenz.github.io https://celestrak.org https://zekkei-api.okayu-sorami.workers.dev http://localhost:8787 https://api.openstreetmap.org; object-src 'none'; base-uri 'none'; form-action 'none'">
 <style id="startupPaintStyle">@@include:src/styles/inline-01.css@@</style>
 <script id="startupPaintGate">@@include:src/startup/paint-gate.js@@</script>
 <!-- 検索エンジンに拾わせない。**これは「公開していない」という意味ではない。**
@@ -48,6 +48,62 @@
 </style>
 <link rel="stylesheet" href="astronotes-datetime-ui.css?v=0">
 <link rel="stylesheet" href="astronotes-map-workspace.css?v=0">
+<style id="trialPreviewControlsStyle">
+#exploreScenePanel #aimLook .trial-scene-toolbar:has(#exploreExternalMap){grid-template-columns:repeat(4,minmax(0,1fr))}
+#exploreScenePanel #exploreExternalMap{grid-column:3;grid-row:1;width:100%;min-width:0;height:56px;box-sizing:border-box;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;font-size:12px;line-height:1.2;font-weight:600;text-decoration:none}
+#exploreScenePanel #trialRecordSave{grid-column:2;grid-row:1}
+#trialRecordSave[hidden]{display:none!important}
+#exploreScenePanel #trialRecordSave svg{width:24px;height:24px;stroke-width:1.8}
+#trialRecordSaveSheet:not([open]){display:none}
+#trialRecordSaveSheet .sheet-body{display:grid;gap:10px}
+#exploreScenePanel #trialRecordSaveSheet [data-quick-save]{position:static;grid-column:auto;grid-row:auto;display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;width:100%;height:auto;min-height:56px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font-size:16px;text-align:left}
+#exploreScenePanel #trialRecordSaveSheet [data-quick-save]::after{content:none}
+#exploreScenePanel #trialRecordSaveSheet .sheet-head button{width:auto;min-width:44px;height:auto;min-height:44px;margin:0;padding:8px 12px;display:block;border:0;background:transparent;color:var(--accent);font-size:14px}
+#trialRecordSaveSheet [data-quick-save] svg{width:24px;height:24px;flex:none;stroke-width:1.8}
+#exploreScenePanel #exploreExternalMap svg{width:24px;height:24px;stroke-width:1.8}
+#exploreScenePanel .trial-composition-tool{position:absolute;right:8px;z-index:4;width:44px;min-width:44px;height:44px;min-height:44px;margin:0;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);box-shadow:none}
+#exploreScenePanel #trialCompositionToggle{top:64px}
+#exploreScenePanel #trialCompositionAdjust{top:118px}
+#exploreScenePanel #trialCompositionToggle[aria-pressed=true]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+#exploreScenePanel .trial-composition-tool[hidden]{display:none}
+/* 2026-11-11 ユーザー「右上のアイコンに並べる」: 天体に寄る／全体を入れる sits under 重ねる位置を指定 (and its numeric editor when shown). */
+#exploreScenePanel .preview-compose-toggle{position:absolute;top:118px;right:8px;z-index:4;width:44px;min-width:44px;height:44px;min-height:44px;margin:0;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);box-shadow:none}
+#exploreScenePanel .aim-look-figure:has(#trialCompositionAdjust:not([hidden])) .preview-compose-toggle{top:172px}
+#exploreScenePanel .preview-compose-toggle[aria-pressed=true]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+#exploreScenePanel .preview-compose-toggle svg{width:24px;height:24px;stroke-width:1.8}
+#trialComposition:not([open]){display:none}
+#trialComposition .sheet-body{display:grid;gap:14px;max-height:calc(82dvh - 54px)}
+#trialComposition .sheet-body>label{font-size:14px;line-height:1.5}
+#trialComposition .fav-in{display:block;width:100%;font-size:16px;min-height:44px;margin:6px 0 0}
+#trialComposition .trial-composition-presets{display:flex;flex-wrap:wrap;gap:8px}
+#trialComposition .trial-composition-presets .chip{min-height:44px;margin:0}
+#trialComposition .sheet-body>.fav-btn{min-height:44px}
+#trialCompositionInputStatus{margin:0;color:var(--text)}
+</style>
+<style>
+
+/* The forecast matrix remains one 14-day comparison surface. */
+#cards .cell[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:-2px}
+.forecast-selection-head,.forecast-selection-overview{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 10px}
+.forecast-selection-head .ph-head{margin:0;min-width:0;flex:1 1 auto}
+.forecast-selection-open{margin-left:auto;min-height:32px;color:var(--accent);font-size:.75rem;font-weight:700;white-space:nowrap}
+.forecast-selection-close{min-width:36px;min-height:36px;padding:0;color:var(--secondary);font-size:1.25rem}
+.forecast-selection-overview{margin-top:8px;font-size:.81rem}
+.forecast-selection-verdict{font-weight:700}.forecast-selection-score{margin-left:6px;color:var(--secondary);font-variant-numeric:tabular-nums}
+.forecast-selection-time{margin-top:6px;font-size:.94rem;font-weight:700;font-variant-numeric:tabular-nums}
+.forecast-selection-say{margin-top:6px;font-size:.81rem}
+.forecast-selection-bands{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+/* The mobile preview stays in view without moving the comparison table. It is not a modal. */
+@media(max-width:640px){
+ #cards:has(.forecast-selection){padding-bottom:min(280px,36dvh)}
+ .forecast-selection{position:fixed;z-index:20;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));margin:0;padding:10px 12px;max-height:min(260px,34dvh);overflow:auto;overscroll-behavior:contain;border:1px solid var(--line);box-shadow:0 4px 20px #0003}
+ .forecast-selection-head{display:grid;grid-template-columns:minmax(0,1fr) auto 36px;gap:4px}.forecast-selection-head .ph-head{flex-wrap:nowrap;align-items:center}
+ .forecast-selection-head .ph-head .nm{font-size:.94rem}
+ .forecast-selection-open,.forecast-selection-close{margin-left:0}
+ .forecast-selection-overview{margin-top:2px}.forecast-selection-bands{margin-top:6px;padding-top:6px}
+}
+
+</style>
 </head>
 <body>
 <svg aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute;overflow:hidden"><defs><symbol id="input-icon-body" viewBox="0 0 24 24"><path d="M12 2C13.2 9 15 10.8 21 12C15 13.2 13.2 15 12 22C10.8 15 9 13.2 3 12C9 10.8 10.8 9 12 2Z" fill="currentColor" stroke="none"/></symbol><symbol id="input-icon-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 1v6m0 10v6M1 12h6m10 0h6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></symbol><symbol id="input-icon-observer" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="10" rx="1.5"/><circle cx="12" cy="10" r="2.5"/><path d="m8 5 1.5-2h5L16 5m-4 10v8m0-6-6 6m6-6 6 6"/></symbol></defs></svg>
@@ -498,7 +554,8 @@
     <div id="recordsAccess" hidden><div class="sky-map-head"><h2>記録</h2></div><div class="card"><p id="recordsAccessMessage"></p><button id="recordsAccessLogin" class="fav-btn primary">ログイン</button></div></div>
     <div class="sky-map-head" id="recordsHeading"><h2>記録</h2></div>
     <!-- 2026-10-20 NOTEBOOK：撮影地点と予定のタブ（ユーザー「NOTEBOOK にして、タブは撮影地点と予定」） -->
-    <div class="forecast-tabs notebook-tabs" id="notebookTabs" role="tablist" aria-label="記録の表示"><button type="button" role="tab" id="notebookPointsTab" aria-selected="true" aria-controls="myRecordsHub">撮影地点</button><button type="button" role="tab" id="notebookPlansTab" aria-selected="false" aria-controls="scheduleHub" tabindex="-1">予定</button></div>
+    <div class="forecast-tabs notebook-tabs" id="notebookTabs" role="tablist" aria-label="記録の表示"><button type="button" role="tab" id="notebookPointsTab" aria-selected="true" aria-controls="myRecordsHub">撮影地点</button><button type="button" role="tab" id="notebookOpportunitiesTab" aria-selected="false" aria-controls="recordOpportunities" tabindex="-1">重なる日</button><button type="button" role="tab" id="notebookPlansTab" aria-selected="false" aria-controls="scheduleHub" tabindex="-1">予定</button></div>
+    <div id="recordOpportunities" class="card" role="tabpanel" aria-labelledby="notebookOpportunitiesTab" hidden></div>
     <div id="myRecordsHub" class="card" role="tabpanel" aria-labelledby="notebookPointsTab"></div>
     <div id="scheduleHub" class="card" role="tabpanel" aria-labelledby="notebookPlansTab" hidden></div>
 
@@ -1028,7 +1085,7 @@
 <script id="intuitiveControls">@@include:src/app/intuitive-controls.js@@</script>
 
 
-<script src="astronotes-explore.js?v=0"></script>
+<script src="astronotes-explore-simple.js?v=0"></script>
 <script id="startupPreference">@@include:src/startup/preferences.js@@</script>
 
 
@@ -1037,5 +1094,6 @@
 <script src="astronotes-myplaces.js?v=0"></script>
 <script src="astronotes-journey.js?v=0"></script>
 <script src="astronotes-map-workspace.js?v=0"></script>
+<script src="astronotes-candidate-search.js?v=0"></script>
 </body>
 </html>

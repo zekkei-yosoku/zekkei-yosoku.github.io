@@ -18,22 +18,27 @@ import {allowedTools,closeTools,markToolsCurrent,openTools,toolsAnim} from '../f
 // 地図の拡大・縮小は地図が pointer で自分で受ける（touch を止めても pointer は届く）。
 // touchmove は passive のままにする（ページ全体の touchmove を止められる形にすると、計算中にスクロールまで待たされる）。
 const SWIPE_EDGE_PX = 28;
+const previewEdgeCanvas=(target,x)=>{const canvas=target.closest?.('#exploreScenePanel canvas[data-look-canvas]');return canvas&&x<=SWIPE_EDGE_PX&&x<canvas.getBoundingClientRect().left;};
+document.addEventListener('pointerdown',e=>{
+ if(e.pointerType==='touch'&&e.isPrimary&&previewEdgeCanvas(e.target,e.clientX)&&!document.querySelector('dialog[open]')&&!(!$("toolsMenu").hidden&&$("toolsMenu").classList.contains('on'))&&globalThis.TrialExplore?.candidateWorkspace?.()?.beginBack?.())e.stopPropagation();
+},true);
 let swipe = null;
 document.addEventListener("touchstart", (e) => {
   // 2本目の指が下りたら、ページの拡大を止める（地図は pointer で自分で拡大する）
   if (e.touches.length > 1) { e.preventDefault(); swipe = null; return; }
   const t = e.touches[0];
   const open = !$("toolsMenu").hidden && $("toolsMenu").classList.contains("on");
+  const previewBack = !open && globalThis.TrialExplore?.candidateWorkspace?.()?.beginBack?.();
   if (open) {
     if (!e.target.closest("#toolsMenu, #toolsScrim")) return;
-  } else if (t.clientX > SWIPE_EDGE_PX || (isMenuPage() && $("toolsButton").hidden) || document.querySelector("dialog[open]")
-             || e.target.closest(".mapwrap, canvas, input, select:not(#sortSelect), textarea, .preview-footer-track")) {
+  } else if (t.clientX > SWIPE_EDGE_PX || (!previewBack && isMenuPage() && $("toolsButton").hidden) || document.querySelector("dialog[open]")
+             || (e.target.closest(".mapwrap, canvas, input, select:not(#sortSelect), textarea, .preview-footer-track") && !(previewBack && previewEdgeCanvas(e.target, t.clientX)))) {
     // ☰ が出ていない（使える道具が無い）ときは、なぞっても開かない
     return;
   }
   // 予測一覧は主要ページなのでメニューを開く（2026-10-31 ユーザー「予測一覧の場合はメニュー。予測の詳細の場合は一覧に戻る」）。Safariの戻るに渡さない。
-  if (!open && currentView === "list" && t.clientX <= 8 && e.cancelable) e.preventDefault();
-  swipe = { x0: t.clientX, y0: t.clientY, t0: e.timeStamp, open, back: !open && !isMenuPage(), active: false, p: open ? 1 : 0 };
+  if (!open && ((previewBack && t.clientX <= SWIPE_EDGE_PX) || (currentView === "list" && t.clientX <= 8)) && e.cancelable) e.preventDefault();
+  swipe = { x0: t.clientX, y0: t.clientY, t0: e.timeStamp, open, back: previewBack || (!open && !isMenuPage()), active: false, p: open ? 1 : 0 };
   if (e.target.addEventListener) followDetachedTouch(e.target);
 }, { passive: false });
 let moveSwipe = null;
@@ -68,7 +73,7 @@ const endSwipe = (e) => {
   const { p, v = 0, open, back, dx = 0 } = swipe;
   swipe = null;
   if (back) {
-    if (e?.type !== "touchcancel" && (dx >= 64 || (dx >= 24 && v > 0.4))) { swipeEndedAt = performance.now(); navigationHistory.goBack(); }
+    if (e?.type !== "touchcancel" && (dx >= 64 || (dx >= 24 && v > 0.4))) { swipeEndedAt = performance.now(); if (typeof back === "function") back(); else navigationHistory.goBack(); }
     return;
   }
   const menu = $("toolsMenu"), scrim = $("toolsScrim");

@@ -273,7 +273,7 @@ ok(/place\.eyeHeightAGL \?\? 1\.5\)\s*\};/.test(html), "そこで展望台の高
       ["地図で選ぶ・緯度経度", /choosePlace\(\{ id: `map:\$\{lat\.toFixed\(5\)\}/], ["お気に入り", /el\.onclick = \(\) => choosePlace\(favorites\[/]]) {
     ok(re.test(html), `地点の画面の「${what}」も、開いた目的の方へ渡す`);
   }
-  ok(/addEventListener\("close", \(\) => \{\s+(?:geoRequest\+\+;\s+)?favUndo = \[\];[\s\S]{0,200}placeSheetFor = null;/.test(html), "閉じたらAstroNotesの地点の画面に戻す（次に地点カードから開いたときに撮影地点を決めない）");
+  ok(/addEventListener\("close", \(\) => \{\s+(?:if \(\$\("placeSheet"\)\.open\) return;\s+)?(?:geoRequest\+\+;\s+)?favUndo = \[\];[\s\S]{0,200}placeSheetFor = null;/.test(html), "閉じたらAstroNotesの地点の画面に戻す（次に地点カードから開いたときに撮影地点を決めない）");
   // 「どこに重ねるか」と対で「撮影地点」。最初はAstroNotesの地点を引き継いで欄に入れる（ユーザー指定）
   // 2026-10-06 何を→何に→どこからの順で、1行ずつ文にして選ぶ（ユーザー「〇〇（選択）を重ねる。〇〇（選択）に重ねる。〇〇（選択）から重ねる。」）。
   // どこからを最後にしたのは、その日の候補地が何を・何に・日付で決まるから（10/01 は一番上、10/04 は2番目だった）
@@ -349,7 +349,7 @@ ok(/AstroNotesTerrain\.parseMapLink\(body\.url\)/.test(html),
   "座標の取り出しは画面側の parseMapLink（規則を2か所に置かない）");
 ok(!/\.aim-k\.moon \{[^}]*dashed/.test(html),
   "凡例の月は実線（点線は「稜線の裏」に取ってある）");
-ok(/if \(!bundle\) \$\("cards"\)\.innerHTML = renderSkeleton/.test(html),
+ok(/if \(!bundle\) \{ forecastSummary\?\.waiting\(\); \$\("cards"\)\.innerHTML = renderSkeleton/.test(html),
   "骨組みは最初の1回だけ（地点を変えたときは前の表を残す）");
 // 2026-09-07: 行を枠で囲う形は一度やって外した。大枠の中に小さい箱が並んで見える。
 // 区切りは線1本で、現象名の列の下まで伸ばす（セルの側だけに線が出ると、
@@ -431,7 +431,7 @@ console.log("== 文字の大きさは段から選ぶ ==");
 // （2026-09-28 の総点検で38か所。段の外が全体の4割）。**検査で止める。**
 {
   const SCALE = ["0.58", "0.63", "0.69", "0.72", "0.75", "0.81", "0.88", "0.94", "1", "1.1", "1.25", "1.44"];
-  const used = [...html.matchAll(/font-size:\s*([0-9.]+)rem/g)].map((m) => m[1]);
+  const used = [...html.matchAll(/font-size:\s*([0-9.]+)rem/g)].map((m) => m[1].replace(/^\./, "0."));
   const off = [...new Set(used)].filter((v) => !SCALE.includes(v));
   ok(off.length === 0, "段にない大きさを使わない", off.join("・"));
   ok(used.length > 50, "検査が空振りしていない", `${used.length}か所`);
@@ -643,7 +643,7 @@ ok(/太陽は必ず減光フィルターを付けて見てください。/.test(
 
 console.log("== 引き出しのスワイプ・地図のつまみ（2026-10-01） ==");
 // ユーザー「メニューについて左からスワイプで開くようにできたりしない？」
-ok(/const SWIPE_EDGE_PX = 28;/.test(html) && /t\.clientX > SWIPE_EDGE_PX \|\| \(isMenuPage\(\) && \$\("toolsButton"\)\.hidden\) \|\| document\.querySelector\("dialog\[open\]"\)/.test(html),
+ok(/const SWIPE_EDGE_PX = 28;/.test(html) && /t\.clientX > SWIPE_EDGE_PX \|\| \(!previewBack && isMenuPage\(\) && \$\("toolsButton"\)\.hidden\) \|\| document\.querySelector\("dialog\[open\]"\)/.test(html),
   "左の端からだけ（☰ が無い・シートが開いているときは開かない）");
 ok(/e\.target\.closest\("\.mapwrap, canvas, input, select:not\(#sortSelect\), textarea, \.preview-footer-track"\)/.test(html), "地図・3D・入力欄・下部の時間バーの上からは始めない（横に動かす部品と取り合わない）");
 ok(/menu\.style\.transform = `translateX\(\$\{\(swipe\.p - 1\) \* 100\}%\)`;/.test(html), "引き出しは指に付いてくる");
@@ -1352,7 +1352,7 @@ ok(!/点数が未検証なので/.test(html), "点数は検証済みなので未
 ok(/t\.allDay/.test(html), "ほぼ一日のときは別の言い方にする");
 ok(/一日を通して/.test(html), "絞れていないことを絞れたように見せない");
 ok(/前後の日へ続いている可能性があります/.test(html), "日をまたぐ場合を黙って切らない");
-ok(/href="#\/capCloud"/.test(html), "押すと笠雲の詳細へ行く");
+ok(!/href="#\/capCloud"/.test(html), "日付の無い笠雲の詳細へは飛ばさない（選んだ日の時間帯をその場で見せる）");
 
 console.log("== 写真から時刻を読む ==");
 // 3択より「いつ・どこで撮ったか」のほうが照合に使える。
@@ -1607,7 +1607,7 @@ ok(/data-undo="\$\{i\}"/.test(html) && /元に戻す/.test(html), "取り消し�
 ok(/const at = Math\.min\(u\.index, favorites\.length\);[\s\S]{0,60}favorites\.splice\(at, 0, u\.entry\)/.test(html),
   "元の位置へ戻す");
 ok(!/setTimeout[\s\S]{0,120}favUndo/.test(html), "取り消しを時間で消さない（押す前に消えるため）");
-ok(/addEventListener\("close", \(\) => \{\s+(?:geoRequest\+\+;\s+)?favUndo = \[\];/.test(html), "シートを閉じたら取り消しを確定する");
+ok(/addEventListener\("close", \(\) => \{\s+(?:if \(\$\("placeSheet"\)\.open\) return;\s+)?(?:geoRequest\+\+;\s+)?favUndo = \[\];/.test(html), "シートを閉じたら取り消しを確定する");
 ok(/closeFavSheet[\s\S]{0,160}confirm\(/.test(html), "入力途中で閉じるときだけ確認する");
 // 一覧の見え方をスポットと揃える（現象アイコン・都道府県/標高・メモ）。
 // 2026-10-01 から iconFor（月はその時の満ち欠け）で描く
@@ -1654,8 +1654,8 @@ ok(orphan.length === 0, "全スポットの主現象が定義済み", orphan.map
 console.log("== 行の並びが日をまたいでも動かない ==");
 // 「直近に起きる順」だと、7日ぶんを一度に見る表では意味が無いうえ、
 // 日をまたぐたびに行が入れ替わって目で追えなくなる。
-const sortBlock = html.slice(html.indexOf("const order = Object.keys(weeks).sort"),
-                             html.indexOf("const order = Object.keys(weeks).sort") + 600);
+const sortBlock = html.slice(html.indexOf("const order = Object.keys(weeks).filter"),
+                             html.indexOf("const order = Object.keys(weeks).filter") + 600);
 ok(!/\.peak/.test(sortBlock), "並びが発生時刻に依存していない");
 ok(/PHENOMENA\[a\]\.order - S\.PHENOMENA\[b\]\.order/.test(sortBlock), "固定順を使っている");
 // 寒さの2つは隣どうしで、いちばん下（2026-09-27 ユーザー指定）
@@ -2983,22 +2983,9 @@ ok(/\$\("photoPick"\)\.onclick = \(\) => openPhotoSheet\(null\)/.test(html), "�
     "選んだ種類はどの地図でも次から使う");
   ok(!/const AimMap = createMapView/.test(html) && /coord: "planeCoord"/.test(html) && !/coord: "issCoord"/.test(html), "構図の撮影地マップを廃止し、月丼とISSの用途別地図は維持する");
   ok(/<div class="coord-row" data-map="iss" hidden>[\s\S]{0,120}立つ場所の例/.test(html) && /function issCoordUpdate\(\)/.test(html), "ISS は選んでいる回の立つ場所の例");
-  const C = /const IS_APPLE[\s\S]*?const savedMapApp = [^\n]*\n/.exec(html)[0];
-  const env = (ua, saved) => new Function("navigator", "store", `${C}; return { coordText, MAP_APPS, mapAppChoices, savedMapApp };`)(
-    { userAgent: ua }, { get: () => saved });
-  const iphone = env("Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X)", "google");
-  const android = env("Mozilla/5.0 (Linux; Android 15)", "apple");
-  const win = env("Mozilla/5.0 (Windows NT 10.0)", null);
-  ok(iphone.mapAppChoices().join() === "apple,google" && /この端末の標準/.test(iphone.MAP_APPS.apple.name), "iPhone は Apple マップ（この端末の標準）と Google マップ");
-  ok(android.mapAppChoices().join() === "device,google" && win.mapAppChoices().join() === "google,apple", "Android は端末の地図アプリと Google、ほかは Google と Apple");
-  ok(iphone.savedMapApp() === "google" && android.savedMapApp() === null, "覚えたアプリは、その端末で選べるものだけ使う");
-  const tt = iphone.coordText({ latitude: 35.734921, longitude: 139.642318 });
-  ok(tt === "35.73492, 139.64232", "座標は小数第5位（約1m）", tt);
-  ok(iphone.MAP_APPS.google.url(tt) === "https://www.google.com/maps/search/?api=1&query=35.73492%2C%20139.64232"
-    && iphone.MAP_APPS.apple.url(tt).startsWith("https://maps.apple.com/?ll=35.73492,139.64232&q=")
-    && android.MAP_APPS.device.url(tt) === "geo:35.73492,139.64232?q=35.73492,139.64232", "それぞれの地図アプリの開き方");
-  ok(/<label class="map-app-remember"><input type="checkbox" id="mapAppRemember">次からもこのアプリで開く<\/label>/.test(html)
-    && /store\.set\("sorami\.mapApp", \$\("mapAppRemember"\)\.checked \? k : null\);/.test(html), "「次からもこのアプリで開く」で覚え、外して選べば忘れる");
+  // 地図アプリの選び方・覚え方は外部アプリの持ち主（AstroNotesPlan.createExternalApps、test-external-apps.mjs）へ移した。
+  ok(/const MAP_APPS=AstroNotesPlan\.externalApps\.mapApps;/.test(html) && /const savedMapApp=\(\)=>AstroNotesPlan\.externalApps\.get\('map'\);/.test(html)
+    && /const coordText=c=>c\.latitude\.toFixed\(5\)\+', '\+c\.longitude\.toFixed\(5\);/.test(html), "地図アプリは外部アプリの持ち主から受け取り、座標は小数第5位（約1m）");
   ok(/if \(app\) openMapApp\(app, t\); else openMapAppSheet\(t\);/.test(html), "覚えていれば聞かずに開く");
   ok(/row\.querySelector\("\[data-map-app-change\]"\)\.hidden = !app;/.test(html), "覚えているときだけ選び直す釦");
   // 2026-10-21: ページとして開く画面は、開く前に形を整え（preparePage）、開いたあとに履歴を積む（pageOpened）
@@ -3258,7 +3245,7 @@ console.log("== 撮影地点で、この日の候補地から選ぶ（2026-10-06
   ok(/const t = coordText\(c\.stand\), a = savedMapApp\(\);\n      if \(a\) openMapApp\(a, t\); else openMapAppSheet\(t\);/.test(sheetFn)
     && !/data-sheet-cand-app[\s\S]{0,400}placeSheet"\)\.close/.test(sheetFn.slice(sheetFn.indexOf("[data-sheet-cand-app]"))),
     "開くのは候補地の立つ点。地点の画面は閉じない（続けてほかの候補地も確かめられる）");
-  ok(/renderCoordRows\(\);\n      aimRefreshSheetCands\(\);/.test(html), "アプリを覚えたら候補地の釦の名前も替える");
+  ok(/onMapChange:\(\)=>\{renderCoordRows\(\);aimRefreshSheetCands\(\);\}/.test(html), "アプリを覚えたら候補地の釦の名前も替える");
   ok(/function aimRenderCands\(\) \{\n  aimRenderCandList\(\);\n  aimRefreshSheetCands\(\);\n\}/.test(html)
     && /function aimRefreshSheetCands\(\) \{\n  if \(\$\("placeSheet"\)\.open && placeSheetFor === "aim"\) aimRenderSheetCands\(\);\n\}/.test(html),
     "撮影地の一覧と地点の画面の候補地は同じ候補で描き直す（開いている間に探し終わったら出る）");

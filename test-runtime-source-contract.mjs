@@ -10,8 +10,8 @@ test('no client-side user grants table or removed independent sky screen is hidd
 });
 test('old cached HTML needs no new script: factory and view share the existing synchronous asset',()=>{
  assert(!scripts.includes('astronotes-planning-session.js'));
- const explore=readFileSync(new URL('./astronotes-explore.js',import.meta.url),'utf8');
+ const explore=readFileSync(new URL('./astronotes-explore-simple.js',import.meta.url),'utf8');
  assert(explore.indexOf('global.AstroNotesPlanningSession = api')<explore.indexOf('const plan=AstroNotesPlanningSession.create('));
- assert(!/<script[^>]*(?:\basync|\bdefer|type="module")[^>]*src="astronotes-explore/.test(html));
- assert.equal(scripts.filter(x=>x==='astronotes-explore.js').length,1);
+ assert(!/<script[^>]*(?:\basync|\bdefer|type="module")[^>]*src="astronotes-explore-simple/.test(html));
+ assert.equal(scripts.filter(x=>x==='astronotes-explore-simple.js').length,1);
 });

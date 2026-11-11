@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {beforePromotion} from './before-promotion.mjs';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {createNativeGroundPoint} from './native-ground-point.mjs';
-import {patchNativeGroundPoint} from './build-native-ground-point.mjs';
 
 const terrainSource=readFileSync(new URL('../astronotes-terrain.js',import.meta.url),'utf8');
 const astroSource=readFileSync(new URL('../astronotes-astro.js',import.meta.url),'utf8');
@@ -62,7 +62,7 @@ function load({native=true,fetchImpl=async()=>tileResponse(),disk=new Map(),cach
   ...(bitmap?{createImageBitmap:async blob=>({...await imageFor(blob),close(){}})}:{}),
   document:{createElement:()=>{let image;return {getContext:()=>({drawImage:i=>{image=i.pixels||i;},getImageData:()=>image})};}}
  });
- vm.runInContext(astroSource,context);vm.runInContext(native?patchNativeGroundPoint(terrainSource):terrainSource,context);
+ vm.runInContext(astroSource,context);vm.runInContext(native?terrainSource:beforePromotion('astronotes-terrain.js'),context);
  return {terrain:context.AstroNotesTerrain,calls,images,disk,blobs,advance:ms=>now+=ms};
 }
 
@@ -142,5 +142,4 @@ test('unknown native data and unavailable API retain the original tile fallback;
   const unavailable=async()=>new Response('',{status:500});
   const v=await b.terrain.groundElevation(35,139,{withSource:true,fetchImpl:unavailable});assert.deepEqual(plain(v),{elevation:123.45,source:'標高タイル'});
  }
- assert.throws(()=>patchNativeGroundPoint(patchNativeGroundPoint(terrainSource)),/boundary changed/);
 });

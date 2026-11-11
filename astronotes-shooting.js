@@ -76,12 +76,12 @@ function shapePaths(value){
  return paths;
 }
 async function shapeCandidates(p,entry,deps){
- const {align,isMountain,observerAt,elevationAt,viewFor,isCurrent=()=>true,onProgress=()=>{}}=deps,s=cleanShape(entry.place.shape);
+ const {align,isMountain,observerAt,elevationAt,viewFor,yieldTask,isCurrent=()=>true,onProgress=()=>{}}=deps,s=cleanShape(entry.place.shape);
  if(!s)throw Error('shape-invalid');const paths=shapePaths(s),start=day(p.at),memo=new Map(),rows=[];let missing=0,steps=0;const began=Date.now();
  const check=()=>{if(!isCurrent())throw Error('shape-cancelled');if(Date.now()-began>45000)throw Error('shape-limit');};
  const evaluate=async position=>{
   check();const key=position.latitude.toFixed(9)+','+position.longitude.toFixed(9);if(memo.has(key))return memo.get(key);
-  if(++steps%8===0){onProgress({checked:steps});await new Promise(r=>setTimeout(r,0));check();}
+  if(++steps%8===0||yieldTask){if(steps%8===0)onProgress({checked:steps});await (yieldTask?yieldTask():new Promise(r=>setTimeout(r,0)));check();}
   // Every candidate has its own DEM. Anchor elevation/manual ground never leaks along a path.
   const ground=await elevationAt(position.latitude,position.longitude);check();
   if(!Number.isFinite(ground)){missing++;memo.set(key,null);return null;}
@@ -91,9 +91,9 @@ async function shapeCandidates(p,entry,deps){
   const events=view?probes:(!o.disc||o.broad)&&align.dailyView?probes:eventsFor(p,obs,start,{align,isMountain});
   if(o.broad)for(const e of events){e.matchMode='overlap';e.partId=o.partId;}
   const result={place:f,events,probes};memo.set(key,result);
-  for(const e of events)if(e.at>=start&&e.at<start+DAY&&e.spatialMatched!==false&&(!Number.isFinite(e.altitude)||o.disc||e.altitude>0)&&matches(e,p,isMountain)&&(p.body!=='moon'||e.sunAltitude<0)&&shapeContains(s,f)){
+  for(const e of events)if(e.at>=start&&e.at<start+DAY&&e.spatialMatched!==false&&(!Number.isFinite(e.altitude)||o.disc||e.altitude>0)&&matches(e,p,isMountain)&&shapeContains(s,f)){
    // Keep distinct positions, but avoid thousands of indistinguishable pins.
-   if(!rows.some(r=>r.event.side===e.side&&meters(r.place,f)<40&&Math.abs(r.event.at-e.at)<120000))rows.push({place:f,record:entry.record,event:e,shapeType:s.type});
+   if(!rows.some(r=>r.event.side===e.side&&meters(r.place,f)<40&&Math.abs(r.event.at-e.at)<120000))rows.push({place:f,record:entry.record,event:e,assumedObserver:obs,shapeType:s.type});
   }
   return result;
  };
@@ -116,23 +116,23 @@ async function shapeCandidates(p,entry,deps){
  check();return {rows,missing,checked:memo.size,stepM:SHAPE_STEP_M};
 }
 
-async function candidates(plan,points,{align,isMountain,observerAt,elevationAt,ensure,viewFor,isCurrent=()=>true,onProgress=()=>{}}={}){
+async function candidates(plan,points,{align,isMountain,observerAt,elevationAt,ensure,viewFor,yieldTask,isCurrent=()=>true,onProgress=()=>{}}={}){
  const p=conditions(plan);if(!p)return {rows:[],failed:0};
  const issues=[];let checked=0;
  await ensure(p.body);const start=day(p.at),rows=[];let failed=0;
  for(const entry of points){
-  await new Promise(resolve=>setTimeout(resolve,0));if(!isCurrent())return {rows:[],failed:0,cancelled:true};
+  await (yieldTask?yieldTask():new Promise(resolve=>setTimeout(resolve,0)));if(!isCurrent())return {rows:[],failed:0,cancelled:true};
   try{
    const f=entry.place;
-   if(f.shape){const result=await shapeCandidates(p,entry,{align,isMountain,observerAt,elevationAt,viewFor,isCurrent,onProgress});rows.push(...result.rows);checked+=result.checked;if(result.missing){failed++;issues.push({id:f.id,reason:'elevation',count:result.missing});}continue;}
+   if(f.shape){const result=await shapeCandidates(p,entry,{align,isMountain,observerAt,elevationAt,viewFor,yieldTask,isCurrent,onProgress});rows.push(...result.rows);checked+=result.checked;if(result.missing){failed++;issues.push({id:f.id,reason:'elevation',count:result.missing});}continue;}
    const ground=Number.isFinite(f.groundManualM)?f.groundManualM:Number.isFinite(f.elevation)?f.elevation:await elevationAt(f.latitude,f.longitude);
    if(!Number.isFinite(ground))throw Error('missing elevation');
    const obs=observerAt(f,ground),view=viewFor?await viewFor(obs,p):null;
    if(!isCurrent())return {rows:[],failed:0,cancelled:true};
    const events=eventsFor(p,obs,start,{align,isMountain,view});
    for(const e of events){
-    if(e.at<start||e.at>=start+DAY||!matches(e,p,isMountain)||(p.body==='moon'&&!(e.sunAltitude<0)))continue;
-    rows.push({place:f,record:entry.record,event:e});
+    if(e.at<start||e.at>=start+DAY||!matches(e,p,isMountain))continue;
+    rows.push({place:f,record:entry.record,event:e,assumedObserver:obs});
    }
   }catch(e){if(!isCurrent()||e.message==='shape-cancelled')return {rows:[],failed:0,cancelled:true};failed++;issues.push({id:entry.place.id,reason:e.message==='shape-limit'?'limit':e.message==='shape-invalid'?'invalid':'calculation'});}
  }

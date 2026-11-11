@@ -9,7 +9,7 @@ test('記録（見えたもの・線や範囲・予定）を同期の送受信�
  assert.match(h,/records: recs\.map\(\(\{ sent, \.\.\.r \}\) => r\)/,'送る');
  assert.match(h,/records\(\)\.apply\(got\.records\)/,'受け取る');
  assert.match(h,/state\.syncInfo\.records === 1 \? \(state\.syncInfo\.rev \|\| 0\) : 0/,'初めては最初から取り直す');
- assert.match(h,/store\.setWriteHook\(key=>RecordSync\.touched\(key\)\)/,'保存したら送る');
+ assert.match(h,/store\.setWriteHook\(key=>\{RecordSync\.touched\(key\);/,'保存したら送る');
  assert.match(m,/addEventListener\('sorami:records-synced'/,'届いたら記録の画面を描き直す');
  assert.match(m,/RecordSync\.kick\(\)/,'記録の一括保存のあとも送る');
  assert.doesNotMatch(m+fs.readFileSync(new URL('./astronotes-schedule.js',import.meta.url),'utf8'),/APIは未対応|同期はしない/,'古い説明を残さない');

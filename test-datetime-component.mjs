@@ -9,9 +9,8 @@ test('日時バーの寸法は共通CSSだけで管理し全消費先に配信�
  const inline=[...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)].map(m=>m[1]).join('\n');
  for(const source of [inline,read('astronotes-almanac-home.css')])assert.doesNotMatch(source,/\.tool-datetime|\.aim-date|#(?:almanacDateRow|almanacCalendarOpen|aimCalendarOpen)(?![A-Za-z])/,'画面別寸法指定を戻さない');
  assert.match(css,/grid-template-columns:44px max-content 44px 56px 40px 44px 40px/);
- const trialCss=read('trial/astronotes-datetime-ui.css');
- // Trial may improve the shared calendar's narrow selects; all bar geometry stays byte-identical.
- assert.equal(trialCss.slice(0,css.length),css);
- assert.match(trialCss.slice(css.length).trim(),/^\.tool-date-calendar \.aim-cal-nav select\.fav-in\{[^{}]*\}$/);
+ // The shared calendar's narrow selects are the last rule; the trial is a copy.
+ assert.match(css.trim().split('\n').at(-1),/^\.tool-date-calendar \.aim-cal-nav select\.fav-in\{[^{}]*\}$/);
+ assert.equal(read('trial/astronotes-datetime-ui.css'),css);
  for(const asset of ['astronotes-datetime-ui.js','astronotes-home-time.js'])assert.equal(read('trial/'+asset),read(asset));
 });

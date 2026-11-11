@@ -3,7 +3,7 @@ import {accessState,apiTransport,auth,pushQueue,syncError,syncInfo} from './sess
 import {renderAuthButton,toItem} from './status.js';
 import {RecordSync} from './record-sync.js';
 // 記録の保存（記録・予定の画面のどちらで書いても）を拾って送る
-store.setWriteHook(key=>RecordSync.touched(key));
+store.setWriteHook(key=>{RecordSync.touched(key);if(key==="sorami.favorites")document.dispatchEvent(new Event("astronotes-records-change"));});
 
 // 送信待ち・同期・受信は src/services/account-sync.js。状態は写さず、毎回ここの変数を読み書きする。
 // 関数宣言の巻き上げを保つため、初回呼出しで1つだけ作る（作るだけでは保存・通信・描画をしない）。

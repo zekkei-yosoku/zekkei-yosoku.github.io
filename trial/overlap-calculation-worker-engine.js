@@ -6983,7 +6983,7 @@ async function recordShapeOpportunity(session,p,place,record,solver,live){
    for(const e of events){
     if(o.broad){e.matchMode='overlap';e.partId=o.partId;}
     if(!(e.at>=start&&e.at<start+DAY&&e.spatialMatched!==false&&(!Number.isFinite(e.altitude)||o.disc||e.altitude>0)&&S.matches(e,p,aimIsMountain)&&S.shapeContains(s,f)))continue;
-    // The trial keeps daytime moons (build-candidate-trial). One row per side of the day:
+    // Daytime moons are kept. One row per side of the day:
     // the position where the body sits deepest in the outline.
     const now=best.get(e.side);
     if(!now||e.distanceToTarget<now.event.distanceToTarget||e.distanceToTarget===now.event.distanceToTarget&&e.at<now.event.at)best.set(e.side,{place:f,record,event:e,assumedObserver:obs,shapeType:s.type});

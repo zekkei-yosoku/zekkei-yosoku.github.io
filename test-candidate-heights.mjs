@@ -4,7 +4,7 @@ import {createRequire} from 'node:module';
 import {gzipSync} from 'node:zlib';
 import {createHash} from 'node:crypto';
 const require=createRequire(import.meta.url);
-const H=require('./experiments/candidate-visibility/height-grid.js');
+const H=require('./src/features/candidates/height-grid.js');
 const ROWS=185,COLS=225,CODE='53394654',MY=4285,MX=11184;
 
 // The file format written by tools/build-plateau-heights.py: gzip of the low then high bytes of row-wise differences.

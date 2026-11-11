@@ -29,11 +29,11 @@ test("連続する重なる日を代表日にまとめず全日表示する",()=
  const grouped=AL.upcoming(obs,target,"sun",{from:Date.parse("2026-12-01T00:00:00+09:00"),days:31,limit:Infinity,partId:"summit",stepMs:3600000});
  assert.equal(grouped.length,1); assert.ok(grouped[0].dayCount>1);
 });
-test("JST月境界とうるう月・月の昼間除外",()=>{
+test("JST月境界とうるう月・月は昼間も含める",()=>{
  let opts;const start=Date.parse("2028-02-01T00:00:00+09:00"),end=Date.parse("2028-03-01T00:00:00+09:00");
  const row=at=>({at,gap:0,radius:1,sunAltitude:-1});
  const {c}=setup({upcoming(o,t,b,x){opts=x;return [row(start-1),row(start),{...row(start+1),sunAltitude:1},row(end-1),row(end)]}});
- assert.equal(c.rows({}, {}, "moon",2028,1,"summit").length,2);
+ assert.equal(c.rows({}, {}, "moon",2028,1,"summit").length,3);
  assert.equal(opts.days,29);assert.equal(opts.from,start);assert.equal(opts.groupDays,false);assert.equal(opts.limit,Infinity);
  const grid=c.grid(2028,1,new Map([[start,[{...row(start),side:"set"}]]]),start,start);
  assert.equal((grid.match(/data-cal-day=/g)||[]).length,29);assert.equal((grid.match(/has-event/g)||[]).length,1);

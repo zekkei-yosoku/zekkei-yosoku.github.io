@@ -1,12 +1,11 @@
 import {preferRecordHeight} from './tools/record-height-preference.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync,writeFileSync} from 'node:fs';import {createRequire} from 'node:module';import {performance} from 'node:perf_hooks';
-import {createRecordHeightCandidates} from './tools/record-height-candidates.mjs';import {createRecordHeightPolicy} from './tools/record-height-policy.mjs';import {scanRecordHeights} from './tools/record-height-scan.mjs';import {patchAlignHeightGeometry,patchAtmosphereHeightBounds} from './tools/build-record-height-geometry.mjs';
-const H=createRecordHeightPolicy(),require=createRequire(import.meta.url),DAY=86400000,start=Date.parse('2026-11-25T00:00:00+09:00'),clock=Date.parse('2026-11-06T09:02:00+09:00');
+import {createRecordHeightCandidates} from './tools/record-height-candidates.mjs';import {createRecordHeightPolicy} from './tools/record-height-policy.mjs';import {scanRecordHeights} from './tools/record-height-scan.mjs';const H=createRecordHeightPolicy(),require=createRequire(import.meta.url),DAY=86400000,start=Date.parse('2026-11-25T00:00:00+09:00'),clock=Date.parse('2026-11-06T09:02:00+09:00');
 function environment(models=false){
  class FixedDate extends Date{static now(){return clock;}}
  const c=vm.createContext({setTimeout,clearTimeout,URL,URLSearchParams,console,AbortController,Date:FixedDate,performance,require});
  for(const name of ['astronotes-astro.js','astronotes-refraction.js','astronotes-atmosphere.js','astronotes-terrain.js','astronotes-bodies.js',...(models?['astronotes-city-models.js','astronotes-tower-models.js']:[]),'astronotes-align.js','astronotes-shooting.js']){
-  let source=readFileSync(name,'utf8');if(name==='astronotes-align.js')source=patchAlignHeightGeometry(source.replace('rimOutline, judge','rimOutline, rimPoints, judge'));if(name==='astronotes-atmosphere.js')source=patchAtmosphereHeightBounds(source);if(name==='astronotes-shooting.js')source=source.replaceAll("&&(p.body!=='moon'||e.sunAltitude<0)",'').replace("||(p.body==='moon'&&!(e.sunAltitude<0))",'');vm.runInContext(source,c,{filename:name});
+  let source=readFileSync(name,'utf8');if(name==='astronotes-align.js')source=(source.replace('rimOutline, judge','rimOutline, rimPoints, judge'));if(name==='astronotes-atmosphere.js')source=(source);if(name==='astronotes-shooting.js')source=source.replaceAll("&&(p.body!=='moon'||e.sunAltitude<0)",'').replace("||(p.body==='moon'&&!(e.sunAltitude<0))",'');vm.runInContext(source,c,{filename:name});
  }
  const e={align:c.AstroNotesAlign,shooting:c.AstroNotesShooting,astro:c.AstroNotesAstro,atmosphere:c.AstroNotesAtmosphere,terrain:c.AstroNotesTerrain,bodies:c.AstroNotesBodies};e.atmosphere.configure('auto');return e;
 }

@@ -3,26 +3,17 @@ import assert from 'node:assert/strict';
 import {readFileSync,existsSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {createRequire} from 'node:module';
-import {execFileSync} from 'node:child_process';
 const require=createRequire(import.meta.url),read=name=>readFileSync(new URL(name,import.meta.url),'utf8');
 test('cached HTML legacy assets retain their original bytes and canonical assets exist in root and trial',()=>{
  const {sha256}=JSON.parse(read('legacy-assets.json'));
  const experiments=JSON.parse(read('trial/ui-experiment.json')).files;
- const candidate=JSON.parse(read('trial/candidate-experiment.json'));
- const candidateDerived=new Set(['astronotes-align.js','astronotes-shooting.js','astronotes-myplaces.js','astronotes-plan.js']);
- // 2026-11-10/11 the trial also generates the target editor (PLATEAU buildings list) and the page title bands (EXPLORE/NOTES).
- const candidateGenerated=new Set(['astronotes-astro.js','astronotes-atmosphere.js','astronotes-library.js','astronotes-scroll-timeline.js','astronotes-terrain.js','astronotes-target-ui.js','astronotes-flair.css']);
- let generated;
  const allowed=new Set(['astronotes-explore.js','astronotes-myplaces.js','astronotes-plan.js','astronotes-camera-ui.js','astronotes-flair.css']);
  const digest=value=>createHash('sha256').update(value).digest('hex');
  for(const [old,hash] of Object.entries(sha256)){
   const name=old.replace(/^sorami-/,'astronotes-');
   for(const prefix of ['','trial/'])assert.equal(createHash('sha256').update(readFileSync(new URL(prefix+old,import.meta.url))).digest('hex'),hash,prefix+old);
-  if(candidateDerived.has(name)){assert.equal(digest(read(name)),candidate.productionAssetsSha256[name],name+' production source');assert.equal(digest(read('trial/'+name)),candidate.files[name],name+' trial-only derivative');assert.equal(candidate.productionHtmlSha256,digest(read('index.html')));}
-  // The candidate trial derives these assets from root (exact memoization, geometry, and trial controls).
-  // Compare generator bytes, rather than requiring an explicitly listed derivative to equal root bytes.
-  else if(candidateGenerated.has(name)){generated??=JSON.parse(execFileSync(process.execPath,['tools/build-candidate-trial.mjs'],{cwd:new URL('.',import.meta.url),encoding:'utf8',maxBuffer:32*1024*1024}));assert.equal(read('trial/'+name),generated[name],name+' generated trial');assert.equal(digest(read('trial/'+name)),candidate.files[name],name+' trial manifest');}
-  else if(experiments[name]){assert.equal(digest(read(name)),experiments[name].root,name+' base');assert.equal(digest(read('trial/'+name)),experiments[name].trial,name+' trial');}
+  // The trial is a copy of the public app: every canonical asset has the same bytes in both places.
+  if(experiments[name]){assert.equal(digest(read(name)),experiments[name].root,name+' base');assert.equal(digest(read('trial/'+name)),experiments[name].trial,name+' trial');}
   else assert.equal(read(name),read('trial/'+name),name);
  }
  for(const name of Object.keys(experiments)){assert.ok(allowed.has(name),name+' is approved for this trial');assert.ok(sha256[name.replace(/^astronotes-/,'sorami-')]||name==='astronotes-camera-ui.js',name+' is a canonical legacy successor or the approved camera trial');assert.equal(digest(read(name)),experiments[name].root,name+' base');assert.equal(digest(read('trial/'+name)),experiments[name].trial,name+' trial');}
@@ -41,6 +32,8 @@ test('brand migration retains existing persistence and protocol identifiers',()=
  for(const old of Object.keys(sha256).filter(n=>n.endsWith('.js'))){
   // Only the disposable forecast cache changes version. Accounts, records, and all other keys stay stable.
   const expected=identifiers(read(old)).map(id=>old==='sorami-prediction.js'&&id==='sorami-predictions-twilight-v1'?'sorami-predictions-quality-20261107-v1':id).sort();
-  assert.deepEqual(identifiers(read(old.replace(/^sorami-/,'astronotes-'))),expected,old);
+  // Features added since use further keys and repeat existing ones; none of the earlier identifiers may disappear.
+  const current=new Set(identifiers(read(old.replace(/^sorami-/,'astronotes-'))));
+  assert.deepEqual(expected.filter(id=>!current.has(id)),[],old);
  }
 });

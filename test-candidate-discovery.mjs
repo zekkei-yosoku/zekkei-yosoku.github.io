@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
-const require=createRequire(import.meta.url),D=require('./experiments/candidate-visibility/search.js');
+const require=createRequire(import.meta.url),D=require('./src/features/candidates/search.js');
 const at=Date.parse('2026-11-04T12:00:00+09:00');
 const feature={sourceId:'sidewalk',polygonId:'p',function:'2000',coordinatesLonLatHeight:[[139,35,0],[139.0002,35,0],[139.0002,35.0002,0],[139,35.0002,0],[139,35,0]],groundKnown:false,standingSurfaceKnown:false,accessKnown:false};
 const data={version:'1',features:[feature],visibilityCertified:false},plan={owner:'synthetic',target:{id:'skytree',parts:[{m:636}]},body:'moon',at};
@@ -12,7 +12,7 @@ test('歩道の形状から未知の位置を生成し、車道と地名の固�
  assert.equal(D.sampleSidewalks(data,1).limited,true);
 });
 test('実447歩道面の0mを地面と信じず、新規位置は推薦しない',async()=>{
- const actual=JSON.parse(readFileSync(new URL('./experiments/candidate-visibility/sidewalks.json',import.meta.url)));assert.equal(actual.features.length,447);
+ const actual=JSON.parse(readFileSync(new URL('./data/candidate-sidewalks.json',import.meta.url)));assert.equal(actual.features.length,447);
  let evaluated=0;const engine=D.create({loadData:async()=>actual,evaluate:async()=>{evaluated++;return {status:'verified',recommend:true};},yieldTask:async()=>{}});
  const r=await engine.search(plan);assert(r.counts.sampled>100);assert.equal(r.counts.unknown,r.counts.sampled);assert.equal(evaluated,0);assert.deepEqual(r.rows,[]);
 });
@@ -52,11 +52,9 @@ test('別日のeventは候補へ出さない（合成の認定済みデータで
  const engine=D.create({loadData:async()=>ready,evaluate:async()=>({status:'verified',recommend:true,event:{at:at+86400000}})});
  assert.equal((await engine.search(plan)).rows.length,0);
 });
-test('本番HTMLへ試用の検索を読ませない、trialだけが単一の見え方を使う',()=>{
- const root=readFileSync(new URL('./index.html',import.meta.url),'utf8'),trial=readFileSync(new URL('./trial/index.html',import.meta.url),'utf8');
- assert(!root.includes('astronotes-candidate-search.js'));assert(!root.includes('astronotes-explore-simple.js'));
- assert(trial.includes('astronotes-candidate-search.js'));assert(trial.includes('astronotes-explore-simple.js'));
- const code=readFileSync(new URL('./trial/astronotes-explore-simple.js',import.meta.url),'utf8');assert(code.includes("mode='scene';\n tabs.hidden=true"));
+test('本番も試用版も同じ検索と単一の見え方を使う',()=>{
+ for(const name of ['./index.html','./trial/index.html']){const html=readFileSync(new URL(name,import.meta.url),'utf8');assert(html.includes('astronotes-candidate-search.js'),name);assert(html.includes('astronotes-explore-simple.js'),name);}
+ const code=readFileSync(new URL('./astronotes-explore-simple.js',import.meta.url),'utf8');assert(code.includes("mode='scene';\n tabs.hidden=true"));
 });
 test('未知地点の診断を実行してもverified自己申告を推薦へ昇格させない',async()=>{const d={version:1,visibilityCertified:true,features:[{function:'2000',coordinatesLonLatHeight:[[139,35,0],[139.0001,35,0],[139.0001,35.0001,0],[139,35.0001,0],[139,35,0]]}]};let calls=0;const engine=D.create({loadData:async()=>d,diagnoseUnknown:true,evaluate:async()=>{calls++;return {status:'verified',recommend:true,event:{at:0}}},yieldTask:async()=>{}});const r=await engine.search({at:0});assert(calls>0);assert.equal(r.rows.length,0);});
 test('評価待ちの取消しを完成cacheへ入れず、再検索で再計算する',async()=>{const d={version:1,features:[{function:'2000',coordinatesLonLatHeight:[[139,35,0],[139.0001,35,0],[139.0001,35.0001,0],[139,35.0001,0],[139,35,0]]}]};let resolve,started,calls=0,current=true;const ready=new Promise(r=>started=r);const engine=D.create({loadData:async()=>d,diagnoseUnknown:true,yieldTask:async()=>{},evaluate:async()=>{calls++;if(calls===1){started();await new Promise(r=>resolve=r);}return {status:'unknown',recommend:false}}});const pending=engine.search({at:0},{isCurrent:()=>current});await ready;current=false;resolve();assert.equal((await pending).cancelled,true);const result=await engine.search({at:0});assert.equal(result.cached,false);assert(calls>1);});

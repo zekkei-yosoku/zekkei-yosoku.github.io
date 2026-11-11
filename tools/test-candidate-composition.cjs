@@ -12,7 +12,7 @@ function installCompositionFixture(tools){
  sessionStorage.setItem('sorami.token',JSON.stringify({token:'synthetic-composition',loginId:'composition-test',tools}));
  window.compositionFixture={loads:0,plans:[],tested:[]};
  let terrain,discovery,terrainData;
- const recordedTerrain=()=>terrainData||(terrainData=fetch('data/candidate-terrain.json').then(r=>r.json()).then(data=>terrain.decode(data)));
+ const recordedTerrain=()=>terrainData||(terrainData=fetch((document.querySelector('meta[name="astronotes-data-base"]')?.content||'data/')+'candidate-terrain.json').then(r=>r.json()).then(data=>terrain.decode(data)));
  Object.defineProperty(window,'AstroNotesCandidateTerrain',{configurable:true,get:()=>terrain,set:api=>{
   terrain=api;let factory;
   Object.defineProperty(api,'createLive',{configurable:true,get:()=>factory,set:()=>{factory=()=>({resetBudget(){},at:async p=>(await recordedTerrain()).at(p),sample:async p=>(await recordedTerrain()).sample(p),trace:async(p,ray)=>(await recordedTerrain()).trace(p,ray)});}});

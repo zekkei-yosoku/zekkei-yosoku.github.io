@@ -30,7 +30,7 @@ test('壊れた行・検証に通らない値・開始日時の無い保存は�
 });
 test('画面：記録の帯、撮影地点／予定のタブ、予定シートの保存ボタン、予定タブでは＋を隠す',()=>{
  const h=sourceHtml(),p=fs.readFileSync(new URL('./astronotes-plan.js',import.meta.url),'utf8'),c=fs.readFileSync(new URL('./astronotes-flair.css',import.meta.url),'utf8');
- assert.match(h,/role="tab" id="notebookPointsTab"[^>]*>撮影地点<\/button><button[^>]*id="notebookPlansTab"[^>]*>予定<\/button>/);
+ assert.match(h,/role="tab" id="notebookPointsTab"[^>]*>撮影地点<\/button><button[^>]*id="notebookOpportunitiesTab"[^>]*>重なる日<\/button><button[^>]*id="notebookPlansTab"[^>]*>予定<\/button>/);
  assert.match(h,/<script src="astronotes-schedule\.js\?v=\d+"><\/script>\s*<script src="astronotes-plan\.js/);
  assert.match(p,/id="planKeep" hidden>記録の予定に保存<\/button>/);assert.match(p,/\$\('planKeep'\)\.hidden=!localSave\|\|!keep\|\|!canKeep\(\)\|\|current\?\.payload\?\.kind!=='aim'/);
  assert.match(c,/content:"記録" \/ ""/);assert.doesNotMatch(c,/LOGBOOK/);// 2026-10-21: ＋を撮影地点パネル内へ移し、見出しの高さをタブで変えない。
@@ -40,7 +40,7 @@ test('画面：記録の帯、撮影地点／予定のタブ、予定シート�
 test('予定の使い方は0件のときだけ、保存先の説明はデータの控えの中（2026-10-20 ユーザー「出し方を変えた方がいいのも最適化して」）',()=>{
  const h=sourceHtml(),m=fs.readFileSync(new URL('./astronotes-myplaces.js',import.meta.url),'utf8');
  assert.match(h,/if\(!rows\.length\)\{const how=/);assert.doesNotMatch(h,/intro\.textContent='構図で見つけた重なりを/);
- assert.match(m,/backup\.append\(summary,note\)/);assert.doesNotMatch(m,/のブラウザに保存します。撮影地点の名前・代表位置（お気に入り）は同期します。'; host\.append\(note\)/);
+ assert.match(m,/transferMessage\('地点・高さ・対象・天体を保存します。'\)/);assert.doesNotMatch(m,/のブラウザに保存します。撮影地点の名前・代表位置（お気に入り）は同期します。'; host\.append\(note\)/);
 });
 
 test('F03 capacity rejects early/late additions without removing existing plans, while edits remain available',()=>{const s=mem();let n=0;const st=Sch.create({...s,validate,scope:()=>'limit',limit:200,now:()=>++n});for(let i=0;i<200;i++)assert(st.add({value:plan(2e12+i*86400000),title:'existing '+i,start:2e12+i*86400000}).ok);const before=JSON.stringify(st.list());for(const at of [1.9e12,2.5e12]){const r=st.add({value:plan(at),title:'new',start:at});assert.equal(r.ok,false);assert.match(r.error,/200件/);assert.equal(JSON.stringify(st.list()),before)}const row=st.list()[0];assert(st.add({...row,title:'edited'}).ok);assert.equal(st.list().length,200);assert.equal(st.list()[0].title,'edited');assert(st.remove(st.list()[0].id));assert(st.add({value:plan(1.9e12),title:'new after removal',start:1.9e12}).ok)});

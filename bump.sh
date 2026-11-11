@@ -3,3 +3,4 @@
 set -eu
 cd "$(dirname "$0")"
 node tools/build-index.mjs
+python3 tools/build-overlap-products.py

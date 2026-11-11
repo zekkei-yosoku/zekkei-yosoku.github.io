@@ -77,7 +77,7 @@ function planSnapshot(button) {
   }
   if(payload.timelapse){s.start=payload.at;s.end=payload.at+Math.max(1000,Math.ceil((payload.timelapse.count-1)*payload.timelapse.interval)*1000);}
   if(payload.timelapse&&!s.rows.some(r=>r[0]==='タイムラプス')){const q=payload.timelapse;s.rows.push(['タイムラプス',`${q.interval}秒間隔 / ${q.count}枚 / ${q.fps}fps / 動画 ${(q.count/q.fps).toFixed(2)}秒`]);}
-  s.url=AstroNotesPlan.link(payload);s.mapUrl=AstroNotesPlan.mapLink(s.observer);s.payload=payload;
+  s.url=AstroNotesPlan.link(payload);s.mapUrl=AstroNotesPlan.mapLink(s.observer);globalThis.AstroNotesTrialOverlap?.annotate?.(kind,s,payload);s.payload=payload;
   return s;
 }
 let planRestoredFragment=null;
@@ -110,20 +110,21 @@ function restoreSharedPlan(recent = null, options = {}) {
   AstroNotesAtmosphere.configure(p.air,aimAirSettings);if(options.persist!==false)store.set('sorami.aimAir',aimAirSettings);aimAirSync();
   if(arguments.length&&options.persist!==false){store.set('sorami.aimFrom',aim.from);store.set('sorami.lens',aimLens);}
   $('aimDate').value=new Date(p.at+32400000).toISOString().slice(0,10);
-  aim.pendingPlan=p;
+  aim.pendingPlan=p;globalThis.AstroNotesTrialOverlap?.restore?.(p);
 }
 // NOTEBOOK の予定（2026-10-20）。値は履歴の「重ねる条件」と同じ形。アカウントごとに分けて保存し、ログイン中は RecordSync でサーバーと同期する
 let scheduleStore=null,notebookTab='points';
 const schedule=()=>scheduleStore||(scheduleStore=AstroNotesSchedule.create({read:store.get,write:store.set,scope:()=>auth?.loginId||'guest',validate:p=>{try{return p?.kind==='aim'?AstroNotesPlan.decode(AstroNotesPlan.encode(p)):null;}catch{return null;}}}));
 function setNotebookTab(tab,focus=false){
-  notebookTab=tab==='plans'?'plans':'points';
+  notebookTab=['points','opportunities','plans'].includes(tab)?tab:'points';
   $('recordsView').dataset.tab=notebookTab;
-  for(const [id,t] of [['notebookPointsTab','points'],['notebookPlansTab','plans']]){const b=$(id);b.setAttribute('aria-selected',String(t===notebookTab));b.tabIndex=t===notebookTab?0:-1;if(focus&&t===notebookTab)b.focus();}
-  $('myRecordsHub').hidden=notebookTab!=='points';$('scheduleHub').hidden=notebookTab!=='plans';
+  for(const [id,t] of [['notebookPointsTab','points'],['notebookOpportunitiesTab','opportunities'],['notebookPlansTab','plans']]){const b=$(id);b.setAttribute('aria-selected',String(t===notebookTab));b.tabIndex=t===notebookTab?0:-1;if(focus&&t===notebookTab)b.focus();}
+  $('myRecordsHub').hidden=notebookTab!=='points';$('scheduleHub').hidden=notebookTab!=='plans';$('recordOpportunities').hidden=notebookTab!=='opportunities';globalThis.MyPlacesUI?.opportunities?.render();
   renderNotebook();
 }
 globalThis.addEventListener?.("sorami:records-synced",()=>{if(!$("recordsView")?.hidden)renderNotebook();});
 function renderNotebook(){
+  globalThis.MyPlacesUI?.opportunities?.render();
   const host=$('scheduleHub');if(!host)return;host.replaceChildren();
   if(!auth?.token||!toolAllowed('records'))return;
   const now=Date.now(),rows=schedule().list(),soon=rows.filter(r=>r.end>=now-86400000),past=rows.filter(r=>r.end<now-86400000).reverse();
@@ -165,7 +166,7 @@ function quickSaveExplore(kind,source){
   const cur={...planSnapshot(source),saveOwner:{generation:accessState.generation,loginId:auth.loginId},direct:true};
   if(cur.payload?.kind!=='aim')throw Error('撮影地点と対象を選んでください');
   let result;
-  if(kind==='place')result=MyPlacesUI.quickRecord({...SkyMapUI.selectionState()?.observer,...cur.observer,elevation:cur.payload.o[3],eyeHeightAGL:cur.payload.o[4]},cur.target);
+  if(kind==='place')result=globalThis.AstroNotesTrialOverlap?.quickRecord?.(cur)??MyPlacesUI.quickRecord({...SkyMapUI.selectionState()?.observer,...cur.observer,elevation:cur.payload.o[3],eyeHeightAGL:cur.payload.o[4]},cur.target);
   else if(kind==='plan'){const existing=schedule().find(cur.payload);result=existing?{ok:true,already:true}:keepNotebookPlan(cur,{title:cur.title,start:cur.start,end:cur.end});}
   else throw Error('保存先を確認してください');
   if(!result?.ok)throw Error(result?.error||'保存できませんでした。端末の保存設定や空き容量を確認してください');
@@ -212,7 +213,7 @@ async function preparePlanShare(button,{current=()=>true}={}){
  }
 }
 function initPlanSharing() {
-  for(const [id,t] of [['notebookPointsTab','points'],['notebookPlansTab','plans']]){$(id).onclick=()=>setNotebookTab(t);$(id).onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();setNotebookTab(e.key==='Home'?'points':e.key==='End'?'plans':notebookTab==='points'?'plans':'points',true);}};}
+  for(const [id,t] of [['notebookPointsTab','points'],['notebookOpportunitiesTab','opportunities'],['notebookPlansTab','plans']]){$(id).onclick=()=>setNotebookTab(t);$(id).onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();setNotebookTab(e.key==='Home'?'points':e.key==='End'?'plans':['points','opportunities','plans'][(['points','opportunities','plans'].indexOf(notebookTab)+(e.key==='ArrowRight'?1:2))%3],true);}};}
   globalThis.AstroNotesPlanUI=AstroNotesPlan.mount({snapshot:preparePlanShare,show:showSheet,keep:keepNotebookPlan,canKeep:()=>!!auth?.token&&toolAllowed('records'),quickSave:quickSaveExplore,openNotebook:saved=>{if(!notebookSavedCurrent(saved))return false;afterPagePop(()=>{if(notebookSavedCurrent(saved))showNotebookPlans();});return true;}});
 }
 

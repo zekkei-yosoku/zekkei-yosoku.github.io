@@ -1,13 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {beforePromotion} from './before-promotion.mjs';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {performance} from 'node:perf_hooks';
 import {createExactTimeMemo} from './exact-time-memo.mjs';
-import {patchExactEphemeris} from './build-exact-ephemeris.mjs';
 
-const source=readFileSync(new URL('../astronotes-astro.js',import.meta.url),'utf8');
-const patched=patchExactEphemeris(source);
+const source=beforePromotion('astronotes-astro.js'),patched=readFileSync(new URL('../astronotes-astro.js',import.meta.url),'utf8');
 function load(code){const context=vm.createContext({});vm.runInContext(code,context);return context.AstroNotesAstro;}
 // Object.is retains NaN, signed zero and every bit of each number. No rounding,
 // tolerances or JSON conversion can conceal a changed astronomical result.
@@ -26,8 +25,6 @@ test('trial patch preserves the public API and every original calculation body',
   assert(Object.values(baseline[name](Date.UTC(2026,10,25))).every(value=>typeof value==='number'),'shallow-copy contract: ephemerides contain scalar numbers only');
  }
  assert(source.includes('function sunPosition(ms) {'));
- assert.throws(()=>patchExactEphemeris(patched),/boundary changed/);
- assert.throws(()=>patchExactEphemeris(source.replace('function moonGeocentric(ms)','function different(ms)')),/boundary changed/);
 });
 
 test('exact numeric keys, bounded LRU, fresh objects and uncached coercion/errors',()=>{

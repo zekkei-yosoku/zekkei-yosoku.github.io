@@ -4,7 +4,7 @@ import {createRequire} from 'node:module';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const require=createRequire(import.meta.url);
-const C=require('./experiments/candidate-visibility/composition.js');
+const C=require('./src/features/candidates/composition.js');
 const A=require('./astronotes-align.js'),B=require('./astronotes-bodies.js'),G=require('./astronotes-terrain.js');
 const target={id:'my-building',latitude:35.01,longitude:139,groundM:0,parts:[{id:'tip',m:100}]};
 const point={latitude:35,longitude:139,elevation:0,eyeM:1.5,surfaceId:'park-surface',sourceId:'official-area',standingSurfaceKnown:true};
@@ -108,7 +108,8 @@ test('ridge contacts use the observed upper rim geographic point and the selecte
  const r=await C.opportunities({...plan,target:mountain,partId:'summit',limb:'behind'},point,{align:A,bodies,yieldTask:async()=>{}});
  assert.equal(r.solutions.length,1);const s=r.solutions[0];assert.deepEqual(s.anchor,{latitude:winner.latitude,longitude:winner.longitude,heightM:winner.m});assert.equal(s.geometry.topM,winner.m);assert.equal(s.event.targetGeometryKind,'ridge');assert.equal(s.event.contactLimb,'upper');assert.equal(s.event.relation,'edge-contact');assert(s.event.gapAngleDeg<1e-8);
  const wrong=await C.opportunities({...plan,target:mountain,partId:'summit',limb:'onTop'},point,{align:A,bodies,yieldTask:async()=>{}});assert.equal(wrong.solutions.length,0);
- const unknown=await C.opportunities({...plan,target:{...mountain,rim:{latitude:35.01,longitude:139}}},point,{align:A,bodies,yieldTask:async()=>{}});assert.equal(unknown.reason,'ridge-data-unavailable');assert(unknown.partial);
+ // A rim without points falls back to the stored rim shape when the geometry offers one; without it the ridge is unknown.
+ const unknown=await C.opportunities({...plan,target:{...mountain,rim:{latitude:35.01,longitude:139}}},point,{align:{...A,rimPoints:undefined},bodies,yieldTask:async()=>{}});assert.equal(unknown.reason,'ridge-data-unavailable');assert(unknown.partial);
 });
 
 test('Fuji real rim data returns exactly the source coordinate used for final apparent elevation',async()=>{
@@ -150,6 +151,6 @@ test('strict rim alignment can solve on a mapped line and exhausted location wor
 });
 
 test('generic composition inverse preserves surveyed scene-surface and seed distance with a requested time window',async()=>{
- const S=require('./experiments/candidate-visibility/scene-surface.js'),skytree=A.targetById('skytree'),reference={latitude:35.7119003406,longitude:139.8088988752,elevation:1.01,eyeM:1.5},preset=S.preset({obs:reference,target:skytree,align:A,heightM:636}),g=S.geometry(reference,skytree,preset,A),c=S.pick({obs:reference,target:skytree,align:A,azimuth:g.azimuth,altitude:g.angle,limb:'lower'}),seed={latitude:35.71120995761859,longitude:139.80833348838522,elevation:1.01,eyeM:1.5},at=Date.parse('2026-11-29T12:00:00+09:00'),roads=JSON.parse(fs.readFileSync(new URL('./experiments/candidate-visibility/sidewalks.json',import.meta.url))),p={target:skytree,body:'moon',at,composition:c,timeSpec:{kind:'window',start:at-43200000,end:at+43200000-1}},r=await C.opportunities(p,seed,{align:A,bodies:B,terrain:{at:()=>1.01},sidewalks:roads,yieldTask:async()=>{}}),solved=r.solutions.find(s=>s.event.inverseSurfaceSolved);
+ const S=require('./src/features/candidates/scene-surface.js'),skytree=A.targetById('skytree'),reference={latitude:35.7119003406,longitude:139.8088988752,elevation:1.01,eyeM:1.5},preset=S.preset({obs:reference,target:skytree,align:A,heightM:636}),g=S.geometry(reference,skytree,preset,A),c=S.pick({obs:reference,target:skytree,align:A,azimuth:g.azimuth,altitude:g.angle,limb:'lower'}),seed={latitude:35.71120995761859,longitude:139.80833348838522,elevation:1.01,eyeM:1.5},at=Date.parse('2026-11-29T12:00:00+09:00'),roads=JSON.parse(fs.readFileSync(new URL('./data/candidate-sidewalks.json',import.meta.url))),p={target:skytree,body:'moon',at,composition:c,timeSpec:{kind:'window',start:at-43200000,end:at+43200000-1}},r=await C.opportunities(p,seed,{align:A,bodies:B,terrain:{at:()=>1.01},sidewalks:roads,yieldTask:async()=>{}}),solved=r.solutions.find(s=>s.event.inverseSurfaceSolved);
  assert(solved,r.reason);assert.equal(solved.event.composition.basis,'scene-surface');assert(C.roadAt(roads,solved.observer));assert(Math.abs(G.distanceKm(seed.latitude,seed.longitude,skytree.latitude,skytree.longitude)-G.distanceKm(solved.observer.latitude,solved.observer.longitude,skytree.latitude,skytree.longitude))<1e-8);assert(solved.event.at>=p.timeSpec.start&&solved.event.at<=p.timeSpec.end);assert.deepEqual(solved.anchor,S.anchor(skytree,c));
 });

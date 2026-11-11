@@ -44,6 +44,7 @@ async function selectPointAt(lat, lon, subtitle, options = {}) {
   const elevation = await groundAt(lat, lon);
   const { name } = await nearName(lat, lon);
   if (options.isCurrent && !options.isCurrent()) return;
+  if (options.closeMap) $("mapSheet").close();
   choosePlace({ id: `map:${lat.toFixed(5)},${lon.toFixed(5)}`,
     name, subtitle, latitude: lat, longitude: lon,
     elevation: elevation === null || elevation === undefined ? null : Math.round(elevation * 10) / 10,
@@ -76,8 +77,7 @@ $("mapPick").onclick = async () => {
     favDraft.origin = origin;
     return;
   }
-  const keepSheet = $("placeSheet").open && !!(placeSheetFor && PLACE_PICKERS[placeSheetFor]);
-  await selectPointAt(c.latitude, c.longitude, "地図で選んだ地点", { keepSheet, isCurrent: () => request === mapPickRequest && $("mapSheet").open && owner === auth?.token && mode === placeSheetFor });
+  await selectPointAt(c.latitude, c.longitude, "地図で選んだ地点", { closeMap: true, isCurrent: () => request === mapPickRequest && $("mapSheet").open && owner === auth?.token && mode === placeSheetFor });
   if (request !== mapPickRequest) return;
   $("mapSheet").close();
   $("mapPick").disabled = false;
@@ -124,6 +124,7 @@ $("placeClear").onclick = () => $("sheetInherit").click();
 // 前回消したものの「元に戻す」が残っていると、何を消したのか分からなくなる）。
 let geoRequest = 0;
 $("placeSheet").addEventListener("close", () => {
+  if ($("placeSheet").open) return;
   geoRequest++;
   favUndo = [];
   // 次に地点カードから開いたときに、ねらうの観測地点を決めてしまわないよう戻す

@@ -310,14 +310,14 @@ function aimAirEnsure(f,day){
  // 長時間かかった取得でも、この完了描画で直ちに再取得をループしない。
  aimAirLoadUntil=Math.max(Date.now()+1000,aimAirLoadUntil);
  }catch{if(seq!==aimAirSeq)return;aimAirLoadUntil=Date.now()+60000;}
- if(seq!==aimAirSeq)return;aimApply();})();
+ if(seq!==aimAirSeq)return;document.dispatchEvent(new Event("astronotes-opportunity-input"));aimApply();})();
  return true;
 }
 function aimAirChange(){
  const look=$("aimLook"),spec=look._lookSpec;
  if(spec&&Number.isFinite(look._lookAt))aimAirCompare={at:look._lookAt,latitude:spec.obs.latitude,longitude:spec.obs.longitude,day:S.JstCal.startOfDay(spec.at)};
  aimAirSeq++;aimAirLoadKey="";aimCal.seq++;aimCal.cache.clear();aim.spotCache=null;aimRidgeCache.clear();
- AstroNotesAtmosphere.configure(aimAirSettings.mode,aimAirSettings);store.set("sorami.aimAir",aimAirSettings);
+ AstroNotesAtmosphere.configure(aimAirSettings.mode,aimAirSettings);store.set("sorami.aimAir",aimAirSettings);document.dispatchEvent(new Event("astronotes-opportunity-settings"));
  aimAirSync();
  aimApply();
 }
@@ -407,10 +407,10 @@ function openAim(preset) {
     $("aimHeightSet").onclick = () => {
       const m = Number($("aimHeightM").value);
       if (!Number.isFinite(m) || m < 1 || m > 1000) return;
-      const hs = store.get("sorami.aimHeights", {});
+      const hs = store.get("sorami.aimHeightsOwner",null)===(auth?.loginId??null)?store.get("sorami.aimHeights", {}):{};
       // 入れるのは地上からの高さ。憶えるのは計算に使う海面からの高さ
       hs[`${aim.target.id}:${aim.partId}`] = m + (aim.target.groundM || 0);
-      store.set("sorami.aimHeights", hs);
+      store.set("sorami.aimHeights", hs);store.set("sorami.aimHeightsOwner",auth?.loginId??null);document.dispatchEvent(new Event("astronotes-opportunity-settings"));
       aimApply();
     };
     // 自分で置いた目標の高さ（地上から）を直す。場所はそのまま

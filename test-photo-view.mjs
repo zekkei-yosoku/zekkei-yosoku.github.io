@@ -86,7 +86,7 @@ test("自動表示の相当焦点距離を反映しても図の縮尺が変わ�
 });
 test("山でも基準線に吸着・離脱し、構図の移動・復帰は時刻と天体逆引きを変えない",()=>{
  const html=sourceHtml(),a=html.indexOf('  const move = host.querySelector("[data-lens-move]")'),b=html.indexOf('  cur = timeIndex(selectedAt); draw(cur);',a);
- let draws=0,prevented=0,clears=0;const move={setAttribute:()=>{}},center={},hint={},host={_lensMoving:true,_pick:null,querySelector:q=>q.includes("hint")?hint:q.includes("center")?center:move};
+ let draws=0,prevented=0,clears=0;const move={setAttribute:()=>{}},center={},hint={},host={_lensMoving:true,_pick:null,querySelector:q=>q.includes("compose")?null:q.includes("hint")?hint:q.includes("center")?center:move};
  const cv={addEventListener(){},style:{},setPointerCapture:()=>{}},cur=43,W=316,H=284,k=10,frame={halfW:5,halfH:6};
  const c=vm.createContext({AstroNotesCameraUI:Camera,aimLookKey:()=>'test',aim:{},AstroNotesBodies:globalThis.AstroNotesBodies,panLimit:1,host,cv,cur,W,H,k,frame,hiddenY:null,baseY:220,groundEdge:202,mountain:true,az:0,proj:()=>[0,0],toPx:()=>[0,202],navigator:{vibrate:()=>{}},Math,draw:()=>draws++,aimLookRender:()=>{},aimReverseClear:()=>clears++,spec:{}});vm.runInContext(html.slice(a,b),c);
  cv.onpointerdown({clientX:100,clientY:100,pointerId:1});cv.onpointermove({pointerId:1,clientX:150,clientY:120});cv.onpointerup();
@@ -112,7 +112,7 @@ test("山でも基準線に吸着・離脱し、構図の移動・復帰は時�
 test("図を移動しても画角枠は中央、道のタップは移動分を引いて時刻を選ぶ",()=>{
  const html=sourceHtml(),a=html.indexOf("  cv.onclick = (ev) => {",html.indexOf("async function aimLookRender")),b=html.indexOf("  aimLookPick(host",a);
  const cv={getBoundingClientRect:()=>({left:10,top:20})},host={_lensOffset:[.2,.1]},range={};let drawn=-1;
- const c=vm.createContext({AstroNotesBodies:globalThis.AstroNotesBodies,cv,host,range,W:300,H:270,path:[{x:5,y:6},{x:10,y:20}],toPx:xy=>xy,Math,draw:i=>drawn=i});
+ const c=vm.createContext({AstroNotesBodies:globalThis.AstroNotesBodies,cv,host,range,W:300,H:270,path:[{x:5,y:6},{x:10,y:20}],toPx:xy=>xy,Math,draw:i=>drawn=i,spec:{},k:1,win:{}});
  vm.runInContext(html.slice(a,b),c);cv.onclick({clientX:10+60+10,clientY:20+27+20});assert.equal(drawn,1);assert.equal(range.value,"1");
  host._lookSceneBottom=40;drawn=-1;cv.onclick({clientX:80,clientY:67});assert.equal(drawn,-1);
  // ポインターは範囲内でも、36px以内の省略された候補点を選ばない。
@@ -128,7 +128,7 @@ test("稜線の地形範囲は画角・構図移動で粗くならない",async(
  const html=sourceHtml();
  const ridge=html.slice(html.indexOf("const aimRidgeCache"),html.indexOf("const AIM_SENSOR"));
  let calls=0;
- const c=vm.createContext({AstroNotesAtmosphere:{targetK:()=>7/6},aimAirAngle:()=>2,AstroNotesTerrain:{distanceKm:()=>100,bearing:()=>180,destination:(lat,lng,az,d)=>({latitude:lat,longitude:lng}),elevations:async pts=>{calls++;return pts.map(()=>1000)}},AstroNotesAlign:{rimOutline:()=>null},AstroNotesAstro:{targetElevationAngle:()=>2}});
+ const c=vm.createContext({AstroNotesAtmosphere:{targetK:()=>7/6},aimAirAngle:()=>2,AstroNotesTerrain:{distanceKm:()=>100,bearing:()=>180,inverse:()=>({km:100,azimuth:180}),prepareRidgeDestination:(lat,lng)=>()=>({latitude:lat,longitude:lng}),prepareRidgeElevation:()=>m=>m/1000,destination:(lat,lng,az,d)=>({latitude:lat,longitude:lng}),elevations:async pts=>{calls++;return pts.map(()=>1000)}},AstroNotesAlign:{rimOutline:()=>null},AstroNotesAstro:{targetElevationAngle:()=>2}});
  vm.runInContext(ridge,c);
  const obs={latitude:35,longitude:139},target={latitude:36,longitude:139,parts:[{m:3776}]};
  const narrow=await c.aimLookRidge(obs,10,target,{az0:180,alt0:2,halfW:3,panLimit:1});

@@ -18,3 +18,8 @@ data/*
 !data/sky-rating-v1/
 # Finder・iCloud が作る番号付きの複製（2026-11-01 src に混入した）
 * [0-9].*
+# 2026-11-11 探す（新しい地点）のデータ。試用版から本番へ移した（画面が読む）
+!data/candidate-*.json
+!data/building-heights/
+!data/building-shapes/
+!data/osm-places/

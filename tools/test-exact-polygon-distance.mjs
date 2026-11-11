@@ -1,13 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
+import {beforePromotion} from './before-promotion.mjs';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {prepareExactPolygonDistance,exactScaledPolygonDistance} from './exact-polygon-distance.mjs';
-import {patchExactPolygonDistance,patchPreparedOutlineRetention} from './build-exact-polygon-distance.mjs';
-import {patchAlignHeightGeometry} from './build-record-height-geometry.mjs';
 const require=createRequire(import.meta.url),align=require('../astronotes-align.js');
-const source=readFileSync(new URL('../astronotes-align.js',import.meta.url),'utf8');
+const source=beforePromotion('astronotes-align.js'),now=readFileSync(new URL('../astronotes-align.js',import.meta.url),'utf8');
 // Load the actual unchanged production evaluator as the reference, not a reimplementation.
 const oldBody=source.slice(source.indexOf('    const bounds=polygons?.map(poly=>'),source.indexOf('    const evaluate = (at, st = bodyAt(body, at, obs)) => {'));
 const original=Function('polygons','polygonDistance',oldBody+'return distanceToPolygons;');
@@ -90,16 +89,13 @@ test('every skipped group contains only polygons that the original bounds would 
 });
 test('patched prepared views retain all event fields for towers, mountains and every body',()=>{
  const load=s=>{const c=vm.createContext({require:createRequire(new URL('../astronotes-align.js',import.meta.url))});vm.runInContext(s,c);return c.AstroNotesAlign;};
- const old=load(patchAlignHeightGeometry(source)),next=load(patchPreparedOutlineRetention(patchAlignHeightGeometry(patchExactPolygonDistance(source))));
+ const old=load(source),next=load(now);
  const observers=[{latitude:35.58386,longitude:139.56853,elevation:87.2},{latitude:35.73874,longitude:139.90204,elevation:5}];
  for(const observer of observers)for(const target of old.TARGETS.filter(t=>['skytree','tokyotower','fuji'].includes(t.id)))for(const body of ['sun','moon','sirius','mercury','venus','mars','jupiter','saturn'])for(const eyeM of [0,1.5,149,700]){
   const opts={eyeM,partId:'__whole',...(target.id==='fuji'?{ridge:[[245,1],[246,2],[247,4],[248,2],[249,1]],ridgeBase:0}:{})};
   const a=old.prepareDailyView(observer,target,body,opts),b=next.prepareDailyView(observer,target,body,opts);
-  exact(b.heightGeometry,a.heightGeometry);
   for(const date of ['2026-11-07','2026-11-25']){
    const at=Date.parse(date+'T00:00:00+09:00');exact(b(at),a(at));exact(b(at,at+12345678.125),a(at,at+12345678.125));
   }
  }
- assert.throws(()=>patchExactPolygonDistance(patchExactPolygonDistance(source)),/boundary changed/);
- assert.throws(()=>patchPreparedOutlineRetention(patchPreparedOutlineRetention(patchAlignHeightGeometry(patchExactPolygonDistance(source)))),/contract changed/);
 });

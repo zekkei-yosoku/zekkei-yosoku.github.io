@@ -104,7 +104,7 @@ async function verifyFujiReference(page,day,tag){
 (async()=>{
  fs.mkdirSync(out,{recursive:true});
  const {renderIndex}=await import('./build-index.mjs');
- const files=JSON.parse(execFileSync(process.execPath,['tools/build-candidate-trial.mjs','--html'],{cwd:root,input:renderIndex().html,encoding:'utf8',maxBuffer:32*1024*1024}));
+ const files={};
  const server=http.createServer((request,response)=>{
   let name=decodeURIComponent(new URL(request.url,'http://local').pathname).replace(/^\/+/, '').replace(/^trial\//,'')||'index.html';
   if(name.endsWith('/'))name+='index.html';

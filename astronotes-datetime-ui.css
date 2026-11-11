@@ -53,3 +53,5 @@
 .dates-collapsed .explore-dates-toggle::after { content:""; position:absolute; inset:-16px 0 0; }
 .dates-collapsed .aim-days.strip, .dates-collapsed .candidate-dates > :not(.candidate-heading) { display:none !important; }
 .dates-collapsed .candidate-heading { align-self:center; }
+
+.tool-date-calendar .aim-cal-nav select.fav-in{padding:0 24px 0 8px;background-position-x:calc(100% - 14px),calc(100% - 9px)}

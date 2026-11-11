@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
-import {createRecordSort} from './tools/record-sort-policy.mjs';import {recordSortMyplaces,recordSortHtml} from './tools/build-record-sort.mjs';
+import {createRecordSort} from './tools/record-sort-policy.mjs';
 const km=(a,b,c,d)=>Math.hypot(a-c,b-d)*111;
 const policy=createRecordSort({distanceKm:km});
 const ids=rows=>rows.map(p=>p.id);
@@ -41,11 +41,9 @@ test('sorting never mutates input arrays or entries',()=>{
  for(const mode of policy.modes)policy.sort(input,mode,{latitude:35.7,longitude:139.8});
  assert.equal(JSON.stringify(input),before);input.forEach((p,i)=>assert.equal(p,refs[i]));
 });
-test('trial transforms apply once and leave production sources unchanged',()=>{
- const myplaces=readFileSync('astronotes-myplaces.js','utf8'),out=readFileSync('trial/astronotes-myplaces.js','utf8');
- assert.throws(()=>recordSortMyplaces(myplaces),/Record sort boundary changed/,'requires the trial opportunity composition');
- assert.match(out,/sortRecordPlaces\(recordedPlaces\)/);assert.match(out,/recordSortControl\('recordPlaceSort'/);assert.doesNotMatch(myplaces,/recordSort/);
- assert.doesNotMatch(out,/latitude順|経度順|緯度順/);
- const trial=readFileSync('trial/index.html','utf8');assert.match(trial,/recordSortControl\('recordPickerSort'/);
- assert.throws(()=>recordSortHtml('<html></html>'),/Record sort boundary changed/);
+test('the registered places list and the picker use the sort control',()=>{
+ const myplaces=readFileSync('astronotes-myplaces.js','utf8');
+ assert.match(myplaces,/sortRecordPlaces\(recordedPlaces\)/);assert.match(myplaces,/recordSortControl\('recordPlaceSort'/);
+ assert.doesNotMatch(myplaces,/latitude順|経度順|緯度順/);
+ assert.match(readFileSync('index.html','utf8'),/recordSortControl\('recordPickerSort'/);
 });

@@ -48,4 +48,4 @@ test('古い画面を更新せず、文字の件数を出さず、バーは段�
  assert.equal(node('predictionProgressMessage').textContent,'予測中です');assert(!html.includes('id="predictionProgressDetail"'));assert.match(html,/transition:transform 450ms ease-out/);assert.match(html,/prefers-reduced-motion:reduce/);
 });
 
-test('予測未取得を見どころなしと表示せず、待機中の表を残す',()=>{const html=sourceHtml();assert.match(html,/else if \(!bundle\) \{\s*\$\("bestNote"\)\.hidden = true;\s*\$\("cards"\)\.innerHTML = renderSkeleton\(now\);/);});
+test('予測未取得を見どころなしと表示せず、待機中の表を残す',()=>{const html=sourceHtml();assert.match(html,/else if \(!bundle\) \{\s*\$\("bestNote"\)\.hidden = true;\s*forecastSummary\.waiting\(\);\s*\$\("cards"\)\.innerHTML = renderSkeleton\(now\);/);});

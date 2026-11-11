@@ -1,5 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';import {numericRulerTimeline} from './tools/build-numeric-rulers.mjs';
-const source=numericRulerTimeline(readFileSync(new URL('./astronotes-scroll-timeline.js',import.meta.url),'utf8'));
+import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';const source=(readFileSync(new URL('./astronotes-scroll-timeline.js',import.meta.url),'utf8'));
 // Run the existing complete gesture/time suite against the trial-patched implementation too.
 const original=readFileSync(new URL('./test-scroll-timeline.mjs',import.meta.url),'utf8');
 const baseline=original.replace("const src=readFileSync(new URL('./astronotes-scroll-timeline.js',import.meta.url),'utf8')",'const src='+JSON.stringify(source));

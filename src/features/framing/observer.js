@@ -158,7 +158,7 @@ function aimCalRows(obs, target, body, year, month, partId, view = null, owner =
     const rows=[], plan={target,body,partId,limb:owner.limb,matchMode:"overlap"};
     for(let day=aimCalMonthStart(year,month),end=aimCalMonthStart(year,month+1);day<end;day+=86400000){
       for(const e of AstroNotesShooting.eventsFor(plan,obs,day,{align:AstroNotesAlign,isMountain:aimIsMountain,view})){
-        if(e.at>=day&&e.at<day+86400000&&((body!=="sun"&&body!=="moon")||e.nearTarget)&&(body!=="moon"||e.sunAltitude<0))rows.push({...e,selectedMatch:AstroNotesShooting.matches(e,plan,aimIsMountain)});
+        if(e.at>=day&&e.at<day+86400000&&((body!=="sun"&&body!=="moon")||e.nearTarget))rows.push({...e,selectedMatch:AstroNotesShooting.matches(e,plan,aimIsMountain)});
       }
     }
     return rows;
@@ -173,11 +173,11 @@ function aimCalRows(obs, target, body, year, month, partId, view = null, owner =
       row.selectedMatch = partId === "__whole" ? row.intersects : !!match;
       if(match) row.at=match.at;
     }
-    return rows.filter((e) => e.nearTarget && (body !== "moon" || e.sunAltitude < 0));
+    return rows.filter((e) => e.nearTarget);
   }
   return AstroNotesAlign.upcoming(obs, target, body, { eyeM: obs.eyeM, from: start, days: Math.round((end - start) / 86400000),
     limit: Infinity, limb: "center", partId, stepMs: 3600000, groupDays: false })
-    .filter((e) => e.at >= start && e.at < end && (body !== "moon" || e.sunAltitude < 0));
+    .filter((e) => e.at >= start && e.at < end);
 }
 // 見え方と同じ2半径内の候補を扱い、円盤が届く日と近接通過を区別する。
 function aimCalSolid(e) { return e.selectedMatch ?? e.intersects ?? (Math.abs(e.gap) <= (e.radius === 0 ? 1e-5 : 1.2 * e.radius)); }
@@ -259,7 +259,7 @@ async function aimCalRender() {
     aimCalDraw();
     const solidDays = [...aimCal.events.values()].filter((rows) => rows.some(aimCalSolid)).length;
     const nearDays = aimCal.events.size - solidDays;
-    $("aimCalStatus").textContent = aimCal.events.size ? `重なる日 ${solidDays}日${nearDays ? ` ・ 近くを通る日 ${nearDays}日` : ""}${body === "moon" ? "（暗い空の時間）" : ""}` : "この月は候補日がありません";
+    $("aimCalStatus").textContent = aimCal.events.size ? `重なる日 ${solidDays}日${nearDays ? ` ・ 近くを通る日 ${nearDays}日` : ""}` : "この月は候補日がありません";
   } catch (err) {
     if (!valid()) return;
     $("aimCalStatus").textContent = err.message === "撮影地点と対象を選んでください" ? err.message : "計算できませんでした。月を選び直して再試行してください";
@@ -419,11 +419,422 @@ function aimSummitCap(ridge, obs, eye, target) {
   cap.push(hi < ridge.length - 1 ? cut(ridge[hi + 1], ridge[hi]) : [ridge[ridge.length - 1][0], base]);
   return { ridge: cap, base };
 }
-async function aimShootingView(obs, target, body, partId, matchMode) {
+const trialSearchRidge=(()=>{
+// Bounds over the decoded tiles currently shared with the exact sampler.
+const HEIGHT_INDEX_LAYERS = Object.freeze([
+  ['dem1a_png',17], ['dem5a_png',15], ['dem_png',14], ['dem5b_png',15], ['dem5c_png',15],
+].map(Object.freeze));
+const HEIGHT_INDEX_NO_DATA = -2147483648;
+const BLOCKS=16, TILE_SIZE=256, LEVELS=5;
+const LOG=Array.from({length:BLOCKS+1},(_,n)=>n?Math.floor(Math.log2(n)):0);
+
+// Rectangular maxima use four overlapping power-of-two rectangles. Validity
+// comes from a prefix sum of blocks containing at least one NoData pixel.
+function indexTile(data) {
+  const maxima=new Int32Array(256).fill(HEIGHT_INDEX_NO_DATA);
+  const missing=new Uint8Array(256);
+  for(let y=0;y<TILE_SIZE;y++)for(let x=0;x<TILE_SIZE;x++) {
+    const p=(y*TILE_SIZE+x)*4,block=(y>>4)*BLOCKS+(x>>4);
+    const rgb=data[p]*65536+data[p+1]*256+data[p+2];
+    if(rgb===8388608)missing[block]=1;
+    else maxima[block]=Math.max(maxima[block],rgb<8388608?rgb:rgb-16777216);
+  }
+  const prefix=new Uint16Array(17*17);
+  for(let y=0;y<BLOCKS;y++)for(let x=0;x<BLOCKS;x++) {
+    const id=(y+1)*17+x+1;
+    prefix[id]=missing[y*BLOCKS+x]+prefix[id-1]+prefix[id-17]-prefix[id-18];
+  }
+  const tables=[maxima];
+  for(let y=0;y<LEVELS;y++)for(let x=0;x<LEVELS;x++) {
+    if(!x&&!y)continue;
+    const prev=tables[x?y*LEVELS+x-1:(y-1)*LEVELS],step=x?2**(x-1):2**(y-1)*BLOCKS;
+    const width=BLOCKS-(2**x)+1,height=BLOCKS-(2**y)+1;
+    const table=new Int32Array(256);
+    for(let by=0;by<height;by++)for(let bx=0;bx<width;bx++) {
+      const id=by*BLOCKS+bx;
+      table[id]=Math.max(prev[id],prev[id+step]);
+    }
+    tables.push(table);
+  }
+  return {tables,prefix};
+}
+
+function rectangleMax(tile,left,right,top,bottom) {
+  const a=LOG[right-left+1],b=LOG[bottom-top+1];
+  const table=tile.tables[b*LEVELS+a],x=right-(2**a)+1,y=bottom-(2**b)+1;
+  return Math.max(table[top*BLOCKS+left],table[top*BLOCKS+x],
+    table[y*BLOCKS+left],table[y*BLOCKS+x]);
+}
+
+function rectangleHasNoData({prefix},left,right,top,bottom) {
+  const a=top*17,b=(bottom+1)*17;
+  return prefix[b+right+1]-prefix[a+right+1]-prefix[b+left]+prefix[a+left]>0;
+}
+
+// Match the legacy operations, rather than inverting pixel-centre axes.
+const tileXf=(lon,z)=>(lon+180)/360*2**z;
+const DEG=Math.PI/180;
+const tileYf=(lat,z)=>{const r=lat*DEG;return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*2**z;};
+const insideJapan=b=>b.south>=20&&b.north<=46&&b.west>=122&&b.east<=154;
+const validBox=b=>b&&[b.south,b.north,b.west,b.east].every(Number.isFinite)&&b.south<=b.north&&b.west<=b.east;
+function createHeightLookup(tileAt,maxCoverageTiles) {
+  function layerBounds(box,layer,z,work) {
+    const a=tileXf(box.west,z),b=tileXf(box.east,z),c=tileYf(box.north,z),d=tileYf(box.south,z);
+    if(![a,b,c,d].every(Number.isFinite)||a>b||c>d)return {reason:'projection-unproved'};
+    const x0=Math.floor(a),x1=Math.floor(b),y0=Math.floor(c),y1=Math.floor(d);
+    const count=(x1-x0+1)*(y1-y0+1);
+    if(!Number.isSafeInteger(count)||count<1||count>maxCoverageTiles-work.tiles)return {reason:'query-tile-budget'};
+    let max=HEIGHT_INDEX_NO_DATA,allValid=true,anyNoData=false,has404=false;
+    for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+      work.tiles++;
+      const tile=tileAt(layer,z,x,y);
+      if(tile===undefined)return {reason:'tile-unrecorded'};
+      if(tile===null){has404=true;allValid=false;continue;}
+      const left=x===x0?Math.floor((a%1)*BLOCKS):0,right=x===x1?Math.floor((b%1)*BLOCKS):15;
+      const top=y===y0?Math.floor((c%1)*BLOCKS):0,bottom=y===y1?Math.floor((d%1)*BLOCKS):15;
+      max=Math.max(max,rectangleMax(tile,left,right,top,bottom));
+      if(rectangleHasNoData(tile,left,right,top,bottom)) {
+        allValid=false;
+        anyNoData=true;
+      }
+    }
+    return {max,allValid,anyNoData,has404};
+  }
+  function oneZoom(box,requested,work) {
+    let upper=HEIGHT_INDEX_NO_DATA;
+    for(let layer=0;layer<5;layer++){
+      const result=layerBounds(box,layer,Math.min(requested,HEIGHT_INDEX_LAYERS[layer][1]),work);
+      if(result.reason)return result;
+      upper=Math.max(upper,result.max);
+      if(layer===2){
+        // DEM10 undefined invokes the unbounded API fallback. A recorded 404
+        // is known absence, unlike an unrecorded tile, but neither is sea level.
+        if(result.has404)return {reason:'dem10-unavailable-api-fallback'};
+        if(result.anyNoData)upper=Math.max(upper,0);
+        // If all DEM10 pixels are null, legacy stops before DEM5B/5C.
+        if(result.max===HEIGHT_INDEX_NO_DATA)return {cm:Math.max(upper,0)};
+      } else if(result.allValid)return {cm:upper};
+    }
+    return upper===HEIGHT_INDEX_NO_DATA?{reason:'unresolved-height'}:{cm:upper};
+  }
+  function upper(box,zoomLo,zoomHi=zoomLo) {
+    if(!validBox(box)||!insideJapan(box))return null;
+    if(!Number.isInteger(zoomLo)||!Number.isInteger(zoomHi)||zoomLo<0||zoomHi>17||zoomLo>zoomHi)return null;
+    let cm=HEIGHT_INDEX_NO_DATA;const work={tiles:0};
+    for(let zoom=zoomLo;zoom<=zoomHi;zoom++){
+      const result=oneZoom(box,zoom,work);if(result.reason)return null;cm=Math.max(cm,result.cm);
+    }
+    if(cm===HEIGHT_INDEX_NO_DATA)return null;
+    // The original pixelToElevation uses this multiplication, not division.
+    return cm*.01;
+  }
+  return upper;
+}
+
+function createResidentHeightIndex(currentTile) {
+  // Only a successfully decoded image or a confirmed absence is evidence.
+  // An identity lookup must read the same cache that serves exact sampling.
+  const blocks=new WeakMap();
+  const get=(layer,z,x,y)=>currentTile(HEIGHT_INDEX_LAYERS[layer][0],z,x,y);
+  function begin() {
+    const used=new Map(),observed=new Map();
+    let consistent=true;
+    function tileAt(layer,z,x,y) {
+      const tile=get(layer,z,x,y);
+      if(!tile||!tile.image&&tile.missing!==true)return undefined;
+      let packed=null;
+      if(tile.image) {
+        const {width,height,data}=tile.image;
+        if(width!==256||height!==256||data?.length!==4*65536)return undefined;
+        packed=blocks.get(tile.image);
+        if(!packed) {
+          packed=indexTile(data);
+          blocks.set(tile.image,packed);
+        }
+      }
+      const key=layer+'/'+z+'/'+x+'/'+y;
+      if(!observed.has(key))observed.set(key,{layer,z,x,y,tile});
+      return packed;
+    }
+    const lookup=createHeightLookup(tileAt,4096);
+    return {
+      upper(...args) {
+        observed.clear();
+        return lookup(...args);
+      },
+      commitUpper() {
+        for(const [key,record] of observed) {
+          const previous=used.get(key);
+          if(!previous)used.set(key,record);
+          else if(previous.tile!==record.tile)consistent=false;
+        }
+      },
+      stillCurrent() {
+        if(!consistent)return false;
+        for(const {layer,z,x,y,tile} of used.values()) {
+          if(get(layer,z,x,y)!==tile)return false;
+        }
+        return true;
+      }
+    };
+  }
+  return {begin};
+}
+
+// Propose a cheap containing box. Each skipped legacy sample is checked
+// against the exact DEM projection and zoom before its bound is used.
+const RAD=Math.PI/180;
+const METRES_PER_DEG=110500; // smaller than min meridional radius * pi/180
+function createMetricFanBounds(lat,lon,prepareDestination) {
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat<20||lat>46||lon<122||lon>154)return null;
+  const cached=new Map();
+  return (azLo,azHi,dLo,dHi)=>{
+    if(![azLo,azHi,dLo,dHi].every(Number.isFinite)||azHi<azLo||azHi-azLo>180||dLo<.15||dHi<dLo||dHi>220)return null;
+    const azMid=(azLo+azHi)/2,dMid=(dLo+dHi)/2;
+    let destination=cached.get(azMid);
+    if(!destination){destination=prepareDestination(lat,lon,azMid);cached.set(azMid,destination);}
+    const p=destination(dMid);
+    const radius=1000*((dHi-dLo)/2+dHi*(azHi-azLo)*RAD/2)+2;
+    const latitude=radius/METRES_PER_DEG;
+    const absLat=Math.abs(p.latitude)+latitude;
+    if(absLat>55)return null;
+    const longitude=latitude/Math.cos(absLat*RAD);
+    return {south:p.latitude-latitude,north:p.latitude+latitude,west:p.longitude-longitude,east:p.longitude+longitude};
+  };
+}
+function ridgeZoomRange(from,box,base) {
+  if(!box||box.south<20||box.north>46||box.west<122||box.east>154)return null;
+  const low=(v,a,b)=>v<a?a-v:v>b?v-b:0;
+  const high=(v,a,b)=>Math.max(Math.abs(v-a),Math.abs(v-b));
+  const x=111195*Math.cos(from.latitude*RAD), y=111195;
+  const distLo=Math.max(0,Math.hypot(low(from.longitude,box.west,box.east)*x,low(from.latitude,box.south,box.north)*y)-.002);
+  const distHi=Math.hypot(high(from.longitude,box.west,box.east)*x,high(from.latitude,box.south,box.north)*y)+.002;
+  const scale=156543.03;
+  const lo=scale*Math.cos(box.north*RAD)/Math.max(.01,distHi*.5*RAD);
+  const hi=scale*Math.cos(box.south*RAD)/Math.max(.01,distLo*.5*RAD);
+  const zoom=w=>Math.max(base,Math.min(17,Math.ceil(Math.log2(w))));
+  return {min:zoom(lo*(1-1e-12)),max:zoom(hi*(1+1e-12))};
+}
+
+// Reuse the exact legacy terrain sampling and cap cuts. The index is an
+// optional upper bound on the same immutable source data.
+function createIndexedSearchRidge({terrain,align,atmosphere,angle,capOf,index,makeBounds,zoomRange,
+  azChunk=24,radialChunk=24}) {
+  return async function indexedSearchRidge(obs,eye,target) {
+    if(!index||target?.id!=='fuji'||!Number.isFinite(eye))return null;
+    const {km:D,azimuth:az0}=terrain.inverse(obs.latitude,obs.longitude,target.latitude,target.longitude);
+    const s=18, cols=240, n=120, count=(cols+1)*(n+1), k=atmosphere.targetK();
+    if(!Number.isFinite(D)||D<=.15||D>200||!Number.isFinite(k))return null;
+    const tops=target.parts?.map(p=>p.m).filter(Number.isFinite);
+    if(!tops?.length||!Number.isFinite(target.parts[0].m))return null;
+    const base=angle(D,eye,Math.max(...tops)-300);
+    const summit=angle(D,eye,target.parts[0].m);
+    if(!(summit>base)||!Number.isFinite(base))return null;
+    const spanAz=Math.atan2(s,Math.max(.15,D))*180/Math.PI;
+    const zoom=D>40?12:13;
+    const az=Array.from({length:cols+1},(_,i)=>az0-spanAz+(2*spanAz*i)/cols);
+    const distances=Array.from({length:n+1},(_,j)=>Math.max(.15,D-s+(2*s*j)/n));
+    const angles=distances.map(d=>terrain.prepareRidgeElevation(d,eye,{k}));
+    const destinations=new Array(cols+1);
+    const rim=align.rimOutline({...obs,elevation:eye},target);
+    const best=new Float64Array(cols+1).fill(-90);
+    const resolved=new Uint8Array(cols+1),skipped=new Uint8Array(cols+1);
+    const sampled=new Uint8Array(count),selected=new Uint8Array(count),forced=new Uint8Array(cols+1);
+    const maxDepth=8;
+    const bounds=makeBounds(obs.latitude,obs.longitude,terrain.prepareRidgeDestination);
+    if(!bounds)return null;
+    function column(i) {
+      return destinations[i]??=terrain.prepareRidgeDestination(obs.latitude,obs.longitude,az[i]);
+    }
+    function position(i,j) {
+      return column(i)(distances[j]);
+    }
+    function coversSamples(box,range,i0,i1,j0,j1) {
+      const covers=terrain.ridgeSampleCoverage(obs,box,range,zoom);
+      for(let i=i0;i<=i1;i++) {
+        const destination=column(i);
+        for(let j=j0;j<=j1;j++)if(!covers(destination(distances[j])))return false;
+      }
+      return true;
+    }
+    function prune(i0,i1,j0,j1,depth) {
+      const box=bounds(az[i0],az[i1],distances[j0],distances[j1]);
+      const range=box&&zoomRange(obs,box,zoom);
+      const h=range&&index.upper(box,range.min,range.max);
+      if(Number.isFinite(h)) {
+        // The indexed bound and the renderer use the same positive-distance
+        // altitude map. Its derivative with respect to height is positive.
+        // Leave a strict guard at the optical boundary.
+        let upper=-Infinity;
+        for(let j=j0;j<=j1;j++)upper=Math.max(upper,angles[j](h));
+        if(upper<base-1e-6&&coversSamples(box,range,i0,i1,j0,j1)) {
+          index.commitUpper();
+          for(let i=i0;i<=i1;i++)skipped[i]=resolved[i]=1;
+          return;
+        }
+      }
+      // Split in the longer index dimension. The terminal cells still use
+      // the exact old coordinates and source ordering.
+      if(depth<maxDepth&&(i1-i0+1)*(j1-j0+1)>96) {
+        if(i1-i0>j1-j0) {
+          const m=(i0+i1)>>1;
+          prune(i0,m,j0,j1,depth+1);prune(m+1,i1,j0,j1,depth+1);
+        } else {
+          const m=(j0+j1)>>1;
+          prune(i0,i1,j0,m,depth+1);prune(i0,i1,m+1,j1,depth+1);
+        }
+        return;
+      }
+      for(let i=i0;i<=i1;i++)selected.fill(1,i*(n+1)+j0,i*(n+1)+j1+1);
+    }
+    for(let i=0;i<=cols;i+=azChunk)for(let j=0;j<=n;j+=radialChunk) {
+      prune(i,Math.min(cols,i+azChunk-1),j,Math.min(n,j+radialChunk-1),0);
+    }
+    async function evaluate() {
+      const points=[], ids=[];
+      for(let id=0;id<count;id++)if(selected[id]&&!sampled[id]) {
+        const i=Math.floor(id/(n+1)),j=id%(n+1);
+        points.push(position(i,j));ids.push(id);
+      }
+      if(!points.length)return true;
+      const values=await terrain.elevations(points,{zoom,from:obs,indexedExactBatch:true});
+      if(!Array.isArray(values)||values.length!==ids.length||k!==atmosphere.targetK())return false;
+      for(let p=0;p<ids.length;p++) {
+        const id=ids[p],i=Math.floor(id/(n+1)),j=id%(n+1),h=values[p];
+        sampled[id]=1;
+        if(Number.isFinite(h)) {
+          resolved[i]=1;
+          best[i]=Math.max(best[i],angles[j](h));
+        }
+      }
+      for(let i=0;i<=cols;i++)if(forced[i])skipped[i]=0;
+      return true;
+    }
+    if(!await evaluate())return null;
+    for(let i=0;i<=cols;i++) {
+      const rel=((az[i]-az0+540)%360)-180;
+      if(rim) {
+        const a=rim.at(((az[i]-rim.azimuth+540)%360)-180);
+        if(a!==null){resolved[i]=1;best[i]=Math.max(best[i],a);}
+      }
+      if(Math.abs(rel)<=spanAz/cols){resolved[i]=1;best[i]=Math.max(best[i],summit);}
+      if(!resolved[i])return null;
+    }
+    const vertices=az.map((a,i)=>({az:a,lo:i,hi:i}));
+    if(rim) {
+      for(let i=0;i<=120;i++) {
+        const rel=rim.min+(rim.max-rim.min)*i/120,h=rim.at(rel);
+        if(h===null)continue;
+        const a=rim.azimuth+rel;
+        const x=((((a-az0+540)%360)-180)+spanAz)/(2*spanAz)*cols;
+        if(x<0||x>cols)continue;
+        const lo=Math.min(cols-1,Math.floor(x));
+        vertices.push({az:a,lo,hi:lo+1,f:x-lo,h});
+      }
+      vertices.sort((a,b)=>((a.az-az0+540)%360)-((b.az-az0+540)%360));
+    }
+    const exact=i=>!skipped[i]||best[i]>base;
+    const value=(v,upper)=>{
+      const a=upper&&!exact(v.lo)?base:best[v.lo];
+      if(v.lo===v.hi)return a;
+      const b=upper&&!exact(v.hi)?base:best[v.hi];
+      return Math.max(v.h,a*(1-v.f)+b*v.f);
+    };
+    const mark=i=>{
+      if(exact(i)||forced[i])return;
+      selected.fill(1,i*(n+1),(i+1)*(n+1));
+      forced[i]=1;
+    };
+    // Rim interpolation can add vertices above the cut. Resolve both
+    // source columns whenever that is still possible.
+    for(const v of vertices)if(v.lo!==v.hi&&value(v,true)>base-1e-9){mark(v.lo);mark(v.hi);}
+    if(!await evaluate())return null;
+    let peak=-1, peakAlt=base;
+    for(let i=0;i<vertices.length;i++) {
+      const v=vertices[i];
+      const upper=value(v,true);
+      if(upper>peakAlt){peak=i;peakAlt=upper;}
+    }
+    if(peak<0)return null;
+    let lo=peak,hi=peak;
+    while(lo>0&&value(vertices[lo-1],true)>base)lo--;
+    while(hi<vertices.length-1&&value(vertices[hi+1],true)>base)hi++;
+    // The old cut interpolates with the first low neighbour on each side.
+    for(const i of [lo-1,hi+1])if(i>=0&&i<vertices.length) {
+      mark(vertices[i].lo);mark(vertices[i].hi);
+    }
+    if(!await evaluate())return null;
+    const out=vertices.map(v=>[v.az,value(v,true)]);
+    const cap=capOf(out,obs,eye,target);
+    if(!cap)return null;
+    return index.stillCurrent()?cap:null;
+  };
+}
+
+  let resident;
+  return async (obs,eye,target)=>{
+    if(target.id!=='fuji'||typeof AstroNotesTerrain.currentRidgeTile!=='function')return null;
+    resident??=createResidentHeightIndex(AstroNotesTerrain.currentRidgeTile);
+    const solve=createIndexedSearchRidge({
+      terrain:AstroNotesTerrain,align:AstroNotesAlign,atmosphere:AstroNotesAtmosphere,angle:aimAirAngle,
+      capOf:aimSummitCap,index:resident.begin(),makeBounds:createMetricFanBounds,zoomRange:ridgeZoomRange
+    });
+    return solve(obs,eye,target);
+  };
+})();
+// 2026-11-09 稜線（山頂の帽子）は日付と天体に依存しない。同じ地点・目線・山・大気係数なら
+// 一度だけ索引で求め、別の日・太陽/月でも使い回す（以前は毎回計算し直していた）。
+const aimIndexedCaps=new Map(),AIM_INDEXED_CAP_LIMIT=6000;
+// 計算ページ（本体のSHAを持つ別frame）だけは、端末内へも保存して再読み込み後に使い回す。
+// 保存は本体のSHAごと。本体が変われば古い稜線は消す。
+const aimCapStore=(()=>{
+  const engine=globalThis.document?.documentElement?.dataset?.engine,idb=globalThis.indexedDB;
+  if(!engine||!idb)return null;
+  const LIMIT=20000;let db=null,pruned=false;
+  const open=()=>db??=new Promise((resolve,reject)=>{
+    const request=idb.open('astronotes-ridge-caps',1);
+    request.onupgradeneeded=()=>request.result.createObjectStore('caps',{keyPath:'key'}).createIndex('savedAt','savedAt');
+    request.onsuccess=()=>{const opened=request.result;opened.onversionchange=()=>{opened.close();db=null;};resolve(opened);};
+    request.onerror=()=>reject(request.error);request.onblocked=()=>reject(Error('blocked'));
+  }).catch(()=>{db=null;return null;});
+  const run=(mode,work)=>open().then(opened=>opened&&new Promise(resolve=>{
+    let value=null;try{const tx=opened.transaction('caps',mode),request=work(tx.objectStore('caps'));if(request)request.onsuccess=()=>{value=request.result;};tx.oncomplete=()=>resolve(value);tx.onerror=tx.onabort=()=>resolve(null);}catch{resolve(null);}
+  })).catch(()=>null);
+  const prune=()=>{
+    if(pruned)return;pruned=true;
+    void run('readwrite',store=>{
+      const request=store.openCursor();let kept=0;
+      request.onsuccess=()=>{const cursor=request.result;if(cursor){if(cursor.value.engine!==engine)cursor.delete();else kept++;cursor.continue();return;}
+        if(kept<=LIMIT)return;let extra=kept-LIMIT;const oldest=store.index('savedAt').openCursor();oldest.onsuccess=()=>{const c=oldest.result;if(!c||extra<=0)return;c.delete();extra--;c.continue();};};
+      return null;
+    });
+  };
+  return {
+    get:key=>{prune();return run('readonly',store=>store.get(key)).then(v=>v?.engine===engine&&Array.isArray(v.cap?.ridge)&&Number.isFinite(v.cap?.base)?v.cap:null);},
+    put:(key,cap)=>run('readwrite',store=>store.put({key,engine,savedAt:Date.now(),cap:{ridge:cap.ridge,base:cap.base}})),
+  };
+})();
+function aimIndexedCap(obs,eye,target){
+  const key=JSON.stringify([obs.latitude,obs.longitude,eye,target.id,target.latitude,target.longitude,target.parts?.[0]?.m,target.rim||null,AstroNotesAtmosphere.targetK()]);
+  // The overlap list passes caps it already holds (synced with the records) and collects the ones it used.
+  const shared=typeof recordGeometry!=='undefined'&&recordGeometry.collect?recordGeometry:null,sharedKey='cap:'+key;
+  const note=cap=>{if(cap&&shared)shared.used.set(sharedKey,{ridge:cap.ridge,base:cap.base});return cap;};
+  if(aimIndexedCaps.has(key)){const hit=aimIndexedCaps.get(key);aimIndexedCaps.delete(key);aimIndexedCaps.set(key,hit);return hit.then(note);}
+  const known=shared?.known.get(sharedKey);
+  const pending=(async()=>{if(Array.isArray(known?.ridge)&&Number.isFinite(known?.base))return known;const saved=await aimCapStore?.get(key);if(saved)return saved;const cap=await trialSearchRidge(obs,eye,target);if(cap)void aimCapStore?.put(key,cap);return cap;})().then(cap=>{if(!cap&&aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);return cap;},error=>{if(aimIndexedCaps.get(key)===pending)aimIndexedCaps.delete(key);throw error;});
+  aimIndexedCaps.set(key,pending);while(aimIndexedCaps.size>AIM_INDEXED_CAP_LIMIT)aimIndexedCaps.delete(aimIndexedCaps.keys().next().value);
+  return pending.then(note);
+}
+async function aimShootingView(obs, target, body, partId, matchMode, indexed=false) {
   if(matchMode!=='overlap'||!aimIsMountain(target))return null;
-  const eye=obs.elevation+obs.eyeM,ridge=await aimLookRidge(obs,eye,target,{});
-  if(!ridge)throw Error('山の稜線を取得できませんでした。再試行してください');
-  const cap=aimSummitCap(ridge,obs,eye,target);
+  const eye=obs.elevation+obs.eyeM;
+  let cap=null,ridge;
+  if(indexed)try { cap=await aimIndexedCap(obs,eye,target); } catch { /* Try the original sampler. */ }
+  if(!cap) {
+    ridge=await aimLookRidge(obs,eye,target,{exactSearch:indexed&&target.id==='fuji'});
+    if(!ridge)throw Error('山の稜線を取得できませんでした。再試行してください');
+    cap=aimSummitCap(ridge,obs,eye,target);
+  }
   return AstroNotesAlign.prepareDailyView(obs,target,body,cap?{partId:null,eyeM:obs.eyeM,ridge:cap.ridge,ridgeBase:cap.base}:{partId:null,eyeM:obs.eyeM,ridge});
 }
 async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now(), limb = aim.limb, matchMode = aim.matchMode || 'limb', isCurrent = () => seq === aim.fromSeq, days = 400, limit = 4, onScanned = () => {} } = {}) {
@@ -432,6 +843,8 @@ async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now
   const cacheKey=JSON.stringify([start,days,limit,obs,target,body,partId,limb,matchMode,typeof AstroNotesAtmosphere==='undefined'?null:AstroNotesAtmosphere.dataKey()]);
   const saved=cache.get(cacheKey);
   if(saved&&start>=saved.from&&start<saved.until&&isCurrent()){onScanned(saved.scanned);return saved.rows.map(e=>({...e}));}
+  {const viaEngine=globalThis.AstroNotesDaysEngine?await globalThis.AstroNotesDaysEngine(obs,target,body,partId,{from:start,limb,matchMode,days,limit,isCurrent,onScanned}):null;
+   if(viaEngine){if(isCurrent()){const scannedTo=viaEngine.length>=limit?S.Cal.startOfDay(viaEngine[limit-1].at)+86400000:start+days*86400000;cache.delete(cacheKey);cache.set(cacheKey,{from:start,until:start+86400000,scanned:scannedTo,rows:viaEngine.map(e=>({...e}))});while(cache.size>8)cache.delete(cache.keys().next().value);onScanned(scannedTo);}return viaEngine;}}
   let scanned=start;
   const whole = partId === "__whole", mountain = typeof aimIsMountain === "function" && aimIsMountain(target);
   // Match eventsFor/searchOptions: overlap uses the whole building, or the mountain rim.
@@ -448,7 +861,7 @@ async function aimBuildingDays(obs, target, body, partId, seq, { from = Date.now
     const events = matchMode === 'overlap' ? AstroNotesShooting.eventsFor(plan,obs,day,{align:AstroNotesAlign,isMountain:aimIsMountain,view}) : whole && !mountain ? (view?view(day):AstroNotesAlign.dailyView(obs, target, body, day, options))
       : AstroNotesAlign.upcoming(obs, target, body, {eyeM:obs.eyeM,from:day,days:1,limit:Infinity,groupDays:false,partId,limb,stepMs:3600000});
     // 候補日はJST日単位。同じ日なら今の時刻に関係なく同じ日集合にする（その日の過ぎた時刻の候補も残す）
-    const row = events.find((e) => e.at >= start && (matchMode === 'overlap' ? AstroNotesShooting.matches(e,plan,aimIsMountain) : aimCandidateMatch(e,whole,plan)) && (body !== "moon" || e.sunAltitude < 0));
+    const row = events.find((e) => e.at >= start && (matchMode === 'overlap' ? AstroNotesShooting.matches(e,plan,aimIsMountain) : aimCandidateMatch(e,whole,plan)));
     if (row) rows.push(row);
     scanned=day+86400000;onScanned(scanned);
   }

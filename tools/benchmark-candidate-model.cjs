@@ -1,7 +1,7 @@
 const fs=require('node:fs'),path=require('node:path'),{performance}=require('node:perf_hooks');
-const T=require('../experiments/candidate-visibility/terrain-model.js');
-const D=require('../experiments/candidate-visibility/search.js'),M=require('../experiments/candidate-visibility/model-evaluator.js'),A=require('../astronotes-align.js'),P=require('../astronotes-shooting.js'),B=require('../astronotes-bodies.js');
-const folder=process.argv[2]||'../data-work',get=n=>JSON.parse(fs.readFileSync(path.join(folder,n)));const geometry=get('yotsuya-mixed-spatial-index.json'),surface=get('surface-samples.json'),walks=require('../experiments/candidate-visibility/sidewalks.json');
+const T=require('../src/features/candidates/terrain-model.js');
+const D=require('../src/features/candidates/search.js'),M=require('../src/features/candidates/model-evaluator.js'),A=require('../astronotes-align.js'),P=require('../astronotes-shooting.js'),B=require('../astronotes-bodies.js');
+const folder=process.argv[2]||'../data-work',get=n=>JSON.parse(fs.readFileSync(path.join(folder,n)));const geometry=get('yotsuya-mixed-spatial-index.json'),surface=get('surface-samples.json'),walks=require('../data/candidate-sidewalks.json');
 const at=Date.parse('2026-11-04T00:00:00+09:00'),plan={target:A.targetById('skytree'),body:'moon',at,partId:'__whole',limb:'center',matchMode:'overlap'},points=D.sampleSidewalks(walks).rows;
 const key=p=>p.latitude.toFixed(7)+','+p.longitude.toFixed(7),surfaceAt=p=>surface.samples[key(p)];
 (async()=>{const terrain=await T.decode(get('candidate-terrain-fallback.json'));const r={limits:['Estimated standing surface, no certified visible classification.','LOD1/2 near observer coverage; not whole target path or Moon ray.','Straight geometric model rays exclude atmospheric ray bending.'],days:[],pointCount:points.length};let chosen=null;const reference={latitude:35.68626,longitude:139.73068,elevation:29.4,eyeM:1.5};

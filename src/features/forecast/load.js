@@ -3,6 +3,7 @@ import {extrasRetry,place} from '../../app/browser-state.js';
 import {applyRoute,routeFromHash} from '../../app/navigation.js';
 import {renderSkeleton} from './detail.js';
 import {keepRounds} from '../results/controller.js';
+import {forecastSummary} from './view.js';
 let bundle = null;       // 取得済みの予報
 let weeks = {};          // phenomenon → [{dayMs, evaluation}]
 let forecastDays = [], predictionPlace = null;
@@ -42,7 +43,7 @@ async function load(force) {
   $("status").innerHTML = `<div class="note-wait"><span class="note-wait-character" aria-hidden="true"></span><div class="note-wait-message"><span id="predictionProgressMessage" aria-live="polite">予測中です</span><div class="note-progress" id="predictionProgressBar" role="progressbar" aria-label="予測の進捗" aria-valuemin="0" aria-valuemax="100" data-indeterminate><span class="note-progress-fill" id="predictionProgressFill" aria-hidden="true"></span></div></div></div>`;
   $("bestNote").hidden = true;
   // 最初の1回だけ骨組みを出す。地点を変えたときは、前の表を残したほうが落ち着く
-  if (!bundle) $("cards").innerHTML = renderSkeleton(Date.now());
+  if (!bundle) { forecastSummary?.waiting(); $("cards").innerHTML = renderSkeleton(Date.now()); }
   try {
     // 光害はその地点の素質なので予報と並行に取得する。取れなくても致命的ではない。
     const prediction = await AstroNotesPrediction.fetch(forPlace,S,{onProgress:progress=>renderPredictionProgress(progress,seq)});
@@ -91,4 +92,4 @@ async function load(force) {
 }
 
 // アメダス実況。2026-10-20 からカードも取得もしない（ユーザー「実況カードは完全に消していい」。点数には使っていない）
-export {acceptedPrediction,bundle,extraSeq,forecastDays,load,predictionDirty,predictionLoadSeq,predictionNeeded,predictionPlace,weeks};
+export {acceptedPrediction,bundle,extraSeq,forecastDays,load,predictionDirty,predictionKeyFor,predictionLoadSeq,predictionNeeded,predictionPlace,weeks};

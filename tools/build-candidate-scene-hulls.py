@@ -15,6 +15,6 @@ signature_raw=json.dumps({'vertices':m['vertices'],'faces':m['faces'],'heightM':
 # JSON numeric spellings differ between Python and JS, so calculate the fast runtime version key in JS.
 sig=subprocess.check_output(['node','-e',"const m=require('./astronotes-align.js').TOWER_MODELS.skytree,s=JSON.stringify({vertices:m.vertices,faces:m.faces,heightM:m.heightM});let h=2166136261;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);process.stdout.write(String(h>>>0))"],cwd=root).decode()
 data={'modelId':m['id'],'modelSha256':hashlib.sha256(raw).hexdigest(),'signature':int(sig),'vertexCount':len(m['vertices']),'triangles':rows}
-p=root/'experiments/candidate-visibility/scene-hulls.js'
+p=root/'src/features/candidates/scene-hulls.js'
 p.write_text('/* Convex hull triangulation of existing self-authored Skytree drawing volumes; regenerated offline by tools/build-candidate-scene-hulls.py. */\n(function(g){const d='+json.dumps(data,separators=(',',':'))+";if(typeof module==='object'&&module.exports)module.exports=d;else g.AstroNotesTrialSurfaceHulls=d;})(globalThis);\n")
 print(f'{len(rows)} solids / {sum(map(len,rows))} triangles / {p.stat().st_size} bytes')

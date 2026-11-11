@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {beforePromotion} from './before-promotion.mjs';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import vm from 'node:vm';
-import {patchExactRidgeTerrain,patchExactRidgeHtml} from './build-exact-ridge.mjs';
 const require=createRequire(new URL('../astronotes-terrain.js',import.meta.url)),astro=require('./astronotes-astro.js'),align=require('./astronotes-align.js');
 const terrainSource=readFileSync(new URL('../astronotes-terrain.js',import.meta.url),'utf8');
-const terrainContext=vm.createContext({require});vm.runInContext(patchExactRidgeTerrain(terrainSource),terrainContext);
+const terrainContext=vm.createContext({require});vm.runInContext(terrainSource,terrainContext);
 const terrain=terrainContext.AstroNotesTerrain,originalTerrain=require('./astronotes-terrain.js');
 function exact(a,b,path='value'){
  if(b!==null&&typeof b==='object'){
@@ -19,7 +19,6 @@ test('prepared Vincenty directions retain every coordinate bit',()=>{
   const destination=terrain.prepareRidgeDestination(lat,lon,az);
   for(const distance of [0,.000001,.15,1,18,35.7,120,350,20000])exact(destination(distance),originalTerrain.destination(lat,lon,az,distance));
  }
- assert.throws(()=>patchExactRidgeTerrain(patchExactRidgeTerrain(terrainSource)),/boundary changed/);
 });
 test('prepared elevation retains exact arithmetic at every height and atmospheric radius',()=>{
  for(const d of [0,.15,1,18,120,350])for(const eye of [-500,0,1.5,20,150,700,3776])for(const k of [1,7/6,4/3]){
@@ -28,8 +27,8 @@ test('prepared elevation retains exact arithmetic at every height and atmospheri
  }
 });
 const rawTerrain=readFileSync(new URL('../src/features/framing/scene/terrain.js',import.meta.url),'utf8');
-const start=rawTerrain.indexOf('async function aimLookRidge('),end=rawTerrain.indexOf('  return task;\n}',start)+'  return task;\n}'.length;
-const original=rawTerrain.slice(start,end),patched=patchExactRidgeHtml(original);
+const lookRidge=text=>{const start=text.indexOf('async function aimLookRidge('),end=text.indexOf('  return task;\n}',start)+'  return task;\n}'.length;return text.slice(start,end);};
+const original=lookRidge(beforePromotion('src/features/framing/scene/terrain.js')),patched=lookRidge(rawTerrain);
 function ridge(code,{holes=false,fail=false}={}){
  const state={calls:0,destinations:0,preparedDirections:0,angles:0,preparedAngles:0,air:7/6,samples:null};
  const tr={...terrain,destination:(...a)=>{state.destinations++;return originalTerrain.destination(...a);},prepareRidgeDestination:(...a)=>{state.preparedDirections++;return terrain.prepareRidgeDestination(...a);},prepareRidgeElevation:(...a)=>{state.preparedAngles++;return terrain.prepareRidgeElevation(...a);},elevations:async points=>{
@@ -50,7 +49,6 @@ test('full mountain ridge keeps all 29,161 sample points and exact resulting sky
   assert.equal(b.state.destinations,0);assert(a.state.angles>28000);assert(b.state.angles<10);
   await b.run(observer,eye,target,{});assert.equal(b.state.calls,1,'exact cached ridge is reused');
  }
- assert.throws(()=>patchExactRidgeHtml(patched),/boundary changed/);
 });
 test('failed terrain retries and simultaneous identical ridge jobs still join',async()=>{
  const fixture=ridge(patched,{fail:true}),obs={latitude:35.58386,longitude:139.56853,elevation:87.2},target=align.targetById('fuji');

@@ -54,10 +54,10 @@ async function aimTerrainBeyond(obs, eye, target, span = AIM_FRONT_SPAN) {
   if (aimBeyondCache.has(key)) return aimBeyondCache.get(key);
   if (aimBeyondPending.has(key)) return aimBeyondPending.get(key);
   const task = (async () => {
-    const cols = span > AIM_FRONT_SPAN ? 120 : 80, n = 60, near = D + 0.3, far = Math.max(near + 1, AIM_BEYOND_MAX_KM), pts = [];
+    const cols = span > AIM_FRONT_SPAN ? 240 : 160, n = 240, near = D + 0.3, far = Math.max(near + 1, AIM_BEYOND_MAX_KM), pts = [];
     for (let i = 0; i <= cols; i++) {
       const az = az0 - span + (2 * span * i) / cols;
-      for (let j = 0; j <= n; j++) { const d = near + (far - near) * j / n; pts.push({ ...AstroNotesTerrain.destination(obs.latitude, obs.longitude, az, d), az, d }); }
+      for (let j = 0; j <= n; j++) { const d = near * Math.pow(far / near, j / n); pts.push({ ...AstroNotesTerrain.destination(obs.latitude, obs.longitude, az, d), az, d }); }
     }
     const el = await AstroNotesTerrain.tileElevations(pts, AIM_BEYOND_ZOOM);
     if (airK !== AstroNotesAtmosphere.targetK()) return null;
@@ -78,29 +78,29 @@ async function aimTerrainBeyond(obs, eye, target, span = AIM_FRONT_SPAN) {
 }
 
 async function aimLookRidge(obs, eye, target, win) {
-  const D = AstroNotesTerrain.distanceKm(obs.latitude, obs.longitude, target.latitude, target.longitude);
+  const {km:D,azimuth:az0} = AstroNotesTerrain.inverse(obs.latitude, obs.longitude, target.latitude, target.longitude);
   // 山の地形範囲・解像度はレンズや構図から独立させる。広角でも山頂を粗くしない。
-  const az0 = AstroNotesTerrain.bearing(obs.latitude, obs.longitude, target.latitude, target.longitude);
   const s = target.id === "fuji" ? 18 : Math.max(1.5, Math.min(12, D * 0.15));
   const spanAz = Math.atan2(s, Math.max(.15, D)) * 180 / Math.PI;
   const cols = 240, n = 120, airK=AstroNotesAtmosphere.targetK();
   const key = [obs.latitude, obs.longitude, eye, target.latitude, target.longitude, s,
     target.parts[0].m].map((v) => v.toFixed(5)).join(",") + JSON.stringify(target.rim || null);
-  if (aimRidgeCache.has(key+airK)) return aimRidgeCache.get(key+airK);
+  if (!win?.exactSearch && aimRidgeCache.has(key+airK)) { const cached=aimRidgeCache.get(key+airK);aimRidgeCache.delete(key+airK);aimRidgeCache.set(key+airK,cached);return cached; }
   const pendingKey = key + airK;
-  if (aimRidgePending.has(pendingKey)) return aimRidgePending.get(pendingKey);
+  if (!win?.exactSearch && aimRidgePending.has(pendingKey)) return aimRidgePending.get(pendingKey);
   const task = (async () => {
-  const pts = [];
+  const pts = [], distances = Array.from({length:n+1},(_,j)=>Math.max(0.15, D - s + (2 * s * j) / n));
   for (let i = 0; i <= cols; i++) {
-    const az = az0 - spanAz + (2 * spanAz * i) / cols;
+    const az = az0 - spanAz + (2 * spanAz * i) / cols, destination = AstroNotesTerrain.prepareRidgeDestination(obs.latitude,obs.longitude,az);
     for (let j = 0; j <= n; j++) {
-      const d = Math.max(0.15, D - s + (2 * s * j) / n);
-      pts.push({ ...AstroNotesTerrain.destination(obs.latitude, obs.longitude, az, d), az, d });
+      const d = distances[j];
+      const point = destination(d); point.az = az; point.d = d; pts.push(point);
     }
   }
   let el;
   try { el = await AstroNotesTerrain.elevations(pts, { zoom: D > 40 ? 12 : 13, from: obs }); } catch { return null; }
   if(airK!==AstroNotesAtmosphere.targetK())return null;
+  const angles=distances.map(d=>AstroNotesTerrain.prepareRidgeElevation(d,eye,{k:airK}));
   const rim = AstroNotesAlign.rimOutline({ ...obs, elevation: eye }, target);
   const summit = aimAirAngle(D, eye, target.parts[0].m);
   const out = [];
@@ -109,7 +109,7 @@ async function aimLookRidge(obs, eye, target, win) {
     let best = -90;
     for (let j = 0; j <= n; j++) {
       const k = i * (n + 1) + j;
-      if (Number.isFinite(el[k])) best = Math.max(best, aimAirAngle(pts[k].d, eye, el[k]));
+      if (Number.isFinite(el[k])) best = Math.max(best, angles[j](el[k]));
     }
     const rel = ((az - az0 + 540) % 360) - 180;
     if (rim) { const a = rim.at(((az - rim.azimuth + 540) % 360) - 180); if (a !== null) best = Math.max(best, a); }
@@ -133,11 +133,11 @@ async function aimLookRidge(obs, eye, target, win) {
     }
     out.sort((a,b) => ((a[0]-az0+540)%360)-((b[0]-az0+540)%360));
   }
-  aimRidgeCache.set(key+airK, out);
-  while(aimRidgeCache.size>32)aimRidgeCache.delete(aimRidgeCache.keys().next().value);
+  if(!win?.exactSearch)aimRidgeCache.set(key+airK, out);
+  while(aimRidgeCache.size>256)aimRidgeCache.delete(aimRidgeCache.keys().next().value);
   return out;
   })().finally(() => { if (aimRidgePending.get(pendingKey) === task) aimRidgePending.delete(pendingKey); });
-  aimRidgePending.set(pendingKey, task);
+  if(!win?.exactSearch)aimRidgePending.set(pendingKey, task);
   return task;
 }
 

@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {beforePromotion} from './before-promotion.mjs';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {patchExactTerrain} from './build-exact-terrain.mjs';
-const source=readFileSync(new URL('../astronotes-terrain.js',import.meta.url),'utf8');
+const source=beforePromotion('astronotes-terrain.js'),now=readFileSync(new URL('../astronotes-terrain.js',import.meta.url),'utf8');
 function fixture(patched,{fail=false,failOnce=false,mode='mixed'}={}){
  let calls=0,failedOnce=false;const tiles=new Map(),layers=[];
  const tile=async(z,x,y,layer)=>{
@@ -21,8 +21,9 @@ function fixture(patched,{fail=false,failOnce=false,mode='mixed'}={}){
   }
   const value={width,height,data};tiles.set(key,value);return value;
  };
- let s=patched?patchExactTerrain(source):source;
- s=s.replace('function loadTile(z, x, y, layer = "dem_png") {','function loadTile(z, x, y, layer = "dem_png") {return __tile(z,x,y,layer);');
+ const head=patched?'function loadTile(z, x, y, layer = "dem_png", strict = false) {':'function loadTile(z, x, y, layer = "dem_png") {';
+ let s=patched?now:source;assert.equal(s.split(head).length,2);
+ s=s.replace(head,head+'return __tile(z,x,y,layer);');
  const c=vm.createContext({AstroNotesAstro:{},Image:class{},__tile:tile,console,AbortSignal});vm.runInContext(s,c);
  return {api:c.AstroNotesTerrain,calls:()=>calls,layers};
 }

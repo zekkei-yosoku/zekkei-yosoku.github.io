@@ -1,15 +1,15 @@
-// The trial's GSI building cache (tools/build-gsi-buildings-cache.mjs) returns exactly what the production routine
-// returns, also on repeated calls that reuse a tile's converted rings. No network: one synthetic BldA tile.
+// The GSI building cache returns exactly what the routine it replaced (tools/before-promotion.mjs)
+// returned, also on repeated calls that reuse a tile's converted rings. No network: one synthetic BldA tile.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
+import {beforePromotion} from './tools/before-promotion.mjs';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {patchGsiBuildingsCache} from './tools/build-gsi-buildings-cache.mjs';
 const require=createRequire(import.meta.url);
 const load=source=>{const module={exports:{}},context={module,exports:module.exports,require,console,Math,Date,JSON,Promise,Map,Set,WeakMap,TextDecoder,TextEncoder,Uint8Array,DataView,ArrayBuffer,Float64Array,Number,Object,Array,String,Error,RangeError,isFinite,parseFloat,globalThis:{}};vm.createContext(context);vm.runInContext(source,context);return context.module.exports;};
 const source=readFileSync(new URL('./astronotes-terrain.js',import.meta.url),'utf8');
-const P=load(source),T=load(patchGsiBuildingsCache(source));
+const P=load(beforePromotion('astronotes-terrain.js')),T=load(source);
 
 const varint=n=>{const b=[];do{let x=n&0x7f;n=Math.floor(n/128);if(n)x|=0x80;b.push(x);}while(n);return b;};
 const zz=n=>(n<<1)^(n>>31);

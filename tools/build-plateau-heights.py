@@ -1,8 +1,8 @@
 """2026-11-10 Trial only. PLATEAUを整備した全国の都市（既定。--cities で絞れる）の建物の「上面の高さ」格子を国土交通省 PLATEAU の公式CityGML（2025年度）から作る。
 
-  python3 tools/build-plateau-heights.py trial/data/candidate-heights [--jobs 8] [--cities 13101,13102] [--only 53394654,...]
+  python3 tools/build-plateau-heights.py data/candidate-heights [--jobs 8] [--cities 13101,13102] [--only 53394654,...]
   python3 tools/build-plateau-heights.py OUT --zip-cities 02321,13421,21201 --catalog-dir SAVED_CATALOGS   目録に無い市の一括zipから
-  python3 tools/build-plateau-heights.py --merge trial/data/building-heights OUT                           その結果を全国の格子へ足す
+  python3 tools/build-plateau-heights.py --merge data/building-heights OUT                           その結果を全国の格子へ足す
 
 3次メッシュ（緯度30秒×経度45秒）を 185×225 マス（約5m）に分け、マスに少しでも掛かる建物の一番高い上面の
 標高（T.P.、切り上げ）を持つ。高さは計測高さ（地表から最高点）を使う。LOD1の高さは点群の中央値で低めに出るため、

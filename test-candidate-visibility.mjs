@@ -134,6 +134,7 @@ test('標高APIが応答しなくても打ち切り、後続地点で同じ失�
   try {
     assert.equal(await terrain.groundElevation(35.6,139.6), null);
     assert.equal(await terrain.groundElevation(35.61,139.61), null);
-    assert.equal(calls, 1);
+    // 1回目は標高タイル、2回目は地点API。次の地点は同じタイルの失敗を共有し、地点APIも休ませる。
+    assert.equal(calls, 2);
   } finally { clearInterval(keepAlive); }
 });

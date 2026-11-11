@@ -4,7 +4,7 @@ import {createRequire} from 'node:module';
 import {gzipSync} from 'node:zlib';
 import {createHash} from 'node:crypto';
 const require=createRequire(import.meta.url);
-const P=require('./experiments/candidate-visibility/plateau-buildings.js');
+const P=require('./src/features/candidates/plateau-buildings.js');
 const lat=35.6895,lon=139.6917;
 // A 40 x 30 m tower of 240 m on a 70 x 50 m podium of 30 m (dm east/north of the aim point).
 const tower=['bldg_tower','都庁のような塔',lat,lon,36,240,2,[[2400,[-200,-150,200,-150,200,150,-200,150]],[300,[-350,-250,350,-250,350,250,-350,250]]]];

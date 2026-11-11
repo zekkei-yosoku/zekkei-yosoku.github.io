@@ -118,7 +118,7 @@ const aimSceneExtrasAllowed = () => toolAllowed("multiscene");
 function aimSceneBackdrop() {
   if (!aimSceneExtrasAllowed()) return [];
   const ids = new Set(aimSceneExtras());
-  return aimTargetList().filter((t) => ids.has(t.id));
+  return aimTargetList().map((t) => t.id === "custom" && globalThis.AstroNotesTrialOverlap?.custom?.() || t).filter((t) => ids.has(t.id));
 }
 const aimSceneExtraTargets = (mainId) => aimSceneBackdrop().filter((t) => t.id !== mainId);
 /// いま選んでいる他の目標・お気に入りの目標の中身（カードに出す形）。どちらでもなければ null

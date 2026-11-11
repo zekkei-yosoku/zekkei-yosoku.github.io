@@ -1,29 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {beforePromotion} from './before-promotion.mjs';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import vm from 'node:vm';
 import {performance} from 'node:perf_hooks';
-import {patchExactGeometry} from './build-exact-geometry.mjs';
-import {patchAlignHeightGeometry} from './build-record-height-geometry.mjs';
 const require=createRequire(new URL('../astronotes-align.js',import.meta.url));
-const source=readFileSync(new URL('../astronotes-align.js',import.meta.url),'utf8'),terrain=require('./astronotes-terrain.js');
+const source=beforePromotion('astronotes-align.js'),now=readFileSync(new URL('../astronotes-align.js',import.meta.url),'utf8'),terrain=require('./astronotes-terrain.js');
 function load(code){
  let inverses=0;const tracked={...terrain};
  for(const name of ['inverse','distanceKm','bearing'])tracked[name]=(...args)=>{inverses++;return terrain[name](...args);};
- const context=vm.createContext({require,AstroNotesTerrain:tracked});vm.runInContext(patchAlignHeightGeometry(code),context);
+ const context=vm.createContext({require,AstroNotesTerrain:tracked});vm.runInContext((code),context);
  return {api:context.AstroNotesAlign,count:()=>inverses,reset:()=>{inverses=0;}};
 }
-const old=load(source),current=load(patchExactGeometry(source));
+const old=load(source),current=load(now);
 function exact(a,b,path='result'){
  if(b!==null&&typeof b==='object'){
-  assert.deepEqual(Reflect.ownKeys(a),Reflect.ownKeys(b),path+' keys');
+  // Fields added since (vertices for the recorded heights) have no predecessor; every earlier field must remain, in order.
+  assert.deepEqual(Reflect.ownKeys(a).filter(k=>Reflect.ownKeys(b).includes(k)),Reflect.ownKeys(b),path+' keys');
   for(const k of Reflect.ownKeys(b))exact(a[k],b[k],path+'.'+String(k));
  }else assert(Object.is(a,b),path+': '+a+' !== '+b);
 }
 
 test('patch consumes the unchanged inverse function and fails on drift',()=>{
- assert.throws(()=>patchExactGeometry(patchExactGeometry(source)),/boundary changed/);
  for(const coords of [[35.58386,139.56853,35.71006,139.8107],[0,0,0,0],[-89,-179.9,89,179.9],[0,0,0,180],[35,139,35.000000001,139.000000001]]){
   const both=terrain.inverse(...coords);assert(Object.is(both.km,terrain.distanceKm(...coords)));assert(Object.is(both.azimuth,terrain.bearing(...coords)));
  }
@@ -64,7 +63,7 @@ test('prepared daily candidates remain bit-identical for Sun, Moon and height ch
  const observer={latitude:35.58386,longitude:139.56853,elevation:87.2},day=Date.parse('2026-11-25T00:00:00+09:00');
  for(const id of ['skytree','tokyotower','tocho-building'])for(const body of ['sun','moon'])for(const eyeM of [1.5,150]){
   const target=old.api.targetById(id),opts={partId:'__whole',eyeM},before=old.api.prepareDailyView(observer,target,body,opts),after=current.api.prepareDailyView(observer,target,body,opts);
-  exact(after.heightGeometry,before.heightGeometry);exact(after(day),before(day));
+  exact(after(day),before(day));
   exact(after(day,day+12*3600000+.125),before(day,day+12*3600000+.125));
  }
 });

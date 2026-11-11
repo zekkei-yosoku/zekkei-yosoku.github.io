@@ -375,10 +375,10 @@
     const { eyeM = 1.5, partId = null, heightM = null } = opts;
     const topM = heightM !== null ? heightM : (partOf(target, partId) || {}).m;
     if (!Number.isFinite(topM)) return null;
-    const distanceKm = TR.distanceKm(observer.latitude, observer.longitude, target.latitude, target.longitude);
+    const {km:distanceKm,azimuth} = TR.inverse(observer.latitude, observer.longitude, target.latitude, target.longitude);
     return {
       distanceKm,
-      azimuth: TR.bearing(observer.latitude, observer.longitude, target.latitude, target.longitude),
+      azimuth,
       angle: targetAngle(distanceKm, (observer.elevation ?? 0) + eyeM, topM),
       topM,
     };
@@ -394,11 +394,10 @@
   function rimOutline(obs, target) {
     const rim = target && target.rim;
     if (!rim) return null;
-    const d0 = TR.distanceKm(obs.latitude, obs.longitude, rim.latitude, rim.longitude);
-    const az0 = TR.bearing(obs.latitude, obs.longitude, rim.latitude, rim.longitude);
+    const {km:d0,azimuth:az0} = TR.inverse(obs.latitude, obs.longitude, rim.latitude, rim.longitude);
     const list = rimPoints(rim).map((p) => {
-      const d = TR.distanceKm(obs.latitude, obs.longitude, p.latitude, p.longitude);
-      return { rel: azDiff(TR.bearing(obs.latitude, obs.longitude, p.latitude, p.longitude), az0),
+      const {km:d,azimuth} = TR.inverse(obs.latitude, obs.longitude, p.latitude, p.longitude);
+      return { rel: azDiff(azimuth, az0),
                ang: targetAngle(d, obs.elevation ?? 0, p.m) };
     }).sort((a, b) => a.rel - b.rel);
     // 20m 格子なので、その距離で 15m ぶんの幅の中の一番上を取る
@@ -554,6 +553,7 @@
       horizontalDeg: 2 * Math.atan(w / (2 * focalMm)) / R, verticalDeg: 2 * Math.atan(h / (2 * focalMm)) / R };
   }
   // Observer/target geometry is invariant across a candidate search. Prepare once per search.
+  const visibleBetter = (e, b) => e.intersects !== b.intersects ? e.intersects : e.distanceToTarget < b.distanceToTarget;
   function prepareDailyView(observer, target, body, opts = {}) {
     const g = geometryFrom(observer, target, opts);
     if (!g) return () => [];
@@ -562,22 +562,71 @@
     if(mountainRidge&&(mountainRidge.length<2||mountainRidge.some(p=>!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite))))throw Error('山の稜線を取得できません');
     // ridgeBase：山頂付近だけで判定するときの下端の高さ（既定は地平線0°。2026-10-20）
     const ridgeBase=Number.isFinite(opts.ridgeBase)?opts.ridgeBase:0;
-    const outline = mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} : towerOutline(observer, target, opts);
-    const centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
-    const project = viewProjector(g.azimuth, centerAlt);
-    const polygons = outline ? (outline.hitPolygons || [outline.hitPoints || outline.points]).map(poly=>poly.map(([a,h])=>project(a,h)).filter(Boolean)).filter(poly=>poly.length>=3) : null;
-    const bounds=polygons?.map(poly=>({minX:Math.min(...poly.map(p=>p[0])),maxX:Math.max(...poly.map(p=>p[0])),minY:Math.min(...poly.map(p=>p[1])),maxY:Math.max(...poly.map(p=>p[1]))}));
-    const distanceToPolygons=(center,ratio)=>{
-      const point=[center[0],center[1]/ratio];let nearest=Infinity;
-      for(let i=0;i<polygons.length;i++){
-        const box=bounds[i],dx=Math.max(box.minX-point[0],0,point[0]-box.maxX),dy=Math.max(box.minY/ratio-point[1],0,point[1]-box.maxY/ratio);
-        // A polygon cannot be closer than its bounding rectangle. Keep a numerical margin.
-        if(Math.hypot(dx,dy)>nearest+1e-10)continue;
-        const poly=ratio===1?polygons[i]:polygons[i].map(p=>[p[0],p[1]/ratio]);
-        nearest=Math.min(nearest,polygonDistance(point,poly));if(nearest===0)break;
-      }
-      return nearest;
-    };
+    const hasMountainRidge=!!mountainRidge;
+    let centerAlt,project,polygons,hasOutline,approximate;
+    {
+    const outline = mountainRidge ? {viewBaseAngle:ridgeBase,topAngle:g.angle,hitPolygons:[[...mountainRidge,[mountainRidge.at(-1)[0],ridgeBase],[mountainRidge[0][0],ridgeBase]]]} : opts.silhouette ? {viewBaseAngle:opts.silhouette.viewBaseAngle,topAngle:opts.silhouette.topAngle,approximate:!!opts.silhouette.approximate,hitPolygons:[opts.silhouette.polygon]} : towerOutline(observer, target, opts);
+    centerAlt = outline ? (outline.viewBaseAngle + outline.topAngle) / 2 : g.angle;
+    project = viewProjector(g.azimuth, centerAlt);
+    polygons = outline ? (outline.hitPolygons || [outline.hitPoints || outline.points]).map(poly=>poly.map(([a,h])=>project(a,h)).filter(Boolean)).filter(poly=>poly.length>=3) : null;
+    hasOutline=!!outline;approximate=!!outline?.approximate;
+    }
+    const distanceToPolygons=polygons?(function prepareExactPolygonDistance(polygons,polygonDistance,scaledDistance){
+ const boxes=polygons.map(poly=>({minX:Math.min(...poly.map(p=>p[0])),maxX:Math.max(...poly.map(p=>p[0])),minY:Math.min(...poly.map(p=>p[1])),maxY:Math.max(...poly.map(p=>p[1]))}));
+ const combine=indices=>{
+  const out={minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity};
+  for(const i of indices){const b=boxes[i];out.minX=Math.min(out.minX,b.minX);out.maxX=Math.max(out.maxX,b.maxX);out.minY=Math.min(out.minY,b.minY);out.maxY=Math.max(out.maxY,b.maxY);}
+  return out;
+ };
+ function build(indices){
+  const box=combine(indices);
+  if(indices.length<=8)return {box,indices};
+  // Preserve original face order. Reordering can change legacy floating-point
+  // cancellation and the running minimum used by the existing skip condition.
+  const mid=Math.floor(indices.length/2);
+  return {box,left:build(indices.slice(0,mid)),right:build(indices.slice(mid))};
+ }
+ const tree=polygons.length>16&&boxes.every(b=>Object.values(b).every(Number.isFinite))?build(polygons.map((_,i)=>i)):null;
+ return (center,ratio)=>{
+  const point=[center[0],center[1]/ratio];let nearest=Infinity;
+  const lower=(box,group=false)=>{
+   const dx=Math.max(box.minX-point[0],0,point[0]-box.maxX),dy=Math.max(box.minY/ratio-point[1],0,point[1]-box.maxY/ratio);
+   const distance=Math.hypot(dx,dy);
+   // Leave a generous rounding cushion ONLY in the group rejection bound.
+   // This can visit extra faces; the original leaf bound/distance stays exact.
+   return group?(Number.isFinite(distance)?distance*(1-1e-12):Math.max(dx,dy)):distance;
+  };
+  const evaluate=i=>{
+   if(lower(boxes[i])>nearest+1e-10)return;
+   if(ratio!==1&&scaledDistance)nearest=Math.min(nearest,scaledDistance(point,polygons[i],ratio));
+   else{
+    const poly=ratio===1?polygons[i]:polygons[i].map(p=>[p[0],p[1]/ratio]);
+    nearest=Math.min(nearest,polygonDistance(point,poly));
+   }
+  };
+  function visit(node,bound){
+   if(bound>nearest+1e-10||nearest===0)return;
+   if(node.indices){for(const i of node.indices){evaluate(i);if(nearest===0)break;}return;}
+   visit(node.left,lower(node.left.box,true));visit(node.right,lower(node.right.box,true));
+  }
+  if(tree&&ratio>0&&Number.isFinite(ratio)&&point.every(Number.isFinite))visit(tree,lower(tree.box,true));
+  else for(let i=0;i<polygons.length;i++){evaluate(i);if(nearest===0)break;}
+  return nearest;
+ };
+})(polygons,polygonDistance,function exactScaledPolygonDistance(point,polygon,ratio){
+ let inside=false,distance=Infinity;
+ if(!polygon.length)return distance;
+ let ax=polygon[polygon.length-1][0],ay=polygon[polygon.length-1][1]/ratio;
+ for(let i=0;i<polygon.length;i++){
+  const bx=polygon[i][0],by=polygon[i][1]/ratio;
+  if((ay>point[1])!==(by>point[1])&&point[0]<(bx-ax)*(point[1]-ay)/(by-ay)+ax)inside=!inside;
+  const dx=bx-ax,dy=by-ay,len=dx*dx+dy*dy;
+  const u=len?Math.max(0,Math.min(1,((point[0]-ax)*dx+(point[1]-ay)*dy)/len)):0;
+  distance=Math.min(distance,Math.hypot(point[0]-ax-u*dx,point[1]-ay-u*dy));
+  ax=bx;ay=by;
+ }
+ return inside?0:distance;
+}):null;
     const evaluate = (at, st = bodyAt(body, at, obs)) => {
       const xy = project(st.azimuth, st.apparentAltitude);
       const radius = Math.tan(st.angularRadius * R) / R;
@@ -585,7 +634,7 @@
       const ratio=Number.isFinite(st.upperRadius)&&radius>0&&upper&&lower?Math.max(.1,Math.abs(upper[1]-lower[1])/(2*radius)):1;
       const center=xy?[xy[0],Number.isFinite(st.upperRadius)&&upper&&lower?(upper[1]+lower[1])/2:xy[1]]:null;
       const distance = center ? (polygons ? distanceToPolygons(center,ratio) : Math.hypot(center[0],center[1]/ratio)) : Infinity;
-      return { at, gap: st.apparentAltitude - g.angle, radius: st.angularRadius, distanceToTarget: distance, approximate: !!outline?.approximate,
+      return { at, gap: st.apparentAltitude - g.angle, radius: st.angularRadius, distanceToTarget: distance, approximate,
         intersects: distance <= radius && (st.upperAltitude??st.apparentAltitude+st.angularRadius) > 0,
         nearTarget: distance <= (extended(body) ? radius + 0.5 : 2 * radius) && st.apparentAltitude + st.angularRadius > 0,
         altitude: st.apparentAltitude, illuminated: body === "moon" ? st.illuminatedFraction : null,
@@ -595,14 +644,14 @@
     const complete = row => ({...row,
       sunAltitude: body === "sun" ? row.altitude : body === "moon" ? bodyAt("sun",row.at,obs).apparentAltitude : A.sun(row.at, obs).geometricAltitude,
       side: bodyAt(body,row.at+60000,obs).apparentAltitude < row.altitude ? "set" : "rise"});
-    return (dayMs, at = null) => {
+    const run = (dayMs, at = null) => {
     if(Number.isFinite(at))return [complete(evaluate(at))];
     const end = dayMs + 86400000, crossings = [];
     let previous = null, nearest = null;
     // 全天の軌道も確認し、目標の方位を横切らない日にも最接近を返す。
     for (let at = dayMs; at <= end; at += 600000) {
       const st = bodyAt(body, at, obs), diff = azDiff(st.azimuth, g.azimuth), row = evaluate(at, st);
-      if (at < end && (!nearest || row.distanceToTarget < nearest.distanceToTarget)) nearest = row;
+      if (at < end && (!nearest || visibleBetter(row, nearest))) nearest = row;
       if (at === dayMs && Math.abs(diff) < 1e-9) crossings.push(row);
       if (previous && Math.abs(previous.diff) > 1e-9 && (at < end || Math.abs(diff) > 1e-9) && Math.sign(diff) !== Math.sign(previous.diff) && Math.abs(diff - previous.diff) < 90) {
         let lo = previous.at, hi = at, sign = previous.diff;
@@ -612,24 +661,24 @@
         }
         let best = evaluate((lo + hi) / 2);
         // 横切る瞬間の前後も見る。円盤が建物の横の縁だけに掛かる日を落とさない。
-        if (outline) for (let dt = -600000; dt <= 600000; dt += 20000) {
+        if (hasOutline) for (let dt = -600000; dt <= 600000; dt += 20000) {
           const t = (lo + hi) / 2 + dt;
           if (t < dayMs || t >= end) continue;
           const e = evaluate(t);
-          if (e.distanceToTarget < best.distanceToTarget) best = e;
+          if (visibleBetter(e, best)) best = e;
         }
         if (best.at >= dayMs && best.at < end) crossings.push(best);
       }
       previous = { at, diff };
     }
-    if ((!crossings.length || mountainRidge) && nearest) {
+    if ((!crossings.length || hasMountainRidge) && nearest) {
       const lo = Math.max(dayMs, nearest.at - 600000), hi = Math.min(end - 1, nearest.at + 600000);
-      for (let at = lo; at <= hi; at += 20000) { const e = evaluate(at); if (e.distanceToTarget < nearest.distanceToTarget) nearest = e; }
-      if(mountainRidge){
+      for (let at = lo; at <= hi; at += 20000) { const e = evaluate(at); if (visibleBetter(e, nearest)) nearest = e; }
+      if(hasMountainRidge){
         // The sloping skyline can intersect far from the summit's azimuth crossing.
         const i=crossings.findIndex(row=>Math.abs(row.at-nearest.at)<3*3600000);
         if(i<0)crossings.push(nearest);
-        else if(nearest.distanceToTarget<crossings[i].distanceToTarget||(nearest.distanceToTarget===crossings[i].distanceToTarget&&nearest.at<crossings[i].at))crossings[i]=nearest;
+        else if(visibleBetter(nearest,crossings[i])||(nearest.intersects===crossings[i].intersects&&nearest.distanceToTarget===crossings[i].distanceToTarget&&nearest.at<crossings[i].at))crossings[i]=nearest;
       }else crossings.push(nearest);
     }
     if (extended(body)) {
@@ -648,6 +697,8 @@
     }
     return crossings.sort((a, b) => a.at - b.at).map(complete);
     };
+    run.heightGeometry=Object.freeze({azimuth:g.azimuth,angle:g.angle,centerAlt,ridge:hasMountainRidge,ridgeBase:hasMountainRidge?ridgeBase:null,outline:hasOutline,partId:opts.partId??null,heightM:opts.heightM??null,eyeM:opts.eyeM??1.5});
+    return run;
   }
   function dailyView(observer, target, body, dayMs, opts = {}) {
     return prepareDailyView(observer,target,body,opts)(dayMs,opts.at);
@@ -1470,9 +1521,7 @@
     const lo=half(p),hi=half(p.slice().reverse());lo.pop();hi.pop();return lo.concat(hi);
   }
   const castleWorldCache = new Map();
-  function modelOutline(observer,target,model,{eyeM=1.5,heightM=null}={}) {
-    const ground=target.groundM??0,top=heightM??((partOf(target,"tip")||target.parts[0]).m-ground);
-    if(!(top>.5))return null;
+  function modelWorld(target,model){
     const ref=model.calibration?.observer;
     const bearing=ref?TR.bearing(target.latitude,target.longitude,ref.latitude,ref.longitude):model.referenceBearing;
     const key=`${model.id},${target.latitude},${target.longitude},${bearing}`;
@@ -1491,14 +1540,20 @@
       world=model.vertices?(model.faces||model.triangles).map(face=>face.map(i=>mapVertex(model.vertices[i],i))):model.solids.map(solid=>solid.map(mapVertex));
       if(castleWorldCache.size>=16)castleWorldCache.clear();castleWorldCache.set(key,world);
     }
-    const d=TR.distanceKm(observer.latitude,observer.longitude,target.latitude,target.longitude);
-    const az0=TR.bearing(observer.latitude,observer.longitude,target.latitude,target.longitude),eye=(observer.elevation??0)+eyeM;
+    return world;
+  }
+  const modelHeight=(model,top,z)=>model.heightMode==="translate-top"?(model.groundAnchored&&z===0?0:z+top-model.heightM):z*top/model.heightM;
+  function modelOutline(observer,target,model,{eyeM=1.5,heightM=null}={}) {
+    const ground=target.groundM??0,top=heightM??((partOf(target,"tip")||target.parts[0]).m-ground);
+    if(!(top>.5))return null;
+    const world=modelWorld(target,model);
+    const {km:d,azimuth:az0}=TR.inverse(observer.latitude,observer.longitude,target.latitude,target.longitude),eye=(observer.elevation??0)+eyeM;
     const sight=new Map(),projected=new Map();
-    const height=z=>model.heightMode==="translate-top"?(model.groundAnchored&&z===0?0:z+top-model.heightM):z*top/model.heightM;
+    const height=z=>modelHeight(model,top,z);
     const project=vertex=>{
       if(projected.has(vertex))return projected.get(vertex);
       const {place,z}=vertex;
-      let g=sight.get(place);if(!g){g={d:TR.distanceKm(observer.latitude,observer.longitude,place.latitude,place.longitude),az:TR.bearing(observer.latitude,observer.longitude,place.latitude,place.longitude)};sight.set(place,g);}
+      let g=sight.get(place);if(!g){const ray=TR.inverse(observer.latitude,observer.longitude,place.latitude,place.longitude);g={d:ray.km,az:ray.azimuth};sight.set(place,g);}
       const result=[az0+azDiff(g.az,az0),targetAngle(g.d,eye,ground+height(z))];projected.set(vertex,result);return result;
     };
     const projectedParts=world.map(solid=>convexHull(solid.map(project)));
@@ -1528,7 +1583,7 @@
       }
       viewBaseAngle=upper.length?upper.reduce((a,v)=>Math.min(a,v),Infinity):ang(cutoff);
     }
-    return {points,polygons,basePoints,hitPolygons,hitPoints: model.hitSolidCount?hitPolygons.flat():null,schematic:false,known:true,approximate:true,
+    return {vertices:world.flat().map(project),vertexPolygons:world.map(face=>face.map(project)),points,polygons,basePoints,hitPolygons,hitPoints: model.hitSolidCount?hitPolygons.flat():null,schematic:false,known:true,approximate:true,
       modelId:model.id,sourceLabel:model.sourceLabel,sourceUrl:model.sourceUrl,azimuth:az0,distanceKm:d,baseAngle,topAngle,viewBaseAngle,hiddenAngle:null};
   }
 
@@ -1548,8 +1603,7 @@
     const ground = target.groundM ?? 0;
     const top = heightM !== null ? heightM : ((partOf(target, "tip") || (target.parts || [])[0] || {}).m ?? ground) - ground;
     if (!(top > 0.5)) return null;
-    const d = TR.distanceKm(observer.latitude, observer.longitude, target.latitude, target.longitude);
-    const az0 = TR.bearing(observer.latitude, observer.longitude, target.latitude, target.longitude);
+    const {km:d,azimuth:az0} = TR.inverse(observer.latitude, observer.longitude, target.latitude, target.longitude);
     const eye = (observer.elevation ?? 0) + eyeM;
     let shape = TOWER_SHAPES[target.id] || null, schematic = false, outline = null;
     if (shape && shape.outline && shape.fromTop) {
@@ -1840,10 +1894,71 @@
     const gap=limbAltitude(st,limbById(opts.limb||'center').sign)-g.angle,tolerance=Math.max(1/60,.2*st.angularRadius);
     return {...row,gap,matched:Math.abs(azDiff(st.azimuth,g.azimuth))<=tolerance&&Math.abs(gap)<=tolerance&&(st.upperAltitude??st.apparentAltitude+st.angularRadius)>0};
   }
-  const AstroNotesAlign = { TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
+  // Raw directions that bound the outline prepareDailyView projects for this observer and eye height.
+  function heightVertices(observer, target, opts = {}) {
+    const outline = towerOutline(observer, target, opts);
+    if (!outline) { const g = geometryFrom(observer, target, opts); return g ? { vertices: [[g.azimuth, g.angle]], outline: false } : null; }
+    const vertices = outline.vertices || [...(outline.points || []), ...(outline.hitPoints || []), ...(outline.hitPolygons || []).flat()];
+    return { vertices, polygons:outline.vertexPolygons||outline.hitPolygons||[outline.points], outline: true };
+  }
+
+  // Footprint (convex hull on the ground, metres east/north of the target) and height range of a model.
+  const modelFootprints=new WeakMap();
+  function modelFootprint(target,model,top){
+    const world=modelWorld(target,model);let byTop=modelFootprints.get(world);if(!byTop){byTop=new Map();modelFootprints.set(world,byTop);}
+    if(byTop.has(top))return byTop.get(top);
+    const places=new Set();let zlo=Infinity,zhi=-Infinity;
+    for(const solid of world)for(const v of solid){places.add(v.place);const h=modelHeight(model,top,v.z);if(h<zlo)zlo=h;if(h>zhi)zhi=h;}
+    const of=new Map(),xy=[...places].map(p=>{const r=TR.inverse(target.latitude,target.longitude,p.latitude,p.longitude),q=[r.km*1000*Math.sin(r.azimuth*R),r.km*1000*Math.cos(r.azimuth*R)];of.set(q,p);return q;});
+    const hull=convexHull(xy),out=hull.length&&Number.isFinite(zlo)&&Number.isFinite(zhi)?{hull,places:hull.map(q=>of.get(q)),zlo,zhi,radius:xy.reduce((m,q)=>Math.max(m,Math.hypot(q[0],q[1])),0)}:null;
+    if(byTop.size>=8)byTop.clear();byTop.set(top,out);return out;
+  }
+  const boxOf=(az,ref,lo,hi,near)=>{
+    let a0=Infinity,a1=-Infinity;for(const a of az){const d=azDiff(a,ref);if(d<a0)a0=d;if(d>a1)a1=d;}
+    const w=(a1-a0)/2,bulge=(w*Math.PI/90)**2/16*180/Math.PI;
+    return {c:ref+(a0+a1)/2,w:w+.002,lo:lo-bulge-.002,hi:hi+bulge+.002,nearKm:near};
+  };
+  // Every direction prepareDailyView measures against for this observer, as an azimuth/altitude box
+  // {c,w,lo,hi} (exact spherical bounds plus the great-circle bulge of the outline's edges), with the
+  // distance to its nearest point. Null where it cannot be bounded cheaply (the caller then computes).
+  function outlineBounds(observer,target,opts={}){
+    const g=geometryFrom(observer,target,opts);if(!g)return null;
+    const eyeM=opts.eyeM??1.5,heightM=opts.heightM??null,eye=(observer.elevation??0)+eyeM;
+    const CMs=global.AstroNotesCityModels||AstroNotesAlign.CITY_MODELS,TMs=global.AstroNotesTowerModels||AstroNotesAlign.TOWER_MODELS;
+    const model=target.id==="tower-terror"?TERROR_MODEL:target.id==="tinkerbell"&&TINKERBELL_MODEL?TINKERBELL_MODEL:target.id==="cinderella"?CASTLE_MODEL:target.id==="tocho-building"?TOCHO_MODEL:CMs?.[target.id]||TMs?.[target.id]||null;
+    if(!model){
+      const outline=target.rim?null:towerOutline(observer,target,{eyeM,heightM});
+      if(!outline)return boxOf([g.azimuth],g.azimuth,g.angle,g.angle,g.distanceKm);
+      const pts=(outline.hitPolygons||[outline.hitPoints||outline.points]).flat().filter(p=>p&&Number.isFinite(p[0])&&Number.isFinite(p[1]));
+      if(!pts.length)return null;
+      return boxOf([g.azimuth,...pts.map(p=>p[0])],g.azimuth,Math.min(g.angle,...pts.map(p=>p[1])),Math.max(g.angle,...pts.map(p=>p[1])),Math.max(0,g.distanceKm-.05));
+    }
+    const ground=target.groundM??0,top=heightM??((partOf(target,"tip")||target.parts[0]).m-ground);
+    if(!(top>.5))return boxOf([g.azimuth],g.azimuth,g.angle,g.angle,g.distanceKm);
+    const fp=modelFootprint(target,model,top);if(!fp)return null;
+    const rel=TR.inverse(target.latitude,target.longitude,observer.latitude,observer.longitude),ox=rel.km*1000*Math.sin(rel.azimuth*R),oy=rel.km*1000*Math.cos(rel.azimuth*R);
+    // Inside or next to the building: no cheap bound.
+    if(rel.km*1000<=fp.radius+50)return null;
+    let inside=false,dmin=Infinity;const h=fp.hull;
+    for(let i=0,j=h.length-1;i<h.length;j=i++){
+      const p=h[j],q=h[i];if((p[1]>oy)!==(q[1]>oy)&&ox<(q[0]-p[0])*(oy-p[1])/(q[1]-p[1])+p[0])inside=!inside;
+      const dx=q[0]-p[0],dy=q[1]-p[1],len=dx*dx+dy*dy,t=len?Math.max(0,Math.min(1,((ox-p[0])*dx+(oy-p[1])*dy)/len)):0;dmin=Math.min(dmin,Math.hypot(ox-p[0]-t*dx,oy-p[1]-t*dy));
+    }
+    if(inside||h.length<3)return null;
+    const rays=fp.places.map(p=>TR.inverse(observer.latitude,observer.longitude,p.latitude,p.longitude));
+    // Plane geometry around the target versus the geodesic: a relative 1e-4 and 1 m cover it.
+    const dLo=Math.max(.001,Math.min(dmin/1000,...rays.map(r=>r.km))*(1-1e-4)-.001),dHi=Math.max(...rays.map(r=>r.km))*(1+1e-4)+.001;
+    const hLo=ground+fp.zlo,hHi=ground+fp.zhi;
+    // The elevation angle rises with the target height; along the distance it has at most one
+    // maximum (a target below the eye), so its minimum is at an end and its maximum is found here.
+    let lo=Math.min(targetAngle(dLo,eye,hLo),targetAngle(dHi,eye,hLo)),hi=Math.max(targetAngle(dLo,eye,hHi),targetAngle(dHi,eye,hHi));
+    {let x=dLo,y=dHi;for(let k=0;k<60;k++){const m1=x+(y-x)/3,m2=y-(y-x)/3;if(targetAngle(m1,eye,hHi)<targetAngle(m2,eye,hHi))x=m1;else y=m2;}hi=Math.max(hi,targetAngle((x+y)/2,eye,hHi)+1e-9);}
+    return boxOf([g.azimuth,...rays.map(r=>r.azimuth)],g.azimuth,Math.min(lo,g.angle),Math.max(hi,g.angle),dLo);
+  }
+  const AstroNotesAlign = { heightVertices, TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
-                        crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, judge, buildingBlock,
-                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};}, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, viewWindow, viewPath, sceneTargets };
+                        crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, rimPoints, judge, buildingBlock,
+                        viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};}, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, outlineBounds, viewWindow, viewPath, sceneTargets };
   global.AstroNotesAlign = AstroNotesAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);

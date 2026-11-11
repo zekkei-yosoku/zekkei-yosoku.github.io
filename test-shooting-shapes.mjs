@@ -91,7 +91,7 @@ test('共通ピッカーは線・範囲を代表座標として即選択せず�
 });
 test('既存の形を別画面で変更したら上書きせず開き直しを求める',()=>{
  const f={id:'p',...ll(0)},state={place:f,initialTargets:[],draftTargets:[],baseline:'[]',shapeBaseline:'null'},nodes=new Map();let commits=0;
- const c={sheetOwnerMatches:()=>true,sheetState:state,el:id=>{if(!nodes.has(id))nodes.set(id,{});return nodes.get(id)},placeOf:()=>f,shapeFor:()=>shape('line',[[0,0],[100,0]]),shapeKey:JSON.stringify,savedTargets:()=>[],targetSetKey:JSON.stringify,commitRecordDraft:()=>{commits++;return true;}};vm.createContext(c);
+ const c={sheetOwnerMatches:()=>true,sheetState:state,el:id=>{if(!nodes.has(id))nodes.set(id,{});return nodes.get(id)},placeOf:()=>f,shapeFor:()=>shape('line',[[0,0],[100,0]]),shapeKey:JSON.stringify,savedTargets:()=>[],targetSetKey:JSON.stringify,commitRecordDraft:()=>{commits++;return true;},applyRecordHeightDraft:()=>true,applyRecordAlignments:()=>true};vm.createContext(c);
  vm.runInContext(ui.slice(ui.indexOf('function saveRecord()'),ui.indexOf('// 観測地点（または地図',ui.indexOf('function saveRecord()'))),c);
  assert.equal(c.saveRecord(),false);assert.equal(commits,0);assert.match(nodes.get('myRecordError').textContent,/別の画面/);
 });

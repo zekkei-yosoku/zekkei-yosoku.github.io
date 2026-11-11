@@ -1,4 +1,3 @@
-import {$,esc} from '../../ui/presentation-helpers.js';
 import {store} from '../../app/browser-state.js';
 import {AimMap} from '../framing/controller.js';
 import {PlaneMap} from '../aircraft/controller.js';
@@ -12,47 +11,13 @@ import {showSheet} from '../../app/overlays.js';
 // 座標は小数第5位（約1m）。国土地理院の座標と Google・Apple の座標のずれは1m未満。
 // 選べるアプリは端末で変わる: iPhone・Mac は標準が Apple マップ（「この端末の標準」と添える）、Android は geo: で端末の地図アプリ、
 // それ以外（Windows など）は端末の標準が無いので Google と Apple
-const IS_APPLE = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent), IS_ANDROID = /Android/.test(navigator.userAgent);
-const coordText = (c) => `${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)}`;
-const MAP_APPS = {
-  device: { name: "この端末の地図アプリ", chipLabel: "地図アプリ", url: (t) => `geo:${t.replace(" ", "")}?q=${t.replace(" ", "")}` },
-  google: { name: "Google マップ", chipLabel: "Google", url: (t) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t)}` },
-  apple: { name: IS_APPLE ? "Apple マップ（この端末の標準）" : "Apple マップ", chipLabel: "Apple",
-    url: (t) => `https://maps.apple.com/?ll=${t.replace(" ", "")}&q=${encodeURIComponent(t)}` },
-};
-const mapAppChoices = () => (IS_APPLE ? ["apple", "google"] : IS_ANDROID ? ["device", "google"] : ["google", "apple"]);
-/// 「次からもこのアプリで開く」で覚えたアプリ（この端末で選べるものだけ）
-const savedMapApp = () => { const k = store.get("sorami.mapApp", null); return mapAppChoices().includes(k) ? k : null; };
-function openMapApp(app, t) {
-  const url = MAP_APPS[app].url(t);
-  if (url.startsWith("geo:")) { location.href = url; return; }
-  // 押した操作の中で開く（アプリが入っていればアプリで開く）
-  const a = document.createElement("a");
-  a.href = url; a.target = "_blank"; a.rel = "noopener";
-  document.body.appendChild(a); a.click(); a.remove();
-}
-let mapAppCoord = "";
-function openMapAppSheet(t) {
-  mapAppCoord = t;
-  $("mapAppCoord").textContent = t;
-  $("mapAppRemember").checked = !!savedMapApp();
-  $("mapAppList").innerHTML = mapAppChoices()
-    .map((k) => `<button class="fav-btn" data-map-app="${k}">${esc(MAP_APPS[k].name)}</button>`).join("");
-  for (const b of $("mapAppList").querySelectorAll("[data-map-app]")) {
-    b.onclick = () => {
-      const k = b.dataset.mapApp;
-      // 覚えるのは「次からも」に印があるときだけ。外して選んだら、覚えていたものも忘れる（次はまた聞く）
-      store.set("sorami.mapApp", $("mapAppRemember").checked ? k : null);
-      $("mapAppSheet").close();
-      renderCoordRows();
-      aimRefreshSheetCands();   // 地点の画面の候補地の釦の名前も（Google・Apple）
-      openMapApp(k, mapAppCoord);
-    };
-  }
-  showSheet($("mapAppSheet"));
-}
-$("mapAppClose").onclick = () => $("mapAppSheet").close();
-/// 覚えたアプリがあれば「Google マップで開く」、無ければ「地図アプリで開く」。覚えているときだけ「開くアプリを変える」
+AstroNotesPlan.externalApps=AstroNotesPlan.createExternalApps({storage:store,show:showSheet,onMapChange:()=>{renderCoordRows();aimRefreshSheetCands();}});
+const MAP_APPS=AstroNotesPlan.externalApps.mapApps;
+const coordText=c=>c.latitude.toFixed(5)+', '+c.longitude.toFixed(5);
+const mapAppChoices=()=>AstroNotesPlan.externalApps.choices('map').map(x=>x.id);
+const savedMapApp=()=>AstroNotesPlan.externalApps.get('map');
+function openMapApp(app,t){AstroNotesPlan.externalApps.requestMap(t,{app});}
+function openMapAppSheet(t){AstroNotesPlan.externalApps.requestMap(t,{forceChoose:true});}
 function renderCoordRows() {
   const app = savedMapApp();
   for (const row of document.querySelectorAll(".coord-row")) {

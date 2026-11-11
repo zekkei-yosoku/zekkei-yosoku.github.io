@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url),L=require('./experiments/candidate-visibility/place-labels.js'),addresses=require('./experiments/candidate-visibility/label-addresses.json'),facilities=require('./experiments/candidate-visibility/label-facilities.json');
+const require=createRequire(import.meta.url),L=require('./src/features/candidates/place-labels.js'),addresses=require('./data/candidate-label-addresses.json'),facilities=require('./data/candidate-label-facilities.json');
 const ring=[[139,35],[139.01,35],[139.01,35.01],[139,35.01],[139,35]],hole=[[139.004,35.004],[139.006,35.004],[139.006,35.006],[139.004,35.006],[139.004,35.004]],p={latitude:35.002,longitude:139.002},feature={id:'test-area',name:'Test park',bbox:[139,35,139.01,35.01],polygons:[[ring,hole]]};
 const layer=(kind='osm-named-areas',features=[feature])=>({version:1,kind,coverageBboxes:[[139,35,139.02,35.02]],features});
 test('labels require containing areas, never the nearest polygon or point',()=>{assert.equal(L.resolve(layer(),p,'osm-named-areas').status,'matched');assert.equal(L.resolve(layer(),{latitude:35.015,longitude:139.015},'osm-named-areas').status,'no-area-match');assert.equal(L.resolve(layer(),{latitude:35.005,longitude:139.005},'osm-named-areas').status,'no-area-match');assert.equal(L.resolve(layer(),{latitude:36,longitude:140},'osm-named-areas').status,'outside-coverage');});
@@ -20,7 +20,7 @@ test('builder preserves a relation hole despite a same-named outer way and quara
   fs.writeFileSync(path.join(dir,'facilities-query.overpass'),'synthetic fixture, no API call');
   fs.writeFileSync(path.join(dir,'facilities-osm.json'),JSON.stringify({osm3s:{timestamp_osm_base:'2026-11-04T00:00:00Z'},elements:[{type:'way',id:1,tags:{name:'Same Park',leisure:'park'},geometry:geom(outer)},{type:'relation',id:2,tags:{name:'Same Park',type:'multipolygon',leisure:'park'},members:[{type:'way',ref:1,role:'outer',geometry:geom(outer)},{type:'way',ref:3,role:'inner',geometry:geom(inner)}]},{type:'way',id:3,tags:{name:'Inner Garden',leisure:'garden'},geometry:geom(inner)},{type:'way',id:4,tags:{name:'Crossed Park',leisure:'park'},geometry:geom([outer[0],outer[2],outer[1],outer[3],outer[0]])}]}));
   execFileSync('python3',[new URL('./tools/build-candidate-place-labels.py',import.meta.url).pathname,'--source-dir',dir,'--output-dir',out]);
-  const data=JSON.parse(fs.readFileSync(path.join(out,'label-facilities.json'))),towns=JSON.parse(fs.readFileSync(path.join(out,'label-addresses.json')));
+  const data=JSON.parse(fs.readFileSync(path.join(out,'candidate-label-facilities.json'))),towns=JSON.parse(fs.readFileSync(path.join(out,'candidate-label-addresses.json')));
   assert(!data.features.some(f=>f.id==='way/1'));assert(data.skipped.some(f=>f.id==='way/4'));assert.deepEqual(L.resolve(data,{latitude:35.712,longitude:139.804},'osm-named-areas').names,['Inner Garden']);assert.deepEqual(L.resolve(data,{latitude:35.710,longitude:139.801},'osm-named-areas').names,['Same Park']);assert.equal(towns.features[0].polygons[0][0].length,outer.length);
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });

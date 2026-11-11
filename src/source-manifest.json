@@ -335,13 +335,50 @@
   "generatedAssets": [
     {
       "entry": "src/features/explore/entry.inc",
-      "output": "astronotes-explore.js",
+      "output": "astronotes-explore-simple.js",
       "sourceOrder": [
         "src/domain/planning/session.js",
         "src/features/explore/layout.js",
         "src/features/explore/controller.js"
+      ]
+    },
+    {
+      "entry": "src/features/candidates/entry.inc",
+      "output": "astronotes-candidate-search.js",
+      "sourceOrder": [
+        "src/features/candidates/building-model.js",
+        "src/features/candidates/height-grid.js",
+        "src/features/candidates/plateau-buildings.js",
+        "src/features/candidates/osm-places.js",
+        "src/features/candidates/terrain-model.js",
+        "src/features/candidates/live-terrain.js",
+        "src/features/candidates/scene-hulls.js",
+        "src/features/candidates/scene-surface.js",
+        "src/features/candidates/composition.js",
+        "src/features/candidates/model-evaluator.js",
+        "src/features/candidates/search.js",
+        "src/features/candidates/place-provider.js",
+        "src/features/candidates/generic-evaluator.js",
+        "src/features/candidates/generic-search.js",
+        "src/features/candidates/composition-ui.js",
+        "src/features/candidates/place-labels.js",
+        "src/features/candidates/candidate-picker.js",
+        "src/features/candidates/ui.js",
+        "src/features/candidates/overlap-scope.js",
+        "src/features/candidates/error-log.js"
       ],
-      "legacyAccessPolicy": true
+      "dataFiles": {
+        "candidate-viewpoints.json": "data/aim-viewpoints.json",
+        "candidate-terrain.json": "data/candidate-terrain.json",
+        "candidate-buildings.json": "data/candidate-buildings.json",
+        "building-heights/index.json": "data/building-heights/index.json",
+        "building-shapes/index.json": "data/building-shapes/index.json",
+        "osm-places/index.json": "data/osm-places/index.json",
+        "candidate-surfaces.json": "data/candidate-surfaces.json",
+        "candidate-sidewalks.json": "data/candidate-sidewalks.json",
+        "candidate-label-addresses.json": "data/candidate-label-addresses.json",
+        "candidate-label-facilities.json": "data/candidate-label-facilities.json"
+      }
     }
   ],
   "architecture": {
@@ -993,6 +1030,146 @@
           "AstroNotesPlanningSession",
           "AstroNotesExploreLayout"
         ]
+      },
+      {
+        "path": "src/features/candidates/building-model.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/height-grid.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/plateau-buildings.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/osm-places.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/terrain-model.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/live-terrain.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/scene-hulls.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/scene-surface.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/composition.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/model-evaluator.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/search.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/place-provider.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/generic-evaluator.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/generic-search.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/composition-ui.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/place-labels.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/candidate-picker.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/ui.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/overlap-scope.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
+      },
+      {
+        "path": "src/features/candidates/error-log.js",
+        "layer": "presentation",
+        "scope": "isolated-script",
+        "provides": [],
+        "requires": []
       }
     ],
     "bridges": [],
@@ -1021,31 +1198,76 @@
     ],
     "globalObjectReferences": [
       {
-        "name": "AstroNotesAlmanacDashboard",
+        "name": "AstroNotesStartupPaintTimer",
         "category": "existing-public-bridge",
         "owner": [
-          "astronotes-almanac-dashboard.js"
+          "src/startup/paint-gate.js"
         ],
         "readers": [
-          "src/features/home/controller.js",
-          "src/app/navigation.js",
-          "src/app/overlays.js",
+          "src/startup/paint-gate.js",
           "src/startup/preferences.js"
         ],
         "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
         "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
       },
       {
-        "name": "AstroNotesCameraUI",
-        "category": "existing-public-bridge",
+        "name": "matchMedia",
+        "category": "browser-platform",
         "owner": [
-          "astronotes-camera-ui.js"
+          "astronotes-almanac-dashboard.js",
+          "sorami-almanac-dashboard.js"
         ],
         "readers": [
+          "src/app/browser-state.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "localStorage",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/features/forecast/view.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "every",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/features/forecast/view.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "TrialExplore",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/explore/controller.js"
+        ],
+        "readers": [
+          "src/features/forecast/view.js",
+          "src/app/navigation.js",
+          "src/features/framing/apply-and-list.js",
+          "src/features/framing/observer.js",
+          "src/features/framing/candidates.js",
           "src/features/framing/scene/render.js",
+          "src/features/account/session-and-access.js",
+          "src/app/gestures.js",
           "src/features/plans/controller.js",
           "src/features/framing/presentation.js",
-          "src/features/explore/map-presentation.js"
+          "src/features/explore/map-presentation.js",
+          "src/features/explore/controller.js",
+          "src/features/candidates/ui.js",
+          "src/features/candidates/overlap-scope.js"
         ],
         "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
         "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
@@ -1064,18 +1286,6 @@
         "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
       },
       {
-        "name": "AstroNotesMapWorkspace",
-        "category": "existing-public-bridge",
-        "owner": [
-          "astronotes-map-workspace.js"
-        ],
-        "readers": [
-          "src/features/explore/map-presentation.js"
-        ],
-        "purpose": "地図の作業画面の接続点。未読込でも地図は動く",
-        "retireWhen": "本体へ採用して直接呼び出せるようにした時"
-      },
-      {
         "name": "AstroNotesPhotoAnalysis",
         "category": "existing-public-bridge",
         "owner": [
@@ -1088,6 +1298,224 @@
         "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
       },
       {
+        "name": "AstroNotesAlmanacDashboard",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-almanac-dashboard.js"
+        ],
+        "readers": [
+          "src/features/home/controller.js",
+          "src/app/navigation.js",
+          "src/app/overlays.js",
+          "src/startup/preferences.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "pagePop",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/app/overlays.js"
+        ],
+        "readers": [
+          "src/app/navigation.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "scrollY",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/app/navigation.js",
+          "src/features/framing/apply-and-list.js",
+          "src/features/framing/candidates.js",
+          "src/features/framing/reverse-and-entry.js",
+          "src/features/plans/controller.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "scrollTo",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/app/navigation.js",
+          "src/features/framing/apply-and-list.js",
+          "src/features/framing/candidates.js",
+          "src/features/framing/reverse-and-entry.js",
+          "src/features/plans/controller.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "addEventListener",
+        "category": "browser-platform",
+        "owner": [
+          "sorami-datetime-ui.js",
+          "astronotes-datetime-ui.js"
+        ],
+        "readers": [
+          "src/app/navigation.js",
+          "src/ui/map/picker.js",
+          "src/features/framing/reverse-and-entry.js",
+          "src/app/overlays.js",
+          "src/features/account/access-recheck.js",
+          "src/features/account/admin-view.js",
+          "src/features/plans/controller.js",
+          "src/features/framing/presentation.js",
+          "src/features/explore/controller.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "MyPlacesUI",
+        "category": "existing-public-bridge",
+        "owner": [
+          "sorami-myplaces.js",
+          "astronotes-myplaces.js"
+        ],
+        "readers": [
+          "src/features/results/controller.js",
+          "src/features/places/controller.js",
+          "src/features/framing/controller.js",
+          "src/features/framing/observer.js",
+          "src/features/places/search.js",
+          "src/features/account/library-transfer.js",
+          "src/features/plans/controller.js",
+          "src/features/framing/presentation.js",
+          "src/features/explore/map-presentation.js",
+          "src/features/explore/controller.js",
+          "src/features/candidates/candidate-picker.js",
+          "src/features/candidates/ui.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "devicePixelRatio",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/ui/map/picker.js",
+          "src/features/satellites/controller.js",
+          "src/features/framing/scene/render.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "AstroNotesTrialOverlap",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/candidates/overlap-scope.js"
+        ],
+        "readers": [
+          "src/features/framing/controller.js",
+          "src/features/framing/scene/render.js",
+          "src/features/plans/controller.js",
+          "src/features/framing/presentation.js",
+          "src/features/explore/map-presentation.js",
+          "src/features/explore/controller.js",
+          "src/features/candidates/composition-ui.js",
+          "src/features/candidates/ui.js",
+          "src/features/candidates/overlap-scope.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesTrialOverlap）"
+      },
+      {
+        "name": "document",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/features/framing/observer.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "indexedDB",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/features/framing/observer.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "AstroNotesDaysEngine",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-myplaces.js"
+        ],
+        "readers": [
+          "src/features/framing/observer.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesDaysEngine）"
+      },
+      {
+        "name": "AstroNotesCameraUI",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-camera-ui.js"
+        ],
+        "readers": [
+          "src/features/framing/scene/render.js",
+          "src/features/plans/controller.js",
+          "src/features/framing/presentation.js",
+          "src/features/explore/map-presentation.js"
+        ],
+        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
+        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+      },
+      {
+        "name": "AstroNotesTrialComposition",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/candidates/composition-ui.js"
+        ],
+        "readers": [
+          "src/features/framing/scene/render.js",
+          "src/features/explore/controller.js",
+          "src/features/candidates/composition-ui.js",
+          "src/features/candidates/ui.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesTrialComposition）"
+      },
+      {
+        "name": "PublicKeyCredential",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/features/account/session-and-access.js",
+          "src/features/account/auth-panels.js",
+          "src/features/account/password-policy.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
         "name": "AstroNotesPlanUI",
         "category": "existing-public-bridge",
         "owner": [
@@ -1096,19 +1524,6 @@
         "readers": [
           "src/features/account/status.js",
           "src/features/plans/controller.js"
-        ],
-        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
-        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
-      },
-      {
-        "name": "AstroNotesStartupPaintTimer",
-        "category": "existing-public-bridge",
-        "owner": [
-          "src/startup/paint-gate.js"
-        ],
-        "readers": [
-          "src/startup/paint-gate.js",
-          "src/startup/preferences.js"
         ],
         "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
         "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
@@ -1128,38 +1543,79 @@
         "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
       },
       {
-        "name": "MyPlacesUI",
-        "category": "existing-public-bridge",
-        "owner": [
-          "sorami-myplaces.js",
-          "astronotes-myplaces.js"
-        ],
-        "readers": [
-          "src/features/results/controller.js",
-          "src/features/places/controller.js",
-          "src/features/framing/controller.js",
-          "src/features/framing/observer.js",
-          "src/features/places/search.js",
-          "src/features/account/library-transfer.js",
-          "src/features/framing/presentation.js",
-          "src/features/explore/map-presentation.js"
-        ],
-        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
-        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
-      },
-      {
-        "name": "PublicKeyCredential",
+        "name": "dispatchEvent",
         "category": "browser-platform",
         "owner": [
           "browser"
         ],
         "readers": [
-          "src/features/account/session-and-access.js",
-          "src/features/account/auth-panels.js",
-          "src/features/account/password-policy.js"
+          "src/features/account/record-sync.js"
         ],
         "purpose": "既存browser APIの明示adapter",
         "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "top",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/features/account/admin-view.js",
+          "src/startup/runtime-effects.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "self",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/features/account/admin-view.js",
+          "src/startup/runtime-effects.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "AstroNotesScrollTimeline",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-scroll-timeline.js"
+        ],
+        "readers": [
+          "src/features/framing/presentation.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesScrollTimeline）"
+      },
+      {
+        "name": "AstroNotesMapWorkspace",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-map-workspace.js"
+        ],
+        "readers": [
+          "src/features/explore/map-presentation.js"
+        ],
+        "purpose": "地図の作業画面の接続点。未読込でも地図は動く",
+        "retireWhen": "本体へ採用して直接呼び出せるようにした時"
+      },
+      {
+        "name": "AstroNotesCandidatePicker",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/candidates/candidate-picker.js"
+        ],
+        "readers": [
+          "src/features/explore/controller.js",
+          "src/features/candidates/candidate-picker.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesCandidatePicker）"
       },
       {
         "name": "SoramiAssets",
@@ -1210,168 +1666,231 @@
         "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
       },
       {
-        "name": "TrialExplore",
+        "name": "AbortSignal",
+        "category": "browser-platform",
+        "owner": [
+          "browser"
+        ],
+        "readers": [
+          "src/features/candidates/height-grid.js",
+          "src/features/candidates/plateau-buildings.js",
+          "src/features/candidates/osm-places.js"
+        ],
+        "purpose": "既存browser APIの明示adapter",
+        "retireWhen": "platformとして維持"
+      },
+      {
+        "name": "AstroNotesTerrain",
         "category": "existing-public-bridge",
         "owner": [
-          "src/features/explore/controller.js"
+          "astronotes-terrain.js"
         ],
         "readers": [
-          "src/features/forecast/view.js",
-          "src/app/navigation.js",
-          "src/features/framing/apply-and-list.js",
-          "src/features/framing/observer.js",
-          "src/features/framing/candidates.js",
-          "src/features/framing/scene/render.js",
-          "src/features/account/session-and-access.js",
-          "src/features/plans/controller.js",
-          "src/features/framing/presentation.js",
-          "src/features/explore/map-presentation.js",
-          "src/features/explore/controller.js"
+          "src/features/candidates/terrain-model.js",
+          "src/features/candidates/scene-surface.js",
+          "src/features/candidates/composition.js",
+          "src/features/candidates/model-evaluator.js"
         ],
-        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
-        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesTerrain）"
       },
       {
-        "name": "addEventListener",
-        "category": "browser-platform",
-        "owner": [
-          "sorami-datetime-ui.js",
-          "astronotes-datetime-ui.js"
-        ],
-        "readers": [
-          "src/app/navigation.js",
-          "src/ui/map/picker.js",
-          "src/features/framing/reverse-and-entry.js",
-          "src/app/overlays.js",
-          "src/features/account/access-recheck.js",
-          "src/features/account/admin-view.js",
-          "src/features/plans/controller.js",
-          "src/features/framing/presentation.js",
-          "src/features/explore/controller.js"
-        ],
-        "purpose": "既存browser APIの明示adapter",
-        "retireWhen": "platformとして維持"
-      },
-      {
-        "name": "devicePixelRatio",
-        "category": "browser-platform",
-        "owner": [
-          "browser"
-        ],
-        "readers": [
-          "src/ui/map/picker.js",
-          "src/features/satellites/controller.js",
-          "src/features/framing/scene/render.js"
-        ],
-        "purpose": "既存browser APIの明示adapter",
-        "retireWhen": "platformとして維持"
-      },
-      {
-        "name": "dispatchEvent",
-        "category": "browser-platform",
-        "owner": [
-          "browser"
-        ],
-        "readers": [
-          "src/features/account/record-sync.js"
-        ],
-        "purpose": "既存browser APIの明示adapter",
-        "retireWhen": "platformとして維持"
-      },
-      {
-        "name": "localStorage",
-        "category": "browser-platform",
-        "owner": [
-          "browser"
-        ],
-        "readers": [
-          "src/features/forecast/view.js"
-        ],
-        "purpose": "既存browser APIの明示adapter",
-        "retireWhen": "platformとして維持"
-      },
-      {
-        "name": "matchMedia",
-        "category": "browser-platform",
-        "owner": [
-          "astronotes-almanac-dashboard.js",
-          "sorami-almanac-dashboard.js"
-        ],
-        "readers": [
-          "src/app/browser-state.js"
-        ],
-        "purpose": "既存browser APIの明示adapter",
-        "retireWhen": "platformとして維持"
-      },
-      {
-        "name": "pagePop",
+        "name": "AstroNotesTrialSurfaceHulls",
         "category": "existing-public-bridge",
         "owner": [
-          "src/app/overlays.js"
+          "src/features/candidates/scene-hulls.js"
         ],
         "readers": [
-          "src/app/navigation.js"
+          "src/features/candidates/scene-surface.js"
         ],
-        "purpose": "旧公開API/互換alias/同期compositionとの既存接続を維持",
-        "retireWhen": "全利用先と旧cached assetをportへ移行できた時"
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesTrialSurfaceHulls）"
       },
       {
-        "name": "scrollTo",
+        "name": "AstroNotesTowerModels",
         "category": "browser-platform",
         "owner": [
           "browser"
         ],
         "readers": [
-          "src/app/navigation.js",
-          "src/features/framing/apply-and-list.js",
-          "src/features/framing/candidates.js",
-          "src/features/framing/reverse-and-entry.js",
-          "src/features/plans/controller.js"
+          "src/features/candidates/scene-surface.js",
+          "src/features/candidates/generic-evaluator.js"
         ],
         "purpose": "既存browser APIの明示adapter",
         "retireWhen": "platformとして維持"
       },
       {
-        "name": "scrollY",
+        "name": "AstroNotesCityModels",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/candidates/plateau-buildings.js"
+        ],
+        "readers": [
+          "src/features/candidates/scene-surface.js",
+          "src/features/candidates/generic-evaluator.js",
+          "src/features/candidates/ui.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesCityModels）"
+      },
+      {
+        "name": "AstroNotesAlign",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-align.js"
+        ],
+        "readers": [
+          "src/features/candidates/scene-surface.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesAlign）"
+      },
+      {
+        "name": "AstroNotesAtmosphere",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-atmosphere.js"
+        ],
+        "readers": [
+          "src/features/candidates/scene-surface.js",
+          "src/features/candidates/composition.js",
+          "src/features/candidates/model-evaluator.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesAtmosphere）"
+      },
+      {
+        "name": "AstroNotesTrialSurface",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/candidates/scene-surface.js"
+        ],
+        "readers": [
+          "src/features/candidates/composition.js",
+          "src/features/candidates/model-evaluator.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesTrialSurface）"
+      },
+      {
+        "name": "AstroNotesCandidateComposition",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/candidates/composition.js"
+        ],
+        "readers": [
+          "src/features/candidates/model-evaluator.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesCandidateComposition）"
+      },
+      {
+        "name": "fetch",
         "category": "browser-platform",
         "owner": [
           "browser"
         ],
         "readers": [
-          "src/app/navigation.js",
-          "src/features/framing/apply-and-list.js",
-          "src/features/framing/candidates.js",
-          "src/features/framing/reverse-and-entry.js",
-          "src/features/plans/controller.js"
+          "src/features/candidates/place-provider.js"
         ],
         "purpose": "既存browser APIの明示adapter",
         "retireWhen": "platformとして維持"
       },
       {
-        "name": "self",
+        "name": "AstroNotesCandidateLabels",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/candidates/place-labels.js"
+        ],
+        "readers": [
+          "src/features/candidates/candidate-picker.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesCandidateLabels）"
+      },
+      {
+        "name": "AstroNotesCandidateDiscovery",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/candidates/search.js"
+        ],
+        "readers": [
+          "src/features/candidates/candidate-picker.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesCandidateDiscovery）"
+      },
+      {
+        "name": "AstroNotesPlateauBuildings",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/candidates/plateau-buildings.js"
+        ],
+        "readers": [
+          "src/features/candidates/ui.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesPlateauBuildings）"
+      },
+      {
+        "name": "AstroNotesPlateauShapes",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/candidates/ui.js"
+        ],
+        "readers": [
+          "src/features/candidates/ui.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesPlateauShapes）"
+      },
+      {
+        "name": "aimTargetList",
+        "category": "existing-public-bridge",
+        "owner": [
+          "src/features/candidates/ui.js"
+        ],
+        "readers": [
+          "src/features/candidates/ui.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（aimTargetList）"
+      },
+      {
+        "name": "startupSessionReady",
         "category": "browser-platform",
         "owner": [
           "browser"
         ],
         "readers": [
-          "src/features/account/admin-view.js",
-          "src/startup/runtime-effects.js"
+          "src/features/candidates/ui.js"
         ],
         "purpose": "既存browser APIの明示adapter",
         "retireWhen": "platformとして維持"
       },
       {
-        "name": "top",
-        "category": "browser-platform",
+        "name": "AstroNotesOsmPlaces",
+        "category": "existing-public-bridge",
         "owner": [
-          "browser"
+          "src/features/candidates/osm-places.js"
         ],
         "readers": [
-          "src/features/account/admin-view.js",
-          "src/startup/runtime-effects.js"
+          "src/features/candidates/ui.js"
         ],
-        "purpose": "既存browser APIの明示adapter",
-        "retireWhen": "platformとして維持"
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesOsmPlaces）"
+      },
+      {
+        "name": "AstroNotesAccess",
+        "category": "existing-public-bridge",
+        "owner": [
+          "astronotes-access.js"
+        ],
+        "readers": [
+          "src/features/candidates/overlap-scope.js"
+        ],
+        "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
+        "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesAccess）"
       }
     ],
     "externalProviders": [
@@ -1462,6 +1981,26 @@
       {
         "name": "AstroNotesMountain",
         "source": "astronotes-mountain.js"
+      },
+      {
+        "name": "AstroNotesDaysEngine",
+        "source": "astronotes-myplaces.js"
+      },
+      {
+        "name": "AstroNotesDaysEngineMode",
+        "source": "astronotes-myplaces.js"
+      },
+      {
+        "name": "AstroNotesDiscoveryEngine",
+        "source": "astronotes-myplaces.js"
+      },
+      {
+        "name": "AstroNotesOverlapEngine",
+        "source": "astronotes-myplaces.js"
+      },
+      {
+        "name": "AstroNotesOverlapStats",
+        "source": "astronotes-myplaces.js"
       },
       {
         "name": "AstroNotesPhotoAnalysis",
@@ -1560,7 +2099,6 @@
         "AstroNotesBodies",
         "AstroNotesCalendarMoon",
         "AstroNotesCameraUI",
-        "AstroNotesCapCloud",
         "AstroNotesExif",
         "AstroNotesExploreLayout",
         "AstroNotesFuji",
@@ -1599,6 +2137,7 @@
         "Date",
         "Error",
         "Event",
+        "Float64Array",
         "HTMLInputElement",
         "HTMLSelectElement",
         "Image",
@@ -1622,7 +2161,9 @@
         "ToolDateTimeBar",
         "URL",
         "URLSearchParams",
+        "Uint16Array",
         "Uint8Array",
+        "WeakMap",
         "WeakSet",
         "addEventListener",
         "alert",
@@ -1650,6 +2191,7 @@
         "performance",
         "prompt",
         "queueMicrotask",
+        "recordGeometry",
         "requestAnimationFrame",
         "sessionStorage",
         "setInterval",
@@ -1836,96 +2378,5 @@
         }
       ]
     }
-  },
-  "trialArchitecture": {
-    "owner": "AstroNotesCandidateDiscovery / AstroNotesCandidateModel / AstroNotesCandidatePicker",
-    "generator": "tools/build-candidate-trial.mjs",
-    "productionUnchanged": true,
-    "units": [
-      {
-        "path": "experiments/forecast-summary/controller.js",
-        "output": "index.html",
-        "layer": "ui",
-        "scope": "forecast-view-local-factory",
-        "provides": [
-          "forecastSummary"
-        ],
-        "requires": [
-          "forecast view context",
-          "forecast detail time bands",
-          "navigation pick"
-        ],
-        "owner": "src/features/forecast/view.js",
-        "generator": "tools/build-forecast-summary.mjs"
-      },
-      {
-        "path": "experiments/candidate-visibility/live-terrain.js",
-        "layer": "ports",
-        "scope": "existing-provider-extension",
-        "provides": [
-          "AstroNotesCandidateTerrain.createLive"
-        ],
-        "requires": [
-          "AstroNotesTerrain"
-        ]
-      },
-      {
-        "path": "experiments/candidate-visibility/place-provider.js",
-        "layer": "ports",
-        "scope": "existing-provider-extension",
-        "provides": [
-          "AstroNotesCandidateDiscovery.createPlaceProvider"
-        ],
-        "requires": [
-          "AstroNotesTerrain"
-        ]
-      },
-      {
-        "path": "experiments/candidate-visibility/generic-evaluator.js",
-        "layer": "domain",
-        "scope": "existing-provider-extension",
-        "provides": [
-          "AstroNotesCandidateModel.createGeneric"
-        ],
-        "requires": [
-          "AstroNotesCandidateComposition",
-          "AstroNotesAlign",
-          "AstroNotesBodies"
-        ]
-      },
-      {
-        "path": "experiments/candidate-visibility/generic-search.js",
-        "layer": "services",
-        "scope": "existing-provider-extension",
-        "provides": [
-          "AstroNotesCandidateDiscovery.createGenericSearch"
-        ],
-        "requires": [
-          "AstroNotesCandidateComposition"
-        ]
-      },
-      {
-        "path": "experiments/external-apps/external-apps.js",
-        "output": "astronotes-plan.js",
-        "layer": "services",
-        "scope": "existing-provider-extension",
-        "provides": [
-          "AstroNotesPlan.createExternalApps"
-        ],
-        "requires": [
-          "AstroNotesPlan"
-        ]
-      }
-    ],
-    "uiReads": [
-      "SkyMapUI",
-      "aimLens",
-      "AIM_SENSOR",
-      "aimSceneExtraTargets",
-      "createMapView",
-      "ToolDateTimeBar",
-      "AstroNotesPlan"
-    ],
-    "newGlobals": []
   }
 }

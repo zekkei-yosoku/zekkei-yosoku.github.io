@@ -88,6 +88,43 @@
     return { latitude: p2 / DEG, longitude: lo };
   }
 
+  function prepareRidgeDestination(lat, lon, bearingDeg) {
+    const a1 = bearingDeg * DEG, sa1 = Math.sin(a1), ca1 = Math.cos(a1);
+    const tU1 = (1 - WGS_F) * Math.tan(lat * DEG), cU1 = 1 / Math.sqrt(1 + tU1 * tU1), sU1 = tU1 * cU1;
+    const sig1 = Math.atan2(tU1, ca1), sinA = cU1 * sa1, cos2a = 1 - sinA * sinA;
+    const u2 = cos2a * (WGS_A * WGS_A - WGS_B * WGS_B) / (WGS_B * WGS_B);
+    const A_ = 1 + u2 / 16384 * (4096 + u2 * (-768 + u2 * (320 - 175 * u2))), B_ = u2 / 1024 * (256 + u2 * (-128 + u2 * (74 - 47 * u2)));
+    return distanceKm => {
+    const s = distanceKm * 1000;
+    let sig = s / (WGS_B * A_), cos2sm, sinS, cosS;
+    for (let i = 0; i < 100; i++) {
+      cos2sm = Math.cos(2 * sig1 + sig); sinS = Math.sin(sig); cosS = Math.cos(sig);
+      const dS = B_ * sinS * (cos2sm + B_ / 4 * (cosS * (-1 + 2 * cos2sm * cos2sm) - B_ / 6 * cos2sm * (-3 + 4 * sinS * sinS) * (-3 + 4 * cos2sm * cos2sm)));
+      const next = s / (WGS_B * A_) + dS;
+      if (Math.abs(next - sig) < 1e-12) { sig = next; break; }
+      sig = next;
+    }
+    cos2sm = Math.cos(2 * sig1 + sig); sinS = Math.sin(sig); cosS = Math.cos(sig);
+    const x = sU1 * sinS - cU1 * cosS * ca1;
+    const p2 = Math.atan2(sU1 * cosS + cU1 * sinS * ca1, (1 - WGS_F) * Math.hypot(sinA, x));
+    const lam = Math.atan2(sinS * sa1, cU1 * cosS - sU1 * sinS * ca1);
+    const C = WGS_F / 16 * cos2a * (4 + WGS_F * (4 - 3 * cos2a));
+    const L = lam - (1 - C) * WGS_F * sinA * (sig + C * sinS * (cos2sm + C * cosS * (-1 + 2 * cos2sm * cos2sm)));
+    let lo = (lon + L / DEG) % 360; if (lo > 180) lo -= 360; if (lo < -180) lo += 360;
+    return { latitude: p2 / DEG, longitude: lo };
+    };
+  }
+
+  function prepareRidgeElevation(distanceKm, observerHeightM, { k = A.REFRACTION_K } = {}) {
+    const R = A.EARTH_R_KM * k;
+    const ro = R + observerHeightM / 1000;
+    const theta = distanceKm / R, cosTheta = Math.cos(theta), sinTheta = Math.sin(theta);
+    return targetHeightM => {
+      const rt = R + targetHeightM / 1000;
+      return Math.atan2(rt * cosTheta - ro, rt * sinTheta) / DEG;
+    };
+  }
+
   /// 2点間の方位角（北から東回り、出発点での測地線の向き）
   const bearing = (aLat, aLon, bLat, bLon) => inverse(aLat, aLon, bLat, bLon).azimuth;
   /// 測地線の長さ[km]
@@ -212,6 +249,7 @@
   }
 
   const tiles = new Map();
+  const tileAvailability = new WeakMap();
   const TILE_MEM = 240;                      // 手元に持つ画素（1枚 約260KB）。古いものから手放し、要れば保存領域から読み直す
   // 標高タイルの無い升目（404＝陸の無い外洋）。水の判定で、海と分かっている所へ水域タイルを取りに行かないために憶える
   const demMissing = new Set();
@@ -231,10 +269,13 @@
   }
   /// タイルを1枚読む。**同じタイルは二度取りに行かない**（この画面でも、次に開いたときも）。
   /// layer は国土地理院の標高タイルの種類（既定は10mメッシュの dem_png）
-  function loadTile(z, x, y, layer = "dem_png") {
+  function loadTile(z, x, y, layer = "dem_png", strict = false) {
     const key = layer === "dem_png" ? `${z}/${x}/${y}` : `${layer}/${z}/${x}/${y}`;
     if (tiles.has(key)) return tiles.get(key);
     const url = `${GSI_TILE.replace(/dem_png$/, layer)}/${z}/${x}/${y}.png`;
+    const availability={missing:false,verified:false};
+    // Image success confirms this exact layer. Image failure never confirms 404.
+    const verifiedImage=async(url)=>{const image=await loadTileByImage(url);if(image)availability.verified=true;return image;};
     const p = (async () => {
       const store = demStore();
       let cache = null;
@@ -246,23 +287,24 @@
           if (hit && Date.now() - at < DEM_TTL_MS && Date.now() >= at) {
             // **海など、タイルの無い区画も憶えておく。** 開くたびに同じ升目へ取りに行って
             // 404 を並べていた（2026-09-30 総点検。ねらうの線が相模湾・東京湾の上を通るたびに十数枚）
-            if (hit.headers.get(DEM_MISSING)) { demMissing.add(key); return null; }
+            if (hit.headers.get(DEM_MISSING)) { availability.missing=true;demMissing.add(key); return null; }
             const img = await decodeTile(await hit.blob());
-            if (img) return img;
+            if (img) { availability.verified=true;return img; }
           }
         } catch { cache = null; }       // 保存領域が使えなくても、取得は止めない
       }
-      if (!cache || typeof fetch !== "function") return tileLimited(() => loadTileByImage(url));
+      if (typeof fetch !== "function" || (!cache && !strict)) return tileLimited(() => verifiedImage(url));
       return tileLimited(async () => {
       let res = null;
       try { res = await fetch(url, { mode: "cors", signal: global.AbortSignal?.timeout(TILE_TIMEOUT_MS) }); }
       catch (e) {
         // 時間切れはタイルが無いのとは違う。下の層へ落とすと粗い値で測り、富士山の見え方として憶えてしまう
         if (e?.name === "TimeoutError") throw e;
-        return loadTileByImage(url);
+        return verifiedImage(url);
       }
       if (!res.ok) {                    // 海など、タイルの無い区画は 404
         if (res.status === 404) {
+          availability.missing=true;
           demMissing.add(key);
           try {
             await cache.put(url, new Response("", { status: 200,
@@ -272,8 +314,20 @@
         return null;
       }
       const blob = await res.blob();
-      const img = await decodeTile(blob);
-      if (!img) return loadTileByImage(url);
+      let img = await decodeTile(blob);
+      if(!img){
+        if(!strict)return verifiedImage(url);
+        // HTTP 200 is confirmed. Decode those exact bytes through a local blob
+        // when ImageBitmap is unavailable; do not issue an unverified image GET.
+        if(typeof global.URL?.createObjectURL==='function'){
+          let local;
+          try{local=global.URL.createObjectURL(blob);img=await loadTileByImage(local);}
+          catch{/* Keep the legacy Image retry if local blob decoding is unavailable. */}
+          finally{if(local)global.URL.revokeObjectURL(local);}
+        }
+        if(!img)return verifiedImage(url);
+      }
+      availability.verified=true;
       try {
         await cache.put(url, new Response(blob, { status: 200,
           headers: { "content-type": "image/png", [DEM_AT]: String(Date.now()) } }));
@@ -282,6 +336,8 @@
       return img;
       });
     })();
+    tileAvailability.set(p,availability);
+    p.then(image=>{ availability.image=image; },()=>{});
     tiles.set(key, p);
     // 失敗を憶えない。憶えると、同じ画面の次の測定まで試さずに失敗する
     p.catch(() => { if (tiles.get(key) === p) tiles.delete(key); });
@@ -397,6 +453,49 @@
     if (j && j.elevation === "-----") return { elevation: 0, source: "海" };
     return null;
   }
+  // Trial: share native-resolution PNGs for dense path/area samples. The 2026-10-05
+  // decision above is retained: isolated points can cost more initial tile requests.
+  // Confirmed source/pixel rounding matches the point API; unknown tiles use that API.
+  const nativeGroundPoint=(function createNativeGroundPoint({readTile,clock=()=>Date.now()}){
+ const layers=[['dem1a_png',17,'1m（レーザ）',10],['dem5a_png',15,'5m（レーザ）',10],['dem5b_png',15,'5m（写真測量）',10],['dem5c_png',15,'5m（写真測量5C）',10],['dem_png',14,'10m',100]];
+ let retryAfter=0;
+ const unavailable=()=>{retryAfter=clock()+30000;return null;};
+ return async (latitude,longitude)=>{
+  if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||clock()<retryAfter)return null;
+  // Match the existing point request, not the unrounded caller coordinate.
+  const lat=Number(latitude.toFixed(6)),lon=Number(longitude.toFixed(6));
+  const positions=new Map();
+  for(const [layer,z,hsrc,quantumCm] of layers){
+   let p=positions.get(z);
+   if(!p){
+    // Keep the official client's operation order, including floor at tile edges.
+    const R=128/Math.PI,x=R*(lon*Math.PI/180+Math.PI)*Math.pow(2,z),r=lat*Math.PI/180,y=(-R/2*Math.log((1+Math.sin(r))/(1-Math.sin(r)))+128)*Math.pow(2,z);
+    const tx=Math.floor(x/256),ty=Math.floor(y/256);
+    p={x:tx,y:ty,px:Math.floor(x-tx*256),py:Math.floor(y-ty*256)};positions.set(z,p);
+   }
+   let result;try{result=await readTile(z,p.x,p.y,layer);}catch{return unavailable();}
+   if(result?.missing===true)continue;
+   const image=result?.image;
+   if(!image||image.width!==256||image.height!==256||p.px<0||p.px>=256||p.py<0||p.py>=256)return unavailable();
+   const offset=(p.py*256+p.px)*4,a=image.data?.[offset],b=image.data?.[offset+1],c=image.data?.[offset+2];
+   if(![a,b,c].every(n=>Number.isInteger(n)&&n>=0&&n<=255))return unavailable();
+   const encoded=a*65536+b*256+c;
+   if(encoded===8388608)continue;
+   const cm=encoded<8388608?encoded:encoded-16777216;
+   // Round integer centimetres before dividing: binary *.01 + toFixed differs
+   // at exact halves. The point API reports decimetres, or metres for 10m DEM.
+   const rounded=Math.floor((Math.abs(cm)+quantumCm/2)/quantumCm)/(100/quantumCm);
+   // Preserve the API's negative zero for a negative centimetre value rounding
+   // to zero; JSON serialization of the existing disk cache still normalizes it.
+   return {elevation:cm<0?-rounded:rounded,hsrc};
+  }
+  // Only all five confirmed absent/nodata sources establish the API's no-data.
+  return {elevation:'-----',hsrc:''};
+ };
+})({readTile:async(z,x,y,layer)=>{
+    const pending=loadTile(z,x,y,layer,true),image=await pending,availability=tileAvailability.get(pending);
+    return image&&availability?.verified?{image}:{missing:availability?.missing===true};
+  }});
   async function groundElevation(lat, lon, { withSource = false, fetchImpl = global.fetch } = {}) {
     if (!inJapan(lat, lon)) return null;
     const key = `${lat.toFixed(5)},${lon.toFixed(5)}`;
@@ -411,6 +510,18 @@
             const hit = await cache.match(url), at = hit ? Number(hit.headers.get(DEM_AT)) : NaN;
             if (hit && Date.now() - at < DEM_TTL_MS && Date.now() >= at) { const v = parsePoint(await hit.json()); if (v) return v; }
           } catch { cache = null; }
+        }
+        // Preserve explicit injected point providers. Normal callers first share
+        // native-resolution PNGs, and keep the same point URL/cache/source contract.
+        if(typeof fetchImpl==='function'&&fetchImpl===global.fetch){
+          const j=await nativeGroundPoint(lat,lon),v=j?parsePoint(j):null;
+          if(v){
+            if(cache){try{
+              await cache.put(url,new Response(JSON.stringify(j),{status:200,headers:{"content-type":"application/json",[DEM_AT]:String(Date.now())}}));
+              pruneDemCache(cache);
+            }catch{/* A cache write failure must not discard a verified value. */}}
+            return v;
+          }
         }
         try {
           const res = typeof fetchImpl === "function" ? await pointLimited(async () => {
@@ -452,11 +563,70 @@
    * タイルは1枚65536点ぶんなので、まとまった範囲を見るときに桁違いに速い。
    * `from`（観測点）を渡すと、近い点ほど細かいズームで読む（zoomFor）。
    */
+// Keep every requested coordinate, zoom, pixel and DEM fallback. Await once per
+// tile, rather than creating several promises for each of its sampled pixels.
+function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevation}) {
+ return async function sampleTiles(points,zooms) {
+  const out=new Array(points.length).fill(undefined),ten=new Array(points.length);
+  let pending=[];
+  for(let i=0;i<points.length;i++)if(inJapan(points[i].latitude,points[i].longitude))pending.push(i);
+  for(const [layer,maxZ] of [['dem1a_png',17],['dem5a_png',15],['dem_png',14],['dem5b_png',15],['dem5c_png',15]]) {
+   if(!pending.length)break;
+   const groups=new Map(),values=new Array(points.length);
+   for(const i of pending) {
+    const p=points[i],z=Math.min(zooms[i],maxZ),fx=tileXf(p.longitude,z),fy=tileYf(p.latitude,z),x=Math.floor(fx),y=Math.floor(fy),key=z+'/'+x+'/'+y;
+    let group=groups.get(key);if(!group){group={z,x,y,points:[]};groups.set(key,group);}
+    group.points.push(i,fx,fy);
+   }
+   await Promise.all([...groups.values()].map(async group=>{
+    const img=await loadTile(group.z,group.x,group.y,layer);
+    if(!img)return;
+    for(let at=0;at<group.points.length;at+=3){
+     const i=group.points[at],fx=group.points[at+1],fy=group.points[at+2];
+     const px=Math.min(img.width-1,Math.floor((fx%1)*img.width));
+     const py=Math.min(img.height-1,Math.floor((fy%1)*img.height));
+     const n=(py*img.width+px)*4;
+     values[i]=pixelToElevation(img.data[n],img.data[n+1],img.data[n+2]);
+    }
+   }));
+   const next=[];
+   for(const i of pending){
+    const v=values[i];
+    if(layer==='dem_png'){
+     if(!Number.isFinite(v)){out[i]=v;continue;}
+     ten[i]=v;next.push(i);
+    }else if(Number.isFinite(v))out[i]=v;
+    else if(layer==='dem5c_png')out[i]=ten[i];
+    else next.push(i);
+   }
+   pending=next;
+  }
+  return out;
+ };
+}
+
+  function currentRidgeTile(layer,z,x,y) {
+    const key=(layer==='dem_png'?'':layer+'/')+z+'/'+x+'/'+y;
+    const pending=tiles.get(key),entry=pending&&tileAvailability.get(pending);
+    return entry?.image||entry?.missing===true?entry:null;
+  }
+  function ridgeSampleCoverage(from,box,range,base) {
+    const x0=tileXf(box.west,0),x1=tileXf(box.east,0);
+    const y0=tileYf(box.north,0),y1=tileYf(box.south,0);
+    return point=>{
+      if(!inJapan(point.latitude,point.longitude))return false;
+      const x=tileXf(point.longitude,0),y=tileYf(point.latitude,0);
+      if(!(x>=x0&&x<=x1&&y>=y0&&y<=y1))return false;
+      const z=zoomFor(from,point,base);
+      return z>=range.min&&z<=range.max;
+    };
+  }
+  const sampleTiles=createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevation});
   async function elevations(points, opts = {}) {
     if (!points.length) return [];
     if (points.every((p) => inJapan(p.latitude, p.longitude)) && typeof Image !== "undefined") {
       const base = opts.zoom ?? 11;
-      const raw = await Promise.all(points.map((p) => sampleTile(p.latitude, p.longitude, zoomFor(opts.from, p, base))));
+      const raw = points.length<32 && !opts.indexedExactBatch ? await Promise.all(points.map((p) => sampleTile(p.latitude, p.longitude, zoomFor(opts.from, p, base)))) : await sampleTiles(points,points.map(p=>zoomFor(opts.from,p,base)));
       // 読めたタイルの「標高なし」画素は海なので 0m（海面）とする。
       // 以前は Open-Meteo で埋め直していて、富士市では全周 816点が海で 100点ずつ 9回叩き、
       // 本番で 429 が続いて地形の地平線ごと失敗していた（2026-09-22）。
@@ -1451,14 +1621,29 @@
     const tiles = await Promise.all([...keys].map((k) => { const [x, y] = k.split("/").map(Number); return loadBuildingTile(x, y, fetchImpl).then((t) => [x, y, t]); }));
     if (tiles.some(([, , t]) => t === null)) return null;
     const n = 2 ** WATER_Z, out = [];
+    const south = Math.min(from.latitude, to.latitude), north = Math.max(from.latitude, to.latitude), west = Math.min(from.longitude, to.longitude), east = Math.max(from.longitude, to.longitude);
     for (const [tx, ty, tile] of tiles) {
-      tile.polys.forEach((rings, i) => {
-        const minHeightM = GSI_BUILDING_MIN_M[tile.codes[i]];
-        if (!minHeightM) return;
+      const geo = tile.geo || (tile.geo = tile.polys.map((rings) => {
         const ring = rings[0].map(([px, py]) => {
           const fx = (tx + px / tile.extent) / n, fy = (ty + py / tile.extent) / n;
           return [Math.atan(Math.sinh(Math.PI * (1 - 2 * fy))) * 180 / Math.PI, fx * 360 - 180];
         });
+        let s = Infinity, w = Infinity, nn = -Infinity, e = -Infinity;
+        for (const [la, lo] of ring) { if (la < s) s = la; if (la > nn) nn = la; if (lo < w) w = lo; if (lo > e) e = lo; }
+        return { ring, s, w, n: nn, e };
+      }));
+      tile.polys.forEach((rings, i) => {
+        const minHeightM = GSI_BUILDING_MIN_M[tile.codes[i]];
+        if (!minHeightM) return;
+        const g = geo[i];
+        if (g.n < south || g.s > north || g.e < west || g.w > east) return;
+        // All four corners of the box on one side of the line, or all before its start or after its end: no edge can
+        // cross the segment and the start point is not inside.
+        const c = [xy(g.s, g.w), xy(g.s, g.e), xy(g.n, g.w), xy(g.n, g.e)];
+        let left = 0, right = 0, tMin = Infinity, tMax = -Infinity;
+        for (const [x, y] of c) { const side = x * uy - y * ux, t = x * ux + y * uy; if (side > 1e-6) left++; else if (side < -1e-6) right++; else { left++; right++; } if (t < tMin) tMin = t; if (t > tMax) tMax = t; }
+        if (!left || !right || tMax < -1e-6 || tMin > totalM + 1e-6) return;
+        const ring = g.ring;
         const pts = ring.map(([la, lo]) => xy(la, lo));
         let entry = null, inside = false;
         for (let a = 0, b = pts.length - 1; a < pts.length; b = a++) {
@@ -1505,7 +1690,7 @@
 
   const AstroNotesTerrain = {
     MAX_POINTS, DEFAULT_STEPS, OBSERVATION_DECKS, decksFor, deckLabel, structureHeight, isLookout,
-    destination, bearing, distanceKm, inverse,
+    destination, currentRidgeTile, ridgeSampleCoverage, prepareRidgeDestination, prepareRidgeElevation, bearing, distanceKm, inverse,
     fetchElevations, elevations, elevationFromTile, tileElevations, groundElevation, inJapan, resolveObserver,
     measureHorizon, horizonFunction, combinedHorizon,
     urbanHorizon, buildingHeightM, buildingAt, buildingsAlong, gsiBuildingsAlong, GSI_BUILDING_MIN_M, wikidataHeight, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,

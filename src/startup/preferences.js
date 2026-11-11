@@ -56,17 +56,20 @@ import {scrollLock,startupSessionReady} from '../features/plans/controller.js';
  row.hidden=true;settings.querySelector('.sheet-head').prepend(back);settingsBody.append(categories,row);document.body.append(settings);
  const originalAccountOpen=document.getElementById('authButton').onclick;
  let settingsOpener=document.getElementById('toolsButton');
- const settingsHome=()=>{categories.hidden=false;row.hidden=true;back.hidden=true;document.getElementById('appSettingsTitle').textContent='設定';};
+ const externalSettings=AstroNotesPlan.externalApps.settings();externalSettings.hidden=true;settingsBody.append(externalSettings);
+ const externalEntry=document.getElementById('settingsScreen').cloneNode(true);externalEntry.id='settingsExternalApps';externalEntry.querySelector('strong').textContent='カレンダー・地図';externalEntry.querySelector('.tiny').textContent='開くアプリ';externalEntry.querySelector('svg').innerHTML='<path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>';categories.append(externalEntry);
+ const settingsHome=()=>{categories.hidden=false;row.hidden=true;externalSettings.hidden=true;back.hidden=true;document.getElementById('appSettingsTitle').textContent='設定';};
+ externalEntry.onclick=()=>{externalSettings.refresh();categories.hidden=true;row.hidden=true;externalSettings.hidden=false;back.hidden=false;document.getElementById('appSettingsTitle').textContent='カレンダー・地図';settings.focus({preventScroll:true});};
  const ownerEntry=document.createElement('div');ownerEntry.id='settingsPrivateEntry';categories.append(ownerEntry);
  const openSettings=opener=>{settingsOpener=opener;update();settingsHome();closeTools();showSheet(settings);scrollLock.on();renderPrivateEntry();};
- back.onclick=()=>{if(!categories.hidden){settings.close();return;}settingsHome();document.getElementById('settingsScreen').focus();};
+ back.onclick=()=>{if(!categories.hidden){settings.close();return;}const focusId=externalSettings.hidden?'settingsScreen':'settingsExternalApps';settingsHome();document.getElementById(focusId).focus();};
  document.getElementById('settingsScreen').onclick=()=>{update();categories.hidden=true;row.hidden=false;back.hidden=false;document.getElementById('appSettingsTitle').textContent='画面';settings.focus({preventScroll:true});};
  document.getElementById('settingsAccount').onclick=()=>{settings.close();originalAccountOpen();};
  // The account page returns to the settings list the same way the screen page does.
  document.getElementById('accountBack').onclick=()=>{if(document.getElementById('accountSheet').dataset.accountView!=='overview'){showAccountView('overview',true);return;}document.getElementById('accountSheet').close();openSettings(document.getElementById('authButton'));};
  document.getElementById('authButton').onclick=()=>{if(auth)openSettings(document.getElementById('authButton'));else originalAccountOpen();};
  settings.querySelector('#appSettingsClose').onclick=()=>settings.close();
- settings.addEventListener('close',()=>{scrollLock.off();settingsOpener.focus({preventScroll:true});});
+ settings.addEventListener('close',()=>{if(settings.open)return;scrollLock.off();settingsOpener.focus({preventScroll:true});});
 
  // A rightward swipe may dismiss an already-open panel. No swipe-to-open handler.
  for(const panel of [settings,document.getElementById('accountSheet')]){

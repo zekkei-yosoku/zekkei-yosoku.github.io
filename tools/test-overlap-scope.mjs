@@ -4,7 +4,6 @@ import {createRequire} from 'node:module';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {createOverlapPolicy} from './overlap-scope-policy.mjs';
-import {overlapRuntime} from './build-overlap-scope.mjs';
 const require=createRequire(new URL('../x.js',import.meta.url));
 const TR=require('./astronotes-terrain.js'),AL=require('./astronotes-align.js'),AS=require('./astronotes-astro.js');
 const P=createOverlapPolicy();
@@ -76,7 +75,7 @@ const ctx={queueMicrotask:f=>f(),console,getComputedStyle:()=>({getPropertyValue
  auth:{loginId:'u1',token:'t'},store:{get:(k,d)=>stored.has(k)?stored.get(k):d,set:(k,v)=>stored.set(k,v)},
  aimSceneExtrasAllowed:()=>true,aimIsMountain:t=>t.id==='fuji',aimSceneExtraTargets:id=>[main,fuji].filter(t=>extras.includes(t.id)&&t.id!==id),aimSetSceneExtras:ids=>{extras=ids;},aimTargetList:()=>[main,fuji],
  SkyMapUI:{selectionState:()=>({target:main,matchMode:'overlap',partId:'__whole'}),setAlignment:(...a)=>alignments.push(a),render(){},setTarget(){}}};
-ctx.globalThis=ctx;vm.createContext(ctx);vm.runInContext(overlapRuntime(),ctx);
+ctx.globalThis=ctx;vm.createContext(ctx);vm.runInContext(readFileSync(new URL('../src/features/candidates/overlap-scope.js',import.meta.url),'utf8'),ctx);
 const R=ctx.AstroNotesTrialOverlap;
 ok(R&&R.isAll()===false&&R.key()===null,'既定は個別（既存keyを変えない）');
 stored.set('sorami.sceneOverlap:u1',{all:true});
@@ -101,10 +100,9 @@ R.restore({kind:'aim',t:{id:'skytree',name:'東京スカイツリー'},ov:{...pa
 ok(stored.get('sorami.sceneOverlap:u1').all===false,'受信側に無い対象を含む全ては基準対象へ戻す');
 
 console.log('== 生成物の接続 ==');
-const html=readFileSync(new URL('../trial/index.html',import.meta.url),'utf8'),bundle=readFileSync(new URL('../trial/astronotes-candidate-search.js',import.meta.url),'utf8'),explore=readFileSync(new URL('../trial/astronotes-explore-simple.js',import.meta.url),'utf8'),root=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=readFileSync(new URL('../index.html',import.meta.url),'utf8'),bundle=readFileSync(new URL('../astronotes-candidate-search.js',import.meta.url),'utf8'),explore=readFileSync(new URL('../astronotes-explore-simple.js',import.meta.url),'utf8');
 ok(['buildingDays','accent','annotate','restore','quickRecord','chooseMain','custom'].every(k=>html.includes('AstroNotesTrialOverlap?.'+k)),'trial文書の各経路へ接続');
 ok(bundle.includes('globalThis.AstroNotesTrialOverlap={')&&bundle.includes('AstroNotesTrialOverlap?.evaluate')&&explore.includes('AstroNotesTrialOverlap?.discovery'),'候補探索と登録地点へ接続');
-ok(!root.includes('AstroNotesTrialOverlap')&&!readFileSync(new URL('../astronotes-explore.js',import.meta.url),'utf8').includes('AstroNotesTrialOverlap'),'本番rootは変更しない');
 
 
 ok(P.resolveMembers(ext.members,[{id:'skytree',latitude:35.71,longitude:0,parts:[{}]},{id:'fuji',latitude:35.36,longitude:138.72,parts:[{}]}])===null,'longitude mismatch must not restore a group');

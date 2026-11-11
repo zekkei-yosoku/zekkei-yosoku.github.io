@@ -106,3 +106,6 @@ html.look-full-open,html.look-full-open body{overflow:hidden}
 
 /* 逆算を止めているあいだ（AIM_REVERSE_ENABLED=false）は天体を動かすボタンを出さない（全画面の文字付きの表示より優先） */
 #aimLook [data-look-pick][hidden]{display:none!important}
+
+:root #skyMapView.explore-mounted .sky-map-head::before,:root #recordsView .sky-map-head::before{grid-column:1/-1;--kw:6.2em}
+:root #recordsView .sky-map-head::before{content:"NOTES" / "";letter-spacing:.46em;padding-left:.46em;font-size:12px}

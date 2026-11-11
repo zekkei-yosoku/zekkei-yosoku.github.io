@@ -32,8 +32,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 26
-      - name: Playwright（ブラウザは runner の Chrome を使う）
-        run: mkdir -p "$RUNNER_TEMP/pw" && cd "$RUNNER_TEMP/pw" && npm init -y >/dev/null && npm install --no-audit --no-fund playwright@1
+      - name: Playwright（Chrome は runner のもの、WebKit は入れる）
+        run: mkdir -p "$RUNNER_TEMP/pw" && cd "$RUNNER_TEMP/pw" && npm init -y >/dev/null && npm install --no-audit --no-fund playwright@1 && npx playwright install --with-deps webkit
       - name: 探すの実ブラウザ確認
         run: |
           python3 -m http.server 8992 --bind 127.0.0.1 >/dev/null 2>&1 &

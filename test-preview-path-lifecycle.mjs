@@ -1,7 +1,7 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {visibleDayRuns,nearestPathRun,previewPathLifecycleHtml} from './tools/build-preview-path-lifecycle.mjs';
+import test from 'node:test';import assert from 'node:assert/strict';import {visibleDayRuns,nearestPathRun} from './tools/preview-path-runs.mjs';
 const day=Date.parse('2026-11-25T00:00:00+09:00'),h=3600000,win={halfW:1,halfH:1};
 test('initial morning selection retains the later run crossing the target view that day',()=>{const path=[{at:day+7*h,x:100,y:2},{at:day+8*h,x:101,y:3},{at:day+16*h,x:-2,y:0},{at:day+17*h,x:2,y:0}],runs=[[0,1],[2,3]],visible=visibleDayRuns(path,runs,win,day);assert.deepEqual(visible,[[2,3]]);assert.deepEqual(nearestPathRun(path,visible,day+9*h),[2,3]);});
 test('segments crossing a narrow frame are found even when both samples are outside',()=>{assert.deepEqual(visibleDayRuns([{at:day,x:-10,y:0},{at:day+1000,x:10,y:0}],[[0,1]],win,day),[[0,1]]);});
 test('a bounding box overlapping the frame does not make a corner miss visible',()=>{assert.deepEqual(visibleDayRuns([{at:day,x:-2,y:.9},{at:day+1000,x:.9,y:2}],[[0,1]],win,day),[]);});
 test('behind-camera gaps and runs from another day are not selected',()=>{const p=[{at:day,x:null,y:0},{at:day+1000,x:0,y:0},{at:day-10000,x:-2,y:0},{at:day-1000,x:2,y:0}];assert.deepEqual(visibleDayRuns(p,[[0,1],[2,3]],win,day),[]);});
-test('among visible intervals the current interval is retained and patch boundaries are checked',()=>{const p=[{at:day,x:0,y:0},{at:day+h,x:.5,y:.5},{at:day+2*h,x:0,y:0},{at:day+3*h,x:.5,y:.5}];assert.deepEqual(nearestPathRun(p,[[0,1],[2,3]],day+2.5*h),[2,3]);assert.throws(()=>previewPathLifecycleHtml('changed source'),/boundary/);});
+test('among visible intervals the current interval is retained',()=>{const p=[{at:day,x:0,y:0},{at:day+h,x:.5,y:.5},{at:day+2*h,x:0,y:0},{at:day+3*h,x:.5,y:.5}];assert.deepEqual(nearestPathRun(p,[[0,1],[2,3]],day+2.5*h),[2,3]);});

@@ -15,7 +15,7 @@ for(const [name,type]of [['chrome',chromium],['webkit',webkit]]){
  console.log(name,'picker ready');
  // Deterministic registered-row fixture through the real registered renderer.
  await p.evaluate(async()=>{
-  const data=await(await fetch('data/candidate-label-facilities.json')).json(),park=data.features.find(f=>f.tags.leisure==='park'),start=AstroNotesCandidateDiscovery.day(SkyMapUI.selectionState().at);
+  const data=await(await fetch((document.querySelector('meta[name="astronotes-data-base"]')?.content||'data/')+'candidate-label-facilities.json')).json(),park=data.features.find(f=>f.tags.leisure==='park'),start=AstroNotesCandidateDiscovery.day(SkyMapUI.selectionState().at);
   const row=(name,h,parkArea,observer=true)=>({place:{id:name,name,latitude:35.71,longitude:139.81,elevation:30},record:{result:'seen'},event:{at:start+h*3600000,side:'rise'},...(observer?{assumedObserver:{latitude:35.71,longitude:139.81,elevation:30,eyeM:4}}:{}),...(parkArea?{labels:{facility:{status:'matched',sourceIds:[park.id]}}}:{})});
   window.fixtureOriginal={candidates:AstroNotesShooting.candidates,windowEvents:AstroNotesCandidateComposition.windowEvents};
   AstroNotesShooting.candidates=async()=>({rows:[row('公園A',7,true),row('公園B',7+1/3600000,true),row('地点C',17,false),row('高さ未確認',8,false,false)],failed:0});

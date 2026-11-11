@@ -1,11 +1,11 @@
-import {$,S} from '../../ui/presentation-helpers.js';
+import {$,RANK_COLOR,S,esc} from '../../ui/presentation-helpers.js';
 import {pickHighlight} from './presentation.js';
 import {SORTS,extrasLoadedSeq,extrasRetry,place,setExtrasLoadedSeq,store,viewState} from '../../app/browser-state.js';
-import {bundle,extraSeq,forecastDays,predictionLoadSeq,predictionNeeded,predictionPlace,weeks} from './load.js';
+import {bundle,extraSeq,forecastDays,predictionKeyFor,predictionLoadSeq,predictionNeeded,predictionPlace,weeks} from './load.js';
 import {wireOutcomes} from '../photos/controller.js';
 import {renderAlmanac} from '../home/controller.js';
 import {isMenuPage,navigationHistory,pick,picked,routeFromHash} from '../../app/navigation.js';
-import {renderBestNote,renderDayDetail,renderDetailPane,renderLightTimes,renderMatrix,renderMoonTimes,renderSkeleton} from './detail.js';
+import {renderBestNote,renderCapLine,renderDayDetail,renderDetailPane,renderLightTimes,renderMatrix,renderMoonTimes,renderSkeleton,renderTwilight,timeBandPhases} from './detail.js';
 import {renderRecords,savedRoundClient} from '../results/controller.js';
 import {selectedDay} from '../places/controller.js';
 import {renderAimAccess} from '../framing/reverse-and-entry.js';
@@ -13,6 +13,7 @@ import {placeCardShown,renderDeckRow} from '../places/search.js';
 import {renderToolAccess,renderTools,toolAllowed} from '../account/session-and-access.js';
 let sortMode = SORTS[store.get("sorami.sort", "standard")] ? store.get("sorami.sort", "standard") : "standard";
 let currentView = "list";
+let forecastSummary = null;
 // ---------------------------------------------------------------- 描画
 function upcoming(entries, now) {
   return entries.find((e) => !e.evaluation.unavailable && e.evaluation.window[1] > now)
@@ -419,7 +420,11 @@ function redrawDayDetail() {
 function rerenderList() {
   if (!bundle) return;
   const inDetail = !!document.querySelector("#detailView:not([hidden])");
-  if (inDetail) return;
+  if (inDetail) {
+    const reference = picked === "fuji" && document.querySelector("#dayDetail .cap-reference");
+    if (reference) reference.outerHTML = renderCapLine(Number(reference.dataset.day));
+    return;
+  }
   render();
 }
 
@@ -460,6 +465,106 @@ $("forecastTabs").onkeydown=e=>{
 };
 
 function render() {
+  forecastSummary ||= (function createForecastSummary({ document, host, context, presentation, openDetail, announce }) {
+  // Selection belongs to the forecast list. Keep identifiers, never a second prediction copy.
+  // Constructing the owner does no DOM work, IO, routing, or persistent storage.
+  let placeKey = null, selected = null, scrollLeft = 0, focusedCell = null;
+  const summaryId = 'forecastSelection';
+  function reconcilePlace() {
+    const next = context().placeKey;
+    if (next !== placeKey) { placeKey = next; selected = null; scrollLeft = 0; focusedCell = null; }
+  }
+  function entry() {
+    if (!selected) return null;
+    return context().weeks[selected.id]?.find(item => item.dayMs === selected.dayMs) || null;
+  }
+  function removeSummary() { host()?.querySelector('#' + summaryId)?.remove(); }
+  function capture() {
+    const previous = placeKey;
+    reconcilePlace();
+    const root = host(), scroller = root?.querySelector('.mxscroll');
+    // Hidden views and loading skeletons do not own a usable comparison position.
+    // Capture before the view switch, and keep the last visible prediction until replacement arrives.
+    if (previous === placeKey && scroller?.clientWidth && scroller.querySelector('.cell[data-cell]')) scrollLeft = scroller.scrollLeft;
+    const active = document.activeElement;
+    focusedCell = previous === placeKey && root?.contains(active) && active?.matches('.cell[data-cell]') ? active.dataset.cell : null;
+  }
+  function timing(id, ev) {
+    if (presentation.timeBandPhases(ev)?.some(phase => Number.isFinite(phase.score))) return '';
+    if (id === 'capCloud') {
+      if (ev.timing?.allDay) return '一日を通して';
+      if (Number.isFinite(ev.timing?.from) && Number.isFinite(ev.timing?.to)) return presentation.time(ev.timing.from) + '–' + presentation.time(ev.timing.to);
+      return '時間帯を絞れません';
+    }
+    if (ev.specificTime === false) return presentation.meta(id).timeOfDay || '時間帯を絞れません';
+    if (Array.isArray(ev.window) && ev.window.every(Number.isFinite)) return presentation.time(ev.window[0]) + '–' + presentation.time(ev.window[1]);
+    return Number.isFinite(ev.peak) ? presentation.time(ev.peak) + 'ごろ' : '';
+  }
+  function update() {
+    reconcilePlace();
+    const root = host();
+    if (!root) return;
+    const hit = entry();
+    if (selected && !hit) selected = null;
+    for (const button of root.querySelectorAll('.cell[data-cell]')) {
+      button.setAttribute('aria-pressed', String(!!selected && button.dataset.cell === selected.id + '|' + selected.dayMs));
+      if (selected) button.setAttribute('aria-controls', summaryId);
+      else button.removeAttribute('aria-controls');
+    }
+    if (!selected || !hit) { removeSummary(); return; }
+    const id = selected.id, ev = hit.evaluation, p = presentation, e = p.escape;
+    let box = root.querySelector('#' + summaryId);
+    if (!box) { box = document.createElement('section'); box.id = summaryId; box.className = 'card forecast-selection'; box.setAttribute('aria-labelledby', summaryId + 'Title'); root.append(box); }
+    const unavailable = ev.unavailable;
+    const grade = unavailable ? null : p.grade(ev);
+    const phrase = unavailable ? null : p.phrase(id, ev);
+    const when = timing(id, ev);
+    box.innerHTML = `<div class="forecast-selection-head"><div class="ph-head"><span class="ic">${p.icon(id, ev.peak)}</span><span class="nm" id="${summaryId}Title">${e(p.name(id))}</span></div><button type="button" class="tap forecast-selection-open">詳細を見る →</button><button type="button" class="tap forecast-selection-close" aria-label="プレビューを閉じる">×</button></div>`
+      + `<div class="forecast-selection-overview"><span class="muted">${e(p.day(hit.dayMs, context().now))}</span>`
+      + (unavailable ? '' : `<span class="forecast-selection-verdict" style="color:${p.color(ev)}">${e(phrase.label)} <span class="forecast-selection-score">${Math.round(ev.score)} <span class="grade" title="${e(grade.caption)}" aria-label="信頼度${e(grade.key)}">${e(grade.key)}</span></span></span>`) + '</div>'
+      + (unavailable ? `<p class="ph-out">${e(unavailable.message)}</p>` : `${when ? `<div class="forecast-selection-time">${e(when)}</div>` : ''}<p class="forecast-selection-say">${e(phrase.say)}</p>${p.bands(ev)}`);
+    box.querySelector('.forecast-selection-open').onclick = () => {
+      const current = entry();
+      if (current && selected) openDetail(selected.id, current.dayMs);
+    };
+    box.querySelector('.forecast-selection-close').onclick = () => {
+      const cell = selected && [...root.querySelectorAll('.cell[data-cell]')].find(button => button.dataset.cell === selected.id + '|' + selected.dayMs);
+      selected = null; update(); cell?.focus({ preventScroll: true });
+    };
+  }
+  function restore() {
+    update();
+    const root = host(), scroller = root?.querySelector('.mxscroll');
+    if (scroller) { scroller.scrollLeft = scrollLeft; scroller.classList.toggle('scrolled', scroller.scrollLeft > 0); }
+    if (focusedCell) {
+      const button = [...root.querySelectorAll('.cell[data-cell]')].find(node => node.dataset.cell === focusedCell);
+      button?.focus({ preventScroll: true });
+    }
+    focusedCell = null;
+  }
+  function select(id, dayMs) {
+    reconcilePlace();
+    const hit = context().weeks[id]?.find(item => item.dayMs === dayMs);
+    if (!hit) return false;
+    selected = { id, dayMs };
+    update();
+    const p = presentation, ev = hit.evaluation;
+    announce(`${p.day(dayMs, context().now)} ${p.name(id)}。${ev.unavailable ? ev.unavailable.message : p.phrase(id, ev).label}。プレビューで時間帯を確認できます`);
+    return true;
+  }
+  function waiting() { reconcilePlace(); removeSummary(); }
+  return { capture, restore, select, waiting };
+})
+({
+ document,host:()=>$("cards"),
+ context:()=>({placeKey:predictionKeyFor(place),weeks,now:Date.now()}),
+ presentation:{escape:esc,icon:iconFor,name:id=>S.longNameOf(id),meta:id=>S.PHENOMENA[id],
+ day:(day,now)=>S.JstCal.relativeDay(day,now),time:t=>S.JstCal.hhmmRounded(t),
+ grade:ev=>S.reliabilityGrade(ev.confidence,ev.models),phrase:(id,ev)=>S.phrasing(id,ev.rank,ev.afterglow),
+ color:ev=>RANK_COLOR[ev.rank.key],timeBandPhases:ev=>timeBandPhases(ev),bands:ev=>renderTwilight(ev,{inline:true})},
+ openDetail:(id,dayMs)=>pick(id,Date.now(),dayMs),announce:message=>{$("listAnnouncement").textContent=message;}
+});
+  forecastSummary.capture();
   if (!routeFromHash() || routeFromHash().id || (viewState.answers && toolAllowed("records"))) void savedRoundClient.ensure(place, () => render());
   const now = Date.now();
   $("placeName").textContent = place.name;
@@ -491,7 +596,7 @@ function render() {
   // ログインの復帰がいつ終わっても、画面を移っても、取りこぼさない
   renderTools();
   renderDeckRow();
-  const best = pickHighlight(weeks, now);
+  const best = pickHighlight(Object.fromEntries(Object.entries(weeks).filter(([id]) => id !== "rainbow" && id !== "capCloud")), now);
   // 並び: 見られる見込みのあるものが先 → あとは PHENOMENA.order（似たものが隣）。
   //
   // 以前は「直近に起きる順」で並べていたが、7日ぶんを一度に見る表では
@@ -505,7 +610,7 @@ function render() {
   // 並び替えを選んでいるときも、この「対象外は最後」だけは変えない。
   // 点数の付かない行を点数順の途中へ挟むと、並べた意味が消える。
   const key = SORTS[sortMode] && SORTS[sortMode].key;
-  const order = Object.keys(weeks).sort((a, b) => {
+  const order = Object.keys(weeks).filter(id => id !== "rainbow" && id !== "capCloud").sort((a, b) => {
     const ua = upcoming(weeks[a], now), ub = upcoming(weeks[b], now);
     const aOk = ua && !ua.evaluation.unavailable, bOk = ub && !ub.evaluation.unavailable;
     if (aOk !== bOk) return aOk ? -1 : 1;
@@ -569,6 +674,7 @@ function render() {
     }
   } else if (!bundle) {
     $("bestNote").hidden = true;
+    forecastSummary.waiting();
     $("cards").innerHTML = renderSkeleton(now);
   } else {
     renderBestNote(best, now);
@@ -598,9 +704,11 @@ function render() {
     for (const el of $("cards").querySelectorAll("[data-cell]")) {
       el.onclick = () => {
         const [id, dayMs] = el.dataset.cell.split("|");
-        pick(id, now, +dayMs);
+        // Trial: a cell updates the preview; only the explicit detail button navigates.
+        forecastSummary.select(id, +dayMs);
       };
     }
+    forecastSummary.restore();
     if (sel) sel.onchange = () => {
       sortMode = SORTS[sel.value] ? sel.value : "standard";
       store.set("sorami.sort", sortMode);
@@ -669,4 +777,4 @@ function wireAlignmentJump(root) {
     };
   }
 }
-export {blendBodyState,currentView,fujiAlign,groundAt,iconFor,kickExtras,lightTimingText,moonGlyphAt,moonHorizon,moonObs,moonVisibility,observerHere,phaseNameFor,redrawDayDetail,render,requestMoonDetails,sortMode,startFujiAlign,upcoming};
+export {blendBodyState,currentView,forecastSummary,fujiAlign,groundAt,iconFor,kickExtras,lightTimingText,moonGlyphAt,moonHorizon,moonObs,moonVisibility,observerHere,phaseNameFor,redrawDayDetail,render,requestMoonDetails,sortMode,startFujiAlign,upcoming};

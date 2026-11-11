@@ -1,5 +1,5 @@
 #!/bin/bash
-# trial を公開する前の確認を1回で通す: 単体テスト、生成物の一致、探すの実ブラウザ確認。
+# 本番と trial を公開する前の確認を1回で通す: 単体テスト、生成物の一致、探すの実ブラウザ確認。
 # 使い方: python3 -m http.server 8992 --bind 127.0.0.1 を web で動かし、
 #   NODE_PATH=<playwright のある node_modules> OUT=<ログ置き場> tools/run-trial-checks.sh
 # SKIP_UNIT=1 で単体を、SKIP_BROWSER=1 で実ブラウザ確認を飛ばす。GitHub では .github/workflows/checks.yml が push のたびに回す。
@@ -11,6 +11,8 @@ run(){ name=$1; shift; start=$(date +%s); env "$@" > "$OUT/$name.log" 2>&1; code
 units=(test-*.mjs)
 if [ ! -f ../api/src/index.js ]; then units=(); for f in test-*.mjs; do case $f in test-access-table.mjs|test-layout.mjs) echo "skip $f (../api が無い)";; *) units+=("$f");; esac; done; fi
 if [ -z "$SKIP_UNIT" ]; then run unit node --test "${units[@]}"; fi
+run source-check node tools/build-index.mjs --check
+run overlap-check python3 tools/build-overlap-products.py --check
 run build-check python3 build-preview.py --check
 [ -n "$SKIP_BROWSER" ] && exit $failed
 run generic CANDIDATE_GENERIC_BASE=$B CANDIDATE_GENERIC_OUT="$OUT/generic" node tools/test-candidate-generic-runtime.cjs

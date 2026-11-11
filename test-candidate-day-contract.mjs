@@ -63,12 +63,12 @@ function context(extra = {}) {
   assert.deepEqual(ats(await run(D + 2 * DAY)), []);
 }
 
-// --- moon: 暗い空の条件は維持
+// --- moon: 昼の月も候補日に入る（その日の最初の候補）
 {
   const ctx = context({ AstroNotesAlign: { upcoming: (o, t, b, { from }) => from === D ? [{ at: D + 5 * H, side: 'set', gap: 0, radius: .25, sunAltitude: 5 }, { at: EV, side: 'set', gap: 0, radius: .25, sunAltitude: -10 }] : [] } });
   ctx.aimBuildingDays.cache = new Map();
   const rows = await ctx.aimBuildingDays({ eyeM: 1.5 }, { id: 't' }, 'moon', 'tip', null, { from: D + 23 * H, isCurrent: () => true, days: 1, limit: 4 });
-  assert.deepEqual(ats(rows), [EV]);
+  assert.deepEqual(ats(rows), [D + 5 * H]);
 }
 
 // --- 帯/地図のcacheは候補時刻でなくJST日跨ぎで失効
@@ -79,7 +79,7 @@ assert.match(mapSrc, /entry\.rows=rows;entry\.until=S\.Cal\.startOfDay\(now\)\+8
 assert.ok(!/entry\.until=Math\.min\(S\.Cal\.startOfDay\(now\)\+86400000,\.\.\.rows/.test(mapSrc));
 // 帯の探索起点は現在の日のまま（選択日へ変えない）
 assert.match(extract(observerSrc, 'aimDaysFor'), /\{ from: now, limb, matchMode/);
-assert.match(mapSrc, /aimBuildingDays\(obs,snapshot\.target,snapshot\.body,snapshot\.partId,null,\{from:now,/);
+assert.match(mapSrc, /\|\|aimBuildingDays\)\(obs,snapshot\.target,snapshot\.body,snapshot\.partId,null,\{from:now,/);
 
 // --- カレンダー描画: 既定呼出は従来と同じ、plan/observer注入で●○・月相canvas・labelが出る
 {

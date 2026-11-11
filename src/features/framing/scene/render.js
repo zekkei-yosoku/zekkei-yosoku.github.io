@@ -8,6 +8,8 @@ import {aimLookPick} from './input.js';
 import {aimAirAngle,aimAirCompare,aimAirDescribe,aimLookKey,aimReverseClear} from '../reverse-and-entry.js';
 import {auth} from '../../account/session-and-access.js';
 const AIM_HORIZON_SPAN = 20, AIM_HORIZON_MIN_DEG = 0.2, AIM_MOUNTAIN_SKY_SPAN = 45;
+// 天体に寄る is for a body on or near the target: within the height of the target plus 10 deg of its top.
+function aimComposeNear(st,az,topAngle,baseAngle){const R=Math.PI/180,d=Math.acos(Math.max(-1,Math.min(1,Math.sin(st.apparentAltitude*R)*Math.sin(topAngle*R)+Math.cos(st.apparentAltitude*R)*Math.cos(topAngle*R)*Math.cos((st.azimuth-az)*R))))/R;return d<=Math.max(15,topAngle-baseAngle+10);}
 async function aimLookRender(host, spec) {
   if (!host) return;
   globalThis.AstroNotesCameraUI?.invalidate(host);
@@ -42,7 +44,7 @@ async function aimLookRender(host, spec) {
       <div class="tiny" data-lens-info></div><p class="tiny" data-look-outside hidden></p>
       <div class="aim-look-time"><div class="aim-time-heading"><span>時刻</span><output data-look-at></output></div><input type="range" min="0" max="0" step="any" value="0" data-look-range aria-label="時刻を動かす">
         </div>
-      <div class="aim-look-pick"><button type="button" class="chip" data-lens-move aria-pressed="false">構図を動かす</button><button type="button" class="chip" data-lens-center>対象を中央に</button></div>
+      <div class="aim-look-pick"><button type="button" class="chip" data-lens-move aria-pressed="false">構図を動かす</button><button type="button" class="chip" data-lens-center>対象を中央に</button><button type="button" class="chip" data-lens-compose aria-pressed="false">天体に寄る</button></div>
       <p class="tiny aim-look-hint" data-look-hint hidden></p>
       <div class="aim-look-found" data-look-found hidden></div>
       <p class="tiny aim-look-note" data-look-note hidden></p>`;
@@ -62,7 +64,7 @@ async function aimLookRender(host, spec) {
   lensSensor.value = aimLens.sensor;
   const lensGrid = host.querySelector("[data-lens-grid]");
   lensGrid.value = aimLens.grid;
-  const saveLens = () => { try { localStorage.setItem("sorami.lens", JSON.stringify(aimLens)); } catch {} aimLookRender(host, spec); };
+  const saveLens = () => { if(!host._numericFocalMoving){try { localStorage.setItem("sorami.lens", JSON.stringify(aimLens)); } catch {}} aimLookRender(host, spec); };
   lensGrid.onchange = () => { aimLens.grid = lensGrid.value; if (aimLens.grid !== "none") aimLens.on = true; saveLens(); };
   lensOn.onclick = () => { aimLens.on = !aimLens.on; saveLens(); };
   lensPortrait.onclick = () => { aimLens.portrait = !aimLens.portrait; aimLens.on = true; saveLens(); };
@@ -97,6 +99,7 @@ async function aimLookRender(host, spec) {
   const sw = aimLens.portrait ? sensor[1] : sensor[0], sh = aimLens.portrait ? sensor[0] : sensor[1];
   // 従来の図の範囲を保ち、その中に余白12%で収まる枠の実焦点距離を逆算する。
   const autoFocal = Math.max(sh / (2 * win.halfH * Math.PI / 180), sw / (2 * win.halfW * Math.PI / 180)) * 1.12;
+  if(host._compose?.apply){const c=host._compose,groundAngle=mountain?0:(outline&&outline.hiddenAngle!==null?Math.max(outline.hiddenAngle,baseAngle):baseAngle),vfov=c.mode==="body"?8*Math.max(radius,.05):Math.max(.05,(topAngle-groundAngle)/0.6),f=sh/(2*Math.tan(vfov/2*Math.PI/180));aimLens.on=true;aimLens.mode="manual";aimLens.focal=Math.round(Math.max(8,Math.min(2000,f))*10)/10;try{localStorage.setItem("sorami.lens",JSON.stringify(aimLens));}catch{}}
   const focal = aimLens.mode === "auto" ? autoFocal : aimLens.focal;
   lensFocal.value = String(Math.round(focal * 10) / 10);
   lensFocal.step = "any";
@@ -106,6 +109,7 @@ async function aimLookRender(host, spec) {
     win.halfH = Math.max(viewFrame.halfH, viewFrame.halfW / (W / H)) * 1.12;
     win.halfW = win.halfH * W / H;
   }
+  if(host._compose?.mode==="body"&&Number.isFinite(host._compose.at)){let aimed=false;try{const st=AstroNotesBodies.state(body,host._compose.at,eyeObs);if(st&&Number.isFinite(st.azimuth)&&Number.isFinite(st.apparentAltitude)&&aimComposeNear(st,win.az0,topAngle,baseAngle)){win.az0=st.azimuth;win.alt0=st.apparentAltitude;aimed=true;}}catch{}if(!aimed)host._compose=null;}
   host.querySelector("[data-lens-info]").textContent = `${aimLens.mode === "auto" ? "約" : ""}${(Math.round(focal * 10) / 10)}mm${frame ? ` ・ 画角 ${frame.horizontalDeg.toFixed(1)}° × ${frame.verticalDeg.toFixed(1)}°` : "（画角枠なし）"}（歪曲なしの目安）`;
   const proj = AstroNotesAlign.viewProjector(win.az0, win.alt0);
   const comparison=aimAirCompare&&aimAirCompare.day===S.JstCal.startOfDay(spec.at)&&aimAirCompare.latitude===spec.obs.latitude&&aimAirCompare.longitude===spec.obs.longitude?aimAirCompare.at:null;
@@ -140,7 +144,21 @@ async function aimLookRender(host, spec) {
     if (up && start < 0) start = i;
     if (!up && start >= 0) { pathRuns.push([start, i - 1]); start = -1; }
   }
-  const runAt = (t) => { let best = null, gap = Infinity; for (const r of pathRuns) { const a = fullPath[r[0]].at, b = fullPath[r[1]].at, d = t < a ? a - t : t > b ? t - b : 0; if (d < gap) { gap = d; best = r; } } return best; };
+  const visibleDayRuns=function visibleDayRuns(path,runs,win,day){
+ const crosses=(a,b)=>{
+  if(a.x===null||b.x===null||![a.x,a.y,b.x,b.y].every(Number.isFinite)||b.at<day||a.at>=day+86400000)return false;
+  const dx=b.x-a.x,dy=b.y-a.y;let lo=0,hi=1;
+  for(const [p,q]of [[-dx,a.x+win.halfW],[dx,win.halfW-a.x],[-dy,a.y+win.halfH],[dy,win.halfH-a.y]]){
+   if(p===0){if(q<0)return false;continue;}
+   const ratio=q/p;if(p<0)lo=Math.max(lo,ratio);else hi=Math.min(hi,ratio);if(lo>hi)return false;
+  }
+  return true;
+ };
+ return runs.filter(([start,end])=>{for(let i=start+1;i<=end;i++)if(crosses(path[i-1],path[i]))return true;return false;});
+};
+const nearestPathRun=function nearestPathRun(path,runs,at){let best=null,gap=Infinity;for(const run of runs){const a=path[run[0]].at,b=path[run[1]].at,d=at<a?a-at:at>b?at-b:0;if(d<gap){gap=d;best=run;}}return best;};
+const relevantRuns=visibleDayRuns(fullPath,pathRuns,win,frameDay);
+const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns,t);
   let frameTimesKey = null;
   const i0 = path.reduce((best, p, i) => Math.abs(p.at - selectedAt) < Math.abs(path[best].at - selectedAt) ? i : best, 0);
   const k = (H / 2) / win.halfH;
@@ -300,6 +318,7 @@ async function aimLookRender(host, spec) {
       const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,`rgb(${skyTop})`);g.addColorStop(1,`rgb(${skyLow})`);
       ctx.fillStyle=g;ctx.fillRect(0,0,W,H);skyKey=host._lookSkyKey=nextSkyKey;layerStats.sky++;
     }
+    if(host._compose?.apply){const c=host._compose;c.apply=false;if(c.mode==="body")host._lensOffset=[0,0];else{const bottom=frame?H/2+frame.halfH*k:H-12;host._lensOffset=[0,Math.max(-1,Math.min(1,(bottom-groundEdge)/H))];}host._lensSnap={ground:c.mode!=="body",center:c.mode!=="body"};}
     const pan = host._lensOffset || [0, 0], panX = pan[0] * W, panY = pan[1] * H;
     const times = host.querySelector("[data-look-frame-times]");
     times.hidden = !frame;
@@ -351,7 +370,7 @@ async function aimLookRender(host, spec) {
     const upperPx=Math.max(1,(p.upperRadius??p.radius)*k),lowerPx=Math.max(1,(p.lowerRadius??p.radius)*k),diskY=(upperPx+lowerPx)/(2*rPx),diskCenter=c?c[1]+(lowerPx-upperPx)/2:0;
     globalThis.AstroNotesCameraUI?.drawRange?.(host,ctx,{at:p.at,seq,k,toPx,pack:ms=>pack(ms,AstroNotesBodies.state(body,ms,eyeObs)),disc:(x,y,r,state)=>AstroNotesSceneAppearance.aimLookDisc(ctx,x,y,r,body,state)});
     if (c){ctx.save();ctx.translate(c[0],diskCenter);ctx.scale(1,diskY);AstroNotesSceneAppearance.aimLookDisc(ctx,0,0,rPx,body,p);ctx.restore();}
-    host._bodyRadius = p.radius;
+    host._bodyRadius = p.radius; globalThis.AstroNotesTrialComposition?.redraw(host);
     host._placeXY = null;
     ctx.restore(); // End the independently updated body layer.
     const nextBuildingKey=[panX,panY,clipBottom,sceneVersion].join(',');
@@ -458,7 +477,7 @@ async function aimLookRender(host, spec) {
       groundText = { str: mountain ? "水平（0°）" : "地上", y: groundY - 4 + panY };
     }
     // 図中に目標名は重ねない。visibleTargetsは読み上げに使用する。
-      ctx.restore();buildingCache={key:nextBuildingKey,visibleTargets,groundText,horizonText};layerStats.buildings++;
+      globalThis.AstroNotesTrialOverlap?.accent?.(ctx,{scene,t,shape,sceneBottom});ctx.restore();buildingCache={key:nextBuildingKey,visibleTargets,groundText,horizonText};layerStats.buildings++;
     }
     const {visibleTargets,groundText,horizonText}=buildingCache;
     ctx=displayCtx;resetLayer(ctx,cv);
@@ -586,6 +605,7 @@ async function aimLookRender(host, spec) {
     if (best >= 0) { range.value = String(best); draw(best); }
   };
   host._redrawLook = () => { if (host._lookSeq === seq) draw(cur); };
+ host._trialCompositionView={spec,cv,W,H,k,win}; globalThis.AstroNotesTrialComposition?.bind(host,host._trialCompositionView);
   aimLookPick(host, { spec, cv, draw: () => draw(cur), bodyPosition: () => { const p = at(cur); if (p.x === null) return null; const xy = toPx([p.x, p.y]), off = host._lensOffset || [0, 0]; return [xy[0] + off[0] * W, xy[1] + off[1] * H]; }, W, H, k, win, az:pickGeo?.azimuth??az, topAngle:pickGeo?.angle??topAngle, D:pickGeo?.distanceKm??D, path, toPx: xy => { const p = toPx(xy), off = host._lensOffset || [0, 0]; return p ? [p[0] + off[0] * W, p[1] + off[1] * H] : null; }, pan: () => { const off = host._lensOffset || [0, 0]; return [off[0] * W, off[1] * H]; }, pathTap: cv.onclick });
   const move = host.querySelector("[data-lens-move]");
   const center = host.querySelector("[data-lens-center]");
@@ -598,7 +618,9 @@ async function aimLookRender(host, spec) {
     host._pick=null;aimReverseClear();
     aimLookRender(host,spec);
   };
+  const composeButton=host.querySelector("[data-lens-compose]");if(composeButton){const near=host._compose?.mode==="body";let reach=near;if(!near){try{const st=AstroNotesBodies.state(body,host._lookAt??selectedAt,eyeObs);reach=!!st&&aimComposeNear(st,az,topAngle,baseAngle);}catch{}}composeButton.disabled=!reach;composeButton.setAttribute("aria-pressed",String(near));{const label=near?"全体を入れる":"天体に寄る";composeButton.setAttribute("aria-label",label);composeButton.title=label;composeButton.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21M7.5 10.5h6'+(near?"":"M10.5 7.5v6")+'"/></svg>';}composeButton.onclick=()=>{host._compose={mode:near?"whole":"body",apply:true,at:host._lookAt??selectedAt};host._lensKeyOffset=null;aimLookRender(host,spec);};}
   center.onclick = () => { host._lensKeyOffset = null;const bottom=frame?H/2+frame.halfH*k:H-12,y=(bottom-groundEdge)/H;host._lensSnap={ground:!!frame&&Math.abs(y)<=1,center:true};host._lensOffset=[0,Math.max(-1,Math.min(1,y))];draw(cur); };
+  {const centre=center.onclick;center.onclick=()=>{if(host._compose?.mode==="body"){host._compose=null;aimLookRender(host,spec);return;}centre();};}
   if (!host._pick) { cv.onkeydown = null; cv.tabIndex = 0; }
   if (!host._pick) {
     host.querySelector("[data-look-hint]").hidden = true;

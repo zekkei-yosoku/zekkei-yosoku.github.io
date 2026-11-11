@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url),G=require('./astronotes-terrain.js');
-const {createLive}=require('./experiments/candidate-visibility/live-terrain.js');
-const {createGeneric,lensCheck,standingMetadata}=require('./experiments/candidate-visibility/generic-evaluator.js');
-const {requestKey,createGenericSearch,regionsFor}=require('./experiments/candidate-visibility/generic-search.js');
-const C=require('./experiments/candidate-visibility/composition.js');
-const M=require('./experiments/candidate-visibility/model-evaluator.js'),A=require('./astronotes-align.js');
+const {createLive}=require('./src/features/candidates/live-terrain.js');
+const {createGeneric,lensCheck,standingMetadata}=require('./src/features/candidates/generic-evaluator.js');
+const {requestKey,createGenericSearch,regionsFor}=require('./src/features/candidates/generic-search.js');
+const C=require('./src/features/candidates/composition.js');
+const M=require('./src/features/candidates/model-evaluator.js'),A=require('./astronotes-align.js');
 const dem=value=>Array(65536).fill(value).join(',');
 
 test('live DEM preserves missing pixels, true zero, lower-resolution provenance and retries',async()=>{

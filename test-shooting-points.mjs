@@ -66,11 +66,11 @@ test('指定なしは円盤の接触を一度だけ探し、真ん中指定の�
  assert.equal(P.matches(events[0],plan,()=>false),false);
  assert.notEqual(P.queryKey(plan,[],'u','a'),P.queryKey({...plan,matchMode:'overlap'},[],'u','a'));
 });
-test('指定なしの山は稜線viewの交差を採用し、月は暗い時間だけ',async()=>{
+test('指定なしの山は稜線viewの交差を採用し、月は昼間も含める',async()=>{
  const d=deps([{at,gap:.01,radius:0,intersects:false,sunAltitude:-1}]);d.isMountain=()=>true;d.viewFor=async()=>()=>[{at,gap:10,intersects:true,sunAltitude:-1}];
  assert.equal((await P.candidates({...plan,body:'sirius',matchMode:'overlap'},[point('a')],d)).rows.length,1);
  d.viewFor=async()=>()=>[{at,gap:.1,intersects:true,sunAltitude:-1},{at:at+1000,intersects:true,sunAltitude:1}];
- assert.equal((await P.candidates({...plan,body:'moon',matchMode:'overlap'},[point('a')],d)).rows.length,1);
+ assert.equal((await P.candidates({...plan,body:'moon',matchMode:'overlap'},[point('a')],d)).rows.length,2);
 });
 
 test('実際のスカイツリーで先端の真ん中が外れる日も、建物への接触は候補帯まで残る',async()=>{

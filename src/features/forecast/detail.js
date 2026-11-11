@@ -144,6 +144,7 @@ function renderSkeleton(now) {
   const today = S.Cal.startOfDay(now);
   const days = Array.from({ length: 14 }, (_, i) => today + i * 86400000);
   const order = Object.entries(S.PHENOMENA)
+    .filter(([id]) => id !== "rainbow" && id !== "capCloud")
     .sort((a, b) => (a[1].order ?? 99) - (b[1].order ?? 99));
   // 骨組みにも同じ札を置く。置かないと、予報が届いた瞬間に見出しの高さが変わる
   let head = `<div class="mxrail mxsort">${sortFace()}</div>`;
@@ -451,18 +452,27 @@ function renderFujiTimes(ev) {
 // `<details>` を置いていた（確率は出さない内部版）。点数を出すようになったので、
 // 条件は詳細の「この点数のわけ」に内訳として出る。表を二重に持たない。
 function renderCapLine(dayMs) {
-  const rows = weeks.capCloud;
-  if (!rows || typeof AstroNotesCapCloud === "undefined") return "";
-  const hit = rows.find((r) => S.JstCal.sameDay(r.dayMs, dayMs));
-  if (!hit || hit.evaluation.unavailable) return "";
-  const ev = hit.evaluation;
-  const label = S.phrasing("capCloud", ev.rank).label;
-  const type = ev.detail ? AstroNotesCapCloud.TYPE_LABEL[ev.detail.type] : "";
-  return `<a class="card cap-line" href="#/capCloud">
-    <span class="ic">${iconFor("capCloud")}</span>
-    <span><strong>笠雲</strong> ${esc(label)} ${Math.round(ev.score)}
-      <span class="tiny" style="color:var(--tertiary)">${esc(type)}・${S.JstCal.hhmmRounded(ev.peak)}ごろ</span></span>
-    <span class="go">›</span></a>`;
+  const hit = weeks.capCloud?.find((r) => S.JstCal.sameDay(r.dayMs, dayMs));
+  const ev = hit?.evaluation;
+  let text = "この日の条件データはありません。";
+  let note = "";
+  if (ev?.unavailable) text = "この地点・日では条件を判定できません。";
+  else if (ev) {
+    const t = ev.timing;
+    const partial = ev.dataQuality?.status === "partial";
+    if (!t) text = partial ? "判定材料が一部不足しており、時間帯を示せません。" : "この日のデータでは時間帯を示せません。";
+    else if (t.allDay) text = "条件が整う時間が広く、時間帯を絞れません。";
+    else {
+      text = `条件の時間帯 ${t.openStart ? "〜" : ""}${S.JstCal.hhmmRounded(t.from)}–${S.JstCal.hhmmRounded(t.to)}${t.openEnd ? "〜" : ""}`;
+      note = `1時間きざみの参考です。${t.spans > 1 ? "ほかにも条件に届く時間帯があります。" : ""}${t.openStart || t.openEnd ? "前後の日へ続く可能性があります。" : ""}`;
+    }
+    if (t && partial) note += "判定材料が一部不足しています。";
+    note += "発生・見え始めの時刻は予測していません。時間帯は未検証の参考です。";
+  }
+  return `<section class="card cap-reference" data-day="${dayMs}" aria-label="笠雲の条件（参考）">
+    <div class="tiny" style="font-weight:700">笠雲の条件（参考）</div>
+    <div style="margin-top:6px">${esc(text)}</div>
+    ${note ? `<div class="tiny" style="margin-top:6px;color:var(--tertiary)">${esc(note)}</div>` : ""}</section>`;
 }
 
 // 笠雲の条件がいちばん整う時間帯。
@@ -625,7 +635,7 @@ function timeBandPhases(ev) {
   }
   return null;
 }
-function renderTwilight(ev) {
+function renderTwilight(ev, { inline = false } = {}) {
   const t = { phases: timeBandPhases(ev) };
   if (!Array.isArray(t.phases) || !t.phases.some((p) => Number.isFinite(p.score))) return "";
   const time = (w) => (w ? `${S.JstCal.hhmmRounded(w[0])}–${S.JstCal.hhmmRounded(w[1])}` : "—");
@@ -635,7 +645,7 @@ function renderTwilight(ev) {
       <span class="tw-time">${time(p.window)}</span><span class="tw-rank" style="color:${color}">${ok ? esc(S.phrasing(ev.phenomenon, r).label) : "—"}</span>
       <span class="tw-score">${ok ? Math.round(p.score) : "—"}</span><span class="tw-bar" aria-hidden="true"><i style="width:${ok ? Math.round(p.score) : 0}%;background:${color}"></i></span></li>`;
   }).join("");
-  return `<div class="card twilight-card"><div class="tw-head">時間帯ごとの見込み</div><ol class="tw-list">${rows}</ol></div>`;
+  return `${inline ? '<div class="forecast-selection-bands">' : '<div class="card twilight-card">'}<div class="tw-head">時間帯ごとの見込み</div><ol class="tw-list">${rows}</ol></div>`;
 }
 
 // 評価の言葉を主役、点数を従にする。
@@ -803,4 +813,4 @@ function renderTable(id, entries) {
     <th>降水</th><th>湿度</th><th>気温</th><th>視程</th></tr>${rows}</table></div>
     ${hasSunward ? `<p class="tiny">陽＝太陽の方向の雲</p>` : ""}</div>`;
 }
-export {renderBestNote,renderDayDetail,renderDetailPane,renderLightTimes,renderMatrix,renderMoonTimes,renderSkeleton};
+export {renderBestNote,renderCapLine,renderDayDetail,renderDetailPane,renderLightTimes,renderMatrix,renderMoonTimes,renderSkeleton,renderTwilight,timeBandPhases};

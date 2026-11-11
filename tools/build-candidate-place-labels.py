@@ -8,7 +8,7 @@ parser.add_argument('--source-dir',type=Path,required=True)
 parser.add_argument('--output-dir',type=Path)
 args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
-out=args.output_dir or root/'experiments/candidate-visibility'
+out=args.output_dir or root/'data'
 out.mkdir(parents=True,exist_ok=True)
 boxes=[[139.7235,35.6825,139.739,35.693],[139.798,35.707,139.8145,35.718]]
 def digest(p): return hashlib.sha256(p.read_bytes()).hexdigest()
@@ -126,5 +126,5 @@ for el in osm['elements']:
         if f:facilities.append(f)
     except ValueError as error:skipped.append(dict(id=id,reason=str(error)))
 facility_data=dict(version=1,kind='osm-named-areas',dataDate=osm['osm3s']['timestamp_osm_base'],coverageBboxes=boxes,license='ODbL 1.0',licenseUrl='https://opendatacommons.org/licenses/odbl/1-0/',sourceUrl='https://www.openstreetmap.org/copyright',attribution='OpenStreetMap contributors',coordinateBasis='OSM WGS84 geographic longitude,latitude; mapped areas are not access guarantees',sourceSha256=digest(path),querySha256=digest(args.source_dir/'facilities-query.overpass'),tagPolicy=dict(leisure=sorted(leisure_types),tourism=sorted(tourism_types),building=sorted(building_types),amenity='named polygon areas'),excludedByTagPolicy=excluded,features=facilities,skipped=skipped)
-for name,data in [('label-addresses.json',addresses),('label-facilities.json',facility_data)]:
+for name,data in [('candidate-label-addresses.json',addresses),('candidate-label-facilities.json',facility_data)]:
     dest=out/name;dest.write_text(json.dumps(data,ensure_ascii=False,separators=(',',':'))+'\n');print(name,len(data['features']),dest.stat().st_size,'bytes')

@@ -23,8 +23,13 @@ function create(deps){
   conditions=node('details',{id:'exploreConditions',className:'explore-conditions',open:true});const summary=node('summary');summary.append(node('span',{id:'exploreConditionTitle'}),node('span',{id:'exploreConditionDetail'}),node('span',{className:'explore-condition-edit'},'条件を編集'));conditions.append(summary);
   // Wait for the native summary action to expand the fields before returning to them.
   summary.addEventListener('click',()=>requestAnimationFrame(()=>{if(mounted&&conditions?.open)mapView.scrollIntoView({block:'start',behavior:'auto'});}));
-  const controls=mapView.querySelector('.sky-map-controls'),observer=$('skyMapChoose').closest('.aim-say-from'),alignment=$('skyMapAlignmentDetails');conditionHomes=[controls,observer,alignment].map(n=>({n,parent:n.parentNode,next:n.nextSibling}));controls.before(conditions);const fields=node('div',{className:'explore-condition-fields'});fields.append(controls,observer,alignment);conditions.append(fields);
-  const confirm=node('button',{id:'exploreShowResult',type:'button',className:'chip explore-show-result'},'結果を確認');confirm.onclick=showResult;fields.append(confirm);conditions.addEventListener('toggle',()=>{summary.querySelector('.explore-condition-edit').textContent=conditions.open?'条件を閉じる':'条件を編集';});
+  const controls=mapView.querySelector('.sky-map-controls'),observer=$('skyMapChoose').closest('.aim-say-from'),alignment=$('skyMapAlignmentDetails');conditionHomes=[controls,observer,alignment,$('skyMapObserverDetails')].map(n=>({n,parent:n.parentNode,next:n.nextSibling}));controls.before(conditions);const fields=node('div',{className:'explore-condition-fields'});
+  fields.setAttribute('role','group');fields.setAttribute('aria-labelledby','exploreSearchHeading');
+  fields.append(node('h2',{id:'exploreSearchHeading',className:'explore-section-title'},'撮影条件'));
+  const discovery=node('section',{id:'candidateWorkspaceAction'});discovery.setAttribute('aria-labelledby','candidateWorkspaceHeading');discovery.append(node('h2',{id:'candidateWorkspaceHeading',className:'explore-section-title'},'撮影地点を探す'));
+  fields.append(controls,observer,alignment,discovery);
+  conditions.append(fields);
+  const confirm=node('button',{id:'exploreShowResult',type:'button',className:'chip explore-show-result'},'結果を確認');confirm.onclick=showResult;const placeTools=node('div',{className:'explore-place-tools'});placeTools.append($('skyMapObserverDetails'),confirm);fields.insertBefore(placeTools,discovery);fields.insertBefore(alignment,observer);conditions.addEventListener('toggle',()=>{summary.querySelector('.explore-condition-edit').textContent=conditions.open?'条件を閉じる':'条件を編集';});
   $('skyMapDates').addEventListener('click',candidateChosen);
   aimHome={parent:aimView.parentNode,next:aimView.nextSibling};
   const workspace=aimView.querySelector('.preview-workspace');workspaceHome={node:workspace,parent:workspace.parentNode,next:workspace.nextSibling};aimView.append(workspace);

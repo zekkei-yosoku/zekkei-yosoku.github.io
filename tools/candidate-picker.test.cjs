@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const labels=require('../experiments/candidate-visibility/place-labels.js');globalThis.AstroNotesCandidateLabels=labels;
-const F=require('../experiments/candidate-visibility/candidate-picker.js');
+const labels=require('../src/features/candidates/place-labels.js');globalThis.AstroNotesCandidateLabels=labels;
+const F=require('../src/features/candidates/candidate-picker.js');
 test('inclusive hour, matching rise/set, invalid event and combined kind',()=>{
  const r={event:{at:3600000}},e=[{at:0,kind:'rise'}];
  assert(F.accepts(r,'rise','park',['park'],e));assert(!F.accepts({event:{at:3600001}},'rise','park',['park'],e));

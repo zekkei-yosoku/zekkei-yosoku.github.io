@@ -39,7 +39,8 @@ function documentFixture() {
   }
   return doc;
 }
-const source=readFileSync(new URL('./experiments/external-apps/external-apps.js',import.meta.url),'utf8');
+const planAsset=readFileSync(new URL('./astronotes-plan.js',import.meta.url),'utf8'),source=planAsset.slice(planAsset.indexOf('// Trial external-app owner.'));
+assert(source.startsWith('// Trial external-app owner.'));
 const event={title:'月と建物',start:1_800_000_000_000,end:1_800_000_060_000,location:'撮影地点 (35.1234567, 139.7654321)',description:'同じ条件',reminder:0};
 const flush=async()=>{await Promise.resolve();await Promise.resolve();};
 function fixture({ua='Android',saved={},canShare=false,shareFile,launchUrl}={}) {

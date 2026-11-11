@@ -243,7 +243,7 @@ test('探す: 月全体の重なる日●・近接○・時刻・月相canvas・
   assert.equal(days[0].classList.contains('has-event'), false);
   assert.ok(ctx.sideArgs.every(n => n === 2), 'explore labels pass the plan body to aimSideName');
   assert.ok(days.every(d => d.querySelector('canvas[data-cal-moon]')?.drawn.length === 1));
-  assert.equal(statusOf(dialog).textContent, '重なる日 1日 ・ 近くを通る日 1日（暗い空の時間）');
+  assert.equal(statusOf(dialog).textContent, '重なる日 1日 ・ 近くを通る日 1日');
   // 日を選ぶとその日の元の時刻を保つ（イベント時刻へ飛ばさない）
   ninth.click();
   assert.deepEqual(ctx.picked, [dayOf(2026, 10, 9)]);

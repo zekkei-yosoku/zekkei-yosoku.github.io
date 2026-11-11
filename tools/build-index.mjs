@@ -4,6 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {resolve,relative,sep} from 'node:path';
 import {versionAssets,hashCsp,versionRating} from './release-html.mjs';
 import vm from 'node:vm';
+import {createHash} from 'node:crypto';
 import {checkArchitecture} from './check-architecture.mjs';
 import {checkModuleGraph} from './check-module-graph.mjs';
 import {stripModuleSyntax} from './source-modules.mjs';
@@ -48,6 +49,13 @@ export function releaseProducts(directory=root){
    const context=vm.createContext({});vm.runInContext(readFileSync(resolve(directory,'astronotes-access.js'),'utf8'),context);
    const policy=context.AstroNotesAccess.canFrame.toString();
    result.html='(function(root){if(root.AstroNotesAccess&&!root.AstroNotesAccess.canFrame)root.AstroNotesAccess.canFrame='+policy+';})(globalThis);\n'+result.html;
+  }
+  if(asset.dataFiles){
+   // The bundle checks each data file it reads against the hash recorded here, and its own content version changes with the data.
+   const data=Object.entries(asset.dataFiles).map(([name,path])=>[name,readFileSync(resolve(directory,path),'utf8')]),digest=v=>createHash('sha256').update(v).digest('hex');
+   if(result.html.split('/* BUILD_DATA_HASHES */{}').length!==2)throw Error('Data hash slot changed: '+asset.output);
+   result.html=result.html.replace('/* BUILD_DATA_HASHES */{}',()=>JSON.stringify(Object.fromEntries(data.map(([name,text])=>[name,digest(text)]))))+'\n// data-release '+digest(data.map(([,text])=>text).join(''))+'\n';
+   for(const [name,text] of data)if(asset.dataFiles[name]!=='data/'+name)products.set('data/'+name,text);
   }
   new vm.Script(result.html,{filename:asset.output});
   products.set(asset.output,result.html);sources.push(...result.sources);

@@ -2,6 +2,7 @@ import {S} from '../ui/presentation-helpers.js';
 import {kickExtras} from '../features/forecast/view.js';
 // ---------------------------------------------------------------- 永続化（localStorage）
 const store = AstroNotesStorage.create(()=>localStorage);
+if(store.get("sorami.aimHeightsOwner",undefined)===undefined)store.set("sorami.aimHeightsOwner",store.get("sorami.owner",null));
 // お気に入りは、内蔵スポットと同じ項目を自分で付けられる。
 // terrain は表示用ではない。astronotes-core の needsProfile（鉛直分布を取るか）と、
 // 雲海・霧氷の対象判定に使われる。ここで選び間違えると点数が変わる。

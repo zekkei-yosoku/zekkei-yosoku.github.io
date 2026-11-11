@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url),S=require('./experiments/candidate-visibility/scene-surface.js'),C=require('./experiments/candidate-visibility/composition.js'),A=require('./astronotes-align.js'),B=require('./astronotes-bodies.js'),G=require('./astronotes-terrain.js');
+const require=createRequire(import.meta.url),S=require('./src/features/candidates/scene-surface.js'),C=require('./src/features/candidates/composition.js'),A=require('./astronotes-align.js'),B=require('./astronotes-bodies.js'),G=require('./astronotes-terrain.js');
 
 test('existing tower volumes and georeferenced city triangles both support drawing-surface picking',()=>{
  for(const id of ['tokyotower','shibuya-sky','tocho-building']){
@@ -49,7 +49,7 @@ class Element {
 function ui(){
  let selection={body:'moon',target:{id:'arbitrary-model',latitude:35,longitude:139,groundM:10,parts:[{id:'tip',name:'先端',m:910}],hasShape:true}};
  const listeners={};const document={createElement:t=>new Element(t),getElementById:()=>null,addEventListener(type,fn){(listeners[type]??=[]).push(fn);},dispatchEvent(event){for(const fn of listeners[event.type]||[])fn(event);},activeElement:null},surface={model:(a,t)=>t.hasShape?{}:null,bounds:()=>({heightMinM:10,heightMaxM:910,xMinM:-500,xMaxM:500}),preset:({target,heightM,limb})=>({basis:'scene-surface',eastM:0,northM:0,xM:0,heightM,limb}),geometry:()=>({azimuth:0,angle:20}),pick:({limb})=>({basis:'scene-surface',eastM:0,northM:0,xM:0,heightM:910,limb})},sandbox={AstroNotesCandidateComposition:{geometry:surface.geometry},AstroNotesTrialSurface:surface,AstroNotesAlign:{viewProjector:()=>()=>[0,0]},AstroNotesBodies:B,AstroNotesTerrain:{inverse:()=>({azimuth:180})},SkyMapUI:{selectionState:()=>selection},document,Option:function(text,value){this.textContent=text;this.value=value;},Event:function(type){this.type=type;},structuredClone};
- vm.runInNewContext(fs.readFileSync(new URL('./experiments/candidate-visibility/composition-ui.js',import.meta.url),'utf8'),sandbox);
+ vm.runInNewContext(fs.readFileSync(new URL('./src/features/candidates/composition-ui.js',import.meta.url),'utf8'),sandbox);
  const api=sandbox.AstroNotesTrialComposition,host=new Element('div'),figure=new Element('figure'),cv=new Element('canvas');host.scene=true;host.figure=figure;host.append(figure);const view={spec:{obs:{latitude:34.99,longitude:139,elevation:10},eyeM:1.5},cv,W:1000,H:500,k:20,win:{az0:0,alt0:20}};api.bind(host,view);
  const walk=e=>[e,...(e.children||[]).filter(x=>x&&typeof x==='object').flatMap(walk)],all=()=>walk(host),find=label=>all().find(e=>e.attrs['aria-label']===label);
  return {api,host,view,find,all,leave:()=>document.dispatchEvent({type:'astronotes-preview-leave'}),select:(body,hasShape=true)=>{selection={...selection,body,target:{...selection.target,hasShape}};api.bind(host,view);}};
