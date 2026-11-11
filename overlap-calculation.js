@@ -5456,7 +5456,7 @@ async function candidates(plan,points,{align,isMountain,observerAt,elevationAt,e
 }
 function hapticGate({vibrate=()=>{},clock=Date.now}={}){
  let previous=false,last=-Infinity,identity='';
- return (matched,key)=>{if(key!==identity){identity=key;previous=false;}const entered=matched&&!previous;previous=!!matched;if(entered&&clock()-last>800){last=clock();try{vibrate(12);}catch{}}return entered;};
+ return (matched,key)=>{if(key!==identity){identity=key;previous=false;}const entered=matched&&!previous;previous=!!matched;if(entered&&clock()-last>800){last=clock();try{vibrate(12);}catch{/* 振動は無くてもよい */}}return entered;};
 }
 global.AstroNotesShooting={day,point,savedObserver,conditions,queryKey,searchOptions,eventsFor,matches,candidates,hapticGate,cleanShape,shapeContains,shapePaths,shapeCandidates,meters,interpolate};
 if(typeof module!=='undefined'&&module.exports)module.exports=global.AstroNotesShooting;

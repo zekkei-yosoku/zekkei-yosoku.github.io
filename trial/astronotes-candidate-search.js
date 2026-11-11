@@ -1379,7 +1379,7 @@ return function createPlaceProvider({terrain,fetchImpl=globalThis.fetch,loadView
    // Worldwide data remains usable as a coarse model, with its resolution
    // explicit. Missing GSI within Japan is not quietly replaced by coarse DEM.
    const world=points.filter(p=>!p.groundKnown&&typeof terrain.inJapan==='function'&&!terrain.inJapan(p.latitude,p.longitude));
-   if(world.length&&current()&&!controller.signal.aborted&&typeof terrain.fetchElevations==='function')try{const h=await bounded(terrain.fetchElevations(world,{fetchImpl:request,timeoutMs}),timeoutMs+250);world.forEach((p,i)=>{if(finite(h[i])){p.groundM=h[i];p.groundKnown=true;p.surfaceElevationM=finite(p.surfaceAglM)?h[i]+p.surfaceAglM:null;p.standingSurfaceKnown=p.structureClassificationKnown&&finite(p.surfaceAglM);p.sourceEvidence.ground={source:'Open-Meteo Copernicus DEM',heightM:h[i],resolutionM:90,kind:'coarse-dem'};}});if(!credits.some(c=>c.name==='Open-Meteo'))credits.push({name:'Open-Meteo',url:'https://open-meteo.com/en/docs/elevation-api'});}catch{}
+   if(world.length&&current()&&!controller.signal.aborted&&typeof terrain.fetchElevations==='function')try{const h=await bounded(terrain.fetchElevations(world,{fetchImpl:request,timeoutMs}),timeoutMs+250);world.forEach((p,i)=>{if(finite(h[i])){p.groundM=h[i];p.groundKnown=true;p.surfaceElevationM=finite(p.surfaceAglM)?h[i]+p.surfaceAglM:null;p.standingSurfaceKnown=p.structureClassificationKnown&&finite(p.surfaceAglM);p.sourceEvidence.ground={source:'Open-Meteo Copernicus DEM',heightM:h[i],resolutionM:90,kind:'coarse-dem'};}});if(!credits.some(c=>c.name==='Open-Meteo'))credits.push({name:'Open-Meteo',url:'https://open-meteo.com/en/docs/elevation-api'});}catch{/* 通信できない時は粗い標高なしで続ける */}
    // Water polygons in OSM already remove obvious water points. GSI supplies
    // additional evidence; unknown tiles do not turn into land or a global veto.
    if(points.length&&current()&&!controller.signal.aborted&&typeof terrain.waterAt==='function')try{const water=await bounded(terrain.waterAt(points,{fetchImpl:request,useDem:false}),timeoutMs+250);points.forEach((p,i)=>{p.sourceEvidence.water=water[i]===true?'water':water[i]===false?'land':'unknown';if(water[i]===true&&!p.nonTerrainStructure){p.excludedReason='water';p.standingSurfaceKnown=false;}});}catch{points.forEach(p=>{p.sourceEvidence.water='unknown';});}
@@ -1772,7 +1772,7 @@ const statesList=new Set();
 function plan(s=current()){syncContext(s);return structuredClone(config);}
 function label(s=current()){syncContext(s);const c=config.composition;return c?`指定した位置・${c.limb==='upper'?'天体の上の縁':c.limb==='lower'?'天体の下の縁':'天体の中心'}`:null;}
 function capabilities(s,obs){
- const target=s?.target;let model=null,bounds=null;try{model=target&&S.model(AstroNotesAlign,target);bounds=model&&S.bounds({target,align:AstroNotesAlign,obs});}catch{}
+ const target=s?.target;let model=null,bounds=null;try{model=target&&S.model(AstroNotesAlign,target);bounds=model&&S.bounds({target,align:AstroNotesAlign,obs});}catch(e){globalThis.AstroNotesErrors?.note('composition.bounds',e);}
  const definition=typeof AstroNotesBodies==='undefined'?null:AstroNotesBodies.definition(s?.body),limbs=definition?.limbs===true;
  return {surface:!!model,bounds,limbs,limbOptions:limbs?[['center','中心'],['upper','上の縁'],['lower','下の縁']]:[['center','中心']]};
 }
@@ -1820,7 +1820,7 @@ function bind(host,view){host._trialCompositionView=view;let st=states.get(host)
  clear.onclick=()=>{config.composition=null;st.dragging=false;st.active=false;editing=null;st.invalid=false;config.compositionInvalid=false;config.invalidDraft=null;st.error='';notify();closePanel(st);};height.onchange=x.onchange=()=>changed(st);limb.onchange=()=>{if(config.composition)config.composition={...config.composition,limb:limb.value};notify();};
  const cv=view.cv;
  function choose(ev){if(!st.active)return;const v=host._trialCompositionView,s=syncContext(),r=cv.getBoundingClientRect(),px=(ev.clientX-r.left)*v.W/r.width,py=(ev.clientY-r.top)*v.H/r.height,off=host._lensOffset||[0,0],angle=AstroNotesAlign.viewUnprojector(v.win.az0,v.win.alt0)((px-off[0]*v.W-v.W/2)/v.k,(v.H/2-py+off[1]*v.H)/v.k);if(!angle)return;const obs={...v.spec.obs,elevation:v.spec.obs.elevation??0,eyeM:v.spec.eyeM},c=S.pick({azimuth:angle[0],altitude:angle[1],obs,target:s.target,align:AstroNotesAlign,limb:config.composition?.limb||'center'});if(c){config.composition=c;st.invalid=false;config.compositionInvalid=false;config.invalidDraft=null;st.error='';}else {st.invalid=true;config.compositionInvalid=true;st.error='対象の面を選んでください。';}notify();}
- for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])cv.addEventListener(type,ev=>{if(!st.active){if(type==='pointerdown')st.suppressClick=false;else if(st.suppressClick){ev.preventDefault();ev.stopImmediatePropagation();}return;}ev.preventDefault();ev.stopImmediatePropagation();if(type==='pointerdown'){st.dragging=true;try{cv.setPointerCapture(ev.pointerId);}catch{}}if(type==='pointerdown'||st.dragging&&type!=='pointercancel')choose(ev);if(type==='pointerup'||type==='pointercancel')st.dragging=false;},true);
+ for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])cv.addEventListener(type,ev=>{if(!st.active){if(type==='pointerdown')st.suppressClick=false;else if(st.suppressClick){ev.preventDefault();ev.stopImmediatePropagation();}return;}ev.preventDefault();ev.stopImmediatePropagation();if(type==='pointerdown'){st.dragging=true;try{cv.setPointerCapture(ev.pointerId);}catch{/* 既に離れた指は捕まえられないだけ */}}if(type==='pointerdown'||st.dragging&&type!=='pointercancel')choose(ev);if(type==='pointerup'||type==='pointercancel')st.dragging=false;},true);
  cv.addEventListener('click',e=>{if(st.active||st.suppressClick){st.suppressClick=false;e.preventDefault();e.stopImmediatePropagation();}},true);
  cv.addEventListener('keydown',e=>{if(!st.active)return;const dirs={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};if(e.key==='Escape'){st.suppressClick=!!st.dragging;st.dragging=false;st.active=false;editing=null;if(!config.compositionInvalid)st.error='';notify();return;}if(!dirs[e.key])return;e.preventDefault();e.stopImmediatePropagation();const c=config.composition,v=host._trialCompositionView,s=syncContext(),g=C.geometry({...v.spec.obs,eyeM:v.spec.eyeM},s.target,c,AstroNotesAlign),xy=AstroNotesAlign.viewProjector(v.win.az0,v.win.alt0)(g.azimuth,g.angle),off=host._lensOffset||[0,0],r=cv.getBoundingClientRect(),step=e.shiftKey?10:1;choose({clientX:r.left+(v.W/2+xy[0]*v.k+off[0]*v.W+dirs[e.key][0]*step)*r.width/v.W,clientY:r.top+(v.H/2-xy[1]*v.k+off[1]*v.H+dirs[e.key][1]*step)*r.height/v.H});},true);
  update(st);
@@ -1981,7 +1981,7 @@ function currentEntry(e){return !!e&&e.group===groups.get(e.box)&&e.box.isConnec
 async function apply(){
  const token=++revision,selection={time,kind,sort},status=control?.querySelector('[data-filter-status]');if(!status||!list)return;
  status.hidden=false;status.textContent='候補の絞り込みを確認しています…';
- let labels={};try{if([...groups.values()].some(g=>g.rows.length))labels=await loadLabels()||{};}catch{}
+ let labels={};try{if([...groups.values()].some(g=>g.rows.length))labels=await loadLabels()||{};}catch(e){globalThis.AstroNotesErrors?.note('candidates.labels',e);}
  if(token!==revision||!control?.isConnected)return;
  const entries=[];let unknownTime=0,index=0;
  for(const [box,g]of groups){
@@ -2556,7 +2556,7 @@ sync();
 })();
 
 
-// 試用版だけ: 画面で起きた異常の直近20件をこの端末の中に残す（外へは送らない。同期・書き出しの対象外の鍵）。
+// 画面で起きた異常の直近20件をこの端末の中に残す（外へは送らない。同期・書き出しの対象外の鍵）。
 // 利用者の報告だけでは分からない端末側の不具合を、後から端末をつないで読むため。
 (()=>{
  const KEY='astronotes.trial.errors',MAX=20;
@@ -2567,6 +2567,9 @@ sync();
   const last=list[list.length-1];if(last&&last.message===row.message&&last.source===row.source&&last.line===row.line){last.count=(last.count||1)+1;last.at=row.at;}else list.push(row);
   localStorage.setItem(KEY,JSON.stringify(list.slice(-MAX)));
  }catch{/* 保存できない端末では何も残さない */}};
+ // 握って続行する箇所からの記録。同じ場所は5秒に1回まで（描画の繰り返しで端末の保存を叩かない）。
+ const noted=new Map();
+ globalThis.AstroNotesErrors={note(where,error){if(error?.name==='AbortError')return;const now=Date.now();if(now-(noted.get(where)||0)<5000)return;noted.set(where,now);keep('handled',error?.message||error,where,0);}};
  addEventListener('error',e=>{if(e&&(e.message||e.error))keep('error',e.message||e.error?.message,e.filename,e.lineno);});
  addEventListener('unhandledrejection',e=>{const r=e?.reason;if(r?.name==='AbortError')return;const where=/([\w.-]+\.js)[^:\s]*:(\d+)/.exec(String(r?.stack||''));keep('rejection',r?.message||r,where?.[1],where?.[2]);});
 })();

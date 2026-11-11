@@ -1,1 +1,1 @@
-(()=>{let mode;try{mode=localStorage.getItem('sorami.theme');}catch{}document.documentElement.dataset.theme = mode==='dark'||mode==='light'?mode:matchMedia("(prefers-color-scheme: dark)").matches?'dark':'light';})();
+(()=>{let mode;try{mode=localStorage.getItem('sorami.theme');}catch{/* 保存できない端末では覚えないだけ */}document.documentElement.dataset.theme = mode==='dark'||mode==='light'?mode:matchMedia("(prefers-color-scheme: dark)").matches?'dark':'light';})();

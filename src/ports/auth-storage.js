@@ -22,7 +22,7 @@ function read() {
   }
   return null;
 }
-function clear(){try{session().removeItem(key);}catch{}try{local().removeItem(key);}catch{}}
+function clear(){try{session().removeItem(key);}catch{/* 保存できない端末では覚えないだけ */}try{local().removeItem(key);}catch{/* 保存できない端末では覚えないだけ */}}
 return {save,read,clear};
 }
 return {create};

@@ -116,7 +116,7 @@ function currentEntry(e){return !!e&&e.group===groups.get(e.box)&&e.box.isConnec
 async function apply(){
  const token=++revision,selection={time,kind,sort},status=control?.querySelector('[data-filter-status]');if(!status||!list)return;
  status.hidden=false;status.textContent='候補の絞り込みを確認しています…';
- let labels={};try{if([...groups.values()].some(g=>g.rows.length))labels=await loadLabels()||{};}catch{}
+ let labels={};try{if([...groups.values()].some(g=>g.rows.length))labels=await loadLabels()||{};}catch(e){globalThis.AstroNotesErrors?.note('candidates.labels',e);}
  if(token!==revision||!control?.isConnected)return;
  const entries=[];let unknownTime=0,index=0;
  for(const [box,g]of groups){

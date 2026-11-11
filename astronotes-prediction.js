@@ -6,7 +6,7 @@
  const VERSION='e189-core-8e6930c-v4';
  const TTL=30*60*1000,CACHE='sorami-predictions-quality-20261107-v1';
  // 予報の形を変えて名前を替えるたびに、古い名前の保存が端末に残り続けていた（2026-10-21 総点検で6個）。今の名前以外は消す
- try{if(typeof caches!=='undefined'&&caches&&typeof caches.keys==='function')caches.keys().then(ks=>{for(const k of ks)if(k.startsWith('sorami-predictions')&&k!==CACHE+'-main'&&k!==CACHE+'-visibility')caches.delete(k);}).catch(()=>{});}catch{}
+ try{if(typeof caches!=='undefined'&&caches&&typeof caches.keys==='function')caches.keys().then(ks=>{for(const k of ks)if(k.startsWith('sorami-predictions')&&k!==CACHE+'-main'&&k!==CACHE+'-visibility')caches.delete(k);}).catch(()=>{});}catch{/* 古い控えの掃除は失敗してもよい */}
  const conditions=p=>({latitude:p.latitude,longitude:p.longitude,elevation:p.elevation??null,eyeHeightAGL:p.eyeHeightAGL??1.5,terrain:p.terrain??null});
  const key=p=>JSON.stringify(conditions(p));
  const day=(ms,offset)=>Math.floor((ms+offset*1000)/86400000)*86400000-offset*1000;
@@ -53,11 +53,11 @@
    else throw Error('予測データを確認できません');
   };
   try{while(true){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>9*1024*1024)throw Error('予測データが大きすぎます');buffer+=decoder.decode(value,{stream:true});let end;while((end=buffer.indexOf('\n'))>=0){line(buffer.slice(0,end));buffer=buffer.slice(end+1);}}buffer+=decoder.decode();if(buffer.trim())line(buffer);if(!finished)throw Error('予測の受信が途中で止まりました');return result;}
-  finally{try{await reader.cancel();}catch{}}
+  finally{try{await reader.cancel();}catch{/* 既に閉じた受信は止めるものがない */}}
  }
  function createClient({endpoint=BASE,transport=global.fetch,cacheStorage=global.caches,now=Date.now,makeInput=conditions,verify=validate,identityOf=key,cacheName=CACHE+'-main',maxEntries=4}={}){
   const pending=new Map(),completed=new Map(),watchers=new Map();
-  const publish=(identity,p)=>{const group=watchers.get(identity);if(!group)return;group.latest=p;for(const callback of group.listeners)try{callback(p);}catch{}};
+  const publish=(identity,p)=>{const group=watchers.get(identity);if(!group)return;group.latest=p;for(const callback of group.listeners)try{callback(p);}catch(e){globalThis.AstroNotesErrors?.note('prediction.progress',e);}};
   async function obtain(input,identity){
    const hit=completed.get(identity);
    const isFresh=async dto=>{try{await verify(dto,input);return now()>=dto.asOf&&now()-dto.asOf<TTL&&now()>=dto.bundle.fetchedAt&&now()-dto.bundle.fetchedAt<TTL&&day(now(),dto.bundle.utcOffsetSeconds)===day(dto.asOf,dto.bundle.utcOffsetSeconds)&&(!dto.retryAt||now()<dto.retryAt);}catch{return false;}};
@@ -83,7 +83,7 @@
   }
   async function request(place,{onProgress}={}){
    const input=makeInput(place),identity=await identityOf(input);let group=watchers.get(identity);if(!group){group={listeners:new Set(),latest:null};watchers.set(identity,group);}
-   if(typeof onProgress==='function'){group.listeners.add(onProgress);if(group.latest)try{onProgress(group.latest);}catch{}}
+   if(typeof onProgress==='function'){group.listeners.add(onProgress);if(group.latest)try{onProgress(group.latest);}catch(e){globalThis.AstroNotesErrors?.note('prediction.progress',e);}}
    try{return await obtain(input,identity);}finally{group.listeners.delete(onProgress);if(!group.listeners.size&&!pending.has(identity))watchers.delete(identity);}
   }
   return {request};

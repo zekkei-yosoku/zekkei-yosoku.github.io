@@ -158,7 +158,7 @@ async function aimUpdateLook() {
   const overlap = aim.matchMode === "overlap" ? AstroNotesShooting.matches(e,{target:t,body:aim.body,partId:aim.partId,limb:aim.limb,matchMode:"overlap"},aimIsMountain) : mountain ? !!hit && aimCalSolid(hit) : e.intersects;
   let selectedHit = null;
   if (aim.matchMode !== "overlap" && aim.partId !== "__whole") {
-    try { selectedHit = AstroNotesAlign.upcoming(obs, t, aim.body, { ...opts, limb:aim.limb, from:aim.dayMs, days:1, limit:Infinity, groupDays:false }).find(x => x.side === e.side && aimCandidateMatch(x)); } catch {}
+    try { selectedHit = AstroNotesAlign.upcoming(obs, t, aim.body, { ...opts, limb:aim.limb, from:aim.dayMs, days:1, limit:Infinity, groupDays:false }).find(x => x.side === e.side && aimCandidateMatch(x)); } catch (e) { globalThis.AstroNotesErrors?.note('framing.candidate', e); }
   }
   const at = aim.matchMode === "overlap" ? e.at : selectedHit?.at ?? hit?.at ?? e.at;
   aimLookRender(host, { obs, eyeM: obs.eyeM, at, observerName: f.name, title: "",

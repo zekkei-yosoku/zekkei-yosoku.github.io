@@ -21,6 +21,8 @@ const base=process.env.ERROR_LOG_BASE||'http://127.0.0.1:8992/trial/';
   assert.match(list.at(-1).message,/rejected 24/);
   await page.evaluate(()=>{localStorage.removeItem('astronotes.trial.errors');for(let i=0;i<3;i++)setTimeout(()=>{throw Error('synthetic failure');},0);});
   await page.waitForFunction(()=>JSON.parse(localStorage.getItem('astronotes.trial.errors')||'[]')[0]?.count===3);
+  const handled=await page.evaluate(()=>{localStorage.removeItem('astronotes.trial.errors');for(let i=0;i<5;i++)AstroNotesErrors.note('test.place',Error('held '+i));AstroNotesErrors.note('test.stop',new DOMException('stopped','AbortError'));return JSON.parse(localStorage.getItem('astronotes.trial.errors')||'[]');});
+  assert.deepEqual(handled.map(r=>[r.kind,r.message,r.source]),[['handled','held 0','test.place']],'a held failure is kept once per place in a short time');
   await page.waitForTimeout(300);
   assert.deepEqual(outside.slice(before).filter(x=>x.startsWith('POST')),[],'nothing is sent anywhere');
   console.log(JSON.stringify({rows:list.length,last:list.at(-1).message.slice(0,20)}));

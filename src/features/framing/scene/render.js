@@ -64,7 +64,7 @@ async function aimLookRender(host, spec) {
   lensSensor.value = aimLens.sensor;
   const lensGrid = host.querySelector("[data-lens-grid]");
   lensGrid.value = aimLens.grid;
-  const saveLens = () => { if(!host._numericFocalMoving){try { localStorage.setItem("sorami.lens", JSON.stringify(aimLens)); } catch {}} aimLookRender(host, spec); };
+  const saveLens = () => { if(!host._numericFocalMoving){try { localStorage.setItem("sorami.lens", JSON.stringify(aimLens)); } catch{/* 保存できない端末では覚えないだけ */}} aimLookRender(host, spec); };
   lensGrid.onchange = () => { aimLens.grid = lensGrid.value; if (aimLens.grid !== "none") aimLens.on = true; saveLens(); };
   lensOn.onclick = () => { aimLens.on = !aimLens.on; saveLens(); };
   lensPortrait.onclick = () => { aimLens.portrait = !aimLens.portrait; aimLens.on = true; saveLens(); };
@@ -99,7 +99,7 @@ async function aimLookRender(host, spec) {
   const sw = aimLens.portrait ? sensor[1] : sensor[0], sh = aimLens.portrait ? sensor[0] : sensor[1];
   // 従来の図の範囲を保ち、その中に余白12%で収まる枠の実焦点距離を逆算する。
   const autoFocal = Math.max(sh / (2 * win.halfH * Math.PI / 180), sw / (2 * win.halfW * Math.PI / 180)) * 1.12;
-  if(host._compose?.apply){const c=host._compose,groundAngle=mountain?0:(outline&&outline.hiddenAngle!==null?Math.max(outline.hiddenAngle,baseAngle):baseAngle),vfov=c.mode==="body"?8*Math.max(radius,.05):Math.max(.05,(topAngle-groundAngle)/0.6),f=sh/(2*Math.tan(vfov/2*Math.PI/180));aimLens.on=true;aimLens.mode="manual";aimLens.focal=Math.round(Math.max(8,Math.min(2000,f))*10)/10;try{localStorage.setItem("sorami.lens",JSON.stringify(aimLens));}catch{}}
+  if(host._compose?.apply){const c=host._compose,groundAngle=mountain?0:(outline&&outline.hiddenAngle!==null?Math.max(outline.hiddenAngle,baseAngle):baseAngle),vfov=c.mode==="body"?8*Math.max(radius,.05):Math.max(.05,(topAngle-groundAngle)/0.6),f=sh/(2*Math.tan(vfov/2*Math.PI/180));aimLens.on=true;aimLens.mode="manual";aimLens.focal=Math.round(Math.max(8,Math.min(2000,f))*10)/10;try{localStorage.setItem("sorami.lens",JSON.stringify(aimLens));}catch{/* 保存できない端末では覚えないだけ */}}
   const focal = aimLens.mode === "auto" ? autoFocal : aimLens.focal;
   lensFocal.value = String(Math.round(focal * 10) / 10);
   lensFocal.step = "any";
@@ -109,7 +109,7 @@ async function aimLookRender(host, spec) {
     win.halfH = Math.max(viewFrame.halfH, viewFrame.halfW / (W / H)) * 1.12;
     win.halfW = win.halfH * W / H;
   }
-  if(host._compose?.mode==="body"&&Number.isFinite(host._compose.at)){let aimed=false;try{const st=AstroNotesBodies.state(body,host._compose.at,eyeObs);if(st&&Number.isFinite(st.azimuth)&&Number.isFinite(st.apparentAltitude)&&aimComposeNear(st,win.az0,topAngle,baseAngle)){win.az0=st.azimuth;win.alt0=st.apparentAltitude;aimed=true;}}catch{}if(!aimed)host._compose=null;}
+  if(host._compose?.mode==="body"&&Number.isFinite(host._compose.at)){let aimed=false;try{const st=AstroNotesBodies.state(body,host._compose.at,eyeObs);if(st&&Number.isFinite(st.azimuth)&&Number.isFinite(st.apparentAltitude)&&aimComposeNear(st,win.az0,topAngle,baseAngle)){win.az0=st.azimuth;win.alt0=st.apparentAltitude;aimed=true;}}catch(e){globalThis.AstroNotesErrors?.note('framing.composeAim',e);}if(!aimed)host._compose=null;}
   host.querySelector("[data-lens-info]").textContent = `${aimLens.mode === "auto" ? "約" : ""}${(Math.round(focal * 10) / 10)}mm${frame ? ` ・ 画角 ${frame.horizontalDeg.toFixed(1)}° × ${frame.verticalDeg.toFixed(1)}°` : "（画角枠なし）"}（歪曲なしの目安）`;
   const proj = AstroNotesAlign.viewProjector(win.az0, win.alt0);
   const comparison=aimAirCompare&&aimAirCompare.day===S.JstCal.startOfDay(spec.at)&&aimAirCompare.latitude===spec.obs.latitude&&aimAirCompare.longitude===spec.obs.longitude?aimAirCompare.at:null;
@@ -618,7 +618,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     host._pick=null;aimReverseClear();
     aimLookRender(host,spec);
   };
-  const composeButton=host.querySelector("[data-lens-compose]");if(composeButton){const near=host._compose?.mode==="body";let reach=near;if(!near){try{const st=AstroNotesBodies.state(body,host._lookAt??selectedAt,eyeObs);reach=!!st&&aimComposeNear(st,az,topAngle,baseAngle);}catch{}}composeButton.disabled=!reach;composeButton.setAttribute("aria-pressed",String(near));{const label=near?"全体を入れる":"天体に寄る";composeButton.setAttribute("aria-label",label);composeButton.title=label;composeButton.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21M7.5 10.5h6'+(near?"":"M10.5 7.5v6")+'"/></svg>';}composeButton.onclick=()=>{host._compose={mode:near?"whole":"body",apply:true,at:host._lookAt??selectedAt};host._lensKeyOffset=null;aimLookRender(host,spec);};}
+  const composeButton=host.querySelector("[data-lens-compose]");if(composeButton){const near=host._compose?.mode==="body";let reach=near;if(!near){try{const st=AstroNotesBodies.state(body,host._lookAt??selectedAt,eyeObs);reach=!!st&&aimComposeNear(st,az,topAngle,baseAngle);}catch(e){globalThis.AstroNotesErrors?.note('framing.composeReach',e);}}composeButton.disabled=!reach;composeButton.setAttribute("aria-pressed",String(near));{const label=near?"全体を入れる":"天体に寄る";composeButton.setAttribute("aria-label",label);composeButton.title=label;composeButton.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21M7.5 10.5h6'+(near?"":"M10.5 7.5v6")+'"/></svg>';}composeButton.onclick=()=>{host._compose={mode:near?"whole":"body",apply:true,at:host._lookAt??selectedAt};host._lensKeyOffset=null;aimLookRender(host,spec);};}
   center.onclick = () => { host._lensKeyOffset = null;const bottom=frame?H/2+frame.halfH*k:H-12,y=(bottom-groundEdge)/H;host._lensSnap={ground:!!frame&&Math.abs(y)<=1,center:true};host._lensOffset=[0,Math.max(-1,Math.min(1,y))];draw(cur); };
   {const centre=center.onclick;center.onclick=()=>{if(host._compose?.mode==="body"){host._compose=null;aimLookRender(host,spec);return;}centre();};}
   if (!host._pick) { cv.onkeydown = null; cv.tabIndex = 0; }
@@ -631,7 +631,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
     host._lensKeyOffset = null;
     // Match the drawn ground line (mountains: horizontal 0 degrees). Preserve hysteresis across pinch redraws.
     const snapLineY=groundEdge,snapBottom=frame?H/2+frame.halfH*k:NaN;
-    const adoptSnap=result=>{host._lensSnap={ground:result.ground,center:result.center};if(result.entered){try{navigator.vibrate?.(12);}catch{}}host._lensOffset=result.offset;};
+    const adoptSnap=result=>{host._lensSnap={ground:result.ground,center:result.center};if(result.entered){try{navigator.vibrate?.(12);}catch{/* 振動は無くてもよい */}}host._lensOffset=result.offset;};
     const shift = (dx, dy, { horizontal = true, vertical = true } = {}) => {
       adoptSnap(AstroNotesCameraUI.snapPan(dx,dy,{width:W,height:H,bottom:snapBottom,line:snapLineY,limit:panLimit,state:host._lensSnap,horizontal,vertical}));draw(cur);
     };
@@ -657,7 +657,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
       if (gesture.points.size >= 2) return;
       gesture.touch=ev.pointerType==='touch';
       gesture.points.set(ev.pointerId, point(ev)); beginGesture();
-      try { cv.setPointerCapture(ev.pointerId); } catch {}
+      try { cv.setPointerCapture(ev.pointerId); } catch { /* 既に離れた指は捕まえられないだけ */ }
     };
     cv.onpointermove = ev => {
       if (!gesture.points.has(ev.pointerId)) return;
@@ -681,7 +681,7 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
           const nextBottom=start.hasFrame?H/2+sh/(2*nextFocal*Math.PI/180)*start.k*ratio:NaN,nextLine=H/2+(start.lineY-H/2)*ratio;
           adoptSnap(AstroNotesCameraUI.snapPan(ratio*start.off[0]+midX-ratio*start.x,ratio*start.off[1]+midY-ratio*start.y,{width:W,height:H,bottom:nextBottom,line:nextLine,limit:panLimit,state:host._lensSnap}));
           aimLens.focal = nextFocal; aimLens.mode = "manual";
-          try { localStorage.setItem("sorami.lens", JSON.stringify(aimLens)); } catch {}
+          try { localStorage.setItem("sorami.lens", JSON.stringify(aimLens)); } catch{/* 保存できない端末では覚えないだけ */}
           aimLookRender(host, spec);
         };
         gesture.raf = requestAnimationFrame(gesture.flush);

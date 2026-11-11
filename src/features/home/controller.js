@@ -101,6 +101,6 @@ function renderAlmanac() {
 
 }
 if(typeof document!=='undefined')document.addEventListener('visibilitychange',()=>{if(!document.hidden&&viewState.almanac)globalThis.AstroNotesAlmanacDashboard?.refresh();});
-function openSkyRating(){try{sessionStorage.setItem("astronotes.rating.return",location.pathname+location.hash.split("?")[0]);}catch{}location.href="sky-rating.html";}
+function openSkyRating(){try{sessionStorage.setItem("astronotes.rating.return",location.pathname+location.hash.split("?")[0]);}catch{/* 保存できない端末では覚えないだけ */}location.href="sky-rating.html";}
 document.querySelector("#skyRatingInvite a").onclick=e=>{e.preventDefault();openSkyRating();};
 export {almanacPlayback,almanacTimeline,renderAlmanac};

@@ -12,7 +12,7 @@ function finishRatingLogin() {
   if (!ratingLoginPending()) return;
   setTimeout(() => {
     if (!ratingLoginPending() || loginSettling || document.querySelector("dialog[open]")) return;
-    try { sessionStorage.removeItem(RATING_LOGIN_KEY); } catch {}
+    try { sessionStorage.removeItem(RATING_LOGIN_KEY); } catch{/* 保存できない端末では覚えないだけ */}
     if (auth) location.href = "sky-rating.html";
   }, 0);
 }

@@ -191,7 +191,7 @@ function drawBand(h){
  const c=$('mapWsBand'),s=h.session;if(s.scrubMode!=='hour'||!s.eye){c.hidden=true;return;}c.hidden=false;
  const width=c.clientWidth,height=c.clientHeight,ratio=Math.min(2,devicePixelRatio||1);if(!width)return;if(c.width!==Math.round(width*ratio)){c.width=Math.round(width*ratio);c.height=Math.round(height*ratio);}
  const ctx=c.getContext('2d');ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,width,height);const per=hourPixels/HOUR,start=s.at-width/2/per,tint=colour('moon');
- for(let x=0;x<width;x+=4){const at=start+x/per;let up=false;try{up=h.skyState('moon',at,s.eye).altitude>0;}catch{}if(up){ctx.fillStyle=tint;ctx.fillRect(x,height-5,4,5);}}
+ for(let x=0;x<width;x+=4){const at=start+x/per;let up=false;try{up=h.skyState('moon',at,s.eye).altitude>0;}catch(e){globalThis.AstroNotesErrors?.note('map.moonBand',e);}if(up){ctx.fillStyle=tint;ctx.fillRect(x,height-5,4,5);}}
  const geo=targetGeometry(h);if(geo){for(const body of h.shownBodies()){const data=dailyOf(h,body),route=data?passAt(h,body,data):null;if(!route)continue;for(const pass of AstroNotesSkyMap.passages(route,geo.azimuth,body,s.eye,h.skyState)){const x=(pass.at-start)*per;if(x<0||x>width)continue;ctx.save();ctx.translate(x,height-11);ctx.rotate(Math.PI/4);ctx.fillStyle='#c876ff';ctx.strokeStyle='#000';ctx.fillRect(-3,-3,6,6);ctx.strokeRect(-3,-3,6,6);ctx.restore();}}}
 }
 function update(){
@@ -225,7 +225,7 @@ function fitTarget(h){
  fittedKey=key;h.map.setView(o.latitude,o.longitude,h.map.zoom()+Math.log2(radius(w,ht)/distance));
 }
 // 選んだ地図の種類が無ければ航空写真で開く。選択として保存しないので、地図を開き直すたびに当て直す。
-function applyDefaultLayer(h){try{if(h&&store.get('sorami.mapLayer',null)===null&&h.map.layer?.()!=='photo')h.map.setLayer?.('photo',false);}catch{}}
+function applyDefaultLayer(h){try{if(h&&store.get('sorami.mapLayer',null)===null&&h.map.layer?.()!=='photo')h.map.setLayer?.('photo',false);}catch(e){globalThis.AstroNotesErrors?.note('map.defaultLayer',e);}}
 // 別のアプリから戻ると地図の処理が作り直され、全画面と地図の種類が解けて作業画面の部品が残る。描き直しの合図で元に戻す。
 function keepWide(){if(!active)return;if(!$('skyMapView').querySelector('.sky-map-wrap').classList.contains('sky-map-wide')){selfClick=true;$('skyMapExpand').click();selfClick=false;}applyDefaultLayer(host());}
 // 別のアプリから戻る間は地図の処理が作り直されて権限確認を待つ。ここで閉じると開き直しで位置と縮尺が初期に戻る。

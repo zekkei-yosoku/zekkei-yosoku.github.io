@@ -1891,6 +1891,23 @@
         ],
         "purpose": "探す（新しい地点・重なる日時）の部品どうしを結ぶ公開名。2026-11-11 試用版から本番へ移した時に登録",
         "retireWhen": "この名前の利用先をimport/exportまたは注入で結べた時（AstroNotesAccess）"
+      },
+      {
+        "name": "AstroNotesErrors",
+        "category": "diagnostics",
+        "owner": [
+          "src/features/candidates/error-log.js"
+        ],
+        "readers": [
+          "src/features/framing/candidates.js",
+          "src/features/framing/scene/render.js",
+          "src/features/explore/controller.js",
+          "src/features/candidates/composition-ui.js",
+          "src/features/candidates/candidate-picker.js",
+          "src/features/candidates/error-log.js"
+        ],
+        "purpose": "握って続行した失敗を端末内の異常記録へ残す（外へは送らない）",
+        "retireWhen": "握って続行する箇所が無くなった時"
       }
     ],
     "externalProviders": [

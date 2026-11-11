@@ -233,7 +233,7 @@ AstroNotesPlan.createExternalApps=function({storage,show,onMapChange=()=>{},doc=
  const accepted=(kind,id)=>choices(kind).some(x=>x.id===id);
  const get=kind=>{if(!keys[kind])return null;const id=storage.get(keys[kind],null);return accepted(kind,id)?id:null;};
  const listeners=new Set();
- const set=(kind,id)=>{if(!keys[kind]||(id!==null&&!accepted(kind,id)))return false;if(!storage.set(keys[kind],id))return false;for(const fn of listeners)fn();if(kind==='map')try{onMapChange();}catch{}return true;};
+ const set=(kind,id)=>{if(!keys[kind]||(id!==null&&!accepted(kind,id)))return false;if(!storage.set(keys[kind],id))return false;for(const fn of listeners)fn();if(kind==='map')try{onMapChange();}catch(e){globalThis.AstroNotesErrors?.note('plan.mapChange',e);}return true;};
  const pending={map:null,calendar:null},sheets={};
  function coordinates(point){
   const parts=typeof point==='string'?point.split(',').map(s=>s.trim()):null;

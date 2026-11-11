@@ -32,7 +32,7 @@ function chooseTab(s,name,remember=true,focus=false){
  const next=name==='timelapse'?'timelapse':'angle',changed=s.activeTab!==next;
  for(const [key,v]of Object.entries(s.tabs)){const on=key===next;v.button.setAttribute('aria-selected',String(on));v.button.tabIndex=on?0:-1;v.panel.hidden=!on;v.panel.inert=!on;v.panel.setAttribute('aria-hidden',String(!on));if(on&&focus)v.button.focus();}
  if(changed)s.tabs[next].panel.scrollTop=0;s.activeTab=next;
- if(remember)try{localStorage.setItem(tabKey(s.owner),next);}catch{}
+ if(remember)try{localStorage.setItem(tabKey(s.owner),next);}catch{/* 保存できない端末では覚えないだけ */}
 }
 function captureTabs(s,camera,popup){
  const content=camera.querySelector('.sheet-body'),angle=document.createElement('section'),tl=document.createElement('section'),tabs=document.createElement('div');

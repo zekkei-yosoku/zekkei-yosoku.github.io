@@ -2748,7 +2748,7 @@ console.log("== ログインの保持 ==");
 ok(/session\(\)\.setItem\(key/.test(html), "読み込み直しで消えないよう sessionStorage へ置く");
 ok(/local\(\)\.setItem\(key/.test(html), "「保持する」を選んだら localStorage へ置く");
 ok(/local\(\)\.removeItem\(key/.test(html), "選んでいなければ localStorage から消す");
-ok(/function clearAuth[\s\S]{0,220}authStorage\.clear\(\)/.test(html)&&/function clear\(\)\{try\{session\(\)\.removeItem\(key\);\}catch\{\}try\{local\(\)\.removeItem\(key\)/.test(html),
+ok(/function clearAuth[\s\S]{0,220}authStorage\.clear\(\)/.test(html)&&/function clear\(\)\{try\{session\(\)\.removeItem\(key\);\}catch\{[^}]*\}try\{local\(\)\.removeItem\(key\)/.test(html),
   "ログアウトでは両方から消す");
 // 片方だけ消すと、閉じて開き直したときに死んだトークンで入り直そうとする
 ok(/res\.status === 401 && data\?\.code !== "reauth_required"/.test(html), "401 を受けたらトークンを捨てる");
