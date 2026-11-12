@@ -106,6 +106,17 @@ function memoOutlines(align){
 function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,staticTerrain=null,sidewalks=null,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const align=memoOutlines(rawAlign);
  const visibilityCache=new Map(),targetLines=new Map();
+ // What hides the lower part of the target on its line (2026-11-12, user: name it, not a distance).
+ const hiddenNotes=new WeakMap();
+ function hiddenNote(target,observer,azimuth,sky){
+  if(!sky||typeof align.hiddenBelowText!=='function'||typeof geo?.obstacleKind!=='function')return null;
+  if(!hiddenNotes.has(sky))hiddenNotes.set(sky,(async()=>{
+   if(!align.hiddenBelowText(target,sky.toM,'高台'))return null;
+   const kind=await geo.obstacleKind(observer,azimuth,sky,observer.elevation+observer.eyeM),text=kind?align.hiddenBelowText(target,sky.toM,kind):'';
+   return text?{m:sky.toM,kind,text}:null;
+  })().catch(()=>null));
+  return hiddenNotes.get(sky);
+ }
  async function terrainRay(observer,ray,options){
   if(staticTerrain){const tested=staticTerrain.trace(observer,ray);if(tested.hit||tested.checked>0&&tested.missing===0)return {...tested,status:tested.hit?'blocked':'model-clear',nativeRaster:true};}
   return terrain?terrain.trace(observer,{...ray,...options}):{status:'unknown',reason:'terrain-unavailable',missing:1};
@@ -225,12 +236,13 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    // Only a sight line shown clear of terrain and buildings is a candidate (design note 21): unknown is not shown.
    if(los.status!=='model-clear'||plan.requireAllTargets&&!combinedClear){unverified++;lastUnverified=los;if(missingHeights(los.target?.buildings)||los.rays?.some(r=>missingHeights(r.buildings)))heightUnknown++;continue;}
    const usedBuildings=[los.target?.buildings,...(los.rays||[]).filter(r=>r.status==='model-clear').map(r=>r.buildings)],buildingHeights=usedBuildings.some(b=>b?.heights==='estimated')?'estimated':usedBuildings.every(b=>b?.heights==='plateau')?'plateau':'model';
+   const hiddenBelow=await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline);
    const kind=position.placeKind||point.placeKind;
    accepted.push({id,requestKey:plan.requestKey,status:combinedClear&&frame.status!=='unknown'?'model-visible':'visible-partial',recommend:true,aligned:true,placeKind:kind==='sidewalk'?'road':kind||'unknown',surfaceId:point.surfaceId,
     place:{id,name:position.name||point.name||'撮影候補地点',latitude:position.latitude,longitude:position.longitude,elevation:finalGround,groundManualM:finalGround,stand:'ground',standAglM:position.elevation-finalGround+position.eyeM,eyeHeightAGL:position.elevation-finalGround+position.eyeM,decks:[],
     surfaceId:point.surfaceId},
     assumedObserver:{...position},event:{...solution.event,sunAltitude:sun.apparentAltitude},quality:{visibility:los.status,extraTargets:visibilityQuality,buildingHeights,targetAngleDeg:solution.geometry.angle,frame:frame.status,photographyClass:photo,
-    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified'},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
+    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified',hiddenBelow},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
     frame,extraTargets:extras,visibility:los,sourceEvidence:position.sourceEvidence||point.sourceEvidence,modelEvidence:{kind:combinedClear?'terrain-and-building-model-los':'geometry-with-partial-los',scope:'target-and-celestial-rays',actualVisibilityGuaranteed:false,treesModeled:false,
     terrainNumericComplete:!!los.rays?.every(r=>r.intentionalTarget||r.terrain?.status==='model-clear'),buildingRangeComplete:!!los.rays?.every(r=>r.intentionalTarget||r.buildings?.complete&&r.buildings?.evaluated),
     targetSelfGeometryComplete:los.shapeKnown&&los.target?.buildings?.evaluated&&!los.target?.buildings?.unresolvedTargetContacts,extraTargetsAssessed:extras.length,datumUncertainty:true}});

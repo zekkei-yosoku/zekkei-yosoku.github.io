@@ -1691,6 +1691,29 @@ function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevatio
    * 点ごとに水の上か。true＝水（海・湖・池・川）、false＝陸、null＝分からない（日本の外・通信の失敗）。
    * 呼び手は null を「確かめられなかった」として扱う（陸と決めつけない）。
    */
+  /// 目標の下を隠す手前の地形が何か（2026-11-12 ユーザー「何メートル先のとかいらない」「堤防なのか土手なのか建物なのかとかの方がいい」）。
+  /// sky は一番高く見える地面（観測点からの距離 distanceM・標高 terrainM・その手前80m以内から上がる高さ riseM・向こう80m以内で下がる高さ dropM）、
+  /// eye は目の海抜。上がった分の半分以上（1.5m以上）向こうで下がる細い高まりは、前後300m以内に国土地理院の水域があれば堤防、無ければ土手
+  /// （河川敷から見る堤防は、川が見る人の後ろにある）。向こうで8m以上かつ上がった分の2倍以上下がるのは台地の崖の縁（里見公園から江戸川側）。
+  /// 3km以上先で目より100m以上高ければ山、目より2m以上高ければ高台、
+  /// それより低い地面に隠れるのは地球の丸みなので地平線
+  async function obstacleKind(observer, azimuth, sky, eye, opts = {}) {
+    if (!sky || !Number.isFinite(sky.distanceM) || !Number.isFinite(sky.terrainM)) return null;
+    if (sky.dropM >= Math.max(1.5, 0.5 * (sky.riseM || 0))) {
+      if (sky.dropM >= 8 && sky.dropM >= 2 * (sky.riseM || 0)) return "崖の縁";
+      const pts = [];
+      for (let m = -300; m <= 300; m += 25) {
+        const d = sky.distanceM + m;
+        if (m) pts.push(destination(observer.latitude, observer.longitude, d >= 0 ? azimuth : (azimuth + 180) % 360, Math.abs(d) / 1000));
+      }
+      let wet = [];
+      try { wet = await (opts.waterAt || waterAt)(pts, opts); } catch { wet = []; }
+      return wet.some((v) => v === true) ? "堤防" : "土手";
+    }
+    if (sky.distanceM >= 3000 && sky.terrainM - eye >= 100) return "山";
+    return sky.terrainM >= eye + 2 ? "高台" : "地平線";
+  }
+
   async function waterAt(points, { fetchImpl = (typeof fetch === "function" ? (u) => fetch(u, { mode: "cors", signal: global.AbortSignal?.timeout(8000) }) : null),
                                    useDem = typeof document !== "undefined" } = {}) {
     if (!fetchImpl) return points.map(() => null);
@@ -1718,7 +1741,7 @@ function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevatio
     measureHorizon, horizonFunction, combinedHorizon,
     urbanHorizon, buildingHeightM, buildingAt, buildingsAlong, gsiBuildingsAlong, GSI_BUILDING_MIN_M, wikidataHeight, OVERPASS, flatProfile, locationScope, searchLocationScope, gsiLocationScope, parseLatLon, parseMapLink, isShortMapLink, urbanCacheKey,
     profileToward, stepsFor, EYE_HEIGHT_PRESETS, searchPlaceIndex, normName,
-    waterAt, decodeWaterLayer,
+    waterAt, decodeWaterLayer, obstacleKind,
   };
   global.AstroNotesTerrain = AstroNotesTerrain;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesTerrain;

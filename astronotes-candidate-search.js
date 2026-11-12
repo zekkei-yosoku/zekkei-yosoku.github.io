@@ -360,13 +360,18 @@ async function decode(data){
   const segments=[];let lastPoint=null,previous={xy:pixel(observer.latitude,observer.longitude),d:0};
   for(let d=Math.min(100,maxM);;d=Math.min(d+100,maxM)){const p=d===maxM&&endpoint?endpoint:Geo().destination(observer.latitude,observer.longitude,azimuth,d/1000),next={xy:pixel(p.latitude,p.longitude),d};segments.push([previous,next]);previous=next;lastPoint=p;if(d===maxM)break;}
   let checked=0,missing=0,lowerResolutionCells=0,ignoredCells=0,hit=null,minMarginM=Infinity;const eye=observer.elevation+(observer.eyeM??1.5);
+  // The highest ground seen from the eye: up to which height the target is hidden at maxM.
+  let skyTan=-Infinity,skyAt=null,skyM=null;const seen=[];
   for(const [from,to] of segments){const start=from.xy,finish=to.xy,dx=finish[0]-start[0],dy=finish[1]-start[1],length=to.d-from.d,crossings=[0,1];for(const [a,b] of [[start[0],finish[0]],[start[1],finish[1]]])if(a!==b)for(let n=Math.floor(Math.min(a,b))+1;n<Math.max(a,b);
   n++)crossings.push((n-a)/(b-a));crossings.sort((a,b)=>a-b);
   for(let i=1;i<crossings.length;i++){const lo=crossings[i-1],hi=crossings[i];if(hi-lo<1e-14)continue;const t=(lo+hi)/2,value=lookup(start[0]+t*dx,start[1]+t*dy),z=value.height;checked++;if(value.sourceCode===2)lowerResolutionCells++;if(z===null)missing++;if(z===null)continue;
+  const at=from.d+t*length;if(at>0){seen.push([at,z]);const rise=(z-eye-at*at/(2*R*refractionK))/at;if(rise>skyTan){skyTan=rise;skyAt=at;skyM=z;}}
   const a=Math.max(0,from.d+lo*length),b=from.d+hi*length,vertex=-R*refractionK*Math.tan(altitude*rad),distances=[a,b];if(vertex>a&&vertex<b)distances.push(vertex);
   const heights=distances.map(d=>eye+d*Math.tan(altitude*rad)+d*d/(2*R*refractionK)),ray=Math.min(...heights),d=distances[heights.indexOf(ray)],margin=ray-z;minMarginM=Math.min(minMarginM,margin);if(margin<=0&&!hit)hit={distanceM:d,terrainM:z,rayM:ray};}}
 
-  return {status:hit?'model-blocked':'unknown',recommend:false,checked,missing,lowerResolutionCells,end:lastPoint,ignoredNearObserverM:0,ignoredCells,hit,minMarginM:Number.isFinite(minMarginM)?minMarginM:null,reason:hit?'conditional-dem-intersection':'no-terrain-visibility-certification'};
+  return {status:hit?'model-blocked':'unknown',recommend:false,checked,missing,lowerResolutionCells,end:lastPoint,ignoredNearObserverM:0,ignoredCells,hit,minMarginM:Number.isFinite(minMarginM)?minMarginM:null,reason:hit?'conditional-dem-intersection':'no-terrain-visibility-certification',
+  skyline:skyAt===null?null:{distanceM:skyAt,terrainM:skyM,toM:eye+maxM*skyTan+maxM*maxM/(2*R*refractionK),
+  riseM:seen.reduce((rise,[d,h])=>d<skyAt&&d>=skyAt-80?Math.max(rise,skyM-h):rise,0),dropM:seen.reduce((drop,[d,h])=>d>skyAt&&d<=skyAt+80?Math.max(drop,skyM-h):drop,0)}};
  }
  return {at,sample,trace,source:data.source};
 }
@@ -430,6 +435,8 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
   const h=data.heights[(Math.floor(py)%256+256)%256*256+(Math.floor(px)%256+256)%256];
   return {height:Number.isFinite(h)?h:0,layer:Number.isFinite(h)?'dem':'sea',z:FAR_Z,resolutionM:40075016.686*Math.cos(point.latitude*RAD)/(256*2**FAR_Z)};
  }
+ // How far the ground rises within 80 m before the highest point and falls within 80 m beyond it: a levee or bank falls again, a plateau does not.
+ const fallAround=(ds,hs,at,top,side)=>{let fall=0;for(let i=0;i<ds.length;i++)if(side*(ds[i]-at)>0&&Math.abs(ds[i]-at)<=80)fall=Math.max(fall,top-hs[i]);return fall;};
  // Evaluate the native piecewise-constant raster model, not a sparse 100-point profile.
  async function trace(observer,{azimuth,altitude,maxM,endpoint=null,refractionK=1,...options}){
   if(!Number.isFinite(observer.elevation)||!Number.isFinite(maxM)||maxM<=0||!Number.isFinite(altitude)||!(refractionK>0))return {status:'unknown',missing:1,reason:'invalid-ray'};
@@ -437,6 +444,8 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
   const alpha=Number.isFinite(endpoint?.elevation)?Math.atan2((effectiveR+endpoint.elevation)*Math.cos(theta)-(effectiveR+eye),(effectiveR+endpoint.elevation)*Math.sin(theta)):altitude*RAD;
   const height=d=>{const angle=d/effectiveR,den=Math.cos(angle)-Math.tan(alpha)*Math.sin(angle);return den>0?(effectiveR+eye)/den-effectiveR:Infinity;};
   let checked=0,missing=0,minMarginM=Infinity,hit=null,d=0,steps=0,lastSource=null,lastHeight=null,endpointUncertain=false,farUncertain=false;
+  // The highest ground seen from the eye: up to which height the target is hidden at maxM.
+  let skyAlpha=-Infinity,skyAt=null,skyM=null;const seenD=[],seenH=[];
   while(d<maxM){
    if(options.isCurrent?.()===false||options.signal?.aborted)throw Error('candidate-cancelled');
    const next=Math.min(maxM,d+100),from=geo.destination(observer.latitude,observer.longitude,azimuth,d/1000),to=next===maxM&&endpoint?endpoint:geo.destination(observer.latitude,observer.longitude,azimuth,next/1000);
@@ -452,6 +461,8 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
     // read on the line stands in for it, which can only make the line look more hidden, never clearer.
     if(!Number.isFinite(value.height)){if(Number.isFinite(lastHeight)&&['missing-dem','missing-tile'].includes(value.reason))value={...value,height:lastHeight,layer:'bank-for-water'};else{missing++;continue;}}
     checked++;lastSource=value.layer;lastHeight=value.height;
+    const arc=middle/effectiveR,rise=Math.atan2((effectiveR+value.height)*Math.cos(arc)-(effectiveR+eye),(effectiveR+value.height)*Math.sin(arc));
+    seenD.push(middle);seenH.push(value.height);if(rise>skyAlpha){skyAlpha=rise;skyAt=middle;skyM=value.height;}
     const distances=[lo,hi],vertex=-alpha*effectiveR;if(vertex>lo&&vertex<hi)distances.push(vertex);
     const ray=Math.min(...distances.map(height)),endpointCell=endpoint&&maxM-lo<value.resolutionM*2;
     const margin=ray-value.height;minMarginM=Math.min(minMarginM,margin);
@@ -463,8 +474,9 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
    }
    d=next;if(hit)break;
   }
+  const skyDen=Math.cos(theta)-Math.tan(skyAlpha)*Math.sin(theta),skyline=Number.isFinite(skyAt)&&skyDen>0?{distanceM:skyAt,terrainM:skyM,toM:(effectiveR+eye)/skyDen-effectiveR,riseM:fallAround(seenD,seenH,skyAt,skyM,-1),dropM:fallAround(seenD,seenH,skyAt,skyM,1)}:null;
   return {status:hit?'blocked':missing||endpointUncertain||farUncertain?'unknown':'model-clear',reason:!hit&&farUncertain?'coarse-terrain-margin':undefined,hit,checked,missing,minMarginM:Number.isFinite(minMarginM)?minMarginM:null,source:lastSource,scopeM:d,nativeRaster:true,
-  endpointContactUncertain:endpointUncertain,datumUncertainty:true};
+  endpointContactUncertain:endpointUncertain,datumUncertainty:true,skyline};
  }
  return {sample,at:async(p,o)=>(await sample(p,o)).height,trace,resetBudget:()=>{fetched=0;started=Date.now();},stats:()=>({tiles:cache.size,fetched}),clearFailures:()=>{fetched=0;}};
 }
@@ -1619,6 +1631,17 @@ function memoOutlines(align){
 function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,staticTerrain=null,sidewalks=null,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const align=memoOutlines(rawAlign);
  const visibilityCache=new Map(),targetLines=new Map();
+ // What hides the lower part of the target on its line (2026-11-12, user: name it, not a distance).
+ const hiddenNotes=new WeakMap();
+ function hiddenNote(target,observer,azimuth,sky){
+  if(!sky||typeof align.hiddenBelowText!=='function'||typeof geo?.obstacleKind!=='function')return null;
+  if(!hiddenNotes.has(sky))hiddenNotes.set(sky,(async()=>{
+   if(!align.hiddenBelowText(target,sky.toM,'高台'))return null;
+   const kind=await geo.obstacleKind(observer,azimuth,sky,observer.elevation+observer.eyeM),text=kind?align.hiddenBelowText(target,sky.toM,kind):'';
+   return text?{m:sky.toM,kind,text}:null;
+  })().catch(()=>null));
+  return hiddenNotes.get(sky);
+ }
  async function terrainRay(observer,ray,options){
   if(staticTerrain){const tested=staticTerrain.trace(observer,ray);if(tested.hit||tested.checked>0&&tested.missing===0)return {...tested,status:tested.hit?'blocked':'model-clear',nativeRaster:true};}
   return terrain?terrain.trace(observer,{...ray,...options}):{status:'unknown',reason:'terrain-unavailable',missing:1};
@@ -1738,12 +1761,13 @@ function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=nul
    // Only a sight line shown clear of terrain and buildings is a candidate (design note 21): unknown is not shown.
    if(los.status!=='model-clear'||plan.requireAllTargets&&!combinedClear){unverified++;lastUnverified=los;if(missingHeights(los.target?.buildings)||los.rays?.some(r=>missingHeights(r.buildings)))heightUnknown++;continue;}
    const usedBuildings=[los.target?.buildings,...(los.rays||[]).filter(r=>r.status==='model-clear').map(r=>r.buildings)],buildingHeights=usedBuildings.some(b=>b?.heights==='estimated')?'estimated':usedBuildings.every(b=>b?.heights==='plateau')?'plateau':'model';
+   const hiddenBelow=await hiddenNote(plan.target,position,solution.geometry.azimuth,los.target?.terrain?.skyline);
    const kind=position.placeKind||point.placeKind;
    accepted.push({id,requestKey:plan.requestKey,status:combinedClear&&frame.status!=='unknown'?'model-visible':'visible-partial',recommend:true,aligned:true,placeKind:kind==='sidewalk'?'road':kind||'unknown',surfaceId:point.surfaceId,
     place:{id,name:position.name||point.name||'撮影候補地点',latitude:position.latitude,longitude:position.longitude,elevation:finalGround,groundManualM:finalGround,stand:'ground',standAglM:position.elevation-finalGround+position.eyeM,eyeHeightAGL:position.elevation-finalGround+position.eyeM,decks:[],
     surfaceId:point.surfaceId},
     assumedObserver:{...position},event:{...solution.event,sunAltitude:sun.apparentAltitude},quality:{visibility:los.status,extraTargets:visibilityQuality,buildingHeights,targetAngleDeg:solution.geometry.angle,frame:frame.status,photographyClass:photo,
-    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified'},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
+    geometry:solution.event.targetGeometryKind||'anchor',datum:'source-epoch-unverified',hiddenBelow},rank:[Math.round(solution.geometry.angle*10)/10,solution.event.gapAngleDeg??0],
     frame,extraTargets:extras,visibility:los,sourceEvidence:position.sourceEvidence||point.sourceEvidence,modelEvidence:{kind:combinedClear?'terrain-and-building-model-los':'geometry-with-partial-los',scope:'target-and-celestial-rays',actualVisibilityGuaranteed:false,treesModeled:false,
     terrainNumericComplete:!!los.rays?.every(r=>r.intentionalTarget||r.terrain?.status==='model-clear'),buildingRangeComplete:!!los.rays?.every(r=>r.intentionalTarget||r.buildings?.complete&&r.buildings?.evaluated),
     targetSelfGeometryComplete:los.shapeKnown&&los.target?.buildings?.evaluated&&!los.target?.buildings?.unresolvedTargetContacts,extraTargetsAssessed:extras.length,datumUncertainty:true}});
@@ -2090,7 +2114,7 @@ let visibleEntries=[],selectedId=null,mapPanel=null,mapInstance=null,mapMode=fal
 const columns='minmax(0,1fr) 50px 64px 40px';
 const day=at=>globalThis.AstroNotesCandidateDiscovery?.day(at)??Math.floor((at+32400000)/86400000)*86400000-32400000;
 const clockText=at=>Number.isFinite(at)?new Date(at+32400000).toISOString().slice(11,16):'時刻未確認';
-const uncertainty=row=>[row.quality?.visibility==='unknown'?'見通し未確認':'',row.quality?.buildingHeights==='estimated'?'建物の高さは推定':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
+const uncertainty=row=>[row.quality?.hiddenBelow?.text||'',row.quality?.visibility==='unknown'?'見通し未確認':'',row.quality?.buildingHeights==='estimated'?'建物の高さは推定':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
 function configure(value){if(typeof value==='function')loadLabels=value;else if(value){ports={...ports,...value};if(typeof value.loadLabels==='function')loadLabels=value.loadLabels;}}
 function planKey(plan){return typeof ports.requestKey==='function'?ports.requestKey(plan):JSON.stringify([plan.requestKey,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,plan.composition,plan.compositionInvalid,plan.timeSpec||null,day(plan.at),plan.atmosphere,
 plan.cameraHeight]);}

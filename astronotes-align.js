@@ -1957,11 +1957,25 @@
     {let x=dLo,y=dHi;for(let k=0;k<60;k++){const m1=x+(y-x)/3,m2=y-(y-x)/3;if(targetAngle(m1,eye,hHi)<targetAngle(m2,eye,hHi))x=m1;else y=m2;}hi=Math.max(hi,targetAngle((x+y)/2,eye,hHi)+1e-9);}
     return boxOf([g.azimuth,...rays.map(r=>r.azimuth)],g.azimuth,Math.min(lo,g.angle),Math.max(hi,g.angle),dLo);
   }
+  /// 手前の地形で目標の下が隠れるときの文（2026-11-12 ユーザー「何割とかいらない。〇〇の〇〇から下が〇〇に隠れますとかでいい」
+  /// 「何メートル先のとかいらない」）。hiddenM は目標の所で地形の線が通る海抜、kind は隠すもの（堤防・土手・崖の縁・高台・山・地平線）。
+  /// 先端まで隠れれば見えない。先端より下の部分の名前があれば「〇〇から下」、無ければ地上の高さ（10m単位、10m未満は出さない）
+  function hiddenBelowText(target, hiddenM, kind) {
+    const parts = (target?.parts || []).filter((p) => Number.isFinite(p.m)).sort((a, b) => b.m - a.m);
+    if (!parts.length || !Number.isFinite(hiddenM) || !kind) return "";
+    const by = kind === "地平線" ? kind : `手前の${kind}`;
+    if (hiddenM >= parts[0].m) return `${target.name}は${by}に隠れて見えません`;
+    const part = parts.slice(1).find((p) => p.m <= hiddenM);
+    if (part) return `${target.name}の${part.name}から下が${by}に隠れます`;
+    if (!Number.isFinite(target.groundM)) return "";
+    const agl = hiddenM - target.groundM;
+    return agl >= 10 ? `${target.name}の地上約${Math.round(agl / 10) * 10}mから下が${by}に隠れます` : "";
+  }
   const AstroNotesAlign = { heightVertices, TARGETS, targetById, partOf, LIMBS, limbById, line, lineRange, lineDistances, smoothLine, mapLimit, solvePoint,
                         altitudeCrossing, geometryFrom, upcoming, dailyView, prepareDailyView, alignmentAt, buildingUpcoming, polygonDistance, cameraFrame, FUJI_SPOTS, spotObserver, placeEyeM,
                         crossingNear, candidates, lineOfSight, rankOf, LIMB_FIT, rimOutline, rimPoints, judge, buildingBlock,
                         viewProjector, viewUnprojector, frameDayPath, framePassages, solveComposition, partTarget, get CITY_MODELS(){return global.AstroNotesCityModels || CM || {};},get TOWER_MODELS(){return global.AstroNotesTowerModels || TM || {};
-                        }, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, outlineBounds, viewWindow, viewPath, sceneTargets };
+                        }, TOCHO_MODEL, CASTLE_MODEL, TERROR_MODEL, convexHull, TOWER_SHAPES, TINKERBELL_MODEL, towerOutline, outlineBounds, viewWindow, viewPath, sceneTargets, hiddenBelowText };
   global.AstroNotesAlign = AstroNotesAlign;
   if (typeof module !== "undefined" && module.exports) module.exports = AstroNotesAlign;
 })(typeof globalThis !== "undefined" ? globalThis : window);

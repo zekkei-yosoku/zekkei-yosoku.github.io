@@ -55,6 +55,8 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
   const h=data.heights[(Math.floor(py)%256+256)%256*256+(Math.floor(px)%256+256)%256];
   return {height:Number.isFinite(h)?h:0,layer:Number.isFinite(h)?'dem':'sea',z:FAR_Z,resolutionM:40075016.686*Math.cos(point.latitude*RAD)/(256*2**FAR_Z)};
  }
+ // How far the ground rises within 80 m before the highest point and falls within 80 m beyond it: a levee or bank falls again, a plateau does not.
+ const fallAround=(ds,hs,at,top,side)=>{let fall=0;for(let i=0;i<ds.length;i++)if(side*(ds[i]-at)>0&&Math.abs(ds[i]-at)<=80)fall=Math.max(fall,top-hs[i]);return fall;};
  // Evaluate the native piecewise-constant raster model, not a sparse 100-point profile.
  async function trace(observer,{azimuth,altitude,maxM,endpoint=null,refractionK=1,...options}){
   if(!Number.isFinite(observer.elevation)||!Number.isFinite(maxM)||maxM<=0||!Number.isFinite(altitude)||!(refractionK>0))return {status:'unknown',missing:1,reason:'invalid-ray'};
@@ -62,6 +64,8 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
   const alpha=Number.isFinite(endpoint?.elevation)?Math.atan2((effectiveR+endpoint.elevation)*Math.cos(theta)-(effectiveR+eye),(effectiveR+endpoint.elevation)*Math.sin(theta)):altitude*RAD;
   const height=d=>{const angle=d/effectiveR,den=Math.cos(angle)-Math.tan(alpha)*Math.sin(angle);return den>0?(effectiveR+eye)/den-effectiveR:Infinity;};
   let checked=0,missing=0,minMarginM=Infinity,hit=null,d=0,steps=0,lastSource=null,lastHeight=null,endpointUncertain=false,farUncertain=false;
+  // The highest ground seen from the eye: up to which height the target is hidden at maxM.
+  let skyAlpha=-Infinity,skyAt=null,skyM=null;const seenD=[],seenH=[];
   while(d<maxM){
    if(options.isCurrent?.()===false||options.signal?.aborted)throw Error('candidate-cancelled');
    const next=Math.min(maxM,d+100),from=geo.destination(observer.latitude,observer.longitude,azimuth,d/1000),to=next===maxM&&endpoint?endpoint:geo.destination(observer.latitude,observer.longitude,azimuth,next/1000);
@@ -77,6 +81,8 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
     // read on the line stands in for it, which can only make the line look more hidden, never clearer.
     if(!Number.isFinite(value.height)){if(Number.isFinite(lastHeight)&&['missing-dem','missing-tile'].includes(value.reason))value={...value,height:lastHeight,layer:'bank-for-water'};else{missing++;continue;}}
     checked++;lastSource=value.layer;lastHeight=value.height;
+    const arc=middle/effectiveR,rise=Math.atan2((effectiveR+value.height)*Math.cos(arc)-(effectiveR+eye),(effectiveR+value.height)*Math.sin(arc));
+    seenD.push(middle);seenH.push(value.height);if(rise>skyAlpha){skyAlpha=rise;skyAt=middle;skyM=value.height;}
     const distances=[lo,hi],vertex=-alpha*effectiveR;if(vertex>lo&&vertex<hi)distances.push(vertex);
     const ray=Math.min(...distances.map(height)),endpointCell=endpoint&&maxM-lo<value.resolutionM*2;
     const margin=ray-value.height;minMarginM=Math.min(minMarginM,margin);
@@ -88,8 +94,9 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
    }
    d=next;if(hit)break;
   }
+  const skyDen=Math.cos(theta)-Math.tan(skyAlpha)*Math.sin(theta),skyline=Number.isFinite(skyAt)&&skyDen>0?{distanceM:skyAt,terrainM:skyM,toM:(effectiveR+eye)/skyDen-effectiveR,riseM:fallAround(seenD,seenH,skyAt,skyM,-1),dropM:fallAround(seenD,seenH,skyAt,skyM,1)}:null;
   return {status:hit?'blocked':missing||endpointUncertain||farUncertain?'unknown':'model-clear',reason:!hit&&farUncertain?'coarse-terrain-margin':undefined,hit,checked,missing,minMarginM:Number.isFinite(minMarginM)?minMarginM:null,source:lastSource,scopeM:d,nativeRaster:true,
-  endpointContactUncertain:endpointUncertain,datumUncertainty:true};
+  endpointContactUncertain:endpointUncertain,datumUncertainty:true,skyline};
  }
  return {sample,at:async(p,o)=>(await sample(p,o)).height,trace,resetBudget:()=>{fetched=0;started=Date.now();},stats:()=>({tiles:cache.size,fetched}),clearFailures:()=>{fetched=0;}};
 }

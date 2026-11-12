@@ -10,6 +10,20 @@ import {auth} from '../../account/session-and-access.js';
 const AIM_HORIZON_SPAN = 20, AIM_HORIZON_MIN_DEG = 0.2, AIM_MOUNTAIN_SKY_SPAN = 45;
 // 天体に寄る is for a body on or near the target: within the height of the target plus 10 deg of its top.
 function aimComposeNear(st,az,topAngle,baseAngle){const R=Math.PI/180,d=Math.acos(Math.max(-1,Math.min(1,Math.sin(st.apparentAltitude*R)*Math.sin(topAngle*R)+Math.cos(st.apparentAltitude*R)*Math.cos(topAngle*R)*Math.cos((st.azimuth-az)*R))))/R;return d<=Math.max(15,topAngle-baseAngle+10);}
+/// 手前の地形が目標をどこまで隠すかの文。b は目標の方位で一番高く見える地面（見上げ角・距離km・標高）。
+/// その手前と向こう80mを10mごとに読み、上がって下がる細い高まりなら堤防か土手と分かる
+async function aimHiddenNote(obs, eye, t, D, b) {
+  let lo = -500, hi = 10000;
+  for (let i = 0; i < 50; i++) { const m = (lo + hi) / 2; if (aimAirAngle(D, eye, m) < b.angle) lo = m; else hi = m; }
+  const offsets = [-80, -70, -60, -50, -40, -30, -20, -10, 10, 20, 30, 40, 50, 60, 70, 80].filter((m) => b.km * 1000 + m > 0);
+  const pts = offsets.map((m) => AstroNotesTerrain.destination(obs.latitude, obs.longitude, b.azimuth, b.km + m / 1000));
+  let el = [];
+  try { el = await AstroNotesTerrain.elevations(pts, { zoom: 15, from: obs }); } catch { el = []; }
+  const fall = (side) => Number.isFinite(b.m) ? el.reduce((most, h, i) => Number.isFinite(h) && side * offsets[i] > 0 ? Math.max(most, b.m - h) : most, 0) : 0;
+  const kind = await AstroNotesTerrain.obstacleKind(obs, b.azimuth, { distanceM: b.km * 1000, terrainM: b.m, riseM: fall(-1), dropM: fall(1) }, eye);
+  return AstroNotesAlign.hiddenBelowText(t, (lo + hi) / 2, kind);
+}
+
 async function aimLookRender(host, spec) {
   if (!host) return;
   globalThis.AstroNotesCameraUI?.invalidate(host);
@@ -751,13 +765,17 @@ const runAt=t=>nearestPathRun(fullPath,relevantRuns.length?relevantRuns:pathRuns
   if (frontPending) frontPending.then((r) => {
     if (seq !== host._lookSeq || !r) return;
     front = r.ridge.map(([a, h]) => toPx(proj(a, h))).filter(Boolean); sceneVersion++;
-    // 目標の方位で、手前の地形が目標の先端より高ければ見えない。下の部分だけ隠れるときもそう書く
+    // 目標の方位で、手前の地形が目標の先端より高ければ見えない。下の部分だけ隠れるときは、どこから下が何に隠れるかを書く
+    // （2026-11-12 ユーザー「〇〇の〇〇から下が〇〇に隠れますとかでいい」「何メートル先のとかいらない」「堤防なのか土手なのか建物なのか」）
     const b = r.block, low = outline.hiddenAngle ?? outline.baseAngle;
-    note.dataset.terrain = !b ? "" : b.angle >= topAngle ? `${t.name}は約${Math.round(b.km)}km先の地形に隠れて見えません`
-      : b.angle > low + 0.01 ? `${t.name}の下の部分は約${Math.round(b.km)}km先の地形に隠れます` : "";
-    note.textContent = [note.dataset.primary || "", note.dataset.terrain, ...scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`)].filter(Boolean).join(" / ");
-    note.hidden = !note.textContent;
     draw(cur);
+    if (!b || b.angle <= low + 0.01) return;
+    void aimHiddenNote(spec.obs, eye, t, D, b).then((text) => {
+      if (seq !== host._lookSeq) return;
+      note.dataset.terrain = text;
+      note.textContent = [note.dataset.primary || "", text, ...scene.filter(x => x.failed).map(x => `${x.target.name}の稜線を読み込めませんでした`)].filter(Boolean).join(" / ");
+      note.hidden = !note.textContent;
+    });
   });
 }
 

@@ -24,10 +24,11 @@ test('山の外の地形は広い幅で読む。幅を変えても既定の幅�
  assert.equal(wide.ridge.length,121);assert.equal(wide.ridge[0][0],45);assert.equal(wide.ridge[120][0],135);
  assert.equal(base.ridge.length,81);assert.equal(base.ridge[0][0],70);
 });
-test('見え方：手前の地形から隠れる文を出し、選んでいない建物を地上まで下ろす',()=>{
+test('見え方：手前の地形に隠れる文を出し、選んでいない建物を地上まで下ろす',()=>{
  assert.match(html,/const frontPending = outline \? aimTerrainFront\(spec\.obs, eye, t\) : null;/);
- assert.match(html,/は約\$\{Math\.round\(b\.km\)\}km先の地形に隠れて見えません/);
- assert.match(html,/の下の部分は約\$\{Math\.round\(b\.km\)\}km先の地形に隠れます/);
+ // 2026-11-12 距離でなく、どこから下が何に隠れるかを書く（文は AstroNotesAlign.hiddenBelowText、種類は AstroNotesTerrain.obstacleKind）
+ assert.match(html,/void aimHiddenNote\(spec\.obs, eye, t, D, b\)/);
+ assert.doesNotMatch(html,/km先の地形に隠れ/);
  assert.match(html,/if\(!selected\)\{\s*let bottom=-Infinity;/);
  assert.match(html,/front\.some\(\(q\) => q\[1\] < groundY - 0\.5\)/);
 });

@@ -66,7 +66,7 @@ let visibleEntries=[],selectedId=null,mapPanel=null,mapInstance=null,mapMode=fal
 const columns='minmax(0,1fr) 50px 64px 40px';
 const day=at=>globalThis.AstroNotesCandidateDiscovery?.day(at)??Math.floor((at+32400000)/86400000)*86400000-32400000;
 const clockText=at=>Number.isFinite(at)?new Date(at+32400000).toISOString().slice(11,16):'時刻未確認';
-const uncertainty=row=>[row.quality?.visibility==='unknown'?'見通し未確認':'',row.quality?.buildingHeights==='estimated'?'建物の高さは推定':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
+const uncertainty=row=>[row.quality?.hiddenBelow?.text||'',row.quality?.visibility==='unknown'?'見通し未確認':'',row.quality?.buildingHeights==='estimated'?'建物の高さは推定':'',row.frame?.status==='unknown'?'全体の画角未確認':''].filter(Boolean);
 function configure(value){if(typeof value==='function')loadLabels=value;else if(value){ports={...ports,...value};if(typeof value.loadLabels==='function')loadLabels=value.loadLabels;}}
 function planKey(plan){return typeof ports.requestKey==='function'?ports.requestKey(plan):JSON.stringify([plan.requestKey,plan.owner,plan.body,plan.target,plan.partId,plan.limb,plan.matchMode,plan.composition,plan.compositionInvalid,plan.timeSpec||null,day(plan.at),plan.atmosphere,
 plan.cameraHeight]);}

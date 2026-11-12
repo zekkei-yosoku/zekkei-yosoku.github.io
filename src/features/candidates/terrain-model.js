@@ -17,13 +17,18 @@ async function decode(data){
   const segments=[];let lastPoint=null,previous={xy:pixel(observer.latitude,observer.longitude),d:0};
   for(let d=Math.min(100,maxM);;d=Math.min(d+100,maxM)){const p=d===maxM&&endpoint?endpoint:Geo().destination(observer.latitude,observer.longitude,azimuth,d/1000),next={xy:pixel(p.latitude,p.longitude),d};segments.push([previous,next]);previous=next;lastPoint=p;if(d===maxM)break;}
   let checked=0,missing=0,lowerResolutionCells=0,ignoredCells=0,hit=null,minMarginM=Infinity;const eye=observer.elevation+(observer.eyeM??1.5);
+  // The highest ground seen from the eye: up to which height the target is hidden at maxM.
+  let skyTan=-Infinity,skyAt=null,skyM=null;const seen=[];
   for(const [from,to] of segments){const start=from.xy,finish=to.xy,dx=finish[0]-start[0],dy=finish[1]-start[1],length=to.d-from.d,crossings=[0,1];for(const [a,b] of [[start[0],finish[0]],[start[1],finish[1]]])if(a!==b)for(let n=Math.floor(Math.min(a,b))+1;n<Math.max(a,b);
   n++)crossings.push((n-a)/(b-a));crossings.sort((a,b)=>a-b);
   for(let i=1;i<crossings.length;i++){const lo=crossings[i-1],hi=crossings[i];if(hi-lo<1e-14)continue;const t=(lo+hi)/2,value=lookup(start[0]+t*dx,start[1]+t*dy),z=value.height;checked++;if(value.sourceCode===2)lowerResolutionCells++;if(z===null)missing++;if(z===null)continue;
+  const at=from.d+t*length;if(at>0){seen.push([at,z]);const rise=(z-eye-at*at/(2*R*refractionK))/at;if(rise>skyTan){skyTan=rise;skyAt=at;skyM=z;}}
   const a=Math.max(0,from.d+lo*length),b=from.d+hi*length,vertex=-R*refractionK*Math.tan(altitude*rad),distances=[a,b];if(vertex>a&&vertex<b)distances.push(vertex);
   const heights=distances.map(d=>eye+d*Math.tan(altitude*rad)+d*d/(2*R*refractionK)),ray=Math.min(...heights),d=distances[heights.indexOf(ray)],margin=ray-z;minMarginM=Math.min(minMarginM,margin);if(margin<=0&&!hit)hit={distanceM:d,terrainM:z,rayM:ray};}}
 
-  return {status:hit?'model-blocked':'unknown',recommend:false,checked,missing,lowerResolutionCells,end:lastPoint,ignoredNearObserverM:0,ignoredCells,hit,minMarginM:Number.isFinite(minMarginM)?minMarginM:null,reason:hit?'conditional-dem-intersection':'no-terrain-visibility-certification'};
+  return {status:hit?'model-blocked':'unknown',recommend:false,checked,missing,lowerResolutionCells,end:lastPoint,ignoredNearObserverM:0,ignoredCells,hit,minMarginM:Number.isFinite(minMarginM)?minMarginM:null,reason:hit?'conditional-dem-intersection':'no-terrain-visibility-certification',
+  skyline:skyAt===null?null:{distanceM:skyAt,terrainM:skyM,toM:eye+maxM*skyTan+maxM*maxM/(2*R*refractionK),
+  riseM:seen.reduce((rise,[d,h])=>d<skyAt&&d>=skyAt-80?Math.max(rise,skyM-h):rise,0),dropM:seen.reduce((drop,[d,h])=>d>skyAt&&d<=skyAt+80?Math.max(drop,skyM-h):drop,0)}};
  }
  return {at,sample,trace,source:data.source};
 }
