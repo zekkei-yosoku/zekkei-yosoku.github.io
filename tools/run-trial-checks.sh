@@ -6,7 +6,8 @@
 # 失敗した確認があれば終了コード 1。ログは $OUT/<名前>.log。
 cd "$(dirname "$0")/.." || exit 2
 B=${BASE:-http://127.0.0.1:8992/trial/}; OUT=${OUT:-${TMPDIR:-/tmp}/astronotes-checks}; mkdir -p "$OUT"; failed=0
-run(){ name=$1; shift; start=$(date +%s); env "$@" > "$OUT/$name.log" 2>&1; code=$?; echo "$name exit $code $(( $(date +%s)-start ))s"; [ $code -eq 0 ] || failed=1; }
+# 落ちた確認はログの末尾を出す（GitHubでは $OUT が残らない）
+run(){ name=$1; shift; start=$(date +%s); env "$@" > "$OUT/$name.log" 2>&1; code=$?; echo "$name exit $code $(( $(date +%s)-start ))s"; [ $code -eq 0 ] || { failed=1; tail -n 30 "$OUT/$name.log" | sed "s/^/  $name| /"; }; }
 # API のソース（../api、非公開）と突き合わせる2本は、それが無い場所（GitHub）では回せない。
 units=(test-*.mjs)
 if [ ! -f ../api/src/index.js ]; then units=(); for f in test-*.mjs; do case $f in test-access-table.mjs|test-layout.mjs) echo "skip $f (../api が無い)";; *) units+=("$f");; esac; done; fi
