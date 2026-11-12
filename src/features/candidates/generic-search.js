@@ -28,7 +28,7 @@ function regionsFor(seeds){
  return [...map.values()].sort((a,b)=>a.priority-b.priority||a.id.localeCompare(b.id));
 }
 const placeKinds=new Set(['viewpoint','plaza','park','riverbank']);
-function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=()=>new Promise(r=>setTimeout(r,0))}={}){
+function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const sessions=new Map();
  const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,obstacle:0,outsideFrame:0,
  deferred:0},coverage:[],busy:false});

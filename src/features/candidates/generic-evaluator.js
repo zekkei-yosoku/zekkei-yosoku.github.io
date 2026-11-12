@@ -103,7 +103,7 @@ function memoOutlines(align){
  };
  return Object.assign(Object.create(align),{towerOutline,__memoOutlines:true});
 }
-function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,staticTerrain=null,sidewalks=null,yieldTask=()=>new Promise(r=>setTimeout(r,0))}={}){
+function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,staticTerrain=null,sidewalks=null,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const align=memoOutlines(rawAlign);
  const visibilityCache=new Map(),targetLines=new Map();
  async function terrainRay(observer,ray,options){

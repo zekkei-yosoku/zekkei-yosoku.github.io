@@ -3,7 +3,8 @@ import {SkyMapUI,favorites,place,store} from '../../app/browser-state.js';
 import {navigationHistory} from '../../app/navigation.js';
 import {choosePlace,openFavSheet,requireLoginForFavorites} from '../places/controller.js';
 import {MAP_ICON_LOCATE,createMapView} from '../../ui/map/picker.js';
-import {AimMap,TARGET_FIXED_CATEGORIES,aim,aimElevation,aimFillSelects,aimFitLines,aimSceneExtraTargets,aimSceneExtrasAllowed,aimSetSceneExtras,aimTargetList,editTargetCategory,persistTargetDraft,targetCategoryList,targetCategoryOf,targetLocationLabel} from './controller.js';
+import {AimMap,TARGET_FIXED_CATEGORIES,aim,aimElevation,aimFillSelects,aimFitLines,aimSceneExtraTargets,aimSceneExtrasAllowed,aimSetSceneExtras,aimTargetList,editTargetCategory,persistTargetDraft,
+targetCategoryList,targetCategoryOf,targetLocationLabel} from './controller.js';
 import {aimApply} from './apply-and-list.js';
 import {aimCal,aimCalMove,aimFromPoint} from './observer.js';
 import {aimSideName,aimUpdateLook} from './candidates.js';
@@ -139,7 +140,8 @@ let resetAimCalSwipe = () => {};
    const settings=document.createElement('button');settings.type='button';settings.className='chip';settings.dataset.cameraSettings='';settings.className='aim-body-move preview-camera-open';settings.setAttribute('aria-label','画角設定');settings.title='画角設定';
    settings.setAttribute('aria-expanded','false');settings.setAttribute('aria-controls','previewCameraPanel');
    settings.innerHTML=('<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5 9.5 3.5h5l1.5 2h3.5a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-15a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2Z"/>'+
-   '<path d="M10.88 9.79L10.93 8.63L13.07 8.63L13.12 9.79L14.22 10.43L15.25 9.89L16.32 11.74L15.34 12.36L15.34 13.64L16.32 14.26L15.25 16.11L14.22 15.57L13.12 16.21L13.07 17.37L10.93 17.37L10.88 16.21L9.78 15.57L8.75 16.11L7.68 14.26L8.66 13.64L8.66 12.36L7.68 11.74L8.75 9.89L9.78 10.43Z M12 11.1a1.9 1.9 0 1 0 0 3.8a1.9 1.9 0 1 0 0-3.8Z" fill="currentColor" fill-rule="evenodd" stroke="none"/></svg>');
+   '<path d="M10.88 9.79L10.93 8.63L13.07 8.63L13.12 9.79L14.22 10.43L15.25 9.89L16.32 11.74L15.34 12.36L15.34 13.64L16.32 14.26L15.25 16.11'+
+   'L14.22 15.57L13.12 16.21L13.07 17.37L10.93 17.37L10.88 16.21L9.78 15.57L8.75 16.11L7.68 14.26L8.66 13.64L8.66 12.36L7.68 11.74L8.75 9.89L9.78 10.43Z M12 11.1a1.9 1.9 0 1 0 0 3.8a1.9 1.9 0 1 0 0-3.8Z" fill="currentColor" fill-rule="evenodd" stroke="none"/></svg>');
    look.querySelector('.aim-look-figure').append(settings);
    const move=look.querySelector('[data-lens-move]'),center=look.querySelector('[data-lens-center]');
    const tools=document.createElement('div');tools.className='preview-figure-tools';tools.setAttribute('role','group');tools.setAttribute('aria-label','見え方の表示');look.querySelector('.aim-look-figure').append(tools);

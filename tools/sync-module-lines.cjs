@@ -4,14 +4,16 @@ const fs=require('fs'),path=require('path');const {parse,scan}=require('./module
 const root=path.resolve(__dirname,'..');process.chdir(root);
 const manifestPath='src/source-manifest.json',m=JSON.parse(fs.readFileSync(manifestPath,'utf8'));
 const units=m.architecture.units.filter(u=>u.scope==='classic-composition'&&u.path.endsWith('.js')).map(u=>u.path);
-const strip=s=>{let out=s;const I=/^import \{[^}\n]*\} from '[^'\n]+';\n/,E=/(^|\n)export \{[^}\n]*\};\n?$/;while(I.test(out))out=out.replace(I,'');return out.replace(E,(x,lead)=>x.endsWith('\n')?lead:'');};
+const strip=s=>{let out=s;const I=/^import \{[^}]*\} from '[^'\n]+';\n/,E=/(^|\n)export \{[^}]*\};\n?$/;while(I.test(out))out=out.replace(I,'');return out.replace(E,(x,lead)=>x.endsWith('\n')?lead:'');};
 const code=Object.fromEntries(units.map(p=>[p,strip(fs.readFileSync(p,'utf8'))]));
 const info=Object.fromEntries(units.map(p=>[p,scan(parse(code[p],'script'))]));
 const owner=new Map();for(const p of units)for(const n of info[p].top){if(owner.has(n))throw Error('Duplicate top-level name '+n+' in '+p+' and '+owner.get(n));owner.set(n,p);}
 const imports={},exported=Object.fromEntries(units.map(p=>[p,new Set()]));
 for(const p of units){imports[p]={};for(const n of [...info[p].free].sort()){const q=owner.get(n);if(q&&q!==p){(imports[p][q]=imports[p][q]||[]).push(n);exported[q].add(n);}}}
 const rel=(a,b)=>{const r=path.relative(path.dirname(a),b);return r.startsWith('.')?r:'./'+r;};
-for(const p of units){const head=units.filter(q=>imports[p][q]).map(q=>`import {${imports[p][q].join(',')}} from '${rel(p,q)}';\n`).join('');const names=[...exported[p]].sort();const body=code[p];let tail='';if(names.length){const line=`export {${names.join(',')}};`;tail=body.endsWith('\n')||!body?line+'\n':'\n'+line;}fs.writeFileSync(p,head+body+tail);}
+// Long name lists wrap so no generated line passes 200 characters (the long-line limit in test-source-ratchet.mjs).
+const names=(open,list,close)=>{const lines=[];let line=open;for(let i=0;i<list.length;i++){const piece=list[i]+(i<list.length-1?',':'');if(line.length+piece.length>200&&line!==open){lines.push(line);line='';}line+=piece;}return lines.concat(line+close).join('\n');};
+for(const p of units){const head=units.filter(q=>imports[p][q]).map(q=>names('import {',imports[p][q],`} from '${rel(p,q)}';`)+'\n').join('');const out=[...exported[p]].sort();const body=code[p];let tail='';if(out.length){const line=names('export {',out,'};');tail=body.endsWith('\n')||!body?line+'\n':'\n'+line;}fs.writeFileSync(p,head+body+tail);}
 const ambient=new Set(),writes=[];for(const p of units){for(const n of info[p].free)if(!owner.has(n))ambient.add(n);for(const n of info[p].writes)if(owner.has(n)&&owner.get(n)!==p)writes.push({name:n,writer:p,owner:owner.get(n)});}
 writes.sort((a,b)=>a.name.localeCompare(b.name)||a.writer.localeCompare(b.writer));
 m.architecture.moduleGraph={ambient:[...ambient].sort(),crossUnitWrites:writes};fs.writeFileSync(manifestPath,JSON.stringify(m,null,2)+'\n');

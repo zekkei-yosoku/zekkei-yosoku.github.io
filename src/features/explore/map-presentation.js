@@ -5,7 +5,8 @@ import {applyRoute,navigationHistory,routeFromHash} from '../../app/navigation.j
 import {PLACE_PICKERS,favForPoint,renderPointCard} from '../places/controller.js';
 import {createMapView} from '../../ui/map/picker.js';
 import {aim,aimElevCache,aimFavTarget,aimFavTargets,aimFillSelects,aimIsMountain,aimLimbValue,aimMapLabel,aimSceneExtraTargets,aimWithHeights} from '../framing/controller.js';
-import {aimAppendCandidatePage,aimBuildingDays,aimCalGridHtml,aimCalRows,aimCalSolid,aimCandidatePageEnd,aimCandidateSearchEnd,aimDaysInputKey,aimFromPoint,aimObserverAt,aimObserverEye,aimSavedFrom,aimShootingView,candidateDatesAppend,candidateDatesMarkup,candidateWaitMarkup} from '../framing/observer.js';
+import {aimAppendCandidatePage,aimBuildingDays,aimCalGridHtml,aimCalRows,aimCalSolid,aimCandidatePageEnd,aimCandidateSearchEnd,aimDaysInputKey,aimFromPoint,aimObserverAt,aimObserverEye,aimSavedFrom,
+aimShootingView,candidateDatesAppend,candidateDatesMarkup,candidateWaitMarkup} from '../framing/observer.js';
 import {aimLookKey} from '../framing/reverse-and-entry.js';
 import {openPlaceSheet} from '../places/search.js';
 import {allowedTools,apiTransport,auth,renderTools,screenAllowed,toolAllowed} from '../account/session-and-access.js';
@@ -228,7 +229,9 @@ ctx.lineWidth=1;
   if(body!==session.body&&shownBodies().length>1)d.className='tiny';return d;}));
   const t=session.target;
   if(validPoint(t)&&targetOn){const geo=AstroNotesAlign.geometryFrom(session.eye,t,{partId:session.partId,eyeM:0});const bearing=geo?.azimuth??AstroNotesTerrain.bearing(session.observer.latitude,session.observer.longitude,t.latitude,t.longitude);
-  el('skyMapTargetInfo').textContent=`${t.name}：方位 ${bearing.toFixed(1)}° ・ ${geo?'仰角 '+AstroNotesAstro.targetElevationAngle(geo.distanceKm,session.eye.elevation,geo.topM,{k:1}).toFixed(2)+'°':'高さ未設定'}${geo?' ・ 距離 '+(geo.distanceKm<1?Math.round(geo.distanceKm*1000)+'m':geo.distanceKm.toFixed(2)+'km')+' ・ 対象の標高 '+geo.topM.toFixed(1)+'m（目から '+(geo.topM-session.eye.elevation).toFixed(1)+'m）':''}${st?' ・ 天体との方位差 '+AstroNotesSkyMap.delta(st.azimuth,bearing).toFixed(1)+'°':' ・ 選択天体は計算できません'}`;
+  el('skyMapTargetInfo').textContent=`${t.name}：方位 ${bearing.toFixed(1)}° ・ ${geo?'仰角 '+AstroNotesAstro.targetElevationAngle(geo.distanceKm,session.eye.elevation,geo.topM,{k:1}).toFixed(2)+'°':'高さ未設定'}${
+   geo?' ・ 距離 '+(geo.distanceKm<1?Math.round(geo.distanceKm*1000)+'m':geo.distanceKm.toFixed(2)+'km')+' ・ 対象の標高 '+geo.topM.toFixed(1)+'m（目から '+(geo.topM-session.eye.elevation).toFixed(1)+'m）':''}${
+   st?' ・ 天体との方位差 '+AstroNotesSkyMap.delta(st.azimuth,bearing).toFixed(1)+'°':' ・ 選択天体は計算できません'}`;
   }
   else el('skyMapTargetInfo').textContent='対象なしでも天体の方向を確認できます';
   el('skyMapDetailInfo').textContent=el('skyMapTargetInfo').textContent+'\n'+Array.from(el('skyMapEvents').children).map(e=>e.textContent).join(' ・ ');map.redraw();save();

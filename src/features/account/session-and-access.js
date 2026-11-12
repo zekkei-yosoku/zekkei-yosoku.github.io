@@ -230,4 +230,5 @@ function markToolsCurrent() {
     else el.removeAttribute("aria-current");
   }
 }
-export {API,TOKEN_KEY,accessCheckedAt,accessState,accountFail,allowedTools,apiTransport,askReauth,auth,authStorage,clearAuth,closeTools,dataOwner,lastLoginId,markToolsCurrent,migrationPlan,openTools,pendingAccountPanels,pushQueue,refreshRestrictedTools,renderToolAccess,renderTools,screenAllowed,syncError,syncInfo,toolAllowed,toolsAnim,withPendingAction};
+export {API,TOKEN_KEY,accessCheckedAt,accessState,accountFail,allowedTools,apiTransport,askReauth,auth,authStorage,clearAuth,closeTools,dataOwner,lastLoginId,markToolsCurrent,migrationPlan,openTools,
+pendingAccountPanels,pushQueue,refreshRestrictedTools,renderToolAccess,renderTools,screenAllowed,syncError,syncInfo,toolAllowed,toolsAnim,withPendingAction};

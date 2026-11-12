@@ -46,7 +46,18 @@ function mergeEntries(entries,sort){
   // Merge only identical (p,t,h). Use one existing row; never combine evidence into a stronger claim.
   if(!previous||(previous.show===false&&e.show!==false)||(previous.show===false)===(e.show===false)&&compare(e,previous,'recommended')<0)unique.set(key,e);
  }
- return [...unique.values()].sort((a,b)=>compare(a,b,sort));
+ // 2026-11-12 実機: 同じ公園や川沿いで30m隣の点が、同じ名前・同じ分・同じ種類のまま2行ずつ並び、見分けがつかなかった。
+ // 250m以内・高さの差5m以内で見た目が同じ行は、表示中で、おすすめ順が上の1行だけを残す（残す行は自分の根拠だけを持つ）。
+ const kept=[],looks=e=>[e.row.place?.name??'',e.types.join(','),Number.isFinite(e.row.event?.at)?Math.floor((e.row.event.at+32400000)/60000):'?'].join('|');
+ for(const e of [...unique.values()].sort((a,b)=>(a.show===false)-(b.show===false)||compare(a,b,'recommended'))){
+  const look=looks(e),h=e.row.place?.elevation;
+  if(kept.some(k=>k.look===look&&metres(k.e.row.place,e.row.place)<=250&&!(Math.abs((k.e.row.place?.elevation??h)-(h??k.e.row.place?.elevation))>5)))continue;kept.push({e,look});
+ }
+ return kept.map(k=>k.e).sort((a,b)=>compare(a,b,sort));
+}
+function metres(a,b){
+ if(![a?.latitude,a?.longitude,b?.latitude,b?.longitude].every(Number.isFinite))return Infinity;
+ const r=Math.PI/180,x=(b.longitude-a.longitude)*r*Math.cos((a.latitude+b.latitude)*r/2),y=(b.latitude-a.latitude)*r;return Math.hypot(x,y)*6371008.8;
 }
 const groups=new Map(),windows=new Map(),boundNodes=new WeakSet();
 // The list opens in time order (2026-11-11 ユーザー「並びのデフォルトを時刻順で」); おすすめ順 stays one tap away.

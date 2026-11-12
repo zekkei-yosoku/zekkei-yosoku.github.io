@@ -82,7 +82,7 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
     const margin=ray-value.height;minMarginM=Math.min(minMarginM,margin);
     if(far){if(margin<-FAR_MARGIN_M&&!hit)hit={distanceM:middle,terrainM:value.height,rayM:ray,coarse:true};else if(margin<FAR_MARGIN_M)farUncertain=true;}
     else if(margin<-.1&&!hit){if(endpointCell)endpointUncertain=true;else hit={distanceM:middle,terrainM:value.height,rayM:ray};}
-    if(++steps%256===0)await new Promise(resolve=>setTimeout(resolve,0));
+    if(++steps%256===0)await (typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause?AstroNotesLibrary.pause():new Promise(resolve=>setTimeout(resolve,0)));
     if(steps>=200000)return {status:hit?'blocked':'unknown',hit,checked,missing,partial:true,reason:'terrain-compute-budget'};
     if(hit)break;
    }

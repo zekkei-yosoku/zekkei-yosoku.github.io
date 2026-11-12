@@ -9,6 +9,19 @@ const nearby=(rows,p)=>point(p)?rows.find(t=>point(t)&&distance(t,p)<20):null;
 const matchingNames=(rows,name,exclude)=>{const key=nameKey(name);return key?rows.filter(t=>t.id!=='custom'&&t.id!==exclude&&nameKey(t.name)===key):[];};
 const keys=owner=>({observations:'sorami.observations.v1:'+encodeURIComponent(owner||'guest'),shapes:'sorami.placeShapes.v1:'+encodeURIComponent(owner||'guest')});
 function gate(){let generation=0;return {next:()=>++generation,ticket:()=>generation,current:ticket=>ticket===generation,cancel:()=>{generation++;}};}
+// 2026-11-12 長い計算の途中で画面へ順番を譲る。setTimeout(0) は入れ子になると1回4ms以上待つため、候補探索は7割が待ちだった
+// （同じ2分で806地点→待たない譲り方で2182地点）。前に譲ってから sliceMs 働いた時だけ、待ち時間の無い MessageChannel で1回譲る。
+// Node（確認）では setImmediate を使う。開いたままの MessageChannel は Node の終了を止めるため。
+let pausedAt=0,pauseChannel=null;const pauseWaiting=[];
+function turn(done){
+ if(typeof setImmediate==='function'){setImmediate(done);return;}
+ if(!pauseChannel&&typeof MessageChannel==='function'){pauseChannel=new MessageChannel();pauseChannel.port1.onmessage=()=>{const next=pauseWaiting.shift();if(next)next();};}
+ if(pauseChannel){pauseWaiting.push(done);pauseChannel.port2.postMessage(0);}else setTimeout(done,0);
+}
+function pause(sliceMs=10){
+ if(performance.now()-pausedAt<sliceMs)return Promise.resolve();
+ return new Promise(resolve=>turn(()=>{pausedAt=performance.now();resolve();}));
+}
 function transaction(storage,entries){
  const before=new Map(entries.map(([k])=>[k,storage.getItem(k)])),written=[];
  try{for(const [k,v]of entries){storage.setItem(k,JSON.stringify(v));written.push(k);}}
@@ -134,7 +147,7 @@ function restore(data,{favorites,sightings,observations,shapes,cleanFavorite,cle
  }
  return {favorites:nextFavorites,sightings:merge(sightings,goodRecs),observations:merge(observations,goodObs),shapes:nextShapes,goodRecs,goodFavs,observationCount:goodObs.length,shapeCount,dropped};
 }
-const api={point,nameKey,height,distance,nearby,matchingNames,keys,gate,transaction,targetFromFavorite,targetDraft,applyDrafts,cleanObservation,registrationChanges,prepareRecord,prepareQuickRecord,prepareNotebookBulk,backup,restore,merge};
+const api={point,nameKey,height,distance,nearby,matchingNames,keys,gate,pause,transaction,targetFromFavorite,targetDraft,applyDrafts,cleanObservation,registrationChanges,prepareRecord,prepareQuickRecord,prepareNotebookBulk,backup,restore,merge};
 if(typeof module==='object'&&module.exports)module.exports=api;root.AstroNotesLibrary=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
 

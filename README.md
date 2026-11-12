@@ -6,7 +6,8 @@
 ## 構成
 
 - `src/index.html` / `src/` — 画面・操作・起動・同期の編集正本（機能別の責務と既存実行順）
-- `index.html` / `astronotes-explore.js` — `./bump.sh` で生成する公開用資産。直接編集しない
+- `index.html` / `astronotes-explore-simple.js` — `./bump.sh` で生成する公開用資産。直接編集しない
+- `astronotes-explore.js` — 2026-11-12 まで本番の画面が読んでいた旧い探す画面。古い画面を開いたままの端末のために置いているだけで、今の画面は読まない（中身を変える時は動作を変えない）
 - `astronotes-prediction.js` — 非公開予測APIの取得・条件照合・キャッシュ
 - `astronotes-core.js` — 表示、暦、気象データの標準的な扱い
 - `astronotes-astro.js` / `astronotes-align.js` — 天文計算、目標への幾何と見え方

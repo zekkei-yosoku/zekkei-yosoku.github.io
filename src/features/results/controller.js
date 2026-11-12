@@ -79,7 +79,8 @@ function answerableRounds(now) {
 }
 function savedPredictionNote(source) {
   if (source?.kind !== "server" || typeof source.spotName !== "string" || !Number.isFinite(source.capturedAt) || !Number.isFinite(source.distanceKm)) return "";
-  return `<span class="tiny sub-line" style="display:block;margin:4px 0">${esc(source.spotName)}の事前予測 ${Number.isFinite(source.score) ? Math.round(source.score) + "点・" : ""}${Math.round(source.distanceKm * 1000)}m先・${S.JstCal.monthDay(source.capturedAt)} ${S.JstCal.hhmm(source.capturedAt)}保存</span>`;
+  return `<span class="tiny sub-line" style="display:block;margin:4px 0">${esc(source.spotName)}の事前予測 ${
+    Number.isFinite(source.score) ? Math.round(source.score) + "点・" : ""}${Math.round(source.distanceKm * 1000)}m先・${S.JstCal.monthDay(source.capturedAt)} ${S.JstCal.hhmm(source.capturedAt)}保存</span>`;
 }
 function savedRoundUnavailable() {
   const state = savedRoundClient.state(place);

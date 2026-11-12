@@ -37,7 +37,7 @@ function screenAnchor({azimuth,altitude,obs,target,align,eyeM=1.5}){
  const shifted=anchorAt(obs,target,{heightM:0,xM:xM+1}),q=Geo().inverse(obs.latitude,obs.longitude,shifted.latitude,shifted.longitude),slope=diff(q.azimuth,g.azimuth);if(!Number.isFinite(slope)||Math.abs(slope)<1e-10)return {heightM:NaN,xM:NaN};xM-=error/slope;}
  anchor=anchorAt(obs,target,{heightM:0,xM});const distance=Geo().inverse(obs.latitude,obs.longitude,anchor.latitude,anchor.longitude).km*1000;const radius=R*k,theta=distance/radius;return {heightM:(radius+obs.elevation+eyeM)/(Math.cos(theta)-Math.tan(altitude*rad)*Math.sin(theta))-radius,xM};
 }
-function make({align,bodies,terrain,sidewalks,yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
+function make({align,bodies,terrain,sidewalks,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}){
  const pathCache=new Map();
  function guesses(plan,seed){const start=day(plan.at),key=plan.body+','+start+','+(plan.atmosphere||'');let path=pathCache.get(key);if(!path){path=[];const ref={latitude:35.68626,longitude:139.73068,elevation:30};for(let t=start;t<start+DAY;t+=120000){const s=bodies.state(plan.body,t,ref);
  path.push({at:t,azimuth:s.azimuth});}pathCache.set(key,path);while(pathCache.size>4)pathCache.delete(pathCache.keys().next().value);
@@ -109,18 +109,37 @@ function flat(polygons){
   for(let i=0;i<n;i++){const x=ring[i][0],y=ring[i][1];xs[i]=x;ys[i]=y;if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;}return {n,xs,ys,minX,minY,maxX,maxY};});
  flatRings.set(polygons,rings);return rings;
 }
+// 2026-11-12 スカイツリーの輪郭は多角形3511個（頂点2.3万）で、1地点の時刻探しのたびに全部を見ていた（探索のCPUの14%）。
+// 左右の位置で32個ずつに分け、その中を上下の位置で8個ずつの塊にまとめ、届かない塊を飛ばす。結果は元の順番どおりに見た時と同じ:
+// 中なら距離0、外なら最も近い辺（同じ距離なら多角形・辺の番号が小さい方）。
+const clusterCache=new WeakMap();
+function clusters(polygons){
+ let found=clusterCache.get(polygons);if(found)return found;
+ const rings=flat(polygons),order=rings.map((r,i)=>i).sort((a,b)=>(rings[a].minX+rings[a].maxX)-(rings[b].minX+rings[b].maxX)||a-b);found=[];
+ for(let k=0;k<order.length;k+=32){const members=order.slice(k,k+32).sort((a,b)=>(rings[a].minY+rings[a].maxY)-(rings[b].minY+rings[b].maxY)||a-b);
+  for(let m=0;m<members.length;m+=8){const ids=members.slice(m,m+8);let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+   for(const i of ids){const r=rings[i];if(r.minX<minX)minX=r.minX;if(r.maxX>maxX)maxX=r.maxX;if(r.minY<minY)minY=r.minY;if(r.maxY>maxY)maxY=r.maxY;}found.push({ids,minX,minY,maxX,maxY});}}
+ clusterCache.set(polygons,found);return found;
+}
 function closestPoint(p,polygons){
- const px=p[0],py=p[1],rings=flat(polygons);
- for(const r of rings){
-  if(px<r.minX||px>r.maxX||py<r.minY||py>r.maxY)continue;
-  const {n,xs,ys}=r;let on=false;for(let i=0,j=n-1;i<n;j=i++)if((ys[i]>py)!==(ys[j]>py)&&px<(xs[j]-xs[i])*(py-ys[i])/(ys[j]-ys[i])+xs[i])on=!on;
-  if(on)return {point:p,distance:0};
+ const px=p[0],py=p[1],rings=flat(polygons),groups=clusters(polygons);
+ for(const c of groups){
+  if(px<c.minX||px>c.maxX||py<c.minY||py>c.maxY)continue;
+  for(const i of c.ids){const r=rings[i];
+   if(px<r.minX||px>r.maxX||py<r.minY||py>r.maxY)continue;
+   const {n,xs,ys}=r;let on=false;for(let a=0,b=n-1;a<n;b=a++)if((ys[a]>py)!==(ys[b]>py)&&px<(xs[b]-xs[a])*(py-ys[a])/(ys[b]-ys[a])+xs[a])on=!on;
+   if(on)return {point:p,distance:0};
+  }
  }
- let distance=Infinity,nx=0,ny=0,found=false;
- for(const r of rings){
-  const gx=Math.max(r.minX-px,0,px-r.maxX),gy=Math.max(r.minY-py,0,py-r.maxY);if(Math.hypot(gx,gy)>=distance)continue;
-  const {n,xs,ys}=r;
-  for(let i=0;i<n;i++){const k=i+1===n?0:i+1,ax=xs[i],ay=ys[i],dx=xs[k]-ax,dy=ys[k]-ay,u=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1))),qx=ax+u*dx,qy=ay+u*dy,d=Math.hypot(px-qx,py-qy);if(d<distance){distance=d;nx=qx;ny=qy;found=true;}}
+ let distance=Infinity,nx=0,ny=0,found=false,bestRing=Infinity,bestEdge=Infinity;
+ const gap=b=>Math.hypot(Math.max(b.minX-px,0,px-b.maxX),Math.max(b.minY-py,0,py-b.maxY));
+ for(const c of groups){
+  if(gap(c)>distance)continue;
+  for(const ri of c.ids){const r=rings[ri];if(gap(r)>distance)continue;
+   const {n,xs,ys}=r;
+   for(let i=0;i<n;i++){const k=i+1===n?0:i+1,ax=xs[i],ay=ys[i],dx=xs[k]-ax,dy=ys[k]-ay,u=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1))),qx=ax+u*dx,qy=ay+u*dy,d=Math.hypot(px-qx,py-qy);
+    if(d<distance||found&&d===distance&&(ri<bestRing||ri===bestRing&&i<bestEdge)){distance=d;nx=qx;ny=qy;found=true;bestRing=ri;bestEdge=i;}}
+  }
  }
  return {point:found?[nx,ny]:[0,0],distance};
 }
@@ -239,7 +258,7 @@ async function surfaceInverse(plan,seed,range,timeSeeds,deps){
  }
  return {solutions,attempted:true,calls,exhausted,unknown,cancelled};
 }
-async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks,standingAt,isCurrent=()=>true,yieldTask=()=>new Promise(r=>setTimeout(r,0)),budget=12000,_surfaceSolved=false}={}){
+async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks,standingAt,isCurrent=()=>true,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0))),budget=12000,_surfaceSolved=false}={}){
  const empty=(reason,partial=false)=>({solutions:[],partial,reason}),range=timeRange(plan),target=targetInput(plan.target);
  if(!range)return empty('invalid-time-spec');
  if(!target||!align||!bodies||![point?.latitude,point?.longitude].every(Number.isFinite))return empty('invalid-target-or-observer');
@@ -350,7 +369,7 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
  const partial=range.kind!=='instant'||exhausted||riseLimited||unknown||surfaceAttempted;
  return {solutions,partial,reason:exhausted||riseLimited?'budget-exhausted':unknown?'some-calculations-unknown':solutions.length?'geometric-opportunities':partial?'no-opportunity-found-in-sampled-range':'no-opportunity-at-fixed-time',evaluated:calls};
 }
-async function inverseSeeds(plan,{bodies,isCurrent=()=>true,yieldTask=()=>new Promise(r=>setTimeout(r,0)),groundHypothesesM,budget=2500}={}){
+async function inverseSeeds(plan,{bodies,isCurrent=()=>true,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0))),groundHypothesesM,budget=2500}={}){
  const target=targetInput(plan.target),range=timeRange(plan),none=reason=>({seeds:[],partial:true,reason});
  if(!target||!range||!bodies)return none('invalid-target-or-time-spec');
  if(bodies.definition&&!bodies.definition(plan.body))return none('unknown-body');

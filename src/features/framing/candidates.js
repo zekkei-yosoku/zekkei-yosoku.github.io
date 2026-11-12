@@ -643,4 +643,5 @@ function aimRenderCandList() {
     };
   }
 }
-export {AIM_DIR8,aimBuildingAt,aimCandName,aimCandidateAccessible,aimCandidateSiteSupported,aimFindCandidates,aimPlaces,aimRefreshSheetCands,aimRenderCands,aimRenderSheetCands,aimSideName,aimUpdateLook};
+export {AIM_DIR8,aimBuildingAt,aimCandName,aimCandidateAccessible,aimCandidateSiteSupported,aimFindCandidates,aimPlaces,aimRefreshSheetCands,aimRenderCands,aimRenderSheetCands,aimSideName,
+aimUpdateLook};

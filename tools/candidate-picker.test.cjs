@@ -1,4 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
+// 2026-11-12 candidate-picker.js は読み込み時に AstroNotesLibrary.gate() を使う（配信と同じく先に読む）。
+globalThis.AstroNotesLibrary=require('../astronotes-library.js');
 const labels=require('../src/features/candidates/place-labels.js');globalThis.AstroNotesCandidateLabels=labels;
 const F=require('../src/features/candidates/candidate-picker.js');
 test('inclusive hour, matching rise/set, invalid event and combined kind',()=>{
@@ -42,7 +44,7 @@ test('explicit place kinds remain authoritative and missing quality is not promo
 });
 test('identical candidates merge without mixing evidence, but time and deck remain independent',()=>{
  const base={place:{latitude:35,longitude:139,elevation:10,eyeHeightAGL:1.5},event:{at:100},quality:{photographyClass:'normal'}};
- const a={row:structuredClone(base),types:['road'],index:0},b={row:{...structuredClone(base),rank:0},types:['park'],index:1},deck={row:{...structuredClone(base),place:{...base.place,elevation:100}},types:['viewpoint'],index:2},later={row:{...structuredClone(base),event:{at:101}},types:['park'],index:3};
+ const a={row:structuredClone(base),types:['road'],index:0},b={row:{...structuredClone(base),rank:0},types:['park'],index:1},deck={row:{...structuredClone(base),place:{...base.place,elevation:100}},types:['viewpoint'],index:2},later={row:{...structuredClone(base),event:{at:100+60000}},types:['park'],index:3};
  const before=JSON.stringify([a,b,deck,later]);const out=F.mergeEntries([a,b,deck,later],'recommended');
  assert.equal(out.length,3);assert(out.includes(b));assert(!out.includes(a));assert(out.includes(deck));assert(out.includes(later));assert.equal(JSON.stringify([a,b,deck,later]),before);
 });
@@ -56,4 +58,12 @@ test('deduplication retains a source row that satisfies the selected kind filter
  const park={row,types:['park'],index:0,show:false},road={row,types:['road'],index:1,show:true};
  assert.deepEqual(F.mergeEntries([park,road],'recommended'),[road]);
  assert.deepEqual(F.mergeEntries([road,park],'recommended'),[road]);
+});
+test('look-alike rows (same name, kind and minute within 250 m) collapse to the best shown one',()=>{
+ const at=Date.parse('2026-11-20T15:38:20+09:00'),row=(lat,extra={})=>({place:{name:'西ヶ原みんなの公園',latitude:lat,longitude:139.74,elevation:20},event:{at},quality:{photographyClass:'normal'},...extra});
+ const a={row:row(35.7400,{rank:[5]}),types:['park'],index:0},b={row:row(35.7402,{rank:[3],event:{at:at+20000}}),types:['park'],index:1};
+ const far={row:row(35.7450),types:['park'],index:2},next={row:row(35.7400,{event:{at:at+60000}}),types:['park'],index:3},deck={row:row(35.7400,{place:{name:'西ヶ原みんなの公園',latitude:35.74,longitude:139.74,elevation:40}}),types:['park'],index:4};
+ const out=F.mergeEntries([a,b,far,next,deck],'time');
+ assert(out.includes(b)&&!out.includes(a),'the better ranked of two look-alikes stays');assert(out.includes(far),'over 250 m stays');assert(out.includes(next),'another minute stays');assert(out.includes(deck),'another height stays');
+ const hidden={...b,show:false},shown={...a,show:true};assert.deepEqual(F.mergeEntries([hidden,shown],'time'),[shown]);
 });

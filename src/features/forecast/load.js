@@ -1,9 +1,9 @@
 import {$,S} from '../../ui/presentation-helpers.js';
 import {extrasRetry,place} from '../../app/browser-state.js';
+import {forecastSummary} from './view.js';
 import {applyRoute,routeFromHash} from '../../app/navigation.js';
 import {renderSkeleton} from './detail.js';
 import {keepRounds} from '../results/controller.js';
-import {forecastSummary} from './view.js';
 let bundle = null;       // 取得済みの予報
 let weeks = {};          // phenomenon → [{dayMs, evaluation}]
 let forecastDays = [], predictionPlace = null;

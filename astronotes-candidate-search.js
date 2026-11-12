@@ -457,7 +457,7 @@ function createLive({fetchImpl=root.fetch,geo=root.AstroNotesTerrain,maxTiles=96
     const margin=ray-value.height;minMarginM=Math.min(minMarginM,margin);
     if(far){if(margin<-FAR_MARGIN_M&&!hit)hit={distanceM:middle,terrainM:value.height,rayM:ray,coarse:true};else if(margin<FAR_MARGIN_M)farUncertain=true;}
     else if(margin<-.1&&!hit){if(endpointCell)endpointUncertain=true;else hit={distanceM:middle,terrainM:value.height,rayM:ray};}
-    if(++steps%256===0)await new Promise(resolve=>setTimeout(resolve,0));
+    if(++steps%256===0)await (typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause?AstroNotesLibrary.pause():new Promise(resolve=>setTimeout(resolve,0)));
     if(steps>=200000)return {status:hit?'blocked':'unknown',hit,checked,missing,partial:true,reason:'terrain-compute-budget'};
     if(hit)break;
    }
@@ -620,7 +620,7 @@ function screenAnchor({azimuth,altitude,obs,target,align,eyeM=1.5}){
  const shifted=anchorAt(obs,target,{heightM:0,xM:xM+1}),q=Geo().inverse(obs.latitude,obs.longitude,shifted.latitude,shifted.longitude),slope=diff(q.azimuth,g.azimuth);if(!Number.isFinite(slope)||Math.abs(slope)<1e-10)return {heightM:NaN,xM:NaN};xM-=error/slope;}
  anchor=anchorAt(obs,target,{heightM:0,xM});const distance=Geo().inverse(obs.latitude,obs.longitude,anchor.latitude,anchor.longitude).km*1000;const radius=R*k,theta=distance/radius;return {heightM:(radius+obs.elevation+eyeM)/(Math.cos(theta)-Math.tan(altitude*rad)*Math.sin(theta))-radius,xM};
 }
-function make({align,bodies,terrain,sidewalks,yieldTask=()=>new Promise(r=>setTimeout(r,0))}){
+function make({align,bodies,terrain,sidewalks,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}){
  const pathCache=new Map();
  function guesses(plan,seed){const start=day(plan.at),key=plan.body+','+start+','+(plan.atmosphere||'');let path=pathCache.get(key);if(!path){path=[];const ref={latitude:35.68626,longitude:139.73068,elevation:30};for(let t=start;t<start+DAY;t+=120000){const s=bodies.state(plan.body,t,ref);
  path.push({at:t,azimuth:s.azimuth});}pathCache.set(key,path);while(pathCache.size>4)pathCache.delete(pathCache.keys().next().value);
@@ -692,18 +692,37 @@ function flat(polygons){
   for(let i=0;i<n;i++){const x=ring[i][0],y=ring[i][1];xs[i]=x;ys[i]=y;if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;}return {n,xs,ys,minX,minY,maxX,maxY};});
  flatRings.set(polygons,rings);return rings;
 }
+// 2026-11-12 スカイツリーの輪郭は多角形3511個（頂点2.3万）で、1地点の時刻探しのたびに全部を見ていた（探索のCPUの14%）。
+// 左右の位置で32個ずつに分け、その中を上下の位置で8個ずつの塊にまとめ、届かない塊を飛ばす。結果は元の順番どおりに見た時と同じ:
+// 中なら距離0、外なら最も近い辺（同じ距離なら多角形・辺の番号が小さい方）。
+const clusterCache=new WeakMap();
+function clusters(polygons){
+ let found=clusterCache.get(polygons);if(found)return found;
+ const rings=flat(polygons),order=rings.map((r,i)=>i).sort((a,b)=>(rings[a].minX+rings[a].maxX)-(rings[b].minX+rings[b].maxX)||a-b);found=[];
+ for(let k=0;k<order.length;k+=32){const members=order.slice(k,k+32).sort((a,b)=>(rings[a].minY+rings[a].maxY)-(rings[b].minY+rings[b].maxY)||a-b);
+  for(let m=0;m<members.length;m+=8){const ids=members.slice(m,m+8);let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+   for(const i of ids){const r=rings[i];if(r.minX<minX)minX=r.minX;if(r.maxX>maxX)maxX=r.maxX;if(r.minY<minY)minY=r.minY;if(r.maxY>maxY)maxY=r.maxY;}found.push({ids,minX,minY,maxX,maxY});}}
+ clusterCache.set(polygons,found);return found;
+}
 function closestPoint(p,polygons){
- const px=p[0],py=p[1],rings=flat(polygons);
- for(const r of rings){
-  if(px<r.minX||px>r.maxX||py<r.minY||py>r.maxY)continue;
-  const {n,xs,ys}=r;let on=false;for(let i=0,j=n-1;i<n;j=i++)if((ys[i]>py)!==(ys[j]>py)&&px<(xs[j]-xs[i])*(py-ys[i])/(ys[j]-ys[i])+xs[i])on=!on;
-  if(on)return {point:p,distance:0};
+ const px=p[0],py=p[1],rings=flat(polygons),groups=clusters(polygons);
+ for(const c of groups){
+  if(px<c.minX||px>c.maxX||py<c.minY||py>c.maxY)continue;
+  for(const i of c.ids){const r=rings[i];
+   if(px<r.minX||px>r.maxX||py<r.minY||py>r.maxY)continue;
+   const {n,xs,ys}=r;let on=false;for(let a=0,b=n-1;a<n;b=a++)if((ys[a]>py)!==(ys[b]>py)&&px<(xs[b]-xs[a])*(py-ys[a])/(ys[b]-ys[a])+xs[a])on=!on;
+   if(on)return {point:p,distance:0};
+  }
  }
- let distance=Infinity,nx=0,ny=0,found=false;
- for(const r of rings){
-  const gx=Math.max(r.minX-px,0,px-r.maxX),gy=Math.max(r.minY-py,0,py-r.maxY);if(Math.hypot(gx,gy)>=distance)continue;
-  const {n,xs,ys}=r;
-  for(let i=0;i<n;i++){const k=i+1===n?0:i+1,ax=xs[i],ay=ys[i],dx=xs[k]-ax,dy=ys[k]-ay,u=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1))),qx=ax+u*dx,qy=ay+u*dy,d=Math.hypot(px-qx,py-qy);if(d<distance){distance=d;nx=qx;ny=qy;found=true;}}
+ let distance=Infinity,nx=0,ny=0,found=false,bestRing=Infinity,bestEdge=Infinity;
+ const gap=b=>Math.hypot(Math.max(b.minX-px,0,px-b.maxX),Math.max(b.minY-py,0,py-b.maxY));
+ for(const c of groups){
+  if(gap(c)>distance)continue;
+  for(const ri of c.ids){const r=rings[ri];if(gap(r)>distance)continue;
+   const {n,xs,ys}=r;
+   for(let i=0;i<n;i++){const k=i+1===n?0:i+1,ax=xs[i],ay=ys[i],dx=xs[k]-ax,dy=ys[k]-ay,u=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1))),qx=ax+u*dx,qy=ay+u*dy,d=Math.hypot(px-qx,py-qy);
+    if(d<distance||found&&d===distance&&(ri<bestRing||ri===bestRing&&i<bestEdge)){distance=d;nx=qx;ny=qy;found=true;bestRing=ri;bestEdge=i;}}
+  }
  }
  return {point:found?[nx,ny]:[0,0],distance};
 }
@@ -822,7 +841,7 @@ async function surfaceInverse(plan,seed,range,timeSeeds,deps){
  }
  return {solutions,attempted:true,calls,exhausted,unknown,cancelled};
 }
-async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks,standingAt,isCurrent=()=>true,yieldTask=()=>new Promise(r=>setTimeout(r,0)),budget=12000,_surfaceSolved=false}={}){
+async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks,standingAt,isCurrent=()=>true,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0))),budget=12000,_surfaceSolved=false}={}){
  const empty=(reason,partial=false)=>({solutions:[],partial,reason}),range=timeRange(plan),target=targetInput(plan.target);
  if(!range)return empty('invalid-time-spec');
  if(!target||!align||!bodies||![point?.latitude,point?.longitude].every(Number.isFinite))return empty('invalid-target-or-observer');
@@ -933,7 +952,7 @@ async function opportunities(plan,point,{align,bodies,terrain,groundAt,sidewalks
  const partial=range.kind!=='instant'||exhausted||riseLimited||unknown||surfaceAttempted;
  return {solutions,partial,reason:exhausted||riseLimited?'budget-exhausted':unknown?'some-calculations-unknown':solutions.length?'geometric-opportunities':partial?'no-opportunity-found-in-sampled-range':'no-opportunity-at-fixed-time',evaluated:calls};
 }
-async function inverseSeeds(plan,{bodies,isCurrent=()=>true,yieldTask=()=>new Promise(r=>setTimeout(r,0)),groundHypothesesM,budget=2500}={}){
+async function inverseSeeds(plan,{bodies,isCurrent=()=>true,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0))),groundHypothesesM,budget=2500}={}){
  const target=targetInput(plan.target),range=timeRange(plan),none=reason=>({seeds:[],partial:true,reason});
  if(!target||!range||!bodies)return none('invalid-target-or-time-spec');
  if(bodies.definition&&!bodies.definition(plan.body))return none('unknown-body');
@@ -1597,7 +1616,7 @@ function memoOutlines(align){
  };
  return Object.assign(Object.create(align),{towerOutline,__memoOutlines:true});
 }
-function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,staticTerrain=null,sidewalks=null,yieldTask=()=>new Promise(r=>setTimeout(r,0))}={}){
+function createGeneric({align:rawAlign,bodies,geo,terrain,index=null,heights=null,staticTerrain=null,sidewalks=null,yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const align=memoOutlines(rawAlign);
  const visibilityCache=new Map(),targetLines=new Map();
  async function terrainRay(observer,ray,options){
@@ -1770,7 +1789,7 @@ function regionsFor(seeds){
  return [...map.values()].sort((a,b)=>a.priority-b.priority||a.id.localeCompare(b.id));
 }
 const placeKinds=new Set(['viewpoint','plaza','park','riverbank']);
-function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=()=>new Promise(r=>setTimeout(r,0))}={}){
+function createGenericSearch({provider,evaluate,bodies,loadStatic=null,maxPointsPerBatch=40,inverseOptions={},yieldTask=typeof AstroNotesLibrary==='object'&&AstroNotesLibrary.pause||(()=>new Promise(r=>setTimeout(r,0)))}={}){
  const sessions=new Map();
  const fresh=(key,inverse,lastResult=null)=>({key,regions:regionsFor(inverse.seeds),inverse,lastResult,rows:[],queue:[],seen:new Set(),seenRows:new Set(),cursor:0,started:false,counts:{checked:0,unknown:0,blocked:0,noOverlap:0,unverified:0,heightUnknown:0,nearBuilding:0,obstacle:0,outsideFrame:0,
  deferred:0},coverage:[],busy:false});
@@ -2051,7 +2070,18 @@ function mergeEntries(entries,sort){
   // Merge only identical (p,t,h). Use one existing row; never combine evidence into a stronger claim.
   if(!previous||(previous.show===false&&e.show!==false)||(previous.show===false)===(e.show===false)&&compare(e,previous,'recommended')<0)unique.set(key,e);
  }
- return [...unique.values()].sort((a,b)=>compare(a,b,sort));
+ // 2026-11-12 実機: 同じ公園や川沿いで30m隣の点が、同じ名前・同じ分・同じ種類のまま2行ずつ並び、見分けがつかなかった。
+ // 250m以内・高さの差5m以内で見た目が同じ行は、表示中で、おすすめ順が上の1行だけを残す（残す行は自分の根拠だけを持つ）。
+ const kept=[],looks=e=>[e.row.place?.name??'',e.types.join(','),Number.isFinite(e.row.event?.at)?Math.floor((e.row.event.at+32400000)/60000):'?'].join('|');
+ for(const e of [...unique.values()].sort((a,b)=>(a.show===false)-(b.show===false)||compare(a,b,'recommended'))){
+  const look=looks(e),h=e.row.place?.elevation;
+  if(kept.some(k=>k.look===look&&metres(k.e.row.place,e.row.place)<=250&&!(Math.abs((k.e.row.place?.elevation??h)-(h??k.e.row.place?.elevation))>5)))continue;kept.push({e,look});
+ }
+ return kept.map(k=>k.e).sort((a,b)=>compare(a,b,sort));
+}
+function metres(a,b){
+ if(![a?.latitude,a?.longitude,b?.latitude,b?.longitude].every(Number.isFinite))return Infinity;
+ const r=Math.PI/180,x=(b.longitude-a.longitude)*r*Math.cos((a.latitude+b.latitude)*r/2),y=(b.latitude-a.latitude)*r;return Math.hypot(x,y)*6371008.8;
 }
 const groups=new Map(),windows=new Map(),boundNodes=new WeakSet();
 // The list opens in time order (2026-11-11 ユーザー「並びのデフォルトを時刻順で」); おすすめ順 stays one tap away.
@@ -2482,7 +2512,11 @@ function mount(){
    renderAction();visibleCredits.hidden=!rows.length;
    const unknown=rows.some(r=>r.quality?.buildingHeights==='estimated'),unknownFrame=rows.some(r=>r.frame?.status==='unknown');
    setStatus(cancelled?'探索をキャンセルしました。続きから探せます。':(rows.length?`新たな地点で${rows.length}件の候補があります。${unknown?'建物の高さを推定した候補を含みます。':''}${unknownFrame?'全体の画角を確認できない候補を含みます。':''}`:incomplete?'確認できた範囲には候補がありません。':'今回確認した範囲では候補がありません。')+(incomplete?'取得できなかった範囲があります。':result.canContinue?'探索を再開できます。':''));
-   const c=result.counts;resultNotes.textContent=`見通しを地形と建物で確かめられた地点だけを候補にしています。${c.checked}地点を確認：遮られる${c.blocked}、見通しを確かめられない${c.unverified||0}${c.nearBuilding||c.heightUnknown||c.obstacle?`（うち${[c.nearBuilding?`立つ点のすぐ脇に建物${c.nearBuilding}`:'',c.heightUnknown?`建物の高さが分からない${c.heightUnknown}`:'',c.obstacle?`木・橋・高架${c.obstacle}`:''].filter(Boolean).join('・')}）`:''}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。建物の高さはPLATEAUを整備した都市はその高さ、ほかは国土地理院の建物の形と種類から見積もります。木・橋・高架はOpenStreetMapにあるものだけ、高さが分からないものとして判定します。探索地域 ${result.coverage.regions}区画。全地域・全時刻の網羅や実写成功は保証していません。`;
+   const c=result.counts,unverifiedWhy=[c.nearBuilding?`立つ点のすぐ脇に建物${c.nearBuilding}`:'',c.heightUnknown?`建物の高さが分からない${c.heightUnknown}`:'',c.obstacle?`木・橋・高架${c.obstacle}`:''].filter(Boolean).join('・');
+   resultNotes.textContent=`見通しを地形と建物で確かめられた地点だけを候補にしています。${c.checked}地点を確認：遮られる${c.blocked}、`
+    +`見通しを確かめられない${c.unverified||0}${unverifiedWhy?`（うち${unverifiedWhy}）`:''}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。`
+    +'建物の高さはPLATEAUを整備した都市はその高さ、ほかは国土地理院の建物の形と種類から見積もります。木・橋・高架はOpenStreetMapにあるものだけ、高さが分からないものとして判定します。'
+    +`探索地域 ${result.coverage.regions}区画。全地域・全時刻の網羅や実写成功は保証していません。`;
  }
  button.onclick=async()=>{
   const selected=snapshot();if(!selected)return;if(condition!==uiKey(selected)){mount();return;}

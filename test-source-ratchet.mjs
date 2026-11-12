@@ -7,7 +7,7 @@ const walk=dir=>readdirSync(new URL(dir,import.meta.url),{withFileTypes:true}).f
 const files=[...walk('src/'),...readdirSync(new URL('.',import.meta.url)).filter(n=>/^astronotes-.*\.js$/.test(n)&&!generated.has(n))];
 const sources=files.map(f=>[f,readFileSync(new URL(f,import.meta.url),'utf8')]);
 const count=re=>sources.reduce((n,[,t])=>n+(t.match(re)||[]).length,0);
-const LIMITS={silentCatch:0,longLines:28};
+const LIMITS={silentCatch:0,longLines:0};
 test('理由を書かずに失敗を握る catch を増やさない',()=>{
  // 握るなら AstroNotesErrors.note へ渡すか、握ってよい理由を catch の中に書く。
  const n=count(/catch\s*(?:\(\s*\w*\s*\))?\s*\{\s*\}/g);assert.ok(n<=LIMITS.silentCatch,`silent catch ${n} > ${LIMITS.silentCatch}`);

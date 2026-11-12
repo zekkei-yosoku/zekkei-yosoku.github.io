@@ -733,7 +733,11 @@ function render() {
   // **出典は消さない。** Open-Meteo・OSM・国土地理院・気象庁は出典の表示が利用の条件で、加工したらその旨も書く
   $("footerBody").innerHTML =
     `${bundle ? S.JstCal.hhmm(bundle.fetchedAt) : "—"} 時点の予報をもとにこのアプリで点数化<br>`
-    + `予報：Open-Meteo ／ 光害：<a href="https://djlorenz.github.io/astronomy/lp/">Lorenz Light Pollution Atlas 2025</a>（VIIRS） ／ 検索：OSM Nominatim ・ 標高：国土地理院 ・ 都庁3D：<a href="https://www.geospatial.jp/ckan/dataset/plateau-13104-shinjuku-ku-2025">PLATEAU 新宿区2025</a>（抽出・加工、<a href="https://www.mlit.go.jp/plateau/site-policy/">利用条件</a>） ・ 4施設3D：PLATEAU <a href="https://www.geospatial.jp/ckan/dataset/plateau-13113-shibuya-ku-2025">渋谷区</a>・<a href="https://www.geospatial.jp/ckan/dataset/plateau-13103-minato-ku-2025">港区</a>・新宿区2025（抽出・加工） ・ 2塔3D：自作（格子・細部は推定）、寸法：<a href="https://www.tokyotower.co.jp/guidance/">東京タワー</a>・<a href="https://www.tokyo-skytree.jp/floor/">スカイツリー</a>、外形参考：PLATEAU港区・墨田区2025 ・ タワー・オブ・テラー3D：自作、航空写真参考：<a href="https://maps.gsi.go.jp/">国土地理院</a>（全国最新写真） ・ 補完：<a href="https://www.city.kawasaki.jp/530/page/0000170254.html">川崎市</a>・<a href="https://yakei-navi.com/saginumakita/">夜景Navi</a>`;
+    + `予報：Open-Meteo ／ 光害：<a href="https://djlorenz.github.io/astronomy/lp/">Lorenz Light Pollution Atlas 2025</a>（VIIRS） ／ 検索：OSM Nominatim ・ 標高：国土地理院 ・ `
+    + `都庁3D：<a href="https://www.geospatial.jp/ckan/dataset/plateau-13104-shinjuku-ku-2025">PLATEAU 新宿区2025</a>（抽出・加工、<a href="https://www.mlit.go.jp/plateau/site-policy/">利用条件</a>） ・ `
+    + `4施設3D：PLATEAU <a href="https://www.geospatial.jp/ckan/dataset/plateau-13113-shibuya-ku-2025">渋谷区</a>・<a href="https://www.geospatial.jp/ckan/dataset/plateau-13103-minato-ku-2025">港区</a>・新宿区2025（抽出・加工） ・ `
+    + `2塔3D：自作（格子・細部は推定）、寸法：<a href="https://www.tokyotower.co.jp/guidance/">東京タワー</a>・<a href="https://www.tokyo-skytree.jp/floor/">スカイツリー</a>、外形参考：PLATEAU港区・墨田区2025 ・ `
+    + `タワー・オブ・テラー3D：自作、航空写真参考：<a href="https://maps.gsi.go.jp/">国土地理院</a>（全国最新写真） ・ 補完：<a href="https://www.city.kawasaki.jp/530/page/0000170254.html">川崎市</a>・<a href="https://yakei-navi.com/saginumakita/">夜景Navi</a>`;
 
   // 富士山は通信が要るので、予報の描画を待たせない。**失敗しても本体を巻き込まない**
   // 富士山と月は通信が要るので、予報の描画を待たせない。
@@ -779,4 +783,5 @@ function wireAlignmentJump(root) {
     };
   }
 }
-export {blendBodyState,currentView,forecastSummary,fujiAlign,groundAt,iconFor,kickExtras,lightTimingText,moonGlyphAt,moonHorizon,moonObs,moonVisibility,observerHere,phaseNameFor,redrawDayDetail,render,requestMoonDetails,sortMode,startFujiAlign,upcoming};
+export {blendBodyState,currentView,forecastSummary,fujiAlign,groundAt,iconFor,kickExtras,lightTimingText,moonGlyphAt,moonHorizon,moonObs,moonVisibility,observerHere,phaseNameFor,redrawDayDetail,
+render,requestMoonDetails,sortMode,startFujiAlign,upcoming};

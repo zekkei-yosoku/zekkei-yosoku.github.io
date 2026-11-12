@@ -481,4 +481,5 @@ $("favDelete").onclick = () => {
   // 取り消しは一覧の上に出る。★ から開いていた場合も、そこへ着地させる。
   if (!$("placeSheet").open) showSheet($("placeSheet"));
 };
-export {PLACE_PICKERS,almanacPoint,choosePlace,clearFavMapReturn,favDraft,favForPoint,favMapReturn,inheritedPoint,openFavSheet,renameFromAfterFav,renderFavStar,renderPointCard,renderSheet,requireLogin,requireLoginForFavorites,saveFavorites,selectPlace,selectedDay};
+export {PLACE_PICKERS,almanacPoint,choosePlace,clearFavMapReturn,favDraft,favForPoint,favMapReturn,inheritedPoint,openFavSheet,renameFromAfterFav,renderFavStar,renderPointCard,renderSheet,
+requireLogin,requireLoginForFavorites,saveFavorites,selectPlace,selectedDay};

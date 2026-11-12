@@ -39,3 +39,13 @@ test('the cached tile rings give the same buildings, entries and order as conver
  }
  assert(hits>50,'the lines cross buildings ('+hits+')');assert.equal(lines,150);
 });
+test('a tile every line passes through stays cached while many other tiles come and go (2026-11-12)',async()=>{
+ // Before, the store dropped the oldest of 200 tiles, so the tiles beside the target that every line crosses were fetched again and again.
+ const C=load(source),counts=new Map(),anyTile=async url=>{counts.set(url,(counts.get(url)||0)+1);return {ok:true,status:200,arrayBuffer:async()=>tile.buffer};};
+ const hot=`/16/${X}/${Y}.pbf`,hotFetches=()=>[...counts].filter(([u])=>u.endsWith(hot)).reduce((a,[,n])=>a+n,0);
+ for(let i=1;i<=600;i++){
+  await C.gsiBuildingsAlong(at(1000,2000),at(3000,2000),{fetchImpl:anyTile});
+  await C.gsiBuildingsAlong(at(4096*i+1000,2000),at(4096*i+3000,2000),{fetchImpl:anyTile});
+ }
+ assert.equal(hotFetches(),1);assert.equal(counts.size,601);
+});

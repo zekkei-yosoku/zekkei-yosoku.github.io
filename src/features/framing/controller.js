@@ -514,4 +514,6 @@ function aimMapLabel(ctx, x, y, text, color, width, height, place = "right") {
 }
 
 /// 地図の中心が線からどれだけ離れているか。**動かしながら合わせる**ための数字
-export {AimMap,TARGET_FIXED_CATEGORIES,aim,aimCustomTarget,aimElevCache,aimElevation,aimFavTarget,aimFavTargets,aimFillParts,aimFillSelects,aimFitLines,aimIsMountain,aimKm,aimLimbValue,aimMapLabel,aimRedrawLine,aimSceneBackdrop,aimSceneExtraTargets,aimSceneExtrasAllowed,aimSetSceneExtras,aimShift,aimSideLabel,aimTargetInfo,aimTargetList,aimWithHeights,aimZoomFor,editTargetCategory,matchingTargetNames,persistTargetDraft,targetCategoryList,targetCategoryOf,targetLocationLabel};
+export {AimMap,TARGET_FIXED_CATEGORIES,aim,aimCustomTarget,aimElevCache,aimElevation,aimFavTarget,aimFavTargets,aimFillParts,aimFillSelects,aimFitLines,aimIsMountain,aimKm,aimLimbValue,aimMapLabel,
+aimRedrawLine,aimSceneBackdrop,aimSceneExtraTargets,aimSceneExtrasAllowed,aimSetSceneExtras,aimShift,aimSideLabel,aimTargetInfo,aimTargetList,aimWithHeights,aimZoomFor,editTargetCategory,
+matchingTargetNames,persistTargetDraft,targetCategoryList,targetCategoryOf,targetLocationLabel};

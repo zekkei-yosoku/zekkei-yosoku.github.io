@@ -226,7 +226,11 @@ function mount(){
    renderAction();visibleCredits.hidden=!rows.length;
    const unknown=rows.some(r=>r.quality?.buildingHeights==='estimated'),unknownFrame=rows.some(r=>r.frame?.status==='unknown');
    setStatus(cancelled?'探索をキャンセルしました。続きから探せます。':(rows.length?`新たな地点で${rows.length}件の候補があります。${unknown?'建物の高さを推定した候補を含みます。':''}${unknownFrame?'全体の画角を確認できない候補を含みます。':''}`:incomplete?'確認できた範囲には候補がありません。':'今回確認した範囲では候補がありません。')+(incomplete?'取得できなかった範囲があります。':result.canContinue?'探索を再開できます。':''));
-   const c=result.counts;resultNotes.textContent=`見通しを地形と建物で確かめられた地点だけを候補にしています。${c.checked}地点を確認：遮られる${c.blocked}、見通しを確かめられない${c.unverified||0}${c.nearBuilding||c.heightUnknown||c.obstacle?`（うち${[c.nearBuilding?`立つ点のすぐ脇に建物${c.nearBuilding}`:'',c.heightUnknown?`建物の高さが分からない${c.heightUnknown}`:'',c.obstacle?`木・橋・高架${c.obstacle}`:''].filter(Boolean).join('・')}）`:''}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。建物の高さはPLATEAUを整備した都市はその高さ、ほかは国土地理院の建物の形と種類から見積もります。木・橋・高架はOpenStreetMapにあるものだけ、高さが分からないものとして判定します。探索地域 ${result.coverage.regions}区画。全地域・全時刻の網羅や実写成功は保証していません。`;
+   const c=result.counts,unverifiedWhy=[c.nearBuilding?`立つ点のすぐ脇に建物${c.nearBuilding}`:'',c.heightUnknown?`建物の高さが分からない${c.heightUnknown}`:'',c.obstacle?`木・橋・高架${c.obstacle}`:''].filter(Boolean).join('・');
+   resultNotes.textContent=`見通しを地形と建物で確かめられた地点だけを候補にしています。${c.checked}地点を確認：遮られる${c.blocked}、`
+    +`見通しを確かめられない${c.unverified||0}${unverifiedWhy?`（うち${unverifiedWhy}）`:''}、構図に合わない${c.outsideFrame||0}、立つ高さが分からない${c.unknown}。`
+    +'建物の高さはPLATEAUを整備した都市はその高さ、ほかは国土地理院の建物の形と種類から見積もります。木・橋・高架はOpenStreetMapにあるものだけ、高さが分からないものとして判定します。'
+    +`探索地域 ${result.coverage.regions}区画。全地域・全時刻の網羅や実写成功は保証していません。`;
  }
  button.onclick=async()=>{
   const selected=snapshot();if(!selected)return;if(condition!==uiKey(selected)){mount();return;}

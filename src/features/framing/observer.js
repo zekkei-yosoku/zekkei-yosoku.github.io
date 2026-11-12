@@ -193,9 +193,12 @@ function aimCalGridHtml(year, month, events, selected, today, plan = aim, observ
     const solid = rows.some(aimCalSolid);
     // 候補日はその時刻、他の日はJST正午の月の形。既存の月相判定を使う。
     const phase = moonObserver ? AstroNotesMoon.phaseOf(AstroNotesBodies.state("moon", rows[0]?.at ?? at + 12 * 3600000, { ...moonObserver, elevation: 0 })) : null;
-    const label = `${year}年${month + 1}月${d}日${phase ? "、" + phase.name : ""}${rows.length ? (solid ? "、重なる日、" : "、近くを通る日、") + rows.map((e) => `${plan === aim ? aimSideName(e.side) : aimSideName(e.side, plan.body)} ${S.JstCal.hhmm(e.at)}${!AstroNotesBodies.definition(plan.body).limbs ? " " + AstroNotesBodies.sky(e.sunAltitude) : ""}`).join("、") : ""}`;
+    const label = `${year}年${month + 1}月${d}日${phase ? "、" + phase.name : ""}${rows.length ? (solid ? "、重なる日、" : "、近くを通る日、")
+      + rows.map((e) => `${plan === aim ? aimSideName(e.side) : aimSideName(e.side, plan.body)} ${S.JstCal.hhmm(e.at)}${!AstroNotesBodies.definition(plan.body).limbs ? " " + AstroNotesBodies.sky(e.sunAltitude) : ""}`).join("、") : ""}`;
     html += `<button type="button" data-cal-day="${at}"${rows.length ? ' class="has-event"' : ""} aria-label="${esc(label)}" aria-pressed="${on}"${now ? ' aria-current="date"' : ""}><span>${d}</span>\
-<span class="aim-cal-mark"${phase ? " data-moon-phase" : ""} aria-hidden="true">${phase ? '<canvas class="aim-cal-moon" width="40" height="40" data-cal-moon="'+(rows[0]?.at ?? at + 12 * 3600000)+'"></canvas> ' : ""}${rows.length ? (solid ? "●" : "○") : ""}</span>${rows.length ? `<span class="aim-cal-time">${S.JstCal.hhmm(rows[0].at)}</span><span class="aim-cal-sky">${!AstroNotesBodies.definition(plan.body).limbs ? AstroNotesBodies.sky(rows[0].sunAltitude) : ""}</span>` : ""}</button>`;
+<span class="aim-cal-mark"${phase ? " data-moon-phase" : ""} aria-hidden="true">${phase ? '<canvas class="aim-cal-moon" width="40" height="40" data-cal-moon="'+(rows[0]?.at ?? at + 12 * 3600000)+'"></canvas> ' : ""}${
+  rows.length ? (solid ? "●" : "○") : ""}</span>${rows.length ? `<span class="aim-cal-time">${S.JstCal.hhmm(rows[0].at)}</span><span class="aim-cal-sky">${
+  !AstroNotesBodies.definition(plan.body).limbs ? AstroNotesBodies.sky(rows[0].sunAltitude) : ""}</span>` : ""}</button>`;
   }
   return html;
 }
@@ -1104,4 +1107,6 @@ async function aimRenderFrom() {
   // 候補帯の描画は見え方の条件を変えない。図は冒頭の1回で更新済み。
 
 }
-export {aimAppendCandidatePage,aimAreaOf,aimBuildingDays,aimCal,aimCalGridHtml,aimCalMove,aimCalRows,aimCalSolid,aimCandidateMatch,aimCandidatePageEnd,aimCandidateSearchEnd,aimDaysInputKey,aimFromPoint,aimM,aimObserverAt,aimObserverEye,aimRenderFrom,aimRenderSelectedPoint,aimRenderTargetCard,aimSavedFrom,aimSetCustomTarget,aimSetFrom,aimShootingView,candidateDatesAppend,candidateDatesMarkup,candidateWaitMarkup};
+export {aimAppendCandidatePage,aimAreaOf,aimBuildingDays,aimCal,aimCalGridHtml,aimCalMove,aimCalRows,aimCalSolid,aimCandidateMatch,aimCandidatePageEnd,aimCandidateSearchEnd,aimDaysInputKey,
+aimFromPoint,aimM,aimObserverAt,aimObserverEye,aimRenderFrom,aimRenderSelectedPoint,aimRenderTargetCard,aimSavedFrom,aimSetCustomTarget,aimSetFrom,aimShootingView,candidateDatesAppend,
+candidateDatesMarkup,candidateWaitMarkup};

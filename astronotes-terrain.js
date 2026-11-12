@@ -1582,22 +1582,55 @@ function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevatio
   // 高さは入っていないので、**種別の下限**を使う（低めに見積もる＝隠れると言い過ぎない）。普通建物は平屋の屋根まで（約6m）、
   // 堅ろう建物は3階（約10m）、高層建物は60m。z16 で1枚 約600m 四方・50KB 前後（水域と同じタイル）
   const GSI_BUILDING_MIN_M = { 3101: 6, 3102: 10, 3103: 60 };
+  // 2026-11-12: 手元に持つのは、高さの種別がある建物の外周だけを詰めた形（升目の座標の整数と、緯度経度の外接箱）。
+  // 前は200枚を入れた順に捨てていて、スカイツリーへ向かう線が皆通る升目ほど捨てては取り直していた
+  // （候補探索の15分で同じ升目を最大431回、合わせて約10.6万回・3.35GB）。使うたびに後ろへ回し、最後に使った順で捨てる。
+  // 1枚は都心で約114KB（前の形は約794KB。2026-11-12 Chromeで測定）。1200枚で前の200枚と同じくらいのメモリ
+  const BUILDING_TILE_LIMIT = 1200;
   const buildingTiles = new Map();
+  function packBuildingTile(tile, x, y) {
+    const n = 2 ** WATER_Z, keep = [];
+    tile.polys.forEach((rings, i) => { if (GSI_BUILDING_MIN_M[tile.codes[i]] && rings[0]?.length) keep.push(i); });
+    const count = keep.length, start = new Uint32Array(count + 1);
+    for (let k = 0; k < count; k++) start[k + 1] = start[k] + tile.polys[keep[k]][0].length;
+    // 升目の座標は 0〜4096 と少しのはみ出しなので、ふつうは16bitに収まる
+    const small = keep.every((i) => tile.polys[i][0].every(([px, py]) => px >= -32768 && px <= 32767 && py >= -32768 && py <= 32767));
+    const xy = small ? new Int16Array(start[count] * 2) : new Int32Array(start[count] * 2), box = new Float64Array(count * 4), codes = new Uint16Array(count);
+    for (let k = 0; k < count; k++) {
+      const ring = tile.polys[keep[k]][0];
+      let s = Infinity, w = Infinity, nn = -Infinity, e = -Infinity;
+      ring.forEach(([px, py], j) => {
+        xy[(start[k] + j) * 2] = px; xy[(start[k] + j) * 2 + 1] = py;
+        const fx = (x + px / tile.extent) / n, fy = (y + py / tile.extent) / n;
+        const la = Math.atan(Math.sinh(Math.PI * (1 - 2 * fy))) * 180 / Math.PI, lo = fx * 360 - 180;
+        if (la < s) s = la; if (la > nn) nn = la; if (lo < w) w = lo; if (lo > e) e = lo;
+      });
+      box.set([s, w, nn, e], k * 4); codes[k] = tile.codes[keep[k]];
+    }
+    return { x, y, extent: tile.extent, count, start, xy, box, codes };
+  }
+  function buildingRing(t, k) {
+    const n = 2 ** WATER_Z, ring = [];
+    for (let j = t.start[k]; j < t.start[k + 1]; j++) {
+      const fx = (t.x + t.xy[j * 2] / t.extent) / n, fy = (t.y + t.xy[j * 2 + 1] / t.extent) / n;
+      ring.push([Math.atan(Math.sinh(Math.PI * (1 - 2 * fy))) * 180 / Math.PI, fx * 360 - 180]);
+    }
+    return ring;
+  }
   function loadBuildingTile(x, y, fetchImpl) {
     const key = `${x}/${y}`;
-    if (buildingTiles.has(key)) return buildingTiles.get(key);
+    if (buildingTiles.has(key)) { const hit = buildingTiles.get(key); buildingTiles.delete(key); buildingTiles.set(key, hit); return hit; }
     const p = (async () => {
       try {
         const res = await fetchImpl(`${WATER_TILE}/${WATER_Z}/${x}/${y}.pbf`);
-        if (res.status === 404) return { extent: 4096, polys: [], codes: [] };   // 外洋の升目
+        if (res.status === 404) return packBuildingTile({ extent: 4096, polys: [], codes: [] }, x, y);   // 外洋の升目
         if (!res.ok) return null;
-        return decodeWaterLayer(new Uint8Array(await res.arrayBuffer()), "BldA", "vt_code");
+        return packBuildingTile(decodeWaterLayer(new Uint8Array(await res.arrayBuffer()), "BldA", "vt_code"), x, y);
       } catch { return null; }
     })();
     buildingTiles.set(key, p);
-    p.then((v) => { if (v === null) buildingTiles.delete(key); });
-    // 手元に持つのは200枚まで（候補地24か所で2〜3枚ずつ）
-    if (buildingTiles.size > 200) buildingTiles.delete(buildingTiles.keys().next().value);
+    p.then((v) => { if (v === null && buildingTiles.get(key) === p) buildingTiles.delete(key); });
+    if (buildingTiles.size > BUILDING_TILE_LIMIT) buildingTiles.delete(buildingTiles.keys().next().value);
     return p;
   }
 
@@ -1620,30 +1653,20 @@ function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevatio
     }
     const tiles = await Promise.all([...keys].map((k) => { const [x, y] = k.split("/").map(Number); return loadBuildingTile(x, y, fetchImpl).then((t) => [x, y, t]); }));
     if (tiles.some(([, , t]) => t === null)) return null;
-    const n = 2 ** WATER_Z, out = [];
+    const out = [];
     const south = Math.min(from.latitude, to.latitude), north = Math.max(from.latitude, to.latitude), west = Math.min(from.longitude, to.longitude), east = Math.max(from.longitude, to.longitude);
-    for (const [tx, ty, tile] of tiles) {
-      const geo = tile.geo || (tile.geo = tile.polys.map((rings) => {
-        const ring = rings[0].map(([px, py]) => {
-          const fx = (tx + px / tile.extent) / n, fy = (ty + py / tile.extent) / n;
-          return [Math.atan(Math.sinh(Math.PI * (1 - 2 * fy))) * 180 / Math.PI, fx * 360 - 180];
-        });
-        let s = Infinity, w = Infinity, nn = -Infinity, e = -Infinity;
-        for (const [la, lo] of ring) { if (la < s) s = la; if (la > nn) nn = la; if (lo < w) w = lo; if (lo > e) e = lo; }
-        return { ring, s, w, n: nn, e };
-      }));
-      tile.polys.forEach((rings, i) => {
+    for (const [, , tile] of tiles) {
+      for (let i = 0; i < tile.count; i++) {
         const minHeightM = GSI_BUILDING_MIN_M[tile.codes[i]];
-        if (!minHeightM) return;
-        const g = geo[i];
-        if (g.n < south || g.s > north || g.e < west || g.w > east) return;
+        const gs = tile.box[i * 4], gw = tile.box[i * 4 + 1], gn = tile.box[i * 4 + 2], ge = tile.box[i * 4 + 3];
+        if (gn < south || gs > north || ge < west || gw > east) continue;
         // All four corners of the box on one side of the line, or all before its start or after its end: no edge can
         // cross the segment and the start point is not inside.
-        const c = [xy(g.s, g.w), xy(g.s, g.e), xy(g.n, g.w), xy(g.n, g.e)];
+        const c = [xy(gs, gw), xy(gs, ge), xy(gn, gw), xy(gn, ge)];
         let left = 0, right = 0, tMin = Infinity, tMax = -Infinity;
         for (const [x, y] of c) { const side = x * uy - y * ux, t = x * ux + y * uy; if (side > 1e-6) left++; else if (side < -1e-6) right++; else { left++; right++; } if (t < tMin) tMin = t; if (t > tMax) tMax = t; }
-        if (!left || !right || tMax < -1e-6 || tMin > totalM + 1e-6) return;
-        const ring = g.ring;
+        if (!left || !right || tMax < -1e-6 || tMin > totalM + 1e-6) continue;
+        const ring = buildingRing(tile, i);
         const pts = ring.map(([la, lo]) => xy(la, lo));
         let entry = null, inside = false;
         for (let a = 0, b = pts.length - 1; a < pts.length; b = a++) {
@@ -1655,10 +1678,10 @@ function createExactTerrainBatch({inJapan,tileXf,tileYf,loadTile,pixelToElevatio
           if (u < 0 || u > 1 || t < 0 || t > totalM) continue;
           if (entry === null || t < entry) entry = t;
         }
-        if (inside || entry === null) return;
+        if (inside || entry === null) continue;
         out.push({ ring, code: tile.codes[i], minHeightM, entryM: entry,
           entry: destination(from.latitude, from.longitude, brg * 180 / Math.PI, entry / 1000) });
-      });
+      }
     }
     // 升目の境で1棟が2つに分かれていることがある。近い方の入口だけ使えば足りる（判定は最も高く見える1棟で決まる）
     return out.sort((a, b) => a.entryM - b.entryM);

@@ -530,4 +530,5 @@ function aimMapView() {
 // 道具の観測地点・目標を決めるときは、いまのその点のところで地図を開く
 $("mapButton").onclick = () => MapPick.open(placeSheetFor && PLACE_PICKERS[placeSheetFor]
   ? (PLACE_PICKERS[placeSheetFor].point() || place) : place);
-export {aimAirAngle,aimAirCompare,aimAirDescribe,aimAirEnsure,aimAirSettings,aimAirSync,aimLookFound,aimLookKey,aimMapView,aimReverseClear,aimReverseShow,aimShiftFromPlacement,aimShiftSync,aimTitleFor,clearAimAirCompare,openAim,renderAimAccess,resetAimAirLoad};
+export {aimAirAngle,aimAirCompare,aimAirDescribe,aimAirEnsure,aimAirSettings,aimAirSync,aimLookFound,aimLookKey,aimMapView,aimReverseClear,aimReverseShow,aimShiftFromPlacement,aimShiftSync,
+aimTitleFor,clearAimAirCompare,openAim,renderAimAccess,resetAimAirLoad};
